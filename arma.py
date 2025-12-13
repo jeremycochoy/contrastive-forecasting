@@ -17,9 +17,9 @@ def _sample_params(n: int, rng: Generator, method: Literal["uniform", "gaussian"
         p *= 0.95 / s
     return p
 
-def _sample_ar_ma(rng: Generator) -> tuple[np.ndarray, np.ndarray]:
+def _sample_ar_ma(rng: Generator, dimension: int = 8) -> tuple[np.ndarray, np.ndarray]:
     """Random (p,q) in {1..8}, random method, stable-ish AR/MA params."""
-    p = rng.integers(1, 9); q = rng.integers(1, 9)
+    p = rng.integers(1, dimension + 1); q = rng.integers(1, dimension + 1)
     method = "gaussian" if rng.random() < 0.5 else "uniform"
     arparams = _sample_params(p, rng, method)     # φ_1..φ_p
     maparams = _sample_params(q, rng, method)     # θ_1..θ_q
@@ -28,23 +28,28 @@ def _sample_ar_ma(rng: Generator) -> tuple[np.ndarray, np.ndarray]:
     ma_poly = np.r_[1.0,  maparams]
     return ar_poly, ma_poly
 
-def generate_arma_batch(batch_size: int = 16, T_raw: int = 4096, C: int = 4, mean: float = 0.0, std: float = 1.0, seed: int | None = None) -> tuple[torch.Tensor, list[tuple[np.ndarray, np.ndarray]]]:
+def generate_arma_batch(batch_size: int = 16, T_raw: int = 4096, C: int = 4, mean: float = 0.0, std: float = 1.0, seed: int | None = None, dimension: int = 8) -> tuple[torch.Tensor, list[tuple[np.ndarray, np.ndarray]]]:
     """
     Returns X with shape [batch_size, T_raw, C].
-    Each batch item uses independently sampled ARMA(p,q) with p,q∈{1..8}.
-    Returns X with shape [batch_size, T_raw, C] and parameters with shape [batch_size, 2].
+    Each batch-channel combination uses independently sampled ARMA(p,q) with p,q∈{1..8}.
+    Returns X with shape [batch_size, T_raw, C] and parameters with shape [batch_size * C].
     """
     rng = np.random.default_rng(seed)
-    X = np.empty((batch_size, T_raw, C), dtype=float)
-
+    
+    # Generate batch_size * C ARMA processes (one per batch-channel combination)
     parameters: list[tuple[np.ndarray, np.ndarray]] = []
-    for b in range(batch_size):
-        ar_poly, ma_poly = _sample_ar_ma(rng)
+    series_list = []
+    for _ in range(batch_size * C):
+        ar_poly, ma_poly = _sample_ar_ma(rng, dimension=dimension)
         arma = ArmaProcess(ar=ar_poly, ma=ma_poly)
-        # draw T_raw*C values (innovation std = `std`), reshape into channels, add mean
-        series = arma.generate_sample(nsample=T_raw * C, scale=std, distrvs=rng.standard_normal)
-        X[b] = series.reshape(T_raw, C) + mean
+        # Generate T_raw values for this ARMA process
+        series = arma.generate_sample(nsample=T_raw, scale=std, distrvs=rng.standard_normal)
+        series_list.append(series)
         parameters.append((ar_poly, ma_poly))
+    
+    # Reshape: [batch_size * C, T_raw] -> [batch_size, T_raw, C]
+    X = np.array(series_list).reshape(batch_size, C, T_raw).transpose(0, 2, 1)  # [batch_size, T_raw, C]
+    X = X + mean
 
     X = torch.from_numpy(X).to(dtype=torch.float32)
     return X, parameters
