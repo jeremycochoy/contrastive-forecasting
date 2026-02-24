@@ -242,6 +242,153 @@ class GRUPoolRecoveryHead(nn.Module):
         return ar.unsqueeze(1), ma.unsqueeze(1)
 
 
+class DeepGRURecoveryHead(nn.Module):
+    """GRU with deeper non-linear processing. Uses SiLU (Swish) activations
+    which have been shown to work better than GELU/ReLU for regression tasks.
+    Has separate per-coefficient output heads to allow specialization."""
+
+    def __init__(self, H=1024, hidden_dim=256, num_arma_params=4, num_gru_layers=3):
+        super().__init__()
+        # Two-stage projection to give the network more capacity to extract features
+        self.input_proj = nn.Sequential(
+            nn.Linear(H, hidden_dim * 2),
+            nn.SiLU(),
+            nn.LayerNorm(hidden_dim * 2),
+            nn.Linear(hidden_dim * 2, hidden_dim),
+            nn.SiLU(),
+            nn.LayerNorm(hidden_dim),
+        )
+
+        self.gru = nn.GRU(
+            input_size=hidden_dim,
+            hidden_size=hidden_dim,
+            num_layers=num_gru_layers,
+            batch_first=True,
+            dropout=0.1,
+            bidirectional=True,
+        )
+
+        gru_out = hidden_dim * 2  # bidirectional
+
+        # Deep non-linear output with residual
+        self.mid_proj = nn.Sequential(
+            nn.Linear(gru_out, hidden_dim),
+            nn.SiLU(),
+            nn.LayerNorm(hidden_dim),
+        )
+        self.res_block1 = nn.Sequential(
+            nn.Linear(hidden_dim, hidden_dim * 2),
+            nn.SiLU(),
+            nn.Dropout(0.1),
+            nn.Linear(hidden_dim * 2, hidden_dim),
+        )
+        self.norm1 = nn.LayerNorm(hidden_dim)
+
+        self.res_block2 = nn.Sequential(
+            nn.Linear(hidden_dim, hidden_dim * 2),
+            nn.SiLU(),
+            nn.Dropout(0.1),
+            nn.Linear(hidden_dim * 2, hidden_dim),
+        )
+        self.norm2 = nn.LayerNorm(hidden_dim)
+
+        # Per-coefficient heads for AR and MA
+        self.ar_heads = nn.ModuleList([
+            nn.Sequential(
+                nn.Linear(hidden_dim, hidden_dim // 2),
+                nn.SiLU(),
+                nn.Linear(hidden_dim // 2, 1),
+            )
+            for _ in range(num_arma_params)
+        ])
+        self.ma_heads = nn.ModuleList([
+            nn.Sequential(
+                nn.Linear(hidden_dim, hidden_dim // 2),
+                nn.SiLU(),
+                nn.Linear(hidden_dim // 2, 1),
+            )
+            for _ in range(num_arma_params)
+        ])
+        self.num_arma_params = num_arma_params
+
+    def forward(self, x):
+        """x: [B*C, T, H] -> ar_params, ma_params: [B*C, T, num_arma_params]"""
+        x = self.input_proj(x)
+        gru_out, _ = self.gru(x)
+        x = self.mid_proj(gru_out)
+        x = self.norm1(x + self.res_block1(x))
+        x = self.norm2(x + self.res_block2(x))
+
+        ar = torch.cat([head(x) for head in self.ar_heads], dim=-1)
+        ma = torch.cat([head(x) for head in self.ma_heads], dim=-1)
+        return torch.tanh(ar), torch.tanh(ma)
+
+
+class DeepGRUPoolRecoveryHead(nn.Module):
+    """Like DeepGRU but with global pooling - predicts one set of parameters per channel.
+    Uses attention-weighted pooling over time dimension."""
+
+    def __init__(self, H=1024, hidden_dim=256, num_arma_params=4, num_gru_layers=3):
+        super().__init__()
+        self.input_proj = nn.Sequential(
+            nn.Linear(H, hidden_dim * 2),
+            nn.SiLU(),
+            nn.LayerNorm(hidden_dim * 2),
+            nn.Linear(hidden_dim * 2, hidden_dim),
+            nn.SiLU(),
+            nn.LayerNorm(hidden_dim),
+        )
+
+        self.gru = nn.GRU(
+            input_size=hidden_dim,
+            hidden_size=hidden_dim,
+            num_layers=num_gru_layers,
+            batch_first=True,
+            dropout=0.1,
+            bidirectional=True,
+        )
+
+        gru_out = hidden_dim * 2
+
+        # Attention-weighted pooling
+        self.attn_score = nn.Sequential(
+            nn.Linear(gru_out, hidden_dim),
+            nn.Tanh(),
+            nn.Linear(hidden_dim, 1),
+        )
+
+        # Deep output
+        self.output = nn.Sequential(
+            nn.Linear(gru_out, hidden_dim),
+            nn.SiLU(),
+            nn.LayerNorm(hidden_dim),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.SiLU(),
+            nn.Dropout(0.1),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.SiLU(),
+            nn.Dropout(0.1),
+        )
+
+        self.ar_head = nn.Linear(hidden_dim, num_arma_params)
+        self.ma_head = nn.Linear(hidden_dim, num_arma_params)
+
+    def forward(self, x):
+        """x: [B*C, T, H] -> ar, ma: [B*C, 1, num_arma_params]"""
+        x = self.input_proj(x)
+        gru_out, _ = self.gru(x)  # [B*C, T, hidden*2]
+
+        # Attention-weighted pooling
+        scores = self.attn_score(gru_out)  # [B*C, T, 1]
+        weights = torch.softmax(scores, dim=1)
+        pooled = (gru_out * weights).sum(dim=1)  # [B*C, hidden*2]
+
+        features = self.output(pooled)
+        ar = torch.tanh(self.ar_head(features))
+        ma = torch.tanh(self.ma_head(features))
+        return ar.unsqueeze(1), ma.unsqueeze(1)
+
+
 # =============================================================================
 # Model factory
 # =============================================================================
@@ -258,8 +405,12 @@ def create_recovery_head(model_type, H=1024, hidden_dim=256, num_arma_params=4):
         return AttentionRecoveryHead(H=H, hidden_dim=hidden_dim, num_arma_params=num_arma_params)
     elif model_type == 'grupool':
         return GRUPoolRecoveryHead(H=H, hidden_dim=hidden_dim, num_arma_params=num_arma_params)
+    elif model_type == 'deepgru':
+        return DeepGRURecoveryHead(H=H, hidden_dim=hidden_dim, num_arma_params=num_arma_params)
+    elif model_type == 'deepgrupool':
+        return DeepGRUPoolRecoveryHead(H=H, hidden_dim=hidden_dim, num_arma_params=num_arma_params)
     else:
-        raise ValueError(f"Unknown model type: {model_type}. Choose from: mlp, gru, resmlp, attention, grupool")
+        raise ValueError(f"Unknown model type: {model_type}. Choose from: mlp, gru, resmlp, attention, grupool, deepgru, deepgrupool")
 
 
 # =============================================================================
@@ -371,7 +522,7 @@ def main():
     parser.add_argument("--model-path", type=str, default="trained_simple_model_H1024.pth",
                         help="Path to pre-trained contrastive model")
     parser.add_argument("--model-type", type=str, default="mlp",
-                        choices=["mlp", "gru", "resmlp", "attention", "grupool"],
+                        choices=["mlp", "gru", "resmlp", "attention", "grupool", "deepgru", "deepgrupool"],
                         help="Recovery head architecture")
     parser.add_argument("--hidden-dim", type=int, default=256, help="Hidden dimension for recovery head")
     parser.add_argument("--num-arma-params", type=int, default=4, help="Number of AR/MA params to recover")
