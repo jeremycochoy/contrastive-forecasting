@@ -27,6 +27,7 @@ from arma import generate_arma_batch
 from loss import contrastive_latent_loss
 from encoders import create_encoder
 from blocks import TransformerBlock, Simple_channel_mixing_module
+from checkpoint import save_training_state, load_training_state
 
 
 class ConfigurableModel(torch.nn.Module):
@@ -163,6 +164,16 @@ def main():
     n_params = count_parameters(model)
     optimizer = optim.AdamW(model.parameters(), lr=args.lr)
 
+    # Restore optimizer state, step counter, and best-tracking if resuming
+    start_step = 0
+    best_val_ff_restored = -float('inf')
+    best_step_restored = 0
+    if args.resume:
+        restored = load_training_state(optimizer, args.resume, device=device)
+        start_step = restored['step']
+        best_val_ff_restored = restored['best_val_ff']
+        best_step_restored = restored['best_step']
+
     # Fixed validation set
     x_val = generate_random_batch(args.batch_size, T_raw=args.T_raw, C=args.C, seed=0, dimension=args.dimension).to(device)
 
@@ -195,14 +206,14 @@ def main():
     print(f"Parameters: {n_params:,}")
     print(f"Training: {args.total_steps} steps, bs={args.batch_size}, lr={args.lr}")
 
-    # Metrics tracking
-    best_val_ff = -float('inf')
-    best_step = 0
+    # Metrics tracking (restored from checkpoint if resuming)
+    best_val_ff = best_val_ff_restored
+    best_step = best_step_restored
     metrics_log = []
     start_time = time.time()
 
     # Training loop
-    for step in range(1, args.total_steps + 1):
+    for step in range(start_step + 1, args.total_steps + 1):
         model.train()
         optimizer.zero_grad()
 
@@ -233,7 +244,8 @@ def main():
                 val_ff, val_fp, val_tp, val_cb = compute_metrics(fv, ov, cld)
 
             elapsed = time.time() - start_time
-            steps_per_sec = step / elapsed
+            steps_done = step - start_step
+            steps_per_sec = steps_done / elapsed if elapsed > 0 else 0
             eta_min = (args.total_steps - step) / steps_per_sec / 60
 
             entry = {
@@ -256,13 +268,22 @@ def main():
                 best_step = step
                 best_path = args.save_path.replace('.pth', '_best.pth')
                 torch.save(model.state_dict(), best_path)
+                save_training_state(optimizer, best_path,
+                                    step=step, best_val_ff=best_val_ff,
+                                    best_step=best_step)
 
         if step % args.save_every == 0:
             torch.save(model.state_dict(), args.save_path)
+            save_training_state(optimizer, args.save_path,
+                                step=step, best_val_ff=best_val_ff,
+                                best_step=best_step)
             print(f"  -> Checkpoint saved to {args.save_path}")
 
     # Final save
     torch.save(model.state_dict(), args.save_path)
+    save_training_state(optimizer, args.save_path,
+                        step=step, best_val_ff=best_val_ff,
+                        best_step=best_step)
     total_time = time.time() - start_time
 
     # Save results
