@@ -393,8 +393,11 @@ class DeepGRUPoolRecoveryHead(nn.Module):
 # Model factory
 # =============================================================================
 
-def create_recovery_head(model_type, H=1024, hidden_dim=256, num_arma_params=4):
+def create_recovery_head(model_type, H=1024, hidden_dim=256, num_arma_params=4, num_gru_layers=None):
     """Factory function to create recovery heads."""
+    gru_kwargs = {}
+    if num_gru_layers is not None:
+        gru_kwargs['num_gru_layers'] = num_gru_layers
     if model_type == 'mlp':
         return ParameterRecoveryHead(H=H, hidden_dim=hidden_dim, num_arma_params=num_arma_params)
     elif model_type == 'gru':
@@ -406,9 +409,9 @@ def create_recovery_head(model_type, H=1024, hidden_dim=256, num_arma_params=4):
     elif model_type == 'grupool':
         return GRUPoolRecoveryHead(H=H, hidden_dim=hidden_dim, num_arma_params=num_arma_params)
     elif model_type == 'deepgru':
-        return DeepGRURecoveryHead(H=H, hidden_dim=hidden_dim, num_arma_params=num_arma_params)
+        return DeepGRURecoveryHead(H=H, hidden_dim=hidden_dim, num_arma_params=num_arma_params, **gru_kwargs)
     elif model_type == 'deepgrupool':
-        return DeepGRUPoolRecoveryHead(H=H, hidden_dim=hidden_dim, num_arma_params=num_arma_params)
+        return DeepGRUPoolRecoveryHead(H=H, hidden_dim=hidden_dim, num_arma_params=num_arma_params, **gru_kwargs)
     else:
         raise ValueError(f"Unknown model type: {model_type}. Choose from: mlp, gru, resmlp, attention, grupool, deepgru, deepgrupool")
 
