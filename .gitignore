@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Testing
+.pytest_cache/
+
+# IDE / editor
+.vscode/
+
+# Claude Code
+.claude/
+
+# Virtual environment
+.venv/
+
+# Trained model weights
+*.pth
+
+# Generated figures (kept in report/images/ if needed)
+fig_*.png
+
+# Executed notebooks
+*_executed.ipynb
