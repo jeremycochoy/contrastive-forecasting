@@ -30,6 +30,40 @@ from train_parameter_recovery import (
 )
 
 
+def create_parameter_loss(loss_type):
+    """Create a configurable loss function for parameter recovery.
+
+    Returns a function with signature (pred_ar, pred_ma, true_ar, true_ma) -> (total_loss, ar_loss, ma_loss).
+    """
+    def _loss_fn(pred_ar, pred_ma, true_ar, true_ma):
+        pred_ar_avg = pred_ar.mean(dim=1)
+        pred_ma_avg = pred_ma.mean(dim=1)
+
+        if loss_type == "mse":
+            ar_loss = F.mse_loss(pred_ar_avg, true_ar)
+            ma_loss = F.mse_loss(pred_ma_avg, true_ma)
+        elif loss_type == "huber":
+            ar_loss = F.huber_loss(pred_ar_avg, true_ar, delta=0.1)
+            ma_loss = F.huber_loss(pred_ma_avg, true_ma, delta=0.1)
+        elif loss_type == "l1":
+            ar_loss = F.l1_loss(pred_ar_avg, true_ar)
+            ma_loss = F.l1_loss(pred_ma_avg, true_ma)
+        elif loss_type == "weighted_mse":
+            # 2x weight on first coefficient (index 0), 1x on the rest
+            weights = torch.ones(true_ar.shape[-1], device=true_ar.device)
+            weights[0] = 2.0
+            ar_diff = (pred_ar_avg - true_ar) ** 2
+            ma_diff = (pred_ma_avg - true_ma) ** 2
+            ar_loss = (ar_diff * weights).mean()
+            ma_loss = (ma_diff * weights).mean()
+        else:
+            raise ValueError(f"Unknown loss type: {loss_type}")
+
+        return ar_loss + ma_loss, ar_loss, ma_loss
+
+    return _loss_fn
+
+
 def extract_latent_features(model, x):
     """Extract latent features from the pre-trained ConfigurableModel, per-channel."""
     with torch.no_grad():
@@ -69,6 +103,11 @@ def evaluate(param_head, model, num_arma_params, device, num_samples=200, dimens
     all_ma_errors = []
     all_total_errors = []
     all_baseline_errors = []
+    # For sign agreement and correlation
+    all_pred_ar = []
+    all_pred_ma = []
+    all_true_ar = []
+    all_true_ma = []
 
     with torch.no_grad():
         for i in range(num_samples):
@@ -93,6 +132,43 @@ def evaluate(param_head, model, num_arma_params, device, num_samples=200, dimens
             all_total_errors.append(total_error)
             all_baseline_errors.append(baseline_total)
 
+            # Store predictions and targets for sign/correlation metrics
+            pred_ar_avg = pred_ar.mean(dim=1)  # [B*C, num_arma_params]
+            pred_ma_avg = pred_ma.mean(dim=1)
+            all_pred_ar.append(pred_ar_avg.cpu())
+            all_pred_ma.append(pred_ma_avg.cpu())
+            all_true_ar.append(ar_true.cpu())
+            all_true_ma.append(ma_true.cpu())
+
+    # Concatenate all predictions and targets
+    all_pred_ar_t = torch.cat(all_pred_ar, dim=0).numpy()  # [N, num_arma_params]
+    all_pred_ma_t = torch.cat(all_pred_ma, dim=0).numpy()
+    all_true_ar_t = torch.cat(all_true_ar, dim=0).numpy()
+    all_true_ma_t = torch.cat(all_true_ma, dim=0).numpy()
+
+    # Sign agreement: fraction where sign(pred) == sign(true), ignoring zero-padded entries
+    ar_nonzero = all_true_ar_t != 0
+    ma_nonzero = all_true_ma_t != 0
+    sign_agree_ar = float(np.mean(
+        np.sign(all_pred_ar_t[ar_nonzero]) == np.sign(all_true_ar_t[ar_nonzero])
+    )) if ar_nonzero.any() else 0.0
+    sign_agree_ma = float(np.mean(
+        np.sign(all_pred_ma_t[ma_nonzero]) == np.sign(all_true_ma_t[ma_nonzero])
+    )) if ma_nonzero.any() else 0.0
+
+    # Mean Pearson correlation across coefficient indices
+    num_params = all_true_ar_t.shape[1]
+    ar_corrs = []
+    ma_corrs = []
+    for j in range(num_params):
+        # Only compute correlation if there is variance in both pred and true
+        if np.std(all_true_ar_t[:, j]) > 1e-8 and np.std(all_pred_ar_t[:, j]) > 1e-8:
+            ar_corrs.append(float(np.corrcoef(all_pred_ar_t[:, j], all_true_ar_t[:, j])[0, 1]))
+        if np.std(all_true_ma_t[:, j]) > 1e-8 and np.std(all_pred_ma_t[:, j]) > 1e-8:
+            ma_corrs.append(float(np.corrcoef(all_pred_ma_t[:, j], all_true_ma_t[:, j])[0, 1]))
+    correlation_ar = float(np.mean(ar_corrs)) if ar_corrs else 0.0
+    correlation_ma = float(np.mean(ma_corrs)) if ma_corrs else 0.0
+
     results = {
         'mean_ar_error': float(np.mean(all_ar_errors)),
         'mean_ma_error': float(np.mean(all_ma_errors)),
@@ -102,6 +178,10 @@ def evaluate(param_head, model, num_arma_params, device, num_samples=200, dimens
         'std_ma_error': float(np.std(all_ma_errors)),
         'std_total_error': float(np.std(all_total_errors)),
         'improvement_ratio': float(np.mean(all_baseline_errors) / np.mean(all_total_errors)),
+        'sign_agreement_ar': sign_agree_ar,
+        'sign_agreement_ma': sign_agree_ma,
+        'correlation_ar': correlation_ar,
+        'correlation_ma': correlation_ma,
     }
 
     return results
@@ -131,8 +211,11 @@ def main():
     parser.add_argument("--model-type", type=str, default="deepgru",
                         choices=["mlp", "gru", "resmlp", "attention", "grupool", "deepgru", "deepgrupool"])
     parser.add_argument("--hidden-dim", type=int, default=256)
+    parser.add_argument("--num-gru-layers", type=int, default=2)
     parser.add_argument("--num-arma-params", type=int, default=4)
     parser.add_argument("--dimension", type=int, default=4)
+    parser.add_argument("--loss-type", type=str, default="mse",
+                        choices=["mse", "huber", "l1", "weighted_mse"])
 
     # Training
     parser.add_argument("--epochs", type=int, default=20000)
@@ -175,7 +258,7 @@ def main():
     # Create recovery head
     param_head = create_recovery_head(
         args.model_type, H=args.H, hidden_dim=args.hidden_dim,
-        num_arma_params=args.num_arma_params
+        num_arma_params=args.num_arma_params, num_gru_layers=args.num_gru_layers
     )
     num_params = sum(p.numel() for p in param_head.parameters() if p.requires_grad)
     print(f"Recovery head: {args.model_type}, params={num_params:,}")
@@ -199,7 +282,15 @@ def main():
         print(f"Mean Total Error: {results['mean_total_error']:.6f} +/- {results['std_total_error']:.6f}")
         print(f"Baseline Error:   {results['mean_baseline_error']:.6f}")
         print(f"Improvement:      {results['improvement_ratio']:.2f}x better than zero-baseline")
+        print(f"Sign Agreement AR: {results['sign_agreement_ar']:.4f}")
+        print(f"Sign Agreement MA: {results['sign_agreement_ma']:.4f}")
+        print(f"Correlation AR:    {results['correlation_ar']:.4f}")
+        print(f"Correlation MA:    {results['correlation_ma']:.4f}")
         return
+
+    # Create configurable loss function
+    loss_fn = create_parameter_loss(args.loss_type)
+    print(f"Loss function: {args.loss_type}")
 
     param_head = param_head.to(device)
     optimizer = optim.Adam(param_head.parameters(), lr=args.lr)
@@ -227,7 +318,7 @@ def main():
         h_train = extract_latent_features(model, x_train)
 
         pred_ar, pred_ma = param_head(h_train)
-        loss, ar_loss, ma_loss = parameter_loss(pred_ar, pred_ma, ar_train, ma_train)
+        loss, ar_loss, ma_loss = loss_fn(pred_ar, pred_ma, ar_train, ma_train)
 
         loss.backward()
         optimizer.step()
@@ -236,7 +327,7 @@ def main():
         param_head.eval()
         with torch.no_grad():
             pred_ar_val, pred_ma_val = param_head(h_val)
-            val_loss, val_ar_loss, val_ma_loss = parameter_loss(pred_ar_val, pred_ma_val, ar_val, ma_val)
+            val_loss, val_ar_loss, val_ma_loss = loss_fn(pred_ar_val, pred_ma_val, ar_val, ma_val)
 
         val_loss_item = val_loss.item()
 
@@ -268,6 +359,10 @@ def main():
     print(f"Mean Total Error: {results['mean_total_error']:.6f} +/- {results['std_total_error']:.6f}")
     print(f"Baseline Error:   {results['mean_baseline_error']:.6f}")
     print(f"Improvement:      {results['improvement_ratio']:.2f}x better than zero-baseline")
+    print(f"Sign Agreement AR: {results['sign_agreement_ar']:.4f}")
+    print(f"Sign Agreement MA: {results['sign_agreement_ma']:.4f}")
+    print(f"Correlation AR:    {results['correlation_ar']:.4f}")
+    print(f"Correlation MA:    {results['correlation_ma']:.4f}")
 
     # Save results
     results_path = args.head_path.replace('.pth', '_results.json')
