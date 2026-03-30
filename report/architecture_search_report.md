@@ -17,9 +17,14 @@ This project trains a model via contrastive learning on synthetic ARMA(p,q) time
 | Time steps (T) | 4096 |
 | Patch width (W) | 32 |
 | Patches per sample (T/W) | 128 |
-| ARMA order | Up to (4, 4) |
+| ARMA order | Random p,q in {1..4} per channel |
+| Coefficients recovered | 4 AR + 4 MA = 8 per channel |
+
+Each of the C=4 channels independently draws a random ARMA(p,q) process with p,q sampled uniformly from {1..dimension}. When p < 4 or q < 4, the excess coefficient slots are zero-padded. This means many samples have fewer than 8 nonzero coefficients.
 
 **Key metric -- FF-FP Gap:** The difference between forecast-future cosine similarity and forecast-past cosine similarity. A higher gap means the model's embeddings genuinely distinguish future from past rather than learning trivial features.
+
+**Recovery metric -- Improvement ratio:** The ratio of zero-baseline MSE to actual MSE. The zero-baseline predicts all coefficients as zero — this is non-trivial because many coefficients ARE zero (from padding), so the baseline already captures the sparsity pattern. Higher improvement means the model recovers more of the nonzero structure.
 
 ---
 
@@ -62,9 +67,11 @@ Contrastive loss with cosine similarity (temperature tau=0.07):
 - h_hat[t] should be dissimilar to h[t-1] (forecast differs from past)
 - Cross-batch negatives: embeddings from different ARMA processes in the same batch serve as hard negatives
 
-### 2.5 Parameter Recovery Head (DeepGRU)
+### 2.5 Parameter Recovery Heads
 
-A separate head (4.7M parameters) trained on frozen backbone embeddings to predict the 4 AR and 4 MA coefficients.
+A separate head is trained on **frozen backbone embeddings** to predict the 4 AR and 4 MA coefficients. The head receives input of shape [B*C, T, H] — each of the C=4 channels is treated independently. Predictions are made at each time step and averaged over the T=128 dimension to produce a single set of coefficients per channel.
+
+**DeepGRU head** (used in initial experiments, Sections 3--5):
 
 | Component | Details |
 |-----------|---------|
@@ -72,14 +79,26 @@ A separate head (4.7M parameters) trained on frozen backbone embeddings to predi
 | Sequence model | 3-layer bidirectional GRU (hidden=256) |
 | MLP blocks | Two residual blocks |
 | Output | Per-coefficient heads with tanh activation |
-| Training | 20,000 epochs, Adam (lr=1e-3), fresh ARMA batches each epoch |
+| Parameters | 4.7M |
+
+**GRU head** (best head from recovery search, Section 6b):
+
+| Component | Details |
+|-----------|---------|
+| Input projection | Linear 1024 -> 128, GELU + LayerNorm |
+| Sequence model | 2-layer bidirectional GRU (hidden=128) |
+| Output | Linear layers for AR and MA with tanh activation |
+| Parameters | ~676K |
+
+Both trained for 20,000 epochs with Adam (lr=1e-3), fresh ARMA batches each epoch.
 
 ### 2.6 Parameter Count
 
 | Component | Parameters |
 |-----------|-----------|
-| Full model (V2) | 153.8M |
-| Recovery head | 4.7M |
+| Backbone (V2) | 153.8M |
+| DeepGRU recovery head | 4.7M |
+| GRU recovery head (best) | ~676K |
 
 ---
 
@@ -139,7 +158,7 @@ Peak gap: **0.186** at step 494k. The model was still improving at 500k, motivat
 
 ### Phase 5: Parameter Recovery (500k checkpoint)
 
-Recovery head trained on the Phase 4 best checkpoint.
+DeepGRU recovery head (4.7M params) trained on the Phase 4 best checkpoint with 4 AR + 4 MA coefficients.
 
 | Metric | Value |
 |--------|-------|
@@ -155,9 +174,11 @@ After Phase 4, the model was trained for approximately 2M total steps to match t
 
 ### 4.1 Gap Trajectory
 
+The model was resumed from the 500k Phase 4 checkpoint, but the optimizer state was lost (pre-checkpoint.py). The step counter also reset to 1. The steps below are from the resumed run's counter (effective total = 500k + step).
+
 | Steps | FF-FP Gap | Notes |
 |-------|-----------|-------|
-| 1k | 0.058 | Optimizer state lost on resume |
+| 1k | 0.058 | Fresh optimizer, gap regressed |
 | 50k | 0.121 | Recovering |
 | 100k | 0.134 | |
 | 200k | 0.159 | |
@@ -175,9 +196,9 @@ A crash occurred at step 1967k. After a 50k-step continuation from checkpoint, t
 
 The gap shows logarithmic growth throughout training, with diminishing but nonzero returns even at 2M steps. The model was still improving at termination.
 
-### 4.2 Parameter Recovery (2M checkpoint)
+### 4.2 Parameter Recovery (2M checkpoint, DeepGRU head)
 
-Recovery head trained on the peak-gap 2M checkpoint.
+DeepGRU recovery head (4.7M params) trained on the peak-gap 2M checkpoint. This was the initial recovery result before the head architecture search in Section 6b.
 
 | Metric | Value |
 |--------|-------|
@@ -231,24 +252,32 @@ Distribution of per-sample MSE errors across 200 test ARMA processes. Most sampl
 
 ---
 
-## 6. V1 vs V2 Comparison
+## 6. V1 vs V2 Backbone Comparison
 
-| Metric | V1 (SimpleModel) | V2 (ConfigurableModel) | Change |
-|--------|-------------------|------------------------|--------|
-| Encoder | MLP | GRU (bidirectional) | -- |
-| FFN multiplier | 2x | 4x | -- |
-| Layers | 12 | 12 | Same |
-| Parameters | ~50M | 153.8M | +3x |
-| Training steps | 2M | ~2M | Same |
-| FF-FP Gap | 0.105 | **0.203** | **+93%** |
-| Recovery val loss | **0.019** | 0.0216 | +14% (worse) |
-| Recovery improvement | **7.3x** | 6.64x | -9% (worse) |
+### Architecture Comparison
+
+| Metric | V1 (SimpleModel, H=1024) | V2 (ConfigurableModel, H=1024) |
+|--------|--------------------------|--------------------------------|
+| Encoder | MLP | GRU (bidirectional) |
+| FFN multiplier | 2x | 4x |
+| Layers | 12 | 12 |
+| Parameters | ~50M | 153.8M |
+| Training steps | 2M | ~2M |
+| **FF-FP Gap** | 0.105 | **0.203 (+93%)** |
+
+### Recovery Comparison (4 AR + 4 MA)
+
+| Config | Backbone | Head | Improvement |
+|--------|----------|------|-------------|
+| **Best overall** | **V2 H=1024** | **GRU h128 l2** | **6.96x** |
+| Initial V2 result | V2 H=1024 | DeepGRU | 6.64x |
+| Best on V1 H=1024 | V1 H=1024 | GRU h128 l2 | 6.59x |
+
+**Note on the old 7.3x record:** The previously reported 7.3x improvement was achieved on a *different* model: the V1 H=512 backbone (`trained_simple_model_H512.pth`, since deleted) recovering only 2 AR + 2 MA coefficients — a substantially easier task. It is not directly comparable to the H=1024 results above. On the same 2x2 task, V2 achieves 8.34x (see Section 6b).
 
 ### Interpretation
 
-V2 achieves a dramatically higher contrastive gap (nearly 2x V1), meaning its embeddings separate future from past far more effectively. However, with the original DeepGRU recovery head, parameter recovery is slightly worse (6.64x vs 7.3x improvement over baseline).
-
-This initially suggested the GRU+FFN4x architecture organizes latent information differently and that the gap and recovery metrics are not perfectly correlated. However, the recovery architecture search in Section 6b resolved this question: after optimizing the recovery head, V2 achieves **6.96x** on the 4x4 task and **8.34x** on the 2x2 task, surpassing V1 on both metrics. The original deficit was due to the DeepGRU head being suboptimal for V2 embeddings, not a fundamental limitation of the backbone.
+V2 achieves a dramatically higher contrastive gap (nearly 2x V1), meaning its embeddings separate future from past far more effectively. With the original DeepGRU recovery head, parameter recovery appeared slightly worse (6.64x vs 6.59x on V1 H=1024 with the same head). However, the recovery architecture search in Section 6b showed this was entirely due to the choice of recovery head: with the optimized GRU head (h=128, 2 layers), V2 achieves **6.96x** on 4x4 and **8.34x** on 2x2, beating V1 on both metrics.
 
 ---
 
@@ -290,17 +319,17 @@ V2 backbone outperforms V1 across all head architectures at matched training epo
 
 ### Phase 3: Hyperparameter Sweep
 
-24 configurations tested on V2 (gru and deepgru x hidden_dim {128, 256, 512} x layers {1, 2, 3, 4}), 5k epochs each. Top 5 results:
+24 configurations tested on V2 (gru and deepgru x hidden_dim {128, 256, 512} x layers {1, 2, 3, 4}), 5k epochs each. Top 5 by val loss (all GRU variants used default 2 layers due to the bug below):
 
-| Config | Val Loss | Improvement |
-|--------|----------|-------------|
-| gru_h128_l3 | 0.0233 | 5.65x |
-| gru_h256_l1 | 0.0238 | 5.93x |
-| gru_h256_l3 | 0.0239 | 6.00x |
-| gru_h128_l4 | 0.0239 | 5.91x |
-| gru_h128_l1 | 0.0241 | 6.09x |
+| Config (actual) | Val Loss | Improvement |
+|-----------------|----------|-------------|
+| gru_h128_l2 | 0.0233 | 5.65x |
+| gru_h256_l2 | 0.0238 | 5.93x |
+| gru_h256_l2 | 0.0239 | 6.00x |
+| gru_h128_l2 | 0.0239 | 5.91x |
+| gru_h128_l2 | 0.0241 | 6.09x |
 
-Smaller hidden dim (128) with 3 layers was optimal. All simple GRU variants outperformed DeepGRU at matched capacity.
+Smaller hidden dim (128) was optimal. All simple GRU variants outperformed DeepGRU at matched capacity. The apparent "layer" variation in the original results was actually just run-to-run variance with the same 2-layer architecture.
 
 **Correction (num_gru_layers bug):** A bug was found in `create_recovery_head()` where the `gru` and `grupool` model types did not forward the `num_gru_layers` parameter to the underlying GRU classes, so all "l1"/"l2"/"l3"/"l4" variants actually used the default 2 GRU layers. The `deepgru` and `deepgrupool` types were not affected. The bug has been fixed and the GRU layer experiments were rerun.
 
@@ -372,26 +401,31 @@ The V2 backbone surpasses the old record by 14% on the comparable 2x2 task.
 | Resource | Details |
 |----------|---------|
 | GPU | NVIDIA RTX 4090 (24GB VRAM) |
-| Training speed (V2) | ~6.9 steps/sec |
+| Contrastive training speed (V2) | ~6.9 steps/sec (batch_size=8) |
+| Recovery head training speed | ~10 epochs/sec (batch_size=32, frozen backbone) |
 | Total compute | ~500 GPU-hours across all experiments |
 | Architecture search | Fully autonomous via Claude Code |
 
 ### Notable Events
 
-- **Optimizer state loss:** A crash at step ~900k caused the optimizer state to be lost on resume, leading to a temporary gap regression (from 0.179 to 0.058). This motivated the addition of optimizer state checkpointing (PR #2).
-- **Late crash:** Another crash at step 1967k required a 50k-step continuation. The final best gap of 0.203 was achieved during this continuation.
+- **Optimizer state loss (step ~900k):** A disk-full crash caused the optimizer state to be lost on resume, leading to a gap regression (from 0.190 to 0.058). The model recovered its gap after ~500k more steps. This motivated `checkpoint.py` (PR #2), which saves optimizer state, step counter, and best-tracking metadata in a companion `_optimizer.pth` file alongside model checkpoints. Old checkpoints without a companion file still load correctly (fresh optimizer).
+- **Late crash (step 1967k):** Another crash required a 50k-step continuation. The final best gap of 0.203 was achieved during this continuation.
+- **num_gru_layers bug:** `create_recovery_head()` did not forward `num_gru_layers` to GRU/GRUPool head types, so all experiments labeled "l1"/"l3"/"l4" actually used the default 2 layers. Fixed in commit `ca6663f`. DeepGRU/DeepGRUPool types were not affected.
 
 ### Key Files
 
 | File | Purpose |
 |------|---------|
-| `train_contrastive_v2.py` | Main training script (ConfigurableModel + checkpoint integration) |
+| `train_contrastive_v2.py` | Main contrastive training script (ConfigurableModel + checkpoint integration) |
+| `train_parameter_recovery_v2.py` | Recovery head training pipeline (configurable head, loss, metrics) |
 | `encoders.py` | 5 encoder variants (MLP, MLP Wide, Residual SiLU, GRU, Conv) |
-| `train_parameter_recovery_v2.py` | Recovery head training pipeline |
 | `checkpoint.py` | Optimizer state save/load utilities |
 | `tests/test_checkpoint.py` | 15 unit tests for checkpoint utilities |
 | `blocks.py` | Transformer blocks with causal attention + depthwise conv |
-| `run_phase1.sh` -- `run_phase5_recovery.sh` | Reproducible run scripts for each search phase |
+| `run_phase1.sh` -- `run_phase5_recovery.sh` | Reproducible run scripts for backbone architecture search |
+| `run_recovery_search.sh` | Recovery head architecture search (Phases 1--4) |
+| `run_recovery_phase5.sh` | Full training of best recovery head configurations |
+| `visualize_recovery_gru_h128_l3.ipynb` | Visualization notebook for 4x4 recovery results |
 
 ### Trained Checkpoints (on server `elisa`)
 
@@ -400,8 +434,9 @@ The V2 backbone surpasses the old record by 14% on the comparable 2x2 task.
 | `v2_2M_model_best.pth` | 587M | V2 model at peak gap (~2M steps) |
 | `v2_2M_model.pth` | 587M | V2 model final checkpoint |
 | `v2_2M_model_best_optimizer.pth` | 1.2G | Optimizer state for best checkpoint |
-| `v2_2M_recovery_deepgru_best.pth` | 19M | Best recovery head for V2 2M model |
-| `trained_simple_model_H1024.pth` | 393M | V1 reference model (2M steps) |
+| `v2_2M_recovery_deepgru_best.pth` | 19M | DeepGRU recovery head (initial, 6.64x) |
+| `recovery_p5_v2_gru_h128_l3_best.pth` | ~3M | Best GRU recovery head (6.96x on 4x4, mislabeled l3 = actual l2) |
+| `trained_simple_model_H1024.pth` | 393M | V1 reference model (H=1024, 12 layers, 2M steps) |
 
 ---
 
@@ -411,7 +446,7 @@ The V2 backbone surpasses the old record by 14% on the comparable 2x2 task.
 
 2. **Extended training to 2M steps** pushed the FF-FP gap from 0.186 (500k) to 0.203 (2M), a further 9% improvement. The gap shows logarithmic growth and had not saturated at termination.
 
-3. **Recovery architecture search resolved the V2 recovery deficit.** A systematic 47-experiment search found that a simple GRU head (h=128, 3 layers) with MSE loss outperforms the original DeepGRU across both backbones. With the optimized head, V2 achieves **6.96x improvement** on the 4x4 task (up from 6.64x with DeepGRU) and **8.34x on the 2x2 task** (surpassing V1's 7.3x record by 14%).
+3. **Recovery architecture search resolved the V2 recovery deficit.** A systematic 47-experiment search found that a simple 2-layer GRU head (h=128, ~676K params) with MSE loss outperforms the original DeepGRU (4.7M params) across both backbones. With the optimized head, V2 achieves **6.96x improvement** on the 4x4 task (up from 6.64x with DeepGRU) and **8.34x on the 2x2 task** (surpassing V1 H=512's 7.3x record by 14%).
 
 4. **V2 now dominates V1 on both metrics:** nearly double the contrastive gap (+93%) and superior parameter recovery with the right head architecture. The initial recovery deficit was caused by the DeepGRU head being suboptimal for V2 embeddings.
 
