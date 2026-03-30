@@ -420,12 +420,14 @@ The V2 backbone surpasses the old record by 14% on the comparable 2x2 task.
 | `train_parameter_recovery_v2.py` | Recovery head training pipeline (configurable head, loss, metrics) |
 | `encoders.py` | 5 encoder variants (MLP, MLP Wide, Residual SiLU, GRU, Conv) |
 | `checkpoint.py` | Optimizer state save/load utilities |
-| `tests/test_checkpoint.py` | 15 unit tests for checkpoint utilities |
 | `blocks.py` | Transformer blocks with causal attention + depthwise conv |
-| `run_phase1.sh` -- `run_phase5_recovery.sh` | Reproducible run scripts for backbone architecture search |
-| `run_recovery_search.sh` | Recovery head architecture search (Phases 1--4) |
-| `run_recovery_phase5.sh` | Full training of best recovery head configurations |
-| `visualize_recovery_gru_h128_l3.ipynb` | Visualization notebook for 4x4 recovery results |
+| `tests/test_checkpoint.py` | 15 unit tests for checkpoint utilities |
+| `scripts/run_phase1.sh` -- `run_phase5_recovery.sh` | Reproducible run scripts for backbone architecture search |
+| `scripts/run_recovery_search.sh` | Recovery head architecture search (Phases 1--4) |
+| `scripts/run_recovery_phase5.sh` | Full training of best recovery head configurations |
+| `notebooks/visualize_recovery_gru_h128_l3.ipynb` | Visualization notebook for 4x4 recovery results |
+| `report/architecture_search_report.md` | This report |
+| `report/architecture_search_plan.md` | Original 48-hour search plan |
 
 ### Trained Checkpoints (on server `elisa`)
 
