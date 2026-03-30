@@ -302,11 +302,22 @@ V2 backbone outperforms V1 across all head architectures at matched training epo
 
 Smaller hidden dim (128) with 3 layers was optimal. All simple GRU variants outperformed DeepGRU at matched capacity.
 
-**Correction:** A bug was found in `create_recovery_head()` where the `gru` and `grupool` model types did not forward the `num_gru_layers` parameter to the underlying GRU classes, so all "l1"/"l2"/"l3"/"l4" variants actually used the default 2 GRU layers. The `deepgru` and `deepgrupool` types were not affected. This means the Phase 3 GRU results reflect variation from `hidden_dim` only, not layer count. The bug has been fixed and the experiments will be rerun with the correct layer counts.
+**Correction (num_gru_layers bug):** A bug was found in `create_recovery_head()` where the `gru` and `grupool` model types did not forward the `num_gru_layers` parameter to the underlying GRU classes, so all "l1"/"l2"/"l3"/"l4" variants actually used the default 2 GRU layers. The `deepgru` and `deepgrupool` types were not affected. The bug has been fixed and the GRU layer experiments were rerun.
+
+**Corrected GRU layer results (gru_h128, V2, 5k epochs):**
+
+| Layers | Val Loss | Improvement |
+|--------|----------|-------------|
+| 1 | 0.0250 | 6.00x |
+| 2 | 0.0241 | 5.90x |
+| 3 | 0.0239 | 5.76x |
+| 4 | 0.0242 | 5.88x |
+
+1-layer GRU is best at 5k epochs. However, at 20k epochs 2 layers scales better (see Phase 5). More layers do not help recovery — the temporal aggregation task is simple enough that 1-2 GRU layers suffice.
 
 ### Phase 4: Loss Function Sweep
 
-Training loss comparison using the best head (gru_h128_l3) on V2, 5k epochs. Evaluation metric is always MSE-based improvement ratio regardless of training loss; val loss values across different loss functions are not directly comparable.
+Training loss comparison using gru_h128 on V2, 5k epochs. Evaluation metric is always MSE-based improvement ratio regardless of training loss; val loss values across different loss functions are not directly comparable.
 
 | Loss | Improvement | Notes |
 |------|-------------|-------|
@@ -319,17 +330,18 @@ MSE training produces the best MSE-evaluated recovery.
 
 ### Phase 5: Full Training (20k epochs)
 
-The top configurations from Phases 1--4 were trained for the full 20k epochs to determine final performance.
+The top configurations from Phases 1--4 were trained for the full 20k epochs. Note: due to the num_gru_layers bug, the "gru_h128_l3" entries below actually used 2 GRU layers. A corrected 1-layer run was added for comparison.
 
 | Config | Backbone | Improvement | Sign AR | Sign MA | Corr AR | Corr MA |
 |--------|----------|-------------|---------|---------|---------|---------|
-| **gru_h128_l3 + MSE** | **V2** | **6.96x** | **92.4%** | **90.9%** | **0.934** | **0.931** |
-| gru_h128_l3 + Huber | V2 | 6.87x | 92.2% | 90.6% | 0.936 | 0.933 |
-| grupool + MSE | V2 | 6.43x | 91.6% | 89.8% | 0.924 | 0.925 |
-| gru_h128_l3 + MSE | V1 | 6.59x | -- | -- | -- | -- |
-| grupool + MSE | V1 | 6.38x | -- | -- | -- | -- |
+| **gru_h128_l2 + MSE** | **V2** | **6.96x** | **92.4%** | **90.9%** | **0.934** | **0.931** |
+| gru_h128_l2 + Huber | V2 | 6.87x | 92.2% | 90.6% | 0.936 | 0.933 |
+| gru_h128_l1 + MSE | V2 | 6.64x | 91.5% | 90.2% | 0.927 | 0.929 |
+| grupool_l2 + MSE | V2 | 6.43x | 91.6% | 89.8% | 0.924 | 0.925 |
+| gru_h128_l2 + MSE | V1 | 6.59x | -- | -- | -- | -- |
+| grupool_l2 + MSE | V1 | 6.38x | -- | -- | -- | -- |
 
-**V2 + gru_h128_l3 + MSE at 6.96x is the best 4x4 recovery result on any H=1024 backbone**, surpassing the 6.64x from Section 4.2 by 5%.
+**V2 + gru_h128_l2 + MSE at 6.96x is the best 4x4 recovery result on any H=1024 backbone**, surpassing the 6.64x from Section 4.2 by 5%. The 1-layer GRU, despite being best at 5k epochs, converges to a lower ceiling at 20k — 2 layers is the sweet spot for full training.
 
 ### Dim 2x2 Comparison
 
@@ -337,18 +349,19 @@ To validate against the old 7.3x record (which used the V1 H=512 backbone with 2
 
 | Config | Epochs | Improvement | Sign AR | Sign MA |
 |--------|--------|-------------|---------|---------|
-| V2 + gru_h128_l3 | 20k | **8.34x** | 94.5% | 93.9% |
-| V2 + gru_h128_l3 | 5k | 7.65x | 93.4% | 93.4% |
+| V2 + gru_h128_l2 | 20k | **8.34x** | 94.5% | 93.9% |
+| V2 + gru_h128_l2 | 5k | 7.65x | 93.4% | 93.4% |
 | V1 H=512 + deepgru (old) | 20k | 7.3x | -- | -- |
 
 The V2 backbone surpasses the old record by 14% on the comparable 2x2 task.
 
 ### Conclusions
 
-1. **Simple GRU heads outperform DeepGRU.** A plain GRU with h=128 and 3 layers beats the more complex DeepGRU architecture used in all prior experiments. This resolves the apparent V2 recovery deficit from Section 6 -- the issue was the recovery head, not the backbone.
+1. **Simple GRU heads outperform DeepGRU.** A plain 2-layer GRU (h=128) beats the more complex DeepGRU architecture used in all prior experiments. This resolves the apparent V2 recovery deficit from Section 6 — the issue was the recovery head, not the backbone.
 2. **MSE is the optimal training loss** for recovery, outperforming Huber, weighted MSE, and L1.
-3. **V2 backbone consistently outperforms V1** for recovery across all head architectures when compared at matched epochs.
-4. **The old 7.3x record was on a different task** (2x2 on H=512 backbone). On the same 2x2 task, V2 achieves 8.34x -- a 14% improvement.
+3. **2 GRU layers is the sweet spot.** 1 layer converges faster but plateaus earlier; 3-4 layers add no benefit.
+4. **V2 backbone consistently outperforms V1** for recovery across all head architectures when compared at matched epochs.
+5. **The old 7.3x record was on a different task** (2x2 on H=512 backbone). On the same 2x2 task, V2 achieves 8.34x — a 14% improvement.
 
 ---
 
