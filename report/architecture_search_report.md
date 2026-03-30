@@ -302,6 +302,8 @@ V2 backbone outperforms V1 across all head architectures at matched training epo
 
 Smaller hidden dim (128) with 3 layers was optimal. All simple GRU variants outperformed DeepGRU at matched capacity.
 
+**Correction:** A bug was found in `create_recovery_head()` where the `gru` and `grupool` model types did not forward the `num_gru_layers` parameter to the underlying GRU classes, so all "l1"/"l2"/"l3"/"l4" variants actually used the default 2 GRU layers. The `deepgru` and `deepgrupool` types were not affected. This means the Phase 3 GRU results reflect variation from `hidden_dim` only, not layer count. The bug has been fixed and the experiments will be rerun with the correct layer counts.
+
 ### Phase 4: Loss Function Sweep
 
 Training loss comparison using the best head (gru_h128_l3) on V2, 5k epochs. Evaluation metric is always MSE-based improvement ratio regardless of training loss; val loss values across different loss functions are not directly comparable.
