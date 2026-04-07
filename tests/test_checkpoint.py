@@ -13,6 +13,7 @@ from checkpoint import (
     get_optimizer_state_path,
     save_training_state,
     load_training_state,
+    safe_save_path,
 )
 
 
@@ -264,3 +265,50 @@ class TestFullCycle:
         fresh_opt = optim.AdamW(simple_model.parameters(), lr=1e-3)
         state = load_training_state(fresh_opt, model_path)
         assert state["step"] + 1 == 5001
+
+
+# ── Tests: safe_save_path ──
+
+class TestSafeSavePath:
+    def test_no_conflict_different_dir(self, tmp_dir):
+        resume = os.path.join(tmp_dir, "checkpoints", "model.pth")
+        save = os.path.join(tmp_dir, "output", "model.pth")
+        assert safe_save_path(save, resume) == save
+
+    def test_no_conflict_different_name(self, tmp_dir):
+        resume = os.path.join(tmp_dir, "model_a.pth")
+        save = os.path.join(tmp_dir, "model_b.pth")
+        assert safe_save_path(save, resume) == save
+
+    def test_no_resume(self, tmp_dir):
+        save = os.path.join(tmp_dir, "model.pth")
+        assert safe_save_path(save, None) == save
+
+    def test_conflict_same_path(self, tmp_dir):
+        path = os.path.join(tmp_dir, "model.pth")
+        result = safe_save_path(path, path)
+        assert result != path
+        assert "_run1" in result
+
+    def test_conflict_save_overwrites_resume_best(self, tmp_dir):
+        """save_path 'model.pth' would create 'model_best.pth' which
+        conflicts with resume from 'model_best.pth'."""
+        resume = os.path.join(tmp_dir, "model_best.pth")
+        save = os.path.join(tmp_dir, "model.pth")
+        result = safe_save_path(save, resume)
+        assert result != save
+        assert "_run1" in result
+
+    def test_increments_run_number(self, tmp_dir):
+        path = os.path.join(tmp_dir, "model.pth")
+        # Create _run1 so it must go to _run2
+        open(os.path.join(tmp_dir, "model_run1.pth"), "w").close()
+        result = safe_save_path(path, path)
+        assert "_run2" in result
+
+    def test_conflict_with_optimizer_companion(self, tmp_dir):
+        """Resuming from model_optimizer.pth base should detect conflict."""
+        resume = os.path.join(tmp_dir, "model.pth")
+        save = os.path.join(tmp_dir, "model.pth")
+        result = safe_save_path(save, resume)
+        assert "_run" in result

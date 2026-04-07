@@ -27,7 +27,7 @@ from arma import generate_arma_batch
 from loss import contrastive_latent_loss
 from encoders import create_encoder
 from blocks import TransformerBlock, Simple_channel_mixing_module
-from checkpoint import save_training_state, load_training_state
+from checkpoint import save_training_state, load_training_state, safe_save_path
 
 
 class ConfigurableModel(torch.nn.Module):
@@ -155,6 +155,10 @@ def main():
         activation=args.activation,
         depthwise_conv=args.depthwise_conv,
     )
+
+    # Ensure save path doesn't overwrite the resume checkpoint
+    if args.resume:
+        args.save_path = safe_save_path(args.save_path, args.resume)
 
     if args.resume:
         print(f"Resuming from {args.resume}")
