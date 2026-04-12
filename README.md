@@ -1,26 +1,64 @@
 # Contrastive Forecasting
 
-Research code for **Contrastive Forecasting**, a contrastive learning approach to time series forecasting. Trains two networks jointly: an encoder that determines feature representations for time series patches and a decoder-only transformer forecaster to predict next patch embeddings.
+A contrastive learning approach to time series representation learning. Trains a transformer-based model to produce latent embeddings that distinguish future from past, then validates these representations by recovering the generative parameters (ARMA coefficients) from frozen embeddings.
 
-## Overview
+## Quick Start
 
-This implementation explores contrastive learning techniques for multivariate time series forecasting using objectives that maximize cosine similarity between forecasted embeddings and ground truth future embeddings while minimizing similarity with past embeddings.
+Two example notebooks in [`examples/`](examples/):
 
-## Code Structure
+| Notebook | Description |
+|----------|-------------|
+| [`train_contrastive.ipynb`](examples/train_contrastive.ipynb) | Train the contrastive backbone from scratch (~10 min demo) |
+| [`parameter_recovery.ipynb`](examples/parameter_recovery.ipynb) | Load a trained backbone and recover ARMA coefficients |
 
-- `arma.py`: ARMA process generation for synthetic time series data
-- `blocks.py`: Transformer blocks with causal attention and depthwise convolutions
-- `network.py`: Neural network architectures (SimpleModel, Simple_encoder)
-- `loss.py`: Contrastive learning loss functions
-- `forecast_arma.ipynb`: Complete training pipeline and experiments
+## Repository Structure
 
-## Usage
+```
+src/                     Core library
+  arma.py                  ARMA process generation
+  blocks.py                Transformer blocks (causal attention + depthwise conv)
+  encoders.py              Patch encoders (MLP, GRU, Conv, etc.)
+  models.py                ConfigurableModel (best architecture)
+  recovery.py              Recovery head definitions and factory
+  network.py               SimpleModel (original architecture)
+  loss.py                  Contrastive loss functions
+  checkpoint.py            Checkpoint save/load with optimizer state
 
-The main training pipeline is in `forecast_arma.ipynb`, including:
-- Data generation and visualization
-- Model initialization and training
-- Metrics computation and visualization
-- Training state management for resumable training
+scripts/                 Training scripts (best architecture, ready to use)
+  train.py                 Contrastive backbone training
+  recover.py               Parameter recovery head training
+
+examples/                Getting-started notebooks
+tests/                   Unit tests
+experiments/             Experiment logs and reports
+  contrastive-arma/        Full architecture search (Mar--Apr 2026)
+    report/                  Technical report, tables, figures
+    scripts/                 Experiment run scripts (all phases)
+    notebooks/               Experiment-specific notebooks
+    train_*.py               Original training scripts (frozen)
+```
+
+## Model Architecture
+
+The best configuration found through architecture search:
+
+- **Encoder**: Bidirectional GRU (reads each 32-step patch as a sequence)
+- **Backbone**: 12-layer causal transformer, H=1024, 8 heads, FFN 4x, GELU, depthwise conv k=3
+- **Parameters**: 153.8M
+- **Key metric**: FF-FP gap = 0.203 at 2M steps (93% higher than MLP encoder baseline)
+- **Recovery**: 6.96x improvement over zero-baseline on 4 AR + 4 MA coefficient prediction
+
+See [`experiments/contrastive-arma/report/technical_report.md`](experiments/contrastive-arma/report/technical_report.md) for the full optimization story.
+
+## Training
+
+```bash
+# Train contrastive backbone (GPU recommended)
+python scripts/train.py --device cuda --total-steps 500000 --save-path model.pth
+
+# Train recovery head on frozen backbone
+python scripts/recover.py --device cuda --model-path model.pth --epochs 20000
+```
 
 ## License
 
@@ -33,16 +71,12 @@ If you use this code in your research, please cite:
 ```bibtex
 @software{contrastive_forecasting,
   title={Contrastive Forecasting: A Contrastive Learning Approach to Time Series Forecasting},
-  author={[Jeremy Cochoy]},
+  author={Jeremy Cochoy},
   year={2025},
   url={https://github.com/jeremycochoy/contrastive-forecasting},
   note={Research code for contrastive learning in time series forecasting}
 }
 ```
-
-## Research Context
-
-This work explores contrastive learning paradigms for time series forecasting, investigating how forecasted representations can be learned through similarity objectives with future and past representations. The approach combines transformer architectures with contrastive objectives to learn temporal representations for forecasting tasks.
 
 ## Contact
 

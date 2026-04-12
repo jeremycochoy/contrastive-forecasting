@@ -20,14 +20,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
-from arma import generate_arma_batch
-from train_contrastive_v2 import ConfigurableModel
-
-# Import all recovery head classes from the original script
-from train_parameter_recovery import (
-    create_recovery_head,
-    parameter_loss,
-)
+from src.arma import generate_arma_batch
+from src.models import ConfigurableModel
+from src.recovery import create_recovery_head, parameter_loss
 
 
 def create_parameter_loss(loss_type):

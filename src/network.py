@@ -1,6 +1,6 @@
 import torch.nn as nn
 import torch.nn.functional as F
-from blocks import TransformerBlock, Simple_channel_mixing_module
+from .blocks import TransformerBlock, Simple_channel_mixing_module
 
 class Simple_encoder(nn.Module): #encoder proposed during our meeting
     def __init__(self, input_shape, intermediate_dim, H, dropout_p=0.0):
