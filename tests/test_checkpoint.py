@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from checkpoint import (
+from src.checkpoint import (
     get_optimizer_state_path,
     save_training_state,
     load_training_state,

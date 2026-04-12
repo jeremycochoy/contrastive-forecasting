@@ -20,7 +20,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
-from arma import generate_arma_batch
+from src.arma import generate_arma_batch
 from train_contrastive_v2 import ConfigurableModel
 
 # Import all recovery head classes from the original script

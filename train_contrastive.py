@@ -15,9 +15,9 @@ import torch.nn.functional as F
 import torch.optim as optim
 from types import SimpleNamespace
 
-from arma import generate_arma_batch
-from loss import contrastive_latent_loss
-from network import SimpleModel
+from src.arma import generate_arma_batch
+from src.loss import contrastive_latent_loss
+from src.network import SimpleModel
 
 
 def generate_random_batch(batch_size=16, T_raw=4096, C=4, mean=0.0, std=1.0, seed=None, dimension=4):

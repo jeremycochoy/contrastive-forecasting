@@ -23,11 +23,11 @@ import torch.nn.functional as F
 import torch.optim as optim
 from types import SimpleNamespace
 
-from arma import generate_arma_batch
-from loss import contrastive_latent_loss
-from encoders import create_encoder
-from blocks import TransformerBlock, Simple_channel_mixing_module
-from checkpoint import save_training_state, load_training_state, safe_save_path
+from src.arma import generate_arma_batch
+from src.loss import contrastive_latent_loss
+from src.encoders import create_encoder
+from src.blocks import TransformerBlock, Simple_channel_mixing_module
+from src.checkpoint import save_training_state, load_training_state, safe_save_path
 
 
 class ConfigurableModel(torch.nn.Module):

@@ -29,8 +29,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
-from arma import generate_arma_batch
-from network import SimpleModel
+from src.arma import generate_arma_batch
+from src.network import SimpleModel
 
 
 # =============================================================================
