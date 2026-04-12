@@ -11,27 +11,27 @@ All Phase 1/2 runs used **6 layers**, **H=512**, **batch_size=16**, **lr=1e-4**,
 
 ### Phase 1: Encoder comparison (5 configs, 50k steps each)
 
-| Exp | Encoder | Params | Duration | Step/s | Peak gap | Final gap |
-|-----|---------|--------|----------|--------|----------|-----------|
-| E1 | mlp (int=64) | 13.2M | 30.5 min | 27.3 | 0.0727 | 0.0710 |
-| E2 | mlp_wide (int=256) | 13.3M | 29.8 min | 27.9 | 0.0750 | 0.0736 |
-| E3 | residual_silu | 13.7M | 29.9 min | 27.9 | 0.0838 | 0.0824 |
-| **E4** | **gru** | **13.7M** | **61.6 min** | **13.5** | **0.1146** | **0.1146** |
-| E5 | conv | 13.2M | 33.1 min | 25.2 | 0.0747 | 0.0747 |
+| Exp | Encoder | Params | Duration | Step/s | Peak gap | Final gap | Final loss |
+|-----|---------|--------|----------|--------|----------|-----------|------------|
+| E1 | mlp (int=64) | 13.2M | 30.5 min | 27.3 | 0.0727 | 0.0710 | 2.33 |
+| E2 | mlp_wide (int=256) | 13.3M | 29.8 min | 27.9 | 0.0750 | 0.0736 | 1.63 |
+| E3 | residual_silu | 13.7M | 29.9 min | 27.9 | 0.0838 | 0.0824 | 1.73 |
+| **E4** | **gru** | **13.7M** | **61.6 min** | **13.5** | **0.1146** | **0.1146** | **1.28** |
+| E5 | conv | 13.2M | 33.1 min | 25.2 | 0.0747 | 0.0747 | 2.01 |
 
 **Total Phase 1 duration**: ~185 min (~3.1 h). Winner: GRU encoder.
 
 ### Phase 2: Transformer config comparison (7 configs, 50k steps each, gru encoder fixed)
 
-| Exp | Variation | Params | Duration | Step/s | Peak gap | Final gap |
-|-----|-----------|--------|----------|--------|----------|-----------|
-| T1 | baseline (nhead=8, ffn=2x, gelu, k=3) | 13.7M | 61.6 min | 13.5 | 0.1190 | 0.1169 |
-| T2 | nhead=16 | 13.7M | 62.7 min | 13.3 | 0.1102 | 0.1102 |
-| **T3** | **ffn_mult=4** | **20.0M** | **69.2 min** | **12.0** | **0.1250** | **0.1250** |
-| T4 | ffn_mult=1 | 10.5M | 57.8 min | 14.4 | 0.1150 | 0.1150 |
-| T5 | activation=silu | 13.7M | 61.6 min | 13.5 | 0.1059 | 0.1047 |
-| T6 | depthwise_conv=0 | 13.7M | 64.3 min | 13.0 | 0.1043 | 0.1030 |
-| T7 | nhead=16 + silu | 13.7M | 62.6 min | 13.3 | 0.1176 | 0.1158 |
+| Exp | Variation | Params | Duration | Step/s | Peak gap | Final gap | Final loss |
+|-----|-----------|--------|----------|--------|----------|-----------|------------|
+| T1 | baseline (nhead=8, ffn=2x, gelu, k=3) | 13.7M | 61.6 min | 13.5 | 0.1190 | 0.1169 | 1.00 |
+| T2 | nhead=16 | 13.7M | 62.7 min | 13.3 | 0.1102 | 0.1102 | 1.58 |
+| **T3** | **ffn_mult=4** | **20.0M** | **69.2 min** | **12.0** | **0.1250** | **0.1250** | **1.74** |
+| T4 | ffn_mult=1 | 10.5M | 57.8 min | 14.4 | 0.1150 | 0.1150 | 1.41 |
+| T5 | activation=silu | 13.7M | 61.6 min | 13.5 | 0.1059 | 0.1047 | 1.15 |
+| T6 | depthwise_conv=0 | 13.7M | 64.3 min | 13.0 | 0.1043 | 0.1030 | 1.24 |
+| T7 | nhead=16 + silu | 13.7M | 62.6 min | 13.3 | 0.1176 | 0.1158 | 1.62 |
 
 **Total Phase 2 duration**: ~440 min (~7.3 h). Winner: FFN 4x. Depthwise conv confirmed essential (T6 is worst).
 
@@ -54,6 +54,7 @@ All Phase 1/2 runs used **6 layers**, **H=512**, **batch_size=16**, **lr=1e-4**,
 | Step/s | 6.9 |
 | **Peak gap** | **0.1862** at step ~494,000 |
 | Final gap | 0.1788 |
+| Final loss | -0.77 |
 
 Log: `arch_search_phase4.log`, Results: `arch_search_phase4_gru_ffn4x_H1024_results.json`
 
@@ -77,6 +78,7 @@ See Section 2 above. Total: 20.2 h.
 | Step/s | 6.9 |
 | **Peak gap** | **0.2015** |
 | Final gap | 0.1938 |
+| Final loss | -1.10 |
 | Notes | Optimizer state lost on earlier resume (pre-checkpoint.py), crashed at step 1,967,000 |
 
 ### Segment C: Final 50k refinement
@@ -88,6 +90,7 @@ See Section 2 above. Total: 20.2 h.
 | Duration | 121.2 min (~2.0 h) |
 | **Peak gap** | **0.2028** (step 21,000 of continuation) |
 | Final gap | 0.197 |
+| Final loss | -0.36 |
 | Best val FF | 0.5974 @ step 32,000 |
 
 **Total 12L training**: ~500k + 1.97M + 50k = **~2.02M effective steps, ~101 h wall clock**. Peak gap 0.2028.
@@ -204,12 +207,12 @@ All runs: encoder=gru, nhead=8, ffn_mult=4, gelu, conv_k=3, batch_size=8, lr=7e-
 
 ### Quick comparison phase (200k steps each)
 
-| Config | Params | Duration | Step/s | Peak gap | Final gap |
-|--------|--------|----------|--------|----------|-----------|
-| 12L H=1024 (baseline) | 153.8M | 482.4 min (~8.0 h) | 6.9 | 0.1617 | 0.1613 |
-| 16L H=1024 | 204.2M | 621.0 min (~10.4 h) | 5.4 | **0.1662** | 0.1609 |
-| 20L H=1024 | 254.6M | 748.6 min (~12.5 h) | 4.5 | 0.1535 | 0.1504 |
-| 12L H=1280 | 240.0M | <5 min | — | — | — (aborted, see next section) |
+| Config | Params | Duration | Step/s | Peak gap | Final gap | Final loss |
+|--------|--------|----------|--------|----------|-----------|------------|
+| 12L H=1024 (baseline) | 153.8M | 482.4 min (~8.0 h) | 6.9 | 0.1617 | 0.1613 | -0.92 |
+| 16L H=1024 | 204.2M | 621.0 min (~10.4 h) | 5.4 | **0.1662** | 0.1609 | **-1.03** |
+| 20L H=1024 | 254.6M | 748.6 min (~12.5 h) | 4.5 | 0.1535 | 0.1504 | -0.21 |
+| 12L H=1280 | 240.0M | <5 min | — | — | — | — (aborted) |
 
 Winner at 200k: 16L (+0.004 over 12L), but 20L's slope is steepest — expected to overtake with more training.
 
@@ -241,6 +244,7 @@ Winner at 200k: 16L (+0.004 over 12L), but 20L's slope is steepest — expected 
 - Stopped at step ~2,286,000 (manually, gap plateaued)
 - **Peak gap**: **0.2033**
 - Final gap: ~0.198
+- Final loss: -1.25
 - Step/s: 4.4
 - Permanent checkpoint: `scaling_20L_2M_lr54_FINAL.pth` (972M)
 - Save path: `scaling_20L_2M_lr54.pth` (separate to prevent overwrite)
