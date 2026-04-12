@@ -19,7 +19,7 @@ class ConfigurableModel(torch.nn.Module):
     def __init__(self, C, H, W, encoder_type='mlp', intermediate_dim=None,
                  num_layers=12, nhead=4, ffn_mult=2, dropout=0.1,
                  activation='gelu', depthwise_conv=3,
-                 rev_norm_span=None):
+                 rev_norm_span=None, norm_type='layernorm'):
         super().__init__()
         self.C = C
         self.H = H
@@ -42,6 +42,7 @@ class ConfigurableModel(torch.nn.Module):
             dropout=dropout,
             input_to_latent=self.encoder,
             depthwise_conv=depthwise_conv,
+            norm_type=norm_type,
         )
         # Override activation if requested
         if activation != 'gelu':
