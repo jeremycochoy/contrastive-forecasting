@@ -13,12 +13,13 @@ experiments/contrastive-arma/
 
 ## Documents (this directory)
 
-| File                                                           | Description                                                                                                   |
-| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| [architecture_search_report.md](architecture_search_report.md) | **Main report.** Architecture search, 2M training, recovery search, scaling search, and analysis. Start here. |
-| [training_summary.md](training_summary.md)                     | Quick-reference tables: every run with L/H/heads/LR/params/gap/recovery. Effect analyses by variable.         |
-| [experiment_log.md](experiment_log.md)                         | Detailed log of every training run: config, duration, steps, peak gap, failures, compute budget.              |
-| [ARCHITECTURE_SEARCH_PLAN.md](ARCHITECTURE_SEARCH_PLAN.md)     | Original 48-hour autonomous search plan (March 18--20).                                                       |
+| File | Description |
+|------|-------------|
+| **[technical_report.md](technical_report.md)** | **Start here.** Human-readable narrative of the full optimization process, with consolidated tables and figures. |
+| [architecture_search_report.md](architecture_search_report.md) | Detailed technical reference with all intermediate results and per-section analysis. |
+| [training_summary.md](training_summary.md) | Quick-reference tables: every run with L/H/heads/LR/params/gap/recovery. |
+| [experiment_log.md](experiment_log.md) | Detailed log of every training run: config, duration, steps, peak gap, failures, compute budget. |
+| [ARCHITECTURE_SEARCH_PLAN.md](ARCHITECTURE_SEARCH_PLAN.md) | Original 48-hour autonomous search plan (March 18--20). |
 
 ## Visualizations
 
