@@ -96,11 +96,40 @@ def save_snapshot(model, optimizer, path, step, best_gap, best_gap_step,
     print(f"  -> Saved {path}")
 
 
+def _has_checkpoints(save_dir, run_name):
+    """Check if any checkpoint files exist for this run name."""
+    import glob
+    return len(glob.glob(os.path.join(save_dir, f"{run_name}_*.pth"))) > 0
+
+
+def safe_run_name(save_dir, run_name):
+    """If any checkpoints already exist for this run name, auto-increment.
+
+    Prevents overwriting best/periodic checkpoints when restarting a run
+    (e.g., after a spike or with a new LR).
+    """
+    if not _has_checkpoints(save_dir, run_name):
+        return run_name
+
+    n = 2
+    while True:
+        candidate = f"{run_name}_r{n}"
+        if not _has_checkpoints(save_dir, candidate):
+            print(f"  [checkpoint] Run name '{run_name}' has existing "
+                  f"checkpoints. Branching to '{candidate}'.")
+            return candidate
+        n += 1
+
+
 def main():
     args = parse_args()
     device = torch.device(args.device)
 
     os.makedirs(args.save_dir, exist_ok=True)
+
+    # Protect existing checkpoints when restarting
+    if args.resume:
+        args.run_name = safe_run_name(args.save_dir, args.run_name)
 
     # -- Model -----------------------------------------------------------------
     model = ConfigurableModel(**MODEL_CONFIG).to(device)
