@@ -85,6 +85,31 @@ At matched wall time, W=16 and W=32 track closely through ~18 minutes, after whi
 - **37% less VRAM**, freeing capacity for larger models or bigger batches
 - **18% slower per step**, but this is the only downside
 
+## Follow-up: W=16 with larger batch size (bs=28)
+
+To test whether the VRAM headroom of W=16 could be used for larger batches, a third run was conducted with bs=28 (17.6 GB VRAM), time-limited to 29.2 min (same wall time as the W=32 run).
+
+| Step | W=32 (bs=32, 5.7sps, 23.4GB) | W=16 (bs=24, 4.7sps, 14.7GB) | W=16 (bs=28, 3.9sps, 17.6GB) |
+|------|------------------------------|------------------------------|------------------------------|
+| 1k | 0.056 | 0.064 | 0.064 |
+| 2k | 0.068 | 0.064 | 0.069 |
+| 3k | 0.067 | 0.072 | 0.073 |
+| 4k | 0.073 | 0.077 | 0.078 |
+| 5k | 0.074 | 0.078 | 0.080 |
+| 6k | 0.075 | 0.080 | 0.082 |
+| 7k | 0.079 | 0.088 | -- |
+| 8k | 0.073 | 0.091 | -- |
+| 9k | 0.082 | 0.093 | -- |
+| 10k | 0.082 | 0.092 | -- |
+
+**W=16 bs=28 best gap: 0.082 (step 6k, 29.2 min wall time).**
+
+Increasing batch size from 24 to 28 slowed training from 4.7 to 3.9 sps (17% slower) without improving the gap at matched wall time. Both W=16 variants reach gap ~0.082 at 29 min, but bs=24 runs more steps in the same time and ultimately reaches 0.093 with a few extra minutes. The extra samples per step from bs=28 do not compensate for the reduced step count.
+
+**Takeaway**: for W=16 on the Tiny backbone, bs=24 is the sweet spot. Using VRAM headroom for larger batches is counterproductive -- better to run more steps.
+
 ## Conclusion
 
 W=16 does not degrade performance -- it improves it. The finer temporal resolution (256 patches vs 128) gives the transformer more granular information to learn from, resulting in consistently higher contrastive gap. The speed penalty is modest and fully offset by the quality gain. The substantial VRAM savings is an additional practical benefit for scaling to larger architectures.
+
+The optimal operating point for Tiny W=16 is bs=24 (14.7 GB), not the maximum batch size that fits in memory.
