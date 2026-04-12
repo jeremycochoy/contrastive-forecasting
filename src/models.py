@@ -11,17 +11,26 @@ import torch.nn.functional as F
 from .arma import generate_arma_batch
 from .encoders import create_encoder
 from .blocks import TransformerBlock, Simple_channel_mixing_module
+from .norm import RevEWMNorm
 
 
 class ConfigurableModel(torch.nn.Module):
     """SimpleModel with configurable encoder and transformer."""
     def __init__(self, C, H, W, encoder_type='mlp', intermediate_dim=None,
                  num_layers=12, nhead=4, ffn_mult=2, dropout=0.1,
-                 activation='gelu', depthwise_conv=3):
+                 activation='gelu', depthwise_conv=3,
+                 rev_norm_span=None):
         super().__init__()
         self.C = C
         self.H = H
         self.W = W
+
+        # Reversible EWM normalization (optional)
+        if rev_norm_span is not None:
+            self.rev_norm = RevEWMNorm(
+                num_features=C, span=rev_norm_span, patch_size=W)
+        else:
+            self.rev_norm = None
 
         self.encoder = create_encoder(encoder_type, W, H, intermediate_dim)
 
@@ -48,6 +57,11 @@ class ConfigurableModel(torch.nn.Module):
         H = self.H
         assert T_raw % W == 0
         T = T_raw // W
+
+        # Apply reversible normalization before patching
+        if self.rev_norm is not None:
+            x = self.rev_norm(x, mode='norm')
+
         x = x.view(B, T, W, C).permute(0, 1, 3, 2)  # [B, T, C, W]
         x, x_original = self.transformer(x)
         x = x.reshape(B, C, T, H).permute(0, 2, 1, 3).reshape(B, T, C * H)
