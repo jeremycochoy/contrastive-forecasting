@@ -233,14 +233,26 @@ Winner at 200k: 16L (+0.004 over 12L), but 20L's slope is steepest — expected 
 - Final gap: 0.1975
 - **CHECKPOINT LOST**: `scaling_20L_H1024_2M.pth` was accidentally overwritten by a subsequent low-LR continuation run that used the same `--save-path`. The trained model weights are gone.
 
-**Attempt 3 (IN PROGRESS — post-bug-fix retraining)**:
+**Attempt 3 (COMPLETE)**:
 - Log: `scaling_20L_2M_lr54.log`
-- Config: **lr=5.4e-5** (= 7e-5 × √(12/20), depth-scaling heuristic)
-- Resumed from `scaling_20L_H1024.pth` (step 200000 of 200k search)
-- Target steps: 2,500,000
-- Status at 2026-04-11: step 1,935,000, peak gap **0.2019** (matches lost run), climbing
-- Expected: surpass 0.203 (12L record) before 2M, stop at 2M if achieved
+- Config: **lr=5.4e-5** (= 7e-5 × sqrt(12/20), depth-scaling heuristic)
+- Resumed from `scaling_20L_H1024.pth` (step 200000 of 200k search, with optimizer state)
+- Note: first 200k steps trained at lr=7e-5, remaining at lr=5.4e-5
+- Stopped at step ~2,286,000 (manually, gap plateaued)
+- **Peak gap**: **0.2033**
+- Final gap: ~0.198
+- Step/s: 4.4
+- Permanent checkpoint: `scaling_20L_2M_lr54_FINAL.pth` (972M)
 - Save path: `scaling_20L_2M_lr54.pth` (separate to prevent overwrite)
+
+**20L Recovery (GRU h128 l2, MSE, 20k epochs, 4 AR + 4 MA)**:
+- Backbone: `scaling_20L_2M_lr54_FINAL.pth`
+- Log: `scaling_search_logs/recovery_20L_gru_h128_l2.log`
+- Best val loss: 0.020739 @ epoch 11159
+- Mean AR Error: 0.0142, Mean MA Error: 0.0148, Total: 0.0290
+- **Improvement: 6.77x**
+- Sign Agreement AR: 92.0%, MA: 90.8%
+- Correlation AR: 0.929, MA: 0.929
 
 ### Aborted/failed scaling runs
 
@@ -263,8 +275,9 @@ Winner at 200k: 16L (+0.004 over 12L), but 20L's slope is steepest — expected 
 | Recovery search (5 phases) | 47+ runs | ~18.3 h |
 | Scaling 200k comparison | 3 runs × 200k | ~31 h |
 | 20L 2M (Attempt 2, lost) | 1 run × 2M | ~126 h |
-| 20L 2M retraining (current) | 1 run × 2M | ~126 h (ongoing) |
-| **TOTAL approx** | | **~413 h (~17.2 days)** |
+| 20L 2M retraining (lr=5.4e-5) | 1 run × 2.3M | ~145 h |
+| 20L recovery training | 1 run × 20k epochs | ~1 h |
+| **TOTAL approx** | | **~433 h (~18 days)** |
 
 ---
 
@@ -272,9 +285,10 @@ Winner at 200k: 16L (+0.004 over 12L), but 20L's slope is steepest — expected 
 
 - **Was a 4L or 8L variant trained?** No. All Phase 1/2 used 6 layers. Only 12L, 16L, 20L were tested at H=1024 in the scaling search.
 - **What is the lightest successfully trained config?** Phase 1 E4 (gru, 6L, H=512): 13.7M params, 50k steps, peak gap 0.115.
-- **Does gap keep climbing with more training?** Yes, logarithmically. 12L: 0.186 @ 500k → 0.203 @ 2M (+9%). 20L still climbing at 2M.
-- **Depth vs width scaling**: Only depth was tested systematically due to LR/muP concerns. 20L matches 12L at 2M peak (~0.202), at 1.65x the compute. Depth alone gives diminishing returns with standard init.
-- **Did adding depth improve recovery?** Not yet measured — recovery head has only been trained on the 12L backbone so far. The 20L recovery test is pending after the retraining completes.
+- **Does gap keep climbing with more training?** Yes, logarithmically. 12L: 0.186 @ 500k → 0.203 @ 2M (+9%). 20L plateaued at 0.203 by 2.3M.
+- **Depth vs width scaling**: Only depth was tested systematically due to LR/muP concerns. 20L matches 12L peak gap (0.203) but took ~45% more wall time. Depth alone gives diminishing returns with standard init.
+- **Did adding depth improve recovery?** No. 20L recovery = 6.77x vs 12L's 6.96x, at matched peak gap (0.203). More depth at same gap slightly hurts recovery.
+- **Is gap correlated with recovery?** Yes. V1 gap=0.105 → 6.59x, V2 gap=0.203 → 6.96x. Higher gap → better recovery across architectures. But within the same gap, shallower is better for recovery.
 
 ---
 

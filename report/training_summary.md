@@ -80,11 +80,21 @@ All backbone runs share:
 | ~2M (v2_2M full) | 0.203 |
 
 ### Effect of training length (20L H=1024)
-| Steps | Peak gap |
-|-------|----------|
-| 200k | 0.154 |
-| 2M (lost run, lr=7e-5) | 0.202 |
-| 1.94M (ongoing, lr=5.4e-5) | 0.202+ |
+| Steps | Peak gap | LR | Notes |
+|-------|----------|----|-------|
+| 200k | 0.154 | 7e-5 | Scaling search |
+| 2M (lost run) | 0.202 | 7e-5 | Checkpoint lost |
+| 2.3M (final) | **0.203** | 5.4e-5 | Resumed from 200k, stopped |
+
+### Effect of depth on recovery (GRU h128 l2 head, MSE, 20k epochs, 4x2 coefs)
+
+| Backbone | Peak gap | Recovery | Sign AR | Sign MA | Corr AR | Corr MA |
+|----------|----------|----------|---------|---------|---------|---------|
+| **12L H=1024** | **0.203** | **6.96x** | **92.4%** | **90.9%** | **0.934** | **0.931** |
+| 20L H=1024 | 0.203 | 6.77x | 92.0% | 90.8% | 0.929 | 0.929 |
+| 12L H=1024 (V1, MLP enc) | 0.105 | 6.59x | — | — | — | — |
+
+Key finding: at matched gap (0.203), 12L recovers better than 20L (6.96x vs 6.77x). Higher gap correlates with better recovery across architectures (V1 0.105→6.59x, V2 0.203→6.96x), but adding depth alone at same gap does not help.
 
 ## Training time cost ladder (wall clock on RTX 4090)
 
