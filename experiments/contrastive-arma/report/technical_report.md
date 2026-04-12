@@ -11,6 +11,7 @@ Can a neural network learn the hidden structure of a stochastic process just by 
 The quality of the learned representations is measured by two complementary metrics:
 
 - **FF-FP gap**: the difference between forecast-future and forecast-past cosine similarity in embedding space. A higher gap means the model has learned to encode genuinely predictive features rather than trivial statistics.
+- **Contrastive loss**: the training loss (cosine similarity-based with cross-batch negatives). Lower (more negative) is better. The loss transitions from positive to negative as the model learns to separate forecast-future from forecast-past; deeply negative values indicate strong contrastive signal.
 - **Recovery improvement**: how much better the head predicts ARMA coefficients compared to a zero baseline (which predicts all coefficients as zero). Since ARMA orders vary randomly and unused coefficients are zero-padded, this baseline is non-trivial.
 
 Over ~430 GPU-hours of experiments on a single RTX 4090, we systematically optimized the encoder, transformer backbone, recovery head, and training procedure. This report follows the optimization process chronologically, documenting what worked, what didn't, and why.
@@ -36,13 +37,13 @@ The first question: how should we encode raw patches into embeddings?
 
 We tested five encoder architectures at a small scale (6 layers, H=512, 50k steps, ~30-60 min each) while keeping the transformer backbone identical:
 
-| Encoder | Gap | vs MLP |
-|---------|-----|--------|
-| MLP | 0.073 | -- |
-| MLP (wider) | 0.075 | +3% |
-| 1D Convolution | 0.075 | +3% |
-| Residual SiLU | 0.084 | +15% |
-| **Bidirectional GRU** | **0.115** | **+58%** |
+| Encoder | Gap | Loss | vs MLP |
+|---------|-----|------|--------|
+| MLP | 0.073 | 2.33 | -- |
+| MLP (wider) | 0.075 | 1.63 | +3% |
+| 1D Convolution | 0.075 | 2.01 | +3% |
+| Residual SiLU | 0.084 | 1.73 | +15% |
+| **Bidirectional GRU** | **0.115** | **1.28** | **+58%** |
 
 The GRU encoder won by a wide margin. Treating each 32-step patch as a short time series and reading it sequentially captures temporal structure that feedforward encoders miss entirely. The GRU is a 2-layer bidirectional model (hidden=128) with a skip connection and LayerNorm, processing all B x T x C patches in a single batched call.
 
@@ -52,15 +53,15 @@ The GRU encoder won by a wide margin. Treating each 32-step patch as a short tim
 
 With the GRU encoder fixed, we optimized the transformer backbone (still at 6L H=512, 50k steps):
 
-| Change | Gap | Effect |
-|--------|-----|--------|
-| Baseline (8 heads, FFN 2x, GELU, conv k=3) | 0.115 | -- |
-| 16 attention heads | 0.118 | +3% |
-| **FFN multiplier 4x** | **0.125** | **+9%** |
-| FFN multiplier 1x | 0.098 | -15% |
-| SiLU activation | 0.110 | -4% |
-| Remove depthwise conv | 0.095 | **-17%** |
-| Larger conv (k=7) | 0.120 | +4% |
+| Change | Gap | Loss | Effect |
+|--------|-----|------|--------|
+| Baseline (8 heads, FFN 2x, GELU, conv k=3) | 0.115 | 1.00 | -- |
+| 16 attention heads | 0.118 | 1.58 | +3% |
+| **FFN multiplier 4x** | **0.125** | **1.74** | **+9%** |
+| FFN multiplier 1x | 0.098 | 1.41 | -15% |
+| SiLU activation | 0.110 | 1.15 | -4% |
+| Remove depthwise conv | 0.095 | 1.24 | **-17%** |
+| Larger conv (k=7) | 0.120 | 1.62 | +4% |
 
 Two clear findings:
 - **FFN 4x is the most impactful single change** (+9% gap). The wider feed-forward network gives the model more capacity to process each position.
@@ -171,11 +172,11 @@ Does a deeper backbone help? We compared 12, 16, and 20 layers at H=1024 (all ot
 
 ![200k scaling comparison](images/gap_200k_comparison.png)
 
-| Depth | Params | Gap @ 200k | Speed |
-|-------|--------|------------|-------|
-| 12L | 154M | 0.162 | 6.9 step/s |
-| **16L** | **204M** | **0.166** | 5.4 step/s |
-| 20L | 255M | 0.154 | 4.4 step/s |
+| Depth | Params | Gap @ 200k | Loss @ 200k | Speed |
+|-------|--------|------------|-------------|-------|
+| 12L | 154M | 0.162 | -0.92 | 6.9 step/s |
+| **16L** | **204M** | **0.166** | **-1.03** | 5.4 step/s |
+| 20L | 255M | 0.154 | -0.21 | 4.4 step/s |
 
 At 200k steps, 16L is slightly ahead. 20L lags due to slower warmup — the deeper model needs more steps before its gap starts climbing. This is consistent with deeper networks requiring longer optimization to escape the initial plateau.
 
@@ -200,12 +201,12 @@ This suggests that at H=1024, the model is not capacity-limited — 12 layers is
 
 ### All backbone configurations
 
-| d | L | Heads | Params | Steps | Peak gap | Recovery (4x2) | Wall time |
-|---|---|-------|--------|-------|----------|-----------------|-----------|
-| 512 | 6 | 8 | 20M | 50k | 0.125 | -- | 1.2 h |
-| **1024** | **12** | **8** | **154M** | **2M** | **0.203** | **6.96x** | **101 h** |
-| 1024 | 16 | 8 | 204M | 200k | 0.166 | -- | 10.4 h |
-| 1024 | 20 | 8 | 255M | 2.3M | 0.203 | 6.77x | ~145 h |
+| d | L | Heads | Params | Steps | Peak gap | Final loss | Recovery (4x2) | Wall time |
+|---|---|-------|--------|-------|----------|------------|-----------------|-----------|
+| 512 | 6 | 8 | 20M | 50k | 0.125 | 1.74 | -- | 1.2 h |
+| **1024** | **12** | **8** | **154M** | **2M** | **0.203** | **-0.77** | **6.96x** | **101 h** |
+| 1024 | 16 | 8 | 204M | 200k | 0.166 | -1.03 | -- | 10.4 h |
+| 1024 | 20 | 8 | 255M | 2.3M | 0.203 | -1.25 | 6.77x | ~145 h |
 
 ### Gap vs recovery correlation
 

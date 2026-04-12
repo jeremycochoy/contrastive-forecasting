@@ -4,36 +4,38 @@ Quick reference: every contrastive backbone training run with architecture, hype
 
 ## Backbone Training Runs
 
-| Run | L | H | nhead | ffn | LR | BS | Steps | Params | Duration | step/s | Peak gap |
-|-----|---|---|-------|-----|-----|-----|-------|--------|----------|--------|----------|
-| **Phase 1: Encoder search** (6L H=512, 50k steps) | | | | | | | | | | | |
-| E1 mlp | 6 | 512 | 8 | 2x | 1e-4 | 16 | 50k | 13.2M | 30.5 min | 27.3 | 0.073 |
-| E2 mlp_wide | 6 | 512 | 8 | 2x | 1e-4 | 16 | 50k | 13.3M | 29.8 min | 27.9 | 0.075 |
-| E3 residual_silu | 6 | 512 | 8 | 2x | 1e-4 | 16 | 50k | 13.7M | 29.9 min | 27.9 | 0.084 |
-| **E4 gru** | 6 | 512 | 8 | 2x | 1e-4 | 16 | 50k | 13.7M | 61.6 min | 13.5 | **0.115** |
-| E5 conv | 6 | 512 | 8 | 2x | 1e-4 | 16 | 50k | 13.2M | 33.1 min | 25.2 | 0.075 |
-| **Phase 2: Transformer config** (6L H=512 gru, 50k steps) | | | | | | | | | | | |
-| T1 baseline | 6 | 512 | 8 | 2x | 1e-4 | 16 | 50k | 13.7M | 61.6 min | 13.5 | 0.119 |
-| T2 nhead=16 | 6 | 512 | 16 | 2x | 1e-4 | 16 | 50k | 13.7M | 62.7 min | 13.3 | 0.110 |
-| **T3 ffn=4x** | 6 | 512 | 8 | **4x** | 1e-4 | 16 | 50k | 20.0M | 69.2 min | 12.0 | **0.125** |
-| T4 ffn=1x | 6 | 512 | 8 | 1x | 1e-4 | 16 | 50k | 10.5M | 57.8 min | 14.4 | 0.115 |
-| T5 silu | 6 | 512 | 8 | 2x | 1e-4 | 16 | 50k | 13.7M | 61.6 min | 13.5 | 0.106 |
-| T6 no_conv | 6 | 512 | 8 | 2x | 1e-4 | 16 | 50k | 13.7M | 64.3 min | 13.0 | 0.104 |
-| T7 nhead=16+silu | 6 | 512 | 16 | 2x | 1e-4 | 16 | 50k | 13.7M | 62.6 min | 13.3 | 0.118 |
-| **Phase 4: Full training of best config** | | | | | | | | | | | |
-| phase4_gru_ffn4x | 12 | 1024 | 8 | 4x | 7e-5 | 8 | 500k | 153.8M | 1211 min (20.2 h) | 6.9 | **0.186** |
-| **12L extension to ~2M** (resume segments) | | | | | | | | | | | |
-| v2_2M_resumed (seg B) | 12 | 1024 | 8 | 4x | 7e-5 | 8 | 1.97M | 153.8M | ~4750 min (79 h) | 6.9 | 0.2015 |
-| v2_2M_final (seg C) | 12 | 1024 | 8 | 4x | 7e-5 | 8 | 50k | 153.8M | 121 min (2.0 h) | 6.9 | **0.2028** |
-| **Scaling search: 200k comparison** | | | | | | | | | | | |
-| scaling_12L | 12 | 1024 | 8 | 4x | 7e-5 | 8 | 200k | 153.8M | 482 min (8.0 h) | 6.9 | 0.162 |
-| **scaling_16L** | 16 | 1024 | 8 | 4x | 7e-5 | 8 | 200k | 204.2M | 621 min (10.4 h) | 5.4 | **0.166** |
-| scaling_20L | 20 | 1024 | 8 | 4x | 7e-5 | 8 | 200k | 254.6M | 749 min (12.5 h) | 4.5 | 0.154 |
-| scaling_12L_H1280 | 12 | 1280 | 10 | 4x | 7e-5 | 8 | 3 (aborted) | 240.0M | <1 min | — | — |
-| **20L full training attempts** | | | | | | | | | | | |
-| 20L from-scratch (FAILED, collapse) | 20 | 1024 | 8 | 4x | 7e-5 | 8 | 127k | 254.6M | ~470 min | 4.4 | 0.00 |
-| 20L resumed (lost ckpt) | 20 | 1024 | 8 | 4x | 7e-5 | 8 | 2M | 254.6M | **7555 min (125.9 h)** | 4.4 | **0.2019** |
-| **20L retraining (ongoing)** | 20 | 1024 | 8 | 4x | **5.4e-5** | 8 | 2M target | 254.6M | ~126 h (ongoing) | 4.4 | 0.2019+ (climbing) |
+| Run | L | H | nhead | ffn | LR | BS | Steps | Params | Duration | step/s | Peak gap | Loss |
+|-----|---|---|-------|-----|-----|-----|-------|--------|----------|--------|----------|------|
+| **Phase 1: Encoder search** (6L H=512, 50k steps) | | | | | | | | | | | | |
+| E1 mlp | 6 | 512 | 8 | 2x | 1e-4 | 16 | 50k | 13.2M | 30.5 min | 27.3 | 0.073 | 2.33 |
+| E2 mlp_wide | 6 | 512 | 8 | 2x | 1e-4 | 16 | 50k | 13.3M | 29.8 min | 27.9 | 0.075 | 1.63 |
+| E3 residual_silu | 6 | 512 | 8 | 2x | 1e-4 | 16 | 50k | 13.7M | 29.9 min | 27.9 | 0.084 | 1.73 |
+| **E4 gru** | 6 | 512 | 8 | 2x | 1e-4 | 16 | 50k | 13.7M | 61.6 min | 13.5 | **0.115** | **1.28** |
+| E5 conv | 6 | 512 | 8 | 2x | 1e-4 | 16 | 50k | 13.2M | 33.1 min | 25.2 | 0.075 | 2.01 |
+| **Phase 2: Transformer config** (6L H=512 gru, 50k steps) | | | | | | | | | | | | |
+| T1 baseline | 6 | 512 | 8 | 2x | 1e-4 | 16 | 50k | 13.7M | 61.6 min | 13.5 | 0.119 | 1.00 |
+| T2 nhead=16 | 6 | 512 | 16 | 2x | 1e-4 | 16 | 50k | 13.7M | 62.7 min | 13.3 | 0.110 | 1.58 |
+| **T3 ffn=4x** | 6 | 512 | 8 | **4x** | 1e-4 | 16 | 50k | 20.0M | 69.2 min | 12.0 | **0.125** | 1.74 |
+| T4 ffn=1x | 6 | 512 | 8 | 1x | 1e-4 | 16 | 50k | 10.5M | 57.8 min | 14.4 | 0.115 | 1.41 |
+| T5 silu | 6 | 512 | 8 | 2x | 1e-4 | 16 | 50k | 13.7M | 61.6 min | 13.5 | 0.106 | 1.15 |
+| T6 no_conv | 6 | 512 | 8 | 2x | 1e-4 | 16 | 50k | 13.7M | 64.3 min | 13.0 | 0.104 | 1.24 |
+| T7 nhead=16+silu | 6 | 512 | 16 | 2x | 1e-4 | 16 | 50k | 13.7M | 62.6 min | 13.3 | 0.118 | 1.62 |
+| **Phase 4: Full training of best config** | | | | | | | | | | | | |
+| phase4_gru_ffn4x | 12 | 1024 | 8 | 4x | 7e-5 | 8 | 500k | 153.8M | 1211 min (20.2 h) | 6.9 | **0.186** | -0.77 |
+| **12L extension to ~2M** (resume segments) | | | | | | | | | | | | |
+| v2_2M_resumed (seg B) | 12 | 1024 | 8 | 4x | 7e-5 | 8 | 1.97M | 153.8M | ~4750 min (79 h) | 6.9 | 0.2015 | -1.10 |
+| v2_2M_final (seg C) | 12 | 1024 | 8 | 4x | 7e-5 | 8 | 50k | 153.8M | 121 min (2.0 h) | 6.9 | **0.2028** | -0.36 |
+| **Scaling search: 200k comparison** | | | | | | | | | | | | |
+| scaling_12L | 12 | 1024 | 8 | 4x | 7e-5 | 8 | 200k | 153.8M | 482 min (8.0 h) | 6.9 | 0.162 | -0.92 |
+| **scaling_16L** | 16 | 1024 | 8 | 4x | 7e-5 | 8 | 200k | 204.2M | 621 min (10.4 h) | 5.4 | **0.166** | **-1.03** |
+| scaling_20L | 20 | 1024 | 8 | 4x | 7e-5 | 8 | 200k | 254.6M | 749 min (12.5 h) | 4.5 | 0.154 | -0.21 |
+| scaling_12L_H1280 | 12 | 1280 | 10 | 4x | 7e-5 | 8 | 3 (aborted) | 240.0M | <1 min | — | — | — |
+| **20L full training** | | | | | | | | | | | | |
+| 20L from-scratch (FAILED) | 20 | 1024 | 8 | 4x | 7e-5 | 8 | 127k | 254.6M | ~470 min | 4.4 | 0.00 | — |
+| 20L resumed (lost ckpt) | 20 | 1024 | 8 | 4x | 7e-5 | 8 | 2M | 254.6M | 7555 min (125.9 h) | 4.4 | 0.2019 | — |
+| **20L final (lr=5.4e-5)** | 20 | 1024 | 8 | 4x | **5.4e-5** | 8 | 2.3M | 254.6M | ~145 h | 4.4 | **0.2033** | **-1.25** |
+
+Loss = contrastive training loss at final step. Lower (more negative) is better. Positive values indicate early training; deeply negative values indicate strong contrastive signal.
 
 ## Key architectural constants
 
