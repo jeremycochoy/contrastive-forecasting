@@ -213,6 +213,8 @@ def main():
     # Metrics tracking (restored from checkpoint if resuming)
     best_val_ff = best_val_ff_restored
     best_step = best_step_restored
+    best_gap = -float('inf')
+    best_gap_step = 0
     metrics_log = []
     start_time = time.time()
 
@@ -266,13 +268,24 @@ def main():
                   f"val FF={val_ff:.4f} FP={val_fp:.4f} TP={val_tp:.4f} CB={val_cb:.4f} | "
                   f"gap={val_ff-val_fp:.4f} | {steps_per_sec:.1f} step/s | ETA {eta_min:.0f}min")
 
-            # Track best
+            # Track best by val_ff (original metric)
             if val_ff > best_val_ff:
                 best_val_ff = val_ff
                 best_step = step
                 best_path = args.save_path.replace('.pth', '_best.pth')
                 torch.save(model.state_dict(), best_path)
                 save_training_state(optimizer, best_path,
+                                    step=step, best_val_ff=best_val_ff,
+                                    best_step=best_step)
+
+            # Track best by FF-FP gap (contrastive quality)
+            val_gap = val_ff - val_fp
+            if val_gap > best_gap:
+                best_gap = val_gap
+                best_gap_step = step
+                best_gap_path = args.save_path.replace('.pth', '_best_gap.pth')
+                torch.save(model.state_dict(), best_gap_path)
+                save_training_state(optimizer, best_gap_path,
                                     step=step, best_val_ff=best_val_ff,
                                     best_step=best_step)
 
@@ -295,6 +308,8 @@ def main():
         **config,
         'best_val_ff': best_val_ff,
         'best_step': best_step,
+        'best_gap': best_gap,
+        'best_gap_step': best_gap_step,
         'total_time_sec': total_time,
         'final_metrics': metrics_log[-1] if metrics_log else None,
         'metrics_log': metrics_log,
@@ -305,6 +320,7 @@ def main():
 
     print(f"\nTraining complete in {total_time/60:.1f} min")
     print(f"Best val FF: {best_val_ff:.4f} at step {best_step}")
+    print(f"Best gap: {best_gap:.4f} at step {best_gap_step}")
     print(f"Results saved to {results_path}")
     print(f"Model saved to {args.save_path}")
 
