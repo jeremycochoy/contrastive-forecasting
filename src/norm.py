@@ -1,8 +1,8 @@
 """
 Reversible Exponential Weighted Moving Normalization (RevEWMNorm).
 
-Inspired by RevIN (ICLR 2022) and RevEWMSTDN, adapted for contrastive
-forecasting with first-patch initialization to avoid cold-start spikes.
+Inspired by RevIN (ICLR 2022), adapted for contrastive forecasting
+with first-patch initialization to avoid cold-start spikes.
 
 Input/output shape: [B, T, C] (batch, time, channels).
 """
@@ -105,7 +105,7 @@ class RevEWMNorm(nn.Module):
         # Rewrite: weighted_x[k] = x[k] / decay[k], then cumsum * decay gives the sum
         # NOTE: inv_decay can overflow for very long T or large spans.
         # For T=4096, span=300 the peak is ~5e11 (safe in float64).
-        # If needed, add chunking as in RevEWMSTDN.
+        # If needed, add chunking for longer sequences.
         inv_decay = 1.0 / decay  # [T]
         inv_decay = inv_decay.view(1, T, 1)  # [1, T, 1]
         decay_bc = decay.view(1, T, 1)  # [1, T, 1]
