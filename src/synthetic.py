@@ -11,10 +11,9 @@ Each component is independently enabled/disabled. The trend can be
 applied multiplicatively (50% chance) to create heteroskedastic series.
 The final series is integrated (cumsum) to produce ARIMA(1, p, q) output.
 
-References:
+Reference:
   - Das et al., "A decoder-only foundation model for time-series forecasting",
     arXiv:2310.10688, Appendix A.8
-  - RevIN (Kim et al., ICLR 2022) for normalization of non-stationary input
 """
 
 import numpy as np
