@@ -103,6 +103,9 @@ class RevEWMNorm(nn.Module):
         # weights_for_x[t, k] = (1-alpha)^{t-k} for k <= t
         # sum = cumsum of (x[k] * (1-alpha)^{-k}) * (1-alpha)^t
         # Rewrite: weighted_x[k] = x[k] / decay[k], then cumsum * decay gives the sum
+        # NOTE: inv_decay can overflow for very long T or large spans.
+        # For T=4096, span=300 the peak is ~5e11 (safe in float64).
+        # If needed, add chunking as in RevEWMSTDN.
         inv_decay = 1.0 / decay  # [T]
         inv_decay = inv_decay.view(1, T, 1)  # [1, T, 1]
         decay_bc = decay.view(1, T, 1)  # [1, T, 1]
@@ -122,8 +125,8 @@ class RevEWMNorm(nn.Module):
         ema_var_sum = alpha * cumsum_wrsq * decay_bc
         ema_var = ema_var_sum + decay_shift_bc * init_var_64
 
-        self.mean = ema_mean.to(dtype)  # [B, T, C]
-        self.stdev = torch.sqrt(ema_var).to(dtype)  # [B, T, C]
+        self.mean = ema_mean.to(dtype).detach()  # [B, T, C]
+        self.stdev = torch.sqrt(ema_var).to(dtype).detach()  # [B, T, C]
 
     def _normalize(self, x: torch.Tensor) -> torch.Tensor:
         x = x - self.mean

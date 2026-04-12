@@ -125,3 +125,64 @@ class TestRevEWMNormAffine:
     def test_no_affine_has_no_parameters(self):
         norm = RevEWMNorm(num_features=4, span=300, patch_size=32, affine=False)
         assert len(list(norm.parameters())) == 0
+
+
+class TestRevEWMNormGrad:
+    def test_statistics_are_detached(self):
+        """Mean and stdev should not carry gradient history."""
+        norm = RevEWMNorm(num_features=2, span=300, patch_size=32)
+        x = torch.randn(1, 128, 2, requires_grad=True)
+        normed = norm(x, mode='norm')
+        assert not norm.mean.requires_grad
+        assert not norm.stdev.requires_grad
+
+
+class TestRevEWMNormIntegration:
+    def test_with_configurable_model(self):
+        """RevEWMNorm should work end-to-end inside ConfigurableModel."""
+        from src.models import ConfigurableModel
+        model = ConfigurableModel(
+            C=2, H=64, W=16, encoder_type='mlp', num_layers=1, nhead=2,
+            ffn_mult=2, rev_norm_span=300)
+        x = torch.randn(1, 64, 2)
+        out, out_orig = model(x)
+        assert out.shape == (1, 4, 2, 64)
+        assert out_orig.shape == (1, 4, 2, 64)
+
+    def test_full_train_step_arima_with_revnorm(self):
+        """End-to-end: ARIMA data + RevEWMNorm model + one training step."""
+        from types import SimpleNamespace
+        from src.models import ConfigurableModel
+        from src.arma import generate_arima_batch
+        from src.loss import contrastive_latent_loss
+
+        C, H, W = 2, 64, 16
+        model = ConfigurableModel(
+            C=C, H=H, W=W, encoder_type='gru', num_layers=1, nhead=2,
+            ffn_mult=2, rev_norm_span=300)
+        optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4)
+
+        # Generate ARIMA(1, p, q) data
+        x, _ = generate_arima_batch(batch_size=2, T_raw=64, C=C, seed=0, dimension=4)
+
+        # Forward
+        f_lat, o_lat = model(x)
+        B, T, Cm, Hm = f_lat.shape
+        f_lat = f_lat.permute(0, 1, 2, 3)  # already [B, T, C, H]
+        o_lat = o_lat.permute(0, 1, 2, 3)
+
+        spec = SimpleNamespace(train_configuration={
+            'contrastive_divergence_temperature': 0.07,
+            'contrastive_latent_noise': None,
+            'loss_shape': 'cosine_similarity_batch_no_time_neg',
+            'contrastive_latent_delay': 0,
+        })
+        loss = contrastive_latent_loss((f_lat, o_lat), validation=False, spec=spec)
+
+        # Backward + step
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        assert loss.item() > 0
+        assert not torch.isnan(loss)
