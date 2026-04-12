@@ -18,22 +18,24 @@ src/                     Core library
   arma.py                  ARMA process generation
   blocks.py                Transformer blocks (causal attention + depthwise conv)
   encoders.py              Patch encoders (MLP, GRU, Conv, etc.)
-  network.py               Model architectures (SimpleModel)
+  models.py                ConfigurableModel (best architecture)
+  recovery.py              Recovery head definitions and factory
+  network.py               SimpleModel (original architecture)
   loss.py                  Contrastive loss functions
   checkpoint.py            Checkpoint save/load with optimizer state
 
-train_contrastive_v2.py  Contrastive training script (ConfigurableModel)
-train_contrastive.py     Original training script (SimpleModel)
-train_parameter_recovery_v2.py  Recovery head training (configurable)
-train_parameter_recovery.py     Original recovery training
+scripts/                 Training scripts (best architecture, ready to use)
+  train.py                 Contrastive backbone training
+  recover.py               Parameter recovery head training
 
 examples/                Getting-started notebooks
 tests/                   Unit tests
 experiments/             Experiment logs and reports
-  contrastive-arma/        Full architecture search results (Mar--Apr 2026)
+  contrastive-arma/        Full architecture search (Mar--Apr 2026)
     report/                  Technical report, tables, figures
-    scripts/                 Run scripts for all experiment phases
+    scripts/                 Experiment run scripts (all phases)
     notebooks/               Experiment-specific notebooks
+    train_*.py               Original training scripts (frozen)
 ```
 
 ## Model Architecture
@@ -52,19 +54,10 @@ See [`experiments/contrastive-arma/report/technical_report.md`](experiments/cont
 
 ```bash
 # Train contrastive backbone (GPU recommended)
-python train_contrastive_v2.py --device cuda \
-    --encoder-type gru --H 1024 --num-layers 12 --nhead 8 --ffn-mult 4 \
-    --activation gelu --depthwise-conv 3 \
-    --total-steps 500000 --batch-size 8 --lr 7e-5 \
-    --save-path model.pth
+python scripts/train.py --device cuda --total-steps 500000 --save-path model.pth
 
 # Train recovery head on frozen backbone
-python train_parameter_recovery_v2.py --device cuda \
-    --model-path model.pth \
-    --encoder-type gru --H 1024 --num-layers 12 --nhead 8 --ffn-mult 4 \
-    --activation gelu --depthwise-conv 3 \
-    --model-type gru --hidden-dim 128 --num-gru-layers 2 \
-    --epochs 20000
+python scripts/recover.py --device cuda --model-path model.pth --epochs 20000
 ```
 
 ## License
