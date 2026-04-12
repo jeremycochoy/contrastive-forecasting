@@ -17,16 +17,19 @@ Find the best `span` parameter for RevEWMNorm when training on non-stationary AR
 | VRAM per experiment | 4.5 GB |
 | GPUs | 2x RTX 4090 |
 
-Four experiments run in parallel:
+Seven span values tested across two rounds:
 
-| GPU | Experiment | `rev_norm_span` | EMA half-life |
-|-----|-----------|-----------------|---------------|
-| 0 | A | None (baseline) | -- |
-| 0 | B | 32 (= patch size) | ~16 timesteps |
-| 1 | C | 128 | ~64 timesteps |
-| 1 | D | 512 | ~256 timesteps |
+| span | alpha | EMA half-life | Rationale |
+|------|-------|---------------|-----------|
+| 8 | 0.222 | ~3 timesteps | Very aggressive |
+| 16 | 0.118 | ~6 timesteps | Half a patch |
+| **32** | **0.061** | **~11 timesteps** | **~0.7 patches** |
+| 64 | 0.031 | ~22 timesteps | ~1.4 patches |
+| 128 | 0.016 | ~44 timesteps | ~2.8 patches |
+| 512 | 0.004 | ~176 timesteps | ~11 patches |
+| None | -- | -- | Baseline (no normalization) |
 
-## Results by Step
+## Results by Step (initial round)
 
 | Step | no_norm | span=32 | span=128 | span=512 |
 |------|---------|---------|----------|----------|
@@ -39,38 +42,53 @@ Four experiments run in parallel:
 
 (Some intermediate span=128/512 values lost due to log buffering; final values are reliable.)
 
-## Summary
+## Results: refined span search
 
-| Config | Best gap | Improvement vs no_norm |
-|--------|----------|------------------------|
-| no_norm (baseline) | 0.020 | 1.0x |
-| **span=32** | **0.235** | **11.9x** |
-| span=128 | 0.177 | 8.9x |
-| span=512 | 0.132 | 6.7x |
+| Step | span=8 | span=16 | span=32 | span=64 |
+|------|--------|---------|---------|---------|
+| 500 | NaN | 0.000 | 0.017 | 0.048 |
+| 1000 | NaN | 0.081 | 0.131 | 0.104 |
+| 1500 | NaN | 0.112 | 0.156 | 0.168 |
+| 2000 | NaN | 0.185 | 0.207 | 0.194 |
+| 2500 | NaN | 0.218 | 0.219 | 0.183 |
+| 3000 | NaN | 0.228 | **0.235** | 0.216 |
+
+## Full Summary
+
+| span | half-life | best gap @3k | vs no_norm | status |
+|------|-----------|-------------|------------|--------|
+| 8 | ~3 ts | NaN | -- | broken (EMA variance collapses) |
+| 16 | ~6 ts | 0.228 | 11.5x | works, close to best |
+| **32** | **~11 ts** | **0.235** | **11.9x** | **winner** |
+| 64 | ~22 ts | 0.216 | 10.9x | good |
+| 128 | ~44 ts | 0.177 | 8.9x | decent |
+| 512 | ~176 ts | 0.132 | 6.7x | too slow |
+| None | -- | 0.020 | 1.0x | barely learns |
 
 ## Analysis
 
 ### RevEWMNorm is essential for ARIMA data
 
-Without normalization, the model barely learns on ARIMA input (gap 0.020 at 3k steps). The non-stationary nature of integrated processes -- growing variance, drifting mean -- makes raw ARIMA data nearly impossible for the contrastive objective. All three span values dramatically outperform the baseline.
+Without normalization, the model barely learns on ARIMA input (gap 0.020 at 3k steps). The non-stationary nature of integrated processes -- growing variance, drifting mean -- makes raw ARIMA data nearly impossible for the contrastive objective. All working span values dramatically outperform the baseline.
 
-### Shorter span = better
+### Sweet spot: span 16-32
 
-The ranking is monotonic: span=32 > span=128 > span=512. This makes sense:
+The gap peaks in the span=16-32 range (0.228-0.235), with span=32 slightly ahead. The performance curve is:
 
-- ARIMA(1, p, q) data has **locally changing statistics** due to integration. The mean drifts and variance grows over time.
-- A **fast-adapting EMA** (small span) tracks these local statistics more tightly, producing a more stationary normalized signal.
-- A **slow-adapting EMA** (large span) averages over too much history, leaving residual non-stationarity in the normalized output.
+- **span=8**: too aggressive, EMA variance collapses to zero causing NaN
+- **span=16-32**: sweet spot, best performance
+- **span=64-512**: progressively worse as the EMA adapts too slowly
 
-### span=32 matches the patch size
+### Why span=32 wins
 
-The optimal span (32) equals the patch size W=16... actually span=32 means the EMA half-life is ~16 timesteps, which is exactly one patch. This is a natural scale: the normalization adapts roughly once per patch, ensuring each patch sees approximately standardized input.
+span=32 gives an EMA half-life of ~11 timesteps, roughly 0.7 patches (W=16). This is a natural scale: the normalization statistics are dominated by the current patch's data while retaining some memory of the recent past. Each patch sees approximately standardized input without the instability of an overly aggressive EMA.
+
+span=16 (half-life ~6 ts, 0.4 patches) is nearly as good, suggesting the sweet spot is broad. However, span=8 (half-life ~3 ts) crosses the stability boundary.
 
 ## Conclusion
 
 For ARIMA(1, 8, 8) data on the Tiny backbone:
 - **Use `rev_norm_span=32`** (best gap 0.235, 11.9x over baseline)
+- span=16 is a close alternative (0.228, 11.5x) with a broader stability margin
 - RevEWMNorm is not optional -- it's required for non-stationary input
-- The optimal span matches the patch-scale temporal resolution
-
-A natural follow-up is to test even smaller spans (8, 16) to see if the trend continues, and to verify these findings hold at larger model scales.
+- The optimal half-life is roughly 0.5-0.7 patches
