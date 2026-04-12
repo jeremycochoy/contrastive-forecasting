@@ -117,7 +117,8 @@ class TransformerBlock(nn.Module):
     support_streaming = False
 
     def __init__(self, dimension_e, nhead=8, num_layers=6, feedforward_mult=None,
-                 activation=None, input_to_latent=None, dropout=0, depthwise_conv=3):
+                 activation=None, input_to_latent=None, dropout=0, depthwise_conv=3,
+                 norm_first=True):
         super().__init__()
 
         if feedforward_mult is None:
@@ -133,7 +134,7 @@ class TransformerBlock(nn.Module):
                 dim_feedforward=dim_feedforward,
                 activation=activation or 'gelu',
                 batch_first=True,
-                norm_first=True,
+                norm_first=norm_first,
                 bias=False,
                 dropout=dropout,
                 depthwise_conv=depthwise_conv,
