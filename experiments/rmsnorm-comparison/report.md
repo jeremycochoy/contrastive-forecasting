@@ -19,19 +19,20 @@ Determine whether replacing Pre-LayerNorm with Pre-RMSNorm improves contrastive 
 | GPUs | 2x RTX 4090, one experiment per GPU |
 | RMSNorm | `torch.nn.RMSNorm` (fused CUDA kernel, PyTorch 2.8) |
 
-Three independent runs per configuration (different random seeds from data generation). Normalization is Pre-Norm in both cases (`norm_first=True`).
+Multiple independent runs per configuration (different random seeds from data generation). Normalization is Pre-Norm in both cases (`norm_first=True`). All runs use fused CUDA kernels (`nn.LayerNorm` / `nn.RMSNorm`).
 
 ## Results
 
 | Run | LayerNorm gap | LayerNorm sps | RMSNorm gap | RMSNorm sps |
 |-----|-------------|--------------|------------|------------|
-| 1 | 0.442 | 23.5 | 0.421 | 21.9 |
-| 2 | 0.419 | 21.0 | 0.419 | 22.7 |
-| 3 | 0.420 | 23.4 | 0.423 | 22.4 |
-| **Mean** | **0.427** | **22.6** | **0.421** | **22.3** |
-| Std | 0.013 | 1.4 | 0.002 | 0.4 |
+| 1 | 0.442 | 23.5 | -- | -- |
+| 2 | 0.419 | 21.0 | 0.421 | 21.9 |
+| 3 | 0.420 | 23.4 | 0.419 | 22.7 |
+| 4 | 0.421 | 23.3 | 0.423 | 22.4 |
+| **Mean** | **0.426** | **22.8** | **0.421** | **22.3** |
+| Std | 0.011 | 1.2 | 0.002 | 0.4 |
 
-Note: LayerNorm run 1 appears to be an outlier (0.442 vs 0.419-0.420 for the other two). Excluding it, the LayerNorm mean is 0.420, essentially identical to RMSNorm.
+Note: LayerNorm run 1 appears to be an outlier (0.442 vs 0.419-0.421 for the other three). Excluding it, the LayerNorm mean is 0.420, identical to RMSNorm.
 
 ## Analysis
 
