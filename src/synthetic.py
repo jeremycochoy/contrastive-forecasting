@@ -144,7 +144,6 @@ def _generate_single_series(T: int, rng: Generator,
     Returns:
         Array of shape (T,).
     """
-    components = []
     generators = [
         lambda: generate_piecewise_linear(T, rng),
         lambda: sample_arma_from_roots(T, rng, dimension=dimension),
