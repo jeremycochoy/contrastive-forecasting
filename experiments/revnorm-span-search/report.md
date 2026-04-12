@@ -58,11 +58,13 @@ Seven span values tested across two rounds:
 | span | half-life | best gap @3k | vs no_norm | status |
 |------|-----------|-------------|------------|--------|
 | 8 | ~3 ts | NaN | -- | broken (EMA variance collapses) |
-| 16 | ~6 ts | 0.228 | 11.5x | works, close to best |
-| **32** | **~11 ts** | **0.235** | **11.9x** | **winner** |
-| 64 | ~22 ts | 0.216 | 10.9x | good |
-| 128 | ~44 ts | 0.177 | 8.9x | decent |
-| 512 | ~176 ts | 0.132 | 6.7x | too slow |
+| 16 | ~6 ts (0.4 patches) | 0.228 | 11.5x | works, close to best |
+| **32** | **~11 ts (0.7 patches)** | **0.235** | **11.9x** | **winner** |
+| 45 | ~16 ts (1.0 patches) | 0.214 | 10.8x | good |
+| 64 | ~22 ts (1.4 patches) | 0.216 | 10.9x | good |
+| 91 | ~32 ts (2.0 patches) | 0.211 | 10.7x | good |
+| 128 | ~44 ts (2.8 patches) | 0.177 | 8.9x | decent |
+| 512 | ~176 ts (11 patches) | 0.132 | 6.7x | too slow |
 | None | -- | 0.020 | 1.0x | barely learns |
 
 ## Analysis
@@ -71,19 +73,20 @@ Seven span values tested across two rounds:
 
 Without normalization, the model barely learns on ARIMA input (gap 0.020 at 3k steps). The non-stationary nature of integrated processes -- growing variance, drifting mean -- makes raw ARIMA data nearly impossible for the contrastive objective. All working span values dramatically outperform the baseline.
 
-### Sweet spot: span 16-32
+### Sweet spot: span 16-32 (half-life 6-11 timesteps)
 
-The gap peaks in the span=16-32 range (0.228-0.235), with span=32 slightly ahead. The performance curve is:
+The gap peaks in the span=16-32 range (0.228-0.235), with span=32 slightly ahead. Beyond that, the gap forms a broad plateau (span=45-91 at 0.211-0.216) before declining more steeply at span=128+. The performance curve is:
 
 - **span=8**: too aggressive, EMA variance collapses to zero causing NaN
-- **span=16-32**: sweet spot, best performance
-- **span=64-512**: progressively worse as the EMA adapts too slowly
+- **span=16-32**: sweet spot, best performance (half-life 0.4-0.7 patches)
+- **span=45-91**: broad plateau, ~0.21 (half-life 1-2 patches)
+- **span=128-512**: progressively worse as the EMA adapts too slowly
 
 ### Why span=32 wins
 
 span=32 gives an EMA half-life of ~11 timesteps, roughly 0.7 patches (W=16). This is a natural scale: the normalization statistics are dominated by the current patch's data while retaining some memory of the recent past. Each patch sees approximately standardized input without the instability of an overly aggressive EMA.
 
-span=16 (half-life ~6 ts, 0.4 patches) is nearly as good, suggesting the sweet spot is broad. However, span=8 (half-life ~3 ts) crosses the stability boundary.
+Notably, half-life = 1 patch (span=45) and half-life = 2 patches (span=91) both score ~0.21, confirming that the sub-patch regime (span=16-32) is genuinely better, not just noise.
 
 ## Conclusion
 
@@ -91,4 +94,4 @@ For ARIMA(1, 8, 8) data on the Tiny backbone:
 - **Use `rev_norm_span=32`** (best gap 0.235, 11.9x over baseline)
 - span=16 is a close alternative (0.228, 11.5x) with a broader stability margin
 - RevEWMNorm is not optional -- it's required for non-stationary input
-- The optimal half-life is roughly 0.5-0.7 patches
+- The optimal half-life is sub-patch: 0.4-0.7 patches (6-11 timesteps for W=16)
