@@ -26,6 +26,7 @@ from types import SimpleNamespace
 
 from src.models import ConfigurableModel, compute_metrics, count_parameters
 from src.synthetic import generate_synthetic_batch
+from src.dataloader import create_dataloader
 from src.loss import contrastive_latent_loss
 from src.checkpoint import save_training_state, load_training_state, safe_save_path
 
@@ -69,7 +70,23 @@ def parse_args():
                    help="Save snapshot every N steps (never overwritten)")
     p.add_argument("--ema-decay", type=float, default=0.99,
                    help="EMA decay for rolling loss/gap tracking")
+    p.add_argument("--data-dir", default=None,
+                   help="Directory of parquet shards (HF data). "
+                        "If omitted, uses synthetic data only.")
     return p.parse_args()
+
+
+def random_sign_flip(x: torch.Tensor) -> torch.Tensor:
+    """Randomly flip the sign of each channel independently.
+
+    For each (batch, channel) pair, flip the sign with 50% probability.
+    This is a free augmentation: if x(t) is a valid series, -x(t) is too.
+    """
+    B, T, C = x.shape
+    signs = torch.where(torch.rand(B, 1, C, device=x.device) < 0.5,
+                        torch.ones(1, device=x.device),
+                        -torch.ones(1, device=x.device))
+    return x * signs
 
 
 def forward_step(model, x):
@@ -154,16 +171,38 @@ def main():
           f"lr={args.lr}, T={T_RAW}")
     print(f"Checkpoints: {args.save_dir}/{args.run_name}_*.pth")
 
+    # -- Data source -----------------------------------------------------------
+    data_iter = None
+    if args.data_dir:
+        data_loader = create_dataloader(
+            args.data_dir, batch_size=args.batch_size,
+            C=MODEL_CONFIG["C"], shuffle=True)
+        data_iter = iter(data_loader)
+        print(f"Data: parquet shards from {args.data_dir} "
+              f"({len(data_loader)} batches/epoch)")
+    else:
+        print("Data: synthetic only (no --data-dir)")
+
     # -- Training loop ---------------------------------------------------------
     t0 = time.time()
     for step in range(start_step + 1, args.total_steps + 1):
         model.train()
         optimizer.zero_grad()
 
-        x, = generate_synthetic_batch(
-            batch_size=args.batch_size, T_raw=T_RAW, C=MODEL_CONFIG["C"],
-            dimension=DIMENSION)
+        # Get batch from parquet shards or synthetic fallback
+        if data_iter is not None:
+            try:
+                x = next(data_iter)
+            except StopIteration:
+                data_iter = iter(data_loader)
+                x = next(data_iter)
+        else:
+            x, = generate_synthetic_batch(
+                batch_size=args.batch_size, T_raw=T_RAW,
+                C=MODEL_CONFIG["C"], dimension=DIMENSION)
+
         x = x.to(device)
+        x = random_sign_flip(x)
 
         f_lat, o_lat = forward_step(model, x)
         loss = contrastive_latent_loss((f_lat, o_lat), validation=False,
