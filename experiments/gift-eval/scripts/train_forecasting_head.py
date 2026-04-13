@@ -83,6 +83,8 @@ def parse_args():
                    help="HF rows to skip (for data position resume)")
     p.add_argument("--seed", type=int, default=42,
                    help="Random seed for reproducibility")
+    p.add_argument("--grad-clip", type=float, default=1.0,
+                   help="Max gradient norm for clipping (0 to disable)")
     return p.parse_args()
 
 
@@ -232,6 +234,8 @@ def main():
 
         # Backward + step
         loss.backward()
+        if args.grad_clip > 0:
+            torch.nn.utils.clip_grad_norm_(head.parameters(), args.grad_clip)
         optimizer.step()
 
         # EMA tracking
