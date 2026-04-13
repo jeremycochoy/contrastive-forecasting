@@ -26,7 +26,7 @@ from types import SimpleNamespace
 
 from src.models import ConfigurableModel, compute_metrics, count_parameters
 from src.synthetic import generate_synthetic_batch
-from src.dataloader import create_dataloader
+from src.dataloader import create_dataloader, create_hf_dataloader
 from src.loss import contrastive_latent_loss
 from src.checkpoint import save_training_state, load_training_state, safe_save_path
 
@@ -71,8 +71,14 @@ def parse_args():
     p.add_argument("--ema-decay", type=float, default=0.99,
                    help="EMA decay for rolling loss/gap tracking")
     p.add_argument("--data-dir", default=None,
-                   help="Directory of parquet shards (HF data). "
-                        "If omitted, uses synthetic data only.")
+                   help="Directory of local parquet shards. "
+                        "If omitted, uses --hf-repo or synthetic fallback.")
+    p.add_argument("--hf-repo", default=None,
+                   help="HuggingFace dataset repo ID for streaming "
+                        "(e.g. 'user/contrastive-training-tiny-bundles').")
+    p.add_argument("--hf-path", default=None,
+                   help="Subdirectory within the HF repo "
+                        "(e.g. 'tiny_mixed_v1').")
     return p.parse_args()
 
 
@@ -178,10 +184,16 @@ def main():
             args.data_dir, batch_size=args.batch_size,
             C=MODEL_CONFIG["C"], shuffle=True)
         data_iter = iter(data_loader)
-        print(f"Data: parquet shards from {args.data_dir} "
+        print(f"Data: local shards from {args.data_dir} "
               f"({len(data_loader)} batches/epoch)")
+    elif args.hf_repo:
+        data_loader = create_hf_dataloader(
+            args.hf_repo, batch_size=args.batch_size,
+            C=MODEL_CONFIG["C"], path_in_repo=args.hf_path)
+        data_iter = iter(data_loader)
+        print(f"Data: HF streaming from {args.hf_repo}")
     else:
-        print("Data: synthetic only (no --data-dir)")
+        print("Data: synthetic only (no --data-dir or --hf-repo)")
 
     # -- Training loop ---------------------------------------------------------
     t0 = time.time()
@@ -234,21 +246,21 @@ def main():
                   f"gap={gap_val:.4f}  ema_gap={ema_gap:.4f}  "
                   f"{sps:.1f} sps  ETA {eta:.1f}h")
 
-        # -- Best gap checkpoint -----------------------------------------------
-        if ema_gap > best_gap:
-            best_gap, best_gap_step = ema_gap, step
-            path = os.path.join(args.save_dir,
-                                f"{args.run_name}_best_gap.pth")
-            save_snapshot(model, optimizer, path, step,
-                          best_gap, best_gap_step, best_loss, best_loss_step)
+        # -- Best checkpoints (only check on log steps to reduce I/O) ---------
+        if step % args.log_every == 0:
+            if ema_gap > best_gap:
+                best_gap, best_gap_step = ema_gap, step
+                path = os.path.join(args.save_dir,
+                                    f"{args.run_name}_best_gap.pth")
+                save_snapshot(model, optimizer, path, step,
+                              best_gap, best_gap_step, best_loss, best_loss_step)
 
-        # -- Best loss checkpoint ----------------------------------------------
-        if ema_loss < best_loss:
-            best_loss, best_loss_step = ema_loss, step
-            path = os.path.join(args.save_dir,
-                                f"{args.run_name}_best_loss.pth")
-            save_snapshot(model, optimizer, path, step,
-                          best_gap, best_gap_step, best_loss, best_loss_step)
+            if ema_loss < best_loss:
+                best_loss, best_loss_step = ema_loss, step
+                path = os.path.join(args.save_dir,
+                                    f"{args.run_name}_best_loss.pth")
+                save_snapshot(model, optimizer, path, step,
+                              best_gap, best_gap_step, best_loss, best_loss_step)
 
         # -- Periodic snapshot (never overwritten) -----------------------------
         if step % args.save_every == 0:
