@@ -19,6 +19,7 @@ Usage:
 
 import argparse
 import os
+import sys
 import time
 import torch
 import torch.optim as optim
@@ -194,14 +195,22 @@ def main():
         print(f"Data: HF streaming from {args.hf_repo}")
     else:
         print("Data: synthetic only (no --data-dir or --hf-repo)")
+    sys.stdout.flush()
 
     # -- Training loop ---------------------------------------------------------
     t0 = time.time()
+    # Timing accumulators (reset every log_every steps)
+    t_data_sum, t_fwd_sum, t_bwd_sum, t_step_sum = 0.0, 0.0, 0.0, 0.0
+    timing_count = 0
+
     for step in range(start_step + 1, args.total_steps + 1):
+        t_step_start = time.perf_counter()
+
         model.train()
         optimizer.zero_grad()
 
-        # Get batch from parquet shards or synthetic fallback
+        # -- Data loading (timing) -------------------------------------------
+        t_data_start = time.perf_counter()
         if data_iter is not None:
             try:
                 x = next(data_iter)
@@ -215,12 +224,29 @@ def main():
 
         x = x.to(device)
         x = random_sign_flip(x)
+        t_data_end = time.perf_counter()
 
+        # -- Forward pass (timing) -------------------------------------------
+        t_fwd_start = time.perf_counter()
         f_lat, o_lat = forward_step(model, x)
         loss = contrastive_latent_loss((f_lat, o_lat), validation=False,
                                        spec=LOSS_SPEC)
+        t_fwd_end = time.perf_counter()
+
+        # -- Backward pass (timing) ------------------------------------------
+        t_bwd_start = time.perf_counter()
         loss.backward()
         optimizer.step()
+        t_bwd_end = time.perf_counter()
+
+        t_step_end = time.perf_counter()
+
+        # Accumulate timing
+        t_data_sum += (t_data_end - t_data_start)
+        t_fwd_sum += (t_fwd_end - t_fwd_start)
+        t_bwd_sum += (t_bwd_end - t_bwd_start)
+        t_step_sum += (t_step_end - t_step_start)
+        timing_count += 1
 
         # -- Rolling metrics (EMA) ---------------------------------------------
         loss_val = loss.item()
@@ -245,6 +271,16 @@ def main():
             print(f"[{step:>7d}] loss={loss_val:.4f}  ema_loss={ema_loss:.4f}  "
                   f"gap={gap_val:.4f}  ema_gap={ema_gap:.4f}  "
                   f"{sps:.1f} sps  ETA {eta:.1f}h")
+
+            # Timing summary
+            n = timing_count
+            print(f"  timing: data={t_data_sum/n*1000:.1f}ms  "
+                  f"fwd={t_fwd_sum/n*1000:.1f}ms  "
+                  f"bwd={t_bwd_sum/n*1000:.1f}ms  "
+                  f"total={t_step_sum/n*1000:.1f}ms")
+            sys.stdout.flush()
+            t_data_sum, t_fwd_sum, t_bwd_sum, t_step_sum = 0.0, 0.0, 0.0, 0.0
+            timing_count = 0
 
         # -- Best checkpoints (only check on log steps to reduce I/O) ---------
         if step % args.log_every == 0:
