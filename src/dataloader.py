@@ -187,13 +187,14 @@ class HFStreamingLoader:
 
     def __init__(self, repo_id: str, batch_size: int = 16, C: int = 4,
                  path_in_repo: str = None, split: str = "test",
-                 prefetch: int = 2):
+                 prefetch: int = 2, skip_rows: int = 0):
         self.repo_id = repo_id
         self.batch_size = batch_size
         self.C = C
         self.path_in_repo = path_in_repo
         self.split = split
         self.prefetch = prefetch
+        self.skip_rows = skip_rows
 
     def _open_stream(self):
         from datasets import load_dataset
@@ -209,6 +210,9 @@ class HFStreamingLoader:
     def _raw_iter(self):
         """Yield batches without prefetching (used by PrefetchIterator)."""
         stream = self._open_stream()
+        if self.skip_rows > 0:
+            stream = stream.skip(self.skip_rows)
+            print(f"  [dataloader] Skipped {self.skip_rows} rows to resume position")
         buf = []
         target = self.batch_size * self.C
 
@@ -333,15 +337,21 @@ def create_dataloader(shard_dir: str, batch_size: int = 16, C: int = 4,
 
 def create_hf_dataloader(repo_id: str, batch_size: int = 16, C: int = 4,
                           path_in_repo: str = None,
-                          split: str = "test") -> HFStreamingLoader:
+                          split: str = "test",
+                          skip_rows: int = 0) -> HFStreamingLoader:
     """Create a streaming DataLoader from a HuggingFace dataset repo.
 
     Streams parquet shards on the fly — no full download required.
     Data is already pre-shuffled by the pipeline.
 
+    Args:
+        skip_rows: Number of rows to skip at the start of the stream.
+            Used for resuming training from a checkpoint so the model
+            doesn't re-see data it already trained on.
+
     Returns an iterable yielding tensors of shape [B, T_raw, C].
     """
     return HFStreamingLoader(
         repo_id=repo_id, batch_size=batch_size, C=C,
-        path_in_repo=path_in_repo, split=split,
+        path_in_repo=path_in_repo, split=split, skip_rows=skip_rows,
     )

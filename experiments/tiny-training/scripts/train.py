@@ -250,10 +250,11 @@ def main():
     elif args.hf_repo:
         data_loader = create_hf_dataloader(
             args.hf_repo, batch_size=args.batch_size,
-            C=MODEL_CONFIG["C"], path_in_repo=args.hf_path)
+            C=MODEL_CONFIG["C"], path_in_repo=args.hf_path,
+            skip_rows=hf_rows_consumed)
         data_iter = iter(data_loader)
         print(f"Data: HF streaming from {args.hf_repo} "
-              f"({rows_per_step} rows/step)")
+              f"({rows_per_step} rows/step, skip={hf_rows_consumed} rows)")
     else:
         print("Data: synthetic only (no --data-dir or --hf-repo)")
     sys.stdout.flush()
