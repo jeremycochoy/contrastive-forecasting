@@ -221,16 +221,16 @@ def main():
         # MSE loss
         loss = torch.nn.functional.mse_loss(preds, targets)
 
-        # NaN detection
+        # NaN detection -- skip bad batches instead of crashing
         loss_val = loss.item()
         if math.isnan(loss_val) or math.isinf(loss_val):
-            print(f"\n*** NaN/Inf DETECTED at step {step} ***")
-            emerg_path = os.path.join(
-                args.save_dir, f"{args.run_name}_EMERGENCY_{step}.pth")
-            torch.save(head.state_dict(), emerg_path)
-            print(f"  Emergency checkpoint: {emerg_path}")
-            csv_logger.close()
-            sys.exit(1)
+            nan_skip_count = getattr(main, '_nan_skips', 0) + 1
+            main._nan_skips = nan_skip_count
+            print(f"  [step {step}] NaN/Inf loss detected, skipping batch "
+                  f"(total skips: {nan_skip_count})")
+            sys.stdout.flush()
+            optimizer.zero_grad()  # discard any partial gradients
+            continue
 
         # Backward + step
         loss.backward()
