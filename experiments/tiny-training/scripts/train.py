@@ -6,6 +6,12 @@ Trains the Tiny backbone on synthetic composite ARIMA data (TimesFM recipe)
 with RevEWMNorm. Uses rolling EMA of train loss/gap for best checkpoint
 selection. Saves periodic snapshots that are never overwritten.
 
+Features:
+  - Per-step loss CSV logger (buffered writes every 100 steps)
+  - Gradient clipping (--grad-clip, default 1.0)
+  - NaN detection with emergency checkpoint + immediate stop
+  - HF row counter for data traceability
+
 Usage:
     # Train from scratch
     python scripts/train_v3.py --device cuda
@@ -18,6 +24,8 @@ Usage:
 """
 
 import argparse
+import csv
+import math
 import os
 import sys
 import time
@@ -67,7 +75,7 @@ def parse_args():
                    help="Path to checkpoint to resume from")
     p.add_argument("--log-every", type=int, default=100,
                    help="Log metrics every N steps")
-    p.add_argument("--save-every", type=int, default=100000,
+    p.add_argument("--save-every", type=int, default=10000,
                    help="Save snapshot every N steps (never overwritten)")
     p.add_argument("--ema-decay", type=float, default=0.99,
                    help="EMA decay for rolling loss/gap tracking")
@@ -82,6 +90,8 @@ def parse_args():
                         "(e.g. 'tiny_mixed_v1').")
     p.add_argument("--seed", type=int, default=42,
                    help="Random seed for reproducibility")
+    p.add_argument("--grad-clip", type=float, default=1.0,
+                   help="Max gradient norm for clipping (0 to disable)")
     return p.parse_args()
 
 
@@ -147,6 +157,43 @@ def safe_run_name(save_dir, run_name):
         n += 1
 
 
+class CSVLogger:
+    """Buffered per-step loss CSV logger.
+
+    Writes step,loss,gap,ff,fp,hf_rows_consumed to a CSV file.
+    Flushes to disk every `flush_every` steps to reduce I/O overhead.
+    """
+
+    def __init__(self, path: str, flush_every: int = 100):
+        self.path = path
+        self.flush_every = flush_every
+        self._buffer = []
+        self._file = open(path, "a", newline="")
+        self._writer = csv.writer(self._file)
+        # Write header only if file is empty/new
+        if os.path.getsize(path) == 0:
+            self._writer.writerow([
+                "step", "loss", "gap", "ff", "fp", "hf_rows_consumed"
+            ])
+            self._file.flush()
+
+    def log(self, step: int, loss: float, gap: float, ff: float, fp: float,
+            hf_rows_consumed: int):
+        self._buffer.append([step, loss, gap, ff, fp, hf_rows_consumed])
+        if len(self._buffer) >= self.flush_every:
+            self.flush()
+
+    def flush(self):
+        if self._buffer:
+            self._writer.writerows(self._buffer)
+            self._file.flush()
+            self._buffer = []
+
+    def close(self):
+        self.flush()
+        self._file.close()
+
+
 def main():
     args = parse_args()
     device = torch.device(args.device)
@@ -185,8 +232,18 @@ def main():
     print(f"Training for {args.total_steps} steps, bs={args.batch_size}, "
           f"lr={args.lr}, T={T_RAW}")
     print(f"Checkpoints: {args.save_dir}/{args.run_name}_*.pth")
+    print(f"Grad clip: {args.grad_clip}" if args.grad_clip > 0
+          else "Grad clip: disabled")
+
+    # -- CSV logger ------------------------------------------------------------
+    csv_path = os.path.join(args.save_dir, f"{args.run_name}_losses.csv")
+    csv_logger = CSVLogger(csv_path, flush_every=100)
+    print(f"Loss CSV: {csv_path}")
 
     # -- Data source -----------------------------------------------------------
+    rows_per_step = args.batch_size * MODEL_CONFIG["C"]  # bs * C rows per step
+    hf_rows_consumed = start_step * rows_per_step  # track cumulative HF rows
+
     data_iter = None
     if args.data_dir:
         data_loader = create_dataloader(
@@ -200,7 +257,8 @@ def main():
             args.hf_repo, batch_size=args.batch_size,
             C=MODEL_CONFIG["C"], path_in_repo=args.hf_path)
         data_iter = iter(data_loader)
-        print(f"Data: HF streaming from {args.hf_repo}")
+        print(f"Data: HF streaming from {args.hf_repo} "
+              f"({rows_per_step} rows/step)")
     else:
         print("Data: synthetic only (no --data-dir or --hf-repo)")
     sys.stdout.flush()
@@ -230,6 +288,8 @@ def main():
                 batch_size=args.batch_size, T_raw=T_RAW,
                 C=MODEL_CONFIG["C"], dimension=DIMENSION)
 
+        hf_rows_consumed += rows_per_step
+
         x = x.to(device)
         x = random_sign_flip(x)
         t_data_end = time.perf_counter()
@@ -241,9 +301,38 @@ def main():
                                        spec=LOSS_SPEC)
         t_fwd_end = time.perf_counter()
 
+        # -- NaN detection ---------------------------------------------------
+        loss_val = loss.item()
+        if math.isnan(loss_val) or math.isinf(loss_val):
+            print(f"\n*** NaN/Inf DETECTED at step {step} ***")
+            print(f"  loss={loss_val}, hf_rows_consumed={hf_rows_consumed}")
+            print(f"  Batch shape: {x.shape}")
+            print(f"  Batch stats: min={x.min().item():.4f}, "
+                  f"max={x.max().item():.4f}, "
+                  f"mean={x.mean().item():.4f}, "
+                  f"std={x.std().item():.4f}")
+            print(f"  Any NaN in input: {torch.isnan(x).any().item()}")
+
+            # Save emergency checkpoint
+            emerg_path = os.path.join(
+                args.save_dir, f"{args.run_name}_EMERGENCY_{step}.pth")
+            save_snapshot(model, optimizer, emerg_path, step,
+                          best_gap, best_gap_step, best_loss, best_loss_step)
+            print(f"  Emergency checkpoint: {emerg_path}")
+
+            # Flush CSV and close
+            csv_logger.close()
+            sys.stdout.flush()
+            sys.exit(1)
+
         # -- Backward pass (timing) ------------------------------------------
         t_bwd_start = time.perf_counter()
         loss.backward()
+
+        # Gradient clipping
+        if args.grad_clip > 0:
+            torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
+
         optimizer.step()
         t_bwd_end = time.perf_counter()
 
@@ -257,7 +346,6 @@ def main():
         timing_count += 1
 
         # -- Rolling metrics (EMA) ---------------------------------------------
-        loss_val = loss.item()
         with torch.no_grad():
             val_ff, val_fp, _, _ = compute_metrics(f_lat, o_lat, CLD)
         gap_val = val_ff - val_fp
@@ -269,6 +357,10 @@ def main():
             d = args.ema_decay
             ema_loss = d * ema_loss + (1 - d) * loss_val
             ema_gap = d * ema_gap + (1 - d) * gap_val
+
+        # -- Per-step CSV logging ----------------------------------------------
+        csv_logger.log(step, loss_val, gap_val, val_ff, val_fp,
+                       hf_rows_consumed)
 
         # -- Logging -----------------------------------------------------------
         if step % args.log_every == 0:
@@ -317,6 +409,9 @@ def main():
     path = os.path.join(args.save_dir, f"{args.run_name}_final.pth")
     save_snapshot(model, optimizer, path, args.total_steps,
                   best_gap, best_gap_step, best_loss, best_loss_step)
+
+    # Flush and close CSV
+    csv_logger.close()
 
     total = time.time() - t0
     print(f"\nDone in {total/3600:.1f}h. "
