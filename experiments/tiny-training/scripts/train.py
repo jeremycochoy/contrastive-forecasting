@@ -64,7 +64,7 @@ def parse_args():
     p = argparse.ArgumentParser(description="Train contrastive forecasting model (v3)")
     p.add_argument("--device", default="cuda")
     p.add_argument("--total-steps", type=int, default=500000)
-    p.add_argument("--batch-size", type=int, default=16)
+    p.add_argument("--batch-size", type=int, default=24)
     p.add_argument("--lr", type=float, default=1e-4)
     p.add_argument("--save-dir", default="checkpoints",
                    help="Directory for all checkpoints")
