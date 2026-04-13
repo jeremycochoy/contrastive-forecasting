@@ -80,6 +80,8 @@ def parse_args():
     p.add_argument("--hf-path", default=None,
                    help="Subdirectory within the HF repo "
                         "(e.g. 'tiny_mixed_v1').")
+    p.add_argument("--seed", type=int, default=42,
+                   help="Random seed for reproducibility")
     return p.parse_args()
 
 
@@ -148,6 +150,12 @@ def safe_run_name(save_dir, run_name):
 def main():
     args = parse_args()
     device = torch.device(args.device)
+
+    # Reproducibility
+    torch.manual_seed(args.seed)
+    torch.cuda.manual_seed_all(args.seed)
+    import numpy as _np
+    _np.random.seed(args.seed)
 
     os.makedirs(args.save_dir, exist_ok=True)
 
