@@ -76,10 +76,10 @@ class RevEWMNorm(nn.Module):
         alpha = self.alpha
         W = min(self.patch_size, T)
 
-        # Initialize EMA from first patch statistics
-        first_patch = x[:, :W, :]  # [B, W, C]
-        ema_mean_init = first_patch.mean(dim=1, keepdim=True)  # [B, 1, C]
-        ema_var_init = first_patch.var(dim=1, keepdim=True, unbiased=False)  # [B, 1, C]
+        # Initialize EMA from first patch statistics (float64 to handle extreme values)
+        first_patch_64 = x[:, :W, :].to(torch.float64)  # [B, W, C]
+        ema_mean_init = first_patch_64.mean(dim=1, keepdim=True)  # [B, 1, C]
+        ema_var_init = first_patch_64.var(dim=1, keepdim=True, unbiased=False)  # [B, 1, C]
 
         # Build EMA weights: weights[t] = (1-alpha)^(T-1-t) for cumsum trick
         # We compute in float64 for numerical stability then cast back
@@ -98,7 +98,7 @@ class RevEWMNorm(nn.Module):
 
         # Weighted cumsum for mean
         x_64 = x.to(torch.float64)  # [B, T, C]
-        init_mean_64 = ema_mean_init.to(torch.float64)  # [B, 1, C]
+        init_mean_64 = ema_mean_init  # already float64
 
         # weights_for_x[t, k] = (1-alpha)^{t-k} for k <= t
         # sum = cumsum of (x[k] * (1-alpha)^{-k}) * (1-alpha)^t
@@ -118,7 +118,7 @@ class RevEWMNorm(nn.Module):
         ema_mean = ema_sum + decay_shift_bc * init_mean_64  # add init contribution
 
         # EMA variance
-        init_var_64 = ema_var_init.to(torch.float64)  # [B, 1, C]
+        init_var_64 = ema_var_init  # already float64
         residuals_sq = (x_64 - ema_mean) ** 2  # [B, T, C]
         weighted_rsq = residuals_sq * inv_decay
         cumsum_wrsq = torch.cumsum(weighted_rsq, dim=1)

@@ -8,7 +8,6 @@ selection. Saves periodic snapshots that are never overwritten.
 
 Features:
   - Per-step loss CSV logger (buffered writes every 100 steps)
-  - Gradient clipping (--grad-clip, default 1.0)
   - NaN detection with emergency checkpoint + immediate stop
   - HF row counter for data traceability
 
@@ -90,8 +89,6 @@ def parse_args():
                         "(e.g. 'tiny_mixed_v1').")
     p.add_argument("--seed", type=int, default=42,
                    help="Random seed for reproducibility")
-    p.add_argument("--grad-clip", type=float, default=1.0,
-                   help="Max gradient norm for clipping (0 to disable)")
     return p.parse_args()
 
 
@@ -232,8 +229,6 @@ def main():
     print(f"Training for {args.total_steps} steps, bs={args.batch_size}, "
           f"lr={args.lr}, T={T_RAW}")
     print(f"Checkpoints: {args.save_dir}/{args.run_name}_*.pth")
-    print(f"Grad clip: {args.grad_clip}" if args.grad_clip > 0
-          else "Grad clip: disabled")
 
     # -- CSV logger ------------------------------------------------------------
     csv_path = os.path.join(args.save_dir, f"{args.run_name}_losses.csv")
@@ -328,11 +323,6 @@ def main():
         # -- Backward pass (timing) ------------------------------------------
         t_bwd_start = time.perf_counter()
         loss.backward()
-
-        # Gradient clipping
-        if args.grad_clip > 0:
-            torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
-
         optimizer.step()
         t_bwd_end = time.perf_counter()
 
