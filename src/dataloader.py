@@ -186,7 +186,7 @@ class HFStreamingLoader:
     """
 
     def __init__(self, repo_id: str, batch_size: int = 16, C: int = 4,
-                 path_in_repo: str = None, split: str = "train",
+                 path_in_repo: str = None, split: str = "test",
                  prefetch: int = 2):
         self.repo_id = repo_id
         self.batch_size = batch_size
@@ -198,25 +198,36 @@ class HFStreamingLoader:
     def _open_stream(self):
         from datasets import load_dataset
 
-        kwargs = dict(streaming=True, split=self.split)
+        split = self.split
+        kwargs = dict(streaming=True)
         if self.path_in_repo:
             kwargs["data_dir"] = self.path_in_repo
+            split = "train"  # data_dir subsets default to "train" split
+        kwargs["split"] = split
         return load_dataset(self.repo_id, **kwargs)
 
     def _raw_iter(self):
         """Yield batches without prefetching (used by PrefetchIterator)."""
         stream = self._open_stream()
         buf = []
+        target = self.batch_size * self.C
 
         for row in stream:
-            series = row["series"]
-            arr = np.array(series[:T_RAW], dtype=np.float32)
-            _forward_fill_nan(arr)
-            buf.append(arr)
+            # Support both processed bundles ("series") and raw GiftEval ("target")
+            series = row.get("series") or row.get("target")
+            if series is None:
+                continue
+            full = np.array(series, dtype=np.float32)
 
-            if len(buf) == self.batch_size * self.C:
-                yield self._flush(buf)
-                buf = []
+            # Crop non-overlapping T_RAW windows from long series
+            for start in range(0, len(full) - T_RAW + 1, T_RAW):
+                window = full[start:start + T_RAW].copy()
+                _forward_fill_nan(window)
+                buf.append(window)
+
+                if len(buf) == target:
+                    yield self._flush(buf)
+                    buf = []
 
         # Yield remainder if enough for at least one sample
         if len(buf) >= self.C:
@@ -322,7 +333,7 @@ def create_dataloader(shard_dir: str, batch_size: int = 16, C: int = 4,
 
 def create_hf_dataloader(repo_id: str, batch_size: int = 16, C: int = 4,
                           path_in_repo: str = None,
-                          split: str = "train") -> HFStreamingLoader:
+                          split: str = "test") -> HFStreamingLoader:
     """Create a streaming DataLoader from a HuggingFace dataset repo.
 
     Streams parquet shards on the fly — no full download required.
