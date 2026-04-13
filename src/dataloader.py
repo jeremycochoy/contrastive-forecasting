@@ -24,12 +24,10 @@ T_RAW = 1024  # We use the first 1024 of the 1025-point windows
 
 
 def _forward_fill_nan(arr: np.ndarray) -> None:
-    """Replace NaN/Inf values in-place: forward-fill, then backfill any leading bad values.
+    """Replace NaN values in-place: forward-fill, then backfill any leading NaN.
 
     Equivalent to a naive forecast for missing observations.
     """
-    # Treat inf as missing too — some HF shards contain extreme values
-    np.putmask(arr, ~np.isfinite(arr), np.nan)
     mask = np.isnan(arr)
     if not mask.any():
         return
@@ -37,7 +35,8 @@ def _forward_fill_nan(arr: np.ndarray) -> None:
     idx = np.arange(len(arr))
     valid = ~mask
     if not valid.any():
-        return  # all-NaN sequence (shouldn't happen)
+        arr[:] = 0.0  # all-NaN sequence: replace with zeros
+        return
     # Set NaN positions to 0 so maximum.accumulate propagates the last valid index
     idx[mask] = 0
     np.maximum.accumulate(idx, out=idx)
