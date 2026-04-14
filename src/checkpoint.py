@@ -15,6 +15,13 @@ _DEFAULTS = {
     "step": 0,
     "best_val_ff": float("-inf"),
     "best_step": 0,
+    "best_loss": float("inf"),
+    "best_loss_step": 0,
+    "ema_loss": None,
+    "ema_gap": None,
+    "hf_rows_consumed": 0,
+    "rng_state_torch": None,
+    "rng_state_numpy": None,
 }
 
 
@@ -25,7 +32,13 @@ def get_optimizer_state_path(model_path: str) -> str:
 
 
 def save_training_state(optimizer, model_path: str, step: int,
-                        best_val_ff: float, best_step: int) -> str:
+                        best_val_ff: float, best_step: int, *,
+                        best_loss: float = float("inf"),
+                        best_loss_step: int = 0,
+                        ema_loss=None, ema_gap=None,
+                        hf_rows_consumed: int = 0,
+                        rng_state_torch=None,
+                        rng_state_numpy=None) -> str:
     """Save optimizer state and training metadata to companion file.
 
     Returns the path where the state was saved.
@@ -35,6 +48,13 @@ def save_training_state(optimizer, model_path: str, step: int,
         "step": step,
         "best_val_ff": best_val_ff,
         "best_step": best_step,
+        "best_loss": best_loss,
+        "best_loss_step": best_loss_step,
+        "ema_loss": ema_loss,
+        "ema_gap": ema_gap,
+        "hf_rows_consumed": hf_rows_consumed,
+        "rng_state_torch": rng_state_torch,
+        "rng_state_numpy": rng_state_numpy,
     }
     optim_path = get_optimizer_state_path(model_path)
     torch.save(state, optim_path)
@@ -98,11 +118,12 @@ def load_training_state(optimizer, model_path: str, device=None) -> dict:
         optimizer.load_state_dict(state["optimizer_state_dict"])
         print(f"  [checkpoint] Restored optimizer from {optim_path} "
               f"(step={state['step']}, best_ff={state['best_val_ff']:.4f})")
-        return {
-            "step": state["step"],
-            "best_val_ff": state["best_val_ff"],
-            "best_step": state["best_step"],
-        }
+        # Return all fields, falling back to defaults for old checkpoints
+        result = dict(_DEFAULTS)
+        for key in _DEFAULTS:
+            if key in state:
+                result[key] = state[key]
+        return result
     except Exception as e:
         print(f"  [checkpoint] WARNING: Failed to load {optim_path}: {e}")
         print(f"  [checkpoint] Continuing with fresh optimizer.")
