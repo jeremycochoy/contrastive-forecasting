@@ -10,6 +10,7 @@
 - Sync at minimum: `*_best_gap.pth`, `*_best_loss.pth`, `*_losses.csv`, and the training log. Also sync periodic saves (`*_Nk.pth`) as they appear.
 - Use `rsync -avz --timeout=60 -e "ssh ..."` for robustness.
 - The sync loop should also watch for NaN, process death, and completion, and alert accordingly.
+- **After launching any background process, ALWAYS verify the first output before reporting it as running.** No exceptions — wait for the first cycle, check the log, confirm it produced correct results. Do not assume it works because similar scripts worked before; the environment may differ.
 
 ## Checkpoint Safety Rules
 1. **After any long training run completes**, immediately copy the best checkpoint to a clearly named permanent file (e.g., `20L_H1024_2M_final.pth`). Never rely on `_best.pth` or periodic saves as the only copy.

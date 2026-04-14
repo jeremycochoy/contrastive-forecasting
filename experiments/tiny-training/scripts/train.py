@@ -121,11 +121,20 @@ def forward_step(model, x):
 
 
 def save_snapshot(model, optimizer, path, step, best_gap, best_gap_step,
-                  best_loss, best_loss_step):
-    """Save model + optimizer state to a unique path."""
+                  best_loss, best_loss_step, ema_loss=None, ema_gap=None,
+                  hf_rows_consumed=0):
+    """Save model + optimizer + complete training state to a unique path."""
+    import numpy as _np
     torch.save(model.state_dict(), path)
-    save_training_state(optimizer, path, step=step,
-                        best_val_ff=best_gap, best_step=best_gap_step)
+    save_training_state(
+        optimizer, path, step=step,
+        best_val_ff=best_gap, best_step=best_gap_step,
+        best_loss=best_loss, best_loss_step=best_loss_step,
+        ema_loss=ema_loss, ema_gap=ema_gap,
+        hf_rows_consumed=hf_rows_consumed,
+        rng_state_torch=torch.get_rng_state(),
+        rng_state_numpy=_np.random.get_state(),
+    )
     print(f"  -> Saved {path}")
 
 
@@ -223,6 +232,16 @@ def main():
         start_step = restored["step"]
         best_gap = restored["best_val_ff"]
         best_gap_step = restored["best_step"]
+        best_loss = restored.get("best_loss", float("inf"))
+        best_loss_step = restored.get("best_loss_step", 0)
+        ema_loss = restored.get("ema_loss", None)
+        ema_gap = restored.get("ema_gap", None)
+        # Restore RNG state for reproducibility
+        if restored.get("rng_state_torch") is not None:
+            torch.set_rng_state(restored["rng_state_torch"])
+        if restored.get("rng_state_numpy") is not None:
+            import numpy as _np2
+            _np2.random.set_state(restored["rng_state_numpy"])
         print(f"Resumed from {args.resume} at step {start_step}")
 
     print(f"Device: {device} | Params: {count_parameters(model):,}")
@@ -237,7 +256,12 @@ def main():
 
     # -- Data source -----------------------------------------------------------
     rows_per_step = args.batch_size * MODEL_CONFIG["C"]  # bs * C rows per step
-    hf_rows_consumed = start_step * rows_per_step  # track cumulative HF rows
+    # Use restored count if available (accounts for skipped all-NaN rows);
+    # fall back to step-based estimate for old checkpoints.
+    if args.resume and restored.get("hf_rows_consumed", 0) > 0:
+        hf_rows_consumed = restored["hf_rows_consumed"]
+    else:
+        hf_rows_consumed = start_step * rows_per_step
 
     data_iter = None
     if args.data_dir:
@@ -277,8 +301,20 @@ def main():
             try:
                 x = next(data_iter)
             except StopIteration:
-                data_iter = iter(data_loader)
-                x = next(data_iter)
+                print(f"\n=== Data exhausted at step {step} "
+                      f"(hf_rows_consumed={hf_rows_consumed}) ===")
+                # Save final checkpoint and exit — never re-see data
+                path = os.path.join(args.save_dir,
+                                    f"{args.run_name}_final.pth")
+                save_snapshot(model, optimizer, path, step - 1,
+                              best_gap, best_gap_step,
+                              best_loss, best_loss_step,
+                              ema_loss=ema_loss, ema_gap=ema_gap,
+                              hf_rows_consumed=hf_rows_consumed)
+                csv_logger.flush()
+                print(f"Done in {time.time() - t0:.0f}s "
+                      f"({step - 1 - start_step} steps)")
+                break
         else:
             x, = generate_synthetic_batch(
                 batch_size=args.batch_size, T_raw=T_RAW,
@@ -313,7 +349,9 @@ def main():
             emerg_path = os.path.join(
                 args.save_dir, f"{args.run_name}_EMERGENCY_{step}.pth")
             save_snapshot(model, optimizer, emerg_path, step,
-                          best_gap, best_gap_step, best_loss, best_loss_step)
+                          best_gap, best_gap_step, best_loss, best_loss_step,
+                          ema_loss=ema_loss, ema_gap=ema_gap,
+                          hf_rows_consumed=hf_rows_consumed)
             print(f"  Emergency checkpoint: {emerg_path}")
 
             # Flush CSV and close
@@ -380,26 +418,34 @@ def main():
                 path = os.path.join(args.save_dir,
                                     f"{args.run_name}_best_gap.pth")
                 save_snapshot(model, optimizer, path, step,
-                              best_gap, best_gap_step, best_loss, best_loss_step)
+                              best_gap, best_gap_step, best_loss, best_loss_step,
+                              ema_loss=ema_loss, ema_gap=ema_gap,
+                              hf_rows_consumed=hf_rows_consumed)
 
             if ema_loss < best_loss:
                 best_loss, best_loss_step = ema_loss, step
                 path = os.path.join(args.save_dir,
                                     f"{args.run_name}_best_loss.pth")
                 save_snapshot(model, optimizer, path, step,
-                              best_gap, best_gap_step, best_loss, best_loss_step)
+                              best_gap, best_gap_step, best_loss, best_loss_step,
+                              ema_loss=ema_loss, ema_gap=ema_gap,
+                              hf_rows_consumed=hf_rows_consumed)
 
         # -- Periodic snapshot (never overwritten) -----------------------------
         if step % args.save_every == 0:
             path = os.path.join(args.save_dir,
                                 f"{args.run_name}_{step // 1000}k.pth")
             save_snapshot(model, optimizer, path, step,
-                          best_gap, best_gap_step, best_loss, best_loss_step)
+                          best_gap, best_gap_step, best_loss, best_loss_step,
+                          ema_loss=ema_loss, ema_gap=ema_gap,
+                          hf_rows_consumed=hf_rows_consumed)
 
     # -- Final save ------------------------------------------------------------
     path = os.path.join(args.save_dir, f"{args.run_name}_final.pth")
     save_snapshot(model, optimizer, path, args.total_steps,
-                  best_gap, best_gap_step, best_loss, best_loss_step)
+                  best_gap, best_gap_step, best_loss, best_loss_step,
+                  ema_loss=ema_loss, ema_gap=ema_gap,
+                  hf_rows_consumed=hf_rows_consumed)
 
     # Flush and close CSV
     csv_logger.close()
