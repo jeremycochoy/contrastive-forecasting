@@ -1,13 +1,13 @@
 """Tests for NaN robustness in the data loading and model forward pipeline.
 
 Root cause: the HF dataset can contain rows that are entirely NaN (no valid
-observations). The _forward_fill_nan function silently passes these through,
+observations). The _forward_fill_nan function silently passed these through,
 causing NaN to propagate through RevEWMNorm, the transformer, and the loss,
-crashing training (observed at step 24970 of forecasting head training).
+crashing training (observed at step 24970).
 
 These tests ensure:
-1. _forward_fill_nan handles all-NaN sequences by replacing with zeros
-2. The data loader produces NaN-free batches even when source data has all-NaN rows
+1. _forward_fill_nan returns False for all-NaN sequences (caller skips them)
+2. Partial-NaN sequences are correctly forward-filled then backfilled
 3. RevEWMNorm produces finite output even for edge-case inputs
 4. The full forward pipeline (backbone + head) produces finite output for valid data
 """
@@ -23,72 +23,67 @@ class TestForwardFillNaN:
     """Tests for _forward_fill_nan handling of NaN values."""
 
     def test_no_nan_passthrough(self):
-        """Normal data should be unchanged."""
+        """Normal data should be unchanged, returns True."""
         arr = np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float32)
         original = arr.copy()
-        _forward_fill_nan(arr)
+        assert _forward_fill_nan(arr) is True
         np.testing.assert_array_equal(arr, original)
 
     def test_middle_nan_forward_filled(self):
         """NaN in the middle should be forward-filled from previous value."""
         arr = np.array([1.0, np.nan, 3.0, np.nan], dtype=np.float32)
-        _forward_fill_nan(arr)
+        assert _forward_fill_nan(arr) is True
         np.testing.assert_array_equal(arr, [1.0, 1.0, 3.0, 3.0])
 
     def test_leading_nan_backfilled(self):
         """Leading NaN should be backfilled from first valid value."""
         arr = np.array([np.nan, np.nan, 3.0, 4.0], dtype=np.float32)
-        _forward_fill_nan(arr)
+        assert _forward_fill_nan(arr) is True
         np.testing.assert_array_equal(arr, [3.0, 3.0, 3.0, 4.0])
 
-    def test_all_nan_replaced_with_zeros(self):
-        """All-NaN sequences must be replaced with zeros (not left as NaN).
+    def test_all_nan_returns_false(self):
+        """All-NaN sequences return False — caller should skip.
 
         This is the root cause of the step-24970 crash: an all-NaN row from the
         HF dataset was silently passed through, causing NaN to propagate through
         the entire pipeline.
         """
         arr = np.full(1024, np.nan, dtype=np.float32)
-        _forward_fill_nan(arr)
-        assert not np.isnan(arr).any(), (
-            "All-NaN sequence must not contain NaN after forward_fill_nan"
-        )
-        np.testing.assert_array_equal(arr, np.zeros(1024, dtype=np.float32))
+        assert _forward_fill_nan(arr) is False
 
-    def test_all_nan_short_sequence(self):
-        """All-NaN short sequence should also be replaced with zeros."""
+    def test_all_nan_short_returns_false(self):
+        """All-NaN short sequence also returns False."""
         arr = np.full(5, np.nan, dtype=np.float32)
-        _forward_fill_nan(arr)
-        assert not np.isnan(arr).any()
-        np.testing.assert_array_equal(arr, np.zeros(5, dtype=np.float32))
+        assert _forward_fill_nan(arr) is False
 
-    def test_single_nan(self):
-        """Single-element all-NaN array should become zero."""
+    def test_single_nan_returns_false(self):
+        """Single-element all-NaN returns False."""
         arr = np.array([np.nan], dtype=np.float32)
-        _forward_fill_nan(arr)
-        assert not np.isnan(arr).any()
-        assert arr[0] == 0.0
+        assert _forward_fill_nan(arr) is False
 
     def test_single_valid_value(self):
-        """One valid value surrounded by NaN should fill everything."""
+        """One valid value surrounded by NaN should fill everything via ffill+bfill."""
         arr = np.array([np.nan, np.nan, 5.0, np.nan, np.nan], dtype=np.float32)
-        _forward_fill_nan(arr)
+        assert _forward_fill_nan(arr) is True
         np.testing.assert_array_equal(arr, [5.0, 5.0, 5.0, 5.0, 5.0])
 
-    def test_output_never_nan(self):
-        """No matter the input pattern, output must never contain NaN."""
+    def test_partial_nan_always_cleaned(self):
+        """Any array with at least one valid value returns True with no NaN."""
         rng = np.random.default_rng(42)
         for _ in range(100):
             arr = rng.standard_normal(1024).astype(np.float32)
-            # Randomly set some values to NaN (0-100% of values)
-            nan_frac = rng.random()
+            nan_frac = rng.random() * 0.99  # up to 99% NaN, but not all
             mask = rng.random(1024) < nan_frac
             arr[mask] = np.nan
-            _forward_fill_nan(arr)
-            assert not np.isnan(arr).any(), (
-                f"Output contains NaN with {mask.sum()} NaN inputs "
-                f"({nan_frac:.1%} NaN fraction)"
-            )
+            result = _forward_fill_nan(arr)
+            assert result is True
+            assert not np.isnan(arr).any()
+
+    def test_all_nan_fuzz(self):
+        """All-NaN arrays of various lengths return False."""
+        for n in [1, 2, 16, 128, 1024, 1025]:
+            arr = np.full(n, np.nan, dtype=np.float32)
+            assert _forward_fill_nan(arr) is False
 
 
 class TestRevEWMNormRobustness:

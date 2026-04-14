@@ -23,20 +23,22 @@ from torch.utils.data import Dataset
 T_RAW = 1024  # We use the first 1024 of the 1025-point windows
 
 
-def _forward_fill_nan(arr: np.ndarray) -> None:
+def _forward_fill_nan(arr: np.ndarray) -> bool:
     """Replace NaN values in-place: forward-fill, then backfill any leading NaN.
 
     Equivalent to a naive forecast for missing observations.
+
+    Returns True if the array was successfully cleaned, False if the
+    array is all-NaN (no valid values to fill from) and should be skipped.
     """
     mask = np.isnan(arr)
     if not mask.any():
-        return
+        return True
     # Forward-fill: each NaN gets the previous valid value
     idx = np.arange(len(arr))
     valid = ~mask
     if not valid.any():
-        arr[:] = 0.0  # all-NaN sequence: replace with zeros
-        return
+        return False  # all-NaN: caller should skip this window
     # Set NaN positions to 0 so maximum.accumulate propagates the last valid index
     idx[mask] = 0
     np.maximum.accumulate(idx, out=idx)
@@ -46,6 +48,8 @@ def _forward_fill_nan(arr: np.ndarray) -> None:
     if still_nan.any():
         first_valid = np.argmax(~still_nan)
         arr[:first_valid] = arr[first_valid]
+    # If NaN still remains after both passes, signal to skip
+    return not np.isnan(arr).any()
 
 
 # ── Local parquet shard loader ────────────────────────────────────────────────
@@ -115,7 +119,8 @@ class ShardDataset(Dataset):
         for row in series_col:
             arr = row.as_py()
             a = np.array(arr[:T_RAW], dtype=np.float32)
-            _forward_fill_nan(a)
+            if not _forward_fill_nan(a):
+                continue  # skip all-NaN rows
             data.append(a)
         self._cached_data = data
         self._cached_shard_idx = shard_idx
@@ -227,7 +232,8 @@ class HFStreamingLoader:
             # Crop non-overlapping T_RAW windows from long series
             for start in range(0, len(full) - T_RAW + 1, T_RAW):
                 window = full[start:start + T_RAW].copy()
-                _forward_fill_nan(window)
+                if not _forward_fill_nan(window):
+                    continue  # skip all-NaN windows
                 buf.append(window)
 
                 if len(buf) == target:
