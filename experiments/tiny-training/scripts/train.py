@@ -78,6 +78,8 @@ def parse_args():
                    help="Save snapshot every N steps (never overwritten)")
     p.add_argument("--ema-decay", type=float, default=0.99,
                    help="EMA decay for rolling loss/gap tracking")
+    p.add_argument("--grad-clip", type=float, default=None,
+                   help="Max gradient norm for clipping (None=disabled)")
     p.add_argument("--data-dir", default=None,
                    help="Directory of local parquet shards. "
                         "If omitted, uses --hf-repo or synthetic fallback.")
@@ -362,6 +364,8 @@ def main():
         # -- Backward pass (timing) ------------------------------------------
         t_bwd_start = time.perf_counter()
         loss.backward()
+        if args.grad_clip is not None:
+            torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
         optimizer.step()
         t_bwd_end = time.perf_counter()
 
