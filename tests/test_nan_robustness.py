@@ -112,6 +112,50 @@ class TestRevEWMNormRobustness:
         out = rev_norm(x, mode='norm')
         assert torch.isfinite(out).all(), "Large-magnitude input produced non-finite output"
 
+    def test_constant_then_jump_clamped(self):
+        """Constant segment followed by a jump should be clamped, not explode.
+
+        This is the root cause of the training instability at step 24k:
+        NaN-filled or genuinely constant series have stdev ≈ 0, so when
+        the series changes, (x - mean) / eps can reach 1e14+. The clamp
+        caps this at ±norm_clamp (default 10).
+        """
+        from src.norm import RevEWMNorm
+        rev_norm = RevEWMNorm(num_features=1, span=32, patch_size=16, norm_clamp=10.0)
+        # Simulate: constant at 1e11 for 512 steps, then jump to 2e11
+        x = torch.full((1, 1024, 1), 1e11)
+        x[:, 512:, :] = 2e11
+        out = rev_norm(x, mode='norm')
+        assert out.abs().max().item() <= 10.0, (
+            f"Constant→jump produced |x_norm| = {out.abs().max().item():.1f}, "
+            f"expected ≤ 10.0 from clamping"
+        )
+        assert torch.isfinite(out).all()
+
+    def test_clamp_disabled(self):
+        """With norm_clamp=None, extreme values should pass through unclamped."""
+        from src.norm import RevEWMNorm
+        rev_norm = RevEWMNorm(num_features=1, span=32, patch_size=16, norm_clamp=None)
+        x = torch.full((1, 1024, 1), 1e11)
+        x[:, 512:, :] = 2e11
+        out = rev_norm(x, mode='norm')
+        # Without clamping, the jump should produce very large values
+        assert out.abs().max().item() > 100, (
+            "Without clamp, constant→jump should produce extreme x_norm"
+        )
+
+    def test_clamp_does_not_affect_normal_data(self):
+        """Normal-scale data should never be clamped (max |x_norm| < 5)."""
+        from src.norm import RevEWMNorm
+        rev_norm_clamped = RevEWMNorm(num_features=4, span=32, patch_size=16, norm_clamp=10.0)
+        rev_norm_unclamped = RevEWMNorm(num_features=4, span=32, patch_size=16, norm_clamp=None)
+        x = torch.randn(8, 1024, 4)
+        out_c = rev_norm_clamped(x, mode='norm')
+        out_u = rev_norm_unclamped(x, mode='norm')
+        assert torch.allclose(out_c, out_u, atol=1e-6), (
+            "Clamping changed normal data — clamp threshold is too low"
+        )
+
     def test_mixed_scale_channels(self, rev_norm):
         """Different channels with vastly different scales."""
         x = torch.randn(2, 1024, 4)

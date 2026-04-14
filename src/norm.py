@@ -26,15 +26,22 @@ class RevEWMNorm(nn.Module):
             initializing EMA statistics.
         eps: Small constant for numerical stability.
         affine: If True, adds learnable scale and bias after normalization.
+        norm_clamp: Clamp normalized values to ``[-norm_clamp, norm_clamp]``
+            after division by stdev. Prevents extreme activations from
+            constant-to-change transitions (NaN-filled segments, mining
+            difficulty, etc.) where stdev ≈ 0 but residual > 0. Set to
+            None to disable. Default 10.0 (normal data peaks at ~4.06).
     """
 
     def __init__(self, num_features: int, span: float, patch_size: int,
-                 eps: float = 1e-5, affine: bool = False):
+                 eps: float = 1e-5, affine: bool = False,
+                 norm_clamp: float = 10.0):
         super().__init__()
         self.num_features = num_features
         self.span = span
         self.patch_size = patch_size
         self.eps = eps
+        self.norm_clamp = norm_clamp
         self.alpha = 2.0 / (span + 1.0)
         self.affine = affine
 
@@ -131,6 +138,15 @@ class RevEWMNorm(nn.Module):
     def _normalize(self, x: torch.Tensor) -> torch.Tensor:
         x = x - self.mean
         x = x / self.stdev.clamp(min=self.eps)
+        # Clamp to prevent extreme normalized values from constant segments.
+        # NaN-filling or genuinely constant series produce stdev ≈ 0;
+        # when the series then changes, the ratio (x - mean) / eps can
+        # reach 1e14+. Normal data never exceeds |x_norm| = 4.06 (measured
+        # on 49M values from the training set). Clamping to ±10 gives 2.5x
+        # headroom and caps worst-case gradient amplification at ~10x,
+        # which AdamW handles easily.
+        if self.norm_clamp is not None:
+            x = x.clamp(-self.norm_clamp, self.norm_clamp)
         if self.affine:
             x = x * self.affine_weight
             x = x + self.affine_bias
