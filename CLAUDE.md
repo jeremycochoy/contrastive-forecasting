@@ -24,7 +24,7 @@
 - LR scaling for depth: multiply base LR by `sqrt(base_layers / new_layers)` when increasing depth
 
 ## Git Workflow
-- `master`: base code
+- `master`: stable base code
 - `experiments`: main working branch (merged results)
-- Feature branches from `experiments` for new experiment sets
+- **Never commit directly to `experiments` or `master`.** Always create a feature branch from `experiments`, do the work there, then PR into `experiments`.
 - Always create PR, review, then merge
