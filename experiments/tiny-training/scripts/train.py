@@ -303,20 +303,13 @@ def main():
             try:
                 x = next(data_iter)
             except StopIteration:
-                print(f"\n=== Data exhausted at step {step} "
-                      f"(hf_rows_consumed={hf_rows_consumed}) ===")
-                # Save final checkpoint and exit — never re-see data
-                path = os.path.join(args.save_dir,
-                                    f"{args.run_name}_final.pth")
-                save_snapshot(model, optimizer, path, step - 1,
-                              best_gap, best_gap_step,
-                              best_loss, best_loss_step,
-                              ema_loss=ema_loss, ema_gap=ema_gap,
-                              hf_rows_consumed=hf_rows_consumed)
-                csv_logger.flush()
-                print(f"Done in {time.time() - t0:.0f}s "
-                      f"({step - 1 - start_step} steps)")
-                break
+                # Restart the data stream for the next epoch
+                epoch_num = hf_rows_consumed // (121500 * rows_per_step) + 1
+                print(f"\n=== Epoch boundary at step {step} "
+                      f"(hf_rows={hf_rows_consumed}, epoch {epoch_num}) ===")
+                sys.stdout.flush()
+                data_iter = iter(data_loader)
+                x = next(data_iter)
         else:
             x, = generate_synthetic_batch(
                 batch_size=args.batch_size, T_raw=T_RAW,
