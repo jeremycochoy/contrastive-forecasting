@@ -238,12 +238,18 @@ def main():
         best_loss_step = restored.get("best_loss_step", 0)
         ema_loss = restored.get("ema_loss", None)
         ema_gap = restored.get("ema_gap", None)
-        # Restore RNG state for reproducibility
-        if restored.get("rng_state_torch") is not None:
-            torch.set_rng_state(restored["rng_state_torch"])
-        if restored.get("rng_state_numpy") is not None:
-            import numpy as _np2
-            _np2.random.set_state(restored["rng_state_numpy"])
+        # Restore RNG state for reproducibility (graceful on version mismatch)
+        try:
+            if restored.get("rng_state_torch") is not None:
+                rng = restored["rng_state_torch"]
+                if not isinstance(rng, torch.ByteTensor):
+                    rng = rng.byte()
+                torch.set_rng_state(rng)
+            if restored.get("rng_state_numpy") is not None:
+                import numpy as _np2
+                _np2.random.set_state(restored["rng_state_numpy"])
+        except Exception as e:
+            print(f"  [checkpoint] WARNING: Could not restore RNG state: {e}")
         print(f"Resumed from {args.resume} at step {start_step}")
 
     print(f"Device: {device} | Params: {count_parameters(model):,}")
