@@ -518,14 +518,19 @@ def main():
     # -------------------------------------------------------------------
     print(f"\nResults saved to {csv_path}")
 
-    # Load seasonal naive reference results
-    sn_path = os.path.expanduser(
-        "~/workspaces/gift-eval/results/seasonal_naive/all_results.csv")
+    # Load seasonal naive reference results (check multiple locations)
+    sn_candidates = [
+        os.path.expanduser(
+            "~/workspaces/gift-eval/results/seasonal_naive/all_results.csv"),
+        os.path.join(project_root, "gift-eval-ref/seasonal_naive/all_results.csv"),
+    ]
     sn_mase = {}
-    if os.path.exists(sn_path):
-        sn_df = pd.read_csv(sn_path)
-        for _, row in sn_df.iterrows():
-            sn_mase[row["dataset"]] = row["eval_metrics/MASE[0.5]"]
+    for sn_path in sn_candidates:
+        if os.path.exists(sn_path):
+            sn_df = pd.read_csv(sn_path)
+            for _, row in sn_df.iterrows():
+                sn_mase[row["dataset"]] = row["eval_metrics/MASE[0.5]"]
+            break
 
     # Compute relative MASE and geometric mean
     with open(summary_path, "w") as sf:
