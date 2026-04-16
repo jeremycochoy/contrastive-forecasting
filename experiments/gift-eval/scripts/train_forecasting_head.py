@@ -36,6 +36,8 @@ from src.forecasting_head import (
     W,
     FORECAST_LEN,
     extract_forecaster_latents,
+    extract_encoder_latents,
+    rollout_latent,
     compute_valid_targets,
 )
 
@@ -85,6 +87,12 @@ def parse_args():
                    help="Random seed for reproducibility")
     p.add_argument("--grad-clip", type=float, default=1.0,
                    help="Max gradient norm for clipping (0 to disable)")
+    p.add_argument("--forecast-len", type=int, default=128,
+                   help="Head forecast length: 128 (default) or 16 for W-heads")
+    p.add_argument("--mixed-rollout", type=int, default=0,
+                   help="If >0, train on mixed real+rolled latent sequences. "
+                        "Uses first 48 patches as context, rolls out N tokens, "
+                        "and trains on the full [context+rolled] sequence.")
     return p.parse_args()
 
 
@@ -141,7 +149,9 @@ def main():
           f"({count_parameters(backbone):,} params, frozen)")
 
     # -- Forecasting head ------------------------------------------------------
-    head = ForecastingHead(**HEAD_CONFIG).to(device)
+    head_config = dict(HEAD_CONFIG)
+    head_config['forecast_len'] = args.forecast_len
+    head = ForecastingHead(**head_config).to(device)
     n_head_params = count_parameters(head)
     print(f"Forecasting head: {n_head_params:,} trainable params")
 
@@ -186,7 +196,10 @@ def main():
           f"(skip={hf_rows_consumed} rows)")
 
     print(f"\nTraining for {args.total_steps} steps, bs={args.batch_size}, "
-          f"lr={args.lr}")
+          f"lr={args.lr}, forecast_len={args.forecast_len}")
+    if args.mixed_rollout > 0:
+        print(f"Mixed-rollout mode: {args.mixed_rollout} rolled tokens per step "
+              f"(48 context patches + {args.mixed_rollout} rolled)")
     print(f"Checkpoints: {args.save_dir}/{args.run_name}_*.pth")
     sys.stdout.flush()
 
@@ -208,18 +221,54 @@ def main():
         hf_rows_consumed += rows_per_step
         x = x.to(device)
 
-        # Extract forecaster latents from frozen backbone
-        f_bc, x_norm = extract_forecaster_latents(backbone, x)
+        if args.mixed_rollout > 0:
+            # Mixed training: use first 48 patches as context, roll out N tokens
+            N_roll = args.mixed_rollout
+            T_ctx_raw = 48 * W  # 768 timesteps
+            x_ctx = x[:, :T_ctx_raw, :]
 
-        # Compute valid targets
-        targets, T_valid = compute_valid_targets(x_norm, W=W, forecast_len=FORECAST_LEN)
-        targets = targets.to(device)
+            # Get encoder + forecaster latents from context
+            e_bc, _ = extract_encoder_latents(backbone, x_ctx)
+            f_ctx, x_norm_ctx = extract_forecaster_latents(backbone, x_ctx)
+            T_ctx_patches = f_ctx.size(1)  # 48
 
-        # Forward through head
-        preds = head(f_bc)[:, :T_valid, :]
+            # Roll out N tokens in latent space
+            future_f = rollout_latent(backbone, e_bc, N_roll)
 
-        # MSE loss
-        loss = torch.nn.functional.mse_loss(preds, targets)
+            # Full sequence for head: [context_f, rolled_f]
+            full_f = torch.cat([f_ctx, future_f], dim=1)  # (B*C, 48+N, H)
+
+            # Targets: from full x_norm (need to normalize full sequence)
+            with torch.no_grad():
+                if backbone.rev_norm is not None:
+                    x_norm = backbone.rev_norm(x, mode='norm')
+                else:
+                    x_norm = x
+            targets, T_valid_full = compute_valid_targets(
+                x_norm, W=W, forecast_len=args.forecast_len)
+            targets = targets.to(device)
+
+            # Take targets for our sequence positions only
+            T_total = full_f.size(1)
+            T_use = min(T_total, T_valid_full)
+            preds = head(full_f)[:, :T_use, :]
+            targets = targets[:, :T_use, :]
+
+            loss = torch.nn.functional.mse_loss(preds, targets)
+        else:
+            # Standard training: extract forecaster latents from frozen backbone
+            f_bc, x_norm = extract_forecaster_latents(backbone, x)
+
+            # Compute valid targets
+            targets, T_valid = compute_valid_targets(
+                x_norm, W=W, forecast_len=args.forecast_len)
+            targets = targets.to(device)
+
+            # Forward through head
+            preds = head(f_bc)[:, :T_valid, :]
+
+            # MSE loss
+            loss = torch.nn.functional.mse_loss(preds, targets)
 
         # NaN detection -- skip bad batches instead of crashing
         loss_val = loss.item()
