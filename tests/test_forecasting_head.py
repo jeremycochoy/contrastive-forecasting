@@ -15,8 +15,12 @@ from src.forecasting_head import (
     W,
     FORECAST_LEN,
     extract_forecaster_latents,
+    extract_encoder_latents,
     compute_valid_targets,
     forecast_autoregressive,
+    forecast_with_strategy,
+    rollout_latent,
+    FORECAST_STRATEGIES,
 )
 
 
@@ -46,27 +50,56 @@ class FakeRevNorm(nn.Module):
         return x
 
 
-class FakeTransformer(nn.Module):
-    """Returns random (f_flat, o_flat) of the correct shape."""
+class FakeEncoder(nn.Module):
+    """Minimal encoder: Linear(W -> H) to produce deterministic latents."""
+
+    def __init__(self, W_, H):
+        super().__init__()
+        self.linear = nn.Linear(W_, H, bias=False)
+
+    def forward(self, x):
+        # x: (B, T, C, W) -> (B, T, C, H)
+        return self.linear(x)
+
+
+class FakeTransformerLayer(nn.Module):
+    """Minimal transformer layer: identity + small perturbation."""
 
     def __init__(self, H):
         super().__init__()
         self._H = H
-        # Need a parameter so that .to(device) works on the parent
+        self.scale = nn.Parameter(torch.ones(H) * 0.01)
+
+    def forward(self, x, tgt_mask=None, tgt_is_causal=False):
+        # Small perturbation so output != input
+        return x + self.scale.unsqueeze(0).unsqueeze(0)
+
+
+class FakeTransformer(nn.Module):
+    """Mimics TransformerBlock with input_to_latent and layers."""
+
+    def __init__(self, H, W_=16):
+        super().__init__()
+        self._H = H
+        self.input_to_latent = FakeEncoder(W_, H)
+        self.layers = nn.ModuleList([FakeTransformerLayer(H)])
         self._dummy = nn.Parameter(torch.zeros(1))
 
     def forward(self, xr):
-        # xr: (B, T, C, W) -> internally reshaped to (B*C, T, H)
-        B_orig, T, C_orig, _W = xr.shape
-        BC = B_orig * C_orig
-        f_flat = torch.randn(BC, T, self._H)
-        o_flat = torch.randn(BC, T, self._H)
-        return f_flat, o_flat
+        # xr: (B, T, C, W) -> encode -> reshape -> transformer -> (f, e)
+        x = self.input_to_latent(xr)  # (B, T, C, H)
+        B, T, C, H = x.size()
+        x = x.permute(0, 2, 1, 3).reshape(B * C, T, H)
+        x_original = x.clone()
+        for layer in self.layers:
+            x = layer(x)
+        return x, x_original
 
 
 class FakeBackbone(nn.Module):
     """Mimics ConfigurableModel with the minimum interface needed by
-    extract_forecaster_latents and forecast_autoregressive."""
+    extract_forecaster_latents, extract_encoder_latents, rollout_latent,
+    and all forecast strategies."""
 
     def __init__(self, C=4, H=512, W_=16, T_raw=1024):
         super().__init__()
@@ -74,7 +107,7 @@ class FakeBackbone(nn.Module):
         self.H = H
         self.W = W_
         self.rev_norm = FakeRevNorm(C, T_raw)
-        self.transformer = FakeTransformer(H)
+        self.transformer = FakeTransformer(H, W_)
 
 
 # ---------------------------------------------------------------------------
@@ -416,3 +449,148 @@ class TestIntegration:
 
         assert loss.item() > 0
         assert not torch.isnan(loss)
+
+
+# ===========================================================================
+# 11. extract_encoder_latents
+# ===========================================================================
+
+class TestExtractEncoderLatents:
+    def test_output_shapes(self):
+        backbone = FakeBackbone(C=C, H=H, W_=W, T_raw=T_RAW)
+        x = torch.randn(B, T_RAW, C)
+        e_bc, x_norm = extract_encoder_latents(backbone, x)
+        assert e_bc.shape == (B * C, T, H)
+        assert x_norm.shape == (B, T_RAW, C)
+
+    def test_no_gradient(self):
+        backbone = FakeBackbone(C=C, H=H, W_=W, T_raw=T_RAW)
+        x = torch.randn(B, T_RAW, C)
+        e_bc, _ = extract_encoder_latents(backbone, x)
+        assert not e_bc.requires_grad
+
+    def test_encoder_vs_forecaster_differ(self):
+        """Encoder latents (before transformer) should differ from forecaster
+        latents (after transformer)."""
+        backbone = FakeBackbone(C=C, H=H, W_=W, T_raw=T_RAW)
+        x = torch.randn(B, T_RAW, C)
+        e_bc, _ = extract_encoder_latents(backbone, x)
+        f_bc, _ = extract_forecaster_latents(backbone, x)
+        # They should NOT be identical (transformer modifies them)
+        assert not torch.allclose(e_bc, f_bc, atol=1e-6)
+
+
+# ===========================================================================
+# 12. rollout_latent
+# ===========================================================================
+
+class TestRolloutLatent:
+    def test_output_shape(self):
+        backbone = FakeBackbone(C=C, H=H, W_=W, T_raw=T_RAW)
+        backbone.eval()
+        x = torch.randn(B, T_RAW, C)
+        e_bc, _ = extract_encoder_latents(backbone, x)
+        future = rollout_latent(backbone, e_bc, n_future_tokens=5)
+        assert future.shape == (B * C, 5, H)
+
+    def test_single_token(self):
+        backbone = FakeBackbone(C=C, H=H, W_=W, T_raw=T_RAW)
+        backbone.eval()
+        x = torch.randn(B, T_RAW, C)
+        e_bc, _ = extract_encoder_latents(backbone, x)
+        future = rollout_latent(backbone, e_bc, n_future_tokens=1)
+        assert future.shape == (B * C, 1, H)
+
+    def test_output_finite(self):
+        backbone = FakeBackbone(C=C, H=H, W_=W, T_raw=T_RAW)
+        backbone.eval()
+        x = torch.randn(B, T_RAW, C)
+        e_bc, _ = extract_encoder_latents(backbone, x)
+        future = rollout_latent(backbone, e_bc, n_future_tokens=3)
+        assert not torch.isnan(future).any()
+        assert not torch.isinf(future).any()
+
+    def test_tokens_are_distinct(self):
+        """Each generated token should differ from the previous one."""
+        backbone = FakeBackbone(C=C, H=H, W_=W, T_raw=T_RAW)
+        backbone.eval()
+        x = torch.randn(B, T_RAW, C)
+        e_bc, _ = extract_encoder_latents(backbone, x)
+        future = rollout_latent(backbone, e_bc, n_future_tokens=3)
+        for i in range(2):
+            assert not torch.allclose(future[:, i, :], future[:, i+1, :], atol=1e-6)
+
+
+# ===========================================================================
+# 13. Forecast strategies — shape and output tests
+# ===========================================================================
+
+class TestForecastStrategies:
+    """All strategies should produce (horizon, C) numpy arrays."""
+
+    @pytest.fixture
+    def setup(self):
+        backbone = FakeBackbone(C=C, H=H, W_=W, T_raw=T_RAW)
+        backbone.eval()
+        head_128 = ForecastingHead(H=H, hidden_dim=64, num_gru_layers=1, forecast_len=128)
+        head_128.eval()
+        head_16 = ForecastingHead(H=H, hidden_dim=64, num_gru_layers=1, forecast_len=W)
+        head_16.eval()
+        x_context = torch.randn(1, T_RAW, C)
+        return backbone, head_128, head_16, x_context
+
+    @pytest.mark.parametrize("strategy", ["A1", "B1", "B2", "B3"])
+    def test_128head_strategies_shape(self, setup, strategy):
+        backbone, head_128, _, x_context = setup
+        forecast = forecast_with_strategy(
+            strategy, backbone, head_128, x_context, horizon=48, device='cpu')
+        assert forecast.shape == (48, C)
+
+    @pytest.mark.parametrize("strategy", ["A2", "B4"])
+    def test_16head_strategies_shape(self, setup, strategy):
+        backbone, _, head_16, x_context = setup
+        forecast = forecast_with_strategy(
+            strategy, backbone, head_16, x_context, horizon=48, device='cpu')
+        assert forecast.shape == (48, C)
+
+    @pytest.mark.parametrize("strategy", list(FORECAST_STRATEGIES))
+    def test_all_strategies_finite(self, setup, strategy):
+        import numpy as np
+        backbone, head_128, head_16, x_context = setup
+        head = head_16 if strategy in ('A2', 'B4') else head_128
+        forecast = forecast_with_strategy(
+            strategy, backbone, head, x_context, horizon=32, device='cpu')
+        assert np.all(np.isfinite(forecast))
+
+    @pytest.mark.parametrize("strategy", list(FORECAST_STRATEGIES))
+    def test_all_strategies_exact_horizon(self, setup, strategy):
+        """Horizon=100 (not a multiple of 16 or 128) should still produce exact shape."""
+        backbone, head_128, head_16, x_context = setup
+        head = head_16 if strategy in ('A2', 'B4') else head_128
+        forecast = forecast_with_strategy(
+            strategy, backbone, head, x_context, horizon=100, device='cpu')
+        assert forecast.shape == (100, C)
+
+    def test_unknown_strategy_raises(self, setup):
+        backbone, head_128, _, x_context = setup
+        with pytest.raises(ValueError, match="Unknown strategy"):
+            forecast_with_strategy('Z9', backbone, head_128, x_context, 32, 'cpu')
+
+
+# ===========================================================================
+# 14. W=16 head: training targets
+# ===========================================================================
+
+class TestW16HeadTargets:
+    def test_w16_target_shape(self):
+        """forecast_len=16 should produce more valid patches."""
+        x_norm = torch.randn(B, T_RAW, C)
+        targets, T_valid = compute_valid_targets(x_norm, W=16, forecast_len=16)
+        assert T_valid == 63  # (1024 - 16) // 16
+        assert targets.shape == (B * C, 63, 16)
+
+    def test_w16_head_output_shape(self):
+        head = ForecastingHead(H=H, hidden_dim=64, num_gru_layers=1, forecast_len=16)
+        x = torch.randn(B * C, T, H)
+        out = head(x)
+        assert out.shape == (B * C, T, 16)
