@@ -63,6 +63,7 @@ from src.forecasting_head import (
     ForecastingHead,
     FORECAST_LEN,
     forecast_autoregressive,
+    forecast_with_strategy,
 )
 
 
@@ -216,6 +217,7 @@ class ContrastiveForecasterPredictor(RepresentablePredictor):
         t_raw: int = T_RAW,
         backbone_c: int = BACKBONE_C,
         quantile_levels: Optional[List[float]] = None,
+        strategy: str = 'A1',
     ):
         super().__init__(prediction_length=prediction_length)
         self.backbone = backbone
@@ -224,6 +226,7 @@ class ContrastiveForecasterPredictor(RepresentablePredictor):
         self.t_raw = t_raw
         self.backbone_c = backbone_c
         self.quantile_levels = quantile_levels or QUANTILE_LEVELS
+        self.strategy = strategy
 
         # Build forecast_keys: "mean" + quantile strings
         self.forecast_keys = ["mean"] + [str(q) for q in self.quantile_levels]
@@ -252,10 +255,10 @@ class ContrastiveForecasterPredictor(RepresentablePredictor):
         context = self._prepare_context(target)  # (1, t_raw, backbone_c)
         context = context.to(self.device)
 
-        # Autoregressive forecast
+        # Forecast using selected strategy
         with torch.no_grad():
-            forecast_raw = forecast_autoregressive(
-                self.backbone, self.head, context,
+            forecast_raw = forecast_with_strategy(
+                self.strategy, self.backbone, self.head, context,
                 horizon=self.prediction_length, device=self.device,
             )
         # forecast_raw: (prediction_length, C) -- take channel 0
@@ -349,6 +352,11 @@ def parse_args():
                    help="If >0, evaluate only this many configs (for testing)")
     p.add_argument("--resume", action="store_true",
                    help="Resume from existing partial all_results.csv")
+    p.add_argument("--strategy", default="A1",
+                   choices=["A1", "A2", "B1", "B2", "B3", "B4"],
+                   help="Forecast rollout strategy (default: A1)")
+    p.add_argument("--forecast-len", type=int, default=128,
+                   help="Head forecast length: 128 (default) or 16 for W-heads")
     return p.parse_args()
 
 
@@ -363,7 +371,9 @@ def load_models(args, device):
     for p in backbone.parameters():
         p.requires_grad = False
 
-    head = ForecastingHead(**HEAD_CONFIG)
+    head_config = dict(HEAD_CONFIG)
+    head_config['forecast_len'] = args.forecast_len
+    head = ForecastingHead(**head_config)
     head.load_state_dict(
         torch.load(args.head_path, map_location=device, weights_only=True))
     head = head.to(device)
@@ -381,6 +391,7 @@ def main():
     backbone, head = load_models(args, device)
     print(f"  Backbone: {args.backbone_path}")
     print(f"  Head: {args.head_path}")
+    print(f"  Strategy: {args.strategy} (forecast_len={args.forecast_len})")
 
     # Prepare output directory
     os.makedirs(args.output_dir, exist_ok=True)
@@ -450,6 +461,7 @@ def main():
                     prediction_length=dataset.prediction_length,
                     device=device,
                     quantile_levels=QUANTILE_LEVELS,
+                    strategy=args.strategy,
                 )
 
                 # Evaluate using gluonts official function
