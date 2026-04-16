@@ -50,6 +50,35 @@ The best configuration found through architecture search:
 
 See [`experiments/contrastive-arma/report/technical_report.md`](experiments/contrastive-arma/report/technical_report.md) for the full optimization story.
 
+## Training Data
+
+Pretraining uses a mix of real-world and synthetic time series,
+prepared by the `training_data_prep` pipeline in the
+[`rnd`](https://github.com/jeremycochoy/rnd) repository.
+
+The Wikimedia pageview component is published on HuggingFace:
+
+> **[`jeremycochoy/wikimedia-pageview-timeseries`](https://huggingface.co/datasets/jeremycochoy/wikimedia-pageview-timeseries)**
+
+Five subsets derived from [Wikimedia pageview dumps](https://dumps.wikimedia.org/other/pageview_complete/)
+(Dec 2011 -- Oct 2016, CC0 license):
+
+| Subset | Series | Description |
+|---|---|---|
+| `wiki_hourly` | 3.7M | Hourly pageview counts |
+| `wiki_daily` | 2.0M | Daily aggregated counts |
+| `wiki_stl_residual` | 531K | STL decomposition -- residual |
+| `wiki_stl_seasonal` | 372K | STL decomposition -- seasonal |
+| `wiki_stl_trend` | 159K | STL decomposition -- trend |
+
+Each series is a `float32[1025]` window (1024 input + 1 target).
+Total ~6.8M series, ~9 GB.
+
+The full pretraining mix also includes
+[GiftEvalPretrain](https://huggingface.co/datasets/Salesforce/GiftEvalPretrain)
+and synthetic ARMA/trend/sinusoid series; see the `training_data_prep`
+README for mix ratios and pipeline details.
+
 ## Training
 
 ```bash
