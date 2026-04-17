@@ -124,6 +124,8 @@ def compute_valid_targets(x_norm, W=16, forecast_len=128):
     For patch t, the target is x_norm[:, (t+1)*W : (t+1)*W + forecast_len, :].
     Valid patches are those where (t+1)*W + forecast_len <= T_raw.
 
+    This is the PREDICTION target: the head predicts future values.
+
     Args:
         x_norm: (B, T_raw, C) normalized input
         W: patch size
@@ -153,6 +155,60 @@ def compute_valid_targets(x_norm, W=16, forecast_len=128):
     targets = torch.stack(targets, dim=0)  # (T_valid, B, forecast_len, C)
     targets = targets.permute(1, 3, 0, 2)  # (B, C, T_valid, forecast_len)
     targets = targets.reshape(B * C, T_valid, forecast_len)
+
+    return targets, T_valid
+
+
+def compute_reconstruction_targets(x_norm, W=16, output_len=16, mode='forecaster'):
+    """Extract RECONSTRUCTION targets: the values a latent represents.
+
+    Unlike compute_valid_targets (which extracts PREDICTION targets),
+    this extracts the values that each latent position actually encodes:
+
+    - mode='forecaster': f[t] ≈ e[t+1], so target is patch t+1 values.
+      target[t] = x_norm[(t+1)*W : (t+1)*W + output_len]
+    - mode='encoder': e[t] encodes patch t, so target is patch t values.
+      target[t] = x_norm[t*W : t*W + output_len]
+
+    Args:
+        x_norm: (B, T_raw, C) normalized input
+        W: patch size
+        output_len: values per position (W=16 for single-patch, 128 for multi-patch)
+        mode: 'forecaster' (target=patch t+1) or 'encoder' (target=patch t)
+
+    Returns:
+        targets: (B*C, T_valid, output_len) target values
+        T_valid: number of valid positions
+    """
+    B, T_raw, C = x_norm.shape
+    T = T_raw // W
+
+    if mode == 'forecaster':
+        # f[t] represents patch t+1: target starts at (t+1)*W
+        # Valid: (t+1)*W + output_len <= T_raw => t <= T_raw/W - 1 - output_len/W
+        T_valid = (T_raw - output_len) // W  # patches t=0..T_valid-1
+        targets = []
+        for t in range(T_valid):
+            start = (t + 1) * W
+            end = start + output_len
+            targets.append(x_norm[:, start:end, :])
+    elif mode == 'encoder':
+        # e[t] represents patch t: target starts at t*W
+        # Valid: t*W + output_len <= T_raw => t <= T_raw/W - output_len/W
+        T_valid = (T_raw - output_len) // W + 1  # patches t=0..T_valid-1
+        # But we also need t < T (total patches)
+        T_valid = min(T_valid, T)
+        targets = []
+        for t in range(T_valid):
+            start = t * W
+            end = start + output_len
+            targets.append(x_norm[:, start:end, :])
+    else:
+        raise ValueError(f"Unknown mode '{mode}'. Use 'forecaster' or 'encoder'.")
+
+    targets = torch.stack(targets, dim=0)  # (T_valid, B, output_len, C)
+    targets = targets.permute(1, 3, 0, 2)  # (B, C, T_valid, output_len)
+    targets = targets.reshape(B * C, T_valid, output_len)
 
     return targets, T_valid
 

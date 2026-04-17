@@ -17,6 +17,7 @@ from src.forecasting_head import (
     extract_forecaster_latents,
     extract_encoder_latents,
     compute_valid_targets,
+    compute_reconstruction_targets,
     forecast_autoregressive,
     forecast_with_strategy,
     rollout_latent,
@@ -594,3 +595,93 @@ class TestW16HeadTargets:
         x = torch.randn(B * C, T, H)
         out = head(x)
         assert out.shape == (B * C, T, 16)
+
+
+# ===========================================================================
+# 15. Reconstruction targets (time-aligned)
+# ===========================================================================
+
+class TestReconstructionTargets:
+    def test_forecaster_w16_shape(self):
+        """Forecaster mode: f[t] → patch t+1, output_len=W=16."""
+        x_norm = torch.randn(B, T_RAW, C)
+        targets, T_valid = compute_reconstruction_targets(
+            x_norm, W=16, output_len=16, mode='forecaster')
+        # Same formula as compute_valid_targets with forecast_len=16
+        assert T_valid == 63  # (1024 - 16) // 16
+        assert targets.shape == (B * C, 63, 16)
+
+    def test_encoder_w16_shape(self):
+        """Encoder mode: e[t] → patch t, output_len=W=16."""
+        x_norm = torch.randn(B, T_RAW, C)
+        targets, T_valid = compute_reconstruction_targets(
+            x_norm, W=16, output_len=16, mode='encoder')
+        # e[t] encodes patch t: t*W + W <= T_raw => t <= 63, so T_valid=64
+        assert T_valid == 64  # all patches can be reconstructed
+        assert targets.shape == (B * C, 64, 16)
+
+    def test_forecaster_w128_shape(self):
+        """Forecaster mode with output_len=128."""
+        x_norm = torch.randn(B, T_RAW, C)
+        targets, T_valid = compute_reconstruction_targets(
+            x_norm, W=16, output_len=128, mode='forecaster')
+        assert T_valid == 56  # (1024 - 128) // 16
+        assert targets.shape == (B * C, 56, 128)
+
+    def test_forecaster_matches_old_api(self):
+        """Forecaster reconstruction with output_len=128 should give same
+        targets as compute_valid_targets with forecast_len=128."""
+        torch.manual_seed(42)
+        x_norm = torch.randn(B, T_RAW, C)
+        old_targets, old_T = compute_valid_targets(x_norm, W=16, forecast_len=128)
+        new_targets, new_T = compute_reconstruction_targets(
+            x_norm, W=16, output_len=128, mode='forecaster')
+        assert old_T == new_T
+        assert torch.allclose(old_targets, new_targets)
+
+    def test_forecaster_w16_matches_old_api(self):
+        """Forecaster reconstruction W=16 matches old API with forecast_len=16."""
+        torch.manual_seed(42)
+        x_norm = torch.randn(B, T_RAW, C)
+        old_targets, old_T = compute_valid_targets(x_norm, W=16, forecast_len=16)
+        new_targets, new_T = compute_reconstruction_targets(
+            x_norm, W=16, output_len=16, mode='forecaster')
+        assert old_T == new_T
+        assert torch.allclose(old_targets, new_targets)
+
+    def test_encoder_values_match(self):
+        """Encoder target for position t should be x_norm[t*W : t*W + W]."""
+        torch.manual_seed(42)
+        x_norm = torch.randn(B, T_RAW, C)
+        targets, T_valid = compute_reconstruction_targets(
+            x_norm, W=16, output_len=16, mode='encoder')
+
+        # Check specific positions
+        for t in [0, 10, 63]:
+            start = t * 16
+            end = start + 16
+            expected = x_norm[:, start:end, :]  # (B, 16, C)
+            expected = expected.permute(0, 2, 1).reshape(B * C, 16)
+            actual = targets[:, t, :]
+            assert torch.allclose(actual, expected), \
+                f"Encoder target mismatch at t={t}"
+
+    def test_forecaster_shift_vs_encoder(self):
+        """Forecaster target[t] should equal encoder target[t+1]
+        (both decode the same patch, just from different latents)."""
+        torch.manual_seed(42)
+        x_norm = torch.randn(B, T_RAW, C)
+        f_targets, f_T = compute_reconstruction_targets(
+            x_norm, W=16, output_len=16, mode='forecaster')
+        e_targets, e_T = compute_reconstruction_targets(
+            x_norm, W=16, output_len=16, mode='encoder')
+
+        # f[t] → patch t+1, e[t+1] → patch t+1, so f_targets[t] == e_targets[t+1]
+        for t in [0, 10, 50]:
+            assert torch.allclose(f_targets[:, t, :], e_targets[:, t + 1, :]), \
+                f"Forecaster target[{t}] should equal encoder target[{t+1}]"
+
+    def test_unknown_mode_raises(self):
+        x_norm = torch.randn(B, T_RAW, C)
+        with pytest.raises(ValueError, match="Unknown mode"):
+            compute_reconstruction_targets(x_norm, mode='invalid')

@@ -39,6 +39,7 @@ from src.forecasting_head import (
     extract_encoder_latents,
     rollout_latent,
     compute_valid_targets,
+    compute_reconstruction_targets,
 )
 
 # -- Backbone architecture (must match checkpoint) ---------------------------
@@ -93,6 +94,12 @@ def parse_args():
                    help="If >0, train on mixed real+rolled latent sequences. "
                         "Uses first 48 patches as context, rolls out N tokens, "
                         "and trains on the full [context+rolled] sequence.")
+    p.add_argument("--reconstruction", default=None,
+                   choices=["forecaster", "encoder"],
+                   help="Train as RECONSTRUCTION head (time-aligned targets). "
+                        "'forecaster': f[t]→patch t+1 values. "
+                        "'encoder': e[t]→patch t values. "
+                        "If not set, uses old prediction targets (head predicts future).")
     return p.parse_args()
 
 
@@ -197,6 +204,9 @@ def main():
 
     print(f"\nTraining for {args.total_steps} steps, bs={args.batch_size}, "
           f"lr={args.lr}, forecast_len={args.forecast_len}")
+    if args.reconstruction:
+        print(f"RECONSTRUCTION mode: {args.reconstruction} "
+              f"(head decodes what latent represents, not future)")
     if args.mixed_rollout > 0:
         print(f"Mixed-rollout mode: {args.mixed_rollout} rolled tokens per step "
               f"(48 context patches + {args.mixed_rollout} rolled)")
@@ -255,19 +265,31 @@ def main():
             targets = targets[:, :T_use, :]
 
             loss = torch.nn.functional.mse_loss(preds, targets)
-        else:
-            # Standard training: extract forecaster latents from frozen backbone
-            f_bc, x_norm = extract_forecaster_latents(backbone, x)
+        elif args.reconstruction == 'encoder':
+            # Encoder reconstruction: e[t] → patch t values
+            e_bc, x_norm = extract_encoder_latents(backbone, x)
+            targets, T_valid = compute_reconstruction_targets(
+                x_norm, W=W, output_len=args.forecast_len, mode='encoder')
+            targets = targets.to(device)
+            preds = head(e_bc)[:, :T_valid, :]
+            loss = torch.nn.functional.mse_loss(preds, targets)
 
-            # Compute valid targets
+        elif args.reconstruction == 'forecaster':
+            # Forecaster reconstruction: f[t] → patch t+1 values
+            f_bc, x_norm = extract_forecaster_latents(backbone, x)
+            targets, T_valid = compute_reconstruction_targets(
+                x_norm, W=W, output_len=args.forecast_len, mode='forecaster')
+            targets = targets.to(device)
+            preds = head(f_bc)[:, :T_valid, :]
+            loss = torch.nn.functional.mse_loss(preds, targets)
+
+        else:
+            # Standard prediction training (old behavior)
+            f_bc, x_norm = extract_forecaster_latents(backbone, x)
             targets, T_valid = compute_valid_targets(
                 x_norm, W=W, forecast_len=args.forecast_len)
             targets = targets.to(device)
-
-            # Forward through head
             preds = head(f_bc)[:, :T_valid, :]
-
-            # MSE loss
             loss = torch.nn.functional.mse_loss(preds, targets)
 
         # NaN detection -- skip bad batches instead of crashing
