@@ -254,8 +254,15 @@ def main():
                     x_norm = backbone.rev_norm(x, mode='norm')
                 else:
                     x_norm = x
-            targets, T_valid_full = compute_valid_targets(
-                x_norm, W=W, forecast_len=args.forecast_len)
+
+            # Choose target computation based on reconstruction mode
+            if args.reconstruction:
+                targets, T_valid_full = compute_reconstruction_targets(
+                    x_norm, W=W, output_len=args.forecast_len,
+                    mode=args.reconstruction)
+            else:
+                targets, T_valid_full = compute_valid_targets(
+                    x_norm, W=W, forecast_len=args.forecast_len)
             targets = targets.to(device)
 
             # Take targets for our sequence positions only
@@ -263,6 +270,11 @@ def main():
             T_use = min(T_total, T_valid_full)
             preds = head(full_f)[:, :T_use, :]
             targets = targets[:, :T_use, :]
+
+            if args.reconstruction and args.mixed_rollout > 0:
+                # R3 mode: loss only on rolled positions
+                preds = preds[:, T_ctx_patches:, :]
+                targets = targets[:, T_ctx_patches:, :]
 
             loss = torch.nn.functional.mse_loss(preds, targets)
         elif args.reconstruction == 'encoder':
