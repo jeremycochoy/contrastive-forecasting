@@ -357,11 +357,16 @@ def parse_args():
                    help="Forecast rollout strategy (default: A1)")
     p.add_argument("--forecast-len", type=int, default=128,
                    help="Head forecast length: 128 (default) or 16 for W-heads")
+    p.add_argument("--encoder-type", default=None,
+                   choices=["mlp", "mlp_wide", "residual_silu", "gru", "conv"],
+                   help="Override backbone encoder type (must match checkpoint)")
     return p.parse_args()
 
 
 def load_models(args, device):
     """Load backbone and forecasting head."""
+    if args.encoder_type is not None:
+        BACKBONE_CONFIG["encoder_type"] = args.encoder_type
     backbone = ConfigurableModel(**BACKBONE_CONFIG)
     backbone.load_state_dict(
         torch.load(args.backbone_path, map_location=device,

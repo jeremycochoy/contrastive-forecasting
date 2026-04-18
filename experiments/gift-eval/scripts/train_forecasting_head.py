@@ -100,6 +100,9 @@ def parse_args():
                         "'forecaster': f[t]→patch t+1 values. "
                         "'encoder': e[t]→patch t values. "
                         "If not set, uses old prediction targets (head predicts future).")
+    p.add_argument("--encoder-type", default=None,
+                   choices=["mlp", "mlp_wide", "residual_silu", "gru", "conv"],
+                   help="Override backbone encoder type (must match checkpoint)")
     return p.parse_args()
 
 
@@ -145,6 +148,8 @@ def main():
     os.makedirs(args.save_dir, exist_ok=True)
 
     # -- Load frozen backbone --------------------------------------------------
+    if args.encoder_type is not None:
+        BACKBONE_CONFIG["encoder_type"] = args.encoder_type
     backbone = ConfigurableModel(**BACKBONE_CONFIG)
     backbone.load_state_dict(
         torch.load(args.backbone_path, map_location=device, weights_only=True))
