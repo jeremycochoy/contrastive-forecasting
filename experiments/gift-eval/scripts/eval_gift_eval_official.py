@@ -297,10 +297,10 @@ class ContrastiveForecasterPredictor(RepresentablePredictor):
                 target,
             ])
 
-        # (t_raw,) -> (1, t_raw, backbone_c)
+        # (t_raw,) -> (1, t_raw, 1) — single channel, no replication needed
+        # encoder/transformer/rollout all operate per-channel independently
         context_t = torch.from_numpy(context).float()
         context_t = context_t.unsqueeze(0).unsqueeze(-1)  # (1, t_raw, 1)
-        context_t = context_t.repeat(1, 1, self.backbone_c)  # (1, t_raw, C)
         return context_t
 
 
