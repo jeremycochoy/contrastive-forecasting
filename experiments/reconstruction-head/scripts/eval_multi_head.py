@@ -232,20 +232,6 @@ def decode_rolled(head, e_ctx, rolled_f, n_ctx, strategy,
     return forecast.cpu().T.numpy()                                 # (horizon, num_series)
 
 
-# -- Pre-computed predictor ---------------------------------------------------
-
-class PrecomputedPredictor(RepresentablePredictor):
-    """Yields pre-computed QuantileForecasts in order."""
-
-    def __init__(self, forecasts, prediction_length):
-        super().__init__(prediction_length=prediction_length)
-        self.forecasts = forecasts
-
-    def predict(self, dataset, **kwargs):
-        for i, _ in enumerate(dataset):
-            yield self.forecasts[i]
-
-
 # -- Item preparation ---------------------------------------------------------
 
 def prepare_context(item, device):
@@ -291,48 +277,71 @@ def make_forecast(point_forecast, item, quantile_levels):
     )
 
 
-# -- Single-pass evaluation ---------------------------------------------------
+# -- Single-pass predictor ----------------------------------------------------
 
-def precompute_forecasts(backbone, heads, head_cfgs, test_data,
-                         prediction_length, device):
-    """One pass over test_data: rollout once per item, decode all heads.
+class MultiHeadPredictor(RepresentablePredictor):
+    """Shared-rollout predictor: caches all head outputs on first head pass.
 
-    Returns {head_name: [QuantileForecast, ...]} for each head.
+    On the first head (idx=0), computes the rollout + all 8 decodings per
+    item and caches the forecasts. Subsequent heads just return cached results.
+    This avoids recomputing the expensive rollout 8 times.
     """
-    # Max rolled tokens needed across all heads
-    max_tokens = 0
-    for cfg in head_cfgs:
-        if cfg.strategy in ('B3R', 'B3'):
-            stride = cfg.forecast_len // W
-            n_blocks = math.ceil(prediction_length / cfg.forecast_len)
-            max_tokens = max(max_tokens, n_blocks * stride)
-        else:
-            max_tokens = max(max_tokens, math.ceil(prediction_length / W))
 
-    all_forecasts = {cfg.name: [] for cfg in head_cfgs}
+    def __init__(self, backbone, heads, head_cfgs, prediction_length,
+                 device):
+        super().__init__(prediction_length=prediction_length)
+        self.backbone = backbone
+        self.heads = heads
+        self.head_cfgs = head_cfgs
+        self.device = device
+        self._current_head_idx = 0
+        self._cache = {}          # {head_idx: [forecast_array, ...]}
+        self._item_counter = 0    # sequential item index within current pass
 
-    for item in test_data:
-        context_t = prepare_context(item, device)
+        # Max rolled tokens needed across all heads
+        self._max_tokens = 0
+        for cfg in head_cfgs:
+            if cfg.strategy in ('B3R', 'B3'):
+                stride = cfg.forecast_len // W
+                n_blocks = math.ceil(prediction_length / cfg.forecast_len)
+                self._max_tokens = max(self._max_tokens, n_blocks * stride)
+            else:
+                self._max_tokens = max(self._max_tokens,
+                                       math.ceil(prediction_length / W))
 
-        with torch.no_grad():
-            # Encode context: e[0], ..., e[k]
-            e_ctx, _ = extract_encoder_latents(backbone, context_t)     # (BC, n_ctx, H)
-            mean_c, stdev_c = _get_denorm_stats(backbone, C)
-            n_ctx = e_ctx.size(1)                                       # k+1
+    def predict(self, dataset, **kwargs):
+        self._item_counter = 0
+        for item in dataset:
+            yield self.predict_item(item)
 
-            # Rollout: f[k+1], ..., f[k+m]
-            rolled_f = rollout_latent(backbone, e_ctx, max_tokens)      # (BC, m, H)
+    def predict_item(self, item):
+        idx = self._current_head_idx
 
-            # Decode with each head (head forward is cheap vs rollout)
-            for head, cfg in zip(heads, head_cfgs):
-                raw = decode_rolled(head, e_ctx, rolled_f, n_ctx,
-                                    cfg.strategy, mean_c, stdev_c,
-                                    prediction_length)                  # (horizon, num_series)
-                point = raw[:, 0]
-                qf = make_forecast(point, item, QUANTILE_LEVELS)
-                all_forecasts[cfg.name].append(qf)
+        if idx == 0:
+            # First head: compute rollout once, decode ALL heads, cache
+            context_t = prepare_context(item, self.device)
 
-    return all_forecasts
+            with torch.no_grad():
+                e_ctx, _ = extract_encoder_latents(self.backbone, context_t)  # (BC, n_ctx, H)
+                mean_c, stdev_c = _get_denorm_stats(self.backbone, C)
+                n_ctx = e_ctx.size(1)                                         # k+1
+                rolled_f = rollout_latent(self.backbone, e_ctx,
+                                          self._max_tokens)                   # (BC, m, H)
+
+                for h_idx, (head, cfg) in enumerate(
+                        zip(self.heads, self.head_cfgs)):
+                    raw = decode_rolled(head, e_ctx, rolled_f, n_ctx,
+                                        cfg.strategy, mean_c, stdev_c,
+                                        self.prediction_length)              # (horizon, B)
+                    self._cache.setdefault(h_idx, []).append(raw[:, 0])
+
+        # Retrieve cached forecast for this head + item
+        point = self._cache[idx][self._item_counter]
+        self._item_counter += 1
+        return make_forecast(point, item, QUANTILE_LEVELS)
+
+    def clear_cache(self):
+        self._cache.clear()
 
 
 # -- Dataset helpers ----------------------------------------------------------
@@ -437,15 +446,15 @@ def main():
             dataset = GiftDataset(name=ds_name, term=term, to_univariate=to_univariate)
             season_length = get_seasonality(dataset.freq)
 
-            # === SINGLE PASS: rollout once per item, decode all heads ===
-            all_forecasts = precompute_forecasts(
-                backbone, heads, head_cfgs, dataset.test_data,
-                dataset.prediction_length, device)
+            # Shared-rollout predictor: rollout once, decode all 8 heads
+            predictor = MultiHeadPredictor(
+                backbone=backbone, heads=heads, head_cfgs=head_cfgs,
+                prediction_length=dataset.prediction_length,
+                device=device)
 
-            # === Metrics: one evaluate_model per head (no recomputation) ===
-            for cfg in head_cfgs:
-                predictor = PrecomputedPredictor(
-                    all_forecasts[cfg.name], dataset.prediction_length)
+            # Evaluate each head — head 0 computes+caches all, heads 1-7 reuse
+            for idx, cfg in enumerate(head_cfgs):
+                predictor._current_head_idx = idx
 
                 res = evaluate_model(
                     predictor, test_data=dataset.test_data,
@@ -469,6 +478,7 @@ def main():
                 csv_files[cfg.name].flush()
                 results_for_summary[cfg.name].append((config_name, mase_val))
 
+            predictor.clear_cache()
             elapsed = time.time() - t0
             mase_strs = " | ".join(
                 f"{cfg.name}={results_for_summary[cfg.name][-1][1]:.4f}"
