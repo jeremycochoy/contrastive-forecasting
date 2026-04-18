@@ -3,14 +3,13 @@
 Multi-head single-pass GIFT-Eval evaluation.
 
 Runs the backbone + latent rollout ONCE per test item, then decodes
-with multiple heads in parallel. Avoids recomputing the expensive
-autoregressive rollout for each head.
+with all heads. One pass over the dataset, not one per head.
 
 Usage:
     GIFT_EVAL=~/gift-eval-data PYTHONPATH=. python eval_multi_head.py \
         --backbone-path checkpoints/tiny_v2_best_gap.pth \
-        --heads R2:checkpoints/R2_encoder_recon_w16_best.pth:encoder:16:B4 \
-                R4:checkpoints/R5_encoder_recon_w128_best.pth:encoder:128:B3R \
+        --heads R2:checkpoints/R2_encoder_recon_w16_best.pth:16:B4 \
+                R4:checkpoints/R5_encoder_recon_w128_best.pth:128:B3R \
         --device cuda
 """
 
@@ -22,20 +21,18 @@ import sys
 import time
 import warnings
 from pathlib import Path
-from typing import List, Optional
 
 import numpy as np
 import torch
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
-from gluonts.dataset import Dataset as GluonTSDataset
 from gluonts.dataset.util import forecast_start
 from gluonts.ev.metrics import (
     MSE, MAE, MASE, MAPE, SMAPE, MSIS, RMSE, NRMSE, ND,
     MeanWeightedSumQuantileLoss,
 )
-from gluonts.model import evaluate_model, Forecast
+from gluonts.model import evaluate_model
 from gluonts.model.forecast import QuantileForecast
 from gluonts.model.predictor import RepresentablePredictor
 from gluonts.time_feature import get_seasonality
@@ -49,13 +46,12 @@ sys.path.insert(0, str(project_root))
 from src.models import ConfigurableModel
 from src.forecasting_head import (
     ForecastingHead,
-    W,
     extract_encoder_latents,
-    extract_forecaster_latents,
     rollout_latent,
     _get_denorm_stats,
-    _denormalize,
 )
+
+# -- Constants ----------------------------------------------------------------
 
 BACKBONE_CONFIG = dict(
     C=4, H=512, W=16, encoder_type="gru", num_layers=6, nhead=8,
@@ -63,7 +59,8 @@ BACKBONE_CONFIG = dict(
     rev_norm_span=32,
 )
 T_RAW = 1024
-BACKBONE_C = 4
+C = 4
+W = 16
 QUANTILE_LEVELS = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
 METRICS = [
     MSE(forecast_type="mean"), MSE(forecast_type=0.5),
@@ -81,7 +78,8 @@ CSV_HEADER = [
     "domain", "num_variates",
 ]
 
-# Dataset config (same as eval_gift_eval_official.py)
+# -- Dataset config -----------------------------------------------------------
+
 SHORT_DATASETS = (
     "m4_yearly m4_quarterly m4_monthly m4_weekly m4_daily m4_hourly "
     "electricity/15T electricity/H electricity/D electricity/W "
@@ -155,203 +153,189 @@ DATASET_PROPERTIES = {
 }
 
 
+# -- Head config --------------------------------------------------------------
+
 class HeadConfig:
-    """Parsed head configuration."""
-    def __init__(self, name, path, recon_mode, forecast_len, strategy):
+    def __init__(self, name, path, forecast_len, strategy):
         self.name = name
         self.path = path
-        self.recon_mode = recon_mode  # 'encoder' or 'forecaster'
         self.forecast_len = forecast_len
-        self.strategy = strategy  # 'B4' or 'B3R'
+        self.strategy = strategy  # 'B4', 'B3R', 'B1', 'B2', 'B3'
 
 
-def decode_with_head(head, head_cfg, e_bc, f_ctx, future_f, T_ctx,
-                     mean_c, stdev_c, horizon, W_bb):
-    """Decode rolled latents with a single head."""
-    forecast_len = head.forecast_len
+# -- Decode (vectorized) ------------------------------------------------------
 
-    if head_cfg.recon_mode == 'encoder':
-        # Encoder recon: use e_bc for context (matches training)
-        full_seq = torch.cat([e_bc, future_f], dim=1)
+def decode_rolled(head, e_ctx, rolled_f, n_ctx, strategy,
+                  mean_c, stdev_c, horizon):
+    """Decode rolled latents into a forecast (vectorized, no Python loops).
+
+    Notation
+    --------
+    p[i]  = patch i, W raw values starting at i*W
+    e[i]  = encoder latent for p[i]
+    f[i]  ≈ e[i]  (contrastive training)
+
+    Head input (same for ALL head types):
+        [ e[0], ..., e[k],  f[k+1], ..., f[k+m] ]
+          context (n_ctx)    rolled (m tokens)
+
+    The head reconstructs the patch each latent represents.
+    Forecast = head output at rolled positions, assembled by strategy.
+
+    Args:
+        head: ForecastingHead (.forecast_len = output values per position)
+        e_ctx: (BC, n_ctx, H)  encoder latents
+        rolled_f: (BC, m, H)   rolled forecaster latents
+        n_ctx: number of context patches (k+1)
+        strategy: 'B4'|'B3R'|'B3'|'B1'|'B2'
+        mean_c, stdev_c: denormalization stats (C, 1) or None
+        horizon: raw values to forecast
+
+    Returns:
+        (horizon, num_series) denormalized forecast
+    """
+    output_len = head.forecast_len                                  # 16 or 128
+    BC = e_ctx.size(0)
+
+    # -- Head forward: [e_ctx, rolled_f] → output at every position --
+    seq = torch.cat([e_ctx, rolled_f], dim=1)                       # (BC, n_ctx+m, H)
+    rolled_out = head(seq)[:, n_ctx:, :]                            # (BC, m, output_len)
+
+    # -- Assemble forecast (vectorized per strategy) --
+    if strategy in ('B3R', 'B3'):
+        # Block decode: first position in each group of stride tokens
+        stride = output_len // W                                    # 8 for 128
+        block_idx = torch.arange(0, rolled_out.size(1), stride)     # [0, 8, 16, ...]
+        blocks = rolled_out[:, block_idx, :]                        # (BC, n_blocks, output_len)
+        flat = blocks.reshape(BC, -1)                               # (BC, n_blocks * output_len)
+    elif strategy == 'B1':
+        # Per-token W, but last uses full output_len
+        n_w_tokens = max((horizon - 1) // W, 0)                    # tokens that give W values
+        last_need = horizon - n_w_tokens * W                        # remaining for last token
+        parts = []
+        if n_w_tokens > 0:
+            parts.append(rolled_out[:, :n_w_tokens, :W].reshape(BC, -1))
+        parts.append(rolled_out[:, n_w_tokens, :last_need])
+        flat = torch.cat(parts, dim=1)                              # (BC, horizon)
     else:
-        # Forecaster recon: use f_ctx, skip duplicate first rolled token
-        full_seq = torch.cat([f_ctx, future_f[:, 1:, :]], dim=1)
+        # B2, B4: W values per position
+        flat = rolled_out[:, :, :W].reshape(BC, -1)                 # (BC, m*W)
 
-    all_preds_raw = head(full_seq)
+    forecast_norm = flat[:, :horizon]                               # (BC, horizon)
 
-    if head_cfg.recon_mode == 'encoder':
-        future_preds = all_preds_raw[:, T_ctx:, :]
+    # -- Denormalize --
+    if mean_c is not None:
+        forecast = forecast_norm * stdev_c.clamp(min=1e-5) + mean_c # (BC, horizon)
     else:
-        future_preds = all_preds_raw[:, T_ctx:, :]  # adjusted by skip
+        forecast = forecast_norm
 
-    # Extract predictions based on strategy
-    all_preds = []
-    remaining = horizon
-
-    if head_cfg.strategy == 'B3R':
-        # Encoder recon block decode: take FIRST position in each group of 8
-        tokens_per_chunk = forecast_len // W_bb
-        n_chunks = math.ceil(horizon / forecast_len)
-        for chunk_i in range(n_chunks):
-            token_idx = chunk_i * tokens_per_chunk
-            if token_idx >= future_preds.size(1):
-                break
-            pred_norm = future_preds[:, token_idx, :]
-            n_take = min(forecast_len, remaining)
-            pred_actual = _denormalize(pred_norm[:, :n_take], mean_c, stdev_c)
-            all_preds.append(pred_actual.cpu())
-            remaining -= n_take
-            if remaining <= 0:
-                break
-    elif head_cfg.strategy == 'B3':
-        # Prediction block decode: take LAST position in each group of 8
-        tokens_per_chunk = forecast_len // W_bb
-        n_chunks = math.ceil(horizon / forecast_len)
-        for chunk_i in range(n_chunks):
-            token_idx = (chunk_i + 1) * tokens_per_chunk - 2  # -2: adjusted for skip
-            if token_idx < 0 or token_idx >= future_preds.size(1):
-                break
-            pred_norm = future_preds[:, token_idx, :]
-            n_take = min(forecast_len, remaining)
-            pred_actual = _denormalize(pred_norm[:, :n_take], mean_c, stdev_c)
-            all_preds.append(pred_actual.cpu())
-            remaining -= n_take
-            if remaining <= 0:
-                break
-    elif head_cfg.strategy == 'B1':
-        # Decode all: W per position, last gets all forecast_len
-        for i in range(future_preds.size(1)):
-            pred_norm = future_preds[:, i, :]
-            if remaining <= forecast_len:
-                n_take = remaining
-            else:
-                n_take = W_bb
-            pred_actual = _denormalize(pred_norm[:, :n_take], mean_c, stdev_c)
-            all_preds.append(pred_actual.cpu())
-            remaining -= n_take
-            if remaining <= 0:
-                break
-    elif head_cfg.strategy == 'B2':
-        # Crop to W at each position (128 head, take only W)
-        for i in range(future_preds.size(1)):
-            pred_norm = future_preds[:, i, :]
-            n_take = min(W_bb, remaining)
-            pred_actual = _denormalize(pred_norm[:, :n_take], mean_c, stdev_c)
-            all_preds.append(pred_actual.cpu())
-            remaining -= n_take
-            if remaining <= 0:
-                break
-    else:
-        # B4: one token at a time, take W values
-        for i in range(future_preds.size(1)):
-            pred_norm = future_preds[:, i, :]
-            n_take = min(W_bb, remaining)
-            pred_actual = _denormalize(pred_norm[:, :n_take], mean_c, stdev_c)
-            all_preds.append(pred_actual.cpu())
-            remaining -= n_take
-            if remaining <= 0:
-                break
-
-    if not all_preds:
-        return np.zeros((horizon, e_bc.size(0) // BACKBONE_C))
-
-    forecast = torch.cat(all_preds, dim=1)
-    return forecast.T.numpy()
+    return forecast.cpu().T.numpy()                                 # (horizon, num_series)
 
 
-class MultiHeadPredictor(RepresentablePredictor):
-    """Predictor that runs one rollout, decodes with multiple heads."""
+# -- Pre-computed predictor ---------------------------------------------------
 
-    def __init__(self, backbone, heads, head_cfgs, prediction_length,
-                 device, quantile_levels=None):
+class PrecomputedPredictor(RepresentablePredictor):
+    """Yields pre-computed QuantileForecasts in order."""
+
+    def __init__(self, forecasts, prediction_length):
         super().__init__(prediction_length=prediction_length)
-        self.backbone = backbone
-        self.heads = heads
-        self.head_cfgs = head_cfgs
-        self.device = device
-        self.quantile_levels = quantile_levels or QUANTILE_LEVELS
-        self.forecast_keys = ["mean"] + [str(q) for q in self.quantile_levels]
-        self._current_head_idx = 0  # set externally per evaluation
+        self.forecasts = forecasts
 
     def predict(self, dataset, **kwargs):
-        for item in dataset:
-            yield self.predict_item(item)
+        for i, _ in enumerate(dataset):
+            yield self.forecasts[i]
 
-    def predict_item(self, item):
-        target = np.asarray(item["target"], dtype=np.float32)
-        if np.isnan(target).any():
-            target = target.copy()
-            mask = np.isnan(target)
-            if mask.all():
-                target[:] = 0.0
-            else:
-                first_valid = np.where(~mask)[0][0]
-                target[:first_valid] = target[first_valid]
-                for i in range(1, len(target)):
-                    if np.isnan(target[i]):
-                        target[i] = target[i - 1]
 
-        n = len(target)
-        if n >= T_RAW:
-            context = target[-T_RAW:]
+# -- Item preparation ---------------------------------------------------------
+
+def prepare_context(item, device):
+    """Extract and pad context from a GluonTS test item."""
+    target = np.asarray(item["target"], dtype=np.float32)
+
+    # Forward-fill NaNs
+    if np.isnan(target).any():
+        target = target.copy()
+        mask = np.isnan(target)
+        if mask.all():
+            target[:] = 0.0
         else:
-            context = np.concatenate([
-                np.full(T_RAW - n, target[0], dtype=np.float32), target])
+            first_valid = np.where(~mask)[0][0]
+            target[:first_valid] = target[first_valid]
+            for i in range(1, len(target)):
+                if np.isnan(target[i]):
+                    target[i] = target[i - 1]
 
-        context_t = torch.from_numpy(context).float().unsqueeze(0).unsqueeze(-1)
-        context_t = context_t.repeat(1, 1, BACKBONE_C).to(self.device)
+    # Pad or crop to T_RAW
+    n = len(target)
+    if n >= T_RAW:
+        context = target[-T_RAW:]
+    else:
+        context = np.concatenate([
+            np.full(T_RAW - n, target[0], dtype=np.float32), target])
+
+    # (1, T_RAW, C) — replicate univariate across C channels
+    context_t = torch.from_numpy(context).float().unsqueeze(0).unsqueeze(-1)
+    return context_t.repeat(1, 1, C).to(device)
+
+
+def make_forecast(point_forecast, item, quantile_levels):
+    """Wrap a point forecast array into a QuantileForecast."""
+    point = np.nan_to_num(point_forecast.astype(np.float64),
+                          nan=0.0, posinf=0.0, neginf=0.0)
+    keys = ["mean"] + [str(q) for q in quantile_levels]
+    arrays = np.stack([point] * len(keys), axis=0)
+    return QuantileForecast(
+        forecast_arrays=arrays, forecast_keys=keys,
+        start_date=forecast_start(item),
+        item_id=item.get("item_id", None),
+    )
+
+
+# -- Single-pass evaluation ---------------------------------------------------
+
+def precompute_forecasts(backbone, heads, head_cfgs, test_data,
+                         prediction_length, device):
+    """One pass over test_data: rollout once per item, decode all heads.
+
+    Returns {head_name: [QuantileForecast, ...]} for each head.
+    """
+    # Max rolled tokens needed across all heads
+    max_tokens = 0
+    for cfg in head_cfgs:
+        if cfg.strategy in ('B3R', 'B3'):
+            stride = cfg.forecast_len // W
+            n_blocks = math.ceil(prediction_length / cfg.forecast_len)
+            max_tokens = max(max_tokens, n_blocks * stride)
+        else:
+            max_tokens = max(max_tokens, math.ceil(prediction_length / W))
+
+    all_forecasts = {cfg.name: [] for cfg in head_cfgs}
+
+    for item in test_data:
+        context_t = prepare_context(item, device)
 
         with torch.no_grad():
-            # Single rollout for all heads
-            B, T_ctx_raw, C = context_t.shape
-            W_bb = self.backbone.W
+            # Encode context: e[0], ..., e[k]
+            e_ctx, _ = extract_encoder_latents(backbone, context_t)     # (BC, n_ctx, H)
+            mean_c, stdev_c = _get_denorm_stats(backbone, C)
+            n_ctx = e_ctx.size(1)                                       # k+1
 
-            # Extract encoder + forecaster latents
-            e_bc, x_norm = extract_encoder_latents(self.backbone, context_t)
-            f_ctx, _ = extract_forecaster_latents(self.backbone, context_t)
-            mean_c, stdev_c = _get_denorm_stats(self.backbone, C)
-            T_ctx = e_bc.size(1)
+            # Rollout: f[k+1], ..., f[k+m]
+            rolled_f = rollout_latent(backbone, e_ctx, max_tokens)      # (BC, m, H)
 
-            # Compute max rollout tokens needed across all heads
-            max_tokens = 0
-            for cfg in self.head_cfgs:
-                if cfg.strategy in ('B3R', 'B3'):
-                    tokens_per_chunk = cfg.forecast_len // W_bb
-                    n_chunks = math.ceil(self.prediction_length / cfg.forecast_len)
-                    need = n_chunks * tokens_per_chunk
-                    if cfg.recon_mode != 'encoder':
-                        need += 1  # for skip_first_rolled
-                    max_tokens = max(max_tokens, need)
-                else:
-                    need = math.ceil(self.prediction_length / W_bb)
-                    if cfg.recon_mode != 'encoder':
-                        need += 1  # for skip_first_rolled
-                    max_tokens = max(max_tokens, need)
+            # Decode with each head (head forward is cheap vs rollout)
+            for head, cfg in zip(heads, head_cfgs):
+                raw = decode_rolled(head, e_ctx, rolled_f, n_ctx,
+                                    cfg.strategy, mean_c, stdev_c,
+                                    prediction_length)                  # (horizon, num_series)
+                point = raw[:, 0]
+                qf = make_forecast(point, item, QUANTILE_LEVELS)
+                all_forecasts[cfg.name].append(qf)
 
-            # Single rollout
-            future_f = rollout_latent(self.backbone, e_bc, max_tokens)
+    return all_forecasts
 
-            # Decode with current head
-            idx = self._current_head_idx
-            forecast_raw = decode_with_head(
-                self.heads[idx], self.head_cfgs[idx],
-                e_bc, f_ctx, future_f, T_ctx,
-                mean_c, stdev_c, self.prediction_length, W_bb)
 
-        point_forecast = forecast_raw[:, 0].astype(np.float64)
-        point_forecast = np.nan_to_num(point_forecast, nan=0.0, posinf=0.0, neginf=0.0)
-
-        n_keys = len(self.forecast_keys)
-        forecast_arrays = np.stack([point_forecast] * n_keys, axis=0)
-        fstart = forecast_start(item)
-
-        return QuantileForecast(
-            forecast_arrays=forecast_arrays,
-            forecast_keys=self.forecast_keys,
-            start_date=fstart,
-            item_id=item.get("item_id", None),
-        )
-
+# -- Dataset helpers ----------------------------------------------------------
 
 def get_all_dataset_configs():
     short_list = SHORT_DATASETS.split()
@@ -377,12 +361,14 @@ def get_ds_config_name(ds_name, term):
     return f"{ds_key}/{ds_freq}/{term}", ds_key
 
 
+# -- Main ---------------------------------------------------------------------
+
 def parse_args():
     p = argparse.ArgumentParser(description="Multi-head single-pass GIFT-Eval")
     p.add_argument("--backbone-path", required=True)
     p.add_argument("--heads", nargs="+", required=True,
-                   help="Head specs: NAME:PATH:MODE:FLEN:STRATEGY "
-                        "(e.g. R2:ckpt/R2.pth:encoder:16:B4)")
+                   help="Head specs: NAME:PATH:FLEN:STRATEGY "
+                        "(e.g. R2:ckpt/R2.pth:16:B4)")
     p.add_argument("--output-dir", default="results")
     p.add_argument("--device", default="cuda")
     p.add_argument("--test-only", type=int, default=0)
@@ -407,8 +393,8 @@ def main():
     heads = []
     for spec in args.heads:
         parts = spec.split(":")
-        name, path, mode, flen, strategy = parts
-        cfg = HeadConfig(name, path, mode, int(flen), strategy)
+        name, path, flen, strategy = parts
+        cfg = HeadConfig(name, path, int(flen), strategy)
         head_cfgs.append(cfg)
 
         head = ForecastingHead(H=512, hidden_dim=128, num_gru_layers=2,
@@ -417,7 +403,7 @@ def main():
             torch.load(path, map_location=device, weights_only=True))
         head = head.to(device).eval()
         heads.append(head)
-        print(f"  Head {name}: {path} (mode={mode}, flen={flen}, strategy={strategy})")
+        print(f"  Head {name}: {path} (flen={flen}, strategy={strategy})")
 
     # Prepare output dirs and CSV writers
     writers = {}
@@ -451,15 +437,15 @@ def main():
             dataset = GiftDataset(name=ds_name, term=term, to_univariate=to_univariate)
             season_length = get_seasonality(dataset.freq)
 
-            predictor = MultiHeadPredictor(
-                backbone=backbone, heads=heads, head_cfgs=head_cfgs,
-                prediction_length=dataset.prediction_length,
-                device=device, quantile_levels=QUANTILE_LEVELS,
-            )
+            # === SINGLE PASS: rollout once per item, decode all heads ===
+            all_forecasts = precompute_forecasts(
+                backbone, heads, head_cfgs, dataset.test_data,
+                dataset.prediction_length, device)
 
-            # Evaluate each head using the shared predictor
-            for idx, cfg in enumerate(head_cfgs):
-                predictor._current_head_idx = idx
+            # === Metrics: one evaluate_model per head (no recomputation) ===
+            for cfg in head_cfgs:
+                predictor = PrecomputedPredictor(
+                    all_forecasts[cfg.name], dataset.prediction_length)
 
                 res = evaluate_model(
                     predictor, test_data=dataset.test_data,
@@ -501,7 +487,7 @@ def main():
     for f in csv_files.values():
         f.close()
 
-    # Summary
+    # Summary: GM-Relative MASE
     sn_candidates = [
         os.path.expanduser("~/workspaces/gift-eval/results/seasonal_naive/all_results.csv"),
         os.path.join(project_root, "gift-eval-ref/seasonal_naive/all_results.csv"),
@@ -526,7 +512,6 @@ def main():
             gm = np.exp(np.mean(log_ratios))
             print(f"  {cfg.name}: GM-Relative MASE = {gm:.4f} ({len(log_ratios)} configs)")
 
-        # Save summary
         out_dir = os.path.join(args.output_dir, cfg.name)
         with open(os.path.join(out_dir, "summary.txt"), "w") as sf:
             if log_ratios:

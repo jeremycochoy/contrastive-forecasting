@@ -448,216 +448,173 @@ def forecast_A2(backbone, head, x_context, horizon, device):
 
 
 def _b_variant_setup(backbone, x_context, device):
-    """Common setup for all B-variants: extract latents and denorm stats."""
+    """Extract encoder latents and denorm stats for latent-space rollout.
+
+    Returns e[0], ..., e[k] (encoder latents for context patches)
+    and denormalization statistics.
+    """
     if x_context.dim() == 2:
         x_context = x_context.unsqueeze(0)
     x_context = x_context.to(device).float()
     B, T_ctx, C = x_context.shape
 
     with torch.no_grad():
-        # Get BOTH encoder latents (for rollout) and forecaster latents (for head context)
-        e_bc, x_norm = extract_encoder_latents(backbone, x_context)
-        f_bc, _ = extract_forecaster_latents(backbone, x_context)
+        e_ctx, x_norm = extract_encoder_latents(backbone, x_context)  # (BC, n_ctx, H)
         mean_c, stdev_c = _get_denorm_stats(backbone, C)
 
-    T_ctx_patches = e_bc.size(1)
-    return e_bc, f_bc, mean_c, stdev_c, T_ctx_patches, C
+    n_ctx = e_ctx.size(1)
+    return e_ctx, mean_c, stdev_c, n_ctx, C
 
 
-def _b_variant_decode(head, ctx_latents, future_f, T_ctx_patches, skip_first_rolled=False):
-    """Feed [context, rolled] as one sequence to the head.
+def _b_variant_decode(head, e_ctx, rolled_f, n_ctx):
+    """Feed [e[0], ..., e[k], f[k+1], ..., f[k+m]] to the head.
 
-    The bidirectional GRU processes context latents first, then rolled
-    latents. Predictions at future positions are returned.
+    The head is a content-based decoder (bidirectional GRU, no position
+    encoding). It reconstructs the patch each latent represents:
+    output at position i → values of p[i].
 
     Args:
         head: ForecastingHead
-        ctx_latents: (B*C, T, H) context latents (e_bc for encoder recon,
-                     f_ctx for forecaster recon/prediction heads)
-        future_f: (B*C, N, H) rolled forecaster latents
-        T_ctx_patches: int, number of context patches (= T)
-        skip_first_rolled: if True, skip future_f[0] (duplicate of last
-                          context token for forecaster-trained heads)
+        e_ctx: (BC, n_ctx, H) encoder latents e[0..k]
+        rolled_f: (BC, m, H) rolled forecaster latents f[k+1..k+m]
+        n_ctx: k+1, number of context patches
 
     Returns:
-        future_preds: (B*C, M, forecast_len) predictions at future positions
-                      where M = N-1 if skip_first_rolled else N
+        rolled_out: (BC, m, forecast_len) head output at rolled positions
     """
-    rolled = future_f[:, 1:, :] if skip_first_rolled else future_f
-    full_seq = torch.cat([ctx_latents, rolled], dim=1)
-    all_preds = head(full_seq)
-    return all_preds[:, T_ctx_patches:, :]
+    seq = torch.cat([e_ctx, rolled_f], dim=1)   # (BC, n_ctx+m, H)
+    all_out = head(seq)                          # (BC, n_ctx+m, forecast_len)
+    return all_out[:, n_ctx:, :]                 # (BC, m, forecast_len)
 
 
 def forecast_B1(backbone, head, x_context, horizon, device):
-    """B1: Latent-space rollout, decode all at end.
+    """B1: Latent rollout, per-token decode, last chunk uses full output_len.
 
-    Generate future latent tokens, decode with full-sequence head.
-    Use all forecast_len values from last chunk, first W from others.
+    Sequence: [e[0], ..., e[k], f[k+1], ..., f[k+m]]
+    Forecast: W values per rolled position, except the last position
+              uses up to output_len values to cover remaining horizon.
     """
     W_bb = backbone.W
-    forecast_len = head.forecast_len
+    output_len = head.forecast_len
 
-    e_bc, f_ctx, mean_c, stdev_c, T_ctx, C = _b_variant_setup(
+    e_ctx, mean_c, stdev_c, n_ctx, C = _b_variant_setup(
         backbone, x_context, device)
 
     with torch.no_grad():
-        n_tokens = math.ceil(horizon / W_bb)
-        future_f = rollout_latent(backbone, e_bc, n_tokens)
+        n_tokens = math.ceil(horizon / W_bb)                        # m
+        rolled_f = rollout_latent(backbone, e_ctx, n_tokens)        # (BC, m, H)
+        rolled_out = _b_variant_decode(head, e_ctx, rolled_f, n_ctx)  # (BC, m, output_len)
 
-        # Decode full sequence [context + rolled], skip duplicate first rolled token
-        future_preds = _b_variant_decode(head, f_ctx, future_f, T_ctx,
-                                         skip_first_rolled=True)
-
-        all_preds = []
+        preds = []
         remaining = horizon
-        for i in range(future_preds.size(1)):
-            pred_norm = future_preds[:, i, :]  # (C, forecast_len)
-
-            if remaining <= forecast_len:
-                n_take = remaining
+        for i in range(rolled_out.size(1)):
+            pred_norm = rolled_out[:, i, :]                         # (BC, output_len)
+            if remaining <= output_len:
+                n_take = remaining   # last chunk: use full capacity
             else:
                 n_take = W_bb
-
-            pred_actual = _denormalize(pred_norm[:, :n_take], mean_c, stdev_c)
-            all_preds.append(pred_actual.cpu())
+            preds.append(_denormalize(pred_norm[:, :n_take], mean_c, stdev_c).cpu())
             remaining -= n_take
             if remaining <= 0:
                 break
 
-    forecast = torch.cat(all_preds, dim=1)
-    return forecast.T.numpy()
+    return torch.cat(preds, dim=1).T.numpy()
 
 
 def forecast_B2(backbone, head, x_context, horizon, device):
-    """B2: Latent-space rollout, decode with 128-head, crop to W.
+    """B2: Latent rollout, per-token decode, crop each to W.
 
-    At each latent step, decode with full-sequence head but keep only first W.
+    Sequence: [e[0], ..., e[k], f[k+1], ..., f[k+m]]
+    Like B4 but uses a head with output_len=128, cropped to W per position.
     """
     W_bb = backbone.W
 
-    e_bc, f_ctx, mean_c, stdev_c, T_ctx, C = _b_variant_setup(
+    e_ctx, mean_c, stdev_c, n_ctx, C = _b_variant_setup(
         backbone, x_context, device)
 
     with torch.no_grad():
-        n_tokens = math.ceil(horizon / W_bb) + 1  # +1 for skipped duplicate
-        future_f = rollout_latent(backbone, e_bc, n_tokens)
-        future_preds = _b_variant_decode(head, f_ctx, future_f, T_ctx,
-                                         skip_first_rolled=True)
+        n_tokens = math.ceil(horizon / W_bb)                        # m
+        rolled_f = rollout_latent(backbone, e_ctx, n_tokens)        # (BC, m, H)
+        rolled_out = _b_variant_decode(head, e_ctx, rolled_f, n_ctx)  # (BC, m, output_len)
 
-        all_preds = []
+        preds = []
         remaining = horizon
-        for i in range(n_tokens):
-            pred_norm = future_preds[:, i, :]
-
+        for i in range(rolled_out.size(1)):
+            pred_norm = rolled_out[:, i, :]                         # (BC, output_len)
             n_take = min(W_bb, remaining)
-            pred_actual = _denormalize(pred_norm[:, :n_take], mean_c, stdev_c)
-            all_preds.append(pred_actual.cpu())
+            preds.append(_denormalize(pred_norm[:, :n_take], mean_c, stdev_c).cpu())
             remaining -= n_take
             if remaining <= 0:
                 break
 
-    forecast = torch.cat(all_preds, dim=1)
-    return forecast.T.numpy()
+    return torch.cat(preds, dim=1).T.numpy()
 
 
 def forecast_B3(backbone, head, x_context, horizon, device, recon_mode=None):
-    """B3: Latent-space rollout, non-overlapping block decode.
+    """B3/B3R: Latent rollout, non-overlapping block decode.
 
-    Roll forward tokens_per_chunk latent tokens (= forecast_len values),
-    decode the block using the head's GRU context.
-
-    For prediction heads: take output from LAST position in each group
-    (original behavior).
-    For reconstruction heads (recon_mode='encoder'): take output from
-    FIRST position in each group (encoder recon: position t → patches t to t+7).
+    Sequence: [e[0], ..., e[k], f[k+1], ..., f[k+m]]
+    Take FIRST position in each group of (output_len/W) tokens.
+    Position 0 → p[k+1..k+output_len/W], position stride → next block, etc.
     """
     W_bb = backbone.W
-    forecast_len = head.forecast_len
-    tokens_per_chunk = forecast_len // W_bb  # 8
+    output_len = head.forecast_len
+    stride = output_len // W_bb                                     # 8 for output_len=128
 
-    e_bc, f_ctx, mean_c, stdev_c, T_ctx, C = _b_variant_setup(
+    e_ctx, mean_c, stdev_c, n_ctx, C = _b_variant_setup(
         backbone, x_context, device)
 
     with torch.no_grad():
-        n_chunks = math.ceil(horizon / forecast_len)
-        if recon_mode == 'encoder':
-            n_tokens = n_chunks * tokens_per_chunk
-        else:
-            n_tokens = n_chunks * tokens_per_chunk + 1  # +1 for skipped duplicate
-        future_f = rollout_latent(backbone, e_bc, n_tokens)
+        n_blocks = math.ceil(horizon / output_len)
+        n_tokens = n_blocks * stride                                # m
+        rolled_f = rollout_latent(backbone, e_ctx, n_tokens)        # (BC, m, H)
+        rolled_out = _b_variant_decode(head, e_ctx, rolled_f, n_ctx)  # (BC, m, output_len)
 
-        if recon_mode == 'encoder':
-            # Encoder recon: use encoder latents for context (matches training)
-            future_preds = _b_variant_decode(head, e_bc, future_f, T_ctx)
-        else:
-            # Prediction/forecaster heads: use forecaster latents, skip duplicate
-            future_preds = _b_variant_decode(head, f_ctx, future_f, T_ctx,
-                                             skip_first_rolled=True)
-
-        all_preds = []
+        preds = []
         remaining = horizon
-        for chunk_i in range(n_chunks):
-            if recon_mode == 'encoder':
-                # Encoder recon: position t → patches t to t+7
-                # Take FIRST position in each group
-                token_idx = chunk_i * tokens_per_chunk
-            else:
-                # Prediction heads: take LAST position in each group
-                # (adjusted for skipped first token)
-                token_idx = (chunk_i + 1) * tokens_per_chunk - 2
-            pred_norm = future_preds[:, token_idx, :]
-
-            n_take = min(forecast_len, remaining)
-            pred_actual = _denormalize(pred_norm[:, :n_take], mean_c, stdev_c)
-            all_preds.append(pred_actual.cpu())
-            remaining -= n_take
+        for block_start in range(0, rolled_out.size(1), stride):
             if remaining <= 0:
                 break
+            pred_norm = rolled_out[:, block_start, :]               # (BC, output_len)
+            n_take = min(output_len, remaining)
+            preds.append(_denormalize(pred_norm[:, :n_take], mean_c, stdev_c).cpu())
+            remaining -= n_take
 
-    forecast = torch.cat(all_preds, dim=1)
-    return forecast.T.numpy()
+    return torch.cat(preds, dim=1).T.numpy()
 
 
 def forecast_B4(backbone, head, x_context, horizon, device):
-    """B4: Latent-space rollout with W-value head.
+    """B4: Latent rollout, per-token decode with W-value head.
 
-    Generate latent tokens, decode each with full-sequence W-head.
+    Sequence: [e[0], ..., e[k], f[k+1], ..., f[k+m]]
+    W values from each rolled position. Simplest latent rollout strategy.
     """
     W_bb = backbone.W
 
-    e_bc, f_ctx, mean_c, stdev_c, T_ctx, C = _b_variant_setup(
+    e_ctx, mean_c, stdev_c, n_ctx, C = _b_variant_setup(
         backbone, x_context, device)
 
     with torch.no_grad():
-        n_tokens = math.ceil(horizon / W_bb) + 1  # +1 for skipped duplicate
-        future_f = rollout_latent(backbone, e_bc, n_tokens)
-        future_preds = _b_variant_decode(head, f_ctx, future_f, T_ctx,
-                                         skip_first_rolled=True)
+        n_tokens = math.ceil(horizon / W_bb)                        # m
+        rolled_f = rollout_latent(backbone, e_ctx, n_tokens)        # (BC, m, H)
+        rolled_out = _b_variant_decode(head, e_ctx, rolled_f, n_ctx)  # (BC, m, output_len)
 
-        all_preds = []
+        preds = []
         remaining = horizon
-        for i in range(future_preds.size(1)):
-            pred_norm = future_preds[:, i, :]
-
+        for i in range(rolled_out.size(1)):
+            pred_norm = rolled_out[:, i, :]                         # (BC, output_len)
             n_take = min(head.forecast_len, remaining)
-            pred_actual = _denormalize(pred_norm[:, :n_take], mean_c, stdev_c)
-            all_preds.append(pred_actual.cpu())
+            preds.append(_denormalize(pred_norm[:, :n_take], mean_c, stdev_c).cpu())
             remaining -= n_take
             if remaining <= 0:
                 break
 
-    forecast = torch.cat(all_preds, dim=1)
-    return forecast.T.numpy()
+    return torch.cat(preds, dim=1).T.numpy()
 
 
 def forecast_B3R(backbone, head, x_context, horizon, device):
-    """B3R: Latent-space rollout, block decode for encoder reconstruction heads.
-
-    Same as B3 but takes FIRST position in each group (encoder recon:
-    position t → patches t to t+7).
-    """
-    return forecast_B3(backbone, head, x_context, horizon, device, recon_mode='encoder')
+    """B3R: Same as B3, kept for backward compatibility."""
+    return forecast_B3(backbone, head, x_context, horizon, device)
 
 
 # Strategy dispatch
