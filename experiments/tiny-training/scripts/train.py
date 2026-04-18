@@ -91,6 +91,11 @@ def parse_args():
                         "(e.g. 'tiny_mixed_v1').")
     p.add_argument("--seed", type=int, default=42,
                    help="Random seed for reproducibility")
+    p.add_argument("--encoder-type", default=None,
+                   choices=["mlp", "mlp_wide", "residual_silu", "gru", "conv"],
+                   help="Override encoder type (default: gru from MODEL_CONFIG)")
+    p.add_argument("--intermediate-dim", type=int, default=None,
+                   help="Override encoder intermediate dimension")
     return p.parse_args()
 
 
@@ -181,13 +186,15 @@ class CSVLogger:
         # Write header only if file is empty/new
         if os.path.getsize(path) == 0:
             self._writer.writerow([
-                "step", "loss", "gap", "ff", "fp", "hf_rows_consumed"
+                "step", "loss", "gap", "ff", "fp", "tp", "cross_batch",
+                "hf_rows_consumed",
             ])
             self._file.flush()
 
     def log(self, step: int, loss: float, gap: float, ff: float, fp: float,
-            hf_rows_consumed: int):
-        self._buffer.append([step, loss, gap, ff, fp, hf_rows_consumed])
+            tp: float, cross_batch: float, hf_rows_consumed: int):
+        self._buffer.append([step, loss, gap, ff, fp, tp, cross_batch,
+                             hf_rows_consumed])
         if len(self._buffer) >= self.flush_every:
             self.flush()
 
@@ -204,6 +211,13 @@ class CSVLogger:
 
 def main():
     args = parse_args()
+
+    # Override model config from CLI
+    if args.encoder_type is not None:
+        MODEL_CONFIG["encoder_type"] = args.encoder_type
+    if args.intermediate_dim is not None:
+        MODEL_CONFIG["intermediate_dim"] = args.intermediate_dim
+
     device = torch.device(args.device)
 
     # Reproducibility
@@ -379,7 +393,7 @@ def main():
 
         # -- Rolling metrics (EMA) ---------------------------------------------
         with torch.no_grad():
-            val_ff, val_fp, _, _ = compute_metrics(f_lat, o_lat, CLD)
+            val_ff, val_fp, val_tp, val_cb = compute_metrics(f_lat, o_lat, CLD)
         gap_val = val_ff - val_fp
 
         if ema_loss is None:
@@ -392,7 +406,7 @@ def main():
 
         # -- Per-step CSV logging ----------------------------------------------
         csv_logger.log(step, loss_val, gap_val, val_ff, val_fp,
-                       hf_rows_consumed)
+                       val_tp, val_cb, hf_rows_consumed)
 
         # -- Logging -----------------------------------------------------------
         if step % args.log_every == 0:
