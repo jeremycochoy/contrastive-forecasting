@@ -189,7 +189,7 @@ def decode_with_head(head, head_cfg, e_bc, f_ctx, future_f, T_ctx,
     remaining = horizon
 
     if head_cfg.strategy == 'B3R':
-        # Block decode: take first position in each group of 8
+        # Encoder recon block decode: take FIRST position in each group of 8
         tokens_per_chunk = forecast_len // W_bb
         n_chunks = math.ceil(horizon / forecast_len)
         for chunk_i in range(n_chunks):
@@ -198,6 +198,44 @@ def decode_with_head(head, head_cfg, e_bc, f_ctx, future_f, T_ctx,
                 break
             pred_norm = future_preds[:, token_idx, :]
             n_take = min(forecast_len, remaining)
+            pred_actual = _denormalize(pred_norm[:, :n_take], mean_c, stdev_c)
+            all_preds.append(pred_actual.cpu())
+            remaining -= n_take
+            if remaining <= 0:
+                break
+    elif head_cfg.strategy == 'B3':
+        # Prediction block decode: take LAST position in each group of 8
+        tokens_per_chunk = forecast_len // W_bb
+        n_chunks = math.ceil(horizon / forecast_len)
+        for chunk_i in range(n_chunks):
+            token_idx = (chunk_i + 1) * tokens_per_chunk - 2  # -2: adjusted for skip
+            if token_idx < 0 or token_idx >= future_preds.size(1):
+                break
+            pred_norm = future_preds[:, token_idx, :]
+            n_take = min(forecast_len, remaining)
+            pred_actual = _denormalize(pred_norm[:, :n_take], mean_c, stdev_c)
+            all_preds.append(pred_actual.cpu())
+            remaining -= n_take
+            if remaining <= 0:
+                break
+    elif head_cfg.strategy == 'B1':
+        # Decode all: W per position, last gets all forecast_len
+        for i in range(future_preds.size(1)):
+            pred_norm = future_preds[:, i, :]
+            if remaining <= forecast_len:
+                n_take = remaining
+            else:
+                n_take = W_bb
+            pred_actual = _denormalize(pred_norm[:, :n_take], mean_c, stdev_c)
+            all_preds.append(pred_actual.cpu())
+            remaining -= n_take
+            if remaining <= 0:
+                break
+    elif head_cfg.strategy == 'B2':
+        # Crop to W at each position (128 head, take only W)
+        for i in range(future_preds.size(1)):
+            pred_norm = future_preds[:, i, :]
+            n_take = min(W_bb, remaining)
             pred_actual = _denormalize(pred_norm[:, :n_take], mean_c, stdev_c)
             all_preds.append(pred_actual.cpu())
             remaining -= n_take
@@ -277,13 +315,18 @@ class MultiHeadPredictor(RepresentablePredictor):
             # Compute max rollout tokens needed across all heads
             max_tokens = 0
             for cfg in self.head_cfgs:
-                if cfg.strategy == 'B3R':
+                if cfg.strategy in ('B3R', 'B3'):
                     tokens_per_chunk = cfg.forecast_len // W_bb
                     n_chunks = math.ceil(self.prediction_length / cfg.forecast_len)
-                    max_tokens = max(max_tokens, n_chunks * tokens_per_chunk)
+                    need = n_chunks * tokens_per_chunk
+                    if cfg.recon_mode != 'encoder':
+                        need += 1  # for skip_first_rolled
+                    max_tokens = max(max_tokens, need)
                 else:
-                    max_tokens = max(max_tokens,
-                                    math.ceil(self.prediction_length / W_bb) + 1)
+                    need = math.ceil(self.prediction_length / W_bb)
+                    if cfg.recon_mode != 'encoder':
+                        need += 1  # for skip_first_rolled
+                    max_tokens = max(max_tokens, need)
 
             # Single rollout
             future_f = rollout_latent(self.backbone, e_bc, max_tokens)
