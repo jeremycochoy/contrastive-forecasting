@@ -186,7 +186,13 @@ def main():
     p.add_argument('--device', default='cuda')
     p.add_argument('--strategy', default='B4')
     p.add_argument('--forecast-len', type=int, default=16)
+    p.add_argument('--encoder-type', default=None,
+                   choices=['mlp', 'mlp_wide', 'residual_silu', 'gru', 'conv'],
+                   help='Override backbone encoder type (must match checkpoint)')
     args = p.parse_args()
+
+    if args.encoder_type is not None:
+        BACKBONE_CONFIG['encoder_type'] = args.encoder_type
 
     device = torch.device(args.device)
 
