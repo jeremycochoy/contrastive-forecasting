@@ -555,11 +555,16 @@ def forecast_B2(backbone, head, x_context, horizon, device):
     return forecast.T.numpy()
 
 
-def forecast_B3(backbone, head, x_context, horizon, device):
-    """B3: Latent-space rollout, non-overlapping 128 decode.
+def forecast_B3(backbone, head, x_context, horizon, device, recon_mode=None):
+    """B3: Latent-space rollout, non-overlapping block decode.
 
-    Roll forward 8 latent tokens (= 128 values), use the 8th token's
-    full prediction. Repeat.
+    Roll forward tokens_per_chunk latent tokens (= forecast_len values),
+    decode the block using the head's GRU context.
+
+    For prediction heads: take output from LAST position in each group
+    (original behavior).
+    For reconstruction heads (recon_mode='encoder'): take output from
+    FIRST position in each group (encoder recon: position t → patches t to t+7).
     """
     W_bb = backbone.W
     forecast_len = head.forecast_len
@@ -577,7 +582,13 @@ def forecast_B3(backbone, head, x_context, horizon, device):
         all_preds = []
         remaining = horizon
         for chunk_i in range(n_chunks):
-            token_idx = (chunk_i + 1) * tokens_per_chunk - 1
+            if recon_mode == 'encoder':
+                # Encoder recon: position t → patches t to t+7
+                # Take FIRST position in each group
+                token_idx = chunk_i * tokens_per_chunk
+            else:
+                # Prediction heads: take LAST position in each group
+                token_idx = (chunk_i + 1) * tokens_per_chunk - 1
             pred_norm = future_preds[:, token_idx, :]
 
             n_take = min(forecast_len, remaining)
@@ -622,6 +633,15 @@ def forecast_B4(backbone, head, x_context, horizon, device):
     return forecast.T.numpy()
 
 
+def forecast_B3R(backbone, head, x_context, horizon, device):
+    """B3R: Latent-space rollout, block decode for encoder reconstruction heads.
+
+    Same as B3 but takes FIRST position in each group (encoder recon:
+    position t → patches t to t+7).
+    """
+    return forecast_B3(backbone, head, x_context, horizon, device, recon_mode='encoder')
+
+
 # Strategy dispatch
 FORECAST_STRATEGIES = {
     'A1': forecast_A1,
@@ -629,6 +649,7 @@ FORECAST_STRATEGIES = {
     'B1': forecast_B1,
     'B2': forecast_B2,
     'B3': forecast_B3,
+    'B3R': forecast_B3R,
     'B4': forecast_B4,
 }
 
@@ -637,7 +658,7 @@ def forecast_with_strategy(strategy, backbone, head, x_context, horizon, device)
     """Dispatch to the appropriate forecast strategy.
 
     Args:
-        strategy: one of 'A1', 'A2', 'B1', 'B2', 'B3', 'B4'
+        strategy: one of 'A1', 'A2', 'B1', 'B2', 'B3', 'B3R', 'B4'
         backbone, head, x_context, horizon, device: same as forecast_autoregressive
     """
     fn = FORECAST_STRATEGIES.get(strategy)
