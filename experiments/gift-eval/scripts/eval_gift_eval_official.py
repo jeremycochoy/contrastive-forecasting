@@ -353,7 +353,7 @@ def parse_args():
     p.add_argument("--resume", action="store_true",
                    help="Resume from existing partial all_results.csv")
     p.add_argument("--strategy", default="A1",
-                   choices=["A1", "A2", "B1", "B2", "B3", "B4"],
+                   choices=["A1", "A2", "B1", "B2", "B3", "B3R", "B4"],
                    help="Forecast rollout strategy (default: A1)")
     p.add_argument("--forecast-len", type=int, default=128,
                    help="Head forecast length: 128 (default) or 16 for W-heads")
