@@ -259,9 +259,10 @@ def prepare_context(item, device):
         context = np.concatenate([
             np.full(T_RAW - n, target[0], dtype=np.float32), target])
 
-    # (1, T_RAW, C) — replicate univariate across C channels
+    # (1, T_RAW, 1) — single channel, no need to replicate
+    # encoder/transformer/rollout all operate per-channel independently
     context_t = torch.from_numpy(context).float().unsqueeze(0).unsqueeze(-1)
-    return context_t.repeat(1, 1, C).to(device)
+    return context_t.to(device)
 
 
 def make_forecast(point_forecast, item, quantile_levels):
