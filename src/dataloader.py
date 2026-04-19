@@ -192,7 +192,7 @@ class HFStreamingLoader:
     """
 
     def __init__(self, repo_id: str, batch_size: int = 16, C: int = 4,
-                 path_in_repo: str = None, split: str = "test",
+                 path_in_repo: str = None, split: str = "train",
                  prefetch: int = 2, skip_rows: int = 0):
         self.repo_id = repo_id
         self.batch_size = batch_size
@@ -344,7 +344,7 @@ def create_dataloader(shard_dir: str, batch_size: int = 16, C: int = 4,
 
 def create_hf_dataloader(repo_id: str, batch_size: int = 16, C: int = 4,
                           path_in_repo: str = None,
-                          split: str = "test",
+                          split: str = "train",
                           skip_rows: int = 0) -> HFStreamingLoader:
     """Create a streaming DataLoader from a HuggingFace dataset repo.
 

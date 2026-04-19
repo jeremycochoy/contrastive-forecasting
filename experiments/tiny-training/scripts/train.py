@@ -89,6 +89,8 @@ def parse_args():
     p.add_argument("--hf-path", default=None,
                    help="Subdirectory within the HF repo "
                         "(e.g. 'tiny_mixed_v1').")
+    p.add_argument("--split", default="train",
+                   help="Dataset split to use (default: train).")
     p.add_argument("--seed", type=int, default=42,
                    help="Random seed for reproducibility")
     p.add_argument("--encoder-type", default=None,
@@ -297,7 +299,7 @@ def main():
         data_loader = create_hf_dataloader(
             args.hf_repo, batch_size=args.batch_size,
             C=MODEL_CONFIG["C"], path_in_repo=args.hf_path,
-            skip_rows=hf_rows_consumed)
+            split=args.split, skip_rows=hf_rows_consumed)
         data_iter = iter(data_loader)
         print(f"Data: HF streaming from {args.hf_repo} "
               f"({rows_per_step} rows/step, skip={hf_rows_consumed} rows)")
