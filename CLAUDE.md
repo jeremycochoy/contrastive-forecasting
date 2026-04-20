@@ -5,10 +5,12 @@
 - Two RTX 4090 GPUs (24GB each). Pick the most free GPU at runtime.
 
 ## Remote Machine Monitoring
-- When a training run is launched on a remote/cloud machine (Vast.ai, etc.), always set up a periodic sync loop that copies checkpoints, loss CSV, and logs to a local directory every 15 minutes.
-- This protects against preemption or unexpected instance termination.
-- Sync at minimum: `*_best_gap.pth`, `*_best_loss.pth`, `*_losses.csv`, and the training log. Also sync periodic saves (`*_Nk.pth`) as they appear.
-- Use `rsync -avz --timeout=60 -e "ssh ..."` for robustness.
+- **Assume the machine can crash at any time.** Every sync must protect against this.
+- When a training run is launched on a remote/cloud machine (Vast.ai, etc.), always set up a periodic sync loop that copies checkpoints, loss CSV, and logs to a local directory.
+- **Sync frequency:** Every 5 minutes for the first hour, then every 15 minutes.
+- **Atomic writes:** Always download to a `.tmp` file first, verify file size (checkpoints must be >70MB), then `mv` over the old copy. A crash mid-transfer must never corrupt existing local copies.
+- Sync at minimum: `*_best_gap.pth`, `*_best_loss.pth`, `*_losses.csv`, the training log, and periodic saves (`*_Nk.pth`) as they appear.
+- Use `scp` (not `rsync` on macOS — it's v2.6.9 and unreliable through vast.ai proxy).
 - The sync loop should also watch for NaN, process death, and completion, and alert accordingly.
 - **After launching any background process, ALWAYS verify the first output before reporting it as running.** No exceptions — wait for the first cycle, check the log, confirm it produced correct results. Do not assume it works because similar scripts worked before; the environment may differ.
 
