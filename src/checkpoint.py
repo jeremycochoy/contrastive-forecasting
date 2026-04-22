@@ -20,6 +20,7 @@ _DEFAULTS = {
     "ema_loss": None,
     "ema_gap": None,
     "hf_rows_consumed": 0,
+    "synth_rows_consumed": 0,
     "rng_state_torch": None,
     "rng_state_numpy": None,
 }
@@ -37,6 +38,7 @@ def save_training_state(optimizer, model_path: str, step: int,
                         best_loss_step: int = 0,
                         ema_loss=None, ema_gap=None,
                         hf_rows_consumed: int = 0,
+                        synth_rows_consumed: int = 0,
                         rng_state_torch=None,
                         rng_state_numpy=None) -> str:
     """Save optimizer state and training metadata to companion file.
@@ -53,6 +55,7 @@ def save_training_state(optimizer, model_path: str, step: int,
         "ema_loss": ema_loss,
         "ema_gap": ema_gap,
         "hf_rows_consumed": hf_rows_consumed,
+        "synth_rows_consumed": synth_rows_consumed,
         "rng_state_torch": rng_state_torch,
         "rng_state_numpy": rng_state_numpy,
     }

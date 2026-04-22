@@ -362,3 +362,106 @@ def create_hf_dataloader(repo_id: str, batch_size: int = 16, C: int = 4,
         repo_id=repo_id, batch_size=batch_size, C=C,
         path_in_repo=path_in_repo, split=split, skip_rows=skip_rows,
     )
+
+
+# ── Mixed loader: HF stream + on-the-fly periodic synthesizer ────────────────
+
+class MixedPeriodicLoader:
+    """Half-real, half-synthetic batch stream.
+
+    Each yielded batch is the row-concat of two sub-batches:
+
+    - ``hf_bs`` samples from the underlying ``HFStreamingLoader`` (real data)
+    - ``synth_bs`` samples from :func:`src.synthetic_periodic.generate_periodic_batch`
+      (on-the-fly, pure numpy, ~1 ms at ``bs=12``)
+
+    The final batch has shape ``[hf_bs + synth_bs, T_raw, C]``. For a 50/50
+    split with effective batch ``B=24`` use ``hf_bs=synth_bs=12``.
+
+    The synth generator threads a numpy ``Generator`` seeded from ``seed``
+    so runs are reproducible; the generator state advances across batches.
+    """
+
+    def __init__(self, hf_loader: "HFStreamingLoader", synth_bs: int,
+                 T_raw: int = 1024, C: int = 4,
+                 seed: int | None = None):
+        self.hf_loader = hf_loader
+        self.synth_bs = synth_bs
+        self.T_raw = T_raw
+        self.C = C
+        # Synth generator is persistent; each __iter__ seeds a fresh one.
+        self._seed = seed
+
+    def __iter__(self):
+        # Import locally so dataloader.py doesn't force synthetic_periodic
+        # into the test import graph.
+        from src.synthetic_periodic import generate_periodic_batch
+
+        rng = np.random.default_rng(self._seed)
+        hf_iter = iter(self.hf_loader)
+
+        while True:
+            try:
+                x_hf = next(hf_iter)                        # [hf_bs, T, C]
+            except StopIteration:
+                return
+            if self.synth_bs > 0:
+                x_syn = generate_periodic_batch(
+                    batch_size=self.synth_bs, T_raw=self.T_raw,
+                    C=self.C, rng=rng,
+                )                                           # [synth_bs, T, C]
+                x = torch.cat([x_hf, x_syn], dim=0)         # [B, T, C]
+            else:
+                x = x_hf
+            yield x
+
+
+def create_mixed_periodic_dataloader(
+    repo_id: str, batch_size: int = 24, C: int = 4,
+    mix_ratio: float = 0.5,
+    path_in_repo: str = None, split: str = "train",
+    skip_rows: int = 0, T_raw: int = 1024, seed: int | None = None,
+) -> "MixedPeriodicLoader":
+    """Create a 50/50 (or arbitrary) mix of real HF + on-the-fly periodic synth.
+
+    The effective batch size (HF + synth rows) equals ``batch_size``. With
+    ``mix_ratio=0.5`` and ``batch_size=24`` the HF loader yields ``bs=12``
+    real rows per step and the synth adds 12 periodic rows; both halves are
+    independent draws.
+
+    Args:
+        batch_size: Effective batch size (HF + synth combined).
+        mix_ratio: Fraction of each batch drawn from the periodic synth.
+            0.0 = pure HF (identical to ``create_hf_dataloader``).
+            1.0 = pure synth (useful for synth-only smoke tests).
+        seed: Seed for the periodic synth generator. Independent from HF
+            stream ordering.
+    """
+    if not 0.0 <= mix_ratio <= 1.0:
+        raise ValueError(f"mix_ratio must be in [0, 1], got {mix_ratio}")
+
+    synth_bs = int(round(batch_size * mix_ratio))
+    hf_bs = batch_size - synth_bs
+
+    if mix_ratio == 0.0:
+        # Exact parity with the HF-only path — no synth overhead.
+        return create_hf_dataloader(
+            repo_id=repo_id, batch_size=batch_size, C=C,
+            path_in_repo=path_in_repo, split=split, skip_rows=skip_rows,
+        )
+
+    hf_loader = HFStreamingLoader(
+        repo_id=repo_id, batch_size=hf_bs, C=C,
+        path_in_repo=path_in_repo, split=split, skip_rows=skip_rows,
+    ) if hf_bs > 0 else None
+
+    # Small helper to act as an "iterable-like" HF loader when mix_ratio=1.0.
+    class _EmptyHFLoader:
+        def __iter__(self):
+            while True:
+                yield torch.empty(0, T_raw, C, dtype=torch.float32)
+
+    return MixedPeriodicLoader(
+        hf_loader=hf_loader if hf_loader is not None else _EmptyHFLoader(),
+        synth_bs=synth_bs, T_raw=T_raw, C=C, seed=seed,
+    )

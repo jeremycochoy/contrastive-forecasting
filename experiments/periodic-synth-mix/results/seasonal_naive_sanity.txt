@@ -1,0 +1,18 @@
+# Seasonal-naive sanity check on synthetic periodic data
+# N=1000 T=1024 CTX=768 H=128 seed=20260422
+# naive: persist last value
+# SN: seasonal-naive with TRUE period (from synth meta)
+# SN-inf: seasonal-naive with P inferred by autocorrelation
+
+             group     N   naive mean  naive med   naive GM    SN mean     SN med      SN GM  SN-inf mean SN-inf med  SN-inf GM   ratio GM
+               ALL  1000       15.531      9.795      9.397      1.209      0.657      0.631       10.467      0.817      1.587      0.067
+          sinusoid   336       16.784     11.223     10.209      1.128      0.557      0.534       14.334      1.997      3.437      0.052
+            square   330       17.067     10.095     10.357      1.456      0.843      1.085       10.348      0.711      1.677      0.105
+               saw   334       12.753      7.914      7.854      1.047      0.654      0.483        6.694      0.618      0.696      0.061
+          env=True   292       15.987      9.850      9.244      2.530      1.427      1.411       11.249      1.458      2.333      0.153
+         env=False   708       15.343      9.768      9.461      0.664      0.505      0.438       10.145      0.699      1.338      0.046
+             P<=32   391        3.863      3.456      3.347      1.211      1.019      0.908        0.694      0.545      0.438      0.271
+      P in (32,96]   321       12.852     11.672     11.636      0.765      0.537      0.470        3.195      0.642      0.836      0.040
+              P>96   288       34.358     29.734     30.074      1.701      0.381      0.515       31.841     29.960     17.294      0.017
+
+# P inference: exact match 565/1000, within 10% 574/1000
