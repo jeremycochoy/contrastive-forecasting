@@ -118,6 +118,10 @@ def main():
     mix = _read_all_results(os.path.join(args.mix_dir, "all_results.csv"))
     ctrl = ctrl.rename(columns={"mase": "mase_ctrl"})
     mix = mix.rename(columns={"mase": "mase_mix"})
+    # Drop optional domain column from the merge side to avoid duplicate
+    # 'domain' columns colliding on the outer merge below.
+    if "domain" in mix.columns:
+        mix = mix.drop(columns=["domain"])
 
     # Reference R1v3b (includes SN_MASE column we need for Relative)
     ref = _read_summary_seasonal(args.reference_summary)
