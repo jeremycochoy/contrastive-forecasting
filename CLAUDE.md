@@ -7,12 +7,15 @@
 ## Remote Machine Monitoring
 - **Assume the machine can crash at any time.** Every sync must protect against this.
 - When a training run is launched on a remote/cloud machine (Vast.ai, etc.), always set up a periodic sync loop that copies checkpoints, loss CSV, and logs to a local directory.
-- **Sync frequency:** Every 5 minutes for the first hour, then every 15 minutes.
+- **Sync frequency:** Every 15 minutes (fixed). A ramped-up schedule was tried and offered no net benefit — a single tick itself can take 2–5 minutes over the vast.ai scp proxy for large checkpoints.
 - **Atomic writes:** Always download to a `.tmp` file first, verify file size (checkpoints must be >70MB), then `mv` over the old copy. A crash mid-transfer must never corrupt existing local copies.
 - Sync at minimum: `*_best_gap.pth`, `*_best_gap_optimizer.pth`, `*_best_loss.pth`, `*_best_loss_optimizer.pth`, `*_losses.csv`, the training log, and periodic saves (`*_Nk.pth` + `*_Nk_optimizer.pth`) as they appear. **Always sync optimizer files** — without them, resume loses step counter, RNG state, and AdamW momentum.
 - Use `scp` (not `rsync` on macOS — it's v2.6.9 and unreliable through vast.ai proxy).
 - The sync loop should also watch for NaN, process death, and completion, and alert accordingly.
 - **After launching any background process, ALWAYS verify the first output before reporting it as running.** No exceptions — wait for the first cycle, check the log, confirm it produced correct results. Do not assume it works because similar scripts worked before; the environment may differ.
+- **Always dry-run / test the sync loop before leaving a training unattended**, and **every time the sync code changes**. One full tick with at least one `✓ <file>` line per expected pattern (log, backbone, head, losses CSV) is the acceptance gate. Without this, you cannot rely on crash recovery — and you may silently drop files due to wrong min-size thresholds, wrong patterns, or wrong host/port. Learned the hard way (PR #45): a 70 MB min-size floor applied blanketly to `*.pth` silently dropped every 2.4 MB head checkpoint without logging a recognisable warning.
+- **Verifying the sync means manually checking the files are there — all of them you expect.** Reading `sync.log` alone is insufficient; a missing `✗` line can just mean the pattern didn't match (silent bug), not that the file wasn't needed. After at least one full tick, open `<LOCAL_DIR>/checkpoints/` and confirm *by name and by size* that every file class that exists on the remote also exists locally: backbone `.pth`, backbone `_optimizer.pth`, head `.pth`, head `_optimizer.pth`, losses CSVs, run log. A missing class = broken sync regardless of what the log says.
+- **Size thresholds are per-file-class, not per-extension.** Backbone ~80 MB, optimizer ~150 MB, head ~2.4 MB, losses CSV a few KB — never one floor for everything.
 
 ## Checkpoint Safety Rules
 1. **After any long training run completes**, immediately copy the best checkpoint to a clearly named permanent file (e.g., `20L_H1024_2M_final.pth`). Never rely on `_best.pth` or periodic saves as the only copy.

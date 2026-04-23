@@ -26,12 +26,21 @@ fi
 
 mkdir -p "$LOCAL_DIR/checkpoints"
 
-# Unique files we want to pull. We glob each on the remote side.
+# (glob, min_bytes) pairs. min_bytes is chosen so a partial/aborted transfer
+# is rejected, without also rejecting legitimately small files. Head
+# checkpoints are ~2.4 MB, so they MUST NOT share the backbone's 70 MB floor
+# — that was a bug in the first version of this script, which silently
+# dropped every R1*_head file. See issue / PR for fix.
+#
+# Rule of thumb: min_bytes ≈ 50% of the expected final size, floored at 1 KB.
 WANTED_PATTERNS=(
-    "checkpoints/tiny_v3c_*.pth"
-    "checkpoints/tiny_v3c_*_losses.csv"
-    "checkpoints/R1v3c_*.pth"
-    "checkpoints/R1v3c_*_losses.csv"
+    # pattern                                     min_bytes
+    "checkpoints/tiny_v3c_*_optimizer.pth         70000000"   # backbone optimiser ~155 MB
+    "checkpoints/tiny_v3c_*.pth                   50000000"   # backbone model ~80 MB
+    "checkpoints/tiny_v3c_*_losses.csv            32"
+    "checkpoints/R1v3c_*_optimizer.pth            1000000"    # head optimiser ~5 MB
+    "checkpoints/R1v3c_*.pth                      1000000"    # head model ~2.4 MB
+    "checkpoints/R1v3c_*_losses.csv               32"
 )
 LOG_PATTERNS=(
     "run_all.log"
@@ -80,26 +89,17 @@ _sync_once() {
         done
     done
 
-    # Checkpoints + loss CSVs
-    for pat in "${WANTED_PATTERNS[@]}"; do
+    # Checkpoints + loss CSVs — each pattern carries its own min_bytes.
+    for entry in "${WANTED_PATTERNS[@]}"; do
+        # Split "glob  min_bytes" on whitespace.
+        local pat min
+        pat=$(echo "$entry" | awk '{print $1}')
+        min=$(echo "$entry" | awk '{print $2}')
         for remote in $(_list_remote "$pat"); do
             local_path="$LOCAL_DIR/checkpoints/$(basename "$remote")"
-            # Heuristic: .pth must be >70 MB (20M param backbone, fp32)
-            #            .csv needs at least header + one row
-            local min=1024
-            if [[ "$remote" == *.pth ]]; then
-                # optimizer files can be smaller (~80MB) and model files ~80MB+
-                if [[ "$remote" == *_optimizer.pth ]]; then
-                    min=70000000
-                else
-                    min=70000000
-                fi
-            elif [[ "$remote" == *.csv ]]; then
-                min=32
-            fi
             _fetch_atomic "$REMOTE_DIR/$remote" "$local_path" "$min" \
                 && echo "    ✓ $remote ($(wc -c < "$local_path") bytes)" \
-                || echo "    ✗ $remote (skip / failed)"
+                || echo "    ✗ $remote (skip / failed, min=${min}B)"
         done
     done
 
@@ -113,17 +113,11 @@ _sync_once() {
     fi
 }
 
-start_s=$(date +%s)
 tick=0
 while true; do
     _sync_once
-    now=$(date +%s)
-    elapsed=$(( now - start_s ))
-    if (( elapsed < 3600 )); then
-        interval=300   # 5 min for first hour
-    else
-        interval=900   # 15 min thereafter
-    fi
     tick=$((tick + 1))
-    sleep "$interval"
+    # Fixed 15-min cadence — simpler than ramped schedule, and a full tick
+    # (many files over the vast.ai scp proxy) can itself take ~2-5 min.
+    sleep 900
 done
