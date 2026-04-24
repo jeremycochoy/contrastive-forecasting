@@ -4,6 +4,21 @@
 - **Elisa**: `jupyter@elisa`, workdir: `~/workspaces/contrastive-forecasting/`
 - Two RTX 4090 GPUs (24GB each). Pick the most free GPU at runtime.
 
+## HuggingFace token
+
+Every vast.ai run that streams from HF datasets **must** authenticate, or
+HF's anonymous rate-limit will throttle the stream and idle the GPU
+(observed: 0.5–1.5 sps with GPU util ~20% vs 5–9 sps with token).
+
+The read-only token lives at `experiments/hf_token.txt` (gitignored so
+GitHub secret scanning doesn't reject pushes). Put your token there
+manually; in run scripts:
+
+```bash
+export HF_TOKEN=$(cat experiments/hf_token.txt)
+export HUGGING_FACE_HUB_TOKEN="$HF_TOKEN"
+```
+
 ## Remote Machine Monitoring
 - **Assume the machine can crash at any time.** Every sync must protect against this.
 - When a training run is launched on a remote/cloud machine (Vast.ai, etc.), always set up a periodic sync loop that copies checkpoints, loss CSV, and logs to a local directory.
