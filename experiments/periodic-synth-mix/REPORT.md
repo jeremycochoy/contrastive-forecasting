@@ -219,6 +219,66 @@ MIX backbone + 1.3h+1.8h R1 heads + ~5h+~4h GIFT-Eval). One 2h stall
 on Stage 2a (prefetch-thread hang); resumed cleanly from the 10k
 checkpoint with no lost work.
 
+## Addendum — 90k extension (post-hoc)
+
+After the original 30k pair landed, we ran a **90k extension** of MIX
+(resume from the 30k `final` checkpoint, same base-bundles + 50/50 synth
+mix, 60k more steps). Fresh R1 head trained on the 90k backbone, then
+full GIFT-Eval B4.
+
+### Backbone dynamics (30k → 90k)
+
+- Best gap: **0.5471 → 0.5816** (+6.3%)
+- Best loss: **−0.083 → −1.007** (contrastive task near-saturated on synth half)
+- Head MSE on base-bundles: **0.087 → 0.087** (unchanged — the extra
+  backbone gap did not translate to easier forecasting decode)
+
+### GIFT-Eval comparison
+
+| Model | Params | Train | Aggregate | Periodic (6) | Seasonal (73) | Non-trend (24) | Stationary (17) |
+|---|---:|---|---:|---:|---:|---:|---:|
+| v2 (R1) | 20M | 500k resumed | **1.168** | **2.547** | **1.232** | **0.993** | **0.898** |
+| v3b (R1v3b) | 20M | 120k from-scratch | 1.186 | 2.604 | 1.250 | 1.013 | 0.919 |
+| **MIX 90k** | 20M | 90k from-scratch | 1.210 | 2.656 | 1.265 | 1.057 | 0.974 |
+| MIX 30k | 20M | 30k from-scratch | 1.216 | 2.707 | 1.283 | 1.036 | 0.942 |
+| CTRL 30k | 20M | 30k from-scratch | 1.217 | 2.803 | 1.271 | 1.067 | 0.965 |
+
+### Key findings
+
+- **Extending to 90k improves what we asked it to improve.** Aggregate −0.5%,
+  periodic −1.9%, seasonal −1.3% vs MIX 30k.
+- **…but at the cost of non-periodic transfer.** Non-trend subset +2.1% *worse*;
+  stationary subset +3.4% *worse*. The synth-periodic bias becomes more
+  pronounced with more training.
+- **Per-config highlights:** m4_hourly/H/short 6.04 → 5.40 (−0.64, the
+  biggest single win). ett2/W/short 1.54 → 1.46 (now best across all
+  arms). solar/10T/long 2.16 → 2.26 (small regression).
+- **v2 still dominates every subset.** At 5× the training compute and no
+  synth bias, plain base-bundles training beats our 50/50 synth mix on
+  every slice. Compute > synth-data-design at this scale.
+
+### Interpretation
+
+The 50/50 synth ratio is the binding knob: at 30k we pay a small
+stationary-subset tax for a small periodic gain; at 90k the tax grows
+roughly linearly with training and the periodic gain grows sublinearly.
+Net aggregate benefit shrinks from "essentially tied" (30k) to "+0.5%
+better" (90k). Exact pattern expected if clean synth over-specialises the
+backbone representation.
+
+The per-config wins on periodic datasets confirm our working hypothesis
+that a pure-periodic synth signal *does* teach period detection, but the
+accompanying loss of general-purpose robustness means we can't scale this
+strategy further without one of:
+
+1. Multi-primitive synth (daily + weekly composition, matches real hourly data).
+2. Trend-augmented synth (user's observation — non-trend subset behaves like
+   pure persistence forecaster because synth has no trend signal).
+3. Explicit frequency conditioning via a learned embedding (queued task #23),
+   which should let the backbone keep general-purpose behaviour while
+   gaining freq-specific structure.
+4. Reduced synth ratio (25% rather than 50%) at the current scale.
+
 ## Recommendations for follow-up
 
 1. **Tune the mix ratio.** 50/50 is the knob we turned once. Probably
