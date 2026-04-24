@@ -103,6 +103,11 @@ def parse_args():
     p.add_argument("--encoder-type", default=None,
                    choices=["mlp", "mlp_wide", "residual_silu", "gru", "conv"],
                    help="Override backbone encoder type (must match checkpoint)")
+    p.add_argument("--freq-emb-dim", type=int, default=None,
+                   help="Frequency embedding dim in the backbone. If the "
+                        "backbone was trained with freq_emb_dim=D, set the same "
+                        "here so the state_dict loads. Auto-detected from the "
+                        "checkpoint if omitted.")
     return p.parse_args()
 
 
@@ -150,9 +155,21 @@ def main():
     # -- Load frozen backbone --------------------------------------------------
     if args.encoder_type is not None:
         BACKBONE_CONFIG["encoder_type"] = args.encoder_type
+
+    # Auto-detect freq_emb_dim from the checkpoint if not explicitly set.
+    sd = torch.load(args.backbone_path, map_location=device, weights_only=True)
+    if args.freq_emb_dim is None:
+        w = sd.get("freq_embedding.embedding.weight")
+        if w is not None:
+            args.freq_emb_dim = w.shape[1]
+            print(f"  [head-train] auto-detected freq_emb_dim={args.freq_emb_dim} "
+                  f"from backbone checkpoint")
+        else:
+            args.freq_emb_dim = 0
+    BACKBONE_CONFIG["freq_emb_dim"] = args.freq_emb_dim
+
     backbone = ConfigurableModel(**BACKBONE_CONFIG)
-    backbone.load_state_dict(
-        torch.load(args.backbone_path, map_location=device, weights_only=True))
+    backbone.load_state_dict(sd)
     backbone = backbone.to(device)
     backbone.eval()
     for param in backbone.parameters():

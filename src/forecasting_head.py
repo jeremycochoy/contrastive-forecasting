@@ -336,6 +336,11 @@ def extract_encoder_latents(backbone, x):
         # Reshape to patches: (B, T, C, W)
         xr = x_norm.view(B, T, W_bb, C).permute(0, 1, 3, 2)
 
+        # If backbone has freq embedding, widen the patch (default to class 0).
+        if getattr(backbone, 'freq_embedding', None) is not None:
+            freq_ids = torch.zeros(B, dtype=torch.long, device=x.device)
+            xr = backbone._apply_freq_embedding(xr, freq_ids=freq_ids)
+
         # Run encoder only (input_to_latent), not transformer
         e = backbone.transformer.input_to_latent(xr)  # (B, T, C, H)
         B, T, C, H = e.size()

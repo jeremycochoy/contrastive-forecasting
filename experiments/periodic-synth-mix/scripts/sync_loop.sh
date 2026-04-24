@@ -35,11 +35,14 @@ mkdir -p "$LOCAL_DIR/checkpoints"
 # Rule of thumb: min_bytes ≈ 50% of the expected final size, floored at 1 KB.
 WANTED_PATTERNS=(
     # pattern                                     min_bytes
-    "checkpoints/tiny_v3c_*_optimizer.pth         70000000"   # backbone optimiser ~155 MB
-    "checkpoints/tiny_v3c_*.pth                   50000000"   # backbone model ~80 MB
-    "checkpoints/tiny_v3c_*_losses.csv            32"
-    "checkpoints/R1v3c_*_optimizer.pth            1000000"    # head optimiser ~5 MB
-    "checkpoints/R1v3c_*.pth                      1000000"    # head model ~2.4 MB
+    "checkpoints/tiny_*_optimizer.pth             70000000"   # any backbone optimiser ~155 MB
+    "checkpoints/tiny_*.pth                       50000000"   # any backbone model ~80 MB
+    "checkpoints/tiny_*_losses.csv                32"
+    "checkpoints/R1_*_optimizer.pth               1000000"    # head optimiser ~5 MB
+    "checkpoints/R1_*.pth                         1000000"    # head model ~2.4 MB
+    "checkpoints/R1_*_losses.csv                  32"
+    "checkpoints/R1v3c_*_optimizer.pth            1000000"    # legacy v3c head optimiser
+    "checkpoints/R1v3c_*.pth                      1000000"    # legacy v3c head
     "checkpoints/R1v3c_*_losses.csv               32"
 )
 LOG_PATTERNS=(

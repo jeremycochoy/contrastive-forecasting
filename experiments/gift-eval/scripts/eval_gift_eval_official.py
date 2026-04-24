@@ -367,10 +367,16 @@ def load_models(args, device):
     """Load backbone and forecasting head."""
     if args.encoder_type is not None:
         BACKBONE_CONFIG["encoder_type"] = args.encoder_type
+    # Auto-detect freq_emb_dim from the checkpoint so freq-emb backbones
+    # load cleanly without a CLI flag.
+    sd = torch.load(args.backbone_path, map_location=device, weights_only=True)
+    w = sd.get("freq_embedding.embedding.weight")
+    BACKBONE_CONFIG["freq_emb_dim"] = (w.shape[1] if w is not None else 0)
+    if BACKBONE_CONFIG["freq_emb_dim"] > 0:
+        print(f"  [eval] auto-detected freq_emb_dim="
+              f"{BACKBONE_CONFIG['freq_emb_dim']} from backbone checkpoint")
     backbone = ConfigurableModel(**BACKBONE_CONFIG)
-    backbone.load_state_dict(
-        torch.load(args.backbone_path, map_location=device,
-                    weights_only=True))
+    backbone.load_state_dict(sd)
     backbone = backbone.to(device)
     backbone.eval()
     for p in backbone.parameters():
