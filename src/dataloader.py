@@ -213,16 +213,113 @@ class HFStreamingLoader:
         kwargs["split"] = split
         return load_dataset(self.repo_id, **kwargs)
 
+    def _list_shard_files(self):
+        """Return the ordered list of parquet shard files backing this stream.
+
+        Returns None if the structure is not a simple list of parquet shards
+        (in which case we fall back to the naive .skip()).
+        """
+        from huggingface_hub import HfFileSystem
+        try:
+            fs = HfFileSystem()
+            pattern = f"datasets/{self.repo_id}"
+            if self.path_in_repo:
+                pattern = f"{pattern}/{self.path_in_repo}"
+            paths = fs.ls(pattern, detail=False)
+            pq = sorted(p for p in paths if p.endswith(".parquet"))
+            return pq if pq else None
+        except Exception as e:
+            print(f"  [dataloader] Could not list shards for fast skip: {e}")
+            return None
+
+    def _shard_row_counts(self, shard_paths):
+        """Return (N,) int array of row counts per shard, via parquet metadata.
+
+        Uses the parquet FOOTER only (no data read); typically milliseconds
+        per shard via HfFileSystem's cached HEAD requests.
+        """
+        from huggingface_hub import HfFileSystem
+        import pyarrow.parquet as pq
+        fs = HfFileSystem()
+        counts = []
+        for p in shard_paths:
+            with fs.open(p, "rb") as f:
+                meta = pq.read_metadata(f)
+                counts.append(meta.num_rows)
+        return counts
+
+    def _iter_stream_with_fast_skip(self):
+        """Yield parquet rows starting from position ``self.skip_rows``.
+
+        Strategy: download full shards up to the one that contains the target
+        row (fast — one parquet file at a time via pyarrow), drop them, then
+        stream the remainder. This is O(shards_before_target) + O(rows_in_target_shard)
+        instead of the naive O(rows_before_target) which is 100x-1000x slower
+        on a streaming HF Hub connection.
+
+        Falls back to the default .skip() if shard metadata can't be introspected.
+        """
+        shards = self._list_shard_files()
+        if shards is None:
+            # Fallback: naive skip
+            stream = self._open_stream()
+            if self.skip_rows > 0:
+                stream = stream.skip(self.skip_rows)
+                print(f"  [dataloader] Skipped {self.skip_rows} rows (naive)")
+            yield from stream
+            return
+
+        counts = self._shard_row_counts(shards)
+        print(f"  [dataloader] {len(shards)} shards, "
+              f"{sum(counts)} total rows, target skip {self.skip_rows}")
+
+        # Find first shard where cumulative count > skip_rows.
+        cum = 0
+        start_shard = 0
+        for i, c in enumerate(counts):
+            if cum + c > self.skip_rows:
+                start_shard = i
+                break
+            cum += c
+        else:
+            # All shards come before target — skip everything and yield nothing.
+            print(f"  [dataloader] skip_rows={self.skip_rows} >= total rows; "
+                  f"no data to yield")
+            return
+        within_shard_skip = self.skip_rows - cum
+
+        print(f"  [dataloader] Fast-skip: starting at shard {start_shard}/"
+              f"{len(shards)}, then skipping {within_shard_skip} rows within it")
+
+        # Stream from start_shard onwards, row-by-row, dropping the initial
+        # within-shard-skip rows.
+        from datasets import load_dataset
+        remaining = shards[start_shard:]
+        # Point HF at just these files. data_files supports a list of http(s)
+        # URLs / repo-relative paths.
+        ds = load_dataset(
+            "parquet",
+            data_files=["hf://" + p for p in remaining],
+            split="train",
+            streaming=True,
+        )
+        dropped = 0
+        for row in ds:
+            if dropped < within_shard_skip:
+                dropped += 1
+                continue
+            yield row
+
     def _raw_iter(self):
         """Yield batches without prefetching (used by PrefetchIterator)."""
-        stream = self._open_stream()
         if self.skip_rows > 0:
-            stream = stream.skip(self.skip_rows)
-            print(f"  [dataloader] Skipped {self.skip_rows} rows to resume position")
+            row_iter = self._iter_stream_with_fast_skip()
+        else:
+            row_iter = iter(self._open_stream())
         buf = []
         target = self.batch_size * self.C
 
-        for row in stream:
+        for row in row_iter:
             # Support both processed bundles ("series") and raw GiftEval ("target")
             series = row.get("series") or row.get("target")
             if series is None:

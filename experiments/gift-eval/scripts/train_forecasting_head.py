@@ -84,6 +84,11 @@ def parse_args():
                    help="Subdirectory within the HF repo")
     p.add_argument("--skip-rows", type=int, default=0,
                    help="HF rows to skip (for data position resume)")
+    p.add_argument("--no-resume-data-skip", action="store_true",
+                   help="When resuming, DON'T compute skip_rows from start_step. "
+                        "The HF skip is O(rows_to_skip) and can take an hour+ "
+                        "for multi-M skips. Since our corpus is much larger than "
+                        "what we train on, re-seeing some early rows is harmless.")
     p.add_argument("--seed", type=int, default=42,
                    help="Random seed for reproducibility")
     p.add_argument("--grad-clip", type=float, default=1.0,
@@ -215,7 +220,12 @@ def main():
     # -- Data ------------------------------------------------------------------
     C = BACKBONE_CONFIG["C"]
     rows_per_step = args.batch_size * C
-    hf_rows_consumed = start_step * rows_per_step + args.skip_rows
+    if args.no_resume_data_skip:
+        hf_rows_consumed = args.skip_rows
+        print(f"  [data] --no-resume-data-skip: starting from HF offset "
+              f"{args.skip_rows} (NOT {start_step * rows_per_step + args.skip_rows})")
+    else:
+        hf_rows_consumed = start_step * rows_per_step + args.skip_rows
 
     data_loader = create_hf_dataloader(
         args.hf_repo, batch_size=args.batch_size, C=C,
