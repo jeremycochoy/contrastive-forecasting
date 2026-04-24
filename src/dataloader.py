@@ -384,11 +384,13 @@ class MixedPeriodicLoader:
 
     def __init__(self, hf_loader: "HFStreamingLoader", synth_bs: int,
                  T_raw: int = 1024, C: int = 4,
-                 seed: int | None = None):
+                 seed: int | None = None,
+                 emit_freq_ids: bool = False):
         self.hf_loader = hf_loader
         self.synth_bs = synth_bs
         self.T_raw = T_raw
         self.C = C
+        self.emit_freq_ids = emit_freq_ids
         # Synth generator is persistent; each __iter__ seeds a fresh one.
         self._seed = seed
 
@@ -405,15 +407,33 @@ class MixedPeriodicLoader:
                 x_hf = next(hf_iter)                        # [hf_bs, T, C]
             except StopIteration:
                 return
+            hf_bs = x_hf.shape[0]
             if self.synth_bs > 0:
-                x_syn = generate_periodic_batch(
-                    batch_size=self.synth_bs, T_raw=self.T_raw,
-                    C=self.C, rng=rng,
-                )                                           # [synth_bs, T, C]
+                if self.emit_freq_ids:
+                    x_syn, freq_syn = generate_periodic_batch(
+                        batch_size=self.synth_bs, T_raw=self.T_raw,
+                        C=self.C, rng=rng, return_freq_ids=True,
+                    )
+                else:
+                    x_syn = generate_periodic_batch(
+                        batch_size=self.synth_bs, T_raw=self.T_raw,
+                        C=self.C, rng=rng,
+                    )
                 x = torch.cat([x_hf, x_syn], dim=0)         # [B, T, C]
             else:
                 x = x_hf
-            yield x
+            if self.emit_freq_ids:
+                # HF rows are tagged 0 = unknown (we don't thread real freq
+                # metadata through base-bundles yet). Synth rows carry their
+                # sampled freq id.
+                freq_hf = torch.zeros(hf_bs, dtype=torch.long)
+                if self.synth_bs > 0:
+                    freq = torch.cat([freq_hf, freq_syn], dim=0)
+                else:
+                    freq = freq_hf
+                yield x, freq
+            else:
+                yield x
 
 
 def create_mixed_periodic_dataloader(
@@ -421,6 +441,7 @@ def create_mixed_periodic_dataloader(
     mix_ratio: float = 0.5,
     path_in_repo: str = None, split: str = "train",
     skip_rows: int = 0, T_raw: int = 1024, seed: int | None = None,
+    emit_freq_ids: bool = False,
 ) -> "MixedPeriodicLoader":
     """Create a 50/50 (or arbitrary) mix of real HF + on-the-fly periodic synth.
 
@@ -464,4 +485,5 @@ def create_mixed_periodic_dataloader(
     return MixedPeriodicLoader(
         hf_loader=hf_loader if hf_loader is not None else _EmptyHFLoader(),
         synth_bs=synth_bs, T_raw=T_raw, C=C, seed=seed,
+        emit_freq_ids=emit_freq_ids,
     )

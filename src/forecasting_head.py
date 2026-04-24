@@ -80,7 +80,7 @@ class ForecastingHead(nn.Module):
         return self.forecast_head(features)
 
 
-def extract_forecaster_latents(backbone, x):
+def extract_forecaster_latents(backbone, x, freq_ids=None):
     """Extract f_lat from backbone for forecasting head input.
 
     Applies RevEWMNorm, patches the input, and runs the transformer to get
@@ -90,6 +90,9 @@ def extract_forecaster_latents(backbone, x):
     Args:
         backbone: frozen ConfigurableModel
         x: (B, T_raw, C) raw input tensor
+        freq_ids: LongTensor (B,) of freq class ids when the backbone has a
+            freq embedding. If the backbone has freq_embedding configured
+            but freq_ids is None, defaults to class 0 (unknown).
 
     Returns:
         f_bc: (B*C, T, H) forecaster latents (detached)
@@ -110,6 +113,13 @@ def extract_forecaster_latents(backbone, x):
 
         # Reshape to patches: (B, T, C, W)
         xr = x_norm.view(B, T, W_bb, C).permute(0, 1, 3, 2)
+
+        # If the backbone has a frequency embedding, concat it to each patch.
+        if getattr(backbone, 'freq_embedding', None) is not None:
+            if freq_ids is None:
+                freq_ids = torch.zeros(
+                    B, dtype=torch.long, device=x.device)
+            xr = backbone._apply_freq_embedding(xr, freq_ids=freq_ids)
 
         # Get forecaster latents from transformer
         f_flat, _ = backbone.transformer(xr)
