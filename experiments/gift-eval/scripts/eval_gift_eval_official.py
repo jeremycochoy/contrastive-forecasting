@@ -377,6 +377,11 @@ def parse_args():
     p.add_argument("--encoder-type", default=None,
                    choices=["mlp", "mlp_wide", "residual_silu", "gru", "conv"],
                    help="Override backbone encoder type (must match checkpoint)")
+    p.add_argument("--rev-norm-kind", default="ewma",
+                   choices=["ewma", "revin", "none"],
+                   help="Reversible norm variant — MUST match the backbone's "
+                        "training-time choice. Both have 0 params so state_dict "
+                        "doesn't disambiguate. Default 'ewma'.")
     return p.parse_args()
 
 
@@ -389,9 +394,12 @@ def load_models(args, device):
     sd = torch.load(args.backbone_path, map_location=device, weights_only=True)
     w = sd.get("freq_embedding.embedding.weight")
     BACKBONE_CONFIG["freq_emb_dim"] = (w.shape[1] if w is not None else 0)
+    BACKBONE_CONFIG["rev_norm_kind"] = args.rev_norm_kind
     if BACKBONE_CONFIG["freq_emb_dim"] > 0:
         print(f"  [eval] auto-detected freq_emb_dim="
               f"{BACKBONE_CONFIG['freq_emb_dim']} from backbone checkpoint")
+    if args.rev_norm_kind != "ewma":
+        print(f"  [eval] using rev_norm_kind={args.rev_norm_kind}")
     backbone = ConfigurableModel(**BACKBONE_CONFIG)
     backbone.load_state_dict(sd)
     backbone = backbone.to(device)

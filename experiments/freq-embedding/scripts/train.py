@@ -85,6 +85,11 @@ def parse_args():
                    help="Probability of applying mixup at each step. 0 disables.")
     p.add_argument("--mixup-alpha", type=float, default=0.2,
                    help="Beta(alpha, alpha) parameter for mixup lambda.")
+    p.add_argument("--rev-norm-kind", default="ewma",
+                   choices=["ewma", "revin", "none"],
+                   help="Reversible normalization variant. 'ewma' = "
+                        "RevEWMNorm(span=32) (default); 'revin' = standard "
+                        "single-instance z-score; 'none' to disable.")
     return p.parse_args()
 
 
@@ -226,6 +231,7 @@ def main():
     # -- Model -----------------------------------------------------------------
     model_config = dict(MODEL_CONFIG)
     model_config["freq_emb_dim"] = args.freq_emb_dim
+    model_config["rev_norm_kind"] = args.rev_norm_kind
     model = ConfigurableModel(**model_config).to(device)
     optimizer = optim.AdamW(model.parameters(), lr=args.lr)
 

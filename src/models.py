@@ -11,7 +11,7 @@ import torch.nn.functional as F
 from .arma import generate_arma_batch
 from .encoders import create_encoder
 from .blocks import TransformerBlock, Simple_channel_mixing_module
-from .norm import RevEWMNorm
+from .norm import RevEWMNorm, RevIN
 from .freq_embedding import FrequencyEmbedding
 
 
@@ -32,19 +32,29 @@ class ConfigurableModel(torch.nn.Module):
                  num_layers=12, nhead=4, ffn_mult=2, dropout=0.1,
                  activation='gelu', depthwise_conv=3,
                  rev_norm_span=None, norm_type='layernorm',
-                 freq_emb_dim=0, num_freqs=10):
+                 freq_emb_dim=0, num_freqs=10,
+                 rev_norm_kind='ewma'):
         super().__init__()
         self.C = C
         self.H = H
         self.W = W
         self.freq_emb_dim = freq_emb_dim
 
-        # Reversible EWM normalization (optional)
-        if rev_norm_span is not None:
+        # Reversible normalization (optional). Two kinds:
+        #   ewma  → RevEWMNorm(span=rev_norm_span)  (default, dynamic)
+        #   revin → RevIN()                         (single per-instance z-score)
+        # rev_norm_span is only used by ewma; revin ignores it.
+        if rev_norm_kind == 'ewma' and rev_norm_span is not None:
             self.rev_norm = RevEWMNorm(
                 num_features=C, span=rev_norm_span, patch_size=W)
-        else:
+        elif rev_norm_kind == 'revin':
+            self.rev_norm = RevIN(num_features=C)
+        elif rev_norm_kind in (None, 'none') or rev_norm_span is None:
             self.rev_norm = None
+        else:
+            raise ValueError(
+                f"Unknown rev_norm_kind={rev_norm_kind!r} (expected 'ewma', 'revin', or 'none')")
+        self.rev_norm_kind = rev_norm_kind
 
         # Frequency embedding (optional)
         if freq_emb_dim > 0:

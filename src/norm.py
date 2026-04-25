@@ -143,3 +143,58 @@ class RevEWMNorm(nn.Module):
         x = x * self.stdev.clamp(min=self.eps)
         x = x + self.mean
         return x
+
+
+class RevIN(nn.Module):
+    """Standard reversible instance normalisation (Kim et al., ICLR 2022).
+
+    A single per-instance, per-channel mean+std is computed over the entire
+    context window, then subtracted/divided away before the backbone and
+    re-applied during denormalisation.
+
+    Unlike :class:`RevEWMNorm`, the normalisation is *static* across the
+    time axis (one mean/std per (B, C)) — there's no rolling-mean
+    interaction with the periodic signal that can dampen amplitude.
+
+    Args:
+        num_features: Number of channels (C).
+        eps: Stability constant.
+        affine: If True, adds learnable per-channel scale/bias.
+
+    Shape conventions (matching RevEWMNorm so it's a drop-in replacement):
+        Input/output: ``[B, T, C]``.
+        Stored stats: ``mean``, ``stdev`` are ``[B, 1, C]`` after ``norm``.
+    """
+
+    def __init__(self, num_features: int, eps: float = 1e-5,
+                 affine: bool = False, **_unused):
+        super().__init__()
+        self.num_features = num_features
+        self.eps = eps
+        self.affine = affine
+        self.mean = None
+        self.stdev = None
+        if affine:
+            self.affine_weight = nn.Parameter(torch.ones(num_features))
+            self.affine_bias = nn.Parameter(torch.zeros(num_features))
+
+    def forward(self, x: torch.Tensor, mode: str) -> torch.Tensor:
+        if mode == 'norm':
+            # Per-(B, C) statistics over the full T axis.
+            mean = x.mean(dim=1, keepdim=True)                  # [B, 1, C]
+            var = x.var(dim=1, keepdim=True, unbiased=False)    # [B, 1, C]
+            self.mean = mean.detach()
+            self.stdev = torch.sqrt(var + self.eps).detach()
+            x = (x - self.mean) / self.stdev
+            if self.affine:
+                x = x * self.affine_weight + self.affine_bias
+            return x
+        elif mode == 'denorm':
+            if self.mean is None or self.stdev is None:
+                raise RuntimeError(
+                    "Cannot denormalize before normalizing. Call with mode='norm' first.")
+            if self.affine:
+                x = (x - self.affine_bias) / (self.affine_weight + self.eps)
+            return x * self.stdev + self.mean
+        else:
+            raise ValueError(f"Unknown mode '{mode}'. Expected 'norm' or 'denorm'.")

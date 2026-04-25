@@ -97,6 +97,11 @@ def parse_args():
                         "(9 quantile levels) instead of the MSE point head. "
                         "Replaces all final-layer projections; rest of the GRU "
                         "trunk identical. Required by GIFT-Eval's WQL metric.")
+    p.add_argument("--rev-norm-kind", default="ewma",
+                   choices=["ewma", "revin", "none"],
+                   help="MUST match the backbone's training-time choice "
+                        "(both RevEWMNorm and RevIN have 0 params so state_dict "
+                        "doesn't disambiguate). Default 'ewma'.")
     p.add_argument("--seed", type=int, default=42,
                    help="Random seed for reproducibility")
     p.add_argument("--grad-clip", type=float, default=1.0,
@@ -180,6 +185,7 @@ def main():
         else:
             args.freq_emb_dim = 0
     BACKBONE_CONFIG["freq_emb_dim"] = args.freq_emb_dim
+    BACKBONE_CONFIG["rev_norm_kind"] = args.rev_norm_kind
 
     backbone = ConfigurableModel(**BACKBONE_CONFIG)
     backbone.load_state_dict(sd)
