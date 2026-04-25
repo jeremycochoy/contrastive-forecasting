@@ -33,6 +33,9 @@ from src.models import ConfigurableModel, count_parameters
 from src.dataloader import create_hf_dataloader
 from src.forecasting_head import (
     ForecastingHead,
+    QuantileForecastingHead,
+    QUANTILE_LEVELS,
+    quantile_loss,
     W,
     FORECAST_LEN,
     extract_forecaster_latents,
@@ -89,6 +92,11 @@ def parse_args():
                         "The HF skip is O(rows_to_skip) and can take an hour+ "
                         "for multi-M skips. Since our corpus is much larger than "
                         "what we train on, re-seeing some early rows is harmless.")
+    p.add_argument("--quantile-head", action="store_true",
+                   help="Use QuantileForecastingHead with pinball loss "
+                        "(9 quantile levels) instead of the MSE point head. "
+                        "Replaces all final-layer projections; rest of the GRU "
+                        "trunk identical. Required by GIFT-Eval's WQL metric.")
     p.add_argument("--seed", type=int, default=42,
                    help="Random seed for reproducibility")
     p.add_argument("--grad-clip", type=float, default=1.0,
@@ -185,9 +193,14 @@ def main():
     # -- Forecasting head ------------------------------------------------------
     head_config = dict(HEAD_CONFIG)
     head_config['forecast_len'] = args.forecast_len
-    head = ForecastingHead(**head_config).to(device)
+    if args.quantile_head:
+        head = QuantileForecastingHead(**head_config).to(device)
+        head_kind = "quantile (9 levels)"
+    else:
+        head = ForecastingHead(**head_config).to(device)
+        head_kind = "MSE (point)"
     n_head_params = count_parameters(head)
-    print(f"Forecasting head: {n_head_params:,} trainable params")
+    print(f"Forecasting head [{head_kind}]: {n_head_params:,} trainable params")
 
     optimizer = optim.AdamW(head.parameters(), lr=args.lr)
 
@@ -324,8 +337,13 @@ def main():
             targets, T_valid = compute_reconstruction_targets(
                 x_norm, W=W, output_len=args.forecast_len, mode='forecaster')
             targets = targets.to(device)
-            preds = head(f_bc)[:, :T_valid, :]
-            loss = torch.nn.functional.mse_loss(preds, targets)
+            preds = head(f_bc)
+            if args.quantile_head:
+                preds = preds[:, :T_valid, :, :]                  # (BC, T, Q, L)
+                loss = quantile_loss(preds, targets, QUANTILE_LEVELS)
+            else:
+                preds = preds[:, :T_valid, :]
+                loss = torch.nn.functional.mse_loss(preds, targets)
 
         else:
             # Standard prediction training (old behavior)
@@ -333,8 +351,13 @@ def main():
             targets, T_valid = compute_valid_targets(
                 x_norm, W=W, forecast_len=args.forecast_len)
             targets = targets.to(device)
-            preds = head(f_bc)[:, :T_valid, :]
-            loss = torch.nn.functional.mse_loss(preds, targets)
+            preds = head(f_bc)
+            if args.quantile_head:
+                preds = preds[:, :T_valid, :, :]
+                loss = quantile_loss(preds, targets, QUANTILE_LEVELS)
+            else:
+                preds = preds[:, :T_valid, :]
+                loss = torch.nn.functional.mse_loss(preds, targets)
 
         # NaN detection -- skip bad batches instead of crashing
         loss_val = loss.item()

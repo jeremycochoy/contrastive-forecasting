@@ -261,16 +261,33 @@ class ContrastiveForecasterPredictor(RepresentablePredictor):
                 self.strategy, self.backbone, self.head, context,
                 horizon=self.prediction_length, device=self.device,
             )
-        # forecast_raw: (prediction_length, C) -- take channel 0
-        point_forecast = forecast_raw[:, 0].astype(np.float64)
 
-        # Replace any NaN/inf in forecast with 0
-        point_forecast = np.nan_to_num(
-            point_forecast, nan=0.0, posinf=0.0, neginf=0.0)
-
-        # Build QuantileForecast: all quantiles = point forecast (deterministic)
-        n_keys = len(self.forecast_keys)
-        forecast_arrays = np.stack([point_forecast] * n_keys, axis=0)
+        # forecast_raw is either:
+        #   (prediction_length, C)              — MSE head (point forecast)
+        #   (num_quantiles, prediction_length, C) — quantile head
+        if forecast_raw.ndim == 3:
+            # Quantile output. Channel 0, transpose to (Q, prediction_length).
+            quantile_arrays = forecast_raw[:, :, 0].astype(np.float64)
+            # Replace any NaN/inf with 0
+            quantile_arrays = np.nan_to_num(
+                quantile_arrays, nan=0.0, posinf=0.0, neginf=0.0)
+            # Median (q=0.5 = level 5 of 9 → index 4) is the point/mean.
+            median_idx = self.quantile_levels.index(0.5)
+            point_forecast = quantile_arrays[median_idx]
+            # forecast_keys are ["mean"] + str(quantile_levels). Build aligned arrays.
+            forecast_arrays = np.stack(
+                [point_forecast] +
+                [quantile_arrays[self.quantile_levels.index(q)]
+                 for q in self.quantile_levels],
+                axis=0,
+            )
+        else:
+            # MSE point forecast — broadcast across all quantile keys.
+            point_forecast = forecast_raw[:, 0].astype(np.float64)
+            point_forecast = np.nan_to_num(
+                point_forecast, nan=0.0, posinf=0.0, neginf=0.0)
+            n_keys = len(self.forecast_keys)
+            forecast_arrays = np.stack([point_forecast] * n_keys, axis=0)
 
         # Compute start_date for the forecast (= end of context + 1)
         fstart = forecast_start(item)
@@ -384,9 +401,18 @@ def load_models(args, device):
 
     head_config = dict(HEAD_CONFIG)
     head_config['forecast_len'] = args.forecast_len
-    head = ForecastingHead(**head_config)
-    head.load_state_dict(
-        torch.load(args.head_path, map_location=device, weights_only=True))
+    head_sd = torch.load(args.head_path, map_location=device, weights_only=True)
+    # Auto-detect quantile head: forecast_head.weight shape distinguishes
+    #   MSE     : (forecast_len,                hidden_dim)
+    #   quantile: (num_quantiles * forecast_len, hidden_dim)
+    fh_w = head_sd.get("forecast_head.weight")
+    if fh_w is not None and fh_w.shape[0] == args.forecast_len * 9:
+        from src.forecasting_head import QuantileForecastingHead
+        head = QuantileForecastingHead(**head_config)
+        print(f"  [eval] auto-detected quantile head (9 levels) from checkpoint")
+    else:
+        head = ForecastingHead(**head_config)
+    head.load_state_dict(head_sd)
     head = head.to(device)
     head.eval()
 
