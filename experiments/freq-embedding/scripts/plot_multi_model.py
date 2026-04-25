@@ -130,12 +130,13 @@ def mase_per_panel(pred, truth, ctx):
 
 
 MODEL_STYLE = {
-    "truth":           dict(color="black",    lw=1.8, ls="-",  label="truth"),
-    "seasonal-naive":  dict(color="tab:green", lw=1.0, ls="--", label="SN"),
-    "v2 (500k)":       dict(color="tab:blue",  lw=1.1, ls="-",  label="v2 500k"),
-    "mix90 (90k)":     dict(color="tab:orange",lw=1.1, ls="-",  label="mix90"),
-    "fe (30k)":        dict(color="tab:red",   lw=1.1, ls="-",  label="fe 30k"),
-    "fe+mu (30k)":     dict(color="tab:purple",lw=1.4, ls="-",  label="fe+mu 30k"),
+    "truth":             dict(color="black",     lw=1.8, ls="-",  label="truth"),
+    "seasonal-naive":    dict(color="tab:green",  lw=1.0, ls="--", label="SN"),
+    "v2 (500k)":         dict(color="tab:blue",   lw=1.1, ls="-",  label="v2 500k"),
+    "mix90 (90k)":       dict(color="tab:orange", lw=1.1, ls="-",  label="mix90"),
+    "fe (30k)":          dict(color="tab:red",    lw=1.1, ls="-",  label="fe 30k"),
+    "fe+mu (30k-head)":  dict(color="tab:purple", lw=1.2, ls="-",  label="fe+mu 30k-h"),
+    "fe+mu (90k-head)":  dict(color="tab:brown",  lw=1.4, ls="-",  label="fe+mu 90k-h"),
 }
 
 
@@ -180,7 +181,9 @@ def plot_config(cfg_name, term, horizon, season, n_samples, models, device,
         ax.plot(xs_fut, truth, **MODEL_STYLE["truth"])
         ax.plot(xs_fut, arm_preds["seasonal-naive"], **MODEL_STYLE["seasonal-naive"])
         # Model curves in consistent order
-        for name in ["v2 (500k)", "mix90 (90k)", "fe (30k)", "fe+mu (30k)"]:
+        order = ["v2 (500k)", "mix90 (90k)", "fe (30k)",
+                 "fe+mu (30k-head)", "fe+mu (90k-head)"]
+        for name in order:
             if name in arm_preds:
                 ax.plot(xs_fut, arm_preds[name], **MODEL_STYLE[name])
         ax.axvline(0, color="k", ls="--", alpha=0.3, lw=0.5)
@@ -189,11 +192,13 @@ def plot_config(cfg_name, term, horizon, season, n_samples, models, device,
         mase_parts = []
         mase_sn = mase_per_panel(arm_preds["seasonal-naive"], truth, context)
         mase_parts.append(f"SN={mase_sn:.2f}")
-        for name in ["v2 (500k)", "mix90 (90k)", "fe (30k)", "fe+mu (30k)"]:
+        short_names = {"v2 (500k)": "v2", "mix90 (90k)": "mix90",
+                       "fe (30k)": "fe", "fe+mu (30k-head)": "fe+mu30h",
+                       "fe+mu (90k-head)": "fe+mu90h"}
+        for name in order:
             if name in arm_preds:
                 m = mase_per_panel(arm_preds[name], truth, context)
-                short = name.split()[0]
-                mase_parts.append(f"{short}={m:.2f}")
+                mase_parts.append(f"{short_names[name]}={m:.2f}")
         ax.set_title(
             f"{cfg_name}/{term}   P={season}   H={H}   MASE: {'  '.join(mase_parts)}",
             fontsize=8,
@@ -217,6 +222,8 @@ def main():
     ap.add_argument("--fe-head", required=True)
     ap.add_argument("--femu-backbone", required=True)
     ap.add_argument("--femu-head", required=True)
+    ap.add_argument("--femu90h-head", default=None,
+                    help="Optional 90k-step head on the fe+mu backbone, plotted as a 5th model.")
     ap.add_argument("--output-dir", default="experiments/freq-embedding/plots/predictions")
     ap.add_argument("--configs", nargs="+", required=True)
     ap.add_argument("--n-samples", type=int, default=10)
@@ -229,7 +236,9 @@ def main():
     models["v2 (500k)"]   = load_model_pair(args.v2_backbone,   args.v2_head,   device)
     models["mix90 (90k)"] = load_model_pair(args.mix90_backbone, args.mix90_head, device)
     models["fe (30k)"]    = load_model_pair(args.fe_backbone,   args.fe_head,   device)
-    models["fe+mu (30k)"] = load_model_pair(args.femu_backbone, args.femu_head, device)
+    models["fe+mu (30k-head)"] = load_model_pair(args.femu_backbone, args.femu_head, device)
+    if args.femu90h_head:
+        models["fe+mu (90k-head)"] = load_model_pair(args.femu_backbone, args.femu90h_head, device)
 
     os.makedirs(args.output_dir, exist_ok=True)
     for cfg in args.configs:
