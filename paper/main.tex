@@ -134,8 +134,7 @@ the next patch in latent space, as in JEPA, but enforce non-collapse
 with explicit InfoNCE~\citep{oord2018cpc} negatives, as in CPC and
 TS2Vec. JEPA is a siamese architecture and is therefore at risk of
 collapse by construction: the predictor can drive the L2 loss to zero
-by mapping every context to the same point, and the recipe relies on
-stop-gradient and EMA targets to avoid this. With an InfoNCE loss the
+by mapping every context to the same point. With an InfoNCE loss the
 constant function is instead one of the least stable solutions, since
 every sample is pushed away from every other sample in latent space,
 and the collapsed embedding is actively repelled. Compared to CPC and
