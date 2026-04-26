@@ -41,9 +41,22 @@ WANTED_PATTERNS=(
     "checkpoints/R1_*_optimizer.pth               1000000"    # head optimiser ~5 MB
     "checkpoints/R1_*.pth                         1000000"    # head model ~2.4 MB
     "checkpoints/R1_*_losses.csv                  32"
+    # Multi-experiment naming variants from run_all_experiments.sh:
+    # R1q_* (quantile heads), R1r_* (reconstruction heads). Same size
+    # class as R1_*: ~2.5 MB head, ~5 MB optimizer.
+    "checkpoints/R1q_*_optimizer.pth              1000000"
+    "checkpoints/R1q_*.pth                        1000000"
+    "checkpoints/R1q_*_losses.csv                 32"
+    "checkpoints/R1r_*_optimizer.pth              1000000"
+    "checkpoints/R1r_*.pth                        1000000"
+    "checkpoints/R1r_*_losses.csv                 32"
     "checkpoints/R1v3c_*_optimizer.pth            1000000"    # legacy v3c head optimiser
     "checkpoints/R1v3c_*.pth                      1000000"    # legacy v3c head
     "checkpoints/R1v3c_*_losses.csv               32"
+    # GIFT-Eval result CSVs land in results/<run_name>/ on the remote.
+    # Tiny files (KBs); floor 32 B.
+    "results/*/all_results.csv                    32"
+    "results/*/summary.txt                        32"
 )
 LOG_PATTERNS=(
     "run_all.log"
@@ -103,14 +116,21 @@ _sync_once() {
         done
     done
 
-    # Checkpoints + loss CSVs — each pattern carries its own min_bytes.
+    # Checkpoints, loss CSVs, GIFT-Eval results — each pattern carries
+    # its own min_bytes. Local destination preserves the remote *directory*
+    # of each match (e.g. results/<run>/all_results.csv lands in
+    # LOCAL_DIR/results/<run>/all_results.csv) so that nested run-specific
+    # outputs don't collide on the basename.
     for entry in "${WANTED_PATTERNS[@]}"; do
         # Split "glob  min_bytes" on whitespace.
         local pat min
         pat=$(echo "$entry" | awk '{print $1}')
         min=$(echo "$entry" | awk '{print $2}')
         for remote in $(_list_remote "$pat"); do
-            local_path="$LOCAL_DIR/checkpoints/$(basename "$remote")"
+            # Preserve the remote directory under LOCAL_DIR so nested
+            # outputs (results/<run>/file) don't collide on basename.
+            local_path="$LOCAL_DIR/$remote"
+            mkdir -p "$(dirname "$local_path")"
             _fetch_atomic "$REMOTE_DIR/$remote" "$local_path" "$min" \
                 && echo "    ✓ $remote ($(wc -c < "$local_path") bytes)" \
                 || echo "    ✗ $remote (skip / failed, min=${min}B)"
