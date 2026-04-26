@@ -1,91 +1,279 @@
-# Session Handoff — 2026-04-22
+# Session Handoff — late April 2026
 
-## What just finished (feat/v3b-continuation, PR merged)
+This handoff covers a multi-day experimental sequence on top of the v3b
+backbone, branching from `experiments` into `feat/periodic-synth-mix`.
+Two open PRs, eight ablations run, three reports landed.
 
-### R1v3b eval on 120k-step v3b backbone
-- v3b backbone trained from scratch on `base-bundles` to step 120k (target was 500k; shelved early — see next section).
-- R1v3b head: 30k steps, forecaster reconstruction, W=16, GRU h=128 l=2, MSE.
-- GIFT-Eval B4, 97 configs, C=1.
+## TL;DR for the next agent
 
-**Result: aggregate GM-Relative MASE = 1.1865.**
+1. **Start by retraining the RevIN model**. The backbone+head from
+   ablation #28 were lost to a partial-transfer SSH drop. We have the
+   eval CSV but no weights, so the RevIN synth-grid plot the user
+   asked for can't be made yet. Reproducing the run is ~1.3h backbone
+   + 1.3h head + 5h eval ≈ ~$1.50 on a 4090. The PR #47 sync fixes
+   should make this safer.
+2. **Then the next planned experiment is synthetic-only**: train a
+   backbone on PURE periodic synth (no base-bundles mix) for both 30k
+   and 60k steps, then a reconstruction head also on synth-only. The
+   open question is whether reconstruction works on the *training*
+   distribution at all — the synth-grid plot
+   ([`experiments/freq-embedding/plots/synth_qhead_grid.png`](experiments/freq-embedding/plots/synth_qhead_grid.png))
+   currently shows the head fails to reproduce SN even on its own data.
+3. **Then a span sweep**: RevEWMNorm with span ∈ {32, 64, 128, 256}
+   (start with these four, adjust based on what's monotonic). 32 is
+   the current default, settled in [revnorm-span-search](experiments/revnorm-span-search/report.md)
+   on ARMA-only data — we now have reason to think a longer span might
+   help once periodic content dominates the input.
 
-Reference points:
-| Model | GM-Rel MASE |
-|---|---|
-| Sundial | 0.673 |
-| TimesFM | 0.680 |
-| PatchTST | 0.762 |
-| Chronos | 0.786 |
-| Moirai | 0.809 |
-| Naive (baseline) | 1.000 |
-| **v2 R1 (500k backbone, 2026-04)** | **1.168** |
-| **v3 R1v3 (v2-resumed, 500k, base-bundles)** | **1.188** |
-| **v3b R1v3b (from-scratch, 120k, base-bundles) — THIS RUN** | **1.186** |
+After those three, the user said I can go idle.
 
-v3b-120k ≈ v3-500k ≈ naive overall. **Still worse than v2**, despite training on real-data bundles. The comparison is not clean because v3b only ran 120k/500k, but the failure pattern is now very concrete.
+## What we ran this session
 
-### Failure pattern: periodic datasets
-Biggest deficits (our MASE vs seasonal-naive):
-
-| Dataset | Ours | Seasonal-Naive | Ratio |
+| # | What | Result | Where |
 |---|---|---|---|
-| m4_hourly/H/short | 5.22 | 1.19 | 4.38× worse |
-| solar/10T/medium | 3.15 | 0.93 | 3.40× worse |
-| solar/10T/long | 2.08 | 0.87 | 2.39× worse |
-| solar/H/short | 2.07 | 0.95 | 2.18× worse |
-| ett2/W/short | 1.64 | 0.78 | 2.11× worse |
-| ett1/15T/short | 1.78 | 0.93 | 1.91× worse |
+| #11 | periodic-synth-mix CONTROL + MIX 30k | aggregate tied; periodic subset −3.4%; tiny generalisation tax on non-periodic | `experiments/periodic-synth-mix/REPORT.md` |
+| #19 | MIX 30k → 90k extension | aggregate +0.5%; periodic subset another −1.9%; non-periodic +2% worse (synth bias grows with training) | same REPORT.md addendum |
+| #23 | freq embedding (with/without mixup) | embedding alone = wash; with mixup = small but consistent win on aggregate; 7-curve plots committed | `experiments/freq-embedding/DESIGN.md`, `REPORT.md` |
+| #26 | head 30k → 90k on fe+mu | training-MSE down 18%, OOD WQL +6%: classic overfit. Head was *not* undertrained at 30k | `experiments/freq-embedding/REPORT.md` |
+| #24 | quantile (pinball) head | **+15 points of WQL skill** at zero MASE cost. The cleanest single win of the sequence | `experiments/freq-embedding/REPORT.md` |
+| #28 | RevIN vs RevEWMNorm | preserves periodic amplitude (huge ett1/15T win, big solar/10T win) but loses to EWMA on trend (m4_*, covid). Aggregate slight loss; periodic subset substantial WQL gain | `experiments/freq-embedding/REPORT.md` |
+| #25/#27 | qualitative plots (multi-model + focused) | committed | `experiments/freq-embedding/plots/` |
+| PR #47 | sync-loop atomic + rotation + safe_pull.sh | merged separately to fix the corruption pattern | branch `fix/sync-rotation-atomicity` |
 
-Every one of these is a strongly-seasonal dataset. Wins are concentrated on non-periodic datasets (hierarchical_sales, hospital, sz_taxi, jena_weather short horizons).
+## Final results table
 
-This directly supports the working hypothesis: **synthetic + base-bundles training data lacks real-world periodic structure**, so the model never learns to extrapolate seasonality.
+Skill scores vs Seasonal Naive on the 43 univariate configs the local SN
+baseline covers (multivariate datasets failed in the SN script — known
+limitation, see freq-embedding REPORT.md "caveats"). Higher is better.
 
-### Artifacts landed in the repo
-- `results/R1v3b/all_results.csv` — full 97-config MASE breakdown
-- `results/R1v3b/summary.txt` — aggregate + per-config, with leaderboard reference
-- `results/R1v3b/v3b_head_eval.log` — elisa training log for the 30k head + eval
+| Arm | MASE skill | WQL skill |
+|---|---:|---:|
+| v2 (500k, MSE) | −14.5% | −16.9% |
+| v3b (120k, MSE) | −17.6% | −19.0% |
+| mix90 (90k, MSE) | −22.8% | −25.7% |
+| fe+mu (30k, MSE) | −18.2% | −20.5% |
+| fe+mu+qh (qhead) | −18.0% | **−5.1%** |
+| **RevIN+qh** (qhead) | **−13.2%** | **+1.1%** |
+| Seasonal Naive | 0.0% | 0.0% |
+| Moirai-2.0-small (11.4M, ref) | +27% | +48% |
 
-Checkpoints (NOT in git — gitignored `*.pth`):
-- `sync_v3b_final/checkpoints/tiny_v3b_r2_120k.pth` + `_optimizer.pth` (backbone, 120k)
-- `checkpoints/v3b/R1v3b_best.pth` + `_optimizer.pth`, `R1v3b_final.pth`, `R1v3b_losses.csv`
+Same-size SOTA reference is on the full 97-config GIFT-Eval; ours is on
+43. Direct comparison is therefore approximate, but ~30 points below
+SOTA on each metric is the order of magnitude. The gap is dominated by
+training-corpus scale (LOTSA full vs our small subset), not architecture.
 
-### Session notes worth keeping
-- Filed `jeremycochoy/vastrun-kit#296` cataloguing 7 distinct vastrun-kit reliability issues hit during the v3b backbone-training phase (gpu_name substring bug, provision hangs, rsync 300s timeout, cu124/cu128 confusion, attach-ssh idempotency, cancel-vs-billing race, ghost instances from auto-retry).
-- Vast.ai budget spent ~$14 on v3b backbone; shelved at 120k because each retry after ran ≤3h before dying. Elisa used ONLY for the cheap/bounded head+eval pass — the CLAUDE.md rule still holds: no continued elisa use for long jobs (coworker queue).
+## What we KNOW (facts only — user feedback emphasis)
 
-## What's next (task #8, queued)
+The user repeatedly pushed for facts vs aspiration. Things established:
 
-**Conditional mini-experiment — now unconditionally triggered.** The periodic-dataset failure is unambiguous.
+1. **Adding 50% clean-periodic synth at matched 30k compute** delivers a
+   modest, uneven improvement on the 6 periodic failure configs from
+   v3b's HANDOFF — wins on 4/6, biggest at ett2/W/short (-15.5%).
+   Aggregate is essentially tied.
+2. **Extending the same setup to 90k** continues to improve the
+   periodic subset slightly but **degrades** non-periodic and stationary
+   subsets — the bias grows. Net aggregate is barely better than 30k.
+3. **A pinball-loss head universally improves WQL** on every subset by
+   8–13% (raw) without hurting MASE. This is structural — the MSE head
+   collapses to the conditional mean and underestimates peak amplitudes.
+4. **RevIN preserves periodic amplitude** much better than RevEWMNorm
+   (span=32). On cleanly periodic configs (ett1/15T/short, solar/10T)
+   RevIN wins big. On trend-heavy configs (m4_*, covid_deaths) it
+   regresses just as big. Net trade-off, not a uniform improvement.
+5. **The head was NOT undertrained at 30k.** Extending to 90k overfits.
+   This was specifically tested at the user's request.
+6. **The synth grid plot reveals an upstream problem.** Even on the
+   model's *own training distribution* (clean periodic synth), the
+   qhead median doesn't match seasonal-naive (which has the known P
+   and is therefore essentially optimal). The bottleneck is in the
+   backbone's latent representation, not the head — likely a phase
+   information loss at the patch boundary (W=16 collapses sub-patch
+   position).
+7. **CONTROL for matched compute matters.** Without the from-scratch
+   30k pure-base-bundles arm, we couldn't have separated "MIX
+   improvement" from "more training improvement" in #19. The user
+   flagged this when designing the experiment.
+8. **The freq embedding plumbing is incomplete on the HF side.** All
+   real-data rows are tagged class 0 = unknown. The win we measured is
+   from synth-half regularization + mixup, not from frequency-aware
+   eval-time forecasting. A real implementation would thread the row's
+   actual frequency through.
+9. **vast.ai SSH is unreliable enough that anything important must be
+   incrementally backed up.** PR #47 documents both the failure (#28's
+   RevIN checkpoints were lost) and the fix (atomic-write + one-deep
+   rotation in sync_loop, never raw scp via safe_pull.sh).
 
-Plan (full detail in TaskList #8):
-- New dir: `experiments/periodic-synth-mix/`
-- Same tiny arch (C=4 H=512 W=16 GRU×6), FROM SCRATCH, 30k steps only.
-- Mixed data: 50% base-bundles HF stream, 50% on-the-fly simple synthesizer. Mix at row level inside each batch.
-- Synthesizer primitives: sinusoid, square (random up/down phase), saw (random slope sign). Draw sampling step first from a real-world set (10s, 1min, 5min, 10min, 15min, 30min, 1h, 1d, 1w), then draw the process period larger than the step, aiming for balanced samples-per-period coverage (~[8, 256]). With p≈0.3, multiply by `exp(±λt)` envelope capped to ~[0.1×, 10×] total gain.
-- No additive noise.
-- **Before training**: save ~100 synthetic plots and eyeball them. Make sure they look like things a seasonal-naive baseline would predict well and that values stay safely in float32.
+## User feedback worth carrying forward
 
-**Expected signal**: 30k steps is short; we need a CONTROL. Train a paired 30k-step v3b-base (same from-scratch, no synthetic mix) so we can say "adding 50% synthetic periodic data at matched compute changes the periodic-dataset MASE by X". Without that control, the 30k run alone is under-trained and uninterpretable.
+- **"Don't push in the direction of what you can conclude. Focus on
+  facts and what we know."** Several times during the session the user
+  redirected away from speculation toward measured results. The
+  freq-embedding REPORT.md and this handoff try to honour that.
+- **"Always test the sync loop first / verify all expected files
+  exist."** Already in CLAUDE.md after PR #45. The RevIN loss was
+  exactly this rule being skipped (no sync_loop running, manual scp
+  at the end).
+- **"The MASE numbers don't tell the whole story — let's see WQL."**
+  The quantile-head ablation was queued specifically because the user
+  pointed out that MSE collapsing to the conditional mean was the
+  visible failure in the periodic-synth-mix prediction plots.
+- **"We probably want only ground truth, SN, and the new
+  architectures we made — no need for all the others, it will be too
+  cluttered."** That's why the focused qhead plots
+  ([`experiments/freq-embedding/plots/predictions_qhead/`](experiments/freq-embedding/plots/predictions_qhead/))
+  show only 4 curves + uncertainty band, not 6.
+- **"For the synth grid: I can see we are quite bad at reconstructing
+  such patterns. This will help us plan our strategy moving forward."**
+  This is the prompt for the synth-only experiment queued below.
 
-**Compute**: vast.ai (use vastrun-provision/sync/run via the new split CLI). Lessons from #296:
-- `--gpu-model "RTX 4090"` (SPACE, not underscore).
-- `--on-demand` + `--max-bid ~0.8` to avoid preemption.
-- If `vastrun-sync --resume-from` times out at 300s on the optimizer, fall back to manual `scp -P <port> <file> root@<host>:/workspace/app/checkpoints/`.
-- cu128 torch wheels only — DON'T use cu124 (fails with CUDA error 804 on driver ≥565).
-- Destroy stale instances yourself with `yes | vastai destroy instance <id>` if `vastrun-cancel` seems to lie.
-- Before each run, add a step that CONFIRMS `torch.cuda.is_available()` before spending time downloading data.
+## Operational template — how the last experiment looked
 
-## Currently active infrastructure
-- Branch: `experiments` (PR for this session merged).
-- No running vast.ai instances. No elisa jobs.
-- Vast balance: ~$10. Head+eval on elisa cost $0.
+The pattern that worked end-to-end (modulo the RevIN sync gap):
 
-## Useful commands for next session
 ```bash
-# Verify checkpoints still on disk
-ls -la sync_v3b_final/checkpoints/tiny_v3b_r2_120k*
-ls -la checkpoints/v3b/R1v3b*
+# 1. Code changes locally, smoke test
+python3.11 -m pytest tests/test_<new_module>.py -q
+python3.11 -c "<minimal CPU smoke of the new code path>"
 
-# See the full eval breakdown
-less results/R1v3b/summary.txt
+# 2. Provision vast.ai 4090 (avoid vastrun-kit's ssh-key bug)
+vastai search offers "gpu_name=RTX_4090 num_gpus=1 gpu_ram>=20 \
+  inet_up>=1000 verified=true rentable=true rented=false \
+  reliability>=0.99 cuda_vers>=12.8 dph<0.4" -o "dph_total+" --raw
+vastai create instance <id> \
+  --image "pytorch/pytorch:2.8.0-cuda12.8-cudnn9-runtime" \
+  --disk 50 --label <something>
+
+# 3. Wait for SSH (Monitor with until-loop)
+
+# 4. Upload code + checkpoints
+tar czf /tmp/code.tgz --exclude='*.pth' --exclude='__pycache__' \
+  src/ tests/ experiments/<...>/scripts/ experiments/hf_token.txt
+scp -P <port> /tmp/code.tgz <preexisting checkpoints> root@<host>:/workspace/app/
+ssh root@<host> "cd /workspace/app && tar xzf code.tgz && \
+  mkdir -p checkpoints && mv <pths> checkpoints/"
+
+# 5. Write run_*.sh on the box and launch via nohup (with HF_TOKEN export!)
+#    Tee everything to /workspace/app/run_all.log
+
+# 6. START THE SYNC LOOP IMMEDIATELY (before walking away)
+bash experiments/periodic-synth-mix/scripts/sync_loop.sh \
+  <host> <port> sync_<runname>/ /workspace/app > sync_<runname>/sync.log 2>&1 &
+
+# 7. Verify the FIRST tick succeeded — manually list local files —
+#    before considering the run unattended (CLAUDE.md rule).
+
+# 8. Set up a Monitor on the run_all.log via SSH polling. Poll patterns:
+#    "STAGE|NaN/Inf|Traceback|FAILED|Killed|OOM|ALL DONE|Done in|Saved.*_[0-9]+k.pth"
+
+# 9. Schedule periodic ScheduleWakeup (1h is a good default).
+
+# 10. When it's done: pull final results, destroy the instance,
+#     stop the sync loop and monitor, commit + push.
 ```
+
+Code references the next agent will need:
+
+- `src/synthetic_periodic.py` — clean periodic synth, vectorised, ~1 ms/batch.
+- `src/freq_embedding.py` — small (3-dim) embedding + mixup helper.
+- `src/forecasting_head.py` — `ForecastingHead`, `QuantileForecastingHead`,
+  `quantile_loss`, `forecast_with_strategy(...)`, `extract_*_latents`.
+  The B4 strategy is what we've been using throughout.
+- `src/dataloader.py` — `MixedPeriodicLoader` (HF + on-the-fly synth),
+  `HFStreamingLoader` with the *fast skip* shipped in commit `bf3687c`
+  (parquet-shard-aware, avoids the multi-million-row sequential .skip).
+- `src/models.py` `ConfigurableModel` — has `freq_emb_dim` and
+  `rev_norm_kind` ('ewma' | 'revin' | 'none') as kwargs.
+- `src/norm.py` — `RevEWMNorm` (EWMA, span-parametrised),
+  `RevIN` (single per-instance z-score).
+- `experiments/freq-embedding/scripts/train.py` — the canonical
+  contrastive-train script with all of the above flags exposed.
+- `experiments/gift-eval/scripts/train_forecasting_head.py` —
+  head training; auto-detects freq_emb_dim from the backbone checkpoint;
+  `--quantile-head` flag for pinball loss; `--rev-norm-kind` MUST match
+  the backbone's training-time choice.
+- `experiments/gift-eval/scripts/eval_gift_eval_official.py` — GIFT-Eval
+  predictor wrapper; auto-detects quantile head from checkpoint
+  (`forecast_head.weight` shape) and emits real per-quantile arrays
+  for QuantileForecast.
+
+A working run script template is at
+[`experiments/freq-embedding/scripts/train.py`](experiments/freq-embedding/scripts/train.py)
+and the run_*.sh staging is in `/tmp/` (not committed; copy patterns
+from past `git log --oneline` commit messages — search for "STAGE A").
+
+## Queued for the next session
+
+Three experiments, in order. After all three, the user said I can go idle.
+
+### 1. Reproduce the RevIN run for the synth-grid plot
+
+The eval CSV for RevIN+qh is at `results/R1q_femu_revin/all_results.csv`
+and is fine. But the model weights themselves were lost (partial scp +
+SSH drop). We need them to make the RevIN-equivalent synth grid plot
+the user requested.
+
+Reproduce with the same script: `experiments/freq-embedding/scripts/train.py`
+with `--freq-emb-dim 3 --mixup-p 0.3 --rev-norm-kind revin --mix-ratio 0.5`,
+30k steps. Then the quantile head 30k. Then run the synth-grid plotter:
+
+```
+python3.11 experiments/freq-embedding/scripts/plot_synth_qhead.py \
+  --backbone <new_revin_backbone>.pth \
+  --head     <new_revin_qhead>.pth \
+  --out      experiments/freq-embedding/plots/synth_qhead_grid_revin.png
+```
+
+Use the **fixed** sync_loop from PR #47 (atomic + rotation). And use
+`safe_pull.sh` not raw scp for the final pull.
+
+Budget: ~$1.50, ~6h.
+
+### 2. Synth-only training experiment
+
+Train the backbone on **PURE periodic synth** (no base-bundles mix) at
+30k steps and 60k steps. Then a reconstruction head, also on synth-only.
+Open question: does the reconstruction-head qualitative behaviour on
+training-distribution clean periodics improve when we strip the
+real-data half? If yes, the bottleneck on the synth grid was the MIX
+ratio diluting periodic learning. If no, it's structural to the
+backbone (likely the patch-boundary phase loss the user identified).
+
+Plumbing notes:
+- `mix_ratio = 1.0` in the existing `experiments/freq-embedding/scripts/train.py`
+  gives pure synth.
+- For the reconstruction head, swap the standard `train_forecasting_head.py`
+  for one that ALSO uses synth-only (currently the head trains on
+  base-bundles; would need a synth-aware loader).
+- Run twice: 30k and 60k. Compare the synth-grid plots qualitatively
+  before launching expensive full-eval runs.
+
+### 3. RevEWMNorm span sweep
+
+Span = {32 (current), 64, 128, 256}. Same architecture, same data
+(fe+mu setup), 30k each backbone + 30k qhead + GIFT-Eval B4. The
+hypothesis is that 32 is too short for our periodic-rich setup —
+half-life ~11 steps under-tracks long-period structure. Wider span
+might preserve more of the periodic amplitude (closer to RevIN
+behavior) without RevIN's trend-blindness.
+
+Adjust the 4-point grid based on early findings (e.g. if 256 wins
+strictly, try 512). Run only the periodic-focus 6 configs first as a
+cheap screen, then the full 97 only on the winning span.
+
+## Open PRs
+
+- **#45** [`feat/periodic-synth-mix`](https://github.com/jeremycochoy/contrastive-forecasting/pull/45) —
+  the main results / experimental code / reports. Targets `experiments`.
+- **#47** [`fix/sync-rotation-atomicity`](https://github.com/jeremycochoy/contrastive-forecasting/pull/47) —
+  the sync-loop fix (atomicity + .prev rotation + safe_pull.sh + CLAUDE.md
+  rules). Targets `experiments`.
+
+Merge order: probably #47 first (it's small and a pure improvement),
+then #45 (which carries everything else).
+
+## Cost summary
+
+Total vast.ai spend across the sequence: roughly **~$15** of the user's
+budget (8 ablations × $1–3 each + a couple wasted hours on slow
+networks). vastrun-kit had its known issues (#296) so several
+provisions failed and required raw `vastai create` workarounds.
