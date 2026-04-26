@@ -35,8 +35,13 @@ mkdir -p "$LOCAL_DIR/checkpoints"
 # Rule of thumb: min_bytes ≈ 50% of the expected final size, floored at 1 KB.
 WANTED_PATTERNS=(
     # pattern                                     min_bytes
-    "checkpoints/tiny_*_optimizer.pth             70000000"   # any backbone optimiser ~155 MB
-    "checkpoints/tiny_*.pth                       50000000"   # any backbone model ~80 MB
+    # Backbone optimisers are consistently ~155 MB. Threshold at 130 MB
+    # (~84%) so a partial transfer at 78 MB or 154 MB is rejected. The
+    # earlier 70 MB threshold let through truncated files that then got
+    # promoted over the previous good copy (rotation saved us, but we'd
+    # rather not depend on .prev).
+    "checkpoints/tiny_*_optimizer.pth             130000000"  # backbone optimiser ~155 MB
+    "checkpoints/tiny_*.pth                       70000000"   # backbone model ~80 MB
     "checkpoints/tiny_*_losses.csv                32"
     "checkpoints/R1_*_optimizer.pth               1000000"    # head optimiser ~5 MB
     "checkpoints/R1_*.pth                         1000000"    # head model ~2.4 MB
