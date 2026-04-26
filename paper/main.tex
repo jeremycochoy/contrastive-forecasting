@@ -225,49 +225,62 @@ non-trivial similarity available once the latents are on the unit
 sphere: one multiply-add per pair of dimensions, no square root, no
 further normalisation at scoring time.
 
-For every batch element $b$, every position $t$, and every channel $c$,
-the positive pair is the forecast at $(b, t, c)$ matched against the
-future latent at $(b, t+1, c)$. The negatives we use in production fall
-into two categories.
+We index each latent and each forecast by the batch element
+$b \in [B]$, the patch position $t \in [T_p]$, and the channel
+$c \in [C]$. For every anchor $(b, t, c)$, the positive pair is the
+forecast at $(b, t, c)$ matched against the future latent at
+$(b, t+1, c)$. The negatives we use in production fall into two
+categories.
 \begin{itemize}
-\item \textbf{Cross-channel.} The latent of patch $t$ from a different
-  channel of the same series, $h[b, t, c']$ for $c' \neq c$. This
-  contributes $C - 1$ negatives per anchor and is computed by a single
-  $C \times C$ inner-product grid with the diagonal masked out.
-\item \textbf{Cross-batch.} The forecast at $(b', t, c)$ for
-  $b' \neq b$, paired against the future latent at $(b, t+1, c)$. This
-  contributes $B - 1$ negatives per anchor and is computed by a single
-  $B \times B$ inner-product grid with the diagonal masked out, in one
-  matrix multiplication that the GPU executes in parallel.
+\item \textbf{Cross-channel.} The latent at a different channel of the
+  same series at the same time step, $h[b, t, c']$ for $c' \neq c$.
+  There are $C - 1$ such candidates per anchor.
+\item \textbf{Cross-batch.} The forecast of a different series in the
+  batch at the same time step, $f[b', t, c]$ for $b' \neq b$, paired
+  against the future latent at $(b, t+1, c)$. There are $B - 1$ such
+  candidates per anchor.
 \end{itemize}
-The cross-batch term is the bulk of the negative pool, contributing
-$B(B-1)$ pairs at every $(t, c)$ position from a single matmul and
-giving us a quadratic amount of negatives essentially for free. The
-cross-channel term is quantitatively smaller but informative, since the
-channels of one series share global statistics yet differ in their
-fine-grained dynamics.
+Cross-channel candidates are computed by a $C \times C$ inner-product
+grid per batch element with the diagonal masked out; cross-batch
+candidates by a $B \times B$ inner-product grid over the whole batch
+with the diagonal masked out, both in single matrix multiplications
+that the GPU executes in parallel. In the loss we do not keep the
+per-anchor sets separate: at every position $(t, c)$ we aggregate the
+candidates of all anchors into two batch-pooled sums, and the same
+denominator is used for every anchor at that position. The cross-batch
+pool is therefore quadratic in $B$ and is the bulk of the negative
+set.
 
-Writing $\tau$ for the temperature, the contribution of one anchor
-$(b, t, c)$ to the loss is
+For unit-norm $u, v \in \mathbb{R}^H$, write the temperature-scaled
+exponential of the inner product as
+\[
+  \sigma(u, v) \;=\; \exp\!\big(\langle u, v \rangle / \tau\big).
+\]
+At every position $(t, c)$, the two batch-pooled negative sums are
+\begin{align*}
+  \mathcal{N}_{\mathrm{xx}}(t, c)
+    &\;=\; \sum_{i = 1}^{B} \, \sum_{c' \neq c}
+      \sigma\!\big(h[i, t, c],\; h[i, t, c']\big),\\
+  \mathcal{N}_{\mathrm{cb}}(t, c)
+    &\;=\; \sum_{i \neq j}
+      \sigma\!\big(h[i, t+1, c],\; f[j, t, c]\big),
+\end{align*}
+and the contribution of the anchor $(b, t, c)$ to the loss is
 \begin{equation}
   \mathcal{L}_{b, t, c}
-  \;=\; -\log\!\frac{\exp\!\big(s_+ / \tau\big)}
-  {\sum_{\text{neg}} \exp\!\big(s_\text{neg} / \tau\big)},
+  \;=\; -\log \frac{\sigma\!\big(f[b, t, c],\; h[b, t+1, c]\big)}
+  {\mathcal{N}_{\mathrm{xx}}(t, c) \;+\; \mathcal{N}_{\mathrm{cb}}(t, c)}.
   \label{eq:loss}
 \end{equation}
-where $s_+$ is the positive similarity at $(b, t, c)$ and the sum in
-the denominator runs over the cross-channel and cross-batch negatives
-of that anchor. We average over all anchors and use $\tau = 0.07$.
+The denominator depends on $(t, c)$ but not on $b$: every anchor at
+the same position shares the same pooled denominator. We average
+$\mathcal{L}_{b, t, c}$ over all anchors and use $\tau = 0.07$.
 
 Several other negatives are natural in this setup but are not enabled
 in the production loss: past against future, past against forecast,
 forecast at $t$ against forecast at $t+1$, and the cross-channel
-variants of all three. The earlier version of the loss carried these
-terms explicitly. We removed them after observing that on series whose
-consecutive patches are close in latent space (ARMA among them), the
-temporal negatives are not far enough from the positive to provide
-useful signal, and the extra cost is not repaid by what the model
-learns at each step.
+variants of all three. An earlier version of the loss carried these
+terms explicitly; the current production loss does not.
 
 This list is not exhaustive. One can pair latents at $t+1$ with latents
 at $t-1$, draw negatives from a queue of past batches to expand the
