@@ -49,7 +49,14 @@ LOG_PATTERNS=(
     "run_all.log"
 )
 
-# Atomic download: scp to .tmp, verify non-empty, atomic mv.
+# Atomic download with one-deep rotation.
+#   1. scp remote → ${local_path}.tmp
+#   2. verify non-empty AND >= min_bytes
+#   3. if a current ${local_path} exists, rotate it to ${local_path}.prev
+#      (so we never overwrite the only good copy with a fresh transfer)
+#   4. atomic mv ${local_path}.tmp → ${local_path}
+# A failed transfer (truncated SCP / SSH drop / size below floor) leaves
+# the previous ${local_path} untouched and removes the broken .tmp.
 _fetch_atomic() {
     local remote_path=$1
     local local_path=$2
@@ -66,6 +73,10 @@ _fetch_atomic() {
     if (( sz < min_bytes )); then
         rm -f "${local_path}.tmp"
         return 1
+    fi
+    # One-deep rotation: keep the previous good copy as a safety net.
+    if [[ -s "$local_path" ]]; then
+        mv -f "$local_path" "${local_path}.prev"
     fi
     mv "${local_path}.tmp" "$local_path"
     return 0
