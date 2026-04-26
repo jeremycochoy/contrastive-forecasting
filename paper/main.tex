@@ -1,0 +1,178 @@
+\documentclass{article}
+
+% arXiv / preprint version (non-anonymized, "Preprint. Work in progress." footer).
+% See neurips_guidelines.md for the other modes (review, [final]).
+\usepackage[preprint]{neurips_2024}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{nicefrac}
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage{graphicx}
+
+
+\title{Contrastive Forecasting}
+
+\author{%
+  Author Name \\
+  Affiliation \\
+  \texttt{email@example.com}
+}
+
+
+\begin{document}
+
+
+\maketitle
+
+
+\begin{abstract}
+  TODO: abstract.
+\end{abstract}
+
+
+\section{Introduction}
+\label{sec:introduction}
+
+TODO.
+
+
+\section{Related Work}
+\label{sec:related-work}
+
+\paragraph{Time-series forecasting and the foundation-model era.}
+Per-series statistical models (ARIMA, exponential smoothing, state-space)
+dominated forecasting until global deep models such as
+DeepAR~\citep{salinas2020deepar} and N-BEATS~\citep{oreshkin2020nbeats}
+showed that one network trained over many series can outperform
+per-series fits. Transformers were beaten by simple linear baselines on
+these benchmarks until PatchTST~\citep{nie2023patchtst} introduced patch
+tokenization: contiguous values are grouped into a single token, the
+attention cost drops by the patch length, and the model gains a useful
+local prior. TiDE~\citep{das2023tide} pursued an MLP-only line in
+parallel, with a residual block over patched inputs that is structurally
+close to the encoder we use here.
+TimesFM~\citep{das2024timesfm} is the canonical decoder-only patched TS
+foundation model: pretrained on roughly 100B time points, its zero-shot
+accuracy is on par with supervised specialists on Monash, Darts and ETT.
+The follow-ups extend the recipe along different axes ---
+Chronos~\citep{ansari2024chronos} tokenizes values into a discrete
+vocabulary and trains a T5 encoder-decoder over them;
+MOIRAI~\citep{woo2024moirai} masks patches and reconstructs them with an
+encoder; Time-MoE~\citep{shi2024timemoe} scales to a billion parameters
+with sparse routing; Sundial~\citep{liu2025sundial} replaces categorical
+heads with continuous flow matching;
+Timer-S1~\citep{liu2026timers1} currently leads GIFT-Eval. All of them
+forecast in value space, whether the head is regressive, categorical or
+generative.
+
+\paragraph{Contrastive representation learning for time series.}
+A separate line learns time-series representations by discrimination
+rather than reconstruction. Contrastive Predictive
+Coding~\citep{oord2018cpc} encodes a series with a strided CNN,
+summarises the past with a GRU, and trains the encoder to assign higher
+score to the true future latent than to a batch of negatives. The loss,
+InfoNCE~\citep{oord2018cpc}, is a tractable lower bound on the mutual
+information between the context and the future, so the encoder is
+forced to keep whatever in the past predicts the future. The
+time-series successors keep the contrastive backbone but rework what
+counts as a positive pair: subseries consistency in
+T-Loss~\citep{franceschi2019tloss}, temporal neighbourhoods in
+TNC~\citep{tonekaboni2021tnc}, contextual consistency under masking and
+random crops with hierarchical contrast in
+TS2Vec~\citep{yue2022ts2vec}. These methods produce strong
+representations for classification and anomaly detection on UCR and UEA,
+but no current TS foundation model uses contrastive learning as the
+primary pretraining objective.
+
+\paragraph{Latent-space prediction without contrast.}
+A third line, originating in vision, predicts in latent space rather
+than in input space. The Joint Embedding Predictive
+Architecture~\citep{assran2023ijepa} encodes a context block with one
+network, encodes the target block with a second network whose weights
+are an exponential moving average of the first, and trains a predictor
+to map the context latent to the target latent. The loss is L2 in
+latent space. Collapse is avoided by the combination of the asymmetric predictor and
+the stop-gradient on the EMA target rather than by contrast: there are
+no negatives. Two recent papers
+carry the idea to time series. LaT-PFN~\citep{verdenius2024latpfn}
+combines JEPA with a prior-data fitted network for in-context
+forecasting, and TS-JEPA~\citep{ennadir2025tsjepa} adapts the
+patch-token JEPA recipe to univariate series, with competitive results
+on classification and long-term forecasting. Masked-reconstruction TS
+models such as MOMENT~\citep{goswami2024moment} and
+MOIRAI~\citep{woo2024moirai} sit closer to JEPA than tokenized or
+autoregressive lines do, since they too predict masked content from
+visible context, but their target remains the raw values rather than
+their representation.
+
+\paragraph{Positioning.}
+Decoder-only transformers trained to predict the next token have become
+the dominant architecture in language. As Sutskever has argued, this
+objective is far less narrow than it looks: predicting the next token
+correctly requires the model to encode grammar, style, world knowledge
+and arithmetic, since each is a sub-task of the same prediction
+problem. We want to recover this property for time series --- a single
+decoder-only model that predicts the next patch and learns whatever
+structure is useful along the way --- but without committing to
+value-space prediction, where the loss is dominated by short-range noise
+and the model is forced to fit details that carry no semantic content.
+Contrastive forecasting is our attempt at this combination. We forecast
+the next patch in latent space, as in JEPA, but enforce non-collapse
+with explicit InfoNCE~\citep{oord2018cpc} negatives, as in CPC and
+TS2Vec. Compared to JEPA, this removes the EMA target and the
+stop-gradient; compared to CPC and its successors, the target is
+forecasting rather than representation transfer for classification. To
+our knowledge, no published work has measured latent-space forecasting
+with explicit negatives at TS-FM scale.
+
+
+\section{Contrastive Forecasting}
+\label{sec:method}
+
+TODO.
+
+
+\section{Experiments}
+\label{sec:experiments}
+
+TODO.
+
+
+\section{Results}
+\label{sec:results}
+
+TODO.
+
+
+\section{Discussion}
+\label{sec:discussion}
+
+TODO.
+
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+TODO.
+
+
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+
+\appendix
+
+\section{Appendix A}
+\label{sec:appendix-a}
+
+TODO.
+
+
+\end{document}
