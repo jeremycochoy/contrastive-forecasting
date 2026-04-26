@@ -167,9 +167,9 @@ def quantile_loss(predicted, target, quantile_levels=QUANTILE_LEVELS):
 def extract_forecaster_latents(backbone, x, freq_ids=None):
     """Extract f_lat from backbone for forecasting head input.
 
-    Applies RevEWMNorm, patches the input, and runs the transformer to get
-    the forecaster latents (f_flat). The normalized input is also returned
-    for target extraction.
+    Applies RevEWMNorm, patches the input (incl. patch-stats and freq-emb if
+    configured), and runs the transformer to get the forecaster latents
+    (``f_flat``). The normalized input is also returned for target extraction.
 
     Args:
         backbone: frozen ConfigurableModel
@@ -182,9 +182,6 @@ def extract_forecaster_latents(backbone, x, freq_ids=None):
         f_bc: (B*C, T, H) forecaster latents (detached)
         x_norm: (B, T_raw, C) normalized input (for target extraction)
     """
-    W_bb = backbone.W
-    H_bb = backbone.H
-
     with torch.no_grad():
         # Apply reversible normalization
         if backbone.rev_norm is not None:
@@ -192,18 +189,14 @@ def extract_forecaster_latents(backbone, x, freq_ids=None):
         else:
             x_norm = x
 
-        B, T_raw, C = x_norm.shape
-        T = T_raw // W_bb
+        B = x_norm.shape[0]
+        if (getattr(backbone, 'freq_embedding', None) is not None
+                and freq_ids is None):
+            freq_ids = torch.zeros(B, dtype=torch.long, device=x.device)
 
-        # Reshape to patches: (B, T, C, W)
-        xr = x_norm.view(B, T, W_bb, C).permute(0, 1, 3, 2)
-
-        # If the backbone has a frequency embedding, concat it to each patch.
-        if getattr(backbone, 'freq_embedding', None) is not None:
-            if freq_ids is None:
-                freq_ids = torch.zeros(
-                    B, dtype=torch.long, device=x.device)
-            xr = backbone._apply_freq_embedding(xr, freq_ids=freq_ids)
+        # Patches + (optional) patch-stats + (optional) freq emb — single
+        # source of truth, shared with backbone.forward.
+        xr = backbone.prepare_encoder_input(x_norm, freq_ids=freq_ids)
 
         # Get forecaster latents from transformer
         f_flat, _ = backbone.transformer(xr)
@@ -406,24 +399,18 @@ def extract_encoder_latents(backbone, x):
         e_bc: (B*C, T, H) encoder latents (detached)
         x_norm: (B, T_raw, C) normalized input
     """
-    W_bb = backbone.W
-
     with torch.no_grad():
         if backbone.rev_norm is not None:
             x_norm = backbone.rev_norm(x, mode='norm')
         else:
             x_norm = x
 
-        B, T_raw, C = x_norm.shape
-        T = T_raw // W_bb
-
-        # Reshape to patches: (B, T, C, W)
-        xr = x_norm.view(B, T, W_bb, C).permute(0, 1, 3, 2)
-
-        # If backbone has freq embedding, widen the patch (default to class 0).
+        B = x_norm.shape[0]
+        freq_ids = None
         if getattr(backbone, 'freq_embedding', None) is not None:
             freq_ids = torch.zeros(B, dtype=torch.long, device=x.device)
-            xr = backbone._apply_freq_embedding(xr, freq_ids=freq_ids)
+
+        xr = backbone.prepare_encoder_input(x_norm, freq_ids=freq_ids)
 
         # Run encoder only (input_to_latent), not transformer
         e = backbone.transformer.input_to_latent(xr)  # (B, T, C, H)

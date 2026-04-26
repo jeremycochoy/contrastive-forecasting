@@ -30,7 +30,7 @@ import torch
 import torch.optim as optim
 
 from src.models import ConfigurableModel, count_parameters
-from src.dataloader import create_hf_dataloader
+from src.dataloader import create_hf_dataloader, create_mixed_periodic_dataloader
 from src.forecasting_head import (
     ForecastingHead,
     QuantileForecastingHead,
@@ -50,7 +50,6 @@ BACKBONE_CONFIG = dict(
     C=4, H=512, W=16,
     encoder_type="gru", num_layers=6, nhead=8,
     ffn_mult=4.0, activation="gelu", depthwise_conv=3, dropout=0.1,
-    rev_norm_span=32,
 )
 
 # -- Head architecture -------------------------------------------------------
@@ -126,6 +125,24 @@ def parse_args():
                         "backbone was trained with freq_emb_dim=D, set the same "
                         "here so the state_dict loads. Auto-detected from the "
                         "checkpoint if omitted.")
+    p.add_argument("--rev-norm-span", type=int, default=32,
+                   help="Span used by the backbone's RevEWMNorm. MUST match "
+                        "the backbone's training-time value (norm has 0 params "
+                        "so state_dict doesn't disambiguate). Default 32.")
+    p.add_argument("--patch-stats", default="auto",
+                   choices=["auto", "none", "diff", "raw"],
+                   help="Backbone patch-stats setting. 'auto' (default) "
+                        "detects from the encoder's input width in the "
+                        "checkpoint; pass an explicit value to override.")
+    p.add_argument("--mix-ratio", type=float, default=0.0,
+                   help="If >0, train on a mix of HF + on-the-fly periodic "
+                        "synth (matches the backbone's MixedPeriodicLoader). "
+                        "1.0 = synth-only — used for the synth-only "
+                        "reconstruction-head experiment.")
+    p.add_argument("--synth-seed", type=int, default=None,
+                   help="Seed for the periodic synth generator when "
+                        "--mix-ratio > 0. Defaults to args.seed + 20_000 to "
+                        "stay separate from the backbone's synth stream.")
     return p.parse_args()
 
 
@@ -186,6 +203,35 @@ def main():
             args.freq_emb_dim = 0
     BACKBONE_CONFIG["freq_emb_dim"] = args.freq_emb_dim
     BACKBONE_CONFIG["rev_norm_kind"] = args.rev_norm_kind
+    if args.rev_norm_kind == "ewma":
+        BACKBONE_CONFIG["rev_norm_span"] = args.rev_norm_span
+    # Auto-detect patch_stats from the encoder's first projection input width.
+    # The GRU encoder stores `encoder.skip.weight` of shape [H, encoder_input];
+    # MLP-style encoders store `encoder.linear1.weight` similarly. Either way
+    # the in-features tells us W + freq_emb_dim + (2 if patch_stats else 0).
+    if args.patch_stats == "auto":
+        from src.norm import PATCH_STATS_DIM
+        W = BACKBONE_CONFIG["W"]
+        skip_w = sd.get("encoder.skip.weight")
+        linear1_w = sd.get("encoder.linear1.weight")
+        ref = skip_w if skip_w is not None else linear1_w
+        if ref is None:
+            args.patch_stats = "none"
+        else:
+            in_features = ref.shape[1]
+            extra = in_features - W - args.freq_emb_dim
+            if extra == 0:
+                args.patch_stats = "none"
+            elif extra == PATCH_STATS_DIM:
+                # Default to 'diff' on auto — the only kind we plan to ship.
+                args.patch_stats = "diff"
+            else:
+                raise ValueError(
+                    f"Unexpected encoder in_features={in_features}: extra "
+                    f"width={extra} doesn't match W ({W}) + freq_emb_dim "
+                    f"({args.freq_emb_dim}) + 0 or {PATCH_STATS_DIM}.")
+        print(f"  [head-train] auto-detected patch_stats={args.patch_stats}")
+    BACKBONE_CONFIG["patch_stats_kind"] = args.patch_stats
 
     backbone = ConfigurableModel(**BACKBONE_CONFIG)
     backbone.load_state_dict(sd)
@@ -246,12 +292,26 @@ def main():
     else:
         hf_rows_consumed = start_step * rows_per_step + args.skip_rows
 
-    data_loader = create_hf_dataloader(
-        args.hf_repo, batch_size=args.batch_size, C=C,
-        path_in_repo=args.hf_path, skip_rows=hf_rows_consumed)
+    if args.mix_ratio > 0:
+        synth_seed = args.synth_seed if args.synth_seed is not None else args.seed + 20_000
+        data_loader = create_mixed_periodic_dataloader(
+            repo_id=args.hf_repo, batch_size=args.batch_size, C=C,
+            mix_ratio=args.mix_ratio,
+            path_in_repo=args.hf_path, skip_rows=hf_rows_consumed,
+            seed=synth_seed,
+        )
+        synth_bs = int(round(args.batch_size * args.mix_ratio))
+        hf_bs = args.batch_size - synth_bs
+        print(f"Data: MIX {(1-args.mix_ratio)*100:.0f}% HF + "
+              f"{args.mix_ratio*100:.0f}% synth, hf_bs={hf_bs}, "
+              f"synth_bs={synth_bs}, synth_seed={synth_seed}")
+    else:
+        data_loader = create_hf_dataloader(
+            args.hf_repo, batch_size=args.batch_size, C=C,
+            path_in_repo=args.hf_path, skip_rows=hf_rows_consumed)
+        print(f"Data: HF streaming from {args.hf_repo}/{args.hf_path} "
+              f"(skip={hf_rows_consumed} rows)")
     data_iter = iter(data_loader)
-    print(f"Data: HF streaming from {args.hf_repo}/{args.hf_path} "
-          f"(skip={hf_rows_consumed} rows)")
 
     print(f"\nTraining for {args.total_steps} steps, bs={args.batch_size}, "
           f"lr={args.lr}, forecast_len={args.forecast_len}")

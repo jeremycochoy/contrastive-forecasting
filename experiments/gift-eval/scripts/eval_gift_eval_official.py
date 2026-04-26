@@ -75,7 +75,6 @@ BACKBONE_CONFIG = dict(
     C=4, H=512, W=16,
     encoder_type="gru", num_layers=6, nhead=8,
     ffn_mult=4.0, activation="gelu", depthwise_conv=3, dropout=0.1,
-    rev_norm_span=32,
 )
 
 HEAD_CONFIG = dict(
@@ -382,6 +381,13 @@ def parse_args():
                    help="Reversible norm variant — MUST match the backbone's "
                         "training-time choice. Both have 0 params so state_dict "
                         "doesn't disambiguate. Default 'ewma'.")
+    p.add_argument("--rev-norm-span", type=int, default=32,
+                   help="Span for RevEWMNorm (only used when "
+                        "--rev-norm-kind=ewma). Must match training-time value.")
+    p.add_argument("--patch-stats", default="auto",
+                   choices=["auto", "none", "diff", "raw"],
+                   help="Backbone patch-stats setting; 'auto' (default) "
+                        "detects from the encoder's input width.")
     return p.parse_args()
 
 
@@ -395,11 +401,36 @@ def load_models(args, device):
     w = sd.get("freq_embedding.embedding.weight")
     BACKBONE_CONFIG["freq_emb_dim"] = (w.shape[1] if w is not None else 0)
     BACKBONE_CONFIG["rev_norm_kind"] = args.rev_norm_kind
+    if args.rev_norm_kind == "ewma":
+        BACKBONE_CONFIG["rev_norm_span"] = args.rev_norm_span
     if BACKBONE_CONFIG["freq_emb_dim"] > 0:
         print(f"  [eval] auto-detected freq_emb_dim="
               f"{BACKBONE_CONFIG['freq_emb_dim']} from backbone checkpoint")
     if args.rev_norm_kind != "ewma":
         print(f"  [eval] using rev_norm_kind={args.rev_norm_kind}")
+    # Auto-detect patch_stats from the encoder's input width.
+    if args.patch_stats == "auto":
+        from src.norm import PATCH_STATS_DIM
+        W = BACKBONE_CONFIG["W"]
+        ref = sd.get("encoder.skip.weight")
+        if ref is None:
+            ref = sd.get("encoder.linear1.weight")
+        if ref is None:
+            args.patch_stats = "none"
+        else:
+            extra = ref.shape[1] - W - BACKBONE_CONFIG["freq_emb_dim"]
+            if extra == 0:
+                args.patch_stats = "none"
+            elif extra == PATCH_STATS_DIM:
+                args.patch_stats = "diff"
+            else:
+                raise ValueError(
+                    f"Unexpected encoder in_features={ref.shape[1]}: extra "
+                    f"width={extra} doesn't match W ({W}) + freq_emb_dim "
+                    f"({BACKBONE_CONFIG['freq_emb_dim']}) + 0 or "
+                    f"{PATCH_STATS_DIM}.")
+        print(f"  [eval] auto-detected patch_stats={args.patch_stats}")
+    BACKBONE_CONFIG["patch_stats_kind"] = args.patch_stats
     backbone = ConfigurableModel(**BACKBONE_CONFIG)
     backbone.load_state_dict(sd)
     backbone = backbone.to(device)

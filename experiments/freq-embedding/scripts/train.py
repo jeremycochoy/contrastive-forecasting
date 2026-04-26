@@ -44,7 +44,6 @@ MODEL_CONFIG = dict(
     C=4, H=512, W=16,
     encoder_type="gru", num_layers=6, nhead=8,
     ffn_mult=4.0, activation="gelu", depthwise_conv=3, dropout=0.1,
-    rev_norm_span=32,
 )
 
 LOSS_SPEC = SimpleNamespace(train_configuration={
@@ -90,6 +89,18 @@ def parse_args():
                    help="Reversible normalization variant. 'ewma' = "
                         "RevEWMNorm(span=32) (default); 'revin' = standard "
                         "single-instance z-score; 'none' to disable.")
+    p.add_argument("--rev-norm-span", type=int, default=32,
+                   help="Span parameter for RevEWMNorm (ignored unless "
+                        "--rev-norm-kind=ewma). Default 32 matches the "
+                        "established baseline; sweep larger spans (64/128/256) "
+                        "to retain more periodic amplitude.")
+    p.add_argument("--patch-stats", default="none",
+                   choices=["none", "diff", "raw"],
+                   help="Concatenate per-patch RevEWMNorm summary stats to "
+                        "the encoder input. 'none' (default) preserves the "
+                        "established arms; 'diff' appends scale-free dmean "
+                        "(in stdev units) and dlogstd (log ratio); 'raw' is "
+                        "the centered mean + log_std ablation.")
     return p.parse_args()
 
 
@@ -232,6 +243,9 @@ def main():
     model_config = dict(MODEL_CONFIG)
     model_config["freq_emb_dim"] = args.freq_emb_dim
     model_config["rev_norm_kind"] = args.rev_norm_kind
+    if args.rev_norm_kind == "ewma":
+        model_config["rev_norm_span"] = args.rev_norm_span
+    model_config["patch_stats_kind"] = args.patch_stats
     model = ConfigurableModel(**model_config).to(device)
     optimizer = optim.AdamW(model.parameters(), lr=args.lr)
 
@@ -266,7 +280,10 @@ def main():
     print(f"Device: {device} | Params: {count_parameters(model):,}")
     print(f"Training for {args.total_steps} steps, bs={args.batch_size}, "
           f"lr={args.lr}, T={T_RAW}, mix_ratio={args.mix_ratio}, "
-          f"freq_emb_dim={args.freq_emb_dim}, mixup_p={args.mixup_p}")
+          f"freq_emb_dim={args.freq_emb_dim}, mixup_p={args.mixup_p}, "
+          f"rev_norm_kind={args.rev_norm_kind}"
+          + (f"(span={args.rev_norm_span})" if args.rev_norm_kind == 'ewma' else "")
+          + f", patch_stats={args.patch_stats}")
     print(f"Checkpoints: {args.save_dir}/{args.run_name}_*.pth")
 
     csv_path = os.path.join(args.save_dir, f"{args.run_name}_losses.csv")

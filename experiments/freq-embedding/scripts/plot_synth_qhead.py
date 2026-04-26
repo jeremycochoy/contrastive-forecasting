@@ -44,6 +44,7 @@ BACKBONE_CONFIG = dict(
     encoder_type="gru", num_layers=6, nhead=8,
     ffn_mult=4.0, activation="gelu", depthwise_conv=3, dropout=0.1,
     rev_norm_span=32,
+    rev_norm_kind="ewma",
 )
 HEAD_CONFIG = dict(H=512, hidden_dim=128, num_gru_layers=2,
                     forecast_len=FORECAST_LEN, dropout=0.1)
@@ -52,11 +53,35 @@ HORIZON = 16
 QUANTILE_LEVELS = (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)
 
 
-def load_pair(backbone_path, head_path, device):
+def load_pair(backbone_path, head_path, device, rev_norm_kind="ewma",
+              rev_norm_span=32):
+    """Load a backbone+quantile-head pair, auto-detecting freq_emb_dim and
+    patch_stats from the checkpoint state_dict."""
+    from src.norm import PATCH_STATS_DIM
     sd = torch.load(backbone_path, map_location=device, weights_only=True)
     cfg = dict(BACKBONE_CONFIG)
+    cfg["rev_norm_kind"] = rev_norm_kind
+    if rev_norm_kind == "ewma":
+        cfg["rev_norm_span"] = rev_norm_span
+    elif "rev_norm_span" in cfg:
+        del cfg["rev_norm_span"]
     w = sd.get("freq_embedding.embedding.weight")
     cfg["freq_emb_dim"] = (w.shape[1] if w is not None else 0)
+    # Auto-detect patch_stats from encoder's first projection input width.
+    ref = sd.get("encoder.skip.weight")
+    if ref is None:
+        ref = sd.get("encoder.linear1.weight")
+    if ref is not None:
+        extra = ref.shape[1] - cfg["W"] - cfg["freq_emb_dim"]
+        if extra == 0:
+            cfg["patch_stats_kind"] = "none"
+        elif extra == PATCH_STATS_DIM:
+            cfg["patch_stats_kind"] = "diff"
+        else:
+            raise ValueError(
+                f"Unexpected encoder in_features={ref.shape[1]}: extra "
+                f"width={extra} doesn't match W ({cfg['W']}) + freq_emb_dim "
+                f"({cfg['freq_emb_dim']}) + 0 or {PATCH_STATS_DIM}.")
     bb = ConfigurableModel(**cfg).to(device).eval()
     bb.load_state_dict(sd)
     head_cfg = dict(HEAD_CONFIG); head_cfg["forecast_len"] = HORIZON
@@ -73,11 +98,16 @@ def main():
     ap.add_argument("--seed", type=int, default=20260426)
     ap.add_argument("--n", type=int, default=12)
     ap.add_argument("--device", default="cpu")
+    ap.add_argument("--rev-norm-kind", default="ewma",
+                    choices=["ewma", "revin", "none"])
+    ap.add_argument("--rev-norm-span", type=int, default=32)
     args = ap.parse_args()
 
     device = torch.device(args.device)
     print(f"Loading {args.backbone} + {args.head} on {device}")
-    bb, head = load_pair(args.backbone, args.head, device)
+    bb, head = load_pair(args.backbone, args.head, device,
+                         rev_norm_kind=args.rev_norm_kind,
+                         rev_norm_span=args.rev_norm_span)
 
     # Generate N synthetic series of length T_RAW + HORIZON so we have both
     # context (first T_RAW) and ground-truth (last HORIZON).

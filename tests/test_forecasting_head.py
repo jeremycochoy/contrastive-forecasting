@@ -109,6 +109,21 @@ class FakeBackbone(nn.Module):
         self.W = W_
         self.rev_norm = FakeRevNorm(C, T_raw)
         self.transformer = FakeTransformer(H, W_)
+        # No freq embedding, no patch stats — the strategies tests only
+        # care about the patching/transformer interaction.
+        self.freq_embedding = None
+        self.patch_stats_kind = 'none'
+
+    def prepare_encoder_input(self, x_norm, freq_ids=None, freq_embs=None):
+        """Stub mimicking ConfigurableModel.prepare_encoder_input for the
+        no-freq-emb / no-patch-stats path.
+
+        Output shape: ``[B, T, C, W]`` — straightforward patching.
+        """
+        B, T_raw, C = x_norm.shape
+        W = self.W
+        T = T_raw // W
+        return x_norm.view(B, T, W, C).permute(0, 1, 3, 2)
 
 
 # ---------------------------------------------------------------------------
