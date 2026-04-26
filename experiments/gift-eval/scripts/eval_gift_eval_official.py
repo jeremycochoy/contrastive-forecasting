@@ -388,6 +388,11 @@ def parse_args():
                    choices=["auto", "none", "diff", "raw"],
                    help="Backbone patch-stats setting; 'auto' (default) "
                         "detects from the encoder's input width.")
+    p.add_argument("--config-filter", default=None,
+                   help="If set, only evaluate configs whose '<dataset>/<term>' "
+                        "name matches this regex. Useful for cheap screens — "
+                        "e.g. --config-filter 'ett[12]/(15T|W)|solar/10T|m4_hourly/H' "
+                        "for the 6-config periodic focus set.")
     return p.parse_args()
 
 
@@ -476,6 +481,14 @@ def main():
 
     # Get all dataset configs
     all_configs = get_all_dataset_configs()
+    if args.config_filter:
+        import re
+        pattern = re.compile(args.config_filter)
+        kept = [(d, t) for (d, t) in all_configs if pattern.search(f"{d}/{t}")]
+        skipped = len(all_configs) - len(kept)
+        print(f"  --config-filter {args.config_filter!r}: kept {len(kept)} of "
+              f"{len(all_configs)} configs (skipped {skipped})")
+        all_configs = kept
     print(f"\nTotal configs to evaluate: {len(all_configs)}")
 
     # Handle resume: read existing results
