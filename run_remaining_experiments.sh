@@ -29,8 +29,11 @@ HF_PATH="base_mixed_v1"
 
 run_train_backbone() {
     local NAME=$1; shift
+    # --save-every 2000 so a crash never costs more than ~6 min of compute
+    # (backbone is ~6 sps; 2000 steps = ~5.5 min). Heads use 1000.
     python3 -u experiments/freq-embedding/scripts/train.py \
         --device cuda --total-steps 30000 --batch-size 24 --lr 1e-4 \
+        --save-every 2000 \
         --save-dir checkpoints --run-name "$NAME" \
         --hf-repo "$HF_REPO" --hf-path "$HF_PATH" \
         "$@"
@@ -39,9 +42,15 @@ run_train_backbone() {
 run_qhead() {
     local NAME=$1; shift
     local BB=$1; shift
+    # --save-every 1000 (heads ~4 sps → ~4 min between snapshots) so a
+    # crash never costs more than ~4 min of head training compute.
+    # _best.pth is also updated every 500 steps when ema_loss improves,
+    # but late in training those improvements are rare so we want
+    # explicit periodic snapshots as well.
     python3 -u experiments/gift-eval/scripts/train_forecasting_head.py \
         --backbone-path "$BB" --forecast-len 16 --quantile-head \
         --total-steps 30000 --batch-size 24 --lr 3e-4 \
+        --save-every 1000 \
         --save-dir checkpoints --run-name "$NAME" \
         --hf-repo "$HF_REPO" --hf-path "$HF_PATH" --device cuda \
         "$@"
