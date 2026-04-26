@@ -11,11 +11,32 @@ Covers four ablations run on top of the periodic-synth-mix baseline (see
 All ablations use the same 30k-step, bs=24, mix_ratio=0.5 protocol as the
 periodic-synth-mix baseline, with the variation noted per arm.
 
+## Naming
+
+Each arm is a stack of changes, not a single switch. Concretely:
+
+- `fe+mu` = freq embedding (dim=3) + mixup (p=0.3) on top of the
+  periodic-synth-mix baseline (fe alone, with mixup OFF, was a wash).
+- `fe+mu+qh` = `fe+mu` backbone + quantile (pinball loss) head.
+- `RevIN+qh` = `fe+mu` + RevIN replacing RevEWMNorm + quantile head.
+  Note: RevIN+qh **includes** freq embedding and mixup; it's a
+  single-variable change vs `fe+mu+qh` (the normaliser, not a fresh
+  build).
+
+So all our arm comparisons are stack-add-one-variable deltas, not
+independent setups.
+
 ## Headline numbers
 
 Skill scores vs Seasonal Naive computed on **43 univariate configs**
 (SN baseline computation skipped multivariate datasets like bitbrains_*,
 bizitobs_*, ett1/ett2 — see "caveats" below). Higher is better. SN = 0.
+
+**Important**: which arm is "best" depends on the slice. On 43
+univariate configs (skill-score table below), RevIN+qh wins both metrics.
+On the full 97-config aggregate, fe+mu+qh wins WQL because RevIN's
+m4_* / covid trend regressions drag the aggregate; RevIN+qh still
+wins the **6 periodic focus configs** even on the 97 (WQL 0.393 vs 0.465).
 
 | Arm | Params | Steps | GM-MASE | MASE skill | GM-WQL | WQL skill |
 |---|---:|---:|---:|---:|---:|---:|
