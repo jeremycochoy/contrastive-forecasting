@@ -335,6 +335,32 @@ class TestConfigurableModelWithPatchStats:
                 nhead=2, ffn_mult=2, rev_norm_span=32,
                 patch_stats_kind='bogus')
 
+    def test_prepare_encoder_input_used_by_train_path(self):
+        """Regression: train.py's forward_step bypassed prepare_encoder_input
+        and reimplemented patching, which silently dropped the patch-stats
+        concat. This test exercises a forward_step-equivalent call to make
+        sure ANY future train-script pattern that takes (model, x) and
+        calls model.transformer() picks up the stats."""
+        from src.models import ConfigurableModel
+        m = ConfigurableModel(
+            C=2, H=64, W=16, encoder_type='gru', num_layers=1, nhead=2,
+            ffn_mult=2, rev_norm_span=32, freq_emb_dim=3,
+            patch_stats_kind='diff')
+        x = torch.randn(2, 64, 2)
+        # train.py-style: rev_norm then prepare_encoder_input.
+        x_norm = m.rev_norm(x, mode='norm')
+        freq_ids = torch.zeros(2, dtype=torch.long)
+        xr = m.prepare_encoder_input(x_norm, freq_ids=freq_ids)
+        # The encoder's input width MUST be W + freq + stats = 16 + 3 + 2 = 21.
+        assert xr.shape[-1] == 21, (
+            f"prepare_encoder_input should output width 21 (W=16 + freq_emb=3 "
+            f"+ patch_stats=2), got {xr.shape[-1]}. If this fails, train.py's "
+            f"forward_step is probably skipping the stats concat.")
+        # Calling the transformer must succeed (encoder.skip is wired for 21).
+        f_flat, o_flat = m.transformer(xr)
+        assert f_flat.shape[0] == 2 * 2  # B*C
+        assert f_flat.shape[2] == 64     # H
+
     def test_state_dict_roundtrip_with_patch_stats(self):
         """Save a patch_stats=diff backbone, reload it via state_dict — the
         encoder input dim is recoverable from the skip layer's in_features."""

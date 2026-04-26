@@ -113,16 +113,17 @@ def random_sign_flip(x):
 
 
 def forward_step(model, x, freq_ids=None, freq_embs=None):
-    """Apply RevEWMNorm + transformer with optional freq embedding."""
-    W = model.W
+    """Apply RevEWMNorm + transformer with optional freq embedding +
+    optional patch-stats. Routes through ``model.prepare_encoder_input``
+    so the patch-stats concat path is identical to ``model.forward`` and
+    to the head-trainer's ``extract_*_latents``."""
     H = model.H
     if model.rev_norm is not None:
         x = model.rev_norm(x, mode='norm')
     B, T_raw, C = x.shape
-    T = T_raw // W
-    xr = x.view(B, T, W, C).permute(0, 1, 3, 2)
-    # Apply freq embedding to the patch
-    xr = model._apply_freq_embedding(xr, freq_ids=freq_ids, freq_embs=freq_embs)
+    T = T_raw // model.W
+    xr = model.prepare_encoder_input(
+        x, freq_ids=freq_ids, freq_embs=freq_embs)
     f_flat, o_flat = model.transformer(xr)
     f_lat = f_flat.reshape(B, C, T, H).permute(0, 2, 1, 3)
     o_lat = o_flat.reshape(B, C, T, H).permute(0, 2, 1, 3)
