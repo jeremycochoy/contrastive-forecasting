@@ -12,10 +12,10 @@ ewma span=512. Single-axis ablation vs the established
 documents the design.
 
 **Run script**: `run.sh` — copy of `/tmp/run_wtn_v2.sh` from the
-remote vast.ai instance at SSH ssh2.vast.ai:16198 (snapshot at launch
-time). `run_v1.sh` is the earlier variant (`run_within_time_neg.sh`
-at repo root) that used the deprecated `cosine_similarity_batch_with_within_time_neg`
-loss-shape — superseded by v2.
+remote vast.ai instance (snapshot at launch time). `run_v1.sh` is the
+earlier variant (`run_within_time_neg.sh` at repo root) that used the
+deprecated `cosine_similarity_batch_with_within_time_neg` loss-shape —
+superseded by v2.
 
 **Code referenced**:
 - `../freq-embedding/scripts/train.py`

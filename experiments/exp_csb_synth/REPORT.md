@@ -30,7 +30,7 @@ fe+mu, mix=1.0 synth-only, 30k bb + 30k qhead, ewma span=512.
 ## Provenance / status notes
 
 - `run.sh` is a copy of `/tmp/run_wtn_v2.sh` from the remote vast.ai
-  instance at SSH ssh2.vast.ai:16198 at the time the run was launched.
+  instance at the time the run was launched.
 - `run_v1.sh` is the earlier variant (`run_within_time_neg.sh` at repo
   root, `--loss-shape cosine_similarity_batch_with_within_time_neg`)
   that was superseded by v2. Preserved for provenance.
