@@ -420,16 +420,40 @@ runs for $2$M steps with AdamW, learning rate $7 \times 10^{-5}$,
 batch size $8$. The architecture-search history that motivates these
 choices is reported in Appendix~\ref{sec:appendix-backbone-search}.
 
+We monitor backbone training with the \emph{contrastive gap}, defined
+as
+\[
+  \mathrm{gap} \;=\; \mathbb{E}_{b, t} \big[
+    \langle f[b, t],\, h[b, t+1] \rangle
+    \;-\;
+    \langle f[b, t],\, h[b, t] \rangle
+  \big],
+\]
+the difference between the mean forecast-future and forecast-past
+cosine similarities on a held-out batch. A higher gap means the
+forecast latent is closer to the future patch at $t + 1$ than to the
+past patch at $t$. The gap is a diagnostic, not optimised directly;
+it tracks well with downstream recovery quality and is the metric we
+use to compare backbone variants in
+Appendix~\ref{sec:appendix-backbone-search}.
+
 \subsection{Recovery head}
 \label{sec:exp-head}
 
 To probe whether the backbone latents encode the ARMA parameters, we
 freeze the backbone after training and fit a small \emph{recovery
-head} on top of it. The head is a bidirectional GRU with hidden size
-$128$ and $2$ layers ($\sim$$676$k parameters). It receives the
-per-patch latent $h[b, t] \in \mathbb{R}^H$ produced by the frozen
-backbone and outputs a per-patch coefficient prediction
-$\hat{\theta}[b, t] \in \mathbb{R}^{2P}$. The single coefficient
+head} on top of it. The head receives the per-patch latent
+$h[b, t] \in \mathbb{R}^H$ produced by the frozen backbone and returns
+a per-patch coefficient prediction
+$\hat{\theta}[b, t] \in \mathbb{R}^{2P}$.
+
+Internally the head has four parts: an input projection (linear,
+GELU, layer norm) mapping $\mathbb{R}^H \to \mathbb{R}^{128}$, a
+bidirectional GRU with hidden size $128$ and $2$ layers, a two-layer
+GELU MLP applied to the GRU output, and two parallel linear heads
+(one for AR, one for MA), each followed by $\tanh$ to constrain
+outputs to $(-1, 1)$ in line with the sampling range. The full head
+has roughly $676$k parameters. The single coefficient
 prediction for a series is the mean of the per-patch predictions:
 \[
   \hat{\theta}[b]
@@ -447,10 +471,10 @@ We evaluate the head with the \emph{improvement ratio}
 \end{equation}
 where $\mathrm{MSE}_0$ is the MSE of the all-zero baseline that
 predicts $\hat{\theta} = 0$ for every coefficient. This baseline is
-non-trivial: order padding leaves a fraction of the ground-truth
-coefficients at exactly zero, so the all-zero predictor scores some
-free MSE on those positions, and the head must do better still in
-order to reach $r > 1$.
+non-trivial: since order padding leaves a fraction of the ground-truth
+coefficients at exactly zero, the all-zero predictor is already
+perfect on those positions and so achieves a fairly low MSE. The head
+must do better still in order to reach $r > 1$.
 
 
 \section{Results}
