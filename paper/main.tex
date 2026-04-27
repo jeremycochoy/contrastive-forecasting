@@ -147,7 +147,147 @@ scale.
 \section{Contrastive Forecasting}
 \label{sec:method}
 
-TODO.
+% TODO: opening paragraph (5--7 sentences). State the goal (a
+% decoder-only forecaster trained in latent space with an InfoNCE
+% objective), summarise the design (encoder + forecaster, two blocks,
+% contrastive loss with cross-channel and cross-batch negatives), and
+% point the reader to the three subsections below.
+
+\subsection{Architecture}
+\label{sec:architecture}
+
+We work with a multivariate time series of shape $T \times C \times F$,
+where $T$ is the number of raw timesteps, $C$ is the number of
+channels, and $F$ is the number of features per timestep. In the
+experiments reported here $F = 1$, but the formalism does not change
+when $F > 1$. The series is cut into non-overlapping patches of width
+$W$ along the time axis, so that the patched input has shape
+$T_p \times C \times W \times F$ with $T_p = T / W$. Each patch is
+encoded independently into a latent $h[t, c] \in \mathbb{R}^H$, and we
+$L^2$-normalise every latent so that $\|h[t, c]\| = 1$.
+
+The choice of $W$ is dataset-dependent. Values in $\{16, 32, 64, 128\}$
+all appear in the recent foundation-model literature and all work as
+inputs to our encoder. In the limit, $W = 1$ is admissible; the model
+reduces to per-step encoding. The stride between consecutive patches
+is the patch width by default, since this minimises compute and avoids
+redundant encoding work. A smaller stride down to $1$ is also
+admissible if the loss is adjusted to align each forecast with the
+correct future patch.
+
+The model has two blocks. The \emph{encoder} maps a patch to a latent;
+the \emph{forecaster} maps the sequence of past latents to a forecast
+of the next latent. We write $f[t, c]$ for the forecaster's output at
+position $t$ and channel $c$. The training objective is to make
+$f[t, c]$ as close as possible to $h[t+1, c]$ under some dissimilarity
+$D$,
+\[
+  D\big(f[t, c],\, h[t+1, c]\big) \to 0.
+\]
+Because the latents live on the unit sphere we take $D$ to be the
+angular distance, and we measure it through its proxy, the inner
+product (Section~\ref{sec:loss}).
+
+\subsection{Encoder}
+\label{sec:encoder}
+
+The first encoder we tried in this repository is the residual block
+used by TiDE~\citep{das2023tide} and reused by
+TimesFM~\citep{das2024timesfm}: a two-layer MLP with a ReLU in the
+middle, summed with a linear skip from the input, and a layer
+normalisation at the output. The input dimension is $W$, the
+intermediate dimension is small (we used $64$), and the output
+dimension is $H$. This is the canonical input projection of the
+patched-decoder line and gives a serviceable baseline.
+
+The encoder we currently use is a bidirectional GRU. Each patch is
+read as a sequence of $W$ scalar timesteps, which gives the encoder a
+chance to model the local temporal structure that an MLP collapses
+into a single linear projection. The forward and backward final hidden
+states ($128$ units each in our setup) are concatenated and projected
+to $H$, summed with a linear skip from the raw patch, and passed
+through a layer normalisation.
+
+We have explored only a small fraction of what is possible for the
+encoder. Convolutional and shallow self-attention variants are obvious
+candidates, and there is no reason in principle to stop there. If
+encoding a patch into a useful latent turns out to be a difficult
+problem on real-world series, the encoder could itself be a small
+transformer. We leave a systematic encoder search as future work.
+
+\subsection{Loss function}
+\label{sec:loss}
+
+Let $h, h' \in \mathbb{R}^H$ be two unit-norm latents. We score their
+similarity by the inner product $s(h, h') = h \cdot h'$, which is the
+cosine of the angle between them. The choice is the cheapest
+non-trivial similarity available once the latents are on the unit
+sphere: one multiply-add per pair of dimensions, no square root, no
+further normalisation at scoring time.
+
+We index each latent and each forecast by the batch element
+$b \in [B]$, the patch position $t \in [T_p]$, and the channel
+$c \in [C]$. For every anchor $(b, t, c)$, the positive pair is the
+forecast at $(b, t, c)$ matched against the future latent at
+$(b, t+1, c)$. The negatives we use in production fall into two
+categories.
+\begin{itemize}
+\item \textbf{Cross-channel.} The latent at a different channel of the
+  same series at the same time step, $h[b, t, c']$ for $c' \neq c$.
+  There are $C - 1$ such candidates per anchor.
+\item \textbf{Cross-batch.} The forecast of a different series in the
+  batch at the same time step, $f[b', t, c]$ for $b' \neq b$, paired
+  against the future latent at $(b, t+1, c)$. There are $B - 1$ such
+  candidates per anchor.
+\end{itemize}
+Cross-channel candidates are computed by a $C \times C$ inner-product
+grid per batch element with the diagonal masked out; cross-batch
+candidates by a $B \times B$ inner-product grid over the whole batch
+with the diagonal masked out, both in single matrix multiplications
+that the GPU executes in parallel. In the loss we do not keep the
+per-anchor sets separate: at every position $(t, c)$ we aggregate the
+candidates of all anchors into two batch-pooled sums, and the same
+denominator is used for every anchor at that position. The cross-batch
+pool is therefore quadratic in $B$ and is the bulk of the negative
+set.
+
+For unit-norm $u, v \in \mathbb{R}^H$, write the temperature-scaled
+exponential of the inner product as
+\[
+  \sigma(u, v) \;=\; \exp\!\big(\langle u, v \rangle / \tau\big).
+\]
+At every position $(t, c)$, the two batch-pooled negative sums are
+\begin{align*}
+  \mathcal{N}_{\mathrm{xx}}(t, c)
+    &\;=\; \sum_{i = 1}^{B} \, \sum_{c' \neq c}
+      \sigma\!\big(h[i, t, c],\; h[i, t, c']\big),\\
+  \mathcal{N}_{\mathrm{cb}}(t, c)
+    &\;=\; \sum_{i \neq j}
+      \sigma\!\big(h[i, t+1, c],\; f[j, t, c]\big),
+\end{align*}
+and the contribution of the anchor $(b, t, c)$ to the loss is
+\begin{equation}
+  \mathcal{L}_{b, t, c}
+  \;=\; -\log \frac{\sigma\!\big(f[b, t, c],\; h[b, t+1, c]\big)}
+  {\mathcal{N}_{\mathrm{xx}}(t, c) \;+\; \mathcal{N}_{\mathrm{cb}}(t, c)}.
+  \label{eq:loss}
+\end{equation}
+The denominator depends on $(t, c)$ but not on $b$: every anchor at
+the same position shares the same pooled denominator. We average
+$\mathcal{L}_{b, t, c}$ over all anchors and use $\tau = 0.07$.
+
+Several other negatives are natural in this setup but are not enabled
+in the production loss: past against future, past against forecast,
+forecast at $t$ against forecast at $t+1$, and the cross-channel
+variants of all three. An earlier version of the loss carried these
+terms explicitly; the current production loss does not.
+
+This list is not exhaustive. One can pair latents at $t+1$ with latents
+at $t-1$, draw negatives from a queue of past batches to expand the
+pool beyond the current batch, or pair channels across different
+series in the batch. Different families of time series may benefit
+from specific extra negatives tailored to their structure, and we have
+not explored this systematically.
 
 
 \section{Experiments}
