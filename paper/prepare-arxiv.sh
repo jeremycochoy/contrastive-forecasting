@@ -12,9 +12,13 @@
 #   5. Re-extracts the staged tree into a fresh temporary directory and
 #      runs pdflatex three times to confirm the package compiles cleanly
 #      from scratch (catches missing figures, stale .aux references, etc.).
-#   6. Packages the staged tree as ./arxiv_submission.tar.gz.
+#   6. Packages the staged tree as ./arxiv_submission.tar.gz and copies
+#      the verification PDF to ./main.pdf next to it, so the user can
+#      preview the exact PDF that the tarball will produce on arXiv.
 #
-# Output: paper/arxiv_submission.tar.gz, ready to upload to arXiv.
+# Outputs (both in paper/):
+#   - arxiv_submission.tar.gz: ready to upload to arXiv
+#   - main.pdf: locally-rendered preview matching the tarball
 #
 # Usage: ./prepare-arxiv.sh
 
@@ -23,6 +27,7 @@ set -euo pipefail
 PAPER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BUILD_DIR="${PAPER_DIR}/arxiv_build"
 TARBALL="${PAPER_DIR}/arxiv_submission.tar.gz"
+PDF_OUT="${PAPER_DIR}/main.pdf"
 MAIN=main
 
 log() { printf '\n=== %s ===\n' "$*"; }
@@ -34,7 +39,7 @@ command -v python3  >/dev/null || die "python3 not found in PATH"
 command -v tar      >/dev/null || die "tar not found in PATH"
 
 log "Cleaning previous build outputs"
-rm -rf "$BUILD_DIR" "$TARBALL"
+rm -rf "$BUILD_DIR" "$TARBALL" "$PDF_OUT"
 
 log "Staging files into $BUILD_DIR"
 mkdir -p "$BUILD_DIR/sections" "$BUILD_DIR/figures"
@@ -98,11 +103,14 @@ pdf_kb=$(( $(wc -c <"$TMP/$MAIN.pdf") / 1024 ))
 log "Verification PDF built: ${pdf_kb} KB"
 [ "$pdf_kb" -gt 500 ] || die "verification PDF is suspiciously small (${pdf_kb} KB) — figures missing?"
 
+log "Saving preview PDF to $PDF_OUT"
+cp "$TMP/$MAIN.pdf" "$PDF_OUT"
+
 log "Building $TARBALL"
 ( cd "$BUILD_DIR" && tar -czf "$TARBALL" . )
 
 log "Done"
-ls -lh "$TARBALL"
+ls -lh "$TARBALL" "$PDF_OUT"
 echo
-echo "Contents:"
+echo "Tarball contents:"
 tar -tzf "$TARBALL" | LC_ALL=C sort
