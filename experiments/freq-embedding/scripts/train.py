@@ -101,6 +101,17 @@ def parse_args():
                         "established arms; 'diff' appends scale-free dmean "
                         "(in stdev units) and dlogstd (log ratio); 'raw' is "
                         "the centered mean + log_std ablation.")
+    p.add_argument("--loss-shape",
+                   default="cosine_similarity_batch_no_time_neg",
+                   choices=["cosine_similarity_batch_no_time_neg",
+                            "cosine_similarity_batch_with_within_time_neg",
+                            "cosine_similarity_batch",
+                            "cosine_similarity",
+                            "cosine_similarity_old"],
+                   help="Contrastive loss formulation. Default 'no_time_neg' "
+                        "matches the established arms. 'with_within_time_neg' "
+                        "adds h[b,t-1,c] <-> h[b,t,c] negative — re-introduced "
+                        "after being dropped during ARMA-era tuning.")
     return p.parse_args()
 
 
@@ -247,6 +258,8 @@ def main():
     if args.rev_norm_kind == "ewma":
         model_config["rev_norm_span"] = args.rev_norm_span
     model_config["patch_stats_kind"] = args.patch_stats
+    # Override the loss_shape from CLI (LOSS_SPEC is a module-level default).
+    LOSS_SPEC.train_configuration["loss_shape"] = args.loss_shape
     model = ConfigurableModel(**model_config).to(device)
     optimizer = optim.AdamW(model.parameters(), lr=args.lr)
 
