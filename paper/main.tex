@@ -425,11 +425,18 @@ choices is reported in Appendix~\ref{sec:appendix-backbone-search}.
 
 To probe whether the backbone latents encode the ARMA parameters, we
 freeze the backbone after training and fit a small \emph{recovery
-head} on top of it. The head is a bidirectional GRU with hidden size
-$128$ and $2$ layers ($\sim$$676$k parameters). It receives the
-per-patch latent $h[b, t] \in \mathbb{R}^H$ produced by the frozen
-backbone and outputs a per-patch coefficient prediction
-$\hat{\theta}[b, t] \in \mathbb{R}^{2P}$. The single coefficient
+head} on top of it. The head receives the per-patch latent
+$h[b, t] \in \mathbb{R}^H$ produced by the frozen backbone and returns
+a per-patch coefficient prediction
+$\hat{\theta}[b, t] \in \mathbb{R}^{2P}$.
+
+Internally the head has four parts: an input projection (linear,
+GELU, layer norm) mapping $\mathbb{R}^H \to \mathbb{R}^{128}$, a
+bidirectional GRU with hidden size $128$ and $2$ layers, a two-layer
+GELU MLP applied to the GRU output, and two parallel linear heads
+(one for AR, one for MA), each followed by $\tanh$ to constrain
+outputs to $(-1, 1)$ in line with the sampling range. The full head
+has roughly $676$k parameters. The single coefficient
 prediction for a series is the mean of the per-patch predictions:
 \[
   \hat{\theta}[b]
