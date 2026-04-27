@@ -420,6 +420,23 @@ runs for $2$M steps with AdamW, learning rate $7 \times 10^{-5}$,
 batch size $8$. The architecture-search history that motivates these
 choices is reported in Appendix~\ref{sec:appendix-backbone-search}.
 
+We monitor backbone training with the \emph{contrastive gap}, defined
+as
+\[
+  \mathrm{gap} \;=\; \mathbb{E}_{b, t} \big[
+    \langle f[b, t],\, h[b, t+1] \rangle
+    \;-\;
+    \langle f[b, t],\, h[b, t] \rangle
+  \big],
+\]
+the difference between the mean forecast-future and forecast-past
+cosine similarities on a held-out batch. A higher gap means the
+forecast latent is closer to the future patch at $t + 1$ than to the
+past patch at $t$. The gap is a diagnostic, not optimised directly;
+it tracks well with downstream recovery quality and is the metric we
+use to compare backbone variants in
+Appendix~\ref{sec:appendix-backbone-search}.
+
 \subsection{Recovery head}
 \label{sec:exp-head}
 
