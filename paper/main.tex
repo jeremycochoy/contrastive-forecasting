@@ -217,17 +217,17 @@ Finding the proper encoder is a potential future-work axis.
 
 The forecaster is a causal transformer decoder. It has $L$ layers and
 hidden width $H$, with $L$ and $H$ controlling the depth and the
-capacity. Each layer is a standard self-attention block followed by a
-feed-forward network, with residual connections and layer
-normalisations.
+capacity. Each layer applies a self-attention block, then a small
+depthwise causal convolution (kernel size $3$) on the residual stream,
+then a feed-forward network; residual connections and layer
+normalisations are placed in the standard positions.
 
-Between the attention output and the feed-forward block we insert a
-small depthwise causal convolution (kernel size $3$) on the residual
-stream. The motivation comes from the analysis of induction
+The convolution is motivated by the analysis of induction
 heads~\citep{olsson2022inductionheads}: a short-range convolutional
 component lets the model develop induction-head-like behaviour with
-shallower attention than would otherwise be needed, which in practice
-helps the forecaster learn faster.
+shallower attention than would otherwise be needed. This significantly
+improves the performance of small transformers, the regime we operate
+in.
 
 
 \subsection{Loss function}
