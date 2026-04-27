@@ -144,54 +144,54 @@ def main():
     mase_all = []
     wql_all = []
     sn_mase_all = []
-    sn_wql_all = []  # SN doesn't produce quantiles; treat as point with all q levels equal.
+    sn_wql_all = []
 
-    # Generate samples in chunks to keep memory bounded.
+    # Use C=1 single-channel samples (mirroring plot_synth_qhead.py).
+    # generate_periodic_batch returns spp of shape [batch_size * C], so with
+    # C=1 spp is one period per sample — clean and unambiguous. The trained
+    # backbone handles arbitrary C at inference (channel-mixing is a no-op
+    # at C=1).
     rng = np.random.default_rng(args.seed)
     while n_done < args.n_samples:
         bs = min(args.batch_size, args.n_samples - n_done)
-        # Need T_RAW + HORIZON timesteps so we can split into context + truth.
         sub_seed = int(rng.integers(0, 2**31 - 1))
         X, meta = generate_periodic_batch(
-            batch_size=bs, T_raw=T_RAW + HORIZON, C=4,
+            batch_size=bs, T_raw=T_RAW + HORIZON, C=1,
             seed=sub_seed, return_meta=True,
         )
-        x_full = X.numpy()                              # (bs, T_full, C)
-        ctx = x_full[:, :T_RAW, :]
-        truth = x_full[:, T_RAW:T_RAW + HORIZON, :]    # (bs, H, C)
-        # Each (b, c) slot has its own period — meta['spp'] is shaped (bs, C).
-        spp = np.atleast_2d(meta["spp"])
-        if spp.shape != (bs, 4):
-            spp = np.broadcast_to(spp, (bs, 4))
+        x_full = X.numpy()                              # (bs, T_full, 1)
+        ctx = x_full[:, :T_RAW, :]                      # (bs, T_RAW, 1)
+        truth = x_full[:, T_RAW:T_RAW + HORIZON, :]    # (bs, H, 1)
+        spp = np.asarray(meta["spp"], dtype=float)      # shape (bs,) since C=1
 
-        # Run model
         ctx_t = torch.from_numpy(ctx).float().to(device)
         with torch.no_grad():
             for b in range(bs):
-                # B4 expects (1, T_RAW, C); batched call is fine but let's
-                # iterate per-sample to mirror the qhead-grid plotter exactly.
-                ctx_b = ctx_t[b:b+1]                    # (1, T_RAW, C)
+                ctx_b = ctx_t[b:b+1]                    # (1, T_RAW, 1)
                 y = forecast_with_strategy(
                     "B4", bb, head, ctx_b, horizon=HORIZON, device=device)
-                # y: (Q, H, C)
+                # y: (Q, H, 1)
                 forecast_q = np.asarray(y, dtype=np.float64)
-                truth_b = truth[b].astype(np.float64)
-                # Scale = MAD of 1-step diffs of context (same as gluonts MASE).
-                scale = np.abs(np.diff(ctx[b], axis=0)).mean(axis=0)
+                truth_b = truth[b].astype(np.float64)   # (H, 1)
+                scale = np.abs(np.diff(ctx[b], axis=0)).mean(axis=0)  # (1,)
                 mase_per_c, wql_per_c = compute_metrics(
                     forecast_q, truth_b, scale, QUANTILE_LEVELS)
                 mase_all.append(mase_per_c)
                 wql_all.append(wql_per_c)
-                # SN baseline (uses known period from meta — best case)
-                sn = seasonal_naive_forecast(ctx[b].astype(np.float64),
-                                             spp[b], HORIZON)
-                sn_q = np.broadcast_to(sn[None, :, :], (9, HORIZON, 4))
+
+                # Seasonal-naive baseline: known period — essentially optimal
+                # on this clean data. Each sample has one P (since C=1).
+                P_per_c = np.array([spp[b]], dtype=float)  # (1,)
+                sn = seasonal_naive_forecast(
+                    ctx[b].astype(np.float64), P_per_c, HORIZON)  # (H, 1)
+                sn_q = np.broadcast_to(sn[None, :, :], (9, HORIZON, 1))
                 sn_mase_c, sn_wql_c = compute_metrics(
                     sn_q, truth_b, scale, QUANTILE_LEVELS)
                 sn_mase_all.append(sn_mase_c)
                 sn_wql_all.append(sn_wql_c)
         n_done += bs
-        print(f"  [{n_done}/{args.n_samples}] running…", flush=True)
+        if n_done % 256 == 0 or n_done == args.n_samples:
+            print(f"  [{n_done}/{args.n_samples}] running…", flush=True)
 
     mase_all = np.concatenate(mase_all)            # (n_samples * C,)
     wql_all = np.concatenate(wql_all)

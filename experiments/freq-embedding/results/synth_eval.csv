@@ -1,0 +1,5 @@
+arm,n_samples,n_per_channel,freq_emb_dim,patch_stats_kind,rev_norm_span,gm_mase,gm_wql,sn_gm_mase,sn_gm_wql,mase_skill_pct,wql_skill_pct
+fe+mu @ 30k,1024,1024,3,none,32,2.39371,1.30554,0.49723,0.34394,-381.41,-279.58
+fe+mu @ 60k,1024,1024,3,none,32,2.36574,1.29271,0.49723,0.34394,-375.78,-275.85
+fe+mu+pstats @ 30k,1024,1024,3,diff,32,2.48505,1.36801,0.49723,0.34394,-399.78,-297.74
+fe+mu+pstats @ 60k,1024,1024,3,diff,32,2.41077,1.31886,0.49723,0.34394,-384.84,-283.45
