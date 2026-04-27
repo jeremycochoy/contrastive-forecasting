@@ -37,9 +37,9 @@ from the synth-only redo (same config).
 | 1024 | 0.921 | 0.452 | −85% | −31% |
 | Seasonal Naive | 0.497 | 0.344 | 0% | 0% |
 
-(Plot: `experiments/freq-embedding/plots/span_skill_synth.png` —
-inverted-U on a log-2 x-axis. `span_compare_synth.png` for the 6-arm
-× 12-sample comparison grid.)
+(Plots: `plots/span_skill_synth.png` — inverted-U on a log-2 x-axis.
+`plots/span_compare_synth.png` for the 6-arm × 12-sample comparison
+grid.)
 
 ## Findings (single seed each)
 
@@ -53,8 +53,8 @@ inverted-U on a log-2 x-axis. `span_compare_synth.png` for the 6-arm
    2026 sequence.
 
 3. **Span=512 beats RevIN-synth.** RevIN-synth `mix=1.0, 60k steps`
-   scored GM-MASE 2.230 (see `REPORT_revin_synth.md`); span=512 scores
-   0.848. The earlier "RevIN better than EWMA on periodic data"
+   scored GM-MASE 2.230 (see `../exp_revin_synth/REPORT.md`); span=512
+   scores 0.848. The earlier "RevIN better than EWMA on periodic data"
    finding (#28 from previous session) was confounded by both arms
    using `span=32`.
 
@@ -78,7 +78,7 @@ of even short cycles.
 - The optimum (512) is specific to the synth sampler's spp range
   [8, 256]. On real data with potentially different period
   distributions, the optimum may differ. Real-data sweep at 20k steps
-  (`REPORT_span_sweep_real.md`) hinted the answer is in the
+  (`../exp_span_sweep_real/REPORT.md`) hinted the answer is in the
   span ∈ {64, 128} range there but with insufficient compute to be
   confident.
 
@@ -96,10 +96,16 @@ of even short cycles.
 ## Artefacts
 
 - 5 backbones (span 64/128/256/512/1024):
-  `checkpoints/tiny_femu_span*_synth30k_FINAL.pth`. Plus
-  `tiny_femu_synth30k_FINAL.pth` for span=32.
-- 5 qheads: `checkpoints/R1q_femu_span*_synth30k_FINAL.pth`.
-- Eval CSV rows: `experiments/freq-embedding/results/synth_eval.csv`.
-- Plots:
-  - `span_skill_synth.png` — skill curves.
-  - `span_compare_synth.png` — 6-arm × 12-sample forecast grid.
+  `checkpoints/tiny_femu_span*_synth30k_FINAL.pth` (not tracked in
+  git). Plus `tiny_femu_synth30k_FINAL.pth` for span=32 (also from
+  `exp_synth_only_redo`).
+- 5 qheads: `checkpoints/R1q_femu_span*_synth30k_FINAL.pth` (not
+  tracked in git).
+- Eval CSV rows: `../_aggregate/results/synth_eval.csv`.
+- Plots in this dir:
+  - `plots/span_skill_synth.png` — skill curves.
+  - `plots/span_compare_synth.png` — 6-arm × 12-sample forecast grid.
+- Run script: `run.sh` (covers spans 64/128/256; span=512 and 1024
+  were launched ad-hoc on remote and the run scripts were not preserved
+  here — the same run.sh template extends trivially by adjusting the
+  for-loop range).
