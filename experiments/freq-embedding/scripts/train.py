@@ -104,14 +104,14 @@ def parse_args():
     p.add_argument("--loss-shape",
                    default="cosine_similarity_batch_no_time_neg",
                    choices=["cosine_similarity_batch_no_time_neg",
-                            "cosine_similarity_batch_with_within_time_neg",
                             "cosine_similarity_batch",
                             "cosine_similarity",
                             "cosine_similarity_old"],
                    help="Contrastive loss formulation. Default 'no_time_neg' "
-                        "matches the established arms. 'with_within_time_neg' "
-                        "adds h[b,t-1,c] <-> h[b,t,c] negative — re-introduced "
-                        "after being dropped during ARMA-era tuning.")
+                        "matches the established arms. 'cosine_similarity_batch' "
+                        "is the paper-described loss with cross-time negatives "
+                        "(h[b,t-1,c] <-> h[b,t,c] and cross-channel time terms) "
+                        "— re-introduced after being dropped during ARMA-era tuning.")
     return p.parse_args()
 
 
