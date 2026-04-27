@@ -100,19 +100,20 @@ synth data.)
   the gap metric saturates very early on synth-only. Going forward,
   best_loss is the right selector (per HANDOFF rationale).
 
-## Conclusion
+## Conclusion (single seed)
 
 On synth-only, **fe+mu @ 60k (no patch-stats)** is the marginal best
 of the 4 arms tested here, but the differences are small (1-4%). The
 real lever found later in this session was the EWMA span (see
-`REPORT_synth_span_sweep.md`) which dwarfs every architectural knob in
-this report.
+`../exp_span_sweep_synth/REPORT.md`) which dwarfs every architectural
+knob in this report.
 
 ## Artefacts
 
 - Backbones: `checkpoints/tiny_femu_synth{30k,60k}_FINAL.pth`,
-  `tiny_femu_pstats_synth{30k,60k}_FINAL.pth`.
+  `tiny_femu_pstats_synth{30k,60k}_FINAL.pth` (not tracked in git).
 - Heads: `checkpoints/R1q_femu_synth{30k,60k}_FINAL.pth`,
-  `R1q_femu_pstats_synth{30k,60k}_FINAL.pth`.
-- Eval CSV: `experiments/freq-embedding/results/synth_eval.csv` (rows 1-4).
-- Synth grids: `synth_qhead_grid_{synth30k,synth60k,pstats_synth30k,pstats_synth60k}.png`.
+  `R1q_femu_pstats_synth{30k,60k}_FINAL.pth` (not tracked in git).
+- Eval CSV: `../_aggregate/results/synth_eval.csv` (rows 1-4).
+- Synth grids in this dir: `plots/synth_qhead_grid_{synth30k,synth60k,pstats_synth30k,pstats_synth60k}.png`.
+- Run script: `run.sh`.

@@ -171,15 +171,16 @@ single H-dim token.
 
 ## Artefacts
 
-- [`DESIGN.md`](DESIGN.md) — the freq-embedding design doc.
-- [`scripts/train.py`](scripts/train.py) — backbone trainer with
-  `--freq-emb-dim`, `--mixup-p`, `--rev-norm-kind`.
-- [`scripts/plot_multi_model.py`](scripts/plot_multi_model.py) — 5-arm
-  comparison plotter (used for #25).
-- [`scripts/plot_qhead.py`](scripts/plot_qhead.py) — focused 4-curve
-  plotter incl. quantile uncertainty band (used for #27).
-- [`scripts/plot_synth_qhead.py`](scripts/plot_synth_qhead.py) — 12-panel
-  grid on synthetic samples.
+- [`../freq-embedding/DESIGN.md`](../freq-embedding/DESIGN.md) — the
+  freq-embedding design doc.
+- [`../freq-embedding/scripts/train.py`](../freq-embedding/scripts/train.py) —
+  backbone trainer with `--freq-emb-dim`, `--mixup-p`, `--rev-norm-kind`.
+- [`../freq-embedding/scripts/plot_multi_model.py`](../freq-embedding/scripts/plot_multi_model.py) —
+  5-arm comparison plotter (used for #25).
+- [`../freq-embedding/scripts/plot_qhead.py`](../freq-embedding/scripts/plot_qhead.py) —
+  focused 4-curve plotter incl. quantile uncertainty band (used for #27).
+- [`../freq-embedding/scripts/plot_synth_qhead.py`](../freq-embedding/scripts/plot_synth_qhead.py) —
+  12-panel grid on synthetic samples.
 - [`plots/synth_qhead_grid.png`](plots/synth_qhead_grid.png) — diagnostic
   grid showing the head doesn't match SN on its own training distribution.
 - [`plots/predictions/`](plots/predictions/) — multi-model prediction
@@ -191,6 +192,25 @@ single H-dim token.
   per-config MASE+WQL+SN-relative for every arm.
 - [`results/skill_scores.txt`](results/skill_scores.txt) — aggregate
   skill-score table.
+
+## Per-experiment reports (the 6 ablations covered above)
+
+- [`../exp_revin_repro/REPORT.md`](../exp_revin_repro/REPORT.md) — EXP1
+  (RevIN reproduction on mix=0.5).
+- [`../exp_patch_stats_mix05/REPORT.md`](../exp_patch_stats_mix05/REPORT.md) —
+  EXP4 (patch-stats on mix=0.5 + GIFT-Eval).
+- [`../exp_synth_only_redo/REPORT.md`](../exp_synth_only_redo/REPORT.md) —
+  fe+mu vs fe+mu+pstats × {30k, 60k} on mix=1.0.
+- [`../exp_span_sweep_real/REPORT.md`](../exp_span_sweep_real/REPORT.md) —
+  RevEWMNorm span sweep on mix=0.0.
+- [`../exp_span_sweep_synth/REPORT.md`](../exp_span_sweep_synth/REPORT.md) —
+  RevEWMNorm span sweep on mix=1.0.
+- [`../exp_revin_synth/REPORT.md`](../exp_revin_synth/REPORT.md) — RevIN
+  backbone on mix=1.0.
+
+In-flight follow-up:
+- [`../exp_csb_synth/REPORT.md`](../exp_csb_synth/REPORT.md) —
+  cosine_similarity_batch loss on the span=512 best arm.
 
 Per-arm GIFT-Eval CSVs at the repo root:
 

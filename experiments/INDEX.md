@@ -26,6 +26,21 @@ All experiments for the contrastive forecasting project, organized chronological
 | [Head / Rollout Comparison](head-rollout-comparison/README.md) | Complete | Value-space rollout (A1=1.275) initially beat latent rollout (B1=1.258). Led to reconstruction head experiment. |
 | [Reconstruction Head](reconstruction-head/README.md) | Complete | Reconstruction heads fix latent rollout. R1 (forecaster recon W=16) achieves MASE 1.121, a 12% improvement over value-space baseline. Key insight: head should reconstruct, not predict. |
 
+## Freq-Embedding Sequence (Apr 2026)
+
+Aggregate report and cross-cutting artefacts: [`_aggregate/REPORT.md`](_aggregate/REPORT.md).
+Shared scripts and design: [`freq-embedding/README.md`](freq-embedding/README.md).
+
+| Experiment | Status | Key Result |
+|---|---|---|
+| [exp_revin_repro](exp_revin_repro/README.md) | Success (reproduction) | RevIN backbone + qhead on mix=0.5; gap=0.469, qh loss=0.052 — matches previous-session #28 within noise. |
+| [exp_patch_stats_mix05](exp_patch_stats_mix05/README.md) | Superseded | Backbone gap +33% but downstream 1-3% worse than fe+mu+qh / RevIN+qh on the 23-config SN slice. |
+| [exp_synth_only_redo](exp_synth_only_redo/README.md) | Success | fe+mu @ 60k marginal best of 4 arms on synth-only (GM-MASE 2.366); patch-stats 1-3% worse at both step counts. |
+| [exp_span_sweep_real](exp_span_sweep_real/README.md) | Partial | 20k steps, mix=0.0; loss U-shaped at span=128, gap monotonically decreasing — metrics disagree, open question. |
+| [exp_span_sweep_synth](exp_span_sweep_synth/README.md) | Success | Inverted-U with peak at span=512 (GM-MASE 0.848 — 2.8× over previous span=32 default). |
+| [exp_revin_synth](exp_revin_synth/README.md) | Complete | Best of original 4 synth arms (GM-MASE 2.230) but dominated by EWMA span=64+ once the right span was found. |
+| [exp_csb_synth](exp_csb_synth/README.md) | **In-flight** | cosine_similarity_batch loss on the span=512 best arm; results pending. |
+
 ## Experiment Timeline
 
 ```

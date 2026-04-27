@@ -84,10 +84,10 @@ Mixed.
 
 ### Synth grid
 
-`experiments/freq-embedding/plots/synth_qhead_grid_pstats.png`. Visually
+`plots/synth_qhead_grid_pstats.png`. Visually
 indistinguishable from RevIN/fe+mu grids — same amplitude damping and
 phase drift on clean periodics. Patch-stats does not fix the synth-grid
-issue either.
+issue either (single seed, qualitative read).
 
 ## Bug caught and fixed during this run
 
@@ -97,25 +97,29 @@ because the GRU encoder expected wider input than what was fed.
 Routed `forward_step` through `model.prepare_encoder_input` and added
 a regression test in `tests/test_norm.py` (`test_prepare_encoder_input_used_by_train_path`).
 
-## Conclusion (single seed)
+## What was measured (single seed)
 
 - Backbone gap +33%, head training loss worse by ~36%.
 - GIFT-Eval downstream: patch-stats is 1-3% worse than the fe+mu+qh /
   RevIN+qh baselines on the available 23-config slice.
 - Synth grid: no visible improvement.
 
+## Speculation (single seed, not validated)
+
 The "richer latents from a higher-gap backbone" did not translate to
-better forecasts at this training scale. Possible explanations
-(speculative): (a) the head architecture is too small for the larger
-information content; (b) patch-stats added noise the head had to filter
-back out; (c) `(Δmean)/std` operator spikes on series that move between
-very different absolute scales (user-flagged in
-`feedback_patch_stats_dmean_op.md` — try asinh-diff or
-log-of-abs+sign next).
+better forecasts at this training scale. Candidate explanations not
+ruled out: (a) the head architecture is too small for the larger
+information content; (b) patch-stats added noise the head had to
+filter back out; (c) `(Δmean)/std` operator spikes on series that move
+between very different absolute scales (user-flagged in
+`feedback_patch_stats_dmean_op.md` — try asinh-diff or log-of-abs+sign
+next).
 
 ## Artefacts
 
-- Backbone: `checkpoints/tiny_femu_pstats_FINAL.pth`.
-- Head: `checkpoints/R1q_femu_pstats_FINAL.pth`.
-- GIFT-Eval CSV: `results/R1q_femu_pstats/all_results.csv` (full 97).
-- Synth grid: `experiments/freq-embedding/plots/synth_qhead_grid_pstats.png`.
+- Backbone: `checkpoints/tiny_femu_pstats_FINAL.pth` (not tracked in
+  git; 80MB).
+- Head: `checkpoints/R1q_femu_pstats_FINAL.pth` (not tracked in git).
+- GIFT-Eval CSV: `results/R1q_femu_pstats/all_results.csv` (full 97;
+  not in this worktree — was on the remote machine at run time).
+- Synth grid: `plots/synth_qhead_grid_pstats.png`.
