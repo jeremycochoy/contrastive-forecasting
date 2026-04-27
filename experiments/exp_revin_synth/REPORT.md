@@ -54,15 +54,17 @@ included a "60k" arm for comparison.
    the periodic structure on synth.
 
 2. **But RevIN-synth was later dominated by EWMA span=64+** when the
-   synth-only span sweep (see `REPORT_span_sweep_synth.md`) revealed
-   span=512 hits GM-MASE 0.848. The "RevIN better than EWMA" claim
-   needs to be qualified to "RevIN better than EWMA *at the wrong
-   span*". At the right span, EWMA wins by a wide margin on synth.
+   synth-only span sweep (see `../exp_span_sweep_synth/REPORT.md`)
+   revealed span=512 hits GM-MASE 0.848. The "RevIN better than EWMA"
+   claim needs to be qualified to "RevIN better than EWMA *at the
+   wrong span*". At the right span, EWMA wins by a wide margin on
+   synth.
 
 3. **Synth grid plot** (`synth_qhead_grid_*` for RevIN variants)
    visually similar to other arms — same amplitude damping and phase
-   drift. RevIN's per-instance z-score doesn't unlock the
-   periodic-tracking issue any better than EWMA at any tested span.
+   drift. Single-seed visual comparison; not strong evidence on its
+   own, but consistent with the pattern across normalisers in this
+   sequence.
 
 ## Caveats
 
@@ -74,6 +76,13 @@ included a "60k" arm for comparison.
 
 ## Artefacts
 
-- Backbone: `checkpoints/tiny_femu_revin_synth60k_FINAL.pth`.
-- Qhead: `checkpoints/R1q_femu_revin_synth60k_FINAL.pth`.
-- Eval CSV row: "RevIN-synth @ 60k" in `synth_eval.csv`.
+- Backbone: `checkpoints/tiny_femu_revin_synth60k_FINAL.pth` (not
+  tracked in git; 80MB).
+- Qhead: `checkpoints/R1q_femu_revin_synth60k_FINAL.pth` (not tracked
+  in git).
+- Eval CSV row: "RevIN-synth @ 60k" in `../_aggregate/results/synth_eval.csv`.
+- Run script: not preserved. The run was launched ad-hoc on remote
+  (`/tmp/run_revin_synth.sh` on the vast.ai instance, lost when the
+  instance was destroyed). The setup table above plus `run_synth_only.sh`
+  as a template (substitute `--rev-norm-kind revin`, drop the span
+  flag, set 60k bb steps) is enough to reproduce.
