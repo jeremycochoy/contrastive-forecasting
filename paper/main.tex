@@ -222,12 +222,12 @@ depthwise causal convolution (kernel size $3$) on the residual stream,
 then a feed-forward network; residual connections and layer
 normalisations are placed in the standard positions.
 
-The convolution is motivated by the analysis of induction
-heads~\citep{olsson2022inductionheads}: a short-range convolutional
-component lets the model develop induction-head-like behaviour with
-shallower attention than would otherwise be needed. This significantly
-improves the performance of small transformers, the regime we operate
-in.
+The convolution follows the observation of Elhage et
+al.~\citep{elhage2021circuits} that a short-range depthwise
+convolution lets induction-head-like circuits form without the second
+attention layer that the canonical induction circuit requires. This
+significantly improves the performance of small transformers, the
+regime we operate in.
 
 
 \subsection{Loss function}
