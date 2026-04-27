@@ -7,8 +7,9 @@ backbone, and a head that forecasts the next patch in value space.
 TimesFM~\citep{das2024timesfm} is the canonical example, and recent
 successors~\citep{ansari2024chronos, woo2024moirai, shi2024timemoe,
 liu2025sundial, liu2026timers1} extend the recipe along various axes
-while keeping the value-space target. As Sutskever has argued,
-next-token prediction is far less narrow than it looks: it forces
+while keeping the value-space target. As Ilya Sutskever has
+argued for large language models, next-token prediction is far less
+narrow than it looks: it forces
 the model to encode grammar, style, world knowledge and arithmetic,
 since each is a sub-task of the same prediction problem. The
 next-patch analogue should inherit this property for time series.
