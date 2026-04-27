@@ -1,0 +1,28 @@
+\section{Results}
+\label{sec:results}
+
+The recovery head reaches $r = 8.34$ on the smaller 2x2 configuration
+and $r = 6.96$ on the larger 2x4 configuration. Both numbers are well
+above $1$, the threshold above which the head's predictions improve
+on the all-zero baseline.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.78\linewidth]{figures/recovery_scatter_main.png}
+  \caption{Recovery quality on the 2x4 (ARMA(4, 4)) configuration:
+    predicted vs ground-truth coefficient for the four extreme
+    positions AR$_0$, AR$_3$, MA$_0$, MA$_3$. Each subplot is a scatter
+    of $300$ test samples, with the identity reference line and the
+    Pearson correlation $r$ between predicted and true coefficients.}
+  \label{fig:recovery-main}
+\end{figure}
+
+Figure~\ref{fig:recovery-main} shows the predicted vs ground-truth
+coefficient on the 2x4 setup for the four extreme positions: AR$_0$,
+AR$_3$, MA$_0$, MA$_3$. The Pearson correlation $r$ between predicted
+and true coefficients sits between $0.91$ and $0.96$ on these four
+positions.
+
+The full 8-coefficient scatter for 2x4, the equivalent for 2x2, the
+per-sample error distributions, and the per-coefficient table are
+reported in Appendix~\ref{sec:appendix-graphs}.
