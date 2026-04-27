@@ -226,7 +226,7 @@ $b \in B$, the patch position $t \in T_p$, and the channel $c \in C$.
 For every anchor $(b, t, c)$, the positive pair is the forecast
 $f[b, t, c]$ paired with the future latent $h[b, t+1, c]$.
 
-The negative pool is built by varying anchors along three independent
+The negative set is built by varying anchors along three independent
 axes: cross-temporal ($t \neq t'$), cross-channel ($c \neq c'$), and
 cross-batch ($b \neq b'$). Each axis can be combined with the others,
 and each pair can mix encoded latents $h$ and forecasts $f$. The
@@ -263,7 +263,7 @@ whole batch with the diagonal masked out. Both are single matrix
 multiplications that the GPU executes in parallel. At every position
 $(t, c)$ we aggregate the candidates of all anchors into two sums,
 and the same denominator is used for every anchor at that position.
-The cross-batch pool is therefore quadratic in $B$ and dominates the
+The cross-batch set is therefore quadratic in $B$ and dominates the
 negatives.
 
 For unit-norm $u, v \in \mathbb{R}^H$, write the temperature-scaled
