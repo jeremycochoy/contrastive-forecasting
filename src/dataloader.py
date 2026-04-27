@@ -213,16 +213,113 @@ class HFStreamingLoader:
         kwargs["split"] = split
         return load_dataset(self.repo_id, **kwargs)
 
+    def _list_shard_files(self):
+        """Return the ordered list of parquet shard files backing this stream.
+
+        Returns None if the structure is not a simple list of parquet shards
+        (in which case we fall back to the naive .skip()).
+        """
+        from huggingface_hub import HfFileSystem
+        try:
+            fs = HfFileSystem()
+            pattern = f"datasets/{self.repo_id}"
+            if self.path_in_repo:
+                pattern = f"{pattern}/{self.path_in_repo}"
+            paths = fs.ls(pattern, detail=False)
+            pq = sorted(p for p in paths if p.endswith(".parquet"))
+            return pq if pq else None
+        except Exception as e:
+            print(f"  [dataloader] Could not list shards for fast skip: {e}")
+            return None
+
+    def _shard_row_counts(self, shard_paths):
+        """Return (N,) int array of row counts per shard, via parquet metadata.
+
+        Uses the parquet FOOTER only (no data read); typically milliseconds
+        per shard via HfFileSystem's cached HEAD requests.
+        """
+        from huggingface_hub import HfFileSystem
+        import pyarrow.parquet as pq
+        fs = HfFileSystem()
+        counts = []
+        for p in shard_paths:
+            with fs.open(p, "rb") as f:
+                meta = pq.read_metadata(f)
+                counts.append(meta.num_rows)
+        return counts
+
+    def _iter_stream_with_fast_skip(self):
+        """Yield parquet rows starting from position ``self.skip_rows``.
+
+        Strategy: download full shards up to the one that contains the target
+        row (fast — one parquet file at a time via pyarrow), drop them, then
+        stream the remainder. This is O(shards_before_target) + O(rows_in_target_shard)
+        instead of the naive O(rows_before_target) which is 100x-1000x slower
+        on a streaming HF Hub connection.
+
+        Falls back to the default .skip() if shard metadata can't be introspected.
+        """
+        shards = self._list_shard_files()
+        if shards is None:
+            # Fallback: naive skip
+            stream = self._open_stream()
+            if self.skip_rows > 0:
+                stream = stream.skip(self.skip_rows)
+                print(f"  [dataloader] Skipped {self.skip_rows} rows (naive)")
+            yield from stream
+            return
+
+        counts = self._shard_row_counts(shards)
+        print(f"  [dataloader] {len(shards)} shards, "
+              f"{sum(counts)} total rows, target skip {self.skip_rows}")
+
+        # Find first shard where cumulative count > skip_rows.
+        cum = 0
+        start_shard = 0
+        for i, c in enumerate(counts):
+            if cum + c > self.skip_rows:
+                start_shard = i
+                break
+            cum += c
+        else:
+            # All shards come before target — skip everything and yield nothing.
+            print(f"  [dataloader] skip_rows={self.skip_rows} >= total rows; "
+                  f"no data to yield")
+            return
+        within_shard_skip = self.skip_rows - cum
+
+        print(f"  [dataloader] Fast-skip: starting at shard {start_shard}/"
+              f"{len(shards)}, then skipping {within_shard_skip} rows within it")
+
+        # Stream from start_shard onwards, row-by-row, dropping the initial
+        # within-shard-skip rows.
+        from datasets import load_dataset
+        remaining = shards[start_shard:]
+        # Point HF at just these files. data_files supports a list of http(s)
+        # URLs / repo-relative paths.
+        ds = load_dataset(
+            "parquet",
+            data_files=["hf://" + p for p in remaining],
+            split="train",
+            streaming=True,
+        )
+        dropped = 0
+        for row in ds:
+            if dropped < within_shard_skip:
+                dropped += 1
+                continue
+            yield row
+
     def _raw_iter(self):
         """Yield batches without prefetching (used by PrefetchIterator)."""
-        stream = self._open_stream()
         if self.skip_rows > 0:
-            stream = stream.skip(self.skip_rows)
-            print(f"  [dataloader] Skipped {self.skip_rows} rows to resume position")
+            row_iter = self._iter_stream_with_fast_skip()
+        else:
+            row_iter = iter(self._open_stream())
         buf = []
         target = self.batch_size * self.C
 
-        for row in stream:
+        for row in row_iter:
             # Support both processed bundles ("series") and raw GiftEval ("target")
             series = row.get("series") or row.get("target")
             if series is None:
@@ -361,4 +458,133 @@ def create_hf_dataloader(repo_id: str, batch_size: int = 16, C: int = 4,
     return HFStreamingLoader(
         repo_id=repo_id, batch_size=batch_size, C=C,
         path_in_repo=path_in_repo, split=split, skip_rows=skip_rows,
+    )
+
+
+# ── Mixed loader: HF stream + on-the-fly periodic synthesizer ────────────────
+
+class MixedPeriodicLoader:
+    """Half-real, half-synthetic batch stream.
+
+    Each yielded batch is the row-concat of two sub-batches:
+
+    - ``hf_bs`` samples from the underlying ``HFStreamingLoader`` (real data)
+    - ``synth_bs`` samples from :func:`src.synthetic_periodic.generate_periodic_batch`
+      (on-the-fly, pure numpy, ~1 ms at ``bs=12``)
+
+    The final batch has shape ``[hf_bs + synth_bs, T_raw, C]``. For a 50/50
+    split with effective batch ``B=24`` use ``hf_bs=synth_bs=12``.
+
+    The synth generator threads a numpy ``Generator`` seeded from ``seed``
+    so runs are reproducible; the generator state advances across batches.
+    """
+
+    def __init__(self, hf_loader: "HFStreamingLoader", synth_bs: int,
+                 T_raw: int = 1024, C: int = 4,
+                 seed: int | None = None,
+                 emit_freq_ids: bool = False):
+        self.hf_loader = hf_loader
+        self.synth_bs = synth_bs
+        self.T_raw = T_raw
+        self.C = C
+        self.emit_freq_ids = emit_freq_ids
+        # Synth generator is persistent; each __iter__ seeds a fresh one.
+        self._seed = seed
+
+    def __iter__(self):
+        # Import locally so dataloader.py doesn't force synthetic_periodic
+        # into the test import graph.
+        from src.synthetic_periodic import generate_periodic_batch
+
+        rng = np.random.default_rng(self._seed)
+        hf_iter = iter(self.hf_loader)
+
+        while True:
+            try:
+                x_hf = next(hf_iter)                        # [hf_bs, T, C]
+            except StopIteration:
+                return
+            hf_bs = x_hf.shape[0]
+            if self.synth_bs > 0:
+                if self.emit_freq_ids:
+                    x_syn, freq_syn = generate_periodic_batch(
+                        batch_size=self.synth_bs, T_raw=self.T_raw,
+                        C=self.C, rng=rng, return_freq_ids=True,
+                    )
+                else:
+                    x_syn = generate_periodic_batch(
+                        batch_size=self.synth_bs, T_raw=self.T_raw,
+                        C=self.C, rng=rng,
+                    )
+                x = torch.cat([x_hf, x_syn], dim=0)         # [B, T, C]
+            else:
+                x = x_hf
+            if self.emit_freq_ids:
+                # HF rows are tagged 0 = unknown (we don't thread real freq
+                # metadata through base-bundles yet). Synth rows carry their
+                # sampled freq id.
+                freq_hf = torch.zeros(hf_bs, dtype=torch.long)
+                if self.synth_bs > 0:
+                    freq = torch.cat([freq_hf, freq_syn], dim=0)
+                else:
+                    freq = freq_hf
+                yield x, freq
+            else:
+                yield x
+
+
+def create_mixed_periodic_dataloader(
+    repo_id: str, batch_size: int = 24, C: int = 4,
+    mix_ratio: float = 0.5,
+    path_in_repo: str = None, split: str = "train",
+    skip_rows: int = 0, T_raw: int = 1024, seed: int | None = None,
+    emit_freq_ids: bool = False,
+) -> "MixedPeriodicLoader":
+    """Create a 50/50 (or arbitrary) mix of real HF + on-the-fly periodic synth.
+
+    The effective batch size (HF + synth rows) equals ``batch_size``. With
+    ``mix_ratio=0.5`` and ``batch_size=24`` the HF loader yields ``bs=12``
+    real rows per step and the synth adds 12 periodic rows; both halves are
+    independent draws.
+
+    Args:
+        batch_size: Effective batch size (HF + synth combined).
+        mix_ratio: Fraction of each batch drawn from the periodic synth.
+            0.0 = pure HF (identical to ``create_hf_dataloader``).
+            1.0 = pure synth (useful for synth-only smoke tests).
+        seed: Seed for the periodic synth generator. Independent from HF
+            stream ordering.
+    """
+    if not 0.0 <= mix_ratio <= 1.0:
+        raise ValueError(f"mix_ratio must be in [0, 1], got {mix_ratio}")
+
+    synth_bs = int(round(batch_size * mix_ratio))
+    hf_bs = batch_size - synth_bs
+
+    if mix_ratio == 0.0 and not emit_freq_ids:
+        # Exact parity with the HF-only path — no synth overhead, and
+        # the caller doesn't need freq_ids. When emit_freq_ids is True
+        # we fall through to the MixedPeriodicLoader path with
+        # synth_bs=0; that path returns (x, freq_ids) tuples (freq=0
+        # for HF rows) which downstream training expects.
+        return create_hf_dataloader(
+            repo_id=repo_id, batch_size=batch_size, C=C,
+            path_in_repo=path_in_repo, split=split, skip_rows=skip_rows,
+        )
+
+    hf_loader = HFStreamingLoader(
+        repo_id=repo_id, batch_size=hf_bs, C=C,
+        path_in_repo=path_in_repo, split=split, skip_rows=skip_rows,
+    ) if hf_bs > 0 else None
+
+    # Small helper to act as an "iterable-like" HF loader when mix_ratio=1.0.
+    class _EmptyHFLoader:
+        def __iter__(self):
+            while True:
+                yield torch.empty(0, T_raw, C, dtype=torch.float32)
+
+    return MixedPeriodicLoader(
+        hf_loader=hf_loader if hf_loader is not None else _EmptyHFLoader(),
+        synth_bs=synth_bs, T_raw=T_raw, C=C, seed=seed,
+        emit_freq_ids=emit_freq_ids,
     )

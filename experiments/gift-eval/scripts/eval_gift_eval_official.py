@@ -75,7 +75,6 @@ BACKBONE_CONFIG = dict(
     C=4, H=512, W=16,
     encoder_type="gru", num_layers=6, nhead=8,
     ffn_mult=4.0, activation="gelu", depthwise_conv=3, dropout=0.1,
-    rev_norm_span=32,
 )
 
 HEAD_CONFIG = dict(
@@ -261,16 +260,33 @@ class ContrastiveForecasterPredictor(RepresentablePredictor):
                 self.strategy, self.backbone, self.head, context,
                 horizon=self.prediction_length, device=self.device,
             )
-        # forecast_raw: (prediction_length, C) -- take channel 0
-        point_forecast = forecast_raw[:, 0].astype(np.float64)
 
-        # Replace any NaN/inf in forecast with 0
-        point_forecast = np.nan_to_num(
-            point_forecast, nan=0.0, posinf=0.0, neginf=0.0)
-
-        # Build QuantileForecast: all quantiles = point forecast (deterministic)
-        n_keys = len(self.forecast_keys)
-        forecast_arrays = np.stack([point_forecast] * n_keys, axis=0)
+        # forecast_raw is either:
+        #   (prediction_length, C)              — MSE head (point forecast)
+        #   (num_quantiles, prediction_length, C) — quantile head
+        if forecast_raw.ndim == 3:
+            # Quantile output. Channel 0, transpose to (Q, prediction_length).
+            quantile_arrays = forecast_raw[:, :, 0].astype(np.float64)
+            # Replace any NaN/inf with 0
+            quantile_arrays = np.nan_to_num(
+                quantile_arrays, nan=0.0, posinf=0.0, neginf=0.0)
+            # Median (q=0.5 = level 5 of 9 → index 4) is the point/mean.
+            median_idx = self.quantile_levels.index(0.5)
+            point_forecast = quantile_arrays[median_idx]
+            # forecast_keys are ["mean"] + str(quantile_levels). Build aligned arrays.
+            forecast_arrays = np.stack(
+                [point_forecast] +
+                [quantile_arrays[self.quantile_levels.index(q)]
+                 for q in self.quantile_levels],
+                axis=0,
+            )
+        else:
+            # MSE point forecast — broadcast across all quantile keys.
+            point_forecast = forecast_raw[:, 0].astype(np.float64)
+            point_forecast = np.nan_to_num(
+                point_forecast, nan=0.0, posinf=0.0, neginf=0.0)
+            n_keys = len(self.forecast_keys)
+            forecast_arrays = np.stack([point_forecast] * n_keys, axis=0)
 
         # Compute start_date for the forecast (= end of context + 1)
         fstart = forecast_start(item)
@@ -360,6 +376,23 @@ def parse_args():
     p.add_argument("--encoder-type", default=None,
                    choices=["mlp", "mlp_wide", "residual_silu", "gru", "conv"],
                    help="Override backbone encoder type (must match checkpoint)")
+    p.add_argument("--rev-norm-kind", default="ewma",
+                   choices=["ewma", "revin", "none"],
+                   help="Reversible norm variant — MUST match the backbone's "
+                        "training-time choice. Both have 0 params so state_dict "
+                        "doesn't disambiguate. Default 'ewma'.")
+    p.add_argument("--rev-norm-span", type=int, default=32,
+                   help="Span for RevEWMNorm (only used when "
+                        "--rev-norm-kind=ewma). Must match training-time value.")
+    p.add_argument("--patch-stats", default="auto",
+                   choices=["auto", "none", "diff", "raw"],
+                   help="Backbone patch-stats setting; 'auto' (default) "
+                        "detects from the encoder's input width.")
+    p.add_argument("--config-filter", default=None,
+                   help="If set, only evaluate configs whose '<dataset>/<term>' "
+                        "name matches this regex. Useful for cheap screens — "
+                        "e.g. --config-filter 'ett[12]/(15T|W)|solar/10T|m4_hourly/H' "
+                        "for the 6-config periodic focus set.")
     return p.parse_args()
 
 
@@ -367,10 +400,44 @@ def load_models(args, device):
     """Load backbone and forecasting head."""
     if args.encoder_type is not None:
         BACKBONE_CONFIG["encoder_type"] = args.encoder_type
+    # Auto-detect freq_emb_dim from the checkpoint so freq-emb backbones
+    # load cleanly without a CLI flag.
+    sd = torch.load(args.backbone_path, map_location=device, weights_only=True)
+    w = sd.get("freq_embedding.embedding.weight")
+    BACKBONE_CONFIG["freq_emb_dim"] = (w.shape[1] if w is not None else 0)
+    BACKBONE_CONFIG["rev_norm_kind"] = args.rev_norm_kind
+    if args.rev_norm_kind == "ewma":
+        BACKBONE_CONFIG["rev_norm_span"] = args.rev_norm_span
+    if BACKBONE_CONFIG["freq_emb_dim"] > 0:
+        print(f"  [eval] auto-detected freq_emb_dim="
+              f"{BACKBONE_CONFIG['freq_emb_dim']} from backbone checkpoint")
+    if args.rev_norm_kind != "ewma":
+        print(f"  [eval] using rev_norm_kind={args.rev_norm_kind}")
+    # Auto-detect patch_stats from the encoder's input width.
+    if args.patch_stats == "auto":
+        from src.norm import PATCH_STATS_DIM
+        W = BACKBONE_CONFIG["W"]
+        ref = sd.get("encoder.skip.weight")
+        if ref is None:
+            ref = sd.get("encoder.linear1.weight")
+        if ref is None:
+            args.patch_stats = "none"
+        else:
+            extra = ref.shape[1] - W - BACKBONE_CONFIG["freq_emb_dim"]
+            if extra == 0:
+                args.patch_stats = "none"
+            elif extra == PATCH_STATS_DIM:
+                args.patch_stats = "diff"
+            else:
+                raise ValueError(
+                    f"Unexpected encoder in_features={ref.shape[1]}: extra "
+                    f"width={extra} doesn't match W ({W}) + freq_emb_dim "
+                    f"({BACKBONE_CONFIG['freq_emb_dim']}) + 0 or "
+                    f"{PATCH_STATS_DIM}.")
+        print(f"  [eval] auto-detected patch_stats={args.patch_stats}")
+    BACKBONE_CONFIG["patch_stats_kind"] = args.patch_stats
     backbone = ConfigurableModel(**BACKBONE_CONFIG)
-    backbone.load_state_dict(
-        torch.load(args.backbone_path, map_location=device,
-                    weights_only=True))
+    backbone.load_state_dict(sd)
     backbone = backbone.to(device)
     backbone.eval()
     for p in backbone.parameters():
@@ -378,9 +445,18 @@ def load_models(args, device):
 
     head_config = dict(HEAD_CONFIG)
     head_config['forecast_len'] = args.forecast_len
-    head = ForecastingHead(**head_config)
-    head.load_state_dict(
-        torch.load(args.head_path, map_location=device, weights_only=True))
+    head_sd = torch.load(args.head_path, map_location=device, weights_only=True)
+    # Auto-detect quantile head: forecast_head.weight shape distinguishes
+    #   MSE     : (forecast_len,                hidden_dim)
+    #   quantile: (num_quantiles * forecast_len, hidden_dim)
+    fh_w = head_sd.get("forecast_head.weight")
+    if fh_w is not None and fh_w.shape[0] == args.forecast_len * 9:
+        from src.forecasting_head import QuantileForecastingHead
+        head = QuantileForecastingHead(**head_config)
+        print(f"  [eval] auto-detected quantile head (9 levels) from checkpoint")
+    else:
+        head = ForecastingHead(**head_config)
+    head.load_state_dict(head_sd)
     head = head.to(device)
     head.eval()
 
@@ -405,6 +481,14 @@ def main():
 
     # Get all dataset configs
     all_configs = get_all_dataset_configs()
+    if args.config_filter:
+        import re
+        pattern = re.compile(args.config_filter)
+        kept = [(d, t) for (d, t) in all_configs if pattern.search(f"{d}/{t}")]
+        skipped = len(all_configs) - len(kept)
+        print(f"  --config-filter {args.config_filter!r}: kept {len(kept)} of "
+              f"{len(all_configs)} configs (skipped {skipped})")
+        all_configs = kept
     print(f"\nTotal configs to evaluate: {len(all_configs)}")
 
     # Handle resume: read existing results

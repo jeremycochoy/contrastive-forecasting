@@ -30,9 +30,12 @@ import torch
 import torch.optim as optim
 
 from src.models import ConfigurableModel, count_parameters
-from src.dataloader import create_hf_dataloader
+from src.dataloader import create_hf_dataloader, create_mixed_periodic_dataloader
 from src.forecasting_head import (
     ForecastingHead,
+    QuantileForecastingHead,
+    QUANTILE_LEVELS,
+    quantile_loss,
     W,
     FORECAST_LEN,
     extract_forecaster_latents,
@@ -47,7 +50,6 @@ BACKBONE_CONFIG = dict(
     C=4, H=512, W=16,
     encoder_type="gru", num_layers=6, nhead=8,
     ffn_mult=4.0, activation="gelu", depthwise_conv=3, dropout=0.1,
-    rev_norm_span=32,
 )
 
 # -- Head architecture -------------------------------------------------------
@@ -84,6 +86,21 @@ def parse_args():
                    help="Subdirectory within the HF repo")
     p.add_argument("--skip-rows", type=int, default=0,
                    help="HF rows to skip (for data position resume)")
+    p.add_argument("--no-resume-data-skip", action="store_true",
+                   help="When resuming, DON'T compute skip_rows from start_step. "
+                        "The HF skip is O(rows_to_skip) and can take an hour+ "
+                        "for multi-M skips. Since our corpus is much larger than "
+                        "what we train on, re-seeing some early rows is harmless.")
+    p.add_argument("--quantile-head", action="store_true",
+                   help="Use QuantileForecastingHead with pinball loss "
+                        "(9 quantile levels) instead of the MSE point head. "
+                        "Replaces all final-layer projections; rest of the GRU "
+                        "trunk identical. Required by GIFT-Eval's WQL metric.")
+    p.add_argument("--rev-norm-kind", default="ewma",
+                   choices=["ewma", "revin", "none"],
+                   help="MUST match the backbone's training-time choice "
+                        "(both RevEWMNorm and RevIN have 0 params so state_dict "
+                        "doesn't disambiguate). Default 'ewma'.")
     p.add_argument("--seed", type=int, default=42,
                    help="Random seed for reproducibility")
     p.add_argument("--grad-clip", type=float, default=1.0,
@@ -103,6 +120,29 @@ def parse_args():
     p.add_argument("--encoder-type", default=None,
                    choices=["mlp", "mlp_wide", "residual_silu", "gru", "conv"],
                    help="Override backbone encoder type (must match checkpoint)")
+    p.add_argument("--freq-emb-dim", type=int, default=None,
+                   help="Frequency embedding dim in the backbone. If the "
+                        "backbone was trained with freq_emb_dim=D, set the same "
+                        "here so the state_dict loads. Auto-detected from the "
+                        "checkpoint if omitted.")
+    p.add_argument("--rev-norm-span", type=int, default=32,
+                   help="Span used by the backbone's RevEWMNorm. MUST match "
+                        "the backbone's training-time value (norm has 0 params "
+                        "so state_dict doesn't disambiguate). Default 32.")
+    p.add_argument("--patch-stats", default="auto",
+                   choices=["auto", "none", "diff", "raw"],
+                   help="Backbone patch-stats setting. 'auto' (default) "
+                        "detects from the encoder's input width in the "
+                        "checkpoint; pass an explicit value to override.")
+    p.add_argument("--mix-ratio", type=float, default=0.0,
+                   help="If >0, train on a mix of HF + on-the-fly periodic "
+                        "synth (matches the backbone's MixedPeriodicLoader). "
+                        "1.0 = synth-only — used for the synth-only "
+                        "reconstruction-head experiment.")
+    p.add_argument("--synth-seed", type=int, default=None,
+                   help="Seed for the periodic synth generator when "
+                        "--mix-ratio > 0. Defaults to args.seed + 20_000 to "
+                        "stay separate from the backbone's synth stream.")
     return p.parse_args()
 
 
@@ -150,9 +190,51 @@ def main():
     # -- Load frozen backbone --------------------------------------------------
     if args.encoder_type is not None:
         BACKBONE_CONFIG["encoder_type"] = args.encoder_type
+
+    # Auto-detect freq_emb_dim from the checkpoint if not explicitly set.
+    sd = torch.load(args.backbone_path, map_location=device, weights_only=True)
+    if args.freq_emb_dim is None:
+        w = sd.get("freq_embedding.embedding.weight")
+        if w is not None:
+            args.freq_emb_dim = w.shape[1]
+            print(f"  [head-train] auto-detected freq_emb_dim={args.freq_emb_dim} "
+                  f"from backbone checkpoint")
+        else:
+            args.freq_emb_dim = 0
+    BACKBONE_CONFIG["freq_emb_dim"] = args.freq_emb_dim
+    BACKBONE_CONFIG["rev_norm_kind"] = args.rev_norm_kind
+    if args.rev_norm_kind == "ewma":
+        BACKBONE_CONFIG["rev_norm_span"] = args.rev_norm_span
+    # Auto-detect patch_stats from the encoder's first projection input width.
+    # The GRU encoder stores `encoder.skip.weight` of shape [H, encoder_input];
+    # MLP-style encoders store `encoder.linear1.weight` similarly. Either way
+    # the in-features tells us W + freq_emb_dim + (2 if patch_stats else 0).
+    if args.patch_stats == "auto":
+        from src.norm import PATCH_STATS_DIM
+        W = BACKBONE_CONFIG["W"]
+        skip_w = sd.get("encoder.skip.weight")
+        linear1_w = sd.get("encoder.linear1.weight")
+        ref = skip_w if skip_w is not None else linear1_w
+        if ref is None:
+            args.patch_stats = "none"
+        else:
+            in_features = ref.shape[1]
+            extra = in_features - W - args.freq_emb_dim
+            if extra == 0:
+                args.patch_stats = "none"
+            elif extra == PATCH_STATS_DIM:
+                # Default to 'diff' on auto — the only kind we plan to ship.
+                args.patch_stats = "diff"
+            else:
+                raise ValueError(
+                    f"Unexpected encoder in_features={in_features}: extra "
+                    f"width={extra} doesn't match W ({W}) + freq_emb_dim "
+                    f"({args.freq_emb_dim}) + 0 or {PATCH_STATS_DIM}.")
+        print(f"  [head-train] auto-detected patch_stats={args.patch_stats}")
+    BACKBONE_CONFIG["patch_stats_kind"] = args.patch_stats
+
     backbone = ConfigurableModel(**BACKBONE_CONFIG)
-    backbone.load_state_dict(
-        torch.load(args.backbone_path, map_location=device, weights_only=True))
+    backbone.load_state_dict(sd)
     backbone = backbone.to(device)
     backbone.eval()
     for param in backbone.parameters():
@@ -163,9 +245,14 @@ def main():
     # -- Forecasting head ------------------------------------------------------
     head_config = dict(HEAD_CONFIG)
     head_config['forecast_len'] = args.forecast_len
-    head = ForecastingHead(**head_config).to(device)
+    if args.quantile_head:
+        head = QuantileForecastingHead(**head_config).to(device)
+        head_kind = "quantile (9 levels)"
+    else:
+        head = ForecastingHead(**head_config).to(device)
+        head_kind = "MSE (point)"
     n_head_params = count_parameters(head)
-    print(f"Forecasting head: {n_head_params:,} trainable params")
+    print(f"Forecasting head [{head_kind}]: {n_head_params:,} trainable params")
 
     optimizer = optim.AdamW(head.parameters(), lr=args.lr)
 
@@ -198,14 +285,33 @@ def main():
     # -- Data ------------------------------------------------------------------
     C = BACKBONE_CONFIG["C"]
     rows_per_step = args.batch_size * C
-    hf_rows_consumed = start_step * rows_per_step + args.skip_rows
+    if args.no_resume_data_skip:
+        hf_rows_consumed = args.skip_rows
+        print(f"  [data] --no-resume-data-skip: starting from HF offset "
+              f"{args.skip_rows} (NOT {start_step * rows_per_step + args.skip_rows})")
+    else:
+        hf_rows_consumed = start_step * rows_per_step + args.skip_rows
 
-    data_loader = create_hf_dataloader(
-        args.hf_repo, batch_size=args.batch_size, C=C,
-        path_in_repo=args.hf_path, skip_rows=hf_rows_consumed)
+    if args.mix_ratio > 0:
+        synth_seed = args.synth_seed if args.synth_seed is not None else args.seed + 20_000
+        data_loader = create_mixed_periodic_dataloader(
+            repo_id=args.hf_repo, batch_size=args.batch_size, C=C,
+            mix_ratio=args.mix_ratio,
+            path_in_repo=args.hf_path, skip_rows=hf_rows_consumed,
+            seed=synth_seed,
+        )
+        synth_bs = int(round(args.batch_size * args.mix_ratio))
+        hf_bs = args.batch_size - synth_bs
+        print(f"Data: MIX {(1-args.mix_ratio)*100:.0f}% HF + "
+              f"{args.mix_ratio*100:.0f}% synth, hf_bs={hf_bs}, "
+              f"synth_bs={synth_bs}, synth_seed={synth_seed}")
+    else:
+        data_loader = create_hf_dataloader(
+            args.hf_repo, batch_size=args.batch_size, C=C,
+            path_in_repo=args.hf_path, skip_rows=hf_rows_consumed)
+        print(f"Data: HF streaming from {args.hf_repo}/{args.hf_path} "
+              f"(skip={hf_rows_consumed} rows)")
     data_iter = iter(data_loader)
-    print(f"Data: HF streaming from {args.hf_repo}/{args.hf_path} "
-          f"(skip={hf_rows_consumed} rows)")
 
     print(f"\nTraining for {args.total_steps} steps, bs={args.batch_size}, "
           f"lr={args.lr}, forecast_len={args.forecast_len}")
@@ -297,8 +403,13 @@ def main():
             targets, T_valid = compute_reconstruction_targets(
                 x_norm, W=W, output_len=args.forecast_len, mode='forecaster')
             targets = targets.to(device)
-            preds = head(f_bc)[:, :T_valid, :]
-            loss = torch.nn.functional.mse_loss(preds, targets)
+            preds = head(f_bc)
+            if args.quantile_head:
+                preds = preds[:, :T_valid, :, :]                  # (BC, T, Q, L)
+                loss = quantile_loss(preds, targets, QUANTILE_LEVELS)
+            else:
+                preds = preds[:, :T_valid, :]
+                loss = torch.nn.functional.mse_loss(preds, targets)
 
         else:
             # Standard prediction training (old behavior)
@@ -306,8 +417,13 @@ def main():
             targets, T_valid = compute_valid_targets(
                 x_norm, W=W, forecast_len=args.forecast_len)
             targets = targets.to(device)
-            preds = head(f_bc)[:, :T_valid, :]
-            loss = torch.nn.functional.mse_loss(preds, targets)
+            preds = head(f_bc)
+            if args.quantile_head:
+                preds = preds[:, :T_valid, :, :]
+                loss = quantile_loss(preds, targets, QUANTILE_LEVELS)
+            else:
+                preds = preds[:, :T_valid, :]
+                loss = torch.nn.functional.mse_loss(preds, targets)
 
         # NaN detection -- skip bad batches instead of crashing
         loss_val = loss.item()

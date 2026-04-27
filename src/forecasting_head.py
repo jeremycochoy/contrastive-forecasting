@@ -80,24 +80,108 @@ class ForecastingHead(nn.Module):
         return self.forecast_head(features)
 
 
-def extract_forecaster_latents(backbone, x):
+# Standard 9 quantile levels used by GIFT-Eval.
+QUANTILE_LEVELS = (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)
+
+
+class QuantileForecastingHead(nn.Module):
+    """Same GRU trunk as ForecastingHead but outputs Q quantile predictions.
+
+    Input: (B*C, T, H)
+    Output: (B*C, T, num_quantiles, forecast_len)
+
+    Trained with pinball loss averaged over quantiles. Median (q=0.5) gives
+    the point forecast comparable to the MSE head; other quantiles let the
+    model express uncertainty (which the MSE head couldn't, leading to the
+    amplitude-damping failure noted in the periodic-synth-mix report).
+    """
+
+    def __init__(self, H=512, hidden_dim=128, num_gru_layers=2,
+                 forecast_len=128, dropout=0.1,
+                 quantile_levels=QUANTILE_LEVELS):
+        super().__init__()
+        self.forecast_len = forecast_len
+        self.quantile_levels = list(quantile_levels)
+        self.num_quantiles = len(self.quantile_levels)
+
+        self.input_proj = nn.Sequential(
+            nn.Linear(H, hidden_dim),
+            nn.GELU(),
+            nn.LayerNorm(hidden_dim),
+        )
+        self.gru = nn.GRU(
+            input_size=hidden_dim,
+            hidden_size=hidden_dim,
+            num_layers=num_gru_layers,
+            batch_first=True,
+            dropout=dropout if num_gru_layers > 1 else 0.0,
+            bidirectional=True,
+        )
+        gru_out_dim = hidden_dim * 2
+
+        self.output_layers = nn.Sequential(
+            nn.Linear(gru_out_dim, hidden_dim),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.GELU(),
+            nn.Dropout(dropout),
+        )
+
+        # Output: forecast_len * num_quantiles values per (B*C, T) position.
+        self.forecast_head = nn.Linear(
+            hidden_dim, forecast_len * self.num_quantiles)
+
+    def forward(self, x):
+        """x: (B*C, T, H) -> (B*C, T, num_quantiles, forecast_len)"""
+        x = self.input_proj(x)
+        gru_out, _ = self.gru(x)
+        features = self.output_layers(gru_out)
+        flat = self.forecast_head(features)                  # (..., Q*L)
+        BC, T, _ = flat.shape
+        return flat.view(BC, T, self.num_quantiles, self.forecast_len)
+
+
+def quantile_loss(predicted, target, quantile_levels=QUANTILE_LEVELS):
+    """Pinball loss summed over quantiles, averaged over the rest.
+
+    Args:
+        predicted: (..., num_quantiles, forecast_len)
+        target:    (..., forecast_len) or (..., 1, forecast_len)
+        quantile_levels: iterable of Q levels in (0, 1).
+
+    Returns:
+        scalar loss = mean over (..., forecast_len) of average over Q of
+        ``q * relu(target - pred)  +  (1-q) * relu(pred - target)``.
+    """
+    if target.dim() == predicted.dim() - 1:
+        target = target.unsqueeze(-2)                       # (..., 1, L)
+    err = target - predicted                                 # (..., Q, L)
+    q = predicted.new_tensor(list(quantile_levels)).view(
+        *([1] * (predicted.dim() - 2)), -1, 1)               # (..., Q, 1)
+    # max(q*err, (q-1)*err) is the standard pinball form; equivalent to
+    # q*relu(err) + (1-q)*relu(-err) when err ∈ R.
+    return torch.maximum(q * err, (q - 1) * err).mean()
+
+
+def extract_forecaster_latents(backbone, x, freq_ids=None):
     """Extract f_lat from backbone for forecasting head input.
 
-    Applies RevEWMNorm, patches the input, and runs the transformer to get
-    the forecaster latents (f_flat). The normalized input is also returned
-    for target extraction.
+    Applies RevEWMNorm, patches the input (incl. patch-stats and freq-emb if
+    configured), and runs the transformer to get the forecaster latents
+    (``f_flat``). The normalized input is also returned for target extraction.
 
     Args:
         backbone: frozen ConfigurableModel
         x: (B, T_raw, C) raw input tensor
+        freq_ids: LongTensor (B,) of freq class ids when the backbone has a
+            freq embedding. If the backbone has freq_embedding configured
+            but freq_ids is None, defaults to class 0 (unknown).
 
     Returns:
         f_bc: (B*C, T, H) forecaster latents (detached)
         x_norm: (B, T_raw, C) normalized input (for target extraction)
     """
-    W_bb = backbone.W
-    H_bb = backbone.H
-
     with torch.no_grad():
         # Apply reversible normalization
         if backbone.rev_norm is not None:
@@ -105,11 +189,14 @@ def extract_forecaster_latents(backbone, x):
         else:
             x_norm = x
 
-        B, T_raw, C = x_norm.shape
-        T = T_raw // W_bb
+        B = x_norm.shape[0]
+        if (getattr(backbone, 'freq_embedding', None) is not None
+                and freq_ids is None):
+            freq_ids = torch.zeros(B, dtype=torch.long, device=x.device)
 
-        # Reshape to patches: (B, T, C, W)
-        xr = x_norm.view(B, T, W_bb, C).permute(0, 1, 3, 2)
+        # Patches + (optional) patch-stats + (optional) freq emb — single
+        # source of truth, shared with backbone.forward.
+        xr = backbone.prepare_encoder_input(x_norm, freq_ids=freq_ids)
 
         # Get forecaster latents from transformer
         f_flat, _ = backbone.transformer(xr)
@@ -312,19 +399,18 @@ def extract_encoder_latents(backbone, x):
         e_bc: (B*C, T, H) encoder latents (detached)
         x_norm: (B, T_raw, C) normalized input
     """
-    W_bb = backbone.W
-
     with torch.no_grad():
         if backbone.rev_norm is not None:
             x_norm = backbone.rev_norm(x, mode='norm')
         else:
             x_norm = x
 
-        B, T_raw, C = x_norm.shape
-        T = T_raw // W_bb
+        B = x_norm.shape[0]
+        freq_ids = None
+        if getattr(backbone, 'freq_embedding', None) is not None:
+            freq_ids = torch.zeros(B, dtype=torch.long, device=x.device)
 
-        # Reshape to patches: (B, T, C, W)
-        xr = x_norm.view(B, T, W_bb, C).permute(0, 1, 3, 2)
+        xr = backbone.prepare_encoder_input(x_norm, freq_ids=freq_ids)
 
         # Run encoder only (input_to_latent), not transformer
         e = backbone.transformer.input_to_latent(xr)  # (B, T, C, H)
@@ -588,28 +674,53 @@ def forecast_B4(backbone, head, x_context, horizon, device):
 
     Sequence: [e[0], ..., e[k], f[k+1], ..., f[k+m]]
     W values from each rolled position. Simplest latent rollout strategy.
+
+    For an MSE head, returns ``(horizon, C)``.
+    For a QuantileForecastingHead, returns ``(num_quantiles, horizon, C)``
+    so the eval predictor can build a real probabilistic forecast.
     """
     W_bb = backbone.W
 
     e_ctx, mean_c, stdev_c, n_ctx, C = _b_variant_setup(
         backbone, x_context, device)
 
+    is_quantile = isinstance(head, QuantileForecastingHead)
+
     with torch.no_grad():
         n_tokens = math.ceil(horizon / W_bb)                        # m
         rolled_f = rollout_latent(backbone, e_ctx, n_tokens)        # (BC, m, H)
-        rolled_out = _b_variant_decode(head, e_ctx, rolled_f, n_ctx)  # (BC, m, output_len)
+        rolled_out = _b_variant_decode(head, e_ctx, rolled_f, n_ctx)
+        # MSE head     : rolled_out = (BC, m, L)
+        # Quantile head: rolled_out = (BC, m, Q, L)
 
         preds = []
         remaining = horizon
         for i in range(rolled_out.size(1)):
-            pred_norm = rolled_out[:, i, :]                         # (BC, output_len)
+            pred_norm = rolled_out[:, i, ...]                       # (BC, L) or (BC, Q, L)
             n_take = min(head.forecast_len, remaining)
-            preds.append(_denormalize(pred_norm[:, :n_take], mean_c, stdev_c).cpu())
+            if is_quantile:
+                pred_norm = pred_norm[..., :n_take]                 # (BC, Q, n_take)
+                # Denormalize per-quantile (broadcasting over Q):
+                # mean_c, stdev_c are (BC, 1) — reshape to (BC, 1, 1) for Q-broadcast.
+                m = mean_c.unsqueeze(-1)
+                s = stdev_c.unsqueeze(-1).clamp(min=1e-5)
+                pred_actual = pred_norm * s + m                     # (BC, Q, n_take)
+                preds.append(pred_actual.cpu())
+            else:
+                pred_norm = pred_norm[:, :n_take]
+                preds.append(_denormalize(pred_norm, mean_c, stdev_c).cpu())
             remaining -= n_take
             if remaining <= 0:
                 break
 
-    return torch.cat(preds, dim=1).T.numpy()
+    if is_quantile:
+        out = torch.cat(preds, dim=-1)                              # (BC, Q, horizon)
+        # (BC, Q, horizon) → (Q, horizon, C). BC = B*C, B=1 in eval.
+        Q = out.size(1)
+        BC = out.size(0)
+        # Predictor calls eval with B=1 in our gluonts wrapper, so BC == C.
+        return out.permute(1, 2, 0).numpy()                         # (Q, horizon, C)
+    return torch.cat(preds, dim=1).T.numpy()                        # (horizon, C)
 
 
 def forecast_B3R(backbone, head, x_context, horizon, device):

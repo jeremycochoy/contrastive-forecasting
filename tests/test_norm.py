@@ -3,7 +3,7 @@
 import pytest
 import torch
 
-from src.norm import RevEWMNorm
+from src.norm import RevEWMNorm, compute_patch_stats, PATCH_STATS_DIM
 
 
 class TestRevEWMNormShape:
@@ -184,5 +184,227 @@ class TestRevEWMNormIntegration:
         loss.backward()
         optimizer.step()
 
+        assert loss.item() > 0
+        assert not torch.isnan(loss)
+
+
+class TestComputePatchStats:
+    def test_returns_none_for_kind_none(self):
+        mean = torch.randn(2, 64, 3)
+        stdev = torch.ones_like(mean)
+        out = compute_patch_stats(mean, stdev, W=16, kind='none')
+        assert out is None
+
+    def test_diff_shape(self):
+        B, T, C, W = 2, 64, 3, 16
+        mean = torch.randn(B, T, C)
+        stdev = torch.ones(B, T, C) * 2.0
+        out = compute_patch_stats(mean, stdev, W=W, kind='diff')
+        assert out.shape == (B, T // W, C, PATCH_STATS_DIM)
+
+    def test_raw_shape(self):
+        B, T, C, W = 2, 64, 3, 16
+        mean = torch.randn(B, T, C)
+        stdev = torch.ones(B, T, C) * 2.0
+        out = compute_patch_stats(mean, stdev, W=W, kind='raw')
+        assert out.shape == (B, T // W, C, PATCH_STATS_DIM)
+
+    def test_diff_first_patch_is_zero(self):
+        """No previous patch ⇒ diffs at t=0 must be exactly zero (left-pad)."""
+        mean = torch.randn(2, 64, 3)
+        stdev = torch.rand(2, 64, 3) + 0.1
+        out = compute_patch_stats(mean, stdev, W=16, kind='diff')
+        assert torch.allclose(out[:, 0, :, :], torch.zeros_like(out[:, 0, :, :]))
+
+    def test_diff_constant_input_is_zero(self):
+        """If mean and std are constant in time, dmean and dlogstd are 0 everywhere."""
+        B, T, C = 1, 64, 2
+        mean = torch.full((B, T, C), 5.0)
+        stdev = torch.full((B, T, C), 2.0)
+        out = compute_patch_stats(mean, stdev, W=16, kind='diff')
+        assert torch.allclose(out, torch.zeros_like(out), atol=1e-6)
+
+    def test_diff_dmean_in_std_units(self):
+        """dmean[t] = (mean_p[t] - mean_p[t-1]) / std_p[t-1]. Hand-checked case."""
+        B, T, C, W = 1, 32, 1, 16
+        # Patch 0 mean=0, std=2; Patch 1 mean=4, std=2.
+        x_mean = torch.cat(
+            [torch.zeros(B, W, C), torch.full((B, W, C), 4.0)], dim=1
+        )
+        x_std = torch.full((B, T, C), 2.0)
+        out = compute_patch_stats(x_mean, x_std, W=W, kind='diff')
+        # Expected dmean[1] = (4 - 0) / 2 = 2.0
+        assert torch.allclose(out[0, 1, 0, 0], torch.tensor(2.0), atol=1e-5)
+        # dlogstd[1] = log(2) - log(2) = 0
+        assert torch.allclose(out[0, 1, 0, 1], torch.tensor(0.0), atol=1e-5)
+        # First patch is zero
+        assert torch.allclose(out[0, 0, :, :], torch.zeros(C, 2), atol=1e-6)
+
+    def test_diff_dlogstd_log_ratio(self):
+        """dlogstd[t] = log(std[t]) - log(std[t-1]) = log(std[t] / std[t-1])."""
+        B, T, C, W = 1, 32, 1, 16
+        x_mean = torch.zeros(B, T, C)
+        # Patch 0 std=1; Patch 1 std=4 ⇒ log ratio = log 4 = 2*log 2.
+        x_std = torch.cat(
+            [torch.ones(B, W, C), torch.full((B, W, C), 4.0)], dim=1
+        )
+        out = compute_patch_stats(x_mean, x_std, W=W, kind='diff')
+        expected = torch.log(torch.tensor(4.0))
+        assert torch.allclose(out[0, 1, 0, 1], expected, atol=1e-5)
+
+    def test_diff_no_nan_with_zero_std(self):
+        """Division must use the eps clamp so std=0 doesn't blow up."""
+        B, T, C = 1, 32, 1
+        mean = torch.randn(B, T, C)
+        stdev = torch.zeros(B, T, C)
+        out = compute_patch_stats(mean, stdev, W=16, kind='diff')
+        assert not torch.isnan(out).any()
+        assert not torch.isinf(out).any()
+
+    def test_invalid_kind_raises(self):
+        mean = torch.randn(1, 32, 1)
+        stdev = torch.ones_like(mean)
+        with pytest.raises(ValueError):
+            compute_patch_stats(mean, stdev, W=16, kind='bogus')
+
+    def test_t_not_multiple_of_w_raises(self):
+        mean = torch.randn(1, 33, 1)
+        stdev = torch.ones_like(mean)
+        with pytest.raises(ValueError):
+            compute_patch_stats(mean, stdev, W=16, kind='diff')
+
+
+class TestConfigurableModelWithPatchStats:
+    """End-to-end: model with patch_stats_kind='diff' trains without crashing."""
+
+    def test_forward_shape_with_patch_stats_diff(self):
+        from src.models import ConfigurableModel
+        model = ConfigurableModel(
+            C=2, H=64, W=16, encoder_type='mlp', num_layers=1, nhead=2,
+            ffn_mult=2, rev_norm_span=32, patch_stats_kind='diff')
+        x = torch.randn(1, 64, 2)
+        out, out_orig = model(x)
+        # Output shape should be unchanged from baseline.
+        assert out.shape == (1, 4, 2, 64)
+        assert out_orig.shape == (1, 4, 2, 64)
+
+    def test_encoder_input_dim_widens(self):
+        """Encoder's first projection must accept W+2 inputs when stats are on."""
+        from src.models import ConfigurableModel
+        baseline = ConfigurableModel(
+            C=2, H=64, W=16, encoder_type='mlp', num_layers=1, nhead=2,
+            ffn_mult=2, rev_norm_span=32, patch_stats_kind='none')
+        with_stats = ConfigurableModel(
+            C=2, H=64, W=16, encoder_type='mlp', num_layers=1, nhead=2,
+            ffn_mult=2, rev_norm_span=32, patch_stats_kind='diff')
+        # MLPEncoder.linear1 takes W as in_features.
+        assert baseline.encoder.linear1.in_features == 16
+        assert with_stats.encoder.linear1.in_features == 16 + PATCH_STATS_DIM
+
+    def test_encoder_input_dim_with_freq_emb_and_stats(self):
+        """W + freq_emb_dim + 2 when both are on."""
+        from src.models import ConfigurableModel
+        m = ConfigurableModel(
+            C=2, H=64, W=16, encoder_type='mlp', num_layers=1, nhead=2,
+            ffn_mult=2, rev_norm_span=32,
+            freq_emb_dim=3, patch_stats_kind='diff')
+        assert m.encoder.linear1.in_features == 16 + 3 + 2
+
+    def test_revin_with_patch_stats_rejected(self):
+        """RevIN's stats are time-invariant ⇒ patch_stats is meaningless."""
+        from src.models import ConfigurableModel
+        with pytest.raises(ValueError):
+            ConfigurableModel(
+                C=2, H=64, W=16, encoder_type='mlp', num_layers=1,
+                nhead=2, ffn_mult=2, rev_norm_kind='revin',
+                rev_norm_span=32, patch_stats_kind='diff')
+
+    def test_no_rev_norm_with_patch_stats_rejected(self):
+        from src.models import ConfigurableModel
+        with pytest.raises(ValueError):
+            ConfigurableModel(
+                C=2, H=64, W=16, encoder_type='mlp', num_layers=1,
+                nhead=2, ffn_mult=2, rev_norm_span=None,
+                patch_stats_kind='diff')
+
+    def test_unknown_kind_rejected(self):
+        from src.models import ConfigurableModel
+        with pytest.raises(ValueError):
+            ConfigurableModel(
+                C=2, H=64, W=16, encoder_type='mlp', num_layers=1,
+                nhead=2, ffn_mult=2, rev_norm_span=32,
+                patch_stats_kind='bogus')
+
+    def test_prepare_encoder_input_used_by_train_path(self):
+        """Regression: train.py's forward_step bypassed prepare_encoder_input
+        and reimplemented patching, which silently dropped the patch-stats
+        concat. This test exercises a forward_step-equivalent call to make
+        sure ANY future train-script pattern that takes (model, x) and
+        calls model.transformer() picks up the stats."""
+        from src.models import ConfigurableModel
+        m = ConfigurableModel(
+            C=2, H=64, W=16, encoder_type='gru', num_layers=1, nhead=2,
+            ffn_mult=2, rev_norm_span=32, freq_emb_dim=3,
+            patch_stats_kind='diff')
+        x = torch.randn(2, 64, 2)
+        # train.py-style: rev_norm then prepare_encoder_input.
+        x_norm = m.rev_norm(x, mode='norm')
+        freq_ids = torch.zeros(2, dtype=torch.long)
+        xr = m.prepare_encoder_input(x_norm, freq_ids=freq_ids)
+        # The encoder's input width MUST be W + freq + stats = 16 + 3 + 2 = 21.
+        assert xr.shape[-1] == 21, (
+            f"prepare_encoder_input should output width 21 (W=16 + freq_emb=3 "
+            f"+ patch_stats=2), got {xr.shape[-1]}. If this fails, train.py's "
+            f"forward_step is probably skipping the stats concat.")
+        # Calling the transformer must succeed (encoder.skip is wired for 21).
+        f_flat, o_flat = m.transformer(xr)
+        assert f_flat.shape[0] == 2 * 2  # B*C
+        assert f_flat.shape[2] == 64     # H
+
+    def test_state_dict_roundtrip_with_patch_stats(self):
+        """Save a patch_stats=diff backbone, reload it via state_dict — the
+        encoder input dim is recoverable from the skip layer's in_features."""
+        from src.models import ConfigurableModel
+        m1 = ConfigurableModel(
+            C=2, H=64, W=16, encoder_type='gru', num_layers=1, nhead=2,
+            ffn_mult=2, rev_norm_span=32, freq_emb_dim=3,
+            patch_stats_kind='diff')
+        sd = m1.state_dict()
+        # Auto-detect via the same arithmetic the train scripts use.
+        skip_in = sd['encoder.skip.weight'].shape[1]
+        freq_dim = sd['freq_embedding.embedding.weight'].shape[1]
+        extra = skip_in - 16 - freq_dim
+        assert extra == PATCH_STATS_DIM
+        # Load into a fresh model with the detected config.
+        m2 = ConfigurableModel(
+            C=2, H=64, W=16, encoder_type='gru', num_layers=1, nhead=2,
+            ffn_mult=2, rev_norm_span=32, freq_emb_dim=3,
+            patch_stats_kind='diff')
+        m2.load_state_dict(sd)
+
+    def test_one_train_step_with_patch_stats(self):
+        from types import SimpleNamespace
+        from src.models import ConfigurableModel
+        from src.arma import generate_arima_batch
+        from src.loss import contrastive_latent_loss
+
+        C, H, W = 2, 64, 16
+        model = ConfigurableModel(
+            C=C, H=H, W=W, encoder_type='gru', num_layers=1, nhead=2,
+            ffn_mult=2, rev_norm_span=32, patch_stats_kind='diff')
+        optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4)
+
+        x, _ = generate_arima_batch(batch_size=2, T_raw=64, C=C, seed=0, dimension=4)
+        f_lat, o_lat = model(x)
+        spec = SimpleNamespace(train_configuration={
+            'contrastive_divergence_temperature': 0.07,
+            'contrastive_latent_noise': None,
+            'loss_shape': 'cosine_similarity_batch_no_time_neg',
+            'contrastive_latent_delay': 0,
+        })
+        loss = contrastive_latent_loss((f_lat, o_lat), validation=False, spec=spec)
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
         assert loss.item() > 0
         assert not torch.isnan(loss)

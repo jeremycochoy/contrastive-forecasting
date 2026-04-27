@@ -9,6 +9,107 @@ Input/output shape: [B, T, C] (batch, time, channels).
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+
+
+def compute_patch_stats(mean: torch.Tensor, stdev: torch.Tensor,
+                        W: int, kind: str = 'diff',
+                        eps: float = 1e-5) -> torch.Tensor | None:
+    """Compute per-patch summary statistics for the encoder.
+
+    The reversible normalisation strips off the running mean/std from
+    the input before patching, so the per-patch encoder loses the
+    *absolute* level/scale information. This helper produces a small
+    fixed-size feature per patch that the encoder can use to recover
+    that information without breaking the reversibility property.
+
+    Args:
+        mean: per-step EMA mean of shape ``[B, T_raw, C]``. Typically
+            ``rev_norm.mean`` after the forward pass.
+        stdev: per-step EMA std of the same shape.
+        W: patch size (16 in the canonical config).
+        kind: which feature to emit.
+
+            ``'none'``
+                Return ``None`` — the model should not concat any stats.
+
+            ``'diff'``
+                Two scale-free per-patch features (returned shape
+                ``[B, T_patches, C, 2]``):
+
+                - ``dmean[t] = (mean_p[t] - mean_p[t-1]) / std_p[t-1]``
+                  — how the local level shifted between adjacent patches,
+                  measured in standard-deviation units. Bounded under
+                  reasonable assumptions and naturally stationary.
+                - ``dlogstd[t] = log(std_p[t]) - log(std_p[t-1])``
+                  — log-ratio of the per-patch volatility. Symmetric
+                  around 0 and stationary.
+
+                Both features are zero at ``t = 0`` (no previous patch).
+
+            ``'raw'``
+                Two centred per-patch features (mean and ``log(std)``,
+                each centred per-(batch, channel) over the time axis).
+                Useful as an ablation against ``'diff'``. Shape
+                ``[B, T_patches, C, 2]``.
+
+        eps: stability constant for log/division.
+
+    Returns:
+        ``None`` when ``kind == 'none'``, else a tensor shaped
+        ``[B, T_patches, C, 2]`` ready to concat to the patch features.
+
+    Notes:
+        - We average the per-step EMA stats across each patch's W
+          timesteps. For the 16-step EWMA span=32 setting the EMA
+          barely changes within a patch, so this is essentially the
+          mid-patch value, but it is well-defined for any span.
+        - When ``rev_norm`` is RevIN (single per-series mean/std),
+          ``mean`` and ``stdev`` are constant along T after broadcast;
+          the resulting diffs/centred values are all 0. This module
+          therefore carries zero information for RevIN — callers should
+          guard against that combination.
+    """
+    if kind == 'none':
+        return None
+    if kind not in {'diff', 'raw'}:
+        raise ValueError(f"Unknown patch_stats kind {kind!r}: expected one of "
+                         "'none', 'diff', 'raw'")
+    B, T_raw, C = mean.shape
+    if T_raw % W != 0:
+        raise ValueError(f"T_raw={T_raw} must be a multiple of W={W}")
+    T_p = T_raw // W
+
+    # Per-patch averages of the EMA stats.
+    mean_p = mean.view(B, T_p, W, C).mean(dim=2)             # [B, T_p, C]
+    std_p = stdev.view(B, T_p, W, C).mean(dim=2)             # [B, T_p, C]
+
+    if kind == 'diff':
+        # dmean[t] = (mean_p[t] - mean_p[t-1]) / std_p[t-1]
+        dmean = (mean_p[:, 1:] - mean_p[:, :-1]) / std_p[:, :-1].clamp(min=eps)
+        # F.pad pads the trailing dims; for [B, T_p-1, C] we want to pad
+        # the T axis (dim=1) on the LEFT with one zero row, leaving the
+        # C axis untouched. The pad spec for dim=-2 is (left, right).
+        dmean = F.pad(dmean, (0, 0, 1, 0), 'constant', 0.0)  # [B, T_p, C]
+
+        log_std = torch.log(std_p.clamp(min=eps))
+        dlogstd = log_std[:, 1:] - log_std[:, :-1]
+        dlogstd = F.pad(dlogstd, (0, 0, 1, 0), 'constant', 0.0)
+        feat = torch.stack([dmean, dlogstd], dim=-1)         # [B, T_p, C, 2]
+    else:  # 'raw'
+        # Centre per-(B, C) so the absolute level (which is unbounded)
+        # doesn't dominate. log_std is naturally bounded for sane data
+        # but we still centre for symmetry.
+        mean_centered = mean_p - mean_p.mean(dim=1, keepdim=True)
+        log_std = torch.log(std_p.clamp(min=eps))
+        log_std_centered = log_std - log_std.mean(dim=1, keepdim=True)
+        feat = torch.stack([mean_centered, log_std_centered], dim=-1)
+
+    return feat
+
+
+# Number of features added per patch when patch-stats is enabled.
+PATCH_STATS_DIM = 2
 
 
 class RevEWMNorm(nn.Module):
@@ -143,3 +244,58 @@ class RevEWMNorm(nn.Module):
         x = x * self.stdev.clamp(min=self.eps)
         x = x + self.mean
         return x
+
+
+class RevIN(nn.Module):
+    """Standard reversible instance normalisation (Kim et al., ICLR 2022).
+
+    A single per-instance, per-channel mean+std is computed over the entire
+    context window, then subtracted/divided away before the backbone and
+    re-applied during denormalisation.
+
+    Unlike :class:`RevEWMNorm`, the normalisation is *static* across the
+    time axis (one mean/std per (B, C)) — there's no rolling-mean
+    interaction with the periodic signal that can dampen amplitude.
+
+    Args:
+        num_features: Number of channels (C).
+        eps: Stability constant.
+        affine: If True, adds learnable per-channel scale/bias.
+
+    Shape conventions (matching RevEWMNorm so it's a drop-in replacement):
+        Input/output: ``[B, T, C]``.
+        Stored stats: ``mean``, ``stdev`` are ``[B, 1, C]`` after ``norm``.
+    """
+
+    def __init__(self, num_features: int, eps: float = 1e-5,
+                 affine: bool = False, **_unused):
+        super().__init__()
+        self.num_features = num_features
+        self.eps = eps
+        self.affine = affine
+        self.mean = None
+        self.stdev = None
+        if affine:
+            self.affine_weight = nn.Parameter(torch.ones(num_features))
+            self.affine_bias = nn.Parameter(torch.zeros(num_features))
+
+    def forward(self, x: torch.Tensor, mode: str) -> torch.Tensor:
+        if mode == 'norm':
+            # Per-(B, C) statistics over the full T axis.
+            mean = x.mean(dim=1, keepdim=True)                  # [B, 1, C]
+            var = x.var(dim=1, keepdim=True, unbiased=False)    # [B, 1, C]
+            self.mean = mean.detach()
+            self.stdev = torch.sqrt(var + self.eps).detach()
+            x = (x - self.mean) / self.stdev
+            if self.affine:
+                x = x * self.affine_weight + self.affine_bias
+            return x
+        elif mode == 'denorm':
+            if self.mean is None or self.stdev is None:
+                raise RuntimeError(
+                    "Cannot denormalize before normalizing. Call with mode='norm' first.")
+            if self.affine:
+                x = (x - self.affine_bias) / (self.affine_weight + self.eps)
+            return x * self.stdev + self.mean
+        else:
+            raise ValueError(f"Unknown mode '{mode}'. Expected 'norm' or 'denorm'.")

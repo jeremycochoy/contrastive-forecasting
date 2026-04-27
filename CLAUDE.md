@@ -4,15 +4,36 @@
 - **Elisa**: `jupyter@elisa`, workdir: `~/workspaces/contrastive-forecasting/`
 - Two RTX 4090 GPUs (24GB each). Pick the most free GPU at runtime.
 
+## HuggingFace token
+
+Every vast.ai run that streams from HF datasets **must** authenticate, or
+HF's anonymous rate-limit will throttle the stream and idle the GPU
+(observed: 0.5–1.5 sps with GPU util ~20% vs 5–9 sps with token).
+
+The read-only token lives at `experiments/hf_token.txt` (gitignored so
+GitHub secret scanning doesn't reject pushes). Put your token there
+manually; in run scripts:
+
+```bash
+export HF_TOKEN=$(cat experiments/hf_token.txt)
+export HUGGING_FACE_HUB_TOKEN="$HF_TOKEN"
+```
+
 ## Remote Machine Monitoring
 - **Assume the machine can crash at any time.** Every sync must protect against this.
 - When a training run is launched on a remote/cloud machine (Vast.ai, etc.), always set up a periodic sync loop that copies checkpoints, loss CSV, and logs to a local directory.
-- **Sync frequency:** Every 5 minutes for the first hour, then every 15 minutes.
+- **Sync frequency:** Every 15 minutes (fixed). A ramped-up schedule was tried and offered no net benefit — a single tick itself can take 2–5 minutes over the vast.ai scp proxy for large checkpoints.
 - **Atomic writes:** Always download to a `.tmp` file first, verify file size (checkpoints must be >70MB), then `mv` over the old copy. A crash mid-transfer must never corrupt existing local copies.
 - Sync at minimum: `*_best_gap.pth`, `*_best_gap_optimizer.pth`, `*_best_loss.pth`, `*_best_loss_optimizer.pth`, `*_losses.csv`, the training log, and periodic saves (`*_Nk.pth` + `*_Nk_optimizer.pth`) as they appear. **Always sync optimizer files** — without them, resume loses step counter, RNG state, and AdamW momentum.
 - Use `scp` (not `rsync` on macOS — it's v2.6.9 and unreliable through vast.ai proxy).
 - The sync loop should also watch for NaN, process death, and completion, and alert accordingly.
 - **After launching any background process, ALWAYS verify the first output before reporting it as running.** No exceptions — wait for the first cycle, check the log, confirm it produced correct results. Do not assume it works because similar scripts worked before; the environment may differ.
+- **Always dry-run / test the sync loop before leaving a training unattended**, and **every time the sync code changes**. One full tick with at least one `✓ <file>` line per expected pattern (log, backbone, head, losses CSV) is the acceptance gate. Without this, you cannot rely on crash recovery — and you may silently drop files due to wrong min-size thresholds, wrong patterns, or wrong host/port. Learned the hard way (PR #45): a 70 MB min-size floor applied blanketly to `*.pth` silently dropped every 2.4 MB head checkpoint without logging a recognisable warning.
+- **Verifying the sync means manually checking the files are there — all of them you expect.** Reading `sync.log` alone is insufficient; a missing `✗` line can just mean the pattern didn't match (silent bug), not that the file wasn't needed. After at least one full tick, open `<LOCAL_DIR>/checkpoints/` and confirm *by name and by size* that every file class that exists on the remote also exists locally: backbone `.pth`, backbone `_optimizer.pth`, head `.pth`, head `_optimizer.pth`, losses CSVs, run log. A missing class = broken sync regardless of what the log says.
+- **Size thresholds are per-file-class, not per-extension.** Backbone ~80 MB, optimizer ~150 MB, head ~2.4 MB, losses CSV a few KB — never one floor for everything.
+- **EVERY remote training run must have a sync_loop running for the duration of the run.** Not just long ones — short runs lose just as much when SSH drops on the final pull. The sync_loop pulls periodic snapshots throughout, so when the instance dies you still have the most recent ≥5k-step checkpoint as a fallback. The PR #45 RevIN run learned this the painful way: no sync_loop + manual final scp + SSH drop = unrecoverable.
+- **NEVER use raw `scp` to pull a checkpoint from a remote.** It writes directly to the destination, so a connection drop mid-transfer leaves a partial/corrupt file in place of the previous good copy. Use `experiments/periodic-synth-mix/scripts/safe_pull.sh <host> <port> <remote> <local> [min_bytes]` instead — it scp's to `.tmp`, size-checks, rotates the existing file to `.prev`, then atomic-mv's. The previous good copy survives a partial transfer.
+- **The sync_loop also rotates one-deep**: when it pulls a fresh `<file>.pth`, the existing one moves to `<file>.pth.prev` before the new one is dropped in. That backup survives even if a future tick fetches a corrupt-but-large-enough file.
 
 ## Checkpoint Safety Rules
 1. **After any long training run completes**, immediately copy the best checkpoint to a clearly named permanent file (e.g., `20L_H1024_2M_final.pth`). Never rely on `_best.pth` or periodic saves as the only copy.
