@@ -164,16 +164,16 @@ when $F > 1$. The series is cut into non-overlapping patches of width
 $W$ along the time axis, so that the patched input has shape
 $T_p \times C \times W \times F$ with $T_p = T / W$. Each patch is
 encoded independently into a latent $h[t, c] \in \mathbb{R}^H$, and we
-$L^2$-normalise every latent so that $\|h[t, c]\| = 1$.
+project it onto the Euclidean unit sphere by $L^2$-normalising, so
+that $\|h[t, c]\| = 1$.
 
 The choice of $W$ is dataset-dependent. Values in $\{16, 32, 64, 128\}$
-all appear in the recent foundation-model literature and all work as
-inputs to our encoder. In the limit, $W = 1$ is admissible; the model
-reduces to per-step encoding. The stride between consecutive patches
-is the patch width by default, since this minimises compute and avoids
-redundant encoding work. A smaller stride down to $1$ is also
-admissible if the loss is adjusted to align each forecast with the
-correct future patch.
+all appear in the recent foundation-model literature. To minimise
+compute, we set the stride between consecutive patches to the patch
+width, giving non-overlapping windows that cover the full sequence. A
+stride of $1$ is also of interest, since it gives one latent per
+timestep, provided the loss is adjusted to align each forecast with
+the correct future patch.
 
 The model has two blocks. The \emph{encoder} maps a patch to a latent;
 the \emph{forecaster} maps the sequence of past latents to a forecast
@@ -198,7 +198,7 @@ middle, summed with a linear skip from the input, and a layer
 normalisation at the output. The input dimension is $W$, the
 intermediate dimension is small (we used $64$), and the output
 dimension is $H$. This is the canonical input projection of the
-patched-decoder line and gives a serviceable baseline.
+patched-decoder line, and we used it as our baseline.
 
 The encoder we currently use is a bidirectional GRU. Each patch is
 read as a sequence of $W$ scalar timesteps, which gives the encoder a
@@ -248,8 +248,7 @@ that the GPU executes in parallel. In the loss we do not keep the
 per-anchor sets separate: at every position $(t, c)$ we aggregate the
 candidates of all anchors into two batch-pooled sums, and the same
 denominator is used for every anchor at that position. The cross-batch
-pool is therefore quadratic in $B$ and is the bulk of the negative
-set.
+pool is therefore quadratic in $B$ and dominates the negatives.
 
 For unit-norm $u, v \in \mathbb{R}^H$, write the temperature-scaled
 exponential of the inner product as
