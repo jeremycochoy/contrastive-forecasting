@@ -1,11 +1,10 @@
 \section{Contrastive Forecasting}
 \label{sec:method}
 
-% TODO: opening paragraph (5--7 sentences). State the goal (a
-% decoder-only forecaster trained in latent space with an InfoNCE
-% objective), summarise the design (encoder + forecaster, two blocks,
-% contrastive loss with cross-channel and cross-batch negatives), and
-% point the reader to the three subsections below.
+Contrastive Forecasting consists of a per-patch encoder and a causal
+forecaster, trained jointly with a contrastive loss in latent space.
+The subsections below define the patching, the encoder, the
+forecaster, and the loss in turn.
 
 \subsection{Architecture}
 \label{sec:architecture}
