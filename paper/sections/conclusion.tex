@@ -1,17 +1,15 @@
 \section{Conclusion}
 \label{sec:conclusion}
 
-The experiments of Section~\ref{sec:experiments} verify that the
-contrastive forecasting backbone, trained in latent space with
-explicit InfoNCE negatives, learns enough about the data-generating
-process to let a small recovery head, fitted on the frozen latents,
-recover the ARMA parameters. The head reaches an improvement ratio
-of $8.34$ on the 2x2 configuration and $6.96$ on the 2x4. Within the
-bounds of synthetic ARMA data, the latents encode the parameters of
-the underlying stochastic process.
+In Section~\ref{sec:experiments} we trained the contrastive
+forecasting backbone in latent space with explicit InfoNCE negatives.
+A small recovery head, fitted on the frozen latents, then recovers
+the ARMA parameters of the generating process.
 
-The synthetic distribution is also the main limit of these results.
-ARMA captures only one slice of what real time series can look like,
-so the recovery numbers do not say anything about how the same
-backbone behaves on observed data. The natural next step is to
-evaluate it on a general time-series forecasting benchmark.
+The synthetic distribution is the main limit of these results.
+ARMA processes capture only one slice of what real time series can
+look like, so the recovery numbers do not say anything about how the
+same backbone behaves on real-world data, such as electricity
+consumption, oil prices, monthly sales, or road traffic. The natural
+next step is to evaluate it on a general time-series forecasting
+benchmark.
