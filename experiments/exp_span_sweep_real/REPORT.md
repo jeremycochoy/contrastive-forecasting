@@ -32,8 +32,8 @@ Last-200 ema:
 | **128** | **2.827** | 0.316 |
 | 256 | 2.917 | 0.300 |
 
-(`experiments/freq-embedding/plots/span_sweep_real.png` — both metrics
-across all 4 spans on the same axes.)
+(`plots/span_sweep_real.png` — both metrics across all 4 spans on the
+same axes.)
 
 ## Findings
 
@@ -80,6 +80,9 @@ Fixed in `src/dataloader.py` to fall through to MixedPeriodicLoader
 
 ## Artefacts
 
-- 4 backbones: `checkpoints/tiny_femu_real_span{32,64,128,256}_FINAL.pth`.
-- 4 loss CSVs: `checkpoints/tiny_femu_real_span*_losses.csv`.
-- Plot: `experiments/freq-embedding/plots/span_sweep_real.png`.
+- 4 backbones: `checkpoints/tiny_femu_real_span{32,64,128,256}_FINAL.pth`
+  (not tracked in git; 80MB each).
+- 4 loss CSVs: `checkpoints/tiny_femu_real_span*_losses.csv` (not
+  tracked in git).
+- Plot: `plots/span_sweep_real.png`.
+- Run script: `run.sh`.
