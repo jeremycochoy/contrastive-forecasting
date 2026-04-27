@@ -46,14 +46,17 @@ intervening session.
 
 ### Synth grid
 
-`experiments/freq-embedding/plots/synth_qhead_grid_revin.png` (12-panel).
+`plots/synth_qhead_grid_revin.png` (12-panel).
 
-Visually indistinguishable from the EWMA grid we had on file
-(`synth_qhead_grid.png`): same amplitude damping and phase drift on
-clean periodics, same panels work / don't work across the two
-normalisers. Confirms (qualitatively, single seed) that switching
-RevEWMNorm → RevIN does **not** by itself fix the periodic-tracking
-problem — the bottleneck is upstream of the normaliser.
+## Speculation (single seed, not validated)
+
+The grid is visually indistinguishable from the EWMA grid we had on
+file (`../_aggregate/plots/synth_qhead_grid.png`): same amplitude
+damping and phase drift on clean periodics, same panels work / don't
+work across the two normalisers. Read with caution — single seed,
+visual comparison only — but at least one reading is that switching
+RevEWMNorm → RevIN does not by itself fix the periodic-tracking
+problem on this data.
 
 ## Caveats
 
@@ -63,13 +66,14 @@ problem — the bottleneck is upstream of the normaliser.
 - The "RevIN better than EWMA on periodics" finding from the previous
   session was confounded by the EWMA arm using span=32; later in this
   session the synth span sweep showed EWMA at span=512 beats RevIN by
-  a wide margin on synth (see `REPORT_synth_span_sweep.md`).
+  a wide margin on synth (see `../exp_span_sweep_synth/REPORT.md`).
 
 ## Artefacts
 
-- Backbone: `checkpoints/tiny_femu_revin_best_gap.pth` (note: gap is no
-  longer the recommended selector — see HANDOFF for the rationale).
-- Qhead: `checkpoints/R1q_femu_revin_v2_best.pth`.
-- Plot: `experiments/freq-embedding/plots/synth_qhead_grid_revin.png`.
+- Backbone: `checkpoints/tiny_femu_revin_best_gap.pth` (not tracked in
+  git; note: gap is no longer the recommended selector — see HANDOFF
+  for the rationale).
+- Qhead: `checkpoints/R1q_femu_revin_v2_best.pth` (not tracked in git).
+- Plot: `plots/synth_qhead_grid_revin.png`.
 - Loss CSVs: `checkpoints/tiny_femu_revin_losses.csv`,
-  `R1q_femu_revin_v2_losses.csv`.
+  `R1q_femu_revin_v2_losses.csv` (not tracked in git).
