@@ -15,6 +15,7 @@
 \usepackage{microtype}
 \usepackage{xcolor}
 \usepackage{graphicx}
+\usepackage{float}
 
 
 \title{Contrastive Forecasting}
@@ -483,12 +484,6 @@ per-sample error distributions, and the per-coefficient table are
 reported in Appendix~\ref{sec:appendix-graphs}.
 
 
-\section{Discussion}
-\label{sec:discussion}
-
-TODO.
-
-
 \section{Conclusion}
 \label{sec:conclusion}
 
@@ -510,7 +505,7 @@ with the identity reference line and the Pearson correlation between
 predicted and true coefficients. The Pearson $r$ values range from
 roughly $0.92$ to $0.96$ across the eight coefficients.
 
-\begin{figure}[t]
+\begin{figure}[H]
   \centering
   \includegraphics[width=\linewidth]{figures/recovery_scatter_full_2x4.png}
   \caption{Full 8-coefficient scatter for the 2x4 (ARMA(4, 4))
@@ -524,7 +519,7 @@ scatter for the 2x2 setup. The Pearson $r$ values range from $0.94$
 to $0.97$, slightly higher than for the 2x4 case, consistent with the
 higher overall recovery ratio of $8.34$.
 
-\begin{figure}[t]
+\begin{figure}[H]
   \centering
   \includegraphics[width=0.6\linewidth]{figures/recovery_scatter_full_2x2.png}
   \caption{Full 4-coefficient scatter for the 2x2 (ARMA(2, 2))
@@ -536,7 +531,7 @@ higher overall recovery ratio of $8.34$.
 Figure~\ref{fig:error-dist-2x4} shows the per-sample MSE distribution
 for the 2x4 head on $200$ test samples.
 
-\begin{figure}[t]
+\begin{figure}[H]
   \centering
   \includegraphics[width=0.7\linewidth]{figures/recovery_error_distributions.png}
   \caption{Per-sample MSE distributions for the recovery head on the
