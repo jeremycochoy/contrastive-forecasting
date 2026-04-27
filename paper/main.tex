@@ -236,7 +236,7 @@ uses three specific pair families.
   encoded latents from the same series and channel at consecutive
   times, $\big(h[b, t, c],\, h[b, t+1, c]\big)$. Per anchor, $1$
   candidate.
-\item \textbf{Cross-channel} ($\mathcal{N}_{\mathrm{xx}}$): two
+\item \textbf{Cross-channel} ($\mathcal{N}_{\mathrm{cc}}$): two
   encoded latents from the same series at the same time, with
   different channels, $\big(h[b, t, c],\, h[b, t, c']\big)$ for
   $c' \neq c$. Per anchor, $C - 1$ candidates.
@@ -281,7 +281,7 @@ and the three negative sums at position $(t, c)$ are
   \mathcal{N}_{\mathrm{ct}}(t, c)
     &\;=\; \sum_{b \in B}
       \sigma_\tau\!\big(h[b, t, c],\; h[b, t+1, c]\big),\\
-  \mathcal{N}_{\mathrm{xx}}(t, c)
+  \mathcal{N}_{\mathrm{cc}}(t, c)
     &\;=\; \sum_{b \in B} \, \sum_{c' \neq c}
       \sigma_\tau\!\big(h[b, t, c],\; h[b, t, c']\big),\\
   \mathcal{N}_{\mathrm{cb}}(t, c)
@@ -293,7 +293,7 @@ The contribution of the anchor $(b, t, c)$ to the loss is
   \mathcal{L}_{b, t, c}
   \;=\; -\log \frac{\mathcal{P}_+(b, t, c)}
   {\mathcal{N}_{\mathrm{ct}}(t, c) \;+\;
-   \mathcal{N}_{\mathrm{xx}}(t, c) \;+\;
+   \mathcal{N}_{\mathrm{cc}}(t, c) \;+\;
    \mathcal{N}_{\mathrm{cb}}(t, c)}.
   \label{eq:loss-anchor}
 \end{equation}
