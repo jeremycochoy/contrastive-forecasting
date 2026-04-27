@@ -253,14 +253,17 @@ $\big(f[b, t, c],\, f[b, t+1, c]\big)$. The cross-batch axis can also
 be applied to $\big(h[b, t, c],\, h[b', t, c]\big)$,
 $\big(f[b, t, c],\, f[b', t, c]\big)$, or
 $\big(h[b, t, c],\, f[b', t, c]\big)$. Any of these can be combined
-with a channel difference.
+with a channel difference. In general, adding more terms to the
+denominator gives a faster loss decrease per backward pass at the cost
+of slower loss computation, and the trade-off is not always
+favourable; we specify the subset used in our experiments in
+Section~\ref{sec:experiments}.
 
 Cross-channel candidates are computed by a $C \times C$ inner-product
 grid per batch element (diagonal masked), cross-batch candidates by a
 $B \times B$ grid over the whole batch (diagonal masked), and
 cross-temporal candidates by a single elementwise dot product over the
-encoded tensor; all three are batched so the GPU executes them in
-parallel. At every position $(t, c)$, the candidates are aggregated
+encoded tensor. At every position $(t, c)$, the candidates are aggregated
 into three sums of size $B$ ($\mathcal{N}_{\mathrm{ct}}$), $B(C-1)$
 ($\mathcal{N}_{\mathrm{cc}}$), and $B(B-1)$
 ($\mathcal{N}_{\mathrm{cb}}$), and the same denominator is used for
