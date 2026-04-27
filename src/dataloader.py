@@ -561,8 +561,12 @@ def create_mixed_periodic_dataloader(
     synth_bs = int(round(batch_size * mix_ratio))
     hf_bs = batch_size - synth_bs
 
-    if mix_ratio == 0.0:
-        # Exact parity with the HF-only path — no synth overhead.
+    if mix_ratio == 0.0 and not emit_freq_ids:
+        # Exact parity with the HF-only path — no synth overhead, and
+        # the caller doesn't need freq_ids. When emit_freq_ids is True
+        # we fall through to the MixedPeriodicLoader path with
+        # synth_bs=0; that path returns (x, freq_ids) tuples (freq=0
+        # for HF rows) which downstream training expects.
         return create_hf_dataloader(
             repo_id=repo_id, batch_size=batch_size, C=C,
             path_in_repo=path_in_repo, split=split, skip_rows=skip_rows,
