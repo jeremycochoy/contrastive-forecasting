@@ -7,10 +7,15 @@ backbone, and a head that forecasts the next patch in value space.
 TimesFM~\citep{das2024timesfm} is the canonical example, and recent
 successors~\citep{ansari2024chronos, woo2024moirai, shi2024timemoe,
 liu2025sundial, liu2026timers1} extend the recipe along various axes
-while keeping the value-space target. This choice is structurally
-suboptimal: the observed series is one realisation of a stochastic
-process, so a value-space loss asks the model to reproduce the
-intrinsic noise of that process. No model can succeed at that task,
+while keeping the value-space target. As Sutskever has argued,
+next-token prediction is far less narrow than it looks: it forces
+the model to encode grammar, style, world knowledge and arithmetic,
+since each is a sub-task of the same prediction problem. The
+next-patch analogue should inherit this property for time series.
+The choice of value space, however, is structurally suboptimal: the
+observed series is one realisation of a stochastic process, so a
+value-space loss asks the model to reproduce the intrinsic noise of
+that process. No model can succeed at that task,
 and the training loss never reaches zero, even on processes whose
 predictable component the model captures perfectly.
 
