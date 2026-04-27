@@ -1,4 +1,58 @@
 \section{Introduction}
 \label{sec:introduction}
 
-TODO.
+Time-series forecasting has converged on a foundation-model recipe
+inherited from language modelling: patched inputs, a transformer
+backbone, and a head that forecasts the next patch in value space.
+TimesFM~\citep{das2024timesfm} is the canonical example, and recent
+successors~\citep{ansari2024chronos, woo2024moirai, shi2024timemoe,
+liu2025sundial, liu2026timers1} extend the recipe along various axes
+while keeping the value-space target. This choice is structurally
+suboptimal: the observed series is one realisation of a stochastic
+process, so a value-space loss asks the model to reproduce the
+intrinsic noise of that process. No model can succeed at that task,
+and the training loss never reaches zero, even on processes whose
+predictable component the model captures perfectly.
+
+A second line of work shifts the prediction target from raw values to
+a learned representation. The Joint Embedding Predictive
+Architecture (JEPA)~\citep{assran2023ijepa}, originally introduced
+for vision, encodes a context block with one network and a target
+block with another, and trains a predictor to map the context latent
+to the target latent. The recent time-series
+adaptations~\citep{verdenius2024latpfn, ennadir2025tsjepa} apply the
+same idea to univariate series. By predicting an abstract feature of
+the future rather than its raw values, the model is no longer
+punished for missing the noise. The siamese architecture used by
+JEPA, however, is at risk of collapse by construction: the constant
+function is a global minimum of its loss. Contrastive learning with
+explicit negatives is the classical anti-collapse remedy, and has
+been used at scale for time-series representation learning
+(CPC~\citep{oord2018cpc}, TS2Vec~\citep{yue2022ts2vec}), but to our
+knowledge no published time-series foundation model uses it as a
+primary forecasting objective.
+
+We ask whether a time-series forecasting model can be trained
+directly in latent space with an explicit contrastive objective, in
+such a way that the latent it learns encodes the underlying
+data-generating process. The rest of the paper proposes a candidate
+architecture and tests this question on a controlled synthetic
+distribution, where the generating parameters are known and
+recoverability can be checked directly.
+
+The contributions of the paper are the following.
+\begin{itemize}
+\item A training framework, \emph{Contrastive Forecasting}, in which
+  an encoder and a causal forecaster are trained jointly with an
+  InfoNCE objective on cross-temporal, cross-channel and cross-batch
+  negatives (Section~\ref{sec:method}). The framework is decoupled
+  from the choice of encoder and forecaster architecture.
+\item Empirical evidence that the resulting latents encode the
+  parameters of the data-generating process. On synthetic ARMA, a
+  frozen-backbone recovery head retrieves the AR and MA coefficients
+  with an improvement ratio well above the all-zero baseline
+  (Sections~\ref{sec:experiments} and~\ref{sec:results}).
+\item An architecture-search trail for both the encoder and the
+  forecaster, with the design decisions reported in
+  Appendix~\ref{sec:appendix-backbone-search}.
+\end{itemize}
