@@ -39,7 +39,7 @@ Shared scripts and design: [`freq-embedding/README.md`](freq-embedding/README.md
 | [exp_span_sweep_real](exp_span_sweep_real/README.md) | Partial | 20k steps, mix=0.0; loss U-shaped at span=128, gap monotonically decreasing — metrics disagree, open question. |
 | [exp_span_sweep_synth](exp_span_sweep_synth/README.md) | Success | Inverted-U with peak at span=512 (GM-MASE 0.848 — 2.8× over previous span=32 default). |
 | [exp_revin_synth](exp_revin_synth/README.md) | Complete | Best of original 4 synth arms (GM-MASE 2.230) but dominated by EWMA span=64+ once the right span was found. |
-| [exp_csb_synth](exp_csb_synth/README.md) | **In-flight** | cosine_similarity_batch loss on the span=512 best arm; results pending. |
+| [exp_csb_synth](exp_csb_synth/README.md) | Complete (single seed) | cosine_similarity_batch loss on span=512 best arm — GM-MASE 0.886, ~4.5% worse than the no_time_neg baseline (0.848). Multi-resume run; needs second seed to confirm. |
 
 ## Experiment Timeline
 
