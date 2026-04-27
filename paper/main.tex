@@ -256,15 +256,16 @@ $\big(h[b, t, c],\, f[b', t, c]\big)$. Any of these can be combined
 with a channel difference.
 
 Cross-channel candidates are computed by a $C \times C$ inner-product
-grid per batch element with the diagonal masked out. Cross-batch
-candidates are computed by a $B \times B$ inner-product grid over the
-whole batch with the diagonal masked out. Both are single matrix
-multiplications that the GPU executes in parallel. The cross-temporal
-candidates require one inner product per anchor. At every position
-$(t, c)$ we aggregate the candidates of all anchors into three sums,
-and the same denominator is used for every anchor at that position.
-The cross-batch set is therefore quadratic in $B$ and dominates the
-negatives.
+grid per batch element (diagonal masked), cross-batch candidates by a
+$B \times B$ grid over the whole batch (diagonal masked), and
+cross-temporal candidates by a single elementwise dot product over the
+encoded tensor; all three are batched so the GPU executes them in
+parallel. At every position $(t, c)$, the candidates are aggregated
+into three sums of size $B$ ($\mathcal{N}_{\mathrm{ct}}$), $B(C-1)$
+($\mathcal{N}_{\mathrm{cc}}$), and $B(B-1)$
+($\mathcal{N}_{\mathrm{cb}}$), and the same denominator is used for
+every anchor at that position. The cross-batch set is therefore
+quadratic in $B$ and dominates the negatives.
 
 For unit-norm $u, v \in \mathbb{R}^H$, write the temperature-scaled
 exponential of the inner product as
