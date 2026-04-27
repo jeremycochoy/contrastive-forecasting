@@ -471,10 +471,10 @@ We evaluate the head with the \emph{improvement ratio}
 \end{equation}
 where $\mathrm{MSE}_0$ is the MSE of the all-zero baseline that
 predicts $\hat{\theta} = 0$ for every coefficient. This baseline is
-non-trivial: order padding leaves a fraction of the ground-truth
-coefficients at exactly zero, so the all-zero predictor scores some
-free MSE on those positions, and the head must do better still in
-order to reach $r > 1$.
+non-trivial: since order padding leaves a fraction of the ground-truth
+coefficients at exactly zero, the all-zero predictor is already
+perfect on those positions and so achieves a fairly low MSE. The head
+must do better still in order to reach $r > 1$.
 
 
 \section{Results}
