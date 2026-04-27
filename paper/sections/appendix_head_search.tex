@@ -1,0 +1,16 @@
+\section{Recovery head architecture search}
+\label{sec:appendix-head-search}
+
+We searched the recovery head architecture across approximately $47$
+configurations spanning four axes: head type (MLP, residual MLP,
+single GRU, deep GRU, GRU with pooling, attention pooling), hidden
+width in $\{128, 256, 512\}$, depth in $\{1, 2, 3, 4\}$ layers, and
+loss function (MSE, Huber, L1, weighted MSE).
+
+The best head is the simple bidirectional GRU with hidden size $128$
+and $2$ layers, trained with MSE. It outperforms a $4.7$M-parameter
+``DeepGRU'' baseline by a clear margin while using roughly $7\times$
+fewer parameters, and outperforms wider variants at $h \in \{256,
+512\}$. Adding more than $2$ layers degrades recovery. Among loss
+functions, MSE is indistinguishable from Huber on the converged
+metric and slightly better than L1 and weighted MSE.

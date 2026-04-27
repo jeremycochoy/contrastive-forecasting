@@ -31,3 +31,4 @@
 - `experiments`: main working branch (merged results)
 - **Never commit directly to `experiments` or `master`.** Always create a feature branch from `experiments`, do the work there, then PR into `experiments`.
 - Always create PR, review, then merge
+- **Use a git worktree for any multi-file refactor or non-trivial change.** Don't mutate the user's checked-out tree mid-work; create a worktree (e.g. via `EnterWorktree`), do the work there, push the branch, open the PR. The user often has uncommitted state on `experiments` (training scripts, sync logs, in-flight runs) and the worktree keeps that untouched. If the worktree branch is created from a stale HEAD, `git reset --hard refs/heads/experiments` it forward before starting.
