@@ -8,7 +8,7 @@ Two prior results disagreed:
 * `exp_span_sweep_real` (real-data contrastive ema_loss): RevEWMNorm **span=128** wins.
 
 Does the disagreement carry into downstream forecasting? Run all three
-norm variants . RevIN, EWMA span=512, EWMA span=128 . through the same
+norm variants (RevIN, EWMA span=512, EWMA span=128) through the same
 training pipeline with the new dual-axis label embedding (frequency +
 seasonality), then benchmark on full GIFT-Eval (97 configs).
 
@@ -64,17 +64,20 @@ across configs, per-domain bars, head-to-head scatter.
    - EWMA-128 beats RevIN on **67 / 97** configs (69 %).
    - EWMA-512 beats RevIN on **53 / 97** configs (55 %).
 
-5. **Per-domain** (`gift_eval_3arm_compare.png`, bottom-left): EWMA-128's
-   advantage is concentrated in **Finance** and **Energy**, the two
-   highest-volatility domains. **Web/CloudOps** is roughly tied. **Sales**
-   is the only domain where EWMA-512 clearly wins.
+5. **Per-domain** GM-MASE (`gift_eval_3arm_compare.png`, bottom-left):
+   EWMA-128 wins 5 / 7 domains (Econ/Fin, Healthcare, Nature, Transport,
+   Web/CloudOps), EWMA-512 wins 2 / 7 (Energy, Sales). EWMA-128's
+   biggest advantage is **Econ/Fin** (3.26 vs 4.93 for span=512, a 34 %
+   gap on 6 configs) and **Web/CloudOps** (2.45 vs 2.62, a 7 % gap on
+   20 configs). EWMA-512's two wins are close (Energy by 1.3 %, Sales
+   by 4 %). RevIN is dominated in every domain.
 
 ## Settles the span paradox
 
 `exp_span_sweep_real` showed loss preferred span=128 but gap preferred
 span=32. Neither was checked against downstream. **Downstream now agrees
 with loss**: span=128 produces the lowest GM-MASE on GIFT-Eval. Gap on
-real data is therefore a misleading selector . it favoured short spans
+real data is therefore a misleading selector: it favoured short spans
 that left more periodic structure in the patch values for the
 contrastive objective to discriminate, but didn't actually help the
 forecasting head.
@@ -121,11 +124,12 @@ forecasting head.
 
 ## Artefacts
 
-* `run.sh`, `reeval_dualemb.sh` . drivers
-* `results/gift_eval_{revin,ewma512,ewma128}/all_results.csv` . 97 configs each
-* `plots/gift_eval_3arm_compare.png` . aggregate + CDF + per-domain + head-to-head
-* `scripts/plot_compare_3arm.py` . plot generator (idempotent, re-runs
-  from CSVs)
+* `run.sh`, `reeval_dualemb.sh`: drivers
+* `results/gift_eval_{revin,ewma512,ewma128}/all_results.csv`: 97 configs each
+* `plots/gift_eval_3arm_compare.png`: aggregate + CDF + per-domain + head-to-head
+* `scripts/plot_compare_3arm.py`: plot generator, idempotent, re-runs
+  from CSVs
+
 * Backbone / head FINAL checkpoints in `sync_dualemb_3arm/checkpoints/`
   (not tracked in git: 80 MB backbones, 2.4 MB heads)
 
