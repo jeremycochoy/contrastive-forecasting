@@ -41,6 +41,7 @@ Shared scripts and design: [`freq-embedding/README.md`](freq-embedding/README.md
 | [exp_revin_synth](exp_revin_synth/README.md) | Complete | Best of original 4 synth arms (GM-MASE 2.230) but dominated by EWMA span=64+ once the right span was found. |
 | [exp_csb_synth](exp_csb_synth/README.md) | Complete (single seed) | cosine_similarity_batch loss on span=512 best arm — GM-MASE 0.886, ~4.5% worse than the no_time_neg baseline (0.848). Multi-resume run; needs second seed to confirm. |
 | [exp_csb_pair_span512](exp_csb_pair_span512/README.md) | Complete (single seed each) | Clean A/B retrain with matched `_best_loss` selector. CSB **0.883** vs no_time_neg **0.924**: CSB is **4.5% better** on MASE, 3.9% better on WQL, flipping the original conclusion (selector + multi-resume confound). |
+| [exp_csb_pair_revin](exp_csb_pair_revin/README.md) | Complete (single seed each) | RevIN counterpart of the loss A/B. CSB **0.936** vs no_time_neg **1.072**: CSB is **12.7% better** on MASE, 14.7% better on WQL. Same direction as EWMA pair, ~3x larger effect. EWMA span=512 still beats RevIN under both losses. 4-arm grid in `plots/synth_compare_grid_4arm.png`. |
 
 ## Experiment Timeline
 
