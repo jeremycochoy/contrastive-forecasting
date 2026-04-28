@@ -56,11 +56,16 @@ HORIZON = 16
 QUANTILE_LEVELS = (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)
 
 
-def load_pair(backbone_path, head_path, device, rev_norm_span=32):
+def load_pair(backbone_path, head_path, device, rev_norm_kind="ewma",
+              rev_norm_span=32):
     from src.norm import PATCH_STATS_DIM
     sd = torch.load(backbone_path, map_location=device, weights_only=True)
     cfg = dict(BACKBONE_CONFIG)
-    cfg["rev_norm_span"] = rev_norm_span
+    cfg["rev_norm_kind"] = rev_norm_kind
+    if rev_norm_kind == "ewma":
+        cfg["rev_norm_span"] = rev_norm_span
+    elif "rev_norm_span" in cfg:
+        del cfg["rev_norm_span"]
     w = sd.get("freq_embedding.embedding.weight")
     cfg["freq_emb_dim"] = (w.shape[1] if w is not None else 0)
     ref = sd.get("encoder.skip.weight")
@@ -129,15 +134,19 @@ def main():
                     help="Eval-only seed; never used during training.")
     ap.add_argument("--out-csv", default="results/synth_eval/all_results.csv")
     ap.add_argument("--device", default="cuda")
-    ap.add_argument("--rev-norm-span", type=int, default=32)
+    ap.add_argument("--rev-norm-kind", choices=["ewma", "revin"], default="ewma")
+    ap.add_argument("--rev-norm-span", type=int, default=32,
+                    help="Only used for ewma; ignored for revin.")
     args = ap.parse_args()
 
     device = torch.device(args.device)
     print(f"Loading {args.backbone} + {args.head} on {device}")
     bb, head, cfg = load_pair(args.backbone, args.head, device,
+                              rev_norm_kind=args.rev_norm_kind,
                               rev_norm_span=args.rev_norm_span)
     print(f"  freq_emb_dim={cfg['freq_emb_dim']} "
           f"patch_stats_kind={cfg['patch_stats_kind']} "
+          f"rev_norm_kind={cfg.get('rev_norm_kind', 'N/A')} "
           f"rev_norm_span={cfg.get('rev_norm_span', 'N/A')}")
 
     n_done = 0
