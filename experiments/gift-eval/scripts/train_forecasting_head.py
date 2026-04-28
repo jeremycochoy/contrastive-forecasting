@@ -125,6 +125,9 @@ def parse_args():
                         "backbone was trained with freq_emb_dim=D, set the same "
                         "here so the state_dict loads. Auto-detected from the "
                         "checkpoint if omitted.")
+    p.add_argument("--seasonality-emb-dim", type=int, default=None,
+                   help="Seasonality embedding dim in the backbone. "
+                        "Auto-detected from the checkpoint if omitted.")
     p.add_argument("--rev-norm-span", type=int, default=32,
                    help="Span used by the backbone's RevEWMNorm. MUST match "
                         "the backbone's training-time value (norm has 0 params "
@@ -191,7 +194,8 @@ def main():
     if args.encoder_type is not None:
         BACKBONE_CONFIG["encoder_type"] = args.encoder_type
 
-    # Auto-detect freq_emb_dim from the checkpoint if not explicitly set.
+    # Auto-detect freq_emb_dim and seasonality_emb_dim from the checkpoint
+    # if not explicitly set.
     sd = torch.load(args.backbone_path, map_location=device, weights_only=True)
     if args.freq_emb_dim is None:
         w = sd.get("freq_embedding.embedding.weight")
@@ -201,7 +205,17 @@ def main():
                   f"from backbone checkpoint")
         else:
             args.freq_emb_dim = 0
+    if args.seasonality_emb_dim is None:
+        w = sd.get("seasonality_embedding.embedding.weight")
+        if w is not None:
+            args.seasonality_emb_dim = w.shape[1]
+            print(f"  [head-train] auto-detected "
+                  f"seasonality_emb_dim={args.seasonality_emb_dim} "
+                  f"from backbone checkpoint")
+        else:
+            args.seasonality_emb_dim = 0
     BACKBONE_CONFIG["freq_emb_dim"] = args.freq_emb_dim
+    BACKBONE_CONFIG["seasonality_emb_dim"] = args.seasonality_emb_dim
     BACKBONE_CONFIG["rev_norm_kind"] = args.rev_norm_kind
     if args.rev_norm_kind == "ewma":
         BACKBONE_CONFIG["rev_norm_span"] = args.rev_norm_span
@@ -219,7 +233,7 @@ def main():
             args.patch_stats = "none"
         else:
             in_features = ref.shape[1]
-            extra = in_features - W - args.freq_emb_dim
+            extra = in_features - W - args.freq_emb_dim - args.seasonality_emb_dim
             if extra == 0:
                 args.patch_stats = "none"
             elif extra == PATCH_STATS_DIM:
@@ -229,7 +243,8 @@ def main():
                 raise ValueError(
                     f"Unexpected encoder in_features={in_features}: extra "
                     f"width={extra} doesn't match W ({W}) + freq_emb_dim "
-                    f"({args.freq_emb_dim}) + 0 or {PATCH_STATS_DIM}.")
+                    f"({args.freq_emb_dim}) + seasonality_emb_dim "
+                    f"({args.seasonality_emb_dim}) + 0 or {PATCH_STATS_DIM}.")
         print(f"  [head-train] auto-detected patch_stats={args.patch_stats}")
     BACKBONE_CONFIG["patch_stats_kind"] = args.patch_stats
 
@@ -292,19 +307,25 @@ def main():
     else:
         hf_rows_consumed = start_step * rows_per_step + args.skip_rows
 
-    if args.mix_ratio > 0:
+    emit_labels = (args.freq_emb_dim > 0 or args.seasonality_emb_dim > 0)
+    if args.mix_ratio > 0 or emit_labels:
+        # Use the mixed loader when we need labels, even if mix_ratio=0
+        # (it falls through to MixedPeriodicLoader with synth_bs=0 and
+        # yields the (x, freq_ids, seasonality_ids) tuples extract_*_latents
+        # consumes).
         synth_seed = args.synth_seed if args.synth_seed is not None else args.seed + 20_000
         data_loader = create_mixed_periodic_dataloader(
             repo_id=args.hf_repo, batch_size=args.batch_size, C=C,
             mix_ratio=args.mix_ratio,
             path_in_repo=args.hf_path, skip_rows=hf_rows_consumed,
-            seed=synth_seed,
+            seed=synth_seed, emit_freq_ids=emit_labels,
         )
         synth_bs = int(round(args.batch_size * args.mix_ratio))
         hf_bs = args.batch_size - synth_bs
         print(f"Data: MIX {(1-args.mix_ratio)*100:.0f}% HF + "
               f"{args.mix_ratio*100:.0f}% synth, hf_bs={hf_bs}, "
-              f"synth_bs={synth_bs}, synth_seed={synth_seed}")
+              f"synth_bs={synth_bs}, synth_seed={synth_seed}, "
+              f"emit_labels={emit_labels}")
     else:
         data_loader = create_hf_dataloader(
             args.hf_repo, batch_size=args.batch_size, C=C,
@@ -333,12 +354,21 @@ def main():
         head.train()
         optimizer.zero_grad()
 
-        # Data loading
+        # Data loading — when emit_labels is on, the dataloader yields
+        # (x, freq_ids, seasonality_ids); otherwise it yields just x.
         try:
-            x = next(data_iter)
+            batch = next(data_iter)
         except StopIteration:
             data_iter = iter(data_loader)
-            x = next(data_iter)
+            batch = next(data_iter)
+        if isinstance(batch, tuple):
+            x, freq_ids, seasonality_ids = batch
+            freq_ids = freq_ids.to(device)
+            seasonality_ids = seasonality_ids.to(device)
+        else:
+            x = batch
+            freq_ids = None
+            seasonality_ids = None
         hf_rows_consumed += rows_per_step
         x = x.to(device)
 
@@ -349,8 +379,12 @@ def main():
             x_ctx = x[:, :T_ctx_raw, :]
 
             # Get encoder + forecaster latents from context
-            e_bc, _ = extract_encoder_latents(backbone, x_ctx)
-            f_ctx, x_norm_ctx = extract_forecaster_latents(backbone, x_ctx)
+            e_bc, _ = extract_encoder_latents(
+                backbone, x_ctx, freq_ids=freq_ids,
+                seasonality_ids=seasonality_ids)
+            f_ctx, x_norm_ctx = extract_forecaster_latents(
+                backbone, x_ctx, freq_ids=freq_ids,
+                seasonality_ids=seasonality_ids)
             T_ctx_patches = f_ctx.size(1)  # 48
 
             # Roll out N tokens in latent space
@@ -390,7 +424,9 @@ def main():
             loss = torch.nn.functional.mse_loss(preds, targets)
         elif args.reconstruction == 'encoder':
             # Encoder reconstruction: e[t] → patch t values
-            e_bc, x_norm = extract_encoder_latents(backbone, x)
+            e_bc, x_norm = extract_encoder_latents(
+                backbone, x, freq_ids=freq_ids,
+                seasonality_ids=seasonality_ids)
             targets, T_valid = compute_reconstruction_targets(
                 x_norm, W=W, output_len=args.forecast_len, mode='encoder')
             targets = targets.to(device)
@@ -399,7 +435,9 @@ def main():
 
         elif args.reconstruction == 'forecaster':
             # Forecaster reconstruction: f[t] → patch t+1 values
-            f_bc, x_norm = extract_forecaster_latents(backbone, x)
+            f_bc, x_norm = extract_forecaster_latents(
+                backbone, x, freq_ids=freq_ids,
+                seasonality_ids=seasonality_ids)
             targets, T_valid = compute_reconstruction_targets(
                 x_norm, W=W, output_len=args.forecast_len, mode='forecaster')
             targets = targets.to(device)
@@ -413,7 +451,9 @@ def main():
 
         else:
             # Standard prediction training (old behavior)
-            f_bc, x_norm = extract_forecaster_latents(backbone, x)
+            f_bc, x_norm = extract_forecaster_latents(
+                backbone, x, freq_ids=freq_ids,
+                seasonality_ids=seasonality_ids)
             targets, T_valid = compute_valid_targets(
                 x_norm, W=W, forecast_len=args.forecast_len)
             targets = targets.to(device)

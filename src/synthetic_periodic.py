@@ -67,6 +67,7 @@ def generate_periodic_batch(
     scale_range: tuple[float, float] = (_DEFAULT_SCALE_MIN, _DEFAULT_SCALE_MAX),
     return_meta: bool = False,
     return_freq_ids: bool = False,
+    return_labels: bool = False,
 ) -> torch.Tensor | tuple[torch.Tensor, dict]:
     """Generate a batch of clean periodic time series.
 
@@ -98,6 +99,18 @@ def generate_periodic_batch(
         If True, also return a dict of per-series metadata (shape ``[N]``
         each, where ``N = batch_size * C``). Useful for plotting / sanity
         checks.
+    return_freq_ids : bool
+        Legacy single-axis path: returns one freq id per batch row,
+        derived from the row's minimum spp via ``spp_to_freq_id``.
+    return_labels : bool
+        Dual-axis path: returns ``(freq_ids, seasonality_ids)`` per batch
+        row. ``seasonality_ids`` come from ``seasonality_to_id`` of the
+        row's minimum spp; ``freq_ids`` are sampled uniformly from
+        ``{1..NUM_FREQS-1}``, independently of the waveform — the model
+        learns the freq–seasonality coupling from real data, while synth
+        provides uniform coverage of all combinations. Adding this flag
+        does not change ``X`` for a fixed seed (the freq draw is appended
+        after the data sampling).
 
     Returns
     -------
@@ -169,20 +182,38 @@ def generate_periodic_batch(
 
     X_t = torch.from_numpy(np.ascontiguousarray(X))
 
-    # Per-BATCH-row freq id derived from the minimum spp over that row's
-    # C channels — we tag each batch row with a single freq class so the
-    # embedding injection has one class per (batch) index. Using the
-    # channel with the *shortest* period of the row keeps the hint
-    # representative of the dominant periodic signal.
-    if return_freq_ids:
-        from src.freq_embedding import spp_to_freq_id  # local to avoid circular
+    # Per-BATCH-row labels. Both axes use the row's *minimum* spp across
+    # its C channels as the row-level summary — the channel with the
+    # shortest period dominates the perceived seasonality.
+    spp_per_row = spp.reshape(batch_size, C).min(axis=1)
 
-        spp_per_row = spp.reshape(batch_size, C).min(axis=1)
-        freq_ids_np = np.array(
-            [spp_to_freq_id(float(s)) for s in spp_per_row], dtype=np.int64)
-        freq_ids_t = torch.from_numpy(freq_ids_np)
+    freq_ids_t = None
+    seasonality_ids_t = None
+    if return_freq_ids or return_labels:
+        from src.freq_embedding import (  # local to avoid circular
+            seasonality_to_id, spp_to_freq_id, NUM_FREQS,
+        )
+        if return_labels:
+            seasonality_ids_np = np.array(
+                [seasonality_to_id(float(s)) for s in spp_per_row],
+                dtype=np.int64)
+            # Sample freq ids uniformly over {1..NUM_FREQS-1}, INDEPENDENTLY
+            # of spp. The draw goes here at the end so adding return_labels
+            # does not change X for a fixed seed.
+            freq_ids_np = rng.integers(
+                1, NUM_FREQS, size=batch_size).astype(np.int64)
+            seasonality_ids_t = torch.from_numpy(seasonality_ids_np)
+            freq_ids_t = torch.from_numpy(freq_ids_np)
+        else:
+            # Legacy single-axis path: freq_id is the seasonality bucket.
+            freq_ids_np = np.array(
+                [spp_to_freq_id(float(s)) for s in spp_per_row],
+                dtype=np.int64)
+            freq_ids_t = torch.from_numpy(freq_ids_np)
 
     if not return_meta:
+        if return_labels:
+            return X_t, freq_ids_t, seasonality_ids_t
         if return_freq_ids:
             return X_t, freq_ids_t
         return X_t
@@ -196,6 +227,8 @@ def generate_periodic_batch(
         env_gain=env_gain,
         scale=scale,
     )
+    if return_labels:
+        return X_t, freq_ids_t, seasonality_ids_t, meta
     if return_freq_ids:
         return X_t, meta, freq_ids_t
     return X_t, meta

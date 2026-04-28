@@ -42,6 +42,7 @@ Shared scripts and design: [`freq-embedding/README.md`](freq-embedding/README.md
 | [exp_csb_synth](exp_csb_synth/README.md) | Complete (single seed) | cosine_similarity_batch loss on span=512 best arm — GM-MASE 0.886, ~4.5% worse than the no_time_neg baseline (0.848). Multi-resume run; needs second seed to confirm. |
 | [exp_csb_pair_span512](exp_csb_pair_span512/README.md) | Complete (single seed each) | Clean A/B retrain with matched `_best_loss` selector. CSB **0.883** vs no_time_neg **0.924**: CSB is **4.5% better** on MASE, 3.9% better on WQL, flipping the original conclusion (selector + multi-resume confound). |
 | [exp_csb_pair_revin](exp_csb_pair_revin/README.md) | Complete (single seed each) | RevIN counterpart of the loss A/B. CSB **0.936** vs no_time_neg **1.072**: CSB is **12.7% better** on MASE, 14.7% better on WQL. Same direction as EWMA pair, ~3x larger effect. EWMA span=512 still beats RevIN under both losses. 4-arm grid in `plots/synth_compare_grid_4arm.png`. |
+| [exp_dualemb_3arm](exp_dualemb_3arm/REPORT.md) | Complete (single seed each) | First downstream GIFT-Eval test of the new dual-axis label embedding (freq + seasonality). 3 norms × 97 configs. **EWMA span=128** wins GM-MASE 1.659 vs span=512 1.725 vs RevIN 1.859. Settles the span paradox: real-data downstream agrees with loss-based span=128, not gap-based span=32. |
 
 ## Experiment Timeline
 

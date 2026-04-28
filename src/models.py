@@ -12,7 +12,10 @@ from .arma import generate_arma_batch
 from .encoders import create_encoder
 from .blocks import TransformerBlock, Simple_channel_mixing_module
 from .norm import RevEWMNorm, RevIN, compute_patch_stats, PATCH_STATS_DIM
-from .freq_embedding import FrequencyEmbedding
+from .freq_embedding import (
+    FrequencyEmbedding, SeasonalityEmbedding,
+    NUM_FREQS, NUM_SEASONALITIES,
+)
 
 
 class ConfigurableModel(torch.nn.Module):
@@ -27,6 +30,13 @@ class ConfigurableModel(torch.nn.Module):
         (disabled — keeps checkpoint compatibility with pre-freq-emb runs).
     num_freqs : int
         Number of freq classes (only used when freq_emb_dim > 0).
+    seasonality_emb_dim : int
+        If > 0, add a parallel learned seasonality embedding (period in
+        samples bucket). Concatenated to each patch alongside the freq
+        embedding, widening the encoder's input by an additional
+        ``seasonality_emb_dim``. Default 0 (disabled).
+    num_seasonalities : int
+        Number of seasonality classes (only used when ``seasonality_emb_dim > 0``).
     patch_stats_kind : str
         ``'none'`` (default) — backwards compatible, no extra features.
         ``'diff'`` — append two per-patch scale-free diff stats from the
@@ -40,7 +50,8 @@ class ConfigurableModel(torch.nn.Module):
                  num_layers=12, nhead=4, ffn_mult=2, dropout=0.1,
                  activation='gelu', depthwise_conv=3,
                  rev_norm_span=None, norm_type='layernorm',
-                 freq_emb_dim=0, num_freqs=10,
+                 freq_emb_dim=0, num_freqs=NUM_FREQS,
+                 seasonality_emb_dim=0, num_seasonalities=NUM_SEASONALITIES,
                  rev_norm_kind='ewma',
                  patch_stats_kind='none'):
         super().__init__()
@@ -48,6 +59,7 @@ class ConfigurableModel(torch.nn.Module):
         self.H = H
         self.W = W
         self.freq_emb_dim = freq_emb_dim
+        self.seasonality_emb_dim = seasonality_emb_dim
 
         # Reversible normalization (optional). Two kinds:
         #   ewma  → RevEWMNorm(span=rev_norm_span)  (default, dynamic)
@@ -87,8 +99,16 @@ class ConfigurableModel(torch.nn.Module):
         else:
             self.freq_embedding = None
 
-        # Encoder input width = W (patch values) + patch_stats_dim + freq_emb_dim.
-        encoder_input = W + patch_stats_dim + freq_emb_dim
+        # Seasonality embedding (optional, parallel to freq)
+        if seasonality_emb_dim > 0:
+            self.seasonality_embedding = SeasonalityEmbedding(
+                emb_dim=seasonality_emb_dim,
+                num_seasonalities=num_seasonalities)
+        else:
+            self.seasonality_embedding = None
+
+        # Encoder input width: W (patch values) + patch_stats + freq + seasonality.
+        encoder_input = W + patch_stats_dim + freq_emb_dim + seasonality_emb_dim
         self.encoder = create_encoder(
             encoder_type, encoder_input, H, intermediate_dim)
 
@@ -113,12 +133,12 @@ class ConfigurableModel(torch.nn.Module):
     def _apply_freq_embedding(self, x_patch, freq_ids=None, freq_embs=None):
         """Widen the per-patch time axis with a broadcast freq embedding.
 
-        x_patch: [B, T, C, W]
+        x_patch: [B, T, C, *]
         freq_ids: LongTensor of shape [B], if provided does a lookup.
         freq_embs: FloatTensor [B, freq_emb_dim], if provided skips lookup
                    (used by mixup to pass an interpolated embedding).
 
-        Returns: [B, T, C, W + freq_emb_dim]
+        Returns: [B, T, C, * + freq_emb_dim]
         """
         if self.freq_embedding is None:
             return x_patch
@@ -128,16 +148,36 @@ class ConfigurableModel(torch.nn.Module):
                     "freq_embedding is configured but neither freq_ids nor "
                     "freq_embs was passed to forward()")
             freq_embs = self.freq_embedding(freq_ids)      # [B, E]
-        # Broadcast [B, E] → [B, T, C, E]
         B, T, C, _ = x_patch.shape
         E = self.freq_emb_dim
         emb_b = freq_embs.view(B, 1, 1, E).expand(B, T, C, E)
-        return torch.cat([x_patch, emb_b], dim=-1)         # [B, T, C, W+E]
+        return torch.cat([x_patch, emb_b], dim=-1)
 
-    def prepare_encoder_input(self, x_norm, freq_ids=None, freq_embs=None):
+    def _apply_seasonality_embedding(self, x_patch, seasonality_ids=None,
+                                      seasonality_embs=None):
+        """Widen the per-patch time axis with a broadcast seasonality embedding.
+
+        Mirrors :meth:`_apply_freq_embedding`; concatenated AFTER freq so
+        the patch tail is ``[W | stats | freq | seasonality]``.
+        """
+        if self.seasonality_embedding is None:
+            return x_patch
+        if seasonality_embs is None:
+            if seasonality_ids is None:
+                raise ValueError(
+                    "seasonality_embedding is configured but neither "
+                    "seasonality_ids nor seasonality_embs was passed to forward()")
+            seasonality_embs = self.seasonality_embedding(seasonality_ids)
+        B, T, C, _ = x_patch.shape
+        E = self.seasonality_emb_dim
+        emb_b = seasonality_embs.view(B, 1, 1, E).expand(B, T, C, E)
+        return torch.cat([x_patch, emb_b], dim=-1)
+
+    def prepare_encoder_input(self, x_norm, freq_ids=None, freq_embs=None,
+                               seasonality_ids=None, seasonality_embs=None):
         """Build the per-patch encoder input from an *already-normalised* series.
 
-        Output shape: ``[B, T_patches, C, W + (2 if patch_stats else 0) + freq_emb_dim]``.
+        Output shape: ``[B, T_patches, C, W + patch_stats + freq_emb + seasonality_emb]``.
 
         The reversible-norm step has to be done by the caller — this helper
         assumes ``x_norm = rev_norm(x, 'norm')``. We split it out so that
@@ -151,24 +191,24 @@ class ConfigurableModel(torch.nn.Module):
 
         x = x_norm.view(B, T, W, C).permute(0, 1, 3, 2)  # [B, T, C, W]
 
-        # Append per-patch summary stats to the patch feature axis BEFORE
-        # the freq embedding, so the order is [W | stats | freq]. This
-        # matches the user-facing description "stats concatenated at the
-        # end of the patch" while keeping the freq embedding as a
-        # series-level (not patch-level) tail.
+        # Order: [W | stats | freq | seasonality]. Stats first so they sit
+        # next to the raw patch values; the two label embeddings are
+        # series-level so they tail.
         if self.patch_stats_kind != 'none':
-            # rev_norm is RevEWMNorm here (RevIN+stats is rejected in __init__);
-            # mean and stdev are [B, T_raw, C].
             stats = compute_patch_stats(
                 self.rev_norm.mean, self.rev_norm.stdev,
                 W, kind=self.patch_stats_kind,
             )                                            # [B, T, C, 2]
-            x = torch.cat([x, stats], dim=-1)            # [B, T, C, W+2]
+            x = torch.cat([x, stats], dim=-1)
 
-        x = self._apply_freq_embedding(x, freq_ids=freq_ids, freq_embs=freq_embs)
+        x = self._apply_freq_embedding(
+            x, freq_ids=freq_ids, freq_embs=freq_embs)
+        x = self._apply_seasonality_embedding(
+            x, seasonality_ids=seasonality_ids, seasonality_embs=seasonality_embs)
         return x
 
-    def forward(self, x, freq_ids=None, freq_embs=None):
+    def forward(self, x, freq_ids=None, freq_embs=None,
+                 seasonality_ids=None, seasonality_embs=None):
         B, T_raw, C = x.shape
         W = self.W
         H = self.H
@@ -179,7 +219,9 @@ class ConfigurableModel(torch.nn.Module):
         if self.rev_norm is not None:
             x = self.rev_norm(x, mode='norm')
 
-        x = self.prepare_encoder_input(x, freq_ids=freq_ids, freq_embs=freq_embs)
+        x = self.prepare_encoder_input(
+            x, freq_ids=freq_ids, freq_embs=freq_embs,
+            seasonality_ids=seasonality_ids, seasonality_embs=seasonality_embs)
         x, x_original = self.transformer(x)
         x = x.reshape(B, C, T, H).permute(0, 2, 1, 3).reshape(B, T, C * H)
         x_original = x_original.reshape(B, C, T, H).permute(0, 2, 1, 3)

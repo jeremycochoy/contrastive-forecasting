@@ -400,17 +400,22 @@ def load_models(args, device):
     """Load backbone and forecasting head."""
     if args.encoder_type is not None:
         BACKBONE_CONFIG["encoder_type"] = args.encoder_type
-    # Auto-detect freq_emb_dim from the checkpoint so freq-emb backbones
-    # load cleanly without a CLI flag.
+    # Auto-detect freq_emb_dim and seasonality_emb_dim so backbones
+    # trained with either / both axes load cleanly without CLI flags.
     sd = torch.load(args.backbone_path, map_location=device, weights_only=True)
     w = sd.get("freq_embedding.embedding.weight")
     BACKBONE_CONFIG["freq_emb_dim"] = (w.shape[1] if w is not None else 0)
+    sw = sd.get("seasonality_embedding.embedding.weight")
+    BACKBONE_CONFIG["seasonality_emb_dim"] = (sw.shape[1] if sw is not None else 0)
     BACKBONE_CONFIG["rev_norm_kind"] = args.rev_norm_kind
     if args.rev_norm_kind == "ewma":
         BACKBONE_CONFIG["rev_norm_span"] = args.rev_norm_span
     if BACKBONE_CONFIG["freq_emb_dim"] > 0:
         print(f"  [eval] auto-detected freq_emb_dim="
               f"{BACKBONE_CONFIG['freq_emb_dim']} from backbone checkpoint")
+    if BACKBONE_CONFIG["seasonality_emb_dim"] > 0:
+        print(f"  [eval] auto-detected seasonality_emb_dim="
+              f"{BACKBONE_CONFIG['seasonality_emb_dim']} from backbone checkpoint")
     if args.rev_norm_kind != "ewma":
         print(f"  [eval] using rev_norm_kind={args.rev_norm_kind}")
     # Auto-detect patch_stats from the encoder's input width.
@@ -423,7 +428,9 @@ def load_models(args, device):
         if ref is None:
             args.patch_stats = "none"
         else:
-            extra = ref.shape[1] - W - BACKBONE_CONFIG["freq_emb_dim"]
+            extra = (ref.shape[1] - W
+                     - BACKBONE_CONFIG["freq_emb_dim"]
+                     - BACKBONE_CONFIG["seasonality_emb_dim"])
             if extra == 0:
                 args.patch_stats = "none"
             elif extra == PATCH_STATS_DIM:
@@ -432,7 +439,8 @@ def load_models(args, device):
                 raise ValueError(
                     f"Unexpected encoder in_features={ref.shape[1]}: extra "
                     f"width={extra} doesn't match W ({W}) + freq_emb_dim "
-                    f"({BACKBONE_CONFIG['freq_emb_dim']}) + 0 or "
+                    f"({BACKBONE_CONFIG['freq_emb_dim']}) + seasonality_emb_dim "
+                    f"({BACKBONE_CONFIG['seasonality_emb_dim']}) + 0 or "
                     f"{PATCH_STATS_DIM}.")
         print(f"  [eval] auto-detected patch_stats={args.patch_stats}")
     BACKBONE_CONFIG["patch_stats_kind"] = args.patch_stats
@@ -542,6 +550,15 @@ def main():
                     name=ds_name, term=term, to_univariate=to_univariate)
 
                 season_length = get_seasonality(dataset.freq)
+
+                # Tag the backbone with this task's freq + seasonality so
+                # extract_*_latents picks them up as defaults — no need to
+                # thread kwargs through every forecast strategy.
+                from src.freq_embedding import (
+                    gluonts_freq_to_id, seasonality_to_id,
+                )
+                backbone._eval_freq_id = gluonts_freq_to_id(dataset.freq)
+                backbone._eval_seasonality_id = seasonality_to_id(season_length)
 
                 # Create predictor for this dataset
                 predictor = ContrastiveForecasterPredictor(
