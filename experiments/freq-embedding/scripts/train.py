@@ -35,7 +35,11 @@ import torch.optim as optim
 from types import SimpleNamespace
 
 from src.models import ConfigurableModel, compute_metrics, count_parameters
-from src.dataloader import create_mixed_periodic_dataloader, create_hf_dataloader
+from src.dataloader import (
+    create_mixed_periodic_dataloader,
+    create_mixed_composite_dataloader,
+    create_hf_dataloader,
+)
 from src.loss import contrastive_latent_loss
 from src.checkpoint import save_training_state, load_training_state
 
@@ -114,6 +118,13 @@ def parse_args():
                         "is the paper-described loss with cross-time negatives "
                         "(h[b,t-1,c] <-> h[b,t,c] and cross-channel time terms) "
                         "— re-introduced after being dropped during ARMA-era tuning.")
+    p.add_argument("--synth-kind", default="periodic",
+                   choices=["periodic", "composite"],
+                   help="On-the-fly synthesizer. 'periodic' (default) is the "
+                        "clean single-primitive generator from synthetic_periodic. "
+                        "'composite' is the TimesFM-style stacked recipe "
+                        "(trend + ARIMA + 2 free waves + 1 seas-tied wave) "
+                        "from synthetic_composite.")
     return p.parse_args()
 
 
@@ -334,15 +345,25 @@ def main():
         synth_rows_consumed = start_step * synth_rows_per_step
     synth_seed = args.synth_seed if args.synth_seed is not None else args.seed + 10_000
 
-    data_loader = create_mixed_periodic_dataloader(
-        repo_id=args.hf_repo, batch_size=args.batch_size, C=C,
-        mix_ratio=args.mix_ratio,
-        path_in_repo=args.hf_path, split=args.split,
-        skip_rows=hf_rows_consumed, T_raw=T_RAW, seed=synth_seed,
-        emit_freq_ids=(args.freq_emb_dim > 0 or args.seasonality_emb_dim > 0),
-    )
+    if args.synth_kind == "composite":
+        data_loader = create_mixed_composite_dataloader(
+            repo_id=args.hf_repo, batch_size=args.batch_size, C=C,
+            mix_ratio=args.mix_ratio,
+            path_in_repo=args.hf_path, split=args.split,
+            skip_rows=hf_rows_consumed, T_raw=T_RAW, seed=synth_seed,
+            emit_freq_ids=(args.freq_emb_dim > 0 or args.seasonality_emb_dim > 0),
+        )
+    else:
+        data_loader = create_mixed_periodic_dataloader(
+            repo_id=args.hf_repo, batch_size=args.batch_size, C=C,
+            mix_ratio=args.mix_ratio,
+            path_in_repo=args.hf_path, split=args.split,
+            skip_rows=hf_rows_consumed, T_raw=T_RAW, seed=synth_seed,
+            emit_freq_ids=(args.freq_emb_dim > 0 or args.seasonality_emb_dim > 0),
+        )
     print(f"Data: MIX {(1-args.mix_ratio)*100:.0f}% HF + "
-          f"{args.mix_ratio*100:.0f}% synth, hf_bs={hf_bs}, synth_bs={synth_bs}")
+          f"{args.mix_ratio*100:.0f}% synth ({args.synth_kind}), "
+          f"hf_bs={hf_bs}, synth_bs={synth_bs}")
     data_iter = iter(data_loader)
     sys.stdout.flush()
 

@@ -644,3 +644,144 @@ def create_mixed_periodic_dataloader(
         synth_bs=synth_bs, T_raw=T_raw, C=C, seed=seed,
         emit_freq_ids=emit_freq_ids,
     )
+
+
+# ── Mixed loader: HF stream + on-the-fly composite (TimesFM-style) synth ─────
+
+
+class MixedCompositeLoader:
+    """Sibling of :class:`MixedPeriodicLoader` that uses the composite
+    (TimesFM-style: trend + ARIMA + 2 free waves + 1 seas-tied wave)
+    on-the-fly synthesizer instead of the clean-periodic one.
+
+    Same row-concat semantics: ``hf_bs`` HF rows + ``synth_bs`` synth rows
+    per yielded batch, optional ``(freq_id, seasonality_id)`` plumb. The
+    label semantics differ from periodic: when the row's seasonality-tied
+    wave is off, the synth emits ``seas_id=0`` (no period info) — see
+    :func:`src.synthetic_composite.generate_composite_batch`.
+
+    Extra knobs forwarded to the composite generator (defaults match the
+    spec'd recipe):
+      * ``p_arma``, ``p_free``, ``p_seas_tied``, ``p_integrate``,
+        ``p_trend_mult``, ``p_env``: per-component coinflip probabilities
+      * ``slope_std``, ``arma_dimension``, ``arma_target_std_range``,
+        ``env_gain_range``, ``scale_range``, ``free_spp_range``: range params
+    """
+
+    def __init__(self, hf_loader: "HFStreamingLoader", synth_bs: int,
+                 T_raw: int = 1024, C: int = 4,
+                 seed: int | None = None,
+                 emit_freq_ids: bool = False,
+                 synth_kwargs: dict | None = None):
+        self.hf_loader = hf_loader
+        self.synth_bs = synth_bs
+        self.T_raw = T_raw
+        self.C = C
+        self.emit_freq_ids = emit_freq_ids
+        self._seed = seed
+        self._synth_kwargs = dict(synth_kwargs or {})
+
+    def __iter__(self):
+        from src.synthetic_composite import generate_composite_batch
+        from src.freq_embedding import SOURCE_ID_TO_LABELS
+
+        rng = np.random.default_rng(self._seed)
+        hf_iter = iter(self.hf_loader)
+
+        max_sid = max(SOURCE_ID_TO_LABELS.keys())
+        sid_to_freq = torch.zeros(max_sid + 1, dtype=torch.long)
+        sid_to_seas = torch.zeros(max_sid + 1, dtype=torch.long)
+        for sid, (fid, eid) in SOURCE_ID_TO_LABELS.items():
+            sid_to_freq[sid] = fid
+            sid_to_seas[sid] = eid
+
+        while True:
+            try:
+                hf_batch = next(hf_iter)
+            except StopIteration:
+                return
+            if self.emit_freq_ids and isinstance(hf_batch, tuple):
+                x_hf, hf_source_ids = hf_batch
+            else:
+                x_hf = hf_batch
+                hf_source_ids = None
+            hf_bs = x_hf.shape[0]
+
+            if self.synth_bs > 0:
+                if self.emit_freq_ids:
+                    x_syn, freq_syn, seas_syn = generate_composite_batch(
+                        batch_size=self.synth_bs, T_raw=self.T_raw,
+                        C=self.C, rng=rng, return_labels=True,
+                        **self._synth_kwargs,
+                    )
+                else:
+                    x_syn = generate_composite_batch(
+                        batch_size=self.synth_bs, T_raw=self.T_raw,
+                        C=self.C, rng=rng,
+                        **self._synth_kwargs,
+                    )
+                x = torch.cat([x_hf, x_syn], dim=0)
+            else:
+                x = x_hf
+
+            if self.emit_freq_ids:
+                if hf_source_ids is not None:
+                    safe_sids = hf_source_ids.clamp(min=0, max=max_sid)
+                    freq_hf = sid_to_freq[safe_sids]
+                    seas_hf = sid_to_seas[safe_sids]
+                else:
+                    freq_hf = torch.zeros(hf_bs, dtype=torch.long)
+                    seas_hf = torch.zeros(hf_bs, dtype=torch.long)
+                if self.synth_bs > 0:
+                    freq = torch.cat([freq_hf, freq_syn], dim=0)
+                    seas = torch.cat([seas_hf, seas_syn], dim=0)
+                else:
+                    freq = freq_hf
+                    seas = seas_hf
+                yield x, freq, seas
+            else:
+                yield x
+
+
+def create_mixed_composite_dataloader(
+    repo_id: str, batch_size: int = 24, C: int = 4,
+    mix_ratio: float = 0.5,
+    path_in_repo: str = None, split: str = "train",
+    skip_rows: int = 0, T_raw: int = 1024, seed: int | None = None,
+    emit_freq_ids: bool = False,
+    synth_kwargs: dict | None = None,
+) -> "MixedCompositeLoader":
+    """Create an HF + on-the-fly *composite* synth mix, parallel to
+    :func:`create_mixed_periodic_dataloader`.
+
+    Same factory contract; ``synth_kwargs`` forwards extra recipe knobs to
+    :func:`src.synthetic_composite.generate_composite_batch`.
+    """
+    if not 0.0 <= mix_ratio <= 1.0:
+        raise ValueError(f"mix_ratio must be in [0, 1], got {mix_ratio}")
+
+    synth_bs = int(round(batch_size * mix_ratio))
+    hf_bs = batch_size - synth_bs
+
+    if mix_ratio == 0.0 and not emit_freq_ids:
+        return create_hf_dataloader(
+            repo_id=repo_id, batch_size=batch_size, C=C,
+            path_in_repo=path_in_repo, split=split, skip_rows=skip_rows,
+        )
+
+    hf_loader = HFStreamingLoader(
+        repo_id=repo_id, batch_size=hf_bs, C=C,
+        path_in_repo=path_in_repo, split=split, skip_rows=skip_rows,
+        emit_source_ids=emit_freq_ids,
+    ) if hf_bs > 0 else None
+
+    class _EmptyHFLoader:
+        def __iter__(self):
+            while True:
+                yield torch.empty(0, T_raw, C, dtype=torch.float32)
+
+    return MixedCompositeLoader(
+        hf_loader=hf_loader if hf_loader is not None else _EmptyHFLoader(),
+        synth_bs=synth_bs, T_raw=T_raw, C=C, seed=seed,
+        emit_freq_ids=emit_freq_ids, synth_kwargs=synth_kwargs,
+    )

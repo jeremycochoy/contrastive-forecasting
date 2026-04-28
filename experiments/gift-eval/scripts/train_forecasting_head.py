@@ -30,7 +30,11 @@ import torch
 import torch.optim as optim
 
 from src.models import ConfigurableModel, count_parameters
-from src.dataloader import create_hf_dataloader, create_mixed_periodic_dataloader
+from src.dataloader import (
+    create_hf_dataloader,
+    create_mixed_periodic_dataloader,
+    create_mixed_composite_dataloader,
+)
 from src.forecasting_head import (
     ForecastingHead,
     QuantileForecastingHead,
@@ -146,6 +150,11 @@ def parse_args():
                    help="Seed for the periodic synth generator when "
                         "--mix-ratio > 0. Defaults to args.seed + 20_000 to "
                         "stay separate from the backbone's synth stream.")
+    p.add_argument("--synth-kind", default="periodic",
+                   choices=["periodic", "composite"],
+                   help="Which on-the-fly synth to mix with HF. Must match "
+                        "the backbone's --synth-kind so the head trains on "
+                        "the same data distribution. Default 'periodic'.")
     return p.parse_args()
 
 
@@ -314,17 +323,25 @@ def main():
         # yields the (x, freq_ids, seasonality_ids) tuples extract_*_latents
         # consumes).
         synth_seed = args.synth_seed if args.synth_seed is not None else args.seed + 20_000
-        data_loader = create_mixed_periodic_dataloader(
-            repo_id=args.hf_repo, batch_size=args.batch_size, C=C,
-            mix_ratio=args.mix_ratio,
-            path_in_repo=args.hf_path, skip_rows=hf_rows_consumed,
-            seed=synth_seed, emit_freq_ids=emit_labels,
-        )
+        if args.synth_kind == "composite":
+            data_loader = create_mixed_composite_dataloader(
+                repo_id=args.hf_repo, batch_size=args.batch_size, C=C,
+                mix_ratio=args.mix_ratio,
+                path_in_repo=args.hf_path, skip_rows=hf_rows_consumed,
+                seed=synth_seed, emit_freq_ids=emit_labels,
+            )
+        else:
+            data_loader = create_mixed_periodic_dataloader(
+                repo_id=args.hf_repo, batch_size=args.batch_size, C=C,
+                mix_ratio=args.mix_ratio,
+                path_in_repo=args.hf_path, skip_rows=hf_rows_consumed,
+                seed=synth_seed, emit_freq_ids=emit_labels,
+            )
         synth_bs = int(round(args.batch_size * args.mix_ratio))
         hf_bs = args.batch_size - synth_bs
         print(f"Data: MIX {(1-args.mix_ratio)*100:.0f}% HF + "
-              f"{args.mix_ratio*100:.0f}% synth, hf_bs={hf_bs}, "
-              f"synth_bs={synth_bs}, synth_seed={synth_seed}, "
+              f"{args.mix_ratio*100:.0f}% synth ({args.synth_kind}), "
+              f"hf_bs={hf_bs}, synth_bs={synth_bs}, synth_seed={synth_seed}, "
               f"emit_labels={emit_labels}")
     else:
         data_loader = create_hf_dataloader(

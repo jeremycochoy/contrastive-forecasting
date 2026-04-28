@@ -267,5 +267,85 @@ class TestMixedPeriodicLoaderLabels:
         assert (freq_ids[1:] >= 1).all()
 
 
+# ── MixedCompositeLoader: dual-axis labels (composite synth path) ──────────
+
+
+class TestMixedCompositeLoaderLabels:
+    """Mirrors TestMixedPeriodicLoaderLabels but uses the composite synth.
+
+    The HF-side label semantics are identical (same SOURCE_ID_TO_LABELS
+    table); the differences are in the synth labels (composite emits
+    seas_id=0 when the seas-tied wave is off for the row).
+    """
+
+    def test_yields_three_tuple_when_emit_freq_ids(self):
+        from src.dataloader import MixedCompositeLoader
+        x = torch.zeros(2, 64, 1)
+        sids = torch.tensor([1, 2], dtype=torch.long)
+        hf_loader = _FakeHFLoader([(x, sids)])
+        ml = MixedCompositeLoader(
+            hf_loader=hf_loader, synth_bs=0, T_raw=64, C=1,
+            seed=0, emit_freq_ids=True)
+        out = next(iter(ml))
+        assert isinstance(out, tuple) and len(out) == 3
+        xb, freq_ids, seas_ids = out
+        assert xb.shape == (2, 64, 1)
+        assert freq_ids.shape == (2,)
+        assert seas_ids.shape == (2,)
+
+    def test_hf_only_labels_from_source_id_table(self):
+        from src.dataloader import MixedCompositeLoader
+        x = torch.zeros(2, 64, 1)
+        sids = torch.tensor([1, 2], dtype=torch.long)
+        hf_loader = _FakeHFLoader([(x, sids)])
+        ml = MixedCompositeLoader(
+            hf_loader=hf_loader, synth_bs=0, T_raw=64, C=1,
+            seed=0, emit_freq_ids=True)
+        _, freq_ids, seas_ids = next(iter(ml))
+        assert freq_ids[0].item() == FREQ_NAME_TO_ID["1h"]
+        assert seas_ids[0].item() == seasonality_to_id(24)
+        assert freq_ids[1].item() == FREQ_NAME_TO_ID["1d"]
+        assert seas_ids[1].item() == seasonality_to_id(7)
+
+    def test_synth_only_labels_from_synth(self):
+        from src.dataloader import create_mixed_composite_dataloader
+        ml = create_mixed_composite_dataloader(
+            repo_id="ignored", batch_size=4, C=1, mix_ratio=1.0,
+            T_raw=64, seed=42, emit_freq_ids=True)
+        out = next(iter(ml))
+        assert isinstance(out, tuple) and len(out) == 3
+        x, freq_ids, seas_ids = out
+        assert x.shape == (4, 64, 1)
+        assert (freq_ids >= 1).all() and (freq_ids < NUM_FREQS).all()
+        # Composite emits seas_id=0 when seas-tied is off; valid range still 0..NUM_SEAS-1.
+        assert (seas_ids >= 0).all() and (seas_ids < NUM_SEASONALITIES).all()
+
+    def test_synth_kwargs_forwarded(self):
+        """Forcing p_seas_tied=0.0 via synth_kwargs must zero-out all synth seas labels."""
+        from src.dataloader import create_mixed_composite_dataloader
+        ml = create_mixed_composite_dataloader(
+            repo_id="ignored", batch_size=8, C=1, mix_ratio=1.0,
+            T_raw=64, seed=7, emit_freq_ids=True,
+            synth_kwargs={"p_seas_tied": 0.0})
+        _, _, seas_ids = next(iter(ml))
+        assert (seas_ids == 0).all(), \
+            f"synth_kwargs p_seas_tied=0 leaked non-zero seas: {seas_ids}"
+
+    def test_mixed_concatenates_hf_then_synth(self):
+        from src.dataloader import MixedCompositeLoader
+        hf_x = torch.ones(1, 64, 1)
+        hf_sids = torch.tensor([1], dtype=torch.long)  # wiki_hourly
+        hf_loader = _FakeHFLoader([(hf_x, hf_sids)] * 10)
+        ml = MixedCompositeLoader(
+            hf_loader=hf_loader, synth_bs=2, T_raw=64, C=1,
+            seed=42, emit_freq_ids=True)
+        x, freq_ids, seas_ids = next(iter(ml))
+        assert x.shape == (3, 64, 1)
+        assert freq_ids.shape == (3,)
+        assert freq_ids[0].item() == FREQ_NAME_TO_ID["1h"]
+        assert seas_ids[0].item() == seasonality_to_id(24)
+        assert (freq_ids[1:] >= 1).all()
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
