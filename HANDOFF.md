@@ -1,217 +1,145 @@
-# Session Handoff — late April 2026 (continuation, day 2)
+# Session handoff — late April 2026 (dual-axis embeddings landed)
 
-This handoff supersedes the previous late-April handoff. The previous
-session's three queued items are all done, plus one user-added experiment
-(patch-stats), plus a synth-only redo, plus a real-data and synth-only
-span sweep. Branch: `feat/periodic-synth-mix`.
+This handoff supersedes the previous one. Three PRs landed in this
+session: dual freq+seasonality embedding plumb (#85), worst-config
+forecast plots (#86), and joint (freq, seas) coverage in synth + a
+formal coverage doc (#87). Branch is back on `experiments`.
 
-## TL;DR — what to do next
+## Two best architectures
 
-1. **Re-introduce the within-time negative in the contrastive loss.**
-   See [`experiments/freq-embedding/FOLLOWUP.md`](experiments/freq-embedding/FOLLOWUP.md)
-   for the full proposal. Quick version: `loss_shape='cosine_similarity_batch_no_time_neg'`
-   currently drops the `h[b, t-1, c] vs h[b, t, c]` push-apart term. That
-   was tuned for ARMA training data (high lag-1 autocorrelation made it
-   counter-productive). On periodic data, adjacent latents *should* be
-   pushed apart. Run as a single-axis ablation on the best arm we have:
-   **fe+mu, mix=1.0 synth-only, 30k, span=512, ewma**. Cost ~$0.30.
+Both produced by `experiments/exp_dualemb_3arm` (PR #85). 30k backbone +
+30k R1 reconstruction-forecaster qhead, `csb` contrastive loss,
+`mix_ratio=0.5` (HF base-bundles + on-the-fly periodic synth),
+`freq_emb_dim=3 + seasonality_emb_dim=3`, `mixup_p=0.3`. Selector:
+`_best_loss → FINAL.pth`.
 
-2. **Validate the span=512 finding on real data.** The synth sweep
-   peaked at span=512 (GM-MASE 0.848 — best of every arm we ran). The
-   real-data sweep (mix=0.0, 20k steps) showed only ~6% loss
-   improvement going from span=32 to span=128, with span=256 *worse*
-   than span=128. Either (a) real data doesn't benefit from longer
-   spans, or (b) 20k steps wasn't enough to reveal the effect. A
-   30k-step real-data sweep at the synth winner (span=512) is a
-   useful disambiguation — ~$0.50, ~83 min.
+| arm | norm | GM-MASE | median MASE | wins (of 97) |
+|-----|------|--------:|------------:|-------------:|
+| **EWMA span=128** | RevEWMNorm span=128 | **1.659** | 1.528 | 55 |
+| **EWMA span=512** | RevEWMNorm span=512 | 1.725 | **1.476** | 23 |
 
-3. **Patch-stats operator follow-up.** The current
-   `compute_patch_stats(kind='diff')` uses `(mean[t]-mean[t-1])/std[t-1]`
-   for `dmean`. User flagged this can spike on series that move
-   between very different absolute scales within one context window
-   (e.g., 10000 → 0.01). Even with std-normalisation the dmean can
-   briefly hit O(10) before std catches up. Better operators (asinh-
-   diff, log-of-abs + sign-channel) noted in
-   `~/.claude/projects/.../memory/feedback_patch_stats_dmean_op.md`.
-   Patch-stats was a wash on synth (slightly *worse* than baseline at
-   30k and 60k); the operator question and span=512 may both unlock
-   that capacity. ~$0.30 for one re-run with a better operator.
+Both beat RevIN (GM 1.859, never wins a domain). The two metrics
+disagree on which EWMA is best; `span=128` wins GM, `span=512` wins
+median. Per-domain breakdown and full 97-config table in
+[`experiments/exp_dualemb_3arm/REPORT.md`](experiments/exp_dualemb_3arm/REPORT.md);
+worst-case forecast plots with seasonal-naive baseline in
+[`experiments/exp_dualemb_3arm/plots/gift_eval_worst_configs.png`](experiments/exp_dualemb_3arm/plots/gift_eval_worst_configs.png)
+and `gift_eval_all_failures.png` (all 73 fail-all configs).
 
-After those three, the experimental thread is in a clean state —
-candidates for the next round in
-[`experiments/freq-embedding/FOLLOWUP.md`](experiments/freq-embedding/FOLLOWUP.md).
+## Checkpoints
 
-## What this session ran (chronological)
+Stored under the **main checkout** (not in any worktree) at
+`sync_dualemb_3arm/checkpoints/`:
 
-| # | What | Result | Where |
-|---|---|---|---|
-| EXP1 | RevIN reproduction (#28 redo) | Reproduced; backbone gap=0.469, qhead loss=0.052; synth grid still shows the patch-boundary issue (RevIN doesn't fix it). | `experiments/freq-embedding/plots/synth_qhead_grid_revin.png` |
-| EXP4 (a) | Patch-stats on mix=0.5 + GIFT-Eval | Backbone gap=**0.626** (+33% over RevIN), qhead loss=0.071 (worse than RevIN). On the 23 with-SN-baseline configs: pstats slightly *worse* than fe+mu+qh and RevIN+qh. Synth grid unchanged. | `experiments/freq-embedding/results/comparison_with_sn.csv`, `plots/synth_qhead_grid_pstats.png` |
-| Synth-only round | fe+mu and fe+mu+pstats × {30k, 60k} on mix=1.0 + held-out 1024-sample synth eval | 30k→60k helps both arms ~1-2%. patch-stats was 1-3% *worse* than baseline at both step counts. | `experiments/freq-embedding/results/synth_eval.csv`, `plots/synth_qhead_grid_*.png` |
-| Real-data span sweep | span ∈ {32, 64, 128, 256}, mix=0.0, 20k steps each, backbones-only | ema_loss U-shaped: 32→3.00, 64→2.89, 128→**2.83**, 256→2.92. Gap monotonically *decreases* with span: 32→0.33, 256→0.30. Metrics disagree. | `experiments/freq-embedding/plots/span_sweep_real.png` |
-| Synth span sweep | span ∈ {32, 64, 128, 256, 512, 1024}, mix=1.0, 30k bb + 30k qhead per span + 1024-sample synth eval | **Inverted-U with peak at span=512** (GM-MASE 0.848, MASE skill -71%). span=1024 falls back to 0.921. | `experiments/freq-embedding/plots/span_skill_synth.png`, `plots/span_compare_synth.png` |
-| RevIN-synth | RevIN backbone + qhead on mix=1.0 (60k bb, 30k qh) | GM-MASE 2.230 — best of the 4 *original* synth arms but dominated by every span≥64 EWMA arm. | `synth_eval.csv` row "RevIN-synth @ 60k" |
-
-## Final aggregate table (1024-sample synth eval, sorted best first)
-
-SN baseline uses the *known* period and is essentially optimal here.
-
-| Arm | GM-MASE | GM-WQL | MASE skill | WQL skill |
-|---|---:|---:|---:|---:|
-| **fe+mu @ 30k span=512** | **0.848** | **0.413** | **−71%** | **−20%** |
-| fe+mu @ 30k span=1024 | 0.921 | 0.452 | −85% | −31% |
-| fe+mu @ 30k span=256 | 1.049 | 0.517 | −111% | −50% |
-| fe+mu @ 30k span=128 | 1.192 | 0.600 | −140% | −74% |
-| fe+mu @ 30k span=64 | 1.761 | 0.918 | −254% | −167% |
-| RevIN-synth @ 60k | 2.230 | 1.201 | −348% | −249% |
-| fe+mu @ 60k (span=32) | 2.366 | 1.293 | −376% | −276% |
-| fe+mu @ 30k (span=32) | 2.394 | 1.306 | −381% | −280% |
-| fe+mu+pstats @ 60k | 2.411 | 1.319 | −385% | −283% |
-| fe+mu+pstats @ 30k | 2.485 | 1.368 | −400% | −298% |
-| fe+mu peak_gap (matched qhead) | 2.622 | 1.443 | −427% | −319% |
-| Seasonal Naive | 0.497 | 0.344 | 0% | 0% |
-
-## What we KNOW (single-seed; treat as data points, not verdicts)
-
-1. **RevEWMNorm span=32 was the wrong default for periodic data.**
-   On synth periodics with periods up to ~256, the optimal span on this
-   sweep is 512. That's a >2.8× improvement on GM-MASE over the previous
-   default. The trend was monotonic up to 512 and reverses at 1024.
-
-2. **EWMA at the right span beats RevIN on synth.** RevIN-synth = 2.230.
-   span=512 = 0.848. The user's earlier "RevIN-vs-EWMA" comparison
-   (#28 in the previous session) was confounded by the bad span — both
-   arms in that comparison used span=32.
-
-3. **30k → 60k matters less than span.** Both fe+mu @ 30k (2.394) and
-   fe+mu @ 60k (2.366) on span=32 are dominated by every span ≥ 64. The
-   architecture knob (span) wins by a much wider margin than the
-   compute knob (60k vs 30k) on this data.
-
-4. **Patch-stats didn't help on synth.** fe+mu+pstats @ 30k = 2.485 vs
-   fe+mu @ 30k = 2.394 — pstats is 4% *worse*. The contrastive backbone
-   gap improvement (0.85 → 0.85, basically tied; on mix=0.5 it was
-   +33% but didn't transfer to forecasts either) doesn't translate to
-   downstream forecast quality. The user's later feedback about the
-   `dmean` operator (asinh-diff vs std-normalised diff) is a plausible
-   reason worth chasing in a follow-up.
-
-5. **Best_gap.pth saturates very early on synth-only.** Both fe+mu
-   30k and 60k runs hit gap=0.842 at step 1600 in deterministic
-   training (same seed, same data). The "peak gap" model is *worse*
-   than 30k or 60k end-of-training models — early-stopping on gap is
-   the wrong signal here.
-
-6. **Real-data span doesn't transfer cleanly from synth.** mix=0.0
-   sweep at 20k steps: span=128 best on loss (5.9% better than 32),
-   span=256 *worse* than 128. Could be insufficient steps or genuinely
-   different optimum on real data — to be disambiguated.
-
-## Open questions / follow-ups
-
-- **#FOLLOWUP-1**: re-introduce the within-time contrastive negative
-  (see `experiments/freq-embedding/FOLLOWUP.md`).
-- **#FOLLOWUP-2**: real-data span sweep at 30k+ steps to validate the
-  span=512 finding outside synth.
-- **#FOLLOWUP-3**: patch-stats `dmean` operator comparison (current
-  `(Δmean)/std` vs asinh-diff vs log-abs+sign).
-- **#FOLLOWUP-4**: with span=512 backbone, retry quantile-head training
-  on the GIFT-Eval setup — does the better backbone improve OOD MASE/WQL?
-
-## Operational template — what worked this session
-
-The pattern that worked end-to-end after fixing the bugs we hit:
-
-```bash
-# 1. Local code changes in a worktree (not the user's main checkout!).
-git worktree add ../contrastive-forecasting-cf feat/periodic-synth-mix
-cd ../contrastive-forecasting-cf
-# ... edit ...
-
-# 2. Provision a single 4090 via vastrun-provision.
-vastrun-provision --label cf-multiexp-... --gpu-model RTX_4090 \
-    --num-gpus 1 --min-vram 20 --min-reliability 0.99 --max-bid 0.5 \
-    --image pytorch/pytorch:2.8.0-cuda12.8-cudnn9-runtime
-# (The kit's SSH-key-attach failure is a known issue — the instance
-# can still be alive even when vastrun-kit thinks it lost it; check
-# `vastai show instance <id>`.)
-
-# 3. Upload code + token; launch via nohup with tee to run_all.log.
-
-# 4. Local sync_loop running for the duration. PR #47 atomicity fixes
-#    + the bumped 130MB optimizer threshold (this session) prevent
-#    partial-transfer corruption from leaking into local copies.
-
-# 5. Multiple training stages can run in parallel on the same GPU.
-#    A 4090 can comfortably hold 2 backbones (~6 GB each) + their
-#    qheads simultaneously. Use that.
-
-# 6. Pull losses CSVs eagerly (they're small) for live analysis.
-#    Pull .pth files only when needed for plotting/eval.
-
-# 7. CRITICAL: clean up checkpoints. We hit disk-full (60GB) twice;
-#    the optimizer.pth files are ~155 MB each and accumulate fast.
-#    Delete them after a run completes — we keep model weights only.
-
-# 8. Use a held-out synth eval set (synth_eval.py) for fast in-distribution
-#    quality checks during the run; full GIFT-Eval is ~5h and not
-#    necessary for arch comparison.
+```
+tiny_dualemb_revin_FINAL.pth      80 MB   backbone (RevIN)
+tiny_dualemb_ewma512_FINAL.pth    80 MB   backbone (EWMA span=512)
+tiny_dualemb_ewma128_FINAL.pth    80 MB   backbone (EWMA span=128)
+R1q_dualemb_revin_FINAL.pth       2.5 MB  qhead (RevIN)
+R1q_dualemb_ewma512_FINAL.pth     2.5 MB  qhead (EWMA span=512)
+R1q_dualemb_ewma128_FINAL.pth     2.5 MB  qhead (EWMA span=128)
 ```
 
-## Bugs caught and fixed this session
+Each backbone auto-loads via `ConfigurableModel` because the freq and
+seasonality embedding dimensions are detectable from the state-dict
+(`freq_embedding.embedding.weight`,
+`seasonality_embedding.embedding.weight`). Eval auto-detects in
+`experiments/gift-eval/scripts/eval_gift_eval_official.py`.
 
-1. **`train.py::forward_step` reimplemented patching manually** and
-   silently dropped the patch-stats concat. EXP4 stage 1 crashed at
-   first batch because the encoder expected wider input. Routed
-   through `ConfigurableModel.prepare_encoder_input` and added a
-   regression test in `tests/test_norm.py`.
+## Frequency and seasonality embeddings (PR #87)
 
-2. **`create_mixed_periodic_dataloader(mix_ratio=0.0, ...)` ignored
-   `emit_freq_ids`.** The short-circuit returned `create_hf_dataloader`
-   directly, which yields a Tensor (not a tuple). Caused the real-data
-   span sweep to crash with "too many values to unpack". Fixed in
-   `src/dataloader.py` — only short-circuit when `emit_freq_ids=False`.
+Two parallel categorical axes. Spec lives in
+[`docs/FREQ_SEASONALITY_COVERAGE.md`](docs/FREQ_SEASONALITY_COVERAGE.md):
 
-3. **`_FINAL.pth` was set from `_best_gap.pth`** which saturated at step
-   1600 in deterministic synth-only training. 30k and 60k runs produced
-   byte-identical FINAL backbones. Caught by md5sum + per-sample
-   forecast diff. Repointed FINAL to end-of-training snapshots
-   (`_30k.pth` / `_60k.pth`) and re-trained the qheads against the
-   correct backbones.
+* **Frequency** (10 buckets): wall-clock sample rate (`unknown`,
+  `10s`..`1w`). Out-of-vocab freqs (monthly, yearly, sub-second)
+  collapse to `unknown`.
+* **Seasonality** (10 buckets): doubling buckets on
+  samples-per-period. Bucket **0** is the no-info sentinel and also
+  catches `spp = 1` (the gluonts default for daily/weekly), so trivial-
+  seasonality eval rows share the embedding with truly-unknown
+  training rows.
 
-4. **`sync_loop.sh` 70 MB optimizer threshold** let through a 78 MB
-   partial transfer that overwrote a 155 MB good copy. PR #47 rotation
-   saved us (good copy in `.prev`); bumped the threshold to 130 MB
-   so partial transfers fail outright.
+GIFT-Eval has **14 distinct (freq, seas) pairs** across its 97 configs.
+The on-the-fly synth (`src/synthetic_periodic.py:generate_periodic_batch`
+with `return_labels=True`) covers all **90 cells** of the 9-freqs ×
+10-seasonalities grid. Sampling is independent (freq sampled uniformly
+from `{1..9}`, seasonality from `{0..9}`), then spp is drawn from the
+seasonality bucket's range. Coverage verified at batch=5000: every cell
+appears at least once with marginals within ±10% of uniform.
 
-5. **`synth_eval.py` C=4 spp shape bug.** `meta["spp"]` is shaped
-   `[batch_size * C]` (flattened); my code treated it as `[bs, C]`.
-   Switched to C=1 single-channel synth samples (matching
-   `plot_synth_qhead.py`) — simpler and matches the intent.
+Notable synth-only pairs that GIFT-Eval doesn't include: weekly-on-
+daily `(freq=1d, seas=2)`, weekly-on-hourly `(freq=1h, seas=7)`,
+yearly-on-daily `(freq=1d, seas=8)`. These let the model learn the
+real-world periodic structures GIFT-Eval doesn't directly test.
 
-6. **Disk full on remote.** Periodic snapshots (`_*k.pth`) plus
-   `*_optimizer.pth` files filled the 60GB image partition. Cleared
-   them mid-run. Going forward, prune optimizer files after each
-   completed run.
+## Data generation pipeline
 
-## Cost summary
+Two sources, blended by `MixedPeriodicLoader` at training time:
 
-This session: ~$10 of vast.ai spend (4090 single-GPU, ~25h
-wall-time). The user topped up the budget mid-run when it was running
-low; final balance ~$22 unspent.
+1. **Bundle (HuggingFace)** — `jeremycochoy/contrastive-training-base-bundles`,
+   path `base_mixed_v1`. Built by the `training_data_prep` pipeline in
+   [`jeremycochoy/rnd`](https://github.com/jeremycochoy/rnd) under
+   `scripts/training_data_prep/`. Each parquet shard row carries
+   `(series, source_id, meta)`:
 
-## Branch / artefact pointers
+   | source_id | source             | mix ratio | freq_id | seas_id |
+   |----------:|--------------------|----------:|--------:|--------:|
+   | 0 | gift (train)       | 0.735 | 0 (unknown — meta dropped) | 0 |
+   | 1 | wiki_hourly        | 0.140 | 7 (1h) | 4 (`seas=24`) |
+   | 2 | wiki_daily         | 0.075 | 8 (1d) | 2 (`seas=7`) |
+   | 3 | wiki_stl_residual  | 0.020 | 7 (1h) | 0 |
+   | 4 | wiki_stl_seasonal  | 0.014 | 7 (1h) | 0 |
+   | 5 | wiki_stl_trend     | 0.006 | 7 (1h) | 0 |
+   | 6 | synthetic (bundle) | 0.010 | 0 | 0 |
 
-- Branch: `feat/periodic-synth-mix` (pushed to origin).
-- Worktree path I used: `~/Desktop/workspace/trading/contrastive-forecasting-cf`
-  (separate from the user's main checkout, which stayed on whatever
-  branch they were on).
-- All 8 backbones + heads on remote at `/workspace/app/checkpoints/`
-  (will be lost when the instance is destroyed; pull anything you
-  want preserved).
-- Plots: `experiments/freq-embedding/plots/` (synth_qhead_grid_*,
-  synth_compare_*, span_sweep_real, span_compare_synth, span_skill_synth).
-- Eval CSVs: `experiments/freq-embedding/results/synth_eval.csv` (synth)
-  and `comparison_with_sn.csv` (GIFT-Eval).
-- New scripts: `synth_eval.py`, `synth_compare_grid.py`,
-  `run_synth_only.sh`, `run_span_sweep_real.sh`, `run_span_sweep_synth.sh`.
+   The label lookup is `SOURCE_ID_TO_LABELS` in `src/freq_embedding.py`.
+   Bundle synth is tagged unknown because the build pipeline flattens
+   the per-row spp metadata; only on-the-fly synth carries true labels.
+
+2. **On-the-fly periodic synth** — `src/synthetic_periodic.py`. Three
+   primitives (sin / square / saw) at `spp ∈ bucket-range`, optional
+   exponential envelope (p=0.3), log-uniform scale `∈ [0.1, 1000]`,
+   random sign flip on square/saw. Each batch row carries `(freq_id,
+   seas_id)` sampled jointly per the coverage spec above; channels
+   share the row's bucket but draw spp independently.
+
+`MixedPeriodicLoader` concatenates a real-data sub-batch and a synth
+sub-batch per training step, with row-level labels passed through.
+
+## What lives where
+
+| topic | file |
+|-------|------|
+| Architecture: model + dual embedding | `src/models.py`, `src/freq_embedding.py` |
+| Embedding spec & coverage | `docs/FREQ_SEASONALITY_COVERAGE.md` |
+| Synth | `src/synthetic_periodic.py` |
+| Dataloader (HF + synth + label plumb) | `src/dataloader.py` |
+| Training (backbone) | `experiments/freq-embedding/scripts/train.py` |
+| Training (qhead) | `experiments/gift-eval/scripts/train_forecasting_head.py` |
+| Eval (GIFT-Eval official) | `experiments/gift-eval/scripts/eval_gift_eval_official.py` |
+| 3-arm experiment driver | `experiments/exp_dualemb_3arm/run.sh` |
+| 3-arm REPORT | `experiments/exp_dualemb_3arm/REPORT.md` |
+| Per-config plots | `experiments/exp_dualemb_3arm/plots/` |
+| Result CSVs (97 configs × 3 arms) | `experiments/exp_dualemb_3arm/results/` |
+| Experiment index | `experiments/INDEX.md` |
+| FINAL checkpoints (local only) | `sync_dualemb_3arm/checkpoints/` |
+
+## Open follow-ups (not done)
+
+* **Multi-seed validation** of the EWMA-128 vs EWMA-512 4% gap. Single
+  seed with cross-seed variance ~3–5% in past runs leaves the ranking
+  marginal.
+* **Bundle freq plumb** (sub-dataset → freq_id for gift train rows).
+  Currently 73.5% of bundle rows are tagged unknown because the
+  `training_data_prep` pipeline drops the upstream sub-dataset name.
+  Re-emitting `base_mixed_v2` with per-row metadata would lift this.
+* **Re-train the 3 arms with the new joint-coverage synth** (PR #87)
+  to see whether the better synth distribution closes more of the
+  worst-config failures (Econ/Fin trend extrapolation, spike-driven
+  Web/CloudOps).
+* **Seasonal-naive sidecar CSV** for the eval summary. The
+  `summary.txt` shows `N/A` for SN_MASE because the sidecar wasn't
+  shipped to the instance. The MASE values themselves are correct
+  (gluonts's `evaluate_model` computes them with the right
+  seasonality); only the auxiliary skill-score column is missing.
