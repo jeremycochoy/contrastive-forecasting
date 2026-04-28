@@ -54,13 +54,36 @@ SEASONALITY_NAMES = [
 _SEASONALITY_BOUNDARIES = (4, 8, 16, 32, 64, 128, 256, 512)
 
 
+# Per-bucket spp sampling ranges used by the synth's joint (freq, seasonality)
+# coverage path. Bucket 0 is the "no period info" sentinel, generated with
+# spp >> 1024 so the visible signal in a 1024-window is at most a fraction of
+# a cycle (looks aperiodic locally). Buckets 1..9 sample inside their bucket's
+# log-range so `seasonality_to_id(sampled_spp)` recovers the bucket id.
+SEASONALITY_BUCKET_SPP_RANGES: dict[int, tuple[float, float]] = {
+    0: (1024.0, 4096.0),   # "no period" — too long to see a full cycle
+    1: (2.0, 4.0),
+    2: (5.0, 8.0),
+    3: (9.0, 16.0),
+    4: (17.0, 32.0),
+    5: (33.0, 64.0),
+    6: (65.0, 128.0),
+    7: (129.0, 256.0),
+    8: (257.0, 512.0),
+    9: (513.0, 1024.0),
+}
+
+
 def seasonality_to_id(spp: float) -> int:
     """Bucket a period-in-samples (`spp`) into one of NUM_SEASONALITIES classes.
 
-    Doubling buckets, 0 = unknown / no period. Common GIFT-Eval values
-    map as: 1→1, 7→2, 12→3, 24→4, 48→5, 96→6, 168→7, 288→8.
+    Doubling buckets. Bucket **0** is the "no information" sentinel and
+    is also returned for ``spp <= 1`` because a 1-step seasonality is
+    gluonts's default for daily/weekly freqs and carries no useful
+    cycle information for the embedding to specialise on. Common
+    GIFT-Eval values map as: 1→0, 7→2, 12→3, 24→4, 48→5, 96→6, 168→7,
+    288→8.
     """
-    if spp is None or spp <= 0:
+    if spp is None or spp <= 1:
         return 0
     for i, bound in enumerate(_SEASONALITY_BOUNDARIES, start=1):
         if spp <= bound:

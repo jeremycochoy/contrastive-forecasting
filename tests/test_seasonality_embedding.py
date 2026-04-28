@@ -44,9 +44,15 @@ class TestSeasonalityToId:
         assert seasonality_to_id(0) == 0
         assert seasonality_to_id(-5) == 0
 
+    def test_one_is_no_info(self):
+        # gluonts's default seasonality for daily/weekly freqs is 1; we treat
+        # it as the "no information" bucket so the embedding gets the same
+        # row as truly-unknown samples (gift train + bundle synth).
+        assert seasonality_to_id(1) == 0
+
     def test_common_gift_eval_values(self):
-        # spp=1 → bucket 1 (≤4), spp=7 → bucket 2 (≤8), spp=24 → bucket 4 (≤32)
-        assert seasonality_to_id(1) == 1
+        # 7→2 (≤8), 12→3 (≤16), 24→4 (≤32), and so on.
+        assert seasonality_to_id(2) == 1
         assert seasonality_to_id(7) == 2
         assert seasonality_to_id(12) == 3
         assert seasonality_to_id(24) == 4

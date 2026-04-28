@@ -125,8 +125,31 @@ def generate_periodic_batch(
 
     N = batch_size * C
 
-    # -- Sample per-series parameters (vectorized) ----------------------------
-    spp = np.exp(rng.uniform(np.log(spp_range[0]), np.log(spp_range[1]), size=N))
+    # -- Joint (freq, seasonality) sampling for the dual-axis path -----------
+    # When return_labels=True we sample seasonality_id per BATCH ROW from
+    # {0..NUM_SEASONALITIES-1} uniformly, then draw spp per channel within
+    # that bucket's range. Bucket 0 is the "no period info" sentinel and
+    # uses very long spp (>1024) so the visible signal in a 1024-window
+    # looks aperiodic. freq_id is sampled per row INDEPENDENTLY of seas
+    # so every (freq, seas) combination is covered with non-zero density.
+    row_seasonality_ids = None
+    row_freq_ids = None
+    if return_labels:
+        from src.freq_embedding import (  # local to avoid circular
+            NUM_FREQS, NUM_SEASONALITIES, SEASONALITY_BUCKET_SPP_RANGES,
+        )
+        row_seasonality_ids = rng.integers(
+            0, NUM_SEASONALITIES, size=batch_size).astype(np.int64)
+        row_freq_ids = rng.integers(
+            1, NUM_FREQS, size=batch_size).astype(np.int64)
+        spp_2d = np.empty((batch_size, C), dtype=np.float64)
+        for b in range(batch_size):
+            lo, hi = SEASONALITY_BUCKET_SPP_RANGES[int(row_seasonality_ids[b])]
+            spp_2d[b] = np.exp(rng.uniform(np.log(lo), np.log(hi), size=C))
+        spp = spp_2d.reshape(N)
+    else:
+        # Legacy path — uniform spp draw across the whole [spp_range] interval.
+        spp = np.exp(rng.uniform(np.log(spp_range[0]), np.log(spp_range[1]), size=N))
     phase = rng.uniform(0.0, 1.0, size=N)
     primitive = rng.integers(0, _N_PRIMITIVES, size=N)
     sign_flip = rng.random(size=N) < 0.5
@@ -182,34 +205,25 @@ def generate_periodic_batch(
 
     X_t = torch.from_numpy(np.ascontiguousarray(X))
 
-    # Per-BATCH-row labels. Both axes use the row's *minimum* spp across
-    # its C channels as the row-level summary — the channel with the
-    # shortest period dominates the perceived seasonality.
+    # Per-BATCH-row labels.
     spp_per_row = spp.reshape(batch_size, C).min(axis=1)
 
     freq_ids_t = None
     seasonality_ids_t = None
-    if return_freq_ids or return_labels:
-        from src.freq_embedding import (  # local to avoid circular
-            seasonality_to_id, spp_to_freq_id, NUM_FREQS,
-        )
-        if return_labels:
-            seasonality_ids_np = np.array(
-                [seasonality_to_id(float(s)) for s in spp_per_row],
-                dtype=np.int64)
-            # Sample freq ids uniformly over {1..NUM_FREQS-1}, INDEPENDENTLY
-            # of spp. The draw goes here at the end so adding return_labels
-            # does not change X for a fixed seed.
-            freq_ids_np = rng.integers(
-                1, NUM_FREQS, size=batch_size).astype(np.int64)
-            seasonality_ids_t = torch.from_numpy(seasonality_ids_np)
-            freq_ids_t = torch.from_numpy(freq_ids_np)
-        else:
-            # Legacy single-axis path: freq_id is the seasonality bucket.
-            freq_ids_np = np.array(
-                [spp_to_freq_id(float(s)) for s in spp_per_row],
-                dtype=np.int64)
-            freq_ids_t = torch.from_numpy(freq_ids_np)
+    if return_labels:
+        # Joint-coverage path: row_freq_ids and row_seasonality_ids were
+        # sampled up-front (so all (freq, seas) bucket pairs are covered
+        # uniformly), and spp was drawn from each row's bucket.
+        seasonality_ids_t = torch.from_numpy(row_seasonality_ids)
+        freq_ids_t = torch.from_numpy(row_freq_ids)
+    elif return_freq_ids:
+        # Legacy single-axis path: freq_id is the seasonality bucket
+        # derived from spp via the historical mapping.
+        from src.freq_embedding import spp_to_freq_id  # local
+        freq_ids_np = np.array(
+            [spp_to_freq_id(float(s)) for s in spp_per_row],
+            dtype=np.int64)
+        freq_ids_t = torch.from_numpy(freq_ids_np)
 
     if not return_meta:
         if return_labels:
