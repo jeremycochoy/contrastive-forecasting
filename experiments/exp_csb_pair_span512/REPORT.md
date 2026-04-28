@@ -8,7 +8,7 @@ Two reasons converge here:
 
 1. **The span=512 baseline (no_time_neg) checkpoint was lost.** During
    the wrap-up of `exp_csb_synth`, an auxiliary git worktree was torn
-   down with `git worktree remove --force` — that deletes all untracked
+   down with `git worktree remove --force`, which deletes all untracked
    files in the worktree directory, including `sync_multiexp/checkpoints/`
    where the only local copy of `tiny_femu_span512_synth30k_FINAL.pth`
    lived. The corresponding remote vast.ai instance had been destroyed
@@ -79,15 +79,16 @@ Decomposition of the four numbers:
 - **A vs lost baseline (same loss, different selector):** clean
   `_best_loss` (0.924) is **9% worse on MASE** than `_best_gap` (0.848)
   for the no_time_neg loss. On synth, `_best_gap` saturates around step
-  ~1600 deterministically — so what looked like a "30k baseline" was in
+  ~1600 deterministically, so what looked like a "30k baseline" was in
   practice an early-stopped checkpoint, and that early-stopped checkpoint
   forecasts better than the full-30k version under the same loss. Caveat:
-  single seed on each side — could partly be sampling noise, but a 9%
-  gap on a single axis change is large.
+  single seed on each side, which could partly be sampling noise, but a
+  9% gap on a single axis change is large.
 - **B vs exp_csb_synth (same loss + same selector, different
-  continuity):** 0.883 vs 0.886 — within noise. The multi-resume runs in
-  exp_csb_synth turned out to be ≈ a clean run for the CSB arm.
-- **B vs A (the headline):** 0.883 vs 0.924 — `cosine_similarity_batch`
+  continuity):** 0.883 vs 0.886, within noise. The multi-resume runs in
+  exp_csb_synth turned out to be approximately a clean run for the CSB
+  arm.
+- **B vs A (the headline):** 0.883 vs 0.924. `cosine_similarity_batch`
   beats `cosine_similarity_batch_no_time_neg` on the matched-protocol
   comparison. The within-time and cross-time negatives that the
   paper-matching loss adds are net helpful at span=512 + synth-only.
@@ -105,7 +106,7 @@ selector on synth at span=512), but it cost roughly 9% MASE on the
 no_time_neg arm relative to early-stopping at the gap-saturation point.
 That's a separate, equally interesting finding: **on this data, the
 contrastive-loss objective and the downstream forecasting objective are
-imperfectly aligned** — minimum-loss is not minimum-forecast-error.
+imperfectly aligned**. Minimum-loss is not minimum-forecast-error.
 
 ## What was measured (no interpretation beyond the data)
 
@@ -149,7 +150,7 @@ imperfectly aligned** — minimum-loss is not minimum-forecast-error.
   cleanly attribute it to selector vs seed sensitivity.
 - The CSB arm at `_best_gap` was never measured (the lost-baseline regime
   pre-dated CSB). If we re-eval the periodic snapshots from this run we
-  could fill that in cheaply — `_best_gap.pth` and `_2k.pth` ... `_30k.pth`
+  could fill that in cheaply: `_best_gap.pth` and `_2k.pth` ... `_30k.pth`
   are all preserved in `sync_csb_pair_ewma/checkpoints/`.
 
 ## Open questions
@@ -165,13 +166,12 @@ imperfectly aligned** — minimum-loss is not minimum-forecast-error.
 ## Provenance
 
 - `run.sh` is the actual driver, committed.
-- Initial Vast.ai instance died at 19m (lingering destroy from a failed
-  `vastrun-provision` SSH-attach earlier). Second attempt died at 1h30m
-  for the same reason. Third attempt (instance 35715991) succeeded by
-  using raw `vastai create` + manual SSH key attach to bypass the
-  vastrun-provision destroy bug. Total run time ~50 min on RTX 5090
-  (23.8 sps backbone, 57 sps qhead). Cost burned across the three
-  attempts: ~$2.50.
+- The first two Vast.ai instances each died mid-run (lingering destroy
+  from a failed `vastrun-provision` SSH-attach earlier propagated with
+  delay). The third attempt succeeded by using raw `vastai create` plus
+  manual SSH key attach to bypass the vastrun-provision destroy bug.
+  Total run time ~50 min on a single 5090 (23.8 sps backbone, 57 sps
+  qhead). Cost burned across the three attempts: ~$2.50.
 - `feedback_vastrun_provision_destroy_bug.md` saved to project memory.
 
 ## Artefacts
@@ -189,6 +189,6 @@ imperfectly aligned** — minimum-loss is not minimum-forecast-error.
 - Local results CSV: `results/synth_eval.csv` (the 2 new rows).
 - Aggregate CSV: 2 new rows in
   `../_aggregate/results/synth_eval.csv`.
-- Plot: `plots/synth_compare_pair.png` — 12-panel × 2-arm forecast grid.
+- Plot: `plots/synth_compare_pair.png`, the 12-panel × 2-arm forecast grid.
 - Training loss CSVs: `tiny_pair_span512_{ntn,csb}_losses.csv`,
   `R1q_pair_span512_{ntn,csb}_losses.csv` (in the sync dir).

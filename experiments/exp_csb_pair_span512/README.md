@@ -6,8 +6,8 @@ synth-only, EWMA span=512, 30k bb + 30k qhead):
 
 | Arm | Loss |
 |---|---|
-| A | `cosine_similarity_batch_no_time_neg` (the previous default — re-runs the lost baseline) |
-| B | `cosine_similarity_batch` (paper-matching, includes within-time and cross-time negatives — re-runs `exp_csb_synth` clean to drop its multi-resume confound) |
+| A | `cosine_similarity_batch_no_time_neg` (the previous default; re-runs the lost baseline) |
+| B | `cosine_similarity_batch` (paper-matching, includes within-time and cross-time negatives; re-runs `exp_csb_synth` clean to drop its multi-resume confound) |
 
 **When**: Apr 28 2026.
 
@@ -19,8 +19,8 @@ synth-only, EWMA span=512, 30k bb + 30k qhead):
   during backbone training and was a multi-resume composite, leaving the
   loss-vs-resume effects confounded.
 - Both arms now use `_best_loss → _FINAL.pth` for the FINAL backbone (gap
-  saturates near step ~1600 deterministically on synth — `_best_loss` is
-  the right selector).
+  saturates near step ~1600 deterministically on synth, so `_best_loss`
+  is the right selector).
 
 **Setup**: see `run.sh`. Both arms share every hyperparameter except
 `--loss-shape`. Single-shot (no `--resume`). `_best_gap.pth` and periodic
@@ -43,9 +43,9 @@ is the same).
 - `../freq-embedding/scripts/synth_compare_grid.py` (for the 2-arm comparison plot)
 
 **Artefacts (when complete)**:
-- `plots/synth_compare_pair.png` — 12-panel × 2-arm forecast grid on the
+- `plots/synth_compare_pair.png`: 12-panel × 2-arm forecast grid on the
   same fixed-seed samples.
-- `results/synth_eval.csv` — local copy of the per-arm eval rows.
+- `results/synth_eval.csv`: local copy of the per-arm eval rows.
 - Aggregate CSV updated with the two new rows.
 - Backbone + qhead checkpoints (~80 MB + 2.5 MB each) not tracked in git.
   Pulled to the project root's `sync_csb_pair_ewma/checkpoints/` (NOT in
