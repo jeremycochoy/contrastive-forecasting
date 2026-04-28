@@ -1,5 +1,8 @@
 # Three-arm norm comparison with dual freq+seasonality embeddings
 
+> **Results landed in [`REPORT.md`](REPORT.md).** This README is the
+> pre-run protocol; REPORT.md has the headline numbers and analysis.
+
 ## Why
 
 Two prior results to combine:
