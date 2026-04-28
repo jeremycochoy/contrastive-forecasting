@@ -26,6 +26,51 @@ cd /workspace/app
 exec >> >(tee -a /workspace/app/run_all.log) 2>&1
 echo "" && echo "=== run_compositesynth_2arm: starting ===" && date
 
+# ----- Setup (idempotent — re-runs check before installing) ---------------
+SETUP_MARKER=/workspace/app/.setup_done_compositesynth
+if [ ! -f "$SETUP_MARKER" ]; then
+    echo "=== SETUP ===" && date
+    apt-get update -qq
+    apt-get install -y -qq python3-pip rsync > /dev/null 2>&1 || true
+    GPU_NAME=$(nvidia-smi --query-gpu=name --format=csv,noheader | head -1)
+    DRIVER_CUDA=$(nvidia-smi --query-gpu=driver_version --format=csv,noheader | head -1)
+    echo "GPU: ${GPU_NAME} | driver: ${DRIVER_CUDA}"
+
+    # torch is preinstalled in the pytorch/pytorch image; re-install will be
+    # a no-op if the version pin matches. Force cu128 build.
+    pip install --break-system-packages "torch>=2.8,<2.9" \
+        --index-url https://download.pytorch.org/whl/cu128 > /dev/null 2>&1 || true
+    pip install --break-system-packages 'numpy<2' pandas pyarrow statsmodels \
+        matplotlib datasets huggingface_hub tqdm gluonts > /dev/null 2>&1
+    pip install --break-system-packages \
+        "salesforce-gift-eval @ git+https://github.com/SalesforceAIResearch/gift-eval.git" \
+        > /dev/null 2>&1
+
+    python3 -c "import torch; print(f'torch {torch.__version__} | CUDA {torch.cuda.is_available()} | device: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else None}')"
+
+    # Pre-cache GIFT-Eval data once so all evals can find it.
+    if [ ! -d /workspace/gift-eval-data ] || [ -z "$(ls -A /workspace/gift-eval-data 2>/dev/null)" ]; then
+        echo "=== Download GIFT-Eval data ===" && date
+        export HF_TOKEN_TMP=$(cat experiments/hf_token.txt)
+        export HUGGING_FACE_HUB_TOKEN="$HF_TOKEN_TMP"
+        python3 -c "
+from huggingface_hub import snapshot_download
+import os, shutil
+path = snapshot_download('jeremycochoy/contrastive-training-tiny-bundles',
+                         repo_type='dataset', allow_patterns='eval/**',
+                         local_dir='/workspace/gift-eval-download')
+src = os.path.join(path, 'eval')
+dst = '/workspace/gift-eval-data'
+if os.path.exists(dst): shutil.rmtree(dst)
+shutil.copytree(src, dst)
+print(f'GIFT-Eval data ready: {dst}')
+os.system(f'du -sh {dst}')
+"
+    fi
+    touch "$SETUP_MARKER"
+    echo "=== SETUP DONE ===" && date
+fi
+
 export PYTHONPATH=/workspace/app
 export CUDA_VISIBLE_DEVICES=0
 export HF_TOKEN=$(cat experiments/hf_token.txt)
