@@ -1,9 +1,16 @@
 """Plot the worst-MASE GIFT-Eval configs across all 3 arms.
 
-For each of 13 hand-picked configs (top 1-2 worst per domain where every
-arm has MASE > 1.0), runs B4 inference with each backbone+head, and
-plots context + ground truth + 3 forecasts side by side. Helps see WHERE
-the model fails (weak periodicity, explosive trend, spike-driven, etc.).
+Two outputs:
+
+* `plots/gift_eval_worst_configs.png` — 1-2 worst configs per domain
+  (13 panels), high resolution. Each shows context + truth + 3 model
+  forecasts + seasonal-naive baseline.
+* `plots/gift_eval_all_failures.png` — every config where all 3 arms
+  have MASE > 1 (~73 panels), one big grid.
+
+Each title carries the per-arm MASE plus the test-set SN_MASE we
+recompute on the fly (the GIFT-Eval bundle's seasonal-naive sidecar
+isn't shipped with the data we have).
 
 Run from repo root with the GIFT-Eval data under $GIFT_EVAL:
 
@@ -12,6 +19,7 @@ Run from repo root with the GIFT-Eval data under $GIFT_EVAL:
 """
 from __future__ import annotations
 
+import csv
 import os
 import sys
 import math
@@ -31,9 +39,97 @@ from src.forecasting_head import (
 from src.freq_embedding import gluonts_freq_to_id, seasonality_to_id
 
 
+# ── GIFT-Eval name resolution (mirrors eval_gift_eval_official.py) ─────────
+
+SHORT_DATASETS = (
+    "m4_yearly m4_quarterly m4_monthly m4_weekly m4_daily m4_hourly "
+    "electricity/15T electricity/H electricity/D electricity/W "
+    "solar/10T solar/H solar/D solar/W "
+    "hospital covid_deaths "
+    "us_births/D us_births/M us_births/W "
+    "saugeenday/D saugeenday/M saugeenday/W "
+    "temperature_rain_with_missing "
+    "kdd_cup_2018_with_missing/H kdd_cup_2018_with_missing/D "
+    "car_parts_with_missing restaurant "
+    "hierarchical_sales/D hierarchical_sales/W "
+    "LOOP_SEATTLE/5T LOOP_SEATTLE/H LOOP_SEATTLE/D "
+    "SZ_TAXI/15T SZ_TAXI/H "
+    "M_DENSE/H M_DENSE/D "
+    "ett1/15T ett1/H ett1/D ett1/W "
+    "ett2/15T ett2/H ett2/D ett2/W "
+    "jena_weather/10T jena_weather/H jena_weather/D "
+    "bitbrains_fast_storage/5T bitbrains_fast_storage/H "
+    "bitbrains_rnd/5T bitbrains_rnd/H "
+    "bizitobs_application bizitobs_service "
+    "bizitobs_l2c/5T bizitobs_l2c/H"
+)
+MED_LONG_DATASETS = (
+    "electricity/15T electricity/H "
+    "solar/10T solar/H "
+    "kdd_cup_2018_with_missing/H "
+    "LOOP_SEATTLE/5T LOOP_SEATTLE/H "
+    "SZ_TAXI/15T M_DENSE/H "
+    "ett1/15T ett1/H ett2/15T ett2/H "
+    "jena_weather/10T jena_weather/H "
+    "bitbrains_fast_storage/5T bitbrains_rnd/5T "
+    "bizitobs_application bizitobs_service "
+    "bizitobs_l2c/5T bizitobs_l2c/H"
+)
+PRETTY_NAMES = {
+    "saugeenday": "saugeen",
+    "temperature_rain_with_missing": "temperature_rain",
+    "kdd_cup_2018_with_missing": "kdd_cup_2018",
+    "car_parts_with_missing": "car_parts",
+}
+DATASET_FREQ_FALLBACK = {  # for single-freq datasets
+    "m4_yearly": "A", "m4_quarterly": "Q", "m4_monthly": "M",
+    "m4_weekly": "W", "m4_daily": "D", "m4_hourly": "H",
+    "hospital": "M", "covid_deaths": "D",
+    "temperature_rain": "D", "car_parts": "M",
+    "restaurant": "D",
+    "bizitobs_application": "10S", "bizitobs_service": "10S",
+}
+
+
+def _all_configs():
+    """Return list of (gift_eval_name, term) for all 97 GIFT-Eval configs."""
+    short_list = SHORT_DATASETS.split()
+    med_long_list = MED_LONG_DATASETS.split()
+    out = []
+    for ds_name in sorted(set(short_list + med_long_list)):
+        out.append((ds_name, "short"))
+        if ds_name in med_long_list:
+            out.append((ds_name, "medium"))
+            out.append((ds_name, "long"))
+    return out
+
+
+def _csv_name(ds_name: str, term: str) -> str:
+    """Produce the dataset-key string as it appears in all_results.csv."""
+    if "/" in ds_name:
+        ds_key, ds_freq = ds_name.split("/", 1)
+        ds_key = ds_key.lower()
+    else:
+        ds_key = ds_name.lower()
+        ds_freq = DATASET_FREQ_FALLBACK.get(
+            PRETTY_NAMES.get(ds_key, ds_key), "")
+    ds_key = PRETTY_NAMES.get(ds_key, ds_key)
+    return f"{ds_key}/{ds_freq}/{term}"
+
+
+def csv_name_to_pair(csv_name: str):
+    """Reverse-lookup: 'solar/10T/long' → ('solar/10T', 'long')."""
+    for ds_name, term in _all_configs():
+        if _csv_name(ds_name, term) == csv_name:
+            return ds_name, term
+    raise KeyError(f"Could not resolve {csv_name} to (ds_name, term)")
+
+
 HERE = Path(__file__).resolve().parent.parent
 SYNC_DIR = Path("sync_dualemb_3arm/checkpoints")
 OUT_PATH = HERE / "plots" / "gift_eval_worst_configs.png"
+OUT_PATH_ALL = HERE / "plots" / "gift_eval_all_failures.png"
+RESULTS_DIR = HERE / "results"
 
 # Backbone hyper-params shared across arms.
 BACKBONE_CONFIG = dict(
@@ -152,6 +248,29 @@ def first_test_instance(dataset: GiftDataset):
     raise RuntimeError("dataset.test_data has no instances")
 
 
+def seasonal_naive(context_1d: np.ndarray, horizon: int, period: int):
+    """Standard seasonal-naive forecast: y[h] = ctx[-period + (h % period)]."""
+    if period <= 0 or period >= len(context_1d):
+        period = 1
+    n = len(context_1d)
+    out = np.empty(horizon, dtype=np.float32)
+    for h in range(horizon):
+        out[h] = context_1d[n - period + (h % period)]
+    return out
+
+
+def mase(y_true: np.ndarray, y_pred: np.ndarray, y_train: np.ndarray, period: int):
+    """gluonts-style MASE: forecast error / in-sample seasonal-naive scale."""
+    n = len(y_train)
+    s = period if period > 0 and n > period else 1
+    naive_errs = np.abs(y_train[s:] - y_train[:-s])
+    scale = float(np.mean(naive_errs)) if naive_errs.size else 0.0
+    if scale <= 0:
+        return float("nan")
+    fc_errs = np.abs(y_pred[: len(y_true)] - y_true[: len(y_pred)])
+    return float(np.mean(fc_errs) / scale)
+
+
 def run_arm(backbone, head, ctx_tensor, freq_id, seasonality_id, horizon):
     """Run B4 inference, return (point_forecast, lower, upper) at quantile 0.5 / 0.1 / 0.9."""
     backbone._eval_freq_id = freq_id
@@ -172,16 +291,88 @@ def run_arm(backbone, head, ctx_tensor, freq_id, seasonality_id, horizon):
     return out[:, 0], None, None
 
 
+def _load_mase_per_config():
+    """Read MASE values per arm per config from the CSVs in `results/`."""
+    arms = ["revin", "ewma512", "ewma128"]
+    data: dict[str, dict[str, float]] = {a: {} for a in arms}
+    domains: dict[str, str] = {}
+    for arm in arms:
+        path = RESULTS_DIR / f"gift_eval_{arm}" / "all_results.csv"
+        with open(path) as f:
+            for row in csv.DictReader(f):
+                try:
+                    v = float(row["eval_metrics/MASE[0.5]"])
+                    if math.isfinite(v) and v > 0:
+                        data[arm][row["dataset"]] = v
+                        domains[row["dataset"]] = row.get("domain", "?")
+                except (ValueError, KeyError):
+                    pass
+    common = sorted(set(data["revin"]) & set(data["ewma512"]) & set(data["ewma128"]))
+    return data, domains, common
+
+
+def _plot_one_panel(ax, display, name, term, arm_models, mase_lookup):
+    """Plot one config: context + truth + 3 forecasts + seasonal-naive."""
+    try:
+        check = GiftDataset(name=name, term=term, to_univariate=False)
+        to_univariate = check.target_dim > 1
+        ds = GiftDataset(name=name, term=term, to_univariate=to_univariate)
+        horizon = ds.prediction_length
+        freq_str = ds.freq
+        season = get_seasonality(freq_str)
+        freq_id = gluonts_freq_to_id(freq_str)
+        seas_id = seasonality_to_id(season)
+
+        ctx, tgt = first_test_instance(ds)
+        ctx_tensor = prepare_context(ctx)
+
+        # Plot last min(2*horizon, 256) of context
+        n_show = min(max(2 * horizon, 96), len(ctx), 512)
+        ctx_show = ctx[-n_show:]
+        t_ctx = np.arange(-n_show, 0)
+        t_fc = np.arange(0, horizon)
+        truth = np.asarray(tgt[:horizon], dtype=np.float32)
+
+        ax.plot(t_ctx, ctx_show, color="black", linewidth=0.9, label="context")
+        ax.plot(t_fc, truth, color="black", linewidth=1.6, label="truth")
+
+        # Seasonal-naive forecast and its MASE (computed over the same target).
+        sn_fc = seasonal_naive(np.asarray(ctx, dtype=np.float32), horizon, season)
+        sn_mase = mase(truth, sn_fc, np.asarray(ctx, dtype=np.float32), season)
+        ax.plot(t_fc, sn_fc, color="gray", linewidth=1.1, linestyle="--",
+                label=f"SN (MASE={sn_mase:.2f})")
+
+        # 3 model arms.
+        for arm_id, label, kind, span, color in ARMS:
+            bb, head = arm_models[arm_id]
+            fc, lo, hi = run_arm(bb, head, ctx_tensor, freq_id, seas_id, horizon)
+            fc = fc[:horizon]
+            ax.plot(t_fc, fc, color=color, linewidth=1.1, alpha=0.85,
+                    label=f"{label} ({mase_lookup[arm_id]:.2f})")
+            if lo is not None and hi is not None:
+                ax.fill_between(t_fc, lo[:horizon], hi[:horizon],
+                                color=color, alpha=0.08)
+
+        ax.axvline(0, color="gray", linestyle=":", linewidth=0.6)
+        ax.set_title(f"{display}  (freq={freq_str}, seas={season}, h={horizon})",
+                     fontsize=8)
+        ax.legend(fontsize=6, loc="best", framealpha=0.85)
+        ax.grid(alpha=0.25)
+        print(f"  {display}: ok (h={horizon}, SN_MASE={sn_mase:.2f})")
+        return True
+    except Exception as e:
+        ax.set_title(f"{display}  (FAILED: {e})", fontsize=8, color="red")
+        print(f"  {display}: FAILED {e}")
+        return False
+
+
 def main():
-    # Sync dir lives in the MAIN checkout per CLAUDE.md, regardless of where
-    # this script is run from (worktree or main).
     sync_root = Path(
         os.environ.get("SYNC_ROOT")
         or "/Users/jeremycochoy/Desktop/workspace/trading/contrastive-forecasting"
     )
     checkpoint_dir = sync_root / SYNC_DIR
 
-    # Load all 3 arms once
     print("Loading 3 arms...")
     arm_models = {}
     for arm_id, label, kind, span, color in ARMS:
@@ -189,71 +380,64 @@ def main():
         arm_models[arm_id] = (bb, head)
         print(f"  {label}: ok")
 
-    # Build figure: 13 configs, one row each, 3 columns (no, just one wide subplot per config)
+    data, domains, common = _load_mase_per_config()
+    arms = ["revin", "ewma512", "ewma128"]
+
+    # ---------- Plot 1: 13 curated worst configs ---------------------------
+    print("\n=== Plot 1: 13 curated worst configs ===")
     n = len(WORST_CONFIGS)
     cols = 2
     rows = math.ceil(n / cols)
-    fig, axes = plt.subplots(rows, cols, figsize=(15, 3.0 * rows))
+    fig, axes = plt.subplots(rows, cols, figsize=(18, 3.6 * rows))
     axes_flat = axes.flatten() if hasattr(axes, "flatten") else [axes]
-
     for i, (display, name, term, mase_r, mase_e5, mase_e1) in enumerate(WORST_CONFIGS):
         ax = axes_flat[i]
-        try:
-            check = GiftDataset(name=name, term=term, to_univariate=False)
-            to_univariate = check.target_dim > 1
-            ds = GiftDataset(name=name, term=term, to_univariate=to_univariate)
-            horizon = ds.prediction_length
-            freq_str = ds.freq
-            season = get_seasonality(freq_str)
-            freq_id = gluonts_freq_to_id(freq_str)
-            seas_id = seasonality_to_id(season)
-
-            ctx, tgt = first_test_instance(ds)
-            ctx_tensor = prepare_context(ctx)
-
-            # Last 256 of context for plotting (long contexts swamp)
-            n_show = min(256, len(ctx))
-            ctx_show = ctx[-n_show:]
-
-            t_ctx = np.arange(-n_show, 0)
-            t_fc = np.arange(0, horizon)
-
-            ax.plot(t_ctx, ctx_show, color="black", linewidth=1.0, label="context")
-            ax.plot(t_fc, tgt[:horizon], color="black", linewidth=1.4,
-                    linestyle="-", label="truth")
-
-            mase_lookup = {"revin": mase_r, "ewma512": mase_e5, "ewma128": mase_e1}
-            for arm_id, label, kind, span, color in ARMS:
-                bb, head = arm_models[arm_id]
-                fc, lo, hi = run_arm(bb, head, ctx_tensor, freq_id, seas_id, horizon)
-                fc = fc[:horizon]
-                ax.plot(t_fc, fc, color=color, linewidth=1.2, alpha=0.85,
-                        label=f"{label} (MASE={mase_lookup[arm_id]:.2f})")
-                if lo is not None and hi is not None:
-                    ax.fill_between(t_fc, lo[:horizon], hi[:horizon],
-                                    color=color, alpha=0.10)
-
-            ax.axvline(0, color="gray", linestyle=":", linewidth=0.6)
-            ax.set_title(f"{display}  (freq={freq_str}, seas={season}, h={horizon})",
-                         fontsize=9)
-            ax.legend(fontsize=7, loc="best")
-            ax.grid(alpha=0.25)
-            print(f"  {display}: ok (h={horizon})")
-        except Exception as e:
-            ax.set_title(f"{display}  (FAILED: {e})", fontsize=9, color="red")
-            print(f"  {display}: FAILED {e}")
-
-    # Hide any unused subplots
+        mase_lookup = {"revin": mase_r, "ewma512": mase_e5, "ewma128": mase_e1}
+        _plot_one_panel(ax, display, name, term, arm_models, mase_lookup)
     for j in range(n, len(axes_flat)):
         axes_flat[j].set_visible(False)
-
-    fig.suptitle("Worst GIFT-Eval configs (all 3 arms MASE > 1.0): "
-                 "context + truth + 3 forecasts",
-                 fontsize=13)
+    fig.suptitle(
+        "Worst GIFT-Eval configs (top 1-2 per domain, all 3 arms MASE > 1): "
+        "context + truth + SN + 3 model forecasts",
+        fontsize=13,
+    )
     fig.tight_layout(rect=(0, 0, 1, 0.98))
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(OUT_PATH, dpi=120)
+    fig.savefig(OUT_PATH, dpi=180)
     print(f"Saved {OUT_PATH}")
+
+    # ---------- Plot 2: every fail-all config ------------------------------
+    fail_all = [c for c in common if all(data[a][c] > 1.0 for a in arms)]
+    # Sort by domain, then by GM-MASE descending for visual flow.
+    def _gm(c):
+        return math.exp(sum(math.log(data[a][c]) for a in arms) / 3.0)
+    fail_all = sorted(fail_all, key=lambda c: (domains[c], -_gm(c)))
+    print(f"\n=== Plot 2: all {len(fail_all)} fail-all configs ===")
+    cols = 3
+    rows = math.ceil(len(fail_all) / cols)
+    fig, axes = plt.subplots(rows, cols, figsize=(20, 3.0 * rows))
+    axes_flat = axes.flatten() if hasattr(axes, "flatten") else [axes]
+    for i, csv_name in enumerate(fail_all):
+        ax = axes_flat[i]
+        try:
+            ds_name, term = csv_name_to_pair(csv_name)
+        except KeyError as e:
+            ax.set_title(f"{csv_name}  ({e})", fontsize=8, color="red")
+            print(f"  {csv_name}: name resolution FAILED")
+            continue
+        display = f"{domains[csv_name]}: {csv_name}"
+        mase_lookup = {a: data[a][csv_name] for a in arms}
+        _plot_one_panel(ax, display, ds_name, term, arm_models, mase_lookup)
+    for j in range(len(fail_all), len(axes_flat)):
+        axes_flat[j].set_visible(False)
+    fig.suptitle(
+        f"All {len(fail_all)} GIFT-Eval configs where every arm has MASE > 1: "
+        "context + truth + SN + 3 model forecasts",
+        fontsize=14,
+    )
+    fig.tight_layout(rect=(0, 0, 1, 0.99))
+    fig.savefig(OUT_PATH_ALL, dpi=130)
+    print(f"Saved {OUT_PATH_ALL}")
 
 
 if __name__ == "__main__":
