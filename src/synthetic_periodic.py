@@ -206,8 +206,6 @@ def generate_periodic_batch(
     X_t = torch.from_numpy(np.ascontiguousarray(X))
 
     # Per-BATCH-row labels.
-    spp_per_row = spp.reshape(batch_size, C).min(axis=1)
-
     freq_ids_t = None
     seasonality_ids_t = None
     if return_labels:
@@ -218,7 +216,8 @@ def generate_periodic_batch(
         freq_ids_t = torch.from_numpy(row_freq_ids)
     elif return_freq_ids:
         # Legacy single-axis path: freq_id is the seasonality bucket
-        # derived from spp via the historical mapping.
+        # derived from the row's minimum spp via the historical mapping.
+        spp_per_row = spp.reshape(batch_size, C).min(axis=1)
         from src.freq_embedding import spp_to_freq_id  # local
         freq_ids_np = np.array(
             [spp_to_freq_id(float(s)) for s in spp_per_row],

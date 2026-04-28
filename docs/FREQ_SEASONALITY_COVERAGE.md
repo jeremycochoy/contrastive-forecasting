@@ -52,8 +52,8 @@ signal.
 | 5 | `33 ≤ spp ≤ 64`         | daily on 30-min (48); yearly on weekly (52) |
 | 6 | `65 ≤ spp ≤ 128`        | daily on 15-min (96) |
 | 7 | `129 ≤ spp ≤ 256`       | daily on 10-min (144); weekly on hourly (168) |
-| 8 | `257 ≤ spp ≤ 512`       | daily on 5-min (288); ~daily on 10s (360) |
-| 9 | `spp > 512`             | weekly on 5-min (2016); yearly on daily (365); ... |
+| 8 | `257 ≤ spp ≤ 512`       | daily on 5-min (288); ~daily on 10s (360); yearly on daily (365) |
+| 9 | `spp > 512`             | weekly on 5-min (2016); yearly on hourly (8760); ... |
 
 The function lives in `src/freq_embedding.py:seasonality_to_id`.
 
@@ -100,7 +100,7 @@ appears at least once and the marginals are within ±10% of uniform.
 
 | bucket | spp range | what the visible signal looks like |
 |--------|-----------|-------------------------------------|
-| 0 | `[1024, 4096]` | a fraction of one cycle in 1024 samples → looks aperiodic |
+| 0 | `[1024, 4096]` | at most one cycle visible (often <1); looks aperiodic on the upper half of the range |
 | 1 | `[2, 4]`       | dozens to hundreds of cycles |
 | 2 | `[5, 8]`       | many short cycles |
 | 3 | `[9, 16]`      | tens of cycles |
@@ -129,7 +129,7 @@ The synth fills in the alternatives so the model sees them at training time:
 | (7, 7) `1h` × 168  | hourly with weekly cycle | **no** (GIFT only tests daily-on-hourly = 24) |
 | (8, 2) `1d` × 7    | daily with weekly cycle | **no** (GIFT uses gluonts default = 1) |
 | (8, 4) `1d` × 30   | daily with monthly cycle | no |
-| (8, 9) `1d` × >512 | daily with yearly cycle (365) | no |
+| (8, 8) `1d` × 365  | daily with yearly cycle | no |
 | (9, 1)–(9, 5) `1w` × 4..52 | weekly with monthly to yearly cycles | no (GIFT uses 1) |
 
 The two highlighted rows are the most important: real-world daily and
