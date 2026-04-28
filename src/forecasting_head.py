@@ -164,26 +164,24 @@ def quantile_loss(predicted, target, quantile_levels=QUANTILE_LEVELS):
     return torch.maximum(q * err, (q - 1) * err).mean()
 
 
-def extract_forecaster_latents(backbone, x, freq_ids=None):
+def extract_forecaster_latents(backbone, x, freq_ids=None,
+                                seasonality_ids=None):
     """Extract f_lat from backbone for forecasting head input.
 
-    Applies RevEWMNorm, patches the input (incl. patch-stats and freq-emb if
-    configured), and runs the transformer to get the forecaster latents
-    (``f_flat``). The normalized input is also returned for target extraction.
+    Applies RevEWMNorm, patches the input (incl. patch-stats, freq-emb,
+    and seasonality-emb if configured), and runs the transformer to get
+    the forecaster latents (``f_flat``).
 
     Args:
         backbone: frozen ConfigurableModel
         x: (B, T_raw, C) raw input tensor
         freq_ids: LongTensor (B,) of freq class ids when the backbone has a
-            freq embedding. If the backbone has freq_embedding configured
-            but freq_ids is None, defaults to class 0 (unknown).
-
-    Returns:
-        f_bc: (B*C, T, H) forecaster latents (detached)
-        x_norm: (B, T_raw, C) normalized input (for target extraction)
+            freq embedding. Defaults to class 0 (unknown) if missing.
+        seasonality_ids: LongTensor (B,) of seasonality class ids when the
+            backbone has a seasonality embedding. Defaults to class 0
+            (unknown) if missing.
     """
     with torch.no_grad():
-        # Apply reversible normalization
         if backbone.rev_norm is not None:
             x_norm = backbone.rev_norm(x, mode='norm')
         else:
@@ -192,15 +190,17 @@ def extract_forecaster_latents(backbone, x, freq_ids=None):
         B = x_norm.shape[0]
         if (getattr(backbone, 'freq_embedding', None) is not None
                 and freq_ids is None):
-            freq_ids = torch.zeros(B, dtype=torch.long, device=x.device)
+            default = int(getattr(backbone, '_eval_freq_id', 0))
+            freq_ids = torch.full((B,), default, dtype=torch.long, device=x.device)
+        if (getattr(backbone, 'seasonality_embedding', None) is not None
+                and seasonality_ids is None):
+            default = int(getattr(backbone, '_eval_seasonality_id', 0))
+            seasonality_ids = torch.full((B,), default, dtype=torch.long, device=x.device)
 
-        # Patches + (optional) patch-stats + (optional) freq emb — single
-        # source of truth, shared with backbone.forward.
-        xr = backbone.prepare_encoder_input(x_norm, freq_ids=freq_ids)
+        xr = backbone.prepare_encoder_input(
+            x_norm, freq_ids=freq_ids, seasonality_ids=seasonality_ids)
 
-        # Get forecaster latents from transformer
         f_flat, _ = backbone.transformer(xr)
-        # f_flat: (B*C, T, H)
 
     return f_flat.detach(), x_norm.detach()
 
@@ -388,12 +388,15 @@ def forecast_autoregressive(backbone, head, x_context, horizon, device):
 # Latent-space rollout infrastructure
 # ============================================================================
 
-def extract_encoder_latents(backbone, x):
+def extract_encoder_latents(backbone, x, freq_ids=None, seasonality_ids=None):
     """Extract encoder latents e[t] (before transformer) and RevEWMNorm stats.
 
     Args:
         backbone: frozen ConfigurableModel
         x: (B, T_raw, C) raw input tensor
+        freq_ids, seasonality_ids: optional LongTensors (B,). When the
+            backbone has the corresponding embedding configured but the
+            id tensor is missing, falls back to class 0 (unknown).
 
     Returns:
         e_bc: (B*C, T, H) encoder latents (detached)
@@ -406,13 +409,18 @@ def extract_encoder_latents(backbone, x):
             x_norm = x
 
         B = x_norm.shape[0]
-        freq_ids = None
-        if getattr(backbone, 'freq_embedding', None) is not None:
-            freq_ids = torch.zeros(B, dtype=torch.long, device=x.device)
+        if (getattr(backbone, 'freq_embedding', None) is not None
+                and freq_ids is None):
+            default = int(getattr(backbone, '_eval_freq_id', 0))
+            freq_ids = torch.full((B,), default, dtype=torch.long, device=x.device)
+        if (getattr(backbone, 'seasonality_embedding', None) is not None
+                and seasonality_ids is None):
+            default = int(getattr(backbone, '_eval_seasonality_id', 0))
+            seasonality_ids = torch.full((B,), default, dtype=torch.long, device=x.device)
 
-        xr = backbone.prepare_encoder_input(x_norm, freq_ids=freq_ids)
+        xr = backbone.prepare_encoder_input(
+            x_norm, freq_ids=freq_ids, seasonality_ids=seasonality_ids)
 
-        # Run encoder only (input_to_latent), not transformer
         e = backbone.transformer.input_to_latent(xr)  # (B, T, C, H)
         B, T, C, H = e.size()
         e_bc = e.permute(0, 2, 1, 3).reshape(B * C, T, H)

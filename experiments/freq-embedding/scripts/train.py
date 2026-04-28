@@ -77,6 +77,8 @@ def parse_args():
     p.add_argument("--mix-ratio", type=float, default=0.5)
     p.add_argument("--synth-seed", type=int, default=None)
     # Freq embedding
+    p.add_argument("--seasonality-emb-dim", type=int, default=0,
+                   help="Seasonality embedding dim (0 = disabled).")
     p.add_argument("--freq-emb-dim", type=int, default=3,
                    help="Frequency embedding dimension (0 disables it).")
     # Mixup on (X, freq)
@@ -123,51 +125,62 @@ def random_sign_flip(x):
     return x * signs
 
 
-def forward_step(model, x, freq_ids=None, freq_embs=None):
-    """Apply RevEWMNorm + transformer with optional freq embedding +
-    optional patch-stats. Routes through ``model.prepare_encoder_input``
-    so the patch-stats concat path is identical to ``model.forward`` and
-    to the head-trainer's ``extract_*_latents``."""
+def forward_step(model, x, freq_ids=None, freq_embs=None,
+                  seasonality_ids=None, seasonality_embs=None):
+    """Apply RevEWMNorm + transformer with optional freq + seasonality
+    embeddings + optional patch-stats. Routes through
+    ``model.prepare_encoder_input`` so the patching path is identical to
+    ``model.forward`` and to the head-trainer's ``extract_*_latents``."""
     H = model.H
     if model.rev_norm is not None:
         x = model.rev_norm(x, mode='norm')
     B, T_raw, C = x.shape
     T = T_raw // model.W
     xr = model.prepare_encoder_input(
-        x, freq_ids=freq_ids, freq_embs=freq_embs)
+        x, freq_ids=freq_ids, freq_embs=freq_embs,
+        seasonality_ids=seasonality_ids, seasonality_embs=seasonality_embs)
     f_flat, o_flat = model.transformer(xr)
     f_lat = f_flat.reshape(B, C, T, H).permute(0, 2, 1, 3)
     o_lat = o_flat.reshape(B, C, T, H).permute(0, 2, 1, 3)
     return f_lat, o_lat
 
 
-def maybe_mixup(x, freq_ids, model, args):
-    """With prob p, linearly interpolate X and freq embedding between
-    randomly-paired batch items. Returns (x, freq_ids, freq_embs).
+def maybe_mixup(x, freq_ids, seasonality_ids, model, args):
+    """With prob p, linearly interpolate X and label embeddings between
+    randomly-paired batch items.
 
-    When no mixup is applied, returns (x, freq_ids, None) and the caller
-    should pass freq_ids to model.forward(); freq_embs=None means the
-    model does its own lookup.
-
-    When mixup IS applied, freq_ids is returned unchanged (unused) and
-    freq_embs is a tensor the caller must pass via freq_embs=... so the
-    model uses the mixed embedding instead of looking up by id.
+    Returns ``(x, freq_ids, freq_embs, seasonality_ids, seasonality_embs)``.
+    ``*_embs`` are None when no mixup applies (caller passes ids directly to
+    the model so it does its own lookup); when mixup applies, ``*_embs``
+    are pre-mixed tensors and ids are unused by the model lookup.
     """
-    if args.mixup_p <= 0 or model.freq_embedding is None:
-        return x, freq_ids, None
+    no_freq = model.freq_embedding is None
+    no_seas = model.seasonality_embedding is None
+    if args.mixup_p <= 0 or (no_freq and no_seas):
+        return x, freq_ids, None, seasonality_ids, None
     if torch.rand(()).item() >= args.mixup_p:
-        return x, freq_ids, None
+        return x, freq_ids, None, seasonality_ids, None
 
-    # Draw a single alpha for the whole batch (standard mixup).
     a = float(torch.distributions.Beta(args.mixup_alpha, args.mixup_alpha).sample())
     B = x.shape[0]
     idx = torch.randperm(B, device=x.device)
     x_mix = a * x + (1 - a) * x[idx]
-    # Embedding is indexed by id; compute both and mix.
-    emb_a = model.freq_embedding(freq_ids)
-    emb_b = model.freq_embedding(freq_ids[idx])
-    emb_mix = a * emb_a + (1 - a) * emb_b
-    return x_mix, freq_ids, emb_mix
+
+    if not no_freq:
+        emb_a = model.freq_embedding(freq_ids)
+        emb_b = model.freq_embedding(freq_ids[idx])
+        freq_emb_mix = a * emb_a + (1 - a) * emb_b
+    else:
+        freq_emb_mix = None
+
+    if not no_seas:
+        emb_a = model.seasonality_embedding(seasonality_ids)
+        emb_b = model.seasonality_embedding(seasonality_ids[idx])
+        seas_emb_mix = a * emb_a + (1 - a) * emb_b
+    else:
+        seas_emb_mix = None
+
+    return x_mix, freq_ids, freq_emb_mix, seasonality_ids, seas_emb_mix
 
 
 def save_snapshot(model, optimizer, path, step, best_gap, best_gap_step,
@@ -254,6 +267,7 @@ def main():
     # -- Model -----------------------------------------------------------------
     model_config = dict(MODEL_CONFIG)
     model_config["freq_emb_dim"] = args.freq_emb_dim
+    model_config["seasonality_emb_dim"] = args.seasonality_emb_dim
     model_config["rev_norm_kind"] = args.rev_norm_kind
     if args.rev_norm_kind == "ewma":
         model_config["rev_norm_span"] = args.rev_norm_span
@@ -294,7 +308,9 @@ def main():
     print(f"Device: {device} | Params: {count_parameters(model):,}")
     print(f"Training for {args.total_steps} steps, bs={args.batch_size}, "
           f"lr={args.lr}, T={T_RAW}, mix_ratio={args.mix_ratio}, "
-          f"freq_emb_dim={args.freq_emb_dim}, mixup_p={args.mixup_p}, "
+          f"freq_emb_dim={args.freq_emb_dim}, "
+          f"seasonality_emb_dim={args.seasonality_emb_dim}, "
+          f"mixup_p={args.mixup_p}, "
           f"rev_norm_kind={args.rev_norm_kind}"
           + (f"(span={args.rev_norm_span})" if args.rev_norm_kind == 'ewma' else "")
           + f", patch_stats={args.patch_stats}")
@@ -323,7 +339,7 @@ def main():
         mix_ratio=args.mix_ratio,
         path_in_repo=args.hf_path, split=args.split,
         skip_rows=hf_rows_consumed, T_raw=T_RAW, seed=synth_seed,
-        emit_freq_ids=(args.freq_emb_dim > 0),
+        emit_freq_ids=(args.freq_emb_dim > 0 or args.seasonality_emb_dim > 0),
     )
     print(f"Data: MIX {(1-args.mix_ratio)*100:.0f}% HF + "
           f"{args.mix_ratio*100:.0f}% synth, hf_bs={hf_bs}, synth_bs={synth_bs}")
@@ -350,27 +366,34 @@ def main():
             data_iter = iter(data_loader)
             batch = next(data_iter)
 
-        if args.freq_emb_dim > 0:
-            x, freq_ids = batch
+        if args.freq_emb_dim > 0 or args.seasonality_emb_dim > 0:
+            x, freq_ids, seasonality_ids = batch
             freq_ids = freq_ids.to(device)
+            seasonality_ids = seasonality_ids.to(device)
         else:
             x = batch
             freq_ids = None
+            seasonality_ids = None
 
         hf_rows_consumed += hf_rows_per_step
         synth_rows_consumed += synth_rows_per_step
         x = x.to(device)
         x = random_sign_flip(x)
 
-        # Optional mixup (X + freq embedding)
-        x, freq_ids, freq_embs = maybe_mixup(x, freq_ids, model, args)
-        mixup_applied = (freq_embs is not None)
+        # Optional mixup (X + freq + seasonality embeddings)
+        (x, freq_ids, freq_embs,
+         seasonality_ids, seasonality_embs) = maybe_mixup(
+            x, freq_ids, seasonality_ids, model, args)
+        mixup_applied = (freq_embs is not None or seasonality_embs is not None)
         if mixup_applied:
             mixup_applied_count += 1
         t_data_end = time.perf_counter()
 
         t_fwd_start = time.perf_counter()
-        f_lat, o_lat = forward_step(model, x, freq_ids=freq_ids, freq_embs=freq_embs)
+        f_lat, o_lat = forward_step(
+            model, x,
+            freq_ids=freq_ids, freq_embs=freq_embs,
+            seasonality_ids=seasonality_ids, seasonality_embs=seasonality_embs)
         loss = contrastive_latent_loss((f_lat, o_lat), validation=False,
                                        spec=LOSS_SPEC)
         t_fwd_end = time.perf_counter()

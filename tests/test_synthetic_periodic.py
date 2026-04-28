@@ -4,6 +4,11 @@ import numpy as np
 import pytest
 import torch
 
+from src.freq_embedding import (
+    NUM_FREQS,
+    NUM_SEASONALITIES,
+    seasonality_to_id,
+)
 from src.synthetic_periodic import (
     generate_periodic_batch,
     primitive_name,
@@ -193,6 +198,101 @@ class TestPipelineCompat:
         assert primitive_name(_PRIM_SIN) == "sinusoid"
         assert primitive_name(_PRIM_SQUARE) == "square"
         assert primitive_name(_PRIM_SAW) == "saw"
+
+
+# ── Dual-axis labels (return_labels=True) ───────────────────────────────────
+
+class TestReturnLabels:
+    def test_returns_three_tuple(self):
+        X, freq_ids, seasonality_ids = generate_periodic_batch(
+            batch_size=8, T_raw=512, C=2, seed=0, return_labels=True)
+        assert X.shape == (8, 512, 2)
+        assert freq_ids.shape == (8,)
+        assert seasonality_ids.shape == (8,)
+
+    def test_label_dtypes_long(self):
+        _, freq_ids, seasonality_ids = generate_periodic_batch(
+            batch_size=4, T_raw=256, C=2, seed=0, return_labels=True)
+        assert freq_ids.dtype == torch.long
+        assert seasonality_ids.dtype == torch.long
+
+    def test_freq_ids_in_range(self):
+        _, freq_ids, _ = generate_periodic_batch(
+            batch_size=128, T_raw=64, C=4, seed=0, return_labels=True)
+        # 1..NUM_FREQS-1 (0=unknown is reserved for missing labels)
+        assert int(freq_ids.min()) >= 1
+        assert int(freq_ids.max()) <= NUM_FREQS - 1
+
+    def test_seasonality_ids_in_range(self):
+        _, _, seas_ids = generate_periodic_batch(
+            batch_size=128, T_raw=64, C=4, seed=0, return_labels=True)
+        assert int(seas_ids.min()) >= 1  # spp ≥ 8 always → bucket ≥ 2 actually
+        assert int(seas_ids.max()) <= NUM_SEASONALITIES - 1
+
+    def test_seasonality_matches_meta_spp(self):
+        """Seasonality id per row must equal seasonality_to_id of the row's spp.
+
+        Since each row has C channels with independent spps, the row's
+        spp is taken as the channel-min (matching the single-axis
+        legacy convention so the model sees the dominant cycle).
+        """
+        N_BATCH = 16
+        C = 4
+        X, freq_ids, seas_ids, meta = generate_periodic_batch(
+            batch_size=N_BATCH, T_raw=128, C=C, seed=42,
+            return_labels=True, return_meta=True)
+        spp_per_row = meta["spp"].reshape(N_BATCH, C).min(axis=1)
+        expected = np.array(
+            [seasonality_to_id(float(s)) for s in spp_per_row], dtype=np.int64)
+        np.testing.assert_array_equal(seas_ids.numpy(), expected)
+
+    def test_freq_independent_of_spp(self):
+        """freq is sampled uniformly over {1..NUM_FREQS-1}; not derived from spp.
+
+        With N=2000 and 9 classes, expect ~222 per class. χ²-style tolerance.
+        """
+        N_BATCH = 500
+        C = 4
+        _, freq_ids, _ = generate_periodic_batch(
+            batch_size=N_BATCH, T_raw=64, C=C, seed=0, return_labels=True)
+        ids = freq_ids.numpy()
+        counts = np.bincount(ids, minlength=NUM_FREQS)
+        # Class 0 should be empty (we sample from 1..9), classes 1-9 roughly equal.
+        assert counts[0] == 0
+        non_zero = counts[1:]
+        expected = N_BATCH / (NUM_FREQS - 1)
+        assert (non_zero >= 0.6 * expected).all(), \
+            f"some class under-represented: {non_zero}"
+        assert (non_zero <= 1.4 * expected).all(), \
+            f"some class over-represented: {non_zero}"
+
+    def test_same_seed_same_labels(self):
+        out1 = generate_periodic_batch(8, 256, 2, seed=7, return_labels=True)
+        out2 = generate_periodic_batch(8, 256, 2, seed=7, return_labels=True)
+        torch.testing.assert_close(out1[0], out2[0])
+        torch.testing.assert_close(out1[1], out2[1])
+        torch.testing.assert_close(out1[2], out2[2])
+
+    def test_different_seeds_different_labels(self):
+        _, f1, s1 = generate_periodic_batch(
+            32, 64, 2, seed=1, return_labels=True)
+        _, f2, s2 = generate_periodic_batch(
+            32, 64, 2, seed=2, return_labels=True)
+        # At least one of (freq, seasonality) should differ across seeds.
+        assert not (torch.equal(f1, f2) and torch.equal(s1, s2))
+
+    def test_data_unchanged_when_return_labels_added(self):
+        """Adding return_labels=True must not change the data values.
+
+        Same seed without labels and with labels should produce
+        bit-identical X. This is the same-seed-same-numbers gate the
+        plumb change must respect: the data path is independent of
+        whether we report labels.
+        """
+        X_no = generate_periodic_batch(8, 512, 2, seed=99)
+        X_yes, _, _ = generate_periodic_batch(
+            8, 512, 2, seed=99, return_labels=True)
+        torch.testing.assert_close(X_no, X_yes)
 
 
 if __name__ == "__main__":

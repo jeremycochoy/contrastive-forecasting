@@ -189,11 +189,20 @@ class HFStreamingLoader:
         C: Number of channels (independent series) per sample.
         split: Dataset split to use.
         prefetch: Number of batches to buffer ahead in background thread.
+        emit_source_ids: If True, yield ``(tensor, source_ids)`` tuples
+            where ``source_ids`` is a LongTensor of shape ``[B]`` carrying
+            the source_id of the *first* channel of each multi-channel
+            sample. Used by :class:`MixedPeriodicLoader` to look up
+            ``(freq_id, seasonality_id)`` from ``SOURCE_ID_TO_LABELS``.
+            Falls back to 0 (unknown) if a row's source_id column is
+            missing — keeps the loader compatible with HF datasets that
+            don't expose the column (raw GiftEval).
     """
 
     def __init__(self, repo_id: str, batch_size: int = 16, C: int = 4,
                  path_in_repo: str = None, split: str = "train",
-                 prefetch: int = 2, skip_rows: int = 0):
+                 prefetch: int = 2, skip_rows: int = 0,
+                 emit_source_ids: bool = False):
         self.repo_id = repo_id
         self.batch_size = batch_size
         self.C = C
@@ -201,6 +210,7 @@ class HFStreamingLoader:
         self.split = split
         self.prefetch = prefetch
         self.skip_rows = skip_rows
+        self.emit_source_ids = emit_source_ids
 
     def _open_stream(self):
         from datasets import load_dataset
@@ -317,6 +327,7 @@ class HFStreamingLoader:
         else:
             row_iter = iter(self._open_stream())
         buf = []
+        sids: list[int] = []  # parallel source_id per window in buf
         target = self.batch_size * self.C
 
         for row in row_iter:
@@ -325,6 +336,7 @@ class HFStreamingLoader:
             if series is None:
                 continue
             full = np.array(series, dtype=np.float32)
+            row_sid = int(row.get("source_id", 0)) if self.emit_source_ids else 0
 
             # Crop non-overlapping T_RAW windows from long series
             for start in range(0, len(full) - T_RAW + 1, T_RAW):
@@ -332,20 +344,24 @@ class HFStreamingLoader:
                 if not _forward_fill_nan(window):
                     continue  # skip all-NaN windows
                 buf.append(window)
+                if self.emit_source_ids:
+                    sids.append(row_sid)
 
                 if len(buf) == target:
-                    yield self._flush(buf)
+                    yield self._flush(buf, sids)
                     buf = []
+                    sids = []
 
         # Yield remainder if enough for at least one sample
         if len(buf) >= self.C:
             usable = (len(buf) // self.C) * self.C
-            yield self._flush(buf[:usable])
+            yield self._flush(buf[:usable], sids[:usable] if sids else [])
 
     def __iter__(self):
         return iter(PrefetchIterator(self._raw_iter(), prefetch=self.prefetch))
 
-    def _flush(self, buf: list[np.ndarray]) -> torch.Tensor:
+    def _flush(self, buf: list[np.ndarray],
+               sids: list[int] | None = None) -> torch.Tensor:
         C = self.C
         B = len(buf) // C
         T = len(buf[0])
@@ -353,7 +369,19 @@ class HFStreamingLoader:
         stacked = np.stack(buf)                          # [B*C, T]
         stacked = stacked.reshape(B, C, T)               # [B, C, T]
         stacked = stacked.transpose(0, 2, 1)             # [B, T, C]
-        return torch.from_numpy(stacked.copy())
+        x = torch.from_numpy(stacked.copy())
+        if not self.emit_source_ids:
+            return x
+        # Per-batch-row source_id: first channel of each row group sets the
+        # label. Channels of one sample are independent series and can have
+        # different source_ids in pre-shuffled bundles, so we tag each row
+        # by its primary channel.
+        if sids:
+            row_sids = [sids[b * C] for b in range(B)]
+            sids_t = torch.tensor(row_sids, dtype=torch.long)
+        else:
+            sids_t = torch.zeros(B, dtype=torch.long)
+        return x, sids_t
 
 
 # ── Batch collation for local shards ─────────────────────────────────────────
@@ -495,21 +523,39 @@ class MixedPeriodicLoader:
         # Import locally so dataloader.py doesn't force synthetic_periodic
         # into the test import graph.
         from src.synthetic_periodic import generate_periodic_batch
+        from src.freq_embedding import SOURCE_ID_TO_LABELS
 
         rng = np.random.default_rng(self._seed)
         hf_iter = iter(self.hf_loader)
 
+        # When emit_freq_ids is on, the hf_loader yields (x, source_ids)
+        # tuples (HFStreamingLoader.emit_source_ids=True or _FakeHFLoader
+        # in tests). Otherwise it yields bare tensors. Build a fast lookup
+        # from source_id to (freq_id, seasonality_id) once per iter.
+        max_sid = max(SOURCE_ID_TO_LABELS.keys())
+        sid_to_freq = torch.zeros(max_sid + 1, dtype=torch.long)
+        sid_to_seas = torch.zeros(max_sid + 1, dtype=torch.long)
+        for sid, (fid, eid) in SOURCE_ID_TO_LABELS.items():
+            sid_to_freq[sid] = fid
+            sid_to_seas[sid] = eid
+
         while True:
             try:
-                x_hf = next(hf_iter)                        # [hf_bs, T, C]
+                hf_batch = next(hf_iter)
             except StopIteration:
                 return
+            if self.emit_freq_ids and isinstance(hf_batch, tuple):
+                x_hf, hf_source_ids = hf_batch
+            else:
+                x_hf = hf_batch
+                hf_source_ids = None
             hf_bs = x_hf.shape[0]
+
             if self.synth_bs > 0:
                 if self.emit_freq_ids:
-                    x_syn, freq_syn = generate_periodic_batch(
+                    x_syn, freq_syn, seas_syn = generate_periodic_batch(
                         batch_size=self.synth_bs, T_raw=self.T_raw,
-                        C=self.C, rng=rng, return_freq_ids=True,
+                        C=self.C, rng=rng, return_labels=True,
                     )
                 else:
                     x_syn = generate_periodic_batch(
@@ -519,16 +565,25 @@ class MixedPeriodicLoader:
                 x = torch.cat([x_hf, x_syn], dim=0)         # [B, T, C]
             else:
                 x = x_hf
+
             if self.emit_freq_ids:
-                # HF rows are tagged 0 = unknown (we don't thread real freq
-                # metadata through base-bundles yet). Synth rows carry their
-                # sampled freq id.
-                freq_hf = torch.zeros(hf_bs, dtype=torch.long)
+                if hf_source_ids is not None:
+                    # Out-of-vocab source_ids fall back to 0 (unknown).
+                    safe_sids = hf_source_ids.clamp(min=0, max=max_sid)
+                    freq_hf = sid_to_freq[safe_sids]
+                    seas_hf = sid_to_seas[safe_sids]
+                else:
+                    # Backwards compat for callers passing a bare-tensor hf
+                    # loader: treat HF rows as unknown (0, 0).
+                    freq_hf = torch.zeros(hf_bs, dtype=torch.long)
+                    seas_hf = torch.zeros(hf_bs, dtype=torch.long)
                 if self.synth_bs > 0:
                     freq = torch.cat([freq_hf, freq_syn], dim=0)
+                    seas = torch.cat([seas_hf, seas_syn], dim=0)
                 else:
                     freq = freq_hf
-                yield x, freq
+                    seas = seas_hf
+                yield x, freq, seas
             else:
                 yield x
 
@@ -575,6 +630,7 @@ def create_mixed_periodic_dataloader(
     hf_loader = HFStreamingLoader(
         repo_id=repo_id, batch_size=hf_bs, C=C,
         path_in_repo=path_in_repo, split=split, skip_rows=skip_rows,
+        emit_source_ids=emit_freq_ids,
     ) if hf_bs > 0 else None
 
     # Small helper to act as an "iterable-like" HF loader when mix_ratio=1.0.
