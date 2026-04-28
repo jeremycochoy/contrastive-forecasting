@@ -226,25 +226,45 @@ class TestReturnLabels:
     def test_seasonality_ids_in_range(self):
         _, _, seas_ids = generate_periodic_batch(
             batch_size=128, T_raw=64, C=4, seed=0, return_labels=True)
-        assert int(seas_ids.min()) >= 1  # spp ≥ 8 always → bucket ≥ 2 actually
+        # 0..NUM_SEASONALITIES-1: bucket 0 is the explicit "no period info"
+        # sentinel and is sampled jointly alongside the other buckets.
+        assert int(seas_ids.min()) >= 0
         assert int(seas_ids.max()) <= NUM_SEASONALITIES - 1
 
-    def test_seasonality_matches_meta_spp(self):
-        """Seasonality id per row must equal seasonality_to_id of the row's spp.
+    def test_seasonality_id_consistent_with_spp_for_buckets_1_to_9(self):
+        """For bucket k > 0, every channel in a row has spp landing in
+        bucket k (so `seasonality_to_id(spp_channel)` round-trips).
 
-        Since each row has C channels with independent spps, the row's
-        spp is taken as the channel-min (matching the single-axis
-        legacy convention so the model sees the dominant cycle).
+        Bucket 0 is exempt because spp is sampled in [1024, 4096] there to
+        produce an aperiodic-looking signal in the 1024-window; that range
+        of spp would map to bucket 9 via `seasonality_to_id`, but the row
+        is intentionally tagged 0 to mean "no period info".
         """
-        N_BATCH = 16
-        C = 4
-        X, freq_ids, seas_ids, meta = generate_periodic_batch(
+        N_BATCH, C = 32, 4
+        _, freq_ids, seas_ids, meta = generate_periodic_batch(
             batch_size=N_BATCH, T_raw=128, C=C, seed=42,
             return_labels=True, return_meta=True)
-        spp_per_row = meta["spp"].reshape(N_BATCH, C).min(axis=1)
-        expected = np.array(
-            [seasonality_to_id(float(s)) for s in spp_per_row], dtype=np.int64)
-        np.testing.assert_array_equal(seas_ids.numpy(), expected)
+        spp_2d = meta["spp"].reshape(N_BATCH, C)
+        for b in range(N_BATCH):
+            sid = int(seas_ids[b])
+            for c in range(C):
+                if sid == 0:
+                    # No-period sentinel: spp drawn from [1024, 4096]
+                    assert spp_2d[b, c] >= 1024.0
+                else:
+                    assert seasonality_to_id(float(spp_2d[b, c])) == sid, (
+                        f"row {b} channel {c}: spp={spp_2d[b, c]} "
+                        f"-> bucket {seasonality_to_id(float(spp_2d[b, c]))}, "
+                        f"expected {sid}")
+
+    def test_all_seasonality_buckets_covered_at_scale(self):
+        """At a large enough batch size every bucket {0..9} should appear
+        at least once because we sample uniformly over them."""
+        _, _, seas_ids = generate_periodic_batch(
+            batch_size=300, T_raw=64, C=2, seed=7, return_labels=True)
+        present = set(int(x) for x in seas_ids.tolist())
+        assert present == set(range(NUM_SEASONALITIES)), (
+            f"missing bucket(s): {set(range(NUM_SEASONALITIES)) - present}")
 
     def test_freq_independent_of_spp(self):
         """freq is sampled uniformly over {1..NUM_FREQS-1}; not derived from spp.
@@ -281,18 +301,23 @@ class TestReturnLabels:
         # At least one of (freq, seasonality) should differ across seeds.
         assert not (torch.equal(f1, f2) and torch.equal(s1, s2))
 
-    def test_data_unchanged_when_return_labels_added(self):
-        """Adding return_labels=True must not change the data values.
+    def test_same_seed_with_labels_is_deterministic(self):
+        """Same seed + same flags ⇒ identical X (and labels).
 
-        Same seed without labels and with labels should produce
-        bit-identical X. This is the same-seed-same-numbers gate the
-        plumb change must respect: the data path is independent of
-        whether we report labels.
+        The legacy contract `return_labels=True does not change X` was
+        replaced when joint (freq, seas) coverage took over: with
+        `return_labels=True` the seasonality-driven spp distribution is
+        intentionally different from the legacy log-uniform-in-[8,256]
+        path, so X differs vs `return_labels=False`. The reproducibility
+        gate is now: same seed + same flags ⇒ same outputs.
         """
-        X_no = generate_periodic_batch(8, 512, 2, seed=99)
-        X_yes, _, _ = generate_periodic_batch(
+        X1, f1, s1 = generate_periodic_batch(
             8, 512, 2, seed=99, return_labels=True)
-        torch.testing.assert_close(X_no, X_yes)
+        X2, f2, s2 = generate_periodic_batch(
+            8, 512, 2, seed=99, return_labels=True)
+        torch.testing.assert_close(X1, X2)
+        torch.testing.assert_close(f1, f2)
+        torch.testing.assert_close(s1, s2)
 
 
 if __name__ == "__main__":
