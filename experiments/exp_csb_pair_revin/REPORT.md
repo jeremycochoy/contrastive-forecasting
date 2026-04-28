@@ -73,14 +73,8 @@ Plot: `plots/synth_compare_grid_4arm.png`.
    normalised. The earlier ARMA-era tuning that dropped these terms was
    a false economy.
 
-2. **The loss-flag effect is roughly 3x larger on RevIN than on EWMA**
-   (12.7% vs 4.5% MASE). Not enough single-seed runs to claim this is
-   real, but the direction is suggestive: RevIN may be more sensitive
-   to the loss formulation, or EWMA may already capture some of what the
-   cross-time negatives provide.
-
-3. **EWMA span=512 beats RevIN under both losses.**
-   - no_time_neg: 0.924 (EWMA) vs 1.072 (RevIN), EWMA 14.0% better on MASE.
+2. **EWMA span=512 beats RevIN under both losses.**
+   - no_time_neg: 0.924 (EWMA) vs 1.072 (RevIN), EWMA 13.8% better on MASE.
    - csb: 0.883 (EWMA) vs 0.936 (RevIN), EWMA 5.7% better on MASE.
    Consistent with `exp_span_sweep_synth`'s finding that span=512 is the
    right operating point on synth periodics with periods log-uniform in
@@ -88,7 +82,7 @@ Plot: `plots/synth_compare_grid_4arm.png`.
    (effectively span = T_RAW = 1024), which is past the optimal point on
    this distribution.
 
-4. **The best single configuration of the four is EWMA span=512 + CSB
+3. **The best single configuration of the four is EWMA span=512 + CSB
    at GM-MASE 0.883.** It does not beat the lost baseline at `_best_gap`
    (0.848 MASE), but `_best_gap` and `_best_loss` are not directly
    comparable selectors on this data, as discussed in
@@ -110,17 +104,19 @@ Plot: `plots/synth_compare_grid_4arm.png`.
 
 ## Speculation (single seed)
 
-- The CSB advantage comes from **explicit time-direction structure** in
-  the loss: positives stay close in time, negatives push apart. RevIN
-  normalises away the global mean and scale of the input window, which
-  removes a low-frequency signal the model might otherwise rely on for
+- **Effect-size gap between EWMA and RevIN.** The loss-flag delta is
+  roughly 3x larger on RevIN (12.7%) than on EWMA (4.5%). With a single
+  seed per cell the magnitude itself is unidentifiable, but if the
+  direction holds across seeds, one possible mechanism: RevIN normalises
+  away the global mean and scale of the input window, removing
+  low-frequency signal that the simpler loss might otherwise rely on for
   contrastive separation. The CSB loss compensates by putting more
   structure into the time-axis pairs.
-- EWMA span=512 keeps a wider context's mean (half-life ~352 steps,
-  shorter than the longest synth period of 256 doubled), preserving
-  enough low-frequency signal that even the simpler no_time_neg loss can
-  work. RevIN strips this entirely, so the simpler loss has less to
-  exploit.
+- **EWMA-vs-RevIN gap.** EWMA span=512 keeps a wider context's mean
+  (half-life ~352 steps, comparable to 2 x the longest synth period in
+  [8, 256]), preserving enough low-frequency signal that even the
+  simpler no_time_neg loss can work. RevIN strips this entirely, so the
+  simpler loss has less to exploit.
 
 ## Caveats
 
