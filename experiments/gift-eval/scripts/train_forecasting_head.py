@@ -155,6 +155,9 @@ def parse_args():
                    help="Which on-the-fly synth to mix with HF. Must match "
                         "the backbone's --synth-kind so the head trains on "
                         "the same data distribution. Default 'periodic'.")
+    p.add_argument("--enable-pulse", action="store_true",
+                   help="Composite-only: enable PULSE primitive (must match "
+                        "the backbone's --enable-pulse).")
     return p.parse_args()
 
 
@@ -324,11 +327,15 @@ def main():
         # consumes).
         synth_seed = args.synth_seed if args.synth_seed is not None else args.seed + 20_000
         if args.synth_kind == "composite":
+            synth_kwargs = {}
+            if args.enable_pulse:
+                synth_kwargs["enable_pulse"] = True
             data_loader = create_mixed_composite_dataloader(
                 repo_id=args.hf_repo, batch_size=args.batch_size, C=C,
                 mix_ratio=args.mix_ratio,
                 path_in_repo=args.hf_path, skip_rows=hf_rows_consumed,
                 seed=synth_seed, emit_freq_ids=emit_labels,
+                synth_kwargs=synth_kwargs or None,
             )
         else:
             data_loader = create_mixed_periodic_dataloader(

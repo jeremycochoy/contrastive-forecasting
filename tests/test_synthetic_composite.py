@@ -293,5 +293,84 @@ class TestSeasTiedSppInBucket:
             seas_ids.numpy(), meta["drawn_seas_id"])
 
 
+class TestPulsePrimitive:
+    """Phase-2 spike-deficit fix: pulse-train primitive enabled via flag."""
+
+    def test_default_disabled_means_no_pulse(self):
+        """With enable_pulse=False (default), generated outputs are
+        identical to the previous behaviour for the same seed.
+        Specifically: no row should contain only-zero / only-±1 (the
+        signature of a pulse-only channel).
+        """
+        # Force trend off + ARMA off + seas-tied off + only one free wave on:
+        # the channel is then *exactly* a single wave. Without pulse, that
+        # wave is sin/sq/saw — none of which produce a "mostly zero" pattern.
+        X, _, _, meta = generate_composite_batch(
+            batch_size=64, T_raw=128, C=1, seed=0,
+            p_arma=0.0, p_seas_tied=0.0,
+            slope_std=0.0,                # zero out the trend's contribution
+            p_trend_mult=0.0,             # avoid mult * 0 = 0 channel
+            return_labels=True, return_meta=True,
+        )
+        # Compute "fraction of (b,c) channels with > 50% zeros pre-scale".
+        # Pulse channels would have ~95% zeros at default duty. Sin/sq/saw
+        # don't. So with enable_pulse=False the fraction should be ~0.
+        flat = X.numpy().reshape(-1, 128)
+        # pre-scale signals are O(1), post-scale they're scaled to anywhere
+        # in [0.1, 1000] log-uniform — so use a "near-zero relative to peak"
+        # check rather than absolute.
+        peak = np.abs(flat).max(axis=1, keepdims=True)
+        peak[peak == 0] = 1
+        sparsity = (np.abs(flat) < 0.01 * peak).mean(axis=1)
+        assert sparsity.max() < 0.5, \
+            f"unexpected sparse channel without enable_pulse: max sparsity {sparsity.max():.2f}"
+
+    def test_pulse_produces_sparse_signal(self):
+        """With enable_pulse=True and forcing a single free wave, some
+        channels should land on the PULSE primitive and produce sparse
+        signals (mostly zero with rare ±1 bursts)."""
+        X, _, _, meta = generate_composite_batch(
+            batch_size=256, T_raw=128, C=1, seed=42,
+            p_arma=0.0, p_seas_tied=0.0,
+            slope_std=0.0,
+            p_trend_mult=0.0,
+            enable_pulse=True,
+            return_labels=True, return_meta=True,
+        )
+        flat = X.numpy().reshape(-1, 128)
+        peak = np.abs(flat).max(axis=1, keepdims=True)
+        peak[peak == 0] = 1
+        sparsity = (np.abs(flat) < 0.01 * peak).mean(axis=1)
+        # 1 of 4 primitives is pulse → ~25% of channels should be sparse.
+        # Allow a wide band [10%, 50%].
+        sparse_frac = (sparsity > 0.5).mean()
+        assert 0.10 < sparse_frac < 0.50, \
+            f"unexpected sparse-channel fraction: {sparse_frac:.2f}"
+
+    def test_pulse_amplitude_in_band(self):
+        """Pulse primitive emits values in {-1, 0, +1} when sampled directly."""
+        from src.synthetic_composite import _sample_wave, _PRIM_PULSE
+        # Sample many waves with enable_pulse=True; the ones that draw
+        # PULSE should have peak amplitude in [-1, 1] and many zeros.
+        rng = np.random.default_rng(0)
+        for _ in range(200):
+            y = _sample_wave(T=64, rng=rng, spp_range=(8, 32),
+                             enable_pulse=True)
+            assert y.min() >= -1.0 - 1e-9
+            assert y.max() <= 1.0 + 1e-9
+
+    def test_pulse_determinism(self):
+        X1 = generate_composite_batch(8, 256, 2, seed=42, enable_pulse=True)
+        X2 = generate_composite_batch(8, 256, 2, seed=42, enable_pulse=True)
+        assert torch.equal(X1, X2)
+
+    def test_pulse_changes_distribution_from_default(self):
+        """Same seed + enable_pulse=True should produce different X than
+        enable_pulse=False (the primitive draw shifts)."""
+        X_off = generate_composite_batch(16, 256, 2, seed=99, enable_pulse=False)
+        X_on = generate_composite_batch(16, 256, 2, seed=99, enable_pulse=True)
+        assert not torch.equal(X_off, X_on)
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

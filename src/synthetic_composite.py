@@ -49,11 +49,18 @@ from src.synthetic import (
 )
 
 
-# Primitive codes — same convention as src.synthetic_periodic.
+# Primitive codes — same convention as src.synthetic_periodic plus PULSE.
 _PRIM_SIN = 0
 _PRIM_SQUARE = 1
 _PRIM_SAW = 2
+_PRIM_PULSE = 3      # sparse pulse train (low-duty unit-amplitude)
 _N_PRIMITIVES = 3
+_N_PRIMITIVES_WITH_PULSE = 4
+
+# Default pulse width in samples. The pulse train fires at every multiple
+# of spp; each fire is a contiguous run of `pulse_width` samples at ±1.
+# Width 1 is a Dirac comb, 2-3 represents a "burst" with brief decay.
+_DEFAULT_PULSE_WIDTH = 1
 
 # Defaults chosen so component natural amplitudes sit in roughly the
 # same band as the [-1, 1] waves before the U[0,1] mixing weights.
@@ -90,16 +97,26 @@ def _as_rng(seed_or_rng) -> Generator:
 
 
 def _sample_wave(T: int, rng: Generator,
-                 spp_range: tuple[float, float]) -> np.ndarray:
-    """Single wave at random primitive ∈ {sin, square, saw} with log-uniform spp.
+                 spp_range: tuple[float, float],
+                 *,
+                 enable_pulse: bool = False,
+                 pulse_width: int = _DEFAULT_PULSE_WIDTH) -> np.ndarray:
+    """Single wave at random primitive ∈ {sin, square, saw, [pulse]} with
+    log-uniform spp.
 
     Square and saw get a 50% sign flip per spec (random "up first vs
-    down first" / "ramp up vs ramp down"). Returns float64 array of
-    length T with peak amplitude in [-1, 1].
+    down first" / "ramp up vs ramp down"). When ``enable_pulse=True``,
+    a 4th primitive (sparse pulse train) is drawn with equal probability
+    — sparse-amplitude burst content that EWMA normalisers don't smooth
+    away (each burst lasts `pulse_width` samples at ±1 followed by 0
+    until the next period).
+
+    Returns float64 array of length T with peak amplitude in [-1, 1].
     """
+    n_prim = _N_PRIMITIVES_WITH_PULSE if enable_pulse else _N_PRIMITIVES
     spp = float(np.exp(rng.uniform(np.log(spp_range[0]), np.log(spp_range[1]))))
     phase = rng.uniform(0.0, 1.0)
-    prim = int(rng.integers(0, _N_PRIMITIVES))
+    prim = int(rng.integers(0, n_prim))
     t = np.arange(T, dtype=np.float64)
     u = t / spp + phase
     if prim == _PRIM_SIN:
@@ -109,8 +126,21 @@ def _sample_wave(T: int, rng: Generator,
         if rng.random() < 0.5:
             y = -y
         return y
-    # saw
-    y = 2.0 * np.mod(u, 1.0) - 1.0
+    if prim == _PRIM_SAW:
+        y = 2.0 * np.mod(u, 1.0) - 1.0
+        if rng.random() < 0.5:
+            y = -y
+        return y
+    # PULSE: sparse train. The wave is 0 except for a contiguous run of
+    # `pulse_width` samples (with sign s ∈ ±1) at every period. Phase
+    # offsets where the burst lands within each cycle. Implementation:
+    #   distance to the next pulse start, in fractional cycles, is
+    #     frac = mod(t/spp + phase, 1)
+    #   the burst is "on" when frac falls in [0, pulse_width/spp).
+    pw_frac = max(pulse_width, 1) / max(spp, 1.0)
+    pw_frac = min(pw_frac, 0.5)  # cap at 50% duty so it stays "sparse"
+    frac = np.mod(u, 1.0)
+    y = np.where(frac < pw_frac, 1.0, 0.0)
     if rng.random() < 0.5:
         y = -y
     return y
@@ -139,7 +169,9 @@ def _build_one_channel(rng: Generator, T: int,
                         p_integrate: float,
                         p_trend_mult: float,
                         arma_target_std_range: tuple[float, float],
-                        free_spp_range: tuple[float, float]
+                        free_spp_range: tuple[float, float],
+                        enable_pulse: bool = False,
+                        pulse_width: int = _DEFAULT_PULSE_WIDTH,
                         ) -> tuple[np.ndarray, dict]:
     """Build one composite channel of length T per the recipe.
 
@@ -182,16 +214,22 @@ def _build_one_channel(rng: Generator, T: int,
         weights.append(float(rng.uniform(0.0, 1.0)))
 
     if free1_on:
-        parts.append(_sample_wave(T, rng, spp_range=free_spp_range))
+        parts.append(_sample_wave(T, rng, spp_range=free_spp_range,
+                                  enable_pulse=enable_pulse,
+                                  pulse_width=pulse_width))
         weights.append(float(rng.uniform(0.0, 1.0)))
 
     if free2_on:
-        parts.append(_sample_wave(T, rng, spp_range=free_spp_range))
+        parts.append(_sample_wave(T, rng, spp_range=free_spp_range,
+                                  enable_pulse=enable_pulse,
+                                  pulse_width=pulse_width))
         weights.append(float(rng.uniform(0.0, 1.0)))
 
     if seas_tied_on:
         spp_lo, spp_hi = SEASONALITY_BUCKET_SPP_RANGES[drawn_seas_id]
-        parts.append(_sample_wave(T, rng, spp_range=(spp_lo, spp_hi)))
+        parts.append(_sample_wave(T, rng, spp_range=(spp_lo, spp_hi),
+                                  enable_pulse=enable_pulse,
+                                  pulse_width=pulse_width))
         weights.append(float(rng.uniform(0.0, 1.0)))
 
     # The "≥1 non-trend on" force above guarantees parts is non-empty.
@@ -234,6 +272,9 @@ def generate_composite_batch(
     env_gain_range: tuple[float, float] = _DEFAULT_ENV_GAIN_RANGE,
     scale_range: tuple[float, float] = _DEFAULT_SCALE_RANGE,
     free_spp_range: tuple[float, float] = _DEFAULT_FREE_SPP_RANGE,
+    # Pulse-train primitive (phase-2 spike-deficit fix)
+    enable_pulse: bool = False,
+    pulse_width: int = _DEFAULT_PULSE_WIDTH,
     # API knobs
     return_labels: bool = False,
     return_meta: bool = False,
@@ -317,6 +358,8 @@ def generate_composite_batch(
                 p_trend_mult=p_trend_mult,
                 arma_target_std_range=arma_target_std_range,
                 free_spp_range=free_spp_range,
+                enable_pulse=enable_pulse,
+                pulse_width=pulse_width,
             )
             out[b, c] = channel
             per_channel_meta.append(ch_meta)

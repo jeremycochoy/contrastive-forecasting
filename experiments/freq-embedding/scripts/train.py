@@ -125,6 +125,11 @@ def parse_args():
                         "'composite' is the TimesFM-style stacked recipe "
                         "(trend + ARIMA + 2 free waves + 1 seas-tied wave) "
                         "from synthetic_composite.")
+    p.add_argument("--enable-pulse", action="store_true",
+                   help="Composite-only: enable the PULSE primitive (sparse "
+                        "burst train) as a 4th option alongside sin/sq/saw. "
+                        "Targets the spike-deficit identified in phase-1 "
+                        "(bizitobs_application, bitbrains).")
     return p.parse_args()
 
 
@@ -346,12 +351,16 @@ def main():
     synth_seed = args.synth_seed if args.synth_seed is not None else args.seed + 10_000
 
     if args.synth_kind == "composite":
+        synth_kwargs = {}
+        if args.enable_pulse:
+            synth_kwargs["enable_pulse"] = True
         data_loader = create_mixed_composite_dataloader(
             repo_id=args.hf_repo, batch_size=args.batch_size, C=C,
             mix_ratio=args.mix_ratio,
             path_in_repo=args.hf_path, split=args.split,
             skip_rows=hf_rows_consumed, T_raw=T_RAW, seed=synth_seed,
             emit_freq_ids=(args.freq_emb_dim > 0 or args.seasonality_emb_dim > 0),
+            synth_kwargs=synth_kwargs or None,
         )
     else:
         data_loader = create_mixed_periodic_dataloader(
