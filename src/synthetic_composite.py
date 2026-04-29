@@ -49,11 +49,13 @@ from src.synthetic import (
 )
 
 
-# Primitive codes — same convention as src.synthetic_periodic plus PULSE.
+# Primitive codes.
 _PRIM_SIN = 0
 _PRIM_SQUARE = 1
 _PRIM_SAW = 2
-_PRIM_PULSE = 3      # sparse pulse train (low-duty unit-amplitude)
+_PRIM_PULSE = 3       # sparse pulse train (low-duty unit-amplitude)
+_PRIM_TRIANGLE = 4    # symmetric ramp up-down (distinct from saw)
+_PRIM_HALF_SIN = 5    # half-rectified sin: max(sin, 0) — asymmetric, only positive
 _N_PRIMITIVES = 3
 _N_PRIMITIVES_WITH_PULSE = 4
 
@@ -100,23 +102,38 @@ def _sample_wave(T: int, rng: Generator,
                  spp_range: tuple[float, float],
                  *,
                  enable_pulse: bool = False,
+                 enable_more_primitives: bool = False,
                  pulse_width: int = _DEFAULT_PULSE_WIDTH) -> np.ndarray:
-    """Single wave at random primitive ∈ {sin, square, saw, [pulse]} with
-    log-uniform spp.
+    """Single wave at random primitive with log-uniform spp.
 
-    Square and saw get a 50% sign flip per spec (random "up first vs
-    down first" / "ramp up vs ramp down"). When ``enable_pulse=True``,
-    a 4th primitive (sparse pulse train) is drawn with equal probability
-    — sparse-amplitude burst content that EWMA normalisers don't smooth
-    away (each burst lasts `pulse_width` samples at ±1 followed by 0
-    until the next period).
+    Primitive pool depends on flags:
+      * default (3): {sin, square, saw}
+      * ``enable_pulse=True`` adds PULSE
+      * ``enable_more_primitives=True`` adds TRIANGLE and HALF_SIN
+      * combined: pool of 6
+
+    Square, saw, pulse, and triangle get a 50% sign flip per spec.
+    Half-sin is asymmetric (always non-negative pre-flip, then 50% sign
+    flip → either positive bursts or negative bursts).
 
     Returns float64 array of length T with peak amplitude in [-1, 1].
     """
-    n_prim = _N_PRIMITIVES_WITH_PULSE if enable_pulse else _N_PRIMITIVES
+    n_prim = _N_PRIMITIVES                                     # 3
+    if enable_pulse:
+        n_prim += 1                                            # +PULSE → 4
+    if enable_more_primitives:
+        n_prim += 2                                            # +TRIANGLE, +HALF_SIN → 5 or 6
+    # Allowed primitive id list given current flags.
+    allowed = [_PRIM_SIN, _PRIM_SQUARE, _PRIM_SAW]
+    if enable_pulse:
+        allowed.append(_PRIM_PULSE)
+    if enable_more_primitives:
+        allowed.append(_PRIM_TRIANGLE)
+        allowed.append(_PRIM_HALF_SIN)
+
     spp = float(np.exp(rng.uniform(np.log(spp_range[0]), np.log(spp_range[1]))))
     phase = rng.uniform(0.0, 1.0)
-    prim = int(rng.integers(0, n_prim))
+    prim = allowed[int(rng.integers(0, len(allowed)))]
     t = np.arange(T, dtype=np.float64)
     u = t / spp + phase
     if prim == _PRIM_SIN:
@@ -131,16 +148,31 @@ def _sample_wave(T: int, rng: Generator,
         if rng.random() < 0.5:
             y = -y
         return y
-    # PULSE: sparse train. The wave is 0 except for a contiguous run of
-    # `pulse_width` samples (with sign s ∈ ±1) at every period. Phase
-    # offsets where the burst lands within each cycle. Implementation:
-    #   distance to the next pulse start, in fractional cycles, is
-    #     frac = mod(t/spp + phase, 1)
-    #   the burst is "on" when frac falls in [0, pulse_width/spp).
-    pw_frac = max(pulse_width, 1) / max(spp, 1.0)
-    pw_frac = min(pw_frac, 0.5)  # cap at 50% duty so it stays "sparse"
-    frac = np.mod(u, 1.0)
-    y = np.where(frac < pw_frac, 1.0, 0.0)
+    if prim == _PRIM_PULSE:
+        # PULSE: sparse train. The wave is 0 except for a contiguous run of
+        # `pulse_width` samples (with sign s ∈ ±1) at every period. Phase
+        # offsets where the burst lands within each cycle.
+        pw_frac = max(pulse_width, 1) / max(spp, 1.0)
+        pw_frac = min(pw_frac, 0.5)
+        frac = np.mod(u, 1.0)
+        y = np.where(frac < pw_frac, 1.0, 0.0)
+        if rng.random() < 0.5:
+            y = -y
+        return y
+    if prim == _PRIM_TRIANGLE:
+        # Symmetric triangle wave: linearly ramps -1 → +1 → -1 each period.
+        # Distinct from saw (only one ramp direction per period).
+        # frac(u) ∈ [0, 1); y = 2 * (1 - 2*|frac - 0.5|) - 1 wraps over a period.
+        frac = np.mod(u, 1.0)
+        y = 2.0 * (1.0 - 2.0 * np.abs(frac - 0.5)) - 1.0
+        if rng.random() < 0.5:
+            y = -y
+        return y
+    # HALF_SIN: half-rectified sine. y = max(sin(2π·u), 0). Range [0, 1]
+    # (asymmetric — entirely positive bumps separated by zero-floor
+    # gaps). 50% sign flip → either positive bumps or negative bumps,
+    # introducing a directional asymmetry the model can learn.
+    y = np.maximum(np.sin(2.0 * np.pi * u), 0.0)
     if rng.random() < 0.5:
         y = -y
     return y
@@ -171,6 +203,7 @@ def _build_one_channel(rng: Generator, T: int,
                         arma_target_std_range: tuple[float, float],
                         free_spp_range: tuple[float, float],
                         enable_pulse: bool = False,
+                        enable_more_primitives: bool = False,
                         pulse_width: int = _DEFAULT_PULSE_WIDTH,
                         n_free_waves: int = 2,
                         n_seas_tied_waves: int = 1,
@@ -227,6 +260,7 @@ def _build_one_channel(rng: Generator, T: int,
         if is_on:
             parts.append(_sample_wave(T, rng, spp_range=free_spp_range,
                                       enable_pulse=enable_pulse,
+                                      enable_more_primitives=enable_more_primitives,
                                       pulse_width=pulse_width))
             weights.append(float(rng.uniform(0.0, 1.0)))
 
@@ -235,6 +269,7 @@ def _build_one_channel(rng: Generator, T: int,
         for _ in range(n_seas_tied_waves):
             parts.append(_sample_wave(T, rng, spp_range=(spp_lo, spp_hi),
                                       enable_pulse=enable_pulse,
+                                      enable_more_primitives=enable_more_primitives,
                                       pulse_width=pulse_width))
             weights.append(float(rng.uniform(0.0, 1.0)))
 
@@ -288,6 +323,8 @@ def generate_composite_batch(
     # Pulse-train primitive (phase-2 spike-deficit fix)
     enable_pulse: bool = False,
     pulse_width: int = _DEFAULT_PULSE_WIDTH,
+    # More-primitive-variety knob (phase-3 diversity-add fix)
+    enable_more_primitives: bool = False,
     # Wave count knobs (phase-2B periodic-coverage fix)
     n_free_waves: int = 2,
     n_seas_tied_waves: int = 1,
@@ -375,6 +412,7 @@ def generate_composite_batch(
                 arma_target_std_range=arma_target_std_range,
                 free_spp_range=free_spp_range,
                 enable_pulse=enable_pulse,
+                enable_more_primitives=enable_more_primitives,
                 pulse_width=pulse_width,
                 n_free_waves=n_free_waves,
                 n_seas_tied_waves=n_seas_tied_waves,

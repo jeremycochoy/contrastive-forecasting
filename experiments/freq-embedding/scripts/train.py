@@ -137,6 +137,11 @@ def parse_args():
                         "wave-dilution losses identified in phase-1 (solar/H, "
                         "bizitobs_l2c/H — strongly periodic configs where "
                         "composite hurt EWMA-128).")
+    p.add_argument("--more-primitives", action="store_true",
+                   help="Composite-only: add TRIANGLE and HALF_SIN waveforms "
+                        "to the {sin, square, saw} pool. Targets the "
+                        "diversity-vs-quantity insight from phase-2: more "
+                        "distinct primitives, not more copies of the same.")
     return p.parse_args()
 
 
@@ -364,6 +369,8 @@ def main():
         if args.seas_heavy:
             synth_kwargs["n_free_waves"] = 1
             synth_kwargs["n_seas_tied_waves"] = 2
+        if args.more_primitives:
+            synth_kwargs["enable_more_primitives"] = True
         data_loader = create_mixed_composite_dataloader(
             repo_id=args.hf_repo, batch_size=args.batch_size, C=C,
             mix_ratio=args.mix_ratio,
