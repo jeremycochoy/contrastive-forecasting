@@ -158,6 +158,9 @@ def parse_args():
     p.add_argument("--enable-pulse", action="store_true",
                    help="Composite-only: enable PULSE primitive (must match "
                         "the backbone's --enable-pulse).")
+    p.add_argument("--seas-heavy", action="store_true",
+                   help="Composite-only: swap to (1 free + 2 seas-tied) waves "
+                        "(must match the backbone's --seas-heavy).")
     return p.parse_args()
 
 
@@ -330,6 +333,9 @@ def main():
             synth_kwargs = {}
             if args.enable_pulse:
                 synth_kwargs["enable_pulse"] = True
+            if args.seas_heavy:
+                synth_kwargs["n_free_waves"] = 1
+                synth_kwargs["n_seas_tied_waves"] = 2
             data_loader = create_mixed_composite_dataloader(
                 repo_id=args.hf_repo, batch_size=args.batch_size, C=C,
                 mix_ratio=args.mix_ratio,

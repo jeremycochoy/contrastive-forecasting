@@ -364,12 +364,80 @@ class TestPulsePrimitive:
         X2 = generate_composite_batch(8, 256, 2, seed=42, enable_pulse=True)
         assert torch.equal(X1, X2)
 
-    def test_pulse_changes_distribution_from_default(self):
+    def test_pulse_changes_distribution_from_default_smoketest(self):
         """Same seed + enable_pulse=True should produce different X than
         enable_pulse=False (the primitive draw shifts)."""
         X_off = generate_composite_batch(16, 256, 2, seed=99, enable_pulse=False)
         X_on = generate_composite_batch(16, 256, 2, seed=99, enable_pulse=True)
         assert not torch.equal(X_off, X_on)
+
+
+class TestSeasHeavyVariant:
+    """Phase-2B wave-dilution fix: swap (2 free + 1 seas-tied) → (1 free + 2 seas-tied)."""
+
+    def test_default_is_two_free_one_seas(self):
+        """With defaults, meta should report n_seas_tied_waves=1 (when on)
+        and free_on length 2."""
+        _, _, _, meta = generate_composite_batch(
+            batch_size=16, T_raw=64, C=1, seed=0,
+            return_labels=True, return_meta=True,
+        )
+        # Sanity: per_channel free_on length matches default n_free_waves=2.
+        for ch in meta["per_channel"]:
+            assert len(ch["free_on"]) == 2
+            assert ch["n_seas_tied_waves"] in (0, 1)
+
+    def test_seas_heavy_uses_two_seas_one_free(self):
+        """With n_free_waves=1, n_seas_tied_waves=2: free_on length is 1
+        and n_seas_tied_waves is 2 when seas_tied_on."""
+        _, _, _, meta = generate_composite_batch(
+            batch_size=32, T_raw=64, C=1, seed=42,
+            n_free_waves=1, n_seas_tied_waves=2,
+            return_labels=True, return_meta=True,
+        )
+        for ch in meta["per_channel"]:
+            assert len(ch["free_on"]) == 1
+            assert ch["n_seas_tied_waves"] in (0, 2)
+        # At least some rows should have seas_tied_on.
+        seas_on = [ch["seas_tied_on"] for ch in meta["per_channel"]]
+        assert any(seas_on), "expected some seas-tied-on rows"
+        # Among those, n_seas_tied_waves should be 2.
+        for ch in meta["per_channel"]:
+            if ch["seas_tied_on"]:
+                assert ch["n_seas_tied_waves"] == 2
+
+    def test_seas_heavy_changes_output(self):
+        X1 = generate_composite_batch(8, 256, 2, seed=99,
+                                       n_free_waves=2, n_seas_tied_waves=1)
+        X2 = generate_composite_batch(8, 256, 2, seed=99,
+                                       n_free_waves=1, n_seas_tied_waves=2)
+        assert not torch.equal(X1, X2)
+
+    def test_seas_heavy_determinism(self):
+        X1 = generate_composite_batch(8, 256, 2, seed=42,
+                                       n_free_waves=1, n_seas_tied_waves=2)
+        X2 = generate_composite_batch(8, 256, 2, seed=42,
+                                       n_free_waves=1, n_seas_tied_waves=2)
+        assert torch.equal(X1, X2)
+
+    def test_seas_heavy_finite(self):
+        X = generate_composite_batch(64, 1024, 4, seed=7,
+                                      n_free_waves=1, n_seas_tied_waves=2)
+        assert torch.isfinite(X).all()
+
+    def test_force_on_path_with_zero_free_waves(self):
+        """Edge case: n_free_waves=0 forces ARMA always when seas-tied off."""
+        _, _, _, meta = generate_composite_batch(
+            batch_size=32, T_raw=64, C=1, seed=0,
+            n_free_waves=0, n_seas_tied_waves=1,
+            return_labels=True, return_meta=True,
+        )
+        for ch in meta["per_channel"]:
+            assert len(ch["free_on"]) == 0
+            # With no free waves, force-on path picks ARMA (only option) when
+            # seas-tied off.
+            if not ch["seas_tied_on"]:
+                assert ch["arma_on"], f"expected arma_on when seas-tied off + no free waves: {ch}"
 
 
 if __name__ == "__main__":

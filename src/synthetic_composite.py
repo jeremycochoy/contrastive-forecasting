@@ -172,6 +172,8 @@ def _build_one_channel(rng: Generator, T: int,
                         free_spp_range: tuple[float, float],
                         enable_pulse: bool = False,
                         pulse_width: int = _DEFAULT_PULSE_WIDTH,
+                        n_free_waves: int = 2,
+                        n_seas_tied_waves: int = 1,
                         ) -> tuple[np.ndarray, dict]:
     """Build one composite channel of length T per the recipe.
 
@@ -179,21 +181,29 @@ def _build_one_channel(rng: Generator, T: int,
     state (drawn_seas_id, seas_tied_on) is passed in by the caller; the
     other coinflips are independent per channel. Trend is always on.
     Enforces "at least one non-trend on" by force-on'ing a uniform pick
-    from {ARMA, free1, free2} when all three coinflip off and the row's
-    seas-tied wave is also off.
+    from {ARMA, free-wave, free-wave, ...} when all per-channel coinflips
+    give "off" and the row's seas-tied wave is also off.
+
+    ``n_free_waves`` and ``n_seas_tied_waves`` control how many of each
+    wave kind appear (each independently coinflipped against ``p_free`` /
+    presence of ``seas_tied_on``). Defaults preserve phase-1 behaviour
+    (2 free + 1 seas-tied). Phase 2B uses (1 free + 2 seas-tied) to
+    boost periodic-signal coverage in seas-tied-on rows.
     """
     arma_on = rng.random() < p_arma
-    free1_on = rng.random() < p_free
-    free2_on = rng.random() < p_free
+    # Each free wave coinflips independently. List of bools sized n_free_waves.
+    free_on = [rng.random() < p_free for _ in range(n_free_waves)]
+    any_free_on = any(free_on)
 
-    if not (arma_on or free1_on or free2_on or seas_tied_on):
-        choice = int(rng.integers(0, 3))
+    if not (arma_on or any_free_on or seas_tied_on):
+        # Force on: uniform pick from {ARMA, free_0, free_1, ...}.
+        n_choices = 1 + n_free_waves
+        choice = int(rng.integers(0, n_choices))
         if choice == 0:
             arma_on = True
-        elif choice == 1:
-            free1_on = True
         else:
-            free2_on = True
+            free_on[choice - 1] = True
+            any_free_on = True
 
     parts: list[np.ndarray] = []
     weights: list[float] = []
@@ -213,24 +223,20 @@ def _build_one_channel(rng: Generator, T: int,
         parts.append(y)
         weights.append(float(rng.uniform(0.0, 1.0)))
 
-    if free1_on:
-        parts.append(_sample_wave(T, rng, spp_range=free_spp_range,
-                                  enable_pulse=enable_pulse,
-                                  pulse_width=pulse_width))
-        weights.append(float(rng.uniform(0.0, 1.0)))
-
-    if free2_on:
-        parts.append(_sample_wave(T, rng, spp_range=free_spp_range,
-                                  enable_pulse=enable_pulse,
-                                  pulse_width=pulse_width))
-        weights.append(float(rng.uniform(0.0, 1.0)))
+    for is_on in free_on:
+        if is_on:
+            parts.append(_sample_wave(T, rng, spp_range=free_spp_range,
+                                      enable_pulse=enable_pulse,
+                                      pulse_width=pulse_width))
+            weights.append(float(rng.uniform(0.0, 1.0)))
 
     if seas_tied_on:
         spp_lo, spp_hi = SEASONALITY_BUCKET_SPP_RANGES[drawn_seas_id]
-        parts.append(_sample_wave(T, rng, spp_range=(spp_lo, spp_hi),
-                                  enable_pulse=enable_pulse,
-                                  pulse_width=pulse_width))
-        weights.append(float(rng.uniform(0.0, 1.0)))
+        for _ in range(n_seas_tied_waves):
+            parts.append(_sample_wave(T, rng, spp_range=(spp_lo, spp_hi),
+                                      enable_pulse=enable_pulse,
+                                      pulse_width=pulse_width))
+            weights.append(float(rng.uniform(0.0, 1.0)))
 
     # The "≥1 non-trend on" force above guarantees parts is non-empty.
     non_trend = np.zeros(T, dtype=np.float64)
@@ -245,8 +251,15 @@ def _build_one_channel(rng: Generator, T: int,
         sample = non_trend + trend_weight * trend
 
     meta = dict(
-        arma_on=arma_on, free1_on=free1_on, free2_on=free2_on,
-        seas_tied_on=seas_tied_on, integrate_used=integrate_used,
+        arma_on=arma_on,
+        # Back-compat aliases for free1/free2 — first two flags. With
+        # n_free_waves != 2 these are best-effort.
+        free1_on=bool(free_on[0]) if n_free_waves >= 1 else False,
+        free2_on=bool(free_on[1]) if n_free_waves >= 2 else False,
+        free_on=tuple(free_on),
+        seas_tied_on=seas_tied_on,
+        n_seas_tied_waves=n_seas_tied_waves if seas_tied_on else 0,
+        integrate_used=integrate_used,
     )
     return sample, meta
 
@@ -275,6 +288,9 @@ def generate_composite_batch(
     # Pulse-train primitive (phase-2 spike-deficit fix)
     enable_pulse: bool = False,
     pulse_width: int = _DEFAULT_PULSE_WIDTH,
+    # Wave count knobs (phase-2B periodic-coverage fix)
+    n_free_waves: int = 2,
+    n_seas_tied_waves: int = 1,
     # API knobs
     return_labels: bool = False,
     return_meta: bool = False,
@@ -360,6 +376,8 @@ def generate_composite_batch(
                 free_spp_range=free_spp_range,
                 enable_pulse=enable_pulse,
                 pulse_width=pulse_width,
+                n_free_waves=n_free_waves,
+                n_seas_tied_waves=n_seas_tied_waves,
             )
             out[b, c] = channel
             per_channel_meta.append(ch_meta)

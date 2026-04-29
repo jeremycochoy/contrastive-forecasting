@@ -130,6 +130,13 @@ def parse_args():
                         "burst train) as a 4th option alongside sin/sq/saw. "
                         "Targets the spike-deficit identified in phase-1 "
                         "(bizitobs_application, bitbrains).")
+    p.add_argument("--seas-heavy", action="store_true",
+                   help="Composite-only: swap (2 free waves + 1 seas-tied) → "
+                        "(1 free wave + 2 seas-tied). Boosts periodic-signal "
+                        "coverage in seas-tied-on rows; targets the "
+                        "wave-dilution losses identified in phase-1 (solar/H, "
+                        "bizitobs_l2c/H — strongly periodic configs where "
+                        "composite hurt EWMA-128).")
     return p.parse_args()
 
 
@@ -354,6 +361,9 @@ def main():
         synth_kwargs = {}
         if args.enable_pulse:
             synth_kwargs["enable_pulse"] = True
+        if args.seas_heavy:
+            synth_kwargs["n_free_waves"] = 1
+            synth_kwargs["n_seas_tied_waves"] = 2
         data_loader = create_mixed_composite_dataloader(
             repo_id=args.hf_repo, batch_size=args.batch_size, C=C,
             mix_ratio=args.mix_ratio,
