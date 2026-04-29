@@ -137,6 +137,80 @@ class TestRevEWMNormGrad:
         assert not norm.stdev.requires_grad
 
 
+class TestRevEWMNormFloat32Accuracy:
+    """The fast path runs in float32 (vs the previous float64). Verify
+    the EMA mean and stdev still match a float64 reference implementation
+    within a tolerance that's well under any plausible model-noise floor.
+    """
+
+    def _f64_reference(self, x, span, patch_size):
+        """Independent float64 implementation of the cumsum-EMA recipe.
+        Used purely as a numerical reference; no caching tricks.
+        """
+        B, T, C = x.shape
+        W = min(patch_size, T)
+        alpha = 2.0 / (span + 1.0)
+        x64 = x.to(torch.float64)
+        first = x64[:, :W, :]
+        m_init = first.mean(dim=1, keepdim=True)
+        v_init = first.var(dim=1, keepdim=True, unbiased=False)
+        arange = torch.arange(T, dtype=torch.float64)
+        decay = (1.0 - alpha) ** arange
+        decay_shift = decay * (1.0 - alpha)
+        inv_decay = 1.0 / decay
+        d, dsh, idc = decay.view(1, T, 1), decay_shift.view(1, T, 1), inv_decay.view(1, T, 1)
+        cs = torch.cumsum(x64 * idc, dim=1)
+        m = alpha * cs * d + dsh * m_init
+        rsq = (x64 - m) ** 2
+        cs2 = torch.cumsum(rsq * idc, dim=1)
+        v = alpha * cs2 * d + dsh * v_init
+        return m.float(), torch.sqrt(v.clamp(min=1e-12)).float()
+
+    def test_matches_float64_reference_span_128(self):
+        torch.manual_seed(0)
+        x = torch.randn(8, 1024, 4) * 100  # realistic scale
+        norm = RevEWMNorm(num_features=4, span=128, patch_size=16)
+        norm(x, mode='norm')
+        m_ref, s_ref = self._f64_reference(x, span=128, patch_size=16)
+        assert (norm.mean - m_ref).abs().max().item() < 1e-3, \
+            f"mean disagreement {(norm.mean - m_ref).abs().max():.2e}"
+        assert (norm.stdev - s_ref).abs().max().item() < 1e-3, \
+            f"stdev disagreement {(norm.stdev - s_ref).abs().max():.2e}"
+
+    def test_matches_float64_reference_span_512(self):
+        torch.manual_seed(1)
+        x = torch.randn(8, 1024, 4) * 100
+        norm = RevEWMNorm(num_features=4, span=512, patch_size=16)
+        norm(x, mode='norm')
+        m_ref, s_ref = self._f64_reference(x, span=512, patch_size=16)
+        # span=512 has slightly larger float32 cumsum precision loss but
+        # still well within model-noise floor.
+        assert (norm.mean - m_ref).abs().max().item() < 5e-3
+        assert (norm.stdev - s_ref).abs().max().item() < 5e-3
+
+    def test_buffer_cache_consistent_across_calls(self):
+        """Repeated calls with same shape should reuse the cache and
+        give identical results to non-cached recomputation."""
+        torch.manual_seed(2)
+        x1 = torch.randn(4, 512, 2) * 10
+        x2 = torch.randn(4, 512, 2) * 10
+        norm = RevEWMNorm(num_features=2, span=128, patch_size=16)
+        norm(x1, mode='norm')
+        m1 = norm.mean.clone()
+        norm(x2, mode='norm')         # second call hits the cache
+        norm(x1, mode='norm')         # third call back on x1 — cache reuse
+        m1_again = norm.mean
+        assert torch.equal(m1, m1_again), "cached path produced different result"
+
+    def test_dtype_preserved(self):
+        """Output mean/stdev should match the input dtype (float32)."""
+        x = torch.randn(2, 64, 2).float()
+        norm = RevEWMNorm(num_features=2, span=64, patch_size=8)
+        norm(x, mode='norm')
+        assert norm.mean.dtype == torch.float32
+        assert norm.stdev.dtype == torch.float32
+
+
 class TestRevEWMNormIntegration:
     def test_with_configurable_model(self):
         """RevEWMNorm should work end-to-end inside ConfigurableModel."""
