@@ -35,6 +35,21 @@ export HUGGING_FACE_HUB_TOKEN="$HF_TOKEN"
 - **NEVER use raw `scp` to pull a checkpoint from a remote.** It writes directly to the destination, so a connection drop mid-transfer leaves a partial/corrupt file in place of the previous good copy. Use `experiments/periodic-synth-mix/scripts/safe_pull.sh <host> <port> <remote> <local> [min_bytes]` instead — it scp's to `.tmp`, size-checks, rotates the existing file to `.prev`, then atomic-mv's. The previous good copy survives a partial transfer.
 - **The sync_loop also rotates one-deep**: when it pulls a fresh `<file>.pth`, the existing one moves to `<file>.pth.prev` before the new one is dropped in. That backup survives even if a future tick fetches a corrupt-but-large-enough file.
 
+## Idle Vast.ai Instances — Shutdown Protocol
+
+When a training/eval run on a vast.ai instance has finished and you have no concrete next-task queued for that specific machine within ~15 minutes, you should shut it down to stop billing. Do NOT shut down speculatively before manual verification — a missed file class costs the run, not the agent.
+
+Required gating before any `vastrun-cancel` / `vastai destroy`:
+
+1. **`ssh in and `ls -lh /workspace/app/checkpoints/` AND `ls -lh /workspace/app/experiments/exp_*/results/.../`** — read with your eyes the file list, the sizes, the timestamps. Don't just rely on the local sync.log.
+2. **Diff against the local sync target.** Every backbone `.pth`, every backbone `_optimizer.pth`, every head `.pth`, every head `_optimizer.pth`, every `_losses.csv`, the `run_*.log`, and the `all_results.csv` + `summary.txt` from the eval output dir — each must exist locally with the matching size. The sync_loop's hard-coded glob list misses things like `_final.pth` (lowercase, end-of-training state distinct from `_FINAL.pth` = best_loss copy) and head periodic saves (`R1q_*_<N>k.pth`); do a final additive `scp` for any class the sync_loop doesn't cover.
+3. **Inspect the remote `run_*.log` for the "ALL DONE" string.** If absent, the run is not over — don't destroy.
+4. **Only after 1-3 pass**: `vastrun-cancel <id>` or `vastai destroy <id>`.
+
+Heuristic for "no concrete next task within 15 min": if the next experiment requires writing >100 lines of new code, expect 30+ min before relaunch — destroy and reprovision fresh. If you're about to relaunch with a flag flip on the same image, keep the instance and re-run.
+
+The cost of leaving an idle instance running is ~\$0.30/h. The cost of destroying mid-sync and losing artefacts is much higher (a re-run is \$3+ and several hours).
+
 ## Checkpoint Safety Rules
 1. **After any long training run completes**, immediately copy the best checkpoint to a clearly named permanent file (e.g., `20L_H1024_2M_final.pth`). Never rely on `_best.pth` or periodic saves as the only copy.
 2. **Never reuse `--save-path` when resuming training.** Always use a new, distinct path. The code has `safe_save_path()` to catch conflicts, but don't rely on it alone — be explicit.
