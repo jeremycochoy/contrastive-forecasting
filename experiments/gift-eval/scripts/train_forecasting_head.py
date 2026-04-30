@@ -50,6 +50,9 @@ from src.forecasting_head import (
 )
 
 # -- Backbone architecture (must match checkpoint) ---------------------------
+# C and T_raw can be overridden at runtime via --n-channels / --t-raw to
+# match a backbone trained on a non-standard dataset shape (e.g.
+# T_raw=4096, C=1 from gift-pretrain-small-4096).
 BACKBONE_CONFIG = dict(
     C=4, H=512, W=16,
     encoder_type="gru", num_layers=6, nhead=8,
@@ -61,7 +64,7 @@ HEAD_CONFIG = dict(
     H=512, hidden_dim=128, num_gru_layers=2, forecast_len=FORECAST_LEN, dropout=0.1,
 )
 
-T_RAW = 1024
+T_RAW = 1024  # Default; overridden by --t-raw CLI flag.
 
 
 def parse_args():
@@ -167,6 +170,13 @@ def parse_args():
     p.add_argument("--env-gain-max", type=float, default=10.0,
                    help="Composite-only: upper bound of the env total gain "
                         "(must match the backbone's --env-gain-max).")
+    p.add_argument("--t-raw", type=int, default=T_RAW,
+                   help="Raw window length (T) per sample. Default 1024; "
+                        "set to 4096 to match a backbone trained on "
+                        "gift-pretrain-small-4096.")
+    p.add_argument("--n-channels", type=int, default=BACKBONE_CONFIG["C"],
+                   help="Number of input channels (C). Default 4; set to 1 "
+                        "for single-channel backbones.")
     return p.parse_args()
 
 
@@ -235,6 +245,7 @@ def main():
                   f"from backbone checkpoint")
         else:
             args.seasonality_emb_dim = 0
+    BACKBONE_CONFIG["C"] = args.n_channels
     BACKBONE_CONFIG["freq_emb_dim"] = args.freq_emb_dim
     BACKBONE_CONFIG["seasonality_emb_dim"] = args.seasonality_emb_dim
     BACKBONE_CONFIG["rev_norm_kind"] = args.rev_norm_kind
@@ -351,6 +362,7 @@ def main():
                 repo_id=args.hf_repo, batch_size=args.batch_size, C=C,
                 mix_ratio=args.mix_ratio,
                 path_in_repo=args.hf_path, skip_rows=hf_rows_consumed,
+                T_raw=args.t_raw,
                 seed=synth_seed, emit_freq_ids=emit_labels,
                 synth_kwargs=synth_kwargs or None,
             )
@@ -359,6 +371,7 @@ def main():
                 repo_id=args.hf_repo, batch_size=args.batch_size, C=C,
                 mix_ratio=args.mix_ratio,
                 path_in_repo=args.hf_path, skip_rows=hf_rows_consumed,
+                T_raw=args.t_raw,
                 seed=synth_seed, emit_freq_ids=emit_labels,
             )
         synth_bs = int(round(args.batch_size * args.mix_ratio))
@@ -370,7 +383,8 @@ def main():
     else:
         data_loader = create_hf_dataloader(
             args.hf_repo, batch_size=args.batch_size, C=C,
-            path_in_repo=args.hf_path, skip_rows=hf_rows_consumed)
+            path_in_repo=args.hf_path, skip_rows=hf_rows_consumed,
+            t_raw=args.t_raw)
         print(f"Data: HF streaming from {args.hf_repo}/{args.hf_path} "
               f"(skip={hf_rows_consumed} rows)")
     data_iter = iter(data_loader)

@@ -44,6 +44,10 @@ from src.loss import contrastive_latent_loss
 from src.checkpoint import save_training_state, load_training_state
 
 # -- Tiny architecture (identical to v3c) -----------------------------------
+# C and T_raw can be overridden at runtime via --n-channels / --t-raw to
+# accommodate datasets shaped differently from the standard
+# (T_raw=1024, C=4) bundles — e.g. exp_realonly_4096_2arm trains at
+# (T_raw=4096, C=1) on jeremycochoy/gift-pretrain-small-4096.
 MODEL_CONFIG = dict(
     C=4, H=512, W=16,
     encoder_type="gru", num_layers=6, nhead=8,
@@ -58,7 +62,7 @@ LOSS_SPEC = SimpleNamespace(train_configuration={
 })
 CLD = LOSS_SPEC.train_configuration["contrastive_latent_delay"] + 1
 
-T_RAW = 1024
+T_RAW = 1024  # Default; overridden by --t-raw CLI flag.
 
 
 def parse_args():
@@ -80,6 +84,14 @@ def parse_args():
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--mix-ratio", type=float, default=0.5)
     p.add_argument("--synth-seed", type=int, default=None)
+    p.add_argument("--t-raw", type=int, default=T_RAW,
+                   help="Raw window length (T) per sample. Default 1024 "
+                        "(matches the standard contrastive-training bundles); "
+                        "set to 4096 for gift-pretrain-small-4096.")
+    p.add_argument("--n-channels", type=int, default=MODEL_CONFIG["C"],
+                   help="Number of input channels (C). Default 4 (matches "
+                        "base_mixed_v1 4-channel stack); set to 1 for "
+                        "single-channel datasets like gift-pretrain-small-4096.")
     # Freq embedding
     p.add_argument("--seasonality-emb-dim", type=int, default=0,
                    help="Seasonality embedding dim (0 = disabled).")
@@ -300,6 +312,7 @@ def main():
 
     # -- Model -----------------------------------------------------------------
     model_config = dict(MODEL_CONFIG)
+    model_config["C"] = args.n_channels
     model_config["freq_emb_dim"] = args.freq_emb_dim
     model_config["seasonality_emb_dim"] = args.seasonality_emb_dim
     model_config["rev_norm_kind"] = args.rev_norm_kind
@@ -341,7 +354,8 @@ def main():
 
     print(f"Device: {device} | Params: {count_parameters(model):,}")
     print(f"Training for {args.total_steps} steps, bs={args.batch_size}, "
-          f"lr={args.lr}, T={T_RAW}, mix_ratio={args.mix_ratio}, "
+          f"lr={args.lr}, T={args.t_raw}, C={args.n_channels}, "
+          f"mix_ratio={args.mix_ratio}, "
           f"freq_emb_dim={args.freq_emb_dim}, "
           f"seasonality_emb_dim={args.seasonality_emb_dim}, "
           f"mixup_p={args.mixup_p}, "
@@ -355,7 +369,7 @@ def main():
     print(f"Loss CSV: {csv_path}")
 
     # -- Data -----------------------------------------------------------------
-    C = MODEL_CONFIG["C"]
+    C = args.n_channels
     synth_bs = int(round(args.batch_size * args.mix_ratio))
     hf_bs = args.batch_size - synth_bs
     hf_rows_per_step = hf_bs * C
@@ -384,7 +398,7 @@ def main():
             repo_id=args.hf_repo, batch_size=args.batch_size, C=C,
             mix_ratio=args.mix_ratio,
             path_in_repo=args.hf_path, split=args.split,
-            skip_rows=hf_rows_consumed, T_raw=T_RAW, seed=synth_seed,
+            skip_rows=hf_rows_consumed, T_raw=args.t_raw, seed=synth_seed,
             emit_freq_ids=(args.freq_emb_dim > 0 or args.seasonality_emb_dim > 0),
             synth_kwargs=synth_kwargs or None,
         )
@@ -393,7 +407,7 @@ def main():
             repo_id=args.hf_repo, batch_size=args.batch_size, C=C,
             mix_ratio=args.mix_ratio,
             path_in_repo=args.hf_path, split=args.split,
-            skip_rows=hf_rows_consumed, T_raw=T_RAW, seed=synth_seed,
+            skip_rows=hf_rows_consumed, T_raw=args.t_raw, seed=synth_seed,
             emit_freq_ids=(args.freq_emb_dim > 0 or args.seasonality_emb_dim > 0),
         )
     print(f"Data: MIX {(1-args.mix_ratio)*100:.0f}% HF + "

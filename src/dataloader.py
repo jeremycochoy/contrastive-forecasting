@@ -20,7 +20,10 @@ import torch
 from torch.utils.data import Dataset
 
 
-T_RAW = 1024  # We use the first 1024 of the 1025-point windows
+T_RAW = 1024  # Default: we use the first 1024 of the 1025-point windows.
+              # Per-call override via the `t_raw` arg threaded through
+              # ShardDataset, HFStreamingLoader, and the create_*_dataloader
+              # factories (used at T=4096 by exp_realonly_4096_2arm).
 
 
 def _forward_fill_nan(arr: np.ndarray) -> bool:
@@ -57,13 +60,14 @@ def _forward_fill_nan(arr: np.ndarray) -> bool:
 class ShardDataset(Dataset):
     """Memory-mapped dataset over a directory of parquet shards.
 
-    Each __getitem__ returns a single 1-D float32 array of length T_RAW.
+    Each __getitem__ returns a single 1-D float32 array of length t_raw.
     """
 
-    def __init__(self, shard_dir: str):
+    def __init__(self, shard_dir: str, t_raw: int = T_RAW):
         import pyarrow.parquet as pq
 
         self.shard_dir = shard_dir
+        self.t_raw = t_raw
         shard_files = sorted(
             f for f in os.listdir(shard_dir) if f.endswith(".parquet")
         )
@@ -118,7 +122,7 @@ class ShardDataset(Dataset):
         data = []
         for row in series_col:
             arr = row.as_py()
-            a = np.array(arr[:T_RAW], dtype=np.float32)
+            a = np.array(arr[:self.t_raw], dtype=np.float32)
             if not _forward_fill_nan(a):
                 continue  # skip all-NaN rows
             data.append(a)
@@ -202,7 +206,7 @@ class HFStreamingLoader:
     def __init__(self, repo_id: str, batch_size: int = 16, C: int = 4,
                  path_in_repo: str = None, split: str = "train",
                  prefetch: int = 2, skip_rows: int = 0,
-                 emit_source_ids: bool = False):
+                 emit_source_ids: bool = False, t_raw: int = T_RAW):
         self.repo_id = repo_id
         self.batch_size = batch_size
         self.C = C
@@ -211,6 +215,7 @@ class HFStreamingLoader:
         self.prefetch = prefetch
         self.skip_rows = skip_rows
         self.emit_source_ids = emit_source_ids
+        self.t_raw = t_raw
 
     def _open_stream(self):
         from datasets import load_dataset
@@ -338,9 +343,9 @@ class HFStreamingLoader:
             full = np.array(series, dtype=np.float32)
             row_sid = int(row.get("source_id", 0)) if self.emit_source_ids else 0
 
-            # Crop non-overlapping T_RAW windows from long series
-            for start in range(0, len(full) - T_RAW + 1, T_RAW):
-                window = full[start:start + T_RAW].copy()
+            # Crop non-overlapping t_raw windows from long series
+            for start in range(0, len(full) - self.t_raw + 1, self.t_raw):
+                window = full[start:start + self.t_raw].copy()
                 if not _forward_fill_nan(window):
                     continue  # skip all-NaN windows
                 buf.append(window)
@@ -454,12 +459,13 @@ class _ShardDataLoader:
 
 def create_dataloader(shard_dir: str, batch_size: int = 16, C: int = 4,
                       shuffle: bool = True, num_workers: int = 0,
-                      drop_last: bool = False) -> _ShardDataLoader:
+                      drop_last: bool = False,
+                      t_raw: int = T_RAW) -> _ShardDataLoader:
     """Create a DataLoader from local parquet shards.
 
     Returns an iterable yielding tensors of shape [B, T_raw, C].
     """
-    dataset = ShardDataset(shard_dir)
+    dataset = ShardDataset(shard_dir, t_raw=t_raw)
     sampler = _MultiChannelBatchSampler(
         total_rows=len(dataset), C=C, batch_size=batch_size,
         shuffle=shuffle, drop_last=drop_last,
@@ -470,7 +476,8 @@ def create_dataloader(shard_dir: str, batch_size: int = 16, C: int = 4,
 def create_hf_dataloader(repo_id: str, batch_size: int = 16, C: int = 4,
                           path_in_repo: str = None,
                           split: str = "train",
-                          skip_rows: int = 0) -> HFStreamingLoader:
+                          skip_rows: int = 0,
+                          t_raw: int = T_RAW) -> HFStreamingLoader:
     """Create a streaming DataLoader from a HuggingFace dataset repo.
 
     Streams parquet shards on the fly — no full download required.
@@ -486,6 +493,7 @@ def create_hf_dataloader(repo_id: str, batch_size: int = 16, C: int = 4,
     return HFStreamingLoader(
         repo_id=repo_id, batch_size=batch_size, C=C,
         path_in_repo=path_in_repo, split=split, skip_rows=skip_rows,
+        t_raw=t_raw,
     )
 
 
@@ -625,12 +633,13 @@ def create_mixed_periodic_dataloader(
         return create_hf_dataloader(
             repo_id=repo_id, batch_size=batch_size, C=C,
             path_in_repo=path_in_repo, split=split, skip_rows=skip_rows,
+            t_raw=T_raw,
         )
 
     hf_loader = HFStreamingLoader(
         repo_id=repo_id, batch_size=hf_bs, C=C,
         path_in_repo=path_in_repo, split=split, skip_rows=skip_rows,
-        emit_source_ids=emit_freq_ids,
+        emit_source_ids=emit_freq_ids, t_raw=T_raw,
     ) if hf_bs > 0 else None
 
     # Small helper to act as an "iterable-like" HF loader when mix_ratio=1.0.
@@ -767,12 +776,13 @@ def create_mixed_composite_dataloader(
         return create_hf_dataloader(
             repo_id=repo_id, batch_size=batch_size, C=C,
             path_in_repo=path_in_repo, split=split, skip_rows=skip_rows,
+            t_raw=T_raw,
         )
 
     hf_loader = HFStreamingLoader(
         repo_id=repo_id, batch_size=hf_bs, C=C,
         path_in_repo=path_in_repo, split=split, skip_rows=skip_rows,
-        emit_source_ids=emit_freq_ids,
+        emit_source_ids=emit_freq_ids, t_raw=T_raw,
     ) if hf_bs > 0 else None
 
     class _EmptyHFLoader:

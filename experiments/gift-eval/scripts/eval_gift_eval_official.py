@@ -398,6 +398,12 @@ def parse_args():
                         "name matches this regex. Useful for cheap screens — "
                         "e.g. --config-filter 'ett[12]/(15T|W)|solar/10T|m4_hourly/H' "
                         "for the 6-config periodic focus set.")
+    p.add_argument("--t-raw", type=int, default=T_RAW,
+                   help="Backbone context window length. Default 1024; set to "
+                        "4096 for backbones trained on gift-pretrain-small-4096.")
+    p.add_argument("--backbone-c", type=int, default=BACKBONE_C,
+                   help="Backbone input channel count. Default 4; set to 1 "
+                        "for single-channel backbones.")
     return p.parse_args()
 
 
@@ -408,6 +414,7 @@ def load_models(args, device):
     # Auto-detect freq_emb_dim and seasonality_emb_dim so backbones
     # trained with either / both axes load cleanly without CLI flags.
     sd = torch.load(args.backbone_path, map_location=device, weights_only=True)
+    BACKBONE_CONFIG["C"] = args.backbone_c
     w = sd.get("freq_embedding.embedding.weight")
     BACKBONE_CONFIG["freq_emb_dim"] = (w.shape[1] if w is not None else 0)
     sw = sd.get("seasonality_embedding.embedding.weight")
@@ -600,6 +607,8 @@ def main():
                     device=device,
                     quantile_levels=QUANTILE_LEVELS,
                     strategy=args.strategy,
+                    t_raw=args.t_raw,
+                    backbone_c=args.backbone_c,
                 )
 
                 # Evaluate using gluonts official function
