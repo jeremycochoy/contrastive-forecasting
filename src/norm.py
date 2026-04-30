@@ -176,11 +176,18 @@ class RevEWMNorm(nn.Module):
         over the previous float64 implementation, with cached
         decay/inv_decay/decay_shift buffers per (T, alpha, device).
 
-        Float32 is safe for ``span >= 64`` and ``T <= 4096`` (verified
-        numerically: max |diff| < 1e-3 vs float64 reference, relative
-        error < 1e-5). For shorter spans the cumsum trick is
-        numerically unstable in float32 — caller would need to extend
-        the dtype-decision logic if pushing past those bounds.
+        Float32 is safe for ``span >= 64`` and ``T <= 1024`` with bounded
+        inputs (typical |x| < ~100). For T >= 2048 OR when |x| can exceed
+        ~1000, the cumsum-trick intermediates overflow float32: the term
+        ``residuals_sq[k] / (1-alpha)^k`` grows like ``|x|^2 *
+        exp(2*alpha*T)`` and a sum of T such terms can overshoot 3.4e38
+        (float32 max). The 4096-window gift-pretrain-small-4096 dataset
+        has rows with |x| up to ~1e5; running the float32 path on it
+        NaN'd the loss at step 1697 of a 30k run. So we promote to
+        float64 inside the cumsum when ``T > 2048``, paying a small
+        speed cost (one extra cast + 8-byte-wide reduction) for
+        numerical stability. The float32 path is preserved for the
+        more common T=1024 case used throughout phases 1–5.
 
         Args:
             x: ``[B, T, C]``
@@ -195,11 +202,14 @@ class RevEWMNorm(nn.Module):
         ema_mean_init = first_patch.mean(dim=1, keepdim=True)
         ema_var_init = first_patch.var(dim=1, keepdim=True, unbiased=False)
 
-        # Cache decay/inv_decay/decay_shift buffers keyed on (T, alpha, device).
-        # Recomputed only when the key changes (rare in steady-state).
-        cache_key = (T, alpha, device, dtype)
+        # Cache decay/inv_decay/decay_shift buffers keyed on
+        # (T, alpha, device, work_dtype). Recomputed only when the key
+        # changes. work_dtype is float64 for long sequences to bound
+        # cumsum-trick intermediates safely; otherwise the input dtype.
+        work_dtype = torch.float64 if T > 2048 else dtype
+        cache_key = (T, alpha, device, dtype, work_dtype)
         if getattr(self, "_cache_key", None) != cache_key:
-            arange = torch.arange(T, device=device, dtype=dtype)
+            arange = torch.arange(T, device=device, dtype=work_dtype)
             decay = (1.0 - alpha) ** arange                          # [T]
             self._cache_decay = decay.view(1, T, 1)
             self._cache_inv_decay = (1.0 / decay).view(1, T, 1)
@@ -209,19 +219,32 @@ class RevEWMNorm(nn.Module):
         inv_decay = self._cache_inv_decay
         decay_shift = self._cache_decay_shift
 
+        # Promote x to work_dtype only for the cumsum trick. Cast back
+        # before storing self.mean / self.stdev so downstream stays in
+        # the input dtype.
+        if work_dtype != dtype:
+            x_w = x.to(work_dtype)
+            ema_mean_init_w = ema_mean_init.to(work_dtype)
+            ema_var_init_w = ema_var_init.to(work_dtype)
+        else:
+            x_w = x
+            ema_mean_init_w = ema_mean_init
+            ema_var_init_w = ema_var_init
+
         # EMA mean via cumsum trick.
-        weighted_x = x * inv_decay
+        weighted_x = x_w * inv_decay
         cumsum_wx = torch.cumsum(weighted_x, dim=1)
-        ema_mean = alpha * cumsum_wx * decay + decay_shift * ema_mean_init
+        ema_mean = alpha * cumsum_wx * decay + decay_shift * ema_mean_init_w
 
         # EMA variance via the same trick on (x - mean)^2.
-        residuals_sq = (x - ema_mean) ** 2
+        residuals_sq = (x_w - ema_mean) ** 2
         weighted_rsq = residuals_sq * inv_decay
         cumsum_wrsq = torch.cumsum(weighted_rsq, dim=1)
-        ema_var = alpha * cumsum_wrsq * decay + decay_shift * ema_var_init
+        ema_var = alpha * cumsum_wrsq * decay + decay_shift * ema_var_init_w
 
-        self.mean = ema_mean.detach()                        # [B, T, C]
-        self.stdev = torch.sqrt(ema_var.clamp(min=1e-12)).detach()
+        # Cast back to input dtype before storing.
+        self.mean = ema_mean.to(dtype).detach()              # [B, T, C]
+        self.stdev = torch.sqrt(ema_var.clamp(min=1e-12)).to(dtype).detach()
 
     def _normalize(self, x: torch.Tensor) -> torch.Tensor:
         x = x - self.mean
