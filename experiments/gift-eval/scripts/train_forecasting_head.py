@@ -164,6 +164,9 @@ def parse_args():
     p.add_argument("--more-primitives", action="store_true",
                    help="Composite-only: enable TRIANGLE + HALF_SIN waveforms "
                         "(must match the backbone's --more-primitives).")
+    p.add_argument("--env-gain-max", type=float, default=10.0,
+                   help="Composite-only: upper bound of the env total gain "
+                        "(must match the backbone's --env-gain-max).")
     return p.parse_args()
 
 
@@ -341,6 +344,9 @@ def main():
                 synth_kwargs["n_seas_tied_waves"] = 2
             if args.more_primitives:
                 synth_kwargs["enable_more_primitives"] = True
+            if args.env_gain_max != 10.0:
+                synth_kwargs["env_gain_range"] = (1.0 / args.env_gain_max,
+                                                   args.env_gain_max)
             data_loader = create_mixed_composite_dataloader(
                 repo_id=args.hf_repo, batch_size=args.batch_size, C=C,
                 mix_ratio=args.mix_ratio,

@@ -142,6 +142,12 @@ def parse_args():
                         "to the {sin, square, saw} pool. Targets the "
                         "diversity-vs-quantity insight from phase-2: more "
                         "distinct primitives, not more copies of the same.")
+    p.add_argument("--env-gain-max", type=float, default=10.0,
+                   help="Composite-only: upper bound of the multiplicative "
+                        "exp(λt) envelope total gain (default 10× growth or "
+                        "decay across T). Set to 100 to expose covid-style "
+                        "100× explosive trends; range becomes (1/max, max) so "
+                        "log-symmetric around 1.")
     return p.parse_args()
 
 
@@ -371,6 +377,9 @@ def main():
             synth_kwargs["n_seas_tied_waves"] = 2
         if args.more_primitives:
             synth_kwargs["enable_more_primitives"] = True
+        if args.env_gain_max != 10.0:
+            synth_kwargs["env_gain_range"] = (1.0 / args.env_gain_max,
+                                               args.env_gain_max)
         data_loader = create_mixed_composite_dataloader(
             repo_id=args.hf_repo, batch_size=args.batch_size, C=C,
             mix_ratio=args.mix_ratio,
