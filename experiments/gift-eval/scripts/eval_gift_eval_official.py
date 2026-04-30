@@ -47,6 +47,7 @@ from gluonts.ev.metrics import (
 from gluonts.model import evaluate_model, Forecast
 from gluonts.model.forecast import QuantileForecast
 from gluonts.model.predictor import RepresentablePredictor
+from gluonts.model.seasonal_naive import SeasonalNaivePredictor
 from gluonts.time_feature import get_seasonality
 
 # --- gift_eval import ---
@@ -191,6 +192,10 @@ CSV_HEADER = [
     "eval_metrics/MSIS", "eval_metrics/RMSE[mean]",
     "eval_metrics/NRMSE[mean]", "eval_metrics/ND[0.5]",
     "eval_metrics/mean_weighted_sum_quantile_loss",
+    # Seasonal-Naive baseline columns (for SN-normalized skill scores
+    # following Aksu et al. GIFT-Eval paper).
+    "eval_metrics/MAPE_SN", "eval_metrics/WQL_SN",
+    "eval_metrics/SN_MAPE_ratio", "eval_metrics/SN_WQL_ratio",
     "domain", "num_variates",
 ]
 
@@ -499,17 +504,40 @@ def main():
         all_configs = kept
     print(f"\nTotal configs to evaluate: {len(all_configs)}")
 
-    # Handle resume: read existing results
+    # Handle resume: read existing results.
+    # An older CSV (pre-SN-baseline columns) is detected by header length and
+    # padded with empty MAPE_SN/WQL_SN/SN_*_ratio cells so the rewritten file
+    # keeps a single uniform schema. Such configs will have NaN ratios in the
+    # summary, but their MASE is still recoverable.
     done_configs = set()
     existing_rows = []
+    old_schema = False
     if args.resume and os.path.exists(csv_path):
         with open(csv_path, "r") as f:
             reader = csv.reader(f)
             header = next(reader)
+            old_schema = (len(header) != len(CSV_HEADER))
             for row in reader:
                 done_configs.add(row[0])
+                if old_schema:
+                    # Old layout: trailing two cols are domain, num_variates.
+                    # Insert four empty cells before them.
+                    row = row[:-2] + ["", "", "", ""] + row[-2:]
                 existing_rows.append(row)
-        print(f"  Resuming: {len(done_configs)} configs already done")
+        print(f"  Resuming: {len(done_configs)} configs already done"
+              + (" (old schema padded)" if old_schema else ""))
+
+    # CSV column indices for the summary recompute (must match CSV_HEADER).
+    IDX_MASE = CSV_HEADER.index("eval_metrics/MASE[0.5]")
+    IDX_SN_MAPE_RATIO = CSV_HEADER.index("eval_metrics/SN_MAPE_ratio")
+    IDX_SN_WQL_RATIO = CSV_HEADER.index("eval_metrics/SN_WQL_ratio")
+
+    def _safe_float(s):
+        try:
+            v = float(s)
+            return v if np.isfinite(v) else float("nan")
+        except (TypeError, ValueError):
+            return float("nan")
 
     # Open CSV for writing
     with open(csv_path, "w", newline="") as csvfile:
@@ -530,8 +558,12 @@ def main():
             if config_name in done_configs:
                 for row in existing_rows:
                     if row[0] == config_name:
-                        results_for_summary.append(
-                            (config_name, float(row[5])))
+                        results_for_summary.append((
+                            config_name,
+                            _safe_float(row[IDX_MASE]),
+                            _safe_float(row[IDX_SN_MAPE_RATIO]),
+                            _safe_float(row[IDX_SN_WQL_RATIO]),
+                        ))
                         break
                 continue
 
@@ -582,7 +614,41 @@ def main():
                     seasonality=season_length,
                 )
 
+                # Seasonal-Naive baseline on the same windows / same metrics —
+                # required for the SN-normalized skill scores reported by Aksu
+                # et al. (GIFT-Eval paper). Geometric-mean of (MAPE / MAPE_SN)
+                # and (WQL / WQL_SN) across configs is the headline benchmark
+                # number; raw MASE alone is not directly comparable.
+                sn_predictor = SeasonalNaivePredictor(
+                    prediction_length=dataset.prediction_length,
+                    season_length=season_length,
+                )
+                res_sn = evaluate_model(
+                    sn_predictor,
+                    test_data=dataset.test_data,
+                    metrics=METRICS,
+                    batch_size=512,
+                    axis=None,
+                    mask_invalid_label=True,
+                    allow_nan_forecast=False,
+                    seasonality=season_length,
+                )
+
                 mase_val = res["MASE[0.5]"][0]
+                mape_val = res["MAPE[0.5]"][0]
+                wql_val = res["mean_weighted_sum_quantile_loss"][0]
+                mape_sn = res_sn["MAPE[0.5]"][0]
+                wql_sn = res_sn["mean_weighted_sum_quantile_loss"][0]
+                # Guard against zero / NaN baseline: leave ratio empty (NaN)
+                # so the aggregator skips it cleanly.
+                if mape_sn > 0 and np.isfinite(mape_sn):
+                    sn_mape_ratio = mape_val / mape_sn
+                else:
+                    sn_mape_ratio = float("nan")
+                if wql_sn > 0 and np.isfinite(wql_sn):
+                    sn_wql_ratio = wql_val / wql_sn
+                else:
+                    sn_wql_ratio = float("nan")
 
                 # Write to CSV
                 props = DATASET_PROPERTIES[ds_key]
@@ -600,16 +666,31 @@ def main():
                     res["NRMSE[mean]"][0],
                     res["ND[0.5]"][0],
                     res["mean_weighted_sum_quantile_loss"][0],
+                    mape_sn,
+                    wql_sn,
+                    sn_mape_ratio,
+                    sn_wql_ratio,
                     props["domain"],
                     props["num_variates"],
                 ])
                 csvfile.flush()
 
                 elapsed = time.time() - t0
-                results_for_summary.append((config_name, mase_val))
+                results_for_summary.append((
+                    config_name, mase_val,
+                    sn_mape_ratio, sn_wql_ratio,
+                ))
+                # NaN-safe formatters for the per-config progress line.
+                mape_sn_disp = (f"{sn_mape_ratio:6.3f}"
+                                if np.isfinite(sn_mape_ratio) else "  N/A ")
+                wql_sn_disp = (f"{sn_wql_ratio:6.3f}"
+                               if np.isfinite(sn_wql_ratio) else "  N/A ")
                 print(f"  [{count:3d}/{len(all_configs)}] "
                       f"{config_name:45s} "
-                      f"MASE={mase_val:8.4f}  ({elapsed:.1f}s)")
+                      f"MASE={mase_val:8.4f}  "
+                      f"MAPE/SN={mape_sn_disp}  "
+                      f"WQL/SN={wql_sn_disp}  "
+                      f"({elapsed:.1f}s)")
 
             except Exception as e:
                 elapsed = time.time() - t0
@@ -644,34 +725,54 @@ def main():
             print(msg)
             sf.write(msg + "\n")
 
-        tee("=" * 90)
-        tee(f"{'GIFT-Eval Official Results':^90}")
-        tee("=" * 90)
+        tee("=" * 110)
+        tee(f"{'GIFT-Eval Official Results':^110}")
+        tee("=" * 110)
         tee(f"{'Config':<45} {'MASE':>8} {'SN_MASE':>8} "
-            f"{'Relative':>10}")
-        tee("-" * 90)
+            f"{'MASE/SN':>9} {'MAPE/SN':>9} {'WQL/SN':>9}")
+        tee("-" * 110)
 
         log_ratios = []
-        for config_name, mase_val in sorted(results_for_summary):
+        log_mape_sn_ratios = []
+        log_wql_sn_ratios = []
+        for entry in sorted(results_for_summary):
+            # Each entry is (config, mase, sn_mape_ratio, sn_wql_ratio).
+            config_name, mase_val, mape_sn_r, wql_sn_r = entry
             sn_val = sn_mase.get(config_name, None)
             if sn_val is not None and sn_val > 0:
                 relative = mase_val / sn_val
                 log_ratios.append(np.log(relative))
-                tee(f"{config_name:<45} {mase_val:>8.4f} "
-                    f"{sn_val:>8.4f} {relative:>10.4f}")
+                rel_str = f"{relative:>9.4f}"
+                sn_str = f"{sn_val:>8.4f}"
             else:
-                tee(f"{config_name:<45} {mase_val:>8.4f} "
-                    f"{'N/A':>8} {'N/A':>10}")
+                rel_str = f"{'N/A':>9}"
+                sn_str = f"{'N/A':>8}"
 
-        tee("-" * 90)
+            if mape_sn_r is not None and np.isfinite(mape_sn_r) and mape_sn_r > 0:
+                log_mape_sn_ratios.append(np.log(mape_sn_r))
+                mape_sn_str = f"{mape_sn_r:>9.4f}"
+            else:
+                mape_sn_str = f"{'N/A':>9}"
+            if wql_sn_r is not None and np.isfinite(wql_sn_r) and wql_sn_r > 0:
+                log_wql_sn_ratios.append(np.log(wql_sn_r))
+                wql_sn_str = f"{wql_sn_r:>9.4f}"
+            else:
+                wql_sn_str = f"{'N/A':>9}"
 
+            tee(f"{config_name:<45} {mase_val:>8.4f} "
+                f"{sn_str} {rel_str} {mape_sn_str} {wql_sn_str}")
+
+        tee("-" * 110)
+
+        # Legacy MASE-vs-external-SN aggregate (kept for back-compat; uses
+        # the seasonal_naive reference CSV from disk if available).
         if log_ratios:
             gm_relative = np.exp(np.mean(log_ratios))
             n_configs = len(log_ratios)
             tee(f"\nAggregate GM-Relative MASE ({n_configs} configs): "
                 f"{gm_relative:.4f}")
             tee("")
-            tee("Leaderboard comparison:")
+            tee("Leaderboard comparison (GM-Relative MASE):")
             tee(f"  Sundial:    0.673")
             tee(f"  TimesFM:    0.680")
             tee(f"  PatchTST:   0.762")
@@ -680,9 +781,33 @@ def main():
             tee(f"  Naive:      1.000")
             tee(f"  ** Ours:    {gm_relative:.3f} **")
         else:
-            tee("\nNo configs with matching Seasonal Naive reference.")
+            tee("\nNo configs with matching Seasonal Naive reference (MASE).")
 
-        tee("=" * 90)
+        # SN-normalized skill scores following Aksu et al. (GIFT-Eval paper).
+        # Each per-config metric is divided by the seasonal-naive baseline's
+        # same metric on the same windows, then geometric-mean across configs.
+        # Reference targets reported in the paper for Moirai-Small-on-
+        # GiftEvalPretrain are GM-MAPE=0.882 and GM-CRPS=0.642.
+        tee("")
+        tee("=" * 110)
+        tee("SN-normalized skill scores (Aksu et al. GIFT-Eval paper):")
+        tee("=" * 110)
+        if log_mape_sn_ratios:
+            gm_mape_sn = np.exp(np.mean(log_mape_sn_ratios))
+            n = len(log_mape_sn_ratios)
+            tee(f"  GM-MAPE_SN  ({n} configs): {gm_mape_sn:.4f}   "
+                f"(Aksu target: 0.882)")
+        else:
+            tee("  GM-MAPE_SN: N/A (no valid SN ratios)")
+        if log_wql_sn_ratios:
+            gm_wql_sn = np.exp(np.mean(log_wql_sn_ratios))
+            n = len(log_wql_sn_ratios)
+            tee(f"  GM-CRPS_SN  ({n} configs): {gm_wql_sn:.4f}   "
+                f"(Aksu target: 0.642)")
+        else:
+            tee("  GM-CRPS_SN: N/A (no valid SN ratios)")
+
+        tee("=" * 110)
 
     print(f"Summary saved to {summary_path}")
 
