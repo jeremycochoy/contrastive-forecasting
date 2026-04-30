@@ -404,6 +404,15 @@ def parse_args():
     p.add_argument("--backbone-c", type=int, default=BACKBONE_C,
                    help="Backbone input channel count. Default 4; set to 1 "
                         "for single-channel backbones.")
+    p.add_argument("--d-model", type=int, default=None,
+                   help="Backbone hidden dim (H). Must match the trained "
+                        "backbone. None → use BACKBONE_CONFIG default 512.")
+    p.add_argument("--n-heads", type=int, default=None,
+                   help="Backbone attention heads. Must match the trained "
+                        "backbone. None → use BACKBONE_CONFIG default 8.")
+    p.add_argument("--num-layers", type=int, default=None,
+                   help="Backbone encoder layers. Must match the trained "
+                        "backbone. None → use BACKBONE_CONFIG default 6.")
     return p.parse_args()
 
 
@@ -415,6 +424,13 @@ def load_models(args, device):
     # trained with either / both axes load cleanly without CLI flags.
     sd = torch.load(args.backbone_path, map_location=device, weights_only=True)
     BACKBONE_CONFIG["C"] = args.backbone_c
+    if args.d_model is not None:
+        BACKBONE_CONFIG["H"] = args.d_model
+        HEAD_CONFIG["H"] = args.d_model  # head input width must match backbone H
+    if args.n_heads is not None:
+        BACKBONE_CONFIG["nhead"] = args.n_heads
+    if args.num_layers is not None:
+        BACKBONE_CONFIG["num_layers"] = args.num_layers
     w = sd.get("freq_embedding.embedding.weight")
     BACKBONE_CONFIG["freq_emb_dim"] = (w.shape[1] if w is not None else 0)
     sw = sd.get("seasonality_embedding.embedding.weight")

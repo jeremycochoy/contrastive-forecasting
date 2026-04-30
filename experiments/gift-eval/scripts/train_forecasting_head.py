@@ -177,6 +177,15 @@ def parse_args():
     p.add_argument("--n-channels", type=int, default=BACKBONE_CONFIG["C"],
                    help="Number of input channels (C). Default 4; set to 1 "
                         "for single-channel backbones.")
+    p.add_argument("--d-model", type=int, default=BACKBONE_CONFIG["H"],
+                   help="Backbone hidden dim (H). Must match the backbone "
+                        "checkpoint. Default 512 (Tiny).")
+    p.add_argument("--n-heads", type=int, default=BACKBONE_CONFIG["nhead"],
+                   help="Backbone attention heads. Must match the backbone "
+                        "checkpoint. Default 8 (Tiny).")
+    p.add_argument("--num-layers", type=int, default=BACKBONE_CONFIG["num_layers"],
+                   help="Backbone encoder layers. Must match the backbone "
+                        "checkpoint. Default 6.")
     return p.parse_args()
 
 
@@ -246,6 +255,10 @@ def main():
         else:
             args.seasonality_emb_dim = 0
     BACKBONE_CONFIG["C"] = args.n_channels
+    BACKBONE_CONFIG["H"] = args.d_model
+    BACKBONE_CONFIG["nhead"] = args.n_heads
+    BACKBONE_CONFIG["num_layers"] = args.num_layers
+    HEAD_CONFIG["H"] = args.d_model  # head's input width must match backbone H
     BACKBONE_CONFIG["freq_emb_dim"] = args.freq_emb_dim
     BACKBONE_CONFIG["seasonality_emb_dim"] = args.seasonality_emb_dim
     BACKBONE_CONFIG["rev_norm_kind"] = args.rev_norm_kind

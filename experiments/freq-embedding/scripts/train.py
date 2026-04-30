@@ -92,6 +92,14 @@ def parse_args():
                    help="Number of input channels (C). Default 4 (matches "
                         "base_mixed_v1 4-channel stack); set to 1 for "
                         "single-channel datasets like gift-pretrain-small-4096.")
+    p.add_argument("--d-model", type=int, default=MODEL_CONFIG["H"],
+                   help="Hidden / embedding dimension (H). Default 512 "
+                        "(Tiny). Use 384 for the smaller-arch sweep arms.")
+    p.add_argument("--n-heads", type=int, default=MODEL_CONFIG["nhead"],
+                   help="Number of attention heads. Default 8 (Tiny). "
+                        "Use 6 for the H=384 smaller-arch arms.")
+    p.add_argument("--num-layers", type=int, default=MODEL_CONFIG["num_layers"],
+                   help="Number of encoder layers. Default 6.")
     # Freq embedding
     p.add_argument("--seasonality-emb-dim", type=int, default=0,
                    help="Seasonality embedding dim (0 = disabled).")
@@ -313,6 +321,9 @@ def main():
     # -- Model -----------------------------------------------------------------
     model_config = dict(MODEL_CONFIG)
     model_config["C"] = args.n_channels
+    model_config["H"] = args.d_model
+    model_config["nhead"] = args.n_heads
+    model_config["num_layers"] = args.num_layers
     model_config["freq_emb_dim"] = args.freq_emb_dim
     model_config["seasonality_emb_dim"] = args.seasonality_emb_dim
     model_config["rev_norm_kind"] = args.rev_norm_kind
