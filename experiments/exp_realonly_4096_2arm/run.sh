@@ -97,11 +97,11 @@ mkdir -p "$RES_DIR"
 # Save every 2500 steps (~ once per epoch). The trainer auto-handles
 # StopIteration → re-iter (multi-epoch loop is in-place).
 echo "" && echo "=== ARM ${ARM} STAGE B: $BB (T=4096, C=1, mix=0.0) ===" && date
-# --grad-clip 1.0 added after the first attempt NaN'd at step 1697 — the
-# pure-HF gift-pretrain-small-4096 dataset has rows with values up to ~1e5
-# (electricity, etc.), and without grad clipping AdamW steps explode under
-# rare large-grad batches. Phase 1–5 didn't need this because the 50/50
-# synth mix bounded grads through the synth half.
+# NOTE: deliberately NO --grad-clip. The original NaN at step 1697 was a
+# float32 cumsum overflow in RevEWMNorm at T=4096 (a real numerical
+# defect), fixed by promoting the cumsum trick to float64 for T>2048
+# (commit 452d79b). Grad-clip would mask future spikes and hide design
+# issues we want to see — keeping training transparent.
 python3 -u experiments/freq-embedding/scripts/train.py \
     --device cuda --total-steps 30000 --batch-size 24 --lr 1e-4 \
     --save-every 2500 --save-dir checkpoints --run-name "$BB" \
@@ -110,7 +110,6 @@ python3 -u experiments/freq-embedding/scripts/train.py \
     --mix-ratio 0.0 \
     --freq-emb-dim 3 --seasonality-emb-dim 3 --mixup-p 0.3 \
     --rev-norm-kind "$NORM_KIND" $SPAN_FLAG \
-    --grad-clip 1.0 \
     --loss-shape "$LOSS"
 cp -f "checkpoints/${BB}_best_loss.pth" "checkpoints/${BB}_FINAL.pth"
 echo "=== ARM ${ARM} STAGE B DONE ===" && date

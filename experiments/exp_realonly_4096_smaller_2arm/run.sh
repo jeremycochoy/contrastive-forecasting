@@ -101,7 +101,6 @@ python3 -u experiments/freq-embedding/scripts/train.py \
     --mix-ratio 0.0 \
     --freq-emb-dim 3 --seasonality-emb-dim 3 --mixup-p 0.3 \
     --rev-norm-kind "$NORM_KIND" $SPAN_FLAG \
-    --grad-clip 1.0 \
     --loss-shape "$LOSS"
 cp -f "checkpoints/${BB}_best_loss.pth" "checkpoints/${BB}_FINAL.pth"
 echo "=== ARM ${ARM} STAGE B DONE ===" && date
