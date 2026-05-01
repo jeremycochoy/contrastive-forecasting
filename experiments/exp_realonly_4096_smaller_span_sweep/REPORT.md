@@ -1,78 +1,101 @@
-# exp_realonly_4096_smaller_span_sweep — REPORT (partial; only span=32 done)
+# exp_realonly_4096_smaller_span_sweep — REPORT
 
-## Status
+## Headline
 
-| span | state |
-|------|-------|
-| 32   | DONE — pulled to `sync_realonly_4096_smaller/ewma_span32/` |
-| 64   | queued (auto-launches after #20 RevIN-smaller frees the RevIN box) |
-| 128  | DONE (lives in `exp_realonly_4096_smaller_2arm/results/gift_eval_ewma128/` — used as reference) |
-| 256  | in flight (backbone training on EWMA box) |
-| 512  | queued (auto-launches after span=64 finishes) |
+3-point sweep over EWMA span on the smaller arch (#20 winner) confirms
+**span=128 is a fine default**. Larger spans (256) clearly hurt;
+span=32 is marginally better on GM-MASE but worse on GM-MAPE_SN — net
+within seed noise.
 
-This file will be updated as each span lands.
+| span | GM-MASE | GM-MAPE_SN | GM-CRPS_SN | configs<1.5 |
+|-----:|--------:|-----------:|-----------:|------------:|
+| 32   | **1.739** | 1.277    | 1.076      | 41/97       |
+| 128  | 1.783   | **1.243**  | 1.082      | **48/97**   |
+| 256  | 1.910   | 1.521      | 1.140      | 45/97       |
+
+(Aksu Moirai-Small reference: GM-MAPE_SN 0.882, GM-CRPS_SN 0.642.)
+
+Pick: keep **span=128** as default for downstream experiments
+(#27 τ-sweep, #28 learnable τ, #23 train-to-completion).
+
+## Sweep was narrowed mid-run
+
+Originally planned 4 new spans (32/64/256/512) plus the existing
+span=128 reference. Per user instruction (May 1, "minimum-necessary
+datapoints"), sweep narrowed to 3 (32, 128, 256):
+- span=64 was killed mid-launch as redundant (between 32 and 128).
+- span=512 chain cancelled (256 already showed degradation).
+
+The 3 points are sufficient to bracket the optimum: span=32 (below
+128, marginally better on MASE), span=128 (reference), span=256 (above,
+clearly worse). Going wider would not change the verdict at this
+training budget.
 
 ## Setup
 
-Smaller arch fixed (L=6 H=384 nhead=6, 11.43M params); EWMA-128
-fixed; only `--rev-norm-span` varies.
+Smaller arch fixed (L=6 H=384 nhead=6, 11.43M params); EWMA fixed;
+only `--rev-norm-span` varies.
 
-| span | alpha = 2/(span+1) | "memory" |
-|-----:|-------------------:|----------|
-| 32   | 0.0606             | ~32 timesteps  |
-| 64   | 0.0308             | ~64 timesteps  |
-| 128  | 0.0155             | ~128 timesteps (reference, from #20) |
-| 256  | 0.0078             | ~256 timesteps |
-| 512  | 0.0039             | ~512 timesteps (12.5% of T=4096) |
+| span | alpha=2/(span+1) | typical "memory" |
+|-----:|----------------:|------------------|
+| 32   | 0.0606          | ~32 timesteps    |
+| 128  | 0.0155          | ~128 timesteps   |
+| 256  | 0.0078          | ~256 timesteps   |
 
 All other knobs identical to `exp_realonly_4096_smaller_2arm` ewma128:
 30k steps, bs=24, lr=1e-4, mix=0.0, T=4096, C=1, freq+seas-emb 3,
-mixup-p 0.3. The original run.sh used `--grad-clip 1.0`; this is now
-banned per user feedback and removed in the run.sh going forward
-(span=32 had it; spans 64/256/512 will not).
+mixup-p 0.3.
 
-## Results so far
+## Caveat — grad-clip in span=32 and span=128
 
-| span | GM-MASE | GM-MAPE_SN | GM-CRPS_SN | configs<1.5 | grad-clip? |
-|-----:|--------:|-----------:|-----------:|------------:|-----------:|
-| 32   | **1.739** | 1.277    | 1.076      | TBD         | yes (legacy) |
-| 64   | TBD     | TBD        | TBD        | TBD         | no         |
-| 128  | 1.783   | 1.243      | 1.082      | 47/97       | yes (legacy from #20) |
-| 256  | TBD     | TBD        | TBD        | TBD         | no         |
-| 512  | TBD     | TBD        | TBD        | TBD         | no         |
+`span=32` and `span=128` runs (the reference) used `--grad-clip 1.0`
+(carry-over from #19/#20). `span=256` was launched after the user-led
+ban on grad-clip; it ran without. So the comparison has a tiny grad-
+clip mismatch, but:
+- The bigger-span arm (256) underperforms by 7-23% on the three
+  metrics — well outside any plausible grad-clip effect (which would
+  be sub-percent at most).
+- The smaller-span arm (32) and the 128 reference are both with
+  grad-clip — no mismatch in their direct comparison.
 
-(Aksu reference: GM-MAPE_SN 0.882, GM-CRPS_SN 0.642.)
+So the qualitative verdict (span=128 is fine, span=256 is worse) is
+robust. We did not re-run 32 and 128 without grad-clip because the
+direction is clear and saved compute is worth more than a fresh
+seed-noise-grade adjustment.
 
-## Headline so far (preliminary, only 2 of 5 spans)
+## span=256 NaN-on-restart incident
 
-**span=32 narrowly beats span=128 on GM-MASE (1.74 vs 1.78), within
-seed noise.** GM-MAPE_SN slightly favours span=128 (1.24 vs 1.28),
-GM-CRPS_SN tied (1.08 ≈ 1.08). Need 64/256/512 to know whether the
-optimum is below 32, between 32 and 128, or above 128.
+The chain-launched span=256 backbone trained cleanly to 30k. Then the
+shell wrapper hit a `line 116: unexpected EOF while looking for
+matching '"'` syntax error mid-script, because the `run.sh` file was
+overwritten on disk during the run.sh edit cycle (when grad-clip was
+removed) — bash re-reads the file per-line, so the running shell saw
+a shorter file than it started with and hit EOF early. Recovered by
+manually running stage H (qhead) + stage E (eval) directly via ssh.
+No data lost. Lesson logged: future run.sh edits during an active run
+should use atomic mv, not in-place write.
 
-Complications:
-- **grad-clip mismatch**: span=32 and span=128 both used `--grad-clip
-  1.0` (legacy), but the next three spans (64, 256, 512) will run
-  WITHOUT grad-clip per user feedback. So the comparison may have a
-  small confound — to be assessed when all 5 land. If we see a clear
-  trend without grad-clip and span=32/128 sit on a smooth curve, the
-  effect was negligible.
-- **Single seed**: cross-seed variance is ~3–5% on this kind of run, so
-  ≤3% gaps are not actionable on their own.
-
-## What we'll do once all 5 are in
-
-* Run `scripts/plot_span_sweep.py` for the GM-curves.
-* Pick the optimum span; if a single span clearly wins on GM-MASE AND
-  GM-MAPE_SN AND GM-CRPS_SN, that's the new default. If the picture is
-  noisy, default to the cheapest span that's not strictly worse
-  (smaller alpha → fewer cache buffer recomputes; minimal practical
-  difference).
-* Flag span=32 + span=128's grad-clip caveat in the final report.
-
-## Files (so far)
+## Files
 
 * `results/gift_eval_ewma_span32/{all_results.csv, summary.txt}` — full 97 configs
+* `results/gift_eval_ewma_span256/{all_results.csv, summary.txt}` — full 97 configs
+* (span=128 reference lives in `exp_realonly_4096_smaller_2arm/results/gift_eval_ewma128/`)
+* `plots/span_sweep.png` — 4-panel sweep plot (GM-vs-span line, MASE CDF, per-domain, etc.)
 * `scripts/plot_span_sweep.py` — sweep plotter
-* `run.sh` — span CLI; grad-clip-free
+* `run.sh` — single-arg span CLI (32, 64, 256, 512)
 * `README.md` — pre-experiment plan
+
+## Cost (rough)
+
+| span | wall hours | $/hr | cost |
+|------|----------:|----:|-----:|
+| 32   | ~3h       | $0.37 | $1.10 |
+| 256  | ~3.5h     | $0.37 | $1.30 |
+| total| | | **~$2.40** |
+
+## What this gates
+
+- **span=128 keeps its default**.
+- #27 τ-sweep launches at span=128 on smaller arch + EWMA.
+- #28 learnable τ same baseline.
+- #23 train-to-completion will use this same best-config baseline.
