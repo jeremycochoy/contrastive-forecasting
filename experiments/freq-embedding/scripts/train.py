@@ -100,6 +100,15 @@ def parse_args():
                         "Use 6 for the H=384 smaller-arch arms.")
     p.add_argument("--num-layers", type=int, default=MODEL_CONFIG["num_layers"],
                    help="Number of encoder layers. Default 6.")
+    p.add_argument("--tau", type=float, default=None,
+                   help="Contrastive temperature. None = use the LOSS_SPEC "
+                        "default (0.07). Used by exp_realonly_4096_smaller_tau_sweep.")
+    p.add_argument("--learnable-tau", action="store_true",
+                   help="CLIP-style learnable τ (#28). Adds log_inv_tau as "
+                        "an nn.Parameter on the model; loss uses τ = "
+                        "exp(-log_inv_tau). Init from --tau (default 0.07). "
+                        "After each optimizer.step, log_inv_tau is clamped "
+                        "to [0, log(100)] so τ ∈ [0.01, 1.0].")
     # Freq embedding
     p.add_argument("--seasonality-emb-dim", type=int, default=0,
                    help="Seasonality embedding dim (0 = disabled).")
@@ -330,8 +339,17 @@ def main():
     if args.rev_norm_kind == "ewma":
         model_config["rev_norm_span"] = args.rev_norm_span
     model_config["patch_stats_kind"] = args.patch_stats
+    # CLIP-style learnable τ (#28). When --learnable-tau is set, the model
+    # registers `log_inv_tau` as an nn.Parameter (init from args.tau or 0.07).
+    # The trainer passes `model.tau()` (a 0-d tensor) as `tau_override` to
+    # the loss so gradient flows; after each optimizer.step we clamp.
+    tau_init = args.tau if args.tau is not None else 0.07
+    model_config["learnable_tau"] = bool(args.learnable_tau)
+    model_config["tau_init"] = tau_init
     # Override the loss_shape from CLI (LOSS_SPEC is a module-level default).
     LOSS_SPEC.train_configuration["loss_shape"] = args.loss_shape
+    if args.tau is not None:
+        LOSS_SPEC.train_configuration["contrastive_divergence_temperature"] = args.tau
     model = ConfigurableModel(**model_config).to(device)
     optimizer = optim.AdamW(model.parameters(), lr=args.lr)
 
@@ -475,8 +493,12 @@ def main():
             model, x,
             freq_ids=freq_ids, freq_embs=freq_embs,
             seasonality_ids=seasonality_ids, seasonality_embs=seasonality_embs)
+        # When learnable_tau is on, pass model.tau() (0-d tensor with grad)
+        # as tau_override so gradient reaches log_inv_tau. Otherwise the
+        # loss uses LOSS_SPEC.train_configuration's scalar.
+        tau_tensor = model.tau() if args.learnable_tau else None
         loss = contrastive_latent_loss((f_lat, o_lat), validation=False,
-                                       spec=LOSS_SPEC)
+                                       spec=LOSS_SPEC, tau_override=tau_tensor)
         t_fwd_end = time.perf_counter()
 
         loss_val = loss.item()
@@ -498,6 +520,11 @@ def main():
         if args.grad_clip is not None:
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
         optimizer.step()
+        # Clamp learnable τ after the step (CLIP convention). No-op when
+        # learnable_tau=False.
+        if args.learnable_tau:
+            with torch.no_grad():
+                model.clamp_log_inv_tau()
         t_bwd_end = time.perf_counter()
         t_step_end = time.perf_counter()
 
@@ -526,10 +553,13 @@ def main():
             elapsed = time.time() - t0
             sps = (step - start_step) / elapsed
             eta = (args.total_steps - step) / sps / 3600
+            tau_str = ""
+            if args.learnable_tau:
+                tau_str = f"  τ={float(model.tau().detach()):.4f}"
             print(f"[{step:>7d}] loss={loss_val:.4f}  ema_loss={ema_loss:.4f}  "
                   f"gap={gap_val:.4f}  ema_gap={ema_gap:.4f}  "
                   f"mixup={mixup_applied_count}/{timing_count}  "
-                  f"{sps:.1f} sps  ETA {eta:.1f}h")
+                  f"{sps:.1f} sps  ETA {eta:.1f}h{tau_str}")
             n = timing_count
             print(f"  timing: data={t_data_sum/n*1000:.1f}ms  "
                   f"fwd={t_fwd_sum/n*1000:.1f}ms  "
