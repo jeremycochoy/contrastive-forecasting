@@ -1,5 +1,7 @@
 # exp_realonly_4096_2arm — real-data-only training on gift-pretrain-small-4096
 
+*Written: 2026-04-30. Last updated: 2026-05-01 (architecture-audit notes added). Date-stamp added: 2026-05-02.*
+
 ## Question
 
 Phases 1–5 trained the contrastive backbone on a 50/50 mix of real

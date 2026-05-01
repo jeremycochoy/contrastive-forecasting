@@ -1,5 +1,7 @@
 # exp_realonly_4096_smaller_tau_sweep — τ sweep on smaller-EWMA
 
+*Written: 2026-05-01. Last updated: 2026-05-02 (added τ=0.07 anchor at bs=96).*
+
 ## Question
 
 Phases 1–5 + #19/#20/#22 all used `contrastive_divergence_temperature =

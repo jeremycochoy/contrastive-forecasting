@@ -1,5 +1,7 @@
 # exp_realonly_4096_2arm — REPORT
 
+*Written: 2026-05-01. Date-stamp added: 2026-05-02.*
+
 ## Headline
 
 Real-data-only training (mix=0.0) on

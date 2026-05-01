@@ -1,5 +1,7 @@
 # exp_compositesynth_v5envboost_2arm — wider exp envelope (covid-style trends)
 
+*Written: 2026-04-30. Date-stamp added: 2026-05-02.*
+
 ## Question
 
 Phase 1–4 converged to a best-of-breed:

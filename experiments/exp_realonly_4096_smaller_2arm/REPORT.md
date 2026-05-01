@@ -1,5 +1,7 @@
 # exp_realonly_4096_smaller_2arm — REPORT
 
+*Written: 2026-05-01. Date-stamp added: 2026-05-02.*
+
 ## Headline
 
 Smaller architecture (L=6 H=384 nhead=6, 11.43M params) **wins on

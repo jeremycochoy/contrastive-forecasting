@@ -1,5 +1,7 @@
 # exp_realonly_4096_smaller_span_sweep — EWMA-128 span sweep on the smaller arch
 
+*Written: 2026-05-01. Date-stamp added: 2026-05-02.*
+
 ## Question
 
 #19 and #20 both used `--rev-norm-span 128` for the EWMA arms — that's

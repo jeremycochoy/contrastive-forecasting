@@ -1,5 +1,7 @@
 # Phase 5 — env_gain_max=100 (explosive-trend test): REPORT
 
+*Written: 2026-04-30. Date-stamp added: 2026-05-02.*
+
 ## Headline
 
 **The env-bump (env_gain_max 10 → 100) does NOT improve explosive-trend

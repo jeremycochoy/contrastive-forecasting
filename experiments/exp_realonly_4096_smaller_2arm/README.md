@@ -1,5 +1,7 @@
 # exp_realonly_4096_smaller_2arm — smaller-arch variant of exp_realonly_4096_2arm
 
+*Written: 2026-04-30. Date-stamp added: 2026-05-02.*
+
 ## Question
 
 Same setup as `exp_realonly_4096_2arm` (real-data-only training on

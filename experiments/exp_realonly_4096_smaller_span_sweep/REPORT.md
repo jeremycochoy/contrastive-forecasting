@@ -1,5 +1,7 @@
 # exp_realonly_4096_smaller_span_sweep — REPORT
 
+*Written: 2026-05-01. Date-stamp added: 2026-05-02.*
+
 ## Headline
 
 3-point sweep over EWMA span on the smaller arch (#20 winner) confirms

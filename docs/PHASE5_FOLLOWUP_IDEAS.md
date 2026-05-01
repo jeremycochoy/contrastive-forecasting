@@ -1,5 +1,7 @@
 # Phase 5+ follow-up ideas — comprehensive dump
 
+*Written: 2026-04-30. Date-stamp added: 2026-05-02.*
+
 Captured before pausing experimental work after phase 5. Includes both
 ideas I'd act on next if budget allowed and ideas I'd dismiss with
 reasoning. Keep as a thinking log — useful when we resume.
