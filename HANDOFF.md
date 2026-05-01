@@ -15,9 +15,10 @@ itself ships via a separate PR against `experiments`.
 #27 [in_progress] Tau sweep at bs=96: 0.05, 0.07, 0.20 on smaller-EWMA-128
 #29 [pending]     Write REPORT.md for #32 (learnable tau)        [blocked by #32]
 #30 [pending]     Write REPORT.md for #27 (tau sweep)            [blocked by #27]
-#31 [pending]     MOIRAI-style optimizer hyperparams (single arm) on τ-sweep winner   [blocked by #27, #32]
+#31 [pending]     MOIRAI-style optimizer hyperparams (single arm) on τ-sweep winner   [blocked by #27, #32, #34]
 #32 [in_progress] Learnable tau (CLIP-style log_inv_tau, clamped after optimizer.step)
 #33 [pending]     Retrain winner on jeremycochoy/gift-pretrain-full-4096 (FINAL run)  [blocked by #27, #31, #32]
+#34 [pending]     Date-prefix all experiment dir names (git mv pass)                  [blocked by #27, #32]
 ```
 
 Always re-read with `TaskList`. Use `TaskGet <id>` for full descriptions.
@@ -26,16 +27,19 @@ Always re-read with `TaskList`. Use `TaskGet <id>` for full descriptions.
 
 ```
                 #27 ──┐
-                      ├─→ pick best τ-policy ─→ #31 ─→ #33 ─→ END
-                #32 ──┘                              ↑
-                                             (gift-pretrain-full-4096
-                                              dataset — coming from
-                                              user soon, may already
-                                              be ready when #31 starts)
+                      ├─→ pick best τ-policy ─→ #34 ─→ #31 ─→ #33 ─→ END
+                #32 ──┘                          ↑      ↑
+                                            (rename    (gift-pretrain-
+                                             dirs       full-4096 may
+                                             with date  exist by now —
+                                             prefix     check before
+                                             via        launching, runs
+                                             git mv)    path A vs B)
 ```
 
 Reports interleave: #30 fires once #27 lands, #29 once #32 lands, plus
 new reports for #31 and #33 (TODO: add report tasks when those start).
+#34 is pure refactoring — no report.
 
 ---
 
@@ -256,6 +260,53 @@ gift-pretrain-small-4096, 30k steps. Compare to the τ-winner baseline.
   the underlying issue if NaN.)
 - Path A's "15k steps each" is half the budget. Verify 15k is enough
   for convergence on the bigger dataset before publishing the verdict.
+
+### #34 — Date-prefix all experiment dir names (git mv pass)
+
+**What**: rename `experiments/exp_*` to `experiments/YYYY-MM-DD_exp_*`
+so `ls` shows chronological order without needing `git log`. User asked
+for this on May 1 ("now it's confusing to know when they were run").
+
+**Where**: do the `git mv` in the **MAIN checkout** (NOT in any
+worktree). Worktree's `feat/composite-synth` keeps running on its
+copy; main checkout stays clean for the rename. Branch off
+`experiments` as `dir-prefix-dates`, do the rename, PR, merge.
+
+**Steps**:
+1. Wait for #27 + #32 ALL DONE (this task is gated on those — don't
+   rename a dir that's mid-sync).
+2. Verify all sync_loops have pulled their final artifacts.
+3. `cd <main-checkout>; git checkout -b dir-prefix-dates experiments`.
+4. For each `experiments/exp_*` dir, get its first-commit date:
+   `git log --diff-filter=A --format=%ci -- <dir>/ | tail -1`.
+5. `git mv experiments/<old> experiments/<YYYY-MM-DD>_<old>`.
+6. **Sed-replace** all references in `*.py` and `*.sh` files. Look for
+   strings like `"exp_compositesynth_v3primitives_2arm"`,
+   `HERE.parent / "exp_compositesynth_..."` etc. Plot scripts under
+   each experiment's `scripts/` are the main offenders.
+   ```
+   find experiments -name '*.py' -o -name '*.sh' | xargs grep -l 'exp_'
+   ```
+   Replace each old name with the new dated one. Test by running
+   `python <plot-script>` for at least one to confirm no
+   FileNotFoundError.
+7. Commit, push, PR against `experiments`.
+8. After merge: worktree's `feat/composite-synth` needs
+   `git merge experiments` to pick up the renames.
+
+**Watch out**:
+- DO NOT do this with training in flight on remote machines — they
+  reference OLD paths (e.g.
+  `/workspace/app/experiments/exp_realonly_4096_smaller_tau_sweep/results/...`). Wait until ALL DONE on #27 + #32.
+- The remote machines won't auto-update. Any subsequent runs on those
+  machines (#31, #33) will need new run.shs scp'd with the new paths.
+- Some old experiments (csb_*, periodic-synth-mix, etc.) predate this
+  session — they should also get date prefixes for consistency. Use
+  their first-commit dates.
+- `git log --follow` will track each renamed dir.
+
+**Acceptance**: `ls experiments/` shows dirs sorted by date prefix.
+At least one plot script runs cleanly post-rename.
 
 ### #33 — Retrain winner on gift-pretrain-full-4096
 
