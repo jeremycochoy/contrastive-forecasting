@@ -1,145 +1,246 @@
-# Session handoff — late April 2026 (dual-axis embeddings landed)
+# HANDOFF — May 1, 2026
 
-This handoff supersedes the previous one. Three PRs landed in this
-session: dual freq+seasonality embedding plumb (#85), worst-config
-forecast plots (#86), and joint (freq, seas) coverage in synth + a
-formal coverage doc (#87). Branch is back on `experiments`.
+Self-contained pickup doc. The previous HANDOFF.md was deleted in this commit
+window; this replaces it. Cover everything needed to resume work on the
+in-flight pipeline.
 
-## Two best architectures
+## Quick orientation
 
-Both produced by `experiments/exp_dualemb_3arm` (PR #85). 30k backbone +
-30k R1 reconstruction-forecaster qhead, `csb` contrastive loss,
-`mix_ratio=0.5` (HF base-bundles + on-the-fly periodic synth),
-`freq_emb_dim=3 + seasonality_emb_dim=3`, `mixup_p=0.3`. Selector:
-`_best_loss → FINAL.pth`.
+- **Working branch / PR**: `feat/composite-synth` → PR #89 against `experiments`. All committed work in this session lives there. HEAD = `ecac7bf` (or later — push the worktree before reading).
+- **Active worktree**: `/Users/jeremycochoy/Desktop/workspace/trading/contrastive-forecasting/.claude/worktrees/feat+composite-synth/`. Run all `git`, `Edit`, `Read`, `Write` commands rooted there for code work.
+- **Shell cwd at session start**: usually `…/.claude/worktrees/feat+source-id-freq-plumb/` (a different worktree). Doesn't matter — use absolute paths.
+- **Vast.ai is shared with concurrent agents** — only destroy instances whose contract ID came from MY OWN `vastai create` IN THIS SESSION (CLAUDE.md ownership rule).
 
-| arm | norm | GM-MASE | median MASE | wins (of 97) |
-|-----|------|--------:|------------:|-------------:|
-| **EWMA span=128** | RevEWMNorm span=128 | **1.659** | 1.528 | 55 |
-| **EWMA span=512** | RevEWMNorm span=512 | 1.725 | **1.476** | 23 |
-
-Both beat RevIN (GM 1.859, never wins a domain). The two metrics
-disagree on which EWMA is best; `span=128` wins GM, `span=512` wins
-median. Per-domain breakdown and full 97-config table in
-[`experiments/exp_dualemb_3arm/REPORT.md`](experiments/exp_dualemb_3arm/REPORT.md);
-worst-case forecast plots with seasonal-naive baseline in
-[`experiments/exp_dualemb_3arm/plots/gift_eval_worst_configs.png`](experiments/exp_dualemb_3arm/plots/gift_eval_worst_configs.png)
-and `gift_eval_all_failures.png` (all 73 fail-all configs).
-
-## Checkpoints
-
-Stored under the **main checkout** (not in any worktree) at
-`sync_dualemb_3arm/checkpoints/`:
+## Task list (live at writing — re-read with `TaskList`)
 
 ```
-tiny_dualemb_revin_FINAL.pth      80 MB   backbone (RevIN)
-tiny_dualemb_ewma512_FINAL.pth    80 MB   backbone (EWMA span=512)
-tiny_dualemb_ewma128_FINAL.pth    80 MB   backbone (EWMA span=128)
-R1q_dualemb_revin_FINAL.pth       2.5 MB  qhead (RevIN)
-R1q_dualemb_ewma512_FINAL.pth     2.5 MB  qhead (EWMA span=512)
-R1q_dualemb_ewma128_FINAL.pth     2.5 MB  qhead (EWMA span=128)
+#16 [completed] Phase 4: combine pulse + more-primitives
+#17 [completed] Phase 5: explosive-trend env_gain bump
+#18 [completed] Add SN-normalized MAPE/CRPS to eval pipeline
+#19 [in_progress] Real-data only training on gift-pretrain-small-4096
+#20 [in_progress] Smaller-arch sweep: L=6 H=384 nhead=6 vs current Tiny
+#21 [pending] Full single-pass training on gift-pretrain-base with winning arch    [BLOCKED — dataset doesn't exist on HF]
+#22 [in_progress] EWMA span sweep on the best architecture from #19/#20            [span=64 NaN'd at step 1 — see Open Issues]
+#23 [pending] Train-to-completion on the most promising configs
+#24 [completed] Write REPORT.md for #19
+#25 [in_progress] Write REPORT.md for #20 (partial — RevIN-smaller now in)
+#26 [in_progress] Write REPORT.md for #22 (partial — span=64 broken; investigate)
+#27 [pending] Tau sweep (0.05 + 0.20 around the existing 0.07)                     [blocked by #20, #22]
+#28 [pending] Learnable tau (CLIP-style log_inv_tau, clamped post-step)            [blocked by #27]
+#29 [pending] Write REPORT.md for #28
+#30 [pending] Write REPORT.md for #27
 ```
 
-Each backbone auto-loads via `ConfigurableModel` because the freq and
-seasonality embedding dimensions are detectable from the state-dict
-(`freq_embedding.embedding.weight`,
-`seasonality_embedding.embedding.weight`). Eval auto-detects in
-`experiments/gift-eval/scripts/eval_gift_eval_official.py`.
+#19, #20 EWMA-smaller arm, #22 span=32 + span=128 are DONE. #20 RevIN-smaller just landed (GM-MASE 2.53, MAPE_SN 1.85, CRPS_SN 1.55). #22 span=64 crashed. #22 span=256 auto-chained on EWMA box (in flight).
 
-## Frequency and seasonality embeddings (PR #87)
+## Headlines so far
 
-Two parallel categorical axes. Spec lives in
-[`docs/FREQ_SEASONALITY_COVERAGE.md`](docs/FREQ_SEASONALITY_COVERAGE.md):
+| arm                                      | GM-MASE | GM-MAPE_SN | GM-CRPS_SN |
+|------------------------------------------|--------:|-----------:|-----------:|
+| Tiny + EWMA-128 (#19)                    | 1.805   | 1.432      | 1.083      |
+| Tiny + RevIN (#19)                       | 2.448   | 1.887      | 1.510      |
+| **smaller + EWMA-128 (#20)**             | **1.783** | **1.243** | **1.082**  |
+| smaller + RevIN (#20)                    | 2.533   | 1.849      | 1.548      |
+| smaller + EWMA-128 span=32 (#22)         | 1.739   | 1.277      | 1.076      |
+| smaller + EWMA-128 span=128 (= #20)      | 1.783   | 1.243      | 1.082      |
+| (Aksu Moirai-Small reference)            |   —     | 0.882      | 0.642      |
+| v3-prim + EWMA-128 (phase 3 winner)      | 1.621   |  n/a       |  n/a       |
 
-* **Frequency** (10 buckets): wall-clock sample rate (`unknown`,
-  `10s`..`1w`). Out-of-vocab freqs (monthly, yearly, sub-second)
-  collapse to `unknown`.
-* **Seasonality** (10 buckets): doubling buckets on
-  samples-per-period. Bucket **0** is the no-info sentinel and also
-  catches `spp = 1` (the gluonts default for daily/weekly), so trivial-
-  seasonality eval rows share the embedding with truly-unknown
-  training rows.
+**Two findings**:
+1. **Synth was load-bearing in phases 1–5** (realonly EWMA 1.78 vs phase v3-prim 1.62, ~10% worse). NOT just regularising.
+2. **smaller arch wins on EWMA**, basically ties Tiny on RevIN. EWMA also clearly beats RevIN at this scale.
 
-GIFT-Eval has **14 distinct (freq, seas) pairs** across its 97 configs.
-The on-the-fly synth (`src/synthetic_periodic.py:generate_periodic_batch`
-with `return_labels=True`) covers all **90 cells** of the 9-freqs ×
-10-seasonalities grid. Sampling is independent (freq sampled uniformly
-from `{1..9}`, seasonality from `{0..9}`), then spp is drawn from the
-seasonality bucket's range. Coverage verified at batch=5000: every cell
-appears at least once with marginals within ±10% of uniform.
+## Live resources
 
-Notable synth-only pairs that GIFT-Eval doesn't include: weekly-on-
-daily `(freq=1d, seas=2)`, weekly-on-hourly `(freq=1h, seas=7)`,
-yearly-on-daily `(freq=1d, seas=8)`. These let the model learn the
-real-world periodic structures GIFT-Eval doesn't directly test.
+### Vast.ai instances (mine)
 
-## Data generation pipeline
+| ID         | Address              | Label                                | Role |
+|------------|----------------------|--------------------------------------|------|
+| 35892408   | ssh6.vast.ai:12408   | `compositesynth-v5-ewma128-0430`     | "EWMA box" — currently running #22 span=256 (started after span=32 finished) |
+| 35927139   | ssh9.vast.ai:17138   | `realonly-4096-revin-r3-0501`        | "RevIN box" — currently span=64 CRASHED at step 1 — see Open Issues |
 
-Two sources, blended by `MixedPeriodicLoader` at training time:
+**Don't destroy these yet** — both are mid-pipeline and have local-only state we'd lose.
 
-1. **Bundle (HuggingFace)** — `jeremycochoy/contrastive-training-base-bundles`,
-   path `base_mixed_v1`. Built by the `training_data_prep` pipeline in
-   [`jeremycochoy/rnd`](https://github.com/jeremycochoy/rnd) under
-   `scripts/training_data_prep/`. Each parquet shard row carries
-   `(series, source_id, meta)`:
+### Background watchers / chains (in-memory, in this session)
 
-   | source_id | source             | mix ratio | freq_id | seas_id |
-   |----------:|--------------------|----------:|--------:|--------:|
-   | 0 | gift (train)       | 0.735 | 0 (unknown — meta dropped) | 0 |
-   | 1 | wiki_hourly        | 0.140 | 7 (1h) | 4 (`seas=24`) |
-   | 2 | wiki_daily         | 0.075 | 8 (1d) | 2 (`seas=7`) |
-   | 3 | wiki_stl_residual  | 0.020 | 7 (1h) | 0 |
-   | 4 | wiki_stl_seasonal  | 0.014 | 7 (1h) | 0 |
-   | 5 | wiki_stl_trend     | 0.006 | 7 (1h) | 0 |
-   | 6 | synthetic (bundle) | 0.010 | 0 | 0 |
+| id          | role |
+|-------------|------|
+| `b6t1vf5lb` | wait-and-pull span=64 results (will never fire — span=64 NaN'd) |
+| `bujyep1s0` | wait-and-pull span=256 results (active) |
+| `bw4hqvluy` | wait-and-pull span=512 results (gated by span=64 chain → won't fire) |
+| `bzj5olxkw` | wait for span=64 ALL DONE → launch span=512 (won't fire — span=64 didn't ALL DONE) |
 
-   The label lookup is `SOURCE_ID_TO_LABELS` in `src/freq_embedding.py`.
-   Bundle synth is tagged unknown because the build pipeline flattens
-   the per-row spp metadata; only on-the-fly synth carries true labels.
+The span=64 NaN broke the chain on the RevIN box. **The RevIN box is currently idle** while span=256 finishes on the EWMA box.
 
-2. **On-the-fly periodic synth** — `src/synthetic_periodic.py`. Three
-   primitives (sin / square / saw) at `spp ∈ bucket-range`, optional
-   exponential envelope (p=0.3), log-uniform scale `∈ [0.1, 1000]`,
-   random sign flip on square/saw. Each batch row carries `(freq_id,
-   seas_id)` sampled jointly per the coverage spec above; channels
-   share the row's bucket but draw spp independently.
+### Sync_loops (running)
 
-`MixedPeriodicLoader` concatenates a real-data sub-batch and a synth
-sub-batch per training step, with row-level labels passed through.
+```
+pgrep -af sync_realonly_4096
+```
+Should show 2 active loops:
+- `sync_realonly_4096_smaller/sync_loop.sh ssh6.vast.ai 12408 35892408 ewma128` — pulls #20/#22 EWMA artifacts
+- `sync_realonly_4096_smaller/sync_loop.sh ssh9.vast.ai 17138 35927139 revin` — pulls #20 RevIN artifacts
 
-## What lives where
+The `sync_realonly_4096/{ewma128,revin}/` (no-`_smaller` suffix) loops were #19 — now stopped.
 
-| topic | file |
-|-------|------|
-| Architecture: model + dual embedding | `src/models.py`, `src/freq_embedding.py` |
-| Embedding spec & coverage | `docs/FREQ_SEASONALITY_COVERAGE.md` |
-| Synth | `src/synthetic_periodic.py` |
-| Dataloader (HF + synth + label plumb) | `src/dataloader.py` |
-| Training (backbone) | `experiments/freq-embedding/scripts/train.py` |
-| Training (qhead) | `experiments/gift-eval/scripts/train_forecasting_head.py` |
-| Eval (GIFT-Eval official) | `experiments/gift-eval/scripts/eval_gift_eval_official.py` |
-| 3-arm experiment driver | `experiments/exp_dualemb_3arm/run.sh` |
-| 3-arm REPORT | `experiments/exp_dualemb_3arm/REPORT.md` |
-| Per-config plots | `experiments/exp_dualemb_3arm/plots/` |
-| Result CSVs (97 configs × 3 arms) | `experiments/exp_dualemb_3arm/results/` |
-| Experiment index | `experiments/INDEX.md` |
-| FINAL checkpoints (local only) | `sync_dualemb_3arm/checkpoints/` |
+## Open issues
 
-## Open follow-ups (not done)
+### 1. span=64 NaN at step 1 (the most recent, important)
 
-* **Multi-seed validation** of the EWMA-128 vs EWMA-512 4% gap. Single
-  seed with cross-seed variance ~3–5% in past runs leaves the ranking
-  marginal.
-* **Bundle freq plumb** (sub-dataset → freq_id for gift train rows).
-  Currently 73.5% of bundle rows are tagged unknown because the
-  `training_data_prep` pipeline drops the upstream sub-dataset name.
-  Re-emitting `base_mixed_v2` with per-row metadata would lift this.
-* **Re-train the 3 arms with the new joint-coverage synth** (PR #87)
-  to see whether the better synth distribution closes more of the
-  worst-config failures (Econ/Fin trend extrapolation, spike-driven
-  Web/CloudOps).
-* **Seasonal-naive sidecar CSV** for the eval summary. The
-  `summary.txt` shows `N/A` for SN_MASE because the sidecar wasn't
-  shipped to the instance. The MASE values themselves are correct
-  (gluonts's `evaluate_model` computes them with the right
-  seasonality); only the auxiliary skill-score column is missing.
+`run_span64.log` first line after init:
+```
+*** NaN/Inf DETECTED at step 1 ***
+  -> Saved checkpoints/tiny_realonly_4096_smaller_ewma_span64_EMERGENCY_1.pth
+```
+
+**Significance**: this is exactly the design-defect signal you wanted preserved
+when you banned grad-clip. The float64 cumsum fix was sufficient at span=32
+and span=128 but NOT at span=64 on this dataset. Hypothesis (un-verified):
+`RevEWMNorm`'s eps clamp at `1e-12` is too small — a window with a near-constant
+first patch (`var ≈ 0`) gets `stdev = 1e-6`, and dividing real data values by
+that produces z-scores in the 1e5+ range. The contrastive loss with τ=0.07 then
+overflows in `exp(sim / τ)`.
+
+**To investigate / fix**:
+1. Reproduce locally with the failing data (what does the first batch look like?
+   Pull a few rows of `gift-pretrain-small-4096/small_v1/shard_00000.parquet`
+   and try the model forward.).
+2. Likely fix: increase `RevEWMNorm.eps` from `1e-12` to `1e-5` (matches
+   foundation-model conventions). This is at `src/norm.py:138`.
+3. Re-launch span=64 on RevIN box.
+4. Then chain to span=512.
+
+DO NOT add `--grad-clip` — banned per project rule (see `MEMORY.md` →
+`feedback_no_grad_clip.md`). Fix the underlying defect.
+
+### 2. #21 dataset blocker
+
+`jeremycochoy/gift-pretrain-base` does NOT exist on HF (verified 2026-04-30).
+Need user clarification: upload a base-4096 companion dataset? Use
+`Salesforce/GiftEvalPretrain` directly with custom T=4096/C=1 stream? Regress
+to T=1024 `contrastive-training-base-bundles`?
+
+## Where things live
+
+### Git branches / worktrees
+
+| branch                      | worktree path                                          | purpose |
+|-----------------------------|--------------------------------------------------------|---------|
+| `experiments`               | `…/contrastive-forecasting/` (main)                    | merge target, what gets PR'd to |
+| `master`                    | n/a                                                    | stable; usually behind `experiments` |
+| `feat/composite-synth`      | `…/.claude/worktrees/feat+composite-synth/`            | **this session's work** — PR #89 |
+| `worktree-feat+handoff`     | `…/.claude/worktrees/feat+source-id-freq-plumb/`       | shell start dir, irrelevant for the task work |
+| `paper/arxiv-prep-pdf-output` | `…/.claude/worktrees/paper+arxiv-prep/`              | unrelated (paper writing) |
+| `paper/add-pdf-to-master`   | `…/.claude/worktrees/paper-pdf/`                       | unrelated (paper writing) |
+
+### Sync dirs (in main checkout, NOT worktree)
+
+- `sync_compositesynth_v5envboost/{ewma128,revin}/` — phase 5 historical
+- `sync_realonly_4096/{ewma128,revin}/` — #19
+- `sync_realonly_4096_smaller/{ewma128,revin,ewma_span32}/` — #20 + first span sweep arm
+- (future) `sync_realonly_4096_smaller_tau_sweep/`, `sync_realonly_4096_smaller_learnable_tau/` — for #27/#28
+
+These hold real-time-synced checkpoints + logs from the remote instances.
+The worktree's `experiments/exp_*/results/` only contains the FINAL CSVs
+copied in at end of run.
+
+### Experiment dirs in worktree (`.claude/worktrees/feat+composite-synth/experiments/`)
+
+Phase 1–5 (synth recipe iteration, master result = v3-prim+EWMA-128 GM 1.621):
+- `exp_compositesynth_2arm/` — phase 1 baseline composite synth
+- `exp_compositesynth_v2pulse_2arm/` — phase 2 (pulse primitive)
+- `exp_compositesynth_v2bseasheavy_2arm/` — phase 2B (seas-heavy ablation, regressed)
+- `exp_compositesynth_v3primitives_2arm/` — phase 3 (more primitives — winner)
+- `exp_compositesynth_v4combined_2arm/` — phase 4 (combined v2+v3 — regressed)
+- `exp_compositesynth_v5envboost_2arm/` — phase 5 (env-bump — neutral)
+- `exp_dualemb_3arm/` — earlier baseline (phase 0 reference)
+- (older) `exp_csb_pair_revin/`, `exp_csb_pair/`, `exp_freq_emb/`, etc. — pre-phase-1
+
+This session (real-only training on gift-pretrain-small-4096):
+- `exp_realonly_4096_2arm/` — #19 (Tiny, T=4096, C=1, mix=0.0). REPORT.md complete.
+- `exp_realonly_4096_smaller_2arm/` — #20 (smaller arch sweep). REPORT.md partial.
+- `exp_realonly_4096_smaller_span_sweep/` — #22 (EWMA span sweep). REPORT.md partial; span=64 broken.
+
+Pending dirs:
+- `exp_realonly_4096_smaller_tau_sweep/` — for #27 (NOT created yet; will be when #22 finishes)
+- `exp_realonly_4096_smaller_learnable_tau/` — for #28 (NOT created yet)
+
+### Key code files (worktree)
+
+- `src/norm.py` — RevEWMNorm with float64-cumsum-when-T>2048 fix. **`.eps = 1e-12` here is the suspected span=64 NaN cause.**
+- `src/dataloader.py` — has `t_raw=` arg threaded through `HFStreamingLoader`, `ShardDataset`, factories.
+- `src/loss.py` — `contrastive_latent_loss`. Uses `tau = train_config.get('contrastive_divergence_temperature', 1.0)` — default 1.0 fallback if dict missing the key. Trainer always sets 0.07.
+- `src/models.py` — `ConfigurableModel`. Where `log_inv_tau` will go for #28.
+- `experiments/freq-embedding/scripts/train.py` — backbone trainer. Has `--t-raw`, `--n-channels`, `--d-model`, `--n-heads`, `--num-layers` flags. `LOSS_SPEC.contrastive_divergence_temperature = 0.07` at line 58.
+- `experiments/gift-eval/scripts/train_forecasting_head.py` — qhead trainer. Same set of CLI flags.
+- `experiments/gift-eval/scripts/eval_gift_eval_official.py` — eval. Has SN-normalized columns (task #18). CLI: `--t-raw`, `--backbone-c`, `--d-model`, `--n-heads`, `--num-layers`.
+
+### Key docs
+
+- `docs/HANDOFF_COMPOSITE_SYNTH_2026_04_30.md` — yesterday's master handoff. More detail than this file on phases 1–5.
+- `docs/PHASE5_FOLLOWUP_IDEAS.md` — comprehensive future-work doc.
+- `experiments/exp_realonly_4096_2arm/REPORT.md` — full report for #19.
+- `experiments/exp_realonly_4096_smaller_2arm/REPORT.md` — partial report for #20.
+- `experiments/exp_realonly_4096_smaller_span_sweep/REPORT.md` — partial report for #22.
+
+## Project rules (from `~/.claude/projects/.../memory/MEMORY.md`)
+
+1. **No grad-clip** (`feedback_no_grad_clip.md`). Forbidden in this project. Fix
+   the underlying defect; if data needs curation, curate at the data layer.
+2. **Don't destroy a partial-result vastai instance without considering reuse**
+   (`feedback_vastai_instance_reuse.md`). Pause and ask if the next task could
+   use the same hardware.
+3. **Sync dirs in MAIN checkout, never in a worktree** (CLAUDE.md). Worktree
+   may be `git worktree remove --force`-d, deleting untracked state.
+4. **EVERY remote training run must have a sync_loop running** for crash
+   recovery (CLAUDE.md). 15-min cadence, atomic .tmp → mv.
+5. **NEVER raw-scp a checkpoint** — use `safe_pull.sh` (atomic with .prev
+   backup) (CLAUDE.md).
+6. **macOS case-insensitive FS** for `_FINAL.pth` vs `_final.pth` — pre-rename
+   the canonical to `_FINAL_safe.pth` on remote before pulling lowercase.
+7. **HF token** at `experiments/hf_token.txt` (gitignored) — every cloud run
+   must export `HF_TOKEN` and `HUGGING_FACE_HUB_TOKEN`.
+
+## Cost so far (rough)
+
+| phase | wall hours | cost  |
+|-------|-----------:|------:|
+| #19 EWMA  | ~5h    | $1.85 |
+| #19 RevIN (incl. r2 sunk) | ~6h | $3.50 |
+| #20 EWMA-smaller | ~3h | $1.10 |
+| #20 RevIN-smaller | ~3h | $2.00 |
+| #22 span=32 | ~3h | $1.10 |
+| #22 span=64 (crashed at step 1) | ~0.1h | $0.06 |
+| #22 span=256 (in flight) | ~3h | $1.10 |
+| total so far | | **~$10.70** |
+
+## Pending work — order
+
+1. **Investigate / fix span=64 NaN-at-step-1** (likely `RevEWMNorm.eps`).
+   Re-launch span=64 + chain span=512.
+2. **Wait for span=256 to finish** (in flight on EWMA box, ~2h).
+3. **Run span sweep plot** + finalize #22 REPORT.md.
+4. **Launch #27** (tau sweep, 0.05 + 0.20) on the freed boxes. Best span from
+   #22, smaller arch, EWMA.
+5. **Update #20 REPORT.md** with RevIN-smaller numbers + finalize.
+6. **Implement learnable tau** (#28) — `log_inv_tau` as `nn.Parameter` on
+   `ConfigurableModel`, clamped to `[0, log(100)]` after `optimizer.step()`,
+   init from #27 winner.
+7. **#23 train-to-completion** on the overall winning config.
+8. **#21** still blocked. Pingthe user whenever they're back.
+9. **Date-prefix experiment dirs** (deferred, post-everything-else): user
+   asked for `2026-MM-DD_exp_*` naming via `git mv` in MAIN checkout. Do AFTER
+   #22/#27/#28 finish to avoid disrupting in-flight scripts.
+
+## Picking back up
+
+To resume cold:
+1. `cd /Users/jeremycochoy/Desktop/workspace/trading/contrastive-forecasting/.claude/worktrees/feat+composite-synth`
+2. `git status` → should be clean. `git log --oneline -10` → see recent.
+3. `vastai show instances` → confirm 35892408 + 35927139 still running. If
+   either is gone, look at `sync_realonly_4096_smaller/<arm>/` for the latest
+   synced checkpoints and decide whether to re-provision + resume or accept
+   partial results.
+4. Read this file + `docs/HANDOFF_COMPOSITE_SYNTH_2026_04_30.md`.
+5. `TaskList` → see what's pending.
+6. Investigate span=64 NaN if not already fixed.
