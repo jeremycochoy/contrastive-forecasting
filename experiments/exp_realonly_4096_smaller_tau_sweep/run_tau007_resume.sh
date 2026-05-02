@@ -13,6 +13,46 @@ LOG="/workspace/app/run_tau${ARM}.log"
 exec >> >(tee -a "$LOG") 2>&1
 echo "" && echo "=== run_tau007_resume: tau=${TAU} (arm=${ARM}) RESUMING ===" && date
 
+# ---------------------------------------------------------------------------
+# Preflight gate — refuse to launch if the resume-bundle is incomplete.
+# See docs/SYNC_PROTOCOL_REVIEW.md §3.1 (the four-file rule). Each
+# missing file produces a ✗ line; we exit non-zero with a hint pointing
+# at scripts/push_resume_bundle.sh in the local checkout.
+#
+# We pre-pick the resume .pth the same way the body does below
+# (resume_source/${BB}_3600.pth or fall back to _2k.pth). Then we
+# require its companion _optimizer.pth and the historical losses CSV
+# (which the trainer's CSVLogger opens with mode="a"). Without the CSV,
+# the trainer creates a fresh header-only file; the local sync_loop
+# pulls it and overwrites the long good copy on its next tick.
+# ---------------------------------------------------------------------------
+_BB_PRE="tiny_realonly_4096_smaller_tau${ARM}"
+if [ -f "/workspace/app/resume_source/${_BB_PRE}_3600.pth" ]; then
+    _RESUME_BB_PRE="/workspace/app/resume_source/${_BB_PRE}_3600.pth"
+else
+    _RESUME_BB_PRE="/workspace/app/resume_source/${_BB_PRE}_2k.pth"
+fi
+_PREFLIGHT_MISSING=()
+[ -f "$_RESUME_BB_PRE" ] || _PREFLIGHT_MISSING+=("backbone .pth: $_RESUME_BB_PRE")
+[ -f "${_RESUME_BB_PRE%.pth}_optimizer.pth" ] || _PREFLIGHT_MISSING+=("backbone optimizer: ${_RESUME_BB_PRE%.pth}_optimizer.pth")
+[ -f "/workspace/app/checkpoints/${_BB_PRE}_losses.csv" ] || _PREFLIGHT_MISSING+=("backbone losses CSV: /workspace/app/checkpoints/${_BB_PRE}_losses.csv")
+# run log: this script is a *resume*, not a fresh start, so the log
+# must already exist (otherwise `tee -a` creates a new short log and
+# the local sync_loop overwrites the long good copy on its next tick).
+[ -f "$LOG" ] || _PREFLIGHT_MISSING+=("run log (resume must extend, not reset): $LOG")
+if [ "${#_PREFLIGHT_MISSING[@]}" -gt 0 ]; then
+    echo "" >&2
+    echo "ERROR: resume-bundle preflight failed. Missing files on this remote:" >&2
+    for m in "${_PREFLIGHT_MISSING[@]}"; do echo "  ✗ $m" >&2; done
+    echo "" >&2
+    echo "Push them with scripts/push_resume_bundle.sh from the local checkout, then re-run." >&2
+    echo "  e.g.:" >&2
+    echo "    scripts/push_resume_bundle.sh \\" >&2
+    echo "      <local_sync_arm_dir> <user>@<host> <ssh_port> $_BB_PRE R1q_realonly_4096_smaller_tau${ARM} tau${ARM}" >&2
+    exit 2
+fi
+unset _PREFLIGHT_MISSING _BB_PRE _RESUME_BB_PRE
+
 SETUP_MARKER="/workspace/app/.setup_done_realonly_4096_smaller"
 if [ ! -f "$SETUP_MARKER" ]; then
     echo "=== SETUP ===" && date

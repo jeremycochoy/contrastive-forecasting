@@ -11,6 +11,38 @@ LOG="/workspace/app/run_tau${ARM}.log"
 exec >> >(tee -a "$LOG") 2>&1
 echo "" && echo "=== run_tau020_resume_qhead: arm=${ARM} after credit-restore ===" && date
 
+# ---------------------------------------------------------------------------
+# Preflight gate — refuse to launch if the resume-bundle is incomplete.
+# This is the enforcement layer of the four-file rule (see
+# docs/SYNC_PROTOCOL_REVIEW.md §3.1). Each missing file produces a ✗ line;
+# we exit non-zero with a hint pointing at scripts/push_resume_bundle.sh
+# in the local checkout. Eval-only by definition is not "fresh", so the
+# run log MUST already exist (its absence means a `tee -a` would create a
+# new short log, which the local sync_loop will overwrite the long good
+# copy with on the next tick — the May 2 #6 run.log loss).
+# ---------------------------------------------------------------------------
+_BB_PRE="tiny_realonly_4096_smaller_tau${ARM}"
+_QH_PRE="R1q_realonly_4096_smaller_tau${ARM}"
+_RESUME_HEAD_PRE="/workspace/app/checkpoints/${_QH_PRE}_best.pth"
+_PREFLIGHT_MISSING=()
+[ -f "$_RESUME_HEAD_PRE" ] || _PREFLIGHT_MISSING+=("head .pth: $_RESUME_HEAD_PRE")
+[ -f "${_RESUME_HEAD_PRE%.pth}_optimizer.pth" ] || _PREFLIGHT_MISSING+=("head optimizer: ${_RESUME_HEAD_PRE%.pth}_optimizer.pth")
+[ -f "/workspace/app/checkpoints/${_QH_PRE}_losses.csv" ] || _PREFLIGHT_MISSING+=("head losses CSV: /workspace/app/checkpoints/${_QH_PRE}_losses.csv")
+[ -f "/workspace/app/checkpoints/${_BB_PRE}_FINAL.pth" ] || _PREFLIGHT_MISSING+=("backbone .pth (used by Stage E): /workspace/app/checkpoints/${_BB_PRE}_FINAL.pth")
+[ -f "$LOG" ] || _PREFLIGHT_MISSING+=("run log (eval-only-style resume must extend, not reset): $LOG")
+if [ "${#_PREFLIGHT_MISSING[@]}" -gt 0 ]; then
+    echo "" >&2
+    echo "ERROR: resume-bundle preflight failed. Missing files on this remote:" >&2
+    for m in "${_PREFLIGHT_MISSING[@]}"; do echo "  ✗ $m" >&2; done
+    echo "" >&2
+    echo "Push them with scripts/push_resume_bundle.sh from the local checkout, then re-run." >&2
+    echo "  e.g.:" >&2
+    echo "    scripts/push_resume_bundle.sh \\" >&2
+    echo "      <local_sync_arm_dir> <user>@<host> <ssh_port> $_BB_PRE $_QH_PRE tau${ARM}" >&2
+    exit 2
+fi
+unset _PREFLIGHT_MISSING _BB_PRE _QH_PRE _RESUME_HEAD_PRE
+
 SETUP_MARKER="/workspace/app/.setup_done_realonly_4096_smaller"
 if [ ! -f "$SETUP_MARKER" ]; then
     echo "=== SETUP ===" && date
