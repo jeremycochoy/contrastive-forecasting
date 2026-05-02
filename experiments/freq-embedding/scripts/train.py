@@ -35,11 +35,19 @@ import torch.optim as optim
 from types import SimpleNamespace
 
 from src.models import ConfigurableModel, compute_metrics, count_parameters
-from src.dataloader import create_mixed_periodic_dataloader, create_hf_dataloader
+from src.dataloader import (
+    create_mixed_periodic_dataloader,
+    create_mixed_composite_dataloader,
+    create_hf_dataloader,
+)
 from src.loss import contrastive_latent_loss
 from src.checkpoint import save_training_state, load_training_state
 
 # -- Tiny architecture (identical to v3c) -----------------------------------
+# C and T_raw can be overridden at runtime via --n-channels / --t-raw to
+# accommodate datasets shaped differently from the standard
+# (T_raw=1024, C=4) bundles — e.g. exp_realonly_4096_2arm trains at
+# (T_raw=4096, C=1) on jeremycochoy/gift-pretrain-small-4096.
 MODEL_CONFIG = dict(
     C=4, H=512, W=16,
     encoder_type="gru", num_layers=6, nhead=8,
@@ -54,7 +62,7 @@ LOSS_SPEC = SimpleNamespace(train_configuration={
 })
 CLD = LOSS_SPEC.train_configuration["contrastive_latent_delay"] + 1
 
-T_RAW = 1024
+T_RAW = 1024  # Default; overridden by --t-raw CLI flag.
 
 
 def parse_args():
@@ -63,6 +71,12 @@ def parse_args():
     p.add_argument("--total-steps", type=int, default=30000)
     p.add_argument("--batch-size", type=int, default=24)
     p.add_argument("--lr", type=float, default=1e-4)
+    # Optimizer hyperparams. Defaults match torch.optim.AdamW defaults so
+    # any prior runs (which omitted these flags) reproduce bit-identically.
+    # MOIRAI Aksu et al. recipe: lr=1e-3, weight_decay=0.1, betas=(0.9, 0.98).
+    p.add_argument("--weight-decay", type=float, default=0.01)
+    p.add_argument("--adam-beta1", type=float, default=0.9)
+    p.add_argument("--adam-beta2", type=float, default=0.999)
     p.add_argument("--save-dir", default="checkpoints")
     p.add_argument("--run-name", default="freqemb")
     p.add_argument("--resume", default=None)
@@ -76,6 +90,31 @@ def parse_args():
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--mix-ratio", type=float, default=0.5)
     p.add_argument("--synth-seed", type=int, default=None)
+    p.add_argument("--t-raw", type=int, default=T_RAW,
+                   help="Raw window length (T) per sample. Default 1024 "
+                        "(matches the standard contrastive-training bundles); "
+                        "set to 4096 for gift-pretrain-small-4096.")
+    p.add_argument("--n-channels", type=int, default=MODEL_CONFIG["C"],
+                   help="Number of input channels (C). Default 4 (matches "
+                        "base_mixed_v1 4-channel stack); set to 1 for "
+                        "single-channel datasets like gift-pretrain-small-4096.")
+    p.add_argument("--d-model", type=int, default=MODEL_CONFIG["H"],
+                   help="Hidden / embedding dimension (H). Default 512 "
+                        "(Tiny). Use 384 for the smaller-arch sweep arms.")
+    p.add_argument("--n-heads", type=int, default=MODEL_CONFIG["nhead"],
+                   help="Number of attention heads. Default 8 (Tiny). "
+                        "Use 6 for the H=384 smaller-arch arms.")
+    p.add_argument("--num-layers", type=int, default=MODEL_CONFIG["num_layers"],
+                   help="Number of encoder layers. Default 6.")
+    p.add_argument("--tau", type=float, default=None,
+                   help="Contrastive temperature. None = use the LOSS_SPEC "
+                        "default (0.07). Used by exp_realonly_4096_smaller_tau_sweep.")
+    p.add_argument("--learnable-tau", action="store_true",
+                   help="CLIP-style learnable τ (#28). Adds log_inv_tau as "
+                        "an nn.Parameter on the model; loss uses τ = "
+                        "exp(-log_inv_tau). Init from --tau (default 0.07). "
+                        "After each optimizer.step, log_inv_tau is clamped "
+                        "to [0, log(100)] so τ ∈ [0.01, 1.0].")
     # Freq embedding
     p.add_argument("--seasonality-emb-dim", type=int, default=0,
                    help="Seasonality embedding dim (0 = disabled).")
@@ -114,6 +153,36 @@ def parse_args():
                         "is the paper-described loss with cross-time negatives "
                         "(h[b,t-1,c] <-> h[b,t,c] and cross-channel time terms) "
                         "— re-introduced after being dropped during ARMA-era tuning.")
+    p.add_argument("--synth-kind", default="periodic",
+                   choices=["periodic", "composite"],
+                   help="On-the-fly synthesizer. 'periodic' (default) is the "
+                        "clean single-primitive generator from synthetic_periodic. "
+                        "'composite' is the TimesFM-style stacked recipe "
+                        "(trend + ARIMA + 2 free waves + 1 seas-tied wave) "
+                        "from synthetic_composite.")
+    p.add_argument("--enable-pulse", action="store_true",
+                   help="Composite-only: enable the PULSE primitive (sparse "
+                        "burst train) as a 4th option alongside sin/sq/saw. "
+                        "Targets the spike-deficit identified in phase-1 "
+                        "(bizitobs_application, bitbrains).")
+    p.add_argument("--seas-heavy", action="store_true",
+                   help="Composite-only: swap (2 free waves + 1 seas-tied) → "
+                        "(1 free wave + 2 seas-tied). Boosts periodic-signal "
+                        "coverage in seas-tied-on rows; targets the "
+                        "wave-dilution losses identified in phase-1 (solar/H, "
+                        "bizitobs_l2c/H — strongly periodic configs where "
+                        "composite hurt EWMA-128).")
+    p.add_argument("--more-primitives", action="store_true",
+                   help="Composite-only: add TRIANGLE and HALF_SIN waveforms "
+                        "to the {sin, square, saw} pool. Targets the "
+                        "diversity-vs-quantity insight from phase-2: more "
+                        "distinct primitives, not more copies of the same.")
+    p.add_argument("--env-gain-max", type=float, default=10.0,
+                   help="Composite-only: upper bound of the multiplicative "
+                        "exp(λt) envelope total gain (default 10× growth or "
+                        "decay across T). Set to 100 to expose covid-style "
+                        "100× explosive trends; range becomes (1/max, max) so "
+                        "log-symmetric around 1.")
     return p.parse_args()
 
 
@@ -266,16 +335,34 @@ def main():
 
     # -- Model -----------------------------------------------------------------
     model_config = dict(MODEL_CONFIG)
+    model_config["C"] = args.n_channels
+    model_config["H"] = args.d_model
+    model_config["nhead"] = args.n_heads
+    model_config["num_layers"] = args.num_layers
     model_config["freq_emb_dim"] = args.freq_emb_dim
     model_config["seasonality_emb_dim"] = args.seasonality_emb_dim
     model_config["rev_norm_kind"] = args.rev_norm_kind
     if args.rev_norm_kind == "ewma":
         model_config["rev_norm_span"] = args.rev_norm_span
     model_config["patch_stats_kind"] = args.patch_stats
+    # CLIP-style learnable τ (#28). When --learnable-tau is set, the model
+    # registers `log_inv_tau` as an nn.Parameter (init from args.tau or 0.07).
+    # The trainer passes `model.tau()` (a 0-d tensor) as `tau_override` to
+    # the loss so gradient flows; after each optimizer.step we clamp.
+    tau_init = args.tau if args.tau is not None else 0.07
+    model_config["learnable_tau"] = bool(args.learnable_tau)
+    model_config["tau_init"] = tau_init
     # Override the loss_shape from CLI (LOSS_SPEC is a module-level default).
     LOSS_SPEC.train_configuration["loss_shape"] = args.loss_shape
+    if args.tau is not None:
+        LOSS_SPEC.train_configuration["contrastive_divergence_temperature"] = args.tau
     model = ConfigurableModel(**model_config).to(device)
-    optimizer = optim.AdamW(model.parameters(), lr=args.lr)
+    optimizer = optim.AdamW(
+        model.parameters(),
+        lr=args.lr,
+        weight_decay=args.weight_decay,
+        betas=(args.adam_beta1, args.adam_beta2),
+    )
 
     start_step = 0
     best_gap, best_gap_step = -float("inf"), 0
@@ -307,7 +394,8 @@ def main():
 
     print(f"Device: {device} | Params: {count_parameters(model):,}")
     print(f"Training for {args.total_steps} steps, bs={args.batch_size}, "
-          f"lr={args.lr}, T={T_RAW}, mix_ratio={args.mix_ratio}, "
+          f"lr={args.lr}, T={args.t_raw}, C={args.n_channels}, "
+          f"mix_ratio={args.mix_ratio}, "
           f"freq_emb_dim={args.freq_emb_dim}, "
           f"seasonality_emb_dim={args.seasonality_emb_dim}, "
           f"mixup_p={args.mixup_p}, "
@@ -321,7 +409,7 @@ def main():
     print(f"Loss CSV: {csv_path}")
 
     # -- Data -----------------------------------------------------------------
-    C = MODEL_CONFIG["C"]
+    C = args.n_channels
     synth_bs = int(round(args.batch_size * args.mix_ratio))
     hf_bs = args.batch_size - synth_bs
     hf_rows_per_step = hf_bs * C
@@ -334,15 +422,37 @@ def main():
         synth_rows_consumed = start_step * synth_rows_per_step
     synth_seed = args.synth_seed if args.synth_seed is not None else args.seed + 10_000
 
-    data_loader = create_mixed_periodic_dataloader(
-        repo_id=args.hf_repo, batch_size=args.batch_size, C=C,
-        mix_ratio=args.mix_ratio,
-        path_in_repo=args.hf_path, split=args.split,
-        skip_rows=hf_rows_consumed, T_raw=T_RAW, seed=synth_seed,
-        emit_freq_ids=(args.freq_emb_dim > 0 or args.seasonality_emb_dim > 0),
-    )
+    if args.synth_kind == "composite":
+        synth_kwargs = {}
+        if args.enable_pulse:
+            synth_kwargs["enable_pulse"] = True
+        if args.seas_heavy:
+            synth_kwargs["n_free_waves"] = 1
+            synth_kwargs["n_seas_tied_waves"] = 2
+        if args.more_primitives:
+            synth_kwargs["enable_more_primitives"] = True
+        if args.env_gain_max != 10.0:
+            synth_kwargs["env_gain_range"] = (1.0 / args.env_gain_max,
+                                               args.env_gain_max)
+        data_loader = create_mixed_composite_dataloader(
+            repo_id=args.hf_repo, batch_size=args.batch_size, C=C,
+            mix_ratio=args.mix_ratio,
+            path_in_repo=args.hf_path, split=args.split,
+            skip_rows=hf_rows_consumed, T_raw=args.t_raw, seed=synth_seed,
+            emit_freq_ids=(args.freq_emb_dim > 0 or args.seasonality_emb_dim > 0),
+            synth_kwargs=synth_kwargs or None,
+        )
+    else:
+        data_loader = create_mixed_periodic_dataloader(
+            repo_id=args.hf_repo, batch_size=args.batch_size, C=C,
+            mix_ratio=args.mix_ratio,
+            path_in_repo=args.hf_path, split=args.split,
+            skip_rows=hf_rows_consumed, T_raw=args.t_raw, seed=synth_seed,
+            emit_freq_ids=(args.freq_emb_dim > 0 or args.seasonality_emb_dim > 0),
+        )
     print(f"Data: MIX {(1-args.mix_ratio)*100:.0f}% HF + "
-          f"{args.mix_ratio*100:.0f}% synth, hf_bs={hf_bs}, synth_bs={synth_bs}")
+          f"{args.mix_ratio*100:.0f}% synth ({args.synth_kind}), "
+          f"hf_bs={hf_bs}, synth_bs={synth_bs}")
     data_iter = iter(data_loader)
     sys.stdout.flush()
 
@@ -394,8 +504,12 @@ def main():
             model, x,
             freq_ids=freq_ids, freq_embs=freq_embs,
             seasonality_ids=seasonality_ids, seasonality_embs=seasonality_embs)
+        # When learnable_tau is on, pass model.tau() (0-d tensor with grad)
+        # as tau_override so gradient reaches log_inv_tau. Otherwise the
+        # loss uses LOSS_SPEC.train_configuration's scalar.
+        tau_tensor = model.tau() if args.learnable_tau else None
         loss = contrastive_latent_loss((f_lat, o_lat), validation=False,
-                                       spec=LOSS_SPEC)
+                                       spec=LOSS_SPEC, tau_override=tau_tensor)
         t_fwd_end = time.perf_counter()
 
         loss_val = loss.item()
@@ -417,6 +531,11 @@ def main():
         if args.grad_clip is not None:
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
         optimizer.step()
+        # Clamp learnable τ after the step (CLIP convention). No-op when
+        # learnable_tau=False.
+        if args.learnable_tau:
+            with torch.no_grad():
+                model.clamp_log_inv_tau()
         t_bwd_end = time.perf_counter()
         t_step_end = time.perf_counter()
 
@@ -445,10 +564,13 @@ def main():
             elapsed = time.time() - t0
             sps = (step - start_step) / elapsed
             eta = (args.total_steps - step) / sps / 3600
+            tau_str = ""
+            if args.learnable_tau:
+                tau_str = f"  τ={float(model.tau().detach()):.4f}"
             print(f"[{step:>7d}] loss={loss_val:.4f}  ema_loss={ema_loss:.4f}  "
                   f"gap={gap_val:.4f}  ema_gap={ema_gap:.4f}  "
                   f"mixup={mixup_applied_count}/{timing_count}  "
-                  f"{sps:.1f} sps  ETA {eta:.1f}h")
+                  f"{sps:.1f} sps  ETA {eta:.1f}h{tau_str}")
             n = timing_count
             print(f"  timing: data={t_data_sum/n*1000:.1f}ms  "
                   f"fwd={t_fwd_sum/n*1000:.1f}ms  "
