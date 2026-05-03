@@ -1,0 +1,187 @@
+\section{Contrastive Forecasting}
+\label{sec:method}
+
+Contrastive Forecasting consists of a per-patch encoder and a causal
+forecaster, trained jointly with a contrastive loss in latent space.
+The subsections below define the patching, the encoder, the
+forecaster, and the loss in turn.
+
+\subsection{Architecture}
+\label{sec:architecture}
+
+We work with a multivariate time series of shape $T \times C \times F$,
+where $T$ is the number of raw timesteps, $C$ is the number of
+channels, and $F$ is the number of features per timestep. In the
+experiments reported here $F = 1$, but the formalism does not change
+when $F > 1$. The series is cut into non-overlapping patches of width
+$W$ along the time axis, so that the patched input has shape
+$T_p \times C \times W \times F$ with $T_p = T / W$. Each patch is
+encoded independently into a latent $h[t, c] \in \mathbb{R}^H$, and we
+project it onto the Euclidean unit sphere by $L^2$-normalising, so
+that $\|h[t, c]\| = 1$.
+
+The choice of $W$ is dataset-dependent. Values in $\{16, 32, 64, 128\}$
+all appear in the recent foundation-model literature. We use $W = 32$
+in the experiments reported here, following the patch size used by
+TimesFM~\citep{das2024timesfm}. To minimise compute, we set the stride between
+consecutive patches to the patch width, giving non-overlapping windows
+that cover the full sequence. A stride of $1$ is also of interest,
+since it gives one latent per timestep, provided the loss is adjusted
+to align each forecast with the correct future patch.
+
+Our architecture has two models: an encoder and a forecaster. The
+encoder maps a patch to a latent; the forecaster maps the sequence of
+past latents to a forecast of the next latent. We write $f[t, c]$ for the forecaster's output at
+position $t$ and channel $c$. The training objective is to make
+$f[t, c]$ as close as possible to $h[t+1, c]$ under some dissimilarity
+$D$,
+\[
+  D\big(f[t, c],\, h[t+1, c]\big) \to 0.
+\]
+Placing the latents on the unit sphere is a deliberate choice: it lets
+us take $D$ to be the angular distance, measured through its proxy
+the inner product (Section~\ref{sec:loss}). The representation also
+benefits from living on a closed surface.
+
+\subsection{Encoder}
+\label{sec:encoder}
+
+The first encoder we tried is the residual block used by
+TiDE~\citep{das2023tide} and TimesFM~\citep{das2024timesfm}: a small
+MLP (linear, ReLU, dropout, linear) summed with a linear skip from
+the input, followed by a layer normalisation. The input dimension is
+$W$ and the output dimension is $H$.
+
+The encoder we currently use is a bidirectional GRU. Each patch is
+read as a sequence of $W$ scalar timesteps, which gives the encoder a
+chance to model the local temporal structure that an MLP collapses
+into a single linear projection. The forward and backward final hidden
+states ($128$ units each in our setup) are concatenated to a $256$-dim
+vector and projected to $H$, summed with a linear skip from the raw
+patch, and passed through a layer normalisation.
+
+The encoder design space remains largely unexplored. In theory the
+encoder could be as complex as a transformer, if encoding a patch into
+a useful latent turns out to be a hard problem in its own right.
+Finding the proper encoder is a potential future-work axis.
+
+\subsection{Forecaster}
+\label{sec:forecaster}
+
+The forecaster is a causal transformer decoder. It has $L$ layers and
+hidden width $H$, with $L$ and $H$ controlling the depth and the
+capacity. Each layer first applies a small depthwise causal
+convolution (kernel size $3$) directly to the stream, then a
+self-attention block, then a feed-forward network. The attention and
+feed-forward sub-layers follow the standard pre-norm pattern with
+residual connections; the depthwise convolution is applied without a
+residual wrap.
+
+The convolution follows the observation of Elhage et
+al.~\citep{elhage2021circuits} that a short-range depthwise
+convolution lets induction-head-like circuits form without the second
+attention layer that the canonical induction circuit requires. This
+significantly improves the performance of small transformers, the
+regime we operate in.
+
+
+\subsection{Loss function}
+\label{sec:loss}
+
+For two unit-norm latents we score their similarity by their inner
+product, which is the cosine of the angle between them and is
+convenient to compute.
+
+We index each latent and each forecast by the batch element
+$b \in B$, the patch position $t \in T_p$, and the channel $c \in C$.
+For every anchor $(b, t, c)$, the positive pair is the forecast
+$f[b, t, c]$ paired with the future latent $h[b, t+1, c]$.
+
+The negative set is built by varying anchors along three independent
+axes: cross-temporal ($t \neq t'$), cross-channel ($c \neq c'$), and
+cross-batch ($b \neq b'$). Each axis can be combined with the others,
+and each pair can mix encoded latents $h$ and forecasts $f$. The loss
+uses three specific pair families.
+\begin{itemize}
+\item \textbf{Cross-temporal} ($\mathcal{N}_{\mathrm{ct}}$): two
+  encoded latents from the same series and channel at consecutive
+  times, $\big(h[b, t, c],\, h[b, t+1, c]\big)$. Per anchor, $1$
+  candidate.
+\item \textbf{Cross-channel} ($\mathcal{N}_{\mathrm{cc}}$): two
+  encoded latents from the same series at the same time, with
+  different channels, $\big(h[b, t, c],\, h[b, t, c']\big)$ for
+  $c' \neq c$. Per anchor, $C - 1$ candidates.
+\item \textbf{Cross-batch} ($\mathcal{N}_{\mathrm{cb}}$): the future
+  latent of one series paired with the forecast of a different series
+  at the same prediction position,
+  $\big(h[b, t+1, c],\, f[b', t, c]\big)$ for $b' \neq b$. Per anchor,
+  $B - 1$ candidates.
+\end{itemize}
+
+Many other pairings are conceivable. The cross-temporal axis can also
+be applied to $\big(h[b, t, c],\, f[b, t, c]\big)$ or
+$\big(f[b, t, c],\, f[b, t+1, c]\big)$. The cross-batch axis can also
+be applied to $\big(h[b, t, c],\, h[b', t, c]\big)$,
+$\big(f[b, t, c],\, f[b', t, c]\big)$, or
+$\big(h[b, t, c],\, f[b', t, c]\big)$. Any of these can be combined
+with a channel difference. In general, adding more terms to the
+denominator gives a faster loss decrease per backward pass at the cost
+of slower loss computation, and the trade-off is not always
+favourable; we specify the subset used in our experiments in
+Section~\ref{sec:experiments}.
+
+Cross-channel candidates are computed by a $C \times C$ inner-product
+grid per batch element (diagonal masked), cross-batch candidates by a
+$B \times B$ grid over the whole batch (diagonal masked), and
+cross-temporal candidates by a single elementwise dot product over the
+encoded tensor. At every position $(t, c)$, the candidates are aggregated
+into three sums of size $B$ ($\mathcal{N}_{\mathrm{ct}}$), $B(C-1)$
+($\mathcal{N}_{\mathrm{cc}}$), and $B(B-1)$
+($\mathcal{N}_{\mathrm{cb}}$), and the same denominator is used for
+every anchor at that position. The cross-batch set is therefore
+quadratic in $B$ and dominates the negatives.
+
+For unit-norm $u, v \in \mathbb{R}^H$, write the temperature-scaled
+exponential of the inner product as
+\[
+  \sigma_\tau(u, v) \;=\; \exp\!\big(\langle u, v \rangle / \tau\big).
+\]
+The positive score at anchor $(b, t, c)$ is
+\[
+  \mathcal{P}_+(b, t, c) \;=\;
+  \sigma_\tau\!\big(f[b, t, c],\, h[b, t+1, c]\big),
+\]
+and the three negative sums at position $(t, c)$ are
+\begin{align*}
+  \mathcal{N}_{\mathrm{ct}}(t, c)
+    &\;=\; \sum_{b \in B}
+      \sigma_\tau\!\big(h[b, t, c],\; h[b, t+1, c]\big),\\
+  \mathcal{N}_{\mathrm{cc}}(t, c)
+    &\;=\; \sum_{b \in B} \, \sum_{c' \neq c}
+      \sigma_\tau\!\big(h[b, t, c],\; h[b, t, c']\big),\\
+  \mathcal{N}_{\mathrm{cb}}(t, c)
+    &\;=\; \sum_{b \neq b'}
+      \sigma_\tau\!\big(h[b, t+1, c],\; f[b', t, c]\big).
+\end{align*}
+The contribution of the anchor $(b, t, c)$ to the loss is
+\begin{equation}
+  \mathcal{L}_{b, t, c}
+  \;=\; -\log \frac{\mathcal{P}_+(b, t, c)}
+  {\mathcal{N}_{\mathrm{ct}}(t, c) \;+\;
+   \mathcal{N}_{\mathrm{cc}}(t, c) \;+\;
+   \mathcal{N}_{\mathrm{cb}}(t, c)}.
+  \label{eq:loss-anchor}
+\end{equation}
+The denominator depends on $(t, c)$ but not on $b$: every anchor at
+the same position shares the same denominator. The mini-batch loss is
+the average over all anchors,
+\begin{equation}
+  \mathcal{L} \;=\; \frac{1}{N}
+  \sum_{b \in B} \sum_{t} \sum_{c \in C}
+  \mathcal{L}_{b, t, c},
+  \qquad N = B \cdot (T_p - 1) \cdot C.
+  \label{eq:loss-batch}
+\end{equation}
+In the contrastive learning literature $\tau$ is usually chosen between
+$0.05$ and $0.5$; the value used in our experiments is reported in
+Section~\ref{sec:experiments}.

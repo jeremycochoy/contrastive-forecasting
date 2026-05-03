@@ -1,0 +1,6 @@
+[sync]
+exclude = [".venv", "checkpoints", "results", "__pycache__", "*.pyc", "*.pth", "*.log", ".git", ".env"]
+
+[artifacts]
+download = ["results/", "checkpoints/*best*", "checkpoints/*losses*"]
+

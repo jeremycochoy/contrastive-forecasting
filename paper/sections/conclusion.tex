@@ -1,0 +1,19 @@
+\section{Conclusion}
+\label{sec:conclusion}
+
+Inspired by the JEPA principle of learning an abstract representation
+rather than the raw values of the input (the pixels of an image, the
+samples of a time series), we have demonstrated the feasibility of
+training a forecasting model directly in latent space, in an
+unsupervised manner (Section~\ref{sec:experiments}). The latents
+produced by the backbone carry enough information about the
+generating stochastic process for a small head to recover its
+parameters (Section~\ref{sec:results}), at least in the ARMA case.
+
+The synthetic distribution is the main limit of these results.
+ARMA processes capture only one slice of what real time series can
+look like, so the recovery numbers do not say anything about how the
+same backbone behaves on real-world data, such as electricity
+consumption, oil prices, monthly sales, or road traffic. The natural
+next step is to evaluate it on a general time-series forecasting
+benchmark.

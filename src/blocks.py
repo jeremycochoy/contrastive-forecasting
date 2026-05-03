@@ -24,8 +24,9 @@ class DecoderOnlyTransformerLayer(nn.Module):
 
     def __init__(self, d_model: int, nhead: int, dim_feedforward: int = 2048, dropout: float = 0.1,
                  activation: Union[str, Callable[[Tensor], Tensor]] = nn.functional.relu,
-                 layer_norm_eps: float = 1e-5, batch_first: bool = False, norm_first: bool = False,
-                 bias: bool = True, device=None, dtype=None, depthwise_conv=3) -> None:
+                 layer_norm_eps: float = 1e-5, batch_first: bool = False, norm_first: bool = True,
+                 bias: bool = True, device=None, dtype=None, depthwise_conv=3,
+                 norm_type: str = 'layernorm') -> None:
         factory_kwargs = {'device': device, 'dtype': dtype}
         super().__init__()
         self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout, batch_first=batch_first,
@@ -36,8 +37,12 @@ class DecoderOnlyTransformerLayer(nn.Module):
         self.linear2 = nn.Linear(dim_feedforward, d_model, bias=bias, **factory_kwargs)
 
         self.norm_first = norm_first
-        self.norm1 = nn.LayerNorm(d_model, eps=layer_norm_eps, bias=bias, **factory_kwargs)
-        self.norm2 = nn.LayerNorm(d_model, eps=layer_norm_eps, bias=bias, **factory_kwargs)
+        if norm_type == 'rmsnorm':
+            self.norm1 = nn.RMSNorm(d_model, eps=layer_norm_eps, **factory_kwargs)
+            self.norm2 = nn.RMSNorm(d_model, eps=layer_norm_eps, **factory_kwargs)
+        else:
+            self.norm1 = nn.LayerNorm(d_model, eps=layer_norm_eps, bias=bias, **factory_kwargs)
+            self.norm2 = nn.LayerNorm(d_model, eps=layer_norm_eps, bias=bias, **factory_kwargs)
         self.dropout1 = nn.Dropout(dropout)
         self.dropout2 = nn.Dropout(dropout)
 
@@ -117,7 +122,8 @@ class TransformerBlock(nn.Module):
     support_streaming = False
 
     def __init__(self, dimension_e, nhead=8, num_layers=6, feedforward_mult=None,
-                 activation=None, input_to_latent=None, dropout=0, depthwise_conv=3):
+                 activation=None, input_to_latent=None, dropout=0, depthwise_conv=3,
+                 norm_first=True, norm_type='layernorm'):
         super().__init__()
 
         if feedforward_mult is None:
@@ -133,7 +139,8 @@ class TransformerBlock(nn.Module):
                 dim_feedforward=dim_feedforward,
                 activation=activation or 'gelu',
                 batch_first=True,
-                norm_first=True,
+                norm_first=norm_first,
+                norm_type=norm_type,
                 bias=False,
                 dropout=dropout,
                 depthwise_conv=depthwise_conv,
