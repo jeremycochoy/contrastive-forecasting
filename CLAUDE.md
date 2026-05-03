@@ -62,6 +62,16 @@ epoch retrain on `jeremycochoy/gift-pretrain-full-4096` (path `small_v1`,
 - Prefers PRs reviewed and merged in small focused units.
 - Uses sub-agents liberally for parallelizable work; expects same from Claude.
 
+## Operational rules from prior incidents
+
+- **Pause before any `vastrun-destroy`**. List unblocked tasks (`TaskList`); check whether any resume bundle (model.pth, optimizer.pth, losses CSV, run.log) is already on the instance you're about to destroy. If yes, the right move is to edit a continuation script in-place and re-launch on the live instance — not destroy + re-provision. May 3 2026 incident: destroyed an instance whose disk held #10's resume bundle, throwing away ~$2.94 of unused credit + ~46k steps' worth of capacity. The user vetoed building a preflight wrapper around `vastrun-destroy` — the only lever is care. If care fails again, ask the user, don't propose a tool they already declined.
+
+- **Resume bundle = `scripts/push_resume_bundle.sh`** (not "four-files-from-memory"). When pushing checkpoints to a fresh vast.ai instance, use the script — it bundles `<run>.pth + <run>_optimizer.pth + <run>_losses.csv + run_<arm>.log` atomically with a preflight gate (PR #96).
+
+- **vastrun-kit only — never raw `vastai`**. The kit at `~/Desktop/workspace/trading/vastrun-kit/` (laptop) or `~/vastrun-kit/` (elisa) wraps the API with safety filters, on-instance ownership markers, and audit-trail forwards. If a kit command is missing or broken, file a `vastrun-kit` issue and use `vastrun-forward` as the audited fallback.
+
+- **Vast.ai is a SHARED account across concurrent agent sessions**. Never destroy/stop an instance unless its contract ID was returned by your own `vastrun-provision` AND its label matches what you set AND its image/GPU class matches what you requested. If even one check fails: leave it alone, ask the user.
+
 ## Memory rule
 
 > **Do not write project-specific memory to `~/.claude/projects/.../memory/`.**
