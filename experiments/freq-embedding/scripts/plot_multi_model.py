@@ -2,7 +2,7 @@
 """Multi-model qualitative prediction plots.
 
 Runs 4 models + seasonal-naive + ground truth on the 6 periodic focus
-configs from the periodic-synth-mix experiment, 10 random test windows
+configs from the 2026-04-27_periodic-synth-mix experiment, 10 random test windows
 per config, one PNG per config.
 
 Arms:

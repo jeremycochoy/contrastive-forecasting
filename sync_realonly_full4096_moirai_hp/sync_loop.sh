@@ -1,7 +1,7 @@
 #!/bin/bash
-# Atomic sync loop for one arm of exp_realonly_full4096_moirai_hp.
+# Atomic sync loop for one arm of 2026-05-02_exp_realonly_full4096_moirai_hp.
 # Mirrors sync_compositesynth_v5envboost/sync_loop.sh with run-name pattern
-# tiny_realonly_4096_<arm> and exp_realonly_full4096_moirai_hp experiment dir.
+# tiny_realonly_4096_<arm> and 2026-05-02_exp_realonly_full4096_moirai_hp experiment dir.
 # Usage: ./sync_loop.sh <SSH_HOST> <SSH_PORT> <INSTANCE_ID> <ARM>
 
 set -u
@@ -13,7 +13,7 @@ ARM="${4:?missing ARM}"
 
 REMOTE="root@${SSH_HOST}"
 REMOTE_CKPT_DIR="/workspace/app/checkpoints"
-REMOTE_RESULTS_DIR="/workspace/app/experiments/exp_realonly_full4096_moirai_hp/results"
+REMOTE_RESULTS_DIR="/workspace/app/experiments/2026-05-02_exp_realonly_full4096_moirai_hp/results"
 REMOTE_LOG="/workspace/app/run_full4096_moirai_hp.log"
 LOCAL_BASE="/Users/jeremycochoy/Desktop/workspace/trading/contrastive-forecasting/sync_realonly_full4096_moirai_hp/moirai_hp"
 LOCAL_CKPT="${LOCAL_BASE}/checkpoints"

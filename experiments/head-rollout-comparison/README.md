@@ -4,7 +4,7 @@ Compared 6 rollout strategies (2 value-space, 4 latent-space) to determine wheth
 
 ## Key Result
 
-Value-space rollout narrowly beat latent-space rollout when using prediction heads (A1=1.275 vs B1=1.258). All B-variants scored similarly (~1.26-1.29), and none significantly outperformed A1. This led to the hypothesis that the head itself was misaligned: it predicted the future instead of reconstructing what each latent represents. That hypothesis was confirmed in the follow-up [reconstruction head experiment](../reconstruction-head/REPORT.md).
+Value-space rollout narrowly beat latent-space rollout when using prediction heads (A1=1.275 vs B1=1.258). All B-variants scored similarly (~1.26-1.29), and none significantly outperformed A1. This led to the hypothesis that the head itself was misaligned: it predicted the future instead of reconstructing what each latent represents. That hypothesis was confirmed in the follow-up [reconstruction head experiment](../2026-04-17_reconstruction-head/REPORT.md).
 
 ## Documents
 

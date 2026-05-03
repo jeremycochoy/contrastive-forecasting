@@ -141,8 +141,8 @@ absolute loss → not directly comparable), so this sweep includes a
 re-run of τ=0.07 at bs=96.
 
 **Where**:
-- Code: `experiments/exp_realonly_4096_smaller_tau_sweep/`
-- Run: `bash experiments/exp_realonly_4096_smaller_tau_sweep/run.sh
+- Code: `experiments/2026-05-02_exp_realonly_4096_smaller_tau_sweep/`
+- Run: `bash experiments/2026-05-02_exp_realonly_4096_smaller_tau_sweep/run.sh
   <005|007|020>` on the remote.
 - Results: `results/gift_eval_tau<005|007|020>/`
 - Sync: `sync_realonly_4096_smaller_tau_sweep/tau<005|007|020>/`
@@ -297,10 +297,10 @@ copy; main checkout stays clean for the rename. Branch off
 **Watch out**:
 - DO NOT do this with training in flight on remote machines — they
   reference OLD paths (e.g.
-  `/workspace/app/experiments/exp_realonly_4096_smaller_tau_sweep/results/...`). Wait until ALL DONE on #27 + #32.
+  `/workspace/app/experiments/2026-05-02_exp_realonly_4096_smaller_tau_sweep/results/...`). Wait until ALL DONE on #27 + #32.
 - The remote machines won't auto-update. Any subsequent runs on those
   machines (#31, #33) will need new run.shs scp'd with the new paths.
-- Some old experiments (csb_*, periodic-synth-mix, etc.) predate this
+- Some old experiments (csb_*, 2026-04-27_periodic-synth-mix, etc.) predate this
   session — they should also get date prefixes for consistency. Use
   their first-commit dates.
 - `git log --follow` will track each renamed dir.
@@ -409,7 +409,7 @@ Same arch / norm / τ-policy / optimizer as #31 winner. NO grad-clip.
 │   ├── exp_realonly_4096_2arm/                    ← #19 (Tiny + EWMA + RevIN at bs=24, mix=0.0, T=4096)
 │   ├── exp_realonly_4096_smaller_2arm/            ← #20 (smaller arch sweep at bs=24)
 │   ├── exp_realonly_4096_smaller_span_sweep/      ← #22 (span 32/128/256 at bs=24, smaller)
-│   ├── exp_realonly_4096_smaller_tau_sweep/       ← #27 (τ=0.05/0.07/0.20 at bs=96, smaller, EWMA-128)
+│   ├── 2026-05-02_exp_realonly_4096_smaller_tau_sweep/       ← #27 (τ=0.05/0.07/0.20 at bs=96, smaller, EWMA-128)
 │   ├── exp_realonly_4096_smaller_learnable_tau/   ← #32 (CLIP-style learnable τ at bs=96)
 │   ├── (TODO) exp_realonly_4096_moirai_optim/     ← #31 — to be created
 │   └── (TODO) exp_realonly_full4096/              ← #33 — to be created when full-4096 arrives

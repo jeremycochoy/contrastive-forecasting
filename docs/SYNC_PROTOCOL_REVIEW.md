@@ -3,7 +3,7 @@
 Audit-only doc. No code changed. Plan for a follow-up implementation pass.
 
 Scope: every `sync_<name>/sync_loop.sh` under the repo root,
-`experiments/periodic-synth-mix/scripts/safe_pull.sh`, and the
+`experiments/2026-04-27_periodic-synth-mix/scripts/safe_pull.sh`, and the
 `Remote Machine Monitoring` runbook in `CLAUDE.md`. Reference incident:
 the May 1–2 2026 learnable-τ CSV truncation, in which steps 0–17100 of
 `tiny_realonly_4096_smaller_learnable_tau_losses.csv` were destroyed by
@@ -752,7 +752,7 @@ v3b run completed long ago; nothing references this loop in current
 work. Reviving it under the new design is a bigger task than the audit's
 scope.
 
-### 4.6 `experiments/periodic-synth-mix/scripts/safe_pull.sh`
+### 4.6 `experiments/2026-04-27_periodic-synth-mix/scripts/safe_pull.sh`
 
 `safe_pull.sh` is the user-facing single-pull tool (not the periodic
 loop). It already does `.tmp` + size-check + `.prev` rotation
@@ -786,9 +786,9 @@ exit code 2 = regression-archived is consistent.
 
 There are **three identical copies** of `safe_pull.sh`:
 
-- `experiments/periodic-synth-mix/scripts/safe_pull.sh` (canonical)
-- `.claude/worktrees/feat+composite-synth/experiments/periodic-synth-mix/scripts/safe_pull.sh`
-- `.claude/worktrees/feat+source-id-freq-plumb/experiments/periodic-synth-mix/scripts/safe_pull.sh`
+- `experiments/2026-04-27_periodic-synth-mix/scripts/safe_pull.sh` (canonical)
+- `.claude/worktrees/feat+composite-synth/experiments/2026-04-27_periodic-synth-mix/scripts/safe_pull.sh`
+- `.claude/worktrees/feat+source-id-freq-plumb/experiments/2026-04-27_periodic-synth-mix/scripts/safe_pull.sh`
 
 Patch the canonical one in `experiments/`. The two worktree copies will
 sync naturally on next merge / branch refresh; they should not be
