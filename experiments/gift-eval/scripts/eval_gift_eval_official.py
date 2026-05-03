@@ -407,6 +407,11 @@ def load_models(args, device):
     BACKBONE_CONFIG["freq_emb_dim"] = (w.shape[1] if w is not None else 0)
     sw = sd.get("seasonality_embedding.embedding.weight")
     BACKBONE_CONFIG["seasonality_emb_dim"] = (sw.shape[1] if sw is not None else 0)
+    if "log_inv_tau" in sd:
+        BACKBONE_CONFIG["learnable_tau"] = True
+        print(f"  [eval] auto-detected learnable τ "
+              f"(log_inv_tau={sd['log_inv_tau'].item():.4f}, "
+              f"τ={float((-sd['log_inv_tau']).exp()):.4f}) from backbone checkpoint")
     BACKBONE_CONFIG["rev_norm_kind"] = args.rev_norm_kind
     if args.rev_norm_kind == "ewma":
         BACKBONE_CONFIG["rev_norm_span"] = args.rev_norm_span
