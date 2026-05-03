@@ -1,33 +1,35 @@
-"""3-panel plot covering the full-4096 30k baselines (#6, #9) AND the
-in-flight FINAL retrain (#10) which resumes from #9's 30k.
+"""3-panel plot — #6 + #9 (30k baselines) + #10 in-flight FINAL retrain.
 
-Panels (all log-log):
-  1. Backbone contrastive loss vs step — three curves (#6, #9, #10).
-     #10 picks up at step 30001 and continues to wherever the live
-     training has reached. Plus the τ=0.07 fixed-reference loss for
-     #10 only (PR #107 added this column to the trainer's CSV; #6 and
-     #9 do not have it).
-  2. Learnable τ vs step — three curves. #6 sparse (snapshot
-     reconstruction), #9 dense from per-step grep, #10 dense from the
-     #10 section of the run.log only (the log was pre-seeded with
-     #9's, we filter to lines after the FINAL "starting" marker).
-  3. Recovery / quantile-head loss is intentionally omitted here — the
-     prior 3-panel report (PR #102) covered it for #6 vs #9 at 30k,
-     and #10's qhead is trained AFTER backbone completes, so we have
-     no qhead data for #10 yet. Instead, panel 3 is the τ=0.07 fixed
-     reference loss alone — comparable across runs in principle but
-     only #10 has it logged so we plot just one curve and call it
-     out as a #10-only diagnostic.
+The previous version (v1) plotted #10 only on [30k, 165k]. That produces
+a smoothing discontinuity at step 30k (rolling mean has no left
+context) and makes the curves harder to compare visually.
+
+This version (v2):
+
+- Panel 1 (backbone loss). #10's curve is *stitched* with #9's [0,30k]
+  data on its left side, so its rolling mean has continuous left
+  context across the resume boundary. Green is drawn FIRST, red on
+  top of the [0,30k] segment, so red stays visible. Smoothing window
+  bumped 100 → 500 to tame the late-#10 batch-noise (the model is in
+  a flatter loss region where per-batch variance is a larger
+  fraction of the mean — real, not a plot artifact).
+
+- Panel 2 (τ trajectory). Unchanged.
+
+- Panel 3 (τ=0.07 reference diagnostic, PR #107). Two continuous
+  curves spanning [1, 165k]:
+    * "main learnable-τ loss"  — red(#9) [0,30k] + green(#10) [30k,]
+    * "τ≈0.07 reference loss"  — blue(#6) [0,30k] + purple(#10
+       loss_tau_ref column) [30k,]
+  We use #6's main loss as the τ≈0.07 reference for [0,30k] because
+  #6's τ stays within ~30% of 0.07 throughout that window (descends
+  0.07 → 0.047, mostly between 0.05–0.07), the closest available
+  proxy. The purple right-half is the actual fixed-τ=0.07 loss
+  computed under torch.no_grad() per PR #107. The two halves stitch
+  cleanly because at step 30k both arms are seeing similar τ in
+  practice.
 
 Output: plots/full4096_with_final_3panel.png at DPI 300.
-
-Reads:
-  sync_realonly_full4096_learnable_tau/learnable/checkpoints/tiny_realonly_full4096_learnable_tau_losses.csv
-  sync_realonly_full4096_learnable_tau/learnable/tau_trajectory.csv
-  sync_realonly_full4096_moirai_hp/moirai_hp/checkpoints/tiny_realonly_full4096_moirai_hp_losses.csv
-  sync_realonly_full4096_moirai_hp/moirai_hp/tau_trajectory.csv
-  sync_realonly_full4096_moirai_hp_FINAL/moirai_hp_FINAL/checkpoints/tiny_full4096_moirai_hp_FINAL_losses.csv
-  sync_realonly_full4096_moirai_hp_FINAL/moirai_hp_FINAL/run.log   (filtered to #10 section)
 """
 import os
 import re
@@ -39,22 +41,19 @@ from matplotlib.ticker import LogLocator, FuncFormatter
 ROOT = "/Users/jeremycochoy/Desktop/workspace/trading/contrastive-forecasting"
 OUT = os.path.join(ROOT, "plots", "full4096_with_final_3panel.png")
 
-ARMS_30K = [
-    {
-        "label": "#6 default HP (30k)",
-        "color": "tab:blue",
-        "loss_csv": f"{ROOT}/sync_realonly_full4096_learnable_tau/learnable/checkpoints/tiny_realonly_full4096_learnable_tau_losses.csv",
-        "tau_csv": f"{ROOT}/sync_realonly_full4096_learnable_tau/learnable/tau_trajectory.csv",
-    },
-    {
-        "label": "#9 MOIRAI HP (30k)",
-        "color": "tab:red",
-        "loss_csv": f"{ROOT}/sync_realonly_full4096_moirai_hp/moirai_hp/checkpoints/tiny_realonly_full4096_moirai_hp_losses.csv",
-        "tau_csv": f"{ROOT}/sync_realonly_full4096_moirai_hp/moirai_hp/tau_trajectory.csv",
-    },
-]
-
-ARM_FINAL = {
+ARM6 = {
+    "label": "#6 default HP (30k)",
+    "color": "tab:blue",
+    "loss_csv": f"{ROOT}/sync_realonly_full4096_learnable_tau/learnable/checkpoints/tiny_realonly_full4096_learnable_tau_losses.csv",
+    "tau_csv":  f"{ROOT}/sync_realonly_full4096_learnable_tau/learnable/tau_trajectory.csv",
+}
+ARM9 = {
+    "label": "#9 MOIRAI HP (30k)",
+    "color": "tab:red",
+    "loss_csv": f"{ROOT}/sync_realonly_full4096_moirai_hp/moirai_hp/checkpoints/tiny_realonly_full4096_moirai_hp_losses.csv",
+    "tau_csv":  f"{ROOT}/sync_realonly_full4096_moirai_hp/moirai_hp/tau_trajectory.csv",
+}
+ARM10 = {
     "label": "#10 FINAL (resumed from #9 30k)",
     "color": "tab:green",
     "loss_csv": f"{ROOT}/sync_realonly_full4096_moirai_hp_FINAL/moirai_hp_FINAL/checkpoints/tiny_full4096_moirai_hp_FINAL_losses.csv",
@@ -62,11 +61,11 @@ ARM_FINAL = {
     "log_marker": "=== run_full4096_moirai_hp_FINAL: starting ===",
 }
 
-ROLL = 100
+ROLL_30K = 100        # smoothing window for the 30k baselines
+ROLL_FINAL = 500      # heavier smoothing for #10 (135k+ samples in a flatter regime)
 
 
 def load_loss(path):
-    """Per-step losses CSV; merge .prev rotation if present, dedupe."""
     parts = []
     prev = path + ".prev"
     if os.path.exists(prev):
@@ -95,17 +94,9 @@ def load_tau_csv(path):
 
 
 def extract_final_tau_from_log(log_path, marker):
-    """Parse #10's τ trajectory from the post-marker section of the log.
-
-    The log file is pre-seeded with #9's content; we skip every line up
-    to (and including) the FINAL `starting` marker, then grep
-    `[<step>] ... τ=<value>` lines.
-    """
     if not os.path.exists(log_path):
         return pd.DataFrame(columns=["step", "tau"])
-    rows = []
-    pat = re.compile(r"^\[\s*(\d+)\].+τ=([0-9.]+)")
-    found = False
+    rows, found, pat = [], False, re.compile(r"^\[\s*(\d+)\].+τ=([0-9.]+)")
     with open(log_path) as f:
         for line in f:
             if not found:
@@ -117,44 +108,68 @@ def extract_final_tau_from_log(log_path, marker):
                 rows.append((int(m.group(1)), float(m.group(2))))
     if not rows:
         return pd.DataFrame(columns=["step", "tau"])
-    df = pd.DataFrame(rows, columns=["step", "tau"]).drop_duplicates("step")
-    return df.sort_values("step").reset_index(drop=True)
+    return (
+        pd.DataFrame(rows, columns=["step", "tau"])
+          .drop_duplicates("step")
+          .sort_values("step")
+          .reset_index(drop=True)
+    )
 
 
-def plot_loss_panel(ax):
-    # 30k baselines
-    for arm in ARMS_30K:
-        df = load_loss(arm["loss_csv"])
-        if len(df) == 0:
-            continue
-        smooth = df["loss"].rolling(ROLL, min_periods=1).mean()
-        last = df["loss"].iloc[-1]
-        ax.plot(df["step"], df["loss"], color=arm["color"], alpha=0.10, linewidth=0.4)
+def stitched(df_left, df_right, col_left="loss", col_right="loss"):
+    """Stitch two losses CSVs end-to-end. Use df_left[col_left] for steps
+    < df_right[step].min(), and df_right[col_right] for steps >= that.
+    Returns a DataFrame with columns step, value (no overlap).
+    """
+    if len(df_right) == 0:
+        if len(df_left) == 0:
+            return pd.DataFrame(columns=["step", "value"])
+        return df_left[["step", col_left]].rename(columns={col_left: "value"})
+    cut = int(df_right["step"].min())
+    L = df_left[df_left["step"] < cut][["step", col_left]].rename(columns={col_left: "value"})
+    R = df_right[["step", col_right]].rename(columns={col_right: "value"})
+    return pd.concat([L, R], ignore_index=True).reset_index(drop=True)
+
+
+def plot_loss_panel(ax, df6, df9, df10):
+    # 1) Green = #9 [0, 30k] + #10 [30k, ...]. Plot first so red can sit on top.
+    g_full = stitched(df9, df10)
+    if len(g_full):
+        smooth = g_full["value"].rolling(ROLL_FINAL, min_periods=1).mean()
+        ax.plot(g_full["step"], g_full["value"], color=ARM10["color"], alpha=0.05, linewidth=0.4)
         ax.plot(
-            df["step"], smooth, color=arm["color"], linewidth=1.7,
-            label=f"{arm['label']}  (n={len(df):,}, last={last:.3f})",
+            g_full["step"], smooth, color=ARM10["color"], linewidth=1.7,
+            label=f"{ARM10['label']}  (n={len(df10):,} new + #9 prefix; smoothed roll={ROLL_FINAL})",
         )
-    # FINAL retrain (in flight): plot main loss + the new fixed-τ ref column
-    df10 = load_loss(ARM_FINAL["loss_csv"])
-    if len(df10) > 0:
-        smooth10 = df10["loss"].rolling(ROLL, min_periods=1).mean()
-        last10 = df10["loss"].iloc[-1]
-        ax.plot(df10["step"], df10["loss"], color=ARM_FINAL["color"], alpha=0.08, linewidth=0.4)
+
+    # 2) Blue = #6.
+    if len(df6):
+        smooth6 = df6["loss"].rolling(ROLL_30K, min_periods=1).mean()
+        ax.plot(df6["step"], df6["loss"], color=ARM6["color"], alpha=0.10, linewidth=0.4)
         ax.plot(
-            df10["step"], smooth10, color=ARM_FINAL["color"], linewidth=1.7,
-            label=f"{ARM_FINAL['label']}  (n={len(df10):,}, last={last10:.3f})",
+            df6["step"], smooth6, color=ARM6["color"], linewidth=1.7,
+            label=f"{ARM6['label']}  (n={len(df6):,}, last={df6['loss'].iloc[-1]:.3f})",
         )
+
+    # 3) Red = #9 — drawn LAST so it sits on top of green's [0, 30k] segment.
+    if len(df9):
+        smooth9 = df9["loss"].rolling(ROLL_30K, min_periods=1).mean()
+        ax.plot(df9["step"], df9["loss"], color=ARM9["color"], alpha=0.10, linewidth=0.4)
+        ax.plot(
+            df9["step"], smooth9, color=ARM9["color"], linewidth=1.7,
+            label=f"{ARM9['label']}  (n={len(df9):,}, last={df9['loss'].iloc[-1]:.3f})",
+        )
+
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_ylabel("contrastive loss (log)")
-    ax.set_title("Backbone contrastive loss — full-4096, log-log")
+    ax.set_title("Backbone contrastive loss — full-4096, log-log (#10 stitched onto #9 prefix)")
     ax.grid(True, which="both", alpha=0.25)
     ax.legend(loc="best", fontsize=9)
 
 
-def plot_tau_panel(ax):
-    # 30k arms from canonical tau_trajectory.csv
-    for arm in ARMS_30K:
+def plot_tau_panel(ax, df10_tau):
+    for arm in (ARM6, ARM9):
         df = load_tau_csv(arm["tau_csv"])
         if len(df) == 0:
             continue
@@ -169,14 +184,11 @@ def plot_tau_panel(ax):
                 df["step"], df["tau"], color=arm["color"], linewidth=1.4,
                 label=f"{arm['label']}  (n={len(df):,} pts; per-step grep)",
             )
-    # #10 from log
-    df10 = extract_final_tau_from_log(ARM_FINAL["log_path"], ARM_FINAL["log_marker"])
-    if len(df10) > 0:
+    if len(df10_tau):
         ax.plot(
-            df10["step"], df10["tau"], color=ARM_FINAL["color"], linewidth=1.4,
-            label=f"{ARM_FINAL['label']}  (n={len(df10):,} pts; per-100-step grep from #10 section)",
+            df10_tau["step"], df10_tau["tau"], color=ARM10["color"], linewidth=1.4,
+            label=f"{ARM10['label']}  (n={len(df10_tau):,} pts; per-100-step grep, #10 section only)",
         )
-    # init point shared by all arms
     ax.scatter(
         [1], [0.07], color="black", marker="^", s=70, zorder=5,
         label="init τ=0.07 at step 0 (anchored at step 1 for log-x)",
@@ -191,55 +203,66 @@ def plot_tau_panel(ax):
     ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:.2f}"))
 
 
-def plot_tau_ref_panel(ax):
-    """τ=0.07 fixed-reference loss — only #10 has this column (PR #107).
+def plot_tau_ref_panel(ax, df6, df9, df10):
+    """Two continuous curves, both spanning [1, 165k]:
 
-    Plotted alongside #10's main loss so the divergence is visible on
-    a single axis: when learnable τ is below 0.07, the fixed-τ=0.07
-    reference is harder (cosine sims spread out more), so loss_tau_ref
-    > loss; the gap is a measure of "what τ is buying us".
+    * "main learnable-τ loss"  : red(#9) ∪ green(#10 main loss)
+    * "τ≈0.07 reference loss"  : blue(#6 main loss; τ stays close to 0.07
+                                  through [0,30k]) ∪ purple(#10 loss_tau_ref
+                                  column from PR #107)
+
+    The gap between the two curves shows whether learnable τ is buying
+    anything vs the canonical 0.07.
     """
-    df10 = load_loss(ARM_FINAL["loss_csv"])
-    if len(df10) == 0 or "loss_tau_ref" not in df10.columns:
-        ax.text(0.5, 0.5, "no loss_tau_ref column found in #10 CSV",
-                ha="center", va="center", transform=ax.transAxes)
-        return
-    smooth_main = df10["loss"].rolling(ROLL, min_periods=1).mean()
-    smooth_ref = df10["loss_tau_ref"].rolling(ROLL, min_periods=1).mean()
-    ax.plot(df10["step"], df10["loss"], color="tab:green", alpha=0.10, linewidth=0.4)
-    ax.plot(
-        df10["step"], smooth_main, color="tab:green", linewidth=1.7,
-        label=f"#10 main loss (learnable τ; last={df10['loss'].iloc[-1]:.3f})",
-    )
-    ax.plot(df10["step"], df10["loss_tau_ref"], color="tab:purple",
-            alpha=0.10, linewidth=0.4)
-    ax.plot(
-        df10["step"], smooth_ref, color="tab:purple", linewidth=1.7,
-        label=f"#10 τ=0.07 fixed reference (no grad; last={df10['loss_tau_ref'].iloc[-1]:.3f})",
-    )
+    # Main loss: #9 + #10's loss column.
+    main = stitched(df9, df10, "loss", "loss")
+    if len(main):
+        smooth = main["value"].rolling(ROLL_FINAL, min_periods=1).mean()
+        ax.plot(main["step"], main["value"], color=ARM10["color"], alpha=0.05, linewidth=0.4)
+        ax.plot(
+            main["step"], smooth, color=ARM10["color"], linewidth=1.7,
+            label=f"main learnable-τ loss  ({ARM9['label'].split()[0]} + {ARM10['label'].split()[0]} stitched)",
+        )
+
+    # τ≈0.07 reference: #6's loss (its τ stays close to 0.07) + #10's
+    # loss_tau_ref column (actual fixed-τ=0.07 reference, PR #107).
+    if len(df10) and "loss_tau_ref" in df10.columns:
+        ref = stitched(df6, df10, "loss", "loss_tau_ref")
+        if len(ref):
+            smooth = ref["value"].rolling(ROLL_FINAL, min_periods=1).mean()
+            ax.plot(ref["step"], ref["value"], color="tab:purple", alpha=0.05, linewidth=0.4)
+            ax.plot(
+                ref["step"], smooth, color="tab:purple", linewidth=1.7,
+                label=f"τ≈0.07 reference  ({ARM6['label'].split()[0]} loss [τ→0.047] ∪ #10 loss_tau_ref [τ=0.07 fixed])",
+            )
+
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.set_ylabel("contrastive loss (log)")
     ax.set_xlabel("step (log)")
-    ax.set_title("#10 only: τ=0.07 fixed reference loss vs main loss (PR #107 diagnostic)")
+    ax.set_ylabel("contrastive loss (log)")
+    ax.set_title("τ=0.07 reference loss vs main learnable-τ loss (PR #107 diagnostic, extended)")
     ax.grid(True, which="both", alpha=0.25)
     ax.legend(loc="best", fontsize=9)
 
 
 def main():
-    df10 = load_loss(ARM_FINAL["loss_csv"])
+    df6 = load_loss(ARM6["loss_csv"])
+    df9 = load_loss(ARM9["loss_csv"])
+    df10 = load_loss(ARM10["loss_csv"])
+    df10_tau = extract_final_tau_from_log(ARM10["log_path"], ARM10["log_marker"])
+
     last_step = int(df10["step"].max()) if len(df10) else 30000
     XLIM = (1, max(last_step + 1, 30000))
 
     fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(11, 14), sharex=True)
-    plot_loss_panel(ax1)
-    plot_tau_panel(ax2)
-    plot_tau_ref_panel(ax3)
+    plot_loss_panel(ax1, df6, df9, df10)
+    plot_tau_panel(ax2, df10_tau)
+    plot_tau_ref_panel(ax3, df6, df9, df10)
     for ax in (ax1, ax2, ax3):
         ax.set_xlim(*XLIM)
 
     fig.suptitle(
-        f"Full-4096 #6 vs #9 (30k) and #10 in-flight FINAL retrain — log-log "
+        f"Full-4096 #6 vs #9 (30k) + #10 in-flight FINAL — log-log "
         f"(#10 step={last_step:,}/498,000 = {last_step/498000*100:.1f}%)",
         fontsize=13,
     )
@@ -248,7 +271,10 @@ def main():
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     fig.savefig(OUT, dpi=300, bbox_inches="tight")
     print(f"Wrote {OUT}")
-    print(f"  #10 backbone CSV rows: {len(df10):,}, last step: {last_step:,}")
+    print(f"  #6  bb_loss n={len(df6):,}")
+    print(f"  #9  bb_loss n={len(df9):,}")
+    print(f"  #10 bb_loss n={len(df10):,}, last step: {last_step:,}, "
+          f"has loss_tau_ref={'loss_tau_ref' in df10.columns}")
 
 
 if __name__ == "__main__":
