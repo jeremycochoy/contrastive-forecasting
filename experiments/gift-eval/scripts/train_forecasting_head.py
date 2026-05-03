@@ -217,6 +217,15 @@ def main():
     BACKBONE_CONFIG["freq_emb_dim"] = args.freq_emb_dim
     BACKBONE_CONFIG["seasonality_emb_dim"] = args.seasonality_emb_dim
     BACKBONE_CONFIG["rev_norm_kind"] = args.rev_norm_kind
+    # Auto-detect CLIP-style learnable τ from the checkpoint (#28). If
+    # log_inv_tau is in the state_dict, we must instantiate the backbone
+    # with learnable_tau=True so load_state_dict succeeds. The head loss
+    # doesn't use τ, so this is just to keep the param around.
+    if "log_inv_tau" in sd:
+        BACKBONE_CONFIG["learnable_tau"] = True
+        print(f"  [head-train] auto-detected learnable τ "
+              f"(log_inv_tau={sd['log_inv_tau'].item():.4f}, "
+              f"τ={float((-sd['log_inv_tau']).exp()):.4f}) from backbone checkpoint")
     if args.rev_norm_kind == "ewma":
         BACKBONE_CONFIG["rev_norm_span"] = args.rev_norm_span
     # Auto-detect patch_stats from the encoder's first projection input width.

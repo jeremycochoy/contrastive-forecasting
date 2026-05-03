@@ -5,6 +5,7 @@ Contains the ConfigurableModel (configurable encoder + transformer backbone)
 and helper functions for batch generation and metric computation.
 """
 
+import math
 import torch
 import torch.nn.functional as F
 
@@ -53,13 +54,26 @@ class ConfigurableModel(torch.nn.Module):
                  freq_emb_dim=0, num_freqs=NUM_FREQS,
                  seasonality_emb_dim=0, num_seasonalities=NUM_SEASONALITIES,
                  rev_norm_kind='ewma',
-                 patch_stats_kind='none'):
+                 patch_stats_kind='none',
+                 learnable_tau=False, tau_init=0.07):
         super().__init__()
         self.C = C
         self.H = H
         self.W = W
         self.freq_emb_dim = freq_emb_dim
         self.seasonality_emb_dim = seasonality_emb_dim
+
+        # Optional CLIP-style learnable temperature for the contrastive loss.
+        # Stored as `log_inv_tau` so τ = exp(-log_inv_tau). Trainer is
+        # responsible for clamping log_inv_tau to [0, log(100)] after each
+        # optimizer.step (→ τ ∈ [0.01, 1.0]). When learnable_tau=False the
+        # parameter is not registered; loss falls back to the dict-driven
+        # scalar.
+        self.learnable_tau = bool(learnable_tau)
+        if self.learnable_tau:
+            self.log_inv_tau = torch.nn.Parameter(
+                torch.tensor(math.log(1.0 / float(tau_init)),
+                             dtype=torch.float32))
 
         # Reversible normalization (optional). Two kinds:
         #   ewma  → RevEWMNorm(span=rev_norm_span)  (default, dynamic)
@@ -129,6 +143,28 @@ class ConfigurableModel(torch.nn.Module):
                 layer.activation = act_fn
 
         self.channel_mixing_module = Simple_channel_mixing_module(H=H, C=C)
+
+    def tau(self):
+        """Current contrastive temperature.
+
+        Returns the learnable τ as a 0-d tensor (gradient-tracking) when
+        ``learnable_tau=True``; otherwise returns ``None`` and the loss
+        falls back to the spec dict's `contrastive_divergence_temperature`.
+
+        τ = exp(-log_inv_tau). With log_inv_tau clamped to [0, log(100)],
+        τ is bounded to [0.01, 1.0].
+        """
+        if not getattr(self, 'learnable_tau', False):
+            return None
+        return torch.exp(-self.log_inv_tau)
+
+    def clamp_log_inv_tau(self):
+        """Clamp log_inv_tau in-place to [0, log(100)] → τ ∈ [0.01, 1.0].
+
+        Caller MUST hold a no_grad context (this is for use right after
+        optimizer.step(), to keep τ in a sane range)."""
+        if getattr(self, 'learnable_tau', False):
+            self.log_inv_tau.data.clamp_(0.0, math.log(100.0))
 
     def _apply_freq_embedding(self, x_patch, freq_ids=None, freq_embs=None):
         """Widen the per-patch time axis with a broadcast freq embedding.
