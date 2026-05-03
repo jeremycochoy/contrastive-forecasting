@@ -174,6 +174,10 @@ if [ ! -f "${RESUME_BB%.pth}_optimizer.pth" ]; then
 fi
 
 echo "" && echo "=== STAGE B: $BB (resume from #9 30k → 1 full epoch, MOIRAI HP) ===" && date
+# NOTE: as of PR #107, train.py always logs a fixed-τ=0.07 reference loss in
+# the column `loss_tau_ref` of the losses CSV (computed under torch.no_grad,
+# so no gradient impact and <5% step-time overhead). Useful as a cross-run
+# baseline since the training τ is learnable here. No CLI flag — always on.
 python3 -u experiments/freq-embedding/scripts/train.py \
     --resume "$RESUME_BB" \
     --device cuda --total-steps 498000 --batch-size 96 \
