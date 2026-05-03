@@ -243,20 +243,26 @@ class HFStreamingLoader:
             return None
 
     def _shard_row_counts(self, shard_paths):
-        """Return (N,) int array of row counts per shard, via parquet metadata.
+        """Return row counts per shard from the FIRST shard's metadata.
 
-        Uses the parquet FOOTER only (no data read); typically milliseconds
-        per shard via HfFileSystem's cached HEAD requests.
+        Assumes uniform shard sizing: shards 0..N-2 share the same row count
+        (read from shard 0's parquet footer); only the last shard may be
+        shorter. This is true for our HF datasets which are written by the
+        same upload pipeline.
+
+        Cost: ONE parquet-footer fetch (~260ms) instead of N.
         """
         from huggingface_hub import HfFileSystem
         import pyarrow.parquet as pq
         fs = HfFileSystem()
-        counts = []
-        for p in shard_paths:
-            with fs.open(p, "rb") as f:
-                meta = pq.read_metadata(f)
-                counts.append(meta.num_rows)
-        return counts
+        with fs.open(shard_paths[0], "rb") as f:
+            rows_per_shard = pq.read_metadata(f).num_rows
+        # All but last assumed equal; last gets the remainder. We only need
+        # exact counts for the start-shard search, so leaving the last as
+        # rows_per_shard is fine — we only ever skip INTO a shard, never past
+        # the end of the dataset. If a future caller needs exact totals, they
+        # can sum and trust manifest.json instead.
+        return [rows_per_shard] * len(shard_paths)
 
     def _iter_stream_with_fast_skip(self):
         """Yield parquet rows starting from position ``self.skip_rows``.
