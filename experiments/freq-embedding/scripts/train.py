@@ -288,24 +288,38 @@ def safe_run_name(save_dir, run_name):
 
 
 class CSVLogger:
-    def __init__(self, path, flush_every=100):
+    def __init__(self, path, flush_every=100, tau_ref_column=True):
         self.path = path
         self.flush_every = flush_every
+        # tau_ref_column: when True, the CSV gains a `loss_tau_ref` column
+        # (positioned right after `loss`) carrying the τ=0.07 reference loss
+        # — same loss recomputed under torch.no_grad() with a fixed canonical
+        # τ. Comparable across runs regardless of --tau / --learnable-tau.
+        self.tau_ref_column = bool(tau_ref_column)
         self._buffer = []
         self._file = open(path, "a", newline="")
         self._writer = csv.writer(self._file)
         if os.path.getsize(path) == 0:
-            self._writer.writerow([
-                "step", "loss", "gap", "ff", "fp", "tp", "cross_batch",
-                "hf_rows_consumed", "synth_rows_consumed", "mixup_applied",
-            ])
+            header = ["step", "loss"]
+            if self.tau_ref_column:
+                header.append("loss_tau_ref")
+            header += ["gap", "ff", "fp", "tp", "cross_batch",
+                       "hf_rows_consumed", "synth_rows_consumed", "mixup_applied"]
+            self._writer.writerow(header)
             self._file.flush()
 
     def log(self, step, loss, gap, ff, fp, tp, cross_batch,
-            hf_rows_consumed, synth_rows_consumed, mixup_applied):
-        self._buffer.append([step, loss, gap, ff, fp, tp, cross_batch,
-                             hf_rows_consumed, synth_rows_consumed,
-                             int(mixup_applied)])
+            hf_rows_consumed, synth_rows_consumed, mixup_applied,
+            loss_tau_ref=None):
+        row = [step, loss]
+        if self.tau_ref_column:
+            # Always write a value when the column is enabled. If the caller
+            # hasn't computed it (shouldn't happen with the current trainer)
+            # fall back to the unscaled loss to keep schema stable.
+            row.append(loss if loss_tau_ref is None else loss_tau_ref)
+        row += [gap, ff, fp, tp, cross_batch,
+                hf_rows_consumed, synth_rows_consumed, int(mixup_applied)]
+        self._buffer.append(row)
         if len(self._buffer) >= self.flush_every:
             self.flush()
 
@@ -510,6 +524,19 @@ def main():
         tau_tensor = model.tau() if args.learnable_tau else None
         loss = contrastive_latent_loss((f_lat, o_lat), validation=False,
                                        spec=LOSS_SPEC, tau_override=tau_tensor)
+        # Diagnostic: same loss with fixed τ=0.07 (no gradient). Comparable
+        # across runs regardless of --tau / --learnable-tau, useful as a
+        # cross-experiment baseline curve. Re-uses the already-forwarded
+        # latents so the only extra cost is one similarity-matrix softmax
+        # under no_grad (target <5% step-time overhead).
+        with torch.no_grad():
+            loss_tau_ref = contrastive_latent_loss(
+                (f_lat.detach(), o_lat.detach()),
+                validation=False, spec=LOSS_SPEC,
+                tau_override=torch.tensor(
+                    0.07, device=f_lat.device, dtype=f_lat.dtype),
+            )
+        loss_tau_ref_val = loss_tau_ref.item()
         t_fwd_end = time.perf_counter()
 
         loss_val = loss.item()
@@ -558,7 +585,7 @@ def main():
 
         csv_logger.log(step, loss_val, gap_val, val_ff, val_fp,
                        val_tp, val_cb, hf_rows_consumed, synth_rows_consumed,
-                       mixup_applied)
+                       mixup_applied, loss_tau_ref=loss_tau_ref_val)
 
         if step % args.log_every == 0:
             elapsed = time.time() - t0
