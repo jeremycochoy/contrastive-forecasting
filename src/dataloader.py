@@ -387,21 +387,26 @@ class HFStreamingLoader:
 # ── Batch collation for local shards ─────────────────────────────────────────
 
 class _MultiChannelBatchSampler:
-    """Yields index batches where each sample consists of C consecutive rows."""
+    """Yields index batches where each sample consists of C consecutive rows.
+
+    Sample order is *deterministic and in-order*. The pretraining bundles
+    are pre-shuffled at upload time (shard order randomized + samples
+    within a shard randomized), so an in-order traversal already gives a
+    stochastic-looking sequence. Removing the per-iter np.random.shuffle
+    avoids non-determinism across resume — see the May 3 2026 #10-resume
+    incident: a torch-RNG-restore bug bled into numpy-driven sampler order
+    and caused per-batch loss std to jump +52% at the resume boundary.
+    """
 
     def __init__(self, total_rows: int, C: int, batch_size: int,
-                 shuffle: bool = True, drop_last: bool = False):
+                 drop_last: bool = False):
         self.C = C
         self.batch_size = batch_size
         self.drop_last = drop_last
-        self.shuffle = shuffle
         self.num_samples = total_rows // C
         self.indices = np.arange(self.num_samples)
 
     def __iter__(self):
-        if self.shuffle:
-            np.random.shuffle(self.indices)
-
         batch = []
         for sample_idx in self.indices:
             start = sample_idx * self.C
@@ -453,16 +458,26 @@ class _ShardDataLoader:
 # ── Public API ────────────────────────────────────────────────────────────────
 
 def create_dataloader(shard_dir: str, batch_size: int = 16, C: int = 4,
-                      shuffle: bool = True, num_workers: int = 0,
+                      shuffle: bool | None = None, num_workers: int = 0,
                       drop_last: bool = False) -> _ShardDataLoader:
     """Create a DataLoader from local parquet shards.
 
     Returns an iterable yielding tensors of shape [B, T_raw, C].
+
+    The traversal is deterministic and in-order. The ``shuffle`` parameter
+    is kept for backwards-compat with existing callers but is now a no-op:
+    pretraining bundles are pre-shuffled at upload, so re-shuffling at the
+    sampler level only adds RNG-driven non-determinism at resume.
     """
+    if shuffle is not None:
+        # Quiet acceptance — the pre-shuffled-storage assumption makes the
+        # in-iter shuffle redundant and harmful (resume breaks RNG state).
+        # See May 3 2026 #10-resume incident.
+        pass
     dataset = ShardDataset(shard_dir)
     sampler = _MultiChannelBatchSampler(
         total_rows=len(dataset), C=C, batch_size=batch_size,
-        shuffle=shuffle, drop_last=drop_last,
+        drop_last=drop_last,
     )
     return _ShardDataLoader(dataset, sampler)
 

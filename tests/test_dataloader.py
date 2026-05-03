@@ -93,14 +93,16 @@ class TestCreateDataloader:
         # Each channel should be a different series
         assert not torch.allclose(batch[0, :, 0], batch[0, :, 1])
 
-    def test_shuffle(self, shard_dir):
-        dl1 = create_dataloader(shard_dir, batch_size=4, C=1, shuffle=True)
-        dl2 = create_dataloader(shard_dir, batch_size=4, C=1, shuffle=True)
+    def test_in_order_deterministic(self, shard_dir):
+        # Two identical loader instantiations must yield bytewise-identical
+        # batches: the sampler is in-order (HF/parquet bundles are
+        # pre-shuffled at upload, so re-shuffling on top is redundant and
+        # breaks resume — see May 3 2026 #10-resume incident).
+        dl1 = create_dataloader(shard_dir, batch_size=4, C=1)
+        dl2 = create_dataloader(shard_dir, batch_size=4, C=1)
         b1 = next(iter(dl1))
         b2 = next(iter(dl2))
-        # With shuffling, two dataloaders should give different batches
-        # (extremely unlikely to be equal by chance with 100 rows)
-        assert not torch.allclose(b1, b2)
+        assert torch.equal(b1, b2)
 
     def test_no_nan(self, shard_dir):
         dl = create_dataloader(shard_dir, batch_size=8, C=4)
