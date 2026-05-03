@@ -31,11 +31,15 @@ and is still in the early-data-coverage phase. The right next move
 is more steps (e.g. 90k–150k = ~20–35% of one epoch on full-4096),
 not richer-data-fewer-steps.
 
-A second axis is also pending: #9 (`exp_realonly_full4096_moirai_hp`)
+A second axis was also tested: #9 (`exp_realonly_full4096_moirai_hp`)
 runs the same recipe with MOIRAI-paper optimizer hyperparameters
-(10× lr, 10× weight_decay) — see the interim report at
-[`experiments/exp_realonly_full4096_moirai_hp/REPORT_INTERIM.md`](../exp_realonly_full4096_moirai_hp/REPORT_INTERIM.md)
-for early signals.
+(10× lr, 10× weight_decay). #9 has now finished STAGE E gift_eval
+(2026-05-03) and **wins on every GM metric** —
+GM-MAPE_SN 1.1850 (vs #6 1.3698, −13.5%), GM-CRPS_SN 1.0155 (vs #6
+1.1000, −7.7%), GM-MASE 1.6391 (vs #6 1.8043, −9.2%). See
+[`experiments/exp_realonly_full4096_moirai_hp/REPORT.md`](../exp_realonly_full4096_moirai_hp/REPORT.md)
+for the full final eval breakdown. The MOIRAI-HP win means the next
+follow-up (#10) will use that recipe over default HP.
 
 ## 1. Setup
 
@@ -149,18 +153,26 @@ eval. It didn't, within this step budget. Three plausible reasons:
    across a noisier window-mix and the eval metrics catch this.
 3. **Optimizer / step-schedule mismatch.** Default lr=1e-4 with no
    warmup may be too conservative for the broader window mix; the
-   companion run #9 tests lr=1e-3 (and gets a tighter head EMA at
-   the same step, see [the #9 interim report](../exp_realonly_full4096_moirai_hp/REPORT_INTERIM.md)).
+   companion run #9 tests lr=1e-3 and gets a tighter head EMA at
+   the same step (#9 head EMA 0.0552 vs #6 0.0644, ~14% lower) and
+   a better GM-MAPE_SN at eval (1.1850 vs 1.3698, −13.5%). See
+   [the #9 final report](../exp_realonly_full4096_moirai_hp/REPORT.md).
 
 The right next moves (in priority order):
 
-- Wait for #9 final eval to land — if MOIRAI HP closes the eval gap,
-  the optimizer is the lever. If not, it's step count.
-- A 90k–150k follow-up on full-4096 with the winning HP config
-  would test the step-starvation hypothesis directly.
+- ~~Wait for #9 final eval to land~~ — DONE 2026-05-03. MOIRAI HP wins
+  on every GM metric, so the optimizer was a real lever; step count
+  is the remaining one.
+- The follow-up (#10) is a 1-full-epoch retrain on full-4096 (≈443k
+  steps at bs=96), resuming from the #9 30k pair under MOIRAI HP. This
+  tests the step-starvation hypothesis directly.
 
-For the cross-experiment loss/τ comparison plot (#6 vs #9), see
-`plots/full4096_default_vs_moirai_hp.png` (PR #98).
+For the final cross-experiment plot covering both arms over the full
+30k (backbone loss + τ + head loss, log-step axes), see
+[`plots/full4096_3panel_final.png`](../../plots/full4096_3panel_final.png)
+(PR #102). The earlier 2-panel
+`plots/full4096_default_vs_moirai_hp.png` (PR #98) was superseded by
+this 3-panel version.
 
 ## 6. Local artifacts
 
@@ -205,8 +217,8 @@ All paths under
   [`experiments/exp_realonly_4096_smaller_tau_sweep/REPORT.md`](../exp_realonly_4096_smaller_tau_sweep/REPORT.md)
   (PR #95). The "Learnable τ" arm there is the direct small-data
   counterpart of this run.
-- **MOIRAI-HP companion (#9), still in eval**:
-  [`experiments/exp_realonly_full4096_moirai_hp/REPORT_INTERIM.md`](../exp_realonly_full4096_moirai_hp/REPORT_INTERIM.md).
-- **Cross-arm loss/τ plot**:
-  [`plots/full4096_default_vs_moirai_hp.png`](../../plots/full4096_default_vs_moirai_hp.png)
-  (PR #98).
+- **MOIRAI-HP companion (#9), FINAL**:
+  [`experiments/exp_realonly_full4096_moirai_hp/REPORT.md`](../exp_realonly_full4096_moirai_hp/REPORT.md).
+- **Final 3-panel comparison plot (#6 vs #9, full 30k)**:
+  [`plots/full4096_3panel_final.png`](../../plots/full4096_3panel_final.png)
+  (PR #102).
