@@ -62,27 +62,44 @@ on a fresh machine (typically elisa) after laptop migration.
 
 ## Active cron — recreate on elisa via CronCreate
 
-Schedule: `37 * * * *`. **Verbatim prompt for cron `2fd024e2` was not
-exported across migration — parent agent must supply.** Paths are relative
-(start with `sync_realonly_*`), portable as long as Claude is launched in
-`~/contrastive-forecasting`.
+Schedule: `37 * * * *`. Paths are relative (start with `sync_realonly_*`),
+portable as long as Claude is launched in `~/contrastive-forecasting`. To
+recreate: invoke `CronCreate(cron="37 * * * *", prompt=<<<below>>>,
+recurring=true)`.
 
-Structure (faithful reconstruction):
+```
+Hourly check-in for #10 — **FRESH run from random init** (no resume). Investigation agent could not pinpoint the std-jump root cause; per user directive, switched from resume-from-30k to fresh-from-init to definitively isolate whether the resume mechanism causes the issue.
 
-1. **Status**: `vastrun-show 36055545` (alive? credit OK?); confirm sync_loop
-   process alive (`ps aux | grep sync_loop`).
-2. **Sync freshness**: `sync_realonly_full4096_moirai_hp_FRESH/moirai_hp_FRESH/
-   sync.log` mtime < 30 min; tail expects ✓ lines per tick.
-3. **Training progress**: latest periodic ckpt step in `.../checkpoints/`;
-   tail `run.log` for step, sps, GPU util.
-4. **NaN watch**: `grep -E "nan|NaN|inf" run.log` — escalate if matched.
-5. **std@[25k,30k) diagnostic**: when step crosses 25k, compute per-batch
-   loss std over [25k, 30k); compare to v1/v2 archives. FRESH should NOT
-   show the +52% jump.
-6. **Decision tree**: credit-low (alert, don't auto-bid); ALL-DONE (step ≥
-   167000 + gift_eval done → copy final ckpts to permanent names, write
-   REPORT.md, stop cron); NaN (stop training, don't destroy instance, pull
-   ckpts, diff vs last good, alert user).
+**Context**:
+- v1 (`_FINAL_*`) and v2 (`_FINAL_v2_*`) BOTH resumed from #9's 30k → both showed identical std=0.351 over 1300+ samples (vs #9's 0.23 baseline). Refuted: optimizer binding, hidden buffers, PR #106 port, RNG state. The cause remained unclear.
+- Fresh run started with random init at step 0, target step 167000 (1 epoch at bs=256). Same MOIRAI HPs. First 100 batches match #9's exactly (deterministic).
+
+**Paths**:
+- Sync: `sync_realonly_full4096_moirai_hp_FRESH/moirai_hp_FRESH/`
+- Run names: `tiny_full4096_moirai_hp_FRESH` (BB), `R1q_full4096_moirai_hp_FRESH` (qhead)
+- Remote launcher: `/workspace/app/run_fresh.sh`
+- Run.log marker for completion: `=== run_full4096_moirai_hp_FRESH: ALL DONE ===`
+- Archives (do not touch): `sync_realonly_full4096_moirai_hp_FINAL_run1/` (v1) and `sync_realonly_full4096_moirai_hp_FINAL_run2/` (v2)
+
+**Instance**: 36055545 = ssh8.vast.ai:15544, RTX 5090, $0.65/h.
+
+REPORT under 25 lines via Bash.
+
+1. `vastrun-status | head -3` and `vastrun-balance | head -2`. Note credit and burn.
+2. Sync freshness: `tail -5 sync_realonly_full4096_moirai_hp_FRESH/moirai_hp_FRESH/sync.log` and mtime via `stat -c '%y %n' sync_realonly_full4096_moirai_hp_FRESH/moirai_hp_FRESH/sync.log`. (On macOS use `stat -f '%Sm %N'`.) If >30 min stale: restart `nohup bash sync_realonly_full4096_moirai_hp_FRESH/sync_loop.sh ssh8.vast.ai 15544 36055545 moirai_hp_FRESH >> sync_realonly_full4096_moirai_hp_FRESH/moirai_hp_FRESH/sync.driver.log 2>&1 &`.
+3. Training progress: `tail -3 sync_realonly_full4096_moirai_hp_FRESH/moirai_hp_FRESH/run.log` and `wc -l sync_realonly_full4096_moirai_hp_FRESH/moirai_hp_FRESH/checkpoints/tiny_full4096_moirai_hp_FRESH_losses.csv 2>/dev/null`. Highest [N] step from log tail.
+4. NaN/crash watch: `grep -i 'nan\|killed\|cuda.*error\|traceback' sync_realonly_full4096_moirai_hp_FRESH/moirai_hp_FRESH/run.log 2>/dev/null | tail -3`.
+5. Completion: `grep -E 'run_full4096_moirai_hp_FRESH:.*ALL DONE' sync_realonly_full4096_moirai_hp_FRESH/moirai_hp_FRESH/run.log`.
+6. **Crucial diagnostic at step 25k+**: when fresh CSV reaches >25k rows, compute `python3 -c "import pandas as pd; df=pd.read_csv('sync_realonly_full4096_moirai_hp_FRESH/moirai_hp_FRESH/checkpoints/tiny_full4096_moirai_hp_FRESH_losses.csv'); m=(df.step>=25000)&(df.step<30000); s=df.loc[m,'loss']; print(f'fresh [25k,30k): n={len(s)} mean={s.mean():.3f} std={s.std():.3f}')"`. Compare with #9 same window (mean ≈ 5.18, std ≈ 0.23). NOTE: fresh is bs=256 vs #9 bs=96 — loss values not directly comparable due to cross-batch term scaling, but std behavior is. If fresh std ≈ 0.23 → confirms resume mechanism is the culprit. If fresh std ≈ 0.35 too → cause is something pervasive.
+7. Decision tree:
+   - **Credit < $1.50** AND no FRESH ALL DONE → graceful shutdown.
+   - **FRESH ALL DONE** → completion (read summary.txt, compute GM, pause-before-destroy task check, then vastrun-destroy 36055545 contrastive-forecasting-machine10, mark #10 completed, CronDelete this job).
+   - **NaN/CUDA error** → STOP, surface, no auto-relaunch.
+   - Normal → no-op summary.
+8. Output: `step=<N>/167000 (<P>%); credit=$<C>; eta-cred=<H>h; sync=fresh|stale[; std@[25k,30k)=<X> (vs #9=0.23) — when applicable]`.
+
+Constraints: vastrun-kit only. Pause-before-destroy. No --force.
+```
 
 ## Restart on a fresh machine
 
