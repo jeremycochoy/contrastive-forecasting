@@ -396,8 +396,16 @@ def main():
         ema_gap = restored.get("ema_gap", None)
         try:
             if restored.get("rng_state_torch") is not None:
-                rng = restored["rng_state_torch"]
-                if not isinstance(rng, torch.ByteTensor):
+                # load_training_state calls torch.load(..., map_location=device)
+                # with device=cuda, which moves the saved CPU ByteTensor onto
+                # the GPU. torch.set_rng_state requires a CPU ByteTensor, so
+                # we must explicitly .cpu() it back before casting / restoring.
+                # Reference: May 3 2026 #10-resume incident — silent failure
+                # ("RNG state must be a torch.ByteTensor") caused the resumed
+                # run's per-batch loss std to jump +52% at step 30k because
+                # torch RNG was effectively re-seeded from clock.
+                rng = restored["rng_state_torch"].cpu()
+                if rng.dtype != torch.uint8:
                     rng = rng.byte()
                 torch.set_rng_state(rng)
             if restored.get("rng_state_numpy") is not None:
