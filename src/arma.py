@@ -53,20 +53,3 @@ def generate_arma_batch(batch_size: int = 16, T_raw: int = 4096, C: int = 4, mea
 
     X = torch.from_numpy(X).to(dtype=torch.float32)
     return X, parameters
-
-
-def generate_arima_batch(batch_size: int = 16, T_raw: int = 4096, C: int = 4,
-                         mean: float = 0.0, std: float = 1.0,
-                         seed: int | None = None, dimension: int = 8
-                         ) -> tuple[torch.Tensor, list[tuple[np.ndarray, np.ndarray]]]:
-    """Generate ARIMA(1, p, q) batch by integrating ARMA(p, q) processes.
-
-    Returns X with shape [batch_size, T_raw, C] where each series is the
-    cumulative sum of an ARMA(p, q) process (i.e. ARIMA with d=1).
-    """
-    X_arma, parameters = generate_arma_batch(
-        batch_size=batch_size, T_raw=T_raw, C=C, mean=mean, std=std,
-        seed=seed, dimension=dimension,
-    )
-    X_arima = torch.cumsum(X_arma, dim=1)
-    return X_arima, parameters

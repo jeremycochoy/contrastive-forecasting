@@ -4,30 +4,11 @@ import torch.nn.functional as F
 def cosine_similarity_from_normalized(a, b):
     return (a * b).sum(dim=-1)
 
-def contrastive_latent_loss(predicted_position, validation, spec,
-                            get_history=False, tau_override=None):
-    """Compute the contrastive divergence loss.
-
-    Args:
-        predicted_position: tuple of (forecasted_latent, original_latent).
-        validation: True during validation (skips training-only paths).
-        spec: SimpleNamespace with `train_configuration` dict.
-        get_history: if True, returns intermediate (kept for compat).
-        tau_override: optional tensor or float overriding the dict's
-            `contrastive_divergence_temperature`. Used by the
-            learnable-τ trainer to pass a 0-d tensor that gets gradient.
-
-    The temperature τ acts as a divisor on cosine similarities. When
-    `tau_override` is a tensor, gradient flows through the loss back to
-    the caller's parameter (CLIP-style learnable temperature, #28).
-    """
+def contrastive_latent_loss(predicted_position, validation, spec, get_history=False):
     forecasted_latent, original_latent = predicted_position
     B, T, C, H = forecasted_latent.shape
     train_config = spec.train_configuration
-    if tau_override is not None:
-        tau = tau_override
-    else:
-        tau = train_config.get('contrastive_divergence_temperature', 1.0)
+    tau = train_config.get('contrastive_divergence_temperature', 1.0)
 
     noise_sigma = train_config.get('contrastive_latent_noise')
     if noise_sigma is not None and not validation:
