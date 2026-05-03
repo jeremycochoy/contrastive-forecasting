@@ -61,8 +61,11 @@ ARM10 = {
     "log_marker": "=== run_full4096_moirai_hp_FINAL: starting ===",
 }
 
-ROLL_30K = 100        # smoothing window for the 30k baselines
-ROLL_FINAL = 500      # heavier smoothing for #10 (135k+ samples in a flatter regime)
+ROLL = 500   # uniform smoothing for ALL arms — by using the same window we
+             # can verify visually that red(#9) and the [0, 30k] portion of
+             # the green-stitched (#9 + #10) curve coincide exactly. If they
+             # don't, the stitch / smoothing has a bug. If they do, any
+             # divergence at >30k is real model behavior.
 
 
 def load_loss(path):
@@ -132,38 +135,40 @@ def stitched(df_left, df_right, col_left="loss", col_right="loss"):
 
 
 def plot_loss_panel(ax, df6, df9, df10):
-    # 1) Green = #9 [0, 30k] + #10 [30k, ...]. Plot first so red can sit on top.
-    g_full = stitched(df9, df10)
-    if len(g_full):
-        smooth = g_full["value"].rolling(ROLL_FINAL, min_periods=1).mean()
-        ax.plot(g_full["step"], g_full["value"], color=ARM10["color"], alpha=0.05, linewidth=0.4)
-        ax.plot(
-            g_full["step"], smooth, color=ARM10["color"], linewidth=1.7,
-            label=f"{ARM10['label']}  (n={len(df10):,} new + #9 prefix; smoothed roll={ROLL_FINAL})",
-        )
-
-    # 2) Blue = #6.
+    # All three curves use the SAME rolling window (ROLL) so visual overlap
+    # in the [0, 30k] region is a true equality check on the stitched data.
+    # Plot order: blue (#6), green (#10 stitched, solid, full opacity),
+    # red (#9, DASHED so green underneath stays visible where they coincide).
     if len(df6):
-        smooth6 = df6["loss"].rolling(ROLL_30K, min_periods=1).mean()
-        ax.plot(df6["step"], df6["loss"], color=ARM6["color"], alpha=0.10, linewidth=0.4)
+        sm6 = df6["loss"].rolling(ROLL, min_periods=1).mean()
+        ax.plot(df6["step"], df6["loss"], color=ARM6["color"], alpha=0.05, linewidth=0.4)
         ax.plot(
-            df6["step"], smooth6, color=ARM6["color"], linewidth=1.7,
+            df6["step"], sm6, color=ARM6["color"], linewidth=1.5,
             label=f"{ARM6['label']}  (n={len(df6):,}, last={df6['loss'].iloc[-1]:.3f})",
         )
 
-    # 3) Red = #9 — drawn LAST so it sits on top of green's [0, 30k] segment.
-    if len(df9):
-        smooth9 = df9["loss"].rolling(ROLL_30K, min_periods=1).mean()
-        ax.plot(df9["step"], df9["loss"], color=ARM9["color"], alpha=0.10, linewidth=0.4)
+    g_full = stitched(df9, df10)
+    if len(g_full):
+        sm10 = g_full["value"].rolling(ROLL, min_periods=1).mean()
+        ax.plot(g_full["step"], g_full["value"], color=ARM10["color"], alpha=0.05, linewidth=0.4)
         ax.plot(
-            df9["step"], smooth9, color=ARM9["color"], linewidth=1.7,
-            label=f"{ARM9['label']}  (n={len(df9):,}, last={df9['loss'].iloc[-1]:.3f})",
+            g_full["step"], sm10, color=ARM10["color"], linewidth=2.2,
+            label=f"{ARM10['label']}  (n={len(df10):,} new + #9 prefix; roll={ROLL})",
+        )
+
+    if len(df9):
+        sm9 = df9["loss"].rolling(ROLL, min_periods=1).mean()
+        ax.plot(df9["step"], df9["loss"], color=ARM9["color"], alpha=0.05, linewidth=0.4)
+        ax.plot(
+            df9["step"], sm9, color=ARM9["color"], linewidth=1.4,
+            linestyle=(0, (4, 3)),  # dashed
+            label=f"{ARM9['label']}  (n={len(df9):,}, last={df9['loss'].iloc[-1]:.3f}, DASHED so #10 stitch is visible underneath)",
         )
 
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_ylabel("contrastive loss (log)")
-    ax.set_title("Backbone contrastive loss — full-4096, log-log (#10 stitched onto #9 prefix)")
+    ax.set_title(f"Backbone contrastive loss — log-log, uniform smoothing roll={ROLL}")
     ax.grid(True, which="both", alpha=0.25)
     ax.legend(loc="best", fontsize=9)
 
@@ -217,7 +222,7 @@ def plot_tau_ref_panel(ax, df6, df9, df10):
     # Main loss: #9 + #10's loss column.
     main = stitched(df9, df10, "loss", "loss")
     if len(main):
-        smooth = main["value"].rolling(ROLL_FINAL, min_periods=1).mean()
+        smooth = main["value"].rolling(ROLL, min_periods=1).mean()
         ax.plot(main["step"], main["value"], color=ARM10["color"], alpha=0.05, linewidth=0.4)
         ax.plot(
             main["step"], smooth, color=ARM10["color"], linewidth=1.7,
@@ -229,7 +234,7 @@ def plot_tau_ref_panel(ax, df6, df9, df10):
     if len(df10) and "loss_tau_ref" in df10.columns:
         ref = stitched(df6, df10, "loss", "loss_tau_ref")
         if len(ref):
-            smooth = ref["value"].rolling(ROLL_FINAL, min_periods=1).mean()
+            smooth = ref["value"].rolling(ROLL, min_periods=1).mean()
             ax.plot(ref["step"], ref["value"], color="tab:purple", alpha=0.05, linewidth=0.4)
             ax.plot(
                 ref["step"], smooth, color="tab:purple", linewidth=1.7,
