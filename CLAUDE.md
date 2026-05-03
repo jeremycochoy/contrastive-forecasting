@@ -1,5 +1,74 @@
 # Claude Code Instructions
 
+## Project intent
+
+Contrastive-forecasting trains small transformer backbones on financial-style
+time series via contrastive prediction (forecast vs future cosine similarity,
+with cross-batch and cross-channel negatives). Goal: backbone that beats
+GIFT-Eval baselines on GM-MASE / GM-MAPE_SN / GM-CRPS_SN. Current focus: full-
+epoch retrain on `jeremycochoy/gift-pretrain-full-4096` (path `small_v1`,
+~42.57M windows) with MOIRAI optimizer hyperparameters.
+
+## Empirical learnings (don't relearn these)
+
+- **MOIRAI HP wins.** lr=1e-3, wd=0.1, β2=0.98, no warmup, no cosine beats
+  default HP (lr=1e-4, wd=0.01, β2=0.999) on 30k steps (#9 vs #6: GM-MASE
+  1.6391 vs 1.8043, GM-MAPE_SN 1.1850 vs 1.3698, GM-CRPS_SN 1.0155 vs 1.1000,
+  PR #104). Use MOIRAI HP for any new run unless otherwise specified.
+- **Resumed runs corrupt loss-std.** Fresh runs at bs=96 do NOT show a per-
+  batch loss-std jump. Resumed runs DO (+52% std at the resume boundary,
+  persists for 130k+ steps). Cause unknown after exhaustive investigation
+  (RNG state, optimizer binding, hidden buffers, PR #106 port — all refuted).
+  One remaining suspect: CUDA RNG state (we save CPU torch RNG and numpy RNG,
+  not CUDA RNG). **Practical: cannot safely resume mid-flight; if interrupted
+  the model trains with worse statistics post-resume even though it loads
+  cleanly.** Restart fresh.
+- **Throughput sweet spot bs=256.** bs=96 prefetch=2 is data-bound (~738
+  samples/s). bs=256 prefetch=16 is ~614 samples/s — slower because the
+  contrastive loss has B² cross-batch term that dominates at large B. bs=384
+  OOM'd in backward at 32GB VRAM, bs=512 OOM'd in cross-batch tensor at 23GB.
+  bs=256 is the practical sweet spot for 32GB VRAM (75% used).
+- **HF dataloader resume fix (PR #112).** Pre-sweeping all 4274 parquet
+  shards' metadata to find the resume start-shard takes 18 min on cold cache.
+  Now reads shard 0's metadata only and assumes uniform sizing — works for
+  the gift-pretrain bundles whose shards are uniformly 10000 rows each at
+  upload. Don't revert.
+- **PrefetchIterator doesn't actually parallelize.** The Python thread is
+  CPU-bound and holds the GIL during HF/parquet decode. To get >2×
+  throughput we'd need multiprocessing workers (PyTorch `DataLoader(
+  num_workers>0)` pattern). Not landed yet.
+- **Never use grad-clip in this project.** The fix for any divergence is to
+  fix the data / normalization, not clip gradients.
+
+## Code style
+
+- Scripts under `scripts/` (top level for plotting), `experiments/<date>_exp_*/`
+  for per-experiment launchers and reports.
+- Plot scripts use a consistent color scheme: blue / green / red / orange
+  across all panels for the four-arm comparison.
+- `B<batch>` convention in plot labels for batch-size-dependent runs.
+- Run-name convention: `tiny_<dataset>_<arm>_<suffix>` for backbones,
+  `R1q_<dataset>_<arm>_<suffix>` for quantile heads.
+
+## How the user works
+
+- Direct, terse. Wants short responses. Doesn't want "would you like me
+  to..." for trivial follow-ups.
+- Skeptical of plots — frequently catches glitches (missing curves, hidden
+  curves under same-color overlays, scale issues). Always self-check rendered
+  plots before delivering.
+- Approves destructive Vast.ai operations explicitly (`vastrun-destroy
+  --force`) only when asked.
+- Prefers PRs reviewed and merged in small focused units.
+- Uses sub-agents liberally for parallelizable work; expects same from Claude.
+
+## Memory rule
+
+> **Do not write project-specific memory to `~/.claude/projects/.../memory/`.**
+> Anything project-relevant goes in this `CLAUDE.md` or in
+> `docs/contrastive-forecasting-handoff.md`. Memory written to the user's
+> laptop is not portable and will be lost when migrating.
+
 ## Remote Server
 - **Elisa**: `jupyter@elisa`, workdir: `~/workspaces/contrastive-forecasting/`
 - Two RTX 4090 GPUs (24GB each). Pick the most free GPU at runtime.
