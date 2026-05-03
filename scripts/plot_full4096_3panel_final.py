@@ -28,7 +28,7 @@ from matplotlib.ticker import LogLocator, FuncFormatter
 ROOT = "/Users/jeremycochoy/Desktop/workspace/trading/contrastive-forecasting"
 OUT_PNG = os.path.join(ROOT, "plots", "full4096_3panel_final.png")
 OUT_PNG_EXP = os.path.join(
-    ROOT, "experiments", "exp_realonly_full4096_moirai_hp", "plots",
+    ROOT, "experiments", "2026-05-02_exp_realonly_full4096_moirai_hp", "plots",
     "full4096_3panel_final.png",
 )
 

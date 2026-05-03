@@ -2,7 +2,7 @@
 
 User-proposed architectural change addressing the periodic-datasets
 failure mode documented in
-[`experiments/periodic-synth-mix/REPORT.md`](../periodic-synth-mix/REPORT.md).
+[`experiments/2026-04-27_periodic-synth-mix/REPORT.md`](../2026-04-27_periodic-synth-mix/REPORT.md).
 
 ## Motivation (recap)
 
@@ -100,7 +100,7 @@ emb_mix = alpha * emb(freq) + (1-alpha) * emb(freq[idx])
   configs where real data has multi-period structure** — primarily
   hourly datasets where daily+weekly coexist (m4_hourly, solar/H,
   electricity/H). This is the multi-period composition trick
-  described in [`FOLLOWUP_DESIGN.md`](../periodic-synth-mix/FOLLOWUP_DESIGN.md).
+  described in [`FOLLOWUP_DESIGN.md`](../2026-04-27_periodic-synth-mix/FOLLOWUP_DESIGN.md).
 
 ## What we don't test yet (future ablations)
 

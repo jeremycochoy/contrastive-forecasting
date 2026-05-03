@@ -11,7 +11,7 @@ self-contained and reviewable.
   the `FrequencyEmbedding` module, mixup augmentation, and the
   ablation arms).
 - `FOLLOWUP.md` — proposed but not-yet-run follow-ups (within-time
-  contrastive negative — note: now in flight as `exp_csb_synth`).
+  contrastive negative — note: now in flight as `2026-04-27_exp_csb_synth`).
 - `scripts/` — the **shared script library** for the sequence. Every
   per-experiment `run.sh` references these by absolute path (e.g.,
   `experiments/freq-embedding/scripts/train.py`):
@@ -32,14 +32,14 @@ self-contained and reviewable.
 
 | Experiment | Location |
 |---|---|
-| EXP1 RevIN reproduction (mix=0.5) | `../exp_revin_repro/` |
-| EXP4 Patch-stats on mix=0.5 + GIFT-Eval | `../exp_patch_stats_mix05/` |
-| Synth-only redo (4 arms × {30k, 60k}) | `../exp_synth_only_redo/` |
-| Real-data span sweep (mix=0.0) | `../exp_span_sweep_real/` |
-| Synth-only span sweep (mix=1.0) | `../exp_span_sweep_synth/` |
-| RevIN on mix=1.0 synth-only | `../exp_revin_synth/` |
-| **In-flight** cosine_similarity_batch | `../exp_csb_synth/` |
-| Aggregate / umbrella REPORT + cross-cutting plots | `../_aggregate/` |
+| EXP1 RevIN reproduction (mix=0.5) | `../2026-04-27_exp_revin_repro/` |
+| EXP4 Patch-stats on mix=0.5 + GIFT-Eval | `../2026-04-27_exp_patch_stats_mix05/` |
+| Synth-only redo (4 arms × {30k, 60k}) | `../2026-04-27_exp_synth_only_redo/` |
+| Real-data span sweep (mix=0.0) | `../2026-04-27_exp_span_sweep_real/` |
+| Synth-only span sweep (mix=1.0) | `../2026-04-27_exp_span_sweep_synth/` |
+| RevIN on mix=1.0 synth-only | `../2026-04-27_exp_revin_synth/` |
+| **In-flight** cosine_similarity_batch | `../2026-04-27_exp_csb_synth/` |
+| Aggregate / umbrella REPORT + cross-cutting plots | `../2026-04-27__aggregate/` |
 
 ## Why scripts live here, not duplicated per-experiment
 

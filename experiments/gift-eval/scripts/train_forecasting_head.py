@@ -141,7 +141,7 @@ def parse_args():
                    help="If >0, train on a mix of HF + on-the-fly periodic "
                         "synth (matches the backbone's MixedPeriodicLoader). "
                         "1.0 = synth-only — used for the synth-only "
-                        "reconstruction-head experiment.")
+                        "2026-04-17_reconstruction-head experiment.")
     p.add_argument("--synth-seed", type=int, default=None,
                    help="Seed for the periodic synth generator when "
                         "--mix-ratio > 0. Defaults to args.seed + 20_000 to "

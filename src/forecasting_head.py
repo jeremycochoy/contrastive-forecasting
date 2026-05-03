@@ -93,7 +93,7 @@ class QuantileForecastingHead(nn.Module):
     Trained with pinball loss averaged over quantiles. Median (q=0.5) gives
     the point forecast comparable to the MSE head; other quantiles let the
     model express uncertainty (which the MSE head couldn't, leading to the
-    amplitude-damping failure noted in the periodic-synth-mix report).
+    amplitude-damping failure noted in the 2026-04-27_periodic-synth-mix report).
     """
 
     def __init__(self, H=512, hidden_dim=128, num_gru_layers=2,

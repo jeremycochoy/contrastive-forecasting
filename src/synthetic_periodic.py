@@ -3,7 +3,7 @@ Clean periodic synthetic data generator.
 
 Designed to teach the contrastive backbone that some series have a fixed
 period that seasonal-naive can trivially exploit. One primitive per series,
-no additive noise. See experiments/periodic-synth-mix/DESIGN.md for context.
+no additive noise. See experiments/2026-04-27_periodic-synth-mix/DESIGN.md for context.
 
 Primitives
 ----------

@@ -7,7 +7,7 @@ and produces:
 - A wide-format ``comparison_with_sn.csv`` joining all arms on the
   ``dataset`` column. Includes ``sn_mase`` and ``sn_wql`` from the
   per-config seasonal-naive baseline computed in
-  ``experiments/periodic-synth-mix/scripts/seasonal_naive_check.py``.
+  ``experiments/2026-04-27_periodic-synth-mix/scripts/seasonal_naive_check.py``.
   (Multivariate datasets — bitbrains_*, bizitobs_*, ett1/ett2 multi-channel —
   drop out because the local SN script chokes on them; see freq-embedding
   REPORT.md "caveats".)

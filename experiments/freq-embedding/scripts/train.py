@@ -2,7 +2,7 @@
 """
 Contrastive training with frequency embedding + optional mixup.
 
-Same as experiments/periodic-synth-mix/scripts/train.py but:
+Same as experiments/2026-04-27_periodic-synth-mix/scripts/train.py but:
  - backbone receives a learned frequency embedding concat'd per-patch
    (see src/freq_embedding.py + src.models.ConfigurableModel.freq_emb_dim)
  - optional mixup augmentation: with probability --mixup-p, each step
@@ -108,7 +108,7 @@ def parse_args():
                    help="Number of encoder layers. Default 6.")
     p.add_argument("--tau", type=float, default=None,
                    help="Contrastive temperature. None = use the LOSS_SPEC "
-                        "default (0.07). Used by exp_realonly_4096_smaller_tau_sweep.")
+                        "default (0.07). Used by 2026-05-02_exp_realonly_4096_smaller_tau_sweep.")
     p.add_argument("--learnable-tau", action="store_true",
                    help="CLIP-style learnable τ (#28). Adds log_inv_tau as "
                         "an nn.Parameter on the model; loss uses τ = "
