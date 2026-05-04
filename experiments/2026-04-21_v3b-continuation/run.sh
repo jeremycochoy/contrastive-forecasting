@@ -64,7 +64,7 @@ test -s "${RESUME_CKPT%.pth}_optimizer.pth"
 # STAGE 1: v3b backbone training (40k -> 500k)
 # ============================================================
 echo "" && echo "=== STAGE 1: v3b backbone ===" && date
-python3 -u experiments/tiny-training/scripts/train.py \
+python3 -u experiments/2026-04-12_tiny-training/scripts/train.py \
     --device cuda \
     --total-steps 200000 \
     --batch-size 24 \
@@ -85,7 +85,7 @@ test -s "$BACKBONE"
 # STAGE 2: R1v3b head (W=16 forecaster reconstruction)
 # ============================================================
 echo "" && echo "=== STAGE 2: R1v3b head ===" && date
-python3 -u experiments/gift-eval/scripts/train_forecasting_head.py \
+python3 -u experiments/2026-04-13_gift-eval/scripts/train_forecasting_head.py \
     --backbone-path "$BACKBONE" \
     --forecast-len 16 \
     --reconstruction forecaster \
@@ -105,7 +105,7 @@ echo ""
 # ============================================================
 echo "" && echo "=== STAGE 3: GIFT-Eval ===" && date
 mkdir -p results/R1v3b
-python3 -u experiments/gift-eval/scripts/eval_gift_eval_official.py \
+python3 -u experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py \
     --backbone-path "$BACKBONE" \
     --head-path checkpoints/R1v3b_best.pth \
     --forecast-len 16 \

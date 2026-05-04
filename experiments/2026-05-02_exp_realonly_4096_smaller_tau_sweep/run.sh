@@ -74,7 +74,7 @@ mkdir -p "$RES_DIR"
 #   bs=48:  8.47 GB peak    bs=128: OOM
 #   bs=64:  11.63 GB peak
 echo "" && echo "=== ARM ${ARM} STAGE B: $BB (smaller, EWMA-128, tau=${TAU}, bs=96) ===" && date
-python3 -u experiments/freq-embedding/scripts/train.py \
+python3 -u experiments/2026-04-27_freq-embedding/scripts/train.py \
     --device cuda --total-steps 30000 --batch-size 96 --lr 1e-4 \
     --save-every 2500 --save-dir checkpoints --run-name "$BB" \
     --hf-repo "$HF_REPO" --hf-path "$HF_PATH" \
@@ -89,7 +89,7 @@ cp -f "checkpoints/${BB}_best_loss.pth" "checkpoints/${BB}_FINAL.pth"
 echo "=== ARM ${ARM} STAGE B DONE ===" && date
 
 echo "" && echo "=== ARM ${ARM} STAGE H: $QH ===" && date
-python3 -u experiments/gift-eval/scripts/train_forecasting_head.py \
+python3 -u experiments/2026-04-13_gift-eval/scripts/train_forecasting_head.py \
     --backbone-path "checkpoints/${BB}_FINAL.pth" --forecast-len 16 --quantile-head \
     --total-steps 30000 --batch-size 96 --lr 3e-4 \
     --save-every 1000 --save-dir checkpoints --run-name "$QH" \
@@ -103,7 +103,7 @@ cp -f "checkpoints/${QH}_best.pth" "checkpoints/${QH}_FINAL.pth"
 echo "=== ARM ${ARM} STAGE H DONE ===" && date
 
 echo "" && echo "=== ARM ${ARM} STAGE E: gift_eval ===" && date
-python3 -u experiments/gift-eval/scripts/eval_gift_eval_official.py \
+python3 -u experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py \
     --backbone-path "checkpoints/${BB}_FINAL.pth" \
     --head-path "checkpoints/${QH}_FINAL.pth" \
     --output-dir "$RES_DIR" --strategy B4 --forecast-len 16 \

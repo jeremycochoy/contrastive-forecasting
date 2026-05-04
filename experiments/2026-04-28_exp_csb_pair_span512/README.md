@@ -37,10 +37,10 @@ is the same).
 **Status**: in flight (training launched Apr 28 2026).
 
 **Code referenced**:
-- `../freq-embedding/scripts/train.py`
-- `../gift-eval/scripts/train_forecasting_head.py`
-- `../freq-embedding/scripts/synth_eval.py`
-- `../freq-embedding/scripts/synth_compare_grid.py` (for the 2-arm comparison plot)
+- `../2026-04-27_freq-embedding/scripts/train.py`
+- `../2026-04-13_gift-eval/scripts/train_forecasting_head.py`
+- `../2026-04-27_freq-embedding/scripts/synth_eval.py`
+- `../2026-04-27_freq-embedding/scripts/synth_compare_grid.py` (for the 2-arm comparison plot)
 
 **Artefacts (when complete)**:
 - `plots/synth_compare_pair.png`: 12-panel × 2-arm forecast grid on the

@@ -808,10 +808,10 @@ block).
 
 The repo also has:
 
-- `experiments/freq-embedding/scripts/train.py` — already correct (line
+- `experiments/2026-04-27_freq-embedding/scripts/train.py` — already correct (line
   226: `open(path, "a", newline="")`; line 228: header only when
   `getsize == 0`). No changes; this is the *reason* layer 1 works.
-- `experiments/gift-eval/scripts/eval_gift_eval_official.py` — provides
+- `experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py` — provides
   `--resume` to skip done configs. Not in audit scope; included for
   reference because layer 2's `summary.txt` / `all_results.csv` guard
   depends on this trainer being well-behaved.

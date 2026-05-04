@@ -57,7 +57,7 @@ time series types during early training.
 ### 1. NaN Crash (step 24,970)
 - **Root cause**: All-NaN row in the HF dataset silently passed through `_forward_fill_nan`
 - **Fix**: Skip rows that remain NaN after ffill + bfill
-- **Documented in**: `../tiny-training/INCIDENT_NAN_AND_RESUME.md`
+- **Documented in**: `../2026-04-12_tiny-training/INCIDENT_NAN_AND_RESUME.md`
 
 ### 2. Training Instability (steps 24k, 35k, 40k)
 - Three crash-recovery episodes per epoch at the same data positions
@@ -65,13 +65,13 @@ time series types during early training.
   RevEWMNorm artifacts, extreme values in the data
 - **Caused by**: Data distribution shift — specific shard regions trigger
   FP (first-part similarity) inflation and representation collapse
-- **Documented in**: `LR_SWEEP_EXPERIMENT.md`, `../tiny-training/REVEWMNORM_CLAMP.md`
+- **Documented in**: `LR_SWEEP_EXPERIMENT.md`, `../2026-04-12_tiny-training/REVEWMNORM_CLAMP.md`
 
 ### 3. RevEWMNorm Analysis
 - Max |x_norm| = 4.06 across 49M values — normalization handles all data correctly
 - The vectorized cumsum EMA adjusts stdev instantaneously at constant→change transitions
 - Proposed clamp (±10) proven unnecessary and removed
-- **Documented in**: `../tiny-training/REVEWMNORM_CLAMP.md`
+- **Documented in**: `../2026-04-12_tiny-training/REVEWMNORM_CLAMP.md`
 
 ### 4. Gradient Analysis
 - Per-batch gradient norms identical across all shards (L2 ~0.5-2.2)

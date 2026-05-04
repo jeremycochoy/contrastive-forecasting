@@ -31,7 +31,7 @@ run_train_backbone() {
     local NAME=$1; shift
     # --save-every 2000 so a crash never costs more than ~6 min of compute
     # (backbone is ~6 sps; 2000 steps = ~5.5 min). Heads use 1000.
-    python3 -u experiments/freq-embedding/scripts/train.py \
+    python3 -u experiments/2026-04-27_freq-embedding/scripts/train.py \
         --device cuda --total-steps 30000 --batch-size 24 --lr 1e-4 \
         --save-every 2000 \
         --save-dir checkpoints --run-name "$NAME" \
@@ -47,7 +47,7 @@ run_qhead() {
     # _best.pth is also updated every 500 steps when ema_loss improves,
     # but late in training those improvements are rare so we want
     # explicit periodic snapshots as well.
-    python3 -u experiments/gift-eval/scripts/train_forecasting_head.py \
+    python3 -u experiments/2026-04-13_gift-eval/scripts/train_forecasting_head.py \
         --backbone-path "$BB" --forecast-len 16 --quantile-head \
         --total-steps 30000 --batch-size 24 --lr 3e-4 \
         --save-every 1000 \
@@ -60,7 +60,7 @@ run_eval() {
     # $1=run_name, $2=backbone, $3=head, $4..=extra args
     local NAME=$1; shift; local BB=$1; shift; local HEAD=$1; shift
     mkdir -p "results/${NAME}"
-    python3 -u experiments/gift-eval/scripts/eval_gift_eval_official.py \
+    python3 -u experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py \
         --backbone-path "$BB" --head-path "$HEAD" \
         --forecast-len 16 --strategy B4 \
         --output-dir "results/${NAME}" --device cuda \
@@ -145,7 +145,7 @@ cp -f checkpoints/tiny_femu_synthonly_30k_best_gap.pth \
 echo "=== EXP2 STAGE 1 DONE ===" && date
 
 echo "" && echo "=== EXP2 STAGE 2: synth-only backbone 60k ===" && date
-python3 -u experiments/freq-embedding/scripts/train.py \
+python3 -u experiments/2026-04-27_freq-embedding/scripts/train.py \
     --device cuda --total-steps 60000 --batch-size 24 --lr 1e-4 \
     --save-dir checkpoints --run-name tiny_femu_synthonly_60k \
     --hf-repo "$HF_REPO" --hf-path "$HF_PATH" \

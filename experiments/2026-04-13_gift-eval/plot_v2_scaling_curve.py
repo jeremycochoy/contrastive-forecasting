@@ -47,5 +47,5 @@ ax.set_xticks(steps)
 ax.set_xticklabels(labels)
 
 plt.tight_layout()
-plt.savefig('experiments/gift-eval/fig_v2_scaling_curve.png', dpi=150)
-print('Saved experiments/gift-eval/fig_v2_scaling_curve.png')
+plt.savefig('experiments/2026-04-13_gift-eval/fig_v2_scaling_curve.png', dpi=150)
+print('Saved experiments/2026-04-13_gift-eval/fig_v2_scaling_curve.png')

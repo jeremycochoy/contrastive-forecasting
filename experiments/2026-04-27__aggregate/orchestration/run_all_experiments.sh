@@ -60,7 +60,7 @@ HF_PATH="base_mixed_v1"
 run_train_backbone() {
     # $1=run_name, $2..$N=extra args (passed to train.py)
     local NAME=$1; shift
-    python3 -u experiments/freq-embedding/scripts/train.py \
+    python3 -u experiments/2026-04-27_freq-embedding/scripts/train.py \
         --device cuda --total-steps 30000 --batch-size 24 --lr 1e-4 \
         --save-dir checkpoints --run-name "$NAME" \
         --hf-repo "$HF_REPO" --hf-path "$HF_PATH" \
@@ -71,7 +71,7 @@ run_qhead() {
     # $1=run_name, $2=backbone path, $3..=extra args
     local NAME=$1; shift
     local BB=$1; shift
-    python3 -u experiments/gift-eval/scripts/train_forecasting_head.py \
+    python3 -u experiments/2026-04-13_gift-eval/scripts/train_forecasting_head.py \
         --backbone-path "$BB" --forecast-len 16 --quantile-head \
         --total-steps 30000 --batch-size 24 --lr 3e-4 \
         --save-dir checkpoints --run-name "$NAME" \
@@ -85,7 +85,7 @@ run_eval_full() {
     local BB=$1; shift
     local HEAD=$1; shift
     mkdir -p "results/${NAME}"
-    python3 -u experiments/gift-eval/scripts/eval_gift_eval_official.py \
+    python3 -u experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py \
         --backbone-path "$BB" --head-path "$HEAD" \
         --forecast-len 16 --strategy B4 \
         --output-dir "results/${NAME}" --device cuda \
@@ -121,7 +121,7 @@ cp -f checkpoints/tiny_femu_synthonly_30k_best_gap.pth \
       checkpoints/tiny_femu_synthonly_30k_FINAL.pth
 
 echo "" && echo "=== EXP2 STAGE 2: synth-only backbone 60k ===" && date
-python3 -u experiments/freq-embedding/scripts/train.py \
+python3 -u experiments/2026-04-27_freq-embedding/scripts/train.py \
     --device cuda --total-steps 60000 --batch-size 24 --lr 1e-4 \
     --save-dir checkpoints --run-name tiny_femu_synthonly_60k \
     --hf-repo "$HF_REPO" --hf-path "$HF_PATH" \

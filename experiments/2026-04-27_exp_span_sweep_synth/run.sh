@@ -31,7 +31,7 @@ HF_PATH="base_mixed_v1"
 
 run_train_backbone() {
     local NAME=$1; shift; local STEPS=$1; shift
-    python3 -u experiments/freq-embedding/scripts/train.py \
+    python3 -u experiments/2026-04-27_freq-embedding/scripts/train.py \
         --device cuda --total-steps "$STEPS" --batch-size 24 --lr 1e-4 \
         --save-every 2000 \
         --save-dir checkpoints --run-name "$NAME" \
@@ -42,7 +42,7 @@ run_train_backbone() {
 run_qhead() {
     local NAME=$1; shift
     local BB=$1; shift
-    python3 -u experiments/gift-eval/scripts/train_forecasting_head.py \
+    python3 -u experiments/2026-04-13_gift-eval/scripts/train_forecasting_head.py \
         --backbone-path "$BB" --forecast-len 16 --quantile-head \
         --total-steps 30000 --batch-size 24 --lr 3e-4 \
         --save-every 1000 \
@@ -53,7 +53,7 @@ run_qhead() {
 
 run_eval_synth() {
     local ARM=$1; shift; local BB=$1; shift; local HEAD=$1; shift
-    python3 -u experiments/freq-embedding/scripts/synth_eval.py \
+    python3 -u experiments/2026-04-27_freq-embedding/scripts/synth_eval.py \
         --backbone "$BB" --head "$HEAD" \
         --arm "$ARM" --n-samples 1024 --batch-size 64 \
         --out-csv results/synth_eval/all_results.csv \

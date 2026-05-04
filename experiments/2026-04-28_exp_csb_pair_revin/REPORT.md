@@ -166,5 +166,5 @@ Plot: `plots/synth_compare_grid_4arm.png`.
 - Local results CSV: `results/synth_eval.csv` (the 2 RevIN rows).
 - Aggregate CSV: 2 new rows appended in
   `../2026-04-27__aggregate/results/synth_eval.csv`.
-- Patched script: `../freq-embedding/scripts/synth_eval.py` now accepts
+- Patched script: `../2026-04-27_freq-embedding/scripts/synth_eval.py` now accepts
   `--rev-norm-kind`.

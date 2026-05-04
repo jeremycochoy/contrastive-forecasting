@@ -120,8 +120,8 @@ Run GIFT-Eval on each variant using the same eval script with a `--rollout-strat
 
 ## Files
 
-- `experiments/head-rollout-comparison/DESIGN.md` — this document
+- `experiments/2026-04-16_head-rollout-comparison/DESIGN.md` — this document
 - `src/forecasting_head.py` — modified with rollout strategies
-- `experiments/head-rollout-comparison/scripts/train_head_variant.py` — training script
-- `experiments/head-rollout-comparison/scripts/eval_variant.py` — evaluation wrapper
-- `experiments/head-rollout-comparison/RESULTS.md` — comparison table (after experiments)
+- `experiments/2026-04-16_head-rollout-comparison/scripts/train_head_variant.py` — training script
+- `experiments/2026-04-16_head-rollout-comparison/scripts/eval_variant.py` — evaluation wrapper
+- `experiments/2026-04-16_head-rollout-comparison/RESULTS.md` — comparison table (after experiments)

@@ -25,8 +25,8 @@ time, and confounded "is the architecture better" with OOD transfer.
 - `src/models.py::prepare_encoder_input`: factored helper called by both
   forward and `extract_*_latents` so the patch-stats path is consistent
   end-to-end.
-- `experiments/freq-embedding/scripts/train.py`: `--patch-stats {none,diff,raw}`.
-- `experiments/gift-eval/scripts/{train_forecasting_head,eval_gift_eval_official}.py`:
+- `experiments/2026-04-27_freq-embedding/scripts/train.py`: `--patch-stats {none,diff,raw}`.
+- `experiments/2026-04-13_gift-eval/scripts/{train_forecasting_head,eval_gift_eval_official}.py`:
   `--patch-stats auto` auto-detects from encoder.skip in_features.
 
 ## Setup

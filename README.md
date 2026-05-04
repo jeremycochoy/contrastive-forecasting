@@ -31,7 +31,7 @@ scripts/                 Training scripts (best architecture, ready to use)
 examples/                Getting-started notebooks
 tests/                   Unit tests
 experiments/             Experiment logs and reports
-  contrastive-arma/        Full architecture search (Mar--Apr 2026)
+  2026-04-12_contrastive-arma/  Full architecture search (Mar--Apr 2026)
     report/                  Technical report, tables, figures
     scripts/                 Experiment run scripts (all phases)
     notebooks/               Experiment-specific notebooks
@@ -48,7 +48,7 @@ The best configuration found through architecture search:
 - **Key metric**: FF-FP gap = 0.203 at 2M steps (93% higher than MLP encoder baseline)
 - **Recovery**: 6.96x improvement over zero-baseline on 4 AR + 4 MA coefficient prediction
 
-See [`experiments/contrastive-arma/report/technical_report.md`](experiments/contrastive-arma/report/technical_report.md) for the full optimization story.
+See [`experiments/2026-04-12_contrastive-arma/report/technical_report.md`](experiments/2026-04-12_contrastive-arma/report/technical_report.md) for the full optimization story.
 
 ## Training Data
 

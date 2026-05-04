@@ -16,14 +16,14 @@ GIFT-Eval baselines on GM-MASE / GM-MAPE_SN / GM-CRPS_SN.
 
 ## Code style
 
-- Scripts under `scripts/` (top level for plotting), `experiments/<date>_exp_*/`
-  for per-experiment launchers and reports.
+- Each experiment lives under `experiments/<YYYY-MM-DD>_<name>/` with its own `results/`, `plots/`, and `sync/` subdirectories. No stray results or plots at the repo root.
+- Scripts under `scripts/` (top level) for shared utilities; experiment-specific launchers go inside the experiment dir as `run.sh`.
 
 ## How the user works
 
-- Agent is expected to be autonomous, and solve troubleshooting by himself. The user is unlikelly
-  to be able to answer question immediately and escalating cost should always be weighted against the 
-  cost of inaction.
+- Agent is expected to be autonomous, and solve troubleshooting independently. The user is unlikely
+  to be able to answer questions immediately and the cost of escalating should always be weighed
+  against the cost of inaction.
 - Direct, terse. Wants short responses. Doesn't want "would you like me
   to..." for trivial follow-ups.
 - Prefers PRs reviewed and merged in small focused units.
@@ -92,3 +92,9 @@ export HUGGING_FACE_HUB_TOKEN="$HF_TOKEN"
 - **Never commit directly to `experiments` or `master`.** Always create a feature branch from `experiments`, do the work there, then PR into `experiments`.
 - Always create PR, review, then merge
 - **Use a git worktree for any multi-file refactor or non-trivial change.** Don't mutate the user's checked-out tree mid-work; create a worktree (e.g. via `EnterWorktree`), do the work there, push the branch, open the PR. The user often has uncommitted state on `experiments` (training scripts, sync logs, in-flight runs) and the worktree keeps that untouched. If the worktree branch is created from a stale HEAD, `git reset --hard refs/heads/experiments` it forward before starting.
+
+### Pre-PR checklist
+
+- [ ] Working in a worktree (see above), not the main `experiments` checkout.
+- [ ] Feature branch from `experiments`; PR targets `experiments` (never `master`).
+- [ ] PR body opens with `«Agent <model> writing»` if agent-authored.

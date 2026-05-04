@@ -6,7 +6,7 @@
 
 After the synth span sweep landed `span=512` as the best arm
 (`2026-04-27_exp_span_sweep_synth`, GM-MASE 0.848), the queued FOLLOWUP-1 from
-`../freq-embedding/FOLLOWUP.md` was: re-introduce the within-series,
+`../2026-04-27_freq-embedding/FOLLOWUP.md` was: re-introduce the within-series,
 within-channel time negative `h[b, t-1, c] vs h[b, t, c]` that was
 removed during ARMA-era tuning. On periodic data, adjacent latents
 walk a non-trivial manifold; pushing them apart should sharpen the

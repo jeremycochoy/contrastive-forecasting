@@ -171,15 +171,15 @@ single H-dim token.
 
 ## Artefacts
 
-- [`../freq-embedding/DESIGN.md`](../freq-embedding/DESIGN.md) — the
+- [`../2026-04-27_freq-embedding/DESIGN.md`](../2026-04-27_freq-embedding/DESIGN.md) — the
   freq-embedding design doc.
-- [`../freq-embedding/scripts/train.py`](../freq-embedding/scripts/train.py) —
+- [`../2026-04-27_freq-embedding/scripts/train.py`](../2026-04-27_freq-embedding/scripts/train.py) —
   backbone trainer with `--freq-emb-dim`, `--mixup-p`, `--rev-norm-kind`.
-- [`../freq-embedding/scripts/plot_multi_model.py`](../freq-embedding/scripts/plot_multi_model.py) —
+- [`../2026-04-27_freq-embedding/scripts/plot_multi_model.py`](../2026-04-27_freq-embedding/scripts/plot_multi_model.py) —
   5-arm comparison plotter (used for #25).
-- [`../freq-embedding/scripts/plot_qhead.py`](../freq-embedding/scripts/plot_qhead.py) —
+- [`../2026-04-27_freq-embedding/scripts/plot_qhead.py`](../2026-04-27_freq-embedding/scripts/plot_qhead.py) —
   focused 4-curve plotter incl. quantile uncertainty band (used for #27).
-- [`../freq-embedding/scripts/plot_synth_qhead.py`](../freq-embedding/scripts/plot_synth_qhead.py) —
+- [`../2026-04-27_freq-embedding/scripts/plot_synth_qhead.py`](../2026-04-27_freq-embedding/scripts/plot_synth_qhead.py) —
   12-panel grid on synthetic samples.
 - [`plots/synth_qhead_grid.png`](plots/synth_qhead_grid.png) — diagnostic
   grid showing the head doesn't match SN on its own training distribution.
@@ -212,11 +212,11 @@ In-flight follow-up:
 - [`../2026-04-27_exp_csb_synth/REPORT.md`](../2026-04-27_exp_csb_synth/REPORT.md) —
   cosine_similarity_batch loss on the span=512 best arm.
 
-Per-arm GIFT-Eval CSVs at the repo root:
+Per-arm GIFT-Eval CSVs:
 
-- [`results/R1_freqemb_mix/`](../../results/R1_freqemb_mix/) — fe (no mixup, 30k)
-- [`results/R1_freqemb_mixup_mix/`](../../results/R1_freqemb_mixup_mix/) — fe+mu (30k)
-- [`results/R1_femu_90k/`](../../results/R1_femu_90k/) — fe+mu, head 90k
-- [`results/R1q_femu/`](../../results/R1q_femu/) — fe+mu+qh
-- [`results/R1q_femu_revin/`](../../results/R1q_femu_revin/) — RevIN+qh
-- [`results/R1v3c_mix_90k/`](../../results/R1v3c_mix_90k/) — mix90
+- [`results/R1_freqemb_mix/`](../2026-04-27_freq-embedding/results/R1_freqemb_mix/) — fe (no mixup, 30k)
+- [`results/R1_freqemb_mixup_mix/`](../2026-04-27_freq-embedding/results/R1_freqemb_mixup_mix/) — fe+mu (30k)
+- [`results/R1_femu_90k/`](../2026-04-27_freq-embedding/results/R1_femu_90k/) — fe+mu, head 90k
+- [`results/R1q_femu/`](../2026-04-28_exp_dualemb_3arm/results/R1q_femu/) — fe+mu+qh
+- [`results/R1q_femu_revin/`](../2026-04-28_exp_dualemb_3arm/results/R1q_femu_revin/) — RevIN+qh
+- [`results/R1v3c_mix_90k/`](../2026-04-27_freq-embedding/results/R1v3c_mix_90k/) — mix90

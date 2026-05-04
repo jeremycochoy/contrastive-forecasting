@@ -94,7 +94,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--backbone", required=True)
     ap.add_argument("--head", required=True)
-    ap.add_argument("--out", default="experiments/freq-embedding/plots/synth_qhead_grid.png")
+    ap.add_argument("--out", default="experiments/2026-04-27_freq-embedding/plots/synth_qhead_grid.png")
     ap.add_argument("--seed", type=int, default=20260426)
     ap.add_argument("--n", type=int, default=12)
     ap.add_argument("--device", default="cpu")

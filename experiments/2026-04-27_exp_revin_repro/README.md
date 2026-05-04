@@ -12,9 +12,9 @@ generated (`plots/synth_qhead_grid_revin.png`).
 
 **Run script**: not preserved as a `run.sh` — the run was launched via
 inline bash. Setup parameters are documented in `REPORT.md` and the
-shared trainer at `../freq-embedding/scripts/train.py` was invoked
+shared trainer at `../2026-04-27_freq-embedding/scripts/train.py` was invoked
 with the flags listed there.
 
-**Code referenced**: `../freq-embedding/scripts/train.py`,
-`../freq-embedding/scripts/plot_synth_qhead.py`. See repo-root
+**Code referenced**: `../2026-04-27_freq-embedding/scripts/train.py`,
+`../2026-04-27_freq-embedding/scripts/plot_synth_qhead.py`. See repo-root
 README on shared scripts.

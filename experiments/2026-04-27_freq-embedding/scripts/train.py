@@ -11,7 +11,7 @@ Same as experiments/2026-04-27_periodic-synth-mix/scripts/train.py but:
 Usage
 -----
     # freqemb only, no mixup
-    python experiments/freq-embedding/scripts/train.py \
+    python experiments/2026-04-27_freq-embedding/scripts/train.py \
         --device cuda --run-name freqemb_mix --total-steps 30000 \
         --batch-size 24 --lr 1e-4 --save-dir checkpoints \
         --hf-repo jeremycochoy/contrastive-training-base-bundles \
@@ -19,7 +19,7 @@ Usage
         --freq-emb-dim 3 --mixup-p 0.0
 
     # freqemb + mixup
-    python experiments/freq-embedding/scripts/train.py \
+    python experiments/2026-04-27_freq-embedding/scripts/train.py \
         --run-name freqemb_mixup_mix --freq-emb-dim 3 --mixup-p 0.3 \
         ... other args same as above ...
 """

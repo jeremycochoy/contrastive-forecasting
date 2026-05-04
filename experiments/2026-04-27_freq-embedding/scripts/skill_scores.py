@@ -19,11 +19,11 @@ Skill score convention (higher is better, SN = 0):
     skill = 1 - GM-Rel   where GM-Rel = exp(mean(log(arm_metric / sn_metric)))
 
 Usage:
-    python experiments/freq-embedding/scripts/skill_scores.py \\
+    python experiments/2026-04-27_freq-embedding/scripts/skill_scores.py \\
         --results-dir results/ \\
         --arms 'fe+mu_qh:R1q_femu fe+mu_revin_qh:R1q_femu_revin ...' \\
-        --sn-csv experiments/freq-embedding/results/comparison_with_sn.csv \\
-        --out-dir experiments/freq-embedding/results/
+        --sn-csv experiments/2026-04-27_freq-embedding/results/comparison_with_sn.csv \\
+        --out-dir experiments/2026-04-27_freq-embedding/results/
 
 The --arms flag is a space-separated list of ``label:dirname`` pairs;
 ``label`` is what shows in the skill-scores table, ``dirname`` is the

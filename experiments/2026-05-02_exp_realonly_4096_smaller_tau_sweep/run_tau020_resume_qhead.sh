@@ -96,7 +96,7 @@ if [ ! -f "$RESUME_HEAD" ]; then
 fi
 
 echo "" && echo "=== STAGE H (RESUME): $QH ===" && date
-python3 -u experiments/gift-eval/scripts/train_forecasting_head.py \
+python3 -u experiments/2026-04-13_gift-eval/scripts/train_forecasting_head.py \
     --backbone-path "checkpoints/${BB}_FINAL.pth" --forecast-len 16 --quantile-head \
     --total-steps 30000 --batch-size 96 --lr 3e-4 \
     --save-every 1000 --save-dir checkpoints --run-name "$QH" \
@@ -111,7 +111,7 @@ cp -f "checkpoints/${QH}_best.pth" "checkpoints/${QH}_FINAL.pth"
 echo "=== STAGE H DONE ===" && date
 
 echo "" && echo "=== STAGE E (RESUME if partial CSV exists): gift_eval tau${ARM} ===" && date
-python3 -u experiments/gift-eval/scripts/eval_gift_eval_official.py \
+python3 -u experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py \
     --backbone-path "checkpoints/${BB}_FINAL.pth" \
     --head-path "checkpoints/${QH}_FINAL.pth" \
     --output-dir "$RES_DIR" --strategy B4 --forecast-len 16 \

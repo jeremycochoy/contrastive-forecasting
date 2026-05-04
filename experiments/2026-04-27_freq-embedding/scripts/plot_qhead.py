@@ -211,7 +211,7 @@ def main():
     ap.add_argument("--qhead-backbone", required=True,
                     help="(typically the same fe+mu backbone)")
     ap.add_argument("--qhead-head", required=True)
-    ap.add_argument("--output-dir", default="experiments/freq-embedding/plots/predictions_qhead")
+    ap.add_argument("--output-dir", default="experiments/2026-04-27_freq-embedding/plots/predictions_qhead")
     ap.add_argument("--configs", nargs="+", required=True)
     ap.add_argument("--n-samples", type=int, default=10)
     ap.add_argument("--device", default="cpu")
