@@ -68,7 +68,7 @@ EWMA box stays busy with #22 span=256 (in flight, ~2h to ALL DONE).
 
 ## Code change
 
-`experiments/freq-embedding/scripts/train.py` got a new `--tau` CLI flag
+`experiments/2026-04-27_freq-embedding/scripts/train.py` got a new `--tau` CLI flag
 (line ~115) that overrides
 `LOSS_SPEC.train_configuration["contrastive_divergence_temperature"]`
 when set. Defaults to None (preserves the LOSS_SPEC built-in 0.07).

@@ -11,9 +11,9 @@ Each panel shows:
   - one colored line per arm (qhead median; bands omitted for clarity)
 
 Usage:
-    python experiments/freq-embedding/scripts/synth_compare_grid.py \\
+    python experiments/2026-04-27_freq-embedding/scripts/synth_compare_grid.py \\
         --arms 'label_a:bb_a.pth,head_a.pth label_b:bb_b.pth,head_b.pth ...' \\
-        --out experiments/freq-embedding/plots/synth_compare_grid.png \\
+        --out experiments/2026-04-27_freq-embedding/plots/synth_compare_grid.png \\
         --rows 3 --cols 4 --device cpu
 """
 from __future__ import annotations

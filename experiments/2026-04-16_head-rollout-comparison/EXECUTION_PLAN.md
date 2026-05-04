@@ -65,9 +65,9 @@ Budget: $8 (with margin). **Vast.ai credit: $11.57 — sufficient.**
 ## Code Changes Required
 
 1. **Fix B-variant sequence context** (`src/forecasting_head.py`): feed `[context_f, rolled_f]` as one sequence to head
-2. **Mixed training script** (`experiments/head-rollout-comparison/scripts/train_head_variant.py`): `--mixed-rollout` flag
-3. **Eval script** (`experiments/gift-eval/scripts/eval_gift_eval_official.py`): add `--strategy`, `--forecast-len`
-4. **Training script** (`experiments/gift-eval/scripts/train_forecasting_head.py`): add `--forecast-len`
+2. **Mixed training script** (`experiments/2026-04-16_head-rollout-comparison/scripts/train_head_variant.py`): `--mixed-rollout` flag
+3. **Eval script** (`experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py`): add `--strategy`, `--forecast-len`
+4. **Training script** (`experiments/2026-04-13_gift-eval/scripts/train_forecasting_head.py`): add `--forecast-len`
 
 ## Periodic Sync
 

@@ -171,15 +171,15 @@ single H-dim token.
 
 ## Artefacts
 
-- [`../freq-embedding/DESIGN.md`](../freq-embedding/DESIGN.md) — the
+- [`../2026-04-27_freq-embedding/DESIGN.md`](../2026-04-27_freq-embedding/DESIGN.md) — the
   freq-embedding design doc.
-- [`../freq-embedding/scripts/train.py`](../freq-embedding/scripts/train.py) —
+- [`../2026-04-27_freq-embedding/scripts/train.py`](../2026-04-27_freq-embedding/scripts/train.py) —
   backbone trainer with `--freq-emb-dim`, `--mixup-p`, `--rev-norm-kind`.
-- [`../freq-embedding/scripts/plot_multi_model.py`](../freq-embedding/scripts/plot_multi_model.py) —
+- [`../2026-04-27_freq-embedding/scripts/plot_multi_model.py`](../2026-04-27_freq-embedding/scripts/plot_multi_model.py) —
   5-arm comparison plotter (used for #25).
-- [`../freq-embedding/scripts/plot_qhead.py`](../freq-embedding/scripts/plot_qhead.py) —
+- [`../2026-04-27_freq-embedding/scripts/plot_qhead.py`](../2026-04-27_freq-embedding/scripts/plot_qhead.py) —
   focused 4-curve plotter incl. quantile uncertainty band (used for #27).
-- [`../freq-embedding/scripts/plot_synth_qhead.py`](../freq-embedding/scripts/plot_synth_qhead.py) —
+- [`../2026-04-27_freq-embedding/scripts/plot_synth_qhead.py`](../2026-04-27_freq-embedding/scripts/plot_synth_qhead.py) —
   12-panel grid on synthetic samples.
 - [`plots/synth_qhead_grid.png`](plots/synth_qhead_grid.png) — diagnostic
   grid showing the head doesn't match SN on its own training distribution.

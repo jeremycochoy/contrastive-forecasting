@@ -178,7 +178,7 @@ echo "" && echo "=== STAGE B: $BB (resume from #9 30k → 1 full epoch, MOIRAI H
 # the column `loss_tau_ref` of the losses CSV (computed under torch.no_grad,
 # so no gradient impact and <5% step-time overhead). Useful as a cross-run
 # baseline since the training τ is learnable here. No CLI flag — always on.
-python3 -u experiments/freq-embedding/scripts/train.py \
+python3 -u experiments/2026-04-27_freq-embedding/scripts/train.py \
     --resume "$RESUME_BB" \
     --device cuda --total-steps 498000 --batch-size 96 \
     --lr 1e-3 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \
@@ -195,7 +195,7 @@ cp -f "checkpoints/${BB}_best_loss.pth" "checkpoints/${BB}_FINAL.pth"
 echo "=== STAGE B DONE ===" && date
 
 echo "" && echo "=== STAGE H: $QH (FRESH qhead on FINAL backbone, default optim) ===" && date
-python3 -u experiments/gift-eval/scripts/train_forecasting_head.py \
+python3 -u experiments/2026-04-13_gift-eval/scripts/train_forecasting_head.py \
     --backbone-path "checkpoints/${BB}_FINAL.pth" --forecast-len 16 --quantile-head \
     --total-steps 30000 --batch-size 96 --lr 3e-4 \
     --save-every 1000 --save-dir checkpoints --run-name "$QH" \
@@ -209,7 +209,7 @@ cp -f "checkpoints/${QH}_best.pth" "checkpoints/${QH}_FINAL.pth"
 echo "=== STAGE H DONE ===" && date
 
 echo "" && echo "=== STAGE E: gift_eval ===" && date
-python3 -u experiments/gift-eval/scripts/eval_gift_eval_official.py \
+python3 -u experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py \
     --backbone-path "checkpoints/${BB}_FINAL.pth" \
     --head-path "checkpoints/${QH}_FINAL.pth" \
     --output-dir "$RES_DIR" --strategy B4 --forecast-len 16 \

@@ -16,8 +16,8 @@ GIFT-Eval baselines on GM-MASE / GM-MAPE_SN / GM-CRPS_SN.
 
 ## Code style
 
-- Scripts under `scripts/` (top level for plotting), `experiments/<date>_exp_*/`
-  for per-experiment launchers and reports.
+- Each experiment lives under `experiments/<YYYY-MM-DD>_<name>/` with its own `results/`, `plots/`, and `sync/` subdirectories. No stray results or plots at the repo root.
+- Scripts under `scripts/` (top level) for shared utilities; experiment-specific launchers go inside the experiment dir as `run.sh`.
 
 ## How the user works
 

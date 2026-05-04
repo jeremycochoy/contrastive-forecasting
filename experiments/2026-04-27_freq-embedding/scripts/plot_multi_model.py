@@ -224,7 +224,7 @@ def main():
     ap.add_argument("--femu-head", required=True)
     ap.add_argument("--femu90h-head", default=None,
                     help="Optional 90k-step head on the fe+mu backbone, plotted as a 5th model.")
-    ap.add_argument("--output-dir", default="experiments/freq-embedding/plots/predictions")
+    ap.add_argument("--output-dir", default="experiments/2026-04-27_freq-embedding/plots/predictions")
     ap.add_argument("--configs", nargs="+", required=True)
     ap.add_argument("--n-samples", type=int, default=10)
     ap.add_argument("--device", default="cpu")

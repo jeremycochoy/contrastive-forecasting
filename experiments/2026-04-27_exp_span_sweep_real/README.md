@@ -16,7 +16,7 @@ span=512 on in-distribution data.
 **Run script**: `run.sh` (formerly `run_span_sweep_real.sh` at repo
 root).
 
-**Code referenced**: `../freq-embedding/scripts/train.py`.
+**Code referenced**: `../2026-04-27_freq-embedding/scripts/train.py`.
 
 **Bug caught and fixed during this run**:
 `create_mixed_periodic_dataloader(mix_ratio=0.0)` short-circuited to

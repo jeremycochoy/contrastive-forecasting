@@ -29,7 +29,7 @@ HF_PATH="base_mixed_v1"
 
 run_train_backbone() {
     local NAME=$1; shift; local STEPS=$1; shift
-    python3 -u experiments/freq-embedding/scripts/train.py \
+    python3 -u experiments/2026-04-27_freq-embedding/scripts/train.py \
         --device cuda --total-steps "$STEPS" --batch-size 24 --lr 1e-4 \
         --save-every 2000 \
         --save-dir checkpoints --run-name "$NAME" \

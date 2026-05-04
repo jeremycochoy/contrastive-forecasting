@@ -20,8 +20,8 @@ parameters in `REPORT.md`.
 - `src/norm.py::compute_patch_stats(...)`
 - `src/models.py::ConfigurableModel(patch_stats_kind=...)` and
   `prepare_encoder_input`
-- `../freq-embedding/scripts/train.py` with `--patch-stats {none,diff,raw}`
-- `../gift-eval/scripts/{train_forecasting_head,eval_gift_eval_official}.py`
+- `../2026-04-27_freq-embedding/scripts/train.py` with `--patch-stats {none,diff,raw}`
+- `../2026-04-13_gift-eval/scripts/{train_forecasting_head,eval_gift_eval_official}.py`
   with `--patch-stats auto`
 
 **Bug caught and fixed during this run**: `train.py::forward_step`

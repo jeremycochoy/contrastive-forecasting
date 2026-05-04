@@ -5,7 +5,7 @@ All documentation, scripts, notebooks, and results from the contrastive learning
 ## Directory Structure
 
 ```
-experiments/contrastive-arma/
+experiments/2026-04-12_contrastive-arma/
   report/              ← you are here
   scripts/             ← run scripts for all experiment phases
   notebooks/           ← Jupyter notebooks

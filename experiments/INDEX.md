@@ -9,7 +9,8 @@ conventions live in [`LEARNED.md`](LEARNED.md).
 
 | Experiment | Status | Key Result |
 |---|---|---|
-| [Contrastive ARMA](contrastive-arma/report/README.md) | Complete | GRU encoder +58% gap over MLP; 12L H=1024 backbone peak gap 0.203 at 2M steps; best recovery 6.96x (GRU h128 l2). ~433 GPU-hours total. |
+| [Contrastive ARMA](2026-04-12_contrastive-arma/report/README.md) | Complete | GRU encoder +58% gap over MLP; 12L H=1024 backbone peak gap 0.203 at 2M steps; best recovery 6.96x (GRU h128 l2). ~433 GPU-hours total. |
+| [v3b Continuation](2026-04-21_v3b-continuation/README.md) | Complete | Continuation training of the v3b backbone from contrastive-arma; multiple Vast.ai instance runs extending the v3b model. |
 | [Encoder Comparison](2026-04-19_encoder-comparison/REPORT.md) | Complete | GRU encoder +12% gap over patch (residual SiLU) on real-world data at 200k steps. Advantage narrows vs synthetic but persists. |
 | [Window Size Comparison](2026-04-12_window-size-comparison/report.md) | Complete | W=16 beats W=32: +13% gap, 37% less VRAM. Optimal batch size bs=24 on Tiny. |
 | [RevEWMNorm Span Search](2026-04-12_revnorm-span-search/report.md) | Complete | span=32 optimal (gap 0.235 vs 0.020 baseline). RevEWMNorm essential for non-stationary data. |
@@ -19,20 +20,20 @@ conventions live in [`LEARNED.md`](LEARNED.md).
 
 | Experiment | Status | Key Result |
 |---|---|---|
-| [Tiny Training](tiny-training/README.md) | Complete | Backbone v2 training on HF data. NaN crash root-caused to all-NaN rows; checkpoint state completeness overhauled (PRs #13-#16). |
+| [Tiny Training](2026-04-12_tiny-training/README.md) | Complete | Backbone v2 training on HF data. NaN crash root-caused to all-NaN rows; checkpoint state completeness overhauled (PRs #13-#16). |
 
 ## Evaluation and Forecasting
 
 | Experiment | Status | Key Result |
 |---|---|---|
-| [GIFT-Eval](gift-eval/README.md) | Complete | GM-Relative MASE ~1.26 (below seasonal naive). Flat scaling curve traced to unshuffled dataset. Per-domain analysis identifies energy (32 configs) as highest-leverage gap. |
-| [Head / Rollout Comparison](head-rollout-comparison/README.md) | Complete | Value-space rollout (A1=1.275) initially beat latent rollout (B1=1.258). Led to reconstruction head experiment. |
+| [GIFT-Eval](2026-04-13_gift-eval/README.md) | Complete | GM-Relative MASE ~1.26 (below seasonal naive). Flat scaling curve traced to unshuffled dataset. Per-domain analysis identifies energy (32 configs) as highest-leverage gap. |
+| [Head / Rollout Comparison](2026-04-16_head-rollout-comparison/README.md) | Complete | Value-space rollout (A1=1.275) initially beat latent rollout (B1=1.258). Led to reconstruction head experiment. |
 | [Reconstruction Head](2026-04-17_reconstruction-head/README.md) | Complete | Reconstruction heads fix latent rollout. R1 (forecaster recon W=16) achieves MASE 1.121, a 12% improvement over value-space baseline. Key insight: head should reconstruct, not predict. |
 
 ## Freq-Embedding Sequence (Apr 2026)
 
 Aggregate report and cross-cutting artefacts: [`2026-04-27__aggregate/REPORT.md`](2026-04-27__aggregate/REPORT.md).
-Shared scripts and design: [`freq-embedding/README.md`](freq-embedding/README.md).
+Shared scripts and design: [`2026-04-27_freq-embedding/README.md`](2026-04-27_freq-embedding/README.md).
 
 | Experiment | Status | Key Result |
 |---|---|---|
@@ -65,9 +66,9 @@ Apr 17-18   Reconstruction head experiment (R1-R4), failure mode analysis
 
 | Component | Choice | Source |
 |---|---|---|
-| Encoder | Bidirectional GRU, 2L h=128 | [contrastive-arma](contrastive-arma/report/README.md) |
-| Transformer | 6 layers, 8 heads, FFN 4x, Pre-LayerNorm | [contrastive-arma](contrastive-arma/report/README.md) |
-| Hidden dim | H=512 | [contrastive-arma](contrastive-arma/report/README.md) |
+| Encoder | Bidirectional GRU, 2L h=128 | [contrastive-arma](2026-04-12_contrastive-arma/report/README.md) |
+| Transformer | 6 layers, 8 heads, FFN 4x, Pre-LayerNorm | [contrastive-arma](2026-04-12_contrastive-arma/report/README.md) |
+| Hidden dim | H=512 | [contrastive-arma](2026-04-12_contrastive-arma/report/README.md) |
 | Patch size | W=16 | [2026-04-12_window-size-comparison](2026-04-12_window-size-comparison/report.md) |
 | Input norm | RevEWMNorm span=32 | [2026-04-12_revnorm-span-search](2026-04-12_revnorm-span-search/report.md) |
 | Layer norm | LayerNorm (not RMSNorm) | [2026-04-12_rmsnorm-comparison](2026-04-12_rmsnorm-comparison/report.md) |

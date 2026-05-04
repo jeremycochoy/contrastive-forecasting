@@ -20,9 +20,9 @@ Re-run on a fresh remote 4090 by syncing the repo and invoking
 populated.
 
 **Code referenced**:
-- `../freq-embedding/scripts/train.py`
-- `../gift-eval/scripts/train_forecasting_head.py`
-- `../freq-embedding/scripts/synth_eval.py`
+- `../2026-04-27_freq-embedding/scripts/train.py`
+- `../2026-04-13_gift-eval/scripts/train_forecasting_head.py`
+- `../2026-04-27_freq-embedding/scripts/synth_eval.py`
 
 **Bugs caught and fixed during this run** (also in REPORT):
 - `_FINAL.pth = best_gap.pth` made 30k and 60k synth backbones

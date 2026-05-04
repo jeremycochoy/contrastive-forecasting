@@ -40,7 +40,7 @@ run_backbone() {
     if [ "$NORM_KIND" = "ewma" ]; then
         SPAN_FLAG="--rev-norm-span $NORM_SPAN"
     fi
-    python3 -u experiments/freq-embedding/scripts/train.py \
+    python3 -u experiments/2026-04-27_freq-embedding/scripts/train.py \
         --device cuda --total-steps 30000 --batch-size 24 --lr 1e-4 \
         --save-every 2000 --save-dir checkpoints --run-name "$NAME" \
         --hf-repo "$HF_REPO" --hf-path "$HF_PATH" \
@@ -60,7 +60,7 @@ run_qhead() {
     if [ "$NORM_KIND" = "ewma" ]; then
         SPAN_FLAG="--rev-norm-span $NORM_SPAN"
     fi
-    python3 -u experiments/gift-eval/scripts/train_forecasting_head.py \
+    python3 -u experiments/2026-04-13_gift-eval/scripts/train_forecasting_head.py \
         --backbone-path "$BB" --forecast-len 16 --quantile-head \
         --total-steps 30000 --batch-size 24 --lr 3e-4 \
         --save-every 1000 --save-dir checkpoints --run-name "$QNAME" \
@@ -80,7 +80,7 @@ run_gift_eval() {
     if [ "$NORM_KIND" = "ewma" ]; then
         SPAN_FLAG="--rev-norm-span $NORM_SPAN"
     fi
-    python3 -u experiments/gift-eval/scripts/eval_gift_eval_official.py \
+    python3 -u experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py \
         --backbone-path "$BB" --head-path "$QH" \
         --output-dir "$OUT_DIR" --strategy B4 --forecast-len 16 \
         --rev-norm-kind "$NORM_KIND" $SPAN_FLAG --device cuda

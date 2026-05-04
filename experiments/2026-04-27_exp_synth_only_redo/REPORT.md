@@ -29,7 +29,7 @@ training" from "architecture limit".
 
 Then a quantile head per backbone (also synth-only, 30k steps).
 
-Eval: held-out synth via `experiments/freq-embedding/scripts/synth_eval.py`,
+Eval: held-out synth via `experiments/2026-04-27_freq-embedding/scripts/synth_eval.py`,
 1024 samples, seed=99999999 (never used during training). Single-channel
 (C=1) samples per the existing `plot_synth_qhead.py` convention.
 

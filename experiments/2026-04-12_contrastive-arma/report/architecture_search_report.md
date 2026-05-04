@@ -422,13 +422,13 @@ The V2 backbone surpasses the old record by 14% on the comparable 2x2 task.
 | `checkpoint.py` | Optimizer state save/load utilities |
 | `blocks.py` | Transformer blocks with causal attention + depthwise conv |
 | `tests/test_checkpoint.py` | 15 unit tests for checkpoint utilities |
-| `experiments/contrastive-arma/scripts/run_phase*.sh` | Reproducible run scripts for backbone architecture search |
-| `experiments/contrastive-arma/scripts/run_recovery_search.sh` | Recovery head architecture search (Phases 1--4) |
-| `experiments/contrastive-arma/scripts/run_recovery_phase5.sh` | Full training of best recovery head configurations |
-| `experiments/contrastive-arma/scripts/run_scaling_search.sh` | Scaling search: deeper/wider backbone comparison |
-| `experiments/contrastive-arma/notebooks/visualize_recovery_gru_h128_l3.ipynb` | Visualization notebook for 4x4 recovery results |
-| `experiments/contrastive-arma/notebooks/gap_trajectories.ipynb` | Gap trajectory plots for scaling comparison |
-| `experiments/contrastive-arma/report/` | This report and all experiment documentation |
+| `experiments/2026-04-12_contrastive-arma/scripts/run_phase*.sh` | Reproducible run scripts for backbone architecture search |
+| `experiments/2026-04-12_contrastive-arma/scripts/run_recovery_search.sh` | Recovery head architecture search (Phases 1--4) |
+| `experiments/2026-04-12_contrastive-arma/scripts/run_recovery_phase5.sh` | Full training of best recovery head configurations |
+| `experiments/2026-04-12_contrastive-arma/scripts/run_scaling_search.sh` | Scaling search: deeper/wider backbone comparison |
+| `experiments/2026-04-12_contrastive-arma/notebooks/visualize_recovery_gru_h128_l3.ipynb` | Visualization notebook for 4x4 recovery results |
+| `experiments/2026-04-12_contrastive-arma/notebooks/gap_trajectories.ipynb` | Gap trajectory plots for scaling comparison |
+| `experiments/2026-04-12_contrastive-arma/report/` | This report and all experiment documentation |
 
 ### Trained Checkpoints (on server `elisa`)
 

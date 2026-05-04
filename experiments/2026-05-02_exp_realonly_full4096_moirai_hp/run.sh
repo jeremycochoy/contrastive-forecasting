@@ -76,7 +76,7 @@ RES_DIR="experiments/2026-05-02_exp_realonly_full4096_moirai_hp/results/gift_eva
 mkdir -p "$RES_DIR"
 
 echo "" && echo "=== STAGE B: $BB (smaller, EWMA-128, learnable τ, bs=96, MOIRAI HP: lr=1e-3 wd=0.1 β2=0.98) ===" && date
-python3 -u experiments/freq-embedding/scripts/train.py \
+python3 -u experiments/2026-04-27_freq-embedding/scripts/train.py \
     --device cuda --total-steps 30000 --batch-size 96 \
     --lr 1e-3 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \
     --save-every 2500 --save-dir checkpoints --run-name "$BB" \
@@ -92,7 +92,7 @@ cp -f "checkpoints/${BB}_best_loss.pth" "checkpoints/${BB}_FINAL.pth"
 echo "=== STAGE B DONE ===" && date
 
 echo "" && echo "=== STAGE H: $QH (qhead trained with default optim — MOIRAI HP only on backbone) ===" && date
-python3 -u experiments/gift-eval/scripts/train_forecasting_head.py \
+python3 -u experiments/2026-04-13_gift-eval/scripts/train_forecasting_head.py \
     --backbone-path "checkpoints/${BB}_FINAL.pth" --forecast-len 16 --quantile-head \
     --total-steps 30000 --batch-size 96 --lr 3e-4 \
     --save-every 1000 --save-dir checkpoints --run-name "$QH" \
@@ -106,7 +106,7 @@ cp -f "checkpoints/${QH}_best.pth" "checkpoints/${QH}_FINAL.pth"
 echo "=== STAGE H DONE ===" && date
 
 echo "" && echo "=== STAGE E: gift_eval ===" && date
-python3 -u experiments/gift-eval/scripts/eval_gift_eval_official.py \
+python3 -u experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py \
     --backbone-path "checkpoints/${BB}_FINAL.pth" \
     --head-path "checkpoints/${QH}_FINAL.pth" \
     --output-dir "$RES_DIR" --strategy B4 --forecast-len 16 \

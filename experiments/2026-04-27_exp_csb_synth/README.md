@@ -17,9 +17,9 @@ earlier variant with the deprecated `cosine_similarity_batch_with_within_time_ne
 loss-shape — superseded by v2.
 
 **Code referenced**:
-- `../freq-embedding/scripts/train.py`
-- `../gift-eval/scripts/train_forecasting_head.py`
-- `../freq-embedding/scripts/synth_eval.py`
+- `../2026-04-27_freq-embedding/scripts/train.py`
+- `../2026-04-13_gift-eval/scripts/train_forecasting_head.py`
+- `../2026-04-27_freq-embedding/scripts/synth_eval.py`
 
 **Artefacts**:
 - `plots/synth_qhead_grid_csb.png` — 12-panel synth grid for this arm.

@@ -16,7 +16,7 @@ intervening session.
 
 | Knob | Value |
 |---|---|
-| Script | `experiments/freq-embedding/scripts/train.py` |
+| Script | `experiments/2026-04-27_freq-embedding/scripts/train.py` |
 | Steps | 30k backbone, 30k qhead |
 | Batch size | 24 |
 | LR | 1e-4 (backbone), 3e-4 (qhead) |

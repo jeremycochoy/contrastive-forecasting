@@ -27,7 +27,7 @@ QNAME="R1q_femu_span512_synth30k_wtn"
 
 # 1. Backbone
 echo "" && echo "=== WTN STAGE B: fe+mu @ 30k span=512 synth + within-time-neg ===" && date
-python3 -u experiments/freq-embedding/scripts/train.py \
+python3 -u experiments/2026-04-27_freq-embedding/scripts/train.py \
     --device cuda --total-steps 30000 --batch-size 24 --lr 1e-4 \
     --save-every 2000 --save-dir checkpoints --run-name "$NAME" \
     --hf-repo "$HF_REPO" --hf-path "$HF_PATH" \
@@ -39,7 +39,7 @@ echo "=== WTN STAGE B DONE ===" && date
 
 # 2. Qhead
 echo "" && echo "=== WTN STAGE H: qhead 30k synth ===" && date
-python3 -u experiments/gift-eval/scripts/train_forecasting_head.py \
+python3 -u experiments/2026-04-13_gift-eval/scripts/train_forecasting_head.py \
     --backbone-path "checkpoints/${NAME}_FINAL.pth" --forecast-len 16 --quantile-head \
     --total-steps 30000 --batch-size 24 --lr 3e-4 \
     --save-every 1000 --save-dir checkpoints --run-name "$QNAME" \
@@ -52,7 +52,7 @@ echo "=== WTN STAGE H DONE ===" && date
 #    the span=512 baseline.
 mkdir -p results/synth_eval
 echo "" && echo "=== WTN STAGE E: synth eval ===" && date
-python3 -u experiments/freq-embedding/scripts/synth_eval.py \
+python3 -u experiments/2026-04-27_freq-embedding/scripts/synth_eval.py \
     --backbone "checkpoints/${NAME}_FINAL.pth" --head "checkpoints/${QNAME}_FINAL.pth" \
     --arm "fe+mu @ 30k span=512 +within_time_neg" \
     --n-samples 1024 --batch-size 64 \

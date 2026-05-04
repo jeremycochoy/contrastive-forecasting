@@ -169,7 +169,7 @@ The right next moves (in priority order):
 
 For the final cross-experiment plot covering both arms over the full
 30k (backbone loss + τ + head loss, log-step axes), see
-[`plots/full4096_3panel_final.png`](../../plots/full4096_3panel_final.png)
+[`plots/full4096_3panel_final.png`](../2026-05-02_exp_realonly_full4096_moirai_hp/plots/full4096_3panel_final.png)
 (PR #102). The earlier 2-panel
 `plots/full4096_default_vs_moirai_hp.png` (PR #98) was superseded by
 this 3-panel version.
@@ -220,5 +220,5 @@ All paths under
 - **MOIRAI-HP companion (#9), FINAL**:
   [`experiments/2026-05-02_exp_realonly_full4096_moirai_hp/REPORT.md`](../2026-05-02_exp_realonly_full4096_moirai_hp/REPORT.md).
 - **Final 3-panel comparison plot (#6 vs #9, full 30k)**:
-  [`plots/full4096_3panel_final.png`](../../plots/full4096_3panel_final.png)
+  [`plots/full4096_3panel_final.png`](../2026-05-02_exp_realonly_full4096_moirai_hp/plots/full4096_3panel_final.png)
   (PR #102).

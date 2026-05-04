@@ -14,7 +14,7 @@ self-contained and reviewable.
   contrastive negative — note: now in flight as `2026-04-27_exp_csb_synth`).
 - `scripts/` — the **shared script library** for the sequence. Every
   per-experiment `run.sh` references these by absolute path (e.g.,
-  `experiments/freq-embedding/scripts/train.py`):
+  `experiments/2026-04-27_freq-embedding/scripts/train.py`):
     - `train.py` — backbone trainer (`--freq-emb-dim`, `--mixup-p`,
       `--rev-norm-kind`, `--rev-norm-span`, `--patch-stats`,
       `--loss-shape`).
@@ -47,7 +47,7 @@ Decision: leave `scripts/` here as a shared library, referenced from
 each experiment's `run.sh` by absolute path. Reasoning:
 
 - Every `run.sh` already invokes `python3 -u
-  experiments/freq-embedding/scripts/train.py …` from
+  experiments/2026-04-27_freq-embedding/scripts/train.py …` from
   `/workspace/app`, so the path is already external to the experiment
   dir. Copying scripts into each `exp_*/scripts/` would mean updating
   every `run.sh` post-move and would fork the codebase: a bug fix in
@@ -57,5 +57,5 @@ each experiment's `run.sh` by absolute path. Reasoning:
   edits harder rather than easier.
 - Per-experiment READMEs document which scripts they reference, so
   reproducing one experiment in isolation only requires checking out
-  the matching `experiments/freq-embedding/scripts/` revision (which
+  the matching `experiments/2026-04-27_freq-embedding/scripts/` revision (which
   git makes trivial via `git log --follow` on the script).

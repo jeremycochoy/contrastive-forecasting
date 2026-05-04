@@ -75,7 +75,7 @@ several pieces of state:
   `hf_rows_consumed`, `rng_state_torch`, `rng_state_numpy`
 - Backward-compatible: missing fields fall back to defaults on load
 
-### 3. `experiments/tiny-training/scripts/train.py` — restore full state
+### 3. `experiments/2026-04-12_tiny-training/scripts/train.py` — restore full state
 - Restores all new fields from checkpoint on resume
 - Uses `torch.set_rng_state()` / `np.random.set_state()` for reproducibility
 - Uses saved `hf_rows_consumed` (not computed from step) for accurate data position

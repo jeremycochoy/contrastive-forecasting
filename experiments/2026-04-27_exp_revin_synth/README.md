@@ -18,6 +18,6 @@ and use `../2026-04-27_exp_synth_only_redo/run.sh` as a template (substitute
 `--rev-norm-kind revin`, drop span, set bb to 60k).
 
 **Code referenced**:
-- `../freq-embedding/scripts/train.py`
-- `../gift-eval/scripts/train_forecasting_head.py`
-- `../freq-embedding/scripts/synth_eval.py`
+- `../2026-04-27_freq-embedding/scripts/train.py`
+- `../2026-04-13_gift-eval/scripts/train_forecasting_head.py`
+- `../2026-04-27_freq-embedding/scripts/synth_eval.py`

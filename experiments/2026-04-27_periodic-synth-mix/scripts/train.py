@@ -2,7 +2,7 @@
 """
 Contrastive training with optional periodic-synth mix.
 
-Extends experiments/tiny-training/scripts/train.py with a ``--mix-ratio``
+Extends experiments/2026-04-12_tiny-training/scripts/train.py with a ``--mix-ratio``
 flag: each batch is ``(1 - mix_ratio) * bs`` rows drawn from the HF stream
 plus ``mix_ratio * bs`` rows drawn on-the-fly from the periodic synthesizer
 in ``src.synthetic_periodic``. See experiments/2026-04-27_periodic-synth-mix/DESIGN.md.

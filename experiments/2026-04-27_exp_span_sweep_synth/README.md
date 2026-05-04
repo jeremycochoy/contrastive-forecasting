@@ -17,6 +17,6 @@ ad-hoc on remote (not preserved as scripts here, but the for-loop
 in run.sh extends trivially).
 
 **Code referenced**:
-- `../freq-embedding/scripts/train.py`
-- `../gift-eval/scripts/train_forecasting_head.py`
-- `../freq-embedding/scripts/synth_eval.py`
+- `../2026-04-27_freq-embedding/scripts/train.py`
+- `../2026-04-13_gift-eval/scripts/train_forecasting_head.py`
+- `../2026-04-27_freq-embedding/scripts/synth_eval.py`

@@ -103,7 +103,7 @@ test -s "$MIX_BACKBONE"
 # STAGE 2a — R1 head on CONTROL backbone
 # ============================================================
 echo "" && echo "=== STAGE 2a: head R1v3c_ctrl ===" && date
-python3 -u experiments/gift-eval/scripts/train_forecasting_head.py \
+python3 -u experiments/2026-04-13_gift-eval/scripts/train_forecasting_head.py \
     --backbone-path "$CTRL_BACKBONE" \
     --forecast-len 16 \
     --reconstruction forecaster \
@@ -121,7 +121,7 @@ echo "=== STAGE 2a DONE ===" && date
 # STAGE 2b — R1 head on MIX backbone
 # ============================================================
 echo "" && echo "=== STAGE 2b: head R1v3c_mix ===" && date
-python3 -u experiments/gift-eval/scripts/train_forecasting_head.py \
+python3 -u experiments/2026-04-13_gift-eval/scripts/train_forecasting_head.py \
     --backbone-path "$MIX_BACKBONE" \
     --forecast-len 16 \
     --reconstruction forecaster \
@@ -140,7 +140,7 @@ echo "=== STAGE 2b DONE ===" && date
 # ============================================================
 echo "" && echo "=== STAGE 3a: GIFT-Eval R1v3c_ctrl ===" && date
 mkdir -p results/R1v3c_ctrl
-python3 -u experiments/gift-eval/scripts/eval_gift_eval_official.py \
+python3 -u experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py \
     --backbone-path "$CTRL_BACKBONE" \
     --head-path checkpoints/R1v3c_ctrl_best.pth \
     --forecast-len 16 \
@@ -154,7 +154,7 @@ echo "=== STAGE 3a DONE ===" && date
 # ============================================================
 echo "" && echo "=== STAGE 3b: GIFT-Eval R1v3c_mix ===" && date
 mkdir -p results/R1v3c_mix
-python3 -u experiments/gift-eval/scripts/eval_gift_eval_official.py \
+python3 -u experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py \
     --backbone-path "$MIX_BACKBONE" \
     --head-path checkpoints/R1v3c_mix_best.pth \
     --forecast-len 16 \

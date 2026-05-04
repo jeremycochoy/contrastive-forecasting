@@ -30,10 +30,10 @@ each input window with its own statistics.
 shared `2026-04-27__aggregate/results/synth_eval.csv`.
 
 **Code referenced**:
-- `../freq-embedding/scripts/train.py`
-- `../gift-eval/scripts/train_forecasting_head.py`
-- `../freq-embedding/scripts/synth_eval.py` (patched here for RevIN)
-- `../freq-embedding/scripts/synth_compare_grid.py` (already supports
+- `../2026-04-27_freq-embedding/scripts/train.py`
+- `../2026-04-13_gift-eval/scripts/train_forecasting_head.py`
+- `../2026-04-27_freq-embedding/scripts/synth_eval.py` (patched here for RevIN)
+- `../2026-04-27_freq-embedding/scripts/synth_compare_grid.py` (already supports
   RevIN; used for the final 4-arm grid).
 
 **Artefacts (when complete)**:
