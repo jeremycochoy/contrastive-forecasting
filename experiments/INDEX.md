@@ -2,6 +2,9 @@
 
 All experiments for the contrastive forecasting project, organized chronologically by when they were started.
 
+Cross-cutting empirical learnings, hyperparameter defaults, and project
+conventions live in [`LEARNED.md`](LEARNED.md).
+
 ## Architecture and Training Foundations
 
 | Experiment | Status | Key Result |
