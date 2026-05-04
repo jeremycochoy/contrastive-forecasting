@@ -293,8 +293,20 @@ class HFStreamingLoader:
             return
 
         counts = self._shard_row_counts(shards)
+        total_rows = sum(counts)
         print(f"  [dataloader] {len(shards)} shards, "
-              f"{sum(counts)} total rows, target skip {skip_rows}")
+              f"{total_rows} total rows, target skip {skip_rows}")
+
+        # When resuming a long run on a small dataset, hf_rows_consumed can
+        # exceed total dataset size (multi-epoch streaming). Wrap modulo so
+        # we skip into the position within the next pseudo-epoch instead of
+        # yielding nothing. Without this the resumed iterator empties on
+        # cycle 1 and the training loop hits StopIteration.
+        if total_rows > 0 and skip_rows >= total_rows:
+            wrapped = skip_rows % total_rows
+            print(f"  [dataloader] skip_rows={skip_rows} >= total "
+                  f"({total_rows}); wrapping to {wrapped}")
+            skip_rows = wrapped
 
         # Find first shard where cumulative count > skip_rows.
         cum = 0
