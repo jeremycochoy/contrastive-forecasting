@@ -2,82 +2,47 @@
 
 ## Project intent
 
-Contrastive-forecasting trains small transformer backbones on financial-style
+Contrastive-forecasting trains small transformer backbones on
 time series via contrastive prediction (forecast vs future cosine similarity,
 with cross-batch and cross-channel negatives). Goal: backbone that beats
-GIFT-Eval baselines on GM-MASE / GM-MAPE_SN / GM-CRPS_SN. Current focus: full-
-epoch retrain on `jeremycochoy/gift-pretrain-full-4096` (path `small_v1`,
-~42.57M windows) with MOIRAI optimizer hyperparameters.
+GIFT-Eval baselines on GM-MASE / GM-MAPE_SN / GM-CRPS_SN.
 
-## Empirical learnings (don't relearn these)
-
-- **MOIRAI HP wins.** lr=1e-3, wd=0.1, β2=0.98, no warmup, no cosine beats
-  default HP (lr=1e-4, wd=0.01, β2=0.999) on 30k steps (#9 vs #6: GM-MASE
-  1.6391 vs 1.8043, GM-MAPE_SN 1.1850 vs 1.3698, GM-CRPS_SN 1.0155 vs 1.1000,
-  PR #104). Use MOIRAI HP for any new run unless otherwise specified.
-- **Resumed runs corrupt loss-std.** Fresh runs at bs=96 do NOT show a per-
-  batch loss-std jump. Resumed runs DO (+52% std at the resume boundary,
-  persists for 130k+ steps). Cause unknown after exhaustive investigation
-  (RNG state, optimizer binding, hidden buffers, PR #106 port — all refuted).
-  One remaining suspect: CUDA RNG state (we save CPU torch RNG and numpy RNG,
-  not CUDA RNG). **Practical: cannot safely resume mid-flight; if interrupted
-  the model trains with worse statistics post-resume even though it loads
-  cleanly.** Restart fresh.
-- **Throughput sweet spot bs=256.** bs=96 prefetch=2 is data-bound (~738
-  samples/s). bs=256 prefetch=16 is ~614 samples/s — slower because the
-  contrastive loss has B² cross-batch term that dominates at large B. bs=384
-  OOM'd in backward at 32GB VRAM, bs=512 OOM'd in cross-batch tensor at 23GB.
-  bs=256 is the practical sweet spot for 32GB VRAM (75% used).
-- **HF dataloader resume fix (PR #112).** Pre-sweeping all 4274 parquet
-  shards' metadata to find the resume start-shard takes 18 min on cold cache.
-  Now reads shard 0's metadata only and assumes uniform sizing — works for
-  the gift-pretrain bundles whose shards are uniformly 10000 rows each at
-  upload. Don't revert.
-- **PrefetchIterator doesn't actually parallelize.** The Python thread is
-  CPU-bound and holds the GIL during HF/parquet decode. To get >2×
-  throughput we'd need multiprocessing workers (PyTorch `DataLoader(
-  num_workers>0)` pattern). Not landed yet.
+## Empirical learnings
 - **Never use grad-clip in this project.** The fix for any divergence is to
   fix the data / normalization, not clip gradients.
+- For other project-specific learnings (MOIRAI HP, dataloader fixes, plot
+  conventions, run-name conventions), see
+  [`experiments/LEARNED.md`](experiments/LEARNED.md).
 
 ## Code style
 
 - Scripts under `scripts/` (top level for plotting), `experiments/<date>_exp_*/`
   for per-experiment launchers and reports.
-- Plot scripts use a consistent color scheme: blue / green / red / orange
-  across all panels for the four-arm comparison.
-- `B<batch>` convention in plot labels for batch-size-dependent runs.
-- Run-name convention: `tiny_<dataset>_<arm>_<suffix>` for backbones,
-  `R1q_<dataset>_<arm>_<suffix>` for quantile heads.
 
 ## How the user works
 
+- Agent is expected to be autonomous, and solve troubleshooting by himself. The user is unlikelly
+  to be able to answer question immediately and escalating cost should always be weighted against the 
+  cost of inaction.
 - Direct, terse. Wants short responses. Doesn't want "would you like me
   to..." for trivial follow-ups.
-- Skeptical of plots — frequently catches glitches (missing curves, hidden
-  curves under same-color overlays, scale issues). Always self-check rendered
-  plots before delivering.
-- Approves destructive Vast.ai operations explicitly (`vastrun-destroy
-  --force`) only when asked.
 - Prefers PRs reviewed and merged in small focused units.
 - Uses sub-agents liberally for parallelizable work; expects same from Claude.
 
 ## Operational rules from prior incidents
 
-- **Pause before any `vastrun-destroy`**. List unblocked tasks (`TaskList`); check whether any resume bundle (model.pth, optimizer.pth, losses CSV, run.log) is already on the instance you're about to destroy. If yes, the right move is to edit a continuation script in-place and re-launch on the live instance — not destroy + re-provision. May 3 2026 incident: destroyed an instance whose disk held #10's resume bundle, throwing away ~$2.94 of unused credit + ~46k steps' worth of capacity. The user vetoed building a preflight wrapper around `vastrun-destroy` — the only lever is care. If care fails again, ask the user, don't propose a tool they already declined.
+- **Pause before any `vastrun-destroy`**. List unblocked tasks (`TaskList`); check whether any resume bundle (model.pth, optimizer.pth, losses CSV, run.log) is already on the instance you're about to destroy. If yes, the right move is to edit a continuation script in-place and re-launch on the live instance — not destroy + re-provision. May 3 2026 incident: destroyed an instance whose disk held #10's resume bundle, throwing away ~$2.94 of unused credit + ~46k steps' worth of capacity.
 
 - **Resume bundle = `scripts/push_resume_bundle.sh`** (not "four-files-from-memory"). When pushing checkpoints to a fresh vast.ai instance, use the script — it bundles `<run>.pth + <run>_optimizer.pth + <run>_losses.csv + run_<arm>.log` atomically with a preflight gate (PR #96).
 
 - **vastrun-kit only — never raw `vastai`**. The kit at `~/Desktop/workspace/trading/vastrun-kit/` (laptop) or `~/vastrun-kit/` (elisa) wraps the API with safety filters, on-instance ownership markers, and audit-trail forwards. If a kit command is missing or broken, file a `vastrun-kit` issue and use `vastrun-forward` as the audited fallback.
 
-- **Vast.ai is a SHARED account across concurrent agent sessions**. Never destroy/stop an instance unless its contract ID was returned by your own `vastrun-provision` AND its label matches what you set AND its image/GPU class matches what you requested. If even one check fails: leave it alone, ask the user.
+- **Vast.ai is a SHARED account across concurrent agent sessions**. Never destroy/stop an instance unless its contract ID was returned by your own `vastrun-provision` AND its label matches what you set AND its image/GPU class matches what you requested.
 
 ## Memory rule
 
 > **Do not write project-specific memory to `~/.claude/projects/.../memory/`.**
-> Anything project-relevant goes in this `CLAUDE.md` or in
-> `docs/contrastive-forecasting-handoff.md`. Memory written to the user's
-> laptop is not portable and will be lost when migrating.
+> Anything project-relevant goes in a local md documentation.
 
 ## Remote Server
 - **Elisa**: `jupyter@elisa`, workdir: `~/workspaces/contrastive-forecasting/`
@@ -101,7 +66,7 @@ export HUGGING_FACE_HUB_TOKEN="$HF_TOKEN"
 ## Remote Machine Monitoring
 - **Assume the machine can crash at any time.** Every sync must protect against this.
 - When a training run is launched on a remote/cloud machine (Vast.ai, etc.), always set up a periodic sync loop that copies checkpoints, loss CSV, and logs to a local directory.
-- **Sync frequency:** Every 15 minutes (fixed). A ramped-up schedule was tried and offered no net benefit — a single tick itself can take 2–5 minutes over the vast.ai scp proxy for large checkpoints.
+- **Sync frequency:** Every 15 minutes (fixed). A single tick itself can take 2–5 minutes over the vast.ai scp proxy for large checkpoints.
 - **Atomic writes:** Always download to a `.tmp` file first, verify file size (checkpoints must be >70MB), then `mv` over the old copy. A crash mid-transfer must never corrupt existing local copies.
 - Sync at minimum: `*_best_gap.pth`, `*_best_gap_optimizer.pth`, `*_best_loss.pth`, `*_best_loss_optimizer.pth`, `*_losses.csv`, the training log, and periodic saves (`*_Nk.pth` + `*_Nk_optimizer.pth`) as they appear. **Always sync optimizer files** — without them, resume loses step counter, RNG state, and AdamW momentum.
 - Use `scp` (not `rsync` on macOS — it's v2.6.9 and unreliable through vast.ai proxy).
@@ -120,13 +85,6 @@ export HUGGING_FACE_HUB_TOKEN="$HF_TOKEN"
 3. **Before launching a continuation run**, verify the save path doesn't overlap with any existing checkpoint or its companions (`_best.pth`, `_optimizer.pth`).
 4. **Sync directories live in the main checkout, never in an auxiliary worktree.** The local sync target for a remote training run (and any local `--save-dir` if training locally) must be an absolute path under the main repo checkout, e.g. `/Users/.../trading/contrastive-forecasting/sync_<run_name>/`. Never under `.claude/worktrees/<name>/`, never under a sibling worktree like `contrastive-forecasting-<feature>/`. Reason: `git worktree remove [--force]` deletes ALL untracked files in the worktree directory. Learned the hard way (Apr 2026): tearing down a code-review worktree with `--force` deleted the only local copy of an 80 MB span=512 backbone after the corresponding remote vast.ai instance had already been destroyed — forced retraining and a missing visual for the report. Code work (refactors, PRs) can happen in a worktree per the Git Workflow section, but the worktree tree must stay free of valuable untracked state. Anything irreplaceable goes back to the main checkout immediately.
 5. **Before `git worktree remove [--force]`**, run `git -C <worktree> status -uall` (or `ls <worktree>/`) and verify nothing irreplaceable lives there outside git. If anything does, move it to the main checkout first. If in doubt, ask before removing.
-
-## Training Conventions
-- Contrastive backbone: `train_contrastive_v2.py`
-- Recovery head: `train_parameter_recovery_v2.py` (frozen backbone)
-- Recovery metric: MSE-based improvement ratio (Nx over zero-baseline), 4 AR + 4 MA coefficients
-- Best recovery head: GRU h=128, 2 layers, MSE loss (~676K params)
-- LR scaling for depth: multiply base LR by `sqrt(base_layers / new_layers)` when increasing depth
 
 ## Git Workflow
 - `master`: stable base code
