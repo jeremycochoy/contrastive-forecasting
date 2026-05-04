@@ -212,11 +212,11 @@ In-flight follow-up:
 - [`../2026-04-27_exp_csb_synth/REPORT.md`](../2026-04-27_exp_csb_synth/REPORT.md) —
   cosine_similarity_batch loss on the span=512 best arm.
 
-Per-arm GIFT-Eval CSVs at the repo root:
+Per-arm GIFT-Eval CSVs:
 
-- [`results/R1_freqemb_mix/`](../../results/R1_freqemb_mix/) — fe (no mixup, 30k)
-- [`results/R1_freqemb_mixup_mix/`](../../results/R1_freqemb_mixup_mix/) — fe+mu (30k)
-- [`results/R1_femu_90k/`](../../results/R1_femu_90k/) — fe+mu, head 90k
-- [`results/R1q_femu/`](../../results/R1q_femu/) — fe+mu+qh
-- [`results/R1q_femu_revin/`](../../results/R1q_femu_revin/) — RevIN+qh
-- [`results/R1v3c_mix_90k/`](../../results/R1v3c_mix_90k/) — mix90
+- [`results/R1_freqemb_mix/`](../2026-04-27_freq-embedding/results/R1_freqemb_mix/) — fe (no mixup, 30k)
+- [`results/R1_freqemb_mixup_mix/`](../2026-04-27_freq-embedding/results/R1_freqemb_mixup_mix/) — fe+mu (30k)
+- [`results/R1_femu_90k/`](../2026-04-27_freq-embedding/results/R1_femu_90k/) — fe+mu, head 90k
+- [`results/R1q_femu/`](../2026-04-28_exp_dualemb_3arm/results/R1q_femu/) — fe+mu+qh
+- [`results/R1q_femu_revin/`](../2026-04-28_exp_dualemb_3arm/results/R1q_femu_revin/) — RevIN+qh
+- [`results/R1v3c_mix_90k/`](../2026-04-27_freq-embedding/results/R1v3c_mix_90k/) — mix90

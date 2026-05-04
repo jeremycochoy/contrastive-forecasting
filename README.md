@@ -31,7 +31,7 @@ scripts/                 Training scripts (best architecture, ready to use)
 examples/                Getting-started notebooks
 tests/                   Unit tests
 experiments/             Experiment logs and reports
-  contrastive-arma/        Full architecture search (Mar--Apr 2026)
+  2026-04-12_contrastive-arma/  Full architecture search (Mar--Apr 2026)
     report/                  Technical report, tables, figures
     scripts/                 Experiment run scripts (all phases)
     notebooks/               Experiment-specific notebooks

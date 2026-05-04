@@ -1,4 +1,4 @@
-# experiments/freq-embedding
+# experiments/2026-04-27_freq-embedding
 
 This directory used to hold the entire freq-embedding experiment
 sequence (6 reports + plots + results all crammed in one folder). It

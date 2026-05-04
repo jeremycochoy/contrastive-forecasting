@@ -21,9 +21,9 @@ GIFT-Eval baselines on GM-MASE / GM-MAPE_SN / GM-CRPS_SN.
 
 ## How the user works
 
-- Agent is expected to be autonomous, and solve troubleshooting by himself. The user is unlikelly
-  to be able to answer question immediately and escalating cost should always be weighted against the 
-  cost of inaction.
+- Agent is expected to be autonomous, and solve troubleshooting independently. The user is unlikely
+  to be able to answer questions immediately and the cost of escalating should always be weighed
+  against the cost of inaction.
 - Direct, terse. Wants short responses. Doesn't want "would you like me
   to..." for trivial follow-ups.
 - Prefers PRs reviewed and merged in small focused units.
