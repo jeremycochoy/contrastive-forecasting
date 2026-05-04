@@ -146,6 +146,25 @@ def parse_args():
                    help="Seed for the periodic synth generator when "
                         "--mix-ratio > 0. Defaults to args.seed + 20_000 to "
                         "stay separate from the backbone's synth stream.")
+    # Backbone architecture overrides — match the values used when training
+    # the backbone (see experiments/freq-embedding/scripts/train.py CLI).
+    # If omitted, the historical defaults (C=4, H=512, nhead=8, num_layers=6,
+    # T_RAW=1024) are used and the state_dict load will fail with a size
+    # mismatch on a non-default backbone.
+    p.add_argument("--t-raw", type=int, default=None,
+                   help="Backbone context window. Overrides T_RAW (default 1024).")
+    p.add_argument("--n-channels", type=int, default=None,
+                   help="Backbone input channel count C. Overrides "
+                        "BACKBONE_CONFIG['C'] (default 4).")
+    p.add_argument("--d-model", type=int, default=None,
+                   help="Backbone hidden width H. Overrides "
+                        "BACKBONE_CONFIG['H'] (default 512).")
+    p.add_argument("--n-heads", type=int, default=None,
+                   help="Backbone transformer heads. Overrides "
+                        "BACKBONE_CONFIG['nhead'] (default 8).")
+    p.add_argument("--num-layers", type=int, default=None,
+                   help="Backbone transformer depth. Overrides "
+                        "BACKBONE_CONFIG['num_layers'] (default 6).")
     return p.parse_args()
 
 
@@ -191,6 +210,20 @@ def main():
     os.makedirs(args.save_dir, exist_ok=True)
 
     # -- Load frozen backbone --------------------------------------------------
+    # Backbone architecture overrides (CLI > defaults). HEAD_CONFIG['H']
+    # must follow the backbone's H so the head input width matches.
+    global T_RAW
+    if args.t_raw is not None:
+        T_RAW = args.t_raw
+    if args.n_channels is not None:
+        BACKBONE_CONFIG["C"] = args.n_channels
+    if args.d_model is not None:
+        BACKBONE_CONFIG["H"] = args.d_model
+        HEAD_CONFIG["H"] = args.d_model
+    if args.n_heads is not None:
+        BACKBONE_CONFIG["nhead"] = args.n_heads
+    if args.num_layers is not None:
+        BACKBONE_CONFIG["num_layers"] = args.num_layers
     if args.encoder_type is not None:
         BACKBONE_CONFIG["encoder_type"] = args.encoder_type
 
