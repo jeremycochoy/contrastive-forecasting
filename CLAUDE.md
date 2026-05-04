@@ -92,3 +92,9 @@ export HUGGING_FACE_HUB_TOKEN="$HF_TOKEN"
 - **Never commit directly to `experiments` or `master`.** Always create a feature branch from `experiments`, do the work there, then PR into `experiments`.
 - Always create PR, review, then merge
 - **Use a git worktree for any multi-file refactor or non-trivial change.** Don't mutate the user's checked-out tree mid-work; create a worktree (e.g. via `EnterWorktree`), do the work there, push the branch, open the PR. The user often has uncommitted state on `experiments` (training scripts, sync logs, in-flight runs) and the worktree keeps that untouched. If the worktree branch is created from a stale HEAD, `git reset --hard refs/heads/experiments` it forward before starting.
+
+### Pre-PR checklist
+
+- [ ] Working in a worktree (see above), not the main `experiments` checkout.
+- [ ] Feature branch from `experiments`; PR targets `experiments` (never `master`).
+- [ ] PR body opens with `«Agent <model> writing»` if agent-authored.
