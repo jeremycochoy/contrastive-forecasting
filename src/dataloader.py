@@ -264,8 +264,8 @@ class HFStreamingLoader:
         # can sum and trust manifest.json instead.
         return [rows_per_shard] * len(shard_paths)
 
-    def _iter_stream_with_fast_skip(self):
-        """Yield parquet rows starting from position ``self.skip_rows``.
+    def _iter_stream_with_fast_skip(self, skip_rows: int = None):
+        """Yield parquet rows starting from absolute position ``skip_rows``.
 
         Strategy: download full shards up to the one that contains the target
         row (fast — one parquet file at a time via pyarrow), drop them, then
@@ -274,35 +274,42 @@ class HFStreamingLoader:
         on a streaming HF Hub connection.
 
         Falls back to the default .skip() if shard metadata can't be introspected.
+
+        ``skip_rows`` defaults to ``self.skip_rows`` (the position from which the
+        iterator originally opened). Callers may pass a larger value to resume
+        further into the stream — used by ``_raw_iter`` to recover from a closed
+        httpx client mid-iteration without reading already-consumed rows again.
         """
+        if skip_rows is None:
+            skip_rows = self.skip_rows
         shards = self._list_shard_files()
         if shards is None:
             # Fallback: naive skip
             stream = self._open_stream()
-            if self.skip_rows > 0:
-                stream = stream.skip(self.skip_rows)
-                print(f"  [dataloader] Skipped {self.skip_rows} rows (naive)")
+            if skip_rows > 0:
+                stream = stream.skip(skip_rows)
+                print(f"  [dataloader] Skipped {skip_rows} rows (naive)")
             yield from stream
             return
 
         counts = self._shard_row_counts(shards)
         print(f"  [dataloader] {len(shards)} shards, "
-              f"{sum(counts)} total rows, target skip {self.skip_rows}")
+              f"{sum(counts)} total rows, target skip {skip_rows}")
 
         # Find first shard where cumulative count > skip_rows.
         cum = 0
         start_shard = 0
         for i, c in enumerate(counts):
-            if cum + c > self.skip_rows:
+            if cum + c > skip_rows:
                 start_shard = i
                 break
             cum += c
         else:
             # All shards come before target — skip everything and yield nothing.
-            print(f"  [dataloader] skip_rows={self.skip_rows} >= total rows; "
+            print(f"  [dataloader] skip_rows={skip_rows} >= total rows; "
                   f"no data to yield")
             return
-        within_shard_skip = self.skip_rows - cum
+        within_shard_skip = skip_rows - cum
 
         print(f"  [dataloader] Fast-skip: starting at shard {start_shard}/"
               f"{len(shards)}, then skipping {within_shard_skip} rows within it")
@@ -326,17 +333,63 @@ class HFStreamingLoader:
                 continue
             yield row
 
+    # Substring matched against the message of any RuntimeError raised inside
+    # the HF row-iteration. When httpx's internal client is closed mid-stream
+    # (a known race when the connection pool / worker thread is GC'd partway
+    # through a long run), the next read raises:
+    #   RuntimeError: Cannot send a request, as the client has been closed.
+    # The FRESH 167k-step training of #10 died this way at step ~52,400. The
+    # underlying state on the wire isn't damaged — re-opening the stream from
+    # the row we hadn't yet read recovers cleanly.
+    _HF_CLIENT_CLOSED_MSG = "client has been closed"
+    _HF_MAX_REOPENS = 5
+
     def _raw_iter(self):
-        """Yield batches without prefetching (used by PrefetchIterator)."""
-        if self.skip_rows > 0:
-            row_iter = self._iter_stream_with_fast_skip()
-        else:
-            row_iter = iter(self._open_stream())
+        """Yield batches without prefetching (used by PrefetchIterator).
+
+        Resilient to HF httpx-client closure mid-stream: we track the absolute
+        row position and, on RuntimeError matching ``_HF_CLIENT_CLOSED_MSG``,
+        rebuild the row iterator at the current position (no double-feeding
+        of rows). Limited to ``_HF_MAX_REOPENS`` consecutive reopens to avoid
+        spinning on a permanent fault. Counter resets on every successful
+        row pull, so transient closures across hours don't accumulate.
+        """
+        rows_consumed = self.skip_rows
+
+        def _open_at(start: int):
+            if start > 0:
+                return self._iter_stream_with_fast_skip(skip_rows=start)
+            return iter(self._open_stream())
+
+        row_iter = _open_at(rows_consumed)
         buf = []
         sids: list[int] = []  # parallel source_id per window in buf
         target = self.batch_size * self.C
+        reopens = 0
 
-        for row in row_iter:
+        while True:
+            try:
+                row = next(row_iter)
+            except StopIteration:
+                break
+            except RuntimeError as e:
+                msg = str(e)
+                if self._HF_CLIENT_CLOSED_MSG not in msg:
+                    raise
+                reopens += 1
+                if reopens > self._HF_MAX_REOPENS:
+                    print(f"  [dataloader] HF httpx client closure: exceeded "
+                          f"{self._HF_MAX_REOPENS} consecutive reopens at row "
+                          f"{rows_consumed}; giving up", flush=True)
+                    raise
+                print(f"  [dataloader] HF httpx client closed at row "
+                      f"{rows_consumed} (reopen {reopens}/"
+                      f"{self._HF_MAX_REOPENS}); rebuilding iterator from this "
+                      f"position", flush=True)
+                row_iter = _open_at(rows_consumed)
+                continue
+            reopens = 0
+            rows_consumed += 1
             # Support both processed bundles ("series") and raw GiftEval ("target")
             series = row.get("series") or row.get("target")
             if series is None:
