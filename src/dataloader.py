@@ -146,30 +146,68 @@ class PrefetchIterator:
         self._prefetch = prefetch
 
     def __iter__(self):
+        # Early exit (caller stops iterating, GeneratorExit) used to leave
+        # the producer thread blocked on q.put(item) forever. Daemon=True
+        # let the interpreter exit, but the dangling thread state at
+        # finalization triggered "Fatal Python error: PyGILState_Release:
+        # thread state must be current when releasing" and aborted the
+        # process. Now we signal the producer via _stop and drain the queue
+        # in a finally, so the thread always returns cleanly within ~0.5s
+        # of consumer exit.
         q = queue.Queue(maxsize=self._prefetch)
         _sentinel = object()
+        _stop = threading.Event()
 
         def _producer():
             try:
                 for item in self._iterable:
-                    q.put(item)
+                    # Block on queue space, but periodically check _stop so
+                    # we can interrupt a full-queue put when the consumer
+                    # has gone away.
+                    while True:
+                        if _stop.is_set():
+                            return
+                        try:
+                            q.put(item, timeout=0.5)
+                            break
+                        except queue.Full:
+                            continue
             except Exception as e:
-                q.put(e)
+                if not _stop.is_set():
+                    q.put(e)
             finally:
-                q.put(_sentinel)
+                # Always signal end-of-stream — consumer's q.get() must
+                # unblock even if we're exiting via _stop. timeout=1.0
+                # handles the case where consumer is gone and queue is full.
+                try:
+                    q.put(_sentinel, timeout=1.0)
+                except queue.Full:
+                    pass
 
         t = threading.Thread(target=_producer, daemon=True)
         t.start()
 
-        while True:
-            item = q.get()
-            if item is _sentinel:
-                break
-            if isinstance(item, Exception):
-                raise item
-            yield item
-
-        t.join()
+        try:
+            while True:
+                item = q.get()
+                if item is _sentinel:
+                    break
+                if isinstance(item, Exception):
+                    raise item
+                yield item
+        finally:
+            # Tell producer to stop, drain queue so any pending q.put can
+            # unblock immediately, then join. Without this, an early-exit
+            # consumer (GeneratorExit, downstream StopIteration in the
+            # training loop) leaves the producer hanging on q.put and the
+            # daemon thread leaks into interpreter shutdown.
+            _stop.set()
+            try:
+                while True:
+                    q.get_nowait()
+            except queue.Empty:
+                pass
+            t.join(timeout=5.0)
 
 
 # ── HuggingFace streaming loader ─────────────────────────────────────────────
