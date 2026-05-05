@@ -142,6 +142,47 @@ class QuantileForecastingHead(nn.Module):
         return flat.view(BC, T, self.num_quantiles, self.forecast_len)
 
 
+class LinearForecastingHead(nn.Module):
+    """Single Linear over backbone latents (no GRU/MLP). Diagnostic baseline.
+
+    If a single Linear matches the GRU head's GIFT-Eval score, head capacity
+    isn't the bottleneck and effort should go to schedule + HP.
+
+    Input:  (B*C, T, H) backbone latents
+    Output: (B*C, T, forecast_len)
+    """
+
+    def __init__(self, H=512, forecast_len=128, **_unused):
+        super().__init__()
+        self.forecast_len = forecast_len
+        self.forecast_head = nn.Linear(H, forecast_len)
+
+    def forward(self, x):
+        return self.forecast_head(x)
+
+
+class LinearQuantileForecastingHead(nn.Module):
+    """Linear-probe variant of QuantileForecastingHead.
+
+    Input:  (B*C, T, H)
+    Output: (B*C, T, num_quantiles, forecast_len)
+    """
+
+    def __init__(self, H=512, forecast_len=128,
+                 quantile_levels=QUANTILE_LEVELS, **_unused):
+        super().__init__()
+        self.forecast_len = forecast_len
+        self.quantile_levels = list(quantile_levels)
+        self.num_quantiles = len(self.quantile_levels)
+        self.forecast_head = nn.Linear(
+            H, forecast_len * self.num_quantiles)
+
+    def forward(self, x):
+        flat = self.forecast_head(x)
+        BC, T, _ = flat.shape
+        return flat.view(BC, T, self.num_quantiles, self.forecast_len)
+
+
 def quantile_loss(predicted, target, quantile_levels=QUANTILE_LEVELS):
     """Pinball loss summed over quantiles, averaged over the rest.
 
@@ -692,7 +733,8 @@ def forecast_B4(backbone, head, x_context, horizon, device):
     e_ctx, mean_c, stdev_c, n_ctx, C = _b_variant_setup(
         backbone, x_context, device)
 
-    is_quantile = isinstance(head, QuantileForecastingHead)
+    is_quantile = isinstance(
+        head, (QuantileForecastingHead, LinearQuantileForecastingHead))
 
     with torch.no_grad():
         n_tokens = math.ceil(horizon / W_bb)                        # m

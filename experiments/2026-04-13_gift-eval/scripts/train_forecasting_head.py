@@ -34,6 +34,8 @@ from src.dataloader import create_hf_dataloader, create_mixed_periodic_dataloade
 from src.forecasting_head import (
     ForecastingHead,
     QuantileForecastingHead,
+    LinearForecastingHead,
+    LinearQuantileForecastingHead,
     QUANTILE_LEVELS,
     quantile_loss,
     W,
@@ -44,6 +46,38 @@ from src.forecasting_head import (
     compute_valid_targets,
     compute_reconstruction_targets,
 )
+
+
+def lr_multiplier(step: int, total_steps: int, schedule: str,
+                  warmup_steps: int, decay_start_step: int,
+                  final_lr_ratio: float) -> float:
+    """Multiplier in [0, 1] applied to peak LR at training step ``step``.
+
+    Schedules:
+      ``constant``: 1.0 always (existing behaviour).
+      ``wsd``:     warmup (linear 0→1) → stable at 1 → linear decay 1→
+                   final_lr_ratio over [decay_start_step, total_steps].
+      ``cosine``:  warmup → cosine from 1 → final_lr_ratio over
+                   [warmup_steps, total_steps]; ``decay_start_step`` ignored.
+    """
+    if step < warmup_steps:
+        return step / max(warmup_steps, 1)
+    if schedule == "constant":
+        return 1.0
+    if schedule == "wsd":
+        if step < decay_start_step:
+            return 1.0
+        if step >= total_steps:
+            return final_lr_ratio
+        prog = (step - decay_start_step) / max(total_steps - decay_start_step, 1)
+        return 1.0 - prog * (1.0 - final_lr_ratio)
+    if schedule == "cosine":
+        if step >= total_steps:
+            return final_lr_ratio
+        prog = (step - warmup_steps) / max(total_steps - warmup_steps, 1)
+        return final_lr_ratio + 0.5 * (1.0 - final_lr_ratio) * (
+            1.0 + math.cos(math.pi * prog))
+    raise ValueError(f"unknown schedule '{schedule}'")
 
 # -- Backbone architecture (must match checkpoint) ---------------------------
 BACKBONE_CONFIG = dict(
@@ -165,6 +199,33 @@ def parse_args():
     p.add_argument("--num-layers", type=int, default=None,
                    help="Backbone transformer depth. Overrides "
                         "BACKBONE_CONFIG['num_layers'] (default 6).")
+    # -- LR schedule + AdamW HP --------------------------------------------
+    p.add_argument("--schedule", default="constant",
+                   choices=["constant", "wsd", "cosine"],
+                   help="LR schedule. 'wsd': warmup→stable→linear decay "
+                        "(MiniCPM/Hägele et al). 'cosine': warmup→cosine. "
+                        "Default 'constant' (the legacy baseline).")
+    p.add_argument("--warmup-steps", type=int, default=0,
+                   help="Linear warmup from 0→peak LR over this many steps.")
+    p.add_argument("--decay-start-step", type=int, default=None,
+                   help="WSD only: step at which the linear cooldown begins. "
+                        "Defaults to 0.8 * total_steps. Ignored for cosine.")
+    p.add_argument("--final-lr-ratio", type=float, default=0.1,
+                   help="Cooldown / cosine endpoint as a fraction of peak LR.")
+    p.add_argument("--beta1", type=float, default=0.9,
+                   help="AdamW β1.")
+    p.add_argument("--beta2", type=float, default=0.999,
+                   help="AdamW β2. Set 0.98 to match Moirai HP.")
+    p.add_argument("--weight-decay", type=float, default=0.01,
+                   help="AdamW weight decay. Set 0.1 to match Moirai HP.")
+    p.add_argument("--eps", type=float, default=1e-8,
+                   help="AdamW eps.")
+    # -- Head architecture --------------------------------------------------
+    p.add_argument("--head-arch", default="gru",
+                   choices=["gru", "linear"],
+                   help="Head architecture. 'gru': default (input_proj + "
+                        "bidir GRU + MLP + Linear). 'linear': diagnostic "
+                        "single-Linear probe over backbone latents.")
     return p.parse_args()
 
 
@@ -302,16 +363,41 @@ def main():
     # -- Forecasting head ------------------------------------------------------
     head_config = dict(HEAD_CONFIG)
     head_config['forecast_len'] = args.forecast_len
-    if args.quantile_head:
-        head = QuantileForecastingHead(**head_config).to(device)
-        head_kind = "quantile (9 levels)"
+    if args.head_arch == "linear":
+        if args.quantile_head:
+            head = LinearQuantileForecastingHead(
+                H=head_config["H"], forecast_len=args.forecast_len).to(device)
+            head_kind = "linear-probe quantile (9 levels)"
+        else:
+            head = LinearForecastingHead(
+                H=head_config["H"], forecast_len=args.forecast_len).to(device)
+            head_kind = "linear-probe MSE (point)"
     else:
-        head = ForecastingHead(**head_config).to(device)
-        head_kind = "MSE (point)"
+        if args.quantile_head:
+            head = QuantileForecastingHead(**head_config).to(device)
+            head_kind = "quantile (9 levels)"
+        else:
+            head = ForecastingHead(**head_config).to(device)
+            head_kind = "MSE (point)"
     n_head_params = count_parameters(head)
     print(f"Forecasting head [{head_kind}]: {n_head_params:,} trainable params")
 
-    optimizer = optim.AdamW(head.parameters(), lr=args.lr)
+    optimizer = optim.AdamW(
+        head.parameters(),
+        lr=args.lr,
+        betas=(args.beta1, args.beta2),
+        weight_decay=args.weight_decay,
+        eps=args.eps,
+    )
+
+    # Schedule defaults: WSD → 80% stable + 20% cooldown if user didn't set.
+    if args.decay_start_step is None:
+        args.decay_start_step = int(0.8 * args.total_steps)
+    print(f"Optimizer: AdamW lr={args.lr} betas=({args.beta1},{args.beta2}) "
+          f"wd={args.weight_decay} eps={args.eps}")
+    print(f"Schedule: {args.schedule} warmup={args.warmup_steps} "
+          f"decay_start={args.decay_start_step} "
+          f"final_ratio={args.final_lr_ratio}")
 
     # -- Resume ----------------------------------------------------------------
     start_step = 0
@@ -395,6 +481,13 @@ def main():
     for step in range(start_step + 1, args.total_steps + 1):
         head.train()
         optimizer.zero_grad()
+
+        # Apply schedule before this step's update.
+        mult = lr_multiplier(
+            step - 1, args.total_steps, args.schedule,
+            args.warmup_steps, args.decay_start_step, args.final_lr_ratio)
+        for g in optimizer.param_groups:
+            g["lr"] = args.lr * mult
 
         # Data loading — when emit_labels is on, the dataloader yields
         # (x, freq_ids, seasonality_ids); otherwise it yields just x.

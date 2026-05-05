@@ -12,6 +12,10 @@ import torch.nn as nn
 
 from src.forecasting_head import (
     ForecastingHead,
+    LinearForecastingHead,
+    LinearQuantileForecastingHead,
+    QuantileForecastingHead,
+    QUANTILE_LEVELS,
     W,
     FORECAST_LEN,
     extract_forecaster_latents,
@@ -702,3 +706,144 @@ class TestReconstructionTargets:
         x_norm = torch.randn(B, T_RAW, C)
         with pytest.raises(ValueError, match="Unknown mode"):
             compute_reconstruction_targets(x_norm, mode='invalid')
+
+
+# ---------------------------------------------------------------------------
+# Linear-probe heads (qhead-improvements diagnostic)
+# ---------------------------------------------------------------------------
+
+class TestLinearProbeHeads:
+    def test_linear_mse_shape(self):
+        head = LinearForecastingHead(H=H, forecast_len=16)
+        x = torch.randn(B * C, T, H)
+        out = head(x)
+        assert out.shape == (B * C, T, 16)
+
+    def test_linear_quantile_shape(self):
+        head = LinearQuantileForecastingHead(H=H, forecast_len=16)
+        x = torch.randn(B * C, T, H)
+        out = head(x)
+        assert out.shape == (B * C, T, 9, 16)
+
+    def test_linear_mse_param_count(self):
+        head = LinearForecastingHead(H=512, forecast_len=16)
+        n = sum(p.numel() for p in head.parameters())
+        # 512 * 16 + 16 = 8208
+        assert n == 512 * 16 + 16
+
+    def test_linear_quantile_param_count(self):
+        head = LinearQuantileForecastingHead(H=512, forecast_len=16)
+        n = sum(p.numel() for p in head.parameters())
+        # 512 * (9*16) + (9*16) = 73872
+        assert n == 512 * 9 * 16 + 9 * 16
+
+    def test_linear_quantile_b4_strategy(self):
+        """B4 strategy must work with the linear-probe quantile head:
+        forecast_B4 detects quantile heads via isinstance() — the linear
+        variant must be recognised."""
+        from src.forecasting_head import forecast_B4
+        # Build a tiny mock backbone with the public surface forecast_B4 needs.
+        backbone = _make_mock_backbone()
+        head = LinearQuantileForecastingHead(H=H, forecast_len=16)
+        x_ctx = torch.randn(1, T_RAW, C)
+        out = forecast_B4(backbone, head, x_ctx, horizon=16, device="cpu")
+        # Quantile path returns (Q, horizon, C)
+        assert out.shape == (9, 16, C)
+
+
+# ---------------------------------------------------------------------------
+# LR schedule (qhead-improvements)
+# ---------------------------------------------------------------------------
+
+class TestLRSchedule:
+    def test_constant_schedule_is_one_after_warmup(self):
+        m = _import_lr_multiplier()
+        for s in (0, 100, 500, 1000):
+            assert m(s, total_steps=1000, schedule="constant",
+                     warmup_steps=0, decay_start_step=800,
+                     final_lr_ratio=0.1) == 1.0
+
+    def test_warmup_linear(self):
+        m = _import_lr_multiplier()
+        # warmup 0..100: ramp from 0 to 1
+        assert m(0, 1000, "constant", 100, 800, 0.1) == 0.0
+        assert m(50, 1000, "constant", 100, 800, 0.1) == pytest.approx(0.5)
+        # at step==warmup, returns 1 (post-warmup branch)
+        assert m(100, 1000, "constant", 100, 800, 0.1) == 1.0
+
+    def test_wsd_curve(self):
+        m = _import_lr_multiplier()
+        # warmup 0..100, stable 100..800, linear decay 800..1000 → 0.1
+        assert m(50, 1000, "wsd", 100, 800, 0.1) == pytest.approx(0.5)
+        assert m(500, 1000, "wsd", 100, 800, 0.1) == 1.0
+        assert m(800, 1000, "wsd", 100, 800, 0.1) == 1.0
+        assert m(900, 1000, "wsd", 100, 800, 0.1) == pytest.approx(0.55)
+        assert m(1000, 1000, "wsd", 100, 800, 0.1) == pytest.approx(0.1)
+
+    def test_cosine_curve(self):
+        m = _import_lr_multiplier()
+        # warmup 0..100, cosine decay 100..1000 → 0.1
+        assert m(100, 1000, "cosine", 100, 800, 0.1) == pytest.approx(1.0)
+        # midpoint of cosine in [100,1000] is at step 550
+        # cos(pi/2)=0, so multiplier == 0.1 + 0.5*(1-0.1)*1 = 0.55
+        assert m(550, 1000, "cosine", 100, 800, 0.1) == pytest.approx(0.55)
+        assert m(1000, 1000, "cosine", 100, 800, 0.1) == pytest.approx(0.1)
+
+    def test_unknown_schedule_raises(self):
+        m = _import_lr_multiplier()
+        # Use step >= warmup_steps so we hit the schedule branch.
+        with pytest.raises(ValueError, match="unknown schedule"):
+            m(500, 1000, "bogus", 100, 800, 0.1)
+
+
+def _import_lr_multiplier():
+    """Import lr_multiplier from the head-trainer module by file path."""
+    import importlib.util
+    from pathlib import Path
+    p = Path(__file__).resolve().parents[1] / (
+        "experiments/2026-04-13_gift-eval/scripts/train_forecasting_head.py")
+    spec = importlib.util.spec_from_file_location("hh_train", p)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.lr_multiplier
+
+
+def _make_mock_backbone():
+    """Mock backbone with the surface forecast_B4 needs (rev_norm, transformer
+    with input_to_latent, .layers, .W; freq/seasonality embeddings absent)."""
+    import torch.nn as nn
+
+    class MockTransformer(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.layers = nn.ModuleList([])
+
+        def input_to_latent(self, xr):
+            B, T, C, H = xr.shape
+            return xr  # identity
+
+        def forward(self, xr):
+            B, T, C, H = xr.shape
+            f = xr.permute(0, 2, 1, 3).reshape(B * C, T, H)
+            return f, None
+
+    class MockBackbone(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.W = W
+            self.transformer = MockTransformer()
+            self.rev_norm = FakeRevNorm(C, T_RAW)
+
+        def prepare_encoder_input(self, x_norm, freq_ids=None,
+                                  seasonality_ids=None):
+            B, T_raw, C = x_norm.shape
+            T = T_raw // W
+            # Build a (B, T, C, H) tensor with deterministic values
+            return torch.randn(B, T, C, H)
+
+    bb = MockBackbone()
+    bb.eval()
+    # Trip rev_norm to populate stats (forecast_B4 calls extract_encoder_latents
+    # which reads rev_norm.mean / .stdev).
+    _ = bb.rev_norm(torch.zeros(1, T_RAW, C), mode='norm')
+    return bb
