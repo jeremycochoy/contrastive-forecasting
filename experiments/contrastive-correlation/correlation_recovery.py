@@ -277,6 +277,10 @@ def main():
     parser.add_argument("--eval-samples", type=int, default=400)
     parser.add_argument("--log-every", type=int, default=100)
     parser.add_argument("--save-every", type=int, default=2000)
+    parser.add_argument("--lr-schedule", type=str, default="none",
+                        choices=["none", "cosine"])
+    parser.add_argument("--warmup-epochs", type=int, default=200)
+    parser.add_argument("--grad-clip", type=float, default=1.0)
     args = parser.parse_args()
 
     if args.head_path is None:
@@ -351,6 +355,17 @@ def main():
     best_epoch = 0
     history = []
 
+    import math as _math
+
+    def lr_at(epoch: int) -> float:
+        if args.lr_schedule == "none":
+            return args.lr
+        if epoch <= args.warmup_epochs:
+            return args.lr * epoch / max(1, args.warmup_epochs)
+        progress = (epoch - args.warmup_epochs) / max(1, args.epochs - args.warmup_epochs)
+        progress = min(max(progress, 0.0), 1.0)
+        return args.lr * (0.1 + 0.9 * 0.5 * (1 + _math.cos(_math.pi * progress)))
+
     for epoch in range(1, args.epochs + 1):
         head.train()
         optimizer.zero_grad()
@@ -361,6 +376,12 @@ def main():
         pred = head(h)
         loss = F.mse_loss(pred, target)
         loss.backward()
+        if args.grad_clip > 0:
+            torch.nn.utils.clip_grad_norm_(head.parameters(), args.grad_clip)
+        if args.lr_schedule != "none":
+            current_lr = lr_at(epoch)
+            for g in optimizer.param_groups:
+                g["lr"] = current_lr
         optimizer.step()
 
         head.eval()

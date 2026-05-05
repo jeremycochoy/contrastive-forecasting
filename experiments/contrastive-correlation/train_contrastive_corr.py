@@ -48,6 +48,13 @@ def main():
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--lr", type=float, default=7e-5)
     parser.add_argument("--temperature", type=float, default=0.07)
+    parser.add_argument("--grad-clip", type=float, default=1.0,
+                        help="Gradient norm clip (set to 0 to disable)")
+    parser.add_argument("--lr-schedule", type=str, default="none",
+                        choices=["none", "cosine"],
+                        help="LR schedule: 'cosine' decays to 10% of base by total_steps")
+    parser.add_argument("--warmup-steps", type=int, default=1000,
+                        help="Linear warmup steps when --lr-schedule=cosine")
     parser.add_argument("--loss-shape", type=str, default="cosine_similarity_batch_no_time_neg")
     parser.add_argument("--T-raw", type=int, default=4096)
     parser.add_argument("--n-factors", type=int, default=2,
@@ -83,6 +90,17 @@ def main():
     model = model.to(device)
     n_params = count_parameters(model)
     optimizer = optim.AdamW(model.parameters(), lr=args.lr)
+
+    def lr_at(step: int) -> float:
+        if args.lr_schedule == "none":
+            return args.lr
+        if step <= args.warmup_steps:
+            return args.lr * step / max(1, args.warmup_steps)
+        # cosine to 10% of base
+        progress = (step - args.warmup_steps) / max(1, args.total_steps - args.warmup_steps)
+        progress = min(max(progress, 0.0), 1.0)
+        import math
+        return args.lr * (0.1 + 0.9 * 0.5 * (1 + math.cos(math.pi * progress)))
 
     start_step = 0
     best_val_ff_restored = -float("inf")
@@ -150,6 +168,12 @@ def main():
 
         loss = contrastive_latent_loss((f_lat, o_lat), validation=False, spec=spec)
         loss.backward()
+        if args.grad_clip > 0:
+            torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
+        if args.lr_schedule != "none":
+            current_lr = lr_at(step)
+            for g in optimizer.param_groups:
+                g["lr"] = current_lr
         optimizer.step()
 
         if step % args.val_every == 0 or step == args.total_steps:
