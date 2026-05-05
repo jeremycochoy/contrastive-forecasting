@@ -4,51 +4,76 @@ Backbone: **backbone beta** (`tiny_full4096_moirai_hp_FRESH_RESUME50k_FINAL.pth`
 C=1, H=384, nhead=6, num_layers=6, T_RAW=4096, freq_emb_dim=3,
 seasonality_emb_dim=3, rev_norm_kind=ewma span=128).
 
-Baseline (#10 RESUME50k report): **GM-MASE 1.1828** with default GRU
-quantile head + lr=3e-4 + no schedule + AdamW defaults (β2=0.999, wd=0.01).
+Baseline (#10 RESUME50k report): **GM-MASE 1.1828** on full 97-config eval
+with default GRU quantile head + lr=3e-4 + no schedule + AdamW defaults
+(β2=0.999, wd=0.01).
 
 Target: **GM-MASE ≈ 0.81** (Moirai). Each accepted change should compose with
 the next.
 
-## Round 1 (in flight on vast 36184338)
+Triage proxy: 11-config small-test-set filter, biased ~0.06 below the full
+97-config GM-MASE on the baseline (1.128 triage vs 1.183 full) but preserves
+ranking. Useful for fast triage; full eval to confirm before claiming wins.
 
-| ID | head | HP | schedule | total_steps | status | GM-MASE | Δ vs base |
+## Round 1 (done — vast 36184338, $3.64)
+
+| ID | head | HP | schedule | total_steps | GM-MASE (triage 11) | Δ vs base |
+|---|---|---|---|---|---|---|
+| baseline | GRU-q | lr 3e-4, β2 0.999, wd 0.01 | constant | 30k | 1.128 | 0% |
+| **E1** | **linear-q (55k)** | lr 3e-4, β2 0.999, wd 0.01 | constant | 30k | **1.066** | **−5.5%** |
+| E2 | GRU-q (628k) | lr 1e-3, β2 0.98, wd 0.1 | WSD warmup 500, decay 24k→30k to 0.1×peak | 30k | 1.109 | −1.7% |
+
+**Surprises**:
+1. Linear probe **beats** GRU (1.066 < 1.128). Capacity isn't binding —
+   the GRU was likely overfitting on this task. Backbone latents already
+   well-structured.
+2. WSD + Moirai HP helps modestly (−1.7%) but architecture dominates.
+
+E1 full eval running on elisa GPU 1 to confirm the triage-vs-full delta.
+
+## Round 2 — combining wins
+
+| ID | head | HP | schedule | total_steps | status | GM-MASE | Δ |
 |---|---|---|---|---|---|---|---|
-| baseline | GRU-q | lr 3e-4, β2 0.999, wd 0.01 | constant | 30k | done | 1.183 | 0 |
-| E1 | linear-q (55k params) | lr 3e-4, β2 0.999, wd 0.01 | constant | 30k | running | TBD | TBD |
-| E2 | GRU-q (628k) | lr 1e-3, β2 0.98, wd 0.1 (Moirai) | WSD warmup 500, decay 24k→30k to 0.1*peak | 30k | queued | TBD | TBD |
+| **R2_E3** | linear-q | Moirai (β2 0.98, wd 0.1, lr 1e-3) | WSD warmup 500, decay 24k→30k → 0.1×peak | 30k | running on elisa GPU 0 | TBD | TBD |
 
-E1 question: **does head capacity matter?** If linear ≈ baseline, schedule + HP
-are the entire game; if linear ≪ baseline, head-arch sweeps are warranted.
+R2_E3 hypothesis: stack the two wins. Expect <1.066.
 
-E2 question: **do schedule + Moirai-HP together close most of the gap?** The
-24k checkpoint is the WSD branchable point — usable for cooldown fan-outs in
-Round 2 without retraining the prefix.
+## Pending Round 2/3 candidates (re-ordered after R1)
 
-## Pending candidates (ordered by EV-per-compute)
+### Top priority — likely biggest wins
 
-These will be triaged after Round 1 results.
+- **R2_E4**: linear-q + Moirai HP + WSD + **60k or 100k steps**. The user's
+  big-idea principle: longer training under WSD often yields more, especially
+  when small head + frozen backbone (no overfitting blowup risk).
+- **R2_E5**: linear-q + Moirai HP + WSD + **lr 3e-3** (peak lr sweep). E1
+  used lr=3e-4 and won; E2 used lr=1e-3 (smaller win). Maybe linear head
+  benefits from yet-higher peak lr.
+- **R2_E6**: linear-q + cosine warmup→decay (vs WSD). Simpler schedule,
+  matches typical fine-tune recipes.
 
-### A. Schedule
-- A1. WSD with shorter / longer / earlier cooldown branched from E2's 24k.
-- A2. Cosine warmup→decay (alt to WSD).
-- A3. Two-stage: 5k constant high-lr exploration → 25k cosine.
+### Architecture (linear was best, GRU was worst — explore in between)
 
-### B. HP (composed with A)
-- B1. Sweep peak lr ∈ {3e-4, 1e-3, 3e-3} at 5k steps each → pick best.
-- B2. Larger batch 512 / 1024 (gradient accum if VRAM-bound).
-- B3. β1=0.9 vs 0.95 (LLaMA style).
+- **R2_E7**: 1-layer GRU hidden=32 (or simply 2-layer MLP no GRU): a touch
+  of nonlinearity above pure linear. Tests whether the GRU's recurrent
+  bias hurt or whether it's just over-parameterization.
 
-### C. Architecture (informed by E1)
-- C1. Smaller GRU (1 layer, hidden=64) — if E1 says capacity isn't binding.
-- C2. Deeper GRU (3 layers) or wider (hidden=256) — if E1 says capacity binds.
-- C3. Self-attention pool over backbone tokens instead of bidir GRU.
-- C4. Per-quantile output linears (shared trunk) — fixes quantile crossing.
+### Output structure
 
-### D. Loss / target
-- D1. Gaussian-NLL head (μ, σ; closed-form CRPS).
-- D2. Mixture-of-Gaussians.
+- **R2_E8**: per-quantile output Linears (shared trunk: backbone latent →
+  trunk → 9 separate Linears, one per quantile). Fixes potential quantile
+  crossing pathology.
+- **R2_E9**: Gaussian-NLL parametric head (μ, σ; closed-form CRPS for each
+  position). 2 outputs vs 9; massively fewer params; closed-form quantiles.
 
-### E. Data
-- E1d. Mix synth into head training (mix_ratio > 0).
-- E2d. Larger forecast_len at train time.
+### Cooldown branching from R2_E3's STABLE (after R2_E3 finishes)
+
+- Cooldown variant A: 6k linear decay 1e-3 → 3e-5 (more aggressive)
+- Cooldown variant B: 4k linear decay (shorter cooldown)
+- Cooldown variant C: cosine cooldown shape (vs linear)
+
+### Lower priority
+
+- Mix synth into training data (mix_ratio > 0)
+- Train forecast_len=128 (multi-step decoder)
+- Larger batch (512 or 1024)
