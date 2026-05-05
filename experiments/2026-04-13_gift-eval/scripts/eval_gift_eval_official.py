@@ -493,16 +493,32 @@ def load_models(args, device):
     head_config = dict(HEAD_CONFIG)
     head_config['forecast_len'] = args.forecast_len
     head_sd = torch.load(args.head_path, map_location=device, weights_only=True)
-    # Auto-detect quantile head: forecast_head.weight shape distinguishes
-    #   MSE     : (forecast_len,                hidden_dim)
-    #   quantile: (num_quantiles * forecast_len, hidden_dim)
+    # Auto-detect quantile vs MSE: forecast_head.weight shape distinguishes
+    #   MSE     : (forecast_len,                hidden_dim or H)
+    #   quantile: (num_quantiles * forecast_len, hidden_dim or H)
+    # Auto-detect GRU vs linear-probe: presence of `gru.*` keys in the state
+    # dict. Linear probe is a single nn.Linear (PR ?? — qhead-improvements).
     fh_w = head_sd.get("forecast_head.weight")
-    if fh_w is not None and fh_w.shape[0] == args.forecast_len * 9:
+    is_quantile = (fh_w is not None
+                   and fh_w.shape[0] == args.forecast_len * 9)
+    is_linear = not any(k.startswith("gru.") for k in head_sd)
+    H = head_config["H"]
+    if is_linear and is_quantile:
+        from src.forecasting_head import LinearQuantileForecastingHead
+        head = LinearQuantileForecastingHead(
+            H=H, forecast_len=args.forecast_len)
+        print(f"  [eval] auto-detected linear-probe quantile head")
+    elif is_linear:
+        from src.forecasting_head import LinearForecastingHead
+        head = LinearForecastingHead(H=H, forecast_len=args.forecast_len)
+        print(f"  [eval] auto-detected linear-probe MSE head")
+    elif is_quantile:
         from src.forecasting_head import QuantileForecastingHead
         head = QuantileForecastingHead(**head_config)
-        print(f"  [eval] auto-detected quantile head (9 levels) from checkpoint")
+        print(f"  [eval] auto-detected GRU quantile head (9 levels)")
     else:
         head = ForecastingHead(**head_config)
+        print(f"  [eval] auto-detected GRU MSE head")
     head.load_state_dict(head_sd)
     head = head.to(device)
     head.eval()
