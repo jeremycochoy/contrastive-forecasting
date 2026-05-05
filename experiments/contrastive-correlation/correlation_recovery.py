@@ -68,20 +68,74 @@ class MLPCorrelationHead(nn.Module):
         return torch.sigmoid(self.net(flat))
 
 
-HEADS = {"linear": LinearCorrelationHead, "mlp": MLPCorrelationHead}
+class TimeAwareHead(nn.Module):
+    """Per-timestep cross-channel MLP with LayerNorm, then mean-pool over time.
+
+    Structurally matches the correlation operator:
+        corr_ij = (1/T) Σ_t f(x_{t,1}, ..., x_{t,K})
+
+    Pure mean-pool-then-MLP cannot compute pairwise correlations because
+    correlation is a quadratic statistic. By applying a non-linear MLP per
+    timestep first, the head can produce per-step "instantaneous correlation
+    estimates" which are then averaged over time.
+
+    No sigmoid: raw output, MSE loss. The final layer bias is initialised to
+    the empirical mean of the training targets so the model starts near
+    sensible values rather than near a saturated extreme.
+    """
+
+    def __init__(self, H: int, K: int = 4, hidden_dim: int = 256, dropout: float = 0.0,
+                 init_bias: float = 0.4):
+        super().__init__()
+        self.K = K
+        self.num_pairs = K * (K - 1) // 2
+        self.norm = nn.LayerNorm(K * H)
+        self.fc1 = nn.Linear(K * H, hidden_dim)
+        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
+        self.out = nn.Linear(hidden_dim, self.num_pairs)
+        self.dropout = dropout
+        # Initialise output bias near the empirical mean of targets so we start
+        # in a sensible regime instead of zero.
+        with torch.no_grad():
+            self.out.bias.fill_(float(init_bias))
+            self.out.weight.mul_(0.1)
+
+    def forward(self, h: torch.Tensor) -> torch.Tensor:
+        flat = h.flatten(2)               # [B, T, K*H]
+        flat = self.norm(flat)
+        x = F.gelu(self.fc1(flat))
+        if self.dropout > 0 and self.training:
+            x = F.dropout(x, p=self.dropout)
+        x = F.gelu(self.fc2(x))
+        if self.dropout > 0 and self.training:
+            x = F.dropout(x, p=self.dropout)
+        per_t = self.out(x)               # [B, T, num_pairs]
+        return per_t.mean(dim=1).clamp(0.0, 1.0)
+
+
+HEADS = {
+    "linear": LinearCorrelationHead,
+    "mlp": MLPCorrelationHead,
+    "timeaware": TimeAwareHead,
+}
 
 
 # -----------------------------------------------------------------------------
 # Helpers
 # -----------------------------------------------------------------------------
 
-def extract_latents(model, x):
-    """Return the original-latent representation [B, T, K, H] (channel-mixed
-    forward path). We use o (the input/encoder latent) like the ARMA recovery
-    code, kept on the device, gradients off."""
+def extract_latents(model, x, which: str = "h"):
+    """Return [B, T, K, H] backbone latent. `which` selects which tap point:
+
+    - "h":     model's `x_original` — the per-channel encoder/transformer latent
+               *before* the channel-mixing module. Used by the ARMA recovery code.
+    - "h_hat": model's first return — *after* the channel-mixing module.
+               Each channel here already contains a Kronecker-mixed combination
+               of all channels, which can help cross-channel tasks.
+    """
     with torch.no_grad():
-        h_hat, h = model(x)  # h: [B, T, K, H]
-    return h
+        h_hat, h = model(x)  # both [B, T, K, H]
+    return h_hat if which == "h_hat" else h
 
 
 def make_batch(batch_size, K, T_raw, device, seed=None, n_factors=2):
@@ -120,7 +174,8 @@ def empirical_position_corr(x: torch.Tensor) -> torch.Tensor:
     return correlation_to_pairs(corr, K=K)
 
 
-def evaluate(head, model, K, T_raw, device, num_samples=400, batch_size=32, seed_base=10000, n_factors=2):
+def evaluate(head, model, K, T_raw, device, num_samples=400, batch_size=32, seed_base=10000,
+             n_factors=2, latent="h"):
     """Run `num_samples` samples through head + collect baselines.
     Returns per-pair statistics and concatenated arrays."""
     head.eval()
@@ -131,7 +186,7 @@ def evaluate(head, model, K, T_raw, device, num_samples=400, batch_size=32, seed
         for i in range(n_batches):
             bs = min(batch_size, num_samples - i * batch_size)
             x, _C, target = make_batch(bs, K, T_raw, device, seed=seed_base + i, n_factors=n_factors)
-            h = extract_latents(model, x)
+            h = extract_latents(model, x, latent)
             pred = head(h)
             all_pred.append(pred.cpu().numpy())
             all_true.append(target.cpu().numpy())
@@ -209,6 +264,8 @@ def main():
     # Head
     parser.add_argument("--head-type", type=str, default="linear", choices=list(HEADS))
     parser.add_argument("--hidden-dim", type=int, default=512)
+    parser.add_argument("--latent", type=str, default="h", choices=["h", "h_hat"],
+                        help="Which backbone latent to feed to the head")
     # Training
     parser.add_argument("--epochs", type=int, default=10000)
     parser.add_argument("--batch-size", type=int, default=32)
@@ -250,7 +307,7 @@ def main():
     # Build head
     K = args.C
     head_cls = HEADS[args.head_type]
-    if args.head_type == "mlp":
+    if args.head_type in ("mlp", "timeaware"):
         head = head_cls(H=args.H, K=K, hidden_dim=args.hidden_dim)
     else:
         head = head_cls(H=args.H, K=K)
@@ -266,18 +323,26 @@ def main():
         summary, arrays = evaluate(
             head, model, K, args.T_raw, device,
             num_samples=args.eval_samples, batch_size=args.batch_size,
-            n_factors=args.n_factors,
+            n_factors=args.n_factors, latent=args.latent,
         )
         print_summary(summary)
         return
 
     optimizer = optim.AdamW(head.parameters(), lr=args.lr)
 
-    # Fixed validation set
-    x_val, _C_val, target_val = make_batch(
-        128, K, args.T_raw, device, seed=0, n_factors=args.n_factors,
-    )
-    h_val = extract_latents(model, x_val)
+    # Fixed validation set (build h_val in chunks of args.batch_size to keep the
+    # GRU encoder workspace small).
+    val_size = max(args.batch_size * 4, 64)
+    val_chunks_x, val_chunks_h, val_chunks_t = [], [], []
+    for i in range(0, val_size, args.batch_size):
+        bs_i = min(args.batch_size, val_size - i)
+        xv, _Cv, tv = make_batch(
+            bs_i, K, args.T_raw, device, seed=10**6 + i, n_factors=args.n_factors,
+        )
+        val_chunks_h.append(extract_latents(model, xv, args.latent))
+        val_chunks_t.append(tv)
+    h_val = torch.cat(val_chunks_h, dim=0)
+    target_val = torch.cat(val_chunks_t, dim=0)
 
     print(f"\nTraining {args.head_type} head for {args.epochs} epochs, "
           f"batch={args.batch_size}, lr={args.lr}")
@@ -292,7 +357,7 @@ def main():
         x, _C, target = make_batch(
             args.batch_size, K, args.T_raw, device, seed=epoch, n_factors=args.n_factors,
         )
-        h = extract_latents(model, x)
+        h = extract_latents(model, x, args.latent)
         pred = head(h)
         loss = F.mse_loss(pred, target)
         loss.backward()

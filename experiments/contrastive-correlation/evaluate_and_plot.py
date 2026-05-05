@@ -59,7 +59,7 @@ def load_backbone(args, device):
 
 def load_head(args, device):
     head_cls = HEADS[args.head_type]
-    if args.head_type == "mlp":
+    if args.head_type in ("mlp", "timeaware"):
         head = head_cls(H=args.H, K=args.C, hidden_dim=args.hidden_dim)
     else:
         head = head_cls(H=args.H, K=args.C)
@@ -77,7 +77,7 @@ def collect(head, model, args, device, num_samples=400, seed_base=10000):
             this_bs = min(bs, num_samples - i * bs)
             x, C, target = make_batch(this_bs, K, args.T_raw, device, seed=seed_base + i,
                                        n_factors=args.n_factors)
-            h = extract_latents(model, x)
+            h = extract_latents(model, x, args.latent)
             pred = head(h)
             all_pred.append(pred.cpu().numpy())
             all_true.append(target.cpu().numpy())
@@ -326,6 +326,7 @@ def main():
     parser.add_argument("--head-path", type=str, required=True)
     parser.add_argument("--head-type", type=str, default="linear", choices=list(HEADS))
     parser.add_argument("--hidden-dim", type=int, default=512)
+    parser.add_argument("--latent", type=str, default="h", choices=["h", "h_hat"])
     parser.add_argument("--encoder-type", type=str, default="gru")
     parser.add_argument("--H", type=int, default=1024)
     parser.add_argument("--W", type=int, default=32)
