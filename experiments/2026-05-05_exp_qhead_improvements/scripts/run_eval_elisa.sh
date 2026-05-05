@@ -29,9 +29,11 @@ echo "[eval] using GPU ${GPU_FREE} for $HEAD_NAME ($MODE)"
 EXTRA=()
 case "$MODE" in
     --triage)
-        # 5-config fast set (~90-120s) — picks 1 small config per major domain.
-        # Per the eval-script investigation: filter by '<dataset>/<term>'.
-        EXTRA+=(--config-filter 'bizitobs_application/10S/short|ett1/15T/short|m4_yearly/A/short|covid_deaths/D/short|electricity/H/short')
+        # Fast triage set — picks small-test-set configs only.
+        # Earlier attempt that included m4_yearly took 20+min because
+        # m4_yearly has ~23k test instances. Restricted now to configs
+        # with <1k instances. Filter regex matches against '<dataset>/<term>'.
+        EXTRA+=(--config-filter 'bizitobs_application/short|bizitobs_service/short|bizitobs_l2c/(5T|H)/short|ett1/(15T|H)/short|ett2/(15T|H)/short|electricity/H/short|covid_deaths/short|us_births/D/short')
         ;;
     --full)
         : # all 97 configs
