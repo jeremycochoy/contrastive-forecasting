@@ -16,6 +16,8 @@ from src.forecasting_head import (
     LinearQuantileForecastingHead,
     QuantileForecastingHead,
     TransformerQuantileForecastingHead,
+    TransformerGaussianForecastingHead,
+    gaussian_nll_loss,
     QUANTILE_LEVELS,
     W,
     FORECAST_LEN,
@@ -777,6 +779,91 @@ class TestTransformerQuantileHead:
         x_ctx = torch.randn(1, T_RAW, C)
         out = forecast_B4(backbone, head, x_ctx, horizon=16, device="cpu")
         assert out.shape == (9, 16, C)
+
+
+class TestTransformerGaussianHead:
+    """Round 8: Gaussian-NLL transformer head (μ, log σ²) per step."""
+
+    def test_forward_returns_mu_and_log_var(self):
+        head = TransformerGaussianForecastingHead(
+            H=H, num_layers=2, nhead=4, ffn_mult=2.0, forecast_len=16)
+        x = torch.randn(B * C, T, H)
+        out = head(x)
+        assert isinstance(out, tuple) and len(out) == 2
+        mu, log_var = out
+        assert mu.shape == (B * C, T, 16)
+        assert log_var.shape == (B * C, T, 16)
+
+    def test_to_quantiles_shape(self):
+        head = TransformerGaussianForecastingHead(
+            H=H, num_layers=1, nhead=4, ffn_mult=2.0, forecast_len=16)
+        head.eval()
+        x = torch.randn(B * C, T, H)
+        with torch.no_grad():
+            mu, log_var = head(x)
+            q = head.to_quantiles(mu, log_var)
+        assert q.shape == (B * C, T, 9, 16)
+
+    def test_to_quantiles_monotonic(self):
+        """Quantiles 0.1..0.9 must be monotonically non-decreasing per step
+        (inv-CDF of standard normal is monotonic; positive σ preserves it)."""
+        head = TransformerGaussianForecastingHead(
+            H=H, num_layers=1, nhead=4, ffn_mult=2.0, forecast_len=16)
+        head.eval()
+        torch.manual_seed(0)
+        x = torch.randn(B * C, T, H)
+        with torch.no_grad():
+            mu, log_var = head(x)
+            q = head.to_quantiles(mu, log_var)
+        # diffs along Q axis must all be ≥ 0
+        diffs = q[..., 1:, :] - q[..., :-1, :]
+        assert (diffs >= -1e-6).all(), "quantiles not monotonic"
+
+    def test_gaussian_nll_loss_zero_at_perfect(self):
+        """NLL minimum: μ=target, σ²=0 (or as small as the regulariser
+        allows). With μ=target and log_var=0 (σ²=1), NLL = 0.5*log(2π)."""
+        target = torch.randn(4, 16)
+        mu = target.clone()
+        log_var = torch.zeros_like(target)
+        loss = gaussian_nll_loss(mu, log_var, target)
+        expected = 0.5 * math.log(2 * math.pi)
+        assert abs(loss.item() - expected) < 1e-5
+
+    def test_gaussian_nll_loss_decreases_when_mean_improves(self):
+        torch.manual_seed(0)
+        target = torch.randn(4, 16)
+        log_var = torch.zeros_like(target)
+        bad_mu = target + 1.0
+        good_mu = target + 0.1
+        loss_bad = gaussian_nll_loss(bad_mu, log_var, target)
+        loss_good = gaussian_nll_loss(good_mu, log_var, target)
+        assert loss_good < loss_bad
+
+    def test_forecast_b4_with_gaussian_head(self):
+        """B4 strategy must work with Gaussian head — _b_variant_decode
+        converts (mu, log_var) → quantile shape internally."""
+        from src.forecasting_head import forecast_B4
+        backbone = _make_mock_backbone()
+        head = TransformerGaussianForecastingHead(
+            H=H, num_layers=1, nhead=4, ffn_mult=2.0, forecast_len=16)
+        x_ctx = torch.randn(1, T_RAW, C)
+        out = forecast_B4(backbone, head, x_ctx, horizon=16, device="cpu")
+        # Same shape as quantile head: (Q=9, horizon, C).
+        assert out.shape == (9, 16, C)
+
+    def test_param_count_smaller_than_quantile(self):
+        """Gaussian head outputs only 2*forecast_len values per position
+        vs 9*forecast_len for the quantile head — should be smaller in
+        the final Linear, similar elsewhere."""
+        gauss = TransformerGaussianForecastingHead(
+            H=384, num_layers=6, nhead=6, forecast_len=16)
+        quant = TransformerQuantileForecastingHead(
+            H=384, num_layers=6, nhead=6, forecast_len=16)
+        n_g = sum(p.numel() for p in gauss.parameters())
+        n_q = sum(p.numel() for p in quant.parameters())
+        assert n_g < n_q
+        # Final Linear difference: H*(2L) vs H*(9L) = 7L*H = 7*16*384 ≈ 43k
+        assert n_q - n_g >= 7 * 16 * 384 - 100  # output Linear weight + bias diff
 
 
 class TestLinearProbeHeads:

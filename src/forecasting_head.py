@@ -202,6 +202,97 @@ class TransformerQuantileForecastingHead(nn.Module):
         return flat.view(BC, T_out, self.num_quantiles, self.forecast_len)
 
 
+class TransformerGaussianForecastingHead(nn.Module):
+    """Same trunk as TransformerQuantileForecastingHead but a Gaussian
+    per-position output (μ, log σ²) trained with NLL.
+
+    Round 5 + 7 showed the 9-bin pinball quantile loss plateaus at
+    ~0.192 ema across every transformer variant — strong evidence the
+    loss surface itself has hit a noise floor. This head outputs only
+    2 numbers per forecast step (mean and log-variance) and trains with
+    Gaussian NLL: smooth gradient everywhere, closed-form quantiles via
+    inverse normal CDF at eval time, dramatically fewer outputs.
+
+    Input:  (B*C, T, H) backbone latents
+    Output: (mu, log_var) each shape (B*C, T, forecast_len)
+    """
+
+    def __init__(self, H=384, num_layers=6, nhead=6, ffn_mult=4.0,
+                 forecast_len=16, dropout=0.1, causal=True,
+                 quantile_levels=QUANTILE_LEVELS, **_unused):
+        super().__init__()
+        self.forecast_len = forecast_len
+        self.causal = causal
+        # Gaussian heads still expose `quantile_levels` so eval-side
+        # `_gaussian_to_quantiles` knows which inverse-CDF points to emit.
+        self.quantile_levels = list(quantile_levels)
+        self.num_quantiles = len(self.quantile_levels)
+
+        layer = nn.TransformerEncoderLayer(
+            d_model=H,
+            nhead=nhead,
+            dim_feedforward=int(ffn_mult * H),
+            dropout=dropout,
+            activation="gelu",
+            batch_first=True,
+            norm_first=True,
+        )
+        self.transformer = nn.TransformerEncoder(layer, num_layers=num_layers)
+        self.norm = nn.LayerNorm(H)
+        # 2 outputs per forecast step: μ and log σ².
+        self.forecast_head = nn.Linear(H, forecast_len * 2)
+
+    def forward(self, x):
+        if self.causal:
+            T = x.size(1)
+            causal = torch.triu(
+                torch.ones(T, T, device=x.device, dtype=torch.bool),
+                diagonal=1,
+            )
+            x = self.transformer(x, mask=causal, is_causal=True)
+        else:
+            x = self.transformer(x)
+        x = self.norm(x)
+        flat = self.forecast_head(x)                          # (BC, T, 2*L)
+        BC, T_out, _ = flat.shape
+        out = flat.view(BC, T_out, 2, self.forecast_len)
+        mu = out[:, :, 0, :]                                  # (BC, T, L)
+        log_var = out[:, :, 1, :]
+        return mu, log_var
+
+    @torch.no_grad()
+    def to_quantiles(self, mu, log_var):
+        """Convert (μ, log σ²) → 9 quantile values via inverse normal CDF.
+
+        Returns shape (BC, T, num_quantiles, forecast_len). Same layout as
+        the quantile heads' forward output, so existing forecast_B4 code
+        can consume it after this conversion.
+        """
+        sigma = torch.exp(0.5 * log_var).clamp(min=1e-6)
+        # Inverse standard-normal CDF at each quantile level.
+        levels = torch.tensor(
+            self.quantile_levels, device=mu.device, dtype=mu.dtype)
+        z = torch.special.ndtri(levels)                       # (Q,)
+        # broadcast: (BC,T,1,L) + (BC,T,1,L) * (Q,1) → (BC,T,Q,L)
+        return mu.unsqueeze(-2) + sigma.unsqueeze(-2) * z.view(-1, 1)
+
+
+def gaussian_nll_loss(mu, log_var, target):
+    """Per-step Gaussian NLL: 0.5 * (log(2π) + log σ² + (y-μ)² / σ²).
+
+    Args:
+        mu:      (..., forecast_len)  predicted means
+        log_var: (..., forecast_len)  predicted log-variances
+        target:  (..., forecast_len)  ground-truth values
+
+    Returns:
+        Scalar mean NLL.
+    """
+    inv_var = (-log_var).exp()
+    return 0.5 * (math.log(2 * math.pi) + log_var
+                  + (target - mu).pow(2) * inv_var).mean()
+
+
 class LinearForecastingHead(nn.Module):
     """Single Linear over backbone latents (no GRU/MLP). Diagnostic baseline.
 
@@ -678,8 +769,13 @@ def _b_variant_decode(head, e_ctx, rolled_f, n_ctx):
         rolled_out: (BC, m, forecast_len) head output at rolled positions
     """
     seq = torch.cat([e_ctx, rolled_f], dim=1)   # (BC, n_ctx+m, H)
-    all_out = head(seq)                          # (BC, n_ctx+m, forecast_len)
-    return all_out[:, n_ctx:, :]                 # (BC, m, forecast_len)
+    all_out = head(seq)
+    # Gaussian heads return (mu, log_var); convert to quantile shape so
+    # downstream forecast_* code can treat them like quantile heads.
+    if isinstance(all_out, tuple):
+        mu, log_var = all_out
+        all_out = head.to_quantiles(mu, log_var)  # (BC, n_ctx+m, Q, L)
+    return all_out[:, n_ctx:, ...]               # (BC, m, ...)
 
 
 def forecast_B1(backbone, head, x_context, horizon, device):
@@ -795,7 +891,8 @@ def forecast_B4(backbone, head, x_context, horizon, device):
 
     is_quantile = isinstance(
         head, (QuantileForecastingHead, LinearQuantileForecastingHead,
-               TransformerQuantileForecastingHead))
+               TransformerQuantileForecastingHead,
+               TransformerGaussianForecastingHead))
 
     with torch.no_grad():
         n_tokens = math.ceil(horizon / W_bb)                        # m

@@ -509,17 +509,34 @@ def load_models(args, device):
     # Auto-detect GRU vs linear-probe: presence of `gru.*` keys in the state
     # dict. Linear probe is a single nn.Linear (PR ?? — qhead-improvements).
     fh_w = head_sd.get("forecast_head.weight")
-    is_quantile = (fh_w is not None
-                   and fh_w.shape[0] == args.forecast_len * 9)
+    fh_out = fh_w.shape[0] if fh_w is not None else 0
+    is_quantile = fh_out == args.forecast_len * 9
+    is_gaussian = fh_out == args.forecast_len * 2
     is_transformer = any(
         k.startswith("transformer.layers.") for k in head_sd)
     is_linear = (not is_transformer
                  and not any(k.startswith("gru.") for k in head_sd))
     H = head_config["H"]
-    if is_transformer:
+    if is_transformer and is_gaussian:
+        layer_indices = sorted({
+            int(k.split(".")[2]) for k in head_sd
+            if k.startswith("transformer.layers.")})
+        num_layers = max(layer_indices) + 1 if layer_indices else 6
+        nhead = getattr(args, "head_nhead", 6)
+        causal = getattr(args, "head_causal", "true") == "true"
+        from src.forecasting_head import TransformerGaussianForecastingHead
+        head = TransformerGaussianForecastingHead(
+            H=H, num_layers=num_layers, nhead=nhead,
+            forecast_len=args.forecast_len, causal=causal)
+        print(f"  [eval] auto-detected transformer-gauss head "
+              f"({num_layers}L H={H} nhead={nhead} "
+              f"{'causal' if causal else 'bidir'})")
+    elif is_transformer:
         if not is_quantile:
             raise ValueError(
-                "transformer head only supported for quantile output")
+                f"transformer head with forecast_head.weight shape[0]="
+                f"{fh_out} doesn't match quantile (={args.forecast_len*9}) "
+                f"or gaussian (={args.forecast_len*2})")
         layer_indices = sorted({
             int(k.split(".")[2]) for k in head_sd
             if k.startswith("transformer.layers.")})
