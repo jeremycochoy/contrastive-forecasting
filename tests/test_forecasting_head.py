@@ -15,6 +15,7 @@ from src.forecasting_head import (
     LinearForecastingHead,
     LinearQuantileForecastingHead,
     QuantileForecastingHead,
+    TransformerQuantileForecastingHead,
     QUANTILE_LEVELS,
     W,
     FORECAST_LEN,
@@ -711,6 +712,52 @@ class TestReconstructionTargets:
 # ---------------------------------------------------------------------------
 # Linear-probe heads (qhead-improvements diagnostic)
 # ---------------------------------------------------------------------------
+
+class TestTransformerQuantileHead:
+    """Round 3: causal-decoder transformer head matching the backbone."""
+
+    def test_output_shape(self):
+        head = TransformerQuantileForecastingHead(
+            H=H, num_layers=2, nhead=4, ffn_mult=2.0, forecast_len=16)
+        x = torch.randn(B * C, T, H)
+        out = head(x)
+        assert out.shape == (B * C, T, 9, 16)
+
+    def test_default_layers_and_heads(self):
+        head = TransformerQuantileForecastingHead(
+            H=384, num_layers=6, nhead=6, forecast_len=16)
+        # 6 layers × (4 H² + 8 H²) ≈ 12 × 384² × 6 ≈ 10.6M; plus norm + head.
+        n = sum(p.numel() for p in head.parameters())
+        assert 9_000_000 < n < 12_000_000, f"unexpected param count {n}"
+
+    def test_causal_mask_is_applied(self):
+        """Output at position t must be a function of inputs[:t+1] only.
+        Verify by changing input[t+1:] and confirming output[:t+1] is
+        unchanged (within fp32 noise)."""
+        torch.manual_seed(0)
+        head = TransformerQuantileForecastingHead(
+            H=H, num_layers=2, nhead=4, ffn_mult=2.0, forecast_len=16)
+        head.eval()
+        x = torch.randn(2, 8, H)
+        with torch.no_grad():
+            out_a = head(x)
+            x_b = x.clone()
+            x_b[:, 5:, :] = torch.randn(2, 3, H)  # perturb tail only
+            out_b = head(x_b)
+        # First 5 tokens must be identical (causal property)
+        assert torch.allclose(out_a[:, :5, :, :], out_b[:, :5, :, :],
+                              atol=1e-5), "causal mask not respected"
+
+    def test_forecast_b4_roundtrip(self):
+        """B4 strategy must recognise the transformer head as quantile."""
+        from src.forecasting_head import forecast_B4
+        backbone = _make_mock_backbone()
+        head = TransformerQuantileForecastingHead(
+            H=H, num_layers=1, nhead=4, ffn_mult=2.0, forecast_len=16)
+        x_ctx = torch.randn(1, T_RAW, C)
+        out = forecast_B4(backbone, head, x_ctx, horizon=16, device="cpu")
+        assert out.shape == (9, 16, C)
+
 
 class TestLinearProbeHeads:
     def test_linear_mse_shape(self):

@@ -412,6 +412,10 @@ def parse_args():
     p.add_argument("--num-layers", type=int, default=None,
                    help="Backbone transformer depth. Overrides "
                         "BACKBONE_CONFIG['num_layers'] (default 6).")
+    p.add_argument("--head-nhead", type=int, default=6,
+                   help="Transformer head: number of attention heads "
+                        "(default 6, mirrors backbone). Used only when the "
+                        "head state dict is auto-detected as a transformer.")
     return p.parse_args()
 
 
@@ -501,9 +505,28 @@ def load_models(args, device):
     fh_w = head_sd.get("forecast_head.weight")
     is_quantile = (fh_w is not None
                    and fh_w.shape[0] == args.forecast_len * 9)
-    is_linear = not any(k.startswith("gru.") for k in head_sd)
+    is_transformer = any(
+        k.startswith("transformer.layers.") for k in head_sd)
+    is_linear = (not is_transformer
+                 and not any(k.startswith("gru.") for k in head_sd))
     H = head_config["H"]
-    if is_linear and is_quantile:
+    if is_transformer:
+        if not is_quantile:
+            raise ValueError(
+                "transformer head only supported for quantile output")
+        layer_indices = sorted({
+            int(k.split(".")[2]) for k in head_sd
+            if k.startswith("transformer.layers.")})
+        num_layers = max(layer_indices) + 1 if layer_indices else 6
+        # nhead default = 6 (matches backbone H=384/64); CLI override available.
+        nhead = getattr(args, "head_nhead", 6)
+        from src.forecasting_head import TransformerQuantileForecastingHead
+        head = TransformerQuantileForecastingHead(
+            H=H, num_layers=num_layers, nhead=nhead,
+            forecast_len=args.forecast_len)
+        print(f"  [eval] auto-detected transformer-q head "
+              f"({num_layers}L H={H} nhead={nhead})")
+    elif is_linear and is_quantile:
         from src.forecasting_head import LinearQuantileForecastingHead
         head = LinearQuantileForecastingHead(
             H=H, forecast_len=args.forecast_len)

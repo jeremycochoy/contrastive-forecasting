@@ -36,6 +36,7 @@ from src.forecasting_head import (
     QuantileForecastingHead,
     LinearForecastingHead,
     LinearQuantileForecastingHead,
+    TransformerQuantileForecastingHead,
     QUANTILE_LEVELS,
     quantile_loss,
     W,
@@ -222,10 +223,21 @@ def parse_args():
                    help="AdamW eps.")
     # -- Head architecture --------------------------------------------------
     p.add_argument("--head-arch", default="gru",
-                   choices=["gru", "linear"],
+                   choices=["gru", "linear", "transformer"],
                    help="Head architecture. 'gru': default (input_proj + "
                         "bidir GRU + MLP + Linear). 'linear': diagnostic "
-                        "single-Linear probe over backbone latents.")
+                        "single-Linear probe. 'transformer': N-layer causal "
+                        "decoder, mirrors backbone width.")
+    p.add_argument("--head-num-layers", type=int, default=6,
+                   help="Transformer head: number of decoder layers. "
+                        "Default 6 to mirror the backbone.")
+    p.add_argument("--head-nhead", type=int, default=6,
+                   help="Transformer head: number of attention heads. "
+                        "Default 6 to mirror the backbone (H=384/64).")
+    p.add_argument("--head-ffn-mult", type=float, default=4.0,
+                   help="Transformer head: FFN hidden = ffn_mult * H.")
+    p.add_argument("--head-dropout", type=float, default=0.1,
+                   help="Dropout for transformer/GRU heads.")
     return p.parse_args()
 
 
@@ -372,6 +384,21 @@ def main():
             head = LinearForecastingHead(
                 H=head_config["H"], forecast_len=args.forecast_len).to(device)
             head_kind = "linear-probe MSE (point)"
+    elif args.head_arch == "transformer":
+        if not args.quantile_head:
+            raise ValueError(
+                "transformer head only implemented for quantile output; "
+                "pass --quantile-head")
+        head = TransformerQuantileForecastingHead(
+            H=head_config["H"],
+            num_layers=args.head_num_layers,
+            nhead=args.head_nhead,
+            ffn_mult=args.head_ffn_mult,
+            forecast_len=args.forecast_len,
+            dropout=args.head_dropout,
+        ).to(device)
+        head_kind = (f"transformer-q ({args.head_num_layers}L "
+                     f"H{head_config['H']} nhead{args.head_nhead})")
     else:
         if args.quantile_head:
             head = QuantileForecastingHead(**head_config).to(device)
