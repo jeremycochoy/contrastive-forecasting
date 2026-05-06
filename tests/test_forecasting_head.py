@@ -736,7 +736,8 @@ class TestTransformerQuantileHead:
         unchanged (within fp32 noise)."""
         torch.manual_seed(0)
         head = TransformerQuantileForecastingHead(
-            H=H, num_layers=2, nhead=4, ffn_mult=2.0, forecast_len=16)
+            H=H, num_layers=2, nhead=4, ffn_mult=2.0, forecast_len=16,
+            causal=True)
         head.eval()
         x = torch.randn(2, 8, H)
         with torch.no_grad():
@@ -747,6 +748,25 @@ class TestTransformerQuantileHead:
         # First 5 tokens must be identical (causal property)
         assert torch.allclose(out_a[:, :5, :, :], out_b[:, :5, :, :],
                               atol=1e-5), "causal mask not respected"
+
+    def test_bidir_uses_future_tokens(self):
+        """With causal=False, output at position t MUST depend on
+        inputs[t+1:]. Mirror of test_causal_mask_is_applied — perturb
+        inputs[t+1:] and verify outputs[:t+1] DO change."""
+        torch.manual_seed(0)
+        head = TransformerQuantileForecastingHead(
+            H=H, num_layers=2, nhead=4, ffn_mult=2.0, forecast_len=16,
+            causal=False)
+        head.eval()
+        x = torch.randn(2, 8, H)
+        with torch.no_grad():
+            out_a = head(x)
+            x_b = x.clone()
+            x_b[:, 5:, :] = torch.randn(2, 3, H)  # perturb tail only
+            out_b = head(x_b)
+        # First 5 tokens MUST differ — bidir attention pulls from future
+        assert not torch.allclose(out_a[:, :5, :, :], out_b[:, :5, :, :],
+                                  atol=1e-5), "bidir head not using future tokens"
 
     def test_forecast_b4_roundtrip(self):
         """B4 strategy must recognise the transformer head as quantile."""
