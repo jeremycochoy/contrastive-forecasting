@@ -142,6 +142,57 @@ class QuantileForecastingHead(nn.Module):
         return flat.view(BC, T, self.num_quantiles, self.forecast_len)
 
 
+class TransformerQuantileForecastingHead(nn.Module):
+    """6-layer causal-decoder transformer head on backbone latents.
+
+    Mirrors the backbone's depth+width (defaults H=384, num_layers=6,
+    nhead=6, ffn_mult=4) — same representational surface as the backbone
+    but trained from scratch with Moirai-style HP and cosine LR. Hypothesis:
+    linear / GRU heads under-fit a non-linear quantile surface; a
+    transformer matches the backbone's geometry.
+
+    Pre-norm, GELU, dropout=0.1. Causal mask so the head can't peek at
+    future tokens (matches the backbone's training-time causality).
+
+    Input:  (B*C, T, H) backbone latents
+    Output: (B*C, T, num_quantiles, forecast_len)
+    """
+
+    def __init__(self, H=384, num_layers=6, nhead=6, ffn_mult=4.0,
+                 forecast_len=16, dropout=0.1,
+                 quantile_levels=QUANTILE_LEVELS, **_unused):
+        super().__init__()
+        self.forecast_len = forecast_len
+        self.quantile_levels = list(quantile_levels)
+        self.num_quantiles = len(self.quantile_levels)
+
+        layer = nn.TransformerEncoderLayer(
+            d_model=H,
+            nhead=nhead,
+            dim_feedforward=int(ffn_mult * H),
+            dropout=dropout,
+            activation="gelu",
+            batch_first=True,
+            norm_first=True,
+        )
+        self.transformer = nn.TransformerEncoder(layer, num_layers=num_layers)
+        self.norm = nn.LayerNorm(H)
+        self.forecast_head = nn.Linear(
+            H, forecast_len * self.num_quantiles)
+
+    def forward(self, x):
+        T = x.size(1)
+        causal = torch.triu(
+            torch.ones(T, T, device=x.device, dtype=torch.bool),
+            diagonal=1,
+        )
+        x = self.transformer(x, mask=causal, is_causal=True)
+        x = self.norm(x)
+        flat = self.forecast_head(x)
+        BC, T_out, _ = flat.shape
+        return flat.view(BC, T_out, self.num_quantiles, self.forecast_len)
+
+
 class LinearForecastingHead(nn.Module):
     """Single Linear over backbone latents (no GRU/MLP). Diagnostic baseline.
 
@@ -734,7 +785,8 @@ def forecast_B4(backbone, head, x_context, horizon, device):
         backbone, x_context, device)
 
     is_quantile = isinstance(
-        head, (QuantileForecastingHead, LinearQuantileForecastingHead))
+        head, (QuantileForecastingHead, LinearQuantileForecastingHead,
+               TransformerQuantileForecastingHead))
 
     with torch.no_grad():
         n_tokens = math.ceil(horizon / W_bb)                        # m
