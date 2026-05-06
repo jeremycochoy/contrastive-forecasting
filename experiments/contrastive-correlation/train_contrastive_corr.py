@@ -48,13 +48,13 @@ def main():
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--lr", type=float, default=7e-5)
     parser.add_argument("--temperature", type=float, default=0.07)
-    parser.add_argument("--grad-clip", type=float, default=1.0,
-                        help="Gradient norm clip (set to 0 to disable)")
-    parser.add_argument("--lr-schedule", type=str, default="none",
+    parser.add_argument("--grad-clip", type=float, default=0.0,
+                        help="Disabled by default — set >0 only if a run shows blow-up.")
+    parser.add_argument("--lr-schedule", type=str, default="cosine",
                         choices=["none", "cosine"],
                         help="LR schedule: 'cosine' decays to 10% of base by total_steps")
-    parser.add_argument("--warmup-steps", type=int, default=1000,
-                        help="Linear warmup steps when --lr-schedule=cosine")
+    parser.add_argument("--warmup-steps", type=int, default=0,
+                        help="Linear warmup steps; 0 disables warmup.")
     parser.add_argument("--loss-shape", type=str, default="cosine_similarity_batch_no_time_neg")
     parser.add_argument("--T-raw", type=int, default=4096)
     parser.add_argument("--n-factors", type=int, default=2,
@@ -261,7 +261,12 @@ def main():
         "final_metrics": metrics_log[-1] if metrics_log else None,
         "metrics_log": metrics_log,
     }
-    results_path = f"corr_backbone_{args.experiment_id}_results.json"
+    # Write results next to the checkpoint so they don't pollute the repo root.
+    import os
+    results_dir = os.path.dirname(args.save_path) or "."
+    results_path = os.path.join(
+        results_dir, f"corr_backbone_{args.experiment_id}_results.json"
+    )
     with open(results_path, "w") as f:
         json.dump(results, f, indent=2)
 

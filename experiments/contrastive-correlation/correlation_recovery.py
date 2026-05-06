@@ -277,10 +277,11 @@ def main():
     parser.add_argument("--eval-samples", type=int, default=400)
     parser.add_argument("--log-every", type=int, default=100)
     parser.add_argument("--save-every", type=int, default=2000)
-    parser.add_argument("--lr-schedule", type=str, default="none",
+    parser.add_argument("--lr-schedule", type=str, default="cosine",
                         choices=["none", "cosine"])
-    parser.add_argument("--warmup-epochs", type=int, default=200)
-    parser.add_argument("--grad-clip", type=float, default=1.0)
+    parser.add_argument("--warmup-epochs", type=int, default=0)
+    parser.add_argument("--grad-clip", type=float, default=0.0,
+                        help="Disabled by default — set >0 only if a run shows gradient blow-up.")
     args = parser.parse_args()
 
     if args.head_path is None:
@@ -416,7 +417,7 @@ def main():
     summary, arrays = evaluate(
         head, model, K, args.T_raw, device,
         num_samples=args.eval_samples, batch_size=args.batch_size,
-        n_factors=args.n_factors,
+        n_factors=args.n_factors, latent=args.latent,
     )
     print_summary(summary)
 

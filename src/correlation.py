@@ -103,7 +103,7 @@ def correlation_to_pairs(C: torch.Tensor, K: int | None = None) -> torch.Tensor:
 def pairs_to_correlation(p: torch.Tensor, K: int = 4) -> torch.Tensor:
     """Inverse of correlation_to_pairs: rebuild full symmetric KxK with 1s on diagonal."""
     B = p.shape[0]
-    out = torch.eye(K, device=p.device, dtype=p.dtype).unsqueeze(0).expand(B, K, K).clone()
+    out = torch.eye(K, device=p.device, dtype=p.dtype).unsqueeze(0).repeat(B, 1, 1)
     rows, cols = pairwise_indices(K)
     out[:, rows, cols] = p
     out[:, cols, rows] = p
