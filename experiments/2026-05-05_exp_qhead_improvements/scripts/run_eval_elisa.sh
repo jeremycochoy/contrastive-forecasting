@@ -44,6 +44,24 @@ case "$MODE" in
         ;;
 esac
 
+# Auto-detect from run name: forecast_len + eval strategy + causality.
+# Naming convention: a head trained at forecast_len=128 must include
+# 'fl128' in its name; bidirectional heads must include 'bidir'.
+# Default (no markers): forecast_len=16, B4 strategy, causal=true.
+if [[ "$HEAD_NAME" == *"fl128"* ]]; then
+    FL=128
+    STRATEGY=B1
+else
+    FL=16
+    STRATEGY=B4
+fi
+if [[ "$HEAD_NAME" == *"bidir"* ]]; then
+    HEAD_CAUSAL=false
+else
+    HEAD_CAUSAL=true
+fi
+echo "[eval] forecast_len=$FL strategy=$STRATEGY head_causal=$HEAD_CAUSAL"
+
 PYTHONPATH=. \
 HF_TOKEN=$(cat experiments/hf_token.txt) \
 HUGGING_FACE_HUB_TOKEN=$(cat experiments/hf_token.txt) \
@@ -52,10 +70,11 @@ CUDA_VISIBLE_DEVICES=${GPU_FREE} \
 python3 -u experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py \
     --backbone-path "$BB_PATH" \
     --head-path "$HEAD_PATH" \
-    --output-dir "$OUT_DIR" --strategy B4 --forecast-len 16 \
+    --output-dir "$OUT_DIR" --strategy "$STRATEGY" --forecast-len "$FL" \
     --t-raw 4096 --backbone-c 1 \
     --d-model 384 --n-heads 6 --num-layers 6 \
     --rev-norm-kind ewma --rev-norm-span 128 --device cuda \
+    --head-causal "$HEAD_CAUSAL" \
     "${EXTRA[@]}"
 
 echo "[eval] DONE  out=$OUT_DIR"
