@@ -37,8 +37,10 @@ from src.forecasting_head import (
     LinearForecastingHead,
     LinearQuantileForecastingHead,
     TransformerQuantileForecastingHead,
+    TransformerGaussianForecastingHead,
     QUANTILE_LEVELS,
     quantile_loss,
+    gaussian_nll_loss,
     W,
     FORECAST_LEN,
     extract_forecaster_latents,
@@ -223,11 +225,15 @@ def parse_args():
                    help="AdamW eps.")
     # -- Head architecture --------------------------------------------------
     p.add_argument("--head-arch", default="gru",
-                   choices=["gru", "linear", "transformer"],
-                   help="Head architecture. 'gru': default (input_proj + "
-                        "bidir GRU + MLP + Linear). 'linear': diagnostic "
-                        "single-Linear probe. 'transformer': N-layer causal "
-                        "decoder, mirrors backbone width.")
+                   choices=["gru", "linear", "transformer",
+                            "transformer-gaussian"],
+                   help="Head architecture. 'gru': default. 'linear': "
+                        "diagnostic single-Linear probe. 'transformer': "
+                        "causal/bidir transformer with 9-bin pinball "
+                        "quantile output. 'transformer-gaussian': same "
+                        "trunk but predicts (μ, log σ²) per step trained "
+                        "with Gaussian NLL — closed-form quantiles via "
+                        "inverse normal CDF at eval.")
     p.add_argument("--head-num-layers", type=int, default=6,
                    help="Transformer head: number of decoder layers. "
                         "Default 6 to mirror the backbone.")
@@ -406,6 +412,20 @@ def main():
             causal=causal,
         ).to(device)
         head_kind = (f"transformer-q ({args.head_num_layers}L "
+                     f"H{head_config['H']} nhead{args.head_nhead} "
+                     f"{'causal' if causal else 'bidir'})")
+    elif args.head_arch == "transformer-gaussian":
+        causal = args.head_causal == "true"
+        head = TransformerGaussianForecastingHead(
+            H=head_config["H"],
+            num_layers=args.head_num_layers,
+            nhead=args.head_nhead,
+            ffn_mult=args.head_ffn_mult,
+            forecast_len=args.forecast_len,
+            dropout=args.head_dropout,
+            causal=causal,
+        ).to(device)
+        head_kind = (f"transformer-gauss ({args.head_num_layers}L "
                      f"H{head_config['H']} nhead{args.head_nhead} "
                      f"{'causal' if causal else 'bidir'})")
     else:
@@ -613,7 +633,13 @@ def main():
                 x_norm, W=W, output_len=args.forecast_len, mode='forecaster')
             targets = targets.to(device)
             preds = head(f_bc)
-            if args.quantile_head:
+            if isinstance(preds, tuple):
+                # Gaussian head: (mu, log_var) per position.
+                mu, log_var = preds
+                mu = mu[:, :T_valid, :]
+                log_var = log_var[:, :T_valid, :]
+                loss = gaussian_nll_loss(mu, log_var, targets)
+            elif args.quantile_head:
                 preds = preds[:, :T_valid, :, :]                  # (BC, T, Q, L)
                 loss = quantile_loss(preds, targets, QUANTILE_LEVELS)
             else:
