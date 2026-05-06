@@ -76,7 +76,7 @@ def collect(head, model, args, device, num_samples=400, seed_base=10000):
         for i in range(n_batches):
             this_bs = min(bs, num_samples - i * bs)
             x, C, target = make_batch(this_bs, K, args.T_raw, device, seed=seed_base + i,
-                                       n_factors=args.n_factors)
+                                       sampler=args.sampler, n_factors=args.n_factors)
             h = extract_latents(model, x, args.latent)
             pred = head(h)
             all_pred.append(pred.cpu().numpy())
@@ -95,10 +95,10 @@ def collect(head, model, args, device, num_samples=400, seed_base=10000):
     }
 
 
-def make_batch(bs, K, T_raw, device, seed, n_factors):
+def make_batch(bs, K, T_raw, device, seed, sampler, n_factors):
     x, C = generate_correlated_batch(
         batch_size=bs, T_raw=T_raw, K=K, seed=seed,
-        device=device, n_factors=n_factors,
+        device=device, sampler=sampler, n_factors=n_factors,
     )
     return x, C, correlation_to_pairs(C, K=K)
 
@@ -110,7 +110,7 @@ def make_batch(bs, K, T_raw, device, seed, n_factors):
 def plot_data_samples(args, device, out_path, n=4):
     x, C = generate_correlated_batch(
         batch_size=n, T_raw=args.T_raw, K=args.C, seed=42,
-        device=device, n_factors=args.n_factors,
+        device=device, sampler=args.sampler, n_factors=args.n_factors,
     )
     x = x.cpu().numpy()
     C = C.cpu().numpy()
@@ -339,6 +339,8 @@ def main():
     parser.add_argument("--dropout", type=float, default=0.1)
     parser.add_argument("--intermediate-dim", type=int, default=None)
     parser.add_argument("--T-raw", type=int, default=4096)
+    parser.add_argument("--sampler", type=str, default="factor",
+                        choices=["factor", "uniform"])
     parser.add_argument("--n-factors", type=int, default=2)
     parser.add_argument("--num-samples", type=int, default=400)
     parser.add_argument("--out-dir", type=str, default="figures")

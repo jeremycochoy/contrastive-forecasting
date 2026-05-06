@@ -46,6 +46,44 @@ def sample_correlation_matrices(
     return C.float()
 
 
+def sample_correlation_matrices_uniform(
+    B: int,
+    K: int = 4,
+    device: str | torch.device = "cpu",
+    generator: torch.Generator | None = None,
+    eig_floor: float = 1e-6,
+    oversample: float = 3.0,
+) -> torch.Tensor:
+    """Sample B random K×K correlation matrices with **off-diagonals iid U[0, 1]**.
+
+    Each pair entry is drawn independently from U[0, 1]; matrices that fail the
+    PSD check (smallest eigenvalue ≤ `eig_floor`) are rejected and resampled.
+
+    For K=4 the acceptance rate is ≈ 0.43; we over-sample by `oversample`× and
+    refill until B accepted candidates are collected. Returns float32 [B, K, K].
+    """
+    iu = torch.triu_indices(K, K, offset=1, device=device)
+    rows, cols = iu[0], iu[1]
+    n_pairs = rows.numel()
+    eye = torch.eye(K, device=device, dtype=torch.float32)
+    accepted = []
+    needed = B
+    while needed > 0:
+        n = max(int(needed * oversample), 16)
+        tris = torch.rand(n, n_pairs, device=device, generator=generator)
+        cand = eye.unsqueeze(0).repeat(n, 1, 1)
+        cand[:, rows, cols] = tris
+        cand[:, cols, rows] = tris
+        eigmin = torch.linalg.eigvalsh(cand)[:, 0]
+        ok = cand[eigmin > eig_floor]
+        if ok.shape[0] == 0:
+            continue
+        take = ok[:needed]
+        accepted.append(take)
+        needed -= take.shape[0]
+    return torch.cat(accepted, dim=0).float()
+
+
 def generate_correlated_batch(
     batch_size: int = 16,
     T_raw: int = 4096,
@@ -53,9 +91,16 @@ def generate_correlated_batch(
     seed: int | None = None,
     device: str | torch.device = "cpu",
     standardize: bool = True,
+    sampler: str = "factor",
     n_factors: int = 2,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Sample a batch of correlated random walks.
+
+    `sampler` selects the C-distribution:
+    - "factor"  : 2-factor non-negative loadings (default; off-diagonals
+                  concentrated around 0.3–0.4, capped near 0.9).
+    - "uniform" : each off-diagonal iid U[0, 1] with PSD rejection (covers the
+                  full [0, 1] range much more evenly).
 
     Returns
     -------
@@ -67,9 +112,17 @@ def generate_correlated_batch(
     else:
         gen = None
 
-    C = sample_correlation_matrices(
-        batch_size, K=K, n_factors=n_factors, device=device, generator=gen
-    )
+    if sampler == "uniform":
+        C = sample_correlation_matrices_uniform(
+            batch_size, K=K, device=device, generator=gen
+        )
+    elif sampler == "factor":
+        C = sample_correlation_matrices(
+            batch_size, K=K, n_factors=n_factors, device=device, generator=gen
+        )
+    else:
+        raise ValueError(f"Unknown sampler {sampler!r}; expected 'factor' or 'uniform'")
+
     L = torch.linalg.cholesky(C)  # [B, K, K]
     z = torch.randn(batch_size, T_raw, K, device=device, generator=gen)
     eps = z @ L.transpose(-2, -1)  # eps_t = L @ z_t, applied row-wise

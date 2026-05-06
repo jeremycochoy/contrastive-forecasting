@@ -138,10 +138,10 @@ def extract_latents(model, x, which: str = "h"):
     return h_hat if which == "h_hat" else h
 
 
-def make_batch(batch_size, K, T_raw, device, seed=None, n_factors=2):
+def make_batch(batch_size, K, T_raw, device, seed=None, sampler="factor", n_factors=2):
     x, C = generate_correlated_batch(
         batch_size=batch_size, T_raw=T_raw, K=K, seed=seed,
-        device=device, n_factors=n_factors,
+        device=device, sampler=sampler, n_factors=n_factors,
     )
     targets = correlation_to_pairs(C, K=K)
     return x, C, targets
@@ -175,7 +175,7 @@ def empirical_position_corr(x: torch.Tensor) -> torch.Tensor:
 
 
 def evaluate(head, model, K, T_raw, device, num_samples=400, batch_size=32, seed_base=10000,
-             n_factors=2, latent="h"):
+             sampler="factor", n_factors=2, latent="h"):
     """Run `num_samples` samples through head + collect baselines.
     Returns per-pair statistics and concatenated arrays."""
     head.eval()
@@ -185,7 +185,8 @@ def evaluate(head, model, K, T_raw, device, num_samples=400, batch_size=32, seed
     with torch.no_grad():
         for i in range(n_batches):
             bs = min(batch_size, num_samples - i * batch_size)
-            x, _C, target = make_batch(bs, K, T_raw, device, seed=seed_base + i, n_factors=n_factors)
+            x, _C, target = make_batch(bs, K, T_raw, device, seed=seed_base + i,
+                                       sampler=sampler, n_factors=n_factors)
             h = extract_latents(model, x, latent)
             pred = head(h)
             all_pred.append(pred.cpu().numpy())
@@ -271,6 +272,8 @@ def main():
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--T-raw", type=int, default=4096)
     parser.add_argument("--lr", type=float, default=3e-4)
+    parser.add_argument("--sampler", type=str, default="factor",
+                        choices=["factor", "uniform"])
     parser.add_argument("--n-factors", type=int, default=2)
     parser.add_argument("--head-path", type=str, default=None)
     parser.add_argument("--evaluate", action="store_true")
@@ -328,7 +331,7 @@ def main():
         summary, arrays = evaluate(
             head, model, K, args.T_raw, device,
             num_samples=args.eval_samples, batch_size=args.batch_size,
-            n_factors=args.n_factors, latent=args.latent,
+            sampler=args.sampler, n_factors=args.n_factors, latent=args.latent,
         )
         print_summary(summary)
         return
@@ -342,7 +345,7 @@ def main():
     for i in range(0, val_size, args.batch_size):
         bs_i = min(args.batch_size, val_size - i)
         xv, _Cv, tv = make_batch(
-            bs_i, K, args.T_raw, device, seed=10**6 + i, n_factors=args.n_factors,
+            bs_i, K, args.T_raw, device, seed=10**6 + i, sampler=args.sampler, n_factors=args.n_factors,
         )
         val_chunks_h.append(extract_latents(model, xv, args.latent))
         val_chunks_t.append(tv)
@@ -371,7 +374,7 @@ def main():
         head.train()
         optimizer.zero_grad()
         x, _C, target = make_batch(
-            args.batch_size, K, args.T_raw, device, seed=epoch, n_factors=args.n_factors,
+            args.batch_size, K, args.T_raw, device, seed=epoch, sampler=args.sampler, n_factors=args.n_factors,
         )
         h = extract_latents(model, x, args.latent)
         pred = head(h)
@@ -417,7 +420,7 @@ def main():
     summary, arrays = evaluate(
         head, model, K, args.T_raw, device,
         num_samples=args.eval_samples, batch_size=args.batch_size,
-        n_factors=args.n_factors, latent=args.latent,
+        sampler=args.sampler, n_factors=args.n_factors, latent=args.latent,
     )
     print_summary(summary)
 

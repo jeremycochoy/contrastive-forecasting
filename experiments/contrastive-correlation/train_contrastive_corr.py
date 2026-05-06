@@ -20,9 +20,11 @@ from src.models import ConfigurableModel, compute_metrics, count_parameters
 from src.correlation import generate_correlated_batch
 
 
-def generate_random_batch(batch_size, T_raw=4096, K=4, seed=None, device="cpu"):
+def generate_random_batch(batch_size, T_raw=4096, K=4, seed=None, device="cpu",
+                          sampler="factor", n_factors=2):
     x, _ = generate_correlated_batch(
-        batch_size=batch_size, T_raw=T_raw, K=K, seed=seed, device=device
+        batch_size=batch_size, T_raw=T_raw, K=K, seed=seed, device=device,
+        sampler=sampler, n_factors=n_factors,
     )
     return x
 
@@ -57,8 +59,13 @@ def main():
                         help="Linear warmup steps; 0 disables warmup.")
     parser.add_argument("--loss-shape", type=str, default="cosine_similarity_batch_no_time_neg")
     parser.add_argument("--T-raw", type=int, default=4096)
+    parser.add_argument("--sampler", type=str, default="factor",
+                        choices=["factor", "uniform"],
+                        help="Correlation-matrix sampler: 'factor' (default, off-diagonals "
+                             "concentrated near 0.4) or 'uniform' (each pair iid U[0,1] with "
+                             "PSD rejection — covers the full [0,1] range).")
     parser.add_argument("--n-factors", type=int, default=2,
-                        help="Number of latent factors used to construct correlation matrices")
+                        help="Number of latent factors used by the 'factor' sampler")
     # Logging
     parser.add_argument("--val-every", type=int, default=500)
     parser.add_argument("--save-every", type=int, default=10000)
@@ -113,7 +120,8 @@ def main():
 
     # Fixed validation set
     x_val = generate_random_batch(
-        args.batch_size, T_raw=args.T_raw, K=args.C, seed=0, device=device
+        args.batch_size, T_raw=args.T_raw, K=args.C, seed=0, device=device,
+        sampler=args.sampler, n_factors=args.n_factors,
     ).to(device)
 
     spec = SimpleNamespace(train_configuration={
@@ -156,7 +164,8 @@ def main():
         optimizer.zero_grad()
 
         x_train = generate_random_batch(
-            args.batch_size, T_raw=args.T_raw, K=args.C, device=device
+            args.batch_size, T_raw=args.T_raw, K=args.C, device=device,
+            sampler=args.sampler, n_factors=args.n_factors,
         ).to(device)
         B, T_raw_actual, C_actual = x_train.shape
         T = T_raw_actual // args.W
