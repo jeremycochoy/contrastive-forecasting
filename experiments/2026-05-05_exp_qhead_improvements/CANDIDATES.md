@@ -31,49 +31,61 @@ ranking. Useful for fast triage; full eval to confirm before claiming wins.
 
 E1 full eval running on elisa GPU 1 to confirm the triage-vs-full delta.
 
-## Round 2 — combining wins
+## Round 2 — combining wins (done)
+
+| ID | head | HP | schedule | total_steps | GM-MASE (triage) | Δ |
+|---|---|---|---|---|---|---|
+| R2_E3 | linear-q | Moirai (β2 0.98, wd 0.1, lr 1e-3) | WSD warmup 500, decay 24k→30k → 0.1×peak | 30k | 1.067 | −5.4% |
+
+R2_E3 confirmed the linear head plateaus regardless of HP/schedule —
+training-loss trajectory was bit-identical to R1_E1. Linear is at its
+representational ceiling.
+
+## Round 3 — transformer head (per user)
+
+| ID | head | HP | schedule | total_steps | GM-MASE (triage) | Δ |
+|---|---|---|---|---|---|---|
+| **R3_E4** | xfmr-q (6L H=384 nhead=6, 10.7M) | Moirai | cosine warmup=1000 → 0.1×peak | 30k | **1.017** | **−9.8%** |
+
+The user's hypothesis paid off: a 6-layer causal-decoder transformer
+head matching the backbone's depth+width with Moirai HP and cosine LR
+broke through the linear plateau. Loss was still dropping at step 30000
+(final ema_loss=0.192) so longer training should help further.
+
+## Round 4 — push the transformer
 
 | ID | head | HP | schedule | total_steps | status | GM-MASE | Δ |
 |---|---|---|---|---|---|---|---|
-| **R2_E3** | linear-q | Moirai (β2 0.98, wd 0.1, lr 1e-3) | WSD warmup 500, decay 24k→30k → 0.1×peak | 30k | running on elisa GPU 0 | TBD | TBD |
+| **R4_E5** | same as R3_E4 | Moirai | cosine warmup=2000 → 0.1×peak | 60k | running on vast 36231634 | TBD | TBD |
 
-R2_E3 hypothesis: stack the two wins. Expect <1.066.
+## Pending candidates (re-ordered after R3_E4)
 
-## Pending Round 2/3 candidates (re-ordered after R1)
+### Top priority — biggest expected wins
 
-### Top priority — likely biggest wins
+- **R4_E6**: deeper transformer (12 layers, same H=384). 21M params.
+  R3_E4's 10.7M was clearly under-trained at 30k. After R4_E5 (longer
+  training) lands, R4_E6 tests if depth on top of length helps.
+- **R4_E7**: wider transformer (H=512, nhead=8, 6 layers). ~19M params.
+  Different than depth — more representational power per layer. Needs
+  a CLI flag for `--head-d-model` (currently inherits from backbone H).
 
-- **R2_E4**: linear-q + Moirai HP + WSD + **60k or 100k steps**. The user's
-  big-idea principle: longer training under WSD often yields more, especially
-  when small head + frozen backbone (no overfitting blowup risk).
-- **R2_E5**: linear-q + Moirai HP + WSD + **lr 3e-3** (peak lr sweep). E1
-  used lr=3e-4 and won; E2 used lr=1e-3 (smaller win). Maybe linear head
-  benefits from yet-higher peak lr.
-- **R2_E6**: linear-q + cosine warmup→decay (vs WSD). Simpler schedule,
-  matches typical fine-tune recipes.
+### Schedule / HP refinements
 
-### Architecture (linear was best, GRU was worst — explore in between)
+- **R4_E8**: WSD 60k steps (stable to 48k, decay 48k→60k) — vs cosine
+  60k. Tests whether WSD's late-cooldown recipe beats smooth cosine.
+- **R4_E9**: longer warmup (5k vs 1k–2k) — gives the 10M-param
+  transformer more time to escape initialization.
 
-- **R2_E7**: 1-layer GRU hidden=32 (or simply 2-layer MLP no GRU): a touch
-  of nonlinearity above pure linear. Tests whether the GRU's recurrent
-  bias hurt or whether it's just over-parameterization.
+### Output structure / loss
 
-### Output structure
-
-- **R2_E8**: per-quantile output Linears (shared trunk: backbone latent →
-  trunk → 9 separate Linears, one per quantile). Fixes potential quantile
-  crossing pathology.
-- **R2_E9**: Gaussian-NLL parametric head (μ, σ; closed-form CRPS for each
-  position). 2 outputs vs 9; massively fewer params; closed-form quantiles.
-
-### Cooldown branching from R2_E3's STABLE (after R2_E3 finishes)
-
-- Cooldown variant A: 6k linear decay 1e-3 → 3e-5 (more aggressive)
-- Cooldown variant B: 4k linear decay (shorter cooldown)
-- Cooldown variant C: cosine cooldown shape (vs linear)
+- **R4_E10**: Gaussian-NLL head on the transformer trunk (predict μ, log σ²
+  per step; closed-form CRPS). Smoother gradient than 9-bin pinball; might
+  benefit the larger head.
+- **R4_E11**: per-quantile output Linears on shared transformer trunk.
 
 ### Lower priority
 
-- Mix synth into training data (mix_ratio > 0)
-- Train forecast_len=128 (multi-step decoder)
-- Larger batch (512 or 1024)
+- Mix synth into training data (mix_ratio > 0).
+- Train forecast_len=128 (multi-step decoder).
+- Larger batch (512 or 1024).
+- Backbone fine-tune (last resort, breaks user's frozen-backbone assumption).
