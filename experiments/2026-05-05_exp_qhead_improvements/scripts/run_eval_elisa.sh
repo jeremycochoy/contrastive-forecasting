@@ -1,11 +1,19 @@
 #!/bin/bash
-# Local GIFT-Eval driver for the qhead-improvements Round 1 heads.
+# Local GIFT-Eval driver for the qhead-improvements Round 1+ heads.
 # Eval runs on elisa (free 4090s, GIFT-Eval data already on disk) — vast just
-# does training. Usage:
-#   ./run_eval_elisa.sh <head_run_name> [--triage|--full]
-# Examples:
-#   ./run_eval_elisa.sh R1_E1_linear_quant_lr3e4 --triage
-#   ./run_eval_elisa.sh R1_E2_gru_quant_moirai_wsd --full
+# does training.
+#
+# Usage:
+#   [FL=N] [STRATEGY=S] [HEAD_CAUSAL={true,false}] \
+#       ./run_eval_elisa.sh <head_run_name> [--triage|--full]
+#
+# Defaults (matching the legacy GRU and linear-probe heads):
+#   FL=16, STRATEGY=B4, HEAD_CAUSAL=true.
+#
+# For a bidir / forecast_len=128 head (e.g. R6_E8) you must pass
+# overrides explicitly — there's no name-based magic:
+#   FL=128 STRATEGY=B1 HEAD_CAUSAL=false ./run_eval_elisa.sh \
+#       R6_E8_xfmr6L_bidir_fl128_quant_moirai_cosine --triage
 
 set -e
 ROOT="/home/jupyter/contrastive-forecasting"
@@ -44,22 +52,11 @@ case "$MODE" in
         ;;
 esac
 
-# Auto-detect from run name: forecast_len + eval strategy + causality.
-# Naming convention: a head trained at forecast_len=128 must include
-# 'fl128' in its name; bidirectional heads must include 'bidir'.
-# Default (no markers): forecast_len=16, B4 strategy, causal=true.
-if [[ "$HEAD_NAME" == *"fl128"* ]]; then
-    FL=128
-    STRATEGY=B1
-else
-    FL=16
-    STRATEGY=B4
-fi
-if [[ "$HEAD_NAME" == *"bidir"* ]]; then
-    HEAD_CAUSAL=false
-else
-    HEAD_CAUSAL=true
-fi
+# Explicit env-var overrides — no name-based magic. Defaults match the
+# legacy GRU + linear-probe heads.
+FL="${FL:-16}"
+STRATEGY="${STRATEGY:-B4}"
+HEAD_CAUSAL="${HEAD_CAUSAL:-true}"
 echo "[eval] forecast_len=$FL strategy=$STRATEGY head_causal=$HEAD_CAUSAL"
 
 PYTHONPATH=. \
