@@ -143,26 +143,32 @@ class QuantileForecastingHead(nn.Module):
 
 
 class TransformerQuantileForecastingHead(nn.Module):
-    """6-layer causal-decoder transformer head on backbone latents.
+    """N-layer transformer head on backbone latents.
 
-    Mirrors the backbone's depth+width (defaults H=384, num_layers=6,
+    Mirrors the backbone's depth+width by default (H=384, num_layers=6,
     nhead=6, ffn_mult=4) — same representational surface as the backbone
-    but trained from scratch with Moirai-style HP and cosine LR. Hypothesis:
-    linear / GRU heads under-fit a non-linear quantile surface; a
-    transformer matches the backbone's geometry.
+    but trained from scratch with Moirai-style HP and cosine LR. Pre-norm,
+    GELU, dropout=0.1.
 
-    Pre-norm, GELU, dropout=0.1. Causal mask so the head can't peek at
-    future tokens (matches the backbone's training-time causality).
+    Causality (``causal=True``, default) imposes a triangular mask so the
+    head can't peek at future tokens — matches the backbone's
+    training-time causality. With ``causal=False`` the head sees the full
+    sequence both directions; for predictions further than W=16 ahead
+    (``forecast_len > W``), the bidir variant is necessary so the head
+    can use ``f_t, f_{t+1}, …, f_{t+k}`` to reconstruct multiple future
+    patches from position t (the eval-time B1/B2/B3 strategies feed the
+    head a [encoder_ctx, rolled_f] sequence to maintain this access).
 
     Input:  (B*C, T, H) backbone latents
     Output: (B*C, T, num_quantiles, forecast_len)
     """
 
     def __init__(self, H=384, num_layers=6, nhead=6, ffn_mult=4.0,
-                 forecast_len=16, dropout=0.1,
+                 forecast_len=16, dropout=0.1, causal=True,
                  quantile_levels=QUANTILE_LEVELS, **_unused):
         super().__init__()
         self.forecast_len = forecast_len
+        self.causal = causal
         self.quantile_levels = list(quantile_levels)
         self.num_quantiles = len(self.quantile_levels)
 
@@ -181,12 +187,15 @@ class TransformerQuantileForecastingHead(nn.Module):
             H, forecast_len * self.num_quantiles)
 
     def forward(self, x):
-        T = x.size(1)
-        causal = torch.triu(
-            torch.ones(T, T, device=x.device, dtype=torch.bool),
-            diagonal=1,
-        )
-        x = self.transformer(x, mask=causal, is_causal=True)
+        if self.causal:
+            T = x.size(1)
+            causal = torch.triu(
+                torch.ones(T, T, device=x.device, dtype=torch.bool),
+                diagonal=1,
+            )
+            x = self.transformer(x, mask=causal, is_causal=True)
+        else:
+            x = self.transformer(x)
         x = self.norm(x)
         flat = self.forecast_head(x)
         BC, T_out, _ = flat.shape

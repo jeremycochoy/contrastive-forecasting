@@ -238,6 +238,12 @@ def parse_args():
                    help="Transformer head: FFN hidden = ffn_mult * H.")
     p.add_argument("--head-dropout", type=float, default=0.1,
                    help="Dropout for transformer/GRU heads.")
+    p.add_argument("--head-causal", default="true",
+                   choices=["true", "false"],
+                   help="Transformer head: causal mask (default true). "
+                        "Set 'false' for a bidirectional head — required "
+                        "when forecast_len > W=16 so the head can use "
+                        "f_t..f_{t+k} to reconstruct multiple patches.")
     return p.parse_args()
 
 
@@ -389,6 +395,7 @@ def main():
             raise ValueError(
                 "transformer head only implemented for quantile output; "
                 "pass --quantile-head")
+        causal = args.head_causal == "true"
         head = TransformerQuantileForecastingHead(
             H=head_config["H"],
             num_layers=args.head_num_layers,
@@ -396,9 +403,11 @@ def main():
             ffn_mult=args.head_ffn_mult,
             forecast_len=args.forecast_len,
             dropout=args.head_dropout,
+            causal=causal,
         ).to(device)
         head_kind = (f"transformer-q ({args.head_num_layers}L "
-                     f"H{head_config['H']} nhead{args.head_nhead})")
+                     f"H{head_config['H']} nhead{args.head_nhead} "
+                     f"{'causal' if causal else 'bidir'})")
     else:
         if args.quantile_head:
             head = QuantileForecastingHead(**head_config).to(device)

@@ -416,6 +416,12 @@ def parse_args():
                    help="Transformer head: number of attention heads "
                         "(default 6, mirrors backbone). Used only when the "
                         "head state dict is auto-detected as a transformer.")
+    p.add_argument("--head-causal", default="true",
+                   choices=["true", "false"],
+                   help="Transformer head: causal mask (default true, "
+                        "matches training-time semantics). State dict "
+                        "is identical for causal vs bidir — pass the same "
+                        "value used at training time.")
     return p.parse_args()
 
 
@@ -520,12 +526,14 @@ def load_models(args, device):
         num_layers = max(layer_indices) + 1 if layer_indices else 6
         # nhead default = 6 (matches backbone H=384/64); CLI override available.
         nhead = getattr(args, "head_nhead", 6)
+        causal = getattr(args, "head_causal", "true") == "true"
         from src.forecasting_head import TransformerQuantileForecastingHead
         head = TransformerQuantileForecastingHead(
             H=H, num_layers=num_layers, nhead=nhead,
-            forecast_len=args.forecast_len)
+            forecast_len=args.forecast_len, causal=causal)
         print(f"  [eval] auto-detected transformer-q head "
-              f"({num_layers}L H={H} nhead={nhead})")
+              f"({num_layers}L H={H} nhead={nhead} "
+              f"{'causal' if causal else 'bidir'})")
     elif is_linear and is_quantile:
         from src.forecasting_head import LinearQuantileForecastingHead
         head = LinearQuantileForecastingHead(
