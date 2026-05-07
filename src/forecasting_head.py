@@ -294,12 +294,17 @@ def build_e_then_f_mask(T_e: int, T_f: int, device=None) -> torch.Tensor:
     The head's output at position ``T_e + p_f`` (f-block at index p_f,
     decoding patch p_f+1) must not see ``e_{p_f+1}`` — the encoder
     latent that encodes the *target* patch — otherwise it can copy the
-    answer directly. So:
+    answer directly. With multi-layer transformers, blocking only the
+    direct attention path is insufficient: layer-1 outputs at e-rows
+    that ARE allowed to see future e-cols would absorb that info, and
+    f-rows in layer 2+ would receive it indirectly. So we need every
+    row to be causal:
 
-      - e-block rows (0..T_e-1): full attention within the e-block;
-        no attention to the f-block (e-rows don't carry a loss anyway).
-      - f-block rows (T_e..T_e+T_f-1) at relative pos p_f = r - T_e:
-          * e-block cols c < T_e: allowed iff c <= p_f (block c >= p_f+1)
+      - e-block rows: causal within e (e-row r attends to e-cols 0..r),
+        no attention to the f-block.
+      - f-block rows at relative pos p_f = r - T_e:
+          * e-block cols c < T_e: allowed iff c <= p_f (block c >= p_f+1
+            including transitive routes — see e-block causality above).
           * f-block cols c >= T_e: causal within f (c <= r).
 
     Returns a `(T_e+T_f, T_e+T_f)` bool tensor where True = block.
@@ -309,7 +314,7 @@ def build_e_then_f_mask(T_e: int, T_f: int, device=None) -> torch.Tensor:
     cols = torch.arange(total, device=device).unsqueeze(0)            # (1, total)
     is_e_row = rows < T_e
     is_e_col = cols < T_e
-    e_to_e = is_e_row & is_e_col
+    e_to_e = is_e_row & is_e_col & (cols <= rows)         # causal within e
     f_to_e = (~is_e_row) & is_e_col & (cols <= rows - T_e)
     f_to_f = (~is_e_row) & (~is_e_col) & (cols <= rows)
     allowed = e_to_e | f_to_e | f_to_f
