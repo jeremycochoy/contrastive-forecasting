@@ -6,22 +6,23 @@ C=1, H=384, nhead=6, num_layers=6, T_RAW=4096) under the working
 assumption that the backbone is competitive with Moirai. Target:
 GM-Relative MASE ≈ Moirai's **0.809**.
 
-**Headline**: 8 rounds of experiments, 4 orthogonal axes explored,
-**−11.2% triage GM-MASE** vs the legacy GRU head (R5_E7 = 1.002 vs
-baseline 1.128). Plateau hit. Remaining gap to Moirai is most likely
-backbone-limited.
+**Headline**: 9 rounds of experiments, 5 orthogonal axes explored,
+**−12.2% triage GM-MASE** vs the legacy GRU head (R9_E13 = 0.990 vs
+baseline 1.128). **Finally beats seasonal naive on triage**. Remaining
+gap to Moirai is likely backbone-limited.
 
 ## Final result
 
-| run | head | total_steps | triage GM-MASE | vs naive (1.000) |
+| run | head | training | triage GM-MASE | vs naive (1.000) |
 |---|---|---|---|---|
 | baseline (legacy GRU) | GRU-q | 30k | 1.128 | +12.8% |
 | R1_E1 (linear) | linear-q | 30k | 1.066 | +6.6% |
 | R3_E4 (transformer breakthrough) | xfmr-q 6L | 30k | 1.017 | +1.7% |
-| **R5_E7** (winner) | **xfmr-q 12L** | **60k** | **1.002** | **+0.2%** |
+| R5_E7 (best with f-only training) | xfmr-q 12L | 60k | 1.002 | +0.2% |
 | R6_E8 (bidir+fl128 — regressed) | xfmr-q 6L bidir fl128 | 30k | 1.089 | +8.9% |
 | R7_E9 (longer, truncated) | xfmr-q 12L | 100k | 1.020 | +2.0% |
 | R8_E10 (Gaussian NLL) | xfmr-gauss 12L | 60k | 1.020 | +2.0% |
+| **R9_E13** (winner) | **xfmr-q 12L + e_then_f** | **60k** | **0.990** | **−1.0%** |
 
 Triage proxy: 11 small-test-set configs; biased ~0.06 below the full
 97-config GM-MASE (validated: baseline triage 1.128 vs full 1.183).
@@ -47,6 +48,21 @@ seasonal naive on full eval; **~31%** behind Moirai.
 2. **Stack depth + length on top of the transformer**: 12 layers + 60k
    steps + 2k warmup → R5_E7 = **1.002** (−1.5% on top of R3_E4).
 
+3. **Match the train-time input distribution to the eval-time input
+   distribution** (R9_E13). Discovered by reading
+   `_b_variant_decode`: at eval the head sees `[e_ctx, rolled_f]`
+   (encoder latents for context + rolled forecaster latents) but at
+   training it used to see only `f_0..f_{T-1}`. Adding
+   `--head-train-input e_then_f` feeds the head a length-2T sequence
+   `[e_0..e_{T-1}, f_0..f_{T-1}]` at training, with a custom
+   no-leakage mask: every row (including e-block rows) is causal, and
+   f-block rows can only attend to e-cols `0..p_f` so the head can't
+   peek at `e_{p_f+1}` (which encodes the target patch). Without this
+   mask, training-loss collapses to ~0.115 from leaked target info;
+   with it, training-loss matches R5_E7's 0.192 plateau but **eval
+   improves anyway** — 1.002 → **0.990** (−1.2%), finally below
+   seasonal naive (1.000) on triage.
+
 ## What didn't work (informative null results)
 
 1. **Linear probe with Moirai HP + WSD (R2_E3)**: identical training-loss
@@ -66,15 +82,22 @@ seasonal naive on full eval; **~31%** behind Moirai.
 
 ## Hypothesis going forward
 
-Four independent axes (architecture, length, schedule, loss) all converge
-to GM-MASE ~1.00–1.02 on triage with backbone-beta frozen. The remaining
-~17% gap to seasonal naive (full eval) and ~30% gap to Moirai is most
-likely **backbone-limited**: the contrastive-trained tiny backbone
-(C=1, H=384, 6L, ~5M params, 167k pretraining steps) cannot encode
-enough information for any head to recover. Recommended next step
-(out-of-scope here): scale the backbone — wider H, more layers, more
-pretraining data, possibly a Moirai-style mixture loss for the
-backbone too.
+Five axes explored: architecture, length, schedule, loss, train-eval
+input distribution. Four of them converge to ~1.00–1.02 triage GM-MASE.
+The fifth (matching the train input layout to the eval input layout
+via `e_then_f` + leak-free mask) finally crossed under seasonal naive
+on triage at **0.990**.
+
+Full eval on R9_E13 is in flight (estimated based on baseline's
++0.06 triage→full bias: ~1.05 unbiased GM-MASE). R9_E14 (same recipe
+at 100k steps) running on vast in parallel to test if longer training
+under the matched-input setup helps further.
+
+Remaining gap to Moirai (~25% on triage, ~22% projected on full)
+is most likely **backbone-limited**. The head can't extract more than
+the backbone latents carry. Recommended next step (out-of-scope here
+per the user's frozen-backbone assumption): scale the backbone —
+wider H, more layers, more pretraining data.
 
 ## Pipeline summary
 
