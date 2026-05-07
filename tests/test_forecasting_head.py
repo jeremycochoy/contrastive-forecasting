@@ -876,10 +876,19 @@ class TestBuildETheFMask:
         assert m.shape == (8, 8)
         assert m.dtype == torch.bool
 
-    def test_e_block_full_attention_within_e(self):
+    def test_e_block_causal_within_e(self):
+        """e-rows are causal within e-block: e-row r attends to e-cols
+        0..r only. Necessary because otherwise layer-1 e-rows absorb
+        future e-cols and leak to the f-block in subsequent layers."""
         m = build_e_then_f_mask(T_e=4, T_f=4)
-        # e-rows 0..3 attend to e-cols 0..3 (no mask)
-        assert not m[:4, :4].any()
+        # e-row 0: only e-col 0 allowed
+        assert not m[0, 0]
+        assert m[0, 1:4].all()
+        # e-row 2: e-cols 0..2 allowed, e-col 3 blocked
+        assert not m[2, :3].any()
+        assert m[2, 3]
+        # e-row 3: all e-cols allowed
+        assert not m[3, :4].any()
 
     def test_e_block_blocks_f_cols(self):
         m = build_e_then_f_mask(T_e=4, T_f=4)
@@ -932,6 +941,37 @@ class TestBuildETheFMask:
         # different positions, especially in the f-block where the
         # custom mask blocks future e cols.
         assert not torch.allclose(out_with_mask, out_without, atol=1e-5)
+
+    def test_no_indirect_leakage_through_layers(self):
+        """End-to-end verification: with a 2-layer transformer head and
+        the e_then_f mask, perturbing e-col p_f+1 must NOT change the
+        output at f-row p_f. This catches both direct and transitive
+        (multi-layer) leakage paths.
+
+        Without e-block causality this test FAILS because layer-1 e-rows
+        absorb future e-cols and layer-2 f-rows attend to those e-rows."""
+        torch.manual_seed(0)
+        T_e = T_f = 8
+        head = TransformerQuantileForecastingHead(
+            H=H, num_layers=2, nhead=4, ffn_mult=2.0, forecast_len=16,
+            causal=True)
+        head.eval()
+        x = torch.randn(2, T_e + T_f, H)
+        m = build_e_then_f_mask(T_e, T_f)
+        with torch.no_grad():
+            out_a = head(x, src_mask=m)
+            for p_f in range(T_f):
+                if p_f + 1 >= T_e:
+                    continue  # no future e-col to perturb
+                target_e_col = p_f + 1
+                x_b = x.clone()
+                x_b[:, target_e_col, :] = torch.randn(2, H)
+                out_b = head(x_b, src_mask=m)
+                diff = (out_a[:, T_e + p_f, :, :]
+                        - out_b[:, T_e + p_f, :, :]).abs().max().item()
+                assert diff < 1e-5, (
+                    f"leakage at f-row p_f={p_f}: perturbing e-col "
+                    f"{target_e_col} changed output by {diff:.6e}")
 
 
 class TestLinearProbeHeads:
