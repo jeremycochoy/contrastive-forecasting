@@ -18,6 +18,7 @@ from src.forecasting_head import (
     TransformerQuantileForecastingHead,
     TransformerGaussianForecastingHead,
     gaussian_nll_loss,
+    build_e_then_f_mask,
     QUANTILE_LEVELS,
     W,
     FORECAST_LEN,
@@ -864,6 +865,73 @@ class TestTransformerGaussianHead:
         assert n_g < n_q
         # Final Linear difference: H*(2L) vs H*(9L) = 7L*H = 7*16*384 ≈ 43k
         assert n_q - n_g >= 7 * 16 * 384 - 100  # output Linear weight + bias diff
+
+
+class TestBuildETheFMask:
+    """Mask used by --head-train-input e_then_f to prevent the head from
+    attending to future encoder latents."""
+
+    def test_shape_and_dtype(self):
+        m = build_e_then_f_mask(T_e=4, T_f=4)
+        assert m.shape == (8, 8)
+        assert m.dtype == torch.bool
+
+    def test_e_block_full_attention_within_e(self):
+        m = build_e_then_f_mask(T_e=4, T_f=4)
+        # e-rows 0..3 attend to e-cols 0..3 (no mask)
+        assert not m[:4, :4].any()
+
+    def test_e_block_blocks_f_cols(self):
+        m = build_e_then_f_mask(T_e=4, T_f=4)
+        # e-rows 0..3 do NOT attend to f-cols 4..7
+        assert m[:4, 4:].all()
+
+    def test_f_block_blocks_future_e(self):
+        m = build_e_then_f_mask(T_e=4, T_f=4)
+        # f-row at p_f=0 (row index 4): may see e-col 0 only
+        assert not m[4, 0]
+        assert m[4, 1:4].all()  # e-cols 1..3 blocked
+        # f-row at p_f=2 (row index 6): may see e-cols 0..2
+        assert not m[6, :3].any()
+        assert m[6, 3]  # e-col 3 blocked (would leak target)
+
+    def test_f_block_causal_within_f(self):
+        m = build_e_then_f_mask(T_e=4, T_f=4)
+        # f-row at p_f=0 (row 4): f-cols 4 (allowed), 5..7 blocked
+        assert not m[4, 4]
+        assert m[4, 5:].all()
+        # f-row at p_f=2 (row 6): f-cols 4..6 allowed, 7 blocked
+        assert not m[6, 4:7].any()
+        assert m[6, 7]
+
+    def test_no_leakage_property(self):
+        """The critical property: at f-block row r=T_e+p_f, the mask
+        must block e-col p_f+1 (which encodes the target patch)."""
+        T_e = T_f = 8
+        m = build_e_then_f_mask(T_e, T_f)
+        for p_f in range(T_f - 1):  # p_f+1 < T_e for last p_f to be blocked
+            r = T_e + p_f
+            target_e_col = p_f + 1
+            assert m[r, target_e_col], (
+                f"at f-row p_f={p_f}, e-col {target_e_col} (target patch) "
+                f"must be blocked")
+
+    def test_used_with_transformer_head(self):
+        """Forward pass with custom src_mask runs and uses it."""
+        T_e = T_f = 4
+        head = TransformerQuantileForecastingHead(
+            H=H, num_layers=1, nhead=4, ffn_mult=2.0, forecast_len=16,
+            causal=True)
+        head.eval()
+        x = torch.randn(2, T_e + T_f, H)
+        m = build_e_then_f_mask(T_e, T_f)
+        with torch.no_grad():
+            out_with_mask = head(x, src_mask=m)
+            out_without = head(x)  # falls through to causal mask
+        # Outputs should differ — different mask shapes attend to
+        # different positions, especially in the f-block where the
+        # custom mask blocks future e cols.
+        assert not torch.allclose(out_with_mask, out_without, atol=1e-5)
 
 
 class TestLinearProbeHeads:

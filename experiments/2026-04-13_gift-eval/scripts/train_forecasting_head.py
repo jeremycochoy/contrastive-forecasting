@@ -647,12 +647,23 @@ def main():
                 # head [e_0..e_{T-1}, f_0..f_{T-1}] (length 2T). The
                 # head's outputs at positions T..(T+T_valid-1) — i.e. the
                 # f-half — get the loss against `targets`.
+                #
+                # Custom mask prevents the head from peeking at e_{p_f+1}
+                # (the encoder latent that encodes the *target* patch
+                # for f-block position p_f). With the standard causal
+                # mask, all e-block positions are "past" relative to any
+                # f-block position, so the head can copy the target
+                # directly — that bug showed up as ema_loss collapsing
+                # to <0.12 vs the legitimate ~0.19 plateau.
                 e_bc, _ = extract_encoder_latents(
                     backbone, x, freq_ids=freq_ids,
                     seasonality_ids=seasonality_ids)
                 T_e = e_bc.size(1)
-                seq = torch.cat([e_bc, f_bc], dim=1)             # (BC, 2T, H)
-                preds = head(seq)
+                T_f = f_bc.size(1)
+                seq = torch.cat([e_bc, f_bc], dim=1)             # (BC, T_e+T_f, H)
+                from src.forecasting_head import build_e_then_f_mask
+                src_mask = build_e_then_f_mask(T_e, T_f, device=device)
+                preds = head(seq, src_mask=src_mask)
                 f_slice = slice(T_e, T_e + T_valid)
             else:
                 preds = head(f_bc)

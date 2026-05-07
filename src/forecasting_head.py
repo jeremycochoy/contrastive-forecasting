@@ -186,8 +186,17 @@ class TransformerQuantileForecastingHead(nn.Module):
         self.forecast_head = nn.Linear(
             H, forecast_len * self.num_quantiles)
 
-    def forward(self, x):
-        if self.causal:
+    def forward(self, x, src_mask=None):
+        """Run the head's transformer + output projection.
+
+        ``src_mask``: optional `(T, T)` bool mask (True = block). When
+        provided, overrides ``self.causal`` and is used as-is. Used by
+        the trainer's ``e_then_f`` path to build a mixed mask that
+        prevents the head from peeking at future encoder latents.
+        """
+        if src_mask is not None:
+            x = self.transformer(x, mask=src_mask, is_causal=False)
+        elif self.causal:
             T = x.size(1)
             causal = torch.triu(
                 torch.ones(T, T, device=x.device, dtype=torch.bool),
@@ -242,8 +251,10 @@ class TransformerGaussianForecastingHead(nn.Module):
         # 2 outputs per forecast step: μ and log σ².
         self.forecast_head = nn.Linear(H, forecast_len * 2)
 
-    def forward(self, x):
-        if self.causal:
+    def forward(self, x, src_mask=None):
+        if src_mask is not None:
+            x = self.transformer(x, mask=src_mask, is_causal=False)
+        elif self.causal:
             T = x.size(1)
             causal = torch.triu(
                 torch.ones(T, T, device=x.device, dtype=torch.bool),
@@ -275,6 +286,34 @@ class TransformerGaussianForecastingHead(nn.Module):
         z = torch.special.ndtri(levels)                       # (Q,)
         # broadcast: (BC,T,1,L) + (BC,T,1,L) * (Q,1) → (BC,T,Q,L)
         return mu.unsqueeze(-2) + sigma.unsqueeze(-2) * z.view(-1, 1)
+
+
+def build_e_then_f_mask(T_e: int, T_f: int, device=None) -> torch.Tensor:
+    """Mask for the [e_0..e_{T_e-1}, f_0..f_{T_f-1}] training-time input.
+
+    The head's output at position ``T_e + p_f`` (f-block at index p_f,
+    decoding patch p_f+1) must not see ``e_{p_f+1}`` — the encoder
+    latent that encodes the *target* patch — otherwise it can copy the
+    answer directly. So:
+
+      - e-block rows (0..T_e-1): full attention within the e-block;
+        no attention to the f-block (e-rows don't carry a loss anyway).
+      - f-block rows (T_e..T_e+T_f-1) at relative pos p_f = r - T_e:
+          * e-block cols c < T_e: allowed iff c <= p_f (block c >= p_f+1)
+          * f-block cols c >= T_e: causal within f (c <= r).
+
+    Returns a `(T_e+T_f, T_e+T_f)` bool tensor where True = block.
+    """
+    total = T_e + T_f
+    rows = torch.arange(total, device=device).unsqueeze(1)            # (total, 1)
+    cols = torch.arange(total, device=device).unsqueeze(0)            # (1, total)
+    is_e_row = rows < T_e
+    is_e_col = cols < T_e
+    e_to_e = is_e_row & is_e_col
+    f_to_e = (~is_e_row) & is_e_col & (cols <= rows - T_e)
+    f_to_f = (~is_e_row) & (~is_e_col) & (cols <= rows)
+    allowed = e_to_e | f_to_e | f_to_f
+    return ~allowed
 
 
 def gaussian_nll_loss(mu, log_var, target):
