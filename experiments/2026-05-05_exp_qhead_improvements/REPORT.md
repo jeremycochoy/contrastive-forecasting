@@ -8,8 +8,9 @@ GM-Relative MASE ≈ Moirai's **0.809**.
 
 **Headline**: 9 rounds of experiments, 5 orthogonal axes explored,
 **−12.2% triage GM-MASE** vs the legacy GRU head (R9_E13 = 0.990 vs
-baseline 1.128). **Finally beats seasonal naive on triage**. Remaining
-gap to Moirai is likely backbone-limited.
+baseline 1.128). R9_E13 is below seasonal naive (1.000) on triage.
+Remaining gap to Moirai (~22% projected on full) was not closed by
+any of the head-side variants tried in this report.
 
 ## Final result
 
@@ -42,8 +43,8 @@ seasonal naive on full eval; **~31%** behind Moirai.
 1. **Replace the legacy bidir-GRU head with a causal transformer matching
    the backbone's depth + width.** R3_E4 (6L H=384 nhead=6, ~10.7M params)
    trained from scratch with Moirai HP (β2=0.98, wd=0.1, lr=1e-3) and
-   cosine LR + 1k-step warmup broke through the linear-probe plateau:
-   **1.066 → 1.017** (−4.6%).
+   cosine LR + 1k-step warmup: triage GM-MASE **1.066 → 1.017** (−4.6%
+   vs the linear probe R1_E1).
 
 2. **Stack depth + length on top of the transformer**: 12 layers + 60k
    steps + 2k warmup → R5_E7 = **1.002** (−1.5% on top of R3_E4).
@@ -66,19 +67,21 @@ seasonal naive on full eval; **~31%** behind Moirai.
 ## What didn't work (informative null results)
 
 1. **Linear probe with Moirai HP + WSD (R2_E3)**: identical training-loss
-   trajectory to constant-LR linear (R1_E1). Linear head is at its
-   representational ceiling — HP/schedule changes can't move it.
-2. **Bidir head + forecast_len=128 (R6_E8)**: regressed to 1.089. Train-
-   test mismatch (bidir attends to real f's at train, rolled-out f's
-   with rollout error at eval). Causality is necessary for this rollout
-   evaluation regime.
+   trajectory to constant-LR linear (R1_E1). The HP/schedule change
+   from R1_E1 to R2_E3 did not change the linear-probe training-loss
+   trajectory.
+2. **Bidir head + forecast_len=128 (R6_E8)**: triage GM-MASE 1.089
+   vs R3_E4's 1.017 at the same length. At training a bidir head sees
+   real f's; at eval it sees rolled-out f's. No ablation isolates which
+   factor (bidir vs fl128) drove the regression.
 3. **Longer training to 100k (R7_E9)**: truncated by spot-instance
    preemption at step 85k; result 1.020 ≥ R5_E7's 1.002 even before
-   truncation. The cosine cooldown's benefit saturates by 60k.
-4. **Gaussian NLL loss (R8_E10)**: same triage 1.020 as R7_E9. The
-   pinball-loss training-loss plateau (~0.192 ema across all transformer
-   variants) was *not* a loss-surface ceiling — it was the representation
-   ceiling of the head + frozen backbone.
+   truncation. Extending the cosine schedule from 60k to 100k did not
+   improve triage GM-MASE in this run.
+4. **Gaussian NLL loss (R8_E10)**: same triage 1.020 as R7_E9.
+   Switching from pinball to Gaussian NLL with the same head and
+   schedule did not move triage GM-MASE from the ~1.02 plateau seen
+   across the other 12L transformer variants.
 
 ## Hypothesis going forward
 
@@ -94,10 +97,8 @@ at 100k steps) running on vast in parallel to test if longer training
 under the matched-input setup helps further.
 
 Remaining gap to Moirai (~25% on triage, ~22% projected on full)
-is most likely **backbone-limited**. The head can't extract more than
-the backbone latents carry. Recommended next step (out-of-scope here
-per the user's frozen-backbone assumption): scale the backbone —
-wider H, more layers, more pretraining data.
+was not closed by any of the five head-side axes tried here. This
+report does not include any backbone-side experiments.
 
 ## Backbone metric trajectory
 
@@ -123,7 +124,7 @@ Diagnostic on the *backbone* (not the head experiments). Every head experiment i
 | 160000 | 0.7002 | 0.6257 | 0.0351 | 0.0693 | 0.8952 | 0.7510 |
 | 167000 | 0.6839 | 0.6080 | 0.0375 | 0.0762 | 0.8966 | 0.7531 |
 
-r2_random oscillates without a clear trend (Δ=+0.0015, range 0.0345); r2_naive oscillates without a clear trend (Δ=-0.0017, range 0.0406). u_temporal Δ=+0.0005 and u_batch Δ=+0.0010 — both stay within ~0.07. Retrieval auc and top1 are essentially flat (auc range 0.0055, top1 range 0.0096).
+Between step 60k and step 167k on this held-out batch, all six metrics oscillate within a narrow band: r2_random range 0.6803–0.7149 (0.0345), r2_naive range 0.6015–0.6421 (0.0406), u_temporal range 0.0322–0.0375 (0.0053), u_batch range 0.0595–0.0762 (0.0167), auc range 0.8923–0.8967 (0.0044), top1 range 0.7447–0.7536 (0.0088). Across the full 50k–167k window: r2_random Δ=+0.0015, r2_naive Δ=-0.0017, u_temporal Δ=+0.0005, u_batch Δ=+0.0010, auc Δ=+0.0054, top1 Δ=+0.0092.
 
 ### Cross-backbone comparison (best checkpoint per run)
 
@@ -137,7 +138,7 @@ The "best_loss" checkpoint (or highest periodic save when no best_loss was emitt
 | moirai_hp_early | 0.6983 | 0.6319 | 0.0338 | 0.0659 | 0.8929 | 0.7432 |
 | learnable_tau | 0.7634 | 0.6952 | 0.0134 | 0.0205 | 0.8888 | 0.7365 |
 
-`learnable_tau` tops both R² metrics by a wide margin (≈0.06 above the next-best on r2_random, ≈0.06 on r2_naive) but has the lowest u_temporal, u_batch, auc, and top1 of the five. `backbone_beta_167k` tops auc (0.8966) and top1 (0.7531). The R²-vs-retrieval trade-off is the largest spread across metrics: highest R² coincides with lowest retrieval here.
+Largest value per metric (on this batch, across these five checkpoints): r2_random and r2_naive — `learnable_tau` (0.7634 and 0.6952); u_temporal — `moirai_hp_FINAL_run1` (0.0403); u_batch, auc, and top1 — `backbone_beta_167k` (0.0762, 0.8966, 0.7531). Spreads across the five: r2_random 0.0875, r2_naive 0.0872, u_batch 0.0557, u_temporal 0.0269, top1 0.0166, auc 0.0078. `learnable_tau` has the highest R² values and the lowest u_temporal, u_batch, auc, and top1 of the five.
 
 ## Pipeline summary
 

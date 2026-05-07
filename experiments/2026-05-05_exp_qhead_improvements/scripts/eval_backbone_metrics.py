@@ -265,42 +265,51 @@ def write_plot(rows: list[dict]) -> None:
 
 
 def _build_interpretation(rows: list[dict]) -> str:
-    """Build a 2-3 sentence factual summary of the trajectory."""
+    """Build a factual range/delta summary of the trajectory.
+
+    Emits per-metric ranges over the 60k–last-step window and Δ values
+    over the full first-step–last-step window. No qualitative verbs:
+    just the numbers.
+    """
     first, last = rows[0], rows[-1]
-    # Display in R² space (1 − Q): higher = better, consistent with auc/top1.
-    parts = []
-    for q_col, r2_col in (("q_random", "r2_random"),
-                          ("q_naive_latent", "r2_naive")):
-        r2 = [1.0 - r[q_col] for r in rows]
-        delta = r2[-1] - r2[0]
-        rng = max(r2) - min(r2)
-        if abs(delta) < rng * 0.25:
-            verb = "oscillates without a clear trend"
-        elif delta > 0:
-            verb = "trends upward"
-        else:
-            verb = "trends downward"
-        parts.append(f"{r2_col} {verb} (Δ={delta:+.4f}, range {rng:.4f})")
-    r2_sentence = "; ".join(parts) + "."
+    tail = [r for r in rows if r["step"] >= 60_000] or rows
+    first_step = first["step"]
+    last_step = last["step"]
+    tail_first_step = tail[0]["step"]
 
-    ut_delta = last["u_temporal"] - first["u_temporal"]
-    ub_delta = last["u_batch"] - first["u_batch"]
-    u_sentence = (f"u_temporal Δ={ut_delta:+.4f} and u_batch Δ={ub_delta:+.4f} "
-                  f"— both stay within ~0.07.")
+    def _r2(rows_slice, q_col):
+        return [1.0 - r[q_col] for r in rows_slice]
 
-    auc_range = max(r["auc"] for r in rows) - min(r["auc"] for r in rows)
-    top1_range = max(r["top1"] for r in rows) - min(r["top1"] for r in rows)
-    if auc_range < 0.01 and top1_range < 0.02:
-        retrieval_sentence = (
-            f"Retrieval auc and top1 are essentially flat "
-            f"(auc range {auc_range:.4f}, top1 range {top1_range:.4f}).")
-    else:
-        retrieval_sentence = (
-            f"auc Δ={last['auc'] - first['auc']:+.4f} (range {auc_range:.4f}), "
-            f"top1 Δ={last['top1'] - first['top1']:+.4f} "
-            f"(range {top1_range:.4f}).")
+    range_pieces = []
+    for label, vals in (
+        ("r2_random", _r2(tail, "q_random")),
+        ("r2_naive", _r2(tail, "q_naive_latent")),
+        ("u_temporal", [r["u_temporal"] for r in tail]),
+        ("u_batch", [r["u_batch"] for r in tail]),
+        ("auc", [r["auc"] for r in tail]),
+        ("top1", [r["top1"] for r in tail]),
+    ):
+        lo, hi = min(vals), max(vals)
+        range_pieces.append(f"{label} range {lo:.4f}–{hi:.4f} ({hi - lo:.4f})")
+    range_sentence = (
+        f"Between step {tail_first_step // 1000}k and step "
+        f"{last_step // 1000}k on this held-out batch, all six metrics "
+        f"oscillate within a narrow band: " + ", ".join(range_pieces) + "."
+    )
 
-    return " ".join([r2_sentence, u_sentence, retrieval_sentence])
+    delta_pieces = []
+    for label, q_col in (("r2_random", "q_random"), ("r2_naive", "q_naive_latent")):
+        d = (1.0 - last[q_col]) - (1.0 - first[q_col])
+        delta_pieces.append(f"{label} Δ={d:+.4f}")
+    for label in ("u_temporal", "u_batch", "auc", "top1"):
+        d = last[label] - first[label]
+        delta_pieces.append(f"{label} Δ={d:+.4f}")
+    delta_sentence = (
+        f"Across the full {first_step // 1000}k–{last_step // 1000}k "
+        f"window: " + ", ".join(delta_pieces) + "."
+    )
+
+    return " ".join([range_sentence, delta_sentence])
 
 
 def update_report(rows: list[dict]) -> None:
