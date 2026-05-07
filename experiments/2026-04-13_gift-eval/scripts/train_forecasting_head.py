@@ -250,6 +250,16 @@ def parse_args():
                         "Set 'false' for a bidirectional head — required "
                         "when forecast_len > W=16 so the head can use "
                         "f_t..f_{t+k} to reconstruct multiple patches.")
+    p.add_argument("--head-train-input", default="f_only",
+                   choices=["f_only", "e_then_f"],
+                   help="Training-time input layout to the head. "
+                        "'f_only' (default): head sees f_0..f_{T-1} only "
+                        "— the legacy training pattern. "
+                        "'e_then_f': head sees [e_0..e_{T-1}, f_0..f_{T-1}] "
+                        "(length 2T), loss applied at positions T..2T-1. "
+                        "Matches the [e_ctx, rolled_f] input the head sees "
+                        "at eval B-strategies, fixing a train-eval input "
+                        "distribution mismatch.")
     return p.parse_args()
 
 
@@ -632,18 +642,32 @@ def main():
             targets, T_valid = compute_reconstruction_targets(
                 x_norm, W=W, output_len=args.forecast_len, mode='forecaster')
             targets = targets.to(device)
-            preds = head(f_bc)
+            if args.head_train_input == "e_then_f":
+                # Match the eval-time [e_ctx, rolled_f] layout: feed the
+                # head [e_0..e_{T-1}, f_0..f_{T-1}] (length 2T). The
+                # head's outputs at positions T..(T+T_valid-1) — i.e. the
+                # f-half — get the loss against `targets`.
+                e_bc, _ = extract_encoder_latents(
+                    backbone, x, freq_ids=freq_ids,
+                    seasonality_ids=seasonality_ids)
+                T_e = e_bc.size(1)
+                seq = torch.cat([e_bc, f_bc], dim=1)             # (BC, 2T, H)
+                preds = head(seq)
+                f_slice = slice(T_e, T_e + T_valid)
+            else:
+                preds = head(f_bc)
+                f_slice = slice(0, T_valid)
             if isinstance(preds, tuple):
                 # Gaussian head: (mu, log_var) per position.
                 mu, log_var = preds
-                mu = mu[:, :T_valid, :]
-                log_var = log_var[:, :T_valid, :]
+                mu = mu[:, f_slice, :]
+                log_var = log_var[:, f_slice, :]
                 loss = gaussian_nll_loss(mu, log_var, targets)
             elif args.quantile_head:
-                preds = preds[:, :T_valid, :, :]                  # (BC, T, Q, L)
+                preds = preds[:, f_slice, :, :]                   # (BC, T, Q, L)
                 loss = quantile_loss(preds, targets, QUANTILE_LEVELS)
             else:
-                preds = preds[:, :T_valid, :]
+                preds = preds[:, f_slice, :]
                 loss = torch.nn.functional.mse_loss(preds, targets)
 
         else:
