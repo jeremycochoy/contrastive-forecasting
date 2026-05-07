@@ -80,6 +80,18 @@ def main():
         args.save_path = safe_save_path(args.save_path, args.resume)
         print(f"Resuming from {args.resume}")
         model.load_state_dict(torch.load(args.resume, map_location=device))
+    else:
+        # The channel-mixing module is initialised with `torch.randn(H, H)`
+        # in src/blocks.py, which gives entries with σ=1 — way too large for
+        # a 1024×1024 matrix. Re-init R as identity and Q as small noise so
+        # the initial forward pass is approximately a no-op (h_hat ≈ h),
+        # then the loss can develop a gap from a sensible starting point
+        # before the Kronecker matrices learn cross-channel mixing.
+        with torch.no_grad():
+            H = args.H
+            model.channel_mixing_module.R.copy_(torch.eye(H))
+            model.channel_mixing_module.Q.copy_(torch.randn(H, H) * (0.01 / H ** 0.5))
+        print("  -> reinitialised channel_mixing: R=I, Q ~ 0.01·N(0, 1/H)")
 
     model = model.to(device)
     n_params = count_parameters(model)
