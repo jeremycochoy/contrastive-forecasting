@@ -99,6 +99,30 @@ the backbone latents carry. Recommended next step (out-of-scope here
 per the user's frozen-backbone assumption): scale the backbone —
 wider H, more layers, more pretraining data.
 
+## Backbone metric trajectory
+
+Diagnostic on the *backbone* (not the head experiments). Every head experiment in this report shares the same backbone-beta = step 167k, so the table below shows how the backbone evolved across its own training, not a per-head comparison.
+
+![backbone metrics](plots/backbone_metrics_curve.png)
+
+| step | q_random | q_naive_latent | u_temporal | u_batch | auc | top1 |
+|---|---|---|---|---|---|---|
+| 50000 | 0.3177 | 0.3903 | 0.0371 | 0.0752 | 0.8911 | 0.7440 |
+| 60000 | 0.2851 | 0.3579 | 0.0327 | 0.0653 | 0.8955 | 0.7509 |
+| 70000 | 0.3133 | 0.3855 | 0.0364 | 0.0733 | 0.8949 | 0.7496 |
+| 80000 | 0.3004 | 0.3734 | 0.0349 | 0.0692 | 0.8967 | 0.7521 |
+| 90000 | 0.3021 | 0.3745 | 0.0347 | 0.0680 | 0.8923 | 0.7447 |
+| 100000 | 0.3030 | 0.3791 | 0.0322 | 0.0595 | 0.8937 | 0.7471 |
+| 110000 | 0.3186 | 0.3948 | 0.0362 | 0.0707 | 0.8946 | 0.7486 |
+| 120000 | 0.2915 | 0.3691 | 0.0323 | 0.0627 | 0.8954 | 0.7518 |
+| 130000 | 0.2980 | 0.3728 | 0.0341 | 0.0661 | 0.8953 | 0.7508 |
+| 140000 | 0.3028 | 0.3761 | 0.0346 | 0.0674 | 0.8957 | 0.7536 |
+| 150000 | 0.3197 | 0.3985 | 0.0368 | 0.0723 | 0.8923 | 0.7454 |
+| 160000 | 0.2998 | 0.3743 | 0.0351 | 0.0693 | 0.8952 | 0.7510 |
+| 167000 | 0.3161 | 0.3920 | 0.0375 | 0.0762 | 0.8966 | 0.7531 |
+
+q_random oscillates without a clear trend (Δ=-0.0015, range 0.0345); q_naive_latent oscillates without a clear trend (Δ=+0.0017, range 0.0406). u_temporal Δ=+0.0005 and u_batch Δ=+0.0010 — both stay within ~0.07. Retrieval auc and top1 are essentially flat (auc range 0.0055, top1 range 0.0096).
+
 ## Pipeline summary
 
 - 8 rounds of experiments, R1–R8, ~$11 vast.ai credit ($21.98 budget;
