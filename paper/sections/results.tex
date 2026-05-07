@@ -26,3 +26,25 @@ positions.
 The full 8-coefficient scatter for 2x4, the equivalent for 2x2, the
 per-sample error distributions, and the per-coefficient table are
 reported in Appendix~\ref{sec:appendix-graphs}.
+
+\paragraph{Random-walk correlations.}
+On the experiment of Section~\ref{sec:exp-corr}, the recovery head achieves
+a mean Pearson $r = 0.962$ across all six pairwise correlations on an
+800-sample test set ($52.4\times$ the MSE of the all-zero baseline;
+$13.0\times$ the MSE of the mean-prediction baseline).
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{figures/corr_scatter_per_pair.png}
+  \caption{Per-pair recovery for the random-walk correlation experiment:
+    predicted vs.\ true correlation for each of the six off-diagonal
+    entries of $\Sigma$.  Each subplot is a scatter of $800$ test
+    samples with the identity reference line and Pearson $r$.  All six
+    pairs lie in $r \in [0.958, 0.964]$.}
+  \label{fig:corr-scatter}
+\end{figure}
+
+Figure~\ref{fig:corr-scatter} shows the per-pair scatter; the uniform
+sampler produces even coverage across $[0, 1]$.  Full diagnostics and a
+comparison against analytic baselines are in
+Appendix~\ref{sec:appendix-corr}.
