@@ -3,8 +3,6 @@
 Synthetic tensors only; no real backbone needed.
 """
 
-import math
-
 import pytest
 import torch
 
@@ -12,8 +10,6 @@ from src.metrics import (
     q_random,
     q_naive_latent,
     dim_usage,
-    u_batch,
-    u_temporal,
     retrieval_auc_top1,
 )
 
@@ -85,17 +81,17 @@ def test_dim_usage_collinear_is_one_over_d():
     assert u == pytest.approx(1.0 / d, abs=1e-3)
 
 
-def test_u_batch_isotropic_near_one():
+def test_dim_usage_batch_isotropic_near_one():
     torch.manual_seed(0)
     z = torch.randn(256, 4, 3, 32)  # (B=256, T, C, H)
-    u = u_batch(z).item()
+    u = dim_usage(z, axis=0).item()
     assert 0.85 <= u <= 1.0, f"U_batch={u}"
 
 
-def test_u_temporal_axis_param():
+def test_dim_usage_temporal_axis_param():
     torch.manual_seed(0)
     z = torch.randn(8, 256, 3, 32)  # time at axis=1, n=256 isotropic
-    u = u_temporal(z, time_axis=1).item()
+    u = dim_usage(z, axis=1).item()
     assert 0.85 <= u <= 1.0, f"U_temporal={u}"
 
 
