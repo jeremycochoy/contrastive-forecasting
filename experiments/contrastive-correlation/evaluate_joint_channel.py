@@ -21,7 +21,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
 
-from src.correlation import generate_correlated_batch, correlation_to_pairs, pairs_to_correlation
+from src.correlation import generate_correlated_batch, correlation_to_pairs, pairs_to_correlation  # noqa: E402
 from joint_channel_model import JointChannelModel, GRUCorrelationHead  # noqa: E402
 from train_joint_channel_head import (  # noqa: E402
     extract_joint_latent, make_batch,
