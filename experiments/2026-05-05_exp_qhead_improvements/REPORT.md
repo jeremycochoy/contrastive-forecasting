@@ -6,11 +6,13 @@ C=1, H=384, nhead=6, num_layers=6, T_RAW=4096) under the working
 assumption that the backbone is competitive with Moirai. Target:
 GM-Relative MASE ≈ Moirai's **0.809**.
 
-**Headline**: 9 rounds of experiments, 5 orthogonal axes explored,
-**−12.2% triage GM-MASE** vs the legacy GRU head (R9_E13 = 0.990 vs
-baseline 1.128). R9_E13 is below seasonal naive (1.000) on triage.
-Remaining gap to Moirai (~22% projected on full) was not closed by
-any of the head-side variants tried in this report.
+**Headline**: 9 rounds of experiments, 5 orthogonal axes explored.
+On the full 97-config GIFT-Eval, **R9_E13 = 1.029** vs the legacy GRU
+**baseline = 1.183** (−13.0%). On the 11-config triage proxy, R9_E13
+= 0.990 (below seasonal naive 1.000); full-eval bias on this run is
++0.04. Remaining gap to Moirai (full) is +0.220 = +27% above Moirai
+0.809. None of the head-side axes tried in this report closed that
+gap.
 
 ## Final result
 
@@ -25,18 +27,18 @@ any of the head-side variants tried in this report.
 | R8_E10 (Gaussian NLL) | xfmr-gauss 12L | 60k | 1.020 | +2.0% |
 | **R9_E13** (winner) | **xfmr-q 12L + e_then_f** | **60k** | **0.990** | **−1.0%** |
 
-Triage proxy: 11 small-test-set configs; biased ~0.06 below the full
-97-config GM-MASE (validated: baseline triage 1.128 vs full 1.183).
-Full eval on R5_E7 in flight on elisa GPU 0; expected ~1.06.
+Triage proxy: 11 small-test-set configs. Triage→full bias measured on
+two runs in this report: baseline (1.128 → 1.183, +0.055) and R9_E13
+(0.990 → 1.029, +0.039).
 
 vs leaderboard (full eval, lower is better):
 
-| Sundial | TimesFM | PatchTST | Chronos | Moirai | Naive | Baseline (#10) | **R5_E7 (estimated full)** |
+| Sundial | TimesFM | PatchTST | Chronos | Moirai | Naive | Baseline (#10) | **R9_E13 (full)** |
 |---|---|---|---|---|---|---|---|
-| 0.673 | 0.680 | 0.762 | 0.786 | 0.809 | 1.000 | 1.183 | **~1.06** |
+| 0.673 | 0.680 | 0.762 | 0.786 | 0.809 | 1.000 | 1.183 | **1.029** |
 
-**~10% improvement** over the prior backbone-beta baseline; **~17%** behind
-seasonal naive on full eval; **~31%** behind Moirai.
+R9_E13 is 13.0% lower than the prior backbone-beta baseline on full
+eval, 2.9% above seasonal naive, and 27.2% above Moirai.
 
 ## What worked
 
