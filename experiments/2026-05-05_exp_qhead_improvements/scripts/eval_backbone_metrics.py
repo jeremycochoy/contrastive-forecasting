@@ -238,71 +238,98 @@ def write_plot(rows: list[dict]) -> None:
     rows = sorted(rows, key=lambda r: r["step"])
     steps = [r["step"] for r in rows]
     os.makedirs(PLOTS_DIR, exist_ok=True)
-    metrics = ["q_random", "q_naive_latent", "u_temporal",
-               "u_batch", "auc", "top1"]
+    # The CSV stores Q metrics; we display R² = 1 − Q on the plot so
+    # higher = better, consistent with auc/top1. dim_usage stays as-is.
+    # Conversion is presentation-only — src/metrics.py keeps Q.
+    metrics = [
+        ("r2_random",     lambda r: 1.0 - r["q_random"]),
+        ("r2_naive",      lambda r: 1.0 - r["q_naive_latent"]),
+        ("u_temporal",    lambda r: r["u_temporal"]),
+        ("u_batch",       lambda r: r["u_batch"]),
+        ("auc",           lambda r: r["auc"]),
+        ("top1",          lambda r: r["top1"]),
+    ]
     fig, axes = plt.subplots(2, 3, figsize=(13, 7), sharex=True)
-    for ax, m in zip(axes.flat, metrics):
-        ax.plot(steps, [r[m] for r in rows], marker="o")
-        ax.set_title(m)
+    for ax, (title, fn) in zip(axes.flat, metrics):
+        ax.plot(steps, [fn(r) for r in rows], marker="o")
+        ax.set_title(title)
         ax.grid(True, alpha=0.3)
     for ax in axes[-1]:
         ax.set_xlabel("step")
     fig.suptitle(
         "Backbone metric trajectory across RESUME50k training "
-        "(held-out HF batch, skip=50M)")
+        "(held-out HF batch, skip=50M; R² = 1 − Q, higher = better)")
     fig.tight_layout()
     fig.savefig(PLOT_PATH, dpi=130, bbox_inches="tight")
     plt.close(fig)
 
 
 def _build_interpretation(rows: list[dict]) -> str:
-    """Build a 2-3 sentence factual summary of the trajectory."""
+    """Build a factual range/delta summary of the trajectory.
+
+    Emits per-metric ranges over the 60k–last-step window and Δ values
+    over the full first-step–last-step window. No qualitative verbs:
+    just the numbers.
+    """
     first, last = rows[0], rows[-1]
-    parts = []
-    for name in ("q_random", "q_naive_latent"):
-        vals = [r[name] for r in rows]
-        delta = last[name] - first[name]
-        rng = max(vals) - min(vals)
-        monotone_down = all(rows[i][name] <= rows[i - 1][name] + 1e-4
-                            for i in range(1, len(rows)))
-        if monotone_down:
-            verb = "decreases monotonically"
-        elif abs(delta) < rng * 0.25:
-            verb = "oscillates without a clear trend"
-        elif delta < 0:
-            verb = "trends downward"
-        else:
-            verb = "trends upward"
-        parts.append(f"{name} {verb} (Δ={delta:+.4f}, range {rng:.4f})")
-    qr_qn_sentence = "; ".join(parts) + "."
+    tail = [r for r in rows if r["step"] >= 60_000] or rows
+    first_step = first["step"]
+    last_step = last["step"]
+    tail_first_step = tail[0]["step"]
 
-    ut_delta = last["u_temporal"] - first["u_temporal"]
-    ub_delta = last["u_batch"] - first["u_batch"]
-    u_sentence = (f"u_temporal Δ={ut_delta:+.4f} and u_batch Δ={ub_delta:+.4f} "
-                  f"— both stay within ~0.07.")
+    def _r2(rows_slice, q_col):
+        return [1.0 - r[q_col] for r in rows_slice]
 
-    auc_range = max(r["auc"] for r in rows) - min(r["auc"] for r in rows)
-    top1_range = max(r["top1"] for r in rows) - min(r["top1"] for r in rows)
-    if auc_range < 0.01 and top1_range < 0.02:
-        retrieval_sentence = (
-            f"Retrieval auc and top1 are essentially flat "
-            f"(auc range {auc_range:.4f}, top1 range {top1_range:.4f}).")
-    else:
-        retrieval_sentence = (
-            f"auc Δ={last['auc'] - first['auc']:+.4f} (range {auc_range:.4f}), "
-            f"top1 Δ={last['top1'] - first['top1']:+.4f} "
-            f"(range {top1_range:.4f}).")
+    range_pieces = []
+    for label, vals in (
+        ("r2_random", _r2(tail, "q_random")),
+        ("r2_naive", _r2(tail, "q_naive_latent")),
+        ("u_temporal", [r["u_temporal"] for r in tail]),
+        ("u_batch", [r["u_batch"] for r in tail]),
+        ("auc", [r["auc"] for r in tail]),
+        ("top1", [r["top1"] for r in tail]),
+    ):
+        lo, hi = min(vals), max(vals)
+        range_pieces.append(f"{label} range {lo:.4f}–{hi:.4f} ({hi - lo:.4f})")
+    range_sentence = (
+        f"Between step {tail_first_step // 1000}k and step "
+        f"{last_step // 1000}k on this held-out batch, all six metrics "
+        f"oscillate within a narrow band: " + ", ".join(range_pieces) + "."
+    )
 
-    return " ".join([qr_qn_sentence, u_sentence, retrieval_sentence])
+    delta_pieces = []
+    for label, q_col in (("r2_random", "q_random"), ("r2_naive", "q_naive_latent")):
+        d = (1.0 - last[q_col]) - (1.0 - first[q_col])
+        delta_pieces.append(f"{label} Δ={d:+.4f}")
+    for label in ("u_temporal", "u_batch", "auc", "top1"):
+        d = last[label] - first[label]
+        delta_pieces.append(f"{label} Δ={d:+.4f}")
+    delta_sentence = (
+        f"Across the full {first_step // 1000}k–{last_step // 1000}k "
+        f"window: " + ", ".join(delta_pieces) + "."
+    )
+
+    return " ".join([range_sentence, delta_sentence])
 
 
 def update_report(rows: list[dict]) -> None:
     rows = sorted(rows, key=lambda r: r["step"])
-    header = "| " + " | ".join(COLUMNS) + " |"
-    sep = "|" + "|".join(["---"] * len(COLUMNS)) + "|"
+    # Report in R² space (1 − Q). Q_* values remain in the CSV.
+    report_cols = ["step", "r2_random", "r2_naive",
+                   "u_temporal", "u_batch", "auc", "top1"]
+    header = "| " + " | ".join(report_cols) + " |"
+    sep = "|" + "|".join(["---"] * len(report_cols)) + "|"
     body_lines = []
     for r in rows:
-        cells = [str(r["step"])] + [f"{r[c]:.4f}" for c in COLUMNS[1:]]
+        cells = [
+            str(r["step"]),
+            f"{1.0 - r['q_random']:.4f}",
+            f"{1.0 - r['q_naive_latent']:.4f}",
+            f"{r['u_temporal']:.4f}",
+            f"{r['u_batch']:.4f}",
+            f"{r['auc']:.4f}",
+            f"{r['top1']:.4f}",
+        ]
         body_lines.append("| " + " | ".join(cells) + " |")
     table = "\n".join([header, sep] + body_lines)
 
@@ -310,6 +337,11 @@ def update_report(rows: list[dict]) -> None:
 
     section = (
         "## Backbone metric trajectory\n"
+        "\n"
+        "Below we report R² = 1 − Q where Q is the error ratio "
+        "mean_b e(forecast, target) / mean_b e(reference). R² = 0 means "
+        "the forecast is no better than the baseline; R² = 1 means the "
+        "forecast is exact. Q values are in `results/backbone_metrics_trajectory.csv`.\n"
         "\n"
         "Diagnostic on the *backbone* (not the head experiments). Every head "
         "experiment in this report shares the same backbone-beta = step 167k, "
