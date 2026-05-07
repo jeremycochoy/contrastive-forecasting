@@ -1,14 +1,21 @@
 #!/usr/bin/env python3
 """
-Contrastive backbone training for correlated random walks.
+Backbone training for the joint-channel correlation experiment.
 
-Mirrors experiments/contrastive-arma/train_contrastive_v2.py but uses the
-correlated-random-walk generator from src.correlation (no per-channel temporal
-parameters; channels are correlated Brownian motions).
+Same loss as `train_contrastive_corr.py` (`cosine_similarity_batch_no_time_neg`)
+but the model is `JointChannelModel`, which gives the transformer a single
+sequence per sample with C×H concatenated in the feature dimension. This
+keeps the cross-batch contrastive objective intact (and silently disables
+the cross-channel-negatives term, since C=1 at the loss level).
+
+Default LR schedule is *constant* — the joint-channel design doesn't show
+the late-training loss spikes that motivated cosine decay for the
+per-channel design.
 """
 
 import argparse
 import json
+import os
 import time
 import torch
 import torch.optim as optim
@@ -16,21 +23,23 @@ from types import SimpleNamespace
 
 from src.loss import contrastive_latent_loss
 from src.checkpoint import save_training_state, load_training_state, safe_save_path
-from src.models import ConfigurableModel, compute_metrics, count_parameters
+from src.models import compute_metrics, count_parameters
 from src.correlation import generate_correlated_batch
 
 
-def generate_random_batch(batch_size, T_raw=4096, K=4, seed=None, device="cpu",
-                          sampler="factor", n_factors=2):
-    x, _ = generate_correlated_batch(
-        batch_size=batch_size, T_raw=T_raw, K=K, seed=seed, device=device,
-        sampler=sampler, n_factors=n_factors,
-    )
-    return x
+def _import_joint_model():
+    # The script lives in experiments/contrastive-correlation/, but Python
+    # can't import a hyphenated package. Add the directory to sys.path.
+    import sys, pathlib
+    here = pathlib.Path(__file__).resolve().parent
+    if str(here) not in sys.path:
+        sys.path.insert(0, str(here))
+    from joint_channel_model import JointChannelModel  # noqa: E402
+    return JointChannelModel
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Contrastive backbone for correlation recovery")
+    parser = argparse.ArgumentParser()
     # Architecture
     parser.add_argument("--encoder-type", type=str, default="gru",
                         choices=["mlp", "mlp_wide", "residual_silu", "gru", "conv"])
@@ -41,7 +50,6 @@ def main():
     parser.add_argument("--num-layers", type=int, default=12)
     parser.add_argument("--nhead", type=int, default=8)
     parser.add_argument("--ffn-mult", type=float, default=4.0)
-    parser.add_argument("--activation", type=str, default="gelu", choices=["gelu", "silu"])
     parser.add_argument("--depthwise-conv", type=int, default=3)
     parser.add_argument("--dropout", type=float, default=0.1)
     # Training
@@ -50,26 +58,15 @@ def main():
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--lr", type=float, default=7e-5)
     parser.add_argument("--temperature", type=float, default=0.07)
-    parser.add_argument("--grad-clip", type=float, default=0.0,
-                        help="Disabled by default — set >0 only if a run shows blow-up.")
-    parser.add_argument("--lr-schedule", type=str, default="cosine",
-                        choices=["none", "cosine"],
-                        help="LR schedule: 'cosine' decays to 10% of base by total_steps")
-    parser.add_argument("--warmup-steps", type=int, default=0,
-                        help="Linear warmup steps; 0 disables warmup.")
     parser.add_argument("--loss-shape", type=str, default="cosine_similarity_batch_no_time_neg")
     parser.add_argument("--T-raw", type=int, default=4096)
-    parser.add_argument("--sampler", type=str, default="factor",
-                        choices=["factor", "uniform"],
-                        help="Correlation-matrix sampler: 'factor' (default, off-diagonals "
-                             "concentrated near 0.4) or 'uniform' (each pair iid U[0,1] with "
-                             "PSD rejection — covers the full [0,1] range).")
-    parser.add_argument("--n-factors", type=int, default=2,
-                        help="Number of latent factors used by the 'factor' sampler")
+    parser.add_argument("--sampler", type=str, default="uniform",
+                        choices=["factor", "uniform"])
+    parser.add_argument("--n-factors", type=int, default=2)
     # Logging
-    parser.add_argument("--val-every", type=int, default=500)
-    parser.add_argument("--save-every", type=int, default=10000)
-    parser.add_argument("--save-path", type=str, default="corr_backbone.pth")
+    parser.add_argument("--val-every", type=int, default=1000)
+    parser.add_argument("--save-every", type=int, default=5000)
+    parser.add_argument("--save-path", type=str, default="corr_jc.pth")
     parser.add_argument("--experiment-id", type=str, default="default")
     parser.add_argument("--resume", type=str, default=None)
     args = parser.parse_args()
@@ -77,7 +74,8 @@ def main():
     device = torch.device(args.device)
     print(f"Using device: {device}")
 
-    model = ConfigurableModel(
+    JointChannelModel = _import_joint_model()
+    model = JointChannelModel(
         C=args.C, H=args.H, W=args.W,
         encoder_type=args.encoder_type,
         intermediate_dim=args.intermediate_dim,
@@ -85,7 +83,6 @@ def main():
         nhead=args.nhead,
         ffn_mult=args.ffn_mult,
         dropout=args.dropout,
-        activation=args.activation,
         depthwise_conv=args.depthwise_conv,
     )
 
@@ -98,17 +95,6 @@ def main():
     n_params = count_parameters(model)
     optimizer = optim.AdamW(model.parameters(), lr=args.lr)
 
-    def lr_at(step: int) -> float:
-        if args.lr_schedule == "none":
-            return args.lr
-        if step <= args.warmup_steps:
-            return args.lr * step / max(1, args.warmup_steps)
-        # cosine to 10% of base
-        progress = (step - args.warmup_steps) / max(1, args.total_steps - args.warmup_steps)
-        progress = min(max(progress, 0.0), 1.0)
-        import math
-        return args.lr * (0.1 + 0.9 * 0.5 * (1 + math.cos(math.pi * progress)))
-
     start_step = 0
     best_val_ff_restored = -float("inf")
     best_step_restored = 0
@@ -119,10 +105,10 @@ def main():
         best_step_restored = restored["best_step"]
 
     # Fixed validation set
-    x_val = generate_random_batch(
-        args.batch_size, T_raw=args.T_raw, K=args.C, seed=0, device=device,
-        sampler=args.sampler, n_factors=args.n_factors,
-    ).to(device)
+    x_val, _ = generate_correlated_batch(
+        batch_size=args.batch_size, T_raw=args.T_raw, K=args.C, seed=0,
+        device=device, sampler=args.sampler, n_factors=args.n_factors,
+    )
 
     spec = SimpleNamespace(train_configuration={
         "contrastive_divergence_temperature": args.temperature,
@@ -135,20 +121,19 @@ def main():
     config = {
         "experiment_id": args.experiment_id,
         "encoder_type": args.encoder_type,
-        "intermediate_dim": args.intermediate_dim,
         "H": args.H, "W": args.W, "C": args.C,
         "num_layers": args.num_layers, "nhead": args.nhead,
-        "ffn_mult": args.ffn_mult, "activation": args.activation,
+        "ffn_mult": args.ffn_mult,
         "depthwise_conv": args.depthwise_conv, "dropout": args.dropout,
         "total_steps": args.total_steps, "batch_size": args.batch_size,
         "lr": args.lr, "temperature": args.temperature,
-        "loss_shape": args.loss_shape,
-        "n_factors": args.n_factors,
+        "loss_shape": args.loss_shape, "sampler": args.sampler,
         "n_params": n_params,
+        "model_kind": "joint_channel",
     }
     print(f"Experiment: {args.experiment_id}")
-    print(f"Model: encoder={args.encoder_type}, H={args.H}, layers={args.num_layers}, "
-          f"nhead={args.nhead}, ffn_mult={args.ffn_mult}, act={args.activation}")
+    print(f"Joint-channel backbone: H={args.H}, layers={args.num_layers}, "
+          f"nhead={args.nhead}, ffn_mult={args.ffn_mult}, sampler={args.sampler}")
     print(f"Parameters: {n_params:,}")
     print(f"Training: {args.total_steps} steps, bs={args.batch_size}, lr={args.lr}")
 
@@ -163,26 +148,15 @@ def main():
         model.train()
         optimizer.zero_grad()
 
-        x_train = generate_random_batch(
-            args.batch_size, T_raw=args.T_raw, K=args.C, device=device,
-            sampler=args.sampler, n_factors=args.n_factors,
-        ).to(device)
-        B, T_raw_actual, C_actual = x_train.shape
-        T = T_raw_actual // args.W
-        x_reshaped = x_train.view(B, T, args.W, C_actual).permute(0, 1, 3, 2)
+        x_train, _ = generate_correlated_batch(
+            batch_size=args.batch_size, T_raw=args.T_raw, K=args.C,
+            device=device, sampler=args.sampler, n_factors=args.n_factors,
+        )
 
-        f_flat, o_flat = model.transformer(x_reshaped)
-        f_lat = f_flat.reshape(B, C_actual, T, args.H).permute(0, 2, 1, 3)
-        o_lat = o_flat.reshape(B, C_actual, T, args.H).permute(0, 2, 1, 3)
+        f_lat, o_lat = model(x_train)  # both [B, T, 1, H]
 
         loss = contrastive_latent_loss((f_lat, o_lat), validation=False, spec=spec)
         loss.backward()
-        if args.grad_clip > 0:
-            torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
-        if args.lr_schedule != "none":
-            current_lr = lr_at(step)
-            for g in optimizer.param_groups:
-                g["lr"] = current_lr
         optimizer.step()
 
         if step % args.val_every == 0 or step == args.total_steps:
@@ -192,12 +166,7 @@ def main():
 
             model.eval()
             with torch.no_grad():
-                Bv, Tr, Cv = x_val.shape
-                Tv = Tr // args.W
-                xv = x_val.view(Bv, Tv, args.W, Cv).permute(0, 1, 3, 2)
-                fv, ov = model.transformer(xv)
-                fv = fv.reshape(Bv, Cv, Tv, args.H).permute(0, 2, 1, 3)
-                ov = ov.reshape(Bv, Cv, Tv, args.H).permute(0, 2, 1, 3)
+                fv, ov = model(x_val)
                 val_ff, val_fp, val_tp, val_cb = compute_metrics(fv, ov, cld)
 
             elapsed = time.time() - start_time
@@ -270,8 +239,6 @@ def main():
         "final_metrics": metrics_log[-1] if metrics_log else None,
         "metrics_log": metrics_log,
     }
-    # Write results next to the checkpoint so they don't pollute the repo root.
-    import os
     results_dir = os.path.dirname(args.save_path) or "."
     results_path = os.path.join(
         results_dir, f"corr_backbone_{args.experiment_id}_results.json"
