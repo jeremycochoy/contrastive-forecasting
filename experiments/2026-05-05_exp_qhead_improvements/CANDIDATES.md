@@ -52,40 +52,85 @@ head matching the backbone's depth+width with Moirai HP and cosine LR
 broke through the linear plateau. Loss was still dropping at step 30000
 (final ema_loss=0.192) so longer training should help further.
 
-## Round 4 — push the transformer
+## Round 4 — push the transformer along length + depth (done)
 
-| ID | head | HP | schedule | total_steps | status | GM-MASE | Δ |
-|---|---|---|---|---|---|---|---|
-| **R4_E5** | same as R3_E4 | Moirai | cosine warmup=2000 → 0.1×peak | 60k | running on vast 36231634 | TBD | TBD |
+| ID | head | HP | schedule | total_steps | GM-MASE (triage) | Δ |
+|---|---|---|---|---|---|---|
+| R4_E5 | xfmr-q 6L | Moirai | cosine warmup=2k → 0.1×peak | 60k | 1.009 | −10.6% |
+| **R4_E6** | xfmr-q 12L | Moirai | cosine warmup=1k → 0.1×peak | 30k | **1.005** | **−10.9%** |
 
-## Pending candidates (re-ordered after R3_E4)
+Length (R4_E5) and depth (R4_E6) each gave ~1% on top of R3_E4. Combined →
+R5_E7.
 
-### Top priority — biggest expected wins
+## Round 5 — stack length + depth
 
-- **R4_E6**: deeper transformer (12 layers, same H=384). 21M params.
-  R3_E4's 10.7M was clearly under-trained at 30k. After R4_E5 (longer
-  training) lands, R4_E6 tests if depth on top of length helps.
-- **R4_E7**: wider transformer (H=512, nhead=8, 6 layers). ~19M params.
-  Different than depth — more representational power per layer. Needs
-  a CLI flag for `--head-d-model` (currently inherits from backbone H).
+| ID | head | HP | schedule | total_steps | GM-MASE (triage) | Δ |
+|---|---|---|---|---|---|---|
+| **R5_E7** | xfmr-q 12L | Moirai | cosine warmup=2k → 0.1×peak | 60k | **1.002** | **−11.2%** |
 
-### Schedule / HP refinements
+Best result so far. Stacking depth+length gave ~1.5% on top of R3_E4 — not
+fully additive, but the new floor.
 
-- **R4_E8**: WSD 60k steps (stable to 48k, decay 48k→60k) — vs cosine
-  60k. Tests whether WSD's late-cooldown recipe beats smooth cosine.
-- **R4_E9**: longer warmup (5k vs 1k–2k) — gives the 10M-param
-  transformer more time to escape initialization.
+## Round 6 — bidir + forecast_len=128 (regressed)
 
-### Output structure / loss
+| ID | head | HP | schedule | total_steps | GM-MASE (triage) | Δ |
+|---|---|---|---|---|---|---|
+| R6_E8 | xfmr-q 6L bidir fl128 | Moirai | cosine warmup=1k → 0.1×peak | 30k | 1.089 | −3.5% |
 
-- **R4_E10**: Gaussian-NLL head on the transformer trunk (predict μ, log σ²
-  per step; closed-form CRPS). Smoother gradient than 9-bin pinball; might
-  benefit the larger head.
-- **R4_E11**: per-quantile output Linears on shared transformer trunk.
+Hypothesis: more target signal per step + access to f_t..f_{t+k} via
+bidir. **Hurt instead** — train-test mismatch (bidir attends to real f's
+at training, rolled-out f's with rollout error at eval).
 
-### Lower priority
+## Round 7 — push the winner longer (preempted)
 
-- Mix synth into training data (mix_ratio > 0).
-- Train forecast_len=128 (multi-step decoder).
-- Larger batch (512 or 1024).
-- Backbone fine-tune (last resort, breaks user's frozen-backbone assumption).
+| ID | head | HP | schedule | total_steps | GM-MASE (triage) | Δ |
+|---|---|---|---|---|---|---|
+| R7_E9 | xfmr-q 12L | Moirai | cosine warmup=3k → 0.1×peak | 100k (truncated @85k by spot preempt) | 1.020 | −9.6% |
+
+Vast spot instance preempted mid-cooldown. Best.pth from step ~85k was
+slightly worse than R5_E7's. Either 60k is the sweet spot or the truncation
+hurt; either way longer training isn't an obvious win.
+
+## Round 8 — Gaussian NLL loss (no help)
+
+| ID | head | HP | schedule | total_steps | GM-MASE (triage) | Δ |
+|---|---|---|---|---|---|---|
+| R8_E10 | xfmr-gauss 12L | Moirai | cosine warmup=2k → 0.1×peak | 60k | 1.020 | −9.6% |
+
+Hypothesis: pinball loss surface plateau is the bottleneck; smooth
+parametric NLL would break through. **It didn't** — Gaussian NLL lands
+at the same triage GM-MASE as the truncated R7_E9 and notably worse than
+R5_E7. The pinball plateau wasn't the loss surface — it was the
+representation.
+
+## Final scoreboard (triage GM-MASE)
+
+| Run | head | total_steps | GM-MASE | vs naive (1.000) |
+|---|---|---|---|---|
+| baseline (legacy GRU) | GRU-q | 30k | 1.128 | +12.8% |
+| R1_E1 / R2_E3 | linear-q | 30k | 1.066/1.067 | +6.6% |
+| R3_E4 | xfmr-q 6L | 30k | 1.017 | +1.7% |
+| R4_E5 | xfmr-q 6L | 60k | 1.009 | +0.9% |
+| R4_E6 | xfmr-q 12L | 30k | 1.005 | +0.5% |
+| **R5_E7** | **xfmr-q 12L** | **60k** | **1.002** | **+0.2%** |
+| R6_E8 | xfmr-q 6L bidir fl128 | 30k | 1.089 | +8.9% |
+| R7_E9 | xfmr-q 12L (truncated) | 100k | 1.020 | +2.0% |
+| R8_E10 | xfmr-gauss 12L | 60k | 1.020 | +2.0% |
+
+**Best**: R5_E7 — closes 92% of the head-only gap from baseline (1.128) to
+naive (1.000). Triage proxy is biased ~0.06 below full eval, so the
+unbiased number is likely ~1.06 (full eval running now to confirm).
+
+## Conclusion
+
+Four orthogonal axes explored with diminishing returns: head architecture
+(linear/GRU/transformer 6L/12L/bidir), training length (30k/60k/100k),
+schedule (constant/WSD/cosine), and loss formulation (pinball/Gaussian).
+All converge to ~1.00–1.02 triage GM-MASE on backbone-beta. The
+Moirai-targeting 0.81 gap remains ~25% on triage, which under our triage
+proxy is ~30% on full eval — likely backbone-limited (out of scope for
+this experiment per the user's frozen-backbone assumption).
+
+Recommended next step (out-of-scope here): scale the backbone (more
+params, longer pretraining) — the head clearly cannot extract more signal
+than the backbone latents carry.
