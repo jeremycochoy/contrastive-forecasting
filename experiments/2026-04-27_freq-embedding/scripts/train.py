@@ -42,6 +42,12 @@ from src.dataloader import (
 )
 from src.loss import contrastive_latent_loss
 from src.checkpoint import save_training_state, load_training_state
+from src.metrics import (
+    q_random,
+    q_naive_latent,
+    dim_usage,
+    retrieval_auc_top1,
+)
 
 # -- Tiny architecture (identical to v3c) -----------------------------------
 # C and T_raw can be overridden at runtime via --n-channels / --t-raw to
@@ -305,11 +311,17 @@ class CSVLogger:
                 header.append("loss_tau_ref")
             header += ["gap", "ff", "fp", "tp", "cross_batch",
                        "hf_rows_consumed", "synth_rows_consumed", "mixup_applied"]
+            # Per-batch backbone diagnostic metrics (same names as the
+            # post-hoc proxy CSV in 2026-05-05_exp_qhead_improvements so the
+            # two can merge cleanly on column name).
+            header += ["r2_random", "r2_naive", "u_temporal", "u_batch",
+                       "auc", "top1"]
             self._writer.writerow(header)
             self._file.flush()
 
     def log(self, step, loss, gap, ff, fp, tp, cross_batch,
             hf_rows_consumed, synth_rows_consumed, mixup_applied,
+            r2_random, r2_naive, u_temporal, u_batch, auc, top1,
             loss_tau_ref=None):
         row = [step, loss]
         if self.tau_ref_column:
@@ -319,6 +331,7 @@ class CSVLogger:
             row.append(loss if loss_tau_ref is None else loss_tau_ref)
         row += [gap, ff, fp, tp, cross_batch,
                 hf_rows_consumed, synth_rows_consumed, int(mixup_applied)]
+        row += [r2_random, r2_naive, u_temporal, u_batch, auc, top1]
         self._buffer.append(row)
         if len(self._buffer) >= self.flush_every:
             self.flush()
@@ -582,6 +595,24 @@ def main():
 
         with torch.no_grad():
             val_ff, val_fp, val_tp, val_cb = compute_metrics(f_lat, o_lat, CLD)
+            # Per-batch backbone diagnostic metrics. Convention matches
+            # experiments/2026-05-05_exp_qhead_improvements/scripts/eval_backbone_metrics.py:
+            # f_lat is forecaster output, o_lat is encoder ("h"). Same shapes
+            # (B, T, C, H) so the slicing here mirrors the eval script.
+            f_det = f_lat.detach()
+            o_det = o_lat.detach()
+            T_lat = f_det.shape[1]
+            q_r = q_random(f_det[:, :T_lat - 1], o_det[:, 1:T_lat]).item()
+            q_n = q_naive_latent(
+                f_det[:, :T_lat - 1], o_det[:, 1:T_lat],
+                o_det[:, :T_lat - 1]).item()
+            u_t = dim_usage(o_det, axis=1).item()
+            u_b = dim_usage(o_det, axis=0).item()
+            auc_t, top1_t = retrieval_auc_top1(f_det[:, :T_lat - 1], o_det)
+            r2_random_val = 1.0 - q_r
+            r2_naive_val = 1.0 - q_n
+            auc_val = auc_t.item()
+            top1_val = top1_t.item()
         gap_val = val_ff - val_fp
 
         if ema_loss is None:
@@ -593,7 +624,9 @@ def main():
 
         csv_logger.log(step, loss_val, gap_val, val_ff, val_fp,
                        val_tp, val_cb, hf_rows_consumed, synth_rows_consumed,
-                       mixup_applied, loss_tau_ref=loss_tau_ref_val)
+                       mixup_applied,
+                       r2_random_val, r2_naive_val, u_t, u_b, auc_val, top1_val,
+                       loss_tau_ref=loss_tau_ref_val)
 
         if step % args.log_every == 0:
             elapsed = time.time() - t0
@@ -606,6 +639,10 @@ def main():
                   f"gap={gap_val:.4f}  ema_gap={ema_gap:.4f}  "
                   f"mixup={mixup_applied_count}/{timing_count}  "
                   f"{sps:.1f} sps  ETA {eta:.1f}h{tau_str}")
+            print(f"              R²_rand={r2_random_val:.4f}  "
+                  f"R²_naive={r2_naive_val:.4f}  "
+                  f"U_t={u_t:.4f}  U_b={u_b:.4f}  "
+                  f"AUC={auc_val:.4f}  Top1={top1_val:.4f}")
             n = timing_count
             print(f"  timing: data={t_data_sum/n*1000:.1f}ms  "
                   f"fwd={t_fwd_sum/n*1000:.1f}ms  "
