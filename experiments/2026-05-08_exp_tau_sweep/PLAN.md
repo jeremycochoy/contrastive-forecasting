@@ -130,3 +130,42 @@ experiments/2026-05-08_exp_tau_sweep/
 
 - Do all 5 arms converge by 50k, or do some need longer? Watch `r2_random`/AUC trajectory — if any arm is still climbing at 50k, extend it.
 - Are AUC and proxy-MASE consistent across τ values? If they diverge, the AUC-as-proxy-MASE-predictor hypothesis weakens.
+
+## Run length revision (2026-05-08)
+
+Arm 1 (τ=0.03) plateaued on every metric by step ~3k–5k (loss 11→7,
+AUC 0.51→0.88, U_b 0.003→0.009, then stable through step 22.4k). Killed
+at step 22,400 and `cp`'d the 15k periodic save to `_FINAL.pth` for
+fair cross-arm comparison. Edited `run_tau_sweep_elisa.sh` to
+`--total-steps 15000` so arms 2–5 also stop at 15k. Saves ~22h.
+
+## HF dataloader incident (2026-05-08)
+
+Arm 2 launch repeatedly failed on HF API errors (ReadTimeout, then 500).
+Root cause: `datasets.load_dataset` resolves per-shard metadata via a
+64-thread pool calling `/api/datasets/<id>/revision/<sha>`. With 4274
+shards in `gift-pretrain-full-4096/small_v1` the thundering herd 500s
+intermittently. Arm 1 worked because metadata was cached in-process;
+arm 2 hit a fresh process every time. Fix in PR #170: bypass
+`load_dataset` for flat parquet layouts via `HfFileSystem.ls` +
+`pyarrow.ParquetFile.iter_batches`. Throughput also up from 1.5 sps
+(arm 1) to 2.7 sps (arm 2) — fewer Python overheads in the new path.
+
+## Future work (post-sweep)
+
+User-noted (2026-05-08), tracked here for later:
+
+- **Pick best τ → retest with `residual_silu` ("patch fm") encoder.** Goal:
+  see if AUC/Top-1 improve with the FM-style encoder vs. the GRU encoder
+  at the winning τ.
+- **Symmetric-negatives loss extension.** Currently the loss has cross-batch
+  negatives between `(f_t, h_{j,t+1})` for `j` in the batch. Extend to also
+  use `(h_{t-1}, f_t)` cross-batch — i.e. encoder-anchor with forecaster
+  negatives, in addition to the existing forecaster-anchor with encoder
+  negatives.
+- **Symmetrise the loss.** Compute `0.5 · L(anchor=f, pos=h_target) + 0.5 ·
+  L(anchor=h_target, pos=f)`. SimCLR (NT-Xent) and CLIP (symmetric
+  InfoNCE) both use this swap-anchor trick — proven and easy to drop in.
+- **Sweep range can flex.** If arm-by-arm AUC/Top-1 trends monotonically
+  worse, stop the τ sweep early. If it keeps improving at the extremes,
+  add τ=0.01 / τ=0.40 etc. to extend the range.
