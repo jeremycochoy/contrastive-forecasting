@@ -155,6 +155,7 @@ def parse_args():
                    default="cosine_similarity_batch_no_time_neg",
                    choices=["cosine_similarity_batch_no_time_neg",
                             "cosine_similarity_batch",
+                            "cosine_similarity_batch_add_pos_htft",
                             "cosine_similarity",
                             "cosine_similarity_old"],
                    help="Contrastive loss formulation. Default 'no_time_neg' "
