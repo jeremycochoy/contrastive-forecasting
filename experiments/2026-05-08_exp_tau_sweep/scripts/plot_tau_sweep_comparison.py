@@ -80,8 +80,8 @@ def main():
         ("r2_naive",  "R²_naive",  (0.0, 1.0), BETA["r2_naive"]),
         ("u_temporal", "U_temporal (per-slice)", None, BETA["u_temporal"]),
         ("u_batch",   "U_batch (per-slice)",     None, BETA["u_batch"]),
-        ("auc",       "AUC",       (0.75, 1.0),  BETA["auc"]),
-        ("top1",      "Top-1",     (0.6, 1.0),   BETA["top1"]),
+        ("auc",       "AUC",       (0.87, 0.92),  BETA["auc"]),
+        ("top1",      "Top-1",     (0.70, 0.80),  BETA["top1"]),
     ]
 
     fig, axs = plt.subplots(2, 3, figsize=(15, 8))
