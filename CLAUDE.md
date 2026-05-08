@@ -80,6 +80,7 @@ export HUGGING_FACE_HUB_TOKEN="$HF_TOKEN"
 ```
 
 ## Remote Machine Monitoring
+- **Before any remote launch, walk through [`experiments/REMOTE_LAUNCH_CHECKLIST.md`](experiments/REMOTE_LAUNCH_CHECKLIST.md) — every box must be checked, including a verified `sync_loop.sh` tick on elisa.**
 - **Assume the machine can crash at any time.** Every sync must protect against this.
 - When a training run is launched on a remote/cloud machine (Vast.ai, etc.), always set up a periodic sync loop that copies checkpoints, loss CSV, and logs to a local directory.
 - **Sync frequency:** Every 15 minutes (fixed). A single tick itself can take 2–5 minutes over the vast.ai scp proxy for large checkpoints.
