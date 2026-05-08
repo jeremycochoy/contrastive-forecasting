@@ -142,6 +142,41 @@ The "best_loss" checkpoint (or highest periodic save when no best_loss was emitt
 
 Largest value per metric (on this batch, across these five checkpoints): r2_random and r2_naive — `learnable_tau` (0.7634 and 0.6952); u_temporal — `moirai_hp_FINAL_run1` (0.0403); u_batch, auc, and top1 — `backbone_beta_167k` (0.0762, 0.8966, 0.7531). Spreads across the five: r2_random 0.0875, r2_naive 0.0872, u_batch 0.0557, u_temporal 0.0269, top1 0.0166, auc 0.0078. `learnable_tau` has the highest R² values and the lowest u_temporal, u_batch, auc, and top1 of the five.
 
+### R10 — proxy test: which metric predicts downstream MASE?
+
+To anchor the diagnostic metrics to the real objective, an R3_E4-recipe
+head (6L causal transformer + Moirai HP + cosine + 30k steps, no
+e_then_f) was trained on each of the five backbones above. Each head
+was triage-evaluated on the same 11-config subset (`run_eval_proxy.sh`).
+Results in `results/backbone_proxy_correlation.csv`.
+
+| name | proxy_mase | r2_random | r2_naive | u_temporal | u_batch | auc | top1 |
+|---|---|---|---|---|---|---|---|
+| backbone_beta_167k | 1.0166 | 0.6839 | 0.6080 | 0.0375 | 0.0762 | 0.8966 | 0.7531 |
+| moirai_hp_early | 1.0259 | 0.6983 | 0.6319 | 0.0338 | 0.0659 | 0.8929 | 0.7432 |
+| learnable_tau | 1.0278 | 0.7634 | 0.6952 | 0.0134 | 0.0205 | 0.8888 | 0.7365 |
+| FRESH_50k | 1.0285 | 0.6951 | 0.6244 | 0.0341 | 0.0670 | 0.8922 | 0.7468 |
+| moirai_hp_FINAL_run1 | 1.0940 | 0.6759 | 0.6091 | 0.0403 | 0.0754 | 0.8902 | 0.7402 |
+
+Spearman ρ between each metric's rank and the proxy_mase rank (n=5 — small sample, directional only):
+
+| metric | Spearman ρ vs proxy_mase rank |
+|---|---|
+| auc | +0.70 |
+| top1 | +0.50 |
+| u_batch | +0.40 |
+| r2_random | +0.30 |
+| r2_naive | +0.30 |
+| u_temporal | −0.10 |
+
+In this set, AUC ranks the backbones in the same order as proxy_mase
+except for one swap (FRESH_50k vs learnable_tau, MASE differ by 0.0007).
+R²_random and R²_naive do not match the proxy_mase ordering: the
+backbone with the highest R² values (`learnable_tau`, 0.7634/0.6952)
+is third in proxy_mase, not first; the proxy_mase winner
+(`backbone_beta_167k`) has the second-lowest R²_random and the
+lowest R²_naive of the five.
+
 ## Pipeline summary
 
 - 8 rounds of experiments, R1–R8, ~$11 vast.ai credit ($21.98 budget;
