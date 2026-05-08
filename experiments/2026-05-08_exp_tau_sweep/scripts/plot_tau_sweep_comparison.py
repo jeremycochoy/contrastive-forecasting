@@ -28,6 +28,10 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[3]
 EVAL_CSV = REPO / "experiments/2026-05-08_exp_tau_sweep/results/tau_sweep_metrics.csv"
 SYNC = REPO / "sync_tau_sweep/checkpoints"
+# τ=0.20 partial trajectory from the resync run (killed at step ~4300).
+# Same recipe as the original τ=0.20 vast run; different python env / seed RNG
+# inits but same --seed flag.
+SYNC_TAU20_PARTIAL = REPO / "sync_tau_sweep_arm5_resync/checkpoints"
 OUT = REPO / "experiments/2026-05-08_exp_tau_sweep/plots/tau_sweep_comparison.png"
 OUT.parent.mkdir(parents=True, exist_ok=True)
 
@@ -39,7 +43,7 @@ BETA = dict(r2_random=0.6839, r2_naive=0.6080, u_temporal=0.0375,
             u_batch=0.0762, auc=0.8966, top1=0.7531)
 
 
-def smooth(x, w=200):
+def smooth(x, w=1000):
     if len(x) < w:
         return x
     return np.convolve(x, np.ones(w) / w, mode="valid")
@@ -54,7 +58,7 @@ def main():
             eval_rows[tau] = {k: float(v) for k, v in row.items() if k not in ("name", "tau")}
     taus = sorted(eval_rows.keys())
 
-    # --- Trajectory CSVs (4 arms have them; τ=0.20 doesn't) ---
+    # --- Trajectory CSVs (4 main arms + τ=0.20 partial) ---
     traj = {}
     for safe, tau in ARMS:
         path = SYNC / f"tau_sweep_{safe}_losses.csv"
@@ -73,6 +77,21 @@ def main():
             auc=np.array([float(r["auc"]) for r in rows]),
             top1=np.array([float(r["top1"]) for r in rows]),
         )
+    # Partial τ=0.20 trajectory from the resync run (~4300 steps).
+    p20 = SYNC_TAU20_PARTIAL / "tau_sweep_0_20_losses.csv"
+    if p20.exists():
+        rows = list(csv.DictReader(open(p20)))
+        if rows:
+            traj[0.20] = dict(
+                step=np.array([int(r["step"]) for r in rows]),
+                loss=np.array([float(r["loss"]) for r in rows]),
+                r2_random=np.array([float(r["r2_random"]) for r in rows]),
+                r2_naive=np.array([float(r["r2_naive"]) for r in rows]),
+                u_temporal=np.array([float(r["u_temporal"]) for r in rows]),
+                u_batch=np.array([float(r["u_batch"]) for r in rows]),
+                auc=np.array([float(r["auc"]) for r in rows]),
+                top1=np.array([float(r["top1"]) for r in rows]),
+            )
 
     # --- Figure: 2 rows, 6 metric columns + loss column = layout 3 cols ---
     metrics = [
@@ -80,8 +99,8 @@ def main():
         ("r2_naive",  "R²_naive",  (0.0, 1.0), BETA["r2_naive"]),
         ("u_temporal", "U_temporal (per-slice)", None, BETA["u_temporal"]),
         ("u_batch",   "U_batch (per-slice)",     None, BETA["u_batch"]),
-        ("auc",       "AUC",       (0.87, 0.92),  BETA["auc"]),
-        ("top1",      "Top-1",     (0.70, 0.80),  BETA["top1"]),
+        ("auc",       "AUC",       (0.89, 0.91),  BETA["auc"]),
+        ("top1",      "Top-1",     (0.72, 0.76),  BETA["top1"]),
     ]
 
     fig, axs = plt.subplots(2, 3, figsize=(15, 8))
@@ -126,12 +145,15 @@ def main():
         for tau, t_data, c in [(t, traj[t], COLORS[i]) for i, (_, t) in enumerate(ARMS) if t in traj]:
             sm = smooth(t_data[key])
             x = t_data["step"][len(t_data["step"]) - len(sm):] if len(sm) > 0 else t_data["step"]
+            label = f"τ={tau}"
+            if tau == 0.20:
+                label = f"τ=0.20 (resync, partial to step {t_data['step'][-1]})"
             ax.plot(x, sm if len(sm) > 0 else t_data[key],
-                    color=c, label=f"τ={tau}", linewidth=1.5)
-        # τ=0.20 final-state marker (no trajectory available)
+                    color=c, label=label, linewidth=2.0)
+        # τ=0.20 final eval-batch value (from the original FINAL.pth, ★ marker)
         ax.scatter([15000], [eval_rows[0.20][key]], color=COLORS[4], marker="*",
-                   s=120, edgecolor="black", linewidth=0.7,
-                   label=f"τ=0.2 (eval only, no traj)", zorder=5)
+                   s=140, edgecolor="black", linewidth=0.7,
+                   label="τ=0.20 final eval ★", zorder=5)
         if beta_ref is not None:
             ax.axhline(beta_ref, color="gray", linestyle="--", linewidth=0.8)
         ax.set_title(title)
@@ -141,8 +163,8 @@ def main():
         ax.grid(alpha=0.3)
         ax.legend(loc="best", fontsize=7)
     fig2.suptitle(
-        "τ-sweep — training trajectories (4 arms, smoothed 200; "
-        "τ=0.20 trajectory CSV lost — final eval value only as ★)",
+        "τ-sweep — training trajectories (5 arms, smoothed 1000-step MA; "
+        "τ=0.20 = 4300-step partial from resync, ★ = original-arm5 final eval)",
         fontsize=11)
     fig2.tight_layout()
     fig2.savefig(OUT2, dpi=110, bbox_inches="tight")
