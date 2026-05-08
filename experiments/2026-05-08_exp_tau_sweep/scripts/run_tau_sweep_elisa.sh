@@ -43,7 +43,7 @@ train_one() {
     echo "" && echo "=== ARM τ=${TAU} → run_name=${NAME} ===" && date
 
     python3 -u experiments/2026-04-27_freq-embedding/scripts/train.py \
-        --device cuda --total-steps 50000 --batch-size 256 \
+        --device cuda --total-steps 15000 --batch-size 256 \
         --lr 1e-3 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \
         --save-every 5000 --save-dir "${SAVE_DIR}" --run-name "${NAME}" \
         --hf-repo "${HF_REPO}" --hf-path "${HF_PATH}" \
