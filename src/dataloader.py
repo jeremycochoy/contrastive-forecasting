@@ -251,15 +251,40 @@ class HFStreamingLoader:
         self.emit_source_ids = emit_source_ids
 
     def _open_stream(self):
-        from datasets import load_dataset
+        """Open an iterator over rows of the dataset (skip_rows=0).
 
-        split = self.split
-        kwargs = dict(streaming=True)
-        if self.path_in_repo:
-            kwargs["data_dir"] = self.path_in_repo
-            split = "train"  # data_dir subsets default to "train" split
-        kwargs["split"] = split
-        return load_dataset(self.repo_id, **kwargs)
+        Bypasses ``datasets.load_dataset`` for the common shard-list case,
+        because ``load_dataset`` resolves per-file metadata for every shard
+        (4274 shards in `gift-pretrain-full-4096`) through a 64-thread pool,
+        each call hitting `/api/datasets/<id>/revision/<sha>`. That endpoint
+        is intermittently slow (10s default timeout) and 500-prone under load
+        — it brought down the τ-sweep arm-2 launch on May 8 2026 even while
+        the same dataset was reachable via single curl calls.
+
+        Strategy: list shards via ``HfFileSystem.ls`` (one HTTP call → 4274
+        paths in ~2 s) and stream each parquet shard via pyarrow. Only the
+        true streaming path (one shard at a time) is exercised, so the
+        thundering-herd metadata resolve never happens.
+
+        Falls back to ``load_dataset`` if shard listing fails (e.g. nested
+        layouts the simple pattern can't resolve) so behaviour for non-flat
+        repos is unchanged.
+        """
+        shards = self._list_shard_files()
+        if shards is None:
+            # Fallback: original load_dataset path. Used for repos whose
+            # parquet layout isn't a flat list under path_in_repo (e.g.
+            # ``contrastive-training-tiny-bundles`` which the unit tests use).
+            from datasets import load_dataset
+
+            split = self.split
+            kwargs = dict(streaming=True)
+            if self.path_in_repo:
+                kwargs["data_dir"] = self.path_in_repo
+                split = "train"  # data_dir subsets default to "train" split
+            kwargs["split"] = split
+            return iter(load_dataset(self.repo_id, **kwargs))
+        return self._pyarrow_stream_from_shards(shards, within_shard_skip=0)
 
     def _list_shard_files(self):
         """Return the ordered list of parquet shard files backing this stream.
@@ -279,6 +304,67 @@ class HFStreamingLoader:
         except Exception as e:
             print(f"  [dataloader] Could not list shards for fast skip: {e}")
             return None
+
+    # Row batch size when reading parquet shards. 256 keeps memory bounded
+    # (256 * 4096 floats * 4B = ~4 MB per batch) and matches the typical
+    # training batch_size * C, so the prefetch ahead of the consumer is
+    # naturally aligned.
+    _PYARROW_BATCH_SIZE = 256
+
+    def _pyarrow_stream_from_shards(self, shards, within_shard_skip: int = 0):
+        """Yield dict rows from a list of parquet shards via pyarrow + HfFS.
+
+        Each row is ``{"series": [float, ...], "source_id": int}`` matching
+        the schema produced by ``datasets.load_dataset``. ``within_shard_skip``
+        drops the first N rows of the FIRST shard only (used by the resume
+        path); subsequent shards are fully consumed.
+
+        Bypassing ``load_dataset`` here means we never trigger the
+        per-file ``resolve_path`` thread pool against
+        ``/api/datasets/.../revision/<sha>``.
+        """
+        from huggingface_hub import HfFileSystem
+        import pyarrow.parquet as pq
+
+        fs = HfFileSystem(token=self.token or None)
+        for i, shard in enumerate(shards):
+            with fs.open(shard, "rb") as f:
+                pf = pq.ParquetFile(f)
+                # Read only what we need; emit_source_ids gates the
+                # source_id column. Always include "series" / fallback
+                # "target" if present.
+                cols = []
+                names = pf.schema_arrow.names
+                if "series" in names:
+                    cols.append("series")
+                elif "target" in names:
+                    cols.append("target")
+                else:
+                    # Unknown schema — read all columns and let _raw_iter
+                    # pick the right key.
+                    cols = None
+                if cols is not None and "source_id" in names:
+                    cols.append("source_id")
+                rows_seen = 0
+                for batch in pf.iter_batches(
+                    batch_size=self._PYARROW_BATCH_SIZE, columns=cols
+                ):
+                    for row in batch.to_pylist():
+                        if i == 0 and rows_seen < within_shard_skip:
+                            rows_seen += 1
+                            continue
+                        rows_seen += 1
+                        yield row
+
+    @property
+    def token(self):
+        """HF auth token from the standard env vars; None if not set."""
+        import os
+        return (
+            os.environ.get("HF_TOKEN")
+            or os.environ.get("HUGGING_FACE_HUB_TOKEN")
+            or os.environ.get("HUGGINGFACE_TOKEN")
+        )
 
     def _shard_row_counts(self, shard_paths):
         """Return row counts per shard from the FIRST shard's metadata.
@@ -365,23 +451,13 @@ class HFStreamingLoader:
               f"{len(shards)}, then skipping {within_shard_skip} rows within it")
 
         # Stream from start_shard onwards, row-by-row, dropping the initial
-        # within-shard-skip rows.
-        from datasets import load_dataset
+        # within-shard-skip rows. Uses pyarrow + HfFileSystem directly so
+        # we never hit the ``load_dataset`` per-file metadata-resolve path
+        # that brought down the τ-sweep launch on 2026-05-08.
         remaining = shards[start_shard:]
-        # Point HF at just these files. data_files supports a list of http(s)
-        # URLs / repo-relative paths.
-        ds = load_dataset(
-            "parquet",
-            data_files=["hf://" + p for p in remaining],
-            split="train",
-            streaming=True,
+        yield from self._pyarrow_stream_from_shards(
+            remaining, within_shard_skip=within_shard_skip
         )
-        dropped = 0
-        for row in ds:
-            if dropped < within_shard_skip:
-                dropped += 1
-                continue
-            yield row
 
     # Substring matched against the message of any RuntimeError raised inside
     # the HF row-iteration. When httpx's internal client is closed mid-stream
