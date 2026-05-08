@@ -64,17 +64,22 @@ Column names match `experiments/2026-05-05_exp_qhead_improvements/results/backbo
 | Item                                            | State                              |
 |-------------------------------------------------|------------------------------------|
 | τ sweep launcher (PR #162)                      | merged                             |
-| Per-batch metric logging (trainer PR)           | in flight (agent working)          |
-| Dead code cleanup (5 plot scripts, 1118 LOC)    | pending PR                         |
+| Per-batch metric logging (PR #164)              | merged — smoke-tested on elisa     |
+| Dead code cleanup (PR #165, −1118 LOC)          | merged                             |
 | Vast 5090 provisioned                           | NOT — credit $3.67 vs ~$15 needed  |
 | Sync_loop on elisa                              | not yet set up (deferred)          |
 
 ## Pre-launch gate (do all before provisioning)
 
-- [ ] Per-batch metric logging PR merged
-- [ ] Dead code cleanup PR merged
-- [ ] All 6 columns visible in a smoke `_losses.csv` on elisa
+- [x] Per-batch metric logging PR merged (#164)
+- [x] Dead code cleanup PR merged (#165)
+- [x] All 6 columns visible in a smoke `_losses.csv` on elisa
 - [ ] Vast credit ≥ $20 (user must top up — agent cannot)
+
+**All code work is done and merged on `experiments`.** The only remaining
+blocker is vast.ai credit. Once topped up, an agent can read this PLAN.md
+and execute the launch directly (provision via vastrun-kit, push code, run
+`scripts/run_tau_sweep.sh` under nohup, set up sync_loop on elisa).
 
 ## Post-sweep evaluation
 
