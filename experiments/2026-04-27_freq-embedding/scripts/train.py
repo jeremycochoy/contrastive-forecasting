@@ -112,6 +112,9 @@ def parse_args():
                         "Use 6 for the H=384 smaller-arch arms.")
     p.add_argument("--num-layers", type=int, default=MODEL_CONFIG["num_layers"],
                    help="Number of encoder layers. Default 6.")
+    p.add_argument("--encoder-type", default=MODEL_CONFIG["encoder_type"],
+                   choices=["mlp", "mlp_wide", "residual_silu", "gru", "conv"],
+                   help="Patch encoder type. Default 'gru' (matches all backbone-beta runs).")
     p.add_argument("--tau", type=float, default=None,
                    help="Contrastive temperature. None = use the LOSS_SPEC "
                         "default (0.07). Used by 2026-05-02_exp_realonly_4096_smaller_tau_sweep.")
@@ -366,6 +369,7 @@ def main():
     model_config["H"] = args.d_model
     model_config["nhead"] = args.n_heads
     model_config["num_layers"] = args.num_layers
+    model_config["encoder_type"] = args.encoder_type
     model_config["freq_emb_dim"] = args.freq_emb_dim
     model_config["seasonality_emb_dim"] = args.seasonality_emb_dim
     model_config["rev_norm_kind"] = args.rev_norm_kind
@@ -436,7 +440,8 @@ def main():
           f"mixup_p={args.mixup_p}, "
           f"rev_norm_kind={args.rev_norm_kind}"
           + (f"(span={args.rev_norm_span})" if args.rev_norm_kind == 'ewma' else "")
-          + f", patch_stats={args.patch_stats}")
+          + f", patch_stats={args.patch_stats}"
+          + f", encoder_type={args.encoder_type}")
     print(f"Checkpoints: {args.save_dir}/{args.run_name}_*.pth")
 
     csv_path = os.path.join(args.save_dir, f"{args.run_name}_losses.csv")
