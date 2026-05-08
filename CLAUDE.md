@@ -29,6 +29,22 @@ GIFT-Eval baselines on GM-MASE / GM-MAPE_SN / GM-CRPS_SN.
 - Prefers PRs reviewed and merged in small focused units.
 - Uses sub-agents liberally for parallelizable work; expects same from Claude.
 
+## Reporting
+
+- **Report facts; don't extrapolate.** State measurements directly; flag
+  every claim that goes beyond the data as a hypothesis. Spearman ρ at
+  n=5 is "directional only", not a prediction. A trajectory at step N is
+  not an end-state. Two equal numbers from different experiments are not
+  evidence of causation.
+- **Before sending any report (REPORT.md, RESULTS.md, PR body, end-of-session
+  summary, recommendation to the user), have a sub-agent review it for
+  facts vs. unsupported conclusions.** Pass it the report + the underlying
+  data and ask: "Which claims in this report are not directly supported
+  by the data?" Address every flagged item before sending. Added May 8
+  2026 after Claude built mechanistic stories from n=5 (e.g. labelling a
+  future hypothetical training outcome a "counterexample" to a predictive
+  claim that the source data never made).
+
 ## Operational rules from prior incidents
 
 - **Pause before any `vastrun-destroy`**. List unblocked tasks (`TaskList`); check whether any resume bundle (model.pth, optimizer.pth, losses CSV, run.log) is already on the instance you're about to destroy. If yes, the right move is to edit a continuation script in-place and re-launch on the live instance — not destroy + re-provision. May 3 2026 incident: destroyed an instance whose disk held #10's resume bundle, throwing away ~$2.94 of unused credit + ~46k steps' worth of capacity.
