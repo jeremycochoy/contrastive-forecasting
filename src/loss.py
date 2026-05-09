@@ -443,6 +443,57 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         negatives = neg_xx + neg_cross_batch
         loss = -torch.log(positives / negatives.sum(dim=0, keepdim=True)).mean()
 
+    elif train_config.get('loss_shape') == 'cosine_similarity_batch_square':
+        # Extends `cosine_similarity_batch` with the two missing clean batch-axis
+        # edges of the (batch × time) square of prediction pairs:
+        #   neg_cross_batch_forecast:   f_b vs f_b' at same t  (b ≠ b')
+        #   neg_cross_batch_embedding:  h_{b,t+1} vs h_{b',t+1} at same t (b ≠ b')
+        # The existing cross-batch diagonal term (h_{b',t+1} ↔ f_{b,t}) is kept.
+        positives = torch.exp(
+            cosine_similarity_from_normalized(hy_norm, hy_hat_norm) / tau
+        )
+
+        sims_xy = cosine_similarity_from_normalized(hx_norm.unsqueeze(3), hy_norm.unsqueeze(2))
+        neg_xy = torch.exp(sims_xy / tau).sum(dim=2)
+
+        sims_xy_hat = cosine_similarity_from_normalized(hx_norm.unsqueeze(3), hy_hat_norm.unsqueeze(2))
+        neg_xy_hat = torch.exp(sims_xy_hat / tau).sum(dim=2)
+
+        sims_xx = cosine_similarity_from_normalized(hx_norm.unsqueeze(3), hx_norm.unsqueeze(2))
+        mask_mat = ~torch.eye(C, dtype=torch.bool, device=sims_xx.device)
+        mask_mat = mask_mat.view(1, 1, C, C)
+        neg_xx = torch.exp(sims_xx / tau).masked_fill(~mask_mat, 0).sum(dim=2)
+
+        sims_zy = cosine_similarity_from_normalized(hz_hat_norm.unsqueeze(3), hy_hat_norm.unsqueeze(2))
+        neg_zy = torch.exp(sims_zy / tau).sum(dim=2)
+
+        # Existing inner diagonal: h_{b',t+1} ↔ f_{b,t}  [B,B,T-1,C] → [B,T-1,C]
+        hy_norm_exp     = hy_norm.unsqueeze(0)      # [1, B, T-1, C, H]
+        hy_hat_norm_exp = hy_hat_norm.unsqueeze(1)  # [B, 1, T-1, C, H]
+        sims_cross = cosine_similarity_from_normalized(hy_norm_exp, hy_hat_norm_exp)
+        mask_b = ~torch.eye(B, dtype=torch.bool, device=sims_cross.device).view(B, B, 1, 1)
+        neg_cross_batch_forecast_embedding = (
+            torch.exp(sims_cross / tau).masked_fill(~mask_b, 0).sum(dim=1)
+        )
+
+        # NEW: f_b vs f_b' at same t (b ≠ b')  [B,B,T-1,C] → [B,T-1,C]
+        f_anchor = hy_hat_norm.unsqueeze(0)  # [1, B, T-1, C, H]
+        f_other  = hy_hat_norm.unsqueeze(1)  # [B, 1, T-1, C, H]
+        sims_ff  = cosine_similarity_from_normalized(f_anchor, f_other)
+        neg_cross_batch_forecast = torch.exp(sims_ff / tau).masked_fill(~mask_b, 0).sum(dim=1)
+
+        # NEW: h_{b,t+1} vs h_{b',t+1} at same t (b ≠ b')  [B,B,T-1,C] → [B,T-1,C]
+        h_anchor = hy_norm.unsqueeze(0)  # [1, B, T-1, C, H]
+        h_other  = hy_norm.unsqueeze(1)  # [B, 1, T-1, C, H]
+        sims_hh  = cosine_similarity_from_normalized(h_anchor, h_other)
+        neg_cross_batch_embedding = torch.exp(sims_hh / tau).masked_fill(~mask_b, 0).sum(dim=1)
+
+        negatives = (neg_xy + neg_xx + neg_zy + neg_xy_hat
+                     + neg_cross_batch_forecast_embedding
+                     + neg_cross_batch_forecast
+                     + neg_cross_batch_embedding)
+        loss = -torch.log(positives / negatives.sum(dim=0, keepdim=True)).mean()
+
     elif train_config.get('loss_shape') == 'mse':
         loss = F.mse_loss(hy, hy_hat) - F.mse_loss(hx, hy)
     else:
