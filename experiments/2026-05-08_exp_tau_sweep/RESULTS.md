@@ -83,7 +83,7 @@ not an arm in the sweep.
 
 ![trajectories](plots/tau_sweep_v2_trajectories.png)
 
-6-panel training trajectories (1000-step MA) for all 6 arms. R² panels
+6-panel training trajectories (400-step MA) for all 6 arms. R² panels
 are pinned to ≥ 0; AUC and Top-1 panels are zoomed for legibility.
 **τ=0.10 dominates the in-training AUC and Top-1 trajectory across the
 full 15k window**, with the learnable arm sitting just underneath. AUC

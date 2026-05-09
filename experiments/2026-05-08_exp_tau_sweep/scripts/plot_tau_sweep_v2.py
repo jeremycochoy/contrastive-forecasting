@@ -39,7 +39,7 @@ ARMS = [
      SYNC / "tau_sweep_0_07_losses.csv"),
     ("τ=0.10",            "tau_sweep_0_10",           "#d62728",
      SYNC / "tau_sweep_0_10_losses.csv"),
-    ("τ=learnable→0.069", "tau_sweep_learnable_0_10", "#17becf",
+    ("τ=0.10 → 0.069 (learnable)", "tau_sweep_learnable_0_10", "#17becf",
      SYNC_LEARN / "tau_sweep_learnable_0_10_losses.csv"),
     ("τ=0.20",            "tau_sweep_0_20_v2",        "#ff7f0e",
      SYNC_V2 / "tau_sweep_0_20_v2_losses.csv"),
@@ -50,7 +50,7 @@ BETA = dict(r2_random=0.6839, r2_naive=0.6080, u_temporal=0.0375,
             u_batch=0.0762, auc=0.8966, top1=0.7531)
 
 
-def smooth(x, w=1000):
+def smooth(x, w=400):
     if len(x) < w:
         return x
     return np.convolve(x, np.ones(w) / w, mode="valid")
@@ -81,12 +81,13 @@ def main() -> None:
         if t is not None:
             traj[name] = t
 
-    # R² panels pinned to ≥ 0; AUC / Top-1 zoomed for legibility.
+    # R² panels pinned to [0, 1] (natural range). AUC / Top-1 panels zoomed
+    # for legibility.
     metrics = [
-        ("r2_random", "R²_random", (0.0, None), BETA["r2_random"]),
-        ("r2_naive",  "R²_naive",  (0.0, None), BETA["r2_naive"]),
-        ("u_temporal", "U_temporal", None,      BETA["u_temporal"]),
-        ("u_batch",   "U_batch",     None,      BETA["u_batch"]),
+        ("r2_random", "R²_random", (0.0, 1.0), BETA["r2_random"]),
+        ("r2_naive",  "R²_naive",  (0.0, 1.0), BETA["r2_naive"]),
+        ("u_temporal", "U_temporal", None,     BETA["u_temporal"]),
+        ("u_batch",   "U_batch",     None,     BETA["u_batch"]),
         ("auc",       "AUC",        (0.882, 0.910), BETA["auc"]),
         ("top1",      "Top-1",      (0.72, 0.77),   BETA["top1"]),
     ]
@@ -113,7 +114,7 @@ def main() -> None:
         ax.grid(alpha=0.3)
         ax.legend(loc="best", fontsize=7)
     fig.suptitle(
-        "τ-sweep — training trajectories (1000-step MA, 6 arms, 15k steps).",
+        "τ-sweep — training trajectories (400-step MA, 6 arms, 15k steps).",
         fontsize=12)
     fig.tight_layout()
     fig.savefig(OUT_TRAJ, dpi=110, bbox_inches="tight")

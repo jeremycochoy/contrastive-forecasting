@@ -6,6 +6,7 @@ Contrastive-forecasting trains small transformer backbones on time series via co
 
 ## Empirical learnings
 - **Never use grad-clip in this project.** Fix divergence via data / normalization, not clipping.
+- **Label arms by their configured input, not their measured outcome.** A learnable-τ arm that drifted to 0.069 from init=0.10 reads as `τ=0.10 → 0.069`, not `τ=0.069`.
 
 ## Code style
 
