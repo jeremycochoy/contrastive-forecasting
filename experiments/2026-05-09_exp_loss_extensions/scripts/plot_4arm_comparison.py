@@ -129,20 +129,20 @@ plt.close(fig)
 
 
 # ------------------------------------------------------------------ Figure 3: log-log
-# Same 4 metrics, log-x (step) and log-y. AUC/Top-1 plotted as (1 - metric)
-# so they go to 0 as the model improves — error-rate convergence view.
+# Same 4 metrics in raw form, log-x (step) and log-y axes.
+# AUC/Top-1 panels keep the linear-plot ylim band, displayed with log spacing.
 fig, axes = plt.subplots(2, 2, figsize=(14, 10))
 fig.suptitle(
     "Log-log convergence: square loss vs baseline (4 arms, 15k steps)",
     fontsize=13,
 )
 
-# (axis, column, transform, title, ylabel)
+# (axis, column, title, ylim_or_None)
 panels = [
-    (axes[0, 0], "auc",        lambda s: 1.0 - s, "1 - AUC",     "1 - AUC"),
-    (axes[0, 1], "top1",       lambda s: 1.0 - s, "1 - Top-1",   "1 - Top-1"),
-    (axes[1, 0], "u_batch",    lambda s: s,       "U_batch",     "U_batch"),
-    (axes[1, 1], "u_temporal", lambda s: s,       "U_temporal",  "U_temporal"),
+    (axes[0, 0], "auc",        "AUC",        (0.86, 0.91)),
+    (axes[0, 1], "top1",       "Top-1",      (0.70, 0.78)),
+    (axes[1, 0], "u_batch",    "U_batch",    None),
+    (axes[1, 1], "u_temporal", "U_temporal", None),
 ]
 
 for arm in ARM_ORDER:
@@ -151,22 +151,24 @@ for arm in ARM_ORDER:
     # avoid log(0) on step axis
     mask = df["step"] > 0
     step = df.loc[mask, "step"]
-    for ax, col, transform, _title, _ylabel in panels:
-        raw = transform(df.loc[mask, col])
-        sm  = transform(rolling_mean(df[col], WINDOW)).loc[mask]
+    for ax, col, _title, _ylim in panels:
+        raw = df.loc[mask, col]
+        sm  = rolling_mean(df[col], WINDOW).loc[mask]
         ax.plot(step, raw, color=st["color"], linestyle=st["linestyle"],
                 alpha=0.15, linewidth=0.8)
         ax.plot(step, sm,  color=st["color"], linestyle=st["linestyle"],
                 label=st["label"], linewidth=1.6)
 
-for ax, _col, _transform, title, ylabel in panels:
+for ax, _col, title, ylim in panels:
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_xlabel("Step (log scale)")
-    ax.set_ylabel(ylabel + " (log scale)")
+    ax.set_ylabel(title + " (log scale)")
     ax.set_title(title)
     ax.grid(True, which="both", alpha=0.3)
     ax.legend(fontsize=9)
+    if ylim is not None:
+        ax.set_ylim(ylim)
 
 fig.tight_layout()
 out3 = os.path.join(PLOTS_DIR, "4arm_logscale.png")
