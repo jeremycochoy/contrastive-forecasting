@@ -61,9 +61,9 @@ the per-vertex thickness is a training artefact.
 
 ```
         time t-1                          time t
-  b   (f_{b,t-1}, h_{b,t})  ←────────  (f_{b,t}, h_{b,t+1})
-             │                  ↗ diag      │
-  b'  (f_{b',t-1}, h_{b',t}) ────────  (f_{b',t}, h_{b',t+1})
+  b   (f_{b,t-1}, h_{b,t})  ────────  (f_{b,t}  ╲  h_{b,t+1})
+             │                              │      ╲inner diag   │
+  b'  (f_{b',t-1}, h_{b',t}) ────────  (f_{b',t}   h_{b',t+1})
 ```
 
 ![Square loss diagram](plots/square_diagram.png)
@@ -72,13 +72,15 @@ the per-vertex thickness is a training artefact.
 
 | edge | nodes | term | status |
 |---|---|---|---|
-| top / bottom (time axis) | f↔f, h↔h adj. t | `neg_zy` | already there |
-| diagonal | `f_{b,t} ↔ h_{b',t+1}` (b≠b') | `neg_cross_batch_forecast_embedding` | already there — kept |
+| top / bottom (time axis) | f↔f adj. t | `neg_zy` | already there |
+| inner diagonal (right col, f→h across b) | `f_{b,t} ↔ h_{b',t+1}` (b≠b') | `neg_cross_batch_forecast_embedding` | already there — kept |
 | **left / right (batch axis), f-side** | `f_{b,t} ↔ f_{b',t}` | **`neg_cross_batch_forecast`** | **NEW** |
 | **left / right (batch axis), h-side** | `h_{b,t+1} ↔ h_{b',t+1}` | **`neg_cross_batch_embedding`** | **NEW** |
 
-The diagonal `neg_cross_batch_forecast_embedding` = `f_{b,t} ↔ h_{b',t+1}` crosses both
-the batch dimension (b→b') and the f/h dimension simultaneously. It is kept unchanged.
+The inner diagonal `neg_cross_batch_forecast_embedding` = `f_{b,t} ↔ h_{b',t+1}` crosses
+the batch dimension (b→b') and the f/h dimension within the right time-column simultaneously.
+It is kept unchanged. (In `src/loss.py` this term is called `neg_cross_batch`; this design
+renames it for clarity.)
 The two clean batch-axis edges are what this experiment adds.
 
 ---
