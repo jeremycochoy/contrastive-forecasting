@@ -222,3 +222,75 @@ class TestAddFCrossNegsOnly:
         assert loss_new.item() > loss_base.item(), (
             f"collinear f's should raise loss via new f-cross-bc neg term; "
             f"got new={loss_new.item():.6f} base={loss_base.item():.6f}")
+
+
+class TestAddSkipFNegs:
+    """Tests for `cosine_similarity_batch_add_skip_f_negs` (Exp 5).
+
+    NON-cumulative variant: identical to `cosine_similarity_batch` except the
+    `negatives` term includes an extra `f_t` vs `f_{t+2}` skip-step
+    forecaster term, same-(b, c). For C=1 the existing `neg_zy` already
+    covers `f_t` vs `f_{t+1}` same-channel; `f_t` vs `f_{t+2}` is genuinely
+    novel — not in any other negative term.
+    """
+
+    def test_loss_is_finite_scalar(self):
+        # Use T=4 so T>=3 holds (skip-pair t=0..T-3 is non-empty).
+        f, h = _random_inputs(B=2, T=4, C=1, H=8, seed=42)
+        loss = contrastive_latent_loss(
+            (f, h), validation=False,
+            spec=_make_spec('cosine_similarity_batch_add_skip_f_negs'))
+        assert loss.dim() == 0
+        assert torch.isfinite(loss)
+
+    def test_differs_from_baseline(self):
+        """The new skip-f neg term must change the loss vs the
+        `cosine_similarity_batch` baseline on the same inputs."""
+        f, h = _random_inputs(B=2, T=4, C=1, H=8, seed=42)
+        loss_base = contrastive_latent_loss(
+            (f, h), validation=False,
+            spec=_make_spec('cosine_similarity_batch'))
+        loss_new = contrastive_latent_loss(
+            (f, h), validation=False,
+            spec=_make_spec('cosine_similarity_batch_add_skip_f_negs'))
+        assert torch.isfinite(loss_base) and torch.isfinite(loss_new)
+        assert not torch.allclose(loss_base, loss_new), (
+            "new skip-f neg term should have a measurable effect vs "
+            f"baseline; got base={loss_base.item():.6f} "
+            f"new={loss_new.item():.6f}")
+
+    def test_collinear_skip_pairs_raise_loss(self):
+        """When `f_{t+2} == f_t` for every (b, c, t in 0..T-3), the new neg
+        term cos(f_t, f_{t+2}) = 1 inflates the negatives sum on the first
+        T-2 positions, so the new variant's loss must be strictly higher
+        than the baseline's on the same inputs."""
+        B, T, C, H = 2, 4, 1, 8
+        g = torch.Generator().manual_seed(11)
+        h = torch.randn(B, T, C, H, generator=g)
+        f = torch.randn(B, T, C, H, generator=g)
+        # Force f_{t+2} == f_t for t=0..T-3 — i.e. f[:, 2:T] = f[:, :T-2].
+        f[:, 2:T, :, :] = f[:, :T - 2, :, :].clone()
+
+        loss_base = contrastive_latent_loss(
+            (f, h), validation=False,
+            spec=_make_spec('cosine_similarity_batch'))
+        loss_new = contrastive_latent_loss(
+            (f, h), validation=False,
+            spec=_make_spec('cosine_similarity_batch_add_skip_f_negs'))
+        assert torch.isfinite(loss_base) and torch.isfinite(loss_new)
+        assert loss_new.item() > loss_base.item(), (
+            f"collinear skip pairs should raise loss via new skip-f neg "
+            f"term; got new={loss_new.item():.6f} "
+            f"base={loss_base.item():.6f}")
+
+    def test_smoke_C1_T_large(self):
+        """Smoke with the actual training config shape (C=1, T patches > 3)."""
+        B, T, C, H = 4, 8, 1, 16
+        g = torch.Generator().manual_seed(99)
+        f = torch.randn(B, T, C, H, generator=g)
+        h = torch.randn(B, T, C, H, generator=g)
+        loss = contrastive_latent_loss(
+            (f, h), validation=False,
+            spec=_make_spec('cosine_similarity_batch_add_skip_f_negs'))
+        assert loss.dim() == 0
+        assert torch.isfinite(loss), f"got non-finite loss: {loss}"

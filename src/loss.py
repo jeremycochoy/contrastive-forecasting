@@ -283,6 +283,69 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         negatives = neg_xy + neg_xx + neg_zy + neg_xy_hat + neg_cross_batch + neg_f_cross_bc
         loss = -torch.log(positives / negatives.sum(dim=0, keepdim=True)).mean()
 
+    elif train_config.get('loss_shape') == 'cosine_similarity_batch_add_skip_f_negs':
+        # NON-cumulative variant: identical to `cosine_similarity_batch` except
+        # `negatives` includes an extra "skip-step" forecaster term —
+        # cos(f_{b,c,t}, f_{b,c,t+2}) — i.e. f_t vs f_{t+2} same-(b, c). For
+        # C=1 the existing `neg_zy` already covers cos(f_{t+1, c1}, f_{t, c2})
+        # for (c1=c2), which is f_t vs f_{t+1} same-channel. f_t vs f_{t+2}
+        # is a genuinely novel skip-step pair not in any other negative term.
+        # This is the Exp 5 reformulation of the user's "f_t vs f_{t+1}"
+        # original spec — testing whether a longer skip step adds discriminative
+        # signal beyond the existing adjacent-step terms.
+        positives = torch.exp(
+            cosine_similarity_from_normalized(hy_norm, hy_hat_norm) / tau
+        )
+
+        sims_xy = cosine_similarity_from_normalized(hx_norm.unsqueeze(3), hy_norm.unsqueeze(2))
+        neg_xy = torch.exp(sims_xy / tau).sum(dim=2)
+
+        sims_xy_hat = cosine_similarity_from_normalized(hx_norm.unsqueeze(3), hy_hat_norm.unsqueeze(2))
+        neg_xy_hat = torch.exp(sims_xy_hat / tau).sum(dim=2)
+
+        sims_xx = cosine_similarity_from_normalized(hx_norm.unsqueeze(3), hx_norm.unsqueeze(2))
+        mask_mat = ~torch.eye(C, dtype=torch.bool, device=sims_xx.device)
+        mask_mat = mask_mat.view(1, 1, C, C)
+        neg_xx = torch.exp(sims_xx / tau).masked_fill(~mask_mat, 0).sum(dim=2)
+
+        sims_zy = cosine_similarity_from_normalized(hz_hat_norm.unsqueeze(3), hy_hat_norm.unsqueeze(2))
+        neg_zy = torch.exp(sims_zy / tau).sum(dim=2)
+
+        # Cross-batch negatives (h-side): compare across batch dimension
+        hy_norm_exp = hy_norm.unsqueeze(0)  # [1, B, T-1, C, H]
+        hy_hat_norm_exp = hy_hat_norm.unsqueeze(1)  # [B, 1, T-1, C, H]
+
+        sims_cross_batch = cosine_similarity_from_normalized(hy_norm_exp, hy_hat_norm_exp)
+
+        mask_batch = ~torch.eye(B, dtype=torch.bool, device=sims_cross_batch.device)
+        mask_batch = mask_batch.view(B, B, 1, 1)
+
+        neg_cross_batch_exp = torch.exp(sims_cross_batch / tau).masked_fill(~mask_batch, 0)
+        neg_cross_batch = neg_cross_batch_exp.sum(dim=1)
+
+        # NEW (Exp 5): f_t vs f_{t+2} skip-step forecaster negatives,
+        # same-(b, c). Valid pairs cover t = 0..T-3, so the skip-step
+        # term only has T-2 positions. We pad the last position with 0
+        # so the time dim aligns with the T-1 shape of the other neg
+        # terms (the padded position contributes 0 to negatives.sum at
+        # t = T-2, leaving that timestep's loss unaffected by this term).
+        # For T<3 there are no valid skip pairs — keep the term zero.
+        if T >= 3:
+            f_t_pre = fore_norm[:, :T - 2, :, :]    # f_t for t=0..T-3,    [B, T-2, C, H]
+            f_t_post = fore_norm[:, 2:T, :, :]       # f_{t+2} for t=0..T-3, [B, T-2, C, H]
+            sims_skip = (f_t_pre * f_t_post).sum(dim=-1)         # [B, T-2, C]
+            neg_skip_f_unpadded = torch.exp(sims_skip / tau)     # [B, T-2, C]
+            # Pad time dim from T-2 to T-1 with zeros at the end. Tensor is
+            # [B, T-2, C]; F.pad uses last-dim-first ordering, so to add 1
+            # zero at the END of dim=1 (T axis) we pass (0, 0, 0, 1):
+            # (left_C=0, right_C=0, left_T=0, right_T=1). Result: [B, T-1, C].
+            neg_skip_f = F.pad(neg_skip_f_unpadded, (0, 0, 0, 1))
+        else:
+            neg_skip_f = torch.zeros_like(neg_zy)
+
+        negatives = neg_xy + neg_xx + neg_zy + neg_xy_hat + neg_cross_batch + neg_skip_f
+        loss = -torch.log(positives / negatives.sum(dim=0, keepdim=True)).mean()
+
     elif train_config.get('loss_shape') == 'cosine_similarity_batch_no_time_neg':
         # Same as cosine_similarity_batch but without cross-time negatives (t <-> t+1).
         # Only keeps cross-channel and cross-batch negatives.
