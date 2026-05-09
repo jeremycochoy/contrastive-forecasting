@@ -7,8 +7,10 @@
 #
 # Resume bundle (model + optimizer + step counter + RNG state) is pushed by
 # the caller from elisa to /workspace/app/checkpoints/ before launch:
-#   checkpoints/tau_sweep_0_20_v2_FINAL.pth
-#   checkpoints/tau_sweep_0_20_v2_FINAL_optimizer.pth
+#   checkpoints/tau_sweep_0_20_50k_best_loss.pth
+#   checkpoints/tau_sweep_0_20_50k_best_loss_optimizer.pth
+# (re-provision after May 9 2026 preemption — resume from local best_loss
+#  at step ~20300 rather than the original 15k v2 FINAL bundle.)
 #
 # Robustness: 5-attempt retry loop (60 s sleep between) for HF / network blips.
 # Idempotent: exits if checkpoints/tau_sweep_0_20_50k_FINAL.pth already exists.
@@ -48,7 +50,7 @@ LOSS="cosine_similarity_batch"
 SAVE_DIR="checkpoints"
 TAU="0.20"
 NAME="tau_sweep_0_20_50k"
-RESUME="checkpoints/tau_sweep_0_20_v2_FINAL.pth"
+RESUME="checkpoints/tau_sweep_0_20_50k_best_loss.pth"
 MAX_RETRIES=5
 RETRY_SLEEP=60
 
@@ -140,14 +142,21 @@ fi
 
 # Promote best_loss -> FINAL (model + optimizer) so the elisa sync_loop
 # pulls both files with the expected names.
-if [ ! -f "${SAVE_DIR}/${NAME}_best_loss.pth" ]; then
-    echo "=== ARM τ=${TAU} 50k ERROR — ${NAME}_best_loss.pth missing post-train ==="
+#
+# safe_run_name() in train.py auto-branches when the resume bundle is in
+# the save dir under the same run_name; pick the actual training output.
+PROMOTE_NAME="${NAME}"
+if [ -f "${SAVE_DIR}/${NAME}_r2_best_loss.pth" ]; then
+    PROMOTE_NAME="${NAME}_r2"
+fi
+if [ ! -f "${SAVE_DIR}/${PROMOTE_NAME}_best_loss.pth" ]; then
+    echo "=== ARM τ=${TAU} 50k ERROR — ${PROMOTE_NAME}_best_loss.pth missing post-train ==="
     exit 1
 fi
-cp -f "${SAVE_DIR}/${NAME}_best_loss.pth" "${SAVE_DIR}/${NAME}_FINAL.pth"
-if [ -f "${SAVE_DIR}/${NAME}_best_loss_optimizer.pth" ]; then
-    cp -f "${SAVE_DIR}/${NAME}_best_loss_optimizer.pth" \
-          "${SAVE_DIR}/${NAME}_FINAL_optimizer.pth"
+cp -f "${SAVE_DIR}/${PROMOTE_NAME}_best_loss.pth" "${SAVE_DIR}/${PROMOTE_NAME}_FINAL.pth"
+if [ -f "${SAVE_DIR}/${PROMOTE_NAME}_best_loss_optimizer.pth" ]; then
+    cp -f "${SAVE_DIR}/${PROMOTE_NAME}_best_loss_optimizer.pth" \
+          "${SAVE_DIR}/${PROMOTE_NAME}_FINAL_optimizer.pth"
 fi
 
 echo "" && echo "=== ARM τ=0.20 50k DONE ===" && date

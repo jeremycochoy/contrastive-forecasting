@@ -3,6 +3,9 @@
 # vast.ai DC 5090 on-demand instance. Pulls run_name=tau_sweep_0_20_50k_*
 # files into /home/jupyter/contrastive-forecasting/sync_tau_sweep_0_20_50k/.
 #
+# Re-provision after May 9 2026 preemption — current vast assignment:
+#   instance 36419556 / ssh3.vast.ai:19556 / HU / RTX 5090 / on-demand DC.
+#
 # Distinct LOCAL_BASE so we don't overwrite the existing v2 15k checkpoints
 # in sync_tau_sweep_arm5_v2/.
 #
@@ -96,7 +99,11 @@ CSV_MIN=1
 LOG_MIN=1
 
 # Single arm; run_name = tau_sweep_0_20_50k on the vast launcher.
-BB="tau_sweep_0_20_50k"
+# safe_run_name() in train.py auto-branches to _r2 when the resume bundle
+# already exists in the save dir under the same run_name (the resume bundle
+# pushed pre-launch trips this), so the actual new outputs land under
+# tau_sweep_0_20_50k_r2_*. We track that namespace here.
+BB="tau_sweep_0_20_50k_r2"
 
 cycle_count=0
 while true; do
