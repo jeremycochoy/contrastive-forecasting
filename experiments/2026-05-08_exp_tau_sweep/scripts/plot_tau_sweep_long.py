@@ -125,18 +125,21 @@ def main() -> None:
     # 2×2 panels: U_temporal, U_batch, AUC, Top-1. R² panels removed —
     # the held-out box plot already covers R² and the long-window
     # trajectory adds no extra signal there. Both axes log; x window
-    # 5k–50k (drops the early-training transient where AUC starts near
-    # chance and obscures the converged region).
+    # 5k–50k. Per-panel ylim mirrors the y-window from the short
+    # trajectory plot (plot_tau_sweep_v2.py): AUC (0.882, 0.910),
+    # Top-1 (0.72, 0.77). U panels were auto-scaled in the short plot;
+    # here we set explicit log-friendly ylim covering the in-window
+    # data range.
     metrics = [
-        ("u_temporal", "U_temporal", BETA["u_temporal"], 500),
-        ("u_batch",   "U_batch",     BETA["u_batch"],    500),
-        ("auc",       "AUC",         BETA["auc"],        300),
-        ("top1",      "Top-1",       BETA["top1"],       300),
+        ("u_temporal", "U_temporal", BETA["u_temporal"], 500, (0.018, 0.07)),
+        ("u_batch",   "U_batch",     BETA["u_batch"],    500, (0.040, 0.13)),
+        ("auc",       "AUC",         BETA["auc"],        300, (0.882, 0.910)),
+        ("top1",      "Top-1",       BETA["top1"],       300, (0.72, 0.77)),
     ]
 
     fig, axs = plt.subplots(2, 2, figsize=(13, 9))
     axs = axs.flatten()
-    for ax, (key, title, beta_ref, smooth_w) in zip(axs, metrics):
+    for ax, (key, title, beta_ref, smooth_w, ylim) in zip(axs, metrics):
         for label, color, _ in ARMS:
             t = traj.get(label)
             if t is None:
@@ -153,6 +156,7 @@ def main() -> None:
         ax.set_xscale("log")
         ax.set_yscale("log")
         ax.set_xlim(5000, 50000)
+        ax.set_ylim(ylim)
         ax.set_xlabel("step")
         ax.grid(alpha=0.3, which="both")
         ax.legend(loc="best", fontsize=9)
