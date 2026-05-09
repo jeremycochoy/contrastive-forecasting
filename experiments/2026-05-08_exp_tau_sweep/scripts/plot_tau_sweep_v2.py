@@ -28,20 +28,22 @@ SYNC_LEARN = REPO / "sync_tau_sweep_learnable/checkpoints"
 OUT_TRAJ = REPO / "experiments/2026-05-08_exp_tau_sweep/plots/tau_sweep_v2_trajectories.png"
 OUT_TRAJ.parent.mkdir(parents=True, exist_ok=True)
 
-# Arms in numerical-τ order with τ=0.10 and learnable_τ_init0.10 adjacent.
+# Arms in numerical-τ order, with the learnable-τ arm placed adjacent to
+# its CONVERGED value (τ ≈ 0.069 ≈ τ=0.07) — its behaviour matches its
+# converged τ, not its init.
 # (display_label, run_name, color, csv_path)
 ARMS = [
-    ("τ=0.03",            "tau_sweep_0_03",           "#1f77b4",
+    ("τ=0.03",                     "tau_sweep_0_03",           "#1f77b4",
      SYNC / "tau_sweep_0_03_losses.csv"),
-    ("τ=0.05",            "tau_sweep_0_05",           "#2ca02c",
+    ("τ=0.05",                     "tau_sweep_0_05",           "#2ca02c",
      SYNC / "tau_sweep_0_05_losses.csv"),
-    ("τ=0.07",            "tau_sweep_0_07",           "#9467bd",
+    ("τ=0.07",                     "tau_sweep_0_07",           "#9467bd",
      SYNC / "tau_sweep_0_07_losses.csv"),
-    ("τ=0.10",            "tau_sweep_0_10",           "#d62728",
-     SYNC / "tau_sweep_0_10_losses.csv"),
     ("τ=0.10 → 0.069 (learnable)", "tau_sweep_learnable_0_10", "#17becf",
      SYNC_LEARN / "tau_sweep_learnable_0_10_losses.csv"),
-    ("τ=0.20",            "tau_sweep_0_20_v2",        "#ff7f0e",
+    ("τ=0.10",                     "tau_sweep_0_10",           "#d62728",
+     SYNC / "tau_sweep_0_10_losses.csv"),
+    ("τ=0.20",                     "tau_sweep_0_20_v2",        "#ff7f0e",
      SYNC_V2 / "tau_sweep_0_20_v2_losses.csv"),
 ]
 
