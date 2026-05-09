@@ -1,21 +1,19 @@
 #!/usr/bin/env python3
-"""τ-sweep multisample plot — 6 panels of mean ± stdev across N=10 batches.
+"""τ-sweep multisample plot — 6 metric panels, mean ± stdev across batches.
 
-Reads `results/tau_sweep_metrics_multisample.csv`. Renders 6 metric panels
-(R²_random, R²_naive, U_temporal, U_batch, AUC, Top-1) on a log-x τ axis
-with explicit ticks at the swept values, error bars showing stdev across
-the N=10 batches, and `backbone-beta_167k` reference as a dashed line.
-
-The 7 fixed-τ arms are plotted at their declared τ. The
-`tau_sweep_learnable_0_10` arm converged from init=0.10 to τ ≈ 0.069 by
-step 15k; we plot it at 0.069 with a distinct marker so it does not
-collide with `tau_sweep_0_07`.
+Reads `results/tau_sweep_metrics_multisample.csv` (or the N=50 variant if
+available; pass `--csv path` to override). Renders 6 metric panels
+(R²_random, R²_naive, U_temporal, U_batch, AUC, Top-1) with a categorical
+x-axis: arms left-to-right at fixed positions (no log scaling), a wide
+shaded box per arm spanning [mean − stdev, mean + stdev], a thick line at
+the mean, and `backbone-beta_167k` as a dashed reference.
 
 Output: experiments/2026-05-08_exp_tau_sweep/plots/tau_sweep_eval_multisample.png
 """
 
-from pathlib import Path
+import argparse
 import csv
+from pathlib import Path
 
 import matplotlib
 matplotlib.use("Agg")
@@ -24,27 +22,33 @@ import numpy as np
 
 
 REPO = Path(__file__).resolve().parents[3]
-EVAL_CSV = REPO / "experiments/2026-05-08_exp_tau_sweep/results/tau_sweep_metrics_multisample.csv"
+DEFAULT_CSV = REPO / "experiments/2026-05-08_exp_tau_sweep/results/tau_sweep_metrics_multisample.csv"
 OUT = REPO / "experiments/2026-05-08_exp_tau_sweep/plots/tau_sweep_eval_multisample.png"
 OUT.parent.mkdir(parents=True, exist_ok=True)
 
-# (display_label, csv_name, plotted_tau, marker, color)
+# Display arms in τ-numerical order with τ=0.10 and learnable_τ_init0.10
+# adjacent (they start from the same τ at init / nominal training value, so
+# placing them next to each other in the legend / x-axis order makes the
+# fixed-vs-learnable comparison readable). Single τ=0.20 entry uses the v2
+# checkpoint (the run that has both FINAL.pth and full trajectory CSV).
 ARMS = [
-    ("τ=0.03",                  "tau_sweep_0_03",            0.03,  "o", "#1f77b4"),
-    ("τ=0.05",                  "tau_sweep_0_05",            0.05,  "o", "#2ca02c"),
-    ("τ=0.07",                  "tau_sweep_0_07",            0.07,  "o", "#9467bd"),
-    ("τ=0.10",                  "tau_sweep_0_10",            0.10,  "o", "#d62728"),
-    ("τ=0.20",                  "tau_sweep_0_20",            0.20,  "o", "#ff7f0e"),
-    ("τ=0.20 v2",               "tau_sweep_0_20_v2",         0.20,  "s", "#bcbd22"),
-    ("learnable_τ → 0.069",     "tau_sweep_learnable_0_10",  0.069, "D", "#17becf"),
+    ("τ=0.03",            "tau_sweep_0_03",           "#1f77b4"),
+    ("τ=0.05",            "tau_sweep_0_05",           "#2ca02c"),
+    ("τ=0.07",            "tau_sweep_0_07",           "#9467bd"),
+    ("τ=0.10",            "tau_sweep_0_10",           "#d62728"),
+    ("τ=learnable→0.069", "tau_sweep_learnable_0_10", "#17becf"),
+    ("τ=0.20",            "tau_sweep_0_20_v2",        "#ff7f0e"),
 ]
 
 BETA = dict(r2_random=0.6839, r2_naive=0.6080, u_temporal=0.0375,
             u_batch=0.0762, auc=0.8966, top1=0.7531)
 
+# (csv_key, title, ylim) — R² panels pinned to ≥ 0 (negative R² is
+# meaningless and would only show up for divergent arms; the scientific
+# range we care about is [0, 1]).
 METRICS = [
-    ("r2_random",   "R²_random",  None),
-    ("r2_naive",    "R²_naive",   None),
+    ("r2_random",   "R²_random",  (0.0, None)),
+    ("r2_naive",    "R²_naive",   (0.0, None)),
     ("u_temporal",  "U_temporal", None),
     ("u_batch",     "U_batch",    None),
     ("auc",         "AUC",        None),
@@ -53,56 +57,70 @@ METRICS = [
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--csv", default=str(DEFAULT_CSV))
+    parser.add_argument("--out", default=str(OUT))
+    args = parser.parse_args()
+
     rows: dict[str, dict] = {}
-    with open(EVAL_CSV) as f:
+    n_samples_seen: set[int] = set()
+    with open(args.csv) as f:
         for r in csv.DictReader(f):
             rows[r["name"]] = {k: (float(v) if v not in ("", None) else None)
                                for k, v in r.items() if k not in ("name", "encoder_type")}
             rows[r["name"]]["name"] = r["name"]
             rows[r["name"]]["encoder_type"] = r["encoder_type"]
+            if "n_samples" in r and r["n_samples"]:
+                n_samples_seen.add(int(float(r["n_samples"])))
+    n_samples = max(n_samples_seen) if n_samples_seen else 0
 
-    fig, axs = plt.subplots(2, 3, figsize=(18, 10))
+    fig, axs = plt.subplots(2, 3, figsize=(16, 8))
     axs = axs.flatten()
-    for ax_i, (ax, (key, title, _)) in enumerate(zip(axs, METRICS)):
-        for label, name, tau, marker, color in ARMS:
+
+    arm_labels = [a[0] for a in ARMS]
+    arm_names = [a[1] for a in ARMS]
+    arm_colors = [a[2] for a in ARMS]
+    xs = np.arange(len(arm_labels))
+    box_half = 0.36
+
+    for ax, (key, title, ylim) in zip(axs, METRICS):
+        for x, name, color in zip(xs, arm_names, arm_colors):
             r = rows.get(name)
             if r is None:
                 continue
             mean = r[f"{key}_mean"]
             std = r[f"{key}_std"]
-            ax.errorbar([tau], [mean], yerr=[std], fmt=marker, color=color,
-                        markersize=9, capsize=5, linewidth=1.4,
-                        markeredgecolor="black", markeredgewidth=0.6,
-                        label=label)
+            # Shaded box: [mean - std, mean + std]
+            ax.bar(x, height=2 * std, bottom=mean - std,
+                   width=2 * box_half, color=color, alpha=0.40,
+                   edgecolor=color, linewidth=1.2, zorder=2)
+            # Mean line on top
+            ax.hlines(mean, x - box_half, x + box_half,
+                      color=color, linewidth=2.6, zorder=3)
+            # Annotate mean ± std numerically
+            ax.annotate(f"{mean:.4f}\n±{std:.4f}", (x, mean + std),
+                        textcoords="offset points", xytext=(0, 4),
+                        ha="center", fontsize=7)
+        # Reference line for backbone-beta_167k (single-batch on the same
+        # held-out eval batch; here as a context anchor only).
         ax.axhline(BETA[key], color="gray", linestyle="--", linewidth=0.9,
                    label=f"backbone-β 167k = {BETA[key]:.4f}")
-        ax.set_xscale("log")
-        ax.set_title(f"{title} — held-out (mean ± stdev, N=10)")
-        ax.set_xlabel("τ")
-        # Explicit ticks at the swept values. 0.069 (learnable converged)
-        # is too close to 0.07 to label legibly so we drop its tick.
-        tick_taus = [0.03, 0.05, 0.07, 0.10, 0.20]
-        ax.set_xticks(tick_taus)
-        ax.set_xticklabels([f"{t:g}" for t in tick_taus], fontsize=9)
-        ax.set_xlim(0.025, 0.25)
-        ax.grid(alpha=0.3, which="both")
-        # Only put the per-arm legend on the first panel; share the axis on
-        # the rest. (β reference line is a separate label per panel.)
-        if ax_i == 0:
-            ax.legend(loc="lower right", fontsize=7)
-        else:
-            # show only the β reference line on other panels
-            handles, labels_ = ax.get_legend_handles_labels()
-            if handles:
-                ax.legend(handles[-1:], labels_[-1:], loc="best", fontsize=7)
+        ax.set_title(f"{title} — held-out eval (mean ± stdev)")
+        ax.set_xticks(xs)
+        ax.set_xticklabels(arm_labels, rotation=20, ha="right", fontsize=9)
+        ax.set_xlim(-0.6, len(xs) - 0.4)
+        if ylim is not None:
+            ax.set_ylim(bottom=ylim[0], top=ylim[1])
+        ax.grid(alpha=0.3, axis="y")
+        ax.legend(loc="best", fontsize=7)
 
     fig.suptitle(
-        "τ-sweep — held-out eval mean ± stdev (N=10 disjoint batches × B=256). "
-        "Error bars are population stdev across the 10 batches.",
-        fontsize=11)
+        f"τ-sweep — held-out eval (N={n_samples} disjoint batches × B=256). "
+        "Boxes span ±1 stdev across batches; line at the mean.",
+        fontsize=12)
     fig.tight_layout()
-    fig.savefig(OUT, dpi=110, bbox_inches="tight")
-    print(f"saved {OUT}")
+    fig.savefig(args.out, dpi=110, bbox_inches="tight")
+    print(f"saved {args.out}")
 
 
 if __name__ == "__main__":
