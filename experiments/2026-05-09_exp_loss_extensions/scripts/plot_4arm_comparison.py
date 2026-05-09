@@ -3,7 +3,7 @@
 4-arm comparison: square loss vs baseline at τ=0.10 and τ=0.20
 Produces:
   plots/4arm_auc_top1.png
-  plots/4arm_uniformity.png
+  plots/4arm_dim_usage.png
   plots/4arm_logscale.png
 """
 
@@ -96,7 +96,7 @@ plt.close(fig)
 # ------------------------------------------------------------------ Figure 2
 fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 fig.suptitle(
-    "Uniformity: square loss vs baseline (4 arms, 15k steps)",
+    "Dimension usage: square loss vs baseline (4 arms, 15k steps)",
     fontsize=13,
 )
 
@@ -122,7 +122,7 @@ for ax, col, title in [
     ax.legend(fontsize=9)
 
 fig.tight_layout()
-out2 = os.path.join(PLOTS_DIR, "4arm_uniformity.png")
+out2 = os.path.join(PLOTS_DIR, "4arm_dim_usage.png")
 fig.savefig(out2, dpi=150)
 print(f"Saved: {out2}")
 plt.close(fig)
