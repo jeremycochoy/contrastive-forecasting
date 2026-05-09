@@ -35,11 +35,14 @@ for name, path in paths.items():
     print(f"{name}: {len(df)} rows, steps {df.step.min()}–{df.step.max()}")
 
 # --- Style ---
+# 4 distinct hues so noisy curves don't blend.
+# τ=0.10: cool (blue/cyan); τ=0.20: warm (red/orange).
+# Solid = baseline, dashed = square (loss family within τ).
 styles = {
-    "baseline_0.10": {"color": "tab:blue",  "linestyle": "-",  "label": "baseline τ=0.10"},
-    "square_0.10":   {"color": "tab:blue",  "linestyle": "--", "label": "square τ=0.10"},
-    "baseline_0.20": {"color": "tab:red",   "linestyle": "-",  "label": "baseline τ=0.20"},
-    "square_0.20":   {"color": "tab:red",   "linestyle": "--", "label": "square τ=0.20"},
+    "baseline_0.10": {"color": "#1f77b4", "linestyle": "-",  "label": "baseline τ=0.10"},  # blue
+    "square_0.10":   {"color": "#17becf", "linestyle": "--", "label": "square τ=0.10"},    # cyan
+    "baseline_0.20": {"color": "#d62728", "linestyle": "-",  "label": "baseline τ=0.20"},  # red
+    "square_0.20":   {"color": "#ff7f0e", "linestyle": "--", "label": "square τ=0.20"},    # orange
 }
 
 ARM_ORDER = ["baseline_0.10", "square_0.10", "baseline_0.20", "square_0.20"]
@@ -61,8 +64,8 @@ for arm in ARM_ORDER:
     df = dfs[arm]
     st = styles[arm]
     for ax, col, ylim in [
-        (axes[0], "auc",  (0.84, 0.95)),
-        (axes[1], "top1", (0.65, 0.82)),
+        (axes[0], "auc",  (0.86, 0.91)),
+        (axes[1], "top1", (0.70, 0.78)),
     ]:
         raw = df[col]
         sm  = rolling_mean(raw, WINDOW)
@@ -72,8 +75,8 @@ for arm in ARM_ORDER:
                 label=st["label"], linewidth=1.6)
 
 for ax, col, ylim, title in [
-    (axes[0], "auc",  (0.84, 0.95), "AUC"),
-    (axes[1], "top1", (0.65, 0.82), "Top-1"),
+    (axes[0], "auc",  (0.86, 0.91), "AUC"),
+    (axes[1], "top1", (0.70, 0.78), "Top-1"),
 ]:
     ax.set_ylim(ylim)
     ax.set_xlabel("Step")
