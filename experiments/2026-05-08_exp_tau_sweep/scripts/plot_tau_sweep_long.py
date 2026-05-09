@@ -133,8 +133,8 @@ def main() -> None:
     metrics = [
         ("u_temporal", "U_temporal", BETA["u_temporal"], 500, (0.018, 0.07)),
         ("u_batch",   "U_batch",     BETA["u_batch"],    500, (0.040, 0.13)),
-        ("auc",       "AUC",         BETA["auc"],        300, (0.882, 0.910)),
-        ("top1",      "Top-1",       BETA["top1"],       300, (0.72, 0.77)),
+        ("auc",       "AUC",         BETA["auc"],        450, (0.882, 0.910)),
+        ("top1",      "Top-1",       BETA["top1"],       450, (0.72, 0.77)),
     ]
 
     fig, axs = plt.subplots(2, 2, figsize=(13, 9))
@@ -162,7 +162,7 @@ def main() -> None:
         ax.legend(loc="best", fontsize=9)
     fig.suptitle(
         "τ-sweep long trajectories — τ=0.10 and τ=0.20 to 50k "
-        "(log/log; U: 500-step MA, AUC / Top-1: 300-step MA).",
+        "(log/log; U: 500-step MA, AUC / Top-1: 450-step MA).",
         fontsize=12)
     fig.tight_layout()
     fig.savefig(OUT, dpi=110, bbox_inches="tight")
