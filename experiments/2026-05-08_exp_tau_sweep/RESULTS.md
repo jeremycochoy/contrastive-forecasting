@@ -61,6 +61,13 @@ In-training AUC and Top-1 trajectories cluster the **softer-τ arms
 window. R²_random / R²_naive trajectories rise monotonically with τ —
 τ=0.80 at the top, τ=0.50 below, τ=0.30 below, τ=0.20 below.
 
+![auc-top1-zoom](plots/tau_sweep_v2_auc_top1_loglog.png)
+
+AUC / Top-1 zoom (log/log, x∈[5k, 15k], 260-step MA — same y-windows
+as the panel above). The softer-τ cluster (0.10, learnable_0.10,
+learnable_0.20, 0.20) is visibly above the sharper / very-soft-τ pack,
+with τ=0.20 leading.
+
 ### Held-out eval (mean ± stdev, N=50 disjoint batches)
 
 ![multisample](plots/tau_sweep_eval_multisample.png)
