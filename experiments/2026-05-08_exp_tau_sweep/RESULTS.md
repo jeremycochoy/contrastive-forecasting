@@ -91,11 +91,10 @@ which writes [`results/tau_sweep_metrics_v2.csv`](results/tau_sweep_metrics_v2.c
 | tau_sweep_learnable_0_10   | 0.10 → 0.069 | 0.6919     | 0.6185     | 0.0320 | 0.0638     | 0.8908     | 0.7396     |
 
 (Provenance: the τ=0.20 row above is from the 15,000-step
-[`sync_tau_sweep/checkpoints/tau_sweep_0_20_FINAL.pth`](../../sync_tau_sweep/checkpoints/tau_sweep_0_20_FINAL.pth)
-trained on a vast.ai 5090 spot. The trajectory CSV for that arm was lost
-in the spot-stop event — see Caveats — and a full-15k retrain is in
-flight to recover it; the eval row itself comes from the original
-15,000-step backbone snapshot.)
+[`sync_tau_sweep/checkpoints/tau_sweep_0_20_FINAL.pth`](../../sync_tau_sweep/checkpoints/tau_sweep_0_20_FINAL.pth).
+The trajectory CSV for that arm was lost in a spot-stop event — see
+Caveats — and was recovered by the `tau_sweep_0_20_v2` retrain.
+The N=10 multisample re-eval below scores both v1 and v2 separately.)
 
 Reference (`backbone-beta_167k`, same held-out batch):
 R²_random 0.6839, R²_naive 0.6080, U_t 0.0375, U_b 0.0762,
@@ -126,13 +125,80 @@ AUC 0.8966, Top-1 0.7531.
 R² and U-metric ranges across τ are large; AUC and Top-1 ranges are
 small (sub-1% AUC; ~1.5% Top-1).
 
-### Trajectories
+### Held-out eval (mean ± stdev, N=10 samples)
 
-> **Interim refresh (2026-05-09 10:07 BST).** The τ=0.20 v2 retrain
-> finished its 15,000-step trajectory CSV; the plot below now includes
-> the full v2 trace alongside the other 5 arms. Held-out eval against
-> v2 FINAL.pth has not been re-run yet — that is the remaining piece
-> before the next plot refresh.
+The single-batch eval above has per-batch noise of order ~0.006 AUC /
+~0.010 Top-1 — comparable to or larger than the inter-arm differences
+on the discriminative metrics. To resolve which differences are real,
+all 7 backbones were re-scored on **N=10 disjoint held-out batches**
+(B=256 each, 10 different `skip_rows` values spaced 4.27M rows apart so
+each wraps to a distinct region of the 42.7M-row corpus).
+
+![multisample](plots/tau_sweep_eval_multisample.png)
+
+| backbone                 | τ            | R²_random           | R²_naive            | U_t                | U_b                 | AUC                 | Top-1               |
+|--------------------------|--------------|---------------------|---------------------|--------------------|---------------------|---------------------|---------------------|
+| tau_sweep_0_03           | 0.03         | 0.7624 ± 0.0041     | 0.6928 ± 0.0062     | 0.0078 ± 0.0001    | 0.0099 ± 0.0001     | 0.8967 ± 0.0063     | 0.7457 ± 0.0102     |
+| tau_sweep_0_05           | 0.05         | 0.7239 ± 0.0051     | 0.6497 ± 0.0066     | 0.0183 ± 0.0005    | 0.0315 ± 0.0007     | 0.8923 ± 0.0062     | 0.7381 ± 0.0097     |
+| tau_sweep_0_07           | 0.07         | 0.6926 ± 0.0053     | 0.6238 ± 0.0071     | 0.0326 ± 0.0010    | 0.0632 ± 0.0009     | 0.8967 ± 0.0060     | 0.7475 ± 0.0101     |
+| tau_sweep_0_10           | 0.10         | 0.6672 ± 0.0063     | 0.6118 ± 0.0079     | **0.0506 ± 0.0017** | **0.1020 ± 0.0015** | 0.8980 ± 0.0062     | 0.7518 ± 0.0099     |
+| tau_sweep_0_20           | 0.20         | **0.7710 ± 0.0045** | **0.7265 ± 0.0060** | 0.0387 ± 0.0013    | 0.0836 ± 0.0015     | 0.9001 ± 0.0063     | 0.7540 ± 0.0103     |
+| tau_sweep_0_20_v2        | 0.20         | 0.7693 ± 0.0048     | 0.7233 ± 0.0064     | 0.0379 ± 0.0012    | 0.0818 ± 0.0012     | **0.9004 ± 0.0065** | **0.7545 ± 0.0106** |
+| tau_sweep_learnable_0_10 | 0.10 → 0.069 | 0.6911 ± 0.0054     | 0.6220 ± 0.0072     | 0.0320 ± 0.0009    | 0.0632 ± 0.0009     | 0.8981 ± 0.0060     | 0.7487 ± 0.0100     |
+
+(Source: [`results/tau_sweep_metrics_multisample.csv`](results/tau_sweep_metrics_multisample.csv).)
+
+#### Significance of inter-arm differences
+
+The per-batch stdev (~0.006 AUC / ~0.010 Top-1 / ~0.005 R²_random) is
+the noise floor. Differences below 1σ are within noise; differences
+above 2σ are clearly resolved.
+
+τ=0.10 vs τ=0.20 — the leading "winner-uncertain" pair from the
+single-batch table:
+
+| metric     | τ=0.20 − τ=0.10 | max stdev | clearly resolved (>2σ)? |
+|------------|-----------------|-----------|-------------------------|
+| R²_random  | +0.1039         | 0.0063    | yes (~16σ)              |
+| R²_naive   | +0.1147         | 0.0079    | yes (~14σ)              |
+| U_temporal | −0.0119         | 0.0017    | yes (~7σ), τ=0.10 higher |
+| U_batch    | −0.0183         | 0.0015    | yes (~12σ), τ=0.10 higher |
+| AUC        | +0.0021         | 0.0063    | **no, within 1σ**       |
+| Top-1      | +0.0022         | 0.0103    | **no, within 1σ**       |
+
+τ=0.20 vs τ=0.20_v2 — same recipe, two independent training runs:
+
+| metric     | v2 − v1 | v1 stdev | v2 stdev | within 1σ? |
+|------------|---------|----------|----------|------------|
+| R²_random  | −0.0017 | 0.0045   | 0.0048   | yes        |
+| R²_naive   | −0.0032 | 0.0060   | 0.0064   | yes        |
+| U_temporal | −0.0008 | 0.0013   | 0.0012   | yes        |
+| U_batch    | −0.0018 | 0.0015   | 0.0012   | borderline |
+| AUC        | +0.0002 | 0.0063   | 0.0065   | yes        |
+| Top-1      | +0.0005 | 0.0103   | 0.0106   | yes        |
+
+Two independent τ=0.20 runs differ by ≤1σ on every metric except
+U_batch (which sits at ~1.2σ). The recipe is reproducible.
+
+#### Updated verdict on τ=0.10 vs τ=0.20
+
+The prior single-batch verdict — "τ=0.20 wins AUC by ~0.002 and Top-1
+by ~0.002, but within single-batch noise" — is now precisely measured:
+
+- **R²_random / R²_naive: τ=0.20 wins decisively** (Δ ≈ +0.10, >10σ).
+- **U_temporal / U_batch: τ=0.10 wins decisively** (Δ ≈ +0.012 / +0.018,
+  >7σ). The directionality of "softer τ → more spread" holds.
+- **AUC / Top-1: τ=0.10 vs τ=0.20 is within 1σ, both ways.** The
+  apparent τ=0.20 edge in the single-batch table (+0.0023 AUC,
+  +0.0021 Top-1) is well below the per-batch stdev. AUC and Top-1 do
+  not reliably separate τ=0.10 from τ=0.20 at this batch size and
+  N=10 sample budget.
+
+The R² split is the largest signal in the sweep and was correctly
+called from the single batch; the AUC/Top-1 differences were
+within-noise at single-batch and remain within-noise at N=10.
+
+### Trajectories
 
 ![trajectories](plots/tau_sweep_v2_trajectories.png)
 
@@ -149,12 +215,12 @@ the full 15k retrain (replacing the previous 7.8k partial).
 
 ![comparison](plots/tau_sweep_v2_comparison.png)
 
-Bar chart of the held-out eval values per backbone, with
-`backbone-beta_167k` reference as a dashed line. The plot file was
-generated before the report cleanup and still includes a
-`τ=0.20 v2 (7.8k)` bar from a 7,800-step partial retrain — that bar is
-not part of the canonical sweep and is superseded by the τ=0.20 row in
-the eval table above; see Caveats. The eval CSV also contains an
+Single-batch bar chart of held-out eval values per backbone, with
+`backbone-beta_167k` reference as a dashed line. **Superseded by the
+N=10 multisample plot above** for any close comparison — the
+single-batch values shown here have per-batch noise of ~0.006 AUC /
+~0.010 Top-1 (see "Held-out eval (mean ± stdev, N=10 samples)" for
+error bars). The eval CSV also contains an
 `exp2_residual_silu_tau_0_10` row from a separate Exp-2 encoder probe
 which is not part of this τ-sweep and is not plotted.
 
@@ -174,26 +240,28 @@ something else) was not investigated.
 | tau_sweep_0_10           | 15000     | 7.0414           | 0.9199          | 0.7765            | 0.0939           |
 | tau_sweep_learnable_0_10 | 15000     | 6.9749           | 0.9206          | 0.7745            | 0.0591           |
 
-(τ=0.20 in-training row not added here yet — the v2 retrain CSV is now
-available and will populate this table at the next refresh, alongside
-the held-out eval re-run against v2 FINAL.pth; see the trajectory note
-above and Caveats.)
+(τ=0.20 in-training row not yet added here; the v2 retrain trajectory
+CSV is available at
+`sync_tau_sweep_arm5_v2/checkpoints/tau_sweep_0_20_v2_losses.csv` and
+can populate this table at the next refresh.)
 
-### The τ=0.10 vs τ=0.20 winner is currently uncertain
+### The τ=0.10 vs τ=0.20 winner — what the N=10 eval resolves
 
-The two softer arms come out ahead, but on different evidence:
+Updated picture after the multisample re-eval (see "Held-out eval
+(mean ± stdev, N=10 samples)" above):
 
 - **τ=0.10** dominates the in-training trajectory across the full 15k
   window on AUC, Top-1, and the U-metrics. It also wins U_temporal and
-  U_batch on the held-out batch.
-- **τ=0.20** wins the held-out batch on R²_random, R²_naive, AUC, and
-  Top-1 — but the AUC and Top-1 margins over τ=0.10 are ≈0.0023 and
-  ≈0.0021 respectively, well within single-batch noise.
+  U_batch on the held-out N=10 mean (Δ≈+0.012 / +0.018, both >7σ).
+- **τ=0.20** wins R²_random and R²_naive decisively on the held-out
+  N=10 mean (Δ≈+0.10, >10σ). On AUC and Top-1, τ=0.20's edge over
+  τ=0.10 (+0.0021 AUC / +0.0022 Top-1) is **within 1σ of the
+  per-batch stdev (~0.006 AUC / ~0.010 Top-1)** — i.e. within noise.
 
-Until the τ=0.20 trajectory plot lands (in-flight retrain), the picked τ
-for the next backbone is unsettled between 0.10 (dominates trajectory)
-and 0.20 (edges held-out by ~0.002 AUC / ~0.002 Top-1, with U-metrics
-going the other way).
+The split is therefore: τ=0.20 is materially better on the
+forecast-match (R²) metrics, τ=0.10 is materially better on the
+encoder-spread (U) metrics, and AUC/Top-1 do not separate the two at
+the available eval precision.
 
 The **learnable-τ arm slid from init=0.10 to τ ≈ 0.069**
 (log_inv_tau ≈ 2.671) over 15k steps. Its held-out values land near
@@ -208,27 +276,21 @@ find the soft optimum from above.
 
 ## Caveats
 
-- **τ=0.20 trajectory CSV lost from the original Exp 1 run.** The
-  original vast spot auto-stopped on completion before any sync_loop
-  pulled the per-step losses CSV (a one-shot DONE-marker scp-back was
-  wired up instead, and only `_FINAL.pth` survived the post-DONE
-  pull). The full-15k backbone snapshot was preserved, so the held-out
+- **τ=0.20 trajectory CSV lost; v2 retrain provides the trajectory.**
+  The original τ=0.20 backbone snapshot was preserved, so its held-out
   eval row is from the genuine 15,000-step training; only the per-step
-  trajectory was missing. A full-15k retrain (run-name
-  `tau_sweep_0_20_v2`) on elisa GPU 1 has now completed (2026-05-09)
-  and recovered the trajectory; the trajectory plot in this report
-  uses that v2 trace. The held-out eval has not yet been re-run
-  against v2 FINAL.pth — pending. Operational details in
+  trajectory CSV was lost. A full-15k retrain (`tau_sweep_0_20_v2`)
+  recovered the trajectory and produced a separate FINAL.pth. The N=10
+  multisample re-eval scored both: v2 differs from v1 by ≤1σ on every
+  metric except U_batch (~1.2σ) — see the "τ=0.20 vs τ=0.20_v2"
+  table — confirming the recipe is reproducible and the missing-
+  trajectory loss did not bias the eval row. Operational details in
   [`EXECUTION_LOG.md`](EXECUTION_LOG.md); the policy fix (sync_loop
   always-on for short remote runs too) is in
   [`REMOTE_LAUNCH_CHECKLIST`](../REMOTE_LAUNCH_CHECKLIST.md).
 
 ## Open
 
-- **τ=0.20 v2 held-out re-eval.** Re-run the held-out batch against
-  `tau_sweep_0_20_v2_FINAL.pth` and refresh the comparison plot + the
-  eval table; expected to land near the existing 15k row (canonical
-  τ=0.20).
 - **Proxy MASE per arm.** The
   [`scripts/run_tau_sweep_proxy.sh`](scripts/run_tau_sweep_proxy.sh)
   recipe trains an R3_E4 head on each backbone for downstream
