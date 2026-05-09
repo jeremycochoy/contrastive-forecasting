@@ -19,9 +19,6 @@ move things by a few percent at best; encoder choice (mlp / mlp_wide /
 residual_silu / gru / conv) only moves `U_b(o_lat)` within ±0.002 — not
 actionable. The step-100 collapse is driven by optimisation, not init.
 
-No plots exist for this experiment dir; all evidence is tabular CSV (under
-`results/`) and is reproduced inline below.
-
 ---
 
 ## Protocol
@@ -77,6 +74,14 @@ The experiment is a chain of seven sub-sweeps. Each isolates one knob
 
 ### 1. 8-init scheme sweep (CSV: `results/init_u_sweep.csv`, `..._raw.csv`)
 
+![init scheme sweep](plots/init_scheme_sweep.png)
+
+Left: `U_b(o_lat)` (encoder output, batch axis). Right: `U_b(f_lat)`
+(forecaster latent, batch axis). Bars sorted left-to-right by
+`U_b(o_lat)` desc; mean ± 1σ over 3 seeds. Dashed line on the left
+panel is the backbone-beta 167k learnable-τ post-training reference
+`U_b = 0.0762` (held-out, single batch).
+
 Sorted by `u_b_o_mean` desc:
 
 | scheme | u_b_o (o_lat batch) | u_t_o (o_lat time) | u_b_f (f_lat batch) | u_t_f (f_lat time) |
@@ -105,6 +110,13 @@ degrade init U.
 
 Hypothesis: U at init scales as `(W + freq_emb_dim + seas_emb_dim) / H`,
 with `H = 384`.
+
+![w sweep](plots/w_sweep.png)
+
+Left (sub-experiment A): vary W with freq=3, seas=3. Right
+(sub-experiment B): vary freq_emb_dim with W=16, seas=0. Solid blue
+line is measured `U_b(o_lat)` mean ± 1σ; dashed gray line is the
+predicted `(W+f+s)/H` rank ceiling.
 
 | sub-experiment | W | freq | seas | u_b_o (mean ± std) | u_t_o (mean ± std) | predicted (W+f+s)/H |
 | :--- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -136,6 +148,13 @@ path is the dominant rank source.
 Compares per-slice (axis=0) vs global-pooled (over B·T·C samples), with an
 isotropic synthetic control. B=256 has 1 seed for `encoder_init` (slowest
 cell, budgeted).
+
+![b sweep](plots/b_sweep.png)
+
+Left: encoder_init (rank-collapsed signal). Right:
+isotropic_synthetic (high-rank control). Per-slice (blue) vs
+global-pooled (orange). Mean ± 1σ over 3 seeds (encoder_init B=256
+has n=1, no error bar).
 
 | setup | B | n | u_b_per_slice | u_b_global_pooled | u_t_per_slice |
 | :--- | ---: | ---: | ---: | ---: | ---: |
@@ -193,6 +212,14 @@ concat, GRU output, proj_out, skip_out, sum_pre_norm, encoder_out). For
 each stage, `U_b = dim_usage(z, axis=0)`; `effective_rank = U_b ·
 feature_dim`. B=256, T_raw=4096, 3 seeds.
 
+![per-stage gru](plots/per_stage_gru.png)
+
+Per-stage effective rank inside GRUEncoder, default (blue) vs
+ortho_patch (orange, gain=√2 zero bias on `proj`/`skip`). Dashed
+gray reference is the input-concat width (22). `gru_output` and
+`proj_out` collapse to eff_rank ≈ 1 in both schemes; `skip_out` /
+`sum_pre_norm` / `encoder_out` carry the input rank (≈ 16) through.
+
 **Default init (mean over 3 seeds):**
 
 | stage | feature_dim | U_b | effective_rank |
@@ -229,6 +256,13 @@ non-linearities live in PyTorch's optimised kernel).
 `mlp`, `mlp_wide`, `residual_silu`, `gru`, `conv`, all with default
 PyTorch init, B=256, T_raw=4096, C=1, RevEWMA span=128, freq=3, seas=3,
 H=384. 3 seeds.
+
+![encoder comparison](plots/encoder_comparison.png)
+
+`encoder_out` effective rank by encoder type, mean ± 1σ over 3
+seeds. Sorted desc. Dashed gray reference is the input-concat width
+(22). All five encoders sit in [15.65, 16.53]; `mlp` is the only
+encoder noticeably below the rest.
 
 | encoder_type | U_b (mean ± std) | eff_rank (mean ± std) |
 | :--- | ---: | ---: |
@@ -270,6 +304,17 @@ T_raw=4096, 3 seeds. For each scheme, an orthogonal basis Q is sampled
 per-seed via `torch.linalg.qr(torch.randn(384, k))` (generator seed =
 `model_seed + 99_000`); proj/skip column slices are scaled by
 `sqrt(1/22)`.
+
+![orthogonal subspaces](plots/orthogonal_subspaces.png)
+
+Per-stage effective rank inside ResidualSiLUEncoder for the 4
+schemes (default, ortho_all_three_subspaces,
+ortho_skip_proj_orthogonal_images, ortho_skip_proj_only_random_mlp);
+mean ± 1σ over 3 seeds. The two `ortho_skip_proj_*` schemes
+collapse the proj+mlp branch to near rank 1 at `mlp_out`; only
+`ortho_all_three_subspaces` recovers a non-trivial rank at `mlp_out`
+(≈ 3.5), and only the default scheme reaches `encoder_out` eff_rank
+≈ 16.36.
 
 **`encoder_out` eff_rank by scheme (mean over 3 seeds):**
 
