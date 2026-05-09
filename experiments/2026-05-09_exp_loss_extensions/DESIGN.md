@@ -66,7 +66,7 @@ the per-vertex thickness is a training artefact.
   b'  (f_{b',t-1}, h_{b',t}) ────────  (f_{b',t}, h_{b',t+1})
 ```
 
-See `plots/square_diagram.png` for the full annotated diagram.
+![Square loss diagram](plots/square_diagram.png)
 
 ### Edge inventory
 
@@ -126,10 +126,10 @@ Loss shape name: **`cosine_similarity_batch_square`**.
 
 ## Hypothesis
 
-The existing diagonal (`neg_cross_batch_forecast_embedding`) pushes `f_t^b` away from
-`h_{t+1}^{b'}`, but forecasters and encoder states from different batches at the **same
-time** are not repelled. Adding both clean batch-axis edges forces batch-discriminative
-representations at each timestep on both the f-side and the h-side.
+The existing diagonal pushes `f_t^b` away from `h_{t+1}^{b'}`, but forecasters and
+encoder states from different batches at the **same time** are not repelled. Adding both
+clean batch-axis edges forces batch-discriminative representations at each timestep on
+both the f-side and the h-side.
 
 Expected direction: lower `U_batch`, no regression on discriminative metrics
 (AUC, Top-1, R²).
