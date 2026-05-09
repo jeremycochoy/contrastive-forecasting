@@ -4,46 +4,46 @@ All experiments for the contrastive forecasting project, organized chronological
 
 ## Architecture and Training Foundations
 
-| Experiment | Status | Key Result |
+| Experiment | Status | Description |
 |---|---|---|
-| [Contrastive ARMA](2026-04-12_contrastive-arma/report/README.md) | Complete | GRU encoder +58% gap over MLP; 12L H=1024 backbone peak gap 0.203 at 2M steps; best recovery 6.96x (GRU h128 l2). ~433 GPU-hours total. |
-| [v3b Continuation](2026-04-21_v3b-continuation/README.md) | Complete | Continuation training of the v3b backbone from contrastive-arma; multiple Vast.ai instance runs extending the v3b model. |
-| [Encoder Comparison](2026-04-19_encoder-comparison/REPORT.md) | Complete | GRU encoder +12% gap over patch (residual SiLU) on real-world data at 200k steps. Advantage narrows vs synthetic but persists. |
-| [Window Size Comparison](2026-04-12_window-size-comparison/report.md) | Complete | W=16 beats W=32: +13% gap, 37% less VRAM. Optimal batch size bs=24 on Tiny. |
-| [RevEWMNorm Span Search](2026-04-12_revnorm-span-search/report.md) | Complete | span=32 optimal (gap 0.235 vs 0.020 baseline). RevEWMNorm essential for non-stationary data. |
-| [RMSNorm Comparison](2026-04-12_rmsnorm-comparison/report.md) | Complete | No significant difference between LayerNorm and RMSNorm at Tiny scale. Keep LayerNorm. |
+| [Contrastive ARMA](2026-04-12_contrastive-arma/report/README.md) | Complete | Original architecture search (encoder type, depth, width) for the ARMA-recovery contrastive task — the foundation behind the project's current Tiny backbone. |
+| [v3b Continuation](2026-04-21_v3b-continuation/README.md) | Complete | Long-running continuation training of the v3b backbone across multiple Vast.ai instances to push it further past the architecture-search horizon. |
+| [Encoder Comparison](2026-04-19_encoder-comparison/REPORT.md) | Complete | Head-to-head test of the GRU encoder vs a flat residual-MLP patch encoder on real-world data, asking whether the GRU's edge survives at scale. |
+| [Window Size Comparison](2026-04-12_window-size-comparison/report.md) | Complete | Comparison of patch widths to pick the right tradeoff between temporal resolution and attention cost. |
+| [RevEWMNorm Span Search](2026-04-12_revnorm-span-search/report.md) | Complete | Sweep of the EWMA span used by the reversible normaliser to find how fast it should adapt on non-stationary data. |
+| [RMSNorm Comparison](2026-04-12_rmsnorm-comparison/report.md) | Complete | Ablation testing whether replacing pre-LayerNorm with RMSNorm changes contrastive gap or training speed. |
 
 ## Training Infrastructure
 
-| Experiment | Status | Key Result |
+| Experiment | Status | Description |
 |---|---|---|
-| [Tiny Training](2026-04-12_tiny-training/README.md) | Complete | Backbone v2 training on HF data. NaN crash root-caused to all-NaN rows; checkpoint state completeness overhauled (PRs #13-#16). |
+| [Tiny Training](2026-04-12_tiny-training/README.md) | Complete | First long backbone training on HuggingFace streaming data — the run that surfaced and hardened the project's checkpoint and NaN-handling infrastructure. |
 
 ## Evaluation and Forecasting
 
-| Experiment | Status | Key Result |
+| Experiment | Status | Description |
 |---|---|---|
-| [GIFT-Eval](2026-04-13_gift-eval/README.md) | Complete | GM-Relative MASE ~1.26 (below seasonal naive). Flat scaling curve traced to unshuffled dataset. Per-domain analysis identifies energy (32 configs) as highest-leverage gap. |
-| [Head / Rollout Comparison](2026-04-16_head-rollout-comparison/README.md) | Complete | Value-space rollout (A1=1.275) initially beat latent rollout (B1=1.258). Led to reconstruction head experiment. |
-| [Reconstruction Head](2026-04-17_reconstruction-head/README.md) | Complete | Reconstruction heads fix latent rollout. R1 (forecaster recon W=16) achieves MASE 1.121, a 12% improvement over value-space baseline. Key insight: head should reconstruct, not predict. |
+| [GIFT-Eval](2026-04-13_gift-eval/README.md) | Complete | Setting up the GIFT-Eval benchmark harness and using it to diagnose where the Tiny backbone underperforms across domains. |
+| [Head / Rollout Comparison](2026-04-16_head-rollout-comparison/README.md) | Complete | Comparing value-space vs latent-space rollout strategies to test whether the prediction head, not the backbone, was capping downstream MASE. |
+| [Reconstruction Head](2026-04-17_reconstruction-head/README.md) | Complete | Testing the hypothesis that the head should reconstruct what each latent represents, instead of predicting the future, to fix latent rollout. |
 
 ## Freq-Embedding Sequence (Apr 2026)
 
 Aggregate report and cross-cutting artefacts: [`2026-04-27__aggregate/REPORT.md`](2026-04-27__aggregate/REPORT.md).
 Shared scripts and design: [`2026-04-27_freq-embedding/README.md`](2026-04-27_freq-embedding/README.md).
 
-| Experiment | Status | Key Result |
+| Experiment | Status | Description |
 |---|---|---|
-| [2026-04-27_exp_revin_repro](2026-04-27_exp_revin_repro/README.md) | Success (reproduction) | RevIN backbone + qhead on mix=0.5; gap=0.469, qh loss=0.052 — matches previous-session #28 within noise. |
-| [2026-04-27_exp_patch_stats_mix05](2026-04-27_exp_patch_stats_mix05/README.md) | Superseded | Backbone gap +33% but downstream 1-3% worse than fe+mu+qh / RevIN+qh on the 23-config SN slice. |
-| [2026-04-27_exp_synth_only_redo](2026-04-27_exp_synth_only_redo/README.md) | Success | fe+mu @ 60k marginal best of 4 arms on synth-only (GM-MASE 2.366); patch-stats 1-3% worse at both step counts. |
-| [2026-04-27_exp_span_sweep_real](2026-04-27_exp_span_sweep_real/README.md) | Partial | 20k steps, mix=0.0; loss U-shaped at span=128, gap monotonically decreasing — metrics disagree, open question. |
-| [2026-04-27_exp_span_sweep_synth](2026-04-27_exp_span_sweep_synth/README.md) | Success | Inverted-U with peak at span=512 (GM-MASE 0.848 — 2.8× over previous span=32 default). |
-| [2026-04-27_exp_revin_synth](2026-04-27_exp_revin_synth/README.md) | Complete | Best of original 4 synth arms (GM-MASE 2.230) but dominated by EWMA span=64+ once the right span was found. |
-| [2026-04-27_exp_csb_synth](2026-04-27_exp_csb_synth/README.md) | Complete (single seed) | cosine_similarity_batch loss on span=512 best arm — GM-MASE 0.886, ~4.5% worse than the no_time_neg baseline (0.848). Multi-resume run; needs second seed to confirm. |
-| [2026-04-28_exp_csb_pair_span512](2026-04-28_exp_csb_pair_span512/README.md) | Complete (single seed each) | Clean A/B retrain with matched `_best_loss` selector. CSB **0.883** vs no_time_neg **0.924**: CSB is **4.5% better** on MASE, 3.9% better on WQL, flipping the original conclusion (selector + multi-resume confound). |
-| [2026-04-28_exp_csb_pair_revin](2026-04-28_exp_csb_pair_revin/README.md) | Complete (single seed each) | RevIN counterpart of the loss A/B. CSB **0.936** vs no_time_neg **1.072**: CSB is **12.7% better** on MASE, 14.7% better on WQL. Same direction as EWMA pair, ~3x larger effect. EWMA span=512 still beats RevIN under both losses. 4-arm grid in `plots/synth_compare_grid_4arm.png`. |
-| [2026-04-28_exp_dualemb_3arm](2026-04-28_exp_dualemb_3arm/REPORT.md) | Complete (single seed each) | First downstream GIFT-Eval test of the new dual-axis label embedding (freq + seasonality). 3 norms × 97 configs. **EWMA span=128** wins GM-MASE 1.659 vs span=512 1.725 vs RevIN 1.859. Settles the span paradox: real-data downstream agrees with loss-based span=128, not gap-based span=32. |
+| [2026-04-27_exp_revin_repro](2026-04-27_exp_revin_repro/README.md) | Success (reproduction) | Reproduction of a previous-session RevIN ablation to confirm the new shared trainer matches the earlier numbers before iterating further. |
+| [2026-04-27_exp_patch_stats_mix05](2026-04-27_exp_patch_stats_mix05/README.md) | Superseded | First attempt at adding per-patch summary statistics to the encoder input to see whether it improves contrastive and downstream quality. |
+| [2026-04-27_exp_synth_only_redo](2026-04-27_exp_synth_only_redo/README.md) | Success | Synth-only redo of the patch-stats arms to isolate architecture effects from out-of-distribution transfer and iterate faster. |
+| [2026-04-27_exp_span_sweep_real](2026-04-27_exp_span_sweep_real/README.md) | Partial | EWMA span sweep on pure real data, asking how span affects contrastive signal away from the synthetic regime. |
+| [2026-04-27_exp_span_sweep_synth](2026-04-27_exp_span_sweep_synth/README.md) | Success | EWMA span sweep on synth-only data to find the in-distribution optimum and check whether the prior default was leaving signal on the table. |
+| [2026-04-27_exp_revin_synth](2026-04-27_exp_revin_synth/README.md) | Complete | RevIN-vs-EWMA comparison on synth-only data to isolate the normaliser choice from out-of-distribution transfer effects. |
+| [2026-04-27_exp_csb_synth](2026-04-27_exp_csb_synth/README.md) | Complete (single seed) | First test of the paper-matching contrastive loss (with within-time and cross-time negatives) on the best synth arm. |
+| [2026-04-28_exp_csb_pair_span512](2026-04-28_exp_csb_pair_span512/README.md) | Complete (single seed each) | Clean A/B retrain of the two contrastive losses on the EWMA best arm, to remove the multi-resume confound from the earlier CSB run. |
+| [2026-04-28_exp_csb_pair_revin](2026-04-28_exp_csb_pair_revin/README.md) | Complete (single seed each) | RevIN counterpart of the contrastive-loss A/B, asking whether the loss-flag direction depends on the choice of normaliser. |
+| [2026-04-28_exp_dualemb_3arm](2026-04-28_exp_dualemb_3arm/REPORT.md) | Complete (single seed each) | First downstream GIFT-Eval test of the new dual-axis (frequency + seasonality) label embedding, comparing all three normaliser variants on real data. |
 
 ## Experiment Timeline
 
