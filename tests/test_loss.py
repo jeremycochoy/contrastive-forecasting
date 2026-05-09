@@ -224,6 +224,84 @@ class TestAddFCrossNegsOnly:
             f"got new={loss_new.item():.6f} base={loss_base.item():.6f}")
 
 
+class TestAddNegHTFT:
+    """Tests for `cosine_similarity_batch_add_neg_htft` (corrected Exp 3).
+
+    Identical to `cosine_similarity_batch` except `negatives` includes an
+    explicit per-(b,t,c) same-channel (h_t, f_t) NEGATIVE — pushing the
+    forecaster output `f_t` AWAY from the encoder output `h_t` (which f_t
+    already has access to via its causal context). Numerator unchanged.
+
+    The original Exp 3 (PR #179, `cosine_similarity_batch_add_pos_htft`)
+    used the OPPOSITE sign — pulling (h_t, f_t) together — which created a
+    degenerate f_t ≈ h_t shortcut. This corrected variant flips the sign.
+    """
+
+    def test_loss_is_finite_scalar(self):
+        f, h = _random_inputs(seed=42)
+        loss = contrastive_latent_loss(
+            (f, h), validation=False,
+            spec=_make_spec('cosine_similarity_batch_add_neg_htft'))
+        assert loss.dim() == 0
+        assert torch.isfinite(loss)
+
+    def test_differs_from_baseline(self):
+        """The new neg term must change the loss vs the
+        `cosine_similarity_batch` baseline on the same inputs."""
+        f, h = _random_inputs(seed=42)
+        loss_base = contrastive_latent_loss(
+            (f, h), validation=False,
+            spec=_make_spec('cosine_similarity_batch'))
+        loss_new = contrastive_latent_loss(
+            (f, h), validation=False,
+            spec=_make_spec('cosine_similarity_batch_add_neg_htft'))
+        assert torch.isfinite(loss_base) and torch.isfinite(loss_new)
+        assert not torch.allclose(loss_base, loss_new), (
+            "new (h_t, f_t) neg term should have a measurable effect vs "
+            f"baseline; got base={loss_base.item():.6f} "
+            f"new={loss_new.item():.6f}")
+
+    def test_collinear_h_t_f_t_raises_loss(self):
+        """When cos(h_t, f_t) = 1 exactly (collinear), the new neg term
+        inflates the negatives sum, so the new variant's loss must be
+        strictly higher than the baseline's on the same inputs.
+
+        Mirror of the `test_perfect_h_t_match_lowers_loss` test for the
+        positive-Exp-3 variant — same setup (f[:, :-1] = h[:, :-1] forces
+        cos(h_t, f_t) = 1) but with the OPPOSITE sign expectation: now the
+        loss should go UP (penalty), not down (reward).
+        """
+        B, T, C, H = 2, 3, 2, 8
+        g = torch.Generator().manual_seed(123)
+        h = torch.randn(B, T, C, H, generator=g)
+        f = torch.randn(B, T, C, H, generator=g)
+        # f_t := h_t for t in [0, T-2] — i.e. f[:, :-1] = h[:, :-1].
+        f[:, :-1, :, :] = h[:, :-1, :, :]
+
+        loss_base = contrastive_latent_loss(
+            (f, h), validation=False,
+            spec=_make_spec('cosine_similarity_batch'))
+        loss_new = contrastive_latent_loss(
+            (f, h), validation=False,
+            spec=_make_spec('cosine_similarity_batch_add_neg_htft'))
+        assert torch.isfinite(loss_base) and torch.isfinite(loss_new)
+        assert loss_new.item() > loss_base.item(), (
+            f"collinear (h_t, f_t) should raise loss via new neg term; "
+            f"got new={loss_new.item():.6f} base={loss_base.item():.6f}")
+
+    def test_smoke_C1(self):
+        """Smoke with the actual training config shape (C=1)."""
+        B, T, C, H = 4, 4, 1, 8
+        g = torch.Generator().manual_seed(99)
+        f = torch.randn(B, T, C, H, generator=g)
+        h = torch.randn(B, T, C, H, generator=g)
+        loss = contrastive_latent_loss(
+            (f, h), validation=False,
+            spec=_make_spec('cosine_similarity_batch_add_neg_htft'))
+        assert loss.dim() == 0
+        assert torch.isfinite(loss), f"got non-finite loss: {loss}"
+
+
 class TestAddSkipFNegs:
     """Tests for `cosine_similarity_batch_add_skip_f_negs` (Exp 5).
 
