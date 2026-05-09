@@ -116,3 +116,27 @@ R²_random 0.6885 / AUC 0.8975, indistinguishable from the fixed τ=0.07
 arm). Gradient pressure pulls τ down, not up; learnable-τ does not
 discover the τ=0.20 optimum from any tested init.
 
+### Long-window comparison vs backbone-β_167k
+
+τ=0.10 and τ=0.20 were continued from their 15k checkpoints to **50,000
+steps total** (resume on a fresh DC vast for each, with one preempt-and-
+recover cycle for both). The long-window plot below shows their full
+trajectory against the backbone-β_167k single-batch reference (dashed
+line + dot at step 167k):
+
+![long](plots/tau_sweep_long_trajectories.png)
+
+What the long curves show:
+
+- **Both fixed-τ arms plateau by ~25k–30k steps** on every metric. The
+  extra 20k–25k steps past plateau yield no further movement.
+- **τ=0.20 at 50k is above backbone-β_167k on R²_random / R²_naive /
+  AUC / Top-1**, despite training 3.3× fewer steps. Fixed τ=0.20 + this
+  recipe beats the learnable-τ-converged-to-~0.07 backbone-β even when
+  given 1/3 the budget.
+- **τ=0.10 at 50k is above backbone-β on U / AUC / Top-1**, at-or-just-
+  below on R² (R²_random 0.66 vs β 0.68). Consistent with the held-out
+  ranking: τ=0.10 wins on the spread metrics, loses on R².
+- The R² gap **between τ=0.10 and τ=0.20** that appeared at 15k holds
+  cleanly through 50k — no late convergence reverses it.
+
