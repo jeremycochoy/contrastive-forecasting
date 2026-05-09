@@ -43,11 +43,11 @@ ARMS = [
 BETA = dict(r2_random=0.6839, r2_naive=0.6080, u_temporal=0.0375,
             u_batch=0.0762, auc=0.8966, top1=0.7531)
 
-# R² panels pinned to [0, 1] — the natural / interpretable range. U / AUC
-# / Top-1 panels keep auto-scale on the data.
+# R² panels zoomed to the data-relevant window (R²_random ∈ ~[0.6, 0.85];
+# R²_naive ∈ ~[0.45, 0.8]). U / AUC / Top-1 panels keep auto-scale.
 METRICS = [
-    ("r2_random",   "R²_random",  (0.0, 1.0)),
-    ("r2_naive",    "R²_naive",   (0.0, 1.0)),
+    ("r2_random",   "R²_random",  (0.60, 0.85)),
+    ("r2_naive",    "R²_naive",   (0.45, 0.80)),
     ("u_temporal",  "U_temporal", None),
     ("u_batch",     "U_batch",    None),
     ("auc",         "AUC",        None),
