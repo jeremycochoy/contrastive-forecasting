@@ -61,9 +61,9 @@ HF_REPO = "jeremycochoy/gift-pretrain-full-4096"
 HF_PATH = "small_v1"
 TOTAL_ROWS = 42_740_000
 
-# 10 well-spread skip_rows values. The dataloader wraps mod total_rows, so
-# these land at 10 distinct row offsets covering the entire corpus.
-N_SAMPLES = 10
+# N well-spread skip_rows values. The dataloader wraps mod total_rows, so
+# these land at N distinct row offsets covering the entire corpus.
+N_SAMPLES = 50
 SKIP_ROWS_LIST = [50_000_000 + i * (TOTAL_ROWS // N_SAMPLES) for i in range(N_SAMPLES)]
 
 BACKBONE_BASE = dict(

@@ -91,8 +91,8 @@ def main() -> None:
         ("r2_naive",  "R²_naive",  (0.45, 0.80), BETA["r2_naive"],  400),
         ("u_temporal", "U_temporal", None,       BETA["u_temporal"], 400),
         ("u_batch",   "U_batch",     None,       BETA["u_batch"],    400),
-        ("auc",       "AUC",        (0.882, 0.910), BETA["auc"],    100),
-        ("top1",      "Top-1",      (0.72, 0.77),   BETA["top1"],   100),
+        ("auc",       "AUC",        (0.882, 0.910), BETA["auc"],    125),
+        ("top1",      "Top-1",      (0.72, 0.77),   BETA["top1"],   125),
     ]
 
     fig, axs = plt.subplots(2, 3, figsize=(16, 8))
@@ -118,7 +118,7 @@ def main() -> None:
         ax.legend(loc="best", fontsize=7)
     fig.suptitle(
         "τ-sweep — training trajectories (R² / U: 400-step MA, "
-        "AUC / Top-1: 100-step MA; 6 arms, 15k steps).",
+        "AUC / Top-1: 125-step MA; 6 arms, 15k steps).",
         fontsize=12)
     fig.tight_layout()
     fig.savefig(OUT_TRAJ, dpi=110, bbox_inches="tight")
