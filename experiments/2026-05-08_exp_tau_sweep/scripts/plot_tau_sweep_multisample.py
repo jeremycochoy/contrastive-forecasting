@@ -30,6 +30,8 @@ OUT.parent.mkdir(parents=True, exist_ok=True)
 # adjacent to its CONVERGED value (τ ≈ 0.069 ≈ τ=0.07) — its behaviour
 # matches its converged τ, not its init. Single τ=0.20 entry uses the v2
 # checkpoint (the run that has both FINAL.pth and full trajectory CSV).
+# Arms with missing CSV rows are silently skipped at plot time, so this
+# list can stay populated with arms that are still training.
 ARMS = [
     ("τ=0.03",                     "tau_sweep_0_03",           "#1f77b4"),
     ("τ=0.05",                     "tau_sweep_0_05",           "#2ca02c"),
@@ -37,6 +39,9 @@ ARMS = [
     ("τ=0.10 → 0.069 (learnable)", "tau_sweep_learnable_0_10", "#17becf"),
     ("τ=0.10",                     "tau_sweep_0_10",           "#d62728"),
     ("τ=0.20",                     "tau_sweep_0_20_v2",        "#ff7f0e"),
+    ("τ=0.30",                     "tau_sweep_0_30",           "#e377c2"),
+    ("τ=0.50",                     "tau_sweep_0_50",           "#8c564b"),
+    ("τ=0.80",                     "tau_sweep_0_80",           "#7f7f7f"),
 ]
 
 BETA = dict(r2_random=0.6839, r2_naive=0.6080, u_temporal=0.0375,
