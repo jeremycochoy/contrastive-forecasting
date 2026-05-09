@@ -6,7 +6,6 @@ Contrastive-forecasting trains small transformer backbones on time series via co
 
 ## Empirical learnings
 - **Never use grad-clip in this project.** Fix divergence via data / normalization, not clipping.
-- Other learnings (MOIRAI HP, dataloader fixes, plot/run-name conventions): [`experiments/LEARNED.md`](experiments/LEARNED.md).
 
 ## Code style
 
