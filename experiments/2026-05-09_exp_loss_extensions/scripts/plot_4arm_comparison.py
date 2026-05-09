@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-4-arm comparison: square loss vs baseline at τ=0.10 and τ=0.20
+4-arm comparison: square loss vs baseline at τ=0.10 and τ=0.20.
+Baselines run to 50k steps; square arms have 15k each.
 Produces:
   plots/4arm_auc_top1.png
   plots/4arm_dim_usage.png
@@ -20,9 +21,11 @@ DATA_DIR  = os.path.join(EXPERIMENT_DIR, "data")
 os.makedirs(PLOTS_DIR, exist_ok=True)
 
 # --- Load data ---
+# Baselines: full 50k stitched CSVs.
+# Square arms: 15k (no further extension at the time of this plot).
 paths = {
-    "baseline_0.10": os.path.join(DATA_DIR, "tau_sweep_0_10_losses.csv"),
-    "baseline_0.20": os.path.join(DATA_DIR, "tau_sweep_0_20_losses.csv"),
+    "baseline_0.10": os.path.join(DATA_DIR, "tau_sweep_0_10_50k_losses.csv"),
+    "baseline_0.20": os.path.join(DATA_DIR, "tau_sweep_0_20_50k_losses.csv"),
     "square_0.10":   os.path.join(DATA_DIR, "loss_ext_square_tau_0_10_losses.csv"),
     "square_0.20":   os.path.join(DATA_DIR, "loss_ext_square_tau_0_20_losses.csv"),
 }
@@ -30,8 +33,6 @@ paths = {
 dfs = {}
 for name, path in paths.items():
     df = pd.read_csv(path)
-    # clip to step <= 15000
-    df = df[df["step"] <= 15000].copy()
     dfs[name] = df
     print(f"{name}: {len(df)} rows, steps {df.step.min()}–{df.step.max()}")
 
@@ -57,7 +58,7 @@ def rolling_mean(series, window):
 # ------------------------------------------------------------------ Figure 1
 fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 fig.suptitle(
-    "AUC and Top-1: square loss vs baseline (4 arms, 15k steps)",
+    "AUC and Top-1: square (15k) vs baseline (50k), τ=0.10 and τ=0.20",
     fontsize=13,
 )
 
@@ -65,8 +66,8 @@ for arm in ARM_ORDER:
     df = dfs[arm]
     st = styles[arm]
     for ax, col, ylim in [
-        (axes[0], "auc",  (0.86, 0.91)),
-        (axes[1], "top1", (0.70, 0.78)),
+        (axes[0], "auc",  (0.86, 0.92)),
+        (axes[1], "top1", (0.70, 0.79)),
     ]:
         raw = df[col]
         sm  = rolling_mean(raw, WINDOW)
@@ -76,8 +77,8 @@ for arm in ARM_ORDER:
                 label=st["label"], linewidth=1.6)
 
 for ax, col, ylim, title in [
-    (axes[0], "auc",  (0.86, 0.91), "AUC"),
-    (axes[1], "top1", (0.70, 0.78), "Top-1"),
+    (axes[0], "auc",  (0.86, 0.92), "AUC"),
+    (axes[1], "top1", (0.70, 0.79), "Top-1"),
 ]:
     ax.set_ylim(ylim)
     ax.set_xlabel("Step")
@@ -96,7 +97,7 @@ plt.close(fig)
 # ------------------------------------------------------------------ Figure 2
 fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 fig.suptitle(
-    "Dimension usage: square loss vs baseline (4 arms, 15k steps)",
+    "Dimension usage: square (15k) vs baseline (50k), τ=0.10 and τ=0.20",
     fontsize=13,
 )
 
@@ -133,14 +134,14 @@ plt.close(fig)
 # AUC/Top-1 panels keep the linear-plot ylim band, displayed with log spacing.
 fig, axes = plt.subplots(2, 2, figsize=(14, 10))
 fig.suptitle(
-    "Log-log convergence: square loss vs baseline (4 arms, 15k steps)",
+    "Log-log convergence: square (15k) vs baseline (50k), τ=0.10 and τ=0.20",
     fontsize=13,
 )
 
 # (axis, column, title, ylim_or_None)
 panels = [
-    (axes[0, 0], "auc",        "AUC",        (0.86, 0.91)),
-    (axes[0, 1], "top1",       "Top-1",      (0.70, 0.78)),
+    (axes[0, 0], "auc",        "AUC",        (0.86, 0.92)),
+    (axes[0, 1], "top1",       "Top-1",      (0.70, 0.79)),
     (axes[1, 0], "u_batch",    "U_batch",    None),
     (axes[1, 1], "u_temporal", "U_temporal", None),
 ]
@@ -179,13 +180,15 @@ plt.close(fig)
 
 
 # ------------------------------------------------------------------ Statistics
-print("\n=== Final-step values (step 15000) ===")
-print(f"{'Arm':<20} {'AUC':>8} {'Top-1':>8} {'U_batch':>9} {'U_temporal':>11}")
+print("\n=== Final-step values ===")
+print(f"{'Arm':<20} {'Step':>7} {'AUC':>8} {'Top-1':>8} {'U_batch':>9} {'U_temporal':>11}")
 for arm in ARM_ORDER:
-    row = dfs[arm][dfs[arm]["step"] == 15000].iloc[0]
-    print(f"{arm:<20} {row.auc:>8.4f} {row.top1:>8.4f} {row.u_batch:>9.4f} {row.u_temporal:>11.4f}")
+    df = dfs[arm]
+    last_step = int(df.step.max())
+    row = df[df.step == last_step].iloc[0]
+    print(f"{arm:<20} {last_step:>7d} {row.auc:>8.4f} {row.top1:>8.4f} {row.u_batch:>9.4f} {row.u_temporal:>11.4f}")
 
-print("\n=== Welch t-tests on AUC and Top-1 (steps 5001–15000) ===")
+print("\n=== Welch t-tests on AUC and Top-1 (overlap window: steps 5001–15000) ===")
 comparisons = [
     ("baseline_0.10", "square_0.10",   "baseline τ=0.10 vs square τ=0.10"),
     ("baseline_0.20", "square_0.20",   "baseline τ=0.20 vs square τ=0.20"),
@@ -195,8 +198,8 @@ comparisons = [
 
 for arm_a, arm_b, label in comparisons:
     print(f"\n  {label}")
-    da = dfs[arm_a][dfs[arm_a]["step"] > 5000]
-    db = dfs[arm_b][dfs[arm_b]["step"] > 5000]
+    da = dfs[arm_a][(dfs[arm_a]["step"] > 5000) & (dfs[arm_a]["step"] <= 15000)]
+    db = dfs[arm_b][(dfs[arm_b]["step"] > 5000) & (dfs[arm_b]["step"] <= 15000)]
     for col in ["auc", "top1"]:
         a = da[col].values
         b = db[col].values
@@ -208,3 +211,11 @@ for arm_a, arm_b, label in comparisons:
             f"B={b.mean():.4f}±{b.std():.4f} (n={len(b)})  "
             f"t={t:.3f}  p={p:.2e}  sig@0.05={sig}"
         )
+
+# Late-window summary (baselines only) — what the extra 35k steps bought.
+print("\n=== Baseline late-window means (steps 40001–50000, n=10000 each) ===")
+for arm in ("baseline_0.10", "baseline_0.20"):
+    d = dfs[arm][(dfs[arm]["step"] > 40000) & (dfs[arm]["step"] <= 50000)]
+    print(f"  {arm}: AUC={d.auc.mean():.4f}±{d.auc.std():.4f}  "
+          f"Top-1={d.top1.mean():.4f}±{d.top1.std():.4f}  "
+          f"U_batch={d.u_batch.mean():.4f}  U_temporal={d.u_temporal.mean():.4f}")
