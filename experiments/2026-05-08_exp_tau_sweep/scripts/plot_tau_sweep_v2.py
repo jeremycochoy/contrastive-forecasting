@@ -103,7 +103,7 @@ def main():
         ("r2_naive",  "R²_naive",  None, BETA["r2_naive"]),
         ("u_temporal", "U_temporal", None, BETA["u_temporal"]),
         ("u_batch",   "U_batch",     None, BETA["u_batch"]),
-        ("auc",       "AUC",       (0.89, 0.91),  BETA["auc"]),
+        ("auc",       "AUC",       (0.882, 0.900),  BETA["auc"]),
         ("top1",      "Top-1",     (0.72, 0.76),  BETA["top1"]),
     ]
 
