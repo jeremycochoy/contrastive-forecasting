@@ -66,8 +66,8 @@ for arm in ARM_ORDER:
     df = dfs[arm]
     st = styles[arm]
     for ax, col, ylim in [
-        (axes[0], "auc",  (0.86, 0.91)),
-        (axes[1], "top1", (0.70, 0.78)),
+        (axes[0], "auc",  (0.86, 0.92)),
+        (axes[1], "top1", (0.70, 0.79)),
     ]:
         raw = df[col]
         sm  = rolling_mean(raw, WINDOW)
@@ -77,8 +77,8 @@ for arm in ARM_ORDER:
                 label=st["label"], linewidth=1.6)
 
 for ax, col, ylim, title in [
-    (axes[0], "auc",  (0.86, 0.91), "AUC"),
-    (axes[1], "top1", (0.70, 0.78), "Top-1"),
+    (axes[0], "auc",  (0.86, 0.92), "AUC"),
+    (axes[1], "top1", (0.70, 0.79), "Top-1"),
 ]:
     ax.set_ylim(ylim)
     ax.set_xlabel("Step")
@@ -140,8 +140,8 @@ fig.suptitle(
 
 # (axis, column, title, ylim_or_None)
 panels = [
-    (axes[0, 0], "auc",        "AUC",        (0.86, 0.91)),
-    (axes[0, 1], "top1",       "Top-1",      (0.70, 0.78)),
+    (axes[0, 0], "auc",        "AUC",        (0.86, 0.92)),
+    (axes[0, 1], "top1",       "Top-1",      (0.70, 0.79)),
     (axes[1, 0], "u_batch",    "U_batch",    None),
     (axes[1, 1], "u_temporal", "U_temporal", None),
 ]

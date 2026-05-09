@@ -35,11 +35,10 @@ are now extended to 50 k so the late plateau is visible.
 Inside the 0–15 k overlap window all four arms cluster tightly within
 run-to-run noise. Past 15 k the baselines drift up by another ≈0.005
 AUC and ≈0.005 Top-1 on the smoothed curve and then sit on a flat
-plateau through 50 k — the late-window means (40 001–50 000) are
-AUC 0.9034 (τ=0.10) / 0.9039 (τ=0.20) and Top-1 0.7573 / 0.7588.
-Without a 50 k square run we can't claim square diverges late, only
-that whatever lead square τ=0.10 had at 15 k (≈0.001 AUC) is well
-inside the noise band the baselines produce on the same plateau.
+plateau through 50 k. Without a 50 k square run we can't claim square
+diverges late — only that the ≈0.001 AUC lead square τ=0.10 had at
+15 k is well inside the noise band the baselines produce on their
+late plateau.
 
 ## The same data on log-log
 
@@ -65,18 +64,22 @@ ends at ≈ 0.069 — though we don't know whether square would itself
 have continued climbing past 15 k. Side metric, not the objective we
 score on.
 
-## Final-step values
+## Late-window means
 
-| Arm | Step | AUC | Top-1 | U_batch | U_temporal |
-|---|---:|---:|---:|---:|---:|
-| baseline τ=0.10 | 50 000 | 0.9316 | 0.8052 | 0.1075 | 0.0622 |
-| square   τ=0.10 | 15 100 | 0.8662 | 0.7101 | 0.0690 | 0.0317 |
-| baseline τ=0.20 | 50 000 | 0.9212 | 0.7879 | 0.0927 | 0.0447 |
-| square   τ=0.20 | 15 000 | 0.9183 | 0.7765 | 0.0762 | 0.0360 |
+Per-step values are noisy by ±0.02 AUC, so the headline numbers below
+are means over the last 10 k steps of each arm.
 
-Single-step values are noisy; for the baselines the 40 001–50 000 window
-mean is more representative: AUC 0.9034 / Top-1 0.7573 (τ=0.10) and
-AUC 0.9039 / Top-1 0.7588 (τ=0.20).
+| Arm | Window | AUC | Top-1 | U_batch | U_temporal |
+|---|---|---:|---:|---:|---:|
+| baseline τ=0.10 | 40 001–50 000 | 0.9034 | 0.7573 | 0.1136 | 0.0571 |
+| baseline τ=0.20 | 40 001–50 000 | 0.9039 | 0.7588 | 0.0890 | 0.0423 |
+| square   τ=0.10 | 5 001–15 000  | 0.8953 | 0.7415 | 0.0643 | 0.0336 |
+| square   τ=0.20 | 5 001–15 000  | 0.8934 | 0.7392 | 0.0713 | 0.0350 |
+
+The square arms are quoted on their available 5 k–15 k window because
+that is also the window used for the Welch tests below; this is a
+conservative late-window for them but it cannot include the 35 k of
+training the baselines have past 15 k.
 
 ## Statistical tests on AUC / Top-1 (Welch t, overlap window 5 001–15 000, n=10 000 each)
 
