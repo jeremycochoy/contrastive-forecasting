@@ -97,12 +97,12 @@ def main() -> None:
     # visible; the heavier-curve metrics (R², U, loss) stay at 400.
     # (key, title, ylim, beta_ref, smooth_w)
     metrics = [
-        ("r2_random", "R²_random", (0.60, 0.85), BETA["r2_random"], 400),
-        ("r2_naive",  "R²_naive",  (0.45, 0.80), BETA["r2_naive"],  400),
-        ("u_temporal", "U_temporal", None,       BETA["u_temporal"], 400),
-        ("u_batch",   "U_batch",     None,       BETA["u_batch"],    400),
-        ("auc",       "AUC",        (0.882, 0.910), BETA["auc"],    125),
-        ("top1",      "Top-1",      (0.72, 0.77),   BETA["top1"],   125),
+        ("r2_random", "R²_random", (0.60, 0.92), BETA["r2_random"], 500),
+        ("r2_naive",  "R²_naive",  (0.45, 0.88), BETA["r2_naive"],  500),
+        ("u_temporal", "U_temporal", None,       BETA["u_temporal"], 500),
+        ("u_batch",   "U_batch",     None,       BETA["u_batch"],    500),
+        ("auc",       "AUC",        (0.882, 0.910), BETA["auc"],    175),
+        ("top1",      "Top-1",      (0.72, 0.77),   BETA["top1"],   175),
     ]
 
     fig, axs = plt.subplots(2, 3, figsize=(16, 8))
@@ -127,8 +127,8 @@ def main() -> None:
         ax.grid(alpha=0.3)
         ax.legend(loc="best", fontsize=7)
     fig.suptitle(
-        "τ-sweep — training trajectories (R² / U: 400-step MA, "
-        "AUC / Top-1: 125-step MA; 15k steps each).",
+        "τ-sweep — training trajectories (R² / U: 500-step MA, "
+        "AUC / Top-1: 175-step MA; 15k steps each).",
         fontsize=12)
     fig.tight_layout()
     fig.savefig(OUT_TRAJ, dpi=110, bbox_inches="tight")
