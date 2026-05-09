@@ -122,19 +122,21 @@ def main() -> None:
         if t is not None:
             traj[label] = t
 
-    # Per-metric panels — same zooms as the short-trajectory plot.
+    # 2×2 panels: U_temporal, U_batch, AUC, Top-1. R² panels removed —
+    # the held-out box plot already covers R² and the long-window
+    # trajectory adds no extra signal there. Both axes log; x window
+    # 5k–50k (drops the early-training transient where AUC starts near
+    # chance and obscures the converged region).
     metrics = [
-        ("r2_random", "R²_random", (0.60, 0.92), BETA["r2_random"], 500),
-        ("r2_naive",  "R²_naive",  (0.45, 0.88), BETA["r2_naive"],  500),
-        ("u_temporal", "U_temporal", None,       BETA["u_temporal"], 500),
-        ("u_batch",   "U_batch",     None,       BETA["u_batch"],    500),
-        ("auc",       "AUC",        (0.882, 0.910), BETA["auc"],    175),
-        ("top1",      "Top-1",      (0.72, 0.77),   BETA["top1"],   175),
+        ("u_temporal", "U_temporal", BETA["u_temporal"], 500),
+        ("u_batch",   "U_batch",     BETA["u_batch"],    500),
+        ("auc",       "AUC",         BETA["auc"],        300),
+        ("top1",      "Top-1",       BETA["top1"],       300),
     ]
 
-    fig, axs = plt.subplots(2, 3, figsize=(16, 8))
+    fig, axs = plt.subplots(2, 2, figsize=(13, 9))
     axs = axs.flatten()
-    for ax, (key, title, ylim, beta_ref, smooth_w) in zip(axs, metrics):
+    for ax, (key, title, beta_ref, smooth_w) in zip(axs, metrics):
         for label, color, _ in ARMS:
             t = traj.get(label)
             if t is None:
@@ -144,23 +146,19 @@ def main() -> None:
             x = t["step"][len(t["step"]) - len(sm):] if len(sm) > 0 else t["step"]
             ax.plot(x, sm if len(sm) > 0 else arr, color=color,
                     label=label, linewidth=1.8)
-        # backbone-β reference line. Marked at step 167000 with a dot so
-        # the reader sees both the value and the step at which it was
-        # measured.
+        # backbone-β reference line. Dashed across the visible window.
         ax.axhline(beta_ref, color="gray", linestyle="--", linewidth=1.0,
                    label=f"backbone-β 167k = {beta_ref:.4f}")
-        ax.scatter([167000], [beta_ref], color="gray", marker="o",
-                   s=30, zorder=5)
         ax.set_title(title)
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+        ax.set_xlim(5000, 50000)
         ax.set_xlabel("step")
-        if ylim is not None:
-            ax.set_ylim(bottom=ylim[0], top=ylim[1])
-        ax.grid(alpha=0.3)
-        ax.legend(loc="best", fontsize=8)
+        ax.grid(alpha=0.3, which="both")
+        ax.legend(loc="best", fontsize=9)
     fig.suptitle(
-        "τ-sweep long trajectories — τ=0.10 and τ=0.20 extended to 50k "
-        "vs backbone-β_167k reference (R² / U: 500-step MA, AUC / Top-1: "
-        "175-step MA).",
+        "τ-sweep long trajectories — τ=0.10 and τ=0.20 to 50k "
+        "(log/log; U: 500-step MA, AUC / Top-1: 300-step MA).",
         fontsize=12)
     fig.tight_layout()
     fig.savefig(OUT, dpi=110, bbox_inches="tight")
