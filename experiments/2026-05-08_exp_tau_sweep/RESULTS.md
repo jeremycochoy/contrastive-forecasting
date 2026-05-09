@@ -97,16 +97,17 @@ learnable) above the sharper-τ pack. R²_random and R²_naive show
 ![multisample](plots/tau_sweep_eval_multisample.png)
 
 Six metric panels, one box per arm. Boxes span ±1 stdev across the 50
-batches; the line is at the mean. Arms are placed left-to-right τ=0.03
-→ 0.05 → 0.07 → 0.10 → learnable_τ_init0.10 → 0.20.
+batches; the line is at the mean. Arms are placed left-to-right by τ
+value, with the learnable-τ arm next to its converged value (≈ 0.07,
+not its 0.10 init): τ=0.03 → 0.05 → 0.07 → learnable → 0.10 → 0.20.
 
 | backbone                 | τ            | R²_random           | R²_naive            | U_t                 | U_b                 | AUC                 | Top-1               |
 |--------------------------|--------------|---------------------|---------------------|---------------------|---------------------|---------------------|---------------------|
 | tau_sweep_0_03           | 0.03         | 0.7631 ± 0.0070     | 0.6956 ± 0.0087     | 0.0079 ± 0.0001     | 0.0099 ± 0.0002     | 0.8978 ± 0.0055     | 0.7473 ± 0.0099     |
 | tau_sweep_0_05           | 0.05         | 0.7248 ± 0.0066     | 0.6530 ± 0.0086     | 0.0185 ± 0.0004     | 0.0316 ± 0.0009     | 0.8936 ± 0.0055     | 0.7400 ± 0.0098     |
 | tau_sweep_0_07           | 0.07         | 0.6935 ± 0.0068     | 0.6271 ± 0.0089     | 0.0330 ± 0.0008     | 0.0632 ± 0.0012     | 0.8978 ± 0.0053     | 0.7487 ± 0.0097     |
-| tau_sweep_0_10           | 0.10         | 0.6683 ± 0.0074     | 0.6153 ± 0.0094     | **0.0512 ± 0.0012** | **0.1019 ± 0.0015** | 0.8993 ± 0.0053     | 0.7535 ± 0.0098     |
 | tau_sweep_learnable_0_10 | 0.10 → 0.069 | 0.6922 ± 0.0069     | 0.6254 ± 0.0091     | 0.0323 ± 0.0007     | 0.0632 ± 0.0011     | 0.8993 ± 0.0053     | 0.7500 ± 0.0099     |
+| tau_sweep_0_10           | 0.10         | 0.6683 ± 0.0074     | 0.6153 ± 0.0094     | **0.0512 ± 0.0012** | **0.1019 ± 0.0015** | 0.8993 ± 0.0053     | 0.7535 ± 0.0098     |
 | tau_sweep_0_20           | 0.20         | **0.7703 ± 0.0068** | **0.7262 ± 0.0083** | 0.0383 ± 0.0009     | 0.0819 ± 0.0014     | **0.9021 ± 0.0054** | **0.7570 ± 0.0097** |
 
 (Source: [`results/tau_sweep_metrics_multisample.csv`](results/tau_sweep_metrics_multisample.csv).)
@@ -167,9 +168,7 @@ The **learnable-τ arm slid from init=0.10 to τ ≈ 0.069**
 with the converged τ value sitting just below 0.07. Within a single
 15k run, gradient pressure pulls τ down, not up to either of the soft
 optima. **Learnable-τ does not discover the τ=0.10 / τ=0.20 optimum
-from a 0.10 init.** A wider-init learnable-τ sweep (e.g. init=0.30,
-init=0.50) would test whether the learnable schedule can find the
-soft optimum from above.
+from a 0.10 init.**
 
 ### In-training vs held-out gap
 
@@ -193,9 +192,10 @@ populate this table at the next refresh.)
 
 ## Open
 
-- **τ=0.30 fixed arm** (in flight on vast DC 5090) and **τ=0.50 fixed
-  arm** (queued). Extend the sweep above 0.20 to test how far the
-  soft-τ improvement on R² / AUC / Top-1 keeps going.
+- **τ=0.30 fixed arm** (in flight on vast DC 5090), **τ=0.50** (queued
+  next on elisa), and **τ=0.80** (queued after). Extend the sweep
+  above 0.20 to test how far the soft-τ improvement on R² / AUC /
+  Top-1 keeps going.
 - **Proxy MASE per arm.** The
   [`scripts/run_tau_sweep_proxy.sh`](scripts/run_tau_sweep_proxy.sh)
   recipe trains an R3_E4 head on each backbone for downstream
@@ -205,6 +205,3 @@ populate this table at the next refresh.)
   `experiments/2026-05-05_exp_qhead_improvements/results/backbone_proxy_correlation.csv`
   is over a different set of 5 backbones (n=5, directional ρ);
   applying its conclusions to this sweep would be extrapolation.
-- **Wider-init learnable-τ sweep.** Test whether learnable τ
-  initialised above the soft optimum (e.g. init=0.30, 0.50) finds the
-  τ=0.10–0.20 region instead of sliding down to ~0.07.

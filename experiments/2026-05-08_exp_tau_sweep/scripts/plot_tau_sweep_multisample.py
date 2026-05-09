@@ -26,18 +26,17 @@ DEFAULT_CSV = REPO / "experiments/2026-05-08_exp_tau_sweep/results/tau_sweep_met
 OUT = REPO / "experiments/2026-05-08_exp_tau_sweep/plots/tau_sweep_eval_multisample.png"
 OUT.parent.mkdir(parents=True, exist_ok=True)
 
-# Display arms in τ-numerical order with τ=0.10 and learnable_τ_init0.10
-# adjacent (they start from the same τ at init / nominal training value, so
-# placing them next to each other in the legend / x-axis order makes the
-# fixed-vs-learnable comparison readable). Single τ=0.20 entry uses the v2
+# Display arms in τ-numerical order, with the learnable-τ arm placed
+# adjacent to its CONVERGED value (τ ≈ 0.069 ≈ τ=0.07) — its behaviour
+# matches its converged τ, not its init. Single τ=0.20 entry uses the v2
 # checkpoint (the run that has both FINAL.pth and full trajectory CSV).
 ARMS = [
-    ("τ=0.03",            "tau_sweep_0_03",           "#1f77b4"),
-    ("τ=0.05",            "tau_sweep_0_05",           "#2ca02c"),
-    ("τ=0.07",            "tau_sweep_0_07",           "#9467bd"),
-    ("τ=0.10",            "tau_sweep_0_10",           "#d62728"),
+    ("τ=0.03",                     "tau_sweep_0_03",           "#1f77b4"),
+    ("τ=0.05",                     "tau_sweep_0_05",           "#2ca02c"),
+    ("τ=0.07",                     "tau_sweep_0_07",           "#9467bd"),
     ("τ=0.10 → 0.069 (learnable)", "tau_sweep_learnable_0_10", "#17becf"),
-    ("τ=0.20",            "tau_sweep_0_20_v2",        "#ff7f0e"),
+    ("τ=0.10",                     "tau_sweep_0_10",           "#d62728"),
+    ("τ=0.20",                     "tau_sweep_0_20_v2",        "#ff7f0e"),
 ]
 
 BETA = dict(r2_random=0.6839, r2_naive=0.6080, u_temporal=0.0375,
