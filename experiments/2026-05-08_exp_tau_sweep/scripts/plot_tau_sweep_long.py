@@ -33,17 +33,31 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[3]
 SYNC = REPO / "sync_tau_sweep/checkpoints"
 SYNC_V2 = REPO / "sync_tau_sweep_arm5_v2/checkpoints"
+SYNC_010_50K = REPO / "sync_tau_sweep_0_10_50k/checkpoints"
+SYNC_020_50K = REPO / "sync_tau_sweep_0_20_50k/checkpoints"
 OUT = REPO / "experiments/2026-05-08_exp_tau_sweep/plots/tau_sweep_long_trajectories.png"
 OUT.parent.mkdir(parents=True, exist_ok=True)
 
-# (display_label, color, [short_csv_path, long_csv_path])
+# (display_label, color, [csv_segments]).
+#
+# Each arm's full 0–50k trajectory is the concatenation of:
+#   1. original 0–15k run (loaded from the τ-sweep sync dir),
+#   2. first preempted 50k attempt (~15k–24k for τ=0.10, ~15k–20k for τ=0.20),
+#   3. second resume's _r2 CSV (resumed from best_loss; covers ~24k or
+#      ~20k → 50k).
+# `load_concat` sorts by step and dedupes — overlapping rows where (2) and
+# (3) cover the same step are kept once (latest write wins via stable sort).
+# Missing segments are silently skipped, so the plot is robust to partial
+# state.
 ARMS = [
     ("τ=0.10",  "#d62728",
-     [SYNC    / "tau_sweep_0_10_losses.csv",
-      SYNC    / "tau_sweep_0_10_50k_losses.csv"]),
+     [SYNC         / "tau_sweep_0_10_losses.csv",
+      SYNC_010_50K / "tau_sweep_0_10_50k_losses.csv",
+      SYNC_010_50K / "tau_sweep_0_10_50k_r2_losses.csv"]),
     ("τ=0.20",  "#ff7f0e",
-     [SYNC_V2 / "tau_sweep_0_20_v2_losses.csv",
-      SYNC    / "tau_sweep_0_20_50k_losses.csv"]),
+     [SYNC_V2      / "tau_sweep_0_20_v2_losses.csv",
+      SYNC_020_50K / "tau_sweep_0_20_50k_losses.csv",
+      SYNC_020_50K / "tau_sweep_0_20_50k_r2_losses.csv"]),
 ]
 
 # backbone-β_167k held-out single-batch reference values (BETA_REF dict
@@ -76,16 +90,29 @@ def load_segment(path: Path) -> dict | None:
 
 
 def load_concat(paths: list[Path]) -> dict | None:
-    """Concatenate a list of trajectory CSVs by step. Missing files skipped."""
+    """Concatenate trajectory CSVs by step, sort, and dedupe.
+
+    Where multiple segments cover the same step (e.g. preempted attempt
+    + r2 resume), the row from the later-listed segment wins (np.unique
+    with return_index keeps the first occurrence; we reverse-sort so the
+    first occurrence is the latest one). Missing files silently skipped.
+    """
     parts = [load_segment(p) for p in paths]
     parts = [p for p in parts if p is not None]
     if not parts:
         return None
-    out = {k: np.concatenate([p[k] for p in parts]) for k in parts[0]}
-    # Stable-sort by step so the resume CSV's first row sits after the
-    # short CSV's last row even if file order was unusual.
+    keys = list(parts[0])
+    out = {k: np.concatenate([p[k] for p in parts]) for k in keys}
+    # Stable-sort by step ascending; for duplicates keep the last
+    # occurrence (the later-listed segment, which is the most recent
+    # training).
     order = np.argsort(out["step"], kind="stable")
-    return {k: v[order] for k, v in out.items()}
+    out = {k: v[order] for k, v in out.items()}
+    # Dedupe: scan from end keeping last write per step.
+    _, keep_rev_idx = np.unique(out["step"][::-1], return_index=True)
+    keep_idx = np.sort(len(out["step"]) - 1 - keep_rev_idx)
+    out = {k: v[keep_idx] for k, v in out.items()}
+    return out
 
 
 def main() -> None:
