@@ -37,6 +37,7 @@ ARMS = [
     ("τ=0.05",                     "tau_sweep_0_05",           "#2ca02c"),
     ("τ=0.07",                     "tau_sweep_0_07",           "#9467bd"),
     ("τ=0.10 → 0.069 (learnable)", "tau_sweep_learnable_0_10", "#17becf"),
+    ("τ=0.20 → 0.07 (learnable)",  "tau_sweep_learnable_0_20", "#bcbd22"),
     ("τ=0.10",                     "tau_sweep_0_10",           "#d62728"),
     ("τ=0.20",                     "tau_sweep_0_20_v2",        "#ff7f0e"),
     ("τ=0.30",                     "tau_sweep_0_30",           "#e377c2"),
