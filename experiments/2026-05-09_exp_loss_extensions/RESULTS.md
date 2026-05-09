@@ -45,15 +45,16 @@ training band is genuinely narrow rather than just compressed by the
 linear scale. The 4 arms track each other through the whole ramp; no
 arm wins by reaching convergence faster.
 
-## Where the loss change is most visible: uniformity
+## Where the loss change is most visible: dimension usage
 
-![U_batch and U_temporal](plots/4arm_uniformity.png)
+![U_batch and U_temporal](plots/4arm_dim_usage.png)
 
-The square loss systematically lowers both U_batch and U_temporal at
-both τ — the cleanest signal in the experiment. This is the expected
-effect of the extra cross-batch negative edges (less batch-axis
-collapse). Note this is a side metric, not the objective we're
-optimizing for or scoring on.
+`U_batch` and `U_temporal` measure how many embedding dimensions are
+actively used along the batch and temporal axes respectively (higher =
+more dimensions in use, lower = more collapsed). The square loss
+systematically lowers both at both τ — the cleanest signal in the
+experiment, consistent with the extra cross-batch negatives reducing
+batch-axis collapse. Side metric, not the objective we score on.
 
 ## Final-step values (step 15 000)
 
@@ -83,6 +84,6 @@ optimizing for or scoring on.
   Δ Top-1 −0.0060, p<1e-48).
 - **Best arms by final AUC:** square τ=0.10 (0.9209) ≈ baseline τ=0.20
   (0.9205); the other two trail by ≤0.003.
-- **Side effect:** uniformity (U_batch, U_temporal) is consistently
+- **Side effect:** dimension usage (U_batch, U_temporal) is consistently
   lower under square at both τ — directional support that the extra
   edges reduce batch-axis collapse, but not the metric we're optimizing.
