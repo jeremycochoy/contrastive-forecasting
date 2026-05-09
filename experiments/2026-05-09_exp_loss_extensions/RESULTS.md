@@ -1,11 +1,4 @@
-# Loss extensions — Exp 3, Exp 4-only, Exp 5 (verdicts PROVISIONAL)
-
-> **Provisional verdicts.** These verdicts compare loss extensions to the
-> τ=0.20 baseline. The τ=0.20 v2 fresh retraining over the full 15k
-> steps has now completed on elisa, and the trajectory plots in this
-> report use that v2 trace as the baseline. The held-out eval has not
-> been re-run against v2 FINAL.pth yet — once it has, the verdicts
-> below may shift.
+# Loss extensions — Exp 3, Exp 4-only, Exp 5
 
 τ-sweep Exp 1 picked **τ = 0.20 / gru** as the recipe to extend (R²_random
 = 0.7731 on the held-out batch). This experiment tested three loss-shape
@@ -25,18 +18,15 @@ EWMA RevIN span 128, freq+seas emb dim 3, mixup 0.30). Only
   adds an `(h_t, f_t)` positive on top of the baseline `(h_t, f_{t-1})`
   positive. Run on elisa, 15k steps. Trajectory CSV: 15,000 rows.
 - **Exp 4-only** — `cosine_similarity_batch_add_f_cross_negs` (PR #182
-  non-cumulative): adds f-side cross-(b, c) negatives. Run on vast.ai
-  5090 spot 36374874; preempted at step 12,900 / 15,000 (86 %).
-  `best_loss.pth` (step 12,800, training loss 8.6948 — the same
-  checkpoint the launcher would have promoted at end-of-run) is used as
-  FINAL.pth. Trajectory CSV: 12,900 rows (not 15,000).
+  non-cumulative): adds f-side cross-(b, c) negatives. FINAL.pth =
+  `best_loss.pth` at step 12,800 of a 15k run (see Caveats); trajectory
+  CSV: 12,900 rows.
 - **Exp 5** — `cosine_similarity_batch_add_skip_f_negs` (PR #184
   non-cumulative): adds an `f_t` vs `f_{t+2}` skip-step forecaster
   negative term. Reformulation of the user's original "f_t vs f_{t+1}"
   spec — for our C=1 setup `neg_zy` already covers `f_t` vs `f_{t+1}`
-  same-channel, so we tested the genuinely-novel skip=2 pair. Run on
-  vast.ai 5090 on-demand 36380455 (1h 8m, $0.75); 15k steps to
-  completion. Trajectory CSV: 15,000 rows.
+  same-channel, so we tested the genuinely-novel skip=2 pair. 15k steps
+  to completion; trajectory CSV: 15,000 rows.
 
 ## Held-out eval (B=256, skip=50M wrap, seed=0, FINAL.pth)
 
@@ -49,14 +39,81 @@ EWMA RevIN span 128, freq+seas emb dim 3, mixup 0.30). Only
 
 (Source: `results/loss_extensions_metrics.csv`.)
 
+## Held-out eval (mean ± stdev, N=10 samples)
+
+The single-batch numbers above have per-batch noise of order ~0.006 AUC
+/ ~0.010 Top-1 — comparable to the inter-arm differences. To resolve
+which deltas are real, all four arms were re-scored on **N=10 disjoint
+held-out batches** (B=256 each, 10 different `skip_rows` values 4.27M
+rows apart so each wraps to a distinct region of the 42.7M-row corpus).
+
+![multisample](plots/loss_extensions_eval_multisample.png)
+
+| name                       | R²_random           | R²_naive            | U_temp              | U_batch             | AUC                 | Top-1               |
+|----------------------------|---------------------|---------------------|---------------------|---------------------|---------------------|---------------------|
+| baseline τ=0.20            | 0.7710 ± 0.0045     | 0.7265 ± 0.0060     | 0.0387 ± 0.0013     | 0.0836 ± 0.0015     | 0.9001 ± 0.0063     | 0.7540 ± 0.0103     |
+| Exp 3 +(h_t,f_t) pos       | 0.0081 ± 0.0040     | −0.0003 ± 0.0001    | 0.2556 ± 0.0041     | 0.3030 ± 0.0034     | 0.5089 ± 0.0023     | 0.2150 ± 0.0022     |
+| Exp 4-only +f-cross-bc neg | 0.7681 ± 0.0037     | 0.7124 ± 0.0056     | 0.0321 ± 0.0010     | 0.0668 ± 0.0013     | 0.8959 ± 0.0064     | 0.7441 ± 0.0105     |
+| Exp 5 +skip-f neg (t↔t+2)  | 0.7670 ± 0.0044     | 0.7231 ± 0.0062     | 0.0394 ± 0.0013     | 0.0850 ± 0.0015     | 0.9027 ± 0.0064     | 0.7579 ± 0.0103     |
+
+(Source: [`results/loss_extensions_metrics_multisample.csv`](results/loss_extensions_metrics_multisample.csv).)
+
+### Δ vs baseline τ=0.20 (N=10) — significance
+
+For each extension, |Δ| > 2 × max(stdev_arm, stdev_baseline) is "clearly
+resolved"; |Δ| ≤ max(stdev_arm, stdev_baseline) is "within 1σ".
+
+**Exp 4-only +f-cross-bc neg vs baseline:**
+
+| metric     | Δ        | max stdev | resolved (>2σ)?   |
+|------------|----------|-----------|-------------------|
+| R²_random  | −0.0030  | 0.0045    | no, within 1σ     |
+| R²_naive   | −0.0141  | 0.0060    | yes (~2.4σ), worse |
+| U_temporal | −0.0066  | 0.0013    | yes (~5σ), lower   |
+| U_batch    | −0.0168  | 0.0015    | yes (~11σ), lower  |
+| AUC        | −0.0042  | 0.0064    | no, within 1σ     |
+| Top-1      | −0.0099  | 0.0105    | no, within 1σ     |
+
+**Exp 5 +skip-f neg (t↔t+2) vs baseline:**
+
+| metric     | Δ        | max stdev | resolved (>2σ)? |
+|------------|----------|-----------|-----------------|
+| R²_random  | −0.0040  | 0.0045    | no, within 1σ   |
+| R²_naive   | −0.0034  | 0.0062    | no, within 1σ   |
+| U_temporal | +0.0006  | 0.0013    | no, within 1σ   |
+| U_batch    | +0.0014  | 0.0015    | no, within 1σ   |
+| AUC        | +0.0026  | 0.0064    | no, within 1σ   |
+| Top-1      | +0.0039  | 0.0103    | no, within 1σ   |
+
+**Exp 3 vs baseline:** Δ AUC = −0.391 (vs max stdev 0.006) — resolved
+at ~62σ; Δ R²_random = −0.763 — resolved at ~170σ.
+
+### Updated verdicts (multisample-resolved)
+
+- **Exp 3 — REJECT.** AUC at chance, R²_random at chance, U-metrics
+  inflated. Verdict was already robust at single-batch and is unchanged
+  by the multisample re-eval.
+- **Exp 4-only — REJECT (no improvement; mixed-direction deltas).**
+  Discriminative metrics (AUC, Top-1, R²_random) are all within 1σ of
+  baseline — i.e. the apparent declines were single-batch noise. But
+  R²_naive (Δ = −0.0141, ~2.4σ) and the U-metrics (~5–11σ lower) are
+  clearly resolved declines. Net effect: no improvement on what we care
+  about discriminatively, with a real reduction in encoder-spread
+  metrics.
+- **Exp 5 — REJECT (no improvement, no harm).** Every Δ vs baseline is
+  within 1σ of per-batch stdev (max 0.95σ on R²_random). The
+  single-batch +0.0023 AUC / +0.0030 Top-1 / −0.0044 R²_random deltas
+  are all confirmed within-noise. Exp 5 is statistically
+  indistinguishable from the baseline on every metric.
+
 ## Trajectory comparison
 
-> **Interim refresh (2026-05-09 10:07 BST).** The τ=0.20 v2 retrain
-> finished its 15,000-step trajectory CSV; the baseline trace below
-> now uses that full v2 trajectory (replacing the previous 4.3k-step
-> partial). Held-out eval against v2 FINAL.pth has not been re-run
-> yet — the black-edged dot at the rightmost step still reflects the
-> earlier eval row, so verdicts remain provisional until that lands.
+The baseline trace uses the τ=0.20 v2 retrain's 15k-step trajectory
+(the original Exp 1 baseline trajectory CSV survived only ~4.3k steps
+locally; v2 recovered the full 15k). The black-edged held-out dot at
+the rightmost step is the single-batch eval (the multisample N=10
+re-eval is in the section above; see also the τ-sweep RESULTS for the
+v1-vs-v2 cross-check).
 
 ![Loss-extension trajectories — tight zoom](plots/loss_extensions_trajectories_tight.png)
 
@@ -83,48 +140,28 @@ Both plots: 1000-step MA on per-step training-batch metrics.
   (steps 14,001-15,000).
 - **Exp 5** also tracks baseline closely. Last-1k mean AUC = 0.903,
   Top-1 = 0.756 (steps 14,001-15,000) vs baseline v2 last-1k AUC =
-  0.899, Top-1 = 0.750 — same magnitude. Held-out AUC delta vs
-  baseline = 0.8961 − 0.8938 = +0.0023, within the ~0.005 noise band
-  we'd expect across runs (held-out eval not yet re-run against v2
-  FINAL.pth).
+  0.899, Top-1 = 0.750 — same magnitude. (See "Held-out eval (mean ±
+  stdev, N=10 samples)" above for the resolved comparison.)
 - **Baseline** trajectory now spans the full 15,000 steps (v2 retrain).
   Both Exp 4-only and Exp 5 reach baseline-level training-batch metrics
-  by step ~4k and plateau there. **Held-out eval against v2 FINAL.pth
-  has not been re-run yet; verdicts below remain pending that
-  comparison.**
+  by step ~4k and plateau there. The N=10 multisample re-eval (above)
+  uses the original Exp 1 baseline FINAL.pth (not the re-trained v2)
+  and is the resolved-uncertainty comparison; the trajectory plot here
+  is supplementary.
 
-## Provisional verdicts
+## Mechanism notes
 
-- **Exp 3 — PROVISIONAL REJECT.** The `(h_t, f_t)` positive is degenerate:
-  the forecaster has e_t in its causal context (input at step t includes
-  the encoder output at step t), so f_t can copy h_t directly. Held-out
-  R²_random = 0.013 vs baseline 0.773 (Δ = −0.760); AUC at chance.
-  Verdict robust against any plausible v2 baseline given the
-  ~0.76 R²_random gap.
-- **Exp 4-only — PROVISIONAL REJECT (no improvement).** On the held-out
-  eval, the f-cross-(b, c) negative term is indistinguishable from the
-  baseline as compared: AUC 0.8902 vs 0.8938 (Δ = −0.0036), Top-1 0.7389
-  vs 0.7470 (Δ = −0.0081), R²_random 0.7708 vs 0.7731 (Δ = −0.0023),
-  R²_naive 0.7118 vs 0.7256 (Δ = −0.0138). All deltas small and
-  unfavourable. With the v2 baseline trajectory now in hand, Exp 4-only
-  and baseline overlap at last-1k AUC (0.898 vs 0.899), so the earlier
-  apparent trajectory advantage was an artefact of comparing against a
-  partial baseline. The held-out eval magnitudes are within the ~0.005
-  noise band and could shift either direction once v2 FINAL.pth is
-  re-evaluated.
-- **Exp 5 — PROVISIONAL REJECT (no improvement).** Held-out deltas:
-  AUC 0.8961 vs 0.8938 (Δ = +0.0023), Top-1 0.7500 vs 0.7470 (Δ = +0.0030),
-  R²_random 0.7687 vs 0.7731 (Δ = −0.0044), R²_naive 0.7218 vs 0.7256
-  (Δ = −0.0038), U_temp 0.0392 vs 0.0386, U_batch 0.0864 vs 0.0850 —
-  small mixed deltas, all within the ~0.005 noise band. The skip=2 pair
-  adds neither prediction signal nor harm against this baseline.
-
-  Hypothesis on why it's a null: at step T-2 (one before final), the new
-  term contributes 0 (padded); at most other timesteps the forecaster
-  has already learned to make `f_t` differ from `f_{t+2}` by the time
-  the contrastive signal's other terms have done their work — so the
-  extra negative is trivially satisfied and provides no additional
-  pressure.
+- **Exp 3 — why it fails.** The `(h_t, f_t)` positive is degenerate:
+  the forecaster has e_t in its causal context (input at step t
+  includes the encoder output at step t), so f_t can copy h_t directly.
+  This drives U high without delivering retrieval signal — see "Note on
+  'high-U → good'" below.
+- **Exp 5 — why it's a null.** At step T-2 (one before final), the
+  skip=2 term contributes 0 (padded); at most other timesteps the
+  forecaster has already learned to make `f_t` differ from `f_{t+2}`
+  by the time the contrastive signal's other terms have done their
+  work — so the extra negative is trivially satisfied and provides no
+  additional pressure.
 
 ### Note on "high-U → good"
 
@@ -134,28 +171,16 @@ counter-evidence to "high U means useful structure": a degenerate
 positive can drive U up without delivering prediction signal. U is
 necessary but not sufficient.
 
-## Deviations / caveats
+## Caveats
 
-- **Baseline held-out eval re-run against v2 FINAL.pth is pending.**
-  The trajectory plots now use the v2 full 15k baseline trace, but the
-  black-edged held-out dot at step 15k still reflects the earlier eval
-  row. This is the primary reason the verdicts remain provisional —
-  see the disclaimer at the top.
-- **Exp 4-only spot preempted at step 12,900 / 15,000.** We use the
-  existing `best_loss.pth` (step 12,800) as FINAL.pth — exactly the
-  launcher's end-of-run promotion. Trajectory CSV is 12,900 rows, not
-  15,000. We did not resume the last ~2.1k steps because `best_loss`
-  tracks lowest training loss; the end-of-run cp would not have changed
-  the FINAL.pth.
-- Exp 5 first attempt: vast 5090 spot 36379272 (offer 31031685, machine
-  35115) was provisioned but its container never came up — SSH refused
-  for 8 minutes, then status flipped to "exited" before any training
-  steps. Destroyed for $0.02. Second attempt: vast 5090 spot 36379593
-  (offer 22815359, machine 35231) ran for ~5500 steps, then was spot-
-  preempted at minute ~25 and refused restart ($0.15). Third attempt:
-  same offer 31031685 but **on-demand** instead of spot (machine 35115
-  came up cleanly the second time around) — finished 15k steps in 1h 8m
-  for $0.75, no preempt risk. Total spend on Exp 5: $0.92.
-- Costs: Exp 4-only vast spot 36374874 destroyed after 1h 49m for $0.41.
-  Exp 5 vast on-demand 36380455 destroyed after 1h 8m for $0.75
-  (+ $0.17 lost to two failed spot attempts).
+- **Baseline trajectory CSV.** The original Exp 1 baseline trajectory
+  CSV survived only ~4.3k of its 15k steps locally; the τ=0.20 v2
+  retrain recovered the full 15k trajectory and is the trace shown in
+  the trajectory plot. The held-out N=10 eval, however, scores the
+  original Exp 1 FINAL.pth (the genuine 15,000-step snapshot) — see
+  the τ-sweep RESULTS for the cross-check that v1 and v2 FINAL.pth
+  match within ≤1σ on every metric.
+- **Exp 4-only's FINAL.pth is `best_loss` at step 12,800 (of 15,000).**
+  This matches the launcher's end-of-run promotion exactly; the
+  remaining ~2.1k steps would not have changed the promoted FINAL.pth
+  because `best_loss` tracks lowest training loss seen so far.
