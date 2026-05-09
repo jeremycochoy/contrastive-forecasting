@@ -21,9 +21,7 @@ Contrastive-forecasting trains small transformer backbones on time series via co
 
 ## Reporting
 
-- **Report facts; don't extrapolate.** State measurements directly; flag every claim that goes beyond the data as a hypothesis. Spearman ρ at n=5 is "directional only", not a prediction.
-- **Before sending any report (REPORT.md, RESULTS.md, PR body, end-of-session summary), have a sub-agent review it for facts vs. unsupported conclusions** — pass it the report + underlying data, ask which claims aren't directly supported, address every flagged item. Added May 8 2026 after Claude built mechanistic stories from n=5.
-- **Reports document the science, not the journey.** Preemptions, retries, infra incidents belong in an artefact / execution log, not the main report.
+See [`experiments/REPORT_STANDARD.md`](experiments/REPORT_STANDARD.md) — the checklist a sub-agent runs against every report. Information that doesn't fit the report can be recorded elsewhere in the experiment directory (scripts, doc, execution log).
 
 ## Operational rules from prior incidents
 
