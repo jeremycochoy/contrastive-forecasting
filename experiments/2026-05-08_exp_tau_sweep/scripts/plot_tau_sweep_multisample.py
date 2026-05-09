@@ -36,19 +36,18 @@ ARMS = [
     ("τ=0.05",            "tau_sweep_0_05",           "#2ca02c"),
     ("τ=0.07",            "tau_sweep_0_07",           "#9467bd"),
     ("τ=0.10",            "tau_sweep_0_10",           "#d62728"),
-    ("τ=learnable→0.069", "tau_sweep_learnable_0_10", "#17becf"),
+    ("τ=0.10 → 0.069 (learnable)", "tau_sweep_learnable_0_10", "#17becf"),
     ("τ=0.20",            "tau_sweep_0_20_v2",        "#ff7f0e"),
 ]
 
 BETA = dict(r2_random=0.6839, r2_naive=0.6080, u_temporal=0.0375,
             u_batch=0.0762, auc=0.8966, top1=0.7531)
 
-# (csv_key, title, ylim) — R² panels pinned to ≥ 0 (negative R² is
-# meaningless and would only show up for divergent arms; the scientific
-# range we care about is [0, 1]).
+# R² panels pinned to [0, 1] — the natural / interpretable range. U / AUC
+# / Top-1 panels keep auto-scale on the data.
 METRICS = [
-    ("r2_random",   "R²_random",  (0.0, None)),
-    ("r2_naive",    "R²_naive",   (0.0, None)),
+    ("r2_random",   "R²_random",  (0.0, 1.0)),
+    ("r2_naive",    "R²_naive",   (0.0, 1.0)),
     ("u_temporal",  "U_temporal", None),
     ("u_batch",     "U_batch",    None),
     ("auc",         "AUC",        None),
