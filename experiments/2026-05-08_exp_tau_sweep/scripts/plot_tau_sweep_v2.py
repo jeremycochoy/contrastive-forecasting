@@ -43,6 +43,8 @@ ARMS = [
      SYNC / "tau_sweep_0_07_losses.csv"),
     ("τ=0.10 → 0.069 (learnable)", "tau_sweep_learnable_0_10", "#17becf",
      SYNC_LEARN / "tau_sweep_learnable_0_10_losses.csv"),
+    ("τ=0.20 → 0.07 (learnable)",  "tau_sweep_learnable_0_20", "#bcbd22",
+     SYNC_LEARN / "tau_sweep_learnable_0_20_losses.csv"),
     ("τ=0.10",                     "tau_sweep_0_10",           "#d62728",
      SYNC / "tau_sweep_0_10_losses.csv"),
     ("τ=0.20",                     "tau_sweep_0_20_v2",        "#ff7f0e",
