@@ -159,6 +159,7 @@ def parse_args():
                             "cosine_similarity_batch_add_pos_htft_add_f_cross_negs",
                             "cosine_similarity_batch_add_f_cross_negs",
                             "cosine_similarity_batch_add_skip_f_negs",
+                            "cosine_similarity_batch_add_neg_htft",
                             "cosine_similarity",
                             "cosine_similarity_old"],
                    help="Contrastive loss formulation. Default 'no_time_neg' "

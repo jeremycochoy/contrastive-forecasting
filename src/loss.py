@@ -283,6 +283,74 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         negatives = neg_xy + neg_xx + neg_zy + neg_xy_hat + neg_cross_batch + neg_f_cross_bc
         loss = -torch.log(positives / negatives.sum(dim=0, keepdim=True)).mean()
 
+    elif train_config.get('loss_shape') == 'cosine_similarity_batch_add_neg_htft':
+        # Corrected Exp 3: identical to `cosine_similarity_batch` except the
+        # `negatives` term includes an explicit per-(b,t,c) (h_t, f_t)
+        # same-channel same-time NEGATIVE — i.e. cos(hx[b,t,c], hy_hat[b,t,c]).
+        # Numerator (positives) is unchanged: just exp(cos(hy_norm, hy_hat_norm)/tau)
+        # = (h_{t+1}, f_t).
+        #
+        # Why a NEGATIVE (not a positive as in `cosine_similarity_batch_add_pos_htft`,
+        # PR #179): f_t is the forecaster output at position t, which predicts
+        # h_{t+1}. h_t is the encoder output at the SAME position. f_t already
+        # has e_t in its causal context, so pulling (h_t, f_t) together (the
+        # original Exp 3 PR #179) created a degenerate f_t ≈ h_t shortcut —
+        # the forecaster can satisfy the positive trivially without learning
+        # to predict the future. The corrected formulation pushes (h_t, f_t)
+        # APART, forcing the forecaster to differ from the present encoder
+        # state and actually predict h_{t+1}.
+        #
+        # Double-count note: the existing `neg_xy_hat` is built as
+        #   sum_{c1} exp(cos(hx[b,t,c1], hy_hat[b,t,c2])/tau)   (no c1≠c2 mask)
+        # so for any C≥1 it ALREADY contains the same-channel (h_t, f_t) term
+        # (c1=c2). Adding `neg_h_t_f_t` here ON TOP gives the same-channel
+        # slice 2× weight in the denominator while the cross-channel slice
+        # stays 1× — i.e. the new term doubles the (h_t, f_t) repulsion
+        # signal rather than introducing it from scratch. We chose this
+        # (option (b) in the design doc) over subtracting the same-channel
+        # diagonal from `neg_xy_hat` first (option (a)) because option (a)
+        # would be a net no-op vs `cosine_similarity_batch` baseline — the
+        # explicit negative term needs to add genuine extra weight to test
+        # the corrected hypothesis. See PR body for the full analysis.
+        positives = torch.exp(
+            cosine_similarity_from_normalized(hy_norm, hy_hat_norm) / tau
+        )
+
+        sims_xy = cosine_similarity_from_normalized(hx_norm.unsqueeze(3), hy_norm.unsqueeze(2))
+        neg_xy = torch.exp(sims_xy / tau).sum(dim=2)
+
+        sims_xy_hat = cosine_similarity_from_normalized(hx_norm.unsqueeze(3), hy_hat_norm.unsqueeze(2))
+        neg_xy_hat = torch.exp(sims_xy_hat / tau).sum(dim=2)
+
+        sims_xx = cosine_similarity_from_normalized(hx_norm.unsqueeze(3), hx_norm.unsqueeze(2))
+        mask_mat = ~torch.eye(C, dtype=torch.bool, device=sims_xx.device)
+        mask_mat = mask_mat.view(1, 1, C, C)
+        neg_xx = torch.exp(sims_xx / tau).masked_fill(~mask_mat, 0).sum(dim=2)
+
+        sims_zy = cosine_similarity_from_normalized(hz_hat_norm.unsqueeze(3), hy_hat_norm.unsqueeze(2))
+        neg_zy = torch.exp(sims_zy / tau).sum(dim=2)
+
+        # Cross-batch negatives (h-side): compare across batch dimension
+        hy_norm_exp = hy_norm.unsqueeze(0)  # [1, B, T-1, C, H]
+        hy_hat_norm_exp = hy_hat_norm.unsqueeze(1)  # [B, 1, T-1, C, H]
+
+        sims_cross_batch = cosine_similarity_from_normalized(hy_norm_exp, hy_hat_norm_exp)
+
+        mask_batch = ~torch.eye(B, dtype=torch.bool, device=sims_cross_batch.device)
+        mask_batch = mask_batch.view(B, B, 1, 1)
+
+        neg_cross_batch_exp = torch.exp(sims_cross_batch / tau).masked_fill(~mask_batch, 0)
+        neg_cross_batch = neg_cross_batch_exp.sum(dim=1)
+
+        # NEW (corrected Exp 3): explicit per-(b,t,c) same-channel (h_t, f_t)
+        # negative. Shape [B, T-1, C], aligned with all other negative terms.
+        neg_h_t_f_t = torch.exp(
+            cosine_similarity_from_normalized(hx_norm, hy_hat_norm) / tau
+        )
+
+        negatives = neg_xy + neg_xx + neg_zy + neg_xy_hat + neg_cross_batch + neg_h_t_f_t
+        loss = -torch.log(positives / negatives.sum(dim=0, keepdim=True)).mean()
+
     elif train_config.get('loss_shape') == 'cosine_similarity_batch_add_skip_f_negs':
         # NON-cumulative variant: identical to `cosine_similarity_batch` except
         # `negatives` includes an extra "skip-step" forecaster term —
