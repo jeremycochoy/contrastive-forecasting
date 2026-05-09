@@ -3,9 +3,13 @@
 ## Goal / question
 
 Does the contrastive temperature τ — fixed during training rather than
-learned — affect the converged retrieval quality (AUC, Top-1) and
-representation-quality (R², U_t, U_b) of the contrastive backbone? AUC
-was the strongest predictor of downstream MASE in the prior 5-backbone
+learned — affect the converged representation quality (AUC, Top-1 — the
+encoder's ability to distinguish a target from negatives), the
+forecast-match metrics (R²_random, R²_naive — prediction-error of the
+forecaster's output vs random / naive-last-step baselines in cosine
+space), and the encoder dimension usage (U_t, U_b — directional spread
+across time / batch axes) of the contrastive backbone? AUC was the
+strongest predictor of downstream MASE in the prior 5-backbone
 proxy-correlation analysis (Spearman ρ ≈ +0.70), so its sensitivity to τ
 is the central question.
 
