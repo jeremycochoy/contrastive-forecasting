@@ -25,6 +25,8 @@ REPO = Path(__file__).resolve().parents[3]
 SYNC = REPO / "sync_tau_sweep/checkpoints"
 SYNC_V2 = REPO / "sync_tau_sweep_arm5_v2/checkpoints"
 SYNC_LEARN = REPO / "sync_tau_sweep_learnable/checkpoints"
+SYNC_030 = REPO / "sync_tau_sweep_0_30/checkpoints"
+SYNC_080 = REPO / "sync_tau_sweep_0_80/checkpoints"
 OUT_TRAJ = REPO / "experiments/2026-05-08_exp_tau_sweep/plots/tau_sweep_v2_trajectories.png"
 OUT_TRAJ.parent.mkdir(parents=True, exist_ok=True)
 
@@ -45,6 +47,12 @@ ARMS = [
      SYNC / "tau_sweep_0_10_losses.csv"),
     ("τ=0.20",                     "tau_sweep_0_20_v2",        "#ff7f0e",
      SYNC_V2 / "tau_sweep_0_20_v2_losses.csv"),
+    ("τ=0.30",                     "tau_sweep_0_30",           "#e377c2",
+     SYNC_030 / "tau_sweep_0_30_losses.csv"),
+    ("τ=0.50",                     "tau_sweep_0_50",           "#8c564b",
+     SYNC / "tau_sweep_0_50_losses.csv"),
+    ("τ=0.80",                     "tau_sweep_0_80",           "#7f7f7f",
+     SYNC_080 / "tau_sweep_0_80_losses.csv"),
 ]
 
 # backbone-beta_167k held-out reference, same batch as the eval CSV.

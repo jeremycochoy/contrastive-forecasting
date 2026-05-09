@@ -72,7 +72,8 @@ BACKBONE_BASE = dict(
     depthwise_conv=3, dropout=0.1,
 )
 
-# τ-sweep arms: (display_name, tau_for_csv, encoder_type, relpath_FINAL)
+# τ-sweep arms: (display_name, tau_for_csv, encoder_type, relpath_FINAL).
+# Backbones with missing FINAL.pth at eval time are skipped (warned).
 TAU_BACKBONES: list[tuple[str, float, str, str]] = [
     ("tau_sweep_0_03",            0.03, "gru",
      "sync_tau_sweep/checkpoints/tau_sweep_0_03_FINAL.pth"),
@@ -86,8 +87,16 @@ TAU_BACKBONES: list[tuple[str, float, str, str]] = [
      "sync_tau_sweep/checkpoints/tau_sweep_0_20_FINAL.pth"),
     ("tau_sweep_0_20_v2",         0.20, "gru",
      "sync_tau_sweep_arm5_v2/checkpoints/tau_sweep_0_20_v2_FINAL.pth"),
+    ("tau_sweep_0_30",            0.30, "gru",
+     "sync_tau_sweep_0_30/checkpoints/tau_sweep_0_30_FINAL.pth"),
+    ("tau_sweep_0_50",            0.50, "gru",
+     "sync_tau_sweep/checkpoints/tau_sweep_0_50_FINAL.pth"),
+    ("tau_sweep_0_80",            0.80, "gru",
+     "sync_tau_sweep_0_80/checkpoints/tau_sweep_0_80_FINAL.pth"),
     ("tau_sweep_learnable_0_10",  0.10, "gru",
      "sync_tau_sweep_learnable/checkpoints/tau_sweep_learnable_0_10_FINAL.pth"),
+    ("tau_sweep_learnable_0_20",  0.20, "gru",
+     "sync_tau_sweep_learnable/checkpoints/tau_sweep_learnable_0_20_FINAL.pth"),
 ]
 
 # Loss-extension arms (baseline + 3 extensions).
