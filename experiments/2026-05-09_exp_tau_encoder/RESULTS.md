@@ -1,5 +1,12 @@
 # Exp 2 — encoder swap (gru vs residual_silu) @ τ=0.10
 
+gru wins 5 of 6 held-out metrics over residual_silu at τ=0.10 over 15k
+steps; AUC gap is small (~0.005, 0.8915 vs 0.8864), Top-1 gap is
+clearer (~0.013, 0.7449 vs 0.7318). residual_silu wins R²_random by
+~0.007. Picked winner: **gru**.
+
+![Encoder comparison: gru vs residual_silu](plots/encoder_comparison.png)
+
 ## Setup
 
 Single-arm comparison: residual_silu encoder vs the gru encoder used in
@@ -32,65 +39,46 @@ Results CSV:
 
 | backbone                       | encoder        | R²_rand | R²_naive | U_t    | U_b    | AUC    | Top1   |
 |--------------------------------|----------------|---------|----------|--------|--------|--------|--------|
-| tau_sweep_0_10                 | gru            | **0.6671** | **0.6075** | **0.0506** | **0.1028** | **0.8915** | **0.7449** |
-| exp2_residual_silu_tau_0_10    | residual_silu  | 0.6737  | 0.5997   | 0.0336 | 0.0574 | 0.8864 | 0.7318 |
+| tau_sweep_0_10                 | gru            | 0.6671  | **0.6075** | **0.0506** | **0.1028** | **0.8915** | **0.7449** |
+| exp2_residual_silu_tau_0_10    | residual_silu  | **0.6737** | 0.5997   | 0.0336 | 0.0574 | 0.8864 | 0.7318 |
 
-Bold = winner per metric.
+Bold = winner per metric. gru wins 5/6; residual_silu wins R²_random.
 
 Reference (backbone-beta_167k on the same held-out batch):
 R²_rand 0.6839, R²_naive 0.6080, U_t 0.0375, U_b 0.0762,
 AUC 0.8966, Top1 0.7531.
 
-## Last in-training step values (from per-step CSVs)
+## Trajectory observation
+
+In-training 1000-step MA over the full 15k:
 
 | backbone                       | last step | loss   | AUC_train | Top1_train | U_b_train |
 |--------------------------------|-----------|--------|-----------|------------|-----------|
 | tau_sweep_0_10                 | 15000     | 7.0414 | 0.9199    | 0.7765     | 0.0939    |
 | exp2_residual_silu_tau_0_10    | 15000     | 7.4514 | 0.8895    | 0.7183     | 0.0597    |
 
-The residual_silu run lands at a higher contrastive loss (7.45 vs 7.04)
-and lower in-training AUC/Top1 across the entire trajectory; the
-held-out gap is consistent with the in-training gap.
+residual_silu lands at a higher contrastive loss (7.45 vs 7.04) and
+lower in-training AUC/Top1 throughout. On 1000-step MA, residual_silu
+starts faster (early-window AUC ~0.67 vs gru ~0.54), but gru overtakes
+within the first few thousand steps and stays ahead through step 15k.
+The gap is not closing at step 15k.
 
-## Plots
+The plot above shows the full 15k-step trajectory (1000-step MA) for
+all six metrics; AUC and Top-1 panels are zoomed to (0.86, 0.92) and
+(0.70, 0.78) respectively to make the late-trajectory arm-to-arm
+spread legible. Stars at step 15000 mark the held-out FINAL.pth eval
+values; the dashed grey line is the backbone-β 167k reference.
 
-- [`plots/encoder_comparison.png`](plots/encoder_comparison.png) — 6-panel
-  trajectory comparison (1000-step MA), gru vs residual_silu over the
-  full 15k steps. AUC zoom 0.88–0.93; Top-1 zoom 0.70–0.78. Star
-  markers at step 15000 show the held-out FINAL.pth eval values.
+## Conclusion
 
-## Picked winner: gru
-
-The gru encoder beats residual_silu on **5 of 6 held-out metrics**:
-- AUC (0.8915 vs 0.8864), Top1 (0.7449 vs 0.7318) — gru wins by
-  ~0.005 AUC and ~0.013 Top1.
-- U_temporal (0.0506 vs 0.0336) and U_batch (0.1028 vs 0.0574) — gru
-  uses substantially more representation dimensions on this held-out
-  batch.
-- R²_naive (0.6075 vs 0.5997) — narrow gru win.
-
-residual_silu wins only R²_random (0.6737 vs 0.6671), which measures
-forecast usefulness vs a random latent baseline; combined with the
-worse R²_naive, this suggests residual_silu's forecasts are slightly
-more "absolutely" predictive but less informative beyond the persistence
-baseline.
-
-The training trajectories (15k steps each) confirm the held-out finding.
-On 1000-step MA, residual_silu starts faster (AUC ~0.67 by step 1000 vs
-gru ~0.54), but gru catches up by step ~2.1k (AUC) and ~2.5k (Top1) and
-stays ahead from step ~5k onward (mean gru − residual_silu = +0.0070
-AUC, +0.0150 Top1). The gap does not appear to be closing at step 15k.
-A longer run is unlikely to flip the order.
-
-**Recommendation: keep gru as the default encoder for the next
-backbone.** No further encoder ablations planned this round.
+gru wins the held-out eval on AUC, Top-1, R²_naive, U_temporal, and
+U_batch; residual_silu wins only R²_random. The training trajectories
+are consistent with the held-out gap. **Picked winner: gru** as the
+default encoder for the next backbone.
 
 ## What this report does not cover
 
 - Other encoder types (mlp, mlp_wide, conv) — only one alternative was
   tested in this experiment.
 - Encoder × τ interactions — residual_silu was tested only at τ=0.10.
-  If the picked τ from Exp 1 RESULTS_v2 (τ=0.20) interacts unfavourably
-  with gru, residual_silu @ τ=0.20 might still be relevant; not
-  measured.
 - Proxy MASE — same blocker as Exp 1.
