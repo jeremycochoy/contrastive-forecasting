@@ -4,6 +4,7 @@
 Produces:
   plots/4arm_auc_top1.png
   plots/4arm_uniformity.png
+  plots/4arm_logscale.png
 """
 
 import pandas as pd
