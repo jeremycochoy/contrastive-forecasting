@@ -66,7 +66,7 @@ the per-vertex thickness is a training artefact.
   b'  (f_{b',t-1}, h_{b',t}) ────────  (f_{b',t}, h_{b',t+1})
 ```
 
-See `plots/square_diagram.png` for the full annotated diagram.
+![Square loss diagram](plots/square_diagram.png)
 
 ### Edge inventory
 
