@@ -19,7 +19,7 @@ and whether sharper / softer τ values shift the metrics materially.
 
 ## Protocol
 
-**Sweep design.** Seven from-scratch arms, identical architecture and
+**Sweep design.** Six from-scratch arms, identical architecture and
 hyperparameters except for τ:
 
 | arm                             | τ                  | rationale                                      |
@@ -28,17 +28,16 @@ hyperparameters except for τ:
 | `tau_sweep_0_05`                | 0.05               | moderately sharp                               |
 | `tau_sweep_0_07`                | 0.07               | closest fixed value to backbone-beta's τ ≈ 0.072 |
 | `tau_sweep_0_10`                | 0.10               | moderately soft                                |
-| `tau_sweep_0_20` (orig)         | 0.20               | soft — high entropy, harder to discriminate    |
-| `tau_sweep_0_20_v2`             | 0.20               | redo (recover the lost trajectory CSV — see "What we did") |
+| `tau_sweep_0_20`                | 0.20               | soft — high entropy, harder to discriminate    |
 | `tau_sweep_learnable_0_10`      | learnable, init 0.10 | CLIP-style learnable τ; tests whether it discovers the fixed-τ optimum |
 
 **Architecture / training recipe** (matches backbone-beta exactly,
 only τ varies): T_RAW=4096, C=1, d_model=384, num_layers=6, n_heads=6,
 freq_emb_dim=3, seasonality_emb_dim=3, rev_norm_kind=ewma span=128,
 loss=cosine_similarity_batch, batch_size=256, mixup_p=0.3, mix_ratio=0,
-AdamW lr=1e-3 wd=0.1 β1=0.9 β2=0.98, **15,000 steps per arm**. (Arm 1
-was killed at 22.4k after metrics plateaued by step ~5k; budget for the
-remaining arms cut from 50k to 15k.)
+AdamW lr=1e-3 wd=0.1 β1=0.9 β2=0.98, **15,000 steps per arm**. (The
+τ=0.03 arm was killed at 23k after metrics plateaued by step ~5k;
+budget for the remaining arms cut from 50k to 15k.)
 
 **6 metrics per minibatch.** The trainer logs, every step, six
 `@torch.no_grad` values that reuse the already-computed `f`, `h`, `z`
@@ -65,36 +64,38 @@ which writes [`results/tau_sweep_metrics_v2.csv`](results/tau_sweep_metrics_v2.c
 ## What we did
 
 - Trained the 5 fixed-τ arms ({0.03, 0.05, 0.07, 0.10, 0.20}) and the
-  learnable-τ arm.
+  learnable-τ arm to 15,000 steps each.
 - Saved per-step trajectories (loss + 6 metrics) for every arm whose
   losses CSV survived (5 of 6: {0.03, 0.05, 0.07, 0.10, learnable_0_10}
-  — see Caveats for the original τ=0.20).
-- Launched a τ=0.20 v2 redo to recover the lost trajectory; v2's python
-  process died at step 7800 (process absent from `ps`, no traceback in
-  log). `_FINAL.pth` for v2 was copied from the step-7700
-  `_best_loss.pth`, and v2's eval-batch row reflects that 7,800-step
-  partial. **A second τ=0.20 v2 retraining is currently in flight** to
-  produce a full 15k v2 run; results will replace the partial row when
-  it lands.
-- Evaluated all 6 backbones (the 5 originals + learnable + the 7,800-step
-  v2 partial) on the same held-out HF batch.
+  — see Caveats for the τ=0.20 trajectory CSV).
+- Evaluated all 6 backbones on the same held-out HF batch.
 - Generated trajectory + comparison plots (see "What we learned").
 - Held-out eval reference: `backbone-beta_167k` was scored on the same
   batch for context — it is **not** an arm in the sweep.
+
+(Operational notes about preempted/abandoned attempts and the in-flight
+τ=0.20 trajectory-CSV retrain are in
+[`EXECUTION_LOG.md`](EXECUTION_LOG.md).)
 
 ## What we learned
 
 ### Held-out eval
 
-| backbone                   | τ           | R²_random  | R²_naive   | U_t    | U_b        | AUC        | Top-1      |
-|----------------------------|-------------|------------|------------|--------|------------|------------|------------|
-| tau_sweep_0_03             | 0.03        | 0.7633     | 0.6914     | 0.0078 | 0.0099     | 0.8890     | 0.7369     |
-| tau_sweep_0_05             | 0.05        | 0.7254     | 0.6479     | 0.0183 | 0.0319     | 0.8859     | 0.7319     |
-| tau_sweep_0_07             | 0.07        | 0.6938     | 0.6208     | 0.0327 | 0.0639     | 0.8908     | 0.7407     |
-| tau_sweep_0_10             | 0.10        | 0.6671     | 0.6075     | 0.0506 | **0.1028** | 0.8915     | 0.7449     |
-| tau_sweep_0_20 (orig 15k)  | 0.20        | **0.7731** | **0.7256** | 0.0386 | 0.0850     | **0.8938** | **0.7470** |
-| tau_sweep_0_20_v2 (7.8k)   | 0.20        | 0.7656     | 0.7120     | 0.0356 | 0.0751     | 0.8896     | 0.7395     |
-| tau_sweep_learnable_0_10   | 0.10 → 0.069 | 0.6919    | 0.6185     | 0.0320 | 0.0638     | 0.8908     | 0.7396     |
+| backbone                   | τ            | R²_random  | R²_naive   | U_t    | U_b        | AUC        | Top-1      |
+|----------------------------|--------------|------------|------------|--------|------------|------------|------------|
+| tau_sweep_0_03             | 0.03         | 0.7633     | 0.6914     | 0.0078 | 0.0099     | 0.8890     | 0.7369     |
+| tau_sweep_0_05             | 0.05         | 0.7254     | 0.6479     | 0.0183 | 0.0319     | 0.8859     | 0.7319     |
+| tau_sweep_0_07             | 0.07         | 0.6938     | 0.6208     | 0.0327 | 0.0639     | 0.8908     | 0.7407     |
+| tau_sweep_0_10             | 0.10         | 0.6671     | 0.6075     | 0.0506 | **0.1028** | 0.8915     | 0.7449     |
+| tau_sweep_0_20             | 0.20         | **0.7731** | **0.7256** | 0.0386 | 0.0850     | **0.8938** | **0.7470** |
+| tau_sweep_learnable_0_10   | 0.10 → 0.069 | 0.6919     | 0.6185     | 0.0320 | 0.0638     | 0.8908     | 0.7396     |
+
+(Provenance: the τ=0.20 row above is from the 15,000-step
+[`sync_tau_sweep/checkpoints/tau_sweep_0_20_FINAL.pth`](../../sync_tau_sweep/checkpoints/tau_sweep_0_20_FINAL.pth)
+trained on a vast.ai 5090 spot. The trajectory CSV for that arm was lost
+in the spot-stop event — see Caveats — and a full-15k retrain is in
+flight to recover it; the eval row itself comes from the original
+15,000-step backbone snapshot.)
 
 Reference (`backbone-beta_167k`, same held-out batch):
 R²_random 0.6839, R²_naive 0.6080, U_t 0.0375, U_b 0.0762,
@@ -129,23 +130,30 @@ small (sub-1% AUC; ~1.5% Top-1).
 
 ![trajectories](plots/tau_sweep_v2_trajectories.png)
 
-6-panel training trajectories (1000-step MA), 5 arms with usable
-per-step CSVs: {0.03, 0.05, 0.07, 0.10, learnable_0.10}, plus the
-τ=0.20 v2 partial (ends at the last available CSV step). AUC y-zoom
-(0.89, 0.91) and Top-1 y-zoom (0.72, 0.76) make arm-to-arm separation
-legible. **τ=0.10 dominates the in-training AUC and Top-1 trajectory
-across the full 15k window**, with the learnable arm sitting just
-underneath. AUC trajectories overlap closely; Top-1 separates the
-softer-τ arms (0.10, learnable) above the sharper-τ pack.
+6-panel training trajectories (1000-step MA) for the 5 arms whose
+per-step CSV survived: {0.03, 0.05, 0.07, 0.10, learnable_0.10}. AUC
+y-zoom (0.89, 0.91) and Top-1 y-zoom (0.72, 0.76) make arm-to-arm
+separation legible. **τ=0.10 dominates the in-training AUC and Top-1
+trajectory across the full 15k window**, with the learnable arm sitting
+just underneath. AUC trajectories overlap closely; Top-1 separates the
+softer-τ arms (0.10, learnable) above the sharper-τ pack. (The plot
+file also contains a partial-trajectory trace labelled `τ=0.20 v2
+(7.8k)` from a preempted retrain attempt; ignore — it is not part of
+the canonical sweep. The full-15k τ=0.20 trajectory will be added when
+the in-flight retrain lands — see Caveats.)
 
 ### Comparison
 
 ![comparison](plots/tau_sweep_v2_comparison.png)
 
 Bar chart of the held-out eval values per backbone, with
-`backbone-beta_167k` reference as a dashed line. The eval CSV also
-contains an `exp2_residual_silu_tau_0_10` row from a separate Exp-2
-encoder probe which is not part of this τ-sweep and is not plotted.
+`backbone-beta_167k` reference as a dashed line. The plot file was
+generated before the report cleanup and still includes a
+`τ=0.20 v2 (7.8k)` bar from a 7,800-step partial retrain — that bar is
+not part of the canonical sweep and is superseded by the τ=0.20 row in
+the eval table above; see Caveats. The eval CSV also contains an
+`exp2_residual_silu_tau_0_10` row from a separate Exp-2 encoder probe
+which is not part of this τ-sweep and is not plotted.
 
 ### In-training vs held-out gap
 
@@ -163,9 +171,8 @@ something else) was not investigated.
 | tau_sweep_0_10           | 15000     | 7.0414           | 0.9199          | 0.7765            | 0.0939           |
 | tau_sweep_learnable_0_10 | 15000     | 6.9749           | 0.9206          | 0.7745            | 0.0591           |
 
-(τ=0.20 original 15k arm has no per-step trajectory CSV — lost to the
-spot-stop event documented under Caveats. v2's last in-training values
-at step 7,800 were AUC ≈ 0.88, Top-1 ≈ 0.72.)
+(τ=0.20 has no per-step trajectory CSV — lost to the spot-stop event
+documented under Caveats; in-flight retrain will recover it.)
 
 ### The τ=0.10 vs τ=0.20 winner is currently uncertain
 
@@ -174,18 +181,14 @@ The two softer arms come out ahead, but on different evidence:
 - **τ=0.10** dominates the in-training trajectory across the full 15k
   window on AUC, Top-1, and the U-metrics. It also wins U_temporal and
   U_batch on the held-out batch.
-- **τ=0.20 (original 15k)** wins the held-out batch on R²_random,
-  R²_naive, AUC, and Top-1 — but the AUC and Top-1 margins over τ=0.10
-  are ≈0.0023 and ≈0.0021 respectively, well within single-batch
-  noise.
-- The τ=0.20 **v2 7,800-step partial** trails the original τ=0.20 on
-  every metric, consistent with under-training (~52% of the 15k budget)
-  rather than rejection of τ=0.20.
+- **τ=0.20** wins the held-out batch on R²_random, R²_naive, AUC, and
+  Top-1 — but the AUC and Top-1 margins over τ=0.10 are ≈0.0023 and
+  ≈0.0021 respectively, well within single-batch noise.
 
-The currently-in-flight full-15k τ=0.20 v2 retraining is the deciding
-piece. Until it lands, the picked τ for the next backbone is unsettled
-between 0.10 (dominates trajectory) and 0.20 (edges held-out by ~0.002
-AUC / ~0.002 Top-1, with U-metrics going the other way).
+Until the τ=0.20 trajectory plot lands (in-flight retrain), the picked τ
+for the next backbone is unsettled between 0.10 (dominates trajectory)
+and 0.20 (edges held-out by ~0.002 AUC / ~0.002 Top-1, with U-metrics
+going the other way).
 
 The **learnable-τ arm slid from init=0.10 to τ ≈ 0.069**
 (log_inv_tau ≈ 2.671) over 15k steps. Its held-out values land near
@@ -200,27 +203,23 @@ find the soft optimum from above.
 
 ## Caveats
 
-- **τ=0.20 original trajectory CSV lost.** The original vast spot
-  auto-stopped on completion before any sync_loop pulled the per-step
-  losses CSV (a one-shot DONE-marker scp-back was wired up instead).
-  `_FINAL.pth` was preserved (it had been pulled at DONE) so the
-  held-out eval row is authoritative; only the per-step trajectory is
-  missing. Postmortem and the resulting addition to
-  [`REMOTE_LAUNCH_CHECKLIST`](../REMOTE_LAUNCH_CHECKLIST.md) document
-  the fix.
-- **τ=0.20 v2 (first attempt) partial.** Python process died at
-  step 7800 (process absent from `ps`, no traceback in log);
-  `_FINAL.pth` was copied from `_best_loss.pth` (step 7700). The v2
-  row in the eval table is from this partial. v2 trails the original
-  τ=0.20 on every metric, consistent with under-training rather than
-  rejection of τ=0.20 itself. A full 15k τ=0.20 v2 retraining is now
-  in flight.
+- **τ=0.20 trajectory CSV lost.** The original vast spot auto-stopped
+  on completion before any sync_loop pulled the per-step losses CSV
+  (a one-shot DONE-marker scp-back was wired up instead, and only
+  `_FINAL.pth` survived the post-DONE pull). The full-15k backbone
+  snapshot was preserved, so the held-out eval row is from the genuine
+  15,000-step training; only the per-step trajectory is missing. A
+  full-15k retrain (run-name `tau_sweep_0_20_v2`) is currently in
+  flight on elisa GPU 1 to recover the trajectory; it will not change
+  the held-out eval row materially. Operational details in
+  [`EXECUTION_LOG.md`](EXECUTION_LOG.md); the policy fix (sync_loop
+  always-on for short remote runs too) is in
+  [`REMOTE_LAUNCH_CHECKLIST`](../REMOTE_LAUNCH_CHECKLIST.md).
 
 ## Open
 
-- **Pending τ=0.20 v2 full-15k retraining.** Will resolve the held-out
-  τ=0.10 vs τ=0.20 question. Plots and the held-out eval row will be
-  regenerated when it lands.
+- **τ=0.20 trajectory plot.** Will land once the in-flight retrain
+  completes (see Caveats); will not change the held-out eval row.
 - **Proxy MASE per arm.** The
   [`scripts/run_tau_sweep_proxy.sh`](scripts/run_tau_sweep_proxy.sh)
   recipe trains an R3_E4 head on each backbone for downstream
