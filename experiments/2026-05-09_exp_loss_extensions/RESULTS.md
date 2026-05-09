@@ -39,6 +39,8 @@ except loss).
 
 ![AUC and Top-1](plots/4arm_auc_top1.png)
 
+![U_batch and U_temporal](plots/4arm_uniformity.png)
+
 ![Log-log convergence](plots/4arm_logscale.png)
 
 ## Statistical tests on AUC / Top-1 (Welch t, steps 5 001–15 000, n=10 000 each)
