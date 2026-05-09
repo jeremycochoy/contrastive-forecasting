@@ -5,13 +5,14 @@
 Compare AUC and Top-1 of the new `cosine_similarity_batch_square` loss
 against the baseline `cosine_similarity_batch` loss, at τ=0.10 and τ=0.20.
 
-## New loss: cosine_similarity_batch_square
+## What we changed
 
-Adds two cross-batch negative edges on top of `cosine_similarity_batch`:
-**neg_cross_batch_forecast** (forecast embedding of element b vs forecast
-of b′≠b at the same t) and **neg_cross_batch_embedding** (context h_{b,t+1}
-vs h_{b′,t+1}). Together they tile the diagonal that the base loss leaves
-untouched, forming a 2×2 square of negatives instead of a 1×2 rectangle.
+`cosine_similarity_batch_square` adds two cross-batch negative edges on
+top of `cosine_similarity_batch`: **neg_cross_batch_forecast** (forecast
+embedding of element b vs forecast of b′≠b at the same t) and
+**neg_cross_batch_embedding** (context h_{b,t+1} vs h_{b′,t+1}).
+Together they tile the diagonal that the base loss leaves untouched,
+forming a 2×2 square of negatives instead of a 1×2 rectangle.
 
 ## Protocol
 
@@ -26,6 +27,34 @@ untouched, forming a 2×2 square of negatives instead of a 1×2 rectangle.
 Baselines = τ=0.10/τ=0.20 arms from prior tau-sweep (identical hyperparams
 except loss).
 
+## What the AUC / Top-1 curves show
+
+![AUC and Top-1](plots/4arm_auc_top1.png)
+
+All four arms cluster tightly within run-to-run noise. At convergence
+the four curves differ by ≤0.005 on AUC and visually overlap on Top-1 —
+the headline retrieval metrics give no clean separation between the
+square and baseline losses on a linear axis.
+
+## The same data on log-log
+
+![Log-log convergence](plots/4arm_logscale.png)
+
+The log-x view exposes the early-training ramp and confirms the late-
+training band is genuinely narrow rather than just compressed by the
+linear scale. The 4 arms track each other through the whole ramp; no
+arm wins by reaching convergence faster.
+
+## Where the loss change is most visible: uniformity
+
+![U_batch and U_temporal](plots/4arm_uniformity.png)
+
+The square loss systematically lowers both U_batch and U_temporal at
+both τ — the cleanest signal in the experiment. This is the expected
+effect of the extra cross-batch negative edges (less batch-axis
+collapse). Note this is a side metric, not the objective we're
+optimizing for or scoring on.
+
 ## Final-step values (step 15 000)
 
 | Arm | AUC | Top-1 | U_batch | U_temporal |
@@ -34,14 +63,6 @@ except loss).
 | square   τ=0.10 | 0.9209 | 0.7790 | 0.0687 | 0.0346 |
 | baseline τ=0.20 | 0.9205 | 0.7804 | 0.0784 | 0.0376 |
 | square   τ=0.20 | 0.9183 | 0.7765 | 0.0762 | 0.0360 |
-
-## Plots
-
-![AUC and Top-1](plots/4arm_auc_top1.png)
-
-![U_batch and U_temporal](plots/4arm_uniformity.png)
-
-![Log-log convergence](plots/4arm_logscale.png)
 
 ## Statistical tests on AUC / Top-1 (Welch t, steps 5 001–15 000, n=10 000 each)
 
@@ -52,11 +73,9 @@ except loss).
 | baseline τ=0.10 vs baseline τ=0.20 (sanity) | −0.0017 | 2.8e-11 | −0.0038 | 1.7e-19 |
 | square τ=0.10 vs square τ=0.20 | +0.0019 | 9.6e-14 | +0.0023 | 1.4e-08 |
 
-**Caveat:** samples are consecutive training steps from a single run, not
-i.i.d.; effective sample size is much smaller than n, so Welch p-values
-are anti-conservative. Treat as directional, not rigorous.
+**Caveat:** samples are consecutive training steps from a single run, not i.i.d.; effective sample size is much smaller than n, so Welch p-values are anti-conservative. Treat as directional, not rigorous.
 
-## Conclusions
+## Bottom line
 
 - **τ=0.10:** square is statistically indistinguishable from baseline on
   AUC and Top-1 (p=0.62, 0.83) — no regression.
@@ -64,6 +83,6 @@ are anti-conservative. Treat as directional, not rigorous.
   Δ Top-1 −0.0060, p<1e-48).
 - **Best arms by final AUC:** square τ=0.10 (0.9209) ≈ baseline τ=0.20
   (0.9205); the other two trail by ≤0.003.
-- **Side note:** U_batch and U_temporal are lower under square at both τ
-  (see uniformity values in the table) — directional support that the
-  extra edges reduce batch-axis collapse, but not statistically tested.
+- **Side effect:** uniformity (U_batch, U_temporal) is consistently
+  lower under square at both τ — directional support that the extra
+  edges reduce batch-axis collapse, but not the metric we're optimizing.

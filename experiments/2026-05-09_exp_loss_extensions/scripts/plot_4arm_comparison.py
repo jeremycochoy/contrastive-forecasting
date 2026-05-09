@@ -162,7 +162,7 @@ for arm in ARM_ORDER:
 for ax, _col, title, ylim in panels:
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.set_xlim(left=100)
+    ax.set_xlim(left=500)
     ax.set_xlabel("Step (log scale)")
     ax.set_ylabel(title + " (log scale)")
     ax.set_title(title)
