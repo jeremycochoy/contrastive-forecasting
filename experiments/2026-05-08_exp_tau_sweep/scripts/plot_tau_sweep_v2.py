@@ -50,7 +50,7 @@ BETA = dict(r2_random=0.6839, r2_naive=0.6080, u_temporal=0.0375,
             u_batch=0.0762, auc=0.8966, top1=0.7531)
 
 
-def smooth(x, w=400):
+def smooth(x, w):
     if len(x) < w:
         return x
     return np.convolve(x, np.ones(w) / w, mode="valid")
@@ -81,26 +81,29 @@ def main() -> None:
         if t is not None:
             traj[name] = t
 
-    # R² panels pinned to [0, 1] (natural range). AUC / Top-1 panels zoomed
-    # for legibility.
+    # Per-metric ylim zooms; per-metric smoothing window. R² panels zoomed
+    # to the data-relevant range (negative R² is meaningless). AUC / Top-1
+    # use a smaller window (100-step MA) so finer in-training detail is
+    # visible; the heavier-curve metrics (R², U, loss) stay at 400.
+    # (key, title, ylim, beta_ref, smooth_w)
     metrics = [
-        ("r2_random", "R²_random", (0.0, 1.0), BETA["r2_random"]),
-        ("r2_naive",  "R²_naive",  (0.0, 1.0), BETA["r2_naive"]),
-        ("u_temporal", "U_temporal", None,     BETA["u_temporal"]),
-        ("u_batch",   "U_batch",     None,     BETA["u_batch"]),
-        ("auc",       "AUC",        (0.882, 0.910), BETA["auc"]),
-        ("top1",      "Top-1",      (0.72, 0.77),   BETA["top1"]),
+        ("r2_random", "R²_random", (0.60, 0.85), BETA["r2_random"], 400),
+        ("r2_naive",  "R²_naive",  (0.45, 0.80), BETA["r2_naive"],  400),
+        ("u_temporal", "U_temporal", None,       BETA["u_temporal"], 400),
+        ("u_batch",   "U_batch",     None,       BETA["u_batch"],    400),
+        ("auc",       "AUC",        (0.882, 0.910), BETA["auc"],    100),
+        ("top1",      "Top-1",      (0.72, 0.77),   BETA["top1"],   100),
     ]
 
     fig, axs = plt.subplots(2, 3, figsize=(16, 8))
     axs = axs.flatten()
-    for ax, (key, title, ylim, beta_ref) in zip(axs, metrics):
+    for ax, (key, title, ylim, beta_ref, smooth_w) in zip(axs, metrics):
         for label, name, color, _ in ARMS:
             t = traj.get(name)
             if t is None:
                 continue
             arr = t[key]
-            sm = smooth(arr)
+            sm = smooth(arr, smooth_w)
             x = t["step"][len(t["step"]) - len(sm):] if len(sm) > 0 else t["step"]
             ax.plot(x, sm if len(sm) > 0 else arr, color=color,
                     label=label, linewidth=1.6)
@@ -114,7 +117,8 @@ def main() -> None:
         ax.grid(alpha=0.3)
         ax.legend(loc="best", fontsize=7)
     fig.suptitle(
-        "τ-sweep — training trajectories (400-step MA, 6 arms, 15k steps).",
+        "τ-sweep — training trajectories (R² / U: 400-step MA, "
+        "AUC / Top-1: 100-step MA; 6 arms, 15k steps).",
         fontsize=12)
     fig.tight_layout()
     fig.savefig(OUT_TRAJ, dpi=110, bbox_inches="tight")
