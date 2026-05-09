@@ -32,10 +32,10 @@ PLOTS_DIR.mkdir(parents=True, exist_ok=True)
 
 # (display_label, eval_csv_name, color, csv_path)
 ARMS = [
-    ("baseline τ=0.20",
+    ("baseline τ=0.20 v2",
      "tau_sweep_0_20",
      "#1f77b4",
-     REPO / "sync_tau_sweep_arm5_resync/checkpoints/tau_sweep_0_20_losses.csv"),
+     REPO / "sync_tau_sweep_arm5_v2/checkpoints/tau_sweep_0_20_v2_losses.csv"),
     ("Exp 3 +(h_t,f_t) pos",
      "exp3_pos_htft_tau_0_20",
      "#d62728",
