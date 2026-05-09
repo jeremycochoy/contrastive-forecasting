@@ -88,8 +88,15 @@ def main() -> None:
     traj: dict[str, dict] = {}
     for label, name, _color, csv_path in ARMS:
         t = load_traj(csv_path)
-        if t is not None:
-            traj[name] = t
+        if t is None:
+            continue
+        # Clip every arm at step 15,000 — the τ=0.03 arm ran to 23k after
+        # the budget cut, but plotting it past 15k makes the legend / x-axis
+        # harder to read alongside the others. Long-window comparisons live
+        # in `plot_tau_sweep_long.py`.
+        keep = t["step"] <= 15000
+        t = {k: (v[keep] if hasattr(v, "shape") else v) for k, v in t.items()}
+        traj[name] = t
 
     # Per-metric ylim zooms; per-metric smoothing window. R² panels zoomed
     # to the data-relevant range (negative R² is meaningless). AUC / Top-1
