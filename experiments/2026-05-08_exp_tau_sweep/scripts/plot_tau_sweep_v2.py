@@ -128,7 +128,7 @@ def main() -> None:
         ax.legend(loc="best", fontsize=7)
     fig.suptitle(
         "τ-sweep — training trajectories (R² / U: 400-step MA, "
-        "AUC / Top-1: 125-step MA; 6 arms, 15k steps).",
+        "AUC / Top-1: 125-step MA; 15k steps each).",
         fontsize=12)
     fig.tight_layout()
     fig.savefig(OUT_TRAJ, dpi=110, bbox_inches="tight")
