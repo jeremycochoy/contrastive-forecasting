@@ -130,6 +130,60 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         # In the new version, all positives together, all negatives together, cross batch.
         loss = -torch.log(positives / negatives.sum(dim=0, keepdim=True)).mean()
 
+    elif train_config.get('loss_shape') == 'cosine_similarity_batch_add_f_cross_negs':
+        # NON-cumulative variant: identical to `cosine_similarity_batch` except
+        # `negatives` includes an extra f-side cross-(b,c) term at fixed t —
+        # i.e. cos(f_{b,c,t}, f_{b',c',t}) for all (b,c)≠(b',c'). Numerator
+        # (positives) is unchanged: just exp(cos(hy_norm, hy_hat_norm) / tau).
+        # Tests Exp 4's f-cross-bc term on its own, without inheriting Exp 3's
+        # (h_t, f_t) positive (which is a degenerate shortcut for our arch).
+        positives = torch.exp(
+            cosine_similarity_from_normalized(hy_norm, hy_hat_norm) / tau
+        )
+
+        sims_xy = cosine_similarity_from_normalized(hx_norm.unsqueeze(3), hy_norm.unsqueeze(2))
+        neg_xy = torch.exp(sims_xy / tau).sum(dim=2)
+
+        sims_xy_hat = cosine_similarity_from_normalized(hx_norm.unsqueeze(3), hy_hat_norm.unsqueeze(2))
+        neg_xy_hat = torch.exp(sims_xy_hat / tau).sum(dim=2)
+
+        sims_xx = cosine_similarity_from_normalized(hx_norm.unsqueeze(3), hx_norm.unsqueeze(2))
+        mask_mat = ~torch.eye(C, dtype=torch.bool, device=sims_xx.device)
+        mask_mat = mask_mat.view(1, 1, C, C)
+        neg_xx = torch.exp(sims_xx / tau).masked_fill(~mask_mat, 0).sum(dim=2)
+
+        sims_zy = cosine_similarity_from_normalized(hz_hat_norm.unsqueeze(3), hy_hat_norm.unsqueeze(2))
+        neg_zy = torch.exp(sims_zy / tau).sum(dim=2)
+
+        # Cross-batch negatives (h-side): compare across batch dimension
+        hy_norm_exp = hy_norm.unsqueeze(0)  # [1, B, T-1, C, H]
+        hy_hat_norm_exp = hy_hat_norm.unsqueeze(1)  # [B, 1, T-1, C, H]
+
+        sims_cross_batch = cosine_similarity_from_normalized(hy_norm_exp, hy_hat_norm_exp)
+
+        mask_batch = ~torch.eye(B, dtype=torch.bool, device=sims_cross_batch.device)
+        mask_batch = mask_batch.view(B, B, 1, 1)
+
+        neg_cross_batch_exp = torch.exp(sims_cross_batch / tau).masked_fill(~mask_batch, 0)
+        neg_cross_batch = neg_cross_batch_exp.sum(dim=1)
+
+        # NEW (Exp 4 standalone): f-side cross-(b,c) negatives at same time t.
+        # Reshape f at non-final positions to [T-1, B*C, H], compute pairwise
+        # similarity with a single matmul, mask the diagonal, sum over the
+        # second B*C dim, reshape back to [B, T-1, C]. Code ported as-is from
+        # the cumulative variant `cosine_similarity_batch_add_pos_htft_add_f_cross_negs`
+        # (PR #181) — same f-cross-bc term, but added to the cosine_similarity_batch
+        # baseline rather than to Exp 3's predecessor.
+        f_perm = hy_hat_norm.permute(1, 0, 2, 3).reshape(T - 1, B * C, H)
+        sims_ff = torch.matmul(f_perm, f_perm.transpose(-1, -2))                          # [T-1, B*C, B*C]
+        mask_bc = ~torch.eye(B * C, dtype=torch.bool, device=sims_ff.device)
+        mask_bc = mask_bc.view(1, B * C, B * C)
+        neg_f_cross_bc_flat = torch.exp(sims_ff / tau).masked_fill(~mask_bc, 0).sum(dim=2)  # [T-1, B*C]
+        neg_f_cross_bc = neg_f_cross_bc_flat.reshape(T - 1, B, C).permute(1, 0, 2)          # [B, T-1, C]
+
+        negatives = neg_xy + neg_xx + neg_zy + neg_xy_hat + neg_cross_batch + neg_f_cross_bc
+        loss = -torch.log(positives / negatives.sum(dim=0, keepdim=True)).mean()
+
     elif train_config.get('loss_shape') == 'cosine_similarity_batch_add_pos_htft':
         # Same as cosine_similarity_batch, but adds (h_t, f_t) — same-channel,
         # same-time encoder-vs-forecaster — as an *additional* positive pair on
