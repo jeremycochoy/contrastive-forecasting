@@ -128,19 +128,22 @@ small (sub-1% AUC; ~1.5% Top-1).
 
 ### Trajectories
 
+> **Interim refresh (2026-05-09 10:07 BST).** The τ=0.20 v2 retrain
+> finished its 15,000-step trajectory CSV; the plot below now includes
+> the full v2 trace alongside the other 5 arms. Held-out eval against
+> v2 FINAL.pth has not been re-run yet — that is the remaining piece
+> before the next plot refresh.
+
 ![trajectories](plots/tau_sweep_v2_trajectories.png)
 
-6-panel training trajectories (1000-step MA) for the 5 arms whose
-per-step CSV survived: {0.03, 0.05, 0.07, 0.10, learnable_0.10}. AUC
-y-zoom (0.89, 0.91) and Top-1 y-zoom (0.72, 0.76) make arm-to-arm
-separation legible. **τ=0.10 dominates the in-training AUC and Top-1
-trajectory across the full 15k window**, with the learnable arm sitting
-just underneath. AUC trajectories overlap closely; Top-1 separates the
-softer-τ arms (0.10, learnable) above the sharper-τ pack. (The plot
-file also contains a partial-trajectory trace labelled `τ=0.20 v2
-(7.8k)` from a preempted retrain attempt; ignore — it is not part of
-the canonical sweep. The full-15k τ=0.20 trajectory will be added when
-the in-flight retrain lands — see Caveats.)
+6-panel training trajectories (1000-step MA) for all 6 arms: {0.03,
+0.05, 0.07, 0.10, 0.20-v2, learnable_0.10}. AUC y-zoom (0.89, 0.91) and
+Top-1 y-zoom (0.72, 0.76) make arm-to-arm separation legible.
+**τ=0.10 dominates the in-training AUC and Top-1 trajectory across the
+full 15k window**, with the learnable arm sitting just underneath. AUC
+trajectories overlap closely; Top-1 separates the softer-τ arms
+(0.10, learnable) above the sharper-τ pack. The τ=0.20 v2 trace is now
+the full 15k retrain (replacing the previous 7.8k partial).
 
 ### Comparison
 
@@ -171,8 +174,10 @@ something else) was not investigated.
 | tau_sweep_0_10           | 15000     | 7.0414           | 0.9199          | 0.7765            | 0.0939           |
 | tau_sweep_learnable_0_10 | 15000     | 6.9749           | 0.9206          | 0.7745            | 0.0591           |
 
-(τ=0.20 has no per-step trajectory CSV — lost to the spot-stop event
-documented under Caveats; in-flight retrain will recover it.)
+(τ=0.20 in-training row not added here yet — the v2 retrain CSV is now
+available and will populate this table at the next refresh, alongside
+the held-out eval re-run against v2 FINAL.pth; see the trajectory note
+above and Caveats.)
 
 ### The τ=0.10 vs τ=0.20 winner is currently uncertain
 
@@ -203,23 +208,27 @@ find the soft optimum from above.
 
 ## Caveats
 
-- **τ=0.20 trajectory CSV lost.** The original vast spot auto-stopped
-  on completion before any sync_loop pulled the per-step losses CSV
-  (a one-shot DONE-marker scp-back was wired up instead, and only
-  `_FINAL.pth` survived the post-DONE pull). The full-15k backbone
-  snapshot was preserved, so the held-out eval row is from the genuine
-  15,000-step training; only the per-step trajectory is missing. A
-  full-15k retrain (run-name `tau_sweep_0_20_v2`) is currently in
-  flight on elisa GPU 1 to recover the trajectory; it will not change
-  the held-out eval row materially. Operational details in
+- **τ=0.20 trajectory CSV lost from the original Exp 1 run.** The
+  original vast spot auto-stopped on completion before any sync_loop
+  pulled the per-step losses CSV (a one-shot DONE-marker scp-back was
+  wired up instead, and only `_FINAL.pth` survived the post-DONE
+  pull). The full-15k backbone snapshot was preserved, so the held-out
+  eval row is from the genuine 15,000-step training; only the per-step
+  trajectory was missing. A full-15k retrain (run-name
+  `tau_sweep_0_20_v2`) on elisa GPU 1 has now completed (2026-05-09)
+  and recovered the trajectory; the trajectory plot in this report
+  uses that v2 trace. The held-out eval has not yet been re-run
+  against v2 FINAL.pth — pending. Operational details in
   [`EXECUTION_LOG.md`](EXECUTION_LOG.md); the policy fix (sync_loop
   always-on for short remote runs too) is in
   [`REMOTE_LAUNCH_CHECKLIST`](../REMOTE_LAUNCH_CHECKLIST.md).
 
 ## Open
 
-- **τ=0.20 trajectory plot.** Will land once the in-flight retrain
-  completes (see Caveats); will not change the held-out eval row.
+- **τ=0.20 v2 held-out re-eval.** Re-run the held-out batch against
+  `tau_sweep_0_20_v2_FINAL.pth` and refresh the comparison plot + the
+  eval table; expected to land near the existing 15k row (canonical
+  τ=0.20).
 - **Proxy MASE per arm.** The
   [`scripts/run_tau_sweep_proxy.sh`](scripts/run_tau_sweep_proxy.sh)
   recipe trains an R3_E4 head on each backbone for downstream

@@ -2,7 +2,7 @@
 """Extended τ-sweep comparison plot (Exp 1A v2 + Exp 1B learnable_τ).
 
 Adapted from `plot_tau_sweep_comparison.py`. Adds:
-  - τ=0.20 v2 trajectory (from sync_tau_sweep_arm5_v2; 7.8k partial)
+  - τ=0.20 v2 trajectory (from sync_tau_sweep_arm5_v2)
   - τ=learnable init=0.10 trajectory (from sync_tau_sweep_learnable; 15k full)
 
 Drops the original τ=0.20 trajectory (CSV never recovered) and the
@@ -41,7 +41,7 @@ ARMS = [
      SYNC / "tau_sweep_0_07_losses.csv"),
     ("τ=0.10",          "tau_sweep_0_10",            "#d62728",
      SYNC / "tau_sweep_0_10_losses.csv"),
-    ("τ=0.20 v2 (7.8k)","tau_sweep_0_20_v2",         "#ff7f0e",
+    ("τ=0.20 v2",       "tau_sweep_0_20_v2",         "#ff7f0e",
      SYNC_V2 / "tau_sweep_0_20_v2_losses.csv"),
     ("τ=learnable init0.10", "tau_sweep_learnable_0_10", "#17becf",
      SYNC_LEARN / "tau_sweep_learnable_0_10_losses.csv"),
@@ -169,7 +169,7 @@ def main():
         ax.legend(loc="best", fontsize=7)
     fig2.suptitle(
         "τ-sweep extended — training trajectories (1000-step MA). "
-        "6 arms: 0.03/0.05/0.07/0.10/0.20-v2(7.8k partial)/learnable_τ_init0.10.",
+        "6 arms: 0.03/0.05/0.07/0.10/0.20-v2/learnable_τ_init0.10.",
         fontsize=11)
     fig2.tight_layout()
     fig2.savefig(OUT_TRAJ, dpi=110, bbox_inches="tight")

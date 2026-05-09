@@ -1,11 +1,11 @@
 # Loss extensions — Exp 3, Exp 4-only, Exp 5 (verdicts PROVISIONAL)
 
 > **Provisional verdicts.** These verdicts compare loss extensions to the
-> τ=0.20 baseline as it stood at the time of comparison (the original
-> Exp 1 τ=0.20 trajectory CSV retained ~4.3k of its 15k steps locally).
-> A τ=0.20 v2 fresh retraining over the full 15k steps is in flight on
-> elisa; the comparison plots and held-out eval will be re-run against
-> it. The verdicts here may shift.
+> τ=0.20 baseline. The τ=0.20 v2 fresh retraining over the full 15k
+> steps has now completed on elisa, and the trajectory plots in this
+> report use that v2 trace as the baseline. The held-out eval has not
+> been re-run against v2 FINAL.pth yet — once it has, the verdicts
+> below may shift.
 
 τ-sweep Exp 1 picked **τ = 0.20 / gru** as the recipe to extend (R²_random
 = 0.7731 on the held-out batch). This experiment tested three loss-shape
@@ -18,6 +18,9 @@ EWMA RevIN span 128, freq+seas emb dim 3, mixup 0.30). Only
 `--loss-shape` varies:
 
 - **baseline τ=0.20** — `cosine_similarity_batch` (Exp 1 winner).
+  Trajectory CSV: τ=0.20 v2 retrain on elisa, 15,000 rows (the original
+  Exp 1 τ=0.20 CSV was lost to a spot-stop event; v2 is the recovery
+  retrain, and its trajectory now serves as the baseline trace here).
 - **Exp 3** — `cosine_similarity_batch_add_pos_htft` (PR #181 cumulative):
   adds an `(h_t, f_t)` positive on top of the baseline `(h_t, f_{t-1})`
   positive. Run on elisa, 15k steps. Trajectory CSV: 15,000 rows.
@@ -48,6 +51,13 @@ EWMA RevIN span 128, freq+seas emb dim 3, mixup 0.30). Only
 
 ## Trajectory comparison
 
+> **Interim refresh (2026-05-09 10:07 BST).** The τ=0.20 v2 retrain
+> finished its 15,000-step trajectory CSV; the baseline trace below
+> now uses that full v2 trajectory (replacing the previous 4.3k-step
+> partial). Held-out eval against v2 FINAL.pth has not been re-run
+> yet — the black-edged dot at the rightmost step still reflects the
+> earlier eval row, so verdicts remain provisional until that lands.
+
 ![Loss-extension trajectories — tight zoom](plots/loss_extensions_trajectories_tight.png)
 
 Tight zoom (above): AUC (0.86, 0.93), Top-1 (0.70, 0.80). Exp 3 hidden so
@@ -68,20 +78,20 @@ Both plots: 1000-step MA on per-step training-batch metrics.
   0.289 (1k MA); held-out 0.301 vs baseline 0.085; held-out U_temporal
   = 0.253 vs baseline 0.039. Encoder spreads mass across many dimensions
   but that spread doesn't translate into prediction signal.
-- **Exp 4-only** tracks the partial baseline trajectory closely.
-  Last-1k mean AUC = 0.898 (steps 11,901-12,900) vs baseline last-1k
-  AUC = 0.888 (steps 3,301-4,300, the only steps the baseline CSV
-  retained).
+- **Exp 4-only** tracks the baseline trajectory closely. Last-1k mean
+  AUC = 0.898 (steps 11,901-12,900) vs baseline v2 last-1k AUC = 0.899
+  (steps 14,001-15,000).
 - **Exp 5** also tracks baseline closely. Last-1k mean AUC = 0.903,
-  Top-1 = 0.756 (steps 14,001-15,000) — same magnitude as Exp 4-only's
-  last-1k. Held-out AUC delta vs baseline = 0.8961 − 0.8938 = +0.0023,
-  within the ~0.005 noise band we'd expect across runs.
-- **Baseline** trajectory is partial: only 4,300 steps survived locally
-  from the original Exp 1 sync. The trajectory comparison is therefore
-  short-baseline-vs-long-extension. Both Exp 4-only and Exp 5 reach
-  baseline-level held-out metrics by step ~4k and plateau there. **The
-  τ=0.20 v2 fresh retraining (in flight) will replace this partial
-  baseline; verdicts below are pending that comparison.**
+  Top-1 = 0.756 (steps 14,001-15,000) vs baseline v2 last-1k AUC =
+  0.899, Top-1 = 0.750 — same magnitude. Held-out AUC delta vs
+  baseline = 0.8961 − 0.8938 = +0.0023, within the ~0.005 noise band
+  we'd expect across runs (held-out eval not yet re-run against v2
+  FINAL.pth).
+- **Baseline** trajectory now spans the full 15,000 steps (v2 retrain).
+  Both Exp 4-only and Exp 5 reach baseline-level training-batch metrics
+  by step ~4k and plateau there. **Held-out eval against v2 FINAL.pth
+  has not been re-run yet; verdicts below remain pending that
+  comparison.**
 
 ## Provisional verdicts
 
@@ -96,10 +106,12 @@ Both plots: 1000-step MA on per-step training-batch metrics.
   baseline as compared: AUC 0.8902 vs 0.8938 (Δ = −0.0036), Top-1 0.7389
   vs 0.7470 (Δ = −0.0081), R²_random 0.7708 vs 0.7731 (Δ = −0.0023),
   R²_naive 0.7118 vs 0.7256 (Δ = −0.0138). All deltas small and
-  unfavourable. The apparent trajectory advantage (~0.01 AUC) is an
-  artefact of a 12.9k-step extension vs a 4.3k-step baseline trajectory.
-  The held-out eval magnitudes here are within the ~0.005 noise band and
-  could shift either direction once the v2 baseline lands.
+  unfavourable. With the v2 baseline trajectory now in hand, Exp 4-only
+  and baseline overlap at last-1k AUC (0.898 vs 0.899), so the earlier
+  apparent trajectory advantage was an artefact of comparing against a
+  partial baseline. The held-out eval magnitudes are within the ~0.005
+  noise band and could shift either direction once v2 FINAL.pth is
+  re-evaluated.
 - **Exp 5 — PROVISIONAL REJECT (no improvement).** Held-out deltas:
   AUC 0.8961 vs 0.8938 (Δ = +0.0023), Top-1 0.7500 vs 0.7470 (Δ = +0.0030),
   R²_random 0.7687 vs 0.7731 (Δ = −0.0044), R²_naive 0.7218 vs 0.7256
@@ -124,9 +136,11 @@ necessary but not sufficient.
 
 ## Deviations / caveats
 
-- **Baseline trajectory is partial (4,300 / 15,000 steps).** This is the
-  primary reason the verdicts are provisional — see the disclaimer at
-  the top.
+- **Baseline held-out eval re-run against v2 FINAL.pth is pending.**
+  The trajectory plots now use the v2 full 15k baseline trace, but the
+  black-edged held-out dot at step 15k still reflects the earlier eval
+  row. This is the primary reason the verdicts remain provisional —
+  see the disclaimer at the top.
 - **Exp 4-only spot preempted at step 12,900 / 15,000.** We use the
   existing `best_loss.pth` (step 12,800) as FINAL.pth — exactly the
   launcher's end-of-run promotion. Trajectory CSV is 12,900 rows, not
