@@ -163,3 +163,62 @@ class TestAddPosHTFTAddFCrossNegs:
                 'cosine_similarity_batch_add_pos_htft_add_f_cross_negs'))
         assert loss.dim() == 0
         assert torch.isfinite(loss), f"got non-finite loss: {loss}"
+
+
+class TestAddFCrossNegsOnly:
+    """Tests for `cosine_similarity_batch_add_f_cross_negs` (Exp 4 NON-cumulative).
+
+    This variant is identical to `cosine_similarity_batch` except the
+    `negatives` term includes an extra f-side cross-(b,c) term at fixed t.
+    The numerator (positives) is unchanged — does NOT include the (h_t, f_t)
+    positive used by Exp 3 / the cumulative variant.
+    """
+
+    def test_loss_is_finite_scalar(self):
+        f, h = _random_inputs(seed=42)
+        loss = contrastive_latent_loss(
+            (f, h), validation=False,
+            spec=_make_spec('cosine_similarity_batch_add_f_cross_negs'))
+        assert loss.dim() == 0
+        assert torch.isfinite(loss)
+
+    def test_differs_from_baseline(self):
+        """The new f-cross-bc term must change the loss vs the
+        `cosine_similarity_batch` baseline."""
+        f, h = _random_inputs(seed=42)
+        loss_base = contrastive_latent_loss(
+            (f, h), validation=False,
+            spec=_make_spec('cosine_similarity_batch'))
+        loss_new = contrastive_latent_loss(
+            (f, h), validation=False,
+            spec=_make_spec('cosine_similarity_batch_add_f_cross_negs'))
+        assert torch.isfinite(loss_base) and torch.isfinite(loss_new)
+        assert not torch.allclose(loss_base, loss_new), (
+            "new f-cross-bc term should have a measurable effect vs baseline; "
+            f"got base={loss_base.item():.6f} new={loss_new.item():.6f}")
+
+    def test_collinear_f_raises_loss(self):
+        """When all f's are collinear (cos(f_{b,c,t}, f_{b',c',t})=1 for every
+        off-diagonal (b,c) pair at every t), the new neg term shoots up, so the
+        new variant's loss must be strictly higher than the baseline's on the
+        same inputs."""
+        B, T, C, H = 2, 3, 2, 8
+        g = torch.Generator().manual_seed(7)
+        h = torch.randn(B, T, C, H, generator=g)
+        # Build f such that every f[b,t,c,:] points in the SAME direction for
+        # all (b,c) at every t — concretely, copy a single per-t direction
+        # across all (b,c). This guarantees normalized cos = 1 between every
+        # off-diagonal (b,c) pair at every fixed t.
+        per_t_dir = torch.randn(T, H, generator=g)
+        f = per_t_dir.view(1, T, 1, H).expand(B, T, C, H).contiguous()
+
+        loss_base = contrastive_latent_loss(
+            (f, h), validation=False,
+            spec=_make_spec('cosine_similarity_batch'))
+        loss_new = contrastive_latent_loss(
+            (f, h), validation=False,
+            spec=_make_spec('cosine_similarity_batch_add_f_cross_negs'))
+        assert torch.isfinite(loss_base) and torch.isfinite(loss_new)
+        assert loss_new.item() > loss_base.item(), (
+            f"collinear f's should raise loss via new f-cross-bc neg term; "
+            f"got new={loss_new.item():.6f} base={loss_base.item():.6f}")
