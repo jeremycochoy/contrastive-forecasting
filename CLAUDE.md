@@ -2,7 +2,7 @@
 
 ## Project intent
 
-Contrastive-forecasting trains small transformer backbones on time series via contrastive prediction (forecast vs future cosine similarity, with cross-batch and cross-channel negatives). Goal: backbone that beats GIFT-Eval baselines on GM-MASE / GM-MAPE_SN / GM-CRPS_SN.
+Contrastive-forecasting trains small transformer backbones on time series via contrastive prediction (forecast vs future cosine similarity, with cross-batch and cross-channel negatives). Goal: backbone that beats GIFT-Eval baselines on GM-MASE / GM-MAPE_SN / GM-CRPS_SN. Every experiment should maximise *useful information gained* per unit time / compute / $ — before any action, ask "does this increase the information we have, or just rearrange it?".
 
 ## Empirical learnings
 - **Never use grad-clip in this project.** Fix divergence via data / normalization, not clipping.
