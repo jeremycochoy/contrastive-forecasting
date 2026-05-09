@@ -189,19 +189,3 @@ something else) was not investigated.
 (τ=0.20 in-training row not yet added; the trajectory CSV at
 `sync_tau_sweep_arm5_v2/checkpoints/tau_sweep_0_20_v2_losses.csv` can
 populate this table at the next refresh.)
-
-## Open
-
-- **τ=0.30 fixed arm** (in flight on vast DC 5090), **τ=0.50** (queued
-  next on elisa), and **τ=0.80** (queued after). Extend the sweep
-  above 0.20 to test how far the soft-τ improvement on R² / AUC /
-  Top-1 keeps going.
-- **Proxy MASE per arm.** The
-  [`scripts/run_tau_sweep_proxy.sh`](scripts/run_tau_sweep_proxy.sh)
-  recipe trains an R3_E4 head on each backbone for downstream
-  GIFT-Eval; it has not been run yet.
-- **Whether AUC/Top-1/U-metric ranks predict downstream MASE rank**
-  for this set of arms specifically. The proxy correlation analysis at
-  `experiments/2026-05-05_exp_qhead_improvements/results/backbone_proxy_correlation.csv`
-  is over a different set of 5 backbones (n=5, directional ρ);
-  applying its conclusions to this sweep would be extrapolation.
