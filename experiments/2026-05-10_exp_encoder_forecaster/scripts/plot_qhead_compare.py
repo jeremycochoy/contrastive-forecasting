@@ -257,15 +257,21 @@ def main() -> None:
             pieces.append(f"{c}={last_window_mean(arr[c]):.4f}")
         print("[plot] " + ", ".join(pieces))
 
+    # Skip the first 500 steps in BOTH plots: that window is dominated by
+    # the warmup ramp where both arms drop fast on the head's still-random
+    # init, and it visually compresses the post-warmup regime where the
+    # actual gap lives. The log-x lower bound is also snapped here so the
+    # two arms share an identical visible window.
+    XMIN_SKIP = 500
     render_figure(
         ours, ref, metric_cols,
-        logx=False, out_path=OUT_LIN, scale_tag="linear x, log y on loss",
-        xmax=xmax,
+        logx=True, out_path=OUT_LIN, scale_tag="log–log, step ≥ 500",
+        xmax=xmax, xmin_log=XMIN_SKIP,
     )
     render_figure(
         ours, ref, metric_cols,
-        logx=True, out_path=OUT_LOG, scale_tag="log–log",
-        xmax=xmax, xmin_log=first_step,
+        logx=True, out_path=OUT_LOG, scale_tag="log–log, step ≥ 500",
+        xmax=xmax, xmin_log=XMIN_SKIP,
     )
 
 
