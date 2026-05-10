@@ -58,18 +58,18 @@ BASELINE_SEGMENTS = [
 ]
 
 SMOOTH_WINDOW = 200   # rolling-mean window in steps; CSV is logged every step
-X_MIN = 1000          # log-x left edge (cuts early-step transients)
+X_MIN = 5000          # log-x left edge — cuts the early-step rapid descent
 
 # (key, panel title, transform, ylim) — ylim hand-picked to bracket the
-# smoothed range observed in [1000, max_step] for both series with ~20%
-# headroom on a log y-axis.
+# smoothed range observed in [X_MIN, max_step] for both series with
+# headroom on a log y-axis. Re-tighten as the run progresses if needed.
 PANELS = [
-    ("loss",       "loss",                        lambda s: s,        (6.0,  11.0)),
-    ("auc",        "1 − AUC  (lower is better)",  lambda s: 1.0 - s,  (0.08, 0.22)),
-    ("top1",       "1 − Top1  (lower is better)", lambda s: 1.0 - s,  (0.20, 0.55)),
-    ("gap_ratio",  "gap_ratio = (1−ff)/(1−fp)",   lambda s: s,        (0.30, 0.55)),
-    ("u_temporal", "U_temporal",                  lambda s: s,        (5e-3, 7e-2)),
-    ("u_batch",    "U_batch",                     lambda s: s,        (6e-3, 1.5e-1)),
+    ("loss",       "loss",                        lambda s: s,        (6.5,  8.0)),
+    ("auc",        "1 − AUC  (lower is better)",  lambda s: 1.0 - s,  (0.09, 0.13)),
+    ("top1",       "1 − Top1  (lower is better)", lambda s: 1.0 - s,  (0.22, 0.32)),
+    ("gap_ratio",  "gap_ratio = (1−ff)/(1−fp)",   lambda s: s,        (0.38, 0.45)),
+    ("u_temporal", "U_temporal",                  lambda s: s,        (3e-2, 7e-2)),
+    ("u_batch",    "U_batch",                     lambda s: s,        (6e-2, 1.3e-1)),
 ]
 
 
