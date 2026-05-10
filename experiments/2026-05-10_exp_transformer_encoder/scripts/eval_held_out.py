@@ -33,7 +33,7 @@ from src.metrics import (
     dim_usage,
     q_naive_latent,
     q_random,
-    retrieval_auc_top1,
+    retrieval_auc_top1_legacy as retrieval_auc_top1,
 )
 from src.models import ConfigurableModel
 

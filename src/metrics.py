@@ -115,21 +115,18 @@ def u_temporal(z: Tensor, time_axis: int) -> Tensor:
 
 
 @torch.no_grad()
-def retrieval_auc_top1(
+def retrieval_auc_top1_legacy(
     f: Tensor,
     h_full: Tensor,
     lookback_lags: tuple[int, ...] = (1, 2, 4, 8),
 ) -> tuple[Tensor, Tensor]:
-    """Retrieval AUC + Top-1 against past-window TEMPORAL-ONLY negatives.
+    """LEGACY: AUC + Top-1 against TEMPORAL-ONLY negatives, kept for
+    historical-CSV reproduction only.
 
-    ⚠ Shortcut alert: this metric only tests same-sample, same-channel,
-    recent-past negatives. A backbone that learned an implicit position
-    counter (e.g. via causal-attention depth) aces it without encoding
-    forecasting content — see
-    ``experiments/2026-05-10_exp_encoder_forecaster_failed/REPORT.md``.
-    Prefer :func:`retrieval_auc_topk_batch_temporal` for new evaluations,
-    which adds cross-batch negatives so positional counting alone can't
-    solve it.
+    New eval pipelines must use :func:`retrieval_auc_topk` instead.
+    This variant only tests same-sample, same-channel, recent-past
+    negatives, which a causal-attention position counter aces without
+    encoding forecasting content.
 
     For each query (b, t, c) with t >= max(lookback_lags):
         positive  = h_full[b, t+1, c, :]
@@ -173,7 +170,7 @@ def retrieval_auc_top1(
 
 
 @torch.no_grad()
-def retrieval_auc_topk_batch_temporal(
+def retrieval_auc_topk(
     f: Tensor,
     h_full: Tensor,
     lookback_lags: tuple[int, ...] = (1, 2, 4, 8),
@@ -183,14 +180,14 @@ def retrieval_auc_topk_batch_temporal(
 ) -> dict[str, Tensor]:
     """Retrieval AUC + top-k against TEMPORAL **AND** BATCH negatives.
 
-    Designed to detect (and reject) the positional-counting shortcut
-    that ``retrieval_auc_top1`` is blind to. The shortcut: a causal
-    encoder can learn an implicit position counter via attention depth
-    that distinguishes "next time step" from "recent past time steps"
-    inside a single window without encoding content. Adding negatives
-    drawn from *other batch samples* at the positive time step forces
-    the model to also distinguish between different time series, not
-    just different time positions — something a pure counter cannot do.
+    The default retrieval metric for contrastive-backbone diagnostics.
+    A causal encoder can learn an implicit position counter via
+    attention depth that distinguishes "next time step" from "recent
+    past time steps" inside a single window without encoding content.
+    Adding negatives drawn from *other batch samples* at the positive
+    time step forces the model to also distinguish between different
+    time series, not just different time positions — something a pure
+    counter cannot do.
 
     Negatives per query (b, t, c) with t ≥ max(lookback_lags):
         positive       = h_full[b, t+1, c, :]
@@ -214,7 +211,7 @@ def retrieval_auc_topk_batch_temporal(
     Args:
         f: ``(B, T, C, H)``.
         h_full: ``(B, T+1, C, H)`` — must include position t+1.
-        lookback_lags: same as ``retrieval_auc_top1``.
+        lookback_lags: lags k for past-window negatives.
         n_batch_negs: number of cross-batch negatives per query. Clamped
             to ``B - 1``.
         top_k: which top-k cutoffs to compute. Default ``(1, 3)``.
@@ -228,7 +225,7 @@ def retrieval_auc_topk_batch_temporal(
     """
     B, T, C, H = f.shape
     assert C == 1, (
-        f"retrieval_auc_topk_batch_temporal: got C={C}; only C=1 implemented. "
+        f"retrieval_auc_topk: got C={C}; only C=1 implemented. "
         "Proper cross-channel negatives need sampling other channels at the "
         "same (b, t) — implement when the backbone supports multi-channel."
     )
@@ -244,7 +241,7 @@ def retrieval_auc_topk_batch_temporal(
     pos = h_full[:, max_lag + 1:T + 1, :, :]             # (B, T_v, C, H)
     sim_pos = F.cosine_similarity(f_v, pos, dim=-1)      # (B, T_v, C)
 
-    # Temporal negatives (identical to retrieval_auc_top1).
+    # Temporal negatives.
     sims_neg_t = []
     for k in lookback_lags:
         neg = h_full[:, max_lag - k:T - k, :, :]
