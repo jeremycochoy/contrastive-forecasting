@@ -1,8 +1,8 @@
 # encoder-forecaster v2 — dropkey + new metric + full budget
 
-Same backbone as `2026-05-10_exp_encoder_forecaster_failed` (PR #270); apply the three landed fixes and run to budget.
+GRU patch encoder → 6L causal xfmr encoder → 6L causal forecaster, all HPs identical to the τ=0.10 baseline arm (`experiments/2026-05-08_exp_tau_sweep/` τ=0.10), plus:
 
-- backbone: `--encoder-dropkey 0.7 --total-steps 50000 --amp-dtype bf16`; all other HPs unchanged.
-- q-head: R9_E13 recipe + `--amp-dtype bf16` (PR #264), 30k steps.
-- gate on `auc_bt` from `retrieval_auc_topk_batch_temporal` (PR #272), not legacy `auc`.
+- backbone: `--num-encoder-layers 6 --encoder-dropkey 0.7 --total-steps 50000 --amp-dtype bf16`.
+- q-head: R9_E13 recipe + `--amp-dtype bf16`, 30k steps.
+- gate on `auc_bt` from `retrieval_auc_topk_batch_temporal`, not legacy `auc`.
 - triage gate: GM-Relative MASE < 1.0 → full GIFT-Eval; else stop.
