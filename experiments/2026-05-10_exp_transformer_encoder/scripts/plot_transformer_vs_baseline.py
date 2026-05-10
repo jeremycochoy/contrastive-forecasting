@@ -1,19 +1,27 @@
 #!/usr/bin/env python3
 """Trajectory plot — transformer-encoder run vs τ=0.10 GRU baseline.
 
-5 panels, log/log axes (per user request):
-  loss · 1-AUC · gap_ratio · U_temporal · U_batch
+6 panels in a 2×3 grid, log/log axes:
+  row 0:  loss        · 1-AUC          · 1-Top1
+  row 1:  gap_ratio   · U_temporal     · U_batch
 
-`gap = ff - fp` is intentionally excluded (it's not informative when ff and
-fp can drift up/down together with the same gap). `gap_ratio = (1-ff)/(1-fp)`
-is plotted instead — added as a CSV column on this run, so the baseline
-line is missing from that panel.
+AUC and Top-1 are plotted as `1 − x` on a log y-axis so improvements
+move the curve down and the near-1 region isn't squashed.
+
+`gap = ff - fp` is intentionally excluded (it's not informative when ff
+and fp can drift up/down together with the same gap). `gap_ratio =
+(1-ff)/(1-fp)` is plotted instead — added as a CSV column on this run,
+so the baseline line is missing from that panel.
 
 Baseline trajectory is concatenated from the three segments that cover
 0..50k (original 15k from-scratch + 50k continuation that got preempted
 mid-way + r2 re-provision after preempt). Duplicates by step kept as the
 later segment's value. Truncated to the current run's max step so both
 curves share the same x range.
+
+x-axis starts at step 1000 (early-step transients dominate y-range).
+y-axis per panel is hand-picked to bracket the smoothed (window=200)
+data observed after step 1000 with ~20% headroom.
 
 Output: experiments/2026-05-10_exp_transformer_encoder/plots/
         transformer_vs_baseline_loglog.png
@@ -50,14 +58,18 @@ BASELINE_SEGMENTS = [
 ]
 
 SMOOTH_WINDOW = 200   # rolling-mean window in steps; CSV is logged every step
+X_MIN = 1000          # log-x left edge (cuts early-step transients)
 
+# (key, panel title, transform, ylim) — ylim hand-picked to bracket the
+# smoothed range observed in [1000, max_step] for both series with ~20%
+# headroom on a log y-axis.
 PANELS = [
-    # (key, panel title, transform)
-    ("loss",       "loss",                        lambda s: s),
-    ("auc",        "1 − AUC  (lower is better)",  lambda s: 1.0 - s),
-    ("gap_ratio",  "gap_ratio = (1−ff)/(1−fp)",   lambda s: s),
-    ("u_temporal", "U_temporal",                  lambda s: s),
-    ("u_batch",    "U_batch",                     lambda s: s),
+    ("loss",       "loss",                        lambda s: s,        (6.0,  11.0)),
+    ("auc",        "1 − AUC  (lower is better)",  lambda s: 1.0 - s,  (0.08, 0.22)),
+    ("top1",       "1 − Top1  (lower is better)", lambda s: 1.0 - s,  (0.20, 0.55)),
+    ("gap_ratio",  "gap_ratio = (1−ff)/(1−fp)",   lambda s: s,        (0.30, 0.55)),
+    ("u_temporal", "U_temporal",                  lambda s: s,        (5e-3, 7e-2)),
+    ("u_batch",    "U_batch",                     lambda s: s,        (6e-3, 1.5e-1)),
 ]
 
 
@@ -93,7 +105,7 @@ def main() -> None:
     fig, axes = plt.subplots(2, 3, figsize=(15, 8), constrained_layout=True)
     axes = axes.flatten()
 
-    for ax, (key, title, transform) in zip(axes, PANELS):
+    for ax, (key, title, transform, ylim) in zip(axes, PANELS):
         if key in baseline.columns:
             ax.plot(baseline["step"],
                     smooth(transform(baseline[key]), SMOOTH_WINDOW),
@@ -106,17 +118,18 @@ def main() -> None:
                     linewidth=1.5)
         ax.set_xscale("log")
         ax.set_yscale("log")
+        ax.set_xlim(left=X_MIN, right=max_step)
+        ax.set_ylim(*ylim)
         ax.set_xlabel("step (log)")
         ax.set_title(title)
         ax.grid(True, which="both", linestyle=":", alpha=0.3)
-        if key == "loss" or key == "auc":
+        if key == "loss":
             ax.legend(fontsize=8, loc="best")
-
-    axes[-1].axis("off")  # 6th panel unused
 
     fig.suptitle(
         f"transformer-encoder τ=0.10 vs GRU τ=0.10 baseline · "
-        f"smoothed (window={SMOOTH_WINDOW} steps) · log/log",
+        f"smoothed (window={SMOOTH_WINDOW} steps) · log/log · "
+        f"x≥{X_MIN}",
         fontsize=11)
 
     os.makedirs(os.path.dirname(OUT_PATH), exist_ok=True)
