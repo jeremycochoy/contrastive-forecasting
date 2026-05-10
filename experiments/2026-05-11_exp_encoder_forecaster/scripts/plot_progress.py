@@ -5,15 +5,21 @@ Reads per-step training-batch metrics from the losses CSVs and renders a
 2x3 panel of trajectories smoothed with a moving average:
 
     loss                 |  U_temporal              |  U_batch
-    1 - per-batch AUC    |  1 - per-batch top-1     |  1 - error-gap-closure
+    1 - AUC              |  1 - top-1               |  1 - top-3
+
+`auc` / `top1` / `top3` are the canonical retrieval metrics: positive at
+lag 0 ranked against 12 negatives (4 same-sample temporal lags
+{1,2,4,8} + 8 cross-batch at the positive time). The baseline τ=0.10
+CSVs predate top-3 (only `auc` + `top1` were logged at the time), so
+the 1-top3 panel shows only the new arm.
 
 Two PNGs are produced in one call:
 
     plots/progress.png        — log-x on all panels; log-y on
-                                loss / 1-AUC / 1-top1 / 1-egc
+                                loss / 1-AUC / 1-top1 / 1-top3
     plots/progress_linear.png — same panels, linear x; linear y for
                                 loss / U_temporal / U_batch; the AUC /
-                                top-1 / egc panels still show `1-metric`
+                                top-1 / top-3 panels still show `1-metric`
                                 (linear y) so small residuals near 1 are
                                 visible.
 
@@ -85,7 +91,7 @@ ARMS = [
      False),
 ]
 
-COLS = ("loss", "ff", "fp", "u_temporal", "u_batch", "auc", "top1")
+COLS = ("loss", "ff", "fp", "u_temporal", "u_batch", "auc", "top1", "top3")
 
 
 def smooth(x: np.ndarray, w: int) -> np.ndarray:
@@ -170,24 +176,32 @@ def plot_panel(ax, traj_by_label, *, key, ylabel, panel_title,
     for (label, color, ls, lw, _path, _ref), arm in traj_by_label:
         if arm is None:
             continue
-        n = len(arm["step"])
+        # Truncate the trajectory to the visible x-window FIRST, then
+        # smooth. Otherwise the long baseline (150k rows) gets a huge
+        # smoothing window (1000) and its first plottable point is step
+        # 1000 — invisible when the new arm is still under 1000 steps.
+        # Clip-then-smooth gives both arms comparable effective windows
+        # within the visible range.
+        in_arm = (arm["step"] >= xmin) & (arm["step"] <= xmax)
+        if not in_arm.any():
+            continue
+        steps_clip = arm["step"][in_arm]
+        y_clip = arm[key][in_arm]
+        n = len(steps_clip)
+        # Smoothing window proportional to the *visible* trajectory.
         w = max(20, min(1000, n // 40))
-        y = arm[key]
-        y = transform(y) if transform is not None else y
+        y = transform(y_clip) if transform is not None else y_clip
         if logy and transform is not None:
             mask = np.isfinite(y) & (y > 0)
         else:
             mask = np.isfinite(y)
         if not mask.any():
             continue
-        x_steps = arm["step"][mask]
+        x_steps = steps_clip[mask]
         y = y[mask]
         x_sm, y_sm = _aligned_smooth(x_steps, y, w)
-        in_win = (x_sm >= xmin) & (x_sm <= xmax)
-        if not in_win.any():
-            continue
-        ax.plot(x_sm[in_win], y_sm[in_win], color=color, linestyle=ls,
-                linewidth=lw, label=label)
+        ax.plot(x_sm, y_sm, color=color, linestyle=ls, linewidth=lw,
+                label=label)
     if logx:
         ax.set_xscale("log")
     if logy:
@@ -206,7 +220,7 @@ def render_figure(traj, *, logx, logy_metrics, out_path, scale_tag, xmax,
 
     fig, axes = plt.subplots(2, 3, figsize=(16, 9))
     ax_loss, ax_ut, ax_ub = axes[0]
-    ax_auc, ax_top1, ax_egc = axes[1]
+    ax_auc, ax_top1, ax_top3 = axes[1]
 
     plot_panel(ax_loss, traj, key="loss",
                ylabel="loss" + ("  (log-y)" if "loss" in logy_metrics else ""),
@@ -222,18 +236,18 @@ def render_figure(traj, *, logx, logy_metrics, out_path, scale_tag, xmax,
                transform=None, logy=False, logx=logx, xlim=xlim)
     plot_panel(ax_auc, traj, key="auc",
                ylabel="1 − AUC  (lower = better)",
-               panel_title="1 − AUC (per-batch retrieval)",
+               panel_title="1 − AUC (12-neg retrieval: 4 temporal + 8 cross-batch)",
                transform=lambda y: 1.0 - y, logy="auc" in logy_metrics,
                logx=logx, xlim=xlim)
     plot_panel(ax_top1, traj, key="top1",
                ylabel="1 − top-1  (lower = better)",
-               panel_title="1 − top-1 (per-batch retrieval)",
+               panel_title="1 − top-1 (same 12-neg retrieval)",
                transform=lambda y: 1.0 - y, logy="top1" in logy_metrics,
                logx=logx, xlim=xlim)
-    plot_panel(ax_egc, traj, key="egc",
-               ylabel="1 − egc  (lower = better)",
-               panel_title="1 − error-gap-closure",
-               transform=lambda y: 1.0 - y, logy="egc" in logy_metrics,
+    plot_panel(ax_top3, traj, key="top3",
+               ylabel="1 − top-3  (lower = better)",
+               panel_title="1 − top-3 (same 12-neg retrieval; baseline lacks top-3)",
+               transform=lambda y: 1.0 - y, logy="top3" in logy_metrics,
                logx=logx, xlim=xlim)
 
     handles, labels = ax_loss.get_legend_handles_labels()
@@ -243,8 +257,8 @@ def render_figure(traj, *, logx, logy_metrics, out_path, scale_tag, xmax,
                    bbox_to_anchor=(0.5, 0.985))
 
     fig.suptitle(
-        f"encoder+forecaster v2 (dropkey=0.7, ≈{xmax - 500:,} steps) "
-        f"vs τ=0.10 baseline (clipped to ≈{xmax - 500:,}) ({scale_tag})",
+        f"encoder+forecaster v2 (dropkey=0.7, {xmax:,} steps) "
+        f"vs τ=0.10 baseline (clipped to {xmax:,}) ({scale_tag})",
         fontsize=12, y=1.02)
     fig.tight_layout(rect=(0, 0, 1, 0.96))
     fig.savefig(out_path, dpi=110, bbox_inches="tight")
@@ -261,18 +275,26 @@ def main() -> None:
         raise SystemExit("baseline chunks all missing or empty")
     new_arm_max = int(new_arm["step"].max())
     baseline_max = int(baseline["step"].max())
-    max_step = min(new_arm_max, baseline_max)
-    xmax = max_step + 500
+    # Right edge = the new arm's most recent step. Baseline is clipped to
+    # the same window before smoothing so both curves end at the same x.
+    xmax = min(new_arm_max, baseline_max)
 
-    def _first_smoothed_step(steps_arr: np.ndarray) -> int:
-        n = len(steps_arr)
+    # Log-x lower bound: snap to the smaller of the two arms' first
+    # smoothed point inside the visible window, so the [1..first_step]
+    # decade isn't wasted whitespace. Smoothing window is computed on
+    # the truncated trajectory (matching plot_panel).
+    def _first_smoothed_step_clipped(steps_arr: np.ndarray, x_hi: int) -> int:
+        clip = steps_arr[(steps_arr >= 1) & (steps_arr <= x_hi)]
+        n = len(clip)
+        if n == 0:
+            return 1
         w = max(20, min(1000, n // 40))
         idx = min(n - 1, max(0, w - 1))
-        return int(steps_arr[idx])
+        return int(clip[idx])
     first_step = max(
         1,
-        min(_first_smoothed_step(new_arm["step"]),
-            _first_smoothed_step(baseline["step"])),
+        min(_first_smoothed_step_clipped(new_arm["step"], xmax),
+            _first_smoothed_step_clipped(baseline["step"], xmax)),
     )
 
     traj = []
@@ -291,13 +313,13 @@ def main() -> None:
                   f"u_b={last_window_mean(d['u_batch']):.3f} "
                   f"auc={last_window_mean(d['auc']):.4f} "
                   f"top1={last_window_mean(d['top1']):.4f} "
-                  f"egc={last_window_mean(d['egc']):.3f}")
+                  f"top3={last_window_mean(d['top3']):.4f}")
 
     print(f"[plot] new-arm max = {new_arm_max}, baseline max = {baseline_max}; "
-          f"clipped to min = {max_step}; xlim upper = {xmax}")
+          f"xmax = min = {xmax}")
 
     render_figure(traj, logx=True,
-                  logy_metrics={"loss", "auc", "top1", "egc"},
+                  logy_metrics={"loss", "auc", "top1", "top3"},
                   out_path=OUT_LOG, scale_tag="log–log",
                   xmax=xmax, xmin_log=first_step)
 
