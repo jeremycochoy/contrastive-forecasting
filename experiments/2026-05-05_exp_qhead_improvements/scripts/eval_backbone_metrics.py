@@ -35,7 +35,7 @@ from src.metrics import (
     q_random,
     q_naive_latent,
     dim_usage,
-    retrieval_auc_top1,
+    retrieval_auc_top1_legacy as retrieval_auc_top1,
 )
 
 

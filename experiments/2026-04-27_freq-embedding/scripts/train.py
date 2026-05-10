@@ -46,7 +46,7 @@ from src.metrics import (
     q_random,
     q_naive_latent,
     dim_usage,
-    retrieval_auc_top1,
+    retrieval_auc_topk,
 )
 
 # -- Tiny architecture (identical to v3c) -----------------------------------
@@ -381,13 +381,13 @@ class CSVLogger:
             # post-hoc proxy CSV in 2026-05-05_exp_qhead_improvements so the
             # two can merge cleanly on column name).
             header += ["r2_random", "r2_naive", "u_temporal", "u_batch",
-                       "auc", "top1"]
+                       "auc", "top1", "top3"]
             self._writer.writerow(header)
             self._file.flush()
 
     def log(self, step, loss, gap, gap_ratio, ff, fp, tp, cross_batch,
             hf_rows_consumed, synth_rows_consumed, mixup_applied,
-            r2_random, r2_naive, u_temporal, u_batch, auc, top1,
+            r2_random, r2_naive, u_temporal, u_batch, auc, top1, top3,
             loss_tau_ref=None):
         row = [step, loss]
         if self.tau_ref_column:
@@ -397,7 +397,7 @@ class CSVLogger:
             row.append(loss if loss_tau_ref is None else loss_tau_ref)
         row += [gap, gap_ratio, ff, fp, tp, cross_batch,
                 hf_rows_consumed, synth_rows_consumed, int(mixup_applied)]
-        row += [r2_random, r2_naive, u_temporal, u_batch, auc, top1]
+        row += [r2_random, r2_naive, u_temporal, u_batch, auc, top1, top3]
         self._buffer.append(row)
         if len(self._buffer) >= self.flush_every:
             self.flush()
@@ -703,11 +703,12 @@ def main():
                 o_det[:, :T_lat - 1]).item()
             u_t = dim_usage(o_det, axis=1).item()
             u_b = dim_usage(o_det, axis=0).item()
-            auc_t, top1_t = retrieval_auc_top1(f_det[:, :T_lat - 1], o_det)
+            ret = retrieval_auc_topk(f_det[:, :T_lat - 1], o_det)
             r2_random_val = 1.0 - q_r
             r2_naive_val = 1.0 - q_n
-            auc_val = auc_t.item()
-            top1_val = top1_t.item()
+            auc_val = ret["auc"].item()
+            top1_val = ret["top1"].item()
+            top3_val = ret["top3"].item()
         gap_val = val_ff - val_fp
         # (1 - ff) / (1 - fp). Lower is better: ff -> 1 makes the numerator
         # vanish, fp -> 0 pushes the denominator toward 1. Clamp denominator
@@ -725,7 +726,8 @@ def main():
         csv_logger.log(step, loss_val, gap_val, gap_ratio_val, val_ff, val_fp,
                        val_tp, val_cb, hf_rows_consumed, synth_rows_consumed,
                        mixup_applied,
-                       r2_random_val, r2_naive_val, u_t, u_b, auc_val, top1_val,
+                       r2_random_val, r2_naive_val, u_t, u_b,
+                       auc_val, top1_val, top3_val,
                        loss_tau_ref=loss_tau_ref_val)
 
         if step % args.log_every == 0:

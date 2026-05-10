@@ -37,8 +37,7 @@ from src.metrics import (
     dim_usage,
     q_naive_latent,
     q_random,
-    retrieval_auc_top1,
-    retrieval_auc_topk_batch_temporal,
+    retrieval_auc_topk,
 )
 from src.models import ConfigurableModel
 
@@ -113,11 +112,7 @@ LOSS_BACKBONES: list[tuple[str, str, str, str]] = [
 ]
 
 METRIC_KEYS = ["r2_random", "r2_naive", "u_temporal", "u_batch",
-               "auc", "top1",
-               # Cross-batch-aware variants (added after the encoder-forecaster
-               # post-mortem; auc/top1 above use temporal negatives only and are
-               # blind to a positional-counter shortcut).
-               "auc_bt", "top1_bt", "top3_bt"]
+               "auc", "top1", "top3"]
 
 TAU_COLUMNS = (
     ["name", "tau", "encoder_type"]
@@ -266,10 +261,7 @@ def eval_one_sample(bb, H, x_dev, freq_ids, seas_ids) -> dict:
     q_n = q_naive_latent(f[:, :T - 1], h[:, 1:T], h[:, :T - 1]).item()
     u_temp = dim_usage(h, axis=1).item()
     u_batch_v = dim_usage(h, axis=0).item()
-    auc, top1 = retrieval_auc_top1(f[:, :T - 1], h[:, :T])
-    # New metric: time + batch negatives, with top-3 alongside top-1.
-    # Detects positional-counting shortcut (see encoder-forecaster_failed REPORT).
-    batch_out = retrieval_auc_topk_batch_temporal(
+    ret = retrieval_auc_topk(
         f[:, :T - 1], h[:, :T],
         lookback_lags=(1, 2, 4, 8),
         n_batch_negs=8,
@@ -280,11 +272,9 @@ def eval_one_sample(bb, H, x_dev, freq_ids, seas_ids) -> dict:
         r2_naive=1.0 - q_n,
         u_temporal=u_temp,
         u_batch=u_batch_v,
-        auc=auc.item(),
-        top1=top1.item(),
-        auc_bt=batch_out["auc"].item(),
-        top1_bt=batch_out["top1"].item(),
-        top3_bt=batch_out["top3"].item(),
+        auc=ret["auc"].item(),
+        top1=ret["top1"].item(),
+        top3=ret["top3"].item(),
     )
 
 
