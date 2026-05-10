@@ -39,6 +39,12 @@ from src.correlation import correlation_to_pairs
 class JointCorrelationHead(nn.Module):
     """Wraps a Linear(C·H → H) projection in front of the V5 GRUCorrelationHead.
 
+    NOTE: this collapses the channel dim with a sample-independent linear map
+    BEFORE the GRU sees the sequence. A linear projection cannot compute
+    second-order cross-channel statistics (h^c1 · h^c2), which is exactly the
+    information per-sample correlation lives in. Kept for the V7 baseline;
+    use `JointCorrelationHeadDirect` instead.
+
     Input  : h_hat from `ConfigurableModel.forward` shaped [B, T, C, H].
     Output : [B, K(K-1)/2] pairwise correlations.
     """
@@ -58,6 +64,54 @@ class JointCorrelationHead(nn.Module):
         flat = h_hat.flatten(2)             # [B, T, C*H]
         x = self.input_proj(flat)           # [B, T, H]
         return self.head(x)
+
+
+class JointCorrelationHeadDirect(nn.Module):
+    """GRU sees [B, T, C·H] directly (input_size = C·H), no projection ahead.
+
+    The bidirectional GRU's internal gates are nonlinear in the input
+    sequence, so over time the hidden state can accumulate quadratic
+    cross-channel statistics — which is what per-sample correlation lives
+    in. The Linear-projection head (V5 / `JointCorrelationHead`) cannot
+    because a sample-independent linear map across channels destroys
+    second-order cross-channel structure.
+    """
+
+    def __init__(self, H: int = 1024, K: int = 4, hidden_dim: int = 128,
+                 num_gru_layers: int = 2, dropout: float = 0.1,
+                 init_bias: float = 0.45):
+        super().__init__()
+        self.K = K
+        self.num_pairs = K * (K - 1) // 2
+        self.gru = nn.GRU(
+            input_size=K * H,
+            hidden_size=hidden_dim,
+            num_layers=num_gru_layers,
+            batch_first=True,
+            dropout=dropout if num_gru_layers > 1 else 0.0,
+            bidirectional=True,
+        )
+        gru_out = hidden_dim * 2
+        self.output_layers = nn.Sequential(
+            nn.Linear(gru_out, hidden_dim),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.GELU(),
+            nn.Dropout(dropout),
+        )
+        self.out = nn.Linear(hidden_dim, self.num_pairs)
+        with torch.no_grad():
+            self.out.bias.fill_(float(init_bias))
+            self.out.weight.mul_(0.1)
+
+    def forward(self, h_hat: torch.Tensor) -> torch.Tensor:
+        """h_hat: [B, T, C, H] → [B, num_pairs] in [0, 1]."""
+        flat = h_hat.flatten(2)              # [B, T, C*H]
+        gru_out, _ = self.gru(flat)          # [B, T, hidden*2]
+        pooled = gru_out.mean(dim=1)         # [B, hidden*2]
+        feat = self.output_layers(pooled)    # [B, hidden]
+        return self.out(feat).clamp(0.0, 1.0)
 
 
 def extract_h_hat(model, x):
@@ -191,6 +245,9 @@ def main():
     p.add_argument("--T-raw", type=int, default=4096)
     p.add_argument("--lr", type=float, default=3e-4)
     p.add_argument("--head-path", type=str, default="armacorr_head_corr.pth")
+    p.add_argument("--head-kind", type=str, default="direct",
+                   choices=["projected", "direct"],
+                   help="projected: V5 Linear(C*H→H)+GRU. direct: GRU sees [B,T,C*H].")
     p.add_argument("--evaluate", action="store_true")
     p.add_argument("--eval-samples", type=int, default=400)
     p.add_argument("--log-every", type=int, default=100)
@@ -214,11 +271,16 @@ def main():
         q.requires_grad = False
 
     K = args.C
-    head = JointCorrelationHead(
-        H=args.H, K=K, hidden_dim=args.hidden_dim, num_gru_layers=args.num_gru_layers,
-    ).to(device)
+    if args.head_kind == "projected":
+        head = JointCorrelationHead(
+            H=args.H, K=K, hidden_dim=args.hidden_dim, num_gru_layers=args.num_gru_layers,
+        ).to(device)
+    else:
+        head = JointCorrelationHeadDirect(
+            H=args.H, K=K, hidden_dim=args.hidden_dim, num_gru_layers=args.num_gru_layers,
+        ).to(device)
     n_params = sum(q.numel() for q in head.parameters() if q.requires_grad)
-    print(f"Correlation head: GRU h={args.hidden_dim}, params={n_params:,}")
+    print(f"Correlation head ({args.head_kind}): GRU h={args.hidden_dim}, params={n_params:,}")
 
     if args.evaluate:
         best = args.head_path.replace(".pth", "_best.pth")
