@@ -12,8 +12,8 @@ materially.
 ## Protocol
 
 **Sweep design.** Ten from-scratch arms (plus a second τ=0.20 retrain
-for reproducibility), identical architecture and
-hyperparameters except for τ:
+for reproducibility), identical architecture and hyperparameters
+except for τ:
 
 | arm                          | τ                    | rationale                              |
 |------------------------------|----------------------|----------------------------------------|
@@ -47,26 +47,16 @@ B=256, AdamW lr=1e-3, 15,000 steps per arm.
 (B=256 each, model.eval()) by
 [`scripts/eval_multisample.py`](scripts/eval_multisample.py), writing
 [`results/tau_sweep_metrics_multisample.csv`](results/tau_sweep_metrics_multisample.csv).
-SEM (precision of the mean) = stdev/√50. `backbone-beta_167k` is shown
-as a single-batch reference only, not an arm.
+SEM = stdev/√50. `backbone-beta_167k` is shown as a single-batch
+reference, not an arm.
 
 ## What we learned
 
-### Trajectories
+### Trajectories (15k)
 
 ![trajectories](plots/tau_sweep_v2_trajectories.png)
 
-In-training AUC and Top-1 trajectories cluster the **softer-τ arms
-(0.10, learnable, 0.20)** above the sharper-τ pack across the full 15k
-window. R²_random / R²_naive trajectories rise monotonically with τ —
-τ=0.80 at the top, τ=0.50 below, τ=0.30 below, τ=0.20 below.
-
 ![auc-top1-zoom](plots/tau_sweep_v2_auc_top1_loglog.png)
-
-AUC / Top-1 zoom (log/log, x∈[5k, 15k], 260-step MA — same y-windows
-as the panel above). The softer-τ cluster (0.10, learnable_0.10,
-learnable_0.20, 0.20) is visibly above the sharper / very-soft-τ pack,
-with τ=0.20 leading.
 
 ### Held-out eval (mean ± stdev, N=50 disjoint batches)
 
@@ -89,46 +79,37 @@ with τ=0.20 leading.
 backbone-β_167k single-batch reference: R² 0.6839 / 0.6080,
 U 0.0375 / 0.0762, AUC 0.8966, Top-1 0.7531.
 
-### Per-metric winner (across all 11 evals)
+### Per-metric winner
 
-| metric     | winner    | value             | runner-up               |
-|------------|-----------|-------------------|-------------------------|
-| R²_random  | τ=0.80    | 0.8895 ± 0.0048   | τ=0.50 (0.8646)         |
-| R²_naive   | τ=0.80    | 0.8516 ± 0.0063   | τ=0.50 (0.8215)         |
-| U_temporal | τ=0.10    | 0.0512 ± 0.0012   | τ=0.20 (0.0392)         |
-| U_batch    | τ=0.10    | 0.1019 ± 0.0015   | τ=0.20 (0.0837)         |
-| AUC        | τ=0.20    | 0.9021 ± 0.0054   | τ=0.10 (0.8993)         |
-| Top-1      | τ=0.20    | 0.7570 ± 0.0097   | τ=0.20 (run 1, 0.7566)  |
+| metric     | winner | runner-up |
+|------------|--------|-----------|
+| R²_random  | τ=0.80 | τ=0.50    |
+| R²_naive   | τ=0.80 | τ=0.50    |
+| U_temporal | τ=0.10 | τ=0.20    |
+| U_batch    | τ=0.10 | τ=0.20    |
+| AUC        | τ=0.20 | τ=0.10    |
+| Top-1      | τ=0.20 | τ=0.20 v2 |
 
-**Pattern across τ:**
-- **R²** rises monotonically with τ across the whole range
-  0.10→0.80 (best at τ=0.80, worst at τ=0.10).
-- **U** decreases monotonically with τ from 0.10 onward (best at τ=0.10).
-- **AUC / Top-1** peak at **τ=0.20** and decrease on both sides.
-  Δ(τ=0.20 − τ=0.10) = +0.0027 AUC at +3.6 SEM and +0.0035 Top-1 at
-  +2.5 SEM (resolved by N=50). Δ(τ=0.20 − τ=0.80) = +0.0115 AUC at
-  +14 SEM (decisive).
+- **R²** rises monotonically with τ across 0.10→0.80.
+- **U** peaks at τ=0.10, decreases on both sides.
+- **AUC / Top-1** peak at τ=0.20, decrease on both sides
+  (τ=0.20 vs τ=0.10 resolved at +3.6 SEM AUC, +2.5 SEM Top-1; vs τ=0.80 at +14 SEM AUC).
 
-### Verdict
+### Verdict at 15k
 
-τ=0.20 is the **representation-quality optimum** — the only point that
-maximises both AUC and Top-1. R²_random / R²_naive keep climbing past
-τ=0.20 to a maximum at τ=0.80 (Δ ≈ +0.12 vs τ=0.20), but the
-forecast-match gain is bought at the cost of AUC and Top-1, which roll
-off monotonically past τ=0.20.
+**τ=0.20 is the representation-quality optimum** — only point that
+maximises both AUC and Top-1. R² keeps climbing past τ=0.20 to a max
+at τ=0.80, but at the cost of AUC and Top-1.
 
-**Learnable-τ slides to τ ≈ 0.07 regardless of init** — both init=0.10
-and init=0.20 arms converge to the τ=0.07 cluster (init=0.20 lands on
-R²_random 0.6885 / AUC 0.8975, indistinguishable from the fixed τ=0.07
-arm). Gradient pressure pulls τ down, not up; learnable-τ does not
-discover the τ=0.20 optimum from any tested init.
+**Learnable-τ slides to ~0.07 regardless of init.** Both init=0.10
+and init=0.20 land in the τ=0.07 cluster. Gradient pressure pulls τ
+down, not up; learnable-τ does not discover the τ=0.20 optimum from
+any tested init.
 
-### Long-window comparison vs backbone-β_167k
+### Long-window: τ=0.10 and τ=0.20 to 150k
 
-τ=0.10 and τ=0.20 were continued from their 15k checkpoints to
-**150,000 steps total** (15k → 50k → 150k, fresh DC vast at each
-resume). The long-window plot below shows their full trajectory against
-the backbone-β_167k single-batch reference:
+Both arms continued from their 15k checkpoints to 150k total
+(15k → 50k → 150k, fresh DC vast at each resume).
 
 ![long](plots/tau_sweep_long_trajectories.png)
 
@@ -144,27 +125,11 @@ In-trajectory mean (1k-step window) at three checkpoints:
 | 150,000   | τ=0.20 | 0.7656    | 0.7227   | 0.0446 | 0.0960 | 0.9063 | 0.7635 |
 | 167,000   | β      | 0.6839    | 0.6080   | 0.0375 | 0.0762 | 0.8966 | 0.7531 |
 
-What the long curves show:
+- **Both fixed-τ arms are fully plateaued past 50k** — sub-noise drift through 150k.
+- **τ=0.20 at 150k beats backbone-β_167k on every metric** at 1.1× fewer steps. Fixed τ=0.20 > learnable-τ-converged-to-~0.07.
+- **τ=0.10 at 150k beats β on U / AUC / Top-1**, ties R²_naive, loses R²_random. The 15k pattern (τ=0.10 wins spread, loses R²) holds.
+- The R² gap between τ=0.10 and τ=0.20 holds verbatim through 150k — no late reversal.
 
-- **Both fixed-τ arms are fully plateaued past 50k.** From 50k → 150k
-  the largest movement on any metric is τ=0.20 U_b +0.0058 (+6.4%) and
-  Top-1 +0.0040 (+0.5%); R²/AUC drift is sub-0.003 — well within batch-
-  to-batch noise. Three more "doublings" of training budget yield no new
-  signal.
-- **τ=0.20 at 150k beats backbone-β_167k on every metric** (R²_random
-  +0.082, R²_naive +0.115, U_t +0.0071, U_b +0.020, AUC +0.010, Top-1
-  +0.010), despite training 1.1× fewer steps. Fixed τ=0.20 + this recipe
-  is strictly better than learnable-τ-converged-to-~0.07 at the same
-  budget.
-- **τ=0.10 at 150k beats β on U / AUC / Top-1**, ties on R²_naive,
-  loses R²_random. The 50k pattern (τ=0.10 wins spread metrics, loses
-  R²) holds cleanly through 150k.
-- The R² gap **between τ=0.10 and τ=0.20** (~+0.10 R²_random in τ=0.20's
-  favor at 50k) holds verbatim through 150k — no late convergence
-  reverses it.
-
-**Bottom line: 150k buys nothing new.** The held-out N=50 verdict at
-15k (τ=0.20 representation optimum, R² climbs monotonically with τ)
-holds at 150k, and the trajectories' own metric values confirm the
-plateau is real, not an artifact of the held-out batch sampling.
-
+**Bottom line: 150k buys nothing new.** The 15k held-out N=50 verdict
+(τ=0.20 representation optimum, R² climbs monotonically with τ)
+holds.
