@@ -62,6 +62,7 @@ BASELINE_SEGMENTS = [
 
 SMOOTH_WINDOW = 200   # rolling-mean window in steps; CSV is logged every step
 X_MIN = 5000          # log-x left edge — cuts the early-step rapid descent
+X_MAX = 50000         # hard-cap both arms at exactly 50k for apples-to-apples
 
 # (key, panel title, transform, ylim) — ylim hand-picked to bracket the
 # smoothed range observed in [X_MIN, max_step] for both series with
@@ -93,11 +94,11 @@ def load_concat(segments: list[str], max_step: int | None = None) -> pd.DataFram
 
 
 def main() -> None:
-    te = load_concat(TRANSFORMER_SEGMENTS)
+    te = load_concat(TRANSFORMER_SEGMENTS, max_step=X_MAX)
     if te.empty:
         raise RuntimeError("transformer CSV is empty")
 
-    max_step = int(te["step"].max())
+    max_step = min(int(te["step"].max()), X_MAX)
     baseline = load_concat(BASELINE_SEGMENTS, max_step=max_step)
     print(f"transformer rows: {len(te)} (steps 1..{max_step})")
     print(f"baseline rows  : {len(baseline)} (steps "
@@ -120,7 +121,7 @@ def main() -> None:
                     linewidth=1.5)
         ax.set_xscale("log")
         ax.set_yscale("log")
-        ax.set_xlim(left=X_MIN, right=max_step)
+        ax.set_xlim(left=X_MIN, right=X_MAX)
         ax.set_ylim(*ylim)
         ax.set_xlabel("step (log)")
         ax.set_title(title)

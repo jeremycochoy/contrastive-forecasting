@@ -32,10 +32,13 @@ OUT_PATH = os.path.join(EXP_DIR, "plots", "held_out_persample_auc_top1.png")
 
 ARMS = [
     # (label, persample_csv_basename, color)
-    ("τ=0.10 GRU baseline",
-     "tau_sweep_0_10_baseline_metrics_persample_n50.csv",
+    # Apples-to-apples: 50k vs 50k. Both FINAL.pth files are copies of
+    # `_best_loss.pth`, i.e. the best checkpoint within their 0..50k
+    # training window.
+    ("τ=0.10 GRU baseline (50k)",
+     "tau_sweep_0_10_50k_baseline_metrics_persample_n50.csv",
      "#1f77b4"),
-    ("τ=0.10 transformer encoder",
+    ("τ=0.10 transformer encoder (50k)",
      "transformer_encoder_tau_0_10_50k_metrics_persample_n50.csv",
      "#ff7f0e"),
 ]
