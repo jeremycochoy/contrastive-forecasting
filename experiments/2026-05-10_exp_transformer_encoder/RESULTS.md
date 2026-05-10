@@ -113,7 +113,8 @@ arms.
 | `AUC` | per-query fraction of past-window negatives the positive ranks above |
 | `Top-1` | fraction of queries where the positive beats every past-window negative simultaneously |
 
-A new training-time CSV column `gap_ratio = (1−ff)/(1−fp)` was added on
-this run (forecast-vs-future cosine gap normalised by past-vs-future
-gap; lower is better) — per-step diagnostic only, not used for
-held-out comparison.
+A new training-time CSV column `gap_ratio = (1−ff)/max(1e−6, 1−fp)`
+was added on this run (forecast-vs-future cosine gap normalised by
+past-vs-future gap; lower is better; denominator clamped at 1e-6 so a
+degenerate `fp ≈ 1` doesn't produce inf) — per-step diagnostic only,
+not used for held-out comparison.
