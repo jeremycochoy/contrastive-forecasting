@@ -43,12 +43,19 @@ B=256, AdamW lr=1e-3, 15,000 steps per arm.
 | `AUC`         | representation quality / discrimination — per-query, fraction of past-window negatives that the positive ranks above |
 | `Top-1`       | representation quality / strict discrimination — fraction of queries where the positive beats every past-window negative simultaneously (strictest version of AUC) |
 
-**Held-out eval.** All arms scored on **N=50 disjoint held-out batches**
-(B=256 each, model.eval()) by
+**Held-out eval.** All arms scored at their **15k FINAL.pth** checkpoint
+(= the step-15000 `best_loss.pth` promoted to FINAL; the 150k
+continuation runs save under separate `_resume_150k`-style names and
+do not overwrite FINAL.pth) on **N=50 disjoint held-out batches** (B=256
+each, model.eval()) by
 [`scripts/eval_multisample.py`](scripts/eval_multisample.py), writing
 [`results/tau_sweep_metrics_multisample.csv`](results/tau_sweep_metrics_multisample.csv).
-SEM = stdev/√50. `backbone-beta_167k` is shown as a single-batch
-reference, not an arm.
+Exception: `tau_sweep_0_20_v2` FINAL is the ~step-7700 best_loss
+snapshot (process died at step 7800 — kept as a partial-training
+reproducibility row, not a fully-trained arm). SEM (standard error of
+the mean — the precision of our N=50 average; smaller = the held-out
+mean is pinned tighter) = stdev/√50. `backbone-beta_167k` is shown as
+a single-batch reference, not an arm.
 
 ## What we learned
 
