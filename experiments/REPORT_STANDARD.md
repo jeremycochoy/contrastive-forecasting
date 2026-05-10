@@ -1,10 +1,10 @@
 # Report standard
 
-A "report" here means a single canonical Markdown file per experiment, named `{experiment_name}.md` (the directory path already carries the date, so the filename doesn't repeat it). The list below is what a sub-agent should check before any report is finalised — feed it the report + the underlying data CSVs and ask "which boxes don't tick?". Address every flagged item.
+A "report" here means a single canonical Markdown file per experiment, named `{experiment_name}.md`. The list below is what a sub-agent should check before any report is finalised — feed it the report + the underlying data CSVs and ask "which boxes don't tick?". Address every flagged item.
 
 ## Checklist
 
-- [ ] New report filenames follow **`{experiment_name}.md`** — no date prefix, the directory path already carries it.
+- [ ] New report filenames follow **`{experiment_name}.md`**.
 
 - [ ] Each experiment has **one canonical Markdown report**; supporting information lives elsewhere in the experiment directory (scripts, docstrings, execution logs, notebooks).
 
