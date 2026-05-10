@@ -12,11 +12,14 @@
 #   --encoder-dropkey 0.7    (NEW: defends against position-counting
 #                             shortcut diagnosed in the 2026-05-10 failed
 #                             experiment — drops 70% of below-diagonal
-#                             attention edges per encoder layer per step)
+#                             attention edges per encoder layer per step.
+#                             v2/_pb_: mask is per-(B, head) independent
+#                             — attempt-1 used a shared (T,T) mask and
+#                             NaN'd at step 11700.)
 #   --amp-dtype bf16         (NEW: torch.autocast(bfloat16) on forward+loss)
 #   batch_size=256           (UNCHANGED — keeps negative count and τ valid)
 #
-# Run name: enc_fcst_dropkey07_50k
+# Run name: enc_fcst_dropkey07_pb_50k
 # Save dir: /home/jupyter/contrastive-forecasting/checkpoints (main checkout)
 #          per CLAUDE.md rule #4 — never put valuable artefacts in a worktree.
 
@@ -32,7 +35,7 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 export HF_TOKEN=$(cat /home/jupyter/contrastive-forecasting/experiments/hf_token.txt)
 export HUGGING_FACE_HUB_TOKEN="$HF_TOKEN"
 
-NAME="enc_fcst_dropkey07_50k"
+NAME="enc_fcst_dropkey07_pb_50k"
 SAVE_DIR="/home/jupyter/contrastive-forecasting/checkpoints"
 LOG_DIR="/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-05-11_exp_encoder_forecaster/results"
 mkdir -p "$SAVE_DIR" "$LOG_DIR"

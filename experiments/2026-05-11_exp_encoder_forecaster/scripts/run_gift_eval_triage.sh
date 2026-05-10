@@ -10,7 +10,7 @@ cd "$ROOT"
 
 HEAD_NAME="${HEAD_NAME:-enc_fcst_dropkey07_qhead_xfmr12L_quant_30k}"
 
-BB_PATH="$MAIN/checkpoints/enc_fcst_dropkey07_50k_FINAL.pth"
+BB_PATH="$MAIN/checkpoints/enc_fcst_dropkey07_pb_50k_FINAL.pth"
 HEAD_PATH="$MAIN/checkpoints/${HEAD_NAME}_FINAL.pth"
 OUT_DIR="$ROOT/experiments/2026-05-11_exp_encoder_forecaster/results/gift_eval_triage"
 

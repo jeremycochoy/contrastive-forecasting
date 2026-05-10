@@ -1,0 +1,15 @@
+Device: cuda | Params: 22,057,020
+Training for 50000 steps, bs=256, lr=0.001, T=4096, C=1, mix_ratio=0.0, freq_emb_dim=3, seasonality_emb_dim=3, mixup_p=0.3, rev_norm_kind=ewma(span=128), patch_stats=none, encoder_type=gru
+Checkpoints: /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dropkey07_pb_50k_*.pth
+Loss CSV: /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dropkey07_pb_50k_losses.csv
+Data: MIX 100% HF + 0% synth (periodic), hf_bs=256, synth_bs=0
+[    100] loss=11.0951  ema_loss=12.1441  gap=0.0000  ema_gap=0.0012  mixup=25/100  3.8 sps  ETA 3.7h
+              R²_rand=-0.0781  R²_naive=-0.0234  U_t=0.0028  U_b=0.0028  AUC=0.3730  Top1=0.0315
+  timing: data=86.1ms  fwd=111.2ms  bwd=25.4ms  total=223.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dropkey07_pb_50k_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dropkey07_pb_50k_best_loss.pth
+[    200] loss=11.0949  ema_loss=11.4789  gap=0.0000  ema_gap=0.0015  mixup=24/100  4.4 sps  ETA 3.2h
+              R²_rand=-0.0625  R²_naive=-0.0078  U_t=0.0028  U_b=0.0028  AUC=0.3529  Top1=0.0295
+  timing: data=23.0ms  fwd=101.8ms  bwd=20.7ms  total=146.2ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dropkey07_pb_50k_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dropkey07_pb_50k_best_loss.pth

@@ -77,7 +77,7 @@ BASELINE_CHUNKS = [
     MAIN / "sync_tau_sweep_0_10_150k/checkpoints/tau_sweep_0_10_150k_losses.csv",   # 48001–150000
 ]
 
-NEW_ARM_CSV = MAIN / "checkpoints/enc_fcst_dropkey07_50k_losses.csv"
+NEW_ARM_CSV = MAIN / "checkpoints/enc_fcst_dropkey07_pb_50k_losses.csv"
 
 # (display_label, color, linestyle, lw, csv_path_or_chunks, is_concat)
 ARMS = [
@@ -85,7 +85,7 @@ ARMS = [
      C_BASELINE, "-", 1.6,
      BASELINE_CHUNKS,
      True),
-    ("encoder+forecaster v2 (6L+6L, dropkey=0.7, bf16)",
+    ("encoder+forecaster v2 (6L+6L, dropkey=0.7 per-(B,head), bf16)",
      C_HEADLINE, "-", 1.8,
      NEW_ARM_CSV,
      False),
@@ -257,7 +257,7 @@ def render_figure(traj, *, logx, logy_metrics, out_path, scale_tag, xmax,
                    bbox_to_anchor=(0.5, 0.985))
 
     fig.suptitle(
-        f"encoder+forecaster v2 (dropkey=0.7, {xmax:,} steps) "
+        f"encoder+forecaster v2 (dropkey=0.7 per-(B,head), {xmax:,} steps) "
         f"vs τ=0.10 baseline (clipped to {xmax:,}) ({scale_tag})",
         fontsize=12, y=1.02)
     fig.tight_layout(rect=(0, 0, 1, 0.96))

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Watchdog + periodic plotter + git-pusher for the enc_fcst_dropkey07_50k run.
+# Watchdog + periodic plotter + git-pusher for the enc_fcst_dropkey07_pb_50k run.
 #
 # Emits one stdout line per significant event (each becomes a Monitor
 # notification). Selective: silent during normal training; speaks up on
@@ -15,8 +15,8 @@
 set -uo pipefail
 
 REPO=/home/jupyter/cf-encoder-forecaster-v2
-LOG=$REPO/experiments/2026-05-11_exp_encoder_forecaster/results/run_enc_fcst_dropkey07_50k.log
-CSV=/home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dropkey07_50k_losses.csv
+LOG=$REPO/experiments/2026-05-11_exp_encoder_forecaster/results/run_enc_fcst_dropkey07_pb_50k.log
+CSV=/home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dropkey07_pb_50k_losses.csv
 PLOT_DIR=$REPO/experiments/2026-05-11_exp_encoder_forecaster
 PLOT_SCRIPT=$PLOT_DIR/scripts/plot_progress.py
 COMMIT_PATHS=(
@@ -88,7 +88,7 @@ while true; do
     fi
 
     # ---------- liveness ----------
-    if ! pgrep -f 'experiments/2026-04-27_freq-embedding/scripts/train.py.*enc_fcst_dropkey07_50k' >/dev/null 2>&1; then
+    if ! pgrep -f 'experiments/2026-04-27_freq-embedding/scripts/train.py.*enc_fcst_dropkey07_pb_50k' >/dev/null 2>&1; then
         # process is gone — emit DEATH once and exit
         echo "[DEATH] training process gone (last step $heartbeat_step)"
         exit 0

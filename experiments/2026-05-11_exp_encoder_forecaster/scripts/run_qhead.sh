@@ -22,7 +22,7 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 export HF_TOKEN=$(cat "$MAIN/experiments/hf_token.txt")
 export HUGGING_FACE_HUB_TOKEN="$HF_TOKEN"
 
-BB_PATH="$MAIN/checkpoints/enc_fcst_dropkey07_50k_FINAL.pth"
+BB_PATH="$MAIN/checkpoints/enc_fcst_dropkey07_pb_50k_FINAL.pth"
 SAVE_DIR="$MAIN/checkpoints"
 RUN_NAME="enc_fcst_dropkey07_qhead_xfmr12L_quant_30k"
 LOG_DIR="$ROOT/experiments/2026-05-11_exp_encoder_forecaster/results"
