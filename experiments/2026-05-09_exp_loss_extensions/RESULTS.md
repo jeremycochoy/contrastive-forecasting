@@ -14,6 +14,29 @@ of element b vs forecast of b′≠b at the same t) and
 tile the diagonal the base loss leaves empty, forming a 2×2 square of
 negatives instead of a 1×2 rectangle.
 
+![Square loss diagram](plots/square_diagram.png)
+
+Each vertex of the square is a `(f_t, h_{t+1})` prediction pair.
+Baseline `cosine_similarity_batch` already wires the temporal edges
+(grey: `neg_zy`, f↔f and h↔h across adjacent t within a single
+sequence) and the inner cross-batch diagonal (orange:
+`neg_cross_batch_forecast_embedding`, f-of-b vs h-next-of-b′). The new
+**blue** edge repels forecasts of two different sequences at the same
+t (`f_{b,t} ↔ f_{b′,t}`); the new **red** edge does the same on the
+encoder side (`h_{b,t+1} ↔ h_{b′,t+1}`).
+
+**Why we expect this to matter.** With only the diagonal and the
+temporal edges, the loss never directly repels two different
+sequences' representations *at the same instant* — only their
+adjacent-step pairs and the f→h cross pair. Two sequences can drift to
+share the same region of embedding space at time t and then "untwist"
+one step later via the temporal/diagonal terms; every existing edge is
+satisfied, but the local batch-discriminative structure at fixed t is
+gone. If that twist happens, retrieval-at-fixed-t metrics — Top-1 and
+AUC — should suffer even while the contrastive loss looks healthy.
+Adding the same-time batch edges (blue, red) forbids that
+configuration and is the motivation for testing the square variant.
+
 ## Protocol
 
 | Setting | Value |
