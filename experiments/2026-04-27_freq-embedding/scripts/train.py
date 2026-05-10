@@ -117,6 +117,11 @@ def parse_args():
                         "between the patch encoder and the forecaster. "
                         "Default 0 = baseline (no pre-forecaster encoder). "
                         "Encoder output is the contrastive target (x_original).")
+    p.add_argument("--encoder-dropkey", type=float, default=0.0,
+                   help="Per-step DropKey probability on the encoder layers' "
+                        "below-diagonal attention entries. 0.0 (default) = "
+                        "pure causal. e.g. 0.3 drops 30% of past-key edges "
+                        "per layer per step. Forecaster mask is unaffected.")
     p.add_argument("--encoder-type", default=MODEL_CONFIG["encoder_type"],
                    choices=["mlp", "mlp_wide", "residual_silu", "gru", "conv",
                             "transformer"],
@@ -449,6 +454,7 @@ def main():
     model_config["learnable_tau"] = bool(args.learnable_tau)
     model_config["tau_init"] = tau_init
     model_config["num_encoder_layers"] = args.num_encoder_layers
+    model_config["encoder_dropkey"] = args.encoder_dropkey
     # Override the loss_shape from CLI (LOSS_SPEC is a module-level default).
     LOSS_SPEC.train_configuration["loss_shape"] = args.loss_shape
     if args.tau is not None:

@@ -123,7 +123,8 @@ class TransformerBlock(nn.Module):
 
     def __init__(self, dimension_e, nhead=8, num_layers=6, feedforward_mult=None,
                  activation=None, input_to_latent=None, dropout=0, depthwise_conv=3,
-                 norm_first=True, norm_type='layernorm', num_encoder_layers=0):
+                 norm_first=True, norm_type='layernorm', num_encoder_layers=0,
+                 encoder_dropkey: float = 0.0):
         super().__init__()
 
         if feedforward_mult is None:
@@ -131,6 +132,13 @@ class TransformerBlock(nn.Module):
         dim_feedforward = int(feedforward_mult * dimension_e)
 
         self.input_to_latent = input_to_latent
+        # DropKey on the ENCODER stack only (not the forecaster). At each
+        # training step, every encoder layer redraws a fresh causal mask
+        # where strictly-below-diagonal entries are set to −∞ with probability
+        # p. Diagonal stays 0 (self-attention preserved), above-diagonal stays
+        # −∞ (causal). Eval / p=0 falls back to the cached pure causal mask
+        # so checkpoints stay bit-identical to pre-flag behaviour.
+        self.encoder_dropkey = float(encoder_dropkey)
 
         # Pre-forecaster causal encoder stack. When num_encoder_layers=0 the
         # ModuleList is empty and forward() degenerates to the prior
@@ -184,12 +192,23 @@ class TransformerBlock(nn.Module):
         # Encoder layers run BEFORE x_original is captured: the contrastive
         # loss normalises x_original on the unit sphere, so encoder vs
         # forecaster are forced apart by the asymmetric position of the L2.
+        # When encoder_dropkey > 0 and we are training, each encoder layer
+        # gets a *fresh* random causal mask (diagonal preserved, above-diag
+        # still −∞, below-diag −∞ with prob p) — per-layer, per-step random
+        # is the regularization. Eval / p=0 falls back to is_causal=True.
+        use_dropkey = self.training and self.encoder_dropkey > 0.0
         for layer in self.encoder_layers:
-            x = layer(x, tgt_mask=self.causal_mask, tgt_is_causal=True)
+            if use_dropkey:
+                dk_mask = self._dropkey_causal_mask(
+                    x.size(1), x.device, self.causal_mask.dtype,
+                    self.encoder_dropkey)
+                x = layer(x, tgt_mask=dk_mask, tgt_is_causal=False)
+            else:
+                x = layer(x, tgt_mask=self.causal_mask, tgt_is_causal=True)
 
         x_original = x.clone()
 
-        # Forecaster (decoder) layers
+        # Forecaster (decoder) layers — always pure causal.
         for layer in self.layers:
             x = layer(x, tgt_mask=self.causal_mask, tgt_is_causal=True)
 
@@ -199,6 +218,34 @@ class TransformerBlock(nn.Module):
     def _generate_square_subsequent_mask(sz):
         mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
         mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
+        return mask
+
+    @staticmethod
+    def _dropkey_causal_mask(T, device, dtype, p):
+        """Causal mask with random −∞ injection on strictly-below-diagonal entries.
+
+        Above-diagonal: −∞ (causal).
+        Diagonal: 0 (self always allowed).
+        Strictly below-diagonal: 0 with probability (1-p), −∞ with prob p.
+
+        Shared across batch — per-layer / per-step fresh draw is the
+        regularization knob. Same dtype as the cached causal mask so the
+        attention's mask-broadcast path doesn't trigger an upcast.
+        """
+        # Start with the deterministic causal mask (above-diag = −∞, rest = 0).
+        mask = TransformerBlock._generate_square_subsequent_mask(T).to(
+            device=device, dtype=dtype)
+        if p <= 0.0:
+            return mask
+        # Below-diagonal indicator: 1 strictly below the diagonal, 0 elsewhere.
+        below = torch.tril(
+            torch.ones(T, T, device=device, dtype=torch.bool), diagonal=-1)
+        drop = torch.rand(T, T, device=device) < p
+        drop_below = drop & below
+        # Inject −∞ where drop_below is True. Use float('-inf') cast to the
+        # mask's dtype so additive-mask semantics hold for bf16/fp16/fp32.
+        neg_inf = torch.tensor(float('-inf'), device=device, dtype=dtype)
+        mask = torch.where(drop_below, neg_inf, mask)
         return mask
         
 class Simple_channel_mixing_module(nn.Module):
