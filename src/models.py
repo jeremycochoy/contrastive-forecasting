@@ -60,7 +60,9 @@ class ConfigurableModel(torch.nn.Module):
                  enc_transformer_nhead=6,
                  enc_transformer_ffn_mult=4,
                  enc_transformer_dropout=0.0,
-                 enc_transformer_depthwise_conv=3):
+                 enc_transformer_depthwise_conv=3,
+                 enc_transformer_chunk_size=8192,
+                 enc_transformer_use_grad_checkpoint=True):
         super().__init__()
         self.C = C
         self.H = H
@@ -134,7 +136,9 @@ class ConfigurableModel(torch.nn.Module):
             transformer_nhead=enc_transformer_nhead,
             transformer_ffn_mult=enc_transformer_ffn_mult,
             transformer_dropout=enc_transformer_dropout,
-            transformer_depthwise_conv=enc_transformer_depthwise_conv)
+            transformer_depthwise_conv=enc_transformer_depthwise_conv,
+            transformer_chunk_size=enc_transformer_chunk_size,
+            transformer_use_grad_checkpoint=enc_transformer_use_grad_checkpoint)
 
         self.transformer = TransformerBlock(
             dimension_e=H,

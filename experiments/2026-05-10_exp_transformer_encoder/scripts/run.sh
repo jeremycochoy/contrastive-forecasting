@@ -25,6 +25,9 @@ cd "${WORKTREE}"
 
 export PYTHONPATH="${WORKTREE}"
 export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-1}"
+# Reduces fragmentation so step N's allocations fit even after step N-1
+# left holes (the FFN intermediate cycles ~5 GB tensors per step).
+export PYTORCH_CUDA_ALLOC_CONF="expandable_segments:True"
 export HF_TOKEN=$(cat experiments/hf_token.txt)
 export HUGGING_FACE_HUB_TOKEN="$HF_TOKEN"
 
@@ -47,6 +50,19 @@ echo "" && echo "=== TRANSFORMER-ENCODER τ=0.10 (50k from scratch) — ${NAME} 
 echo "GPU: CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES}"
 date
 
+# elisa GPU memory note (24 GB RTX 4090):
+# - The original cross-batch broadcast in `cosine_similarity_batch` allocates
+#   [B, B, T-1, C, H] = ~25 GB at B=256 fp32 — doesn't fit. The τ-sweep ran
+#   on bigger vast.ai GPUs; even the GRU baseline OOMs at B=256 on elisa.
+# - Replaced the broadcast with an equivalent batched matmul in src/loss.py
+#   (numerically identical for unit-normalised vectors; max diff 6e-8). This
+#   drops the cross-batch peak from ~25 GB → ~67 MB.
+# - Encoder = 2-layer within-patch transformer (ffn_mult=4). N=65k length-22
+#   sequences require chunking + activation checkpointing; the SDPA kernel
+#   also refuses N>32k in one shot.
+# - Forward+loss in bf16 autocast for ~2× tensor-core speedup; the loss is
+#   numerically forgiving at τ=0.10 since cos/τ ∈ [-10, 10] and bf16
+#   keeps fp32's exponent range (no overflow).
 python3 -u experiments/2026-04-27_freq-embedding/scripts/train.py \
     --device cuda --total-steps 50000 --batch-size 256 \
     --lr 1e-3 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \
@@ -58,8 +74,10 @@ python3 -u experiments/2026-04-27_freq-embedding/scripts/train.py \
     --freq-emb-dim 3 --seasonality-emb-dim 3 --mixup-p 0.3 \
     --rev-norm-kind ewma --rev-norm-span 128 \
     --encoder-type transformer \
-    --enc-num-layers 4 --enc-nhead 6 --enc-ffn-mult 4.0 \
+    --enc-num-layers 2 --enc-nhead 6 --enc-ffn-mult 4.0 \
     --enc-dropout 0.0 --enc-depthwise-conv 3 \
+    --enc-chunk-size 16384 \
+    --amp-dtype bf16 \
     --tau 0.10 \
     --loss-shape "${LOSS}"
 

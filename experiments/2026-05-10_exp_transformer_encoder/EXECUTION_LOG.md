@@ -29,6 +29,26 @@ encoder attending across T (one token per patch, attending over 256
 patches) — wrong axis. Killed and restarted with the within-patch
 design. Old checkpoints discarded (architecture incompatible).
 
+**Memory adaptations to fit elisa's 24 GB RTX 4090** (the τ-sweep ran on
+vast.ai with bigger GPUs):
+- Cross-batch broadcast in `cosine_similarity_batch` allocated
+  [B, B, T-1, C, H] ~ 25 GB at B=256 fp32. Replaced with an equivalent
+  batched matmul in `src/loss.py` (numerically identical, max diff 6e-8;
+  peak drops to ~67 MB). Even the GRU baseline at B=256 OOMs without
+  this change on elisa.
+- Encoder reduced from 4 → 2 within-patch transformer layers (per user
+  feedback) — keeps the same ffn_mult=4 backbone-matched recipe.
+- Encoder chunked along the (B*T*C) axis at chunk_size=16384 — N=65k
+  length-22 sequences in one go also tripped the SDPA kernel's
+  invalid-config error, so chunking is a correctness fix as well as a
+  memory fix.
+- Activation checkpointing on encoder layers — per-chunk peak ~10 GB
+  without it; with it ~3 GB.
+- Forward + loss in bf16 autocast — ~2× tensor-core speedup; safe for
+  τ=0.10 (`cos/τ ∈ [-10, 10]`, bf16 keeps fp32's exponent range).
+- Result: peak ~10 GiB at B=256, ~1.1 s/step (≈ 0.9 sps). 50k steps in
+  ~15 h.
+
 **Baseline reference.** τ=0.10 from-scratch 50k from
 [results/tau_sweep_metrics_multisample.csv](../2026-05-08_exp_tau_sweep/results/tau_sweep_metrics_multisample.csv):
 
