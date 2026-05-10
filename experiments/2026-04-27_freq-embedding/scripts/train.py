@@ -113,8 +113,24 @@ def parse_args():
     p.add_argument("--num-layers", type=int, default=MODEL_CONFIG["num_layers"],
                    help="Number of encoder layers. Default 6.")
     p.add_argument("--encoder-type", default=MODEL_CONFIG["encoder_type"],
-                   choices=["mlp", "mlp_wide", "residual_silu", "gru", "conv"],
-                   help="Patch encoder type. Default 'gru' (matches all backbone-beta runs).")
+                   choices=["mlp", "mlp_wide", "residual_silu", "gru", "conv",
+                            "transformer"],
+                   help="Patch encoder type. Default 'gru' (matches all backbone-beta runs). "
+                        "'transformer' replaces GRU+skip with a small decoder-only "
+                        "causal transformer (Linear(W'->H) + N layers attending over T).")
+    p.add_argument("--enc-num-layers", type=int, default=4,
+                   help="encoder-transformer: number of layers. Default 4.")
+    p.add_argument("--enc-nhead", type=int, default=6,
+                   help="encoder-transformer: attention heads. Default 6 "
+                        "(head_dim=64 with H=384).")
+    p.add_argument("--enc-ffn-mult", type=float, default=3.0,
+                   help="encoder-transformer: FFN expansion factor. Default 3.0.")
+    p.add_argument("--enc-dropout", type=float, default=0.0,
+                   help="encoder-transformer: dropout. Default 0.0.")
+    p.add_argument("--enc-depthwise-conv", type=int, default=3,
+                   help="encoder-transformer: depthwise causal conv kernel "
+                        "size. Default 3 (matches backbone). 0 disables it "
+                        "(closer to a pure-residual highway at init).")
     p.add_argument("--tau", type=float, default=None,
                    help="Contrastive temperature. None = use the LOSS_SPEC "
                         "default (0.07). Used by 2026-05-02_exp_realonly_4096_smaller_tau_sweep.")
@@ -318,7 +334,11 @@ class CSVLogger:
             header = ["step", "loss"]
             if self.tau_ref_column:
                 header.append("loss_tau_ref")
-            header += ["gap", "ff", "fp", "tp", "cross_batch",
+            # gap_ratio = (1 - ff) / (1 - fp): forecast-vs-future gap
+            # normalized by past-vs-future gap. ff -> 1 (perfect forecast)
+            # and fp -> 0 (decorrelated past) drive this toward 0; lower is
+            # better. Sits next to `gap = ff - fp` so the two are read together.
+            header += ["gap", "gap_ratio", "ff", "fp", "tp", "cross_batch",
                        "hf_rows_consumed", "synth_rows_consumed", "mixup_applied"]
             # Per-batch backbone diagnostic metrics (same names as the
             # post-hoc proxy CSV in 2026-05-05_exp_qhead_improvements so the
@@ -328,7 +348,7 @@ class CSVLogger:
             self._writer.writerow(header)
             self._file.flush()
 
-    def log(self, step, loss, gap, ff, fp, tp, cross_batch,
+    def log(self, step, loss, gap, gap_ratio, ff, fp, tp, cross_batch,
             hf_rows_consumed, synth_rows_consumed, mixup_applied,
             r2_random, r2_naive, u_temporal, u_batch, auc, top1,
             loss_tau_ref=None):
@@ -338,7 +358,7 @@ class CSVLogger:
             # hasn't computed it (shouldn't happen with the current trainer)
             # fall back to the unscaled loss to keep schema stable.
             row.append(loss if loss_tau_ref is None else loss_tau_ref)
-        row += [gap, ff, fp, tp, cross_batch,
+        row += [gap, gap_ratio, ff, fp, tp, cross_batch,
                 hf_rows_consumed, synth_rows_consumed, int(mixup_applied)]
         row += [r2_random, r2_naive, u_temporal, u_batch, auc, top1]
         self._buffer.append(row)
@@ -376,6 +396,11 @@ def main():
     model_config["nhead"] = args.n_heads
     model_config["num_layers"] = args.num_layers
     model_config["encoder_type"] = args.encoder_type
+    model_config["enc_transformer_num_layers"] = args.enc_num_layers
+    model_config["enc_transformer_nhead"] = args.enc_nhead
+    model_config["enc_transformer_ffn_mult"] = args.enc_ffn_mult
+    model_config["enc_transformer_dropout"] = args.enc_dropout
+    model_config["enc_transformer_depthwise_conv"] = args.enc_depthwise_conv
     model_config["freq_emb_dim"] = args.freq_emb_dim
     model_config["seasonality_emb_dim"] = args.seasonality_emb_dim
     model_config["rev_norm_kind"] = args.rev_norm_kind
@@ -625,6 +650,11 @@ def main():
             auc_val = auc_t.item()
             top1_val = top1_t.item()
         gap_val = val_ff - val_fp
+        # (1 - ff) / (1 - fp). Lower is better: ff -> 1 makes the numerator
+        # vanish, fp -> 0 pushes the denominator toward 1. Clamp denominator
+        # away from 0 so a one-shot val_fp ≈ 1 (degenerate state) doesn't
+        # produce inf in the CSV.
+        gap_ratio_val = (1.0 - val_ff) / max(1e-6, 1.0 - val_fp)
 
         if ema_loss is None:
             ema_loss = loss_val; ema_gap = gap_val
@@ -633,7 +663,7 @@ def main():
             ema_loss = d * ema_loss + (1 - d) * loss_val
             ema_gap  = d * ema_gap  + (1 - d) * gap_val
 
-        csv_logger.log(step, loss_val, gap_val, val_ff, val_fp,
+        csv_logger.log(step, loss_val, gap_val, gap_ratio_val, val_ff, val_fp,
                        val_tp, val_cb, hf_rows_consumed, synth_rows_consumed,
                        mixup_applied,
                        r2_random_val, r2_naive_val, u_t, u_b, auc_val, top1_val,
