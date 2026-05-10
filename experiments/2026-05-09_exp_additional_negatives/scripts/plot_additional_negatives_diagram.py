@@ -114,6 +114,44 @@ arrow("h_TL", "h_BM", C_CTH, 2.1, ls=(0, (4, 3)), rad=-0.18, zorder=4)
 # 7. cross-time f:    f_s^b      ↔ f_{s+1}^{b'} → f_TM ↔ f_BR
 arrow("f_TM", "f_BR", C_CTF, 2.1, ls=(0, (4, 3)), rad= 0.30, zorder=4)
 
+# ── AUTO-SHIFTED ECHOES ────────────────────────────────────────────────────────
+# Each loss term above applies at every anchor s and every (b, b') with b ≠ b'.
+# The 7 primaries above are drawn at the centred anchor s = t-1 on row b.
+# Below: every additional copy that lands inside the 6-vertex window — i.e.
+# anchor s shifted to s±1, and/or the batch label-swap b ↔ b' for cross-b
+# terms. Drawn in the SAME colour as the source so the legend is unchanged.
+
+# WB1 (purple) — within-b (f_τ, h_τ); τ ∈ {t-1, t}, both rows
+arrow("f_TM", "h_TL", C_WB1, 2.1, ls=(0, (4, 3)), rad=-0.40, zorder=4)  # b, τ=t-1
+arrow("f_BM", "h_BL", C_WB1, 2.1, ls=(0, (4, 3)), rad= 0.40, zorder=4)  # b', τ=t-1
+arrow("f_BR", "h_BM", C_WB1, 2.1, ls=(0, (4, 3)), rad= 0.40, zorder=4)  # b', τ=t
+
+# WB2 (magenta) — within-b (f_τ, h_{τ-1}); only τ=t fits (τ=t-1 needs h_{t-2})
+arrow("f_BR", "h_BL", C_WB2, 2.1, ls=(0, (4, 3)), rad= 0.28, zorder=4)  # b', τ=t
+
+# CB0 (teal) — cross-b (h_b, f_{b'}) same τ; τ ∈ {t-1, t}
+arrow("h_BL", "f_TM", C_CB0, 2.1, ls=(0, (4, 3)), rad=-0.22, zorder=4)  # τ=t-1, b↔b'
+arrow("h_TM", "f_BR", C_CB0, 2.1, ls=(0, (4, 3)), rad= 0.22, zorder=4)  # τ=t
+arrow("h_BM", "f_TR", C_CB0, 2.1, ls=(0, (4, 3)), rad=-0.22, zorder=4)  # τ=t, b↔b'
+
+# CB1 (orange) — cross-b (f_b, h_{b'}) same τ (same set as CB0 under b↔b')
+arrow("f_TM", "h_BL", C_CB1, 2.1, ls=(0, (4, 3)), rad= 0.18, zorder=4)  # τ=t-1
+arrow("f_BM", "h_TL", C_CB1, 2.1, ls=(0, (4, 3)), rad=-0.18, zorder=4)  # τ=t-1, b↔b'
+arrow("f_BR", "h_TM", C_CB1, 2.1, ls=(0, (4, 3)), rad=-0.18, zorder=4)  # τ=t, b↔b'
+
+# CB2 (dark red) — cross-b (f_τ, h_{τ-1}); only τ=t fits
+arrow("f_BR", "h_TL", C_CB2, 2.1, ls=(0, (4, 3)), rad=-0.10, zorder=4)  # τ=t, b↔b'
+
+# CTH (olive) — cross-b (h_{τ-1}, h_τ); τ ∈ {t, t+1}
+arrow("h_BL", "h_TM", C_CTH, 2.1, ls=(0, (4, 3)), rad= 0.18, zorder=4)  # τ=t, b↔b'
+arrow("h_TM", "h_BR", C_CTH, 2.1, ls=(0, (4, 3)), rad=-0.18, zorder=4)  # τ=t+1
+arrow("h_BM", "h_TR", C_CTH, 2.1, ls=(0, (4, 3)), rad= 0.18, zorder=4)  # τ=t+1, b↔b'
+
+# CTF (brown) — cross-b (f_τ, f_{τ+1}); τ ∈ {t-2, t-1}
+arrow("f_TL", "f_BM", C_CTF, 2.1, ls=(0, (4, 3)), rad= 0.30, zorder=4)  # τ=t-2
+arrow("f_BL", "f_TM", C_CTF, 2.1, ls=(0, (4, 3)), rad=-0.30, zorder=4)  # τ=t-2, b↔b'
+arrow("f_BM", "f_TR", C_CTF, 2.1, ls=(0, (4, 3)), rad=-0.30, zorder=4)  # τ=t-1, b↔b'
+
 # ── Nodes (drawn on top) ───────────────────────────────────────────────────────
 F_COLOR = "#d0e8ff"
 H_COLOR = "#ffd0d0"
@@ -153,7 +191,7 @@ ax.set_title(
     "Uncovered negatives — (batch × time) extended view\n"
     r"Vertex = $(f_{b,\tau-1} \to h_{b,\tau})$.  "
     r"Dashed = new terms.  Faded = existing covered.  "
-    r"All new edges shown at tensor index $s = t-1$.",
+    r"Each colour drawn at every anchor $s$ and $(b,b')$ swap that fits the window.",
     fontsize=10.5, pad=10)
 
 # ── Legend ─────────────────────────────────────────────────────────────────────
