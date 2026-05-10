@@ -73,21 +73,31 @@ def pick_device() -> str:
     return f"cuda:{idx}"
 
 
-def build_backbone_from_sd(sd: dict) -> ConfigurableModel:
-    """Build a transformer-encoder ConfigurableModel that matches the sd
-    layer-count / ffn-mult / depthwise-conv / freq-emb / seas-emb / d_model.
+def detect_encoder_type(sd: dict) -> str:
+    keys = sd.keys()
+    if "encoder.linear_up.weight" in sd and any(
+            k.startswith("encoder.layers.") for k in keys):
+        return "transformer"
+    if any(k.startswith("encoder.gru.") for k in keys):
+        return "gru"
+    if "encoder.linear1.weight" in sd:
+        return "mlp"
+    raise RuntimeError(f"can't detect encoder type from sd keys: {sorted(keys)[:8]}...")
 
-    Hardcodes the backbone-side knobs that match the τ=0.10 baseline arm
-    (6 layers, 6 heads, ffn_mult=4 — note: ffn_mult is the backbone default
-    in eval_multisample, but the τ=0.10 baseline run also defaults to 4
-    via train.py's ConfigurableModel call; the encoder ffn_mult is
-    inferred from sd shape).
+
+def build_backbone_from_sd(sd: dict) -> ConfigurableModel:
+    """Build a ConfigurableModel that matches the saved state_dict.
+
+    Backbone hyperparams (6 layers, 6 heads, ffn_mult=4, depthwise_conv=3)
+    are hardcoded — they match both the τ=0.10 GRU baseline and the
+    transformer-encoder run. Encoder-type-specific knobs are detected
+    from the sd shapes.
     """
     cfg = dict(C=1, H=384, W=W,
                num_layers=6, nhead=6, ffn_mult=4.0,
                activation="gelu", depthwise_conv=3, dropout=0.1,
                rev_norm_kind="ewma", rev_norm_span=128)
-    cfg["encoder_type"] = "transformer"
+    cfg["encoder_type"] = detect_encoder_type(sd)
 
     fw = sd.get("freq_embedding.embedding.weight")
     cfg["freq_emb_dim"] = int(fw.shape[1]) if fw is not None else 0
@@ -95,33 +105,42 @@ def build_backbone_from_sd(sd: dict) -> ConfigurableModel:
     cfg["seasonality_emb_dim"] = int(sw.shape[1]) if sw is not None else 0
     cfg["learnable_tau"] = "log_inv_tau" in sd
 
-    # Encoder (transformer) hyperparams — derive from state_dict.
-    enc_layer_idxs = sorted({int(k.split(".")[2])
-                             for k in sd.keys()
-                             if k.startswith("encoder.layers.")})
-    cfg["enc_transformer_num_layers"] = len(enc_layer_idxs)
-    if enc_layer_idxs:
-        l0_l1 = sd[f"encoder.layers.{enc_layer_idxs[0]}.linear1.weight"]
-        cfg["enc_transformer_ffn_mult"] = float(l0_l1.shape[0]) / float(l0_l1.shape[1])
-        dw_key = f"encoder.layers.{enc_layer_idxs[0]}.depthwise_conv.conv.weight"
-        if dw_key in sd:
-            cfg["enc_transformer_depthwise_conv"] = int(sd[dw_key].shape[2])
-        else:
-            cfg["enc_transformer_depthwise_conv"] = 0
-    # nhead is not directly recoverable; default to 6 to match the run.
-    cfg["enc_transformer_nhead"] = 6
-    cfg["enc_transformer_dropout"] = 0.0
-
-    # Patch stats (none for our run; encoder's linear_up in_features tells us)
-    lu = sd.get("encoder.linear_up.weight")
-    extra = lu.shape[1] - W - cfg["freq_emb_dim"] - cfg["seasonality_emb_dim"]
-    if extra == 0:
+    if cfg["encoder_type"] == "transformer":
+        # Encoder (transformer) hyperparams derived from state_dict.
+        enc_layer_idxs = sorted({int(k.split(".")[2])
+                                 for k in sd.keys()
+                                 if k.startswith("encoder.layers.")})
+        cfg["enc_transformer_num_layers"] = len(enc_layer_idxs)
+        if enc_layer_idxs:
+            l0_l1 = sd[f"encoder.layers.{enc_layer_idxs[0]}.linear1.weight"]
+            cfg["enc_transformer_ffn_mult"] = float(l0_l1.shape[0]) / float(l0_l1.shape[1])
+            dw_key = f"encoder.layers.{enc_layer_idxs[0]}.depthwise_conv.conv.weight"
+            cfg["enc_transformer_depthwise_conv"] = (
+                int(sd[dw_key].shape[2]) if dw_key in sd else 0)
+        # nhead is not directly recoverable from sd; default to 6.
+        cfg["enc_transformer_nhead"] = 6
+        cfg["enc_transformer_dropout"] = 0.0
+        # linear_up is Linear(1 -> H); patch_stats not in its shape.
+        lu = sd.get("encoder.linear_up.weight")
+        if lu is None or lu.shape[1] != 1:
+            raise RuntimeError(
+                f"encoder.linear_up not Linear(1 -> H); got shape {tuple(lu.shape) if lu is not None else None}")
         cfg["patch_stats_kind"] = "none"
-    elif extra == 2:
-        cfg["patch_stats_kind"] = "diff"
+    elif cfg["encoder_type"] == "gru":
+        # GRU encoder.skip.weight has in_features = W + patch_stats + freq + seas.
+        ref = sd.get("encoder.skip.weight")
+        if ref is None:
+            raise RuntimeError("GRU encoder missing encoder.skip.weight")
+        extra = ref.shape[1] - W - cfg["freq_emb_dim"] - cfg["seasonality_emb_dim"]
+        if extra == 0:
+            cfg["patch_stats_kind"] = "none"
+        elif extra == 2:
+            cfg["patch_stats_kind"] = "diff"
+        else:
+            raise RuntimeError(
+                f"unexpected encoder.skip.in_features={ref.shape[1]} (extra={extra})")
     else:
-        raise RuntimeError(
-            f"unexpected encoder.linear_up.in_features={lu.shape[1]} (extra={extra})")
+        raise NotImplementedError(f"encoder_type={cfg['encoder_type']!r} not handled")
 
     bb = ConfigurableModel(**cfg)
     bb.load_state_dict(sd)
@@ -239,7 +258,13 @@ def main():
             torch.cuda.empty_cache()
 
     agg = aggregate(samples)
+    enc_type = bb.encoder.__class__.__name__.lower().replace("encoder", "") or "unknown"
+    # Friendlier name for logging.
+    enc_label = ("transformer" if "transformer" in bb.encoder.__class__.__name__.lower()
+                 else "gru" if "gru" in bb.encoder.__class__.__name__.lower()
+                 else enc_type)
 
+    # 1) Aggregate CSV (one row per arm; appendable across runs).
     os.makedirs(os.path.dirname(OUT_CSV), exist_ok=True)
     cols = (["name", "tau", "encoder_type"]
             + [f"{k}_mean" for k in METRIC_KEYS]
@@ -250,14 +275,28 @@ def main():
         w = csv.writer(fh)
         if write_header:
             w.writerow(cols)
-        row = [args.name, args.tau, "transformer"] \
+        row = [args.name, args.tau, enc_label] \
               + [agg[f"{k}_mean"] for k in METRIC_KEYS] \
               + [agg[f"{k}_std"] for k in METRIC_KEYS] \
               + [agg["n_samples"]]
         w.writerow(row)
     print(f"[eval] wrote {OUT_CSV}")
+
+    # 2) Per-sample CSV (one row per skip_rows; lets downstream plot the
+    #    distribution shape, not just mean ± std).
+    persample_csv = os.path.join(
+        os.path.dirname(OUT_CSV),
+        f"{args.name}_metrics_persample_n{len(samples)}.csv")
+    with open(persample_csv, "w", newline="") as fh:
+        w = csv.writer(fh)
+        w.writerow(["name", "tau", "encoder_type", "sample_idx", "skip_rows"] + METRIC_KEYS)
+        for i, (sk, m) in enumerate(zip(SKIP_ROWS_LIST, samples)):
+            w.writerow([args.name, args.tau, enc_label, i, sk]
+                       + [m[k] for k in METRIC_KEYS])
+    print(f"[eval] wrote {persample_csv}")
+
     # Also print to stdout in human form.
-    print(f"\n=== {args.name} (τ={args.tau}, transformer encoder) — N={agg['n_samples']} ===")
+    print(f"\n=== {args.name} (τ={args.tau}, {enc_label} encoder) — N={agg['n_samples']} ===")
     for k in METRIC_KEYS:
         print(f"  {k:>10s} = {agg[f'{k}_mean']:.4f} ± {agg[f'{k}_std']:.4f}")
 
