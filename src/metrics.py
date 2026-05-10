@@ -120,7 +120,16 @@ def retrieval_auc_top1(
     h_full: Tensor,
     lookback_lags: tuple[int, ...] = (1, 2, 4, 8),
 ) -> tuple[Tensor, Tensor]:
-    """Retrieval AUC + Top-1 against past-window negatives.
+    """Retrieval AUC + Top-1 against past-window TEMPORAL-ONLY negatives.
+
+    ⚠ Shortcut alert: this metric only tests same-sample, same-channel,
+    recent-past negatives. A backbone that learned an implicit position
+    counter (e.g. via causal-attention depth) aces it without encoding
+    forecasting content — see
+    ``experiments/2026-05-10_exp_encoder_forecaster_failed/REPORT.md``.
+    Prefer :func:`retrieval_auc_topk_batch_temporal` for new evaluations,
+    which adds cross-batch negatives so positional counting alone can't
+    solve it.
 
     For each query (b, t, c) with t >= max(lookback_lags):
         positive  = h_full[b, t+1, c, :]
@@ -161,3 +170,115 @@ def retrieval_auc_top1(
     auc = beats.mean(dim=-1).mean()
     top1 = beats.prod(dim=-1).mean()
     return auc, top1
+
+
+@torch.no_grad()
+def retrieval_auc_topk_batch_temporal(
+    f: Tensor,
+    h_full: Tensor,
+    lookback_lags: tuple[int, ...] = (1, 2, 4, 8),
+    n_batch_negs: int = 8,
+    top_k: tuple[int, ...] = (1, 3),
+    seed: int | None = 0,
+) -> dict[str, Tensor]:
+    """Retrieval AUC + top-k against TEMPORAL **AND** BATCH negatives.
+
+    Designed to detect (and reject) the positional-counting shortcut
+    that ``retrieval_auc_top1`` is blind to. The shortcut: a causal
+    encoder can learn an implicit position counter via attention depth
+    that distinguishes "next time step" from "recent past time steps"
+    inside a single window without encoding content. Adding negatives
+    drawn from *other batch samples* at the positive time step forces
+    the model to also distinguish between different time series, not
+    just different time positions — something a pure counter cannot do.
+
+    Negatives per query (b, t, c) with t ≥ max(lookback_lags):
+        positive       = h_full[b, t+1, c, :]
+        temporal negs  = [ h_full[b, t-k, c, :]  for k in lookback_lags ]
+                         (same sample, same channel, past — len = |lags|)
+        batch negs     = [ h_full[b', t+1, c, :] for b' ∈ rand subset of
+                          {0..B-1} \\ {b}, size = min(n_batch_negs, B-1) ]
+                         (different sample, same channel, same target time)
+
+    Score = cosine sim vs ``f[b, t, c, :]``. AUC = mean fraction of
+    negatives the positive beats. top-k = fraction of queries where the
+    positive beats at least ``n_neg - (k - 1)`` negatives (i.e. rank ≤ k
+    among 1 positive + n_neg negatives, ties counted against under
+    strict ``>``).
+
+    Channel handling: asserts ``C == 1`` for now. Proper cross-channel
+    negatives need sampling other channels at the same (b, t) — should
+    be added when the backbone supports multi-channel inputs. Until
+    then the assert is the contract.
+
+    Args:
+        f: ``(B, T, C, H)``.
+        h_full: ``(B, T+1, C, H)`` — must include position t+1.
+        lookback_lags: same as ``retrieval_auc_top1``.
+        n_batch_negs: number of cross-batch negatives per query. Clamped
+            to ``B - 1``.
+        top_k: which top-k cutoffs to compute. Default ``(1, 3)``.
+        seed: int for the per-batch random permutation. ``None`` uses
+            the global RNG; default ``0`` is reproducible across calls.
+
+    Returns:
+        dict ``{'auc', 'top1', 'top3', ...}`` of scalar tensors. NaN
+        when the eval window has no valid queries (T ≤ max_lag) or
+        when B ≤ 1 (no cross-batch negatives available).
+    """
+    B, T, C, H = f.shape
+    assert C == 1, (
+        f"retrieval_auc_topk_batch_temporal: got C={C}; only C=1 implemented. "
+        "Proper cross-channel negatives need sampling other channels at the "
+        "same (b, t) — implement when the backbone supports multi-channel."
+    )
+
+    out_keys = ["auc"] + [f"top{k}" for k in top_k]
+    nan = torch.full((), float("nan"), device=f.device, dtype=f.dtype)
+
+    max_lag = max(lookback_lags)
+    if T <= max_lag or T + 1 > h_full.shape[1] or B <= 1:
+        return {k: nan for k in out_keys}
+
+    f_v = f[:, max_lag:T, :, :]                          # (B, T_v, C, H)
+    pos = h_full[:, max_lag + 1:T + 1, :, :]             # (B, T_v, C, H)
+    sim_pos = F.cosine_similarity(f_v, pos, dim=-1)      # (B, T_v, C)
+
+    # Temporal negatives (identical to retrieval_auc_top1).
+    sims_neg_t = []
+    for k in lookback_lags:
+        neg = h_full[:, max_lag - k:T - k, :, :]
+        sims_neg_t.append(F.cosine_similarity(f_v, neg, dim=-1))
+    sim_neg_t = torch.stack(sims_neg_t, dim=-1)          # (B, T_v, C, n_t)
+
+    # Cross-batch negatives: pick n_b = min(n_batch_negs, B-1) other
+    # batches at the positive time. Sample WITH replacement from
+    # {0..B-2}, then shift to skip self-index. Vectorised, no Python
+    # loop over batch.
+    n_b = min(n_batch_negs, B - 1)
+    g = torch.Generator(device=f.device) if seed is not None else None
+    if seed is not None:
+        g.manual_seed(int(seed))
+    raw = torch.randint(0, B - 1, (B, n_b), generator=g, device=f.device)
+    b_idx = torch.arange(B, device=f.device).unsqueeze(1)   # (B, 1)
+    rand_b = raw + (raw >= b_idx).long()                    # (B, n_b)
+
+    # pos[rand_b]: (B, n_b, T_v, C, H) — gather rows of `pos` by index.
+    neg_b = pos[rand_b]
+    sim_neg_b = F.cosine_similarity(
+        f_v.unsqueeze(1),                                   # (B, 1, T_v, C, H)
+        neg_b,                                              # (B, n_b, T_v, C, H)
+        dim=-1,
+    )                                                       # (B, n_b, T_v, C)
+    sim_neg_b = sim_neg_b.permute(0, 2, 3, 1)               # (B, T_v, C, n_b)
+
+    sim_neg = torch.cat([sim_neg_t, sim_neg_b], dim=-1)     # (B, T_v, C, n_t + n_b)
+    n_neg = sim_neg.size(-1)
+    beats = (sim_pos.unsqueeze(-1) > sim_neg).float()       # strict; ties = miss
+
+    out: dict[str, Tensor] = {"auc": beats.mean(dim=-1).mean()}
+    n_beats = beats.sum(dim=-1)                             # (B, T_v, C)
+    for k in top_k:
+        threshold = n_neg - (k - 1)
+        out[f"top{k}"] = (n_beats >= threshold).float().mean()
+    return out
