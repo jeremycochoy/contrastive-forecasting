@@ -110,19 +110,36 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         neg_zy = torch.exp(sims_zy / tau).sum(dim=2)
         
         # Cross-batch negatives: compare across batch dimension (not just C dimension)
-        hy_norm_exp = hy_norm.unsqueeze(0)  # [1, B, T-1, C, H]
-        hy_hat_norm_exp = hy_hat_norm.unsqueeze(1)  # [B, 1, T-1, C, H]
-        
-        # Compute similarities across batch dimension: [B, B, T-1, C]
-        sims_cross_batch = cosine_similarity_from_normalized(hy_norm_exp, hy_hat_norm_exp)
-        
+        # Equivalent to the broadcast form below, but without materialising
+        # the [B, B, T-1, C, H] intermediate (~25 GB at B=256, H=384,
+        # T-1=255 fp32). For unit-normalised vectors, cos(u, v) = u · v,
+        # so the per-(t, c) sim matrix is just u @ v^T, and a batched matmul
+        # over (T-1, C) does it all at once while only allocating
+        # [T-1, C, B, B] (~67 MB).
+        # Index convention from the original broadcast:
+        #   sims[b1, b2, t, c] = cos(hy[b2, t, c], hy_hat[b1, t, c])
+        # The first batch axis indexes hy_hat (the anchor's forecast), the
+        # second indexes hy (the cross-batch encoder target). The matmul
+        # operands have to be ordered hy_hat first, hy second (transposed)
+        # to keep that convention.
+        # Old form (kept here for reference / sanity tests):
+        #   hy_norm_exp = hy_norm.unsqueeze(0)          # [1, B, T-1, C, H]
+        #   hy_hat_norm_exp = hy_hat_norm.unsqueeze(1)  # [B, 1, T-1, C, H]
+        #   sims_cross_batch = cosine_similarity_from_normalized(
+        #       hy_norm_exp, hy_hat_norm_exp)           # [B, B, T-1, C]
+        hy_p = hy_norm.permute(1, 2, 0, 3)              # [T-1, C, B, H]
+        hy_hat_p = hy_hat_norm.permute(1, 2, 0, 3)      # [T-1, C, B, H]
+        sims_cross_batch = torch.matmul(
+            hy_hat_p, hy_p.transpose(-2, -1)            # [T-1, C, B, B]
+        ).permute(2, 3, 0, 1).contiguous()              # [B, B, T-1, C]
+
         # Create mask to exclude same batch element (diagonal)
         mask_batch = ~torch.eye(B, dtype=torch.bool, device=sims_cross_batch.device)
         mask_batch = mask_batch.view(B, B, 1, 1)
-        
+
         # Exponential and mask: [B, B, T-1, C]
         neg_cross_batch_exp = torch.exp(sims_cross_batch / tau).masked_fill(~mask_batch, 0)
-        
+
         # Sum across second batch dimension: [B, T-1, C]
         neg_cross_batch = neg_cross_batch_exp.sum(dim=1)
 

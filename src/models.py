@@ -55,7 +55,14 @@ class ConfigurableModel(torch.nn.Module):
                  seasonality_emb_dim=0, num_seasonalities=NUM_SEASONALITIES,
                  rev_norm_kind='ewma',
                  patch_stats_kind='none',
-                 learnable_tau=False, tau_init=0.07):
+                 learnable_tau=False, tau_init=0.07,
+                 enc_transformer_num_layers=4,
+                 enc_transformer_nhead=6,
+                 enc_transformer_ffn_mult=4,
+                 enc_transformer_dropout=0.0,
+                 enc_transformer_depthwise_conv=3,
+                 enc_transformer_chunk_size=8192,
+                 enc_transformer_use_grad_checkpoint=True):
         super().__init__()
         self.C = C
         self.H = H
@@ -124,7 +131,14 @@ class ConfigurableModel(torch.nn.Module):
         # Encoder input width: W (patch values) + patch_stats + freq + seasonality.
         encoder_input = W + patch_stats_dim + freq_emb_dim + seasonality_emb_dim
         self.encoder = create_encoder(
-            encoder_type, encoder_input, H, intermediate_dim)
+            encoder_type, encoder_input, H, intermediate_dim,
+            transformer_num_layers=enc_transformer_num_layers,
+            transformer_nhead=enc_transformer_nhead,
+            transformer_ffn_mult=enc_transformer_ffn_mult,
+            transformer_dropout=enc_transformer_dropout,
+            transformer_depthwise_conv=enc_transformer_depthwise_conv,
+            transformer_chunk_size=enc_transformer_chunk_size,
+            transformer_use_grad_checkpoint=enc_transformer_use_grad_checkpoint)
 
         self.transformer = TransformerBlock(
             dimension_e=H,

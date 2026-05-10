@@ -113,8 +113,43 @@ def parse_args():
     p.add_argument("--num-layers", type=int, default=MODEL_CONFIG["num_layers"],
                    help="Number of encoder layers. Default 6.")
     p.add_argument("--encoder-type", default=MODEL_CONFIG["encoder_type"],
-                   choices=["mlp", "mlp_wide", "residual_silu", "gru", "conv"],
-                   help="Patch encoder type. Default 'gru' (matches all backbone-beta runs).")
+                   choices=["mlp", "mlp_wide", "residual_silu", "gru", "conv",
+                            "transformer"],
+                   help="Patch encoder type. Default 'gru' (matches all backbone-beta runs). "
+                        "'transformer' replaces GRU+skip with a small decoder-only "
+                        "causal transformer (Linear(W'->H) + N layers attending over T).")
+    p.add_argument("--enc-num-layers", type=int, default=4,
+                   help="encoder-transformer: number of layers. Default 4.")
+    p.add_argument("--enc-nhead", type=int, default=6,
+                   help="encoder-transformer: attention heads. Default 6 "
+                        "(head_dim=64 with H=384).")
+    p.add_argument("--enc-ffn-mult", type=float, default=4.0,
+                   help="encoder-transformer: FFN expansion factor. Default 4.0 "
+                        "(matches the backbone's ffn_mult).")
+    p.add_argument("--enc-dropout", type=float, default=0.0,
+                   help="encoder-transformer: dropout. Default 0.0.")
+    p.add_argument("--enc-depthwise-conv", type=int, default=3,
+                   help="encoder-transformer: depthwise causal conv kernel "
+                        "size. Default 3 (matches backbone). 0 disables it "
+                        "(closer to a pure-residual highway at init).")
+    p.add_argument("--enc-chunk-size", type=int, default=8192,
+                   help="encoder-transformer: chunk size along the B*T*C "
+                        "axis. With B=256, T=256, C=1 the encoder sees "
+                        "65k length-22 sequences in parallel — chunking is "
+                        "needed to fit in 24 GB. Default 8192. 0 disables.")
+    p.add_argument("--enc-no-grad-ckpt", action="store_true",
+                   help="encoder-transformer: disable activation "
+                        "checkpointing on encoder layers. Default uses "
+                        "checkpointing — costs ~30%% extra compute, saves "
+                        "the FFN intermediates from being kept for backward.")
+    p.add_argument("--amp-dtype", default="none",
+                   choices=["none", "bf16", "fp16"],
+                   help="Mixed-precision dtype for the forward + loss. "
+                        "'none' (default) = pure fp32 (matches τ-sweep). "
+                        "'bf16' = autocast forward to bfloat16 (memory ~½) "
+                        "needed when running B=256 on a 24 GB GPU. "
+                        "'fp16' = float16 autocast (NOT recommended for "
+                        "contrastive losses with large exp(x/τ) values).")
     p.add_argument("--tau", type=float, default=None,
                    help="Contrastive temperature. None = use the LOSS_SPEC "
                         "default (0.07). Used by 2026-05-02_exp_realonly_4096_smaller_tau_sweep.")
@@ -199,6 +234,14 @@ def parse_args():
                         "100× explosive trends; range becomes (1/max, max) so "
                         "log-symmetric around 1.")
     return p.parse_args()
+
+
+class _NullContext:
+    """Context manager no-op — used when AMP autocast is disabled."""
+    def __enter__(self):
+        return self
+    def __exit__(self, exc_type, exc, tb):
+        return False
 
 
 def random_sign_flip(x):
@@ -318,7 +361,11 @@ class CSVLogger:
             header = ["step", "loss"]
             if self.tau_ref_column:
                 header.append("loss_tau_ref")
-            header += ["gap", "ff", "fp", "tp", "cross_batch",
+            # gap_ratio = (1 - ff) / (1 - fp): forecast-vs-future gap
+            # normalized by past-vs-future gap. ff -> 1 (perfect forecast)
+            # and fp -> 0 (decorrelated past) drive this toward 0; lower is
+            # better. Sits next to `gap = ff - fp` so the two are read together.
+            header += ["gap", "gap_ratio", "ff", "fp", "tp", "cross_batch",
                        "hf_rows_consumed", "synth_rows_consumed", "mixup_applied"]
             # Per-batch backbone diagnostic metrics (same names as the
             # post-hoc proxy CSV in 2026-05-05_exp_qhead_improvements so the
@@ -328,7 +375,7 @@ class CSVLogger:
             self._writer.writerow(header)
             self._file.flush()
 
-    def log(self, step, loss, gap, ff, fp, tp, cross_batch,
+    def log(self, step, loss, gap, gap_ratio, ff, fp, tp, cross_batch,
             hf_rows_consumed, synth_rows_consumed, mixup_applied,
             r2_random, r2_naive, u_temporal, u_batch, auc, top1,
             loss_tau_ref=None):
@@ -338,7 +385,7 @@ class CSVLogger:
             # hasn't computed it (shouldn't happen with the current trainer)
             # fall back to the unscaled loss to keep schema stable.
             row.append(loss if loss_tau_ref is None else loss_tau_ref)
-        row += [gap, ff, fp, tp, cross_batch,
+        row += [gap, gap_ratio, ff, fp, tp, cross_batch,
                 hf_rows_consumed, synth_rows_consumed, int(mixup_applied)]
         row += [r2_random, r2_naive, u_temporal, u_batch, auc, top1]
         self._buffer.append(row)
@@ -376,6 +423,13 @@ def main():
     model_config["nhead"] = args.n_heads
     model_config["num_layers"] = args.num_layers
     model_config["encoder_type"] = args.encoder_type
+    model_config["enc_transformer_num_layers"] = args.enc_num_layers
+    model_config["enc_transformer_nhead"] = args.enc_nhead
+    model_config["enc_transformer_ffn_mult"] = args.enc_ffn_mult
+    model_config["enc_transformer_dropout"] = args.enc_dropout
+    model_config["enc_transformer_depthwise_conv"] = args.enc_depthwise_conv
+    model_config["enc_transformer_chunk_size"] = args.enc_chunk_size
+    model_config["enc_transformer_use_grad_checkpoint"] = not args.enc_no_grad_ckpt
     model_config["freq_emb_dim"] = args.freq_emb_dim
     model_config["seasonality_emb_dim"] = args.seasonality_emb_dim
     model_config["rev_norm_kind"] = args.rev_norm_kind
@@ -546,16 +600,34 @@ def main():
         t_data_end = time.perf_counter()
 
         t_fwd_start = time.perf_counter()
-        f_lat, o_lat = forward_step(
-            model, x,
-            freq_ids=freq_ids, freq_embs=freq_embs,
-            seasonality_ids=seasonality_ids, seasonality_embs=seasonality_embs)
-        # When learnable_tau is on, pass model.tau() (0-d tensor with grad)
-        # as tau_override so gradient reaches log_inv_tau. Otherwise the
-        # loss uses LOSS_SPEC.train_configuration's scalar.
-        tau_tensor = model.tau() if args.learnable_tau else None
-        loss = contrastive_latent_loss((f_lat, o_lat), validation=False,
-                                       spec=LOSS_SPEC, tau_override=tau_tensor)
+        amp_dtype = (torch.bfloat16 if args.amp_dtype == "bf16"
+                     else torch.float16 if args.amp_dtype == "fp16"
+                     else None)
+        amp_ctx = (torch.amp.autocast('cuda', dtype=amp_dtype)
+                   if amp_dtype is not None else _NullContext())
+        with amp_ctx:
+            f_lat, o_lat = forward_step(
+                model, x,
+                freq_ids=freq_ids, freq_embs=freq_embs,
+                seasonality_ids=seasonality_ids, seasonality_embs=seasonality_embs)
+            # F.normalize internally promotes to fp32 (norm is in autocast's
+            # fp32-list), so its output is fp32 even inside an autocast
+            # block. The cross-batch sims then materialize a [B, B, T-1, C, H]
+            # tensor in fp32 — the very thing we wanted to avoid. Cast the
+            # latents back to the amp dtype here so the loss's broadcasts
+            # stay in low precision.
+            if amp_dtype is not None:
+                f_lat_loss = f_lat.to(amp_dtype)
+                o_lat_loss = o_lat.to(amp_dtype)
+            else:
+                f_lat_loss = f_lat
+                o_lat_loss = o_lat
+            # When learnable_tau is on, pass model.tau() (0-d tensor with grad)
+            # as tau_override so gradient reaches log_inv_tau. Otherwise the
+            # loss uses LOSS_SPEC.train_configuration's scalar.
+            tau_tensor = model.tau() if args.learnable_tau else None
+            loss = contrastive_latent_loss((f_lat_loss, o_lat_loss), validation=False,
+                                           spec=LOSS_SPEC, tau_override=tau_tensor)
         # Diagnostic: same loss with fixed τ=0.07 (no gradient). Comparable
         # across runs regardless of --tau / --learnable-tau, useful as a
         # cross-experiment baseline curve. Re-uses the already-forwarded
@@ -625,6 +697,11 @@ def main():
             auc_val = auc_t.item()
             top1_val = top1_t.item()
         gap_val = val_ff - val_fp
+        # (1 - ff) / (1 - fp). Lower is better: ff -> 1 makes the numerator
+        # vanish, fp -> 0 pushes the denominator toward 1. Clamp denominator
+        # away from 0 so a one-shot val_fp ≈ 1 (degenerate state) doesn't
+        # produce inf in the CSV.
+        gap_ratio_val = (1.0 - val_ff) / max(1e-6, 1.0 - val_fp)
 
         if ema_loss is None:
             ema_loss = loss_val; ema_gap = gap_val
@@ -633,7 +710,7 @@ def main():
             ema_loss = d * ema_loss + (1 - d) * loss_val
             ema_gap  = d * ema_gap  + (1 - d) * gap_val
 
-        csv_logger.log(step, loss_val, gap_val, val_ff, val_fp,
+        csv_logger.log(step, loss_val, gap_val, gap_ratio_val, val_ff, val_fp,
                        val_tp, val_cb, hf_rows_consumed, synth_rows_consumed,
                        mixup_applied,
                        r2_random_val, r2_naive_val, u_t, u_b, auc_val, top1_val,
