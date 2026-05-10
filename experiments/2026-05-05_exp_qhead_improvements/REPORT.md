@@ -26,6 +26,7 @@ gap.
 | R7_E9 (longer, truncated) | xfmr-q 12L | 100k | 1.020 | +2.0% |
 | R8_E10 (Gaussian NLL) | xfmr-gauss 12L | 60k | 1.020 | +2.0% |
 | **R9_E13** (winner) | **xfmr-q 12L + e_then_f** | **60k** | **0.990** | **−1.0%** |
+| R9_E14 (R9 recipe, longer) | xfmr-q 12L + e_then_f | 100k | 0.994 | −0.6% |
 
 Triage proxy: 11 small-test-set configs. Triage→full bias measured on
 two runs in this report: baseline (1.128 → 1.183, +0.055) and R9_E13
@@ -84,6 +85,10 @@ eval, 2.9% above seasonal naive, and 27.2% above Moirai.
    Switching from pinball to Gaussian NLL with the same head and
    schedule did not move triage GM-MASE from the ~1.02 plateau seen
    across the other 12L transformer variants.
+5. **Longer training under matched-input setup (R9_E14)**: triage 0.994
+   vs R9_E13's 0.990 at 60k. Extending the cosine schedule from 60k to
+   100k under `e_then_f` did not improve triage GM-MASE; the +0.004
+   delta is within run-to-run noise on this 11-config subset.
 
 ## Hypothesis going forward
 
@@ -93,14 +98,16 @@ The fifth (matching the train input layout to the eval input layout
 via `e_then_f` + leak-free mask) finally crossed under seasonal naive
 on triage at **0.990**.
 
-Full eval on R9_E13 is in flight (estimated based on baseline's
-+0.06 triage→full bias: ~1.05 unbiased GM-MASE). R9_E14 (same recipe
-at 100k steps) running on vast in parallel to test if longer training
-under the matched-input setup helps further.
+Full eval on R9_E13 came back at **1.029** (97 configs;
+`results/R9_E13_xfmr12L_quant_moirai_cosine_e_then_f_60k_full/summary.txt`),
++0.039 above triage — the bias estimate held within ~0.02. R9_E14
+(same recipe at 100k steps) was triage-only and landed at **0.994**,
+slightly above R9_E13's 0.990: longer training under the matched-input
+setup did not help further on this triage subset.
 
-Remaining gap to Moirai (~25% on triage, ~22% projected on full)
-was not closed by any of the five head-side axes tried here. This
-report does not include any backbone-side experiments.
+Remaining gap to Moirai on full eval is +0.220 (R9_E13 1.029 vs Moirai
+0.809, +27.2%). None of the five head-side axes tried here closed it.
+This report does not include any backbone-side experiments.
 
 ## Backbone metric trajectory
 
