@@ -58,7 +58,7 @@ class ConfigurableModel(torch.nn.Module):
                  learnable_tau=False, tau_init=0.07,
                  enc_transformer_num_layers=4,
                  enc_transformer_nhead=6,
-                 enc_transformer_ffn_mult=3,
+                 enc_transformer_ffn_mult=4,
                  enc_transformer_dropout=0.0,
                  enc_transformer_depthwise_conv=3):
         super().__init__()

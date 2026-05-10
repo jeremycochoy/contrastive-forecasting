@@ -123,8 +123,9 @@ def parse_args():
     p.add_argument("--enc-nhead", type=int, default=6,
                    help="encoder-transformer: attention heads. Default 6 "
                         "(head_dim=64 with H=384).")
-    p.add_argument("--enc-ffn-mult", type=float, default=3.0,
-                   help="encoder-transformer: FFN expansion factor. Default 3.0.")
+    p.add_argument("--enc-ffn-mult", type=float, default=4.0,
+                   help="encoder-transformer: FFN expansion factor. Default 4.0 "
+                        "(matches the backbone's ffn_mult).")
     p.add_argument("--enc-dropout", type=float, default=0.0,
                    help="encoder-transformer: dropout. Default 0.0.")
     p.add_argument("--enc-depthwise-conv", type=int, default=3,

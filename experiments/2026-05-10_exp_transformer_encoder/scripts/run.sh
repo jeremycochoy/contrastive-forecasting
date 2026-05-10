@@ -58,7 +58,7 @@ python3 -u experiments/2026-04-27_freq-embedding/scripts/train.py \
     --freq-emb-dim 3 --seasonality-emb-dim 3 --mixup-p 0.3 \
     --rev-norm-kind ewma --rev-norm-span 128 \
     --encoder-type transformer \
-    --enc-num-layers 4 --enc-nhead 6 --enc-ffn-mult 3.0 \
+    --enc-num-layers 4 --enc-nhead 6 --enc-ffn-mult 4.0 \
     --enc-dropout 0.0 --enc-depthwise-conv 3 \
     --tau 0.10 \
     --loss-shape "${LOSS}"

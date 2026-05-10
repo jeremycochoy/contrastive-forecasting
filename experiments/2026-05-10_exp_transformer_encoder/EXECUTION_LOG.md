@@ -8,15 +8,26 @@ decoder-only causal transformer; otherwise mirror the τ=0.10 baseline at
 exactly so the comparison isolates the encoder change.
 
 **Architecture diff vs τ=0.10 baseline.**
-- old: per-patch `GRUEncoder` = bidir-GRU(input=1, hidden=128, 2 layers) on
-  W=16 timesteps + `Linear(W', H)` skip + LayerNorm.
-- new: per-patch `Linear(W', H=384)` upscale, then 4 decoder-only causal
-  transformer layers attending across **T patches** (not within a patch),
-  same `DecoderOnlyTransformerLayer` recipe as the backbone (norm-first,
-  depthwise causal conv kernel=3, GeLU, no bias, dropout=0).
-- "Highway" at init: with norm-first residual chain, encoder output ≈
-  `Linear(patch)` when attention/FFN weights are small at init — same
-  shape of inductive bias the GRU's `linear_skipping` provided.
+- old: per-patch `GRUEncoder` = bidir-GRU(input=1, hidden=128, 2 layers)
+  consumes the W'=22 scalars of one patch as a sequence + `Linear(W', H)`
+  skip + LayerNorm.
+- new: per-patch transformer — each of the W'=22 scalars in one patch is
+  upscaled by a single shared `Linear(1 → H=384)` to a token, then 4
+  decoder-only causal transformer layers attend OVER THOSE 22 TOKENS
+  (within the patch). Patch summary = last token. Same
+  `DecoderOnlyTransformerLayer` recipe as the backbone (norm-first,
+  depthwise causal conv kernel=3, GeLU, no bias, dropout=0, ffn_mult=4).
+  Patches are still encoded independently in parallel along (B, T, C)
+  exactly like the GRU.
+- "Highway" at init: with norm-first residual chain, attention/FFN are
+  near-zero at init, so the layer stack is approximately identity over
+  `Linear(1, H)` applied to the last scalar — same shape of inductive
+  bias the GRU's `linear_skipping` provided through its skip path.
+
+**Note on Run #1 (stopped at step ~1400).** The first launch had the
+encoder attending across T (one token per patch, attending over 256
+patches) — wrong axis. Killed and restarted with the within-patch
+design. Old checkpoints discarded (architecture incompatible).
 
 **Baseline reference.** τ=0.10 from-scratch 50k from
 [results/tau_sweep_metrics_multisample.csv](../2026-05-08_exp_tau_sweep/results/tau_sweep_metrics_multisample.csv):
