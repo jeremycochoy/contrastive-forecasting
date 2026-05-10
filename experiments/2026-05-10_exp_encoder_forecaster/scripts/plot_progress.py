@@ -222,14 +222,18 @@ def plot_panel(
     ax.grid(alpha=0.3, which="both", ls=":")
 
 
-def render_figure(traj, *, logx, logy_metrics, out_path, scale_tag, xmax):
+def render_figure(traj, *, logx, logy_metrics, out_path, scale_tag, xmax, xmin_log=1):
     """Render one figure (log–log or linear) into `out_path`.
 
     `logy_metrics` is a set of metric keys that get log-y axis. The
     AUC / top-1 / egc panels always plot `1 - metric` so residuals
     near 1.0 stay visible even in linear mode.
+
+    `xmin_log` snaps the log-x lower bound to the first step that has
+    data in either curve, so the [1..first_step] decade isn't wasted
+    whitespace. Ignored when logx=False (linear keeps xmin=0).
     """
-    xmin = 1 if logx else 0
+    xmin = xmin_log if logx else 0
     xlim = (xmin, xmax)
 
     fig, axes = plt.subplots(2, 3, figsize=(16, 9))
@@ -312,6 +316,22 @@ def main() -> None:
     max_step = min(new_arm_max, baseline_max)
     # Tiny margin so the curve doesn't run flush against the right edge.
     xmax = max_step + 500
+    # Log-x lower bound: snap to the first step that actually has a
+    # plotted (smoothed) point in either curve, so the [1..first_step]
+    # decade isn't wasted whitespace. The moving-average window trims
+    # the first w-1 steps, so we mirror plot_panel's window logic here.
+    def _first_smoothed_step(steps_arr: np.ndarray) -> int:
+        n = len(steps_arr)
+        w = max(20, min(1000, n // 40))
+        idx = min(n - 1, max(0, w - 1))
+        return int(steps_arr[idx])
+    first_step = max(
+        1,
+        min(
+            _first_smoothed_step(new_arm["step"]),
+            _first_smoothed_step(baseline["step"]),
+        ),
+    )
 
     # Load all CSVs once. Concatenated arms use load_concat_traj.
     traj = []
@@ -347,6 +367,7 @@ def main() -> None:
         out_path=OUT_LOG,
         scale_tag="log–log",
         xmax=xmax,
+        xmin_log=first_step,
     )
 
     # Linear: no log on anything. The AUC / top-1 / egc panels still
