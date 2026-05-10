@@ -25,10 +25,15 @@ forecast and past embeddings (cross-batch reference). When fp < 1,
 egc=1 ⇒ perfect (ff=1), egc=0 ⇒ no improvement over fp, egc<0 ⇒ fp > ff.
 Guards: rows with fp ≥ 1 (denominator ≤ 0) are masked out of the plot.
 
-The x-axis upper bound is set from the new arm's current max step
-(plus a small margin), so the in-progress arm fills the figure instead
-of being squashed against the 150k long-baseline reference. The
-long-baseline reference curve is clipped to the visible x-range.
+The τ=0.10 baseline is concatenated from multiple resume chunks
+(0–15k, 15k–24.5k, 24.5k–50k, 50k–150k); on overlapping ranges the
+earliest chunk's row wins. A 24.5k→24.5k touch-up and other
+discontinuities just show as small gaps in the line.
+
+The x-axis upper bound is clipped to the SHORTER of the two
+trajectories — i.e. `min(baseline_max_step, new_arm_max_step)` plus a
+small margin. With the 100k+ baseline and the new arm at ~25k, the
+upper bound becomes ≈25k.
 
 Re-runnable. Worktree path is the script root; source CSVs are read
 from the MAIN checkout where the training writes them. No GPU usage.
@@ -55,24 +60,27 @@ OUT_LOG.parent.mkdir(parents=True, exist_ok=True)
 # read from there read-only — never write into that tree.
 MAIN = Path("/home/jupyter/contrastive-forecasting")
 
-# Color palette: reuse loss-extensions/τ-sweep conventions.
-#   - τ=0.10 baseline arms → grey  (#888 short, #bbb long reference, dashed)
-#   - encoder+forecaster (new "headline" arm) → loss-extensions
-#     "highlight new" red `#c22020` (square_diagram.py C_RIGHT — the
-#     NEW h-side batch edge, used as the boldest headline colour).
-C_BASELINE = "#888888"
-C_LONG_REF = "#bbbbbb"
-C_HEADLINE = "#c22020"
+# Color palette: saturated, high-contrast (grey was too hard to see).
+#   - τ=0.10 baseline (long-trained, concatenated chunks) → tab:blue
+#   - encoder+forecaster (new "headline" arm) → tab:red
+C_BASELINE = "#1f77b4"  # tab:blue
+C_HEADLINE = "#d62728"  # tab:red
 
-# (display_label, color, linestyle, lw, csv_path, is_long_ref)
+# τ=0.10 baseline is split across resume chunks. Concatenate in step
+# order; on overlap, the earliest chunk's row wins. Gaps (e.g. the small
+# 24.5k → 24.5k touch-up or any sync miss) just leave a discontinuity.
+BASELINE_CHUNKS = [
+    MAIN / "sync_tau_sweep/checkpoints/tau_sweep_0_10_losses.csv",            # 1–15000
+    MAIN / "sync_tau_sweep_0_10_50k/checkpoints/tau_sweep_0_10_50k_losses.csv",       # 14901–24500
+    MAIN / "sync_tau_sweep_0_10_50k/checkpoints/tau_sweep_0_10_50k_r2_losses.csv",    # 23901–50000
+    MAIN / "sync_tau_sweep_0_10_150k/checkpoints/tau_sweep_0_10_150k_losses.csv",     # 48001–150000
+]
+
+# (display_label, color, linestyle, lw, csv_path_or_chunks, is_concat)
 ARMS = [
-    ("τ=0.10 baseline (6L fcst, 15k trained)",
+    ("τ=0.10 baseline (long-trained, 0–150k available)",
      C_BASELINE, "-", 1.6,
-     MAIN / "sync_tau_sweep/checkpoints/tau_sweep_0_10_losses.csv",
-     False),
-    ("τ=0.10 long-run reference (48k–150k)",
-     C_LONG_REF, "--", 1.2,
-     MAIN / "sync_tau_sweep_0_10_150k/checkpoints/tau_sweep_0_10_150k_losses.csv",
+     BASELINE_CHUNKS,
      True),
     ("encoder+forecaster (6L+6L, bf16)",
      C_HEADLINE, "-", 1.8,
@@ -101,6 +109,45 @@ def load_traj(path: Path) -> dict | None:
     for k in COLS:
         out[k] = np.array([float(r[k]) for r in rows], dtype=np.float64)
     # derived: error-gap-closure = 1 - (1-ff)/(1-fp)
+    denom = 1.0 - out["fp"]
+    with np.errstate(divide="ignore", invalid="ignore"):
+        egc = np.where(denom > 0, 1.0 - (1.0 - out["ff"]) / denom, np.nan)
+    out["egc"] = egc
+    return out
+
+
+def load_concat_traj(paths: list[Path]) -> dict | None:
+    """Concatenate per-step rows from multiple resume-chunk CSVs.
+
+    Chunks are walked in the order given; on overlapping step ranges,
+    the EARLIEST chunk's row wins (later chunks' duplicate-step rows
+    are dropped). Gaps in step coverage just leave a discontinuity in
+    the resulting line — the plotter handles non-contiguous x just
+    fine.
+    """
+    seen: set[int] = set()
+    merged: list[dict] = []
+    found_any = False
+    for p in paths:
+        if not p.exists():
+            print(f"[plot] WARN concat chunk missing: {p}")
+            continue
+        rows = list(csv.DictReader(open(p)))
+        if not rows:
+            continue
+        found_any = True
+        for r in rows:
+            s = int(r["step"])
+            if s in seen:
+                continue
+            seen.add(s)
+            merged.append(r)
+    if not found_any or not merged:
+        return None
+    merged.sort(key=lambda r: int(r["step"]))
+    out = {"step": np.array([int(r["step"]) for r in merged])}
+    for k in COLS:
+        out[k] = np.array([float(r[k]) for r in merged], dtype=np.float64)
     denom = 1.0 - out["fp"]
     with np.errstate(divide="ignore", invalid="ignore"):
         egc = np.where(denom > 0, 1.0 - (1.0 - out["ff"]) / denom, np.nan)
@@ -239,8 +286,9 @@ def render_figure(traj, *, logx, logy_metrics, out_path, scale_tag, xmax):
         )
 
     fig.suptitle(
-        f"encoder+forecaster vs τ=0.10 baseline — training trajectory "
-        f"through step {xmax - 1500:,} ({scale_tag})",
+        f"encoder+forecaster (≈{xmax - 500:,} steps) vs τ=0.10 baseline "
+        f"(long-trained, 0–150k available; clipped to ≈{xmax - 500:,} for "
+        f"comparison) ({scale_tag})",
         fontsize=12, y=1.02,
     )
     fig.tight_layout(rect=(0, 0, 1, 0.96))
@@ -250,22 +298,30 @@ def render_figure(traj, *, logx, logy_metrics, out_path, scale_tag, xmax):
 
 
 def main() -> None:
-    # Determine the in-progress arm's current max step → drives xlim.
+    # Clip xlim to the SHORTER of the two trajectories so both arms end
+    # at the same x. With the long-trained baseline (0–150k available)
+    # and the new arm at ~25k, the upper bound is ≈25k.
     new_arm = load_traj(NEW_ARM_CSV)
     if new_arm is None or len(new_arm["step"]) == 0:
         raise SystemExit(f"new-arm CSV missing or empty: {NEW_ARM_CSV}")
-    max_step = int(new_arm["step"].max())
-    # Small margin so the curve doesn't run flush against the right edge.
-    xmax = max_step + 1500
+    baseline = load_concat_traj(BASELINE_CHUNKS)
+    if baseline is None or len(baseline["step"]) == 0:
+        raise SystemExit("baseline chunks all missing or empty")
+    new_arm_max = int(new_arm["step"].max())
+    baseline_max = int(baseline["step"].max())
+    max_step = min(new_arm_max, baseline_max)
+    # Tiny margin so the curve doesn't run flush against the right edge.
+    xmax = max_step + 500
 
-    # Load all CSVs once.
+    # Load all CSVs once. Concatenated arms use load_concat_traj.
     traj = []
     for arm in ARMS:
-        d = load_traj(arm[4])
+        _label, _color, _ls, _lw, path_or_chunks, is_concat = arm
+        d = load_concat_traj(path_or_chunks) if is_concat else load_traj(path_or_chunks)
         traj.append((arm, d))
         label = arm[0]
         if d is None:
-            print(f"[plot] SKIP {label}: {arm[4]} not found")
+            print(f"[plot] SKIP {label}: source(s) not found")
         else:
             n = len(d["step"])
             print(
@@ -278,7 +334,10 @@ def main() -> None:
                 f"egc={last_window_mean(d['egc']):.3f}"
             )
 
-    print(f"[plot] in-progress arm max step = {max_step}; xlim upper = {xmax}")
+    print(
+        f"[plot] new-arm max = {new_arm_max}, baseline max = {baseline_max}; "
+        f"clipped to min = {max_step}; xlim upper = {xmax}"
+    )
 
     # Log–log: log y on loss / 1-AUC / 1-top1 / 1-egc; log x throughout.
     render_figure(
