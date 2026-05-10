@@ -56,6 +56,9 @@ def main():
     p.add_argument("--dimension", type=int, default=4)
     p.add_argument("--val-every", type=int, default=1000)
     p.add_argument("--save-every", type=int, default=5000)
+    p.add_argument("--channel-mixing-kind", type=str, default="simple",
+                   choices=["simple", "attention"])
+    p.add_argument("--channel-mixing-n-heads", type=int, default=8)
     p.add_argument("--save-path", type=str, default="armacorr_backbone.pth")
     p.add_argument("--experiment-id", type=str, default="default")
     p.add_argument("--resume", type=str, default=None)
@@ -74,13 +77,15 @@ def main():
         dropout=args.dropout,
         activation=args.activation,
         depthwise_conv=args.depthwise_conv,
+        channel_mixing_kind=args.channel_mixing_kind,
+        channel_mixing_n_heads=args.channel_mixing_n_heads,
     )
 
     if args.resume:
         args.save_path = safe_save_path(args.save_path, args.resume)
         print(f"Resuming from {args.resume}")
         model.load_state_dict(torch.load(args.resume, map_location=device))
-    else:
+    elif args.channel_mixing_kind == 'simple':
         # The channel-mixing module is initialised with `torch.randn(H, H)`
         # in src/blocks.py, which gives entries with σ=1 — way too large for
         # a 1024×1024 matrix. Re-init R as identity and Q as small noise so
@@ -92,6 +97,8 @@ def main():
             model.channel_mixing_module.R.copy_(torch.eye(H))
             model.channel_mixing_module.Q.copy_(torch.randn(H, H) * (0.01 / H ** 0.5))
         print("  -> reinitialised channel_mixing: R=I, Q ~ 0.01·N(0, 1/H)")
+    else:
+        print(f"  -> channel_mixing_kind={args.channel_mixing_kind} (init handled in module)")
 
     model = model.to(device)
     n_params = count_parameters(model)
