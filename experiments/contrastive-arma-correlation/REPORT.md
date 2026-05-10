@@ -119,53 +119,108 @@ predicts the marginal mean). MSE numbers are within sampling noise of V6.
 
 See `plots_v7/{arma_recovery_v6,correlation_recovery_v6,baseline_comparison_v6,training_curves_v6,data_samples_v6}.png`.
 
+## Relative-gap analysis
+
+`analyze_ratios.py` recomputes the missing cross-channel cosine similarities
+on the final backbone (`*_best_gap.pth`) of each run and plots them next
+to the JSON-logged FF/FP/CB time-series.
+
+Final-state cosine similarities:
+
+| metric                                  | V6      | V7      |
+|-----------------------------------------|---------|---------|
+| FF = cos(h_hat[t,c], h[t+1,c])           | 0.624   | 0.638   |
+| FP = cos(h_hat[t,c], h[t,c])             | 0.492   | 0.503   |
+| TP = cos(h[t+1,c], h[t,c])               | 0.328   | 0.348   |
+| CC(h,h) = cos(h[t,c1], h[t,c2]), c1≠c2   | 0.036   | 0.041   |
+| CC(h,h_hat) = cos(h[t,c1], h_hat[t,c2])  | +0.017  | **−0.013** |
+| CB = cos(h_hat[b1,t,c], h[b2,t+1,c])     | 0.011   | 0.011   |
+
+Final-state ratios (FF / FP, CC / FP, FF / CC):
+
+| ratio          | V6    | V7    |
+|----------------|-------|-------|
+| FF / FP        | 1.27  | 1.27  |
+| CC(h,h) / FP   | 0.07  | 0.08  |
+| FF / CC(h,h)   | 17.5  | 15.7  |
+
+The loss fix worked exactly on its target metric: `CC(h,h_hat)` flipped
+from +0.017 in V6 (no cross-channel pressure on the forecaster) to −0.013
+in V7 (forecaster now actively anti-aligned across channels). The
+encoder-side ratios that quantify the "structure" of the latent are
+essentially unchanged — channels are nearly orthogonal in `h` (CC ≈ 0.04
+versus FP ≈ 0.5), and samples are very orthogonal in the cross-batch
+sense (CB ≈ 0.011). The forecast positive is 16–17× the cross-channel
+similarity in both runs.
+
+So the latent has the structure we wanted: tight within-channel
+forecasting, near-orthogonal between channels, near-orthogonal between
+samples. Yet correlation recovery still fails. The signal isn't blocked
+by the architecture *or* missing from the optimisation pressure; it's
+present but at a much lower order than the dominant features the head
+sees, and the simple GRU correlation head doesn't tease it out.
+
+See `plots/v6_v7_ratios.png`.
+
 ## Interpretation
 
-The V6 report blamed the correlation failure on cross-channel negatives
-making `h_hat` "invariant to correlation." That interpretation was wrong
-for two reasons: the cross-channel negative in V6 didn't actually involve
-`h_hat` (the bug), and fixing the bug in V7 leaves the correlation result
-unchanged. The real story is **architectural** and the loss bug is a
-separate issue that mostly affects the optimization trajectory, not the
-final representation's content.
+The V6 report claimed cross-channel negatives made `h_hat` "invariant to
+correlation," and a follow-up pass tightened that to a flat
+information-theoretic impossibility ("no information path from C^(b) to
+h_hat regardless of loss"). Both claims were stronger than the evidence
+warrants:
 
-The information-theoretic argument:
+1. The information-theoretic argument was based on per-channel marginals
+   being correlation-invariant after z-scoring — true — but ignored that
+   the **joint** distribution of channels in a single sample still
+   depends on `C^(b)`. The cross-channel negative `neg_xx` in the loss
+   pushes `h^{b,c1}` and `h^{b,c2}` apart while they are realisations
+   of correlated processes; how easy that separation is and what
+   features the encoder picks for it can carry sample-specific
+   structure. The channel-mixing module's `Q · ∑_{c'≠c} t^{b,c'}` term
+   then linearly combines those joint realisations, so per-sample joint
+   statistics do flow into `h_hat`.
 
-- The encoder + transformer operate strictly per-channel. They cannot
-  observe `(y^{c1}, y^{c2})` jointly for any sample. The transformer
-  output `t^{b,c}` is therefore a function of channel c's data only.
-- After per-(b,k) z-scoring, channel c's marginal distribution is the
-  same regardless of `C^(b)`: `Var(ε^(c)) = C[c,c] = 1` for any
-  correlation matrix. There is no per-channel statistic that varies
-  with the per-sample correlation.
-- The `Simple_channel_mixing_module` applies a sample-independent
-  linear map. Its mixing of `t^{b,c}` across channels uses the same
-  R, Q for every sample. So `h_hat^{b,c}` is a deterministic linear
-  function of `{t^{b,c'}}_{c'}`, which by the above does not encode
-  `C^(b)`.
+2. The relative-gap analysis confirms the cross-channel pressure works
+   mechanically: V7's `CC(h, h_hat)` is −0.013 (anti-aligned) versus
+   V6's +0.017. The encoder-side `CC(h, h)` is ~0.04 in both, and the
+   forecast positive is 16–17× the cross-channel similarity. The
+   latent has the structure we wanted — channels nearly orthogonal,
+   samples very nearly orthogonal — yet correlation recovery is still
+   ≈ 0 per pair.
 
-Therefore there is no information path from `C^(b)` to `h_hat`, no
-matter how the loss is wired. V7 confirms this: with the cross-channel
-pressure on `h_hat` re-added, the gap and ARMA recovery improve
-slightly, but per-sample correlation is still un-recoverable.
+The honest summary: we don't have a clean impossibility result. What we
+have is empirical evidence that **a 4.87 M-param GRU correlation head
+with mean-pool readout cannot extract per-sample correlation from this
+particular `h_hat`**. Possible reasons we have not ruled out:
+
+- The signal exists in `h_hat` but at much lower magnitude than the
+  per-channel ARMA features that dominate the cross-batch contrastive
+  pressure; the head allocates capacity to the loud signal and ignores
+  the quiet one.
+- The head architecture (Linear(C·H → H) + GRU(h=128)) collapses the
+  channel dimension before the GRU sees it, losing the cross-channel
+  structure too early. A head that processes channels jointly per-time
+  step (e.g. attention over C tokens of size H) might do better.
+- The signal is only carried in higher-order joint statistics
+  (variances of cross-channel inner products over time), which a
+  mean-pooled GRU is poorly suited to capture.
 
 ARMA recovery still works because per-channel ARMA dynamics (AR/MA
-coefficients) **are** in channel c's marginal distribution, and the
-encoder can extract them.
+coefficients) live in channel c's univariate marginal, which the
+encoder can extract straightforwardly.
 
-The loss bug *is* a real bug — V7 reaches a slightly better gap and
-converges with a healthier separation between FF and FP, and the fix
-should be carried forward to all future runs using this loss. But the
-correlation experiment requires either:
+The loss bug is a real bug — V7 reaches a slightly better gap, FF/FP
+separates more cleanly, and `CC(h, h_hat)` actually moves below zero.
+The fix should be carried forward to all future runs using this loss.
 
-1. Channels in the transformer input dimension, like V5
-   (`JointChannelModel`, `[B, T, C·H]`), so attention can compute
-   per-sample cross-channel statistics; or
-2. A sample-dependent channel-mixing module (e.g. one whose R, Q are
-   functions of the input).
-
-Plain per-channel transformer + sample-independent channel-mixing
-on top, regardless of loss, cannot recover per-sample correlation.
+For correlation recovery, the next thing to try (cheapest first) is a
+**different head architecture** — keep the V7 backbone, replace the
+`Linear(C·H → H) + GRU` head with one that preserves the channel
+dimension into the temporal model (e.g. per-time-step attention across
+C, or a small transformer over `[B·T, C, H]`). If that still fails,
+the next step is V5-style joint-channel input or a sample-dependent
+mixing module.
 
 ## Artifacts
 
@@ -177,6 +232,8 @@ V6 (kept for the loss-bug contrast):
 
 V7 (with loss fix):
 - `plots/v6_v7_compare.png`
+- `plots/v6_v7_ratios.png`, `plots/v6_v7_ratios_finals.json`
+- `analyze_ratios.py`
 - `plots_v7/{training_curves,arma_recovery,correlation_recovery,baseline_comparison,data_samples}_v6.png`
   *(filenames retain the `_v6` suffix from the unparameterised plot
   script; contents are V7.)*
