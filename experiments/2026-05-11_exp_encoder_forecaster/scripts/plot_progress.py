@@ -235,18 +235,18 @@ def render_figure(traj, *, logx, logy_metrics, out_path, scale_tag, xmax,
                panel_title="U_batch — dimension usage across batch",
                transform=None, logy=False, logx=logx, xlim=xlim)
     plot_panel(ax_auc, traj, key="auc",
-               ylabel="1 − AUC  (lower = better)",
-               panel_title="1 − AUC (12-neg retrieval: 4 temporal + 8 cross-batch)",
+               ylabel="1 − AUC",
+               panel_title="1 − AUC",
                transform=lambda y: 1.0 - y, logy="auc" in logy_metrics,
                logx=logx, xlim=xlim)
     plot_panel(ax_top1, traj, key="top1",
-               ylabel="1 − top-1  (lower = better)",
-               panel_title="1 − top-1 (same 12-neg retrieval)",
+               ylabel="1 − top-1",
+               panel_title="1 − top-1",
                transform=lambda y: 1.0 - y, logy="top1" in logy_metrics,
                logx=logx, xlim=xlim)
     plot_panel(ax_top3, traj, key="top3",
-               ylabel="1 − top-3  (lower = better)",
-               panel_title="1 − top-3 (same 12-neg retrieval; baseline lacks top-3)",
+               ylabel="1 − top-3",
+               panel_title="1 − top-3",
                transform=lambda y: 1.0 - y, logy="top3" in logy_metrics,
                logx=logx, xlim=xlim)
 
