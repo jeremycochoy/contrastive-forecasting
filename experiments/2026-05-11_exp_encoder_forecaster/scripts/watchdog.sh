@@ -1,23 +1,28 @@
 #!/bin/bash
-# Watchdog + periodic plotter for the enc_fcst_dropkey07_50k run.
+# Watchdog + periodic plotter + git-pusher for the enc_fcst_dropkey07_50k run.
 #
 # Emits one stdout line per significant event (each becomes a Monitor
 # notification). Selective: silent during normal training; speaks up on
-# every 5k-step boundary (after replotting) or on errors/completion.
+# every 5k-step boundary (after replotting + pushing to GitHub) or on
+# errors/completion.
 #
 # Lines emitted:
-#   "[plot @ NNNNN] loss=… auc=… top1=… egc=…"  every time we cross a
-#                                                 new 5k-step boundary
-#   "[ERROR] <line>"                              error / NaN / OOM
+#   "[plot+push @ NNNNN] loss=… auc=… top1=… egc=…"  every 5k step boundary
+#   "[ERROR] <line>"                                  error / NaN / OOM
 #   "[DEATH] training process gone (last step NNNNN)"
 #   "[DONE] FINAL.pth written"
 #
 set -uo pipefail
 
-LOG=/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-05-11_exp_encoder_forecaster/results/run_enc_fcst_dropkey07_50k.log
+REPO=/home/jupyter/cf-encoder-forecaster-v2
+LOG=$REPO/experiments/2026-05-11_exp_encoder_forecaster/results/run_enc_fcst_dropkey07_50k.log
 CSV=/home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dropkey07_50k_losses.csv
-PLOT_DIR=/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-05-11_exp_encoder_forecaster
+PLOT_DIR=$REPO/experiments/2026-05-11_exp_encoder_forecaster
 PLOT_SCRIPT=$PLOT_DIR/scripts/plot_progress.py
+COMMIT_PATHS=(
+    experiments/2026-05-11_exp_encoder_forecaster/plots/
+    experiments/2026-05-11_exp_encoder_forecaster/results/
+)
 
 last_marker=0           # last 5k step boundary we plotted
 last_err_pos=0          # bytes already scanned in the log
@@ -37,12 +42,26 @@ while true; do
         esac
         next_marker=$(( (cur_step / step_5k) * step_5k ))
         if [ "$next_marker" -gt "$last_marker" ] && [ "$next_marker" -ge "$step_5k" ]; then
-            cd /home/jupyter/cf-encoder-forecaster-v2 && PYTHONPATH=. python3 \
-                "$PLOT_SCRIPT" >/tmp/plot_$$.out 2>&1 || true
-            # extract the new-arm summary line from the plot output
+            cd "$REPO" && PYTHONPATH=. python3 "$PLOT_SCRIPT" \
+                >/tmp/plot_$$.out 2>&1 || true
             summary=$(grep "encoder+forecaster v2" /tmp/plot_$$.out | head -1)
-            echo "[plot @ $next_marker] $summary"
             rm -f /tmp/plot_$$.out
+
+            # commit + push: plots/ + results/ (log file).
+            cd "$REPO" && git add "${COMMIT_PATHS[@]}" >/dev/null 2>&1 || true
+            if ! git -C "$REPO" diff --cached --quiet; then
+                git -C "$REPO" commit -m "exp(enc-fcst-v2): progress @ step $next_marker" \
+                    >/dev/null 2>&1 || true
+                git -C "$REPO" push origin exp/encoder-forecaster-v2 \
+                    >/tmp/push_$$.out 2>&1
+                push_status=$?
+                rm -f /tmp/push_$$.out
+                push_tag="pushed"
+                [ "$push_status" -ne 0 ] && push_tag="push-FAILED"
+            else
+                push_tag="no-change"
+            fi
+            echo "[plot+$push_tag @ $next_marker] $summary"
             last_marker=$next_marker
         fi
         heartbeat_step=$cur_step
