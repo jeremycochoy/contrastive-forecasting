@@ -1,18 +1,26 @@
 # Report standard
 
-A "report" here means a single canonical Markdown file per experiment (typically `RESULTS.md`). The list below is what a sub-agent should check before any report is finalised — feed it the report + the underlying data CSVs and ask "which boxes don't tick?". Address every flagged item.
+A "report" here means a single canonical Markdown file per experiment (typically `{experiment_name}.md`). The list below is what a sub-agent should check before any report is finalised — feed it the report + the underlying data CSVs and ask "which boxes don't tick?". Address every flagged item.
 
 ## Checklist
 
 - [ ] **One file per experiment.** A single canonical Markdown file is the report. Supporting information lives elsewhere in the experiment directory (scripts, docstrings, execution logs, notebooks), never in additional report files.
 
-- [ ] **Structure: goal → protocol → what we did → what we learned.** The reader who arrives cold should understand the question, the design, and the conclusion in that order.
+- [ ] **Structure: question → result → protocol → what we learned → optional follow-up / hypothesis.** The reader who arrives cold should understand the question, the design, and the conclusion in that order.
+
+- [ ] **Pictures over prose.** Use a plot wherever one can carry the meaning, with each plot directly above its interpretation sentence.
+
+- [ ] **Result tables go inline** with their plot; **additional detail / annex tables** (arm rationale, metric definitions, big raw-number tables) go to the back.
 
 - [ ] **Facts only; flag extrapolation.** State measurements directly. Anything that goes beyond what the data directly supports is labelled as a hypothesis.
 
 - [ ] **Science, not journey.** Operational events (retries, infrastructure incidents, preemptions, debugging detours) belong outside the main report. If the same experiment were re-run cleanly, would this sentence still belong? If not, it's journey.
 
-- [ ] **Each metric labelled with what it measures.** The reader should understand what each metric quantifies and what it does NOT — without prior knowledge of the project.
+- [ ] The reader follows a **single forward thread** from question to verdict, no backtracking, no open questions left hanging.
+
+- [ ] **Less is more**: removing a sentence that doesn't carry clear signal is a positive change, especially if the sentence is confusing.
+
+- [ ] **Define specialized vocabulary** where it first appears. The reader should understand what each metric quantifies without prior knowledge of the project.
 
 - [ ] **Plots embedded inline.** Any plot referenced in the report is stored in a `plots/` subdirectory and embedded inline in the Markdown. No orphan images.
 
