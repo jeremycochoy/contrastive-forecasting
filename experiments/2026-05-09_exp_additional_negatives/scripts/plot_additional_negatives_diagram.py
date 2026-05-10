@@ -75,9 +75,14 @@ for a, b, r in (
     arrow(a, b, C_TOPB, 1.3, rad=r, alpha=ALPHA_E)
 
 # ── EXISTING: neg_cross_batch_forecast_embedding (f→h same col, cross-batch) ──
+# The cross-batch sum is over all b' ≠ b, so for every ordered (b, b') we get
+# the (h_{b'}, f_b) pair. Drawing BOTH label orderings — top-f↔bottom-h AND
+# bottom-f↔top-h — to make the symmetry over (b, b') explicit in the diagram.
 for col in ("L", "M", "R"):
     arrow(f"f_T{col}", f"h_B{col}", C_DIAG, 1.3,
-          ls=(0, (5, 3)), rad=0.06, alpha=ALPHA_E, arrowhead=True)
+          ls=(0, (5, 3)), rad= 0.06, alpha=ALPHA_E, arrowhead=True)
+    arrow(f"f_B{col}", f"h_T{col}", C_DIAG, 1.3,
+          ls=(0, (5, 3)), rad=-0.06, alpha=ALPHA_E, arrowhead=True)
 
 # ── EXISTING: neg_cross_batch_forecast (f↔f same col, cross-batch) ────────────
 for col in ("L", "M", "R"):
