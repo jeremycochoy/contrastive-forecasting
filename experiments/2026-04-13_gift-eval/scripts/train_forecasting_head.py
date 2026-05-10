@@ -354,6 +354,21 @@ def main():
         print(f"  [head-train] auto-detected learnable τ "
               f"(log_inv_tau={sd['log_inv_tau'].item():.4f}, "
               f"τ={float((-sd['log_inv_tau']).exp()):.4f}) from backbone checkpoint")
+    # Auto-detect num_encoder_layers from transformer.encoder_layers.<N>.* keys.
+    # Encoder-forecaster backbones (2026-05-10) prepend N causal layers before
+    # the forecaster; their state_dict has the matching keys. Old backbones
+    # have an empty encoder stack and the keys are absent → defaults to 0.
+    enc_layer_idxs = set()
+    for k in sd:
+        if k.startswith("transformer.encoder_layers."):
+            try:
+                enc_layer_idxs.add(int(k.split(".")[2]))
+            except (IndexError, ValueError):
+                continue
+    if enc_layer_idxs:
+        BACKBONE_CONFIG["num_encoder_layers"] = max(enc_layer_idxs) + 1
+        print(f"  [head-train] auto-detected num_encoder_layers="
+              f"{BACKBONE_CONFIG['num_encoder_layers']} from backbone checkpoint")
     if args.rev_norm_kind == "ewma":
         BACKBONE_CONFIG["rev_norm_span"] = args.rev_norm_span
     # Auto-detect patch_stats from the encoder's first projection input width.

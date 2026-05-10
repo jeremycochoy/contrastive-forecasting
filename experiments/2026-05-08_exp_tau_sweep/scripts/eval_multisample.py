@@ -213,6 +213,14 @@ def build_backbone(name: str, declared_enc: str, sd: dict):
     cfg["learnable_tau"] = "log_inv_tau" in sd
     cfg["rev_norm_kind"] = "ewma"
     cfg["rev_norm_span"] = 128
+    enc_layer_idxs = set()
+    for k in sd.keys():
+        if k.startswith("transformer.encoder_layers."):
+            try:
+                enc_layer_idxs.add(int(k.split(".")[2]))
+            except (IndexError, ValueError):
+                pass
+    cfg["num_encoder_layers"] = (max(enc_layer_idxs) + 1) if enc_layer_idxs else 0
     ref = sd.get("encoder.skip.weight")
     if ref is None:
         ref = sd.get("encoder.linear1.weight")

@@ -625,7 +625,14 @@ def forecast_autoregressive(backbone, head, x_context, horizon, device):
 # ============================================================================
 
 def extract_encoder_latents(backbone, x, freq_ids=None, seasonality_ids=None):
-    """Extract encoder latents e[t] (before transformer) and RevEWMNorm stats.
+    """Extract encoder latents e[t] and RevEWMNorm stats.
+
+    Returns the same tensor used as the contrastive target ``o_lat``
+    during training: patch encoder output + any causal encoder layers
+    (``backbone.transformer.encoder_layers``). When ``encoder_layers`` is
+    empty (baseline runs with ``num_encoder_layers=0``), this collapses
+    to the original patch-encoder-only behaviour and is bit-identical to
+    pre-encoder-stage checkpoints.
 
     Args:
         backbone: frozen ConfigurableModel
@@ -660,6 +667,15 @@ def extract_encoder_latents(backbone, x, freq_ids=None, seasonality_ids=None):
         e = backbone.transformer.input_to_latent(xr)  # (B, T, C, H)
         B, T, C, H = e.size()
         e_bc = e.permute(0, 2, 1, 3).reshape(B * C, T, H)
+
+        encoder_layers = getattr(backbone.transformer, 'encoder_layers', None)
+        if encoder_layers is not None and len(encoder_layers) > 0:
+            mask = backbone.transformer.causal_mask
+            if mask is None or mask.size(0) != T:
+                mask = backbone.transformer._generate_square_subsequent_mask(T).to(e_bc.device)
+                backbone.transformer.causal_mask = mask
+            for layer in encoder_layers:
+                e_bc = layer(e_bc, tgt_mask=mask, tgt_is_causal=True)
 
     return e_bc.detach(), x_norm.detach()
 

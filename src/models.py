@@ -62,7 +62,8 @@ class ConfigurableModel(torch.nn.Module):
                  enc_transformer_dropout=0.0,
                  enc_transformer_depthwise_conv=3,
                  enc_transformer_chunk_size=8192,
-                 enc_transformer_use_grad_checkpoint=True):
+                 enc_transformer_use_grad_checkpoint=True,
+                 num_encoder_layers=0):
         super().__init__()
         self.C = C
         self.H = H
@@ -149,11 +150,14 @@ class ConfigurableModel(torch.nn.Module):
             input_to_latent=self.encoder,
             depthwise_conv=depthwise_conv,
             norm_type=norm_type,
+            num_encoder_layers=num_encoder_layers,
         )
         # Override activation if requested
         if activation != 'gelu':
             act_fn = torch.nn.functional.silu if activation == 'silu' else torch.nn.functional.gelu
             for layer in self.transformer.layers:
+                layer.activation = act_fn
+            for layer in self.transformer.encoder_layers:
                 layer.activation = act_fn
 
         self.channel_mixing_module = Simple_channel_mixing_module(H=H, C=C)

@@ -112,6 +112,11 @@ def parse_args():
                         "Use 6 for the H=384 smaller-arch arms.")
     p.add_argument("--num-layers", type=int, default=MODEL_CONFIG["num_layers"],
                    help="Number of encoder layers. Default 6.")
+    p.add_argument("--num-encoder-layers", type=int, default=0,
+                   help="Number of causal transformer-encoder layers inserted "
+                        "between the patch encoder and the forecaster. "
+                        "Default 0 = baseline (no pre-forecaster encoder). "
+                        "Encoder output is the contrastive target (x_original).")
     p.add_argument("--encoder-type", default=MODEL_CONFIG["encoder_type"],
                    choices=["mlp", "mlp_wide", "residual_silu", "gru", "conv",
                             "transformer"],
@@ -443,6 +448,7 @@ def main():
     tau_init = args.tau if args.tau is not None else 0.07
     model_config["learnable_tau"] = bool(args.learnable_tau)
     model_config["tau_init"] = tau_init
+    model_config["num_encoder_layers"] = args.num_encoder_layers
     # Override the loss_shape from CLI (LOSS_SPEC is a module-level default).
     LOSS_SPEC.train_configuration["loss_shape"] = args.loss_shape
     if args.tau is not None:
