@@ -56,7 +56,6 @@ BEST_CKPT="${CHECKPOINT%.pth}_best_gap.pth"
 [ -f "$BEST_CKPT" ] || BEST_CKPT="$CHECKPOINT"
 echo "Using backbone: $BEST_CKPT"
 BACKBONE_RESULTS="$EXP_DIR/checkpoints/corr_backbone_${EXPID}_results.json"
-[ -f "$BACKBONE_RESULTS" ] || BACKBONE_RESULTS="$EXP_DIR/corr_backbone_${EXPID}_results.json"
 [ -f "$BACKBONE_RESULTS" ] || BACKBONE_RESULTS="$REPO_ROOT/corr_backbone_${EXPID}_results.json"
 
 echo ""
