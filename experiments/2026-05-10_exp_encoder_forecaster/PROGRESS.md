@@ -42,3 +42,25 @@ On the per-batch training metrics plotted (with `1-metric` on the y-axis for AUC
 - Training has stopped at ~25.6k (run interrupted before 50k target). Numbers reported here are the final per-batch averages, not held-out evaluation.
 - All AUC / top-1 / loss / egc values plotted are PER-BATCH on the training distribution (256 samples, in-distribution). They are not held-out and do not directly speak to GIFT-Eval metrics. Per-batch AUC=1.0 means perfect retrieval within a 256-sample minibatch, not zero error on real forecasts.
 - The encoder arm's `fp` (cross-batch reference cosine) goes negative, while the baseline keeps `fp` ≈ +0.17. Some of the "egc improvement" is the denominator `(1 - fp)` widening, not the numerator `(1 - ff)` shrinking. Held-out eval is needed to interpret.
+
+## Q-head training in progress vs R9_E13 reference
+
+Training a quantile transformer head (R9_E13 recipe: xfmr 12L causal quantile head, `e_then_f` input, cosine schedule + 2k warmup, 30k steps) on top of `enc_fcst_tau_0_10_50k_FINAL.pth`. Reference is R9_E13 itself (same recipe, 60k steps) on `backbone-beta_167k`. Only the backbone differs — this is "different backbone, same head recipe — does ours train faster / lower loss?".
+
+Rendered by `scripts/plot_qhead_compare.py` (re-run on demand; reads CSVs from the main checkout, writes only into this experiment dir).
+
+![q-head training: ours vs R9_E13 (linear x, log y)](plots/qhead_compare.png)
+
+| arm | step window | mean training loss (last 200) |
+|---|---:|---:|
+| R9_E13 ref (backbone-beta_167k) at our step | 701–900 | 0.1984 |
+| **ours (enc+fcst backbone, in progress)** | **701–900** | **0.3062** |
+
+For context the R9_E13 reference's final 60k-step training loss is 0.1913 — i.e. it had already converged near its asymptote well before step 1k.
+
+At this very early step (~900 of 30k), the two q-head training-loss curves track on top of each other for the first ~60 steps, then the R9_E13 reference drops through ~0.30 and continues down to ~0.20 by step 300, while our arm plateaus around ~0.31 from step ~100 onward and stays there. No conclusions on final head quality yet — the run is <3% of the way through 30k.
+
+### Caveats
+- Training is in progress — at step ~700 of 30k as of this writing.
+- Per-step head metrics are training losses (per-batch on the streamed training distribution), not held-out evaluations.
+- The reference uses a different backbone (`backbone-beta_167k`), so any gap reflects both backbone differences and head warm-up dynamics; held-out + downstream GIFT-Eval are needed to interpret.
