@@ -64,8 +64,10 @@ MAIN = Path("/home/jupyter/contrastive-forecasting")
 
 # Color palette: saturated, high-contrast.
 #   - τ=0.10 baseline (long-trained, concatenated chunks) → tab:blue
-#   - encoder+forecaster v2 (new "headline" arm, dropkey=0.7) → tab:red
+#   - attempt-1 (shared (T,T) dropkey mask, NaN'd at step 11700) → tab:orange
+#   - per-(B,head) headline arm (dropkey=0.7, fresh per row+head) → tab:red
 C_BASELINE = "#1f77b4"  # tab:blue
+C_ATTEMPT1 = "#ff7f0e"  # tab:orange
 C_HEADLINE = "#d62728"  # tab:red
 
 # τ=0.10 baseline is split across resume chunks. Concatenate in step
@@ -78,6 +80,7 @@ BASELINE_CHUNKS = [
 ]
 
 NEW_ARM_CSV = MAIN / "checkpoints/enc_fcst_dropkey07_pb_50k_losses.csv"
+ATTEMPT1_CSV = MAIN / "checkpoints/enc_fcst_dropkey07_50k_attempt1_losses.csv"
 
 # (display_label, color, linestyle, lw, csv_path_or_chunks, is_concat)
 ARMS = [
@@ -85,6 +88,10 @@ ARMS = [
      C_BASELINE, "-", 1.6,
      BASELINE_CHUNKS,
      True),
+    ("attempt-1 (shared (T,T) dropkey mask, NaN'd @ 11700)",
+     C_ATTEMPT1, "-", 1.4,
+     ATTEMPT1_CSV,
+     False),
     ("encoder+forecaster v2 (6L+6L, dropkey=0.7 per-(B,head), bf16)",
      C_HEADLINE, "-", 1.8,
      NEW_ARM_CSV,
@@ -257,8 +264,8 @@ def render_figure(traj, *, logx, logy_metrics, out_path, scale_tag, xmax,
                    bbox_to_anchor=(0.5, 0.985))
 
     fig.suptitle(
-        f"encoder+forecaster v2 (dropkey=0.7 per-(B,head), {xmax:,} steps) "
-        f"vs τ=0.10 baseline (clipped to {xmax:,}) ({scale_tag})",
+        f"encoder+forecaster v2 (dropkey=0.7) — per-(B,head) vs shared-mask "
+        f"attempt-1 vs τ=0.10 baseline, all clipped to {xmax:,} ({scale_tag})",
         fontsize=12, y=1.02)
     fig.tight_layout(rect=(0, 0, 1, 0.96))
     fig.savefig(out_path, dpi=110, bbox_inches="tight")
@@ -275,9 +282,13 @@ def main() -> None:
         raise SystemExit("baseline chunks all missing or empty")
     new_arm_max = int(new_arm["step"].max())
     baseline_max = int(baseline["step"].max())
-    # Right edge = the new arm's most recent step. Baseline is clipped to
-    # the same window before smoothing so both curves end at the same x.
-    xmax = min(new_arm_max, baseline_max)
+    # Right edge = the new arm's most recent step (or attempt-1's, while
+    # the new arm hasn't passed it). All three arms get clipped to the
+    # same window before smoothing so the curves end at the same x.
+    attempt1 = load_traj(ATTEMPT1_CSV)
+    attempt1_max = int(attempt1["step"].max()) if attempt1 is not None else 0
+    xmax = max(new_arm_max, attempt1_max)
+    xmax = min(xmax, baseline_max)
 
     # Log-x lower bound: snap to the smaller of the two arms' first
     # smoothed point inside the visible window, so the [1..first_step]
