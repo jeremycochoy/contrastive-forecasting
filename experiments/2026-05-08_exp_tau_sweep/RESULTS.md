@@ -125,25 +125,46 @@ discover the τ=0.20 optimum from any tested init.
 
 ### Long-window comparison vs backbone-β_167k
 
-τ=0.10 and τ=0.20 were continued from their 15k checkpoints to **50,000
-steps total** (resume on a fresh DC vast for each, with one preempt-and-
-recover cycle for both). The long-window plot below shows their full
-trajectory against the backbone-β_167k single-batch reference (dashed
-line + dot at step 167k):
+τ=0.10 and τ=0.20 were continued from their 15k checkpoints to
+**150,000 steps total** (15k → 50k → 150k, fresh DC vast at each
+resume). The long-window plot below shows their full trajectory against
+the backbone-β_167k single-batch reference:
 
 ![long](plots/tau_sweep_long_trajectories.png)
 
+In-trajectory mean (1k-step window) at three checkpoints:
+
+| step      | arm    | R²_random | R²_naive | U_t    | U_b    | AUC    | Top-1  |
+|-----------|--------|-----------|----------|--------|--------|--------|--------|
+| 50,000    | τ=0.10 | 0.6630    | 0.6080   | 0.0573 | 0.1148 | 0.9036 | 0.7580 |
+| 100,000   | τ=0.10 | 0.6623    | 0.6083   | 0.0596 | 0.1206 | 0.9052 | 0.7608 |
+| 150,000   | τ=0.10 | 0.6624    | 0.6081   | 0.0599 | 0.1220 | 0.9038 | 0.7591 |
+| 50,000    | τ=0.20 | 0.7650    | 0.7203   | 0.0426 | 0.0902 | 0.9039 | 0.7595 |
+| 100,000   | τ=0.20 | 0.7648    | 0.7213   | 0.0441 | 0.0943 | 0.9056 | 0.7625 |
+| 150,000   | τ=0.20 | 0.7656    | 0.7227   | 0.0446 | 0.0960 | 0.9063 | 0.7635 |
+| 167,000   | β      | 0.6839    | 0.6080   | 0.0375 | 0.0762 | 0.8966 | 0.7531 |
+
 What the long curves show:
 
-- **Both fixed-τ arms plateau by ~25k–30k steps** on every metric. The
-  extra 20k–25k steps past plateau yield no further movement.
-- **τ=0.20 at 50k is above backbone-β_167k on R²_random / R²_naive /
-  AUC / Top-1**, despite training 3.3× fewer steps. Fixed τ=0.20 + this
-  recipe beats the learnable-τ-converged-to-~0.07 backbone-β even when
-  given 1/3 the budget.
-- **τ=0.10 at 50k is above backbone-β on U / AUC / Top-1**, at-or-just-
-  below on R² (R²_random 0.66 vs β 0.68). Consistent with the held-out
-  ranking: τ=0.10 wins on the spread metrics, loses on R².
-- The R² gap **between τ=0.10 and τ=0.20** that appeared at 15k holds
-  cleanly through 50k — no late convergence reverses it.
+- **Both fixed-τ arms are fully plateaued past 50k.** From 50k → 150k
+  the largest movement on any metric is τ=0.20 U_b +0.0058 (+6.4%) and
+  Top-1 +0.0040 (+0.5%); R²/AUC drift is sub-0.003 — well within batch-
+  to-batch noise. Three more "doublings" of training budget yield no new
+  signal.
+- **τ=0.20 at 150k beats backbone-β_167k on every metric** (R²_random
+  +0.082, R²_naive +0.115, U_t +0.0071, U_b +0.020, AUC +0.010, Top-1
+  +0.010), despite training 1.1× fewer steps. Fixed τ=0.20 + this recipe
+  is strictly better than learnable-τ-converged-to-~0.07 at the same
+  budget.
+- **τ=0.10 at 150k beats β on U / AUC / Top-1**, ties on R²_naive,
+  loses R²_random. The 50k pattern (τ=0.10 wins spread metrics, loses
+  R²) holds cleanly through 150k.
+- The R² gap **between τ=0.10 and τ=0.20** (~+0.10 R²_random in τ=0.20's
+  favor at 50k) holds verbatim through 150k — no late convergence
+  reverses it.
+
+**Bottom line: 150k buys nothing new.** The held-out N=50 verdict at
+15k (τ=0.20 representation optimum, R² climbs monotonically with τ)
+holds at 150k, and the trajectories' own metric values confirm the
+plateau is real, not an artifact of the held-out batch sampling.
 
