@@ -1,0 +1,322 @@
+[eval] device=cuda:0
+
+[eval] === enc_fcst_tau_0_10_50k  (tau=0.1)  /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_tau_0_10_50k_FINAL.pth
+  params: total=22,057,020  enc(6L)=10,628,352  fcst(6L)=10,628,352
+  [dataloader] 4274 shards, 42740000 total rows, target skip 50000000
+  [dataloader] skip_rows=50000000 >= total (42740000); wrapping to 7260000
+  [dataloader] Fast-skip: starting at shard 726/4274, then skipping 0 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 50854800
+  [dataloader] skip_rows=50854800 >= total (42740000); wrapping to 8114800
+  [dataloader] Fast-skip: starting at shard 811/4274, then skipping 4800 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 51709600
+  [dataloader] skip_rows=51709600 >= total (42740000); wrapping to 8969600
+  [dataloader] Fast-skip: starting at shard 896/4274, then skipping 9600 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 52564400
+  [dataloader] skip_rows=52564400 >= total (42740000); wrapping to 9824400
+  [dataloader] Fast-skip: starting at shard 982/4274, then skipping 4400 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 53419200
+  [dataloader] skip_rows=53419200 >= total (42740000); wrapping to 10679200
+  [dataloader] Fast-skip: starting at shard 1067/4274, then skipping 9200 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 54274000
+  [dataloader] skip_rows=54274000 >= total (42740000); wrapping to 11534000
+  [dataloader] Fast-skip: starting at shard 1153/4274, then skipping 4000 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 55128800
+  [dataloader] skip_rows=55128800 >= total (42740000); wrapping to 12388800
+  [dataloader] Fast-skip: starting at shard 1238/4274, then skipping 8800 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 55983600
+  [dataloader] skip_rows=55983600 >= total (42740000); wrapping to 13243600
+  [dataloader] Fast-skip: starting at shard 1324/4274, then skipping 3600 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 56838400
+  [dataloader] skip_rows=56838400 >= total (42740000); wrapping to 14098400
+  [dataloader] Fast-skip: starting at shard 1409/4274, then skipping 8400 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 57693200
+  [dataloader] skip_rows=57693200 >= total (42740000); wrapping to 14953200
+  [dataloader] Fast-skip: starting at shard 1495/4274, then skipping 3200 rows within it
+    [10/50] auc=0.9774 top1=0.9414 r2_naive=0.8403
+  [dataloader] 4274 shards, 42740000 total rows, target skip 58548000
+  [dataloader] skip_rows=58548000 >= total (42740000); wrapping to 15808000
+  [dataloader] Fast-skip: starting at shard 1580/4274, then skipping 8000 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 59402800
+  [dataloader] skip_rows=59402800 >= total (42740000); wrapping to 16662800
+  [dataloader] Fast-skip: starting at shard 1666/4274, then skipping 2800 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 60257600
+  [dataloader] skip_rows=60257600 >= total (42740000); wrapping to 17517600
+  [dataloader] Fast-skip: starting at shard 1751/4274, then skipping 7600 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 61112400
+  [dataloader] skip_rows=61112400 >= total (42740000); wrapping to 18372400
+  [dataloader] Fast-skip: starting at shard 1837/4274, then skipping 2400 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 61967200
+  [dataloader] skip_rows=61967200 >= total (42740000); wrapping to 19227200
+  [dataloader] Fast-skip: starting at shard 1922/4274, then skipping 7200 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 62822000
+  [dataloader] skip_rows=62822000 >= total (42740000); wrapping to 20082000
+  [dataloader] Fast-skip: starting at shard 2008/4274, then skipping 2000 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 63676800
+  [dataloader] skip_rows=63676800 >= total (42740000); wrapping to 20936800
+  [dataloader] Fast-skip: starting at shard 2093/4274, then skipping 6800 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 64531600
+  [dataloader] skip_rows=64531600 >= total (42740000); wrapping to 21791600
+  [dataloader] Fast-skip: starting at shard 2179/4274, then skipping 1600 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 65386400
+  [dataloader] skip_rows=65386400 >= total (42740000); wrapping to 22646400
+  [dataloader] Fast-skip: starting at shard 2264/4274, then skipping 6400 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 66241200
+  [dataloader] skip_rows=66241200 >= total (42740000); wrapping to 23501200
+  [dataloader] Fast-skip: starting at shard 2350/4274, then skipping 1200 rows within it
+    [20/50] auc=0.9757 top1=0.9357 r2_naive=0.8642
+  [dataloader] 4274 shards, 42740000 total rows, target skip 67096000
+  [dataloader] skip_rows=67096000 >= total (42740000); wrapping to 24356000
+  [dataloader] Fast-skip: starting at shard 2435/4274, then skipping 6000 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 67950800
+  [dataloader] skip_rows=67950800 >= total (42740000); wrapping to 25210800
+  [dataloader] Fast-skip: starting at shard 2521/4274, then skipping 800 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 68805600
+  [dataloader] skip_rows=68805600 >= total (42740000); wrapping to 26065600
+  [dataloader] Fast-skip: starting at shard 2606/4274, then skipping 5600 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 69660400
+  [dataloader] skip_rows=69660400 >= total (42740000); wrapping to 26920400
+  [dataloader] Fast-skip: starting at shard 2692/4274, then skipping 400 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 70515200
+  [dataloader] skip_rows=70515200 >= total (42740000); wrapping to 27775200
+  [dataloader] Fast-skip: starting at shard 2777/4274, then skipping 5200 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 71370000
+  [dataloader] skip_rows=71370000 >= total (42740000); wrapping to 28630000
+  [dataloader] Fast-skip: starting at shard 2863/4274, then skipping 0 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 72224800
+  [dataloader] skip_rows=72224800 >= total (42740000); wrapping to 29484800
+  [dataloader] Fast-skip: starting at shard 2948/4274, then skipping 4800 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 73079600
+  [dataloader] skip_rows=73079600 >= total (42740000); wrapping to 30339600
+  [dataloader] Fast-skip: starting at shard 3033/4274, then skipping 9600 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 73934400
+  [dataloader] skip_rows=73934400 >= total (42740000); wrapping to 31194400
+  [dataloader] Fast-skip: starting at shard 3119/4274, then skipping 4400 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 74789200
+  [dataloader] skip_rows=74789200 >= total (42740000); wrapping to 32049200
+  [dataloader] Fast-skip: starting at shard 3204/4274, then skipping 9200 rows within it
+    [30/50] auc=0.9807 top1=0.9466 r2_naive=0.8687
+  [dataloader] 4274 shards, 42740000 total rows, target skip 75644000
+  [dataloader] skip_rows=75644000 >= total (42740000); wrapping to 32904000
+  [dataloader] Fast-skip: starting at shard 3290/4274, then skipping 4000 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 76498800
+  [dataloader] skip_rows=76498800 >= total (42740000); wrapping to 33758800
+  [dataloader] Fast-skip: starting at shard 3375/4274, then skipping 8800 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 77353600
+  [dataloader] skip_rows=77353600 >= total (42740000); wrapping to 34613600
+  [dataloader] Fast-skip: starting at shard 3461/4274, then skipping 3600 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 78208400
+  [dataloader] skip_rows=78208400 >= total (42740000); wrapping to 35468400
+  [dataloader] Fast-skip: starting at shard 3546/4274, then skipping 8400 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 79063200
+  [dataloader] skip_rows=79063200 >= total (42740000); wrapping to 36323200
+  [dataloader] Fast-skip: starting at shard 3632/4274, then skipping 3200 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 79918000
+  [dataloader] skip_rows=79918000 >= total (42740000); wrapping to 37178000
+  [dataloader] Fast-skip: starting at shard 3717/4274, then skipping 8000 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 80772800
+  [dataloader] skip_rows=80772800 >= total (42740000); wrapping to 38032800
+  [dataloader] Fast-skip: starting at shard 3803/4274, then skipping 2800 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 81627600
+  [dataloader] skip_rows=81627600 >= total (42740000); wrapping to 38887600
+  [dataloader] Fast-skip: starting at shard 3888/4274, then skipping 7600 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 82482400
+  [dataloader] skip_rows=82482400 >= total (42740000); wrapping to 39742400
+  [dataloader] Fast-skip: starting at shard 3974/4274, then skipping 2400 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 83337200
+  [dataloader] skip_rows=83337200 >= total (42740000); wrapping to 40597200
+  [dataloader] Fast-skip: starting at shard 4059/4274, then skipping 7200 rows within it
+    [40/50] auc=0.9775 top1=0.9399 r2_naive=0.8878
+  [dataloader] 4274 shards, 42740000 total rows, target skip 84192000
+  [dataloader] skip_rows=84192000 >= total (42740000); wrapping to 41452000
+  [dataloader] Fast-skip: starting at shard 4145/4274, then skipping 2000 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 85046800
+  [dataloader] skip_rows=85046800 >= total (42740000); wrapping to 42306800
+  [dataloader] Fast-skip: starting at shard 4230/4274, then skipping 6800 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 85901600
+  [dataloader] skip_rows=85901600 >= total (42740000); wrapping to 421600
+  [dataloader] Fast-skip: starting at shard 42/4274, then skipping 1600 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 86756400
+  [dataloader] skip_rows=86756400 >= total (42740000); wrapping to 1276400
+  [dataloader] Fast-skip: starting at shard 127/4274, then skipping 6400 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 87611200
+  [dataloader] skip_rows=87611200 >= total (42740000); wrapping to 2131200
+  [dataloader] Fast-skip: starting at shard 213/4274, then skipping 1200 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 88466000
+  [dataloader] skip_rows=88466000 >= total (42740000); wrapping to 2986000
+  [dataloader] Fast-skip: starting at shard 298/4274, then skipping 6000 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 89320800
+  [dataloader] skip_rows=89320800 >= total (42740000); wrapping to 3840800
+  [dataloader] Fast-skip: starting at shard 384/4274, then skipping 800 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 90175600
+  [dataloader] skip_rows=90175600 >= total (42740000); wrapping to 4695600
+  [dataloader] Fast-skip: starting at shard 469/4274, then skipping 5600 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 91030400
+  [dataloader] skip_rows=91030400 >= total (42740000); wrapping to 5550400
+  [dataloader] Fast-skip: starting at shard 555/4274, then skipping 400 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 91885200
+  [dataloader] skip_rows=91885200 >= total (42740000); wrapping to 6405200
+  [dataloader] Fast-skip: starting at shard 640/4274, then skipping 5200 rows within it
+    [50/50] auc=0.9756 top1=0.9388 r2_naive=0.8286
+  AGG: auc=0.9778±0.0028  top1=0.9409±0.0062  r2_naive=0.8550±0.0330
+
+[eval] === tau_sweep_0_10_baseline  (tau=0.1)  /home/jupyter/contrastive-forecasting/sync_tau_sweep/checkpoints/tau_sweep_0_10_FINAL.pth
+  params: total=11,428,668  enc(0L)=0  fcst(6L)=10,628,352
+  [dataloader] 4274 shards, 42740000 total rows, target skip 50000000
+  [dataloader] skip_rows=50000000 >= total (42740000); wrapping to 7260000
+  [dataloader] Fast-skip: starting at shard 726/4274, then skipping 0 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 50854800
+  [dataloader] skip_rows=50854800 >= total (42740000); wrapping to 8114800
+  [dataloader] Fast-skip: starting at shard 811/4274, then skipping 4800 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 51709600
+  [dataloader] skip_rows=51709600 >= total (42740000); wrapping to 8969600
+  [dataloader] Fast-skip: starting at shard 896/4274, then skipping 9600 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 52564400
+  [dataloader] skip_rows=52564400 >= total (42740000); wrapping to 9824400
+  [dataloader] Fast-skip: starting at shard 982/4274, then skipping 4400 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 53419200
+  [dataloader] skip_rows=53419200 >= total (42740000); wrapping to 10679200
+  [dataloader] Fast-skip: starting at shard 1067/4274, then skipping 9200 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 54274000
+  [dataloader] skip_rows=54274000 >= total (42740000); wrapping to 11534000
+  [dataloader] Fast-skip: starting at shard 1153/4274, then skipping 4000 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 55128800
+  [dataloader] skip_rows=55128800 >= total (42740000); wrapping to 12388800
+  [dataloader] Fast-skip: starting at shard 1238/4274, then skipping 8800 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 55983600
+  [dataloader] skip_rows=55983600 >= total (42740000); wrapping to 13243600
+  [dataloader] Fast-skip: starting at shard 1324/4274, then skipping 3600 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 56838400
+  [dataloader] skip_rows=56838400 >= total (42740000); wrapping to 14098400
+  [dataloader] Fast-skip: starting at shard 1409/4274, then skipping 8400 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 57693200
+  [dataloader] skip_rows=57693200 >= total (42740000); wrapping to 14953200
+  [dataloader] Fast-skip: starting at shard 1495/4274, then skipping 3200 rows within it
+    [10/50] auc=0.9009 top1=0.7571 r2_naive=0.6189
+  [dataloader] 4274 shards, 42740000 total rows, target skip 58548000
+  [dataloader] skip_rows=58548000 >= total (42740000); wrapping to 15808000
+  [dataloader] Fast-skip: starting at shard 1580/4274, then skipping 8000 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 59402800
+  [dataloader] skip_rows=59402800 >= total (42740000); wrapping to 16662800
+  [dataloader] Fast-skip: starting at shard 1666/4274, then skipping 2800 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 60257600
+  [dataloader] skip_rows=60257600 >= total (42740000); wrapping to 17517600
+  [dataloader] Fast-skip: starting at shard 1751/4274, then skipping 7600 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 61112400
+  [dataloader] skip_rows=61112400 >= total (42740000); wrapping to 18372400
+  [dataloader] Fast-skip: starting at shard 1837/4274, then skipping 2400 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 61967200
+  [dataloader] skip_rows=61967200 >= total (42740000); wrapping to 19227200
+  [dataloader] Fast-skip: starting at shard 1922/4274, then skipping 7200 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 62822000
+  [dataloader] skip_rows=62822000 >= total (42740000); wrapping to 20082000
+  [dataloader] Fast-skip: starting at shard 2008/4274, then skipping 2000 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 63676800
+  [dataloader] skip_rows=63676800 >= total (42740000); wrapping to 20936800
+  [dataloader] Fast-skip: starting at shard 2093/4274, then skipping 6800 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 64531600
+  [dataloader] skip_rows=64531600 >= total (42740000); wrapping to 21791600
+  [dataloader] Fast-skip: starting at shard 2179/4274, then skipping 1600 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 65386400
+  [dataloader] skip_rows=65386400 >= total (42740000); wrapping to 22646400
+  [dataloader] Fast-skip: starting at shard 2264/4274, then skipping 6400 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 66241200
+  [dataloader] skip_rows=66241200 >= total (42740000); wrapping to 23501200
+  [dataloader] Fast-skip: starting at shard 2350/4274, then skipping 1200 rows within it
+    [20/50] auc=0.8998 top1=0.7561 r2_naive=0.6305
+  [dataloader] 4274 shards, 42740000 total rows, target skip 67096000
+  [dataloader] skip_rows=67096000 >= total (42740000); wrapping to 24356000
+  [dataloader] Fast-skip: starting at shard 2435/4274, then skipping 6000 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 67950800
+  [dataloader] skip_rows=67950800 >= total (42740000); wrapping to 25210800
+  [dataloader] Fast-skip: starting at shard 2521/4274, then skipping 800 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 68805600
+  [dataloader] skip_rows=68805600 >= total (42740000); wrapping to 26065600
+  [dataloader] Fast-skip: starting at shard 2606/4274, then skipping 5600 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 69660400
+  [dataloader] skip_rows=69660400 >= total (42740000); wrapping to 26920400
+  [dataloader] Fast-skip: starting at shard 2692/4274, then skipping 400 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 70515200
+  [dataloader] skip_rows=70515200 >= total (42740000); wrapping to 27775200
+  [dataloader] Fast-skip: starting at shard 2777/4274, then skipping 5200 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 71370000
+  [dataloader] skip_rows=71370000 >= total (42740000); wrapping to 28630000
+  [dataloader] Fast-skip: starting at shard 2863/4274, then skipping 0 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 72224800
+  [dataloader] skip_rows=72224800 >= total (42740000); wrapping to 29484800
+  [dataloader] Fast-skip: starting at shard 2948/4274, then skipping 4800 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 73079600
+  [dataloader] skip_rows=73079600 >= total (42740000); wrapping to 30339600
+  [dataloader] Fast-skip: starting at shard 3033/4274, then skipping 9600 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 73934400
+  [dataloader] skip_rows=73934400 >= total (42740000); wrapping to 31194400
+  [dataloader] Fast-skip: starting at shard 3119/4274, then skipping 4400 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 74789200
+  [dataloader] skip_rows=74789200 >= total (42740000); wrapping to 32049200
+  [dataloader] Fast-skip: starting at shard 3204/4274, then skipping 9200 rows within it
+    [30/50] auc=0.8996 top1=0.7524 r2_naive=0.6172
+  [dataloader] 4274 shards, 42740000 total rows, target skip 75644000
+  [dataloader] skip_rows=75644000 >= total (42740000); wrapping to 32904000
+  [dataloader] Fast-skip: starting at shard 3290/4274, then skipping 4000 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 76498800
+  [dataloader] skip_rows=76498800 >= total (42740000); wrapping to 33758800
+  [dataloader] Fast-skip: starting at shard 3375/4274, then skipping 8800 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 77353600
+  [dataloader] skip_rows=77353600 >= total (42740000); wrapping to 34613600
+  [dataloader] Fast-skip: starting at shard 3461/4274, then skipping 3600 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 78208400
+  [dataloader] skip_rows=78208400 >= total (42740000); wrapping to 35468400
+  [dataloader] Fast-skip: starting at shard 3546/4274, then skipping 8400 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 79063200
+  [dataloader] skip_rows=79063200 >= total (42740000); wrapping to 36323200
+  [dataloader] Fast-skip: starting at shard 3632/4274, then skipping 3200 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 79918000
+  [dataloader] skip_rows=79918000 >= total (42740000); wrapping to 37178000
+  [dataloader] Fast-skip: starting at shard 3717/4274, then skipping 8000 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 80772800
+  [dataloader] skip_rows=80772800 >= total (42740000); wrapping to 38032800
+  [dataloader] Fast-skip: starting at shard 3803/4274, then skipping 2800 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 81627600
+  [dataloader] skip_rows=81627600 >= total (42740000); wrapping to 38887600
+  [dataloader] Fast-skip: starting at shard 3888/4274, then skipping 7600 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 82482400
+  [dataloader] skip_rows=82482400 >= total (42740000); wrapping to 39742400
+  [dataloader] Fast-skip: starting at shard 3974/4274, then skipping 2400 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 83337200
+  [dataloader] skip_rows=83337200 >= total (42740000); wrapping to 40597200
+  [dataloader] Fast-skip: starting at shard 4059/4274, then skipping 7200 rows within it
+    [40/50] auc=0.9026 top1=0.7616 r2_naive=0.6151
+  [dataloader] 4274 shards, 42740000 total rows, target skip 84192000
+  [dataloader] skip_rows=84192000 >= total (42740000); wrapping to 41452000
+  [dataloader] Fast-skip: starting at shard 4145/4274, then skipping 2000 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 85046800
+  [dataloader] skip_rows=85046800 >= total (42740000); wrapping to 42306800
+  [dataloader] Fast-skip: starting at shard 4230/4274, then skipping 6800 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 85901600
+  [dataloader] skip_rows=85901600 >= total (42740000); wrapping to 421600
+  [dataloader] Fast-skip: starting at shard 42/4274, then skipping 1600 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 86756400
+  [dataloader] skip_rows=86756400 >= total (42740000); wrapping to 1276400
+  [dataloader] Fast-skip: starting at shard 127/4274, then skipping 6400 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 87611200
+  [dataloader] skip_rows=87611200 >= total (42740000); wrapping to 2131200
+  [dataloader] Fast-skip: starting at shard 213/4274, then skipping 1200 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 88466000
+  [dataloader] skip_rows=88466000 >= total (42740000); wrapping to 2986000
+  [dataloader] Fast-skip: starting at shard 298/4274, then skipping 6000 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 89320800
+  [dataloader] skip_rows=89320800 >= total (42740000); wrapping to 3840800
+  [dataloader] Fast-skip: starting at shard 384/4274, then skipping 800 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 90175600
+  [dataloader] skip_rows=90175600 >= total (42740000); wrapping to 4695600
+  [dataloader] Fast-skip: starting at shard 469/4274, then skipping 5600 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 91030400
+  [dataloader] skip_rows=91030400 >= total (42740000); wrapping to 5550400
+  [dataloader] Fast-skip: starting at shard 555/4274, then skipping 400 rows within it
+  [dataloader] 4274 shards, 42740000 total rows, target skip 91885200
+  [dataloader] skip_rows=91885200 >= total (42740000); wrapping to 6405200
+  [dataloader] Fast-skip: starting at shard 640/4274, then skipping 5200 rows within it
+    [50/50] auc=0.8904 top1=0.7405 r2_naive=0.6088
+  AGG: auc=0.8993±0.0054  top1=0.7535±0.0099  r2_naive=0.6153±0.0095
+
+[eval] wrote /home/jupyter/contrastive-forecasting/experiments/2026-05-10_exp_encoder_forecaster/results/encoder_forecaster_metrics_persample_n50.csv
+[eval] wrote /home/jupyter/contrastive-forecasting/experiments/2026-05-10_exp_encoder_forecaster/results/encoder_forecaster_metrics_multisample_n50.csv
