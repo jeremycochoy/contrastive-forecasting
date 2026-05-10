@@ -1,6 +1,18 @@
 # Encoder+forecaster (6L+6L, bf16, τ=0.10) — training in progress
 
-Training a GRU patch embedding → 6 causal transformer-encoder layers → 6 causal transformer-forecaster layers at τ=0.10 with bf16 autocast, otherwise identical to the τ-sweep baseline (`run_encoder_forecaster.sh` on elisa GPU 1, target 50k steps, batch 256).
+Training a GRU patch embedding → 6 causal transformer-encoder layers → 6 causal transformer-forecaster layers at τ=0.10 with bf16 autocast, otherwise identical to the τ-sweep baseline (`run_encoder_forecaster.sh` on elisa GPU 1, target 50k steps, batch 256). Training was stopped early at step 25 600 once per-batch metrics had saturated; the `_FINAL.pth` is the checkpoint with the lowest training loss seen up to that point.
+
+## Held-out N=50 multisample eval (`eval_one.py`)
+
+50 disjoint windows from `jeremycochoy/gift-pretrain-full-4096:small_v1`, B=256, T_RAW=4096, identical skip-rows list as `experiments/2026-05-08_exp_tau_sweep/scripts/eval_multisample.py`. Per-sample CSV: `results/encoder_forecaster_metrics_persample_n50.csv`; aggregate: `results/encoder_forecaster_metrics_multisample_n50.csv`.
+
+| arm | AUC | top-1 | r²_naive | r²_random | U_temporal | U_batch |
+|---|---:|---:|---:|---:|---:|---:|
+| τ=0.10 baseline | 0.8993 ± 0.0054 | 0.7535 ± 0.0099 | 0.6153 ± 0.0095 | 0.6683 ± 0.0074 | 0.0512 ± 0.0012 | 0.1019 ± 0.0015 |
+| **encoder+forecaster** | **0.9778 ± 0.0028** | **0.9409 ± 0.0062** | **0.8550 ± 0.0330** | **0.9078 ± 0.0184** | **0.2956 ± 0.0023** | **0.5575 ± 0.0064** |
+| Δ | +0.0785 | +0.1874 | +0.2397 | +0.2395 | +0.2444 | +0.4556 |
+
+The baseline numbers reproduce `experiments/2026-05-08_exp_tau_sweep/results/tau_sweep_metrics_multisample_n50.csv` exactly (sanity check: same eval pipeline, same skip-rows list). All deltas are many SEM apart from the baseline mean. Note this evaluates the contrastive backbone alone; downstream MASE on GIFT-Eval requires the q-head pipeline (separate training run).
 
 **log–log scale**
 
