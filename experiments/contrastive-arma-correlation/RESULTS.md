@@ -90,7 +90,7 @@ and CC/FP are essentially what we expected.
 
 ![Relative-gap analysis](plots/v6_v7_ratios.png)
 
-## Direct-input head (in progress)
+## Direct-input head fails identically
 
 Replacement: `JointCorrelationHeadDirect` feeds `[B, T, C·H]` straight
 into a bidirectional GRU with `input_size = C·H`. The recurrent gates
@@ -98,7 +98,31 @@ are nonlinear, so the hidden state can in principle accumulate
 quadratic cross-channel statistics over time without an upstream
 sample-independent linear bottleneck.
 
-**Status: training. Results to be filled in.**
+It does not. Per-pair Pearson r is again indistinguishable from zero
+(range −0.10 to 0.06), MSE matches the mean baseline to two decimal
+places, and the head converges to predicting the unconditional mean
+of the correlation distribution within ~2000 epochs and stays there.
+Two heads with very different inductive biases — sample-independent
+linear projection then GRU, vs GRU eating the full `C·H` directly —
+both fail in the same way.
+
+The head architecture is therefore not the bottleneck we suspected.
+The cross-channel correlation signal in this `h_hat` is either absent
+or so faint that an order of magnitude in head capacity does not
+recover it, while a trivial `corrcoef(diff(y))` estimator on the raw
+data achieves r ≈ 0.6–0.7 from the same samples. The signal lives in
+the data; it does not survive into `h_hat` in a form a 3–5 M parameter
+GRU head can read.
+
+The likely cause is back to the architecture: per-channel transformer
+plus a sample-independent linear channel mix on top. The joint
+statistics of channels do flow into `h_hat` in principle, but the
+contrastive loss is dominated by per-channel ARMA features (which
+drive both the same-channel positive and the cross-batch negative)
+and the per-sample correlation signal sits well below that. A
+backbone where channels are joint *in the representation* —
+[B, T, C·H] into the transformer attention itself, or
+sample-dependent mixing weights — is the next thing to try.
 
 ## Artifacts
 
