@@ -35,29 +35,34 @@ SYNC = REPO / "sync_tau_sweep/checkpoints"
 SYNC_V2 = REPO / "sync_tau_sweep_arm5_v2/checkpoints"
 SYNC_010_50K = REPO / "sync_tau_sweep_0_10_50k/checkpoints"
 SYNC_020_50K = REPO / "sync_tau_sweep_0_20_50k/checkpoints"
+SYNC_010_150K = REPO / "sync_tau_sweep_0_10_150k/checkpoints"
+SYNC_020_150K = REPO / "sync_tau_sweep_0_20_150k/checkpoints"
 OUT = REPO / "experiments/2026-05-08_exp_tau_sweep/plots/tau_sweep_long_trajectories.png"
 OUT.parent.mkdir(parents=True, exist_ok=True)
 
 # (display_label, color, [csv_segments]).
 #
-# Each arm's full 0–50k trajectory is the concatenation of:
-#   1. original 0–15k run (loaded from the τ-sweep sync dir),
+# Each arm's full 0–150k trajectory is the concatenation of:
+#   1. original 0–15k run,
 #   2. first preempted 50k attempt (~15k–24k for τ=0.10, ~15k–20k for τ=0.20),
-#   3. second resume's _r2 CSV (resumed from best_loss; covers ~24k or
-#      ~20k → 50k).
-# `load_concat` sorts by step and dedupes — overlapping rows where (2) and
-# (3) cover the same step are kept once (latest write wins via stable sort).
-# Missing segments are silently skipped, so the plot is robust to partial
-# state.
+#   3. second 50k resume's _r2 CSV (resumed from best_loss; covers
+#      24k/20k → 50k),
+#   4. 150k continuation (resumed from 50k _r2_FINAL; covers ~48k/49.8k → 150k).
+# `load_concat` sorts by step and dedupes — overlapping rows where adjacent
+# segments cover the same step are kept once (latest write wins via stable
+# sort). Missing segments are silently skipped, so the plot is robust to
+# partial state.
 ARMS = [
     ("τ=0.10",  "#d62728",
-     [SYNC         / "tau_sweep_0_10_losses.csv",
-      SYNC_010_50K / "tau_sweep_0_10_50k_losses.csv",
-      SYNC_010_50K / "tau_sweep_0_10_50k_r2_losses.csv"]),
+     [SYNC          / "tau_sweep_0_10_losses.csv",
+      SYNC_010_50K  / "tau_sweep_0_10_50k_losses.csv",
+      SYNC_010_50K  / "tau_sweep_0_10_50k_r2_losses.csv",
+      SYNC_010_150K / "tau_sweep_0_10_150k_losses.csv"]),
     ("τ=0.20",  "#ff7f0e",
-     [SYNC_V2      / "tau_sweep_0_20_v2_losses.csv",
-      SYNC_020_50K / "tau_sweep_0_20_50k_losses.csv",
-      SYNC_020_50K / "tau_sweep_0_20_50k_r2_losses.csv"]),
+     [SYNC_V2       / "tau_sweep_0_20_v2_losses.csv",
+      SYNC_020_50K  / "tau_sweep_0_20_50k_losses.csv",
+      SYNC_020_50K  / "tau_sweep_0_20_50k_r2_losses.csv",
+      SYNC_020_150K / "tau_sweep_0_20_150k_losses.csv"]),
 ]
 
 # backbone-β_167k held-out single-batch reference values (BETA_REF dict
@@ -155,13 +160,13 @@ def main() -> None:
         ax.set_title(title)
         ax.set_xscale("log")
         ax.set_yscale("log")
-        ax.set_xlim(5000, 50000)
+        ax.set_xlim(5000, 150000)
         ax.set_ylim(ylim)
         ax.set_xlabel("step")
         ax.grid(alpha=0.3, which="both")
         ax.legend(loc="best", fontsize=9)
     fig.suptitle(
-        "τ-sweep long trajectories — τ=0.10 and τ=0.20 to 50k "
+        "τ-sweep long trajectories — τ=0.10 and τ=0.20 to 150k "
         "(log/log; U: 500-step MA, AUC / Top-1: 450-step MA).",
         fontsize=12)
     fig.tight_layout()
