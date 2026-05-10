@@ -24,29 +24,25 @@ negatives instead of a 1×2 rectangle.
 | Encoder | GRU, d=384, 6 heads, 6 layers |
 | RevNorm | EWMA span=128, mixup p=0.3 |
 
-Baselines = τ=0.10/τ=0.20 arms from the prior tau-sweep (identical
-hyperparams except loss). Linear-axis plots clip the x-axis at 100 k so
-all four arms share one display window; the baselines' 100–150 k tail
-is used only to confirm the late plateau (see baseline-only row of the
-late-window table).
+Linear-axis plots clip x at 100 k so all four arms share one window;
+the baselines' 100–150 k tail is used only to confirm the late plateau.
 
 ## AUC / Top-1
 
 ![AUC and Top-1](plots/4arm_auc_top1.png)
 
-All four arms cluster within run-to-run noise through the whole window.
-Smoothed (W=1000) baseline curves sit slightly above their square
-counterparts at every step past ~5 k — see the late-window table for
-the actual gap.
+All four arms cluster within run-to-run noise; smoothed (W=1000)
+baseline curves sit slightly above their square counterparts past
+~5 k.
 
 ## Log-log
 
 ![Log-log convergence](plots/4arm_logscale.png)
 
-Same data on log axes. Squares are visibly delayed in the early ramp
-(steps 1–10 k) and converge to within noise of the baselines by ~30 k,
-but the baselines hold a tiny lead on AUC/Top-1 and a substantial lead
-on `U_batch` for the rest of the window.
+Squares are visibly delayed in the early ramp and close the gap by
+~30 k. None of the curves look like clean straight lines on log-log —
+they all bend toward the same plateau, which limits what we can read
+out about scaling behaviour from this experiment alone.
 
 ## Dimension usage
 
@@ -54,11 +50,10 @@ on `U_batch` for the rest of the window.
 
 `U_batch` and `U_temporal` measure how many embedding dimensions are
 actively used along the batch and temporal axes (higher = less
-collapsed). At τ=0.10 the baseline keeps growing past where the square
-plateaus — the gap widens with training. At τ=0.20 the two are nearly
-on top of each other through the whole window. Higher `U_batch` is not
-inherently better: at τ=0.10 the baseline has both higher `U_batch`
-*and* higher AUC.
+collapsed). The τ=0.10 baseline keeps growing past where the square
+plateaus; the τ=0.20 arms stay close. Higher `U_batch` is not
+inherently better here: the highest-`U_batch` arm (baseline τ=0.10) is
+also the highest-AUC arm.
 
 ## Late-window means
 
@@ -78,8 +73,7 @@ Per-step values are noisy (±0.02 AUC); means are over 10 k-step windows.
 | baseline τ=0.20 | 140 001–150 000 | 0.9058 | 0.7634 | 0.0959 | 0.0445 |
 
 The 140–150 k baseline rows confirm the baselines are on a flat plateau
-past 100 k (Δ AUC ≤ 0.001 vs 90–100 k); the squares' coverage stops at
-100 k so we can't make the same statement for them.
+past 100 k. Squares' coverage stops at 100 k.
 
 ## Welch t-tests on AUC / Top-1 (overlap window 5 001–100 000, n=95 000)
 
@@ -93,30 +87,29 @@ past 100 k (Δ AUC ≤ 0.001 vs 90–100 k); the squares' coverage stops at
 Samples are consecutive training steps from one run, not i.i.d.;
 effective N is much smaller than 95 000, so p-values are
 anti-conservative. Treat Δ values as load-bearing, not the p numbers.
-Window includes the squares' slow-converging early region; at the
-common 90–100 k row of the table above the same Δ pattern holds (Δ AUC
-+0.0006 at τ=0.10, +0.0022 at τ=0.20).
 
 ## Bottom line
 
-- **At every step-matched window we measured (50 k and 100 k) baselines
-  outperform squares on AUC and Top-1 at both τ.** The gap is small at
-  τ=0.10 (Δ AUC +0.0006 to +0.0011, Δ Top-1 −0.0003 to +0.0003 — i.e.
-  Top-1 is a wash) and consistently larger at τ=0.20 (Δ AUC +0.0022 to
-  +0.0025, Δ Top-1 +0.0031 to +0.0033).
-- **Convergence delay:** squares start visibly behind baselines through
-  ~30 k and close most of the gap by 50 k, but they do not overtake at
-  100 k; baselines also keep improving past 50 k by ~+0.001 AUC, so the
-  squares' "late plateau" advantage seen in the prior 50 k-baseline
-  report was an apples-to-oranges effect.
-- **Baseline plateau is real past 100 k:** at 140–150 k the baseline τ=0.10
-  AUC is 0.9037 vs 0.9046 at 100 k (slight regression, inside noise);
-  τ=0.20 is 0.9058 vs 0.9053 (slight gain). Negligible movement.
-- **U_batch:** at τ=0.10 the gap widens with training (square 0.0868 vs
-  baseline 0.1197 at 100 k — square is 27 % lower), and the baseline's
-  higher `U_batch` correlates with its slightly higher AUC, not lower.
-  At τ=0.20 the two are within ≈0.001 of each other through 100 k.
-- **Practical take:** the extra cross-batch negatives are a small but
-  consistent regression on AUC/Top-1 at τ=0.20 and a wash-to-tiny
-  regression at τ=0.10, while costing ~2× the steps to reach a flat
-  plateau. Not a recommended default at this scale.
+- **Baselines edge squares at every step-matched window.** Tiny gap at
+  τ=0.10, larger and consistent at τ=0.20.
+- **Squares converge slower; baselines also keep improving past 50 k.**
+  The prior 50 k-baseline report's "square overtakes at its own
+  plateau" framing was step-mismatched and is wrong.
+- **Higher `U_batch` ≠ better here.** The arm with the highest
+  `U_batch` is also the arm with the highest AUC.
+- **Net:** extra cross-batch negatives are at best a wash, at worst a
+  small regression, and they cost roughly twice the steps to reach a
+  flat plateau. Not a recommended default at this scale.
+
+## Followup hypothesis
+
+The curves bend hard toward a single plateau rather than tracking
+straight lines on log-log; this is what we'd expect if some component
+of the architecture were saturated and bottlenecking AUC, in which case
+loss-shape changes can't show their true effect. **The user hypothesis
+is that the GRU patch head is the bottleneck**: a single GRU layer at
+d=384 has limited capacity to scale, and replacing it with a small
+transformer patch head should produce log-log curves that look like
+straight lines with different slopes — the regime where loss-shape
+differences would be readable. Worth running before drawing a strong
+conclusion that the square loss is harmful per se.
