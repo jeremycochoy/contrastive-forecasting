@@ -123,7 +123,7 @@ class TransformerBlock(nn.Module):
 
     def __init__(self, dimension_e, nhead=8, num_layers=6, feedforward_mult=None,
                  activation=None, input_to_latent=None, dropout=0, depthwise_conv=3,
-                 norm_first=True, norm_type='layernorm'):
+                 norm_first=True, norm_type='layernorm', num_encoder_layers=0):
         super().__init__()
 
         if feedforward_mult is None:
@@ -131,6 +131,25 @@ class TransformerBlock(nn.Module):
         dim_feedforward = int(feedforward_mult * dimension_e)
 
         self.input_to_latent = input_to_latent
+
+        # Pre-forecaster causal encoder stack. When num_encoder_layers=0 the
+        # ModuleList is empty and forward() degenerates to the prior
+        # patch-encoder-only contrastive target — checkpoint-compatible with
+        # all pre-encoder-stage runs.
+        self.encoder_layers = nn.ModuleList([
+            DecoderOnlyTransformerLayer(
+                d_model=dimension_e,
+                nhead=nhead,
+                dim_feedforward=dim_feedforward,
+                activation=activation or 'gelu',
+                batch_first=True,
+                norm_first=norm_first,
+                norm_type=norm_type,
+                bias=False,
+                dropout=dropout,
+                depthwise_conv=depthwise_conv,
+            ) for _ in range(num_encoder_layers)
+        ])
 
         self.layers = nn.ModuleList([
             DecoderOnlyTransformerLayer(
@@ -158,18 +177,21 @@ class TransformerBlock(nn.Module):
         x = x.permute(0,2,1,3)
         x = x.reshape(B*C, T, H)
 
-        x_original = x.clone()
-
-
-
         # x shape after potential reshaping: (batch_size, sequence_length, dimension_e)
         if self.causal_mask is None or self.causal_mask.size(0) != x.size(1):
             self.causal_mask = self._generate_square_subsequent_mask(x.size(1)).to(x.device)
 
-        # Apply transformer layers
-        for layer in self.layers:
+        # Encoder layers run BEFORE x_original is captured: the contrastive
+        # loss normalises x_original on the unit sphere, so encoder vs
+        # forecaster are forced apart by the asymmetric position of the L2.
+        for layer in self.encoder_layers:
             x = layer(x, tgt_mask=self.causal_mask, tgt_is_causal=True)
 
+        x_original = x.clone()
+
+        # Forecaster (decoder) layers
+        for layer in self.layers:
+            x = layer(x, tgt_mask=self.causal_mask, tgt_is_causal=True)
 
         return x, x_original
 
