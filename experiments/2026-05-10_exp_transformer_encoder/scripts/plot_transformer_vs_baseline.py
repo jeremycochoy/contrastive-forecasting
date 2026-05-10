@@ -44,9 +44,12 @@ EXP_DIR = os.path.join(WORKTREE_ROOT, "experiments",
                        "2026-05-10_exp_transformer_encoder")
 OUT_PATH = os.path.join(EXP_DIR, "plots", "transformer_vs_baseline_loglog.png")
 
-TRANSFORMER_CSV = os.path.join(
-    MAIN_CHECKOUT, "sync_transformer_encoder", "checkpoints",
-    "transformer_encoder_tau_0_10_50k_losses.csv")
+TRANSFORMER_SEGMENTS = [
+    os.path.join(MAIN_CHECKOUT, "sync_transformer_encoder", "checkpoints",
+                 "transformer_encoder_tau_0_10_50k_losses.csv"),    # 1..50000
+    os.path.join(MAIN_CHECKOUT, "sync_transformer_encoder", "checkpoints",
+                 "transformer_encoder_tau_0_10_150k_losses.csv"),   # 50000..150000
+]
 
 BASELINE_SEGMENTS = [
     os.path.join(MAIN_CHECKOUT, "sync_tau_sweep", "checkpoints",
@@ -77,26 +80,25 @@ def smooth(s: pd.Series, w: int) -> pd.Series:
     return s.rolling(window=w, min_periods=max(1, w // 4)).mean()
 
 
-def load_baseline(max_step: int) -> pd.DataFrame:
-    parts = [pd.read_csv(p) for p in BASELINE_SEGMENTS if os.path.exists(p)]
+def load_concat(segments: list[str], max_step: int | None = None) -> pd.DataFrame:
+    parts = [pd.read_csv(p) for p in segments if os.path.exists(p)]
     if not parts:
-        raise FileNotFoundError("no baseline segments found")
+        raise FileNotFoundError(f"no segments found in {segments}")
     df = pd.concat(parts, ignore_index=True)
     # Resume overlap: keep the LATER segment's value at duplicated steps.
     df = df.drop_duplicates(subset="step", keep="last").sort_values("step")
-    df = df[df["step"] <= max_step].reset_index(drop=True)
-    return df
+    if max_step is not None:
+        df = df[df["step"] <= max_step]
+    return df.reset_index(drop=True)
 
 
 def main() -> None:
-    if not os.path.exists(TRANSFORMER_CSV):
-        raise FileNotFoundError(TRANSFORMER_CSV)
-    te = pd.read_csv(TRANSFORMER_CSV).sort_values("step").reset_index(drop=True)
+    te = load_concat(TRANSFORMER_SEGMENTS)
     if te.empty:
         raise RuntimeError("transformer CSV is empty")
 
     max_step = int(te["step"].max())
-    baseline = load_baseline(max_step)
+    baseline = load_concat(BASELINE_SEGMENTS, max_step=max_step)
     print(f"transformer rows: {len(te)} (steps 1..{max_step})")
     print(f"baseline rows  : {len(baseline)} (steps "
           f"{int(baseline.step.min())}..{int(baseline.step.max())}, "
