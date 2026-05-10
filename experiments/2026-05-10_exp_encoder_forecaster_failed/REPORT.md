@@ -1,22 +1,21 @@
 # Encoder + Forecaster — FAILED
 
+## Question
+
+Does inserting a 6-layer causal transformer **encoder** between the existing GRU patch embedding and the existing 6-layer causal forecaster improve the backbone, measured by GIFT-Eval MASE through a quantile head trained on top of the frozen backbone? Same building block as the forecaster (causal `DecoderOnlyTransformerLayer`).
+
+## Result
+
 **Triage GIFT-Eval GM-Relative MASE = 1.596** vs seasonal naive 1.000 vs R9_E13 reference (same q-head recipe on `backbone-beta_167k`) 0.990. The triage gate (< 1.0 → full eval) failed; full eval was not launched.
 
-## TL;DR
-
-- A 6-layer causal transformer **encoder** inserted between the GRU patch embedding and the existing 6-layer forecaster *appears* to dominate the τ=0.10 baseline on every held-out contrastive number (legacy AUC 0.978 vs 0.899, top-1 0.941 vs 0.754, R²_naive 0.855 vs 0.615).
+- The encoder+forecaster backbone *appears* to dominate the τ=0.10 baseline on every held-out contrastive number (legacy AUC 0.978 vs 0.899, top-1 0.941 vs 0.754, R²_naive 0.855 vs 0.615).
 - It does not transfer downstream. A 12L quantile head trained with the R9_E13 recipe on this backbone plateaus at training loss ≈ 0.28 vs the reference's ≈ 0.20, and the GIFT-Eval triage GM-Relative MASE comes in at **1.596** — 60% worse than seasonal naive and 61% worse than the R9_E13 reference (0.990).
-- The legacy contrastive metric only used 4 same-sample temporal negatives at lags {1, 2, 4, 8}. The added encoder layers are deep enough to learn a position counter (causal-attention depth + L2 norm); the counter aces those negatives without encoding forecasting content.
-- This was confirmed downstream by the q-head failure (the test that adjudicated) and on synthetic data by the new metric: pure positional encoding scores AUC=1.0 on the legacy metric, AUC=0.333 on `retrieval_auc_topk_batch_temporal` (PR #272), which adds cross-batch negatives at the positive time step.
+- The legacy contrastive metric only used 4 same-sample temporal negatives at lags {1, 2, 4, 8}. The added encoder layers are deep enough to learn a position counter (causal-attention depth + L2 norm); the counter aces those negatives without encoding forecasting content. Confirmed downstream by the q-head failure and on synthetic data by the new `retrieval_auc_topk_batch_temporal` metric (pure positional encoding scores AUC=1.0 on the legacy metric, AUC=0.333 on the new one — PR #272).
 - Three fixes landed on `experiments` for the follow-up: `--encoder-dropkey p` (PR #268) to make the position-counting shortcut lossy; `retrieval_auc_topk_batch_temporal` (PR #272) so per-batch saturation can no longer hide the shortcut; bf16 q-head training (PR #264). Recommendation: gate early stopping on `auc_bt`, not `auc`.
 
 ![backbone training trajectories vs τ=0.10 baseline (log–log)](plots/progress.png)
 
 *Encoder+forecaster (orange) vs τ=0.10 baseline (blue). Per-batch on the training distribution; saturates near AUC=1.0 by step ~1k and stays there.*
-
-## Goal
-
-Test whether a 6-layer causal transformer **encoder** inserted between the existing GRU patch embedding and the existing 6-layer causal forecaster improves the backbone, measured by GIFT-Eval MASE through a quantile head trained on top of the frozen backbone. Same building block as the forecaster (causal `DecoderOnlyTransformerLayer`).
 
 ## Protocol
 
