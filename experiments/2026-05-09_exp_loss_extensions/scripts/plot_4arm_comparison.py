@@ -1,7 +1,13 @@
 #!/usr/bin/env python3
 """
 4-arm comparison: square loss vs baseline at τ=0.10 and τ=0.20.
-Baselines run to 50k steps; square arms now also run to 100k steps.
+
+Both families now have ≥100 k of training:
+  - baselines: 150 k (stitched: 0–50 k from prior sweep + 50–150 k vast.ai
+    continuation), but linear-axis plots cap x at 100 k so all 4 arms
+    share the same display window.
+  - squares: 100 k (stitched: 0–15 k initial + 15/25–100 k extension).
+
 Produces:
   plots/4arm_auc_top1.png
   plots/4arm_dim_usage.png
@@ -21,12 +27,9 @@ DATA_DIR  = os.path.join(EXPERIMENT_DIR, "data")
 os.makedirs(PLOTS_DIR, exist_ok=True)
 
 # --- Load data ---
-# Baselines: full 50k stitched CSVs (steps 1–50000).
-# Squares:   full 100k stitched CSVs (steps 1–100000) produced by
-#            scripts/stitch_square_100k_csvs.py.
 paths = {
-    "baseline_0.10": os.path.join(DATA_DIR, "tau_sweep_0_10_50k_losses.csv"),
-    "baseline_0.20": os.path.join(DATA_DIR, "tau_sweep_0_20_50k_losses.csv"),
+    "baseline_0.10": os.path.join(DATA_DIR, "tau_sweep_0_10_150k_full_losses.csv"),
+    "baseline_0.20": os.path.join(DATA_DIR, "tau_sweep_0_20_150k_full_losses.csv"),
     "square_0.10":   os.path.join(DATA_DIR, "loss_ext_square_tau_0_10_100k_full_losses.csv"),
     "square_0.20":   os.path.join(DATA_DIR, "loss_ext_square_tau_0_20_100k_full_losses.csv"),
 }
@@ -38,9 +41,6 @@ for name, path in paths.items():
     print(f"{name}: {len(df)} rows, steps {df.step.min()}–{df.step.max()}")
 
 # --- Style ---
-# 4 distinct hues so noisy curves don't blend.
-# τ=0.10: cool (blue/cyan); τ=0.20: warm (red/orange).
-# Solid = baseline, dashed = square (loss family within τ).
 styles = {
     "baseline_0.10": {"color": "#1f77b4", "linestyle": "-",  "label": "baseline τ=0.10"},  # blue
     "square_0.10":   {"color": "#17becf", "linestyle": "--", "label": "square τ=0.10"},    # cyan
@@ -49,22 +49,27 @@ styles = {
 }
 
 ARM_ORDER = ["baseline_0.10", "square_0.10", "baseline_0.20", "square_0.20"]
-WINDOW = 500
+WINDOW = 1000          # doubled from prior 500 to smooth out per-step noise
+LINEAR_X_MAX = 100000  # cap linear plots so all 4 arms share one display window
 
 
 def rolling_mean(series, window):
     return series.rolling(window=window, center=True, min_periods=1).mean()
 
 
+def clipped(df, x_max):
+    return df[df["step"] <= x_max]
+
+
 # ------------------------------------------------------------------ Figure 1
 fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 fig.suptitle(
-    "AUC and Top-1: square (100k) vs baseline (50k), τ=0.10 and τ=0.20",
+    "AUC and Top-1: square vs baseline (both 0–100 k), τ=0.10 and τ=0.20",
     fontsize=13,
 )
 
 for arm in ARM_ORDER:
-    df = dfs[arm]
+    df = clipped(dfs[arm], LINEAR_X_MAX)
     st = styles[arm]
     for ax, col, ylim in [
         (axes[0], "auc",  (0.86, 0.92)),
@@ -82,6 +87,7 @@ for ax, col, ylim, title in [
     (axes[1], "top1", (0.70, 0.79), "Top-1"),
 ]:
     ax.set_ylim(ylim)
+    ax.set_xlim(0, LINEAR_X_MAX)
     ax.set_xlabel("Step")
     ax.set_ylabel(title)
     ax.set_title(title)
@@ -98,12 +104,12 @@ plt.close(fig)
 # ------------------------------------------------------------------ Figure 2
 fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 fig.suptitle(
-    "Dimension usage: square (100k) vs baseline (50k), τ=0.10 and τ=0.20",
+    "Dimension usage: square vs baseline (both 0–100 k), τ=0.10 and τ=0.20",
     fontsize=13,
 )
 
 for arm in ARM_ORDER:
-    df = dfs[arm]
+    df = clipped(dfs[arm], LINEAR_X_MAX)
     st = styles[arm]
     for ax, col in [(axes[0], "u_batch"), (axes[1], "u_temporal")]:
         raw = df[col]
@@ -117,6 +123,7 @@ for ax, col, title in [
     (axes[0], "u_batch",    "U_batch"),
     (axes[1], "u_temporal", "U_temporal"),
 ]:
+    ax.set_xlim(0, LINEAR_X_MAX)
     ax.set_xlabel("Step")
     ax.set_ylabel(title)
     ax.set_title(title)
@@ -131,15 +138,12 @@ plt.close(fig)
 
 
 # ------------------------------------------------------------------ Figure 3: log-log
-# Same 4 metrics in raw form, log-x (step) and log-y axes.
-# AUC/Top-1 panels keep the linear-plot ylim band, displayed with log spacing.
 fig, axes = plt.subplots(2, 2, figsize=(14, 10))
 fig.suptitle(
-    "Log-log convergence: square (100k) vs baseline (50k), τ=0.10 and τ=0.20",
+    "Log-log convergence: square vs baseline (both 0–100 k), τ=0.10 and τ=0.20",
     fontsize=13,
 )
 
-# (axis, column, title, ylim_or_None)
 panels = [
     (axes[0, 0], "auc",        "AUC",        (0.86, 0.92)),
     (axes[0, 1], "top1",       "Top-1",      (0.70, 0.79)),
@@ -148,9 +152,8 @@ panels = [
 ]
 
 for arm in ARM_ORDER:
-    df = dfs[arm]
+    df = clipped(dfs[arm], LINEAR_X_MAX)
     st = styles[arm]
-    # avoid log(0) on step axis
     mask = df["step"] > 0
     step = df.loc[mask, "step"]
     for ax, col, _title, _ylim in panels:
@@ -164,7 +167,7 @@ for arm in ARM_ORDER:
 for ax, _col, title, ylim in panels:
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.set_xlim(left=500)
+    ax.set_xlim(left=500, right=LINEAR_X_MAX)
     ax.set_xlabel("Step (log scale)")
     ax.set_ylabel(title + " (log scale)")
     ax.set_title(title)
@@ -181,13 +184,6 @@ plt.close(fig)
 
 
 # ------------------------------------------------------------------ Statistics
-# Per-step values are very noisy — single-row "final" numbers can be off by
-# ±0.02 AUC. We report:
-#   1. late-window means at the COMMON late window (40001–50000), which is
-#      the last 10k of baseline coverage and where all 4 arms have data;
-#   2. additional late-window means for each square arm at its OWN last 10k
-#      (90001–100000), the analogous "late plateau" for the longer runs.
-
 def window_summary(df, lo, hi):
     d = df[(df["step"] > lo) & (df["step"] <= hi)]
     return {
@@ -199,27 +195,27 @@ def window_summary(df, lo, hi):
     }
 
 
-print("\n=== Late-window means @ COMMON 40001–50000 (apples-to-apples) ===")
-print(f"{'Arm':<20} {'n':>6} {'AUC':>15} {'Top-1':>15} {'U_batch':>9} {'U_temporal':>11}")
-for arm in ARM_ORDER:
-    s = window_summary(dfs[arm], 40000, 50000)
-    print(f"{arm:<20} {s['n']:>6d} "
-          f"{s['auc'][0]:.4f}±{s['auc'][1]:.4f}  "
-          f"{s['top1'][0]:.4f}±{s['top1'][1]:.4f}  "
-          f"{s['u_batch']:>9.4f} {s['u_temporal']:>11.4f}")
+def print_window_table(label: str, lo: int, hi: int, arms=ARM_ORDER):
+    print(f"\n=== Late-window means @ {lo+1}–{hi} ({label}) ===")
+    print(f"{'Arm':<20} {'n':>6} {'AUC':>15} {'Top-1':>15} {'U_batch':>9} {'U_temporal':>11}")
+    for arm in arms:
+        s = window_summary(dfs[arm], lo, hi)
+        print(f"{arm:<20} {s['n']:>6d} "
+              f"{s['auc'][0]:.4f}±{s['auc'][1]:.4f}  "
+              f"{s['top1'][0]:.4f}±{s['top1'][1]:.4f}  "
+              f"{s['u_batch']:>9.4f} {s['u_temporal']:>11.4f}")
 
-print("\n=== Late-window means @ OWN 90001–100000 (squares only) ===")
-print(f"{'Arm':<20} {'n':>6} {'AUC':>15} {'Top-1':>15} {'U_batch':>9} {'U_temporal':>11}")
-for arm in ("square_0.10", "square_0.20"):
-    s = window_summary(dfs[arm], 90000, 100000)
-    print(f"{arm:<20} {s['n']:>6d} "
-          f"{s['auc'][0]:.4f}±{s['auc'][1]:.4f}  "
-          f"{s['top1'][0]:.4f}±{s['top1'][1]:.4f}  "
-          f"{s['u_batch']:>9.4f} {s['u_temporal']:>11.4f}")
 
-# Welch tests over the FULL overlap window (5001–50000), where all 4 arms
-# have data and we are well past warmup.
-print("\n=== Welch t-tests on AUC and Top-1 (overlap window: steps 5001–50000) ===")
+# Common 50k window (legacy apples-to-apples cross-check vs prior reports)
+print_window_table("common 50k window", 40000, 50000)
+# Common 100k window (now possible because baselines were extended to 150k)
+print_window_table("common 100k window", 90000, 100000)
+# Baseline-only beyond squares' coverage
+print_window_table("baseline-only late plateau", 140000, 150000,
+                   arms=("baseline_0.10", "baseline_0.20"))
+
+# Welch over 5001–100000: largest overlap window where ALL 4 arms have data
+print("\n=== Welch t-tests on AUC and Top-1 (overlap window: steps 5001–100000) ===")
 comparisons = [
     ("baseline_0.10", "square_0.10",   "baseline τ=0.10 vs square τ=0.10"),
     ("baseline_0.20", "square_0.20",   "baseline τ=0.20 vs square τ=0.20"),
@@ -229,8 +225,8 @@ comparisons = [
 
 for arm_a, arm_b, label in comparisons:
     print(f"\n  {label}")
-    da = dfs[arm_a][(dfs[arm_a]["step"] > 5000) & (dfs[arm_a]["step"] <= 50000)]
-    db = dfs[arm_b][(dfs[arm_b]["step"] > 5000) & (dfs[arm_b]["step"] <= 50000)]
+    da = dfs[arm_a][(dfs[arm_a]["step"] > 5000) & (dfs[arm_a]["step"] <= 100000)]
+    db = dfs[arm_b][(dfs[arm_b]["step"] > 5000) & (dfs[arm_b]["step"] <= 100000)]
     for col in ["auc", "top1"]:
         a = da[col].values
         b = db[col].values
