@@ -25,8 +25,10 @@ U_temporal gap is roughly flat across the window (+0.0068 at 25k,
 
 ![held-out per-sample variance](plots/held_out_persample_auc_top1.png)
 
-Each dot is one of the 50 held-out batches. AUC and Top-1
-distributions overlap almost completely — the means are within ~1
+Each dot is one of the 50 held-out batches. Both arms are scored at
+their **`_FINAL.pth` (= best EMA-loss within 0..50,000 steps)**
+checkpoint — same convention as the table below. AUC and Top-1
+distributions overlap almost completely; the means are within ~1
 SEM_diff of each other (table below).
 
 ## What we learned
@@ -47,8 +49,11 @@ below.
 | Δ (transformer − GRU) |  | −0.0111 | −0.0097 | **+0.0082** | **+0.0224** | −0.0010 | −0.0023 |
 | Δ / SEM_diff |  | −7.6 | −5.3 | **+25.6** | **+36.3** | −0.9 | −1.2 |
 
-Mean ± stdev across the 50 held-out batches; SEM = stdev/√50 ≈ stdev/7.
-SEM_diff = √(SEM_te² + SEM_b²).
+Mean ± stdev across the 50 held-out batches. SEM (standard error of
+the mean — the precision of our N=50 average; smaller = the held-out
+mean is pinned tighter) = stdev/√50 ≈ stdev/7. SEM_diff =
+√(SEM_te² + SEM_b²) is the corresponding precision on a difference of
+two independent means.
 
 - **Retrieval (AUC, Top-1).** Effectively tied. Both gaps are within
   ~1 SEM_diff and would easily flip on a different draw of batches.
