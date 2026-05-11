@@ -125,7 +125,8 @@ class TransformerBlock(nn.Module):
                  activation=None, input_to_latent=None, dropout=0, depthwise_conv=3,
                  norm_first=True, norm_type='layernorm', num_encoder_layers=0,
                  encoder_dropkey: float = 0.0,
-                 encoder_dropkey_share_heads: bool = False):
+                 encoder_dropkey_share_heads: bool = False,
+                 encoder_dropkey_share_layers: bool = False):
         super().__init__()
 
         if feedforward_mult is None:
@@ -148,8 +149,17 @@ class TransformerBlock(nn.Module):
         # positions they attend to (rather than cooperating to count).
         # Used after attempt-2 (per-(B,head) at p=0.7) diverged at step
         # ~14900 with sustained loss climb 2 → 5 → 7 with no recovery.
+        # encoder_dropkey_share_layers=True draws the mask ONCE per
+        # forward pass and reuses it for ALL encoder layers. Combined
+        # with share_heads, only the (batch_row, step) axes carry
+        # randomness — a given token is either fully visible or fully
+        # blocked across the whole encoder stack. This pushes the
+        # effective per-token block-rate from p^L (independent layers)
+        # up to p, much more hostile to a position counter that
+        # otherwise survives via the union of "visible-at-some-layer".
         self.encoder_dropkey = float(encoder_dropkey)
         self.encoder_dropkey_share_heads = bool(encoder_dropkey_share_heads)
+        self.encoder_dropkey_share_layers = bool(encoder_dropkey_share_layers)
         self.nhead = nhead
 
         # Pre-forecaster causal encoder stack. When num_encoder_layers=0 the
@@ -209,13 +219,21 @@ class TransformerBlock(nn.Module):
         # still −∞, below-diag −∞ with prob p) — per-layer, per-step random
         # is the regularization. Eval / p=0 falls back to is_causal=True.
         use_dropkey = self.training and self.encoder_dropkey > 0.0
+        shared_mask = None
+        if use_dropkey and self.encoder_dropkey_share_layers:
+            shared_mask = self._dropkey_causal_mask(
+                x.size(1), x.size(0), self.nhead,
+                x.device, self.causal_mask.dtype,
+                self.encoder_dropkey,
+                self.encoder_dropkey_share_heads)
         for layer in self.encoder_layers:
             if use_dropkey:
-                dk_mask = self._dropkey_causal_mask(
-                    x.size(1), x.size(0), self.nhead,
-                    x.device, self.causal_mask.dtype,
-                    self.encoder_dropkey,
-                    self.encoder_dropkey_share_heads)
+                dk_mask = shared_mask if shared_mask is not None else \
+                    self._dropkey_causal_mask(
+                        x.size(1), x.size(0), self.nhead,
+                        x.device, self.causal_mask.dtype,
+                        self.encoder_dropkey,
+                        self.encoder_dropkey_share_heads)
                 x = layer(x, tgt_mask=dk_mask, tgt_is_causal=False)
             else:
                 x = layer(x, tgt_mask=self.causal_mask, tgt_is_causal=True)

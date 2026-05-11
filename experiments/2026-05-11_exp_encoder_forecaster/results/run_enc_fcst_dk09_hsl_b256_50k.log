@@ -1,0 +1,27 @@
+Device: cuda | Params: 22,057,020
+Training for 50000 steps, bs=256, lr=0.001, T=4096, C=1, mix_ratio=0.0, freq_emb_dim=3, seasonality_emb_dim=3, mixup_p=0.3, rev_norm_kind=ewma(span=128), patch_stats=none, encoder_type=gru
+Checkpoints: /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dk09_hsl_b256_50k_*.pth
+Loss CSV: /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dk09_hsl_b256_50k_losses.csv
+Data: MIX 100% HF + 0% synth (periodic), hf_bs=256, synth_bs=0
+'HTTPSConnectionPool(host='cas-bridge.xethub.hf.co', port=443): Read timed out.' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00000.parquet
+Retrying in 1s [Retry 1/5].
+[    100] loss=11.0949  ema_loss=12.1038  gap=0.0000  ema_gap=0.0013  mixup=25/100  1.5 sps  ETA 9.3h
+              R²_rand=-0.2812  R²_naive=-0.2031  U_t=0.0028  U_b=0.0028  AUC=0.3697  Top1=0.0023
+  timing: data=482.5ms  fwd=104.0ms  bwd=31.2ms  total=618.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dk09_hsl_b256_50k_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dk09_hsl_b256_50k_best_loss.pth
+[    200] loss=11.0947  ema_loss=11.4643  gap=0.0039  ema_gap=0.0022  mixup=24/100  2.3 sps  ETA 6.1h
+              R²_rand=-0.2266  R²_naive=-0.1406  U_t=0.0028  U_b=0.0028  AUC=0.3488  Top1=0.0016
+  timing: data=28.1ms  fwd=97.1ms  bwd=23.4ms  total=149.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dk09_hsl_b256_50k_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dk09_hsl_b256_50k_best_loss.pth
+[    300] loss=11.0945  ema_loss=11.2299  gap=0.0039  ema_gap=0.0033  mixup=39/100  2.8 sps  ETA 5.0h
+              R²_rand=-0.1484  R²_naive=-0.0547  U_t=0.0028  U_b=0.0028  AUC=0.3346  Top1=0.0017
+  timing: data=5.7ms  fwd=102.5ms  bwd=20.4ms  total=129.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dk09_hsl_b256_50k_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dk09_hsl_b256_50k_best_loss.pth
+[    400] loss=11.0918  ema_loss=11.1439  gap=0.0078  ema_gap=0.0060  mixup=32/100  3.1 sps  ETA 4.5h
+              R²_rand=-0.0312  R²_naive=0.1602  U_t=0.0029  U_b=0.0028  AUC=0.3714  Top1=0.0026
+  timing: data=26.6ms  fwd=99.3ms  bwd=20.3ms  total=147.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dk09_hsl_b256_50k_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dk09_hsl_b256_50k_best_loss.pth
