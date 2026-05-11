@@ -50,9 +50,13 @@ while true; do
             # commit + push: plots/ + results/ (log file).
             cd "$REPO" && git add "${COMMIT_PATHS[@]}" >/dev/null 2>&1 || true
             if ! git -C "$REPO" diff --cached --quiet; then
-                git -C "$REPO" commit -m "exp(enc-fcst-v2): progress @ step $next_marker" \
+                # Use whatever branch the worktree is currently on. After
+                # the v2 PR was merged we moved to v4-fresh, hardcoding
+                # was wrong.
+                cur_branch=$(git -C "$REPO" branch --show-current)
+                git -C "$REPO" commit -m "exp(enc-fcst-v4): progress @ step $next_marker" \
                     >/dev/null 2>&1 || true
-                git -C "$REPO" push origin exp/encoder-forecaster-v2 \
+                git -C "$REPO" push origin "$cur_branch" \
                     >/tmp/push_$$.out 2>&1
                 push_status=$?
                 rm -f /tmp/push_$$.out
