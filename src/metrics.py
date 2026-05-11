@@ -230,7 +230,6 @@ def retrieval_auc_topk(
     lookback_lags: tuple[int, ...] = (1, 2, 4, 8),
     n_batch_negs: int = 128,
     top_k: tuple[int, ...] = (1, 3),
-    seed: int | None = 0,
 ) -> dict[str, Tensor]:
     """Retrieval metrics against a CROSS-BATCH × TEMPORAL-OFFSET product
     of negatives.
@@ -275,8 +274,6 @@ def retrieval_auc_topk(
         n_batch_negs: number of cross-batch negatives per query. Clamped
             to ``B - 1``.
         top_k: which top-k cutoffs to compute. Default ``(1, 3)``.
-        seed: retained in signature for back-compat; no longer used
-            (sampling is deterministic).
 
     Returns:
         dict with scalar-tensor values for keys:
@@ -316,7 +313,6 @@ def retrieval_auc_topk(
     raw = torch.arange(n_b, device=f.device).unsqueeze(0).expand(B, n_b)
     b_idx = torch.arange(B, device=f.device).unsqueeze(1)    # (B, 1)
     rand_b = raw + (raw >= b_idx).long()                     # (B, n_b)
-    _ = seed  # retained in signature for back-compat; no longer used
 
     # Cross-batch × temporal-offset product. For each lag k, gather the
     # time slice h_full[:, max_lag+1-k : T+1-k, :, :] across batch index

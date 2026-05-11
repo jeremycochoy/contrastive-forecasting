@@ -253,28 +253,89 @@ def test_retrieval_topk_returns_nan_when_B_is_one():
         assert torch.isnan(out[key])
 
 
-def test_retrieval_topk_negative_count_is_product():
-    # Verify the negatives are a product of (batch × lag), not a sum.
-    # With B=5, n_batch_negs=4 (clamped to B-1=4), len(lags)=4 → 16 negs/query.
-    # The AUC for a random forecast is ≈ 0.5 regardless of n_neg, so we
-    # instead inspect via a known-margin forecast: scale a perfect
-    # forecast by 0.99 + small noise so the positive almost wins. With
-    # n_neg = 16 we'd expect top1 ≈ 1 - tail; with n_neg = 8 (the
-    # legacy 4+4=8) we'd expect different. We check sim_neg shape
-    # indirectly by checking q_hard_neg responds to n_b changes.
-    torch.manual_seed(0)
-    B, T, C, H = 5, 32, 1, 32
+def test_retrieval_topk_product_structure_matches_reference():
+    # Verify the negative pool is the cross-batch × temporal-offset
+    # product (n_b × n_lags), and that auc/top1/mrr match a parallel
+    # reference computation following the documented layout.
+    torch.manual_seed(42)
+    B, T, C, H = 4, 16, 1, 8
     h_full = torch.randn(B, T + 1, C, H)
-    # Mildly imperfect forecast: 0.95 * positive + 0.05 * noise.
-    pos_target = h_full[:, 1:T + 1, :, :]
-    noise = torch.randn_like(pos_target) * 0.05
-    f = pos_target + noise
-    out_few = retrieval_auc_topk(f, h_full, n_batch_negs=2)   # 2*4 = 8 negs
-    out_many = retrieval_auc_topk(f, h_full, n_batch_negs=4)  # 4*4 = 16 negs
-    # More negatives ⇒ hardest is harder ⇒ q_hard_neg ≥ (more error
-    # against worst confusable). Strict > because more negs means a
-    # higher-tail max.
-    assert out_many["q_hard_neg"].item() >= out_few["q_hard_neg"].item()
+    f = torch.randn(B, T, C, H)
+    lookback_lags = (1, 2, 4)
+    n_batch_negs = 2  # 2 b' × 3 lags = 6 negs per query
+
+    out = retrieval_auc_topk(
+        f, h_full, lookback_lags=lookback_lags,
+        n_batch_negs=n_batch_negs, top_k=(1, 3),
+    )
+
+    # Reference: replicate rand_b and the per-lag gather/cosine path.
+    max_lag = max(lookback_lags)
+    f_v = f[:, max_lag:T, :, :]
+    pos = h_full[:, max_lag + 1:T + 1, :, :]
+    sim_pos_ref = torch.nn.functional.cosine_similarity(f_v, pos, dim=-1)
+
+    n_b = min(n_batch_negs, B - 1)
+    raw = torch.arange(n_b).unsqueeze(0).expand(B, n_b)
+    b_idx = torch.arange(B).unsqueeze(1)
+    rand_b = raw + (raw >= b_idx).long()
+
+    sims = []
+    for k in lookback_lags:
+        h_slice = h_full[:, max_lag + 1 - k:T + 1 - k, :, :]
+        h_gather = h_slice[rand_b]
+        sim_k = torch.nn.functional.cosine_similarity(
+            f_v.unsqueeze(1), h_gather, dim=-1,
+        )
+        sims.append(sim_k.permute(0, 2, 3, 1))
+    sim_neg_ref = torch.cat(sims, dim=-1)
+
+    # Pool size is the product (not the sum).
+    expected_n_neg = n_b * len(lookback_lags)
+    assert sim_neg_ref.shape[-1] == expected_n_neg
+
+    beats_ref = (sim_pos_ref.unsqueeze(-1) > sim_neg_ref).float()
+    auc_ref = beats_ref.mean(dim=-1).mean()
+    n_beats_ref = beats_ref.sum(dim=-1)
+    rank_ref = expected_n_neg - n_beats_ref + 1.0
+    mrr_ref = (1.0 / rank_ref).mean()
+    top1_ref = (n_beats_ref >= expected_n_neg).float().mean()
+
+    assert torch.allclose(out["auc"], auc_ref, atol=1e-6), (out["auc"], auc_ref)
+    assert torch.allclose(out["mrr"], mrr_ref, atol=1e-6)
+    assert torch.allclose(out["top1"], top1_ref, atol=1e-6)
+
+
+def test_retrieval_topk_lag_max_boundary():
+    # k = max_lag puts the negative at position t + 1 - max_lag, the
+    # earliest valid slice. Off-by-one in the time slicing would silently
+    # mis-align this. Construct h_full so we can read the gathered
+    # negative position back from the cosine sim.
+    B, T, C, H = 3, 12, 1, 8
+    lookback_lags = (1, 8)
+    max_lag = 8
+    # Make each (b, t) latent a distinguishable unit vector. Use a basis
+    # where h[b, t, 0, :] has h[..., 0] = b * 100 + t. Then cos_sim
+    # against a known query reveals which (b, t) was retrieved.
+    h_full = torch.zeros(B, T + 1, C, H)
+    for b in range(B):
+        for t in range(T + 1):
+            h_full[b, t, 0, 0] = float(b * 100 + t)
+            h_full[b, t, 0, 1] = 1.0  # break ties so cos_sim is well-defined
+    # Forecast: pick out h[0, 1, 0, :] (= the k=8 negative for b=0, t=8,
+    # via b'=1 first cross-batch index since (raw=[[0]] for n_b=1,
+    # b_idx=[[0]] → rand_b = [[1]] for b=0). At lag k=8, query t=8 →
+    # neg position t+1-k = 1. Gathered batch idx for b=0 is b'=1. So
+    # the k=8 neg for b=0, t=8 is h_full[1, 1, 0, :].
+    # We just want to make sure the function doesn't crash and produces
+    # finite metrics for this edge — the parallel reference test above
+    # already pins exact values.
+    f = torch.randn(B, T, C, H)
+    out = retrieval_auc_topk(
+        f, h_full, lookback_lags=lookback_lags, n_batch_negs=1,
+    )
+    for key in ("auc", "mrr", "top1", "top3", "q_hard_neg", "m_z"):
+        assert torch.isfinite(out[key]), f"{key} not finite at lag-max boundary"
 
 
 def test_retrieval_topk_random_forecast_auc_near_half():
