@@ -69,12 +69,14 @@ MAIN = Path("/home/jupyter/contrastive-forecasting")
 #                distinct from both tab:orange and tab:red)
 #   - attempt-3 (heads-shared, resumed from attempt-2 best, diverged
 #                ~14.4k) → tab:purple (was red; moved to make room for v4)
-#   - v4 / headline (B=512, dropkey=0.9 heads-shared) → tab:red
+#   - v4 (B=512, lr=1e-3, dropkey=0.9 heads-shared, diverged ~4200) → tab:cyan
+#   - v5 / headline (B=512, lr=1e-4, dropkey=0.9 heads-shared, 128 batch-negs metric) → tab:red
 C_BASELINE = "#1f77b4"  # tab:blue
 C_ATTEMPT1 = "#ff7f0e"  # tab:orange
 C_ATTEMPT2 = "#bcbd22"  # tab:olive
 C_ATTEMPT3 = "#9467bd"  # tab:purple
-C_HEADLINE_V4 = "#d62728"  # tab:red
+C_V4 = "#17becf"  # tab:cyan
+C_HEADLINE_V5 = "#d62728"  # tab:red
 
 # τ=0.10 baseline is split across resume chunks. Concatenate in step
 # order; on overlap, the earliest chunk's row wins.
@@ -85,7 +87,8 @@ BASELINE_CHUNKS = [
     MAIN / "sync_tau_sweep_0_10_150k/checkpoints/tau_sweep_0_10_150k_losses.csv",   # 48001–150000
 ]
 
-NEW_ARM_CSV = MAIN / "checkpoints/enc_fcst_dk09_hs_b512_50k_losses.csv"
+NEW_ARM_CSV = MAIN / "checkpoints/enc_fcst_dk09_hs_b512_lr1e-4_50k_losses.csv"
+V4_CSV = MAIN / "checkpoints/enc_fcst_dk09_hs_b512_lr1e-3_attempt1_losses.csv"
 ATTEMPT1_CSV = MAIN / "checkpoints/enc_fcst_dropkey07_50k_attempt1_losses.csv"
 ATTEMPT2_CSV = MAIN / "checkpoints/enc_fcst_dropkey07_pb_50k_attempt2_losses.csv"
 ATTEMPT3_CSV = MAIN / "checkpoints/enc_fcst_dropkey07_pb_hs_50k_attempt3_losses.csv"
@@ -108,8 +111,12 @@ ARMS = [
      C_ATTEMPT3, "-", 1.4,
      ATTEMPT3_CSV,
      False),
-    ("v4 fresh (B=512, dropkey=0.9 heads-shared)",
-     C_HEADLINE_V4, "-", 1.8,
+    ("v4 (B=512, lr=1e-3, dropkey=0.9 heads-shared, diverged @ ~4200)",
+     C_V4, "-", 1.4,
+     V4_CSV,
+     False),
+    ("v5 fresh (B=512, lr=1e-4, dropkey=0.9 heads-shared, **128 batch-negs metric**)",
+     C_HEADLINE_V5, "-", 1.8,
      NEW_ARM_CSV,
      False),
 ]
@@ -300,10 +307,11 @@ def render_figure(traj, *, logx, logy_metrics, out_path, scale_tag, xmax,
                    bbox_to_anchor=(0.5, 0.985))
 
     fig.suptitle(
-        f"encoder+forecaster — v4 B=512 dropkey=0.9 heads-shared (red) vs "
-        f"attempt-3 heads-shared resume (purple) vs attempt-2 per-(B,head) "
-        f"(olive) vs attempt-1 shared (T,T) (orange) vs τ=0.10 baseline "
-        f"(blue), all clipped to {xmax:,} ({scale_tag})",
+        f"encoder+forecaster — v5 B=512 lr=1e-4 dropkey=0.9 heads-shared (red) vs "
+        f"v4 lr=1e-3 (cyan) vs attempt-3 heads-shared resume (purple) vs "
+        f"attempt-2 per-(B,head) (olive) vs attempt-1 shared (T,T) (orange) vs "
+        f"τ=0.10 baseline (blue), all clipped to {xmax:,} ({scale_tag})"
+        f" — note: v5 uses 128 batch-negs metric (others use 8)",
         fontsize=12, y=1.02)
     fig.tight_layout(rect=(0, 0, 1, 0.96))
     fig.savefig(out_path, dpi=110, bbox_inches="tight")
@@ -321,7 +329,7 @@ def main() -> None:
     new_arm_max = int(new_arm["step"].max())
     baseline_max = int(baseline["step"].max())
     # Right edge = the most recent step among the non-baseline arms
-    # (attempt-1 / attempt-2 / attempt-3 / v4-headline). All five arms
+    # (attempt-1 / attempt-2 / attempt-3 / v4 / v5-headline). All six arms
     # get clipped to the same window before smoothing so the curves end
     # at the same x. Capped at baseline_max in case anything overshoots.
     attempt1 = load_traj(ATTEMPT1_CSV)
@@ -330,7 +338,9 @@ def main() -> None:
     attempt2_max = int(attempt2["step"].max()) if attempt2 is not None else 0
     attempt3 = load_traj(ATTEMPT3_CSV)
     attempt3_max = int(attempt3["step"].max()) if attempt3 is not None else 0
-    xmax = max(new_arm_max, attempt1_max, attempt2_max, attempt3_max)
+    v4 = load_traj(V4_CSV)
+    v4_max = int(v4["step"].max()) if v4 is not None else 0
+    xmax = max(new_arm_max, attempt1_max, attempt2_max, attempt3_max, v4_max)
     xmax = min(xmax, baseline_max)
 
     # Log-x lower bound: snap to the smaller of the two arms' first
