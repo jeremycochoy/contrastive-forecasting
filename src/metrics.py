@@ -174,7 +174,7 @@ def retrieval_auc_topk(
     f: Tensor,
     h_full: Tensor,
     lookback_lags: tuple[int, ...] = (1, 2, 4, 8),
-    n_batch_negs: int = 8,
+    n_batch_negs: int = 128,
     top_k: tuple[int, ...] = (1, 3),
     seed: int | None = 0,
 ) -> dict[str, Tensor]:
@@ -248,17 +248,18 @@ def retrieval_auc_topk(
         sims_neg_t.append(F.cosine_similarity(f_v, neg, dim=-1))
     sim_neg_t = torch.stack(sims_neg_t, dim=-1)          # (B, T_v, C, n_t)
 
-    # Cross-batch negatives: pick n_b = min(n_batch_negs, B-1) other
-    # batches at the positive time. Sample WITH replacement from
-    # {0..B-2}, then shift to skip self-index. Vectorised, no Python
-    # loop over batch.
+    # Cross-batch negatives: take the FIRST n_b indices from
+    # {0..B-1} \ {b}. The HF streaming dataloader already shuffles the
+    # batch dimension, so "first n_b" is equivalent in distribution to
+    # random sampling but deterministic per batch (lower-variance metric
+    # estimate). Bumped default from 8 → 128 for v5 onward — gives
+    # 128 + len(lookback_lags) negatives per query, a tighter retrieval
+    # signal that's harder to saturate.
     n_b = min(n_batch_negs, B - 1)
-    g = torch.Generator(device=f.device) if seed is not None else None
-    if seed is not None:
-        g.manual_seed(int(seed))
-    raw = torch.randint(0, B - 1, (B, n_b), generator=g, device=f.device)
+    raw = torch.arange(n_b, device=f.device).unsqueeze(0).expand(B, n_b)
     b_idx = torch.arange(B, device=f.device).unsqueeze(1)   # (B, 1)
     rand_b = raw + (raw >= b_idx).long()                    # (B, n_b)
+    _ = seed  # retained in signature for back-compat; no longer used
 
     # pos[rand_b]: (B, n_b, T_v, C, H) — gather rows of `pos` by index.
     neg_b = pos[rand_b]
