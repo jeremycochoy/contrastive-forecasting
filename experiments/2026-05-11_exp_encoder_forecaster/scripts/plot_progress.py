@@ -2,10 +2,10 @@
 """Progress plot — encoder+forecaster v2 (6L+6L, dropkey=0.7, bf16) vs τ=0.10.
 
 Reads per-step training-batch metrics from the losses CSVs and renders a
-2x3 panel of trajectories smoothed with a moving average:
+2x4 panel of trajectories smoothed with a moving average:
 
-    loss                 |  U_temporal              |  U_batch
-    1 - AUC              |  1 - top-1               |  1 - top-3
+    loss                 |  U_temporal              |  U_batch                 |  R²_random / Q_random
+    1 - AUC              |  1 - top-1               |  1 - top-3               |  R²_naive  / Q_naive
 
 `auc` / `top1` / `top3` are the canonical retrieval metrics: positive at
 lag 0 ranked against 12 negatives (4 same-sample temporal lags
@@ -228,7 +228,7 @@ def render_figure(traj, *, logx, logy_metrics, out_path, scale_tag, xmax,
 
     fig, axes = plt.subplots(2, 4, figsize=(20, 9))
     ax_loss, ax_ut, ax_ub, ax_r2r = axes[0]
-    ax_r2n, ax_auc, ax_top1, ax_top3 = axes[1]
+    ax_auc, ax_top1, ax_top3, ax_r2n = axes[1]
 
     plot_panel(ax_loss, traj, key="loss",
                ylabel="loss" + ("  (log-y)" if "loss" in logy_metrics else ""),
@@ -242,25 +242,18 @@ def render_figure(traj, *, logx, logy_metrics, out_path, scale_tag, xmax,
                ylabel="U_batch",
                panel_title="U_batch — dimension usage across batch",
                transform=None, logy=False, logx=logx, xlim=xlim)
-    # R² panels: in the log PNG, plot 1−R² with log-y (mirroring 1−AUC /
-    # 1−top-1 / 1−top-3); in the linear PNG, plot R² directly with y
-    # clipped to [0, 1] so early-warmup negatives are off-panel.
+    # R² panels: in the log PNG, plot Q = 1−R² with log-y (mirroring
+    # 1−AUC / 1−top-1 / 1−top-3); in the linear PNG, plot R² directly
+    # with y clipped to [0, 1] so early-warmup negatives are off-panel.
     r2r_log = "r2_random" in logy_metrics
     r2n_log = "r2_naive" in logy_metrics
     plot_panel(ax_r2r, traj, key="r2_random",
-               ylabel="1 − R²_random" if r2r_log else "R²_random",
-               panel_title="1 − R²_random" if r2r_log else "R²_random",
+               ylabel="Q_random" if r2r_log else "R²_random",
+               panel_title="Q_random" if r2r_log else "R²_random",
                transform=(lambda y: 1.0 - y) if r2r_log else None,
                logy=r2r_log, logx=logx, xlim=xlim)
     if not r2r_log:
         ax_r2r.set_ylim(0, 1)
-    plot_panel(ax_r2n, traj, key="r2_naive",
-               ylabel="1 − R²_naive" if r2n_log else "R²_naive",
-               panel_title="1 − R²_naive" if r2n_log else "R²_naive",
-               transform=(lambda y: 1.0 - y) if r2n_log else None,
-               logy=r2n_log, logx=logx, xlim=xlim)
-    if not r2n_log:
-        ax_r2n.set_ylim(0, 1)
     plot_panel(ax_auc, traj, key="auc",
                ylabel="1 − AUC",
                panel_title="1 − AUC",
@@ -276,6 +269,13 @@ def render_figure(traj, *, logx, logy_metrics, out_path, scale_tag, xmax,
                panel_title="1 − top-3",
                transform=lambda y: 1.0 - y, logy="top3" in logy_metrics,
                logx=logx, xlim=xlim)
+    plot_panel(ax_r2n, traj, key="r2_naive",
+               ylabel="Q_naive" if r2n_log else "R²_naive",
+               panel_title="Q_naive" if r2n_log else "R²_naive",
+               transform=(lambda y: 1.0 - y) if r2n_log else None,
+               logy=r2n_log, logx=logx, xlim=xlim)
+    if not r2n_log:
+        ax_r2n.set_ylim(0, 1)
 
     handles, labels = ax_loss.get_legend_handles_labels()
     if handles:
