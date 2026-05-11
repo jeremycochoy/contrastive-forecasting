@@ -91,61 +91,52 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         loss = -torch.log(positives / negatives.sum(dim=0, keepdim=True)).mean()
 
     elif train_config.get('loss_shape') == 'cosine_similarity_batch':
-        positives = torch.exp(
-            cosine_similarity_from_normalized(hy_norm, hy_hat_norm) / tau
-        )
+        # Numerically stable logsumexp form — equivalence + fp16/fp32 small-τ
+        # stability pinned in tests/test_loss_stability.py.
+        neg_inf = float('-inf')
+        log_pos = cosine_similarity_from_normalized(hy_norm, hy_hat_norm) / tau
 
         sims_xy = cosine_similarity_from_normalized(hx_norm.unsqueeze(3), hy_norm.unsqueeze(2))
-        neg_xy = torch.exp(sims_xy / tau).sum(dim=2)
+        log_neg_xy = torch.logsumexp(sims_xy / tau, dim=2)
 
         sims_xy_hat = cosine_similarity_from_normalized(hx_norm.unsqueeze(3), hy_hat_norm.unsqueeze(2))
-        neg_xy_hat = torch.exp(sims_xy_hat / tau).sum(dim=2)
+        log_neg_xy_hat = torch.logsumexp(sims_xy_hat / tau, dim=2)
 
         sims_xx = cosine_similarity_from_normalized(hx_norm.unsqueeze(3), hx_norm.unsqueeze(2))
         mask_mat = ~torch.eye(C, dtype=torch.bool, device=sims_xx.device)
         mask_mat = mask_mat.view(1, 1, C, C)
-        neg_xx = torch.exp(sims_xx / tau).masked_fill(~mask_mat, 0).sum(dim=2)
+        log_neg_xx = torch.logsumexp(
+            (sims_xx / tau).masked_fill(~mask_mat, neg_inf), dim=2
+        )
 
         sims_zy = cosine_similarity_from_normalized(hz_hat_norm.unsqueeze(3), hy_hat_norm.unsqueeze(2))
-        neg_zy = torch.exp(sims_zy / tau).sum(dim=2)
-        
-        # Cross-batch negatives: compare across batch dimension (not just C dimension)
-        # Equivalent to the broadcast form below, but without materialising
-        # the [B, B, T-1, C, H] intermediate (~25 GB at B=256, H=384,
-        # T-1=255 fp32). For unit-normalised vectors, cos(u, v) = u · v,
-        # so the per-(t, c) sim matrix is just u @ v^T, and a batched matmul
-        # over (T-1, C) does it all at once while only allocating
-        # [T-1, C, B, B] (~67 MB).
-        # Index convention from the original broadcast:
-        #   sims[b1, b2, t, c] = cos(hy[b2, t, c], hy_hat[b1, t, c])
-        # The first batch axis indexes hy_hat (the anchor's forecast), the
-        # second indexes hy (the cross-batch encoder target). The matmul
-        # operands have to be ordered hy_hat first, hy second (transposed)
-        # to keep that convention.
-        # Old form (kept here for reference / sanity tests):
-        #   hy_norm_exp = hy_norm.unsqueeze(0)          # [1, B, T-1, C, H]
-        #   hy_hat_norm_exp = hy_hat_norm.unsqueeze(1)  # [B, 1, T-1, C, H]
-        #   sims_cross_batch = cosine_similarity_from_normalized(
-        #       hy_norm_exp, hy_hat_norm_exp)           # [B, B, T-1, C]
+        log_neg_zy = torch.logsumexp(sims_zy / tau, dim=2)
+
+        # Cross-batch negatives: compare across batch dimension (not just C dimension).
+        # Matmul form below is equivalent to the broadcast form but avoids
+        # materialising the [B, B, T-1, C, H] intermediate (~25 GB at B=256,
+        # H=384, T-1=255 fp32). For unit-normalised vectors, cos(u, v) = u · v.
+        # Index convention: sims[b1, b2, t, c] = cos(hy[b2, t, c], hy_hat[b1, t, c]).
         hy_p = hy_norm.permute(1, 2, 0, 3)              # [T-1, C, B, H]
         hy_hat_p = hy_hat_norm.permute(1, 2, 0, 3)      # [T-1, C, B, H]
         sims_cross_batch = torch.matmul(
             hy_hat_p, hy_p.transpose(-2, -1)            # [T-1, C, B, B]
         ).permute(2, 3, 0, 1).contiguous()              # [B, B, T-1, C]
 
-        # Create mask to exclude same batch element (diagonal)
         mask_batch = ~torch.eye(B, dtype=torch.bool, device=sims_cross_batch.device)
         mask_batch = mask_batch.view(B, B, 1, 1)
 
-        # Exponential and mask: [B, B, T-1, C]
-        neg_cross_batch_exp = torch.exp(sims_cross_batch / tau).masked_fill(~mask_batch, 0)
+        log_neg_cross_batch = torch.logsumexp(
+            (sims_cross_batch / tau).masked_fill(~mask_batch, neg_inf), dim=1
+        )
 
-        # Sum across second batch dimension: [B, T-1, C]
-        neg_cross_batch = neg_cross_batch_exp.sum(dim=1)
-
-        negatives = neg_xy + neg_xx + neg_zy + neg_xy_hat + neg_cross_batch
-        # In the new version, all positives together, all negatives together, cross batch.
-        loss = -torch.log(positives / negatives.sum(dim=0, keepdim=True)).mean()
+        log_neg_per_anchor = torch.logsumexp(
+            torch.stack([log_neg_xy, log_neg_xx, log_neg_zy,
+                         log_neg_xy_hat, log_neg_cross_batch], dim=0),
+            dim=0,
+        )
+        log_neg_total = torch.logsumexp(log_neg_per_anchor, dim=0, keepdim=True)
+        loss = (log_neg_total - log_pos).mean()
 
     elif train_config.get('loss_shape') == 'cosine_similarity_batch_add_f_cross_negs':
         # NON-cumulative variant: identical to `cosine_similarity_batch` except
@@ -435,15 +426,18 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         # Same as cosine_similarity_batch but without cross-time negatives (t <-> t+1).
         # Only keeps cross-channel and cross-batch negatives.
         # Useful for ARMA experiments where consecutive time slices are nearly identical.
-        positives = torch.exp(
-            cosine_similarity_from_normalized(hy_norm, hy_hat_norm) / tau
-        )
+        # Numerically stable logsumexp form — equivalence + fp16/fp32 small-τ stability
+        # pinned in tests/test_loss_stability.py.
+        neg_inf = float('-inf')
+        log_pos = cosine_similarity_from_normalized(hy_norm, hy_hat_norm) / tau
 
         # Cross-channel negatives (same time step, different channels)
         sims_xx = cosine_similarity_from_normalized(hx_norm.unsqueeze(3), hx_norm.unsqueeze(2))
         mask_mat = ~torch.eye(C, dtype=torch.bool, device=sims_xx.device)
         mask_mat = mask_mat.view(1, 1, C, C)
-        neg_xx = torch.exp(sims_xx / tau).masked_fill(~mask_mat, 0).sum(dim=2)
+        log_neg_xx = torch.logsumexp(
+            (sims_xx / tau).masked_fill(~mask_mat, neg_inf), dim=2
+        )
 
         # Cross-batch negatives: compare across batch dimension
         hy_norm_exp = hy_norm.unsqueeze(0)  # [1, B, T-1, C, H]
@@ -454,11 +448,15 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         mask_batch = ~torch.eye(B, dtype=torch.bool, device=sims_cross_batch.device)
         mask_batch = mask_batch.view(B, B, 1, 1)
 
-        neg_cross_batch_exp = torch.exp(sims_cross_batch / tau).masked_fill(~mask_batch, 0)
-        neg_cross_batch = neg_cross_batch_exp.sum(dim=1)
+        log_neg_cross_batch = torch.logsumexp(
+            (sims_cross_batch / tau).masked_fill(~mask_batch, neg_inf), dim=1
+        )
 
-        negatives = neg_xx + neg_cross_batch
-        loss = -torch.log(positives / negatives.sum(dim=0, keepdim=True)).mean()
+        log_neg_per_anchor = torch.logsumexp(
+            torch.stack([log_neg_xx, log_neg_cross_batch], dim=0), dim=0
+        )
+        log_neg_total = torch.logsumexp(log_neg_per_anchor, dim=0, keepdim=True)
+        loss = (log_neg_total - log_pos).mean()
 
     elif train_config.get('loss_shape') == 'cosine_similarity_batch_square':
         # Extends `cosine_similarity_batch` with the two missing clean batch-axis
@@ -466,50 +464,60 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         #   neg_cross_batch_forecast:   f_b vs f_b' at same t  (b ≠ b')
         #   neg_cross_batch_embedding:  h_{b,t+1} vs h_{b',t+1} at same t (b ≠ b')
         # The existing cross-batch diagonal term (h_{b',t+1} ↔ f_{b,t}) is kept.
-        positives = torch.exp(
-            cosine_similarity_from_normalized(hy_norm, hy_hat_norm) / tau
-        )
+        # Numerically stable logsumexp form — equivalence + fp16/fp32 small-τ
+        # stability pinned in tests/test_loss_stability.py.
+        neg_inf = float('-inf')
+        log_pos = cosine_similarity_from_normalized(hy_norm, hy_hat_norm) / tau
 
         sims_xy = cosine_similarity_from_normalized(hx_norm.unsqueeze(3), hy_norm.unsqueeze(2))
-        neg_xy = torch.exp(sims_xy / tau).sum(dim=2)
+        log_neg_xy = torch.logsumexp(sims_xy / tau, dim=2)
 
         sims_xy_hat = cosine_similarity_from_normalized(hx_norm.unsqueeze(3), hy_hat_norm.unsqueeze(2))
-        neg_xy_hat = torch.exp(sims_xy_hat / tau).sum(dim=2)
+        log_neg_xy_hat = torch.logsumexp(sims_xy_hat / tau, dim=2)
 
         sims_xx = cosine_similarity_from_normalized(hx_norm.unsqueeze(3), hx_norm.unsqueeze(2))
         mask_mat = ~torch.eye(C, dtype=torch.bool, device=sims_xx.device)
         mask_mat = mask_mat.view(1, 1, C, C)
-        neg_xx = torch.exp(sims_xx / tau).masked_fill(~mask_mat, 0).sum(dim=2)
+        log_neg_xx = torch.logsumexp(
+            (sims_xx / tau).masked_fill(~mask_mat, neg_inf), dim=2
+        )
 
         sims_zy = cosine_similarity_from_normalized(hz_hat_norm.unsqueeze(3), hy_hat_norm.unsqueeze(2))
-        neg_zy = torch.exp(sims_zy / tau).sum(dim=2)
+        log_neg_zy = torch.logsumexp(sims_zy / tau, dim=2)
 
         # Existing inner diagonal: h_{b',t+1} ↔ f_{b,t}  [B,B,T-1,C] → [B,T-1,C]
         hy_norm_exp     = hy_norm.unsqueeze(0)      # [1, B, T-1, C, H]
         hy_hat_norm_exp = hy_hat_norm.unsqueeze(1)  # [B, 1, T-1, C, H]
         sims_cross = cosine_similarity_from_normalized(hy_norm_exp, hy_hat_norm_exp)
         mask_b = ~torch.eye(B, dtype=torch.bool, device=sims_cross.device).view(B, B, 1, 1)
-        neg_cross_batch_forecast_embedding = (
-            torch.exp(sims_cross / tau).masked_fill(~mask_b, 0).sum(dim=1)
+        log_neg_cross_fe = torch.logsumexp(
+            (sims_cross / tau).masked_fill(~mask_b, neg_inf), dim=1
         )
 
         # NEW: f_b vs f_b' at same t (b ≠ b')  [B,B,T-1,C] → [B,T-1,C]
         f_anchor = hy_hat_norm.unsqueeze(0)  # [1, B, T-1, C, H]
         f_other  = hy_hat_norm.unsqueeze(1)  # [B, 1, T-1, C, H]
         sims_ff  = cosine_similarity_from_normalized(f_anchor, f_other)
-        neg_cross_batch_forecast = torch.exp(sims_ff / tau).masked_fill(~mask_b, 0).sum(dim=1)
+        log_neg_cross_ff = torch.logsumexp(
+            (sims_ff / tau).masked_fill(~mask_b, neg_inf), dim=1
+        )
 
         # NEW: h_{b,t+1} vs h_{b',t+1} at same t (b ≠ b')  [B,B,T-1,C] → [B,T-1,C]
         h_anchor = hy_norm.unsqueeze(0)  # [1, B, T-1, C, H]
         h_other  = hy_norm.unsqueeze(1)  # [B, 1, T-1, C, H]
         sims_hh  = cosine_similarity_from_normalized(h_anchor, h_other)
-        neg_cross_batch_embedding = torch.exp(sims_hh / tau).masked_fill(~mask_b, 0).sum(dim=1)
+        log_neg_cross_hh = torch.logsumexp(
+            (sims_hh / tau).masked_fill(~mask_b, neg_inf), dim=1
+        )
 
-        negatives = (neg_xy + neg_xx + neg_zy + neg_xy_hat
-                     + neg_cross_batch_forecast_embedding
-                     + neg_cross_batch_forecast
-                     + neg_cross_batch_embedding)
-        loss = -torch.log(positives / negatives.sum(dim=0, keepdim=True)).mean()
+        log_neg_per_anchor = torch.logsumexp(
+            torch.stack([log_neg_xy, log_neg_xx, log_neg_zy, log_neg_xy_hat,
+                         log_neg_cross_fe, log_neg_cross_ff, log_neg_cross_hh],
+                        dim=0),
+            dim=0,
+        )
+        log_neg_total = torch.logsumexp(log_neg_per_anchor, dim=0, keepdim=True)
+        loss = (log_neg_total - log_pos).mean()
 
     elif train_config.get('loss_shape') == 'mse':
         loss = F.mse_loss(hy, hy_hat) - F.mse_loss(hx, hy)
