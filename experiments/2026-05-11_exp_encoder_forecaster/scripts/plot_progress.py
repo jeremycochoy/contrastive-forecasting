@@ -242,14 +242,25 @@ def render_figure(traj, *, logx, logy_metrics, out_path, scale_tag, xmax,
                ylabel="U_batch",
                panel_title="U_batch — dimension usage across batch",
                transform=None, logy=False, logx=logx, xlim=xlim)
+    # R² panels: in the log PNG, plot 1−R² with log-y (mirroring 1−AUC /
+    # 1−top-1 / 1−top-3); in the linear PNG, plot R² directly with y
+    # clipped to [0, 1] so early-warmup negatives are off-panel.
+    r2r_log = "r2_random" in logy_metrics
+    r2n_log = "r2_naive" in logy_metrics
     plot_panel(ax_r2r, traj, key="r2_random",
-               ylabel="R²_random",
-               panel_title="R²_random",
-               transform=None, logy=False, logx=logx, xlim=xlim)
+               ylabel="1 − R²_random" if r2r_log else "R²_random",
+               panel_title="1 − R²_random" if r2r_log else "R²_random",
+               transform=(lambda y: 1.0 - y) if r2r_log else None,
+               logy=r2r_log, logx=logx, xlim=xlim)
+    if not r2r_log:
+        ax_r2r.set_ylim(0, 1)
     plot_panel(ax_r2n, traj, key="r2_naive",
-               ylabel="R²_naive",
-               panel_title="R²_naive",
-               transform=None, logy=False, logx=logx, xlim=xlim)
+               ylabel="1 − R²_naive" if r2n_log else "R²_naive",
+               panel_title="1 − R²_naive" if r2n_log else "R²_naive",
+               transform=(lambda y: 1.0 - y) if r2n_log else None,
+               logy=r2n_log, logx=logx, xlim=xlim)
+    if not r2n_log:
+        ax_r2n.set_ylim(0, 1)
     plot_panel(ax_auc, traj, key="auc",
                ylabel="1 − AUC",
                panel_title="1 − AUC",
@@ -341,7 +352,8 @@ def main() -> None:
           f"xmax = min = {xmax}")
 
     render_figure(traj, logx=True,
-                  logy_metrics={"loss", "auc", "top1", "top3"},
+                  logy_metrics={"loss", "auc", "top1", "top3",
+                                "r2_random", "r2_naive"},
                   out_path=OUT_LOG, scale_tag="log–log",
                   xmax=xmax, xmin_log=first_step)
 
