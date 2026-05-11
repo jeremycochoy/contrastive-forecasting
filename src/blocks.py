@@ -124,7 +124,8 @@ class TransformerBlock(nn.Module):
     def __init__(self, dimension_e, nhead=8, num_layers=6, feedforward_mult=None,
                  activation=None, input_to_latent=None, dropout=0, depthwise_conv=3,
                  norm_first=True, norm_type='layernorm', num_encoder_layers=0,
-                 encoder_dropkey: float = 0.0):
+                 encoder_dropkey: float = 0.0,
+                 encoder_dropkey_share_heads: bool = False):
         super().__init__()
 
         if feedforward_mult is None:
@@ -138,7 +139,18 @@ class TransformerBlock(nn.Module):
         # p. Diagonal stays 0 (self-attention preserved), above-diagonal stays
         # −∞ (causal). Eval / p=0 falls back to the cached pure causal mask
         # so checkpoints stay bit-identical to pre-flag behaviour.
+        # Mask is per-(B, head) independent by default — sharing across
+        # the batch correlated noise across all 256 rows in lockstep and
+        # triggered NaN at step 11700 of attempt-1 (shared (T,T) mask).
+        # encoder_dropkey_share_heads=True ties heads within each batch
+        # row: same mask for all heads of a given (B, layer) — drops
+        # variance by ~num_heads× and forces heads to disagree on which
+        # positions they attend to (rather than cooperating to count).
+        # Used after attempt-2 (per-(B,head) at p=0.7) diverged at step
+        # ~14900 with sustained loss climb 2 → 5 → 7 with no recovery.
         self.encoder_dropkey = float(encoder_dropkey)
+        self.encoder_dropkey_share_heads = bool(encoder_dropkey_share_heads)
+        self.nhead = nhead
 
         # Pre-forecaster causal encoder stack. When num_encoder_layers=0 the
         # ModuleList is empty and forward() degenerates to the prior
@@ -200,8 +212,10 @@ class TransformerBlock(nn.Module):
         for layer in self.encoder_layers:
             if use_dropkey:
                 dk_mask = self._dropkey_causal_mask(
-                    x.size(1), x.device, self.causal_mask.dtype,
-                    self.encoder_dropkey)
+                    x.size(1), x.size(0), self.nhead,
+                    x.device, self.causal_mask.dtype,
+                    self.encoder_dropkey,
+                    self.encoder_dropkey_share_heads)
                 x = layer(x, tgt_mask=dk_mask, tgt_is_causal=False)
             else:
                 x = layer(x, tgt_mask=self.causal_mask, tgt_is_causal=True)
@@ -221,31 +235,50 @@ class TransformerBlock(nn.Module):
         return mask
 
     @staticmethod
-    def _dropkey_causal_mask(T, device, dtype, p):
-        """Causal mask with random −∞ injection on strictly-below-diagonal entries.
+    def _dropkey_causal_mask(T, B, num_heads, device, dtype, p, share_heads=False):
+        """Causal mask with random −∞ on strictly-below-diagonal entries.
 
         Above-diagonal: −∞ (causal).
         Diagonal: 0 (self always allowed).
-        Strictly below-diagonal: 0 with probability (1-p), −∞ with prob p.
+        Strictly below-diagonal: 0 w.p. (1-p), −∞ w.p. p.
 
-        Shared across batch — per-layer / per-step fresh draw is the
-        regularization knob. Same dtype as the cached causal mask so the
-        attention's mask-broadcast path doesn't trigger an upcast.
+        Returns shape (B*num_heads, T, T) — the form `nn.MultiheadAttention`
+        accepts as a per-(batch, head) attn_mask.
+
+        share_heads=False (default): independent per (batch_row, head) draw.
+            Within-batch averaging absorbs the noise. Fixed attempt-1's
+            shared-(T,T) NaN at step 11700, but at p=0.7 attempt-2 still
+            diverged at step ~14900 (sustained 2 → 7 climb).
+
+        share_heads=True: independent per batch row but ALL heads of a
+            given row see the same mask. Drops variance by ~num_heads×
+            and forces heads to disagree on which positions they attend
+            to (rather than cooperating to count). Used after attempt-2
+            divergence; this is the user-pre-authorized fallback.
         """
-        # Start with the deterministic causal mask (above-diag = −∞, rest = 0).
-        mask = TransformerBlock._generate_square_subsequent_mask(T).to(
+        causal = TransformerBlock._generate_square_subsequent_mask(T).to(
             device=device, dtype=dtype)
         if p <= 0.0:
-            return mask
-        # Below-diagonal indicator: 1 strictly below the diagonal, 0 elsewhere.
+            return causal.unsqueeze(0).expand(B * num_heads, -1, -1)
         below = torch.tril(
             torch.ones(T, T, device=device, dtype=torch.bool), diagonal=-1)
-        drop = torch.rand(T, T, device=device) < p
-        drop_below = drop & below
-        # Inject −∞ where drop_below is True. Use float('-inf') cast to the
-        # mask's dtype so additive-mask semantics hold for bf16/fp16/fp32.
         neg_inf = torch.tensor(float('-inf'), device=device, dtype=dtype)
-        mask = torch.where(drop_below, neg_inf, mask)
+        if share_heads:
+            # One mask per batch row, replicated across heads.
+            drop = torch.rand(B, T, T, device=device) < p
+            drop_below = drop & below.unsqueeze(0)
+            mask_b = torch.where(
+                drop_below, neg_inf, causal.unsqueeze(0).expand(B, -1, -1))
+            # (B, T, T) → (B, num_heads, T, T) → (B*num_heads, T, T)
+            mask = mask_b.unsqueeze(1).expand(-1, num_heads, -1, -1)
+            mask = mask.reshape(B * num_heads, T, T)
+            return mask
+        # Independent per (batch_row, head).
+        N = B * num_heads
+        drop = torch.rand(N, T, T, device=device) < p
+        drop_below = drop & below.unsqueeze(0)
+        mask = torch.where(
+            drop_below, neg_inf, causal.unsqueeze(0).expand(N, -1, -1))
         return mask
         
 class Simple_channel_mixing_module(nn.Module):

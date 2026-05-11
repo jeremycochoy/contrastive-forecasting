@@ -122,6 +122,12 @@ def parse_args():
                         "below-diagonal attention entries. 0.0 (default) = "
                         "pure causal. e.g. 0.3 drops 30% of past-key edges "
                         "per layer per step. Forecaster mask is unaffected.")
+    p.add_argument("--encoder-dropkey-share-heads", action="store_true",
+                   help="If set, the per-step dropkey mask is shared across "
+                        "all heads of a given (batch_row, layer). Default "
+                        "False = independent per (batch_row, head). "
+                        "Tying heads drops variance by ~num_heads× and "
+                        "prevents heads from cooperating to count positions.")
     p.add_argument("--encoder-type", default=MODEL_CONFIG["encoder_type"],
                    choices=["mlp", "mlp_wide", "residual_silu", "gru", "conv",
                             "transformer"],
@@ -455,6 +461,7 @@ def main():
     model_config["tau_init"] = tau_init
     model_config["num_encoder_layers"] = args.num_encoder_layers
     model_config["encoder_dropkey"] = args.encoder_dropkey
+    model_config["encoder_dropkey_share_heads"] = args.encoder_dropkey_share_heads
     # Override the loss_shape from CLI (LOSS_SPEC is a module-level default).
     LOSS_SPEC.train_configuration["loss_shape"] = args.loss_shape
     if args.tau is not None:
