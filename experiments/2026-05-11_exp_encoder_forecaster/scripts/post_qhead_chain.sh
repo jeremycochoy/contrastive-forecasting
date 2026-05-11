@@ -21,9 +21,9 @@ ROOT="/home/jupyter/cf-encoder-forecaster-v2"
 MAIN="/home/jupyter/contrastive-forecasting"
 EXP_DIR="$ROOT/experiments/2026-05-11_exp_encoder_forecaster"
 
-QHEAD_FINAL="$MAIN/checkpoints/enc_fcst_dropkey07_qhead_xfmr12L_quant_30k_FINAL.pth"
-QHEAD_LOG="$EXP_DIR/results/run_enc_fcst_dropkey07_qhead_xfmr12L_quant_30k.log"
-TRIAGE_OUT="$EXP_DIR/results/gift_eval_triage"
+QHEAD_FINAL="$MAIN/checkpoints/enc_fcst_v7_qhead_xfmr12L_quant_30k_FINAL.pth"
+QHEAD_LOG="$EXP_DIR/results/run_enc_fcst_v7_qhead_xfmr12L_quant_30k.log"
+TRIAGE_OUT="$EXP_DIR/results/gift_eval_triage_v7"
 
 # Wait for q-head to complete (FINAL.pth lands at the end of run_qhead.sh).
 # Also bail if q-head log shows a fatal error.
@@ -60,10 +60,10 @@ PASS=$(awk -v m="$GM_MASE" 'BEGIN{print (m+0 < 1.0) ? "1" : "0"}')
 if [ "$PASS" = "1" ]; then
     echo "[gate] PASS (< 1.0) → launching full eval"
     # Full eval: drop the --config-filter so all 97 configs run.
-    HEAD_NAME="enc_fcst_dropkey07_qhead_xfmr12L_quant_30k"
-    BB_PATH="$MAIN/checkpoints/enc_fcst_dropkey07_BACKBONE_step10200_FINAL.pth"
+    HEAD_NAME="enc_fcst_v7_qhead_xfmr12L_quant_30k"
+    BB_PATH="$MAIN/checkpoints/enc_fcst_dk09_hsl_b256_fp32_50k_FINAL.pth"
     HEAD_PATH="$MAIN/checkpoints/${HEAD_NAME}_FINAL.pth"
-    OUT_DIR="$EXP_DIR/results/gift_eval_full"
+    OUT_DIR="$EXP_DIR/results/gift_eval_full_v7"
     mkdir -p "$OUT_DIR"
     GPU_FREE=$(nvidia-smi --query-gpu=index,memory.free \
                 --format=csv,noheader,nounits | sort -t, -k2 -nr | head -1 | cut -d, -f1)

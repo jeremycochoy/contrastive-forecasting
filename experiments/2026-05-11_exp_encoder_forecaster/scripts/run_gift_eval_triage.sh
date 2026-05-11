@@ -8,11 +8,11 @@ ROOT="/home/jupyter/cf-encoder-forecaster-v2"
 MAIN="/home/jupyter/contrastive-forecasting"
 cd "$ROOT"
 
-HEAD_NAME="${HEAD_NAME:-enc_fcst_dropkey07_qhead_xfmr12L_quant_30k}"
+HEAD_NAME="${HEAD_NAME:-enc_fcst_v7_qhead_xfmr12L_quant_30k}"
 
-BB_PATH="$MAIN/checkpoints/enc_fcst_dropkey07_BACKBONE_step10200_FINAL.pth"
+BB_PATH="$MAIN/checkpoints/enc_fcst_dk09_hsl_b256_fp32_50k_FINAL.pth"
 HEAD_PATH="$MAIN/checkpoints/${HEAD_NAME}_FINAL.pth"
-OUT_DIR="$ROOT/experiments/2026-05-11_exp_encoder_forecaster/results/gift_eval_triage"
+OUT_DIR="${OUT_DIR_OVERRIDE:-$ROOT/experiments/2026-05-11_exp_encoder_forecaster/results/gift_eval_triage_v7}"
 
 if [ ! -f "$BB_PATH" ]; then
     echo "ERROR: backbone missing at $BB_PATH" >&2; exit 1

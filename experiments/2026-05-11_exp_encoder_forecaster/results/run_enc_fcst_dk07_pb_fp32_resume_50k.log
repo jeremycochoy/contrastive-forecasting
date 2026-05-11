@@ -702,3 +702,16 @@ Data: MIX 100% HF + 0% synth (periodic), hf_bs=256, synth_bs=0
               R²_rand=0.9974  R²_naive=0.9976  U_t=0.3132  U_b=0.5556  AUC=1.0000  Top1=1.0000
   timing: data=60.8ms  fwd=135.2ms  bwd=110.5ms  total=307.3ms
   -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dk07_pb_fp32_resume_50k_best_loss.pth
+[  28600] loss=1.3822  ema_loss=1.3805  gap=1.1035  ema_gap=1.0990  mixup=32/100  3.0 sps  ETA 2.0h
+              R²_rand=0.9973  R²_naive=0.9976  U_t=0.3161  U_b=0.5523  AUC=1.0000  Top1=1.0000
+  timing: data=5.0ms  fwd=138.0ms  bwd=111.0ms  total=254.8ms
+[  28700] loss=1.3866  ema_loss=1.3805  gap=1.1041  ema_gap=1.0991  mixup=40/100  3.0 sps  ETA 2.0h
+              R²_rand=0.9973  R²_naive=0.9976  U_t=0.3059  U_b=0.5488  AUC=1.0000  Top1=1.0000
+  timing: data=76.4ms  fwd=134.8ms  bwd=111.2ms  total=323.3ms
+[  28800] loss=1.3795  ema_loss=1.3801  gap=1.0960  ema_gap=1.0997  mixup=34/100  3.0 sps  ETA 2.0h
+              R²_rand=0.9973  R²_naive=0.9976  U_t=0.3062  U_b=0.5564  AUC=1.0000  Top1=1.0000
+  timing: data=23.1ms  fwd=134.0ms  bwd=110.7ms  total=268.7ms
+[  28900] loss=1.3822  ema_loss=1.3799  gap=1.1039  ema_gap=1.1001  mixup=29/100  3.0 sps  ETA 2.0h
+              R²_rand=0.9973  R²_naive=0.9976  U_t=0.3280  U_b=0.5563  AUC=1.0000  Top1=1.0000
+  timing: data=6.2ms  fwd=138.3ms  bwd=110.9ms  total=256.2ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dk07_pb_fp32_resume_50k_best_loss.pth
