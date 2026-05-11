@@ -1,0 +1,25 @@
+Device: cuda | Params: 22,057,020
+Training for 50000 steps, bs=256, lr=0.001, T=4096, C=1, mix_ratio=0.0, freq_emb_dim=3, seasonality_emb_dim=3, mixup_p=0.3, rev_norm_kind=ewma(span=128), patch_stats=none, encoder_type=gru
+Checkpoints: /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dk09_hsl_b256_fp32_50k_*.pth
+Loss CSV: /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dk09_hsl_b256_fp32_50k_losses.csv
+Data: MIX 100% HF + 0% synth (periodic), hf_bs=256, synth_bs=0
+[    100] loss=11.0997  ema_loss=12.1050  gap=0.0021  ema_gap=0.0015  mixup=25/100  2.5 sps  ETA 5.5h
+              R²_rand=-0.2133  R²_naive=-0.1438  U_t=0.0028  U_b=0.0028  AUC=0.5020  Top1=0.0072
+  timing: data=92.9ms  fwd=144.4ms  bwd=20.9ms  total=259.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dk09_hsl_b256_fp32_50k_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dk09_hsl_b256_fp32_50k_best_loss.pth
+[    200] loss=11.0991  ema_loss=11.4674  gap=0.0024  ema_gap=0.0020  mixup=24/100  2.8 sps  ETA 5.0h
+              R²_rand=-0.1674  R²_naive=-0.0967  U_t=0.0028  U_b=0.0028  AUC=0.5030  Top1=0.0086
+  timing: data=20.1ms  fwd=134.2ms  bwd=18.5ms  total=173.6ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dk09_hsl_b256_fp32_50k_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dk09_hsl_b256_fp32_50k_best_loss.pth
+[    300] loss=11.0985  ema_loss=11.2337  gap=0.0045  ema_gap=0.0028  mixup=39/100  2.9 sps  ETA 4.7h
+              R²_rand=-0.0835  R²_naive=0.0198  U_t=0.0029  U_b=0.0028  AUC=0.5037  Top1=0.0070
+  timing: data=5.5ms  fwd=135.9ms  bwd=18.5ms  total=160.7ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dk09_hsl_b256_fp32_50k_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dk09_hsl_b256_fp32_50k_best_loss.pth
+[    400] loss=7.2077  ema_loss=10.2438  gap=1.1367  ema_gap=0.3181  mixup=32/100  2.9 sps  ETA 4.7h
+              R²_rand=0.8905  R²_naive=0.9118  U_t=0.0165  U_b=0.0155  AUC=0.9993  Top1=0.9338
+  timing: data=21.5ms  fwd=135.3ms  bwd=19.8ms  total=177.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dk09_hsl_b256_fp32_50k_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dk09_hsl_b256_fp32_50k_best_loss.pth
