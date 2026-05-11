@@ -64,7 +64,8 @@ class ConfigurableModel(torch.nn.Module):
                  enc_transformer_chunk_size=8192,
                  enc_transformer_use_grad_checkpoint=True,
                  num_encoder_layers=0,
-                 encoder_dropkey: float = 0.0):
+                 encoder_dropkey: float = 0.0,
+                 encoder_dropkey_share_heads: bool = False):
         super().__init__()
         self.C = C
         self.H = H
@@ -153,6 +154,7 @@ class ConfigurableModel(torch.nn.Module):
             norm_type=norm_type,
             num_encoder_layers=num_encoder_layers,
             encoder_dropkey=encoder_dropkey,
+            encoder_dropkey_share_heads=encoder_dropkey_share_heads,
         )
         # Override activation if requested
         if activation != 'gelu':

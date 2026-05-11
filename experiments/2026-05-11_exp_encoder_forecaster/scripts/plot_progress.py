@@ -65,9 +65,12 @@ MAIN = Path("/home/jupyter/contrastive-forecasting")
 # Color palette: saturated, high-contrast.
 #   - τ=0.10 baseline (long-trained, concatenated chunks) → tab:blue
 #   - attempt-1 (shared (T,T) dropkey mask, NaN'd at step 11700) → tab:orange
-#   - per-(B,head) headline arm (dropkey=0.7, fresh per row+head) → tab:red
+#   - attempt-2 (per-(B,head) dropkey, diverged ~14.9k) → olive (visibly
+#                distinct from both tab:orange and tab:red)
+#   - attempt-3 / headline (per-(B,layer) dropkey, heads tied) → tab:red
 C_BASELINE = "#1f77b4"  # tab:blue
 C_ATTEMPT1 = "#ff7f0e"  # tab:orange
+C_ATTEMPT2 = "#bcbd22"  # tab:olive
 C_HEADLINE = "#d62728"  # tab:red
 
 # τ=0.10 baseline is split across resume chunks. Concatenate in step
@@ -79,8 +82,9 @@ BASELINE_CHUNKS = [
     MAIN / "sync_tau_sweep_0_10_150k/checkpoints/tau_sweep_0_10_150k_losses.csv",   # 48001–150000
 ]
 
-NEW_ARM_CSV = MAIN / "checkpoints/enc_fcst_dropkey07_pb_50k_losses.csv"
+NEW_ARM_CSV = MAIN / "checkpoints/enc_fcst_dropkey07_pb_hs_50k_losses.csv"
 ATTEMPT1_CSV = MAIN / "checkpoints/enc_fcst_dropkey07_50k_attempt1_losses.csv"
+ATTEMPT2_CSV = MAIN / "checkpoints/enc_fcst_dropkey07_pb_50k_attempt2_losses.csv"
 
 # (display_label, color, linestyle, lw, csv_path_or_chunks, is_concat)
 ARMS = [
@@ -92,7 +96,11 @@ ARMS = [
      C_ATTEMPT1, "-", 1.4,
      ATTEMPT1_CSV,
      False),
-    ("encoder+forecaster v2 (6L+6L, dropkey=0.7 per-(B,head), bf16)",
+    ("attempt-2 (per-(B,head) dropkey, diverged @ ~14900)",
+     C_ATTEMPT2, "-", 1.4,
+     ATTEMPT2_CSV,
+     False),
+    ("encoder+forecaster v3 (per-(B,layer) dropkey, heads tied, bf16, resumed)",
      C_HEADLINE, "-", 1.8,
      NEW_ARM_CSV,
      False),
@@ -284,8 +292,9 @@ def render_figure(traj, *, logx, logy_metrics, out_path, scale_tag, xmax,
                    bbox_to_anchor=(0.5, 0.985))
 
     fig.suptitle(
-        f"encoder+forecaster v2 (dropkey=0.7) — per-(B,head) vs shared-mask "
-        f"attempt-1 vs τ=0.10 baseline, all clipped to {xmax:,} ({scale_tag})",
+        f"encoder+forecaster (dropkey=0.7) — heads-tied resume (red) vs "
+        f"per-(B,head) (olive) vs shared (T,T) (orange) vs τ=0.10 baseline "
+        f"(blue), all clipped to {xmax:,} ({scale_tag})",
         fontsize=12, y=1.02)
     fig.tight_layout(rect=(0, 0, 1, 0.96))
     fig.savefig(out_path, dpi=110, bbox_inches="tight")
@@ -302,12 +311,15 @@ def main() -> None:
         raise SystemExit("baseline chunks all missing or empty")
     new_arm_max = int(new_arm["step"].max())
     baseline_max = int(baseline["step"].max())
-    # Right edge = the new arm's most recent step (or attempt-1's, while
-    # the new arm hasn't passed it). All three arms get clipped to the
-    # same window before smoothing so the curves end at the same x.
+    # Right edge = the most recent step among the non-baseline arms
+    # (attempt-1 / attempt-2 / attempt-3-headline). All four arms get
+    # clipped to the same window before smoothing so the curves end at
+    # the same x. Capped at baseline_max in case the headline overshoots.
     attempt1 = load_traj(ATTEMPT1_CSV)
     attempt1_max = int(attempt1["step"].max()) if attempt1 is not None else 0
-    xmax = max(new_arm_max, attempt1_max)
+    attempt2 = load_traj(ATTEMPT2_CSV)
+    attempt2_max = int(attempt2["step"].max()) if attempt2 is not None else 0
+    xmax = max(new_arm_max, attempt1_max, attempt2_max)
     xmax = min(xmax, baseline_max)
 
     # Log-x lower bound: snap to the smaller of the two arms' first

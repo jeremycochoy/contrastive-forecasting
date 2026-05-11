@@ -1,0 +1,42 @@
+  [checkpoint] Restored optimizer from /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dropkey07_pb_50k_best_loss_optimizer.pth (step=10200, best_ff=1.3255)
+Resumed from /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dropkey07_pb_50k_best_loss.pth at step 10200
+Device: cuda | Params: 22,057,020
+Training for 50000 steps, bs=256, lr=0.001, T=4096, C=1, mix_ratio=0.0, freq_emb_dim=3, seasonality_emb_dim=3, mixup_p=0.3, rev_norm_kind=ewma(span=128), patch_stats=none, encoder_type=gru
+Checkpoints: /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dropkey07_pb_hs_50k_*.pth
+Loss CSV: /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dropkey07_pb_hs_50k_losses.csv
+Data: MIX 100% HF + 0% synth (periodic), hf_bs=256, synth_bs=0
+  [dataloader] 4274 shards, 42740000 total rows, target skip 2611200
+  [dataloader] Fast-skip: starting at shard 261/4274, then skipping 1200 rows within it
+[  10300] loss=1.5384  ema_loss=1.5475  gap=1.1021  ema_gap=1.0996  mixup=29/100  3.7 sps  ETA 3.0h
+              R²_rand=0.9913  R²_naive=0.9922  U_t=0.2305  U_b=0.4219  AUC=1.0000  Top1=1.0000
+  timing: data=93.7ms  fwd=111.5ms  bwd=53.9ms  total=259.8ms
+[  10400] loss=1.5248  ema_loss=1.5356  gap=1.0986  ema_gap=1.0972  mixup=30/100  4.3 sps  ETA 2.5h
+              R²_rand=0.9913  R²_naive=0.9922  U_t=0.2275  U_b=0.4277  AUC=1.0000  Top1=1.0000
+  timing: data=23.2ms  fwd=101.5ms  bwd=52.7ms  total=178.0ms
+[  10500] loss=1.5955  ema_loss=1.5562  gap=1.1050  ema_gap=1.0972  mixup=36/100  4.6 sps  ETA 2.4h
+              R²_rand=0.9869  R²_naive=0.9885  U_t=0.2363  U_b=0.4199  AUC=1.0000  Top1=1.0000
+  timing: data=23.0ms  fwd=102.1ms  bwd=52.7ms  total=178.5ms
+[  10600] loss=1.5679  ema_loss=1.5713  gap=1.0947  ema_gap=1.0983  mixup=33/100  4.9 sps  ETA 2.2h
+              R²_rand=0.9873  R²_naive=0.9885  U_t=0.2285  U_b=0.4258  AUC=1.0000  Top1=1.0000
+  timing: data=4.4ms  fwd=103.3ms  bwd=52.7ms  total=161.2ms
+[  10700] loss=1.9042  ema_loss=1.6426  gap=1.1074  ema_gap=1.0961  mixup=34/100  5.0 sps  ETA 2.2h
+              R²_rand=0.9629  R²_naive=0.9675  U_t=0.3047  U_b=0.3711  AUC=1.0000  Top1=1.0000
+  timing: data=23.1ms  fwd=100.8ms  bwd=52.7ms  total=177.3ms
+[  10800] loss=1.7279  ema_loss=1.7273  gap=1.1094  ema_gap=1.1061  mixup=29/100  5.1 sps  ETA 2.1h
+              R²_rand=0.9768  R²_naive=0.9799  U_t=0.2451  U_b=0.4023  AUC=1.0000  Top1=1.0000
+  timing: data=3.8ms  fwd=103.9ms  bwd=52.6ms  total=161.1ms
+[  10900] loss=1.6915  ema_loss=1.7019  gap=1.0991  ema_gap=1.1074  mixup=28/100  5.1 sps  ETA 2.1h
+              R²_rand=0.9784  R²_naive=0.9808  U_t=0.2256  U_b=0.4102  AUC=1.0000  Top1=1.0000
+  timing: data=23.1ms  fwd=102.1ms  bwd=53.1ms  total=179.1ms
+[  11000] loss=1.6757  ema_loss=1.6960  gap=1.1074  ema_gap=1.1027  mixup=30/100  5.1 sps  ETA 2.1h
+              R²_rand=0.9789  R²_naive=0.9814  U_t=0.2441  U_b=0.4121  AUC=1.0000  Top1=1.0000
+  timing: data=30.8ms  fwd=97.4ms  bwd=53.2ms  total=182.3ms
+[  11100] loss=1.8450  ema_loss=1.7057  gap=1.0967  ema_gap=1.0994  mixup=21/100  5.2 sps  ETA 2.1h
+              R²_rand=0.9666  R²_naive=0.9708  U_t=0.2451  U_b=0.3984  AUC=1.0000  Top1=1.0000
+  timing: data=3.9ms  fwd=104.0ms  bwd=52.9ms  total=161.7ms
+[  11200] loss=1.7210  ema_loss=1.7376  gap=1.0972  ema_gap=1.1022  mixup=27/100  5.2 sps  ETA 2.1h
+              R²_rand=0.9761  R²_naive=0.9788  U_t=0.2178  U_b=0.4023  AUC=1.0000  Top1=1.0000
+  timing: data=24.1ms  fwd=102.1ms  bwd=53.0ms  total=179.9ms
+[  11300] loss=1.8417  ema_loss=1.8852  gap=1.1465  ema_gap=1.1196  mixup=34/100  5.2 sps  ETA 2.1h
+              R²_rand=0.9689  R²_naive=0.9742  U_t=0.2617  U_b=0.3672  AUC=1.0000  Top1=1.0000
+  timing: data=23.0ms  fwd=101.4ms  bwd=53.0ms  total=178.2ms
