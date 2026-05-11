@@ -1666,3 +1666,13 @@ Retrying in 1s [Retry 1/5].
   timing: data=21.6ms  fwd=136.7ms  bwd=19.3ms  total=178.5ms
   -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dk09_hsl_b256_fp32_50k_best_loss.pth
   -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dk09_hsl_b256_fp32_50k_40k.pth
+[  40100] loss=1.3459  ema_loss=1.3470  gap=1.1184  ema_gap=1.1173  mixup=33/100  3.1 sps  ETA 0.9h
+              R²_rand=0.9977  R²_naive=0.9980  U_t=0.5511  U_b=0.6090  AUC=1.0000  Top1=1.0000
+  timing: data=5.2ms  fwd=139.4ms  bwd=19.6ms  total=165.2ms
+[  40200] loss=1.3430  ema_loss=1.3466  gap=1.1195  ema_gap=1.1176  mixup=34/100  3.1 sps  ETA 0.9h
+              R²_rand=0.9978  R²_naive=0.9981  U_t=0.5492  U_b=0.6112  AUC=1.0000  Top1=1.0000
+  timing: data=22.8ms  fwd=136.2ms  bwd=19.6ms  total=179.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dk09_hsl_b256_fp32_50k_best_loss.pth
+[  40300] loss=1.3463  ema_loss=1.3468  gap=1.1181  ema_gap=1.1174  mixup=30/100  3.1 sps  ETA 0.9h
+              R²_rand=0.9978  R²_naive=0.9981  U_t=0.5544  U_b=0.6076  AUC=1.0000  Top1=1.0000
+  timing: data=21.7ms  fwd=134.1ms  bwd=20.4ms  total=177.3ms
