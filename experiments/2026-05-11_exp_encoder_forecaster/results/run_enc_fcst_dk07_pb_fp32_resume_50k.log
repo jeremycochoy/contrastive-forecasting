@@ -1,0 +1,17 @@
+  [checkpoint] Restored optimizer from /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dropkey07_pb_50k_best_loss_optimizer.pth (step=10200, best_ff=1.3255)
+Resumed from /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dropkey07_pb_50k_best_loss.pth at step 10200
+Device: cuda | Params: 22,057,020
+Training for 50000 steps, bs=256, lr=0.001, T=4096, C=1, mix_ratio=0.0, freq_emb_dim=3, seasonality_emb_dim=3, mixup_p=0.3, rev_norm_kind=ewma(span=128), patch_stats=none, encoder_type=gru
+Checkpoints: /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dk07_pb_fp32_resume_50k_*.pth
+Loss CSV: /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dk07_pb_fp32_resume_50k_losses.csv
+Data: MIX 100% HF + 0% synth (periodic), hf_bs=256, synth_bs=0
+  [dataloader] 4274 shards, 42740000 total rows, target skip 2611200
+  [dataloader] Fast-skip: starting at shard 261/4274, then skipping 1200 rows within it
+[  10300] loss=1.4861  ema_loss=1.4949  gap=1.0906  ema_gap=1.0901  mixup=29/100  2.5 sps  ETA 4.5h
+              R²_rand=0.9948  R²_naive=0.9954  U_t=0.2430  U_b=0.4316  AUC=1.0000  Top1=1.0000
+  timing: data=99.2ms  fwd=142.6ms  bwd=111.5ms  total=354.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dk07_pb_fp32_resume_50k_best_loss.pth
+[  10400] loss=1.4935  ema_loss=1.4892  gap=1.0856  ema_gap=1.0899  mixup=30/100  2.8 sps  ETA 4.0h
+              R²_rand=0.9950  R²_naive=0.9955  U_t=0.2299  U_b=0.4330  AUC=1.0000  Top1=1.0000
+  timing: data=22.2ms  fwd=134.2ms  bwd=111.0ms  total=268.2ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dk07_pb_fp32_resume_50k_best_loss.pth
