@@ -306,36 +306,60 @@ def test_retrieval_topk_product_structure_matches_reference():
     assert torch.allclose(out["top1"], top1_ref, atol=1e-6)
 
 
-def test_retrieval_topk_lag_max_boundary():
-    # k = max_lag puts the negative at position t + 1 - max_lag, the
-    # earliest valid slice. Off-by-one in the time slicing would silently
-    # mis-align this. Construct h_full so we can read the gathered
-    # negative position back from the cosine sim.
-    B, T, C, H = 3, 12, 1, 8
-    lookback_lags = (1, 8)
-    max_lag = 8
-    # Make each (b, t) latent a distinguishable unit vector. Use a basis
-    # where h[b, t, 0, :] has h[..., 0] = b * 100 + t. Then cos_sim
-    # against a known query reveals which (b, t) was retrieved.
-    h_full = torch.zeros(B, T + 1, C, H)
-    for b in range(B):
-        for t in range(T + 1):
-            h_full[b, t, 0, 0] = float(b * 100 + t)
-            h_full[b, t, 0, 1] = 1.0  # break ties so cos_sim is well-defined
-    # Forecast: pick out h[0, 1, 0, :] (= the k=8 negative for b=0, t=8,
-    # via b'=1 first cross-batch index since (raw=[[0]] for n_b=1,
-    # b_idx=[[0]] → rand_b = [[1]] for b=0). At lag k=8, query t=8 →
-    # neg position t+1-k = 1. Gathered batch idx for b=0 is b'=1. So
-    # the k=8 neg for b=0, t=8 is h_full[1, 1, 0, :].
-    # We just want to make sure the function doesn't crash and produces
-    # finite metrics for this edge — the parallel reference test above
-    # already pins exact values.
+def test_retrieval_topk_brute_force_oracle():
+    # Independent oracle: enumerate every (b, t, b', k) explicitly and
+    # compute the expected negative sim from the documented layout
+    # h_full[b', t+1-k, c, :]. The product-structure test above uses the
+    # same vectorized slice as the impl; an off-by-one introduced in
+    # both would pass that test. This loop has no shared slicing logic
+    # with the impl, so it catches alignment bugs.
+    torch.manual_seed(7)
+    B, T, C, H = 4, 10, 1, 8
+    h_full = torch.randn(B, T + 1, C, H)
     f = torch.randn(B, T, C, H)
-    out = retrieval_auc_topk(
-        f, h_full, lookback_lags=lookback_lags, n_batch_negs=1,
+    lookback_lags = (1, 2, 4)  # max_lag = 4, T_v = 6
+    n_batch_negs = 2
+    max_lag = max(lookback_lags)
+    T_v = T - max_lag
+
+    n_b = min(n_batch_negs, B - 1)
+    raw = torch.arange(n_b).unsqueeze(0).expand(B, n_b)
+    b_idx = torch.arange(B).unsqueeze(1)
+    rand_b = raw + (raw >= b_idx).long()
+
+    n_neg = n_b * len(lookback_lags)
+    expected_sim_neg = torch.empty(B, T_v, C, n_neg)
+    for b in range(B):
+        for t_idx in range(T_v):
+            t = max_lag + t_idx
+            f_vec = f[b, t, 0, :]
+            slot = 0
+            for k in lookback_lags:
+                for j in range(n_b):
+                    bp = rand_b[b, j].item()
+                    neg_vec = h_full[bp, t + 1 - k, 0, :]
+                    expected_sim_neg[b, t_idx, 0, slot] = torch.nn.functional.cosine_similarity(
+                        f_vec.unsqueeze(0), neg_vec.unsqueeze(0)
+                    )
+                    slot += 1
+
+    sim_pos_expected = torch.nn.functional.cosine_similarity(
+        f[:, max_lag:T, :, :], h_full[:, max_lag + 1:T + 1, :, :], dim=-1
     )
-    for key in ("auc", "mrr", "top1", "top3", "q_hard_neg", "m_z"):
-        assert torch.isfinite(out[key]), f"{key} not finite at lag-max boundary"
+    # AUC and MRR are order-invariant in the neg axis; the impl's
+    # internal lag/batch interleaving doesn't have to match `slot`.
+    beats_expected = (sim_pos_expected.unsqueeze(-1) > expected_sim_neg).float()
+    auc_expected = beats_expected.mean(dim=-1).mean()
+    n_beats_expected = beats_expected.sum(dim=-1)
+    rank_expected = n_neg - n_beats_expected + 1.0
+    mrr_expected = (1.0 / rank_expected).mean()
+
+    out = retrieval_auc_topk(
+        f, h_full, lookback_lags=lookback_lags,
+        n_batch_negs=n_batch_negs, top_k=(1,),
+    )
+    assert torch.allclose(out["auc"], auc_expected, atol=1e-6), (out["auc"], auc_expected)
+    assert torch.allclose(out["mrr"], mrr_expected, atol=1e-6), (out["mrr"], mrr_expected)
 
 
 def test_retrieval_topk_random_forecast_auc_near_half():
