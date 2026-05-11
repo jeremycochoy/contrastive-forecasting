@@ -40,3 +40,9 @@ Data: MIX 100% HF + 0% synth (periodic), hf_bs=256, synth_bs=0
 [  11300] loss=1.8417  ema_loss=1.8852  gap=1.1465  ema_gap=1.1196  mixup=34/100  5.2 sps  ETA 2.1h
               R²_rand=0.9689  R²_naive=0.9742  U_t=0.2617  U_b=0.3672  AUC=1.0000  Top1=1.0000
   timing: data=23.0ms  fwd=101.4ms  bwd=53.0ms  total=178.2ms
+[  11400] loss=1.8147  ema_loss=1.8429  gap=1.1309  ema_gap=1.1343  mixup=35/100  5.2 sps  ETA 2.0h
+              R²_rand=0.9696  R²_naive=0.9742  U_t=0.2559  U_b=0.3867  AUC=1.0000  Top1=1.0000
+  timing: data=4.2ms  fwd=104.1ms  bwd=53.0ms  total=162.1ms
+[  11500] loss=2.3979  ema_loss=1.9472  gap=1.1328  ema_gap=1.1304  mixup=26/100  5.2 sps  ETA 2.0h
+              R²_rand=0.9268  R²_naive=0.9399  U_t=0.2275  U_b=0.2930  AUC=1.0000  Top1=1.0000
+  timing: data=23.6ms  fwd=102.2ms  bwd=53.1ms  total=179.7ms
