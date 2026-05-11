@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Progress plot — 3-arm comparison: baseline / v6 bf16 / v7 fp32.
+"""Progress plot — 9-arm full-history comparison.
 
 Reads per-step training-batch metrics from the losses CSVs and renders a
 2x4 panel of trajectories smoothed with a moving average:
@@ -63,13 +63,17 @@ OUT_LOG.parent.mkdir(parents=True, exist_ok=True)
 MAIN = Path("/home/jupyter/contrastive-forecasting")
 
 # Color palette: saturated, high-contrast.
-#   - τ=0.10 baseline (long-trained, concatenated chunks) → tab:blue
-#   - v6 (bf16, dropkey=0.9 heads+layers-shared, diverged @ ~4500) → tab:orange
-#   - v7 / headline (fp32, dropkey=0.9 heads+layers-shared) → tab:red
+# 9-arm full history. Diverged/dead arms (a1..v6) use lw=1.0 to recede;
+# live arms v7 (red) and v8 (purple) get heavier strokes.
 C_BASELINE = "#1f77b4"  # tab:blue
-C_V6 = "#ff7f0e"  # tab:orange
-C_V7 = "#d62728"  # tab:red
-C_V8 = "#9467bd"  # purple
+C_A1 = "#ff7f0e"        # orange
+C_A2 = "#bcbd22"        # olive
+C_A3 = "#8c564b"        # brown
+C_V4 = "#17becf"        # cyan
+C_V5 = "#e377c2"        # pink
+C_V6 = "#7f7f7f"        # grey
+C_V7 = "#d62728"        # red (headline live)
+C_V8 = "#9467bd"        # purple (live)
 
 # τ=0.10 baseline is split across resume chunks. Concatenate in step
 # order; on overlap, the earliest chunk's row wins.
@@ -80,28 +84,55 @@ BASELINE_CHUNKS = [
     MAIN / "sync_tau_sweep_0_10_150k/checkpoints/tau_sweep_0_10_150k_losses.csv",   # 48001–150000
 ]
 
+A1_CSV = MAIN / "checkpoints/enc_fcst_dropkey07_50k_attempt1_losses.csv"
+A2_CSV = MAIN / "checkpoints/enc_fcst_dropkey07_pb_50k_attempt2_losses.csv"
+A3_CSV = MAIN / "checkpoints/enc_fcst_dropkey07_pb_hs_50k_attempt3_losses.csv"
+V4_CSV = MAIN / "checkpoints/enc_fcst_dk09_hs_b512_lr1e-3_attempt1_losses.csv"
+V5_CSV = MAIN / "checkpoints/enc_fcst_dk09_hs_b512_lr1e-4_50k_attempt1_losses.csv"
 V6_CSV = MAIN / "checkpoints/enc_fcst_dk09_hsl_b256_50k_bf16_attempt1_losses.csv"
 V7_CSV = MAIN / "checkpoints/enc_fcst_dk09_hsl_b256_fp32_50k_losses.csv"
 V8_CSV = MAIN / "checkpoints/enc_fcst_dk07_pb_fp32_resume_50k_losses.csv"
 NEW_ARM_CSV = V7_CSV
 
 # (display_label, color, linestyle, lw, csv_path_or_chunks, is_concat)
+# Order: chronological (baseline → a1 → a2 → a3 → v4 → v5 → v6 → v7 → v8).
+# Diverged arms (a1..v6) get lw=1.0 so they recede behind the live arms.
 ARMS = [
     ("τ=0.10 baseline (long-trained, 0–150k available)",
      C_BASELINE, "-", 1.6,
      BASELINE_CHUNKS,
      True),
-    ("v6 (bf16, dropkey=0.9 heads+layers-shared, diverged @ ~4500)",
-     C_V6, "-", 1.4,
+    ("a1: shared (T,T) dropkey=0.7, bf16 — NaN @ 11700",
+     C_A1, "-", 1.0,
+     A1_CSV,
+     False),
+    ("a2: per-(B,head) dropkey=0.7, bf16 — diverged @ 14900",
+     C_A2, "-", 1.0,
+     A2_CSV,
+     False),
+    ("a3: heads-shared dropkey=0.7, bf16, resumed from a2 — diverged @ 14400",
+     C_A3, "-", 1.0,
+     A3_CSV,
+     False),
+    ("v4: B=512 lr=1e-3 dropkey=0.9 heads-shared, bf16 — diverged @ 4200",
+     C_V4, "-", 1.0,
+     V4_CSV,
+     False),
+    ("v5: B=512 lr=1e-4 dropkey=0.9 heads-shared, bf16 — diverged @ 30000",
+     C_V5, "-", 1.0,
+     V5_CSV,
+     False),
+    ("v6: B=256 lr=1e-3 dropkey=0.9 heads+layers-shared, bf16 — diverged @ 4500",
+     C_V6, "-", 1.0,
      V6_CSV,
      False),
-    ("v8 (fp32, dropkey=0.7 per-(B,head) full-indep, resume from attempt-2 best_loss)",
-     C_V8, "-", 1.4,
-     V8_CSV,
-     False),
-    ("v7 (fp32, dropkey=0.9 heads+layers-shared)",
+    ("v7: B=256 lr=1e-3 dropkey=0.9 heads+layers-shared, FP32 — running",
      C_V7, "-", 1.8,
      V7_CSV,
+     False),
+    ("v8: dropkey=0.7 per-(B,head), FP32, resume from a2 best_loss — running",
+     C_V8, "-", 1.6,
+     V8_CSV,
      False),
 ]
 
@@ -286,17 +317,20 @@ def render_figure(traj, *, logx, logy_metrics, out_path, scale_tag, xmax,
 
     handles, labels = ax_loss.get_legend_handles_labels()
     if handles:
+        # 9 arms with long labels — cap at 3 per row so the legend stays
+        # within the figure and doesn't overlap the panels.
+        ncol = min(3, len(handles))
         fig.legend(handles, labels, loc="upper center",
-                   ncol=len(handles), fontsize=9, frameon=False,
-                   bbox_to_anchor=(0.5, 0.985))
+                   ncol=ncol, fontsize=8, frameon=False,
+                   bbox_to_anchor=(0.5, 0.99))
 
     fig.suptitle(
-        f"encoder+forecaster — bf16 vs fp32 dropkey=0.9 heads+layers-shared "
-        f"(v7 red, {xmax:,} steps; v6 orange diverged @ 4500) + "
-        f"v8 fp32 dropkey=0.7 full-indep resume from attempt-2 (purple) "
-        f"vs τ=0.10 baseline ({scale_tag})",
-        fontsize=12, y=1.02)
-    fig.tight_layout(rect=(0, 0, 1, 0.96))
+        f"encoder+forecaster — all 9 attempts (a1-v6 bf16 diverged; "
+        f"v7/v8 FP32 currently running) vs τ=0.10 baseline "
+        f"(clipped to {xmax:,}, {scale_tag})",
+        fontsize=12, y=1.06)
+    # Extra top margin so the 3-row legend doesn't overlap panels.
+    fig.tight_layout(rect=(0, 0, 1, 0.90))
     fig.savefig(out_path, dpi=110, bbox_inches="tight")
     plt.close(fig)
     print(f"[plot] wrote {out_path}")
@@ -311,15 +345,19 @@ def main() -> None:
         raise SystemExit("baseline chunks all missing or empty")
     new_arm_max = int(new_arm["step"].max())
     baseline_max = int(baseline["step"].max())
-    # Right edge = the most recent step among the non-baseline arms (v6 + v7 + v8).
-    # All four arms get clipped to the same window before smoothing so the
+    # Right edge = the most recent step among ALL non-baseline arms.
+    # Every arm gets clipped to the same window before smoothing so the
     # curves end at the same x. Capped at baseline_max in case anything
     # overshoots.
-    v6 = load_traj(V6_CSV)
-    v6_max = int(v6["step"].max()) if v6 is not None else 0
-    v8 = load_traj(V8_CSV)
-    v8_max = int(v8["step"].max()) if v8 is not None else 0
-    xmax = min(max(new_arm_max, v6_max, v8_max), baseline_max)
+    non_baseline_maxes: list[int] = []
+    for csv_path in (A1_CSV, A2_CSV, A3_CSV, V4_CSV, V5_CSV, V6_CSV,
+                     V7_CSV, V8_CSV):
+        t = load_traj(csv_path)
+        if t is not None and len(t["step"]) > 0:
+            non_baseline_maxes.append(int(t["step"].max()))
+    if not non_baseline_maxes:
+        raise SystemExit("no non-baseline arms loaded")
+    xmax = min(max(non_baseline_maxes), baseline_max)
 
     # Log-x lower bound: snap to the smaller of the two arms' first
     # smoothed point inside the visible window, so the [1..first_step]
