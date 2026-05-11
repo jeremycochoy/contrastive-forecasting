@@ -237,6 +237,9 @@ def main():
     p.add_argument("--depthwise-conv", type=int, default=3)
     p.add_argument("--dropout", type=float, default=0.1)
     p.add_argument("--intermediate-dim", type=int, default=None)
+    p.add_argument("--channel-mixing-kind", type=str, default="simple",
+                   choices=["simple", "attention"])
+    p.add_argument("--channel-mixing-n-heads", type=int, default=8)
     p.add_argument("--hidden-dim", type=int, default=128)
     p.add_argument("--num-gru-layers", type=int, default=2)
     p.add_argument("--dimension", type=int, default=4)
@@ -264,6 +267,8 @@ def main():
         num_layers=args.num_layers, nhead=args.nhead, ffn_mult=args.ffn_mult,
         dropout=args.dropout, activation=args.activation,
         depthwise_conv=args.depthwise_conv,
+        channel_mixing_kind=args.channel_mixing_kind,
+        channel_mixing_n_heads=args.channel_mixing_n_heads,
     )
     model.load_state_dict(torch.load(args.model_path, map_location=device))
     model = model.to(device).eval()

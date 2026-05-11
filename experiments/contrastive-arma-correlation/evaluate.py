@@ -20,7 +20,8 @@ if str(HERE) not in sys.path:
 from data import generate_arma_correlated_batch  # noqa: E402
 from train_arma_head import extract_per_channel_h, evaluate as evaluate_arma  # noqa: E402
 from train_correlation_head import (  # noqa: E402
-    extract_h_hat, JointCorrelationHead, evaluate as evaluate_corr,
+    extract_h_hat, JointCorrelationHead, JointCorrelationHeadDirect,
+    evaluate as evaluate_corr,
     empirical_diff_corr_baseline, empirical_position_corr,
 )
 
@@ -39,6 +40,8 @@ def load_backbone(args, device):
         num_layers=args.num_layers, nhead=args.nhead, ffn_mult=args.ffn_mult,
         dropout=args.dropout, activation=args.activation,
         depthwise_conv=args.depthwise_conv,
+        channel_mixing_kind=getattr(args, "channel_mixing_kind", "simple"),
+        channel_mixing_n_heads=getattr(args, "channel_mixing_n_heads", 8),
     )
     model.load_state_dict(torch.load(args.model_path, map_location=device))
     return model.to(device).eval()
@@ -216,6 +219,11 @@ def main():
     p.add_argument("--depthwise-conv", type=int, default=3)
     p.add_argument("--dropout", type=float, default=0.1)
     p.add_argument("--intermediate-dim", type=int, default=None)
+    p.add_argument("--channel-mixing-kind", type=str, default="simple",
+                   choices=["simple", "attention"])
+    p.add_argument("--channel-mixing-n-heads", type=int, default=8)
+    p.add_argument("--corr-head-kind", type=str, default="projected",
+                   choices=["projected", "direct"])
     p.add_argument("--hidden-dim", type=int, default=128)
     p.add_argument("--num-gru-layers", type=int, default=2)
     p.add_argument("--dimension", type=int, default=4)
@@ -240,9 +248,16 @@ def main():
     arma_head.load_state_dict(torch.load(args.arma_head_path, map_location=device))
     arma_head = arma_head.to(device).eval()
 
-    corr_head = JointCorrelationHead(
-        H=args.H, K=args.C, hidden_dim=args.hidden_dim, num_gru_layers=args.num_gru_layers,
-    )
+    if getattr(args, "corr_head_kind", "projected") == "direct":
+        corr_head = JointCorrelationHeadDirect(
+            H=args.H, K=args.C, hidden_dim=args.hidden_dim,
+            num_gru_layers=args.num_gru_layers,
+        )
+    else:
+        corr_head = JointCorrelationHead(
+            H=args.H, K=args.C, hidden_dim=args.hidden_dim,
+            num_gru_layers=args.num_gru_layers,
+        )
     corr_head.load_state_dict(torch.load(args.corr_head_path, map_location=device))
     corr_head = corr_head.to(device).eval()
 
