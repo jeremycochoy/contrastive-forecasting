@@ -350,6 +350,9 @@ def main() -> None:
         min(_first_smoothed_step_clipped(new_arm["step"], xmax),
             _first_smoothed_step_clipped(baseline["step"], xmax)),
     )
+    # Hide the noisy <500-step warmup: log-x starts at 500 even if the
+    # smoothing-window math would put it earlier. Linear plot unaffected.
+    first_step = max(first_step, 500)
 
     traj = []
     for arm in ARMS:
@@ -373,6 +376,7 @@ def main() -> None:
 
     print(f"[plot] new-arm max = {new_arm_max}, baseline max = {baseline_max}; "
           f"xmax = min = {xmax}")
+    print(f"[plot] xmax = {xmax}, xmin_log = {first_step}")
 
     render_figure(traj, logx=True,
                   logy_metrics={"loss", "auc", "top1", "top3",
