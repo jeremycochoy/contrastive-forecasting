@@ -29,8 +29,15 @@ from src.loss import contrastive_latent_loss, cosine_similarity_from_normalized
 
 # ---------------------------------------------------------------------------
 # Frozen pre-refactor reference implementations.
-# Copy of src/loss.py at commit 0705c71 (head of `experiments` before the
-# logsumexp refactor). Do NOT edit to chase test passes — these are the
+#
+# Logically equivalent to src/loss.py at commit 0705c71 (head of
+# `experiments` before the logsumexp refactor). The `cosine_similarity_batch`
+# helper uses the broadcast form for `sims_cross_batch` for readability;
+# the pre-refactor code uses a memory-optimised matmul that produces
+# the same values for unit-normalised vectors. Equivalence between
+# broadcast and matmul is a property of the cosine: cos(u, v) = u·v.
+#
+# Do NOT edit these helpers to chase test passes — they are the
 # contract the refactor must preserve.
 # ---------------------------------------------------------------------------
 

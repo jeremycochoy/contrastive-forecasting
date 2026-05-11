@@ -130,11 +130,11 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             (sims_cross_batch / tau).masked_fill(~mask_batch, neg_inf), dim=1
         )
 
-        log_neg_per_anchor = torch.logsumexp(
-            torch.stack([log_neg_xy, log_neg_xx, log_neg_zy,
-                         log_neg_xy_hat, log_neg_cross_batch], dim=0),
+        negatives = torch.stack(
+            [log_neg_xy, log_neg_xx, log_neg_zy, log_neg_xy_hat, log_neg_cross_batch],
             dim=0,
         )
+        log_neg_per_anchor = torch.logsumexp(negatives, dim=0)
         log_neg_total = torch.logsumexp(log_neg_per_anchor, dim=0, keepdim=True)
         loss = (log_neg_total - log_pos).mean()
 
@@ -452,9 +452,8 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             (sims_cross_batch / tau).masked_fill(~mask_batch, neg_inf), dim=1
         )
 
-        log_neg_per_anchor = torch.logsumexp(
-            torch.stack([log_neg_xx, log_neg_cross_batch], dim=0), dim=0
-        )
+        negatives = torch.stack([log_neg_xx, log_neg_cross_batch], dim=0)
+        log_neg_per_anchor = torch.logsumexp(negatives, dim=0)
         log_neg_total = torch.logsumexp(log_neg_per_anchor, dim=0, keepdim=True)
         loss = (log_neg_total - log_pos).mean()
 
@@ -510,12 +509,12 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             (sims_hh / tau).masked_fill(~mask_b, neg_inf), dim=1
         )
 
-        log_neg_per_anchor = torch.logsumexp(
-            torch.stack([log_neg_xy, log_neg_xx, log_neg_zy, log_neg_xy_hat,
-                         log_neg_cross_fe, log_neg_cross_ff, log_neg_cross_hh],
-                        dim=0),
+        negatives = torch.stack(
+            [log_neg_xy, log_neg_xx, log_neg_zy, log_neg_xy_hat,
+             log_neg_cross_fe, log_neg_cross_ff, log_neg_cross_hh],
             dim=0,
         )
+        log_neg_per_anchor = torch.logsumexp(negatives, dim=0)
         log_neg_total = torch.logsumexp(log_neg_per_anchor, dim=0, keepdim=True)
         loss = (log_neg_total - log_pos).mean()
 
