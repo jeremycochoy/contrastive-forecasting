@@ -98,7 +98,8 @@ ARMS = [
      False),
 ]
 
-COLS = ("loss", "ff", "fp", "u_temporal", "u_batch", "auc", "top1", "top3")
+COLS = ("loss", "ff", "fp", "u_temporal", "u_batch", "auc", "top1", "top3",
+        "r2_random", "r2_naive")
 
 
 def smooth(x: np.ndarray, w: int) -> np.ndarray:
@@ -225,9 +226,9 @@ def render_figure(traj, *, logx, logy_metrics, out_path, scale_tag, xmax,
     xmin = xmin_log if logx else 0
     xlim = (xmin, xmax)
 
-    fig, axes = plt.subplots(2, 3, figsize=(16, 9))
-    ax_loss, ax_ut, ax_ub = axes[0]
-    ax_auc, ax_top1, ax_top3 = axes[1]
+    fig, axes = plt.subplots(2, 4, figsize=(20, 9))
+    ax_loss, ax_ut, ax_ub, ax_r2r = axes[0]
+    ax_r2n, ax_auc, ax_top1, ax_top3 = axes[1]
 
     plot_panel(ax_loss, traj, key="loss",
                ylabel="loss" + ("  (log-y)" if "loss" in logy_metrics else ""),
@@ -240,6 +241,14 @@ def render_figure(traj, *, logx, logy_metrics, out_path, scale_tag, xmax,
     plot_panel(ax_ub, traj, key="u_batch",
                ylabel="U_batch",
                panel_title="U_batch — dimension usage across batch",
+               transform=None, logy=False, logx=logx, xlim=xlim)
+    plot_panel(ax_r2r, traj, key="r2_random",
+               ylabel="R²_random",
+               panel_title="R²_random",
+               transform=None, logy=False, logx=logx, xlim=xlim)
+    plot_panel(ax_r2n, traj, key="r2_naive",
+               ylabel="R²_naive",
+               panel_title="R²_naive",
                transform=None, logy=False, logx=logx, xlim=xlim)
     plot_panel(ax_auc, traj, key="auc",
                ylabel="1 − AUC",
@@ -322,6 +331,8 @@ def main() -> None:
                   f"loss={last_window_mean(d['loss']):.3f} "
                   f"u_t={last_window_mean(d['u_temporal']):.3f} "
                   f"u_b={last_window_mean(d['u_batch']):.3f} "
+                  f"r2_rand={last_window_mean(d['r2_random']):.4f} "
+                  f"r2_naive={last_window_mean(d['r2_naive']):.4f} "
                   f"auc={last_window_mean(d['auc']):.4f} "
                   f"top1={last_window_mean(d['top1']):.4f} "
                   f"top3={last_window_mean(d['top3']):.4f}")
