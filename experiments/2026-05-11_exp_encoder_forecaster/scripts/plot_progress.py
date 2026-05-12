@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Progress plot — v10 JEPA headline vs v7 baseline (+ v9d τ=0.20).
+"""Progress plot — v10 JEPA headline vs v7 reference + v10d fp32-resume control + τ=0.10 baseline.
 
 Reads per-step training-batch metrics from the losses CSVs and renders a
 2x4 panel of trajectories smoothed with a moving average:
@@ -65,7 +65,7 @@ MAIN = Path("/home/jupyter/contrastive-forecasting")
 # Headline live arm v10 (red) gets the heaviest stroke.
 C_BASELINE = "#1f77b4"  # tab:blue   — τ=0.10 long-trained reference
 C_V7 = "#ff7f0e"        # orange     — v7 reference (50k bb, fp32, dk09 hsl)
-C_V9D = "#bcbd22"        # olive      — v9d τ=0.20 variant on v7 recipe
+C_V10D = "#9467bd"      # purple     — v10d: resumed v6's _best in fp32 (bf16-saga control)
 C_V10 = "#d62728"        # red        — v10 JEPA (6L enc + 1L fcst) headline live
 
 # τ=0.10 baseline is split across resume chunks. Concatenate in step
@@ -78,23 +78,23 @@ BASELINE_CHUNKS = [
 ]
 
 V7_CSV = MAIN / "checkpoints/enc_fcst_dk09_hsl_b256_fp32_50k_losses.csv"
-V9D_CSV = MAIN / "checkpoints/enc_fcst_dk09_hsl_b256_fp32_tau02_50k_losses.csv"
+V10D_CSV = MAIN / "checkpoints/enc_fcst_v10d_fp32_resume_v6_15k_losses.csv"
 V10_CSV = MAIN / "checkpoints/enc_fcst_v10_jepa_enc6_fcst1_50k_losses.csv"
 
 # (display_label, color, linestyle, lw, csv_path_or_chunks, is_concat)
-# Order: chronological / reference → headline (baseline → v7 → v9d → v10).
+# Order: chronological / reference → headline (baseline → v7 → v10d → v10).
 ARMS = [
     ("τ=0.10 baseline (long-trained, 0–150k available)",
      C_BASELINE, "-", 1.6,
      BASELINE_CHUNKS,
      True),
     ("v7: B=256 lr=1e-3 dropkey=0.9 heads+layers-shared, FP32, 50k — reference",
-     C_V7, "-", 1.6,
+     C_V7, "-", 1.4,
      V7_CSV,
      False),
-    ("v9d: v7 recipe, τ=0.20 — variant",
-     C_V9D, "-", 1.4,
-     V9D_CSV,
+    ("v10d: v6 _best resumed in pure FP32 — control for bf16 saga (cleared v6's wall)",
+     C_V10D, "-", 1.4,
+     V10D_CSV,
      False),
     ("v10: JEPA-style 6L encoder + 1L forecaster, FP32 — headline live",
      C_V10, "-", 1.8,
@@ -289,9 +289,9 @@ def render_figure(traj, *, logx, logy_metrics, out_path, scale_tag, xmax,
                    bbox_to_anchor=(0.5, 0.99))
 
     fig.suptitle(
-        f"v10 JEPA-style (6L encoder + 1L forecaster) headline vs v7 "
-        f"reference (+ v9d τ=0.20) and τ=0.10 baseline "
-        f"(clipped to {xmax:,}, {scale_tag})",
+        f"v10 JEPA (6L enc + 1L fcst, fp32) — live, {xmax:,} steps vs v7 "
+        f"(6L+6L) baseline + v10d (v6-resume control) + τ=0.10 baseline "
+        f"({scale_tag})",
         fontsize=12, y=1.04)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
     fig.savefig(out_path, dpi=110, bbox_inches="tight")
@@ -308,7 +308,7 @@ def main() -> None:
     # Right edge = the most recent step among all non-baseline arms,
     # capped by baseline_max so we never leave the baseline domain.
     non_baseline_maxes: list[int] = []
-    for csv_path in (V7_CSV, V9D_CSV, V10_CSV):
+    for csv_path in (V7_CSV, V10D_CSV, V10_CSV):
         t = load_traj(csv_path)
         if t is not None and len(t["step"]) > 0:
             non_baseline_maxes.append(int(t["step"].max()))
