@@ -1,14 +1,16 @@
 #!/bin/bash
-# Q-head training on the encoder+forecaster v2 backbone (dropkey=0.7, 6L+6L).
+# v8 q-head — same R9_E13 + bf16 recipe as v7, but on v8's backbone.
 #
-# Mirrors R9_E13's recipe (xfmr 12L causal quantile head, Moirai HP, cosine
-# schedule + 2k warmup, e_then_f train input, --reconstruction forecaster).
-# 30k steps, --amp-dtype bf16 per PLAN.md.
+# v8 backbone: enc_fcst_dk07_pb_fp32_resume_50k (dropkey=0.7
+# per-(B,head) full-indep, fp32, resumed from a2's best_loss → step 50k).
+# v7 backbone: enc_fcst_dk09_hsl_b256_fp32_50k (dropkey=0.9
+# heads+layers-shared, fp32, fresh).
 #
-# Backbone: encoder+forecaster v2 (6 causal encoder layers + 6 forecaster
-# layers, H=384, n_heads=6, GRU patch embed, RevEWMNorm span=128,
-# freq+seasonality embeddings dim=3 each, patch_stats=none, τ=0.10,
-# encoder-dropkey=0.7).
+# Compare downstream MASE for v7 vs v8 → which mask sharing axis
+# helps the q-head most.
+#
+# Run name: enc_fcst_v8_qhead_xfmr12L_quant_30k. Runs on GPU 0
+# (v7 q-head ran on GPU 1; this can run on either now both are free).
 
 set -e
 
@@ -17,14 +19,14 @@ MAIN="/home/jupyter/contrastive-forecasting"
 cd "$ROOT"
 
 export PYTHONPATH="$ROOT"
-export CUDA_VISIBLE_DEVICES=1
+export CUDA_VISIBLE_DEVICES=0
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 export HF_TOKEN=$(cat "$MAIN/experiments/hf_token.txt")
 export HUGGING_FACE_HUB_TOKEN="$HF_TOKEN"
 
-BB_PATH="$MAIN/checkpoints/enc_fcst_dk09_hsl_b256_fp32_50k_FINAL.pth"
+BB_PATH="$MAIN/checkpoints/enc_fcst_dk07_pb_fp32_resume_50k_FINAL.pth"
 SAVE_DIR="$MAIN/checkpoints"
-RUN_NAME="enc_fcst_v7_qhead_xfmr12L_quant_30k"
+RUN_NAME="enc_fcst_v8_qhead_xfmr12L_quant_30k"
 LOG_DIR="$ROOT/experiments/2026-05-11_exp_encoder_forecaster/results"
 mkdir -p "$LOG_DIR"
 

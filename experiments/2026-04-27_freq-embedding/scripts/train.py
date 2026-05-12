@@ -128,6 +128,17 @@ def parse_args():
                         "False = independent per (batch_row, head). "
                         "Tying heads drops variance by ~num_heads× and "
                         "prevents heads from cooperating to count positions.")
+    p.add_argument("--encoder-dropkey-share-layers", action="store_true",
+                   help="If set, the per-step dropkey mask is drawn ONCE and "
+                        "reused for ALL encoder layers in the current forward "
+                        "pass. Default False = independent per-layer draw. "
+                        "Combined with --encoder-dropkey-share-heads, only the "
+                        "(batch_row, step) axes carry randomness. Makes a "
+                        "given token either fully visible across all layers "
+                        "(prob 1-p) or fully blocked across all layers (prob "
+                        "p) — much harder for a position counter to recover "
+                        "than the layer-independent case where the union of "
+                        "visible-at-some-layer is large.")
     p.add_argument("--encoder-type", default=MODEL_CONFIG["encoder_type"],
                    choices=["mlp", "mlp_wide", "residual_silu", "gru", "conv",
                             "transformer"],
@@ -462,6 +473,7 @@ def main():
     model_config["num_encoder_layers"] = args.num_encoder_layers
     model_config["encoder_dropkey"] = args.encoder_dropkey
     model_config["encoder_dropkey_share_heads"] = args.encoder_dropkey_share_heads
+    model_config["encoder_dropkey_share_layers"] = args.encoder_dropkey_share_layers
     # Override the loss_shape from CLI (LOSS_SPEC is a module-level default).
     LOSS_SPEC.train_configuration["loss_shape"] = args.loss_shape
     if args.tau is not None:
