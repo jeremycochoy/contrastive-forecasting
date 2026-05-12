@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Progress plot — 9-arm full-history comparison.
+"""Progress plot — v10 JEPA headline vs v7 baseline (+ v9d τ=0.20).
 
 Reads per-step training-batch metrics from the losses CSVs and renders a
 2x4 panel of trajectories smoothed with a moving average:
@@ -32,12 +32,11 @@ no improvement over fp, Q_fp > 1 ⇒ worse than past baseline. Lower is
 better. Guards: rows with fp ≥ 1 (denominator ≤ 0) are masked out.
 
 The τ=0.10 baseline is concatenated from multiple resume chunks
-(0–15k, 15k–24.5k, 24.5k–50k); on overlapping ranges the earliest
-chunk's row wins.
+(0–15k, 15k–24.5k, 24.5k–50k, 48k–150k); on overlapping ranges the
+earliest chunk's row wins.
 
-The x-axis upper bound is clipped to the SHORTER of the two
-trajectories — i.e. `min(baseline_max_step, new_arm_max_step)` plus a
-small margin.
+The x-axis upper bound is clipped to the SHORTER trajectory among the
+non-baseline arms (capped by baseline_max).
 
 Re-runnable. No GPU usage.
 """
@@ -63,17 +62,11 @@ OUT_LOG.parent.mkdir(parents=True, exist_ok=True)
 MAIN = Path("/home/jupyter/contrastive-forecasting")
 
 # Color palette: saturated, high-contrast.
-# 9-arm full history. Diverged/dead arms (a1..v6) use lw=1.0 to recede;
-# live arms v7 (red) and v8 (purple) get heavier strokes.
-C_BASELINE = "#1f77b4"  # tab:blue
-C_A1 = "#ff7f0e"        # orange
-C_A2 = "#bcbd22"        # olive
-C_A3 = "#8c564b"        # brown
-C_V4 = "#17becf"        # cyan
-C_V5 = "#e377c2"        # pink
-C_V6 = "#7f7f7f"        # grey
-C_V7 = "#d62728"        # red (headline live)
-C_V8 = "#9467bd"        # purple (live)
+# Headline live arm v10 (red) gets the heaviest stroke.
+C_BASELINE = "#1f77b4"  # tab:blue   — τ=0.10 long-trained reference
+C_V7 = "#ff7f0e"        # orange     — v7 reference (50k bb, fp32, dk09 hsl)
+C_V9D = "#bcbd22"        # olive      — v9d τ=0.20 variant on v7 recipe
+C_V10 = "#d62728"        # red        — v10 JEPA (6L enc + 1L fcst) headline live
 
 # τ=0.10 baseline is split across resume chunks. Concatenate in step
 # order; on overlap, the earliest chunk's row wins.
@@ -84,55 +77,28 @@ BASELINE_CHUNKS = [
     MAIN / "sync_tau_sweep_0_10_150k/checkpoints/tau_sweep_0_10_150k_losses.csv",   # 48001–150000
 ]
 
-A1_CSV = MAIN / "checkpoints/enc_fcst_dropkey07_50k_attempt1_losses.csv"
-A2_CSV = MAIN / "checkpoints/enc_fcst_dropkey07_pb_50k_attempt2_losses.csv"
-A3_CSV = MAIN / "checkpoints/enc_fcst_dropkey07_pb_hs_50k_attempt3_losses.csv"
-V4_CSV = MAIN / "checkpoints/enc_fcst_dk09_hs_b512_lr1e-3_attempt1_losses.csv"
-V5_CSV = MAIN / "checkpoints/enc_fcst_dk09_hs_b512_lr1e-4_50k_attempt1_losses.csv"
-V6_CSV = MAIN / "checkpoints/enc_fcst_dk09_hsl_b256_50k_bf16_attempt1_losses.csv"
 V7_CSV = MAIN / "checkpoints/enc_fcst_dk09_hsl_b256_fp32_50k_losses.csv"
-V8_CSV = MAIN / "checkpoints/enc_fcst_dk07_pb_fp32_resume_50k_losses.csv"
-NEW_ARM_CSV = V7_CSV
+V9D_CSV = MAIN / "checkpoints/enc_fcst_dk09_hsl_b256_fp32_tau02_50k_losses.csv"
+V10_CSV = MAIN / "checkpoints/enc_fcst_v10_jepa_enc6_fcst1_50k_losses.csv"
 
 # (display_label, color, linestyle, lw, csv_path_or_chunks, is_concat)
-# Order: chronological (baseline → a1 → a2 → a3 → v4 → v5 → v6 → v7 → v8).
-# Diverged arms (a1..v6) get lw=1.0 so they recede behind the live arms.
+# Order: chronological / reference → headline (baseline → v7 → v9d → v10).
 ARMS = [
     ("τ=0.10 baseline (long-trained, 0–150k available)",
      C_BASELINE, "-", 1.6,
      BASELINE_CHUNKS,
      True),
-    ("a1: shared (T,T) dropkey=0.7, bf16 — NaN @ 11700",
-     C_A1, "-", 1.0,
-     A1_CSV,
-     False),
-    ("a2: per-(B,head) dropkey=0.7, bf16 — diverged @ 14900",
-     C_A2, "-", 1.0,
-     A2_CSV,
-     False),
-    ("a3: heads-shared dropkey=0.7, bf16, resumed from a2 — diverged @ 14400",
-     C_A3, "-", 1.0,
-     A3_CSV,
-     False),
-    ("v4: B=512 lr=1e-3 dropkey=0.9 heads-shared, bf16 — diverged @ 4200",
-     C_V4, "-", 1.0,
-     V4_CSV,
-     False),
-    ("v5: B=512 lr=1e-4 dropkey=0.9 heads-shared, bf16 — diverged @ 30000",
-     C_V5, "-", 1.0,
-     V5_CSV,
-     False),
-    ("v6: B=256 lr=1e-3 dropkey=0.9 heads+layers-shared, bf16 — diverged @ 4500",
-     C_V6, "-", 1.0,
-     V6_CSV,
-     False),
-    ("v7: B=256 lr=1e-3 dropkey=0.9 heads+layers-shared, FP32 — running",
-     C_V7, "-", 1.8,
+    ("v7: B=256 lr=1e-3 dropkey=0.9 heads+layers-shared, FP32, 50k — reference",
+     C_V7, "-", 1.6,
      V7_CSV,
      False),
-    ("v8: dropkey=0.7 per-(B,head), FP32, resume from a2 best_loss — running",
-     C_V8, "-", 1.6,
-     V8_CSV,
+    ("v9d: v7 recipe, τ=0.20 — variant",
+     C_V9D, "-", 1.4,
+     V9D_CSV,
+     False),
+    ("v10: JEPA-style 6L encoder + 1L forecaster, FP32 — headline live",
+     C_V10, "-", 1.8,
+     V10_CSV,
      False),
 ]
 
@@ -317,41 +283,32 @@ def render_figure(traj, *, logx, logy_metrics, out_path, scale_tag, xmax,
 
     handles, labels = ax_loss.get_legend_handles_labels()
     if handles:
-        # 9 arms with long labels — cap at 3 per row so the legend stays
-        # within the figure and doesn't overlap the panels.
-        ncol = min(3, len(handles))
+        ncol = min(2, len(handles))
         fig.legend(handles, labels, loc="upper center",
-                   ncol=ncol, fontsize=8, frameon=False,
+                   ncol=ncol, fontsize=9, frameon=False,
                    bbox_to_anchor=(0.5, 0.99))
 
     fig.suptitle(
-        f"encoder+forecaster — all 9 attempts (a1-v6 bf16 diverged; "
-        f"v7/v8 FP32 currently running) vs τ=0.10 baseline "
+        f"v10 JEPA-style (6L encoder + 1L forecaster) headline vs v7 "
+        f"reference (+ v9d τ=0.20) and τ=0.10 baseline "
         f"(clipped to {xmax:,}, {scale_tag})",
-        fontsize=12, y=1.06)
-    # Extra top margin so the 3-row legend doesn't overlap panels.
-    fig.tight_layout(rect=(0, 0, 1, 0.90))
+        fontsize=12, y=1.04)
+    fig.tight_layout(rect=(0, 0, 1, 0.92))
     fig.savefig(out_path, dpi=110, bbox_inches="tight")
     plt.close(fig)
     print(f"[plot] wrote {out_path}")
 
 
 def main() -> None:
-    new_arm = load_traj(NEW_ARM_CSV)
-    if new_arm is None or len(new_arm["step"]) == 0:
-        raise SystemExit(f"new-arm CSV missing or empty: {NEW_ARM_CSV}")
     baseline = load_concat_traj(BASELINE_CHUNKS)
     if baseline is None or len(baseline["step"]) == 0:
         raise SystemExit("baseline chunks all missing or empty")
-    new_arm_max = int(new_arm["step"].max())
     baseline_max = int(baseline["step"].max())
-    # Right edge = the most recent step among ALL non-baseline arms.
-    # Every arm gets clipped to the same window before smoothing so the
-    # curves end at the same x. Capped at baseline_max in case anything
-    # overshoots.
+
+    # Right edge = the most recent step among all non-baseline arms,
+    # capped by baseline_max so we never leave the baseline domain.
     non_baseline_maxes: list[int] = []
-    for csv_path in (A1_CSV, A2_CSV, A3_CSV, V4_CSV, V5_CSV, V6_CSV,
-                     V7_CSV, V8_CSV):
+    for csv_path in (V7_CSV, V9D_CSV, V10_CSV):
         t = load_traj(csv_path)
         if t is not None and len(t["step"]) > 0:
             non_baseline_maxes.append(int(t["step"].max()))
@@ -359,10 +316,8 @@ def main() -> None:
         raise SystemExit("no non-baseline arms loaded")
     xmax = min(max(non_baseline_maxes), baseline_max)
 
-    # Log-x lower bound: snap to the smaller of the two arms' first
-    # smoothed point inside the visible window, so the [1..first_step]
-    # decade isn't wasted whitespace. Smoothing window is computed on
-    # the truncated trajectory (matching plot_panel).
+    # Log-x lower bound: snap to the smaller of the baseline + headline-arm
+    # first smoothed point inside the visible window.
     def _first_smoothed_step_clipped(steps_arr: np.ndarray, x_hi: int) -> int:
         clip = steps_arr[(steps_arr >= 1) & (steps_arr <= x_hi)]
         n = len(clip)
@@ -371,9 +326,12 @@ def main() -> None:
         w = max(20, min(1000, n // 40))
         idx = min(n - 1, max(0, w - 1))
         return int(clip[idx])
+
+    headline = load_traj(V10_CSV)
+    headline_steps = headline["step"] if headline is not None else baseline["step"]
     first_step = max(
         1,
-        min(_first_smoothed_step_clipped(new_arm["step"], xmax),
+        min(_first_smoothed_step_clipped(headline_steps, xmax),
             _first_smoothed_step_clipped(baseline["step"], xmax)),
     )
     # Hide the noisy <500-step warmup: log-x starts at 500 even if the
@@ -400,8 +358,8 @@ def main() -> None:
                   f"top1={last_window_mean(d['top1']):.4f} "
                   f"q_fp={last_window_mean(d['q_fp']):.4f}")
 
-    print(f"[plot] new-arm max = {new_arm_max}, baseline max = {baseline_max}; "
-          f"xmax = min = {xmax}")
+    print(f"[plot] baseline max = {baseline_max}, "
+          f"non-baseline maxes = {non_baseline_maxes}; xmax = {xmax}")
     print(f"[plot] xmax = {xmax}, xmin_log = {first_step}")
 
     render_figure(traj, logx=True,
