@@ -4,6 +4,36 @@ import torch.nn.functional as F
 from typing import Union, Callable, Optional
 from torch import Tensor
 
+
+# --- Centralized precision API -----------------------------------------------
+# Three independent dtype knobs for the transformer body:
+#   * residual_dtype : outer-most precision (residual stream + LayerNorm +
+#                      depthwise conv). fp32 = safe default; bf16 unstable in
+#                      our high-aligned-cos-sim regime.
+#   * attn_dtype     : dtype for SA-block matmuls (Q/K/V proj, scores,
+#                      softmax, output proj). Independent of residual_dtype.
+#   * ffn_dtype      : dtype for FFN block (x4 expansion + projection).
+# When an inner block dtype differs from residual_dtype, its output is cast
+# back to residual_dtype before the residual ADD so the residual stream stays
+# in residual_dtype. fp32 maps to an `autocast(enabled=False)` no-op so weight
+# casting is fully disabled — not just an autocast at fp32 dtype (which is
+# different from "disabled" because torch's autocast cache still kicks in).
+_DTYPE_MAP = {"fp32": torch.float32,
+              "fp16": torch.float16,
+              "bf16": torch.bfloat16}
+
+
+def _autocast_ctx(dtype_str):
+    """Return an autocast context for `dtype_str`.
+
+    fp32 → a *disabled* autocast (no-op for casts and weight conversion).
+    fp16 / bf16 → enabled autocast at that dtype.
+    """
+    if dtype_str == "fp32":
+        return torch.amp.autocast('cuda', enabled=False)
+    return torch.amp.autocast('cuda', dtype=_DTYPE_MAP[dtype_str], enabled=True)
+
+
 class CausalConv(nn.Module):
     # nn.Conv1d(in_channels=d_model, out_channels=d_model, kernel_size=depthwise_conv, padding=1,
     #                                         groups=d_model, bias=bias)
@@ -25,10 +55,29 @@ class DecoderOnlyTransformerLayer(nn.Module):
     def __init__(self, d_model: int, nhead: int, dim_feedforward: int = 2048, dropout: float = 0.1,
                  activation: Union[str, Callable[[Tensor], Tensor]] = nn.functional.relu,
                  layer_norm_eps: float = 1e-5, batch_first: bool = False, norm_first: bool = True,
-                 bias: bool = True, device=None, dtype=None, depthwise_conv=3,
-                 norm_type: str = 'layernorm') -> None:
+                 bias: bool = True, device=None, dtype=None, depthwise_conv: int = 3,
+                 deprecated_depthwise_conv: int = 0,
+                 norm_type: str = 'layernorm',
+                 residual_dtype: str = "fp32",
+                 attn_dtype: str = "fp32",
+                 ffn_dtype: str = "fp32") -> None:
         factory_kwargs = {'device': device, 'dtype': dtype}
         super().__init__()
+        # Three independent precision knobs (see module-level docstring).
+        # The residual stream + LayerNorm + depthwise conv run in
+        # `residual_dtype`; the SA matmuls run in `attn_dtype`; the FFN
+        # matmuls run in `ffn_dtype`. When an inner block dtype differs
+        # from residual_dtype, its output is cast back to residual_dtype
+        # before the residual ADD so the residual stream stays uniform.
+        assert residual_dtype in _DTYPE_MAP, \
+            f"residual_dtype must be one of {list(_DTYPE_MAP)}, got {residual_dtype!r}"
+        assert attn_dtype in _DTYPE_MAP, \
+            f"attn_dtype must be one of {list(_DTYPE_MAP)}, got {attn_dtype!r}"
+        assert ffn_dtype in _DTYPE_MAP, \
+            f"ffn_dtype must be one of {list(_DTYPE_MAP)}, got {ffn_dtype!r}"
+        self.residual_dtype = residual_dtype
+        self.attn_dtype = attn_dtype
+        self.ffn_dtype = ffn_dtype
         self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout, batch_first=batch_first,
                                                bias=bias, **factory_kwargs)
         # Implementation of Feedforward model
@@ -46,15 +95,30 @@ class DecoderOnlyTransformerLayer(nn.Module):
         self.dropout1 = nn.Dropout(dropout)
         self.dropout2 = nn.Dropout(dropout)
 
-        # Depth-wise convolution over 3 timesteps
+        # Depth-wise causal convolution placement is mutually exclusive between
+        # the NEW (Conformer-style, conv feeds SA-branch input only) and the
+        # LEGACY (in-place on residual, all-prior-runs behaviour). Use the
+        # legacy mode only when resuming an old checkpoint trained with that
+        # graph. Both modes use a single `self.depthwise_conv` module; the
+        # placement is dispatched in forward() via `depthwise_conv_placement`.
+        if depthwise_conv > 0 and deprecated_depthwise_conv > 0:
+            raise ValueError(
+                "depthwise_conv and deprecated_depthwise_conv are mutually "
+                "exclusive (got depthwise_conv={}, deprecated_depthwise_conv={})"
+                .format(depthwise_conv, deprecated_depthwise_conv))
         if depthwise_conv > 0:
-            # transform
-            # nn.Conv1d(in_channels=d_model, out_channels=d_model, kernel_size=depthwise_conv, padding=1,
-            #                                         groups=d_model, bias=bias)
-            # into causal conv:
-            self.depthwise_conv = CausalConv(c_in=d_model, c_out=d_model, kernel_size=depthwise_conv, groups=d_model, bias=bias)
+            self.depthwise_conv = CausalConv(
+                c_in=d_model, c_out=d_model, kernel_size=depthwise_conv,
+                groups=d_model, bias=bias)
+            self.depthwise_conv_placement = "sa_input"
+        elif deprecated_depthwise_conv > 0:
+            self.depthwise_conv = CausalConv(
+                c_in=d_model, c_out=d_model, kernel_size=deprecated_depthwise_conv,
+                groups=d_model, bias=bias)
+            self.depthwise_conv_placement = "deprecated"
         else:
             self.depthwise_conv = None
+            self.depthwise_conv_placement = "off"
 
 
         # Legacy string support for activation function.
@@ -71,21 +135,58 @@ class DecoderOnlyTransformerLayer(nn.Module):
     def forward(self, tgt: Tensor, tgt_mask: Optional[Tensor] = None,
                 tgt_key_padding_mask: Optional[Tensor] = None,
                 tgt_is_causal: bool = False) -> Tensor:
+        # Outer autocast = residual_dtype. fp32 is a *disabled* autocast
+        # (no-op); fp16/bf16 enable mixed precision for the residual stream
+        # + LayerNorm + depthwise conv. The inner SA/FFN blocks open their
+        # own autocast contexts at attn_dtype/ffn_dtype if those differ from
+        # residual_dtype, and cast their outputs back to residual_dtype
+        # before the residual ADD so the residual stream stays uniform.
+        with _autocast_ctx(self.residual_dtype):
+            return self._forward_impl(tgt, tgt_mask, tgt_key_padding_mask, tgt_is_causal)
+
+    def _forward_impl(self, tgt: Tensor, tgt_mask: Optional[Tensor],
+                      tgt_key_padding_mask: Optional[Tensor],
+                      tgt_is_causal: bool) -> Tensor:
         x = tgt
 
-        if self.depthwise_conv is not None:
-            # Reshape and apply depth-wise convolution
-            # Input tensor has shape (batch_size, seq_len, d_model),
-            # Conv1d expects (batch_size, d_model, seq_len), so we need to transpose
-            x = x.transpose(1, 2)  # (batch_size, d_model, seq_len)
+        # LEGACY placement: conv mutates the residual stream in-place.
+        # Used ONLY when resuming an old checkpoint trained with this graph.
+        # Runs in residual_dtype via the outer autocast (which is a *disabled*
+        # autocast when residual_dtype==fp32, so the conv weights are not
+        # silently downcast by any ambient autocast).
+        if self.depthwise_conv is not None and self.depthwise_conv_placement == "deprecated":
+            x = x.transpose(1, 2)  # (B, d_model, T)
             x = self.depthwise_conv(x)
-            x = x.transpose(1, 2)  # Back to (batch_size, seq_len, d_model)
+            x = x.transpose(1, 2)  # back to (B, T, d_model)
 
         if self.norm_first:
-            x = x + self._sa_block(self.norm1(x), tgt_mask, tgt_key_padding_mask, tgt_is_causal)
+            if self.depthwise_conv is not None and self.depthwise_conv_placement == "sa_input":
+                # NEW placement (Conformer-style): conv feeds the SA-branch
+                # pre-norm input only. Residual stream (x_res) stays clean.
+                # Conv runs in residual_dtype via outer autocast.
+                x_res = x
+                y = x.transpose(1, 2)
+                y = self.depthwise_conv(y)
+                y = y.transpose(1, 2)
+                sa_out = self._sa_block(self.norm1(y), tgt_mask,
+                                        tgt_key_padding_mask, tgt_is_causal)
+                x = x_res + sa_out
+            else:
+                x = x + self._sa_block(self.norm1(x), tgt_mask,
+                                       tgt_key_padding_mask, tgt_is_causal)
             x = x + self._ff_block(self.norm2(x))
         else:
-            x = self.norm1(x + self._sa_block(x, tgt_mask, tgt_key_padding_mask, tgt_is_causal))
+            # norm-last path — preserve legacy semantics; current runs use
+            # norm_first=True, so this branch is for completeness.
+            if self.depthwise_conv is not None and self.depthwise_conv_placement == "sa_input":
+                y = x.transpose(1, 2)
+                y = self.depthwise_conv(y)
+                y = y.transpose(1, 2)
+                x = self.norm1(x + self._sa_block(y, tgt_mask,
+                                                  tgt_key_padding_mask, tgt_is_causal))
+            else:
+                x = self.norm1(x + self._sa_block(x, tgt_mask,
+                                                  tgt_key_padding_mask, tgt_is_causal))
             x = self.norm2(x + self._ff_block(x))
 
         return x
@@ -93,17 +194,35 @@ class DecoderOnlyTransformerLayer(nn.Module):
     # self-attention block
     def _sa_block(self, x: Tensor,
                   attn_mask: Optional[Tensor], key_padding_mask: Optional[Tensor], is_causal: bool = False) -> Tensor:
-        x = self.self_attn(x, x, x,
-                           attn_mask=attn_mask,
-                           key_padding_mask=key_padding_mask,
-                           is_causal=is_causal,
-                           need_weights=False)[0]
-        return self.dropout1(x)
+        if self.attn_dtype != self.residual_dtype:
+            with _autocast_ctx(self.attn_dtype):
+                out = self.self_attn(x, x, x,
+                                     attn_mask=attn_mask,
+                                     key_padding_mask=key_padding_mask,
+                                     is_causal=is_causal,
+                                     need_weights=False)[0]
+            # Cast back to residual_dtype before residual ADD.
+            out = out.to(_DTYPE_MAP[self.residual_dtype])
+            return self.dropout1(out)
+        else:
+            out = self.self_attn(x, x, x,
+                                 attn_mask=attn_mask,
+                                 key_padding_mask=key_padding_mask,
+                                 is_causal=is_causal,
+                                 need_weights=False)[0]
+            return self.dropout1(out)
 
     # feed forward block
     def _ff_block(self, x: Tensor) -> Tensor:
-        x = self.linear2(self.dropout(self.activation(self.linear1(x))))
-        return self.dropout2(x)
+        if self.ffn_dtype != self.residual_dtype:
+            with _autocast_ctx(self.ffn_dtype):
+                y = self.linear2(self.dropout(self.activation(self.linear1(x))))
+            # Cast back to residual_dtype before residual ADD.
+            y = y.to(_DTYPE_MAP[self.residual_dtype])
+            return self.dropout2(y)
+        else:
+            y = self.linear2(self.dropout(self.activation(self.linear1(x))))
+            return self.dropout2(y)
 
     @staticmethod
     def _get_activation_fn(activation):
@@ -122,11 +241,16 @@ class TransformerBlock(nn.Module):
     support_streaming = False
 
     def __init__(self, dimension_e, nhead=8, num_layers=6, feedforward_mult=None,
-                 activation=None, input_to_latent=None, dropout=0, depthwise_conv=3,
+                 activation=None, input_to_latent=None, dropout=0,
+                 depthwise_conv: int = 3,
+                 deprecated_depthwise_conv: int = 0,
                  norm_first=True, norm_type='layernorm', num_encoder_layers=0,
                  encoder_dropkey: float = 0.0,
                  encoder_dropkey_share_heads: bool = False,
-                 encoder_dropkey_share_layers: bool = False):
+                 encoder_dropkey_share_layers: bool = False,
+                 residual_dtype: str = "fp32",
+                 attn_dtype: str = "fp32",
+                 ffn_dtype: str = "fp32"):
         super().__init__()
 
         if feedforward_mult is None:
@@ -178,6 +302,10 @@ class TransformerBlock(nn.Module):
                 bias=False,
                 dropout=dropout,
                 depthwise_conv=depthwise_conv,
+                deprecated_depthwise_conv=deprecated_depthwise_conv,
+                residual_dtype=residual_dtype,
+                attn_dtype=attn_dtype,
+                ffn_dtype=ffn_dtype,
             ) for _ in range(num_encoder_layers)
         ])
 
@@ -193,6 +321,10 @@ class TransformerBlock(nn.Module):
                 bias=False,
                 dropout=dropout,
                 depthwise_conv=depthwise_conv,
+                deprecated_depthwise_conv=deprecated_depthwise_conv,
+                residual_dtype=residual_dtype,
+                attn_dtype=attn_dtype,
+                ffn_dtype=ffn_dtype,
             ) for _ in range(num_layers)
         ])
 

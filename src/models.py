@@ -49,7 +49,8 @@ class ConfigurableModel(torch.nn.Module):
     """
     def __init__(self, C, H, W, encoder_type='mlp', intermediate_dim=None,
                  num_layers=12, nhead=4, ffn_mult=2, dropout=0.1,
-                 activation='gelu', depthwise_conv=3,
+                 activation='gelu', depthwise_conv: int = 3,
+                 deprecated_depthwise_conv: int = 0,
                  rev_norm_span=None, norm_type='layernorm',
                  freq_emb_dim=0, num_freqs=NUM_FREQS,
                  seasonality_emb_dim=0, num_seasonalities=NUM_SEASONALITIES,
@@ -66,7 +67,10 @@ class ConfigurableModel(torch.nn.Module):
                  num_encoder_layers=0,
                  encoder_dropkey: float = 0.0,
                  encoder_dropkey_share_heads: bool = False,
-                 encoder_dropkey_share_layers: bool = False):
+                 encoder_dropkey_share_layers: bool = False,
+                 residual_dtype: str = "fp32",
+                 attn_dtype: str = "fp32",
+                 ffn_dtype: str = "fp32"):
         super().__init__()
         self.C = C
         self.H = H
@@ -152,11 +156,15 @@ class ConfigurableModel(torch.nn.Module):
             dropout=dropout,
             input_to_latent=self.encoder,
             depthwise_conv=depthwise_conv,
+            deprecated_depthwise_conv=deprecated_depthwise_conv,
             norm_type=norm_type,
             num_encoder_layers=num_encoder_layers,
             encoder_dropkey=encoder_dropkey,
             encoder_dropkey_share_heads=encoder_dropkey_share_heads,
             encoder_dropkey_share_layers=encoder_dropkey_share_layers,
+            residual_dtype=residual_dtype,
+            attn_dtype=attn_dtype,
+            ffn_dtype=ffn_dtype,
         )
         # Override activation if requested
         if activation != 'gelu':

@@ -169,23 +169,34 @@ def parse_args():
                         "checkpointing on encoder layers. Default uses "
                         "checkpointing — costs ~30%% extra compute, saves "
                         "the FFN intermediates from being kept for backward.")
-    p.add_argument("--amp-dtype", default="none",
-                   choices=["none", "bf16", "fp16"],
-                   help="Mixed-precision dtype for the forward + loss. "
-                        "'none' (default) = pure fp32 (matches τ-sweep). "
-                        "'bf16' = autocast forward to bfloat16 (memory ~½) "
-                        "needed when running B=256 on a 24 GB GPU. "
-                        "'fp16' = float16 autocast (NOT recommended for "
-                        "contrastive losses with large exp(x/τ) values).")
-    p.add_argument("--amp-keep-loss-fp32", default="true",
-                   choices=["true", "false"],
-                   help="When --amp-dtype is bf16/fp16, keep the contrastive "
-                        "loss computation in fp32 by disabling autocast around "
-                        "it and casting inputs to fp32. Default true (safer; "
-                        "the contrastive loss has logsumexp overflow / precision "
-                        "issues in bf16 with small τ — root cause of the "
-                        "v4/v5/v6/v9b divergences). Set to false for legacy "
-                        "behavior (loss inside autocast — diverges).")
+    p.add_argument("--residual-dtype", choices=["fp32", "fp16", "bf16"],
+                   default="fp32",
+                   help="Dtype of the residual stream + LayerNorm + depthwise "
+                        "conv. Outer-most precision. fp32 is the safe default. "
+                        "fp16/bf16 enable mixed precision but bf16 is unstable "
+                        "for our high-aligned-cos-sim regime.")
+    p.add_argument("--attn-dtype", choices=["fp32", "fp16", "bf16"],
+                   default="fp32",
+                   help="Dtype for SA block matmuls (Q/K/V proj, scores, "
+                        "softmax, output proj). Independent of residual-dtype. "
+                        "If different, output is cast back to residual-dtype "
+                        "before the residual ADD.")
+    p.add_argument("--ffn-dtype", choices=["fp32", "fp16", "bf16"],
+                   default="fp32",
+                   help="Dtype for FFN block (x4 expansion + projection). "
+                        "Same rules as --attn-dtype.")
+    p.add_argument("--depthwise-conv", type=int, default=3,
+                   help="Kernel size of the per-layer depthwise causal conv "
+                        "in the NEW (proper, Conformer-style) placement: "
+                        "y = conv(x); x = x_res + sa(norm1(y)). Residual stream "
+                        "stays clean. Default 3. Set 0 to disable. "
+                        "Mutually exclusive with --deprecated-depthwise-conv.")
+    p.add_argument("--deprecated-depthwise-conv", type=int, default=0,
+                   help="Kernel size of the LEGACY in-place depthwise conv on "
+                        "the residual stream (x = conv(x); x = x + sa(norm1(x))). "
+                        "Use only when resuming a checkpoint that was trained "
+                        "with this placement (all prior runs in this repo). "
+                        "Default 0 = off. Mutually exclusive with --depthwise-conv.")
     p.add_argument("--tau", type=float, default=None,
                    help="Contrastive temperature. None = use the LOSS_SPEC "
                         "default (0.07). Used by 2026-05-02_exp_realonly_4096_smaller_tau_sweep.")
@@ -270,14 +281,6 @@ def parse_args():
                         "100× explosive trends; range becomes (1/max, max) so "
                         "log-symmetric around 1.")
     return p.parse_args()
-
-
-class _NullContext:
-    """Context manager no-op — used when AMP autocast is disabled."""
-    def __enter__(self):
-        return self
-    def __exit__(self, exc_type, exc, tb):
-        return False
 
 
 def random_sign_flip(x):
@@ -483,6 +486,20 @@ def main():
     model_config["encoder_dropkey"] = args.encoder_dropkey
     model_config["encoder_dropkey_share_heads"] = args.encoder_dropkey_share_heads
     model_config["encoder_dropkey_share_layers"] = args.encoder_dropkey_share_layers
+    model_config["residual_dtype"] = args.residual_dtype
+    model_config["attn_dtype"] = args.attn_dtype
+    model_config["ffn_dtype"] = args.ffn_dtype
+    # Depthwise-conv placement (mutually exclusive integer kernel sizes).
+    # --depthwise-conv N (default 3) → NEW (Conformer-style) placement.
+    # --deprecated-depthwise-conv N (default 0) → LEGACY in-place on residual,
+    #   for resuming pre-refactor checkpoints. Both 0 = no conv.
+    if args.depthwise_conv > 0 and args.deprecated_depthwise_conv > 0:
+        raise ValueError(
+            "--depthwise-conv and --deprecated-depthwise-conv are mutually "
+            "exclusive (got --depthwise-conv {}, --deprecated-depthwise-conv {})"
+            .format(args.depthwise_conv, args.deprecated_depthwise_conv))
+    model_config["depthwise_conv"] = args.depthwise_conv
+    model_config["deprecated_depthwise_conv"] = args.deprecated_depthwise_conv
     # Override the loss_shape from CLI (LOSS_SPEC is a module-level default).
     LOSS_SPEC.train_configuration["loss_shape"] = args.loss_shape
     if args.tau is not None:
@@ -640,51 +657,29 @@ def main():
         t_data_end = time.perf_counter()
 
         t_fwd_start = time.perf_counter()
-        amp_dtype = (torch.bfloat16 if args.amp_dtype == "bf16"
-                     else torch.float16 if args.amp_dtype == "fp16"
-                     else None)
-        amp_ctx = (torch.amp.autocast('cuda', dtype=amp_dtype)
-                   if amp_dtype is not None else _NullContext())
-        keep_loss_fp32 = (amp_dtype is not None
-                          and args.amp_keep_loss_fp32 == "true")
-        with amp_ctx:
-            f_lat, o_lat = forward_step(
-                model, x,
-                freq_ids=freq_ids, freq_embs=freq_embs,
-                seasonality_ids=seasonality_ids, seasonality_embs=seasonality_embs)
+        f_lat, o_lat = forward_step(
+            model, x,
+            freq_ids=freq_ids, freq_embs=freq_embs,
+            seasonality_ids=seasonality_ids, seasonality_embs=seasonality_embs)
+        # Loss + compute_metrics ALWAYS see fp32 latents. When
+        # residual-dtype is fp16/bf16 the model returns latents in that
+        # dtype; cast back here so downstream cos-sim arithmetic (loss,
+        # loss_tau_ref, compute_metrics, q_random, q_naive_latent,
+        # dim_usage, retrieval_auc_topk) runs in fp32. The contrastive
+        # logsumexp(sims/τ) with small τ loses precision in bf16 — root
+        # cause of v4/v5/v6/v9b divergences.
+        f_lat = f_lat.float()
+        o_lat = o_lat.float()
         # When learnable_tau is on, pass model.tau() (0-d tensor with grad)
         # as tau_override so gradient reaches log_inv_tau. Otherwise the
         # loss uses LOSS_SPEC.train_configuration's scalar.
         tau_tensor = model.tau() if args.learnable_tau else None
-        if keep_loss_fp32:
-            # Loss in fp32 (autocast disabled, inputs cast to fp32). The
-            # contrastive logsumexp(sims/τ) with small τ overflows / loses
-            # precision in bf16 — root cause of v4/v5/v6/v9b divergences.
-            with torch.amp.autocast('cuda', enabled=False):
-                f_lat_loss = f_lat.float()
-                o_lat_loss = o_lat.float()
-                tau_tensor_loss = (tau_tensor.float()
-                                   if tau_tensor is not None else None)
-                loss = contrastive_latent_loss(
-                    (f_lat_loss, o_lat_loss), validation=False,
-                    spec=LOSS_SPEC, tau_override=tau_tensor_loss)
-        else:
-            with amp_ctx:
-                # F.normalize internally promotes to fp32 (norm is in
-                # autocast's fp32-list), so its output is fp32 even inside an
-                # autocast block. The cross-batch sims then materialize a
-                # [B, B, T-1, C, H] tensor in fp32 — the very thing we wanted
-                # to avoid. Cast the latents back to the amp dtype here so
-                # the loss's broadcasts stay in low precision.
-                if amp_dtype is not None:
-                    f_lat_loss = f_lat.to(amp_dtype)
-                    o_lat_loss = o_lat.to(amp_dtype)
-                else:
-                    f_lat_loss = f_lat
-                    o_lat_loss = o_lat
-                loss = contrastive_latent_loss(
-                    (f_lat_loss, o_lat_loss), validation=False,
-                    spec=LOSS_SPEC, tau_override=tau_tensor)
+        with torch.amp.autocast('cuda', enabled=False):
+            tau_tensor_loss = (tau_tensor.float()
+                               if tau_tensor is not None else None)
+            loss = contrastive_latent_loss(
+                (f_lat, o_lat), validation=False,
+                spec=LOSS_SPEC, tau_override=tau_tensor_loss)
         # Diagnostic: same loss with fixed τ=0.07 (no gradient). Comparable
         # across runs regardless of --tau / --learnable-tau, useful as a
         # cross-experiment baseline curve. Re-uses the already-forwarded
