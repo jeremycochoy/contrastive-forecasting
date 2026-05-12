@@ -72,14 +72,19 @@ RUNS = [
 ]
 
 METRICS = [
-    # (csv_col, title, log_y, ylim)
-    ("loss",          "Contrastive loss (log y)",         True,  (0.5, 30.0)),
-    ("loss_tau_ref",  "loss_tau_ref (τ=0.07 ref)",        False, (0.0, 4.5)),
-    ("auc",           "Retrieval AUC (4×128)",            False, (0.5, 1.005)),
-    ("top1",          "Retrieval top-1",                  False, (0.0, 1.05)),
-    ("u_temporal",    "Dim usage — temporal",             False, (0.0, 0.65)),
-    ("u_batch",       "Dim usage — batch",                False, (0.0, 0.65)),
+    # (csv_col, title, transform, ylim)
+    #   transform ∈ {"log", "1minus_log", "linear"}
+    ("loss",          "Contrastive loss",                  "log",        (0.5, 30.0)),
+    ("loss_tau_ref",  "loss_tau_ref (τ=0.07 ref)",         "log",        (0.5, 10.0)),
+    ("auc",           "1 − Retrieval AUC (4×128)",         "1minus_log", (1e-5, 1.0)),
+    ("top1",          "1 − Retrieval top-1",               "1minus_log", (1e-5, 1.0)),
+    ("u_temporal",    "Dim usage — temporal",              "log",        (3e-3, 0.7)),
+    ("u_batch",       "Dim usage — batch",                 "log",        (3e-3, 0.7)),
 ]
+
+# Cut x-axis to keep the relevant range visible. v10's 48k tail compresses
+# everything else; the action happens in the first ~15k steps.
+XMIN, XMAX = 500, 15000
 
 
 def ema(y, alpha=0.02):
@@ -114,7 +119,6 @@ def load(path):
 fig, axes = plt.subplots(2, 3, figsize=(22, 12))
 axes = axes.flatten()
 
-xmax_global = 0
 for fname, label, color, ls, lw in RUNS:
     path = CKPT / fname
     if not path.exists():
@@ -123,21 +127,30 @@ for fname, label, color, ls, lw in RUNS:
     s, cols = load(path)
     if len(s) == 0:
         continue
-    xmax_global = max(xmax_global, int(s.max()))
-    for ax, (m, _title, _log, _ylim) in zip(axes, METRICS):
-        y = cols[m]
+    # Mask out steps below XMIN (log x breaks near 0).
+    keep = s >= XMIN
+    s_keep = s[keep]
+    if len(s_keep) == 0:
+        continue
+    for ax, (m, _title, transform, _ylim) in zip(axes, METRICS):
+        y = cols[m][keep]
         if np.all(np.isnan(y)):
             continue
-        ax.plot(s, y,      color=color, ls=ls, lw=lw * 0.3, alpha=0.15)
-        ax.plot(s, ema(y), color=color, ls=ls, lw=lw,        label=label)
+        if transform == "1minus_log":
+            y_plot = np.clip(1.0 - y, 1e-6, None)   # avoid log(0)
+        else:
+            y_plot = y
+        ax.plot(s_keep, y_plot,      color=color, ls=ls, lw=lw * 0.3, alpha=0.15)
+        ax.plot(s_keep, ema(y_plot), color=color, ls=ls, lw=lw,        label=label)
 
-for ax, (m, title, log, ylim) in zip(axes, METRICS):
+for ax, (m, title, transform, ylim) in zip(axes, METRICS):
     ax.set_title(title, fontsize=12)
-    ax.set_xlabel("step")
-    ax.grid(True, alpha=0.3)
-    if log:
+    ax.set_xlabel("step (log)")
+    ax.grid(True, which="both", alpha=0.3)
+    ax.set_xscale("log")
+    ax.set_xlim(XMIN, XMAX)
+    if transform in ("log", "1minus_log"):
         ax.set_yscale("log")
-    ax.set_xlim(0, xmax_global)
     ax.set_ylim(*ylim)
 
 # Single legend below the grid, 3 columns
@@ -147,8 +160,8 @@ fig.legend(handles, labels,
            ncol=3, fontsize=9, frameon=True)
 
 plt.suptitle(
-    "v10 / v11* — full multi-metric comparison  (2026-05-12 session: "
-    "conv-placement (legacy vs new sa_input) + precision saga (fp32/fp16/bf16))",
+    "v10 / v11* — full multi-metric comparison  (2026-05-12 session)  "
+    f"log x ∈ [{XMIN}, {XMAX}];  log y on loss / loss_tau_ref / (1-AUC) / (1-top1) / dim-usage",
     fontsize=13, y=0.995,
 )
 plt.tight_layout(rect=(0, 0.09, 1, 0.99))
