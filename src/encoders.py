@@ -84,16 +84,21 @@ class GRUEncoder(nn.Module):
         self.layer_norm = nn.LayerNorm(H)
 
     def forward(self, x):
-        # x: [B, T, C, W]
-        shape = x.shape[:-1]  # [B, T, C]
-        flat = x.reshape(-1, self.W, 1)  # [B*T*C, W, 1]
-        _, hidden = self.gru(flat)  # hidden: [num_layers*2, B*T*C, intermediate_dim]
-        # Take last layer's forward and backward hidden states
-        h = torch.cat([hidden[-2], hidden[-1]], dim=-1)  # [B*T*C, intermediate_dim*2]
-        h = self.proj(h)  # [B*T*C, H]
-        h = h.reshape(*shape, -1)  # [B, T, C, H]
-        s = self.skip(x)
-        return self.layer_norm(h + s)
+        # GRU recurrence accumulates state via repeated multiplications;
+        # bf16 truncation across W steps degrades patch summary precision.
+        # Force fp32 here — harmless when no outer autocast is active.
+        with torch.amp.autocast('cuda', enabled=False):
+            x = x.float()
+            # x: [B, T, C, W]
+            shape = x.shape[:-1]  # [B, T, C]
+            flat = x.reshape(-1, self.W, 1)  # [B*T*C, W, 1]
+            _, hidden = self.gru(flat)  # hidden: [num_layers*2, B*T*C, intermediate_dim]
+            # Take last layer's forward and backward hidden states
+            h = torch.cat([hidden[-2], hidden[-1]], dim=-1)  # [B*T*C, intermediate_dim*2]
+            h = self.proj(h)  # [B*T*C, H]
+            h = h.reshape(*shape, -1)  # [B, T, C, H]
+            s = self.skip(x)
+            return self.layer_norm(h + s)
 
 
 class ConvEncoder(nn.Module):

@@ -226,23 +226,58 @@ class TransformerBlock(nn.Module):
                 x.device, self.causal_mask.dtype,
                 self.encoder_dropkey,
                 self.encoder_dropkey_share_heads)
-        for layer in self.encoder_layers:
-            if use_dropkey:
-                dk_mask = shared_mask if shared_mask is not None else \
-                    self._dropkey_causal_mask(
-                        x.size(1), x.size(0), self.nhead,
-                        x.device, self.causal_mask.dtype,
-                        self.encoder_dropkey,
-                        self.encoder_dropkey_share_heads)
-                x = layer(x, tgt_mask=dk_mask, tgt_is_causal=False)
+        # Run all encoder layers EXCEPT the last under the outer autocast
+        # context (typically bf16 for speed). The LAST encoder layer runs in
+        # fp32 so the latent at the encoder boundary (x_original) is full
+        # precision — required by the contrastive loss's small-τ logsumexp.
+        n_enc = len(self.encoder_layers)
+        for i, layer in enumerate(self.encoder_layers):
+            if i == n_enc - 1:
+                # fp32 region for the last encoder layer
+                with torch.amp.autocast('cuda', enabled=False):
+                    x = x.float()
+                    if use_dropkey:
+                        dk_mask = shared_mask if shared_mask is not None else \
+                            self._dropkey_causal_mask(
+                                x.size(1), x.size(0), self.nhead,
+                                x.device, self.causal_mask.dtype,
+                                self.encoder_dropkey,
+                                self.encoder_dropkey_share_heads)
+                        x = layer(x, tgt_mask=dk_mask, tgt_is_causal=False)
+                    else:
+                        x = layer(x, tgt_mask=self.causal_mask, tgt_is_causal=True)
             else:
-                x = layer(x, tgt_mask=self.causal_mask, tgt_is_causal=True)
+                if use_dropkey:
+                    dk_mask = shared_mask if shared_mask is not None else \
+                        self._dropkey_causal_mask(
+                            x.size(1), x.size(0), self.nhead,
+                            x.device, self.causal_mask.dtype,
+                            self.encoder_dropkey,
+                            self.encoder_dropkey_share_heads)
+                    x = layer(x, tgt_mask=dk_mask, tgt_is_causal=False)
+                else:
+                    x = layer(x, tgt_mask=self.causal_mask, tgt_is_causal=True)
 
+        # Keep x in fp32 across the encoder/forecaster boundary so x_original
+        # remains fp32 even after the outer autocast would re-cast the
+        # tensor. (When n_enc == 0, x stays in whatever dtype the caller fed.)
+        if n_enc > 0:
+            x = x.float()
         x_original = x.clone()
 
-        # Forecaster (decoder) layers — always pure causal.
-        for layer in self.layers:
-            x = layer(x, tgt_mask=self.causal_mask, tgt_is_causal=True)
+        # Forecaster (decoder) layers — always pure causal. Same hybrid:
+        # all-but-last under outer autocast, last layer in fp32 so the
+        # forecaster latent feeding the loss is full precision.
+        n_fcst = len(self.layers)
+        for i, layer in enumerate(self.layers):
+            if i == n_fcst - 1:
+                with torch.amp.autocast('cuda', enabled=False):
+                    x = x.float()
+                    x = layer(x, tgt_mask=self.causal_mask, tgt_is_causal=True)
+            else:
+                x = layer(x, tgt_mask=self.causal_mask, tgt_is_causal=True)
+        if n_fcst > 0:
+            x = x.float()
 
         return x, x_original
 

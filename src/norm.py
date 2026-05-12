@@ -156,16 +156,21 @@ class RevEWMNorm(nn.Module):
         Returns:
             Tensor of the same shape as ``x``.
         """
-        if mode == 'norm':
-            self._compute_statistics(x)
-            return self._normalize(x)
-        elif mode == 'denorm':
-            if self.mean is None or self.stdev is None:
-                raise RuntimeError(
-                    "Cannot denormalize before normalizing. Call with mode='norm' first.")
-            return self._denormalize(x)
-        else:
-            raise ValueError(f"Unknown mode '{mode}'. Expected 'norm' or 'denorm'.")
+        # RevEWMNorm operates on raw input where bf16 truncation of the
+        # running mean/std loses meaningful precision. Force fp32 for the
+        # normalization math; harmless when no outer autocast is active.
+        with torch.amp.autocast('cuda', enabled=False):
+            x = x.float()
+            if mode == 'norm':
+                self._compute_statistics(x)
+                return self._normalize(x)
+            elif mode == 'denorm':
+                if self.mean is None or self.stdev is None:
+                    raise RuntimeError(
+                        "Cannot denormalize before normalizing. Call with mode='norm' first.")
+                return self._denormalize(x)
+            else:
+                raise ValueError(f"Unknown mode '{mode}'. Expected 'norm' or 'denorm'.")
 
     def _compute_statistics(self, x: torch.Tensor):
         """Compute EMA mean and std for each timestep, initialized from first patch.
