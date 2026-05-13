@@ -1,7 +1,7 @@
 """Multi-metric log/log comparison for the five arms below:
 
   - baseline (pre-JEPA, 6L+6L, legacy conv, fp32, dk=0.9, τ=0.10)
-  - τ=0.10 baseline (tau-sweep, pre-transformer-encoder)
+  - τ=0.10 long-train (150k steps, best pre-JEPA — tau-sweep)
   - v11c (JEPA 6L+1L, NEW conv, dk=0.9 — best so far, MASE 1.388)
   - v14   (JEPA 6L+6L, NEW conv, dk=0.9 — MASE 1.650)
   - v15   (JEPA 6L+4L, NEW conv, dk=0.9 — MASE 1.671)
@@ -19,6 +19,10 @@ per-row from ff and fp; div-by-zero is clipped to a small positive floor.
 v11c is the concatenation of the pre-reboot 0–5800 segment and the
 post-reboot 5001–50000 continuation; segments are joined with `step >
 seen_max` so the post-reboot CSV picks up cleanly.
+
+The τ=0.10 long-train CSV (`tau_sweep_0_10_150k_full_losses.csv`) is the
+canonical pre-JEPA τ=0.10 baseline trained 1 → 150 000 steps (initial 50k
+run + resume → 150k); it lives under `experiments/2026-05-09_exp_loss_extensions/data/`.
 """
 import csv
 import math
@@ -30,12 +34,21 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 CKPT = Path("/home/jupyter/contrastive-forecasting/checkpoints")
+# Resolve from the script location so this works in any clone / worktree.
+DATA_LOSS_EXT = (
+    Path(__file__).resolve().parent.parent.parent
+    / "2026-05-09_exp_loss_extensions" / "data"
+)
 
+# Each entry in ARMS is (label, color, lw, paths). Each path may be either a
+# bare filename (loaded relative to CKPT) or an absolute Path (loaded as-is) —
+# the latter lets us pull the long-trained τ=0.10 CSV from the loss-extensions
+# data dir without copying it into checkpoints/.
 ARMS = [
     ("baseline (v7 base) — pre-JEPA 6L+6L, legacy conv, fp32, dk=0.9, τ=0.10",
      "tab:gray",   1.6, ["enc_fcst_dk09_hsl_b256_fp32_50k_losses.csv"]),
-    ("τ=0.10 baseline (tau-sweep, pre-transformer-encoder)",
-     "tab:cyan",   1.6, ["enc_fcst_tau_0_10_50k_losses.csv"]),
+    ("τ=0.10 long-train (150k steps, best pre-JEPA)",
+     "tab:cyan",   1.6, [DATA_LOSS_EXT / "tau_sweep_0_10_150k_full_losses.csv"]),
     ("v11c — JEPA 6L+1L, NEW conv, dk=0.9 (MASE 1.388)",
      "tab:purple", 2.2, ["enc_fcst_v11c_jepa_newconv_fp32_50k_losses.csv",
                          "enc_fcst_v11c_cont_from5k_50k_losses.csv"]),
@@ -70,17 +83,23 @@ METRICS = [
 COLS_NEEDED = ["loss", "loss_tau_ref", "ff", "fp", "auc", "top1",
                "u_temporal", "u_batch"]
 
-XMIN, XMAX = 500, 50000
+XMIN, XMAX = 500, 200000
 
 
 def load_concat(paths):
+    """Load + concat one arm's CSVs.
+
+    Each path may be a bare filename (resolved under CKPT) or an absolute
+    Path (used as-is — needed for the long-trained τ=0.10 CSV that lives in
+    the loss-extensions experiment data dir).
+    """
     seen_max_step = 0
     steps_all = []
     cols_all = {c: [] for c in COLS_NEEDED}
     for name in paths:
-        p = CKPT / name
+        p = name if isinstance(name, Path) else CKPT / name
         if not p.exists():
-            print(f"  SKIP missing {name}")
+            print(f"  SKIP missing {p}")
             continue
         new_steps = []
         with open(p) as f:
