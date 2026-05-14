@@ -686,17 +686,31 @@ def rollout_latent(backbone, encoder_latents, n_future_tokens):
     Uses the backbone's causal transformer: since contrastive training
     makes f[t] ≈ e[t+1], we feed f[-1] back as the next encoder latent.
 
+    The forecaster bottleneck (#286 follow-up, v13) lives between the
+    encoder-dim residual stream and the forecaster transformer layers:
+    `fcst_down_proj` shrinks from `dimension_e` into `forecaster_d_model`,
+    the layers run at `forecaster_d_model`, then `fcst_up_proj` widens
+    back to `dimension_e`. When no bottleneck is configured both projs
+    are `nn.Identity` so this path is bit-identical for legacy backbones.
+
     Args:
         backbone: frozen ConfigurableModel (on correct device)
-        encoder_latents: (B*C, T, H) encoder latents from context
+        encoder_latents: (B*C, T, H) encoder latents from context, in
+            encoder-dim space (`dimension_e`).
         n_future_tokens: how many future latent tokens to generate
 
     Returns:
         future_f: (B*C, n_future_tokens, H) generated forecaster latents
+            in encoder-dim space (post-up-proj), so they share the
+            residual-stream dim with `encoder_latents` and can feed the
+            decoding head unchanged.
     """
     device = encoder_latents.device
-    seq = encoder_latents  # (B*C, T, H)
+    seq = encoder_latents  # (B*C, T, H) in dimension_e
     generated = []
+
+    fcst_down_proj = backbone.transformer.fcst_down_proj
+    fcst_up_proj = backbone.transformer.fcst_up_proj
 
     with torch.no_grad():
         for _ in range(n_future_tokens):
@@ -707,16 +721,20 @@ def rollout_latent(backbone, encoder_latents, n_future_tokens):
             ).bool()
             causal_mask = causal_mask.float().masked_fill(causal_mask, float('-inf'))
 
-            # Run transformer layers (bypass encoder — we already have latents)
-            x = seq
+            # Run forecaster layers (bypass encoder — we already have latents).
+            # Apply the bottleneck projections so the layers see input at
+            # `forecaster_d_model`, not `dimension_e`. nn.Identity when no
+            # bottleneck is configured (legacy bit-identical).
+            x = fcst_down_proj(seq)
             for layer in backbone.transformer.layers:
                 x = layer(x, tgt_mask=causal_mask, tgt_is_causal=True)
+            x = fcst_up_proj(x)  # back to dimension_e
 
             # x[:, -1, :] is f[-1] ≈ e[next]
             new_token = x[:, -1:, :]  # (B*C, 1, H)
             generated.append(new_token)
 
-            # Append as next encoder latent
+            # Append as next encoder latent (in dimension_e — matches `seq`).
             seq = torch.cat([seq, new_token], dim=1)
 
     return torch.cat(generated, dim=1)  # (B*C, n_future_tokens, H)
