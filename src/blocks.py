@@ -126,7 +126,9 @@ class TransformerBlock(nn.Module):
                  norm_first=True, norm_type='layernorm', num_encoder_layers=0,
                  encoder_dropkey: float = 0.0,
                  encoder_dropkey_share_heads: bool = False,
-                 encoder_dropkey_share_layers: bool = False):
+                 encoder_dropkey_share_layers: bool = False,
+                 forecaster_d_model: int | None = None,
+                 forecaster_nhead: int | None = None):
         super().__init__()
 
         if feedforward_mult is None:
@@ -181,11 +183,37 @@ class TransformerBlock(nn.Module):
             ) for _ in range(num_encoder_layers)
         ])
 
+        # Forecaster bottleneck (#286 follow-up, v13). When
+        # `forecaster_d_model` is None it inherits `dimension_e` (legacy),
+        # the projections are nn.Identity, and FFN width still uses
+        # `feedforward_mult * dimension_e` — a no-op for all prior runs.
+        # When set to a smaller value, the forecaster's `self.layers` are
+        # built at `forecaster_d_model`, with `forecaster_nhead` heads,
+        # and `dim_feedforward = feedforward_mult * forecaster_d_model`
+        # (so FFN expansion stays proportional). `down_proj` shrinks the
+        # encoder-output stream into the bottleneck, `up_proj` widens it
+        # back to `dimension_e` for downstream channel-mixing + loss.
+        eff_fcst_d_model = dimension_e if forecaster_d_model is None else int(forecaster_d_model)
+        eff_fcst_nhead = nhead if forecaster_nhead is None else int(forecaster_nhead)
+        if eff_fcst_d_model % eff_fcst_nhead != 0:
+            raise ValueError(
+                f"forecaster_d_model={eff_fcst_d_model} must be divisible by "
+                f"forecaster_nhead={eff_fcst_nhead}")
+        self.forecaster_d_model = eff_fcst_d_model
+        self.forecaster_nhead = eff_fcst_nhead
+        fcst_dim_feedforward = int(feedforward_mult * eff_fcst_d_model)
+        if eff_fcst_d_model != dimension_e:
+            self.fcst_down_proj = nn.Linear(dimension_e, eff_fcst_d_model, bias=False)
+            self.fcst_up_proj = nn.Linear(eff_fcst_d_model, dimension_e, bias=False)
+        else:
+            self.fcst_down_proj = nn.Identity()
+            self.fcst_up_proj = nn.Identity()
+
         self.layers = nn.ModuleList([
             DecoderOnlyTransformerLayer(
-                d_model=dimension_e,
-                nhead=nhead,
-                dim_feedforward=dim_feedforward,
+                d_model=eff_fcst_d_model,
+                nhead=eff_fcst_nhead,
+                dim_feedforward=fcst_dim_feedforward,
                 activation=activation or 'gelu',
                 batch_first=True,
                 norm_first=norm_first,
@@ -240,9 +268,20 @@ class TransformerBlock(nn.Module):
 
         x_original = x.clone()
 
+        # Forecaster bottleneck (#286 follow-up, v13). When configured
+        # smaller than `dimension_e`, `fcst_down_proj` is a Linear that
+        # shrinks per-token; otherwise it's nn.Identity (no-op). The
+        # projection is per-token, so it commutes with the causal mask.
+        x = self.fcst_down_proj(x)
+
         # Forecaster (decoder) layers — always pure causal.
         for layer in self.layers:
             x = layer(x, tgt_mask=self.causal_mask, tgt_is_causal=True)
+
+        # Project the forecaster output back up to dimension_e so the
+        # downstream contrastive loss / channel-mixing operates in the
+        # same H-dim space as `x_original` (the encoder-side latent).
+        x = self.fcst_up_proj(x)
 
         return x, x_original
 

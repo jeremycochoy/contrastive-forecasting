@@ -66,7 +66,9 @@ class ConfigurableModel(torch.nn.Module):
                  num_encoder_layers=0,
                  encoder_dropkey: float = 0.0,
                  encoder_dropkey_share_heads: bool = False,
-                 encoder_dropkey_share_layers: bool = False):
+                 encoder_dropkey_share_layers: bool = False,
+                 forecaster_d_model: int | None = None,
+                 forecaster_n_heads: int | None = None):
         super().__init__()
         self.C = C
         self.H = H
@@ -144,6 +146,21 @@ class ConfigurableModel(torch.nn.Module):
             transformer_chunk_size=enc_transformer_chunk_size,
             transformer_use_grad_checkpoint=enc_transformer_use_grad_checkpoint)
 
+        # Forecaster bottleneck (#286 follow-up, v13). When
+        # `forecaster_d_model` is None, the forecaster runs at the encoder's
+        # `H`/`nhead` (legacy behaviour). When set, the forecaster's
+        # `self.layers` are constructed at the smaller dim with
+        # `forecaster_n_heads`, wrapped by Linear down/up projections so the
+        # JEPA contrastive loss still operates in the encoder's d_model space.
+        # Validation: `forecaster_d_model % forecaster_n_heads == 0`.
+        eff_fcst_d_model = H if forecaster_d_model is None else int(forecaster_d_model)
+        eff_fcst_n_heads = nhead if forecaster_n_heads is None else int(forecaster_n_heads)
+        if eff_fcst_d_model % eff_fcst_n_heads != 0:
+            raise ValueError(
+                f"forecaster_d_model={eff_fcst_d_model} must be divisible by "
+                f"forecaster_n_heads={eff_fcst_n_heads}")
+        self.forecaster_d_model = eff_fcst_d_model
+        self.forecaster_n_heads = eff_fcst_n_heads
         self.transformer = TransformerBlock(
             dimension_e=H,
             nhead=nhead,
@@ -157,6 +174,8 @@ class ConfigurableModel(torch.nn.Module):
             encoder_dropkey=encoder_dropkey,
             encoder_dropkey_share_heads=encoder_dropkey_share_heads,
             encoder_dropkey_share_layers=encoder_dropkey_share_layers,
+            forecaster_d_model=eff_fcst_d_model,
+            forecaster_nhead=eff_fcst_n_heads,
         )
         # Override activation if requested
         if activation != 'gelu':

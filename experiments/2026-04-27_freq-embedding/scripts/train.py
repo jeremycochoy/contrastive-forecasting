@@ -112,6 +112,24 @@ def parse_args():
                         "Use 6 for the H=384 smaller-arch arms.")
     p.add_argument("--num-layers", type=int, default=MODEL_CONFIG["num_layers"],
                    help="Number of encoder layers. Default 6.")
+    p.add_argument("--forecaster-d-model", type=int, default=None,
+                   help="Width of the FORECASTER stack only (the decoder "
+                        "side after the encoder boundary, i.e. "
+                        "TransformerBlock.layers). When unset, inherits "
+                        "--d-model (legacy: forecaster runs at the encoder's "
+                        "width). Set smaller (e.g. 128) to add a JEPA "
+                        "Linear bottleneck around the forecaster: encoder "
+                        "output is projected H -> forecaster_d_model, the "
+                        "1L (or NL) forecaster runs at the smaller width, "
+                        "then projected back to H for the contrastive loss "
+                        "in the encoder's d_model space. Encoder stack and "
+                        "x_original (loss target) keep --d-model untouched.")
+    p.add_argument("--forecaster-n-heads", type=int, default=None,
+                   help="Number of attention heads in the forecaster stack. "
+                        "When unset, inherits --n-heads. Required to satisfy "
+                        "forecaster-d-model %% forecaster-n-heads == 0. "
+                        "v13 default: --forecaster-d-model 128 "
+                        "--forecaster-n-heads 4 (4 heads x 32 dim/head).")
     p.add_argument("--num-encoder-layers", type=int, default=0,
                    help="Number of causal transformer-encoder layers inserted "
                         "between the patch encoder and the forecaster. "
@@ -474,6 +492,11 @@ def main():
     model_config["encoder_dropkey"] = args.encoder_dropkey
     model_config["encoder_dropkey_share_heads"] = args.encoder_dropkey_share_heads
     model_config["encoder_dropkey_share_layers"] = args.encoder_dropkey_share_layers
+    # Forecaster bottleneck (#286 follow-up, v13). When None on both the
+    # ConfigurableModel side defaults them to (H, nhead) — full no-op for
+    # all pre-v13 runs / checkpoints. v13: 128 + 4 (vs encoder H=384 / 6).
+    model_config["forecaster_d_model"] = args.forecaster_d_model
+    model_config["forecaster_n_heads"] = args.forecaster_n_heads
     # Override the loss_shape from CLI (LOSS_SPEC is a module-level default).
     LOSS_SPEC.train_configuration["loss_shape"] = args.loss_shape
     if args.tau is not None:
