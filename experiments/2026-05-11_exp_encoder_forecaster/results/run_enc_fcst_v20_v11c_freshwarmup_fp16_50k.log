@@ -1459,3 +1459,22 @@ Retrying in 1s [Retry 1/5].
               R²_rand=0.9900  R²_naive=0.9911  U_t=0.1352  U_b=0.1380  AUC=1.0000  Top1=1.0000
   timing: data=19.0ms  fwd=92.4ms  bwd=68.1ms  total=180.0ms
   -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v20_v11c_freshwarmup_fp16_50k_best_loss.pth
+[  41700] loss=2.1034  ema_loss=2.1032  gap=1.1184  ema_gap=1.1168  mixup=29/100  2.8 sps  ETA 0.8h
+              R²_rand=0.9897  R²_naive=0.9911  U_t=0.1343  U_b=0.1377  AUC=1.0000  Top1=1.0000
+  timing: data=15.8ms  fwd=93.1ms  bwd=68.6ms  total=178.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v20_v11c_freshwarmup_fp16_50k_best_loss.pth
+[  41800] loss=2.1026  ema_loss=2.1019  gap=1.1155  ema_gap=1.1164  mixup=30/100  2.8 sps  ETA 0.8h
+              R²_rand=0.9900  R²_naive=0.9911  U_t=0.1339  U_b=0.1375  AUC=1.0000  Top1=1.0000
+  timing: data=5.9ms  fwd=94.8ms  bwd=68.3ms  total=169.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v20_v11c_freshwarmup_fp16_50k_best_loss.pth
+[  41900] loss=2.1054  ema_loss=2.1015  gap=1.1146  ema_gap=1.1151  mixup=26/100  2.8 sps  ETA 0.8h
+              R²_rand=0.9898  R²_naive=0.9910  U_t=0.1346  U_b=0.1377  AUC=1.0000  Top1=1.0000
+  timing: data=16.1ms  fwd=94.7ms  bwd=69.6ms  total=181.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v20_v11c_freshwarmup_fp16_50k_best_loss.pth
+[  42000] loss=2.1013  ema_loss=2.1016  gap=1.1115  ema_gap=1.1154  mixup=32/100  2.8 sps  ETA 0.8h
+              R²_rand=0.9900  R²_naive=0.9911  U_t=0.1350  U_b=0.1377  AUC=1.0000  Top1=1.0000
+  timing: data=5.3ms  fwd=96.2ms  bwd=69.4ms  total=171.5ms
+[  42100] loss=2.0997  ema_loss=2.1013  gap=1.1168  ema_gap=1.1152  mixup=37/100  2.8 sps  ETA 0.8h
+              R²_rand=0.9899  R²_naive=0.9911  U_t=0.1350  U_b=0.1375  AUC=1.0000  Top1=1.0000
+  timing: data=19.1ms  fwd=94.4ms  bwd=70.1ms  total=184.2ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v20_v11c_freshwarmup_fp16_50k_best_loss.pth
