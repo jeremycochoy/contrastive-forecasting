@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .blocks import DecoderOnlyTransformerLayer
+from .blocks import DecoderOnlyTransformerLayer, _autocast_ctx
 
 
 class MLPEncoder(nn.Module):
@@ -71,9 +71,14 @@ class GRUEncoder(nn.Module):
     GRU processes each patch as a sequence of W scalar time steps.
     Captures temporal ordering within the patch.
     """
-    def __init__(self, W, H, intermediate_dim=128, num_gru_layers=2):
+    def __init__(self, W, H, intermediate_dim=128, num_gru_layers=2,
+                 patch_emb_dtype: str = "fp32"):
         super().__init__()
         self.W = W
+        # Dtype for the GRU compute path. fp32 = disabled autocast (no-op).
+        # The GRU's W-step recurrence is sensitive to bf16 truncation; fp32
+        # is the safe default. fp16 trades precision for ~25-30% speedup.
+        self.patch_emb_dtype = patch_emb_dtype
         self.gru = nn.GRU(
             input_size=1, hidden_size=intermediate_dim,
             num_layers=num_gru_layers, batch_first=True,
@@ -84,11 +89,7 @@ class GRUEncoder(nn.Module):
         self.layer_norm = nn.LayerNorm(H)
 
     def forward(self, x):
-        # GRU recurrence accumulates state via repeated multiplications;
-        # bf16 truncation across W steps degrades patch summary precision.
-        # Force fp32 here — harmless when no outer autocast is active.
-        with torch.amp.autocast('cuda', enabled=False):
-            x = x.float()
+        with _autocast_ctx(self.patch_emb_dtype):
             # x: [B, T, C, W]
             shape = x.shape[:-1]  # [B, T, C]
             flat = x.reshape(-1, self.W, 1)  # [B*T*C, W, 1]
@@ -149,7 +150,9 @@ class TransformerEncoder(nn.Module):
     """
 
     def __init__(self, W, H, num_layers=4, nhead=6, ffn_mult=4,
-                 dropout=0.0, depthwise_conv=3, norm_type='layernorm',
+                 dropout=0.0, depthwise_conv: int = 3,
+                 deprecated_depthwise_conv: int = 0,
+                 norm_type='layernorm',
                  activation='gelu', use_grad_checkpoint=True,
                  chunk_size=8192):
         super().__init__()
@@ -172,6 +175,7 @@ class TransformerEncoder(nn.Module):
                 bias=False,
                 dropout=dropout,
                 depthwise_conv=depthwise_conv,
+                deprecated_depthwise_conv=deprecated_depthwise_conv,
             ) for _ in range(num_layers)
         ])
         self.causal_mask = None
@@ -237,8 +241,15 @@ def create_encoder(encoder_type, W, H, intermediate_dim=None,
                    transformer_ffn_mult=4, transformer_dropout=0.0,
                    transformer_depthwise_conv=3,
                    transformer_chunk_size=8192,
-                   transformer_use_grad_checkpoint=True):
-    """Factory function for encoder creation."""
+                   transformer_use_grad_checkpoint=True,
+                   patch_emb_dtype: str = "fp32"):
+    """Factory function for encoder creation.
+
+    ``patch_emb_dtype`` is wired into encoders whose forward compute is
+    precision-sensitive (currently GRU). Other encoders accept-and-ignore
+    the kwarg — they can opt in later by wrapping their forward in
+    ``_autocast_ctx(self.patch_emb_dtype)``.
+    """
     if encoder_type == 'mlp':
         return MLPEncoder(W, H, intermediate_dim=intermediate_dim or 64)
     elif encoder_type == 'mlp_wide':
@@ -246,7 +257,8 @@ def create_encoder(encoder_type, W, H, intermediate_dim=None,
     elif encoder_type == 'residual_silu':
         return ResidualSiLUEncoder(W, H, intermediate_dim=intermediate_dim)
     elif encoder_type == 'gru':
-        return GRUEncoder(W, H, intermediate_dim=intermediate_dim or 128)
+        return GRUEncoder(W, H, intermediate_dim=intermediate_dim or 128,
+                          patch_emb_dtype=patch_emb_dtype)
     elif encoder_type == 'conv':
         return ConvEncoder(W, H, intermediate_dim=intermediate_dim or 128)
     elif encoder_type == 'transformer':

@@ -202,6 +202,12 @@ def parse_args():
     p.add_argument("--num-layers", type=int, default=None,
                    help="Backbone transformer depth. Overrides "
                         "BACKBONE_CONFIG['num_layers'] (default 6).")
+    p.add_argument("--forecaster-d-model", type=int, default=None,
+                   help="Backbone forecaster bottleneck dim. None=same as d-model. "
+                        "Required to match v13 backbone (default 128).")
+    p.add_argument("--forecaster-n-heads", type=int, default=None,
+                   help="Backbone forecaster heads. None=same as n-heads. "
+                        "v13 uses 4.")
     # -- LR schedule + AdamW HP --------------------------------------------
     p.add_argument("--schedule", default="constant",
                    choices=["constant", "wsd", "cosine"],
@@ -335,6 +341,10 @@ def main():
         BACKBONE_CONFIG["nhead"] = args.n_heads
     if args.num_layers is not None:
         BACKBONE_CONFIG["num_layers"] = args.num_layers
+    if args.forecaster_d_model is not None:
+        BACKBONE_CONFIG["forecaster_d_model"] = args.forecaster_d_model
+    if args.forecaster_n_heads is not None:
+        BACKBONE_CONFIG["forecaster_n_heads"] = args.forecaster_n_heads
     if args.encoder_type is not None:
         BACKBONE_CONFIG["encoder_type"] = args.encoder_type
 

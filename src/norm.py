@@ -11,6 +11,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from .blocks import _autocast_ctx
+
 
 def compute_patch_stats(mean: torch.Tensor, stdev: torch.Tensor,
                         W: int, kind: str = 'diff',
@@ -130,7 +132,8 @@ class RevEWMNorm(nn.Module):
     """
 
     def __init__(self, num_features: int, span: float, patch_size: int,
-                 eps: float = 1e-5, affine: bool = False):
+                 eps: float = 1e-5, affine: bool = False,
+                 patch_emb_dtype: str = "fp32"):
         super().__init__()
         self.num_features = num_features
         self.span = span
@@ -138,6 +141,11 @@ class RevEWMNorm(nn.Module):
         self.eps = eps
         self.alpha = 2.0 / (span + 1.0)
         self.affine = affine
+        # Dtype for the output cast of this module. The internal cumsum
+        # statistics math is always fp64 (see _compute_statistics); only the
+        # final cast and downstream arithmetic in the normalise/denormalise
+        # paths are governed by this knob.
+        self.patch_emb_dtype = patch_emb_dtype
 
         # Stored statistics (set during 'norm', used during 'denorm')
         self.mean = None
@@ -156,11 +164,12 @@ class RevEWMNorm(nn.Module):
         Returns:
             Tensor of the same shape as ``x``.
         """
-        # RevEWMNorm operates on raw input where bf16 truncation of the
-        # running mean/std loses meaningful precision. Force fp32 for the
-        # normalization math; harmless when no outer autocast is active.
-        with torch.amp.autocast('cuda', enabled=False):
-            x = x.float()
+        # Run the normalise/denormalise math under the chosen patch-emb
+        # autocast context. fp32 = disabled autocast (no-op);
+        # fp16/bf16 = enabled at that dtype. The fp64 cumsum inside
+        # `_compute_statistics` is unaffected (autocast doesn't downcast
+        # explicit `.to(float64)` operations).
+        with _autocast_ctx(self.patch_emb_dtype):
             if mode == 'norm':
                 self._compute_statistics(x)
                 return self._normalize(x)
