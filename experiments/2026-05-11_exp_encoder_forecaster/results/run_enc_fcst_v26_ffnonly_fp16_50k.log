@@ -1,0 +1,6 @@
+Device: cuda | Params: 13,200,060
+Training for 50000 steps, bs=256, lr=0.001, T=4096, C=1, mix_ratio=0.0, freq_emb_dim=3, seasonality_emb_dim=3, mixup_p=0.3, rev_norm_kind=ewma(span=128), patch_stats=none, encoder_type=gru
+Checkpoints: /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v26_ffnonly_fp16_50k_*.pth
+Loss CSV: /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v26_ffnonly_fp16_50k_losses.csv
+Attn-amplitude CSV: /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v26_ffnonly_fp16_50k_attn_amplitude.csv (every 1000 steps)
+Data: MIX 100% HF + 0% synth (periodic), hf_bs=256, synth_bs=0
