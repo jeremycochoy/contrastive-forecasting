@@ -35,6 +35,7 @@ import torch.optim as optim
 from types import SimpleNamespace
 
 from src.models import ConfigurableModel, compute_metrics, count_parameters
+from src.blocks import ATTN_AMP_DIAG
 from src.dataloader import (
     create_mixed_periodic_dataloader,
     create_mixed_composite_dataloader,
@@ -195,6 +196,20 @@ def parse_args():
                         "needed when running B=256 on a 24 GB GPU. "
                         "'fp16' = float16 autocast (NOT recommended for "
                         "contrastive losses with large exp(x/τ) values).")
+    p.add_argument("--log-attn-amplitude", action="store_true",
+                   help="Diagnostic: every --log-attn-amplitude-every steps, "
+                        "record per transformer layer the max-abs of the "
+                        "pre-softmax QK^T logits, the SA-block input, the "
+                        "SA-block output, and the residual stream, to a "
+                        "sidecar CSV <save_dir>/<run_name>_attn_amplitude.csv. "
+                        "Default off = strict no-op (zero overhead, training "
+                        "math byte-identical). Used to diagnose the fresh-init "
+                        "all-fp16 divergence (v11/v11b/v18/v19): does QK^T "
+                        "grow past the fp16 65504 ceiling near divergence?")
+    p.add_argument("--log-attn-amplitude-every", type=int, default=200,
+                   help="Step interval for --log-attn-amplitude sampling. "
+                        "Default 200. Only meaningful with "
+                        "--log-attn-amplitude.")
     p.add_argument("--tau", type=float, default=None,
                    help="Contrastive temperature. None = use the LOSS_SPEC "
                         "default (0.07). Used by 2026-05-02_exp_realonly_4096_smaller_tau_sweep.")
@@ -448,6 +463,38 @@ class CSVLogger:
         self._file.close()
 
 
+class AttnAmplitudeCSV:
+    """Sidecar CSV for the attention-amplitude diagnostic.
+
+    One row per (logged step, transformer layer). Columns:
+        step, layer_idx, block(enc|fcst),
+        qk_logit_maxabs, sa_in_maxabs, sa_out_maxabs, resid_maxabs
+
+    Append-mode (resume-safe): header only written when the file is empty.
+    """
+
+    def __init__(self, path):
+        self.path = path
+        self._file = open(path, "a", newline="")
+        self._writer = csv.writer(self._file)
+        if os.path.getsize(path) == 0:
+            self._writer.writerow([
+                "step", "layer_idx", "block",
+                "qk_logit_maxabs", "sa_in_maxabs",
+                "sa_out_maxabs", "resid_maxabs"])
+            self._file.flush()
+
+    def write_rows(self, step, rows):
+        # rows: list of (layer_idx, block, qk, sa_in, sa_out, resid)
+        for (layer_idx, block, qk, sa_in, sa_out, resid) in rows:
+            self._writer.writerow(
+                [step, layer_idx, block, qk, sa_in, sa_out, resid])
+        self._file.flush()
+
+    def close(self):
+        self._file.close()
+
+
 def main():
     args = parse_args()
 
@@ -497,6 +544,7 @@ def main():
     # all pre-v13 runs / checkpoints. v13: 128 + 4 (vs encoder H=384 / 6).
     model_config["forecaster_d_model"] = args.forecaster_d_model
     model_config["forecaster_n_heads"] = args.forecaster_n_heads
+    model_config["log_attn_amplitude"] = bool(args.log_attn_amplitude)
     # Override the loss_shape from CLI (LOSS_SPEC is a module-level default).
     LOSS_SPEC.train_configuration["loss_shape"] = args.loss_shape
     if args.tau is not None:
@@ -561,6 +609,17 @@ def main():
     csv_path = os.path.join(args.save_dir, f"{args.run_name}_losses.csv")
     csv_logger = CSVLogger(csv_path, flush_every=100)
     print(f"Loss CSV: {csv_path}")
+
+    # Sidecar attention-amplitude diagnostic CSV (opt-in). Only created when
+    # --log-attn-amplitude is set; otherwise None and the per-step hook is a
+    # strict no-op (the global ATTN_AMP_DIAG.active stays False forever).
+    attn_amp_csv = None
+    if args.log_attn_amplitude:
+        attn_amp_path = os.path.join(
+            args.save_dir, f"{args.run_name}_attn_amplitude.csv")
+        attn_amp_csv = AttnAmplitudeCSV(attn_amp_path)
+        print(f"Attn-amplitude CSV: {attn_amp_path} "
+              f"(every {args.log_attn_amplitude_every} steps)")
 
     # -- Data -----------------------------------------------------------------
     C = args.n_channels
@@ -653,6 +712,18 @@ def main():
             mixup_applied_count += 1
         t_data_end = time.perf_counter()
 
+        # Attention-amplitude diagnostic: arm the per-layer hook for THIS
+        # forward only, every N steps. When --log-attn-amplitude is off,
+        # log_attn_now is always False and set_active is never called with
+        # True, so the hook stays a strict no-op (the layers also gate on
+        # their own log_attn_amplitude=False). Drained right after the
+        # forward (rows are recorded during forward, before backward).
+        log_attn_now = (
+            args.log_attn_amplitude
+            and step % args.log_attn_amplitude_every == 0)
+        if log_attn_now:
+            ATTN_AMP_DIAG.set_active(True)
+
         t_fwd_start = time.perf_counter()
         amp_dtype = (torch.bfloat16 if args.amp_dtype == "bf16"
                      else torch.float16 if args.amp_dtype == "fp16"
@@ -682,6 +753,9 @@ def main():
             tau_tensor = model.tau() if args.learnable_tau else None
             loss = contrastive_latent_loss((f_lat_loss, o_lat_loss), validation=False,
                                            spec=LOSS_SPEC, tau_override=tau_tensor)
+        if log_attn_now:
+            ATTN_AMP_DIAG.set_active(False)
+            attn_amp_csv.write_rows(step, ATTN_AMP_DIAG.take_rows())
         # Diagnostic: same loss with fixed τ=0.07 (no gradient). Comparable
         # across runs regardless of --tau / --learnable-tau, useful as a
         # cross-experiment baseline curve. Re-uses the already-forwarded
@@ -708,6 +782,8 @@ def main():
                           hf_rows_consumed=hf_rows_consumed,
                           synth_rows_consumed=synth_rows_consumed)
             csv_logger.close()
+            if attn_amp_csv is not None:
+                attn_amp_csv.close()
             sys.stdout.flush()
             sys.exit(1)
 
@@ -829,6 +905,8 @@ def main():
                   hf_rows_consumed=hf_rows_consumed,
                   synth_rows_consumed=synth_rows_consumed)
     csv_logger.close()
+    if attn_amp_csv is not None:
+        attn_amp_csv.close()
     total = time.time() - t0
     print(f"\nDone in {total/3600:.1f}h. "
           f"Best gap={best_gap:.4f} at step {best_gap_step}, "

@@ -1,8 +1,48 @@
+import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from typing import Union, Callable, Optional
 from torch import Tensor
+
+
+# --- Attention-amplitude diagnostic (opt-in, zero-overhead when off) ---------
+# A process-global singleton the transformer layers append to during forward
+# *only* when `ATTN_AMP_DIAG.active` is True (set by the training loop every
+# N steps via `set_active()`), and only on layers whose
+# `log_attn_amplitude=True`. The training loop calls `take_rows()` after the
+# forward to drain the buffer into a sidecar CSV.
+#
+# When `active` is False the per-layer hook is a single boolean check and an
+# immediate return — no extra compute, no allocations, no graph nodes, and the
+# training math is byte-identical to the pre-diagnostic code path. Everything
+# recorded is under `torch.no_grad()` + `.detach()`, so gradients / the loss
+# are never affected when on.
+class _AttnAmpDiag:
+    __slots__ = ("active", "_rows")
+
+    def __init__(self):
+        self.active = False
+        self._rows = []
+
+    def set_active(self, flag: bool):
+        self.active = bool(flag)
+
+    def record(self, layer_idx, block, qk_logit_maxabs,
+               sa_in_maxabs, sa_out_maxabs, resid_maxabs):
+        self._rows.append((layer_idx, block, qk_logit_maxabs,
+                           sa_in_maxabs, sa_out_maxabs, resid_maxabs))
+
+    def take_rows(self):
+        """Return and clear the buffered (per-layer) rows."""
+        rows = self._rows
+        self._rows = []
+        return rows
+
+
+# Process-global instance. Imported by the training loop.
+ATTN_AMP_DIAG = _AttnAmpDiag()
+
 
 class CausalConv(nn.Module):
     # nn.Conv1d(in_channels=d_model, out_channels=d_model, kernel_size=depthwise_conv, padding=1,
@@ -26,9 +66,23 @@ class DecoderOnlyTransformerLayer(nn.Module):
                  activation: Union[str, Callable[[Tensor], Tensor]] = nn.functional.relu,
                  layer_norm_eps: float = 1e-5, batch_first: bool = False, norm_first: bool = True,
                  bias: bool = True, device=None, dtype=None, depthwise_conv=3,
-                 norm_type: str = 'layernorm') -> None:
+                 norm_type: str = 'layernorm',
+                 log_attn_amplitude: bool = False) -> None:
         factory_kwargs = {'device': device, 'dtype': dtype}
         super().__init__()
+        # Attention-amplitude diagnostic (opt-in). When True AND the global
+        # ATTN_AMP_DIAG.active flag is set, _sa_block records per-layer
+        # max-abs of the pre-softmax QK^T logits / SA in / SA out / residual.
+        # Default False → strict no-op (see _AttnAmpDiag docstring). The
+        # layer_idx / block_tag below are set by TransformerBlock so the
+        # CSV rows are attributable to a specific (block, layer).
+        self.log_attn_amplitude = bool(log_attn_amplitude)
+        self.attn_amp_layer_idx = -1
+        self.attn_amp_block_tag = "?"
+        # Partial diagnostic row stashed by _sa_block, finalized with the
+        # residual-stream max-abs by forward(). None when inactive.
+        self._attn_amp_pending = None
+        self.nhead = nhead
         self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout, batch_first=batch_first,
                                                bias=bias, **factory_kwargs)
         # Implementation of Feedforward model
@@ -83,9 +137,15 @@ class DecoderOnlyTransformerLayer(nn.Module):
 
         if self.norm_first:
             x = x + self._sa_block(self.norm1(x), tgt_mask, tgt_key_padding_mask, tgt_is_causal)
+            # Diagnostic-only (strict no-op unless flag+active): record
+            # residual-stream max-abs at this layer post-SA-add.
+            self._finalize_attn_amplitude(x)
             x = x + self._ff_block(self.norm2(x))
         else:
             x = self.norm1(x + self._sa_block(x, tgt_mask, tgt_key_padding_mask, tgt_is_causal))
+            # Diagnostic-only (strict no-op unless flag+active): record
+            # residual-stream max-abs at this layer post-SA-add+norm.
+            self._finalize_attn_amplitude(x)
             x = self.norm2(x + self._ff_block(x))
 
         return x
@@ -93,12 +153,84 @@ class DecoderOnlyTransformerLayer(nn.Module):
     # self-attention block
     def _sa_block(self, x: Tensor,
                   attn_mask: Optional[Tensor], key_padding_mask: Optional[Tensor], is_causal: bool = False) -> Tensor:
+        sa_in = x
         x = self.self_attn(x, x, x,
                            attn_mask=attn_mask,
                            key_padding_mask=key_padding_mask,
                            is_causal=is_causal,
                            need_weights=False)[0]
+        self._maybe_log_attn_amplitude(sa_in, x)
         return self.dropout1(x)
+
+    def _maybe_log_attn_amplitude(self, sa_in: Tensor, sa_out: Tensor) -> None:
+        """Diagnostic-only: record max-abs of the pre-softmax QK^T logits
+        and the SA-block in/out tensors for this layer.
+
+        STRICT NO-OP unless (self.log_attn_amplitude AND
+        ATTN_AMP_DIAG.active). When it runs it is fully under
+        torch.no_grad() + .detach(), recomputing q/k from the module's
+        in_proj weights (Option A) so the real attention forward above is
+        byte-identical whether the flag is on or off. The QK^T recompute
+        is wasteful but only fires every N steps when the flag is on.
+
+        The residual-stream max-abs is filled in later by forward() (it
+        owns the residual tensor after the SA add).
+        """
+        if not (self.log_attn_amplitude and ATTN_AMP_DIAG.active):
+            return
+        with torch.no_grad():
+            mha = self.self_attn
+            # Self-attention with shared embed dim → single packed
+            # in_proj_weight of shape (3*d_model, d_model). bias=False in
+            # all configs here, but handle in_proj_bias defensively.
+            W = mha.in_proj_weight
+            d = W.shape[1]
+            Wq = W[:d, :]
+            Wk = W[d:2 * d, :]
+            b = mha.in_proj_bias
+            if b is not None:
+                bq = b[:d]
+                bk = b[d:2 * d]
+            else:
+                bq = bk = None
+            xin = sa_in.detach()
+            # Compute in fp32 so the diagnostic itself never overflows
+            # while measuring whether the real (fp16/bf16) path would.
+            xin32 = xin.float()
+            Wq32 = Wq.float()
+            Wk32 = Wk.float()
+            q = torch.nn.functional.linear(
+                xin32, Wq32, bq.float() if bq is not None else None)
+            k = torch.nn.functional.linear(
+                xin32, Wk32, bk.float() if bk is not None else None)
+            # (B, T, d) → (B, nhead, T, hd); scaled dot product matches
+            # nn.MultiheadAttention's internal pre-softmax scores.
+            B, T, _ = q.shape
+            hd = d // self.nhead
+            qh = q.view(B, T, self.nhead, hd).transpose(1, 2)
+            kh = k.view(B, T, self.nhead, hd).transpose(1, 2)
+            logits = torch.matmul(qh, kh.transpose(-2, -1)) / math.sqrt(hd)
+            qk_logit_maxabs = float(logits.abs().max().item())
+            sa_in_maxabs = float(xin.abs().max().item())
+            sa_out_maxabs = float(sa_out.detach().abs().max().item())
+            # Stash partial; forward() finalizes with resid_maxabs
+            # (it owns the residual tensor after the SA add).
+            self._attn_amp_pending = (
+                qk_logit_maxabs, sa_in_maxabs, sa_out_maxabs)
+
+    def _finalize_attn_amplitude(self, resid: Tensor) -> None:
+        """Complete the pending diagnostic row with the residual-stream
+        max-abs and push it to ATTN_AMP_DIAG. STRICT NO-OP when there's no
+        pending row (flag off / not a logged step)."""
+        if self._attn_amp_pending is None:
+            return
+        qk_logit_maxabs, sa_in_maxabs, sa_out_maxabs = self._attn_amp_pending
+        self._attn_amp_pending = None
+        with torch.no_grad():
+            resid_maxabs = float(resid.detach().abs().max().item())
+        ATTN_AMP_DIAG.record(
+            self.attn_amp_layer_idx, self.attn_amp_block_tag,
+            qk_logit_maxabs, sa_in_maxabs, sa_out_maxabs, resid_maxabs)
 
     # feed forward block
     def _ff_block(self, x: Tensor) -> Tensor:
@@ -128,7 +260,8 @@ class TransformerBlock(nn.Module):
                  encoder_dropkey_share_heads: bool = False,
                  encoder_dropkey_share_layers: bool = False,
                  forecaster_d_model: int | None = None,
-                 forecaster_nhead: int | None = None):
+                 forecaster_nhead: int | None = None,
+                 log_attn_amplitude: bool = False):
         super().__init__()
 
         if feedforward_mult is None:
@@ -180,8 +313,14 @@ class TransformerBlock(nn.Module):
                 bias=False,
                 dropout=dropout,
                 depthwise_conv=depthwise_conv,
+                log_attn_amplitude=log_attn_amplitude,
             ) for _ in range(num_encoder_layers)
         ])
+        # Tag encoder layers so the amplitude diagnostic CSV rows are
+        # attributable to (block='enc', layer_idx).
+        for i, lyr in enumerate(self.encoder_layers):
+            lyr.attn_amp_layer_idx = i
+            lyr.attn_amp_block_tag = "enc"
 
         # Forecaster bottleneck (#286 follow-up, v13). When
         # `forecaster_d_model` is None it inherits `dimension_e` (legacy),
@@ -221,8 +360,14 @@ class TransformerBlock(nn.Module):
                 bias=False,
                 dropout=dropout,
                 depthwise_conv=depthwise_conv,
+                log_attn_amplitude=log_attn_amplitude,
             ) for _ in range(num_layers)
         ])
+        # Tag forecaster layers so the amplitude diagnostic CSV rows are
+        # attributable to (block='fcst', layer_idx).
+        for i, lyr in enumerate(self.layers):
+            lyr.attn_amp_layer_idx = i
+            lyr.attn_amp_block_tag = "fcst"
 
         self.causal_mask = None
 

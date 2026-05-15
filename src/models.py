@@ -68,7 +68,8 @@ class ConfigurableModel(torch.nn.Module):
                  encoder_dropkey_share_heads: bool = False,
                  encoder_dropkey_share_layers: bool = False,
                  forecaster_d_model: int | None = None,
-                 forecaster_n_heads: int | None = None):
+                 forecaster_n_heads: int | None = None,
+                 log_attn_amplitude: bool = False):
         super().__init__()
         self.C = C
         self.H = H
@@ -176,6 +177,7 @@ class ConfigurableModel(torch.nn.Module):
             encoder_dropkey_share_layers=encoder_dropkey_share_layers,
             forecaster_d_model=eff_fcst_d_model,
             forecaster_nhead=eff_fcst_n_heads,
+            log_attn_amplitude=log_attn_amplitude,
         )
         # Override activation if requested
         if activation != 'gelu':
