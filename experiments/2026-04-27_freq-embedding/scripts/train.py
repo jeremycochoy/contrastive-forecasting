@@ -798,12 +798,19 @@ def main():
         # cross-experiment baseline curve. Re-uses the already-forwarded
         # latents so the only extra cost is one similarity-matrix softmax
         # under no_grad (target <5% step-time overhead).
+        # include_positive_in_denominator=True makes this a proper
+        # normalized InfoNCE (positive in both numerator and denominator)
+        # so the column is always ≥ 0 — unlike the training `loss` above,
+        # whose negatives-only objective is intentionally unchanged and
+        # goes negative once positives separate. ONLY this diagnostic
+        # call passes the flag; the training loss keeps the default.
         with torch.no_grad():
             loss_tau_ref = contrastive_latent_loss(
                 (f_lat.detach(), o_lat.detach()),
                 validation=False, spec=LOSS_SPEC,
                 tau_override=torch.tensor(
                     0.07, device=f_lat.device, dtype=f_lat.dtype),
+                include_positive_in_denominator=True,
             )
         loss_tau_ref_val = loss_tau_ref.item()
         t_fwd_end = time.perf_counter()

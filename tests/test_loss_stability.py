@@ -275,3 +275,167 @@ def test_fp32_tiny_tau_legacy_nans_refactor_finite(variant):
     assert torch.isfinite(loss_new), (
         f"{variant}: refactor not finite at τ=0.005 fp32"
     )
+
+
+# ---------------------------------------------------------------------------
+# `include_positive_in_denominator` — the normalized InfoNCE used ONLY by the
+# diagnostic `loss_tau_ref` column. Two contracts:
+#   (a) when True, the loss is a proper normalized InfoNCE → always ≥ 0;
+#   (b) when False (default), the loss is byte-for-byte the legacy training
+#       objective (negatives-only) — this guards against any accidental
+#       drift in the training loss, which must NOT change for any
+#       past/running experiment.
+# ---------------------------------------------------------------------------
+
+# Variants for which `include_positive_in_denominator=True` is implemented
+# (the logsumexp-form variants that compute log_pos / log_neg_total).
+NORMALIZED_VARIANTS = [
+    "cosine_similarity_batch",
+    "cosine_similarity_batch_no_time_neg",
+    "cosine_similarity_batch_square",
+]
+
+
+def _new_loss_flag(fl, ol, variant, tau, include_positive_in_denominator):
+    spec = SimpleNamespace(train_configuration={
+        "loss_shape": variant,
+        "contrastive_divergence_temperature": tau,
+    })
+    return contrastive_latent_loss(
+        (fl, ol), validation=False, spec=spec,
+        include_positive_in_denominator=include_positive_in_denominator,
+    )
+
+
+@pytest.mark.parametrize("variant", NORMALIZED_VARIANTS)
+@pytest.mark.parametrize("tau", [0.5, 0.07])
+def test_normalized_form_is_nonnegative(variant, tau):
+    # Normalized InfoNCE = -log(e^pos / (e^pos + Σ_neg e^neg)). The argument
+    # of the log is in (0, 1], so the loss is ≥ 0 by construction — even
+    # when positives strongly separate from negatives (where the default
+    # negatives-only form goes negative).
+    torch.manual_seed(0)
+    B, T, C, H = 6, 12, 1, 24
+    fl = torch.randn(B, T, C, H, dtype=torch.float32)
+    ol = torch.randn(B, T, C, H, dtype=torch.float32)
+    loss_norm = _new_loss_flag(fl, ol, variant, tau, True)
+    assert torch.isfinite(loss_norm), f"{variant} τ={tau}: non-finite"
+    assert loss_norm.item() >= -1e-6, (
+        f"{variant} τ={tau}: normalized loss must be ≥ 0, "
+        f"got {loss_norm.item()}"
+    )
+
+
+@pytest.mark.parametrize("variant", NORMALIZED_VARIANTS)
+@pytest.mark.parametrize("tau", [0.5, 0.1, 0.07])
+def test_normalized_ge_default_always(variant, tau):
+    # Data-independent identity: adding the positive to the denominator can
+    # only enlarge it, so the normalized loss is ALWAYS ≥ the default
+    # negatives-only loss:
+    #   loss_norm - loss_default
+    #     = mean(logsumexp([pos, negtot]) - negtot)
+    #     = mean(softplus(pos - negtot)) ≥ 0.
+    # This holds for every input and pins the relationship between the
+    # diagnostic column and the (unchanged) training objective.
+    torch.manual_seed(7)
+    B, T, C, H = 5, 10, 1, 16
+    fl = torch.randn(B, T, C, H, dtype=torch.float32)
+    ol = torch.randn(B, T, C, H, dtype=torch.float32)
+    loss_default = _new_loss_flag(fl, ol, variant, tau, False)
+    loss_norm = _new_loss_flag(fl, ol, variant, tau, True)
+    assert loss_norm.item() + 1e-6 >= loss_default.item(), (
+        f"{variant} τ={tau}: normalized ({loss_norm.item()}) must be ≥ "
+        f"default ({loss_default.item()})"
+    )
+
+
+def test_default_goes_negative_normalized_stays_nonneg_constructed():
+    # Deterministic construction proving the change's purpose: per (b,t)
+    # use orthonormal basis vectors so the (h_{t+1}, f_t) positive has
+    # cos = 1 while EVERY negative pair has cos = 0. With small τ the
+    # positive term 1/τ dominates log(#negatives), so the default
+    # negatives-only loss is clearly NEGATIVE while the normalized form
+    # stays ≥ 0. Uses cosine_similarity_batch (full negative set).
+    B, T, C, H = 4, 6, 1, 64
+    variant, tau = "cosine_similarity_batch", 0.05
+    # Orthonormal one-hot vectors → all distinct (b,t) latents orthogonal.
+    ol = torch.zeros(B, T, C, H, dtype=torch.float32)
+    idx = 0
+    for b in range(B):
+        for t in range(T):
+            ol[b, t, 0, idx % H] = 1.0
+            idx += 1
+    # Forecast f_t := h_{t+1} so the positive pair (hy=ol[:,1:],
+    # hy_hat=fl[:,:-1]) is identical (cos=1); all other (cross-time,
+    # cross-channel, cross-batch) pairs are orthogonal one-hots (cos=0).
+    fl = torch.zeros_like(ol)
+    fl[:, :-1, :, :] = ol[:, 1:, :, :]
+    fl[:, -1, :, :] = ol[:, -1, :, :]  # unused last slot, keep finite/normable
+    loss_default = _new_loss_flag(fl, ol, variant, tau, False)
+    loss_norm = _new_loss_flag(fl, ol, variant, tau, True)
+    assert loss_default.item() < 0.0, (
+        f"expected default (negatives-only) loss < 0 in the fully "
+        f"separated regime, got {loss_default.item()}"
+    )
+    assert loss_norm.item() >= -1e-6, (
+        f"normalized loss must stay ≥ 0, got {loss_norm.item()}"
+    )
+
+
+@pytest.mark.parametrize("variant", NORMALIZED_VARIANTS)
+@pytest.mark.parametrize("tau", [0.5, 0.1, 0.07])
+def test_default_flag_matches_legacy_training_loss(variant, tau):
+    # The TRAINING path must be unchanged: with the flag at its default
+    # (False), the loss must equal the frozen legacy training objective
+    # bit-for-bit (within fp32 tolerance). This is the regression guard
+    # against accidental training-loss drift from this change.
+    torch.manual_seed(0)
+    B, T, C, H = 6, 12, 1, 24
+    fl = torch.randn(B, T, C, H, dtype=torch.float32)
+    ol = torch.randn(B, T, C, H, dtype=torch.float32)
+    loss_default = _new_loss_flag(fl, ol, variant, tau, False)
+    loss_legacy = LEGACY[variant](fl, ol, tau)
+    assert torch.allclose(loss_default, loss_legacy, atol=1e-5, rtol=1e-5), (
+        f"{variant} τ={tau}: default-flag loss drifted from legacy "
+        f"training objective — new={loss_default.item()}, "
+        f"legacy={loss_legacy.item()}"
+    )
+
+
+@pytest.mark.parametrize("variant", NORMALIZED_VARIANTS)
+def test_default_flag_matches_no_flag_call(variant):
+    # Passing include_positive_in_denominator=False must be identical to
+    # not passing the kwarg at all (the existing training call site).
+    torch.manual_seed(1)
+    B, T, C, H = 4, 8, 4, 16
+    tau = 0.07
+    fl = torch.randn(B, T, C, H, dtype=torch.float32)
+    ol = torch.randn(B, T, C, H, dtype=torch.float32)
+    loss_no_kwarg = _new_loss(fl, ol, variant, tau)
+    loss_false = _new_loss_flag(fl, ol, variant, tau, False)
+    assert torch.equal(loss_no_kwarg, loss_false), (
+        f"{variant}: default kwarg path differs from no-kwarg path"
+    )
+
+
+def test_normalized_flag_unsupported_variant_raises():
+    # The flag is only implemented for the logsumexp-form variants. For any
+    # other loss_shape it must fail loud (NotImplementedError), never
+    # silently log an unintended reference metric.
+    torch.manual_seed(0)
+    B, T, C, H = 4, 8, 1, 16
+    fl = torch.randn(B, T, C, H, dtype=torch.float32)
+    ol = torch.randn(B, T, C, H, dtype=torch.float32)
+    with pytest.raises(NotImplementedError):
+        _new_loss_flag(fl, ol, "cosine_similarity", 0.07, True)
+
+
+def test_unsupported_variant_default_flag_still_works():
+    # The guard must NOT trip when the flag is False — the non-logsumexp
+    # variants stay fully usable for training (unchanged behaviour).
+    torch.manual_seed(0)
+    B, T, C, H = 4, 8, 1, 16
+    fl = torch.randn(B, T, C, H, dtype=torch.float32)
+    ol = torch.randn(B, T, C, H, dtype=torch.float32)
+    loss = _new_loss_flag(fl, ol, "cosine_similarity", 0.07, False)
+    assert torch.isfinite(loss)
