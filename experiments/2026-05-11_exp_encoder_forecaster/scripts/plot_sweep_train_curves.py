@@ -33,10 +33,19 @@ SWEEP = [
     ("v20   dk0.9 (warmup->fp16)", "#9467bd", [
         ("enc_fcst_v20_phaseA_fp32warmup_5k_losses.csv", 1, 5000),
         ("enc_fcst_v20_v11c_freshwarmup_fp16_50k_losses.csv", 5001, 50000)]),
-    ("v27c  dk0.8 (ffn-fp16)", "#ff7f0e", [
+    ("v27c  dk0.8 (ffn-fp16) 0->150k", "#ff7f0e", [
         ("enc_fcst_v27_dk08_ffnfp16_50k_losses.csv", 1, 20000),
         ("enc_fcst_v27b_dk08_ffnfp16_resume20k_50k_losses.csv", 20001, 25000),
-        ("enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_losses.csv", 25001, 50000)]),
+        ("enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_losses.csv", 25001, 50000),
+        ("enc_fcst_v27c_dk08_ffnfp16_150k_losses.csv", 50001, 150000)]),
+]
+# NEW 150k trajectories added this session
+NEW150K = [
+    ("dk0.9 PURE-FP32 0->150k (bet ref)", "#17becf", [
+        ("enc_fcst_dk09_fp32_150k_losses.csv", 1, 150000)]),
+    ("v20 dk0.9 warmup->fp16 (DIVERGES ~45k)", "#000000", [
+        ("enc_fcst_v20_phaseA_fp32warmup_5k_v150_losses.csv", 1, 5000),
+        ("enc_fcst_v20_freshwarmup_fp16_150k_losses.csv", 5001, 150000)]),
 ]
 EXTRA = [
     ("v13   dk0.9 (fcst-bottleneck128)", "#8c564b", [
@@ -113,4 +122,7 @@ if __name__ == "__main__":
     make_fig(SWEEP, "Dropkey sweep", "sweep_train_curves_loglog.png")
     make_fig(SWEEP + EXTRA, "Dropkey sweep + bottleneck/fcst-depth",
              "sweep_train_curves_loglog_with_bottleneck.png")
+    make_fig(SWEEP + NEW150K, "Dropkey sweep + NEW 150k trajectories "
+             "(dk0.9 pure-fp32 stable vs v20 warmup->fp16 diverging)",
+             "sweep_train_curves_loglog_150k.png")
     print("done.")
