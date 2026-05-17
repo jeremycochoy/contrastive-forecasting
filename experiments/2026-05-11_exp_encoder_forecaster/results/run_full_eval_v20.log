@@ -1,0 +1,19 @@
+=== START full GM-MASE eval v20 (Fri 15 May 16:13:29 BST 2026) ===
+Loading models...
+  [eval] auto-detected num_encoder_layers=6 from backbone checkpoint
+  [eval] auto-detected freq_emb_dim=3 from backbone checkpoint
+  [eval] auto-detected seasonality_emb_dim=3 from backbone checkpoint
+  [eval] auto-detected patch_stats=none
+Traceback (most recent call last):
+  File "/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py", line 816, in <module>
+    main()
+  File "/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py", line 605, in main
+    backbone, head = load_models(args, device)
+  File "/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py", line 527, in load_models
+    head_sd = torch.load(args.head_path, map_location=device, weights_only=True)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/serialization.py", line 1491, in load
+    with _open_zipfile_reader(opened_file) as opened_zipfile:
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/serialization.py", line 771, in __init__
+    super().__init__(torch._C.PyTorchFileReader(name_or_buffer))
+RuntimeError: PytorchStreamReader failed reading zip archive: failed finding central directory
+[ERROR] v20 full eval failed rc=1; tail of log follows

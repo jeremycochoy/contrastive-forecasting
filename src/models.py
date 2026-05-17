@@ -49,7 +49,8 @@ class ConfigurableModel(torch.nn.Module):
     """
     def __init__(self, C, H, W, encoder_type='mlp', intermediate_dim=None,
                  num_layers=12, nhead=4, ffn_mult=2, dropout=0.1,
-                 activation='gelu', depthwise_conv=3,
+                 activation='gelu', depthwise_conv: int = 3,
+                 deprecated_depthwise_conv: int = 0,
                  rev_norm_span=None, norm_type='layernorm',
                  freq_emb_dim=0, num_freqs=NUM_FREQS,
                  seasonality_emb_dim=0, num_seasonalities=NUM_SEASONALITIES,
@@ -66,7 +67,14 @@ class ConfigurableModel(torch.nn.Module):
                  num_encoder_layers=0,
                  encoder_dropkey: float = 0.0,
                  encoder_dropkey_share_heads: bool = False,
-                 encoder_dropkey_share_layers: bool = False):
+                 encoder_dropkey_share_layers: bool = False,
+                 residual_dtype: str = "fp32",
+                 attn_dtype: str = "fp32",
+                 ffn_dtype: str = "fp32",
+                 patch_emb_dtype: str = "fp32",
+                 forecaster_d_model: int | None = None,
+                 forecaster_n_heads: int | None = None,
+                 log_attn_amplitude: bool = False):
         super().__init__()
         self.C = C
         self.H = H
@@ -92,7 +100,8 @@ class ConfigurableModel(torch.nn.Module):
         # rev_norm_span is only used by ewma; revin ignores it.
         if rev_norm_kind == 'ewma' and rev_norm_span is not None:
             self.rev_norm = RevEWMNorm(
-                num_features=C, span=rev_norm_span, patch_size=W)
+                num_features=C, span=rev_norm_span, patch_size=W,
+                patch_emb_dtype=patch_emb_dtype)
         elif rev_norm_kind == 'revin':
             self.rev_norm = RevIN(num_features=C)
         elif rev_norm_kind in (None, 'none') or rev_norm_span is None:
@@ -142,8 +151,24 @@ class ConfigurableModel(torch.nn.Module):
             transformer_dropout=enc_transformer_dropout,
             transformer_depthwise_conv=enc_transformer_depthwise_conv,
             transformer_chunk_size=enc_transformer_chunk_size,
-            transformer_use_grad_checkpoint=enc_transformer_use_grad_checkpoint)
+            transformer_use_grad_checkpoint=enc_transformer_use_grad_checkpoint,
+            patch_emb_dtype=patch_emb_dtype)
 
+        # Forecaster bottleneck (#286 follow-up, v13). When
+        # `forecaster_d_model` is None, the forecaster runs at the encoder's
+        # `H`/`nhead` (legacy behaviour). When set, the forecaster's
+        # `self.layers` are constructed at the smaller dim with
+        # `forecaster_n_heads`, wrapped by Linear down/up projections so the
+        # JEPA contrastive loss still operates in the encoder's d_model space.
+        # Validation: `forecaster_d_model % forecaster_n_heads == 0`.
+        eff_fcst_d_model = H if forecaster_d_model is None else int(forecaster_d_model)
+        eff_fcst_n_heads = nhead if forecaster_n_heads is None else int(forecaster_n_heads)
+        if eff_fcst_d_model % eff_fcst_n_heads != 0:
+            raise ValueError(
+                f"forecaster_d_model={eff_fcst_d_model} must be divisible by "
+                f"forecaster_n_heads={eff_fcst_n_heads}")
+        self.forecaster_d_model = eff_fcst_d_model
+        self.forecaster_n_heads = eff_fcst_n_heads
         self.transformer = TransformerBlock(
             dimension_e=H,
             nhead=nhead,
@@ -152,11 +177,18 @@ class ConfigurableModel(torch.nn.Module):
             dropout=dropout,
             input_to_latent=self.encoder,
             depthwise_conv=depthwise_conv,
+            deprecated_depthwise_conv=deprecated_depthwise_conv,
             norm_type=norm_type,
             num_encoder_layers=num_encoder_layers,
             encoder_dropkey=encoder_dropkey,
             encoder_dropkey_share_heads=encoder_dropkey_share_heads,
             encoder_dropkey_share_layers=encoder_dropkey_share_layers,
+            residual_dtype=residual_dtype,
+            attn_dtype=attn_dtype,
+            ffn_dtype=ffn_dtype,
+            forecaster_d_model=eff_fcst_d_model,
+            forecaster_nhead=eff_fcst_n_heads,
+            log_attn_amplitude=log_attn_amplitude,
         )
         # Override activation if requested
         if activation != 'gelu':

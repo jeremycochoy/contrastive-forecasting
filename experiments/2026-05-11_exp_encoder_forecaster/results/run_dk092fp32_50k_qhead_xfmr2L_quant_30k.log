@@ -1,0 +1,221 @@
+  [head-train] auto-detected freq_emb_dim=3 from backbone checkpoint
+  [head-train] auto-detected seasonality_emb_dim=3 from backbone checkpoint
+  [head-train] auto-detected num_encoder_layers=6 from backbone checkpoint
+  [head-train] auto-detected patch_stats=none
+Backbone loaded from /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_dk092_fp32_50k_FINAL.pth (0 params, frozen)
+/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/transformer.py:392: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  warnings.warn(
+Forecasting head [transformer-q (2L H384 nhead6 causal)]: 3,605,136 trainable params
+Optimizer: AdamW lr=0.001 betas=(0.9,0.98) wd=0.1 eps=1e-08
+Schedule: cosine warmup=2000 decay_start=24000 final_ratio=0.1
+Loss CSV: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_losses.csv
+Data: MIX 100% HF + 0% synth, hf_bs=256, synth_bs=0, synth_seed=20042, emit_labels=True
+
+Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+RECONSTRUCTION mode: forecaster (head decodes what latent represents, not future)
+Checkpoints: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_*.pth
+[    200] loss=0.270386  ema_loss=0.320335  6.1 sps  ETA 1.4h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.320335)
+[    400] loss=0.261760  ema_loss=0.268980  6.5 sps  ETA 1.3h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.268980)
+[    600] loss=0.250875  ema_loss=0.256016  6.7 sps  ETA 1.2h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.256016)
+[    800] loss=0.231898  ema_loss=0.248937  6.7 sps  ETA 1.2h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.248937)
+[   1000] loss=0.248217  ema_loss=0.246355  6.9 sps  ETA 1.2h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.246355)
+[   1200] loss=0.244405  ema_loss=0.242315  6.9 sps  ETA 1.2h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.242315)
+[   1400] loss=0.237551  ema_loss=0.240956  6.9 sps  ETA 1.1h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.240956)
+[   1600] loss=0.231776  ema_loss=0.238838  6.9 sps  ETA 1.1h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.238838)
+[   1800] loss=0.242031  ema_loss=0.238344  7.0 sps  ETA 1.1h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.238344)
+[   2000] loss=0.233678  ema_loss=0.237442  7.0 sps  ETA 1.1h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.237442)
+[   2200] loss=0.246808  ema_loss=0.236868  7.0 sps  ETA 1.1h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.236868)
+[   2400] loss=0.232022  ema_loss=0.235445  7.0 sps  ETA 1.1h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.235445)
+[   2600] loss=0.221275  ema_loss=0.233745  7.1 sps  ETA 1.1h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.233745)
+[   2800] loss=0.222930  ema_loss=0.233172  7.1 sps  ETA 1.1h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.233172)
+[   3000] loss=0.235462  ema_loss=0.232279  7.1 sps  ETA 1.1h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.232279)
+[   3200] loss=0.222979  ema_loss=0.233328  7.1 sps  ETA 1.0h
+[   3400] loss=0.236854  ema_loss=0.232216  7.1 sps  ETA 1.0h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.232216)
+[   3600] loss=0.216755  ema_loss=0.230985  7.1 sps  ETA 1.0h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.230985)
+[   3800] loss=0.227435  ema_loss=0.230957  7.1 sps  ETA 1.0h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.230957)
+[   4000] loss=0.249616  ema_loss=0.230558  7.1 sps  ETA 1.0h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.230558)
+[   4200] loss=0.233175  ema_loss=0.230273  7.1 sps  ETA 1.0h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.230273)
+[   4400] loss=0.231688  ema_loss=0.230370  7.1 sps  ETA 1.0h
+[   4600] loss=0.220216  ema_loss=0.230523  7.1 sps  ETA 1.0h
+[   4800] loss=0.224366  ema_loss=0.228773  7.1 sps  ETA 1.0h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.228773)
+[   5000] loss=0.231784  ema_loss=0.229299  7.1 sps  ETA 1.0h
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_5k.pth
+[   5200] loss=0.236792  ema_loss=0.228719  7.1 sps  ETA 1.0h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.228719)
+[   5400] loss=0.228974  ema_loss=0.229526  7.1 sps  ETA 1.0h
+[   5600] loss=0.221405  ema_loss=0.228574  7.1 sps  ETA 1.0h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.228574)
+[   5800] loss=0.217848  ema_loss=0.228472  7.1 sps  ETA 0.9h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.228472)
+[   6000] loss=0.218515  ema_loss=0.228122  7.1 sps  ETA 0.9h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.228122)
+[   6200] loss=0.224127  ema_loss=0.228061  7.1 sps  ETA 0.9h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.228061)
+[   6400] loss=0.241788  ema_loss=0.227197  7.1 sps  ETA 0.9h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.227197)
+[   6600] loss=0.227555  ema_loss=0.226474  7.1 sps  ETA 0.9h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.226474)
+[   6800] loss=0.238422  ema_loss=0.227889  7.1 sps  ETA 0.9h
+[   7000] loss=0.217599  ema_loss=0.227632  7.1 sps  ETA 0.9h
+[   7200] loss=0.216463  ema_loss=0.227477  7.1 sps  ETA 0.9h
+[   7400] loss=0.229259  ema_loss=0.227706  7.1 sps  ETA 0.9h
+[   7600] loss=0.235611  ema_loss=0.227443  7.1 sps  ETA 0.9h
+[   7800] loss=0.215087  ema_loss=0.227300  7.1 sps  ETA 0.9h
+[   8000] loss=0.225041  ema_loss=0.226773  7.1 sps  ETA 0.9h
+[   8200] loss=0.236190  ema_loss=0.227055  7.1 sps  ETA 0.8h
+[   8400] loss=0.225171  ema_loss=0.225831  7.2 sps  ETA 0.8h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.225831)
+[   8600] loss=0.229953  ema_loss=0.226428  7.1 sps  ETA 0.8h
+[   8800] loss=0.230112  ema_loss=0.226357  7.1 sps  ETA 0.8h
+[   9000] loss=0.218913  ema_loss=0.225592  7.0 sps  ETA 0.8h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.225592)
+[   9200] loss=0.208500  ema_loss=0.225751  7.0 sps  ETA 0.8h
+[   9400] loss=0.230391  ema_loss=0.226609  7.0 sps  ETA 0.8h
+[   9600] loss=0.230750  ema_loss=0.226453  7.0 sps  ETA 0.8h
+[   9800] loss=0.234529  ema_loss=0.226186  7.0 sps  ETA 0.8h
+[  10000] loss=0.224628  ema_loss=0.225761  7.0 sps  ETA 0.8h
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_10k.pth
+[  10200] loss=0.225317  ema_loss=0.225555  7.0 sps  ETA 0.8h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.225555)
+[  10400] loss=0.232999  ema_loss=0.225406  7.0 sps  ETA 0.8h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.225406)
+[  10600] loss=0.229765  ema_loss=0.224333  7.0 sps  ETA 0.8h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.224333)
+[  10800] loss=0.227704  ema_loss=0.224398  7.0 sps  ETA 0.8h
+[  11000] loss=0.222357  ema_loss=0.225838  7.0 sps  ETA 0.7h
+[  11200] loss=0.234746  ema_loss=0.224857  7.0 sps  ETA 0.7h
+[  11400] loss=0.213083  ema_loss=0.224734  7.0 sps  ETA 0.7h
+[  11600] loss=0.211197  ema_loss=0.224520  7.1 sps  ETA 0.7h
+[  11800] loss=0.206356  ema_loss=0.225841  7.1 sps  ETA 0.7h
+[  12000] loss=0.220611  ema_loss=0.224730  7.1 sps  ETA 0.7h
+[  12200] loss=0.224998  ema_loss=0.223713  7.1 sps  ETA 0.7h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.223713)
+[  12400] loss=0.230897  ema_loss=0.225247  7.1 sps  ETA 0.7h
+[  12600] loss=0.237373  ema_loss=0.225392  7.1 sps  ETA 0.7h
+[  12800] loss=0.215130  ema_loss=0.223706  7.1 sps  ETA 0.7h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.223706)
+[  13000] loss=0.221468  ema_loss=0.223839  7.1 sps  ETA 0.7h
+[  13200] loss=0.224726  ema_loss=0.224241  7.1 sps  ETA 0.7h
+[  13400] loss=0.234489  ema_loss=0.224085  7.1 sps  ETA 0.7h
+[  13600] loss=0.220100  ema_loss=0.224573  7.1 sps  ETA 0.6h
+[  13800] loss=0.231964  ema_loss=0.223910  7.1 sps  ETA 0.6h
+[  14000] loss=0.238110  ema_loss=0.225222  7.1 sps  ETA 0.6h
+[  14200] loss=0.221462  ema_loss=0.223703  7.1 sps  ETA 0.6h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.223703)
+[  14400] loss=0.219791  ema_loss=0.223994  7.1 sps  ETA 0.6h
+[  14600] loss=0.218116  ema_loss=0.223226  7.1 sps  ETA 0.6h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.223226)
+[  14800] loss=0.232541  ema_loss=0.224393  7.1 sps  ETA 0.6h
+[  15000] loss=0.228232  ema_loss=0.224007  7.1 sps  ETA 0.6h
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_15k.pth
+[  15200] loss=0.217763  ema_loss=0.223420  7.1 sps  ETA 0.6h
+[  15400] loss=0.223954  ema_loss=0.224083  7.1 sps  ETA 0.6h
+[  15600] loss=0.229470  ema_loss=0.222688  7.1 sps  ETA 0.6h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.222688)
+[  15800] loss=0.220928  ema_loss=0.223678  7.1 sps  ETA 0.6h
+[  16000] loss=0.233032  ema_loss=0.224117  7.1 sps  ETA 0.5h
+[  16200] loss=0.230057  ema_loss=0.223363  7.1 sps  ETA 0.5h
+[  16400] loss=0.210377  ema_loss=0.223072  7.1 sps  ETA 0.5h
+[  16600] loss=0.225121  ema_loss=0.223725  7.1 sps  ETA 0.5h
+[  16800] loss=0.209731  ema_loss=0.223461  7.1 sps  ETA 0.5h
+[  17000] loss=0.209031  ema_loss=0.222390  7.1 sps  ETA 0.5h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.222390)
+[  17200] loss=0.229984  ema_loss=0.223886  7.1 sps  ETA 0.5h
+[  17400] loss=0.220584  ema_loss=0.223444  7.1 sps  ETA 0.5h
+[  17600] loss=0.232486  ema_loss=0.225445  7.1 sps  ETA 0.5h
+[  17800] loss=0.203254  ema_loss=0.223161  7.1 sps  ETA 0.5h
+[  18000] loss=0.232021  ema_loss=0.223506  7.1 sps  ETA 0.5h
+[  18200] loss=0.214487  ema_loss=0.222802  7.1 sps  ETA 0.5h
+[  18400] loss=0.227072  ema_loss=0.222769  7.1 sps  ETA 0.5h
+[  18600] loss=0.196705  ema_loss=0.222019  7.1 sps  ETA 0.4h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.222019)
+[  18800] loss=0.216195  ema_loss=0.221996  7.1 sps  ETA 0.4h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.221996)
+[  19000] loss=0.232157  ema_loss=0.223210  7.1 sps  ETA 0.4h
+[  19200] loss=0.212446  ema_loss=0.222776  7.1 sps  ETA 0.4h
+[  19400] loss=0.223246  ema_loss=0.222848  7.1 sps  ETA 0.4h
+[  19600] loss=0.221860  ema_loss=0.222881  7.1 sps  ETA 0.4h
+[  19800] loss=0.228201  ema_loss=0.222558  7.1 sps  ETA 0.4h
+[  20000] loss=0.222039  ema_loss=0.222781  7.1 sps  ETA 0.4h
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_20k.pth
+[  20200] loss=0.222542  ema_loss=0.222765  7.1 sps  ETA 0.4h
+[  20400] loss=0.218104  ema_loss=0.221391  7.1 sps  ETA 0.4h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.221391)
+[  20600] loss=0.232601  ema_loss=0.222384  7.1 sps  ETA 0.4h
+[  20800] loss=0.216930  ema_loss=0.222093  7.1 sps  ETA 0.4h
+[  21000] loss=0.232891  ema_loss=0.222733  7.1 sps  ETA 0.4h
+[  21200] loss=0.222717  ema_loss=0.221843  7.1 sps  ETA 0.3h
+[  21400] loss=0.210804  ema_loss=0.222584  7.1 sps  ETA 0.3h
+[  21600] loss=0.223671  ema_loss=0.222323  7.1 sps  ETA 0.3h
+[  21800] loss=0.214710  ema_loss=0.221632  7.1 sps  ETA 0.3h
+[  22000] loss=0.228776  ema_loss=0.222420  7.1 sps  ETA 0.3h
+[  22200] loss=0.226287  ema_loss=0.221553  7.1 sps  ETA 0.3h
+[  22400] loss=0.225167  ema_loss=0.221392  7.1 sps  ETA 0.3h
+[  22600] loss=0.233368  ema_loss=0.222094  7.1 sps  ETA 0.3h
+[  22800] loss=0.221908  ema_loss=0.222253  7.1 sps  ETA 0.3h
+[  23000] loss=0.223066  ema_loss=0.222044  7.1 sps  ETA 0.3h
+[  23200] loss=0.231139  ema_loss=0.221655  7.1 sps  ETA 0.3h
+[  23400] loss=0.231595  ema_loss=0.221763  7.1 sps  ETA 0.3h
+[  23600] loss=0.209256  ema_loss=0.220803  7.1 sps  ETA 0.3h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.220803)
+[  23800] loss=0.221620  ema_loss=0.221227  7.1 sps  ETA 0.2h
+[  24000] loss=0.224761  ema_loss=0.221404  7.1 sps  ETA 0.2h
+[  24200] loss=0.214978  ema_loss=0.221174  7.1 sps  ETA 0.2h
+[  24400] loss=0.230509  ema_loss=0.221878  7.1 sps  ETA 0.2h
+[  24600] loss=0.225044  ema_loss=0.221956  7.1 sps  ETA 0.2h
+[  24800] loss=0.229813  ema_loss=0.221424  7.1 sps  ETA 0.2h
+[  25000] loss=0.203325  ema_loss=0.221870  7.1 sps  ETA 0.2h
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_25k.pth
+[  25200] loss=0.225378  ema_loss=0.220790  7.1 sps  ETA 0.2h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.220790)
+[  25400] loss=0.234603  ema_loss=0.222008  7.1 sps  ETA 0.2h
+[  25600] loss=0.218568  ema_loss=0.221228  7.1 sps  ETA 0.2h
+[  25800] loss=0.224419  ema_loss=0.220375  7.1 sps  ETA 0.2h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.220375)
+[  26000] loss=0.221906  ema_loss=0.220982  7.1 sps  ETA 0.2h
+[  26200] loss=0.218548  ema_loss=0.220515  7.1 sps  ETA 0.1h
+[  26400] loss=0.217333  ema_loss=0.221555  7.1 sps  ETA 0.1h
+[  26600] loss=0.224206  ema_loss=0.221174  7.1 sps  ETA 0.1h
+[  26800] loss=0.221522  ema_loss=0.220270  7.1 sps  ETA 0.1h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.220270)
+[  27000] loss=0.230845  ema_loss=0.221389  7.1 sps  ETA 0.1h
+[  27200] loss=0.222214  ema_loss=0.222125  7.1 sps  ETA 0.1h
+[  27400] loss=0.237262  ema_loss=0.221455  7.1 sps  ETA 0.1h
+[  27600] loss=0.231472  ema_loss=0.221466  7.1 sps  ETA 0.1h
+[  27800] loss=0.227530  ema_loss=0.221248  7.1 sps  ETA 0.1h
+[  28000] loss=0.227282  ema_loss=0.221021  7.1 sps  ETA 0.1h
+[  28200] loss=0.221386  ema_loss=0.221198  7.1 sps  ETA 0.1h
+[  28400] loss=0.231703  ema_loss=0.220490  7.1 sps  ETA 0.1h
+[  28600] loss=0.214495  ema_loss=0.220325  7.1 sps  ETA 0.1h
+[  28800] loss=0.218100  ema_loss=0.221054  7.1 sps  ETA 0.0h
+[  29000] loss=0.214170  ema_loss=0.221415  7.1 sps  ETA 0.0h
+[  29200] loss=0.218541  ema_loss=0.220756  7.1 sps  ETA 0.0h
+[  29400] loss=0.234627  ema_loss=0.221185  7.1 sps  ETA 0.0h
+[  29600] loss=0.218547  ema_loss=0.221548  7.1 sps  ETA 0.0h
+[  29800] loss=0.218267  ema_loss=0.220917  7.1 sps  ETA 0.0h
+[  30000] loss=0.212030  ema_loss=0.219944  7.1 sps  ETA 0.0h
+  -> New best: /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_best.pth (ema_loss=0.219944)
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/dk092fp32_50k_qhead_xfmr2L_quant_30k_30k.pth
+
+Done in 1.2h. Best loss=0.219944 at step 30000

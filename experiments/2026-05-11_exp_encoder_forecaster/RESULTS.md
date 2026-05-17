@@ -1,154 +1,93 @@
-# encoder-forecaster v2 — dropkey 0.7 instability + recovery
+# encoder-forecaster v2 — backbone sweep + fp16/bf16 stability
 
-## Verdict
+## Goal
 
-**Gate FAIL** at the q-head triage step: GM-Relative MASE = **1.505**
-on 11 configs, vs gate threshold 1.0 and Sundial leaderboard 0.673.
-Marginally better than yesterday's failed run (1.596) but still
-seasonal-naive territory. **Full GIFT-Eval not launched** (chain
-correctly stopped at the gate).
+Find the best JEPA-style encoder-forecaster backbone (GRU patch encoder
+→ causal encoder → causal forecaster) by full GIFT-Eval, and determine
+whether partial-fp16 training is a safe speedup.
 
-The result is *not* a real test of the encoder-forecaster architecture,
-because the backbone never actually completed training. All three
-dropkey p=0.7 configurations diverged in the 11k–15k step regime,
-forcing an early stop at ~10k effective training steps — about 20% of
-the planned 50k.
+**Metric.** GM-Relative MASE = geometric mean over configs of
+(model MASE ÷ seasonal-naive MASE). Lower is better; 1.0 = seasonal
+naive. "Full" = 97 configs, "triage" = 11-config screen. Held-out
+forecasting accuracy on GIFT-Eval; says nothing about contrastive
+in-training fit.
 
-## Diagnostic — three p=0.7 attempts, three divergences
+## Backbone sweep — verdict
 
-| Attempt | Mask sharing axis        | Outcome                  | Step  | Final ema_loss |
-|---------|--------------------------|--------------------------|-------|----------------|
-| 1       | Shared `(T,T)`           | NaN                      | 11700 | (NaN)          |
-| 2       | Per-(B, head) indep.     | Diverged (loss 2 → 7+)   | 14900 | ~5.2 (climbing)|
-| 3       | Per-(B, layer) indep., heads tied | Diverged (loss 2 → 4) | 14400 | ~4.0 (sustained)|
+Full GIFT-Eval (97 configs), 2L transformer q-head:
 
-All three trained cleanly for 10–14k steps in a low-loss attractor
-(`R² ≈ 0.99`, `U_b ≈ 0.4`, loss ema ≈ 1.5–2.0), then a single bad mask
-draw kicked the model out into a higher-loss attractor that the
-optimizer couldn't escape under p=0.7. Reducing variance by tying heads
-within a batch row (attempt 3) lowered the divergence severity but did
-not prevent it.
+| Backbone | Full GM-MASE | Note                                  |
+|----------|-------------:|---------------------------------------|
+| **v11c** |    **1.292** | best — enc6/fcst1, dropkey 0.9 shared |
+| v16      |        1.335 | enc6/fcst1, dropkey 0.7               |
+| v17      |        1.409 | enc6/fcst1, dropkey 0.95              |
+| v13      |        1.451 | fcst-bottleneck d=128, 4 heads        |
+| v15      |        1.558 | enc6/fcst4, dropkey 0.9               |
+| v14      |        1.661 | enc6/fcst6, dropkey 0.9               |
 
-**Conclusion:** p=0.7 is the underlying problem regardless of mask
-sharing axis. Lowering p (e.g. 0.3 or 0.5) is the likely fix but
-departs from PLAN's prescription, so the night was stopped after
-attempt-3 to await user OK in the morning.
+Triage-only reference (11 configs, no full eval run): v7 baseline
+1.512, v10 (JEPA) 1.437, v12 (residual-SiLU) 1.514.
 
-## Recovery path used overnight
+**v11c wins decisively.** Best forecaster depth = 1 layer; deeper
+forecasters (v15 fcst4, v14 fcst6) monotonically worsen. dropkey
+0.9 > 0.7 > 0.95. None beat the GIFT-Eval gate (1.0) or seasonal naive.
 
-Promoted attempt-2's `_best_loss.pth` (step 10200, inherited by
-attempt-3 which never improved on it) to
-`enc_fcst_dropkey07_BACKBONE_step10200_FINAL.pth`. This is the lowest
-ema_loss (1.32) checkpoint across all three attempts.
+**Triage is an optimistic-direction-but-noisy proxy.** Triage(11) ran
+~7% pessimistic vs full(97) for v11c/v15/v16, only +4% for v13, and
++22% for v17 — ranking is preserved at the top but the gap to mid-pack
+is compressed. Trust full eval for any decision finer than ~10%.
 
-Q-head trained on this frozen backbone:
-- Recipe: R9_E13 (xfmr 12L causal quantile, e_then_f, Moirai HP,
-  cosine + 2k warmup) at 30k steps + bf16.
-- Final ema_loss: 0.295 at step 30000 (1.7h on elisa GPU 1).
+## Reproducibility & robustness
 
-GIFT-Eval triage (11 configs) results:
+- **v11c is not a lucky-init outlier.** A fresh q-head retrain on the
+  same frozen v11c backbone reproduced triage **1.388 exactly**.
+  v11c at a 50k backbone snapshot scored **1.365** (better than the
+  earlier snapshot) — v11c keeps improving with more backbone training,
+  so it is a real effect, not seed luck.
+- **2L q-head beats 12L.** A 12L transformer head *hurts* well-trained
+  backbones (v11c 1.388 → 1.519) and only *helps* over-constrained ones
+  (v17 1.718 → 1.576, v15 1.671 → 1.602). 2L is the right head.
 
-```
-Config                                 MASE   SN_MASE  Relative
-bizitobs_application/10S/short         9.61   2.24     4.28
-bizitobs_l2c/5T/short                  0.57   0.99     0.58
-bizitobs_l2c/H/short                   1.25   1.21     1.03
-bizitobs_service/10S/short             5.10   1.23     4.16
-covid_deaths/D/short                  85.68  46.91     1.83
-electricity/H/short                    2.31   1.36     1.70
-ett1/15T/short                         1.63   0.93     1.75
-ett1/H/short                           1.52   0.98     1.56
-ett2/15T/short                         1.07   1.07     1.01
-ett2/H/short                           1.03   0.92     1.12
-us_births/D/short                      1.66   1.86     0.89
-GM-Relative MASE                                       1.505
-```
+## fp16 / bf16 stability — verdict
 
-Reference (other systems on same triage configs):
-Sundial 0.673 / TimesFM 0.680 / PatchTST 0.762 / Chronos 0.786 /
-Moirai 0.809 / Naive 1.000.
+Goal: replace the fp32 GRU/RevEWMNorm path with fp16/bf16 for a
+~25-30% speedup. Tested on the v11c/v16 recipes.
 
-The triage beats naive on `bizitobs_l2c/5T` and `us_births/D` (the
-two configs where pattern is mostly periodic and the limited backbone
-training was sufficient to learn it), and is comparable on
-`ett2/15T` and `bizitobs_l2c/H`. Loses badly on the
-`bizitobs_application/10S`, `bizitobs_service/10S`, and
-`covid_deaths/D` configs that need richer learned representations.
+**Fresh-init partial-fp16 diverges in every tested combination:**
+all-fp16-body, attn-fp32-rest-fp16, and residual-fp32-rest-fp16 all
+blow up (loss → 10+) within 1k–3k steps. dropkey 0.7 only *delays*
+divergence (v19: ~38k vs v18: ~2.8k) — it does not prevent it.
 
-## Held-out (not run)
+**The only robust speedup is fp32 warmup (~5k steps) → fp16.** v20
+(fresh seed, 5k fp32 warmup then fp16 body) is healthy and stable past
+41k steps at report time (loss ~2.11). A separate warm-resume
+"precision-envelope" sweep — resuming the *trained* v11c_5k checkpoint
+under five fp16/bf16 axes — was stable on all five to 15k. So the
+fragility is specific to **fresh-init** fp16; once the residual stream
+is warmed up, fp16 holds.
 
-Held-out contrastive-metric eval on the saved backbone is not in this
-report — would re-confirm the in-training story (R² 0.99, top-1 1.0
-on training-batch retrieval) but doesn't address the downstream
-forecasting bottleneck, which is undertraining + p=0.7 instability.
+**Mechanism.** Instrumentation shows the residual-stream max-abs
+amplitude grows unbounded with depth and training (forecaster block:
+~80 at step 200 → ~1070 by step 2800, an >8× blowup), while attention
+QK logits stay bounded (~30-60). fp16's narrow mantissa cannot
+represent the growing residual magnitudes; fp32 warmup lets the
+network settle into a lower-amplitude regime before the cast.
 
-## What did and didn't work
+Run-by-run divergence steps, the full amplitude tables, the
+precision-envelope and at40k/12L apples-to-apples sets, and the git
+branch-divergence note are in
+[`EXPERIMENT_LOG_2026-05-15_fp16_precision.md`](EXPERIMENT_LOG_2026-05-15_fp16_precision.md).
 
-**Worked:**
-- The architecture itself (GRU patch encoder → 6 causal encoder layers
-  → 6 causal forecaster) trains cleanly and reaches `R²=0.99` on
-  training-batch retrieval within 5–10k steps.
-- The `--encoder-dropkey` flag's per-layer + encoder-only application
-  is implemented correctly.
-- The per-(B, head) mask shape (PR landed today as the attempt-2 fix
-  for attempt-1's NaN at 11700) drops noise correlation across the
-  batch, but doesn't fix the core p=0.7 instability.
-- The chain-script approach (post_qhead_chain.sh) auto-running
-  triage + gate + (full eval) reliably handled the q-head DONE event
-  overnight without needing the agent to re-engage on each milestone.
+## What we learned
 
-**Didn't work:**
-- p=0.7 in any of the three sharing axes (shared / per-(B,head) /
-  per-(B,layer)). All three diverge in the 11k–15k step regime.
-- 10k effective training steps is far too few to test the
-  architecture against GIFT-Eval. The 50k target was never reached.
-
-## What changed in this codebase
-
-PR [#280](https://github.com/jeremycochoy/contrastive-forecasting/pull/280)
-landed:
-
-- `src/blocks.py`: `_dropkey_causal_mask(T, B, num_heads, ...)` now
-  returns `(B*num_heads, T, T)`. Added `share_heads` arg to draw a
-  `(B, T, T)` mask and replicate across heads.
-- `src/models.py`: `encoder_dropkey_share_heads` plumbed to
-  `TransformerBlock`.
-- `experiments/2026-04-27_freq-embedding/scripts/train.py`: added
-  `--encoder-dropkey-share-heads` flag.
-- `experiments/2026-05-11_exp_encoder_forecaster/scripts/`: run.sh
-  (50k attempt-1 → killed for attempt-2 with per-(B,head) fix),
-  run_headshared_resume.sh (resume from attempt-2 best_loss with
-  heads-shared), run_qhead.sh, run_gift_eval_triage.sh,
-  post_qhead_chain.sh, plot_progress.py (4-arm), watchdog.sh.
-
-## Recommended next step
-
-Two options for the user in the morning:
-
-1. **Lower dropkey to 0.3–0.5** with per-(B, head) (attempt-2's mask
-   shape — known to fix the attempt-1 NaN), and retry the 50k
-   backbone. If stable, continue to 166k for one full epoch.
-
-2. **Drop dropkey entirely** (back to yesterday's failed-experiment
-   spec but with the per-(B,head) mask architecture) and accept the
-   position-counting risk. Use the new `auc_bt / top1_bt` metrics
-   (PR #272) to detect counting on held-out — since downstream MASE
-   is the real signal anyway.
-
-Either choice needs explicit OK because it departs from PLAN.md's
-`--encoder-dropkey 0.7` prescription.
-
-## Artifacts retained
-
-All three attempts archived under `checkpoints/` and copied as
-`*_attempt{1,2,3}_losses.csv` + `run_..._attempt{1,2,3}.log`.
-- `enc_fcst_dropkey07_50k_attempt1_*` — shared (T,T), NaN'd
-- `enc_fcst_dropkey07_pb_50k_attempt2_*` — per-(B,head), diverged
-- `enc_fcst_dropkey07_pb_hs_50k_attempt3_*` — heads-shared, diverged
-- `enc_fcst_dropkey07_BACKBONE_step10200_FINAL.pth` — best-of-3
-  backbone (= attempt-2's `_best_loss`)
-- `enc_fcst_dropkey07_qhead_xfmr12L_quant_30k_FINAL.pth` — q-head
-  trained on the above
-- `gift_eval_triage/` — 11-config triage results (GM-MASE 1.505)
-- `plots/progress.png` + `plots/progress_linear.png` — 4-arm log–log
-  + linear comparison
+1. **Best backbone = v11c** (enc6 / fcst1 / dropkey 0.9 shared),
+   full GM-MASE **1.292**. Shallow forecaster + high shared dropkey
+   wins; it improves with more training and reproduces exactly.
+2. **No arm beats seasonal naive** on full GIFT-Eval — the
+   encoder-forecaster architecture as configured is not competitive
+   yet; this is an architecture ceiling, not undertraining or seed.
+3. **Fresh-init fp16 is unsafe; fp32-warmup→fp16 is safe.** Caused by
+   unbounded residual-amplitude growth, not attention. Use the v20
+   recipe for any future fp16 speedup.
+4. **Use a 2L q-head and trust full (not triage) eval** for decisions
+   finer than ~10%.

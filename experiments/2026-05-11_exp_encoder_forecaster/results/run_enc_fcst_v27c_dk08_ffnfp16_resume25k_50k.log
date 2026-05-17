@@ -1,0 +1,940 @@
+  [checkpoint] Restored optimizer from /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27b_dk08_ffnfp16_resume20k_50k_25k_optimizer.pth (step=25000, best_ff=1.0423)
+Resumed from /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27b_dk08_ffnfp16_resume20k_50k_25k.pth at step 25000
+Device: cuda | Params: 13,200,060
+Training for 50000 steps, bs=256, lr=0.001, T=4096, C=1, mix_ratio=0.0, freq_emb_dim=3, seasonality_emb_dim=3, mixup_p=0.3, rev_norm_kind=ewma(span=128), patch_stats=none, encoder_type=gru
+Checkpoints: /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_*.pth
+Loss CSV: /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_losses.csv
+Attn-amplitude CSV: /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_attn_amplitude.csv (every 1000 steps)
+Data: MIX 100% HF + 0% synth (periodic), hf_bs=256, synth_bs=0
+  [dataloader] 4274 shards, 42740000 total rows, target skip 6400000
+  [dataloader] Fast-skip: starting at shard 640/4274, then skipping 0 rows within it
+[  25100] loss=2.0746  ema_loss=2.0722  gap=1.0438  ema_gap=1.0420  mixup=21/100  2.8 sps  ETA 2.5h
+              R²_rand=0.9899  R²_naive=0.9906  U_t=0.1424  U_b=0.1430  AUC=1.0000  Top1=1.0000
+  timing: data=63.2ms  fwd=92.6ms  bwd=69.5ms  total=225.8ms
+[  25200] loss=2.0709  ema_loss=2.0724  gap=1.0404  ema_gap=1.0427  mixup=31/100  3.0 sps  ETA 2.3h
+              R²_rand=0.9901  R²_naive=0.9906  U_t=0.1427  U_b=0.1431  AUC=1.0000  Top1=1.0000
+  timing: data=17.5ms  fwd=85.2ms  bwd=69.2ms  total=172.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  25300] loss=2.0753  ema_loss=2.0725  gap=1.0398  ema_gap=1.0427  mixup=40/100  3.2 sps  ETA 2.2h
+              R²_rand=0.9900  R²_naive=0.9905  U_t=0.1438  U_b=0.1430  AUC=1.0000  Top1=1.0000
+  timing: data=4.2ms  fwd=84.6ms  bwd=69.1ms  total=158.4ms
+[  25400] loss=2.0749  ema_loss=2.0722  gap=1.0433  ema_gap=1.0435  mixup=37/100  3.2 sps  ETA 2.1h
+              R²_rand=0.9900  R²_naive=0.9906  U_t=0.1432  U_b=0.1429  AUC=1.0000  Top1=1.0000
+  timing: data=17.2ms  fwd=83.2ms  bwd=69.1ms  total=170.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  25500] loss=2.0708  ema_loss=2.0718  gap=1.0406  ema_gap=1.0433  mixup=32/100  3.1 sps  ETA 2.2h
+              R²_rand=0.9901  R²_naive=0.9906  U_t=0.1428  U_b=0.1429  AUC=1.0000  Top1=1.0000
+  timing: data=67.8ms  fwd=83.3ms  bwd=68.9ms  total=220.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  25600] loss=2.0702  ema_loss=2.0720  gap=1.0483  ema_gap=1.0442  mixup=35/100  3.2 sps  ETA 2.1h
+              R²_rand=0.9900  R²_naive=0.9906  U_t=0.1421  U_b=0.1434  AUC=1.0000  Top1=1.0000
+  timing: data=3.7ms  fwd=88.7ms  bwd=69.0ms  total=161.9ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  25700] loss=2.0684  ema_loss=2.0716  gap=1.0514  ema_gap=1.0444  mixup=35/100  3.2 sps  ETA 2.1h
+              R²_rand=0.9901  R²_naive=0.9908  U_t=0.1421  U_b=0.1435  AUC=1.0000  Top1=1.0000
+  timing: data=17.6ms  fwd=90.2ms  bwd=69.2ms  total=177.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  25800] loss=2.0693  ema_loss=2.0714  gap=1.0395  ema_gap=1.0443  mixup=29/100  3.2 sps  ETA 2.1h
+              R²_rand=0.9901  R²_naive=0.9906  U_t=0.1431  U_b=0.1436  AUC=1.0000  Top1=1.0000
+  timing: data=17.0ms  fwd=87.3ms  bwd=69.0ms  total=173.8ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  25900] loss=2.0740  ema_loss=2.0719  gap=1.0479  ema_gap=1.0457  mixup=33/100  3.2 sps  ETA 2.1h
+              R²_rand=0.9899  R²_naive=0.9905  U_t=0.1422  U_b=0.1432  AUC=1.0000  Top1=1.0000
+  timing: data=3.5ms  fwd=92.0ms  bwd=69.1ms  total=165.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  26000] loss=2.0707  ema_loss=2.0715  gap=1.0513  ema_gap=1.0462  mixup=31/100  3.2 sps  ETA 2.1h
+              R²_rand=0.9902  R²_naive=0.9909  U_t=0.1426  U_b=0.1431  AUC=1.0000  Top1=1.0000
+  timing: data=18.0ms  fwd=88.7ms  bwd=69.2ms  total=176.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  26100] loss=2.0735  ema_loss=2.0719  gap=1.0519  ema_gap=1.0468  mixup=28/100  3.2 sps  ETA 2.1h
+              R²_rand=0.9900  R²_naive=0.9907  U_t=0.1428  U_b=0.1433  AUC=1.0000  Top1=1.0000
+  timing: data=16.1ms  fwd=89.7ms  bwd=69.0ms  total=175.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  26200] loss=2.0698  ema_loss=2.0718  gap=1.0473  ema_gap=1.0481  mixup=30/100  3.2 sps  ETA 2.1h
+              R²_rand=0.9900  R²_naive=0.9905  U_t=0.1422  U_b=0.1434  AUC=1.0000  Top1=1.0000
+  timing: data=4.2ms  fwd=89.9ms  bwd=69.2ms  total=163.8ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  26300] loss=2.0705  ema_loss=2.0717  gap=1.0449  ema_gap=1.0472  mixup=26/100  3.2 sps  ETA 2.1h
+              R²_rand=0.9901  R²_naive=0.9906  U_t=0.1423  U_b=0.1436  AUC=1.0000  Top1=1.0000
+  timing: data=17.2ms  fwd=91.8ms  bwd=69.3ms  total=178.8ms
+[  26400] loss=2.0685  ema_loss=2.0715  gap=1.0447  ema_gap=1.0465  mixup=31/100  3.2 sps  ETA 2.0h
+              R²_rand=0.9901  R²_naive=0.9906  U_t=0.1425  U_b=0.1435  AUC=1.0000  Top1=1.0000
+  timing: data=4.1ms  fwd=92.2ms  bwd=78.0ms  total=175.0ms
+[  26500] loss=2.0711  ema_loss=2.0719  gap=1.0472  ema_gap=1.0478  mixup=29/100  3.2 sps  ETA 2.0h
+              R²_rand=0.9900  R²_naive=0.9906  U_t=0.1436  U_b=0.1430  AUC=1.0000  Top1=1.0000
+  timing: data=17.2ms  fwd=90.4ms  bwd=69.1ms  total=177.4ms
+[  26600] loss=2.0692  ema_loss=2.0714  gap=1.0475  ema_gap=1.0477  mixup=30/100  3.2 sps  ETA 2.0h
+              R²_rand=0.9902  R²_naive=0.9908  U_t=0.1442  U_b=0.1436  AUC=1.0000  Top1=1.0000
+  timing: data=17.2ms  fwd=91.8ms  bwd=69.2ms  total=178.9ms
+[  26700] loss=2.0721  ema_loss=2.0713  gap=1.0540  ema_gap=1.0484  mixup=27/100  3.2 sps  ETA 2.0h
+              R²_rand=0.9901  R²_naive=0.9907  U_t=0.1434  U_b=0.1434  AUC=1.0000  Top1=1.0000
+  timing: data=3.8ms  fwd=94.3ms  bwd=69.1ms  total=167.7ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  26800] loss=2.0664  ema_loss=2.0711  gap=1.0503  ema_gap=1.0486  mixup=34/100  3.2 sps  ETA 2.0h
+              R²_rand=0.9901  R²_naive=0.9907  U_t=0.1426  U_b=0.1436  AUC=1.0000  Top1=1.0000
+  timing: data=20.3ms  fwd=90.6ms  bwd=69.4ms  total=180.9ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  26900] loss=2.0655  ema_loss=2.0717  gap=1.0427  ema_gap=1.0481  mixup=32/100  3.2 sps  ETA 2.0h
+              R²_rand=0.9901  R²_naive=0.9906  U_t=0.1441  U_b=0.1438  AUC=1.0000  Top1=1.0000
+  timing: data=35.2ms  fwd=91.4ms  bwd=69.1ms  total=196.3ms
+[  27000] loss=2.0685  ema_loss=2.0714  gap=1.0526  ema_gap=1.0488  mixup=32/100  3.2 sps  ETA 2.0h
+              R²_rand=0.9901  R²_naive=0.9907  U_t=0.1429  U_b=0.1436  AUC=1.0000  Top1=1.0000
+  timing: data=3.9ms  fwd=95.0ms  bwd=69.4ms  total=168.9ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  27100] loss=2.0700  ema_loss=2.0706  gap=1.0515  ema_gap=1.0498  mixup=27/100  3.2 sps  ETA 2.0h
+              R²_rand=0.9901  R²_naive=0.9908  U_t=0.1429  U_b=0.1434  AUC=1.0000  Top1=1.0000
+  timing: data=60.5ms  fwd=91.2ms  bwd=69.2ms  total=221.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  27200] loss=2.0748  ema_loss=2.0711  gap=1.0519  ema_gap=1.0513  mixup=30/100  3.2 sps  ETA 2.0h
+              R²_rand=0.9902  R²_naive=0.9908  U_t=0.1431  U_b=0.1429  AUC=1.0000  Top1=1.0000
+  timing: data=20.3ms  fwd=88.2ms  bwd=69.2ms  total=178.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  27300] loss=2.0714  ema_loss=2.0713  gap=1.0521  ema_gap=1.0526  mixup=27/100  3.2 sps  ETA 2.0h
+              R²_rand=0.9902  R²_naive=0.9908  U_t=0.1433  U_b=0.1436  AUC=1.0000  Top1=1.0000
+  timing: data=4.4ms  fwd=91.5ms  bwd=69.1ms  total=165.6ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  27400] loss=2.0726  ema_loss=2.0714  gap=1.0506  ema_gap=1.0531  mixup=22/100  3.2 sps  ETA 2.0h
+              R²_rand=0.9900  R²_naive=0.9906  U_t=0.1440  U_b=0.1431  AUC=1.0000  Top1=1.0000
+  timing: data=17.8ms  fwd=91.3ms  bwd=69.2ms  total=178.9ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  27500] loss=2.0686  ema_loss=2.0714  gap=1.0525  ema_gap=1.0532  mixup=37/100  3.2 sps  ETA 2.0h
+              R²_rand=0.9902  R²_naive=0.9908  U_t=0.1437  U_b=0.1437  AUC=1.0000  Top1=1.0000
+  timing: data=17.0ms  fwd=90.2ms  bwd=69.2ms  total=177.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  27600] loss=2.0656  ema_loss=2.0710  gap=1.0490  ema_gap=1.0536  mixup=31/100  3.2 sps  ETA 1.9h
+              R²_rand=0.9903  R²_naive=0.9909  U_t=0.1441  U_b=0.1434  AUC=1.0000  Top1=1.0000
+  timing: data=3.9ms  fwd=93.3ms  bwd=69.1ms  total=166.9ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  27700] loss=2.0732  ema_loss=2.0710  gap=1.0558  ema_gap=1.0530  mixup=26/100  3.2 sps  ETA 1.9h
+              R²_rand=0.9900  R²_naive=0.9907  U_t=0.1442  U_b=0.1433  AUC=1.0000  Top1=1.0000
+  timing: data=26.4ms  fwd=93.4ms  bwd=69.4ms  total=189.9ms
+[  27800] loss=2.0707  ema_loss=2.0710  gap=1.0546  ema_gap=1.0539  mixup=34/100  3.2 sps  ETA 1.9h
+              R²_rand=0.9901  R²_naive=0.9908  U_t=0.1439  U_b=0.1436  AUC=1.0000  Top1=1.0000
+  timing: data=4.2ms  fwd=92.8ms  bwd=69.4ms  total=167.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  27900] loss=2.0752  ema_loss=2.0709  gap=1.0537  ema_gap=1.0536  mixup=30/100  3.2 sps  ETA 1.9h
+              R²_rand=0.9902  R²_naive=0.9908  U_t=0.1431  U_b=0.1432  AUC=1.0000  Top1=1.0000
+  timing: data=19.3ms  fwd=86.9ms  bwd=71.3ms  total=178.1ms
+[  28000] loss=2.0701  ema_loss=2.0709  gap=1.0496  ema_gap=1.0536  mixup=39/100  3.2 sps  ETA 1.9h
+              R²_rand=0.9902  R²_naive=0.9908  U_t=0.1432  U_b=0.1436  AUC=1.0000  Top1=1.0000
+  timing: data=31.4ms  fwd=89.0ms  bwd=69.2ms  total=190.1ms
+[  28100] loss=2.0728  ema_loss=2.0706  gap=1.0563  ema_gap=1.0543  mixup=38/100  3.2 sps  ETA 1.9h
+              R²_rand=0.9901  R²_naive=0.9908  U_t=0.1449  U_b=0.1432  AUC=1.0000  Top1=1.0000
+  timing: data=3.8ms  fwd=91.2ms  bwd=69.2ms  total=164.7ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  28200] loss=2.0694  ema_loss=2.0702  gap=1.0533  ema_gap=1.0544  mixup=25/100  3.2 sps  ETA 1.9h
+              R²_rand=0.9902  R²_naive=0.9908  U_t=0.1439  U_b=0.1434  AUC=1.0000  Top1=1.0000
+  timing: data=24.7ms  fwd=85.9ms  bwd=69.1ms  total=180.2ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  28300] loss=2.0670  ema_loss=2.0704  gap=1.0519  ema_gap=1.0551  mixup=33/100  3.2 sps  ETA 1.9h
+              R²_rand=0.9901  R²_naive=0.9907  U_t=0.1429  U_b=0.1437  AUC=1.0000  Top1=1.0000
+  timing: data=16.8ms  fwd=86.9ms  bwd=69.0ms  total=173.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  28400] loss=2.0721  ema_loss=2.0705  gap=1.0520  ema_gap=1.0547  mixup=30/100  3.2 sps  ETA 1.9h
+              R²_rand=0.9901  R²_naive=0.9908  U_t=0.1433  U_b=0.1432  AUC=1.0000  Top1=1.0000
+  timing: data=5.2ms  fwd=99.0ms  bwd=73.6ms  total=178.6ms
+[  28500] loss=2.0740  ema_loss=2.0705  gap=1.0555  ema_gap=1.0554  mixup=34/100  3.2 sps  ETA 1.9h
+              R²_rand=0.9900  R²_naive=0.9906  U_t=0.1423  U_b=0.1433  AUC=1.0000  Top1=1.0000
+  timing: data=36.4ms  fwd=90.2ms  bwd=69.3ms  total=196.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  28600] loss=2.0696  ema_loss=2.0706  gap=1.0523  ema_gap=1.0569  mixup=30/100  3.2 sps  ETA 1.9h
+              R²_rand=0.9901  R²_naive=0.9907  U_t=0.1436  U_b=0.1435  AUC=1.0000  Top1=1.0000
+  timing: data=16.6ms  fwd=88.3ms  bwd=69.3ms  total=174.8ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  28700] loss=2.0747  ema_loss=2.0705  gap=1.0571  ema_gap=1.0578  mixup=26/100  3.2 sps  ETA 1.8h
+              R²_rand=0.9901  R²_naive=0.9908  U_t=0.1441  U_b=0.1432  AUC=1.0000  Top1=1.0000
+  timing: data=3.9ms  fwd=90.6ms  bwd=69.3ms  total=164.3ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  28800] loss=2.0722  ema_loss=2.0704  gap=1.0576  ema_gap=1.0581  mixup=35/100  3.2 sps  ETA 1.8h
+              R²_rand=0.9900  R²_naive=0.9907  U_t=0.1434  U_b=0.1434  AUC=1.0000  Top1=1.0000
+  timing: data=18.4ms  fwd=89.2ms  bwd=69.3ms  total=177.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  28900] loss=2.0704  ema_loss=2.0706  gap=1.0488  ema_gap=1.0581  mixup=37/100  3.2 sps  ETA 1.8h
+              R²_rand=0.9901  R²_naive=0.9907  U_t=0.1433  U_b=0.1434  AUC=1.0000  Top1=1.0000
+  timing: data=4.6ms  fwd=92.1ms  bwd=69.4ms  total=166.8ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  29000] loss=2.0679  ema_loss=2.0703  gap=1.0602  ema_gap=1.0577  mixup=28/100  3.2 sps  ETA 1.8h
+              R²_rand=0.9901  R²_naive=0.9908  U_t=0.1432  U_b=0.1437  AUC=1.0000  Top1=1.0000
+  timing: data=19.0ms  fwd=91.2ms  bwd=69.6ms  total=180.5ms
+[  29100] loss=2.0591  ema_loss=2.0644  gap=1.0577  ema_gap=1.0572  mixup=28/100  3.2 sps  ETA 1.8h
+              R²_rand=0.9899  R²_naive=0.9906  U_t=0.1460  U_b=0.1463  AUC=1.0000  Top1=1.0000
+  timing: data=113.8ms  fwd=87.2ms  bwd=69.5ms  total=271.2ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  29200] loss=2.0564  ema_loss=2.0597  gap=1.0621  ema_gap=1.0568  mixup=36/100  3.2 sps  ETA 1.8h
+              R²_rand=0.9901  R²_naive=0.9907  U_t=0.1456  U_b=0.1463  AUC=1.0000  Top1=1.0000
+  timing: data=5.0ms  fwd=89.1ms  bwd=69.2ms  total=163.9ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  29300] loss=2.0524  ema_loss=2.0577  gap=1.0579  ema_gap=1.0566  mixup=28/100  3.2 sps  ETA 1.8h
+              R²_rand=0.9900  R²_naive=0.9907  U_t=0.1461  U_b=0.1464  AUC=1.0000  Top1=1.0000
+  timing: data=17.5ms  fwd=88.9ms  bwd=69.2ms  total=176.2ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  29400] loss=2.0584  ema_loss=2.0569  gap=1.0580  ema_gap=1.0576  mixup=29/100  3.2 sps  ETA 1.8h
+              R²_rand=0.9900  R²_naive=0.9907  U_t=0.1458  U_b=0.1457  AUC=1.0000  Top1=1.0000
+  timing: data=27.1ms  fwd=87.9ms  bwd=69.3ms  total=184.9ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  29500] loss=2.0573  ema_loss=2.0565  gap=1.0556  ema_gap=1.0573  mixup=30/100  3.2 sps  ETA 1.8h
+              R²_rand=0.9902  R²_naive=0.9908  U_t=0.1448  U_b=0.1458  AUC=1.0000  Top1=1.0000
+  timing: data=3.8ms  fwd=88.9ms  bwd=68.9ms  total=162.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  29600] loss=2.0455  ema_loss=2.0523  gap=1.0517  ema_gap=1.0567  mixup=30/100  3.2 sps  ETA 1.8h
+              R²_rand=0.9899  R²_naive=0.9906  U_t=0.1476  U_b=0.1481  AUC=1.0000  Top1=1.0000
+  timing: data=88.7ms  fwd=86.8ms  bwd=69.0ms  total=245.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  29700] loss=2.0480  ema_loss=2.0468  gap=1.0599  ema_gap=1.0567  mixup=21/100  3.2 sps  ETA 1.8h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1471  U_b=0.1482  AUC=1.0000  Top1=1.0000
+  timing: data=17.6ms  fwd=88.1ms  bwd=69.0ms  total=175.3ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  29800] loss=2.0440  ema_loss=2.0441  gap=1.0521  ema_gap=1.0575  mixup=22/100  3.2 sps  ETA 1.8h
+              R²_rand=0.9900  R²_naive=0.9906  U_t=0.1470  U_b=0.1481  AUC=1.0000  Top1=1.0000
+  timing: data=3.6ms  fwd=101.6ms  bwd=70.0ms  total=176.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  29900] loss=2.0421  ema_loss=2.0429  gap=1.0616  ema_gap=1.0585  mixup=28/100  3.2 sps  ETA 1.8h
+              R²_rand=0.9900  R²_naive=0.9907  U_t=0.1472  U_b=0.1481  AUC=1.0000  Top1=1.0000
+  timing: data=20.3ms  fwd=89.2ms  bwd=69.4ms  total=179.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  30000] loss=2.0424  ema_loss=2.0425  gap=1.0615  ema_gap=1.0592  mixup=22/100  3.2 sps  ETA 1.7h
+              R²_rand=0.9901  R²_naive=0.9908  U_t=0.1479  U_b=0.1483  AUC=1.0000  Top1=1.0000
+  timing: data=4.3ms  fwd=93.5ms  bwd=69.3ms  total=167.8ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_30k.pth
+[  30100] loss=2.0403  ema_loss=2.0424  gap=1.0644  ema_gap=1.0592  mixup=28/100  3.2 sps  ETA 1.7h
+              R²_rand=0.9901  R²_naive=0.9908  U_t=0.1481  U_b=0.1491  AUC=1.0000  Top1=1.0000
+  timing: data=23.1ms  fwd=89.3ms  bwd=69.2ms  total=182.2ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  30200] loss=2.0427  ema_loss=2.0425  gap=1.0595  ema_gap=1.0590  mixup=21/100  3.2 sps  ETA 1.7h
+              R²_rand=0.9902  R²_naive=0.9908  U_t=0.1483  U_b=0.1486  AUC=1.0000  Top1=1.0000
+  timing: data=18.2ms  fwd=91.6ms  bwd=69.3ms  total=179.8ms
+[  30300] loss=2.0392  ema_loss=2.0418  gap=1.0534  ema_gap=1.0593  mixup=34/100  3.2 sps  ETA 1.7h
+              R²_rand=0.9901  R²_naive=0.9907  U_t=0.1493  U_b=0.1488  AUC=1.0000  Top1=1.0000
+  timing: data=4.9ms  fwd=90.4ms  bwd=69.4ms  total=165.3ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  30400] loss=2.0412  ema_loss=2.0419  gap=1.0599  ema_gap=1.0593  mixup=22/100  3.2 sps  ETA 1.7h
+              R²_rand=0.9901  R²_naive=0.9908  U_t=0.1480  U_b=0.1486  AUC=1.0000  Top1=1.0000
+  timing: data=17.1ms  fwd=91.9ms  bwd=69.3ms  total=178.9ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  30500] loss=2.0385  ema_loss=2.0417  gap=1.0609  ema_gap=1.0607  mixup=33/100  3.2 sps  ETA 1.7h
+              R²_rand=0.9903  R²_naive=0.9909  U_t=0.1490  U_b=0.1488  AUC=1.0000  Top1=1.0000
+  timing: data=30.3ms  fwd=89.1ms  bwd=69.4ms  total=189.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  30600] loss=2.0384  ema_loss=2.0415  gap=1.0605  ema_gap=1.0607  mixup=27/100  3.2 sps  ETA 1.7h
+              R²_rand=0.9902  R²_naive=0.9909  U_t=0.1483  U_b=0.1487  AUC=1.0000  Top1=1.0000
+  timing: data=3.9ms  fwd=89.6ms  bwd=69.3ms  total=163.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  30700] loss=2.0419  ema_loss=2.0414  gap=1.0608  ema_gap=1.0606  mixup=32/100  3.2 sps  ETA 1.7h
+              R²_rand=0.9900  R²_naive=0.9907  U_t=0.1483  U_b=0.1489  AUC=1.0000  Top1=1.0000
+  timing: data=16.5ms  fwd=89.1ms  bwd=69.2ms  total=175.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  30800] loss=2.0457  ema_loss=2.0416  gap=1.0620  ema_gap=1.0617  mixup=33/100  3.2 sps  ETA 1.7h
+              R²_rand=0.9901  R²_naive=0.9908  U_t=0.1483  U_b=0.1482  AUC=1.0000  Top1=1.0000
+  timing: data=23.4ms  fwd=90.1ms  bwd=69.1ms  total=183.2ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  30900] loss=2.0366  ema_loss=2.0415  gap=1.0657  ema_gap=1.0625  mixup=27/100  3.2 sps  ETA 1.7h
+              R²_rand=0.9902  R²_naive=0.9909  U_t=0.1484  U_b=0.1486  AUC=1.0000  Top1=1.0000
+  timing: data=3.9ms  fwd=92.7ms  bwd=69.3ms  total=166.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  31000] loss=2.0429  ema_loss=2.0416  gap=1.0641  ema_gap=1.0630  mixup=30/100  3.2 sps  ETA 1.7h
+              R²_rand=0.9899  R²_naive=0.9908  U_t=0.1475  U_b=0.1487  AUC=1.0000  Top1=1.0000
+  timing: data=22.1ms  fwd=89.1ms  bwd=69.2ms  total=181.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  31100] loss=2.0422  ema_loss=2.0416  gap=1.0639  ema_gap=1.0632  mixup=28/100  3.2 sps  ETA 1.7h
+              R²_rand=0.9901  R²_naive=0.9908  U_t=0.1476  U_b=0.1489  AUC=1.0000  Top1=1.0000
+  timing: data=18.9ms  fwd=88.3ms  bwd=69.4ms  total=177.2ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  31200] loss=2.0402  ema_loss=2.0414  gap=1.0660  ema_gap=1.0637  mixup=27/100  3.2 sps  ETA 1.6h
+              R²_rand=0.9900  R²_naive=0.9908  U_t=0.1476  U_b=0.1489  AUC=1.0000  Top1=1.0000
+  timing: data=5.4ms  fwd=90.0ms  bwd=69.2ms  total=165.2ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  31300] loss=2.0408  ema_loss=2.0417  gap=1.0649  ema_gap=1.0630  mixup=37/100  3.2 sps  ETA 1.6h
+              R²_rand=0.9901  R²_naive=0.9908  U_t=0.1489  U_b=0.1488  AUC=1.0000  Top1=1.0000
+  timing: data=20.4ms  fwd=86.8ms  bwd=68.9ms  total=176.6ms
+[  31400] loss=2.0404  ema_loss=2.0410  gap=1.0638  ema_gap=1.0625  mixup=27/100  3.2 sps  ETA 1.6h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1484  U_b=0.1488  AUC=1.0000  Top1=1.0000
+  timing: data=4.0ms  fwd=88.8ms  bwd=69.2ms  total=162.6ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  31500] loss=2.0401  ema_loss=2.0410  gap=1.0620  ema_gap=1.0630  mixup=34/100  3.2 sps  ETA 1.6h
+              R²_rand=0.9900  R²_naive=0.9907  U_t=0.1489  U_b=0.1490  AUC=1.0000  Top1=1.0000
+  timing: data=18.5ms  fwd=87.9ms  bwd=69.1ms  total=176.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  31600] loss=2.0478  ema_loss=2.0417  gap=1.0636  ema_gap=1.0629  mixup=28/100  3.2 sps  ETA 1.6h
+              R²_rand=0.9900  R²_naive=0.9908  U_t=0.1471  U_b=0.1485  AUC=1.0000  Top1=1.0000
+  timing: data=17.2ms  fwd=86.3ms  bwd=69.0ms  total=173.0ms
+[  31700] loss=2.0405  ema_loss=2.0413  gap=1.0633  ema_gap=1.0629  mixup=39/100  3.2 sps  ETA 1.6h
+              R²_rand=0.9902  R²_naive=0.9909  U_t=0.1484  U_b=0.1485  AUC=1.0000  Top1=1.0000
+  timing: data=4.4ms  fwd=87.7ms  bwd=69.0ms  total=161.6ms
+[  31800] loss=2.0387  ema_loss=2.0415  gap=1.0615  ema_gap=1.0624  mixup=26/100  3.2 sps  ETA 1.6h
+              R²_rand=0.9902  R²_naive=0.9909  U_t=0.1488  U_b=0.1489  AUC=1.0000  Top1=1.0000
+  timing: data=16.6ms  fwd=87.5ms  bwd=69.1ms  total=173.8ms
+[  31900] loss=2.0416  ema_loss=2.0415  gap=1.0597  ema_gap=1.0625  mixup=22/100  3.2 sps  ETA 1.6h
+              R²_rand=0.9902  R²_naive=0.9908  U_t=0.1492  U_b=0.1492  AUC=1.0000  Top1=1.0000
+  timing: data=18.8ms  fwd=87.4ms  bwd=69.1ms  total=175.8ms
+[  32000] loss=2.0381  ema_loss=2.0415  gap=1.0636  ema_gap=1.0636  mixup=29/100  3.2 sps  ETA 1.6h
+              R²_rand=0.9902  R²_naive=0.9909  U_t=0.1485  U_b=0.1488  AUC=1.0000  Top1=1.0000
+  timing: data=3.7ms  fwd=89.8ms  bwd=69.1ms  total=163.2ms
+[  32100] loss=2.0393  ema_loss=2.0409  gap=1.0692  ema_gap=1.0642  mixup=33/100  3.2 sps  ETA 1.6h
+              R²_rand=0.9902  R²_naive=0.9909  U_t=0.1495  U_b=0.1491  AUC=1.0000  Top1=1.0000
+  timing: data=18.8ms  fwd=86.0ms  bwd=69.1ms  total=174.3ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  32200] loss=2.0439  ema_loss=2.0409  gap=1.0662  ema_gap=1.0644  mixup=31/100  3.2 sps  ETA 1.5h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1480  U_b=0.1483  AUC=1.0000  Top1=1.0000
+  timing: data=22.7ms  fwd=94.6ms  bwd=69.2ms  total=187.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  32300] loss=2.0404  ema_loss=2.0410  gap=1.0643  ema_gap=1.0640  mixup=29/100  3.2 sps  ETA 1.5h
+              R²_rand=0.9902  R²_naive=0.9910  U_t=0.1482  U_b=0.1485  AUC=1.0000  Top1=1.0000
+  timing: data=5.3ms  fwd=94.0ms  bwd=69.2ms  total=169.2ms
+[  32400] loss=2.0426  ema_loss=2.0413  gap=1.0627  ema_gap=1.0644  mixup=27/100  3.2 sps  ETA 1.5h
+              R²_rand=0.9901  R²_naive=0.9908  U_t=0.1488  U_b=0.1488  AUC=1.0000  Top1=1.0000
+  timing: data=21.4ms  fwd=88.0ms  bwd=69.0ms  total=179.0ms
+[  32500] loss=2.0410  ema_loss=2.0413  gap=1.0696  ema_gap=1.0649  mixup=36/100  3.2 sps  ETA 1.5h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1484  U_b=0.1487  AUC=1.0000  Top1=1.0000
+  timing: data=4.7ms  fwd=88.0ms  bwd=69.2ms  total=162.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  32600] loss=2.0420  ema_loss=2.0408  gap=1.0644  ema_gap=1.0648  mixup=23/100  3.2 sps  ETA 1.5h
+              R²_rand=0.9903  R²_naive=0.9910  U_t=0.1494  U_b=0.1488  AUC=1.0000  Top1=1.0000
+  timing: data=14.8ms  fwd=91.5ms  bwd=69.1ms  total=176.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  32700] loss=2.0373  ema_loss=2.0406  gap=1.0691  ema_gap=1.0661  mixup=37/100  3.2 sps  ETA 1.5h
+              R²_rand=0.9902  R²_naive=0.9909  U_t=0.1486  U_b=0.1491  AUC=1.0000  Top1=1.0000
+  timing: data=18.6ms  fwd=88.9ms  bwd=69.1ms  total=177.2ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  32800] loss=2.0416  ema_loss=2.0404  gap=1.0608  ema_gap=1.0657  mixup=26/100  3.2 sps  ETA 1.5h
+              R²_rand=0.9902  R²_naive=0.9909  U_t=0.1496  U_b=0.1489  AUC=1.0000  Top1=1.0000
+  timing: data=3.7ms  fwd=92.5ms  bwd=69.2ms  total=166.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  32900] loss=2.0422  ema_loss=2.0407  gap=1.0642  ema_gap=1.0661  mixup=31/100  3.2 sps  ETA 1.5h
+              R²_rand=0.9902  R²_naive=0.9909  U_t=0.1479  U_b=0.1490  AUC=1.0000  Top1=1.0000
+  timing: data=89.8ms  fwd=89.5ms  bwd=69.4ms  total=249.4ms
+[  33000] loss=2.0426  ema_loss=2.0406  gap=1.0639  ema_gap=1.0659  mixup=24/100  3.2 sps  ETA 1.5h
+              R²_rand=0.9903  R²_naive=0.9910  U_t=0.1492  U_b=0.1485  AUC=1.0000  Top1=1.0000
+  timing: data=17.4ms  fwd=88.2ms  bwd=69.6ms  total=175.7ms
+[  33100] loss=2.0390  ema_loss=2.0402  gap=1.0688  ema_gap=1.0663  mixup=39/100  3.2 sps  ETA 1.5h
+              R²_rand=0.9903  R²_naive=0.9911  U_t=0.1496  U_b=0.1491  AUC=1.0000  Top1=1.0000
+  timing: data=4.7ms  fwd=90.9ms  bwd=69.3ms  total=165.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  33200] loss=2.0395  ema_loss=2.0403  gap=1.0682  ema_gap=1.0673  mixup=26/100  3.2 sps  ETA 1.5h
+              R²_rand=0.9902  R²_naive=0.9909  U_t=0.1482  U_b=0.1489  AUC=1.0000  Top1=1.0000
+  timing: data=18.2ms  fwd=86.4ms  bwd=69.2ms  total=174.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  33300] loss=2.0407  ema_loss=2.0404  gap=1.0697  ema_gap=1.0679  mixup=37/100  3.2 sps  ETA 1.5h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1476  U_b=0.1488  AUC=1.0000  Top1=1.0000
+  timing: data=17.7ms  fwd=85.8ms  bwd=69.1ms  total=173.2ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  33400] loss=2.0350  ema_loss=2.0403  gap=1.0658  ema_gap=1.0674  mixup=33/100  3.2 sps  ETA 1.4h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1491  U_b=0.1493  AUC=1.0000  Top1=1.0000
+  timing: data=4.6ms  fwd=88.6ms  bwd=68.9ms  total=162.7ms
+[  33500] loss=2.0439  ema_loss=2.0401  gap=1.0641  ema_gap=1.0657  mixup=27/100  3.2 sps  ETA 1.4h
+              R²_rand=0.9903  R²_naive=0.9910  U_t=0.1469  U_b=0.1484  AUC=1.0000  Top1=1.0000
+  timing: data=20.1ms  fwd=87.5ms  bwd=68.9ms  total=177.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  33600] loss=2.0382  ema_loss=2.0401  gap=1.0664  ema_gap=1.0663  mixup=27/100  3.2 sps  ETA 1.4h
+              R²_rand=0.9902  R²_naive=0.9910  U_t=0.1478  U_b=0.1487  AUC=1.0000  Top1=1.0000
+  timing: data=17.8ms  fwd=87.3ms  bwd=68.9ms  total=174.6ms
+[  33700] loss=2.0392  ema_loss=2.0402  gap=1.0607  ema_gap=1.0664  mixup=33/100  3.2 sps  ETA 1.4h
+              R²_rand=0.9903  R²_naive=0.9909  U_t=0.1488  U_b=0.1490  AUC=1.0000  Top1=1.0000
+  timing: data=4.3ms  fwd=92.4ms  bwd=69.4ms  total=166.7ms
+[  33800] loss=2.0421  ema_loss=2.0399  gap=1.0690  ema_gap=1.0674  mixup=28/100  3.2 sps  ETA 1.4h
+              R²_rand=0.9902  R²_naive=0.9909  U_t=0.1486  U_b=0.1490  AUC=1.0000  Top1=1.0000
+  timing: data=17.3ms  fwd=100.4ms  bwd=69.6ms  total=188.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  33900] loss=2.0390  ema_loss=2.0400  gap=1.0694  ema_gap=1.0680  mixup=31/100  3.2 sps  ETA 1.4h
+              R²_rand=0.9903  R²_naive=0.9910  U_t=0.1485  U_b=0.1493  AUC=1.0000  Top1=1.0000
+  timing: data=4.1ms  fwd=90.4ms  bwd=69.2ms  total=164.2ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  34000] loss=2.0409  ema_loss=2.0398  gap=1.0621  ema_gap=1.0672  mixup=21/100  3.2 sps  ETA 1.4h
+              R²_rand=0.9902  R²_naive=0.9909  U_t=0.1488  U_b=0.1489  AUC=1.0000  Top1=1.0000
+  timing: data=17.3ms  fwd=91.0ms  bwd=69.2ms  total=178.2ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  34100] loss=2.0394  ema_loss=2.0400  gap=1.0679  ema_gap=1.0672  mixup=29/100  3.2 sps  ETA 1.4h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1482  U_b=0.1486  AUC=1.0000  Top1=1.0000
+  timing: data=17.8ms  fwd=90.2ms  bwd=69.2ms  total=177.8ms
+[  34200] loss=2.0411  ema_loss=2.0397  gap=1.0669  ema_gap=1.0669  mixup=35/100  3.2 sps  ETA 1.4h
+              R²_rand=0.9902  R²_naive=0.9910  U_t=0.1481  U_b=0.1488  AUC=1.0000  Top1=1.0000
+  timing: data=5.5ms  fwd=89.5ms  bwd=69.1ms  total=164.7ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  34300] loss=2.0407  ema_loss=2.0401  gap=1.0678  ema_gap=1.0665  mixup=41/100  3.2 sps  ETA 1.4h
+              R²_rand=0.9902  R²_naive=0.9910  U_t=0.1484  U_b=0.1491  AUC=1.0000  Top1=1.0000
+  timing: data=30.9ms  fwd=88.0ms  bwd=69.1ms  total=188.6ms
+[  34400] loss=2.0392  ema_loss=2.0399  gap=1.0686  ema_gap=1.0680  mixup=26/100  3.2 sps  ETA 1.4h
+              R²_rand=0.9902  R²_naive=0.9910  U_t=0.1496  U_b=0.1491  AUC=1.0000  Top1=1.0000
+  timing: data=19.2ms  fwd=89.6ms  bwd=69.3ms  total=178.8ms
+[  34500] loss=2.0398  ema_loss=2.0395  gap=1.0660  ema_gap=1.0682  mixup=32/100  3.2 sps  ETA 1.3h
+              R²_rand=0.9903  R²_naive=0.9910  U_t=0.1492  U_b=0.1489  AUC=1.0000  Top1=1.0000
+  timing: data=4.3ms  fwd=91.6ms  bwd=69.4ms  total=166.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  34600] loss=2.0396  ema_loss=2.0396  gap=1.0713  ema_gap=1.0686  mixup=26/100  3.2 sps  ETA 1.3h
+              R²_rand=0.9902  R²_naive=0.9910  U_t=0.1484  U_b=0.1492  AUC=1.0000  Top1=1.0000
+  timing: data=19.2ms  fwd=89.2ms  bwd=69.2ms  total=178.2ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  34700] loss=2.0388  ema_loss=2.0397  gap=1.0689  ema_gap=1.0685  mixup=31/100  3.2 sps  ETA 1.3h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1486  U_b=0.1493  AUC=1.0000  Top1=1.0000
+  timing: data=20.0ms  fwd=89.8ms  bwd=69.3ms  total=179.7ms
+[  34800] loss=2.0374  ema_loss=2.0398  gap=1.0672  ema_gap=1.0684  mixup=31/100  3.2 sps  ETA 1.3h
+              R²_rand=0.9900  R²_naive=0.9909  U_t=0.1488  U_b=0.1495  AUC=1.0000  Top1=1.0000
+  timing: data=4.1ms  fwd=91.1ms  bwd=69.2ms  total=165.0ms
+[  34900] loss=2.0403  ema_loss=2.0398  gap=1.0708  ema_gap=1.0684  mixup=37/100  3.2 sps  ETA 1.3h
+              R²_rand=0.9900  R²_naive=0.9909  U_t=0.1489  U_b=0.1489  AUC=1.0000  Top1=1.0000
+  timing: data=16.6ms  fwd=87.7ms  bwd=69.0ms  total=173.8ms
+[  35000] loss=2.0397  ema_loss=2.0404  gap=1.0697  ema_gap=1.0686  mixup=27/100  3.2 sps  ETA 1.3h
+              R²_rand=0.9902  R²_naive=0.9909  U_t=0.1490  U_b=0.1486  AUC=1.0000  Top1=1.0000
+  timing: data=3.8ms  fwd=87.6ms  bwd=69.0ms  total=160.9ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_35k.pth
+[  35100] loss=2.0380  ema_loss=2.0400  gap=1.0697  ema_gap=1.0684  mixup=28/100  3.2 sps  ETA 1.3h
+              R²_rand=0.9903  R²_naive=0.9911  U_t=0.1488  U_b=0.1493  AUC=1.0000  Top1=1.0000
+  timing: data=13.7ms  fwd=87.7ms  bwd=69.0ms  total=170.9ms
+[  35200] loss=2.0387  ema_loss=2.0404  gap=1.0657  ema_gap=1.0682  mixup=26/100  3.2 sps  ETA 1.3h
+              R²_rand=0.9901  R²_naive=0.9908  U_t=0.1483  U_b=0.1493  AUC=1.0000  Top1=1.0000
+  timing: data=18.8ms  fwd=88.1ms  bwd=68.9ms  total=176.3ms
+[  35300] loss=2.0333  ema_loss=2.0402  gap=1.0678  ema_gap=1.0691  mixup=29/100  3.2 sps  ETA 1.3h
+              R²_rand=0.9902  R²_naive=0.9910  U_t=0.1491  U_b=0.1496  AUC=1.0000  Top1=1.0000
+  timing: data=5.0ms  fwd=87.3ms  bwd=69.0ms  total=161.8ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  35400] loss=2.0381  ema_loss=2.0397  gap=1.0636  ema_gap=1.0688  mixup=23/100  3.2 sps  ETA 1.3h
+              R²_rand=0.9902  R²_naive=0.9909  U_t=0.1485  U_b=0.1490  AUC=1.0000  Top1=1.0000
+  timing: data=18.5ms  fwd=89.6ms  bwd=69.0ms  total=177.7ms
+[  35500] loss=2.0436  ema_loss=2.0394  gap=1.0670  ema_gap=1.0680  mixup=32/100  3.2 sps  ETA 1.3h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1475  U_b=0.1487  AUC=1.0000  Top1=1.0000
+  timing: data=20.3ms  fwd=91.9ms  bwd=69.4ms  total=182.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  35600] loss=2.0396  ema_loss=2.0395  gap=1.0654  ema_gap=1.0689  mixup=28/100  3.2 sps  ETA 1.2h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1483  U_b=0.1493  AUC=1.0000  Top1=1.0000
+  timing: data=3.9ms  fwd=96.4ms  bwd=72.2ms  total=173.2ms
+[  35700] loss=2.0389  ema_loss=2.0395  gap=1.0691  ema_gap=1.0689  mixup=33/100  3.2 sps  ETA 1.2h
+              R²_rand=0.9902  R²_naive=0.9910  U_t=0.1482  U_b=0.1490  AUC=1.0000  Top1=1.0000
+  timing: data=17.9ms  fwd=90.0ms  bwd=69.1ms  total=177.5ms
+[  35800] loss=2.0413  ema_loss=2.0395  gap=1.0704  ema_gap=1.0688  mixup=30/100  3.2 sps  ETA 1.2h
+              R²_rand=0.9902  R²_naive=0.9910  U_t=0.1497  U_b=0.1493  AUC=1.0000  Top1=1.0000
+  timing: data=16.9ms  fwd=90.8ms  bwd=69.2ms  total=177.5ms
+[  35900] loss=2.0402  ema_loss=2.0396  gap=1.0691  ema_gap=1.0687  mixup=27/100  3.2 sps  ETA 1.2h
+              R²_rand=0.9900  R²_naive=0.9909  U_t=0.1483  U_b=0.1491  AUC=1.0000  Top1=1.0000
+  timing: data=3.8ms  fwd=91.6ms  bwd=69.2ms  total=165.2ms
+[  36000] loss=2.0272  ema_loss=2.0382  gap=1.0657  ema_gap=1.0685  mixup=31/100  3.2 sps  ETA 1.2h
+              R²_rand=0.9897  R²_naive=0.9905  U_t=0.1506  U_b=0.1517  AUC=1.0000  Top1=1.0000
+  timing: data=20.6ms  fwd=90.6ms  bwd=69.0ms  total=180.8ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  36100] loss=2.0250  ema_loss=2.0318  gap=1.0629  ema_gap=1.0661  mixup=32/100  3.2 sps  ETA 1.2h
+              R²_rand=0.9902  R²_naive=0.9909  U_t=0.1518  U_b=0.1513  AUC=1.0000  Top1=1.0000
+  timing: data=19.5ms  fwd=88.8ms  bwd=69.1ms  total=178.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  36200] loss=2.0280  ema_loss=2.0285  gap=1.0713  ema_gap=1.0665  mixup=30/100  3.2 sps  ETA 1.2h
+              R²_rand=0.9899  R²_naive=0.9909  U_t=0.1506  U_b=0.1517  AUC=1.0000  Top1=1.0000
+  timing: data=4.8ms  fwd=91.5ms  bwd=69.3ms  total=166.2ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  36300] loss=2.0267  ema_loss=2.0270  gap=1.0632  ema_gap=1.0674  mixup=27/100  3.2 sps  ETA 1.2h
+              R²_rand=0.9900  R²_naive=0.9908  U_t=0.1520  U_b=0.1522  AUC=1.0000  Top1=1.0000
+  timing: data=19.1ms  fwd=90.4ms  bwd=69.4ms  total=179.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  36400] loss=2.0223  ema_loss=2.0264  gap=1.0696  ema_gap=1.0672  mixup=26/100  3.2 sps  ETA 1.2h
+              R²_rand=0.9902  R²_naive=0.9910  U_t=0.1510  U_b=0.1521  AUC=1.0000  Top1=1.0000
+  timing: data=5.2ms  fwd=89.9ms  bwd=69.1ms  total=164.7ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  36500] loss=2.0256  ema_loss=2.0264  gap=1.0650  ema_gap=1.0665  mixup=33/100  3.2 sps  ETA 1.2h
+              R²_rand=0.9901  R²_naive=0.9908  U_t=0.1516  U_b=0.1517  AUC=1.0000  Top1=1.0000
+  timing: data=20.4ms  fwd=89.3ms  bwd=69.2ms  total=179.5ms
+[  36600] loss=2.0239  ema_loss=2.0263  gap=1.0707  ema_gap=1.0672  mixup=27/100  3.2 sps  ETA 1.2h
+              R²_rand=0.9900  R²_naive=0.9909  U_t=0.1517  U_b=0.1517  AUC=1.0000  Top1=1.0000
+  timing: data=19.4ms  fwd=87.7ms  bwd=69.1ms  total=176.7ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  36700] loss=2.0272  ema_loss=2.0263  gap=1.0671  ema_gap=1.0672  mixup=32/100  3.2 sps  ETA 1.1h
+              R²_rand=0.9902  R²_naive=0.9909  U_t=0.1509  U_b=0.1515  AUC=1.0000  Top1=1.0000
+  timing: data=4.1ms  fwd=88.8ms  bwd=68.9ms  total=162.3ms
+[  36800] loss=2.0281  ema_loss=2.0260  gap=1.0628  ema_gap=1.0666  mixup=31/100  3.2 sps  ETA 1.1h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1508  U_b=0.1512  AUC=1.0000  Top1=1.0000
+  timing: data=32.5ms  fwd=87.1ms  bwd=69.0ms  total=189.2ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  36900] loss=2.0248  ema_loss=2.0259  gap=1.0656  ema_gap=1.0665  mixup=24/100  3.2 sps  ETA 1.1h
+              R²_rand=0.9902  R²_naive=0.9909  U_t=0.1516  U_b=0.1515  AUC=1.0000  Top1=1.0000
+  timing: data=17.2ms  fwd=87.6ms  bwd=69.1ms  total=174.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  37000] loss=2.0228  ema_loss=2.0257  gap=1.0700  ema_gap=1.0669  mixup=33/100  3.2 sps  ETA 1.1h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1522  U_b=0.1520  AUC=1.0000  Top1=1.0000
+  timing: data=3.8ms  fwd=90.0ms  bwd=69.0ms  total=163.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  37100] loss=2.0254  ema_loss=2.0262  gap=1.0746  ema_gap=1.0674  mixup=17/100  3.2 sps  ETA 1.1h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1509  U_b=0.1518  AUC=1.0000  Top1=1.0000
+  timing: data=17.2ms  fwd=102.3ms  bwd=69.9ms  total=190.1ms
+[  37200] loss=2.0263  ema_loss=2.0261  gap=1.0685  ema_gap=1.0686  mixup=30/100  3.2 sps  ETA 1.1h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1519  U_b=0.1518  AUC=1.0000  Top1=1.0000
+  timing: data=19.1ms  fwd=87.6ms  bwd=69.1ms  total=176.4ms
+[  37300] loss=2.0258  ema_loss=2.0261  gap=1.0702  ema_gap=1.0685  mixup=26/100  3.2 sps  ETA 1.1h
+              R²_rand=0.9902  R²_naive=0.9910  U_t=0.1506  U_b=0.1514  AUC=1.0000  Top1=1.0000
+  timing: data=4.2ms  fwd=93.0ms  bwd=69.3ms  total=167.1ms
+[  37400] loss=2.0242  ema_loss=2.0265  gap=1.0688  ema_gap=1.0677  mixup=25/100  3.2 sps  ETA 1.1h
+              R²_rand=0.9901  R²_naive=0.9910  U_t=0.1518  U_b=0.1517  AUC=1.0000  Top1=1.0000
+  timing: data=17.6ms  fwd=86.5ms  bwd=69.2ms  total=173.9ms
+[  37500] loss=2.0254  ema_loss=2.0260  gap=1.0677  ema_gap=1.0679  mixup=27/100  3.2 sps  ETA 1.1h
+              R²_rand=0.9902  R²_naive=0.9909  U_t=0.1515  U_b=0.1520  AUC=1.0000  Top1=1.0000
+  timing: data=19.1ms  fwd=87.0ms  bwd=69.1ms  total=175.8ms
+[  37600] loss=2.0286  ema_loss=2.0257  gap=1.0683  ema_gap=1.0682  mixup=23/100  3.2 sps  ETA 1.1h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1523  U_b=0.1518  AUC=1.0000  Top1=1.0000
+  timing: data=4.4ms  fwd=90.6ms  bwd=69.1ms  total=164.7ms
+[  37700] loss=2.0226  ema_loss=2.0256  gap=1.0677  ema_gap=1.0684  mixup=28/100  3.2 sps  ETA 1.1h
+              R²_rand=0.9901  R²_naive=0.9910  U_t=0.1516  U_b=0.1524  AUC=1.0000  Top1=1.0000
+  timing: data=17.8ms  fwd=90.1ms  bwd=69.2ms  total=177.7ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  37800] loss=2.0266  ema_loss=2.0256  gap=1.0677  ema_gap=1.0681  mixup=31/100  3.2 sps  ETA 1.1h
+              R²_rand=0.9902  R²_naive=0.9909  U_t=0.1516  U_b=0.1516  AUC=1.0000  Top1=1.0000
+  timing: data=5.0ms  fwd=93.6ms  bwd=69.4ms  total=168.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  37900] loss=2.0259  ema_loss=2.0258  gap=1.0674  ema_gap=1.0677  mixup=36/100  3.2 sps  ETA 1.0h
+              R²_rand=0.9902  R²_naive=0.9910  U_t=0.1517  U_b=0.1517  AUC=1.0000  Top1=1.0000
+  timing: data=18.6ms  fwd=89.0ms  bwd=69.5ms  total=177.8ms
+[  38000] loss=2.0305  ema_loss=2.0256  gap=1.0699  ema_gap=1.0685  mixup=29/100  3.2 sps  ETA 1.0h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1510  U_b=0.1518  AUC=1.0000  Top1=1.0000
+  timing: data=17.9ms  fwd=89.8ms  bwd=69.4ms  total=177.7ms
+[  38100] loss=2.0228  ema_loss=2.0256  gap=1.0721  ema_gap=1.0680  mixup=22/100  3.2 sps  ETA 1.0h
+              R²_rand=0.9903  R²_naive=0.9911  U_t=0.1510  U_b=0.1521  AUC=1.0000  Top1=1.0000
+  timing: data=3.7ms  fwd=93.4ms  bwd=69.2ms  total=166.9ms
+[  38200] loss=2.0288  ema_loss=2.0255  gap=1.0680  ema_gap=1.0675  mixup=37/100  3.2 sps  ETA 1.0h
+              R²_rand=0.9902  R²_naive=0.9910  U_t=0.1515  U_b=0.1515  AUC=1.0000  Top1=1.0000
+  timing: data=22.2ms  fwd=90.3ms  bwd=69.2ms  total=182.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  38300] loss=2.0301  ema_loss=2.0253  gap=1.0665  ema_gap=1.0679  mixup=31/100  3.2 sps  ETA 1.0h
+              R²_rand=0.9902  R²_naive=0.9909  U_t=0.1519  U_b=0.1517  AUC=1.0000  Top1=1.0000
+  timing: data=18.1ms  fwd=87.7ms  bwd=69.0ms  total=175.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  38400] loss=2.0222  ema_loss=2.0249  gap=1.0749  ema_gap=1.0685  mixup=24/100  3.2 sps  ETA 1.0h
+              R²_rand=0.9904  R²_naive=0.9911  U_t=0.1518  U_b=0.1520  AUC=1.0000  Top1=1.0000
+  timing: data=4.9ms  fwd=88.9ms  bwd=69.2ms  total=163.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  38500] loss=2.0185  ema_loss=2.0237  gap=1.0659  ema_gap=1.0693  mixup=29/100  3.2 sps  ETA 1.0h
+              R²_rand=0.9898  R²_naive=0.9906  U_t=0.1535  U_b=0.1544  AUC=1.0000  Top1=1.0000
+  timing: data=19.8ms  fwd=96.2ms  bwd=77.7ms  total=194.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  38600] loss=2.0127  ema_loss=2.0173  gap=1.0674  ema_gap=1.0683  mixup=31/100  3.2 sps  ETA 1.0h
+              R²_rand=0.9900  R²_naive=0.9908  U_t=0.1537  U_b=0.1545  AUC=1.0000  Top1=1.0000
+  timing: data=20.4ms  fwd=94.8ms  bwd=69.8ms  total=185.6ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  38700] loss=2.0219  ema_loss=2.0147  gap=1.0638  ema_gap=1.0675  mixup=40/100  3.2 sps  ETA 1.0h
+              R²_rand=0.9899  R²_naive=0.9907  U_t=0.1538  U_b=0.1538  AUC=1.0000  Top1=1.0000
+  timing: data=4.8ms  fwd=94.8ms  bwd=73.2ms  total=173.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  38800] loss=2.0095  ema_loss=2.0135  gap=1.0685  ema_gap=1.0674  mixup=33/100  3.2 sps  ETA 1.0h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1539  U_b=0.1549  AUC=1.0000  Top1=1.0000
+  timing: data=20.2ms  fwd=90.2ms  bwd=69.3ms  total=180.3ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  38900] loss=2.0131  ema_loss=2.0131  gap=1.0686  ema_gap=1.0673  mixup=27/100  3.2 sps  ETA 1.0h
+              R²_rand=0.9900  R²_naive=0.9907  U_t=0.1545  U_b=0.1542  AUC=1.0000  Top1=1.0000
+  timing: data=4.4ms  fwd=91.6ms  bwd=69.2ms  total=165.8ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  39000] loss=2.0135  ema_loss=2.0131  gap=1.0716  ema_gap=1.0674  mixup=31/100  3.2 sps  ETA 0.9h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1538  U_b=0.1543  AUC=1.0000  Top1=1.0000
+  timing: data=19.2ms  fwd=90.9ms  bwd=69.3ms  total=180.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  39100] loss=2.0142  ema_loss=2.0129  gap=1.0639  ema_gap=1.0676  mixup=36/100  3.2 sps  ETA 0.9h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1541  U_b=0.1539  AUC=1.0000  Top1=1.0000
+  timing: data=21.2ms  fwd=91.4ms  bwd=69.2ms  total=182.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  39200] loss=2.0147  ema_loss=2.0128  gap=1.0691  ema_gap=1.0673  mixup=35/100  3.2 sps  ETA 0.9h
+              R²_rand=0.9900  R²_naive=0.9908  U_t=0.1530  U_b=0.1542  AUC=1.0000  Top1=1.0000
+  timing: data=4.5ms  fwd=93.6ms  bwd=69.4ms  total=168.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  39300] loss=2.0156  ema_loss=2.0126  gap=1.0661  ema_gap=1.0679  mixup=28/100  3.2 sps  ETA 0.9h
+              R²_rand=0.9903  R²_naive=0.9910  U_t=0.1541  U_b=0.1543  AUC=1.0000  Top1=1.0000
+  timing: data=19.2ms  fwd=90.8ms  bwd=69.4ms  total=180.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  39400] loss=2.0140  ema_loss=2.0128  gap=1.0680  ema_gap=1.0675  mixup=30/100  3.2 sps  ETA 0.9h
+              R²_rand=0.9902  R²_naive=0.9909  U_t=0.1537  U_b=0.1542  AUC=1.0000  Top1=1.0000
+  timing: data=17.8ms  fwd=90.8ms  bwd=69.2ms  total=178.4ms
+[  39500] loss=2.0126  ema_loss=2.0128  gap=1.0691  ema_gap=1.0673  mixup=33/100  3.2 sps  ETA 0.9h
+              R²_rand=0.9899  R²_naive=0.9908  U_t=0.1540  U_b=0.1547  AUC=1.0000  Top1=1.0000
+  timing: data=5.6ms  fwd=91.5ms  bwd=69.4ms  total=167.2ms
+[  39600] loss=2.0146  ema_loss=2.0126  gap=1.0711  ema_gap=1.0682  mixup=38/100  3.2 sps  ETA 0.9h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1535  U_b=0.1542  AUC=1.0000  Top1=1.0000
+  timing: data=19.2ms  fwd=90.4ms  bwd=69.4ms  total=179.7ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  39700] loss=2.0179  ema_loss=2.0124  gap=1.0695  ema_gap=1.0691  mixup=27/100  3.2 sps  ETA 0.9h
+              R²_rand=0.9901  R²_naive=0.9910  U_t=0.1545  U_b=0.1539  AUC=1.0000  Top1=1.0000
+  timing: data=19.9ms  fwd=91.4ms  bwd=69.5ms  total=181.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  39800] loss=2.0096  ema_loss=2.0122  gap=1.0661  ema_gap=1.0687  mixup=37/100  3.2 sps  ETA 0.9h
+              R²_rand=0.9902  R²_naive=0.9909  U_t=0.1544  U_b=0.1544  AUC=1.0000  Top1=1.0000
+  timing: data=4.6ms  fwd=89.4ms  bwd=69.1ms  total=163.7ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  39900] loss=2.0120  ema_loss=2.0120  gap=1.0712  ema_gap=1.0685  mixup=31/100  3.2 sps  ETA 0.9h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1535  U_b=0.1545  AUC=1.0000  Top1=1.0000
+  timing: data=18.8ms  fwd=89.0ms  bwd=69.5ms  total=177.9ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  40000] loss=2.0132  ema_loss=2.0125  gap=1.0657  ema_gap=1.0683  mixup=29/100  3.2 sps  ETA 0.9h
+              R²_rand=0.9902  R²_naive=0.9910  U_t=0.1547  U_b=0.1544  AUC=1.0000  Top1=1.0000
+  timing: data=22.2ms  fwd=89.1ms  bwd=69.3ms  total=181.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_40k.pth
+[  40100] loss=2.0138  ema_loss=2.0123  gap=1.0650  ema_gap=1.0680  mixup=36/100  3.2 sps  ETA 0.9h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1547  U_b=0.1544  AUC=1.0000  Top1=1.0000
+  timing: data=4.3ms  fwd=88.2ms  bwd=76.8ms  total=169.9ms
+[  40200] loss=2.0134  ema_loss=2.0126  gap=1.0694  ema_gap=1.0675  mixup=30/100  3.2 sps  ETA 0.8h
+              R²_rand=0.9903  R²_naive=0.9911  U_t=0.1541  U_b=0.1546  AUC=1.0000  Top1=1.0000
+  timing: data=19.6ms  fwd=87.7ms  bwd=69.0ms  total=176.8ms
+[  40300] loss=2.0109  ema_loss=2.0127  gap=1.0701  ema_gap=1.0685  mixup=24/100  3.2 sps  ETA 0.8h
+              R²_rand=0.9902  R²_naive=0.9910  U_t=0.1538  U_b=0.1549  AUC=1.0000  Top1=1.0000
+  timing: data=4.0ms  fwd=88.7ms  bwd=69.0ms  total=162.2ms
+[  40400] loss=2.0132  ema_loss=2.0123  gap=1.0664  ema_gap=1.0683  mixup=33/100  3.2 sps  ETA 0.8h
+              R²_rand=0.9902  R²_naive=0.9909  U_t=0.1541  U_b=0.1543  AUC=1.0000  Top1=1.0000
+  timing: data=18.8ms  fwd=87.0ms  bwd=69.1ms  total=175.5ms
+[  40500] loss=2.0132  ema_loss=2.0119  gap=1.0683  ema_gap=1.0686  mixup=31/100  3.2 sps  ETA 0.8h
+              R²_rand=0.9902  R²_naive=0.9910  U_t=0.1537  U_b=0.1544  AUC=1.0000  Top1=1.0000
+  timing: data=19.1ms  fwd=86.0ms  bwd=68.9ms  total=174.6ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  40600] loss=2.0143  ema_loss=2.0119  gap=1.0649  ema_gap=1.0693  mixup=31/100  3.2 sps  ETA 0.8h
+              R²_rand=0.9902  R²_naive=0.9909  U_t=0.1554  U_b=0.1544  AUC=1.0000  Top1=1.0000
+  timing: data=4.4ms  fwd=88.7ms  bwd=69.0ms  total=162.7ms
+[  40700] loss=2.0122  ema_loss=2.0124  gap=1.0729  ema_gap=1.0697  mixup=27/100  3.2 sps  ETA 0.8h
+              R²_rand=0.9901  R²_naive=0.9910  U_t=0.1542  U_b=0.1547  AUC=1.0000  Top1=1.0000
+  timing: data=22.1ms  fwd=87.6ms  bwd=69.0ms  total=179.3ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  40800] loss=2.0107  ema_loss=2.0125  gap=1.0673  ema_gap=1.0700  mixup=30/100  3.2 sps  ETA 0.8h
+              R²_rand=0.9902  R²_naive=0.9909  U_t=0.1544  U_b=0.1545  AUC=1.0000  Top1=1.0000
+  timing: data=21.0ms  fwd=87.2ms  bwd=69.0ms  total=177.7ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  40900] loss=2.0119  ema_loss=2.0122  gap=1.0735  ema_gap=1.0701  mixup=31/100  3.2 sps  ETA 0.8h
+              R²_rand=0.9900  R²_naive=0.9909  U_t=0.1534  U_b=0.1545  AUC=1.0000  Top1=1.0000
+  timing: data=4.2ms  fwd=90.0ms  bwd=69.1ms  total=163.9ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  41000] loss=2.0078  ema_loss=2.0119  gap=1.0741  ema_gap=1.0696  mixup=34/100  3.2 sps  ETA 0.8h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1539  U_b=0.1547  AUC=1.0000  Top1=1.0000
+  timing: data=18.1ms  fwd=88.8ms  bwd=69.0ms  total=176.4ms
+[  41100] loss=2.0089  ema_loss=2.0117  gap=1.0745  ema_gap=1.0703  mixup=36/100  3.2 sps  ETA 0.8h
+              R²_rand=0.9903  R²_naive=0.9911  U_t=0.1534  U_b=0.1546  AUC=1.0000  Top1=1.0000
+  timing: data=20.7ms  fwd=85.6ms  bwd=69.0ms  total=175.9ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  41200] loss=2.0103  ema_loss=2.0118  gap=1.0706  ema_gap=1.0701  mixup=30/100  3.2 sps  ETA 0.8h
+              R²_rand=0.9901  R²_naive=0.9910  U_t=0.1552  U_b=0.1545  AUC=1.0000  Top1=1.0000
+  timing: data=4.6ms  fwd=89.7ms  bwd=68.7ms  total=163.4ms
+[  41300] loss=2.0067  ema_loss=2.0117  gap=1.0681  ema_gap=1.0708  mixup=28/100  3.2 sps  ETA 0.7h
+              R²_rand=0.9903  R²_naive=0.9910  U_t=0.1546  U_b=0.1547  AUC=1.0000  Top1=1.0000
+  timing: data=19.5ms  fwd=84.7ms  bwd=69.0ms  total=173.6ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  41400] loss=2.0124  ema_loss=2.0119  gap=1.0692  ema_gap=1.0706  mixup=36/100  3.2 sps  ETA 0.7h
+              R²_rand=0.9902  R²_naive=0.9910  U_t=0.1543  U_b=0.1544  AUC=1.0000  Top1=1.0000
+  timing: data=5.0ms  fwd=87.3ms  bwd=68.8ms  total=161.5ms
+[  41500] loss=2.0091  ema_loss=2.0116  gap=1.0730  ema_gap=1.0709  mixup=32/100  3.2 sps  ETA 0.7h
+              R²_rand=0.9903  R²_naive=0.9911  U_t=0.1541  U_b=0.1546  AUC=1.0000  Top1=1.0000
+  timing: data=17.4ms  fwd=90.3ms  bwd=69.1ms  total=177.3ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  41600] loss=2.0112  ema_loss=2.0116  gap=1.0728  ema_gap=1.0712  mixup=36/100  3.2 sps  ETA 0.7h
+              R²_rand=0.9903  R²_naive=0.9911  U_t=0.1535  U_b=0.1545  AUC=1.0000  Top1=1.0000
+  timing: data=19.1ms  fwd=87.6ms  bwd=68.9ms  total=176.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  41700] loss=2.0122  ema_loss=2.0118  gap=1.0722  ema_gap=1.0708  mixup=29/100  3.2 sps  ETA 0.7h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1536  U_b=0.1546  AUC=1.0000  Top1=1.0000
+  timing: data=4.4ms  fwd=92.8ms  bwd=69.2ms  total=167.0ms
+[  41800] loss=2.0160  ema_loss=2.0118  gap=1.0765  ema_gap=1.0712  mixup=30/100  3.2 sps  ETA 0.7h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1536  U_b=0.1541  AUC=1.0000  Top1=1.0000
+  timing: data=17.8ms  fwd=88.6ms  bwd=69.1ms  total=176.0ms
+[  41900] loss=2.0102  ema_loss=2.0116  gap=1.0728  ema_gap=1.0720  mixup=26/100  3.2 sps  ETA 0.7h
+              R²_rand=0.9902  R²_naive=0.9909  U_t=0.1536  U_b=0.1545  AUC=1.0000  Top1=1.0000
+  timing: data=17.9ms  fwd=89.7ms  bwd=69.2ms  total=177.3ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  42000] loss=2.0117  ema_loss=2.0117  gap=1.0746  ema_gap=1.0733  mixup=32/100  3.2 sps  ETA 0.7h
+              R²_rand=0.9902  R²_naive=0.9909  U_t=0.1537  U_b=0.1544  AUC=1.0000  Top1=1.0000
+  timing: data=3.8ms  fwd=89.7ms  bwd=68.9ms  total=162.9ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  42100] loss=2.0132  ema_loss=2.0116  gap=1.0710  ema_gap=1.0733  mixup=37/100  3.2 sps  ETA 0.7h
+              R²_rand=0.9902  R²_naive=0.9910  U_t=0.1537  U_b=0.1544  AUC=1.0000  Top1=1.0000
+  timing: data=23.4ms  fwd=89.7ms  bwd=69.1ms  total=182.8ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  42200] loss=2.0086  ema_loss=2.0117  gap=1.0697  ema_gap=1.0731  mixup=29/100  3.2 sps  ETA 0.7h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1530  U_b=0.1548  AUC=1.0000  Top1=1.0000
+  timing: data=17.7ms  fwd=89.0ms  bwd=69.2ms  total=176.5ms
+[  42300] loss=2.0092  ema_loss=2.0113  gap=1.0722  ema_gap=1.0741  mixup=24/100  3.2 sps  ETA 0.7h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1541  U_b=0.1552  AUC=1.0000  Top1=1.0000
+  timing: data=5.0ms  fwd=89.6ms  bwd=69.2ms  total=164.3ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  42400] loss=2.0112  ema_loss=2.0114  gap=1.0799  ema_gap=1.0745  mixup=32/100  3.2 sps  ETA 0.7h
+              R²_rand=0.9904  R²_naive=0.9912  U_t=0.1541  U_b=0.1544  AUC=1.0000  Top1=1.0000
+  timing: data=18.9ms  fwd=88.9ms  bwd=69.2ms  total=177.6ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  42500] loss=2.0087  ema_loss=2.0103  gap=1.0785  ema_gap=1.0750  mixup=28/100  3.2 sps  ETA 0.6h
+              R²_rand=0.9896  R²_naive=0.9905  U_t=0.1564  U_b=0.1567  AUC=1.0000  Top1=1.0000
+  timing: data=18.2ms  fwd=87.7ms  bwd=69.2ms  total=175.7ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  42600] loss=1.9997  ema_loss=2.0040  gap=1.0701  ema_gap=1.0738  mixup=31/100  3.2 sps  ETA 0.6h
+              R²_rand=0.9902  R²_naive=0.9910  U_t=0.1566  U_b=0.1568  AUC=1.0000  Top1=1.0000
+  timing: data=4.2ms  fwd=89.3ms  bwd=69.0ms  total=163.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  42700] loss=1.9985  ema_loss=2.0010  gap=1.0715  ema_gap=1.0723  mixup=29/100  3.2 sps  ETA 0.6h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1562  U_b=0.1571  AUC=1.0000  Top1=1.0000
+  timing: data=18.9ms  fwd=87.7ms  bwd=69.0ms  total=176.2ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  42800] loss=2.0019  ema_loss=2.0001  gap=1.0744  ema_gap=1.0725  mixup=22/100  3.2 sps  ETA 0.6h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1558  U_b=0.1569  AUC=1.0000  Top1=1.0000
+  timing: data=4.0ms  fwd=90.8ms  bwd=69.0ms  total=164.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  42900] loss=2.0076  ema_loss=1.9999  gap=1.0754  ema_gap=1.0742  mixup=34/100  3.2 sps  ETA 0.6h
+              R²_rand=0.9900  R²_naive=0.9908  U_t=0.1560  U_b=0.1564  AUC=1.0000  Top1=1.0000
+  timing: data=21.6ms  fwd=88.7ms  bwd=69.2ms  total=180.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  43000] loss=1.9989  ema_loss=1.9992  gap=1.0762  ema_gap=1.0736  mixup=30/100  3.2 sps  ETA 0.6h
+              R²_rand=0.9902  R²_naive=0.9910  U_t=0.1550  U_b=0.1569  AUC=1.0000  Top1=1.0000
+  timing: data=19.6ms  fwd=89.1ms  bwd=69.1ms  total=178.3ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  43100] loss=1.9953  ema_loss=1.9990  gap=1.0708  ema_gap=1.0728  mixup=39/100  3.2 sps  ETA 0.6h
+              R²_rand=0.9903  R²_naive=0.9911  U_t=0.1567  U_b=0.1574  AUC=1.0000  Top1=1.0000
+  timing: data=5.2ms  fwd=90.0ms  bwd=69.1ms  total=164.8ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  43200] loss=1.9988  ema_loss=1.9991  gap=1.0748  ema_gap=1.0736  mixup=39/100  3.2 sps  ETA 0.6h
+              R²_rand=0.9901  R²_naive=0.9910  U_t=0.1568  U_b=0.1573  AUC=1.0000  Top1=1.0000
+  timing: data=18.9ms  fwd=88.3ms  bwd=69.1ms  total=176.8ms
+[  43300] loss=2.0008  ema_loss=1.9987  gap=1.0716  ema_gap=1.0739  mixup=25/100  3.2 sps  ETA 0.6h
+              R²_rand=0.9901  R²_naive=0.9908  U_t=0.1566  U_b=0.1572  AUC=1.0000  Top1=1.0000
+  timing: data=17.9ms  fwd=88.3ms  bwd=69.0ms  total=175.9ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  43400] loss=1.9977  ema_loss=1.9985  gap=1.0759  ema_gap=1.0747  mixup=31/100  3.2 sps  ETA 0.6h
+              R²_rand=0.9902  R²_naive=0.9910  U_t=0.1564  U_b=0.1574  AUC=1.0000  Top1=1.0000
+  timing: data=4.2ms  fwd=90.6ms  bwd=69.1ms  total=164.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  43500] loss=1.9890  ema_loss=1.9985  gap=1.0715  ema_gap=1.0742  mixup=25/100  3.2 sps  ETA 0.6h
+              R²_rand=0.9903  R²_naive=0.9910  U_t=0.1562  U_b=0.1580  AUC=1.0000  Top1=1.0000
+  timing: data=16.9ms  fwd=87.9ms  bwd=69.2ms  total=174.5ms
+[  43600] loss=1.9981  ema_loss=1.9987  gap=1.0754  ema_gap=1.0741  mixup=27/100  3.2 sps  ETA 0.6h
+              R²_rand=0.9904  R²_naive=0.9912  U_t=0.1552  U_b=0.1570  AUC=1.0000  Top1=1.0000
+  timing: data=19.8ms  fwd=88.6ms  bwd=69.1ms  total=178.1ms
+[  43700] loss=1.9979  ema_loss=1.9990  gap=1.0814  ema_gap=1.0765  mixup=29/100  3.2 sps  ETA 0.5h
+              R²_rand=0.9902  R²_naive=0.9911  U_t=0.1559  U_b=0.1570  AUC=1.0000  Top1=1.0000
+  timing: data=4.1ms  fwd=91.5ms  bwd=69.2ms  total=165.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  43800] loss=1.9947  ema_loss=1.9982  gap=1.0773  ema_gap=1.0756  mixup=27/100  3.2 sps  ETA 0.5h
+              R²_rand=0.9903  R²_naive=0.9911  U_t=0.1566  U_b=0.1572  AUC=1.0000  Top1=1.0000
+  timing: data=18.4ms  fwd=88.1ms  bwd=69.0ms  total=176.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  43900] loss=2.0007  ema_loss=1.9980  gap=1.0748  ema_gap=1.0756  mixup=37/100  3.2 sps  ETA 0.5h
+              R²_rand=0.9903  R²_naive=0.9910  U_t=0.1565  U_b=0.1571  AUC=1.0000  Top1=1.0000
+  timing: data=4.6ms  fwd=88.5ms  bwd=69.0ms  total=162.7ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  44000] loss=1.9956  ema_loss=1.9982  gap=1.0772  ema_gap=1.0762  mixup=33/100  3.2 sps  ETA 0.5h
+              R²_rand=0.9904  R²_naive=0.9912  U_t=0.1564  U_b=0.1574  AUC=1.0000  Top1=1.0000
+  timing: data=17.9ms  fwd=89.1ms  bwd=69.1ms  total=176.7ms
+[  44100] loss=1.9996  ema_loss=1.9988  gap=1.0820  ema_gap=1.0763  mixup=24/100  3.2 sps  ETA 0.5h
+              R²_rand=0.9901  R²_naive=0.9910  U_t=0.1560  U_b=0.1571  AUC=1.0000  Top1=1.0000
+  timing: data=19.4ms  fwd=88.7ms  bwd=69.0ms  total=177.6ms
+[  44200] loss=1.9960  ema_loss=1.9986  gap=1.0850  ema_gap=1.0772  mixup=34/100  3.2 sps  ETA 0.5h
+              R²_rand=0.9903  R²_naive=0.9912  U_t=0.1559  U_b=0.1575  AUC=1.0000  Top1=1.0000
+  timing: data=5.5ms  fwd=88.7ms  bwd=69.0ms  total=163.8ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  44300] loss=1.9862  ema_loss=1.9927  gap=1.0739  ema_gap=1.0760  mixup=30/100  3.2 sps  ETA 0.5h
+              R²_rand=0.9902  R²_naive=0.9910  U_t=0.1593  U_b=0.1595  AUC=1.0000  Top1=1.0000
+  timing: data=21.4ms  fwd=88.1ms  bwd=69.1ms  total=179.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  44400] loss=1.9885  ema_loss=1.9888  gap=1.0724  ema_gap=1.0748  mixup=28/100  3.2 sps  ETA 0.5h
+              R²_rand=0.9902  R²_naive=0.9910  U_t=0.1595  U_b=0.1596  AUC=1.0000  Top1=1.0000
+  timing: data=22.9ms  fwd=87.5ms  bwd=69.1ms  total=180.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  44500] loss=1.9805  ema_loss=1.9867  gap=1.0762  ema_gap=1.0748  mixup=25/100  3.2 sps  ETA 0.5h
+              R²_rand=0.9897  R²_naive=0.9906  U_t=0.1603  U_b=0.1619  AUC=1.0000  Top1=1.0000
+  timing: data=3.9ms  fwd=90.3ms  bwd=69.1ms  total=163.9ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  44600] loss=1.9752  ema_loss=1.9803  gap=1.0692  ema_gap=1.0735  mixup=26/100  3.2 sps  ETA 0.5h
+              R²_rand=0.9900  R²_naive=0.9908  U_t=0.1618  U_b=0.1621  AUC=1.0000  Top1=1.0000
+  timing: data=20.1ms  fwd=87.6ms  bwd=69.1ms  total=177.2ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  44700] loss=1.9719  ema_loss=1.9768  gap=1.0746  ema_gap=1.0735  mixup=36/100  3.2 sps  ETA 0.5h
+              R²_rand=0.9902  R²_naive=0.9910  U_t=0.1610  U_b=0.1621  AUC=1.0000  Top1=1.0000
+  timing: data=34.9ms  fwd=87.5ms  bwd=69.0ms  total=191.9ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  44800] loss=1.9762  ema_loss=1.9756  gap=1.0728  ema_gap=1.0738  mixup=29/100  3.2 sps  ETA 0.4h
+              R²_rand=0.9902  R²_naive=0.9909  U_t=0.1618  U_b=0.1619  AUC=1.0000  Top1=1.0000
+  timing: data=3.6ms  fwd=90.9ms  bwd=69.0ms  total=164.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  44900] loss=1.9744  ema_loss=1.9754  gap=1.0760  ema_gap=1.0730  mixup=27/100  3.2 sps  ETA 0.4h
+              R²_rand=0.9901  R²_naive=0.9910  U_t=0.1620  U_b=0.1620  AUC=1.0000  Top1=1.0000
+  timing: data=24.5ms  fwd=85.4ms  bwd=69.1ms  total=179.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  45000] loss=1.9767  ema_loss=1.9750  gap=1.0741  ema_gap=1.0730  mixup=30/100  3.2 sps  ETA 0.4h
+              R²_rand=0.9901  R²_naive=0.9910  U_t=0.1606  U_b=0.1624  AUC=1.0000  Top1=1.0000
+  timing: data=21.5ms  fwd=88.4ms  bwd=69.1ms  total=179.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_45k.pth
+[  45100] loss=1.9716  ema_loss=1.9746  gap=1.0701  ema_gap=1.0727  mixup=31/100  3.2 sps  ETA 0.4h
+              R²_rand=0.9900  R²_naive=0.9909  U_t=0.1620  U_b=0.1622  AUC=1.0000  Top1=1.0000
+  timing: data=5.1ms  fwd=88.6ms  bwd=69.1ms  total=163.3ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  45200] loss=1.9752  ema_loss=1.9746  gap=1.0746  ema_gap=1.0733  mixup=33/100  3.2 sps  ETA 0.4h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1600  U_b=0.1622  AUC=1.0000  Top1=1.0000
+  timing: data=20.7ms  fwd=88.2ms  bwd=69.1ms  total=178.6ms
+[  45300] loss=1.9756  ema_loss=1.9744  gap=1.0755  ema_gap=1.0734  mixup=27/100  3.2 sps  ETA 0.4h
+              R²_rand=0.9901  R²_naive=0.9910  U_t=0.1611  U_b=0.1622  AUC=1.0000  Top1=1.0000
+  timing: data=4.3ms  fwd=88.9ms  bwd=69.1ms  total=162.9ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  45400] loss=1.9723  ema_loss=1.9742  gap=1.0749  ema_gap=1.0727  mixup=28/100  3.2 sps  ETA 0.4h
+              R²_rand=0.9902  R²_naive=0.9910  U_t=0.1615  U_b=0.1622  AUC=1.0000  Top1=1.0000
+  timing: data=20.3ms  fwd=87.6ms  bwd=68.9ms  total=177.3ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  45500] loss=1.9732  ema_loss=1.9744  gap=1.0705  ema_gap=1.0726  mixup=29/100  3.2 sps  ETA 0.4h
+              R²_rand=0.9902  R²_naive=0.9910  U_t=0.1614  U_b=0.1621  AUC=1.0000  Top1=1.0000
+  timing: data=25.5ms  fwd=88.0ms  bwd=69.1ms  total=183.2ms
+[  45600] loss=1.9779  ema_loss=1.9748  gap=1.0718  ema_gap=1.0738  mixup=39/100  3.2 sps  ETA 0.4h
+              R²_rand=0.9902  R²_naive=0.9910  U_t=0.1605  U_b=0.1617  AUC=1.0000  Top1=1.0000
+  timing: data=5.1ms  fwd=89.9ms  bwd=69.0ms  total=164.6ms
+[  45700] loss=1.9747  ema_loss=1.9745  gap=1.0770  ema_gap=1.0746  mixup=30/100  3.2 sps  ETA 0.4h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1598  U_b=0.1625  AUC=1.0000  Top1=1.0000
+  timing: data=20.4ms  fwd=89.1ms  bwd=69.2ms  total=179.3ms
+[  45800] loss=1.9774  ema_loss=1.9746  gap=1.0738  ema_gap=1.0747  mixup=38/100  3.2 sps  ETA 0.4h
+              R²_rand=0.9901  R²_naive=0.9910  U_t=0.1604  U_b=0.1622  AUC=1.0000  Top1=1.0000
+  timing: data=20.7ms  fwd=89.2ms  bwd=69.1ms  total=179.6ms
+[  45900] loss=1.9759  ema_loss=1.9748  gap=1.0739  ema_gap=1.0753  mixup=28/100  3.2 sps  ETA 0.4h
+              R²_rand=0.9903  R²_naive=0.9911  U_t=0.1602  U_b=0.1623  AUC=1.0000  Top1=1.0000
+  timing: data=3.5ms  fwd=90.4ms  bwd=69.1ms  total=163.6ms
+[  46000] loss=1.9773  ema_loss=1.9755  gap=1.0727  ema_gap=1.0757  mixup=32/100  3.2 sps  ETA 0.3h
+              R²_rand=0.9900  R²_naive=0.9909  U_t=0.1608  U_b=0.1619  AUC=1.0000  Top1=1.0000
+  timing: data=24.2ms  fwd=88.5ms  bwd=69.1ms  total=182.3ms
+[  46100] loss=1.9748  ema_loss=1.9754  gap=1.0760  ema_gap=1.0759  mixup=22/100  3.2 sps  ETA 0.3h
+              R²_rand=0.9901  R²_naive=0.9910  U_t=0.1601  U_b=0.1625  AUC=1.0000  Top1=1.0000
+  timing: data=21.2ms  fwd=90.6ms  bwd=69.1ms  total=181.5ms
+[  46200] loss=1.9750  ema_loss=1.9754  gap=1.0715  ema_gap=1.0761  mixup=29/100  3.2 sps  ETA 0.3h
+              R²_rand=0.9902  R²_naive=0.9910  U_t=0.1608  U_b=0.1623  AUC=1.0000  Top1=1.0000
+  timing: data=5.1ms  fwd=90.0ms  bwd=69.2ms  total=164.8ms
+[  46300] loss=1.9774  ema_loss=1.9757  gap=1.0797  ema_gap=1.0766  mixup=29/100  3.2 sps  ETA 0.3h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1606  U_b=0.1621  AUC=1.0000  Top1=1.0000
+  timing: data=22.9ms  fwd=86.4ms  bwd=68.9ms  total=178.8ms
+[  46400] loss=1.9768  ema_loss=1.9754  gap=1.0740  ema_gap=1.0767  mixup=23/100  3.2 sps  ETA 0.3h
+              R²_rand=0.9903  R²_naive=0.9910  U_t=0.1613  U_b=0.1622  AUC=1.0000  Top1=1.0000
+  timing: data=5.2ms  fwd=86.7ms  bwd=69.2ms  total=161.6ms
+[  46500] loss=1.9776  ema_loss=1.9756  gap=1.0776  ema_gap=1.0768  mixup=29/100  3.2 sps  ETA 0.3h
+              R²_rand=0.9901  R²_naive=0.9910  U_t=0.1606  U_b=0.1623  AUC=1.0000  Top1=1.0000
+  timing: data=22.5ms  fwd=90.8ms  bwd=69.1ms  total=182.8ms
+[  46600] loss=1.9786  ema_loss=1.9753  gap=1.0764  ema_gap=1.0759  mixup=26/100  3.2 sps  ETA 0.3h
+              R²_rand=0.9900  R²_naive=0.9909  U_t=0.1607  U_b=0.1626  AUC=1.0000  Top1=1.0000
+  timing: data=23.0ms  fwd=88.6ms  bwd=69.1ms  total=181.1ms
+[  46700] loss=1.9748  ema_loss=1.9756  gap=1.0726  ema_gap=1.0762  mixup=26/100  3.2 sps  ETA 0.3h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1612  U_b=0.1620  AUC=1.0000  Top1=1.0000
+  timing: data=4.0ms  fwd=89.6ms  bwd=69.0ms  total=163.1ms
+[  46800] loss=1.9766  ema_loss=1.9753  gap=1.0745  ema_gap=1.0766  mixup=34/100  3.2 sps  ETA 0.3h
+              R²_rand=0.9902  R²_naive=0.9910  U_t=0.1608  U_b=0.1623  AUC=1.0000  Top1=1.0000
+  timing: data=20.0ms  fwd=89.3ms  bwd=69.0ms  total=179.0ms
+[  46900] loss=1.9724  ema_loss=1.9751  gap=1.0774  ema_gap=1.0751  mixup=22/100  3.2 sps  ETA 0.3h
+              R²_rand=0.9900  R²_naive=0.9909  U_t=0.1606  U_b=0.1628  AUC=1.0000  Top1=1.0000
+  timing: data=21.3ms  fwd=88.1ms  bwd=69.1ms  total=179.1ms
+[  47000] loss=1.9776  ema_loss=1.9750  gap=1.0740  ema_gap=1.0747  mixup=25/100  3.2 sps  ETA 0.3h
+              R²_rand=0.9902  R²_naive=0.9910  U_t=0.1612  U_b=0.1619  AUC=1.0000  Top1=1.0000
+  timing: data=4.1ms  fwd=92.6ms  bwd=69.2ms  total=166.5ms
+[  47100] loss=1.9768  ema_loss=1.9747  gap=1.0746  ema_gap=1.0749  mixup=36/100  3.2 sps  ETA 0.2h
+              R²_rand=0.9900  R²_naive=0.9908  U_t=0.1615  U_b=0.1620  AUC=1.0000  Top1=1.0000
+  timing: data=21.5ms  fwd=88.4ms  bwd=69.1ms  total=179.6ms
+[  47200] loss=1.9735  ema_loss=1.9749  gap=1.0748  ema_gap=1.0745  mixup=24/100  3.2 sps  ETA 0.2h
+              R²_rand=0.9900  R²_naive=0.9909  U_t=0.1609  U_b=0.1625  AUC=1.0000  Top1=1.0000
+  timing: data=25.1ms  fwd=86.9ms  bwd=69.2ms  total=181.7ms
+[  47300] loss=1.9779  ema_loss=1.9749  gap=1.0786  ema_gap=1.0736  mixup=35/100  3.2 sps  ETA 0.2h
+              R²_rand=0.9902  R²_naive=0.9910  U_t=0.1614  U_b=0.1618  AUC=1.0000  Top1=1.0000
+  timing: data=5.4ms  fwd=88.1ms  bwd=69.1ms  total=163.1ms
+[  47400] loss=1.9756  ema_loss=1.9745  gap=1.0777  ema_gap=1.0741  mixup=30/100  3.2 sps  ETA 0.2h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1614  U_b=0.1620  AUC=1.0000  Top1=1.0000
+  timing: data=24.0ms  fwd=87.3ms  bwd=69.0ms  total=180.9ms
+[  47500] loss=1.9706  ema_loss=1.9742  gap=1.0783  ema_gap=1.0750  mixup=23/100  3.2 sps  ETA 0.2h
+              R²_rand=0.9902  R²_naive=0.9910  U_t=0.1619  U_b=0.1624  AUC=1.0000  Top1=1.0000
+  timing: data=21.8ms  fwd=87.7ms  bwd=69.1ms  total=179.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  47600] loss=1.9820  ema_loss=1.9759  gap=1.0842  ema_gap=1.0784  mixup=28/100  3.2 sps  ETA 0.2h
+              R²_rand=0.9901  R²_naive=0.9910  U_t=0.1609  U_b=0.1622  AUC=1.0000  Top1=1.0000
+  timing: data=4.1ms  fwd=90.3ms  bwd=69.2ms  total=164.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  47700] loss=1.9755  ema_loss=1.9778  gap=1.0902  ema_gap=1.0831  mixup=33/100  3.2 sps  ETA 0.2h
+              R²_rand=0.9899  R²_naive=0.9909  U_t=0.1602  U_b=0.1628  AUC=1.0000  Top1=1.0000
+  timing: data=25.0ms  fwd=88.4ms  bwd=69.1ms  total=183.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_gap.pth
+[  47800] loss=1.9773  ema_loss=1.9755  gap=1.0783  ema_gap=1.0809  mixup=35/100  3.2 sps  ETA 0.2h
+              R²_rand=0.9900  R²_naive=0.9909  U_t=0.1611  U_b=0.1622  AUC=1.0000  Top1=1.0000
+  timing: data=4.8ms  fwd=90.3ms  bwd=69.1ms  total=164.8ms
+[  47900] loss=1.9682  ema_loss=1.9740  gap=1.0780  ema_gap=1.0795  mixup=24/100  3.2 sps  ETA 0.2h
+              R²_rand=0.9897  R²_naive=0.9905  U_t=0.1635  U_b=0.1646  AUC=1.0000  Top1=1.0000
+  timing: data=23.1ms  fwd=88.8ms  bwd=69.1ms  total=181.6ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  48000] loss=1.9632  ema_loss=1.9690  gap=1.0769  ema_gap=1.0771  mixup=30/100  3.2 sps  ETA 0.2h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1633  U_b=0.1646  AUC=1.0000  Top1=1.0000
+  timing: data=23.5ms  fwd=89.5ms  bwd=69.1ms  total=182.7ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  48100] loss=1.9644  ema_loss=1.9657  gap=1.0761  ema_gap=1.0753  mixup=33/100  3.2 sps  ETA 0.2h
+              R²_rand=0.9901  R²_naive=0.9910  U_t=0.1632  U_b=0.1649  AUC=1.0000  Top1=1.0000
+  timing: data=4.2ms  fwd=90.8ms  bwd=69.1ms  total=164.6ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  48200] loss=1.9630  ema_loss=1.9640  gap=1.0765  ema_gap=1.0752  mixup=31/100  3.2 sps  ETA 0.2h
+              R²_rand=0.9902  R²_naive=0.9910  U_t=0.1632  U_b=0.1646  AUC=1.0000  Top1=1.0000
+  timing: data=20.4ms  fwd=86.9ms  bwd=69.1ms  total=176.9ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  48300] loss=1.9603  ema_loss=1.9639  gap=1.0772  ema_gap=1.0760  mixup=32/100  3.2 sps  ETA 0.1h
+              R²_rand=0.9902  R²_naive=0.9910  U_t=0.1635  U_b=0.1655  AUC=1.0000  Top1=1.0000
+  timing: data=22.6ms  fwd=89.2ms  bwd=69.0ms  total=181.2ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  48400] loss=1.9636  ema_loss=1.9634  gap=1.0762  ema_gap=1.0763  mixup=23/100  3.2 sps  ETA 0.1h
+              R²_rand=0.9902  R²_naive=0.9910  U_t=0.1632  U_b=0.1648  AUC=1.0000  Top1=1.0000
+  timing: data=4.7ms  fwd=87.8ms  bwd=68.9ms  total=161.8ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  48500] loss=1.9601  ema_loss=1.9634  gap=1.0762  ema_gap=1.0759  mixup=30/100  3.2 sps  ETA 0.1h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1633  U_b=0.1650  AUC=1.0000  Top1=1.0000
+  timing: data=24.8ms  fwd=88.5ms  bwd=69.1ms  total=182.9ms
+[  48600] loss=1.9635  ema_loss=1.9639  gap=1.0745  ema_gap=1.0767  mixup=25/100  3.2 sps  ETA 0.1h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1644  U_b=0.1653  AUC=1.0000  Top1=1.0000
+  timing: data=24.5ms  fwd=88.1ms  bwd=69.2ms  total=182.3ms
+[  48700] loss=1.9620  ema_loss=1.9638  gap=1.0801  ema_gap=1.0770  mixup=35/100  3.2 sps  ETA 0.1h
+              R²_rand=0.9901  R²_naive=0.9910  U_t=0.1626  U_b=0.1650  AUC=1.0000  Top1=1.0000
+  timing: data=4.3ms  fwd=90.4ms  bwd=68.9ms  total=164.1ms
+[  48800] loss=1.9623  ema_loss=1.9630  gap=1.0791  ema_gap=1.0768  mixup=25/100  3.2 sps  ETA 0.1h
+              R²_rand=0.9900  R²_naive=0.9909  U_t=0.1632  U_b=0.1649  AUC=1.0000  Top1=1.0000
+  timing: data=23.7ms  fwd=88.8ms  bwd=69.1ms  total=182.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  48900] loss=1.9581  ema_loss=1.9615  gap=1.0711  ema_gap=1.0767  mixup=36/100  3.2 sps  ETA 0.1h
+              R²_rand=0.9897  R²_naive=0.9905  U_t=0.1667  U_b=0.1670  AUC=1.0000  Top1=1.0000
+  timing: data=26.5ms  fwd=87.1ms  bwd=69.2ms  total=183.3ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  49000] loss=1.9550  ema_loss=1.9573  gap=1.0755  ema_gap=1.0749  mixup=29/100  3.2 sps  ETA 0.1h
+              R²_rand=0.9900  R²_naive=0.9909  U_t=0.1649  U_b=0.1671  AUC=1.0000  Top1=1.0000
+  timing: data=4.4ms  fwd=90.1ms  bwd=69.0ms  total=164.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  49100] loss=1.9528  ema_loss=1.9540  gap=1.0749  ema_gap=1.0758  mixup=35/100  3.2 sps  ETA 0.1h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1654  U_b=0.1675  AUC=1.0000  Top1=1.0000
+  timing: data=29.7ms  fwd=89.3ms  bwd=69.2ms  total=188.9ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  49200] loss=1.9557  ema_loss=1.9529  gap=1.0772  ema_gap=1.0746  mixup=32/100  3.2 sps  ETA 0.1h
+              R²_rand=0.9899  R²_naive=0.9908  U_t=0.1654  U_b=0.1671  AUC=1.0000  Top1=1.0000
+  timing: data=4.1ms  fwd=90.5ms  bwd=69.1ms  total=164.2ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  49300] loss=1.9547  ema_loss=1.9529  gap=1.0767  ema_gap=1.0748  mixup=26/100  3.2 sps  ETA 0.1h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1659  U_b=0.1674  AUC=1.0000  Top1=1.0000
+  timing: data=28.4ms  fwd=84.8ms  bwd=69.1ms  total=182.9ms
+[  49400] loss=1.9548  ema_loss=1.9524  gap=1.0803  ema_gap=1.0756  mixup=31/100  3.2 sps  ETA 0.1h
+              R²_rand=0.9899  R²_naive=0.9908  U_t=0.1664  U_b=0.1672  AUC=1.0000  Top1=1.0000
+  timing: data=26.6ms  fwd=86.8ms  bwd=69.1ms  total=183.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  49500] loss=1.9525  ema_loss=1.9519  gap=1.0760  ema_gap=1.0762  mixup=29/100  3.2 sps  ETA 0.0h
+              R²_rand=0.9900  R²_naive=0.9908  U_t=0.1658  U_b=0.1675  AUC=1.0000  Top1=1.0000
+  timing: data=5.3ms  fwd=88.1ms  bwd=69.1ms  total=163.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  49600] loss=1.9487  ema_loss=1.9518  gap=1.0750  ema_gap=1.0752  mixup=27/100  3.2 sps  ETA 0.0h
+              R²_rand=0.9902  R²_naive=0.9909  U_t=0.1654  U_b=0.1676  AUC=1.0000  Top1=1.0000
+  timing: data=24.9ms  fwd=88.5ms  bwd=69.1ms  total=183.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  49700] loss=1.9540  ema_loss=1.9519  gap=1.0713  ema_gap=1.0748  mixup=33/100  3.2 sps  ETA 0.0h
+              R²_rand=0.9901  R²_naive=0.9909  U_t=0.1655  U_b=0.1675  AUC=1.0000  Top1=1.0000
+  timing: data=26.5ms  fwd=89.6ms  bwd=69.2ms  total=185.9ms
+[  49800] loss=1.9535  ema_loss=1.9517  gap=1.0757  ema_gap=1.0741  mixup=27/100  3.2 sps  ETA 0.0h
+              R²_rand=0.9902  R²_naive=0.9910  U_t=0.1662  U_b=0.1674  AUC=1.0000  Top1=1.0000
+  timing: data=4.0ms  fwd=91.1ms  bwd=69.2ms  total=164.8ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_best_loss.pth
+[  49900] loss=1.9543  ema_loss=1.9522  gap=1.0731  ema_gap=1.0771  mixup=31/100  3.2 sps  ETA 0.0h
+              R²_rand=0.9902  R²_naive=0.9910  U_t=0.1653  U_b=0.1671  AUC=1.0000  Top1=1.0000
+  timing: data=24.5ms  fwd=88.7ms  bwd=69.1ms  total=183.0ms
+[  50000] loss=1.9526  ema_loss=1.9522  gap=1.0782  ema_gap=1.0770  mixup=25/100  3.2 sps  ETA 0.0h
+              R²_rand=0.9902  R²_naive=0.9910  U_t=0.1654  U_b=0.1673  AUC=1.0000  Top1=1.0000
+  timing: data=4.1ms  fwd=92.1ms  bwd=69.1ms  total=165.8ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_50k.pth
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_final.pth
+
+Done in 2.1h. Best gap=1.0831 at step 47700, Best loss=1.9517 at step 49800

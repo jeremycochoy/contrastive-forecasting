@@ -1,0 +1,532 @@
+Loading models...
+  [eval] auto-detected num_encoder_layers=6 from backbone checkpoint
+  [eval] auto-detected freq_emb_dim=3 from backbone checkpoint
+  [eval] auto-detected seasonality_emb_dim=3 from backbone checkpoint
+  [eval] auto-detected patch_stats=none
+/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/transformer.py:392: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  warnings.warn(
+  [eval] auto-detected transformer-q head (2L H=384 nhead=6 causal)
+  Backbone: /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v13_jepa_fcstbottleneck128_newconv_fp32_50k_FINAL.pth
+  Head: /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v13_qhead_xfmr2L_quant_30k_FINAL.pth
+  Strategy: B4 (forecast_len=16)
+  --config-filter 'bizitobs_application/short|bizitobs_service/short|bizitobs_l2c/(5T|H)/short|ett1/(15T|H)/short|ett2/(15T|H)/short|electricity/H/short|covid_deaths/short|us_births/D/short': kept 11 of 97 configs (skipped 86)
+
+Total configs to evaluate: 11
+0it [00:00, ?it/s]  [  1/11] bizitobs_application/10S/short                FAILED: Given groups=128, weight of size [128, 1, 3], expected input[1, 384, 66] to have 128 channels, but got 384 channels instead  (0.2s)
+Traceback (most recent call last):
+  File "/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py", line 699, in main
+    res = evaluate_model(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/model/evaluation.py", line 262, in evaluate_model
+    return evaluate_forecasts(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/model/evaluation.py", line 207, in evaluate_forecasts
+    metrics_values = evaluate_forecasts_raw(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/model/evaluation.py", line 145, in evaluate_forecasts_raw
+    for input_batch, label_batch, forecast_batch in zip(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/itertools.py", line 128, in get_batch
+    return list(itertools.islice(it, batch_size))
+  File "/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py", line 235, in predict
+    yield self.predict_item(item)
+  File "/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py", line 259, in predict_item
+    forecast_raw = forecast_with_strategy(
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/forecasting_head.py", line 1021, in forecast_with_strategy
+    return fn(backbone, head, x_context, horizon, device)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/forecasting_head.py", line 959, in forecast_B4
+    rolled_f = rollout_latent(backbone, e_ctx, n_tokens)        # (BC, m, H)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/forecasting_head.py", line 713, in rollout_latent
+    x = layer(x, tgt_mask=causal_mask, tgt_is_causal=True)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/blocks.py", line 145, in forward
+    return self._forward_impl(tgt, tgt_mask, tgt_key_padding_mask, tgt_is_causal)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/blocks.py", line 169, in _forward_impl
+    y = self.depthwise_conv(y)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/blocks.py", line 50, in forward
+    return self.conv(x)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/conv.py", line 371, in forward
+    return self._conv_forward(input, self.weight, self.bias)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/conv.py", line 366, in _conv_forward
+    return F.conv1d(
+RuntimeError: Given groups=128, weight of size [128, 1, 3], expected input[1, 384, 66] to have 128 channels, but got 384 channels instead
+0it [00:00, ?it/s]
+0it [00:00, ?it/s]  [  2/11] bizitobs_l2c/5T/short                         FAILED: Given groups=128, weight of size [128, 1, 3], expected input[1, 384, 66] to have 128 channels, but got 384 channels instead  (0.0s)
+Traceback (most recent call last):
+  File "/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py", line 699, in main
+    res = evaluate_model(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/model/evaluation.py", line 262, in evaluate_model
+    return evaluate_forecasts(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/model/evaluation.py", line 207, in evaluate_forecasts
+    metrics_values = evaluate_forecasts_raw(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/model/evaluation.py", line 145, in evaluate_forecasts_raw
+    for input_batch, label_batch, forecast_batch in zip(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/itertools.py", line 128, in get_batch
+    return list(itertools.islice(it, batch_size))
+  File "/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py", line 235, in predict
+    yield self.predict_item(item)
+  File "/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py", line 259, in predict_item
+    forecast_raw = forecast_with_strategy(
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/forecasting_head.py", line 1021, in forecast_with_strategy
+    return fn(backbone, head, x_context, horizon, device)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/forecasting_head.py", line 959, in forecast_B4
+    rolled_f = rollout_latent(backbone, e_ctx, n_tokens)        # (BC, m, H)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/forecasting_head.py", line 713, in rollout_latent
+    x = layer(x, tgt_mask=causal_mask, tgt_is_causal=True)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/blocks.py", line 145, in forward
+    return self._forward_impl(tgt, tgt_mask, tgt_key_padding_mask, tgt_is_causal)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/blocks.py", line 169, in _forward_impl
+    y = self.depthwise_conv(y)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/blocks.py", line 50, in forward
+    return self.conv(x)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/conv.py", line 371, in forward
+    return self._conv_forward(input, self.weight, self.bias)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/conv.py", line 366, in _conv_forward
+    return F.conv1d(
+RuntimeError: Given groups=128, weight of size [128, 1, 3], expected input[1, 384, 66] to have 128 channels, but got 384 channels instead
+0it [00:00, ?it/s]
+0it [00:00, ?it/s]  [  3/11] bizitobs_l2c/H/short                          FAILED: Given groups=128, weight of size [128, 1, 3], expected input[1, 384, 66] to have 128 channels, but got 384 channels instead  (0.0s)
+Traceback (most recent call last):
+  File "/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py", line 699, in main
+    res = evaluate_model(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/model/evaluation.py", line 262, in evaluate_model
+    return evaluate_forecasts(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/model/evaluation.py", line 207, in evaluate_forecasts
+    metrics_values = evaluate_forecasts_raw(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/model/evaluation.py", line 145, in evaluate_forecasts_raw
+    for input_batch, label_batch, forecast_batch in zip(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/itertools.py", line 128, in get_batch
+    return list(itertools.islice(it, batch_size))
+  File "/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py", line 235, in predict
+    yield self.predict_item(item)
+  File "/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py", line 259, in predict_item
+    forecast_raw = forecast_with_strategy(
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/forecasting_head.py", line 1021, in forecast_with_strategy
+    return fn(backbone, head, x_context, horizon, device)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/forecasting_head.py", line 959, in forecast_B4
+    rolled_f = rollout_latent(backbone, e_ctx, n_tokens)        # (BC, m, H)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/forecasting_head.py", line 713, in rollout_latent
+    x = layer(x, tgt_mask=causal_mask, tgt_is_causal=True)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/blocks.py", line 145, in forward
+    return self._forward_impl(tgt, tgt_mask, tgt_key_padding_mask, tgt_is_causal)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/blocks.py", line 169, in _forward_impl
+    y = self.depthwise_conv(y)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/blocks.py", line 50, in forward
+    return self.conv(x)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/conv.py", line 371, in forward
+    return self._conv_forward(input, self.weight, self.bias)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/conv.py", line 366, in _conv_forward
+    return F.conv1d(
+RuntimeError: Given groups=128, weight of size [128, 1, 3], expected input[1, 384, 66] to have 128 channels, but got 384 channels instead
+0it [00:00, ?it/s]
+0it [00:00, ?it/s]  [  4/11] bizitobs_service/10S/short                    FAILED: Given groups=128, weight of size [128, 1, 3], expected input[1, 384, 66] to have 128 channels, but got 384 channels instead  (0.0s)
+Traceback (most recent call last):
+  File "/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py", line 699, in main
+    res = evaluate_model(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/model/evaluation.py", line 262, in evaluate_model
+    return evaluate_forecasts(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/model/evaluation.py", line 207, in evaluate_forecasts
+    metrics_values = evaluate_forecasts_raw(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/model/evaluation.py", line 145, in evaluate_forecasts_raw
+    for input_batch, label_batch, forecast_batch in zip(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/itertools.py", line 128, in get_batch
+    return list(itertools.islice(it, batch_size))
+  File "/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py", line 235, in predict
+    yield self.predict_item(item)
+  File "/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py", line 259, in predict_item
+    forecast_raw = forecast_with_strategy(
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/forecasting_head.py", line 1021, in forecast_with_strategy
+    return fn(backbone, head, x_context, horizon, device)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/forecasting_head.py", line 959, in forecast_B4
+    rolled_f = rollout_latent(backbone, e_ctx, n_tokens)        # (BC, m, H)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/forecasting_head.py", line 713, in rollout_latent
+    x = layer(x, tgt_mask=causal_mask, tgt_is_causal=True)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/blocks.py", line 145, in forward
+    return self._forward_impl(tgt, tgt_mask, tgt_key_padding_mask, tgt_is_causal)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/blocks.py", line 169, in _forward_impl
+    y = self.depthwise_conv(y)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/blocks.py", line 50, in forward
+    return self.conv(x)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/conv.py", line 371, in forward
+    return self._conv_forward(input, self.weight, self.bias)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/conv.py", line 366, in _conv_forward
+    return F.conv1d(
+RuntimeError: Given groups=128, weight of size [128, 1, 3], expected input[1, 384, 66] to have 128 channels, but got 384 channels instead
+0it [00:00, ?it/s]
+0it [00:00, ?it/s]  [  5/11] covid_deaths/D/short                          FAILED: Given groups=128, weight of size [128, 1, 3], expected input[1, 384, 66] to have 128 channels, but got 384 channels instead  (0.1s)
+Traceback (most recent call last):
+  File "/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py", line 699, in main
+    res = evaluate_model(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/model/evaluation.py", line 262, in evaluate_model
+    return evaluate_forecasts(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/model/evaluation.py", line 207, in evaluate_forecasts
+    metrics_values = evaluate_forecasts_raw(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/model/evaluation.py", line 145, in evaluate_forecasts_raw
+    for input_batch, label_batch, forecast_batch in zip(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/itertools.py", line 128, in get_batch
+    return list(itertools.islice(it, batch_size))
+  File "/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py", line 235, in predict
+    yield self.predict_item(item)
+  File "/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py", line 259, in predict_item
+    forecast_raw = forecast_with_strategy(
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/forecasting_head.py", line 1021, in forecast_with_strategy
+    return fn(backbone, head, x_context, horizon, device)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/forecasting_head.py", line 959, in forecast_B4
+    rolled_f = rollout_latent(backbone, e_ctx, n_tokens)        # (BC, m, H)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/forecasting_head.py", line 713, in rollout_latent
+    x = layer(x, tgt_mask=causal_mask, tgt_is_causal=True)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/blocks.py", line 145, in forward
+    return self._forward_impl(tgt, tgt_mask, tgt_key_padding_mask, tgt_is_causal)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/blocks.py", line 169, in _forward_impl
+    y = self.depthwise_conv(y)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/blocks.py", line 50, in forward
+    return self.conv(x)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/conv.py", line 371, in forward
+    return self._conv_forward(input, self.weight, self.bias)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/conv.py", line 366, in _conv_forward
+    return F.conv1d(
+RuntimeError: Given groups=128, weight of size [128, 1, 3], expected input[1, 384, 66] to have 128 channels, but got 384 channels instead
+0it [00:00, ?it/s]
+0it [00:00, ?it/s]  [  6/11] electricity/H/short                           FAILED: Given groups=128, weight of size [128, 1, 3], expected input[1, 384, 66] to have 128 channels, but got 384 channels instead  (0.0s)
+Traceback (most recent call last):
+  File "/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py", line 699, in main
+    res = evaluate_model(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/model/evaluation.py", line 262, in evaluate_model
+    return evaluate_forecasts(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/model/evaluation.py", line 207, in evaluate_forecasts
+    metrics_values = evaluate_forecasts_raw(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/model/evaluation.py", line 145, in evaluate_forecasts_raw
+    for input_batch, label_batch, forecast_batch in zip(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/itertools.py", line 128, in get_batch
+    return list(itertools.islice(it, batch_size))
+  File "/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py", line 235, in predict
+    yield self.predict_item(item)
+  File "/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py", line 259, in predict_item
+    forecast_raw = forecast_with_strategy(
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/forecasting_head.py", line 1021, in forecast_with_strategy
+    return fn(backbone, head, x_context, horizon, device)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/forecasting_head.py", line 959, in forecast_B4
+    rolled_f = rollout_latent(backbone, e_ctx, n_tokens)        # (BC, m, H)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/forecasting_head.py", line 713, in rollout_latent
+    x = layer(x, tgt_mask=causal_mask, tgt_is_causal=True)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/blocks.py", line 145, in forward
+    return self._forward_impl(tgt, tgt_mask, tgt_key_padding_mask, tgt_is_causal)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/blocks.py", line 169, in _forward_impl
+    y = self.depthwise_conv(y)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/blocks.py", line 50, in forward
+    return self.conv(x)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/conv.py", line 371, in forward
+    return self._conv_forward(input, self.weight, self.bias)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/conv.py", line 366, in _conv_forward
+    return F.conv1d(
+RuntimeError: Given groups=128, weight of size [128, 1, 3], expected input[1, 384, 66] to have 128 channels, but got 384 channels instead
+0it [00:00, ?it/s]
+0it [00:00, ?it/s]  [  7/11] ett1/15T/short                                FAILED: Given groups=128, weight of size [128, 1, 3], expected input[1, 384, 66] to have 128 channels, but got 384 channels instead  (0.0s)
+Traceback (most recent call last):
+  File "/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py", line 699, in main
+    res = evaluate_model(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/model/evaluation.py", line 262, in evaluate_model
+    return evaluate_forecasts(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/model/evaluation.py", line 207, in evaluate_forecasts
+    metrics_values = evaluate_forecasts_raw(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/model/evaluation.py", line 145, in evaluate_forecasts_raw
+    for input_batch, label_batch, forecast_batch in zip(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/itertools.py", line 128, in get_batch
+    return list(itertools.islice(it, batch_size))
+  File "/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py", line 235, in predict
+    yield self.predict_item(item)
+  File "/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py", line 259, in predict_item
+    forecast_raw = forecast_with_strategy(
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/forecasting_head.py", line 1021, in forecast_with_strategy
+    return fn(backbone, head, x_context, horizon, device)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/forecasting_head.py", line 959, in forecast_B4
+    rolled_f = rollout_latent(backbone, e_ctx, n_tokens)        # (BC, m, H)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/forecasting_head.py", line 713, in rollout_latent
+    x = layer(x, tgt_mask=causal_mask, tgt_is_causal=True)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/blocks.py", line 145, in forward
+    return self._forward_impl(tgt, tgt_mask, tgt_key_padding_mask, tgt_is_causal)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/blocks.py", line 169, in _forward_impl
+    y = self.depthwise_conv(y)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/blocks.py", line 50, in forward
+    return self.conv(x)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/conv.py", line 371, in forward
+    return self._conv_forward(input, self.weight, self.bias)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/conv.py", line 366, in _conv_forward
+    return F.conv1d(
+RuntimeError: Given groups=128, weight of size [128, 1, 3], expected input[1, 384, 66] to have 128 channels, but got 384 channels instead
+0it [00:00, ?it/s]
+0it [00:00, ?it/s]  [  8/11] ett1/H/short                                  FAILED: Given groups=128, weight of size [128, 1, 3], expected input[1, 384, 66] to have 128 channels, but got 384 channels instead  (0.0s)
+Traceback (most recent call last):
+  File "/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py", line 699, in main
+    res = evaluate_model(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/model/evaluation.py", line 262, in evaluate_model
+    return evaluate_forecasts(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/model/evaluation.py", line 207, in evaluate_forecasts
+    metrics_values = evaluate_forecasts_raw(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/model/evaluation.py", line 145, in evaluate_forecasts_raw
+    for input_batch, label_batch, forecast_batch in zip(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/itertools.py", line 128, in get_batch
+    return list(itertools.islice(it, batch_size))
+  File "/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py", line 235, in predict
+    yield self.predict_item(item)
+  File "/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py", line 259, in predict_item
+    forecast_raw = forecast_with_strategy(
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/forecasting_head.py", line 1021, in forecast_with_strategy
+    return fn(backbone, head, x_context, horizon, device)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/forecasting_head.py", line 959, in forecast_B4
+    rolled_f = rollout_latent(backbone, e_ctx, n_tokens)        # (BC, m, H)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/forecasting_head.py", line 713, in rollout_latent
+    x = layer(x, tgt_mask=causal_mask, tgt_is_causal=True)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/blocks.py", line 145, in forward
+    return self._forward_impl(tgt, tgt_mask, tgt_key_padding_mask, tgt_is_causal)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/blocks.py", line 169, in _forward_impl
+    y = self.depthwise_conv(y)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/blocks.py", line 50, in forward
+    return self.conv(x)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/conv.py", line 371, in forward
+    return self._conv_forward(input, self.weight, self.bias)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/conv.py", line 366, in _conv_forward
+    return F.conv1d(
+RuntimeError: Given groups=128, weight of size [128, 1, 3], expected input[1, 384, 66] to have 128 channels, but got 384 channels instead
+0it [00:00, ?it/s]
+0it [00:00, ?it/s]  [  9/11] ett2/15T/short                                FAILED: Given groups=128, weight of size [128, 1, 3], expected input[1, 384, 66] to have 128 channels, but got 384 channels instead  (0.0s)
+Traceback (most recent call last):
+  File "/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py", line 699, in main
+    res = evaluate_model(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/model/evaluation.py", line 262, in evaluate_model
+    return evaluate_forecasts(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/model/evaluation.py", line 207, in evaluate_forecasts
+    metrics_values = evaluate_forecasts_raw(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/model/evaluation.py", line 145, in evaluate_forecasts_raw
+    for input_batch, label_batch, forecast_batch in zip(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/itertools.py", line 128, in get_batch
+    return list(itertools.islice(it, batch_size))
+  File "/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py", line 235, in predict
+    yield self.predict_item(item)
+  File "/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py", line 259, in predict_item
+    forecast_raw = forecast_with_strategy(
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/forecasting_head.py", line 1021, in forecast_with_strategy
+    return fn(backbone, head, x_context, horizon, device)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/forecasting_head.py", line 959, in forecast_B4
+    rolled_f = rollout_latent(backbone, e_ctx, n_tokens)        # (BC, m, H)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/forecasting_head.py", line 713, in rollout_latent
+    x = layer(x, tgt_mask=causal_mask, tgt_is_causal=True)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/blocks.py", line 145, in forward
+    return self._forward_impl(tgt, tgt_mask, tgt_key_padding_mask, tgt_is_causal)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/blocks.py", line 169, in _forward_impl
+    y = self.depthwise_conv(y)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/blocks.py", line 50, in forward
+    return self.conv(x)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/conv.py", line 371, in forward
+    return self._conv_forward(input, self.weight, self.bias)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/conv.py", line 366, in _conv_forward
+    return F.conv1d(
+RuntimeError: Given groups=128, weight of size [128, 1, 3], expected input[1, 384, 66] to have 128 channels, but got 384 channels instead
+0it [00:00, ?it/s]
+0it [00:00, ?it/s]  [ 10/11] ett2/H/short                                  FAILED: Given groups=128, weight of size [128, 1, 3], expected input[1, 384, 66] to have 128 channels, but got 384 channels instead  (0.0s)
+Traceback (most recent call last):
+  File "/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py", line 699, in main
+    res = evaluate_model(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/model/evaluation.py", line 262, in evaluate_model
+    return evaluate_forecasts(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/model/evaluation.py", line 207, in evaluate_forecasts
+    metrics_values = evaluate_forecasts_raw(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/model/evaluation.py", line 145, in evaluate_forecasts_raw
+    for input_batch, label_batch, forecast_batch in zip(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/itertools.py", line 128, in get_batch
+    return list(itertools.islice(it, batch_size))
+  File "/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py", line 235, in predict
+    yield self.predict_item(item)
+  File "/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py", line 259, in predict_item
+    forecast_raw = forecast_with_strategy(
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/forecasting_head.py", line 1021, in forecast_with_strategy
+    return fn(backbone, head, x_context, horizon, device)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/forecasting_head.py", line 959, in forecast_B4
+    rolled_f = rollout_latent(backbone, e_ctx, n_tokens)        # (BC, m, H)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/forecasting_head.py", line 713, in rollout_latent
+    x = layer(x, tgt_mask=causal_mask, tgt_is_causal=True)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/blocks.py", line 145, in forward
+    return self._forward_impl(tgt, tgt_mask, tgt_key_padding_mask, tgt_is_causal)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/blocks.py", line 169, in _forward_impl
+    y = self.depthwise_conv(y)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/blocks.py", line 50, in forward
+    return self.conv(x)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/conv.py", line 371, in forward
+    return self._conv_forward(input, self.weight, self.bias)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/conv.py", line 366, in _conv_forward
+    return F.conv1d(
+RuntimeError: Given groups=128, weight of size [128, 1, 3], expected input[1, 384, 66] to have 128 channels, but got 384 channels instead
+0it [00:00, ?it/s]
+0it [00:00, ?it/s]  [ 11/11] us_births/D/short                             FAILED: Given groups=128, weight of size [128, 1, 3], expected input[1, 384, 66] to have 128 channels, but got 384 channels instead  (0.0s)
+Traceback (most recent call last):
+  File "/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py", line 699, in main
+    res = evaluate_model(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/model/evaluation.py", line 262, in evaluate_model
+    return evaluate_forecasts(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/model/evaluation.py", line 207, in evaluate_forecasts
+    metrics_values = evaluate_forecasts_raw(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/model/evaluation.py", line 145, in evaluate_forecasts_raw
+    for input_batch, label_batch, forecast_batch in zip(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/gluonts/itertools.py", line 128, in get_batch
+    return list(itertools.islice(it, batch_size))
+  File "/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py", line 235, in predict
+    yield self.predict_item(item)
+  File "/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py", line 259, in predict_item
+    forecast_raw = forecast_with_strategy(
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/forecasting_head.py", line 1021, in forecast_with_strategy
+    return fn(backbone, head, x_context, horizon, device)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/forecasting_head.py", line 959, in forecast_B4
+    rolled_f = rollout_latent(backbone, e_ctx, n_tokens)        # (BC, m, H)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/forecasting_head.py", line 713, in rollout_latent
+    x = layer(x, tgt_mask=causal_mask, tgt_is_causal=True)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/blocks.py", line 145, in forward
+    return self._forward_impl(tgt, tgt_mask, tgt_key_padding_mask, tgt_is_causal)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/blocks.py", line 169, in _forward_impl
+    y = self.depthwise_conv(y)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/jupyter/cf-encoder-forecaster-v2/src/blocks.py", line 50, in forward
+    return self.conv(x)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/conv.py", line 371, in forward
+    return self._conv_forward(input, self.weight, self.bias)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/conv.py", line 366, in _conv_forward
+    return F.conv1d(
+RuntimeError: Given groups=128, weight of size [128, 1, 3], expected input[1, 384, 66] to have 128 channels, but got 384 channels instead
+0it [00:00, ?it/s]
+
+Results saved to /home/jupyter/cf-encoder-forecaster-v2/experiments/2026-05-11_exp_encoder_forecaster/results/gift_eval_triage_v13_jepa/all_results.csv
+==========================================================================================
+                                GIFT-Eval Official Results                                
+==========================================================================================
+Config                                            MASE  SN_MASE   Relative
+------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------
+
+No configs with matching Seasonal Naive reference.
+==========================================================================================
+Summary saved to /home/jupyter/cf-encoder-forecaster-v2/experiments/2026-05-11_exp_encoder_forecaster/results/gift_eval_triage_v13_jepa/summary.txt

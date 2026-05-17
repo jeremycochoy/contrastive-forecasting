@@ -35,6 +35,7 @@ import torch.optim as optim
 from types import SimpleNamespace
 
 from src.models import ConfigurableModel, compute_metrics, count_parameters
+from src.blocks import ATTN_AMP_DIAG
 from src.dataloader import (
     create_mixed_periodic_dataloader,
     create_mixed_composite_dataloader,
@@ -112,6 +113,24 @@ def parse_args():
                         "Use 6 for the H=384 smaller-arch arms.")
     p.add_argument("--num-layers", type=int, default=MODEL_CONFIG["num_layers"],
                    help="Number of encoder layers. Default 6.")
+    p.add_argument("--forecaster-d-model", type=int, default=None,
+                   help="Width of the FORECASTER stack only (the decoder "
+                        "side after the encoder boundary, i.e. "
+                        "TransformerBlock.layers). When unset, inherits "
+                        "--d-model (legacy: forecaster runs at the encoder's "
+                        "width). Set smaller (e.g. 128) to add a JEPA "
+                        "Linear bottleneck around the forecaster: encoder "
+                        "output is projected H -> forecaster_d_model, the "
+                        "1L (or NL) forecaster runs at the smaller width, "
+                        "then projected back to H for the contrastive loss "
+                        "in the encoder's d_model space. Encoder stack and "
+                        "x_original (loss target) keep --d-model untouched.")
+    p.add_argument("--forecaster-n-heads", type=int, default=None,
+                   help="Number of attention heads in the forecaster stack. "
+                        "When unset, inherits --n-heads. Required to satisfy "
+                        "forecaster-d-model %% forecaster-n-heads == 0. "
+                        "v13 default: --forecaster-d-model 128 "
+                        "--forecaster-n-heads 4 (4 heads x 32 dim/head).")
     p.add_argument("--num-encoder-layers", type=int, default=0,
                    help="Number of causal transformer-encoder layers inserted "
                         "between the patch encoder and the forecaster. "
@@ -169,14 +188,55 @@ def parse_args():
                         "checkpointing on encoder layers. Default uses "
                         "checkpointing — costs ~30%% extra compute, saves "
                         "the FFN intermediates from being kept for backward.")
-    p.add_argument("--amp-dtype", default="none",
-                   choices=["none", "bf16", "fp16"],
-                   help="Mixed-precision dtype for the forward + loss. "
-                        "'none' (default) = pure fp32 (matches τ-sweep). "
-                        "'bf16' = autocast forward to bfloat16 (memory ~½) "
-                        "needed when running B=256 on a 24 GB GPU. "
-                        "'fp16' = float16 autocast (NOT recommended for "
-                        "contrastive losses with large exp(x/τ) values).")
+    p.add_argument("--residual-dtype", choices=["fp32", "fp16", "bf16"],
+                   default="fp32",
+                   help="Dtype of the residual stream + LayerNorm + depthwise "
+                        "conv. Outer-most precision. fp32 is the safe default. "
+                        "fp16/bf16 enable mixed precision but bf16 is unstable "
+                        "for our high-aligned-cos-sim regime.")
+    p.add_argument("--attn-dtype", choices=["fp32", "fp16", "bf16"],
+                   default="fp32",
+                   help="Dtype for SA block matmuls (Q/K/V proj, scores, "
+                        "softmax, output proj). Independent of residual-dtype. "
+                        "If different, output is cast back to residual-dtype "
+                        "before the residual ADD.")
+    p.add_argument("--ffn-dtype", choices=["fp32", "fp16", "bf16"],
+                   default="fp32",
+                   help="Dtype for FFN block (x4 expansion + projection). "
+                        "Same rules as --attn-dtype.")
+    p.add_argument("--patch-emb-dtype", choices=["fp32", "fp16", "bf16"],
+                   default="fp32",
+                   help="Dtype for the input pipeline: RevEWMNorm + patch "
+                        "encoder (GRU). Default fp32 (safe — RevEWMNorm still "
+                        "uses fp64 internal stats; only its output cast and "
+                        "GRU compute follow this dtype). Set fp16 for max "
+                        "speedup; revert to fp32 if training diverges.")
+    p.add_argument("--depthwise-conv", type=int, default=3,
+                   help="Kernel size of the per-layer depthwise causal conv "
+                        "in the NEW (proper, Conformer-style) placement: "
+                        "y = conv(x); x = x_res + sa(norm1(y)). Residual stream "
+                        "stays clean. Default 3. Set 0 to disable. "
+                        "Mutually exclusive with --deprecated-depthwise-conv.")
+    p.add_argument("--deprecated-depthwise-conv", type=int, default=0,
+                   help="Kernel size of the LEGACY in-place depthwise conv on "
+                        "the residual stream (x = conv(x); x = x + sa(norm1(x))). "
+                        "Use only when resuming a checkpoint that was trained "
+                        "with this placement (all prior runs in this repo). "
+                        "Default 0 = off. Mutually exclusive with --depthwise-conv.")
+    p.add_argument("--log-attn-amplitude", action="store_true",
+                   help="Diagnostic: every --log-attn-amplitude-every steps, "
+                        "record per transformer layer the max-abs of the "
+                        "pre-softmax QK^T logits, the SA-block input, the "
+                        "SA-block output, and the residual stream, to a "
+                        "sidecar CSV <save_dir>/<run_name>_attn_amplitude.csv. "
+                        "Default off = strict no-op (zero overhead, training "
+                        "math byte-identical). Used to diagnose the fresh-init "
+                        "all-fp16 divergence (v11/v11b/v18/v19): does QK^T "
+                        "grow past the fp16 65504 ceiling near divergence?")
+    p.add_argument("--log-attn-amplitude-every", type=int, default=200,
+                   help="Step interval for --log-attn-amplitude sampling. "
+                        "Default 200. Only meaningful with "
+                        "--log-attn-amplitude.")
     p.add_argument("--tau", type=float, default=None,
                    help="Contrastive temperature. None = use the LOSS_SPEC "
                         "default (0.07). Used by 2026-05-02_exp_realonly_4096_smaller_tau_sweep.")
@@ -261,14 +321,6 @@ def parse_args():
                         "100× explosive trends; range becomes (1/max, max) so "
                         "log-symmetric around 1.")
     return p.parse_args()
-
-
-class _NullContext:
-    """Context manager no-op — used when AMP autocast is disabled."""
-    def __enter__(self):
-        return self
-    def __exit__(self, exc_type, exc, tb):
-        return False
 
 
 def random_sign_flip(x):
@@ -430,6 +482,46 @@ class CSVLogger:
         self._file.close()
 
 
+class AttnAmplitudeCSV:
+    """Sidecar CSV for the attention-amplitude diagnostic.
+
+    One row per (logged step, transformer layer). Columns:
+        step, layer_idx, block(enc|fcst),
+        qk_logit_maxabs, sa_in_maxabs, sa_out_maxabs,
+        resid_post_sa_maxabs, resid_post_ffn_maxabs
+
+    resid_post_sa_maxabs  = residual max-abs right after the SA add.
+    resid_post_ffn_maxabs = residual max-abs after the FFN add (end-of-layer
+                            value fed to the next layer) — this is where
+                            cross-depth residual growth is most visible.
+
+    Append-mode (resume-safe): header only written when the file is empty.
+    """
+
+    def __init__(self, path):
+        self.path = path
+        self._file = open(path, "a", newline="")
+        self._writer = csv.writer(self._file)
+        if os.path.getsize(path) == 0:
+            self._writer.writerow([
+                "step", "layer_idx", "block",
+                "qk_logit_maxabs", "sa_in_maxabs", "sa_out_maxabs",
+                "resid_post_sa_maxabs", "resid_post_ffn_maxabs"])
+            self._file.flush()
+
+    def write_rows(self, step, rows):
+        # rows: (layer_idx, block, qk, sa_in, sa_out, resid_sa, resid_ffn)
+        for (layer_idx, block, qk, sa_in, sa_out,
+             resid_sa, resid_ffn) in rows:
+            self._writer.writerow(
+                [step, layer_idx, block, qk, sa_in, sa_out,
+                 resid_sa, resid_ffn])
+        self._file.flush()
+
+    def close(self):
+        self._file.close()
+
+
 def main():
     args = parse_args()
 
@@ -474,6 +566,27 @@ def main():
     model_config["encoder_dropkey"] = args.encoder_dropkey
     model_config["encoder_dropkey_share_heads"] = args.encoder_dropkey_share_heads
     model_config["encoder_dropkey_share_layers"] = args.encoder_dropkey_share_layers
+    model_config["residual_dtype"] = args.residual_dtype
+    model_config["attn_dtype"] = args.attn_dtype
+    model_config["ffn_dtype"] = args.ffn_dtype
+    model_config["patch_emb_dtype"] = args.patch_emb_dtype
+    # Depthwise-conv placement (mutually exclusive integer kernel sizes).
+    # --depthwise-conv N (default 3) → NEW (Conformer-style) placement.
+    # --deprecated-depthwise-conv N (default 0) → LEGACY in-place on residual,
+    #   for resuming pre-refactor checkpoints. Both 0 = no conv.
+    if args.depthwise_conv > 0 and args.deprecated_depthwise_conv > 0:
+        raise ValueError(
+            "--depthwise-conv and --deprecated-depthwise-conv are mutually "
+            "exclusive (got --depthwise-conv {}, --deprecated-depthwise-conv {})"
+            .format(args.depthwise_conv, args.deprecated_depthwise_conv))
+    model_config["depthwise_conv"] = args.depthwise_conv
+    model_config["deprecated_depthwise_conv"] = args.deprecated_depthwise_conv
+    # Forecaster bottleneck (#286 follow-up, v13). When None on both the
+    # ConfigurableModel side defaults them to (H, nhead) — full no-op for
+    # all pre-v13 runs / checkpoints. v13: 128 + 4 (vs encoder H=384 / 6).
+    model_config["forecaster_d_model"] = args.forecaster_d_model
+    model_config["forecaster_n_heads"] = args.forecaster_n_heads
+    model_config["log_attn_amplitude"] = bool(args.log_attn_amplitude)
     # Override the loss_shape from CLI (LOSS_SPEC is a module-level default).
     LOSS_SPEC.train_configuration["loss_shape"] = args.loss_shape
     if args.tau is not None:
@@ -538,6 +651,17 @@ def main():
     csv_path = os.path.join(args.save_dir, f"{args.run_name}_losses.csv")
     csv_logger = CSVLogger(csv_path, flush_every=100)
     print(f"Loss CSV: {csv_path}")
+
+    # Sidecar attention-amplitude diagnostic CSV (opt-in). Only created when
+    # --log-attn-amplitude is set; otherwise None and the per-step hook is a
+    # strict no-op (the global ATTN_AMP_DIAG.active stays False forever).
+    attn_amp_csv = None
+    if args.log_attn_amplitude:
+        attn_amp_path = os.path.join(
+            args.save_dir, f"{args.run_name}_attn_amplitude.csv")
+        attn_amp_csv = AttnAmplitudeCSV(attn_amp_path)
+        print(f"Attn-amplitude CSV: {attn_amp_path} "
+              f"(every {args.log_attn_amplitude_every} steps)")
 
     # -- Data -----------------------------------------------------------------
     C = args.n_channels
@@ -630,35 +754,45 @@ def main():
             mixup_applied_count += 1
         t_data_end = time.perf_counter()
 
+        # Attention-amplitude diagnostic: arm the per-layer hook for THIS
+        # forward only, every N steps. When --log-attn-amplitude is off,
+        # log_attn_now is always False and set_active is never called with
+        # True, so the hook stays a strict no-op (the layers also gate on
+        # their own log_attn_amplitude=False). Drained right after the
+        # forward (rows are recorded during forward, before backward).
+        log_attn_now = (
+            args.log_attn_amplitude
+            and step % args.log_attn_amplitude_every == 0)
+        if log_attn_now:
+            ATTN_AMP_DIAG.set_active(True)
+
         t_fwd_start = time.perf_counter()
-        amp_dtype = (torch.bfloat16 if args.amp_dtype == "bf16"
-                     else torch.float16 if args.amp_dtype == "fp16"
-                     else None)
-        amp_ctx = (torch.amp.autocast('cuda', dtype=amp_dtype)
-                   if amp_dtype is not None else _NullContext())
-        with amp_ctx:
-            f_lat, o_lat = forward_step(
-                model, x,
-                freq_ids=freq_ids, freq_embs=freq_embs,
-                seasonality_ids=seasonality_ids, seasonality_embs=seasonality_embs)
-            # F.normalize internally promotes to fp32 (norm is in autocast's
-            # fp32-list), so its output is fp32 even inside an autocast
-            # block. The cross-batch sims then materialize a [B, B, T-1, C, H]
-            # tensor in fp32 — the very thing we wanted to avoid. Cast the
-            # latents back to the amp dtype here so the loss's broadcasts
-            # stay in low precision.
-            if amp_dtype is not None:
-                f_lat_loss = f_lat.to(amp_dtype)
-                o_lat_loss = o_lat.to(amp_dtype)
-            else:
-                f_lat_loss = f_lat
-                o_lat_loss = o_lat
-            # When learnable_tau is on, pass model.tau() (0-d tensor with grad)
-            # as tau_override so gradient reaches log_inv_tau. Otherwise the
-            # loss uses LOSS_SPEC.train_configuration's scalar.
-            tau_tensor = model.tau() if args.learnable_tau else None
-            loss = contrastive_latent_loss((f_lat_loss, o_lat_loss), validation=False,
-                                           spec=LOSS_SPEC, tau_override=tau_tensor)
+        f_lat, o_lat = forward_step(
+            model, x,
+            freq_ids=freq_ids, freq_embs=freq_embs,
+            seasonality_ids=seasonality_ids, seasonality_embs=seasonality_embs)
+        if log_attn_now:
+            ATTN_AMP_DIAG.set_active(False)
+            attn_amp_csv.write_rows(step, ATTN_AMP_DIAG.take_rows())
+        # Loss + compute_metrics ALWAYS see fp32 latents. When
+        # residual-dtype is fp16/bf16 the model returns latents in that
+        # dtype; cast back here so downstream cos-sim arithmetic (loss,
+        # loss_tau_ref, compute_metrics, q_random, q_naive_latent,
+        # dim_usage, retrieval_auc_topk) runs in fp32. The contrastive
+        # logsumexp(sims/τ) with small τ loses precision in bf16 — root
+        # cause of v4/v5/v6/v9b divergences.
+        f_lat = f_lat.float()
+        o_lat = o_lat.float()
+        # When learnable_tau is on, pass model.tau() (0-d tensor with grad)
+        # as tau_override so gradient reaches log_inv_tau. Otherwise the
+        # loss uses LOSS_SPEC.train_configuration's scalar.
+        tau_tensor = model.tau() if args.learnable_tau else None
+        with torch.amp.autocast('cuda', enabled=False):
+            tau_tensor_loss = (tau_tensor.float()
+                               if tau_tensor is not None else None)
+            loss = contrastive_latent_loss(
+                (f_lat, o_lat), validation=False,
+                spec=LOSS_SPEC, tau_override=tau_tensor_loss)
         # Diagnostic: same loss with fixed τ=0.07 (no gradient). Comparable
         # across runs regardless of --tau / --learnable-tau, useful as a
         # cross-experiment baseline curve. Re-uses the already-forwarded
@@ -692,6 +826,8 @@ def main():
                           hf_rows_consumed=hf_rows_consumed,
                           synth_rows_consumed=synth_rows_consumed)
             csv_logger.close()
+            if attn_amp_csv is not None:
+                attn_amp_csv.close()
             sys.stdout.flush()
             sys.exit(1)
 
@@ -813,6 +949,8 @@ def main():
                   hf_rows_consumed=hf_rows_consumed,
                   synth_rows_consumed=synth_rows_consumed)
     csv_logger.close()
+    if attn_amp_csv is not None:
+        attn_amp_csv.close()
     total = time.time() - t0
     print(f"\nDone in {total/3600:.1f}h. "
           f"Best gap={best_gap:.4f} at step {best_gap_step}, "

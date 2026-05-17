@@ -1,0 +1,25 @@
+Device: cuda | Params: 13,200,060
+Training for 150000 steps, bs=256, lr=0.001, T=4096, C=1, mix_ratio=0.0, freq_emb_dim=3, seasonality_emb_dim=3, mixup_p=0.3, rev_norm_kind=ewma(span=128), patch_stats=none, encoder_type=gru
+Checkpoints: /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v17_dk095_150k_*.pth
+Loss CSV: /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v17_dk095_150k_losses.csv
+Data: MIX 100% HF + 0% synth (periodic), hf_bs=256, synth_bs=0
+[    100] loss=5.6229  ema_loss=9.3566  gap=0.3522  ema_gap=-0.1384  mixup=26/100  2.5 sps  ETA 16.9h
+              R²_rand=0.8885  R²_naive=0.7772  U_t=0.0296  U_b=0.0319  AUC=1.0000  Top1=0.9982
+  timing: data=95.2ms  fwd=100.2ms  bwd=11.3ms  total=207.2ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v17_dk095_150k_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v17_dk095_150k_best_loss.pth
+[    200] loss=4.4703  ema_loss=6.4908  gap=0.4849  ema_gap=0.2529  mixup=20/100  2.7 sps  ETA 15.2h
+              R²_rand=0.9091  R²_naive=0.8506  U_t=0.0457  U_b=0.0514  AUC=1.0000  Top1=1.0000
+  timing: data=17.2ms  fwd=94.0ms  bwd=9.6ms  total=121.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v17_dk095_150k_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v17_dk095_150k_best_loss.pth
+[    300] loss=3.9468  ema_loss=4.9400  gap=0.5887  ema_gap=0.4610  mixup=35/100  2.9 sps  ETA 14.5h
+              R²_rand=0.9201  R²_naive=0.8844  U_t=0.0582  U_b=0.0636  AUC=1.0000  Top1=1.0000
+  timing: data=4.0ms  fwd=95.2ms  bwd=9.6ms  total=109.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v17_dk095_150k_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v17_dk095_150k_best_loss.pth
+[    400] loss=3.5338  ema_loss=4.1290  gap=0.6479  ema_gap=0.5714  mixup=36/100  2.9 sps  ETA 14.3h
+              R²_rand=0.9290  R²_naive=0.9045  U_t=0.0681  U_b=0.0727  AUC=1.0000  Top1=1.0000
+  timing: data=16.8ms  fwd=92.8ms  bwd=9.5ms  total=119.7ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v17_dk095_150k_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v17_dk095_150k_best_loss.pth

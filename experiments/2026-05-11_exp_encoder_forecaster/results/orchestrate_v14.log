@@ -1,0 +1,42 @@
+=== [v14 orch] START Wed 13 May 13:11:06 BST 2026 ===
+[v14 orch] backbone PID=1059877
+[v14 orch] heartbeat Wed 13 May 13:11:06 BST 2026 step=400 loss=3.2477784156799316
+[v14 orch] heartbeat Wed 13 May 13:21:06 BST 2026 step=2100 loss=2.115417718887329
+[v14 orch] heartbeat Wed 13 May 13:31:06 BST 2026 step=3700 loss=1.891871690750122
+[v14 orch] heartbeat Wed 13 May 13:41:06 BST 2026 step=5400 loss=1.7549642324447632
+[v14 orch] heartbeat Wed 13 May 13:51:06 BST 2026 step=7000 loss=1.6820698976516724
+[v14 orch] heartbeat Wed 13 May 14:01:06 BST 2026 step=8700 loss=1.6390520334243774
+[v14 orch] heartbeat Wed 13 May 14:11:06 BST 2026 step=10300 loss=1.5917401313781738
+[v14 orch] heartbeat Wed 13 May 14:21:06 BST 2026 step=12000 loss=1.5738788843154907
+[v14 orch] heartbeat Wed 13 May 14:31:06 BST 2026 step=13600 loss=1.5546671152114868
+[v14 orch] heartbeat Wed 13 May 14:41:06 BST 2026 step=15200 loss=1.5431054830551147
+[v14 orch] heartbeat Wed 13 May 14:51:06 BST 2026 step=16800 loss=1.5371124744415283
+[v14 orch] heartbeat Wed 13 May 15:01:06 BST 2026 step=18500 loss=1.5341508388519287
+[v14 orch] heartbeat Wed 13 May 15:11:06 BST 2026 step=20200 loss=1.522432804107666
+[v14 orch] heartbeat Wed 13 May 15:21:06 BST 2026 step=21800 loss=1.5227898359298706
+[v14 orch] heartbeat Wed 13 May 15:31:06 BST 2026 step=23500 loss=1.5144566297531128
+[v14 orch] heartbeat Wed 13 May 15:41:06 BST 2026 step=25200 loss=1.5170446634292603
+[v14 orch] heartbeat Wed 13 May 15:51:06 BST 2026 step=26900 loss=1.513923168182373
+[v14 orch] heartbeat Wed 13 May 16:01:06 BST 2026 step=28600 loss=1.5134145021438599
+[v14 orch] heartbeat Wed 13 May 16:11:06 BST 2026 step=30200 loss=1.5123660564422607
+[v14 orch] heartbeat Wed 13 May 16:21:06 BST 2026 step=31900 loss=1.5136946439743042
+[v14 orch] heartbeat Wed 13 May 16:31:06 BST 2026 step=33600 loss=1.5022330284118652
+[v14 orch] heartbeat Wed 13 May 16:41:07 BST 2026 step=35300 loss=1.5120823383331299
+[v14 orch] heartbeat Wed 13 May 16:51:07 BST 2026 step=37000 loss=1.50425124168396
+[v14 orch] heartbeat Wed 13 May 17:01:07 BST 2026 step=38600 loss=1.5010536909103394
+[v14 orch] heartbeat Wed 13 May 17:11:07 BST 2026 step=40300 loss=1.5013647079467773
+[v14 orch] heartbeat Wed 13 May 17:21:07 BST 2026 step=42000 loss=1.4981135129928589
+[v14 orch] heartbeat Wed 13 May 17:31:07 BST 2026 step=43700 loss=1.4990700483322144
+[v14 orch] heartbeat Wed 13 May 17:41:07 BST 2026 step=45300 loss=1.496363878250122
+[v14 orch] heartbeat Wed 13 May 17:51:07 BST 2026 step=47000 loss=1.4982149600982666
+[v14 orch] heartbeat Wed 13 May 18:01:07 BST 2026 step=48700 loss=1.4990379810333252
+[v14 orch] FINAL.pth detected at Wed 13 May 18:11:07 BST 2026 — proceeding to Phase 2/3
+[v14 orch] kicking off post_qhead_chain_v14.sh at Wed 13 May 18:11:07 BST 2026
+=== [v14 chain] START Wed 13 May 18:11:07 BST 2026 ===
+[v14 qhead] launching enc_fcst_v14_qhead_xfmr2L_quant_30k on GPU 0
+[v14 qhead] DONE — proceeding to triage
+[v14 triage] starting on GPU 0
+[v14 triage] DONE — GM-MASE = 1.6503  (WORSE_THAN_V11C vs v11c=1.3878, v10=1.4369, v7=1.512)
+=== [v14 chain] DONE Wed 13 May 19:32:58 BST 2026 ===
+[v14 orch] post_qhead_chain_v14.sh exit=0 at Wed 13 May 19:32:58 BST 2026
+=== [v14 orch] DONE Wed 13 May 19:32:58 BST 2026 ===
