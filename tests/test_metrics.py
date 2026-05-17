@@ -8,6 +8,8 @@ import math
 import pytest
 import torch
 
+import torch.nn.functional as F
+
 from src.metrics import (
     q_random,
     q_naive_latent,
@@ -19,6 +21,7 @@ from src.metrics import (
     retrieval_auc_top1_legacy,
     retrieval_auc_topk,
 )
+from src.models import compute_metrics
 
 
 # ---------------------------------------------------------------------------
@@ -372,3 +375,100 @@ def test_retrieval_topk_random_forecast_auc_near_half():
     assert 0.4 < out["auc"].item() < 0.6
     # MRR for n_neg = 32 random: ≈ harmonic-mean-ish, well below 1.
     assert out["mrr"].item() < 0.3
+
+
+# ---------------------------------------------------------------------------
+# einsum memory-rewrite equivalence pins.
+#
+# Two per-step diagnostics used to materialise a [..., B, ..., H] broadcast
+# intermediate (~12-26 GB fp32 at training scale) just to dot-product over
+# H, OOM-ing every step at B=256/T=256/H=384. They were rewritten to
+# contract H *inside* an einsum (→ batched matmul, ~MBs). These freeze the
+# pre-rewrite formulas as references and assert the live functions are
+# numerically identical (the value is a logged metric — must not drift).
+# ---------------------------------------------------------------------------
+
+
+def _frozen_compute_metrics_broadcast(f_lat, o_lat, cld):
+    """Verbatim pre-einsum src.models.compute_metrics (broadcast form)."""
+    fn = F.normalize(f_lat, p=2, dim=-1)
+    on = F.normalize(o_lat, p=2, dim=-1)
+    hyh = fn[:, :-cld, :, :]
+    hyn = on[:, cld:, :, :]
+    hxn = on[:, :-cld, :, :]
+    ff = (hyh * hyn).sum(-1).mean().item()
+    fp = (hyh * hxn).sum(-1).mean().item()
+    tp = (hyn * hxn).sum(-1).mean().item()
+    B = hyh.shape[0]
+    sims = (hyh.unsqueeze(0) * hyn.unsqueeze(1)).sum(-1)   # [B,B,T',C,H]→sum H
+    m = ~torch.eye(B, dtype=torch.bool, device=sims.device)
+    m = m.view(B, B, 1, 1)
+    cb = sims.masked_fill(~m, 0).mean().item()
+    return ff, fp, tp, cb
+
+
+@pytest.mark.parametrize("B,T,C,H,cld", [(5, 6, 2, 8, 1),
+                                         (7, 9, 1, 16, 1),
+                                         (4, 5, 3, 12, 2)])
+def test_compute_metrics_einsum_equals_broadcast(B, T, C, H, cld):
+    g = torch.Generator().manual_seed(0)
+    f = torch.randn(B, T, C, H, generator=g)
+    o = torch.randn(B, T, C, H, generator=g)
+    ref = _frozen_compute_metrics_broadcast(f, o, cld)
+    got = compute_metrics(f, o, cld)
+    for r, v, name in zip(ref, got, ("ff", "fp", "tp", "cross_batch")):
+        assert math.isclose(r, v, rel_tol=1e-5, abs_tol=1e-6), (
+            f"{name}: einsum {v} != broadcast {r}")
+
+
+def _frozen_retrieval_sim_neg_gather(f, h_full, lags, n_batch_negs):
+    """Verbatim pre-einsum sim_neg path of retrieval_auc_topk (the only
+    code that changed — everything downstream is byte-identical, so
+    sim_neg equivalence ⇒ identical public dict)."""
+    B, T, C, H = f.shape
+    max_lag = max(lags)
+    f_v = f[:, max_lag:T, :, :]
+    n_b = min(n_batch_negs, B - 1)
+    raw = torch.arange(n_b).unsqueeze(0).expand(B, n_b)
+    b_idx = torch.arange(B).unsqueeze(1)
+    rand_b = raw + (raw >= b_idx).long()
+    sp = []
+    for k in lags:
+        hs = h_full[:, max_lag + 1 - k:T + 1 - k, :, :]
+        sk = F.cosine_similarity(f_v.unsqueeze(1), hs[rand_b], dim=-1)
+        sp.append(sk.permute(0, 2, 3, 1))
+    return torch.cat(sp, dim=-1)
+
+
+def _live_retrieval_sim_neg_einsum(f, h_full, lags, n_batch_negs):
+    """Mirror of the rewritten sim_neg path in src.metrics."""
+    B, T, C, H = f.shape
+    max_lag = max(lags)
+    f_v = f[:, max_lag:T, :, :]
+    n_b = min(n_batch_negs, B - 1)
+    raw = torch.arange(n_b).unsqueeze(0).expand(B, n_b)
+    b_idx = torch.arange(B).unsqueeze(1)
+    rand_b = raw + (raw >= b_idx).long()
+    f_n = F.normalize(f_v, dim=-1, eps=1e-8)
+    sp = []
+    for k in lags:
+        hs = h_full[:, max_lag + 1 - k:T + 1 - k, :, :]
+        h_n = F.normalize(hs, dim=-1, eps=1e-8)
+        full = torch.einsum('btch,Btch->bBtc', f_n, h_n)
+        sp.append(full[b_idx, rand_b].permute(0, 2, 3, 1))
+    return torch.cat(sp, dim=-1)
+
+
+@pytest.mark.parametrize("B,T,H", [(6, 14, 8), (9, 20, 16), (5, 12, 10)])
+def test_retrieval_auc_topk_sim_neg_einsum_equals_gather(B, T, H):
+    lags, n_neg = (1, 2, 4, 8), 128
+    g = torch.Generator().manual_seed(1)
+    f = torch.randn(B, T, 1, H, generator=g)
+    h_full = torch.randn(B, T + 1, 1, H, generator=g)
+    ref = _frozen_retrieval_sim_neg_gather(f, h_full, lags, n_neg)
+    got = _live_retrieval_sim_neg_einsum(f, h_full, lags, n_neg)
+    assert torch.allclose(ref, got, atol=1e-5, rtol=1e-4), (
+        f"sim_neg drift: max|Δ|={(ref - got).abs().max().item():.2e}")
+    # Public fn still runs and returns finite scalars.
+    out = retrieval_auc_topk(f, h_full, lookback_lags=lags, n_batch_negs=n_neg)
+    assert all(torch.isfinite(v) for v in out.values())

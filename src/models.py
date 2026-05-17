@@ -341,9 +341,17 @@ def compute_metrics(f_lat, o_lat, cld):
     tp = (hyn * hxn).sum(-1).mean().item()
 
     B, T, C, H = hyh.shape
-    hyh_exp = hyh.unsqueeze(0)
-    hyn_exp = hyn.unsqueeze(1)
-    sims_cross_batch = (hyh_exp * hyn_exp).sum(-1)
+    # Cross-batch cosine sims, contracting H *inside* the reduction via
+    # einsum so the [B, B, T, C, H] broadcast intermediate is never
+    # materialised (~26 GB fp32 at B=256, T-cld=255, H=384 — the OOM that
+    # this diagnostic used to trigger every training step). einsum routes
+    # to a batched matmul; peak is the [B, B, T, C] output (~67 MB).
+    # sims[i,j,t,c] = Σ_h hyn[i,t,c,h]·hyh[j,t,c,h] — algebraically
+    # identical to the previous (hyh.unsqueeze(0) * hyn.unsqueeze(1)).sum(-1)
+    # (i ← hyn's unsqueeze(1) axis, j ← hyh's unsqueeze(0) axis); the
+    # downstream symmetric eye-mask + full mean make the value invariant
+    # to fp reduction order and to the i/j labelling.
+    sims_cross_batch = torch.einsum('itch,jtch->ijtc', hyn, hyh)
     mask_batch = ~torch.eye(B, dtype=torch.bool, device=sims_cross_batch.device)
     mask_batch = mask_batch.view(B, B, 1, 1)
     sims_masked = sims_cross_batch.masked_fill(~mask_batch, 0)

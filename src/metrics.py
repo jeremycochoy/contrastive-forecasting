@@ -314,18 +314,26 @@ def retrieval_auc_topk(
     b_idx = torch.arange(B, device=f.device).unsqueeze(1)    # (B, 1)
     rand_b = raw + (raw >= b_idx).long()                     # (B, n_b)
 
-    # Cross-batch × temporal-offset product. For each lag k, gather the
-    # time slice h_full[:, max_lag+1-k : T+1-k, :, :] across batch index
-    # rand_b and compute cosine sim against f_v.
+    # Cross-batch × temporal-offset product. For each lag k: cosine sim
+    # of f_v vs every other batch row's lagged slice, then keep the n_b
+    # negatives selected by rand_b.
+    #
+    # Memory-lean form: the old code did h_slice_k[rand_b] →
+    # (B, n_b, T_v, C, H) and F.cosine_similarity over the last dim,
+    # materialising a (B, n_b, T_v, C, H) tensor (~12 GB fp32 at B=256,
+    # n_b=128, T_v≈248, H=384 — OOM'd every training step). Instead,
+    # L2-normalise once and contract H *inside* an einsum to get the full
+    # (B, B, T_v, C) cosine matrix (~65 MB), then gather the n_b columns
+    # per row. Algebraically identical to F.cosine_similarity (same
+    # eps=1e-8 denominator floor via F.normalize); the einsum routes to a
+    # batched matmul and never forms the (·, ·, ·, ·, H) intermediate.
+    f_n = F.normalize(f_v, dim=-1, eps=1e-8)                      # (B, T_v, C, H)
     sims_per_lag = []
     for k in lookback_lags:
         h_slice_k = h_full[:, max_lag + 1 - k:T + 1 - k, :, :]   # (B, T_v, C, H)
-        h_gather_k = h_slice_k[rand_b]                            # (B, n_b, T_v, C, H)
-        sim_k = F.cosine_similarity(
-            f_v.unsqueeze(1),                                     # (B, 1, T_v, C, H)
-            h_gather_k,                                           # (B, n_b, T_v, C, H)
-            dim=-1,
-        )                                                         # (B, n_b, T_v, C)
+        h_n_k = F.normalize(h_slice_k, dim=-1, eps=1e-8)         # (B, T_v, C, H)
+        full_k = torch.einsum('btch,Btch->bBtc', f_n, h_n_k)     # (B, B, T_v, C)
+        sim_k = full_k[b_idx, rand_b]                             # (B, n_b, T_v, C)
         sims_per_lag.append(sim_k.permute(0, 2, 3, 1))            # (B, T_v, C, n_b)
 
     sim_neg = torch.cat(sims_per_lag, dim=-1)                     # (B, T_v, C, n_b * n_lags)
