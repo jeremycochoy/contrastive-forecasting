@@ -19,6 +19,28 @@ case "$ARM" in
         BB_PATH="$MAIN/checkpoints/enc_fcst_v11c_cont_from5k_50k_FINAL.pth"
         QHEAD="$MAIN/checkpoints/enc_fcst_v11c_qhead_xfmr2L_quant_30k_FINAL.pth"
         FCST_NL=1 ;;
+    v11c_at50k)
+        # v11c's step-50k periodic backbone + the fresh 2L qhead trained on it
+        # (the "last v11c re-run"). Fills the v11c full-GM @50k gap (we only
+        # had triage 1.365 here; full @40.6k was 1.292).
+        BB_PATH="$MAIN/checkpoints/enc_fcst_v11c_cont_from5k_50k_50k.pth"
+        QHEAD="$MAIN/checkpoints/enc_fcst_v11c_at50k_qhead_xfmr2L_quant_30k_FINAL.pth"
+        FCST_NL=1 ;;
+    v20)
+        # fp32-warmup→fp16 recipe validation (held to 50k stable).
+        BB_PATH="$MAIN/checkpoints/enc_fcst_v20_v11c_freshwarmup_fp16_50k_FINAL.pth"
+        QHEAD="$MAIN/checkpoints/enc_fcst_v20_qhead_xfmr2L_quant_30k_FINAL.pth"
+        FCST_NL=1 ;;
+    v20R)
+        # same v20 backbone; q-head RESUMED from the crashed-at-17k _best.pth.
+        BB_PATH="$MAIN/checkpoints/enc_fcst_v20_v11c_freshwarmup_fp16_50k_FINAL.pth"
+        QHEAD="$MAIN/checkpoints/enc_fcst_v20_qheadR_xfmr2L_quant_30k_FINAL.pth"
+        FCST_NL=1 ;;
+    v27c)
+        # dk0.8 + FFN-only-fp16 no-warmup backbone (resumed-from-clean-25k→50k).
+        BB_PATH="$MAIN/checkpoints/enc_fcst_v27c_dk08_ffnfp16_resume25k_50k_FINAL.pth"
+        QHEAD="$MAIN/checkpoints/enc_fcst_v27c_qhead_xfmr2L_quant_30k_FINAL.pth"
+        FCST_NL=1 ;;
     v13)
         BB_PATH="$MAIN/checkpoints/enc_fcst_v13_jepa_fcstbottleneck128_newconv_fp32_50k_FINAL.pth"
         QHEAD="$MAIN/checkpoints/enc_fcst_v13_qhead_xfmr2L_quant_30k_FINAL.pth"

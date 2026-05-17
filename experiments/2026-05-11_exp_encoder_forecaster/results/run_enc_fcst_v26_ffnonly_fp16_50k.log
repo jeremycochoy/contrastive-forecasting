@@ -34,3 +34,8 @@ Data: MIX 100% HF + 0% synth (periodic), hf_bs=256, synth_bs=0
   timing: data=3.5ms  fwd=88.5ms  bwd=10.1ms  total=102.7ms
   -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v26_ffnonly_fp16_50k_best_gap.pth
   -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v26_ffnonly_fp16_50k_best_loss.pth
+[    700] loss=3.0529  ema_loss=3.2078  gap=0.8114  ema_gap=0.7606  mixup=31/100  3.2 sps  ETA 4.3h
+              R²_rand=0.9467  R²_naive=0.9389  U_t=0.0832  U_b=0.0869  AUC=1.0000  Top1=1.0000
+  timing: data=17.1ms  fwd=87.5ms  bwd=10.3ms  total=115.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v26_ffnonly_fp16_50k_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v26_ffnonly_fp16_50k_best_loss.pth

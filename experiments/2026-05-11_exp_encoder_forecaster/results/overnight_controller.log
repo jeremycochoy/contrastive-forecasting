@@ -1,0 +1,39 @@
+[05-15 21:16:16] === overnight controller START ===
+[05-15 21:16:16] GPU0: v27c 150k warm-resume launched NOW (pid 1854427) — fastest valid 150k
+[05-15 21:16:16] v27c-150k warm-resume 50k(+optimizer) -> 150k GPU0
+[05-15 21:16:16] v27c-150k warm-resume 50k(+optimizer) -> 150k GPU0
+[05-15 23:16:16] GPU1 free: v27c-50k chain done (v27c_full=1.3313); v20R_full=1.3229
+[05-15 23:16:16] GPU1 free: v27c-50k chain done (v27c_full=1.3313); v20R_full=1.3229
+[05-15 23:16:16] GPU1: v20 dk0.9 from-scratch 150k (plan)
+[05-15 23:16:16] GPU1: v20 dk0.9 from-scratch 150k (plan)
+[05-15 23:16:16] v20-150k Phase A (fp32 0->5k, seed 20260516) GPU1
+[05-15 23:16:16] v20-150k Phase A (fp32 0->5k, seed 20260516) GPU1
+[05-15 23:43:23] v20-150k Phase B (warm-resume enc_fcst_v20_phaseA_fp32warmup_5k_v150_5k, fp16 body 5k->150k) GPU1
+[05-15 23:43:23] v20-150k Phase B (warm-resume enc_fcst_v20_phaseA_fp32warmup_5k_v150_5k, fp16 body 5k->150k) GPU1
+experiments/2026-05-11_exp_encoder_forecaster/scripts/overnight_controller.sh: line 35: 1864369 Killed                  CUDA_VISIBLE_DEVICES=$gpu python3 -u experiments/2026-04-27_freq-embedding/scripts/train.py "${COMMON[@]}" --seed $SEED --encoder-dropkey 0.9 --total-steps 150000 --run-name "$B" --resume "$CK/${A}_5k.pth" --patch-emb-dtype fp32 --residual-dtype fp16 --attn-dtype fp16 --ffn-dtype fp16 >> "$RES/run_${B}.log" 2>&1
+[05-16 03:13:20] v20-150k Phase B FAILED
+[05-16 03:13:20] v20-150k Phase B FAILED
+[05-16 03:13:20] GPU1: v17 dk0.95 from-scratch 150k (spare — adjudicates the v17&v27c<v11c bet)
+[05-16 03:13:20] GPU1: v17 dk0.95 from-scratch 150k (spare — adjudicates the v17&v27c<v11c bet)
+[05-16 03:13:20] enc_fcst_v17_dk095_150k from-scratch (seed 20260516, dk0.95, fp32) 0->150k GPU1
+[05-16 03:13:20] enc_fcst_v17_dk095_150k from-scratch (seed 20260516, dk0.95, fp32) 0->150k GPU1
+experiments/2026-05-11_exp_encoder_forecaster/scripts/overnight_controller.sh: line 70: 1871720 Killed                  CUDA_VISIBLE_DEVICES=$gpu python3 -u experiments/2026-04-27_freq-embedding/scripts/train.py "${COMMON[@]}" --seed $SEED --encoder-dropkey "$dk" --total-steps 150000 --run-name "$B" --patch-emb-dtype fp32 --residual-dtype fp32 --attn-dtype fp32 --ffn-dtype fp32 >> "$RES/run_${B}.log" 2>&1
+[05-16 03:16:03] enc_fcst_v17_dk095_150k FAILED
+[05-16 03:16:03] enc_fcst_v17_dk095_150k FAILED
+[05-16 07:46:50] v27c-150k DONE
+[05-16 07:46:50] v27c-150k DONE
+[05-16 07:46:50] v27c 50k = existing gift_eval_full_v27c (GM=1.3313)
+[05-16 07:46:50] v27c 50k = existing gift_eval_full_v27c (GM=1.3313)
+experiments/2026-05-11_exp_encoder_forecaster/scripts/overnight_controller.sh: line 85: qn: unbound variable
+[05-16 07:46:50] GPU0 track (v27c 150k) finished rc=1
+[05-16 07:46:50] GPU1 track (v20 + v17) finished rc=1
+=== 150k ordering scorecard (Sat 16 May 07:46:50 BST 2026) ===
+dk0.9 (v20 recipe, fp32-warmup->fp16, ~3% penalty vs pure-fp32 v11c):
+  50k=  100k=  150k=   [v11c pure-fp32 50k ref=1.292]
+v27c dk0.8:  50k=1.3313  100k=  150k=
+v17  dk0.95: 50k=1.409  100k=  150k=
+v16  dk0.7:  50k=1.335  100k=  150k=
+--- BET (user): v17 & v27c < v11c(dk0.9) @150k ---
+  dk0.9@150k ref =  (note: v20 recipe carries ~3% fp16 penalty)
+  v17@150k =  ; v27c@150k = 
+[05-16 07:46:50] === overnight controller DONE ===
