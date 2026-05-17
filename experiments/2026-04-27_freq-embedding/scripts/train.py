@@ -323,7 +323,10 @@ def parse_args():
                         "(e.g. 2 GPUs → HALF the negatives), so this is NOT "
                         "the same objective as single-GPU. Default OFF: the "
                         "proper gathered loss (global negatives, identical to "
-                        "1-GPU @ global B). No effect single-GPU.")
+                        "1-GPU @ global B). No effect single-GPU. NOTE: "
+                        "loss_tau_ref is also computed shard-local under this "
+                        "flag, so that baseline column is NOT comparable to "
+                        "gathered/single-GPU runs — don't plot them together.")
     p.add_argument("--synth-kind", default="periodic",
                    choices=["periodic", "composite"],
                    help="On-the-fly synthesizer. 'periodic' (default) is the "
@@ -713,6 +716,9 @@ def main():
     # init or resumed). No-op when not distributed.
     broadcast_module(model)
 
+    _loss_mode = ""  # only used in the distributed arm of the print below;
+    # hoisted so a future edit can't turn the lazy reference into an
+    # UnboundLocalError on the single-GPU path.
     if distributed:
         _loss_mode = ("SHARDED loss (local negatives only, B/world_size — "
                       "NOT single-GPU-equivalent)" if args.shard_loss_on_batch
