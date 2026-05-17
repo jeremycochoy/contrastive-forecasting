@@ -47,18 +47,25 @@ ATTN_AMP_DIAG = _AttnAmpDiag()
 
 
 # --- Centralized precision API -----------------------------------------------
-# Three independent dtype knobs for the transformer body:
-#   * residual_dtype : outer-most precision (residual stream + LayerNorm +
-#                      depthwise conv). fp32 = safe default; bf16 unstable in
-#                      our high-aligned-cos-sim regime.
+# Four independent dtype knobs for the transformer body:
+#   * residual_dtype : outer-most precision (residual stream + LayerNorm).
+#                      fp32 = safe default; bf16 unstable in our
+#                      high-aligned-cos-sim regime.
 #   * attn_dtype     : dtype for SA-block matmuls (Q/K/V proj, scores,
 #                      softmax, output proj). Independent of residual_dtype.
 #   * ffn_dtype      : dtype for FFN block (x4 expansion + projection).
-# When an inner block dtype differs from residual_dtype, its output is cast
-# back to residual_dtype before the residual ADD so the residual stream stays
-# in residual_dtype. fp32 maps to an `autocast(enabled=False)` no-op so weight
-# casting is fully disabled — not just an autocast at fp32 dtype (which is
-# different from "disabled" because torch's autocast cache still kicks in).
+#   * conv_dtype     : dtype for the depthwise causal conv. Independent of
+#                      residual_dtype. Default None = inherit residual_dtype
+#                      (preserves the legacy behaviour, where the conv ran
+#                      under the residual-stream autocast, byte-identically
+#                      for every existing run/checkpoint — including the
+#                      historical residual=fp16/bf16 arms).
+# When an inner block dtype (attn/ffn/conv) differs from residual_dtype, its
+# output is cast back to residual_dtype before the residual ADD so the
+# residual stream stays in residual_dtype. fp32 maps to an
+# `autocast(enabled=False)` no-op so weight casting is fully disabled — not
+# just an autocast at fp32 dtype (which is different from "disabled" because
+# torch's autocast cache still kicks in).
 _DTYPE_MAP = {"fp32": torch.float32,
               "fp16": torch.float16,
               "bf16": torch.bfloat16}
@@ -102,24 +109,33 @@ class DecoderOnlyTransformerLayer(nn.Module):
                  residual_dtype: str = "fp32",
                  attn_dtype: str = "fp32",
                  ffn_dtype: str = "fp32",
+                 conv_dtype: Optional[str] = None,
                  log_attn_amplitude: bool = False) -> None:
         factory_kwargs = {'device': device, 'dtype': dtype}
         super().__init__()
-        # Three independent precision knobs (see module-level docstring).
-        # The residual stream + LayerNorm + depthwise conv run in
-        # `residual_dtype`; the SA matmuls run in `attn_dtype`; the FFN
-        # matmuls run in `ffn_dtype`. When an inner block dtype differs
-        # from residual_dtype, its output is cast back to residual_dtype
-        # before the residual ADD so the residual stream stays uniform.
+        # Four independent precision knobs (see module-level docstring).
+        # The residual stream + LayerNorm run in `residual_dtype`; the SA
+        # matmuls run in `attn_dtype`; the FFN matmuls run in `ffn_dtype`;
+        # the depthwise conv runs in `conv_dtype` (None → inherit
+        # residual_dtype, i.e. the legacy behaviour). When an inner block
+        # dtype differs from residual_dtype, its output is cast back to
+        # residual_dtype before the residual ADD so the residual stream
+        # stays uniform.
         assert residual_dtype in _DTYPE_MAP, \
             f"residual_dtype must be one of {list(_DTYPE_MAP)}, got {residual_dtype!r}"
         assert attn_dtype in _DTYPE_MAP, \
             f"attn_dtype must be one of {list(_DTYPE_MAP)}, got {attn_dtype!r}"
         assert ffn_dtype in _DTYPE_MAP, \
             f"ffn_dtype must be one of {list(_DTYPE_MAP)}, got {ffn_dtype!r}"
+        assert conv_dtype is None or conv_dtype in _DTYPE_MAP, \
+            f"conv_dtype must be None or one of {list(_DTYPE_MAP)}, got {conv_dtype!r}"
         self.residual_dtype = residual_dtype
         self.attn_dtype = attn_dtype
         self.ffn_dtype = ffn_dtype
+        # None → inherit residual_dtype: byte-identical to the pre-conv_dtype
+        # code path (conv ran under the residual-stream autocast) for every
+        # existing run/checkpoint, including residual=fp16/bf16 arms.
+        self.conv_dtype = conv_dtype if conv_dtype is not None else residual_dtype
         # Attention-amplitude diagnostic (opt-in). When True AND the global
         # ATTN_AMP_DIAG.active flag is set, _sa_block records per-layer
         # max-abs of the pre-softmax QK^T logits / SA in / SA out / residual.
@@ -192,8 +208,8 @@ class DecoderOnlyTransformerLayer(nn.Module):
                 tgt_is_causal: bool = False) -> Tensor:
         # Outer autocast = residual_dtype. fp32 is a *disabled* autocast
         # (no-op); fp16/bf16 enable mixed precision for the residual stream
-        # + LayerNorm + depthwise conv. The inner SA/FFN blocks open their
-        # own autocast contexts at attn_dtype/ffn_dtype if those differ from
+        # + LayerNorm. The inner SA/FFN/conv blocks open their own autocast
+        # contexts at attn_dtype/ffn_dtype/conv_dtype if those differ from
         # residual_dtype, and cast their outputs back to residual_dtype
         # before the residual ADD so the residual stream stays uniform.
         with _autocast_ctx(self.residual_dtype):
@@ -206,23 +222,18 @@ class DecoderOnlyTransformerLayer(nn.Module):
 
         # LEGACY placement: conv mutates the residual stream in-place.
         # Used ONLY when resuming an old checkpoint trained with this graph.
-        # Runs in residual_dtype via the outer autocast (which is a *disabled*
-        # autocast when residual_dtype==fp32, so the conv weights are not
-        # silently downcast by any ambient autocast).
+        # Runs in conv_dtype (default None → residual_dtype, byte-identical
+        # to the pre-conv_dtype path), then cast back to residual_dtype.
         if self.depthwise_conv is not None and self.depthwise_conv_placement == "deprecated":
-            x = x.transpose(1, 2)  # (B, d_model, T)
-            x = self.depthwise_conv(x)
-            x = x.transpose(1, 2)  # back to (B, T, d_model)
+            x = self._conv_block(x)
 
         if self.norm_first:
             if self.depthwise_conv is not None and self.depthwise_conv_placement == "sa_input":
                 # NEW placement (Conformer-style): conv feeds the SA-branch
                 # pre-norm input only. Residual stream (x_res) stays clean.
-                # Conv runs in residual_dtype via outer autocast.
+                # Conv runs in conv_dtype (see _conv_block).
                 x_res = x
-                y = x.transpose(1, 2)
-                y = self.depthwise_conv(y)
-                y = y.transpose(1, 2)
+                y = self._conv_block(x)
                 sa_out = self._sa_block(self.norm1(y), tgt_mask,
                                         tgt_key_padding_mask, tgt_is_causal)
                 x = x_res + sa_out
@@ -239,9 +250,7 @@ class DecoderOnlyTransformerLayer(nn.Module):
             # norm-last path — preserve legacy semantics; current runs use
             # norm_first=True, so this branch is for completeness.
             if self.depthwise_conv is not None and self.depthwise_conv_placement == "sa_input":
-                y = x.transpose(1, 2)
-                y = self.depthwise_conv(y)
-                y = y.transpose(1, 2)
+                y = self._conv_block(x)
                 x = self.norm1(x + self._sa_block(y, tgt_mask,
                                                   tgt_key_padding_mask, tgt_is_causal))
             else:
@@ -255,6 +264,30 @@ class DecoderOnlyTransformerLayer(nn.Module):
             self._record_attn_amplitude(x)
 
         return x
+
+    # depthwise causal conv block
+    def _conv_block(self, x: Tensor) -> Tensor:
+        """Depthwise causal conv (channels-first transpose dance), run in
+        `conv_dtype`.
+
+        Mirrors `_sa_block` / `_ff_block`: when conv_dtype != residual_dtype
+        the conv runs under its own autocast and the output is cast back to
+        residual_dtype before it re-enters the residual stream. When equal
+        (the default, conv_dtype inherits residual_dtype) it is a
+        byte-identical no-op vs. the pre-conv_dtype code path.
+        """
+        if self.conv_dtype != self.residual_dtype:
+            with _autocast_ctx(self.conv_dtype):
+                y = x.transpose(1, 2)  # (B, d_model, T)
+                y = self.depthwise_conv(y)
+                y = y.transpose(1, 2)  # back to (B, T, d_model)
+            # Cast back to residual_dtype before it re-enters the stream.
+            return y.to(_DTYPE_MAP[self.residual_dtype])
+        else:
+            y = x.transpose(1, 2)  # (B, d_model, T)
+            y = self.depthwise_conv(y)
+            y = y.transpose(1, 2)  # back to (B, T, d_model)
+            return y
 
     # self-attention block
     def _sa_block(self, x: Tensor,
@@ -404,6 +437,7 @@ class TransformerBlock(nn.Module):
                  residual_dtype: str = "fp32",
                  attn_dtype: str = "fp32",
                  ffn_dtype: str = "fp32",
+                 conv_dtype: str | None = None,
                  forecaster_d_model: int | None = None,
                  forecaster_nhead: int | None = None,
                  log_attn_amplitude: bool = False):
@@ -462,6 +496,7 @@ class TransformerBlock(nn.Module):
                 residual_dtype=residual_dtype,
                 attn_dtype=attn_dtype,
                 ffn_dtype=ffn_dtype,
+                conv_dtype=conv_dtype,
                 log_attn_amplitude=log_attn_amplitude,
             ) for _ in range(num_encoder_layers)
         ])
@@ -513,6 +548,7 @@ class TransformerBlock(nn.Module):
                 residual_dtype=residual_dtype,
                 attn_dtype=attn_dtype,
                 ffn_dtype=ffn_dtype,
+                conv_dtype=conv_dtype,
                 log_attn_amplitude=log_attn_amplitude,
             ) for _ in range(num_layers)
         ])

@@ -219,6 +219,17 @@ def parse_args():
                    default="fp32",
                    help="Dtype for FFN block (x4 expansion + projection). "
                         "Same rules as --attn-dtype.")
+    p.add_argument("--conv-dtype", choices=["fp32", "fp16", "bf16"],
+                   default=None,
+                   help="Dtype for the depthwise causal conv. Independent "
+                        "of --residual-dtype (same cast-back rules as "
+                        "--attn-dtype). Default None = inherit "
+                        "--residual-dtype, which is byte-identical to the "
+                        "pre-conv_dtype behaviour (conv ran under the "
+                        "residual-stream autocast) for every existing run / "
+                        "checkpoint, including the historical residual="
+                        "fp16/bf16 arms. Set bf16 to run conv in bf16 while "
+                        "keeping the residual stream fp32.")
     p.add_argument("--patch-emb-dtype", choices=["fp32", "fp16", "bf16"],
                    default="fp32",
                    help="Dtype for the input pipeline: RevEWMNorm + patch "
@@ -645,6 +656,7 @@ def main():
     model_config["residual_dtype"] = args.residual_dtype
     model_config["attn_dtype"] = args.attn_dtype
     model_config["ffn_dtype"] = args.ffn_dtype
+    model_config["conv_dtype"] = args.conv_dtype
     model_config["patch_emb_dtype"] = args.patch_emb_dtype
     # Depthwise-conv placement (mutually exclusive integer kernel sizes).
     # --depthwise-conv N (default 3) → NEW (Conformer-style) placement.
