@@ -43,6 +43,14 @@ from src.dataloader import (
 )
 from src.loss import contrastive_latent_loss
 from src.checkpoint import save_training_state, load_training_state
+from src.dist_utils import (
+    setup_distributed,
+    cleanup_distributed,
+    is_main_process,
+    gather_latents,
+    average_gradients,
+    broadcast_module,
+)
 from src.metrics import (
     q_random,
     q_naive_latent,
@@ -409,6 +417,12 @@ def maybe_mixup(x, freq_ids, seasonality_ids, model, args):
 def save_snapshot(model, optimizer, path, step, best_gap, best_gap_step,
                   best_loss, best_loss_step, ema_loss=None, ema_gap=None,
                   hf_rows_consumed=0, synth_rows_consumed=0):
+    # Rank-0 only — concurrent writers to one path corrupt the checkpoint.
+    # Centralised here so every call site (NaN/periodic/best/final) is
+    # covered. Params are kept in sync across ranks (broadcast at init +
+    # averaged grads), so rank 0's state_dict is authoritative.
+    if not is_main_process():
+        return
     import numpy as _np
     torch.save(model.state_dict(), path)
     save_training_state(
@@ -451,6 +465,13 @@ class CSVLogger:
         # τ. Comparable across runs regardless of --tau / --learnable-tau.
         self.tau_ref_column = bool(tau_ref_column)
         self._buffer = []
+        # Rank-0 only: non-main ranks must not open/write the shared CSV
+        # (truncation race / duplicate rows). log/flush/close become no-ops.
+        self._enabled = is_main_process()
+        if not self._enabled:
+            self._file = None
+            self._writer = None
+            return
         self._file = open(path, "a", newline="")
         self._writer = csv.writer(self._file)
         if os.path.getsize(path) == 0:
@@ -475,6 +496,8 @@ class CSVLogger:
             hf_rows_consumed, synth_rows_consumed, mixup_applied,
             r2_random, r2_naive, u_temporal, u_batch, auc, top1, top3,
             loss_tau_ref=None):
+        if not self._enabled:
+            return
         row = [step, loss]
         if self.tau_ref_column:
             # Always write a value when the column is enabled. If the caller
@@ -489,12 +512,14 @@ class CSVLogger:
             self.flush()
 
     def flush(self):
-        if self._buffer:
+        if self._enabled and self._buffer:
             self._writer.writerows(self._buffer)
             self._file.flush()
             self._buffer = []
 
     def close(self):
+        if not self._enabled:
+            return
         self.flush()
         self._file.close()
 
@@ -517,6 +542,12 @@ class AttnAmplitudeCSV:
 
     def __init__(self, path):
         self.path = path
+        # Rank-0 only (shared sidecar file); no-op on other ranks.
+        self._enabled = is_main_process()
+        if not self._enabled:
+            self._file = None
+            self._writer = None
+            return
         self._file = open(path, "a", newline="")
         self._writer = csv.writer(self._file)
         if os.path.getsize(path) == 0:
@@ -527,6 +558,8 @@ class AttnAmplitudeCSV:
             self._file.flush()
 
     def write_rows(self, step, rows):
+        if not self._enabled:
+            return
         # rows: (layer_idx, block, qk, sa_in, sa_out, resid_sa, resid_ffn)
         for (layer_idx, block, qk, sa_in, sa_out,
              resid_sa, resid_ffn) in rows:
@@ -536,13 +569,27 @@ class AttnAmplitudeCSV:
         self._file.flush()
 
     def close(self):
+        if not self._enabled:
+            return
         self._file.close()
 
 
 def main():
     args = parse_args()
 
+    # Distributed (opt-in, env-driven): launch with
+    #   torchrun --nproc_per_node=N experiments/.../train.py ...
+    # WORLD_SIZE<=1 (the default, no torchrun) → (0,1,0,False) and every
+    # dist_utils helper is a strict no-op, so the single-GPU path is
+    # byte-identical. --batch-size is PER RANK; the loss sees the global
+    # W*B batch via gather_latents (2-GPU @ B/2 == 1-GPU @ B).
+    rank, world_size, local_rank, distributed = setup_distributed()
+    if distributed:
+        args.device = f"cuda:{local_rank}"
+
     device = torch.device(args.device)
+    # Identical model init on every rank (also broadcast post-build); data
+    # RNG is offset per rank below so each rank streams DIFFERENT samples.
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed_all(args.seed)
     import numpy as _np
@@ -653,7 +700,13 @@ def main():
             print(f"  [checkpoint] WARNING: Could not restore RNG state: {e}")
         print(f"Resumed from {args.resume} at step {start_step}")
 
-    print(f"Device: {device} | Params: {count_parameters(model):,}")
+    # Every rank must start from byte-identical weights/buffers (fresh
+    # init or resumed). No-op when not distributed.
+    broadcast_module(model)
+
+    print(f"Device: {device} | Params: {count_parameters(model):,}"
+          + (f" | DDP rank {rank}/{world_size} (per-rank bs={args.batch_size}, "
+             f"global bs={args.batch_size * world_size})" if distributed else ""))
     print(f"Training for {args.total_steps} steps, bs={args.batch_size}, "
           f"lr={args.lr}, T={args.t_raw}, C={args.n_channels}, "
           f"mix_ratio={args.mix_ratio}, "
@@ -694,6 +747,13 @@ def main():
         hf_rows_consumed = start_step * hf_rows_per_step
         synth_rows_consumed = start_step * synth_rows_per_step
     synth_seed = args.synth_seed if args.synth_seed is not None else args.seed + 10_000
+    # Per-rank data offset: each rank MUST stream different samples, else
+    # the gathered global batch is just W identical shards and the larger
+    # negative pool is fake. Distinct synth seed + HF skip stride per rank
+    # (rank 0 offset = 0, so the restored rank-0 counter stays the base).
+    if distributed:
+        synth_seed += rank * 1_000_003
+        hf_rows_consumed += rank * max(1, hf_rows_per_step) * 100_003
 
     if args.synth_kind == "composite":
         synth_kwargs = {}
@@ -801,6 +861,11 @@ def main():
         # cause of v4/v5/v6/v9b divergences.
         f_lat = f_lat.float()
         o_lat = o_lat.float()
+        # DDP: gather latents across ranks so the contrastive loss pools
+        # negatives over the GLOBAL (W*B) batch — 2-GPU @ B/2 == 1-GPU @ B.
+        # Strict no-op single-GPU. Done on the fp32 latents so loss,
+        # loss_tau_ref and compute_metrics all see the same global set.
+        f_lat, o_lat = gather_latents(f_lat, o_lat)
         # When learnable_tau is on, pass model.tau() (0-d tensor with grad)
         # as tau_override so gradient reaches log_inv_tau. Otherwise the
         # loss uses LOSS_SPEC.train_configuration's scalar.
@@ -851,6 +916,10 @@ def main():
 
         t_bwd_start = time.perf_counter()
         loss.backward()
+        # DDP: all_reduce(SUM)/W the param grads (== DDP's averaging). With
+        # the W× from DifferentiableAllGather.backward this yields exactly
+        # the single-GPU full-batch gradient. No-op single-GPU.
+        average_gradients(model)
         if args.grad_clip is not None:
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
         optimizer.step()
@@ -910,7 +979,7 @@ def main():
                        auc_val, top1_val, top3_val,
                        loss_tau_ref=loss_tau_ref_val)
 
-        if step % args.log_every == 0:
+        if step % args.log_every == 0 and is_main_process():
             elapsed = time.time() - t0
             sps = (step - start_step) / elapsed
             eta = (args.total_steps - step) / sps / 3600
@@ -970,9 +1039,13 @@ def main():
     if attn_amp_csv is not None:
         attn_amp_csv.close()
     total = time.time() - t0
-    print(f"\nDone in {total/3600:.1f}h. "
-          f"Best gap={best_gap:.4f} at step {best_gap_step}, "
-          f"Best loss={best_loss:.4f} at step {best_loss_step}")
+    if is_main_process():
+        print(f"\nDone in {total/3600:.1f}h. "
+              f"Best gap={best_gap:.4f} at step {best_gap_step}, "
+              f"Best loss={best_loss:.4f} at step {best_loss_step}")
+    # Barrier + tear down the process group so all ranks exit cleanly
+    # (no-op single-GPU).
+    cleanup_distributed()
 
 
 if __name__ == "__main__":
