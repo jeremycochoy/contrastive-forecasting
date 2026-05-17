@@ -295,6 +295,16 @@ NORMALIZED_VARIANTS = [
     "cosine_similarity_batch_square",
 ]
 
+# `cosine_similarity_batch_full_fh_negs` is a NEW logsumexp-only variant: it
+# has no frozen pre-refactor (`exp/sum/log`) reference, so the
+# legacy-equivalence guard below cannot apply to it. It IS exercised by the
+# generic normalized-form / default-path contracts (non-negativity, ≥-default,
+# default==no-kwarg) at small τ — the meaningful logsumexp-stability pin for
+# a variant with no legacy form.
+NORMALIZED_VARIANTS_ALL = NORMALIZED_VARIANTS + [
+    "cosine_similarity_batch_full_fh_negs",
+]
+
 
 def _new_loss_flag(fl, ol, variant, tau, include_positive_in_denominator):
     spec = SimpleNamespace(train_configuration={
@@ -307,7 +317,7 @@ def _new_loss_flag(fl, ol, variant, tau, include_positive_in_denominator):
     )
 
 
-@pytest.mark.parametrize("variant", NORMALIZED_VARIANTS)
+@pytest.mark.parametrize("variant", NORMALIZED_VARIANTS_ALL)
 @pytest.mark.parametrize("tau", [0.5, 0.07])
 def test_normalized_form_is_nonnegative(variant, tau):
     # Normalized InfoNCE = -log(e^pos / (e^pos + Σ_neg e^neg)). The argument
@@ -326,7 +336,7 @@ def test_normalized_form_is_nonnegative(variant, tau):
     )
 
 
-@pytest.mark.parametrize("variant", NORMALIZED_VARIANTS)
+@pytest.mark.parametrize("variant", NORMALIZED_VARIANTS_ALL)
 @pytest.mark.parametrize("tau", [0.5, 0.1, 0.07])
 def test_normalized_ge_default_always(variant, tau):
     # Data-independent identity: adding the positive to the denominator can
@@ -402,7 +412,7 @@ def test_default_flag_matches_legacy_training_loss(variant, tau):
     )
 
 
-@pytest.mark.parametrize("variant", NORMALIZED_VARIANTS)
+@pytest.mark.parametrize("variant", NORMALIZED_VARIANTS_ALL)
 def test_default_flag_matches_no_flag_call(variant):
     # Passing include_positive_in_denominator=False must be identical to
     # not passing the kwarg at all (the existing training call site).

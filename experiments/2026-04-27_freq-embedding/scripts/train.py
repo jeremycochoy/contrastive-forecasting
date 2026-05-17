@@ -283,6 +283,7 @@ def parse_args():
                             "cosine_similarity_batch_add_f_cross_negs",
                             "cosine_similarity_batch_add_skip_f_negs",
                             "cosine_similarity_batch_add_neg_htft",
+                            "cosine_similarity_batch_full_fh_negs",
                             "cosine_similarity",
                             "cosine_similarity_old"],
                    help="Contrastive loss formulation. Default 'no_time_neg' "
@@ -290,6 +291,15 @@ def parse_args():
                         "is the paper-described loss with cross-time negatives "
                         "(h[b,t-1,c] <-> h[b,t,c] and cross-channel time terms) "
                         "— re-introduced after being dropped during ARMA-era tuning.")
+    p.add_argument("--pos-in-denominator", action="store_true",
+                   help="Train with the normalized-InfoNCE objective: put the "
+                        "positive in BOTH numerator and denominator → loss = "
+                        "-log(e^pos / (e^pos + Σ e^neg)) ≥ 0 (vs the default "
+                        "negatives-only -log(e^pos / Σ e^neg), unbounded / can "
+                        "go negative). Honored by the logsumexp variants "
+                        "(cosine_similarity_batch[_no_time_neg/_square/"
+                        "_full_fh_negs]); a no-op default keeps every prior "
+                        "run's objective unchanged.")
     p.add_argument("--synth-kind", default="periodic",
                    choices=["periodic", "composite"],
                    help="On-the-fly synthesizer. 'periodic' (default) is the "
@@ -589,6 +599,7 @@ def main():
     model_config["log_attn_amplitude"] = bool(args.log_attn_amplitude)
     # Override the loss_shape from CLI (LOSS_SPEC is a module-level default).
     LOSS_SPEC.train_configuration["loss_shape"] = args.loss_shape
+    LOSS_SPEC.train_configuration["include_positive_in_denominator"] = args.pos_in_denominator
     if args.tau is not None:
         LOSS_SPEC.train_configuration["contrastive_divergence_temperature"] = args.tau
     model = ConfigurableModel(**model_config).to(device)
