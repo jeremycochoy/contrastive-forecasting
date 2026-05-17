@@ -154,7 +154,7 @@ def parse_args():
     p.add_argument("--encoder-dropkey", type=float, default=0.0,
                    help="Per-step DropKey probability on the encoder layers' "
                         "below-diagonal attention entries. 0.0 (default) = "
-                        "pure causal. e.g. 0.3 drops 30% of past-key edges "
+                        "pure causal. e.g. 0.3 drops 30%% of past-key edges "
                         "per layer per step. Forecaster mask is unaffected.")
     p.add_argument("--encoder-dropkey-share-heads", action="store_true",
                    help="If set, the per-step dropkey mask is shared across "
