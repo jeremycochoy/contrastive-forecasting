@@ -30,7 +30,7 @@ import torch.multiprocessing as mp
 from types import SimpleNamespace
 
 from src.loss import contrastive_latent_loss
-from src.dist_utils import gather_latents
+from src.dist_utils import gather_latents, average_gradients
 
 WORLD = 2
 B_LOCAL, T, C, H = 3, 4, 1, 8
@@ -166,6 +166,62 @@ def _worker_ddp_param_grad(rank, fstore):
         dist.destroy_process_group()
 
 
+def _sharded_reference(h_in):
+    """`--shard-loss-on-batch`: no gather. Objective is the MEAN of the
+    per-rank local-shard losses; its grad is what manual DDP averaging
+    must reproduce (NOT the global-batch grad — that's the tradeoff)."""
+    torch.manual_seed(202605)
+    x = torch.randn(B_GLOBAL, h_in)
+    m = _ToLatents(h_in)
+    g = torch.Generator().manual_seed(11)
+    o = torch.randn(B_GLOBAL, T, C, H, generator=g)
+    per_shard = []
+    for r in range(WORLD):
+        sl = slice(r * B_LOCAL, (r + 1) * B_LOCAL)
+        per_shard.append(contrastive_latent_loss(
+            (m(x[sl]), o[sl]), validation=False, spec=_spec()))
+    loss = sum(per_shard) / WORLD
+    loss.backward()
+    return ([p.detach() for p in per_shard],
+            m.lin.weight.grad.clone(), m.lin.bias.grad.clone())
+
+
+def _worker_sharded_param_grad(rank, fstore):
+    _init(rank, fstore)
+    try:
+        h_in = 5
+        ref_shard_losses, ref_wg, ref_bg = _sharded_reference(h_in)
+
+        torch.manual_seed(202605)
+        x_all = torch.randn(B_GLOBAL, h_in)
+        g = torch.Generator().manual_seed(11)
+        o_all = torch.randn(B_GLOBAL, T, C, H, generator=g)
+        sl = slice(rank * B_LOCAL, (rank + 1) * B_LOCAL)
+
+        model = _ToLatents(h_in)            # trainer path: UNwrapped model
+        f_loc = model(x_all[sl])
+        o_loc = o_all[sl]
+        # Sharded mode == skip gather_latents: loss over the LOCAL shard.
+        loss = contrastive_latent_loss((f_loc, o_loc), validation=False,
+                                       spec=_spec())
+        assert torch.allclose(loss.detach(), ref_shard_losses[rank],
+                              atol=1e-6, rtol=1e-5), (
+            f"rank{rank}: sharded loss != single-proc loss on this shard")
+        loss.backward()
+        average_gradients(model)            # all_reduce(SUM)/W
+
+        wg = model.lin.weight.grad
+        bg = model.lin.bias.grad
+        assert torch.allclose(wg, ref_wg, atol=1e-5, rtol=1e-4), (
+            f"rank{rank}: sharded weight.grad != mean-of-shard-losses grad "
+            f"(max|Δ|={(wg - ref_wg).abs().max().item():.3e})")
+        assert torch.allclose(bg, ref_bg, atol=1e-5, rtol=1e-4), (
+            f"rank{rank}: sharded bias.grad != mean-of-shard-losses grad "
+            f"(max|Δ|={(bg - ref_bg).abs().max().item():.3e})")
+    finally:
+        dist.destroy_process_group()
+
+
 def _spawn(fn):
     with tempfile.TemporaryDirectory() as d:
         fstore = os.path.join(d, "store")
@@ -183,3 +239,13 @@ def test_ddp_param_grad_exactly_matches_single_process():
     """The end-to-end guarantee: DDP-wrapped param grad == single-GPU
     full-batch param grad (W and 1/W cancel)."""
     _spawn(_worker_ddp_param_grad)
+
+
+@pytest.mark.skipif(not dist.is_available(), reason="torch.distributed N/A")
+def test_sharded_mode_grad_is_mean_of_per_shard_losses():
+    """--shard-loss-on-batch (no gather): each rank's loss == single-proc
+    loss on its own shard, and the averaged param grad == grad of the
+    MEAN of the per-shard losses. This is a different (weaker) objective
+    than the gathered one — by design — so this pins the documented
+    tradeoff rather than single-GPU equivalence."""
+    _spawn(_worker_sharded_param_grad)

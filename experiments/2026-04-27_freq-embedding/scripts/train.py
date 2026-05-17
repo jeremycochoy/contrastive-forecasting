@@ -315,6 +315,15 @@ def parse_args():
                         "(cosine_similarity_batch[_no_time_neg/_square/"
                         "_full_fh_negs]); a no-op default keeps every prior "
                         "run's objective unchanged.")
+    p.add_argument("--shard-loss-on-batch", action="store_true",
+                   help="DDP only: compute the contrastive loss on each "
+                        "rank's LOCAL shard instead of all-gathering latents "
+                        "to the global batch. Trades correctness for memory/"
+                        "speed — the negative pool shrinks to B/world_size "
+                        "(e.g. 2 GPUs → HALF the negatives), so this is NOT "
+                        "the same objective as single-GPU. Default OFF: the "
+                        "proper gathered loss (global negatives, identical to "
+                        "1-GPU @ global B). No effect single-GPU.")
     p.add_argument("--synth-kind", default="periodic",
                    choices=["periodic", "composite"],
                    help="On-the-fly synthesizer. 'periodic' (default) is the "
@@ -704,9 +713,14 @@ def main():
     # init or resumed). No-op when not distributed.
     broadcast_module(model)
 
+    if distributed:
+        _loss_mode = ("SHARDED loss (local negatives only, B/world_size — "
+                      "NOT single-GPU-equivalent)" if args.shard_loss_on_batch
+                      else "gathered loss (global negatives, == 1-GPU @ global B)")
     print(f"Device: {device} | Params: {count_parameters(model):,}"
           + (f" | DDP rank {rank}/{world_size} (per-rank bs={args.batch_size}, "
-             f"global bs={args.batch_size * world_size})" if distributed else ""))
+             f"global bs={args.batch_size * world_size}) | {_loss_mode}"
+             if distributed else ""))
     print(f"Training for {args.total_steps} steps, bs={args.batch_size}, "
           f"lr={args.lr}, T={args.t_raw}, C={args.n_channels}, "
           f"mix_ratio={args.mix_ratio}, "
@@ -865,7 +879,16 @@ def main():
         # negatives over the GLOBAL (W*B) batch — 2-GPU @ B/2 == 1-GPU @ B.
         # Strict no-op single-GPU. Done on the fp32 latents so loss,
         # loss_tau_ref and compute_metrics all see the same global set.
-        f_lat, o_lat = gather_latents(f_lat, o_lat)
+        #
+        # --shard-loss-on-batch: SKIP the gather → each rank's loss sees
+        # only its local shard (negatives = B/world_size). Cheaper / no
+        # O(global_B²) loss memory, but a DIFFERENT, weaker objective —
+        # opt-in only; the default keeps the proper gathered loss.
+        # average_gradients() below still averages param grads across
+        # ranks (standard DDP) so the sharded objective is the mean of
+        # the per-rank local losses.
+        if not args.shard_loss_on_batch:
+            f_lat, o_lat = gather_latents(f_lat, o_lat)
         # When learnable_tau is on, pass model.tau() (0-d tensor with grad)
         # as tau_override so gradient reaches log_inv_tau. Otherwise the
         # loss uses LOSS_SPEC.train_configuration's scalar.
