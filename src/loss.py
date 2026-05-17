@@ -27,15 +27,20 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             denominator, giving a proper normalized InfoNCE
             ``(logsumexp([log_pos, log_neg_total]) - log_pos).mean()``
             = ``-log(e^pos / (e^pos + Σ_neg e^neg))`` which is always
-            ≥ 0. Used ONLY for the diagnostic `loss_tau_ref` reference
-            column — never for the training loss (the training call
-            keeps the default False so every past/running experiment's
-            objective is unchanged). Implemented for the logsumexp-form
-            variants (`cosine_similarity_batch`,
+            ≥ 0. May also be requested per-run via the training config
+            key ``train_configuration['include_positive_in_denominator']``
+            (the two are OR-ed; the function arg is what the diagnostic
+            `loss_tau_ref` column passes, the config key is the knob a
+            training run sets — e.g. the ``--pos-in-denominator`` CLI
+            flag). The default stays False on both, so every
+            past/running experiment's objective is byte-for-byte
+            unchanged. Implemented for the logsumexp-form variants
+            (`cosine_similarity_batch`,
             `cosine_similarity_batch_no_time_neg`,
-            `cosine_similarity_batch_square`); passing True with any
-            other `loss_shape` raises NotImplementedError rather than
-            silently returning an unintended value.
+            `cosine_similarity_batch_square`,
+            `cosine_similarity_batch_full_fh_negs`); requesting it with
+            any other `loss_shape` raises NotImplementedError rather
+            than silently returning an unintended value.
 
     The temperature τ acts as a divisor on cosine similarities. When
     `tau_override` is a tensor, gradient flows through the loss back to
@@ -48,6 +53,14 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         tau = tau_override
     else:
         tau = train_config.get('contrastive_divergence_temperature', 1.0)
+
+    # Normalized-InfoNCE (positive in BOTH numerator and denominator) is
+    # opt-in via EITHER the function arg (diagnostic loss_tau_ref) OR the
+    # training-config key (a run-level knob, e.g. the --pos-in-denominator
+    # CLI flag). Default False on both ⇒ historical objective unchanged.
+    pos_in_denom = include_positive_in_denominator or bool(
+        train_config.get('include_positive_in_denominator', False)
+    )
 
     noise_sigma = train_config.get('contrastive_latent_noise')
     if noise_sigma is not None and not validation:
@@ -156,11 +169,12 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         )
         log_neg_per_anchor = torch.logsumexp(negatives, dim=0)
         log_neg_total = torch.logsumexp(log_neg_per_anchor, dim=0, keepdim=True)
-        if include_positive_in_denominator:
-            # Normalized InfoNCE (diagnostic loss_tau_ref only): add the
-            # positive to the denominator → loss = -log(e^pos / (e^pos +
-            # Σ_neg e^neg)) ≥ 0 always. Broadcast log_neg_total (keepdim
-            # batch=1) against the per-anchor log_pos before logsumexp.
+        if pos_in_denom:
+            # Normalized InfoNCE (loss_tau_ref diagnostic OR the
+            # --pos-in-denominator training knob): add the positive to
+            # the denominator → loss = -log(e^pos / (e^pos + Σ_neg e^neg))
+            # ≥ 0 always. Broadcast log_neg_total (keepdim batch=1)
+            # against the per-anchor log_pos before logsumexp.
             log_denom = torch.logsumexp(
                 torch.stack(
                     [log_pos, log_neg_total.expand_as(log_pos)], dim=0
@@ -190,21 +204,23 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         log_neg_xy = torch.logsumexp(sims_xy / tau, dim=2)
 
         # REPLACES log_neg_xy_hat: full (f_t, h_l) negatives for all l != t+1.
-        # sims_fh[b, t, c, l] = cos(f_t^{b,c}, h_l^{b,c}). Matmul form avoids
-        # materialising the [B, T-1, C, T, H] broadcast intermediate; for
-        # unit-normalised vectors cos(u, v) = u · v.
+        # sims_fh[b, c, t, l] = cos(f_t^{b,c}, h_l^{b,c}). One batched matmul
+        # (no Python loop, no [B,T-1,C,T,H] broadcast intermediate); for
+        # unit-normalised vectors cos(u, v) = u · v. Kept in [B,C,T-1,T] so
+        # logsumexp reduces the contiguous last (l) axis and only the small
+        # [B,T-1,C] result is permuted — avoids a full-size transpose-copy.
         sims_fh = torch.matmul(
             hy_hat_norm.permute(0, 2, 1, 3),            # [B, C, T-1, H]  (f_t)
             orig_norm.permute(0, 2, 3, 1),              # [B, C, H, T]    (h_l)
-        ).permute(0, 2, 1, 3).contiguous()              # [B, T-1, C, T]
+        )                                               # [B, C, T-1, T]
         # Mask only the positive target l = t+1 for each anchor t (0..T-2);
         # every other l (incl. l = t) stays an active negative.
         t_idx = torch.arange(T - 1, device=sims_fh.device).view(T - 1, 1)
         l_idx = torch.arange(T, device=sims_fh.device).view(1, T)
-        pos_mask = (l_idx == t_idx + 1).view(1, T - 1, 1, T)
+        pos_mask = (l_idx == t_idx + 1).view(1, 1, T - 1, T)
         log_neg_fh_all = torch.logsumexp(
             (sims_fh / tau).masked_fill(pos_mask, neg_inf), dim=3
-        )
+        ).permute(0, 2, 1)                              # [B, T-1, C]
 
         sims_xx = cosine_similarity_from_normalized(hx_norm.unsqueeze(3), hx_norm.unsqueeze(2))
         mask_mat = ~torch.eye(C, dtype=torch.bool, device=sims_xx.device)
@@ -240,8 +256,9 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         )
         log_neg_per_anchor = torch.logsumexp(negatives, dim=0)
         log_neg_total = torch.logsumexp(log_neg_per_anchor, dim=0, keepdim=True)
-        if include_positive_in_denominator:
-            # Normalized InfoNCE (diagnostic loss_tau_ref only) — see the
+        if pos_in_denom:
+            # Normalized InfoNCE (loss_tau_ref diagnostic OR the
+            # --pos-in-denominator training knob) — see the
             # cosine_similarity_batch branch for the rationale.
             log_denom = torch.logsumexp(
                 torch.stack(
@@ -570,8 +587,9 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         negatives = torch.stack([log_neg_xx, log_neg_cross_batch], dim=0)
         log_neg_per_anchor = torch.logsumexp(negatives, dim=0)
         log_neg_total = torch.logsumexp(log_neg_per_anchor, dim=0, keepdim=True)
-        if include_positive_in_denominator:
-            # Normalized InfoNCE (diagnostic loss_tau_ref only) — see the
+        if pos_in_denom:
+            # Normalized InfoNCE (loss_tau_ref diagnostic OR the
+            # --pos-in-denominator training knob) — see the
             # cosine_similarity_batch branch for the rationale.
             log_denom = torch.logsumexp(
                 torch.stack(
@@ -642,8 +660,9 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         )
         log_neg_per_anchor = torch.logsumexp(negatives, dim=0)
         log_neg_total = torch.logsumexp(log_neg_per_anchor, dim=0, keepdim=True)
-        if include_positive_in_denominator:
-            # Normalized InfoNCE (diagnostic loss_tau_ref only) — see the
+        if pos_in_denom:
+            # Normalized InfoNCE (loss_tau_ref diagnostic OR the
+            # --pos-in-denominator training knob) — see the
             # cosine_similarity_batch branch for the rationale.
             log_denom = torch.logsumexp(
                 torch.stack(
@@ -661,23 +680,24 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         shape = train_config.get('loss_shape')
         raise Exception(f"Loss shape {shape} not implemented")
 
-    # Guard: `include_positive_in_denominator=True` is only meaningful for
-    # the logsumexp-form variants that compute `log_pos`/`log_neg_total`
-    # above and set `loss` via that path. Any other `loss_shape` reaching
-    # here with the flag set means the normalized form was NOT applied —
-    # fail loud rather than silently logging the wrong reference metric.
-    # The default (False) path is byte-for-byte unchanged for every
-    # variant, so this never affects the training loss.
-    if include_positive_in_denominator and train_config.get('loss_shape') not in (
+    # Guard: positive-in-denominator (whether requested via the function
+    # arg OR the training-config key) is only meaningful for the
+    # logsumexp-form variants that compute `log_pos`/`log_neg_total` above
+    # and set `loss` via that path. Any other `loss_shape` reaching here
+    # with it set means the normalized form was NOT applied — fail loud
+    # rather than silently returning the wrong objective. The default
+    # (False on both) path is byte-for-byte unchanged for every variant,
+    # so this never affects historical training losses.
+    if pos_in_denom and train_config.get('loss_shape') not in (
         'cosine_similarity_batch',
         'cosine_similarity_batch_no_time_neg',
         'cosine_similarity_batch_square',
         'cosine_similarity_batch_full_fh_negs',
     ):
         raise NotImplementedError(
-            "include_positive_in_denominator=True is only implemented for "
-            "loss_shape in {cosine_similarity_batch, "
-            "cosine_similarity_batch_no_time_neg, "
+            "include_positive_in_denominator (function arg or "
+            "train_configuration key) is only implemented for loss_shape "
+            "in {cosine_similarity_batch, cosine_similarity_batch_no_time_neg, "
             "cosine_similarity_batch_square, "
             "cosine_similarity_batch_full_fh_negs}; got "
             f"{train_config.get('loss_shape')!r}."

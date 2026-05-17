@@ -477,3 +477,134 @@ class TestFullFHNegs:
         assert torch.isfinite(loss), f"got non-finite loss: {loss}"
         loss.backward()
         assert f.grad is not None and torch.isfinite(f.grad).all()
+
+
+class TestPosInDenominatorFlag:
+    """`include_positive_in_denominator` as a *training* knob.
+
+    The positive can be put in BOTH numerator and denominator (proper
+    normalized InfoNCE, always ≥ 0) via either the function arg
+    (diagnostic loss_tau_ref) OR the `train_configuration` key
+    (`--pos-in-denominator` CLI flag → run-level objective). Tested on
+    `cosine_similarity_batch_full_fh_negs`.
+    """
+
+    NAME = 'cosine_similarity_batch_full_fh_negs'
+
+    def _spec_with_flag(self, value):
+        spec = _make_spec(self.NAME)
+        spec.train_configuration['include_positive_in_denominator'] = value
+        return spec
+
+    def test_config_key_matches_function_arg(self):
+        """The config key and the function arg are OR-ed and must produce
+        the identical loss value (same normalized-InfoNCE path)."""
+        f, h = _random_inputs(B=3, T=4, C=1, H=8, seed=1)
+        loss_arg = contrastive_latent_loss(
+            (f, h), validation=False, spec=_make_spec(self.NAME),
+            include_positive_in_denominator=True)
+        loss_cfg = contrastive_latent_loss(
+            (f, h), validation=False, spec=self._spec_with_flag(True))
+        assert torch.isfinite(loss_arg) and torch.isfinite(loss_cfg)
+        assert torch.allclose(loss_arg, loss_cfg), (
+            f"config key != function arg: cfg={loss_cfg.item():.6f} "
+            f"arg={loss_arg.item():.6f}")
+
+    def test_normalized_form_is_nonnegative_and_differs(self):
+        """With a near-perfect forecast the default negatives-only loss
+        goes NEGATIVE (unbounded below), while the positive-in-denominator
+        normalized form stays ≥ 0 — the whole point of the flag."""
+        B, T, C, H = 2, 4, 1, 8
+        g = torch.Generator().manual_seed(123)
+        h = torch.randn(B, T, C, H, generator=g)
+        f = torch.randn(B, T, C, H, generator=g)
+        f[:, :-1, :, :] = h[:, 1:, :, :]          # f_t := h_{t+1} (perfect)
+        loss_negonly = contrastive_latent_loss(
+            (f, h), validation=False, spec=_make_spec(self.NAME))
+        loss_norm = contrastive_latent_loss(
+            (f, h), validation=False, spec=self._spec_with_flag(True))
+        assert torch.isfinite(loss_negonly) and torch.isfinite(loss_norm)
+        assert loss_negonly.item() < 0.0, (
+            "sanity: near-perfect forecast should drive the negatives-only "
+            f"loss negative; got {loss_negonly.item():.4f}")
+        assert loss_norm.item() >= -1e-6, (
+            f"normalized form must be ≥ 0; got {loss_norm.item():.6f}")
+        assert loss_norm.item() > loss_negonly.item()
+
+    def test_config_key_false_is_negatives_only(self):
+        """An explicit False config key must be a no-op (identical to the
+        default negatives-only objective) — historical runs unchanged."""
+        f, h = _random_inputs(B=3, T=4, C=1, H=8, seed=2)
+        loss_default = contrastive_latent_loss(
+            (f, h), validation=False, spec=_make_spec(self.NAME))
+        loss_false = contrastive_latent_loss(
+            (f, h), validation=False, spec=self._spec_with_flag(False))
+        assert torch.allclose(loss_default, loss_false)
+
+    def test_config_key_unsupported_shape_raises(self):
+        """Requesting positive-in-denominator via the config key with a
+        non-logsumexp loss_shape must fail loud, not silently no-op."""
+        f, h = _random_inputs(B=2, T=3, C=1, H=8, seed=3)
+        spec = _make_spec('cosine_similarity')
+        spec.train_configuration['include_positive_in_denominator'] = True
+        with pytest.raises(NotImplementedError):
+            contrastive_latent_loss((f, h), validation=False, spec=spec)
+
+
+class TestFullFHNegsBackwardPerf:
+    """Quantifies the backward-pass cost of replacing the single l = t
+    f–h negative with the full all-l set, vs the `cosine_similarity_batch`
+    baseline. Reports fwd/bwd medians + ratios; the assertion is a loose
+    regression guard, not a tight benchmark (CPU timing is noisy)."""
+
+    @staticmethod
+    def _bench(loss_shape, B, T, C, H, iters):
+        from time import perf_counter
+        from statistics import median
+        g = torch.Generator().manual_seed(0)
+        f0 = torch.randn(B, T, C, H, generator=g)
+        h0 = torch.randn(B, T, C, H, generator=g)
+        spec = _make_spec(loss_shape)
+        for _ in range(3):                                # warmup
+            f = f0.clone().requires_grad_(True)
+            contrastive_latent_loss((f, h0), False, spec).backward()
+        fwd, bwd = [], []
+        for _ in range(iters):
+            f = f0.clone().requires_grad_(True)
+            t0 = perf_counter()
+            loss = contrastive_latent_loss((f, h0), False, spec)
+            t1 = perf_counter()
+            loss.backward()
+            t2 = perf_counter()
+            fwd.append(t1 - t0)
+            bwd.append(t2 - t1)
+        return median(fwd), median(bwd)
+
+    def test_backward_slowdown_vs_baseline(self, capsys):
+        # Real training PROPORTIONS: the loss sees latents of shape
+        # [B, T, C, H] where T is the PATCH count = t_raw // W. The
+        # production run uses --t-raw 4096 with W=16 (MODEL_CONFIG) ⇒
+        # T = 4096/16 = 256 (NOT /6 — the 6 in the run script is
+        # --n-heads/--num-layers), H = d_model = 384, C = 1. Batch is
+        # cut to 32 (the B² cross-batch term dominates wall time) so the
+        # test stays ~1s; the bwd ratio is shape-stable (~1.1× measured
+        # at B=32→256, T=64→256), so this faithfully answers "how much
+        # slower is the backward pass at training shape".
+        B, T, C, H, iters = 32, 256, 1, 384, 8
+        base_fwd, base_bwd = self._bench(
+            'cosine_similarity_batch', B, T, C, H, iters)
+        new_fwd, new_bwd = self._bench(
+            'cosine_similarity_batch_full_fh_negs', B, T, C, H, iters)
+        bwd_ratio = new_bwd / base_bwd
+        fwd_ratio = new_fwd / base_fwd
+        msg = (
+            f"\n[full_fh_negs perf @ B={B},T={T},C={C},H={H},iters={iters}]\n"
+            f"  baseline  fwd={base_fwd*1e3:7.2f}ms  bwd={base_bwd*1e3:7.2f}ms\n"
+            f"  full_fh   fwd={new_fwd*1e3:7.2f}ms  bwd={new_bwd*1e3:7.2f}ms\n"
+            f"  ratio     fwd×{fwd_ratio:.2f}        bwd×{bwd_ratio:.2f}")
+        with capsys.disabled():
+            print(msg)
+        assert base_bwd > 0 and new_bwd > 0
+        # Loose guard: the extra term is one [B,C,T-1,T] matmul + logsumexp,
+        # comparable to the existing cross-batch term — well under 4× bwd.
+        assert bwd_ratio < 4.0, f"backward {bwd_ratio:.2f}× slower:{msg}"
