@@ -171,6 +171,88 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         else:
             loss = (log_neg_total - log_pos).mean()
 
+    elif train_config.get('loss_shape') == 'cosine_similarity_batch_full_fh_negs':
+        # Same as `cosine_similarity_batch`, except the single l = t
+        # forecaster–encoder negative (`log_neg_xy_hat` = cos(h_t, f_t)) is
+        # REPLACED by the full set of (f_t, h_l) negatives over EVERY time
+        # position l, excluding only the positive target l = t+1. Anchor
+        # f_t is the forecaster at index t (t = 0..T-2); h_l is the encoder
+        # at index l (l = 0..T-1), same (b, c). The l = t slice equals the
+        # old same-channel xy_hat term (identical for C = 1, the training
+        # config); l ∈ {0..t-1, t+2..T-1} are the genuinely new negatives.
+        # All other terms (xy, xx, zy, cross-batch) are byte-for-byte
+        # unchanged from `cosine_similarity_batch`. Numerically stable
+        # logsumexp form — same shape contract and cross-batch pooling.
+        neg_inf = float('-inf')
+        log_pos = cosine_similarity_from_normalized(hy_norm, hy_hat_norm) / tau
+
+        sims_xy = cosine_similarity_from_normalized(hx_norm.unsqueeze(3), hy_norm.unsqueeze(2))
+        log_neg_xy = torch.logsumexp(sims_xy / tau, dim=2)
+
+        # REPLACES log_neg_xy_hat: full (f_t, h_l) negatives for all l != t+1.
+        # sims_fh[b, t, c, l] = cos(f_t^{b,c}, h_l^{b,c}). Matmul form avoids
+        # materialising the [B, T-1, C, T, H] broadcast intermediate; for
+        # unit-normalised vectors cos(u, v) = u · v.
+        sims_fh = torch.matmul(
+            hy_hat_norm.permute(0, 2, 1, 3),            # [B, C, T-1, H]  (f_t)
+            orig_norm.permute(0, 2, 3, 1),              # [B, C, H, T]    (h_l)
+        ).permute(0, 2, 1, 3).contiguous()              # [B, T-1, C, T]
+        # Mask only the positive target l = t+1 for each anchor t (0..T-2);
+        # every other l (incl. l = t) stays an active negative.
+        t_idx = torch.arange(T - 1, device=sims_fh.device).view(T - 1, 1)
+        l_idx = torch.arange(T, device=sims_fh.device).view(1, T)
+        pos_mask = (l_idx == t_idx + 1).view(1, T - 1, 1, T)
+        log_neg_fh_all = torch.logsumexp(
+            (sims_fh / tau).masked_fill(pos_mask, neg_inf), dim=3
+        )
+
+        sims_xx = cosine_similarity_from_normalized(hx_norm.unsqueeze(3), hx_norm.unsqueeze(2))
+        mask_mat = ~torch.eye(C, dtype=torch.bool, device=sims_xx.device)
+        mask_mat = mask_mat.view(1, 1, C, C)
+        log_neg_xx = torch.logsumexp(
+            (sims_xx / tau).masked_fill(~mask_mat, neg_inf), dim=2
+        )
+
+        sims_zy = cosine_similarity_from_normalized(hz_hat_norm.unsqueeze(3), hy_hat_norm.unsqueeze(2))
+        log_neg_zy = torch.logsumexp(sims_zy / tau, dim=2)
+
+        # Cross-batch negatives: compare across batch dimension (not just C dimension).
+        # Matmul form below is equivalent to the broadcast form but avoids
+        # materialising the [B, B, T-1, C, H] intermediate (~25 GB at B=256,
+        # H=384, T-1=255 fp32). For unit-normalised vectors, cos(u, v) = u · v.
+        # Index convention: sims[b1, b2, t, c] = cos(hy[b2, t, c], hy_hat[b1, t, c]).
+        hy_p = hy_norm.permute(1, 2, 0, 3)              # [T-1, C, B, H]
+        hy_hat_p = hy_hat_norm.permute(1, 2, 0, 3)      # [T-1, C, B, H]
+        sims_cross_batch = torch.matmul(
+            hy_hat_p, hy_p.transpose(-2, -1)            # [T-1, C, B, B]
+        ).permute(2, 3, 0, 1).contiguous()              # [B, B, T-1, C]
+
+        mask_batch = ~torch.eye(B, dtype=torch.bool, device=sims_cross_batch.device)
+        mask_batch = mask_batch.view(B, B, 1, 1)
+
+        log_neg_cross_batch = torch.logsumexp(
+            (sims_cross_batch / tau).masked_fill(~mask_batch, neg_inf), dim=1
+        )
+
+        negatives = torch.stack(
+            [log_neg_xy, log_neg_xx, log_neg_zy, log_neg_fh_all, log_neg_cross_batch],
+            dim=0,
+        )
+        log_neg_per_anchor = torch.logsumexp(negatives, dim=0)
+        log_neg_total = torch.logsumexp(log_neg_per_anchor, dim=0, keepdim=True)
+        if include_positive_in_denominator:
+            # Normalized InfoNCE (diagnostic loss_tau_ref only) — see the
+            # cosine_similarity_batch branch for the rationale.
+            log_denom = torch.logsumexp(
+                torch.stack(
+                    [log_pos, log_neg_total.expand_as(log_pos)], dim=0
+                ),
+                dim=0,
+            )
+            loss = (log_denom - log_pos).mean()
+        else:
+            loss = (log_neg_total - log_pos).mean()
+
     elif train_config.get('loss_shape') == 'cosine_similarity_batch_add_f_cross_negs':
         # NON-cumulative variant: identical to `cosine_similarity_batch` except
         # `negatives` includes an extra f-side cross-(b,c) term at fixed t —
@@ -590,12 +672,14 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         'cosine_similarity_batch',
         'cosine_similarity_batch_no_time_neg',
         'cosine_similarity_batch_square',
+        'cosine_similarity_batch_full_fh_negs',
     ):
         raise NotImplementedError(
             "include_positive_in_denominator=True is only implemented for "
             "loss_shape in {cosine_similarity_batch, "
             "cosine_similarity_batch_no_time_neg, "
-            "cosine_similarity_batch_square}; got "
+            "cosine_similarity_batch_square, "
+            "cosine_similarity_batch_full_fh_negs}; got "
             f"{train_config.get('loss_shape')!r}."
         )
 

@@ -372,3 +372,108 @@ class TestAddSkipFNegs:
             spec=_make_spec('cosine_similarity_batch_add_skip_f_negs'))
         assert loss.dim() == 0
         assert torch.isfinite(loss), f"got non-finite loss: {loss}"
+
+
+class TestFullFHNegs:
+    """Tests for `cosine_similarity_batch_full_fh_negs`.
+
+    Identical to `cosine_similarity_batch` except the single l = t
+    forecaster–encoder negative (`log_neg_xy_hat` = cos(h_t, f_t)) is
+    REPLACED by the full set of (f_t, h_l) negatives over every time
+    position l, masking out only the positive target l = t+1. At C = 1
+    (the training config) the kept l = t slice equals the old
+    same-channel xy_hat term, and l ∈ {0..t-1, t+2..T-1} are the
+    genuinely new negatives — so the variant's denominator is a strict
+    superset of the baseline's at C = 1.
+    """
+
+    def test_loss_is_finite_scalar(self):
+        f, h = _random_inputs(seed=42)
+        loss = contrastive_latent_loss(
+            (f, h), validation=False,
+            spec=_make_spec('cosine_similarity_batch_full_fh_negs'))
+        assert loss.dim() == 0
+        assert torch.isfinite(loss)
+
+    def test_differs_from_baseline(self):
+        """Replacing the l = t-only f–h negative with the full all-l set
+        must change the loss vs the `cosine_similarity_batch` baseline."""
+        f, h = _random_inputs(seed=42)
+        loss_base = contrastive_latent_loss(
+            (f, h), validation=False,
+            spec=_make_spec('cosine_similarity_batch'))
+        loss_new = contrastive_latent_loss(
+            (f, h), validation=False,
+            spec=_make_spec('cosine_similarity_batch_full_fh_negs'))
+        assert torch.isfinite(loss_base) and torch.isfinite(loss_new)
+        assert not torch.allclose(loss_base, loss_new), (
+            "full-fh-negs should have a measurable effect vs baseline; "
+            f"got base={loss_base.item():.6f} new={loss_new.item():.6f}")
+
+    def test_strictly_above_baseline_C1(self):
+        """At C = 1 the variant's f–h negative is a logsumexp over a
+        strict superset of the baseline's single l = t term (every other
+        loss term is byte-for-byte identical), so the variant's loss must
+        be strictly greater than `cosine_similarity_batch`'s on the same
+        inputs whenever T ≥ 3 (each anchor then has ≥1 extra l)."""
+        f, h = _random_inputs(B=3, T=4, C=1, H=8, seed=7)
+        loss_base = contrastive_latent_loss(
+            (f, h), validation=False,
+            spec=_make_spec('cosine_similarity_batch'))
+        loss_new = contrastive_latent_loss(
+            (f, h), validation=False,
+            spec=_make_spec('cosine_similarity_batch_full_fh_negs'))
+        assert torch.isfinite(loss_base) and torch.isfinite(loss_new)
+        assert loss_new.item() > loss_base.item(), (
+            "superset of negatives must raise the loss at C=1; got "
+            f"new={loss_new.item():.6f} base={loss_base.item():.6f}")
+
+    def test_positive_target_excluded(self):
+        """The positive target l = t+1 must be masked OUT of the (f_t, h_l)
+        negative set. With B=1, C=1 the cross-(b,c) negatives degenerate to
+        -inf and drop out, so the only active negatives depend purely on h
+        (log_neg_xy) or are zero by orthogonal construction (log_neg_zy,
+        log_neg_fh_all). Aligning f_t exactly with the positive h_{t+1}
+        (and nothing else) then leaves every negative term unchanged and
+        only raises log_pos by 1/τ, so the loss must drop by exactly 1/τ.
+        If the mask were broken, that alignment would also inject a cos=1
+        spike at l = t+1 into the negatives and this exact relation fails.
+        """
+        B, T, C, H = 1, 4, 1, 8
+        tau = 0.07
+        eye = torch.eye(H)
+        # h[b, l, 0, :] = e_l  → mutually orthogonal across l.
+        h = eye[:T].view(1, T, 1, H).expand(B, T, C, H).contiguous()
+        # f orthogonal to every h_l (disjoint basis vectors e_T..e_{2T-1}).
+        f_orth = eye[T:2 * T].view(1, T, 1, H).expand(B, T, C, H).contiguous()
+        loss_orth = contrastive_latent_loss(
+            (f_orth, h), validation=False,
+            spec=_make_spec('cosine_similarity_batch_full_fh_negs', tau))
+        # f_t := h_{t+1} = e_{t+1} for t=0..T-2 (aligned ONLY with the
+        # masked positive); f[:, T-1] left orthogonal.
+        f_pos = f_orth.clone()
+        f_pos[:, :T - 1, 0, :] = eye[1:T]
+        loss_pos = contrastive_latent_loss(
+            (f_pos, h), validation=False,
+            spec=_make_spec('cosine_similarity_batch_full_fh_negs', tau))
+        assert torch.isfinite(loss_orth) and torch.isfinite(loss_pos)
+        delta = (loss_orth - loss_pos).item()
+        assert abs(delta - 1.0 / tau) < 1e-3, (
+            "aligning f_t with the masked positive h_{t+1} must lower the "
+            f"loss by exactly 1/τ ({1.0 / tau:.4f}); got Δ={delta:.4f} "
+            f"(orth={loss_orth.item():.4f} pos={loss_pos.item():.4f})")
+
+    def test_smoke_C1_with_grad(self):
+        """Smoke at the real training config shape (C=1, several patches):
+        forward + backward, gradients finite."""
+        B, T, C, H = 4, 8, 1, 16
+        g = torch.Generator().manual_seed(99)
+        f = torch.randn(B, T, C, H, generator=g, requires_grad=True)
+        h = torch.randn(B, T, C, H, generator=g)
+        loss = contrastive_latent_loss(
+            (f, h), validation=False,
+            spec=_make_spec('cosine_similarity_batch_full_fh_negs'))
+        assert loss.dim() == 0
+        assert torch.isfinite(loss), f"got non-finite loss: {loss}"
+        loss.backward()
+        assert f.grad is not None and torch.isfinite(f.grad).all()
