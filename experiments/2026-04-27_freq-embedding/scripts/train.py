@@ -13,7 +13,7 @@ Usage
     # freqemb only, no mixup
     python experiments/2026-04-27_freq-embedding/scripts/train.py \
         --device cuda --run-name freqemb_mix --total-steps 30000 \
-        --batch-size 24 --lr 1e-4 --save-dir checkpoints \
+        --batch-size 24 --lr 1e-4 --weight-decay 0.1 --save-dir checkpoints \
         --hf-repo jeremycochoy/contrastive-training-base-bundles \
         --hf-path base_mixed_v1 --mix-ratio 0.5 \
         --freq-emb-dim 3 --mixup-p 0.0
@@ -78,10 +78,17 @@ def parse_args():
     p.add_argument("--total-steps", type=int, default=30000)
     p.add_argument("--batch-size", type=int, default=24)
     p.add_argument("--lr", type=float, default=1e-4)
-    # Optimizer hyperparams. Defaults match torch.optim.AdamW defaults so
-    # any prior runs (which omitted these flags) reproduce bit-identically.
+    # Optimizer hyperparams. --adam-beta1/2 keep torch.optim.AdamW defaults
+    # so prior runs that omitted them reproduce bit-identically.
     # MOIRAI Aksu et al. recipe: lr=1e-3, weight_decay=0.1, betas=(0.9, 0.98).
-    p.add_argument("--weight-decay", type=float, default=0.01)
+    # --weight-decay is intentionally REQUIRED (no default): a silent 0.01
+    # default previously let runs inherit the wrong decay by accident.
+    # Forcing an explicit value makes every (re)training state its decay on
+    # the command line — use 0.1 for new trainings.
+    p.add_argument("--weight-decay", type=float, required=True,
+                   help="AdamW weight decay. REQUIRED — pass it explicitly so "
+                        "a run can never silently inherit a wrong value. Use "
+                        "0.1 for new trainings (MOIRAI recipe).")
     p.add_argument("--adam-beta1", type=float, default=0.9)
     p.add_argument("--adam-beta2", type=float, default=0.999)
     p.add_argument("--save-dir", default="checkpoints")
