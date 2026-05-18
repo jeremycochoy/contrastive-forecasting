@@ -15,7 +15,9 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-CKPT = Path("/home/jupyter/contrastive-forecasting/checkpoints")
+# In-repo training-loss CSVs (pulled from elisa
+# /home/jupyter/contrastive-forecasting/checkpoints, byte-verified).
+CKPT = Path(__file__).resolve().parent.parent / "results" / "train_losses"
 
 # (label, color, lw, csv_paths_in_order)
 ARMS = [

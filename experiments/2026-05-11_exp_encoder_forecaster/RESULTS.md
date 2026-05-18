@@ -99,9 +99,9 @@ removes the leak, so the contrastive task is genuinely harder but the
 backbone forecasts better. A lower-dropkey ablation on the legacy arm
 would test this directly.
 
-> Curves rendered from elisa training-sync CSVs (not tracked in-repo);
-> generating scripts `scripts/plot_v10_v11c_v12_vs_baseline*.py` kept
-> for provenance.
+> Reproducible: `python3 scripts/plot_v10_v11c_v12_vs_baseline.py` and
+> `…_multi_metric.py` regenerate these plots from the training-loss
+> CSVs in `results/train_losses/` (pulled from elisa, byte-verified).
 
 ## Reproducibility & robustness
 
