@@ -38,7 +38,10 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             (`cosine_similarity_batch`,
             `cosine_similarity_batch_no_time_neg`,
             `cosine_similarity_batch_square`,
-            `cosine_similarity_batch_full_fh_negs`); requesting it with
+            `cosine_similarity_batch_full_fh_negs`,
+            `cosine_similarity_batch_full_hh_negs`,
+            `cosine_similarity_batch_full_ff_negs`,
+            `cosine_similarity_batch_full_fh_hh_negs`); requesting it with
             any other `loss_shape` raises NotImplementedError rather
             than silently returning an unintended value.
 
@@ -254,6 +257,126 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             [log_neg_xy, log_neg_xx, log_neg_zy, log_neg_fh_all, log_neg_cross_batch],
             dim=0,
         )
+        log_neg_per_anchor = torch.logsumexp(negatives, dim=0)
+        log_neg_total = torch.logsumexp(log_neg_per_anchor, dim=0, keepdim=True)
+        if pos_in_denom:
+            # Normalized InfoNCE (loss_tau_ref diagnostic OR the
+            # --pos-in-denominator training knob) — see the
+            # cosine_similarity_batch branch for the rationale.
+            log_denom = torch.logsumexp(
+                torch.stack(
+                    [log_pos, log_neg_total.expand_as(log_pos)], dim=0
+                ),
+                dim=0,
+            )
+            loss = (log_denom - log_pos).mean()
+        else:
+            loss = (log_neg_total - log_pos).mean()
+
+    elif train_config.get('loss_shape') in (
+        'cosine_similarity_batch_full_hh_negs',
+        'cosine_similarity_batch_full_ff_negs',
+        'cosine_similarity_batch_full_fh_hh_negs',
+    ):
+        # Sibling crossed-negative variants of
+        # `cosine_similarity_batch_full_fh_negs` (#303). Built by the
+        # IDENTICAL structural transform of `cosine_similarity_batch`:
+        # the single l = t forecaster–encoder negative (`log_neg_xy_hat`
+        # = cos(h_t, f_t)) is REPLACED by an all-time-position crossed
+        # term, same (b, c), differing only in which modality pair and
+        # which l is masked:
+        #   full_hh  (B): (h_t, h_l) ∀ l ≠ t      encoder–encoder, mask self
+        #   full_ff  (C): (f_t, f_l) ∀ l ≠ t      forecaster–forecaster, mask self
+        #   full_fh_hh (A)+(B): BOTH the full_fh_negs (f_t, h_l) ∀ l ≠ t+1
+        #                       term AND the (B) (h_t, h_l) ∀ l ≠ t term.
+        # These are the time-crossed (l ≠ t / l ≠ t+1, same b,c) siblings
+        # of (A); distinct from the batch-crossed h×h / f×f already in
+        # `cosine_similarity_batch_square` (b ≠ b', fixed t). Anchor index
+        # t = 0..T-2 (the [B,T-1,C] contract); l ranges over all T encoder
+        # / forecaster positions. (h_t, h_t) and (f_t, f_t) are cos = 1
+        # self-pairs (masked); for (A) the masked l = t+1 is the positive
+        # target. All other terms (xy, xx, zy, cross-batch) are
+        # byte-for-byte identical to `cosine_similarity_batch`.
+        # Numerically stable logsumexp form; --pos-in-denominator
+        # supported via the shared tail below.
+        which = train_config.get('loss_shape')
+        want_fh = which == 'cosine_similarity_batch_full_fh_hh_negs'
+        want_hh = which in (
+            'cosine_similarity_batch_full_hh_negs',
+            'cosine_similarity_batch_full_fh_hh_negs',
+        )
+        want_ff = which == 'cosine_similarity_batch_full_ff_negs'
+        neg_inf = float('-inf')
+        log_pos = cosine_similarity_from_normalized(hy_norm, hy_hat_norm) / tau
+
+        sims_xy = cosine_similarity_from_normalized(hx_norm.unsqueeze(3), hy_norm.unsqueeze(2))
+        log_neg_xy = torch.logsumexp(sims_xy / tau, dim=2)
+
+        sims_xx = cosine_similarity_from_normalized(hx_norm.unsqueeze(3), hx_norm.unsqueeze(2))
+        mask_mat = ~torch.eye(C, dtype=torch.bool, device=sims_xx.device)
+        mask_mat = mask_mat.view(1, 1, C, C)
+        log_neg_xx = torch.logsumexp(
+            (sims_xx / tau).masked_fill(~mask_mat, neg_inf), dim=2
+        )
+
+        sims_zy = cosine_similarity_from_normalized(hz_hat_norm.unsqueeze(3), hy_hat_norm.unsqueeze(2))
+        log_neg_zy = torch.logsumexp(sims_zy / tau, dim=2)
+
+        # Shared all-time crossed-negative builder. anchor_t is the anchor
+        # at t = 0..T-2 ([B,T-1,C,H]); src_l is the full l = 0..T-1 stack
+        # ([B,T,C,H]). One batched matmul (no Python loop, no
+        # [B,T-1,C,T,H] broadcast); for unit-normalised vectors
+        # cos(u, v) = u · v. Kept in [B,C,T-1,T] so logsumexp reduces the
+        # contiguous last (l) axis; only the small [B,T-1,C] result is
+        # permuted (avoids a full-size transpose-copy). `drop_l` selects
+        # which l is masked per anchor t: t+1 (the positive, for the
+        # f–h term) or t (the cos=1 self-pair, for h–h / f–f).
+        t_idx = torch.arange(T - 1, device=orig_norm.device).view(T - 1, 1)
+        l_idx = torch.arange(T, device=orig_norm.device).view(1, T)
+
+        def _full_time_neg(anchor_t_norm, src_l_norm, drop_l):
+            sims = torch.matmul(
+                anchor_t_norm.permute(0, 2, 1, 3),   # [B, C, T-1, H]
+                src_l_norm.permute(0, 2, 3, 1),       # [B, C, H, T]
+            )                                          # [B, C, T-1, T]
+            mask = (l_idx == drop_l).view(1, 1, T - 1, T)
+            return torch.logsumexp(
+                (sims / tau).masked_fill(mask, neg_inf), dim=3
+            ).permute(0, 2, 1)                         # [B, T-1, C]
+
+        neg_terms = [log_neg_xy, log_neg_xx, log_neg_zy]
+        if want_fh:
+            # (A) term: (f_t, h_l) ∀ l ≠ t+1 — drop the positive target.
+            neg_terms.append(
+                _full_time_neg(hy_hat_norm, orig_norm, t_idx + 1)
+            )
+        if want_hh:
+            # (B) term: (h_t, h_l) ∀ l ≠ t — drop the cos=1 self-pair.
+            neg_terms.append(
+                _full_time_neg(hx_norm, orig_norm, t_idx)
+            )
+        if want_ff:
+            # (C) term: (f_t, f_l) ∀ l ≠ t — drop the cos=1 self-pair.
+            neg_terms.append(
+                _full_time_neg(hy_hat_norm, fore_norm, t_idx)
+            )
+
+        # Cross-batch negatives: byte-for-byte the
+        # `cosine_similarity_batch_full_fh_negs` matmul form. Index
+        # convention: sims[b1, b2, t, c] = cos(hy[b2,t,c], hy_hat[b1,t,c]).
+        hy_p = hy_norm.permute(1, 2, 0, 3)              # [T-1, C, B, H]
+        hy_hat_p = hy_hat_norm.permute(1, 2, 0, 3)      # [T-1, C, B, H]
+        sims_cross_batch = torch.matmul(
+            hy_hat_p, hy_p.transpose(-2, -1)            # [T-1, C, B, B]
+        ).permute(2, 3, 0, 1).contiguous()              # [B, B, T-1, C]
+        mask_batch = ~torch.eye(B, dtype=torch.bool, device=sims_cross_batch.device)
+        mask_batch = mask_batch.view(B, B, 1, 1)
+        log_neg_cross_batch = torch.logsumexp(
+            (sims_cross_batch / tau).masked_fill(~mask_batch, neg_inf), dim=1
+        )
+        neg_terms.append(log_neg_cross_batch)
+
+        negatives = torch.stack(neg_terms, dim=0)
         log_neg_per_anchor = torch.logsumexp(negatives, dim=0)
         log_neg_total = torch.logsumexp(log_neg_per_anchor, dim=0, keepdim=True)
         if pos_in_denom:
@@ -706,13 +829,19 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         'cosine_similarity_batch_no_time_neg',
         'cosine_similarity_batch_square',
         'cosine_similarity_batch_full_fh_negs',
+        'cosine_similarity_batch_full_hh_negs',
+        'cosine_similarity_batch_full_ff_negs',
+        'cosine_similarity_batch_full_fh_hh_negs',
     ):
         raise NotImplementedError(
             "include_positive_in_denominator (function arg or "
             "train_configuration key) is only implemented for loss_shape "
             "in {cosine_similarity_batch, cosine_similarity_batch_no_time_neg, "
             "cosine_similarity_batch_square, "
-            "cosine_similarity_batch_full_fh_negs}; got "
+            "cosine_similarity_batch_full_fh_negs, "
+            "cosine_similarity_batch_full_hh_negs, "
+            "cosine_similarity_batch_full_ff_negs, "
+            "cosine_similarity_batch_full_fh_hh_negs}; got "
             f"{train_config.get('loss_shape')!r}."
         )
 

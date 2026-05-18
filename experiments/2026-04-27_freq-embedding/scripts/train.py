@@ -310,6 +310,9 @@ def parse_args():
                             "cosine_similarity_batch_add_skip_f_negs",
                             "cosine_similarity_batch_add_neg_htft",
                             "cosine_similarity_batch_full_fh_negs",
+                            "cosine_similarity_batch_full_hh_negs",
+                            "cosine_similarity_batch_full_ff_negs",
+                            "cosine_similarity_batch_full_fh_hh_negs",
                             "cosine_similarity",
                             "cosine_similarity_old"],
                    help="Contrastive loss formulation. Default 'no_time_neg' "
