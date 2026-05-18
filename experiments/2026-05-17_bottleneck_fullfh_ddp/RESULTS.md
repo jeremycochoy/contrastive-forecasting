@@ -31,29 +31,33 @@ fcst residual post-FFN 65 → 7 (vs Arm 1's 3.0e5): the stability
 mechanism; (D) embedding dimension-usage (higher = less collapse) rises
 0.01 → 0.20.*
 
-**Held-out eval.** Standard 2L causal-transformer q-head (30k, `e_then_f`,
-bf16) on the Arm-2 50k backbone, official GIFT-Eval:
+**Held-out eval & training horizon.** Standard 2L causal-transformer
+q-head (30k, `e_then_f`, bf16) on the Arm-2 backbone at three
+continuous-optimizer checkpoints, official GIFT-Eval:
 
-| backbone (full GM-MASE, 97 cfg) | value |
-|---|---|
-| v11c (best prior, no bottleneck, dk0.9) | 1.292 |
-| v16 (no bottleneck, dk0.7) | 1.335 |
-| v13 (bottleneck d128, dk0.9, 1L) | 1.451 |
-| **this run** (bottleneck d128, dk0.70, full_fh_negs+normInfoNCE, fp16) | **1.4377** |
-| seasonal-naive gate | 1.000 |
+| backbone | triage (11) | **full GM-MASE (97)** |
+|---|---|---|
+| 50k | 1.5611 | 1.4377 |
+| **100k** | 1.5492 | **1.3936** |
+| 150k | 1.5740 | 1.4090 |
+| v11c (prior best, no bottleneck) | — | 1.292 |
+| seasonal-naive gate | — | 1.000 |
 
-Triage (11 cfg) 1.5611 → full 1.4377. That is 1.438 vs v13's 1.451
-(within the prior experiment's stated ±~10% eval noise — not a real
-gain); it does **not** beat the non-bottleneck v16/v11c, and no arm
-beats seasonal naive (1.0).
+More training helps only marginally (50k→100k 1.438→1.394) then goes
+flat/noisy (150k 1.409); it never approaches v11c (1.292) or the
+seasonal-naive ceiling (1.0).
+
+![Continuous 0→150k trajectory (log-log)](plots/trajectory_0_150k_loglog.png)
+*Across the full 150k the
+contrastive loss & `loss_tau_ref` keep dropping and forecaster
+amplitudes stay bounded (65→6, no divergence) — yet held-out GM-MASE is
+flat. Training the contrastive objective harder does not transfer to
+forecasting: **the limit is architectural, not training horizon.***
 
 **Takeaway.** The new loss + normalized InfoNCE + dk0.70 is a **stability**
-result (1-layer fp16 trains where 2-layer bf16 diverges; amplitudes stay
-bounded), **not** a held-out-accuracy gain — the bottleneck still trails
-the plain dk0.7/dk0.9 backbones and the seasonal-naive ceiling persists.
-Recipe in [`RUN_PLAN.md`](RUN_PLAN.md).
-
----
-*Operational (not science): a spurious orchestrator "FAILED" was a
-status-file race; training was clean to 50k. A continuous-optimizer
-50k→100k extension is running.*
+result (1L/fp16 trains where 2L/bf16 diverges; amplitudes stay bounded),
+**not** a held-out-accuracy gain — it trails the plain dk0.7/dk0.9
+backbones, more training to 150k does not change that, and the
+seasonal-naive ceiling persists. The lever is architectural (next:
+[`RESEARCH_PLAN.md`](RESEARCH_PLAN.md)); recipe in
+[`RUN_PLAN.md`](RUN_PLAN.md).
