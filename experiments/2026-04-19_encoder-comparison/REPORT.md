@@ -35,7 +35,7 @@ comparison. The only difference is how each patch is encoded: the GRU reads the
 
 ### Training curves (log scale)
 
-![GRU vs Patch Encoder Training Curves](../encoder_comparison.png)
+![GRU vs Patch Encoder Training Curves](plots/encoder_comparison.png)
 
 ### Final metrics (200k steps)
 
@@ -99,7 +99,7 @@ Whether this holds at larger scale remains an open question for future work.
 
 | File | Description |
 |------|-------------|
-| `experiments/encoder_comparison.png` | 3-panel training curves (log scale) |
+| `plots/encoder_comparison.png` | 3-panel training curves (log scale) |
 | `results/encoder_comparison/gru_encoder_losses.csv` | GRU per-step metrics |
 | `results/encoder_comparison/patch_encoder_losses.csv` | Patch per-step metrics (steps 1–27k) |
 | `results/encoder_comparison/patch_encoder_r3_losses.csv` | Patch per-step metrics (steps 20k–200k, resumed) |

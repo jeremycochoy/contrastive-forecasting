@@ -1,0 +1,17 @@
+[05-16 20:25:36] === q50k START — prio: dk050 dk070 dk030 (dk0.50, dk0.70, then dk0.30 if compute) ===
+[05-16 21:13:57] enc_fcst_dk050_fp32_50k from-scratch pure-fp32 dk0.50 seed20260516 0->50k (GPU1)
+[05-16 21:13:57] launched [dk050] on GPU1 (pid 1958369)
+[05-16 21:16:58] === q50k START — prio: dk050 dk070 dk030 (dk0.50, dk0.70, then dk0.30 if compute) ===
+[05-16 22:45:19] enc_fcst_dk050_fp32_50k from-scratch pure-fp32 dk0.50 seed20260516 0->50k (GPU1)
+[05-16 22:45:19] launched [dk050] on GPU1 (pid 1963937)
+[05-17 03:12:00] enc_fcst_dk050_fp32_50k backbone DONE
+[05-17 03:12:00] dk050fp32_50k qhead 30k (GPU1)
+[05-17 04:23:14] dk050fp32_50k full-eval 97cfg (GPU1)
+[05-17 05:52:57] dk050fp32_50k full-eval DONE GM=1.3337
+[05-17 05:55:02] enc_fcst_dk030_fp32_50k from-scratch pure-fp32 dk0.30 seed20260516 0->50k (GPU1)
+[05-17 05:55:02] launched [dk030] on GPU1 (pid 1988719)
+[05-17 10:20:32] enc_fcst_dk030_fp32_50k backbone DONE
+[05-17 10:20:32] dk030fp32_50k qhead 30k (GPU1)
+[05-17 11:31:56] dk030fp32_50k full-eval 97cfg (GPU1)
+[05-17 13:01:39] dk030fp32_50k full-eval DONE GM=1.3647
+[05-17 13:01:46] === ALL done — exit ===

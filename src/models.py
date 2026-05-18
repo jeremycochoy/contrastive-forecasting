@@ -49,13 +49,33 @@ class ConfigurableModel(torch.nn.Module):
     """
     def __init__(self, C, H, W, encoder_type='mlp', intermediate_dim=None,
                  num_layers=12, nhead=4, ffn_mult=2, dropout=0.1,
-                 activation='gelu', depthwise_conv=3,
+                 activation='gelu', depthwise_conv: int = 3,
+                 deprecated_depthwise_conv: int = 0,
                  rev_norm_span=None, norm_type='layernorm',
                  freq_emb_dim=0, num_freqs=NUM_FREQS,
                  seasonality_emb_dim=0, num_seasonalities=NUM_SEASONALITIES,
                  rev_norm_kind='ewma',
                  patch_stats_kind='none',
                  learnable_tau=False, tau_init=0.07,
+                 enc_transformer_num_layers=4,
+                 enc_transformer_nhead=6,
+                 enc_transformer_ffn_mult=4,
+                 enc_transformer_dropout=0.0,
+                 enc_transformer_depthwise_conv=3,
+                 enc_transformer_chunk_size=8192,
+                 enc_transformer_use_grad_checkpoint=True,
+                 num_encoder_layers=0,
+                 encoder_dropkey: float = 0.0,
+                 encoder_dropkey_share_heads: bool = False,
+                 encoder_dropkey_share_layers: bool = False,
+                 residual_dtype: str = "fp32",
+                 attn_dtype: str = "fp32",
+                 ffn_dtype: str = "fp32",
+                 conv_dtype: str | None = None,
+                 patch_emb_dtype: str = "fp32",
+                 forecaster_d_model: int | None = None,
+                 forecaster_n_heads: int | None = None,
+                 log_attn_amplitude: bool = False,
                  channel_mixing_kind='simple', channel_mixing_n_heads=8):
         super().__init__()
         self.C = C
@@ -82,7 +102,8 @@ class ConfigurableModel(torch.nn.Module):
         # rev_norm_span is only used by ewma; revin ignores it.
         if rev_norm_kind == 'ewma' and rev_norm_span is not None:
             self.rev_norm = RevEWMNorm(
-                num_features=C, span=rev_norm_span, patch_size=W)
+                num_features=C, span=rev_norm_span, patch_size=W,
+                patch_emb_dtype=patch_emb_dtype)
         elif rev_norm_kind == 'revin':
             self.rev_norm = RevIN(num_features=C)
         elif rev_norm_kind in (None, 'none') or rev_norm_span is None:
@@ -125,8 +146,31 @@ class ConfigurableModel(torch.nn.Module):
         # Encoder input width: W (patch values) + patch_stats + freq + seasonality.
         encoder_input = W + patch_stats_dim + freq_emb_dim + seasonality_emb_dim
         self.encoder = create_encoder(
-            encoder_type, encoder_input, H, intermediate_dim)
+            encoder_type, encoder_input, H, intermediate_dim,
+            transformer_num_layers=enc_transformer_num_layers,
+            transformer_nhead=enc_transformer_nhead,
+            transformer_ffn_mult=enc_transformer_ffn_mult,
+            transformer_dropout=enc_transformer_dropout,
+            transformer_depthwise_conv=enc_transformer_depthwise_conv,
+            transformer_chunk_size=enc_transformer_chunk_size,
+            transformer_use_grad_checkpoint=enc_transformer_use_grad_checkpoint,
+            patch_emb_dtype=patch_emb_dtype)
 
+        # Forecaster bottleneck (#286 follow-up, v13). When
+        # `forecaster_d_model` is None, the forecaster runs at the encoder's
+        # `H`/`nhead` (legacy behaviour). When set, the forecaster's
+        # `self.layers` are constructed at the smaller dim with
+        # `forecaster_n_heads`, wrapped by Linear down/up projections so the
+        # JEPA contrastive loss still operates in the encoder's d_model space.
+        # Validation: `forecaster_d_model % forecaster_n_heads == 0`.
+        eff_fcst_d_model = H if forecaster_d_model is None else int(forecaster_d_model)
+        eff_fcst_n_heads = nhead if forecaster_n_heads is None else int(forecaster_n_heads)
+        if eff_fcst_d_model % eff_fcst_n_heads != 0:
+            raise ValueError(
+                f"forecaster_d_model={eff_fcst_d_model} must be divisible by "
+                f"forecaster_n_heads={eff_fcst_n_heads}")
+        self.forecaster_d_model = eff_fcst_d_model
+        self.forecaster_n_heads = eff_fcst_n_heads
         self.transformer = TransformerBlock(
             dimension_e=H,
             nhead=nhead,
@@ -135,12 +179,26 @@ class ConfigurableModel(torch.nn.Module):
             dropout=dropout,
             input_to_latent=self.encoder,
             depthwise_conv=depthwise_conv,
+            deprecated_depthwise_conv=deprecated_depthwise_conv,
             norm_type=norm_type,
+            num_encoder_layers=num_encoder_layers,
+            encoder_dropkey=encoder_dropkey,
+            encoder_dropkey_share_heads=encoder_dropkey_share_heads,
+            encoder_dropkey_share_layers=encoder_dropkey_share_layers,
+            residual_dtype=residual_dtype,
+            attn_dtype=attn_dtype,
+            ffn_dtype=ffn_dtype,
+            conv_dtype=conv_dtype,
+            forecaster_d_model=eff_fcst_d_model,
+            forecaster_nhead=eff_fcst_n_heads,
+            log_attn_amplitude=log_attn_amplitude,
         )
         # Override activation if requested
         if activation != 'gelu':
             act_fn = torch.nn.functional.silu if activation == 'silu' else torch.nn.functional.gelu
             for layer in self.transformer.layers:
+                layer.activation = act_fn
+            for layer in self.transformer.encoder_layers:
                 layer.activation = act_fn
 
         if channel_mixing_kind == 'simple':
@@ -295,9 +353,18 @@ def compute_metrics(f_lat, o_lat, cld):
     tp = (hyn * hxn).sum(-1).mean().item()
 
     B, T, C, H = hyh.shape
-    hyh_exp = hyh.unsqueeze(0)
-    hyn_exp = hyn.unsqueeze(1)
-    sims_cross_batch = (hyh_exp * hyn_exp).sum(-1)
+    # Cross-batch cosine sims, contracting H *inside* the reduction via
+    # einsum so the [B, B, T, C, H] broadcast intermediate is never
+    # materialised (~26 GB fp32 at B=256, T-cld=255, H=384 — the OOM that
+    # this diagnostic used to trigger every training step). einsum routes
+    # to a batched matmul; peak is the [B, B, T, C] output (~67 MB).
+    # sims[i,j,t,c] = Σ_h hyn[i,t,c,h]·hyh[j,t,c,h]. This is *directly*
+    # the previous (hyh.unsqueeze(0) * hyn.unsqueeze(1)).sum(-1): there
+    # hyn.unsqueeze(1)=[B,1,…] put hyn on dim0 and hyh.unsqueeze(0)=[1,B,…]
+    # was the broadcast axis, so old[i,j]=Σ_h hyn[i]·hyh[j] — element-for-
+    # element equal to this einsum, no transpose. (The downstream
+    # symmetric eye-mask + full mean would mask any i/j swap anyway.)
+    sims_cross_batch = torch.einsum('itch,jtch->ijtc', hyn, hyh)
     mask_batch = ~torch.eye(B, dtype=torch.bool, device=sims_cross_batch.device)
     mask_batch = mask_batch.view(B, B, 1, 1)
     sims_masked = sims_cross_batch.masked_fill(~mask_batch, 0)

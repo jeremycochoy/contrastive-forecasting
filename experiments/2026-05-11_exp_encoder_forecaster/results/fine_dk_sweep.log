@@ -1,0 +1,24 @@
+[05-16 11:38:23] === fine_dk_sweep START (GPU0): dk0.92 then dk0.85, fp32, 50k ===
+[05-16 11:38:23] enc_fcst_dk092_fp32_50k from-scratch pure-fp32 dk0.92 seed20260516 0->50k GPU0
+[05-16 11:52:42] === gpu1_dk085 watcher START — waiting for dk0.9-fp32@150k GM-eval (/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-05-11_exp_encoder_forecaster/results/gift_eval_full_dk09fp32x150k/summary.txt) ===
+[05-16 11:52:42] === dk092_fp32_50k START (GPU0) ===
+[05-16 11:52:42] enc_fcst_dk092_fp32_50k from-scratch pure-fp32 dk0.92 seed20260516 0->50k
+[05-16 16:35:57] enc_fcst_dk092_fp32_50k DONE
+[05-16 16:35:57] dk092fp32_50k q-head train 30k
+[05-16 17:46:04] dk092fp32_50k full-eval (97 cfg)
+[05-16 19:15:49] === dk092_fp32_50k DONE GM=1.3303 (vs 0.90/v11c=1.2920) ===
+[05-16 19:18:27] === gpu1 preempt-watcher START — waiting for dk0.9-fp32@150k GM-eval ===
+[05-16 19:18:27] === dk085_fp32_50k START (GPU0) ===
+[05-16 19:18:27] enc_fcst_dk085_fp32_50k from-scratch pure-fp32 dk0.85 seed20260516 0->50k
+[05-16 22:42:28] dk0.9-fp32@150k GM=1.3328 — preempting GPU1 (drop x100k + v17)
+[05-16 22:42:29] === gpu1 preempt-watcher DONE — GPU1 freed; v17 & x100k dropped per user ===
+[05-16 23:43:03] enc_fcst_dk085_fp32_50k DONE
+[05-16 23:43:03] dk085fp32_50k q-head train 30k
+[05-17 00:54:35] dk085fp32_50k full-eval (97 cfg)
+[05-17 02:23:27] === dk085_fp32_50k DONE GM=1.3316 (vs 0.90/v11c=1.2920) ===
+[05-17 02:43:15] === dk070_fp32_50k START (GPU0) ===
+[05-17 02:43:15] enc_fcst_dk070_fp32_50k from-scratch pure-fp32 dk0.70 seed20260516 0->50k
+[05-17 07:08:37] enc_fcst_dk070_fp32_50k DONE
+[05-17 07:08:37] dk070fp32_50k q-head train 30k
+[05-17 08:21:05] dk070fp32_50k full-eval (97 cfg)
+[05-17 09:50:30] === dk070_fp32_50k DONE GM=1.3285 (vs 0.90/v11c=1.2920) ===

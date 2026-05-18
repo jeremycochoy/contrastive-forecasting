@@ -1,6 +1,8 @@
 \section{Results}
 \label{sec:results}
 
+\subsection{ARMA}
+
 The recovery head reaches $r = 8.34$ on the smaller 2x2 configuration
 and $r = 6.96$ on the larger 2x4 configuration. Both numbers are well
 above $1$, the threshold above which the head's predictions improve
@@ -26,3 +28,23 @@ positions.
 The full 8-coefficient scatter for 2x4, the equivalent for 2x2, the
 per-sample error distributions, and the per-coefficient table are
 reported in Appendix~\ref{sec:appendix-graphs}.
+
+\subsection{Random-walk correlations}
+
+The recovery head achieves a mean Pearson $r = 0.962$ across all six
+pairwise correlations on an 800-sample test set.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{figures/corr_scatter_per_pair.png}
+  \caption{Per-pair recovery for the random-walk correlation experiment:
+    predicted vs.\ true correlation for each of the six off-diagonal
+    entries of $\Sigma$. Each subplot is a scatter of $800$ test
+    samples with the identity reference line and Pearson $r$. All six
+    pairs lie in $r \in [0.958, 0.964]$.}
+  \label{fig:corr-scatter}
+\end{figure}
+
+Figure~\ref{fig:corr-scatter} shows the per-pair scatter; all six pairs
+lie in $r \in [0.958, 0.964]$. Full results are in
+Appendix~\ref{sec:appendix-corr}.

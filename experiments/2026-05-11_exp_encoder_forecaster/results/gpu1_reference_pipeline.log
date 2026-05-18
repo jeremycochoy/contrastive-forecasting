@@ -1,0 +1,25 @@
+[05-16 03:16:07] === gpu1_reference_pipeline START ===
+[05-16 03:16:07] waiting for GPU1 to free (mem>4 MiB)
+[05-16 03:18:07] waiting for GPU1 to free (mem>4 MiB)
+[05-16 03:20:07] waiting for GPU1 to free (mem>4 MiB)
+[05-16 03:22:07] waiting for GPU1 to free (mem>4 MiB)
+[05-16 03:24:08] waiting for GPU1 to free (mem>4 MiB)
+[05-16 03:26:08] waiting for GPU1 to free (mem>4 MiB)
+[05-16 03:28:08] waiting for GPU1 to free (mem>4 MiB)
+[05-16 03:30:08] waiting for GPU1 to free (mem>4 MiB)
+[05-16 03:32:08] waiting for GPU1 to free (mem>4 MiB)
+[05-16 03:34:08] waiting for GPU1 to free (mem>4 MiB)
+[05-16 03:36:08] waiting for GPU1 to free (mem>4 MiB)
+[05-16 03:38:08] waiting for GPU1 to free (mem>4 MiB)
+[05-16 03:40:08] waiting for GPU1 to free (mem>4 MiB)
+[05-16 03:41:46] === gpu1_reference_pipeline START ===
+[05-16 03:41:46] GPU1 free — starting dk0.9 pure-fp32 (the bet reference) FIRST
+[05-16 03:41:46] enc_fcst_dk09_fp32_150k from-scratch pure-fp32 dk0.9 seed20260516 0->150k GPU1
+[05-16 17:19:03] enc_fcst_dk09_fp32_150k DONE (FINAL set)
+[05-16 17:19:03] dk09fp32x50k q-head train 30k
+[05-16 18:29:39] dk09fp32x50k full-eval (97 cfg)
+[05-16 20:00:19] dk09fp32x50k full-eval DONE GM=1.6586
+[05-16 20:00:19] dk09fp32x150k q-head train 30k
+[05-16 21:11:13] dk09fp32x150k full-eval (97 cfg)
+[05-16 22:41:27] dk09fp32x150k full-eval DONE GM=1.3328
+[05-16 22:41:27] dk09fp32x100k q-head train 30k

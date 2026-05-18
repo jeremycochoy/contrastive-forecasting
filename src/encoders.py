@@ -6,6 +6,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from .blocks import DecoderOnlyTransformerLayer, _autocast_ctx
+
 
 class MLPEncoder(nn.Module):
     """Original Simple_encoder: Linear->ReLU->Linear + skip + LayerNorm."""
@@ -69,9 +71,14 @@ class GRUEncoder(nn.Module):
     GRU processes each patch as a sequence of W scalar time steps.
     Captures temporal ordering within the patch.
     """
-    def __init__(self, W, H, intermediate_dim=128, num_gru_layers=2):
+    def __init__(self, W, H, intermediate_dim=128, num_gru_layers=2,
+                 patch_emb_dtype: str = "fp32"):
         super().__init__()
         self.W = W
+        # Dtype for the GRU compute path. fp32 = disabled autocast (no-op).
+        # The GRU's W-step recurrence is sensitive to bf16 truncation; fp32
+        # is the safe default. fp16 trades precision for ~25-30% speedup.
+        self.patch_emb_dtype = patch_emb_dtype
         self.gru = nn.GRU(
             input_size=1, hidden_size=intermediate_dim,
             num_layers=num_gru_layers, batch_first=True,
@@ -82,16 +89,17 @@ class GRUEncoder(nn.Module):
         self.layer_norm = nn.LayerNorm(H)
 
     def forward(self, x):
-        # x: [B, T, C, W]
-        shape = x.shape[:-1]  # [B, T, C]
-        flat = x.reshape(-1, self.W, 1)  # [B*T*C, W, 1]
-        _, hidden = self.gru(flat)  # hidden: [num_layers*2, B*T*C, intermediate_dim]
-        # Take last layer's forward and backward hidden states
-        h = torch.cat([hidden[-2], hidden[-1]], dim=-1)  # [B*T*C, intermediate_dim*2]
-        h = self.proj(h)  # [B*T*C, H]
-        h = h.reshape(*shape, -1)  # [B, T, C, H]
-        s = self.skip(x)
-        return self.layer_norm(h + s)
+        with _autocast_ctx(self.patch_emb_dtype):
+            # x: [B, T, C, W]
+            shape = x.shape[:-1]  # [B, T, C]
+            flat = x.reshape(-1, self.W, 1)  # [B*T*C, W, 1]
+            _, hidden = self.gru(flat)  # hidden: [num_layers*2, B*T*C, intermediate_dim]
+            # Take last layer's forward and backward hidden states
+            h = torch.cat([hidden[-2], hidden[-1]], dim=-1)  # [B*T*C, intermediate_dim*2]
+            h = self.proj(h)  # [B*T*C, H]
+            h = h.reshape(*shape, -1)  # [B, T, C, H]
+            s = self.skip(x)
+            return self.layer_norm(h + s)
 
 
 class ConvEncoder(nn.Module):
@@ -120,8 +128,128 @@ class ConvEncoder(nn.Module):
         return self.layer_norm(h + s)
 
 
-def create_encoder(encoder_type, W, H, intermediate_dim=None):
-    """Factory function for encoder creation."""
+class TransformerEncoder(nn.Module):
+    """N-layer decoder-only transformer encoder, processes ONE PATCH AT A TIME.
+
+    Drop-in for GRU+skip: the W' (= W + patch_stats + freq_emb + seasonality_emb)
+    points within a patch are the SEQUENCE the transformer attends over —
+    NOT the T patch axis. Each (B, T, C) triple is encoded independently
+    in parallel, exactly like the GRU.
+
+    Pipeline per forward:
+      [B, T, C, W']  → reshape to [B*T*C, W', 1]    # each scalar = one token
+                     → Linear(1 → H)                # upscale scalar → latent
+                     → N decoder-only causal layers # attention OVER W', not T
+                     → take last token  [B*T*C, H]  # patch summary
+                     → reshape to [B, T, C, H]
+
+    "Highway" at init: with norm-first residual chain, attention/FFN
+    contributions are near-zero at init, so the encoder approximates a
+    plain Linear(1, H) lookup of the last scalar in the patch — same shape
+    of inductive bias as the GRU's `linear_skipping` skip path.
+    """
+
+    def __init__(self, W, H, num_layers=4, nhead=6, ffn_mult=4,
+                 dropout=0.0, depthwise_conv: int = 3,
+                 deprecated_depthwise_conv: int = 0,
+                 norm_type='layernorm',
+                 activation='gelu', use_grad_checkpoint=True,
+                 chunk_size=8192):
+        super().__init__()
+        # W is recorded only for diagnostics; the linear is per-scalar
+        # (1 -> H), so the layer doesn't depend on patch width.
+        self.W = W
+        # Per-scalar upscale: each of the W' positions in a patch is treated
+        # as a 1-D token and projected to the H-dim transformer latent.
+        self.linear_up = nn.Linear(1, H)
+        dim_feedforward = int(ffn_mult * H)
+        self.layers = nn.ModuleList([
+            DecoderOnlyTransformerLayer(
+                d_model=H,
+                nhead=nhead,
+                dim_feedforward=dim_feedforward,
+                activation=activation,
+                batch_first=True,
+                norm_first=True,
+                norm_type=norm_type,
+                bias=False,
+                dropout=dropout,
+                depthwise_conv=depthwise_conv,
+                deprecated_depthwise_conv=deprecated_depthwise_conv,
+            ) for _ in range(num_layers)
+        ])
+        self.causal_mask = None
+        # B*T*C = 65k independent length-22 sequences with FFN-mult=4 blows
+        # past 24 GB at full N: QKV projection alone allocates ~6.6 GB and
+        # the FFN intermediate is ~8.6 GB per layer. We split N into chunks
+        # processed sequentially, and gradient-checkpoint each layer inside
+        # the chunk so only the layer inputs are kept for backward. Chunks
+        # are independent so this is exact (no approximation).
+        # chunk_size=0 / None disables chunking (process all N at once).
+        self.use_grad_checkpoint = bool(use_grad_checkpoint)
+        self.chunk_size = int(chunk_size) if chunk_size else 0
+
+    def _get_causal_mask(self, L, device):
+        if (self.causal_mask is None
+                or self.causal_mask.size(0) != L
+                or self.causal_mask.device != device):
+            mask = (torch.triu(torch.ones(L, L, device=device)) == 1).transpose(0, 1)
+            mask = mask.float().masked_fill(mask == 0, float('-inf')) \
+                               .masked_fill(mask == 1, float(0.0))
+            self.causal_mask = mask
+        return self.causal_mask
+
+    def _run_layer(self, layer, h, mask):
+        return layer(h, tgt_mask=mask, tgt_is_causal=True)
+
+    def _encode_chunk(self, h, mask, ckpt):
+        """Run all encoder layers on one chunk and pool to last token."""
+        for layer in self.layers:
+            if ckpt:
+                h = torch.utils.checkpoint.checkpoint(
+                    self._run_layer, layer, h, mask, use_reentrant=False)
+            else:
+                h = self._run_layer(layer, h, mask)
+        return h[:, -1, :]
+
+    def forward(self, x):
+        # x: [B, T, C, W']  — W' = W + patch_stats + freq_emb + seasonality_emb
+        B, T, C, Wp = x.shape
+        # Each of the W' scalars per patch becomes its own token. Patches
+        # are encoded independently in parallel along the (B, T, C) axes.
+        h = x.reshape(B * T * C, Wp, 1)              # [N, W', 1]
+        h = self.linear_up(h)                        # [N, W', H]
+        H = h.shape[-1]
+        N = h.shape[0]
+
+        mask = self._get_causal_mask(Wp, h.device)
+        ckpt = self.use_grad_checkpoint and self.training and h.requires_grad
+        cs = self.chunk_size if self.chunk_size > 0 else N
+        if cs >= N:
+            out = self._encode_chunk(h, mask, ckpt)             # [N, H]
+        else:
+            outs = []
+            for s in range(0, N, cs):
+                outs.append(self._encode_chunk(h[s:s + cs], mask, ckpt))
+            out = torch.cat(outs, dim=0)                        # [N, H]
+
+        return out.reshape(B, T, C, H)                          # [B, T, C, H]
+
+
+def create_encoder(encoder_type, W, H, intermediate_dim=None,
+                   transformer_num_layers=4, transformer_nhead=6,
+                   transformer_ffn_mult=4, transformer_dropout=0.0,
+                   transformer_depthwise_conv=3,
+                   transformer_chunk_size=8192,
+                   transformer_use_grad_checkpoint=True,
+                   patch_emb_dtype: str = "fp32"):
+    """Factory function for encoder creation.
+
+    ``patch_emb_dtype`` is wired into encoders whose forward compute is
+    precision-sensitive (currently GRU). Other encoders accept-and-ignore
+    the kwarg — they can opt in later by wrapping their forward in
+    ``_autocast_ctx(self.patch_emb_dtype)``.
+    """
     if encoder_type == 'mlp':
         return MLPEncoder(W, H, intermediate_dim=intermediate_dim or 64)
     elif encoder_type == 'mlp_wide':
@@ -129,8 +257,20 @@ def create_encoder(encoder_type, W, H, intermediate_dim=None):
     elif encoder_type == 'residual_silu':
         return ResidualSiLUEncoder(W, H, intermediate_dim=intermediate_dim)
     elif encoder_type == 'gru':
-        return GRUEncoder(W, H, intermediate_dim=intermediate_dim or 128)
+        return GRUEncoder(W, H, intermediate_dim=intermediate_dim or 128,
+                          patch_emb_dtype=patch_emb_dtype)
     elif encoder_type == 'conv':
         return ConvEncoder(W, H, intermediate_dim=intermediate_dim or 128)
+    elif encoder_type == 'transformer':
+        return TransformerEncoder(
+            W, H,
+            num_layers=transformer_num_layers,
+            nhead=transformer_nhead,
+            ffn_mult=transformer_ffn_mult,
+            dropout=transformer_dropout,
+            depthwise_conv=transformer_depthwise_conv,
+            chunk_size=transformer_chunk_size,
+            use_grad_checkpoint=transformer_use_grad_checkpoint,
+        )
     else:
         raise ValueError(f"Unknown encoder type: {encoder_type}")

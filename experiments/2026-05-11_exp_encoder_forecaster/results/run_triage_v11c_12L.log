@@ -1,0 +1,68 @@
+Loading models...
+  [eval] auto-detected num_encoder_layers=6 from backbone checkpoint
+  [eval] auto-detected freq_emb_dim=3 from backbone checkpoint
+  [eval] auto-detected seasonality_emb_dim=3 from backbone checkpoint
+  [eval] auto-detected patch_stats=none
+/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/transformer.py:392: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  warnings.warn(
+  [eval] auto-detected transformer-q head (12L H=384 nhead=6 causal)
+  Backbone: /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v11c_cont_from5k_50k_FINAL.pth
+  Head: /home/jupyter/contrastive-forecasting/checkpoints/enc_fcst_v11c_qhead_xfmr12L_quant_30k_FINAL.pth
+  Strategy: B4 (forecast_len=16)
+  --config-filter 'bizitobs_application/short|bizitobs_service/short|bizitobs_l2c/(5T|H)/short|ett1/(15T|H)/short|ett2/(15T|H)/short|electricity/H/short|covid_deaths/short|us_births/D/short': kept 11 of 97 configs (skipped 86)
+
+Total configs to evaluate: 11
+0it [00:00, ?it/s]30it [00:00, 35.10it/s]30it [00:00, 35.10it/s]
+  [  1/11] bizitobs_application/10S/short                MASE=  8.9563  (0.9s)
+0it [00:00, ?it/s]140it [00:02, 56.57it/s]140it [00:02, 56.56it/s]
+  [  2/11] bizitobs_l2c/5T/short                         MASE=  0.5036  (2.5s)
+0it [00:00, ?it/s]42it [00:00, 61.26it/s]42it [00:00, 61.26it/s]
+  [  3/11] bizitobs_l2c/H/short                          MASE=  1.1133  (0.7s)
+0it [00:00, ?it/s]512it [00:08, 63.58it/s]630it [00:10, 61.91it/s]630it [00:10, 62.31it/s]
+  [  4/11] bizitobs_service/10S/short                    MASE=  4.7515  (10.1s)
+0it [00:00, ?it/s]266it [00:03, 78.63it/s]266it [00:03, 78.63it/s]
+  [  5/11] covid_deaths/D/short                          MASE=106.6583  (3.4s)
+0it [00:00, ?it/s]512it [00:18, 27.41it/s]512it [00:32, 27.41it/s]1024it [00:37, 27.50it/s]1024it [00:52, 27.50it/s]1536it [00:55, 27.46it/s]1536it [01:12, 27.46it/s]2048it [01:14, 27.54it/s]2048it [01:32, 27.54it/s]2560it [01:32, 27.76it/s]3072it [01:50, 28.03it/s]3072it [02:02, 28.03it/s]3584it [02:03, 30.88it/s]4096it [02:14, 34.74it/s]4608it [02:24, 38.82it/s]5120it [02:33, 42.25it/s]5632it [02:43, 45.09it/s]6144it [02:53, 46.59it/s]6656it [03:04, 46.94it/s]6656it [03:22, 46.94it/s]7168it [03:22, 38.95it/s]7400it [03:31, 36.40it/s]7400it [03:31, 35.03it/s]
+  [  6/11] electricity/H/short                           MASE=  3.0835  (211.3s)
+0it [00:00, ?it/s]140it [00:03, 45.45it/s]140it [00:03, 45.44it/s]
+  [  7/11] ett1/15T/short                                MASE=  1.6830  (3.1s)
+0it [00:00, ?it/s]140it [00:02, 61.84it/s]140it [00:02, 61.84it/s]
+  [  8/11] ett1/H/short                                  MASE=  1.4055  (2.3s)
+0it [00:00, ?it/s]140it [00:03, 45.30it/s]140it [00:03, 45.30it/s]
+  [  9/11] ett2/15T/short                                MASE=  1.1204  (3.1s)
+0it [00:00, ?it/s]140it [00:02, 61.68it/s]140it [00:02, 61.67it/s]
+  [ 10/11] ett2/H/short                                  MASE=  1.0351  (2.3s)
+0it [00:00, ?it/s]20it [00:00, 90.41it/s]20it [00:00, 90.37it/s]
+  [ 11/11] us_births/D/short                             MASE=  1.6270  (0.2s)
+
+Results saved to /home/jupyter/cf-encoder-forecaster-v2/experiments/2026-05-11_exp_encoder_forecaster/results/gift_eval_triage_v11c_jepa_12L/all_results.csv
+==========================================================================================
+                                GIFT-Eval Official Results                                
+==========================================================================================
+Config                                            MASE  SN_MASE   Relative
+------------------------------------------------------------------------------------------
+bizitobs_application/10S/short                  8.9563   2.2423     3.9942
+bizitobs_l2c/5T/short                           0.5036   0.9860     0.5108
+bizitobs_l2c/H/short                            1.1133   1.2141     0.9170
+bizitobs_service/10S/short                      4.7515   1.2253     3.8778
+covid_deaths/D/short                          106.6583  46.9124     2.2736
+electricity/H/short                             3.0835   1.3578     2.2710
+ett1/15T/short                                  1.6830   0.9342     1.8016
+ett1/H/short                                    1.4055   0.9773     1.4381
+ett2/15T/short                                  1.1204   1.0673     1.0498
+ett2/H/short                                    1.0351   0.9232     1.1213
+us_births/D/short                               1.6270   1.8648     0.8725
+------------------------------------------------------------------------------------------
+
+Aggregate GM-Relative MASE (11 configs): 1.5194
+
+Leaderboard comparison:
+  Sundial:    0.673
+  TimesFM:    0.680
+  PatchTST:   0.762
+  Chronos:    0.786
+  Moirai:     0.809
+  Naive:      1.000
+  ** Ours:    1.519 **
+==========================================================================================
+Summary saved to /home/jupyter/cf-encoder-forecaster-v2/experiments/2026-05-11_exp_encoder_forecaster/results/gift_eval_triage_v11c_jepa_12L/summary.txt

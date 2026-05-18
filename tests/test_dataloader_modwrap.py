@@ -16,7 +16,8 @@ The two cases covered:
    the within-epoch offset and yields the row at that offset.
 
 Both tests monkey-patch ``_list_shard_files``, ``_shard_row_counts`` and
-``datasets.load_dataset`` so they're deterministic, network-free, fast.
+``_pyarrow_stream_from_shards`` so they're deterministic, network-free,
+fast.
 """
 
 import io
@@ -38,21 +39,21 @@ def _make_loader(skip_rows: int) -> HFStreamingLoader:
     )
 
 
-class _FakeHFDataset:
-    """Stand-in for the iterable returned by ``datasets.load_dataset``.
+def _make_fake_pyarrow_stream(n_rows: int, started_flag: list[bool]):
+    """Return a stub for ``_pyarrow_stream_from_shards``.
 
-    Yields ``n_rows`` minimal row dicts. Records that iteration was started
-    so tests can assert the inner stream was actually consumed.
+    The stub honours ``within_shard_skip`` — drops the first N rows of the
+    fake stream then yields the remainder. ``started_flag[0]`` is set True
+    when the generator is first advanced (so tests can assert the inner
+    stream was actually consumed).
     """
 
-    def __init__(self, n_rows: int):
-        self._n_rows = n_rows
-        self.iter_started = False
-
-    def __iter__(self):
-        self.iter_started = True
-        for i in range(self._n_rows):
+    def stub(shards, within_shard_skip: int = 0):
+        started_flag[0] = True
+        for i in range(within_shard_skip, n_rows):
             yield {"series": [0.0] * 1025, "source_id": 0, "meta": f"r{i}"}
+
+    return stub
 
 
 class HFStreamingLoaderModWrapTest(unittest.TestCase):
@@ -64,14 +65,16 @@ class HFStreamingLoaderModWrapTest(unittest.TestCase):
         # plus zero offset). Wrap should pin skip_rows to 0 and yield the
         # first row of the first remaining shard.
         loader = _make_loader(skip_rows=240_000)
-        fake_remaining = _FakeHFDataset(n_rows=3)
+        started = [False]
+        fake_stream = _make_fake_pyarrow_stream(n_rows=3, started_flag=started)
 
         buf = io.StringIO()
         with patch.object(loader, "_list_shard_files",
                           return_value=["s0", "s1"]), \
              patch.object(loader, "_shard_row_counts",
                           return_value=[30_000, 30_000]), \
-             patch("datasets.load_dataset", return_value=fake_remaining), \
+             patch.object(loader, "_pyarrow_stream_from_shards",
+                          side_effect=fake_stream), \
              redirect_stdout(buf):
             gen = loader._iter_stream_with_fast_skip()
             first_row = next(gen)
@@ -83,7 +86,7 @@ class HFStreamingLoaderModWrapTest(unittest.TestCase):
         )
         # And the inner stream must actually have been started, yielding a row.
         self.assertEqual(first_row["meta"], "r0")
-        self.assertTrue(fake_remaining.iter_started)
+        self.assertTrue(started[0])
 
     def test_modwrap_yields_first_row_at_wrapped_offset(self):
         """``skip_rows`` past one epoch wraps to the within-epoch offset."""
@@ -92,14 +95,17 @@ class HFStreamingLoaderModWrapTest(unittest.TestCase):
         # generator must drop the first 15_000 rows of the wrapped stream and
         # then yield row 15_000.
         loader = _make_loader(skip_rows=75_000)
-        fake_remaining = _FakeHFDataset(n_rows=20_000)
+        started = [False]
+        fake_stream = _make_fake_pyarrow_stream(n_rows=20_000,
+                                                started_flag=started)
 
         buf = io.StringIO()
         with patch.object(loader, "_list_shard_files",
                           return_value=["s0", "s1"]), \
              patch.object(loader, "_shard_row_counts",
                           return_value=[30_000, 30_000]), \
-             patch("datasets.load_dataset", return_value=fake_remaining), \
+             patch.object(loader, "_pyarrow_stream_from_shards",
+                          side_effect=fake_stream), \
              redirect_stdout(buf):
             gen = loader._iter_stream_with_fast_skip()
             first_row = next(gen)

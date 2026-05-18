@@ -412,6 +412,10 @@ def parse_args():
     p.add_argument("--num-layers", type=int, default=None,
                    help="Backbone transformer depth. Overrides "
                         "BACKBONE_CONFIG['num_layers'] (default 6).")
+    p.add_argument("--forecaster-d-model", type=int, default=None,
+                   help="Backbone forecaster bottleneck dim. None=same as d-model.")
+    p.add_argument("--forecaster-n-heads", type=int, default=None,
+                   help="Backbone forecaster heads. None=same as n-heads.")
     p.add_argument("--head-nhead", type=int, default=6,
                    help="Transformer head: number of attention heads "
                         "(default 6, mirrors backbone). Used only when the "
@@ -442,6 +446,10 @@ def load_models(args, device):
         BACKBONE_CONFIG["nhead"] = args.n_heads
     if args.num_layers is not None:
         BACKBONE_CONFIG["num_layers"] = args.num_layers
+    if args.forecaster_d_model is not None:
+        BACKBONE_CONFIG["forecaster_d_model"] = args.forecaster_d_model
+    if args.forecaster_n_heads is not None:
+        BACKBONE_CONFIG["forecaster_n_heads"] = args.forecaster_n_heads
     if args.encoder_type is not None:
         BACKBONE_CONFIG["encoder_type"] = args.encoder_type
     # Auto-detect freq_emb_dim and seasonality_emb_dim so backbones
@@ -456,6 +464,20 @@ def load_models(args, device):
         print(f"  [eval] auto-detected learnable τ "
               f"(log_inv_tau={sd['log_inv_tau'].item():.4f}, "
               f"τ={float((-sd['log_inv_tau']).exp()):.4f}) from backbone checkpoint")
+    # Auto-detect num_encoder_layers from transformer.encoder_layers.<N>.* keys
+    # (encoder-forecaster backbones from 2026-05-10). When absent → 0, which
+    # matches the pre-encoder-stage default ConfigurableModel build.
+    enc_layer_idxs = set()
+    for k in sd:
+        if k.startswith("transformer.encoder_layers."):
+            try:
+                enc_layer_idxs.add(int(k.split(".")[2]))
+            except (IndexError, ValueError):
+                continue
+    if enc_layer_idxs:
+        BACKBONE_CONFIG["num_encoder_layers"] = max(enc_layer_idxs) + 1
+        print(f"  [eval] auto-detected num_encoder_layers="
+              f"{BACKBONE_CONFIG['num_encoder_layers']} from backbone checkpoint")
     BACKBONE_CONFIG["rev_norm_kind"] = args.rev_norm_kind
     if args.rev_norm_kind == "ewma":
         BACKBONE_CONFIG["rev_norm_span"] = args.rev_norm_span

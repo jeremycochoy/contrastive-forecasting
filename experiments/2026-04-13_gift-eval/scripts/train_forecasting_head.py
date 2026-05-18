@@ -202,6 +202,12 @@ def parse_args():
     p.add_argument("--num-layers", type=int, default=None,
                    help="Backbone transformer depth. Overrides "
                         "BACKBONE_CONFIG['num_layers'] (default 6).")
+    p.add_argument("--forecaster-d-model", type=int, default=None,
+                   help="Backbone forecaster bottleneck dim. None=same as d-model. "
+                        "Required to match v13 backbone (default 128).")
+    p.add_argument("--forecaster-n-heads", type=int, default=None,
+                   help="Backbone forecaster heads. None=same as n-heads. "
+                        "v13 uses 4.")
     # -- LR schedule + AdamW HP --------------------------------------------
     p.add_argument("--schedule", default="constant",
                    choices=["constant", "wsd", "cosine"],
@@ -260,6 +266,14 @@ def parse_args():
                         "Matches the [e_ctx, rolled_f] input the head sees "
                         "at eval B-strategies, fixing a train-eval input "
                         "distribution mismatch.")
+    p.add_argument("--amp-dtype", default="none",
+                   choices=["none", "bf16", "fp16"],
+                   help="Mixed-precision dtype for backbone fwd + head fwd + "
+                        "loss. 'none' (default) = pure fp32 (byte-identical "
+                        "to legacy). 'bf16' = autocast to bfloat16 (memory ~½) "
+                        "— matches the contrastive trainer's convention. "
+                        "'fp16' = float16 autocast (no GradScaler, matching "
+                        "the contrastive trainer).")
     return p.parse_args()
 
 
@@ -292,6 +306,14 @@ class CSVLogger:
         self._file.close()
 
 
+class _NullContext:
+    """Context manager no-op — used when AMP autocast is disabled."""
+    def __enter__(self):
+        return self
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+
 def main():
     args = parse_args()
     device = torch.device(args.device)
@@ -319,6 +341,10 @@ def main():
         BACKBONE_CONFIG["nhead"] = args.n_heads
     if args.num_layers is not None:
         BACKBONE_CONFIG["num_layers"] = args.num_layers
+    if args.forecaster_d_model is not None:
+        BACKBONE_CONFIG["forecaster_d_model"] = args.forecaster_d_model
+    if args.forecaster_n_heads is not None:
+        BACKBONE_CONFIG["forecaster_n_heads"] = args.forecaster_n_heads
     if args.encoder_type is not None:
         BACKBONE_CONFIG["encoder_type"] = args.encoder_type
 
@@ -354,6 +380,21 @@ def main():
         print(f"  [head-train] auto-detected learnable τ "
               f"(log_inv_tau={sd['log_inv_tau'].item():.4f}, "
               f"τ={float((-sd['log_inv_tau']).exp()):.4f}) from backbone checkpoint")
+    # Auto-detect num_encoder_layers from transformer.encoder_layers.<N>.* keys.
+    # Encoder-forecaster backbones (2026-05-10) prepend N causal layers before
+    # the forecaster; their state_dict has the matching keys. Old backbones
+    # have an empty encoder stack and the keys are absent → defaults to 0.
+    enc_layer_idxs = set()
+    for k in sd:
+        if k.startswith("transformer.encoder_layers."):
+            try:
+                enc_layer_idxs.add(int(k.split(".")[2]))
+            except (IndexError, ValueError):
+                continue
+    if enc_layer_idxs:
+        BACKBONE_CONFIG["num_encoder_layers"] = max(enc_layer_idxs) + 1
+        print(f"  [head-train] auto-detected num_encoder_layers="
+              f"{BACKBONE_CONFIG['num_encoder_layers']} from backbone checkpoint")
     if args.rev_norm_kind == "ewma":
         BACKBONE_CONFIG["rev_norm_span"] = args.rev_norm_span
     # Auto-detect patch_stats from the encoder's first projection input width.
@@ -573,129 +614,141 @@ def main():
         hf_rows_consumed += rows_per_step
         x = x.to(device)
 
-        if args.mixed_rollout > 0:
-            # Mixed training: use first 48 patches as context, roll out N tokens
-            N_roll = args.mixed_rollout
-            T_ctx_raw = 48 * W  # 768 timesteps
-            x_ctx = x[:, :T_ctx_raw, :]
+        # AMP autocast wraps the (frozen) backbone forward + head forward +
+        # loss. No GradScaler — matches the contrastive trainer's convention
+        # (bf16's range matches fp32; for fp16 we skip the scaler too).
+        # Pinball / Gaussian-NLL / MSE losses don't have F.normalize-style
+        # fp32 promotion, so no `to(amp_dtype)` cast trick is needed here
+        # (unlike the contrastive trainer's `f_lat.to(amp_dtype)`).
+        amp_dtype = (torch.bfloat16 if args.amp_dtype == "bf16"
+                     else torch.float16 if args.amp_dtype == "fp16"
+                     else None)
+        amp_ctx = (torch.amp.autocast('cuda', dtype=amp_dtype)
+                   if amp_dtype is not None else _NullContext())
+        with amp_ctx:
+            if args.mixed_rollout > 0:
+                # Mixed training: use first 48 patches as context, roll out N tokens
+                N_roll = args.mixed_rollout
+                T_ctx_raw = 48 * W  # 768 timesteps
+                x_ctx = x[:, :T_ctx_raw, :]
 
-            # Get encoder + forecaster latents from context
-            e_bc, _ = extract_encoder_latents(
-                backbone, x_ctx, freq_ids=freq_ids,
-                seasonality_ids=seasonality_ids)
-            f_ctx, x_norm_ctx = extract_forecaster_latents(
-                backbone, x_ctx, freq_ids=freq_ids,
-                seasonality_ids=seasonality_ids)
-            T_ctx_patches = f_ctx.size(1)  # 48
-
-            # Roll out N tokens in latent space
-            future_f = rollout_latent(backbone, e_bc, N_roll)
-
-            # Full sequence for head: [context_f, rolled_f]
-            full_f = torch.cat([f_ctx, future_f], dim=1)  # (B*C, 48+N, H)
-
-            # Targets: from full x_norm (need to normalize full sequence)
-            with torch.no_grad():
-                if backbone.rev_norm is not None:
-                    x_norm = backbone.rev_norm(x, mode='norm')
-                else:
-                    x_norm = x
-
-            # Choose target computation based on reconstruction mode
-            if args.reconstruction:
-                targets, T_valid_full = compute_reconstruction_targets(
-                    x_norm, W=W, output_len=args.forecast_len,
-                    mode=args.reconstruction)
-            else:
-                targets, T_valid_full = compute_valid_targets(
-                    x_norm, W=W, forecast_len=args.forecast_len)
-            targets = targets.to(device)
-
-            # Take targets for our sequence positions only
-            T_total = full_f.size(1)
-            T_use = min(T_total, T_valid_full)
-            preds = head(full_f)[:, :T_use, :]
-            targets = targets[:, :T_use, :]
-
-            if args.reconstruction and args.mixed_rollout > 0:
-                # R3 mode: loss only on rolled positions
-                preds = preds[:, T_ctx_patches:, :]
-                targets = targets[:, T_ctx_patches:, :]
-
-            loss = torch.nn.functional.mse_loss(preds, targets)
-        elif args.reconstruction == 'encoder':
-            # Encoder reconstruction: e[t] → patch t values
-            e_bc, x_norm = extract_encoder_latents(
-                backbone, x, freq_ids=freq_ids,
-                seasonality_ids=seasonality_ids)
-            targets, T_valid = compute_reconstruction_targets(
-                x_norm, W=W, output_len=args.forecast_len, mode='encoder')
-            targets = targets.to(device)
-            preds = head(e_bc)[:, :T_valid, :]
-            loss = torch.nn.functional.mse_loss(preds, targets)
-
-        elif args.reconstruction == 'forecaster':
-            # Forecaster reconstruction: f[t] → patch t+1 values
-            f_bc, x_norm = extract_forecaster_latents(
-                backbone, x, freq_ids=freq_ids,
-                seasonality_ids=seasonality_ids)
-            targets, T_valid = compute_reconstruction_targets(
-                x_norm, W=W, output_len=args.forecast_len, mode='forecaster')
-            targets = targets.to(device)
-            if args.head_train_input == "e_then_f":
-                # Match the eval-time [e_ctx, rolled_f] layout: feed the
-                # head [e_0..e_{T-1}, f_0..f_{T-1}] (length 2T). The
-                # head's outputs at positions T..(T+T_valid-1) — i.e. the
-                # f-half — get the loss against `targets`.
-                #
-                # Custom mask prevents the head from peeking at e_{p_f+1}
-                # (the encoder latent that encodes the *target* patch
-                # for f-block position p_f). With the standard causal
-                # mask, all e-block positions are "past" relative to any
-                # f-block position, so the head can copy the target
-                # directly — that bug showed up as ema_loss collapsing
-                # to <0.12 vs the legitimate ~0.19 plateau.
+                # Get encoder + forecaster latents from context
                 e_bc, _ = extract_encoder_latents(
+                    backbone, x_ctx, freq_ids=freq_ids,
+                    seasonality_ids=seasonality_ids)
+                f_ctx, x_norm_ctx = extract_forecaster_latents(
+                    backbone, x_ctx, freq_ids=freq_ids,
+                    seasonality_ids=seasonality_ids)
+                T_ctx_patches = f_ctx.size(1)  # 48
+
+                # Roll out N tokens in latent space
+                future_f = rollout_latent(backbone, e_bc, N_roll)
+
+                # Full sequence for head: [context_f, rolled_f]
+                full_f = torch.cat([f_ctx, future_f], dim=1)  # (B*C, 48+N, H)
+
+                # Targets: from full x_norm (need to normalize full sequence)
+                with torch.no_grad():
+                    if backbone.rev_norm is not None:
+                        x_norm = backbone.rev_norm(x, mode='norm')
+                    else:
+                        x_norm = x
+
+                # Choose target computation based on reconstruction mode
+                if args.reconstruction:
+                    targets, T_valid_full = compute_reconstruction_targets(
+                        x_norm, W=W, output_len=args.forecast_len,
+                        mode=args.reconstruction)
+                else:
+                    targets, T_valid_full = compute_valid_targets(
+                        x_norm, W=W, forecast_len=args.forecast_len)
+                targets = targets.to(device)
+
+                # Take targets for our sequence positions only
+                T_total = full_f.size(1)
+                T_use = min(T_total, T_valid_full)
+                preds = head(full_f)[:, :T_use, :]
+                targets = targets[:, :T_use, :]
+
+                if args.reconstruction and args.mixed_rollout > 0:
+                    # R3 mode: loss only on rolled positions
+                    preds = preds[:, T_ctx_patches:, :]
+                    targets = targets[:, T_ctx_patches:, :]
+
+                loss = torch.nn.functional.mse_loss(preds, targets)
+            elif args.reconstruction == 'encoder':
+                # Encoder reconstruction: e[t] → patch t values
+                e_bc, x_norm = extract_encoder_latents(
                     backbone, x, freq_ids=freq_ids,
                     seasonality_ids=seasonality_ids)
-                T_e = e_bc.size(1)
-                T_f = f_bc.size(1)
-                seq = torch.cat([e_bc, f_bc], dim=1)             # (BC, T_e+T_f, H)
-                from src.forecasting_head import build_e_then_f_mask
-                src_mask = build_e_then_f_mask(T_e, T_f, device=device)
-                preds = head(seq, src_mask=src_mask)
-                f_slice = slice(T_e, T_e + T_valid)
-            else:
-                preds = head(f_bc)
-                f_slice = slice(0, T_valid)
-            if isinstance(preds, tuple):
-                # Gaussian head: (mu, log_var) per position.
-                mu, log_var = preds
-                mu = mu[:, f_slice, :]
-                log_var = log_var[:, f_slice, :]
-                loss = gaussian_nll_loss(mu, log_var, targets)
-            elif args.quantile_head:
-                preds = preds[:, f_slice, :, :]                   # (BC, T, Q, L)
-                loss = quantile_loss(preds, targets, QUANTILE_LEVELS)
-            else:
-                preds = preds[:, f_slice, :]
+                targets, T_valid = compute_reconstruction_targets(
+                    x_norm, W=W, output_len=args.forecast_len, mode='encoder')
+                targets = targets.to(device)
+                preds = head(e_bc)[:, :T_valid, :]
                 loss = torch.nn.functional.mse_loss(preds, targets)
 
-        else:
-            # Standard prediction training (old behavior)
-            f_bc, x_norm = extract_forecaster_latents(
-                backbone, x, freq_ids=freq_ids,
-                seasonality_ids=seasonality_ids)
-            targets, T_valid = compute_valid_targets(
-                x_norm, W=W, forecast_len=args.forecast_len)
-            targets = targets.to(device)
-            preds = head(f_bc)
-            if args.quantile_head:
-                preds = preds[:, :T_valid, :, :]
-                loss = quantile_loss(preds, targets, QUANTILE_LEVELS)
+            elif args.reconstruction == 'forecaster':
+                # Forecaster reconstruction: f[t] → patch t+1 values
+                f_bc, x_norm = extract_forecaster_latents(
+                    backbone, x, freq_ids=freq_ids,
+                    seasonality_ids=seasonality_ids)
+                targets, T_valid = compute_reconstruction_targets(
+                    x_norm, W=W, output_len=args.forecast_len, mode='forecaster')
+                targets = targets.to(device)
+                if args.head_train_input == "e_then_f":
+                    # Match the eval-time [e_ctx, rolled_f] layout: feed the
+                    # head [e_0..e_{T-1}, f_0..f_{T-1}] (length 2T). The
+                    # head's outputs at positions T..(T+T_valid-1) — i.e. the
+                    # f-half — get the loss against `targets`.
+                    #
+                    # Custom mask prevents the head from peeking at e_{p_f+1}
+                    # (the encoder latent that encodes the *target* patch
+                    # for f-block position p_f). With the standard causal
+                    # mask, all e-block positions are "past" relative to any
+                    # f-block position, so the head can copy the target
+                    # directly — that bug showed up as ema_loss collapsing
+                    # to <0.12 vs the legitimate ~0.19 plateau.
+                    e_bc, _ = extract_encoder_latents(
+                        backbone, x, freq_ids=freq_ids,
+                        seasonality_ids=seasonality_ids)
+                    T_e = e_bc.size(1)
+                    T_f = f_bc.size(1)
+                    seq = torch.cat([e_bc, f_bc], dim=1)             # (BC, T_e+T_f, H)
+                    from src.forecasting_head import build_e_then_f_mask
+                    src_mask = build_e_then_f_mask(T_e, T_f, device=device)
+                    preds = head(seq, src_mask=src_mask)
+                    f_slice = slice(T_e, T_e + T_valid)
+                else:
+                    preds = head(f_bc)
+                    f_slice = slice(0, T_valid)
+                if isinstance(preds, tuple):
+                    # Gaussian head: (mu, log_var) per position.
+                    mu, log_var = preds
+                    mu = mu[:, f_slice, :]
+                    log_var = log_var[:, f_slice, :]
+                    loss = gaussian_nll_loss(mu, log_var, targets)
+                elif args.quantile_head:
+                    preds = preds[:, f_slice, :, :]                   # (BC, T, Q, L)
+                    loss = quantile_loss(preds, targets, QUANTILE_LEVELS)
+                else:
+                    preds = preds[:, f_slice, :]
+                    loss = torch.nn.functional.mse_loss(preds, targets)
+
             else:
-                preds = preds[:, :T_valid, :]
-                loss = torch.nn.functional.mse_loss(preds, targets)
+                # Standard prediction training (old behavior)
+                f_bc, x_norm = extract_forecaster_latents(
+                    backbone, x, freq_ids=freq_ids,
+                    seasonality_ids=seasonality_ids)
+                targets, T_valid = compute_valid_targets(
+                    x_norm, W=W, forecast_len=args.forecast_len)
+                targets = targets.to(device)
+                preds = head(f_bc)
+                if args.quantile_head:
+                    preds = preds[:, :T_valid, :, :]
+                    loss = quantile_loss(preds, targets, QUANTILE_LEVELS)
+                else:
+                    preds = preds[:, :T_valid, :]
+                    loss = torch.nn.functional.mse_loss(preds, targets)
 
         # NaN detection -- skip bad batches instead of crashing
         loss_val = loss.item()

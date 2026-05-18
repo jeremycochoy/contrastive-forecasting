@@ -66,6 +66,60 @@ def q_naive_latent(
 
 
 @torch.no_grad()
+def q_hard_neg(sim_pos: Tensor, sim_neg: Tensor, eps: float = 1e-8) -> Tensor:
+    """Q_hard_neg = mean over queries of e(f, target) / e(f, hardest_neg).
+
+    e(a, b) = 1 - cos_sim(a, b). For each query, the "hardest negative"
+    is the negative with the largest cosine similarity to the forecast
+    (i.e. the worst confusable). The ratio is < 1 when the forecast is
+    closer to the target than to its hardest distractor (top-1 win), > 1
+    when it loses top-1. Sign-matched complement to ``top1``: continuous
+    margin where top1 is binary.
+
+    Decoupled from how negatives were sampled — caller supplies the
+    pre-computed cosine similarities.
+
+    Args:
+        sim_pos: ``(...,)`` — cos(f, target) per query.
+        sim_neg: ``(..., N)`` — cos(f, neg_i) for the N negatives per
+            query. The last axis is the negative-pool axis.
+
+    Returns:
+        Scalar tensor (mean over query dims).
+    """
+    assert sim_neg.shape[:-1] == sim_pos.shape, (sim_pos.shape, sim_neg.shape)
+    err_p = 1.0 - sim_pos
+    err_h = (1.0 - sim_neg.max(dim=-1).values).clamp_min(eps)
+    return (err_p / err_h).mean()
+
+
+@torch.no_grad()
+def m_z(sim_pos: Tensor, sim_neg: Tensor, eps: float = 1e-8) -> Tensor:
+    """M_z = mean over queries of (sim_pos - μ_neg) / σ_neg.
+
+    Standardized margin (discriminability index d′). The positive's
+    cosine similarity is reported in units of the negative pool's
+    standard deviation. Under isotropic negatives in dim ``d``, σ ≈
+    1/√d, so for a forecast with cos(f, target) = ρ this is ≈ ρ·√d.
+    Linear in ρ — does not saturate.
+
+    Decoupled from pool definition like ``q_hard_neg``; caller supplies
+    similarities.
+
+    Args:
+        sim_pos: ``(...,)``.
+        sim_neg: ``(..., N)``.
+
+    Returns:
+        Scalar tensor.
+    """
+    assert sim_neg.shape[:-1] == sim_pos.shape, (sim_pos.shape, sim_neg.shape)
+    mu = sim_neg.mean(dim=-1)
+    sd = sim_neg.std(dim=-1, unbiased=False).clamp_min(eps)
+    return ((sim_pos - mu) / sd).mean()
+
+
+@torch.no_grad()
 def dim_usage(z: Tensor, axis: int) -> Tensor:
     """Dimension-usage U = 1 / (d * mean_{i!=j} cos²(z_i, z_j)), clipped to [0, 1].
 
@@ -115,12 +169,18 @@ def u_temporal(z: Tensor, time_axis: int) -> Tensor:
 
 
 @torch.no_grad()
-def retrieval_auc_top1(
+def retrieval_auc_top1_legacy(
     f: Tensor,
     h_full: Tensor,
     lookback_lags: tuple[int, ...] = (1, 2, 4, 8),
 ) -> tuple[Tensor, Tensor]:
-    """Retrieval AUC + Top-1 against past-window negatives.
+    """LEGACY: AUC + Top-1 against TEMPORAL-ONLY negatives, kept for
+    historical-CSV reproduction only.
+
+    New eval pipelines must use :func:`retrieval_auc_topk` instead.
+    This variant only tests same-sample, same-channel, recent-past
+    negatives, which a causal-attention position counter aces without
+    encoding forecasting content.
 
     For each query (b, t, c) with t >= max(lookback_lags):
         positive  = h_full[b, t+1, c, :]
@@ -161,3 +221,135 @@ def retrieval_auc_top1(
     auc = beats.mean(dim=-1).mean()
     top1 = beats.prod(dim=-1).mean()
     return auc, top1
+
+
+@torch.no_grad()
+def retrieval_auc_topk(
+    f: Tensor,
+    h_full: Tensor,
+    lookback_lags: tuple[int, ...] = (1, 2, 4, 8),
+    n_batch_negs: int = 128,
+    top_k: tuple[int, ...] = (1, 3),
+) -> dict[str, Tensor]:
+    """Retrieval metrics against a CROSS-BATCH × TEMPORAL-OFFSET product
+    of negatives.
+
+    The default retrieval metric for contrastive-backbone diagnostics.
+    A causal encoder can learn an implicit position counter via
+    attention depth that distinguishes "next time step" from "recent
+    past time steps" inside a single window without encoding content.
+    Forcing the model to discriminate against negatives drawn from
+    *other* time series at *offset* times defeats both the position-
+    counter and the persistence baseline in a single pool.
+
+    Negatives per query (b, t, c) with t ≥ max(lookback_lags) form the
+    product of two axes:
+        positive  = h_full[b, t+1, c, :]
+        negatives = h_full[b', t+1-k, c, :]
+                    for b' ∈ first n_b indices of {0..B-1} \\ {b},
+                        n_b = min(n_batch_negs, B - 1)
+                        k   ∈ lookback_lags
+        total     = n_b × len(lookback_lags) per query
+
+    Defaults give 128 × 4 = 512 negatives per query — tighter retrieval
+    signal than the legacy 4-temporal pool, harder to saturate.
+
+    The "first n_b indices" trick (rather than a random shuffle) gives
+    deterministic, lower-variance metric estimates: the HF streaming
+    dataloader already shuffles the batch dimension upstream, so the
+    distribution of negatives is iid-equivalent.
+
+    Score = cosine sim vs ``f[b, t, c, :]``. Top-k counts ties as miss
+    via strict ``>``.
+
+    Channel handling: asserts ``C == 1`` for now. Proper cross-channel
+    negatives need sampling other channels at the same (b, t) — should
+    be added when the backbone supports multi-channel inputs. Until
+    then the assert is the contract.
+
+    Args:
+        f: ``(B, T, C, H)``.
+        h_full: ``(B, T+1, C, H)`` — must include position t+1.
+        lookback_lags: temporal offsets k (subtracted from t+1).
+        n_batch_negs: number of cross-batch negatives per query. Clamped
+            to ``B - 1``.
+        top_k: which top-k cutoffs to compute. Default ``(1, 3)``.
+
+    Returns:
+        dict with scalar-tensor values for keys:
+            ``auc``       — mean fraction of negatives beaten
+            ``mrr``       — mean reciprocal rank of the positive among
+                            (1 + n_neg) candidates (ties count as miss)
+            ``top{k}``    — fraction of queries with rank ≤ k, one per
+                            entry in ``top_k``
+            ``q_hard_neg`` — mean err(f, target) / err(f, hardest_neg)
+            ``m_z``       — mean (sim_pos − μ_neg) / σ_neg
+
+        All values are NaN when the eval window has no valid queries
+        (T ≤ max_lag) or when B ≤ 1.
+    """
+    B, T, C, H = f.shape
+    assert C == 1, (
+        f"retrieval_auc_topk: got C={C}; only C=1 implemented. "
+        "Proper cross-channel negatives need sampling other channels at the "
+        "same (b, t) — implement when the backbone supports multi-channel."
+    )
+
+    out_keys = (
+        ["auc", "mrr"] + [f"top{k}" for k in top_k] + ["q_hard_neg", "m_z"]
+    )
+    nan = torch.full((), float("nan"), device=f.device, dtype=f.dtype)
+
+    max_lag = max(lookback_lags)
+    if T <= max_lag or T + 1 > h_full.shape[1] or B <= 1:
+        return {k: nan for k in out_keys}
+
+    f_v = f[:, max_lag:T, :, :]                              # (B, T_v, C, H)
+    pos = h_full[:, max_lag + 1:T + 1, :, :]                 # (B, T_v, C, H)
+    sim_pos = F.cosine_similarity(f_v, pos, dim=-1)          # (B, T_v, C)
+
+    # Cross-batch indices: first n_b of {0..B-1} \ {b}, deterministic.
+    n_b = min(n_batch_negs, B - 1)
+    raw = torch.arange(n_b, device=f.device).unsqueeze(0).expand(B, n_b)
+    b_idx = torch.arange(B, device=f.device).unsqueeze(1)    # (B, 1)
+    rand_b = raw + (raw >= b_idx).long()                     # (B, n_b)
+
+    # Cross-batch × temporal-offset product. For each lag k: cosine sim
+    # of f_v vs every other batch row's lagged slice, then keep the n_b
+    # negatives selected by rand_b.
+    #
+    # Memory-lean form: the old code did h_slice_k[rand_b] →
+    # (B, n_b, T_v, C, H) and F.cosine_similarity over the last dim,
+    # materialising a (B, n_b, T_v, C, H) tensor (~12 GB fp32 at B=256,
+    # n_b=128, T_v≈248, H=384 — OOM'd every training step). Instead,
+    # L2-normalise once and contract H *inside* an einsum to get the full
+    # (B, B, T_v, C) cosine matrix (~65 MB), then gather the n_b columns
+    # per row. Algebraically identical to F.cosine_similarity (same
+    # eps=1e-8 denominator floor via F.normalize); the einsum routes to a
+    # batched matmul and never forms the (·, ·, ·, ·, H) intermediate.
+    f_n = F.normalize(f_v, dim=-1, eps=1e-8)                      # (B, T_v, C, H)
+    sims_per_lag = []
+    for k in lookback_lags:
+        h_slice_k = h_full[:, max_lag + 1 - k:T + 1 - k, :, :]   # (B, T_v, C, H)
+        h_n_k = F.normalize(h_slice_k, dim=-1, eps=1e-8)         # (B, T_v, C, H)
+        full_k = torch.einsum('btch,Btch->bBtc', f_n, h_n_k)     # (B, B, T_v, C)
+        sim_k = full_k[b_idx, rand_b]                             # (B, n_b, T_v, C)
+        sims_per_lag.append(sim_k.permute(0, 2, 3, 1))            # (B, T_v, C, n_b)
+
+    sim_neg = torch.cat(sims_per_lag, dim=-1)                     # (B, T_v, C, n_b * n_lags)
+    n_neg = sim_neg.size(-1)
+    beats = (sim_pos.unsqueeze(-1) > sim_neg).float()             # strict; ties = miss
+
+    n_beats = beats.sum(dim=-1)                                   # (B, T_v, C)
+    rank = (n_neg - n_beats + 1.0)                                # in [1, n_neg+1]
+
+    out: dict[str, Tensor] = {
+        "auc": beats.mean(dim=-1).mean(),
+        "mrr": (1.0 / rank).mean(),
+    }
+    for k in top_k:
+        threshold = n_neg - (k - 1)
+        out[f"top{k}"] = (n_beats >= threshold).float().mean()
+    out["q_hard_neg"] = q_hard_neg(sim_pos, sim_neg)
+    out["m_z"] = m_z(sim_pos, sim_neg)
+    return out

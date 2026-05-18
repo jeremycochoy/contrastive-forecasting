@@ -1,0 +1,9 @@
+=== 150k ordering scorecard (Sat 16 May 07:46:50 BST 2026) ===
+dk0.9 (v20 recipe, fp32-warmup->fp16, ~3% penalty vs pure-fp32 v11c):
+  50k=  100k=  150k=   [v11c pure-fp32 50k ref=1.292]
+v27c dk0.8:  50k=1.3313  100k=  150k=
+v17  dk0.95: 50k=1.409  100k=  150k=
+v16  dk0.7:  50k=1.335  100k=  150k=
+--- BET (user): v17 & v27c < v11c(dk0.9) @150k ---
+  dk0.9@150k ref =  (note: v20 recipe carries ~3% fp16 penalty)
+  v17@150k =  ; v27c@150k = 

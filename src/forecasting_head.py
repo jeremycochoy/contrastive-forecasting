@@ -625,7 +625,14 @@ def forecast_autoregressive(backbone, head, x_context, horizon, device):
 # ============================================================================
 
 def extract_encoder_latents(backbone, x, freq_ids=None, seasonality_ids=None):
-    """Extract encoder latents e[t] (before transformer) and RevEWMNorm stats.
+    """Extract encoder latents e[t] and RevEWMNorm stats.
+
+    Returns the same tensor used as the contrastive target ``o_lat``
+    during training: patch encoder output + any causal encoder layers
+    (``backbone.transformer.encoder_layers``). When ``encoder_layers`` is
+    empty (baseline runs with ``num_encoder_layers=0``), this collapses
+    to the original patch-encoder-only behaviour and is bit-identical to
+    pre-encoder-stage checkpoints.
 
     Args:
         backbone: frozen ConfigurableModel
@@ -661,6 +668,15 @@ def extract_encoder_latents(backbone, x, freq_ids=None, seasonality_ids=None):
         B, T, C, H = e.size()
         e_bc = e.permute(0, 2, 1, 3).reshape(B * C, T, H)
 
+        encoder_layers = getattr(backbone.transformer, 'encoder_layers', None)
+        if encoder_layers is not None and len(encoder_layers) > 0:
+            mask = backbone.transformer.causal_mask
+            if mask is None or mask.size(0) != T:
+                mask = backbone.transformer._generate_square_subsequent_mask(T).to(e_bc.device)
+                backbone.transformer.causal_mask = mask
+            for layer in encoder_layers:
+                e_bc = layer(e_bc, tgt_mask=mask, tgt_is_causal=True)
+
     return e_bc.detach(), x_norm.detach()
 
 
@@ -670,17 +686,31 @@ def rollout_latent(backbone, encoder_latents, n_future_tokens):
     Uses the backbone's causal transformer: since contrastive training
     makes f[t] ≈ e[t+1], we feed f[-1] back as the next encoder latent.
 
+    The forecaster bottleneck (#286 follow-up, v13) lives between the
+    encoder-dim residual stream and the forecaster transformer layers:
+    `fcst_down_proj` shrinks from `dimension_e` into `forecaster_d_model`,
+    the layers run at `forecaster_d_model`, then `fcst_up_proj` widens
+    back to `dimension_e`. When no bottleneck is configured both projs
+    are `nn.Identity` so this path is bit-identical for legacy backbones.
+
     Args:
         backbone: frozen ConfigurableModel (on correct device)
-        encoder_latents: (B*C, T, H) encoder latents from context
+        encoder_latents: (B*C, T, H) encoder latents from context, in
+            encoder-dim space (`dimension_e`).
         n_future_tokens: how many future latent tokens to generate
 
     Returns:
         future_f: (B*C, n_future_tokens, H) generated forecaster latents
+            in encoder-dim space (post-up-proj), so they share the
+            residual-stream dim with `encoder_latents` and can feed the
+            decoding head unchanged.
     """
     device = encoder_latents.device
-    seq = encoder_latents  # (B*C, T, H)
+    seq = encoder_latents  # (B*C, T, H) in dimension_e
     generated = []
+
+    fcst_down_proj = backbone.transformer.fcst_down_proj
+    fcst_up_proj = backbone.transformer.fcst_up_proj
 
     with torch.no_grad():
         for _ in range(n_future_tokens):
@@ -691,16 +721,20 @@ def rollout_latent(backbone, encoder_latents, n_future_tokens):
             ).bool()
             causal_mask = causal_mask.float().masked_fill(causal_mask, float('-inf'))
 
-            # Run transformer layers (bypass encoder — we already have latents)
-            x = seq
+            # Run forecaster layers (bypass encoder — we already have latents).
+            # Apply the bottleneck projections so the layers see input at
+            # `forecaster_d_model`, not `dimension_e`. nn.Identity when no
+            # bottleneck is configured (legacy bit-identical).
+            x = fcst_down_proj(seq)
             for layer in backbone.transformer.layers:
                 x = layer(x, tgt_mask=causal_mask, tgt_is_causal=True)
+            x = fcst_up_proj(x)  # back to dimension_e
 
             # x[:, -1, :] is f[-1] ≈ e[next]
             new_token = x[:, -1:, :]  # (B*C, 1, H)
             generated.append(new_token)
 
-            # Append as next encoder latent
+            # Append as next encoder latent (in dimension_e — matches `seq`).
             seq = torch.cat([seq, new_token], dim=1)
 
     return torch.cat(generated, dim=1)  # (B*C, n_future_tokens, H)
