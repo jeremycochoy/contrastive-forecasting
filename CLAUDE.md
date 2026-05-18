@@ -73,7 +73,7 @@ export HUGGING_FACE_HUB_TOKEN="$HF_TOKEN"
 ## Git Workflow
 - `master`: stable base code.
 - `experiments`: main working branch (merged results).
-- **Never commit directly to `experiments` or `master`.** Feature branch from `experiments`, do the work there, PR into `experiments`. Always create PR, review, then merge. Name it `feature/…`, `experiment/…`, or `paper/…`.
+- **Never commit directly to `experiments` or `master`.** Feature branch from `experiments`, do the work there, PR into `experiments`. Always create PR, review, then merge. Branch names like `feature/…`, `experiment/…`, or `paper/…` are nice.
 - **Use a git worktree for any multi-file refactor or non-trivial change** (e.g. via `EnterWorktree`) — keeps the user's uncommitted state on `experiments` untouched. If the worktree branch is from a stale HEAD, `git reset --hard refs/heads/experiments` it forward before starting.
 
 ### Pre-PR checklist
