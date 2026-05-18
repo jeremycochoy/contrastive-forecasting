@@ -556,19 +556,31 @@ def contrastive_latent_loss(predicted_position, validation, spec,
 
     elif train_config.get('loss_shape') == 'cosine_similarity_batch_no_time_neg':
         # Same as cosine_similarity_batch but without cross-time negatives (t <-> t+1).
-        # Only keeps cross-channel and cross-batch negatives.
+        # Keeps SAME-TIME cross-channel negatives (both h×h and h×h_hat) and
+        # cross-batch negatives.
         # Useful for ARMA experiments where consecutive time slices are nearly identical.
         # Numerically stable logsumexp form — equivalence + fp16/fp32 small-τ stability
         # pinned in tests/test_loss_stability.py.
         neg_inf = float('-inf')
         log_pos = cosine_similarity_from_normalized(hy_norm, hy_hat_norm) / tau
 
-        # Cross-channel negatives (same time step, different channels)
+        # Cross-channel negatives, h × h, same-time (encoder spread)
         sims_xx = cosine_similarity_from_normalized(hx_norm.unsqueeze(3), hx_norm.unsqueeze(2))
         mask_mat = ~torch.eye(C, dtype=torch.bool, device=sims_xx.device)
         mask_mat = mask_mat.view(1, 1, C, C)
         log_neg_xx = torch.logsumexp(
             (sims_xx / tau).masked_fill(~mask_mat, neg_inf), dim=2
+        )
+
+        # Cross-channel negatives, h × h_hat, same-time (forecaster spread).
+        # Diagonal (c1 == c2) excluded: that is the same-time same-channel
+        # FP comparison, which is cross-time-adjacent for autocorrelated
+        # data and was the reason the `_no_time_neg` variant exists.
+        sims_xy_hat = cosine_similarity_from_normalized(
+            hx_norm.unsqueeze(3), hy_hat_norm.unsqueeze(2)
+        )
+        log_neg_xy_hat = torch.logsumexp(
+            (sims_xy_hat / tau).masked_fill(~mask_mat, neg_inf), dim=2
         )
 
         # Cross-batch negatives: compare across batch dimension
@@ -584,7 +596,8 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             (sims_cross_batch / tau).masked_fill(~mask_batch, neg_inf), dim=1
         )
 
-        negatives = torch.stack([log_neg_xx, log_neg_cross_batch], dim=0)
+        negatives = torch.stack(
+            [log_neg_xx, log_neg_xy_hat, log_neg_cross_batch], dim=0)
         log_neg_per_anchor = torch.logsumexp(negatives, dim=0)
         log_neg_total = torch.logsumexp(log_neg_per_anchor, dim=0, keepdim=True)
         if pos_in_denom:

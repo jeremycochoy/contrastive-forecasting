@@ -63,6 +63,11 @@ def _legacy_no_time_neg(fl, ol, tau):
     mask_mat = mask_mat.view(1, 1, C, C)
     neg_xx = torch.exp(sims_xx / tau).masked_fill(~mask_mat, 0).sum(dim=2)
 
+    sims_xy_hat = cosine_similarity_from_normalized(
+        hx_norm.unsqueeze(3), hy_hat_norm.unsqueeze(2)
+    )
+    neg_xy_hat = torch.exp(sims_xy_hat / tau).masked_fill(~mask_mat, 0).sum(dim=2)
+
     hy_norm_exp = hy_norm.unsqueeze(0)
     hy_hat_norm_exp = hy_hat_norm.unsqueeze(1)
     sims_cross_batch = cosine_similarity_from_normalized(hy_norm_exp, hy_hat_norm_exp)
@@ -71,7 +76,7 @@ def _legacy_no_time_neg(fl, ol, tau):
     neg_cross_batch_exp = torch.exp(sims_cross_batch / tau).masked_fill(~mask_batch, 0)
     neg_cross_batch = neg_cross_batch_exp.sum(dim=1)
 
-    negatives = neg_xx + neg_cross_batch
+    negatives = neg_xx + neg_xy_hat + neg_cross_batch
     return -torch.log(positives / negatives.sum(dim=0, keepdim=True)).mean()
 
 

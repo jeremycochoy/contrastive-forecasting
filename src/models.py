@@ -11,7 +11,7 @@ import torch.nn.functional as F
 
 from .arma import generate_arma_batch
 from .encoders import create_encoder
-from .blocks import TransformerBlock, Simple_channel_mixing_module
+from .blocks import TransformerBlock, Simple_channel_mixing_module, AttentionChannelMixing
 from .norm import RevEWMNorm, RevIN, compute_patch_stats, PATCH_STATS_DIM
 from .freq_embedding import (
     FrequencyEmbedding, SeasonalityEmbedding,
@@ -75,7 +75,8 @@ class ConfigurableModel(torch.nn.Module):
                  patch_emb_dtype: str = "fp32",
                  forecaster_d_model: int | None = None,
                  forecaster_n_heads: int | None = None,
-                 log_attn_amplitude: bool = False):
+                 log_attn_amplitude: bool = False,
+                 channel_mixing_kind='simple', channel_mixing_n_heads=8):
         super().__init__()
         self.C = C
         self.H = H
@@ -200,7 +201,16 @@ class ConfigurableModel(torch.nn.Module):
             for layer in self.transformer.encoder_layers:
                 layer.activation = act_fn
 
-        self.channel_mixing_module = Simple_channel_mixing_module(H=H, C=C)
+        if channel_mixing_kind == 'simple':
+            self.channel_mixing_module = Simple_channel_mixing_module(H=H, C=C)
+        elif channel_mixing_kind == 'attention':
+            self.channel_mixing_module = AttentionChannelMixing(
+                H=H, C=C, n_heads=channel_mixing_n_heads)
+        else:
+            raise ValueError(
+                f"Unknown channel_mixing_kind={channel_mixing_kind!r} "
+                "(expected 'simple' or 'attention')")
+        self.channel_mixing_kind = channel_mixing_kind
 
     def tau(self):
         """Current contrastive temperature.

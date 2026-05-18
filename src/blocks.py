@@ -707,6 +707,77 @@ class TransformerBlock(nn.Module):
             drop_below, neg_inf, causal.unsqueeze(0).expand(N, -1, -1))
         return mask
         
+class AttentionChannelMixing(nn.Module):
+    """Per-time-step softmax attention across channels.
+
+    Q, K, V are 1x1 Conv1d projections on H (sample-independent linear maps),
+    but attention scores Q.K^T are computed from the per-sample features, so
+    the effective channel mix is sample-dependent. Different samples mix
+    channels differently based on their content — exactly what
+    Simple_channel_mixing_module cannot do.
+
+    Ported from rnd_jeremy/pytrade/blocks/latent_blocks.py:ChannelMixingBlock
+    (mode='attention' branch), simplified for our shape.
+
+    Input  : [B, T, C*H] (matches Simple_channel_mixing_module API)
+    Output : [B, T, C*H]
+    """
+
+    def __init__(self, H: int, C: int, n_heads: int = 8,
+                 residual_weight: float = 1.0):
+        super().__init__()
+        assert H % n_heads == 0, f"H={H} must be divisible by n_heads={n_heads}"
+        self.H = H
+        self.C = C
+        self.n_heads = n_heads
+        self.head_dim = H // n_heads
+        self.residual_weight = residual_weight
+        # 1x1 Conv1d over (H, T) — equivalent to Linear on H, broadcast over T
+        self.q = nn.Conv1d(H, H, kernel_size=1, bias=True)
+        self.k = nn.Conv1d(H, H, kernel_size=1, bias=True)
+        self.v = nn.Conv1d(H, H, kernel_size=1, bias=True)
+        self.norm = nn.LayerNorm(H)
+        # Init v small so initial output is approximately a residual identity
+        with torch.no_grad():
+            self.v.weight.mul_(0.01)
+            self.v.bias.zero_()
+
+    def forward(self, x_btch_flat: Tensor) -> Tensor:
+        # [B, T, C*H]
+        B, T, CH = x_btch_flat.shape
+        H, C = self.H, self.C
+        assert CH == C * H, f"got C*H={CH}, expected {C * H}"
+
+        # [B, T, C, H] -> [B, C, H, T]
+        x = x_btch_flat.view(B, T, C, H).permute(0, 2, 3, 1).contiguous()
+
+        x_conv = x.reshape(B * C, H, T)
+        q = self.q(x_conv).view(B, C, self.n_heads, self.head_dim, T)
+        k = self.k(x_conv).view(B, C, self.n_heads, self.head_dim, T)
+        v = self.v(x_conv).view(B, C, self.n_heads, self.head_dim, T)
+
+        # Reshape for attention (across channels at each time)
+        q = q.permute(0, 2, 4, 1, 3)  # [B, n_heads, T, C, head_dim]
+        k = k.permute(0, 2, 4, 3, 1)  # [B, n_heads, T, head_dim, C]
+        v = v.permute(0, 2, 4, 1, 3)  # [B, n_heads, T, C, head_dim]
+
+        scores = (q @ k) / (self.head_dim ** 0.5)         # [B, n_heads, T, C, C]
+        scores = torch.softmax(scores, dim=-1)
+        y = scores @ v                                    # [B, n_heads, T, C, head_dim]
+
+        # back to [B, C, H, T]
+        y = y.permute(0, 3, 1, 4, 2).contiguous().view(B, C, H, T)
+
+        y = x * self.residual_weight + y
+
+        # LayerNorm over H — last dim
+        y = y.permute(0, 1, 3, 2).contiguous()             # [B, C, T, H]
+        y = self.norm(y)
+        # back to [B, T, C, H] -> flatten to [B, T, C*H]
+        y = y.permute(0, 2, 1, 3).contiguous().view(B, T, C * H)
+        return y
+
+
 class Simple_channel_mixing_module(nn.Module):
     def __init__(self, H, C):
         super().__init__()
