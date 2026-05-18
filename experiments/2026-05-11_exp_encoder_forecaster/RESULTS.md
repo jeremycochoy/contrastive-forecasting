@@ -37,6 +37,72 @@ forecasters (v15 fcst4, v14 fcst6) monotonically worsen. dropkey
 +22% for v17 — ranking is preserved at the top but the gap to mid-pack
 is compressed. Trust full eval for any decision finer than ~10%.
 
+## Why the winning lineage uses new-conv placement
+
+**Question.** Every winning arm above moves the depthwise causal conv
+(kernel 3) off the residual stream onto the self-attention input only
+("new" placement) instead of applying it in place on the residual
+("legacy"). Does that placement help, and is contrastive loss a good
+guide to it?
+
+**Vocabulary.** *dropkey 0.9* — 90 % of attention keys randomly masked
+each step; the bottleneck that forces the contrastive task to be hard.
+*Dim usage (temporal / batch)* — fraction of representation dimensions
+carrying non-trivial variance along the time / batch axis; higher =
+information spread over more dimensions, lower = collapse into few.
+*Retrieval AUC / top-1* — how well a forecast embedding retrieves its
+own future among in-batch negatives (1.0 = perfect).
+
+**Arms** — fresh init, step 0, 50 k steps, identical except where
+noted: pre-JEPA baseline (v7, 6 L enc + 6 L fcst, legacy conv) · v10
+(JEPA, GRU enc, 1 L fcst, **legacy** conv) · v11c (JEPA, GRU enc,
+**new** conv) · v12 (JEPA, residual-SiLU enc, **new** conv).
+
+![training contrastive loss](plots/v10_v11c_v12_vs_baseline_loss.png)
+
+New-conv arms (v11c, v12) plateau at contrastive loss ≈ 2.10 — ≈ 0.65
+**above** legacy-conv v10 (≈ 1.45) and ≈ 0.75 above the baseline
+(≈ 1.34, still descending). v11c ≈ v12 throughout, so the gap is the
+conv placement, not the encoder variant.
+
+![multi-metric](plots/v10_v11c_v12_vs_baseline_multi_metric.png)
+
+Dim usage gives the same ranking (temporal axis, final values):
+new-conv arms ≈ 0.14, legacy-conv v10 ≈ 0.16 (after peaking ≈ 0.25
+mid-run then declining), baseline ≈ 0.5 +; the batch panel shows the
+same order. Retrieval AUC and top-1 are saturated (1 − metric ≈ 1e-7,
+off-scale after ~1 k steps) and non-discriminating.
+
+**Result — the contrastive-training signal does not explain the
+ranking.** New-conv v11c trains to ≈ 0.65 *higher* contrastive loss
+than legacy-conv v10 and to lower dim-usage than both v10 and the
+baseline, yet v11c is the decisive, reproducible best backbone on full
+GIFT-Eval (sweep table above, GM-MASE **1.292**). Triage is
+directionally consistent (v11c 1.388 < v10 1.437 < v7 baseline 1.512)
+but the v11c–v10 gap (~3 %) is within triage noise, so the curves
+here — not triage — carry the point. Sharper still: v11c and v12 share
+an identical loss curve and dim-usage (same conv placement) yet differ
+by ~9 % in triage MASE (1.388 vs 1.514) — the encoder variant is
+invisible to the contrastive loss but decisive downstream.
+
+Contrastive loss, dim-usage and retrieval are therefore unreliable
+proxies for forecasting quality here; only held-out GIFT-Eval ranks
+these arms (triage ±7–22 % noisy — read as directional; full eval is
+the decision metric).
+
+**Hypothesis (not measured).** Legacy in-place conv (k = 3) leaks ±2
+positions into the residual stream *upstream* of the dropkey-0.9-masked
+attention; stacked over 6 encoder layers this partially bypasses the
+dropkey bottleneck, inflating in-training contrastive fit without
+improving the representation. New placement (conv on the SA input only)
+removes the leak, so the contrastive task is genuinely harder but the
+backbone forecasts better. A lower-dropkey ablation on the legacy arm
+would test this directly.
+
+> Curves rendered from elisa training-sync CSVs (not tracked in-repo);
+> generating scripts `scripts/plot_v10_v11c_v12_vs_baseline*.py` kept
+> for provenance.
+
 ## Reproducibility & robustness
 
 - **v11c is not a lucky-init outlier.** A fresh q-head retrain on the
@@ -91,3 +157,8 @@ branch-divergence note are in
    recipe for any future fp16 speedup.
 4. **Use a 2L q-head and trust full (not triage) eval** for decisions
    finer than ~10%.
+5. **Contrastive loss does not predict forecasting accuracy.**
+   New-conv placement raises contrastive loss yet improves GM-MASE
+   (MASE: v11c < v10 < baseline); v11c and v12 share a loss curve but
+   differ ~9 % in MASE. Rank arms by held-out eval, never by
+   contrastive loss / dim-usage.
