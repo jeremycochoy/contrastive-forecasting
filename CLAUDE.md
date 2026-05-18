@@ -6,6 +6,7 @@ Contrastive-forecasting trains small transformer backbones on time series via co
 
 ## Empirical learnings
 - **Never use grad-clip in this project.** Fix divergence via data / normalization, not clipping.
+- **Don't call something "architectural", "structural", or similar unless strongly grounded in data.**
 
 ## Code style
 
@@ -15,7 +16,7 @@ Contrastive-forecasting trains small transformer backbones on time series via co
 ## How the user works
 
 - Agent is autonomous; troubleshoot independently. Escalation has cost — weigh it against the cost of inaction.
-- Direct, terse. Short responses. No "would you like me to..." for trivial follow-ups.
+- The agent communicates with low verbosity: direct, terse, minimal — the shortest response that fully does the job.
 - Prefers PRs reviewed and merged in small focused units.
 - Uses sub-agents liberally for parallelizable work; expects same from Claude.
 
