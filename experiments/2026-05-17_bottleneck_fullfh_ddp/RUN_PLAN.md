@@ -1,5 +1,9 @@
 # Bottleneck + full-fh-negs (normalized InfoNCE) + 2-GPU DDP — 50k
 
+> Note: this is the original 2L-forecaster/bf16 plan (Arm 1, which
+> diverged). The run pivoted to **1L forecaster + fp16** (Arm 2, stable);
+> see [`RESULTS.md`](RESULTS.md) for the executed config and outcome.
+
 Authoritative spec for this run. Autonomous execution; on divergence the run
 is stopped and the user notified (no auto-restart).
 

@@ -1,16 +1,59 @@
-# Bottleneck + full-fh-negs (normalized InfoNCE), 2-GPU DDP — DIVERGED
+# Bottleneck + full-fh-negs (normalized InfoNCE) + 2-GPU DDP
 
-**Q.** Does the v13 forecaster-bottleneck (6 encoder / 2 forecaster layers @ d128, 4 heads), dropkey 0.70 (per-step attention key-dropout, p=0.70), AdamW β2 0.95, with the all-(fₜ,hₗ)-negatives loss under normalized InfoNCE (`--pos-in-denominator`, loss ≥ 0) and 2-GPU DDP (256 global, full cross-rank negatives), train stably at **residual fp32 + attn/ffn/conv bf16**?
+**Q.** On the v13 forecaster-bottleneck (6-layer encoder @ d384/6h → d128/4h
+forecaster), does the new all-(fₜ,hₗ)-negatives loss (every
+forecast×future-step pair as a negative) under **normalized
+InfoNCE** (`--pos-in-denominator`, loss ≥ 0), dropkey 0.70 (per-step
+attention key-dropout), AdamW β2 0.95, 2-GPU DDP (256 global, full
+cross-rank negatives) (a) train stably, and (b) beat prior backbones on
+held-out GM-Relative MASE (geo-mean of model÷seasonal-naive MASE over
+GIFT-Eval; 1.0 = seasonal naive, lower better)?
 
-**A. No — it diverged.** Clean descent to a healthy **min loss 2.80 @ step 1104**, then collapse (loss > 6 by step 1413, ≈ 11 by 6k) onto a flat collapsed plateau for the remaining ~44k steps (contrastive top-1 — share of windows whose nearest-neighbour forecast is the true future — 1.00 → 0.02). The driver is the project's documented fresh-init residual-amplitude explosion: forecaster-L1 post-FFN residual max-abs goes 65 → 3.0e5 while attention QK ᵀ logits stay O(10–100), so the value/residual path overflows, not the softmax. This reproduces the earlier **v25** result — a fp32 residual stream alone does **not** stabilise a low-precision attn/ffn body at fresh init; adding the conv to bf16 did not change it.
+**A. Stability depends on depth+precision; accuracy is not competitive.**
 
-![Divergence, log-log: loss (top) and forecaster-L1 amplitude (bottom)](plots/divergence_loglog.png)
+| Arm | forecaster | body precision | outcome | min loss |
+|---|---|---|---|---|
+| 1 | **2L** | attn/ffn/conv **bf16**, resid fp32 | **diverged ~step 1.1k** | 2.80 then →10 |
+| 2 | **1L** | attn/ffn/conv **fp16**, resid fp32 | **stable, full 50k** | **2.174** |
 
-| step | loss | top-1 | resid post-FFN (fcst L1) |
-|---:|---:|---:|---:|
-| 1104 | **2.80** (min) | 1.00 | ~65 (stable to ~1.2k) |
-| 1413 | 6.1 | — | rising |
-| 6000 | 10.7 | 0.02 | 1.6e5 |
-| 50000 | 10.5 | 0.02 | peak 3.0e5 @ 8.6k |
+The only change that mattered was depth+precision: 2-layer/bf16 blew up;
+**1-layer/fp16 trained cleanly to 50k** (top-1 → 1.0, no divergence).
 
-**Takeaway.** Fresh-init partial-low-precision diverges even with the fp32 residual anchor → per the standing rule, go pure fp32. Follow-up (1L forecaster, fp16 → fp32 fallback): see [`RUN_PLAN.md`](RUN_PLAN.md).
+![Arm 1 — divergence (log-log)](plots/divergence_loglog.png)
+*Arm 1: forecaster residual max-abs explodes 65 → 3.0e5 while **forecaster**
+QKᵀ stays O(10–100) (the value/residual path overflows, not the softmax;
+encoder QKᵀ also blows up) — the documented fresh-init failure.*
+
+![Arm 2 — successful run (log-log)](plots/success_curves_loglog.png)
+*Arm 2: (A) loss 13→2.18, `loss_tau_ref` 16→0.21; (B) 1−AUC → ~0 by step
+~30 (contrastive task trivially separable); (C) amplitudes **bounded** —
+fcst residual post-FFN 65 → 7 (vs Arm 1's 3.0e5): the stability
+mechanism; (D) embedding dimension-usage (higher = less collapse) rises
+0.01 → 0.20.*
+
+**Held-out eval.** Standard 2L causal-transformer q-head (30k, `e_then_f`,
+bf16) on the Arm-2 50k backbone, official GIFT-Eval:
+
+| backbone (full GM-MASE, 97 cfg) | value |
+|---|---|
+| v11c (best prior, no bottleneck, dk0.9) | 1.292 |
+| v16 (no bottleneck, dk0.7) | 1.335 |
+| v13 (bottleneck d128, dk0.9, 1L) | 1.451 |
+| **this run** (bottleneck d128, dk0.70, full_fh_negs+normInfoNCE, fp16) | **1.4377** |
+| seasonal-naive gate | 1.000 |
+
+Triage (11 cfg) 1.5611 → full 1.4377. That is 1.438 vs v13's 1.451
+(within the prior experiment's stated ±~10% eval noise — not a real
+gain); it does **not** beat the non-bottleneck v16/v11c, and no arm
+beats seasonal naive (1.0).
+
+**Takeaway.** The new loss + normalized InfoNCE + dk0.70 is a **stability**
+result (1-layer fp16 trains where 2-layer bf16 diverges; amplitudes stay
+bounded), **not** a held-out-accuracy gain — the bottleneck still trails
+the plain dk0.7/dk0.9 backbones and the seasonal-naive ceiling persists.
+Recipe in [`RUN_PLAN.md`](RUN_PLAN.md).
+
+---
+*Operational (not science): a spurious orchestrator "FAILED" was a
+status-file race; training was clean to 50k. A continuous-optimizer
+50k→100k extension is running.*
