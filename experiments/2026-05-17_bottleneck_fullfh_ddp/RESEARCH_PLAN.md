@@ -10,9 +10,10 @@ is done and GPUs are free. Fully autonomous.
   (beat seasonal naive — no arm ever has).
 - Anchors (full, 97 cfg): v11c 1.292 · v16 1.335 · v13 bottleneck 1.451 ·
   this run (50k) **1.4377** · seasonal-naive 1.0.
-- **More training does NOT help** (50k→150k triage 1.561→1.574, flat) →
-  the ceiling is architectural, not steps/seed. Tweaking horizon is wasted
-  compute.
+- **No clear horizon trend** (50k→150k full 1.438/1.394/1.409, spread
+  within ±~7–10% triage noise) → extending *this* config's horizon is
+  low-value. NOT evidence the cause is architectural (untested
+  hypothesis; v11c/v16 differ in ≥4 confounded variables).
 - **Contrastive fit ≠ MASE** (project learning: v11c had higher loss but
   best MASE). The objective MUST be GM-MASE (triage proxy), never
   loss/AUC/top1.

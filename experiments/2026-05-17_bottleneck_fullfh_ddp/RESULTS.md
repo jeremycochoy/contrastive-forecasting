@@ -9,15 +9,19 @@ cross-rank negatives) (a) train stably, and (b) beat prior backbones on
 held-out GM-Relative MASE (geo-mean of model÷seasonal-naive MASE over
 GIFT-Eval; 1.0 = seasonal naive, lower better)?
 
-**A. Stability depends on depth+precision; accuracy is not competitive.**
+**A. The 1L/fp16 config trains stably; accuracy is not competitive. Causes
+are confounded — see caveats (the stability vs the diverged arm, and the
+accuracy gap vs prior backbones, are each not isolated).**
 
 | Arm | forecaster | body precision | outcome | min loss |
 |---|---|---|---|---|
 | 1 | **2L** | attn/ffn/conv **bf16**, resid fp32 | **diverged ~step 1.1k** | 2.80 then →10 |
 | 2 | **1L** | attn/ffn/conv **fp16**, resid fp32 | **stable, full 50k** | **2.174** |
 
-The only change that mattered was depth+precision: 2-layer/bf16 blew up;
-**1-layer/fp16 trained cleanly to 50k** (top-1 → 1.0, no divergence).
+Arm 2 changed **both** depth (2L→1L) **and** precision (bf16→fp16) vs
+Arm 1, so which one prevented divergence is **not isolated** (single run
+each). The 1L/fp16 combination trained cleanly to 50k (top-1 → 1.0, no
+divergence).
 
 ![Arm 1 — divergence (log-log)](plots/divergence_loglog.png)
 *Arm 1: forecaster residual max-abs explodes 65 → 3.0e5 while **forecaster**
@@ -43,21 +47,25 @@ continuous-optimizer checkpoints, official GIFT-Eval:
 | v11c (prior best, no bottleneck) | — | 1.292 |
 | seasonal-naive gate | — | 1.000 |
 
-More training helps only marginally (50k→100k 1.438→1.394) then goes
-flat/noisy (150k 1.409); it never approaches v11c (1.292) or the
-seasonal-naive ceiling (1.0).
+Full GM-MASE across 50k/100k/150k is 1.438 / 1.394 / 1.409 — the
+spread (≈3%) is within the prior experiment's stated ±~7–10% eval
+noise, so **no clear horizon trend** can be claimed (3 noisy points,
+single seed). None approaches v11c (1.292) or seasonal-naive (1.0).
 
 ![Continuous 0→150k trajectory (log-log)](plots/trajectory_0_150k_loglog.png)
-*Across the full 150k the
-contrastive loss & `loss_tau_ref` keep dropping and forecaster
-amplitudes stay bounded (65→6, no divergence) — yet held-out GM-MASE is
-flat. Training the contrastive objective harder does not transfer to
-forecasting: **the limit is architectural, not training horizon.***
+*Across the full 150k the contrastive loss & `loss_tau_ref` keep
+dropping and forecaster amplitudes stay bounded (65→6, no divergence),
+while held-out GM-MASE stays within noise. Observation: more contrastive
+training of **this** config did not improve held-out accuracy.
+**Hypothesis (not tested here):** the gap is backbone-side rather than
+horizon — no architecture variable was isolated this session.*
 
-**Takeaway.** The new loss + normalized InfoNCE + dk0.70 is a **stability**
-result (1L/fp16 trains where 2L/bf16 diverges; amplitudes stay bounded),
-**not** a held-out-accuracy gain — it trails the plain dk0.7/dk0.9
-backbones, more training to 150k does not change that, and the
-seasonal-naive ceiling persists. The lever is architectural (next:
-[`RESEARCH_PLAN.md`](RESEARCH_PLAN.md)); recipe in
+**Takeaway.** Supported: the 1L/fp16 recipe trains stably (amplitudes
+bounded, no divergence) and underperforms the prior v11c/v16 backbones
+(1.29/1.34) on held-out GM-MASE, with no clear 50k→150k trend.
+**Caveat — not isolated:** this config differs from v11c/v16 in ≥4
+confounded variables (bottleneck, dropkey 0.70 vs 0.90, the new loss,
+precision); "the cause is backbone-side / architectural" is a
+**hypothesis**, not a result of this experiment. Next steps:
+[`RESEARCH_PLAN.md`](RESEARCH_PLAN.md); recipe:
 [`RUN_PLAN.md`](RUN_PLAN.md).
