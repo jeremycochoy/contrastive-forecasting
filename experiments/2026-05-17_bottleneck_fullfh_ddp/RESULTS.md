@@ -1,16 +1,54 @@
-# Bottleneck + full-fh-negs (normalized InfoNCE), 2-GPU DDP — DIVERGED
+# Does the new full-(fₜ,hₗ) negatives loss improve forecasting?
 
-**Q.** Does the v13 forecaster-bottleneck (6 encoder / 2 forecaster layers @ d128, 4 heads), dropkey 0.70 (per-step attention key-dropout, p=0.70), AdamW β2 0.95, with the all-(fₜ,hₗ)-negatives loss under normalized InfoNCE (`--pos-in-denominator`, loss ≥ 0) and 2-GPU DDP (256 global, full cross-rank negatives), train stably at **residual fp32 + attn/ffn/conv bf16**?
+**Verdict.** No improvement demonstrated — and **not isolable**: the new
+loss ran bundled with ≥4 other changes vs the baselines, so this run can
+neither credit nor clear it. The one robust result is a **stable fp16
+training recipe** (1-layer forecaster, residual fp32 / attn-ffn-conv
+fp16), where the 2-layer/bf16 variant diverged.
 
-**A. No — it diverged.** Clean descent to a healthy **min loss 2.80 @ step 1104**, then collapse (loss > 6 by step 1413, ≈ 11 by 6k) onto a flat collapsed plateau for the remaining ~44k steps (contrastive top-1 — share of windows whose nearest-neighbour forecast is the true future — 1.00 → 0.02). The driver is the project's documented fresh-init residual-amplitude explosion: forecaster-L1 post-FFN residual max-abs goes 65 → 3.0e5 while attention QK ᵀ logits stay O(10–100), so the value/residual path overflows, not the softmax. This reproduces the earlier **v25** result — a fp32 residual stream alone does **not** stabilise a low-precision attn/ffn body at fresh init; adding the conv to bf16 did not change it.
+![Continuous 0→150k trajectory (log-log)](plots/trajectory_0_150k_loglog.png)
+*150k clean: the contrastive loss and the fixed-τ=0.07 `loss_tau_ref`
+diagnostic keep dropping, forecaster amplitudes stay bounded (65→6, no
+divergence) — yet held-out GM-MASE stays flat within noise. Training the
+contrastive objective harder did not transfer to forecasting.*
 
-![Divergence, log-log: loss (top) and forecaster-L1 amplitude (bottom)](plots/divergence_loglog.png)
+**Held-out GM-MASE** (standard 2L causal q-head 30k; three
+continuous-optimizer checkpoints; GIFT-Eval, 97 cfg; 1.0 = seasonal
+naive, lower better):
 
-| step | loss | top-1 | resid post-FFN (fcst L1) |
-|---:|---:|---:|---:|
-| 1104 | **2.80** (min) | 1.00 | ~65 (stable to ~1.2k) |
-| 1413 | 6.1 | — | rising |
-| 6000 | 10.7 | 0.02 | 1.6e5 |
-| 50000 | 10.5 | 0.02 | peak 3.0e5 @ 8.6k |
+| backbone | full GM-MASE |
+|---|---|
+| 50k / **100k** / 150k | 1.4377 / **1.3936** / 1.4090 |
+| v11c (prior best) / seasonal-naive | 1.292 / 1.000 |
 
-**Takeaway.** Fresh-init partial-low-precision diverges even with the fp32 residual anchor → per the standing rule, go pure fp32. Follow-up (1L forecaster, fp16 → fp32 fallback): see [`RUN_PLAN.md`](RUN_PLAN.md).
+≈3% spread, within the prior experiment's ±~7–10% eval noise → no
+horizon trend (single seed); none approaches v11c or the 1.0 ceiling.
+
+## Question
+
+Can fₜ↔hₗ negatives — every forecast contrasted against the encoder
+latent at *every* future step, not just the next — significantly lower
+held-out GM-Relative MASE?
+
+## Stability finding (the solid result)
+
+1-layer forecaster + residual fp32 / attn-ffn-conv fp16 → clean training
+through 150k (top-1 → 1.0, amplitudes bounded, no divergence). The
+2-layer/bf16 variant diverged at ~step 1.1k. *Caveat: depth and
+precision changed together (single run each) — not isolated.*
+
+![Arm 1 — divergence (log-log)](plots/divergence_loglog.png)
+*Arm 1: forecaster residual max-abs 65 → 3.0e5 while QKᵀ stays O(10–100)
+— the value/residual path overflows, not softmax (encoder QKᵀ also
+blows up); matches the prior v25 fresh-init failure.*
+
+## What was tested, and why the loss is not isolated
+
+The new loss was run *bundled* with normalized-InfoNCE
+(`--pos-in-denominator`), the v13 forecaster-bottleneck (6-layer d384
+encoder → d128/4-head forecaster), dropkey 0.70, AdamW β2 0.95, and
+2-GPU DDP — then compared to *prior* backbones (v11c, v16) that differ
+in **≥4 of these at once**. So this run evaluates the bundle, not the
+loss term; "the gap is architectural / backbone-side" is an explicit
+**untested hypothesis**, not a result. Exact recipe:
+[`scripts/run_ddp.sh`](scripts/run_ddp.sh).
