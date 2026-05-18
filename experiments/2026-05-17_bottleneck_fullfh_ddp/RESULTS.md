@@ -28,13 +28,6 @@ divergence).
 QKᵀ stays O(10–100) (the value/residual path overflows, not the softmax;
 encoder QKᵀ also blows up) — the documented fresh-init failure.*
 
-![Arm 2 — successful run (log-log)](plots/success_curves_loglog.png)
-*Arm 2: (A) loss 13→2.18, `loss_tau_ref` 16→0.21; (B) 1−AUC → ~0 by step
-~30 (contrastive task trivially separable); (C) amplitudes **bounded** —
-fcst residual post-FFN 65 → 7 (vs Arm 1's 3.0e5): the stability
-mechanism; (D) embedding dimension-usage (higher = less collapse) rises
-0.01 → 0.20.*
-
 **Held-out eval & training horizon.** Standard 2L causal-transformer
 q-head (30k, `e_then_f`, bf16) on the Arm-2 backbone at three
 continuous-optimizer checkpoints, official GIFT-Eval:
@@ -66,6 +59,5 @@ bounded, no divergence) and underperforms the prior v11c/v16 backbones
 **Caveat — not isolated:** this config differs from v11c/v16 in ≥4
 confounded variables (bottleneck, dropkey 0.70 vs 0.90, the new loss,
 precision); "the cause is backbone-side / architectural" is a
-**hypothesis**, not a result of this experiment. Next steps:
-[`RESEARCH_PLAN.md`](RESEARCH_PLAN.md); recipe:
-[`RUN_PLAN.md`](RUN_PLAN.md).
+**hypothesis**, not a result of this experiment. Exact recipe: the run
+script [`scripts/run_ddp.sh`](scripts/run_ddp.sh).

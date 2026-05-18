@@ -66,7 +66,7 @@ for a in ax.flat:
         a.axvline(b, color="grey", ls="--", lw=.8, alpha=.6)
 
 ax[0,0].loglog(xs, loss, lw=1.1, color="#1f77b4", label="train loss (normalized InfoNCE)")
-ax[0,0].loglog(xs, tau, lw=1.1, color="#9467bd", label="loss_tau_ref (τ=0.10 ref)")
+ax[0,0].loglog(xs, tau, lw=1.1, color="#9467bd", label="loss_tau_ref (fixed τ=0.07 diag, ≥0)")
 ax[0,0].scatter([mns], [mn], color="green", zorder=5, s=18, label=f"min loss {mn:.4f}@{mns}")
 ax[0,0].set_title("A. Loss & τ-ref — 0→150k log-log"); ax[0,0].set_xlabel("step"); ax[0,0].set_ylabel("loss")
 ax[0,0].grid(True, which="both", ls=":", alpha=.4); ax[0,0].legend(fontsize=8)
