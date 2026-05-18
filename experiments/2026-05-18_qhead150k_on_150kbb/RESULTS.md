@@ -1,13 +1,13 @@
 # #300 — Does a longer-trained q-head close the bottleneck-fullfh gap?
 
-**Verdict — partial.** Matching q-head training to the body (30k →
+**Verdict — mostly not.** Matching q-head training to the body (30k →
 **150k** steps; same 150k body, same 2L causal arch — a clean
 **one-variable** test, unlike #296's bundle) lowers full GM-MASE
-**1.4090 → 1.3822** (−1.9%): the best point in this line, below #296's
-prior best (1.3936). It does **not** reach v11c (1.292) or beat
-seasonal-naive overall (1.0). So #296's 30k head was *mildly*
-undertrained — a small real effect, **not** the explanation for the
-gap. (Single seed; full-97 is the trusted metric, triage ~7–10% noisy.)
+**1.4090 → 1.3822** (−1.9%) — best in this line, but it does **not**
+reach v11c (1.292) or beat seasonal-naive (1.0). A longer head is a
+small real gain, **not** a closing of the gap: #296's 30k head was only
+*mildly* undertrained, so head-undertraining is **mostly not** the
+cause. (Single seed; full-97 is the trusted metric, triage ~7–10% noisy.)
 
 ![Per-domain relative MASE — 30k vs 150k head](plots/perdomain_star.png)
 *Per GIFT-Eval domain; distance from centre = GM relative MASE, dashed =
