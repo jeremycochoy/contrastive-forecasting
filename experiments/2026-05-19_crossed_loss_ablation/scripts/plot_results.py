@@ -101,23 +101,23 @@ if radar:
     doms = sorted(set().union(*[set(g) for _, _, g, _ in radar]))
     ang = np.linspace(0, 2 * np.pi, len(doms), endpoint=False).tolist()
     ang += ang[:1]
-    fig = plt.figure(figsize=(8, 8))
+    fig = plt.figure(figsize=(9.5, 9.5))
     ax = plt.subplot(111, polar=True)
     for lab, col, g, gm in radar:
         v = [g.get(d, np.nan) for d in doms] + [g.get(doms[0], np.nan)]
-        tag = f"{lab}" + (f"  (full GM {gm:.3f})" if gm else "")
-        ax.plot(ang, v, lw=1.7, label=tag, color=col)
+        tag = f"{lab}" + (f"  — full GM {gm:.3f}" if gm else "")
+        ax.plot(ang, v, lw=1.9, label=tag, color=col)
         ax.fill(ang, v, alpha=.06, color=col)
     ax.plot(ang, [1.0] * len(ang), lw=1.0, ls="--", color="green",
             label="seasonal naive (=1.0)")
     ax.set_xticks(ang[:-1])
-    ax.set_xticklabels(doms, fontsize=8)
+    ax.set_xticklabels(doms, fontsize=10)
     ax.set_title("#303 — held-out relative MASE per GIFT-Eval domain\n"
                  "(distance from centre = GM rel-MASE; lower better; "
-                 "dashed = seasonal naive)", fontsize=9)
-    ax.legend(loc="upper right", bbox_to_anchor=(1.32, 1.12), fontsize=8)
+                 "dashed = seasonal naive)", fontsize=11)
+    ax.legend(loc="upper right", bbox_to_anchor=(1.28, 1.10), fontsize=9)
     fig.tight_layout()
-    fig.savefig(f"{OUT}/perdomain_star.png", dpi=130)
+    fig.savefig(f"{OUT}/perdomain_star.png", dpi=140)
     print("radar arms:", [(l, round(gm, 4) if gm else None)
                           for l, _, _, gm in radar])
 else:
