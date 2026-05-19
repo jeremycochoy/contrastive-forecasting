@@ -11,10 +11,11 @@ full-97 GIFT-Eval metric, swapping fₜ↔hₗ for hₜ↔hₗ (B) lowers GM-MAS
 **1.4377 → 1.3572 (−5.6%)**, B beating A in **all 7 domains**; fₜ↔fₗ (C)
 gives −3.9%. Carrying both (A+B) lands at 1.4517 ≈ A — re-adding fₜ↔hₗ
 on top of B erases B's gain. These three single-seed, internally
-consistent points **point to fₜ↔hₗ as the harmful term** (per-arm CI
-needs multiple seeds — see Follow-up). Not the whole gap: best (B,
-1.357) is still ≈5% above v11c (1.292), the remainder in #296's
-bottleneck/dropkey/precision confound.
+consistent points **point to fₜ↔hₗ as the harmful term** (single seed;
+a per-arm CI would need multiple seeds). Not the whole gap: best (B,
+1.357) is still ≈5% above v11c (1.292) and far above the same backbone
+the #10 line uses (1.183 with a simple 30k head) — the deficit is
+largely the bottleneck-fullfh backbone, not this loss term.
 
 ![Per-domain relative MASE — A, B, C, A+B](plots/perdomain_star.png)
 *Radar chart, one spoke per GIFT-Eval domain; distance from centre = GM
@@ -37,21 +38,23 @@ q-head trained 30k on each backbone; 1.0 = seasonal naive, lower better):
 | **(C)** `full_ff_negs` | fₜ↔fₗ ∀ l≠t | 1.5185 | **1.3822** | −3.9 % |
 | **(A)+(B)** `full_fh_hh_negs` | both | 1.5426 | **1.4517** | +1.0 % |
 | *ref:* v11c (bneck-fullfh prior best) / seasonal-naive | — | — | 1.292 / 1.000 | — |
-| *ref:* best-ever R9_E13 (xfmr-q 12L, 60k, #127)† | — | 0.990† | **1.029** | — |
+| *ref:* #10 backbone (167k) + simple GRU q-head 30k | — | — | **1.183** | — |
+| *ref:* #10 backbone (167k) + xfmr-q 12L 60k = R9_E13 (#127)† | — | 0.990† | **1.029** | — |
 
-†R9_E13 is a heavier 12-layer quantile q-head on a *different* recipe —
-the project's best-ever GIFT-Eval, the achievable frontier, **not** a
-same-recipe #303 arm. Its triage 0.990 (apparently < 1.0) was optimistic
-vs the trusted full-97 **1.029** (its own TRIAGE_NOTE) — it does not beat
-seasonal naive in aggregate either, but comes far closer than any
-bottleneck-fullfh arm.
+†Both refs share the **same #10 backbone** (167k MOIRAI-HP, a
+*different* line from the bottleneck-fullfh arms — not same-recipe);
+they differ only in the q-head (simple 30k GRU → 1.183; heavier 12-layer
+transformer 60k, e_then_f → R9_E13 1.029, the project best-ever).
+R9_E13's triage 0.990 (apparently < 1.0) was optimistic vs the trusted
+full-97 1.029 (its own TRIAGE_NOTE); neither beats seasonal naive in
+aggregate, but both are far below every bottleneck-fullfh arm.
 
 Single seed per arm (matched to (A) for a clean one-variable contrast);
 triage (11-cfg) is ≈7–10 % noisy (#296), full-97 is the trusted metric.
 The four full-97 deltas exceed the ≈3 % checkpoint spread #296 treated as
 within-noise, and the sign pattern repeats on triage (B < C < A,A+B) and
 in the per-domain sweep (B beats A in 7/7) — but a confidence interval
-per arm would need multiple seeds (not run; see Follow-up).
+per arm would need multiple seeds (not run).
 
 ![Training curves (log–log)](plots/training_curves.png)
 *Contrastive loss, latent dimension usage (u_temporal / u_batch), the
@@ -117,27 +120,15 @@ Single channel, so same-time cross-channel negatives don't exist here.*
    contrastive loss (~5% above, from its larger negative set) and among
    the worst transfer. No arm diverged. The separation is held-out
    transfer, not training fit (echoes #296).
-2. **fₜ↔hₗ is an isolated, harmful contributor — not the whole gap.** B
-   beats A in all 7 domains and A+B collapsing back to ≈A pins fₜ↔hₗ as
-   the culprit; yet best (B, 1.357) is still ≈5% above v11c (1.292) and
-   far from the project best-ever (R9_E13, full 1.029, a heavier 12L
-   q-head on a different recipe — radar gold), beating seasonal naive
-   only in Sales/Nature. The crossed-loss choice is a small lever inside
-   a line that is itself well off the achievable frontier; the residual
-   stays in #296's bottleneck/dropkey/precision confound. *(Hypothesis, not
-   measured: fₜ↔hₗ penalises the forecast for resembling nearby-in-time
-   encoder states it legitimately should resemble in autocorrelated
-   series; the same-modality hₜ↔hₗ / fₜ↔fₗ spreads do not.)*
-
-## Follow-up
-
-- **Multi-seed confirmation** of (B) vs (A): the −5.6 % is a single-seed
-  delta; 2–3 extra seeds would put an interval on it.
-- **Adopt (B) `full_hh_negs`** as the bottleneck-fullfh loss default and
-  re-attack the residual ≈5 % to v11c on the still-confounded
-  bottleneck / dropkey / precision axes (#296).
-- **Econ/Fin** (≈2.8 even under (B)) remains the dominant geomean term —
-  the single largest lever (per #300), not aggregate tuning.
+2. **fₜ↔hₗ is the harmful loss term, but the backbone — not the loss —
+   is the dominant gap.** B beats A in all 7 domains and A+B collapsing
+   back to ≈A pins fₜ↔hₗ as the harmful term. Yet the **same #10
+   backbone** (167k, MOIRAI-HP — a different line) reaches **1.183 with a
+   simple 30k GRU q-head** and **1.029 with a 12L 60k head** (radar
+   gold), both far below every bottleneck-fullfh arm (best B 1.357):
+   even a simple short head on a strong backbone beats all four. So the
+   crossed-loss choice is a small lever inside a backbone line that is
+   itself well off the project frontier.
 
 ---
 
@@ -195,13 +186,22 @@ time is loss-variant-independent (B/C/A+B all ≈1 h 58 m — the extra term
 costs no measurable time); (A)'s longer ≈3 h 29 m is its shared #296
 session, not the loss, so it is not a controlled timing point.
 
-### Annex — gold-dashed reference model (R9_E13, #127)
+### Annex — reference models (same #10 backbone, two q-heads)
 
-Backbone *"beta"* (`tiny_full4096_moirai_hp_FRESH_RESUME50k`): **GRU
-patch embedding**, **6** transformer layers, **latent dim 384**, 6
-heads, C=1, T_RAW=4096, EWMA-RevIN(span 128); **≈50k** backbone steps.
-Q-head: **12-layer** causal-transformer quantile head, width **384**
-(= backbone) / 6 heads / FFN ×4 (≈1536), dropout 0.1, `e_then_f` input,
-forecast-len 16; **60k** q-head steps. (Vs the #303 arms' 6-layer
-encoder / 1-layer-d128 forecaster backbone + 30k 2-layer q-head — hence
-"different recipe".)
+Backbone *"beta"* (`tiny_full4096_moirai_hp_FRESH_RESUME50k`, the #10
+RESUME50k run): **GRU patch embedding**, **6** transformer layers,
+**latent dim 384**, 6 heads, C=1, T_RAW=4096, EWMA-RevIN(span 128);
+**167,000** backbone steps (fresh-init to 50k, then deterministic-resume
+to 167k — the `RESUME50k` prefix is the resume-checkpoint name, *not*
+the step count). Both gold references use this exact backbone, differing
+only in the q-head:
+
+- **simple head — full GM 1.183** (#10): legacy GRU quantile head,
+  **30k** steps, lr 3e-4, forecast-len 16.
+- **R9_E13 — full GM 1.029** (#127, radar gold): **12-layer**
+  causal-transformer quantile head, width **384** (= backbone) / 6
+  heads / FFN ×4 (≈1536), dropout 0.1, `e_then_f` input, forecast-len
+  16; **60k** steps.
+
+(Vs the #303 arms' 6-layer-encoder / 1-layer-d128-forecaster backbone +
+30k 2-layer q-head — hence "different recipe / line".)

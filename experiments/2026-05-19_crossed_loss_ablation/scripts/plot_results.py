@@ -193,15 +193,18 @@ def smooth(y):
 series = [(lab, col, load(lc)) for lab, col, lc, _ in ARMS]
 series = [(l, c, d) for l, c, d in series if d is not None and len(d.get("step", [])) > 1]
 if series:
-    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    fig, axes = plt.subplots(2, 3, figsize=(19, 10))
     panels = [
         ("loss", [("loss", None)], "contrastive loss (--pos-in-denominator)"),
-        ("dim", [("u_temporal", "-"), ("u_batch", "--")],
-         "latent dimension usage"),
+        ("ut", [("u_temporal", None)],
+         "latent dim usage — temporal (u_temporal)"),
+        ("ub", [("u_batch", None)],
+         "latent dim usage — batch (u_batch)"),
         ("tauref", [("loss_tau_ref", None)],
          "reference loss  loss_tau_ref (fixed-τ diagnostic)"),
         ("auc", [("__one_minus_auc__", None)], "1 − AUC"),
     ]
+    axes.flat[5].axis("off")  # 5 panels in a 2×3 grid
     for ax, (key, fields, title) in zip(axes.flat, panels):
         for lab, col, d in series:
             st = d["step"]
@@ -226,7 +229,6 @@ if series:
         ax.set_xlabel("step (log)"); ax.set_title(title, fontsize=10)
         ax.grid(True, which="both", ls=":", alpha=.4)
         ax.legend(fontsize=7)
-    axes.flat[1].set_ylabel("u_temporal (solid) / u_batch (dashed)")
     fig.suptitle("#303 crossed-loss ablation — training curves (log–log)",
                  fontsize=12)
     fig.tight_layout(rect=[0, 0, 1, 0.97])
