@@ -86,3 +86,14 @@ to #303) on elisa's free 4090 from the synced backbone via
 Backbones: hhxbf/fhhhff ~78% (ETA 0.8h, done ~20:30), hhff ~62%
 (ETA 1.8h, ~21:35). No NaN. Credit $5.60 — now comfortably covers
 backbone-only vast spend.
+
+## 2026-05-19 20:40Z — hhxbf+fhhhff DONE, downstream on elisa (FREE)
+Backbones hhxbf (loss 2.726) + fhhhff (2.395) hit 50k, BB DONE. Resume
+bundles (FINAL.pth+FINAL_optimizer.pth+losses+log) pulled via safe_pull,
+verified (45M/88M/15M), **committed** (artifacts/<arm>/, git add -f) —
+the key deliverable. Destroyed 37075647 (PRO4000, spent $2.31) +
+37076887 (4070STi, $1.60). Only 37075919 (hhff, 5070Ti) remains
+(~21:40, $0.31/h). Credit $4.21. Downstream q-head 30k + GIFT-Eval
+(triage/full, recipe-identical to #303) launched FREE on elisa:
+hhxbf→GPU1, fhhhff→GPU0, concurrent (~2h50m → ~23:30). hhff downstream
+queues when a GPU frees (~23:30).
