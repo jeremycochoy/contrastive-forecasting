@@ -29,8 +29,11 @@ os.makedirs(OUT, exist_ok=True)
 A_NAME = "enc_fcst_bneck128_dk07_fullfh_norminfonce_1L_fp16_ddp128_50k"
 # label, colour, losses_csv, full_eval_dir
 ARMS = [
+    # (A)'s #296 CSV is DDP-rank-doubled (100k rows / 50k steps); use the
+    # deduped copy from scripts/prep_A_losses.py (the #296 artifact is
+    # left untouched). Eval (summary.txt) is unaffected, used directly.
     ("(A) full_fh_negs", "#7f7f7f",
-     f"{A17}/runs/{A_NAME}_losses.csv",
+     f"{ART}/results/A_ref_losses_clean.csv",
      f"{A17}/results/gift_eval_full_{A_NAME}"),
     ("(B) full_hh_negs", "#1f77b4",
      f"{ART}/runs/cl_hh_50k_losses.csv",

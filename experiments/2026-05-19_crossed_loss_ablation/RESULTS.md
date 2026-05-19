@@ -1,17 +1,19 @@
-# Is (A)'s crossed fₜ↔hₗ negative the cause of the bottleneck-fullfh gap, or do its sibling crossed terms behave the same?
+# Which crossed-negative term drives the bottleneck-fullfh gap: forecast↔encoder (fₜ↔hₗ) vs its encoder↔encoder / forecaster↔forecaster siblings?
 
-**Verdict.** The siblings do **not** behave like (A). On the trusted
-full-97 GIFT-Eval metric, swapping (A)'s fₜ↔hₗ all-time crossed negative
-for the encoder–encoder sibling (B) hₜ↔hₗ lowers GM-MASE
-**1.4377 → 1.3572 (−5.6%)** — and (B) beats (A) in **every one of the 7
-domains**; the forecaster–forecaster sibling (C) fₜ↔fₗ gives −3.9%.
-Carrying **both** terms, (A)+(B), lands at 1.4517 ≈ (A) — adding (A)'s
-fₜ↔hₗ term back on top of (B) erases essentially all of (B)'s gain.
-These three single-seed, internally-consistent points **point to fₜ↔hₗ
-as the harmful loss component** (a per-arm confidence interval would need
-multiple seeds — single seed here; see Follow-up). It is not the whole
-gap: best (B, 1.357) is still ≈5% above v11c (1.292) and beats seasonal
-naive (1.0) in only 2 of 7 domains, so the remainder stays in #296's
+The bottleneck-fullfh loss-of-record adds one extra contrastive negative
+— each forecast fₜ pushed away from the encoder latent hₗ at *every*
+time l (the **fₜ↔hₗ** term; arm **A**). This ablation swaps it for the
+two structurally identical siblings — encoder↔encoder **hₜ↔hₗ** (arm
+**B**), forecaster↔forecaster **fₜ↔fₗ** (arm **C**) — and the union A+B.
+
+**Verdict.** The siblings do **not** behave like A. On the trusted
+full-97 GIFT-Eval metric, swapping fₜ↔hₗ for hₜ↔hₗ (B) lowers GM-MASE
+**1.4377 → 1.3572 (−5.6%)**, B beating A in **all 7 domains**; fₜ↔fₗ (C)
+gives −3.9%. Carrying both (A+B) lands at 1.4517 ≈ A — re-adding fₜ↔hₗ
+on top of B erases B's gain. These three single-seed, internally
+consistent points **point to fₜ↔hₗ as the harmful term** (per-arm CI
+needs multiple seeds — see Follow-up). Not the whole gap: best (B,
+1.357) is still ≈5% above v11c (1.292), the remainder in #296's
 bottleneck/dropkey/precision confound.
 
 ![Per-domain relative MASE — A, B, C, A+B](plots/perdomain_star.png)
@@ -55,101 +57,47 @@ objective harder did not transfer").*
 
 ## Question
 
-#296 (`2026-05-17_bottleneck_fullfh_ddp`) and #300 left the
-bottleneck-fullfh gap (full 1.438 vs v11c 1.292, seasonal-naive 1.0)
-confounded across the loss / bottleneck / dropkey / precision axes; #300
-ruled out q-head undertraining as the main cause. (A) — the
-recipe-of-record — adds, on top of the `cosine_similarity_batch` loss,
-**fₜ↔hₗ negatives**: every forecast fₜ contrasted against the encoder
-latent hₗ at *every* time position l (≠ the positive target t+1), same
-(batch, channel). This isolates the **loss** axis: do the structurally
-identical *sibling* crossed terms behave like (A)?
-
-- **(B)** hₜ↔hₗ, ∀ l≠t — encoder–encoder, all-time (`full_hh_negs`)
-- **(C)** fₜ↔fₗ, ∀ l≠t — forecaster–forecaster, all-time (`full_ff_negs`)
-- **(A)+(B)** both (A)'s and (B)'s crossed terms (`full_fh_hh_negs`)
-
-Vocabulary: *crossed negative* = a contrastive negative pair indexed
-across the time axis (l ≠ t / l ≠ t+1) within the same (batch, channel),
-as opposed to the cross-channel / cross-batch negatives already in the
-baseline. *GM-Relative MASE* = geometric mean over GIFT-Eval configs of
-(model MASE ÷ seasonal-naive MASE); 1.0 ties seasonal naive, lower wins.
-*Transfer* = held-out GIFT-Eval, as opposed to the contrastive
-pre-training objective itself.
+The bottleneck-fullfh gap (full 1.438 vs v11c 1.292, seasonal-naive
+1.0) is confounded across loss / bottleneck / dropkey / precision (#296);
+#300 ruled out q-head undertraining. This isolates the **loss** axis:
+replace the of-record fₜ↔hₗ all-time crossed negative with each
+structurally identical sibling and measure held-out GIFT-Eval.
+*GM-Relative MASE* = geomean over configs of model MASE ÷ seasonal-naive
+MASE (1.0 = seasonal naive, lower better).
 
 ## Protocol
 
-Each variant is `cosine_similarity_batch` with the single l=t
-forecaster–encoder negative **replaced by** its all-time crossed term —
-the *identical* structural transform that defines (A)
-(`cosine_similarity_batch_full_fh_negs`); (A)+(B) carries both terms.
-logsumexp form, `--pos-in-denominator` (normalized InfoNCE) supported.
-Implementation in `src/loss.py`; 6 closed-form / mask unit tests
-(`tests/test_loss.py::TestCrossedLossSiblings`, incl. orthonormal-C1
-exact-value pins of the negative composition + masks) plus the three
-variants added to the stability-suite parametrization (18 further
-cases); combined loss suite `test_loss.py` + `test_loss_stability.py`
-= 113 passed.
-
-*Baseline (A) audited independently* (it defines every comparison): the
-positive pair (h_{t+1}, fₜ) is provably absent from (A)'s negative sum —
-masked at l=t+1 in the (fₜ,hₗ) term and on the b₁=b₂ diagonal of the
-cross-batch term. Black-box exactness (aligning fₜ to the positive only
-drops the negatives-only loss by **exactly 1/τ**, B=1 and B=2) plus
-white-box assertion that both masked slices are −∞ pre-logsumexp; the
-positive enters only the denominator, and only via the intended
-`--pos-in-denominator` normalized-InfoNCE term (a separate explicit
-term, not a leaked negative). Pinned by
-`tests/test_loss.py::TestFullFHNegs::test_positive_target_excluded`.
-
-**Backbone recipe — only `--loss-shape` changes.** The comparison base
-is (A)'s *backbone-of-record*: the #296 orchestrator `a1` run
-(`enc_fcst_bneck128_dk07_fullfh_norminfonce_1L_fp16_ddp128_50k`) that
-#296/#300 actually evaluate — 1-layer forecaster, fp16 group (residual
-fp32 / attn-ffn-conv fp16), 2-GPU DDP global-batch 256, 50k, seed
-20260517, `--pos-in-denominator`. `run_ddp.sh`'s *literal* 2-layer / bf16
-form diverged at ~step 1.1k (2026-05-17 RESULTS.md), so the controlled
-"change only the loss" test must start from the 1L/fp16 run that
-produced (A). Per backbone: a 30k 2L-causal-transformer q-head, then
-official GIFT-Eval (triage 11, full 97). Exact commands:
-[`scripts/run_all.sh`](scripts/run_all.sh) (recipe verbatim, only
-`--loss-shape` differs across arms).
-
-**Wall-clock** (2× RTX 4090, idle box, 2026-05-19; full breakdown in the
-back annex). The B/C/A+B set is the controlled timing comparison
-(back-to-back, same machine): each 50k DDP backbone ≈ **2 h**, each
-downstream (30k q-head + triage + full-97 eval) ≈ **2 h 50 m**;
-end-to-end for the three new arms **11 h 34 m** (3 serial backbones 5 h
-55 m, then downstream 5 h 39 m with B+C concurrent). Runtime is
-loss-variant-independent (B 1 h 59 m, C 1 h 57 m, A+B 1 h 59 m —
-A+B's extra term adds no measurable time). (A)'s #296 backbone took
-≈3 h 29 m but in a GPU-shared session, so it is not a controlled timing
-point (its downstream ≈2 h 47 m matches the others).
+Each arm is `cosine_similarity_batch` with its single l=t
+forecaster–encoder negative **replaced by** the all-time crossed term
+(A+B carries both) — the identical transform that defines A; logsumexp,
+`--pos-in-denominator`. **Only `--loss-shape` changes** from A's
+backbone-of-record (#296 run `a1`: 1L forecaster, fp16 group, 2-GPU DDP
+global-batch 256, 50k, seed 20260517) — `run_ddp.sh`'s literal 2L/bf16
+form diverged (#296 RESULTS.md), so the controlled test starts from the
+1L/fp16 run #296/#300 evaluate. Per backbone: 30k 2L-causal q-head +
+official GIFT-Eval (triage 11, full 97). Commands:
+[`scripts/run_all.sh`](scripts/run_all.sh). Tests: 6 closed-form/mask
+pins (`TestCrossedLossSiblings`) + 113-test loss suite green; baseline A
+independently re-audited positive-free
+([`scripts/verify_A_positive_exclusion.py`](scripts/verify_A_positive_exclusion.py),
+all PASS). Wall-clock in the back annex.
 
 ## What we learned
 
-1. **(A)'s fₜ↔hₗ crossed term is the worst single choice.** Replacing
-   it with hₜ↔hₗ (B) lowers full GM-MASE 1.4377 → 1.3572 (−5.6 %), with
-   (B) below (A) in **all 7 domains**; fₜ↔fₗ (C) gives 1.3822 (−3.9 %).
-2. **The effect is the fₜ↔hₗ term, not "more negatives".** (A)+(B)
-   (1.4517) sits ≈(A) and ≈0.095 *worse* than (B) alone — re-introducing
-   fₜ↔hₗ on top of (B) removes essentially all of (B)'s gain. The three
-   single-seed measurements are mutually consistent and point to fₜ↔hₗ
-   as the harmful term (not yet a multi-seed interval — see Follow-up).
-3. **Contrastive-objective fit does not predict transfer.** (A), (B),
-   (C) reach near-identical contrastive proxies (loss / `loss_tau_ref` /
-   1−AUC / dim-usage) yet differ up to 5.6% in GM-MASE; (A)+(B) has the
-   *highest* contrastive loss (~5% above, expected from its larger
-   negative set) and among the *worst* transfer. No arm diverged. The
-   GM-MASE separation is held-out transfer, unexplained by training fit.
-4. **It is an isolated contributor, not the whole gap.** Best (B, 1.357)
-   remains ≈5 % above v11c (1.292) and beats seasonal naive in only
-   Sales/Nature; the rest stays in #296's bottleneck/dropkey/precision
-   confound. *(Hypothesis, not measured here: contrasting fₜ against
-   encoder states hₗ at every non-target lag penalises the forecast for
-   resembling nearby-in-time encoder states it legitimately should
-   resemble in autocorrelated series, hurting transfer; the
-   same-modality hₜ↔hₗ / fₜ↔fₗ spreads do not.)*
+1. **Contrastive-objective fit does not predict transfer.** A/B/C reach
+   near-identical contrastive proxies (loss, `loss_tau_ref`, 1−AUC,
+   dim-usage) yet differ up to 5.6% in GM-MASE; A+B has the highest
+   contrastive loss (~5% above, from its larger negative set) and among
+   the worst transfer. No arm diverged. The separation is held-out
+   transfer, not training fit (echoes #296).
+2. **fₜ↔hₗ is an isolated, harmful contributor — not the whole gap.** B
+   beats A in all 7 domains and A+B collapsing back to ≈A pins fₜ↔hₗ as
+   the culprit; yet best (B, 1.357) is still ≈5% above v11c (1.292),
+   beating seasonal naive only in Sales/Nature, so the residual stays in
+   #296's bottleneck/dropkey/precision confound. *(Hypothesis, not
+   measured: fₜ↔hₗ penalises the forecast for resembling nearby-in-time
+   encoder states it legitimately should resemble in autocorrelated
+   series; the same-modality hₜ↔hₗ / fₜ↔fₗ spreads do not.)*
 
 ## Follow-up
 
@@ -212,4 +160,7 @@ triage (11) + full (97), single GPU. B/C/A+B: idle box, back-to-back,
 
 Phase 1 (3 backbones, serial — DDP holds both GPUs): 5 h 55 m.
 Phase 2 (downstream — B+C concurrent on GPU0/GPU1, then A+B alone):
-5 h 39 m. **End-to-end (3 new arms, code→eval): 11 h 34 m.**
+5 h 39 m. **End-to-end (3 new arms, code→eval): 11 h 34 m.** Backbone
+time is loss-variant-independent (B/C/A+B all ≈1 h 58 m — the extra term
+costs no measurable time); (A)'s longer ≈3 h 29 m is its shared #296
+session, not the loss, so it is not a controlled timing point.
