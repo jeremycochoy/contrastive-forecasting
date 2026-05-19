@@ -94,52 +94,58 @@ def agg_gm(sum_txt):
     return None
 
 
-radar = []  # (label, colour, {domain: gm}, agg_gm, linestyle)
+radar = []  # (label, colour, {domain: gm}, agg_gm, linestyle, lw, fill)
 for lab, col, _, edir in ARMS:
     g = rel_by_domain(f"{edir}/summary.txt", dom_map(f"{edir}/all_results.csv"))
     if g:
-        radar.append((lab, col, g, agg_gm(f"{edir}/summary.txt"), "-"))
+        radar.append((lab, col, g, agg_gm(f"{edir}/summary.txt"),
+                      "-", 1.9, True))
 
-# Reference: the project's best-ever GIFT-Eval (full-97) — #127's q-head
-# sweep winner R9_E13 (xfmr-q 12L, e_then_f, 60k; a heavier head on a
-# DIFFERENT recipe, NOT a same-recipe #303 arm — shown as the achievable
-# frontier). Its triage 0.990 was optimistic vs full 1.029 (their
-# TRIAGE_NOTE); full-97 is what we plot.
-REF_DIR = ("/home/jupyter/contrastive-forecasting/experiments/"
-           "2026-05-05_exp_qhead_improvements/results/"
-           "R9_E13_xfmr12L_quant_moirai_cosine_e_then_f_60k_full")
-gref = rel_by_domain(f"{REF_DIR}/summary.txt", dom_map(f"{REF_DIR}/all_results.csv"))
-if gref:
-    radar.append(("best historical · xfmr-q 12L (#127)", "#b8860b",
-                  gref, agg_gm(f"{REF_DIR}/summary.txt"), "--"))
+REFS = [
+    # the project's best-ever GIFT-Eval (full-97) — #127 R9_E13 (xfmr-q
+    # 12L 60k, a heavier head on a DIFFERENT recipe; achievable frontier)
+    ("best-ever · xfmr-q 12L (#127)", "#b8860b", "--", 2.2,
+     "/home/jupyter/contrastive-forecasting/experiments/"
+     "2026-05-05_exp_qhead_improvements/results/"
+     "R9_E13_xfmr12L_quant_moirai_cosine_e_then_f_60k_full"),
+    # v11c — best encoder-forecaster arch (the bottleneck-fullfh line's
+    # prior best, #248-era enc6/fcst1 dropkey-0.9); thin dashed.
+    ("v11c · best enc-fcst", "#9467bd", (0, (5, 2)), 1.4,
+     "/home/jupyter/contrastive-forecasting/experiments/"
+     "2026-05-11_exp_encoder_forecaster/results/gift_eval_full_v11c"),
+]
+for lab, col, lsty, lw, d in REFS:
+    g = rel_by_domain(f"{d}/summary.txt", dom_map(f"{d}/all_results.csv"))
+    if g:
+        radar.append((lab, col, g, agg_gm(f"{d}/summary.txt"),
+                      lsty, lw, False))
 
 if radar:
-    doms = sorted(set().union(*[set(g) for _, _, g, _, _ in radar]))
+    doms = sorted(set().union(*[set(g) for _, _, g, _, _, _, _ in radar]))
     ang = np.linspace(0, 2 * np.pi, len(doms), endpoint=False).tolist()
     ang += ang[:1]
     fig = plt.figure(figsize=(9.5, 9.5))
     ax = plt.subplot(111, polar=True)
-    for lab, col, g, gm, lsty in radar:
+    for lab, col, g, gm, lsty, lw, fill in radar:
         v = [g.get(d, np.nan) for d in doms] + [g.get(doms[0], np.nan)]
         tag = f"{lab}" + (f"  — full GM {gm:.3f}" if gm else "")
-        ref = lsty == "--"
-        ax.plot(ang, v, lw=2.4 if ref else 1.9, ls=lsty, label=tag,
-                color=col)
-        if not ref:
+        ax.plot(ang, v, lw=lw, ls=lsty, label=tag, color=col)
+        if fill:
             ax.fill(ang, v, alpha=.06, color=col)
     ax.plot(ang, [1.0] * len(ang), lw=1.0, ls=":", color="green",
             label="seasonal naive (=1.0)")
     ax.set_xticks(ang[:-1])
     ax.set_xticklabels(doms, fontsize=10)
     ax.set_title("#303 — held-out relative MASE per GIFT-Eval domain\n"
-                 "(distance from centre = GM rel-MASE; lower better; "
-                 "dotted = seasonal naive; dashed gold = best-ever, #127)",
-                 fontsize=11)
+                 "(distance from centre = GM rel-MASE; lower better; dotted "
+                 "= seasonal naive; dashed gold = best-ever #127; "
+                 "thin dashed purple = v11c best enc-fcst)",
+                 fontsize=10.5)
     ax.legend(loc="upper right", bbox_to_anchor=(1.28, 1.10), fontsize=9)
     fig.tight_layout()
     fig.savefig(f"{OUT}/perdomain_star.png", dpi=140)
     print("radar arms:", [(l, round(gm, 4) if gm else None)
-                          for l, _, _, gm, _ in radar])
+                          for l, _, _, gm, _, _, _ in radar])
 else:
     print("radar SKIPPED — no full-eval summaries yet")
 

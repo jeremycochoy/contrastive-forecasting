@@ -25,8 +25,11 @@ dominated by **Econ/Fin** (A 3.40 → B 2.79), the same single-domain
 driver #300 flagged; only **Sales** (B 0.855) and **Nature** (B 0.951)
 beat seasonal naive. The **gold dashed** ring is the project's best-ever
 GIFT-Eval (R9_E13, #127 — a heavier 12L q-head on a different recipe,
-full GM 1.029): it sits well inside every #303 arm on every domain —
-the achievable frontier this loss line is still far from.*
+full GM 1.029); the **thin purple dashed** ring is **v11c**, the best
+encoder-forecaster arch (the bottleneck-fullfh line's prior best, full
+GM 1.292). Both sit inside every #303 arm on every domain — v11c (a
+plain encoder-forecaster) already beats all four crossed-loss variants;
+R9_E13 is the achievable frontier this loss line is still far from.*
 
 **Held-out GM-Relative MASE** (official GIFT-Eval; standard 2L causal
 q-head trained 30k on each backbone; 1.0 = seasonal naive, lower better):
