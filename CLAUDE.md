@@ -81,4 +81,4 @@ export HUGGING_FACE_HUB_TOKEN="$HF_TOKEN"
 
 - [ ] Working in a worktree, not the main `experiments` checkout.
 - [ ] Feature branch from `experiments`; PR targets `experiments` (never `master`).
-- [ ] PR body opens with `«Agent <model> writing»` if agent-authored.
+- [ ] PR body opens with `«Agent <name> writing»` if agent-authored.
