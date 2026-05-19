@@ -17,11 +17,15 @@ needs multiple seeds — see Follow-up). Not the whole gap: best (B,
 bottleneck/dropkey/precision confound.
 
 ![Per-domain relative MASE — A, B, C, A+B](plots/perdomain_star.png)
-*Per GIFT-Eval domain; distance from centre = GM relative MASE, dashed
-hexagon = seasonal naive (1.0), lower = better. (B) (blue) sits inside
-(A) (grey) on all seven domains; the geomean is dominated by **Econ/Fin**
-(A 3.40 → B 2.79), the same single-domain driver #300 flagged. Only
-**Sales** (B 0.855) and **Nature** (B 0.951) beat seasonal naive.*
+*Radar chart, one spoke per GIFT-Eval domain; distance from centre = GM
+relative MASE, lower = better; dotted green = seasonal naive (1.0).
+(B) (blue) sits inside (A) (grey) on all seven domains; the geomean is
+dominated by **Econ/Fin** (A 3.40 → B 2.79), the same single-domain
+driver #300 flagged; only **Sales** (B 0.855) and **Nature** (B 0.951)
+beat seasonal naive. The **gold dashed** ring is the project's best-ever
+GIFT-Eval (R9_E13, #127 — a heavier 12L q-head on a different recipe,
+full GM 1.029): it sits well inside every #303 arm on every domain —
+the achievable frontier this loss line is still far from.*
 
 **Held-out GM-Relative MASE** (official GIFT-Eval; standard 2L causal
 q-head trained 30k on each backbone; 1.0 = seasonal naive, lower better):
@@ -32,7 +36,15 @@ q-head trained 30k on each backbone; 1.0 = seasonal naive, lower better):
 | **(B)** `full_hh_negs` | hₜ↔hₗ ∀ l≠t | 1.4461 | **1.3572** | **−5.6 %** |
 | **(C)** `full_ff_negs` | fₜ↔fₗ ∀ l≠t | 1.5185 | **1.3822** | −3.9 % |
 | **(A)+(B)** `full_fh_hh_negs` | both | 1.5426 | **1.4517** | +1.0 % |
-| v11c (prior best) / seasonal-naive | — | — | 1.292 / 1.000 | — |
+| *ref:* v11c (bneck-fullfh prior best) / seasonal-naive | — | — | 1.292 / 1.000 | — |
+| *ref:* best-ever R9_E13 (xfmr-q 12L, 60k, #127)† | — | 0.990† | **1.029** | — |
+
+†R9_E13 is a heavier 12-layer quantile q-head on a *different* recipe —
+the project's best-ever GIFT-Eval, the achievable frontier, **not** a
+same-recipe #303 arm. Its triage 0.990 (apparently < 1.0) was optimistic
+vs the trusted full-97 **1.029** (its own TRIAGE_NOTE) — it does not beat
+seasonal naive in aggregate either, but comes far closer than any
+bottleneck-fullfh arm.
 
 Single seed per arm (matched to (A) for a clean one-variable contrast);
 triage (11-cfg) is ≈7–10 % noisy (#296), full-97 is the trusted metric.
@@ -84,12 +96,16 @@ independently re-audited positive-free
 ([`scripts/verify_A_positive_exclusion.py`](scripts/verify_A_positive_exclusion.py),
 all PASS). Wall-clock in the back annex.
 
-![Loss-of-record (A): the fₜ↔hₗ all-time crossed negative](plots/loss_diagram.png)
-*The loss-of-record A on a time ladder: anchor fₜ has one positive
-(h_{t+1}, green) and is pushed from the encoder hₗ at every other l (red,
-the **fₜ↔hₗ** term). Siblings reuse the same ladder — (B) swaps the
-anchor row to hₜ↔hₗ, (C) to fₜ↔fₗ (annex). Base same-time cross-channel
-& cross-batch negatives (shared by all arms) omitted for clarity.*
+![Contrastive loss structure over time & batch](plots/loss_diagram.png)
+*The contrastive structure on a (time × batch) ladder — horizontal =
+time, vertical = batch (two batch lines b, b′; each carries an f and an
+h node per step). From one anchor f_{b,t}: the positive h_{b,t+1}
+(green); the loss-of-record's **(A) fₜ↔hₗ** all-time crossed negative
+(red, l≠t+1); the swapped siblings **(B) hₜ↔hₗ** (blue, l≠t) and **(C)
+fₜ↔fₗ** (orange, l≠t); and a cross-batch negative (purple, b≠b′) — the
+batch axis, shared by every arm. Single channel, so same-time
+cross-channel negatives don't exist here; links shown from one anchor
+for clarity (the loss sums over all).*
 
 ## What we learned
 
@@ -101,9 +117,12 @@ anchor row to hₜ↔hₗ, (C) to fₜ↔fₗ (annex). Base same-time cross-chan
    transfer, not training fit (echoes #296).
 2. **fₜ↔hₗ is an isolated, harmful contributor — not the whole gap.** B
    beats A in all 7 domains and A+B collapsing back to ≈A pins fₜ↔hₗ as
-   the culprit; yet best (B, 1.357) is still ≈5% above v11c (1.292),
-   beating seasonal naive only in Sales/Nature, so the residual stays in
-   #296's bottleneck/dropkey/precision confound. *(Hypothesis, not
+   the culprit; yet best (B, 1.357) is still ≈5% above v11c (1.292) and
+   far from the project best-ever (R9_E13, full 1.029, a heavier 12L
+   q-head on a different recipe — radar gold), beating seasonal naive
+   only in Sales/Nature. The crossed-loss choice is a small lever inside
+   a line that is itself well off the achievable frontier; the residual
+   stays in #296's bottleneck/dropkey/precision confound. *(Hypothesis, not
    measured: fₜ↔hₗ penalises the forecast for resembling nearby-in-time
    encoder states it legitimately should resemble in autocorrelated
    series; the same-modality hₜ↔hₗ / fₜ↔fₗ spreads do not.)*
