@@ -74,3 +74,15 @@ fhhhff 18.2k loss2.45 ETA2.3h. No NaN, single DDP, sync robust.
 Credit $8.18 (burn ≈$1.58/h). First completions ~20:30 (hhxbf/fhhhff),
 hhff ~21:45. Budget discipline: destroy 37075647 (PRO4000 $0.55) the
 moment its backbone FINAL syncs; downstream consolidated on 37076887.
+
+## 2026-05-19 19:47Z — PLAN REVISION (budget): downstream on elisa, FREE
+Slow prosumer downstream would cost ~$3-5 (budget $5.60). elisa GPU1 is
+fully free (GPU0 has 3.8GB parked by another session, 0% util). Revised:
+backbones finish on vast → commit resume-capable ckpt+optimizer+losses,
+**destroy each vast box immediately** (zero post-backbone vast spend) →
+run all downstream (q-head 30k + GIFT-Eval triage/full, recipe-identical
+to #303) on elisa's free 4090 from the synced backbone via
+`scripts/local_downstream.sh`. Faster (4090 = of-record card) and free.
+Backbones: hhxbf/fhhhff ~78% (ETA 0.8h, done ~20:30), hhff ~62%
+(ETA 1.8h, ~21:35). No NaN. Credit $5.60 — now comfortably covers
+backbone-only vast spend.

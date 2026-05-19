@@ -67,11 +67,11 @@ print(f"{'arm':30s} {'triageGM':>9s} {'fullGM':>8s} {'step':>7s} "
       f"{'loss':>8s} {'tau_ref':>8s} {'1-AUC':>9s} {'u_tmp':>6s} "
       f"{'u_bat':>6s} {'NaN':>4s} {'rows':>6s}")
 for lab, sh in NEW:
-    base = f"{SYNC}/sync_{sh}"
     name = f"cl_{sh}_50k"
-    row, n, nan = last_row(f"{base}/runs/{name}_losses.csv")
-    tgm = gm(f"{base}/results/gift_eval_triage_{name}")
-    fgm = gm(f"{base}/results/gift_eval_full_{name}")
+    # backbone losses synced from vast; downstream evals computed locally on elisa
+    row, n, nan = last_row(f"{SYNC}/sync_{sh}/runs/{name}_losses.csv")
+    tgm = gm(f"{SYNC}/downstream_{sh}/results/gift_eval_triage_{name}")
+    fgm = gm(f"{SYNC}/downstream_{sh}/results/gift_eval_full_{name}")
     if row:
         step = row.get("step", "—")
         loss = f(row.get("loss"))

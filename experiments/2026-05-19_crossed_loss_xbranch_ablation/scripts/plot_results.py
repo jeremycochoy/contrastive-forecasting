@@ -37,13 +37,13 @@ ARMS = [
      f"{ART303}/results/gift_eval_full_cl_fhhh_50k", "-", 1.4, False),
     ("(B)+(C) full_hh_ff [#307]", "#d62728",
      f"{SY}/sync_hhff/runs/cl_hhff_50k_losses.csv",
-     f"{SY}/sync_hhff/results/gift_eval_full_cl_hhff_50k", "-", 2.4, True),
+     f"{SY}/downstream_hhff/results/gift_eval_full_cl_hhff_50k", "-", 2.4, True),
     ("(A)+(B)+(C) full_fh_hh_ff [#307]", "#9467bd",
      f"{SY}/sync_fhhhff/runs/cl_fhhhff_50k_losses.csv",
-     f"{SY}/sync_fhhhff/results/gift_eval_full_cl_fhhhff_50k", "-", 2.4, True),
+     f"{SY}/downstream_fhhhff/results/gift_eval_full_cl_fhhhff_50k", "-", 2.4, True),
     ("(B) xbranch-free [#307]", "#17becf",
      f"{SY}/sync_hhxbf/runs/cl_hhxbf_50k_losses.csv",
-     f"{SY}/sync_hhxbf/results/gift_eval_full_cl_hhxbf_50k", "-", 2.4, True),
+     f"{SY}/downstream_hhxbf/results/gift_eval_full_cl_hhxbf_50k", "-", 2.4, True),
 ]
 REFS = [
     ("best-ever · xfmr-q 12L (#127)", "#b8860b", "--", 2.2,
