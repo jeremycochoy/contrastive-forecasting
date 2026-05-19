@@ -59,3 +59,11 @@ attempts left 2 duplicate DDP jobs on 37075647 + a self-matching
 hard-killer (`_hardkill.sh`) → single clean run. (c) duplicate
 xbranch-hhxbf label → 37075919 relabelled xbranch-hhff.
 Burn rate ≈ $1.26/h (3 boxes). sync_loop detached pid in state/.
+
+## 2026-05-19 17:29Z — backbones ~16-17% (healthy)
+hhxbf step8400 loss2.83 3.7sps | hhff step7300 loss2.40 2.6sps |
+fhhhff step8400 loss2.50 3.8sps. No NaN, single DDP each, sync robust.
+Credit $9.34 (burn ≈$1.5/h incl. ~1.7GB/h sync egress). ETA: hhxbf/fhhhff
+~20:30, hhff ~22:00. Budget plan: destroy 37075647 (PRO4000 $0.55,
+priciest) immediately after its backbone syncs; consolidate downstream
+on 37076887 (4070STi $0.41) to cap spend.
