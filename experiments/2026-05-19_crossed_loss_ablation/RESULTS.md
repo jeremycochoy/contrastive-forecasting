@@ -44,7 +44,9 @@ per arm would need multiple seeds (not run; see Follow-up).
 ![Training curves (log–log)](plots/training_curves.png)
 *Contrastive loss, latent dimension usage (u_temporal / u_batch), the
 fixed-τ `loss_tau_ref` diagnostic, and 1−AUC, all log–log, four arms
-overlaid. (A), (B), (C) are near-identical (final loss 2.18 / 2.18 /
+overlaid (thick = rolling-median smoothed, raw faint behind —
+`loss_tau_ref`/1−AUC are step-to-step spiky). (A), (B), (C) are
+near-identical (final loss 2.18 / 2.18 /
 2.15, `loss_tau_ref` 0.20–0.21, u_temporal ≈0.20, u_batch ≈0.16–0.17,
 1−AUC ≈6e-8 — positives fully separated from negatives); (A)+(B) sits
 ~5% higher in contrastive loss (2.29, `loss_tau_ref` 0.23, u_temporal
@@ -81,6 +83,13 @@ pins (`TestCrossedLossSiblings`) + 113-test loss suite green; baseline A
 independently re-audited positive-free
 ([`scripts/verify_A_positive_exclusion.py`](scripts/verify_A_positive_exclusion.py),
 all PASS). Wall-clock in the back annex.
+
+![Loss-of-record (A): the fₜ↔hₗ all-time crossed negative](plots/loss_diagram.png)
+*The loss-of-record A on a time ladder: anchor fₜ has one positive
+(h_{t+1}, green) and is pushed from the encoder hₗ at every other l (red,
+the **fₜ↔hₗ** term). Siblings reuse the same ladder — (B) swaps the
+anchor row to hₜ↔hₗ, (C) to fₜ↔fₗ (annex). Base same-time cross-channel
+& cross-batch negatives (shared by all arms) omitted for clarity.*
 
 ## What we learned
 

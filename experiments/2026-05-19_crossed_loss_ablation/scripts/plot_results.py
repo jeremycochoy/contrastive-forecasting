@@ -156,6 +156,23 @@ def posmask(step, y):
     return step[m], y[m]
 
 
+def smooth(y):
+    """Rolling median — spike-robust, minimal lag (loss_tau_ref / 1−AUC
+    are step-to-step spiky and unreadable raw). Window scales with the
+    series length; edge-padded so the early descent is preserved."""
+    y = np.asarray(y, float)
+    n = len(y)
+    if n < 8:
+        return y
+    w = max(21, n // 400)
+    if w % 2 == 0:
+        w += 1
+    w = min(w, n if n % 2 else n - 1)
+    yp = np.pad(y, w // 2, mode="edge")
+    sw = np.lib.stride_tricks.sliding_window_view(yp, w)
+    return np.nanmedian(sw, axis=1)
+
+
 series = [(lab, col, load(lc)) for lab, col, lc, _ in ARMS]
 series = [(l, c, d) for l, c, d in series if d is not None and len(d.get("step", [])) > 1]
 if series:
@@ -183,8 +200,11 @@ if series:
                 x, yy = posmask(st, y)
                 if len(x) == 0:
                     continue
-                ax.plot(x, yy, lw=.8, color=col, ls=(ls or "-"),
-                        label=(lbl if lbl else None))
+                # raw faint behind; thick smoothed (median) on top
+                ax.plot(x, yy, lw=.5, color=col, ls=(ls or "-"), alpha=.16)
+                xs, ys = posmask(st, smooth(y))
+                ax.plot(xs, ys, lw=1.9, color=col, ls=(ls or "-"),
+                        alpha=.95, label=(lbl if lbl else None))
         ax.set_xscale("log"); ax.set_yscale("log")
         ax.set_xlabel("step (log)"); ax.set_title(title, fontsize=10)
         ax.grid(True, which="both", ls=":", alpha=.4)
