@@ -1,4 +1,4 @@
-# Which crossed-negative term drives the bottleneck-fullfh gap: forecast↔encoder (fₜ↔hₗ) vs its encoder↔encoder / forecaster↔forecaster siblings?
+# Is the forecast↔encoder crossed negative (fₜ↔hₗ) the cause of the bottleneck-fullfh gap, or do its encoder↔encoder / forecaster↔forecaster siblings behave the same?
 
 The bottleneck-fullfh loss-of-record adds one extra contrastive negative
 — each forecast fₜ pushed away from the encoder latent hₗ at *every*
