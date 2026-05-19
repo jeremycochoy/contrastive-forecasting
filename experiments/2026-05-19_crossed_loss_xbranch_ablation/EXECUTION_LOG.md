@@ -106,3 +106,11 @@ Total vast spend ≈ $7.08 (start $10.88 → credit $3.80; PRO4000 $2.31 +
 4070STi $1.60 + 5070Ti $1.61 + early throttled-restart waste ~$0.6).
 Downstream FREE on elisa: hhxbf/fhhhff q-heads ~21:50 → evals → ~23:25;
 hhff downstream deferred (auto-starts when a GPU frees ~23:25).
+
+## 2026-05-19 22:07Z — first triage GMs (sanity: code works end-to-end)
+q-heads done cleanly; triage-11 GM: hhxbf(B-xbfree)=1.4843,
+fhhhff(A+B+C)=1.6315 (err=0). vs #303 triage: A 1.5611, B 1.4461,
+C 1.5185, A+B 1.5426. hhxbf ≈ #303 best (B); fhhhff (all-3 incl f↔h)
+worst — directionally consistent with "f↔h negative is harmful".
+Triage is ~7-10% noisy (#303); full-97 (trusted) running, ETA ~23:20.
+hhff downstream still deferred (auto when GPU frees).
