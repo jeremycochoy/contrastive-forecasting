@@ -97,3 +97,12 @@ the key deliverable. Destroyed 37075647 (PRO4000, spent $2.31) +
 (triage/full, recipe-identical to #303) launched FREE on elisa:
 hhxbf→GPU1, fhhhff→GPU0, concurrent (~2h50m → ~23:30). hhff downstream
 queues when a GPU frees (~23:30).
+
+## 2026-05-19 21:41Z — ALL 3 BACKBONES DONE + committed; zero vast spend
+hhff hit 50k (loss 2.300). All 3 resume bundles (FINAL.pth +
+FINAL_optimizer.pth + losses + log) committed to artifacts/<arm>/.
+Destroyed 37075919 (5070Ti, $1.61). **No vast instances running.**
+Total vast spend ≈ $7.08 (start $10.88 → credit $3.80; PRO4000 $2.31 +
+4070STi $1.60 + 5070Ti $1.61 + early throttled-restart waste ~$0.6).
+Downstream FREE on elisa: hhxbf/fhhhff q-heads ~21:50 → evals → ~23:25;
+hhff downstream deferred (auto-starts when a GPU frees ~23:25).
