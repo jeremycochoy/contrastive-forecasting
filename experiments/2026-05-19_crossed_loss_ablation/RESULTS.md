@@ -99,13 +99,15 @@ all PASS). Wall-clock in the back annex.
 ![Contrastive loss structure over time & batch](plots/loss_diagram.png)
 *The contrastive structure on a (time × batch) ladder — horizontal =
 time, vertical = batch (two batch lines b, b′; each carries an f and an
-h node per step). From one anchor f_{b,t}: the positive h_{b,t+1}
-(green); the loss-of-record's **(A) fₜ↔hₗ** all-time crossed negative
-(red, l≠t+1); the swapped siblings **(B) hₜ↔hₗ** (blue, l≠t) and **(C)
-fₜ↔fₗ** (orange, l≠t); and a cross-batch negative (purple, b≠b′) — the
-batch axis, shared by every arm. Single channel, so same-time
-cross-channel negatives don't exist here; links shown from one anchor
-for clarity (the loss sums over all).*
+h node per step). **Arrows: ▶◀ inward = positive (attract), ◀▶ outward
+= negative (repel).** Green = every positive f_{·,τ}→h_{·,τ+1} on both
+ladders. The loss-of-record's **(A) fₜ↔hₗ** (red, l≠t+1) is fanned in
+full from one anchor f_{b,t} on the top ladder; the swapped siblings
+**(B) hₜ↔hₗ** (blue, l≠t) and **(C) fₜ↔fₗ** (orange, l≠t) from one
+anchor each on the bottom ladder; purple = a few cross-batch negatives
+(b≠b′) — the batch axis, shared by every arm. Each crossed family is
+fanned from one anchor for clarity (the loss sums over all anchors).
+Single channel, so same-time cross-channel negatives don't exist here.*
 
 ## What we learned
 
