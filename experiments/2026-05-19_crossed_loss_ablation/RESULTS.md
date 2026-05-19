@@ -192,3 +192,14 @@ Phase 2 (downstream — B+C concurrent on GPU0/GPU1, then A+B alone):
 time is loss-variant-independent (B/C/A+B all ≈1 h 58 m — the extra term
 costs no measurable time); (A)'s longer ≈3 h 29 m is its shared #296
 session, not the loss, so it is not a controlled timing point.
+
+### Annex — gold-dashed reference model (R9_E13, #127)
+
+Backbone *"beta"* (`tiny_full4096_moirai_hp_FRESH_RESUME50k`): **GRU
+patch embedding**, **6** transformer layers, **latent dim 384**, 6
+heads, C=1, T_RAW=4096, EWMA-RevIN(span 128); **≈50k** backbone steps.
+Q-head: **12-layer** causal-transformer quantile head, width **384**
+(= backbone) / 6 heads / FFN ×4 (≈1536), dropout 0.1, `e_then_f` input,
+forecast-len 16; **60k** q-head steps. (Vs the #303 arms' 6-layer
+encoder / 1-layer-d128 forecaster backbone + 30k 2-layer q-head — hence
+"different recipe".)
