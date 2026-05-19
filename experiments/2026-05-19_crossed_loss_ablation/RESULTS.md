@@ -91,6 +91,17 @@ variants added to the stability-suite parametrization (18 further
 cases); combined loss suite `test_loss.py` + `test_loss_stability.py`
 = 113 passed.
 
+*Baseline (A) audited independently* (it defines every comparison): the
+positive pair (h_{t+1}, fₜ) is provably absent from (A)'s negative sum —
+masked at l=t+1 in the (fₜ,hₗ) term and on the b₁=b₂ diagonal of the
+cross-batch term. Black-box exactness (aligning fₜ to the positive only
+drops the negatives-only loss by **exactly 1/τ**, B=1 and B=2) plus
+white-box assertion that both masked slices are −∞ pre-logsumexp; the
+positive enters only the denominator, and only via the intended
+`--pos-in-denominator` normalized-InfoNCE term (a separate explicit
+term, not a leaked negative). Pinned by
+`tests/test_loss.py::TestFullFHNegs::test_positive_target_excluded`.
+
 **Backbone recipe — only `--loss-shape` changes.** The comparison base
 is (A)'s *backbone-of-record*: the #296 orchestrator `a1` run
 (`enc_fcst_bneck128_dk07_fullfh_norminfonce_1L_fp16_ddp128_50k`) that
@@ -103,6 +114,17 @@ produced (A). Per backbone: a 30k 2L-causal-transformer q-head, then
 official GIFT-Eval (triage 11, full 97). Exact commands:
 [`scripts/run_all.sh`](scripts/run_all.sh) (recipe verbatim, only
 `--loss-shape` differs across arms).
+
+**Wall-clock** (2× RTX 4090, idle box, 2026-05-19; full breakdown in the
+back annex). The B/C/A+B set is the controlled timing comparison
+(back-to-back, same machine): each 50k DDP backbone ≈ **2 h**, each
+downstream (30k q-head + triage + full-97 eval) ≈ **2 h 50 m**;
+end-to-end for the three new arms **11 h 34 m** (3 serial backbones 5 h
+55 m, then downstream 5 h 39 m with B+C concurrent). Runtime is
+loss-variant-independent (B 1 h 59 m, C 1 h 57 m, A+B 1 h 59 m —
+A+B's extra term adds no measurable time). (A)'s #296 backbone took
+≈3 h 29 m but in a GPU-shared session, so it is not a controlled timing
+point (its downstream ≈2 h 47 m matches the others).
 
 ## What we learned
 
@@ -174,3 +196,20 @@ t): these siblings are **time-crossed** (l≠t, same b, c).
 | Transport | 1.100 | **1.061** | 1.086 | 1.108 | B |
 | Web/CloudOps | 1.518 | 1.427 | **1.392** | 1.552 | C |
 | **full GM (97)** | 1.4377 | **1.3572** | 1.3822 | 1.4517 | B |
+
+### Annex — wall-clock breakdown
+
+Backbone = 50k DDP (2× RTX 4090). Downstream = 30k q-head + GIFT-Eval
+triage (11) + full (97), single GPU. B/C/A+B: idle box, back-to-back,
+2026-05-19 (controlled). (A): #296 session, GPUs shared (reference only).
+
+| arm | backbone 50k | q-head 30k | triage (11) | full (97) | downstream Σ |
+|---|---|---|---|---|---|
+| (B) `full_hh_negs` | 1 h 59 m | 1 h 10 m | 3 m | 1 h 36 m | 2 h 49 m |
+| (C) `full_ff_negs` | 1 h 57 m | 1 h 10 m | 3 m | 1 h 34 m | 2 h 47 m |
+| (A)+(B) `full_fh_hh_negs` | 1 h 59 m | 1 h 16 m | 3 m | 1 h 32 m | 2 h 51 m |
+| (A) `full_fh_negs` *(#296, shared)* | ≈3 h 29 m | — | — | — | ≈2 h 47 m |
+
+Phase 1 (3 backbones, serial — DDP holds both GPUs): 5 h 55 m.
+Phase 2 (downstream — B+C concurrent on GPU0/GPU1, then A+B alone):
+5 h 39 m. **End-to-end (3 new arms, code→eval): 11 h 34 m.**
