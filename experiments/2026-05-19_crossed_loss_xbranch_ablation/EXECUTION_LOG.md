@@ -67,3 +67,10 @@ Credit $9.34 (burn ≈$1.5/h incl. ~1.7GB/h sync egress). ETA: hhxbf/fhhhff
 ~20:30, hhff ~22:00. Budget plan: destroy 37075647 (PRO4000 $0.55,
 priciest) immediately after its backbone syncs; consolidate downstream
 on 37076887 (4070STi $0.41) to cap spend.
+
+## 2026-05-19 18:13Z — backbones ~30-36%
+hhxbf step18.2k loss2.78 ETA2.4h | hhff 14.8k loss2.35 ETA3.5h |
+fhhhff 18.2k loss2.45 ETA2.3h. No NaN, single DDP, sync robust.
+Credit $8.18 (burn ≈$1.58/h). First completions ~20:30 (hhxbf/fhhhff),
+hhff ~21:45. Budget discipline: destroy 37075647 (PRO4000 $0.55) the
+moment its backbone FINAL syncs; downstream consolidated on 37076887.
