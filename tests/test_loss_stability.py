@@ -308,6 +308,11 @@ NORMALIZED_VARIANTS = [
 # a variant with no legacy form.
 NORMALIZED_VARIANTS_ALL = NORMALIZED_VARIANTS + [
     "cosine_similarity_batch_full_fh_negs",
+    # #303 siblings — also NEW logsumexp-only (no frozen legacy form);
+    # exercised by the generic normalized-form / default-path contracts.
+    "cosine_similarity_batch_full_hh_negs",
+    "cosine_similarity_batch_full_ff_negs",
+    "cosine_similarity_batch_full_fh_hh_negs",
 ]
 
 
