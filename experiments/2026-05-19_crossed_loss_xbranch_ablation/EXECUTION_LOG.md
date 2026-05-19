@@ -41,3 +41,21 @@ prosumer per issue #307's explicit recommendation for this task
 
 ## Timeline
 (appended as it happens)
+
+## 2026-05-19 ~15:52Z — all 3 backbones live
+
+| arm | inst | GPU | $/h | loss_shape | status |
+|---|---|---|---|---|---|
+| hhxbf  | 37075647 | RTX PRO 4000 (BW) | 0.553 | full_hh_negs_xbfree    | ~5.1 sps, auth, 1 DDP |
+| hhff   | 37075919 | RTX 5070 Ti  (BW) | 0.310 | full_hh_ff_negs        | ~2.8 sps, auth, 1 DDP |
+| fhhhff | 37076887 | RTX 4070S Ti (Ada)| 0.396 | full_fh_hh_ff_negs     | live, auth, 1 DDP |
+
+Incidents handled: (a) hf_token.txt is gitignored & absent from the
+worktree → first launches streamed HF unauthenticated (~2.4 sps);
+copied token into worktree, pushed to boxes, rebuilt tarball, restarted
+authenticated (data 189ms→8ms). (b) overlapping provision/restart
+attempts left 2 duplicate DDP jobs on 37075647 + a self-matching
+`pkill -f train.py` (killed its own shell); fixed with a script-file
+hard-killer (`_hardkill.sh`) → single clean run. (c) duplicate
+xbranch-hhxbf label → 37075919 relabelled xbranch-hhff.
+Burn rate ≈ $1.26/h (3 boxes). sync_loop detached pid in state/.
