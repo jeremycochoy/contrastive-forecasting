@@ -754,3 +754,248 @@ class TestCrossedLossSiblings:
                 (f, h), validation=False, spec=spec_cfg)
             assert torch.allclose(loss_arg, loss_cfg), name
             assert loss_cfg.item() >= -1e-6, f"{name}: normalized must be ≥0"
+
+
+class TestCrossBranchAblationExtended:
+    """#307 — the two extra all-time crossed-negative combos that extend
+    the #303 combined branch (cross-batch axis UNCHANGED — still the
+    standard f↔h `log_neg_cross_batch`):
+
+      (B)+(C)     ``cosine_similarity_batch_full_hh_ff_negs``
+                  (h_t,h_l) ∀ l≠t  AND  (f_t,f_l) ∀ l≠t  (no all-time f–h)
+      (A)+(B)+(C) ``cosine_similarity_batch_full_fh_hh_ff_negs``
+                  the (A) (f_t,h_l) ∀ l≠t+1 term PLUS (B) PLUS (C).
+
+    Same structural transform as ``cosine_similarity_batch_full_fh_negs``.
+    """
+
+    BC_NAME = 'cosine_similarity_batch_full_hh_ff_negs'
+    ABC_NAME = 'cosine_similarity_batch_full_fh_hh_ff_negs'
+    ALL = (BC_NAME, ABC_NAME)
+
+    def test_finite_scalar_and_grad(self):
+        """Forward + backward at the real training shape (C=1); finite."""
+        for name in self.ALL:
+            B, T, C, H = 4, 8, 1, 16
+            g = torch.Generator().manual_seed(99)
+            f = torch.randn(B, T, C, H, generator=g, requires_grad=True)
+            h = torch.randn(B, T, C, H, generator=g)
+            loss = contrastive_latent_loss(
+                (f, h), validation=False, spec=_make_spec(name))
+            assert loss.dim() == 0 and torch.isfinite(loss), name
+            loss.backward()
+            assert f.grad is not None and torch.isfinite(f.grad).all(), name
+
+    def test_all_seven_arms_distinct(self):
+        """The full #303+#307 combined family + baseline + A must all be
+        distinct functions on generic random inputs (no aliasing)."""
+        f, h = _random_inputs(B=3, T=5, C=1, H=8, seed=42)
+        names = ('cosine_similarity_batch',
+                 'cosine_similarity_batch_full_fh_negs',
+                 'cosine_similarity_batch_full_hh_negs',
+                 'cosine_similarity_batch_full_ff_negs',
+                 'cosine_similarity_batch_full_fh_hh_negs',
+                 *self.ALL)
+        vals = {n: contrastive_latent_loss(
+                    (f, h), validation=False, spec=_make_spec(n)).item()
+                for n in names}
+        keys = list(vals)
+        for i in range(len(keys)):
+            for j in range(i + 1, len(keys)):
+                assert abs(vals[keys[i]] - vals[keys[j]]) > 1e-6, (
+                    f"{keys[i]} == {keys[j]} ({vals[keys[i]]:.6f})")
+
+    def test_exact_value_orthonormal_C1(self):
+        """Closed form pins the full negative composition AND the masks.
+
+        B=1, C=1; h_l = e_l (orthonormal across l), f_t = e_{T+t}
+        (orthonormal, disjoint from h). Every cross pair has cos=0 except
+        the masked self/positive ones; C=1 nulls log_neg_xx; B=1 nulls the
+        cross-batch term. Negatives-only loss = log(count of active negs):
+        each of xy, zy contributes 1; each all-time term contributes its
+        (T-1) unmasked cos=0 entries:
+
+          full_hh_ff    (B)+(C):      1+1 + (T-1)+(T-1)          = log(2T)
+          full_fh_hh_ff (A)+(B)+(C):  1+1 + (T-1)+(T-1)+(T-1)    = log(3T-1)
+
+        A broken self-mask (l=t for h–h/f–f) or positive-mask (l=t+1 for
+        the f–h sub-term of A+B+C) injects an unmasked cos=1 ≈ 1/τ spike
+        and these exact equalities fail.
+        """
+        B, T, C, H = 1, 5, 1, 16
+        tau = 0.07
+        eye = torch.eye(H)
+        h = eye[:T].view(1, T, 1, H).contiguous()              # h_l = e_l
+        f = eye[T:2 * T].view(1, T, 1, H).contiguous()          # f_t = e_{T+t}
+        expect = {
+            self.BC_NAME: math.log(2 * T),
+            self.ABC_NAME: math.log(3 * T - 1),
+        }
+        for name, exp in expect.items():
+            loss = contrastive_latent_loss(
+                (f, h), validation=False, spec=_make_spec(name, tau))
+            assert torch.isfinite(loss), name
+            assert abs(loss.item() - exp) < 1e-4, (
+                f"{name}: expected {exp:.6f} (orthonormal C1 closed form), "
+                f"got {loss.item():.6f} — negative composition or a mask "
+                "is wrong")
+
+    def test_superset_ordering(self):
+        """A+B+C ⊃ B+C ⊃ {B, C}, and A+B+C ⊃ A+B — adding negatives to a
+        logsumexp denominator can only raise the negatives-only loss, so
+        on identical generic inputs (T≥3) the strict-superset orderings
+        hold. Pins that each combo really carries the union of its parts."""
+        f, h = _random_inputs(B=3, T=4, C=1, H=8, seed=7)
+
+        def v(n):
+            return contrastive_latent_loss(
+                (f, h), validation=False, spec=_make_spec(n)).item()
+        bc = v(self.BC_NAME)
+        abc = v(self.ABC_NAME)
+        b = v('cosine_similarity_batch_full_hh_negs')
+        c = v('cosine_similarity_batch_full_ff_negs')
+        ab = v('cosine_similarity_batch_full_fh_hh_negs')
+        assert bc > b > 0 and bc > c, f"bc={bc} b={b} c={c}"
+        assert abc > bc and abc > ab, f"abc={abc} bc={bc} ab={ab}"
+
+    def test_pos_in_denominator_config_key_matches_arg_and_nonneg(self):
+        for name in self.ALL:
+            f, h = _random_inputs(B=3, T=4, C=1, H=8, seed=1)
+            loss_arg = contrastive_latent_loss(
+                (f, h), validation=False, spec=_make_spec(name),
+                include_positive_in_denominator=True)
+            spec_cfg = _make_spec(name)
+            spec_cfg.train_configuration['include_positive_in_denominator'] = True
+            loss_cfg = contrastive_latent_loss(
+                (f, h), validation=False, spec=spec_cfg)
+            assert torch.allclose(loss_arg, loss_cfg), name
+            assert loss_cfg.item() >= -1e-6, f"{name}: normalized must be ≥0"
+
+
+class TestCrossBranchNegativeFree:
+    """#307 — ``cosine_similarity_batch_full_hh_negs_xbfree``.
+
+    Arm (B)'s all-time (h_t,h_l) ∀ l≠t transform, AND the cross-batch axis
+    rebuilt the ``cosine_similarity_batch_square`` way: the f↔h cross-batch
+    term ``log_neg_cross_fe`` is DROPPED; the two within-branch square
+    edges (f_b↔f_b', h_{b,t+1}↔h_{b',t+1}, b≠b') are kept. Net: NO f↔h
+    NEGATIVE anywhere (all-time or cross-batch); the f↔h *positive* is
+    retained.
+    """
+
+    NAME = 'cosine_similarity_batch_full_hh_negs_xbfree'
+
+    def test_finite_scalar_and_grad(self):
+        B, T, C, H = 4, 8, 1, 16
+        g = torch.Generator().manual_seed(99)
+        f = torch.randn(B, T, C, H, generator=g, requires_grad=True)
+        h = torch.randn(B, T, C, H, generator=g)
+        loss = contrastive_latent_loss(
+            (f, h), validation=False, spec=_make_spec(self.NAME))
+        assert loss.dim() == 0 and torch.isfinite(loss)
+        loss.backward()
+        assert f.grad is not None and torch.isfinite(f.grad).all()
+
+    def test_distinct_from_relatives(self):
+        """Must differ from baseline, A, B, square, and the #307 combos —
+        it is a distinct cross-batch composition, not an alias of (B)."""
+        f, h = _random_inputs(B=3, T=5, C=1, H=8, seed=42)
+
+        def v(n):
+            return contrastive_latent_loss(
+                (f, h), validation=False, spec=_make_spec(n)).item()
+        mine = v(self.NAME)
+        for other in ('cosine_similarity_batch',
+                      'cosine_similarity_batch_square',
+                      'cosine_similarity_batch_full_fh_negs',
+                      'cosine_similarity_batch_full_hh_negs',
+                      'cosine_similarity_batch_full_hh_ff_negs',
+                      'cosine_similarity_batch_full_fh_hh_ff_negs'):
+            assert abs(mine - v(other)) > 1e-6, (
+                f"{self.NAME} == {other} ({mine:.6f})")
+
+    def test_exact_value_orthonormal_B1_C1(self):
+        """B=1 kills BOTH within-branch cross-batch edges (eye-mask on the
+        single batch element), so this reduces to (B)'s B=1 closed form
+        log(T+1): xy(1)+zy(1)+hh_all(T-1). Pins the standard terms, the
+        all-time h–h builder, and its self-mask l=t."""
+        B, T, C, H = 1, 5, 1, 16
+        tau = 0.07
+        eye = torch.eye(H)
+        h = eye[:T].view(1, T, 1, H).contiguous()
+        f = eye[T:2 * T].view(1, T, 1, H).contiguous()
+        loss = contrastive_latent_loss(
+            (f, h), validation=False, spec=_make_spec(self.NAME, tau))
+        assert abs(loss.item() - math.log(T + 1)) < 1e-4, loss.item()
+
+    def test_exact_value_orthonormal_B2_C1(self):
+        """The discriminating closed form. B=2, C=1, four disjoint
+        orthonormal blocks: h[0,l]=e_l, h[1,l]=e_{T+l}, f[0,t]=e_{2T+t},
+        f[1,t]=e_{3T+t}. Every distinct pair has cos=0, every self-pair
+        cos=1. Per anchor the active negatives are xy(1), zy(1),
+        hh_all(T-1 zeros ⇒ T-1), cross_ff(1 off-diag zero ⇒ 1),
+        cross_hh(1 off-diag zero ⇒ 1) ⇒ Σ = T+3; both batch rows equal so
+        log_neg_total = log(2(T+3)); log_pos = 0 ⇒ loss = log(2(T+3)).
+
+        Contrast: (B) full_hh_negs on the SAME inputs keeps the f↔h
+        cross-batch term instead (1 off-diag zero ⇒ 1) and has NO
+        cross_ff/cross_hh ⇒ Σ = T+2 ⇒ loss = log(2(T+2)). The exact +1
+        inside the sum pins that xbfree DROPPED cross_fe and ADDED both
+        cross_ff and cross_hh (and that no f↔h negative survived)."""
+        T = 5
+        B, C, H = 2, 1, 4 * T
+        tau = 0.07
+        eye = torch.eye(H)
+        h = torch.empty(B, T, C, H)
+        f = torch.empty(B, T, C, H)
+        h[0, :, 0, :] = eye[0:T]
+        h[1, :, 0, :] = eye[T:2 * T]
+        f[0, :, 0, :] = eye[2 * T:3 * T]
+        f[1, :, 0, :] = eye[3 * T:4 * T]
+        loss = contrastive_latent_loss(
+            (f, h), validation=False, spec=_make_spec(self.NAME, tau))
+        assert abs(loss.item() - math.log(2 * (T + 3))) < 1e-4, (
+            f"xbfree B2 closed form: expected {math.log(2*(T+3)):.6f}, got "
+            f"{loss.item():.6f} — cross-batch composition (drop cross_fe, "
+            "add cross_ff+cross_hh) or the h–h all-time term is wrong")
+        loss_b = contrastive_latent_loss(
+            (f, h), validation=False,
+            spec=_make_spec('cosine_similarity_batch_full_hh_negs', tau))
+        assert abs(loss_b.item() - math.log(2 * (T + 2))) < 1e-4, (
+            "sanity: (B) on the same inputs must give log(2(T+2)) "
+            f"(its single f↔h cross-batch term); got {loss_b.item():.6f}")
+
+    def test_fh_positive_retained(self):
+        """The f↔h *positive* (cos(h_{t+1}, f_t)) must still be the
+        numerator. B=1 (cross-batch edges nulled); h_l=e_l, f orthogonal.
+        Setting f_t := h_{t+1} aligns ONLY the positive (h-only xy/hh_all
+        and f–f zy stay cos=0), so log_pos rises by exactly 1/τ and every
+        negative is unchanged ⇒ loss drops by exactly 1/τ. If the f↔h
+        positive had been removed/altered this exact relation breaks."""
+        B, T, C, H = 1, 4, 1, 8
+        tau = 0.07
+        eye = torch.eye(H)
+        h = eye[:T].view(1, T, 1, H).expand(B, T, C, H).contiguous()
+        f_orth = eye[T:2 * T].view(1, T, 1, H).expand(B, T, C, H).contiguous()
+        loss_orth = contrastive_latent_loss(
+            (f_orth, h), validation=False, spec=_make_spec(self.NAME, tau))
+        f_pos = f_orth.clone()
+        f_pos[:, :T - 1, 0, :] = eye[1:T]                       # f_t := h_{t+1}
+        loss_pos = contrastive_latent_loss(
+            (f_pos, h), validation=False, spec=_make_spec(self.NAME, tau))
+        delta = (loss_orth - loss_pos).item()
+        assert abs(delta - 1.0 / tau) < 1e-3, (
+            f"f↔h positive must lower loss by exactly 1/τ ({1.0/tau:.4f}); "
+            f"got Δ={delta:.4f}")
+
+    def test_pos_in_denominator_config_key_matches_arg_and_nonneg(self):
+        f, h = _random_inputs(B=3, T=4, C=1, H=8, seed=1)
+        loss_arg = contrastive_latent_loss(
+            (f, h), validation=False, spec=_make_spec(self.NAME),
+            include_positive_in_denominator=True)
+        spec_cfg = _make_spec(self.NAME)
+        spec_cfg.train_configuration['include_positive_in_denominator'] = True
+        loss_cfg = contrastive_latent_loss(
+            (f, h), validation=False, spec=spec_cfg)
+        assert torch.allclose(loss_arg, loss_cfg)
+        assert loss_cfg.item() >= -1e-6
