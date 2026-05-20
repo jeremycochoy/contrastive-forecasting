@@ -10,22 +10,33 @@ AdamW β2. Does isolating those two axes close the gap?
 
 ## Verdict
 
-**Yes — α beats v11c (1.277 vs 1.292) despite training diverging.**
-The bottleneck-removed forecaster is a genuine improvement over (B);
-even the model captured at the loss-minimum *before* fp16 divergence
-(step ~1000 of 50000) already outperforms v11c's 50k all-fp32 run on
-GIFT-Eval full-97. β (β2-only change) closes about half the gap to
-v11c; α (both axes) crosses it. γ (no-bneck, β2=0.95) repeats α's
-pattern but with the (B) β2 — held for verification it isn't β2 that
-causes the divergence.
+**Yes — both bottleneck-removed arms beat v11c despite training
+diverging.** α (full-97 1.277) and γ (1.283) both outperform v11c
+(1.292), even though their backbones are snapshots from step ~1000
+of 50,000 (the loss minimum just before fp16 divergence). β (1.327,
+β2-only change) closes about half the gap to v11c on top of (B);
+the bottleneck-removed arms close it entirely. The β2 axis explains
+the ~0.5% difference between α and γ — small enough to be noise;
+the bottleneck axis accounts for the rest.
 
 | Arm   | β2   | Fcst bneck | Train @ 50k | Triage-11 GM | Full-97 GM | vs (B) |
 |-------|-----:|-----------:|-------------|------------:|----------:|-------:|
-| (B)†† | 0.95 | kept       | converged   | (~1.48)     | **1.3572**| —      |
-| v11c† | 0.98 | removed    | converged (all-fp32) | (~1.39) | **1.292** | −4.8% |
+| (B)†† | 0.95 | kept       | converged   | 1.4461      | **1.3572**| —      |
+| v11c† | 0.98 | removed    | converged (all-fp32) | 1.3878 | **1.292** | −4.8% |
 | α     | 0.98 | removed    | DIVERGED @ step ~1000 → SIGTERM @ 10600 | 1.3399 | **1.2767** | −5.9% |
 | β     | 0.98 | kept       | converged   | 1.4836      | **1.3272**| −2.2% |
-| γ     | 0.95 | removed    | DIVERGED @ step ~1000 → SIGTERM @ 10100 | TBD | TBD | TBD |
+| γ     | 0.95 | removed    | DIVERGED @ step ~1000 → SIGTERM @ 10100 | 1.3412 | **1.2829**| −5.5% |
+
+Both bottleneck-removed pre-divergence snapshots (α full=1.277,
+γ full=1.283) beat v11c. The β2 axis contributes ~0.5% between α and γ
+— small enough to plausibly be noise; the bottleneck axis accounts for
+essentially all of the gap to (B).
+
+Note on triage vs full: the v11c work documented triage(11) as a noisy
+proxy (~7% pessimistic vs full for v11c/v15/v16, +22% for v17 — ranking
+preserved at the top but mid-pack compressed). Here β shows
+triage=1.4836 worse than (B) 1.4461 but full=1.3272 better than (B)
+1.3572 — same triage-noise pattern. **Trust full-97 for the verdict.**
 
 † v11c: 2026-05-11 encoder-forecaster sweep winner, all-fp32 body,
 forecaster d=384 (no bottleneck), β2=0.98, dropkey 0.9. Source:
@@ -41,12 +52,13 @@ captured by `train.py`'s standard best-loss tracker. The downstream q-head
 
 ![star](plots/perdomain_star.png)
 
-α (red) sits visibly inside v11c (purple dashed) on every domain except
-Web/CloudOps; β (green) tracks v11c closely; (B) (blue) is outermost
-everywhere. The bottleneck-removed arms (α, γ when ready) capture
-information v11c does, plus extra headroom in Econ/Fin, Energy, and
-Healthcare. The Econ/Fin spike for all arms is driven by a handful of
-hard configs (e.g. `bizitobs_application/*` rel-MASE 2.6–3.6).
+α (red) and γ (orange) sit nearly on top of each other and inside
+v11c (purple dashed) on every domain except Web/CloudOps; β (green)
+sits between (B) and v11c; (B) (blue) is outermost everywhere. The
+bottleneck-removed arms capture all the information v11c does plus
+extra headroom in Econ/Fin, Energy, and Healthcare. The Econ/Fin spike
+for all arms is driven by a handful of hard configs (e.g.
+`bizitobs_application/*` rel-MASE 2.6–3.6).
 
 ## Training curves
 
