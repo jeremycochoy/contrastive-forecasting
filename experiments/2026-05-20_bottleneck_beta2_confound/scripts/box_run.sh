@@ -60,10 +60,25 @@ backbone(){
   setup || { log "SETUP FAILED"; return 1; }
   local tlog="$RES/run_${NAME}.log"
   local ng; ng=$(python3 -c 'import torch;print(torch.cuda.device_count())')
-  [ "${ng:-0}" -ge 2 ] || { log "BB ERROR: need 2 GPUs, have $ng"; return 1; }
-  log "BB START $ARM seed=$SEED β2=$BETA2 fcst-bneck=${FCST[*]:-none} loss=cosine_similarity_batch_full_hh_negs DDP nproc=2 bs128 ${TOTAL}"
-  CUDA_VISIBLE_DEVICES=0,1 torchrun --nproc_per_node=2 --master_port="$(freeport)" "$TRAIN" \
-    --batch-size 128 --device cuda --total-steps "$TOTAL" --lr 1e-3 --weight-decay 0.1 \
+  [ "${ng:-0}" -ge 1 ] || { log "BB ERROR: need ≥1 GPU, have $ng"; return 1; }
+  # 2-GPU DDP at bs=128/GPU is the (B) recipe; 1-GPU at bs=256 is
+  # mathematically identical (train.py:739-740: gathered-loss runs are
+  # "identical to single-GPU runs" — only --shard-loss-on-batch breaks
+  # equivalence, and we never use it).
+  local LAUNCHER PER_RANK_BS
+  if [ "$ng" -ge 2 ]; then
+    LAUNCHER=(torchrun --nproc_per_node=2 --master_port="$(freeport)")
+    PER_RANK_BS=128
+    log "BB START $ARM seed=$SEED β2=$BETA2 fcst-bneck=${FCST[*]:-none} loss=cosine_similarity_batch_full_hh_negs DDP nproc=2 bs128 ${TOTAL}"
+    export CUDA_VISIBLE_DEVICES=0,1
+  else
+    LAUNCHER=(python3 -u)
+    PER_RANK_BS=256
+    log "BB START $ARM seed=$SEED β2=$BETA2 fcst-bneck=${FCST[*]:-none} loss=cosine_similarity_batch_full_hh_negs 1-GPU bs256 ${TOTAL}"
+    export CUDA_VISIBLE_DEVICES=0
+  fi
+  "${LAUNCHER[@]}" "$TRAIN" \
+    --batch-size "$PER_RANK_BS" --device cuda --total-steps "$TOTAL" --lr 1e-3 --weight-decay 0.1 \
     --adam-beta1 0.9 --adam-beta2 "$BETA2" --seed "$SEED" \
     --save-every 5000 --save-dir "$RUNS" --run-name "$NAME" \
     --hf-repo jeremycochoy/gift-pretrain-full-4096 --hf-path small_v1 \
