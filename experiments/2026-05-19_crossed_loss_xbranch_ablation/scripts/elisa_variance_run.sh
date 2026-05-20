@@ -20,9 +20,13 @@ case "$ARM" in
   *) echo "unknown arm $ARM (expected: hh | hhxbf)" >&2; exit 2 ;;
 esac
 
-# Run from MAIN checkout (CLAUDE.md: sync dirs / valuable untracked state
-# live in main checkout, never in worktree).
+# MAIN checkout holds the run outputs (CLAUDE.md: sync dirs / valuable
+# untracked state in main checkout). WORKTREE holds the new #303/#307
+# code (loss shapes + tests + scripts) — main checkout's train.py on
+# branch experiments-synced doesn't yet know about the new loss-shape
+# choices, so we load source from the worktree explicitly.
 APP=/home/jupyter/contrastive-forecasting
+WT=/home/jupyter/cf-wt-crossed-loss
 cd "$APP" || { echo "cannot cd $APP" >&2; exit 3; }
 EXP="$APP/experiments/2026-05-19_crossed_loss_xbranch_ablation"
 ROOT="$EXP/variance/${ARM}_seed${SEED}"
@@ -33,14 +37,14 @@ BB="$RUNS/${NAME}_FINAL.pth"
 QN="${NAME}_qhead_xfmr2L_quant_30k"; QF="$RUNS/${NAME}_qhead_FINAL.pth"
 TRIAGE='bizitobs_application/short|bizitobs_service/short|bizitobs_l2c/(5T|H)/short|ett1/(15T|H)/short|ett2/(15T|H)/short|electricity/H/short|covid_deaths/short|us_births/D/short'
 
-export PYTHONPATH="$APP" PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True OMP_NUM_THREADS=8
-export HF_TOKEN="$(cat "$APP/experiments/hf_token.txt" 2>/dev/null || cat /home/jupyter/cf-wt-crossed-loss/experiments/hf_token.txt)"
+export PYTHONPATH="$WT" PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True OMP_NUM_THREADS=8
+export HF_TOKEN="$(cat "$WT/experiments/hf_token.txt" 2>/dev/null || cat "$APP/experiments/hf_token.txt")"
 export HUGGING_FACE_HUB_TOKEN="$HF_TOKEN"
 export GIFT_EVAL=/home/jupyter/workspaces/gift-eval-data
 
-TRAIN="$APP/experiments/2026-04-27_freq-embedding/scripts/train.py"
-QTRAIN="$APP/experiments/2026-04-13_gift-eval/scripts/train_forecasting_head.py"
-QEVAL="$APP/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py"
+TRAIN="$WT/experiments/2026-04-27_freq-embedding/scripts/train.py"
+QTRAIN="$WT/experiments/2026-04-13_gift-eval/scripts/train_forecasting_head.py"
+QEVAL="$WT/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py"
 
 log(){ echo "[$(date '+%m-%d %H:%M:%S')] [$ARM seed=$SEED] $*"; }
 gm(){ grep -E 'Aggregate GM-Relative MASE' "$1" 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+' | head -1; }
