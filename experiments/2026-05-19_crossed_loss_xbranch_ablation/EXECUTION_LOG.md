@@ -114,3 +114,24 @@ C 1.5185, A+B 1.5426. hhxbf ≈ #303 best (B); fhhhff (all-3 incl f↔h)
 worst — directionally consistent with "f↔h negative is harmful".
 Triage is ~7-10% noisy (#303); full-97 (trusted) running, ETA ~23:20.
 hhff downstream still deferred (auto when GPU frees).
+
+## 2026-05-20 02:11Z — all 3 full-evals done, PR #308 opened
+Full-97 GMs (trusted):
+  hhxbf (B-xbfree)  = 1.3681  (B + 0.8%, inside #296 noise)
+  hhff  (B+C)       = 1.3982  (B + 3.0%, NOT additive — slightly worse)
+  fhhhff (A+B+C)    = 1.4465  (A+B - 0.4%, A's harm robust to C)
+Verdict: (B) alone (#303, 1.357) remains unique best in this family.
+Cross-branch f↔h *negative* contributes nothing measurable — B-xbfree
+is structurally simpler and equally good. Within-branch siblings are
+NOT additive (B+C slightly worse than B). A's harm is robust to
+compositional context (A+B+C ≈ A+B).
+
+PR #308 → experiments: https://github.com/jeremycochoy/contrastive-forecasting/pull/308
+All artifacts committed (3× resume-capable backbone+optimizer+losses+log,
+3× q-head FINAL, 3× triage + full GIFT-Eval CSVs/summaries).
+Final state: vast 0 instances (~$7.10 total), elisa procs clean,
+124-test loss suite green (incl. 11 #307 closed-form pins).
+
+End-to-end (code → eval → PR): ≈14 h on 2026-05-19 (start 12:30Z) /
+2026-05-20 (end 02:15Z). 3 vast boxes destroyed promptly post-FINAL,
+downstream ran free on elisa.
