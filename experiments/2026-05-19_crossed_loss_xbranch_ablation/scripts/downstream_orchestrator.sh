@@ -27,7 +27,10 @@ EOF
 }
 
 is_done(){ # arm seed -> 0 if full-eval summary exists
-  local a="$1" s="$2" ss="s${s:(-2)}" name="cl_${a}_50k_${ss}"
+  local a="$1"
+  local s="$2"
+  local ss="s${s:(-2)}"
+  local name="cl_${a}_50k_${ss}"
   [ -f "$MAIN/variance/${a}_seed${s}/results/gift_eval_full_${name}/summary.txt" ]
 }
 
@@ -36,7 +39,10 @@ is_running(){ # arm seed -> 0 if elisa_variance_run.sh proc alive for it
 }
 
 backbone_synced(){ # arm seed -> 0 if FINAL.pth + ≥49k losses rows local
-  local a="$1" s="$2" ss="s${s:(-2)}" name="cl_${a}_50k_${ss}"
+  local a="$1"
+  local s="$2"
+  local ss="s${s:(-2)}"
+  local name="cl_${a}_50k_${ss}"
   local loc="$MAIN/variance/${a}_seed${s}"
   local final="$loc/runs/${name}_FINAL.pth"
   local lossfile="$loc/runs/${name}_losses.csv"
@@ -74,8 +80,11 @@ pick_free_gpu(){
 }
 
 launch(){ # arm seed gpu
-  local a="$1" s="$2" g="$3"
-  local ss="s${s:(-2)}" name="cl_${a}_50k_${ss}"
+  local a="$1"
+  local s="$2"
+  local g="$3"
+  local ss="s${s:(-2)}"
+  local name="cl_${a}_50k_${ss}"
   local DSLOG="$MAIN/variance/${a}_seed${s}/results/downstream_orch_${name}.log"
   mkdir -p "$(dirname "$DSLOG")"
   echo "[$(date '+%H:%M:%S')] launching downstream $a/$ss on GPU$g -> $DSLOG"

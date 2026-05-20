@@ -50,9 +50,15 @@ REFS = [
      "/home/jupyter/contrastive-forecasting/experiments/"
      "2026-05-05_exp_qhead_improvements/results/"
      "R9_E13_xfmr12L_quant_moirai_cosine_e_then_f_60k_full"),
-    ("v11c · best enc-fcst", "#8c564b", (0, (5, 2)), 1.4,
-     "/home/jupyter/contrastive-forecasting/experiments/"
-     "2026-05-11_exp_encoder_forecaster/results/gift_eval_full_v11c"),
+]
+# v11c-recipe: 3 same-recipe (dk0.9) backbones — median ± min/max band
+V11C_RECIPE = [
+    "/home/jupyter/contrastive-forecasting/experiments/"
+    "2026-05-11_exp_encoder_forecaster/results/gift_eval_full_v11c",
+    "/home/jupyter/contrastive-forecasting/experiments/"
+    "2026-05-11_exp_encoder_forecaster/results/gift_eval_full_v20R",
+    "/home/jupyter/contrastive-forecasting/experiments/"
+    "2026-05-11_exp_encoder_forecaster/results/gift_eval_full_dk09fp32x150k",
 ]
 
 
@@ -105,8 +111,20 @@ for lab, col, ls, lw, d in REFS:
     if g:
         radar.append((lab, col, g, agg_gm(f"{d}/summary.txt"), ls, lw, False))
 
+# v11c-recipe: per-domain median + min/max band across 3 same-recipe runs
+v11c_gms = []  # per-dir per-domain GM dicts
+v11c_full = []  # full agg GMs
+for d in V11C_RECIPE:
+    g = rel_by_domain(f"{d}/summary.txt", dom_map(f"{d}/all_results.csv"))
+    if g:
+        v11c_gms.append(g)
+        v11c_full.append(agg_gm(f"{d}/summary.txt"))
+
 if radar:
-    doms = sorted(set().union(*[set(g) for _, _, g, _, _, _, _ in radar]))
+    doms_src = [set(g) for _, _, g, _, _, _, _ in radar]
+    if v11c_gms:
+        doms_src += [set(g) for g in v11c_gms]
+    doms = sorted(set().union(*doms_src))
     ang = np.linspace(0, 2 * np.pi, len(doms), endpoint=False).tolist()
     ang += ang[:1]
     fig = plt.figure(figsize=(10, 10))
@@ -117,6 +135,27 @@ if radar:
                 label=lab + (f"  — full GM {gm:.3f}" if gm else ""))
         if new:
             ax.fill(ang, v, alpha=.05, color=col)
+    if v11c_gms:
+        v11c_col = "#8c564b"
+        v11c_ls = (0, (5, 2))
+        # stack per-domain values: shape (n_runs, n_doms+1) with wrap
+        stacked = np.array([
+            [g.get(d, np.nan) for d in doms] + [g.get(doms[0], np.nan)]
+            for g in v11c_gms
+        ])
+        med = np.nanmedian(stacked, axis=0)
+        lo = np.nanmin(stacked, axis=0)
+        hi = np.nanmax(stacked, axis=0)
+        mean_full = float(np.mean(v11c_full))
+        half_range = (max(v11c_full) - min(v11c_full)) / 2.0
+        # closed band via ax.fill with concatenated outer (hi) + reversed inner (lo)
+        ax.fill(np.concatenate([ang, ang[::-1]]),
+                np.concatenate([lo, hi[::-1]]),
+                color=v11c_col, alpha=.15, linewidth=0,
+                label="v11c-recipe range (3 seeds/precisions)")
+        ax.plot(ang, med, lw=1.4, ls=v11c_ls, color=v11c_col,
+                label=f"v11c-recipe median (n=3)  —  full GM "
+                      f"{mean_full:.2f} ± {half_range:.2f}")
     ax.plot(ang, [1.0] * len(ang), lw=1.0, ls=":", color="green",
             label="seasonal naive (=1.0)")
     ax.set_xticks(ang[:-1]); ax.set_xticklabels(doms, fontsize=10)
@@ -125,8 +164,13 @@ if radar:
                  "kept; lower=better; dotted=seasonal naive)", fontsize=10)
     ax.legend(loc="upper right", bbox_to_anchor=(1.30, 1.11), fontsize=8)
     fig.tight_layout(); fig.savefig(f"{OUT}/perdomain_star.png", dpi=140)
-    print("radar:", [(l, round(gm, 4) if gm else None)
-                     for l, _, _, gm, _, _, _ in radar])
+    out = [(l, round(gm, 4) if gm else None)
+           for l, _, _, gm, _, _, _ in radar]
+    if v11c_gms:
+        out.append((f"v11c-recipe median (n={len(v11c_gms)})",
+                    round(mean_full, 4),
+                    [round(x, 4) for x in v11c_full]))
+    print("radar:", out)
 else:
     print("radar SKIPPED (no full-eval summaries yet)")
 
