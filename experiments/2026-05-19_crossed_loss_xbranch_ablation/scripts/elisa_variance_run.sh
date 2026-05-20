@@ -13,7 +13,7 @@
 # Idempotent: skips backbone / q-head / eval phases when their FINAL/
 # summary.txt already exists.
 set -uo pipefail
-ARM="${1:?arm = hh|hhxbf}"; SEED="${2:?seed}"
+ARM="${1:?arm = hh|hhxbf}"; SEED="${2:?seed}"; GPU="${3:-0}"
 case "$ARM" in
   hh)    LS=cosine_similarity_batch_full_hh_negs ;;
   hhxbf) LS=cosine_similarity_batch_full_hh_negs_xbfree ;;
@@ -127,9 +127,9 @@ do_eval(){ # $1=tag $2=outdir $3=filter $4=gpu
 }
 
 # Full pipeline (backbone + downstream)
-log "=== START arm=$ARM seed=$SEED -> $ROOT ==="
+log "=== START arm=$ARM seed=$SEED gpu=$GPU -> $ROOT ==="
 backbone || { log "ABORT: backbone failed"; exit 1; }
-qhead 0  || { log "ABORT: qhead failed"; exit 1; }
-do_eval "triage_${NAME}" "$RES/gift_eval_triage_${NAME}" "$TRIAGE" 0 || true
-do_eval "full_${NAME}"   "$RES/gift_eval_full_${NAME}"   ""        0 || true
+qhead "$GPU"  || { log "ABORT: qhead failed"; exit 1; }
+do_eval "triage_${NAME}" "$RES/gift_eval_triage_${NAME}" "$TRIAGE" "$GPU" || true
+do_eval "full_${NAME}"   "$RES/gift_eval_full_${NAME}"   ""        "$GPU" || true
 log "=== COMPLETE arm=$ARM seed=$SEED triageGM=$(gm "$RES/gift_eval_triage_${NAME}/summary.txt") fullGM=$(gm "$RES/gift_eval_full_${NAME}/summary.txt") ==="
