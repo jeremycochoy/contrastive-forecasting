@@ -60,6 +60,18 @@ V11C_RECIPE = [
     "/home/jupyter/contrastive-forecasting/experiments/"
     "2026-05-11_exp_encoder_forecaster/results/gift_eval_full_dk09fp32x150k",
 ]
+# (B) variance — 3 seeds: 20260517 (#303 of-record), 20260518 (elisa), 20260519 (vast)
+B_VARIANCE = [
+    f"{ART303}/results/gift_eval_full_cl_hh_50k",
+    f"{SY}/variance/hh_seed20260518/results/gift_eval_full_cl_hh_50k_s18",
+    f"{SY}/variance/hh_seed20260519/results/gift_eval_full_cl_hh_50k_s19",
+]
+# (B)-xbfree variance — 2 seeds: 20260517 (#307 of-record), 20260519 (vast)
+# (seed 20260518 attempted but vast box destroyed mid-training: HF throttling)
+BXBF_VARIANCE = [
+    f"{SY}/downstream_hhxbf/results/gift_eval_full_cl_hhxbf_50k",
+    f"{SY}/variance/hhxbf_seed20260519/results/gift_eval_full_cl_hhxbf_50k_s19",
+]
 
 
 def dom_map(p):
@@ -120,15 +132,63 @@ for d in V11C_RECIPE:
         v11c_gms.append(g)
         v11c_full.append(agg_gm(f"{d}/summary.txt"))
 
+
+def collect(dirs):
+    """Helper: list of per-domain GM dicts + full GMs for a set of eval dirs."""
+    gms, fulls = [], []
+    for d in dirs:
+        g = rel_by_domain(f"{d}/summary.txt", dom_map(f"{d}/all_results.csv"))
+        if g:
+            gms.append(g); fulls.append(agg_gm(f"{d}/summary.txt"))
+    return gms, fulls
+
+
+def draw_band(ax, ang, doms, gms, color, alpha=0.15):
+    """Draw min/max polar band from a list of per-domain GM dicts."""
+    if len(gms) < 2:
+        return
+    stacked = np.array([
+        [g.get(d, np.nan) for d in doms] + [g.get(doms[0], np.nan)]
+        for g in gms
+    ])
+    lo = np.nanmin(stacked, axis=0)
+    hi = np.nanmax(stacked, axis=0)
+    ax.fill(np.concatenate([ang, ang[::-1]]),
+            np.concatenate([lo, hi[::-1]]),
+            color=color, alpha=alpha, linewidth=0)
+
+
+b_gms, b_full = collect(B_VARIANCE)
+bxbf_gms, bxbf_full = collect(BXBF_VARIANCE)
+
 if radar:
     doms_src = [set(g) for _, _, g, _, _, _, _ in radar]
     if v11c_gms:
         doms_src += [set(g) for g in v11c_gms]
+    if b_gms:
+        doms_src += [set(g) for g in b_gms]
+    if bxbf_gms:
+        doms_src += [set(g) for g in bxbf_gms]
     doms = sorted(set().union(*doms_src))
     ang = np.linspace(0, 2 * np.pi, len(doms), endpoint=False).tolist()
     ang += ang[:1]
     fig = plt.figure(figsize=(10, 10))
     ax = plt.subplot(111, polar=True)
+    # First: draw (B) and (B)-xbfree variance bands UNDER the of-record lines
+    # so the lines stay visible on top. Same color as the matching arm line.
+    if len(b_gms) >= 2:
+        b_full_str = (f"  —  full GM {np.mean(b_full):.3f} ± "
+                      f"{(max(b_full)-min(b_full))/2:.3f}  (n={len(b_full)})")
+        draw_band(ax, ang, doms, b_gms, "#1f77b4", alpha=0.18)
+        ax.plot([], [], color="#1f77b4", alpha=0.35, lw=8,
+                label="(B) range  (3 seeds)" + b_full_str)
+    if len(bxbf_gms) >= 2:
+        bxbf_full_str = (f"  —  full GM {np.mean(bxbf_full):.3f} ± "
+                         f"{(max(bxbf_full)-min(bxbf_full))/2:.3f}  "
+                         f"(n={len(bxbf_full)})")
+        draw_band(ax, ang, doms, bxbf_gms, "#17becf", alpha=0.18)
+        ax.plot([], [], color="#17becf", alpha=0.35, lw=8,
+                label="(B)-xbfree range  (2 seeds)" + bxbf_full_str)
     for lab, col, g, gm, ls, lw, new in radar:
         v = [g.get(d, np.nan) for d in doms] + [g.get(doms[0], np.nan)]
         ax.plot(ang, v, lw=lw, ls=ls, color=col,

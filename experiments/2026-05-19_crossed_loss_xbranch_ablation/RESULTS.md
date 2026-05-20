@@ -8,10 +8,10 @@
 - **B+C 1.398 ≈ B 1.357** (+3.0 %). Adding C on top of B slightly *hurts*; the within-branch siblings are **not additive** — within-batch h↔h already saturates the available signal, and the f↔f fan competes mildly with the f→h positive.
 - **A+B+C 1.447 ≈ A+B 1.452** (−0.4 %). Adding C on top of A+B doesn't undo A's harm — re-confirming #303's "f↔h all-time is the harmful term" with a third witness.
 
-The single winner of this family is still **(B) at 1.357** (#303). Across all seven arms in this recipe, no value of `--loss-shape` reaches v11c 1.292; the residual gap is the backbone-of-record, not the crossed-negative choice — fully consistent with #303's closing observation. **Practically:** the cleaner "no-cross-branch-negative" form (B-xbfree) is **as good as** the full-cross-batch B and is structurally simpler, so the f↔h negatives can be dropped entirely without measurable cost.
+**Variance follow-up (post-publication, 2 extra seeds per top arm).** Two more seeds for (B) and one more for (B)-xbfree change the picture: the within-arm spread is **larger than the across-arm gaps inside the non-A cluster**. (B): {1.357, 1.333, 1.437}, mean 1.376, std 0.054 (CV 3.94 %); (B)-xbfree: {1.368, 1.424}, mean 1.396, range 0.056. The +0.8 % B vs B-xbfree gap is **inside noise** (confirmed); the +3.0 % B+C vs B gap is **inside one std of B**; and B's "winning" 1.357 sits ≈0.4σ below its own mean — not a stable winner. The conclusion **A is the harmful term** still holds (A 1.438 is +4.5 % above B's mean and outside B's ±1σ); **the picks inside the non-A cluster (B, C, B+C, B-xbfree) are statistically indistinguishable at this recipe**. The original single-seed "B is the unique winner" claim was overconfident. **Practically:** the cleaner "no-cross-branch-negative" form (B-xbfree) remains **as good as B within noise**, so the f↔h negatives can still be dropped — but not because B was meaningfully best, rather because no arm in the non-A cluster meaningfully beats any other.
 
-![Per-domain relative MASE — 4 #303 arms + 3 #307 arms + refs](plots/perdomain_star.png)
-*Radar chart, one spoke per GIFT-Eval domain; distance from centre = GM relative MASE, lower = better; dotted green = seasonal naive (1.0). Thick lines = #307 new arms; thin = #303 kept arms; **gold dashed** = best-ever (R9_E13, #127, full GM 1.029); **purple dashed** = v11c-recipe median, band = min/max across n=3 (1.292 / 1.323 / 1.333). **(B) xbranch-free** (cyan) tracks **(B) full_hh** (blue) within ≈1 % on every domain — visual confirmation that the f↔h family is inert. **(B)+(C)** (red) and **(A)+(B)+(C)** (purple) sit at or above the (A+B) cluster; (A+B+C) clusters with (A+B) on Econ/Fin (≈3.4) where A's harm is largest.*
+![Per-domain relative MASE — 4 #303 arms + 3 #307 arms + variance bands + refs](plots/perdomain_star.png)
+*Radar chart, one spoke per GIFT-Eval domain; distance from centre = GM relative MASE, lower = better; dotted green = seasonal naive (1.0). Thick lines = #307 of-record arms (single seed); thin = #303 kept arms; **gold dashed** = best-ever (R9_E13, #127, full GM 1.029); **purple dashed** = v11c-recipe median, band = min/max across n=3 (1.292 / 1.323 / 1.333). **Blue translucent band** = (B) min/max across **n=3 seeds** (full GM 1.376 ± 0.052); **cyan translucent band** = (B)-xbfree min/max across **n=2 seeds** (full GM 1.396 ± 0.028). Econ/Fin is the dominant variance driver for both — its volatility (2.78–3.61 across (B) seeds) explains most of the within-arm spread. The (B) and (B)-xbfree bands overlap heavily, visually confirming they are **statistically indistinguishable at this recipe**. **(B)+(C)** (red) and **(A)+(B)+(C)** (purple) sit at or above the (A+B) cluster; (A+B+C) clusters with (A+B) on Econ/Fin (≈3.4) where A's harm is largest.*
 
 **Held-out GM-Relative MASE** (official GIFT-Eval; standard 2L causal q-head trained 30k on each backbone; 1.0 = seasonal naive, lower better):
 
@@ -48,10 +48,10 @@ Same protocol as #303 (continuation), only `--loss-shape` changes per arm. Each 
 
 ## What we learned
 
-1. **The entire f↔h *negative* family is inert.** B-xbfree (drop f↔h within-batch *and* cross-batch, keep positive) lands at 1.368 vs B's 1.357 (+0.8 %, inside noise). At this recipe, the f↔h cross-branch contrastive *signal as a negative* contributes nothing measurable; only the positive f→h carries information. **Implication for #303's interpretation:** A's harm (loss-of-record) is not from "any f↔h negative is bad" — within-batch f↔h cross-batch only is fine — but specifically from the **all-time** within-batch f↔h fan, which over-constrains forecasts at every l≠t+1.
-2. **Within-branch h↔h and f↔f do not stack — (B) is the unique winner.** B+C = 1.398 = B + 3.0 % ≈ C + 1.6 %. So h↔h and f↔f are not orthogonal contributions: stacking them slightly hurts (likely f↔f all-time competes with the f→h positive). **(B) alone is the single best arm in this family.**
-3. **A's harm is robust to compositional context.** A+B = 1.452 (#303) ↔ A+B+C = 1.447 (#307) ↔ B+C = 1.398 (without A). Within ≈1 % once A is present; ≈4 % better once A is removed. The +5.9 % (A vs B) of #303 is a stable harm independent of which other within-branch siblings are present.
-4. **The loss is a small lever; the backbone is the gap.** Best (B) 1.357 is **still 5 % above v11c (1.292)** and ≈15 % above the same backbone the #10 line uses (1.183 with a simple 30k head). No `--loss-shape` in this family reaches v11c — fully consistent with #303's closing observation.
+1. **The entire f↔h *negative* family is inert** (single-seed +0.8 %, multi-seed: bands overlap fully). B-xbfree (drop f↔h within-batch *and* cross-batch, keep positive) lands at 1.368 vs B 1.357. The variance follow-up confirms this is well inside noise: (B) and (B)-xbfree distributions overlap. At this recipe, the f↔h cross-branch contrastive *signal as a negative* contributes nothing measurable; only the positive f→h carries information. **Implication for #303's interpretation:** A's harm (loss-of-record) is not from "any f↔h negative is bad" — within-batch f↔h cross-batch only is fine — but specifically from the **all-time** within-batch f↔h fan, which over-constrains forecasts at every l≠t+1.
+2. **Within the non-A cluster (B, C, B+C, B-xbfree) the arms are statistically indistinguishable** (revised from the original single-seed "(B) is the unique winner"). The 3-seed (B) std is 0.054 (CV 3.94 %); the +3.0 % B+C vs B gap is well within ±1σ of (B), and so is the +1.8 % C vs B gap. No basis to prefer any of these four over another at this recipe. (See "Annex — variance" for the multi-seed numbers.)
+3. **A's harm is robust to compositional context AND across seeds.** A+B = 1.452 (#303) ↔ A+B+C = 1.447 (#307) ↔ B+C = 1.398 (without A); A 1.438 is +4.5 % above (B)'s 3-seed mean (1.376), outside its ±1σ band — the only across-arm gap that exceeds the within-arm noise. The "+5.9 % A vs B (single seed)" gap from #303 survives the seed re-estimate.
+4. **The loss is a small lever; the backbone is the gap.** Best single-seed (B) 1.357 is still 5 % above v11c (1.292); v11c-recipe itself has multi-seed range 1.292–1.333 (mean 1.32 ± 0.02), so the gap between this recipe's best and v11c's worst is **≈3 %** — comparable to the within-arm noise of either. The "no `--loss-shape` reaches v11c" framing from #303 holds, but the margin is smaller than originally claimed once both lines get error bars.
 
 ---
 
@@ -98,8 +98,47 @@ Backbone = 50k DDP (2× Blackwell GPU on vast.ai prosumer instances; HF-token au
 
 ### Annex — reproducibility
 
-- **Backbones (resume-capable)**: 3× `artifacts/<arm>/cl_<arm>_50k_FINAL.pth + _optimizer.pth + _losses.csv + run_*.log`.
-- **Q-head checkpoints**: 3× `artifacts/<arm>/cl_<arm>_50k_qhead_FINAL.pth`.
-- **GIFT-Eval CSVs**: `artifacts/<arm>/gift_eval_triage/{all_results.csv,summary.txt}` and `gift_eval_full/{all_results.csv,summary.txt}` per arm.
+- **Backbones (resume-capable)**: 3× `artifacts/<arm>/cl_<arm>_50k_FINAL.pth + _optimizer.pth + _losses.csv + run_*.log` (of-record arms); 3× `artifacts/variance/<arm>_seed<seed>/` (variance seeds).
+- **Q-head checkpoints**: 3× `artifacts/<arm>/cl_<arm>_50k_qhead_FINAL.pth` (of-record) + 3× variance q-heads.
+- **GIFT-Eval CSVs**: `artifacts/<arm>/gift_eval_{triage,full}/{all_results.csv,summary.txt}` (of-record) + same per variance seed.
 - **Tests**: `tests/test_loss.py::TestCrossBranchAblationExtended` (B+C, A+B+C: 5 pins) + `TestCrossBranchNegativeFree` (B-xbfree: 7 pins, including the analytic `log(2(T+3))` value distinguishing it from B's `log(2(T+2))`). Full 124-test loss suite green (`pytest tests/test_loss.py`).
-- **Scripts**: [`scripts/box_run.sh`](scripts/box_run.sh) (vast.ai backbone DDP), [`scripts/local_downstream.sh`](scripts/local_downstream.sh) (elisa downstream), [`scripts/summarize.py`](scripts/summarize.py), [`scripts/plot_results.py`](scripts/plot_results.py), [`scripts/plot_loss_diagram.py`](scripts/plot_loss_diagram.py).
+- **Scripts**: [`scripts/box_run.sh`](scripts/box_run.sh) (vast.ai backbone DDP, of-record arms), [`scripts/box_variance_run.sh`](scripts/box_variance_run.sh) + [`scripts/provision_variance.sh`](scripts/provision_variance.sh) (vast.ai backbone for variance seeds), [`scripts/elisa_variance_run.sh`](scripts/elisa_variance_run.sh) (elisa free downstream), [`scripts/sync_variance.sh`](scripts/sync_variance.sh) + [`scripts/sync_loop_variance.sh`](scripts/sync_loop_variance.sh), [`scripts/downstream_orchestrator.sh`](scripts/downstream_orchestrator.sh), [`scripts/local_downstream.sh`](scripts/local_downstream.sh) (of-record), [`scripts/summarize.py`](scripts/summarize.py), [`scripts/plot_results.py`](scripts/plot_results.py), [`scripts/plot_loss_diagram.py`](scripts/plot_loss_diagram.py).
+
+### Annex — variance across seeds (B, B-xbfree only)
+
+Two extra full pipelines (50k DDP backbone + 30k q-head + GIFT-Eval triage + full-97) per top arm, same recipe as #303/#307 of-record, only `--seed` varies. Ran 2026-05-20: B-s18 on elisa 2× RTX 4090, B-s19 on vast 2× RTX 4070S Ti, B-xbfree-s19 on vast 2× RTX PRO 4000; B-xbfree-s18 attempted but destroyed mid-training due to HF-stream throttling making the 4070S Ti box run at ≈2 sps (would push vast spend over the $5 cap); N=2 for B-xbfree.
+
+| arm | seed | full GM | δ vs of-record |
+|---|---|---|---|
+| (B) `full_hh_negs` | 20260517 (of-record, #303) | **1.3572** | — |
+| (B) `full_hh_negs` | 20260518 (elisa 4090) | **1.3331** | **−1.8 %** |
+| (B) `full_hh_negs` | 20260519 (vast 4070STi) | **1.4368** | **+5.9 %** |
+| (B-xbfree) `full_hh_negs_xbfree` | 20260517 (#307) | **1.3681** | — |
+| (B-xbfree) `full_hh_negs_xbfree` | 20260519 (vast PRO 4000) | **1.4244** | **+4.1 %** |
+
+| arm | n | mean | std | CV | min / max | range |
+|---|---|---|---|---|---|---|
+| **(B)** | 3 | 1.376 | 0.054 | **3.94 %** | 1.333 / 1.437 | 0.104 |
+| **(B)-xbfree** | 2 | 1.396 | 0.040 | **2.85 %** | 1.368 / 1.424 | 0.056 |
+
+**Per-domain spread** (full GM, Econ/Fin dominates the swing):
+
+| domain | B s17 | B s18 | B s19 | B-xbfree s17 | B-xbfree s19 |
+|---|---|---|---|---|---|
+| Econ/Fin | 2.788 | 2.782 | **3.607** | 3.228 | 3.293 |
+| Energy | 1.577 | 1.509 | 1.621 | 1.557 | 1.634 |
+| Healthcare | 1.576 | 1.478 | 1.639 | 1.666 | 1.575 |
+| Nature | 0.951 | 0.971 | 1.014 | 0.968 | 1.042 |
+| Sales | 0.855 | 0.910 | 0.873 | 0.872 | 0.905 |
+| Transport | 1.061 | 1.037 | 1.091 | 1.054 | 1.069 |
+| Web/CloudOps | 1.427 | 1.413 | 1.534 | 1.412 | 1.489 |
+| **full GM (97)** | **1.3572** | **1.3331** | **1.4368** | **1.3681** | **1.4244** |
+
+**Takeaways revising the verdict:**
+- **The within-arm CV is ≈4 %, well above #296's ≈3 % estimate**, dominated by Econ/Fin volatility (one B seed lands at 3.61, another at 2.78).
+- **(B) vs (B)-xbfree (+0.8 % at fixed seed):** now demonstrably **inside noise** — distributions overlap fully. The original "B-xbfree is inert" conclusion stands; the "B-xbfree is *slightly* worse" framing was overconfident.
+- **(B+C) vs (B) (+3.0 % at fixed seed):** within one std of (B), so this gap is **also indistinguishable from noise**. Cannot reject "B and B+C are equally good".
+- **(A) vs non-A cluster:** still clearly worse. (A) 1.438 is +4.5 % above (B)'s mean (1.376) and outside (B)'s ±1σ ([1.322, 1.430]); (A+B) 1.452 and (A+B+C) 1.447 likewise.
+- **Implication for the verdict:** the picks inside the non-A cluster (B, C, B+C, B-xbfree) are **statistically indistinguishable at this recipe**. The robust finding is "(A) all-time f↔h is harmful"; the choice among the remaining four is **a tie**, including the original "B is unique best" framing.
+
+Single-seed comparisons inside this family should be treated as a tie unless ≥3 seeds per arm show separation; in practice, **N=1 for non-of-record arms is the cap** (each additional seed is 3–4 h + ≈$1.50 vast).
