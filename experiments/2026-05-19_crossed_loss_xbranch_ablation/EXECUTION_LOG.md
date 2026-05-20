@@ -135,3 +135,24 @@ Final state: vast 0 instances (~$7.10 total), elisa procs clean,
 End-to-end (code → eval → PR): ≈14 h on 2026-05-19 (start 12:30Z) /
 2026-05-20 (end 02:15Z). 3 vast boxes destroyed promptly post-FINAL,
 downstream ran free on elisa.
+
+## 2026-05-20 15:58Z — variance follow-up complete (n=3 B, n=2 B-xbfree)
+Multi-seed pipeline (elisa 4090 + 2 vast prosumer Blackwells in parallel):
+  B-s18 (elisa) full=1.3331  B-s19 (vast 4070STi) full=1.4368
+  B-xbfree-s19 (vast PRO 4000) full=1.4244
+B-xbfree-s18 attempted but destroyed mid-training (HF throttling on
+4070STi → 2.2 sps → would push budget past $5 cap); N=2 for B-xbfree.
+
+Stats:
+  B (n=3):       mean 1.376  std 0.054  CV 3.94 %  range 0.104
+  B-xbfree (n=2): mean 1.396  std 0.040  CV 2.85 %  range 0.056
+
+VERDICT REVISED. The #307 single-seed "(B) is unique winner" was
+overconfident — within-arm CV (≈4 %, Econ/Fin volatility) is LARGER
+than the across-arm gaps inside the non-A cluster (B, C, B+C, B-xbfree).
+These four arms are statistically indistinguishable at this recipe.
+Only the (A)-is-harmful finding survives: A 1.438 is +4.5 % above B's
+3-seed mean (1.376), outside its ±1σ band.
+
+Cost: vast ≈$5.25 (Box A + Box B + Box C + orphan). End-to-end variance
+work: ≈8 h on 2026-05-20 (~07:47Z → ~15:55Z).
