@@ -17,10 +17,15 @@ MAIN=/home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_x
 LOG="$EXP/downstream_orchestrator.log"
 PIDF="$EXP/scripts/state/downstream_orchestrator.pid"
 
-# What downstreams are queued (skip B-s2 which is running in-line on elisa)
+# What downstreams are queued:
+#   hh 20260518     — B-s2, runs in-line via elisa_variance_run.sh (orchestrator
+#                     just observes "running")
+#   hh 20260519     — B-s3, backbone on vast Box B → orchestrator launches ds on free GPU
+#   hhxbf 20260519  — B-xfree-s3, backbone on vast Box C → ditto
+# Note: hhxbf 20260518 (Box A) destroyed mid-training due to slow throttled
+# 4070S Ti causing budget overshoot — N=2 for B-xfree (s17 of-record + s19).
 queue(){ cat <<EOF
 hh 20260518
-hhxbf 20260518
 hh 20260519
 hhxbf 20260519
 EOF
