@@ -37,11 +37,26 @@ active(){
 
 tick(){
   echo "=== sync_loop_variance tick $(date '+%m-%d %H:%M:%S') ==="
-  active|grep '^ACTIVE'|while read _ arm seed; do
-    bash "$EXP/scripts/sync_variance.sh" "$arm" "$seed" || true
-  done
-  active|grep '^DONE'|while read _ arm seed; do
-    echo "  ✓ $arm/$seed DONE — no sync needed"
+  # Iterate env files directly (avoid pipeline subshell + pipefail quirks
+  # that previously skipped the 2nd arm after the 1st sync exited non-zero).
+  local env arm seed ss name final opt lossfile rows loc
+  for env in "$EXP/scripts/state"/variance_*.env; do
+    [ -f "$env" ] || continue
+    arm=$(grep '^ARM=' "$env"|cut -d= -f2)
+    seed=$(grep '^SEED=' "$env"|cut -d= -f2)
+    [ -n "$arm" ] && [ -n "$seed" ] || continue
+    ss="s${seed:(-2)}"; name="cl_${arm}_50k_${ss}"
+    loc="$MAIN/variance/${arm}_seed${seed}"
+    final="$loc/runs/${name}_FINAL.pth"
+    opt="$loc/runs/${name}_FINAL_optimizer.pth"
+    lossfile="$loc/runs/${name}_losses.csv"
+    rows=0
+    [ -f "$lossfile" ] && rows=$(wc -l < "$lossfile" 2>/dev/null || echo 0)
+    if [ -f "$final" ] && [ -f "$opt" ] && [ "$rows" -gt 49000 ]; then
+      echo "  ✓ $arm/$seed DONE — no sync needed"
+    else
+      bash "$EXP/scripts/sync_variance.sh" "$arm" "$seed" || true
+    fi
   done
 }
 
