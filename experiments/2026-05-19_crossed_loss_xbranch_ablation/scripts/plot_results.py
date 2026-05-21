@@ -25,25 +25,28 @@ os.makedirs(OUT, exist_ok=True)
 A_NAME = "enc_fcst_bneck128_dk07_fullfh_norminfonce_1L_fp16_ddp128_50k"
 
 # label, colour, losses_csv, full_eval_dir, linestyle, lw, is_new
+# All arms share one line width (LW) — thickness carries no meaning;
+# #303 vs #307 is read from the legend tag + colour, not the stroke.
+LW = 1.6
 ARMS = [
     ("(A) full_fh_negs #296", "#7f7f7f",
      f"{ART303}/results/A_ref_losses_clean.csv",
-     f"{A17}/results/gift_eval_full_{A_NAME}", "-", 1.4, False),
+     f"{A17}/results/gift_eval_full_{A_NAME}", "-", LW, False),
     ("(B) full_hh_negs", "#1f77b4", f"{ART303}/runs/cl_hh_50k_losses.csv",
-     f"{ART303}/results/gift_eval_full_cl_hh_50k", "-", 1.4, False),
+     f"{ART303}/results/gift_eval_full_cl_hh_50k", "-", LW, False),
     ("(C) full_ff_negs", "#2ca02c", f"{ART303}/runs/cl_ff_50k_losses.csv",
-     f"{ART303}/results/gift_eval_full_cl_ff_50k", "-", 1.4, False),
+     f"{ART303}/results/gift_eval_full_cl_ff_50k", "-", LW, False),
     ("(A)+(B) full_fh_hh", "#ff7f0e", f"{ART303}/runs/cl_fhhh_50k_losses.csv",
-     f"{ART303}/results/gift_eval_full_cl_fhhh_50k", "-", 1.4, False),
+     f"{ART303}/results/gift_eval_full_cl_fhhh_50k", "-", LW, False),
     ("(B)+(C) full_hh_ff [#307]", "#d62728",
      f"{SY}/sync_hhff/runs/cl_hhff_50k_losses.csv",
-     f"{SY}/downstream_hhff/results/gift_eval_full_cl_hhff_50k", "-", 2.4, True),
+     f"{SY}/downstream_hhff/results/gift_eval_full_cl_hhff_50k", "-", LW, True),
     ("(A)+(B)+(C) full_fh_hh_ff [#307]", "#9467bd",
      f"{SY}/sync_fhhhff/runs/cl_fhhhff_50k_losses.csv",
-     f"{SY}/downstream_fhhhff/results/gift_eval_full_cl_fhhhff_50k", "-", 2.4, True),
+     f"{SY}/downstream_fhhhff/results/gift_eval_full_cl_fhhhff_50k", "-", LW, True),
     ("(B) xbranch-free [#307]", "#17becf",
      f"{SY}/sync_hhxbf/runs/cl_hhxbf_50k_losses.csv",
-     f"{SY}/downstream_hhxbf/results/gift_eval_full_cl_hhxbf_50k", "-", 2.4, True),
+     f"{SY}/downstream_hhxbf/results/gift_eval_full_cl_hhxbf_50k", "-", LW, True),
 ]
 REFS = [
     ("best-ever · xfmr-q 12L (#127)", "#b8860b", "--", 2.2,
@@ -119,8 +122,7 @@ radar = []
 for lab, col, _, ed, ls, lw, new in ARMS:
     g = rel_by_domain(f"{ed}/summary.txt", dom_map(f"{ed}/all_results.csv"))
     if g:
-        radar.append((lab, col, g, agg_gm(f"{ed}/summary.txt"), ls,
-                       lw + (0.6 if new else 0), new))
+        radar.append((lab, col, g, agg_gm(f"{ed}/summary.txt"), ls, lw, new))
 for lab, col, ls, lw, d in REFS:
     g = rel_by_domain(f"{d}/summary.txt", dom_map(f"{d}/all_results.csv"))
     if g:
@@ -221,8 +223,8 @@ if radar:
             label="seasonal naive (=1.0)")
     ax.set_xticks(ang[:-1]); ax.set_xticklabels(doms, fontsize=10)
     ax.set_title("#307 cross-branch ablation — held-out rel-MASE per "
-                 "GIFT-Eval domain\n(thick = #307 new arms; thin = #303 "
-                 "kept; lower=better; dotted=seasonal naive)", fontsize=10)
+                 "GIFT-Eval domain\n(lower = better; dotted = seasonal "
+                 "naive; bands = min/max over seeds)", fontsize=10)
     ax.legend(loc="upper right", bbox_to_anchor=(1.30, 1.11), fontsize=8)
     fig.tight_layout(); fig.savefig(f"{OUT}/perdomain_star.png", dpi=140)
     out = [(l, round(gm, 4) if gm else None)

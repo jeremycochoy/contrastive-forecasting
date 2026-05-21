@@ -6,10 +6,10 @@
 
 ## Answer
 
-**(A) is the only loss term that matters, and it hurts.** Re-running the two leading arms at three seeds shows the per-seed spread is *wider* than the gaps between the non-A arms — so **(B), (C), (B)+(C) and (B)-xbfree are statistically indistinguishable**, while every arm containing (A) sits clearly above them. The f↔h negative can therefore be dropped entirely — (B)-xbfree matches (B) — not because it is special but because nothing in the non-A cluster beats anything else. Every arm still trails the v11c backbone recipe: the loss-shape is a minor lever next to the backbone itself.
+**(B) `full_hh` is the best arm; (A) all-time f↔h is the only clearly harmful one.** (B) has the lowest held-out GM of every arm (mean 1.376 over 3 seeds). The other within-branch arms (C, B+C, B-xbfree) land *inside* (B)'s per-seed spread — none beats it. In particular **(B)-xbfree, which removes the f↔h cross-batch negative, does not improve on (B)** (its mean is, if anything, slightly higher): there is **no evidence that dropping cross-batch f↔h helps**. Only the (A)-containing arms separate, sitting clearly worse — re-running at three seeds shows that gap is the one effect larger than the per-seed noise. And every arm trails the v11c backbone recipe, so the loss-shape is a minor lever next to the backbone itself.
 
 ![Per-arm full-97 GM with seed spread](plots/variance_box.png)
-*Per-arm GM ordered by mean (candle = mean ± 1σ, whisker = min–max, dots = seeds; n=3 for B and B-xbfree, n=1 otherwise). Green = no (A); red = contains (A). The green candles overlap; the red arms sit clearly above; v11c band at the floor.*
+*Per-arm GM ordered by mean (candle = mean ± 1σ, whisker = min–max, dots = seeds; n=3 for B and B-xbfree, n=1 otherwise). Green = no (A); red = contains (A). (B) has the lowest mean; the other green arms fall inside its spread (none beats it, and B-xbfree does not), so they don't separate; the red arms sit clearly above. v11c band at the floor.*
 
 ![Per-domain relative MASE](plots/perdomain_star.png)
 *Same arms per GIFT-Eval domain (lower = better; dotted green = naive). The (B) and (B)-xbfree seed bands overlap on every spoke; Econ/Fin is the widest spoke and drives most of the spread.*
@@ -49,9 +49,9 @@ Continuation of #303: identical backbone-of-record recipe (1L forecaster, fp16 g
 
 ## What we learned
 
-- **The f↔h negative is inert.** Dropping it entirely (B-xbfree) costs nothing measurable; only the f↔h *positive* carries information. (A)'s harm is specifically the *all-time* f↔h fan, not f↔h negatives in general.
-- **Inside the non-A cluster, the loss-shape choice is a tie.** Per-seed noise (CV ≈3–4 %, Econ/Fin-driven) exceeds the between-arm gaps; #303's single-seed "(B) is the unique winner" was overconfident.
-- **(A)'s harm is the one robust effect** and survives the seed re-estimate — but the loss is a small lever: every arm trails the v11c backbone recipe.
+- **(B) `full_hh` is the best candidate.** It has the lowest mean GM; the other non-A arms (C, B+C, B-xbfree) fall inside its per-seed spread, so we can't prove (B) strictly beats them — but none beats (B) either. #303's single-seed "(B) is the unique winner" overstated the certainty; (B) remains the leading estimate.
+- **Removing the f↔h cross-batch negative is not shown to help.** (B)-xbfree (no f↔h negative anywhere) lands within (B)'s spread, not below it — no evidence the cross-batch f↔h term hurts or that dropping it gains anything. The harmful term is specifically the *all-time* f↔h fan (A), not f↔h negatives in general.
+- **(A)'s harm is the one robust effect** — the only between-arm gap larger than the per-seed noise. But the loss is a small lever: every arm trails the v11c backbone recipe.
 
 ---
 
