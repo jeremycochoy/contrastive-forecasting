@@ -10,27 +10,41 @@ AdamW β2. Does isolating those two axes close the gap?
 
 ## Verdict
 
-**Yes — both bottleneck-removed arms beat v11c despite training
-diverging.** α (full-97 1.277) and γ (1.283) both outperform v11c
-(1.292), even though their backbones are snapshots from step ~1000
-of 50,000 (the loss minimum just before fp16 divergence). β (1.327,
-β2-only change) closes about half the gap to v11c on top of (B);
-the bottleneck-removed arms close it entirely. The β2 axis explains
-the ~0.5% difference between α and γ — small enough to be noise;
-the bottleneck axis accounts for the rest.
+**No — a fully-trained α does not match v11c.** The headline is a
+two-part story:
 
-| Arm   | β2   | Fcst bneck | Train @ 50k | Triage-11 GM | Full-97 GM | vs (B) |
+1. α and γ *diverge* under the (B) fp16 body when the bottleneck is
+   removed (forecaster d=128→384). At their loss minimum just before
+   divergence (step ~900), their backbones already beat v11c on
+   full-97 (α 1.277, γ 1.283 vs v11c 1.292).
+2. But that win is an **under-training artifact**, not an architecture
+   gain. Resuming α's step-900 checkpoint and training to 50k in
+   all-fp32 (stable — fp16 was the only blocker) yields **1.369** —
+   *worse* than the step-900 snapshot (1.277), worse than v11c
+   (1.292), and worse even than (B) (1.357). Prolonged contrastive
+   training of the no-bottleneck arm degrades GIFT-Eval transfer.
+
+So the bottleneck-removed forecaster, trained to convergence under
+this recipe (dropkey 0.7, hh-negs loss), is the **worst** arm — the
+opposite of what the step-900 snapshot suggested. β (1.327, β2-only)
+remains the only change that improves on (B) at convergence.
+
+| Arm   | β2   | Fcst bneck | Train state | Triage-11 GM | Full-97 GM | vs (B) |
 |-------|-----:|-----------:|-------------|------------:|----------:|-------:|
-| (B)†† | 0.95 | kept       | converged   | 1.4461      | **1.3572**| —      |
-| v11c† | 0.98 | removed    | converged (all-fp32) | 1.3878 | **1.292** | −4.8% |
-| α     | 0.98 | removed    | DIVERGED @ step ~1000 → SIGTERM @ 10600 | 1.3399 | **1.2767** | −5.9% |
-| β     | 0.98 | kept       | converged   | 1.4836      | **1.3272**| −2.2% |
-| γ     | 0.95 | removed    | DIVERGED @ step ~1000 → SIGTERM @ 10100 | 1.3412 | **1.2829**| −5.5% |
+| (B)†† | 0.95 | kept       | converged 50k fp16 | 1.4461 | **1.3572**| —      |
+| v11c† | 0.98 | removed    | converged 50k all-fp32 | 1.3878 | **1.292** | −4.8% |
+| α     | 0.98 | removed    | snapshot @ step ~900 (pre-divergence) | 1.3399 | **1.2767** | −5.9% |
+| β     | 0.98 | kept       | converged 50k fp16 | 1.4836 | **1.3272**| −2.2% |
+| γ     | 0.95 | removed    | snapshot @ step ~900 (pre-divergence) | 1.3412 | **1.2829**| −5.5% |
+| **α-fp32cont** | 0.98 | removed | **converged 50k all-fp32** (resumed from α step 900) | 1.4498 | **1.3687** | +0.8% |
 
-Both bottleneck-removed pre-divergence snapshots (α full=1.277,
-γ full=1.283) beat v11c. The β2 axis contributes ~0.5% between α and γ
-— small enough to plausibly be noise; the bottleneck axis accounts for
-essentially all of the gap to (B).
+The pre-divergence snapshots (α 1.277, γ 1.283) beat v11c, but those
+backbones have only ~900 steps of training. Training α's snapshot to a
+full 50k in fp32 — the same architecture, stable now — *regresses* to
+1.369, the worst arm. The snapshot advantage does not survive
+convergence. Within the no-bottleneck arm, more training → worse
+GIFT-Eval (1.277 @ step 900 → 1.369 @ step 50k). β2 explains the ~0.5%
+between the α and γ snapshots.
 
 Note on triage vs full: the v11c work documented triage(11) as a noisy
 proxy (~7% pessimistic vs full for v11c/v15/v16, +22% for v17 — ranking
@@ -52,13 +66,14 @@ captured by `train.py`'s standard best-loss tracker. The downstream q-head
 
 ![star](plots/perdomain_star.png)
 
-α (red) and γ (orange) sit nearly on top of each other and inside
-v11c (purple dashed) on every domain except Web/CloudOps; β (green)
-sits between (B) and v11c; (B) (blue) is outermost everywhere. The
-bottleneck-removed arms capture all the information v11c does plus
-extra headroom in Econ/Fin, Energy, and Healthcare. The Econ/Fin spike
-for all arms is driven by a handful of hard configs (e.g.
-`bizitobs_application/*` rel-MASE 2.6–3.6).
+The pre-divergence snapshots α (red) and γ (orange) sit nearly on top
+of each other and inside v11c (purple dashed) on every domain except
+Web/CloudOps. But **α-fp32cont (brown)** — the same architecture trained
+to convergence — sits *outside* almost everything, near (B) (blue): on
+GIFT-Eval the fully-trained no-bottleneck backbone is the worst arm.
+β (green) sits between (B) and v11c. The Econ/Fin spike for all arms is
+driven by a handful of hard configs (e.g. `bizitobs_application/*`
+rel-MASE 2.6–3.6).
 
 ## Training curves
 
@@ -66,10 +81,16 @@ for all arms is driven by a handful of hard configs (e.g.
 
 (B) blue and β green descend monotonically to loss ≈ 2.1–2.2 at 50k;
 1−AUC stays at floor (≈1e−7), gap holds at 1.09. α red and γ orange
-collapse: each bottoms near step 1000 then climbs, 1−AUC spikes
+collapse: each bottoms near step 900 then climbs, 1−AUC spikes
 ∼1e−4–1e−2, gap drops from 1.13 to 0.97 (γ) or 0.27 (α) before SIGTERM.
 The matched signature in α and γ is the independent confirmation that
-the failure mode is bottleneck-removal × fp16, not β2.
+the failure mode is bottleneck-removal × fp16, not β2. **α-fp32cont
+(brown)** forks from α's red curve at step 900 and descends stably in
+all-fp32 to loss ≈ 2.30 at 50k — no divergence, 1−AUC at floor, gap
+holding ~1.0. So fp32 *does* train the no-bottleneck arm; the loss
+plateaus slightly above (B)/β (2.30 vs 2.1–2.2), and as the GIFT-Eval
+shows, that fully-trained representation transfers worse than the
+brief snapshot.
 
 ## Mechanism (hypothesis)
 
@@ -94,26 +115,44 @@ This is a hypothesis derived from prior amplitude data + α and γ's
 matched divergence signature. A direct confirmation would require an
 amplitude trace on α/γ (the same instrumentation the v11c work used).
 
-## Implication for closing the gap to v11c
+## fp32 continuation — does training the diverged arm fix it?
 
-(B)'s gap to v11c is closed — and slightly overshot — *not* by the
-two-axis change as proposed, but by the bottleneck removal alone.
-The β2 change contributes a smaller, additive ~2% on top of (B). The
-practical problem is that the bottleneck-removed recipe under the (B)
-fp16 body **cannot be trained**: it captures a useful representation
-in the first thousand steps and then unravels. To unlock the full α
-ceiling, the fp16 body needs a stability mechanism:
+The diverged arms can be trained: resume α's pre-divergence step-900
+checkpoint with the body switched to **all-fp32** and continue to 50k.
+The continuation is stable (loss 3.27 → 2.30, no divergence), so **fp16
+was the only thing blocking training** — the no-bottleneck arch itself
+trains fine in fp32.
 
-- v20-style fp32-warmup → fp16 cast (`run_v20_v11c_freshwarmup_fp16.sh`),
-  which the 2026-05-15 precision log shows is stable for the v11c
-  recipe.
-- Or all-fp32 body like v11c itself (loses the speed advantage).
-- Or a different stabilization (e.g., layer-wise dtype, residual scaling).
+But the converged backbone is *worse*, not better:
 
-These are **not** tested in #309. The question reframes from "which of
-these two axes closes the gap?" to "what stability mechanism would let
-the bottleneck-removed (B) recipe train past step ~1000?" — out of
-scope for this card.
+| α checkpoint | training | full-97 GM |
+|--------------|----------|-----------:|
+| step ~900 (pre-divergence snapshot) | ~900 steps fp16 | **1.2767** |
+| step 50000 (fp32 continuation)      | 50k steps        | **1.3687** |
+
+Training the no-bottleneck arm from its good step-900 state out to 50k
+*degrades* GIFT-Eval transfer by 7%. This matches the cross-arm pattern:
+the lowest-loss backbones (β 2.13, (B) 2.17) have the worst GIFT-Eval,
+while the high-loss snapshots (α/γ ≈ 3.3) have the best. In this
+encoder-forecaster regime, more contrastive pretext training
+over-specializes the representation and hurts forecasting transfer.
+
+So the step-900 win over v11c was an under-training artifact. v11c
+(all-fp32, no-bottleneck, dropkey **0.9**, simpler `cosine_similarity_batch`
+loss) still converges to 1.292, beating fully-trained α-fp32cont (1.369).
+The two recipes differ on dropkey (0.9 vs 0.7) and loss (plain vs
+hh-negs); the lower dropkey + extra negatives plausibly drive
+α-fp32cont's over-specialization. **Not isolated here** — would need a
+dropkey-0.9 / plain-loss fp32 continuation to test, which is the v11c
+recipe itself.
+
+### Bottom line
+- The two-axis isolation (#309's premise) does **not** beat v11c at
+  convergence; the apparent win was under-training.
+- β2 alone (β) gives a real but small +2% over (B) at convergence.
+- The bottleneck-removed forecaster, fully trained under the (B)
+  recipe's dropkey/loss, transfers worse than v11c — the bottleneck
+  was not the thing holding (B) back from v11c.
 
 ## Annex
 
@@ -130,6 +169,11 @@ scope for this card.
   (bottleneck kept). Reached 50k cleanly; loss 2.13 at 50k vs (B)'s 2.17.
 - **γ** — same as α (no bottleneck) but `--adam-beta2 0.95` (the (B) value).
   Actual: SIGTERM @ step 10100, same trajectory as α.
+- **α-fp32cont** — resumed from α's `best_loss.pth` (step 900) with the
+  body switched to all-fp32 (`--residual/attn/ffn/conv/patch-emb-dtype fp32`),
+  optimizer + step + RNG restored from the companion. Everything else
+  identical to α (no bottleneck, β2=0.98, dropkey 0.7, hh-negs). Reached
+  50k cleanly on elisa GPU 1; loss 2.30 at 50k.
 
 ### Compute
 
@@ -142,16 +186,18 @@ vast spend: **$2.66** of $20.37 budget. α and γ each SIGTERM'd at
 
 ### Limitations
 
-- **Single seed.** α's 1.277 vs v11c's 1.292 is a 1.7% difference;
-  could shrink under seed variance. Reproducing α with 2–3 more seeds
-  would set a confidence interval; the variance pattern in #307
-  (n=3, ±0.02) suggests the difference is real but borderline.
-- **α/γ are pre-divergence snapshots.** They are *not* the same kind
-  of artifact as v11c (fully-trained) or (B) / β (fully-trained). A
-  fair apples-to-apples reading is "the bottleneck-removed
-  representation at step ~1000 (the loss minimum before divergence) is
-  competitive with v11c at 50k" — not "the recipe converges to a
-  1.277 backbone".
+- **Single seed.** All full-97 numbers are one seed each; the variance
+  pattern in #307 (n=3, ±0.02) means differences under ~3% (e.g. α-snap
+  1.277 vs v11c 1.292) are borderline. The big effects here —
+  α-snap 1.277 vs α-fp32cont 1.369 (+7%), and both fp16 arms diverging
+  — are well outside that band.
+- **The under-training → over-specialization finding is single-arm.**
+  Only α was continued in fp32. γ would confirm whether its snapshot
+  win also evaporates at convergence (predicted: yes, same recipe).
+- **dropkey/loss confound vs v11c.** α-fp32cont (dropkey 0.7, hh-negs)
+  converges worse than v11c (dropkey 0.9, plain `cosine_similarity_batch`).
+  Whether the bottleneck-removed arch *could* match v11c with v11c's
+  dropkey + loss is untested — that is essentially the v11c recipe.
 - **q-head and eval seed.** Single random init for the q-head and the
   GIFT-Eval sample windows.
 

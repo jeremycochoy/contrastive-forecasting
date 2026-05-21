@@ -82,15 +82,35 @@ step 5k and 10k) — same representation-collapse signature.
 vast instance 37144527 (label bbeta2-conf-309) destroyed. Total spend:
 **$2.66** of $20.37 budget.
 
+## 2026-05-21 08:57 — α fp32 continuation (per user)
+Resumed α's `best_loss.pth` (optimizer reports step 900, the loss-min
+pre-divergence checkpoint) with the body switched to all-fp32, continued
+to 50k on elisa GPU 1 (free; #307/other-agent work had vacated GPU 1).
+Loss descended 3.27 → 2.30 with no divergence — fp16 was the only thing
+blocking training of the no-bottleneck arm. ~2.8h wall (resumed 08:57,
+BB DONE 11:43). q-head + GIFT-Eval 11:44 → 14:28.
+
+Result: **full-97 1.3687** — worse than α's step-900 snapshot (1.2767),
+worse than v11c (1.292), worse than (B) (1.3572). Triage 1.4498.
+
 ## Verdict on the issue's expected outcome
 
 > "α reaches the same or better full-97 GM-MASE than v11c (≤ 1.292)."
 
-**Falsified.** α does not reach 50k — it diverges by step 1000 and is
-unrecoverable under the (B) fp16 recipe. The two-axis isolation that
-the issue proposed does not work because removing the bottleneck under
-the (B) fp16 body breaks training entirely. γ provides the independent
-confirmation that bottleneck-removal — not β2 — is the source.
+**Not met at convergence.** Two layers:
+1. Under the (B) fp16 recipe, α diverges by step ~900 — unrecoverable
+   in fp16. γ confirms it's bottleneck-removal, not β2.
+2. The fp16-blocked training can be done in fp32 (stable to 50k), but
+   the converged backbone (1.369) is *worse* than v11c. α's step-900
+   snapshot beating v11c (1.277) was an under-training artifact — it
+   does not survive full training. More contrastive training of the
+   no-bottleneck arm degrades GIFT-Eval transfer.
 
-The remaining question (can a different recipe reach v11c?) is out of
-scope for #309.
+So the bottleneck was not what held (B) back from v11c; removing it and
+training to convergence makes things worse, not better (under dropkey
+0.7 + hh-negs). Open: a dropkey-0.9 / plain-loss fp32 continuation —
+i.e. the v11c recipe itself.
+
+## Compute note
+α fp32 continuation + its downstream ran on elisa (free) — no
+additional vast spend. Total vast spend remains **$2.66**.
