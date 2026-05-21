@@ -12,14 +12,18 @@
 set -uo pipefail
 ARM="${1:?arm = alpha|beta|gamma}"; GPU="${2:?gpu_id}"
 case "$ARM" in
-  alpha|gamma) FCST=();;
+  alpha|gamma|alpha_fp32cont|gamma_fp32cont) FCST=();;       # no bottleneck
   beta) FCST=(--forecaster-d-model 128 --forecaster-n-heads 4);;
   *) echo "unknown arm $ARM"; exit 2;;
 esac
 
 WT=/home/jupyter/contrastive-forecasting/.claude/worktrees/exp-bottleneck-beta2-confound
 MAIN=/home/jupyter/contrastive-forecasting/experiments/2026-05-20_bottleneck_beta2_confound
-NAME="bb_${ARM}_50k"
+# fp32cont arms save as bb_<base>_fp32cont_50k; plain arms as bb_<arm>_50k.
+case "$ARM" in
+  *_fp32cont) NAME="bb_${ARM%_fp32cont}_fp32cont_50k";;
+  *)          NAME="bb_${ARM}_50k";;
+esac
 BB="$MAIN/runs/${NAME}_FINAL.pth"
 QN="${NAME}_qhead_xfmr2L_quant_30k"
 QF="$MAIN/runs/${NAME}_qhead_FINAL.pth"
