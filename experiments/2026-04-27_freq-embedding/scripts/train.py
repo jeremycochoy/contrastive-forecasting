@@ -332,6 +332,22 @@ def parse_args():
                         "(cosine_similarity_batch[_no_time_neg/_square/"
                         "_full_fh_negs]); a no-op default keeps every prior "
                         "run's objective unchanged.")
+    p.add_argument("--align-loss-weight", type=float, default=0.0,
+                   help="λ for a BYOL/SimSiam alignment term "
+                        "λ·(2−2·cos(f_t, sg(h_{t+1}))) added on top of the "
+                        "contrastive loss (#309). A non-saturating positive "
+                        "pull (constant gradient until cos=1) that keeps a "
+                        "live alignment signal after the InfoNCE positive's "
+                        "(1−p₊)/τ gradient has faded. Stop-grad on the "
+                        "encoder target. 0.0 = off (default) keeps the "
+                        "objective unchanged. Honored by the logsumexp "
+                        "variants only.")
+    p.add_argument("--subtract-contrastive-floor", action="store_true",
+                   help="Re-base the loss by the constant normalized-InfoNCE "
+                        "floor log(1+N·e^(−1/τ)) so the logged curve reads ~0 "
+                        "at the uniformity floor (#309). Gradient-neutral "
+                        "(a constant); needs --pos-in-denominator. N is "
+                        "computed from the variant and B/T/C.")
     p.add_argument("--shard-loss-on-batch", action="store_true",
                    help="DDP only: compute the contrastive loss on each "
                         "rank's LOCAL shard instead of all-gathering latents "
@@ -684,6 +700,8 @@ def main():
     # Override the loss_shape from CLI (LOSS_SPEC is a module-level default).
     LOSS_SPEC.train_configuration["loss_shape"] = args.loss_shape
     LOSS_SPEC.train_configuration["include_positive_in_denominator"] = args.pos_in_denominator
+    LOSS_SPEC.train_configuration["align_loss_weight"] = args.align_loss_weight
+    LOSS_SPEC.train_configuration["subtract_contrastive_floor"] = args.subtract_contrastive_floor
     if args.tau is not None:
         LOSS_SPEC.train_configuration["contrastive_divergence_temperature"] = args.tau
     model = ConfigurableModel(**model_config).to(device)
@@ -941,6 +959,10 @@ def main():
                 tau_override=torch.tensor(
                     0.07, device=f_lat.device, dtype=f_lat.dtype),
                 include_positive_in_denominator=True,
+                # Keep this a PURE contrastive reference regardless of the
+                # run's --align-loss-weight / --subtract-contrastive-floor.
+                align_loss_weight=0.0,
+                subtract_contrastive_floor=False,
             )
         loss_tau_ref_val = loss_tau_ref.item()
         t_fwd_end = time.perf_counter()
