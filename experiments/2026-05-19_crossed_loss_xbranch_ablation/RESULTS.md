@@ -10,6 +10,9 @@
 
 **Variance follow-up (post-publication, N=3 per top arm).** Two more seeds for each of (B) and (B)-xbfree change the picture: the within-arm spread is **larger than the across-arm gaps inside the non-A cluster**. (B) {1.357, 1.333, 1.437}, mean **1.376**, std **0.054** (CV 3.94 %); (B)-xbfree {1.368, 1.378, 1.424}, mean **1.390**, std **0.030** (CV 2.16 %). The +0.8 % B vs B-xbfree single-seed gap is **inside noise** (confirmed both arms; means differ by +1.0 % well inside either's ±1σ band); the +3.0 % B+C vs B single-seed gap is **inside one std of B**; and B's "winning" 1.357 sits ≈0.4σ below its own mean — not a stable winner. The conclusion **A is the harmful term** still holds (A 1.438 is +4.5 % above B's mean, outside B's ±1σ); **the picks inside the non-A cluster (B, C, B+C, B-xbfree) are statistically indistinguishable at this recipe**. The original single-seed "B is the unique winner" claim was overconfident. **Practically:** the cleaner "no-cross-branch-negative" form (B-xbfree) remains **as good as B within noise**, so the f↔h negatives can still be dropped — but not because B was meaningfully best, rather because no arm in the non-A cluster meaningfully beats any other.
 
+![Per-arm full-97 GM with seed spread — candle = mean ± 1σ, whisker = min–max, dots = individual seeds](plots/variance_box.png)
+*Per-arm held-out full-97 GM, ordered by mean — the clean arm-vs-arm view (the radar below is per-domain and too dense to read uncertainty off). Green = no all-time f↔h negative (A); red = contains (A). The two N=3 arms show a candle (mean ± 1σ), whisker (min–max), and individual seed dots; single-seed arms show their one value. The data splits into two clusters: **the four non-A arms (B 1.376, C 1.382, B-xbfree 1.390, B+C 1.398) overlap heavily — statistically indistinguishable** — while **the three A-containing arms (A 1.438, A+B+C 1.446, A+B 1.452) sit cleanly above.** (B)'s ±1σ candle reaches past (C), (B)-xbfree and (B+C), so no within-cluster ordering survives the seed noise; only the (A) split clears it. v11c-recipe band (brown, 1.292–1.333) sits just below every arm.*
+
 ![Per-domain relative MASE — 4 #303 arms + 3 #307 arms + variance bands + refs](plots/perdomain_star.png)
 *Radar chart, one spoke per GIFT-Eval domain; distance from centre = GM relative MASE, lower = better; dotted green = seasonal naive (1.0). Thick lines = #307 of-record arms (single seed); thin = #303 kept arms; **gold dashed** = best-ever (R9_E13, #127, full GM 1.029); **purple dashed** = v11c-recipe median, band = min/max across n=3 (1.292 / 1.323 / 1.333). **Blue translucent band** = (B) min/max across **n=3 seeds** (full GM 1.376 ± 0.052); **cyan translucent band** = (B)-xbfree min/max across **n=3 seeds** (full GM 1.390 ± 0.028). Econ/Fin is the dominant variance driver for both — its volatility (2.78–3.61 across (B) seeds) explains most of the within-arm spread. The (B) and (B)-xbfree bands overlap heavily, visually confirming they are **statistically indistinguishable at this recipe**. **(B)+(C)** (red) and **(A)+(B)+(C)** (purple) sit at or above the (A+B) cluster; (A+B+C) clusters with (A+B) on Econ/Fin (≈3.4) where A's harm is largest.*
 
@@ -45,6 +48,9 @@ Same protocol as #303 (continuation), only `--loss-shape` changes per arm. Each 
 
 ![Contrastive loss structure — 3 #307 arms on a (time × batch) ladder](plots/loss_diagram.png)
 *Three panels, same primitives as #303. **Left (B+C):** blue h↔h fan from h_{b′,t} + orange f↔f fan from f_{b′,t} on the bottom ladder; full purple cross-batch (including f↔h xb). **Centre (A+B+C):** adds red f↔h fan from f_{b,t} on top ladder. **Right (B) xbfree:** blue h↔h only; the f↔h cross-batch links between ladders are **grayed-out / not drawn** — every f↔h interaction (within-batch *and* cross-batch) is removed; the positive f_{·,τ}→h_{·,τ+1} is **retained** (green, both ladders). Each crossed family is fanned from one anchor for clarity; the loss sums over all anchors. Arrows: ▶◀ inward = positive (attract), ◀▶ outward = negative (repel).*
+
+![Training curves — contrastive loss, dim usage, loss_tau_ref (log–log, first 100 steps skipped)](plots/training_curves.png)
+*All 7 of-record arms overlaid (#303 thin, #307 thick), log–log, first 100 train steps skipped for readability; no 1−AUC panel (uninformative — all arms reach AUC≈1). **Contrastive loss** (top-left): every arm converges to 2.1–2.7; the A-containing arms sit slightly higher (larger negative set). **Dim usage** u_temporal/u_batch (top-right, bottom-left): all arms occupy 0.16–0.23 of the latent — none collapses. **loss_tau_ref** (bottom-right, the fixed-τ diagnostic): step-to-step spiky but tracks the contrastive loss. Crucially the training-objective ranking does **not** predict held-out GM-MASE — arms with near-identical contrastive curves differ in transfer, and (as the variance annex shows) most of those transfer differences are themselves seed noise. The training objective fits equally well across arms; the loss-shape signal is in transfer, not optimization.*
 
 ## What we learned
 
@@ -106,7 +112,7 @@ Backbone = 50k DDP (2× Blackwell GPU on vast.ai prosumer instances; HF-token au
 
 ### Annex — variance across seeds (B, B-xbfree only)
 
-Two extra full pipelines (50k DDP backbone + 30k q-head + GIFT-Eval triage + full-97) per top arm, same recipe as #303/#307 of-record, only `--seed` varies. Ran 2026-05-20/05-21: B-s18 on elisa 2× RTX 4090, B-s19 on vast 2× RTX 4070S Ti, B-xbfree-s19 on vast 2× RTX PRO 4000, B-xbfree-s18 on elisa as follow-up (the first attempt on a vast 4070S Ti was destroyed mid-training due to HF-stream throttling making it ≈2 sps).
+Two extra full pipelines (50k DDP backbone + 30k q-head + GIFT-Eval triage + full-97) per top arm, same recipe as #303/#307 of-record, only `--seed` varies (seeds 20260518, 20260519 added to the of-record 20260517). Backbones on 2× RTX 4090 / 4070S Ti / PRO 4000; the seed, not the hardware, is the only intended source of variation.
 
 | arm | seed | full GM | δ vs of-record |
 |---|---|---|---|
@@ -121,6 +127,8 @@ Two extra full pipelines (50k DDP backbone + 30k q-head + GIFT-Eval triage + ful
 |---|---|---|---|---|---|---|
 | **(B)** | 3 | 1.376 | 0.054 | **3.94 %** | 1.333 / 1.437 | 0.104 |
 | **(B)-xbfree** | 3 | 1.390 | 0.030 | **2.16 %** | 1.368 / 1.424 | 0.056 |
+
+(Per-arm spread plotted in the **Verdict** section above — candle/whisker chart.)
 
 **Per-domain spread** (full GM, Econ/Fin dominates the swing):
 
