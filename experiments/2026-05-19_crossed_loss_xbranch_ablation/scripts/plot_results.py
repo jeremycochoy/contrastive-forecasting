@@ -60,9 +60,21 @@ V11C_RECIPE = [
     "/home/jupyter/contrastive-forecasting/experiments/"
     "2026-05-11_exp_encoder_forecaster/results/gift_eval_full_dk09fp32x150k",
 ]
-# Per-arm seed-spread bands were removed from the radar (too dense to read
-# arm-vs-arm) — that view is plots/variance_box.png (scripts/plot_variance.py).
-# Only the v11c-recipe reference band is drawn here.
+# Per-arm seed-spread bands (drawn as annular fill_between regions). The
+# candle plot (variance_box.png) is the primary variance view; these radar
+# bands show where the spread lands per-domain.
+# (B) variance — 3 seeds: 20260517 (#303 of-record), 20260518, 20260519
+B_VARIANCE = [
+    f"{ART303}/results/gift_eval_full_cl_hh_50k",
+    f"{SY}/variance/hh_seed20260518/results/gift_eval_full_cl_hh_50k_s18",
+    f"{SY}/variance/hh_seed20260519/results/gift_eval_full_cl_hh_50k_s19",
+]
+# (B)-xbfree variance — 3 seeds: 20260517 (#307 of-record), 20260518, 20260519
+BXBF_VARIANCE = [
+    f"{SY}/downstream_hhxbf/results/gift_eval_full_cl_hhxbf_50k",
+    f"{SY}/variance/hhxbf_seed20260518/results/gift_eval_full_cl_hhxbf_50k_s18",
+    f"{SY}/variance/hhxbf_seed20260519/results/gift_eval_full_cl_hhxbf_50k_s19",
+]
 
 
 def dom_map(p):
@@ -114,6 +126,36 @@ for lab, col, ls, lw, d in REFS:
     if g:
         radar.append((lab, col, g, agg_gm(f"{d}/summary.txt"), ls, lw, False))
 
+def collect(dirs):
+    """Per-domain GM dicts + full agg GMs over a set of eval dirs."""
+    gms, fulls = [], []
+    for d in dirs:
+        g = rel_by_domain(f"{d}/summary.txt", dom_map(f"{d}/all_results.csv"))
+        if g:
+            gms.append(g)
+            fulls.append(agg_gm(f"{d}/summary.txt"))
+    return gms, fulls
+
+
+def band_lo_hi(gms, doms):
+    """min/max per domain (no wrap) across a list of per-domain GM dicts."""
+    stk = np.array([[g.get(d, np.nan) for d in doms] for g in gms])
+    return np.nanmin(stk, axis=0), np.nanmax(stk, axis=0)
+
+
+def draw_band(ax, doms, gms, color, alpha=0.15):
+    """Annular min/max band via fill_between — fills only the radial gap at
+    each angle (never the centre); angle wraps to 2π so the ring closes."""
+    if len(gms) < 2:
+        return
+    lo, hi = band_lo_hi(gms, doms)
+    n = len(doms)
+    ang_b = np.linspace(0, 2 * np.pi, n, endpoint=False)
+    ang_b = np.concatenate([ang_b, [2 * np.pi]])
+    ax.fill_between(ang_b, np.append(lo, lo[0]), np.append(hi, hi[0]),
+                    color=color, alpha=alpha, linewidth=0)
+
+
 # v11c-recipe: per-domain median + min/max band across 3 same-recipe runs
 v11c_gms = []  # per-dir per-domain GM dicts
 v11c_full = []  # full agg GMs
@@ -122,27 +164,37 @@ for d in V11C_RECIPE:
     if g:
         v11c_gms.append(g)
         v11c_full.append(agg_gm(f"{d}/summary.txt"))
+b_gms, b_full = collect(B_VARIANCE)
+bxbf_gms, bxbf_full = collect(BXBF_VARIANCE)
 
 
 if radar:
     doms_src = [set(g) for _, _, g, _, _, _, _ in radar]
-    if v11c_gms:
-        doms_src += [set(g) for g in v11c_gms]
+    for extra in (v11c_gms, b_gms, bxbf_gms):
+        doms_src += [set(g) for g in extra]
     doms = sorted(set().union(*doms_src))
     ang = np.linspace(0, 2 * np.pi, len(doms), endpoint=False).tolist()
     ang += ang[:1]
     fig = plt.figure(figsize=(10, 10))
     ax = plt.subplot(111, polar=True)
-    # Per-arm seed-spread bands are NOT drawn on the radar (too dense to
-    # read arm-vs-arm) — that view lives in variance_box.png. Only the
-    # v11c-recipe reference band is kept (below). Arm lines are the
-    # of-record curves; the (B)/(B)-xbfree variance is in the candle plot.
+    # Per-arm seed-spread bands (fill_between annulus, under the lines so the
+    # of-record curves stay readable on top). (B) blue, (B)-xbfree cyan.
+    if len(b_gms) >= 2:
+        draw_band(ax, doms, b_gms, "#1f77b4", alpha=0.16)
+        ax.plot([], [], color="#1f77b4", alpha=0.4, lw=8,
+                label=f"(B) range (n={len(b_full)})  "
+                      f"GM {np.mean(b_full):.3f}, {min(b_full):.3f}–{max(b_full):.3f}")
+    if len(bxbf_gms) >= 2:
+        draw_band(ax, doms, bxbf_gms, "#17becf", alpha=0.16)
+        ax.plot([], [], color="#17becf", alpha=0.4, lw=8,
+                label=f"(B)-xbfree range (n={len(bxbf_full)})  "
+                      f"GM {np.mean(bxbf_full):.3f}, {min(bxbf_full):.3f}–{max(bxbf_full):.3f}")
     for lab, col, g, gm, ls, lw, new in radar:
         v = [g.get(d, np.nan) for d in doms] + [g.get(doms[0], np.nan)]
+        # Lines only — no center-to-curve area fill (it would tint the whole
+        # disc and bury the inner spokes). Bands above are annular (fill_between).
         ax.plot(ang, v, lw=lw, ls=ls, color=col,
                 label=lab + (f"  — full GM {gm:.3f}" if gm else ""))
-        if new:
-            ax.fill(ang, v, alpha=.05, color=col)
     if v11c_gms:
         v11c_col = "#8c564b"
         v11c_ls = (0, (5, 2))
@@ -156,11 +208,12 @@ if radar:
         hi = np.nanmax(stacked, axis=0)
         mean_full = float(np.mean(v11c_full))
         half_range = (max(v11c_full) - min(v11c_full)) / 2.0
-        # closed band via ax.fill with concatenated outer (hi) + reversed inner (lo)
-        ax.fill(np.concatenate([ang, ang[::-1]]),
-                np.concatenate([lo, hi[::-1]]),
-                color=v11c_col, alpha=.15, linewidth=0,
-                label="v11c-recipe range (3 seeds/precisions)")
+        # Annular band between lo and hi via fill_between (fills only the
+        # radial gap at each angle — never the centre). Angle wraps to 2π
+        # so the ring closes cleanly with no radial seam.
+        ang_b = np.concatenate([np.asarray(ang)[:-1], [2 * np.pi]])
+        ax.fill_between(ang_b, lo, hi, color=v11c_col, alpha=.15, linewidth=0,
+                        label="v11c-recipe range (3 seeds/precisions)")
         ax.plot(ang, med, lw=1.4, ls=v11c_ls, color=v11c_col,
                 label=f"v11c-recipe median (n=3)  —  full GM "
                       f"{mean_full:.2f} ± {half_range:.2f}")
