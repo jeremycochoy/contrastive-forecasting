@@ -66,10 +66,11 @@ B_VARIANCE = [
     f"{SY}/variance/hh_seed20260518/results/gift_eval_full_cl_hh_50k_s18",
     f"{SY}/variance/hh_seed20260519/results/gift_eval_full_cl_hh_50k_s19",
 ]
-# (B)-xbfree variance — 2 seeds: 20260517 (#307 of-record), 20260519 (vast)
-# (seed 20260518 attempted but vast box destroyed mid-training: HF throttling)
+# (B)-xbfree variance — 3 seeds: 20260517 (#307 of-record), 20260518 (elisa
+# follow-up after vast Box A was destroyed), 20260519 (vast PRO 4000)
 BXBF_VARIANCE = [
     f"{SY}/downstream_hhxbf/results/gift_eval_full_cl_hhxbf_50k",
+    f"{SY}/variance/hhxbf_seed20260518/results/gift_eval_full_cl_hhxbf_50k_s18",
     f"{SY}/variance/hhxbf_seed20260519/results/gift_eval_full_cl_hhxbf_50k_s19",
 ]
 

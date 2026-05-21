@@ -156,3 +156,16 @@ Only the (A)-is-harmful finding survives: A 1.438 is +4.5 % above B's
 
 Cost: vast ≈$5.25 (Box A + Box B + Box C + orphan). End-to-end variance
 work: ≈8 h on 2026-05-20 (~07:47Z → ~15:55Z).
+
+## 2026-05-21 02:12Z — B-xfree-s18 done on elisa (N=3 for both arms)
+Finished the missing variance arm by re-running on free elisa 4090s
+overnight (no vast spend). B-xfree-s18 (hhxbf seed 20260518) full GM =
+1.3779 (triage 1.4679). Now N=3 for both arms:
+
+  B (n=3):       mean 1.376  std 0.054  CV 3.94 %  range 0.104
+  B-xbfree (n=3): mean 1.390  std 0.030  CV 2.16 %  range 0.056
+
+The +1.0 % gap between means is well inside either's ±1σ band —
+distributions overlap fully. Verdict unchanged: A is harmful (+4.5 %
+above B's mean, outside ±1σ); non-A cluster (B, C, B+C, B-xbfree)
+statistically indistinguishable at this recipe.
