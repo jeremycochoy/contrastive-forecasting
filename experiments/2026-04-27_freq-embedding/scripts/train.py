@@ -335,10 +335,11 @@ def parse_args():
     p.add_argument("--align-loss-weight", type=float, default=0.0,
                    help="λ for a BYOL/SimSiam alignment term "
                         "λ·(2−2·cos(f_t, sg(h_{t+1}))) added on top of the "
-                        "contrastive loss (#309). A non-saturating positive "
-                        "pull (constant gradient until cos=1) that keeps a "
-                        "live alignment signal after the InfoNCE positive's "
-                        "(1−p₊)/τ gradient has faded. Stop-grad on the "
+                        "contrastive loss (#309). A non-saturating positive: "
+                        "its per-cosine gradient is a constant −2, "
+                        "independent of the negatives, vs the InfoNCE "
+                        "positive's −(1−p₊)/τ which fades once the negatives "
+                        "separate (p₊→1). Stop-grad on the "
                         "encoder target. 0.0 = off (default) keeps the "
                         "objective unchanged. Honored by the logsumexp "
                         "variants only.")

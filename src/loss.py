@@ -131,8 +131,9 @@ def contrastive_latent_loss(predicted_position, validation, spec,
     `align_loss_weight` (λ; default None → config key `align_loss_weight`,
     default 0.0 = off) adds a BYOL/SimSiam alignment term
     λ·(2 − 2·cos(f_t, sg(h_{t+1}))) on top of the contrastive loss — a
-    non-saturating positive pull (constant gradient until cos = 1) for when
-    the InfoNCE positive's (1−p₊)/τ gradient has faded. `subtract_contrastive_floor`
+    non-saturating positive: its per-cosine gradient is a constant −2,
+    independent of the negatives, vs the InfoNCE positive's −(1−p₊)/τ which
+    fades once the negatives separate (p₊→1). `subtract_contrastive_floor`
     (default None → config key, default False) re-bases the loss by the
     constant `infonce_floor(τ, N)` (gradient-neutral; logged-value only).
     Both are implemented for `_NORMALIZED_FORM_SHAPES` only; an explicit
@@ -1071,10 +1072,14 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         # sg(h_{t+1}))).mean(), added to the contrastive loss with weight λ.
         # Same positive pair as `log_pos`, but stop-grad on the encoder
         # target (gradient flows only through the forecaster f_t). Unlike
-        # the InfoNCE positive — whose gradient scales with (1−p₊)/τ and
-        # fades as positives separate — L_align's gradient is constant (2)
-        # until cos = 1, so it keeps a live alignment pull after the
-        # contrastive term has converged. The form 2 − 2·cos = ‖f̂ − ĥ‖²
+        # the InfoNCE positive — whose per-cosine gradient −(1−p₊)/τ fades
+        # once the NEGATIVES separate (p₊→1), even while cos⁺ < 1 —
+        # L_align's per-cosine gradient is a constant −2, independent of the
+        # negatives (in embedding space both pick up the same sinθ factor,
+        # which cancels in their ratio; the tangent magnitude is 2·sinθ,
+        # → 0 only as the positive itself aligns). So L_align keeps pulling
+        # whenever cos⁺ < 1 — it fades as the positive aligns, not when the
+        # contrastive task is "won". The form 2 − 2·cos = ‖f̂ − ĥ‖²
         # is already in [0, 4] with minimum 0 at cos = 1 — the `2` is the
         # built-in constant, so L_align needs no extra offset to be ≥ 0 /
         # min-0. With --subtract-contrastive-floor on, the total loss

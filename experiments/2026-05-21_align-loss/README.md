@@ -10,9 +10,11 @@ The normalized-InfoNCE positive gradient is `−(1−p₊)/τ`: it **fades** as
 the positive separates from the negatives, so once the contrastive task is
 won, more steps stop refining the positive. In a single-epoch regime that
 is costly — a saturating objective extracts nothing from each new batch.
-`L_align = ‖f̂ − ĥ‖² ∈ [0, 4]` (min 0 at cos = 1) has a **constant**
-gradient (2) until `cos = 1`, decoupled from the negatives — it keeps a
-live alignment pull after the contrastive term converges.
+`L_align = ‖f̂ − ĥ‖² ∈ [0, 4]` (min 0 at cos = 1) has a **per-cosine
+gradient of −2, independent of the negatives** (vs InfoNCE's `−(1−p₊)/τ`,
+which fades once the negatives separate, p₊→1). In embedding space its
+magnitude is `2·sinθ` — full when misaligned, → 0 only as the positive
+*itself* aligns (cos→1), not when the contrastive task is "won".
 
 Caveat carried from `#296`/`#303`: every contrastive-side proxy (loss,
 `loss_tau_ref`, AUC, dim-usage) has **decoupled** from GM-MASE. So the
