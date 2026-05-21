@@ -136,9 +136,12 @@ def contrastive_latent_loss(predicted_position, validation, spec,
     fades once the negatives separate (p₊→1). `subtract_contrastive_floor`
     (default None → config key, default False) re-bases the loss by the
     constant `infonce_floor(τ, N)` (gradient-neutral; logged-value only).
-    Both are implemented for `_NORMALIZED_FORM_SHAPES` only; an explicit
-    function arg overrides the config key (the `loss_tau_ref` diagnostic
-    passes 0/False to stay a pure contrastive reference). See #309.
+    `align_loss_weight` applies to ANY `loss_shape` (it needs only the
+    positive pair); `subtract_contrastive_floor` is restricted to
+    `_NORMALIZED_FORM_SHAPES` with positive-in-denominator (it is the floor
+    of THAT objective). An explicit function arg overrides the config key
+    (the `loss_tau_ref` diagnostic passes 0/False to stay a pure
+    contrastive reference). See #309.
     """
     forecasted_latent, original_latent = predicted_position
     B, T, C, H = forecasted_latent.shape
@@ -1063,13 +1066,10 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         else train_config.get('subtract_contrastive_floor', False))
 
     if align_w != 0.0:
-        if train_config.get('loss_shape') not in _NORMALIZED_FORM_SHAPES:
-            raise NotImplementedError(
-                "align_loss_weight is only implemented for the logsumexp "
-                f"variants {_NORMALIZED_FORM_SHAPES}; got "
-                f"{train_config.get('loss_shape')!r}.")
         # BYOL/SimSiam alignment term: L_align = (2 − 2·cos(f_t,
-        # sg(h_{t+1}))).mean(), added to the contrastive loss with weight λ.
+        # sg(h_{t+1}))).mean(), added to the loss with weight λ. Applies to
+        # ANY loss_shape — it needs only the positive pair (hy_hat_norm,
+        # hy_norm), which is computed above for every variant.
         # Same positive pair as `log_pos`, but stop-grad on the encoder
         # target (gradient flows only through the forecaster f_t). Unlike
         # the InfoNCE positive — whose per-cosine gradient −(1−p₊)/τ fades

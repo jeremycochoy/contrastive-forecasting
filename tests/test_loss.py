@@ -1066,12 +1066,21 @@ class TestAlignLoss:
         # … but it DOES add gradient to the forecaster f.
         assert (f1.grad - f2.grad).abs().max().item() > 1e-4
 
-    def test_unsupported_shape_raises(self):
-        f, h = _random_inputs(B=2, T=3, C=1, H=8, seed=4)
-        spec = _make_spec('cosine_similarity')          # non-logsumexp form
-        spec.train_configuration['align_loss_weight'] = 1.0
-        with pytest.raises(NotImplementedError):
-            contrastive_latent_loss((f, h), False, spec)
+    def test_applies_to_any_loss_shape(self):
+        # L_align needs only the positive pair, so it works on non-logsumexp
+        # variants too (here the legacy 'cosine_similarity' form). The exact
+        # added value is λ·(2 − 2·cos(f_t, h_{t+1})).mean().
+        f, h = _random_inputs(B=2, T=4, C=1, H=8, seed=9)
+        base = _make_spec('cosine_similarity', tau=0.1)
+        al = _make_spec('cosine_similarity', tau=0.1)
+        al.train_configuration['align_loss_weight'] = 1.0
+        d = (contrastive_latent_loss((f, h), False, al)
+             - contrastive_latent_loss((f, h), False, base)).item()
+        import torch.nn.functional as _F
+        fn, hn = _F.normalize(f, dim=-1), _F.normalize(h, dim=-1)
+        cos = (fn[:, :-1] * hn[:, 1:]).sum(-1)
+        expected = (2.0 - 2.0 * cos).mean().item()
+        assert abs(d - expected) < 1e-5
 
 
 class TestContrastiveFloor:
