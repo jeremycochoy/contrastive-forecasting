@@ -1,0 +1,1879 @@
+usage: train.py [-h] [--device DEVICE] [--total-steps TOTAL_STEPS]
+                [--batch-size BATCH_SIZE] [--lr LR] --weight-decay
+                WEIGHT_DECAY [--adam-beta1 ADAM_BETA1]
+                [--adam-beta2 ADAM_BETA2] [--save-dir SAVE_DIR]
+                [--run-name RUN_NAME] [--resume RESUME]
+                [--log-every LOG_EVERY] [--save-every SAVE_EVERY]
+                [--ema-decay EMA_DECAY] [--grad-clip GRAD_CLIP]
+                [--hf-repo HF_REPO] [--hf-path HF_PATH] [--split SPLIT]
+                [--seed SEED] [--mix-ratio MIX_RATIO]
+                [--synth-seed SYNTH_SEED] [--t-raw T_RAW]
+                [--n-channels N_CHANNELS] [--d-model D_MODEL]
+                [--n-heads N_HEADS] [--num-layers NUM_LAYERS]
+                [--forecaster-d-model FORECASTER_D_MODEL]
+                [--forecaster-n-heads FORECASTER_N_HEADS]
+                [--num-encoder-layers NUM_ENCODER_LAYERS]
+                [--encoder-dropkey ENCODER_DROPKEY]
+                [--encoder-dropkey-share-heads]
+                [--encoder-dropkey-share-layers]
+                [--encoder-type {mlp,mlp_wide,residual_silu,gru,conv,transformer}]
+                [--enc-num-layers ENC_NUM_LAYERS] [--enc-nhead ENC_NHEAD]
+                [--enc-ffn-mult ENC_FFN_MULT] [--enc-dropout ENC_DROPOUT]
+                [--enc-depthwise-conv ENC_DEPTHWISE_CONV]
+                [--enc-chunk-size ENC_CHUNK_SIZE] [--enc-no-grad-ckpt]
+                [--residual-dtype {fp32,fp16,bf16}]
+                [--attn-dtype {fp32,fp16,bf16}] [--ffn-dtype {fp32,fp16,bf16}]
+                [--conv-dtype {fp32,fp16,bf16}]
+                [--patch-emb-dtype {fp32,fp16,bf16}]
+                [--depthwise-conv DEPTHWISE_CONV]
+                [--deprecated-depthwise-conv DEPRECATED_DEPTHWISE_CONV]
+                [--log-attn-amplitude]
+                [--log-attn-amplitude-every LOG_ATTN_AMPLITUDE_EVERY]
+                [--tau TAU] [--learnable-tau]
+                [--seasonality-emb-dim SEASONALITY_EMB_DIM]
+                [--freq-emb-dim FREQ_EMB_DIM] [--mixup-p MIXUP_P]
+                [--mixup-alpha MIXUP_ALPHA]
+                [--rev-norm-kind {ewma,revin,none}]
+                [--rev-norm-span REV_NORM_SPAN]
+                [--patch-stats {none,diff,raw}]
+                [--loss-shape {cosine_similarity_batch_no_time_neg,cosine_similarity_batch,cosine_similarity_batch_square,cosine_similarity_batch_add_pos_htft,cosine_similarity_batch_add_pos_htft_add_f_cross_negs,cosine_similarity_batch_add_f_cross_negs,cosine_similarity_batch_add_skip_f_negs,cosine_similarity_batch_add_neg_htft,cosine_similarity_batch_full_fh_negs,cosine_similarity,cosine_similarity_old}]
+                [--pos-in-denominator] [--shard-loss-on-batch]
+                [--synth-kind {periodic,composite}] [--enable-pulse]
+                [--seas-heavy] [--more-primitives]
+                [--env-gain-max ENV_GAIN_MAX]
+train.py: error: argument --loss-shape: invalid choice: 'cosine_similarity_batch_full_hh_negs' (choose from 'cosine_similarity_batch_no_time_neg', 'cosine_similarity_batch', 'cosine_similarity_batch_square', 'cosine_similarity_batch_add_pos_htft', 'cosine_similarity_batch_add_pos_htft_add_f_cross_negs', 'cosine_similarity_batch_add_f_cross_negs', 'cosine_similarity_batch_add_skip_f_negs', 'cosine_similarity_batch_add_neg_htft', 'cosine_similarity_batch_full_fh_negs', 'cosine_similarity', 'cosine_similarity_old')
+usage: train.py [-h] [--device DEVICE] [--total-steps TOTAL_STEPS]
+                [--batch-size BATCH_SIZE] [--lr LR] --weight-decay
+                WEIGHT_DECAY [--adam-beta1 ADAM_BETA1]
+                [--adam-beta2 ADAM_BETA2] [--save-dir SAVE_DIR]
+                [--run-name RUN_NAME] [--resume RESUME]
+                [--log-every LOG_EVERY] [--save-every SAVE_EVERY]
+                [--ema-decay EMA_DECAY] [--grad-clip GRAD_CLIP]
+                [--hf-repo HF_REPO] [--hf-path HF_PATH] [--split SPLIT]
+                [--seed SEED] [--mix-ratio MIX_RATIO]
+                [--synth-seed SYNTH_SEED] [--t-raw T_RAW]
+                [--n-channels N_CHANNELS] [--d-model D_MODEL]
+                [--n-heads N_HEADS] [--num-layers NUM_LAYERS]
+                [--forecaster-d-model FORECASTER_D_MODEL]
+                [--forecaster-n-heads FORECASTER_N_HEADS]
+                [--num-encoder-layers NUM_ENCODER_LAYERS]
+                [--encoder-dropkey ENCODER_DROPKEY]
+                [--encoder-dropkey-share-heads]
+                [--encoder-dropkey-share-layers]
+                [--encoder-type {mlp,mlp_wide,residual_silu,gru,conv,transformer}]
+                [--enc-num-layers ENC_NUM_LAYERS] [--enc-nhead ENC_NHEAD]
+                [--enc-ffn-mult ENC_FFN_MULT] [--enc-dropout ENC_DROPOUT]
+                [--enc-depthwise-conv ENC_DEPTHWISE_CONV]
+                [--enc-chunk-size ENC_CHUNK_SIZE] [--enc-no-grad-ckpt]
+                [--residual-dtype {fp32,fp16,bf16}]
+                [--attn-dtype {fp32,fp16,bf16}] [--ffn-dtype {fp32,fp16,bf16}]
+                [--conv-dtype {fp32,fp16,bf16}]
+                [--patch-emb-dtype {fp32,fp16,bf16}]
+                [--depthwise-conv DEPTHWISE_CONV]
+                [--deprecated-depthwise-conv DEPRECATED_DEPTHWISE_CONV]
+                [--log-attn-amplitude]
+                [--log-attn-amplitude-every LOG_ATTN_AMPLITUDE_EVERY]
+                [--tau TAU] [--learnable-tau]
+                [--seasonality-emb-dim SEASONALITY_EMB_DIM]
+                [--freq-emb-dim FREQ_EMB_DIM] [--mixup-p MIXUP_P]
+                [--mixup-alpha MIXUP_ALPHA]
+                [--rev-norm-kind {ewma,revin,none}]
+                [--rev-norm-span REV_NORM_SPAN]
+                [--patch-stats {none,diff,raw}]
+                [--loss-shape {cosine_similarity_batch_no_time_neg,cosine_similarity_batch,cosine_similarity_batch_square,cosine_similarity_batch_add_pos_htft,cosine_similarity_batch_add_pos_htft_add_f_cross_negs,cosine_similarity_batch_add_f_cross_negs,cosine_similarity_batch_add_skip_f_negs,cosine_similarity_batch_add_neg_htft,cosine_similarity_batch_full_fh_negs,cosine_similarity,cosine_similarity_old}]
+                [--pos-in-denominator] [--shard-loss-on-batch]
+                [--synth-kind {periodic,composite}] [--enable-pulse]
+                [--seas-heavy] [--more-primitives]
+                [--env-gain-max ENV_GAIN_MAX]
+train.py: error: argument --loss-shape: invalid choice: 'cosine_similarity_batch_full_hh_negs' (choose from 'cosine_similarity_batch_no_time_neg', 'cosine_similarity_batch', 'cosine_similarity_batch_square', 'cosine_similarity_batch_add_pos_htft', 'cosine_similarity_batch_add_pos_htft_add_f_cross_negs', 'cosine_similarity_batch_add_f_cross_negs', 'cosine_similarity_batch_add_skip_f_negs', 'cosine_similarity_batch_add_neg_htft', 'cosine_similarity_batch_full_fh_negs', 'cosine_similarity', 'cosine_similarity_old')
+E0520 07:47:40.356000 3999644 torch/distributed/elastic/multiprocessing/api.py:874] failed (exitcode: 2) local_rank: 0 (pid: 3999708) of binary: /usr/bin/python3
+Traceback (most recent call last):
+  File "/home/jupyter/.local/bin/torchrun", line 8, in <module>
+    sys.exit(main())
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 357, in wrapper
+    return f(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/distributed/run.py", line 901, in main
+    run(args)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/distributed/run.py", line 892, in run
+    elastic_launch(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/distributed/launcher/api.py", line 143, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/distributed/launcher/api.py", line 277, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+/home/jupyter/contrastive-forecasting/experiments/2026-04-27_freq-embedding/scripts/train.py FAILED
+------------------------------------------------------------
+Failures:
+[1]:
+  time      : 2026-05-20_07:47:40
+  host      : elisa
+  rank      : 1 (local_rank: 1)
+  exitcode  : 2 (pid: 3999711)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2026-05-20_07:47:40
+  host      : elisa
+  rank      : 0 (local_rank: 0)
+  exitcode  : 2 (pid: 3999708)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+============================================================
+Device: cuda:0 | Params: 11,724,220 | DDP rank 0/2 (per-rank bs=128, global bs=256) | gathered loss (global negatives, == 1-GPU @ global B)
+Training for 50000 steps, bs=128, lr=0.001, T=4096, C=1, mix_ratio=0.0, freq_emb_dim=3, seasonality_emb_dim=3, mixup_p=0.3, rev_norm_kind=ewma(span=128), patch_stats=none, encoder_type=gru
+Checkpoints: /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_*.pth
+Loss CSV: /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_losses.csv
+Attn-amplitude CSV: /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_attn_amplitude.csv (every 200 steps)Device: cuda:1 | Params: 11,724,220 | DDP rank 1/2 (per-rank bs=128, global bs=256) | gathered loss (global negatives, == 1-GPU @ global B)
+
+Training for 50000 steps, bs=128, lr=0.001, T=4096, C=1, mix_ratio=0.0, freq_emb_dim=3, seasonality_emb_dim=3, mixup_p=0.3, rev_norm_kind=ewma(span=128), patch_stats=none, encoder_type=gru
+Checkpoints: /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_*.pth
+Data: MIX 100% HF + 0% synth (periodic), hf_bs=128, synth_bs=0
+Loss CSV: /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_losses.csv
+Attn-amplitude CSV: /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_attn_amplitude.csv (every 200 steps)
+Data: MIX 100% HF + 0% synth (periodic), hf_bs=128, synth_bs=0
+  [dataloader] 4274 shards, 42740000 total rows, target skip 12800384
+  [dataloader] Fast-skip: starting at shard 1280/4274, then skipping 384 rows within it
+[    100] loss=5.7014  ema_loss=10.7708  gap=0.9797  ema_gap=0.4436  mixup=23/100  4.6 sps  ETA 3.0h
+              R²_rand=0.9448  R²_naive=0.9459  U_t=0.0279  U_b=0.0276  AUC=1.0000  Top1=0.9993
+  timing: data=69.3ms  fwd=86.1ms  bwd=21.5ms  total=177.2ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[    200] loss=4.0134  ema_loss=6.8300  gap=1.0173  ema_gap=0.7947  mixup=26/100  5.7 sps  ETA 2.4h
+              R²_rand=0.9647  R²_naive=0.9662  U_t=0.0531  U_b=0.0521  AUC=1.0000  Top1=1.0000
+  timing: data=2.6ms  fwd=73.4ms  bwd=13.5ms  total=89.8ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[    300] loss=3.5268  ema_loss=4.8500  gap=1.0415  ema_gap=0.9421  mixup=37/100  6.3 sps  ETA 2.2h
+              R²_rand=0.9706  R²_naive=0.9730  U_t=0.0680  U_b=0.0652  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=68.5ms  bwd=13.1ms  total=84.8ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[    400] loss=3.2095  ema_loss=3.8725  gap=1.0396  ema_gap=0.9921  mixup=35/100  6.2 sps  ETA 2.2h
+              R²_rand=0.9743  R²_naive=0.9761  U_t=0.0816  U_b=0.0781  AUC=1.0000  Top1=1.0000
+  timing: data=26.6ms  fwd=85.5ms  bwd=13.0ms  total=125.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[    500] loss=3.0967  ema_loss=3.4077  gap=1.0327  ema_gap=1.0185  mixup=21/100  6.4 sps  ETA 2.1h
+              R²_rand=0.9766  R²_naive=0.9779  U_t=0.0897  U_b=0.0836  AUC=1.0000  Top1=1.0000
+  timing: data=2.7ms  fwd=72.0ms  bwd=12.9ms  total=88.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[    600] loss=2.9761  ema_loss=3.1627  gap=1.0394  ema_gap=1.0301  mixup=27/100  6.6 sps  ETA 2.1h
+              R²_rand=0.9782  R²_naive=0.9794  U_t=0.0953  U_b=0.0903  AUC=1.0000  Top1=1.0000
+  timing: data=2.8ms  fwd=72.0ms  bwd=12.9ms  total=88.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[    700] loss=2.9478  ema_loss=3.0387  gap=1.0521  ema_gap=1.0383  mixup=29/100  5.9 sps  ETA 2.3h
+              R²_rand=0.9806  R²_naive=0.9819  U_t=0.0960  U_b=0.0901  AUC=1.0000  Top1=1.0000
+  timing: data=78.6ms  fwd=140.8ms  bwd=13.2ms  total=233.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[    800] loss=2.8969  ema_loss=2.9684  gap=1.0440  ema_gap=1.0440  mixup=32/100  6.1 sps  ETA 2.3h
+              R²_rand=0.9806  R²_naive=0.9816  U_t=0.1004  U_b=0.0941  AUC=1.0000  Top1=1.0000
+  timing: data=3.0ms  fwd=71.4ms  bwd=12.8ms  total=87.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[    900] loss=2.8278  ema_loss=2.8870  gap=1.0590  ema_gap=1.0524  mixup=34/100  6.2 sps  ETA 2.2h
+              R²_rand=0.9815  R²_naive=0.9828  U_t=0.1071  U_b=0.0998  AUC=1.0000  Top1=1.0000
+  timing: data=3.0ms  fwd=71.9ms  bwd=12.9ms  total=88.2ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   1000] loss=2.7689  ema_loss=2.8199  gap=1.0634  ema_gap=1.0592  mixup=31/100  5.8 sps  ETA 2.3h
+              R²_rand=0.9832  R²_naive=0.9845  U_t=0.1115  U_b=0.1029  AUC=1.0000  Top1=1.0000
+  timing: data=71.2ms  fwd=129.6ms  bwd=13.8ms  total=214.9ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   1100] loss=2.7146  ema_loss=2.7679  gap=1.0607  ema_gap=1.0593  mixup=28/100  6.0 sps  ETA 2.3h
+              R²_rand=0.9841  R²_naive=0.9853  U_t=0.1164  U_b=0.1070  AUC=1.0000  Top1=1.0000
+  timing: data=2.6ms  fwd=71.8ms  bwd=14.2ms  total=89.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   1200] loss=2.7003  ema_loss=2.7237  gap=1.0482  ema_gap=1.0590  mixup=28/100  6.1 sps  ETA 2.2h
+              R²_rand=0.9869  R²_naive=0.9878  U_t=0.1170  U_b=0.1063  AUC=1.0000  Top1=1.0000
+  timing: data=2.5ms  fwd=71.8ms  bwd=14.9ms  total=89.6ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   1300] loss=2.6302  ema_loss=2.6777  gap=1.0645  ema_gap=1.0570  mixup=27/100  6.1 sps  ETA 2.2h
+              R²_rand=0.9882  R²_naive=0.9891  U_t=0.1212  U_b=0.1101  AUC=1.0000  Top1=1.0000
+  timing: data=23.0ms  fwd=87.3ms  bwd=21.8ms  total=132.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   1400] loss=2.5953  ema_loss=2.6346  gap=1.0418  ema_gap=1.0544  mixup=25/100  6.2 sps  ETA 2.2h
+              R²_rand=0.9896  R²_naive=0.9902  U_t=0.1241  U_b=0.1123  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=71.9ms  bwd=16.3ms  total=91.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   1500] loss=2.5488  ema_loss=2.6005  gap=1.0582  ema_gap=1.0533  mixup=30/100  6.2 sps  ETA 2.2h
+              R²_rand=0.9899  R²_naive=0.9906  U_t=0.1280  U_b=0.1167  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=72.1ms  bwd=13.6ms  total=89.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   1600] loss=2.5353  ema_loss=2.5642  gap=1.0413  ema_gap=1.0535  mixup=25/100  6.2 sps  ETA 2.2h
+              R²_rand=0.9911  R²_naive=0.9916  U_t=0.1286  U_b=0.1173  AUC=1.0000  Top1=1.0000
+  timing: data=19.8ms  fwd=85.2ms  bwd=14.2ms  total=119.6ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   1700] loss=2.4990  ema_loss=2.5300  gap=1.0534  ema_gap=1.0540  mixup=23/100  6.3 sps  ETA 2.1h
+              R²_rand=0.9915  R²_naive=0.9920  U_t=0.1335  U_b=0.1216  AUC=1.0000  Top1=1.0000
+  timing: data=2.7ms  fwd=72.1ms  bwd=13.9ms  total=89.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   1800] loss=2.4873  ema_loss=2.5066  gap=1.0570  ema_gap=1.0549  mixup=27/100  6.4 sps  ETA 2.1h
+              R²_rand=0.9922  R²_naive=0.9927  U_t=0.1349  U_b=0.1220  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=72.8ms  bwd=13.9ms  total=90.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   1900] loss=2.4744  ema_loss=2.4866  gap=1.0692  ema_gap=1.0577  mixup=24/100  6.3 sps  ETA 2.1h
+              R²_rand=0.9924  R²_naive=0.9930  U_t=0.1367  U_b=0.1240  AUC=1.0000  Top1=1.0000
+  timing: data=21.9ms  fwd=90.6ms  bwd=13.6ms  total=126.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   2000] loss=2.4438  ema_loss=2.4734  gap=1.0562  ema_gap=1.0609  mixup=22/100  6.4 sps  ETA 2.1h
+              R²_rand=0.9924  R²_naive=0.9929  U_t=0.1405  U_b=0.1269  AUC=1.0000  Top1=1.0000
+  timing: data=2.6ms  fwd=72.5ms  bwd=13.4ms  total=88.9ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   2100] loss=2.4413  ema_loss=2.4576  gap=1.0641  ema_gap=1.0636  mixup=32/100  6.4 sps  ETA 2.1h
+              R²_rand=0.9932  R²_naive=0.9936  U_t=0.1397  U_b=0.1269  AUC=1.0000  Top1=1.0000
+  timing: data=2.6ms  fwd=71.8ms  bwd=13.7ms  total=88.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   2200] loss=2.4313  ema_loss=2.4472  gap=1.0627  ema_gap=1.0645  mixup=30/100  6.4 sps  ETA 2.1h
+              R²_rand=0.9931  R²_naive=0.9936  U_t=0.1419  U_b=0.1287  AUC=1.0000  Top1=1.0000
+  timing: data=22.7ms  fwd=83.4ms  bwd=14.0ms  total=120.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   2300] loss=2.4230  ema_loss=2.4342  gap=1.0699  ema_gap=1.0651  mixup=31/100  6.5 sps  ETA 2.0h
+              R²_rand=0.9937  R²_naive=0.9941  U_t=0.1421  U_b=0.1293  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=71.6ms  bwd=14.2ms  total=89.2ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   2400] loss=2.4205  ema_loss=2.4250  gap=1.0765  ema_gap=1.0654  mixup=33/100  6.5 sps  ETA 2.0h
+              R²_rand=0.9941  R²_naive=0.9946  U_t=0.1423  U_b=0.1294  AUC=1.0000  Top1=1.0000
+  timing: data=2.7ms  fwd=71.8ms  bwd=13.8ms  total=88.7ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   2500] loss=2.4304  ema_loss=2.4146  gap=1.0624  ema_gap=1.0654  mixup=27/100  6.5 sps  ETA 2.0h
+              R²_rand=0.9939  R²_naive=0.9944  U_t=0.1439  U_b=0.1317  AUC=1.0000  Top1=1.0000
+  timing: data=19.9ms  fwd=87.5ms  bwd=13.8ms  total=121.6ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   2600] loss=2.4013  ema_loss=2.4066  gap=1.0645  ema_gap=1.0655  mixup=37/100  6.5 sps  ETA 2.0h
+              R²_rand=0.9943  R²_naive=0.9947  U_t=0.1455  U_b=0.1319  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=71.4ms  bwd=13.7ms  total=88.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   2700] loss=2.3853  ema_loss=2.4020  gap=1.0703  ema_gap=1.0668  mixup=29/100  6.6 sps  ETA 2.0h
+              R²_rand=0.9942  R²_naive=0.9946  U_t=0.1479  U_b=0.1341  AUC=1.0000  Top1=1.0000
+  timing: data=2.7ms  fwd=71.4ms  bwd=13.7ms  total=88.2ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   2800] loss=2.3774  ema_loss=2.3895  gap=1.0744  ema_gap=1.0677  mixup=36/100  6.6 sps  ETA 2.0h
+              R²_rand=0.9947  R²_naive=0.9951  U_t=0.1459  U_b=0.1348  AUC=1.0000  Top1=1.0000
+  timing: data=3.0ms  fwd=86.5ms  bwd=13.7ms  total=103.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   2900] loss=2.3620  ema_loss=2.3794  gap=1.0654  ema_gap=1.0672  mixup=35/100  6.6 sps  ETA 2.0h
+              R²_rand=0.9947  R²_naive=0.9951  U_t=0.1492  U_b=0.1371  AUC=1.0000  Top1=1.0000
+  timing: data=20.1ms  fwd=70.7ms  bwd=13.5ms  total=104.7ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   3000] loss=2.3575  ema_loss=2.3693  gap=1.0611  ema_gap=1.0668  mixup=34/100  6.6 sps  ETA 2.0h
+              R²_rand=0.9951  R²_naive=0.9954  U_t=0.1504  U_b=0.1371  AUC=1.0000  Top1=1.0000
+  timing: data=2.5ms  fwd=71.8ms  bwd=12.8ms  total=87.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   3100] loss=2.3552  ema_loss=2.3623  gap=1.0723  ema_gap=1.0670  mixup=33/100  6.6 sps  ETA 2.0h
+              R²_rand=0.9949  R²_naive=0.9953  U_t=0.1513  U_b=0.1383  AUC=1.0000  Top1=1.0000
+  timing: data=2.6ms  fwd=71.7ms  bwd=12.8ms  total=87.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   3200] loss=2.3768  ema_loss=2.3539  gap=1.0665  ema_gap=1.0678  mixup=29/100  6.6 sps  ETA 2.0h
+              R²_rand=0.9953  R²_naive=0.9956  U_t=0.1513  U_b=0.1394  AUC=1.0000  Top1=1.0000
+  timing: data=20.3ms  fwd=82.1ms  bwd=12.7ms  total=115.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   3300] loss=2.3480  ema_loss=2.3492  gap=1.0745  ema_gap=1.0687  mixup=34/100  6.7 sps  ETA 2.0h
+              R²_rand=0.9954  R²_naive=0.9958  U_t=0.1524  U_b=0.1398  AUC=1.0000  Top1=1.0000
+  timing: data=2.8ms  fwd=73.6ms  bwd=12.6ms  total=89.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   3400] loss=2.3357  ema_loss=2.3475  gap=1.0793  ema_gap=1.0717  mixup=35/100  6.7 sps  ETA 1.9h
+              R²_rand=0.9957  R²_naive=0.9961  U_t=0.1521  U_b=0.1400  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=72.1ms  bwd=12.8ms  total=88.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   3500] loss=2.3370  ema_loss=2.3418  gap=1.0717  ema_gap=1.0741  mixup=23/100  6.7 sps  ETA 1.9h
+              R²_rand=0.9958  R²_naive=0.9961  U_t=0.1528  U_b=0.1395  AUC=1.0000  Top1=1.0000
+  timing: data=19.8ms  fwd=82.3ms  bwd=13.6ms  total=116.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   3600] loss=2.3247  ema_loss=2.3372  gap=1.0791  ema_gap=1.0768  mixup=26/100  6.7 sps  ETA 1.9h
+              R²_rand=0.9957  R²_naive=0.9960  U_t=0.1555  U_b=0.1419  AUC=1.0000  Top1=1.0000
+  timing: data=2.5ms  fwd=69.7ms  bwd=13.4ms  total=86.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   3700] loss=2.3234  ema_loss=2.3309  gap=1.0790  ema_gap=1.0790  mixup=23/100  6.7 sps  ETA 1.9h
+              R²_rand=0.9959  R²_naive=0.9962  U_t=0.1544  U_b=0.1425  AUC=1.0000  Top1=1.0000
+  timing: data=2.6ms  fwd=71.6ms  bwd=12.9ms  total=87.3ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   3800] loss=2.3194  ema_loss=2.3275  gap=1.0826  ema_gap=1.0807  mixup=25/100  6.7 sps  ETA 1.9h
+              R²_rand=0.9960  R²_naive=0.9964  U_t=0.1546  U_b=0.1422  AUC=1.0000  Top1=1.0000
+  timing: data=19.7ms  fwd=83.9ms  bwd=12.8ms  total=116.8ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   3900] loss=2.3196  ema_loss=2.3253  gap=1.0778  ema_gap=1.0824  mixup=36/100  6.7 sps  ETA 1.9h
+              R²_rand=0.9961  R²_naive=0.9964  U_t=0.1545  U_b=0.1422  AUC=1.0000  Top1=1.0000
+  timing: data=2.8ms  fwd=71.4ms  bwd=12.8ms  total=87.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   4000] loss=2.3046  ema_loss=2.3197  gap=1.0782  ema_gap=1.0829  mixup=33/100  6.7 sps  ETA 1.9h
+              R²_rand=0.9959  R²_naive=0.9962  U_t=0.1567  U_b=0.1450  AUC=1.0000  Top1=1.0000
+  timing: data=2.5ms  fwd=70.0ms  bwd=17.7ms  total=90.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   4100] loss=2.3077  ema_loss=2.3128  gap=1.0836  ema_gap=1.0832  mixup=32/100  6.7 sps  ETA 1.9h
+              R²_rand=0.9961  R²_naive=0.9965  U_t=0.1570  U_b=0.1445  AUC=1.0000  Top1=1.0000
+  timing: data=49.1ms  fwd=88.0ms  bwd=21.0ms  total=158.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   4200] loss=2.3084  ema_loss=2.3098  gap=1.0841  ema_gap=1.0845  mixup=31/100  6.7 sps  ETA 1.9h
+              R²_rand=0.9963  R²_naive=0.9966  U_t=0.1570  U_b=0.1449  AUC=1.0000  Top1=1.0000
+  timing: data=2.6ms  fwd=70.9ms  bwd=14.1ms  total=88.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   4300] loss=2.3016  ema_loss=2.3078  gap=1.0874  ema_gap=1.0857  mixup=25/100  6.7 sps  ETA 1.9h
+              R²_rand=0.9963  R²_naive=0.9966  U_t=0.1564  U_b=0.1450  AUC=1.0000  Top1=1.0000
+  timing: data=2.7ms  fwd=72.7ms  bwd=14.1ms  total=89.8ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   4400] loss=2.3052  ema_loss=2.3064  gap=1.0879  ema_gap=1.0866  mixup=36/100  6.6 sps  ETA 1.9h
+              R²_rand=0.9964  R²_naive=0.9968  U_t=0.1566  U_b=0.1444  AUC=1.0000  Top1=1.0000
+  timing: data=64.5ms  fwd=142.7ms  bwd=14.0ms  total=221.6ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   4500] loss=2.3018  ema_loss=2.3052  gap=1.0857  ema_gap=1.0877  mixup=29/100  6.6 sps  ETA 1.9h
+              R²_rand=0.9966  R²_naive=0.9968  U_t=0.1572  U_b=0.1448  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=71.4ms  bwd=14.1ms  total=88.8ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   4600] loss=2.3012  ema_loss=2.3066  gap=1.0833  ema_gap=1.0892  mixup=22/100  6.6 sps  ETA 1.9h
+              R²_rand=0.9966  R²_naive=0.9969  U_t=0.1571  U_b=0.1447  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=71.7ms  bwd=13.9ms  total=89.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+[   4700] loss=2.3041  ema_loss=2.3045  gap=1.0897  ema_gap=1.0900  mixup=35/100  6.6 sps  ETA 1.9h
+              R²_rand=0.9966  R²_naive=0.9969  U_t=0.1571  U_b=0.1442  AUC=1.0000  Top1=1.0000
+  timing: data=21.5ms  fwd=86.7ms  bwd=13.9ms  total=122.6ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   4800] loss=2.3056  ema_loss=2.3027  gap=1.0882  ema_gap=1.0910  mixup=34/100  6.6 sps  ETA 1.9h
+              R²_rand=0.9966  R²_naive=0.9969  U_t=0.1568  U_b=0.1446  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=72.1ms  bwd=13.6ms  total=88.9ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   4900] loss=2.3065  ema_loss=2.3015  gap=1.0913  ema_gap=1.0920  mixup=30/100  6.7 sps  ETA 1.9h
+              R²_rand=0.9967  R²_naive=0.9970  U_t=0.1565  U_b=0.1447  AUC=1.0000  Top1=1.0000
+  timing: data=2.5ms  fwd=72.6ms  bwd=13.2ms  total=88.8ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   5000] loss=2.2951  ema_loss=2.3038  gap=1.0976  ema_gap=1.0938  mixup=32/100  6.6 sps  ETA 1.9h
+              R²_rand=0.9967  R²_naive=0.9970  U_t=0.1577  U_b=0.1454  AUC=1.0000  Top1=1.0000
+  timing: data=21.2ms  fwd=84.3ms  bwd=13.2ms  total=119.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_5k.pth
+[   5100] loss=2.2858  ema_loss=2.2979  gap=1.0946  ema_gap=1.0967  mixup=35/100  6.7 sps  ETA 1.9h
+              R²_rand=0.9966  R²_naive=0.9969  U_t=0.1599  U_b=0.1470  AUC=1.0000  Top1=1.0000
+  timing: data=3.4ms  fwd=71.9ms  bwd=13.0ms  total=88.6ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   5200] loss=2.2899  ema_loss=2.2921  gap=1.0992  ema_gap=1.0987  mixup=23/100  6.7 sps  ETA 1.9h
+              R²_rand=0.9967  R²_naive=0.9970  U_t=0.1586  U_b=0.1475  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=72.2ms  bwd=13.4ms  total=88.9ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   5300] loss=2.2846  ema_loss=2.2884  gap=1.0985  ema_gap=1.1005  mixup=26/100  6.6 sps  ETA 1.9h
+              R²_rand=0.9969  R²_naive=0.9971  U_t=0.1586  U_b=0.1476  AUC=1.0000  Top1=1.0000
+  timing: data=2.7ms  fwd=179.5ms  bwd=13.9ms  total=196.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   5400] loss=2.2812  ema_loss=2.2900  gap=1.1001  ema_gap=1.1015  mixup=30/100  6.6 sps  ETA 1.9h
+              R²_rand=0.9968  R²_naive=0.9971  U_t=0.1580  U_b=0.1477  AUC=1.0000  Top1=1.0000
+  timing: data=19.6ms  fwd=69.6ms  bwd=13.9ms  total=103.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+[   5500] loss=2.2839  ema_loss=2.2869  gap=1.1005  ema_gap=1.1023  mixup=37/100  6.6 sps  ETA 1.9h
+              R²_rand=0.9969  R²_naive=0.9972  U_t=0.1594  U_b=0.1474  AUC=1.0000  Top1=1.0000
+  timing: data=3.1ms  fwd=70.8ms  bwd=13.8ms  total=88.2ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   5600] loss=2.2801  ema_loss=2.2861  gap=1.0979  ema_gap=1.1021  mixup=32/100  6.6 sps  ETA 1.9h
+              R²_rand=0.9970  R²_naive=0.9973  U_t=0.1582  U_b=0.1473  AUC=1.0000  Top1=1.0000
+  timing: data=3.0ms  fwd=70.6ms  bwd=13.8ms  total=87.8ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   5700] loss=2.2822  ema_loss=2.2848  gap=1.1072  ema_gap=1.1029  mixup=32/100  6.6 sps  ETA 1.9h
+              R²_rand=0.9970  R²_naive=0.9973  U_t=0.1578  U_b=0.1477  AUC=1.0000  Top1=1.0000
+  timing: data=19.4ms  fwd=97.5ms  bwd=12.9ms  total=130.2ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   5800] loss=2.2846  ema_loss=2.2855  gap=1.1034  ema_gap=1.1033  mixup=26/100  6.6 sps  ETA 1.8h
+              R²_rand=0.9970  R²_naive=0.9973  U_t=0.1585  U_b=0.1473  AUC=1.0000  Top1=1.0000
+  timing: data=2.5ms  fwd=71.6ms  bwd=12.7ms  total=87.2ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+[   5900] loss=2.2788  ema_loss=2.2849  gap=1.1028  ema_gap=1.1042  mixup=36/100  6.7 sps  ETA 1.8h
+              R²_rand=0.9971  R²_naive=0.9974  U_t=0.1584  U_b=0.1481  AUC=1.0000  Top1=1.0000
+  timing: data=2.8ms  fwd=70.8ms  bwd=12.7ms  total=86.6ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+[   6000] loss=2.2797  ema_loss=2.2858  gap=1.1035  ema_gap=1.1053  mixup=31/100  6.6 sps  ETA 1.8h
+              R²_rand=0.9971  R²_naive=0.9974  U_t=0.1597  U_b=0.1472  AUC=1.0000  Top1=1.0000
+  timing: data=19.9ms  fwd=85.6ms  bwd=12.9ms  total=118.8ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+[   6100] loss=2.2866  ema_loss=2.2833  gap=1.1127  ema_gap=1.1059  mixup=37/100  6.7 sps  ETA 1.8h
+              R²_rand=0.9970  R²_naive=0.9973  U_t=0.1569  U_b=0.1471  AUC=1.0000  Top1=1.0000
+  timing: data=2.6ms  fwd=70.9ms  bwd=12.7ms  total=86.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   6200] loss=2.2771  ema_loss=2.2901  gap=1.1082  ema_gap=1.1069  mixup=27/100  6.7 sps  ETA 1.8h
+              R²_rand=0.9971  R²_naive=0.9974  U_t=0.1577  U_b=0.1476  AUC=1.0000  Top1=1.0000
+  timing: data=2.4ms  fwd=71.0ms  bwd=12.7ms  total=86.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+[   6300] loss=2.2806  ema_loss=2.2844  gap=1.1072  ema_gap=1.1065  mixup=26/100  6.7 sps  ETA 1.8h
+              R²_rand=0.9972  R²_naive=0.9974  U_t=0.1572  U_b=0.1478  AUC=1.0000  Top1=1.0000
+  timing: data=20.4ms  fwd=82.8ms  bwd=12.7ms  total=116.3ms
+[   6400] loss=2.2747  ema_loss=2.2803  gap=1.1083  ema_gap=1.1060  mixup=33/100  6.7 sps  ETA 1.8h
+              R²_rand=0.9967  R²_naive=0.9971  U_t=0.1606  U_b=0.1500  AUC=1.0000  Top1=1.0000
+  timing: data=2.5ms  fwd=70.3ms  bwd=12.7ms  total=85.7ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   6500] loss=2.2628  ema_loss=2.2740  gap=1.1074  ema_gap=1.1043  mixup=25/100  6.7 sps  ETA 1.8h
+              R²_rand=0.9971  R²_naive=0.9974  U_t=0.1620  U_b=0.1502  AUC=1.0000  Top1=1.0000
+  timing: data=2.4ms  fwd=70.4ms  bwd=12.7ms  total=85.8ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   6600] loss=2.2734  ema_loss=2.2704  gap=1.1040  ema_gap=1.1040  mixup=27/100  6.7 sps  ETA 1.8h
+              R²_rand=0.9972  R²_naive=0.9974  U_t=0.1615  U_b=0.1494  AUC=1.0000  Top1=1.0000
+  timing: data=20.2ms  fwd=85.5ms  bwd=13.0ms  total=119.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   6700] loss=2.2666  ema_loss=2.2697  gap=1.1022  ema_gap=1.1040  mixup=24/100  6.7 sps  ETA 1.8h
+              R²_rand=0.9972  R²_naive=0.9975  U_t=0.1604  U_b=0.1502  AUC=1.0000  Top1=1.0000
+  timing: data=2.5ms  fwd=71.1ms  bwd=14.1ms  total=88.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   6800] loss=2.2676  ema_loss=2.2766  gap=1.1068  ema_gap=1.1051  mixup=25/100  6.7 sps  ETA 1.8h
+              R²_rand=0.9971  R²_naive=0.9974  U_t=0.1609  U_b=0.1500  AUC=1.0000  Top1=1.0000
+  timing: data=2.5ms  fwd=70.6ms  bwd=13.9ms  total=87.4ms
+[   6900] loss=2.2658  ema_loss=2.2717  gap=1.1086  ema_gap=1.1061  mixup=30/100  6.7 sps  ETA 1.8h
+              R²_rand=0.9972  R²_naive=0.9975  U_t=0.1597  U_b=0.1497  AUC=1.0000  Top1=1.0000
+  timing: data=20.2ms  fwd=85.2ms  bwd=13.8ms  total=119.5ms
+[   7000] loss=2.2663  ema_loss=2.2687  gap=1.1071  ema_gap=1.1068  mixup=32/100  6.7 sps  ETA 1.8h
+              R²_rand=0.9973  R²_naive=0.9976  U_t=0.1610  U_b=0.1500  AUC=1.0000  Top1=1.0000
+  timing: data=2.7ms  fwd=71.3ms  bwd=13.7ms  total=88.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   7100] loss=2.2636  ema_loss=2.2693  gap=1.1046  ema_gap=1.1069  mixup=27/100  6.7 sps  ETA 1.8h
+              R²_rand=0.9972  R²_naive=0.9975  U_t=0.1603  U_b=0.1504  AUC=1.0000  Top1=1.0000
+  timing: data=2.4ms  fwd=71.5ms  bwd=14.0ms  total=88.3ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+[   7200] loss=2.2701  ema_loss=2.2689  gap=1.1038  ema_gap=1.1067  mixup=36/100  6.7 sps  ETA 1.8h
+              R²_rand=0.9973  R²_naive=0.9976  U_t=0.1601  U_b=0.1495  AUC=1.0000  Top1=1.0000
+  timing: data=19.7ms  fwd=82.1ms  bwd=13.8ms  total=116.0ms
+[   7300] loss=2.2626  ema_loss=2.2678  gap=1.1056  ema_gap=1.1070  mixup=31/100  6.7 sps  ETA 1.8h
+              R²_rand=0.9973  R²_naive=0.9976  U_t=0.1611  U_b=0.1505  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=70.0ms  bwd=13.7ms  total=87.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   7400] loss=2.2667  ema_loss=2.2688  gap=1.1021  ema_gap=1.1068  mixup=33/100  6.8 sps  ETA 1.8h
+              R²_rand=0.9973  R²_naive=0.9976  U_t=0.1620  U_b=0.1498  AUC=1.0000  Top1=1.0000
+  timing: data=3.0ms  fwd=70.0ms  bwd=13.7ms  total=87.1ms
+[   7500] loss=2.2679  ema_loss=2.2696  gap=1.1078  ema_gap=1.1071  mixup=36/100  6.8 sps  ETA 1.7h
+              R²_rand=0.9974  R²_naive=0.9976  U_t=0.1611  U_b=0.1499  AUC=1.0000  Top1=1.0000
+  timing: data=20.6ms  fwd=83.2ms  bwd=13.7ms  total=117.9ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+[   7600] loss=2.2690  ema_loss=2.2668  gap=1.1014  ema_gap=1.1073  mixup=36/100  6.8 sps  ETA 1.7h
+              R²_rand=0.9974  R²_naive=0.9976  U_t=0.1597  U_b=0.1496  AUC=1.0000  Top1=1.0000
+  timing: data=3.2ms  fwd=70.7ms  bwd=13.2ms  total=87.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   7700] loss=2.2647  ema_loss=2.2655  gap=1.1114  ema_gap=1.1070  mixup=32/100  6.8 sps  ETA 1.7h
+              R²_rand=0.9974  R²_naive=0.9977  U_t=0.1609  U_b=0.1499  AUC=1.0000  Top1=1.0000
+  timing: data=3.1ms  fwd=68.8ms  bwd=13.3ms  total=85.6ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   7800] loss=2.2658  ema_loss=2.2661  gap=1.1074  ema_gap=1.1073  mixup=26/100  6.8 sps  ETA 1.7h
+              R²_rand=0.9975  R²_naive=0.9977  U_t=0.1603  U_b=0.1501  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=86.8ms  bwd=12.8ms  total=102.9ms
+[   7900] loss=2.2612  ema_loss=2.2642  gap=1.1101  ema_gap=1.1078  mixup=31/100  6.8 sps  ETA 1.7h
+              R²_rand=0.9975  R²_naive=0.9977  U_t=0.1614  U_b=0.1506  AUC=1.0000  Top1=1.0000
+  timing: data=19.9ms  fwd=70.2ms  bwd=13.7ms  total=104.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   8000] loss=2.2641  ema_loss=2.2644  gap=1.1116  ema_gap=1.1087  mixup=28/100  6.8 sps  ETA 1.7h
+              R²_rand=0.9975  R²_naive=0.9977  U_t=0.1606  U_b=0.1499  AUC=1.0000  Top1=1.0000
+  timing: data=3.0ms  fwd=71.6ms  bwd=13.8ms  total=88.8ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+[   8100] loss=2.2636  ema_loss=2.2644  gap=1.1112  ema_gap=1.1093  mixup=31/100  6.8 sps  ETA 1.7h
+              R²_rand=0.9975  R²_naive=0.9977  U_t=0.1606  U_b=0.1499  AUC=1.0000  Top1=1.0000
+  timing: data=3.1ms  fwd=69.6ms  bwd=13.0ms  total=86.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+[   8200] loss=2.2611  ema_loss=2.2646  gap=1.1095  ema_gap=1.1096  mixup=29/100  6.8 sps  ETA 1.7h
+              R²_rand=0.9975  R²_naive=0.9978  U_t=0.1602  U_b=0.1503  AUC=1.0000  Top1=1.0000
+  timing: data=20.5ms  fwd=84.1ms  bwd=12.9ms  total=117.9ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+[   8300] loss=2.2633  ema_loss=2.2646  gap=1.1137  ema_gap=1.1094  mixup=35/100  6.8 sps  ETA 1.7h
+              R²_rand=0.9975  R²_naive=0.9977  U_t=0.1602  U_b=0.1501  AUC=1.0000  Top1=1.0000
+  timing: data=3.0ms  fwd=70.1ms  bwd=13.3ms  total=86.7ms
+[   8400] loss=2.2688  ema_loss=2.2643  gap=1.1121  ema_gap=1.1099  mixup=34/100  6.8 sps  ETA 1.7h
+              R²_rand=0.9975  R²_naive=0.9977  U_t=0.1610  U_b=0.1499  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=70.3ms  bwd=13.0ms  total=86.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+'HTTPSConnectionPool(host='cas-bridge.xethub.hf.co', port=443): Read timed out.' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_01307.parquet
+Retrying in 1s [Retry 1/5].
+[   8500] loss=2.2599  ema_loss=2.2640  gap=1.1128  ema_gap=1.1099  mixup=35/100  6.7 sps  ETA 1.7h
+              R²_rand=0.9975  R²_naive=0.9978  U_t=0.1604  U_b=0.1505  AUC=1.0000  Top1=1.0000
+  timing: data=23.6ms  fwd=209.2ms  bwd=13.4ms  total=246.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   8600] loss=2.2630  ema_loss=2.2632  gap=1.1056  ema_gap=1.1103  mixup=28/100  6.7 sps  ETA 1.7h
+              R²_rand=0.9975  R²_naive=0.9978  U_t=0.1614  U_b=0.1501  AUC=1.0000  Top1=1.0000
+  timing: data=3.0ms  fwd=70.4ms  bwd=14.1ms  total=87.9ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   8700] loss=2.2633  ema_loss=2.2623  gap=1.1142  ema_gap=1.1108  mixup=31/100  6.8 sps  ETA 1.7h
+              R²_rand=0.9975  R²_naive=0.9978  U_t=0.1614  U_b=0.1497  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=70.7ms  bwd=14.2ms  total=88.2ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   8800] loss=2.2524  ema_loss=2.2641  gap=1.1098  ema_gap=1.1120  mixup=29/100  6.7 sps  ETA 1.7h
+              R²_rand=0.9970  R²_naive=0.9974  U_t=0.1630  U_b=0.1531  AUC=1.0000  Top1=1.0000
+  timing: data=20.1ms  fwd=87.0ms  bwd=14.2ms  total=121.7ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+[   8900] loss=2.2492  ema_loss=2.2570  gap=1.1136  ema_gap=1.1124  mixup=32/100  6.8 sps  ETA 1.7h
+              R²_rand=0.9975  R²_naive=0.9977  U_t=0.1630  U_b=0.1528  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=71.3ms  bwd=14.3ms  total=88.9ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   9000] loss=2.2508  ema_loss=2.2532  gap=1.1193  ema_gap=1.1127  mixup=30/100  6.8 sps  ETA 1.7h
+              R²_rand=0.9975  R²_naive=0.9978  U_t=0.1626  U_b=0.1526  AUC=1.0000  Top1=1.0000
+  timing: data=2.7ms  fwd=71.0ms  bwd=13.1ms  total=87.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   9100] loss=2.2528  ema_loss=2.2519  gap=1.1189  ema_gap=1.1128  mixup=29/100  6.8 sps  ETA 1.7h
+              R²_rand=0.9976  R²_naive=0.9978  U_t=0.1638  U_b=0.1524  AUC=1.0000  Top1=1.0000
+  timing: data=19.0ms  fwd=83.9ms  bwd=12.9ms  total=116.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[   9200] loss=2.2543  ema_loss=2.2529  gap=1.1216  ema_gap=1.1136  mixup=30/100  6.8 sps  ETA 1.7h
+              R²_rand=0.9975  R²_naive=0.9978  U_t=0.1624  U_b=0.1527  AUC=1.0000  Top1=1.0000
+  timing: data=2.5ms  fwd=70.9ms  bwd=13.1ms  total=86.9ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+[   9300] loss=2.2527  ema_loss=2.2548  gap=1.1183  ema_gap=1.1147  mixup=33/100  6.8 sps  ETA 1.7h
+              R²_rand=0.9975  R²_naive=0.9978  U_t=0.1630  U_b=0.1526  AUC=1.0000  Top1=1.0000
+  timing: data=2.7ms  fwd=70.9ms  bwd=12.9ms  total=86.9ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+[   9400] loss=2.2506  ema_loss=2.2546  gap=1.1157  ema_gap=1.1147  mixup=24/100  6.8 sps  ETA 1.7h
+              R²_rand=0.9976  R²_naive=0.9978  U_t=0.1623  U_b=0.1530  AUC=1.0000  Top1=1.0000
+  timing: data=27.1ms  fwd=83.5ms  bwd=13.2ms  total=124.1ms
+[   9500] loss=2.2522  ema_loss=2.2546  gap=1.1081  ema_gap=1.1147  mixup=24/100  6.8 sps  ETA 1.7h
+              R²_rand=0.9976  R²_naive=0.9978  U_t=0.1634  U_b=0.1523  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=71.2ms  bwd=14.1ms  total=88.6ms
+[   9600] loss=2.2500  ema_loss=2.2521  gap=1.1171  ema_gap=1.1137  mixup=31/100  6.8 sps  ETA 1.7h
+              R²_rand=0.9976  R²_naive=0.9979  U_t=0.1628  U_b=0.1526  AUC=1.0000  Top1=1.0000
+  timing: data=3.0ms  fwd=71.1ms  bwd=13.8ms  total=88.3ms
+[   9700] loss=2.2518  ema_loss=2.2530  gap=1.1116  ema_gap=1.1137  mixup=28/100  6.8 sps  ETA 1.7h
+              R²_rand=0.9976  R²_naive=0.9979  U_t=0.1627  U_b=0.1524  AUC=1.0000  Top1=1.0000
+  timing: data=20.0ms  fwd=83.4ms  bwd=13.4ms  total=117.2ms
+[   9800] loss=2.2489  ema_loss=2.2522  gap=1.1109  ema_gap=1.1144  mixup=18/100  6.8 sps  ETA 1.6h
+              R²_rand=0.9976  R²_naive=0.9979  U_t=0.1638  U_b=0.1525  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=70.9ms  bwd=13.4ms  total=87.6ms
+[   9900] loss=2.2869  ema_loss=2.2520  gap=1.1124  ema_gap=1.1147  mixup=28/100  6.8 sps  ETA 1.6h
+              R²_rand=0.9977  R²_naive=0.9979  U_t=0.1633  U_b=0.1525  AUC=1.0000  Top1=1.0000
+  timing: data=3.0ms  fwd=70.8ms  bwd=13.2ms  total=87.4ms
+[  10000] loss=2.2464  ema_loss=2.2519  gap=1.1123  ema_gap=1.1146  mixup=28/100  6.8 sps  ETA 1.6h
+              R²_rand=0.9976  R²_naive=0.9979  U_t=0.1640  U_b=0.1533  AUC=1.0000  Top1=1.0000
+  timing: data=20.2ms  fwd=133.7ms  bwd=12.9ms  total=167.2ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_10k.pth
+[  10100] loss=2.2554  ema_loss=2.2460  gap=1.1092  ema_gap=1.1139  mixup=25/100  6.8 sps  ETA 1.6h
+              R²_rand=0.9975  R²_naive=0.9978  U_t=0.1661  U_b=0.1555  AUC=1.0000  Top1=1.0000
+  timing: data=2.7ms  fwd=70.8ms  bwd=12.6ms  total=86.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  10200] loss=2.2358  ema_loss=2.2454  gap=1.1134  ema_gap=1.1138  mixup=32/100  6.8 sps  ETA 1.6h
+              R²_rand=0.9976  R²_naive=0.9978  U_t=0.1663  U_b=0.1549  AUC=1.0000  Top1=1.0000
+  timing: data=2.8ms  fwd=70.9ms  bwd=12.7ms  total=86.8ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  10300] loss=2.2673  ema_loss=2.2412  gap=1.1161  ema_gap=1.1141  mixup=24/100  6.8 sps  ETA 1.6h
+              R²_rand=0.9976  R²_naive=0.9978  U_t=0.1659  U_b=0.1553  AUC=1.0000  Top1=1.0000
+  timing: data=2.5ms  fwd=119.6ms  bwd=13.1ms  total=135.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  10400] loss=2.2352  ema_loss=2.2408  gap=1.1137  ema_gap=1.1141  mixup=27/100  6.8 sps  ETA 1.6h
+              R²_rand=0.9977  R²_naive=0.9979  U_t=0.1660  U_b=0.1554  AUC=1.0000  Top1=1.0000
+  timing: data=38.4ms  fwd=69.0ms  bwd=13.3ms  total=121.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  10500] loss=2.2386  ema_loss=2.2402  gap=1.1160  ema_gap=1.1140  mixup=24/100  6.8 sps  ETA 1.6h
+              R²_rand=0.9977  R²_naive=0.9979  U_t=0.1656  U_b=0.1554  AUC=1.0000  Top1=1.0000
+  timing: data=2.6ms  fwd=71.2ms  bwd=13.0ms  total=87.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  10600] loss=2.2404  ema_loss=2.2418  gap=1.1135  ema_gap=1.1138  mixup=37/100  6.8 sps  ETA 1.6h
+              R²_rand=0.9977  R²_naive=0.9979  U_t=0.1663  U_b=0.1547  AUC=1.0000  Top1=1.0000
+  timing: data=3.0ms  fwd=70.5ms  bwd=12.8ms  total=86.6ms
+[  10700] loss=2.2385  ema_loss=2.2413  gap=1.1104  ema_gap=1.1130  mixup=26/100  6.8 sps  ETA 1.6h
+              R²_rand=0.9977  R²_naive=0.9980  U_t=0.1654  U_b=0.1556  AUC=1.0000  Top1=1.0000
+  timing: data=20.7ms  fwd=88.1ms  bwd=12.8ms  total=121.9ms
+[  10800] loss=2.2360  ema_loss=2.2385  gap=1.1154  ema_gap=1.1129  mixup=28/100  6.8 sps  ETA 1.6h
+              R²_rand=0.9978  R²_naive=0.9980  U_t=0.1660  U_b=0.1552  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=71.2ms  bwd=12.9ms  total=87.3ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  10900] loss=2.2374  ema_loss=2.2368  gap=1.1116  ema_gap=1.1131  mixup=31/100  6.8 sps  ETA 1.6h
+              R²_rand=0.9977  R²_naive=0.9980  U_t=0.1661  U_b=0.1552  AUC=1.0000  Top1=1.0000
+  timing: data=2.8ms  fwd=71.0ms  bwd=12.8ms  total=87.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  11000] loss=2.2325  ema_loss=2.2370  gap=1.1143  ema_gap=1.1132  mixup=21/100  6.8 sps  ETA 1.6h
+              R²_rand=0.9978  R²_naive=0.9980  U_t=0.1665  U_b=0.1551  AUC=1.0000  Top1=1.0000
+  timing: data=21.4ms  fwd=84.6ms  bwd=12.9ms  total=119.3ms
+[  11100] loss=2.2332  ema_loss=2.2363  gap=1.1131  ema_gap=1.1137  mixup=33/100  6.8 sps  ETA 1.6h
+              R²_rand=0.9978  R²_naive=0.9980  U_t=0.1658  U_b=0.1559  AUC=1.0000  Top1=1.0000
+  timing: data=2.6ms  fwd=69.7ms  bwd=12.8ms  total=85.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  11200] loss=2.2364  ema_loss=2.2367  gap=1.1133  ema_gap=1.1133  mixup=28/100  6.8 sps  ETA 1.6h
+              R²_rand=0.9978  R²_naive=0.9980  U_t=0.1672  U_b=0.1555  AUC=1.0000  Top1=1.0000
+  timing: data=2.5ms  fwd=71.6ms  bwd=12.8ms  total=87.2ms
+[  11300] loss=2.2392  ema_loss=2.2359  gap=1.1113  ema_gap=1.1131  mixup=32/100  6.8 sps  ETA 1.6h
+              R²_rand=0.9978  R²_naive=0.9980  U_t=0.1675  U_b=0.1550  AUC=1.0000  Top1=1.0000
+  timing: data=21.4ms  fwd=82.3ms  bwd=12.8ms  total=116.8ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  11400] loss=2.2416  ema_loss=2.2361  gap=1.1175  ema_gap=1.1129  mixup=25/100  6.8 sps  ETA 1.6h
+              R²_rand=0.9978  R²_naive=0.9980  U_t=0.1664  U_b=0.1553  AUC=1.0000  Top1=1.0000
+  timing: data=2.7ms  fwd=68.6ms  bwd=12.9ms  total=84.6ms
+[  11500] loss=2.2365  ema_loss=2.2360  gap=1.1138  ema_gap=1.1131  mixup=37/100  6.8 sps  ETA 1.6h
+              R²_rand=0.9978  R²_naive=0.9980  U_t=0.1661  U_b=0.1551  AUC=1.0000  Top1=1.0000
+  timing: data=3.0ms  fwd=70.1ms  bwd=12.9ms  total=86.3ms
+[  11600] loss=2.2339  ema_loss=2.2373  gap=1.1208  ema_gap=1.1133  mixup=39/100  6.7 sps  ETA 1.6h
+              R²_rand=0.9978  R²_naive=0.9981  U_t=0.1670  U_b=0.1555  AUC=1.0000  Top1=1.0000
+  timing: data=150.3ms  fwd=130.7ms  bwd=12.8ms  total=294.2ms
+[  11700] loss=2.2343  ema_loss=2.2359  gap=1.1148  ema_gap=1.1137  mixup=32/100  6.7 sps  ETA 1.6h
+              R²_rand=0.9978  R²_naive=0.9981  U_t=0.1668  U_b=0.1550  AUC=1.0000  Top1=1.0000
+  timing: data=2.7ms  fwd=70.6ms  bwd=12.7ms  total=86.3ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  11800] loss=2.2375  ema_loss=2.2353  gap=1.1144  ema_gap=1.1135  mixup=29/100  6.8 sps  ETA 1.6h
+              R²_rand=0.9978  R²_naive=0.9980  U_t=0.1669  U_b=0.1552  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=68.8ms  bwd=12.8ms  total=84.9ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  11900] loss=2.2360  ema_loss=2.2357  gap=1.1176  ema_gap=1.1137  mixup=33/100  6.8 sps  ETA 1.6h
+              R²_rand=0.9978  R²_naive=0.9981  U_t=0.1662  U_b=0.1551  AUC=1.0000  Top1=1.0000
+  timing: data=22.7ms  fwd=87.2ms  bwd=13.1ms  total=123.4ms
+[  12000] loss=2.2356  ema_loss=2.2355  gap=1.1084  ema_gap=1.1135  mixup=31/100  6.8 sps  ETA 1.6h
+              R²_rand=0.9978  R²_naive=0.9980  U_t=0.1659  U_b=0.1554  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=70.4ms  bwd=13.7ms  total=87.4ms
+[  12100] loss=2.2415  ema_loss=2.2386  gap=1.1060  ema_gap=1.1135  mixup=41/100  6.8 sps  ETA 1.6h
+              R²_rand=0.9978  R²_naive=0.9980  U_t=0.1661  U_b=0.1548  AUC=1.0000  Top1=1.0000
+  timing: data=2.8ms  fwd=70.5ms  bwd=13.8ms  total=87.4ms
+[  12200] loss=2.2397  ema_loss=2.2371  gap=1.1167  ema_gap=1.1135  mixup=30/100  6.8 sps  ETA 1.6h
+              R²_rand=0.9978  R²_naive=0.9981  U_t=0.1657  U_b=0.1547  AUC=1.0000  Top1=1.0000
+  timing: data=20.4ms  fwd=84.8ms  bwd=13.7ms  total=119.2ms
+[  12300] loss=2.2336  ema_loss=2.2355  gap=1.1095  ema_gap=1.1129  mixup=26/100  6.8 sps  ETA 1.5h
+              R²_rand=0.9979  R²_naive=0.9981  U_t=0.1672  U_b=0.1552  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=70.2ms  bwd=13.8ms  total=87.2ms
+[  12400] loss=2.2358  ema_loss=2.2350  gap=1.1161  ema_gap=1.1133  mixup=33/100  6.8 sps  ETA 1.5h
+              R²_rand=0.9979  R²_naive=0.9981  U_t=0.1652  U_b=0.1555  AUC=1.0000  Top1=1.0000
+  timing: data=2.8ms  fwd=71.1ms  bwd=13.8ms  total=88.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  12500] loss=2.2367  ema_loss=2.2346  gap=1.1129  ema_gap=1.1137  mixup=32/100  6.8 sps  ETA 1.5h
+              R²_rand=0.9978  R²_naive=0.9981  U_t=0.1654  U_b=0.1556  AUC=1.0000  Top1=1.0000
+  timing: data=20.9ms  fwd=114.1ms  bwd=13.9ms  total=149.3ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  12600] loss=2.2294  ema_loss=2.2352  gap=1.1167  ema_gap=1.1138  mixup=24/100  6.8 sps  ETA 1.5h
+              R²_rand=0.9979  R²_naive=0.9981  U_t=0.1666  U_b=0.1555  AUC=1.0000  Top1=1.0000
+  timing: data=2.7ms  fwd=70.5ms  bwd=14.0ms  total=87.5ms
+[  12700] loss=2.2385  ema_loss=2.2349  gap=1.1131  ema_gap=1.1135  mixup=32/100  6.8 sps  ETA 1.5h
+              R²_rand=0.9979  R²_naive=0.9981  U_t=0.1662  U_b=0.1549  AUC=1.0000  Top1=1.0000
+  timing: data=3.0ms  fwd=70.4ms  bwd=14.1ms  total=87.8ms
+[  12800] loss=2.2358  ema_loss=2.2355  gap=1.1194  ema_gap=1.1145  mixup=30/100  6.8 sps  ETA 1.5h
+              R²_rand=0.9979  R²_naive=0.9981  U_t=0.1661  U_b=0.1551  AUC=1.0000  Top1=1.0000
+  timing: data=2.8ms  fwd=153.1ms  bwd=14.3ms  total=170.5ms
+[  12900] loss=2.2320  ema_loss=2.2363  gap=1.1116  ema_gap=1.1144  mixup=29/100  6.7 sps  ETA 1.5h
+              R²_rand=0.9979  R²_naive=0.9981  U_t=0.1674  U_b=0.1556  AUC=1.0000  Top1=1.0000
+  timing: data=94.6ms  fwd=69.4ms  bwd=12.8ms  total=177.0ms
+[  13000] loss=2.2312  ema_loss=2.2351  gap=1.1116  ema_gap=1.1142  mixup=35/100  6.7 sps  ETA 1.5h
+              R²_rand=0.9979  R²_naive=0.9981  U_t=0.1659  U_b=0.1559  AUC=1.0000  Top1=1.0000
+  timing: data=2.8ms  fwd=70.6ms  bwd=12.7ms  total=86.4ms
+[  13100] loss=2.2255  ema_loss=2.2358  gap=1.1150  ema_gap=1.1144  mixup=39/100  6.7 sps  ETA 1.5h
+              R²_rand=0.9976  R²_naive=0.9979  U_t=0.1699  U_b=0.1576  AUC=1.0000  Top1=1.0000
+  timing: data=3.1ms  fwd=70.0ms  bwd=12.7ms  total=86.1ms
+[  13200] loss=2.2346  ema_loss=2.2289  gap=1.1178  ema_gap=1.1146  mixup=44/100  6.7 sps  ETA 1.5h
+              R²_rand=0.9977  R²_naive=0.9980  U_t=0.1687  U_b=0.1573  AUC=1.0000  Top1=1.0000
+  timing: data=21.2ms  fwd=82.7ms  bwd=12.8ms  total=117.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  13300] loss=2.2251  ema_loss=2.2291  gap=1.1093  ema_gap=1.1147  mixup=39/100  6.7 sps  ETA 1.5h
+              R²_rand=0.9978  R²_naive=0.9980  U_t=0.1686  U_b=0.1573  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=69.9ms  bwd=12.7ms  total=85.9ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+[  13400] loss=2.2288  ema_loss=2.2260  gap=1.1131  ema_gap=1.1148  mixup=36/100  6.8 sps  ETA 1.5h
+              R²_rand=0.9978  R²_naive=0.9980  U_t=0.1688  U_b=0.1580  AUC=1.0000  Top1=1.0000
+  timing: data=2.8ms  fwd=70.1ms  bwd=12.7ms  total=86.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  13500] loss=2.2210  ema_loss=2.2255  gap=1.1175  ema_gap=1.1147  mixup=30/100  6.8 sps  ETA 1.5h
+              R²_rand=0.9979  R²_naive=0.9981  U_t=0.1679  U_b=0.1576  AUC=1.0000  Top1=1.0000
+  timing: data=20.5ms  fwd=83.3ms  bwd=12.8ms  total=116.8ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  13600] loss=2.2240  ema_loss=2.2249  gap=1.1122  ema_gap=1.1148  mixup=27/100  6.8 sps  ETA 1.5h
+              R²_rand=0.9978  R²_naive=0.9981  U_t=0.1689  U_b=0.1581  AUC=1.0000  Top1=1.0000
+  timing: data=2.3ms  fwd=71.0ms  bwd=12.8ms  total=86.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  13700] loss=2.2222  ema_loss=2.2279  gap=1.1161  ema_gap=1.1149  mixup=32/100  6.8 sps  ETA 1.5h
+              R²_rand=0.9978  R²_naive=0.9981  U_t=0.1692  U_b=0.1580  AUC=1.0000  Top1=1.0000
+  timing: data=2.8ms  fwd=70.7ms  bwd=12.8ms  total=86.6ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_gap.pth
+[  13800] loss=2.2194  ema_loss=2.2254  gap=1.1177  ema_gap=1.1143  mixup=27/100  6.8 sps  ETA 1.5h
+              R²_rand=0.9979  R²_naive=0.9981  U_t=0.1685  U_b=0.1579  AUC=1.0000  Top1=1.0000
+  timing: data=19.5ms  fwd=87.6ms  bwd=12.9ms  total=120.4ms
+[  13900] loss=2.2209  ema_loss=2.2262  gap=1.1094  ema_gap=1.1143  mixup=33/100  6.8 sps  ETA 1.5h
+              R²_rand=0.9979  R²_naive=0.9981  U_t=0.1689  U_b=0.1582  AUC=1.0000  Top1=1.0000
+  timing: data=3.0ms  fwd=70.9ms  bwd=13.1ms  total=87.4ms
+[  14000] loss=2.2283  ema_loss=2.2248  gap=1.1134  ema_gap=1.1140  mixup=32/100  6.8 sps  ETA 1.5h
+              R²_rand=0.9979  R²_naive=0.9981  U_t=0.1686  U_b=0.1570  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=70.7ms  bwd=12.8ms  total=86.7ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  14100] loss=2.2231  ema_loss=2.2261  gap=1.1147  ema_gap=1.1143  mixup=27/100  6.8 sps  ETA 1.5h
+              R²_rand=0.9979  R²_naive=0.9981  U_t=0.1686  U_b=0.1578  AUC=1.0000  Top1=1.0000
+  timing: data=21.7ms  fwd=83.9ms  bwd=12.9ms  total=118.9ms
+[  14200] loss=2.2232  ema_loss=2.2245  gap=1.1158  ema_gap=1.1148  mixup=25/100  6.8 sps  ETA 1.5h
+              R²_rand=0.9979  R²_naive=0.9982  U_t=0.1680  U_b=0.1572  AUC=1.0000  Top1=1.0000
+  timing: data=2.8ms  fwd=71.4ms  bwd=13.2ms  total=87.8ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  14300] loss=2.2210  ema_loss=2.2238  gap=1.1151  ema_gap=1.1144  mixup=32/100  6.8 sps  ETA 1.5h
+              R²_rand=0.9979  R²_naive=0.9981  U_t=0.1678  U_b=0.1583  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=71.1ms  bwd=13.0ms  total=87.3ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  14400] loss=2.2259  ema_loss=2.2225  gap=1.1153  ema_gap=1.1132  mixup=35/100  6.8 sps  ETA 1.5h
+              R²_rand=0.9979  R²_naive=0.9982  U_t=0.1692  U_b=0.1576  AUC=1.0000  Top1=1.0000
+  timing: data=21.0ms  fwd=84.7ms  bwd=13.1ms  total=119.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  14500] loss=2.2253  ema_loss=2.2234  gap=1.1130  ema_gap=1.1128  mixup=32/100  6.8 sps  ETA 1.5h
+              R²_rand=0.9979  R²_naive=0.9981  U_t=0.1688  U_b=0.1576  AUC=1.0000  Top1=1.0000
+  timing: data=2.6ms  fwd=71.6ms  bwd=13.0ms  total=87.6ms
+[  14600] loss=2.2219  ema_loss=2.2228  gap=1.1147  ema_gap=1.1125  mixup=28/100  6.8 sps  ETA 1.4h
+              R²_rand=0.9979  R²_naive=0.9982  U_t=0.1695  U_b=0.1580  AUC=1.0000  Top1=1.0000
+  timing: data=2.6ms  fwd=71.1ms  bwd=12.9ms  total=87.0ms
+[  14700] loss=2.2230  ema_loss=2.2251  gap=1.1116  ema_gap=1.1131  mixup=39/100  6.8 sps  ETA 1.4h
+              R²_rand=0.9980  R²_naive=0.9982  U_t=0.1696  U_b=0.1583  AUC=1.0000  Top1=1.0000
+  timing: data=24.2ms  fwd=88.3ms  bwd=12.9ms  total=125.7ms
+[  14800] loss=2.2207  ema_loss=2.2229  gap=1.1095  ema_gap=1.1132  mixup=28/100  6.8 sps  ETA 1.4h
+              R²_rand=0.9980  R²_naive=0.9982  U_t=0.1688  U_b=0.1581  AUC=1.0000  Top1=1.0000
+  timing: data=3.0ms  fwd=69.4ms  bwd=14.0ms  total=86.8ms
+[  14900] loss=2.2219  ema_loss=2.2223  gap=1.1116  ema_gap=1.1134  mixup=36/100  6.8 sps  ETA 1.4h
+              R²_rand=0.9979  R²_naive=0.9982  U_t=0.1694  U_b=0.1577  AUC=1.0000  Top1=1.0000
+  timing: data=3.1ms  fwd=72.3ms  bwd=13.4ms  total=89.2ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  15000] loss=2.2242  ema_loss=2.2239  gap=1.1127  ema_gap=1.1134  mixup=25/100  6.8 sps  ETA 1.4h
+              R²_rand=0.9980  R²_naive=0.9982  U_t=0.1686  U_b=0.1578  AUC=1.0000  Top1=1.0000
+  timing: data=27.5ms  fwd=90.3ms  bwd=13.3ms  total=131.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_15k.pth
+[  15100] loss=2.2262  ema_loss=2.2265  gap=1.1144  ema_gap=1.1130  mixup=30/100  6.8 sps  ETA 1.4h
+              R²_rand=0.9979  R²_naive=0.9981  U_t=0.1685  U_b=0.1577  AUC=1.0000  Top1=1.0000
+  timing: data=3.0ms  fwd=71.0ms  bwd=13.1ms  total=87.5ms
+[  15200] loss=2.2232  ema_loss=2.2251  gap=1.1118  ema_gap=1.1130  mixup=32/100  6.8 sps  ETA 1.4h
+              R²_rand=0.9980  R²_naive=0.9982  U_t=0.1699  U_b=0.1576  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=69.0ms  bwd=13.1ms  total=85.4ms
+[  15300] loss=2.2160  ema_loss=2.2233  gap=1.1107  ema_gap=1.1127  mixup=31/100  6.8 sps  ETA 1.4h
+              R²_rand=0.9980  R²_naive=0.9982  U_t=0.1694  U_b=0.1578  AUC=1.0000  Top1=1.0000
+  timing: data=3.3ms  fwd=94.1ms  bwd=13.8ms  total=111.6ms
+[  15400] loss=2.2263  ema_loss=2.2259  gap=1.1160  ema_gap=1.1134  mixup=32/100  6.8 sps  ETA 1.4h
+              R²_rand=0.9979  R²_naive=0.9981  U_t=0.1682  U_b=0.1576  AUC=1.0000  Top1=1.0000
+  timing: data=28.1ms  fwd=69.5ms  bwd=12.7ms  total=110.6ms
+[  15500] loss=2.2211  ema_loss=2.2254  gap=1.1095  ema_gap=1.1131  mixup=35/100  6.8 sps  ETA 1.4h
+              R²_rand=0.9980  R²_naive=0.9982  U_t=0.1693  U_b=0.1576  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=72.5ms  bwd=12.9ms  total=88.6ms
+[  15600] loss=2.2587  ema_loss=2.2241  gap=1.1065  ema_gap=1.1125  mixup=26/100  6.8 sps  ETA 1.4h
+              R²_rand=0.9980  R²_naive=0.9982  U_t=0.1699  U_b=0.1573  AUC=1.0000  Top1=1.0000
+  timing: data=2.5ms  fwd=69.3ms  bwd=12.8ms  total=84.9ms
+[  15700] loss=2.2179  ema_loss=2.2228  gap=1.1144  ema_gap=1.1127  mixup=34/100  6.8 sps  ETA 1.4h
+              R²_rand=0.9980  R²_naive=0.9982  U_t=0.1687  U_b=0.1582  AUC=1.0000  Top1=1.0000
+  timing: data=27.7ms  fwd=88.9ms  bwd=13.2ms  total=130.2ms
+[  15800] loss=2.2201  ema_loss=2.2249  gap=1.1142  ema_gap=1.1127  mixup=26/100  6.8 sps  ETA 1.4h
+              R²_rand=0.9980  R²_naive=0.9982  U_t=0.1688  U_b=0.1580  AUC=1.0000  Top1=1.0000
+  timing: data=2.6ms  fwd=71.2ms  bwd=13.2ms  total=87.4ms
+[  15900] loss=2.2211  ema_loss=2.2239  gap=1.1150  ema_gap=1.1131  mixup=26/100  6.8 sps  ETA 1.4h
+              R²_rand=0.9980  R²_naive=0.9982  U_t=0.1687  U_b=0.1581  AUC=1.0000  Top1=1.0000
+  timing: data=2.6ms  fwd=73.2ms  bwd=13.2ms  total=89.5ms
+[  16000] loss=2.2282  ema_loss=2.2224  gap=1.1135  ema_gap=1.1126  mixup=31/100  6.8 sps  ETA 1.4h
+              R²_rand=0.9980  R²_naive=0.9982  U_t=0.1682  U_b=0.1572  AUC=1.0000  Top1=1.0000
+  timing: data=23.3ms  fwd=84.6ms  bwd=13.1ms  total=121.4ms
+[  16100] loss=2.2206  ema_loss=2.2263  gap=1.1156  ema_gap=1.1131  mixup=29/100  6.8 sps  ETA 1.4h
+              R²_rand=0.9980  R²_naive=0.9982  U_t=0.1692  U_b=0.1576  AUC=1.0000  Top1=1.0000
+  timing: data=3.0ms  fwd=71.1ms  bwd=13.1ms  total=87.6ms
+[  16200] loss=2.2240  ema_loss=2.2231  gap=1.1123  ema_gap=1.1118  mixup=27/100  6.8 sps  ETA 1.4h
+              R²_rand=0.9980  R²_naive=0.9982  U_t=0.1688  U_b=0.1578  AUC=1.0000  Top1=1.0000
+  timing: data=3.0ms  fwd=71.0ms  bwd=12.9ms  total=87.3ms
+[  16300] loss=2.2204  ema_loss=2.2231  gap=1.1130  ema_gap=1.1120  mixup=25/100  6.8 sps  ETA 1.4h
+              R²_rand=0.9980  R²_naive=0.9982  U_t=0.1691  U_b=0.1580  AUC=1.0000  Top1=1.0000
+  timing: data=23.2ms  fwd=107.6ms  bwd=12.9ms  total=144.0ms
+[  16400] loss=2.2212  ema_loss=2.2248  gap=1.1145  ema_gap=1.1115  mixup=29/100  6.8 sps  ETA 1.4h
+              R²_rand=0.9980  R²_naive=0.9982  U_t=0.1693  U_b=0.1577  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=71.2ms  bwd=12.9ms  total=87.3ms
+[  16500] loss=2.2242  ema_loss=2.2224  gap=1.1170  ema_gap=1.1123  mixup=34/100  6.8 sps  ETA 1.4h
+              R²_rand=0.9980  R²_naive=0.9982  U_t=0.1691  U_b=0.1578  AUC=1.0000  Top1=1.0000
+  timing: data=3.0ms  fwd=70.8ms  bwd=13.0ms  total=87.1ms
+[  16600] loss=2.2157  ema_loss=2.2202  gap=1.1101  ema_gap=1.1118  mixup=16/100  6.8 sps  ETA 1.4h
+              R²_rand=0.9976  R²_naive=0.9979  U_t=0.1713  U_b=0.1603  AUC=1.0000  Top1=1.0000
+  timing: data=53.5ms  fwd=104.6ms  bwd=13.0ms  total=171.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  16700] loss=2.2105  ema_loss=2.2162  gap=1.1107  ema_gap=1.1107  mixup=26/100  6.8 sps  ETA 1.4h
+              R²_rand=0.9979  R²_naive=0.9981  U_t=0.1725  U_b=0.1599  AUC=1.0000  Top1=1.0000
+  timing: data=2.6ms  fwd=70.7ms  bwd=12.8ms  total=86.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  16800] loss=2.2237  ema_loss=2.2141  gap=1.1126  ema_gap=1.1096  mixup=36/100  6.8 sps  ETA 1.4h
+              R²_rand=0.9979  R²_naive=0.9981  U_t=0.1726  U_b=0.1599  AUC=1.0000  Top1=1.0000
+  timing: data=2.8ms  fwd=70.7ms  bwd=12.8ms  total=86.7ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  16900] loss=2.2116  ema_loss=2.2143  gap=1.1123  ema_gap=1.1098  mixup=29/100  6.8 sps  ETA 1.4h
+              R²_rand=0.9980  R²_naive=0.9982  U_t=0.1717  U_b=0.1602  AUC=1.0000  Top1=1.0000
+  timing: data=41.0ms  fwd=83.1ms  bwd=12.9ms  total=137.5ms
+[  17000] loss=2.2093  ema_loss=2.2142  gap=1.1088  ema_gap=1.1101  mixup=37/100  6.8 sps  ETA 1.3h
+              R²_rand=0.9980  R²_naive=0.9982  U_t=0.1715  U_b=0.1603  AUC=1.0000  Top1=1.0000
+  timing: data=3.3ms  fwd=70.9ms  bwd=13.6ms  total=88.1ms
+[  17100] loss=2.2103  ema_loss=2.2181  gap=1.1076  ema_gap=1.1100  mixup=24/100  6.8 sps  ETA 1.3h
+              R²_rand=0.9980  R²_naive=0.9982  U_t=0.1719  U_b=0.1603  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=71.3ms  bwd=12.9ms  total=87.5ms
+[  17200] loss=2.2083  ema_loss=2.2135  gap=1.1133  ema_gap=1.1109  mixup=23/100  6.8 sps  ETA 1.3h
+              R²_rand=0.9980  R²_naive=0.9982  U_t=0.1722  U_b=0.1609  AUC=1.0000  Top1=1.0000
+  timing: data=19.9ms  fwd=83.3ms  bwd=12.9ms  total=116.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  17300] loss=2.2101  ema_loss=2.2141  gap=1.1106  ema_gap=1.1114  mixup=29/100  6.8 sps  ETA 1.3h
+              R²_rand=0.9979  R²_naive=0.9982  U_t=0.1717  U_b=0.1600  AUC=1.0000  Top1=1.0000
+  timing: data=2.8ms  fwd=71.2ms  bwd=12.9ms  total=87.2ms
+[  17400] loss=2.2099  ema_loss=2.2116  gap=1.1138  ema_gap=1.1106  mixup=23/100  6.8 sps  ETA 1.3h
+              R²_rand=0.9980  R²_naive=0.9982  U_t=0.1723  U_b=0.1600  AUC=1.0000  Top1=1.0000
+  timing: data=2.7ms  fwd=71.1ms  bwd=13.0ms  total=87.2ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  17500] loss=2.2111  ema_loss=2.2126  gap=1.1134  ema_gap=1.1106  mixup=30/100  6.8 sps  ETA 1.3h
+              R²_rand=0.9980  R²_naive=0.9982  U_t=0.1715  U_b=0.1598  AUC=1.0000  Top1=1.0000
+  timing: data=20.3ms  fwd=74.9ms  bwd=13.0ms  total=108.5ms
+[  17600] loss=2.2109  ema_loss=2.2119  gap=1.1094  ema_gap=1.1104  mixup=24/100  6.8 sps  ETA 1.3h
+              R²_rand=0.9980  R²_naive=0.9982  U_t=0.1728  U_b=0.1599  AUC=1.0000  Top1=1.0000
+  timing: data=2.6ms  fwd=69.8ms  bwd=12.9ms  total=85.6ms
+[  17700] loss=2.2136  ema_loss=2.2126  gap=1.1097  ema_gap=1.1100  mixup=29/100  6.8 sps  ETA 1.3h
+              R²_rand=0.9980  R²_naive=0.9982  U_t=0.1721  U_b=0.1604  AUC=1.0000  Top1=1.0000
+  timing: data=2.8ms  fwd=67.5ms  bwd=12.8ms  total=83.5ms
+[  17800] loss=2.2158  ema_loss=2.2160  gap=1.1107  ema_gap=1.1097  mixup=33/100  6.8 sps  ETA 1.3h
+              R²_rand=0.9980  R²_naive=0.9982  U_t=0.1716  U_b=0.1597  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=71.1ms  bwd=12.9ms  total=87.2ms
+[  17900] loss=2.2116  ema_loss=2.2133  gap=1.1166  ema_gap=1.1111  mixup=20/100  6.8 sps  ETA 1.3h
+              R²_rand=0.9980  R²_naive=0.9982  U_t=0.1707  U_b=0.1602  AUC=1.0000  Top1=1.0000
+  timing: data=20.5ms  fwd=83.2ms  bwd=13.1ms  total=117.1ms
+[  18000] loss=2.2080  ema_loss=2.2119  gap=1.1088  ema_gap=1.1113  mixup=27/100  6.8 sps  ETA 1.3h
+              R²_rand=0.9980  R²_naive=0.9982  U_t=0.1724  U_b=0.1607  AUC=1.0000  Top1=1.0000
+  timing: data=3.0ms  fwd=72.4ms  bwd=13.9ms  total=89.7ms
+[  18100] loss=2.2158  ema_loss=2.2112  gap=1.1107  ema_gap=1.1102  mixup=34/100  6.8 sps  ETA 1.3h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1728  U_b=0.1605  AUC=1.0000  Top1=1.0000
+  timing: data=3.1ms  fwd=68.9ms  bwd=13.9ms  total=86.2ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  18200] loss=2.2070  ema_loss=2.2103  gap=1.1072  ema_gap=1.1100  mixup=39/100  6.8 sps  ETA 1.3h
+              R²_rand=0.9980  R²_naive=0.9982  U_t=0.1724  U_b=0.1606  AUC=1.0000  Top1=1.0000
+  timing: data=116.3ms  fwd=85.2ms  bwd=13.3ms  total=215.3ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  18300] loss=2.2081  ema_loss=2.2115  gap=1.1095  ema_gap=1.1104  mixup=31/100  6.8 sps  ETA 1.3h
+              R²_rand=0.9980  R²_naive=0.9982  U_t=0.1723  U_b=0.1604  AUC=1.0000  Top1=1.0000
+  timing: data=3.0ms  fwd=68.6ms  bwd=12.6ms  total=84.5ms
+[  18400] loss=2.2144  ema_loss=2.2112  gap=1.1090  ema_gap=1.1100  mixup=26/100  6.8 sps  ETA 1.3h
+              R²_rand=0.9980  R²_naive=0.9982  U_t=0.1712  U_b=0.1603  AUC=1.0000  Top1=1.0000
+  timing: data=3.1ms  fwd=72.5ms  bwd=12.8ms  total=88.7ms
+[  18500] loss=2.2148  ema_loss=2.2119  gap=1.1059  ema_gap=1.1104  mixup=30/100  6.8 sps  ETA 1.3h
+              R²_rand=0.9980  R²_naive=0.9982  U_t=0.1724  U_b=0.1597  AUC=1.0000  Top1=1.0000
+  timing: data=20.4ms  fwd=74.5ms  bwd=12.7ms  total=107.9ms
+[  18600] loss=2.2113  ema_loss=2.2128  gap=1.1121  ema_gap=1.1107  mixup=22/100  6.8 sps  ETA 1.3h
+              R²_rand=0.9981  R²_naive=0.9982  U_t=0.1714  U_b=0.1602  AUC=1.0000  Top1=1.0000
+  timing: data=2.5ms  fwd=49.6ms  bwd=12.6ms  total=65.0ms
+[  18700] loss=2.2110  ema_loss=2.2121  gap=1.1101  ema_gap=1.1106  mixup=27/100  6.8 sps  ETA 1.3h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1736  U_b=0.1600  AUC=1.0000  Top1=1.0000
+  timing: data=2.5ms  fwd=63.4ms  bwd=12.7ms  total=78.9ms
+[  18800] loss=2.2075  ema_loss=2.2137  gap=1.1113  ema_gap=1.1104  mixup=30/100  6.8 sps  ETA 1.3h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1723  U_b=0.1604  AUC=1.0000  Top1=1.0000
+  timing: data=20.6ms  fwd=85.0ms  bwd=12.7ms  total=118.8ms
+[  18900] loss=2.2087  ema_loss=2.2123  gap=1.1126  ema_gap=1.1106  mixup=34/100  6.8 sps  ETA 1.3h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1720  U_b=0.1603  AUC=1.0000  Top1=1.0000
+  timing: data=3.0ms  fwd=68.6ms  bwd=12.5ms  total=84.4ms
+[  19000] loss=2.2106  ema_loss=2.2107  gap=1.1096  ema_gap=1.1101  mixup=32/100  6.8 sps  ETA 1.3h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1721  U_b=0.1601  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=72.4ms  bwd=12.5ms  total=88.2ms
+[  19100] loss=2.2105  ema_loss=2.2119  gap=1.1103  ema_gap=1.1101  mixup=37/100  6.8 sps  ETA 1.3h
+              R²_rand=0.9980  R²_naive=0.9982  U_t=0.1735  U_b=0.1599  AUC=1.0000  Top1=1.0000
+  timing: data=21.3ms  fwd=80.4ms  bwd=12.8ms  total=114.8ms
+[  19200] loss=2.2111  ema_loss=2.2110  gap=1.1124  ema_gap=1.1103  mixup=32/100  6.8 sps  ETA 1.2h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1721  U_b=0.1600  AUC=1.0000  Top1=1.0000
+  timing: data=2.8ms  fwd=72.5ms  bwd=12.8ms  total=88.4ms
+[  19300] loss=2.2111  ema_loss=2.2116  gap=1.1088  ema_gap=1.1104  mixup=28/100  6.9 sps  ETA 1.2h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1725  U_b=0.1602  AUC=1.0000  Top1=1.0000
+  timing: data=2.6ms  fwd=69.1ms  bwd=12.7ms  total=84.8ms
+[  19400] loss=2.2115  ema_loss=2.2121  gap=1.1102  ema_gap=1.1090  mixup=29/100  6.9 sps  ETA 1.2h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1727  U_b=0.1600  AUC=1.0000  Top1=1.0000
+  timing: data=22.2ms  fwd=69.8ms  bwd=12.8ms  total=105.1ms
+[  19500] loss=2.2105  ema_loss=2.2106  gap=1.1114  ema_gap=1.1094  mixup=24/100  6.9 sps  ETA 1.2h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1725  U_b=0.1600  AUC=1.0000  Top1=1.0000
+  timing: data=2.4ms  fwd=85.1ms  bwd=12.7ms  total=100.5ms
+[  19600] loss=2.2061  ema_loss=2.2114  gap=1.1154  ema_gap=1.1095  mixup=23/100  6.9 sps  ETA 1.2h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1722  U_b=0.1608  AUC=1.0000  Top1=1.0000
+  timing: data=2.4ms  fwd=72.6ms  bwd=12.7ms  total=88.0ms
+[  19700] loss=2.2080  ema_loss=2.2113  gap=1.1109  ema_gap=1.1096  mixup=28/100  6.9 sps  ETA 1.2h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1727  U_b=0.1598  AUC=1.0000  Top1=1.0000
+  timing: data=21.1ms  fwd=67.3ms  bwd=12.7ms  total=101.4ms
+[  19800] loss=2.2120  ema_loss=2.2107  gap=1.1064  ema_gap=1.1092  mixup=32/100  6.9 sps  ETA 1.2h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1719  U_b=0.1605  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=88.5ms  bwd=13.4ms  total=105.2ms
+[  19900] loss=2.2108  ema_loss=2.2109  gap=1.1094  ema_gap=1.1088  mixup=26/100  6.9 sps  ETA 1.2h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1733  U_b=0.1601  AUC=1.0000  Top1=1.0000
+  timing: data=2.8ms  fwd=70.5ms  bwd=13.3ms  total=87.0ms
+[  20000] loss=2.2095  ema_loss=2.2108  gap=1.1055  ema_gap=1.1089  mixup=33/100  6.9 sps  ETA 1.2h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1719  U_b=0.1599  AUC=1.0000  Top1=1.0000
+  timing: data=20.1ms  fwd=68.9ms  bwd=12.7ms  total=102.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_20k.pth
+[  20100] loss=2.2083  ema_loss=2.2101  gap=1.1084  ema_gap=1.1088  mixup=29/100  6.9 sps  ETA 1.2h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1722  U_b=0.1603  AUC=1.0000  Top1=1.0000
+  timing: data=2.6ms  fwd=85.0ms  bwd=13.2ms  total=101.2ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  20200] loss=2.2056  ema_loss=2.2133  gap=1.1122  ema_gap=1.1083  mixup=28/100  6.9 sps  ETA 1.2h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1726  U_b=0.1611  AUC=1.0000  Top1=1.0000
+  timing: data=2.5ms  fwd=70.7ms  bwd=12.9ms  total=86.4ms
+[  20300] loss=2.2116  ema_loss=2.2111  gap=1.1126  ema_gap=1.1082  mixup=23/100  6.9 sps  ETA 1.2h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1734  U_b=0.1599  AUC=1.0000  Top1=1.0000
+  timing: data=19.8ms  fwd=69.0ms  bwd=12.7ms  total=101.8ms
+[  20400] loss=2.2057  ema_loss=2.2115  gap=1.1146  ema_gap=1.1084  mixup=32/100  6.9 sps  ETA 1.2h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1728  U_b=0.1605  AUC=1.0000  Top1=1.0000
+  timing: data=2.6ms  fwd=85.1ms  bwd=12.7ms  total=100.7ms
+[  20500] loss=2.2174  ema_loss=2.2104  gap=1.1025  ema_gap=1.1089  mixup=29/100  6.9 sps  ETA 1.2h
+              R²_rand=0.9981  R²_naive=0.9982  U_t=0.1736  U_b=0.1596  AUC=1.0000  Top1=1.0000
+  timing: data=2.4ms  fwd=71.0ms  bwd=12.7ms  total=86.5ms
+[  20600] loss=2.2063  ema_loss=2.2098  gap=1.1090  ema_gap=1.1093  mixup=31/100  6.9 sps  ETA 1.2h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1737  U_b=0.1601  AUC=1.0000  Top1=1.0000
+  timing: data=2.3ms  fwd=71.2ms  bwd=12.6ms  total=86.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  20700] loss=2.2122  ema_loss=2.2090  gap=1.1107  ema_gap=1.1089  mixup=22/100  6.9 sps  ETA 1.2h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1720  U_b=0.1602  AUC=1.0000  Top1=1.0000
+  timing: data=20.7ms  fwd=83.6ms  bwd=12.7ms  total=117.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  20800] loss=2.2097  ema_loss=2.2097  gap=1.1069  ema_gap=1.1095  mixup=31/100  6.9 sps  ETA 1.2h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1731  U_b=0.1599  AUC=1.0000  Top1=1.0000
+  timing: data=2.8ms  fwd=70.4ms  bwd=12.6ms  total=86.1ms
+[  20900] loss=2.2099  ema_loss=2.2122  gap=1.1113  ema_gap=1.1096  mixup=26/100  6.9 sps  ETA 1.2h
+              R²_rand=0.9980  R²_naive=0.9982  U_t=0.1712  U_b=0.1599  AUC=1.0000  Top1=1.0000
+  timing: data=2.6ms  fwd=70.9ms  bwd=12.7ms  total=86.5ms
+[  21000] loss=2.2088  ema_loss=2.2128  gap=1.1153  ema_gap=1.1094  mixup=26/100  6.9 sps  ETA 1.2h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1725  U_b=0.1597  AUC=1.0000  Top1=1.0000
+  timing: data=20.5ms  fwd=82.0ms  bwd=12.6ms  total=115.4ms
+[  21100] loss=2.2082  ema_loss=2.2107  gap=1.1125  ema_gap=1.1091  mixup=30/100  6.9 sps  ETA 1.2h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1729  U_b=0.1603  AUC=1.0000  Top1=1.0000
+  timing: data=2.7ms  fwd=72.0ms  bwd=12.7ms  total=87.8ms
+[  21200] loss=2.2435  ema_loss=2.2113  gap=1.1096  ema_gap=1.1093  mixup=32/100  6.9 sps  ETA 1.2h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1738  U_b=0.1598  AUC=1.0000  Top1=1.0000
+  timing: data=2.7ms  fwd=68.5ms  bwd=12.6ms  total=84.2ms
+[  21300] loss=2.2093  ema_loss=2.2093  gap=1.1125  ema_gap=1.1099  mixup=38/100  6.9 sps  ETA 1.2h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1720  U_b=0.1602  AUC=1.0000  Top1=1.0000
+  timing: data=21.4ms  fwd=85.1ms  bwd=12.7ms  total=119.5ms
+[  21400] loss=2.2094  ema_loss=2.2091  gap=1.1058  ema_gap=1.1091  mixup=34/100  6.9 sps  ETA 1.2h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1728  U_b=0.1601  AUC=1.0000  Top1=1.0000
+  timing: data=2.7ms  fwd=68.6ms  bwd=12.7ms  total=84.4ms
+[  21500] loss=2.2086  ema_loss=2.2094  gap=1.1035  ema_gap=1.1090  mixup=29/100  6.9 sps  ETA 1.1h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1728  U_b=0.1605  AUC=1.0000  Top1=1.0000
+  timing: data=2.5ms  fwd=70.8ms  bwd=12.7ms  total=86.4ms
+[  21600] loss=2.2113  ema_loss=2.2093  gap=1.1049  ema_gap=1.1091  mixup=29/100  6.9 sps  ETA 1.1h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1727  U_b=0.1600  AUC=1.0000  Top1=1.0000
+  timing: data=20.9ms  fwd=81.5ms  bwd=12.8ms  total=115.4ms
+[  21700] loss=2.2066  ema_loss=2.2091  gap=1.1078  ema_gap=1.1083  mixup=25/100  6.9 sps  ETA 1.1h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1741  U_b=0.1607  AUC=1.0000  Top1=1.0000
+  timing: data=2.2ms  fwd=72.6ms  bwd=12.6ms  total=87.8ms
+[  21800] loss=2.2077  ema_loss=2.2104  gap=1.1209  ema_gap=1.1081  mixup=33/100  6.9 sps  ETA 1.1h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1710  U_b=0.1604  AUC=1.0000  Top1=1.0000
+  timing: data=2.3ms  fwd=69.1ms  bwd=12.6ms  total=84.4ms
+[  21900] loss=2.2119  ema_loss=2.2096  gap=1.1094  ema_gap=1.1077  mixup=30/100  6.9 sps  ETA 1.1h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1732  U_b=0.1602  AUC=1.0000  Top1=1.0000
+  timing: data=21.3ms  fwd=69.5ms  bwd=12.6ms  total=103.7ms
+[  22000] loss=2.1996  ema_loss=2.2052  gap=1.1078  ema_gap=1.1072  mixup=25/100  6.9 sps  ETA 1.1h
+              R²_rand=0.9979  R²_naive=0.9982  U_t=0.1761  U_b=0.1623  AUC=1.0000  Top1=1.0000
+  timing: data=2.8ms  fwd=83.8ms  bwd=12.6ms  total=99.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  22100] loss=2.2002  ema_loss=2.2040  gap=1.1134  ema_gap=1.1072  mixup=21/100  6.9 sps  ETA 1.1h
+              R²_rand=0.9980  R²_naive=0.9982  U_t=0.1754  U_b=0.1630  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=72.4ms  bwd=13.0ms  total=88.7ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  22200] loss=2.1968  ema_loss=2.2006  gap=1.1028  ema_gap=1.1079  mixup=26/100  6.9 sps  ETA 1.1h
+              R²_rand=0.9981  R²_naive=0.9982  U_t=0.1753  U_b=0.1629  AUC=1.0000  Top1=1.0000
+  timing: data=20.2ms  fwd=68.0ms  bwd=13.4ms  total=102.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  22300] loss=2.2000  ema_loss=2.2002  gap=1.1090  ema_gap=1.1079  mixup=32/100  6.9 sps  ETA 1.1h
+              R²_rand=0.9980  R²_naive=0.9982  U_t=0.1759  U_b=0.1628  AUC=1.0000  Top1=1.0000
+  timing: data=2.7ms  fwd=86.8ms  bwd=13.7ms  total=103.6ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  22400] loss=2.1950  ema_loss=2.1990  gap=1.1110  ema_gap=1.1080  mixup=35/100  6.9 sps  ETA 1.1h
+              R²_rand=0.9980  R²_naive=0.9983  U_t=0.1756  U_b=0.1631  AUC=1.0000  Top1=1.0000
+  timing: data=2.6ms  fwd=69.2ms  bwd=13.7ms  total=85.9ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  22500] loss=2.1980  ema_loss=2.2025  gap=1.1123  ema_gap=1.1085  mixup=34/100  6.9 sps  ETA 1.1h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1757  U_b=0.1632  AUC=1.0000  Top1=1.0000
+  timing: data=143.6ms  fwd=70.8ms  bwd=13.8ms  total=228.6ms
+[  22600] loss=2.2005  ema_loss=2.2015  gap=1.1049  ema_gap=1.1088  mixup=24/100  6.9 sps  ETA 1.1h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1758  U_b=0.1631  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=184.3ms  bwd=13.9ms  total=201.5ms
+[  22700] loss=2.1922  ema_loss=2.2007  gap=1.1156  ema_gap=1.1086  mixup=28/100  6.9 sps  ETA 1.1h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1764  U_b=0.1630  AUC=1.0000  Top1=1.0000
+  timing: data=2.5ms  fwd=72.0ms  bwd=13.6ms  total=88.5ms
+[  22800] loss=2.1965  ema_loss=2.1994  gap=1.1103  ema_gap=1.1085  mixup=39/100  6.9 sps  ETA 1.1h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1753  U_b=0.1624  AUC=1.0000  Top1=1.0000
+  timing: data=19.4ms  fwd=67.5ms  bwd=13.6ms  total=100.8ms
+[  22900] loss=2.1992  ema_loss=2.1991  gap=1.1134  ema_gap=1.1088  mixup=30/100  6.9 sps  ETA 1.1h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1755  U_b=0.1625  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=86.6ms  bwd=13.7ms  total=103.5ms
+[  23000] loss=2.1951  ema_loss=2.1983  gap=1.1065  ema_gap=1.1087  mixup=28/100  6.9 sps  ETA 1.1h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1750  U_b=0.1625  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=68.7ms  bwd=13.5ms  total=85.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  23100] loss=2.1976  ema_loss=2.1993  gap=1.1077  ema_gap=1.1087  mixup=26/100  6.9 sps  ETA 1.1h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1759  U_b=0.1629  AUC=1.0000  Top1=1.0000
+  timing: data=2.8ms  fwd=72.1ms  bwd=13.9ms  total=89.2ms
+[  23200] loss=2.2056  ema_loss=2.2025  gap=1.1140  ema_gap=1.1090  mixup=29/100  6.9 sps  ETA 1.1h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1756  U_b=0.1620  AUC=1.0000  Top1=1.0000
+  timing: data=20.2ms  fwd=82.2ms  bwd=13.7ms  total=116.4ms
+[  23300] loss=2.1989  ema_loss=2.2035  gap=1.1116  ema_gap=1.1099  mixup=29/100  6.9 sps  ETA 1.1h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1757  U_b=0.1623  AUC=1.0000  Top1=1.0000
+  timing: data=2.5ms  fwd=72.4ms  bwd=12.8ms  total=88.1ms
+[  23400] loss=2.1957  ema_loss=2.2011  gap=1.1079  ema_gap=1.1102  mixup=27/100  6.9 sps  ETA 1.1h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1758  U_b=0.1627  AUC=1.0000  Top1=1.0000
+  timing: data=2.8ms  fwd=68.6ms  bwd=12.7ms  total=84.5ms
+[  23500] loss=2.1932  ema_loss=2.2008  gap=1.0966  ema_gap=1.1091  mixup=30/100  6.9 sps  ETA 1.1h
+              R²_rand=0.9982  R²_naive=0.9983  U_t=0.1764  U_b=0.1631  AUC=1.0000  Top1=1.0000
+  timing: data=22.4ms  fwd=86.1ms  bwd=13.0ms  total=121.8ms
+[  23600] loss=2.1964  ema_loss=2.1991  gap=1.1145  ema_gap=1.1085  mixup=26/100  6.9 sps  ETA 1.1h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1751  U_b=0.1629  AUC=1.0000  Top1=1.0000
+  timing: data=2.4ms  fwd=68.8ms  bwd=12.7ms  total=84.3ms
+[  23700] loss=2.1986  ema_loss=2.1981  gap=1.1152  ema_gap=1.1097  mixup=22/100  6.9 sps  ETA 1.1h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1749  U_b=0.1623  AUC=1.0000  Top1=1.0000
+  timing: data=2.3ms  fwd=72.7ms  bwd=12.7ms  total=88.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  23800] loss=2.1965  ema_loss=2.1983  gap=1.1066  ema_gap=1.1092  mixup=34/100  6.8 sps  ETA 1.1h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1767  U_b=0.1631  AUC=1.0000  Top1=1.0000
+  timing: data=193.5ms  fwd=171.8ms  bwd=12.8ms  total=378.5ms
+[  23900] loss=2.1979  ema_loss=2.2030  gap=1.1100  ema_gap=1.1088  mixup=40/100  6.8 sps  ETA 1.1h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1756  U_b=0.1627  AUC=1.0000  Top1=1.0000
+  timing: data=3.1ms  fwd=69.8ms  bwd=12.8ms  total=86.0ms
+[  24000] loss=2.2020  ema_loss=2.2005  gap=1.1098  ema_gap=1.1095  mixup=40/100  6.8 sps  ETA 1.1h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1754  U_b=0.1627  AUC=1.0000  Top1=1.0000
+  timing: data=3.0ms  fwd=70.6ms  bwd=12.8ms  total=86.7ms
+[  24100] loss=2.1960  ema_loss=2.1992  gap=1.1090  ema_gap=1.1103  mixup=27/100  6.8 sps  ETA 1.1h
+              R²_rand=0.9982  R²_naive=0.9983  U_t=0.1752  U_b=0.1634  AUC=1.0000  Top1=1.0000
+  timing: data=20.7ms  fwd=85.0ms  bwd=12.8ms  total=118.9ms
+[  24200] loss=2.1977  ema_loss=2.1988  gap=1.1079  ema_gap=1.1102  mixup=33/100  6.8 sps  ETA 1.0h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1765  U_b=0.1628  AUC=1.0000  Top1=1.0000
+  timing: data=2.7ms  fwd=71.2ms  bwd=12.8ms  total=87.0ms
+[  24300] loss=2.2010  ema_loss=2.2002  gap=1.1089  ema_gap=1.1104  mixup=32/100  6.8 sps  ETA 1.0h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1761  U_b=0.1623  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=70.8ms  bwd=12.7ms  total=86.8ms
+[  24400] loss=2.1980  ema_loss=2.1997  gap=1.1088  ema_gap=1.1103  mixup=27/100  6.8 sps  ETA 1.0h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1770  U_b=0.1630  AUC=1.0000  Top1=1.0000
+  timing: data=20.3ms  fwd=83.2ms  bwd=12.8ms  total=116.6ms
+[  24500] loss=2.1991  ema_loss=2.1988  gap=1.1037  ema_gap=1.1096  mixup=28/100  6.8 sps  ETA 1.0h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1764  U_b=0.1624  AUC=1.0000  Top1=1.0000
+  timing: data=2.8ms  fwd=71.7ms  bwd=13.2ms  total=88.2ms
+[  24600] loss=2.1952  ema_loss=2.1991  gap=1.1112  ema_gap=1.1093  mixup=37/100  6.8 sps  ETA 1.0h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1765  U_b=0.1629  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=70.7ms  bwd=12.8ms  total=86.7ms
+[  24700] loss=2.1956  ema_loss=2.1983  gap=1.1147  ema_gap=1.1104  mixup=27/100  6.8 sps  ETA 1.0h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1735  U_b=0.1631  AUC=1.0000  Top1=1.0000
+  timing: data=21.0ms  fwd=69.0ms  bwd=12.7ms  total=103.0ms
+[  24800] loss=2.1954  ema_loss=2.1999  gap=1.1115  ema_gap=1.1104  mixup=31/100  6.8 sps  ETA 1.0h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1753  U_b=0.1628  AUC=1.0000  Top1=1.0000
+  timing: data=3.1ms  fwd=88.8ms  bwd=13.5ms  total=105.8ms
+[  24900] loss=2.1939  ema_loss=2.2010  gap=1.1151  ema_gap=1.1107  mixup=29/100  6.9 sps  ETA 1.0h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1748  U_b=0.1627  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=48.2ms  bwd=13.7ms  total=65.1ms
+[  25000] loss=2.1964  ema_loss=2.1989  gap=1.1160  ema_gap=1.1100  mixup=29/100  6.9 sps  ETA 1.0h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1755  U_b=0.1628  AUC=1.0000  Top1=1.0000
+  timing: data=20.3ms  fwd=53.5ms  bwd=13.9ms  total=88.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_25k.pth
+[  25100] loss=2.1981  ema_loss=2.2015  gap=1.1111  ema_gap=1.1107  mixup=29/100  6.9 sps  ETA 1.0h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1746  U_b=0.1631  AUC=1.0000  Top1=1.0000
+  timing: data=3.0ms  fwd=83.9ms  bwd=13.4ms  total=100.6ms
+[  25200] loss=2.1943  ema_loss=2.1986  gap=1.1134  ema_gap=1.1111  mixup=38/100  6.9 sps  ETA 1.0h
+              R²_rand=0.9981  R²_naive=0.9984  U_t=0.1747  U_b=0.1632  AUC=1.0000  Top1=1.0000
+  timing: data=3.1ms  fwd=72.1ms  bwd=12.8ms  total=88.3ms
+[  25300] loss=2.1951  ema_loss=2.2003  gap=1.1115  ema_gap=1.1112  mixup=24/100  6.9 sps  ETA 1.0h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1751  U_b=0.1628  AUC=1.0000  Top1=1.0000
+  timing: data=20.7ms  fwd=67.3ms  bwd=12.9ms  total=101.3ms
+[  25400] loss=2.1969  ema_loss=2.2001  gap=1.1039  ema_gap=1.1111  mixup=25/100  6.9 sps  ETA 1.0h
+              R²_rand=0.9982  R²_naive=0.9983  U_t=0.1753  U_b=0.1631  AUC=1.0000  Top1=1.0000
+  timing: data=2.8ms  fwd=88.7ms  bwd=13.4ms  total=105.2ms
+[  25500] loss=2.1958  ema_loss=2.1983  gap=1.1161  ema_gap=1.1113  mixup=31/100  6.9 sps  ETA 1.0h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1748  U_b=0.1630  AUC=1.0000  Top1=1.0000
+  timing: data=3.0ms  fwd=69.1ms  bwd=13.9ms  total=86.3ms
+[  25600] loss=2.1947  ema_loss=2.1998  gap=1.1123  ema_gap=1.1113  mixup=27/100  6.9 sps  ETA 1.0h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1754  U_b=0.1631  AUC=1.0000  Top1=1.0000
+  timing: data=3.1ms  fwd=72.2ms  bwd=13.9ms  total=89.5ms
+[  25700] loss=2.1971  ema_loss=2.2006  gap=1.1077  ema_gap=1.1115  mixup=28/100  6.9 sps  ETA 1.0h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1754  U_b=0.1629  AUC=1.0000  Top1=1.0000
+  timing: data=20.0ms  fwd=82.8ms  bwd=13.8ms  total=117.0ms
+[  25800] loss=2.1987  ema_loss=2.1988  gap=1.1134  ema_gap=1.1121  mixup=25/100  6.9 sps  ETA 1.0h
+              R²_rand=0.9982  R²_naive=0.9983  U_t=0.1747  U_b=0.1631  AUC=1.0000  Top1=1.0000
+  timing: data=2.7ms  fwd=72.5ms  bwd=13.2ms  total=88.7ms
+[  25900] loss=2.1964  ema_loss=2.1988  gap=1.1100  ema_gap=1.1114  mixup=29/100  6.9 sps  ETA 1.0h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1758  U_b=0.1629  AUC=1.0000  Top1=1.0000
+  timing: data=2.8ms  fwd=68.8ms  bwd=13.0ms  total=84.9ms
+[  26000] loss=2.1966  ema_loss=2.2038  gap=1.1057  ema_gap=1.1109  mixup=36/100  6.9 sps  ETA 1.0h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1759  U_b=0.1628  AUC=1.0000  Top1=1.0000
+  timing: data=20.2ms  fwd=84.9ms  bwd=13.0ms  total=118.4ms
+[  26100] loss=2.1884  ema_loss=2.1982  gap=1.1091  ema_gap=1.1098  mixup=30/100  6.9 sps  ETA 1.0h
+              R²_rand=0.9979  R²_naive=0.9981  U_t=0.1769  U_b=0.1656  AUC=1.0000  Top1=1.0000
+  timing: data=3.1ms  fwd=68.4ms  bwd=12.9ms  total=84.8ms
+[  26200] loss=2.1856  ema_loss=2.1931  gap=1.1101  ema_gap=1.1089  mixup=30/100  6.9 sps  ETA 1.0h
+              R²_rand=0.9980  R²_naive=0.9982  U_t=0.1789  U_b=0.1655  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=60.7ms  bwd=12.9ms  total=76.8ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  26300] loss=2.1918  ema_loss=2.1909  gap=1.1112  ema_gap=1.1086  mixup=36/100  6.9 sps  ETA 1.0h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1764  U_b=0.1650  AUC=1.0000  Top1=1.0000
+  timing: data=20.1ms  fwd=77.7ms  bwd=13.6ms  total=111.8ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  26400] loss=2.1875  ema_loss=2.1897  gap=1.1103  ema_gap=1.1089  mixup=31/100  6.9 sps  ETA 1.0h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1777  U_b=0.1653  AUC=1.0000  Top1=1.0000
+  timing: data=3.0ms  fwd=72.9ms  bwd=13.1ms  total=89.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  26500] loss=2.1860  ema_loss=2.1893  gap=1.1105  ema_gap=1.1086  mixup=32/100  6.9 sps  ETA 0.9h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1779  U_b=0.1656  AUC=1.0000  Top1=1.0000
+  timing: data=3.0ms  fwd=69.3ms  bwd=12.9ms  total=85.6ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  26600] loss=2.1864  ema_loss=2.1892  gap=1.1114  ema_gap=1.1091  mixup=35/100  6.9 sps  ETA 0.9h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1785  U_b=0.1650  AUC=1.0000  Top1=1.0000
+  timing: data=20.0ms  fwd=86.5ms  bwd=13.1ms  total=120.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  26700] loss=2.1858  ema_loss=2.1883  gap=1.1118  ema_gap=1.1092  mixup=27/100  6.9 sps  ETA 0.9h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1780  U_b=0.1653  AUC=1.0000  Top1=1.0000
+  timing: data=2.6ms  fwd=69.1ms  bwd=12.9ms  total=84.9ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  26800] loss=2.1930  ema_loss=2.1889  gap=1.1130  ema_gap=1.1095  mixup=27/100  6.9 sps  ETA 0.9h
+              R²_rand=0.9981  R²_naive=0.9982  U_t=0.1770  U_b=0.1650  AUC=1.0000  Top1=1.0000
+  timing: data=2.8ms  fwd=72.3ms  bwd=12.9ms  total=88.4ms
+[  26900] loss=2.1884  ema_loss=2.1895  gap=1.1082  ema_gap=1.1092  mixup=32/100  6.9 sps  ETA 0.9h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1786  U_b=0.1650  AUC=1.0000  Top1=1.0000
+  timing: data=20.6ms  fwd=82.4ms  bwd=13.5ms  total=116.9ms
+[  27000] loss=2.1902  ema_loss=2.1900  gap=1.1084  ema_gap=1.1089  mixup=30/100  6.9 sps  ETA 0.9h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1785  U_b=0.1650  AUC=1.0000  Top1=1.0000
+  timing: data=3.1ms  fwd=72.1ms  bwd=14.2ms  total=89.7ms
+[  27100] loss=2.1853  ema_loss=2.1888  gap=1.1083  ema_gap=1.1088  mixup=35/100  6.9 sps  ETA 0.9h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1780  U_b=0.1656  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=48.0ms  bwd=13.7ms  total=64.9ms
+[  27200] loss=2.1867  ema_loss=2.1890  gap=1.1028  ema_gap=1.1088  mixup=31/100  6.9 sps  ETA 0.9h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1783  U_b=0.1655  AUC=1.0000  Top1=1.0000
+  timing: data=20.1ms  fwd=57.9ms  bwd=13.4ms  total=91.9ms
+[  27300] loss=2.1886  ema_loss=2.1885  gap=1.1101  ema_gap=1.1090  mixup=28/100  6.9 sps  ETA 0.9h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1783  U_b=0.1657  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=84.3ms  bwd=12.7ms  total=100.3ms
+[  27400] loss=2.1888  ema_loss=2.1910  gap=1.1083  ema_gap=1.1093  mixup=26/100  6.9 sps  ETA 0.9h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1784  U_b=0.1653  AUC=1.0000  Top1=1.0000
+  timing: data=3.0ms  fwd=72.1ms  bwd=12.8ms  total=88.1ms
+[  27500] loss=2.1845  ema_loss=2.1890  gap=1.1149  ema_gap=1.1095  mixup=34/100  6.9 sps  ETA 0.9h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1778  U_b=0.1648  AUC=1.0000  Top1=1.0000
+  timing: data=21.0ms  fwd=67.2ms  bwd=12.8ms  total=101.4ms
+[  27600] loss=2.1877  ema_loss=2.1886  gap=1.1143  ema_gap=1.1095  mixup=32/100  6.9 sps  ETA 0.9h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1774  U_b=0.1659  AUC=1.0000  Top1=1.0000
+  timing: data=3.0ms  fwd=86.8ms  bwd=12.8ms  total=102.9ms
+[  27700] loss=2.1867  ema_loss=2.1887  gap=1.1032  ema_gap=1.1089  mixup=28/100  6.9 sps  ETA 0.9h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1787  U_b=0.1652  AUC=1.0000  Top1=1.0000
+  timing: data=2.7ms  fwd=69.3ms  bwd=12.7ms  total=85.1ms
+[  27800] loss=2.1842  ema_loss=2.1884  gap=1.1061  ema_gap=1.1084  mixup=36/100  6.9 sps  ETA 0.9h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1784  U_b=0.1650  AUC=1.0000  Top1=1.0000
+  timing: data=20.2ms  fwd=69.3ms  bwd=12.7ms  total=102.5ms
+[  27900] loss=2.1835  ema_loss=2.1891  gap=1.1098  ema_gap=1.1089  mixup=35/100  6.9 sps  ETA 0.9h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1790  U_b=0.1657  AUC=1.0000  Top1=1.0000
+  timing: data=3.7ms  fwd=84.2ms  bwd=12.7ms  total=100.8ms
+[  28000] loss=2.1859  ema_loss=2.1880  gap=1.1038  ema_gap=1.1081  mixup=20/100  6.9 sps  ETA 0.9h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1788  U_b=0.1656  AUC=1.0000  Top1=1.0000
+  timing: data=2.5ms  fwd=71.0ms  bwd=12.7ms  total=86.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  28100] loss=2.1862  ema_loss=2.1892  gap=1.1030  ema_gap=1.1080  mixup=36/100  6.9 sps  ETA 0.9h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1776  U_b=0.1653  AUC=1.0000  Top1=1.0000
+  timing: data=3.0ms  fwd=70.3ms  bwd=12.7ms  total=86.3ms
+[  28200] loss=2.1843  ema_loss=2.1883  gap=1.1053  ema_gap=1.1082  mixup=29/100  6.9 sps  ETA 0.9h
+              R²_rand=0.9982  R²_naive=0.9983  U_t=0.1781  U_b=0.1657  AUC=1.0000  Top1=1.0000
+  timing: data=19.9ms  fwd=83.5ms  bwd=12.8ms  total=116.5ms
+[  28300] loss=2.1910  ema_loss=2.1885  gap=1.1101  ema_gap=1.1079  mixup=36/100  6.9 sps  ETA 0.9h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1782  U_b=0.1649  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=70.5ms  bwd=12.8ms  total=86.5ms
+[  28400] loss=2.1888  ema_loss=2.1879  gap=1.1086  ema_gap=1.1078  mixup=24/100  6.9 sps  ETA 0.9h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1775  U_b=0.1651  AUC=1.0000  Top1=1.0000
+  timing: data=2.8ms  fwd=71.5ms  bwd=13.3ms  total=88.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  28500] loss=2.1903  ema_loss=2.1886  gap=1.1057  ema_gap=1.1083  mixup=24/100  6.9 sps  ETA 0.9h
+              R²_rand=0.9982  R²_naive=0.9983  U_t=0.1775  U_b=0.1654  AUC=1.0000  Top1=1.0000
+  timing: data=19.9ms  fwd=85.4ms  bwd=12.8ms  total=118.3ms
+[  28600] loss=2.1863  ema_loss=2.1892  gap=1.1028  ema_gap=1.1078  mixup=37/100  6.9 sps  ETA 0.9h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1785  U_b=0.1655  AUC=1.0000  Top1=1.0000
+  timing: data=2.6ms  fwd=70.6ms  bwd=12.7ms  total=86.3ms
+[  28700] loss=2.1894  ema_loss=2.1918  gap=1.1097  ema_gap=1.1086  mixup=48/100  6.9 sps  ETA 0.9h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1776  U_b=0.1654  AUC=1.0000  Top1=1.0000
+  timing: data=3.1ms  fwd=70.5ms  bwd=12.8ms  total=86.7ms
+[  28800] loss=2.1879  ema_loss=2.1893  gap=1.1058  ema_gap=1.1077  mixup=26/100  6.9 sps  ETA 0.9h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1795  U_b=0.1655  AUC=1.0000  Top1=1.0000
+  timing: data=19.5ms  fwd=84.9ms  bwd=12.9ms  total=117.7ms
+[  28900] loss=2.1890  ema_loss=2.1898  gap=1.1084  ema_gap=1.1076  mixup=26/100  6.9 sps  ETA 0.8h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1780  U_b=0.1652  AUC=1.0000  Top1=1.0000
+  timing: data=2.8ms  fwd=71.5ms  bwd=13.9ms  total=88.6ms
+[  29000] loss=2.1886  ema_loss=2.1893  gap=1.1036  ema_gap=1.1074  mixup=39/100  6.9 sps  ETA 0.8h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1770  U_b=0.1653  AUC=1.0000  Top1=1.0000
+  timing: data=3.3ms  fwd=70.9ms  bwd=13.6ms  total=88.1ms
+[  29100] loss=2.1863  ema_loss=2.1887  gap=1.1050  ema_gap=1.1080  mixup=31/100  6.9 sps  ETA 0.8h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1786  U_b=0.1652  AUC=1.0000  Top1=1.0000
+  timing: data=22.3ms  fwd=85.0ms  bwd=14.2ms  total=121.9ms
+[  29200] loss=2.1868  ema_loss=2.1881  gap=1.1054  ema_gap=1.1085  mixup=32/100  6.9 sps  ETA 0.8h
+              R²_rand=0.9982  R²_naive=0.9983  U_t=0.1781  U_b=0.1653  AUC=1.0000  Top1=1.0000
+  timing: data=2.7ms  fwd=71.3ms  bwd=14.0ms  total=88.5ms
+[  29300] loss=2.1911  ema_loss=2.1910  gap=1.1039  ema_gap=1.1079  mixup=30/100  6.9 sps  ETA 0.8h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1774  U_b=0.1648  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=70.4ms  bwd=13.8ms  total=87.4ms
+[  29400] loss=2.1878  ema_loss=2.1892  gap=1.1002  ema_gap=1.1080  mixup=26/100  6.9 sps  ETA 0.8h
+              R²_rand=0.9982  R²_naive=0.9983  U_t=0.1795  U_b=0.1650  AUC=1.0000  Top1=1.0000
+  timing: data=20.5ms  fwd=101.4ms  bwd=13.4ms  total=135.6ms
+[  29500] loss=2.1912  ema_loss=2.1891  gap=1.1106  ema_gap=1.1086  mixup=29/100  6.9 sps  ETA 0.8h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1780  U_b=0.1653  AUC=1.0000  Top1=1.0000
+  timing: data=2.8ms  fwd=70.9ms  bwd=12.8ms  total=86.8ms
+[  29600] loss=2.1884  ema_loss=2.1914  gap=1.1070  ema_gap=1.1081  mixup=38/100  6.9 sps  ETA 0.8h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1780  U_b=0.1650  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=70.7ms  bwd=12.8ms  total=86.7ms
+[  29700] loss=2.1863  ema_loss=2.1889  gap=1.1097  ema_gap=1.1084  mixup=27/100  6.9 sps  ETA 0.8h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1774  U_b=0.1656  AUC=1.0000  Top1=1.0000
+  timing: data=19.6ms  fwd=69.5ms  bwd=12.8ms  total=102.2ms
+[  29800] loss=2.1877  ema_loss=2.1883  gap=1.1033  ema_gap=1.1086  mixup=25/100  6.9 sps  ETA 0.8h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1770  U_b=0.1650  AUC=1.0000  Top1=1.0000
+  timing: data=2.7ms  fwd=85.7ms  bwd=12.7ms  total=101.3ms
+[  29900] loss=2.1864  ema_loss=2.1887  gap=1.1076  ema_gap=1.1085  mixup=22/100  6.9 sps  ETA 0.8h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1777  U_b=0.1655  AUC=1.0000  Top1=1.0000
+  timing: data=3.1ms  fwd=73.0ms  bwd=13.6ms  total=90.1ms
+[  30000] loss=2.1832  ema_loss=2.1881  gap=1.1094  ema_gap=1.1086  mixup=39/100  6.9 sps  ETA 0.8h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1778  U_b=0.1660  AUC=1.0000  Top1=1.0000
+  timing: data=27.8ms  fwd=67.5ms  bwd=13.4ms  total=109.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_30k.pth
+[  30100] loss=2.1857  ema_loss=2.1904  gap=1.1077  ema_gap=1.1084  mixup=32/100  6.9 sps  ETA 0.8h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1773  U_b=0.1652  AUC=1.0000  Top1=1.0000
+  timing: data=2.8ms  fwd=84.9ms  bwd=12.7ms  total=100.7ms
+[  30200] loss=2.1870  ema_loss=2.1904  gap=1.1089  ema_gap=1.1075  mixup=36/100  6.9 sps  ETA 0.8h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1784  U_b=0.1655  AUC=1.0000  Top1=1.0000
+  timing: data=2.7ms  fwd=68.8ms  bwd=12.8ms  total=84.5ms
+[  30300] loss=2.1875  ema_loss=2.1884  gap=1.1072  ema_gap=1.1068  mixup=24/100  6.9 sps  ETA 0.8h
+              R²_rand=0.9982  R²_naive=0.9983  U_t=0.1782  U_b=0.1646  AUC=1.0000  Top1=1.0000
+  timing: data=23.3ms  fwd=71.0ms  bwd=12.8ms  total=107.4ms
+[  30400] loss=2.1921  ema_loss=2.1885  gap=1.1110  ema_gap=1.1076  mixup=38/100  6.9 sps  ETA 0.8h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1771  U_b=0.1657  AUC=1.0000  Top1=1.0000
+  timing: data=3.1ms  fwd=85.1ms  bwd=13.3ms  total=102.0ms
+[  30500] loss=2.1874  ema_loss=2.1881  gap=1.1116  ema_gap=1.1077  mixup=20/100  6.9 sps  ETA 0.8h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1782  U_b=0.1653  AUC=1.0000  Top1=1.0000
+  timing: data=2.6ms  fwd=72.7ms  bwd=13.0ms  total=88.7ms
+[  30600] loss=2.1909  ema_loss=2.1888  gap=1.1037  ema_gap=1.1076  mixup=34/100  6.9 sps  ETA 0.8h
+              R²_rand=0.9982  R²_naive=0.9983  U_t=0.1770  U_b=0.1649  AUC=1.0000  Top1=1.0000
+  timing: data=2.8ms  fwd=68.8ms  bwd=12.9ms  total=84.9ms
+[  30700] loss=2.1890  ema_loss=2.1883  gap=1.1074  ema_gap=1.1079  mixup=35/100  6.9 sps  ETA 0.8h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1779  U_b=0.1648  AUC=1.0000  Top1=1.0000
+  timing: data=26.6ms  fwd=87.3ms  bwd=13.0ms  total=127.3ms
+[  30800] loss=2.1865  ema_loss=2.1878  gap=1.1076  ema_gap=1.1071  mixup=33/100  6.9 sps  ETA 0.8h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1781  U_b=0.1651  AUC=1.0000  Top1=1.0000
+  timing: data=3.3ms  fwd=69.3ms  bwd=13.7ms  total=86.9ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  30900] loss=2.1928  ema_loss=2.1884  gap=1.1096  ema_gap=1.1074  mixup=33/100  6.9 sps  ETA 0.8h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1780  U_b=0.1651  AUC=1.0000  Top1=1.0000
+  timing: data=3.1ms  fwd=70.9ms  bwd=12.7ms  total=87.1ms
+[  31000] loss=2.1882  ema_loss=2.1932  gap=1.1140  ema_gap=1.1084  mixup=29/100  6.9 sps  ETA 0.8h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1772  U_b=0.1655  AUC=1.0000  Top1=1.0000
+  timing: data=22.1ms  fwd=85.3ms  bwd=13.3ms  total=121.0ms
+[  31100] loss=2.1847  ema_loss=2.1899  gap=1.1083  ema_gap=1.1080  mixup=21/100  6.9 sps  ETA 0.8h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1784  U_b=0.1652  AUC=1.0000  Top1=1.0000
+  timing: data=2.4ms  fwd=73.9ms  bwd=14.0ms  total=90.7ms
+[  31200] loss=2.1838  ema_loss=2.1888  gap=1.1048  ema_gap=1.1073  mixup=25/100  6.9 sps  ETA 0.8h
+              R²_rand=0.9982  R²_naive=0.9983  U_t=0.1792  U_b=0.1657  AUC=1.0000  Top1=1.0000
+  timing: data=2.8ms  fwd=69.7ms  bwd=13.0ms  total=85.9ms
+[  31300] loss=2.1857  ema_loss=2.1877  gap=1.1109  ema_gap=1.1072  mixup=38/100  6.9 sps  ETA 0.7h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1785  U_b=0.1649  AUC=1.0000  Top1=1.0000
+  timing: data=84.3ms  fwd=86.6ms  bwd=12.8ms  total=183.9ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  31400] loss=2.1861  ema_loss=2.1884  gap=1.1110  ema_gap=1.1076  mixup=33/100  6.9 sps  ETA 0.7h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1775  U_b=0.1661  AUC=1.0000  Top1=1.0000
+  timing: data=3.0ms  fwd=70.0ms  bwd=12.7ms  total=86.0ms
+[  31500] loss=2.1894  ema_loss=2.1908  gap=1.1051  ema_gap=1.1076  mixup=37/100  6.9 sps  ETA 0.7h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1771  U_b=0.1648  AUC=1.0000  Top1=1.0000
+  timing: data=2.7ms  fwd=72.6ms  bwd=12.8ms  total=88.4ms
+[  31600] loss=2.1855  ema_loss=2.1899  gap=1.1093  ema_gap=1.1070  mixup=37/100  6.9 sps  ETA 0.7h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1782  U_b=0.1650  AUC=1.0000  Top1=1.0000
+  timing: data=114.5ms  fwd=81.7ms  bwd=13.0ms  total=209.5ms
+[  31700] loss=2.1911  ema_loss=2.1890  gap=1.1067  ema_gap=1.1064  mixup=31/100  6.9 sps  ETA 0.7h
+              R²_rand=0.9982  R²_naive=0.9983  U_t=0.1786  U_b=0.1649  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=70.4ms  bwd=13.8ms  total=87.5ms
+[  31800] loss=2.1868  ema_loss=2.1895  gap=1.1085  ema_gap=1.1060  mixup=33/100  6.9 sps  ETA 0.7h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1785  U_b=0.1651  AUC=1.0000  Top1=1.0000
+  timing: data=3.1ms  fwd=70.2ms  bwd=13.8ms  total=87.4ms
+[  31900] loss=2.1844  ema_loss=2.1888  gap=1.1103  ema_gap=1.1065  mixup=26/100  6.9 sps  ETA 0.7h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1782  U_b=0.1650  AUC=1.0000  Top1=1.0000
+  timing: data=20.3ms  fwd=83.7ms  bwd=13.7ms  total=118.0ms
+[  32000] loss=2.1859  ema_loss=2.1893  gap=1.1024  ema_gap=1.1065  mixup=31/100  6.9 sps  ETA 0.7h
+              R²_rand=0.9982  R²_naive=0.9983  U_t=0.1773  U_b=0.1653  AUC=1.0000  Top1=1.0000
+  timing: data=3.0ms  fwd=70.4ms  bwd=13.8ms  total=87.6ms
+[  32100] loss=2.1852  ema_loss=2.1900  gap=1.1048  ema_gap=1.1067  mixup=29/100  6.9 sps  ETA 0.7h
+              R²_rand=0.9982  R²_naive=0.9983  U_t=0.1783  U_b=0.1653  AUC=1.0000  Top1=1.0000
+  timing: data=3.1ms  fwd=70.4ms  bwd=12.9ms  total=86.7ms
+[  32200] loss=2.1883  ema_loss=2.1892  gap=1.1061  ema_gap=1.1063  mixup=29/100  6.9 sps  ETA 0.7h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1779  U_b=0.1653  AUC=1.0000  Top1=1.0000
+  timing: data=19.7ms  fwd=69.6ms  bwd=12.9ms  total=102.5ms
+[  32300] loss=2.1847  ema_loss=2.1880  gap=1.1134  ema_gap=1.1063  mixup=37/100  6.9 sps  ETA 0.7h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1783  U_b=0.1652  AUC=1.0000  Top1=1.0000
+  timing: data=3.2ms  fwd=84.4ms  bwd=13.8ms  total=101.8ms
+[  32400] loss=2.1871  ema_loss=2.1879  gap=1.1057  ema_gap=1.1054  mixup=27/100  6.9 sps  ETA 0.7h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1774  U_b=0.1654  AUC=1.0000  Top1=1.0000
+  timing: data=2.7ms  fwd=70.9ms  bwd=13.8ms  total=87.8ms
+[  32500] loss=2.1855  ema_loss=2.1884  gap=1.1067  ema_gap=1.1059  mixup=26/100  6.9 sps  ETA 0.7h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1788  U_b=0.1648  AUC=1.0000  Top1=1.0000
+  timing: data=20.4ms  fwd=69.1ms  bwd=13.8ms  total=103.6ms
+[  32600] loss=2.1860  ema_loss=2.1888  gap=1.1059  ema_gap=1.1058  mixup=33/100  6.9 sps  ETA 0.7h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1771  U_b=0.1652  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=84.7ms  bwd=13.7ms  total=101.6ms
+[  32700] loss=2.1867  ema_loss=2.1889  gap=1.1008  ema_gap=1.1051  mixup=39/100  6.9 sps  ETA 0.7h
+              R²_rand=0.9982  R²_naive=0.9983  U_t=0.1790  U_b=0.1650  AUC=1.0000  Top1=1.0000
+  timing: data=2.9ms  fwd=70.7ms  bwd=13.7ms  total=87.7ms
+[  32800] loss=2.1855  ema_loss=2.1884  gap=1.1132  ema_gap=1.1054  mixup=38/100  6.9 sps  ETA 0.7h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1776  U_b=0.1654  AUC=1.0000  Top1=1.0000
+  timing: data=67.7ms  fwd=69.6ms  bwd=13.8ms  total=151.5ms
+[  32900] loss=2.1865  ema_loss=2.1882  gap=1.1092  ema_gap=1.1049  mixup=32/100  6.9 sps  ETA 0.7h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1782  U_b=0.1657  AUC=1.0000  Top1=1.0000
+  timing: data=3.3ms  fwd=142.6ms  bwd=13.2ms  total=159.4ms
+[  33000] loss=2.1814  ema_loss=2.1842  gap=1.0984  ema_gap=1.1033  mixup=28/100  6.9 sps  ETA 0.7h
+              R²_rand=0.9980  R²_naive=0.9982  U_t=0.1796  U_b=0.1680  AUC=1.0000  Top1=1.0000
+  timing: data=4.3ms  fwd=75.2ms  bwd=12.8ms  total=92.8ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  33100] loss=2.1805  ema_loss=2.1825  gap=1.1033  ema_gap=1.1035  mixup=34/100  6.9 sps  ETA 0.7h
+              R²_rand=0.9981  R²_naive=0.9982  U_t=0.1803  U_b=0.1676  AUC=1.0000  Top1=1.0000
+  timing: data=3.6ms  fwd=76.4ms  bwd=13.1ms  total=93.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  33200] loss=2.1830  ema_loss=2.1809  gap=1.1071  ema_gap=1.1030  mixup=28/100  6.9 sps  ETA 0.7h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1805  U_b=0.1671  AUC=1.0000  Top1=1.0000
+  timing: data=21.8ms  fwd=90.9ms  bwd=19.3ms  total=132.3ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  33300] loss=2.1797  ema_loss=2.1819  gap=1.1048  ema_gap=1.1036  mixup=30/100  6.9 sps  ETA 0.7h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1799  U_b=0.1679  AUC=1.0000  Top1=1.0000
+  timing: data=3.0ms  fwd=77.2ms  bwd=20.0ms  total=100.5ms
+[  33400] loss=2.1776  ema_loss=2.1798  gap=1.0992  ema_gap=1.1027  mixup=35/100  6.9 sps  ETA 0.7h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1821  U_b=0.1678  AUC=1.0000  Top1=1.0000
+  timing: data=4.0ms  fwd=79.1ms  bwd=15.6ms  total=99.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  33500] loss=2.1787  ema_loss=2.1789  gap=1.1043  ema_gap=1.1027  mixup=32/100  6.9 sps  ETA 0.7h
+              R²_rand=0.9982  R²_naive=0.9983  U_t=0.1816  U_b=0.1675  AUC=1.0000  Top1=1.0000
+  timing: data=23.6ms  fwd=91.7ms  bwd=13.4ms  total=129.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  33600] loss=2.1764  ema_loss=2.1785  gap=1.1002  ema_gap=1.1028  mixup=21/100  6.9 sps  ETA 0.7h
+              R²_rand=0.9982  R²_naive=0.9983  U_t=0.1812  U_b=0.1676  AUC=1.0000  Top1=1.0000
+  timing: data=3.5ms  fwd=79.8ms  bwd=15.4ms  total=99.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  33700] loss=2.1776  ema_loss=2.1776  gap=1.1027  ema_gap=1.1027  mixup=30/100  6.9 sps  ETA 0.7h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1807  U_b=0.1677  AUC=1.0000  Top1=1.0000
+  timing: data=3.7ms  fwd=78.5ms  bwd=13.7ms  total=96.3ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  33800] loss=2.1755  ema_loss=2.1801  gap=1.0958  ema_gap=1.1023  mixup=24/100  6.9 sps  ETA 0.7h
+              R²_rand=0.9982  R²_naive=0.9983  U_t=0.1820  U_b=0.1680  AUC=1.0000  Top1=1.0000
+  timing: data=20.8ms  fwd=91.3ms  bwd=14.1ms  total=126.6ms
+[  33900] loss=2.1781  ema_loss=2.1786  gap=1.1002  ema_gap=1.1012  mixup=32/100  6.9 sps  ETA 0.6h
+              R²_rand=0.9982  R²_naive=0.9983  U_t=0.1815  U_b=0.1676  AUC=1.0000  Top1=1.0000
+  timing: data=3.9ms  fwd=76.8ms  bwd=14.0ms  total=95.1ms
+[  34000] loss=2.1767  ema_loss=2.1787  gap=1.1078  ema_gap=1.1012  mixup=29/100  6.9 sps  ETA 0.6h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1811  U_b=0.1675  AUC=1.0000  Top1=1.0000
+  timing: data=4.2ms  fwd=81.6ms  bwd=14.8ms  total=101.0ms
+[  34100] loss=2.1750  ema_loss=2.1806  gap=1.1031  ema_gap=1.1014  mixup=28/100  6.9 sps  ETA 0.6h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1813  U_b=0.1675  AUC=1.0000  Top1=1.0000
+  timing: data=20.5ms  fwd=87.5ms  bwd=14.9ms  total=123.3ms
+[  34200] loss=2.1749  ema_loss=2.1790  gap=1.1064  ema_gap=1.1011  mixup=25/100  6.9 sps  ETA 0.6h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1807  U_b=0.1676  AUC=1.0000  Top1=1.0000
+  timing: data=3.8ms  fwd=80.4ms  bwd=14.0ms  total=98.7ms
+[  34300] loss=2.1756  ema_loss=2.1780  gap=1.0992  ema_gap=1.1010  mixup=41/100  6.9 sps  ETA 0.6h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1809  U_b=0.1677  AUC=1.0000  Top1=1.0000
+  timing: data=4.0ms  fwd=77.1ms  bwd=13.8ms  total=95.3ms
+[  34400] loss=2.1756  ema_loss=2.1776  gap=1.0968  ema_gap=1.0998  mixup=30/100  6.9 sps  ETA 0.6h
+              R²_rand=0.9982  R²_naive=0.9983  U_t=0.1812  U_b=0.1677  AUC=1.0000  Top1=1.0000
+  timing: data=22.1ms  fwd=91.1ms  bwd=13.7ms  total=127.3ms
+[  34500] loss=2.1770  ema_loss=2.1771  gap=1.0951  ema_gap=1.0999  mixup=37/100  6.9 sps  ETA 0.6h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1817  U_b=0.1677  AUC=1.0000  Top1=1.0000
+  timing: data=4.1ms  fwd=79.3ms  bwd=14.1ms  total=97.9ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  34600] loss=2.1784  ema_loss=2.1770  gap=1.0983  ema_gap=1.1002  mixup=23/100  6.9 sps  ETA 0.6h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1817  U_b=0.1680  AUC=1.0000  Top1=1.0000
+  timing: data=3.5ms  fwd=78.9ms  bwd=14.3ms  total=97.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  34700] loss=2.1783  ema_loss=2.1792  gap=1.1027  ema_gap=1.1002  mixup=31/100  6.9 sps  ETA 0.6h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1815  U_b=0.1672  AUC=1.0000  Top1=1.0000
+  timing: data=21.1ms  fwd=74.0ms  bwd=13.6ms  total=109.2ms
+[  34800] loss=2.1768  ema_loss=2.1774  gap=1.0934  ema_gap=1.1004  mixup=27/100  6.9 sps  ETA 0.6h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1818  U_b=0.1676  AUC=1.0000  Top1=1.0000
+  timing: data=3.7ms  fwd=95.1ms  bwd=15.0ms  total=114.3ms
+[  34900] loss=2.1751  ema_loss=2.1770  gap=1.0973  ema_gap=1.1007  mixup=31/100  6.9 sps  ETA 0.6h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1813  U_b=0.1678  AUC=1.0000  Top1=1.0000
+  timing: data=3.8ms  fwd=77.6ms  bwd=14.3ms  total=96.1ms
+[  35000] loss=2.1764  ema_loss=2.1776  gap=1.1037  ema_gap=1.1009  mixup=26/100  6.9 sps  ETA 0.6h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1799  U_b=0.1677  AUC=1.0000  Top1=1.0000
+  timing: data=21.6ms  fwd=80.7ms  bwd=14.7ms  total=117.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_35k.pth
+[  35100] loss=2.1765  ema_loss=2.1803  gap=1.1008  ema_gap=1.1009  mixup=33/100  6.9 sps  ETA 0.6h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1812  U_b=0.1675  AUC=1.0000  Top1=1.0000
+  timing: data=3.7ms  fwd=90.6ms  bwd=14.3ms  total=109.0ms
+[  35200] loss=2.1834  ema_loss=2.1788  gap=1.1077  ema_gap=1.1009  mixup=30/100  6.9 sps  ETA 0.6h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1807  U_b=0.1675  AUC=1.0000  Top1=1.0000
+  timing: data=3.9ms  fwd=81.0ms  bwd=13.7ms  total=99.0ms
+[  35300] loss=2.1754  ema_loss=2.1787  gap=1.1056  ema_gap=1.1004  mixup=31/100  6.9 sps  ETA 0.6h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1817  U_b=0.1676  AUC=1.0000  Top1=1.0000
+  timing: data=20.9ms  fwd=75.0ms  bwd=14.3ms  total=110.7ms
+[  35400] loss=2.1778  ema_loss=2.1777  gap=1.1010  ema_gap=1.1001  mixup=31/100  6.9 sps  ETA 0.6h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1823  U_b=0.1679  AUC=1.0000  Top1=1.0000
+  timing: data=4.1ms  fwd=94.5ms  bwd=14.8ms  total=113.8ms
+[  35500] loss=2.1771  ema_loss=2.1804  gap=1.0956  ema_gap=1.1002  mixup=34/100  6.9 sps  ETA 0.6h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1813  U_b=0.1678  AUC=1.0000  Top1=1.0000
+  timing: data=3.9ms  fwd=77.8ms  bwd=13.8ms  total=96.0ms
+[  35600] loss=2.1773  ema_loss=2.1820  gap=1.1035  ema_gap=1.0999  mixup=24/100  6.9 sps  ETA 0.6h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1802  U_b=0.1682  AUC=1.0000  Top1=1.0000
+  timing: data=4.0ms  fwd=78.8ms  bwd=14.6ms  total=97.8ms
+[  35700] loss=2.1748  ema_loss=2.1788  gap=1.1031  ema_gap=1.0994  mixup=22/100  6.9 sps  ETA 0.6h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1812  U_b=0.1675  AUC=1.0000  Top1=1.0000
+  timing: data=20.9ms  fwd=89.7ms  bwd=13.3ms  total=124.4ms
+[  35800] loss=2.1748  ema_loss=2.1780  gap=1.1009  ema_gap=1.0996  mixup=28/100  6.9 sps  ETA 0.6h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1807  U_b=0.1677  AUC=1.0000  Top1=1.0000
+  timing: data=3.6ms  fwd=80.1ms  bwd=13.8ms  total=97.8ms
+[  35900] loss=2.1760  ema_loss=2.1779  gap=1.0982  ema_gap=1.1000  mixup=34/100  6.9 sps  ETA 0.6h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1798  U_b=0.1674  AUC=1.0000  Top1=1.0000
+  timing: data=4.1ms  fwd=77.6ms  bwd=14.7ms  total=96.8ms
+[  36000] loss=2.1829  ema_loss=2.1784  gap=1.0975  ema_gap=1.0999  mixup=35/100  6.9 sps  ETA 0.6h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1821  U_b=0.1672  AUC=1.0000  Top1=1.0000
+  timing: data=20.3ms  fwd=90.5ms  bwd=15.0ms  total=126.2ms
+[  36100] loss=2.1773  ema_loss=2.1777  gap=1.0929  ema_gap=1.0988  mixup=33/100  6.9 sps  ETA 0.6h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1817  U_b=0.1673  AUC=1.0000  Top1=1.0000
+  timing: data=4.1ms  fwd=79.3ms  bwd=15.1ms  total=99.0ms
+[  36200] loss=2.1792  ema_loss=2.1777  gap=1.0976  ema_gap=1.0997  mixup=29/100  6.9 sps  ETA 0.6h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1821  U_b=0.1678  AUC=1.0000  Top1=1.0000
+  timing: data=3.8ms  fwd=78.9ms  bwd=14.0ms  total=97.2ms
+[  36300] loss=2.1806  ema_loss=2.1771  gap=1.1027  ema_gap=1.1000  mixup=26/100  6.9 sps  ETA 0.6h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1814  U_b=0.1674  AUC=1.0000  Top1=1.0000
+  timing: data=20.3ms  fwd=90.5ms  bwd=14.5ms  total=125.7ms
+[  36400] loss=2.1741  ema_loss=2.1771  gap=1.0990  ema_gap=1.0996  mixup=32/100  6.9 sps  ETA 0.6h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1814  U_b=0.1677  AUC=1.0000  Top1=1.0000
+  timing: data=3.7ms  fwd=78.2ms  bwd=13.9ms  total=96.3ms
+[  36500] loss=2.1743  ema_loss=2.1765  gap=1.0982  ema_gap=1.0997  mixup=40/100  6.9 sps  ETA 0.5h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1814  U_b=0.1678  AUC=1.0000  Top1=1.0000
+  timing: data=4.3ms  fwd=80.3ms  bwd=14.6ms  total=99.6ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  36600] loss=2.1724  ema_loss=2.1782  gap=1.0971  ema_gap=1.1003  mixup=31/100  6.9 sps  ETA 0.5h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1821  U_b=0.1680  AUC=1.0000  Top1=1.0000
+  timing: data=21.5ms  fwd=88.8ms  bwd=14.3ms  total=125.0ms
+[  36700] loss=2.1757  ema_loss=2.1771  gap=1.1022  ema_gap=1.0994  mixup=31/100  6.9 sps  ETA 0.5h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1803  U_b=0.1675  AUC=1.0000  Top1=1.0000
+  timing: data=3.7ms  fwd=77.8ms  bwd=13.8ms  total=95.7ms
+[  36800] loss=2.1785  ema_loss=2.1786  gap=1.0971  ema_gap=1.0993  mixup=24/100  6.9 sps  ETA 0.5h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1808  U_b=0.1672  AUC=1.0000  Top1=1.0000
+  timing: data=3.7ms  fwd=79.1ms  bwd=15.0ms  total=98.2ms
+[  36900] loss=2.1754  ema_loss=2.1805  gap=1.0933  ema_gap=1.0992  mixup=32/100  6.9 sps  ETA 0.5h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1827  U_b=0.1671  AUC=1.0000  Top1=1.0000
+  timing: data=21.2ms  fwd=87.8ms  bwd=15.6ms  total=124.9ms
+[  37000] loss=2.1787  ema_loss=2.1781  gap=1.1035  ema_gap=1.0996  mixup=20/100  6.9 sps  ETA 0.5h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1801  U_b=0.1667  AUC=1.0000  Top1=1.0000
+  timing: data=3.9ms  fwd=78.7ms  bwd=14.9ms  total=97.9ms
+[  37100] loss=2.1753  ema_loss=2.1780  gap=1.0960  ema_gap=1.0994  mixup=29/100  6.9 sps  ETA 0.5h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1820  U_b=0.1676  AUC=1.0000  Top1=1.0000
+  timing: data=4.0ms  fwd=78.0ms  bwd=14.1ms  total=96.6ms
+[  37200] loss=2.1778  ema_loss=2.1778  gap=1.1032  ema_gap=1.0994  mixup=31/100  6.8 sps  ETA 0.5h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1812  U_b=0.1678  AUC=1.0000  Top1=1.0000
+  timing: data=22.2ms  fwd=76.5ms  bwd=14.3ms  total=113.4ms
+[  37300] loss=2.1750  ema_loss=2.1791  gap=1.0943  ema_gap=1.0988  mixup=26/100  6.8 sps  ETA 0.5h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1821  U_b=0.1674  AUC=1.0000  Top1=1.0000
+  timing: data=3.6ms  fwd=93.0ms  bwd=14.4ms  total=111.5ms
+[  37400] loss=2.1772  ema_loss=2.1773  gap=1.1005  ema_gap=1.0988  mixup=33/100  6.8 sps  ETA 0.5h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1805  U_b=0.1672  AUC=1.0000  Top1=1.0000
+  timing: data=3.5ms  fwd=80.0ms  bwd=13.7ms  total=97.7ms
+[  37500] loss=2.1855  ema_loss=2.1771  gap=1.1021  ema_gap=1.0986  mixup=30/100  6.8 sps  ETA 0.5h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1815  U_b=0.1669  AUC=1.0000  Top1=1.0000
+  timing: data=20.9ms  fwd=77.5ms  bwd=14.0ms  total=112.9ms
+[  37600] loss=2.1774  ema_loss=2.1767  gap=1.1029  ema_gap=1.0988  mixup=36/100  6.8 sps  ETA 0.5h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1807  U_b=0.1676  AUC=1.0000  Top1=1.0000
+  timing: data=4.0ms  fwd=92.6ms  bwd=14.9ms  total=111.9ms
+[  37700] loss=2.1777  ema_loss=2.1768  gap=1.0975  ema_gap=1.0984  mixup=29/100  6.8 sps  ETA 0.5h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1820  U_b=0.1668  AUC=1.0000  Top1=1.0000
+  timing: data=3.6ms  fwd=79.7ms  bwd=16.3ms  total=100.0ms
+[  37800] loss=2.1786  ema_loss=2.1827  gap=1.0965  ema_gap=1.0992  mixup=26/100  6.8 sps  ETA 0.5h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1814  U_b=0.1673  AUC=1.0000  Top1=1.0000
+  timing: data=20.8ms  fwd=77.0ms  bwd=13.9ms  total=112.1ms
+[  37900] loss=2.1756  ema_loss=2.1790  gap=1.0920  ema_gap=1.0988  mixup=27/100  6.8 sps  ETA 0.5h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1815  U_b=0.1676  AUC=1.0000  Top1=1.0000
+  timing: data=4.1ms  fwd=93.4ms  bwd=14.7ms  total=112.6ms
+[  38000] loss=2.1731  ema_loss=2.1798  gap=1.1013  ema_gap=1.0988  mixup=25/100  6.8 sps  ETA 0.5h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1812  U_b=0.1677  AUC=1.0000  Top1=1.0000
+  timing: data=3.9ms  fwd=78.4ms  bwd=14.9ms  total=97.6ms
+[  38100] loss=2.1752  ema_loss=2.1788  gap=1.0980  ema_gap=1.0985  mixup=29/100  6.8 sps  ETA 0.5h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1823  U_b=0.1677  AUC=1.0000  Top1=1.0000
+  timing: data=4.2ms  fwd=77.0ms  bwd=13.7ms  total=95.3ms
+[  38200] loss=2.1788  ema_loss=2.1770  gap=1.0958  ema_gap=1.0988  mixup=30/100  6.8 sps  ETA 0.5h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1812  U_b=0.1673  AUC=1.0000  Top1=1.0000
+  timing: data=20.9ms  fwd=88.9ms  bwd=13.6ms  total=123.8ms
+[  38300] loss=2.1722  ema_loss=2.1785  gap=1.0992  ema_gap=1.0985  mixup=23/100  6.8 sps  ETA 0.5h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1822  U_b=0.1681  AUC=1.0000  Top1=1.0000
+  timing: data=3.7ms  fwd=81.5ms  bwd=14.9ms  total=100.5ms
+[  38400] loss=2.1752  ema_loss=2.1832  gap=1.0963  ema_gap=1.0985  mixup=32/100  6.8 sps  ETA 0.5h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1822  U_b=0.1676  AUC=1.0000  Top1=1.0000
+  timing: data=4.0ms  fwd=75.4ms  bwd=14.0ms  total=93.8ms
+[  38500] loss=2.1730  ema_loss=2.1818  gap=1.0995  ema_gap=1.0982  mixup=28/100  6.8 sps  ETA 0.5h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1819  U_b=0.1679  AUC=1.0000  Top1=1.0000
+  timing: data=20.4ms  fwd=92.5ms  bwd=15.4ms  total=128.8ms
+[  38600] loss=2.1760  ema_loss=2.1783  gap=1.1019  ema_gap=1.0985  mixup=35/100  6.8 sps  ETA 0.5h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1806  U_b=0.1674  AUC=1.0000  Top1=1.0000
+  timing: data=3.7ms  fwd=76.2ms  bwd=14.1ms  total=94.4ms
+[  38700] loss=2.1737  ema_loss=2.1789  gap=1.0973  ema_gap=1.0979  mixup=33/100  6.8 sps  ETA 0.5h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1809  U_b=0.1677  AUC=1.0000  Top1=1.0000
+  timing: data=3.9ms  fwd=81.8ms  bwd=14.4ms  total=100.5ms
+[  38800] loss=2.1778  ema_loss=2.1787  gap=1.0974  ema_gap=1.0985  mixup=29/100  6.8 sps  ETA 0.5h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1817  U_b=0.1674  AUC=1.0000  Top1=1.0000
+  timing: data=21.4ms  fwd=89.5ms  bwd=13.4ms  total=124.8ms
+[  38900] loss=2.1763  ema_loss=2.1820  gap=1.0973  ema_gap=1.0983  mixup=29/100  6.8 sps  ETA 0.5h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1819  U_b=0.1670  AUC=1.0000  Top1=1.0000
+  timing: data=3.9ms  fwd=80.5ms  bwd=14.6ms  total=99.4ms
+[  39000] loss=2.1775  ema_loss=2.1818  gap=1.0996  ema_gap=1.0985  mixup=42/100  6.8 sps  ETA 0.4h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1815  U_b=0.1676  AUC=1.0000  Top1=1.0000
+  timing: data=3.9ms  fwd=76.4ms  bwd=14.0ms  total=94.7ms
+[  39100] loss=2.1751  ema_loss=2.1789  gap=1.0982  ema_gap=1.0981  mixup=22/100  6.8 sps  ETA 0.4h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1823  U_b=0.1679  AUC=1.0000  Top1=1.0000
+  timing: data=44.5ms  fwd=92.0ms  bwd=15.7ms  total=152.5ms
+[  39200] loss=2.1739  ema_loss=2.1786  gap=1.1001  ema_gap=1.0980  mixup=24/100  6.8 sps  ETA 0.4h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1821  U_b=0.1678  AUC=1.0000  Top1=1.0000
+  timing: data=3.9ms  fwd=76.9ms  bwd=14.2ms  total=95.5ms
+[  39300] loss=2.1783  ema_loss=2.1774  gap=1.0936  ema_gap=1.0980  mixup=28/100  6.8 sps  ETA 0.4h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1815  U_b=0.1673  AUC=1.0000  Top1=1.0000
+  timing: data=3.9ms  fwd=80.1ms  bwd=14.3ms  total=98.8ms
+[  39400] loss=2.1760  ema_loss=2.1812  gap=1.1006  ema_gap=1.0972  mixup=31/100  6.8 sps  ETA 0.4h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1817  U_b=0.1676  AUC=1.0000  Top1=1.0000
+  timing: data=21.5ms  fwd=89.9ms  bwd=13.9ms  total=125.7ms
+[  39500] loss=2.1748  ema_loss=2.1812  gap=1.1022  ema_gap=1.0978  mixup=26/100  6.8 sps  ETA 0.4h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1812  U_b=0.1674  AUC=1.0000  Top1=1.0000
+  timing: data=3.5ms  fwd=80.8ms  bwd=14.0ms  total=98.7ms
+[  39600] loss=2.1767  ema_loss=2.1793  gap=1.0934  ema_gap=1.0972  mixup=29/100  6.8 sps  ETA 0.4h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1830  U_b=0.1671  AUC=1.0000  Top1=1.0000
+  timing: data=3.9ms  fwd=77.4ms  bwd=14.0ms  total=95.8ms
+[  39700] loss=2.1792  ema_loss=2.1780  gap=1.0979  ema_gap=1.0975  mixup=32/100  6.8 sps  ETA 0.4h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1813  U_b=0.1673  AUC=1.0000  Top1=1.0000
+  timing: data=56.4ms  fwd=77.9ms  bwd=14.1ms  total=148.9ms
+[  39800] loss=2.1762  ema_loss=2.1768  gap=1.0955  ema_gap=1.0971  mixup=31/100  6.8 sps  ETA 0.4h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1827  U_b=0.1676  AUC=1.0000  Top1=1.0000
+  timing: data=3.8ms  fwd=93.3ms  bwd=13.4ms  total=111.0ms
+[  39900] loss=2.1738  ema_loss=2.1761  gap=1.0996  ema_gap=1.0974  mixup=35/100  6.8 sps  ETA 0.4h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1815  U_b=0.1674  AUC=1.0000  Top1=1.0000
+  timing: data=3.9ms  fwd=80.6ms  bwd=13.5ms  total=98.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  40000] loss=2.1762  ema_loss=2.1766  gap=1.0958  ema_gap=1.0974  mixup=30/100  6.8 sps  ETA 0.4h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1814  U_b=0.1666  AUC=1.0000  Top1=1.0000
+  timing: data=23.6ms  fwd=74.5ms  bwd=14.8ms  total=113.3ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_40k.pth
+[  40100] loss=2.1804  ema_loss=2.1783  gap=1.0963  ema_gap=1.0976  mixup=30/100  6.8 sps  ETA 0.4h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1817  U_b=0.1679  AUC=1.0000  Top1=1.0000
+  timing: data=3.9ms  fwd=92.8ms  bwd=14.7ms  total=111.7ms
+[  40200] loss=2.1731  ema_loss=2.1772  gap=1.0978  ema_gap=1.0974  mixup=33/100  6.8 sps  ETA 0.4h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1819  U_b=0.1674  AUC=1.0000  Top1=1.0000
+  timing: data=3.9ms  fwd=77.8ms  bwd=14.9ms  total=97.1ms
+[  40300] loss=2.1744  ema_loss=2.1761  gap=1.1009  ema_gap=1.0974  mixup=33/100  6.8 sps  ETA 0.4h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1813  U_b=0.1675  AUC=1.0000  Top1=1.0000
+  timing: data=21.5ms  fwd=76.5ms  bwd=13.7ms  total=112.2ms
+[  40400] loss=2.1752  ema_loss=2.1779  gap=1.1019  ema_gap=1.0972  mixup=30/100  6.8 sps  ETA 0.4h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1807  U_b=0.1677  AUC=1.0000  Top1=1.0000
+  timing: data=4.1ms  fwd=91.8ms  bwd=14.2ms  total=110.5ms
+[  40500] loss=2.1770  ema_loss=2.1765  gap=1.0970  ema_gap=1.0976  mixup=28/100  6.8 sps  ETA 0.4h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1819  U_b=0.1672  AUC=1.0000  Top1=1.0000
+  timing: data=4.0ms  fwd=78.1ms  bwd=13.5ms  total=96.1ms
+[  40600] loss=2.1756  ema_loss=2.1775  gap=1.0936  ema_gap=1.0978  mixup=29/100  6.8 sps  ETA 0.4h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1812  U_b=0.1677  AUC=1.0000  Top1=1.0000
+  timing: data=20.7ms  fwd=77.2ms  bwd=13.6ms  total=111.9ms
+[  40700] loss=2.1754  ema_loss=2.1767  gap=1.1008  ema_gap=1.0972  mixup=22/100  6.8 sps  ETA 0.4h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1808  U_b=0.1674  AUC=1.0000  Top1=1.0000
+  timing: data=3.5ms  fwd=94.3ms  bwd=13.1ms  total=111.3ms
+[  40800] loss=2.1749  ema_loss=2.1770  gap=1.0959  ema_gap=1.0972  mixup=30/100  6.8 sps  ETA 0.4h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1813  U_b=0.1678  AUC=1.0000  Top1=1.0000
+  timing: data=4.1ms  fwd=80.5ms  bwd=13.8ms  total=98.8ms
+[  40900] loss=2.1782  ema_loss=2.1766  gap=1.0947  ema_gap=1.0971  mixup=28/100  6.8 sps  ETA 0.4h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1818  U_b=0.1676  AUC=1.0000  Top1=1.0000
+  timing: data=3.8ms  fwd=78.9ms  bwd=13.6ms  total=96.8ms
+[  41000] loss=2.1723  ema_loss=2.1764  gap=1.0960  ema_gap=1.0974  mixup=33/100  6.8 sps  ETA 0.4h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1812  U_b=0.1677  AUC=1.0000  Top1=1.0000
+  timing: data=20.2ms  fwd=90.8ms  bwd=14.1ms  total=125.6ms
+[  41100] loss=2.1755  ema_loss=2.1803  gap=1.0966  ema_gap=1.0979  mixup=25/100  6.8 sps  ETA 0.4h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1816  U_b=0.1673  AUC=1.0000  Top1=1.0000
+  timing: data=4.0ms  fwd=77.9ms  bwd=13.4ms  total=95.6ms
+[  41200] loss=2.1769  ema_loss=2.1795  gap=1.0971  ema_gap=1.0972  mixup=33/100  6.8 sps  ETA 0.4h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1815  U_b=0.1676  AUC=1.0000  Top1=1.0000
+  timing: data=4.2ms  fwd=79.4ms  bwd=13.9ms  total=97.9ms
+[  41300] loss=2.1717  ema_loss=2.1772  gap=1.0979  ema_gap=1.0974  mixup=21/100  6.8 sps  ETA 0.4h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1829  U_b=0.1676  AUC=1.0000  Top1=1.0000
+  timing: data=19.6ms  fwd=93.3ms  bwd=15.4ms  total=128.7ms
+[  41400] loss=2.1737  ema_loss=2.1764  gap=1.0969  ema_gap=1.0985  mixup=27/100  6.8 sps  ETA 0.4h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1812  U_b=0.1675  AUC=1.0000  Top1=1.0000
+  timing: data=3.6ms  fwd=79.0ms  bwd=13.5ms  total=96.5ms
+[  41500] loss=2.1787  ema_loss=2.1774  gap=1.0981  ema_gap=1.0986  mixup=33/100  6.8 sps  ETA 0.3h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1829  U_b=0.1677  AUC=1.0000  Top1=1.0000
+  timing: data=4.0ms  fwd=79.2ms  bwd=14.0ms  total=97.7ms
+[  41600] loss=2.1762  ema_loss=2.1769  gap=1.1064  ema_gap=1.0983  mixup=35/100  6.8 sps  ETA 0.3h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1811  U_b=0.1672  AUC=1.0000  Top1=1.0000
+  timing: data=19.9ms  fwd=90.9ms  bwd=14.5ms  total=125.8ms
+[  41700] loss=2.1751  ema_loss=2.1781  gap=1.0961  ema_gap=1.0983  mixup=31/100  6.8 sps  ETA 0.3h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1814  U_b=0.1672  AUC=1.0000  Top1=1.0000
+  timing: data=3.8ms  fwd=79.1ms  bwd=14.1ms  total=97.4ms
+[  41800] loss=2.1762  ema_loss=2.1764  gap=1.0947  ema_gap=1.0978  mixup=22/100  6.8 sps  ETA 0.3h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1827  U_b=0.1672  AUC=1.0000  Top1=1.0000
+  timing: data=3.4ms  fwd=79.9ms  bwd=14.5ms  total=98.3ms
+[  41900] loss=2.1713  ema_loss=2.1760  gap=1.0992  ema_gap=1.0971  mixup=32/100  6.8 sps  ETA 0.3h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1808  U_b=0.1680  AUC=1.0000  Top1=1.0000
+  timing: data=21.1ms  fwd=89.3ms  bwd=14.1ms  total=124.9ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  42000] loss=2.1709  ema_loss=2.1799  gap=1.0938  ema_gap=1.0966  mixup=32/100  6.8 sps  ETA 0.3h
+              R²_rand=0.9980  R²_naive=0.9982  U_t=0.1849  U_b=0.1700  AUC=1.0000  Top1=1.0000
+  timing: data=4.2ms  fwd=79.5ms  bwd=14.2ms  total=98.3ms
+[  42100] loss=2.1672  ema_loss=2.1732  gap=1.0957  ema_gap=1.0954  mixup=31/100  6.8 sps  ETA 0.3h
+              R²_rand=0.9982  R²_naive=0.9983  U_t=0.1841  U_b=0.1700  AUC=1.0000  Top1=1.0000
+  timing: data=4.1ms  fwd=79.4ms  bwd=13.6ms  total=97.6ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  42200] loss=2.1668  ema_loss=2.1751  gap=1.0941  ema_gap=1.0959  mixup=22/100  6.8 sps  ETA 0.3h
+              R²_rand=0.9982  R²_naive=0.9983  U_t=0.1857  U_b=0.1698  AUC=1.0000  Top1=1.0000
+  timing: data=21.9ms  fwd=90.2ms  bwd=13.2ms  total=125.6ms
+[  42300] loss=2.1664  ema_loss=2.1707  gap=1.0968  ema_gap=1.0963  mixup=31/100  6.8 sps  ETA 0.3h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1833  U_b=0.1701  AUC=1.0000  Top1=1.0000
+  timing: data=4.1ms  fwd=78.1ms  bwd=15.1ms  total=97.7ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  42400] loss=2.1649  ema_loss=2.1683  gap=1.0929  ema_gap=1.0966  mixup=30/100  6.8 sps  ETA 0.3h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1854  U_b=0.1703  AUC=1.0000  Top1=1.0000
+  timing: data=4.4ms  fwd=78.1ms  bwd=15.3ms  total=98.3ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  42500] loss=2.1707  ema_loss=2.1679  gap=1.0939  ema_gap=1.0965  mixup=24/100  6.8 sps  ETA 0.3h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1841  U_b=0.1692  AUC=1.0000  Top1=1.0000
+  timing: data=58.6ms  fwd=77.2ms  bwd=14.8ms  total=151.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  42600] loss=2.1661  ema_loss=2.1674  gap=1.0994  ema_gap=1.0963  mixup=33/100  6.8 sps  ETA 0.3h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1847  U_b=0.1702  AUC=1.0000  Top1=1.0000
+  timing: data=4.1ms  fwd=129.6ms  bwd=14.4ms  total=148.6ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  42700] loss=2.1637  ema_loss=2.1704  gap=1.0984  ema_gap=1.0966  mixup=29/100  6.8 sps  ETA 0.3h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1847  U_b=0.1699  AUC=1.0000  Top1=1.0000
+  timing: data=4.2ms  fwd=78.3ms  bwd=14.1ms  total=97.1ms
+[  42800] loss=2.1668  ema_loss=2.1699  gap=1.0960  ema_gap=1.0965  mixup=25/100  6.8 sps  ETA 0.3h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1836  U_b=0.1704  AUC=1.0000  Top1=1.0000
+  timing: data=22.0ms  fwd=79.8ms  bwd=14.0ms  total=116.2ms
+[  42900] loss=2.1654  ema_loss=2.1681  gap=1.0912  ema_gap=1.0961  mixup=22/100  6.8 sps  ETA 0.3h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1836  U_b=0.1701  AUC=1.0000  Top1=1.0000
+  timing: data=4.0ms  fwd=94.2ms  bwd=14.5ms  total=113.2ms
+[  43000] loss=2.1648  ema_loss=2.1691  gap=1.0895  ema_gap=1.0961  mixup=27/100  6.8 sps  ETA 0.3h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1852  U_b=0.1703  AUC=1.0000  Top1=1.0000
+  timing: data=4.2ms  fwd=80.3ms  bwd=15.1ms  total=100.0ms
+[  43100] loss=2.1643  ema_loss=2.1674  gap=1.0981  ema_gap=1.0968  mixup=34/100  6.8 sps  ETA 0.3h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1839  U_b=0.1704  AUC=1.0000  Top1=1.0000
+  timing: data=21.7ms  fwd=75.6ms  bwd=14.8ms  total=112.6ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  43200] loss=2.1675  ema_loss=2.1682  gap=1.1000  ema_gap=1.0967  mixup=30/100  6.8 sps  ETA 0.3h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1855  U_b=0.1702  AUC=1.0000  Top1=1.0000
+  timing: data=4.4ms  fwd=93.8ms  bwd=13.8ms  total=112.5ms
+[  43300] loss=2.1701  ema_loss=2.1670  gap=1.0997  ema_gap=1.0970  mixup=23/100  6.8 sps  ETA 0.3h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1847  U_b=0.1695  AUC=1.0000  Top1=1.0000
+  timing: data=4.3ms  fwd=78.1ms  bwd=13.9ms  total=96.7ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  43400] loss=2.1650  ema_loss=2.1670  gap=1.0968  ema_gap=1.0964  mixup=27/100  6.8 sps  ETA 0.3h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1856  U_b=0.1698  AUC=1.0000  Top1=1.0000
+  timing: data=21.5ms  fwd=77.7ms  bwd=15.4ms  total=115.0ms
+[  43500] loss=2.1664  ema_loss=2.1672  gap=1.1014  ema_gap=1.0964  mixup=33/100  6.8 sps  ETA 0.3h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1837  U_b=0.1701  AUC=1.0000  Top1=1.0000
+  timing: data=4.1ms  fwd=92.0ms  bwd=14.3ms  total=110.8ms
+[  43600] loss=2.1677  ema_loss=2.1669  gap=1.0931  ema_gap=1.0968  mixup=23/100  6.8 sps  ETA 0.3h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1834  U_b=0.1694  AUC=1.0000  Top1=1.0000
+  timing: data=3.9ms  fwd=80.2ms  bwd=13.6ms  total=98.1ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  43700] loss=2.1654  ema_loss=2.1684  gap=1.1009  ema_gap=1.0975  mixup=36/100  6.8 sps  ETA 0.3h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1850  U_b=0.1701  AUC=1.0000  Top1=1.0000
+  timing: data=4.0ms  fwd=77.8ms  bwd=14.4ms  total=96.7ms
+[  43800] loss=2.1648  ema_loss=2.1676  gap=1.0979  ema_gap=1.0976  mixup=33/100  6.8 sps  ETA 0.3h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1836  U_b=0.1700  AUC=1.0000  Top1=1.0000
+  timing: data=42.8ms  fwd=92.8ms  bwd=13.8ms  total=150.0ms
+[  43900] loss=2.1655  ema_loss=2.1693  gap=1.0976  ema_gap=1.0980  mixup=22/100  6.8 sps  ETA 0.3h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1849  U_b=0.1700  AUC=1.0000  Top1=1.0000
+  timing: data=4.0ms  fwd=78.8ms  bwd=14.3ms  total=97.6ms
+[  44000] loss=2.1650  ema_loss=2.1687  gap=1.0960  ema_gap=1.0975  mixup=38/100  6.8 sps  ETA 0.2h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1844  U_b=0.1700  AUC=1.0000  Top1=1.0000
+  timing: data=4.3ms  fwd=83.5ms  bwd=14.1ms  total=102.3ms
+[  44100] loss=2.1665  ema_loss=2.1689  gap=1.0950  ema_gap=1.0971  mixup=32/100  6.7 sps  ETA 0.2h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1849  U_b=0.1701  AUC=1.0000  Top1=1.0000
+  timing: data=21.0ms  fwd=117.7ms  bwd=14.7ms  total=153.8ms
+[  44200] loss=2.1626  ema_loss=2.1678  gap=1.0993  ema_gap=1.0967  mixup=23/100  6.7 sps  ETA 0.2h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1851  U_b=0.1703  AUC=1.0000  Top1=1.0000
+  timing: data=4.2ms  fwd=81.3ms  bwd=14.3ms  total=100.4ms
+[  44300] loss=2.1677  ema_loss=2.1671  gap=1.0947  ema_gap=1.0966  mixup=33/100  6.7 sps  ETA 0.2h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1831  U_b=0.1695  AUC=1.0000  Top1=1.0000
+  timing: data=4.1ms  fwd=76.6ms  bwd=13.6ms  total=94.8ms
+[  44400] loss=2.1679  ema_loss=2.1688  gap=1.0962  ema_gap=1.0965  mixup=27/100  6.7 sps  ETA 0.2h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1846  U_b=0.1697  AUC=1.0000  Top1=1.0000
+  timing: data=20.7ms  fwd=98.6ms  bwd=14.5ms  total=134.3ms
+[  44500] loss=2.1659  ema_loss=2.1688  gap=1.0995  ema_gap=1.0963  mixup=24/100  6.7 sps  ETA 0.2h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1845  U_b=0.1699  AUC=1.0000  Top1=1.0000
+  timing: data=4.1ms  fwd=78.7ms  bwd=14.2ms  total=97.5ms
+[  44600] loss=2.1670  ema_loss=2.1698  gap=1.0946  ema_gap=1.0957  mixup=32/100  6.7 sps  ETA 0.2h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1857  U_b=0.1702  AUC=1.0000  Top1=1.0000
+  timing: data=4.0ms  fwd=81.5ms  bwd=13.9ms  total=99.8ms
+[  44700] loss=2.1679  ema_loss=2.1694  gap=1.0963  ema_gap=1.0959  mixup=28/100  6.7 sps  ETA 0.2h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1840  U_b=0.1698  AUC=1.0000  Top1=1.0000
+  timing: data=21.5ms  fwd=88.2ms  bwd=13.8ms  total=123.9ms
+[  44800] loss=2.1668  ema_loss=2.1707  gap=1.1023  ema_gap=1.0965  mixup=27/100  6.7 sps  ETA 0.2h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1839  U_b=0.1697  AUC=1.0000  Top1=1.0000
+  timing: data=3.9ms  fwd=81.0ms  bwd=14.3ms  total=99.8ms
+[  44900] loss=2.1650  ema_loss=2.1677  gap=1.0960  ema_gap=1.0967  mixup=31/100  6.7 sps  ETA 0.2h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1852  U_b=0.1703  AUC=1.0000  Top1=1.0000
+  timing: data=4.2ms  fwd=77.9ms  bwd=14.4ms  total=97.0ms
+[  45000] loss=2.1646  ema_loss=2.1685  gap=1.0978  ema_gap=1.0960  mixup=37/100  6.7 sps  ETA 0.2h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1844  U_b=0.1697  AUC=1.0000  Top1=1.0000
+  timing: data=21.2ms  fwd=76.1ms  bwd=14.2ms  total=111.9ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_45k.pth
+[  45100] loss=2.1641  ema_loss=2.1681  gap=1.0951  ema_gap=1.0958  mixup=22/100  6.7 sps  ETA 0.2h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1849  U_b=0.1704  AUC=1.0000  Top1=1.0000
+  timing: data=4.4ms  fwd=91.8ms  bwd=14.2ms  total=110.8ms
+[  45200] loss=2.1659  ema_loss=2.1669  gap=1.1001  ema_gap=1.0958  mixup=33/100  6.7 sps  ETA 0.2h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1842  U_b=0.1699  AUC=1.0000  Top1=1.0000
+  timing: data=4.2ms  fwd=78.3ms  bwd=14.2ms  total=97.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  45300] loss=2.1632  ema_loss=2.1743  gap=1.0979  ema_gap=1.0963  mixup=31/100  6.7 sps  ETA 0.2h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1847  U_b=0.1700  AUC=1.0000  Top1=1.0000
+  timing: data=21.1ms  fwd=78.1ms  bwd=13.6ms  total=113.2ms
+[  45400] loss=2.1628  ema_loss=2.1693  gap=1.0948  ema_gap=1.0968  mixup=30/100  6.7 sps  ETA 0.2h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1847  U_b=0.1702  AUC=1.0000  Top1=1.0000
+  timing: data=4.4ms  fwd=93.7ms  bwd=13.3ms  total=111.8ms
+[  45500] loss=2.1703  ema_loss=2.1709  gap=1.0976  ema_gap=1.0971  mixup=32/100  6.7 sps  ETA 0.2h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1843  U_b=0.1700  AUC=1.0000  Top1=1.0000
+  timing: data=4.2ms  fwd=79.7ms  bwd=15.8ms  total=100.1ms
+[  45600] loss=2.1659  ema_loss=2.1681  gap=1.0981  ema_gap=1.0966  mixup=41/100  6.7 sps  ETA 0.2h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1844  U_b=0.1702  AUC=1.0000  Top1=1.0000
+  timing: data=21.7ms  fwd=77.4ms  bwd=14.1ms  total=113.6ms
+[  45700] loss=2.1664  ema_loss=2.1674  gap=1.0894  ema_gap=1.0968  mixup=35/100  6.7 sps  ETA 0.2h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1851  U_b=0.1698  AUC=1.0000  Top1=1.0000
+  timing: data=4.2ms  fwd=94.2ms  bwd=15.0ms  total=113.8ms
+[  45800] loss=2.1650  ema_loss=2.1670  gap=1.0968  ema_gap=1.0969  mixup=30/100  6.7 sps  ETA 0.2h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1834  U_b=0.1700  AUC=1.0000  Top1=1.0000
+  timing: data=3.9ms  fwd=78.9ms  bwd=16.0ms  total=99.2ms
+[  45900] loss=2.1627  ema_loss=2.1665  gap=1.0959  ema_gap=1.0959  mixup=27/100  6.7 sps  ETA 0.2h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1851  U_b=0.1706  AUC=1.0000  Top1=1.0000
+  timing: data=21.3ms  fwd=77.1ms  bwd=14.6ms  total=113.4ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  46000] loss=2.1658  ema_loss=2.1667  gap=1.0945  ema_gap=1.0956  mixup=31/100  6.7 sps  ETA 0.2h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1844  U_b=0.1702  AUC=1.0000  Top1=1.0000
+  timing: data=4.2ms  fwd=92.2ms  bwd=14.5ms  total=111.3ms
+[  46100] loss=2.1665  ema_loss=2.1665  gap=1.0974  ema_gap=1.0953  mixup=25/100  6.7 sps  ETA 0.2h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1848  U_b=0.1703  AUC=1.0000  Top1=1.0000
+  timing: data=4.4ms  fwd=79.0ms  bwd=13.7ms  total=97.5ms
+[  46200] loss=2.1623  ema_loss=2.1666  gap=1.0958  ema_gap=1.0961  mixup=34/100  6.7 sps  ETA 0.2h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1834  U_b=0.1706  AUC=1.0000  Top1=1.0000
+  timing: data=4.3ms  fwd=80.0ms  bwd=13.9ms  total=98.6ms
+[  46300] loss=2.1723  ema_loss=2.1667  gap=1.1036  ema_gap=1.0964  mixup=37/100  6.7 sps  ETA 0.2h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1833  U_b=0.1698  AUC=1.0000  Top1=1.0000
+  timing: data=21.7ms  fwd=89.3ms  bwd=13.9ms  total=125.3ms
+[  46400] loss=2.1620  ema_loss=2.1675  gap=1.0969  ema_gap=1.0956  mixup=28/100  6.7 sps  ETA 0.1h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1853  U_b=0.1705  AUC=1.0000  Top1=1.0000
+  timing: data=4.1ms  fwd=79.3ms  bwd=13.7ms  total=97.6ms
+[  46500] loss=2.1686  ema_loss=2.1685  gap=1.0967  ema_gap=1.0966  mixup=26/100  6.7 sps  ETA 0.1h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1836  U_b=0.1697  AUC=1.0000  Top1=1.0000
+  timing: data=4.7ms  fwd=80.3ms  bwd=14.3ms  total=99.7ms
+[  46600] loss=2.1680  ema_loss=2.1682  gap=1.0955  ema_gap=1.0961  mixup=29/100  6.7 sps  ETA 0.1h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1840  U_b=0.1699  AUC=1.0000  Top1=1.0000
+  timing: data=21.3ms  fwd=90.3ms  bwd=13.4ms  total=125.4ms
+[  46700] loss=2.1648  ema_loss=2.1676  gap=1.0918  ema_gap=1.0961  mixup=30/100  6.7 sps  ETA 0.1h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1854  U_b=0.1699  AUC=1.0000  Top1=1.0000
+  timing: data=4.0ms  fwd=79.7ms  bwd=14.3ms  total=98.4ms
+[  46800] loss=2.1691  ema_loss=2.1673  gap=1.0992  ema_gap=1.0963  mixup=30/100  6.7 sps  ETA 0.1h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1838  U_b=0.1699  AUC=1.0000  Top1=1.0000
+  timing: data=4.3ms  fwd=80.1ms  bwd=13.7ms  total=98.5ms
+[  46900] loss=2.1673  ema_loss=2.1680  gap=1.0934  ema_gap=1.0962  mixup=28/100  6.7 sps  ETA 0.1h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1837  U_b=0.1698  AUC=1.0000  Top1=1.0000
+  timing: data=20.6ms  fwd=91.9ms  bwd=14.6ms  total=127.5ms
+[  47000] loss=2.1836  ema_loss=2.1673  gap=1.0982  ema_gap=1.0966  mixup=26/100  6.7 sps  ETA 0.1h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1833  U_b=0.1703  AUC=1.0000  Top1=1.0000
+  timing: data=4.3ms  fwd=79.1ms  bwd=14.0ms  total=97.9ms
+[  47100] loss=2.1721  ema_loss=2.1684  gap=1.0987  ema_gap=1.0965  mixup=27/100  6.7 sps  ETA 0.1h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1854  U_b=0.1696  AUC=1.0000  Top1=1.0000
+  timing: data=4.2ms  fwd=81.4ms  bwd=14.1ms  total=100.2ms
+[  47200] loss=2.1686  ema_loss=2.1674  gap=1.1020  ema_gap=1.0962  mixup=31/100  6.7 sps  ETA 0.1h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1839  U_b=0.1702  AUC=1.0000  Top1=1.0000
+  timing: data=25.6ms  fwd=88.1ms  bwd=14.1ms  total=128.2ms
+[  47300] loss=2.1639  ema_loss=2.1689  gap=1.0964  ema_gap=1.0964  mixup=27/100  6.7 sps  ETA 0.1h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1846  U_b=0.1699  AUC=1.0000  Top1=1.0000
+  timing: data=4.3ms  fwd=79.8ms  bwd=14.4ms  total=98.9ms
+[  47400] loss=2.1743  ema_loss=2.1713  gap=1.0941  ema_gap=1.0959  mixup=30/100  6.7 sps  ETA 0.1h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1842  U_b=0.1702  AUC=1.0000  Top1=1.0000
+  timing: data=4.3ms  fwd=75.6ms  bwd=13.6ms  total=93.9ms
+[  47500] loss=2.1671  ema_loss=2.1705  gap=1.0990  ema_gap=1.0958  mixup=32/100  6.7 sps  ETA 0.1h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1849  U_b=0.1696  AUC=1.0000  Top1=1.0000
+  timing: data=24.2ms  fwd=79.0ms  bwd=13.8ms  total=117.5ms
+[  47600] loss=2.2925  ema_loss=2.1694  gap=1.0969  ema_gap=1.0959  mixup=36/100  6.7 sps  ETA 0.1h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1842  U_b=0.1695  AUC=1.0000  Top1=1.0000
+  timing: data=4.5ms  fwd=189.3ms  bwd=13.4ms  total=207.6ms
+[  47700] loss=2.1673  ema_loss=2.1707  gap=1.0967  ema_gap=1.0963  mixup=32/100  6.7 sps  ETA 0.1h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1848  U_b=0.1700  AUC=1.0000  Top1=1.0000
+  timing: data=4.0ms  fwd=82.4ms  bwd=14.7ms  total=101.6ms
+[  47800] loss=2.1654  ema_loss=2.1680  gap=1.0935  ema_gap=1.0961  mixup=36/100  6.7 sps  ETA 0.1h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1843  U_b=0.1694  AUC=1.0000  Top1=1.0000
+  timing: data=48.1ms  fwd=75.4ms  bwd=14.1ms  total=138.0ms
+[  47900] loss=2.1636  ema_loss=2.1667  gap=1.0995  ema_gap=1.0959  mixup=34/100  6.7 sps  ETA 0.1h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1847  U_b=0.1704  AUC=1.0000  Top1=1.0000
+  timing: data=4.6ms  fwd=108.4ms  bwd=14.9ms  total=128.4ms
+[  48000] loss=2.1662  ema_loss=2.1665  gap=1.0961  ema_gap=1.0959  mixup=34/100  6.7 sps  ETA 0.1h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1850  U_b=0.1699  AUC=1.0000  Top1=1.0000
+  timing: data=4.4ms  fwd=76.7ms  bwd=16.0ms  total=97.6ms
+[  48100] loss=2.1617  ema_loss=2.1678  gap=1.0916  ema_gap=1.0950  mixup=26/100  6.7 sps  ETA 0.1h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1858  U_b=0.1702  AUC=1.0000  Top1=1.0000
+  timing: data=39.6ms  fwd=80.6ms  bwd=14.3ms  total=134.9ms
+[  48200] loss=2.1639  ema_loss=2.1667  gap=1.0980  ema_gap=1.0952  mixup=32/100  6.7 sps  ETA 0.1h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1845  U_b=0.1701  AUC=1.0000  Top1=1.0000
+  timing: data=4.1ms  fwd=96.7ms  bwd=13.8ms  total=115.1ms
+[  48300] loss=2.1658  ema_loss=2.1698  gap=1.0919  ema_gap=1.0959  mixup=24/100  6.7 sps  ETA 0.1h
+              R²_rand=0.9984  R²_naive=0.9985  U_t=0.1852  U_b=0.1698  AUC=1.0000  Top1=1.0000
+  timing: data=4.0ms  fwd=80.6ms  bwd=15.4ms  total=100.4ms
+[  48400] loss=2.3633  ema_loss=2.1709  gap=1.0988  ema_gap=1.0965  mixup=34/100  6.7 sps  ETA 0.1h
+              R²_rand=0.9983  R²_naive=0.9985  U_t=0.1835  U_b=0.1691  AUC=1.0000  Top1=1.0000
+  timing: data=21.6ms  fwd=76.0ms  bwd=14.6ms  total=112.7ms
+[  48500] loss=2.1666  ema_loss=2.1692  gap=1.0941  ema_gap=1.0961  mixup=33/100  6.7 sps  ETA 0.1h
+              R²_rand=0.9982  R²_naive=0.9983  U_t=0.1851  U_b=0.1704  AUC=1.0000  Top1=1.0000
+  timing: data=4.0ms  fwd=95.8ms  bwd=14.7ms  total=115.0ms
+[  48600] loss=2.1640  ema_loss=2.1636  gap=1.0990  ema_gap=1.0942  mixup=24/100  6.7 sps  ETA 0.1h
+              R²_rand=0.9981  R²_naive=0.9983  U_t=0.1882  U_b=0.1724  AUC=1.0000  Top1=1.0000
+  timing: data=3.5ms  fwd=80.1ms  bwd=14.5ms  total=98.5ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  48700] loss=2.1720  ema_loss=2.1606  gap=1.0966  ema_gap=1.0941  mixup=24/100  6.7 sps  ETA 0.1h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1886  U_b=0.1726  AUC=1.0000  Top1=1.0000
+  timing: data=4.1ms  fwd=80.2ms  bwd=14.1ms  total=98.8ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  48800] loss=2.1565  ema_loss=2.1605  gap=1.0958  ema_gap=1.0942  mixup=26/100  6.7 sps  ETA 0.0h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1883  U_b=0.1723  AUC=1.0000  Top1=1.0000
+  timing: data=21.7ms  fwd=90.6ms  bwd=13.8ms  total=126.6ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  48900] loss=2.1598  ema_loss=2.1640  gap=1.0932  ema_gap=1.0945  mixup=37/100  6.7 sps  ETA 0.0h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1888  U_b=0.1721  AUC=1.0000  Top1=1.0000
+  timing: data=4.6ms  fwd=78.1ms  bwd=15.5ms  total=98.6ms
+[  49000] loss=2.1572  ema_loss=2.1602  gap=1.0972  ema_gap=1.0944  mixup=32/100  6.7 sps  ETA 0.0h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1862  U_b=0.1727  AUC=1.0000  Top1=1.0000
+  timing: data=4.0ms  fwd=80.4ms  bwd=13.9ms  total=98.8ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  49100] loss=2.1540  ema_loss=2.1595  gap=1.0945  ema_gap=1.0944  mixup=34/100  6.7 sps  ETA 0.0h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1879  U_b=0.1733  AUC=1.0000  Top1=1.0000
+  timing: data=21.4ms  fwd=93.8ms  bwd=15.4ms  total=131.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  49200] loss=2.1566  ema_loss=2.1594  gap=1.0926  ema_gap=1.0952  mixup=29/100  6.7 sps  ETA 0.0h
+              R²_rand=0.9982  R²_naive=0.9984  U_t=0.1870  U_b=0.1726  AUC=1.0000  Top1=1.0000
+  timing: data=4.5ms  fwd=80.4ms  bwd=14.9ms  total=100.3ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  49300] loss=2.1619  ema_loss=2.1587  gap=1.0903  ema_gap=1.0949  mixup=30/100  6.7 sps  ETA 0.0h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1878  U_b=0.1719  AUC=1.0000  Top1=1.0000
+  timing: data=4.3ms  fwd=77.9ms  bwd=14.3ms  total=97.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  49400] loss=2.1567  ema_loss=2.1582  gap=1.1003  ema_gap=1.0952  mixup=30/100  6.7 sps  ETA 0.0h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1867  U_b=0.1725  AUC=1.0000  Top1=1.0000
+  timing: data=21.6ms  fwd=92.1ms  bwd=13.8ms  total=128.0ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  49500] loss=2.1562  ema_loss=2.1580  gap=1.0935  ema_gap=1.0949  mixup=34/100  6.7 sps  ETA 0.0h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1870  U_b=0.1726  AUC=1.0000  Top1=1.0000
+  timing: data=4.1ms  fwd=80.8ms  bwd=13.8ms  total=99.2ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  49600] loss=2.1565  ema_loss=2.1577  gap=1.0939  ema_gap=1.0943  mixup=32/100  6.7 sps  ETA 0.0h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1871  U_b=0.1725  AUC=1.0000  Top1=1.0000
+  timing: data=4.5ms  fwd=81.1ms  bwd=14.5ms  total=100.6ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+[  49700] loss=2.1597  ema_loss=2.1590  gap=1.0969  ema_gap=1.0947  mixup=21/100  6.7 sps  ETA 0.0h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1875  U_b=0.1724  AUC=1.0000  Top1=1.0000
+  timing: data=21.2ms  fwd=91.2ms  bwd=14.7ms  total=127.6ms
+[  49800] loss=2.1573  ema_loss=2.1582  gap=1.0965  ema_gap=1.0949  mixup=35/100  6.7 sps  ETA 0.0h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1864  U_b=0.1729  AUC=1.0000  Top1=1.0000
+  timing: data=4.3ms  fwd=79.8ms  bwd=14.6ms  total=99.2ms
+[  49900] loss=2.1524  ema_loss=2.1578  gap=1.0989  ema_gap=1.0956  mixup=26/100  6.7 sps  ETA 0.0h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1881  U_b=0.1725  AUC=1.0000  Top1=1.0000
+  timing: data=4.0ms  fwd=79.4ms  bwd=13.8ms  total=97.8ms
+/home/jupyter/.local/lib/python3.10/site-packages/torch/distributed/distributed_c10d.py:4807: UserWarning: No device id is provided via `init_process_group` or `barrier `. Using the current device set by the user. 
+  warnings.warn(  # warn only once
+[  50000] loss=2.1559  ema_loss=2.1573  gap=1.0945  ema_gap=1.0950  mixup=33/100  6.7 sps  ETA 0.0h
+              R²_rand=0.9983  R²_naive=0.9984  U_t=0.1870  U_b=0.1727  AUC=1.0000  Top1=1.0000
+  timing: data=21.4ms  fwd=76.7ms  bwd=14.3ms  total=112.8ms
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_best_loss.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_50k.pth
+  -> Saved /home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation/variance/hh_seed20260518/runs/cl_hh_50k_s18_final.pth
+
+Done in 2.1h. Best gap=1.1149 at step 13700, Best loss=2.1573 at step 50000
+/home/jupyter/.local/lib/python3.10/site-packages/torch/distributed/distributed_c10d.py:4807: UserWarning: No device id is provided via `init_process_group` or `barrier `. Using the current device set by the user. 
+  warnings.warn(  # warn only once

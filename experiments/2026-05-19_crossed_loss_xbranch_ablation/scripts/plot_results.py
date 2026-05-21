@@ -1,0 +1,305 @@
+#!/usr/bin/env python3
+"""#307 cross-branch ablation figures (continuation of #303).
+
+(1) perdomain_star.png — per-domain held-out relative MASE radar. The 3
+    NEW arms (hhff=B+C, fhhhff=A+B+C, hhxbf=B-xbranch-free) plus the kept
+    #303 arms (A full_fh, B full_hh, C full_ff, A+B full_fh_hh) + the
+    same v11c / best-ever reference rings as #303.
+(2) training_curves.png — loss · u_temporal · u_batch · loss_tau_ref,
+    all log–log, NEW arms overlaid with the kept #303 arms. FIRST 100
+    TRAIN STEPS SKIPPED (readability). NO 1−AUC panel (not informative
+    here — issue #307).
+
+Robust to missing arms (skips silently) so it previews mid-run.
+"""
+import csv, math, os
+import matplotlib; matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import numpy as np
+
+ART303 = "/home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_ablation"
+A17 = "/home/jupyter/cf-encoder-forecaster-v2/experiments/2026-05-17_bottleneck_fullfh_ddp"
+SY = "/home/jupyter/contrastive-forecasting/experiments/2026-05-19_crossed_loss_xbranch_ablation"
+OUT = "/home/jupyter/cf-wt-crossed-loss/experiments/2026-05-19_crossed_loss_xbranch_ablation/plots"
+os.makedirs(OUT, exist_ok=True)
+A_NAME = "enc_fcst_bneck128_dk07_fullfh_norminfonce_1L_fp16_ddp128_50k"
+
+# label, colour, losses_csv, full_eval_dir, linestyle, lw, is_new
+# All arms share one line width (LW) — thickness carries no meaning;
+# #303 vs #307 is read from the legend tag + colour, not the stroke.
+LW = 1.6
+ARMS = [
+    ("(A) full_fh_negs #296", "#7f7f7f",
+     f"{ART303}/results/A_ref_losses_clean.csv",
+     f"{A17}/results/gift_eval_full_{A_NAME}", "-", LW, False),
+    ("(B) full_hh_negs", "#1f77b4", f"{ART303}/runs/cl_hh_50k_losses.csv",
+     f"{ART303}/results/gift_eval_full_cl_hh_50k", "-", LW, False),
+    ("(C) full_ff_negs", "#2ca02c", f"{ART303}/runs/cl_ff_50k_losses.csv",
+     f"{ART303}/results/gift_eval_full_cl_ff_50k", "-", LW, False),
+    ("(A)+(B) full_fh_hh", "#ff7f0e", f"{ART303}/runs/cl_fhhh_50k_losses.csv",
+     f"{ART303}/results/gift_eval_full_cl_fhhh_50k", "-", LW, False),
+    ("(B)+(C) full_hh_ff [#307]", "#d62728",
+     f"{SY}/sync_hhff/runs/cl_hhff_50k_losses.csv",
+     f"{SY}/downstream_hhff/results/gift_eval_full_cl_hhff_50k", "-", LW, True),
+    ("(A)+(B)+(C) full_fh_hh_ff [#307]", "#9467bd",
+     f"{SY}/sync_fhhhff/runs/cl_fhhhff_50k_losses.csv",
+     f"{SY}/downstream_fhhhff/results/gift_eval_full_cl_fhhhff_50k", "-", LW, True),
+    ("(B) xbranch-free [#307]", "#17becf",
+     f"{SY}/sync_hhxbf/runs/cl_hhxbf_50k_losses.csv",
+     f"{SY}/downstream_hhxbf/results/gift_eval_full_cl_hhxbf_50k", "-", LW, True),
+]
+REFS = [
+    ("best-ever · xfmr-q 12L (#127)", "#b8860b", "--", 2.2,
+     "/home/jupyter/contrastive-forecasting/experiments/"
+     "2026-05-05_exp_qhead_improvements/results/"
+     "R9_E13_xfmr12L_quant_moirai_cosine_e_then_f_60k_full"),
+]
+# v11c-recipe: 3 same-recipe (dk0.9) backbones — median ± min/max band
+V11C_RECIPE = [
+    "/home/jupyter/contrastive-forecasting/experiments/"
+    "2026-05-11_exp_encoder_forecaster/results/gift_eval_full_v11c",
+    "/home/jupyter/contrastive-forecasting/experiments/"
+    "2026-05-11_exp_encoder_forecaster/results/gift_eval_full_v20R",
+    "/home/jupyter/contrastive-forecasting/experiments/"
+    "2026-05-11_exp_encoder_forecaster/results/gift_eval_full_dk09fp32x150k",
+]
+# Per-arm seed-spread bands (drawn as annular fill_between regions). The
+# candle plot (variance_box.png) is the primary variance view; these radar
+# bands show where the spread lands per-domain.
+# (B) variance — 3 seeds: 20260517 (#303 of-record), 20260518, 20260519
+B_VARIANCE = [
+    f"{ART303}/results/gift_eval_full_cl_hh_50k",
+    f"{SY}/variance/hh_seed20260518/results/gift_eval_full_cl_hh_50k_s18",
+    f"{SY}/variance/hh_seed20260519/results/gift_eval_full_cl_hh_50k_s19",
+]
+# (B)-xbfree variance — 3 seeds: 20260517 (#307 of-record), 20260518, 20260519
+BXBF_VARIANCE = [
+    f"{SY}/downstream_hhxbf/results/gift_eval_full_cl_hhxbf_50k",
+    f"{SY}/variance/hhxbf_seed20260518/results/gift_eval_full_cl_hhxbf_50k_s18",
+    f"{SY}/variance/hhxbf_seed20260519/results/gift_eval_full_cl_hhxbf_50k_s19",
+]
+
+
+def dom_map(p):
+    m = {}
+    if os.path.exists(p):
+        for r in csv.DictReader(open(p)):
+            m[r["dataset"]] = r.get("domain", "?")
+    return m
+
+
+def rel_by_domain(sum_txt, dmap):
+    if not os.path.exists(sum_txt) or not dmap:
+        return {}
+    acc = {}
+    for line in open(sum_txt):
+        p = line.split()
+        if len(p) < 4:
+            continue
+        try:
+            rel = float(p[-1])
+        except ValueError:
+            continue
+        if p[0] in dmap and rel > 0:
+            acc.setdefault(dmap[p[0]], []).append(math.log(rel))
+    return {d: math.exp(sum(v) / len(v)) for d, v in acc.items()}
+
+
+def agg_gm(sum_txt):
+    if not os.path.exists(sum_txt):
+        return None
+    for line in open(sum_txt):
+        if "Aggregate GM-Relative MASE" in line:
+            for t in reversed(line.replace(":", " ").split()):
+                try:
+                    return float(t)
+                except ValueError:
+                    pass
+    return None
+
+
+radar = []
+for lab, col, _, ed, ls, lw, new in ARMS:
+    g = rel_by_domain(f"{ed}/summary.txt", dom_map(f"{ed}/all_results.csv"))
+    if g:
+        radar.append((lab, col, g, agg_gm(f"{ed}/summary.txt"), ls, lw, new))
+for lab, col, ls, lw, d in REFS:
+    g = rel_by_domain(f"{d}/summary.txt", dom_map(f"{d}/all_results.csv"))
+    if g:
+        radar.append((lab, col, g, agg_gm(f"{d}/summary.txt"), ls, lw, False))
+
+def collect(dirs):
+    """Per-domain GM dicts + full agg GMs over a set of eval dirs."""
+    gms, fulls = [], []
+    for d in dirs:
+        g = rel_by_domain(f"{d}/summary.txt", dom_map(f"{d}/all_results.csv"))
+        if g:
+            gms.append(g)
+            fulls.append(agg_gm(f"{d}/summary.txt"))
+    return gms, fulls
+
+
+def band_lo_hi(gms, doms):
+    """min/max per domain (no wrap) across a list of per-domain GM dicts."""
+    stk = np.array([[g.get(d, np.nan) for d in doms] for g in gms])
+    return np.nanmin(stk, axis=0), np.nanmax(stk, axis=0)
+
+
+def draw_band(ax, doms, gms, color, alpha=0.15):
+    """Annular min/max band via fill_between — fills only the radial gap at
+    each angle (never the centre); angle wraps to 2π so the ring closes."""
+    if len(gms) < 2:
+        return
+    lo, hi = band_lo_hi(gms, doms)
+    n = len(doms)
+    ang_b = np.linspace(0, 2 * np.pi, n, endpoint=False)
+    ang_b = np.concatenate([ang_b, [2 * np.pi]])
+    ax.fill_between(ang_b, np.append(lo, lo[0]), np.append(hi, hi[0]),
+                    color=color, alpha=alpha, linewidth=0)
+
+
+# v11c-recipe: per-domain median + min/max band across 3 same-recipe runs
+v11c_gms = []  # per-dir per-domain GM dicts
+v11c_full = []  # full agg GMs
+for d in V11C_RECIPE:
+    g = rel_by_domain(f"{d}/summary.txt", dom_map(f"{d}/all_results.csv"))
+    if g:
+        v11c_gms.append(g)
+        v11c_full.append(agg_gm(f"{d}/summary.txt"))
+b_gms, b_full = collect(B_VARIANCE)
+bxbf_gms, bxbf_full = collect(BXBF_VARIANCE)
+
+
+if radar:
+    doms_src = [set(g) for _, _, g, _, _, _, _ in radar]
+    for extra in (v11c_gms, b_gms, bxbf_gms):
+        doms_src += [set(g) for g in extra]
+    doms = sorted(set().union(*doms_src))
+    ang = np.linspace(0, 2 * np.pi, len(doms), endpoint=False).tolist()
+    ang += ang[:1]
+    fig = plt.figure(figsize=(10, 10))
+    ax = plt.subplot(111, polar=True)
+    # Per-arm seed-spread bands (fill_between annulus, under the lines so the
+    # of-record curves stay readable on top). (B) blue, (B)-xbfree cyan.
+    if len(b_gms) >= 2:
+        draw_band(ax, doms, b_gms, "#1f77b4", alpha=0.16)
+        ax.plot([], [], color="#1f77b4", alpha=0.4, lw=8,
+                label=f"(B) range (n={len(b_full)})  "
+                      f"GM {np.mean(b_full):.3f}, {min(b_full):.3f}–{max(b_full):.3f}")
+    if len(bxbf_gms) >= 2:
+        draw_band(ax, doms, bxbf_gms, "#17becf", alpha=0.16)
+        ax.plot([], [], color="#17becf", alpha=0.4, lw=8,
+                label=f"(B)-xbfree range (n={len(bxbf_full)})  "
+                      f"GM {np.mean(bxbf_full):.3f}, {min(bxbf_full):.3f}–{max(bxbf_full):.3f}")
+    for lab, col, g, gm, ls, lw, new in radar:
+        v = [g.get(d, np.nan) for d in doms] + [g.get(doms[0], np.nan)]
+        # Lines only — no center-to-curve area fill (it would tint the whole
+        # disc and bury the inner spokes). Bands above are annular (fill_between).
+        ax.plot(ang, v, lw=lw, ls=ls, color=col,
+                label=lab + (f"  — full GM {gm:.3f}" if gm else ""))
+    if v11c_gms:
+        v11c_col = "#8c564b"
+        v11c_ls = (0, (5, 2))
+        # stack per-domain values: shape (n_runs, n_doms+1) with wrap
+        stacked = np.array([
+            [g.get(d, np.nan) for d in doms] + [g.get(doms[0], np.nan)]
+            for g in v11c_gms
+        ])
+        med = np.nanmedian(stacked, axis=0)
+        lo = np.nanmin(stacked, axis=0)
+        hi = np.nanmax(stacked, axis=0)
+        mean_full = float(np.mean(v11c_full))
+        half_range = (max(v11c_full) - min(v11c_full)) / 2.0
+        # Annular band between lo and hi via fill_between (fills only the
+        # radial gap at each angle — never the centre). Angle wraps to 2π
+        # so the ring closes cleanly with no radial seam.
+        ang_b = np.concatenate([np.asarray(ang)[:-1], [2 * np.pi]])
+        ax.fill_between(ang_b, lo, hi, color=v11c_col, alpha=.15, linewidth=0,
+                        label="v11c-recipe range (3 seeds/precisions)")
+        ax.plot(ang, med, lw=1.4, ls=v11c_ls, color=v11c_col,
+                label=f"v11c-recipe median (n=3)  —  full GM "
+                      f"{mean_full:.2f} ± {half_range:.2f}")
+    ax.plot(ang, [1.0] * len(ang), lw=1.0, ls=":", color="green",
+            label="seasonal naive (=1.0)")
+    ax.set_xticks(ang[:-1]); ax.set_xticklabels(doms, fontsize=10)
+    ax.set_title("#307 cross-branch ablation — held-out rel-MASE per "
+                 "GIFT-Eval domain\n(lower = better; dotted = seasonal "
+                 "naive; bands = min/max over seeds)", fontsize=10)
+    ax.legend(loc="upper right", bbox_to_anchor=(1.30, 1.11), fontsize=8)
+    fig.tight_layout(); fig.savefig(f"{OUT}/perdomain_star.png", dpi=140)
+    out = [(l, round(gm, 4) if gm else None)
+           for l, _, _, gm, _, _, _ in radar]
+    if v11c_gms:
+        out.append((f"v11c-recipe median (n={len(v11c_gms)})",
+                    round(mean_full, 4),
+                    [round(x, 4) for x in v11c_full]))
+    print("radar:", out)
+else:
+    print("radar SKIPPED (no full-eval summaries yet)")
+
+
+def load(p):
+    if not os.path.exists(p):
+        return None
+    rows = list(csv.DictReader(open(p)))
+    if not rows:
+        return None
+    out = {}
+    for k in rows[0]:
+        a = []
+        for r in rows:
+            try:
+                a.append(float(r[k]))
+            except (ValueError, TypeError):
+                a.append(math.nan)
+        out[k] = np.array(a)
+    return out
+
+
+def msk(s, y):
+    m = np.isfinite(s) & np.isfinite(y) & (s > 100) & (y > 0)  # skip first 100
+    return s[m], y[m]
+
+
+def smooth(y):
+    y = np.asarray(y, float); n = len(y)
+    if n < 8:
+        return y
+    w = max(21, n // 400) | 1
+    w = min(w, n if n % 2 else n - 1)
+    return np.nanmedian(
+        np.lib.stride_tricks.sliding_window_view(np.pad(y, w // 2, "edge"), w),
+        axis=1)
+
+
+series = [(l, c, ls, lw, load(lc)) for l, c, lc, _, ls, lw, _ in ARMS]
+series = [(l, c, ls, lw, d) for l, c, ls, lw, d in series
+          if d is not None and len(d.get("step", [])) > 1]
+if series:
+    fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+    panels = [("loss", "contrastive loss (--pos-in-denominator)"),
+              ("u_temporal", "latent dim usage — u_temporal"),
+              ("u_batch", "latent dim usage — u_batch"),
+              ("loss_tau_ref", "reference loss loss_tau_ref (fixed-τ)")]
+    for ax, (key, title) in zip(axes.flat, panels):
+        for lab, col, ls, lw, d in series:
+            if key not in d:
+                continue
+            x, yy = msk(d["step"], d[key])
+            if len(x) == 0:
+                continue
+            ax.plot(x, yy, lw=.5, color=col, ls=ls, alpha=.15)
+            xs, ys = msk(d["step"], smooth(d[key]))
+            ax.plot(xs, ys, lw=lw, color=col, ls=ls, alpha=.95, label=lab)
+        ax.set_xscale("log"); ax.set_yscale("log")
+        ax.set_xlabel("step (log, first 100 skipped)")
+        ax.set_title(title, fontsize=10)
+        ax.grid(True, which="both", ls=":", alpha=.4)
+        ax.legend(fontsize=7)
+    fig.suptitle("#307 cross-branch ablation — training curves "
+                 "(log–log; first 100 steps skipped; no 1−AUC)", fontsize=12)
+    fig.tight_layout(rect=[0, 0, 1, 0.97])
+    fig.savefig(f"{OUT}/training_curves.png", dpi=130)
+    print("curves:", [l for l, _, _, _, _ in series])
+else:
+    print("curves SKIPPED (no losses CSVs yet)")
