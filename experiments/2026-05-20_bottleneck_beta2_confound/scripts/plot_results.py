@@ -94,24 +94,43 @@ for lab, col, _, edir, ls, lw, fill in ARMS:
 if radar:
     domains = sorted({d for _, _, g, *_ in radar for d in g})
     N = len(domains)
-    theta = np.linspace(0, 2*np.pi, N, endpoint=False).tolist() + [0]
-    fig, ax = plt.subplots(figsize=(9, 9), subplot_kw=dict(polar=True))
-    ax.set_xticks(theta[:-1]); ax.set_xticklabels(domains, fontsize=9)
+    # close the loop: repeat the first angle/value at the end
+    theta = np.linspace(0, 2*np.pi, N, endpoint=False)
+    theta_closed = np.concatenate([theta, theta[:1]])
+    # data-driven radial bounds so nothing clips at either end
+    vals = [v for _, _, g, *_ in radar for v in g.values()]
+    rmin, rmax = min(vals), max(vals)
+    lo = max(0.5, rmin * 0.92)          # floor below the smallest point
+    hi = rmax * 1.06                    # ceiling above the largest point
+    fig, ax = plt.subplots(figsize=(9.5, 9.5), subplot_kw=dict(polar=True))
+    ax.set_theta_offset(np.pi / 2)      # first domain at top
+    ax.set_theta_direction(-1)          # clockwise
+    ax.set_xticks(theta); ax.set_xticklabels(domains, fontsize=10)
     ax.set_rscale("log")
-    # Unit circle (seasonal naive) reference
-    ax.plot(theta, [1.0]*len(theta), color="k", ls="--", lw=0.8, alpha=0.5)
-    ax.text(0, 1.0, "  SN=1.0", fontsize=8, color="k")
-    for lab, col, g, gm, ls, lw, fill in radar:
-        v = [g.get(d, np.nan) for d in domains] + [g.get(domains[0], np.nan)]
-        ax.plot(theta, v, color=col, ls=ls, lw=lw, label=f"{lab}  GM={gm:.3f}" if gm else lab)
-        if fill > 0: ax.fill(theta, v, color=col, alpha=fill)
-    ax.set_ylim(0.8, 3.0)
-    ax.legend(loc="lower center", bbox_to_anchor=(0.5, -0.18), ncol=2, fontsize=8)
-    ax.set_title("#309 — full GIFT-Eval (97 cfg), GM-Relative MASE per domain", pad=20)
+    ax.set_ylim(lo, hi)
+    # radial ticks at human-friendly values within range
+    rticks = [t for t in (0.8, 1.0, 1.5, 2.0, 2.5, 3.0) if lo < t < hi]
+    ax.set_yticks(rticks)
+    ax.set_yticklabels([f"{t:g}" for t in rticks], fontsize=8, color="0.4")
+    ax.set_rlabel_position(90)          # radial labels away from the Econ/Fin spike
+    # seasonal-naive reference ring (lower = better; inside this ring beats SN)
+    ax.plot(theta_closed, [1.0] * len(theta_closed), color="k", ls=(0, (2, 2)),
+            lw=1.0, alpha=0.6, zorder=1)
+    # lines only — no fills (5+ translucent fills made the centre unreadable)
+    for lab, col, g, gm, ls, lw, _fill in radar:
+        v = np.array([g.get(d, np.nan) for d in domains] + [g.get(domains[0], np.nan)])
+        ax.plot(theta_closed, v, color=col, ls=ls, lw=lw, zorder=3,
+                label=f"{lab}   GM={gm:.3f}" if gm else lab,
+                marker="o", markersize=3)
+    ax.set_title("#309 — full GIFT-Eval (97 cfg), GM-Relative MASE per domain\n"
+                 "(radial = per-domain GM rel-MASE, log; dashed ring = seasonal naive 1.0; lower = better)",
+                 fontsize=11, pad=24)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.06),
+              ncol=2, fontsize=8, frameon=False)
     plt.tight_layout()
     plt.savefig(f"{OUT}/perdomain_star.png", dpi=120, bbox_inches="tight")
     plt.close()
-    print(f"wrote {OUT}/perdomain_star.png — arms={len(radar)} domains={N}")
+    print(f"wrote {OUT}/perdomain_star.png — arms={len(radar)} domains={N} rlim=({lo:.2f},{hi:.2f})")
 else:
     print("radar: no arm has full-eval summary yet — skipping")
 
