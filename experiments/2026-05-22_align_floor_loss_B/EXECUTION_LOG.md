@@ -48,3 +48,11 @@ MAIN checkout). Code runs from worktree `/home/jupyter/cf-wt-align-floor`.
   free-mem ≥10GB (else single-GPU fallback); merge verifies 97 (else fallback).
   A vast box would not help: q-head is single-GPU-bound everywhere; the eval
   shard on elisa's free 2nd GPU is the cheaper/faster lever.
+- 16:37 — q-head done (30k); QF promoted (best-ema fell at step 30k, so
+  best≡final). 16:37–17:42 — full-97 sharded (GPU0 free=18.4GB) ∥ GPU1; merged
+  to 97 configs. 17:45 — triage(11) done. Results: full-97 **1.4308**, triage-11
+  **1.6154** — worse than (B) (1.3572/1.4461) and v11c (1.292/1.3878). Verdict:
+  L_align(+floor) does not match v11c; it hurts. Science → RESULTS.md.
+- 17:50 — wrote RESULTS.md; sub-agent review pass; addressed 2 required fixes
+  (panel-1 caption floor/plateau wording; loss_tau_ref "indistinguishable" →
+  "marginally lower", which the data show and which sharpens the finding).
