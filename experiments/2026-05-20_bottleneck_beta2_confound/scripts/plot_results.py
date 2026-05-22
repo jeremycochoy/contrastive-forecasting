@@ -49,6 +49,18 @@ TAU01_ARMS = [
     V11C_ARM,
 ]
 
+# τ=0.1 RADAR adds the two fp16 pre-divergence snapshots (dotted, NOT
+# converged) — they surprisingly score below v11c despite being
+# ~900-step checkpoints of diverging runs. Curves keep using TAU01_ARMS
+# (no snapshots) so the training-curve plot stays divergence-free.
+TAU01_RADAR_ARMS = TAU01_ARMS[:-1] + [
+    ("α fp16 snapshot @~900 (pre-div, NOT converged)", C_A, None,
+     f"{MAIN}/results/gift_eval_full_bb_alpha_50k", ":", 1.6, 0.0),
+    ("γ fp16 snapshot @~900 (pre-div, NOT converged)", C_G, None,
+     f"{MAIN}/results/gift_eval_full_bb_gamma_50k", ":", 1.6, 0.0),
+    V11C_ARM,
+]
+
 # τ=0.8 — the CONVERGED τ=0.8 arms only. The fp16 bottleneck arms at
 # τ=0.8 ((B), β) collapse after ~step 500 (best_loss = collapse-onset
 # snapshot @ step ~324 / ~500, not a converged model) and are excluded
@@ -199,8 +211,9 @@ def draw_curves(arms, out_path, suptitle):
     print(f"wrote {out_path} — arms={len(curves)}")
 
 
-draw_radar(TAU01_ARMS, f"{OUT}/perdomain_star_tau01.png",
-           "#309 — full GIFT-Eval (97 cfg) per domain · τ=0.1 · 4 converged arms")
+draw_radar(TAU01_RADAR_ARMS, f"{OUT}/perdomain_star_tau01.png",
+           "#309 — full GIFT-Eval (97 cfg) per domain · τ=0.1 · 4 converged arms "
+           "+ 2 fp16 pre-divergence snapshots (dotted, NOT converged)")
 draw_radar(TAU08_ARMS, f"{OUT}/perdomain_star_tau08.png",
            "#309 — full GIFT-Eval (97 cfg) per domain · τ=0.8 · converged arms (α, γ fp32)")
 draw_curves(TAU01_ARMS, f"{OUT}/training_curves_tau01.png",

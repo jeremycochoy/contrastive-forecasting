@@ -97,14 +97,20 @@ The fp16 bottleneck arms have no converged τ=0.8 cell — they collapse
 
 ### Per-domain (full GIFT-Eval), v11c dashed
 
-τ=0.1 (4 converged arms):
+τ=0.1 (4 converged arms, solid; plus the 2 fp16 pre-divergence
+snapshots, **dotted** — shown because they surprisingly score below
+v11c, but they are not converged backbones — see failures section):
 ![star τ0.1](plots/perdomain_star_tau01.png)
 
 τ=0.8 (converged arms only — α, γ fp32; the fp16 bneck arms collapsed):
 ![star τ0.8](plots/perdomain_star_tau08.png)
 
 The converged arms sit on or outside the v11c ring across domains; none
-sits cleanly inside it. The per-domain picture tracks the aggregate.
+sits cleanly inside it. The two dotted **pre-divergence snapshots**
+(α 1.277, γ 1.283) *do* sit inside v11c on most domains — the surprising
+under-training effect — but they are ~900-step checkpoints of diverging
+runs, not converged models (failures section). The per-domain picture
+tracks the aggregate.
 
 ### Training curves (converged)
 
