@@ -14,7 +14,7 @@ ARM="${1:?arm = alpha|beta|gamma}"; GPU="${2:?gpu_id}"
 # Bottleneck only on β; α/γ (and any tagged variant) are no-bottleneck.
 case "$ARM" in
   alpha*|gamma*) FCST=() ;;
-  beta*) FCST=(--forecaster-d-model 128 --forecaster-n-heads 4) ;;
+  beta*|bbase*) FCST=(--forecaster-d-model 128 --forecaster-n-heads 4) ;;
   *) echo "unknown arm $ARM"; exit 2 ;;
 esac
 

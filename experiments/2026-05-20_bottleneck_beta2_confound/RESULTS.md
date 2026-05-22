@@ -32,15 +32,17 @@ Each arm is run at **τ = 0.1** and **τ = 0.8** (the v11c temperature is
 
 ## Verdict
 
-**(B)-τ0.8 = 1.2335 is the best arm and beats v11c (1.292) by ~4.5% —
-keeping the bottleneck and raising τ to 0.8.** The knob this card
-prioritized — *removing* the bottleneck (α) — loses; the two we
-under-weighted, β2 and τ, do the work on the bottleneck recipe. Both
-bottleneck arms reach/beat v11c at τ=0.8 ((B)-τ0.8 1.2335, β-τ0.8
-1.2942); removing the bottleneck (α, γ) converges worse than (B) at
-τ=0.1 and never reaches v11c at either τ. On the bottleneck arm the β2
-optimum **flips with τ**: β2=0.98 wins at τ=0.1 (β < (B)) but β2=0.95
-wins at τ=0.8 ((B) < β) — the opposite ordering.
+**In this single-seed sweep, (B)-τ0.8 = 1.2335 is the best arm, ahead
+of v11c (1.292) by ~4.5% — and it is just (B) with τ raised 0.1→0.8
+(bottleneck kept, β2 unchanged at 0.95).** So the knob this card
+prioritized — *removing* the bottleneck (α) — loses, and the single
+knob that closes the gap is **τ**. Both bottleneck arms reach/beat v11c
+at τ=0.8 ((B)-τ0.8 1.2335, β-τ0.8 1.2942); removing the bottleneck (α,
+γ) converges worse than (B) at τ=0.1 and never reaches v11c at either τ.
+β2 plays only a secondary, τ-dependent role: on the bottleneck arm its
+optimum **flips with τ** — β2=0.98 is better at τ=0.1 (β < (B)) but
+β2=0.95 is better at τ=0.8 ((B) < β). All four numbers are one seed
+each; read the caveats next before relying on the margin.
 
 **Caveats (do not discount).** The (B)-τ0.8 result is a **single seed**,
 and its backbone reached only **47.6k of 50k steps** — a late DDP
@@ -143,13 +145,13 @@ per cell; the (B)-τ0.8 cell is 47.6k/50k.)
 
 ## Training-precision note (fp16 acceleration)
 
-Bottleneck arms ((B), β) train in fp16. **Removing the bottleneck makes
-the fp16 body diverge at fresh init** — the residual stream grows past
-fp16's range without the d=128 bottleneck to constrain it (mechanism in
-`experiments/2026-05-11_exp_encoder_forecaster/EXPERIMENT_LOG_2026-05-15_fp16_precision.md`).
-This is a **technical failure of the fp16 speedup, not a result**: the
-no-bottleneck arms (α, γ) are simply trained in fp32 instead (stable —
-the precision v11c uses).
+Bottleneck arms ((B), β) train in fp16. **The no-bottleneck arms (α, γ)
+both diverge under fp16 at fresh init; both bottleneck arms are stable**
+(4/4 runs) — consistent with the unbounded forecaster residual-amplitude
+growth documented in
+`experiments/2026-05-11_exp_encoder_forecaster/EXPERIMENT_LOG_2026-05-15_fp16_precision.md`.
+This is a **technical failure of the fp16 speedup, not a result**: α and
+γ are trained in fp32 instead (stable — the precision v11c uses).
 
 ![fp16 divergence](plots/fp16_divergence.png)
 
@@ -179,10 +181,11 @@ Detail in EXECUTION_LOG.md.)
 5. **τ=0.8 helps the bottleneck arms and the β2=0.98 no-bneck arm,
    hurts the β2=0.95 no-bneck arm** — τ's sign depends on the recipe.
 
-*Mechanism (hypothesis, not established):* a higher τ softens the
-contrastive target, which on the capacity-limited bottleneck forecaster
-appears to help GIFT-Eval transfer; whether β2=0.95 specifically pairs
-with τ=0.8 on this arm, or this is seed noise, needs a second seed.
+*Why τ=0.8 helps the bottleneck arms more than the no-bottleneck ones
+is not investigated here.* The data is the Δ table above (end-of-run
+GMs); we have no temperature-vs-representation instrumentation, so any
+causal story would be speculation. Treat the τ×β2×bottleneck pattern as
+a measured single-seed observation, not a mechanism.
 
 ## Limitations
 

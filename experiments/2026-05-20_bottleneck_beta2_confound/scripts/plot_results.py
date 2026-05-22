@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-"""#309 bottleneck × β2 × τ: per-domain radars + training curves.
+"""#309 — per-domain radars + training curves for the 4 arms (B, α, β, γ).
 
-Two per-domain radars (τ=0.1 and τ=0.8), each with the v11c reference
-ring (dashed purple) and the seasonal-naive ring. Training curves
-(log/log) on the τ=0.1 set show fp16-divergence vs fp32-stability.
+Arms (see RESULTS.md): (B) = bneck/β2.95 baseline; α = no-bneck/β2.98;
+β = bneck/β2.98; γ = no-bneck/β2.95. Bottleneck arms ((B), β) train in
+fp16; no-bneck arms (α, γ) diverge under fp16 (an fp16-acceleration
+failure) and are trained in fp32. Two radars + two curve graphs (τ=0.1
+and τ=0.8), each with the 4 arms + v11c dashed reference. A separate
+fp16_divergence.png illustrates the fp16 failure (τ=0.1, beginning).
 
-Robust to missing arms: an arm with no losses CSV / no full-eval
-summary is silently skipped so the script can preview while runs are
-still in flight.
+Robust to missing arms: skipped if no eval summary / losses CSV yet.
 """
 import csv, math, os
 import matplotlib; matplotlib.use("Agg")
@@ -20,41 +21,56 @@ V11C = "/home/jupyter/contrastive-forecasting/experiments/2026-05-11_exp_encoder
 OUT = f"{MAIN}/plots"
 os.makedirs(OUT, exist_ok=True)
 
-V11C_ARM = ("v11c (ref, all-fp32 no-bneck)", "#9467bd", None, V11C, (0, (4, 2)), 1.4, 0.0)
+# consistent per-arm colours across τ
+C_B, C_A, C_BETA, C_G, C_V = "#7f7f7f", "#d62728", "#1f77b4", "#2ca02c", "#9467bd"
+V11C_ARM = ("v11c (ref)", C_V, None, V11C, (0, (4, 2)), 1.4, 0.0)
 
-# τ=0.1: snapshot (fp16, pre-divergence) vs converged (fp32 50k) vs (B) + v11c.
 # tuple = (label, colour, losses_csv, full_eval_dir, ls, lw, fill)
+# τ=0.1 — 4 arms, properly trained (bneck fp16; no-bneck fp32).
 TAU01_ARMS = [
-    ("(B) bneck fp16 50k", "#1f77b4",
+    ("(B) bneck β2.95", C_B,
      f"{CL_ABL}/runs/cl_hh_50k_losses.csv",
      f"{CL_ABL}/results/gift_eval_full_cl_hh_50k", "-", 2.0, 0.0),
-    ("α no-bneck fp16 snap", "#2ca02c",
-     f"{MAIN}/runs/bb_alpha_50k_losses.csv",
-     f"{MAIN}/results/gift_eval_full_bb_alpha_50k", "-", 2.0, 0.0),
-    ("γ no-bneck fp16 snap", "#17becf",
-     f"{MAIN}/runs/bb_gamma_50k_losses.csv",
-     f"{MAIN}/results/gift_eval_full_bb_gamma_50k", "-", 2.0, 0.0),
-    ("γ no-bneck fp32 50k (best converged)", "#ff7f0e",
-     f"{MAIN}/runs/bb_gamma_tau01_fp32_50k_losses.csv",
-     f"{MAIN}/results/gift_eval_full_bb_gamma_tau01_fp32_50k", "-", 2.0, 0.0),
-    ("α no-bneck fp32 50k (worst)", "#d62728",
+    ("α no-bneck β2.98 (fp32)", C_A,
      f"{MAIN}/runs/bb_alpha_tau01_fp32_50k_losses.csv",
      f"{MAIN}/results/gift_eval_full_bb_alpha_tau01_fp32_50k", "-", 2.0, 0.0),
+    ("β bneck β2.98", C_BETA,
+     f"{MAIN}/runs/bb_beta_50k_losses.csv",
+     f"{MAIN}/results/gift_eval_full_bb_beta_50k", "-", 2.0, 0.0),
+    ("γ no-bneck β2.95 (fp32)", C_G,
+     f"{MAIN}/runs/bb_gamma_tau01_fp32_50k_losses.csv",
+     f"{MAIN}/results/gift_eval_full_bb_gamma_tau01_fp32_50k", "-", 2.0, 0.0),
     V11C_ARM,
 ]
 
-# τ=0.8: β (bneck, fp16, converged — matches v11c) vs α/γ (no-bneck fp32 50k) + v11c.
+# τ=0.8 — same 4 arms at τ=0.8.
 TAU08_ARMS = [
-    ("β bneck fp16 50k (matches v11c)", "#1f77b4",
-     f"{MAIN}/runs/bb_beta_tau08_50k_losses.csv",
-     f"{MAIN}/results/gift_eval_full_bb_beta_tau08_50k", "-", 2.0, 0.0),
-    ("α no-bneck fp32 50k", "#d62728",
+    ("(B) bneck β2.95", C_B,
+     f"{MAIN}/runs/bb_bbase_tau08_50k_losses.csv",
+     f"{MAIN}/results/gift_eval_full_bb_bbase_tau08_50k", "-", 2.0, 0.0),
+    ("α no-bneck β2.98 (fp32)", C_A,
      f"{MAIN}/runs/bb_alpha_tau08_fp32_50k_losses.csv",
      f"{MAIN}/results/gift_eval_full_bb_alpha_tau08_fp32_50k", "-", 2.0, 0.0),
-    ("γ no-bneck fp32 50k", "#ff7f0e",
+    ("β bneck β2.98", C_BETA,
+     f"{MAIN}/runs/bb_beta_tau08_50k_losses.csv",
+     f"{MAIN}/results/gift_eval_full_bb_beta_tau08_50k", "-", 2.0, 0.0),
+    ("γ no-bneck β2.95 (fp32)", C_G,
      f"{MAIN}/runs/bb_gamma_tau08_fp32_50k_losses.csv",
      f"{MAIN}/results/gift_eval_full_bb_gamma_tau08_fp32_50k", "-", 2.0, 0.0),
     V11C_ARM,
+]
+
+# fp16 divergence illustration (τ=0.1, "the beginning"): bneck arms are
+# fp16-stable; no-bneck arms diverge under fp16 (→ trained in fp32 above).
+DIVERGENCE_ARMS = [
+    ("(B) bneck fp16 (stable)", C_B,
+     f"{CL_ABL}/runs/cl_hh_50k_losses.csv", None, "-", 2.0, 0.0),
+    ("β bneck fp16 (stable)", C_BETA,
+     f"{MAIN}/runs/bb_beta_50k_losses.csv", None, "-", 2.0, 0.0),
+    ("α no-bneck fp16 (diverges)", C_A,
+     f"{MAIN}/runs/bb_alpha_50k_losses.csv", None, "-", 2.0, 0.0),
+    ("γ no-bneck fp16 (diverges)", C_G,
+     f"{MAIN}/runs/bb_gamma_50k_losses.csv", None, "-", 2.0, 0.0),
 ]
 
 
@@ -93,6 +109,12 @@ def agg_gm(sum_txt):
     return None
 
 
+def load_csv(path):
+    if not path or not os.path.exists(path): return None
+    with open(path) as f:
+        return list(csv.DictReader(f))
+
+
 def draw_radar(arms, out_path, title):
     radar = []
     for lab, col, _, edir, ls, lw, _fill in arms:
@@ -124,19 +146,6 @@ def draw_radar(arms, out_path, title):
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.06), ncol=2, fontsize=8, frameon=False)
     plt.tight_layout(); plt.savefig(out_path, dpi=120, bbox_inches="tight"); plt.close()
     print(f"wrote {out_path} — arms={len(radar)} domains={N} rlim=({lo:.2f},{hi:.2f})")
-
-
-draw_radar(TAU01_ARMS, f"{OUT}/perdomain_star_tau01.png",
-           "#309 — full GIFT-Eval (97 cfg) per domain · τ=0.1")
-draw_radar(TAU08_ARMS, f"{OUT}/perdomain_star_tau08.png",
-           "#309 — full GIFT-Eval (97 cfg) per domain · τ=0.8")
-
-
-# ---------- training curves ----------
-def load_csv(path):
-    if not path or not os.path.exists(path): return None
-    with open(path) as f:
-        return list(csv.DictReader(f))
 
 
 def draw_curves(arms, out_path, suptitle):
@@ -174,22 +183,13 @@ def draw_curves(arms, out_path, suptitle):
     print(f"wrote {out_path} — arms={len(curves)}")
 
 
-# τ=0.8 curve set: the killed fp16 no-bneck α (diverges ~step 3.5k) +
-# the bneck fp16 β + the two fresh-fp32 no-bneck arms (all stable). γ
-# τ=0.8 fp16 was never run (went straight to fresh fp32), so only α
-# illustrates the τ=0.8 fp16 divergence.
-TAU08_CURVE_ARMS = [
-    ("α no-bneck fp16 (diverges)", "#2ca02c",
-     f"{MAIN}/runs/bb_alpha_tau08_50k_losses.csv", None, "-", 2.0, 0.0),
-    ("β bneck fp16 50k", "#1f77b4",
-     f"{MAIN}/runs/bb_beta_tau08_50k_losses.csv", None, "-", 2.0, 0.0),
-    ("α no-bneck fp32 50k", "#d62728",
-     f"{MAIN}/runs/bb_alpha_tau08_fp32_50k_losses.csv", None, "-", 2.0, 0.0),
-    ("γ no-bneck fp32 50k", "#ff7f0e",
-     f"{MAIN}/runs/bb_gamma_tau08_fp32_50k_losses.csv", None, "-", 2.0, 0.0),
-]
-
+draw_radar(TAU01_ARMS, f"{OUT}/perdomain_star_tau01.png",
+           "#309 — full GIFT-Eval (97 cfg) per domain · τ=0.1 · 4 arms")
+draw_radar(TAU08_ARMS, f"{OUT}/perdomain_star_tau08.png",
+           "#309 — full GIFT-Eval (97 cfg) per domain · τ=0.8 · 4 arms")
 draw_curves(TAU01_ARMS, f"{OUT}/training_curves_tau01.png",
-            "#309 training curves · τ=0.1  (fp16 no-bneck diverges; fp32 stable)")
-draw_curves(TAU08_CURVE_ARMS, f"{OUT}/training_curves_tau08.png",
-            "#309 training curves · τ=0.8  (fp16 no-bneck diverges; fp32 + bneck-fp16 stable)")
+            "#309 training curves · τ=0.1 · 4 arms (B, α, β, γ — converged)")
+draw_curves(TAU08_ARMS, f"{OUT}/training_curves_tau08.png",
+            "#309 training curves · τ=0.8 · 4 arms (B, α, β, γ — converged)")
+draw_curves(DIVERGENCE_ARMS, f"{OUT}/fp16_divergence.png",
+            "#309 fp16 acceleration failure (τ=0.1): no-bneck arms diverge → trained in fp32")

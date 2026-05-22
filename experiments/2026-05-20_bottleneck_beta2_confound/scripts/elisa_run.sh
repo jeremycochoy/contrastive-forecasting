@@ -20,6 +20,7 @@ case "$ARM" in
   alpha) BETA2=0.98; FCST=() ;;
   beta)  BETA2=0.98; FCST=(--forecaster-d-model 128 --forecaster-n-heads 4) ;;
   gamma) BETA2=0.95; FCST=() ;;
+  bbase) BETA2=0.95; FCST=(--forecaster-d-model 128 --forecaster-n-heads 4) ;;  # (B) baseline: bneck + β2=0.95
   *) echo "unknown arm $ARM"; exit 2 ;;
 esac
 case "$PREC" in
