@@ -332,16 +332,18 @@ def parse_args():
                         "(cosine_similarity_batch[_no_time_neg/_square/"
                         "_full_fh_negs]); a no-op default keeps every prior "
                         "run's objective unchanged.")
-    p.add_argument("--align-loss-weight", type=float, default=1.0,
+    p.add_argument("--align-loss-weight", type=float, nargs="?",
+                   const=1.0, default=0.0,
                    help="λ for a BYOL/SimSiam alignment term "
                         "λ·(2−2·cos(f_t, sg(h_{t+1}))) added on top of the "
-                        "training loss (#309). A non-saturating positive: "
-                        "its per-cosine gradient is a constant −2, "
+                        "training loss (#309). OPT-IN: omit ⇒ 0.0 (no align "
+                        "term, objective unchanged); bare --align-loss-weight "
+                        "⇒ 1.0; or pass an explicit λ. A non-saturating "
+                        "positive: its per-cosine gradient is a constant −2, "
                         "independent of the negatives, vs the InfoNCE "
                         "positive's −(1−p₊)/τ which fades once the negatives "
                         "separate (p₊→1). Stop-grad on the encoder target. "
-                        "Applies to ANY loss_shape. Default 1.0; pass 0.0 to "
-                        "disable.")
+                        "Applies to ANY loss_shape.")
     p.add_argument("--subtract-contrastive-floor", action="store_true",
                    help="Re-base the loss by the constant normalized-InfoNCE "
                         "floor log(1+N·e^(−1/τ)) so the logged curve reads ~0 "
