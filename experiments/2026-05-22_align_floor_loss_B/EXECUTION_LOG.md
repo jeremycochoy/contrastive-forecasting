@@ -33,3 +33,18 @@ MAIN checkout). Code runs from worktree `/home/jupyter/cf-wt-align-floor`.
   session's `bb_bbase_tau08_50k` (#309) 2-GPU DDP run (started 11:09, 50k).
   Did NOT disturb it. Scaffolded dir + scripts while waiting; validated all
   three plot scripts against the (B)/v11c baselines (new arm skipped cleanly).
+- 13:08 — that run freed GPU1; backbone training auto-launched (1-GPU bs256).
+  Healthy throughout: at step 8900 loss_tau_ref 0.235 vs (B) 0.244, AUC/top1
+  1.0, no NaN. fp16+bottleneck stable (as expected — L_align gradient is
+  bounded). 50k done 15:25; full-97 GM-MASE floor ≈1.56 below (B)'s raw loss.
+- 15:25 — q-head 30k started on GPU1. To get the eval numbers faster (user
+  request), the full-97 eval is SHARDED across GPU0∥GPU1 via
+  `parallel_downstream.sh` (≈halves the ~1.5h single-GPU eval). Mechanics:
+  the eval `--config-filter` matches `f"{ds_name}/{term}"` (freq only for
+  multi-freq datasets), NOT the freq-bearing output name — shard regexes are
+  built on the filter strings (49/48 split, verified disjoint+complete=97).
+  Merge recomputes the GM over the union (validated to reproduce (B)'s 1.3572
+  exactly). Triage(11) runs separately with the #309 filter. Gated on GPU0
+  free-mem ≥10GB (else single-GPU fallback); merge verifies 97 (else fallback).
+  A vast box would not help: q-head is single-GPU-bound everywhere; the eval
+  shard on elisa's free 2nd GPU is the cheaper/faster lever.
