@@ -160,3 +160,47 @@ arm the β2 optimum flips with τ (β2=0.98 best at τ=0.1, β2=0.95 best at
 (B)-τ0.8 best→worst; added (B)-τ0.8 to plot_summary.py (now 8 bars,
 (B)-τ0.8 leftmost/best); perdomain_star_tau08.png already includes (B).
 WIP prepush — verdict drafted, main agent to ground/polish.
+
+## 2026-05-22 — CORRECTION: the τ=0.8 fp16 bottleneck arms COLLAPSE; their numbers are under-training artifacts
+
+The "(B)-τ0.8 = 1.2335 beats v11c" headline above (and the matching
+β-τ0.8 = 1.2942 "≈ v11c") was **WRONG**. Both are fp16 bottleneck arms
+that **collapse at τ=0.8**, and the eval'd checkpoint is a collapse-onset
+snapshot, not a converged 50k backbone.
+
+Evidence (from `runs/*_losses.csv` + md5):
+- `_FINAL.pth` is byte-identical (md5) to `_best_loss.pth` for both:
+  - bb_bbase_tau08_50k_FINAL.pth = best_loss.pth (ed93ed82…)
+  - bb_beta_tau08_50k_FINAL.pth  = best_loss.pth (2f59d0d9…)
+- best_loss = raw min-loss row:
+  - **(B)-τ0.8: step 324** (top1 0.97, gap 1.07, auc 1.00) — then
+    top1→0.12 by step 1k, →0.03 by 5k, →0.006 by 10k; gap→0.001 and
+    auc→0.50 by 30k. Run ended at step 47.7k (the late OOM), still
+    collapsed (top1 0.015).
+  - **β-τ0.8: step 494 (~500)** (top1 0.45, gap 0.99, auc 1.00) — then
+    top1→0.11 by step 1k, →0.006 by 5k; never recovers (top1 0.009 at
+    47k). Run completed 50k but collapsed.
+- So the 1.2335 / 1.2942 GIFT-Eval numbers come from barely-trained
+  step ~324 / ~500 snapshots — exactly the same **under-training
+  artifact** as the fp16 no-bneck pre-divergence snapshots (~step 900 →
+  1.277/1.283). An early collapse-onset snapshot transfers better than a
+  converged model, but it is NOT a usable backbone.
+
+Corrected conclusion: **no converged arm beats v11c.** Best converged =
+γ-τ0.1 (fp32) 1.3132 (+1.6% over v11c 1.292); converged spread
+1.313–1.406. Removing the bottleneck does not help. τ=0.8 collapses the
+fp16 bottleneck arms (a training failure) and is mixed on the converged
+no-bneck arms (hurts γ 1.313→1.342, partly rescues α 1.406→1.327).
+
+Fixes applied (WIP prepush, this commit):
+- plot_summary.py: dropped the two collapsed arms → 6 converged bars,
+  all right of (worse than) the v11c=1.292 line; title/caption reworded.
+- plot_results.py: removed (B)-τ0.8 and β-τ0.8 from TAU08_ARMS (τ=0.8
+  radar/curves now α+γ+v11c); added tau08_bneck_collapse.png plotting the
+  two collapsing arms.
+- RESULTS.md: rewrote verdict + tables; moved (B)-τ0.8/β-τ0.8 into the
+  artifacts/failures section labeled "collapse-onset snapshot @ step
+  ~324/500, not converged"; removed all "(B)-τ0.8 beats v11c / best arm"
+  claims.
+
+Main agent to do the final grounded review.

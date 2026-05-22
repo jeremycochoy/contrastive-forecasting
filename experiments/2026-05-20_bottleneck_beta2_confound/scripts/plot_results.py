@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
-"""#309 — per-domain radars + training curves for the 4 arms (B, α, β, γ).
+"""#309 — per-domain radars + training curves for the converged arms.
 
 Arms (see RESULTS.md): (B) = bneck/β2.95 baseline; α = no-bneck/β2.98;
 β = bneck/β2.98; γ = no-bneck/β2.95. Bottleneck arms ((B), β) train in
 fp16; no-bneck arms (α, γ) diverge under fp16 (an fp16-acceleration
-failure) and are trained in fp32. Two radars + two curve graphs (τ=0.1
-and τ=0.8), each with the 4 arms + v11c dashed reference. A separate
-fp16_divergence.png illustrates the fp16 failure (τ=0.1, beginning).
+failure) and are trained in fp32.
+
+τ=0.1 radar/curves show the 4 converged arms + v11c. τ=0.8 radar/curves
+show only the converged τ=0.8 arms — α and γ (fp32) + v11c — because the
+fp16 bottleneck arms ((B), β) COLLAPSE at τ=0.8 (top1/gap/auc fall off
+after ~step 500; their best_loss checkpoint is a collapse-onset snapshot
+@ step ~324 / ~500, not a converged model). That collapse is shown in a
+separate tau08_bneck_collapse.png. fp16_divergence.png illustrates the
+no-bneck fp16 divergence (τ=0.1, beginning).
 
 Robust to missing arms: skipped if no eval summary / losses CSV yet.
 """
@@ -43,21 +49,31 @@ TAU01_ARMS = [
     V11C_ARM,
 ]
 
-# τ=0.8 — same 4 arms at τ=0.8.
+# τ=0.8 — the CONVERGED τ=0.8 arms only. The fp16 bottleneck arms at
+# τ=0.8 ((B), β) collapse after ~step 500 (best_loss = collapse-onset
+# snapshot @ step ~324 / ~500, not a converged model) and are excluded
+# from the converged radar/curves; their collapse is shown separately in
+# tau08_bneck_collapse.png.
 TAU08_ARMS = [
-    ("(B) bneck β2.95", C_B,
-     f"{MAIN}/runs/bb_bbase_tau08_50k_losses.csv",
-     f"{MAIN}/results/gift_eval_full_bb_bbase_tau08_50k", "-", 2.0, 0.0),
     ("α no-bneck β2.98 (fp32)", C_A,
      f"{MAIN}/runs/bb_alpha_tau08_fp32_50k_losses.csv",
      f"{MAIN}/results/gift_eval_full_bb_alpha_tau08_fp32_50k", "-", 2.0, 0.0),
-    ("β bneck β2.98", C_BETA,
-     f"{MAIN}/runs/bb_beta_tau08_50k_losses.csv",
-     f"{MAIN}/results/gift_eval_full_bb_beta_tau08_50k", "-", 2.0, 0.0),
     ("γ no-bneck β2.95 (fp32)", C_G,
      f"{MAIN}/runs/bb_gamma_tau08_fp32_50k_losses.csv",
      f"{MAIN}/results/gift_eval_full_bb_gamma_tau08_fp32_50k", "-", 2.0, 0.0),
     V11C_ARM,
+]
+
+# τ=0.8 fp16 BOTTLENECK collapse illustration: (B) and β at τ=0.8 train
+# fine for a few hundred steps then collapse (top1/gap/auc fall off),
+# so their best_loss checkpoint is an early snapshot, NOT a converged
+# model — the sub-1.29 GIFT-Eval numbers they produce are under-training
+# artifacts. These are full-trajectory CSVs (47.7k / 50k steps).
+TAU08_COLLAPSE_ARMS = [
+    ("(B) bneck fp16 τ0.8 (collapses)", C_B,
+     f"{MAIN}/runs/bb_bbase_tau08_50k_losses.csv", None, "-", 2.0, 0.0),
+    ("β bneck fp16 τ0.8 (collapses)", C_BETA,
+     f"{MAIN}/runs/bb_beta_tau08_50k_losses.csv", None, "-", 2.0, 0.0),
 ]
 
 # fp16 divergence illustration (τ=0.1, "the beginning"): bneck arms are
@@ -184,12 +200,15 @@ def draw_curves(arms, out_path, suptitle):
 
 
 draw_radar(TAU01_ARMS, f"{OUT}/perdomain_star_tau01.png",
-           "#309 — full GIFT-Eval (97 cfg) per domain · τ=0.1 · 4 arms")
+           "#309 — full GIFT-Eval (97 cfg) per domain · τ=0.1 · 4 converged arms")
 draw_radar(TAU08_ARMS, f"{OUT}/perdomain_star_tau08.png",
-           "#309 — full GIFT-Eval (97 cfg) per domain · τ=0.8 · 4 arms")
+           "#309 — full GIFT-Eval (97 cfg) per domain · τ=0.8 · converged arms (α, γ fp32)")
 draw_curves(TAU01_ARMS, f"{OUT}/training_curves_tau01.png",
             "#309 training curves · τ=0.1 · 4 arms (B, α, β, γ — converged)")
 draw_curves(TAU08_ARMS, f"{OUT}/training_curves_tau08.png",
-            "#309 training curves · τ=0.8 · 4 arms (B, α, β, γ — converged)")
+            "#309 training curves · τ=0.8 · converged arms (α, γ fp32)")
 draw_curves(DIVERGENCE_ARMS, f"{OUT}/fp16_divergence.png",
             "#309 fp16 acceleration failure (τ=0.1): no-bneck arms diverge → trained in fp32")
+draw_curves(TAU08_COLLAPSE_ARMS, f"{OUT}/tau08_bneck_collapse.png",
+            "τ=0.8 collapses the fp16 bottleneck arms (top1/gap collapse after ~step 500 "
+            "→ best_loss is an early snapshot, not a converged model)")
