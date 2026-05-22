@@ -13,7 +13,11 @@ from types import SimpleNamespace
 import pytest
 import torch
 
-from src.loss import contrastive_latent_loss
+from src.loss import (
+    contrastive_latent_loss,
+    infonce_floor,
+    _effective_negative_count,
+)
 
 
 def _make_spec(loss_shape: str, tau: float = 0.07) -> SimpleNamespace:
@@ -999,3 +1003,131 @@ class TestCrossBranchNegativeFree:
             (f, h), validation=False, spec=spec_cfg)
         assert torch.allclose(loss_arg, loss_cfg)
         assert loss_cfg.item() >= -1e-6
+
+
+class TestAlignLoss:
+    """The BYOL/SimSiam alignment add-on (#309): L_align = (2 − 2·cos(f_t,
+    sg(h_{t+1}))).mean(), weight λ = `align_loss_weight` (default 0 = off).
+    `2 − 2·cos = ‖f̂ − ĥ‖²` ∈ [0, 4], minimum 0 at cos = 1 — already ≥ 0 /
+    min-0 (the `2` is the built-in constant); stop-grad on the target."""
+
+    NAME = 'cosine_similarity_batch_full_fh_negs'
+
+    def _spec(self, align=None, tau=0.1):
+        spec = _make_spec(self.NAME, tau)
+        spec.train_configuration['include_positive_in_denominator'] = True
+        if align is not None:
+            spec.train_configuration['align_loss_weight'] = align
+        return spec
+
+    def test_default_off_is_noop(self):
+        f, h = _random_inputs(B=3, T=4, C=1, H=8, seed=1)
+        base = contrastive_latent_loss((f, h), False, self._spec())
+        zero = contrastive_latent_loss((f, h), False, self._spec(align=0.0))
+        assert torch.allclose(base, zero)
+
+    def test_perfect_forecast_zero_contribution(self):
+        # f_t := h_{t+1} ⇒ cos = 1 ⇒ L_align = 0 ⇒ loss unchanged.
+        B, T, C, H = 2, 5, 1, 8
+        g = torch.Generator().manual_seed(7)
+        h = torch.randn(B, T, C, H, generator=g)
+        f = torch.randn(B, T, C, H, generator=g)
+        f[:, :-1] = h[:, 1:]
+        base = contrastive_latent_loss((f, h), False, self._spec())
+        withal = contrastive_latent_loss((f, h), False, self._spec(align=1.0))
+        assert abs((withal - base).item()) < 1e-5
+
+    def test_orthogonal_adds_two_lambda(self):
+        # f_t ⊥ h_{t+1} ⇒ cos = 0 ⇒ L_align = 2 ⇒ loss += λ·2 exactly.
+        B, T, C, H = 2, 4, 1, 8
+        eye = torch.eye(H)
+        h = eye[1].view(1, 1, 1, H).expand(B, T, C, H).contiguous()   # e1
+        f = eye[0].view(1, 1, 1, H).expand(B, T, C, H).contiguous()   # e0 ⊥ e1
+        for lam in (0.5, 1.0, 2.0):
+            base = contrastive_latent_loss((f, h), False, self._spec())
+            withal = contrastive_latent_loss((f, h), False, self._spec(align=lam))
+            assert abs((withal - base).item() - 2.0 * lam) < 1e-5
+
+    def test_lambda_scales_linearly(self):
+        f, h = _random_inputs(B=3, T=5, C=1, H=8, seed=3)
+        base = contrastive_latent_loss((f, h), False, self._spec())
+        d1 = (contrastive_latent_loss((f, h), False, self._spec(align=1.0)) - base).item()
+        d2 = (contrastive_latent_loss((f, h), False, self._spec(align=2.0)) - base).item()
+        assert d1 > 0 and abs(d2 - 2 * d1) < 1e-5
+
+    def test_stopgrad_blocks_encoder_target_grad(self):
+        fv, hv = _random_inputs(B=2, T=4, C=1, H=8, seed=11)
+        f1, h1 = fv.clone().requires_grad_(True), hv.clone().requires_grad_(True)
+        f2, h2 = fv.clone().requires_grad_(True), hv.clone().requires_grad_(True)
+        contrastive_latent_loss((f1, h1), False, self._spec(align=1.0)).backward()
+        contrastive_latent_loss((f2, h2), False, self._spec()).backward()
+        # align adds NO gradient to the stop-grad'd encoder target h …
+        assert (h1.grad - h2.grad).abs().max().item() < 1e-6
+        # … but it DOES add gradient to the forecaster f.
+        assert (f1.grad - f2.grad).abs().max().item() > 1e-4
+
+    def test_applies_to_any_loss_shape(self):
+        # L_align needs only the positive pair, so it works on non-logsumexp
+        # variants too (here the legacy 'cosine_similarity' form). The exact
+        # added value is λ·(2 − 2·cos(f_t, h_{t+1})).mean().
+        f, h = _random_inputs(B=2, T=4, C=1, H=8, seed=9)
+        base = _make_spec('cosine_similarity', tau=0.1)
+        al = _make_spec('cosine_similarity', tau=0.1)
+        al.train_configuration['align_loss_weight'] = 1.0
+        d = (contrastive_latent_loss((f, h), False, al)
+             - contrastive_latent_loss((f, h), False, base)).item()
+        import torch.nn.functional as _F
+        fn, hn = _F.normalize(f, dim=-1), _F.normalize(h, dim=-1)
+        cos = (fn[:, :-1] * hn[:, 1:]).sum(-1)
+        expected = (2.0 - 2.0 * cos).mean().item()
+        assert abs(d - expected) < 1e-5
+
+
+class TestContrastiveFloor:
+    """`subtract_contrastive_floor` (#309) re-bases the loss by the constant
+    floor `log(1 + N·e^(−1/τ))`. Gradient-neutral; needs the normalized form."""
+
+    NAME = 'cosine_similarity_batch_full_fh_negs'
+
+    def _spec(self, floor=False, tau=0.1, pos_denom=True):
+        spec = _make_spec(self.NAME, tau)
+        spec.train_configuration['include_positive_in_denominator'] = pos_denom
+        spec.train_configuration['subtract_contrastive_floor'] = floor
+        return spec
+
+    def test_infonce_floor_formula(self):
+        for tau, n in [(0.1, 100), (0.07, 5000), (0.2, 256 * 511)]:
+            assert abs(infonce_floor(tau, n)
+                       - math.log1p(n * math.exp(-1.0 / tau))) < 1e-12
+
+    def test_effective_negative_count_matches_structure(self):
+        # full_fh_negs, C=1: per-anchor = (xy+xx+zy)=2 + fh_all(T-1) + (B-1); ×B.
+        assert _effective_negative_count(self.NAME, B=4, T=5, C=1) == 4 * (2 + 4 + 3)
+        # base variant: 2 + xy_hat(1) + (B-1); ×B.
+        assert _effective_negative_count('cosine_similarity_batch', 4, 5, 1) == 4 * (2 + 1 + 3)
+        # two all-time terms add another (T-1).
+        assert _effective_negative_count(
+            'cosine_similarity_batch_full_fh_hh_negs', 4, 5, 1) == 4 * (2 + 4 + 4 + 3)
+
+    def test_subtract_floor_shifts_by_constant(self):
+        f, h = _random_inputs(B=3, T=5, C=1, H=8, seed=5)
+        no_floor = contrastive_latent_loss((f, h), False, self._spec(floor=False))
+        with_floor = contrastive_latent_loss((f, h), False, self._spec(floor=True))
+        n = _effective_negative_count(self.NAME, B=3, T=5, C=1)
+        expected = no_floor.item() - infonce_floor(0.1, n)
+        assert abs(with_floor.item() - expected) < 1e-5
+
+    def test_subtract_floor_is_gradient_neutral(self):
+        fv, hv = _random_inputs(B=2, T=4, C=1, H=8, seed=6)
+        f1, h1 = fv.clone().requires_grad_(True), hv.clone().requires_grad_(True)
+        f2, h2 = fv.clone().requires_grad_(True), hv.clone().requires_grad_(True)
+        contrastive_latent_loss((f1, h1), False, self._spec(floor=True)).backward()
+        contrastive_latent_loss((f2, h2), False, self._spec(floor=False)).backward()
+        assert (f1.grad - f2.grad).abs().max().item() < 1e-6
+        assert (h1.grad - h2.grad).abs().max().item() < 1e-6
+
+    def test_requires_pos_in_denominator(self):
+        f, h = _random_inputs(B=2, T=4, C=1, H=8, seed=7)
+        with pytest.raises(NotImplementedError):
+            contrastive_latent_loss(
+                (f, h), False, self._spec(floor=True, pos_denom=False))
