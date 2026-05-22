@@ -24,29 +24,32 @@ from the v11c target line than plain (B) — the term hurts.*
 | (B)  bneck·fp16·τ0.1·β2.95 | 1.3572 | 1.4461 |
 | **(B) + L_align + floor** | **1.4308** | **1.6154** |
 
-The degradation is consistent across both the 11-config triage and the full 97
-configs, and across nearly every domain:
+The degradation is consistent across the 11-config triage, the full 97 configs,
+and most domains:
 
 ![per-domain radar](plots/perdomain_star.png)
 *Per-domain GM-Relative MASE (log radial; dashed ring = seasonal-naive 1.0).
-The new arm (orange) is outside both (B) and v11c on 6 of 7 domains.*
+The new arm (orange) is outside v11c on 6 of 7 domains and outside (B) on 4 of 7
+— worse on net.*
 
-Crucially, `L_align` did **not** hurt the contrastive fit. With both losses
-re-based by the same gradient-neutral InfoNCE floor (`log(1+N·e^(−1/τ))` = 1.94),
-the comparable normalized-InfoNCE diagnostic `loss_tau_ref` — which neither flag
-enters — tracks (B) (marginally *lower*, and without (B)'s late-training spikes).
-The new arm's total loss simply carries the extra `+λ·L_align` term on top.
+This is **not a training failure**, and — importantly — the loss-plot gap is
+**not** the alignment term. The forecaster reaches cos(f, h⁺) ≈ 0.999 with or
+without `L_align` ((B) gets there on its own, cos ≈ 0.998), so at convergence
+`L_align` ≈ 0.003 — essentially redundant.
 
 ![training curves](plots/loss.png)
-*Both curves re-based by the same InfoNCE floor (1.94). **Left** — total loss on
-a common baseline: both contrastive parts converge near the floor, and the new
-arm (orange) plateaus a constant ≈0.2 above (B) — that gap is the persistent
-`L_align` term. **Right** — `loss_tau_ref` (align/floor do not enter it): the new
-arm tracks (B), marginally lower and without (B)'s late spikes.*
+*Both curves re-based by the same gradient-neutral InfoNCE floor
+(`log(1+N·e^(−1/τ))` = 1.94). **Left** — total loss on a common baseline: the new
+arm plateaus ~0.35 above (B); since `L_align` ≈ 0.003 at convergence, that gap is
+a higher converged **contrastive** loss at the training τ, not the align term.
+**Right** — `loss_tau_ref` (fixed reference τ; align/floor don't enter it): the
+new arm tracks (B), marginally lower and without (B)'s late spikes.*
 
-So this is **not a training failure** — the contrastive objective is fit as well
-as (B). The alignment pull simply moves the representation in a direction that
-transfers *worse* to forecasting under the matched 2-layer head.
+So the contrastive training signal is small and mixed (training-τ loss slightly
+*higher*, `loss_tau_ref` slightly *lower*) and does not account for the large
+transfer gap. The damage is visible only downstream: adding `L_align` moves the
+representation somewhere that forecasts *worse* — under the matched 2-layer head,
+and (next section) under a 6-layer one too.
 
 ## Protocol
 
@@ -77,11 +80,12 @@ transfers *worse* to forecasting under the matched 2-layer head.
 
 - **`L_align` (λ=1) on (B) does not match v11c — it hurts** (+5.4% full / +11.7%
   triage worse than (B); further still from v11c).
-- The harm is **not a contrastive-fit problem** — `loss_tau_ref` tracks (B)
-  (marginally lower) — so it is not a convergence/optimization issue. The extra
-  constant pull toward the (stop-grad) next-step latent reshapes the
-  representation in a way the contrastive objective is fine with but the matched
-  2-layer forecasting head transfers *worse* from.
+- **Not explained by the contrastive training signal.** `L_align` is near-
+  redundant — the forecaster aligns to the next-step latent anyway (cos ≈ 0.999
+  with it, 0.998 without) — and the contrastive signal vs (B) is small and mixed
+  (training-τ loss slightly higher, `loss_tau_ref` slightly lower). So this is
+  not a convergence/optimization issue; the damage is purely in downstream
+  transfer.
 - The **floor subtraction is purely a readability aid** (gradient-neutral); it
   has no effect on the trained model, only on the logged loss.
 - **Robust to readout capacity.** A 6-layer q-head (vs the 2-layer above) does
@@ -125,6 +129,6 @@ Two observations, both pointing the same way:
   by temperature (β-τ0.8 ≈ 1.294 in #309), not by added loss terms.
 
 *Caveat: one seed per arm. The conclusion rests on a consistent, large
-degradation across two independent config sets (full-97 and triage-11), well
-beyond typical eval noise, while the contrastive fit (`loss_tau_ref`) is
-equal-or-better than (B).*
+degradation across two independent config sets (full-97 and triage-11) and both
+head sizes, well beyond typical eval noise, while training stayed healthy (no
+divergence; the contrastive signal vs (B) is small and mixed).*

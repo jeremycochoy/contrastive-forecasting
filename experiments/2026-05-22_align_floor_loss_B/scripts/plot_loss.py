@@ -9,8 +9,9 @@ new arm's logged `loss` is already floor-subtracted by training; (B)'s raw
 
 Two panels (log-log):
  1. loss − floor — total training loss on a common baseline. The new arm
-    carries the extra `+λ·L_align` term, so its plateau sits above (B)'s
-    pure-contrastive floor by ≈ the converged align value.
+    plateaus above (B); since L_align→~0 at convergence (cos(f,h⁺)→0.999), that
+    gap is a higher converged contrastive loss at the training τ, not the align
+    term.
  2. loss_tau_ref — normalized-InfoNCE at a fixed reference τ (align/floor do
     not enter it) → the cleanest comparable contrastive diagnostic.
 

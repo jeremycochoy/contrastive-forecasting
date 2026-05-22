@@ -36,7 +36,10 @@ MAIN checkout). Code runs from worktree `/home/jupyter/cf-wt-align-floor`.
 - 13:08 — that run freed GPU1; backbone training auto-launched (1-GPU bs256).
   Healthy throughout: at step 8900 loss_tau_ref 0.235 vs (B) 0.244, AUC/top1
   1.0, no NaN. fp16+bottleneck stable (as expected — L_align gradient is
-  bounded). 50k done 15:25; full-97 GM-MASE floor ≈1.56 below (B)'s raw loss.
+  bounded). 50k done 15:25. (InfoNCE floor = log(1+N·e^(−1/τ)) ≈ 1.94 at
+  T=256/B=256/C=1; logged loss is floor-subtracted. New arm's converged
+  contrastive loss is ~0.35 ABOVE (B)'s on that common baseline; L_align≈0.003
+  at convergence — near-redundant, the gap is contrastive not align.)
 - 15:25 — q-head 30k started on GPU1. To get the eval numbers faster (user
   request), the full-97 eval is SHARDED across GPU0∥GPU1 via
   `parallel_downstream.sh` (≈halves the ~1.5h single-GPU eval). Mechanics:
