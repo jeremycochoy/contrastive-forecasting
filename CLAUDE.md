@@ -75,6 +75,7 @@ export HUGGING_FACE_HUB_TOKEN="$HF_TOKEN"
 - `master`: stable base code.
 - `experiments`: main working branch (merged results).
 - **Never commit directly to `experiments` or `master`.** Feature branch from `experiments`, do the work there, PR into `experiments`. Always create PR, review, then merge. Branch names like `feature/…`, `experiment/…`, or `paper/…` are nice.
+- **Close the linked issue manually after merge.** PRs merge into `experiments`, not the default branch (`master`), so a `Closes #N` line does not auto-close it — run `gh issue close <N>` once the PR is merged.
 - **Use a git worktree** (e.g. via `EnterWorktree`) — keeps the user's uncommitted state on `experiments` untouched. If the worktree branch is from a stale HEAD, `git reset --hard refs/heads/experiments` it forward before starting.
 
 ### Pre-PR checklist
