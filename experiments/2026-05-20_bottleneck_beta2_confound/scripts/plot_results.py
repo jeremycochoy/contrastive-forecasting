@@ -20,32 +20,35 @@ V11C = "/home/jupyter/contrastive-forecasting/experiments/2026-05-11_exp_encoder
 OUT = f"{MAIN}/plots"
 os.makedirs(OUT, exist_ok=True)
 
+# Curated τ=0.1 set: snapshot (fp16, pre-divergence) vs converged
+# (fp32, 50k) vs the (B) bottleneck baseline and v11c reference. The
+# full τ×β2×precision matrix lives in plots/gm_summary.png.
 # label, colour, losses_csv, full_eval_dir, ls, lw, fill
 ARMS = [
-    ("(B) bneck+β2=0.95", "#1f77b4",
+    ("(B) bneck fp16 50k", "#1f77b4",
      f"{CL_ABL}/runs/cl_hh_50k_losses.csv",
      f"{CL_ABL}/results/gift_eval_full_cl_hh_50k",
-     "-", 2.0, 0.10),
-    ("α no-bneck+β2=0.98", "#d62728",
+     "-", 2.0, 0.0),
+    ("α no-bneck fp16 snap", "#2ca02c",
      f"{MAIN}/runs/bb_alpha_50k_losses.csv",
      f"{MAIN}/results/gift_eval_full_bb_alpha_50k",
-     "-", 2.0, 0.10),
-    ("β bneck+β2=0.98", "#2ca02c",
-     f"{MAIN}/runs/bb_beta_50k_losses.csv",
-     f"{MAIN}/results/gift_eval_full_bb_beta_50k",
-     "-", 2.0, 0.10),
-    ("γ no-bneck+β2=0.95", "#ff7f0e",
+     "-", 2.0, 0.0),
+    ("γ no-bneck fp16 snap", "#17becf",
      f"{MAIN}/runs/bb_gamma_50k_losses.csv",
      f"{MAIN}/results/gift_eval_full_bb_gamma_50k",
-     "-", 2.0, 0.10),
-    ("α fp32-cont (no-bneck, 50k)", "#8c564b",
-     f"{MAIN}/runs/bb_alpha_fp32cont_50k_losses.csv",
-     f"{MAIN}/results/gift_eval_full_bb_alpha_fp32cont_50k",
-     "-", 2.0, 0.10),
+     "-", 2.0, 0.0),
+    ("γ no-bneck fp32 50k (best converged)", "#ff7f0e",
+     f"{MAIN}/runs/bb_gamma_tau01_fp32_50k_losses.csv",
+     f"{MAIN}/results/gift_eval_full_bb_gamma_tau01_fp32_50k",
+     "-", 2.0, 0.0),
+    ("α no-bneck fp32 50k (worst)", "#d62728",
+     f"{MAIN}/runs/bb_alpha_tau01_fp32_50k_losses.csv",
+     f"{MAIN}/results/gift_eval_full_bb_alpha_tau01_fp32_50k",
+     "-", 2.0, 0.0),
     ("v11c (ref, all-fp32 no-bneck)", "#9467bd",
      None,
      V11C,
-     (0, (4, 2)), 1.2, 0.0),  # thin purple dashed, no fill
+     (0, (4, 2)), 1.4, 0.0),  # thin purple dashed
 ]
 
 
