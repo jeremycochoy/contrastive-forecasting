@@ -114,3 +114,34 @@ i.e. the v11c recipe itself.
 ## Compute note
 α fp32 continuation + its downstream ran on elisa (free) — no
 additional vast spend. Total vast spend remains **$2.66**.
+
+## 2026-05-21/22 — corrected continuations (fresh fp32) + τ=0.8 follow-up
+
+Per user: (a) the resume-from-step-900 α continuation used a checkpoint
+just past the loss/r2 peak (best_loss tracks *ema*-loss, min at ~900;
+raw/r2 peak at 824) — "too late"; (b) γ continuation was missing;
+(c) redo all arms at τ=0.8. Per user guidance the fp16 pre-divergence
+window is only ~900/50k steps, so dropped warmup/resume entirely and
+ran the no-bottleneck arms **fresh fp32 from scratch** (no checkpoint-
+timing ambiguity). β stays fp16 (bottleneck → stable).
+
+All fresh-fp32 + τ=0.8 + downstreams ran on elisa (free, 2× GPU chains).
+
+Full-97 GM (corrected, fresh fp32 unless noted):
+- α-τ0.1 fp32 1.4057 | γ-τ0.1 fp32 1.3132
+- α-τ0.8 fp32 1.3274 | γ-τ0.8 fp32 1.3424
+- β-τ0.1 fp16 1.3272 | **β-τ0.8 fp16 1.2942 ≈ v11c 1.292**
+- α/γ fp16 snapshots (≈step 900) 1.2767 / 1.2829 (under-trained)
+- (B) 1.3572 ; v11c 1.292
+
+Headline change vs the earlier (buggy resume) reading: the gap to v11c
+**is** closable — by τ 0.1→0.8 on the bottleneck arm (β-τ0.8 1.294),
+not by removing the bottleneck. Fresh-fp32 no-bottleneck arms confirm
+the over-specialization finding cleanly (all 1.31–1.41 > v11c; all
+worse than their own fp16 snapshots). β2 optimum flips with bottleneck
+(0.98 best with bneck, 0.95 best without); τ=0.8 helps bneck + β2=0.98,
+hurts β2=0.95.
+
+Plots: gm_summary.png (full matrix), training_curves.png (fp16-diverge
+vs fp32-stable), perdomain_star.png (τ=0.1 radar). Radar/curve buggy
+fills + clipping fixed (lines, data-driven rlim).

@@ -11,19 +11,16 @@
 #   beta:        --forecaster-d-model 128 --forecaster-n-heads 4
 set -uo pipefail
 ARM="${1:?arm = alpha|beta|gamma}"; GPU="${2:?gpu_id}"
+# Bottleneck only on β; α/γ (and any tagged variant) are no-bottleneck.
 case "$ARM" in
-  alpha|gamma|alpha_fp32cont|gamma_fp32cont) FCST=();;       # no bottleneck
-  beta) FCST=(--forecaster-d-model 128 --forecaster-n-heads 4);;
-  *) echo "unknown arm $ARM"; exit 2;;
+  alpha*|gamma*) FCST=() ;;
+  beta*) FCST=(--forecaster-d-model 128 --forecaster-n-heads 4) ;;
+  *) echo "unknown arm $ARM"; exit 2 ;;
 esac
 
 WT=/home/jupyter/contrastive-forecasting/.claude/worktrees/exp-bottleneck-beta2-confound
 MAIN=/home/jupyter/contrastive-forecasting/experiments/2026-05-20_bottleneck_beta2_confound
-# fp32cont arms save as bb_<base>_fp32cont_50k; plain arms as bb_<arm>_50k.
-case "$ARM" in
-  *_fp32cont) NAME="bb_${ARM%_fp32cont}_fp32cont_50k";;
-  *)          NAME="bb_${ARM}_50k";;
-esac
+NAME="bb_${ARM}_50k"   # arm token carries any tag, e.g. alpha_tau01_fp32
 BB="$MAIN/runs/${NAME}_FINAL.pth"
 QN="${NAME}_qhead_xfmr2L_quant_30k"
 QF="$MAIN/runs/${NAME}_qhead_FINAL.pth"
