@@ -478,6 +478,21 @@ def load_models(args, device):
         BACKBONE_CONFIG["num_encoder_layers"] = max(enc_layer_idxs) + 1
         print(f"  [eval] auto-detected num_encoder_layers="
               f"{BACKBONE_CONFIG['num_encoder_layers']} from backbone checkpoint")
+    # Auto-detect a CPC linear forecaster (#316) from transformer.cpc_heads.<N>.*
+    # keys, so the eval backbone is built with forecaster_kind='linear_cpc'
+    # (matching K) and load_state_dict succeeds.
+    cpc_head_idxs = set()
+    for k in sd:
+        if k.startswith("transformer.cpc_heads."):
+            try:
+                cpc_head_idxs.add(int(k.split(".")[2]))
+            except (IndexError, ValueError):
+                continue
+    if cpc_head_idxs:
+        BACKBONE_CONFIG["forecaster_kind"] = "linear_cpc"
+        BACKBONE_CONFIG["cpc_k_steps"] = max(cpc_head_idxs) + 1
+        print(f"  [eval] auto-detected linear_cpc forecaster "
+              f"(K={BACKBONE_CONFIG['cpc_k_steps']}) from backbone checkpoint")
     BACKBONE_CONFIG["rev_norm_kind"] = args.rev_norm_kind
     if args.rev_norm_kind == "ewma":
         BACKBONE_CONFIG["rev_norm_span"] = args.rev_norm_span

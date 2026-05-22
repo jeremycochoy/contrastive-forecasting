@@ -440,6 +440,8 @@ class TransformerBlock(nn.Module):
                  conv_dtype: str | None = None,
                  forecaster_d_model: int | None = None,
                  forecaster_nhead: int | None = None,
+                 forecaster_kind: str = "transformer",
+                 cpc_k_steps: int = 12,
                  log_attn_amplitude: bool = False):
         super().__init__()
 
@@ -524,43 +526,65 @@ class TransformerBlock(nn.Module):
                 f"forecaster_nhead={eff_fcst_nhead}")
         self.forecaster_d_model = eff_fcst_d_model
         self.forecaster_nhead = eff_fcst_nhead
-        fcst_dim_feedforward = int(feedforward_mult * eff_fcst_d_model)
-        if eff_fcst_d_model != dimension_e:
-            self.fcst_down_proj = nn.Linear(dimension_e, eff_fcst_d_model, bias=False)
-            self.fcst_up_proj = nn.Linear(eff_fcst_d_model, dimension_e, bias=False)
-        else:
+        self.forecaster_kind = forecaster_kind
+        self.cpc_k_steps = int(cpc_k_steps)
+
+        if forecaster_kind == "linear_cpc":
+            # CPC-style multi-step linear forecast (#316). The transformer
+            # forecaster is replaced by K independent linear heads
+            # W_k : H → H (no bias, no attention, no bottleneck), each
+            # predicting the encoder latent k steps ahead (h_{t+k}) from the
+            # causal encoder output h_t. The transformer-forecaster submodules
+            # are NOT built, so a linear_cpc checkpoint carries only
+            # `cpc_heads.*` on the forecaster side. The forecaster loss is the
+            # multi-step InfoNCE in src.loss (`cpc_multistep`); the next-step
+            # head (k=1) doubles as the single forecaster latent consumed by
+            # the downstream head-trainer / GIFT-Eval (forward default).
             self.fcst_down_proj = nn.Identity()
             self.fcst_up_proj = nn.Identity()
+            self.layers = nn.ModuleList()
+            self.cpc_heads = nn.ModuleList([
+                nn.Linear(dimension_e, dimension_e, bias=False)
+                for _ in range(self.cpc_k_steps)
+            ])
+        else:
+            fcst_dim_feedforward = int(feedforward_mult * eff_fcst_d_model)
+            if eff_fcst_d_model != dimension_e:
+                self.fcst_down_proj = nn.Linear(dimension_e, eff_fcst_d_model, bias=False)
+                self.fcst_up_proj = nn.Linear(eff_fcst_d_model, dimension_e, bias=False)
+            else:
+                self.fcst_down_proj = nn.Identity()
+                self.fcst_up_proj = nn.Identity()
 
-        self.layers = nn.ModuleList([
-            DecoderOnlyTransformerLayer(
-                d_model=eff_fcst_d_model,
-                nhead=eff_fcst_nhead,
-                dim_feedforward=fcst_dim_feedforward,
-                activation=activation or 'gelu',
-                batch_first=True,
-                norm_first=norm_first,
-                norm_type=norm_type,
-                bias=False,
-                dropout=dropout,
-                depthwise_conv=depthwise_conv,
-                deprecated_depthwise_conv=deprecated_depthwise_conv,
-                residual_dtype=residual_dtype,
-                attn_dtype=attn_dtype,
-                ffn_dtype=ffn_dtype,
-                conv_dtype=conv_dtype,
-                log_attn_amplitude=log_attn_amplitude,
-            ) for _ in range(num_layers)
-        ])
-        # Tag forecaster layers so the amplitude diagnostic CSV rows are
-        # attributable to (block='fcst', layer_idx).
-        for i, lyr in enumerate(self.layers):
-            lyr.attn_amp_layer_idx = i
-            lyr.attn_amp_block_tag = "fcst"
+            self.layers = nn.ModuleList([
+                DecoderOnlyTransformerLayer(
+                    d_model=eff_fcst_d_model,
+                    nhead=eff_fcst_nhead,
+                    dim_feedforward=fcst_dim_feedforward,
+                    activation=activation or 'gelu',
+                    batch_first=True,
+                    norm_first=norm_first,
+                    norm_type=norm_type,
+                    bias=False,
+                    dropout=dropout,
+                    depthwise_conv=depthwise_conv,
+                    deprecated_depthwise_conv=deprecated_depthwise_conv,
+                    residual_dtype=residual_dtype,
+                    attn_dtype=attn_dtype,
+                    ffn_dtype=ffn_dtype,
+                    conv_dtype=conv_dtype,
+                    log_attn_amplitude=log_attn_amplitude,
+                ) for _ in range(num_layers)
+            ])
+            # Tag forecaster layers so the amplitude diagnostic CSV rows are
+            # attributable to (block='fcst', layer_idx).
+            for i, lyr in enumerate(self.layers):
+                lyr.attn_amp_layer_idx = i
+                lyr.attn_amp_block_tag = "fcst"
 
         self.causal_mask = None
 
-    def forward(self, x):
+    def forward(self, x, return_multi=False):
         # Apply input_to_latent if provided
         if self.input_to_latent is not None:
             x = self.input_to_latent(x)
@@ -626,6 +650,23 @@ class TransformerBlock(nn.Module):
         if n_enc > 0:
             x = x.float()
         x_original = x.clone()
+
+        # CPC-style multi-step linear forecast (#316). K linear heads map the
+        # causal encoder output h_t to predictions of h_{t+1}, …, h_{t+K}.
+        # Computed in fp32 (x is already fp32 at the encoder boundary). The
+        # full [B*C, T, K, H] stack feeds the multi-step InfoNCE loss
+        # (return_multi=True); the default path returns only the next-step
+        # (k=1) prediction so all existing callers — ConfigurableModel.forward,
+        # extract_forecaster_latents — see the usual [B*C, T, H] forecaster
+        # latent.
+        if self.forecaster_kind == "linear_cpc":
+            with torch.amp.autocast('cuda', enabled=False):
+                h = x.float()
+                f_stack = torch.stack(
+                    [head(h) for head in self.cpc_heads], dim=2)  # [B*C, T, K, H]
+            if return_multi:
+                return f_stack, x_original
+            return f_stack[:, :, 0, :], x_original
 
         # Forecaster bottleneck (#286 follow-up, v13). When configured
         # smaller than `dimension_e`, `fcst_down_proj` is a Linear that

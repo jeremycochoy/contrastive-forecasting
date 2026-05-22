@@ -78,6 +78,79 @@ def _effective_negative_count(loss_shape, B, T, C):
         per = base3 + n_alltime * nt + xb           # + all-time term(s) + cross_fe
     return B * per
 
+def cpc_multistep_loss(forecasted_multi, original_latent, tau,
+                       include_positive_in_denominator=True):
+    """CPC-style multi-step InfoNCE (van den Oord et al. 2018), #316.
+
+    The forecaster is K linear heads; head k predicts the encoder latent k
+    steps ahead. For each k ∈ {1..K} the InfoNCE positive is
+    cos(f^{(k)}_t, h_{t+k}) and the negatives are encoder latents h drawn
+    from (a) other sequences in the batch at the matched target time
+    (cross-batch) and (b) all other times within the same sequence
+    (cross-time, the single target l = t+k masked out). The per-step losses
+    are averaged over k. Temperature τ divides every cosine, matching the
+    project's other contrastive variants; cosine is computed on L2-normalised
+    latents.
+
+    Args:
+        forecasted_multi: [B, T, C, K, H] — head-k output at each (b, t, c).
+        original_latent:  [B, T, C, H]    — encoder latents h (the targets).
+        tau: scalar or 0-d tensor temperature.
+        include_positive_in_denominator: normalized InfoNCE (loss ≥ 0) when
+            True (matches the β recipe's --pos-in-denominator); negatives-only
+            form when False.
+
+    Returns: scalar loss (mean over k of the per-step InfoNCE).
+    """
+    B, T, C, K, H = forecasted_multi.shape
+    neg_inf = float('-inf')
+    f_norm = F.normalize(forecasted_multi, p=2, dim=-1)   # [B,T,C,K,H]
+    h_norm = F.normalize(original_latent, p=2, dim=-1)     # [B,T,C,H]
+    per_k = []
+    for k in range(1, K + 1):
+        Tk = T - k
+        if Tk <= 0:
+            break
+        # Prediction made at t of the latent k ahead, and its true target.
+        anchor = f_norm[:, :Tk, :, k - 1, :]      # [B, Tk, C, H]
+        pos_tgt = h_norm[:, k:, :, :]             # [B, Tk, C, H] = h_{t+k}
+        log_pos = (anchor * pos_tgt).sum(-1) / tau       # [B, Tk, C]
+
+        # (1) Cross-batch negatives at the matched target time t+k:
+        # cos(anchor^b_t, h_{t+k}^{b'}), b' ≠ b. Matmul over the batch axis.
+        a_p = anchor.permute(1, 2, 0, 3)          # [Tk, C, B, H]
+        p_p = pos_tgt.permute(1, 2, 0, 3)         # [Tk, C, B, H]
+        sims_cb = torch.matmul(
+            a_p, p_p.transpose(-2, -1)            # [Tk, C, B, B]
+        ).permute(2, 3, 0, 1)                      # [B, B, Tk, C]
+        mask_b = ~torch.eye(B, dtype=torch.bool, device=sims_cb.device)
+        mask_b = mask_b.view(B, B, 1, 1)
+        log_neg_cb = torch.logsumexp(
+            (sims_cb / tau).masked_fill(~mask_b, neg_inf), dim=1)   # [B,Tk,C]
+
+        # (2) In-sequence cross-time negatives: cos(anchor_t, h_l) for all
+        # l ≠ t+k, same (b, c). The matched target l = t+k is masked.
+        a_q = anchor.permute(0, 2, 1, 3)          # [B, C, Tk, H]
+        h_q = h_norm.permute(0, 2, 3, 1)          # [B, C, H, T]
+        sims_t = torch.matmul(a_q, h_q)           # [B, C, Tk, T]
+        t_idx = torch.arange(Tk, device=sims_t.device).view(Tk, 1)
+        l_idx = torch.arange(T, device=sims_t.device).view(1, T)
+        drop = (l_idx == (t_idx + k)).view(1, 1, Tk, T)
+        log_neg_t = torch.logsumexp(
+            (sims_t / tau).masked_fill(drop, neg_inf), dim=3
+        ).permute(0, 2, 1)                         # [B, Tk, C]
+
+        log_neg_total = torch.logsumexp(
+            torch.stack([log_neg_cb, log_neg_t], dim=0), dim=0)    # [B,Tk,C]
+        if include_positive_in_denominator:
+            log_denom = torch.logsumexp(
+                torch.stack([log_pos, log_neg_total], dim=0), dim=0)
+            per_k.append((log_denom - log_pos).mean())
+        else:
+            per_k.append((log_neg_total - log_pos).mean())
+    return torch.stack(per_k).mean()
+
+
 def contrastive_latent_loss(predicted_position, validation, spec,
                             get_history=False, tau_override=None,
                             include_positive_in_denominator=False,
@@ -144,8 +217,28 @@ def contrastive_latent_loss(predicted_position, validation, spec,
     contrastive reference). See #309.
     """
     forecasted_latent, original_latent = predicted_position
-    B, T, C, H = forecasted_latent.shape
     train_config = spec.train_configuration
+
+    # CPC multi-step (#316): the forecaster latent is a [B,T,C,K,H] stack of
+    # K linear-head predictions, so the 4-D unpack/positives below do not
+    # apply. Dispatch to the dedicated multi-step InfoNCE and return early.
+    # align_loss_weight / subtract_contrastive_floor are not defined for this
+    # variant (no single positive pair / closed-form floor) and are ignored.
+    if train_config.get('loss_shape') == 'cpc_multistep':
+        if tau_override is not None:
+            tau = tau_override
+        else:
+            tau = train_config.get('contrastive_divergence_temperature', 1.0)
+        pos_in_denom = include_positive_in_denominator or bool(
+            train_config.get('include_positive_in_denominator', False))
+        loss = cpc_multistep_loss(
+            forecasted_latent, original_latent, tau,
+            include_positive_in_denominator=pos_in_denom)
+        if get_history:
+            return loss, (forecasted_latent, original_latent)
+        return loss
+
+    B, T, C, H = forecasted_latent.shape
     if tau_override is not None:
         tau = tau_override
     else:
