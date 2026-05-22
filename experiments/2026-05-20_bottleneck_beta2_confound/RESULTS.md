@@ -62,52 +62,71 @@ bottleneck, converged) reach the v11c line (1.292). Every red
 | (B) bneck fp16 50k | yes | fp16 | 0.1 | 0.95 | **1.3572** | +5.0% |
 | α no-bneck **fp32 50k** | no | fp32 | 0.1 | 0.98 | **1.4057** | +8.8% |
 
-## Training curves — fp16 diverges, fp32 is stable
+## Training curves — fp16 diverges, fp32 is stable (both τ)
 
-![curves](plots/training_curves.png)
+τ=0.1:
+![curves τ0.1](plots/training_curves_tau01.png)
 
-(B) blue and the fp32 arms descend monotonically and hold (1−AUC at
-floor, gap ~1.0). The fp16 no-bottleneck snapshots (α/γ) bottom near
-step 900 then climb — loss up, 1−AUC spikes, gap collapses. fp32
-removes that instability entirely; the loss plateaus a touch above the
-bottleneck arms (~2.3–2.4 vs ~2.1), and as the GIFT-Eval shows, that
-fully-trained representation transfers worse than the brief snapshot.
+τ=0.8:
+![curves τ0.8](plots/training_curves_tau08.png)
 
-## Per-domain (τ=0.1)
+Same signature at both temperatures: the fp16 **no-bottleneck** arms
+(green) bottom early then climb — loss up, 1−AUC spikes, gap collapses
+(τ=0.1 ~step 900; τ=0.8 even earlier). The fp16 **bottleneck** arm
+((B)/β, blue) and the fresh-**fp32** no-bottleneck arms (red/orange)
+descend monotonically and hold. fp32 removes the instability; the loss
+plateaus a touch above the bottleneck arms, and (per GIFT-Eval) that
+fully-trained representation transfers worse than the brief fp16
+snapshot. (γ τ=0.8 fp16 was not run — it went straight to fresh fp32 —
+so only α illustrates the τ=0.8 fp16 divergence.)
 
-![star](plots/perdomain_star.png)
+## Per-domain (full GIFT-Eval) — both τ, v11c dashed
 
-The fp16 snapshots (α, γ) sit inside v11c on most domains; the
-fp32-converged arms (esp. α) bulge out past v11c — worse — confirming
-the aggregate ranking holds per-domain, not just on average.
+τ=0.1:
+![star τ0.1](plots/perdomain_star_tau01.png)
 
-## τ closes the gap — on the bottleneck arm
+τ=0.8:
+![star τ0.8](plots/perdomain_star_tau08.png)
 
-**Bottleneck arm (fp16, converged), the path to v11c:**
+τ=0.1: the fp16 snapshots (α, γ) sit inside v11c on most domains; the
+fp32-converged arms (esp. α) bulge out past v11c — worse. τ=0.8: the
+bottleneck **β-τ0.8** (blue) sits on/inside v11c across domains, while
+the fp32 no-bottleneck arms sit outside it — the bottleneck arm is the
+one that reaches v11c per-domain, not just on the aggregate.
 
-| step | recipe change | Full-97 GM |
-|------|---------------|----------:|
-| (B)     | bneck, β2 0.95, τ 0.1 | 1.3572 |
-| β       | β2 0.95 → **0.98**    | 1.3272 |
-| β-τ0.8  | τ 0.1 → **0.8**       | **1.2942** ≈ v11c |
+## τ = 0.1 vs τ = 0.8
 
-β2 and τ stack additively on the bottleneck recipe to reach v11c — in
-fp16, keeping the small forecaster. This is the practical win.
+Per-arm full-97 GM at each temperature (Δ = τ0.8 − τ0.1; negative =
+τ=0.8 better):
 
-**No-bottleneck arm (fresh fp32, converged) — the confound's actual α/γ:**
+| Arm (converged 50k) | τ=0.1 | τ=0.8 | Δ |
+|---------------------|------:|------:|------:|
+| **β** bneck fp16, β2 0.98       | 1.3272 | **1.2942** | **−0.033** |
+| α no-bneck fp32, β2 0.98        | 1.4057 | 1.3274 | −0.078 |
+| γ no-bneck fp32, β2 0.95        | 1.3132 | 1.3424 | **+0.029** |
 
-|        | β2 = 0.98 (α) | β2 = 0.95 (γ) |
-|--------|--------------:|--------------:|
-| τ = 0.1 | 1.4057       | **1.3132**    |
-| τ = 0.8 | 1.3274       | 1.3424        |
+**τ=0.8 is not uniformly better — its sign depends on the recipe:**
 
-- **β2 = 0.95 ≫ 0.98 at τ=0.1** (1.313 vs 1.406). At the under-trained
-  snapshots β2 was noise (1.277 vs 1.283); trained out, β2=0.98
-  over-specializes much worse.
-- **τ helps the worse arm, hurts the better one.** τ=0.8 lifts
-  β2=0.98 (1.406→1.327) but drags β2=0.95 (1.313→1.342). No
-  no-bottleneck cell reaches v11c — the best (γ-τ0.1, 1.313) still
-  trails the bottleneck β-τ0.8 (1.294).
+- **Bottleneck arm β: τ=0.8 helps decisively** (1.327 → 1.294), and is
+  what lands β on v11c. The path: (B) 1.3572 → β (β2 0.95→0.98) 1.3272
+  → β-τ0.8 (τ 0.1→0.8) **1.2942 ≈ v11c**. β2 and τ stack additively on
+  the bottleneck recipe — in fp16, keeping the small forecaster. This
+  is the practical win.
+- **No-bottleneck β2=0.98 (α): τ=0.8 helps a lot** (1.406 → 1.327) but
+  only rescues a poor arm — still short of v11c.
+- **No-bottleneck β2=0.95 (γ): τ=0.8 *hurts*** (1.313 → 1.342). γ-τ0.1
+  is the best no-bottleneck cell and τ=0.8 drags it.
+
+So **τ=0.8 helps the higher-β2 / bottlenecked recipes and hurts the
+best no-bottleneck (β2=0.95) one** — there is a τ×β2×bottleneck
+interaction, not a single best τ. No no-bottleneck cell at either τ
+reaches v11c; only the bottleneck β-τ0.8 does. Divergence under fp16 is
+τ-independent (no-bottleneck diverges at both; β stable at both).
+
+(β2 footnote: β2=0.95 ≫ 0.98 for the no-bottleneck arm at τ=0.1
+(1.313 vs 1.406), but β2=0.98 is better *with* the bottleneck — the β2
+optimum flips with the bottleneck. At the under-trained fp16 snapshots
+β2 was noise: 1.277 vs 1.283.)
 
 ## Mechanism (hypothesis)
 
