@@ -145,3 +145,18 @@ hurts β2=0.95.
 Plots: gm_summary.png (full matrix), training_curves.png (fp16-diverge
 vs fp32-stable), perdomain_star.png (τ=0.1 radar). Radar/curve buggy
 fills + clipping fixed (lines, data-driven rlim).
+
+## 2026-05-22 — (B)-τ0.8 landed = 1.2335; new best arm
+(B)-τ0.8 (bottleneck fp16, β2=0.95, τ=0.8) full-97 GM-Relative MASE
+**1.2335** (results/gift_eval_full_bb_bbase_tau08_50k/summary.txt) —
+**new best arm**, beating v11c (1.292) by ~4.5% and β-τ0.8 (1.2942).
+Caveats: backbone reached **47.6k/50k steps** (late DDP teardown OOM
+under GPU contention; loss had plateaued flat from ~40k, so
+representative but not a clean 50k); **single seed**. The +4.5% gap to
+v11c exceeds the ±0.02 (n=3) noise estimate but is one seed — a clean
+50k re-run / second seed is the confirmation step. On the bottleneck
+arm the β2 optimum flips with τ (β2=0.98 best at τ=0.1, β2=0.95 best at
+τ=0.8). Filled the two RESULTS.md `_TBD_` cells; re-sorted the GM table
+(B)-τ0.8 best→worst; added (B)-τ0.8 to plot_summary.py (now 8 bars,
+(B)-τ0.8 leftmost/best); perdomain_star_tau08.png already includes (B).
+WIP prepush — verdict drafted, main agent to ground/polish.

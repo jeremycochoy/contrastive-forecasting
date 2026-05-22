@@ -18,19 +18,22 @@ V11C = "/home/jupyter/contrastive-forecasting/experiments/2026-05-11_exp_encoder
 OUT = f"{MAIN}/plots"
 os.makedirs(OUT, exist_ok=True)
 
+# Converged backbones only — the fp16 no-bneck "snapshot" arms diverged
+# in training (their loss-min ~step 900 checkpoint is not a converged
+# model) and are excluded here; they live in the diagnostic curves +
+# the "pre-divergence snapshots" annex, not the results comparison.
 # label, summary_dir, colour-group key
 ARMS = [
     ("(B) bneck · fp16 · τ0.1 · β2.95",          f"{CL}/results/gift_eval_full_cl_hh_50k",            "bneck"),
+    ("(B) bneck · fp16 · τ0.8 · β2.95",          f"{MAIN}/results/gift_eval_full_bb_bbase_tau08_50k", "bneck"),
     ("β  bneck · fp16 · τ0.1 · β2.98",            f"{MAIN}/results/gift_eval_full_bb_beta_50k",        "bneck"),
     ("β  bneck · fp16 · τ0.8 · β2.98",            f"{MAIN}/results/gift_eval_full_bb_beta_tau08_50k",  "bneck"),
-    ("α  no-bneck · fp16 snap · τ0.1 · β2.98",    f"{MAIN}/results/gift_eval_full_bb_alpha_50k",       "snap"),
-    ("γ  no-bneck · fp16 snap · τ0.1 · β2.95",    f"{MAIN}/results/gift_eval_full_bb_gamma_50k",       "snap"),
     ("α  no-bneck · fp32 50k · τ0.1 · β2.98",     f"{MAIN}/results/gift_eval_full_bb_alpha_tau01_fp32_50k", "fp32"),
     ("γ  no-bneck · fp32 50k · τ0.1 · β2.95",     f"{MAIN}/results/gift_eval_full_bb_gamma_tau01_fp32_50k", "fp32"),
     ("α  no-bneck · fp32 50k · τ0.8 · β2.98",     f"{MAIN}/results/gift_eval_full_bb_alpha_tau08_fp32_50k", "fp32"),
     ("γ  no-bneck · fp32 50k · τ0.8 · β2.95",     f"{MAIN}/results/gift_eval_full_bb_gamma_tau08_fp32_50k", "fp32"),
 ]
-COLOR = {"bneck": "#1f77b4", "snap": "#2ca02c", "fp32": "#d62728"}
+COLOR = {"bneck": "#1f77b4", "fp32": "#d62728"}
 
 
 def agg_gm(sum_txt):
@@ -68,19 +71,18 @@ else:
         ax.text(v + 0.004, i, f"{v:.4f}", va="center", fontsize=9)
     ax.set_yticks(list(y)); ax.set_yticklabels(labels, fontsize=9)
     ax.set_xlabel("full-97 GM-Relative MASE (lower = better)")
-    ax.set_xlim(1.25, max(vals) * 1.04)
+    ax.set_xlim(min(vals) * 0.985, max(vals) * 1.04)
     if v11c:
         ax.axvline(v11c, color="#9467bd", ls="--", lw=1.5, label=f"v11c (no-bneck all-fp32 dk0.9) = {v11c:.3f}")
     ax.axvline(1.0, color="k", ls=":", lw=1.0, alpha=0.5, label="seasonal naive = 1.0")
     # legend for colour groups
     from matplotlib.patches import Patch
     handles = [Patch(color=COLOR["bneck"], label="bottleneck (fp16, converged)"),
-               Patch(color=COLOR["snap"], label="no-bneck (fp16 pre-divergence snapshot)"),
                Patch(color=COLOR["fp32"], label="no-bneck (fp32, converged 50k)")]
     if v11c:
         handles.append(plt.Line2D([0], [0], color="#9467bd", ls="--", lw=1.5, label=f"v11c = {v11c:.3f}"))
     ax.legend(handles=handles, loc="lower right", fontsize=8, frameon=True)
-    ax.set_title("#309 — full GIFT-Eval (97 cfg) by arm: bottleneck × precision × β2 × τ", fontsize=11)
+    ax.set_title("#309 — full GIFT-Eval (97 cfg), converged backbones only: bneck × precision × β2 × τ", fontsize=11)
     ax.invert_yaxis()
     plt.tight_layout()
     plt.savefig(f"{OUT}/gm_summary.png", dpi=120, bbox_inches="tight")
