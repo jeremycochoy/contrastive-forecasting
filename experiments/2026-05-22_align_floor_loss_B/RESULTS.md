@@ -30,25 +30,22 @@ configs, and across nearly every domain:
 *Per-domain GM-Relative MASE (log radial; dashed ring = seasonal-naive 1.0).
 The new arm (orange) is outside both (B) and v11c on 6 of 7 domains.*
 
-Crucially, by the contrastive metrics `L_align` looks **neutral-to-favourable,
-not harmful**: separability (1 − AUC) and top-1 retrieval of the true future are
-identical to (B) (both reach perfect separation by ~step 150), and the
-comparable normalized-InfoNCE diagnostic `loss_tau_ref` runs marginally *lower*
-than (B) late in training (~8% below its median) and without (B)'s spikes. The
-contrastive objective is, if anything, slightly *better* — yet transfer is worse.
+Crucially, `L_align` did **not** hurt the contrastive fit. With both losses
+re-based by the same gradient-neutral InfoNCE floor (`log(1+N·e^(−1/τ))` = 1.94),
+the comparable normalized-InfoNCE diagnostic `loss_tau_ref` — which neither flag
+enters — tracks (B) (marginally *lower*, and without (B)'s late-training spikes).
+The new arm's total loss simply carries the extra `+λ·L_align` term on top.
 
 ![training curves](plots/loss.png)
-*Panel 1: the new arm's floor-subtracted total loss (orange) descends to ~0.6
-while (B)'s raw InfoNCE (grey) plateaus near ~2.18; the ~1.56 gap between the
-curves is the subtracted floor (less the small L_align residual) — the floor
-flag working as designed (cosmetic). Panels 3–4 (1 − AUC, top1) overlay exactly.
-Panel 2 (`loss_tau_ref`): the new arm runs marginally below (B) late in training
-and without (B)'s spikes — the contrastive diagnostic is slightly better, not
-worse.*
+*Both curves re-based by the same InfoNCE floor (1.94). **Left** — total loss on
+a common baseline: both contrastive parts converge near the floor, and the new
+arm (orange) plateaus a constant ≈0.2 above (B) — that gap is the persistent
+`L_align` term. **Right** — `loss_tau_ref` (align/floor do not enter it): the new
+arm tracks (B), marginally lower and without (B)'s late spikes.*
 
-So this is **not a training failure** — the model still separates futures
-perfectly. The alignment pull simply moves the representation in a direction
-that transfers *worse* to forecasting.
+So this is **not a training failure** — the contrastive objective is fit as well
+as (B). The alignment pull simply moves the representation in a direction that
+transfers *worse* to forecasting under the matched 2-layer head.
 
 ## Protocol
 
@@ -79,23 +76,28 @@ that transfers *worse* to forecasting.
 
 - **`L_align` (λ=1) on (B) does not match v11c — it hurts** (+5.4% full / +11.7%
   triage worse than (B); further still from v11c).
-- The harm is **invisible in (indeed, opposite to) the contrastive metrics** —
-  AUC and top-1 match (B) and `loss_tau_ref` runs marginally *lower* — so it is
-  not a convergence/optimization problem. The extra constant pull toward the
-  (stop-grad) next-step latent reshapes the representation in a way the
-  contrastive objective rewards slightly but forecasting transfer penalises.
+- The harm is **not a contrastive-fit problem** — `loss_tau_ref` tracks (B)
+  (marginally lower) — so it is not a convergence/optimization issue. The extra
+  constant pull toward the (stop-grad) next-step latent reshapes the
+  representation in a way the contrastive objective is fine with but the matched
+  2-layer forecasting head transfers *worse* from.
 - The **floor subtraction is purely a readability aid** (gradient-neutral); it
   has no effect on the trained model, only on the logged loss.
 
-## Follow-up / hypotheses (not tested here)
+## Follow-up
 
+- **6-layer head re-eval (in progress).** The verdict above uses the matched
+  2-layer head. It is possible the align term yields a *better* representation
+  that the small head cannot read out. Per review, a **6-layer transformer
+  q-head** is being trained on both the align and (B) backbones and re-evaluated
+  on triage + full — results will be appended to test whether the story changes.
 - λ=1 may be too strong. A small λ (≈0.05–0.2) might keep the apparent
-  late-training smoothing (panel 2) without the transfer cost — untested.
+  late-training smoothing (right panel) without the transfer cost — untested.
 - Consistent with the broader #309 theme: extra contrastive shaping on (B) tends
   to over-specialise and degrade GIFT-Eval transfer. The gap to v11c is closed
   by temperature (β-τ0.8 ≈ 1.294 in #309), not by added loss terms.
 
 *Caveat: one seed per arm. The conclusion rests on a consistent, large
 degradation across two independent config sets (full-97 and triage-11), well
-beyond typical eval noise, while contrastive-training health is equal-or-better
-than (B) (AUC/top1 identical, `loss_tau_ref` marginally lower).*
+beyond typical eval noise, while the contrastive fit (`loss_tau_ref`) is
+equal-or-better than (B).*
