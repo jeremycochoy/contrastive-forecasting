@@ -173,6 +173,56 @@ def cpc_multistep_loss(forecasted_multi, original_latent, tau,
     return torch.stack(per_k).mean()
 
 
+def cpc_multistep_cpcnegs_loss(forecasted_multi, original_latent, tau,
+                               include_positive_in_denominator=True):
+    """CPC multi-step with CPC-CANONICAL negatives (#316 study arm #3) — the
+    ORIGINAL loss that trained the linear+CPC-negs k=12 backbones, kept so
+    that family's k=1 baseline is matched. For each k the InfoNCE positive is
+    cos(f^{(k)}_t, h_{t+k}); negatives are encoder latents h from (a) other
+    sequences at the matched target time (cross-batch) and (b) all other times
+    in the same sequence (the target l = t+k masked). NOT β's negatives — this
+    is the confounded control family, per-anchor (not batch-pooled). Averaged
+    over k.
+    """
+    B, T, C, K, H = forecasted_multi.shape
+    neg_inf = float('-inf')
+    f_norm = F.normalize(forecasted_multi, p=2, dim=-1)
+    h_norm = F.normalize(original_latent, p=2, dim=-1)
+    per_k = []
+    for k in range(1, K + 1):
+        Tk = T - k
+        if Tk <= 0:
+            break
+        anchor = f_norm[:, :Tk, :, k - 1, :]
+        pos_tgt = h_norm[:, k:, :, :]
+        log_pos = (anchor * pos_tgt).sum(-1) / tau
+        a_p = anchor.permute(1, 2, 0, 3)
+        p_p = pos_tgt.permute(1, 2, 0, 3)
+        sims_cb = torch.matmul(
+            a_p, p_p.transpose(-2, -1)).permute(2, 3, 0, 1)
+        mask_b = ~torch.eye(B, dtype=torch.bool, device=sims_cb.device)
+        mask_b = mask_b.view(B, B, 1, 1)
+        log_neg_cb = torch.logsumexp(
+            (sims_cb / tau).masked_fill(~mask_b, neg_inf), dim=1)
+        a_q = anchor.permute(0, 2, 1, 3)
+        h_q = h_norm.permute(0, 2, 3, 1)
+        sims_t = torch.matmul(a_q, h_q)
+        t_idx = torch.arange(Tk, device=sims_t.device).view(Tk, 1)
+        l_idx = torch.arange(T, device=sims_t.device).view(1, T)
+        drop = (l_idx == (t_idx + k)).view(1, 1, Tk, T)
+        log_neg_t = torch.logsumexp(
+            (sims_t / tau).masked_fill(drop, neg_inf), dim=3).permute(0, 2, 1)
+        log_neg_total = torch.logsumexp(
+            torch.stack([log_neg_cb, log_neg_t], dim=0), dim=0)
+        if include_positive_in_denominator:
+            log_denom = torch.logsumexp(
+                torch.stack([log_pos, log_neg_total], dim=0), dim=0)
+            per_k.append((log_denom - log_pos).mean())
+        else:
+            per_k.append((log_neg_total - log_pos).mean())
+    return torch.stack(per_k).mean()
+
+
 def contrastive_latent_loss(predicted_position, validation, spec,
                             get_history=False, tau_override=None,
                             include_positive_in_denominator=False,
@@ -246,14 +296,17 @@ def contrastive_latent_loss(predicted_position, validation, spec,
     # apply. Dispatch to the dedicated multi-step InfoNCE and return early.
     # align_loss_weight / subtract_contrastive_floor are not defined for this
     # variant (no single positive pair / closed-form floor) and are ignored.
-    if train_config.get('loss_shape') == 'cpc_multistep':
+    if train_config.get('loss_shape') in ('cpc_multistep', 'cpc_multistep_cpcnegs'):
         if tau_override is not None:
             tau = tau_override
         else:
             tau = train_config.get('contrastive_divergence_temperature', 1.0)
         pos_in_denom = include_positive_in_denominator or bool(
             train_config.get('include_positive_in_denominator', False))
-        loss = cpc_multistep_loss(
+        _cpc_fn = (cpc_multistep_cpcnegs_loss
+                   if train_config.get('loss_shape') == 'cpc_multistep_cpcnegs'
+                   else cpc_multistep_loss)
+        loss = _cpc_fn(
             forecasted_latent, original_latent, tau,
             include_positive_in_denominator=pos_in_denom)
         if get_history:
