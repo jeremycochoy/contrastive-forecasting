@@ -19,10 +19,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 ROOT = "/home/jupyter/contrastive-forecasting/experiments"
-MAIN = f"{ROOT}/2026-05-23_cpc_multistep_linear"
+MAIN = f"{ROOT}/2026-05-23_cpc_multistep_linear"   # main checkout: training outputs (runs/results)
 RES = f"{MAIN}/results"
 RUNS = f"{MAIN}/runs"
-OUT = f"{MAIN}/plots"
+# Figures are committed on the experiment branch, so write them into the
+# WORKTREE plots/ dir (where RESULTS.md embeds them), not the main checkout.
+OUT = "/home/jupyter/contrastive-forecasting/.claude/worktrees/exp-bottleneck-beta2-confound/experiments/2026-05-23_cpc_multistep_linear/plots"
 os.makedirs(OUT, exist_ok=True)
 
 V11C = f"{ROOT}/2026-05-11_exp_encoder_forecaster/results/gift_eval_full_v11c"
@@ -90,12 +92,16 @@ def eval_dir(tag):
     return f"{RES}/gift_eval_full_{tag}"
 
 
+def triage_eval_dir(tag):
+    return f"{RES}/gift_eval_triage_{tag}"
+
+
 # Backbone basename for a seed's FINAL checkpoint + head depth → eval tag.
-def final_tag(seed, hl, prec="fp16"):
+def final_tag(seed, hl, prec="fp32"):
     return f"bb_cpc_k12_s{seed}_{prec}_50k_FINAL_h{hl}L"
 
 
-def step_tag(seed, step_k, hl, prec="fp16"):
+def step_tag(seed, step_k, hl, prec="fp32"):
     return f"bb_cpc_k12_s{seed}_{prec}_50k_{step_k}k_h{hl}L"
 
 
@@ -185,7 +191,7 @@ def fig_radar():
 def fig_curves():
     curves = []
     for seed, col in ((SEED_A, C_CPC), (SEED_B, C_CPC2)):
-        csvp = f"{RUNS}/bb_cpc_k12_s{seed}_fp16_50k_losses.csv"
+        csvp = f"{RUNS}/bb_cpc_k12_s{seed}_fp32_50k_losses.csv"
         rows = load_csv(csvp)
         if rows:
             curves.append((f"CPC s{seed[-2:]}", col, rows))
@@ -219,20 +225,25 @@ def fig_curves():
             ax.axhline(0.0, color="k", ls=":", lw=0.8, alpha=0.5)
         ax.set_title(title); ax.set_xlabel("step"); ax.grid(True, alpha=0.3)
     axs[0, 0].legend(loc="upper right", fontsize=8)
-    fig.suptitle("#316 training curves — CPC multi-step linear forecaster (k=12), fp16, τ=0.10, β2=0.98", fontsize=12)
+    fig.suptitle("#316 training curves — CPC multi-step linear forecaster (k=12), fp32, τ=0.10, β2=0.98", fontsize=12)
     plt.tight_layout(); plt.savefig(f"{OUT}/training_curves.png", dpi=120, bbox_inches="tight"); plt.close()
     print(f"wrote {OUT}/training_curves.png — seeds={len(curves)}")
 
 
 def fig_gmase_vs_steps():
-    beta, v11c = agg_gm(f"{BETA}/summary.txt"), agg_gm(f"{V11C}/summary.txt")
+    # Steps-curve uses the TRIAGE(11) metric (fast, computed at every step);
+    # the 50k point reuses the headline's triage eval. β / v11c triage
+    # reference lines are drawn only if their triage summaries exist (same
+    # metric); the full-97 headline comparison lives in gm_summary.png.
+    beta_tri = agg_gm(f"{BETA.replace('gift_eval_full', 'gift_eval_triage')}/summary.txt")
+    v11c_tri = agg_gm(f"{V11C.replace('gift_eval_full', 'gift_eval_triage')}/summary.txt")
     fig, ax = plt.subplots(figsize=(8.5, 5.5))
     plotted = False
     for seed, col in ((SEED_A, C_CPC), (SEED_B, C_CPC2)):
         pts = []
         for sk in (10, 20, 30, 40, 50):
             tag = step_tag(seed, sk, 2) if sk != 50 else final_tag(seed, 2)
-            gm = agg_gm(f"{eval_dir(tag)}/summary.txt")
+            gm = agg_gm(f"{triage_eval_dir(tag)}/summary.txt")
             if gm is not None:
                 pts.append((sk, gm))
         if pts:
@@ -240,15 +251,16 @@ def fig_gmase_vs_steps():
             ax.plot(xs, ys, "o-", color=col, lw=2.0, label=f"CPC k=12 · s{seed[-2:]} (small head)")
             plotted = True
     if not plotted:
-        print("gmase_vs_steps: no per-step evals yet — skipping")
+        print("gmase_vs_steps: no per-step triage evals yet — skipping")
         plt.close(); return
-    if beta:
-        ax.axhline(beta, color=C_BETA, ls="--", lw=1.6, label=f"β (final 50k) = {beta:.3f}")
-    if v11c:
-        ax.axhline(v11c, color=C_V, ls="--", lw=1.6, label=f"v11c = {v11c:.3f}")
-    ax.set_xlabel("backbone training step (k)"); ax.set_ylabel("full-97 GM-Relative MASE (lower = better)")
+    if beta_tri:
+        ax.axhline(beta_tri, color=C_BETA, ls="--", lw=1.6, label=f"β triage = {beta_tri:.3f}")
+    if v11c_tri:
+        ax.axhline(v11c_tri, color=C_V, ls="--", lw=1.6, label=f"v11c triage = {v11c_tri:.3f}")
+    ax.set_xlabel("backbone training step (k)")
+    ax.set_ylabel("triage-11 GM-Relative MASE (lower = better)")
     ax.set_title("#316 — does GM-MASE keep improving with training?\n"
-                 "CPC backbone GIFT-Eval transfer vs training step", fontsize=11)
+                 "CPC backbone GIFT-Eval (triage-11) transfer vs training step", fontsize=11)
     ax.grid(True, alpha=0.3); ax.legend(fontsize=9)
     plt.tight_layout(); plt.savefig(f"{OUT}/gmase_vs_steps.png", dpi=120, bbox_inches="tight"); plt.close()
     print(f"wrote {OUT}/gmase_vs_steps.png")
