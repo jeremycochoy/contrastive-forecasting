@@ -395,11 +395,24 @@ def main():
         BACKBONE_CONFIG["num_encoder_layers"] = max(enc_layer_idxs) + 1
         print(f"  [head-train] auto-detected num_encoder_layers="
               f"{BACKBONE_CONFIG['num_encoder_layers']} from backbone checkpoint")
-    # Auto-detect a CPC multi-step forecaster (#316) from transformer.cpc_layers.<N>.*
-    # keys (K transformer-1L heads). Build the backbone with forecaster_kind='cpc'
-    # and matching K so load_state_dict succeeds; the forecaster bottleneck dim
-    # is inferred from cpc_down.0.weight. extract_forecaster_latents returns the
-    # next-step (k=1) head — the single forecaster latent, exactly as for β.
+    # Auto-detect a CPC multi-step forecaster (#316). Two families:
+    #   transformer.cpc_layers.<N>.*  → 'cpc'        (K transformer-1L heads, #1)
+    #   transformer.cpc_heads.<N>.*   → 'linear_cpc' (K linear heads, #2/#3)
+    # Build with the matching forecaster_kind + K so load_state_dict succeeds;
+    # for 'cpc' the bottleneck dim is read from cpc_down.0.weight. Either way
+    # extract_forecaster_latents returns the next-step (k=1) head.
+    lin_idxs = set()
+    for k in sd:
+        if k.startswith("transformer.cpc_heads."):
+            try:
+                lin_idxs.add(int(k.split(".")[2]))
+            except (IndexError, ValueError):
+                continue
+    if lin_idxs:
+        BACKBONE_CONFIG["forecaster_kind"] = "linear_cpc"
+        BACKBONE_CONFIG["cpc_k_steps"] = max(lin_idxs) + 1
+        print(f"  [head-train] auto-detected linear_cpc forecaster "
+              f"(K={BACKBONE_CONFIG['cpc_k_steps']}) from checkpoint")
     cpc_head_idxs = set()
     for k in sd:
         if k.startswith("transformer.cpc_layers."):

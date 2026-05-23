@@ -147,7 +147,7 @@ def parse_args():
                         "v13 default: --forecaster-d-model 128 "
                         "--forecaster-n-heads 4 (4 heads x 32 dim/head).")
     p.add_argument("--forecaster-kind", default="transformer",
-                   choices=["transformer", "cpc"],
+                   choices=["transformer", "cpc", "linear_cpc"],
                    help="Forecaster variant (#316). 'transformer' (default) "
                         "is the legacy single causal forecaster (optionally "
                         "bottlenecked via --forecaster-d-model). 'cpc' uses "
@@ -435,7 +435,7 @@ def forward_step(model, x, freq_ids=None, freq_embs=None,
     xr = model.prepare_encoder_input(
         x, freq_ids=freq_ids, freq_embs=freq_embs,
         seasonality_ids=seasonality_ids, seasonality_embs=seasonality_embs)
-    cpc = getattr(model, 'forecaster_kind', 'transformer') == 'cpc'
+    cpc = getattr(model, 'forecaster_kind', 'transformer') in ('cpc', 'linear_cpc')
     f_flat, o_flat = model.transformer(xr, return_multi=cpc)
     if cpc:
         # f_flat is the [B*C, T, K, H] multi-step stack; keep K as a 4th axis

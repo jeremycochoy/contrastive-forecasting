@@ -529,7 +529,20 @@ class TransformerBlock(nn.Module):
         self.forecaster_kind = forecaster_kind
         self.cpc_k_steps = int(cpc_k_steps)
 
-        if forecaster_kind == "cpc":
+        if forecaster_kind == "linear_cpc":
+            # CPC multi-step with LINEAR heads (#316, study arm #2/#3). K linear
+            # maps W_k: H → H on the encoder output h_t, head k → h_{t+k}. This
+            # is the linear-forecaster family (vs the transformer-head 'cpc');
+            # it confounds forecaster-type with k vs β, so it is a control
+            # family for the trend-consistency check, not the headline.
+            self.fcst_down_proj = nn.Identity()
+            self.fcst_up_proj = nn.Identity()
+            self.layers = nn.ModuleList()
+            self.cpc_heads = nn.ModuleList([
+                nn.Linear(dimension_e, dimension_e, bias=False)
+                for _ in range(self.cpc_k_steps)
+            ])
+        elif forecaster_kind == "cpc":
             # CPC multi-step (#316). K independent forecaster heads, each
             # architecturally IDENTICAL to β's forecaster (Linear down →
             # `num_layers` causal transformer layer(s) → Linear up). Head k
@@ -686,6 +699,15 @@ class TransformerBlock(nn.Module):
         # head so all existing callers — ConfigurableModel.forward,
         # extract_forecaster_latents — see the usual [B*C, T, H] forecaster
         # latent (the analogue of β's forecaster output).
+        if self.forecaster_kind == "linear_cpc":
+            with torch.amp.autocast('cuda', enabled=False):
+                h = x.float()
+                f_stack = torch.stack(
+                    [head(h) for head in self.cpc_heads], dim=2)  # [B*C, T, K, H]
+            if return_multi:
+                return f_stack, x_original
+            return f_stack[:, :, 0, :], x_original
+
         if self.forecaster_kind == "cpc":
             with torch.amp.autocast('cuda', enabled=False):
                 h = x.float()

@@ -478,9 +478,21 @@ def load_models(args, device):
         BACKBONE_CONFIG["num_encoder_layers"] = max(enc_layer_idxs) + 1
         print(f"  [eval] auto-detected num_encoder_layers="
               f"{BACKBONE_CONFIG['num_encoder_layers']} from backbone checkpoint")
-    # Auto-detect a CPC multi-step forecaster (#316) from transformer.cpc_layers.<N>.*
-    # keys (K transformer-1L heads); build with forecaster_kind='cpc' (matching K,
-    # bottleneck dim from cpc_down.0.weight) so load_state_dict succeeds.
+    # Auto-detect a CPC multi-step forecaster (#316). Two families:
+    #   transformer.cpc_layers.<N>.*  → 'cpc'        (K transformer-1L heads, #1)
+    #   transformer.cpc_heads.<N>.*   → 'linear_cpc' (K linear heads, #2/#3)
+    lin_idxs = set()
+    for k in sd:
+        if k.startswith("transformer.cpc_heads."):
+            try:
+                lin_idxs.add(int(k.split(".")[2]))
+            except (IndexError, ValueError):
+                continue
+    if lin_idxs:
+        BACKBONE_CONFIG["forecaster_kind"] = "linear_cpc"
+        BACKBONE_CONFIG["cpc_k_steps"] = max(lin_idxs) + 1
+        print(f"  [eval] auto-detected linear_cpc forecaster "
+              f"(K={BACKBONE_CONFIG['cpc_k_steps']}) from checkpoint")
     cpc_head_idxs = set()
     for k in sd:
         if k.startswith("transformer.cpc_layers."):
