@@ -147,19 +147,22 @@ def parse_args():
                         "v13 default: --forecaster-d-model 128 "
                         "--forecaster-n-heads 4 (4 heads x 32 dim/head).")
     p.add_argument("--forecaster-kind", default="transformer",
-                   choices=["transformer", "linear_cpc"],
+                   choices=["transformer", "cpc"],
                    help="Forecaster variant (#316). 'transformer' (default) "
-                        "is the legacy causal forecaster (optionally "
-                        "bottlenecked via --forecaster-d-model). 'linear_cpc' "
-                        "replaces it with --cpc-k-steps independent linear "
-                        "heads W_k: H->H predicting the encoder latent k steps "
-                        "ahead (h_{t+k}); requires --loss-shape cpc_multistep. "
-                        "--forecaster-d-model/-n-heads are ignored under "
-                        "linear_cpc.")
+                        "is the legacy single causal forecaster (optionally "
+                        "bottlenecked via --forecaster-d-model). 'cpc' uses "
+                        "--cpc-k-steps independent forecaster heads, each "
+                        "ARCHITECTURALLY IDENTICAL to the transformer "
+                        "forecaster (down -> causal transformer -> up, same "
+                        "--forecaster-d-model/-n-heads bottleneck), with head k "
+                        "forecasting the encoder latent k steps ahead (h_{t+k}); "
+                        "requires --loss-shape cpc_multistep. At K=1 it is "
+                        "byte-identical to the transformer forecaster, so only "
+                        "the number of forecast steps differs.")
     p.add_argument("--cpc-k-steps", type=int, default=12,
-                   help="CPC prediction horizon K (number of linear forecast "
-                        "heads) when --forecaster-kind linear_cpc. Default 12 "
-                        "(van den Oord et al. 2018). No-op otherwise.")
+                   help="CPC forecast horizon K (number of transformer-1L "
+                        "forecaster heads) when --forecaster-kind cpc. Default "
+                        "12 (van den Oord et al. 2018). No-op otherwise.")
     p.add_argument("--num-encoder-layers", type=int, default=0,
                    help="Number of causal transformer-encoder layers inserted "
                         "between the patch encoder and the forecaster. "
@@ -432,7 +435,7 @@ def forward_step(model, x, freq_ids=None, freq_embs=None,
     xr = model.prepare_encoder_input(
         x, freq_ids=freq_ids, freq_embs=freq_embs,
         seasonality_ids=seasonality_ids, seasonality_embs=seasonality_embs)
-    cpc = getattr(model, 'forecaster_kind', 'transformer') == 'linear_cpc'
+    cpc = getattr(model, 'forecaster_kind', 'transformer') == 'cpc'
     f_flat, o_flat = model.transformer(xr, return_multi=cpc)
     if cpc:
         # f_flat is the [B*C, T, K, H] multi-step stack; keep K as a 4th axis

@@ -529,23 +529,49 @@ class TransformerBlock(nn.Module):
         self.forecaster_kind = forecaster_kind
         self.cpc_k_steps = int(cpc_k_steps)
 
-        if forecaster_kind == "linear_cpc":
-            # CPC-style multi-step linear forecast (#316). The transformer
-            # forecaster is replaced by K independent linear heads
-            # W_k : H → H (no bias, no attention, no bottleneck), each
-            # predicting the encoder latent k steps ahead (h_{t+k}) from the
-            # causal encoder output h_t. The transformer-forecaster submodules
-            # are NOT built, so a linear_cpc checkpoint carries only
-            # `cpc_heads.*` on the forecaster side. The forecaster loss is the
-            # multi-step InfoNCE in src.loss (`cpc_multistep`); the next-step
-            # head (k=1) doubles as the single forecaster latent consumed by
-            # the downstream head-trainer / GIFT-Eval (forward default).
-            self.fcst_down_proj = nn.Identity()
-            self.fcst_up_proj = nn.Identity()
-            self.layers = nn.ModuleList()
-            self.cpc_heads = nn.ModuleList([
-                nn.Linear(dimension_e, dimension_e, bias=False)
-                for _ in range(self.cpc_k_steps)
+        if forecaster_kind == "cpc":
+            # CPC multi-step (#316). K independent forecaster heads, each
+            # architecturally IDENTICAL to β's forecaster (Linear down →
+            # `num_layers` causal transformer layer(s) → Linear up). Head k
+            # forecasts the encoder latent k steps ahead (h_{t+k}); for K = 1
+            # the single head is byte-identical to β's forecaster. ONLY the
+            # number of forecast steps differs from β — the per-head
+            # architecture (a transformer 1L with the d=128 bottleneck) is
+            # unchanged, so there is no linear-head confound. The next-step
+            # head (k=1) is the single forecaster latent the downstream
+            # head-trainer / GIFT-Eval consumes (forward default).
+            fcst_dim_feedforward = int(feedforward_mult * eff_fcst_d_model)
+            self.fcst_down_proj = nn.Identity()   # unused in cpc mode
+            self.fcst_up_proj = nn.Identity()     # (per-head projections below)
+            self.layers = nn.ModuleList()         # unused
+
+            def _mk_proj(a, b):
+                return nn.Linear(a, b, bias=False) if a != b else nn.Identity()
+            self.cpc_down = nn.ModuleList(
+                [_mk_proj(dimension_e, eff_fcst_d_model) for _ in range(self.cpc_k_steps)])
+            self.cpc_up = nn.ModuleList(
+                [_mk_proj(eff_fcst_d_model, dimension_e) for _ in range(self.cpc_k_steps)])
+            self.cpc_layers = nn.ModuleList([
+                nn.ModuleList([
+                    DecoderOnlyTransformerLayer(
+                        d_model=eff_fcst_d_model,
+                        nhead=eff_fcst_nhead,
+                        dim_feedforward=fcst_dim_feedforward,
+                        activation=activation or 'gelu',
+                        batch_first=True,
+                        norm_first=norm_first,
+                        norm_type=norm_type,
+                        bias=False,
+                        dropout=dropout,
+                        depthwise_conv=depthwise_conv,
+                        deprecated_depthwise_conv=deprecated_depthwise_conv,
+                        residual_dtype=residual_dtype,
+                        attn_dtype=attn_dtype,
+                        ffn_dtype=ffn_dtype,
+                        conv_dtype=conv_dtype,
+                        log_attn_amplitude=False,
+                    ) for _ in range(num_layers)
+                ]) for _ in range(self.cpc_k_steps)
             ])
         else:
             fcst_dim_feedforward = int(feedforward_mult * eff_fcst_d_model)
@@ -651,19 +677,25 @@ class TransformerBlock(nn.Module):
             x = x.float()
         x_original = x.clone()
 
-        # CPC-style multi-step linear forecast (#316). K linear heads map the
-        # causal encoder output h_t to predictions of h_{t+1}, …, h_{t+K}.
-        # Computed in fp32 (x is already fp32 at the encoder boundary). The
-        # full [B*C, T, K, H] stack feeds the multi-step InfoNCE loss
-        # (return_multi=True); the default path returns only the next-step
-        # (k=1) prediction so all existing callers — ConfigurableModel.forward,
+        # CPC multi-step (#316). K transformer-1L forecaster heads (each = β's
+        # forecaster: down → causal transformer layer(s) → up) map the causal
+        # encoder output h_t to a prediction of the latent k steps ahead.
+        # Computed in fp32 (x is already fp32 at the encoder boundary). The full
+        # [B*C, T, K, H] stack feeds the multi-step InfoNCE loss
+        # (return_multi=True); the default path returns only the next-step (k=1)
+        # head so all existing callers — ConfigurableModel.forward,
         # extract_forecaster_latents — see the usual [B*C, T, H] forecaster
-        # latent.
-        if self.forecaster_kind == "linear_cpc":
+        # latent (the analogue of β's forecaster output).
+        if self.forecaster_kind == "cpc":
             with torch.amp.autocast('cuda', enabled=False):
                 h = x.float()
-                f_stack = torch.stack(
-                    [head(h) for head in self.cpc_heads], dim=2)  # [B*C, T, K, H]
+                preds = []
+                for kdown, klayers, kup in zip(self.cpc_down, self.cpc_layers, self.cpc_up):
+                    xk = kdown(h)
+                    for layer in klayers:
+                        xk = layer(xk, tgt_mask=self.causal_mask, tgt_is_causal=True)
+                    preds.append(kup(xk))
+                f_stack = torch.stack(preds, dim=2)               # [B*C, T, K, H]
             if return_multi:
                 return f_stack, x_original
             return f_stack[:, :, 0, :], x_original

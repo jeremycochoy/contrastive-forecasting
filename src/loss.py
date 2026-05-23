@@ -78,76 +78,98 @@ def _effective_negative_count(loss_shape, B, T, C):
         per = base3 + n_alltime * nt + xb           # + all-time term(s) + cross_fe
     return B * per
 
+def _full_hh_negs_terms(hy_hat_norm, hx_norm, hy_norm, hz_hat_norm, orig_norm,
+                        B, T, C, tau):
+    """Exact replication of β's `cosine_similarity_batch_full_hh_negs`
+    numerator + denominator (want_hh variant), returning
+    ``(log_pos, log_neg_total)`` so a caller can reuse β's NEGATIVES unchanged.
+
+    Mirrors the inline branch in `contrastive_latent_loss` term-for-term — xy,
+    xx, zy, the encoder all-time `hh`, and cross-batch — including the
+    batch-pooling of `log_neg_total` (logsumexp over the batch axis). Verified
+    numerically equal to that branch by scripts/test_cpc.py (#316 review).
+    log_pos: [B, T-1, C]; log_neg_total: [1, T-1, C].
+    """
+    neg_inf = float('-inf')
+    log_pos = cosine_similarity_from_normalized(hy_norm, hy_hat_norm) / tau
+    sims_xy = cosine_similarity_from_normalized(hx_norm.unsqueeze(3), hy_norm.unsqueeze(2))
+    log_neg_xy = torch.logsumexp(sims_xy / tau, dim=2)
+    sims_xx = cosine_similarity_from_normalized(hx_norm.unsqueeze(3), hx_norm.unsqueeze(2))
+    mask_mat = ~torch.eye(C, dtype=torch.bool, device=sims_xx.device)
+    mask_mat = mask_mat.view(1, 1, C, C)
+    log_neg_xx = torch.logsumexp((sims_xx / tau).masked_fill(~mask_mat, neg_inf), dim=2)
+    sims_zy = cosine_similarity_from_normalized(hz_hat_norm.unsqueeze(3), hy_hat_norm.unsqueeze(2))
+    log_neg_zy = torch.logsumexp(sims_zy / tau, dim=2)
+    t_idx = torch.arange(T - 1, device=orig_norm.device).view(T - 1, 1)
+    l_idx = torch.arange(T, device=orig_norm.device).view(1, T)
+    sims_hh = torch.matmul(hx_norm.permute(0, 2, 1, 3), orig_norm.permute(0, 2, 3, 1))  # [B,C,T-1,T]
+    mask_hh = (l_idx == t_idx).view(1, 1, T - 1, T)
+    log_neg_hh = torch.logsumexp(
+        (sims_hh / tau).masked_fill(mask_hh, neg_inf), dim=3).permute(0, 2, 1)
+    hy_p = hy_norm.permute(1, 2, 0, 3)
+    hy_hat_p = hy_hat_norm.permute(1, 2, 0, 3)
+    sims_cb = torch.matmul(
+        hy_hat_p, hy_p.transpose(-2, -1)).permute(2, 3, 0, 1).contiguous()  # [B,B,T-1,C]
+    mask_b = ~torch.eye(B, dtype=torch.bool, device=sims_cb.device)
+    mask_b = mask_b.view(B, B, 1, 1)
+    log_neg_cb = torch.logsumexp((sims_cb / tau).masked_fill(~mask_b, neg_inf), dim=1)
+    negatives = torch.stack(
+        [log_neg_xy, log_neg_xx, log_neg_zy, log_neg_hh, log_neg_cb], dim=0)
+    log_neg_per_anchor = torch.logsumexp(negatives, dim=0)
+    log_neg_total = torch.logsumexp(log_neg_per_anchor, dim=0, keepdim=True)  # [1,T-1,C]
+    return log_pos, log_neg_total
+
+
 def cpc_multistep_loss(forecasted_multi, original_latent, tau,
                        include_positive_in_denominator=True):
-    """CPC-style multi-step InfoNCE (van den Oord et al. 2018), #316.
+    """Multi-step positive on β's negatives — β's
+    `cosine_similarity_batch_full_hh_negs` with ONLY the positive changed (#316).
 
-    The forecaster is K linear heads; head k predicts the encoder latent k
-    steps ahead. For each k ∈ {1..K} the InfoNCE positive is
-    cos(f^{(k)}_t, h_{t+k}) and the negatives are encoder latents h drawn
-    from (a) other sequences in the batch at the matched target time
-    (cross-batch) and (b) all other times within the same sequence
-    (cross-time, the single target l = t+k masked out). The per-step losses
-    are averaged over k. Temperature τ divides every cosine, matching the
-    project's other contrastive variants; cosine is computed on L2-normalised
-    latents.
+    β contrasts the single 1-step pair (f_t, h_{t+1}) against its negative pool
+    (xy, xx, zy, encoder all-time hh, cross-batch — batch-pooled into
+    `log_neg_total`). Here the forecaster is K linear heads, f^{(k)}_t = W_k h_t,
+    so we keep β's negative pool **exactly** — computed once from the k = 1 head
+    (the analogue of β's f_t) — and only the positive changes: for each horizon
+    k the InfoNCE positive is cos(f^{(k)}_t, h_{t+k}) against that same pool, and
+    the per-k losses are averaged. At k = 1 this is byte-for-byte β's loss.
 
     Args:
         forecasted_multi: [B, T, C, K, H] — head-k output at each (b, t, c).
-        original_latent:  [B, T, C, H]    — encoder latents h (the targets).
+        original_latent:  [B, T, C, H]    — encoder latents h (targets).
         tau: scalar or 0-d tensor temperature.
         include_positive_in_denominator: normalized InfoNCE (loss ≥ 0) when
-            True (matches the β recipe's --pos-in-denominator); negatives-only
-            form when False.
+            True (β's --pos-in-denominator); negatives-only form when False.
 
-    Returns: scalar loss (mean over k of the per-step InfoNCE).
+    Returns: scalar loss (mean over k of the per-step InfoNCE on β's negatives).
     """
     B, T, C, K, H = forecasted_multi.shape
-    neg_inf = float('-inf')
     f_norm = F.normalize(forecasted_multi, p=2, dim=-1)   # [B,T,C,K,H]
-    h_norm = F.normalize(original_latent, p=2, dim=-1)     # [B,T,C,H]
+    orig_norm = F.normalize(original_latent, p=2, dim=-1)  # [B,T,C,H]
+    f1_norm = f_norm[:, :, :, 0, :]                        # k=1 head = β's f_t
+
+    # β's negatives, computed once from the k=1 head (identical to β).
+    log_pos_1, log_neg_total = _full_hh_negs_terms(
+        f1_norm[:, :-1], orig_norm[:, :-1], orig_norm[:, 1:],
+        f1_norm[:, 1:], orig_norm, B, T, C, tau)           # log_neg_total: [1,T-1,C]
+
     per_k = []
     for k in range(1, K + 1):
         Tk = T - k
         if Tk <= 0:
             break
-        # Prediction made at t of the latent k ahead, and its true target.
-        anchor = f_norm[:, :Tk, :, k - 1, :]      # [B, Tk, C, H]
-        pos_tgt = h_norm[:, k:, :, :]             # [B, Tk, C, H] = h_{t+k}
-        log_pos = (anchor * pos_tgt).sum(-1) / tau       # [B, Tk, C]
-
-        # (1) Cross-batch negatives at the matched target time t+k:
-        # cos(anchor^b_t, h_{t+k}^{b'}), b' ≠ b. Matmul over the batch axis.
-        a_p = anchor.permute(1, 2, 0, 3)          # [Tk, C, B, H]
-        p_p = pos_tgt.permute(1, 2, 0, 3)         # [Tk, C, B, H]
-        sims_cb = torch.matmul(
-            a_p, p_p.transpose(-2, -1)            # [Tk, C, B, B]
-        ).permute(2, 3, 0, 1)                      # [B, B, Tk, C]
-        mask_b = ~torch.eye(B, dtype=torch.bool, device=sims_cb.device)
-        mask_b = mask_b.view(B, B, 1, 1)
-        log_neg_cb = torch.logsumexp(
-            (sims_cb / tau).masked_fill(~mask_b, neg_inf), dim=1)   # [B,Tk,C]
-
-        # (2) In-sequence cross-time negatives: cos(anchor_t, h_l) for all
-        # l ≠ t+k, same (b, c). The matched target l = t+k is masked.
-        a_q = anchor.permute(0, 2, 1, 3)          # [B, C, Tk, H]
-        h_q = h_norm.permute(0, 2, 3, 1)          # [B, C, H, T]
-        sims_t = torch.matmul(a_q, h_q)           # [B, C, Tk, T]
-        t_idx = torch.arange(Tk, device=sims_t.device).view(Tk, 1)
-        l_idx = torch.arange(T, device=sims_t.device).view(1, T)
-        drop = (l_idx == (t_idx + k)).view(1, 1, Tk, T)
-        log_neg_t = torch.logsumexp(
-            (sims_t / tau).masked_fill(drop, neg_inf), dim=3
-        ).permute(0, 2, 1)                         # [B, Tk, C]
-
-        log_neg_total = torch.logsumexp(
-            torch.stack([log_neg_cb, log_neg_t], dim=0), dim=0)    # [B,Tk,C]
+        if k == 1:
+            log_pos = log_pos_1                             # [B,T-1,C] (β's positive)
+        else:
+            anchor = f_norm[:, :Tk, :, k - 1, :]           # f^{(k)}_t [B,Tk,C,H]
+            pos_tgt = orig_norm[:, k:, :, :]               # h_{t+k}   [B,Tk,C,H]
+            log_pos = (anchor * pos_tgt).sum(-1) / tau     # [B,Tk,C]
+        lnt = log_neg_total[:, :Tk, :]                      # β's negatives at anchors 0..Tk-1
         if include_positive_in_denominator:
             log_denom = torch.logsumexp(
-                torch.stack([log_pos, log_neg_total], dim=0), dim=0)
+                torch.stack([log_pos, lnt.expand_as(log_pos)], dim=0), dim=0)
             per_k.append((log_denom - log_pos).mean())
         else:
-            per_k.append((log_neg_total - log_pos).mean())
+            per_k.append((lnt.expand_as(log_pos) - log_pos).mean())
     return torch.stack(per_k).mean()
 
 

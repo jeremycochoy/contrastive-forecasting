@@ -395,24 +395,28 @@ def main():
         BACKBONE_CONFIG["num_encoder_layers"] = max(enc_layer_idxs) + 1
         print(f"  [head-train] auto-detected num_encoder_layers="
               f"{BACKBONE_CONFIG['num_encoder_layers']} from backbone checkpoint")
-    # Auto-detect a CPC linear forecaster (#316) from transformer.cpc_heads.<N>.*
-    # keys. Such a backbone has K linear heads and no transformer-forecaster
-    # submodules, so the head-trainer's backbone must be built with
-    # forecaster_kind='linear_cpc' (and matching K) for load_state_dict to
-    # succeed. extract_forecaster_latents then returns the next-step (k=1)
-    # head — the single forecaster latent, exactly as for a 1-step forecaster.
+    # Auto-detect a CPC multi-step forecaster (#316) from transformer.cpc_layers.<N>.*
+    # keys (K transformer-1L heads). Build the backbone with forecaster_kind='cpc'
+    # and matching K so load_state_dict succeeds; the forecaster bottleneck dim
+    # is inferred from cpc_down.0.weight. extract_forecaster_latents returns the
+    # next-step (k=1) head — the single forecaster latent, exactly as for β.
     cpc_head_idxs = set()
     for k in sd:
-        if k.startswith("transformer.cpc_heads."):
+        if k.startswith("transformer.cpc_layers."):
             try:
                 cpc_head_idxs.add(int(k.split(".")[2]))
             except (IndexError, ValueError):
                 continue
     if cpc_head_idxs:
-        BACKBONE_CONFIG["forecaster_kind"] = "linear_cpc"
+        BACKBONE_CONFIG["forecaster_kind"] = "cpc"
         BACKBONE_CONFIG["cpc_k_steps"] = max(cpc_head_idxs) + 1
-        print(f"  [head-train] auto-detected linear_cpc forecaster "
-              f"(K={BACKBONE_CONFIG['cpc_k_steps']}) from backbone checkpoint")
+        w = sd.get("transformer.cpc_down.0.weight")
+        if w is not None:
+            BACKBONE_CONFIG["forecaster_d_model"] = w.shape[0]
+            args.forecaster_d_model = w.shape[0]
+        print(f"  [head-train] auto-detected cpc forecaster "
+              f"(K={BACKBONE_CONFIG['cpc_k_steps']}, "
+              f"d={BACKBONE_CONFIG.get('forecaster_d_model')}) from checkpoint")
     if args.rev_norm_kind == "ewma":
         BACKBONE_CONFIG["rev_norm_span"] = args.rev_norm_span
     # Auto-detect patch_stats from the encoder's first projection input width.

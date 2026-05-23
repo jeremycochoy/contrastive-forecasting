@@ -60,6 +60,29 @@ triage on periodic checkpoints.
   sits above β throughout.
 - Pending: seed A small-head full; seed B (both heads) for the variance check.
 
+## 2026-05-23 — DESIGN CORRECTION after PR #317 review (jeremycochoy)
+The first implementation had **two confounds** vs the question "does k=12 improve
+β"; both fixed:
+1. **Negatives.** The loss used a CPC-canonical negative pool, not β's. Rewrote
+   `cpc_multistep` to reuse β's exact `cosine_similarity_batch_full_hh_negs`
+   negatives (xy/xx/zy/encoder-all-time-hh/cross-batch, batch-pooled) and change
+   ONLY the positive to the multi-step average over k. Unit test: at k=1 the loss
+   equals β's `full_hh_negs` exactly (7.468332, C=1).
+2. **Forecaster head.** The first run REPLACED β's transformer forecaster with
+   linear heads — confounding forecaster-type with k, and not CPC-faithful (CPC
+   keeps the autoregressive context = β's transformer forecaster). Now the
+   forecaster is **K transformer-1L heads, each architecturally identical to β's
+   forecaster** (d=128/4-head bottleneck), head k → h_{t+k}; K=1 ≡ β.
+
+The earlier numbers (6L 1.4722 / small 1.5240) were the confounded
+(linear + CPC-negs) family — they become study arm **#3 (k=12)**, not the headline.
+
+## Study plan (priority order, per review)
+- **#1** (priority): k=12 transformer-head (β-arch, β-negs) vs β (1.3272).
+  fp32 bs256 fits at 20.9/24.6 GB. Training (seed 20260520).
+- **#2**: linear-head k=1 & k=12, β-negs.
+- **#3**: k=1 baseline for the original linear-head + CPC-negs family (k=12 done).
+Goal: check the k-trend is consistent across families.
+
 ## Compute
-All on elisa (free), 2× RTX 4090: GPU1 = training chain (seed A→B + 6L heads),
-GPU0 = small heads + steps-curve. No vast spend.
+All on elisa (free), 2× RTX 4090. No vast spend.

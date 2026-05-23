@@ -1,4 +1,13 @@
-# #316 — CPC-style multi-step linear forecast on β (k=12)
+# #316 — CPC-style multi-step forecast on β (k=12)
+
+> **⚠ Under revision (PR #317 review).** The design was corrected after review:
+> the loss now uses **β's exact negatives** (only the positive becomes
+> multi-step; k=1 ≡ β, verified), and the forecaster is **K transformer-1L
+> heads** (β's architecture per head), not linear — removing the
+> forecaster-type confound. The numbers below (1.4722 / 1.5240) are from the
+> earlier confounded (linear + CPC-negatives) family and will be **reframed as
+> study arm #3**; the headline #1 (transformer-head, β-negatives) is re-running.
+> Verdict and figures below will be rewritten once #1–#3 land.
 
 ## Question
 
@@ -33,10 +42,10 @@ asks:
 ## Result
 
 **No — the multi-step linear forecast does not close the gap; it widens it.**
-The CPC backbone transfers **worse** than β, not better: full-97 GM-MASE
-**1.4722** with a 6-layer head (vs β **1.3272**, v11c **1.292**) — about
-**+11 %** over β and **+14 %** over v11c. _[PENDING: small-head full + seed B
-to complete the table; both-heads/seed agreement sentence.]_
+The CPC backbone transfers **worse** than β on **both** heads: full-97 GM-MASE
+**1.4722** (6L head) and **1.5240** (small head), vs β **1.3272** and v11c
+**1.292** — **+11 % to +18 %** over the references. _[PENDING: seed B both
+heads → seed-spread sentence.]_
 
 ![gm summary](plots/gm_summary.png)
 
@@ -46,8 +55,12 @@ to complete the table; both-heads/seed agreement sentence.]_
 | **β** (bneck, β2=0.98, ref) | **1.3272** | +2.7 % |
 | (B) (ref) | 1.3572 | +5.0 % |
 | **CPC k=12 · seed A · 6L head** | **1.4722** | **+14.0 %** |
-| CPC k=12 · seed A · small head | _[PENDING]_ | |
+| **CPC k=12 · seed A · small head** | **1.5240** | **+18.0 %** |
 | CPC k=12 · seed B · 6L / small | _[PENDING]_ | |
+
+Both heads land well outside β: the deeper 6L head recovers a little (a
+stronger decoder partly compensates for a weaker backbone) but neither
+approaches β, let alone v11c.
 
 ### Per domain (full GIFT-Eval), v11c reference
 
@@ -59,10 +72,11 @@ _[PENDING radar interpretation — the CPC ring is expected to sit outside
 ### Does GM-MASE keep improving with training?
 
 **No.** Downstream transfer is **flat across training** and pinned above β
-throughout: the small-head triage GM-MASE is 1.659 / 1.663 / 1.660 at 10 k /
-20 k / 30 k steps (β triage = 1.484). More contrastive training does not move
-the downstream number — the very decoupling the multi-step objective was meant
-to remove. _[PENDING: 50 k point + seed B trace.]_
+throughout: the small-head triage GM-MASE is 1.659 / 1.663 / 1.660 / 1.705 at
+10 k / 20 k / 30 k / 50 k steps (β triage = 1.484, v11c triage = 1.388) — if
+anything slightly *worse* by 50 k. More contrastive training does not move the
+downstream number toward the references — the very decoupling the multi-step
+objective was meant to remove. _[PENDING: seed B trace.]_
 
 ![GM-MASE vs step](plots/gmase_vs_steps.png)
 
@@ -104,11 +118,8 @@ AdamW β2 = 0.98, lr 1e-3, weight-decay 0.1, 50 k steps, global batch 256,
 RevEWMNorm span 128, frequency + seasonality embeddings, mixup 0.3,
 single channel, T_raw 4096 (T = 256 patches of W = 16).
 
-**Precision = fp32.** At β's lr 1e-3 the multi-step objective diverges under
-the fp16 body (loss bottoms ~step 300 then climbs; the contrastive metrics
-collapse) — an fp16 × high-lr instability (lowering lr to 3e-4 is equally
-stable). fp32 at lr 1e-3 is stable and is the precision the v11c champion
-uses, so all runs are fp32. (Operational detail in EXECUTION_LOG.md.)
+**Precision = fp32** — the precision the v11c champion uses (the multi-step
+objective is unstable under β's fp16 body at lr 1e-3; detail in EXECUTION_LOG.md).
 
 **Two seeds** (20260520 = β's seed; 20260523), identical recipe, for a
 variance estimate — the single-seed ±0.02 spread is the standing caveat of
@@ -124,9 +135,9 @@ reported so the numbers line up with β and v11c.
 ## What we learned
 
 1. **The multi-step linear forecast does not close the gap to v11c — it
-   widens it.** CPC k=12 (6L head) lands at full-97 1.4722, ~+11 % over β
-   (1.3272) and +14 % over v11c (1.292). _[PENDING: small-head + seed B
-   confirm.]_ The hypothesis that one-step prediction was *the* thing holding
+   widens it.** CPC k=12 lands at full-97 1.4722 (6L head) / 1.5240 (small
+   head), ~+11–18 % over β (1.3272) and v11c (1.292). _[PENDING: seed B
+   confirms.]_ The hypothesis that one-step prediction was *the* thing holding
    β back is not supported: predicting 12 steps with linear heads makes
    transfer worse, not better.
 2. **Downstream GM-MASE is flat across training** (10 k→30 k triage ≈ 1.66,

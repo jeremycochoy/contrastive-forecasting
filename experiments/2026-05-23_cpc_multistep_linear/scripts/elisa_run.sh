@@ -18,7 +18,7 @@
 #   gpu  = CUDA_VISIBLE_DEVICES index (0|1)
 #   prec = fp16 (default, β's precision) | fp32
 set -uo pipefail
-SEED="${1:?seed}"; GPU="${2:?gpu}"; PREC="${3:-fp16}"
+SEED="${1:?seed}"; GPU="${2:?gpu}"; PREC="${3:-fp16}"; K="${4:-12}"
 case "$PREC" in
   fp16) DT=(--residual-dtype fp32 --attn-dtype fp16 --ffn-dtype fp16 --conv-dtype fp16 --patch-emb-dtype fp32) ;;
   fp32) DT=(--residual-dtype fp32 --attn-dtype fp32 --ffn-dtype fp32 --conv-dtype fp32 --patch-emb-dtype fp32) ;;
@@ -26,7 +26,7 @@ case "$PREC" in
 esac
 WT=/home/jupyter/contrastive-forecasting/.claude/worktrees/exp-bottleneck-beta2-confound
 MAIN=/home/jupyter/contrastive-forecasting/experiments/2026-05-23_cpc_multistep_linear
-NAME="bb_cpc_k12_s${SEED}_${PREC}_50k"
+NAME="bb_cpctrf_k${K}_s${SEED}_${PREC}_50k"
 TOTAL=50000
 RUNS="$MAIN/runs"; RES="$MAIN/results"; mkdir -p "$RUNS" "$RES"
 BB="$RUNS/${NAME}_FINAL.pth"
@@ -40,7 +40,7 @@ log(){ echo "[$(date '+%m-%d %H:%M:%S')] [cpc s$SEED g$GPU] $*"; }
 [ -f "$BB" ] && { log "BB SKIP ($NAME FINAL exists)"; exit 0; }
 tlog="$RES/run_${NAME}.log"
 export CUDA_VISIBLE_DEVICES="$GPU"
-log "BB START K=12 linear CPC β2=0.98 τ=0.10 prec=$PREC 1-GPU bs256 GPU=$GPU -> $TOTAL"
+log "BB START K=$K cpc-trfm-heads (β-arch, β-negs) β2=0.98 τ=0.10 prec=$PREC 1-GPU bs256 GPU=$GPU -> $TOTAL"
 python3 -u "$TRAIN" \
   --batch-size 256 --device cuda --total-steps "$TOTAL" --lr 1e-3 --weight-decay 0.1 \
   --adam-beta1 0.9 --adam-beta2 0.98 --seed "$SEED" \
@@ -48,7 +48,7 @@ python3 -u "$TRAIN" \
   --hf-repo jeremycochoy/gift-pretrain-full-4096 --hf-path small_v1 \
   --t-raw 4096 --n-channels 1 --d-model 384 --n-heads 6 \
   --num-encoder-layers 6 --num-layers 1 \
-  --forecaster-kind linear_cpc --cpc-k-steps 12 \
+  --forecaster-kind cpc --forecaster-d-model 128 --forecaster-n-heads 4 --cpc-k-steps "$K" \
   --encoder-dropkey 0.70 --encoder-dropkey-share-heads --encoder-dropkey-share-layers \
   --depthwise-conv 3 --deprecated-depthwise-conv 0 \
   --loss-shape cpc_multistep --pos-in-denominator \

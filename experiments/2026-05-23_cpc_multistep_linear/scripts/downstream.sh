@@ -34,8 +34,12 @@ QEVAL="$WT/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py"
 log(){ echo "[$(date '+%m-%d %H:%M:%S')] [$TAG g$GPU] $*"; }
 gm(){ grep -E 'Aggregate GM-Relative MASE' "$1" 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+' | head -1; }
 
-# Encoder/forecaster arch shared by q-head trainer + eval (CPC auto-detected).
+# Encoder/forecaster arch shared by q-head trainer + eval. The cpc backbone's
+# K transformer heads use β's d=128/4-head bottleneck; cpc_k_steps + cpc kind
+# are auto-detected from the checkpoint, but forecaster-n-heads can't be
+# inferred from weights, so pass β's bottleneck (d=128, 4 heads) explicitly.
 arch=(--t-raw 4096 --n-channels 1 --d-model 384 --n-heads 6 --num-layers 1 \
+      --forecaster-d-model 128 --forecaster-n-heads 4 \
       --encoder-type gru --rev-norm-kind ewma --rev-norm-span 128)
 
 qhead(){
@@ -68,7 +72,8 @@ do_eval(){ # $1=tag $2=outdir $3=filter
   CUDA_VISIBLE_DEVICES="$GPU" python3 -u "$QEVAL" \
     --backbone-path "$BB" --head-path "$QF" --output-dir "$out" --strategy B4 \
     --forecast-len 16 --t-raw 4096 --backbone-c 1 --d-model 384 --n-heads 6 \
-    --num-layers 1 --encoder-type gru --rev-norm-kind ewma --rev-norm-span 128 \
+    --num-layers 1 --forecaster-d-model 128 --forecaster-n-heads 4 \
+    --encoder-type gru --rev-norm-kind ewma --rev-norm-span 128 \
     --device cuda --head-causal true "${ff[@]}" \
     >>"$RES/run_eval_${tag}.log" 2>&1 || { log "EVAL $tag FAILED (tail: $(tail -3 "$RES/run_eval_${tag}.log"|tr '\n' ' '))"; return 1; }
   log "EVAL $tag DONE GM=$(gm "$out/summary.txt")"
