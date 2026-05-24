@@ -61,13 +61,13 @@ the objective. Everything else is byte-for-byte β.
 The loss shapes are `cosine_similarity_batch_full_hh_negs_xshh` and
 `…_xshh_allt` (`src/loss.py`); each exact term set is pinned against an
 independent fp64 reference in `tests/test_loss.py` (`TestCrossSeriesSameStepHH`,
-`TestCrossSeriesAllTimeHH`). The all-time edge's full `[B,B,T-1,T]` Gram would
-be ~17 GB if materialised, so it is **never built**: the forward runs in
-source-batch chunks and the backward is gradient-checkpointed (recomputes one
-chunk at a time), capping peak memory at a single chunk (~0.5 GB) — the same
-memory strategy as FlashAttention. The cost it pays is compute, not memory:
-the cross-series × cross-time similarities are inherently `B²·T²` dot-products,
-~2–3× the same-step step time.
+`TestCrossSeriesAllTimeHH`). The all-time edge's full `[B,B,T-1,T]` Gram is
+≈ 264M entries ≈ **1 GB** at B=256, T=64. The implementation still computes it
+in source-batch chunks with a gradient-checkpointed backward — a conservative
+memory strategy that *would* matter at larger T but is not the binding
+constraint here. The real cost is **compute**: the cross-series × cross-time
+similarities are inherently `B²·T²` dot-products, measured at **~2.5× the
+same-step step time** (6.3 → 2.5 sps).
 
 ### Exact negative set per arm
 
@@ -89,13 +89,16 @@ denominator is then pooled over the whole batch, so the realised pool size is
 | `xshh` — cross-series, **same-step** h↔h | `cos(h_{b,t}, h_{b',t})`, b'≠b | — | B−1 | — |
 | `xs_allt` — cross-series, **all-l** h↔h | `cos(h_{b,t}, h_{b',l})`, b'≠b, ∀l | — | — | (B−1)·T |
 | **per-anchor Σ** | | **T+B** | **T+2B−2** | **T+(B−1)(T+1)** |
-| **pooled N = B·Σ** (B=T=256) | | **131,072** | **196,096** (1.5×) | **16,842,496** (128.5×) |
+| **pooled N = B·Σ** (B=256, T=64) | | **81,920** | **146,944** (1.79×) | **4,259,584** (52×) |
 
 Reading the table: the **same-step** arm swaps β's one adjacent `xy` term for
-`B−1` same-step cross-series partners (net +B−2 per anchor, ~1.5× the pool); the
-**all-time** arm instead adds `(B−1)·T` cross-series partners (~128× the pool).
-The **within-series all-time `hh_all` term (the "different-l" comparisons) is
-identical in all three** — only the cross-series edge changes across the fork.
+`B−1` same-step cross-series partners (net +B−2 per anchor, **1.79×** the pool);
+the **all-time** arm instead adds `(B−1)·T` cross-series partners (**52×** the
+pool). The **within-series all-time `hh_all` term (the "different-l"
+comparisons) is identical in all three** — only the cross-series edge changes
+across the fork. (T = 64 is the latent length: the HF streamer crops windows to
+T_RAW=1024 regardless of `--t-raw`, and 1024 // W(16) = 64 — verified by a model
+forward; this holds for β/v11c too, so all numbers are on the same footing.)
 
 ## Protocol
 
@@ -191,19 +194,18 @@ removes broadly-useful content, not specifically a seasonal/positional code.
 
 All arms share every hyperparameter, so the curves isolate the loss change.
 **Raw losses are not comparable across arms**: the normalized-InfoNCE floor
-`log(1 + N·e^(−1/τ))` grows with the negative count N, which differs ~128×
-(β 131k, same-step 196k, all-time 16.8M → floors **1.94 / 2.29 / 6.64**). The
+`log(1 + N·e^(−1/τ))` grows with the negative count N, which differs ~52×
+(β 82k, same-step 147k, all-time 4.26M → floors **1.55 / 2.04 / 5.27**). The
 loss panel therefore plots each arm's loss **minus its own floor** (log-x,
 symlog-y).
 
-- **β and same-step converge just *above* their floors** — excess **+0.19**
-  (β) vs **+0.38** (same-step) at 50k. So of the same-step arm's +0.55 *raw*
-  gap over β, ~0.35 is merely the larger negative pool; only ~0.19 is genuine
-  extra excess. The cross-series same-step negative barely perturbs the
-  contrastive task.
-- The **all-time** arm converges *below* its uniformity floor (excess
-  **−0.80** at 50k): with 16.8M negatives the cos⁻≈0 reference is loose (the
-  negatives are net anti-aligned).
+- Floor-subtracted, **all three converge to a similar small excess above their
+  floors** — β **+0.58**, same-step **+0.64**, all-time **+0.57** at 50k. So
+  the cross-series negatives (same-step or all-time) barely change the
+  *contrastive* convergence once you account for the larger negative pool: the
+  same-step arm's +0.55 *raw*-loss gap over β is almost entirely the higher
+  floor (more negatives), not worse optimisation. The big differences are in
+  **transfer**, not the contrastive task.
 - AUC and Top-1 retrieval (shown as 1−AUC / 1−Top1, log-log) saturate for all
   arms within a few hundred steps.
 

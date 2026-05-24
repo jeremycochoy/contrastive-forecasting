@@ -39,6 +39,7 @@ from src.blocks import ATTN_AMP_DIAG
 from src.dataloader import (
     create_mixed_periodic_dataloader,
     create_mixed_composite_dataloader,
+    create_mixed_forked_arma_dataloader,
     create_hf_dataloader,
 )
 from src.loss import contrastive_latent_loss
@@ -365,7 +366,7 @@ def parse_args():
                         "flag, so that baseline column is NOT comparable to "
                         "gathered/single-GPU runs — don't plot them together.")
     p.add_argument("--synth-kind", default="periodic",
-                   choices=["periodic", "composite"],
+                   choices=["periodic", "composite", "forked-arma"],
                    help="On-the-fly synthesizer. 'periodic' (default) is the "
                         "clean single-primitive generator from synthetic_periodic. "
                         "'composite' is the TimesFM-style stacked recipe "
@@ -834,6 +835,14 @@ def main():
             skip_rows=hf_rows_consumed, T_raw=args.t_raw, seed=synth_seed,
             emit_freq_ids=(args.freq_emb_dim > 0 or args.seasonality_emb_dim > 0),
             synth_kwargs=synth_kwargs or None,
+        )
+    elif args.synth_kind == "forked-arma":
+        data_loader = create_mixed_forked_arma_dataloader(
+            repo_id=args.hf_repo, batch_size=args.batch_size, C=C,
+            mix_ratio=args.mix_ratio,
+            path_in_repo=args.hf_path, split=args.split,
+            skip_rows=hf_rows_consumed, T_raw=args.t_raw, seed=synth_seed,
+            emit_freq_ids=(args.freq_emb_dim > 0 or args.seasonality_emb_dim > 0),
         )
     else:
         data_loader = create_mixed_periodic_dataloader(

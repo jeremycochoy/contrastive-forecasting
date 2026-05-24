@@ -24,9 +24,9 @@ Everything else byte-for-β. The arms differ only in which cross-series pairs:
    per-step positional code (the issue's literal spec).
 2. **all-time** `…_xshh_allt`: `cos(h_{b,t}, h_{b',l})` ∀ b' ≠ b, **∀ l** — the
    cross-series analog of β's within-series all-time term; same-step is its
-   l = t slice (strict superset). The full `[B,B,T-1,T]` Gram is never
-   materialised: chunked forward + gradient-checkpointed backward (FlashAttention
-   strategy), peak ≈ one chunk (~0.5 GB). Cost is compute (~2–3× step), not memory.
+   l = t slice (strict superset). Full `[B,B,T-1,T]` Gram ≈ 1 GB at B=256, T=64
+   (latent T; HF crops to 1024, //W=16); chunked + gradient-checkpointed
+   (conservative). Cost is compute: ~2.5× step time (6.3 → 2.5 sps).
 Pinned by `tests/test_loss.py::{TestCrossSeriesSameStepHH,TestCrossSeriesAllTimeHH}`
 (independent fp64 references).
 

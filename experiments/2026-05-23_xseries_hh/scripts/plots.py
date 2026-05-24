@@ -24,11 +24,13 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 # For the InfoNCE floor (re-bases the contrastive loss so arms with different
-# negative counts N are comparable). Training config: τ=0.10, B=T=256, C=1.
+# negative counts N are comparable). Training config: τ=0.10, B=256, C=1, and
+# latent T=64 — the HF streamer crops to T_RAW=1024 (it ignores --t-raw 4096),
+# and 1024//W(=16) = 64. (Verified by a model forward.)
 sys.path.insert(0, "/home/jupyter/workspaces/contrastive-forecasting/.claude/worktrees/cross-series-hh")
 from src.loss import infonce_floor, _effective_negative_count
 
-TAU_TRAIN, B_TRAIN, T_TRAIN, C_TRAIN = 0.10, 256, 256, 1
+TAU_TRAIN, B_TRAIN, T_TRAIN, C_TRAIN = 0.10, 256, 64, 1
 _SHAPE = {"xshh": "cosine_similarity_batch_full_hh_negs_xshh",
           "allt": "cosine_similarity_batch_full_hh_negs_xshh_allt",
           "beta": "cosine_similarity_batch_full_hh_negs"}
