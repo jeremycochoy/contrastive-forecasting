@@ -133,19 +133,23 @@ _(landing)_
 | **β** (#309) | 2L | 1.3272 | 1.4836 |
 | **β** (#309) | 6L | _(landing)_ | _(landing)_ |
 | **xshh same-step** | 2L | **1.6194** | 1.9816 |
-| **xshh same-step** | 6L | _(landing)_ | 1.8762 |
-| **xshh all-time** | 2L | _(landing)_ | _(landing)_ |
+| **xshh same-step** | 6L | 1.6181 | 1.8762 |
+| **xshh all-time** | 2L | _(landing)_ | 1.6126 |
 | **xshh all-time** | 6L | _(landing)_ | _(landing)_ |
 | v11c (ref) | 2L | 1.292 | — |
 
-> **Same-step, 2L head: full-97 = 1.6194 (vs β 1.3272, +22%); triage-11 = 1.9816
-> (vs β 1.4836).** The trusted full-97 confirms a **clear regression** — the
-> cross-series same-step repulsion *hurts* transfer rather than helping, so for
-> the 2L head the hypothesis is **not supported**. (Triage overstated the gap:
-> that 11-config subset is Energy/Web-CloudOps-heavy, where this backbone fares
-> worst — see per-domain below.) Still pending before the final verdict: the
-> **6L head** (training now) and **arm B (all-time)** — the other side of the
-> l=t-vs-all-l fork.
+> **Same-step hurts, and a bigger head does not rescue it.** full-97 =
+> **1.6194** (2L) / **1.6181** (6L) vs β 1.3272 / v11c 1.292 — +22% worse, and
+> the 6L q-head is **no better than the 2L** (1.618 ≈ 1.619). So the regression
+> lives in the **backbone**, not head capacity — directly consistent with the
+> "bigger heads don't help" observation this card set out to probe. The
+> cross-series same-step repulsion **does not deny a free positional shortcut;
+> it removes broadly-useful content** (worse on all 7 domains, see below).
+>
+> **The broad (all-time) repulsion is *less* harmful than the targeted
+> (same-step) one** — counterintuitive: all-time 2L triage-11 = **1.6126** vs
+> same-step's 1.9816 (β 1.4836). The all-time full-97 (+ 6L), β's 6L, and
+> GM-vs-step are still landing before the final verdict.
 
 ![gm summary](plots/gm_summary.png)
 
