@@ -133,7 +133,7 @@ _(landing)_
 | **β** (#309) | 2L | 1.3272 | 1.4836 |
 | **β** (#309) | 6L | _(landing)_ | _(landing)_ |
 | **xshh same-step** | 2L | **1.6194** | 1.9816 |
-| **xshh same-step** | 6L | _(landing)_ | _(landing)_ |
+| **xshh same-step** | 6L | _(landing)_ | 1.8762 |
 | **xshh all-time** | 2L | _(landing)_ | _(landing)_ |
 | **xshh all-time** | 6L | _(landing)_ | _(landing)_ |
 | v11c (ref) | 2L | 1.292 | — |
