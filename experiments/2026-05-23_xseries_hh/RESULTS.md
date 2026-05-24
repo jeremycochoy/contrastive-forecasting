@@ -132,19 +132,20 @@ _(landing)_
 |----------|:----:|-----------:|-------------:|
 | **β** (#309) | 2L | 1.3272 | 1.4836 |
 | **β** (#309) | 6L | _(landing)_ | _(landing)_ |
-| **xshh same-step** | 2L | _(landing)_ | **1.9816** |
+| **xshh same-step** | 2L | **1.6194** | 1.9816 |
 | **xshh same-step** | 6L | _(landing)_ | _(landing)_ |
 | **xshh all-time** | 2L | _(landing)_ | _(landing)_ |
 | **xshh all-time** | 6L | _(landing)_ | _(landing)_ |
 | v11c (ref) | 2L | 1.292 | — |
 
-> **Only one cell has landed: same-step 2L on triage-11 = 1.9816** (vs β 1.4836).
-> This is the **noisy 11-config subset**, not the trusted metric — and that
-> subset is heavy on Energy/Web-CloudOps configs where this backbone happens to
-> fare worst, so it likely overstates the gap. **Do not read a verdict from it**;
-> the full-97 number (running now) is what counts. On the triage configs the
-> backbone is worse than β on 9 of 11 (better only on covid_deaths, us_births);
-> the per-domain breakdown below will show whether that holds on full-97.
+> **Same-step, 2L head: full-97 = 1.6194 (vs β 1.3272, +22%); triage-11 = 1.9816
+> (vs β 1.4836).** The trusted full-97 confirms a **clear regression** — the
+> cross-series same-step repulsion *hurts* transfer rather than helping, so for
+> the 2L head the hypothesis is **not supported**. (Triage overstated the gap:
+> that 11-config subset is Energy/Web-CloudOps-heavy, where this backbone fares
+> worst — see per-domain below.) Still pending before the final verdict: the
+> **6L head** (training now) and **arm B (all-time)** — the other side of the
+> l=t-vs-all-l fork.
 
 ![gm summary](plots/gm_summary.png)
 
@@ -154,10 +155,27 @@ _(landing — full-97 GM-Relative MASE, 2L head, at 20k / 35k / 50k for xshh and
 
 ![gm vs step](plots/gm_vs_step.png)
 
-### Per-domain transfer (collateral-damage check)
+### Per-domain transfer (2L head, full-97)
 
-_(landing — flags whether the repulsion removes genuinely shared structure,
-e.g. same-frequency seasonal phase, on strongly seasonal domains.)_
+The same-step regression is **broad, not seasonal-specific** — arm A is worse
+than β on **all 7 domains**, improving none (per-domain GM-Relative MASE):
+
+| domain | same-step | β | Δ |
+|--------|----------:|----:|----:|
+| Econ/Fin | 2.734 | 2.018 | +0.716 |
+| Web/CloudOps | 1.859 | 1.437 | +0.422 |
+| Energy | 1.880 | 1.573 | +0.307 |
+| Nature | 1.201 | 0.932 | +0.270 |
+| Transport | 1.281 | 1.100 | +0.181 |
+| Sales | 0.895 | 0.799 | +0.096 |
+| Healthcare | 1.519 | 1.498 | +0.020 |
+
+The issue anticipated *collateral damage to same-frequency seasonal phase* on
+strongly-seasonal domains. The data does **not** match that: the most-seasonal
+**Energy** domain is hurt *less* (+0.31) than the bursty **Web/CloudOps**
+(+0.42) and **Econ/Fin** (+0.72). The degradation is general — the repulsion
+removes broadly-useful content, not specifically a seasonal/positional code.
+(2L head; arm B and the 6L head are still pending.)
 
 ![per-domain](plots/perdomain.png)
 
