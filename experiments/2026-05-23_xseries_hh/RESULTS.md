@@ -69,6 +69,34 @@ memory strategy as FlashAttention. The cost it pays is compute, not memory:
 the cross-series × cross-time similarities are inherently `B²·T²` dot-products,
 ~2–3× the same-step step time.
 
+### Exact negative set per arm
+
+All three share **one positive** (the InfoNCE numerator) `cos(h_{t+1}, f_t)`.
+The negatives differ only in the two edited families. Multiplicities are
+**per anchor at C = 1** (the training config; the cross-channel families scale
+with C in general — `xy = C`, `xx = C−1`, `zy = C`). The cross-series / f↔h
+families are already summed over the `b' ≠ b` partners, and the InfoNCE
+denominator is then pooled over the whole batch, so the realised pool size is
+`N = B · Σ`. Counts verified by `src.loss._effective_negative_count`.
+
+| negative family | repels (b, c fixed unless noted) | β | same-step | all-time |
+|---|---|:--:|:--:|:--:|
+| `xy` — adjacent h↔h | `cos(h_t, h_{t+1})` | 1 | — | — |
+| `xx` — cross-channel h↔h | `cos(h_t^{c}, h_t^{c'})`, c≠c' | 0 | 0 | 0 |
+| `zy` — forecaster f↔f | `cos(f_{t+1}, f_t)` | 1 | 1 | 1 |
+| `hh_all` — within-series, **all** l | `cos(h_t, h_l)`, l≠t | T−1 | T−1 | T−1 |
+| `cross_fe` — cross-series f↔h | `cos(f_{b,t}, h_{b',t+1})`, b'≠b | B−1 | B−1 | B−1 |
+| `xshh` — cross-series, **same-step** h↔h | `cos(h_{b,t}, h_{b',t})`, b'≠b | — | B−1 | — |
+| `xs_allt` — cross-series, **all-l** h↔h | `cos(h_{b,t}, h_{b',l})`, b'≠b, ∀l | — | — | (B−1)·T |
+| **per-anchor Σ** | | **T+B** | **T+2B−2** | **T+(B−1)(T+1)** |
+| **pooled N = B·Σ** (B=T=256) | | **131,072** | **196,096** (1.5×) | **16,842,496** (128.5×) |
+
+Reading the table: the **same-step** arm swaps β's one adjacent `xy` term for
+`B−1` same-step cross-series partners (net +B−2 per anchor, ~1.5× the pool); the
+**all-time** arm instead adds `(B−1)·T` cross-series partners (~128× the pool).
+The **within-series all-time `hh_all` term (the "different-l" comparisons) is
+identical in all three** — only the cross-series edge changes across the fork.
+
 ## Protocol
 
 **Backbones.** Two — the same-step and all-time arms — each byte-identical to
