@@ -218,7 +218,7 @@ def plot_training_curves():
     fig, axes = plt.subplots(2, 2, figsize=(13, 8.5))
 
     # Panel 1: contrastive loss MINUS each arm's InfoNCE floor. The floor
-    # log(1+N·e^(−1/τ)) grows with the negative count N, which differs ~128×
+    # log(1+N·e^(−1/τ)) grows with the negative count N, which differs ~52×
     # across arms, so RAW losses are not comparable — subtracting each arm's
     # own floor is. log-x; symlog-y so an arm sitting slightly BELOW its
     # uniformity floor (cos⁻ net < 0, expected when N is huge) still shows.

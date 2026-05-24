@@ -156,39 +156,44 @@ _(landing)_
 > hypothesis predicted (it expected the *targeted* same-step edge to help most).
 > full-97 2L: all-time **1.4143** (+6.6% vs β 1.3272) vs same-step **1.6194**
 > (+22%); v11c 1.292. So adding cross-series h↔h negatives **hurts transfer**,
-> and *concentrating* it on the same step hurts more, not less. (all-time 6L is
-> re-running after an external job transiently filled GPU 1; β 6L full-97 and
-> GM-vs-step still landing.)
+> and *concentrating* it on the same step hurts more, not less. Full ranking
+> (both heads) and the complete analysis are in **What we learned** below.
 
 ![gm summary](plots/gm_summary.png)
 
 ### Does more contrastive training stop helping?
 
-_(landing — full-97 GM-Relative MASE, 2L head, at 20k / 35k / 50k for xshh and β.)_
-
-![gm vs step](plots/gm_vs_step.png)
+The **step-resolved** sweep (full-97 at 20k / 35k / 50k per arm) was **deferred**,
+so this card does not add a quantitative GM-vs-step curve. What it *can* say
+qualitatively is in
+**What we learned → On the decoupling**: contrastive training converged cleanly
+for every arm yet transfer worsened, and a bigger head did not help, so the
+"more contrastive structure ≠ better transfer" decoupling is not shrunk here.
 
 ### Per-domain transfer (2L head, full-97)
 
-The same-step regression is **broad, not seasonal-specific** — arm A is worse
-than β on **all 7 domains**, improving none (per-domain GM-Relative MASE):
+The same-step regression is **broad** — worse than β on **all 7 domains**,
+improving none (per-domain GM-Relative MASE; lower = better):
 
-| domain | same-step | β | Δ |
-|--------|----------:|----:|----:|
-| Econ/Fin | 2.734 | 2.018 | +0.716 |
-| Web/CloudOps | 1.859 | 1.437 | +0.422 |
-| Energy | 1.880 | 1.573 | +0.307 |
-| Nature | 1.201 | 0.932 | +0.270 |
-| Transport | 1.281 | 1.100 | +0.181 |
-| Sales | 0.895 | 0.799 | +0.096 |
-| Healthcare | 1.519 | 1.498 | +0.020 |
+| domain | β | same-step | all-time |
+|--------|----:|----------:|---------:|
+| Econ/Fin | 2.018 | 2.734 | 3.514 |
+| Web/CloudOps | 1.437 | 1.859 | 1.472 |
+| Energy | 1.573 | 1.880 | 1.624 |
+| Nature | 0.932 | 1.201 | 1.010 |
+| Transport | 1.100 | 1.281 | 1.065 |
+| Sales | 0.799 | 0.895 | 0.854 |
+| Healthcare | 1.498 | 1.519 | 1.604 |
 
 The issue anticipated *collateral damage to same-frequency seasonal phase* on
-strongly-seasonal domains. The data does **not** match that: the most-seasonal
-**Energy** domain is hurt *less* (+0.31) than the bursty **Web/CloudOps**
-(+0.42) and **Econ/Fin** (+0.72). The degradation is general — the repulsion
-removes broadly-useful content, not specifically a seasonal/positional code.
-(2L head; arm B and the 6L head are still pending.)
+strongly-seasonal domains. The data does **not** show a seasonal signature: the
+**Energy** domain is hurt *less* than the bursty **Web/CloudOps** and
+**Econ/Fin**, so same-step's damage is **general**, not concentrated on the most
+periodic data. The all-time arm's aggregate edge over same-step is **not
+uniform**: it is much gentler on the bursty domains (Web/CloudOps 1.86 → 1.47,
+Transport 1.28 → 1.07) but actually *worse* on Econ/Fin (2.73 → 3.51) and
+Healthcare — so the broad-vs-targeted ordering is driven by the high-variance
+Web/CloudOps + Transport configs.
 
 ![per-domain](plots/perdomain.png)
 
@@ -251,11 +256,12 @@ Three findings, each grounded in the table:
    not head capacity — directly confirming the standing "bigger heads don't
    help" observation this card set out to probe.
 
-**Per-domain** (2L, full-97): the same-step regression is **broad, not
-seasonal-specific** — worse than β on all 7 domains (worst Econ/Fin +0.72,
-Web/CloudOps +0.42; near-neutral only Healthcare). The issue's anticipated
-"same-frequency seasonal phase" collateral damage is *not* the pattern; the
-most-seasonal Energy domain is hurt *less* than the bursty ones.
+**Per-domain** (2L, full-97): the same-step regression is **broad** — worse than
+β on all 7 domains (worst Econ/Fin +0.72, Web/CloudOps +0.42; near-neutral only
+Healthcare). The issue's anticipated "same-frequency seasonal phase" collateral
+damage is *not* the signature: Energy is hurt *less* than the bursty
+Web/CloudOps and Econ/Fin domains, so the damage is general rather than
+concentrated on the most periodic data (see the per-domain table above).
 
 **On the decoupling.** The contrastive task was learned cleanly for every arm
 (AUC and Top-1 saturate within a few hundred steps; floor-subtracted loss
@@ -264,11 +270,12 @@ transfer worsened. So the "good contrastive metrics, indifferent transfer"
 decoupling is **not shrunk by this intervention — if anything it widens**: the
 extra cross-series structure is learned, and it is the wrong structure.
 
-**Caveats.** Single seed per cell (#307's n=3 estimate is ±0.02; the +6.6% and
-+22% margins are well outside that, but the all-time-vs-β ordering should be
-reproduced). The quantitative GM-vs-step curve was deferred (GPU reprioritised
-to the follow-ups below) — the decoupling statement rests on the training
-curves plus the head-size result, not a step-resolved transfer sweep.
+**Caveats.** Single seed per cell (prior work on this line put seed-to-seed
+spread around ±0.02, cf. #307; the +6.6% and +22% margins are well outside that,
+but the all-time-vs-β ordering should be reproduced on a second seed). The
+quantitative GM-vs-step curve was deferred — the decoupling statement rests on
+the training curves plus the head-size result, not a step-resolved transfer
+sweep.
 
 ### Follow-ups (in flight)
 
@@ -277,4 +284,4 @@ curves plus the head-size result, not a step-resolved transfer sweep.
 - **Forked-continuation ARIMA** (all-time arm + paired sequences sharing a
   prefix then diverging): a *data-side* denial of the positional/predictive-
   state code — does denying it through the data, rather than the loss, help
-  where the loss-side repulsion hurt? — _(training, ETA ~2.6h)_
+  where the loss-side repulsion hurt? — _(training)_
