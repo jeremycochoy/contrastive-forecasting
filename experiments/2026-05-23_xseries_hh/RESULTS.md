@@ -53,8 +53,13 @@ is byte-for-byte β.
 The loss shapes are `cosine_similarity_batch_full_hh_negs_xshh` and
 `…_xshh_allt` (`src/loss.py`); each exact term set is pinned against an
 independent fp64 reference in `tests/test_loss.py` (`TestCrossSeriesSameStepHH`,
-`TestCrossSeriesAllTimeHH`). The all-time edge is a B²·T² object (~17 GB), so it
-is gradient-checkpointed per source-batch chunk.
+`TestCrossSeriesAllTimeHH`). The all-time edge's full `[B,B,T-1,T]` Gram would
+be ~17 GB if materialised, so it is **never built**: the forward runs in
+source-batch chunks and the backward is gradient-checkpointed (recomputes one
+chunk at a time), capping peak memory at a single chunk (~0.5 GB) — the same
+memory strategy as FlashAttention. The cost it pays is compute, not memory:
+the cross-series × cross-time similarities are inherently `B²·T²` dot-products,
+~2–3× the same-step step time.
 
 ## Protocol
 
