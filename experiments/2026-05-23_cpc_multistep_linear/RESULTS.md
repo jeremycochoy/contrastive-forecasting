@@ -63,15 +63,36 @@ is broad, not a domain-specific trade-off.
 
 ![per-domain radar](plots/perdomain_radar.png)
 
-### Why: multi-step pulls the latent off the 1-step structure
+### Why: multi-step keeps the latent diffuse; β concentrates it
 
-The k=12 backbones train as healthy contrastive models (loss descends, AUC→1),
-but the multi-step objective produces a *different* representation. The
-converged **forecast gap** — cos(f_t, h_{t+1}) − cos(f_t, h_t), how much more the
-forecast looks like the next latent than the current one — settles at **~1.09
-for k=1** (β-like) but collapses to **~0.64–0.71 for k=12**. Forcing one latent
-to be linearly predictable up to 12 steps out blunts the sharp one-step
-structure that GIFT-Eval transfer actually rewards.
+A natural hypothesis (raised in review) is that the multi-step objective forces
+the latent to *collapse* onto a low-dimensional, linearly-extrapolable subspace.
+The data **refutes it — the opposite happens.** Measuring the **participation
+ratio** of the encoder latent (effective dimensionality, PR = (Σλ)²/Σλ² of the
+latent covariance; 1 = one direction, H = 384 = full) on a fixed real-data batch
+across training:
+
+| latent dim-usage @ 50k | k = 1 | k = 12 |
+|---|---:|---:|
+| transformer head (k=1 ≡ β) | **3.2** | **55.3** |
+| linear head, β negatives | **4.9** | **51.4** |
+
+The **k=1** recipes *concentrate* the latent over training, collapsing to **~3–5
+effective dimensions**; the **k=12** recipes hold it **~10–17× wider (~50)**.
+Predicting 12 steps ahead requires the latent to stay linearly extrapolable far
+out, so it remains diffuse; predicting only the next step lets the encoder pack
+variance into a few sharp, highly-predictive directions. The best-transferring
+recipe is the most concentrated one — and the trend is identical in both
+forecaster families, so it is the *horizon*, not the head type.
+
+![dim usage](plots/dim_usage.png)
+
+This agrees with the **forecast gap** — cos(f_t, h_{t+1}) − cos(f_t, h_t), how
+much more the forecast resembles the next latent than the current one — which
+settles at **~1.09 for k=1** but only **~0.65 for k=12**: the k=12 latent is both
+higher-dimensional *and* less sharply one-step-predictable. A tight,
+low-dimensional latent transfers best; the diffuse multi-step latent transfers
+worse.
 
 ![training curves](plots/training_curves.png)
 
@@ -109,10 +130,12 @@ unstable under β's fp16 body at lr 1e-3 — detail in EXECUTION_LOG.md).
 2. **The penalty is consistent across forecaster type and negative set** — every
    k=12 family is worse than its k=1 counterpart. So it is the *multi-step
    objective itself*, not the linear head or a particular negative pool.
-3. **It is not undertraining/collapse.** k=12 trains as a healthy contrastive
-   model; the multi-step constraint simply steers the latent toward
-   longer-horizon linear-predictability and **away from the sharp 1-step
-   structure** (forecast gap ~0.65 vs β's ~1.09) that transfer rewards.
+3. **It is diffusion, not collapse.** k=12 trains as a healthy contrastive model,
+   and — contra the natural low-rank-collapse hypothesis — its latent is
+   *higher*-dimensional than β's (effective dim **~50 vs ~3**), not lower. The
+   multi-step constraint keeps the latent diffuse and longer-horizon-linear,
+   away from the sharp, low-dimensional 1-step structure (forecast gap ~0.65 vs
+   ~1.09) that transfer rewards.
 4. **Among k=12 variants, a stronger per-step predictor helps**: transformer-1L
    heads (1.4781) beat linear heads (1.5240 / 1.6635) — but not enough to
    matter. The next-step forecaster β remains the best recipe on this line.
@@ -127,6 +150,9 @@ unstable under β's fp16 body at lr 1e-3 — detail in EXECUTION_LOG.md).
   variant is untested.
 - fp16 (β's body precision) is unavailable for this objective (diverges at
   lr 1e-3); the comparison is fp32-matched to v11c, not to β's fp16.
+- The dim-usage probe is one participation-ratio measurement on a single fixed
+  batch; absolute PR is batch-dependent, but the **relative** k=1≪k=12 gap is
+  large, monotonic over training, and identical in both families.
 
 ## Annex
 
@@ -141,5 +167,6 @@ Branch `experiment/2026-05-23-cpc-multistep-linear`. `forecaster_kind` ∈
 heads)}; losses `cpc_multistep` (β negatives) and `cpc_multistep_cpcnegs`
 (CPC-canonical), both = β's loss at K=1 for their family. CPC heads auto-detected
 downstream. Launchers `scripts/elisa_run.sh` (#1) and `scripts/elisa_run_linear.sh`
-(#2/#3); `scripts/downstream.sh`; figures `scripts/plot_results.py`; CPU tests
+(#2/#3); `scripts/downstream.sh`; figures `scripts/plot_results.py` and
+`scripts/dim_usage.py` (participation ratio vs step); CPU tests
 `scripts/test_cpc.py` (incl. k=1 ≡ β `full_hh_negs`, 7.468332).
