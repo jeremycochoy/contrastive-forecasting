@@ -17,10 +17,23 @@ Figures:
 import csv
 import math
 import os
+import sys
 
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+# For the InfoNCE floor (re-bases the contrastive loss so arms with different
+# negative counts N are comparable). Training config: τ=0.10, B=T=256, C=1.
+sys.path.insert(0, "/home/jupyter/workspaces/contrastive-forecasting/.claude/worktrees/cross-series-hh")
+from src.loss import infonce_floor, _effective_negative_count
+
+TAU_TRAIN, B_TRAIN, T_TRAIN, C_TRAIN = 0.10, 256, 256, 1
+_SHAPE = {"xshh": "cosine_similarity_batch_full_hh_negs_xshh",
+          "allt": "cosine_similarity_batch_full_hh_negs_xshh_allt",
+          "beta": "cosine_similarity_batch_full_hh_negs"}
+FLOOR = {k: infonce_floor(TAU_TRAIN, _effective_negative_count(s, B_TRAIN, T_TRAIN, C_TRAIN))
+         for k, s in _SHAPE.items()}
 
 OUT = "/home/jupyter/workspaces/contrastive-forecasting/experiments/2026-05-23_xseries_hh"
 RES = f"{OUT}/results"
@@ -192,23 +205,51 @@ def _smooth(y, w=200):
 
 
 def plot_training_curves():
-    a = _load_curve(XSHH_CSV)
-    al = _load_curve(ALLT_CSV)
-    b = _load_curve(BETA_CSV)
-    if not a and not al and not b:
+    # (label, curve, colour, floor-key)
+    arms = [("xshh same-step", _load_curve(XSHH_CSV), C_XSHH, "xshh"),
+            ("xshh all-time",  _load_curve(ALLT_CSV), C_ALLT, "allt"),
+            ("β",              _load_curve(BETA_CSV), C_BETA, "beta")]
+    arms = [a for a in arms if a[1]]
+    if not arms:
         print("training_curves: no data yet — skip")
         return
-    panels = [("loss", "contrastive loss"), ("gap", "pos−neg gap"),
-              ("auc", "AUC (pos vs neg)"), ("top1", "Top-1 retrieval")]
-    fig, axes = plt.subplots(2, 2, figsize=(12, 7.5))
-    for ax, (key, title) in zip(axes.flat, panels):
-        for cols, c, lab in ((a, C_XSHH, "xshh same-step"),
-                             (al, C_ALLT, "xshh all-time"),
-                             (b, C_BETA, "β")):
-            if cols and key in cols and "step" in cols:
-                ax.plot(cols["step"], _smooth(cols[key]), color=c, lw=1.4, label=lab)
-        ax.set_title(title); ax.set_xlabel("step"); ax.grid(alpha=0.3); ax.legend(fontsize=8)
-    fig.suptitle("#318 — contrastive training dynamics (200-step MA): xshh vs β", fontsize=12)
+    fig, axes = plt.subplots(2, 2, figsize=(13, 8.5))
+
+    # Panel 1: contrastive loss MINUS each arm's InfoNCE floor. The floor
+    # log(1+N·e^(−1/τ)) grows with the negative count N, which differs ~128×
+    # across arms, so RAW losses are not comparable — subtracting each arm's
+    # own floor is. log-x; symlog-y so an arm sitting slightly BELOW its
+    # uniformity floor (cos⁻ net < 0, expected when N is huge) still shows.
+    ax = axes[0, 0]
+    for lab, cols, col, fk in arms:
+        if "loss" in cols and "step" in cols:
+            y = _smooth([v - FLOOR[fk] for v in cols["loss"]], 100)
+            ax.plot(cols["step"], y, color=col, lw=1.4, label=f"{lab}  (floor {FLOOR[fk]:.2f})")
+    ax.set_xscale("log"); ax.set_yscale("symlog", linthresh=0.05)
+    ax.axhline(0, color="k", ls=":", lw=0.8, alpha=0.6)
+    ax.set_title("contrastive loss − InfoNCE floor   (log x · symlog y)")
+    ax.set_xlabel("step"); ax.grid(alpha=0.3, which="both"); ax.legend(fontsize=8)
+
+    # Panels 2–3: retrieval error 1−AUC and 1−Top1 (→0), genuine log-log.
+    for ax, key, title in ((axes[0, 1], "auc", "1 − AUC"),
+                           (axes[1, 0], "top1", "1 − Top-1 retrieval")):
+        for lab, cols, col, _ in arms:
+            if key in cols and "step" in cols:
+                err = _smooth([max(1.0 - v, 1e-6) for v in cols[key]], 100)
+                ax.plot(cols["step"], err, color=col, lw=1.4, label=lab)
+        ax.set_xscale("log"); ax.set_yscale("log")
+        ax.set_title(f"{title}   (log-log)"); ax.set_xlabel("step")
+        ax.grid(alpha=0.3, which="both"); ax.legend(fontsize=8)
+
+    # Panel 4: pos−neg gap (bounded, saturates) — log-x, linear-y.
+    ax = axes[1, 1]
+    for lab, cols, col, _ in arms:
+        if "gap" in cols and "step" in cols:
+            ax.plot(cols["step"], _smooth(cols["gap"], 100), color=col, lw=1.4, label=lab)
+    ax.set_xscale("log"); ax.set_title("pos−neg gap   (log x)")
+    ax.set_xlabel("step"); ax.grid(alpha=0.3, which="both"); ax.legend(fontsize=8)
+
+    fig.suptitle("#318 — contrastive training dynamics (100-step MA), floor-subtracted loss", fontsize=12)
     fig.tight_layout(); fig.savefig(f"{PLOTS}/training_curves.png", dpi=130, bbox_inches="tight")
     print("training_curves.png written")
 

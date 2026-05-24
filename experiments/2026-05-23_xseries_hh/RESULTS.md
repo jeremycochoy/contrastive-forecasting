@@ -163,8 +163,23 @@ e.g. same-frequency seasonal phase, on strongly seasonal domains.)_
 
 ### Training dynamics
 
-The two runs share every hyperparameter, so their contrastive curves isolate
-the effect of the new negative on the training task itself.
+All arms share every hyperparameter, so the curves isolate the loss change.
+**Raw losses are not comparable across arms**: the normalized-InfoNCE floor
+`log(1 + N·e^(−1/τ))` grows with the negative count N, which differs ~128×
+(β 131k, same-step 196k, all-time 16.8M → floors **1.94 / 2.29 / 6.64**). The
+loss panel therefore plots each arm's loss **minus its own floor** (log-x,
+symlog-y).
+
+- **β and same-step converge just *above* their floors** — excess **+0.19**
+  (β) vs **+0.38** (same-step) at 50k. So of the same-step arm's +0.55 *raw*
+  gap over β, ~0.35 is merely the larger negative pool; only ~0.19 is genuine
+  extra excess. The cross-series same-step negative barely perturbs the
+  contrastive task.
+- The **all-time** arm (still training) tracks *below* its uniformity floor
+  (excess **−0.78** at 19k): with 16.8M negatives the cos⁻≈0 reference is loose
+  (the negatives are net anti-aligned).
+- AUC and Top-1 retrieval (shown as 1−AUC / 1−Top1, log-log) saturate for all
+  arms within a few hundred steps.
 
 ![training curves](plots/training_curves.png)
 
