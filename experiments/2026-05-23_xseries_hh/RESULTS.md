@@ -1,9 +1,11 @@
 # #318 — Deny the positional shortcut: cross-series, same-step h↔h negatives
 
-> **Status: results landing.** Two backbones are being trained on elisa — the
-> same-step arm and its all-time sibling — then each gets the q-head +
-> GIFT-Eval matrix. Tables and the verdict below update as cells complete; the
-> design, protocol, and loss implementations are final.
+> **Status: core complete; two follow-ups in flight.** The same-step and
+> all-time arms are fully trained and evaluated (2L + 6L heads, full-97 +
+> triage-11) — see the verdict. Two user-requested extensions are still
+> training: a **6L-forecaster** variant of both arms, and a **forked-
+> continuation ARIMA** data variant of the all-time arm; their cells append as
+> they land.
 
 ## The question
 
@@ -138,7 +140,7 @@ _(landing)_
 | **xshh same-step** | 2L | **1.6194** | 1.9816 |
 | **xshh same-step** | 6L | 1.6181 | 1.8762 |
 | **xshh all-time** | 2L | **1.4143** | 1.6126 |
-| **xshh all-time** | 6L | _(landing)_ | 1.7028 |
+| **xshh all-time** | 6L | 1.4748 | 1.7028 |
 | v11c (ref) | 2L | 1.292 | — |
 
 > **Same-step hurts, and a bigger head does not rescue it.** full-97 =
@@ -213,6 +215,66 @@ symlog-y).
 
 ## What we learned
 
-_(verdict landing — will state plainly whether the cross-series same-step
-repulsion beats β / v11c, whether the decoupling shrank, and any collateral
-damage, with single-seed caveats flagged.)_
+**Denying the positional shortcut does not help — it hurts, and the more
+precisely you target it, the more it hurts.** The hypothesis was that repelling
+what *different* series share at the same step removes a content-free positional
+code and frees the encoder for forecastable content. The opposite happened.
+
+Full-97 GM-Relative MASE (lower = better), best → worst:
+
+| rank | backbone · head | full-97 GM | vs β |
+|---|---|---:|---:|
+| — | v11c (reference) | 1.292 | −2.7% |
+| 1 | **β · 2L** | **1.3272** | — |
+| 2 | all-time · 2L | 1.4143 | +6.6% |
+| 3 | β · 6L | 1.4489 | +9.2% |
+| 4 | all-time · 6L | 1.4748 | +11.1% |
+| 5 | same-step · 6L | 1.6181 | +21.9% |
+| 6 | same-step · 2L | 1.6194 | +22.0% |
+
+Three findings, each grounded in the table:
+
+1. **Both cross-series h↔h arms lose to β.** Adding *any* cross-series h↔h
+   repulsion worsened transfer (same-step +22%, all-time +6.6% at the 2L head).
+   The hypothesis is **falsified**: the structure different series share at a
+   step is, on balance, **forecastably useful** — not a code worth destroying.
+
+2. **Targeted hurts *more* than broad** — the reverse of the prediction. The
+   issue expected the *same-step* edge (the precise positional-code denier) to
+   help most; instead it is the **worst** arm (+22%), while the broad all-time
+   edge — which also repels across *different* steps — is less damaging (+6.6%).
+   Concentrating the repulsion on the same step concentrates the damage.
+
+3. **A bigger evaluation head does not rescue it** — it doesn't even help β
+   (β 1.327 → 1.449 at 6L). same-step is flat (1.619 → 1.618), all-time worsens
+   (1.414 → 1.475). So the regression lives in the **backbone representation**,
+   not head capacity — directly confirming the standing "bigger heads don't
+   help" observation this card set out to probe.
+
+**Per-domain** (2L, full-97): the same-step regression is **broad, not
+seasonal-specific** — worse than β on all 7 domains (worst Econ/Fin +0.72,
+Web/CloudOps +0.42; near-neutral only Healthcare). The issue's anticipated
+"same-frequency seasonal phase" collateral damage is *not* the pattern; the
+most-seasonal Energy domain is hurt *less* than the bursty ones.
+
+**On the decoupling.** The contrastive task was learned cleanly for every arm
+(AUC and Top-1 saturate within a few hundred steps; floor-subtracted loss
+converges to a similar small excess across arms — see Training dynamics), yet
+transfer worsened. So the "good contrastive metrics, indifferent transfer"
+decoupling is **not shrunk by this intervention — if anything it widens**: the
+extra cross-series structure is learned, and it is the wrong structure.
+
+**Caveats.** Single seed per cell (#307's n=3 estimate is ±0.02; the +6.6% and
++22% margins are well outside that, but the all-time-vs-β ordering should be
+reproduced). The quantitative GM-vs-step curve was deferred (GPU reprioritised
+to the follow-ups below) — the decoupling statement rests on the training
+curves plus the head-size result, not a step-resolved transfer sweep.
+
+### Follow-ups (in flight)
+
+- **6L-forecaster** (1L → 6L forecaster, both arms): does a deeper predictor
+  change the picture? — _(training; all-time-6Lf first)_
+- **Forked-continuation ARIMA** (all-time arm + paired sequences sharing a
+  prefix then diverging): a *data-side* denial of the positional/predictive-
+  state code — does denying it through the data, rather than the loss, help
+  where the loss-side repulsion hurt? — _(training, ETA ~2.6h)_
