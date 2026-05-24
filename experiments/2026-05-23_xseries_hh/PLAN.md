@@ -14,16 +14,19 @@ only thing different series share is that positional component; a cross-series,
 same-step encoder repulsion penalises it directly, moving distinctness onto
 (series-specific, forecastable) content.
 
-## The change (one clean edit on top of β)
-New loss shape `cosine_similarity_batch_full_hh_negs_xshh` = β
-(`cosine_similarity_batch_full_hh_negs`) with exactly two edits:
-1. **ADD** `cos(h_{b,t}, h_{b',t})` ∀ b' ≠ b, anchored at h_t (every step l = t)
-   — cross-series, same-step encoder repulsion.
-2. **REMOVE** the adjacent `log_neg_xy` = `cos(h_t, h_{t+1})`; at C = 1 it is
-   byte-for-byte the l = t+1 slice already inside β's all-time `cos(h_t, h_l)`
-   term, so dropping it de-duplicates.
-Everything else (positive, xx, zy, all-time h↔h, cross-batch f↔h) byte-for-β.
-Pinned by `tests/test_loss.py::TestCrossSeriesSameStepHH` (fp64 reference).
+## The change — two arms (the l=t vs all-l fork)
+Both add a cross-series h↔h negative on top of β
+(`cosine_similarity_batch_full_hh_negs`) and both **remove** the adjacent
+`log_neg_xy` = `cos(h_t, h_{t+1})` (at C = 1 it is byte-for-byte the l = t+1
+slice already inside β's all-time `cos(h_t, h_l)` term — de-duplication).
+Everything else byte-for-β. The arms differ only in which cross-series pairs:
+1. **same-step** `…_xshh`: `cos(h_{b,t}, h_{b',t})` ∀ b' ≠ b — targets the
+   per-step positional code (the issue's literal spec).
+2. **all-time** `…_xshh_allt`: `cos(h_{b,t}, h_{b',l})` ∀ b' ≠ b, **∀ l** — the
+   cross-series analog of β's within-series all-time term; same-step is its
+   l = t slice (strict superset). Gradient-checkpointed (B²·T² Gram ≈ 17 GB).
+Pinned by `tests/test_loss.py::{TestCrossSeriesSameStepHH,TestCrossSeriesAllTimeHH}`
+(independent fp64 references).
 
 ## Recipe (byte-identical to the #309 β arm except `--loss-shape`)
 GRU patch-enc → 6L causal encoder → 1L forecaster, bottleneck d=128/h=4,

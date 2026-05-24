@@ -8,6 +8,7 @@ except it adds (h_t, f_t) — same-channel, same-time encoder-vs-forecaster
 """
 
 import math
+import os
 from types import SimpleNamespace
 
 import pytest
@@ -1162,6 +1163,143 @@ class TestCrossSeriesSameStepHH:
 
     def test_pos_in_denominator_config_key_matches_arg_and_nonneg(self):
         f, h = _random_inputs(B=3, T=4, C=1, H=8, seed=3)
+        loss_arg = contrastive_latent_loss(
+            (f, h), False, _make_spec(self.NAME),
+            include_positive_in_denominator=True)
+        spec_cfg = _make_spec(self.NAME)
+        spec_cfg.train_configuration['include_positive_in_denominator'] = True
+        loss_cfg = contrastive_latent_loss((f, h), False, spec_cfg)
+        assert torch.allclose(loss_arg, loss_cfg)
+        assert loss_cfg.item() >= -1e-6
+
+
+class TestCrossSeriesAllTimeHH:
+    """#318 ablation — ``cosine_similarity_batch_full_hh_negs_xshh_allt``.
+
+    The all-time sibling of ``_xshh``: identical (β, drop adjacent xy, keep the
+    rest) except the cross-series h↔h edge ranges over EVERY source step l, not
+    only the same step — LSE_{b'≠b, ∀l} cos(h_{b,t}, h_{b',l})/τ, the
+    cross-series analog of (B)'s within-series all-time term. ``_xshh`` is its
+    l = t slice; this is the strict superset.
+    """
+
+    NAME = 'cosine_similarity_batch_full_hh_negs_xshh_allt'
+
+    @staticmethod
+    def _ref_loss(f, h, tau, pos_in_denom=False):
+        """Transparent fp64 reference (C = 1). Same families/reduction as the
+        _xshh reference, but the cross-series edge is all-time."""
+        f = f.double()
+        h = h.double()
+        B, T, C, H = f.shape
+        assert C == 1
+        fn = torch.nn.functional.normalize(f, dim=-1)[:, :, 0, :]
+        hn = torch.nn.functional.normalize(h, dim=-1)[:, :, 0, :]
+        f_t, f_tp1 = fn[:, :-1], fn[:, 1:]
+        h_t, h_tp1 = hn[:, :-1], hn[:, 1:]
+        cos = lambda a, b: (a * b).sum(-1)
+        ninf = float('-inf')
+        log_pos = cos(h_tp1, f_t) / tau
+        log_zy = cos(f_tp1, f_t) / tau
+        sims_hh = torch.einsum('bth,blh->btl', h_t, hn) / tau
+        it = torch.arange(T - 1).view(T - 1, 1)
+        il = torch.arange(T).view(1, T)
+        sims_hh = sims_hh.masked_fill((il == it).view(1, T - 1, T), ninf)
+        log_hh = torch.logsumexp(sims_hh, dim=2)
+        sims_cb = torch.einsum('bth,cth->btc', f_t, h_tp1) / tau
+        eyeB = torch.eye(B, dtype=torch.bool).view(B, 1, B)
+        log_cb = torch.logsumexp(sims_cb.masked_fill(eyeB, ninf), dim=2)
+        # all-time cross-series: cos(h_{b,t}, h_{b',l}) ∀ l, mask whole series b'=b
+        sims_xs = torch.einsum('bth,clh->btcl', h_t, hn) / tau          # [B,T-1,B',T]
+        bmask = (torch.arange(B).view(B, 1, 1, 1) == torch.arange(B).view(1, 1, B, 1))
+        sims_xs = sims_xs.masked_fill(bmask, ninf)
+        log_xs = torch.logsumexp(sims_xs.flatten(2), dim=2)             # over (b',l)
+        fams = torch.stack([log_zy, log_hh, log_cb, log_xs], dim=0)
+        log_neg_per_anchor = torch.logsumexp(fams, dim=0)
+        log_neg_total = torch.logsumexp(log_neg_per_anchor, dim=0, keepdim=True)
+        if pos_in_denom:
+            log_denom = torch.logsumexp(
+                torch.stack([log_pos, log_neg_total.expand_as(log_pos)], 0), 0)
+            return (log_denom - log_pos).mean()
+        return (log_neg_total - log_pos).mean()
+
+    def test_finite_scalar_and_grad(self):
+        # h requires grad too: the cross-series term is gradient-checkpointed
+        # and depends on h, so this exercises the checkpoint backward path.
+        B, T, C, H = 4, 8, 1, 16
+        g = torch.Generator().manual_seed(3180)
+        f = torch.randn(B, T, C, H, generator=g, requires_grad=True)
+        h = torch.randn(B, T, C, H, generator=g, requires_grad=True)
+        loss = contrastive_latent_loss(
+            (f, h), validation=False, spec=_make_spec(self.NAME))
+        assert loss.dim() == 0 and torch.isfinite(loss)
+        loss.backward()
+        assert f.grad is not None and torch.isfinite(f.grad).all()
+        assert h.grad is not None and torch.isfinite(h.grad).all()
+
+    def test_chunk_size_invariant(self):
+        """The checkpointed chunked LSE must be exact: XSHH_ALLT_CHUNK only
+        trades memory for kernel launches, never the value."""
+        f, h = _random_inputs(B=7, T=6, C=1, H=10, seed=5)
+        f, h = f.double(), h.double()
+        vals = []
+        for ch in ("1", "3", "16"):
+            os.environ['XSHH_ALLT_CHUNK'] = ch
+            vals.append(contrastive_latent_loss(
+                (f, h), False, _make_spec(self.NAME, 0.1)).item())
+        os.environ.pop('XSHH_ALLT_CHUNK', None)
+        assert max(vals) - min(vals) < 1e-9, f"chunk-size changed value: {vals}"
+
+    def test_matches_transparent_reference(self):
+        """Production == fp64 reference for both objectives, and the chunked
+        logsumexp is chunk-invariant (B=5 spans multiple CH-independent
+        sizes; here a single chunk, but the seeds exercise the masking)."""
+        for seed in (0, 7, 42):
+            f, h = _random_inputs(B=5, T=6, C=1, H=12, seed=seed)
+            f, h = f.double(), h.double()
+            for pid in (False, True):
+                spec = _make_spec(self.NAME, tau=0.1)
+                if pid:
+                    spec.train_configuration['include_positive_in_denominator'] = True
+                got = contrastive_latent_loss((f, h), False, spec)
+                want = self._ref_loss(f, h, 0.1, pos_in_denom=pid)
+                assert torch.allclose(got, want, atol=1e-9, rtol=1e-9), (
+                    f"seed={seed} pid={pid}: got {got.item():.10f} want {want.item():.10f}")
+
+    def test_distinct_from_samestep_and_relatives(self):
+        """Must differ from the same-step _xshh, from (B), and from the base —
+        the all-time edge is a strict superset of same-step, not an alias."""
+        f, h = _random_inputs(B=3, T=5, C=1, H=8, seed=13)
+        v = lambda n: contrastive_latent_loss((f, h), False, _make_spec(n)).item()
+        mine = v(self.NAME)
+        for other in ('cosine_similarity_batch_full_hh_negs_xshh',
+                      'cosine_similarity_batch_full_hh_negs',
+                      'cosine_similarity_batch'):
+            assert abs(mine - v(other)) > 1e-6, f"{self.NAME} == {other}"
+
+    def test_exact_value_orthonormal_B2_C1(self):
+        """Disjoint orthonormal blocks, B=2. Active negs per anchor: zy(1),
+        hh_all(T-1), cross_fe(1), xs_allt(the other series' T states ⇒ T) ⇒
+        Σ = 2T+1 ⇒ loss = log(2(2T+1)). Contrast same-step _xshh = log(2(T+2)):
+        the all-time edge adds T−1 more cross-series negatives (the b'≠b states
+        at l ≠ t), pinning that l ranges over ALL steps, not just l=t."""
+        T = 5
+        B, C, H = 2, 1, 4 * T
+        tau = 0.07
+        eye = torch.eye(H)
+        h = torch.empty(B, T, C, H); f = torch.empty(B, T, C, H)
+        h[0, :, 0, :] = eye[0:T]; h[1, :, 0, :] = eye[T:2 * T]
+        f[0, :, 0, :] = eye[2 * T:3 * T]; f[1, :, 0, :] = eye[3 * T:4 * T]
+        loss = contrastive_latent_loss((f, h), False, _make_spec(self.NAME, tau))
+        assert abs(loss.item() - math.log(2 * (2 * T + 1))) < 1e-4, loss.item()
+        loss_ss = contrastive_latent_loss(
+            (f, h), False,
+            _make_spec('cosine_similarity_batch_full_hh_negs_xshh', tau))
+        assert abs(loss_ss.item() - math.log(2 * (T + 2))) < 1e-4, (
+            "sanity: same-step _xshh must give log(2(T+2)) on these inputs")
+
+    def test_pos_in_denominator_config_key_matches_arg_and_nonneg(self):
+        f, h = _random_inputs(B=3, T=4, C=1, H=8, seed=4)
         loss_arg = contrastive_latent_loss(
             (f, h), False, _make_spec(self.NAME),
             include_positive_in_denominator=True)

@@ -30,9 +30,10 @@ BETA_DIR = "/home/jupyter/contrastive-forecasting/experiments/2026-05-20_bottlen
 V11C = "/home/jupyter/contrastive-forecasting/experiments/2026-05-11_exp_encoder_forecaster/results/gift_eval_full_v11c"
 
 XSHH_CSV = f"{OUT}/runs/bb_xshh_50k_losses.csv"
+ALLT_CSV = f"{OUT}/runs/bb_xshh_allt_50k_losses.csv"
 BETA_CSV = f"{BETA_DIR}/runs/bb_beta_50k_losses.csv"
 
-C_XSHH, C_BETA, C_V11C = "#1f77b4", "#d62728", "#9467bd"
+C_XSHH, C_ALLT, C_BETA, C_V11C = "#1f77b4", "#2ca02c", "#d62728", "#9467bd"
 
 
 def agg_gm(sum_txt):
@@ -86,13 +87,17 @@ def gm(xs):
 def plot_gm_summary():
     # label -> summary.txt. β 2L is the #309 backbone-of-record eval.
     cells = [
-        ("xshh · 2L head", f"{RES}/gift_eval_full_xshh_50k_2L/summary.txt",
+        ("xshh same-step · 2L", f"{RES}/gift_eval_full_xshh_50k_2L/summary.txt",
          f"{RES}/gift_eval_triage_xshh_50k_2L/summary.txt", C_XSHH),
-        ("xshh · 6L head", f"{RES}/gift_eval_full_xshh_50k_6L/summary.txt",
+        ("xshh same-step · 6L", f"{RES}/gift_eval_full_xshh_50k_6L/summary.txt",
          f"{RES}/gift_eval_triage_xshh_50k_6L/summary.txt", C_XSHH),
-        ("β · 2L head", f"{BETA_DIR}/results/gift_eval_full_bb_beta_50k/summary.txt",
+        ("xshh all-time · 2L", f"{RES}/gift_eval_full_xshh_allt_50k_2L/summary.txt",
+         f"{RES}/gift_eval_triage_xshh_allt_50k_2L/summary.txt", C_ALLT),
+        ("xshh all-time · 6L", f"{RES}/gift_eval_full_xshh_allt_50k_6L/summary.txt",
+         f"{RES}/gift_eval_triage_xshh_allt_50k_6L/summary.txt", C_ALLT),
+        ("β · 2L", f"{BETA_DIR}/results/gift_eval_full_bb_beta_50k/summary.txt",
          f"{BETA_DIR}/results/gift_eval_triage_bb_beta_50k/summary.txt", C_BETA),
-        ("β · 6L head", f"{RES}/gift_eval_full_beta_50k_6L/summary.txt",
+        ("β · 6L", f"{RES}/gift_eval_full_beta_50k_6L/summary.txt",
          f"{RES}/gift_eval_triage_beta_50k_6L/summary.txt", C_BETA),
     ]
     rows = []
@@ -188,15 +193,18 @@ def _smooth(y, w=200):
 
 def plot_training_curves():
     a = _load_curve(XSHH_CSV)
+    al = _load_curve(ALLT_CSV)
     b = _load_curve(BETA_CSV)
-    if not a and not b:
+    if not a and not al and not b:
         print("training_curves: no data yet — skip")
         return
     panels = [("loss", "contrastive loss"), ("gap", "pos−neg gap"),
               ("auc", "AUC (pos vs neg)"), ("top1", "Top-1 retrieval")]
     fig, axes = plt.subplots(2, 2, figsize=(12, 7.5))
     for ax, (key, title) in zip(axes.flat, panels):
-        for cols, c, lab in ((a, C_XSHH, "xshh"), (b, C_BETA, "β")):
+        for cols, c, lab in ((a, C_XSHH, "xshh same-step"),
+                             (al, C_ALLT, "xshh all-time"),
+                             (b, C_BETA, "β")):
             if cols and key in cols and "step" in cols:
                 ax.plot(cols["step"], _smooth(cols[key]), color=c, lw=1.4, label=lab)
         ax.set_title(title); ax.set_xlabel("step"); ax.grid(alpha=0.3); ax.legend(fontsize=8)
@@ -209,7 +217,8 @@ def plot_training_curves():
 def plot_perdomain():
     dom_map = (config_domain(f"{BETA_DIR}/results/gift_eval_full_bb_beta_50k/all_results.csv")
                or config_domain(f"{RES}/gift_eval_full_xshh_50k_2L/all_results.csv"))
-    srcs = [("xshh 2L", f"{RES}/gift_eval_full_xshh_50k_2L/summary.txt", C_XSHH),
+    srcs = [("xshh same-step 2L", f"{RES}/gift_eval_full_xshh_50k_2L/summary.txt", C_XSHH),
+            ("xshh all-time 2L", f"{RES}/gift_eval_full_xshh_allt_50k_2L/summary.txt", C_ALLT),
             ("β 2L", f"{BETA_DIR}/results/gift_eval_full_bb_beta_50k/summary.txt", C_BETA),
             ("v11c", f"{V11C}/summary.txt", C_V11C)]
     series = []

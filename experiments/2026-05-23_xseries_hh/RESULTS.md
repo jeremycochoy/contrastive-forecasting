@@ -1,8 +1,9 @@
 # #318 — Deny the positional shortcut: cross-series, same-step h↔h negatives
 
-> **Status: results landing.** The backbone finished training; the q-head +
-> GIFT-Eval matrix is grinding through on elisa. Tables and the verdict below
-> update as cells complete; the design and protocol are final.
+> **Status: results landing.** Two backbones are being trained on elisa — the
+> same-step arm and its all-time sibling — then each gets the q-head +
+> GIFT-Eval matrix. Tables and the verdict below update as cells complete; the
+> design, protocol, and loss implementations are final.
 
 ## The question
 
@@ -26,36 +27,43 @@ step `l`, what *different* series share at that step (`cos(h_{b,l}, h_{b',l})`,
 b ≠ b') — does the backbone move distinctness onto series-specific
 (forecastable) content, and so transfer better than β?
 
-## The idea, as one clean change
+## The idea, and a design fork
 
-At a fixed step `l`, two *different* series share essentially one thing: the
-positional component. So a **cross-series, same-step** encoder repulsion
-targets exactly the shortcut and nothing else. β has **no** cross-series h↔h
-term today (only a cross-series f↔h term). We add it as a single, isolated edit
-on top of β:
+β has **no** cross-series h↔h term today (only a cross-series f↔h term). We add
+one as a single, isolated edit on top of β — but *which* pairs to repel has a
+fork, and we test **both arms**:
 
-1. **ADD** `cos(h_{b,l}, h_{b',l})` for b ≠ b', at **every** step `l` — the
-   cross-series, same-step encoder negative. (The `square` loss once added a
-   cross-series h↔h edge, but only at the prediction target step `t+1`, and
-   bundled with other changes. Here it acts at every step, alone.)
-2. **REMOVE** the duplicated adjacent negative `cos(h_t, h_{t+1})`. For the
-   single-channel training config it is byte-for-byte the `l = t+1` slice
-   already inside β's all-time `cos(h_t, h_l)` term, so dropping it
-   de-duplicates rather than weakening the objective.
+- **same-step** (`…_xshh`): `cos(h_{b,t}, h_{b',t})`, b ≠ b' — repel only what
+  *same-position* states of different series share. At a fixed step the only
+  thing different series share is the positional component, so this targets the
+  shortcut **and nothing else**.
+- **all-time** (`…_xshh_allt`): `cos(h_{b,t}, h_{b',l})`, b ≠ b', **∀ l** — the
+  cross-series analog of β's within-series all-time term. Same-step is its
+  `l = t` slice, so this is the strict **superset**: it also repels states at
+  *different* positions across series. Tests whether the broad cross-series
+  repulsion beats the targeted one — or instead over-repels genuinely shared
+  structure (e.g. same-frequency seasonal phase at different absolute steps).
 
-Everything else is byte-for-byte β. The new loss shape is
-`cosine_similarity_batch_full_hh_negs_xshh` (`src/loss.py`); its exact term set
-is pinned against an independent fp64 reference in
-`tests/test_loss.py::TestCrossSeriesSameStepHH`.
+Both arms additionally **remove** the duplicated adjacent negative
+`cos(h_t, h_{t+1})` — at the single-channel training config it is byte-for-byte
+the `l = t+1` slice already inside β's all-time `cos(h_t, h_l)` term, so
+dropping it de-duplicates rather than weakening the objective. Everything else
+is byte-for-byte β.
+
+The loss shapes are `cosine_similarity_batch_full_hh_negs_xshh` and
+`…_xshh_allt` (`src/loss.py`); each exact term set is pinned against an
+independent fp64 reference in `tests/test_loss.py` (`TestCrossSeriesSameStepHH`,
+`TestCrossSeriesAllTimeHH`). The all-time edge is a B²·T² object (~17 GB), so it
+is gradient-checkpointed per source-batch chunk.
 
 ## Protocol
 
-**Backbone.** Byte-identical to the #309 **β** arm except `--loss-shape`:
-GRU patch-encoder → 6-layer causal encoder → 1-layer forecaster with a
-d = 128 bottleneck, AdamW β2 = 0.98, temperature τ = 0.10, dropkey 0.70 shared,
-fp16 body / fp32 residual + patch-embedding, EWMA RevNorm span 128, seed
-20260520, 50k steps, global batch 256, normalized-InfoNCE objective
-(`--pos-in-denominator`). Single 4090.
+**Backbones.** Two — the same-step and all-time arms — each byte-identical to
+the #309 **β** arm except `--loss-shape`: GRU patch-encoder → 6-layer causal
+encoder → 1-layer forecaster with a d = 128 bottleneck, AdamW β2 = 0.98,
+temperature τ = 0.10, dropkey 0.70 shared, fp16 body / fp32 residual +
+patch-embedding, EWMA RevNorm span 128, seed 20260520, 50k steps, global batch
+256, normalized-InfoNCE objective (`--pos-in-denominator`). Single 4090 each.
 
 **Evaluation.** Each frozen backbone gets a fresh **30k quantile q-head**
 (transformer, causal, forecast-len 16) and is scored on GIFT-Eval. To separate
@@ -83,8 +91,10 @@ _(landing)_
 |----------|:----:|-----------:|-------------:|
 | **β** (#309) | 2L | 1.3272 | 1.4836 |
 | **β** (#309) | 6L | _(landing)_ | _(landing)_ |
-| **xshh** (this card) | 2L | _(landing)_ | _(landing)_ |
-| **xshh** (this card) | 6L | _(landing)_ | _(landing)_ |
+| **xshh same-step** | 2L | _(landing)_ | _(landing)_ |
+| **xshh same-step** | 6L | _(landing)_ | _(landing)_ |
+| **xshh all-time** | 2L | _(landing)_ | _(landing)_ |
+| **xshh all-time** | 6L | _(landing)_ | _(landing)_ |
 | v11c (ref) | 2L | 1.292 | — |
 
 ![gm summary](plots/gm_summary.png)
