@@ -32,6 +32,9 @@ def agg_gm(s):
 def full(tag):  # small-head full-97 of an arm by backbone-name tag
     return agg_gm(f"{RES}/gift_eval_full_{tag}_s20260520_fp32_50k_FINAL_h2L/summary.txt")
 
+def full_seed(tag, seed):  # small-head full-97 of a specific seed
+    return agg_gm(f"{RES}/gift_eval_full_{tag}_s{seed}_fp32_50k_FINAL_h2L/summary.txt")
+
 def dom_map(c):
     m = {}
     if os.path.exists(c):
@@ -64,6 +67,8 @@ ARMS = [
 # ---------------------------------------------------------------- gm_summary
 def fig_gm_summary():
     rows = [(lab, full(tag)) for lab, tag, *_ in ARMS]
+    sb = full_seed("bb_cpc_k12", "20260523")
+    if sb is not None: rows.append(("linear-head k=12 (#3) — seed 2", sb))
     rows = [(l, g) for l, g in rows if g is not None]
     if not rows: print("gm_summary: no arm evals yet"); return
     rows.sort(key=lambda r: r[1], reverse=True)
@@ -80,7 +85,7 @@ def fig_gm_summary():
     if v11c: ax.axvline(v11c, color="#9467bd", ls="--", lw=1.6, label=f"v11c = {v11c:.3f}")
     if bb:   ax.axvline(bb, color="#7f7f7f", ls=":", lw=1.2, label=f"(B) = {bb:.3f}")
     ax.legend(loc="lower right", fontsize=8)
-    ax.set_title("#316 — full GIFT-Eval (97 cfg): every k=12 arm is worse than β (k=1)", fontsize=11)
+    ax.set_title("#316 — full GIFT-Eval (97 cfg), single seed each vs β/v11c\n(the two 'seed 2' points span 0.49 — the metric's seed noise)", fontsize=10.5)
     ax.invert_yaxis(); plt.tight_layout(); plt.savefig(f"{OUT}/gm_summary.png", dpi=120, bbox_inches="tight"); plt.close()
     print(f"wrote gm_summary.png ({len(rows)} arms)")
 
@@ -101,13 +106,23 @@ def fig_k_trend():
             ax.plot(ks, [pts[k] for k in ks], "o-", color=cols.get(fam, "#555"), lw=2, ms=8, label=fam)
             plotted = True
     if not plotted: print("k_trend: no data"); plt.close(); return
+    # Seed-2 of the linear·CPC-neg k=12 cell — show the spread vs the k-effects.
+    seedB = full_seed("bb_cpc_k12", "20260523")
+    if seedB is not None and fams.get("linear·CPC-neg", {}).get(12) is not None:
+        sa = fams["linear·CPC-neg"][12]
+        ax.plot([12], [seedB], "D", color="#d62728", ms=10, mfc="white", mec="#d62728",
+                mew=2, label="linear·CPC-neg k=12, seed 2", zorder=5)
+        ax.plot([12, 12], [min(sa, seedB), max(sa, seedB)], color="#d62728", lw=4, alpha=0.35, zorder=1)
+        ax.annotate(f"2 seeds:\n{abs(seedB-sa):.2f} spread\n(> every k-effect)", (12, (sa+seedB)/2),
+                    xytext=(8.6, (sa+seedB)/2), fontsize=8, color="#b01818", va="center",
+                    arrowprops=dict(arrowstyle="-", color="#d62728", alpha=0.5))
     if beta: ax.axhline(beta, color="#ff7f0e", ls="--", lw=1.4, label=f"β = {beta:.3f}")
     if v11c: ax.axhline(v11c, color="#9467bd", ls=":", lw=1.4, label=f"v11c = {v11c:.3f}")
     ax.set_xticks([1, 12]); ax.set_xlabel("forecast steps k"); ax.set_ylabel("full-97 GM-MASE (lower=better)")
-    ax.set_title("#316 — k=1 → k=12 per forecaster family: multi-step hurts in all three", fontsize=11)
+    ax.set_title("#316 — single-seed trend (k=12 worse), but the 2-seed spread (red bar)\nexceeds every k-effect: suggestive, not significant", fontsize=10.5)
     ax.grid(True, alpha=0.3); ax.legend(fontsize=8)
     plt.tight_layout(); plt.savefig(f"{OUT}/k_trend.png", dpi=120, bbox_inches="tight"); plt.close()
-    print(f"wrote k_trend.png ({len(fams)} families)")
+    print(f"wrote k_trend.png ({len(fams)} families, seedB={seedB})")
 
 # ---------------------------------------------------------------- radar
 def fig_radar():
