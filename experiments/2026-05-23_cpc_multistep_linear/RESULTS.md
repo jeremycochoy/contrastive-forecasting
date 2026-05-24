@@ -41,22 +41,25 @@ than k=1 (small-head full-97 GM-MASE; lower = better):
 | forecaster family | k = 1 | k = 12 | k effect |
 |---|---:|---:|---:|
 | **transformer-1L heads, β negatives**  (k=1 ≡ β) | **1.3272** | **1.4781** | **+0.151 (worse)** |
-| linear heads, β negatives                        | _[PENDING #2 k1]_ | 1.6635 | _[PENDING]_ |
-| linear heads, CPC negatives                       | _[PENDING #3 k1]_ | 1.5240 | _[PENDING]_ |
+| linear heads, β negatives                        | 1.4248 | 1.6635 | **+0.239 (worse)** |
+| linear heads, CPC negatives                       | 1.4313 | 1.5240 | **+0.093 (worse)** |
 
 _References: v11c = 1.292, β = 1.3272, (B) = 1.3572 (all small-head full-97)._
 
-Multi-step prediction does not close the gap to v11c — it **widens** it, across
-every forecaster/negative combination tested. (The transformer-head family is
-also the *least bad* k=12 — a stronger per-step predictor and β's negatives
-each help a little — but none of it overcomes the k=12 penalty.)
+Multi-step prediction does not close the gap to v11c — it **widens** it, in
+**every** forecaster/negative combination (k=12 is +0.09 to +0.24 worse than
+k=1). A secondary, orthogonal effect: the **transformer forecaster beats the
+linear one even at k=1** — β (transformer, k=1) = 1.3272, vs linear k=1 ≈ 1.43 —
+so the linear families start worse and the multi-step penalty compounds. The
+transformer-head k=12 is the least-bad k=12, but still well short of β.
 
 ![k trend](plots/k_trend.png)
 
 ### Per domain (full GIFT-Eval), v11c reference
 
-_[PENDING radar interpretation — the k=12 ring sits outside (worse than) β and
-v11c across domains, consistent with the aggregate.]_
+Across the 7 GIFT-Eval domains, the k=12 transformer-head ring sits **outside**
+(worse than) both β and v11c on 6 of 7 — tying only on Web/CloudOps. The deficit
+is broad, not a domain-specific trade-off.
 
 ![per-domain radar](plots/perdomain_radar.png)
 
