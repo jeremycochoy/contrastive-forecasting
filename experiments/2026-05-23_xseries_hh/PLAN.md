@@ -52,3 +52,10 @@ bs256, cosine LR, β2=0.98. Eval: `eval_gift_eval_official.py --strategy B4`.
 ## Compute
 Local elisa. Backbone: 1×4090 bs256 ~4 h. Eval matrix grinds on whichever GPU
 frees first (idempotent driver, skips completed cells).
+
+## Follow-up (queued, user request)
+Redo **both arms with a 6-layer forecaster** (`--num-layers 6`; the 1L→6L
+forecaster change, encoder stays 6L), **all-time first** (most negative terms).
+Scripts: `train_backbone_6Lf.sh`, `downstream_6Lf.sh`, `pipeline_6Lf.sh`.
+Runs once the current (1L-forecaster) experiment frees a GPU; results added as a
+6L-forecaster section below.
