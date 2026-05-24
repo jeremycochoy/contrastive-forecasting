@@ -134,7 +134,7 @@ _(landing)_
 | **β** (#309) | 6L | _(landing)_ | 1.5271 |
 | **xshh same-step** | 2L | **1.6194** | 1.9816 |
 | **xshh same-step** | 6L | 1.6181 | 1.8762 |
-| **xshh all-time** | 2L | _(landing)_ | 1.6126 |
+| **xshh all-time** | 2L | **1.4143** | 1.6126 |
 | **xshh all-time** | 6L | _(landing)_ | _(landing)_ |
 | v11c (ref) | 2L | 1.292 | — |
 
@@ -146,10 +146,14 @@ _(landing)_
 > cross-series same-step repulsion **does not deny a free positional shortcut;
 > it removes broadly-useful content** (worse on all 7 domains, see below).
 >
-> **The broad (all-time) repulsion is *less* harmful than the targeted
-> (same-step) one** — counterintuitive: all-time 2L triage-11 = **1.6126** vs
-> same-step's 1.9816 (β 1.4836). The all-time full-97 (+ 6L), β's 6L, and
-> GM-vs-step are still landing before the final verdict.
+> **Both arms are worse than β, and the broad (all-time) repulsion hurts far
+> *less* than the targeted (same-step) one** — the opposite of what the
+> hypothesis predicted (it expected the *targeted* same-step edge to help most).
+> full-97 2L: all-time **1.4143** (+6.6% vs β 1.3272) vs same-step **1.6194**
+> (+22%); v11c 1.292. So adding cross-series h↔h negatives **hurts transfer**,
+> and *concentrating* it on the same step hurts more, not less. (all-time 6L is
+> re-running after an external job transiently filled GPU 1; β 6L full-97 and
+> GM-vs-step still landing.)
 
 ![gm summary](plots/gm_summary.png)
 
