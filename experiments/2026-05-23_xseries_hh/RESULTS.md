@@ -138,7 +138,7 @@ _(landing)_
 | **xshh same-step** | 2L | **1.6194** | 1.9816 |
 | **xshh same-step** | 6L | 1.6181 | 1.8762 |
 | **xshh all-time** | 2L | **1.4143** | 1.6126 |
-| **xshh all-time** | 6L | _(landing)_ | _(landing)_ |
+| **xshh all-time** | 6L | _(landing)_ | 1.7028 |
 | v11c (ref) | 2L | 1.292 | — |
 
 > **Same-step hurts, and a bigger head does not rescue it.** full-97 =
