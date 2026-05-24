@@ -313,6 +313,9 @@ NORMALIZED_VARIANTS_ALL = NORMALIZED_VARIANTS + [
     "cosine_similarity_batch_full_hh_negs",
     "cosine_similarity_batch_full_ff_negs",
     "cosine_similarity_batch_full_fh_hh_negs",
+    # #318 — (B) − adjacent-xy + cross-series same-step h↔h; logsumexp-only,
+    # trained in fp16 at τ=0.1, so the small-τ normalized-form contracts matter.
+    "cosine_similarity_batch_full_hh_negs_xshh",
 ]
 
 

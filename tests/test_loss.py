@@ -1005,6 +1005,173 @@ class TestCrossBranchNegativeFree:
         assert loss_cfg.item() >= -1e-6
 
 
+class TestCrossSeriesSameStepHH:
+    """#318 — ``cosine_similarity_batch_full_hh_negs_xshh``.
+
+    β (``cosine_similarity_batch_full_hh_negs``) with exactly two edits:
+      (1) ADD cross-series, same-step h↔h negatives cos(h_{b,t}, h_{b',t})
+          ∀ b' ≠ b, anchored at h_t (every step l = t).
+      (2) REMOVE the adjacent ``log_neg_xy`` = cos(h_t, h_{t+1}); at C = 1 it
+          is byte-for-byte the l = t+1 slice already in (B)'s all-time term.
+    Everything else (log_pos, xx, zy, all-time hh, cross-batch f↔h) = (B).
+    """
+
+    NAME = 'cosine_similarity_batch_full_hh_negs_xshh'
+
+    @staticmethod
+    def _ref_loss(f, h, tau, pos_in_denom=False):
+        """Transparent fp64 reference for the C = 1 objective. Builds every
+        negative family from its math definition (independent of the
+        production branch's internal structure) and applies the SAME
+        reduction (per-anchor logsumexp over families → logsumexp over the
+        batch → minus log_pos, mean). Pins both edits: zy/hh_all/cross_fe are
+        (B)'s, log_xy is ABSENT, log_xshh is the new cross-series same-step
+        edge. C = 1 (the training config), so the cross-channel xx family is
+        −inf and omitted."""
+        f = f.double()
+        h = h.double()
+        B, T, C, H = f.shape
+        assert C == 1, "reference is for the C=1 training config"
+        fn = torch.nn.functional.normalize(f, dim=-1)[:, :, 0, :]   # [B,T,H]
+        hn = torch.nn.functional.normalize(h, dim=-1)[:, :, 0, :]   # [B,T,H]
+        f_t, f_tp1 = fn[:, :-1], fn[:, 1:]                          # [B,T-1,H]
+        h_t, h_tp1 = hn[:, :-1], hn[:, 1:]                          # [B,T-1,H]
+        cos = lambda a, b: (a * b).sum(-1)
+        ninf = float('-inf')
+        log_pos = cos(h_tp1, f_t) / tau                            # [B,T-1]
+        log_zy = cos(f_tp1, f_t) / tau                             # [B,T-1]
+        # all-time hh: logsumexp_{l≠t} cos(h_t, h_l)/τ
+        sims_hh = torch.einsum('bth,blh->btl', h_t, hn) / tau      # [B,T-1,T]
+        it = torch.arange(T - 1).view(T - 1, 1)
+        il = torch.arange(T).view(1, T)
+        sims_hh = sims_hh.masked_fill((il == it).view(1, T - 1, T), ninf)
+        log_hh = torch.logsumexp(sims_hh, dim=2)                   # [B,T-1]
+        eyeB = torch.eye(B, dtype=torch.bool).view(B, 1, B)
+        # cross-batch f↔h: logsumexp_{b'≠b} cos(f_{b,t}, h_{b',t+1})/τ
+        sims_cb = torch.einsum('bth,cth->btc', f_t, h_tp1) / tau   # [B,T-1,B']
+        log_cb = torch.logsumexp(sims_cb.masked_fill(eyeB, ninf), dim=2)
+        # NEW cross-series same-step h↔h: logsumexp_{b'≠b} cos(h_{b,t}, h_{b',t})/τ
+        sims_xs = torch.einsum('bth,cth->btc', h_t, h_t) / tau     # [B,T-1,B']
+        log_xs = torch.logsumexp(sims_xs.masked_fill(eyeB, ninf), dim=2)
+        fams = torch.stack([log_zy, log_hh, log_cb, log_xs], dim=0)
+        log_neg_per_anchor = torch.logsumexp(fams, dim=0)          # [B,T-1]
+        log_neg_total = torch.logsumexp(log_neg_per_anchor, dim=0, keepdim=True)
+        if pos_in_denom:
+            log_denom = torch.logsumexp(
+                torch.stack([log_pos, log_neg_total.expand_as(log_pos)], 0), 0)
+            return (log_denom - log_pos).mean()
+        return (log_neg_total - log_pos).mean()
+
+    def test_finite_scalar_and_grad(self):
+        B, T, C, H = 4, 8, 1, 16
+        g = torch.Generator().manual_seed(318)
+        f = torch.randn(B, T, C, H, generator=g, requires_grad=True)
+        h = torch.randn(B, T, C, H, generator=g)
+        loss = contrastive_latent_loss(
+            (f, h), validation=False, spec=_make_spec(self.NAME))
+        assert loss.dim() == 0 and torch.isfinite(loss)
+        loss.backward()
+        assert f.grad is not None and torch.isfinite(f.grad).all()
+
+    def test_matches_transparent_reference(self):
+        """The defining test: production loss == independent fp64 reference,
+        for BOTH the negatives-only and the --pos-in-denominator objective.
+        A wrong term set (kept xy, missing/incorrect xshh, altered cross-fe)
+        would break this."""
+        for seed in (0, 7, 42):
+            f, h = _random_inputs(B=4, T=6, C=1, H=12, seed=seed)
+            f, h = f.double(), h.double()
+            for pid in (False, True):
+                spec = _make_spec(self.NAME, tau=0.1)
+                if pid:
+                    spec.train_configuration['include_positive_in_denominator'] = True
+                got = contrastive_latent_loss((f, h), False, spec)
+                want = self._ref_loss(f, h, 0.1, pos_in_denom=pid)
+                assert torch.allclose(got, want, atol=1e-9, rtol=1e-9), (
+                    f"seed={seed} pid={pid}: got {got.item():.10f} "
+                    f"want {want.item():.10f}")
+
+    def test_distinct_from_relatives(self):
+        """Must differ from (B), square, xbfree, the base, and A+B+C — a
+        distinct composition, not an alias."""
+        f, h = _random_inputs(B=3, T=5, C=1, H=8, seed=11)
+        v = lambda n: contrastive_latent_loss(
+            (f, h), False, _make_spec(n)).item()
+        mine = v(self.NAME)
+        for other in ('cosine_similarity_batch',
+                      'cosine_similarity_batch_square',
+                      'cosine_similarity_batch_full_hh_negs',
+                      'cosine_similarity_batch_full_hh_negs_xbfree',
+                      'cosine_similarity_batch_full_fh_hh_ff_negs'):
+            assert abs(mine - v(other)) > 1e-6, f"{self.NAME} == {other}"
+
+    def test_exact_value_orthonormal_B2_C1(self):
+        """Disjoint orthonormal blocks (every distinct pair cos=0, self
+        cos=1). Active negatives per anchor: zy(1), hh_all(T-1), cross_fe(1),
+        xshh(1) ⇒ Σ = T+2; both batch rows equal ⇒ log_neg_total =
+        log(2(T+2)); log_pos = 0 ⇒ loss = log(2(T+2)). xx is −inf (C=1), xy
+        is removed. Contrast: xbfree on the same inputs keeps cross_ff +
+        cross_hh (no f↔h) ⇒ T+3 ⇒ log(2(T+3)); the +1 difference pins that
+        xshh adds exactly ONE cross-series edge and xy was dropped."""
+        T = 5
+        B, C, H = 2, 1, 4 * T
+        tau = 0.07
+        eye = torch.eye(H)
+        h = torch.empty(B, T, C, H)
+        f = torch.empty(B, T, C, H)
+        h[0, :, 0, :] = eye[0:T]
+        h[1, :, 0, :] = eye[T:2 * T]
+        f[0, :, 0, :] = eye[2 * T:3 * T]
+        f[1, :, 0, :] = eye[3 * T:4 * T]
+        loss = contrastive_latent_loss(
+            (f, h), False, _make_spec(self.NAME, tau))
+        assert abs(loss.item() - math.log(2 * (T + 2))) < 1e-4, loss.item()
+        loss_xb = contrastive_latent_loss(
+            (f, h), False,
+            _make_spec('cosine_similarity_batch_full_hh_negs_xbfree', tau))
+        assert abs(loss_xb.item() - math.log(2 * (T + 3))) < 1e-4, (
+            "sanity: xbfree must give log(2(T+3)) on these inputs")
+
+    def test_drops_adjacent_xy_vs_beta(self):
+        """The discriminating, human-readable case for edit (2). On disjoint
+        orthonormal blocks set h_{0,1} := h_{0,0} (so the ADJACENT pair
+        cos(h_{0,0}, h_{0,1}) = 1) while every cross-series and f↔h pair stays
+        orthogonal. (B) carries this as the standalone log_neg_xy edge AND
+        inside hh_all; this variant carries it ONLY inside hh_all (xy dropped).
+        So (B)'s anchor (0,0) denominator gets the e^{1/τ} spike twice, this
+        variant once ⇒ loss_xshh < loss_beta strictly."""
+        T = 5
+        B, C, H = 2, 1, 4 * T
+        tau = 0.1
+        eye = torch.eye(H)
+        h = torch.empty(B, T, C, H)
+        f = torch.empty(B, T, C, H)
+        h[0, :, 0, :] = eye[0:T]
+        h[1, :, 0, :] = eye[T:2 * T]
+        f[0, :, 0, :] = eye[2 * T:3 * T]
+        f[1, :, 0, :] = eye[3 * T:4 * T]
+        h[0, 1, 0, :] = eye[0]                       # h_{0,1} := h_{0,0}
+        mine = contrastive_latent_loss(
+            (f, h), False, _make_spec(self.NAME, tau)).item()
+        beta = contrastive_latent_loss(
+            (f, h), False,
+            _make_spec('cosine_similarity_batch_full_hh_negs', tau)).item()
+        assert mine < beta - 1e-4, (
+            f"dropping the duplicated adjacent xy must lower the denominator "
+            f"vs (B): mine={mine:.5f} beta={beta:.5f}")
+
+    def test_pos_in_denominator_config_key_matches_arg_and_nonneg(self):
+        f, h = _random_inputs(B=3, T=4, C=1, H=8, seed=3)
+        loss_arg = contrastive_latent_loss(
+            (f, h), False, _make_spec(self.NAME),
+            include_positive_in_denominator=True)
+        spec_cfg = _make_spec(self.NAME)
+        spec_cfg.train_configuration['include_positive_in_denominator'] = True
+        loss_cfg = contrastive_latent_loss((f, h), False, spec_cfg)
+        assert torch.allclose(loss_arg, loss_cfg)
+        assert loss_cfg.item() >= -1e-6
+
+
 class TestAlignLoss:
     """The BYOL/SimSiam alignment add-on (#309): L_align = (2 − 2·cos(f_t,
     sg(h_{t+1}))).mean(), weight λ = `align_loss_weight` (default 0 = off).
