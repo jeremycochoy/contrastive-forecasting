@@ -33,22 +33,30 @@ b ≠ b') — does the backbone move distinctness onto series-specific
 one as a single, isolated edit on top of β — but *which* pairs to repel has a
 fork, and we test **both arms**:
 
-- **same-step** (`…_xshh`): `cos(h_{b,t}, h_{b',t})`, b ≠ b' — repel only what
-  *same-position* states of different series share. At a fixed step the only
-  thing different series share is the positional component, so this targets the
-  shortcut **and nothing else**.
+- **same-step** (`…_xshh`): `cos(h_{b,l}, h_{b',l})`, b ≠ b' — **same step on
+  both sides**; repel only what *same-position* states of different series
+  share. At a fixed step the only thing different series share is the positional
+  component, so this targets the shortcut **and nothing else**. Cost is
+  **B²·T** (each of the B·T states × B−1 same-step partners) — the size of β's
+  existing cross-batch term, i.e. cheap.
 - **all-time** (`…_xshh_allt`): `cos(h_{b,t}, h_{b',l})`, b ≠ b', **∀ l** — the
   cross-series analog of β's within-series all-time term. Same-step is its
   `l = t` slice, so this is the strict **superset**: it also repels states at
-  *different* positions across series. Tests whether the broad cross-series
-  repulsion beats the targeted one — or instead over-repels genuinely shared
-  structure (e.g. same-frequency seasonal phase at different absolute steps).
+  *different* positions across series. Cost is **B²·T²** (each anchor sees all
+  T steps of every other series) — the only expensive piece. Tests whether the
+  broad cross-series repulsion beats the targeted one — or instead over-repels
+  genuinely shared structure (e.g. same-frequency seasonal phase at different
+  absolute steps).
 
-Both arms additionally **remove** the duplicated adjacent negative
-`cos(h_t, h_{t+1})` — at the single-channel training config it is byte-for-byte
-the `l = t+1` slice already inside β's all-time `cos(h_t, h_l)` term, so
-dropping it de-duplicates rather than weakening the objective. Everything else
-is byte-for-byte β.
+Crucially, **both arms keep β's within-series all-time term**
+`cos(h_{b,t}, h_{b,l})` ∀ `l` ≠ t — that is where the *different-`l`*
+(cross-time) comparisons come from, *within* a series. So the fork changes
+**only** the cross-series edge — same-step (`l = t`) vs all-`l`; the different-`l`
+structure within a series is identical in both. Both arms also **remove** the
+duplicated adjacent negative `cos(h_t, h_{t+1})` — at the single-channel
+training config it is byte-for-byte the `l = t+1` slice already inside that
+within-series all-time term, so dropping it de-duplicates rather than weakening
+the objective. Everything else is byte-for-byte β.
 
 The loss shapes are `cosine_similarity_batch_full_hh_negs_xshh` and
 `…_xshh_allt` (`src/loss.py`); each exact term set is pinned against an
@@ -96,11 +104,19 @@ _(landing)_
 |----------|:----:|-----------:|-------------:|
 | **β** (#309) | 2L | 1.3272 | 1.4836 |
 | **β** (#309) | 6L | _(landing)_ | _(landing)_ |
-| **xshh same-step** | 2L | _(landing)_ | _(landing)_ |
+| **xshh same-step** | 2L | _(landing)_ | **1.9816** |
 | **xshh same-step** | 6L | _(landing)_ | _(landing)_ |
 | **xshh all-time** | 2L | _(landing)_ | _(landing)_ |
 | **xshh all-time** | 6L | _(landing)_ | _(landing)_ |
 | v11c (ref) | 2L | 1.292 | — |
+
+> **Only one cell has landed: same-step 2L on triage-11 = 1.9816** (vs β 1.4836).
+> This is the **noisy 11-config subset**, not the trusted metric — and that
+> subset is heavy on Energy/Web-CloudOps configs where this backbone happens to
+> fare worst, so it likely overstates the gap. **Do not read a verdict from it**;
+> the full-97 number (running now) is what counts. On the triage configs the
+> backbone is worse than β on 9 of 11 (better only on covid_deaths, us_births);
+> the per-domain breakdown below will show whether that holds on full-97.
 
 ![gm summary](plots/gm_summary.png)
 
