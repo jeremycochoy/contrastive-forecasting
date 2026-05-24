@@ -131,7 +131,7 @@ _(landing)_
 | Backbone | head | full-97 GM | triage-11 GM |
 |----------|:----:|-----------:|-------------:|
 | **β** (#309) | 2L | 1.3272 | 1.4836 |
-| **β** (#309) | 6L | _(landing)_ | _(landing)_ |
+| **β** (#309) | 6L | _(landing)_ | 1.5271 |
 | **xshh same-step** | 2L | **1.6194** | 1.9816 |
 | **xshh same-step** | 6L | 1.6181 | 1.8762 |
 | **xshh all-time** | 2L | _(landing)_ | 1.6126 |
