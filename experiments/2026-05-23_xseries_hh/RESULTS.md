@@ -193,9 +193,9 @@ symlog-y).
   gap over β, ~0.35 is merely the larger negative pool; only ~0.19 is genuine
   extra excess. The cross-series same-step negative barely perturbs the
   contrastive task.
-- The **all-time** arm (still training) tracks *below* its uniformity floor
-  (excess **−0.78** at 19k): with 16.8M negatives the cos⁻≈0 reference is loose
-  (the negatives are net anti-aligned).
+- The **all-time** arm converges *below* its uniformity floor (excess
+  **−0.80** at 50k): with 16.8M negatives the cos⁻≈0 reference is loose (the
+  negatives are net anti-aligned).
 - AUC and Top-1 retrieval (shown as 1−AUC / 1−Top1, log-log) saturate for all
   arms within a few hundred steps.
 
