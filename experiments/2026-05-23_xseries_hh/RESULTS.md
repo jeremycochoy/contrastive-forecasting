@@ -119,8 +119,10 @@ seasonal-naive 1.0.
 | loss-side · all-time | 6L | 1.4748 | 1.7028 | +11.1% |
 | data-side · forked allt·50% | 2L | 1.6366 | 1.8824 | +23.3% |
 | data-side · forked allt·50% | 6L | **1.4065** | 1.5339 | +6.0% |
-| data-side · forked allt·2/b | 2L · 6L | *in flight* | *in flight* | — |
-| data-side · forked β·2/b | 2L · 6L | *in flight* | *in flight* | — |
+| data-side · forked allt·2/b | 2L | *running* | 1.6083 | — |
+| data-side · forked allt·2/b | 6L | *in flight* | *in flight* | — |
+| data-side · forked β·2/b | 2L | 1.5302 | 1.4376 | +15.3% |
+| data-side · forked β·2/b | 6L | *in flight* | *in flight* | — |
 | v11c (reference) | 2L | 1.292 | — | −2.7% |
 
 *GM-Relative MASE, lower = better; Δ vs the best arm β·2L (1.3272).*
