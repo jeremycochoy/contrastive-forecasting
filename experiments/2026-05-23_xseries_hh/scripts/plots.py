@@ -220,16 +220,16 @@ def plot_training_curves():
     # Panel 1: contrastive loss MINUS each arm's InfoNCE floor. The floor
     # log(1+N·e^(−1/τ)) grows with the negative count N, which differs ~52×
     # across arms, so RAW losses are not comparable — subtracting each arm's
-    # own floor is. log-x; symlog-y so an arm sitting slightly BELOW its
-    # uniformity floor (cos⁻ net < 0, expected when N is huge) still shows.
+    # own floor is. Genuine log–log: every arm's floor-excess stays strictly
+    # positive at all steps (measured ≈ +0.5–0.6 at 50k, larger earlier), so
+    # log-y is well-defined and exposes the slow power-law approach to the floor.
     ax = axes[0, 0]
     for lab, cols, col, fk in arms:
         if "loss" in cols and "step" in cols:
             y = _smooth([v - FLOOR[fk] for v in cols["loss"]], 100)
             ax.plot(cols["step"], y, color=col, lw=1.4, label=f"{lab}  (floor {FLOOR[fk]:.2f})")
-    ax.set_xscale("log"); ax.set_yscale("symlog", linthresh=0.05)
-    ax.axhline(0, color="k", ls=":", lw=0.8, alpha=0.6)
-    ax.set_title("contrastive loss − InfoNCE floor   (log x · symlog y)")
+    ax.set_xscale("log"); ax.set_yscale("log")
+    ax.set_title("contrastive loss − InfoNCE floor   (log–log)")
     ax.set_xlabel("step"); ax.grid(alpha=0.3, which="both"); ax.legend(fontsize=8)
 
     # Panels 2–3: retrieval error 1−AUC and 1−Top1 (→0), genuine log-log.
