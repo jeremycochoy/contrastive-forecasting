@@ -43,9 +43,10 @@ subset. Single seed per cell (line spread ≈ ±0.02, #307).*
   fork looked best-of-6L (1.4065); but cutting it to one pair per 256-batch removes
   the win — forked·allt·2/b 1.4049 (2L, ≈ all-time) / **1.5100** (6L, *worse* than
   all-time 1.4748), forked·β·2/b 1.5302 / 1.4412. So the 6L gain tracked the
-  synthetic-data *fraction* (50% vs 0.8%), not the fork structure. A 50%
-  *unforked*-synthetic control would split synthetic-data benefit from the fork —
-  the clean next step.
+  synthetic-data *fraction* (50% vs 0.8%), not the fork structure. A **10%** forked
+  injection on both losses is in flight to probe the mid-range (0.8% → 10% → 50%);
+  a 50% *unforked*-synthetic control would split synthetic-data benefit from the
+  fork — the clean next step.
 
 ### Per-domain (full-97, best q-head per arm)
 
@@ -130,6 +131,8 @@ seasonal-naive 1.0.
 | data-side · forked allt·2/b | 6L | 1.5100 | 1.6348 | +13.8% |
 | data-side · forked β·2/b | 2L | 1.5302 | 1.4376 | +15.3% |
 | data-side · forked β·2/b | 6L | 1.4412 | 1.4027 | +8.6% |
+| data-side · forked allt·10% | 2L · 6L | *in flight* | *in flight* | — |
+| data-side · forked β·10% | 2L · 6L | *in flight* | *in flight* | — |
 | v11c (reference) | 2L | 1.292 | — | −2.7% |
 
 *GM-Relative MASE, lower = better; Δ vs the best arm β·2L (1.3272).*

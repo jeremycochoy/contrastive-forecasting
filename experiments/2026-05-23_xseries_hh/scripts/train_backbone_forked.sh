@@ -10,11 +10,11 @@
 #
 # Usage: train_backbone_forked.sh [gpu] [chunk] [mix_ratio]
 set -uo pipefail
-GPU="${1:-0}"; export XSHH_ALLT_CHUNK="${2:-8}"; MIX="${3:-0.0078125}"  # 2/256 = 1 pair/batch
+GPU="${1:-0}"; export XSHH_ALLT_CHUNK="${2:-8}"; MIX="${3:-0.0078125}"; TAG="${4:-forked2}"  # default 2/256 = 1 pair/batch
 SEED=20260520
 WT=/home/jupyter/workspaces/contrastive-forecasting/.claude/worktrees/cross-series-hh
 OUT=/home/jupyter/workspaces/contrastive-forecasting/experiments/2026-05-23_xseries_hh
-NAME="bb_xshh_allt_forked2_50k"   # forked2 = 2 samples/batch (supersedes mis-specified 50% run bb_xshh_allt_forked_50k)
+NAME="bb_xshh_allt_${TAG}_50k"   # TAG: forked2 = 2/batch, forked10pct = 10% mix, forked = 50% (mis-specified)
 RUNS="$OUT/runs"; RES="$OUT/results"; mkdir -p "$RUNS" "$RES"
 BB="$RUNS/${NAME}_FINAL.pth"
 export PYTHONPATH="$WT" PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True OMP_NUM_THREADS=8
