@@ -74,23 +74,26 @@ cos²)` (method from the 2026-05-08 init-u-sweep), batch and time axes. Colours
 match the scoreboard.*
 
 All arms are deeply collapsed — effective rank 1–8 of 384 (the post-training
-collapse the init-u-sweep flagged). **forked β·2/b is a clear outlier** — eff-rank
-≈ 7.8 (PR 10.2), ~4–8× every other arm. But latent rank does **not** order the arms
-by transfer: β has the best transfer (1.327) at a middling rank (1.45), while
-all-time carries the higher rank (1.93) yet transfers worse (1.414) — the same
-loss↔transfer decoupling seen above. (forked β·2/b's own transfer is still in eval.)
+collapse the init-u-sweep flagged) — except **forked β·2/b**, the clear outlier at
+eff-rank ≈ 7.8 (PR 10.2), ~4–8× the rest. The fork's effect on rank is
+**loss-specific**: on the β loss it lifts rank ~5× (β 1.45 → forked β·2/b 7.82),
+but on the all-time loss it does not (all-time 1.93 → forked allt·2/b 1.08) — so
+the boost is the β-loss × fork *interaction*, not the fork alone. And latent rank
+does **not** order the arms by transfer (β: best transfer at rank 1.45 < all-time's
+1.93, which transfers worse) — the loss↔transfer decoupling again; forked β·2/b's
+own transfer is still in eval.
 
 | arm | eff-rank (batch / time) | PR |
 |---|:--:|:--:|
 | same-step | 1.26 / 1.60 | 2.78 |
 | all-time | 1.93 / 1.95 | 7.53 |
 | forked allt·50% | 1.01 / 1.69 | 4.14 |
+| forked allt·2/b | 1.08 / 2.09 | 2.82 |
 | **forked β·2/b** | **7.82 / 7.29** | **10.19** |
 | β | 1.45 / 1.57 | 3.17 |
 
 *eff-rank = `dim_usage · 384` over the batch / time axes; PR = participation ratio
-of the squared spectrum. forked allt·2/b omitted — backbone still training. Script:
-`scripts/latent_dim.py`.*
+of the squared spectrum. Script: `scripts/latent_dim.py`.*
 
 ## Protocol
 
