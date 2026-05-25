@@ -293,6 +293,7 @@ def plot_perdomain():
 
 if __name__ == "__main__":
     plot_gm_summary()
-    plot_gm_vs_step()
+    # plot_gm_vs_step() — deferred: only the 50k endpoints exist, so the curve
+    # would be two lone points. Re-enable once a step-resolved sweep is run.
     plot_training_curves()
     plot_perdomain()
