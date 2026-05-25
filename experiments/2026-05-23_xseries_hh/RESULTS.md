@@ -1,16 +1,19 @@
 # #318 — Deny the positional shortcut: loss-side vs data-side
 
-**Verdict.** Two ways to deny the shortcut, tested as separate arms. **Loss-side**
-(cross-series h↔h repulsion — same-step, all-time): both **hurt**, +22% / +6.6% vs
-β at the 2L head. **Data-side** (forked continuations — identical past, divergent
-futures): **head-dependent** — worst arm at 2L (1.637), best backbone here at 6L
-(full-97 **1.4065**), the only denial arm to beat β on any domain — but its 50%
-synthetic mix confounds a data shift with the fork, so an isolating 2/batch re-run
-is in flight. **β·2L (1.3272) is best overall.**
+**Verdict.** Two ways to deny the shortcut — through the **loss** (cross-series h↔h
+repulsion; same-step, all-time) and through the **data** (forked continuations:
+identical past, divergent futures) — and **neither beats β**. Loss-side hurts:
+same-step **+22%**, all-time **+6.6%** vs β at the 2L head. The data-side fork
+looked best-of-6L at a **50% synthetic mix** (1.4065), but that was a **confound**:
+isolating the fork to one pair per 256-batch removes the win — forked·allt·2/b
+**1.4049** (2L, ≈ all-time) / **1.5100** (6L, *worse* than all-time), forked·β·2/b
+**1.5302 / 1.4412** — so the gain tracked the synthetic-data *fraction*, not the
+fork. **β·2L (1.3272) is the best overall**: denying the positional shortcut, by
+loss or by data, does not improve GIFT-Eval transfer.
 
 ![full-97 GM summary](plots/gm_summary.png)
-*GM-Relative MASE, lower = better; 1.0 = seasonal-naive. Every arm × {2L, 6L};
-forked 2/batch (brown) appears once it lands.*
+*GM-Relative MASE, lower = better; 1.0 = seasonal-naive. Every arm × {2L, 6L}; the
+v11c target (dashed) and β·2L sit left of all denial arms.*
 
 ## Question
 
@@ -36,20 +39,21 @@ subset. Single seed per cell (line spread ≈ ±0.02, #307).*
   positional-code denier) is worst, broad all-time less so. A 6L head rescues
   neither (even β degrades 2L→6L), so the regression is in the **backbone** —
   what different series share at a step is forecastably useful, not a free code.
-- **Data-side (forked) is head-dependent**: worst at 2L, best-of-6L at 6L (a 0.23
-  swing vs β's 0.12), so the representation needs a deeper head to read out. The
-  50%-mix result is **confounded** by its synthetic fraction; two minimal-injection
-  arms (one pair per batch) isolate the fork — on the **all-time** loss and on the
-  **β** loss — both in flight.
+- **Data-side (forked) does not survive isolation.** At a 50% synthetic mix the
+  fork looked best-of-6L (1.4065); but cutting it to one pair per 256-batch removes
+  the win — forked·allt·2/b 1.4049 (2L, ≈ all-time) / **1.5100** (6L, *worse* than
+  all-time 1.4748), forked·β·2/b 1.5302 / 1.4412. So the 6L gain tracked the
+  synthetic-data *fraction* (50% vs 0.8%), not the fork structure. A 50%
+  *unforked*-synthetic control would split synthetic-data benefit from the fork —
+  the clean next step.
 
 ### Per-domain (full-97, best q-head per arm)
 
 ![per-domain radar](plots/perdomain.png)
 *Log radial; dashed ring = seasonal-naive (1.0); innermost = best. Each arm at its
 best q-head (lower full-97; head shown in the legend). β (2L) and v11c are
-tightest; same-step (6L) bulges out — worse than β on all 7 domains, no seasonal
-signature; forked allt·50% (6L) sits closest to β. The two 2/batch arms join when
-their full evals land.*
+tightest; the denial arms bulge outward (same-step 6L worst, no seasonal
+signature); forked allt·50% (6L) sits closest to β but no denial arm reaches it.*
 
 ### Training dynamics
 
@@ -120,7 +124,7 @@ seasonal-naive 1.0.
 | data-side · forked allt·50% | 2L | 1.6366 | 1.8824 | +23.3% |
 | data-side · forked allt·50% | 6L | **1.4065** | 1.5339 | +6.0% |
 | data-side · forked allt·2/b | 2L | 1.4049 | 1.6083 | +5.9% |
-| data-side · forked allt·2/b | 6L | *in flight* | *in flight* | — |
+| data-side · forked allt·2/b | 6L | 1.5100 | 1.6348 | +13.8% |
 | data-side · forked β·2/b | 2L | 1.5302 | 1.4376 | +15.3% |
 | data-side · forked β·2/b | 6L | 1.4412 | 1.4027 | +8.6% |
 | v11c (reference) | 2L | 1.292 | — | −2.7% |
