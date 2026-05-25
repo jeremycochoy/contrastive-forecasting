@@ -62,9 +62,11 @@ signature); forked allt·50% (6L) sits closest to β but no denial arm reaches i
 same-step 2.04 / all-time 5.27 grow with the 52×-spanning negative pool (forked
 shares all-time's); all converge to a similar excess (+0.54…+0.64). **gap-ratio**
 (1−ff)/(1−fp) (forecast↔future vs ↔present; 0 = perfect). **Dimension usage**
-U = 1/(d·mean cos²) ∈ (0,1] (1 = full use, →0 = collapse), temporal and batch.* The
-contrastive objective is learned near-identically across arms, yet transfer spans
-22% — for the loss-side arms the structure is learned but wrong.
+U = 1/(d·mean cos²) ∈ (0,1] (1 = full use, →0 = collapse), temporal and batch —
+measured in-training on the live batch, distinct from the frozen-`h` eff-rank in
+§Latent dimensionality.* The contrastive objective is learned near-identically
+across arms, yet transfer spans 22% — for the loss-side arms the structure is
+learned but wrong.
 
 ## Latent dimensionality
 
@@ -81,9 +83,10 @@ eff-rank ≈ 7.8 (PR 10.2), ~4–8× the rest. The fork's effect on rank is
 **loss-specific**: on the β loss it lifts rank ~5× (β 1.45 → forked β·2/b 7.82),
 but on the all-time loss it does not (all-time 1.93 → forked allt·2/b 1.08) — so
 the boost is the β-loss × fork *interaction*, not the fork alone. And latent rank
-does **not** order the arms by transfer (β: best transfer at rank 1.45 < all-time's
-1.93, which transfers worse) — the loss↔transfer decoupling again; forked β·2/b's
-own transfer is still in eval.
+does **not** order the arms by transfer: β (rank 1.45) transfers best, all-time
+(rank 1.93) worse despite the higher rank, and the rank outlier forked β·2/b (7.82)
+transfers *worse* than β at both heads (1.5302 / 1.4412) — the loss↔transfer
+decoupling again.
 
 | arm | eff-rank (batch / time) | PR |
 |---|:--:|:--:|
@@ -150,6 +153,6 @@ negatives (all-time-forked → all-time column; β-forked → β column).
 ## Other artifacts (trained, not evaluated)
 
 A 6L-forecaster variant of both loss-side arms (1L → 6L *forecaster*) was trained
-— `bb_xshh_6Lf_50k`, `bb_xshh_allt_6Lf_50k` (50k each, on disk) — but downstream
-eval was paused to prioritise the fork (one cell: same-step-6Lf 2L triage 1.5177).
-See [`EXECUTION_LOG.md`](EXECUTION_LOG.md).
+— `bb_xshh_6Lf_50k`, `bb_xshh_allt_6Lf_50k` (50k each, on disk) — but not evaluated
+downstream (one cell landed: same-step-6Lf 2L triage 1.5177). See
+[`EXECUTION_LOG.md`](EXECUTION_LOG.md).
