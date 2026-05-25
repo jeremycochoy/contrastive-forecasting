@@ -81,15 +81,15 @@ The four logged signals over training, all arms (k=1 dashed, k=12 solid, β blac
   each curve's own trend, not cross-arm levels.
 - **Forecast "pos-gap" ratio** (log-log) — cos(forecast, current latent) ÷
   cos(forecast, next latent); → 0 means the forecast points at the future, not
-  the present (lower = better). β drives it to ~0.001; the k=12 arms stall near
-  ~0.5.
+  the present (lower = better). β drives it to ~0.001; the **β-neg** k=12 arms
+  stall near ~0.5; the **CPC-neg** k=12 arms reach ~0.03 (still above β's ~0.001).
 - **Uniformity, batch and time dimensions** (log-x) — how spread the latents are
   along each axis as training proceeds.
 
 ## Protocol
 
 - **Backbones:** one per arm. 6-layer causal encoder + forecaster head; 50k
-  steps, batch 256, τ=0.10, fp32. At k=1 the loss is byte-identical to β
+  steps, batch 256, τ=0.10, fp32. At k=1 the loss equals β's to 1e-5
   (verified, `test_cpc.py`).
 - **k=12 head:** K=12 parallel heads; head *k* predicts the latent *k* steps
   ahead. The InfoNCE positive is averaged over the 12 horizons; negatives are the

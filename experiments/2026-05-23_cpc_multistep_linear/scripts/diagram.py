@@ -50,7 +50,7 @@ box(6.8, 1.6, 2.6, 0.75, "predict $\\hat h_{t+1}\\,...\\,\\hat h_{t+12}$", PRED,
 # ---- shared note ----
 ax.text(0.1, 0.55,
         "Same in both rows: the causal encoder and all training settings. Only the forecast\n"
-        "horizon changes — at k=1 the loss is byte-identical to β.",
+        "horizon changes — at k=1 the loss equals β's (to 1e-5).",
         fontsize=9.5, color="#333")
 ax.text(0.1, 0.02,
         "Shown here is the headline test (β's forecaster head + β's negatives). Two controls also swap\n"
