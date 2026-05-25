@@ -1,18 +1,20 @@
 #!/bin/bash
 # #318 follow-up 2 — forked-continuation ARIMA data ON the all-time arm.
 # = the all-time arm recipe (cosine_similarity_batch_full_hh_negs_xshh_allt,
-#   1L forecaster) EXCEPT the batch is half forked-ARIMA pairs (--synth-kind
-#   forked-arma --mix-ratio 0.5): paired sequences sharing a prefix then
-#   diverging, so the same past maps to multiple plausible futures (denies the
-#   forecaster a positional / minimal predictive-state code). Everything else β.
+#   1L forecaster) EXCEPT ONE forked-ARIMA pair (2 samples) is injected per
+#   256-row minibatch (--synth-kind forked-arma --mix-ratio 2/256): a single
+#   pair that shares an exact prefix then diverges, so the same past maps to
+#   two plausible futures (denies the forecaster a positional / minimal
+#   predictive-state code). The other 254 rows stay real HF data, so transfer
+#   is NOT confounded by a synthetic-distribution shift. Everything else β.
 #
 # Usage: train_backbone_forked.sh [gpu] [chunk] [mix_ratio]
 set -uo pipefail
-GPU="${1:-0}"; export XSHH_ALLT_CHUNK="${2:-8}"; MIX="${3:-0.5}"
+GPU="${1:-0}"; export XSHH_ALLT_CHUNK="${2:-8}"; MIX="${3:-0.0078125}"  # 2/256 = 1 pair/batch
 SEED=20260520
 WT=/home/jupyter/workspaces/contrastive-forecasting/.claude/worktrees/cross-series-hh
 OUT=/home/jupyter/workspaces/contrastive-forecasting/experiments/2026-05-23_xseries_hh
-NAME="bb_xshh_allt_forked_50k"
+NAME="bb_xshh_allt_forked2_50k"   # forked2 = 2 samples/batch (supersedes mis-specified 50% run bb_xshh_allt_forked_50k)
 RUNS="$OUT/runs"; RES="$OUT/results"; mkdir -p "$RUNS" "$RES"
 BB="$RUNS/${NAME}_FINAL.pth"
 export PYTHONPATH="$WT" PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True OMP_NUM_THREADS=8
