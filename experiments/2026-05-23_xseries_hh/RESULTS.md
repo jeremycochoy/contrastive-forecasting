@@ -122,7 +122,7 @@ seasonal-naive 1.0.
 | data-side · forked allt·2/b | 2L | 1.4049 | 1.6083 | +5.9% |
 | data-side · forked allt·2/b | 6L | *in flight* | *in flight* | — |
 | data-side · forked β·2/b | 2L | 1.5302 | 1.4376 | +15.3% |
-| data-side · forked β·2/b | 6L | *running* | 1.4027 | — |
+| data-side · forked β·2/b | 6L | 1.4412 | 1.4027 | +8.6% |
 | v11c (reference) | 2L | 1.292 | — | −2.7% |
 
 *GM-Relative MASE, lower = better; Δ vs the best arm β·2L (1.3272).*
