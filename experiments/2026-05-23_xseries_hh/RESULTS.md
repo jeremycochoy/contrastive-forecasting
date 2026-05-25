@@ -277,11 +277,25 @@ quantitative GM-vs-step curve was deferred — the decoupling statement rests on
 the training curves plus the head-size result, not a step-resolved transfer
 sweep.
 
-### Follow-ups (in flight)
+### Follow-up: forked-continuation ARIMA (data-side denial)
+
+Pairs of sequences that share an exact prefix then diverge (perturbed-coefficient
+continuations) were mixed 50/50 into the all-time arm, to deny the
+positional/predictive-state code through the *data* rather than the loss. It did
+**not** help — full-97 **1.6366** (2L), *worse* than the base all-time arm
+(1.4143) and than β (1.3272); triage-11 1.8824.
+
+**Heavily confounded, read with care:** the forked arm trains on **50%
+synthetic ARIMA** while the base all-time arm trains on 100% real HF data. A
+50% out-of-distribution synthetic mix is expected to hurt real-data transfer on
+its own, so this number conflates the *data-distribution shift* with the *fork
+structure*. Without an **unforked-synthetic** control (all-time + 50% plain
+ARIMA, same shift, no fork) the fork's specific effect is not isolated — that
+control is the clean next step. (6L head still landing.)
+
+### Follow-ups (still in flight)
 
 - **6L-forecaster** (1L → 6L forecaster, both arms): does a deeper predictor
-  change the picture? — _(training; all-time-6Lf first)_
-- **Forked-continuation ARIMA** (all-time arm + paired sequences sharing a
-  prefix then diverging): a *data-side* denial of the positional/predictive-
-  state code — does denying it through the data, rather than the loss, help
-  where the loss-side repulsion hurt? — _(training)_
+  change the picture? — _(all-time-6Lf trained; eval re-running after a bf16
+  dtype fix. same-step-6Lf training.)_
+- **forked-continuation 6L head** — _(training)_
