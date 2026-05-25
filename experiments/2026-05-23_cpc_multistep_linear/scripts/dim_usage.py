@@ -41,10 +41,10 @@ BATCH, T_RAW, C, NHEAD = 128, 4096, 1, 6
 
 # (label, color, runs-dir, prefix)  — prefix_{N}k.pth are the periodic ckpts.
 MODELS = [
-    ("β (transformer head, k=1)",      "#ff7f0e", BETA, "bb_beta_50k"),
-    ("CPC k=12 (transformer head, #1)", "#1f77b4", RUNS, "bb_cpctrf_k12_s20260520_fp32_50k"),
-    ("linear k=1 (β-neg)",              "#2ca02c", RUNS, "bb_linbn_k1_s20260520_fp32_50k"),
-    ("linear k=12 (β-neg)",             "#d62728", RUNS, "bb_linbn_k12_s20260520_fp32_50k"),
+    ("k=1: transformer (β)", "#1f77b4", BETA, "bb_beta_50k"),
+    ("k=12: transformer",    "#1f77b4", RUNS, "bb_cpctrf_k12_s20260520_fp32_50k"),
+    ("k=1: linear",          "#2ca02c", RUNS, "bb_linbn_k1_s20260520_fp32_50k"),
+    ("k=12: linear",         "#d62728", RUNS, "bb_linbn_k12_s20260520_fp32_50k"),
 ]
 
 
@@ -149,21 +149,24 @@ def main():
             w.writerow([label, step, f"{pr:.4f}", H])
 
     # ---- plot ----
-    fig, ax = plt.subplots(figsize=(8, 5.5))
-    Hmax = max((r[4] for r in rows), default=384)
+    fig, ax = plt.subplots(figsize=(8, 5.2))
     by = {}
     for label, color, step, pr, H in rows:
         by.setdefault((label, color), []).append((step, pr))
     for (label, color), pts in by.items():
         pts.sort()
         xs = [p[0] for p in pts]; ys = [p[1] for p in pts]
-        ls = "-" if "k=12" in label else "--"
-        ax.plot(xs, ys, "o-", color=color, lw=2, ms=6, ls=ls, label=label)
-    ax.axhline(Hmax, color="0.6", ls=":", lw=1, label=f"H = {Hmax} (max)")
+        ls = "-" if "k=12" in label else "--"   # k=12 solid, k=1 dashed
+        ax.plot(xs, ys, marker="o", color=color, lw=2.2, ms=6, ls=ls, label=label)
+    ax.set_ylim(0, 62); ax.set_xlim(3, 52)
+    ax.axhspan(0, 8, color="#1f77b4", alpha=0.05); ax.axhspan(44, 58, color="#d62728", alpha=0.05)
+    ax.text(51, 5, "k=1: ~3–5 dims", ha="right", fontsize=8.5, color="#1f5fa8")
+    ax.text(51, 56, "k=12: ~50 dims", ha="right", fontsize=8.5, color="#b01818")
     ax.set_xlabel("training step (k)")
-    ax.set_ylabel("participation ratio  (effective dim of encoder latent)")
-    ax.set_title("#316 — latent dim-usage vs step: does multi-step collapse the latent?", fontsize=11)
-    ax.grid(True, alpha=0.3); ax.legend(fontsize=8, loc="best")
+    ax.set_ylabel("effective # dimensions used  (participation ratio; max H=384)")
+    ax.set_title("Why: k=12 spreads the latent across ~10× more dimensions than k=1\n"
+                 "(refutes the 'multi-step collapses the latent' hypothesis)", fontsize=10.5)
+    ax.grid(True, alpha=0.3); ax.legend(fontsize=9, loc="center right")
     plt.tight_layout(); plt.savefig(f"{OUT_PLOTS}/dim_usage.png", dpi=120, bbox_inches="tight"); plt.close()
     print(f"[dim_usage] wrote {OUT_PLOTS}/dim_usage.png and {OUT_RES}/dim_usage.csv ({len(rows)} points)")
 

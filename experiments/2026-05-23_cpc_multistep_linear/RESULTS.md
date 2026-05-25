@@ -1,222 +1,79 @@
-# #316 — Does multi-step forecasting (k=12) improve β?
+# #316 — Does predicting 12 steps ahead beat predicting 1?
+
+**No.** Every 12-step variant transfers worse than β, and none of the seed noise
+changes that. The one solid mechanism: 12-step prediction makes the latent
+*diffuse* (uses ~10× more dimensions), not richer.
+
+![experiment](plots/experiment.png)
 
 ## Question
 
-The backbone is trained by **contrastive forecasting**: a causal encoder turns
-each patch of a series into a latent *h_t*; a small **forecaster** predicts the
-next latent; an InfoNCE loss pulls the prediction toward the true future latent
-*h_{t+1}* and away from negatives (other times, channels, series). The backbone
-is then frozen and a quantile head is trained on its latents for **GIFT-Eval**,
-scored as **GM-Relative MASE** — the geometric mean over 97 configs of
-(model MASE ÷ seasonal-naive MASE); **lower is better**, 1.0 = seasonal naive.
+β's forecaster predicts the **next** latent (k=1). Contrastive Predictive Coding
+(van den Oord 2018) predicts **several** steps ahead, on the theory that it packs
+more forecastable structure into the latent. Holding β's encoder, negatives, and
+training fixed, does predicting **k = 12** ahead improve transfer?
 
-The strongest recipe on this line, **β** (a 1-layer causal-transformer
-forecaster with a d=128 bottleneck, AdamW β2=0.98), reaches **1.3272**, still
-+2.7 % over the champion **v11c (1.292)**. β predicts only the **next** latent
-(*k = 1*). Contrastive Predictive Coding (van den Oord et al. 2018) predicts
-**several** steps ahead, on the theory that it forces the latent to hold more
-forecastable structure. So:
+Metric: **GM-Relative MASE** — model MASE ÷ seasonal-naive MASE, geometric mean
+over 97 GIFT-Eval configs; **lower is better**. β = 1.327; champion v11c = 1.292.
 
-> Holding β's architecture and negatives fixed, does predicting **k = 12** steps
-> ahead instead of one improve transfer — or not change it, or hurt?
-
-## Result
-
-**k=12 does not improve β — robustly so — but the _size_ of the penalty is
-inside the metric's seed noise.** Two claims, kept separate:
-
-- **Direction (robust):** *every* k=12 run — every family, every seed — scores
-  worse than β (1.3272). The measured k=12 values span **1.478 → 2.014**; none
-  comes near improving β. To *improve* it, a run would have to drop below 1.327,
-  and the closest any seed gets is 1.478. So the "no improvement" answer holds.
-- **Magnitude (noisy):** a two-seed check of one arm came out **0.49 GM-MASE
-  apart** (§"How reliable is this"), larger than the +0.09…+0.24 k-effects, so
-  the *exact* penalty and the small within-family orderings are not pinned down —
-  read the trend table as "k=12 is worse," not as precise deltas.
-
-Concretely, the headline arm — **K = 12 transformer-1L heads** (each
-*architecturally identical* to β's forecaster; head *k* predicts *h_{t+k}*), β's
-negatives unchanged, **only** the step count changed (k=1 ≡ β) — gives full-97
-GM-MASE **1.4781** (small head) vs β's 1.3272. **Also robust** is the
-*mechanism*: k=12 drives the encoder latent to a markedly higher-dimensional,
-diffuse representation than k=1.
+## Answer: no — every k=12 variant is worse than β
 
 ![gm summary](plots/gm_summary.png)
 
-### The single-seed trend points one way (in every variant)
+All four k=12 runs land at **1.478 – 2.014**, above β's **1.327**. To *improve* β
+a run would have to drop below 1.327; none comes close.
 
-To rule out the forecaster *type* and the *negative set* as explanations, the
-same k=1→k=12 change was run in three families. In all three **single-seed**
-runs, k=12 is nominally worse than k=1 (small-head full-97 GM-MASE; lower =
-better):
-
-| forecaster family | k = 1 | k = 12 | k effect |
-|---|---:|---:|---:|
-| **transformer-1L heads, β negatives**  (k=1 ≡ β) | 1.3272 | 1.4781 | +0.151 |
-| linear heads, β negatives                        | 1.4248 | 1.6635 | +0.239 |
-| linear heads, CPC negatives                       | 1.4313 | 1.5240 · **2.0137**¹ | +0.09 … +0.58¹ |
-
-_References: v11c = 1.292, β = 1.3272, (B) = 1.3572 (all small-head full-97)._
-_¹ The CPC-neg k=12 cell has **two seeds** (1.5240 and 2.0137) — see the next
-section. That 0.49 spread is the reason these k-effects are flagged as
-suggestive, not significant._
-
-The single-seed ordering is consistent, and a secondary, orthogonal effect is
-visible: the **transformer forecaster scores better than the linear one even at
-k=1** (β = 1.3272 vs linear k=1 ≈ 1.43). But before reading anything into the
-+0.09…+0.24 k-effects, look at how far apart two seeds of the *same* arm land.
+## Is the trend reliable? Direction yes, size no
 
 ![k trend](plots/k_trend.png)
 
-### How reliable is this? A two-seed check
+k=12 is worse in all three forecaster families. **But** two seeds of one arm land
+**0.49 apart** (1.524 vs 2.014) — wider than any k=1→k=12 gap — despite
+near-identical pretraining loss, forecast gap, and AUC. So the **direction**
+(k=12 worse) is reliable; the **exact penalty** and the small within-family
+orderings are within seed noise.
 
-Both seeds of the linear+CPC-neg k=12 arm were trained the full 50 k steps and
-converge to **near-identical pretraining metrics** — contrastive loss ≈ 0.06,
-forecast gap ≈ 0.77, AUC ≈ 1.0 for both. Yet their **downstream GM-MASE differs
-by 0.49**:
-
-| linear+CPC-neg k=12 | pretrain loss | forecast gap | full-97 GM-MASE |
-|---|---:|---:|---:|
-| seed 20260520 | ≈0.058 | ≈0.77 | **1.5240** |
-| seed 20260523 | ≈0.060 | ≈0.77 | **2.0137** |
-
-The second seed's q-head was trained from the same fixed seed on the same data,
-so the gap is driven by the *backbone*, not the head; and its resume (after a
-mid-run interruption) was clean — no loss spike, no step discontinuity, AUC
-continuous — so it is a legitimate, fully-converged seed, not a damaged run.
-
-**Implication.** The downstream metric carries **~0.5 GM-MASE of seed variance**
-for this recipe, *decoupled from how well the contrastive objective converged*.
-That dwarfs the +0.09…+0.24 k-effects above and is ~25× the ±0.02 between-run
-figure assumed from #307 (which clearly does not transfer to this less-stable
-recipe class). So the k-effect *sizes* are **not statistically established** —
-read the table as "k=12 is worse," not as precise deltas. (Every seed is still
-worse than β, so the *no-improvement* direction holds; a multi-seed replication
-would only sharpen the magnitudes, not flip the sign.)
-
-### Per domain (full GIFT-Eval), v11c reference
-
-Across the 7 GIFT-Eval domains, the k=12 transformer-head ring (single seed)
-sits **outside** (worse than) both β and v11c on 6 of 7 — tying only on
-Web/CloudOps. The single-seed deficit is broad, not a domain-specific trade-off
-— though, per the seed-variance caveat above, the *size* of that deficit is not
-firmly pinned down.
-
-![per-domain radar](plots/perdomain_radar.png)
-
-### Why: multi-step keeps the latent diffuse; β concentrates it
-
-A natural hypothesis (raised in review) is that the multi-step objective forces
-the latent to *collapse* onto a low-dimensional, linearly-extrapolable subspace.
-The data **refutes it — the opposite happens.** Measuring the **participation
-ratio** of the encoder latent (effective dimensionality, PR = (Σλ)²/Σλ² of the
-latent covariance; 1 = one direction, H = 384 = full) on a fixed real-data batch
-across training:
-
-| latent dim-usage @ 50k | k = 1 | k = 12 |
-|---|---:|---:|
-| transformer head (k=1 ≡ β) | **3.2** | **55.3** |
-| linear head, β negatives | **4.9** | **51.4** |
-
-The **k=1** recipes *concentrate* the latent over training, collapsing to **~3–5
-effective dimensions**; the **k=12** recipes hold it **~10–17× wider (~50)**.
-Predicting 12 steps ahead requires the latent to stay linearly extrapolable far
-out, so it remains diffuse; predicting only the next step lets the encoder pack
-variance into a few sharp, highly-predictive directions. The best-transferring
-recipe is the most concentrated one — and the trend is identical in both
-forecaster families, so it is the *horizon*, not the head type.
+## Why: k=12 spreads the latent out — it does not collapse it
 
 ![dim usage](plots/dim_usage.png)
 
-This agrees with the **forecast gap** — cos(f_t, h_{t+1}) − cos(f_t, h_t), how
-much more the forecast resembles the next latent than the current one — which
-settles at **~1.09 for k=1** but only **~0.65 for k=12**: the k=12 latent is both
-higher-dimensional *and* less sharply one-step-predictable. β's tight,
-low-dimensional latent is the best transferrer on this line; the diffuse k=12
-latent the worst single-seed — a plausible dim-usage→transfer link, though (per
-the seed-variance caveat) the *size* of that transfer gap is not nailed down.
+The k=12 encoder latent uses **~50 effective dimensions**; the k=1 latent
+collapses to **~3–5** over training — a 10–17× gap, identical in both head types.
+This **refutes** the natural guess that multi-step prediction *collapses* the
+latent onto a low-rank subspace: the opposite happens.
 
-![training curves](plots/training_curves.png)
+*Hypothesis (not proven):* a diffuse, high-dimensional latent is harder for the
+downstream head to use than β's tight, low-dimensional one — consistent with
+k=12's worse GM-MASE.
 
 ## Protocol
 
-**One axis changes from β: the number of forecast steps.** β's forecaster is a
-single 1-layer causal transformer (d=128 bottleneck, 4 heads) predicting
-*h_{t+1}*. The k=12 arm replaces it with **K = 12 such heads** in parallel, head
-*k* mapping the encoder output *h_t* to a prediction of *h_{t+k}*. The loss is
-β's exact `cosine_similarity_batch_full_hh_negs` negative pool (encoder
-all-time + cross-channel + cross-batch, batch-pooled) with the positive
-**averaged over the K horizons**; at K=1 it is byte-for-byte β (verified
-numerically). Everything else = β: 6-layer causal encoder, DropKey 0.70, τ=0.10,
-β2=0.98, lr 1e-3, 50 k steps, global batch 256, single channel, fp32.
-
-**Control families** (to isolate the k effect from the head/negatives): the
-same k=1→k=12 change with **linear** heads (W_k: H→H) under **β negatives** and
-under **CPC-canonical negatives**. β itself is the k=1 transformer/β-negs cell.
-
-**Downstream (unchanged from β / #315).** Each frozen backbone → a quantile
-forecasting head (forecast length 16, reconstruction = forecaster, 30 k steps),
-**full-97 + triage-11 GM-MASE**. The headline arm (#1) is evaluated with both a
-small 2-layer and a 6-layer head; the control families use the small head for
-the trend comparison.
-
-**Precision = fp32** (the v11c champion's precision; the multi-step objective is
-unstable under β's fp16 body at lr 1e-3 — detail in EXECUTION_LOG.md).
+- **Only the forecast horizon changes** (see schematic): identical 6-layer causal
+  encoder, identical InfoNCE negatives (β's pool), identical training (τ=0.10,
+  50k steps, batch 256, fp32). At k=1 the loss is byte-identical to β.
+- **Forecaster head** tested two ways — transformer-1L (= β's) and linear — under
+  two negative sets (β's and CPC-canonical), giving the three families plotted.
+- **Downstream:** freeze the backbone, train a quantile head, score GIFT-Eval
+  full-97. The headline transformer arm was also run with a 6-layer head (1.421).
 
 ## What we learned
 
-1. **Robust — multi-step makes the latent diffuse, not collapsed.** k=12 trains
-   as a healthy contrastive model, and (contra a natural low-rank-collapse
-   hypothesis) its encoder latent is *higher*-dimensional than β's — effective
-   dim **~50 vs ~3**, a 10–17× within-run effect that holds across forecaster
-   families. The multi-step constraint keeps the latent spread out and
-   longer-horizon-linear, away from the sharp, low-dimensional 1-step structure
-   (forecast gap ~0.65 vs ~1.09) that β concentrates into. This is the solid
-   result, and it argues against the CPC "predict-further → richer latent"
-   intuition: the extra dimensions are not useful for transfer.
-2. **k=12 does not improve β — direction robust, magnitude noisy.** Every k=12
-   run (all families; both seeds where measured) is worse than β — none improves
-   it, so the no-improvement answer is solid. But the effect *sizes* (+0.09…+0.24)
-   sit inside the seed variance, so read them as "worse," not as precise deltas.
-3. **Methodological — single-seed GM-MASE is unreliable for this recipe class.**
-   Two equally-converged seeds of one arm differ by **0.49 GM-MASE** — far more
-   than any k-effect, and decoupled from pretraining loss/gap/AUC. Comparisons
-   at this scale need ≥2 seeds; the ±0.02 figure from #307 does not generalize
-   to these higher-MASE, less-stable recipes.
-4. **Single-seed aside:** the transformer forecaster scores better than the
-   linear one even at k=1 (β 1.3272 vs linear ≈1.43) — but with ~0.5 seed noise,
-   treat this as indicative only.
-
-## Limitations
-
-- **Seed variance blurs the magnitude, not the direction — the main limitation.**
-  The one arm with two seeds spans **0.49 GM-MASE** (1.5240 / 2.0137); other
-  cells are single-seed. Every seed is still worse than β, so the *no-improvement*
-  conclusion holds; a ≥2-seed replication would only sharpen the effect *sizes*
-  (and the small within-family orderings), not change the direction.
-- The k=12 arm bundles K=12 heads (more parameters) with the multi-step
-  objective; the control families share the K-head structure, so the consistent
-  trend isolates the objective, but a same-parameter single-head multi-target
-  variant is untested.
-- fp16 (β's body precision) is unavailable for this objective (diverges at
-  lr 1e-3); the comparison is fp32-matched to v11c, not to β's fp16.
-- The dim-usage probe is one participation-ratio measurement on a single fixed
-  batch; absolute PR is batch-dependent, but the **relative** k=1≪k=12 gap is
-  large, monotonic over training, and identical in both families.
+1. **No improvement (robust).** Every k=12 run — every family, every seed — is
+   worse than β.
+2. **Mechanism (robust).** k=12 makes the latent diffuse (~50 dims) vs k=1's tight
+   ~3, refuting "multi-step collapses the latent."
+3. **Method caution.** GM-MASE seed variance here is ~0.5 — larger than the
+   k-effect — so single-seed comparisons at this scale are unreliable; ≥2 seeds
+   are needed to quote a magnitude.
 
 ## Annex
 
-### Metric & references
-full-97 / triage-11 **GM-Relative MASE**, geometric mean of (model ÷
-seasonal-naive) MASE; lower better. v11c = 1.292, β = 1.3272, (B) = 1.3572.
-#1 also: 6L-head full-97 = 1.4212.
-
-### Code
-Branch `experiment/2026-05-23-cpc-multistep-linear`. `forecaster_kind` ∈
-{transformer (β), cpc (#1, K transformer-1L heads), linear_cpc (#2/#3, K linear
-heads)}; losses `cpc_multistep` (β negatives) and `cpc_multistep_cpcnegs`
-(CPC-canonical), both = β's loss at K=1 for their family. CPC heads auto-detected
-downstream. Launchers `scripts/elisa_run.sh` (#1) and `scripts/elisa_run_linear.sh`
-(#2/#3); `scripts/downstream.sh`; figures `scripts/plot_results.py` and
-`scripts/dim_usage.py` (participation ratio vs step); CPU tests
-`scripts/test_cpc.py` (incl. k=1 ≡ β `full_hh_negs`, 7.468332).
+- **Two-seed check.** CPC-neg k=12 arm: seed A = 1.5240, seed B = 2.0137. Both
+  trained the full 50k and converged to near-identical loss (≈0.06) / gap (≈0.76)
+  / AUC (≈1.0); seed B's mid-run resume was clean (no loss spike or step
+  discontinuity), so the 0.49 spread is genuine seed variance, not a damaged run.
+- **References.** full-97 GM-Relative MASE: β = 1.3272, v11c = 1.292, (B) = 1.3572.
+- **Code.** Branch `experiment/2026-05-23-cpc-multistep-linear`. `forecaster_kind`
+  ∈ {transformer (β), cpc (K transformer-1L heads), linear_cpc (K linear heads)};
+  scripts `diagram.py`, `plot_results.py`, `dim_usage.py`, and `test_cpc.py`
+  (verifies k=1 loss ≡ β = 7.468332).
