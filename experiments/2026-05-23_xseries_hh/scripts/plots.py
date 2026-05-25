@@ -284,17 +284,25 @@ def plot_perdomain():
         return
     doms = sorted({d for _, m, _ in series for d in m})
     import numpy as np
-    x = np.arange(len(doms)); w = 0.8 / len(series)
-    fig, ax = plt.subplots(figsize=(12, 4.8))
-    for i, (lab, m, c) in enumerate(series):
-        ax.bar(x + i*w, [m.get(d, 0) for d in doms], w, color=c, alpha=0.85, label=lab)
-    ax.axhline(1.0, color="k", ls=":", lw=1, alpha=0.6)
-    ax.set_xticks(x + w*(len(series)-1)/2); ax.set_xticklabels(doms, rotation=20, ha="right", fontsize=9)
-    ax.set_ylabel("per-domain GM-Relative MASE (lower=better)")
-    ax.set_title("#318 — per-domain transfer (full-97, 2L): shortcut-denial arms vs β")
-    ax.legend(fontsize=9); fig.tight_layout()
+    ang = np.linspace(0, 2 * np.pi, len(doms), endpoint=False)
+    ang_c = np.concatenate([ang, ang[:1]])                       # close the polygon
+    fig, ax = plt.subplots(figsize=(8.5, 7), subplot_kw=dict(polar=True))
+    for lab, m, c in series:
+        v = [m.get(d, np.nan) for d in doms]
+        ax.plot(ang_c, v + v[:1], "-o", color=c, ms=4, alpha=0.9,
+                lw=(2.4 if lab.startswith("β") else 1.6), label=lab)
+    ax.plot(np.linspace(0, 2 * np.pi, 200), [1.0] * 200, "--", color="k", lw=1.0,
+            alpha=0.6)                                           # seasonal-naive ring
+    ax.set_rscale("log")
+    ax.set_rlim(0.75, max(d for _, m, _ in series for d in m.values()) * 1.12)
+    ax.set_xticks(ang); ax.set_xticklabels(doms, fontsize=9)
+    ax.set_rlabel_position(95)
+    ax.set_title("#318 — per-domain GM-Relative MASE (full-97, 2L · log radial)\n"
+                 "lower = better; dashed ring = seasonal-naive (1.0)", fontsize=11, pad=26)
+    ax.legend(fontsize=8, loc="upper right", bbox_to_anchor=(1.32, 1.12))
+    fig.tight_layout()
     fig.savefig(f"{PLOTS}/perdomain.png", dpi=130, bbox_inches="tight")
-    print("perdomain.png written")
+    print("perdomain.png written (radar)")
 
 
 if __name__ == "__main__":

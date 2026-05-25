@@ -77,9 +77,11 @@ isolating the fork from the shift; it will say whether the 6L result survives.
 
 ### Per-domain (2L head, full-97)
 
-![per-domain](plots/perdomain.png)
-*The loss-side same-step arm is worse than β on all 7 domains. forked-50% is
-mixed — it *beats* β on Econ/Fin and Healthcare but loses elsewhere.*
+![per-domain radar](plots/perdomain.png)
+*Per-domain radar (log radial; dashed ring = seasonal-naive 1.0; innermost =
+best). β and v11c are tightest; the loss-side arms bulge outward (same-step is
+worse than β on all 7 domains); forked-50% is mixed — inside β on Econ/Fin and
+Healthcare, outside elsewhere.*
 
 | domain | β | same-step | all-time | forked 50% |
 |---|---:|---:|---:|---:|
