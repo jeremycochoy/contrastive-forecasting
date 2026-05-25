@@ -64,6 +64,34 @@ U = 1/(d·mean cos²) ∈ (0,1] (1 = full use, →0 = collapse), temporal and ba
 contrastive objective is learned near-identically across arms, yet transfer spans
 22% — for the loss-side arms the structure is learned but wrong.
 
+## Latent dimensionality
+
+![latent dimensionality](plots/latent_dim.png)
+*Frozen encoder latent `h` (d=384), one real-HF batch (B=128, T=64 → 8,192
+positions, CPU). **Left**: normalised singular-value spectrum of mean-centred `h`
+(log-y). **Right**: dimension-usage effective rank = `U·H`, `U = 1/(d·mean_{i≠j}
+cos²)` (method from the 2026-05-08 init-u-sweep), batch and time axes. Colours
+match the scoreboard.*
+
+All arms are deeply collapsed — effective rank 1–8 of 384 (the post-training
+collapse the init-u-sweep flagged). **forked β·2/b is a clear outlier** — eff-rank
+≈ 7.8 (PR 10.2), ~4–8× every other arm. But latent rank does **not** order the arms
+by transfer: β has the best transfer (1.327) at a middling rank (1.45), while
+all-time carries the higher rank (1.93) yet transfers worse (1.414) — the same
+loss↔transfer decoupling seen above. (forked β·2/b's own transfer is still in eval.)
+
+| arm | eff-rank (batch / time) | PR |
+|---|:--:|:--:|
+| same-step | 1.26 / 1.60 | 2.78 |
+| all-time | 1.93 / 1.95 | 7.53 |
+| forked allt·50% | 1.01 / 1.69 | 4.14 |
+| **forked β·2/b** | **7.82 / 7.29** | **10.19** |
+| β | 1.45 / 1.57 | 3.17 |
+
+*eff-rank = `dim_usage · 384` over the batch / time axes; PR = participation ratio
+of the squared spectrum. forked allt·2/b omitted — backbone still training. Script:
+`scripts/latent_dim.py`.*
+
 ## Protocol
 
 All arms are byte-identical to the #309 **β** recipe except the denial edit: GRU
