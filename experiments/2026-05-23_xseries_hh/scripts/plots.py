@@ -286,53 +286,51 @@ def plot_perdomain():
         return
     import numpy as np
 
-    def srcs_for(h):   # full-97 summary per arm at head h; v11c is the shared ref
-        beta = (f"{BETA_DIR}/results/gift_eval_full_bb_beta_50k/summary.txt" if h == "2L"
-                else f"{RES}/gift_eval_full_beta_50k_6L/summary.txt")
-        return [("same-step", f"{RES}/gift_eval_full_xshh_50k_{h}/summary.txt", C_XSHH),
-                ("all-time", f"{RES}/gift_eval_full_xshh_allt_50k_{h}/summary.txt", C_ALLT),
-                ("forked allt·50%", f"{RES}/gift_eval_full_xshh_allt_forked_50k_{h}/summary.txt", C_FORK),
-                ("forked allt·2/b", f"{RES}/gift_eval_full_xshh_allt_forked2_50k_{h}/summary.txt", C_FORK2),
-                ("forked β·2/b", f"{RES}/gift_eval_full_beta_forked2_50k_{h}/summary.txt", C_BFORK),
-                ("β", beta, C_BETA),
-                ("v11c", f"{V11C}/summary.txt", C_V11C)]
-
-    # One radar per q-head — the fork's edge is head-dependent, so 2L and 6L
-    # tell different stories. Only arms with a full-97 summary at that head show;
-    # we never compute an eval here, just plot what the pipeline has produced.
-    for h in ("2L", "6L"):
-        series = []
-        for lab, st, c in srcs_for(h):
-            rel = per_config_relative(st)
-            if not rel:
-                continue
-            byd = {}
-            for cfg, r in rel.items():
-                byd.setdefault(dom_map.get(cfg, "?"), []).append(r)
-            series.append((lab, {d: gm(v) for d, v in byd.items()}, c))
-        if not series:
-            print(f"perdomain {h}: no data — skip")
+    # One radar: per arm, keep the q-head with the LOWER full-97 aggregate (its
+    # best head) and plot that head's per-domain profile; the head is shown in
+    # the legend. We never compute an eval here — just plot what the pipeline has.
+    arms = [("same-step", C_XSHH, {h: f"{RES}/gift_eval_full_xshh_50k_{h}/summary.txt" for h in ("2L", "6L")}),
+            ("all-time", C_ALLT, {h: f"{RES}/gift_eval_full_xshh_allt_50k_{h}/summary.txt" for h in ("2L", "6L")}),
+            ("forked allt·50%", C_FORK, {h: f"{RES}/gift_eval_full_xshh_allt_forked_50k_{h}/summary.txt" for h in ("2L", "6L")}),
+            ("forked allt·2/b", C_FORK2, {h: f"{RES}/gift_eval_full_xshh_allt_forked2_50k_{h}/summary.txt" for h in ("2L", "6L")}),
+            ("forked β·2/b", C_BFORK, {h: f"{RES}/gift_eval_full_beta_forked2_50k_{h}/summary.txt" for h in ("2L", "6L")}),
+            ("β", C_BETA, {"2L": f"{BETA_DIR}/results/gift_eval_full_bb_beta_50k/summary.txt",
+                           "6L": f"{RES}/gift_eval_full_beta_50k_6L/summary.txt"}),
+            ("v11c", C_V11C, {"2L": f"{V11C}/summary.txt"})]
+    series = []
+    for lab, c, heads in arms:
+        cand = [(g, h, st) for h, st in heads.items() if (g := agg_gm(st))]
+        if not cand:
             continue
-        doms = sorted({d for _, m, _ in series for d in m})
-        ang = np.linspace(0, 2 * np.pi, len(doms), endpoint=False)
-        ang_c = np.concatenate([ang, ang[:1]])
-        fig, ax = plt.subplots(figsize=(8.5, 7), subplot_kw=dict(polar=True))
-        for lab, m, c in series:
-            v = [m.get(d, np.nan) for d in doms]
-            ax.plot(ang_c, v + v[:1], "-o", color=c, ms=4, alpha=0.9,
-                    lw=(2.4 if lab == "β" else 1.6), label=lab)
-        ax.plot(np.linspace(0, 2 * np.pi, 200), [1.0] * 200, "--", color="k", lw=1.0, alpha=0.6)
-        ax.set_rscale("log")
-        ax.set_rlim(0.75, max(d for _, m, _ in series for d in m.values()) * 1.12)
-        ax.set_xticks(ang); ax.set_xticklabels(doms, fontsize=9)
-        ax.set_rlabel_position(95)
-        ax.set_title(f"#318 — per-domain GM-Relative MASE (full-97, {h} head · log radial)\n"
-                     "lower = better; dashed ring = seasonal-naive (1.0)", fontsize=11, pad=26)
-        ax.legend(fontsize=8, loc="upper right", bbox_to_anchor=(1.32, 1.12))
-        fig.tight_layout()
-        fig.savefig(f"{PLOTS}/perdomain_{h}.png", dpi=130, bbox_inches="tight")
-        print(f"perdomain_{h}.png written (radar)")
-        plt.close(fig)
+        _, best_h, st = min(cand)                       # lowest full-97 aggregate
+        byd = {}
+        for cfg, r in per_config_relative(st).items():
+            byd.setdefault(dom_map.get(cfg, "?"), []).append(r)
+        tag = lab if lab == "v11c" else f"{lab} ({best_h})"
+        series.append((tag, {d: gm(v) for d, v in byd.items()}, c))
+    if not series:
+        print("perdomain: no data yet — skip")
+        return
+    doms = sorted({d for _, m, _ in series for d in m})
+    ang = np.linspace(0, 2 * np.pi, len(doms), endpoint=False)
+    ang_c = np.concatenate([ang, ang[:1]])
+    fig, ax = plt.subplots(figsize=(8.5, 7), subplot_kw=dict(polar=True))
+    for lab, m, c in series:
+        v = [m.get(d, np.nan) for d in doms]
+        ax.plot(ang_c, v + v[:1], "-o", color=c, ms=4, alpha=0.9,
+                lw=(2.4 if lab.startswith("β") else 1.6), label=lab)
+    ax.plot(np.linspace(0, 2 * np.pi, 200), [1.0] * 200, "--", color="k", lw=1.0, alpha=0.6)
+    ax.set_rscale("log")
+    ax.set_rlim(0.75, max(d for _, m, _ in series for d in m.values()) * 1.12)
+    ax.set_xticks(ang); ax.set_xticklabels(doms, fontsize=9)
+    ax.set_rlabel_position(95)
+    ax.set_title("#318 — per-domain GM-Relative MASE (full-97, best q-head per arm · log radial)\n"
+                 "lower = better; dashed ring = seasonal-naive (1.0)", fontsize=11, pad=26)
+    ax.legend(fontsize=8, loc="upper right", bbox_to_anchor=(1.32, 1.12))
+    fig.tight_layout()
+    fig.savefig(f"{PLOTS}/perdomain.png", dpi=130, bbox_inches="tight")
+    print("perdomain.png written (radar, best head per arm)")
+    plt.close(fig)
 
 
 if __name__ == "__main__":

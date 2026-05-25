@@ -42,16 +42,14 @@ subset. Single seed per cell (line spread ≈ ±0.02, #307).*
   arms (one pair per batch) isolate the fork — on the **all-time** loss and on the
   **β** loss — both in flight.
 
-### Per-domain (full-97), by q-head
+### Per-domain (full-97, best q-head per arm)
 
-![per-domain radar — 2L head](plots/perdomain_2L.png)
-![per-domain radar — 6L head](plots/perdomain_6L.png)
-*Log radial; dashed ring = seasonal-naive (1.0); innermost = best. **2L** (top):
-β/v11c tightest; the loss-side arms bulge out (same-step worse than β on all 7
-domains, no seasonal signature); forked·allt·50% is the only arm inside β anywhere
-(Econ/Fin, Healthcare). **6L** (bottom): forked·allt·50% closes most of the gap —
-the fork's head-dependence shows per-domain. Forked 2/batch + β·2/batch join both
-panels when they land.*
+![per-domain radar](plots/perdomain.png)
+*Log radial; dashed ring = seasonal-naive (1.0); innermost = best. Each arm at its
+best q-head (lower full-97; head shown in the legend). β (2L) and v11c are
+tightest; same-step (6L) bulges out — worse than β on all 7 domains, no seasonal
+signature; forked allt·50% (6L) sits closest to β. The two 2/batch arms join when
+their full evals land.*
 
 ### Training dynamics
 
