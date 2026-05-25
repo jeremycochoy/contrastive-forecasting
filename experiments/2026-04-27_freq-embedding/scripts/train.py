@@ -147,6 +147,23 @@ def parse_args():
                         "forecaster-d-model %% forecaster-n-heads == 0. "
                         "v13 default: --forecaster-d-model 128 "
                         "--forecaster-n-heads 4 (4 heads x 32 dim/head).")
+    p.add_argument("--forecaster-kind", default="transformer",
+                   choices=["transformer", "cpc", "linear_cpc"],
+                   help="Forecaster variant (#316). 'transformer' (default) "
+                        "is the legacy single causal forecaster (optionally "
+                        "bottlenecked via --forecaster-d-model). 'cpc' uses "
+                        "--cpc-k-steps independent forecaster heads, each "
+                        "ARCHITECTURALLY IDENTICAL to the transformer "
+                        "forecaster (down -> causal transformer -> up, same "
+                        "--forecaster-d-model/-n-heads bottleneck), with head k "
+                        "forecasting the encoder latent k steps ahead (h_{t+k}); "
+                        "requires --loss-shape cpc_multistep. At K=1 it is "
+                        "byte-identical to the transformer forecaster, so only "
+                        "the number of forecast steps differs.")
+    p.add_argument("--cpc-k-steps", type=int, default=12,
+                   help="CPC forecast horizon K (number of transformer-1L "
+                        "forecaster heads) when --forecaster-kind cpc. Default "
+                        "12 (van den Oord et al. 2018). No-op otherwise.")
     p.add_argument("--num-encoder-layers", type=int, default=0,
                    help="Number of causal transformer-encoder layers inserted "
                         "between the patch encoder and the forecaster. "
@@ -319,6 +336,8 @@ def parse_args():
                             "cosine_similarity_batch_full_hh_negs_xbfree",
                             "cosine_similarity_batch_full_hh_negs_xshh",
                             "cosine_similarity_batch_full_hh_negs_xshh_allt",
+                            "cpc_multistep",
+                            "cpc_multistep_cpcnegs",
                             "cosine_similarity",
                             "cosine_similarity_old"],
                    help="Contrastive loss formulation. Default 'no_time_neg' "
@@ -420,8 +439,15 @@ def forward_step(model, x, freq_ids=None, freq_embs=None,
     xr = model.prepare_encoder_input(
         x, freq_ids=freq_ids, freq_embs=freq_embs,
         seasonality_ids=seasonality_ids, seasonality_embs=seasonality_embs)
-    f_flat, o_flat = model.transformer(xr)
-    f_lat = f_flat.reshape(B, C, T, H).permute(0, 2, 1, 3)
+    cpc = getattr(model, 'forecaster_kind', 'transformer') in ('cpc', 'linear_cpc')
+    f_flat, o_flat = model.transformer(xr, return_multi=cpc)
+    if cpc:
+        # f_flat is the [B*C, T, K, H] multi-step stack; keep K as a 4th axis
+        # so the loss sees [B, T, C, K, H]. Diagnostics in main() slice k=1.
+        K = f_flat.shape[2]
+        f_lat = f_flat.reshape(B, C, T, K, H).permute(0, 2, 1, 3, 4)
+    else:
+        f_lat = f_flat.reshape(B, C, T, H).permute(0, 2, 1, 3)
     o_lat = o_flat.reshape(B, C, T, H).permute(0, 2, 1, 3)
     return f_lat, o_lat
 
@@ -701,6 +727,10 @@ def main():
     # all pre-v13 runs / checkpoints. v13: 128 + 4 (vs encoder H=384 / 6).
     model_config["forecaster_d_model"] = args.forecaster_d_model
     model_config["forecaster_n_heads"] = args.forecaster_n_heads
+    # CPC multi-step linear forecaster (#316). Defaults ("transformer", 12)
+    # are a no-op for every legacy run/checkpoint.
+    model_config["forecaster_kind"] = args.forecaster_kind
+    model_config["cpc_k_steps"] = args.cpc_k_steps
     model_config["log_attn_amplitude"] = bool(args.log_attn_amplitude)
     # Override the loss_shape from CLI (LOSS_SPEC is a module-level default).
     LOSS_SPEC.train_configuration["loss_shape"] = args.loss_shape
@@ -944,6 +974,13 @@ def main():
         # the per-rank local losses.
         if not args.shard_loss_on_batch:
             f_lat, o_lat = gather_latents(f_lat, o_lat)
+        # CPC multi-step (#316): f_lat is [B,T,C,K,H]. The loss / loss_tau_ref
+        # consume the full stack; the per-batch diagnostics (compute_metrics,
+        # q_*, retrieval_auc) want a single [B,T,C,H] forecaster latent, so
+        # use the next-step (k=1) head — the analogue of the legacy 1-step
+        # forecaster. For the transformer forecaster f1_lat IS f_lat (4-D),
+        # so the diagnostic path stays byte-identical.
+        f1_lat = f_lat[:, :, :, 0, :] if f_lat.dim() == 5 else f_lat
         # When learnable_tau is on, pass model.tau() (0-d tensor with grad)
         # as tau_override so gradient reaches log_inv_tau. Otherwise the
         # loss uses LOSS_SPEC.train_configuration's scalar.
@@ -1020,12 +1057,12 @@ def main():
         timing_count += 1
 
         with torch.no_grad():
-            val_ff, val_fp, val_tp, val_cb = compute_metrics(f_lat, o_lat, CLD)
+            val_ff, val_fp, val_tp, val_cb = compute_metrics(f1_lat, o_lat, CLD)
             # Per-batch backbone diagnostic metrics. Convention matches
             # experiments/2026-05-05_exp_qhead_improvements/scripts/eval_backbone_metrics.py:
             # f_lat is forecaster output, o_lat is encoder ("h"). Same shapes
             # (B, T, C, H) so the slicing here mirrors the eval script.
-            f_det = f_lat.detach()
+            f_det = f1_lat.detach()
             o_det = o_lat.detach()
             T_lat = f_det.shape[1]
             q_r = q_random(f_det[:, :T_lat - 1], o_det[:, 1:T_lat]).item()

@@ -75,6 +75,8 @@ class ConfigurableModel(torch.nn.Module):
                  patch_emb_dtype: str = "fp32",
                  forecaster_d_model: int | None = None,
                  forecaster_n_heads: int | None = None,
+                 forecaster_kind: str = "transformer",
+                 cpc_k_steps: int = 12,
                  log_attn_amplitude: bool = False,
                  channel_mixing_kind='simple', channel_mixing_n_heads=8):
         super().__init__()
@@ -171,6 +173,12 @@ class ConfigurableModel(torch.nn.Module):
                 f"forecaster_n_heads={eff_fcst_n_heads}")
         self.forecaster_d_model = eff_fcst_d_model
         self.forecaster_n_heads = eff_fcst_n_heads
+        # Forecaster variant (#316). "transformer" (default) is the legacy
+        # causal forecaster; "linear_cpc" replaces it with K linear heads
+        # predicting h_{t+1..t+K}. Stored so forward_step / downstream code
+        # can branch on the multi-step output contract.
+        self.forecaster_kind = forecaster_kind
+        self.cpc_k_steps = int(cpc_k_steps)
         self.transformer = TransformerBlock(
             dimension_e=H,
             nhead=nhead,
@@ -191,6 +199,8 @@ class ConfigurableModel(torch.nn.Module):
             conv_dtype=conv_dtype,
             forecaster_d_model=eff_fcst_d_model,
             forecaster_nhead=eff_fcst_n_heads,
+            forecaster_kind=forecaster_kind,
+            cpc_k_steps=cpc_k_steps,
             log_attn_amplitude=log_attn_amplitude,
         )
         # Override activation if requested
