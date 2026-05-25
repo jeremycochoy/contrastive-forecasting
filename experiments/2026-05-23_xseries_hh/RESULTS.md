@@ -25,17 +25,8 @@ past has divergent futures, so position *cannot* encode the future).
 ## Result
 
 Each frozen backbone is scored with a fresh 2-layer and 6-layer quantile q-head,
-separating backbone quality from readout capacity.
-
-| backbone | head | full-97 | triage-11 |
-|---|:--:|---:|---:|
-| **β** (#309) | 2L · 6L | **1.3272** · 1.4489 | 1.4836 · 1.5271 |
-| loss-side **same-step** `xshh` | 2L · 6L | 1.6194 · 1.6181 | 1.9816 · 1.8762 |
-| loss-side **all-time** `xshh_allt` | 2L · 6L | 1.4143 · 1.4748 | 1.6126 · 1.7028 |
-| data-side **forked · all-time · 50%** | 2L · 6L | 1.6366 · **1.4065** | 1.8824 · 1.5339 |
-| data-side **forked · all-time · 2/batch** | 2L · 6L | *in flight* | *in flight* |
-| data-side **forked · β · 2/batch** | 2L · 6L | *in flight* | *in flight* |
-| v11c (reference) | 2L | 1.292 | — |
+separating backbone quality from readout capacity. Numbers are on the gm_summary
+bars above and in the **[full scoreboard](#scoreboard--every-arm--head)** at the end.
 
 *GM-Relative MASE = geometric mean over configs of model-MASE ÷ seasonal-naive-MASE
 (1.0 = parity, lower better); full-97 = all 97 configs, triage-11 = noisy fast
@@ -51,21 +42,27 @@ subset. Single seed per cell (line spread ≈ ±0.02, #307).*
   arms (one pair per batch) isolate the fork — on the **all-time** loss and on the
   **β** loss — both in flight.
 
-### Per-domain (2L, full-97)
+### Per-domain (full-97), by q-head
 
-![per-domain radar](plots/perdomain.png)
-*Log radial; dashed ring = seasonal-naive (1.0); innermost = best. Loss-side arms
-bulge outward (same-step worse than β on all 7 domains, no seasonal signature);
-forked-50% is the only arm inside β anywhere (Econ/Fin, Healthcare).*
+![per-domain radar — 2L head](plots/perdomain_2L.png)
+![per-domain radar — 6L head](plots/perdomain_6L.png)
+*Log radial; dashed ring = seasonal-naive (1.0); innermost = best. **2L** (top):
+β/v11c tightest; the loss-side arms bulge out (same-step worse than β on all 7
+domains, no seasonal signature); forked·allt·50% is the only arm inside β anywhere
+(Econ/Fin, Healthcare). **6L** (bottom): forked·allt·50% closes most of the gap —
+the fork's head-dependence shows per-domain. Forked 2/batch + β·2/batch join both
+panels when they land.*
 
 ### Training dynamics
 
 ![training curves](plots/training_curves.png)
-*Loss − InfoNCE floor (log–log). Floors β 1.55 / same-step 2.04 / all-time 5.27
-grow with the negative-pool size N (52× across arms; forked shares all-time's);
-all converge to a similar excess (+0.54…+0.64) and AUC/Top-1 saturate early.* The
-contrastive task is learned near-identically, yet transfer spans 22% — for the
-loss-side arms, the structure is learned but wrong.
+*All log–log, warm-up (step < 1000) skipped. **Loss − floor**: floors β 1.55 /
+same-step 2.04 / all-time 5.27 grow with the 52×-spanning negative pool (forked
+shares all-time's); all converge to a similar excess (+0.54…+0.64). **gap-ratio**
+(1−ff)/(1−fp) (forecast↔future vs ↔present; 0 = perfect). **Dimension usage**
+U = 1/(d·mean cos²) ∈ (0,1] (1 = full use, →0 = collapse), temporal and batch.* The
+contrastive objective is learned near-identically across arms, yet transfer spans
+22% — for the loss-side arms the structure is learned but wrong.
 
 ## Protocol
 
@@ -80,6 +77,24 @@ one pair/256 on the β loss. The all-time loss costs **~2.2×** the step time
 (6.4→2.9 sps); the β-loss arms run at the β rate. Eval: fresh 30k q-head (2L/6L), GIFT-Eval
 strategy B4, byte-identical to #309/#315. Refs: β 1.3272, v11c 1.292,
 seasonal-naive 1.0.
+
+## Scoreboard — every arm × head
+
+| arm | head | full-97 | triage-11 | Δ full vs β·2L |
+|---|:--:|---:|---:|---:|
+| β (#309) | 2L | **1.3272** | 1.4836 | — |
+| β (#309) | 6L | 1.4489 | 1.5271 | +9.2% |
+| loss-side · same-step | 2L | 1.6194 | 1.9816 | +22.0% |
+| loss-side · same-step | 6L | 1.6181 | 1.8762 | +21.9% |
+| loss-side · all-time | 2L | 1.4143 | 1.6126 | +6.6% |
+| loss-side · all-time | 6L | 1.4748 | 1.7028 | +11.1% |
+| data-side · forked allt·50% | 2L | 1.6366 | 1.8824 | +23.3% |
+| data-side · forked allt·50% | 6L | **1.4065** | 1.5339 | +6.0% |
+| data-side · forked allt·2/b | 2L · 6L | *in flight* | *in flight* | — |
+| data-side · forked β·2/b | 2L · 6L | *in flight* | *in flight* | — |
+| v11c (reference) | 2L | 1.292 | — | −2.7% |
+
+*GM-Relative MASE, lower = better; Δ vs the best arm β·2L (1.3272).*
 
 ## Annex — exact negatives (per anchor, C=1; pooled N = B·Σ)
 

@@ -211,6 +211,14 @@ def _smooth(y, w=200):
     return out
 
 
+# Skip the warm-up: on a log-x the first ~1000 steps are a transient that
+# squashes the informative tail. Crop (step, y) pairs to step >= S0.
+S0_PLOT = 1000
+def _crop(steps, ys, s0=S0_PLOT):
+    z = [(s, y) for s, y in zip(steps, ys) if s >= s0]
+    return ([s for s, _ in z], [y for _, y in z]) if z else (steps, ys)
+
+
 def plot_training_curves():
     # (label, curve, colour, floor-key)
     arms = [("same-step",       _load_curve(XSHH_CSV), C_XSHH, "xshh"),
@@ -225,41 +233,46 @@ def plot_training_curves():
         return
     fig, axes = plt.subplots(2, 2, figsize=(13, 8.5))
 
+    # All panels: log–log, warm-up cropped (step ≥ 1000).
     # Panel 1: contrastive loss MINUS each arm's InfoNCE floor. The floor
-    # log(1+N·e^(−1/τ)) grows with the negative count N, which differs ~52×
-    # across arms, so RAW losses are not comparable — subtracting each arm's
-    # own floor is. Genuine log–log: every arm's floor-excess stays strictly
-    # positive at all steps (measured ≈ +0.5–0.6 at 50k, larger earlier), so
-    # log-y is well-defined and exposes the slow power-law approach to the floor.
+    # log(1+N·e^(−1/τ)) grows ~52× with the negative count N, so RAW losses
+    # aren't comparable — subtracting each arm's own floor is. Floor-excess stays
+    # strictly positive (≈ +0.5–0.6 at 50k), so log–log is well-defined.
     ax = axes[0, 0]
     for lab, cols, col, fk in arms:
         if "loss" in cols and "step" in cols:
-            y = _smooth([v - FLOOR[fk] for v in cols["loss"]], 100)
-            ax.plot(cols["step"], y, color=col, lw=1.4, label=f"{lab}  (floor {FLOOR[fk]:.2f})")
+            xs, ys = _crop(cols["step"], _smooth([v - FLOOR[fk] for v in cols["loss"]], 100))
+            ax.plot(xs, ys, color=col, lw=1.4, label=f"{lab}  (floor {FLOOR[fk]:.2f})")
     ax.set_xscale("log"); ax.set_yscale("log")
     ax.set_title("contrastive loss − InfoNCE floor   (log–log)")
     ax.set_xlabel("step"); ax.grid(alpha=0.3, which="both"); ax.legend(fontsize=8)
 
-    # Panels 2–3: retrieval error 1−AUC and 1−Top1 (→0), genuine log-log.
-    for ax, key, title in ((axes[0, 1], "auc", "1 − AUC"),
-                           (axes[1, 0], "top1", "1 − Top-1 retrieval")):
-        for lab, cols, col, _ in arms:
-            if key in cols and "step" in cols:
-                err = _smooth([max(1.0 - v, 1e-6) for v in cols[key]], 100)
-                ax.plot(cols["step"], err, color=col, lw=1.4, label=lab)
-        ax.set_xscale("log"); ax.set_yscale("log")
-        ax.set_title(f"{title}   (log-log)"); ax.set_xlabel("step")
-        ax.grid(alpha=0.3, which="both"); ax.legend(fontsize=8)
-
-    # Panel 4: pos−neg gap (bounded, saturates) — log-x, linear-y.
-    ax = axes[1, 1]
+    # Panel 2: gap-ratio = (1−ff)/(1−fp) (ff = forecast↔future, fp = forecast↔present
+    # cosine). In (0,1) for a skilled forecaster; 0 = perfect. Direct log–log (the
+    # 2026-05-10_exp_transformer_encoder recipe). Lower = better.
+    ax = axes[0, 1]
     for lab, cols, col, _ in arms:
-        if "gap" in cols and "step" in cols:
-            ax.plot(cols["step"], _smooth(cols["gap"], 100), color=col, lw=1.4, label=lab)
-    ax.set_xscale("log"); ax.set_title("pos−neg gap   (log x)")
+        if "gap_ratio" in cols and "step" in cols:
+            xs, ys = _crop(cols["step"], _smooth([max(v, 1e-4) for v in cols["gap_ratio"]], 100))
+            ax.plot(xs, ys, color=col, lw=1.4, label=lab)
+    ax.set_xscale("log"); ax.set_yscale("log")
+    ax.set_title("gap-ratio (1−ff)/(1−fp)   (log–log; lower = better, 0 = perfect)")
     ax.set_xlabel("step"); ax.grid(alpha=0.3, which="both"); ax.legend(fontsize=8)
 
-    fig.suptitle("#318 — contrastive training dynamics (100-step MA), floor-subtracted loss", fontsize=12)
+    # Panels 3–4: dimension usage U = 1/(d·mean_{i≠j} cos²) ∈ (0,1] (src/metrics.py).
+    # 1 = latents span all d dims; →0 = dimensional collapse. Higher = better.
+    # u_temporal (spread across time) and u_batch (across series).
+    for ax, key, title in ((axes[1, 0], "u_temporal", "dimension usage — temporal"),
+                           (axes[1, 1], "u_batch", "dimension usage — batch")):
+        for lab, cols, col, _ in arms:
+            if key in cols and "step" in cols:
+                xs, ys = _crop(cols["step"], _smooth([max(v, 1e-4) for v in cols[key]], 100))
+                ax.plot(xs, ys, color=col, lw=1.4, label=lab)
+        ax.set_xscale("log"); ax.set_yscale("log")
+        ax.set_title(f"{title}   (log–log; higher = better)")
+        ax.set_xlabel("step"); ax.grid(alpha=0.3, which="both"); ax.legend(fontsize=8)
+
+    fig.suptitle("#318 — contrastive training dynamics (100-step MA, step ≥ 1000; all log–log)", fontsize=12)
     fig.tight_layout(); fig.savefig(f"{PLOTS}/training_curves.png", dpi=130, bbox_inches="tight")
     print("training_curves.png written")
 
@@ -268,46 +281,58 @@ def plot_training_curves():
 def plot_perdomain():
     dom_map = (config_domain(f"{BETA_DIR}/results/gift_eval_full_bb_beta_50k/all_results.csv")
                or config_domain(f"{RES}/gift_eval_full_xshh_50k_2L/all_results.csv"))
-    srcs = [("same-step 2L", f"{RES}/gift_eval_full_xshh_50k_2L/summary.txt", C_XSHH),
-            ("all-time 2L", f"{RES}/gift_eval_full_xshh_allt_50k_2L/summary.txt", C_ALLT),
-            ("forked allt·50% 2L", f"{RES}/gift_eval_full_xshh_allt_forked_50k_2L/summary.txt", C_FORK),
-            ("forked allt·2/b 2L", f"{RES}/gift_eval_full_xshh_allt_forked2_50k_2L/summary.txt", C_FORK2),
-            ("forked β·2/b 2L", f"{RES}/gift_eval_full_beta_forked2_50k_2L/summary.txt", C_BFORK),
-            ("β 2L", f"{BETA_DIR}/results/gift_eval_full_bb_beta_50k/summary.txt", C_BETA),
-            ("v11c", f"{V11C}/summary.txt", C_V11C)]
-    series = []
-    for lab, st, c in srcs:
-        rel = per_config_relative(st)
-        if not rel:
-            continue
-        byd = {}
-        for cfg, r in rel.items():
-            byd.setdefault(dom_map.get(cfg, "?"), []).append(r)
-        series.append((lab, {d: gm(v) for d, v in byd.items()}, c))
-    if len(series) < 1 or not dom_map:
-        print("perdomain: no data yet — skip")
+    if not dom_map:
+        print("perdomain: no domain map — skip")
         return
-    doms = sorted({d for _, m, _ in series for d in m})
     import numpy as np
-    ang = np.linspace(0, 2 * np.pi, len(doms), endpoint=False)
-    ang_c = np.concatenate([ang, ang[:1]])                       # close the polygon
-    fig, ax = plt.subplots(figsize=(8.5, 7), subplot_kw=dict(polar=True))
-    for lab, m, c in series:
-        v = [m.get(d, np.nan) for d in doms]
-        ax.plot(ang_c, v + v[:1], "-o", color=c, ms=4, alpha=0.9,
-                lw=(2.4 if lab.startswith("β") else 1.6), label=lab)
-    ax.plot(np.linspace(0, 2 * np.pi, 200), [1.0] * 200, "--", color="k", lw=1.0,
-            alpha=0.6)                                           # seasonal-naive ring
-    ax.set_rscale("log")
-    ax.set_rlim(0.75, max(d for _, m, _ in series for d in m.values()) * 1.12)
-    ax.set_xticks(ang); ax.set_xticklabels(doms, fontsize=9)
-    ax.set_rlabel_position(95)
-    ax.set_title("#318 — per-domain GM-Relative MASE (full-97, 2L · log radial)\n"
-                 "lower = better; dashed ring = seasonal-naive (1.0)", fontsize=11, pad=26)
-    ax.legend(fontsize=8, loc="upper right", bbox_to_anchor=(1.32, 1.12))
-    fig.tight_layout()
-    fig.savefig(f"{PLOTS}/perdomain.png", dpi=130, bbox_inches="tight")
-    print("perdomain.png written (radar)")
+
+    def srcs_for(h):   # full-97 summary per arm at head h; v11c is the shared ref
+        beta = (f"{BETA_DIR}/results/gift_eval_full_bb_beta_50k/summary.txt" if h == "2L"
+                else f"{RES}/gift_eval_full_beta_50k_6L/summary.txt")
+        return [("same-step", f"{RES}/gift_eval_full_xshh_50k_{h}/summary.txt", C_XSHH),
+                ("all-time", f"{RES}/gift_eval_full_xshh_allt_50k_{h}/summary.txt", C_ALLT),
+                ("forked allt·50%", f"{RES}/gift_eval_full_xshh_allt_forked_50k_{h}/summary.txt", C_FORK),
+                ("forked allt·2/b", f"{RES}/gift_eval_full_xshh_allt_forked2_50k_{h}/summary.txt", C_FORK2),
+                ("forked β·2/b", f"{RES}/gift_eval_full_beta_forked2_50k_{h}/summary.txt", C_BFORK),
+                ("β", beta, C_BETA),
+                ("v11c", f"{V11C}/summary.txt", C_V11C)]
+
+    # One radar per q-head — the fork's edge is head-dependent, so 2L and 6L
+    # tell different stories. Only arms with a full-97 summary at that head show;
+    # we never compute an eval here, just plot what the pipeline has produced.
+    for h in ("2L", "6L"):
+        series = []
+        for lab, st, c in srcs_for(h):
+            rel = per_config_relative(st)
+            if not rel:
+                continue
+            byd = {}
+            for cfg, r in rel.items():
+                byd.setdefault(dom_map.get(cfg, "?"), []).append(r)
+            series.append((lab, {d: gm(v) for d, v in byd.items()}, c))
+        if not series:
+            print(f"perdomain {h}: no data — skip")
+            continue
+        doms = sorted({d for _, m, _ in series for d in m})
+        ang = np.linspace(0, 2 * np.pi, len(doms), endpoint=False)
+        ang_c = np.concatenate([ang, ang[:1]])
+        fig, ax = plt.subplots(figsize=(8.5, 7), subplot_kw=dict(polar=True))
+        for lab, m, c in series:
+            v = [m.get(d, np.nan) for d in doms]
+            ax.plot(ang_c, v + v[:1], "-o", color=c, ms=4, alpha=0.9,
+                    lw=(2.4 if lab == "β" else 1.6), label=lab)
+        ax.plot(np.linspace(0, 2 * np.pi, 200), [1.0] * 200, "--", color="k", lw=1.0, alpha=0.6)
+        ax.set_rscale("log")
+        ax.set_rlim(0.75, max(d for _, m, _ in series for d in m.values()) * 1.12)
+        ax.set_xticks(ang); ax.set_xticklabels(doms, fontsize=9)
+        ax.set_rlabel_position(95)
+        ax.set_title(f"#318 — per-domain GM-Relative MASE (full-97, {h} head · log radial)\n"
+                     "lower = better; dashed ring = seasonal-naive (1.0)", fontsize=11, pad=26)
+        ax.legend(fontsize=8, loc="upper right", bbox_to_anchor=(1.32, 1.12))
+        fig.tight_layout()
+        fig.savefig(f"{PLOTS}/perdomain_{h}.png", dpi=130, bbox_inches="tight")
+        print(f"perdomain_{h}.png written (radar)")
+        plt.close(fig)
 
 
 if __name__ == "__main__":
