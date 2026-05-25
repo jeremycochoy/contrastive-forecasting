@@ -47,11 +47,12 @@ V11C = "/home/jupyter/contrastive-forecasting/experiments/2026-05-11_exp_encoder
 XSHH_CSV = f"{OUT}/runs/bb_xshh_50k_losses.csv"
 ALLT_CSV = f"{OUT}/runs/bb_xshh_allt_50k_losses.csv"
 BETA_CSV = f"{BETA_DIR}/runs/bb_beta_50k_losses.csv"
-FORK_CSV  = f"{OUT}/runs/bb_xshh_allt_forked_50k_losses.csv"    # forked, 50% synth (mis-specified mix)
-FORK2_CSV = f"{OUT}/runs/bb_xshh_allt_forked2_50k_losses.csv"   # forked, 2 samples/batch (corrected)
+FORK_CSV  = f"{OUT}/runs/bb_xshh_allt_forked_50k_losses.csv"    # forked, all-time loss, 50% synth
+FORK2_CSV = f"{OUT}/runs/bb_xshh_allt_forked2_50k_losses.csv"   # forked, all-time loss, 2 samples/batch
+BFORK_CSV = f"{OUT}/runs/bb_beta_forked2_50k_losses.csv"        # forked, β loss, 2 samples/batch
 
 C_XSHH, C_ALLT, C_BETA, C_V11C = "#1f77b4", "#2ca02c", "#d62728", "#9467bd"
-C_FORK, C_FORK2 = "#ff7f0e", "#8c564b"   # forked-50% / forked-2-per-batch (data-side denial)
+C_FORK, C_FORK2, C_BFORK = "#ff7f0e", "#8c564b", "#e377c2"   # data-side forked: allt·50% / allt·2 / β·2
 
 
 def agg_gm(sum_txt):
@@ -110,10 +111,12 @@ def plot_gm_summary():
         ("xshh same-step · 6L", fk("xshh_50k", "6L", "full"), fk("xshh_50k", "6L", "triage"), C_XSHH),
         ("xshh all-time · 2L", fk("xshh_allt_50k", "2L", "full"), fk("xshh_allt_50k", "2L", "triage"), C_ALLT),
         ("xshh all-time · 6L", fk("xshh_allt_50k", "6L", "full"), fk("xshh_allt_50k", "6L", "triage"), C_ALLT),
-        ("forked 50% · 2L", fk("xshh_allt_forked_50k", "2L", "full"), fk("xshh_allt_forked_50k", "2L", "triage"), C_FORK),
-        ("forked 50% · 6L", fk("xshh_allt_forked_50k", "6L", "full"), fk("xshh_allt_forked_50k", "6L", "triage"), C_FORK),
-        ("forked 2/batch · 2L", fk("xshh_allt_forked2_50k", "2L", "full"), fk("xshh_allt_forked2_50k", "2L", "triage"), C_FORK2),
-        ("forked 2/batch · 6L", fk("xshh_allt_forked2_50k", "6L", "full"), fk("xshh_allt_forked2_50k", "6L", "triage"), C_FORK2),
+        ("forked allt·50% · 2L", fk("xshh_allt_forked_50k", "2L", "full"), fk("xshh_allt_forked_50k", "2L", "triage"), C_FORK),
+        ("forked allt·50% · 6L", fk("xshh_allt_forked_50k", "6L", "full"), fk("xshh_allt_forked_50k", "6L", "triage"), C_FORK),
+        ("forked allt·2/b · 2L", fk("xshh_allt_forked2_50k", "2L", "full"), fk("xshh_allt_forked2_50k", "2L", "triage"), C_FORK2),
+        ("forked allt·2/b · 6L", fk("xshh_allt_forked2_50k", "6L", "full"), fk("xshh_allt_forked2_50k", "6L", "triage"), C_FORK2),
+        ("forked β·2/b · 2L", fk("beta_forked2_50k", "2L", "full"), fk("beta_forked2_50k", "2L", "triage"), C_BFORK),
+        ("forked β·2/b · 6L", fk("beta_forked2_50k", "6L", "full"), fk("beta_forked2_50k", "6L", "triage"), C_BFORK),
         ("β · 2L", f"{BETA_DIR}/results/gift_eval_full_bb_beta_50k/summary.txt",
          f"{BETA_DIR}/results/gift_eval_triage_bb_beta_50k/summary.txt", C_BETA),
         ("β · 6L", fk("beta_50k", "6L", "full"), fk("beta_50k", "6L", "triage"), C_BETA),
@@ -210,12 +213,13 @@ def _smooth(y, w=200):
 
 def plot_training_curves():
     # (label, curve, colour, floor-key)
-    arms = [("xshh same-step", _load_curve(XSHH_CSV), C_XSHH, "xshh"),
-            ("xshh all-time",  _load_curve(ALLT_CSV), C_ALLT, "allt"),
-            ("forked 50%",     _load_curve(FORK_CSV), C_FORK, "allt"),
-            ("forked 2/batch", _load_curve(FORK2_CSV), C_FORK2, "allt"),
-            ("β",              _load_curve(BETA_CSV), C_BETA, "beta")]
-    arms = [a for a in arms if a[1]]   # forked 2/batch drops out until its CSV lands
+    arms = [("same-step",       _load_curve(XSHH_CSV), C_XSHH, "xshh"),
+            ("all-time",        _load_curve(ALLT_CSV), C_ALLT, "allt"),
+            ("forked allt·50%", _load_curve(FORK_CSV), C_FORK, "allt"),
+            ("forked allt·2/b", _load_curve(FORK2_CSV), C_FORK2, "allt"),
+            ("forked β·2/b",    _load_curve(BFORK_CSV), C_BFORK, "beta"),
+            ("β",               _load_curve(BETA_CSV), C_BETA, "beta")]
+    arms = [a for a in arms if a[1]]   # pending arms (no CSV yet) drop out
     if not arms:
         print("training_curves: no data yet — skip")
         return
@@ -264,10 +268,11 @@ def plot_training_curves():
 def plot_perdomain():
     dom_map = (config_domain(f"{BETA_DIR}/results/gift_eval_full_bb_beta_50k/all_results.csv")
                or config_domain(f"{RES}/gift_eval_full_xshh_50k_2L/all_results.csv"))
-    srcs = [("xshh same-step 2L", f"{RES}/gift_eval_full_xshh_50k_2L/summary.txt", C_XSHH),
-            ("xshh all-time 2L", f"{RES}/gift_eval_full_xshh_allt_50k_2L/summary.txt", C_ALLT),
-            ("forked 50% 2L", f"{RES}/gift_eval_full_xshh_allt_forked_50k_2L/summary.txt", C_FORK),
-            ("forked 2/batch 2L", f"{RES}/gift_eval_full_xshh_allt_forked2_50k_2L/summary.txt", C_FORK2),
+    srcs = [("same-step 2L", f"{RES}/gift_eval_full_xshh_50k_2L/summary.txt", C_XSHH),
+            ("all-time 2L", f"{RES}/gift_eval_full_xshh_allt_50k_2L/summary.txt", C_ALLT),
+            ("forked allt·50% 2L", f"{RES}/gift_eval_full_xshh_allt_forked_50k_2L/summary.txt", C_FORK),
+            ("forked allt·2/b 2L", f"{RES}/gift_eval_full_xshh_allt_forked2_50k_2L/summary.txt", C_FORK2),
+            ("forked β·2/b 2L", f"{RES}/gift_eval_full_beta_forked2_50k_2L/summary.txt", C_BFORK),
             ("β 2L", f"{BETA_DIR}/results/gift_eval_full_bb_beta_50k/summary.txt", C_BETA),
             ("v11c", f"{V11C}/summary.txt", C_V11C)]
     series = []

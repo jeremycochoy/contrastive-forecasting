@@ -32,8 +32,9 @@ separating backbone quality from readout capacity.
 | **β** (#309) | 2L · 6L | **1.3272** · 1.4489 | 1.4836 · 1.5271 |
 | loss-side **same-step** `xshh` | 2L · 6L | 1.6194 · 1.6181 | 1.9816 · 1.8762 |
 | loss-side **all-time** `xshh_allt` | 2L · 6L | 1.4143 · 1.4748 | 1.6126 · 1.7028 |
-| data-side **forked, 50% mix** | 2L · 6L | 1.6366 · **1.4065** | 1.8824 · 1.5339 |
-| data-side **forked, 2/batch** | 2L · 6L | *in flight* | *in flight* |
+| data-side **forked · all-time · 50%** | 2L · 6L | 1.6366 · **1.4065** | 1.8824 · 1.5339 |
+| data-side **forked · all-time · 2/batch** | 2L · 6L | *in flight* | *in flight* |
+| data-side **forked · β · 2/batch** | 2L · 6L | *in flight* | *in flight* |
 | v11c (reference) | 2L | 1.292 | — |
 
 *GM-Relative MASE = geometric mean over configs of model-MASE ÷ seasonal-naive-MASE
@@ -44,9 +45,11 @@ subset. Single seed per cell (line spread ≈ ±0.02, #307).*
   positional-code denier) is worst, broad all-time less so. A 6L head rescues
   neither (even β degrades 2L→6L), so the regression is in the **backbone** —
   what different series share at a step is forecastably useful, not a free code.
-- **Data-side (forked) is head-dependent**: worst at 2L, best-of-6L at 6L — a 0.23
-  swing vs β's 0.12, so the representation needs a deeper head to read out.
-  **Confounded** by the 50% synthetic mix; the 2/batch arm isolates the fork.
+- **Data-side (forked) is head-dependent**: worst at 2L, best-of-6L at 6L (a 0.23
+  swing vs β's 0.12), so the representation needs a deeper head to read out. The
+  50%-mix result is **confounded** by its synthetic fraction; two minimal-injection
+  arms (one pair per batch) isolate the fork — on the **all-time** loss and on the
+  **β** loss — both in flight.
 
 ### Per-domain (2L, full-97)
 
@@ -71,9 +74,10 @@ patch-encoder → 6L causal encoder → 1L forecaster (d=128), AdamW β2=0.98, �
 dropkey 0.70, fp16 body / fp32 residual, EWMA RevNorm span 128, seed 20260520,
 50k steps, batch 256, `--pos-in-denominator`. **Loss-side** changes only
 `--loss-shape …_{xshh,xshh_allt}` (fp64-pinned in `tests/test_loss.py`);
-**data-side** uses the all-time loss + a forked-ARIMA mix
-(`src/synthetic_forked_arma.py`), injection 50% vs 2/256. The all-time loss costs
-**~2.2×** the step time (6.4→2.9 sps). Eval: fresh 30k q-head (2L/6L), GIFT-Eval
+**data-side** adds no loss term — it injects a forked-ARIMA mix
+(`src/synthetic_forked_arma.py`): 50% or one pair/256 on the all-time loss, and
+one pair/256 on the β loss. The all-time loss costs **~2.2×** the step time
+(6.4→2.9 sps); the β-loss arms run at the β rate. Eval: fresh 30k q-head (2L/6L), GIFT-Eval
 strategy B4, byte-identical to #309/#315. Refs: β 1.3272, v11c 1.292,
 seasonal-naive 1.0.
 
@@ -90,7 +94,8 @@ seasonal-naive 1.0.
 | **pooled N** (B=256, T=64) | | **81,920** | **146,944** (1.79×) | **4,259,584** (52×) |
 
 Latent T = 64 (HF crops to T_RAW=1024, ÷ patch-16; holds for β/v11c too). Data-side
-arms share the all-time column — the fork is in the *data*, not the loss.
+arms add no loss term — the fork is in the *data*; each shares its base loss's
+negatives (all-time-forked → all-time column; β-forked → β column).
 
 ## Other artifacts (trained, not evaluated)
 
