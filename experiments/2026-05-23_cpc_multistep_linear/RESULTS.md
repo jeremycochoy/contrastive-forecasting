@@ -70,6 +70,22 @@ max = 384), measured across training for the β-neg families: **k=12 settles at
 ~50, k=1 at ~3–5.** k=12 makes the latent use *more* dimensions, not fewer — the
 opposite of a collapse onto a low-rank subspace.
 
+## Training dynamics
+
+The four logged signals over training, all arms (k=1 dashed, k=12 solid, β black):
+
+![training dynamics](plots/training_dynamics.png)
+
+- **Loss** (log-log) — per-arm convergence. Loss *magnitudes* are not comparable
+  across arms (the negative-pool size and the k-averaging change the scale); read
+  each curve's own trend, not cross-arm levels.
+- **Forecast "pos-gap" ratio** (log-log) — cos(forecast, current latent) ÷
+  cos(forecast, next latent); → 0 means the forecast points at the future, not
+  the present (lower = better). β drives it to ~0.001; the k=12 arms stall near
+  ~0.5.
+- **Uniformity, batch and time dimensions** (log-x) — how spread the latents are
+  along each axis as training proceeds.
+
 ## Protocol
 
 - **Backbones:** one per arm. 6-layer causal encoder + forecaster head; 50k
