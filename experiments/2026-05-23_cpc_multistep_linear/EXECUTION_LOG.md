@@ -14,6 +14,36 @@
   heads AND encoder, overfit 2.70→0.001, state_dict round-trip via the
   auto-detect, downstream extraction contract, legacy-path regression — all pass.
 
+## Per-arm training recipes (reference — to retrain a variation)
+
+All arms share one base command (`experiments/2026-04-27_freq-embedding/scripts/train.py`):
+`--batch-size 256 --lr 1e-3 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98
+--total-steps 50000 --seed <S> --hf-repo jeremycochoy/gift-pretrain-full-4096
+--hf-path small_v1 --t-raw 4096 --n-channels 1 --d-model 384 --n-heads 6
+--num-encoder-layers 6 --num-layers 1 --encoder-dropkey 0.70
+--encoder-dropkey-share-heads --encoder-dropkey-share-layers --depthwise-conv 3
+--deprecated-depthwise-conv 0 --pos-in-denominator --tau 0.10 --rev-norm-kind ewma
+--rev-norm-span 128 --encoder-type gru --mixup-p 0.3 --mix-ratio 0.0 --freq-emb-dim 3
+--seasonality-emb-dim 3` + fp32 dtypes (`--residual/attn/ffn/conv/patch-emb-dtype fp32`).
+
+Only the forecaster + loss flags differ per arm:
+
+| arm (head / negatives / k) | `--forecaster-kind` | `--cpc-k-steps` | `--loss-shape` | run-name | launcher command |
+|---|---|---|---|---|---|
+| transformer-1L / β-neg / k=1  (= β) | transformer (d=128 / 4-head bottleneck) | — | cosine_similarity_batch_full_hh_negs | `bb_beta_50k` | β recipe, trained in `2026-05-20_bottleneck_beta2_confound` |
+| transformer-1L / β-neg / k=12 | cpc  (`--forecaster-d-model 128 --forecaster-n-heads 4`) | 12 | cpc_multistep | `bb_cpctrf_k12_s<S>_fp32_50k` | `elisa_run.sh <S> <gpu> fp32 12` |
+| linear / β-neg / k=1 | linear_cpc | 1 | cpc_multistep | `bb_linbn_k1_s<S>_fp32_50k` | `elisa_run_linear.sh <S> <gpu> 1 beta` |
+| linear / β-neg / k=12 | linear_cpc | 12 | cpc_multistep | `bb_linbn_k12_s<S>_fp32_50k` | `elisa_run_linear.sh <S> <gpu> 12 beta` |
+| linear / CPC-neg / k=1 | linear_cpc | 1 | cpc_multistep_cpcnegs | `bb_lincn_k1_s<S>_fp32_50k` | `elisa_run_linear.sh <S> <gpu> 1 cpcneg` |
+| linear / CPC-neg / k=12 | linear_cpc | 12 | cpc_multistep_cpcnegs | `bb_cpc_k12_s<S>_fp32_50k`  (original run; a fresh run via the launcher would be named `bb_lincn_k12_...`) | `elisa_run_linear.sh <S> <gpu> 12 cpcneg` |
+
+Seeds: `20260520` for every arm; `20260523` only for the *linear / CPC-neg / k=12* second seed (`bb_cpc_k12_s20260523`, via the `r2` resume — see below).
+
+Downstream (identical for every arm): `downstream.sh <runs>/<run-name>_FINAL.pth <2|6> <gpu> both`
+→ quantile head 30k + GIFT-Eval triage(11) + full(97); the CPC backbone is auto-detected from the checkpoint.
+
+**To retrain a variation:** change the relevant flag (e.g. `--cpc-k-steps`, `--forecaster-kind`, `--loss-shape`, or any base hyperparameter) and rerun the launcher with a **fresh `--run-name`/seed** so nothing is clobbered.
+
 ## 2026-05-23 ~00:08 — first launch (fp16, β's precision) DIVERGES
 Two seeds launched 1-GPU bs256, fp16 body (β's exact precision), lr 1e-3.
 Both diverged identically: raw loss bottomed at step ~300 (≈4.60) then climbed
