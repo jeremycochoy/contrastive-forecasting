@@ -32,9 +32,14 @@ champion v11c = 1.292.
 
 ## Result
 
-![k trend](plots/k_trend.png)
+Every k=12 arm ranks below every k=1 arm — and below β:
 
-k=12 scores worse than k=1 in all three head/negatives combinations:
+![comparison](plots/comparison.png)
+
+Within each identical setup (same head + negatives; only k changes), k=12 is
+worse than k=1:
+
+![k trend](plots/k_trend.png)
 
 | head | negatives | k=1 | k=12 |
 |---|---|---:|---:|
@@ -43,9 +48,18 @@ k=12 scores worse than k=1 in all three head/negatives combinations:
 | linear | CPC-neg | 1.431 | 1.524  ·  2.014 ¹ |
 
 ¹ The *linear / CPC-neg / k=12* cell was trained with **two seeds** → 1.524 and
-2.014, **0.49 apart**. That spread is larger than every k=1→k=12 gap in the
-table, so the **direction** (k=12 worse) holds but the **exact penalty** is not
-resolved. Every other cell is a single seed.
+2.014, **0.49 apart** — larger than every k=1→k=12 gap above. So the **direction**
+(k=12 worse) holds but the **exact penalty** is not resolved. Every other cell is
+a single seed.
+
+### Per domain
+
+![per-domain radar](plots/perdomain_radar.png)
+
+The k=12 deficit is **broad**: every k=12 arm sits outside β (worse) on most of
+the 7 GIFT-Eval domains, not concentrated in one. Each domain aggregates only
+~14 configs, so per-domain numbers are noisier than the overall score — read the
+broad pattern, not single domains.
 
 ## Latent dimensionality (measured)
 
