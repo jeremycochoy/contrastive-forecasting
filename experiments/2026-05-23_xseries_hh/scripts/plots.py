@@ -47,8 +47,11 @@ V11C = "/home/jupyter/contrastive-forecasting/experiments/2026-05-11_exp_encoder
 XSHH_CSV = f"{OUT}/runs/bb_xshh_50k_losses.csv"
 ALLT_CSV = f"{OUT}/runs/bb_xshh_allt_50k_losses.csv"
 BETA_CSV = f"{BETA_DIR}/runs/bb_beta_50k_losses.csv"
+FORK_CSV  = f"{OUT}/runs/bb_xshh_allt_forked_50k_losses.csv"    # forked, 50% synth (mis-specified mix)
+FORK2_CSV = f"{OUT}/runs/bb_xshh_allt_forked2_50k_losses.csv"   # forked, 2 samples/batch (corrected)
 
 C_XSHH, C_ALLT, C_BETA, C_V11C = "#1f77b4", "#2ca02c", "#d62728", "#9467bd"
+C_FORK, C_FORK2 = "#ff7f0e", "#8c564b"   # forked-50% / forked-2-per-batch (data-side denial)
 
 
 def agg_gm(sum_txt):
@@ -101,24 +104,23 @@ def gm(xs):
 # ---------------------------------------------------------------- summary bars
 def plot_gm_summary():
     # label -> summary.txt. β 2L is the #309 backbone-of-record eval.
+    fk = lambda tag, h, s: f"{RES}/gift_eval_{s}_{tag}_{h}/summary.txt"
     cells = [
-        ("xshh same-step · 2L", f"{RES}/gift_eval_full_xshh_50k_2L/summary.txt",
-         f"{RES}/gift_eval_triage_xshh_50k_2L/summary.txt", C_XSHH),
-        ("xshh same-step · 6L", f"{RES}/gift_eval_full_xshh_50k_6L/summary.txt",
-         f"{RES}/gift_eval_triage_xshh_50k_6L/summary.txt", C_XSHH),
-        ("xshh all-time · 2L", f"{RES}/gift_eval_full_xshh_allt_50k_2L/summary.txt",
-         f"{RES}/gift_eval_triage_xshh_allt_50k_2L/summary.txt", C_ALLT),
-        ("xshh all-time · 6L", f"{RES}/gift_eval_full_xshh_allt_50k_6L/summary.txt",
-         f"{RES}/gift_eval_triage_xshh_allt_50k_6L/summary.txt", C_ALLT),
+        ("xshh same-step · 2L", fk("xshh_50k", "2L", "full"), fk("xshh_50k", "2L", "triage"), C_XSHH),
+        ("xshh same-step · 6L", fk("xshh_50k", "6L", "full"), fk("xshh_50k", "6L", "triage"), C_XSHH),
+        ("xshh all-time · 2L", fk("xshh_allt_50k", "2L", "full"), fk("xshh_allt_50k", "2L", "triage"), C_ALLT),
+        ("xshh all-time · 6L", fk("xshh_allt_50k", "6L", "full"), fk("xshh_allt_50k", "6L", "triage"), C_ALLT),
+        ("forked 50% · 2L", fk("xshh_allt_forked_50k", "2L", "full"), fk("xshh_allt_forked_50k", "2L", "triage"), C_FORK),
+        ("forked 50% · 6L", fk("xshh_allt_forked_50k", "6L", "full"), fk("xshh_allt_forked_50k", "6L", "triage"), C_FORK),
+        ("forked 2/batch · 2L", fk("xshh_allt_forked2_50k", "2L", "full"), fk("xshh_allt_forked2_50k", "2L", "triage"), C_FORK2),
+        ("forked 2/batch · 6L", fk("xshh_allt_forked2_50k", "6L", "full"), fk("xshh_allt_forked2_50k", "6L", "triage"), C_FORK2),
         ("β · 2L", f"{BETA_DIR}/results/gift_eval_full_bb_beta_50k/summary.txt",
          f"{BETA_DIR}/results/gift_eval_triage_bb_beta_50k/summary.txt", C_BETA),
-        ("β · 6L", f"{RES}/gift_eval_full_beta_50k_6L/summary.txt",
-         f"{RES}/gift_eval_triage_beta_50k_6L/summary.txt", C_BETA),
+        ("β · 6L", fk("beta_50k", "6L", "full"), fk("beta_50k", "6L", "triage"), C_BETA),
     ]
-    rows = []
-    for lab, fs, ts, c in cells:
-        rows.append((lab, agg_gm(fs), agg_gm(ts), c))
-    if not any(r[1] or r[2] for r in rows):
+    rows = [(lab, agg_gm(fs), agg_gm(ts), c) for lab, fs, ts, c in cells]
+    rows = [r for r in rows if r[1] or r[2]]   # drop arms with no data yet (e.g. forked 2/batch pre-landing)
+    if not rows:
         print("gm_summary: no data yet — skip")
         return
     v = agg_gm(f"{V11C}/summary.txt") or 1.292
@@ -142,7 +144,7 @@ def plot_gm_summary():
             ax.axvline(v, color=C_V11C, ls="--", lw=1.4, label=f"v11c = {v:.3f}")
         ax.axvline(1.0, color="k", ls=":", lw=1.0, alpha=0.5)
         ax.legend(fontsize=8, loc="lower right")
-    fig.suptitle("#318 — frozen-backbone GM-Relative MASE: cross-series same-step h↔h vs β", fontsize=12)
+    fig.suptitle("#318 — frozen-backbone GM-Relative MASE: shortcut-denial arms (loss-side h↔h · data-side forked) vs β", fontsize=12)
     fig.tight_layout()
     fig.savefig(f"{PLOTS}/gm_summary.png", dpi=130, bbox_inches="tight")
     print("gm_summary.png written")
@@ -210,8 +212,10 @@ def plot_training_curves():
     # (label, curve, colour, floor-key)
     arms = [("xshh same-step", _load_curve(XSHH_CSV), C_XSHH, "xshh"),
             ("xshh all-time",  _load_curve(ALLT_CSV), C_ALLT, "allt"),
+            ("forked 50%",     _load_curve(FORK_CSV), C_FORK, "allt"),
+            ("forked 2/batch", _load_curve(FORK2_CSV), C_FORK2, "allt"),
             ("β",              _load_curve(BETA_CSV), C_BETA, "beta")]
-    arms = [a for a in arms if a[1]]
+    arms = [a for a in arms if a[1]]   # forked 2/batch drops out until its CSV lands
     if not arms:
         print("training_curves: no data yet — skip")
         return
@@ -262,6 +266,8 @@ def plot_perdomain():
                or config_domain(f"{RES}/gift_eval_full_xshh_50k_2L/all_results.csv"))
     srcs = [("xshh same-step 2L", f"{RES}/gift_eval_full_xshh_50k_2L/summary.txt", C_XSHH),
             ("xshh all-time 2L", f"{RES}/gift_eval_full_xshh_allt_50k_2L/summary.txt", C_ALLT),
+            ("forked 50% 2L", f"{RES}/gift_eval_full_xshh_allt_forked_50k_2L/summary.txt", C_FORK),
+            ("forked 2/batch 2L", f"{RES}/gift_eval_full_xshh_allt_forked2_50k_2L/summary.txt", C_FORK2),
             ("β 2L", f"{BETA_DIR}/results/gift_eval_full_bb_beta_50k/summary.txt", C_BETA),
             ("v11c", f"{V11C}/summary.txt", C_V11C)]
     series = []
@@ -285,7 +291,7 @@ def plot_perdomain():
     ax.axhline(1.0, color="k", ls=":", lw=1, alpha=0.6)
     ax.set_xticks(x + w*(len(series)-1)/2); ax.set_xticklabels(doms, rotation=20, ha="right", fontsize=9)
     ax.set_ylabel("per-domain GM-Relative MASE (lower=better)")
-    ax.set_title("#318 — per-domain transfer (full-97, 2L): cross-series same-step h↔h vs β")
+    ax.set_title("#318 — per-domain transfer (full-97, 2L): shortcut-denial arms vs β")
     ax.legend(fontsize=9); fig.tight_layout()
     fig.savefig(f"{PLOTS}/perdomain.png", dpi=130, bbox_inches="tight")
     print("perdomain.png written")
