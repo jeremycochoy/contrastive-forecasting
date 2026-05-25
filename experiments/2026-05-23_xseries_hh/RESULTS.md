@@ -281,21 +281,32 @@ sweep.
 
 Pairs of sequences that share an exact prefix then diverge (perturbed-coefficient
 continuations) were mixed 50/50 into the all-time arm, to deny the
-positional/predictive-state code through the *data* rather than the loss. It did
-**not** help — full-97 **1.6366** (2L), *worse* than the base all-time arm
-(1.4143) and than β (1.3272); triage-11 1.8824.
+positional/predictive-state code through the *data* rather than the loss.
 
-**Heavily confounded, read with care:** the forked arm trains on **50%
-synthetic ARIMA** while the base all-time arm trains on 100% real HF data. A
-50% out-of-distribution synthetic mix is expected to hurt real-data transfer on
-its own, so this number conflates the *data-distribution shift* with the *fork
-structure*. Without an **unforked-synthetic** control (all-time + 50% plain
-ARIMA, same shift, no fork) the fork's specific effect is not isolated — that
-control is the clean next step. (6L head still landing.)
+The verdict **depends on q-head capacity** (full-97 / triage-11 GM-Rel MASE):
+
+| q-head | forked | β (#309) | all-time |
+|---|---|---|---|
+| 2L | 1.6366 / 1.8824 | 1.3272 / 1.292 | 1.4143 / 1.6212 |
+| 6L | **1.4065** / 1.5339 | 1.4489 / 1.5271 | 1.4748 / 1.7028 |
+
+With the small **2L** head the fork is the *worst* arm (full 1.6366). With the
+deeper **6L** head it *reverses* into the **best full-97 of any 1L-forecaster
+backbone here** — 1.4065, edging β 6L (1.4489) and all-time 6L (1.4748).
+
+**Heavily confounded — do not attribute the 6L win to the fork.** The forked arm
+trains on **50% synthetic ARIMA**; β and the base all-time arm train on 100% real
+HF data. A 50% out-of-distribution synthetic mix is expected to *hurt* real-data
+transfer on its own — and with the 2L head it plainly does. That the 6L head
+turns it into a win is intriguing, but the data-distribution shift and the fork
+structure are entangled, so this is **not** evidence the fork helps. The clean
+test is an **unforked-synthetic** control (all-time + 50% plain ARIMA — same
+shift, no fork); only the forked-minus-unforked gap isolates the fork. That
+control is the recommended next step.
 
 ### Follow-ups (still in flight)
 
 - **6L-forecaster** (1L → 6L forecaster, both arms): does a deeper predictor
-  change the picture? — _(all-time-6Lf trained; eval re-running after a bf16
-  dtype fix. same-step-6Lf training.)_
-- **forked-continuation 6L head** — _(training)_
+  change the picture? — _(same-step-6Lf: 2L triage 1.5177, full eval running.
+  all-time-6Lf: backbone trained, 2L+6L q-head eval running on the bf16-fix
+  recipe — first GM pending.)_
