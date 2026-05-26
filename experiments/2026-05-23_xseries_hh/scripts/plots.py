@@ -50,9 +50,12 @@ BETA_CSV = f"{BETA_DIR}/runs/bb_beta_50k_losses.csv"
 FORK_CSV  = f"{OUT}/runs/bb_xshh_allt_forked_50k_losses.csv"    # forked, all-time loss, 50% synth
 FORK2_CSV = f"{OUT}/runs/bb_xshh_allt_forked2_50k_losses.csv"   # forked, all-time loss, 2 samples/batch
 BFORK_CSV = f"{OUT}/runs/bb_beta_forked2_50k_losses.csv"        # forked, β loss, 2 samples/batch
+FORK10_CSV  = f"{OUT}/runs/bb_xshh_allt_forked10pct_50k_losses.csv"  # forked, all-time loss, 10%
+BFORK10_CSV = f"{OUT}/runs/bb_beta_forked10pct_50k_losses.csv"       # forked, β loss, 10%
 
 C_XSHH, C_ALLT, C_BETA, C_V11C = "#1f77b4", "#2ca02c", "#d62728", "#9467bd"
 C_FORK, C_FORK2, C_BFORK = "#ff7f0e", "#8c564b", "#e377c2"   # data-side forked: allt·50% / allt·2 / β·2
+C_FORK10, C_BFORK10 = "#bcbd22", "#17becf"   # forked 10%: all-time / β
 
 
 def agg_gm(sum_txt):
@@ -117,6 +120,10 @@ def plot_gm_summary():
         ("forked allt·2/b · 6L", fk("xshh_allt_forked2_50k", "6L", "full"), fk("xshh_allt_forked2_50k", "6L", "triage"), C_FORK2),
         ("forked β·2/b · 2L", fk("beta_forked2_50k", "2L", "full"), fk("beta_forked2_50k", "2L", "triage"), C_BFORK),
         ("forked β·2/b · 6L", fk("beta_forked2_50k", "6L", "full"), fk("beta_forked2_50k", "6L", "triage"), C_BFORK),
+        ("forked allt·10% · 2L", fk("xshh_allt_forked10pct_50k", "2L", "full"), fk("xshh_allt_forked10pct_50k", "2L", "triage"), C_FORK10),
+        ("forked allt·10% · 6L", fk("xshh_allt_forked10pct_50k", "6L", "full"), fk("xshh_allt_forked10pct_50k", "6L", "triage"), C_FORK10),
+        ("forked β·10% · 2L", fk("beta_forked10pct_50k", "2L", "full"), fk("beta_forked10pct_50k", "2L", "triage"), C_BFORK10),
+        ("forked β·10% · 6L", fk("beta_forked10pct_50k", "6L", "full"), fk("beta_forked10pct_50k", "6L", "triage"), C_BFORK10),
         ("β · 2L", f"{BETA_DIR}/results/gift_eval_full_bb_beta_50k/summary.txt",
          f"{BETA_DIR}/results/gift_eval_triage_bb_beta_50k/summary.txt", C_BETA),
         ("β · 6L", fk("beta_50k", "6L", "full"), fk("beta_50k", "6L", "triage"), C_BETA),
@@ -226,6 +233,8 @@ def plot_training_curves():
             ("forked allt·50%", _load_curve(FORK_CSV), C_FORK, "allt"),
             ("forked allt·2/b", _load_curve(FORK2_CSV), C_FORK2, "allt"),
             ("forked β·2/b",    _load_curve(BFORK_CSV), C_BFORK, "beta"),
+            ("forked allt·10%", _load_curve(FORK10_CSV), C_FORK10, "allt"),
+            ("forked β·10%",    _load_curve(BFORK10_CSV), C_BFORK10, "beta"),
             ("β",               _load_curve(BETA_CSV), C_BETA, "beta")]
     arms = [a for a in arms if a[1]]   # pending arms (no CSV yet) drop out
     if not arms:

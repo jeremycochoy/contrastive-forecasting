@@ -1,15 +1,15 @@
 # #318 — Deny the positional shortcut: loss-side vs data-side
 
-**Verdict.** Two ways to deny the shortcut — through the **loss** (cross-series h↔h
-repulsion; same-step, all-time) and through the **data** (forked continuations:
-identical past, divergent futures) — and **neither beats β**. Loss-side hurts:
-same-step **+22%**, all-time **+6.6%** vs β at the 2L head. The data-side fork
-looked best-of-6L at a **50% synthetic mix** (1.4065), but that was a **confound**:
-isolating the fork to one pair per 256-batch removes the win — forked·allt·2/b
-**1.4049** (2L, ≈ all-time) / **1.5100** (6L, *worse* than all-time), forked·β·2/b
-**1.5302 / 1.4412** — so the gain tracked the synthetic-data *fraction*, not the
-fork. **β·2L (1.3272) is the best overall**: denying the positional shortcut, by
-loss or by data, does not improve GIFT-Eval transfer.
+**Verdict (developing).** Denying the shortcut through the **loss** (cross-series
+h↔h repulsion; same-step, all-time) **hurts** — +22% / +6.6% vs β (2L). Through the
+**data** (forked continuations: identical past, divergent futures) it is
+**injection-fraction-dependent**: the 50%-mix 6L "win" (1.4065) was a
+synthetic-fraction confound (isolating to one pair/256-batch gives no gain —
+forked·allt·2/b 1.4049 / 1.5100, forked·β·2/b 1.5302 / 1.4412), **but at a 10%
+injection on β it edges β**: **forked·β·10%·2L = 1.3030**, −1.8% vs β·2L 1.3272 —
+the **first arm to beat β**, reversing the 0.8% result. *Preliminary:* 2L head
+only, single seed (margin ≈ the ±0.02 noise), with the 6L head and the all-time·10%
+arm still evaluating; β·2L (1.3272) is the established baseline.
 
 ![full-97 GM summary](plots/gm_summary.png)
 *GM-Relative MASE, lower = better; 1.0 = seasonal-naive. Every arm × {2L, 6L}; the
@@ -131,8 +131,10 @@ seasonal-naive 1.0.
 | data-side · forked allt·2/b | 6L | 1.5100 | 1.6348 | +13.8% |
 | data-side · forked β·2/b | 2L | 1.5302 | 1.4376 | +15.3% |
 | data-side · forked β·2/b | 6L | 1.4412 | 1.4027 | +8.6% |
-| data-side · forked allt·10% | 2L · 6L | *in flight* | *in flight* | — |
-| data-side · forked β·10% | 2L · 6L | *in flight* | *in flight* | — |
+| data-side · forked allt·10% | 2L | *in flight* | *in flight* | — |
+| data-side · forked allt·10% | 6L | *in flight* | *in flight* | — |
+| data-side · **forked β·10%** | 2L | **1.3030** | 1.4559 | **−1.8%** |
+| data-side · forked β·10% | 6L | *in flight* | *in flight* | — |
 | v11c (reference) | 2L | 1.292 | — | −2.7% |
 
 *GM-Relative MASE, lower = better; Δ vs the best arm β·2L (1.3272).*
