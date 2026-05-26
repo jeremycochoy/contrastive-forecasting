@@ -52,8 +52,9 @@ is narrow except on Econ/Fin (6 noisy configs).*
 *Log–log, warm-up (< 1000 steps) cropped. Loss − InfoNCE floor; gap-ratio
 (1−ff)/(1−fp), forecast↔future vs ↔present, 0 = perfect; live training-time
 dimension usage (dropkey **on**, ≈ 0.2), temporal & batch, higher = better. All
-four track near-identically across arms — yet transfer spans 22% (scoreboard): the
-training signal does not separate the arms that transfer from those that don't.*
+four track near-identically across arms — yet the same-step arm transfers 22% worse
+than β (scoreboard): the training signal does not separate the arms that transfer
+from those that don't.*
 
 ![latent dimensionality](plots/latent_dim.png)
 *Frozen encoder latent `h` (d=384, one HF batch, **eval-mode — dropkey off**):
