@@ -38,9 +38,9 @@ ARMS = [
 ]
 
 
-def relatives(sum_txt):
-    """Per-config Relative MASE list parsed from a summary.txt body (or [])."""
-    out = []
+def relatives_dict(sum_txt):
+    """{config: Relative MASE} parsed from a summary.txt body (or {})."""
+    out = {}
     if not os.path.exists(sum_txt):
         return out
     with open(sum_txt) as f:
@@ -48,10 +48,15 @@ def relatives(sum_txt):
             p = line.split()
             if len(p) == 4 and "/" in p[0]:
                 try:
-                    out.append(float(p[3]))
+                    out[p[0]] = float(p[3])
                 except ValueError:
                     pass
     return out
+
+
+def relatives(sum_txt):
+    """Per-config Relative MASE list (or [])."""
+    return list(relatives_dict(sum_txt).values())
 
 
 def gm(xs):
@@ -79,6 +84,25 @@ def cell(res_dir, tag, head, evset):
     if not rels:
         return None, (None, None)
     return gm(rels), gm_ci(rels)
+
+
+def paired_delta_ci(d1, d6, n=2000, seed=0):
+    """Paired bootstrap on Δ = GM(6Lf) − GM(1L) over the configs shared by both
+    arms (same configs resampled jointly → cancels config difficulty, isolates the
+    forecaster-depth effect). Returns (delta, lo, hi) or (None, None, None)."""
+    common = sorted(set(d1) & set(d6))
+    if len(common) < 2:
+        return (None, None, None)
+    a = [d1[c] for c in common]
+    b = [d6[c] for c in common]
+    delta = gm(b) - gm(a)
+    rng = random.Random(seed)
+    ds = []
+    for _ in range(n):
+        idx = [rng.randrange(len(common)) for _ in common]
+        ds.append(gm([b[i] for i in idx]) - gm([a[i] for i in idx]))
+    ds.sort()
+    return (delta, ds[int(0.05 * n)], ds[int(0.95 * n)])
 
 
 # ----------------------------------------------------------- gm_summary
@@ -130,28 +154,32 @@ def plot_gm_summary():
 def plot_forecaster_delta():
     fig, axes = plt.subplots(1, 2, figsize=(13, 6))
     for ax, evset in [(axes[0], "full"), (axes[1], "triage")]:
-        labels, deltas, colors = [], [], []
+        labels, deltas, los, his, colors = [], [], [], [], []
         for tag1, tag6, lab in ARMS:
             for head in ("2L", "6L"):
-                g1, _ = cell(RES_1L, tag1, head, evset)
-                g6, _ = cell(RES_6LF, tag6, head, evset)
-                if g1 is None or g6 is None:
+                d1 = relatives_dict(f"{RES_1L}/gift_eval_{evset}_{tag1}_{head}/summary.txt")
+                d6 = relatives_dict(f"{RES_6LF}/gift_eval_{evset}_{tag6}_{head}/summary.txt")
+                d, lo, hi = paired_delta_ci(d1, d6)
+                if d is None:
                     continue
-                d = g6 - g1
                 labels.append(f"{lab}·{head}"); deltas.append(d)
-                colors.append("#2ca02c" if d < 0 else "#d62728")
+                los.append(d - lo); his.append(hi - d)
+                # green only if the whole 90% CI is below 0 (6Lf reliably better)
+                colors.append("#2ca02c" if hi < 0 else ("#d62728" if lo > 0 else "#bbbbbb"))
         if not deltas:
             ax.text(0.5, 0.5, f"no {evset} pairs yet", ha="center", transform=ax.transAxes)
             continue
-        y = range(len(labels))
-        ax.barh(list(y), deltas, color=colors)
+        y = list(range(len(labels)))
+        ax.barh(y, deltas, color=colors, xerr=[los, his], capsize=2,
+                ecolor="#555", error_kw={"lw": 0.8})
         ax.axvline(0, color="#333", lw=1)
-        ax.set_yticks(list(y)); ax.set_yticklabels(labels, fontsize=9)
+        ax.set_yticks(y); ax.set_yticklabels(labels, fontsize=9)
         ax.invert_yaxis()
         ax.set_xlabel("Δ GM-Relative MASE  (6Lf − 1L)")
-        ax.set_title(f"{'full-97' if evset == 'full' else 'triage-11'}: green = deeper forecaster helps")
+        ax.set_title(f"{'full-97' if evset == 'full' else 'triage-11'}: green = 6Lf better (90% CI<0), grey = inconclusive")
         ax.grid(axis="x", ls=":", alpha=0.4)
-    fig.suptitle("#320 — effect of 1L→6L forecaster on each forked arm (paired on backbone seed 20260520)")
+    fig.suptitle("#320 — effect of 1L→6L forecaster on each forked arm "
+                 "(paired on seed 20260520; whiskers = paired-bootstrap 90% CI over shared configs)")
     fig.tight_layout()
     fig.savefig(f"{PLOTS}/forecaster_delta.png", dpi=110)
     plt.close(fig)
