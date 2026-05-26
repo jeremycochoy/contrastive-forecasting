@@ -11,7 +11,8 @@ champion (1.292)** at 6L (the first arm here to reach it). The same 10% on the
 neutral-to-worse (the 50%-mix 6L "win", 1.4065, was a synthetic-fraction confound)
 — so the gain is specific to **β + ≈10% fork**. β·10% is the first arm here to
 reach v11c-level transfer, but on a **single seed**, with the 6L-vs-v11c margin
-(0.003) inside the ±0.02 noise — a second seed is needed before it's firm.
+(0.003) inside the ±0.02 noise — so a **paired second seed (β·10% + β at seed
+20260521) is running** to confirm before it's firm.
 
 ![full-97 GM summary](plots/gm_summary.png)
 *GM-Relative MASE, lower = better; 1.0 = seasonal-naive. Every arm × {2L, 6L}; the

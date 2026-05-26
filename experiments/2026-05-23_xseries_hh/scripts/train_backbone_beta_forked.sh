@@ -9,7 +9,7 @@
 # Usage: train_backbone_beta_forked.sh [gpu] [mix_ratio]
 set -uo pipefail
 GPU="${1:-0}"; MIX="${2:-0.0078125}"; TAG="${3:-forked2}"   # default 2/256 = 1 forked pair/batch
-SEED=20260520
+SEED="${4:-20260520}"   # 2nd seed: pass 20260521
 WT=/home/jupyter/workspaces/contrastive-forecasting/.claude/worktrees/cross-series-hh
 OUT=/home/jupyter/workspaces/contrastive-forecasting/experiments/2026-05-23_xseries_hh
 NAME="bb_beta_${TAG}_50k"   # TAG: forked2 = 2/batch, forked10pct = 10% mix
