@@ -9,10 +9,12 @@ same-step, all-time) **hurts** — +22% / +6.6% vs β (2L). Through the **data**
 champion (1.292)** at 6L (the first arm here to reach it). The same 10% on the
 **all-time** loss instead *hurts* (2L 1.6130), and at **0.8%** the fork is
 neutral-to-worse (the 50%-mix 6L "win", 1.4065, was a synthetic-fraction confound)
-— so the gain is specific to **β + ≈10% fork**. β·10% is the first arm here to
-reach v11c-level transfer, but on a **single seed**, with the 6L-vs-v11c margin
-(0.003) inside the ±0.02 noise — so a **paired second seed (β·10% + β at seed
-20260521) is running** to confirm before it's firm.
+— so the gain is specific to **β + ≈10% fork**. **Second seed (20260521, 2L):**
+the fork-helps-β *direction reproduces* (β·10% 1.3805 < β 1.4591), but β·10%·2L
+itself moved 1.3030 → **1.3805** across seeds (≈0.08, far beyond the ±0.02 we'd
+assumed) — so absolute GMs are markedly seed-variable, and β·10%'s single-seed
+**v11c-level match is within seed noise, not firm**. (Second-seed 6L still
+evaluating; the 6L was the v11c-matching head.)
 
 ![full-97 GM summary](plots/gm_summary.png)
 *GM-Relative MASE, lower = better; 1.0 = seasonal-naive. Every arm × {2L, 6L}; the
