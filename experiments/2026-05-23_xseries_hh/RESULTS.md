@@ -41,14 +41,14 @@ subset. Single seed per cell (line spread ≈ ±0.02, #307).*
   positional-code denier) is worst, broad all-time less so. A 6L head rescues
   neither (even β degrades 2L→6L), so the regression is in the **backbone** —
   what different series share at a step is forecastably useful, not a free code.
-- **Data-side (forked) does not survive isolation.** At a 50% synthetic mix the
-  fork looked best-of-6L (1.4065); but cutting it to one pair per 256-batch removes
-  the win — forked·allt·2/b 1.4049 (2L, ≈ all-time) / **1.5100** (6L, *worse* than
-  all-time 1.4748), forked·β·2/b 1.5302 / 1.4412. So the 6L gain tracked the
-  synthetic-data *fraction* (50% vs 0.8%), not the fork structure. A **10%** forked
-  injection on both losses is in flight to probe the mid-range (0.8% → 10% → 50%);
-  a 50% *unforked*-synthetic control would split synthetic-data benefit from the
-  fork — the clean next step.
+- **Data-side (forked): the gain is specific to β + ≈10% injection.** Sweeping the
+  forked fraction is non-monotonic and loss-dependent. On **β** it peaks at 10%:
+  0% (β) 1.3272 → 0.8% 1.5302 → **10% 1.3030 (2L) / 1.2889 (6L = v11c)** — the best
+  arm here. On the **all-time** loss the fork only hurts at every fraction
+  (0.8% 1.4049/1.5100, 10% 1.6130/1.5304, 50% 1.6366/1.4065); the 50%·6L 1.4065 that
+  first looked like a win was a synthetic-data-fraction confound (its 0.8% isolation
+  gave 1.5100). A 50% **unforked-synthetic** control is still the clean test of
+  whether β·10%'s gain is the fork structure or just ~10% synthetic data.
 
 ### Per-domain (full-97, best q-head per arm)
 
@@ -134,7 +134,7 @@ seasonal-naive 1.0.
 | data-side · forked β·2/b | 2L | 1.5302 | 1.4376 | +15.3% |
 | data-side · forked β·2/b | 6L | 1.4412 | 1.4027 | +8.6% |
 | data-side · forked allt·10% | 2L | 1.6130 | 2.0115 | +21.5% |
-| data-side · forked allt·10% | 6L | *in flight* | *in flight* | — |
+| data-side · forked allt·10% | 6L | 1.5304 | 1.9293 | +15.3% |
 | data-side · **forked β·10%** | 2L | **1.3030** | 1.4559 | **−1.8%** |
 | data-side · **forked β·10%** | 6L | **1.2889** | 1.4747 | **−2.9%** |
 | v11c (reference) | 2L | 1.292 | — | −2.7% |
