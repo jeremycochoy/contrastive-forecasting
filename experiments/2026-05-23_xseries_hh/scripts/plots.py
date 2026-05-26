@@ -300,9 +300,7 @@ def plot_perdomain():
     # the legend. We never compute an eval here — just plot what the pipeline has.
     arms = [("same-step", C_XSHH, {h: f"{RES}/gift_eval_full_xshh_50k_{h}/summary.txt" for h in ("2L", "6L")}),
             ("all-time", C_ALLT, {h: f"{RES}/gift_eval_full_xshh_allt_50k_{h}/summary.txt" for h in ("2L", "6L")}),
-            ("forked allt·50%", C_FORK, {h: f"{RES}/gift_eval_full_xshh_allt_forked_50k_{h}/summary.txt" for h in ("2L", "6L")}),
-            ("forked allt·2/b", C_FORK2, {h: f"{RES}/gift_eval_full_xshh_allt_forked2_50k_{h}/summary.txt" for h in ("2L", "6L")}),
-            ("forked β·2/b", C_BFORK, {h: f"{RES}/gift_eval_full_beta_forked2_50k_{h}/summary.txt" for h in ("2L", "6L")}),
+            ("forked β·10%", C_BFORK10, {h: f"{RES}/gift_eval_full_beta_forked10pct_50k_{h}/summary.txt" for h in ("2L", "6L")}),
             ("β", C_BETA, {"2L": f"{BETA_DIR}/results/gift_eval_full_bb_beta_50k/summary.txt",
                            "6L": f"{RES}/gift_eval_full_beta_50k_6L/summary.txt"}),
             ("v11c", C_V11C, {"2L": f"{V11C}/summary.txt"})]

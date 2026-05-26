@@ -9,9 +9,9 @@ same-step, all-time) **hurts** — +22% / +6.6% vs β (2L). Through the **data**
 champion (1.292)** at 6L (the first arm here to reach it). The same 10% on the
 **all-time** loss instead *hurts* (2L 1.6130), and at **0.8%** the fork is
 neutral-to-worse (the 50%-mix 6L "win", 1.4065, was a synthetic-fraction confound)
-— so the gain is specific to **β + ≈10% fork**. *Single seed* — a second seed
-should confirm before it's firm, but β·10% is the first arm here to reach
-v11c-level transfer.
+— so the gain is specific to **β + ≈10% fork**. β·10% is the first arm here to
+reach v11c-level transfer, but on a **single seed**, with the 6L-vs-v11c margin
+(0.003) inside the ±0.02 noise — a second seed is needed before it's firm.
 
 ![full-97 GM summary](plots/gm_summary.png)
 *GM-Relative MASE, lower = better; 1.0 = seasonal-naive. Every arm × {2L, 6L}; the
@@ -43,7 +43,7 @@ subset. Single seed per cell (line spread ≈ ±0.02, #307).*
   what different series share at a step is forecastably useful, not a free code.
 - **Data-side (forked): the gain is specific to β + ≈10% injection.** Sweeping the
   forked fraction is non-monotonic and loss-dependent. On **β** it peaks at 10%:
-  0% (β) 1.3272 → 0.8% 1.5302 → **10% 1.3030 (2L) / 1.2889 (6L = v11c)** — the best
+  0% (β) 1.3272 → 0.8% 1.5302 → **10% 1.3030 (2L) / 1.2889 (6L ≈ v11c)** — the best
   arm here. On the **all-time** loss the fork only hurts at every fraction
   (0.8% 1.4049/1.5100, 10% 1.6130/1.5304, 50% 1.6366/1.4065); the 50%·6L 1.4065 that
   first looked like a win was a synthetic-data-fraction confound (its 0.8% isolation
@@ -54,9 +54,10 @@ subset. Single seed per cell (line spread ≈ ±0.02, #307).*
 
 ![per-domain radar](plots/perdomain.png)
 *Log radial; dashed ring = seasonal-naive (1.0); innermost = best. Each arm at its
-best q-head (lower full-97; head shown in the legend). β (2L) and v11c are
-tightest; the denial arms bulge outward (same-step 6L worst, no seasonal
-signature); forked allt·50% (6L) sits closest to β but no denial arm reaches it.*
+best q-head (legend); curated to the headline comparison. The loss-side arms
+(same-step 6L, all-time 2L) bulge outward — worse than β across domains, no
+seasonal signature — while the data-side winner **forked β·10% (6L)** tracks β and
+v11c on the inner ring.*
 
 ### Training dynamics
 
