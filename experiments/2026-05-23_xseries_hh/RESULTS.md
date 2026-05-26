@@ -1,148 +1,90 @@
 # #318 — Deny the positional shortcut: loss-side vs data-side
 
-**Verdict.** Denying the shortcut through the **loss** (cross-series h↔h repulsion;
-same-step, all-time) **hurts** — +22% / +6.6% vs β. Through the **data** (forked
-continuations: identical past, divergent futures) the effect is **injection-
-fraction- and loss-specific**: on the **all-time** loss it only hurts (every
-fraction), and at **0.8%** on either loss it's neutral-to-worse (the 50%-mix 6L
-"win" 1.4065 was a synthetic-fraction confound). But on **β at ≈10% injection it
-robustly helps** — across **two seeds and both q-heads, β·10% beats β at all four
-cells** (the only reproducing improvement on β here). It does **not**, however,
-reliably reach v11c: the single-seed β·10%·6L = 1.2889 (≈ v11c 1.292) was a
-favorable draw — at the second seed it is **1.3271** (above v11c), and β·10%·2L
-likewise moved 1.3030 → 1.3805 (absolute GMs are markedly seed-variable, ≫ ±0.02).
-**Net: the 10% β-fork is a real, reproducing gain over β, but lands *between* β and
-v11c — not a v11c match.** (Details: §Second seed.)
+**Verdict.** Two ways to forbid the "positional shortcut" β can exploit. Through the
+**loss** (cross-series h↔h repulsion) it **hurts** — same-step +22%, all-time +6.6%.
+Through the **data** (forked continuations — identical past, divergent futures) only
+one setting helps: a **β-loss fork at ≈10% injection beats β at both seeds and both
+q-heads** — the only reproducing gain here; every other fraction/loss hurts. The gain
+is real but modest, landing **between β and v11c**, not at v11c (the single-seed
+β·10%·6L = v11c was seed-1 luck — 1.3271 at seed 2).
 
-![full-97 GM summary](plots/gm_summary.png)
-*GM-Relative MASE, lower = better; 1.0 = seasonal-naive. Every arm × {2L, 6L}; the
-v11c target (dashed) and β·2L sit left of all denial arms.*
+**References** (GM-Relative MASE, lower = better): β = the #309 baseline recipe,
+1.3272; v11c = prior in-project best, 1.292; seasonal-naive = 1.0.
 
-## Question
+## Design
 
-β denies within-series cross-time distinctness (`h_t` ≠ `h_l` ∀l), but a
-**positional fingerprint** shared across all series satisfies that for free —
-distinctness at no cost in forecastable content (consistent with the standing
-observations: bigger eval heads don't help, more contrastive training doesn't
-transfer). We forbid the shortcut two ways: through the **loss** (repel what
-different series share at a step) and through the **data** (pairs whose identical
-past has divergent futures, so position *cannot* encode the future).
+β's cross-time negative (`h_t` ≠ `h_l` ∀l) can be satisfied by a content-free
+**positional code** shared across series — distinctness bought at no
+forecastable-content cost. We test whether denying that code improves transfer, two
+ways — repel it in the **loss**, or remove it in the **data**:
 
-## Result
+![design](plots/design.png)
+*Loss-side: cross-series h↔h repulsion (same-step / all-time). Data-side:
+forked-ARIMA injection — 0.8/10% on the β loss, 0.8/10/50% on the all-time loss.
+Each backbone is scored with a 2L and a 6L q-head.*
 
-Each frozen backbone is scored with a fresh 2-layer and 6-layer quantile q-head,
-separating backbone quality from readout capacity. Numbers are on the gm_summary
-bars above and in the **[full scoreboard](#scoreboard--every-arm--head)** at the end.
+![forked-ARIMA schematic](plots/fork_schematic.png)
+*The data-side fork — a pair shares an exact past, then diverges, so position
+cannot encode the future.*
 
-*GM-Relative MASE = geometric mean over configs of model-MASE ÷ seasonal-naive-MASE
-(1.0 = parity, lower better); full-97 = all 97 configs, triage-11 = noisy fast
-subset. Single seed per cell (line spread ≈ ±0.02, #307).*
+## Results
 
-- **Loss-side hurts; tighter targeting hurts more.** same-step (the precise
-  positional-code denier) is worst, broad all-time less so. A 6L head rescues
-  neither (even β degrades 2L→6L), so the regression is in the **backbone** —
-  what different series share at a step is forecastably useful, not a free code.
-- **Data-side (forked): the gain is specific to β + ≈10% injection.** Sweeping the
-  forked fraction is non-monotonic and loss-dependent. On **β** it peaks at 10%:
-  0% (β) 1.3272 → 0.8% 1.5302 → **10% 1.3030 (2L) / 1.2889 (6L ≈ v11c)** — the best
-  arm here. On the **all-time** loss the fork only hurts at every fraction
-  (0.8% 1.4049/1.5100, 10% 1.6130/1.5304, 50% 1.6366/1.4065); the 50%·6L 1.4065 that
-  first looked like a win was a synthetic-data-fraction confound (its 0.8% isolation
-  gave 1.5100). A 50% **unforked-synthetic** control is still the clean test of
-  whether β·10%'s gain is the fork structure or just ~10% synthetic data.
+![GM summary](plots/gm_summary.png)
+*GM-Relative MASE = geometric mean over GIFT-Eval configs of (model MASE ÷
+seasonal-naive MASE); 1.0 = seasonal-naive, lower = better. Left full-97 (all 97
+configs), right triage-11 (11 fixed configs). β·10% is the only arm to beat β·2L
+(both heads land left of it); of those, only its 6L head reaches the v11c line
+(dashed). Every other arm — loss-side and all other forked fractions — sits right of
+β. Whiskers (→/←) mark each multi-seed cell's second seed — β·10%·6L's crosses back
+above v11c, so that match is seed-fragile. Per-arm numbers: [scoreboard](#scoreboard).*
 
-### Second seed (β·10%, seed 20260521)
-
-A paired second seed (β·10% and a matched β, both via the forked launcher) re-tests
-the fork's effect and its firmness.
-
-| arm · head | seed 1 | seed 2 | β·10% − β (s1 / s2) |
-|---|---:|---:|---:|
-| **β·10% · 2L** | 1.3030 | 1.3805 | −0.024 / −0.079 |
-| **β·10% · 6L** | 1.2889 | 1.3271 | −0.160 / −0.043 |
-| β · 2L | 1.3272¹ | 1.4591 | |
-| β · 6L | 1.4489¹ | 1.3702 | |
-
-**β·10% beats β at all four (seed × head) cells** — the fork's gain on β is
-**reproducible**. But absolute GMs are markedly seed-variable (β·10%·2L 1.30→1.38,
-6L 1.29→1.33 — ≫ the ±0.02 we'd assumed), so the single-seed **v11c match (6L
-1.2889) does not hold**: at seed 2 it is **1.3271**, above v11c (1.292). β·10% is a
-**real but modest** gain over β, landing *between* β and v11c; a third seed would
-tighten the magnitude.
-
-¹ seed-1 β is the #309 reference backbone; seed-2 β is the matched forked-launcher
-recipe (mix 0). The within-seed **paired gap** (β·10% − β) is the controlled
-quantity — negative at both seeds.
-
-### Per-domain (full-97, best q-head per arm)
+A 6L q-head rescues no loss-side arm — the regression points to the backbone, not
+the readout; the fork's effect depends on both the loss and the injection fraction.
 
 ![per-domain radar](plots/perdomain.png)
-*Log radial; dashed ring = seasonal-naive (1.0); innermost = best. Each arm at its
-best q-head (legend); curated to the headline comparison. The loss-side arms
-(same-step 6L, all-time 2L) bulge outward — worse than β across domains, no
-seasonal signature — while the data-side winner **forked β·10% (6L)** tracks β and
-v11c on the inner ring.*
+*Per-domain, every arm at its best q-head (log radial; dashed ring = seasonal-naive
+1.0; innermost = best). Shaded bands = seed-1↔seed-2 spread for the two multi-seed
+arms (β·10% cyan, β red). Loss-side arms bulge outward (all-time spikes on Econ/Fin;
+no seasonal signature); β·10% sits with β and v11c in the inner cluster — its band
+is narrow except on Econ/Fin (6 noisy configs).*
 
-### Training dynamics
-
-![training curves](plots/training_curves.png)
-*All log–log, warm-up (step < 1000) skipped. **Loss − floor**: floors β 1.55 /
-same-step 2.04 / all-time 5.27 grow with the 52×-spanning negative pool (forked
-shares all-time's); all converge to a similar excess (+0.54…+0.64). **gap-ratio**
-(1−ff)/(1−fp) (forecast↔future vs ↔present; 0 = perfect). **Dimension usage**
-U = 1/(d·mean cos²) ∈ (0,1] (1 = full use, →0 = collapse), temporal and batch —
-measured in-training on the live batch, distinct from the frozen-`h` eff-rank in
-§Latent dimensionality.* The contrastive objective is learned near-identically
-across arms, yet transfer spans 22% — for the loss-side arms the structure is
-learned but wrong.
-
-## Latent dimensionality
+![training dynamics](plots/training_curves.png)
+*Log–log, warm-up (< 1000 steps) cropped. Loss − InfoNCE floor; gap-ratio
+(1−ff)/(1−fp), forecast↔future vs ↔present, 0 = perfect; live training-time
+dimension usage (dropkey **on**, ≈ 0.2), temporal & batch, higher = better. All
+four track near-identically across arms — yet transfer spans 22% (scoreboard): the
+training signal does not separate the arms that transfer from those that don't.*
 
 ![latent dimensionality](plots/latent_dim.png)
-*Frozen encoder latent `h` (d=384), one real-HF batch (B=128, T=64 → 8,192
-positions, CPU). **Left**: normalised singular-value spectrum of mean-centred `h`
-(log-y). **Right**: dimension-usage effective rank = `U·H`, `U = 1/(d·mean_{i≠j}
-cos²)` (method from the 2026-05-08 init-u-sweep), batch and time axes. Colours
-match the scoreboard.*
+*Frozen encoder latent `h` (d=384, one HF batch, **eval-mode — dropkey off**):
+singular-value spectrum (left), effective rank = U·384 (right). Eval-mode rank
+collapses to 1–8 of 384 — far below the dropkey-on ≈ 0.2 training-time usage above.
+forked β·0.8% is the lone outlier (~7.8) — a β-loss × fork interaction in this batch,
+not the fork alone. Rank does not order transfer (table in annex).*
 
-All arms are deeply collapsed — effective rank 1–8 of 384 (the post-training
-collapse the init-u-sweep flagged) — except **forked β·2/b**, the clear outlier at
-eff-rank ≈ 7.8 (PR 10.2), ~4–8× the rest. The fork's effect on rank is
-**loss-specific**: on the β loss it lifts rank ~5× (β 1.45 → forked β·2/b 7.82),
-but on the all-time loss it does not (all-time 1.93 → forked allt·2/b 1.08) — so
-the boost is the β-loss × fork *interaction*, not the fork alone. And latent rank
-does **not** order the arms by transfer: β (rank 1.45) transfers best, all-time
-(rank 1.93) worse despite the higher rank, and the rank outlier forked β·2/b (7.82)
-transfers *worse* than β at both heads (1.5302 / 1.4412) — the loss↔transfer
-decoupling again.
+### Second seed — sign reproduces, magnitude doesn't pin down
 
-| arm | eff-rank (batch / time) | PR |
-|---|:--:|:--:|
-| same-step | 1.26 / 1.60 | 2.78 |
-| all-time | 1.93 / 1.95 | 7.53 |
-| forked allt·50% | 1.01 / 1.69 | 4.14 |
-| forked allt·2/b | 1.08 / 2.09 | 2.82 |
-| **forked β·2/b** | **7.82 / 7.29** | **10.19** |
-| β | 1.45 / 1.57 | 3.17 |
-
-*eff-rank = `dim_usage · 384` over the batch / time axes; PR = participation ratio
-of the squared spectrum. Script: `scripts/latent_dim.py`.*
+β·10% beats β at **all four** seed × head cells — the gain's *sign* reproduces. Its
+*magnitude* does not pin down: GMs swing ≫ ±0.02 across seeds, so the single-seed
+β·10%·6L = v11c (1.2889) does not survive (1.3271 at seed 2). Follow-ups: a third
+seed to tighten the magnitude; a 50% *unforked*-synthetic control to isolate the fork
+from the synthetic-data fraction ([table](#second-seed-seed-20260521)).
 
 ## Protocol
 
-All arms are byte-identical to the #309 **β** recipe except the denial edit: GRU
+All arms byte-identical to the #309 **β** recipe except the denial edit: GRU
 patch-encoder → 6L causal encoder → 1L forecaster (d=128), AdamW β2=0.98, τ=0.10,
-dropkey 0.70, fp16 body / fp32 residual, EWMA RevNorm span 128, seed 20260520,
-50k steps, batch 256, `--pos-in-denominator`. **Loss-side** changes only
-`--loss-shape …_{xshh,xshh_allt}` (fp64-pinned in `tests/test_loss.py`);
-**data-side** adds no loss term — it injects a forked-ARIMA mix
-(`src/synthetic_forked_arma.py`): 50% or one pair/256 on the all-time loss, and
-one pair/256 on the β loss. The all-time loss costs **~2.2×** the step time
-(6.4→2.9 sps); the β-loss arms run at the β rate. Eval: fresh 30k q-head (2L/6L), GIFT-Eval
-strategy B4, byte-identical to #309/#315. Refs: β 1.3272, v11c 1.292,
-seasonal-naive 1.0.
+dropkey 0.70, fp16 body / fp32 residual, EWMA RevNorm span 128, 50k steps, batch
+256, `--pos-in-denominator`, seed 20260520. **Loss-side** changes only
+`--loss-shape …_{xshh,xshh_allt}` (fp64-pinned, `tests/test_loss.py`);
+**data-side** injects a forked-ARIMA mix (`src/synthetic_forked_arma.py`) at
+0.8% (2 forked pairs per 256-row batch) / 10% / 50% on the all-time or β loss. Eval:
+fresh 30k quantile q-head (2L and 6L), GIFT-Eval strategy B4, byte-identical to
+#309/#315.
 
-## Scoreboard — every arm × head
+## Annex
+
+### Scoreboard
 
 | arm | head | full-97 | triage-11 | Δ full vs β·2L |
 |---|:--:|---:|---:|---:|
@@ -153,20 +95,48 @@ seasonal-naive 1.0.
 | loss-side · all-time | 2L | 1.4143 | 1.6126 | +6.6% |
 | loss-side · all-time | 6L | 1.4748 | 1.7028 | +11.1% |
 | data-side · forked allt·50% | 2L | 1.6366 | 1.8824 | +23.3% |
-| data-side · forked allt·50% | 6L | **1.4065** | 1.5339 | +6.0% |
-| data-side · forked allt·2/b | 2L | 1.4049 | 1.6083 | +5.9% |
-| data-side · forked allt·2/b | 6L | 1.5100 | 1.6348 | +13.8% |
-| data-side · forked β·2/b | 2L | 1.5302 | 1.4376 | +15.3% |
-| data-side · forked β·2/b | 6L | 1.4412 | 1.4027 | +8.6% |
+| data-side · forked allt·50% | 6L | 1.4065 | 1.5339 | +6.0% |
+| data-side · forked allt·0.8% | 2L | 1.4049 | 1.6083 | +5.9% |
+| data-side · forked allt·0.8% | 6L | 1.5100 | 1.6348 | +13.8% |
+| data-side · forked β·0.8% | 2L | 1.5302 | 1.4376 | +15.3% |
+| data-side · forked β·0.8% | 6L | 1.4412 | 1.4027 | +8.6% |
 | data-side · forked allt·10% | 2L | 1.6130 | 2.0115 | +21.5% |
 | data-side · forked allt·10% | 6L | 1.5304 | 1.9293 | +15.3% |
-| data-side · **forked β·10%** | 2L | **1.3030** | 1.4559 | **−1.8%** |
-| data-side · **forked β·10%** | 6L | **1.2889** | 1.4747 | **−2.9%** |
+| data-side · **forked β·10%** | 2L | **1.3030** | 1.4559 | −1.8% † |
+| data-side · **forked β·10%** | 6L | **1.2889** | 1.4747 | −2.9% † |
 | v11c (reference) | 2L | 1.292 | — | −2.7% |
 
-*GM-Relative MASE, lower = better; Δ vs the best arm β·2L (1.3272).*
+*Lower = better; Δ vs β·2L 1.3272. † β·10% is single-seed here; the controlled
+quantity is the within-seed paired gap (reproducibly negative — second-seed table).*
 
-## Annex — exact negatives (per anchor, C=1; pooled N = B·Σ)
+### Second seed (seed 20260521)
+
+| arm · head | seed 1 | seed 2 | β·10% − β (s1 / s2) |
+|---|---:|---:|---:|
+| β·10% · 2L | 1.3030 | 1.3805 | −0.024 / −0.079 |
+| β·10% · 6L | 1.2889 | 1.3271 | −0.160 / −0.043 |
+| β · 2L | 1.3272¹ | 1.4591 | |
+| β · 6L | 1.4489¹ | 1.3702 | |
+
+¹ seed-1 β is the #309 reference; seed-2 β is the matched forked-launcher recipe
+(mix 0). The within-seed **paired gap** (β·10% − β) is the controlled quantity —
+negative at both seeds.
+
+### Latent dimensionality
+
+| arm | eff-rank (batch / time) | PR |
+|---|:--:|:--:|
+| same-step | 1.26 / 1.60 | 2.78 |
+| all-time | 1.93 / 1.95 | 7.53 |
+| forked allt·50% | 1.01 / 1.69 | 4.14 |
+| forked allt·0.8% | 1.08 / 2.09 | 2.82 |
+| **forked β·0.8%** | **7.82 / 7.29** | **10.19** |
+| β | 1.45 / 1.57 | 3.17 |
+
+*eff-rank = `dim_usage · 384`; PR = participation ratio of the squared spectrum.
+Script: `scripts/latent_dim.py`.*
+
+### Exact negatives (per anchor, C=1; pooled N = B·Σ)
 
 | family | repels | β | same-step | all-time / forked |
 |---|---|:--:|:--:|:--:|
@@ -178,13 +148,10 @@ seasonal-naive 1.0.
 | `xs_allt` cross-series ∀l | `cos(h_{b,t}, h_{b',l})` | — | — | (B−1)·T |
 | **pooled N** (B=256, T=64) | | **81,920** | **146,944** (1.79×) | **4,259,584** (52×) |
 
-Latent T = 64 (HF crops to T_RAW=1024, ÷ patch-16; holds for β/v11c too). Data-side
-arms add no loss term — the fork is in the *data*; each shares its base loss's
-negatives (all-time-forked → all-time column; β-forked → β column).
+Latent T = 64 (HF crops to T_RAW=1024, ÷ patch-16). Data-side arms add no loss
+term — the fork is in the *data*; each shares its base loss's negatives.
 
-## Other artifacts (trained, not evaluated)
+### Operational notes
 
-A 6L-forecaster variant of both loss-side arms (1L → 6L *forecaster*) was trained
-— `bb_xshh_6Lf_50k`, `bb_xshh_allt_6Lf_50k` (50k each, on disk) — but not evaluated
-downstream (one cell landed: same-step-6Lf 2L triage 1.5177). See
-[`EXECUTION_LOG.md`](EXECUTION_LOG.md).
+Infrastructure, the 50% → 0.8% fork-fraction correction, and a trained-but-unevaluated
+6L-*forecaster* variant: [`EXECUTION_LOG.md`](EXECUTION_LOG.md).

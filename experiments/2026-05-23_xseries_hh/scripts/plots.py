@@ -108,6 +108,8 @@ def gm(xs):
 # ---------------------------------------------------------------- summary bars
 def plot_gm_summary():
     # label -> summary.txt. β 2L is the #309 backbone-of-record eval.
+    # `s2` (optional 5th item) = (full, triage) of a SECOND seed (20260521) for
+    # that exact cell; drawn as a whisker so the seed spread is visible.
     fk = lambda tag, h, s: f"{RES}/gift_eval_{s}_{tag}_{h}/summary.txt"
     cells = [
         ("xshh same-step · 2L", fk("xshh_50k", "2L", "full"), fk("xshh_50k", "2L", "triage"), C_XSHH),
@@ -116,19 +118,27 @@ def plot_gm_summary():
         ("xshh all-time · 6L", fk("xshh_allt_50k", "6L", "full"), fk("xshh_allt_50k", "6L", "triage"), C_ALLT),
         ("forked allt·50% · 2L", fk("xshh_allt_forked_50k", "2L", "full"), fk("xshh_allt_forked_50k", "2L", "triage"), C_FORK),
         ("forked allt·50% · 6L", fk("xshh_allt_forked_50k", "6L", "full"), fk("xshh_allt_forked_50k", "6L", "triage"), C_FORK),
-        ("forked allt·2/b · 2L", fk("xshh_allt_forked2_50k", "2L", "full"), fk("xshh_allt_forked2_50k", "2L", "triage"), C_FORK2),
-        ("forked allt·2/b · 6L", fk("xshh_allt_forked2_50k", "6L", "full"), fk("xshh_allt_forked2_50k", "6L", "triage"), C_FORK2),
-        ("forked β·2/b · 2L", fk("beta_forked2_50k", "2L", "full"), fk("beta_forked2_50k", "2L", "triage"), C_BFORK),
-        ("forked β·2/b · 6L", fk("beta_forked2_50k", "6L", "full"), fk("beta_forked2_50k", "6L", "triage"), C_BFORK),
+        ("forked allt·0.8% · 2L", fk("xshh_allt_forked2_50k", "2L", "full"), fk("xshh_allt_forked2_50k", "2L", "triage"), C_FORK2),
+        ("forked allt·0.8% · 6L", fk("xshh_allt_forked2_50k", "6L", "full"), fk("xshh_allt_forked2_50k", "6L", "triage"), C_FORK2),
+        ("forked β·0.8% · 2L", fk("beta_forked2_50k", "2L", "full"), fk("beta_forked2_50k", "2L", "triage"), C_BFORK),
+        ("forked β·0.8% · 6L", fk("beta_forked2_50k", "6L", "full"), fk("beta_forked2_50k", "6L", "triage"), C_BFORK),
         ("forked allt·10% · 2L", fk("xshh_allt_forked10pct_50k", "2L", "full"), fk("xshh_allt_forked10pct_50k", "2L", "triage"), C_FORK10),
         ("forked allt·10% · 6L", fk("xshh_allt_forked10pct_50k", "6L", "full"), fk("xshh_allt_forked10pct_50k", "6L", "triage"), C_FORK10),
-        ("forked β·10% · 2L", fk("beta_forked10pct_50k", "2L", "full"), fk("beta_forked10pct_50k", "2L", "triage"), C_BFORK10),
-        ("forked β·10% · 6L", fk("beta_forked10pct_50k", "6L", "full"), fk("beta_forked10pct_50k", "6L", "triage"), C_BFORK10),
+        ("forked β·10% · 2L", fk("beta_forked10pct_50k", "2L", "full"), fk("beta_forked10pct_50k", "2L", "triage"), C_BFORK10,
+         (fk("beta_forked10pct_s2_50k", "2L", "full"), fk("beta_forked10pct_s2_50k", "2L", "triage"))),
+        ("forked β·10% · 6L", fk("beta_forked10pct_50k", "6L", "full"), fk("beta_forked10pct_50k", "6L", "triage"), C_BFORK10,
+         (fk("beta_forked10pct_s2_50k", "6L", "full"), fk("beta_forked10pct_s2_50k", "6L", "triage"))),
         ("β · 2L", f"{BETA_DIR}/results/gift_eval_full_bb_beta_50k/summary.txt",
-         f"{BETA_DIR}/results/gift_eval_triage_bb_beta_50k/summary.txt", C_BETA),
-        ("β · 6L", fk("beta_50k", "6L", "full"), fk("beta_50k", "6L", "triage"), C_BETA),
+         f"{BETA_DIR}/results/gift_eval_triage_bb_beta_50k/summary.txt", C_BETA,
+         (fk("beta_s2_50k", "2L", "full"), fk("beta_s2_50k", "2L", "triage"))),
+        ("β · 6L", fk("beta_50k", "6L", "full"), fk("beta_50k", "6L", "triage"), C_BETA,
+         (fk("beta_s2_50k", "6L", "full"), fk("beta_s2_50k", "6L", "triage"))),
     ]
-    rows = [(lab, agg_gm(fs), agg_gm(ts), c) for lab, fs, ts, c in cells]
+    # rows: (lab, full_gm, triage_gm, colour, (full_gm_s2, triage_gm_s2) or None)
+    rows = []
+    for c in cells:
+        s2 = (agg_gm(c[4][0]), agg_gm(c[4][1])) if len(c) > 4 else None
+        rows.append((c[0], agg_gm(c[1]), agg_gm(c[2]), c[3], s2))
     rows = [r for r in rows if r[1] or r[2]]   # drop arms with no data yet (e.g. forked 2/batch pre-landing)
     if not rows:
         print("gm_summary: no data yet — skip")
@@ -136,20 +146,42 @@ def plot_gm_summary():
     v = agg_gm(f"{V11C}/summary.txt") or 1.292
     fig, axes = plt.subplots(1, 2, figsize=(13, 4.2))
     for ax, idx, title in ((axes[0], 1, "full-97"), (axes[1], 2, "triage-11")):
+        seed_lbl_done = False
         labs = [r[0] for r in rows]
         vals = [r[idx] for r in rows]
         cols = [r[3] for r in rows]
         y = range(len(rows))
         ax.barh(list(y), [x if x else 0 for x in vals], color=cols, alpha=0.85)
-        for i, val in enumerate(vals):
-            if val:
-                ax.text(val + 0.004, i, f"{val:.4f}", va="center", fontsize=9)
+        # seed-1 value text: anchor past the whisker end so the marker doesn't
+        # land on the number (triage spreads are tiny -> caret sits on the label).
+        span = (max(good_all) - min(good_all)) if (good_all := [x for x in vals if x]) else 1.0
+        for i, (val, r) in enumerate(zip(vals, rows)):
+            if not val:
+                continue
+            s2 = r[4]
+            anchor = val
+            if s2 and s2[idx - 1]:
+                anchor = max(val, s2[idx - 1]) + 0.022 * span   # clear the caret
+            ax.text(anchor + 0.004, i, f"{val:.4f}", va="center", fontsize=9)
+        # second-seed whiskers: a thin line seed-1 -> seed-2 with a caret at seed-2.
+        for i, r in enumerate(rows):
+            v1, s2 = r[idx], r[4]
+            if not (s2 and v1 and s2[idx - 1]):
+                continue
+            v2 = s2[idx - 1]
+            lbl = None if seed_lbl_done else "2nd seed (20260521)"
+            ax.plot([v1, v2], [i, i], color="k", lw=1.1, alpha=0.85, zorder=5)
+            ax.plot([v2], [i], marker=("<" if v2 < v1 else ">"), color="k",
+                    ms=6, alpha=0.9, zorder=6, label=lbl)
+            ax.plot([v1], [i], marker="|", color="k", ms=7, alpha=0.9, zorder=6)
+            seed_lbl_done = True
         ax.set_yticks(list(y)); ax.set_yticklabels(labs, fontsize=9)
         ax.invert_yaxis()
         ax.set_xlabel(f"{title} GM-Relative MASE (lower = better)")
         good = [x for x in vals if x]
+        s2_good = [s2[idx - 1] for *_, s2 in rows if s2 and s2[idx - 1]]
         if good:
-            ax.set_xlim(min(good + [v]) * 0.98, max(good) * 1.06)
+            ax.set_xlim(min(good + s2_good + [v]) * 0.98, max(good + s2_good) * 1.06)
         if idx == 1:
             ax.axvline(v, color=C_V11C, ls="--", lw=1.4, label=f"v11c = {v:.3f}")
         ax.axvline(1.0, color="k", ls=":", lw=1.0, alpha=0.5)
@@ -231,8 +263,8 @@ def plot_training_curves():
     arms = [("same-step",       _load_curve(XSHH_CSV), C_XSHH, "xshh"),
             ("all-time",        _load_curve(ALLT_CSV), C_ALLT, "allt"),
             ("forked allt·50%", _load_curve(FORK_CSV), C_FORK, "allt"),
-            ("forked allt·2/b", _load_curve(FORK2_CSV), C_FORK2, "allt"),
-            ("forked β·2/b",    _load_curve(BFORK_CSV), C_BFORK, "beta"),
+            ("forked allt·0.8%", _load_curve(FORK2_CSV), C_FORK2, "allt"),
+            ("forked β·0.8%",    _load_curve(BFORK_CSV), C_BFORK, "beta"),
             ("forked allt·10%", _load_curve(FORK10_CSV), C_FORK10, "allt"),
             ("forked β·10%",    _load_curve(BFORK10_CSV), C_BFORK10, "beta"),
             ("β",               _load_curve(BETA_CSV), C_BETA, "beta")]
@@ -254,7 +286,7 @@ def plot_training_curves():
             ax.plot(xs, ys, color=col, lw=1.4, label=f"{lab}  (floor {FLOOR[fk]:.2f})")
     ax.set_xscale("log"); ax.set_yscale("log")
     ax.set_title("contrastive loss − InfoNCE floor   (log–log)")
-    ax.set_xlabel("step"); ax.grid(alpha=0.3, which="both"); ax.legend(fontsize=8)
+    ax.set_xlabel("step"); ax.grid(alpha=0.3, which="both"); ax.legend(fontsize=9)
 
     # Panel 2: gap-ratio = (1−ff)/(1−fp) (ff = forecast↔future, fp = forecast↔present
     # cosine). In (0,1) for a skilled forecaster; 0 = perfect. Direct log–log (the
@@ -266,7 +298,7 @@ def plot_training_curves():
             ax.plot(xs, ys, color=col, lw=1.4, label=lab)
     ax.set_xscale("log"); ax.set_yscale("log")
     ax.set_title("gap-ratio (1−ff)/(1−fp)   (log–log; lower = better, 0 = perfect)")
-    ax.set_xlabel("step"); ax.grid(alpha=0.3, which="both"); ax.legend(fontsize=8)
+    ax.set_xlabel("step"); ax.grid(alpha=0.3, which="both"); ax.legend(fontsize=9)
 
     # Panels 3–4: dimension usage U = 1/(d·mean_{i≠j} cos²) ∈ (0,1] (src/metrics.py).
     # 1 = latents span all d dims; →0 = dimensional collapse. Higher = better.
@@ -279,10 +311,10 @@ def plot_training_curves():
                 ax.plot(xs, ys, color=col, lw=1.4, label=lab)
         ax.set_xscale("log"); ax.set_yscale("log")
         ax.set_title(f"{title}   (log–log; higher = better)")
-        ax.set_xlabel("step"); ax.grid(alpha=0.3, which="both"); ax.legend(fontsize=8)
+        ax.set_xlabel("step"); ax.grid(alpha=0.3, which="both"); ax.legend(fontsize=9)
 
-    fig.suptitle("#318 — contrastive training dynamics (100-step MA, step ≥ 1000; all log–log)", fontsize=12)
-    fig.tight_layout(); fig.savefig(f"{PLOTS}/training_curves.png", dpi=130, bbox_inches="tight")
+    fig.suptitle("#318 — contrastive training dynamics (100-step MA, step ≥ 1000; all log–log)", fontsize=13)
+    fig.tight_layout(); fig.savefig(f"{PLOTS}/training_curves.png", dpi=175, bbox_inches="tight")
     print("training_curves.png written")
 
 
@@ -298,45 +330,90 @@ def plot_perdomain():
     # One radar: per arm, keep the q-head with the LOWER full-97 aggregate (its
     # best head) and plot that head's per-domain profile; the head is shown in
     # the legend. We never compute an eval here — just plot what the pipeline has.
-    arms = [("same-step", C_XSHH, {h: f"{RES}/gift_eval_full_xshh_50k_{h}/summary.txt" for h in ("2L", "6L")}),
-            ("all-time", C_ALLT, {h: f"{RES}/gift_eval_full_xshh_allt_50k_{h}/summary.txt" for h in ("2L", "6L")}),
-            ("forked β·10%", C_BFORK10, {h: f"{RES}/gift_eval_full_beta_forked10pct_50k_{h}/summary.txt" for h in ("2L", "6L")}),
-            ("β", C_BETA, {"2L": f"{BETA_DIR}/results/gift_eval_full_bb_beta_50k/summary.txt",
-                           "6L": f"{RES}/gift_eval_full_beta_50k_6L/summary.txt"}),
-            ("v11c", C_V11C, {"2L": f"{V11C}/summary.txt"})]
-    series = []
-    for lab, c, heads in arms:
+    # ALL arms are shown (not a curated 5). Two arms carry a 2nd seed (20260521):
+    # forked β·10% and β. For those we plot a shaded band spanning the two seeds'
+    # per-domain values (each seed at its OWN best head); single-seed arms = lines.
+    # `seeds` is a list of {head: summary} dicts (one per seed).
+    arms = [
+        ("same-step", C_XSHH, [{h: f"{RES}/gift_eval_full_xshh_50k_{h}/summary.txt" for h in ("2L", "6L")}]),
+        ("all-time", C_ALLT, [{h: f"{RES}/gift_eval_full_xshh_allt_50k_{h}/summary.txt" for h in ("2L", "6L")}]),
+        ("forked allt·50%", C_FORK, [{h: f"{RES}/gift_eval_full_xshh_allt_forked_50k_{h}/summary.txt" for h in ("2L", "6L")}]),
+        ("forked allt·0.8%", C_FORK2, [{h: f"{RES}/gift_eval_full_xshh_allt_forked2_50k_{h}/summary.txt" for h in ("2L", "6L")}]),
+        ("forked allt·10%", C_FORK10, [{h: f"{RES}/gift_eval_full_xshh_allt_forked10pct_50k_{h}/summary.txt" for h in ("2L", "6L")}]),
+        ("forked β·0.8%", C_BFORK, [{h: f"{RES}/gift_eval_full_beta_forked2_50k_{h}/summary.txt" for h in ("2L", "6L")}]),
+        ("forked β·10%", C_BFORK10, [
+            {h: f"{RES}/gift_eval_full_beta_forked10pct_50k_{h}/summary.txt" for h in ("2L", "6L")},
+            {h: f"{RES}/gift_eval_full_beta_forked10pct_s2_50k_{h}/summary.txt" for h in ("2L", "6L")}]),
+        ("β", C_BETA, [
+            {"2L": f"{BETA_DIR}/results/gift_eval_full_bb_beta_50k/summary.txt",
+             "6L": f"{RES}/gift_eval_full_beta_50k_6L/summary.txt"},
+            {h: f"{RES}/gift_eval_full_beta_s2_50k_{h}/summary.txt" for h in ("2L", "6L")}]),
+        ("v11c", C_V11C, [{"2L": f"{V11C}/summary.txt"}]),
+    ]
+
+    def best_profile(heads):
+        """(best_head, {domain: gm relative}) for the lowest-full-97 head, or None."""
         cand = [(g, h, st) for h, st in heads.items() if (g := agg_gm(st))]
         if not cand:
-            continue
-        _, best_h, st = min(cand)                       # lowest full-97 aggregate
+            return None
+        _, best_h, st = min(cand)
         byd = {}
         for cfg, r in per_config_relative(st).items():
             byd.setdefault(dom_map.get(cfg, "?"), []).append(r)
-        tag = lab if lab == "v11c" else f"{lab} ({best_h})"
-        series.append((tag, {d: gm(v) for d, v in byd.items()}, c))
+        return best_h, {d: gm(v) for d, v in byd.items()}
+
+    # series: (tag, colour, list[(head,{dom:val})]) — 1 entry=line, 2 entries=band.
+    series = []
+    for lab, c, seeds in arms:
+        profs = [p for p in (best_profile(s) for s in seeds) if p]
+        if not profs:
+            continue
+        if lab == "v11c":
+            tag = lab
+        elif len(profs) == 1:
+            tag = f"{lab} ({profs[0][0]})"
+        else:                                            # banded multi-seed arm
+            tag = f"{lab} ({'/'.join(p[0] for p in profs)}, 2 seeds)"
+        series.append((tag, c, profs))
     if not series:
         print("perdomain: no data yet — skip")
         return
-    doms = sorted({d for _, m, _ in series for d in m})
+    doms = sorted({d for _, _, profs in series for _, m in profs for d in m})
     ang = np.linspace(0, 2 * np.pi, len(doms), endpoint=False)
     ang_c = np.concatenate([ang, ang[:1]])
-    fig, ax = plt.subplots(figsize=(8.5, 7), subplot_kw=dict(polar=True))
-    for lab, m, c in series:
+    fig, ax = plt.subplots(figsize=(9.5, 8), subplot_kw=dict(polar=True))
+    rmax = max(v for _, _, profs in series for _, m in profs for v in m.values())
+    # Draw single-seed "context" arms first (thin, lightly muted), then the two
+    # banded multi-seed arms on top so the headline seed comparison stays readable
+    # in the crowded centre. Thin lines, no markers — 9 arms + markers is a mess.
+    singles = [s for s in series if len(s[2]) == 1]
+    banded = [s for s in series if len(s[2]) == 2]
+    for tag, c, profs in singles:
+        lw = 1.8 if tag == "v11c" else 1.2
+        _, m = profs[0]
         v = [m.get(d, np.nan) for d in doms]
-        ax.plot(ang_c, v + v[:1], "-o", color=c, ms=4, alpha=0.9,
-                lw=(2.4 if lab.startswith("β") else 1.6), label=lab)
+        ax.plot(ang_c, v + v[:1], "-", color=c, lw=lw, alpha=0.8, label=tag, zorder=3)
+    for tag, c, profs in banded:                         # seed band, drawn on top
+        lo = np.array([min(profs[0][1].get(d, np.nan), profs[1][1].get(d, np.nan)) for d in doms])
+        hi = np.array([max(profs[0][1].get(d, np.nan), profs[1][1].get(d, np.nan)) for d in doms])
+        ax.fill_between(ang_c, np.append(lo, lo[0]), np.append(hi, hi[0]),
+                        color=c, alpha=0.28, lw=0, zorder=4)
+        for _, m in profs:                               # each seed faint
+            v = [m.get(d, np.nan) for d in doms]
+            ax.plot(ang_c, v + v[:1], "-", color=c, lw=0.9, alpha=0.5, zorder=5)
+        mid = (lo + hi) / 2.0                             # bold mid line carries label
+        ax.plot(ang_c, np.append(mid, mid[0]), "-", color=c, lw=2.4, alpha=0.98, label=tag, zorder=6)
     ax.plot(np.linspace(0, 2 * np.pi, 200), [1.0] * 200, "--", color="k", lw=1.0, alpha=0.6)
     ax.set_rscale("log")
-    ax.set_rlim(0.75, max(d for _, m, _ in series for d in m.values()) * 1.12)
+    ax.set_rlim(0.75, rmax * 1.12)
     ax.set_xticks(ang); ax.set_xticklabels(doms, fontsize=9)
     ax.set_rlabel_position(95)
     ax.set_title("#318 — per-domain GM-Relative MASE (full-97, best q-head per arm · log radial)\n"
-                 "lower = better; dashed ring = seasonal-naive (1.0)", fontsize=11, pad=26)
-    ax.legend(fontsize=8, loc="upper right", bbox_to_anchor=(1.32, 1.12))
+                 "lower = better; dashed ring = seasonal-naive (1.0); shaded = seed-1↔seed-2 spread", fontsize=10.5, pad=28)
+    ax.legend(fontsize=7.5, loc="upper right", bbox_to_anchor=(1.36, 1.13))
     fig.tight_layout()
     fig.savefig(f"{PLOTS}/perdomain.png", dpi=130, bbox_inches="tight")
-    print("perdomain.png written (radar, best head per arm)")
+    print("perdomain.png written (radar, all arms, best head per arm; 2 banded seeds)")
     plt.close(fig)
 
 

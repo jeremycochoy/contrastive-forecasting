@@ -84,12 +84,12 @@ ARMS = [
     ("same-step",       RUNS / "bb_xshh_50k_FINAL.pth",              "#1f77b4"),
     ("all-time",        RUNS / "bb_xshh_allt_50k_FINAL.pth",         "#2ca02c"),
     ("forked allt·50%", RUNS / "bb_xshh_allt_forked_50k_FINAL.pth",  "#ff7f0e"),
-    ("forked β·2/b",    RUNS / "bb_beta_forked2_50k_FINAL.pth",      "#e377c2"),
+    ("forked β·0.8%",    RUNS / "bb_beta_forked2_50k_FINAL.pth",      "#e377c2"),
     ("β",               BETA_RUNS / "bb_beta_50k_FINAL.pth",         "#d62728"),
-    # forked allt·2/b (bb_xshh_allt_forked2_50k_FINAL.pth) is added below
+    # forked allt·0.8% (bb_xshh_allt_forked2_50k_FINAL.pth) is added below
     # ONLY if its FINAL exists — it is still training at time of writing.
 ]
-_FORKED2 = ("forked allt·2/b", RUNS / "bb_xshh_allt_forked2_50k_FINAL.pth", "#8c564b")
+_FORKED2 = ("forked allt·0.8%", RUNS / "bb_xshh_allt_forked2_50k_FINAL.pth", "#8c564b")
 if _FORKED2[1].exists():
     ARMS.insert(3, _FORKED2)
 
