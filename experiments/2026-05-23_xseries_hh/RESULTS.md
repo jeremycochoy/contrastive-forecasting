@@ -131,7 +131,7 @@ seasonal-naive 1.0.
 | data-side · forked allt·2/b | 6L | 1.5100 | 1.6348 | +13.8% |
 | data-side · forked β·2/b | 2L | 1.5302 | 1.4376 | +15.3% |
 | data-side · forked β·2/b | 6L | 1.4412 | 1.4027 | +8.6% |
-| data-side · forked allt·10% | 2L | *in flight* | *in flight* | — |
+| data-side · forked allt·10% | 2L | 1.6130 | 2.0115 | +21.5% |
 | data-side · forked allt·10% | 6L | *in flight* | *in flight* | — |
 | data-side · **forked β·10%** | 2L | **1.3030** | 1.4559 | **−1.8%** |
 | data-side · forked β·10% | 6L | *in flight* | *in flight* | — |
