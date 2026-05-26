@@ -1,20 +1,18 @@
 # #318 — Deny the positional shortcut: loss-side vs data-side
 
 **Verdict.** Denying the shortcut through the **loss** (cross-series h↔h repulsion;
-same-step, all-time) **hurts** — +22% / +6.6% vs β (2L). Through the **data**
-(forked continuations: identical past, divergent futures) the effect is
-**injection-fraction- and loss-specific**, and at the right setting it **helps**: a
-**10% forked injection on β** is the **best arm here** — forked·β·10% **1.3030 (2L)
-/ 1.2889 (6L)**, beating β·2L (1.3272) at both heads and **matching the v11c
-champion (1.292)** at 6L (the first arm here to reach it). The same 10% on the
-**all-time** loss instead *hurts* (2L 1.6130), and at **0.8%** the fork is
-neutral-to-worse (the 50%-mix 6L "win", 1.4065, was a synthetic-fraction confound)
-— so the gain is specific to **β + ≈10% fork**. **Second seed (20260521, 2L):**
-the fork-helps-β *direction reproduces* (β·10% 1.3805 < β 1.4591), but β·10%·2L
-itself moved 1.3030 → **1.3805** across seeds (≈0.08, far beyond the ±0.02 we'd
-assumed) — so absolute GMs are markedly seed-variable, and β·10%'s single-seed
-**v11c-level match is within seed noise, not firm**. (Second-seed 6L still
-evaluating; the 6L was the v11c-matching head.)
+same-step, all-time) **hurts** — +22% / +6.6% vs β. Through the **data** (forked
+continuations: identical past, divergent futures) the effect is **injection-
+fraction- and loss-specific**: on the **all-time** loss it only hurts (every
+fraction), and at **0.8%** on either loss it's neutral-to-worse (the 50%-mix 6L
+"win" 1.4065 was a synthetic-fraction confound). But on **β at ≈10% injection it
+robustly helps** — across **two seeds and both q-heads, β·10% beats β at all four
+cells** (the only reproducing improvement on β here). It does **not**, however,
+reliably reach v11c: the single-seed β·10%·6L = 1.2889 (≈ v11c 1.292) was a
+favorable draw — at the second seed it is **1.3271** (above v11c), and β·10%·2L
+likewise moved 1.3030 → 1.3805 (absolute GMs are markedly seed-variable, ≫ ±0.02).
+**Net: the 10% β-fork is a real, reproducing gain over β, but lands *between* β and
+v11c — not a v11c match.** (Details: §Second seed.)
 
 ![full-97 GM summary](plots/gm_summary.png)
 *GM-Relative MASE, lower = better; 1.0 = seasonal-naive. Every arm × {2L, 6L}; the
@@ -52,6 +50,29 @@ subset. Single seed per cell (line spread ≈ ±0.02, #307).*
   first looked like a win was a synthetic-data-fraction confound (its 0.8% isolation
   gave 1.5100). A 50% **unforked-synthetic** control is still the clean test of
   whether β·10%'s gain is the fork structure or just ~10% synthetic data.
+
+### Second seed (β·10%, seed 20260521)
+
+A paired second seed (β·10% and a matched β, both via the forked launcher) re-tests
+the fork's effect and its firmness.
+
+| arm · head | seed 1 | seed 2 | β·10% − β (s1 / s2) |
+|---|---:|---:|---:|
+| **β·10% · 2L** | 1.3030 | 1.3805 | −0.024 / −0.079 |
+| **β·10% · 6L** | 1.2889 | 1.3271 | −0.160 / −0.043 |
+| β · 2L | 1.3272¹ | 1.4591 | |
+| β · 6L | 1.4489¹ | 1.3702 | |
+
+**β·10% beats β at all four (seed × head) cells** — the fork's gain on β is
+**reproducible**. But absolute GMs are markedly seed-variable (β·10%·2L 1.30→1.38,
+6L 1.29→1.33 — ≫ the ±0.02 we'd assumed), so the single-seed **v11c match (6L
+1.2889) does not hold**: at seed 2 it is **1.3271**, above v11c (1.292). β·10% is a
+**real but modest** gain over β, landing *between* β and v11c; a third seed would
+tighten the magnitude.
+
+¹ seed-1 β is the #309 reference backbone; seed-2 β is the matched forked-launcher
+recipe (mix 0). The within-seed **paired gap** (β·10% − β) is the controlled
+quantity — negative at both seeds.
 
 ### Per-domain (full-97, best q-head per arm)
 
