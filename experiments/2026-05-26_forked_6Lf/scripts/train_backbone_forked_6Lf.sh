@@ -34,8 +34,13 @@ TRAIN="$WT/experiments/2026-04-27_freq-embedding/scripts/train.py"
 log(){ echo "[$(date '+%m-%d %H:%M:%S')] [6Lf-fork $ARM $TAG] $*"; }
 [ -f "$BB" ] && { log "BB SKIP ($NAME FINAL exists)"; exit 0; }
 tlog="$RES/run_${NAME}.log"; export CUDA_VISIBLE_DEVICES="$GPU"
-log "BB START shape=$SHAPE num-layers=6(forecaster) forked-arma mix=$MIX chunk=$XSHH_ALLT_CHUNK GPU=$GPU -> 50000"
-python3 -u "$TRAIN" \
+# Crash resilience: if a periodic checkpoint exists (but no FINAL), resume from the
+# latest. --resume restores model + optimizer + step + RNG + data position, so the
+# continued trajectory is identical to from-scratch — never wipe + restart-from-0.
+RESUME=""; latest=$(ls -t "$RUNS/${NAME}"_*k.pth 2>/dev/null | head -1)
+[ -n "$latest" ] && { RESUME="--resume $latest"; log "RESUME from $(basename "$latest")"; }
+log "BB START shape=$SHAPE num-layers=6(forecaster) forked-arma mix=$MIX chunk=$XSHH_ALLT_CHUNK GPU=$GPU -> 50000 ${RESUME}"
+python3 -u "$TRAIN" $RESUME \
   --batch-size 256 --device cuda --total-steps 50000 --lr 1e-3 --weight-decay 0.1 \
   --adam-beta1 0.9 --adam-beta2 0.98 --seed "$SEED" \
   --save-every 5000 --save-dir "$RUNS" --run-name "$NAME" \
