@@ -55,4 +55,7 @@ do_eval(){ local set="$1" filt="$2" out="$RES/gift_eval_${1}_${TAG}_${HL}L"
   log "EVAL $set done GM=$(gm "$out/summary.txt")"; }
 for s in $SETS; do case "$s" in
   triage) do_eval triage "$TRIAGE" || true ;; full) do_eval full "" || true ;; esac; done
-log "cell complete"
+# Prune this q-head's intermediates (keep FINAL) — stay lean on the shared, spiky,
+# near-full disk (a concurrent ShinkaEvolve job balloons /tmp ~40G per generation).
+find "$RUNS" -maxdepth 1 -name "${QN}_*.pth" ! -name "${QN}_FINAL.pth" -delete 2>/dev/null
+log "cell complete (pruned ${QN} intermediates)"
