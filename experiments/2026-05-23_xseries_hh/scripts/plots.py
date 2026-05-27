@@ -352,17 +352,17 @@ def plot_perdomain():
     ]
 
     def best_profile(heads):
-        """(best_head, {domain: gm relative}) for the lowest-full-97 head, or None."""
+        """(best_head, {domain: gm relative}, aggregate) for the lowest-full-97 head."""
         cand = [(g, h, st) for h, st in heads.items() if (g := agg_gm(st))]
         if not cand:
             return None
-        _, best_h, st = min(cand)
+        agg, best_h, st = min(cand)
         byd = {}
         for cfg, r in per_config_relative(st).items():
             byd.setdefault(dom_map.get(cfg, "?"), []).append(r)
-        return best_h, {d: gm(v) for d, v in byd.items()}
+        return best_h, {d: gm(v) for d, v in byd.items()}, agg
 
-    # series: (tag, colour, list[(head,{dom:val})]) — 1 entry=line, 2 entries=band.
+    # series: (tag, colour, list[(head,{dom:val},agg)]) — 1 entry=line, 2 entries=band.
     series = []
     for lab, c, seeds in arms:
         profs = [p for p in (best_profile(s) for s in seeds) if p]
@@ -373,46 +373,50 @@ def plot_perdomain():
         elif len(profs) == 1:
             tag = f"{lab} ({profs[0][0]})"
         else:                                            # banded multi-seed arm
-            tag = f"{lab} ({'/'.join(p[0] for p in profs)}, 2 seeds)"
+            tag = f"{lab} ({'/'.join(p[0] for p in profs)} · 2 seeds)"
         series.append((tag, c, profs))
     if not series:
         print("perdomain: no data yet — skip")
         return
-    doms = sorted({d for _, _, profs in series for _, m in profs for d in m})
+    doms = sorted({d for _, _, profs in series for _, m, _ in profs for d in m})
     ang = np.linspace(0, 2 * np.pi, len(doms), endpoint=False)
     ang_c = np.concatenate([ang, ang[:1]])
-    fig, ax = plt.subplots(figsize=(9.5, 8), subplot_kw=dict(polar=True))
-    rmax = max(v for _, _, profs in series for _, m in profs for v in m.values())
-    # Draw single-seed "context" arms first (thin, lightly muted), then the two
-    # banded multi-seed arms on top so the headline seed comparison stays readable
-    # in the crowded centre. Thin lines, no markers — 9 arms + markers is a mess.
+    fig, ax = plt.subplots(figsize=(8.4, 7.2), subplot_kw=dict(polar=True))
+    # Radial cap. The inner cluster (median ≈ 1.4) is the comparison; all-time's
+    # Econ/Fin spike (≈ 3.5) alone would stretch the axis and squash everything into
+    # the centre. Cap at 2.8 so the cluster fills the radius — only that one value
+    # clips at the rim (noted in the report caption).
+    RCAP = 2.8
     singles = [s for s in series if len(s[2]) == 1]
     banded = [s for s in series if len(s[2]) == 2]
-    for tag, c, profs in singles:
-        lw = 1.8 if tag == "v11c" else 1.2
-        _, m = profs[0]
-        v = [m.get(d, np.nan) for d in doms]
-        ax.plot(ang_c, v + v[:1], "-", color=c, lw=lw, alpha=0.8, label=tag, zorder=3)
-    for tag, c, profs in banded:                         # seed band, drawn on top
+    # (1) Shaded seed bands FIRST — a soft background the line curves read on top of.
+    for tag, c, profs in banded:
         lo = np.array([min(profs[0][1].get(d, np.nan), profs[1][1].get(d, np.nan)) for d in doms])
         hi = np.array([max(profs[0][1].get(d, np.nan), profs[1][1].get(d, np.nan)) for d in doms])
         ax.fill_between(ang_c, np.append(lo, lo[0]), np.append(hi, hi[0]),
-                        color=c, alpha=0.28, lw=0, zorder=4)
-        for _, m in profs:                               # each seed faint
-            v = [m.get(d, np.nan) for d in doms]
-            ax.plot(ang_c, v + v[:1], "-", color=c, lw=0.9, alpha=0.5, zorder=5)
-        mid = (lo + hi) / 2.0                             # bold mid line carries label
-        ax.plot(ang_c, np.append(mid, mid[0]), "-", color=c, lw=2.4, alpha=0.98, label=tag, zorder=6)
-    ax.plot(np.linspace(0, 2 * np.pi, 200), [1.0] * 200, "--", color="k", lw=1.0, alpha=0.6)
+                        color=c, alpha=0.22, lw=0, zorder=1)
+    ax.plot(np.linspace(0, 2 * np.pi, 200), [1.0] * 200, "--", color="k", lw=1.0, alpha=0.6, zorder=2)
+    # (2) Single-seed context arms.
+    for tag, c, profs in singles:
+        lw = 1.8 if tag == "v11c" else 1.2
+        _, m, _ = profs[0]
+        v = [m.get(d, np.nan) for d in doms]
+        ax.plot(ang_c, v + v[:1], "-", color=c, lw=lw, alpha=0.85, label=tag, zorder=3)
+    # (3) Banded arms: ONE normalised-width line at the BEST of the two seeds, on top
+    #     (the shaded band already carries the seed spread).
+    for tag, c, profs in banded:
+        _, m, _ = min(profs, key=lambda p: p[2])         # lowest-aggregate (best) seed
+        v = [m.get(d, np.nan) for d in doms]
+        ax.plot(ang_c, v + v[:1], "-", color=c, lw=1.7, alpha=0.95, label=tag, zorder=5)
     ax.set_rscale("log")
-    ax.set_rlim(0.75, rmax * 1.12)
+    ax.set_rlim(0.78, RCAP)
     ax.set_xticks(ang); ax.set_xticklabels(doms, fontsize=9)
     ax.set_rlabel_position(95)
     ax.set_title("#318 — per-domain GM-Relative MASE (full-97, best q-head per arm · log radial)\n"
-                 "lower = better; dashed ring = seasonal-naive (1.0); shaded = seed-1↔seed-2 spread", fontsize=10.5, pad=28)
-    ax.legend(fontsize=7.5, loc="upper right", bbox_to_anchor=(1.36, 1.13))
+                 "lower = better; dashed ring = seasonal-naive (1.0); shade = seed-1↔seed-2 spread", fontsize=10, pad=16)
+    ax.legend(fontsize=7.5, loc="upper right", bbox_to_anchor=(1.19, 1.10))
     fig.tight_layout()
-    fig.savefig(f"{PLOTS}/perdomain.png", dpi=130, bbox_inches="tight")
+    fig.savefig(f"{PLOTS}/perdomain.png", dpi=140, bbox_inches="tight")
     print("perdomain.png written (radar, all arms, best head per arm; 2 banded seeds)")
     plt.close(fig)
 

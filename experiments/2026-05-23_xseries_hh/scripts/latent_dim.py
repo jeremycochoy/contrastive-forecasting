@@ -245,7 +245,7 @@ def main() -> None:
         "(d=384), one real-HF batch", fontsize=12)
     fig.tight_layout()
     out = PLOTS / "latent_dim.png"
-    fig.savefig(out, dpi=120, bbox_inches="tight")
+    fig.savefig(out, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"saved {out}")
 

@@ -39,14 +39,14 @@ configs), right triage-11 (11 fixed configs). β·10% is the only arm to beat β
 above v11c, so that match is seed-fragile. Per-arm numbers: [scoreboard](#scoreboard).*
 
 A 6L q-head rescues no loss-side arm — the regression points to the backbone, not
-the readout; the fork's effect depends on both the loss and the injection fraction.
+the readout.
 
 ![per-domain radar](plots/perdomain.png)
 *Per-domain, every arm at its best q-head (log radial; dashed ring = seasonal-naive
-1.0; innermost = best). Shaded bands = seed-1↔seed-2 spread for the two multi-seed
-arms (β·10% cyan, β red). Loss-side arms bulge outward (all-time spikes on Econ/Fin;
-no seasonal signature); β·10% sits with β and v11c in the inner cluster — its band
-is narrow except on Econ/Fin (6 noisy configs).*
+1.0; innermost = best). For the two multi-seed arms (β·10% cyan, β red) the shade
+spans both seeds and the line marks the better one. β·10% sits with β and v11c in the
+inner cluster; loss-side arms bulge outward, worst on Econ/Fin (all-time's 3.5 clips
+at the rim).*
 
 ![training dynamics](plots/training_curves.png)
 *Log–log, warm-up (< 1000 steps) cropped. Loss − InfoNCE floor; gap-ratio
@@ -65,11 +65,11 @@ not the fork alone. Rank does not order transfer (table in annex).*
 
 ### Second seed — sign reproduces, magnitude doesn't pin down
 
-β·10% beats β at **all four** seed × head cells — the gain's *sign* reproduces. Its
-*magnitude* does not pin down: GMs swing ≫ ±0.02 across seeds, so the single-seed
-β·10%·6L = v11c (1.2889) does not survive (1.3271 at seed 2). Follow-ups: a third
-seed to tighten the magnitude; a 50% *unforked*-synthetic control to isolate the fork
-from the synthetic-data fraction ([table](#second-seed-seed-20260521)).
+β·10% beats β at **all four** seed × head cells (sign reproduces), but the magnitude
+does not: GMs swing ≫ ±0.02 across seeds, so the single-seed β·10%·6L = v11c does not
+survive ([table](#second-seed-seed-20260521)). Follow-ups: a third seed to tighten the
+magnitude; a 50% *unforked*-synthetic control to isolate the fork from the
+synthetic-data fraction.
 
 ## Protocol
 
