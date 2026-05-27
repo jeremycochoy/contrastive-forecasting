@@ -1,7 +1,9 @@
 import math
+import os
 
 import torch
 import torch.nn.functional as F
+from torch.utils.checkpoint import checkpoint
 
 def cosine_similarity_from_normalized(a, b):
     return (a * b).sum(dim=-1)
@@ -23,6 +25,8 @@ _NORMALIZED_FORM_SHAPES = (
     'cosine_similarity_batch_full_hh_ff_negs',
     'cosine_similarity_batch_full_fh_hh_ff_negs',
     'cosine_similarity_batch_full_hh_negs_xbfree',
+    'cosine_similarity_batch_full_hh_negs_xshh',
+    'cosine_similarity_batch_full_hh_negs_xshh_allt',
 )
 
 
@@ -64,6 +68,14 @@ def _effective_negative_count(loss_shape, B, T, C):
         per = base3 + C + 3 * xb                    # + xy_hat + cross_fe/ff/hh
     elif loss_shape == 'cosine_similarity_batch_full_hh_negs_xbfree':
         per = base3 + nt + 2 * xb                   # + hh_all + cross_ff/hh (no fe)
+    elif loss_shape == 'cosine_similarity_batch_full_hh_negs_xshh':
+        # (B) minus xy (−C), plus the cross-series same-step h↔h edge (+xb):
+        #   xx + zy + hh_all(T-1) + cross_fe(B-1) + cross_xshh(B-1)
+        per = (C - 1) + C + nt + 2 * xb
+    elif loss_shape == 'cosine_similarity_batch_full_hh_negs_xshh_allt':
+        # As _xshh but the cross-series h↔h edge ranges over ALL l: (B-1)·T:
+        #   xx + zy + hh_all(T-1) + cross_fe(B-1) + xs_allt((B-1)·T)
+        per = (C - 1) + C + nt + xb + xb * T
     else:
         n_alltime = {
             'cosine_similarity_batch_full_fh_negs': 1,
@@ -774,6 +786,212 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         else:
             loss = (log_neg_total - log_pos).mean()
 
+    elif train_config.get('loss_shape') == 'cosine_similarity_batch_full_hh_negs_xshh':
+        # #318 — β (`cosine_similarity_batch_full_hh_negs`) + cross-SERIES,
+        # same-STEP encoder–encoder negatives at EVERY step ("deny the
+        # positional shortcut"). Two clean edits on top of (B)/β:
+        #   (1) ADD `log_neg_xshh`: cos(h_{b,t}, h_{b',t}) ∀ b' ≠ b — the
+        #       cross-series, same-step h↔h repulsion. Anchored at h_t
+        #       (`hx_norm`, t = 0..T-2), so it acts at every anchor step l = t,
+        #       NOT only the target step t+1 (the one step the
+        #       `cosine_similarity_batch_square` cross_hh edge touched). At a
+        #       fixed step the only structure DIFFERENT series share is the
+        #       content-free positional code; repelling it moves distinctness
+        #       onto (series-specific, forecastable) content.
+        #   (2) REMOVE `log_neg_xy`: cos(h_t, h_{t+1}) (adjacent encoder). For
+        #       the C = 1 training config it is BYTE-FOR-BYTE the l = t+1 slice
+        #       of (B)'s all-time (h_t, h_l) ∀ l ≠ t term — a duplicate — so
+        #       dropping it de-duplicates rather than weakening the objective.
+        # Everything else (`log_pos`, xx, zy, the all-time hh term, and the
+        # cross-batch f↔h `log_neg_cross_batch`) is byte-for-byte (B). The new
+        # edge uses the memory-safe matmul Gram form over the batch axis (NOT a
+        # [B,B,T-1,C,H] broadcast); diagonal b = b' (cos ≡ 1 self-pair) masked.
+        # Numerically stable logsumexp; --pos-in-denominator supported via the
+        # shared tail below. See #318.
+        neg_inf = float('-inf')
+        log_pos = cosine_similarity_from_normalized(hy_norm, hy_hat_norm) / tau
+
+        # xx (cross-channel same-time h↔h; −inf / no-op at C=1) and zy
+        # (f_{t+1}↔f_t cross-channel) — byte-for-byte (B). `log_neg_xy`
+        # (adjacent h↔h) is intentionally ABSENT (edit 2).
+        sims_xx = cosine_similarity_from_normalized(hx_norm.unsqueeze(3), hx_norm.unsqueeze(2))
+        mask_mat = ~torch.eye(C, dtype=torch.bool, device=sims_xx.device)
+        mask_mat = mask_mat.view(1, 1, C, C)
+        log_neg_xx = torch.logsumexp(
+            (sims_xx / tau).masked_fill(~mask_mat, neg_inf), dim=2
+        )
+
+        sims_zy = cosine_similarity_from_normalized(hz_hat_norm.unsqueeze(3), hy_hat_norm.unsqueeze(2))
+        log_neg_zy = torch.logsumexp(sims_zy / tau, dim=2)
+
+        # (B) all-time term: (h_t, h_l) ∀ l ≠ t. Byte-for-byte the
+        # `cosine_similarity_batch_full_hh_negs` builder/mask (l = t self-pair
+        # dropped); the l = t+1 slice it contains is what edit (2) removed the
+        # duplicate of.
+        t_idx = torch.arange(T - 1, device=orig_norm.device).view(T - 1, 1)
+        l_idx = torch.arange(T, device=orig_norm.device).view(1, T)
+        sims_hh_all = torch.matmul(
+            hx_norm.permute(0, 2, 1, 3),     # [B, C, T-1, H]  (h_t)
+            orig_norm.permute(0, 2, 3, 1),   # [B, C, H, T]    (h_l)
+        )                                     # [B, C, T-1, T]
+        drop_self = (l_idx == t_idx).view(1, 1, T - 1, T)
+        log_neg_hh_all = torch.logsumexp(
+            (sims_hh_all / tau).masked_fill(drop_self, neg_inf), dim=3
+        ).permute(0, 2, 1)                    # [B, T-1, C]
+
+        # Cross-batch f↔h negative — byte-for-byte (B)'s `log_neg_cross_batch`.
+        # sims[b1,b2,t,c] = cos(hy[b2,t,c], hy_hat[b1,t,c]) = cos(f_{b1,t}, h_{b2,t+1}).
+        mask_batch = ~torch.eye(B, dtype=torch.bool, device=orig_norm.device)
+        mask_batch = mask_batch.view(B, B, 1, 1)
+        hy_p = hy_norm.permute(1, 2, 0, 3)          # [T-1, C, B, H]  h_{t+1}
+        hy_hat_p = hy_hat_norm.permute(1, 2, 0, 3)  # [T-1, C, B, H]  f_t
+        sims_cross_batch = torch.matmul(
+            hy_hat_p, hy_p.transpose(-2, -1)        # [T-1, C, B, B]
+        ).permute(2, 3, 0, 1).contiguous()          # [B, B, T-1, C]
+        log_neg_cross_batch = torch.logsumexp(
+            (sims_cross_batch / tau).masked_fill(~mask_batch, neg_inf), dim=1
+        )
+
+        # NEW (edit 1): cross-series, same-step h↔h — cos(h_{b,t}, h_{b',t})
+        # ∀ b' ≠ b, anchored at h_t (so it acts at every step l = t). Same
+        # memory-safe batch-Gram form as cross_batch, but h_t↔h_t (SAME step)
+        # across the batch; diagonal b = b' (cos ≡ 1) masked.
+        hx_p = hx_norm.permute(1, 2, 0, 3)          # [T-1, C, B, H]  h_t
+        sims_xshh = torch.matmul(
+            hx_p, hx_p.transpose(-2, -1)            # [T-1, C, B, B]
+        ).permute(2, 3, 0, 1).contiguous()          # [B, B, T-1, C]
+        log_neg_xshh = torch.logsumexp(
+            (sims_xshh / tau).masked_fill(~mask_batch, neg_inf), dim=1
+        )
+
+        negatives = torch.stack(
+            [log_neg_xx, log_neg_zy, log_neg_hh_all,
+             log_neg_cross_batch, log_neg_xshh],
+            dim=0,
+        )
+        log_neg_per_anchor = torch.logsumexp(negatives, dim=0)
+        log_neg_total = torch.logsumexp(log_neg_per_anchor, dim=0, keepdim=True)
+        if pos_in_denom:
+            # Normalized InfoNCE (loss_tau_ref diagnostic OR the
+            # --pos-in-denominator training knob) — see the
+            # cosine_similarity_batch branch for the rationale.
+            log_denom = torch.logsumexp(
+                torch.stack(
+                    [log_pos, log_neg_total.expand_as(log_pos)], dim=0
+                ),
+                dim=0,
+            )
+            loss = (log_denom - log_pos).mean()
+        else:
+            loss = (log_neg_total - log_pos).mean()
+
+    elif train_config.get('loss_shape') == 'cosine_similarity_batch_full_hh_negs_xshh_allt':
+        # #318 ablation (the l=t-vs-all-l fork) — the ALL-TIME sibling of
+        # `..._xshh`. Identical to it (β, drop adjacent log_neg_xy, keep
+        # everything else byte-for-β) EXCEPT the cross-series h↔h edge ranges
+        # over EVERY source step l, not only the same step:
+        #     log_neg_xs_allt = LSE_{b'≠b, ∀ l} cos(h_{b,t}, h_{b',l}) / τ
+        # i.e. the cross-SERIES analog of (B)'s within-series all-time term
+        # (which repels h_t from h_l ∀ l within the SAME series). `..._xshh`
+        # is the l = t slice of this; this arm is the strict superset. It
+        # tests whether the BROAD cross-series repulsion beats the targeted
+        # same-step one, or instead over-repels genuinely shared structure
+        # (e.g. same-frequency seasonal phase at different absolute steps).
+        #
+        # The full edge is a [B, B, T-1, T] object (~17 GB at B=256, T=256),
+        # so it is computed with a logsumexp that is CHUNKED over the source
+        # batch b' — logsumexp is associative, so the chunked result is exact
+        # and chunk-size-independent (chunk size only trades memory for kernel
+        # launches). The anchor's OWN series (b'=b) is excluded entirely (its
+        # within-series h↔h is the kept all-time `log_neg_hh_all`). Numerically
+        # stable logsumexp; --pos-in-denominator supported via the shared tail.
+        neg_inf = float('-inf')
+        log_pos = cosine_similarity_from_normalized(hy_norm, hy_hat_norm) / tau
+
+        sims_xx = cosine_similarity_from_normalized(hx_norm.unsqueeze(3), hx_norm.unsqueeze(2))
+        mask_mat = ~torch.eye(C, dtype=torch.bool, device=sims_xx.device)
+        mask_mat = mask_mat.view(1, 1, C, C)
+        log_neg_xx = torch.logsumexp(
+            (sims_xx / tau).masked_fill(~mask_mat, neg_inf), dim=2
+        )
+
+        sims_zy = cosine_similarity_from_normalized(hz_hat_norm.unsqueeze(3), hy_hat_norm.unsqueeze(2))
+        log_neg_zy = torch.logsumexp(sims_zy / tau, dim=2)
+
+        # (B) all-time within-series term: (h_t, h_l) ∀ l ≠ t. Byte-for-β.
+        t_idx = torch.arange(T - 1, device=orig_norm.device).view(T - 1, 1)
+        l_idx = torch.arange(T, device=orig_norm.device).view(1, T)
+        sims_hh_all = torch.matmul(
+            hx_norm.permute(0, 2, 1, 3),     # [B, C, T-1, H]  (h_t)
+            orig_norm.permute(0, 2, 3, 1),   # [B, C, H, T]    (h_l)
+        )                                     # [B, C, T-1, T]
+        drop_self = (l_idx == t_idx).view(1, 1, T - 1, T)
+        log_neg_hh_all = torch.logsumexp(
+            (sims_hh_all / tau).masked_fill(drop_self, neg_inf), dim=3
+        ).permute(0, 2, 1)                    # [B, T-1, C]
+
+        # Cross-batch f↔h negative — byte-for-β's `log_neg_cross_batch`.
+        mask_batch = ~torch.eye(B, dtype=torch.bool, device=orig_norm.device)
+        mask_batch = mask_batch.view(B, B, 1, 1)
+        hy_p = hy_norm.permute(1, 2, 0, 3)          # [T-1, C, B, H]  h_{t+1}
+        hy_hat_p = hy_hat_norm.permute(1, 2, 0, 3)  # [T-1, C, B, H]  f_t
+        sims_cross_batch = torch.matmul(
+            hy_hat_p, hy_p.transpose(-2, -1)        # [T-1, C, B, B]
+        ).permute(2, 3, 0, 1).contiguous()          # [B, B, T-1, C]
+        log_neg_cross_batch = torch.logsumexp(
+            (sims_cross_batch / tau).masked_fill(~mask_batch, neg_inf), dim=1
+        )
+
+        # NEW: all-time cross-series h↔h — LSE_{b'≠b, ∀l} cos(h_{b,t}, h_{b',l})/τ.
+        # The full [B, B, T-1, T] Gram is ~17 GB at B=256, T=256 and — crucially
+        # — autograd would retain EVERY chunk's Gram for backward, so plain
+        # chunking saves forward but not backward memory. So each chunk is
+        # GRADIENT-CHECKPOINTED: its Gram is recomputed in backward one chunk at
+        # a time, capping peak memory at a single chunk. logsumexp is
+        # associative, so the result is exact and independent of the chunk size
+        # (XSHH_ALLT_CHUNK; smaller fits a more crowded GPU at more kernel
+        # launches). The anchor's own series (b'=b) is excluded entirely.
+        anchor = hx_norm.permute(0, 2, 1, 3).contiguous()    # [B, C, T-1, H]  (h_t)
+        src = orig_norm.permute(0, 2, 1, 3).contiguous()      # [B, C, T,   H]  (h_l, ∀l)
+        b_all = torch.arange(B, device=orig_norm.device)
+        CH = int(os.environ.get('XSHH_ALLT_CHUNK', '8'))
+
+        def _chunk_lse(anc, src_chunk, same_mask):
+            # anc [B,C,T-1,H], src_chunk [ch,C,T,H], same_mask [B,ch,1,1,1] bool.
+            gram = torch.matmul(
+                anc.unsqueeze(1),                             # [B, 1, C, T-1, H]
+                src_chunk.permute(0, 1, 3, 2).unsqueeze(0),   # [1, ch, C, H, T]
+            ) / tau                                           # [B, ch, C, T-1, T]
+            gram = gram.masked_fill(same_mask, neg_inf)
+            return torch.logsumexp(torch.logsumexp(gram, dim=4), dim=1)  # [B, C, T-1]
+
+        run = None                                            # [B, C, T-1] running LSE
+        for s in range(0, B, CH):
+            e = min(s + CH, B)
+            same = (b_all.view(B, 1) == b_all[s:e].view(1, e - s)).view(B, e - s, 1, 1, 1)
+            chunk_lse = checkpoint(_chunk_lse, anchor, src[s:e], same, use_reentrant=False)
+            run = chunk_lse if run is None else torch.logsumexp(
+                torch.stack([run, chunk_lse], dim=0), dim=0)
+        log_neg_xs_allt = run.permute(0, 2, 1)                # [B, T-1, C]
+
+        negatives = torch.stack(
+            [log_neg_xx, log_neg_zy, log_neg_hh_all,
+             log_neg_cross_batch, log_neg_xs_allt],
+            dim=0,
+        )
+        log_neg_per_anchor = torch.logsumexp(negatives, dim=0)
+        log_neg_total = torch.logsumexp(log_neg_per_anchor, dim=0, keepdim=True)
+        if pos_in_denom:
+            log_denom = torch.logsumexp(
+                torch.stack(
+                    [log_pos, log_neg_total.expand_as(log_pos)], dim=0
+                ),
+                dim=0,
+            )
+            loss = (log_denom - log_pos).mean()
+        else:
+            loss = (log_neg_total - log_pos).mean()
+
     elif train_config.get('loss_shape') == 'cosine_similarity_batch_add_f_cross_negs':
         # NON-cumulative variant: identical to `cosine_similarity_batch` except
         # `negatives` includes an extra f-side cross-(b,c) term at fixed t —
@@ -1217,7 +1435,9 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             "cosine_similarity_batch_full_fh_hh_negs, "
             "cosine_similarity_batch_full_hh_ff_negs, "
             "cosine_similarity_batch_full_fh_hh_ff_negs, "
-            "cosine_similarity_batch_full_hh_negs_xbfree}; got "
+            "cosine_similarity_batch_full_hh_negs_xbfree, "
+            "cosine_similarity_batch_full_hh_negs_xshh, "
+            "cosine_similarity_batch_full_hh_negs_xshh_allt}; got "
             f"{train_config.get('loss_shape')!r}."
         )
 
