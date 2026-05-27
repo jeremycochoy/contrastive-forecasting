@@ -39,4 +39,16 @@ re-launching. Backbone ≈2.4 h (β arms) / ≈5 h (all-time arms, the chunked +
 gradient-checkpointed B²·T² cross-series×cross-time Gram costs ~2× step time).
 
 ## Notes / corrections
-(— none yet —)
+
+**Disk-full crash (2026-05-26 23:50).** The shared root filesystem (1.8 TB, normally
+~98% full from other projects/worktrees) hit 0 bytes free while the β·10% backbone
+was at step 22300/50k. `train.py` died with `OSError: No space left on device` mid
+CSV-flush; the backbone driver then wrote a truncated 8 KB `_FINAL.pth`, and the
+downstream poller failed loading it (`Invalid argument`). Cause was external (not
+this card's footprint — it needs only ~3 GB). **Recovery:** freed 23 GB of
+`~/.cache/pip` (reproducible) → ~59 GB free; wiped the corrupt/partial β·10% run;
+restarted clean 2026-05-27 12:09. **Guards added:** the watcher now exits on
+`free < 8 GB`, and each backbone prunes its intermediate/optimizer checkpoints after
+writing `_FINAL.pth` (keeps the disk lean). Re-invocation after the crash was itself
+delayed (~12 h of idle GPUs), so monitoring is now dual: the event watcher **plus** a
+1 h scheduled wake-up. None of #318's, rnd's, or other worktrees' data was touched.

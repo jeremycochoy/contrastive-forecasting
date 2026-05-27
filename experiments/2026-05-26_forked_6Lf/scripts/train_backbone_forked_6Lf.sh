@@ -56,5 +56,11 @@ rc=$?; [ $rc -ne 0 ] && log "BB train exited rc=$rc (tail: $(tail -3 "$tlog"|tr 
 if   [ -f "$RUNS/${NAME}_best_loss.pth" ]; then cp -f "$RUNS/${NAME}_best_loss.pth" "$BB"
 elif [ -f "$RUNS/${NAME}_final.pth" ];     then cp -f "$RUNS/${NAME}_final.pth"     "$BB"
 else cp -f "$(ls -t "$RUNS/${NAME}"_*k.pth 2>/dev/null|head -1)" "$BB" 2>/dev/null; fi
-[ -f "$BB" ] && { log "BB DONE -> ${NAME}_FINAL.pth ($(du -h "$BB"|cut -f1))"; exit 0; }
+if [ -f "$BB" ]; then
+  # Prune intermediates + optimizers — FINAL.pth + the CSVs are the record; this
+  # keeps the (shared, near-full) disk lean. No within-run resume after completion.
+  find "$RUNS" -maxdepth 1 -name "${NAME}_*.pth" ! -name "${NAME}_FINAL.pth" -delete 2>/dev/null
+  log "BB DONE -> ${NAME}_FINAL.pth ($(du -h "$BB"|cut -f1)); pruned intermediates"
+  exit 0
+fi
 log "BB FAILED no checkpoint"; exit 1
