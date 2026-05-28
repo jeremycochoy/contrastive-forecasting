@@ -46,9 +46,29 @@ was at step 22300/50k. `train.py` died with `OSError: No space left on device` m
 CSV-flush; the backbone driver then wrote a truncated 8 KB `_FINAL.pth`, and the
 downstream poller failed loading it (`Invalid argument`). Cause was external (not
 this card's footprint — it needs only ~3 GB). **Recovery:** freed 23 GB of
-`~/.cache/pip` (reproducible) → ~59 GB free; wiped the corrupt/partial β·10% run;
-restarted clean 2026-05-27 12:09. **Guards added:** the watcher now exits on
-`free < 8 GB`, and each backbone prunes its intermediate/optimizer checkpoints after
-writing `_FINAL.pth` (keeps the disk lean). Re-invocation after the crash was itself
-delayed (~12 h of idle GPUs), so monitoring is now dual: the event watcher **plus** a
-1 h scheduled wake-up. None of #318's, rnd's, or other worktrees' data was touched.
+`~/.cache/pip` (reproducible) → ~59 GB free; restarted 2026-05-27 12:09. **Guards
+added (then tuned):** the watcher exits on `free < 2 GB` (lowered from 8 GB after the
+normal Shinka oscillation troughs to ~4 GB without harm); backbones and q-heads now
+prune intermediate + optimizer checkpoints after their FINAL (keep footprint
+≈ FINAL-only). **Backbones now resume** from the latest periodic checkpoint via
+`--resume` on restart (trajectory-identical to from-scratch); never wipe a partial
+run. None of #318's / rnd's / other worktrees' data was touched.
+
+**Network/HF uplink degradation (2026-05-28 from 00:29, ongoing).** A transient DNS
+failure (~00:29) was followed by a sustained ~1 MB/s uplink — slow not just to HF
+but to Cloudflare (~1.2 MB/s) and Fastly/PyPI (~1.0 MB/s), with the interface idle
+otherwise (~2.7 KB/s RX/TX, no local bandwidth hog). So this is the machine's
+upstream link, not HF-specific (a mirror would not help) and not local contention.
+Effect: any HF-streaming training (backbones / q-heads) is data-starved (GPU
+util ≈ 0%, ≈0.5 sps vs the normal 3–6 sps) — the symptom CLAUDE.md flags for
+unauthenticated streams, here with the token present. GIFT-Eval (local data) is
+unaffected and finished β·10% before being paused.
+
+After β·10% completed (all 4 cells), the downstream poller was paused cleanly
+(allt·0.8% had also been paused after its failed network-blip start) to stop
+wasting GPU on a starved stream and to stop hammering a degraded link. A
+`results/.wait_hf` sentinel switches the watcher into HF-wait mode: it probes the
+HF CDN every ~3 min and exits `EVENT=hf_recovered` once sustained throughput
+≥ 5 MB/s; on that event both lanes resume (`backbones.sh` for allt·0.8%; the
+downstream poller for β·0.8%, allt·50%, allt·10%, allt·0.8%). All cells are
+idempotent (skip on existing `_FINAL.pth` / `summary.txt`), so resume is safe.
