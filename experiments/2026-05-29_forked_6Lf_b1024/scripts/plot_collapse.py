@@ -120,7 +120,7 @@ axG.set_xscale("log"); axG.axhline(0, color="k", lw=0.8, ls=":")
 axG.set_xlabel("training step (log)"); axG.set_ylabel("gap (forecast↔future margin)")
 axG.set_title("Representation health (gap)")
 axG.grid(True, which="both", alpha=0.3); axG.legend(fontsize=8)
-fig.suptitle("#322 β·0.8% b1024: LR 1e-3 / 5e-4 / τ=0.20 / QK-norm all collapse — attn-out-RMSNorm (cyan) holds so far (early; loss rebased to floor)", fontsize=10)
+fig.suptitle("#322 β·0.8% b1024: LR/τ/QK-norm/attn-out-only all collapse — only QK-norm+attn-out (black) holds so far (early; loss rebased to floor)", fontsize=10)
 fig.tight_layout(rect=[0, 0, 1, 0.96]); fig.savefig(OUT, dpi=120)
 print(f"wrote {OUT}")
 for label, s, l, g, c, B, tau, already in series:

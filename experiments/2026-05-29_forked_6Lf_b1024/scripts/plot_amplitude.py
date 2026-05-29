@@ -48,7 +48,7 @@ for ax, (col, ttl, yl) in zip(axes, PANELS):
     ax.set_xscale("log"); ax.set_yscale("log")
     ax.set_xlabel("training step (log)"); ax.set_ylabel(yl); ax.set_title(ttl, fontsize=10)
     ax.grid(True, which="both", alpha=0.3); ax.legend(fontsize=8)
-fig.suptitle("#322 β·0.8% — QK-norm bounds the logits, but the attention OUTPUT (value path) still runs away → residual grows", fontsize=12)
+fig.suptitle("#322 β·0.8% — only QK-norm+attn-out (black) bounds BOTH logits AND residual; every other b1024 config blows up at least one", fontsize=11)
 fig.tight_layout(rect=[0, 0, 1, 0.96]); fig.savefig(OUT, dpi=120)
 print(f"wrote {OUT}")
 for label, path, c in RUNS:
