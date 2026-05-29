@@ -82,3 +82,8 @@ loss 2.25, gap ~1.05, R² 0.997). Diagnosis:
   negative-count InfoNCE floor, not a collapse). 5e-4 is the **minimal** change to make
   batch-1024 trainable — reported as a recipe deviation. The full 12.5k-step β·0.8% run
   is the live stability confirmation through the ~4500 danger zone.
+
+`scripts/plot_collapse.py` → `plots/collapse_handling.png` visualises this: log-log loss
++ gap for b256(stable) / b1024-1e-3(diverges, gap 1.2→0.2 at ~step 4500) /
+b1024-5e-4(handled, gap → 1.29). Confirmed: 5e-4 is healthy through step 4300+, past the
+1e-3 collapse point.
