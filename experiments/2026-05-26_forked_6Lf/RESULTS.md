@@ -4,12 +4,13 @@
 test. The fork was put in to break an **indexing-shortcut mode collapse**
 during training. The cell #318 used to *measure* that denial — forked β·0.8%,
 where the latent participation ratio jumped from β=3.17 to 10.19 — improves
-reliably on both 6Lf q-heads, and it's the only row of the matrix to do so.
-The cell that *won* GIFT-Eval at 1L — forked β·10% — regresses sharply under
-6Lf, past seasonal-naive in places. No 6Lf cell crosses β (the #309 baseline
-recipe, full-97 GM-Relative MASE ≈ 1.33). So 6Lf helps the cell that anchored
-the shortcut hypothesis and hurts the cell that anchored the GIFT-Eval lift —
-which of those two is "the fork doing its job" is the open question.
+reliably on both 6Lf q-heads, and is the only row of the matrix to do so. The
+cell that *won* GIFT-Eval at 1L — forked β·10% — regresses sharply on both
+6Lf heads. No 6Lf cell clearly beats β (#309 baseline recipe; full-97 2-seed
+range ≈ 1.33–1.46); β·0.8% on both heads lands inside that range, matching β
+within seed variance. So 6Lf helps the cell that anchored the shortcut
+hypothesis and hurts the cell that anchored the GIFT-Eval lift — which of
+those two is "the fork doing its job" is the open question.
 
 ![Figure 1 — full-97 GM-Relative MASE per arm × q-head, 1L vs 6Lf forecaster.
 Whisker = bootstrap 90 % CI on the GM over its 97 configs. β shown as 4
