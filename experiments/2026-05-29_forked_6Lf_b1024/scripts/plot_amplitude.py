@@ -16,6 +16,7 @@ RUNS = [  # (label, attn_amplitude.csv, color)
     ("b256 (#320, stable)", f"{ROOT}/2026-05-26_forked_6Lf/runs/bb_beta_forked2_6Lf_50k_attn_amplitude.csv", "#2ca02c"),
     ("b1024 lr5e-4 (diverged)", f"{ROOT}/2026-05-29_forked_6Lf_b1024/runs/DIVERGED_5e-4_attn_amplitude.csv", "#d62728"),
     ("b1024 lr1e-3 +QK-norm", f"{ROOT}/2026-05-29_forked_6Lf_b1024/runs/bb_beta_forked2_qknorm_6Lf_b1024_attn_amplitude.csv", "#ff7f0e"),
+    ("b1024 lr1e-3 +attn-out-norm", f"{ROOT}/2026-05-29_forked_6Lf_b1024/runs/bb_beta_forked2_aon_6Lf_b1024_attn_amplitude.csv", "#17becf"),
 ]
 OUT = ("/home/jupyter/workspaces/contrastive-forecasting/.claude/worktrees/"
        "forked-6Lf-b1024/experiments/2026-05-29_forked_6Lf_b1024/plots/activation_amplitudes.png")

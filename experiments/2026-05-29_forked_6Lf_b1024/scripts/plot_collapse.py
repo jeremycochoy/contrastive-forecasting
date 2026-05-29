@@ -88,8 +88,14 @@ QK_CSV = f"{ROOT}/2026-05-29_forked_6Lf_b1024/runs/bb_beta_forked2_qknorm_6Lf_b1
 if os.path.exists(QK_CSV):
     qs, ql, qg = read_csv_curve(QK_CSV)
     if qs:
-        series.append((f"b1024 lr1e-3 +QK-norm (@step {qs[-1]})", qs, ql, qg,
+        series.append((f"b1024 lr1e-3 +QK-norm (collapses)", qs, ql, qg,
                        "#ff7f0e", 1024, 0.10, True))
+AON_CSV = f"{ROOT}/2026-05-29_forked_6Lf_b1024/runs/bb_beta_forked2_aon_6Lf_b1024_losses.csv"
+if os.path.exists(AON_CSV):
+    a_s, a_l, a_g = read_csv_curve(AON_CSV)
+    if a_s:
+        series.append((f"b1024 lr1e-3 +attn-out-RMSNorm (@step {a_s[-1]})", a_s, a_l, a_g,
+                       "#17becf", 1024, 0.10, True))
 
 fig, (axL, axG) = plt.subplots(1, 2, figsize=(14, 5.5))
 for label, s, l, g, c, B, tau, already in series:
