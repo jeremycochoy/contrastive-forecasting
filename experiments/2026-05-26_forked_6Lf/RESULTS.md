@@ -10,11 +10,9 @@ horizontal dashed lines = the bounds of each head's 2-seed range.](plots/gm_summ
 
 ## What we asked
 
-#318 swept five forked arms with a **1-layer** forecaster and found exactly
-one winner — the fork at ≈10 % injection on the β loss, on both q-heads.
-Every other forked cell tied β or worsened it. Does deepening the forecaster
-(1 → 6 layers, encoder untouched, otherwise byte-identical to #318) change
-that map?
+#318's 1-layer sweep of these five arms found exactly one β-beater (the β-loss
+fork at ≈10 % injection, both q-heads). Does deepening the forecaster
+(1 → 6 layers, encoder unchanged) shift the map?
 
 ## What happened
 
@@ -24,19 +22,14 @@ grey = inconclusive.](plots/forecaster_delta.png)
 
 The deeper forecaster **un-finds** the 1L fork's wins.
 
-Where the 1L fork was strongest, the deepening hits hardest — β·10% drops
-from "only winner" to worst-hit cell of the matrix; allt·0.8% on the 2L head,
-the strongest 1L cell among the all-time-loss arms, lands well past
-seasonal-naive.
+Where the 1L fork was strongest, 6Lf hits hardest: β·10% drops from
+only-winner to worst-of-matrix, and allt·0.8% on the 2L head (the best 1L
+all-time cell) lands past seasonal-naive. Where the 1L fork was weakest, 6Lf
+helps modestly — β·0.8% on both heads, allt·50% on the 2L head — but none
+reaches β. Counts: 6 reliably worse, 3 better, 1 inconclusive.
 
-Where the 1L fork was weakest, 6Lf helps modestly — β·0.8% on both heads,
-allt·50% on the 2L head — but none of the gains reach β.
-
-In counts: 6 cells reliably worse, 3 reliably better, 1 inconclusive
-(paired-bootstrap 90 % CI on the per-cell Δ).
-
-**Forward-looking (author's reading, not in the data).** **β·0.8% on the 6L
-q-head** is the closest 6Lf has come to v11c and the only reliably-better cell
+**Forward-looking (author's reading, not in the data).** β·0.8% on the 6L
+q-head is 6Lf's closest approach to v11c, and the only reliably-better cell
 on the 6L head. A longer schedule + a second seed + a finer mix fraction here
 might cross v11c next.
 
@@ -66,20 +59,19 @@ one side of 0).*
 **References** (lower better): β · 2L = [1.3272, 1.4591] (n = 2 seeds); β · 6L
 = [1.3702, 1.4489] (n = 2); v11c = 1.292; seasonal-naive = 1.0.
 
-**Paired bootstrap.** For each (arm, head): resample the 97 config indices
-**jointly** for 1L and 6Lf, recompute the two GMs, take the difference. 2 000
-iterations; 5th / 95th percentiles = 90 % CI on Δ. The joint resample cancels
-per-config difficulty. Figure 1 whiskers use the un-paired form per GM;
-neither captures seed variance.
+**Paired bootstrap.** For each (arm, head) Δ: resample 97 config indices
+jointly for 1L and 6Lf, recompute the two GMs, take the difference; 2 000
+iter; 5–95 percentiles = 90 % CI. Joint resample cancels per-config
+difficulty. Figure 1 whiskers use the un-paired form per GM. Neither captures
+seed variance.
 
 ## Protocol
 
-Each arm is byte-identical to its #318 counterpart **except**
-`--num-layers 1 → 6` (the 6L causal *encoder* is unchanged). 50 k backbone
-steps, batch 256, seed 20260520; fresh 2L and 6L quantile q-head (30 k,
-`--head-train-input e_then_f`, `--reconstruction forecaster`,
-`--amp-dtype none`); GIFT-Eval `--strategy B4` on full-97 and triage-11. Full
-recipe: [#318 / PR #319](https://github.com/jeremycochoy/contrastive-forecasting/pull/319).
+Byte-identical to each arm's #318 counterpart except `--num-layers 1 → 6`
+(6L encoder unchanged). 50 k backbone (batch 256, seed 20260520); fresh 30 k
+2L and 6L q-head (`e_then_f` / `reconstruction forecaster` / `amp-dtype none`);
+GIFT-Eval `--strategy B4`. Full recipe:
+[#318 / PR #319](https://github.com/jeremycochoy/contrastive-forecasting/pull/319).
 
 ## Annex — exact negatives (per anchor, C = 1; pooled N = B·Σ)
 
