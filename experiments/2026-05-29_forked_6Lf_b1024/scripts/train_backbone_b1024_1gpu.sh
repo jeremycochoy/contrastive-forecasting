@@ -19,6 +19,8 @@ SAVE_EVERY="${5:-2500}"; export XSHH_ALLT_CHUNK="${6:-2}"; GPU="${7:-1}"
 # 0.95+, AUC 1.0). This is the minimal optimization change to make batch-1024
 # trainable; everything else is byte-identical to #320. Env-overridable.
 LR="${LR:-5e-4}"
+# QK-norm (PaLM/Gemma): set QK_NORM=1 to enable --qk-norm (bounds attention logits).
+QK_FLAG=""; [ "${QK_NORM:-0}" = "1" ] && QK_FLAG="--qk-norm"
 SEED=20260520
 case "$ARM" in
   beta)    SHAPE=cosine_similarity_batch_full_hh_negs;            NAME="bb_beta_${TAG}_6Lf_b1024" ;;
@@ -39,8 +41,8 @@ log(){ echo "[$(date '+%m-%d %H:%M:%S')] [b1024-1gpu $ARM $TAG] $*"; }
 tlog="$RES/run_${NAME}.log"
 RESUME=""; latest=$(ls -t "$RUNS/${NAME}"_*k.pth 2>/dev/null | head -1)
 [ -n "$latest" ] && { RESUME="--resume $latest"; log "RESUME from $(basename "$latest")"; }
-log "BB START shape=$SHAPE batch=1024 (1-GPU, GRU-ckpt) lr=$LR forked-arma mix=$MIX allt_chunk=$XSHH_ALLT_CHUNK steps=$STEPS gpu=$GPU ${RESUME}"
-python3 -u "$TRAIN" $RESUME \
+log "BB START shape=$SHAPE batch=1024 (1-GPU, GRU-ckpt) lr=$LR qk_norm=${QK_NORM:-0} forked-arma mix=$MIX allt_chunk=$XSHH_ALLT_CHUNK steps=$STEPS gpu=$GPU ${RESUME}"
+python3 -u "$TRAIN" $RESUME $QK_FLAG \
   --batch-size 1024 --device cuda --total-steps "$STEPS" --lr "$LR" --weight-decay 0.1 \
   --adam-beta1 0.9 --adam-beta2 0.98 --seed "$SEED" \
   --save-every "$SAVE_EVERY" --save-dir "$RUNS" --run-name "$NAME" --log-every 100 \
@@ -50,7 +52,7 @@ python3 -u "$TRAIN" $RESUME \
   --forecaster-d-model 128 --forecaster-n-heads 4 \
   --encoder-dropkey 0.70 --encoder-dropkey-share-heads --encoder-dropkey-share-layers \
   --depthwise-conv 3 --deprecated-depthwise-conv 0 \
-  --loss-shape "$SHAPE" --pos-in-denominator \
+  --loss-shape "$SHAPE" --pos-in-denominator --subtract-contrastive-floor \
   --tau 0.10 --rev-norm-kind ewma --rev-norm-span 128 --encoder-type gru \
   --synth-kind forked-arma --mix-ratio "$MIX" \
   --mixup-p 0.3 --freq-emb-dim 3 --seasonality-emb-dim 3 \
