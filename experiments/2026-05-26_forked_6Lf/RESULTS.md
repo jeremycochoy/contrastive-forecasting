@@ -1,9 +1,10 @@
 # #320 — Forked arms × 6-layer forecaster
 
-**Verdict.** No forked-6Lf config beats β. The best 6Lf cell (β·0.8% on the 6L
-q-head) lands at **1.4006** — above β's 2-seed range **[1.3272, 1.4591]** and well
-above v11c (1.292). 6 of 10 cells are reliably worse with 6Lf, 3 reliably better,
-1 inconclusive (paired bootstrap, 90% CI over the 97 shared configs).
+**Verdict.** No forked-6Lf config beats β. The best 6Lf cell (β·0.8% on the
+6L q-head) lands at **GM-Relative MASE 1.4006** (lower is better) — above
+β's 2-seed range **[1.3272, 1.4591]** and well above v11c (1.292). 6 of 10
+cells are reliably worse with 6Lf, 3 reliably better, 1 inconclusive (paired
+bootstrap, 90 % CI over the 97 shared configs).
 
 ![Figure 1 — full-97 GM-Relative MASE per arm × q-head, 1L vs 6Lf (β shown as
 2-seed range)](plots/gm_summary.png)
