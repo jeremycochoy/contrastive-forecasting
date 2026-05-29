@@ -80,8 +80,16 @@ if fix:
 if os.path.exists(TAU_CSV):
     ts, tl, tg = read_csv_curve(TAU_CSV)
     if ts:
-        series.append((f"b1024 lr5e-4 τ=0.20 (probe @step {ts[-1]})", ts, tl, tg,
+        series.append((f"b1024 lr5e-4 τ=0.20 (collapses ~5700)", ts, tl, tg,
                        "#9467bd", 1024, 0.20, False))
+# QK-norm red line (lr 1e-3 + --qk-norm). Loss is ALREADY floor-subtracted (run uses
+# --subtract-contrastive-floor) → already=True.
+QK_CSV = f"{ROOT}/2026-05-29_forked_6Lf_b1024/runs/bb_beta_forked2_qknorm_6Lf_b1024_losses.csv"
+if os.path.exists(QK_CSV):
+    qs, ql, qg = read_csv_curve(QK_CSV)
+    if qs:
+        series.append((f"b1024 lr1e-3 +QK-norm (@step {qs[-1]})", qs, ql, qg,
+                       "#ff7f0e", 1024, 0.10, True))
 
 fig, (axL, axG) = plt.subplots(1, 2, figsize=(14, 5.5))
 for label, s, l, g, c, B, tau, already in series:
@@ -100,7 +108,7 @@ axG.set_xscale("log"); axG.axhline(0, color="k", lw=0.8, ls=":")
 axG.set_xlabel("training step (log)"); axG.set_ylabel("gap (forecast↔future margin)")
 axG.set_title("Representation health (gap)")
 axG.grid(True, which="both", alpha=0.3); axG.legend(fontsize=8)
-fig.suptitle("#322 β·0.8%: batch-1024 collapses at BOTH LR 1e-3 and 5e-4 (loss rebased to floor)", fontsize=12)
+fig.suptitle("#322 β·0.8% b1024: LR 1e-3 / 5e-4 / τ=0.20 all collapse — QK-norm (orange) holds the gap so far (loss rebased to floor)", fontsize=11)
 fig.tight_layout(rect=[0, 0, 1, 0.96]); fig.savefig(OUT, dpi=120)
 print(f"wrote {OUT}")
 for label, s, l, g, c, B, tau, already in series:
