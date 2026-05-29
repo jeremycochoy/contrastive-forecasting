@@ -134,18 +134,17 @@ def plot_gm_summary():
                    yerr=[los, his], capsize=2, ecolor="#444",
                    error_kw={"lw": 0.9})
 
-    # β shown as FOUR horizontal dashed lines across the plot (the bounds of the
-    # 2-seed range, one pair per head). Each line carries its own short label at
-    # the right margin so the four labels never stack on top of each other.
-    x_lab = n_arms - 0.4 + 0.04   # just past the right edge of the bars
+    # β shown as 4 full-width horizontal dashed lines (2 bounds per head; matches
+    # the 2-seed range). One label per pair, colour-matched to the lines.
     for y in BETA_2L:
         ax.axhline(y, color=C_2L_6F, lw=1.3, linestyle=(0, (4, 2)), alpha=0.9)
-        ax.text(x_lab, y, f"  β·2L = {y:.3f}",
-                ha="left", va="center", fontsize=8.5, color=C_2L_6F, fontweight="bold")
     for y in BETA_6L:
         ax.axhline(y, color=C_6L_6F, lw=1.3, linestyle=(0, (4, 2)), alpha=0.9)
-        ax.text(x_lab, y, f"  β·6L = {y:.3f}",
-                ha="left", va="center", fontsize=8.5, color=C_6L_6F, fontweight="bold")
+    x_lab = n_arms - 0.4 + 0.04   # just past the right edge of the bars
+    ax.text(x_lab, max(BETA_2L) + 0.018, "β·2L", ha="left", va="bottom",
+            fontsize=11, color=C_2L_6F, fontweight="bold")
+    ax.text(x_lab, min(BETA_6L) - 0.018, "β·6L", ha="left", va="top",
+            fontsize=11, color=C_6L_6F, fontweight="bold")
 
     # naive solid black; v11c distinct purple dashed
     ax.axhline(NAIVE, color="black", lw=1.6)
