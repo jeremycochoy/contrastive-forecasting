@@ -1,15 +1,15 @@
 # #320 — Forked arms × 6-layer forecaster
 
-**Verdict.** Mixed, and the direction depends on which cell you treat as the
+**Verdict.** Mixed, and the direction depends on which arm you treat as the
 test. The fork was put in to break an **indexing-shortcut mode collapse**
-during training. The cell #318 used to *measure* that denial — forked β·0.8%,
+during training. The arm #318 used to *measure* that denial — forked β·0.8%,
 where the latent participation ratio jumped from β=3.17 to 10.19 — improves
-reliably on both 6Lf q-heads, and is the only row of the matrix to do so. The
-cell that *won* GIFT-Eval at 1L — forked β·10% — regresses sharply on both
+reliably on both 6Lf q-heads, and is the only one to do so. The
+arm that *won* GIFT-Eval at 1L — forked β·10% — regresses sharply on both
 6Lf heads. No 6Lf cell clearly beats β (#309 baseline recipe; full-97 2-seed
 range ≈ 1.33–1.46); β·0.8% on both heads lands inside that range, matching β
-within seed variance. So 6Lf helps the cell that anchored the shortcut
-hypothesis and hurts the cell that anchored the GIFT-Eval lift — which of
+within seed variance. So 6Lf helps the arm that anchored the shortcut
+hypothesis and hurts the arm that anchored the GIFT-Eval lift — which of
 those two is "the fork doing its job" is the open question.
 
 ![Figure 1 — full-97 GM-Relative MASE per arm × q-head, 1L vs 6Lf forecaster.
@@ -30,7 +30,7 @@ sample with a **forked-ARIMA continuation** — same past, different future —
 so position alone can no longer encode the future, and the encoder is pushed
 off the positional code onto actual content. In #318 the denial was visible
 in the latent: forked β·0.8% PR=10.19 vs β=3.17, and that same configuration
-was the one cell that cleared β on GIFT-Eval.
+was the one arm that cleared β on GIFT-Eval.
 
 The forecaster is the small transformer between the encoder and the q-head;
 its depth is the only thing this card changes (1 → 6 layers, encoder
@@ -47,8 +47,8 @@ Across the GM, the deeper forecaster moves *which* (arm × mix × head) cell
 the fork's signal shows up in, rather than removing it. Two clean
 opposites split the matrix.
 
-The cell #318 *measured* the shortcut denial on — forked β·0.8% — is the
-only row that improves on both 6Lf q-heads. The cell that *won* GIFT-Eval
+The arm #318 *measured* the shortcut denial on — forked β·0.8% — is the
+only one that improves on both 6Lf q-heads. The arm that *won* GIFT-Eval
 at 1L — forked β·10% — drops from only-cell-above-β at 1L to a reliable
 regression on both 6Lf heads. The other all-time arms mostly regress;
 allt·0.8%·2L (1L's best all-time cell) lands past seasonal-naive — the
