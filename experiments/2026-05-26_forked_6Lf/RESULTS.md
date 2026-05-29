@@ -1,8 +1,9 @@
 # #320 — Forked arms × 6-layer forecaster
 
-**Verdict.** A deeper forecaster doesn't rescue #318's data-side fork. No 6Lf
-cell crosses β. The deepening hits hardest where the 1L fork was strongest,
-and only modestly helps the arms where the 1L fork already lagged.
+**Verdict.** Making the forecaster deeper does **not** help the fork's
+shortcut-denial; on most arms it undoes it. Wherever #318's 1-layer fork was
+working best, 6Lf hits hardest; only the arms where the 1L fork was already
+weak get any improvement, and none of them cross β.
 
 ![Figure 1 — full-97 GM-Relative MASE per arm × q-head, 1L vs 6Lf forecaster.
 Whisker = bootstrap 90 % CI on the GM over its 97 configs. β shown as 4
@@ -10,12 +11,21 @@ horizontal dashed lines = the bounds of each head's 2-seed range.](plots/gm_summ
 
 ## What we asked
 
-In #318, perturbing the training data with forked-ARIMA continuations
-(identical past → divergent future) lifted only **one** of five arm
-configurations above the β baseline; the rest tied or fell short. Here we ask
-whether giving the forecaster more capacity — keeping everything else
-identical to #318 — changes that picture: do more configurations help, do the
-helping ones help more, or does the helpful arm move elsewhere?
+A contrastive backbone can satisfy its training objective with a **content-free
+positional shortcut**: a per-series positional fingerprint that keeps the
+representations distinct without learning anything forecastable. #318 set out
+to deny that shortcut, and one of the two routes it tried was data-side: pair
+each sample with a **forked-ARIMA continuation** — same past, different future
+— so position alone can no longer encode the future, and the encoder is forced
+onto content. The 1-layer sweep showed the data-side route worked: one
+configuration lifted clearly above β, the rest tied or fell short.
+
+The forecaster is the small transformer between the encoder and the q-head;
+its depth is the only thing this card changes (1 → 6 layers, encoder
+unchanged). The question is whether giving it more capacity **reinforces the
+fork's shortcut-denial** (more arms cross β, the helping ones help further),
+or **undoes it** (the cells the 1L fork was rescuing fall back to baseline or
+worse).
 
 ## What happened
 
@@ -23,7 +33,9 @@ helping ones help more, or does the helpful arm move elsewhere?
 paired-bootstrap 90 % CI; green = reliably better, red = reliably worse,
 grey = inconclusive.](plots/forecaster_delta.png)
 
-The deeper forecaster **un-finds** the 1L fork's wins.
+Deepening the forecaster **undoes** the fork's denial on the cells where it
+was working, and gives modest improvements only on the cells where the 1L
+fork had already failed to deny the shortcut.
 
 Where the 1L fork was strongest, 6Lf hits hardest: β·10% drops from
 only-winner to worst-of-matrix, and allt·0.8% on the 2L head (the best 1L
@@ -41,8 +53,8 @@ per arm, at its own best head; dashed line = 1L #318 reference, solid =
 6Lf this card; green band = β 2-seed range (best head per seed); purple ring =
 v11c; black dashed ring = seasonal-naive.](plots/perdomain.png)
 
-The radar makes the per-arm shifts more legible: most arms move outward on
-most domains under 6Lf, matching the un-finds picture in Figures 1–2.
+The radar makes the per-arm shifts legible: most arms move outward on most
+domains under 6Lf, matching the un-denial picture in Figures 1–2.
 
 ## Scoreboard
 
