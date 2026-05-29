@@ -10,9 +10,12 @@ horizontal dashed lines = the bounds of each head's 2-seed range.](plots/gm_summ
 
 ## What we asked
 
-#318's 1-layer sweep of these five arms found exactly one β-beater (the β-loss
-fork at ≈10 % injection, both q-heads). Does deepening the forecaster
-(1 → 6 layers, encoder unchanged) shift the map?
+In #318, perturbing the training data with forked-ARIMA continuations
+(identical past → divergent future) lifted only **one** of five arm
+configurations above the β baseline; the rest tied or fell short. Here we ask
+whether giving the forecaster more capacity — keeping everything else
+identical to #318 — changes that picture: do more configurations help, do the
+helping ones help more, or does the helpful arm move elsewhere?
 
 ## What happened
 
@@ -32,6 +35,14 @@ reaches β. Counts: 6 reliably worse, 3 better, 1 inconclusive.
 q-head is 6Lf's closest approach to v11c, and the only reliably-better cell
 on the 6L head. A longer schedule + a second seed + a finer mix fraction here
 might cross v11c next.
+
+![Figure 3 — Per-domain GM-Relative MASE on full-97, log radial. One colour
+per arm, at its own best head; dashed line = 1L #318 reference, solid =
+6Lf this card; green band = β 2-seed range (best head per seed); purple ring =
+v11c; black dashed ring = seasonal-naive.](plots/perdomain.png)
+
+The radar makes the per-arm shifts more legible: most arms move outward on
+most domains under 6Lf, matching the un-finds picture in Figures 1–2.
 
 ## Scoreboard
 

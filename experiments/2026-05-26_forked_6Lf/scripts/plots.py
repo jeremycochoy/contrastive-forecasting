@@ -106,6 +106,7 @@ C_2L_6F = "#1f77b4"   # dark  blue   — 6Lf · 2L head (this card)
 C_6L_1L = "#ffbb78"   # light orange — 1L · 6L head (reference)
 C_6L_6F = "#d94801"   # dark  orange — 6Lf · 6L head (this card)
 C_V11C  = "#9467bd"   # purple for v11c
+C_BETA  = "#2ca02c"   # green for β reference (radar)
 
 
 # ---------------------------------------------------------------- gm_summary
@@ -208,6 +209,138 @@ def plot_forecaster_delta():
     print("wrote forecaster_delta.png")
 
 
+def relatives_full(tag, head, res):
+    return relatives_dict(f"{res}/gift_eval_full_{tag}_{head}/summary.txt")
+
+
+def _domain_map():
+    """{config: domain} from one of the all_results.csv files (they share the map)."""
+    import csv as _csv
+    for tag6 in (a[1] for a in ARMS):
+        path = f"{RES_6LF}/gift_eval_full_{tag6}_2L/all_results.csv"
+        if not os.path.exists(path):
+            continue
+        with open(path) as f:
+            out = {row["dataset"]: row.get("domain", "?") for row in _csv.DictReader(f)}
+        if out:
+            return out
+    return {}
+
+
+# ---------------------------------------------------------------- per-domain radar
+def plot_perdomain():
+    dom_map = _domain_map()
+    if not dom_map:
+        print("perdomain: no domain map — skip")
+        return
+    import numpy as np
+
+    def best_profile(tag, res, label):
+        """(best_head, {domain: GM}, full-97 GM) for whichever head scores lowest."""
+        cand = []
+        for h in ("2L", "6L"):
+            rels = relatives_full(tag, h, res)
+            if rels:
+                cand.append((gm(list(rels.values())), h, rels))
+        if not cand:
+            return None
+        agg, hd, rels = min(cand)
+        byd = {}
+        for cfg, r in rels.items():
+            byd.setdefault(dom_map.get(cfg, "?"), []).append(r)
+        return hd, {d: gm(v) for d, v in byd.items()}, agg, label
+
+    # 5 arms × {1L #318 ref, 6Lf this card}, each at its own best head.
+    arms_colored = [
+        ("β·10%",     "#1f77b4"),
+        ("β·0.8%",    "#9467bd"),
+        ("allt·50%",  "#2ca02c"),
+        ("allt·10%",  "#ff7f0e"),
+        ("allt·0.8%", "#d62728"),
+    ]
+    pairs = []
+    for (tag1, tag6, lab), (_, c) in zip(ARMS, arms_colored):
+        p1 = best_profile(tag1, RES_1L,  f"{lab} · 1L")
+        p6 = best_profile(tag6, RES_6LF, f"{lab} · 6Lf")
+        if p1 and p6:
+            pairs.append((lab, c, p1, p6))
+
+    # β reference: 2-seed band, best head per seed
+    BETA_S1 = ("bb_beta_50k", "/home/jupyter/contrastive-forecasting/experiments/2026-05-20_bottleneck_beta2_confound/results")
+    BETA_S1_6L_DIR = "/home/jupyter/workspaces/contrastive-forecasting/experiments/2026-05-23_xseries_hh/results"
+    def beta_profile(seed):
+        cand = []
+        if seed == 1:
+            paths = {
+                "2L": f"{BETA_S1[1]}/gift_eval_full_{BETA_S1[0]}/summary.txt",
+                "6L": f"{BETA_S1_6L_DIR}/gift_eval_full_beta_50k_6L/summary.txt",
+            }
+        else:
+            paths = {h: f"{BETA_S1_6L_DIR}/gift_eval_full_beta_s2_50k_{h}/summary.txt"
+                     for h in ("2L", "6L")}
+        for h, p in paths.items():
+            rels = relatives_dict(p)
+            if rels:
+                cand.append((gm(list(rels.values())), h, rels))
+        if not cand:
+            return None
+        agg, hd, rels = min(cand)
+        byd = {}
+        for cfg, r in rels.items():
+            byd.setdefault(dom_map.get(cfg, "?"), []).append(r)
+        return hd, {d: gm(v) for d, v in byd.items()}, agg
+    beta_profs = [p for p in (beta_profile(s) for s in (1, 2)) if p]
+
+    doms = sorted({d for _, _, p1, p6 in pairs for _, m, _, _ in (p1, p6) for d in m})
+    ang = np.linspace(0, 2 * np.pi, len(doms), endpoint=False)
+    ang_c = np.concatenate([ang, ang[:1]])
+
+    fig, ax = plt.subplots(figsize=(9.2, 7.6), subplot_kw=dict(polar=True))
+    # naive ring
+    ax.plot(np.linspace(0, 2 * np.pi, 200), [1.0] * 200, "--",
+            color="k", lw=1.2, alpha=0.7, zorder=1, label="seasonal-naive (1.0)")
+    # β 2-seed band, behind everything
+    if len(beta_profs) == 2:
+        lo = np.array([min(beta_profs[0][1].get(d, np.nan), beta_profs[1][1].get(d, np.nan)) for d in doms])
+        hi = np.array([max(beta_profs[0][1].get(d, np.nan), beta_profs[1][1].get(d, np.nan)) for d in doms])
+        ax.fill_between(ang_c, np.append(lo, lo[0]), np.append(hi, hi[0]),
+                        color=C_BETA, alpha=0.18, lw=0, zorder=2,
+                        label="β (2-seed band, best head per seed)")
+    elif beta_profs:
+        v = [beta_profs[0][1].get(d, np.nan) for d in doms]
+        ax.plot(ang_c, v + v[:1], color=C_BETA, lw=1.8, alpha=0.9, zorder=2,
+                label="β (best head)")
+    # v11c (constant — drawn as its own ring at 1.292, label only)
+    ax.plot(np.linspace(0, 2 * np.pi, 200), [V11C] * 200, "--",
+            color=C_V11C, lw=1.2, alpha=0.8, zorder=2, label=f"v11c ({V11C})")
+    # arms: 1L = dashed, 6Lf = solid, both in the arm's colour
+    for lab, c, p1, p6 in pairs:
+        h1, m1, agg1, _ = p1
+        h6, m6, agg6, _ = p6
+        v1 = [m1.get(d, np.nan) for d in doms]
+        v6 = [m6.get(d, np.nan) for d in doms]
+        ax.plot(ang_c, v1 + v1[:1], "--", color=c, lw=1.4, alpha=0.85,
+                label=f"{lab} · 1L ({h1})", zorder=3)
+        ax.plot(ang_c, v6 + v6[:1], "-",  color=c, lw=2.0, alpha=0.95,
+                label=f"{lab} · 6Lf ({h6})", zorder=4)
+    # log radial; cap so the inner cluster fills the figure
+    ax.set_rscale("log")
+    ax.set_rlim(0.6, 3.2)
+    ax.set_xticks(ang); ax.set_xticklabels(doms, fontsize=9)
+    ax.set_rlabel_position(95)
+    ax.set_title("Figure 3 — Per-domain GM-Relative MASE, 1L vs 6Lf forecaster\n"
+                 "(log radial; lower = better; dashed line per arm = 1L #318 ref, "
+                 "solid = 6Lf this card; head shown in legend; "
+                 "dashed black ring = seasonal-naive; green band = β seed range)",
+                 fontsize=10, pad=18)
+    ax.legend(fontsize=7.5, loc="upper right", bbox_to_anchor=(1.30, 1.10))
+    fig.tight_layout()
+    fig.savefig(f"{PLOTS}/perdomain.png", dpi=130, bbox_inches="tight")
+    plt.close(fig)
+    print("wrote perdomain.png")
+
+
 if __name__ == "__main__":
     plot_gm_summary()
     plot_forecaster_delta()
+    plot_perdomain()
