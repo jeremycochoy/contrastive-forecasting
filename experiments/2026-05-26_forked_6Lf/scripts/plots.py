@@ -99,37 +99,45 @@ def paired_delta_ci(d1, d6, n=2000, seed=0):
     return (delta, ds[int(0.05 * n)], ds[int(0.95 * n)])
 
 
-# Colors: blue=2L head, orange=6L head; light=1L (#318 ref), dark=6Lf (this card)
-C_1L_2L = "#9ecae1"   # light blue
-C_6F_2L = "#1f77b4"   # dark blue
-C_1L_6L = "#fdae6b"   # light orange
-C_6F_6L = "#d94801"   # dark orange
-C_BETA  = "#2ca02c"   # green for β candle
-C_V11C  = "#9467bd"   # purple for v11c
+# One colour per q-head; 6Lf this card = solid bar (with bootstrap CI whisker);
+# 1L #318 reference = DASHED line at the 1L value, same colour. So per arm × head,
+# the bar sits below the dashed line iff 6Lf is better than 1L there.
+C_2L   = "#1f77b4"   # blue   — 2L q-head
+C_6L   = "#ff7f0e"   # orange — 6L q-head
+C_BETA = "#2ca02c"   # green for β candle
+C_V11C = "#9467bd"   # purple for v11c
 
 
 # ---------------------------------------------------------------- gm_summary
 def plot_gm_summary():
     fig, ax = plt.subplots(figsize=(11, 5.3))
-    # Bars per arm, in the requested forecaster-first order:
-    # 1L·2L, 1L·6L, 6Lf·2L, 6Lf·6L
-    series = [
-        ("1L · 2L head",  "1L",  "2L", C_1L_2L),
-        ("1L · 6L head",  "1L",  "6L", C_1L_6L),
-        ("6Lf · 2L head", "6Lf", "2L", C_6F_2L),
-        ("6Lf · 6L head", "6Lf", "6L", C_6F_6L),
-    ]
-    n_arms, w = len(ARMS), 0.20
-    for si, (lab, fc, hd, color) in enumerate(series):
-        xs, ys = [], []
-        for ai, (tag1, tag6, _) in enumerate(ARMS):
-            res, tag = (RES_1L, tag1) if fc == "1L" else (RES_6LF, tag6)
-            g, _ = cell(res, tag, hd)
-            if g is None:
-                continue
-            xs.append(ai + (si - 1.5) * w); ys.append(g)
-        if ys:
-            ax.bar(xs, ys, w, color=color, label=lab, edgecolor="none")
+    # Per arm: two bars (6Lf·2L | 6Lf·6L) + two dashed reference segments
+    # at the 1L value for that arm × head (same colour as the bar).
+    # Bar shows bootstrap 90 % CI whisker (over the 97 per-config relatives).
+    n_arms, bw = len(ARMS), 0.36
+    seen = set()
+    for ai, (tag1, tag6, _) in enumerate(ARMS):
+        for hd, color, dx in [("2L", C_2L, -bw / 2), ("6L", C_6L, bw / 2)]:
+            g6, (lo6, hi6) = cell(RES_6LF, tag6, hd)
+            g1, _ = cell(RES_1L, tag1, hd)
+            if g6 is not None:
+                # bootstrap CI on this GM (within-config-set spread; NOT seed noise)
+                yerr = None
+                if lo6 is not None and hi6 is not None:
+                    yerr = [[g6 - lo6], [hi6 - g6]]
+                ax.bar(ai + dx, g6, bw, color=color, edgecolor="none",
+                       yerr=yerr, capsize=3, ecolor="#444",
+                       error_kw={"lw": 1.0},
+                       label=(f"6Lf · {hd} head (solid bar; whisker = bootstrap 90 % CI)"
+                              if (f"6Lf-{hd}" not in seen) else None))
+                seen.add(f"6Lf-{hd}")
+            if g1 is not None:
+                ax.plot([ai + dx - bw / 2 + 0.02, ai + dx + bw / 2 - 0.02],
+                        [g1, g1],
+                        color=color, lw=2.2, linestyle=(0, (3, 2)),
+                        label=(f"1L · {hd} head (dashed = #318 reference)"
+                               if (f"1L-{hd}" not in seen) else None))
+                seen.add(f"1L-{hd}")
 
     # β as a candlestick on its own x-tick to the right of the arms
     bx = n_arms + 0.35
