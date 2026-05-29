@@ -15,7 +15,8 @@ RUNS = [  # (label, losses.csv, color)
     ("b1024 lr5e-4 (diverged)", f"{ROOT}/2026-05-29_forked_6Lf_b1024/runs/DIVERGED_5e-4_losses.csv", "#d62728"),
     ("b1024 lr1e-3 +QK-norm", f"{ROOT}/2026-05-29_forked_6Lf_b1024/runs/bb_beta_forked2_qknorm_6Lf_b1024_losses.csv", "#ff7f0e"),
     ("b1024 lr5e-4 τ=0.20", f"{ROOT}/2026-05-29_forked_6Lf_b1024/runs/smoke_beta_b1024_losses.csv", "#9467bd"),
-    ("b1024 lr1e-3 +attn-out-norm", f"{ROOT}/2026-05-29_forked_6Lf_b1024/runs/bb_beta_forked2_aon_6Lf_b1024_losses.csv", "#17becf"),
+    ("b1024 lr1e-3 +attn-out-only", f"{ROOT}/2026-05-29_forked_6Lf_b1024/runs/bb_beta_forked2_aon_6Lf_b1024_losses.csv", "#17becf"),
+    ("b1024 lr1e-3 +QK-norm+attn-out", f"{ROOT}/2026-05-29_forked_6Lf_b1024/runs/bb_beta_forked2_qk_aon_6Lf_b1024_losses.csv", "#000000"),
 ]
 OUT = ("/home/jupyter/workspaces/contrastive-forecasting/.claude/worktrees/"
        "forked-6Lf-b1024/experiments/2026-05-29_forked_6Lf_b1024/plots/cosines_through_training.png")
