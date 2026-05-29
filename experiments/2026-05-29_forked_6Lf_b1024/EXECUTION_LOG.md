@@ -48,3 +48,21 @@ deterministic] + gathered loss(1024); keeping the all-time loss peak below the G
 peak (small `XSHH_ALLT_CHUNK`) makes **all 5 arms fit at ~22.5–23.5 GB/rank** — but
 each rank needs a near-empty 24 GB card ⇒ both GPUs must be free (GPU 0's ~16 GB free
 is insufficient). GRU-checkpointing is held in reserve if a rank proves too tight.
+
+### Pivot: 2-GPU DDP → single-GPU @1024 with a checkpointed GRU
+GPU 0's occupants turned out to be **5 foreign Jupyter kernels (rnd_dmytro / rnd_kacper)
+alive 9–14 days** (~8 GB, idle) plus a rotating clamp_sweep — i.e. GPU 0 is permanently
+~8 GB-occupied and will never reach the ~23.6 GB free a DDP rank needs. Evicting another
+team's multi-day kernels is off the table. So DDP is abandoned for a **single-GPU @1024
+on the near-empty GPU 1** — which pools all 1024 in the negatives *natively* (one batch,
+no gather), satisfying the card even more cleanly than DDP.
+
+To fit 1024 on one 24 GB card, the **GRU patch-encoder is gradient-checkpointed + chunked**
+(`PATCH_ENC_CKPT=1 PATCH_ENC_CHUNK=4`, env-gated + training-only in `src/encoders.py`).
+The GRU over 65 k sequences was the wall; checkpointing trades its stored bwd activations
+for recompute, **byte-identical in the forward**, so the trained backbone equals #320's
+recipe at 4× batch. Measured single-GPU @1024 checkpointed (true allocated / step):
+- β: **11.90 GB**, 334 ms/step (~3 sps) → ~70 min / 12.5k.
+- all-time (chunk=2): **12.43 GB**, 3.53 s/step (~0.28 sps) → ~12 h / 12.5k.
+Both well within 24 GB. Total ≈ 39 h on GPU 1 (β first, then the 3 all-time arms),
+neighbour-safe. DDP scripts retained but unused.

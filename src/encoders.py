@@ -2,9 +2,12 @@
 Encoder variants for architecture search.
 Each encoder maps [B, T, C, W] -> [B, T, C, H].
 """
+import os
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.utils.checkpoint
 
 from .blocks import DecoderOnlyTransformerLayer, _autocast_ctx
 
@@ -93,9 +96,33 @@ class GRUEncoder(nn.Module):
             # x: [B, T, C, W]
             shape = x.shape[:-1]  # [B, T, C]
             flat = x.reshape(-1, self.W, 1)  # [B*T*C, W, 1]
-            _, hidden = self.gru(flat)  # hidden: [num_layers*2, B*T*C, intermediate_dim]
-            # Take last layer's forward and backward hidden states
-            h = torch.cat([hidden[-2], hidden[-1]], dim=-1)  # [B*T*C, intermediate_dim*2]
+            # The GRU over B*T*C independent sequences is the patch-encoder's memory
+            # wall at large batch. Optionally chunk it over the sequence dim and/or
+            # gradient-checkpoint it (recompute in backward). Both are BYTE-IDENTICAL
+            # in the forward output — each sequence is processed independently, so
+            # chunking dim 0 and concatenating the last hidden states is exact, and
+            # checkpointing only trades stored activations for recompute. #322 uses
+            # this to fit global batch 1024 on a single 24 GB card (GRU bwd-activation
+            # storage at 65 k sequences is what OOMs otherwise). Env-gated + training-
+            # only, so eval and any other caller keep the original behaviour.
+            ckpt = os.environ.get("PATCH_ENC_CKPT", "0") == "1"
+            nchunk = max(1, int(os.environ.get("PATCH_ENC_CHUNK", "1")))
+
+            def _last_hidden(fl):
+                _, hidden = self.gru(fl)  # [num_layers*2, N, intermediate_dim]
+                return torch.cat([hidden[-2], hidden[-1]], dim=-1)  # [N, dim*2]
+
+            if ckpt and self.training:
+                if nchunk > 1:
+                    h = torch.cat(
+                        [torch.utils.checkpoint.checkpoint(
+                            _last_hidden, fl, use_reentrant=False)
+                         for fl in torch.chunk(flat, nchunk, dim=0)], dim=0)
+                else:
+                    h = torch.utils.checkpoint.checkpoint(
+                        _last_hidden, flat, use_reentrant=False)
+            else:
+                h = _last_hidden(flat)
             h = self.proj(h)  # [B*T*C, H]
             h = h.reshape(*shape, -1)  # [B, T, C, H]
             s = self.skip(x)
