@@ -66,3 +66,19 @@ recipe at 4× batch. Measured single-GPU @1024 checkpointed (true allocated / st
 - all-time (chunk=2): **12.43 GB**, 3.53 s/step (~0.28 sps) → ~12 h / 12.5k.
 Both well within 24 GB. Total ≈ 39 h on GPU 1 (β first, then the 3 all-time arms),
 neighbour-safe. DDP scripts retained but unused.
+
+### Batch-1024 divergence at #320's LR → fixed with LR 5e-4
+The first β·0.8% backbone at batch 1024 with #320's LR (1e-3, constant) trained healthily
+to ~step 1500 then **diverged**: loss 6→13, gap collapsed 1.2→0.2, R²_rand → negative,
+retrieval AUC/Top1 collapsed by ~step 4500 (vs #320 b256 which drops monotonically to
+loss 2.25, gap ~1.05, R² 0.997). Diagnosis:
+- **Not the GRU checkpointing.** A batch-256 run *with* checkpointing reproduces #320's
+  stable batch-256 trajectory (loss 5.54 / gap 0.83 / R² 0.93 / AUC 1.0 at step 120) —
+  forward + gradients are byte-correct.
+- A genuine **large-batch optimization instability** (4× batch, ~14× pooled negatives).
+  Per CLAUDE.md (fix divergence via optimization/normalization, never grad-clip), LR was
+  halved 1e-3 → **5e-4**: the collapse is gone (gap rising 0.94→1.05, R² 0.95+, AUC 1.0
+  through step 1800; loss rises mildly then plateaus, consistent with the larger
+  negative-count InfoNCE floor, not a collapse). 5e-4 is the **minimal** change to make
+  batch-1024 trainable — reported as a recipe deviation. The full 12.5k-step β·0.8% run
+  is the live stability confirmation through the ~4500 danger zone.

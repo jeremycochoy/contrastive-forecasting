@@ -37,7 +37,7 @@ SAMPLER=$!
 trap 'kill $SAMPLER 2>/dev/null' EXIT
 
 python3 -u "$TRAIN" \
-  --batch-size "$BS" --device cuda --total-steps "$STEPS" --lr 1e-3 --weight-decay 0.1 \
+  --batch-size "$BS" --device cuda --total-steps "$STEPS" --lr "${LR:-1e-3}" --weight-decay 0.1 \
   --adam-beta1 0.9 --adam-beta2 0.98 --seed "$SEED" \
   --save-every 1000000 --save-dir "$RUNS" --run-name "$NAME" --log-every 10 \
   --hf-repo jeremycochoy/gift-pretrain-full-4096 --hf-path small_v1 \

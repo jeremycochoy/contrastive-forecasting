@@ -14,6 +14,11 @@
 set -uo pipefail
 ARM="${1:?arm=beta|alltime}"; MIX="${2:?mix}"; TAG="${3:?tag}"; STEPS="${4:?steps}"
 SAVE_EVERY="${5:-2500}"; export XSHH_ALLT_CHUNK="${6:-2}"; GPU="${7:-1}"
+# #320's LR (1e-3) catastrophically diverged at batch 1024 (loss 6→13, gap→0.2,
+# R²→neg by step ~4500). LR 5e-4 keeps the representation healthy (gap rising, R²
+# 0.95+, AUC 1.0). This is the minimal optimization change to make batch-1024
+# trainable; everything else is byte-identical to #320. Env-overridable.
+LR="${LR:-5e-4}"
 SEED=20260520
 case "$ARM" in
   beta)    SHAPE=cosine_similarity_batch_full_hh_negs;            NAME="bb_beta_${TAG}_6Lf_b1024" ;;
@@ -34,9 +39,9 @@ log(){ echo "[$(date '+%m-%d %H:%M:%S')] [b1024-1gpu $ARM $TAG] $*"; }
 tlog="$RES/run_${NAME}.log"
 RESUME=""; latest=$(ls -t "$RUNS/${NAME}"_*k.pth 2>/dev/null | head -1)
 [ -n "$latest" ] && { RESUME="--resume $latest"; log "RESUME from $(basename "$latest")"; }
-log "BB START shape=$SHAPE batch=1024 (1-GPU, GRU-ckpt) forked-arma mix=$MIX allt_chunk=$XSHH_ALLT_CHUNK steps=$STEPS gpu=$GPU ${RESUME}"
+log "BB START shape=$SHAPE batch=1024 (1-GPU, GRU-ckpt) lr=$LR forked-arma mix=$MIX allt_chunk=$XSHH_ALLT_CHUNK steps=$STEPS gpu=$GPU ${RESUME}"
 python3 -u "$TRAIN" $RESUME \
-  --batch-size 1024 --device cuda --total-steps "$STEPS" --lr 1e-3 --weight-decay 0.1 \
+  --batch-size 1024 --device cuda --total-steps "$STEPS" --lr "$LR" --weight-decay 0.1 \
   --adam-beta1 0.9 --adam-beta2 0.98 --seed "$SEED" \
   --save-every "$SAVE_EVERY" --save-dir "$RUNS" --run-name "$NAME" --log-every 100 \
   --hf-repo jeremycochoy/gift-pretrain-full-4096 --hf-path small_v1 \
