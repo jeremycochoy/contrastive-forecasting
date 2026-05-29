@@ -19,8 +19,13 @@ SAVE_EVERY="${5:-2500}"; export XSHH_ALLT_CHUNK="${6:-2}"; GPU="${7:-1}"
 # 0.95+, AUC 1.0). This is the minimal optimization change to make batch-1024
 # trainable; everything else is byte-identical to #320. Env-overridable.
 LR="${LR:-5e-4}"
-# QK-norm (PaLM/Gemma): set QK_NORM=1 to enable --qk-norm (bounds attention logits).
-QK_FLAG=""; [ "${QK_NORM:-0}" = "1" ] && QK_FLAG="--qk-norm"
+# Attention-stabilisation flags (#322 collapse fixes), env-gated:
+#   QK_NORM=1       --qk-norm       RMSNorm on Q,K (bounds attention logits)
+#   ATTN_OUT_NORM=1 --attn-out-norm RMSNorm on the attention output sa_out
+#                                   (Gemma2-style sandwich norm, attention only)
+QK_FLAG=""
+[ "${QK_NORM:-0}" = "1" ] && QK_FLAG="$QK_FLAG --qk-norm"
+[ "${ATTN_OUT_NORM:-0}" = "1" ] && QK_FLAG="$QK_FLAG --attn-out-norm"
 SEED=20260520
 case "$ARM" in
   beta)    SHAPE=cosine_similarity_batch_full_hh_negs;            NAME="bb_beta_${TAG}_6Lf_b1024" ;;

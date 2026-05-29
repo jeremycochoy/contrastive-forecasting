@@ -111,7 +111,6 @@ class DecoderOnlyTransformerLayer(nn.Module):
                  ffn_dtype: str = "fp32",
                  conv_dtype: Optional[str] = None,
                  qk_norm: bool = False,
-                 v_norm: bool = False,
                  attn_out_norm: bool = False,
                  log_attn_amplitude: bool = False) -> None:
         factory_kwargs = {'device': device, 'dtype': dtype}
@@ -162,17 +161,18 @@ class DecoderOnlyTransformerLayer(nn.Module):
         # in_proj/out_proj weights (so ON = OFF + q/k RMSNorm only) plus the two
         # small RMSNorm γ vectors below; same fused kernel, ~no perf cost.
         self.qk_norm = bool(qk_norm)
-        self.v_norm = bool(v_norm)              # RMSNorm on V (the value path — #322's collapse driver)
-        self.attn_out_norm = bool(attn_out_norm)  # NormFormer-style LN on the attention output (sa_out)
+        # Sandwich norm on the ATTENTION OUTPUT only (Gemma2-style post-sublayer
+        # RMSNorm): bounds sa_out — #322's residual-runaway driver — before it
+        # enters the residual stream. Attention only (the FFN output does not grow,
+        # measured); add to the FFN later only if it does.
+        self.attn_out_norm = bool(attn_out_norm)
         self._attn_dropout_p = float(dropout)
         head_dim = d_model // nhead
         if self.qk_norm:
             self.q_norm = nn.RMSNorm(head_dim, **factory_kwargs)
             self.k_norm = nn.RMSNorm(head_dim, **factory_kwargs)
-        if self.v_norm:
-            self.v_norm_rms = nn.RMSNorm(head_dim, **factory_kwargs)
         if self.attn_out_norm:
-            self.attn_out_ln = nn.LayerNorm(d_model, **factory_kwargs)
+            self.attn_out_rms = nn.RMSNorm(d_model, **factory_kwargs)
         # Implementation of Feedforward model
         self.linear1 = nn.Linear(d_model, dim_feedforward, bias=bias, **factory_kwargs)
         self.dropout = nn.Dropout(dropout)
@@ -314,7 +314,7 @@ class DecoderOnlyTransformerLayer(nn.Module):
     # self-attention block
     def _sa_block(self, x: Tensor,
                   attn_mask: Optional[Tensor], key_padding_mask: Optional[Tensor], is_causal: bool = False) -> Tensor:
-        if self.qk_norm or self.v_norm:
+        if self.qk_norm:
             out = self._attn_qkv(x, attn_mask, key_padding_mask, is_causal)
         elif self.attn_dtype != self.residual_dtype:
             with _autocast_ctx(self.attn_dtype):
@@ -335,20 +335,20 @@ class DecoderOnlyTransformerLayer(nn.Module):
         # then optionally NormFormer-normalise it before it enters the residual.
         self._maybe_log_attn_amplitude(x, out)
         if self.attn_out_norm:
-            out = self.attn_out_ln(out)
+            out = self.attn_out_rms(out)
         return self.dropout1(out)
 
     def _attn_qkv(self, x: Tensor, attn_mask: Optional[Tensor],
                   key_padding_mask: Optional[Tensor],
                   is_causal: bool = False) -> Tensor:
         """SDPA self-attention reusing self.self_attn's in_proj/out_proj weights,
-        with optional RMSNorm on Q,K (qk_norm) and/or V (v_norm). Same fused
-        F.scaled_dot_product_attention kernel nn.MultiheadAttention dispatches to
-        (no perf regression). DropKey/causal additive mask (B*nhead,T,T) → reshaped
-        to (B,nhead,T,T). key_padding_mask unused here (fixed-length) — asserted None.
-        Returns the RAW attention output in residual_dtype; the caller does the
-        amplitude logging, optional output-norm, and dropout."""
-        assert key_padding_mask is None, "qkv-norm path: key_padding_mask unsupported"
+        with RMSNorm on Q,K (QK-norm). Same fused F.scaled_dot_product_attention
+        kernel nn.MultiheadAttention dispatches to (no perf regression).
+        DropKey/causal additive mask (B*nhead,T,T) → reshaped to (B,nhead,T,T).
+        key_padding_mask unused here (fixed-length) — asserted None. Returns the RAW
+        attention output in residual_dtype; the caller does the amplitude logging,
+        optional attention-output-norm, and dropout."""
+        assert key_padding_mask is None, "qk-norm path: key_padding_mask unsupported"
         mha = self.self_attn
         W = mha.in_proj_weight
         bsum = mha.in_proj_bias
@@ -367,8 +367,6 @@ class DecoderOnlyTransformerLayer(nn.Module):
             if self.qk_norm:
                 q = self.q_norm(q).to(vdt)
                 k = self.k_norm(k).to(vdt)
-            if self.v_norm:
-                v = self.v_norm_rms(v).to(vdt)
             am = attn_mask
             if am is not None:
                 if am.dim() == 3:                                  # (B*nhead,T,T) → (B,nhead,T,T)
@@ -517,7 +515,6 @@ class TransformerBlock(nn.Module):
                  forecaster_kind: str = "transformer",
                  cpc_k_steps: int = 12,
                  qk_norm: bool = False,
-                 v_norm: bool = False,
                  attn_out_norm: bool = False,
                  log_attn_amplitude: bool = False):
         super().__init__()
@@ -577,7 +574,6 @@ class TransformerBlock(nn.Module):
                 ffn_dtype=ffn_dtype,
                 conv_dtype=conv_dtype,
                 qk_norm=qk_norm,
-                v_norm=v_norm,
                 attn_out_norm=attn_out_norm,
                 log_attn_amplitude=log_attn_amplitude,
             ) for _ in range(num_encoder_layers)
@@ -694,7 +690,6 @@ class TransformerBlock(nn.Module):
                     ffn_dtype=ffn_dtype,
                     conv_dtype=conv_dtype,
                     qk_norm=qk_norm,
-                    v_norm=v_norm,
                     attn_out_norm=attn_out_norm,
                     log_attn_amplitude=log_attn_amplitude,
                 ) for _ in range(num_layers)

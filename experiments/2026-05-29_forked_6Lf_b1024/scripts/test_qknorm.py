@@ -16,11 +16,11 @@ from src.blocks import DecoderOnlyTransformerLayer, TransformerBlock
 
 torch.manual_seed(0)
 D, NH, T, B = 384, 6, 16, 4
-mk = lambda qk=False, v=False, ao=False: DecoderOnlyTransformerLayer(
+mk = lambda qk=False, ao=False: DecoderOnlyTransformerLayer(
     d_model=D, nhead=NH, dim_feedforward=1536, dropout=0.0, activation="gelu",
     batch_first=True, norm_first=True, bias=False, depthwise_conv=3,
     residual_dtype="fp32", attn_dtype="fp32", ffn_dtype="fp32",
-    qk_norm=qk, v_norm=v, attn_out_norm=ao).eval()
+    qk_norm=qk, attn_out_norm=ao).eval()
 
 off = mk(False)
 on = mk(True)
@@ -57,9 +57,8 @@ print(f"max|QK logit| un-normed (blown-up weights) = {maxlogit(off, False):.1f}"
 print(f"max|QK logit| RMSNorm-QK                    = {maxlogit(real, True):.1f}")
 print("DONE")
 
-# v_norm / attn_out_norm: forward runs and is finite (and off-by-default unchanged).
-for name, lyr in [("v_norm", mk(v=True)), ("qkv_norm", mk(qk=True, v=True)),
-                  ("attn_out_norm", mk(ao=True)), ("qkv+aon", mk(qk=True, v=True, ao=True))]:
+# attn_out_norm (RMSNorm on the attention output): forward runs and is finite.
+for name, lyr in [("attn_out_norm", mk(ao=True)), ("qk+attn_out", mk(qk=True, ao=True))]:
     lyr.load_state_dict(off.state_dict(), strict=False)
     with torch.no_grad():
         o = lyr(x, tgt_mask=causal, tgt_is_causal=True)
