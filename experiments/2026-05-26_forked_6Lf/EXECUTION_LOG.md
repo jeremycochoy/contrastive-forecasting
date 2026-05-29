@@ -69,6 +69,28 @@ After β·10% completed (all 4 cells), the downstream poller was paused cleanly
 wasting GPU on a starved stream and to stop hammering a degraded link. A
 `results/.wait_hf` sentinel switches the watcher into HF-wait mode: it probes the
 HF CDN every ~3 min and exits `EVENT=hf_recovered` once sustained throughput
-≥ 5 MB/s; on that event both lanes resume (`backbones.sh` for allt·0.8%; the
-downstream poller for β·0.8%, allt·50%, allt·10%, allt·0.8%). All cells are
-idempotent (skip on existing `_FINAL.pth` / `summary.txt`), so resume is safe.
+≥ 5 MB/s; on that event both lanes resume.
+
+**Vast.ai offload for the q-heads (user request, 2026-05-28).** With elisa still
+slow, a 1× RTX 4090 prosumer instance (`vastrun-provision 38189788`, label
+`320-qheads`, $1.33/h, 0.997 reliability) trained the β·0.8% and allt·50%
+q-heads (4 q-heads, $13.72 total — within the original $14.77 credit). Vast HF
+throughput was steady ~7.5 MB/s vs elisa's degraded ~1 MB/s, giving the q-heads
+real compute (≈3.2 sps). FINALs were pulled back via `scp` to elisa for the
+GIFT-Eval step (local data, no HF needed); the instance was destroyed as soon as
+q-head 4 finished. The elisa downstream then ran in parallel: β·0.8% evals on
+GPU 0, allt·10% / allt·0.8% q-heads + evals on GPU 1. When GPU 0 freed I
+launched a one-off `downstream_6Lf.sh` on it for the allt·0.8% **6L head only**
+(disjoint from GPU 1's 2L head), halving allt·0.8%'s wall time.
+
+**Backbone-script trap, fixed.** The original `train_backbone_forked_6Lf.sh`
+copied `best_loss → FINAL` on **any** exit, so a network-blip crash near step
+~3 600 produced a "DONE" FINAL with a barely-trained backbone. Now FINAL is only
+created on `rc == 0`; on crash the script keeps the periodic checkpoints so the
+next launch resumes from the latest. `--save-every` was lowered 5 000 → 2 000 so a
+typical inter-blip gap (~1 h at 0.5 sps) reliably yields at least one resumable
+checkpoint. Watcher failure patterns were also tightened — generic `Traceback` /
+`RuntimeError` matched stale HF-retry tracebacks the training had survived;
+the watcher now fires only on `No space left`, `CUDA out of memory`,
+`FAILED no checkpoint`, `QH FAILED`. Both fixes were validated on allt·0.8%'s
+clean 50 k completion (~05:30 → 09:30 wall on a recovered network).
