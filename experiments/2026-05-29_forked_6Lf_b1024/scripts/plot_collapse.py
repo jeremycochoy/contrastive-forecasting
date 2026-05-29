@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""#322 — visualise the batch-1024 divergence at LR 1e-3 and its fix at LR 5e-4.
+"""#322 — visualise the batch-1024 collapses at BOTH LR 1e-3 and 5e-4 (5e-4 only delays it).
 
 Three β·0.8% trajectories on shared axes:
   - #320 batch 256, LR 1e-3  (stable reference)
@@ -74,10 +74,10 @@ diverged = by_lr.get("0.001") or by_lr.get("1e-3")
 fix = by_lr.get("0.0005") or by_lr.get("5e-4")
 if diverged:
     s = [p[0] for p in diverged]; l = [p[1] for p in diverged]; g = [p[2] for p in diverged]
-    series.append(("b1024, lr 1e-3 (DIVERGES)", s, l, g, "#d62728", "-"))
+    series.append(("b1024 lr 1e-3 (collapses ~step 4500)", s, l, g, "#d62728", "-"))
 if fix:
     s = [p[0] for p in fix]; l = [p[1] for p in fix]; g = [p[2] for p in fix]
-    series.append(("b1024, lr 5e-4 (fix)", s, l, g, "#1f77b4", "-"))
+    series.append(("b1024 lr 5e-4 (collapses ~step 6000)", s, l, g, "#1f77b4", "-"))
 
 for label, s, l, g, c, ls in series:
     # drop step 0 for log axes
@@ -97,7 +97,7 @@ axG.set_xlabel("training step (log)"); axG.set_ylabel("gap (forecast↔future ma
 axG.set_title("Representation health (gap) — collapse vs handled")
 axG.grid(True, which="both", alpha=0.3); axG.legend(fontsize=9)
 
-fig.suptitle("#322 β·0.8% backbone: batch-1024 divergence at LR 1e-3 and its fix at LR 5e-4",
+fig.suptitle("#322 β·0.8% backbone: batch-1024 collapses at BOTH LR 1e-3 and 5e-4 (5e-4 only delays it)",
              fontsize=12)
 fig.tight_layout(rect=[0, 0, 1, 0.96])
 fig.savefig(OUT, dpi=120)
