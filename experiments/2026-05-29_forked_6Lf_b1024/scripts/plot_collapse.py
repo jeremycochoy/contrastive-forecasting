@@ -12,6 +12,7 @@ collapse. Data: the b1024 runs are parsed from the (appended) training log
 [1e-3 section then 5e-4 section]; b256 from #320's losses CSV.
 """
 import csv
+import os
 import re
 import matplotlib
 matplotlib.use("Agg")
@@ -78,6 +79,13 @@ if diverged:
 if fix:
     s = [p[0] for p in fix]; l = [p[1] for p in fix]; g = [p[2] for p in fix]
     series.append(("b1024 lr 5e-4 (collapses ~step 6000)", s, l, g, "#1f77b4", "-"))
+# τ=0.20 probe (still running): read from its smoke losses CSV
+TAU_CSV = f"{ROOT}/2026-05-29_forked_6Lf_b1024/runs/smoke_beta_b1024_losses.csv"
+if os.path.exists(TAU_CSV):
+    ts, tl, tg = read_csv_curve(TAU_CSV)
+    if ts:
+        series.append((f"b1024 lr 5e-4 τ=0.20 (probe, running, @step {ts[-1]})",
+                       ts, tl, tg, "#9467bd", "-"))
 
 for label, s, l, g, c, ls in series:
     # drop step 0 for log axes
