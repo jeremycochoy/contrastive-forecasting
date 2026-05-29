@@ -1,12 +1,15 @@
 # #320 — Forked arms × 6-layer forecaster
 
-**Verdict.** Making the forecaster deeper does **not** help the fork do its
-job. The fork was put in to break an **indexing-shortcut mode collapse**
-during training; the 1L sweep held that pressure best on β·10% and
-allt·0.8%·2L, and that's exactly where 6Lf regresses hardest — past
-seasonal-naive in places. Cells where the 1L fork had no grip get modest help,
-but none reaches β (the #309 baseline recipe, full-97 GM-Relative MASE
-≈ 1.33).
+**Verdict.** Mixed, and the direction depends on which cell you treat as the
+test. The fork was put in to break an **indexing-shortcut mode collapse**
+during training. The cell #318 used to *measure* that denial — forked β·0.8%,
+where the latent participation ratio jumped from β=3.17 to 10.19 — improves
+reliably on both 6Lf q-heads, and it's the only row of the matrix to do so.
+The cell that *won* GIFT-Eval at 1L — forked β·10% — regresses sharply under
+6Lf, past seasonal-naive in places. No 6Lf cell crosses β (the #309 baseline
+recipe, full-97 GM-Relative MASE ≈ 1.33). So 6Lf helps the cell that anchored
+the shortcut hypothesis and hurts the cell that anchored the GIFT-Eval lift —
+which of those two is "the fork doing its job" is the open question.
 
 ![Figure 1 — full-97 GM-Relative MASE per arm × q-head, 1L vs 6Lf forecaster.
 Whisker = bootstrap 90 % CI on the GM over its 97 configs. β shown as 4
@@ -30,8 +33,8 @@ was the one cell that cleared β on GIFT-Eval.
 
 The forecaster is the small transformer between the encoder and the q-head;
 its depth is the only thing this card changes (1 → 6 layers, encoder
-unchanged). The question: does giving the forecaster more capacity help the
-fork hold the encoder off the shortcut, or take the pressure off?
+unchanged). The question: does giving the forecaster more capacity change
+*whether*, and *where*, the fork holds the encoder off the shortcut?
 
 ## What happened
 
@@ -39,20 +42,22 @@ fork hold the encoder off the shortcut, or take the pressure off?
 paired-bootstrap 90 % CI; green = reliably better, red = reliably worse,
 grey = inconclusive.](plots/forecaster_delta.png)
 
-Across the GM, the deeper forecaster takes the pressure off. On the cells
-where the 1L fork held it best, the GM regresses back toward β; only the
-cells where the 1L fork had already failed to help get any improvement.
+Across the GM, the deeper forecaster moves *which* (arm × mix × head) cell
+the fork's signal shows up in, rather than removing it. Two clean
+opposites split the matrix.
 
-(One caveat up front: this card measures GIFT-Eval GM, not the encoder
-participation ratio — so "the shortcut returns under 6Lf" is the simplest
-reading of the regression, not a direct measurement on this card.)
+The cell #318 *measured* the shortcut denial on — forked β·0.8% — is the
+only row that improves on both 6Lf q-heads. The cell that *won* GIFT-Eval
+at 1L — forked β·10% — drops from only-cell-above-β at 1L to a reliable
+regression on both 6Lf heads. The other all-time arms mostly regress;
+allt·0.8%·2L (1L's best all-time cell) lands past seasonal-naive — the
+1.0 floor a trivial prior beats — and is the worst single cell of the 6Lf
+matrix. Of the 10 (arm, head) cells: 6 reliably worse, 3 better, 1
+inconclusive.
 
-Where the 1L fork held the most pressure, 6Lf gives it back. β·10% goes from
-only-cell-above-β at 1L to worst row in the 6Lf matrix. The best 1L all-time
-cell (allt·0.8%·2L) lands past seasonal-naive — i.e. a 1.0 floor a trivial
-prior beats. Where the 1L fork had no grip, 6Lf helps modestly — β·0.8% on
-both heads, allt·50% on the 2L head — but none crosses β. Of the 10 (arm,
-head) cells: 6 reliably worse, 3 better, 1 inconclusive.
+(One caveat: this card measures GIFT-Eval GM, not the encoder participation
+ratio. "Where the fork's signal shows up" is the simplest reading of which
+cells move which way; a direct PR re-measurement under 6Lf would settle it.)
 
 **Forward-looking (author's reading, not in the data).** β·0.8% on the 6L
 q-head is 6Lf's closest approach to v11c, and the only reliably-better cell
@@ -64,8 +69,9 @@ per arm, at its own best head; dashed line = 1L #318 reference, solid =
 6Lf this card; green band = β 2-seed range (best head per seed); purple ring =
 v11c; black dashed ring = seasonal-naive.](plots/perdomain.png)
 
-The radar makes the per-arm shifts legible: most arms move outward on most
-domains under 6Lf, matching the un-denial picture in Figures 1–2.
+The radar makes the per-arm shifts legible: four of the five arms move
+outward (worse) on most domains under 6Lf at their best head; forked β·0.8%
+is the one arm that moves inward — consistent with the split in Figures 1–2.
 
 ## Scoreboard
 
