@@ -111,6 +111,8 @@ class DecoderOnlyTransformerLayer(nn.Module):
                  ffn_dtype: str = "fp32",
                  conv_dtype: Optional[str] = None,
                  qk_norm: bool = False,
+                 v_norm: bool = False,
+                 attn_out_norm: bool = False,
                  log_attn_amplitude: bool = False) -> None:
         factory_kwargs = {'device': device, 'dtype': dtype}
         super().__init__()
@@ -160,11 +162,17 @@ class DecoderOnlyTransformerLayer(nn.Module):
         # in_proj/out_proj weights (so ON = OFF + q/k RMSNorm only) plus the two
         # small RMSNorm γ vectors below; same fused kernel, ~no perf cost.
         self.qk_norm = bool(qk_norm)
+        self.v_norm = bool(v_norm)              # RMSNorm on V (the value path — #322's collapse driver)
+        self.attn_out_norm = bool(attn_out_norm)  # NormFormer-style LN on the attention output (sa_out)
         self._attn_dropout_p = float(dropout)
+        head_dim = d_model // nhead
         if self.qk_norm:
-            head_dim = d_model // nhead
             self.q_norm = nn.RMSNorm(head_dim, **factory_kwargs)
             self.k_norm = nn.RMSNorm(head_dim, **factory_kwargs)
+        if self.v_norm:
+            self.v_norm_rms = nn.RMSNorm(head_dim, **factory_kwargs)
+        if self.attn_out_norm:
+            self.attn_out_ln = nn.LayerNorm(d_model, **factory_kwargs)
         # Implementation of Feedforward model
         self.linear1 = nn.Linear(d_model, dim_feedforward, bias=bias, **factory_kwargs)
         self.dropout = nn.Dropout(dropout)
@@ -306,9 +314,9 @@ class DecoderOnlyTransformerLayer(nn.Module):
     # self-attention block
     def _sa_block(self, x: Tensor,
                   attn_mask: Optional[Tensor], key_padding_mask: Optional[Tensor], is_causal: bool = False) -> Tensor:
-        if self.qk_norm:
-            return self._sa_block_qknorm(x, attn_mask, key_padding_mask, is_causal)
-        if self.attn_dtype != self.residual_dtype:
+        if self.qk_norm or self.v_norm:
+            out = self._attn_qkv(x, attn_mask, key_padding_mask, is_causal)
+        elif self.attn_dtype != self.residual_dtype:
             with _autocast_ctx(self.attn_dtype):
                 out = self.self_attn(x, x, x,
                                      attn_mask=attn_mask,
@@ -317,28 +325,30 @@ class DecoderOnlyTransformerLayer(nn.Module):
                                      need_weights=False)[0]
             # Cast back to residual_dtype before residual ADD.
             out = out.to(_DTYPE_MAP[self.residual_dtype])
-            self._maybe_log_attn_amplitude(x, out)
-            return self.dropout1(out)
         else:
             out = self.self_attn(x, x, x,
                                  attn_mask=attn_mask,
                                  key_padding_mask=key_padding_mask,
                                  is_causal=is_causal,
                                  need_weights=False)[0]
-            self._maybe_log_attn_amplitude(x, out)
-            return self.dropout1(out)
+        # Log the RAW attention output (so sa_out shows the value-path growth),
+        # then optionally NormFormer-normalise it before it enters the residual.
+        self._maybe_log_attn_amplitude(x, out)
+        if self.attn_out_norm:
+            out = self.attn_out_ln(out)
+        return self.dropout1(out)
 
-    def _sa_block_qknorm(self, x: Tensor, attn_mask: Optional[Tensor],
-                         key_padding_mask: Optional[Tensor],
-                         is_causal: bool = False) -> Tensor:
-        """Self-attention with RMSNorm on Q,K (QK-norm). Reuses self.self_attn's
-        in_proj / out_proj weights — so ON == OFF + the q/k RMSNorm only — and runs
-        the SAME fused F.scaled_dot_product_attention kernel nn.MultiheadAttention
-        dispatches to (no naive T×T materialisation, no perf regression). The
-        DropKey / causal additive mask is (B*nhead, T, T); SDPA wants
-        (B, nhead, T, T), so reshape. key_padding_mask is unused in this project
-        (fixed-length sequences) — asserted None."""
-        assert key_padding_mask is None, "qk_norm path: key_padding_mask unsupported"
+    def _attn_qkv(self, x: Tensor, attn_mask: Optional[Tensor],
+                  key_padding_mask: Optional[Tensor],
+                  is_causal: bool = False) -> Tensor:
+        """SDPA self-attention reusing self.self_attn's in_proj/out_proj weights,
+        with optional RMSNorm on Q,K (qk_norm) and/or V (v_norm). Same fused
+        F.scaled_dot_product_attention kernel nn.MultiheadAttention dispatches to
+        (no perf regression). DropKey/causal additive mask (B*nhead,T,T) → reshaped
+        to (B,nhead,T,T). key_padding_mask unused here (fixed-length) — asserted None.
+        Returns the RAW attention output in residual_dtype; the caller does the
+        amplitude logging, optional output-norm, and dropout."""
+        assert key_padding_mask is None, "qkv-norm path: key_padding_mask unsupported"
         mha = self.self_attn
         W = mha.in_proj_weight
         bsum = mha.in_proj_bias
@@ -351,24 +361,26 @@ class DecoderOnlyTransformerLayer(nn.Module):
             q = q.view(B, T, self.nhead, hd).transpose(1, 2)      # [B, nhead, T, hd]
             k = k.view(B, T, self.nhead, hd).transpose(1, 2)
             v = v.view(B, T, self.nhead, hd).transpose(1, 2)
-            # QK-norm: RMSNorm over head_dim, then back to compute dtype (RMSNorm
-            # autocasts to fp32; SDPA needs q,k,v same dtype).
-            q = self.q_norm(q).to(v.dtype)
-            k = self.k_norm(k).to(v.dtype)
+            # RMSNorm over head_dim (autocasts to fp32) then back to compute dtype
+            # so SDPA sees q,k,v in one dtype.
+            vdt = v.dtype
+            if self.qk_norm:
+                q = self.q_norm(q).to(vdt)
+                k = self.k_norm(k).to(vdt)
+            if self.v_norm:
+                v = self.v_norm_rms(v).to(vdt)
             am = attn_mask
             if am is not None:
                 if am.dim() == 3:                                  # (B*nhead,T,T) → (B,nhead,T,T)
                     am = am.reshape(B, self.nhead, T, T)
-                am = am.to(v.dtype)
+                am = am.to(vdt)
             out = torch.nn.functional.scaled_dot_product_attention(
                 q, k, v, attn_mask=am,
                 dropout_p=(self._attn_dropout_p if self.training else 0.0),
                 is_causal=(is_causal and am is None))
             out = out.transpose(1, 2).reshape(B, T, d)             # [B, T, d]
             out = torch.nn.functional.linear(out, mha.out_proj.weight, mha.out_proj.bias)
-        out = out.to(_DTYPE_MAP[self.residual_dtype])
-        self._maybe_log_attn_amplitude(x, out)
-        return self.dropout1(out)
+        return out.to(_DTYPE_MAP[self.residual_dtype])
 
     def _maybe_log_attn_amplitude(self, sa_in: Tensor, sa_out: Tensor) -> None:
         """Diagnostic-only: record max-abs of the pre-softmax QK^T logits
@@ -505,6 +517,8 @@ class TransformerBlock(nn.Module):
                  forecaster_kind: str = "transformer",
                  cpc_k_steps: int = 12,
                  qk_norm: bool = False,
+                 v_norm: bool = False,
+                 attn_out_norm: bool = False,
                  log_attn_amplitude: bool = False):
         super().__init__()
 
@@ -563,6 +577,8 @@ class TransformerBlock(nn.Module):
                 ffn_dtype=ffn_dtype,
                 conv_dtype=conv_dtype,
                 qk_norm=qk_norm,
+                v_norm=v_norm,
+                attn_out_norm=attn_out_norm,
                 log_attn_amplitude=log_attn_amplitude,
             ) for _ in range(num_encoder_layers)
         ])
@@ -678,6 +694,8 @@ class TransformerBlock(nn.Module):
                     ffn_dtype=ffn_dtype,
                     conv_dtype=conv_dtype,
                     qk_norm=qk_norm,
+                    v_norm=v_norm,
+                    attn_out_norm=attn_out_norm,
                     log_attn_amplitude=log_attn_amplitude,
                 ) for _ in range(num_layers)
             ])

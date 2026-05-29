@@ -290,6 +290,16 @@ def parse_args():
                         "the same projection weights + q/k RMSNorm (same fused "
                         "kernel, ~no perf cost). Targets the batch-1024 "
                         "activation-amplitude divergence (#322).")
+    p.add_argument("--v-norm", action="store_true",
+                   help="RMSNorm on V per head (combine with --qk-norm for full "
+                        "QKV-norm). Bounds the value path — the attention OUTPUT "
+                        "(sa_out) is #322's residual-runaway driver (QK-norm alone "
+                        "bounds logits but not sa_out). Uses the same SDPA path.")
+    p.add_argument("--attn-out-norm", action="store_true",
+                   help="NormFormer-style LayerNorm on the attention output "
+                        "(sa_out) before the residual add — bounds sa_out directly "
+                        "regardless of V/out_proj magnitude. The most complete fix "
+                        "for #322's residual runaway. Off = byte-identical.")
     p.add_argument("--tau", type=float, default=None,
                    help="Contrastive temperature. None = use the LOSS_SPEC "
                         "default (0.07). Used by 2026-05-02_exp_realonly_4096_smaller_tau_sweep.")
@@ -741,6 +751,8 @@ def main():
     model_config["forecaster_kind"] = args.forecaster_kind
     model_config["cpc_k_steps"] = args.cpc_k_steps
     model_config["qk_norm"] = bool(args.qk_norm)
+    model_config["v_norm"] = bool(args.v_norm)
+    model_config["attn_out_norm"] = bool(args.attn_out_norm)
     model_config["log_attn_amplitude"] = bool(args.log_attn_amplitude)
     # Override the loss_shape from CLI (LOSS_SPEC is a module-level default).
     LOSS_SPEC.train_configuration["loss_shape"] = args.loss_shape

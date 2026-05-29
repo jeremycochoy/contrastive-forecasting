@@ -78,6 +78,8 @@ class ConfigurableModel(torch.nn.Module):
                  forecaster_kind: str = "transformer",
                  cpc_k_steps: int = 12,
                  qk_norm: bool = False,
+                 v_norm: bool = False,
+                 attn_out_norm: bool = False,
                  log_attn_amplitude: bool = False,
                  channel_mixing_kind='simple', channel_mixing_n_heads=8):
         super().__init__()
@@ -203,6 +205,8 @@ class ConfigurableModel(torch.nn.Module):
             forecaster_kind=forecaster_kind,
             cpc_k_steps=cpc_k_steps,
             qk_norm=qk_norm,
+            v_norm=v_norm,
+            attn_out_norm=attn_out_norm,
             log_attn_amplitude=log_attn_amplitude,
         )
         # Override activation if requested
