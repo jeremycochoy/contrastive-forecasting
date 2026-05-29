@@ -2,14 +2,17 @@
 
 **Verdict.** A deeper forecaster does **not** rescue #318's data-side fork. **No
 forked-6Lf config beats β** (best 6Lf cell 1.4006, β = 1.3272, v11c = 1.292).
-Paired-bootstrap on the same 97 configs (so config difficulty cancels) shows the
-6Lf-vs-1L delta is **reliably worse on 7 / 10 cells**, reliably **better on 3**,
-inconclusive on 1. And the harm is not random: **it concentrates exactly where the
-1L fork was strongest** — β·10% on both heads (+0.263 / +0.394) and allt·0.8%
-on both heads (+0.813 / +0.338) — while the modest improvements fall on the arms
-where the 1L fork was already weakest (β·0.8% on both heads, allt·50% on the 2L
-head). Read as a single sentence: the 6L forecaster *un-finds* the 1L fork's two
-local optima, and only marginally improves the cells the 1L fork already missed.
+Paired-bootstrap on the same **97 configs** of GIFT-Eval's full set (so config
+difficulty cancels — but this captures within-config-set spread only, not seed
+variance: every cell is a **single backbone seed**) shows the 6Lf-vs-1L delta is
+**reliably worse on 6 / 10 cells** (whole 90% CI > 0), reliably **better on 3**
+(CI < 0), inconclusive on 1. The harm concentrates on the cells where the 1L fork
+already scored best — β·10% on both heads (+0.263 / +0.394) and allt·0.8% on both
+heads (+0.813 / +0.338) — and especially on the two 1L local optima (β·10%
+overall, allt·0.8%·2L within the all-time arms). The modest improvements fall on
+arms where the 1L fork was already weakest (β·0.8% on both heads, allt·50% on the
+2L head). Read as one sentence: the 6L forecaster *un-finds* the 1L fork's local
+optima, and only marginally improves the cells the 1L fork already missed.
 
 ![full-97 6Lf vs 1L, every arm × {2L, 6L}](plots/gm_summary.png)
 *Full-97 GM-Relative MASE, lower = better. Light = 1L (#318), dark = 6Lf (this
@@ -50,9 +53,10 @@ cancels — isolates the forecaster-depth effect). Green = whole 90% CI < 0
   The other "6Lf-better-than-1L" cells (β·0.8% 2L 1.4369; allt·50% 2L 1.4608)
   are also above β.
 - **Where 1L was best, 6Lf hurts most.** β·10% (the only 1L arm beating β):
-  6Lf worsens it by **+0.263 (2L)** and **+0.394 (6L)** — about a quarter of the
-  way back from β toward seasonal-naive. allt·0.8% 2L (the best 1L *allt* cell
-  at 1.4049): 6Lf worsens it by **+0.813**.
+  6Lf worsens it by **+0.263 (2L)** and **+0.394 (6L)** — about 80% and 120% of
+  the (β − seasonal-naive) gap (0.327), i.e. the 6L head puts β·10% on the
+  *worse* side of seasonal-naive. allt·0.8% 2L (the best 1L *allt* cell at
+  1.4049): 6Lf worsens it by **+0.813** — far past seasonal-naive.
 - **Where 1L was weak, 6Lf helps modestly — but the gain is small.** β·0.8%
   recovers on both heads (−0.093 / −0.041) and allt·50% on the 2L head (−0.176);
   none of these lifts cross β. The remaining cells (allt·10% on both heads,
@@ -60,8 +64,8 @@ cancels — isolates the forecaster-depth effect). Green = whole 90% CI < 0
 - **Head-depth interaction.** Splitting the 10 cells by q-head: on the **2L
   head**, 6Lf helps 3 arms and hurts 2 (one inconclusive); on the **6L head**,
   6Lf reliably hurts **4 of 5 arms** (only β·0.8% improves, and only by 0.041).
-  The pattern is consistent with the deeper forecaster crowding out what a
-  deeper q-head would otherwise add.
+  This is *consistent with* deeper forecaster latents reducing the marginal value
+  of a deeper q-head, but we do not test that mechanism directly.
 
 (Triage-11 mostly agreed in direction with full-97 but was noisy enough to
 flip the sign on individual cells — e.g. allt·10% 2L triage said 6Lf was much
@@ -70,12 +74,16 @@ full-97 read.)
 
 ## Scoreboard — every forked arm × {2L, 6L} q-head
 
-*GM-Relative MASE (lower better; 1.0 = seasonal-naive). **1L** columns reused
-verbatim from #318 (not re-run); **6Lf** is this card. Single backbone seed
-(20260520) per cell, paired 1L↔6Lf — so within-arm Δ on the same 97 configs,
-not absolute standings, is the controlled quantity. 90% CIs on Δ are paired
-bootstraps over the 97 shared configs. **Bold** = reliable (whole CI on one side
-of 0).*
+*GM-Relative MASE = geometric mean over configs of model-MASE ÷
+seasonal-naive-MASE (lower better; 1.0 = parity with seasonal-naive).
+**full-97** = all 97 GIFT-Eval configs; **triage-11** = the noisy fast subset
+used for early signal (carried for continuity with #309 / #315 / #318).
+**1L** columns reused verbatim from #318 (not re-run); **6Lf** is this card.
+Single backbone seed (20260520) per cell, paired 1L↔6Lf — so within-arm Δ on the
+same 97 configs, not absolute standings, is the controlled quantity. 90% CIs on
+Δ are paired bootstraps over the 97 shared configs — they capture within-config
+variation but **not seed noise** (no second seed was run here). **Bold** =
+reliable (whole CI on one side of 0).*
 
 | arm | head | full-97 1L | full-97 6Lf | Δ full | 90% CI on Δ | triage-11 1L | triage-11 6Lf |
 |---|:--:|---:|---:|---:|---|---:|---:|
