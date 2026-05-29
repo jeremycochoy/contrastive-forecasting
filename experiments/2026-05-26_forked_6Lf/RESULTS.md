@@ -1,9 +1,12 @@
 # #320 — Forked arms × 6-layer forecaster
 
-**Verdict.** Making the forecaster deeper does **not** help the fork's
-shortcut-denial; on most arms it undoes it. Wherever #318's 1-layer fork was
-working best, 6Lf hits hardest; only the arms where the 1L fork was already
-weak get any improvement, and none of them cross β.
+**Verdict.** Making the forecaster deeper does **not** help the fork do its
+job. The fork was put in to break an **indexing-shortcut mode collapse**
+during training; the 1L sweep held that pressure best on β·10% and
+allt·0.8%·2L, and that's exactly where 6Lf regresses hardest — past
+seasonal-naive in places. Cells where the 1L fork had no grip get modest help,
+but none reaches β (the #309 baseline recipe, full-97 GM-Relative MASE
+≈ 1.33).
 
 ![Figure 1 — full-97 GM-Relative MASE per arm × q-head, 1L vs 6Lf forecaster.
 Whisker = bootstrap 90 % CI on the GM over its 97 configs. β shown as 4
@@ -11,21 +14,24 @@ horizontal dashed lines = the bounds of each head's 2-seed range.](plots/gm_summ
 
 ## What we asked
 
-A contrastive backbone can satisfy its training objective with a **content-free
-positional shortcut**: a per-series positional fingerprint that keeps the
-representations distinct without learning anything forecastable. #318 set out
-to deny that shortcut, and one of the two routes it tried was data-side: pair
-each sample with a **forked-ARIMA continuation** — same past, different future
-— so position alone can no longer encode the future, and the encoder is forced
-onto content. The 1-layer sweep showed the data-side route worked: one
-configuration lifted clearly above β, the rest tied or fell short.
+A contrastive backbone can satisfy its training objective with an **indexing
+shortcut**: a per-step positional code, *shared across all series*, that buys
+β's cross-time distinctness `cos(h_t, h_l) ≠ 1` at no forecastable-content
+cost. When the encoder takes it, the latent space collapses to a low-rank
+mode — in #318's PR table, β's latent participation ratio is 3.17 vs 384
+available dimensions.
+
+#318 introduced two ways to deny that shortcut. One was data-side: pair each
+sample with a **forked-ARIMA continuation** — same past, different future —
+so position alone can no longer encode the future, and the encoder is pushed
+off the positional code onto actual content. In #318 the denial was visible
+in the latent: forked β·0.8% PR=10.19 vs β=3.17, and that same configuration
+was the one cell that cleared β on GIFT-Eval.
 
 The forecaster is the small transformer between the encoder and the q-head;
 its depth is the only thing this card changes (1 → 6 layers, encoder
-unchanged). The question is whether giving it more capacity **reinforces the
-fork's shortcut-denial** (more arms cross β, the helping ones help further),
-or **undoes it** (the cells the 1L fork was rescuing fall back to baseline or
-worse).
+unchanged). The question: does giving the forecaster more capacity help the
+fork hold the encoder off the shortcut, or take the pressure off?
 
 ## What happened
 
@@ -33,15 +39,20 @@ worse).
 paired-bootstrap 90 % CI; green = reliably better, red = reliably worse,
 grey = inconclusive.](plots/forecaster_delta.png)
 
-Deepening the forecaster **undoes** the fork's denial on the cells where it
-was working, and gives modest improvements only on the cells where the 1L
-fork had already failed to deny the shortcut.
+Across the GM, the deeper forecaster takes the pressure off. On the cells
+where the 1L fork held it best, the GM regresses back toward β; only the
+cells where the 1L fork had already failed to help get any improvement.
 
-Where the 1L fork was strongest, 6Lf hits hardest: β·10% drops from
-only-winner to worst-of-matrix, and allt·0.8% on the 2L head (the best 1L
-all-time cell) lands past seasonal-naive. Where the 1L fork was weakest, 6Lf
-helps modestly — β·0.8% on both heads, allt·50% on the 2L head — but none
-reaches β. Counts: 6 reliably worse, 3 better, 1 inconclusive.
+(One caveat up front: this card measures GIFT-Eval GM, not the encoder
+participation ratio — so "the shortcut returns under 6Lf" is the simplest
+reading of the regression, not a direct measurement on this card.)
+
+Where the 1L fork held the most pressure, 6Lf gives it back. β·10% goes from
+only-cell-above-β at 1L to worst row in the 6Lf matrix. The best 1L all-time
+cell (allt·0.8%·2L) lands past seasonal-naive — i.e. a 1.0 floor a trivial
+prior beats. Where the 1L fork had no grip, 6Lf helps modestly — β·0.8% on
+both heads, allt·50% on the 2L head — but none crosses β. Of the 10 (arm,
+head) cells: 6 reliably worse, 3 better, 1 inconclusive.
 
 **Forward-looking (author's reading, not in the data).** β·0.8% on the 6L
 q-head is 6Lf's closest approach to v11c, and the only reliably-better cell
