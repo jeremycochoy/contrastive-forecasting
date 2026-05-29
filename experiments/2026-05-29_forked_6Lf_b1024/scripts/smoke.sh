@@ -47,7 +47,7 @@ python3 -u "$TRAIN" \
   --encoder-dropkey 0.70 --encoder-dropkey-share-heads --encoder-dropkey-share-layers \
   --depthwise-conv 3 --deprecated-depthwise-conv 0 \
   --loss-shape "$SHAPE" --pos-in-denominator \
-  --tau 0.10 --rev-norm-kind ewma --rev-norm-span 128 --encoder-type gru \
+  --tau "${TAU:-0.10}" --rev-norm-kind ewma --rev-norm-span 128 --encoder-type gru \
   --synth-kind forked-arma --mix-ratio "$MIX" \
   --mixup-p 0.3 --freq-emb-dim 3 --seasonality-emb-dim 3 \
   --residual-dtype fp32 --attn-dtype fp16 --ffn-dtype fp16 --conv-dtype fp16 --patch-emb-dtype fp32 \
