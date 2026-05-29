@@ -1,10 +1,25 @@
 # #322 — Forked arms × 6-layer forecaster, retrained at batch 1024
 
-<!-- WORKING DRAFT. Question / protocol / annex are final; the Verdict, Figures, and
-Scoreboard are filled from the runs as each (arm × head) eval lands. -->
+<!-- WORKING DRAFT. Question / protocol / annex / the stability finding are final; the
+downstream Verdict, Figures, and Scoreboard are filled from the runs as each (arm × head)
+eval lands. -->
 
-**Verdict.** _pending runs — filled once all 5 backbones (batch 1024) are trained and
-each is scored with both q-heads on full-97 + triage-11._
+**Verdict (part 1 of 2 — final).** The one-knob change we set out to make is not one knob.
+Pooling 4× more negatives (batch 256 → 1024) **destabilises #320's recipe**: the encoder's
+self-attention output amplitude runs away (residual stream 38 → 6 400), fp16 then corrupts
+the L2-normalised latents, and the model collapses directionally (cross-series cosine
+0.001 → 0.57, the contrastive gap goes to zero) within ~6 k steps. Recovering a trainable
+batch-1024 model required two standard numerical-stability additions the batch-256 recipe
+never needed — **QK-norm** (RMSNorm on Q, K) to bound the attention logits and a
+**Gemma2-style RMSNorm on the attention output** to bound the residual stream. Both are
+required: either alone still diverges. With both, batch-1024 converges like batch-256
+(amplitudes bounded — qk-logit ~10, residual ~40; gap ~1.03, cross-series cosine ~3e-4).
+
+**Verdict (part 2 of 2 — pending runs).** _Whether the stabilised batch-1024 recipe beats
+#320's batch-256 6Lf scores (or β / v11c) — filled once all 5 backbones are trained and
+scored with both q-heads on full-97 + triage-11. Note the comparison now carries a
+batch ↔ norms confound (see Stability + Protocol); a batch-256 + same-norms control is the
+planned de-confound._
 
 ## What we asked
 
@@ -22,6 +37,53 @@ pooled negatives change *where* the fork helps vs hurts, and does any arm now re
 **β** baseline or **v11c**?
 
 ## What happened
+
+### Stability — the 4× batch collapses, and the fix (the central finding)
+
+The first batch-1024 run (the β·0.8% arm, otherwise #320's recipe) trained normally for
+~5 k steps, then collapsed: the contrastive loss fell below its theoretical floor while
+the **gap** (cos(forecast, future) − cos(forecast, present)) decayed to zero and the
+**cross-series cosine** — which should sit near zero as different series repel — climbed
+0.001 → 0.57. A model whose distinct series all point the same way has stopped encoding
+anything; the loss "improves" only because the floor-subtracted denominator degenerates.
+
+The amplitude diagnostic (`--log-attn-amplitude`, logging per-layer max-abs activations)
+located the cause upstream of the loss: the **encoder self-attention output** amplitude
+ran away, driving the residual stream from ~38 to ~6 400. At that magnitude the fp16
+forward corrupts the subsequent L2-normalisation (the latents are scale-invariant by
+construction, so the *only* thing the normalisation can preserve — direction — is exactly
+what fp16 rounding destroys once the pre-norm vector is large). The collapse is therefore
+**not** a learning-rate or data problem (LR 5e-4 and τ = 0.20 both still collapsed); it is
+an activation-amplitude runaway that 4× more pooled negatives excite and that batch-256
+never reached. Per the project rule, the fix is normalization, not gradient-clipping.
+
+Two instabilities had to be closed, and **both** are necessary (verified — either alone
+diverges):
+
+1. **QK-norm** — RMSNorm applied to Q and K per head before the dot-product (PaLM/Gemma).
+   Bounds the attention logits (observed max-abs 141 → 3.9 on the diverged trace), which
+   keeps the softmax from saturating into a near-one-hot map that amplifies one value row.
+2. **Attention-output RMSNorm** — a Gemma2-style sandwich norm on the attention output
+   only (not the FFN — the FFN residual did not grow). Bounds the residual stream directly.
+
+Implementation is a drop-in: QK-norm runs through `F.scaled_dot_product_attention` reusing
+`nn.MultiheadAttention`'s own projection weights, so with the flags off the path is
+**bit-identical** to the original MHA (verified diff 0.0) and there is no throughput
+regression. Both are gated behind `--qk-norm` / `--attn-out-norm` training flags. With both
+on, the β·0.8% arm clears the collapse zone and converges like batch-256 — loss − floor
+13.3 → ~1.0, gap steady ~1.03, cross-series cosine flat ~3e-4, qk-logit ~10, residual ~40
+(all bounded). The full debugging trace, plots, and the diverged-run CSVs are in
+[`EXECUTION_LOG.md`](EXECUTION_LOG.md).
+
+**Consequence for the comparison.** Because the norms are *required* at batch 1024 but
+*absent* at batch 256 (#320), the headline b1024 ↔ b256 contrast confounds the batch with
+the two norms. The norms are a stability mechanism, not a capacity lever, so the expectation
+is that they are MASE-neutral — but that is an assumption until tested. The planned control
+is **batch-256 + the same two norms** on ≥1 arm: if it matches #320's no-norm b256 score,
+the norms are neutral and the b1024 ↔ b256 delta is cleanly the batch effect; if not, the
+confound is real and reported as such.
+
+### Downstream scores
 
 _pending runs._
 
@@ -49,23 +111,32 @@ _table pending — generated by `scripts/plots.py` → `results/gm_table.csv`._
 
 ## Protocol
 
-Each arm is **byte-identical to its #320 counterpart except the contrastive batch
-(256 → 1024)** and the training **budget (50k → 12.5k steps)**, the latter chosen to hold
-*total data seen* equal to #320 (12.5k × 1024 = 50k × 256 = 12.8 M samples) — so the only
-varied factor is the size of the all-together negative pool, not the amount of data or
-(the backbone LR is constant) the schedule.
+Each arm differs from its #320 counterpart in exactly three controlled ways:
 
-Compute: a single process at global batch 1024 on one RTX 4090. A single process pools
-all 1024 in the negatives natively — no cross-device gather. To fit 1024 on one 24 GB
-card, the GRU patch-encoder is gradient-checkpointed (the only change to the model code;
-**byte-identical in the forward**, so the trained backbone equals #320's recipe at 4×
-batch — purely an implementation detail, see EXECUTION_LOG). Recipe otherwise:
+1. **Contrastive batch 256 → 1024** (the knob of interest), all 1024 terms pooled in the
+   negatives — no per-shard split.
+2. **Budget 50k → 12.5k steps**, chosen to hold *total data seen* equal to #320
+   (12.5k × 1024 = 50k × 256 = 12.8 M samples), so the negative-pool size is varied without
+   varying the amount of data or (the backbone LR is constant) the schedule.
+3. **+ QK-norm and + attention-output RMSNorm** — *not* a free choice: batch 1024 collapses
+   without them (see Stability). #320 ran at batch 256 without either. This is the confound
+   the planned batch-256 + same-norms control is designed to isolate; the norms are
+   structurally a stability mechanism, expected MASE-neutral, but that is tested, not assumed.
+
+Compute: a single process at global batch 1024 on one RTX 4090 — it pools all 1024 in the
+negatives natively, no cross-device gather. To fit 1024 on one 24 GB card the GRU
+patch-encoder is gradient-checkpointed; this is **byte-identical in the forward** (verified)
+and so is a pure memory/throughput implementation detail, *not* a recipe change (unlike the
+norms above). Recipe otherwise:
 GRU patch-enc → 6L causal encoder → 6L forecaster (d = 128, h = 4), AdamW β2 = 0.98,
 τ = 0.10, dropkey 0.70, fp16 body / fp32 residual + patch-emb, ewma span 128,
-seed 20260520, `--pos-in-denominator`, `--synth-kind forked-arma --mix-ratio MIX`.
+seed 20260520, `--pos-in-denominator`, `--qk-norm`, `--attn-out-norm`,
+`--subtract-contrastive-floor` (gradient-neutral loss rebasing; logged loss − floor),
+`--synth-kind forked-arma --mix-ratio MIX`.
 
-Eval (identical to #320 / #318, so b256 ↔ b1024 is a clean paired comparison): each frozen
-backbone scored with a fresh **2L and 6L** quantile q-head — 30k steps, transformer,
+Eval (byte-identical to #320 / #318 — same q-head recipe, same GIFT-Eval harness — so the
+eval adds no confound and any b256 ↔ b1024 difference is attributable to the backbones):
+each frozen backbone scored with a fresh **2L and 6L** quantile q-head — 30k steps, transformer,
 causal, head-ffn-mult 4.0, dropout 0.1, `--head-train-input e_then_f`,
 `--reconstruction forecaster`, forecast-len 16, **batch 256**, cosine LR, `--amp-dtype
 none`. GIFT-Eval `--strategy B4`, full-97 + triage-11. The q-head batch stays 256 — #322
