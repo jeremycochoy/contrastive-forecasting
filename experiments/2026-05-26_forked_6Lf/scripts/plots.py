@@ -99,80 +99,73 @@ def paired_delta_ci(d1, d6, n=2000, seed=0):
     return (delta, ds[int(0.05 * n)], ds[int(0.95 * n)])
 
 
-# One colour per q-head; 6Lf this card = solid bar (with bootstrap CI whisker);
-# 1L #318 reference = DASHED line at the 1L value, same colour. So per arm × head,
-# the bar sits below the dashed line iff 6Lf is better than 1L there.
-C_2L   = "#1f77b4"   # blue   — 2L q-head
-C_6L   = "#ff7f0e"   # orange — 6L q-head
-C_BETA = "#2ca02c"   # green for β candle
-C_V11C = "#9467bd"   # purple for v11c
+# 4 bars per arm. Light = 1L #318 reference, dark = 6Lf this card.
+# Blue family = 2L q-head, orange family = 6L q-head.
+C_2L_1L = "#aec7e8"   # light blue   — 1L · 2L head (reference)
+C_2L_6F = "#1f77b4"   # dark  blue   — 6Lf · 2L head (this card)
+C_6L_1L = "#ffbb78"   # light orange — 1L · 6L head (reference)
+C_6L_6F = "#d94801"   # dark  orange — 6Lf · 6L head (this card)
+C_V11C  = "#9467bd"   # purple for v11c
 
 
 # ---------------------------------------------------------------- gm_summary
 def plot_gm_summary():
-    fig, ax = plt.subplots(figsize=(11, 5.3))
-    # Per arm: two bars (6Lf·2L | 6Lf·6L) + two dashed reference segments
-    # at the 1L value for that arm × head (same colour as the bar).
-    # Bar shows bootstrap 90 % CI whisker (over the 97 per-config relatives).
-    n_arms, bw = len(ARMS), 0.36
-    seen = set()
-    for ai, (tag1, tag6, _) in enumerate(ARMS):
-        for hd, color, dx in [("2L", C_2L, -bw / 2), ("6L", C_6L, bw / 2)]:
-            g6, (lo6, hi6) = cell(RES_6LF, tag6, hd)
-            g1, _ = cell(RES_1L, tag1, hd)
-            if g6 is not None:
-                # bootstrap CI on this GM (within-config-set spread; NOT seed noise)
-                yerr = None
-                if lo6 is not None and hi6 is not None:
-                    yerr = [[g6 - lo6], [hi6 - g6]]
-                ax.bar(ai + dx, g6, bw, color=color, edgecolor="none",
-                       yerr=yerr, capsize=3, ecolor="#444",
-                       error_kw={"lw": 1.0},
-                       label=(f"6Lf · {hd} head (solid bar; whisker = bootstrap 90 % CI)"
-                              if (f"6Lf-{hd}" not in seen) else None))
-                seen.add(f"6Lf-{hd}")
-            if g1 is not None:
-                ax.plot([ai + dx - bw / 2 + 0.02, ai + dx + bw / 2 - 0.02],
-                        [g1, g1],
-                        color=color, lw=2.2, linestyle=(0, (3, 2)),
-                        label=(f"1L · {hd} head (dashed = #318 reference)"
-                               if (f"1L-{hd}" not in seen) else None))
-                seen.add(f"1L-{hd}")
+    fig, ax = plt.subplots(figsize=(11, 5.8))
+    n_arms, w = len(ARMS), 0.20
+    # 4 bars per arm, in order: 1L·2L, 1L·6L, 6Lf·2L, 6Lf·6L
+    series = [
+        ("1L · 2L head (#318 ref)",  C_2L_1L, "1L",  "2L"),
+        ("1L · 6L head (#318 ref)",  C_6L_1L, "1L",  "6L"),
+        ("6Lf · 2L head (this card)", C_2L_6F, "6Lf", "2L"),
+        ("6Lf · 6L head (this card)", C_6L_6F, "6Lf", "6L"),
+    ]
+    for si, (lab, color, fc, hd) in enumerate(series):
+        xs, ys, los, his = [], [], [], []
+        for ai, (tag1, tag6, _) in enumerate(ARMS):
+            res, tag = (RES_1L, tag1) if fc == "1L" else (RES_6LF, tag6)
+            g, (lo, hi) = cell(res, tag, hd)
+            if g is None:
+                continue
+            xs.append(ai + (si - 1.5) * w); ys.append(g)
+            los.append(g - lo if lo is not None else 0)
+            his.append(hi - g if hi is not None else 0)
+        if ys:
+            ax.bar(xs, ys, w, color=color, edgecolor="none", label=lab,
+                   yerr=[los, his], capsize=2, ecolor="#444",
+                   error_kw={"lw": 0.9})
 
-    # β as a candlestick on its own x-tick to the right of the arms
-    bx = n_arms + 0.35
-    # 2L candle
-    ax.plot([bx - 0.20] * 2, [min(BETA_2L), max(BETA_2L)], color=C_BETA, lw=3, solid_capstyle="butt")
-    ax.plot([bx - 0.27, bx - 0.13], [min(BETA_2L)] * 2, color=C_BETA, lw=2)
-    ax.plot([bx - 0.27, bx - 0.13], [max(BETA_2L)] * 2, color=C_BETA, lw=2)
-    ax.scatter([bx - 0.20], [sum(BETA_2L) / 2], color=C_BETA, s=18, zorder=5)
-    # 6L candle
-    ax.plot([bx + 0.20] * 2, [min(BETA_6L), max(BETA_6L)], color=C_BETA, lw=3, solid_capstyle="butt")
-    ax.plot([bx + 0.13, bx + 0.27], [min(BETA_6L)] * 2, color=C_BETA, lw=2)
-    ax.plot([bx + 0.13, bx + 0.27], [max(BETA_6L)] * 2, color=C_BETA, lw=2)
-    ax.scatter([bx + 0.20], [sum(BETA_6L) / 2], color=C_BETA, s=18, zorder=5)
-    ax.text(bx, max(max(BETA_2L), max(BETA_6L)) + 0.02, "β\n(n=2 seeds)",
-            ha="center", va="bottom", fontsize=9, color=C_BETA, fontweight="bold")
-    ax.text(bx - 0.20, min(BETA_2L) - 0.025, "2L", ha="center", va="top", fontsize=8, color=C_BETA)
-    ax.text(bx + 0.20, min(BETA_6L) - 0.025, "6L", ha="center", va="top", fontsize=8, color=C_BETA)
+    # β shown as FOUR horizontal dashed lines across the plot (the bounds of the
+    # 2-seed range, one pair per head). Each line carries its own short label at
+    # the right margin so the four labels never stack on top of each other.
+    x_lab = n_arms - 0.4 + 0.04   # just past the right edge of the bars
+    for y in BETA_2L:
+        ax.axhline(y, color=C_2L_6F, lw=1.3, linestyle=(0, (4, 2)), alpha=0.9)
+        ax.text(x_lab, y, f"  β·2L = {y:.3f}",
+                ha="left", va="center", fontsize=8.5, color=C_2L_6F, fontweight="bold")
+    for y in BETA_6L:
+        ax.axhline(y, color=C_6L_6F, lw=1.3, linestyle=(0, (4, 2)), alpha=0.9)
+        ax.text(x_lab, y, f"  β·6L = {y:.3f}",
+                ha="left", va="center", fontsize=8.5, color=C_6L_6F, fontweight="bold")
 
-    # References: naive solid black, v11c distinct color
-    ax.axhline(NAIVE, color="black", lw=1.4)
-    ax.text(n_arms + 0.85, NAIVE + 0.005, "seasonal-naive (1.0)",
-            ha="right", va="bottom", fontsize=9, color="black")
-    ax.axhline(V11C, color=C_V11C, lw=1.4, linestyle=(0, (4, 2)))
-    ax.text(n_arms + 0.85, V11C - 0.012, f"v11c ({V11C})",
-            ha="right", va="top", fontsize=9, color=C_V11C)
+    # naive solid black; v11c distinct purple dashed
+    ax.axhline(NAIVE, color="black", lw=1.6)
+    ax.text(-0.55, NAIVE + 0.02, "seasonal-naive (1.0)",
+            ha="left", va="bottom", fontsize=9, color="black")
+    ax.axhline(V11C, color=C_V11C, lw=1.6, linestyle=(0, (5, 2)))
+    ax.text(-0.55, V11C - 0.02, f"v11c ({V11C})",
+            ha="left", va="top", fontsize=9, color=C_V11C, fontweight="bold")
 
-    ax.set_xticks(list(range(n_arms)) + [bx])
-    ax.set_xticklabels([a[2] for a in ARMS] + ["β"])
-    ax.set_xlim(-0.6, n_arms + 0.9)
+    ax.set_xticks(range(n_arms))
+    ax.set_xticklabels([a[2] for a in ARMS])
+    ax.set_xlim(-0.6, n_arms + 0.7)   # extra room on the right for β labels
     ax.set_ylabel("Full-97 GM-Relative MASE  (lower = better)")
     ax.set_title("Figure 1 — Full-97 GM-Relative MASE per arm × q-head, "
-                 "1L vs 6Lf forecaster", fontsize=11)
-    ax.legend(loc="lower right", fontsize=9, ncol=2, framealpha=0.92)
+                 "1L vs 6Lf forecaster\n"
+                 "(whisker = bootstrap 90 % CI on the GM over its 97 configs; "
+                 "β shown as 4 horizontal dashed lines = the 2 bounds of each head's "
+                 "2-seed β range)", fontsize=10)
+    ax.legend(loc="upper left", fontsize=9, ncol=2, framealpha=0.92)
     ax.grid(axis="y", ls=":", alpha=0.4)
-    fig.tight_layout()
     fig.savefig(f"{PLOTS}/gm_summary.png", dpi=120)
     plt.close(fig)
     print("wrote gm_summary.png")
