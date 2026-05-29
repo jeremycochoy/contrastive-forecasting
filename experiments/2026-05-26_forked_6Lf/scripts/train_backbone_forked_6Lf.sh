@@ -43,7 +43,7 @@ log "BB START shape=$SHAPE num-layers=6(forecaster) forked-arma mix=$MIX chunk=$
 python3 -u "$TRAIN" $RESUME \
   --batch-size 256 --device cuda --total-steps 50000 --lr 1e-3 --weight-decay 0.1 \
   --adam-beta1 0.9 --adam-beta2 0.98 --seed "$SEED" \
-  --save-every 5000 --save-dir "$RUNS" --run-name "$NAME" \
+  --save-every 2000 --save-dir "$RUNS" --run-name "$NAME" \
   --hf-repo jeremycochoy/gift-pretrain-full-4096 --hf-path small_v1 \
   --t-raw 4096 --n-channels 1 --d-model 384 --n-heads 6 \
   --num-encoder-layers 6 --num-layers 6 \
@@ -57,7 +57,14 @@ python3 -u "$TRAIN" $RESUME \
   --log-attn-amplitude --log-attn-amplitude-every 200 \
   --residual-dtype fp32 --attn-dtype fp16 --ffn-dtype fp16 --conv-dtype fp16 --patch-emb-dtype fp32 \
   >>"$tlog" 2>&1
-rc=$?; [ $rc -ne 0 ] && log "BB train exited rc=$rc (tail: $(tail -3 "$tlog"|tr '\n' ' '))"
+rc=$?
+if [ $rc -ne 0 ]; then
+  # Crashed/killed → do NOT create FINAL. Keep intermediates so the next launch
+  # resumes from the latest periodic checkpoint instead of declaring a partial run done.
+  log "BB train exited rc=$rc — NOT creating FINAL (incomplete; will --resume next launch). tail: $(tail -3 "$tlog"|tr '\n' ' ')"
+  log "BB FAILED rc=$rc"; exit 1
+fi
+# rc == 0 → completed normally; build FINAL from best_loss / final / latest periodic.
 if   [ -f "$RUNS/${NAME}_best_loss.pth" ]; then cp -f "$RUNS/${NAME}_best_loss.pth" "$BB"
 elif [ -f "$RUNS/${NAME}_final.pth" ];     then cp -f "$RUNS/${NAME}_final.pth"     "$BB"
 else cp -f "$(ls -t "$RUNS/${NAME}"_*k.pth 2>/dev/null|head -1)" "$BB" 2>/dev/null; fi
