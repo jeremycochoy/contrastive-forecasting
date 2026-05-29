@@ -87,3 +87,23 @@ loss 2.25, gap ~1.05, R² 0.997). Diagnosis:
 + gap for b256(stable) / b1024-1e-3(diverges, gap 1.2→0.2 at ~step 4500) /
 b1024-5e-4(handled, gap → 1.29). Confirmed: 5e-4 is healthy through step 4300+, past the
 1e-3 collapse point.
+
+### Batch-1024 collapse — root cause + fix (QK-norm + attention-output RMSNorm)
+b1024 collapsed at every LR/τ (LR 1e-3 ~step 4500, 5e-4 ~6000, τ=0.20 ~5700): gap peaks
+then crashes, cross_batch cosine blows up 0.001→0.57, loss rises. Via --log-attn-amplitude:
+- It's an **activation-amplitude runaway**. The **ENCODER self-attention output (sa_out)**
+  explodes (b256 flat ~35 → b1024 →1300+); the **forecaster** attention stays flat (~36);
+  the FFN's residual add is negative — not the FFN. sa_out grows the residual stream
+  (38→6400) and, in fp16, corrupts the cosine latents → directional collapse.
+- **Two numerical instabilities, both must be fixed:** (1) QK logits explode (→2700, q/k
+  weights grow) → **QK-norm**; (2) attention OUTPUT/residual explodes (W_v/out_proj grow) →
+  **Gemma2-style sandwich RMSNorm on the attention output** (`--attn-out-norm`, attention
+  only). Fixing one leaves the other: qk-norm alone → residual →10573, collapses;
+  attn-out-norm alone → residual flat but QK logits →45695 (fp16 overflow → NaN).
+- **`--qk-norm --attn-out-norm` @ LR 1e-3 clears the collapse zone.** Through step 6500
+  (past every prior collapse point): loss−floor descends 13.3→1.07, gap stable ~1.02,
+  cross_batch flat ~0.0004, qk_logit ~17, resid ~50 — the b256-like converging regime.
+Both norms are standard, via the verified SDPA path (off = byte-identical, SDPA==MHA
+diff 0.0). This is #322's enabling recipe deviation from #320 (unneeded at b256). The
+non-standard V-norm was tried and removed. Plots: plots/{collapse_handling,
+activation_amplitudes,cosines_through_training,block_split}.png.
