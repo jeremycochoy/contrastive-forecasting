@@ -14,16 +14,17 @@ log(){ echo "[$(date '+%m-%d %H:%M:%S')] [dl] $*" | tee -a "$DLOG"; }
 free_mib(){ nvidia-smi --query-gpu=memory.free --format=csv,noheader,nounits | sed -n "$(($1+1))p"; }
 
 # arm tag -> backbone FINAL basename
+# The STABILISED backbones use qk-norm + attn-out-norm (the b1024 collapse fix), _qk_aon names.
 declare -A BBNAME=(
-  [beta_forked2_b1024]=bb_beta_forked2_6Lf_b1024_FINAL.pth
-  [beta_forked10pct_b1024]=bb_beta_forked10pct_6Lf_b1024_FINAL.pth
-  [xshh_allt_forked_b1024]=bb_xshh_allt_forked_6Lf_b1024_FINAL.pth
-  [xshh_allt_forked10pct_b1024]=bb_xshh_allt_forked10pct_6Lf_b1024_FINAL.pth
-  [xshh_allt_forked2_b1024]=bb_xshh_allt_forked2_6Lf_b1024_FINAL.pth
+  [beta_forked2_qk_aon_b1024]=bb_beta_forked2_qk_aon_6Lf_b1024_FINAL.pth
+  [beta_forked10pct_qk_aon_b1024]=bb_beta_forked10pct_qk_aon_6Lf_b1024_FINAL.pth
+  [xshh_allt_forked_qk_aon_b1024]=bb_xshh_allt_forked_qk_aon_6Lf_b1024_FINAL.pth
+  [xshh_allt_forked10pct_qk_aon_b1024]=bb_xshh_allt_forked10pct_qk_aon_6Lf_b1024_FINAL.pth
+  [xshh_allt_forked2_qk_aon_b1024]=bb_xshh_allt_forked2_qk_aon_6Lf_b1024_FINAL.pth
 )
 # Lane assignment (tag:head). Lane 0 -> GPU0, lane 1 -> GPU1.
-LANE0=( "beta_forked2_b1024:2" "beta_forked2_b1024:6" "beta_forked10pct_b1024:2" "beta_forked10pct_b1024:6" "xshh_allt_forked_b1024:2" )
-LANE1=( "xshh_allt_forked_b1024:6" "xshh_allt_forked10pct_b1024:2" "xshh_allt_forked10pct_b1024:6" "xshh_allt_forked2_b1024:2" "xshh_allt_forked2_b1024:6" )
+LANE0=( "beta_forked2_qk_aon_b1024:2" "beta_forked2_qk_aon_b1024:6" "beta_forked10pct_qk_aon_b1024:2" "beta_forked10pct_qk_aon_b1024:6" "xshh_allt_forked_qk_aon_b1024:2" )
+LANE1=( "xshh_allt_forked_qk_aon_b1024:6" "xshh_allt_forked10pct_qk_aon_b1024:2" "xshh_allt_forked10pct_qk_aon_b1024:6" "xshh_allt_forked2_qk_aon_b1024:2" "xshh_allt_forked2_qk_aon_b1024:6" )
 
 run_lane(){
   local gpu="$1"; shift; local cells=("$@")

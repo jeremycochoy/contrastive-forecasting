@@ -32,13 +32,14 @@ PLOTS = ("/home/jupyter/workspaces/contrastive-forecasting/.claude/worktrees/"
          "forked-6Lf-b1024/experiments/2026-05-29_forked_6Lf_b1024/plots")
 os.makedirs(PLOTS, exist_ok=True)
 
-# (b256 tag [#320], b1024 tag [this card], display label)
+# (b256 tag [#320], b1024 eval-dir tag [this card], display label)
+# Stabilised b1024 backbones carry the _qk_aon suffix (qk-norm + attn-out-norm collapse fix).
 ARMS = [
-    ("beta_forked10pct_6Lf_50k",      "beta_forked10pct_b1024",      "β·10%"),
-    ("beta_forked2_6Lf_50k",          "beta_forked2_b1024",          "β·0.8%"),
-    ("xshh_allt_forked_6Lf_50k",      "xshh_allt_forked_b1024",      "allt·50%"),
-    ("xshh_allt_forked10pct_6Lf_50k", "xshh_allt_forked10pct_b1024", "allt·10%"),
-    ("xshh_allt_forked2_6Lf_50k",     "xshh_allt_forked2_b1024",     "allt·0.8%"),
+    ("beta_forked10pct_6Lf_50k",      "beta_forked10pct_qk_aon_b1024",      "β·10%"),
+    ("beta_forked2_6Lf_50k",          "beta_forked2_qk_aon_b1024",          "β·0.8%"),
+    ("xshh_allt_forked_6Lf_50k",      "xshh_allt_forked_qk_aon_b1024",      "allt·50%"),
+    ("xshh_allt_forked10pct_6Lf_50k", "xshh_allt_forked10pct_qk_aon_b1024", "allt·10%"),
+    ("xshh_allt_forked2_6Lf_50k",     "xshh_allt_forked2_qk_aon_b1024",     "allt·0.8%"),
 ]
 HEADS = ["2L", "6L"]
 
