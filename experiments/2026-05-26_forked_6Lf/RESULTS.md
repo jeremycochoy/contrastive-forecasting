@@ -56,6 +56,18 @@ noise**. **Bold** = reliable (whole CI on one side of 0).*
 **References** (lower better): β = **[1.3272, 1.4591]** (2L, n=2 seeds) /
 **[1.3702, 1.4489]** (6L, n=2); v11c = 1.292; seasonal-naive = 1.0.
 
+**What the "paired bootstrap" is.** Each arm × head produces 97 per-config
+Relative-MASE values (one per GIFT-Eval config). To put a CI on Δ = 6Lf − 1L,
+we resample the **97 config indices with replacement, jointly** for both 1L and
+6Lf, recompute the two GMs on the resampled set, take their difference, and
+repeat 2 000 times. The 5th and 95th percentiles of that difference distribution
+are the 90 % CI. Resampling **the same indices** for both arms keeps config
+difficulty cancelled (a hard config hurts both GMs equally and drops out of the
+difference) and isolates the forecaster-depth effect. The whiskers on Figure 1
+use the matching **un-paired** form: bootstrap of one arm's 97 values alone,
+which reports each GM's stability against the choice of configs. Neither
+captures **seed** variance (only β has > 1 seed here).
+
 ## Protocol
 
 Each arm is byte-identical to its #318 counterpart **except** the forecaster
