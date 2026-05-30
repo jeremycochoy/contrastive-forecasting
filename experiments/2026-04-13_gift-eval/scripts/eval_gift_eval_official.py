@@ -478,6 +478,16 @@ def load_models(args, device):
         BACKBONE_CONFIG["num_encoder_layers"] = max(enc_layer_idxs) + 1
         print(f"  [eval] auto-detected num_encoder_layers="
               f"{BACKBONE_CONFIG['num_encoder_layers']} from backbone checkpoint")
+    # Auto-detect the b1024 collapse-fix norms (#322): QK-norm (q_norm/k_norm) and
+    # attention-output RMSNorm (attn_out_rms) add per-layer params to encoder +
+    # forecaster layers; build with the matching flags so _qk_aon backbones load
+    # cleanly. Absent keys -> flags stay False (older backbones unaffected).
+    if any(k.endswith(".q_norm.weight") for k in sd):
+        BACKBONE_CONFIG["qk_norm"] = True
+        print("  [eval] auto-detected qk_norm=True from backbone checkpoint")
+    if any(k.endswith(".attn_out_rms.weight") for k in sd):
+        BACKBONE_CONFIG["attn_out_norm"] = True
+        print("  [eval] auto-detected attn_out_norm=True from backbone checkpoint")
     # Auto-detect a CPC multi-step forecaster (#316). Two families:
     #   transformer.cpc_layers.<N>.*  → 'cpc'        (K transformer-1L heads, #1)
     #   transformer.cpc_heads.<N>.*   → 'linear_cpc' (K linear heads, #2/#3)
