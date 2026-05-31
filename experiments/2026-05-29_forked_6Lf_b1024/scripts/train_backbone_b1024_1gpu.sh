@@ -73,8 +73,9 @@ if   [ -f "$RUNS/${NAME}_best_loss.pth" ]; then cp -f "$RUNS/${NAME}_best_loss.p
 elif [ -f "$RUNS/${NAME}_final.pth" ];     then cp -f "$RUNS/${NAME}_final.pth"     "$BB"
 else cp -f "$(ls -t "$RUNS/${NAME}"_*k.pth 2>/dev/null|head -1)" "$BB" 2>/dev/null; fi
 if [ -f "$BB" ]; then
-  find "$RUNS" -maxdepth 1 -name "${NAME}_*.pth" ! -name "${NAME}_FINAL.pth" -delete 2>/dev/null
-  log "BB DONE -> ${NAME}_FINAL.pth ($(du -h "$BB"|cut -f1)); pruned intermediates"
+  # Do NOT prune periodic/best checkpoints — keep them for training-length ablations
+  # (#322) and mid-run analysis. Disk is ample (~700 MB/arm).
+  log "BB DONE -> ${NAME}_FINAL.pth ($(du -h "$BB"|cut -f1)); kept all checkpoints"
   exit 0
 fi
 log "BB FAILED no checkpoint"; exit 1
