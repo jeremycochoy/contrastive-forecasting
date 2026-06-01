@@ -15,11 +15,19 @@ never needed — **QK-norm** (RMSNorm on Q, K) to bound the attention logits and
 required: either alone still diverges. With both, batch-1024 converges like batch-256
 (amplitudes bounded — qk-logit ~10, residual ~40; gap ~1.03, cross-series cosine ~3e-4).
 
-**Verdict (part 2 of 2 — pending runs).** _Whether the stabilised batch-1024 recipe beats
-#320's batch-256 6Lf scores (or β / v11c) — filled once all 5 backbones are trained and
-scored with both q-heads on full-97 + triage-11. Note the comparison now carries a
-batch ↔ norms confound (see Stability + Protocol); a batch-256 + same-norms control is the
-planned de-confound._
+**Verdict (part 2 of 2 — emerging, 7/20 cells in).** Once the collapse is fixed, the
+stabilised batch-1024 recipe **beats #320's batch-256 on every (arm × head) cell scored so
+far** — 7/20 full-97 done, all Δ < 0; the cells still evaluating also all beat b256 on
+triage-11, often hugely (e.g. allt·0.8% 2L triage 1.26 vs b256 2.26). The **all-time arms
+lead**: allt·50% 6L = 1.2018 is the best cell, and five cells already beat **v11c (1.292)**
+— both allt·50% heads, allt·10% 2L, and both β·10% heads. So the central question, "does 4×
+more pooled negatives help?", answers **yes, decisively**. The biggest gains land on the
+arms that were *weakest* at batch 256 (allt·0.8% b256 2.22 → b1024 triage 1.26; β·10% b256
+1.57/1.68 → 1.24/1.28) — the larger pool helps most where the smaller one left the most on
+the table. _Final scoreboard + paired-bootstrap CIs (`scripts/plots.py` → `gm_table.csv`)
+and the training-length ablation row (#10) land once the last 3 cells + ablation finish.
+The batch ↔ norms confound (Stability + Protocol) still applies; a batch-256 + same-norms
+control would isolate it._
 
 ## What we asked
 
