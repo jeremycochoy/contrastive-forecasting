@@ -1,9 +1,5 @@
 # #322 — Forked arms × 6-layer forecaster, retrained at batch 1024
 
-<!-- WORKING DRAFT. Question / protocol / annex / the stability finding are final; the
-downstream Verdict, Figures, and Scoreboard are filled from the runs as each (arm × head)
-eval lands. -->
-
 **Verdict (part 1 of 2 — final).** The one-knob change we set out to make is not one knob.
 Pooling 4× more negatives (batch 256 → 1024) **destabilises #320's recipe**: the encoder's
 self-attention output amplitude runs away (residual stream 38 → 6 400), fp16 then corrupts
@@ -76,12 +72,20 @@ diverges):
 
 Implementation is a drop-in: QK-norm runs through `F.scaled_dot_product_attention` reusing
 `nn.MultiheadAttention`'s own projection weights, so with the flags off the path is
-**bit-identical** to the original MHA (verified diff 0.0) and there is no throughput
-regression. Both are gated behind `--qk-norm` / `--attn-out-norm` training flags. With both
+**numerically identical** to the original MHA (verified: max abs diff < 1e-4, float
+tolerance — `scripts/test_qknorm.py`) and there is no throughput regression. Both are gated behind `--qk-norm` / `--attn-out-norm` training flags. With both
 on, the β·0.8% arm clears the collapse zone and converges like batch-256 — loss − floor
 13.3 → ~1.0, gap steady ~1.03, cross-series cosine flat ~3e-4, qk-logit ~10, residual ~40
 (all bounded). The full debugging trace, plots, and the diverged-run CSVs are in
 [`EXECUTION_LOG.md`](EXECUTION_LOG.md).
+
+![Figure 0 — per-layer max-abs activation amplitudes through training (panels: QK-logit |
+encoder attention-output | post-FFN residual). The un-normed runs drive the attention
+output and residual stream past 10³ within ~5 k steps (the collapse); QK-norm alone bounds
+the logits but the residual still grows; only **qk-norm + attn-out-norm** (black) holds all
+three bounded — qk-logit ~10, residual ~40 — and that is the run that converges. The
+central finding in one picture: the collapse is an activation-amplitude runaway, and it
+takes both norms to stop it.](plots/activation_amplitudes.png)
 
 **Consequence for the comparison.** Because the norms are *required* at batch 1024 but
 *absent* at batch 256 (#320), the headline b1024 ↔ b256 contrast confounds the batch with
@@ -103,9 +107,9 @@ sufficiently large all-together negative pool, the fork *helps*, most where the 
 pool was leaving signal unused. The β arms improve too (β·10 % by ~0.32–0.41), just less
 dramatically. No cell regresses.
 
-![Figure 1 — full-97 GM-Relative MASE per arm × q-head, batch 256 (#320) vs batch 1024.
-Whisker = bootstrap 90 % CI on the GM over its 97 configs. β shown as shaded 2-seed
-ranges; v11c and seasonal-naive marked.](plots/gm_summary.png)
+![Figure 1 — full-97 GM-Relative MASE per arm × q-head, batch 256 (#320, light bars) vs
+batch 1024 (dark bars). The β baseline is shown as shaded 2-seed ranges; v11c and
+seasonal-naive marked. Every b1024 bar sits below its b256 bar.](plots/gm_summary.png)
 
 ![Figure 2 — Δ(batch 1024 − batch 256) per (arm, q-head) on full-97; whisker =
 paired-bootstrap 90 % CI over the 97 shared configs. Green = reliably better with the
@@ -168,11 +172,15 @@ negatives natively, no cross-device gather. To fit 1024 on one 24 GB card the GR
 patch-encoder is gradient-checkpointed; this is **byte-identical in the forward** (verified)
 and so is a pure memory/throughput implementation detail, *not* a recipe change (unlike the
 norms above). Recipe otherwise:
-GRU patch-enc → 6L causal encoder → 6L forecaster (d = 128, h = 4), AdamW β2 = 0.98,
-τ = 0.10, dropkey 0.70, fp16 body / fp32 residual + patch-emb, ewma span 128,
-seed 20260520, `--pos-in-denominator`, `--qk-norm`, `--attn-out-norm`,
-`--subtract-contrastive-floor` (gradient-neutral loss rebasing; logged loss − floor),
-`--synth-kind forked-arma --mix-ratio MIX`.
+GRU patch-enc → **6L causal encoder (d = 384, h = 6)** → 6L forecaster (d = 128, h = 4);
+**AdamW lr = 1e-3**, β1 = 0.9, β2 = 0.98, weight-decay 0.1; τ = 0.10; dropkey 0.70
+(`--encoder-dropkey-share-heads --encoder-dropkey-share-layers`); depthwise-conv 3;
+mixup-p 0.3; freq-emb-dim 3, seasonality-emb-dim 3; fp16 attn/ffn/conv, fp32 residual +
+patch-emb; ewma span 128; seed 20260520; `--pos-in-denominator`, `--qk-norm`,
+`--attn-out-norm`, `--subtract-contrastive-floor` (gradient-neutral loss rebasing; logged
+loss − floor), `--synth-kind forked-arma --mix-ratio MIX`. (lr = 1e-3 is #320's LR, held
+constant — the 4× batch is *not* paired with an LR change; the diverged-run dead-ends at
+lr 5e-4 / τ 0.20 in Stability were diagnostic probes, not the final recipe.)
 
 Eval (byte-identical to #320 / #318 — same q-head recipe, same GIFT-Eval harness — so the
 eval adds no confound and any b256 ↔ b1024 difference is attributable to the backbones):
