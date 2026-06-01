@@ -988,20 +988,25 @@ def create_mixed_composite_dataloader(
 
 
 class MixedForkedArmaLoader:
-    """HF + on-the-fly *forked-continuation ARIMA* synth mix (#318 follow-up).
+    """HF + on-the-fly *forked-continuation ARIMA* synth mix (#318 follow-up),
+    optionally with a third *regime-crossfade* stream (#325).
 
     Synth half comes from :func:`src.synthetic_forked_arma.generate_forked_arma_batch`,
     which fills ADJACENT synth rows (2k, 2k+1) with a forked pair: identical
-    prefix, divergent perturbed-ARMA continuation. The synth block is appended
-    after the HF block, so synth pairs occupy global rows
-    (hf_bs+2k, hf_bs+2k+1) — a pair-aware loss can reconstruct that from hf_bs.
-    Forked-ARMA series carry no canonical frequency/seasonality → label 0.
+    prefix, divergent perturbed-ARMA continuation. When ``cross_bs > 0`` a
+    further block of :func:`src.synthetic_crossfade.generate_crossfade_batch`
+    rows — each a monotone blend of two distinct *real* windows from the same
+    step's HF sub-batch — is appended after the fork block. The block order is
+    ``[HF | forked-arma | crossfade]``, so with ``cross_bs == 0`` the fork-only
+    path (and its RNG draw order) is byte-identical to #318/#322.
+    Both synthetic streams carry no canonical frequency/seasonality → label 0.
     """
 
     def __init__(self, hf_loader, synth_bs, T_raw=1024, C=4, seed=None,
-                 emit_freq_ids=False, synth_kwargs=None):
+                 emit_freq_ids=False, synth_kwargs=None, cross_bs=0):
         self.hf_loader = hf_loader
         self.synth_bs = synth_bs
+        self.cross_bs = cross_bs
         self.T_raw = T_raw
         self.C = C
         self.emit_freq_ids = emit_freq_ids
@@ -1010,6 +1015,7 @@ class MixedForkedArmaLoader:
 
     def __iter__(self):
         from src.synthetic_forked_arma import generate_forked_arma_batch
+        from src.synthetic_crossfade import generate_crossfade_batch
         from src.freq_embedding import SOURCE_ID_TO_LABELS
 
         rng = np.random.default_rng(self._seed)
@@ -1033,24 +1039,49 @@ class MixedForkedArmaLoader:
                 hf_source_ids = None
             hf_bs = x_hf.shape[0]
 
+            # Block order is [HF | forked-arma | crossfade]; the fork block is
+            # built first so cross_bs==0 leaves the fork-only RNG draws (and the
+            # output) byte-identical to #318/#322.
+            blocks = [x_hf]
+            freq_blocks, seas_blocks = [], []
+            # Match the synth length to the ACTUAL HF window length
+            # (HFStreamingLoader crops to the module constant T_RAW=1024,
+            # ignoring T_raw), so the real+synth cat never size-mismatches.
+            synth_T = x_hf.shape[1] if hf_bs > 0 else self.T_raw
+
             if self.synth_bs > 0:
-                # Match the synth length to the ACTUAL HF window length
-                # (HFStreamingLoader crops to the module constant T_RAW=1024,
-                # ignoring T_raw), so the real+synth cat never size-mismatches.
-                synth_T = x_hf.shape[1] if hf_bs > 0 else self.T_raw
                 if self.emit_freq_ids:
                     x_syn, freq_syn, seas_syn = generate_forked_arma_batch(
                         self.synth_bs, T_raw=synth_T, C=self.C, rng=rng,
                         return_labels=True, **self._synth_kwargs,
                     )
+                    blocks.append(x_syn)
+                    freq_blocks.append(freq_syn)
+                    seas_blocks.append(seas_syn)
                 else:
-                    x_syn = generate_forked_arma_batch(
+                    blocks.append(generate_forked_arma_batch(
                         self.synth_bs, T_raw=synth_T, C=self.C, rng=rng,
                         **self._synth_kwargs,
+                    ))
+
+            if self.cross_bs > 0:
+                if hf_bs < 2:
+                    raise ValueError(
+                        f"crossfade needs >=2 real rows in the sub-batch, "
+                        f"got hf_bs={hf_bs}")
+                if self.emit_freq_ids:
+                    x_cross, freq_cross, seas_cross = generate_crossfade_batch(
+                        x_hf, self.cross_bs, rng=rng, return_labels=True,
                     )
-                x = torch.cat([x_hf, x_syn], dim=0)
-            else:
-                x = x_hf
+                    blocks.append(x_cross)
+                    freq_blocks.append(freq_cross)
+                    seas_blocks.append(seas_cross)
+                else:
+                    blocks.append(generate_crossfade_batch(
+                        x_hf, self.cross_bs, rng=rng,
+                    ))
+
+            x = torch.cat(blocks, dim=0) if len(blocks) > 1 else x_hf
 
             if self.emit_freq_ids:
                 if hf_source_ids is not None:
@@ -1060,11 +1091,8 @@ class MixedForkedArmaLoader:
                 else:
                     freq_hf = torch.zeros(hf_bs, dtype=torch.long)
                     seas_hf = torch.zeros(hf_bs, dtype=torch.long)
-                if self.synth_bs > 0:
-                    freq = torch.cat([freq_hf, freq_syn], dim=0)
-                    seas = torch.cat([seas_hf, seas_syn], dim=0)
-                else:
-                    freq, seas = freq_hf, seas_hf
+                freq = torch.cat([freq_hf, *freq_blocks], dim=0) if freq_blocks else freq_hf
+                seas = torch.cat([seas_hf, *seas_blocks], dim=0) if seas_blocks else seas_hf
                 yield x, freq, seas
             else:
                 yield x
@@ -1075,15 +1103,34 @@ def create_mixed_forked_arma_dataloader(
     path_in_repo: str = None, split: str = "train",
     skip_rows: int = 0, T_raw: int = 1024, seed: int | None = None,
     emit_freq_ids: bool = False, synth_kwargs: dict | None = None,
+    crossfade_ratio: float = 0.0,
 ) -> "MixedForkedArmaLoader":
-    """HF + forked-continuation-ARIMA synth mix; same contract as the composite
-    factory. `synth_kwargs` forwards forked-ARMA knobs (integrate,
-    perturb_sigma, fork_frac_range, std, dimension)."""
+    """HF + forked-continuation-ARIMA synth mix, optionally plus a regime-
+    crossfade stream (#325); same contract as the composite factory.
+
+    The batch splits as ``[hf_bs | synth_bs | cross_bs]`` where
+    ``synth_bs = round(batch_size * mix_ratio)`` (forked-arma) and
+    ``cross_bs = round(batch_size * crossfade_ratio)`` (crossfade rows blended
+    from the ``hf_bs`` real rows). With ``crossfade_ratio == 0`` this is the
+    #318/#322 fork-only loader unchanged. `synth_kwargs` forwards forked-ARMA
+    knobs (integrate, perturb_sigma, fork_frac_range, std, dimension)."""
     if not 0.0 <= mix_ratio <= 1.0:
         raise ValueError(f"mix_ratio must be in [0, 1], got {mix_ratio}")
+    if not 0.0 <= crossfade_ratio <= 1.0:
+        raise ValueError(f"crossfade_ratio must be in [0, 1], got {crossfade_ratio}")
     synth_bs = int(round(batch_size * mix_ratio))
-    hf_bs = batch_size - synth_bs
-    if mix_ratio == 0.0 and not emit_freq_ids:
+    cross_bs = int(round(batch_size * crossfade_ratio))
+    hf_bs = batch_size - synth_bs - cross_bs
+    if hf_bs < 0:
+        raise ValueError(
+            f"mix_ratio + crossfade_ratio imply synth_bs+cross_bs="
+            f"{synth_bs + cross_bs} > batch_size={batch_size}")
+    if cross_bs > 0 and hf_bs < 2:
+        raise ValueError(
+            f"crossfade needs >=2 real rows but hf_bs={hf_bs} "
+            f"(batch_size={batch_size}, mix_ratio={mix_ratio}, "
+            f"crossfade_ratio={crossfade_ratio})")
+    if synth_bs == 0 and cross_bs == 0 and not emit_freq_ids:
         return create_hf_dataloader(
             repo_id=repo_id, batch_size=batch_size, C=C,
             path_in_repo=path_in_repo, split=split, skip_rows=skip_rows,
@@ -1101,6 +1148,6 @@ def create_mixed_forked_arma_dataloader(
 
     return MixedForkedArmaLoader(
         hf_loader=hf_loader if hf_loader is not None else _EmptyHFLoader(),
-        synth_bs=synth_bs, T_raw=T_raw, C=C, seed=seed,
+        synth_bs=synth_bs, cross_bs=cross_bs, T_raw=T_raw, C=C, seed=seed,
         emit_freq_ids=emit_freq_ids, synth_kwargs=synth_kwargs,
     )
