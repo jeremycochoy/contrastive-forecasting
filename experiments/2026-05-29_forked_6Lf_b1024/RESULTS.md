@@ -4,7 +4,8 @@
 Pooling 4× more negatives (batch 256 → 1024) **destabilises #320's recipe**: the encoder's
 self-attention output amplitude runs away (residual stream 38 → 6 400), fp16 then corrupts
 the L2-normalised latents, and the model collapses directionally (cross-series cosine
-0.001 → 0.57, the contrastive gap goes to zero) within ~6 k steps. Recovering a trainable
+0.001 → 0.57, and the contrastive **gap** — cos(forecast, future) − cos(forecast, present),
+the model's directional signal — collapses to zero) within ~6 k steps. Recovering a trainable
 batch-1024 model required two standard numerical-stability additions the batch-256 recipe
 never needed — **QK-norm** (RMSNorm on Q, K) to bound the attention logits and a
 **Gemma2-style RMSNorm on the attention output** to bound the residual stream. Both are
@@ -14,26 +15,37 @@ required: either alone still diverges. With both, batch-1024 converges like batc
 **Verdict (part 2 of 2 — final, 10/10 cells).** Once the collapse is fixed, the stabilised
 batch-1024 recipe **beats #320's batch-256 on every one of the 10 (arm × head) cells, and
 every win is reliable** — the whole paired-bootstrap 90 % CI on Δ sits below 0 in all 10
-(Δ from −0.069 to −1.005 full-97 GM-Relative MASE). **allt·10% 6L = 1.191 is the best cell**;
-**eight of ten beat v11c (1.292)** — the all-time arms sweep the top six, β·10% just behind,
-only β·0.8% (1.32 / 1.33) sits above v11c. So the central question, "does 4× more pooled
-negatives help?", answers **yes, decisively and uniformly**. The biggest gains land on the
-arms that were *weakest* at batch 256 (allt·0.8% 2L 2.22 → 1.21, Δ −1.005; allt·10% 6L 1.69
-→ 1.19) — the larger pool helps most where the smaller one left the most on the table; the
-forked-ARIMA finding from #318/#320 (where forks mostly *failed* to beat β at batch 256) is
-reversed at batch 1024. _A training-length check (#10, Scoreboard) finds the all-time best
-arm's downstream MASE already saturated at ~8 % of training (a step-1000 checkpoint ties /
-slightly beats the full run on both heads) — the long tail of contrastive training raises
-the gap but not forecasting quality. The batch ↔ norms confound (Stability + Protocol) still
-applies; a batch-256 + same-norms control would isolate it._
+(Δ from −0.069 to −1.005 full-97 **GM-Relative MASE** — the geometric mean, over GIFT-Eval's
+97 configs, of model MASE ÷ seasonal-naive MASE; **lower is better**, 1.0 = seasonal-naive).
+**allt·10% 6L = 1.191 is the best cell**;
+**eight of ten beat v11c** (1.292 — the strongest prior backbone from this project's earlier
+experiment line, scored on the same metric) — the all-time arms sweep the top six, β·10% just
+behind, only β·0.8% (1.32 / 1.33) sits above v11c. So the **stabilised batch-1024 recipe
+helps, and uniformly** — with two caveats held in view, and the strength of the wording bounded
+by them: batch 1024 *required* two norms that batch 256 ran without, so attributing the gain to
+the larger negative pool *rather than* the norms awaits the planned batch-256 + same-norms
+control (Stability, Protocol); and each cell is a single backbone seed (the 90 % CI is over the
+97 configs, not over seeds). The biggest gains land on the arms that were *weakest* at batch 256
+(allt·0.8% 2L 2.22 → 1.21, Δ −1.005; allt·10% 6L 1.69 → 1.19) — the larger pool helps most where
+the smaller one left the most on the table. At batch 1024 the all-time arms beat both β and v11c
+— a reversal of the #318/#320 reading that forks mostly *failed* to beat β at batch 256, though
+that reading too is subject to the same norms control. _A training-length check (#10, Scoreboard)
+finds the all-time best arm's downstream MASE already saturated at ~8 % of training (a step-1000
+checkpoint ties / slightly beats the full run on both heads) — the long tail of contrastive
+training raises the gap but not forecasting quality._
 
 ## What we asked
 
-#318 perturbed the contrastive training data with **forked-ARIMA continuations**
-(identical past → divergent futures, so position alone cannot encode the future) and
-found only one of five forked configurations beat the β baseline. #320 gave those same
-five arms a deeper (6-layer) forecaster — still at **global batch 256** — and no cell
-crossed β; the deepening mostly *un-found* the 1L fork's wins.
+#318 perturbed the contrastive training data with **forked-ARMA continuations**
+(`--synth-kind forked-arma`: identical past → divergent futures, so position alone cannot
+encode the future) and found only one of five forked configurations beat the **β** baseline.
+**β** is the unforked base contrastive loss (`cosine_similarity_batch_full_hh_negs`, the
+#318/#320 reference arm); the five **arms** each pair a loss family with a forked-ARMA mix
+ratio (the "·X%"), in two families — **β·X%** (the base loss) and **all-time / allt·X%** (the
+base loss plus a term that additionally repels every cross-series pair at *all* lag positions:
+the `xs_allt` negatives detailed in the Annex). #320 gave those same five arms a deeper
+(6-layer) forecaster — still at **global batch 256** — and no cell crossed β; the deepening
+mostly *un-found* the 1L fork's wins.
 
 #322 changes exactly one knob: the contrastive **batch grows 256 → 1024**, with **all
 1024 terms pooled together in the negatives** (no per-shard split). A larger
@@ -46,11 +58,9 @@ pooled negatives change *where* the fork helps vs hurts, and does any arm now re
 
 ### Stability — the 4× batch collapses, and the fix (the central finding)
 
-The first batch-1024 run (the β·0.8% arm, otherwise #320's recipe) trained normally for
-~5 k steps, then collapsed: the contrastive loss fell below its theoretical floor while
-the **gap** (cos(forecast, future) − cos(forecast, present)) decayed to zero and the
-**cross-series cosine** — which should sit near zero as different series repel — climbed
-0.001 → 0.57. A model whose distinct series all point the same way has stopped encoding
+At batch 1024, #320's recipe collapses by ~6 k steps: the contrastive loss falls below its
+theoretical floor while the **gap** decays to zero and the **cross-series cosine** — which
+should sit near zero as different series repel — climbs 0.001 → 0.57. A model whose distinct series all point the same way has stopped encoding
 anything; the loss "improves" only because the floor-subtracted denominator degenerates.
 
 The amplitude diagnostic (`--log-attn-amplitude`, logging per-layer max-abs activations)
@@ -81,13 +91,20 @@ on, the β·0.8% arm clears the collapse zone and converges like batch-256 — l
 (all bounded). The full debugging trace, plots, and the diverged-run CSVs are in
 [`EXECUTION_LOG.md`](EXECUTION_LOG.md).
 
-![Figure 0 — per-layer max-abs activation amplitudes through training (panels: QK-logit |
+![Figure 1 — per-layer max-abs activation amplitudes through training (panels: QK-logit |
 encoder attention-output | post-FFN residual). The un-normed runs drive the attention
 output and residual stream past 10³ within ~5 k steps (the collapse); QK-norm alone bounds
 the logits but the residual still grows; only **qk-norm + attn-out-norm** (black) holds all
 three bounded — qk-logit ~10, residual ~40 — and that is the run that converges. The
 central finding in one picture: the collapse is an activation-amplitude runaway, and it
 takes both norms to stop it.](plots/activation_amplitudes.png)
+
+With both norms on, the five batch-1024 backbones train cleanly — no collapse anywhere:
+
+![Figure 2 — all five stabilised batch-1024 backbones, trained in full (12.5 k steps): the
+floor-subtracted contrastive loss (left, log-log) descends 13 → ~0.8 with no collapse on any
+arm, and the **gap** (right) rises to ~1.0. allt·50% (red) climbs the gap the slowest — the
+long, slow plateau the #10 training-length ablation probes below.](plots/trained_curves_loglog.png)
 
 **Consequence for the comparison.** Because the norms are *required* at batch 1024 but
 *absent* at batch 256 (#320), the headline b1024 ↔ b256 contrast confounds the batch with
@@ -101,7 +118,7 @@ confound is real and reported as such.
 
 With the recipe stabilised, the downstream result is clean and one-directional: **batch
 1024 beats batch 256 on all ten (arm × head) cells, every Δ reliable** (whole 90 % CI < 0;
-Scoreboard below, Figures 1–2). The effect is large — a median Δ ≈ −0.35 and up to −1.0 —
+Scoreboard below, Figures 3–4). The effect is large — a median Δ ≈ −0.35 and up to −1.0 —
 and it is *strongest on the arms #320 found weakest*: the all-time arms (allt·50/10/0.8 %),
 which never beat β at batch 256, are the top six cells at batch 1024 and all clear v11c.
 This reverses #318/#320's reading that forks mostly fail to beat the baseline — at a
@@ -109,11 +126,11 @@ sufficiently large all-together negative pool, the fork *helps*, most where the 
 pool was leaving signal unused. The β arms improve too (β·10 % by ~0.32–0.41), just less
 dramatically. No cell regresses.
 
-![Figure 1 — full-97 GM-Relative MASE per arm × q-head, batch 256 (#320, light bars) vs
+![Figure 3 — full-97 GM-Relative MASE per arm × q-head, batch 256 (#320, light bars) vs
 batch 1024 (dark bars). The β baseline is shown as shaded 2-seed ranges; v11c and
 seasonal-naive marked. Every b1024 bar sits below its b256 bar.](plots/gm_summary.png)
 
-![Figure 2 — Δ(batch 1024 − batch 256) per (arm, q-head) on full-97; whisker =
+![Figure 4 — Δ(batch 1024 − batch 256) per (arm, q-head) on full-97; whisker =
 paired-bootstrap 90 % CI over the 97 shared configs. Green = reliably better with the
 larger pool, red = reliably worse, grey = inconclusive.](plots/batch_delta.png)
 
@@ -142,10 +159,9 @@ Generated by `scripts/plots.py` → `results/gm_table.csv` (sorted by arm, #320 
 | allt·0.8% | 2L | 2.218 | **1.213** | **−1.005** | (−1.151, −0.871) | 2.259 | 1.261 |
 | allt·0.8% | 6L | 1.848 | **1.198** | **−0.650** | (−0.748, −0.557) | 2.053 | 1.277 |
 
-**allt·10% 6L = 1.191 is the best cell.** Eight of ten beat **v11c (1.292)** — the all-time
-arms sweep the top six; only β·0.8% (1.32 / 1.33) sits just above v11c. The two largest
-gains (allt·0.8% 2L −1.01, allt·10% 6L −0.50) are the arms that were *weakest* at batch 256,
-so the larger pooled-negative batch helps most where the smaller pool underperformed.
+**allt·10% 6L = 1.191 is the best cell**, and the two largest gains (allt·0.8% 2L −1.01,
+allt·10% 6L −0.50) land on the arms that were *weakest* at batch 256 — the larger pooled
+negative batch helps most where the smaller pool underperformed.
 
 **Training-length ablation (#10).** The best arm (allt·50%) re-trained only to its
 plateau start (step 1000 — gap 0.62, vs 0.96 at the full 12.5 k) and scored with both
@@ -185,9 +201,9 @@ Each arm differs from its #320 counterpart in exactly three controlled ways:
 
 Compute: a single process at global batch 1024 on one RTX 4090 — it pools all 1024 in the
 negatives natively, no cross-device gather. To fit 1024 on one 24 GB card the GRU
-patch-encoder is gradient-checkpointed; this is **byte-identical in the forward** (verified)
-and so is a pure memory/throughput implementation detail, *not* a recipe change (unlike the
-norms above). Recipe otherwise:
+patch-encoder is gradient-checkpointed; this is **byte-identical in the forward**
+(deterministic recompute of the same kernels — verified outputs match) and so is a pure
+memory/throughput implementation detail, *not* a recipe change (unlike the norms above). Recipe otherwise:
 GRU patch-enc → **6L causal encoder (d = 384, h = 6)** → 6L forecaster (d = 128, h = 4);
 **AdamW lr = 1e-3**, β1 = 0.9, β2 = 0.98, weight-decay 0.1; τ = 0.10; dropkey 0.70
 (`--encoder-dropkey-share-heads --encoder-dropkey-share-layers`); depthwise-conv 3;
@@ -195,8 +211,7 @@ mixup-p 0.3; freq-emb-dim 3, seasonality-emb-dim 3; fp16 attn/ffn/conv, fp32 res
 patch-emb; ewma span 128; seed 20260520; `--pos-in-denominator`, `--qk-norm`,
 `--attn-out-norm`, `--subtract-contrastive-floor` (gradient-neutral loss rebasing; logged
 loss − floor), `--synth-kind forked-arma --mix-ratio MIX`. (lr = 1e-3 is #320's LR, held
-constant — the 4× batch is *not* paired with an LR change; the diverged-run dead-ends at
-lr 5e-4 / τ 0.20 in Stability were diagnostic probes, not the final recipe.)
+constant — the 4× batch is *not* paired with an LR change.)
 
 Eval (byte-identical to #320 / #318 — same q-head recipe, same GIFT-Eval harness — so the
 eval adds no confound and any b256 ↔ b1024 difference is attributable to the backbones):
@@ -222,5 +237,5 @@ the cross-series terms — this is the quantity #322 enlarges:
 | **pooled N** | | **1,114,112** | **68,156,416** (61×) |
 
 (At #320's B = 256 these were 81,920 and 4,259,584; the cross-series f↔h and all-time
-terms scale with B, so the per-anchor negative pool is ≈13.6× larger for β and ≈16×
+terms scale with B, so the **pooled** negative count is ≈13.6× larger for β and ≈16×
 larger for all-time at B = 1024.)

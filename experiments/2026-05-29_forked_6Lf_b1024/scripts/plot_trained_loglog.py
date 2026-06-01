@@ -19,11 +19,13 @@ OUT = ("/home/jupyter/workspaces/contrastive-forecasting/.claude/worktrees/"
        "forked-6Lf-b1024/experiments/2026-05-29_forked_6Lf_b1024/plots/"
        "trained_curves_loglog.png")
 
-# (label, csv basename, color)
+# (label, csv basename, color) — all five trained arms, full length
 ARMS = [
-    ("β·0.8%  (mix 0.0078)", "bb_beta_forked2_qk_aon_6Lf_b1024_losses.csv",       "#1f77b4"),
-    ("β·10%   (mix 0.10)",   "bb_beta_forked10pct_qk_aon_6Lf_b1024_losses.csv",   "#2ca02c"),
-    ("allt·50% (mix 0.50)",  "bb_xshh_allt_forked_qk_aon_6Lf_b1024_losses.csv",   "#d62728"),
+    ("β·0.8%   (mix 0.0078)", "bb_beta_forked2_qk_aon_6Lf_b1024_losses.csv",          "#1f77b4"),
+    ("β·10%    (mix 0.10)",   "bb_beta_forked10pct_qk_aon_6Lf_b1024_losses.csv",      "#17becf"),
+    ("allt·50%  (mix 0.50)",  "bb_xshh_allt_forked_qk_aon_6Lf_b1024_losses.csv",      "#d62728"),
+    ("allt·10%  (mix 0.10)",  "bb_xshh_allt_forked10pct_qk_aon_6Lf_b1024_losses.csv", "#ff7f0e"),
+    ("allt·0.8% (mix 0.0078)","bb_xshh_allt_forked2_qk_aon_6Lf_b1024_losses.csv",     "#9467bd"),
 ]
 EPS = 1e-3  # floor for log axis when loss-floor dips to ~0 near convergence
 

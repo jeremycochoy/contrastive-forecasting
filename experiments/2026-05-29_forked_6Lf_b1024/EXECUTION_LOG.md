@@ -103,7 +103,21 @@ then crashes, cross_batch cosine blows up 0.001→0.57, loss rises. Via --log-at
 - **`--qk-norm --attn-out-norm` @ LR 1e-3 clears the collapse zone.** Through step 6500
   (past every prior collapse point): loss−floor descends 13.3→1.07, gap stable ~1.02,
   cross_batch flat ~0.0004, qk_logit ~17, resid ~50 — the b256-like converging regime.
-Both norms are standard, via the verified SDPA path (off = byte-identical, SDPA==MHA
-diff 0.0). This is #322's enabling recipe deviation from #320 (unneeded at b256). The
-non-standard V-norm was tried and removed. Plots: plots/{collapse_handling,
-activation_amplitudes,cosines_through_training,block_split}.png.
+Both norms are standard, via the verified SDPA path (off = numerically identical to MHA,
+max-abs diff < 1e-4). This is #322's enabling recipe deviation from #320 (unneeded at b256).
+The non-standard V-norm was tried and removed.
+
+The diagnostic plots for this debugging trace (the companion `activation_amplitudes.png` is
+embedded in [`RESULTS.md`](RESULTS.md) as the main finding):
+
+![block_split — diverged b1024: the ENCODER attention output (red) runs away past 10³ while the
+FORECASTER's (blue) stays flat (~36), localising the runaway to the encoder self-attention and
+so to a norm on *its* output.](plots/block_split.png)
+
+![cosines_through_training — the collapse signature: positive forecaster↔future alignment (left)
+holds until the collapse, while the cross-series negatives (right) stay ~1e-3 at b256 but creep
+up to ~0.57 for the diverged b1024 runs — the directional collapse.](plots/cosines_through_training.png)
+
+![collapse_handling — the LR dead-end, superseded by the two norms: floor-subtracted loss + gap
+for b256 (stable) / b1024 lr 1e-3 (diverges ~step 4500) / b1024 lr 5e-4 (delays but does not
+cure the collapse). Kept for the record only.](plots/collapse_handling.png)
