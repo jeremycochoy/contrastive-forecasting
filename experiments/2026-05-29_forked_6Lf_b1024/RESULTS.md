@@ -21,9 +21,11 @@ negatives help?", answers **yes, decisively and uniformly**. The biggest gains l
 arms that were *weakest* at batch 256 (allt·0.8% 2L 2.22 → 1.21, Δ −1.005; allt·10% 6L 1.69
 → 1.19) — the larger pool helps most where the smaller one left the most on the table; the
 forked-ARIMA finding from #318/#320 (where forks mostly *failed* to beat β at batch 256) is
-reversed at batch 1024. _The training-length ablation row (#10) lands when its two cells
-finish. The batch ↔ norms confound (Stability + Protocol) still applies; a batch-256 + same-norms
-control would isolate it._
+reversed at batch 1024. _A training-length check (#10, Scoreboard) finds the all-time best
+arm's downstream MASE already saturated at ~8 % of training (a step-1000 checkpoint ties /
+slightly beats the full run on both heads) — the long tail of contrastive training raises
+the gap but not forecasting quality. The batch ↔ norms confound (Stability + Protocol) still
+applies; a batch-256 + same-norms control would isolate it._
 
 ## What we asked
 
@@ -145,10 +147,24 @@ arms sweep the top six; only β·0.8% (1.32 / 1.33) sits just above v11c. The tw
 gains (allt·0.8% 2L −1.01, allt·10% 6L −0.50) are the arms that were *weakest* at batch 256,
 so the larger pooled-negative batch helps most where the smaller pool underperformed.
 
-*Training-length ablation (#10):* the best arm (allt·50%) re-trained only to its plateau
-start (step 1000) and scored with both heads — _filled when the two ablation cells finish_
-— tests whether the long tail of training (past the apparent gap-plateau) keeps improving
-downstream MASE.
+**Training-length ablation (#10).** The best arm (allt·50%) re-trained only to its
+plateau start (step 1000 — gap 0.62, vs 0.96 at the full 12.5 k) and scored with both
+q-heads (full-97 GM-Relative MASE):
+
+| allt·50% checkpoint | 2L | 6L |
+|---|--:|--:|
+| step 1 000 (plateau start) | 1.2056 | 1.1852 |
+| step 12 500 (final) | 1.2178 | 1.2018 |
+
+The early checkpoint **ties / slightly beats** the final on both heads (Δ −0.012 / −0.017).
+So **training past the gap-plateau did not improve downstream MASE** — the q-head's
+forecasting quality is essentially saturated by step ~1 000 (~8 % of the budget) even
+though the contrastive **gap keeps climbing** to 12.5 k. The gap is a *contrastive-training*
+signal, not a downstream one: a backbone with a fraction of the contrastive training already
+carries the forecasting signal the q-head extracts. (Single backbone seed; the 0.01–0.02
+gaps are within plausible seed noise, so the honest read is "no evidence the long tail
+helps," not "it hurts." A clean test would need multiple seeds and intermediate
+checkpoints — now cheap, since the prune step was removed.)
 
 **References** (full-97 GM-Relative MASE, lower better): β · 2L = [1.3272, 1.4591]
 (n = 2 seeds); β · 6L = [1.3702, 1.4489] (n = 2); v11c = 1.292; seasonal-naive = 1.0.
