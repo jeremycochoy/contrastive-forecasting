@@ -29,10 +29,6 @@ both models are scored on the same rebuilt list, so per-task difficulty cancels 
 between the two models is left. Both spreads cover zero, so neither overall difference is larger
 than the luck of which tasks the benchmark happens to contain.
 
-![Change in forecast error from adding the crossfade. Both bars sit just below zero, the crossfade
-slightly better, but both 90% intervals cross zero, so neither is distinguishable from no
-change.](plots/delta.png)
-
 | forecasting head | best recipe | + crossfade | change | 90% interval |
 |---|--:|--:|--:|:--:|
 | 2-layer | 1.222 | 1.208 | −0.014 | (−0.040, +0.012) |
@@ -44,33 +40,24 @@ the interval says not to lean on it.
 ## What we got, by domain
 
 That benchmark-wide flatness hides a real redistribution. Running the same paired bootstrap inside
-each data domain, three effects clear zero on both heads, and they do not all point the same way.
+each data domain, the crossfade reliably improves Healthcare and Transport on both heads and
+reliably worsens Web/CloudOps on both; the rest stays within noise.
 
-![Forecast error by domain, both heads, with the parent experiment's strongest per-domain arm (its
-0.8%-fork variant) carried along for reference. Closer to the centre is better. The crossfade (solid
-blue) sits inside the best recipe on Healthcare, Transport and Econ/Fin and outside it on
-Web/CloudOps.](plots/perdomain.png)
+![Per-domain change in error from the crossfade, both heads, with the 90% paired-bootstrap interval
+for each domain (the domain's task count in brackets). Green is a reliable improvement, the whole
+interval below zero; red a reliable worsening; grey within noise.](plots/perdomain_delta.png)
 
-| domain | tasks | change, 2-layer | change, 6-layer |
-|---|--:|--:|--:|
-| Healthcare | 5 | **−0.20** | **−0.27** |
-| Econ/Fin | 6 | −0.08 | −0.07 |
-| Transport | 15 | **−0.04** | **−0.03** |
-| Energy | 32 | 0.00 | −0.02 |
-| Sales | 4 | +0.02 | +0.01 |
-| Nature | 15 | +0.01 | **+0.02** |
-| Web/CloudOps | 20 | **+0.03** | **+0.07** |
+The reliable wins sit on the smallest domains, where even a one-sided interval is wide (Healthcare
+is five tasks), while the reliable loss sits on a domain four times that size. Combined by task
+count across the whole benchmark, the two sides cancel, which is the flat overall number above. So
+the crossfade is not adding accuracy; it is moving it from one kind of series to another.
 
-*Negative means the crossfade is better. **Bold** marks a change whose whole 90% paired-bootstrap
-interval lies on one side of zero; the rest are within noise.*
+In absolute terms all three profiles sit close together, with the parent experiment's strongest
+per-domain arm carried along for reference: it improves the same domains, but the crossfade is the
+worst of the three on Web/CloudOps.
 
-Healthcare and Transport improve reliably on both heads, Web/CloudOps worsens reliably on both, and
-everything else stays within noise. The reliable wins sit on the smallest domains, where even a
-one-sided interval is wide (Healthcare is five tasks), while the reliable loss sits on a domain four
-times that size. Combined by task count across the whole benchmark, the two sides cancel, which is
-the flat overall number above. So the crossfade is not adding accuracy; it is moving it from one
-kind of series to another. The parent experiment's strongest per-domain arm improves the same
-domains, but the crossfade is the worst of the three on Web/CloudOps.
+![Forecast error by domain, both heads, best recipe versus the crossfade versus the parent's
+0.8%-fork arm. Closer to the centre is better; the dotted ring is seasonal-naive.](plots/perdomain.png)
 
 ## How the crossfade works
 
@@ -95,19 +82,18 @@ sample and shared across channels.](plots/crossfade_schematic.png)
 
 The crossfade does change the training. The contrastive loss settles a little higher, and so does
 the **gap** between two cosine similarities: how much more a forecast resembles the true future than
-the present. The gap climbs from about 1.03 without the crossfade to about 1.18 with it, and
-different series stay near-orthogonal throughout, so nothing has collapsed.
+the present. The gap climbs from about 1.03 without the crossfade to about 1.18 with it.
 
-![Training curves, with the crossfade (solid) against the recipe alone (dashed), from step 100.
-Left, the contrastive loss falls cleanly on both, settling a little higher with the crossfade.
-Middle, the gap climbs higher with the crossfade. Right, different series stay near-orthogonal
-throughout.](plots/training_curves_loglog.png)
+![Training curves, crossfade (solid) versus the recipe alone (dashed), from step 100. Left, the
+contrastive loss falls cleanly on both and settles a little higher with the crossfade. Right, the
+gap climbs higher with the crossfade.](plots/training_curves_loglog.png)
 
 But the gap is a difference of two parts, and splitting it shows the change is one-sided. The
 forecast-to-future similarity, the part that would actually help forecasting, ends slightly *lower*
-with the crossfade (0.99 to 0.98); it is the forecast-to-present similarity that drops much further
-below zero. So the wider gap is the model pushing its forecast away from the present, not pulling it
-closer to the future.
+with the crossfade, 0.98 against the recipe's 0.99; it is the forecast-to-present similarity that
+drops much further below zero. So the wider gap is the model pushing its forecast away from the
+present, not pulling it closer to the future. Different series stay near-orthogonal throughout, so
+nothing has collapsed.
 
 ![The four contrastive cosines through training (log step), best recipe (dashed) vs crossfade
 (solid). Top-left is the forecast-to-future match, nearly identical on both. Top-right and

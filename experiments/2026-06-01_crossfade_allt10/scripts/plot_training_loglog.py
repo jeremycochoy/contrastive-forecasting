@@ -43,7 +43,7 @@ bs, bloss, bgap, bcb = read(BASE_CSV, START)
 XF_C, BASE_C = "#2f6da8", "#d08a3e"
 xf_done = "FINAL" if xs and xs[-1] >= 12400 else (f"@{xs[-1]//1000}k" if xs else "—")
 
-fig, (a1, a2, a3) = plt.subplots(1, 3, figsize=(16, 5))
+fig, (a1, a2) = plt.subplots(1, 2, figsize=(11, 5))
 
 a1.loglog(xs, [max(v, EPS) for v in xloss], color=XF_C, lw=1.7,
           label="+ 10% regime crossfade")
@@ -63,15 +63,6 @@ a2.set_ylabel("gap = cos(fcst, future) − cos(fcst, present)")
 a2.set_title("Contrastive gap (log-x)")
 a2.grid(True, which="both", alpha=0.25)
 a2.legend(fontsize=9, framealpha=0.9)
-
-a3.semilogx(xs, xcb, color=XF_C, lw=1.7, label="+ 10% regime crossfade")
-a3.semilogx(bs, bcb, color=BASE_C, lw=1.5, ls="--", label="best recipe")
-a3.axhline(0.0, color="grey", ls=":", lw=0.8)
-a3.set_xlabel("training step")
-a3.set_ylabel("cross-series cosine (collapse diagnostic)")
-a3.set_title("Cross-series cosine (log-x) — flat ~0 = healthy")
-a3.grid(True, which="both", alpha=0.25)
-a3.legend(fontsize=9, framealpha=0.9)
 
 fig.suptitle("Regime crossfade vs the best recipe — training curves", fontsize=13)
 fig.tight_layout(rect=(0, 0, 1, 0.95))
