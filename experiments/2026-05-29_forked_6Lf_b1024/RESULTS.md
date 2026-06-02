@@ -38,15 +38,7 @@ The question: does the larger negative pool let any forked arm beat the baseline
 
 ## What happened
 
-![Figure 2 — change in forecast error when the contrastive batch is quadrupled, per arm and
-head. Bars left of zero mean the larger batch is better; whiskers are a paired 90% bootstrap
-interval over the 97 shared tasks. Every bar is reliably left of zero.](plots/batch_delta.png)
-
-Every cell improves, and every interval clears zero. The effect is largest exactly where batch
-256 was weakest (allt·0.8% on the 2L head moves from 2.22 to 1.21), and smallest on the arms
-that were already near the baseline.
-
-![Figure 3 — forecast error broken out by data domain. Each arm is one colour; its dashed line
+![Figure 2 — forecast error broken out by data domain. Each arm is one colour; its dashed line
 is batch 256, its solid line batch 1024 (each at its better head). The solid line sits inside
 the dashed almost everywhere — the gain is broad across domains, not a few easy ones. Inner is
 better; the black ring is seasonal-naive.](plots/perdomain.png)
@@ -56,6 +48,14 @@ batch-1024 profile sits inside its batch-256 profile on most domains. On this pe
 the best model appears to be **allt·0.8% (red)**: it has the lowest error on the most domains
 (3 of 7). The scoreboard's task-weighted geomean does not surface this — it weights tasks, not
 domains, and places allt·10% marginally first.
+
+![Figure 3 — change in forecast error when the contrastive batch is quadrupled, per arm and
+head. Bars left of zero mean the larger batch is better; whiskers are a paired 90% bootstrap
+interval over the 97 shared tasks. Every bar is reliably left of zero.](plots/batch_delta.png)
+
+Every cell improves, and every interval clears zero. The effect is largest exactly where batch
+256 was weakest (allt·0.8% on the 2L head moves from 2.22 to 1.21), and smallest on the arms
+that were already near the baseline.
 
 ## Training past the plateau
 
