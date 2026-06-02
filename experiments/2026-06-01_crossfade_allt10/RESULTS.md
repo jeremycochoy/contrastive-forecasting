@@ -1,99 +1,103 @@
-# #325 — Regime-crossfade synthetic on top of allt·10%
+# A regime crossfade as a contrastive hard negative
 
-**Verdict.** Adding a third synthetic stream — a **regime crossfade** (10 % of the batch,
-each row a monotone blend of two distinct *real* windows that share their past/future with
-batch-mates) — on top of #322's best arm **allt·10%** does **not reliably change** downstream
-GIFT-Eval accuracy. The point estimates nudge the right way on both q-heads (full-97
-GM-Relative MASE: 2L 1.222 → **1.208**, 6L 1.191 → **1.178** — a nominal new best cell), but
-**both paired-bootstrap 90 % CIs straddle 0** (2L Δ −0.014, CI [−0.040, +0.012]; 6L Δ −0.013,
-CI [−0.039, +0.012]). At a single backbone seed the effect is within config-set noise. The
-crossfade *does* measurably change the contrastive training dynamics — it is a genuinely
-harder negative (the gap climbs to ~1.18 vs allt·10%'s ~1.03, with a higher residual loss) —
-but that extra training signal **does not convert into a reliable forecasting gain**.
+**Verdict.** The best backbone recipe so far trains by a contrastive rule — a sample's
+forecast should resemble its own future and not its present — and blocks the lazy way to
+satisfy that rule (a position code that tells time steps apart without encoding anything
+forecastable) by mixing in synthetic series that copy a real past then veer into a different
+future. This experiment adds a second, complementary hard example: a **regime crossfade** —
+take two real windows from the same batch, keep one's past and the other's future, and blend
+smoothly between them. It changes training as intended — the crossfade is a genuinely harder
+negative, and the backbone responds by separating future from present more strongly — **but it
+does not reliably improve forecasting.** Both forecasting heads drop by about one part in a
+hundred, yet the uncertainty on each drop comfortably spans zero. The recipe's existing
+negatives already capture the signal; this extra hard example buys nothing we can measure.
+
+*Forecast error is **GM-Relative MASE**: the geometric mean, over the benchmark's 97 tasks, of
+a model's error divided by the seasonal-naive forecast's error. Lower is better; 1.0 is the
+seasonal-naive baseline.*
+
+![Forecast error on the benchmark for each forecasting head, best recipe vs the same recipe
+with the crossfade added. The bars are within a whisker of each other; the dashed line is the
+strongest prior backbone, the dotted line seasonal-naive.](plots/gm_summary.png)
 
 ## What we asked
-#322 found **allt·10%** (90 % real + 10 % forked-ARMA continuations, all-time contrastive
-loss, batch 1024) the best cell: full-97 **GM-Relative MASE** — the geometric mean over
-GIFT-Eval's 97 configs of (model MASE ÷ seasonal-naive MASE), lower better — of 1.222 (2L
-q-head) and **1.191** (6L). The forked-ARMA stream denies the forecaster a content-free
-positional code by giving identical pasts divergent futures. #325 keeps that arm fixed and
-adds a **regime crossfade** to probe a *different* hard negative: does a blend of two real
-windows — sharing one's past and the other's future with its own batch-mates — sharpen the
-representation further, or is the all-time fork already saturating what the objective can use?
 
-## The crossfade primitive
-For each crossfade row, two distinct real windows A, B from the **same step's real sub-batch**
-are z-normalised per series and blended by a monotone weight s(t):
+A contrastive backbone can cheat its training loss with an **indexing shortcut**: a per-step
+code, shared across every series, that makes time steps distinguishable without learning
+anything you could forecast from. The current-best recipe denies that shortcut by pairing each
+real sample with a **synthetic series that shares its past then diverges into a different
+future** — so position alone can no longer predict the future — and scores its negatives with a
+loss that additionally pushes apart every pair of *different* series at *every* time step.
 
-    C(t) = (1 − s(t))·A(t) + s(t)·B(t),   s rises 0→1 across a window [l, l′]
+The crossfade attacks the same shortcut from a different angle, with **real** futures instead of
+synthetic ones. For one new window we keep the past of real window A and the future of real
+window B, ramping from one to the other across a random transition; both A and B stay in the
+batch as their own samples. So the new window shares its past with one neighbour and its future
+with another — to tell the three apart the backbone must read content, not position.
 
-with, per sample (T = window length): midpoint m ~ U(0, T); width w = l′−l ~
-LogUniform(T/128, T) (sharp → gradual); l = m − w/2, l′ = m + w/2, clipped to [0, T]; one
-s(t) shared across channels. Because A and B remain in the batch as their own rows, C shares
-**A's past** and **B's future** with batch-mates — a hard negative position alone cannot
-satisfy. (`src/synthetic_crossfade.py`.)
+![The primitive on one example pair: the crossfade (black) copies window A's past, ramps across
+a transition band, and copies window B's future; below, the blend weight rises 0 → 1. Each
+window is z-normalised first; one transition is drawn per sample (a random midpoint and a width
+spanning sharp to gradual) and shared across channels.](plots/crossfade_schematic.png)
 
-## Result
-The single controlled change — batch composition **80 % real / 10 % forked-ARMA / 10 %
-crossfade** vs allt·10%'s 90/10/0 — leaves downstream accuracy statistically unchanged.
+## What happened
 
-![Full-97 GM-Relative MASE per q-head: allt·10% (#322) vs allt·10%+crossfade·10% (#325).
-Bars near-identical; single-run bootstrap 90 % CIs overlap heavily. v11c and seasonal-naive
-marked.](plots/gm_summary.png)
+The crossfade rows are a tenth of each batch (the batch becomes 80 % real, 10 % forked
+synthetic, 10 % crossfade); nothing else changes. On the benchmark the point estimates move the
+right way — the 2-layer head from 1.222 to 1.208, the 6-layer head from 1.191 to 1.178, the
+latter nominally the best single score we have recorded — but neither move is reliable.
 
-![Paired-bootstrap Δ (crossfade − allt·10%) per head; whisker = 90 % CI over the 97 shared
-configs (per-config difficulty cancels). Both Δ are negative (crossfade better) but both
-whiskers cross 0 → inconclusive (grey).](plots/delta.png)
+![Change in forecast error from adding the crossfade, per head. Both bars are negative
+(crossfade a touch better), but both 90 % intervals cross zero, so neither is distinguishable
+from no change.](plots/delta.png)
 
-| q-head | allt·10% (#322) | + crossfade (#325) | Δ | 90 % CI on Δ | triage-11 base → xf |
-|---|--:|--:|--:|:--:|:--:|
-| 2L | 1.222 | **1.208** | −0.014 | (−0.040, +0.012) | 1.293 → 1.224 |
-| 6L | 1.191 | **1.178** | −0.013 | (−0.039, +0.012) | 1.259 → 1.176 |
+To separate a real improvement from luck we use a **paired bootstrap** over the 97 tasks: draw
+the 97 tasks with replacement 2000 times; for each draw, score *both* models on the *same* drawn
+tasks and take the difference of their geometric-mean errors; report the range covering the
+middle 90 % of those 2000 differences. Scoring both models on the same resampled tasks cancels
+per-task difficulty, so the interval reflects the model change alone. Here both intervals
+straddle zero — the ~0.013 gains are within task-set noise.
 
-Both full-97 Δ are negative but neither CI excludes 0, so neither win is reliable. The
-triage-11 subset (the noisy fast 11-config set, kept for continuity with #318/#320/#322)
-shows a larger nominal gap — but triage is exactly where single-config noise dominates, and
-the authoritative full-97 shrinks it to within the bootstrap band. **6L = 1.178 is nominally
-the best cell to date** (below #322's 1.191 and v11c = 1.292), but only nominally.
+| forecasting head | best recipe | + crossfade | change | 90 % interval |
+|---|--:|--:|--:|:--:|
+| 2-layer | 1.222 | **1.208** | −0.014 | (−0.040, +0.012) |
+| 6-layer | 1.191 | **1.178** | −0.013 | (−0.039, +0.012) |
 
-## Training dynamics — the crossfade is a real hard negative
-The backbone converged cleanly (qk-norm + attn-out-norm holding; no directional collapse —
-cross-series cosine flat ~3 × 10⁻³). But the crossfade changes the contrastive regime: vs
-allt·10%, the **gap** (cos(forecast, future) − cos(forecast, present)) climbs higher (~1.18
-vs ~1.03) and the floor-subtracted loss settles higher (~1.0 vs ~0.85). Sharing a real past
-and a real future with batch-mates is a harder separation than the fork alone — the model is
-pushed to encode the future more strongly. That this larger gap does **not** track a
-downstream gain re-confirms #322's finding that the contrastive gap is a training signal, not
-a forecasting one.
+## A harder negative that the forecaster can't use
 
-![Training curves (from step 100), crossfade (solid) vs allt·10% (dashed): loss − InfoNCE
-floor (log-log), gap (semilog-x, crossfade ends higher ~1.18), cross-series cosine (flat ~0 =
-no collapse).](plots/training_curves_loglog.png)
+The crossfade is not inert — it measurably reshapes training. The clearest read-out is the
+**gap**: how much more a forecast resembles the true future than the present (higher is a
+sharper representation). With the crossfade the gap climbs higher than the best recipe alone
+(~1.18 vs ~1.03) and the contrastive loss settles higher — sharing a real past *and* a real
+future with batch-mates is a harder separation than the synthetic fork alone, and the backbone
+is pushed to encode the future more strongly. The representation stays healthy throughout
+(different series keep repelling — the cross-series similarity stays flat near zero, no
+collapse).
+
+![Training curves, with-crossfade (solid) vs best-recipe (dashed), from step 100. Left: the
+contrastive loss falls cleanly on both. Middle: the gap climbs higher with the crossfade.
+Right: different series stay near-orthogonal throughout — no collapse.](plots/training_curves_loglog.png)
+
+That a larger gap does not bring a lower forecast error is the experiment's one durable lesson:
+the gap is a *training* signal, not a *forecasting* one. The crossfade makes the backbone work
+harder at the contrastive task without giving the downstream forecaster anything new.
 
 ## Protocol
-Exactly one change from #322's allt·10%: **+10 % crossfade** (real fraction 90 % → 80 %;
-crossfade rows blended from the real sub-batch, consuming no extra HF rows). Everything else
-byte-identical: single-GPU batch 1024 with the GRU patch-encoder gradient-checkpointed,
-12.5 k steps, AdamW lr 1e-3 / β1 0.9 / β2 0.98 / wd 0.1, τ 0.10, **qk-norm + attn-out-norm**,
-dropkey 0.70, depthwise-conv 3, mixup-p 0.3, ewma span 128, freq/seas-emb 3/3, fp16
-attn/ffn/conv + fp32 residual/patch-emb, `--subtract-contrastive-floor`, loss
-`cosine_similarity_batch_full_hh_negs_xshh_allt`, seed 20260520. Eval byte-identical to #322:
-frozen backbone scored with a fresh 2L and 6L quantile q-head (30 k steps, transformer,
-causal, head-ffn-mult 4.0, dropout 0.1, `--head-train-input e_then_f`, `--reconstruction
-forecaster`, forecast-len 16, batch 256, cosine LR, `--amp-dtype none`); GIFT-Eval
-`--strategy B4`, full-97 + triage-11. Δ is a paired bootstrap (2000 resamples) over the 97
-shared configs; **single backbone seed** — the CI captures config-set spread, not seed noise,
-so the honest read of the ~0.013 point gaps is "no reliable evidence," not "no effect."
+
+One change from the best recipe: a tenth of every batch is regime-crossfade windows, blended
+from the real windows already in that batch (so they cost no extra data). Everything else is
+held identical — the same backbone, the same large contrastive batch with all samples pooled as
+one negative set, the same two attention normalisations that batch needs to train, the same
+synthetic-fork tenth, optimiser, learning rate, temperature, and seed. Each frozen backbone is
+scored by training a fresh small forecasting head — once 2-layer, once 6-layer — on it and
+evaluating on the GIFT-Eval benchmark (the 97-task full set and an 11-task fast subset). A
+single backbone seed was trained, so the interval above is over tasks, not seeds.
 
 ## What we learned & follow-up
-A real-window regime crossfade is well-motivated as a hard negative and demonstrably changes
-the contrastive geometry, but **on top of the all-time fork at 10 % it does not buy a reliable
-downstream gain** — the all-time negative pool is evidently already extracting most of the
-available signal. The cheapest way to convert the consistent (if small) positive lean into a
-reliable result, if pursued, is **multiple backbone seeds** (2–3) so a paired-over-seeds test
-can resolve a ~0.013 effect that a single seed cannot. Absent that, the result is a clean
-neutral: the crossfade is not worth adding to the recipe.
 
-*(Operational events — shared-GPU contention, the single-GPU pivot, and a transient HF-CDN
-crash + resume during the 6L q-head — are in [`EXECUTION_LOG.md`](EXECUTION_LOG.md); none
-affect the result.)*
+A real-window regime crossfade is a sound idea for a hard negative and demonstrably bends the
+contrastive geometry, but on top of an already-strong negative set it does not convert into a
+reliable forecasting gain. The consistent (if tiny) positive lean on both heads is the only
+hint of an effect; the cheapest way to confirm or dismiss it would be to repeat the run with
+two or three backbone seeds, which a paired test across seeds could resolve where a single seed
+cannot. Absent that, the result is a clean neutral: not worth adding to the recipe.

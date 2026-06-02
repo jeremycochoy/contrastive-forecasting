@@ -39,6 +39,7 @@ os.makedirs(OUTRES, exist_ok=True)
 BASE_TAG = "xshh_allt_forked10pct_qk_aon_b1024"
 XF_TAG = "xshh_allt_forked10pct_crossfade10pct_qk_aon_b1024"
 HEADS = ["2L", "6L"]
+HLAB = {"2L": "2-layer head", "6L": "6-layer head"}
 V11C = 1.292
 NAIVE = 1.0
 # #322 allt·10% measured GM-Relative MASE (full-97), for the annotation/sanity check.
@@ -157,10 +158,10 @@ def plot_summary(rows):
           [(r["base_hi"] - r["base_full"]) if r["base_hi"] else 0 for r in rows]]
     xe = [[(r["xf_full"] - r["xf_lo"]) if r["xf_lo"] else 0 for r in rows],
           [(r["xf_hi"] - r["xf_full"]) if r["xf_hi"] else 0 for r in rows]]
-    ax.bar(x - w / 2, base, w, yerr=be, capsize=4, label="allt·10% (#322)", color="#9bb8d3")
-    ax.bar(x + w / 2, xf, w, yerr=xe, capsize=4, label="allt·10% + crossfade·10% (#325)", color="#2f6da8")
+    ax.bar(x - w / 2, base, w, yerr=be, capsize=4, label="best recipe so far", color="#9bb8d3")
+    ax.bar(x + w / 2, xf, w, yerr=xe, capsize=4, label="+ regime crossfade", color="#2f6da8")
     ax.axhline(V11C, ls="--", c="#888", lw=1)
-    ax.text(len(HEADS) - 0.5, V11C, " v11c 1.292", va="bottom", ha="right", fontsize=8, c="#666")
+    ax.text(len(HEADS) - 0.5, V11C, " strongest prior backbone", va="bottom", ha="right", fontsize=8, c="#666")
     ax.axhline(NAIVE, ls=":", c="#aaa", lw=1)
     ax.text(len(HEADS) - 0.5, NAIVE, " seasonal-naive", va="bottom", ha="right", fontsize=8, c="#999")
     for xi, r in zip(x, rows):
@@ -169,9 +170,9 @@ def plot_summary(rows):
         if r["xf_full"]:
             ax.text(xi + w / 2, r["xf_full"], f"{r['xf_full']:.3f}", ha="center", va="bottom", fontsize=8)
     ax.set_xticks(x)
-    ax.set_xticklabels([f"{h} q-head" for h in HEADS])
-    ax.set_ylabel("Full-97 GM-Relative MASE (lower better)")
-    ax.set_title("#325 regime-crossfade on allt·10% — GIFT-Eval full-97")
+    ax.set_xticklabels([HLAB[h] for h in HEADS])
+    ax.set_ylabel("GM-Relative MASE over 97 tasks (lower better)")
+    ax.set_title("Adding a regime crossfade to the best recipe — GIFT-Eval")
     ax.legend(fontsize=8, loc="upper left")
     fig.tight_layout()
     fig.savefig(f"{PLOTS}/gm_summary.png", dpi=130)
@@ -179,7 +180,7 @@ def plot_summary(rows):
 
 
 def plot_delta(rows):
-    fig, ax = plt.subplots(figsize=(6, 3.6))
+    fig, ax = plt.subplots(figsize=(7.6, 4.2))
     x = np.arange(len(HEADS))
     d = [r["delta"] for r in rows]
     lo = [(r["delta"] - r["ci_lo"]) if r["ci_lo"] is not None else 0 for r in rows]
@@ -199,9 +200,10 @@ def plot_delta(rows):
             ax.text(xi, r["delta"], f"{r['delta']:+.3f}", ha="center",
                     va="bottom" if r["delta"] >= 0 else "top", fontsize=9)
     ax.set_xticks(x)
-    ax.set_xticklabels([f"{h} q-head" for h in HEADS])
-    ax.set_ylabel("Δ GM-Relative MASE\n(crossfade − allt·10%)")
-    ax.set_title("Paired-bootstrap Δ (90% CI over shared configs)\ngreen=crossfade better, red=worse, grey=inconclusive")
+    ax.set_xticklabels([HLAB[h] for h in HEADS])
+    ax.set_ylabel("change in error with the crossfade\n(GM-Relative MASE, negative = better)")
+    ax.set_title("Change in forecast error from adding the crossfade\n"
+                 "(90% interval over 97 tasks; grey = interval crosses zero)", fontsize=11)
     fig.tight_layout()
     fig.savefig(f"{PLOTS}/delta.png", dpi=130)
     print(f"wrote {PLOTS}/delta.png")
