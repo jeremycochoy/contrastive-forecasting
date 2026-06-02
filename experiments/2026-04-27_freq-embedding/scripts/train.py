@@ -281,6 +281,21 @@ def parse_args():
                    help="Step interval for --log-attn-amplitude sampling. "
                         "Default 200. Only meaningful with "
                         "--log-attn-amplitude.")
+    p.add_argument("--qk-norm", action="store_true",
+                   help="QK-norm (PaLM/Gemma/ViT-22B): RMSNorm on Q and K per "
+                        "head before the attention dot-product, to bound the "
+                        "pre-softmax logits independently of q/k projection "
+                        "weight magnitude. Default off = byte-identical to the "
+                        "nn.MultiheadAttention path. On = an SDPA forward reusing "
+                        "the same projection weights + q/k RMSNorm (same fused "
+                        "kernel, ~no perf cost). Targets the batch-1024 "
+                        "activation-amplitude divergence (#322).")
+    p.add_argument("--attn-out-norm", action="store_true",
+                   help="Sandwich norm on the ATTENTION OUTPUT only (Gemma2-style "
+                        "post-sublayer RMSNorm on sa_out before the residual add). "
+                        "Bounds sa_out — #322's residual-runaway driver — regardless "
+                        "of V/out_proj magnitude. Attention only (FFN output does not "
+                        "grow, measured). Off = byte-identical.")
     p.add_argument("--tau", type=float, default=None,
                    help="Contrastive temperature. None = use the LOSS_SPEC "
                         "default (0.07). Used by 2026-05-02_exp_realonly_4096_smaller_tau_sweep.")
@@ -731,6 +746,8 @@ def main():
     # are a no-op for every legacy run/checkpoint.
     model_config["forecaster_kind"] = args.forecaster_kind
     model_config["cpc_k_steps"] = args.cpc_k_steps
+    model_config["qk_norm"] = bool(args.qk_norm)
+    model_config["attn_out_norm"] = bool(args.attn_out_norm)
     model_config["log_attn_amplitude"] = bool(args.log_attn_amplitude)
     # Override the loss_shape from CLI (LOSS_SPEC is a module-level default).
     LOSS_SPEC.train_configuration["loss_shape"] = args.loss_shape

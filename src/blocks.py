@@ -110,6 +110,8 @@ class DecoderOnlyTransformerLayer(nn.Module):
                  attn_dtype: str = "fp32",
                  ffn_dtype: str = "fp32",
                  conv_dtype: Optional[str] = None,
+                 qk_norm: bool = False,
+                 attn_out_norm: bool = False,
                  log_attn_amplitude: bool = False) -> None:
         factory_kwargs = {'device': device, 'dtype': dtype}
         super().__init__()
@@ -151,6 +153,26 @@ class DecoderOnlyTransformerLayer(nn.Module):
         self.nhead = nhead
         self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout, batch_first=batch_first,
                                                bias=bias, **factory_kwargs)
+        # QK-norm (PaLM / Gemma / ViT-22B): RMSNorm on Q and K per head before
+        # the dot-product, to bound the pre-softmax logits independently of how
+        # large the q/k projection weights grow (the batch-1024 divergence mode,
+        # #322). OFF (default) → byte-identical to the nn.MultiheadAttention path
+        # above. ON → _sa_block runs an SDPA forward that REUSES this MHA's
+        # in_proj/out_proj weights (so ON = OFF + q/k RMSNorm only) plus the two
+        # small RMSNorm γ vectors below; same fused kernel, ~no perf cost.
+        self.qk_norm = bool(qk_norm)
+        # Sandwich norm on the ATTENTION OUTPUT only (Gemma2-style post-sublayer
+        # RMSNorm): bounds sa_out — #322's residual-runaway driver — before it
+        # enters the residual stream. Attention only (the FFN output does not grow,
+        # measured); add to the FFN later only if it does.
+        self.attn_out_norm = bool(attn_out_norm)
+        self._attn_dropout_p = float(dropout)
+        head_dim = d_model // nhead
+        if self.qk_norm:
+            self.q_norm = nn.RMSNorm(head_dim, **factory_kwargs)
+            self.k_norm = nn.RMSNorm(head_dim, **factory_kwargs)
+        if self.attn_out_norm:
+            self.attn_out_rms = nn.RMSNorm(d_model, **factory_kwargs)
         # Implementation of Feedforward model
         self.linear1 = nn.Linear(d_model, dim_feedforward, bias=bias, **factory_kwargs)
         self.dropout = nn.Dropout(dropout)
@@ -292,7 +314,9 @@ class DecoderOnlyTransformerLayer(nn.Module):
     # self-attention block
     def _sa_block(self, x: Tensor,
                   attn_mask: Optional[Tensor], key_padding_mask: Optional[Tensor], is_causal: bool = False) -> Tensor:
-        if self.attn_dtype != self.residual_dtype:
+        if self.qk_norm:
+            out = self._attn_qkv(x, attn_mask, key_padding_mask, is_causal)
+        elif self.attn_dtype != self.residual_dtype:
             with _autocast_ctx(self.attn_dtype):
                 out = self.self_attn(x, x, x,
                                      attn_mask=attn_mask,
@@ -301,16 +325,60 @@ class DecoderOnlyTransformerLayer(nn.Module):
                                      need_weights=False)[0]
             # Cast back to residual_dtype before residual ADD.
             out = out.to(_DTYPE_MAP[self.residual_dtype])
-            self._maybe_log_attn_amplitude(x, out)
-            return self.dropout1(out)
         else:
             out = self.self_attn(x, x, x,
                                  attn_mask=attn_mask,
                                  key_padding_mask=key_padding_mask,
                                  is_causal=is_causal,
                                  need_weights=False)[0]
-            self._maybe_log_attn_amplitude(x, out)
-            return self.dropout1(out)
+        # Log the RAW attention output (so sa_out shows the value-path growth),
+        # then optionally NormFormer-normalise it before it enters the residual.
+        self._maybe_log_attn_amplitude(x, out)
+        if self.attn_out_norm:
+            out = self.attn_out_rms(out)
+        return self.dropout1(out)
+
+    def _attn_qkv(self, x: Tensor, attn_mask: Optional[Tensor],
+                  key_padding_mask: Optional[Tensor],
+                  is_causal: bool = False) -> Tensor:
+        """SDPA self-attention reusing self.self_attn's in_proj/out_proj weights,
+        with RMSNorm on Q,K (QK-norm). Same fused F.scaled_dot_product_attention
+        kernel nn.MultiheadAttention dispatches to (no perf regression).
+        DropKey/causal additive mask (B*nhead,T,T) → reshaped to (B,nhead,T,T).
+        key_padding_mask unused here (fixed-length) — asserted None. Returns the RAW
+        attention output in residual_dtype; the caller does the amplitude logging,
+        optional attention-output-norm, and dropout."""
+        assert key_padding_mask is None, "qk-norm path: key_padding_mask unsupported"
+        mha = self.self_attn
+        W = mha.in_proj_weight
+        bsum = mha.in_proj_bias
+        d = W.shape[1]
+        B, T, _ = x.shape
+        hd = d // self.nhead
+        with _autocast_ctx(self.attn_dtype):
+            qkv = torch.nn.functional.linear(x, W, bsum)          # [B, T, 3d]
+            q, k, v = qkv.split(d, dim=-1)
+            q = q.view(B, T, self.nhead, hd).transpose(1, 2)      # [B, nhead, T, hd]
+            k = k.view(B, T, self.nhead, hd).transpose(1, 2)
+            v = v.view(B, T, self.nhead, hd).transpose(1, 2)
+            # RMSNorm over head_dim (autocasts to fp32) then back to compute dtype
+            # so SDPA sees q,k,v in one dtype.
+            vdt = v.dtype
+            if self.qk_norm:
+                q = self.q_norm(q).to(vdt)
+                k = self.k_norm(k).to(vdt)
+            am = attn_mask
+            if am is not None:
+                if am.dim() == 3:                                  # (B*nhead,T,T) → (B,nhead,T,T)
+                    am = am.reshape(B, self.nhead, T, T)
+                am = am.to(vdt)
+            out = torch.nn.functional.scaled_dot_product_attention(
+                q, k, v, attn_mask=am,
+                dropout_p=(self._attn_dropout_p if self.training else 0.0),
+                is_causal=(is_causal and am is None))
+            out = out.transpose(1, 2).reshape(B, T, d)             # [B, T, d]
+            out = torch.nn.functional.linear(out, mha.out_proj.weight, mha.out_proj.bias)
+        return out.to(_DTYPE_MAP[self.residual_dtype])
 
     def _maybe_log_attn_amplitude(self, sa_in: Tensor, sa_out: Tensor) -> None:
         """Diagnostic-only: record max-abs of the pre-softmax QK^T logits
@@ -361,6 +429,10 @@ class DecoderOnlyTransformerLayer(nn.Module):
             hd = d // self.nhead
             qh = q.view(B, T, self.nhead, hd).transpose(1, 2)
             kh = k.view(B, T, self.nhead, hd).transpose(1, 2)
+            # QK-norm path: report the POST-norm logits (what the kernel sees).
+            if self.qk_norm:
+                qh = self.q_norm(qh)
+                kh = self.k_norm(kh)
             logits = torch.matmul(qh, kh.transpose(-2, -1)) / math.sqrt(hd)
             qk_logit_maxabs = float(logits.abs().max().item())
             sa_in_maxabs = float(xin.abs().max().item())
@@ -442,6 +514,8 @@ class TransformerBlock(nn.Module):
                  forecaster_nhead: int | None = None,
                  forecaster_kind: str = "transformer",
                  cpc_k_steps: int = 12,
+                 qk_norm: bool = False,
+                 attn_out_norm: bool = False,
                  log_attn_amplitude: bool = False):
         super().__init__()
 
@@ -499,9 +573,12 @@ class TransformerBlock(nn.Module):
                 attn_dtype=attn_dtype,
                 ffn_dtype=ffn_dtype,
                 conv_dtype=conv_dtype,
+                qk_norm=qk_norm,
+                attn_out_norm=attn_out_norm,
                 log_attn_amplitude=log_attn_amplitude,
             ) for _ in range(num_encoder_layers)
         ])
+        self._qk_norm = bool(qk_norm)
         # Tag encoder layers so the amplitude diagnostic CSV rows are
         # attributable to (block='enc', layer_idx).
         for i, lyr in enumerate(self.encoder_layers):
@@ -612,6 +689,8 @@ class TransformerBlock(nn.Module):
                     attn_dtype=attn_dtype,
                     ffn_dtype=ffn_dtype,
                     conv_dtype=conv_dtype,
+                    qk_norm=qk_norm,
+                    attn_out_norm=attn_out_norm,
                     log_attn_amplitude=log_attn_amplitude,
                 ) for _ in range(num_layers)
             ])
