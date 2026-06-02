@@ -171,8 +171,7 @@ def plot_gm_summary(rows):
     ax.axhline(NAIVE, color="k", ls=":", lw=1.2, label="seasonal-naive (1.0)")
     ax.set_xticks(x); ax.set_xticklabels(arms)
     ax.set_ylabel("Full-97 GM-Relative MASE (lower better)")
-    ax.set_title("#322 — forked arms × 6L forecaster: batch 256 (#320) vs batch 1024\n"
-                 "(β 2-seed ranges shaded; v11c + seasonal-naive marked)")
+    ax.set_title("Forecast error on GIFT-Eval per arm, training batch 256 vs 1024")
     ax.legend(ncol=3, fontsize=8); ax.set_ylim(0.9, None)
     fig.tight_layout(); fig.savefig(f"{PLOTS}/gm_summary.png", dpi=120)
     print("wrote gm_summary.png")
@@ -197,10 +196,151 @@ def plot_batch_delta(rows):
     ax.axvline(0, color="k", lw=1)
     ax.set_yticks(y); ax.set_yticklabels(labels)
     ax.set_xlabel("Δ GM-Relative MASE  (b1024 − b256);  < 0 = bigger pooled batch helps")
-    ax.set_title("#322 — effect of 4× larger all-together negative pool, per arm × head\n"
-                 "(paired-bootstrap 90% CI over 97 shared configs; green = reliably better)")
+    ax.set_title("Change in forecast error from quadrupling the contrastive batch (256 to 1024)")
     fig.tight_layout(); fig.savefig(f"{PLOTS}/batch_delta.png", dpi=120)
     print("wrote batch_delta.png")
+
+
+def _domain_map():
+    """{config: domain} from one all_results.csv (the map is shared across cells)."""
+    for res, tags in ((RES_B1024, [a[1] for a in ARMS]),
+                      (RES_B256, [a[0] for a in ARMS])):
+        for tag in tags:
+            for head in HEADS:
+                path = f"{res}/gift_eval_full_{tag}_{head}/all_results.csv"
+                if not os.path.exists(path):
+                    continue
+                with open(path) as fh:
+                    out = {row["dataset"]: row.get("domain", "?")
+                           for row in csv.DictReader(fh)}
+                if out:
+                    return out
+    return {}
+
+
+# per-arm colours (5 arms), reused for the per-domain radar
+ARM_COLORS = ["#1f77b4", "#9467bd", "#2ca02c", "#ff7f0e", "#d62728"]
+
+
+# ---------------------------------------------------------------- per-domain radar
+def plot_perdomain(rows):
+    dom_map = _domain_map()
+    if not dom_map:
+        print("perdomain: no domain map — skip")
+        return
+
+    def best_profile(res, tag):
+        """(best_head, {domain: GM}, full-97 GM) for whichever head scores lowest."""
+        cand = []
+        for h in HEADS:
+            r = rels(res, tag, h, "full")
+            if r:
+                cand.append((gm(list(r.values())), h, r))
+        if not cand:
+            return None
+        agg, hd, r = min(cand)
+        byd = {}
+        for cfg, v in r.items():
+            byd.setdefault(dom_map.get(cfg, "?"), []).append(v)
+        return hd, {d: gm(vs) for d, vs in byd.items()}, agg
+
+    # 5 arms × {b256 ref, b1024 this card}, each at its own best head.
+    pairs = []
+    for (tag256, tag1024, lab), c in zip(ARMS, ARM_COLORS):
+        p256 = best_profile(RES_B256, tag256)
+        p1024 = best_profile(RES_B1024, tag1024)
+        if p256 and p1024:
+            pairs.append((lab, c, p256, p1024))
+    if not pairs:
+        print("perdomain: no complete arm pairs — skip")
+        return
+
+    doms = sorted({d for _, _, p256, p1024 in pairs
+                   for _, m, _ in (p256, p1024) for d in m})
+    ang = np.linspace(0, 2 * np.pi, len(doms), endpoint=False)
+    ang_c = np.concatenate([ang, ang[:1]])
+
+    fig, ax = plt.subplots(figsize=(9.2, 7.6), subplot_kw=dict(polar=True))
+    # seasonal-naive ring at 1.0
+    ax.plot(np.linspace(0, 2 * np.pi, 200), [NAIVE] * 200, "--",
+            color="k", lw=1.2, alpha=0.7, zorder=1, label="seasonal-naive (1.0)")
+    # v11c ring at 1.292
+    ax.plot(np.linspace(0, 2 * np.pi, 200), [V11C] * 200, "--",
+            color=C_V11C, lw=1.2, alpha=0.8, zorder=2, label=f"v11c ({V11C})")
+    # arms: b256 = dashed, b1024 = solid, both in the arm's colour
+    for lab, c, p256, p1024 in pairs:
+        h256, m256, _ = p256
+        h1024, m1024, _ = p1024
+        v256 = [m256.get(d, np.nan) for d in doms]
+        v1024 = [m1024.get(d, np.nan) for d in doms]
+        ax.plot(ang_c, v256 + v256[:1], "--", color=c, lw=1.4, alpha=0.85,
+                label=f"{lab} · b256 ({h256})", zorder=3)
+        ax.plot(ang_c, v1024 + v1024[:1], "-", color=c, lw=2.0, alpha=0.95,
+                label=f"{lab} · b1024 ({h1024})", zorder=4)
+    # log radial; cap so the inner cluster fills the figure
+    ax.set_rscale("log")
+    ax.set_rlim(0.6, 3.2)
+    ax.set_xticks(ang); ax.set_xticklabels(doms, fontsize=9)
+    ax.set_rlabel_position(95)
+    ax.set_title("Forecast error by data domain, training batch 256 vs 1024",
+                 fontsize=12, pad=18)
+    ax.legend(fontsize=7.5, loc="upper right", bbox_to_anchor=(1.30, 1.10))
+    fig.tight_layout()
+    fig.savefig(f"{PLOTS}/perdomain.png", dpi=130, bbox_inches="tight")
+    plt.close(fig)
+    print("wrote perdomain.png")
+
+
+# ---------------------------------------------------------------- per-head aggregate
+def per_head_aggregates():
+    """{(head, batch): pooled GM over all 5 arms' per-config relatives}."""
+    out = {}
+    for head in HEADS:
+        for batch, res, ti in (("b256", RES_B256, 0), ("b1024", RES_B1024, 1)):
+            pooled = []
+            for arm in ARMS:
+                pooled.extend(rels(res, arm[ti], head, "full").values())
+            out[(head, batch)] = gm(pooled)
+    return out
+
+
+def plot_per_head():
+    agg = per_head_aggregates()
+    fig, ax = plt.subplots(figsize=(7, 5))
+    series = [
+        ("b256", C_256_2L, C_256_6L),
+        ("b1024", C_1024_2L, C_1024_6L),
+    ]
+    x = np.arange(len(HEADS)); w = 0.34
+    for i, (batch, col2L, col6L) in enumerate(series):
+        vals = [agg.get((h, batch)) for h in HEADS]
+        cols = [col2L, col6L]
+        ax.bar(x + (i - 0.5) * w, [v or 0 for v in vals], w,
+               label=batch, color=cols, edgecolor="none")
+        for xi, v in zip(x + (i - 0.5) * w, vals):
+            if v is not None:
+                ax.text(xi, v + 0.01, f"{v:.3f}", ha="center", va="bottom",
+                        fontsize=9)
+    ax.axhline(V11C, color=C_V11C, ls="--", lw=1.4, label=f"v11c ({V11C})")
+    ax.axhline(NAIVE, color="k", ls=":", lw=1.2, label="seasonal-naive (1.0)")
+    ax.set_xticks(x); ax.set_xticklabels([f"{h} head" for h in HEADS])
+    ax.set_ylabel("Pooled GM-Relative MASE over all 5 arms (lower better)")
+    ax.set_title("Aggregate forecast error per q-head, training batch 256 vs 1024")
+    # legend: batch entries reuse the 2L-family swatch; keep ref lines too
+    import matplotlib.patches as mpatches
+    handles = [mpatches.Patch(color=C_256_2L, label="b256"),
+               mpatches.Patch(color=C_1024_2L, label="b1024"),
+               plt.Line2D([], [], color=C_V11C, ls="--", lw=1.4,
+                          label=f"v11c ({V11C})"),
+               plt.Line2D([], [], color="k", ls=":", lw=1.2,
+                          label="seasonal-naive (1.0)")]
+    ax.legend(handles=handles, fontsize=9)
+    ax.set_ylim(0.9, None)
+    ax.grid(axis="y", ls=":", alpha=0.4)
+    fig.tight_layout(); fig.savefig(f"{PLOTS}/per_head.png", dpi=120)
+    plt.close(fig)
+    print("wrote per_head.png")
+    return agg
 
 
 if __name__ == "__main__":
@@ -208,3 +348,8 @@ if __name__ == "__main__":
     print_table(rows)
     plot_gm_summary(rows)
     plot_batch_delta(rows)
+    plot_perdomain(rows)
+    agg = plot_per_head()
+    print("\nper-head pooled GM-Relative MASE (all 5 arms' configs pooled):")
+    for h in HEADS:
+        print(f"  {h}: b256={f(agg.get((h,'b256')))}  b1024={f(agg.get((h,'b1024')))}")
