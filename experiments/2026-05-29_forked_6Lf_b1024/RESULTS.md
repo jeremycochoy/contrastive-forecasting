@@ -1,14 +1,14 @@
 # Forked arms at contrastive batch 1024
 
-**Verdict.** Five "forked" training arms — each built to stop the backbone from cheating its
-contrastive objective with a positional shortcut — were retrained with a **4× larger
-contrastive batch (1024, all negatives pooled together)**. At the old batch of 256 not one of
-them beat the unforked baseline; at 1024 **every arm improves on both forecasting heads**, and
-the best (**allt·10%**) reaches **1.19 GM-Relative MASE**, under the project's strongest prior
-backbone (1.29). One finding tempers it: an early checkpoint from the **temporary training plateau** — loss still
-far above its final value — **forecasts within ~0.02 of the fully-trained model on every arm**,
-and the sign varies by arm, so the long tail of contrastive training past the plateau buys little
-or no forecasting quality. Most of the forecastable signal is already in place by the plateau.
+**Verdict.** The five forked arms each deny the backbone a positional shortcut — the easy way to
+satisfy its contrastive objective without learning to forecast. At batch 256 none beat the plain
+baseline; quadruple the batch to 1024, all negatives pooled, and every arm improves on both
+heads, all but one slipping below the strongest prior backbone, 1.29. The aggregate score puts
+allt·10% first by a hair (1.19), but domain by domain the standout is **allt·0.8%**: it posts the
+lowest error on more domains than any other arm. One caveat sits under the win — a checkpoint from
+the temporary plateau, taken early in training, already forecasts within ~0.02 of the finished
+model, a little better on two arms and a little worse on the third. The long tail of training buys
+almost nothing.
 
 *GM-Relative MASE = geometric mean, over GIFT-Eval's 97 forecasting tasks, of the model's MASE
 divided by the seasonal-naive MASE. Lower is better; 1.0 is the seasonal-naive baseline.*
