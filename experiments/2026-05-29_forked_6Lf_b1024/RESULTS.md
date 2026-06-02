@@ -59,43 +59,28 @@ that were already near the baseline.
 
 ## Training past the plateau
 
-Each arm's contrastive loss keeps falling long after its forecasting score has settled. Three
-checks make the gap concrete — and they do not all point the same way.
+![Figure 4 — floor-subtracted contrastive loss for all five arms, log-log, from step 100. Every
+arm's loss stalls or ticks up partway through — the temporary plateau, clearest on the all-time
+arms — before resuming its fall. The marked dots are the mid-plateau checkpoints scored in the
+table below.](plots/plateau.png)
 
-For **allt·50%**, a checkpoint at step 1 000 — where the loss is still 1.27, far above its
-final 0.89 — already forecasts as well as the finished model: 1.206 / 1.185 (2L / 6L) versus
-1.218 / 1.202 at the end. The loss fell by a third over the remaining 11 500 steps and bought
-nothing the forecasting head could use.
+Does the long tail of training after that plateau actually sharpen forecasting? On three arms we
+took a checkpoint from the middle of the plateau, gave each a fresh 2L and 6L head, and scored it
+against the fully-trained model.
 
-For the **best scorer, allt·10%**, the loss has an outright **temporary plateau** — it stalls
-and even rises, from 1.19 up to 1.22 over steps ~1 500–3 000, before resuming its descent. A
-checkpoint from the middle of that plateau (step 2 500, loss ~1.21) matches the finished model —
-1.209 / 1.186 (2L / 6L) versus 1.222 / 1.191 — even though the loss goes on to fall to 0.85.
-
-The third arm, **allt·0.8%** (the per-domain winner), runs the *other* way: its mid-plateau
-checkpoint is slightly **worse** than the final on both heads (1.224 / 1.208 versus 1.213 / 1.198),
-so the long tail of training is not uniformly wasted — the effect's sign depends on the arm.
-
-| Arm | head | early / mid-plateau checkpoint | fully trained | longer training helped? |
+| Arm | head | mid-plateau checkpoint | fully trained | longer training helped? |
 |---|:--:|--:|--:|:--:|
-| allt·50% | 2L | 1.206 (step 1 000, loss 1.27) | 1.218 | no |
-| allt·50% | 6L | 1.185 (step 1 000, loss 1.27) | 1.202 | no |
-| allt·10% | 2L | 1.209 (step 2 500, loss 1.21) | 1.222 | no |
-| allt·10% | 6L | 1.186 (step 2 500, loss 1.21) | 1.191 | no |
-| allt·0.8% | 2L | 1.224 (step 2 500, loss 1.41) | 1.213 | yes |
-| allt·0.8% | 6L | 1.208 (step 2 500, loss 1.41) | 1.198 | yes |
+| allt·50% | 2L | 1.206 (step 1 000) | 1.218 | no |
+| allt·50% | 6L | 1.185 (step 1 000) | 1.202 | no |
+| allt·10% | 2L | 1.209 (step 2 500) | 1.222 | no |
+| allt·10% | 6L | 1.186 (step 2 500) | 1.191 | no |
+| allt·0.8% | 2L | 1.224 (step 2 500) | 1.213 | yes |
+| allt·0.8% | 6L | 1.208 (step 2 500) | 1.198 | yes |
 
-![Figure 4 — the early / mid-plateau checkpoint (hollow circle) versus the fully-trained model
-(filled circle). On allt·50% and allt·10% the early checkpoint is as good or slightly better; on
-allt·0.8% it is slightly worse — all within ~0.02, while the contrastive loss keeps falling far
-past it (left panel).](plots/plateau.png)
-
-The reading: across the three arms the early-vs-final gap stays under ~0.02 and changes sign —
-the contrastive loss keeps falling without the forecasting head extracting anything consistently
-better, so most of the forecastable signal is in place by the plateau and the long tail is at
-best a wash. Whether that residual descent is harmless refinement or the shortcut the fork was
-built against (loss falling without forecastable content), this single-seed test can't say — an
-open thread.
+Barely. Every gap is within ~0.02 and the sign flips across arms — the early checkpoint wins on
+allt·50% and allt·10%, loses on allt·0.8%. Most of the forecastable signal is already in place by
+the plateau; the rest of the loss's descent buys almost nothing the head can use. Whether that
+tail is harmless refinement or the shortcut the fork targets, this single-seed test can't say.
 
 ## Scoreboard
 
