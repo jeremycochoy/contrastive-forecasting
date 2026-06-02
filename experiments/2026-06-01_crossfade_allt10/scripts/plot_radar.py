@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Per-domain forecast error radar: best recipe vs + regime crossfade, both heads.
+"""Per-domain forecast error radar, both heads.
 
-Styled to match the parent experiment's radar: domains in a fixed (alphabetical)
-order, a log radial axis so the near-baseline cluster fills the figure, baseline
-dashed / new solid, and two reference rings (seasonal-naive 1.0 and the strongest
-prior backbone). Per-config relative error comes from the eval summaries; the
-config -> domain map from an all_results.csv.
+Three profiles: the best recipe (90% real + 10% forked synthetic), the same recipe
+with the regime crossfade added, and the parent experiment's per-domain standout
+arm (the 0.8% all-time arm) for reference. Parent house style: fixed (alphabetical)
+domain order, log radial axis, baseline dashed / new solid, a seasonal-naive ring.
+Per-config relative error from the eval summaries; config -> domain from all_results.csv.
 """
 import csv
 import math
@@ -24,18 +24,13 @@ OUT = os.environ.get(
 BASE_TAG = "xshh_allt_forked10pct_qk_aon_b1024"
 XF_TAG = "xshh_allt_forked10pct_crossfade10pct_qk_aon_b1024"
 DOMAINS = ["Econ/Fin", "Energy", "Healthcare", "Nature", "Sales", "Transport", "Web/CloudOps"]
-NAIVE, PRIOR = 1.0, 1.292
-BASE_C, XF_C, PRIOR_C = "#9bb8d3", "#2f6da8", "#b07aa1"
+NAIVE = 1.0
+BASE_C, XF_C, ALLT08_C = "#9bb8d3", "#2f6da8", "#e15759"
 
 
-def domain_map():
-    p = f"{SYNC}/baseline/full_{BASE_TAG}_6L_all_results.csv"
-    return {r["dataset"]: r["domain"] for r in csv.DictReader(open(p))}
-
-
-def rels(res_dir, tag, head):
+def read_summary(path):
     out = {}
-    for line in open(f"{res_dir}/gift_eval_full_{tag}_{head}/summary.txt"):
+    for line in open(path):
         q = line.split()
         if len(q) == 4 and "/" in q[0]:
             try:
@@ -43,6 +38,11 @@ def rels(res_dir, tag, head):
             except ValueError:
                 pass
     return out
+
+
+def domain_map():
+    p = f"{SYNC}/baseline/full_{BASE_TAG}_6L_all_results.csv"
+    return {r["dataset"]: r["domain"] for r in csv.DictReader(open(p))}
 
 
 def gm(xs):
@@ -63,16 +63,17 @@ ang = np.linspace(0, 2 * np.pi, len(DOMAINS), endpoint=False)
 ang_c = np.concatenate([ang, ang[:1]])
 ring_t = np.linspace(0, 2 * np.pi, 200)
 
-fig, axes = plt.subplots(1, 2, figsize=(13, 6.6), subplot_kw=dict(polar=True))
+fig, axes = plt.subplots(1, 2, figsize=(13, 6.8), subplot_kw=dict(polar=True))
 for ax, head, title in zip(axes, ["2L", "6L"], ["2-layer head", "6-layer head"]):
-    base = per_domain(rels(f"{SYNC}/analyze/base", BASE_TAG, head), dmap)
-    xf = per_domain(rels(f"{SYNC}/analyze/xf", XF_TAG, head), dmap)
-    ax.plot(ring_t, [NAIVE] * 200, ls="--", color="k", lw=1, alpha=0.6, label="seasonal-naive (1.0)")
-    ax.plot(ring_t, [PRIOR] * 200, ls="--", color=PRIOR_C, lw=1, alpha=0.8, label="strongest prior backbone")
-    ax.plot(ang_c, base + base[:1], ls="--", color=BASE_C, lw=1.8, marker="o", ms=3, label="best recipe")
-    ax.plot(ang_c, xf + xf[:1], ls="-", color=XF_C, lw=2.2, marker="o", ms=3, label="+ regime crossfade")
+    base = per_domain(read_summary(f"{SYNC}/analyze/base/gift_eval_full_{BASE_TAG}_{head}/summary.txt"), dmap)
+    xf = per_domain(read_summary(f"{SYNC}/analyze/xf/gift_eval_full_{XF_TAG}_{head}/summary.txt"), dmap)
+    a08 = per_domain(read_summary(f"{SYNC}/parent_allt08/full_{head}_summary.txt"), dmap)
+    ax.plot(ring_t, [NAIVE] * 200, ls="--", color="k", lw=1, alpha=0.55, label="seasonal-naive (1.0)")
+    ax.plot(ang_c, base + base[:1], ls="--", color=BASE_C, lw=1.8, marker="o", ms=3, label="best recipe (10% fork)")
+    ax.plot(ang_c, xf + xf[:1], ls="-", color=XF_C, lw=2.3, marker="o", ms=3, label="+ regime crossfade")
+    ax.plot(ang_c, a08 + a08[:1], ls="-", color=ALLT08_C, lw=1.8, marker="^", ms=3.5, label="parent's 0.8%-fork arm")
     ax.set_rscale("log")
-    ax.set_rlim(0.72, 1.7)
+    ax.set_rlim(0.72, 1.75)
     ax.yaxis.set_major_locator(FixedLocator([0.8, 1.0, 1.292, 1.5]))
     ax.yaxis.set_minor_locator(NullLocator())
     ax.set_yticklabels(["0.8", "1.0", "1.29", "1.5"], fontsize=7, color="0.45")
@@ -90,3 +91,10 @@ fig.tight_layout(rect=(0, 0, 1, 0.88))
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 fig.savefig(OUT, dpi=130)
 print("wrote", OUT)
+for head in ["2L", "6L"]:
+    base = per_domain(read_summary(f"{SYNC}/analyze/base/gift_eval_full_{BASE_TAG}_{head}/summary.txt"), dmap)
+    xf = per_domain(read_summary(f"{SYNC}/analyze/xf/gift_eval_full_{XF_TAG}_{head}/summary.txt"), dmap)
+    a08 = per_domain(read_summary(f"{SYNC}/parent_allt08/full_{head}_summary.txt"), dmap)
+    print(f"{head}:  {'domain':14s} best   +xfade  0.8%")
+    for d, b, x, a in zip(DOMAINS, base, xf, a08):
+        print(f"     {d:14s} {b:.3f}  {x:.3f}  {a:.3f}")
