@@ -58,6 +58,10 @@ ARMS = {
         "2L": ("gift_eval_full_allt10_plat2500_2L", "gift_eval_full_xshh_allt_forked10pct_qk_aon_b1024_2L"),
         "6L": ("gift_eval_full_allt10_plat2500_6L", "gift_eval_full_xshh_allt_forked10pct_qk_aon_b1024_6L"),
     }),
+    "allt·0.8%": ("bb_xshh_allt_forked2_qk_aon_6Lf_b1024", 2500, "#9467bd", {
+        "2L": ("gift_eval_full_allt08_plat2500_2L", "gift_eval_full_xshh_allt_forked2_qk_aon_b1024_2L"),
+        "6L": ("gift_eval_full_allt08_plat2500_6L", "gift_eval_full_xshh_allt_forked2_qk_aon_b1024_6L"),
+    }),
 }
 
 fig, (axL, axR) = plt.subplots(1, 2, figsize=(13, 5.2))
@@ -110,7 +114,7 @@ axR.legend(handles=[
     mlines.Line2D([], [], marker="o", color="#666", ls="", markersize=9, label="fully trained"),
 ], fontsize=9, loc="lower right")
 
-fig.suptitle("Training past the plateau does not improve forecasting", fontsize=13)
+fig.suptitle("Training past the plateau barely changes forecasting", fontsize=13)
 fig.tight_layout(rect=(0, 0, 1, 0.95))
 fig.savefig(OUT, dpi=120)
 print("wrote", OUT)

@@ -5,11 +5,10 @@ contrastive objective with a positional shortcut — were retrained with a **4×
 contrastive batch (1024, all negatives pooled together)**. At the old batch of 256 not one of
 them beat the unforked baseline; at 1024 **every arm improves on both forecasting heads**, and
 the best (**allt·10%**) reaches **1.19 GM-Relative MASE**, under the project's strongest prior
-backbone (1.29). One finding cuts against the win: an early checkpoint — from the **middle of the
-temporary training plateau**, with the loss still far above its final value — **forecasts as well
-as, or slightly better than, the fully-trained model on every arm and head checked**, so training
-past the plateau buys no forecasting quality. The objective is still being met partly by a
-shortcut, not by forecastable content.
+backbone (1.29). One finding tempers it: an early checkpoint from the **temporary training plateau** — loss still
+far above its final value — **forecasts within ~0.02 of the fully-trained model on every arm**,
+and the sign varies by arm, so the long tail of contrastive training past the plateau buys little
+or no forecasting quality. Most of the forecastable signal is already in place by the plateau.
 
 *GM-Relative MASE = geometric mean, over GIFT-Eval's 97 forecasting tasks, of the model's MASE
 divided by the seasonal-naive MASE. Lower is better; 1.0 is the seasonal-naive baseline.*
@@ -60,8 +59,8 @@ domains, and places allt·10% marginally first.
 
 ## Training past the plateau
 
-Each arm's contrastive loss keeps falling long after its forecasting score has settled. Two
-checks make the gap concrete.
+Each arm's contrastive loss keeps falling long after its forecasting score has settled. Three
+checks make the gap concrete — and they do not all point the same way.
 
 For **allt·50%**, a checkpoint at step 1 000 — where the loss is still 1.27, far above its
 final 0.89 — already forecasts as well as the finished model: 1.206 / 1.185 (2L / 6L) versus
@@ -73,21 +72,30 @@ and even rises, from 1.19 up to 1.22 over steps ~1 500–3 000, before resuming 
 checkpoint from the middle of that plateau (step 2 500, loss ~1.21) matches the finished model —
 1.209 / 1.186 (2L / 6L) versus 1.222 / 1.191 — even though the loss goes on to fall to 0.85.
 
+The third arm, **allt·0.8%** (the per-domain winner), runs the *other* way: its mid-plateau
+checkpoint is slightly **worse** than the final on both heads (1.224 / 1.208 versus 1.213 / 1.198),
+so the long tail of training is not uniformly wasted — the effect's sign depends on the arm.
+
 | Arm | head | early / mid-plateau checkpoint | fully trained | longer training helped? |
 |---|:--:|--:|--:|:--:|
 | allt·50% | 2L | 1.206 (step 1 000, loss 1.27) | 1.218 | no |
 | allt·50% | 6L | 1.185 (step 1 000, loss 1.27) | 1.202 | no |
 | allt·10% | 2L | 1.209 (step 2 500, loss 1.21) | 1.222 | no |
 | allt·10% | 6L | 1.186 (step 2 500, loss 1.21) | 1.191 | no |
+| allt·0.8% | 2L | 1.224 (step 2 500, loss 1.41) | 1.213 | yes |
+| allt·0.8% | 6L | 1.208 (step 2 500, loss 1.41) | 1.198 | yes |
 
-![Figure 4 — for both arms, on both heads, the early / mid-plateau checkpoint (hollow circle)
-forecasts as well as or better than the fully-trained model (filled circle), even though the
-contrastive loss keeps falling far past it (left panel).](plots/plateau.png)
+![Figure 4 — the early / mid-plateau checkpoint (hollow circle) versus the fully-trained model
+(filled circle). On allt·50% and allt·10% the early checkpoint is as good or slightly better; on
+allt·0.8% it is slightly worse — all within ~0.02, while the contrastive loss keeps falling far
+past it (left panel).](plots/plateau.png)
 
-The reading: past the point where the forecasting head has extracted what it can, the backbone
-keeps minimising its contrastive loss through something the head cannot use — a shortcut the
-fork suppresses but does not remove. It is the same failure the fork was built against,
-reappearing in the training tail; preventing it is unfinished work.
+The reading: across the three arms the early-vs-final gap stays under ~0.02 and changes sign —
+the contrastive loss keeps falling without the forecasting head extracting anything consistently
+better, so most of the forecastable signal is in place by the plateau and the long tail is at
+best a wash. Whether that residual descent is harmless refinement or the shortcut the fork was
+built against (loss falling without forecastable content), this single-seed test can't say — an
+open thread.
 
 ## Scoreboard
 
