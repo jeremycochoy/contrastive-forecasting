@@ -21,7 +21,7 @@ from before this line of work; the dotted line is seasonal-naive.](plots/gm_summ
 
 The crossfade windows are 10% of every batch. Both point estimates come out slightly lower with the
 crossfade, the 2-layer head from 1.222 to 1.208 and the 6-layer from 1.191 to 1.178, but a
-difference that small needs a check. A **paired bootstrap** is that check: it asks whether the
+difference that small needs checking against task-set luck. A **paired bootstrap** asks whether the
 difference would survive if the benchmark had drawn a different set of tasks. We rebuild the task
 list many times by sampling the 97 tasks at random, with repeats, recompute the gap between the two
 models' average errors on each rebuilt list, and read off how far that gap moves. *Paired* means
@@ -39,9 +39,9 @@ the interval says not to lean on it.
 
 ## What we got, by domain
 
-That benchmark-wide flatness hides a real redistribution. Running the same paired bootstrap inside
-each data domain, the crossfade reliably improves Healthcare and Transport on both heads and
-reliably worsens Web/CloudOps on both; the rest stays within noise.
+Running the same paired bootstrap inside each domain splits the flat aggregate apart: the crossfade
+reliably improves Healthcare and Transport on both heads, reliably worsens Web/CloudOps on both, and
+leaves the rest within noise.
 
 ![Per-domain change in error from the crossfade, both heads, with the 90% paired-bootstrap interval
 for each domain (the domain's task count in brackets). Green is a reliable improvement, the whole
@@ -80,15 +80,15 @@ sample and shared across channels.](plots/crossfade_schematic.png)
 
 ## What we observed in the training dynamics
 
-The crossfade does change the training. The contrastive loss settles a little higher, and so does
-the **gap** between two cosine similarities: how much more a forecast resembles the true future than
-the present. The gap climbs from about 1.03 without the crossfade to about 1.18 with it.
+With the crossfade the contrastive loss settles a little higher, and so does the **gap** between two
+cosine similarities: how much more a forecast resembles the true future than the present. The gap
+climbs from about 1.03 without the crossfade to about 1.18 with it.
 
 ![Training curves, crossfade (solid) versus the recipe alone (dashed), from step 100. Left, the
 contrastive loss falls cleanly on both and settles a little higher with the crossfade. Right, the
 gap climbs higher with the crossfade.](plots/training_curves_loglog.png)
 
-But the gap is a difference of two parts, and splitting it shows the change is one-sided. The
+But the gap is a difference of two cosines, and the split is one-sided. The
 forecast-to-future similarity, the part that would actually help forecasting, ends slightly *lower*
 with the crossfade, 0.98 against the recipe's 0.99; it is the forecast-to-present similarity that
 drops much further below zero. So the wider gap is the model pushing its forecast away from the
@@ -117,10 +117,8 @@ over tasks, not over training seeds.
 
 ## What we learned
 
-The crossfade is neither inert nor a free win. It reliably shifts where the backbone is accurate,
-helping a couple of domains and hurting another, and across the benchmark those moves cancel. If the
-goal is a lower benchmark-wide number, this is a tie and not worth the added complexity. If the goal
-were the domains it helps, the trade might be worth making, though on a single training seed the
-honest reading of even the per-domain effects is "promising, not settled." The cheapest way to firm
-any of it up is to repeat the run under two or three seeds, which a test paired across seeds could
-settle where a single seed cannot.
+Whether to keep the crossfade depends on the goal. For a lower benchmark-wide number it is a tie,
+not worth the added complexity. For the domains it helps the trade might be worth making, though on
+a single seed the honest reading of even the per-domain effects is "promising, not settled." The
+cheapest way to firm any of it up is to repeat the run under two or three seeds, which a test paired
+across seeds could settle where a single seed cannot.
