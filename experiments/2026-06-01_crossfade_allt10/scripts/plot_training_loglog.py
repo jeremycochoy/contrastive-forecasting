@@ -46,7 +46,7 @@ xf_done = "FINAL" if xs and xs[-1] >= 12400 else (f"@{xs[-1]//1000}k" if xs else
 fig, (a1, a2, a3) = plt.subplots(1, 3, figsize=(16, 5))
 
 a1.loglog(xs, [max(v, EPS) for v in xloss], color=XF_C, lw=1.7,
-          label="+ regime crossfade")
+          label="+ 10% regime crossfade")
 a1.loglog(bs, [max(v, EPS) for v in bloss], color=BASE_C, lw=1.5, ls="--",
           label="best recipe so far")
 a1.set_xlabel("training step")
@@ -55,7 +55,7 @@ a1.set_title(f"Training loss (floor-subtracted), log-log (from step {START})")
 a1.grid(True, which="both", alpha=0.25)
 a1.legend(fontsize=9, framealpha=0.9)
 
-a2.semilogx(xs, xgap, color=XF_C, lw=1.7, label="+ regime crossfade")
+a2.semilogx(xs, xgap, color=XF_C, lw=1.7, label="+ 10% regime crossfade")
 a2.semilogx(bs, bgap, color=BASE_C, lw=1.5, ls="--", label="best recipe")
 a2.axhline(1.0, color="grey", ls=":", lw=0.8)
 a2.set_xlabel("training step")
@@ -64,7 +64,7 @@ a2.set_title("Contrastive gap (log-x)")
 a2.grid(True, which="both", alpha=0.25)
 a2.legend(fontsize=9, framealpha=0.9)
 
-a3.semilogx(xs, xcb, color=XF_C, lw=1.7, label="+ regime crossfade")
+a3.semilogx(xs, xcb, color=XF_C, lw=1.7, label="+ 10% regime crossfade")
 a3.semilogx(bs, bcb, color=BASE_C, lw=1.5, ls="--", label="best recipe")
 a3.axhline(0.0, color="grey", ls=":", lw=0.8)
 a3.set_xlabel("training step")

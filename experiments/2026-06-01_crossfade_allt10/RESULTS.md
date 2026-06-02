@@ -5,7 +5,9 @@ the recent past of one real series onto the future of another. Averaged across t
 changed nothing we can measure: the model with the new example and the model without it score the
 same, well inside the uncertainty of the comparison. That flat average is not the whole story,
 though. Domain by domain the crossfade reliably improves some kinds of series and reliably worsens
-another, and across the full benchmark those gains and losses come out even.
+another, and across the full benchmark those gains and losses come out even. On this single
+training seed the clearest of those moves is what looks like a genuine improvement on healthcare
+series, and it is the most promising thread to pull if a run with more seeds confirms it.
 
 *Forecast error is **GM-Relative MASE**: the geometric mean, over the benchmark's 97 tasks, of a
 model's error divided by the seasonal-naive forecast's error. Lower is better; 1.0 is the
