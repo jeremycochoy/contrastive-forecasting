@@ -112,12 +112,12 @@ embedded in [`RESULTS.md`](../forked_6Lf_b1024.md) as the main finding):
 
 ![block_split — diverged b1024: the ENCODER attention output (red) runs away past 10³ while the
 FORECASTER's (blue) stays flat (~36), localising the runaway to the encoder self-attention and
-so to a norm on *its* output.](plots/block_split.png)
+so to a norm on *its* output.](../plots/block_split.png)
 
 ![cosines_through_training — the collapse signature: positive forecaster↔future alignment (left)
 holds until the collapse, while the cross-series negatives (right) stay ~1e-3 at b256 but creep
-up to ~0.57 for the diverged b1024 runs — the directional collapse.](plots/cosines_through_training.png)
+up to ~0.57 for the diverged b1024 runs — the directional collapse.](../plots/cosines_through_training.png)
 
 ![collapse_handling — the LR dead-end, superseded by the two norms: floor-subtracted loss + gap
 for b256 (stable) / b1024 lr 1e-3 (diverges ~step 4500) / b1024 lr 5e-4 (delays but does not
-cure the collapse). Kept for the record only.](plots/collapse_handling.png)
+cure the collapse). Kept for the record only.](../plots/collapse_handling.png)

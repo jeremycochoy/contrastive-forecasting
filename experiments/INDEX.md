@@ -56,7 +56,7 @@ Shared scripts and design: [`2026-04-27_freq-embedding/freq-embedding.md`](2026-
 | [2026-05-03_exp_realonly_full4096_moirai_hp_FINAL](2026-05-03_exp_realonly_full4096_moirai_hp_FINAL/exp_realonly_full4096_moirai_hp_FINAL.md) | Complete | One full epoch (167k steps, MOIRAI HP) testing the step-starvation hypothesis and deterministic resume; reaches GM-MASE 1.183, still 17% behind seasonal naive. |
 | [2026-05-05_exp_qhead_improvements](2026-05-05_exp_qhead_improvements/exp_qhead_improvements.md) | Partial | Whether forecasting-head changes (architecture, depth, schedule, loss, train/eval input match) close the gap to Moirai on a frozen backbone; best head reaches 1.029. |
 
-## Encoder, Temperature and Loss Ablations (May 2026)
+## Encoder, Temperature and Loss Ablations (May–June 2026)
 
 | Experiment | Status | Description |
 |---|---|---|
@@ -79,12 +79,14 @@ Shared scripts and design: [`2026-04-27_freq-embedding/freq-embedding.md`](2026-
 | [2026-05-23_xseries_hh](2026-05-23_xseries_hh/xseries_hh.md) | Partial | Whether denying the positional shortcut via cross-series repulsion or forked continuations improves transfer; only a β-loss fork at ≈10% reproducibly beats β. |
 | [2026-05-26_forked_6Lf](2026-05-26_forked_6Lf/forked_6Lf.md) | Inconclusive | Whether a 6-layer forecaster changes where forked-data shortcut denial helps transfer; mixed — helps the shortcut-anchor arm but hurts the prior GIFT-Eval winner. |
 | [2026-05-29_forked_6Lf_b1024](2026-05-29_forked_6Lf_b1024/forked_6Lf_b1024.md) | Success | Whether quadrupling the contrastive batch to 1024 lets the forked arms beat the baseline; every arm improves and allt·10% leads at GM-MASE 1.19. |
+| [2026-06-01_crossfade_allt10](2026-06-01_crossfade_allt10/crossfade_allt10.md) | Neutral (single seed) | Whether a regime crossfade (splice one real series' past onto another's future) as a 10% contrastive hard-negative beats the best recipe; benchmark-wide a tie, with reliable per-domain trades (Healthcare up, Web/CloudOps down). |
 
 ## Generative-Parameter Recovery (companions to Contrastive ARMA)
 
 | Experiment | Status | Description |
 |---|---|---|
-| [2026-05-04_contrastive-correlation](2026-05-04_contrastive-correlation/contrastive-correlation.md) | Success | Whether a head can recover the 4×4 generative correlation matrix from a backbone trained unsupervised on correlated random walks; TimeAware head r=0.918 (V5 joint-channel: 0.962). |
+| [2026-05-04_contrastive-correlation](2026-05-04_contrastive-correlation/contrastive-correlation.md) | Success | Whether a head can recover the 4×4 generative correlation matrix from a backbone trained unsupervised on correlated random walks; the V1→V4 TimeAware head reaches mean Pearson r=0.918. |
+| [2026-05-07_contrastive-correlation-v5](2026-05-07_contrastive-correlation-v5/contrastive-correlation-v5.md) | Success | Successor to V4: a joint-channel backbone (channels mixed inside the transformer) with a GRU recovery head and a uniform correlation sampler; mean Pearson r rises to 0.962. |
 | [2026-05-18_contrastive-arma-correlation](2026-05-18_contrastive-arma-correlation/contrastive-arma-correlation.md) | Success | Whether one contrastive backbone supports recovery of both ARMA coefficients and 4×4 correlation matrices; ARMA always recovers, correlation only with attention channel-mixing (r≈0.74). |
 
 ## Experiment Timeline
@@ -101,9 +103,10 @@ Apr 15-17   Head/rollout comparison (6 variants on Vast.ai)
 Apr 17-18   Reconstruction head experiment (R1-R4), failure mode analysis
 Apr 21-28   Freq/seasonality embedding sequence (norm choice, patch-stats, CSB loss, dual-emb)
 May 1-5     Real-data 4096 scaling, MOIRAI-HP optimizer recipe, q-head improvements
-May 4-18    Correlation-recovery companions (contrastive-correlation V4→V5, ARMA+correlation)
+May 4-18    Correlation-recovery companions (contrastive-correlation, its V5 joint-channel successor, ARMA+correlation)
 May 8-23    Temperature, encoder and contrastive-loss / negatives ablations
 May 23-29   Forked-continuation shortcut denial; contrastive batch scaled to 1024
+Jun 1       Regime crossfade as a contrastive hard negative (per-domain trades, aggregate tie)
 ```
 
 ## Architecture Summary (Tiny v2)

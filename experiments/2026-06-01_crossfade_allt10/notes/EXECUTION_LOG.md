@@ -1,4 +1,4 @@
-# #325 execution log (operational — not part of RESULTS.md)
+# #325 execution log (operational — not part of ../crossfade_allt10.md)
 
 Records the operational journey (GPU contention, infra incidents, recovery) so the
 report stays "science, not journey." Nothing here changes the result; if the
