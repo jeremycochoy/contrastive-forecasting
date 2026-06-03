@@ -1,61 +1,37 @@
-# experiments/2026-04-27_freq-embedding
+# Frequency-label embedding: does a cheap periodicity hint help?
 
-This directory used to hold the entire freq-embedding experiment
-sequence (6 reports + plots + results all crammed in one folder). It
-was split per experiment in late April 2026 to make each experiment
-self-contained and reviewable.
+The Tiny backbone predicts periodic GIFT-Eval datasets poorly. State-of-the-art time-series foundation models condition on a series' frequency via a token; this experiment tested a much cheaper version — a small learned **frequency-label embedding** (10 frequency classes × 3 dimensions, 30 parameters) concatenated to every patch of the encoder input.
 
-## What's here now
+Training data is a **50/50 mix of real HuggingFace bundles and on-the-fly periodic synthetic series**. The synthetic half carries its true frequency class (1–9); real rows are tagged class 0, "unknown". So the frequency hint is only ever present on the synthetic, periodic half — it is a pass-through on real, non-periodic data. A **mixup** variant additionally interpolates two samples' inputs and their frequency embeddings.
 
-- `notes/DESIGN.md` — the freq-embedding design doc (forward-looking; covers
-  the `FrequencyEmbedding` module, mixup augmentation, and the
-  ablation arms).
-- `notes/FOLLOWUP.md` — proposed but not-yet-run follow-ups (within-time
-  contrastive negative — note: now in flight as `2026-04-27_exp_csb_synth`).
-- `scripts/` — the **shared script library** for the sequence. Every
-  per-experiment `run.sh` references these by absolute path (e.g.,
-  `experiments/2026-04-27_freq-embedding/scripts/train.py`):
-    - `train.py` — backbone trainer (`--freq-emb-dim`, `--mixup-p`,
-      `--rev-norm-kind`, `--rev-norm-span`, `--patch-stats`,
-      `--loss-shape`).
-    - `synth_eval.py` — held-out 1024-sample synth eval; appends rows
-      to a CSV.
-    - `synth_compare_grid.py` — 6-arm × 12-sample comparison grid.
-    - `plot_synth_qhead.py` — 12-panel synth grid for one model.
-    - `plot_qhead.py` — 4-curve plot (truth + SN + MSE + qhead median +
-      band) for one config.
-    - `plot_multi_model.py` — multi-model prediction plot for one
-      config.
-    - `skill_scores.py` — aggregate skill-score computation.
+## Result
 
-## Where to find the actual experiments
+The embedding helps where the hint can apply — on periodic series — and leaves the rest unchanged.
 
-| Experiment | Location |
-|---|---|
-| EXP1 RevIN reproduction (mix=0.5) | `../2026-04-27_exp_revin_repro/` |
-| EXP4 Patch-stats on mix=0.5 + GIFT-Eval | `../2026-04-27_exp_patch_stats_mix05/` |
-| Synth-only redo (4 arms × {30k, 60k}) | `../2026-04-27_exp_synth_only_redo/` |
-| Real-data span sweep (mix=0.0) | `../2026-04-27_exp_span_sweep_real/` |
-| Synth-only span sweep (mix=1.0) | `../2026-04-27_exp_span_sweep_synth/` |
-| RevIN on mix=1.0 synth-only | `../2026-04-27_exp_revin_synth/` |
-| **In-flight** cosine_similarity_batch | `../2026-04-27_exp_csb_synth/` |
-| Aggregate / umbrella REPORT + cross-cutting plots | `../2026-04-27__aggregate/` |
+![GM-MASE per arm, benchmark-wide (97 configs) vs the 6 periodic-focus configs. freq-emb is flat overall but ~5% better than control on the periodic subset.](plots/gm_mase_per_arm.png)
 
-## Why scripts live here, not duplicated per-experiment
+> *GM-MASE = geometric mean of MASE over the listed configs (lower is better).*
 
-Decision: leave `scripts/` here as a shared library, referenced from
-each experiment's `run.sh` by absolute path. Reasoning:
+- **On the 6 periodic-focus configs** (m4_hourly/H, solar/10T ×2, solar/H, ett1/15T, ett2/W — series whose real data has the multi-period structure the hint targets), freq-emb reaches GM-MASE **2.49 vs control's 2.62 (−5%)**; adding mixup is a touch lower (2.48).
+- **Benchmark-wide (97 configs) freq-emb is flat: 1.702 vs control 1.702.** This follows from the design — most configs are non-periodic and their real rows carry frequency "unknown", so the embedding is a pass-through there and cannot move the average.
+- freq-emb + mixup does edge the full benchmark (1.669, −1.9% vs control); since freq-emb alone does not, that benchmark-wide gap is mixup's contribution.
 
-- Every `run.sh` already invokes `python3 -u
-  experiments/2026-04-27_freq-embedding/scripts/train.py …` from
-  `/workspace/app`, so the path is already external to the experiment
-  dir. Copying scripts into each `exp_*/scripts/` would mean updating
-  every `run.sh` post-move and would fork the codebase: a bug fix in
-  `train.py` would have to be applied N times.
-- The user's instruction allowed "simply a copy if it eases some code
-  from the previous experiments". Here, copying actively makes future
-  edits harder rather than easier.
-- Per-experiment READMEs document which scripts they reference, so
-  reproducing one experiment in isolation only requires checking out
-  the matching `experiments/2026-04-27_freq-embedding/scripts/` revision (which
-  git makes trivial via `git log --follow` on the script).
+## Arms
+
+| Arm | freq-emb | mixup | GM-MASE (97 configs) | GM-MASE (periodic-6) |
+|---|:---:|:---:|---:|---:|
+| control (no emb) | – | – | 1.702 | 2.620 |
+| **freq-emb** | dim 3 | – | 1.702 | **2.487** |
+| **freq-emb + mixup** | dim 3 | p=0.3 | **1.669** | 2.480 |
+
+Two longer-training variants — a 90k-step backbone (no embedding) and the fe+mu arm with a 90k-step head — reach 1.692 and 1.681 benchmark-wide; the longer head did not beat the 30k fe+mu (1.669).
+
+## Protocol
+
+Tiny backbone (C=4, H=512, W=16, GRU, 6 layers, RevEWMNorm span=32), `cosine_similarity_batch` loss (τ=0.07), AdamW lr 1e-4, 30k steps from scratch. Data: HF `base_mixed_v1` with `mix_ratio=0.5` (synthetic classes 1–9, real rows class 0). Frequency embedding: 10 classes × 3 dims, concatenated per-patch per-channel; mixup p=0.3, λ ~ Beta(0.2, 0.2) over both inputs and embeddings. R1 reconstruction head, evaluated on the full GIFT-Eval suite (97 configs). Per-arm result CSVs are in [results/](results/); design rationale is in [notes/DESIGN.md](notes/DESIGN.md).
+
+## What we learned
+
+A 30-parameter frequency label moves the periodic-focus configs by ~5%, so the hint carries usable signal where it is present. It does not change the benchmark-wide number because it reaches only the synthetic half — real rows are "unknown". The obvious next step is to give real rows their true frequency; the dual frequency + seasonality embedding it points to is tested in [dualemb_3arm](../2026-04-28_exp_dualemb_3arm/exp_dualemb_3arm.md).
+
+This is a single seed on a 6-config subset — directional, not settled. The cross-cutting comparison across the whole sequence is in the [aggregate report](../2026-04-27__aggregate/aggregate.md); this directory is also the sequence's shared-script home ([notes/SEQUENCE.md](notes/SEQUENCE.md)).
