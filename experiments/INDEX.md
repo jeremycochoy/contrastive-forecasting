@@ -7,7 +7,7 @@ All experiments for the contrastive forecasting project, organized chronological
 | Experiment | Status | Description |
 |---|---|---|
 | [Contrastive ARMA](2026-04-12_contrastive-arma/contrastive-arma.md) | Complete | Original architecture search (encoder type, depth, width) for the ARMA-recovery contrastive task — the foundation behind the project's current Tiny backbone. |
-| [v3b Continuation](2026-04-21_v3b-continuation/v3b-continuation.md) | Complete | Long-running continuation training of the v3b backbone across multiple Vast.ai instances to push it further past the architecture-search horizon. |
+| [v3b Continuation](2026-04-21_v3b-continuation/v3b-continuation.md) | Complete | Training the Tiny backbone from scratch on real-world bundle data to test whether it beats the synthetic-trained v2 and fixes the periodic-dataset weakness — it did not (GM-Rel MASE 1.186; shelved at ~120k). |
 | [Encoder Comparison](2026-04-19_encoder-comparison/encoder-comparison.md) | Complete | Head-to-head test of the GRU encoder vs a flat residual-MLP patch encoder on real-world data, asking whether the GRU's edge survives at scale. |
 | [Window Size Comparison](2026-04-12_window-size-comparison/window-size-comparison.md) | Complete | Comparison of patch widths to pick the right tradeoff between temporal resolution and attention cost. |
 | [RevEWMNorm Span Search](2026-04-12_revnorm-span-search/revnorm-span-search.md) | Complete | Sweep of the EWMA span used by the reversible normaliser to find how fast it should adapt on non-stationary data. |
@@ -30,7 +30,7 @@ All experiments for the contrastive forecasting project, organized chronological
 ## Freq-Embedding Sequence (Apr 2026)
 
 Aggregate report and cross-cutting artefacts: [`2026-04-27__aggregate/aggregate.md`](2026-04-27__aggregate/aggregate.md).
-Shared scripts and design: [`2026-04-27_freq-embedding/freq-embedding.md`](2026-04-27_freq-embedding/freq-embedding.md).
+Frequency-label embedding experiment (does a cheap periodicity hint help?): [`2026-04-27_freq-embedding/freq-embedding.md`](2026-04-27_freq-embedding/freq-embedding.md) — this dir is also the sequence's shared-script home ([`notes/SEQUENCE.md`](2026-04-27_freq-embedding/notes/SEQUENCE.md)).
 
 | Experiment | Status | Description |
 |---|---|---|
