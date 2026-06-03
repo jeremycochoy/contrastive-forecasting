@@ -6,7 +6,7 @@
 #
 # Backbones only (option A from the discussion). The contrastive loss/gap
 # is a per-step real-data metric — same kind the original ARMA span sweep
-# used to settle on span=32 (experiments/2026-04-12_revnorm-span-search/report.md).
+# used to settle on span=32 (experiments/2026-04-12_revnorm-span-search/revnorm-span-search.md).
 # No qheads, no GIFT-Eval — just compare training trajectories.
 #
 # Spans: {32, 64, 128, 256}. 4 backbones × 30k steps. ~$2.30 estimate.

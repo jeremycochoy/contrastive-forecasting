@@ -40,9 +40,9 @@ def parse(path):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--v6-log", default="experiments/contrastive-arma-correlation/logs/corrV6.log")
-    ap.add_argument("--v7-log", default="experiments/contrastive-arma-correlation/logs/corrV7.log")
-    ap.add_argument("--out", default="experiments/contrastive-arma-correlation/plots/v6_v7_compare.png")
+    ap.add_argument("--v6-log", default="experiments/2026-05-18_contrastive-arma-correlation/logs/corrV6.log")
+    ap.add_argument("--v7-log", default="experiments/2026-05-18_contrastive-arma-correlation/logs/corrV7.log")
+    ap.add_argument("--out", default="experiments/2026-05-18_contrastive-arma-correlation/plots/v6_v7_compare.png")
     args = ap.parse_args()
 
     v6 = parse(args.v6_log)

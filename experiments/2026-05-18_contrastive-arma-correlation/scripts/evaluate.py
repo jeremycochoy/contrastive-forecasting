@@ -230,7 +230,7 @@ def main():
     p.add_argument("--T-raw", type=int, default=4096)
     p.add_argument("--batch-size", type=int, default=16)
     p.add_argument("--num-samples", type=int, default=400)
-    p.add_argument("--out-dir", type=str, default="experiments/contrastive-arma-correlation/figures")
+    p.add_argument("--out-dir", type=str, default="experiments/2026-05-18_contrastive-arma-correlation/figures")
     p.add_argument("--backbone-results", type=str, default=None)
     p.add_argument("--arma-results", type=str, default=None)
     p.add_argument("--corr-results", type=str, default=None)

@@ -18,7 +18,7 @@
 #   N_windows / batch_size = total_steps for one full epoch.
 #   - Project codebase consistently documents 42.5M windows for
 #     `jeremycochoy/gift-pretrain-full-4096` (path=small_v1) — see
-#     experiments/2026-05-02_exp_realonly_full4096_learnable_tau/REPORT.md and
+#     experiments/2026-05-02_exp_realonly_full4096_learnable_tau/exp_realonly_full4096_learnable_tau.md and
 #     experiments/2026-05-02_exp_realonly_full4096_learnable_tau/run.sh which both
 #     state "42.5M windows, 619 GB, 4274 zstd parquet shards".
 #   - The task brief mentioned 47.8M as an alternate estimate.

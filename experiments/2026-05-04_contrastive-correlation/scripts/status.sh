@@ -26,4 +26,4 @@ ls -lah "$EXP_DIR/checkpoints/" 2>/dev/null | tail -n 20 || echo "(no checkpoint
 
 echo ""
 echo "=== recent figures ==="
-ls -lah "$EXP_DIR/figures/" 2>/dev/null | tail -n 20 || echo "(no figures dir)"
+ls -lah "$EXP_DIR/plots/" 2>/dev/null | tail -n 20 || echo "(no figures dir)"

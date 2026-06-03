@@ -1,5 +1,5 @@
 #!/bin/bash
-# End-to-end pipeline that reproduces the V4 numbers in REPORT.md:
+# End-to-end pipeline that reproduces the V4 numbers in contrastive-correlation.md:
 # backbone (200k steps, bs=16, cosine LR) → TimeAware recovery head
 # (30k epochs, bs=8, cosine LR, latent=h) → figures.
 #
@@ -12,7 +12,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
-EXP_DIR="$REPO_ROOT/experiments/contrastive-correlation"
+EXP_DIR="$REPO_ROOT/experiments/2026-05-04_contrastive-correlation"
 cd "$REPO_ROOT"
 export PYTHONPATH="$REPO_ROOT"
 
@@ -32,14 +32,14 @@ LOGFILE="$EXP_DIR/logs/${EXPID}.log"
 HEAD_PATH="$EXP_DIR/checkpoints/${EXPID}_head_timeaware_h.pth"
 HEAD_RESULTS="${HEAD_PATH%.pth}_results.json"
 
-mkdir -p "$EXP_DIR/checkpoints" "$EXP_DIR/logs" "$EXP_DIR/figures"
+mkdir -p "$EXP_DIR/checkpoints" "$EXP_DIR/logs" "$EXP_DIR/plots"
 
 if [ "$SKIP_BACKBONE" != "1" ]; then
     echo ""
     echo "=========================================="
     echo " Stage 1: contrastive backbone ($EXPID)"
     echo "=========================================="
-    python -u experiments/contrastive-correlation/train_contrastive_corr.py \
+    python -u experiments/2026-05-04_contrastive-correlation/scripts/train_contrastive_corr.py \
         --device cuda \
         --encoder-type gru --H 1024 --num-layers 12 \
         --nhead 8 --ffn-mult 4 --activation gelu --depthwise-conv 3 \
@@ -62,7 +62,7 @@ echo ""
 echo "=========================================="
 echo " Stage 2: TimeAware recovery head"
 echo "=========================================="
-python -u experiments/contrastive-correlation/correlation_recovery.py \
+python -u experiments/2026-05-04_contrastive-correlation/scripts/correlation_recovery.py \
     --device cuda \
     --model-path "$BEST_CKPT" \
     --encoder-type gru --H 1024 --num-layers 12 \
@@ -80,7 +80,7 @@ echo ""
 echo "=========================================="
 echo " Stage 3: evaluation + plots"
 echo "=========================================="
-python -u experiments/contrastive-correlation/evaluate_and_plot.py \
+python -u experiments/2026-05-04_contrastive-correlation/scripts/evaluate_and_plot.py \
     --device cuda \
     --model-path "$BEST_CKPT" \
     --head-path "$BEST_HEAD" \
@@ -88,10 +88,10 @@ python -u experiments/contrastive-correlation/evaluate_and_plot.py \
     --encoder-type gru --H 1024 --num-layers 12 \
     --nhead 8 --ffn-mult 4 --activation gelu --depthwise-conv 3 \
     --num-samples 800 \
-    --out-dir "$EXP_DIR/figures" \
+    --out-dir "$EXP_DIR/plots" \
     --backbone-results "$BACKBONE_RESULTS" \
     --head-results "$HEAD_RESULTS" \
     2>&1 | tee -a "$LOGFILE"
 
 echo ""
-echo "Done. Figures: $EXP_DIR/figures/"
+echo "Done. Figures: $EXP_DIR/plots/"

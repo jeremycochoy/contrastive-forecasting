@@ -28,7 +28,7 @@ from src.correlation import generate_correlated_batch
 
 
 def _import_joint_model():
-    # The script lives in experiments/contrastive-correlation/, but Python
+    # The script lives in experiments/2026-05-07_contrastive-correlation-v5/scripts/, but Python
     # can't import a hyphenated package. Add the directory to sys.path.
     import sys, pathlib
     here = pathlib.Path(__file__).resolve().parent
