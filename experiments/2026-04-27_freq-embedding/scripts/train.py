@@ -112,6 +112,12 @@ def parse_args():
     p.add_argument("--split", default="train")
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--mix-ratio", type=float, default=0.5)
+    p.add_argument("--crossfade-ratio", type=float, default=0.0,
+                   help="Fraction of the batch built as regime-crossfade rows "
+                        "(#325): a monotone blend of two distinct real windows "
+                        "from the step's real sub-batch. Stacks with --mix-ratio "
+                        "(forked-arma); real fraction = 1 - mix_ratio - "
+                        "crossfade_ratio. Only valid with --synth-kind forked-arma.")
     p.add_argument("--synth-seed", type=int, default=None)
     p.add_argument("--t-raw", type=int, default=T_RAW,
                    help="Raw window length (T) per sample. Default 1024 "
@@ -844,8 +850,13 @@ def main():
 
     # -- Data -----------------------------------------------------------------
     C = args.n_channels
+    if args.crossfade_ratio > 0 and args.synth_kind != "forked-arma":
+        raise ValueError("--crossfade-ratio requires --synth-kind forked-arma")
     synth_bs = int(round(args.batch_size * args.mix_ratio))
-    hf_bs = args.batch_size - synth_bs
+    # Crossfade rows are blended FROM the real rows (they consume no extra HF
+    # rows), so they shrink hf_bs but not hf_rows_per_step's per-real accounting.
+    cross_bs = int(round(args.batch_size * args.crossfade_ratio))
+    hf_bs = args.batch_size - synth_bs - cross_bs
     hf_rows_per_step = hf_bs * C
     synth_rows_per_step = synth_bs * C
     if args.resume and restored.get("hf_rows_consumed", 0) > 0:
@@ -886,7 +897,7 @@ def main():
     elif args.synth_kind == "forked-arma":
         data_loader = create_mixed_forked_arma_dataloader(
             repo_id=args.hf_repo, batch_size=args.batch_size, C=C,
-            mix_ratio=args.mix_ratio,
+            mix_ratio=args.mix_ratio, crossfade_ratio=args.crossfade_ratio,
             path_in_repo=args.hf_path, split=args.split,
             skip_rows=hf_rows_consumed, T_raw=args.t_raw, seed=synth_seed,
             emit_freq_ids=(args.freq_emb_dim > 0 or args.seasonality_emb_dim > 0),
@@ -899,9 +910,10 @@ def main():
             skip_rows=hf_rows_consumed, T_raw=args.t_raw, seed=synth_seed,
             emit_freq_ids=(args.freq_emb_dim > 0 or args.seasonality_emb_dim > 0),
         )
-    print(f"Data: MIX {(1-args.mix_ratio)*100:.0f}% HF + "
-          f"{args.mix_ratio*100:.0f}% synth ({args.synth_kind}), "
-          f"hf_bs={hf_bs}, synth_bs={synth_bs}")
+    real_frac = (1 - args.mix_ratio - args.crossfade_ratio) * 100
+    print(f"Data: MIX {real_frac:.0f}% HF + {args.mix_ratio*100:.0f}% synth "
+          f"({args.synth_kind}) + {args.crossfade_ratio*100:.0f}% crossfade, "
+          f"hf_bs={hf_bs}, synth_bs={synth_bs}, cross_bs={cross_bs}")
     data_iter = iter(data_loader)
     sys.stdout.flush()
 
