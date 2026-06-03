@@ -249,3 +249,170 @@ def test_sharded_mode_grad_is_mean_of_per_shard_losses():
     than the gathered one — by design — so this pins the documented
     tradeoff rather than single-GPU equivalence."""
     _spawn(_worker_sharded_param_grad)
+
+
+# ---------------------------------------------------------------------------
+# XSHH_ALLT_SHARD (#327): source-dim sharding of the all-time cross-series term.
+#
+# Unlike --shard-loss-on-batch (a different, weaker objective), this shards
+# only the SOURCE batch b' of the O((B·T)²) all-time term while anchors stay
+# global (DifferentiableAllGather). The cross-rank logsumexp combine + the
+# backward all-reduce make it MATHEMATICALLY IDENTICAL to the single-process
+# full-source loss — so it is pinned against the single-GPU reference exactly
+# like the all-gather (loss value, bare-latent grad == W×, and DDP param grad
+# == single-proc), not against a weaker per-shard objective.
+# ---------------------------------------------------------------------------
+
+ALLT_LOSS = "cosine_similarity_batch_full_hh_negs_xshh_allt"
+
+
+def _allt_spec():
+    return SimpleNamespace(train_configuration={
+        "contrastive_divergence_temperature": 0.1,
+        "contrastive_latent_noise": None,
+        "loss_shape": ALLT_LOSS,
+    })
+
+
+def _allt_reference():
+    """Single-process full-batch xshh_allt loss + grads w.r.t. the latents
+    (shard OFF). fp64 for a comfortable margin under the <1e-5 bar."""
+    f, o = _global_latents()
+    f = f.double().clone().requires_grad_(True)
+    o = o.double().clone().requires_grad_(True)
+    loss = contrastive_latent_loss((f, o), validation=False, spec=_allt_spec())
+    loss.backward()
+    return loss.detach(), f.grad.clone(), o.grad.clone()
+
+
+def _worker_allt_sharded_latent_grad(rank, fstore, also_fused):
+    _init(rank, fstore)
+    try:
+        os.environ.pop("XSHH_ALLT_SHARD", None)
+        os.environ.pop("XSHH_ALLT_FUSED", None)
+        ref_loss, ref_gf, ref_go = _allt_reference()
+
+        f_all, o_all = _global_latents()
+        f_all, o_all = f_all.double(), o_all.double()
+        sl = slice(rank * B_LOCAL, (rank + 1) * B_LOCAL)
+        f_loc = f_all[sl].clone().requires_grad_(True)
+        o_loc = o_all[sl].clone().requires_grad_(True)
+
+        f_g, o_g = gather_latents(f_loc, o_loc)
+        os.environ["XSHH_ALLT_SHARD"] = "1"
+        if also_fused:
+            os.environ["XSHH_ALLT_FUSED"] = "1"   # composes; shard subsumes it
+        loss = contrastive_latent_loss((f_g, o_g), validation=False,
+                                       spec=_allt_spec())
+        assert torch.allclose(loss.detach(), ref_loss, atol=1e-6, rtol=1e-5), (
+            f"rank{rank}: sharded allt loss {loss.item()} != single-proc "
+            f"{ref_loss.item()}")
+        loss.backward()
+        os.environ.pop("XSHH_ALLT_SHARD", None)
+        os.environ.pop("XSHH_ALLT_FUSED", None)
+        dist.barrier()   # all collectives done on both ranks before teardown
+
+        # Bare-latent grad is W× the reference (no DDP averaging here).
+        exp_f = WORLD * ref_gf[sl]
+        exp_o = WORLD * ref_go[sl]
+        assert torch.allclose(f_loc.grad, exp_f, atol=1e-6, rtol=1e-5), (
+            f"rank{rank}: f-grad != W*ref "
+            f"(max|Δ|={(f_loc.grad - exp_f).abs().max().item():.3e})")
+        assert torch.allclose(o_loc.grad, exp_o, atol=1e-6, rtol=1e-5), (
+            f"rank{rank}: o-grad != W*ref "
+            f"(max|Δ|={(o_loc.grad - exp_o).abs().max().item():.3e})")
+    finally:
+        dist.destroy_process_group()
+
+
+class _ToBothLatents(torch.nn.Module):
+    """X[B, Hin] -> (forecasted, original) latents, each [B, T, C, H], from one
+    Linear (deterministic init). BOTH latents route gradient to the params so
+    the all-time term (which depends only on the ORIGINAL latent) genuinely
+    exercises param-grad routing under sharding."""
+
+    def __init__(self, h_in):
+        super().__init__()
+        torch.manual_seed(778)
+        self.lin = torch.nn.Linear(h_in, 2 * T * C * H).double()
+
+    def forward(self, x):
+        y = self.lin(x).view(-1, 2, T, C, H)
+        return y[:, 0], y[:, 1]
+
+
+def _allt_ddp_reference(h_in):
+    """Single-process full-batch xshh_allt loss + param grads (shard OFF)."""
+    torch.manual_seed(202606)
+    x = torch.randn(B_GLOBAL, h_in, dtype=torch.float64)
+    m = _ToBothLatents(h_in)
+    f, o = m(x)
+    loss = contrastive_latent_loss((f, o), validation=False, spec=_allt_spec())
+    loss.backward()
+    return loss.detach(), m.lin.weight.grad.clone(), m.lin.bias.grad.clone()
+
+
+def _worker_allt_sharded_param_grad(rank, fstore, also_fused):
+    _init(rank, fstore)
+    try:
+        h_in = 5
+        os.environ.pop("XSHH_ALLT_SHARD", None)
+        os.environ.pop("XSHH_ALLT_FUSED", None)
+        ref_loss, ref_wg, ref_bg = _allt_ddp_reference(h_in)
+
+        torch.manual_seed(202606)
+        x_all = torch.randn(B_GLOBAL, h_in, dtype=torch.float64)
+        sl = slice(rank * B_LOCAL, (rank + 1) * B_LOCAL)
+
+        model = _ToBothLatents(h_in)
+        ddp = torch.nn.parallel.DistributedDataParallel(model)
+
+        f_loc, o_loc = ddp(x_all[sl])
+        f_g, o_g = gather_latents(f_loc, o_loc)
+        os.environ["XSHH_ALLT_SHARD"] = "1"
+        if also_fused:
+            os.environ["XSHH_ALLT_FUSED"] = "1"
+        loss = contrastive_latent_loss((f_g, o_g), validation=False,
+                                       spec=_allt_spec())
+        assert torch.allclose(loss.detach(), ref_loss, atol=1e-6, rtol=1e-5), (
+            f"rank{rank}: sharded allt ddp loss != single-proc")
+        loss.backward()      # DDP averages param grads; shard Function +
+                             # DifferentiableAllGather route the latent grads
+        os.environ.pop("XSHH_ALLT_SHARD", None)
+        os.environ.pop("XSHH_ALLT_FUSED", None)
+        dist.barrier()   # all collectives done on both ranks before teardown
+
+        wg = ddp.module.lin.weight.grad
+        bg = ddp.module.lin.bias.grad
+        assert torch.allclose(wg, ref_wg, atol=1e-5, rtol=1e-4), (
+            f"rank{rank}: sharded weight.grad != single-proc full-batch "
+            f"(max|Δ|={(wg - ref_wg).abs().max().item():.3e})")
+        assert torch.allclose(bg, ref_bg, atol=1e-5, rtol=1e-4), (
+            f"rank{rank}: sharded bias.grad != single-proc full-batch "
+            f"(max|Δ|={(bg - ref_bg).abs().max().item():.3e})")
+    finally:
+        dist.destroy_process_group()
+
+
+def _spawn_args(fn, *extra):
+    with tempfile.TemporaryDirectory() as d:
+        fstore = os.path.join(d, "store")
+        mp.spawn(fn, args=(fstore, *extra), nprocs=WORLD, join=True)
+
+
+@pytest.mark.skipif(not dist.is_available(), reason="torch.distributed N/A")
+@pytest.mark.parametrize("also_fused", [False, True])
+def test_allt_shard_loss_and_latent_grad_match_single_process(also_fused):
+    """XSHH_ALLT_SHARD: sharded all-time loss == single-proc full-source loss;
+    bare-latent grad == W × reference (with XSHH_ALLT_FUSED on and off)."""
+    _spawn_args(_worker_allt_sharded_latent_grad, also_fused)
+
+
+@pytest.mark.skipif(not dist.is_available(), reason="torch.distributed N/A")
+@pytest.mark.parametrize("also_fused", [False, True])
+def test_allt_shard_ddp_param_grad_matches_single_process(also_fused):
+    """End-to-end: with sharding on, the DDP-wrapped param grad == single-GPU
+    full-batch param grad (the shard Function's cross-rank all-reduce makes the
+    all-time grad full/identical, so DifferentiableAllGather's W× and DDP's
+    1/W cancel). Verified with XSHH_ALLT_FUSED on and off (they compose)."""
+    _spawn_args(_worker_allt_sharded_param_grad, also_fused)

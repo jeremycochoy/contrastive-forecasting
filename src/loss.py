@@ -2,6 +2,7 @@ import math
 import os
 
 import torch
+import torch.distributed as dist
 import torch.nn.functional as F
 from torch.utils.checkpoint import checkpoint
 
@@ -233,6 +234,206 @@ def cpc_multistep_cpcnegs_loss(forecasted_multi, original_latent, tau,
         else:
             per_k.append((log_neg_total - log_pos).mean())
     return torch.stack(per_k).mean()
+
+
+# --- All-time cross-series Gram speedups (#327) ----------------------------
+#
+# The all-time cross-series negative in `cosine_similarity_batch_full_hh_negs_
+# xshh_allt` is an O((B·T)²·H) reduction whose full [B, B, T-1, T] Gram is
+# never materialised — it is streamed over source chunks (`XSHH_ALLT_CHUNK`)
+# and reduced on the fly by two nested logsumexp. At batch 2048 it dominates
+# step time (#327). Two independent, default-OFF speedups, each toggled by its
+# own env flag (both bit-identical to the default `checkpoint` path):
+#
+#   XSHH_ALLT_FUSED=1  — replace the per-chunk `torch.utils.checkpoint` with a
+#       hand-written autograd.Function. Forward streams the chunks and keeps
+#       only the final logsumexp `m`; backward recomputes each chunk's Gram,
+#       forms the softmax weights w = exp(score − m) and accumulates the
+#       anchor/source grads with one matmul each — same FLOPs as checkpoint
+#       (the score recompute is the FlashAttention constraint) but without the
+#       generic-autograd graph overhead or the many small chunk kernels.
+#
+#   XSHH_ALLT_SHARD=1  — under torchrun (world_size ≥ 2) shard the SOURCE
+#       batch b' across ranks: each rank reduces its source slice with the
+#       fused kernel, then an associative cross-rank logsumexp combines the
+#       per-rank partials into the global value. Anchors stay global (the
+#       existing DifferentiableAllGather already gives every rank all B
+#       latents), so each rank does ~1/world_size of the (B·T)² matmul. The
+#       backward all-reduces the source-slice grads into the global
+#       anchor/source grads, so it composes with DifferentiableAllGather /
+#       average_gradients exactly like the unsharded loss. Within each rank's
+#       slice it uses the fused kernel, so it composes with XSHH_ALLT_FUSED.
+#
+# Both default OFF ⇒ the loss is byte-for-byte the checkpoint path.
+
+def _xs_allt_chunked_lse(anchor, src, anchor_ids, src_ids, tau, chunk):
+    """Streamed logsumexp of the all-time cross-series scores (no grad — used
+    inside autograd.Function.forward).
+
+      anchor [B, C, T-1, H]   anchors h_t
+      src    [S, C, T,   H]   sources h_l (a contiguous slice of the B series)
+      anchor_ids [B]          global batch id of each anchor
+      src_ids    [S]          global batch id of each source (for self-masking)
+
+    Returns `run` [B, C, T-1] = LSE over {source, l} of cos(h_t, h_l)/τ, with
+    self-pairs (anchor id == source id) excluded. logsumexp is associative, so
+    the result is exact and independent of `chunk`.
+    """
+    neg_inf = float('-inf')
+    B = anchor.shape[0]
+    S = src.shape[0]
+    run = None
+    for s in range(0, S, chunk):
+        e = min(s + chunk, S)
+        same = (anchor_ids.view(B, 1) == src_ids[s:e].view(1, e - s)).view(
+            B, e - s, 1, 1, 1)
+        gram = torch.matmul(
+            anchor.unsqueeze(1),                              # [B, 1,  C, T-1, H]
+            src[s:e].permute(0, 1, 3, 2).unsqueeze(0),        # [1, ch, C, H,   T]
+        ) / tau                                               # [B, ch, C, T-1, T]
+        gram = gram.masked_fill(same, neg_inf)
+        chunk_lse = torch.logsumexp(torch.logsumexp(gram, dim=4), dim=1)  # [B,C,T-1]
+        run = chunk_lse if run is None else torch.logsumexp(
+            torch.stack([run, chunk_lse], dim=0), dim=0)
+    if run is None:                                            # empty source slice
+        run = anchor.new_full((B, anchor.shape[1], anchor.shape[2]), neg_inf)
+    return run
+
+
+def _xs_allt_chunked_grads(anchor, src, anchor_ids, src_ids, run, grad_out,
+                           tau, chunk, need_tau):
+    """Analytic backward of `_xs_allt_chunked_lse`. `run` is the logsumexp used
+    as the softmax normaliser m (the global value for the single-device path,
+    the local partial for the sharded path — folding the cross-rank weight into
+    `grad_out` makes the local-m softmax reproduce the global one exactly).
+
+    Returns (grad_anchor [B,C,T-1,H], grad_src [S,C,T,H], grad_tau or None).
+    """
+    neg_inf = float('-inf')
+    B = anchor.shape[0]
+    S = src.shape[0]
+    grad_anchor = torch.zeros_like(anchor)
+    grad_src = torch.zeros_like(src)
+    grad_tau = None
+    go = grad_out.unsqueeze(1).unsqueeze(-1)                   # [B, 1, C, T-1, 1]
+    m = run.unsqueeze(1).unsqueeze(-1)                         # [B, 1, C, T-1, 1]
+    for s in range(0, S, chunk):
+        e = min(s + chunk, S)
+        same = (anchor_ids.view(B, 1) == src_ids[s:e].view(1, e - s)).view(
+            B, e - s, 1, 1, 1)
+        score = torch.matmul(
+            anchor.unsqueeze(1),
+            src[s:e].permute(0, 1, 3, 2).unsqueeze(0),
+        ) / tau                                               # [B, ch, C, T-1, T]
+        # Softmax weight w = exp(score − m); self-pairs contribute exactly 0
+        # (masked after the exp so an all-masked row's −inf−(−inf) NaN is
+        # zeroed, not propagated).
+        w = torch.exp(score.masked_fill(same, neg_inf) - m).masked_fill(same, 0.0)
+        gw = w * go                                           # [B, ch, C, T-1, T]
+        grad_anchor += torch.einsum('bjctl,jclh->bcth', gw, src[s:e]) / tau
+        grad_src[s:e] = torch.einsum('bjctl,bcth->jclh', gw, anchor) / tau
+        if need_tau:
+            # ∂score/∂τ = −score/τ; `score` is finite (pre-mask) and gw is 0 at
+            # masked positions, so the product is NaN-free.
+            term = (gw * (-score / tau)).sum()
+            grad_tau = term if grad_tau is None else grad_tau + term
+    return grad_anchor, grad_src, grad_tau
+
+
+class _XsAlltFusedLSE(torch.autograd.Function):
+    """Single-device fused all-time cross-series logsumexp (XSHH_ALLT_FUSED=1).
+    Drop-in for the per-chunk checkpoint loop: identical streamed forward, but
+    a hand-written backward instead of an autograd graph over the chunks."""
+
+    @staticmethod
+    def forward(ctx, anchor, src, tau, chunk):
+        ids = torch.arange(anchor.shape[0], device=anchor.device)
+        with torch.no_grad():
+            run = _xs_allt_chunked_lse(anchor, src, ids, ids, tau, chunk)
+        ctx.tau_is_tensor = isinstance(tau, torch.Tensor)
+        if ctx.tau_is_tensor:
+            ctx.save_for_backward(anchor, src, run, tau)
+        else:
+            ctx.save_for_backward(anchor, src, run)
+            ctx.tau = tau
+        ctx.chunk = chunk
+        return run
+
+    @staticmethod
+    def backward(ctx, grad_out):
+        if ctx.tau_is_tensor:
+            anchor, src, run, tau = ctx.saved_tensors
+        else:
+            anchor, src, run = ctx.saved_tensors
+            tau = ctx.tau
+        ids = torch.arange(anchor.shape[0], device=anchor.device)
+        need_tau = ctx.needs_input_grad[2]
+        grad_anchor, grad_src, grad_tau = _xs_allt_chunked_grads(
+            anchor, src, ids, ids, run, grad_out, tau, ctx.chunk, need_tau)
+        return grad_anchor, grad_src, (grad_tau if need_tau else None), None
+
+
+class _XsAlltShardedLSE(torch.autograd.Function):
+    """Source-sharded all-time cross-series logsumexp (XSHH_ALLT_SHARD=1).
+    Each rank reduces its slice of the source batch b' with the fused kernel,
+    then an associative cross-rank logsumexp combines the per-rank partials.
+    Backward all-reduces the source-slice grads into the global anchor/source
+    grads, so it composes with DifferentiableAllGather / average_gradients
+    exactly like the unsharded loss."""
+
+    @staticmethod
+    def forward(ctx, anchor, src, tau, chunk):
+        B = anchor.shape[0]
+        rank, world = dist.get_rank(), dist.get_world_size()
+        start, end = rank * B // world, (rank + 1) * B // world
+        ids = torch.arange(B, device=anchor.device)
+        with torch.no_grad():
+            partial = _xs_allt_chunked_lse(
+                anchor, src[start:end], ids, ids[start:end], tau, chunk)
+            gathered = [torch.empty_like(partial) for _ in range(world)]
+            dist.all_gather(gathered, partial.contiguous())
+            global_lse = torch.logsumexp(torch.stack(gathered, dim=0), dim=0)
+        ctx.tau_is_tensor = isinstance(tau, torch.Tensor)
+        if ctx.tau_is_tensor:
+            ctx.save_for_backward(anchor, src, partial, global_lse, tau)
+        else:
+            ctx.save_for_backward(anchor, src, partial, global_lse)
+            ctx.tau = tau
+        ctx.chunk = chunk
+        ctx.start, ctx.end = start, end
+        return global_lse
+
+    @staticmethod
+    def backward(ctx, grad_out):
+        if ctx.tau_is_tensor:
+            anchor, src, partial, global_lse, tau = ctx.saved_tensors
+        else:
+            anchor, src, partial, global_lse = ctx.saved_tensors
+            tau = ctx.tau
+        B = anchor.shape[0]
+        start, end, chunk = ctx.start, ctx.end, ctx.chunk
+        ids = torch.arange(B, device=anchor.device)
+        need_tau = ctx.needs_input_grad[2]
+        # ∂L/∂partial = grad_out · exp(partial − global_lse). Folding this α
+        # into the local softmax (normaliser = partial) reproduces the global
+        # weight exp(score − global_lse) exactly, so the per-rank source-slice
+        # grads sum (all-reduce) to the full gradient.
+        gp = grad_out * torch.exp(partial - global_lse)
+        grad_anchor, grad_src_slice, grad_tau = _xs_allt_chunked_grads(
+            anchor, src[start:end], ids, ids[start:end], partial, gp,
+            tau, chunk, need_tau)
+        grad_src = torch.zeros_like(src)
+        grad_src[start:end] = grad_src_slice
+        grad_anchor = grad_anchor.contiguous()
+        grad_src = grad_src.contiguous()
+        dist.all_reduce(grad_anchor, op=dist.ReduceOp.SUM)
+        dist.all_reduce(grad_src, op=dist.ReduceOp.SUM)
+        if need_tau:
+            if grad_tau is None:
+                grad_tau = anchor.new_zeros(())
+            grad_tau = grad_tau.contiguous()
+            dist.all_reduce(grad_tau, op=dist.ReduceOp.SUM)
+        return grad_anchor, grad_src, (grad_tau if need_tau else None), None
 
 
 def contrastive_latent_loss(predicted_position, validation, spec,
@@ -955,23 +1156,35 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         src = orig_norm.permute(0, 2, 1, 3).contiguous()      # [B, C, T,   H]  (h_l, ∀l)
         b_all = torch.arange(B, device=orig_norm.device)
         CH = int(os.environ.get('XSHH_ALLT_CHUNK', '8'))
+        # Optional speedups (#327), both default OFF ⇒ the checkpoint loop in
+        # the `else` below runs byte-for-byte unchanged. See the module-level
+        # note on _XsAlltFusedLSE / _XsAlltShardedLSE.
+        fused = os.environ.get('XSHH_ALLT_FUSED', '0') == '1'
+        shard = os.environ.get('XSHH_ALLT_SHARD', '0') == '1' and (
+            dist.is_available() and dist.is_initialized()
+            and dist.get_world_size() > 1)
 
-        def _chunk_lse(anc, src_chunk, same_mask):
-            # anc [B,C,T-1,H], src_chunk [ch,C,T,H], same_mask [B,ch,1,1,1] bool.
-            gram = torch.matmul(
-                anc.unsqueeze(1),                             # [B, 1, C, T-1, H]
-                src_chunk.permute(0, 1, 3, 2).unsqueeze(0),   # [1, ch, C, H, T]
-            ) / tau                                           # [B, ch, C, T-1, T]
-            gram = gram.masked_fill(same_mask, neg_inf)
-            return torch.logsumexp(torch.logsumexp(gram, dim=4), dim=1)  # [B, C, T-1]
+        if shard:
+            run = _XsAlltShardedLSE.apply(anchor, src, tau, CH)
+        elif fused:
+            run = _XsAlltFusedLSE.apply(anchor, src, tau, CH)
+        else:
+            def _chunk_lse(anc, src_chunk, same_mask):
+                # anc [B,C,T-1,H], src_chunk [ch,C,T,H], same_mask [B,ch,1,1,1] bool.
+                gram = torch.matmul(
+                    anc.unsqueeze(1),                             # [B, 1, C, T-1, H]
+                    src_chunk.permute(0, 1, 3, 2).unsqueeze(0),   # [1, ch, C, H, T]
+                ) / tau                                           # [B, ch, C, T-1, T]
+                gram = gram.masked_fill(same_mask, neg_inf)
+                return torch.logsumexp(torch.logsumexp(gram, dim=4), dim=1)  # [B, C, T-1]
 
-        run = None                                            # [B, C, T-1] running LSE
-        for s in range(0, B, CH):
-            e = min(s + CH, B)
-            same = (b_all.view(B, 1) == b_all[s:e].view(1, e - s)).view(B, e - s, 1, 1, 1)
-            chunk_lse = checkpoint(_chunk_lse, anchor, src[s:e], same, use_reentrant=False)
-            run = chunk_lse if run is None else torch.logsumexp(
-                torch.stack([run, chunk_lse], dim=0), dim=0)
+            run = None                                            # [B, C, T-1] running LSE
+            for s in range(0, B, CH):
+                e = min(s + CH, B)
+                same = (b_all.view(B, 1) == b_all[s:e].view(1, e - s)).view(B, e - s, 1, 1, 1)
+                chunk_lse = checkpoint(_chunk_lse, anchor, src[s:e], same, use_reentrant=False)
+                run = chunk_lse if run is None else torch.logsumexp(
+                    torch.stack([run, chunk_lse], dim=0), dim=0)
         log_neg_xs_allt = run.permute(0, 2, 1)                # [B, T-1, C]
 
         negatives = torch.stack(
