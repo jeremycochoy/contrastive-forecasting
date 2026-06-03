@@ -4,6 +4,10 @@ A companion experiment to **contrastive-arma**. Same backbone family, same loss,
 recovery-head philosophy — but the generative parameter is the **4×4 correlation matrix**
 of 4 correlated Brownian motions instead of ARMA(p,q) coefficients.
 
+> **Latest result:** a later iteration — **V5** (joint-channel backbone + GRU recovery
+> head) — raised mean Pearson r to **0.962** (from 0.918 reported here). Full writeup:
+> [`notes/REPORT_v5.md`](notes/REPORT_v5.md).
+
 ## TL;DR
 
 - **Backbone V4** (16h on one elisa RTX 4090): 154M-parameter transformer with GRU
