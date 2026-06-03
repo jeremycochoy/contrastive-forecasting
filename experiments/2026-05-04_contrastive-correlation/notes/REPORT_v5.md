@@ -81,7 +81,7 @@ microseconds. The marginal distribution of off-diagonals is approximately flat
 from 0 to 0.6 with a gentle taper to 1 (the PSD constraint is what bites the
 upper tail). Mean ≈ 0.44, range covers [0.000, 0.999] in 800 samples.
 
-![Generated samples and their true correlation matrices](../figures/data_samples_v5.png)
+![Generated samples and their true correlation matrices](../plots/data_samples_v5.png)
 
 ## 3. Backbone (corrV5)
 
@@ -99,7 +99,7 @@ peak gap **0.506 at step 127k**. Training was stopped at 195 k after a clear
 plateau-and-drift past the peak; the `_best_gap.pth` checkpoint is locked at
 the 127k peak.
 
-![Training curves: backbone gap and recovery head loss](../figures/training_curves_v5.png)
+![Training curves: backbone gap and recovery head loss](../plots/training_curves_v5.png)
 
 ## 4. Recovery head
 
@@ -146,18 +146,18 @@ improvement-vs-mean ratio**, both of which V5 wins clearly.
 All 6 pairs land within 0.958–0.964 — the head is symmetric across channel
 permutations.
 
-![True vs predicted, sample-level](../figures/true_vs_predicted_bars_v5.png)
+![True vs predicted, sample-level](../plots/true_vs_predicted_bars_v5.png)
 
-![Per-pair scatter](../figures/scatter_per_pair_v5.png)
+![Per-pair scatter](../plots/scatter_per_pair_v5.png)
 
 The scatter now covers the full `[0, 1]` range with broadly even density — the
 uniform sampler does what it says.
 
-![Error distributions](../figures/error_distributions_v5.png)
+![Error distributions](../plots/error_distributions_v5.png)
 
-![Predicted vs ground-truth correlation matrices](../figures/corr_matrix_heatmaps_v5.png)
+![Predicted vs ground-truth correlation matrices](../plots/corr_matrix_heatmaps_v5.png)
 
-![Head vs analytic baselines](../figures/baseline_comparison_v5.png)
+![Head vs analytic baselines](../plots/baseline_comparison_v5.png)
 
 The contrastive head sits near the diff(x) ceiling (red ≈ blue), with the
 position-corrcoef baseline (yellow) clearly below at ≈ 0.50 across all pairs —
@@ -220,4 +220,4 @@ ways to close it further:
   backbone at peak gap (step 127 000).
 - `experiments/contrastive-correlation/checkpoints/corrV5_head_gru_best.pth` —
   GRU head best checkpoint (epoch 19 998).
-- `experiments/contrastive-correlation/figures/*_v5.png` — figures used here.
+- `experiments/contrastive-correlation/plots/*_v5.png` — figures used here.

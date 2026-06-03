@@ -67,7 +67,7 @@ C = L Lᵀ + diag(diag_eps)
 This guarantees `diag(C) = 1`, off-diagonals in `[0, ~0.9]`, and PSD by construction.
 Empirically the 6 unique pairwise correlations cover ≈ `[0.05, 0.9]`.
 
-![Generated samples and their true correlation matrices](figures/data_samples.png)
+![Generated samples and their true correlation matrices](plots/data_samples.png)
 
 ## 3. Backbone
 
@@ -97,7 +97,7 @@ saturates at higher gap and ~10× faster because the cross-batch signal is much
 stronger: each sample has a correlation structure that uniquely identifies it, and the
 contrastive loss pushes hard on cross-batch separation.
 
-![Training curves: contrastive gap and recovery loss](figures/training_curves.png)
+![Training curves: contrastive gap and recovery loss](plots/training_curves.png)
 
 ### Note on bigger batches
 
@@ -106,7 +106,7 @@ negatives → in principle a stronger signal). Both runs collapsed at step 3–5
 loss jumped 4.8 → 13.9, embedding similarity FF/FP/CB all flattened to ≈ 0.22 (a
 degenerate fixed point) and never recovered. Same code, different bs and hardware:
 
-![Loss + gap, V1/V2/V3/V4](figures/v1_v2_v3_v4_collapse.png)
+![Loss + gap, V1/V2/V3/V4](plots/v1_v2_v3_v4_collapse.png)
 
 bs=16 on the same architecture is stable. The bigger-batch denominator at temperature
 0.07 (with the cross-batch term scaling as B²·T·C) seems sharp enough to find a
@@ -174,13 +174,13 @@ dominating runtime). Best val MSE 0.003549 at epoch 29 871.
 All 6 pairs land within 0.91–0.93 — the head is symmetric across channel
 permutations, with no obvious "easy" or "hard" pair.
 
-![True vs predicted, sample-level](figures/true_vs_predicted_bars.png)
+![True vs predicted, sample-level](plots/true_vs_predicted_bars.png)
 
-![Per-pair scatter](figures/scatter_per_pair.png)
+![Per-pair scatter](plots/scatter_per_pair.png)
 
-![Error distributions](figures/error_distributions.png)
+![Error distributions](plots/error_distributions.png)
 
-![Predicted vs ground-truth correlation matrices](figures/corr_matrix_heatmaps.png)
+![Predicted vs ground-truth correlation matrices](plots/corr_matrix_heatmaps.png)
 
 ### 5.3 Head vs analytic baselines
 
@@ -190,7 +190,7 @@ the random-walk effect — even moderate generative correlations produce Brownia
 positions that look strongly correlated. The contrastive head sits clearly between,
 much closer to the diff(x) ceiling than to the naïve position estimator.
 
-![Head vs baselines](figures/baseline_comparison.png)
+![Head vs baselines](plots/baseline_comparison.png)
 
 ## 6. Discussion
 
@@ -326,4 +326,4 @@ common-drift effect.
   checkpoint at the peak FF–FP gap (step 43 000).
 - `experiments/contrastive-correlation/checkpoints/corrV4_head_timeaware_h_best.pth`
   — TimeAware head best checkpoint (epoch 29 871).
-- `experiments/contrastive-correlation/figures/` — figures used in this report.
+- `experiments/contrastive-correlation/plots/` — figures used in this report.

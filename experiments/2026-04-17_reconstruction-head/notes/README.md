@@ -29,8 +29,8 @@ R1 (forecaster reconstruction, W=16) achieves GM-Relative MASE 1.121, a **12% im
 
 | Best | Worst |
 |---|---|
-| ![Best 1](../prediction_plots/R1_gru_best_1.png) | ![Worst 1](../prediction_plots/R1_gru_worst_1.png) |
-| ![Best 2](../prediction_plots/R1_gru_best_2.png) | ![Worst 2](../prediction_plots/R1_gru_worst_2.png) |
+| ![Best 1](../plots/R1_gru_best_1.png) | ![Worst 1](../plots/R1_gru_worst_1.png) |
+| ![Best 2](../plots/R1_gru_best_2.png) | ![Worst 2](../plots/R1_gru_worst_2.png) |
 
 ## Key Files
 
@@ -38,4 +38,4 @@ R1 (forecaster reconstruction, W=16) achieves GM-Relative MASE 1.121, a **12% im
 |---|---|
 | `plot_predictions.py` | Script to generate prediction plots |
 | `scripts/eval_multi_head.py` | Multi-head GIFT-Eval evaluation script |
-| `prediction_plots/` | All prediction visualizations (R1, R1p patch encoder, generic best/worst) |
+| `plots/` | All prediction visualizations (R1, R1p patch encoder, generic best/worst) |
