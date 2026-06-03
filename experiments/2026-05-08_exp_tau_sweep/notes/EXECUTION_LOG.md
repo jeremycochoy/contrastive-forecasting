@@ -1,7 +1,7 @@
 # τ-sweep — execution log
 
 Operational notes about how the runs were carried out. Anything in this file
-would NOT belong in `RESULTS.md` if the experiment were re-run cleanly —
+would NOT belong in `../exp_tau_sweep.md` if the experiment were re-run cleanly —
 it documents the path we actually took, not what we learned from it.
 
 ## τ=0.20 — original arm5 (vast 36356043)
@@ -50,7 +50,7 @@ it documents the path we actually took, not what we learned from it.
   that partial-training snapshot.
 - Per-step trajectory CSV up to step 7800 is on disk
   (`sync_tau_sweep_arm5_v2/checkpoints/tau_sweep_0_20_v2_losses.csv`,
-  ~3 MB). The earlier `RESULTS.md` reported held-out eval values from this
+  ~3 MB). The earlier `../exp_tau_sweep.md` reported held-out eval values from this
   partial separately, but it is operational noise (under-trained snapshot)
   and is not reported in the cleaned-up RESULTS.
 
@@ -61,7 +61,7 @@ it documents the path we actually took, not what we learned from it.
   ~16 min). Local artefacts in `sync_tau_sweep_arm5_v2/`.
 - This run will produce the per-step trajectory CSV the original arm5 lost.
   When it lands, the trajectory plot can be regenerated to include τ=0.20
-  alongside the other arms; the held-out eval row in `RESULTS.md` is
+  alongside the other arms; the held-out eval row in `../exp_tau_sweep.md` is
   expected to move only marginally (it is computed against an independent
   full-15k snapshot).
 
@@ -69,6 +69,6 @@ it documents the path we actually took, not what we learned from it.
 
 `results/tau_sweep_metrics_v2.csv` still contains a `tau_sweep_0_20_v2` row
 (the 7800-step partial). The CSV is the raw artefact and is intentionally
-not edited; the cleaned-up `RESULTS.md` simply does not surface that row.
+not edited; the cleaned-up `../exp_tau_sweep.md` simply does not surface that row.
 The Exp-2 `exp2_residual_silu_tau_0_10` row is also in the CSV and likewise
 not part of this sweep.

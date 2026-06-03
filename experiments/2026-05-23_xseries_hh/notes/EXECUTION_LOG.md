@@ -1,6 +1,6 @@
 # #318 — execution log
 
-Operational journey for this card. The science is in [`RESULTS.md`](../xseries_hh.md);
+Operational journey for this card. The science is in [`xseries_hh.md`](../xseries_hh.md);
 this file holds the rest (artifacts, corrections, infra) so the report stays
 fact/protocol/science.
 

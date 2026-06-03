@@ -11,7 +11,7 @@ breaking reversibility.
 
 This was the first patch-stats run, on the same mix=0.5 + GIFT-Eval
 setup as the previous session's arms so it would be directly comparable.
-**Superseded by the synth-only redo** (see `REPORT_synth_only_redo.md`)
+**Superseded by the synth-only redo** (see [`exp_synth_only_redo.md`](../2026-04-27_exp_synth_only_redo/exp_synth_only_redo.md))
 because the GIFT-Eval evaluation was 5h per run and ate iteration
 time, and confounded "is the architecture better" with OOD transfer.
 

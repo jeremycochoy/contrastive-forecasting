@@ -198,7 +198,7 @@ are the converged α/γ numbers in the table).
 
 An fp16 pre-divergence checkpoint (~step 900) scored 1.277/1.283 — a
 mid-divergence snapshot, not a converged backbone; the same arms trained
-to 50k in fp32 land at 1.31–1.41. Detail in EXECUTION_LOG.md.
+to 50k in fp32 land at 1.31–1.41. Detail in [notes/EXECUTION_LOG.md](notes/EXECUTION_LOG.md).
 
 ## What we learned
 

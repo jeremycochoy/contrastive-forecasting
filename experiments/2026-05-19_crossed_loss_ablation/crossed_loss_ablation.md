@@ -93,7 +93,7 @@ forecaster–encoder negative **replaced by** the all-time crossed term
 `--pos-in-denominator`. **Only `--loss-shape` changes** from A's
 backbone-of-record (#296 run `a1`: 1L forecaster, fp16 group, 2-GPU DDP
 global-batch 256, 50k, seed 20260517) — `run_ddp.sh`'s literal 2L/bf16
-form diverged (#296 RESULTS.md), so the controlled test starts from the
+form diverged (#296 bottleneck_fullfh_ddp.md), so the controlled test starts from the
 1L/fp16 run #296/#300 evaluate. Per backbone: 30k 2L-causal q-head +
 official GIFT-Eval (triage 11, full 97). Commands:
 [`scripts/run_all.sh`](scripts/run_all.sh). Tests: 6 closed-form/mask

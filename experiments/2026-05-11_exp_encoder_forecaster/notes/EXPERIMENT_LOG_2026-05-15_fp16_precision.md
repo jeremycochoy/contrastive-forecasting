@@ -1,6 +1,6 @@
 # Experiment log — fp16/bf16 precision stability + sweep details
 
-Detailed companion to [`RESULTS.md`](../exp_encoder_forecaster.md). Everything verbose
+Detailed companion to [`exp_encoder_forecaster.md`](../exp_encoder_forecaster.md). Everything verbose
 that does not belong in the concise report lives here: run-by-run
 divergence trajectories, amplitude instrumentation tables, the
 apples-to-apples snapshot/12L sets, and the git branch-divergence note.

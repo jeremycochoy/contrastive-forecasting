@@ -54,7 +54,7 @@ e[t] -> x_norm[t*W : t*W + 128]
 
 All results below use the corrected decode path from PR #33, which unified the latent
 sequence as [e[0]..e[k], f[k+1]..f[k+m]].  The old code had a one-patch misalignment
-caused by duplicating the first rolled token with f_ctx; see FAILED_EXPERIMENTS.md for
+caused by duplicating the first rolled token with f_ctx; see notes/FAILED_EXPERIMENTS.md for
 pre-fix numbers.
 
 ## Evaluation

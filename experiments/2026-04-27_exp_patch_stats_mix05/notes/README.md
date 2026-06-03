@@ -14,7 +14,7 @@ downstream GIFT-Eval was 1-3% worse than fe+mu+qh / RevIN+qh on the
 iteration time, motivating the synth-only redo.
 
 **Run script**: not preserved as a `run.sh` — launched inline. Setup
-parameters in `REPORT.md`.
+parameters in `../exp_patch_stats_mix05.md`.
 
 **Code referenced**:
 - `src/norm.py::compute_patch_stats(...)`

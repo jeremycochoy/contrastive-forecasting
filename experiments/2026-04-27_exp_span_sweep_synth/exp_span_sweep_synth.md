@@ -3,7 +3,7 @@
 ## Why
 
 Optional follow-up after the user topped up the budget. The real-data
-sweep (`REPORT_span_sweep_real.md`) showed metrics disagreeing
+sweep ([`exp_span_sweep_real.md`](../2026-04-27_exp_span_sweep_real/exp_span_sweep_real.md)) showed metrics disagreeing
 (loss U-shaped at 128, gap monotonically lower at 256). Run the same
 sweep on synth-only to (a) test on the model's training distribution
 where the freq embedding has perfect info, and (b) get a downstream

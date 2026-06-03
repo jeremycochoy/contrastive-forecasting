@@ -1,6 +1,6 @@
 # Experiment log — joint ARMA + correlation, channel-mixing on top
 
-Operational notes that don't belong in `RESULTS.md`. Kept for traceability.
+Operational notes that don't belong in `../contrastive-arma-correlation.md`. Kept for traceability.
 
 ## Loss bug found mid-experiment
 
@@ -16,7 +16,7 @@ Fix: `src/loss.py:133–172`, commit `7443a77`. We re-ran the full pipeline
 mechanical change. It did — `CC(h, h_hat)` flipped past zero from +0.017
 (V6) to −0.013 (V7), see `plots/v6_v7_ratios.png`. Backbone gap and ARMA
 recovery were essentially the same, so V7's checkpoint is what
-`RESULTS.md` discusses; V6's plots are kept under `plots/` only as the
+`../contrastive-arma-correlation.md` discusses; V6's plots are kept under `plots/` only as the
 side-by-side overlay (`v6_v7_compare.png`, `v6_v7_ratios.png`).
 
 ## Optimisation note

@@ -10,7 +10,7 @@ R1 (forecaster reconstruction, W=16) achieves GM-Relative MASE 1.121, a **12% im
 
 | File | Description |
 |---|---|
-| [REPORT.md](../reconstruction-head.md) | Main results: R1/R2/R4 scores, analysis of why reconstruction works, W=16 vs W=128 comparison. |
+| [reconstruction-head.md](../reconstruction-head.md) | Main results: R1/R2/R4 scores, analysis of why reconstruction works, W=16 vs W=128 comparison. |
 | [DESIGN.md](DESIGN.md) | Experiment design: R1-R4 variant definitions, training targets, key insight diagram. |
 | [FAILED_EXPERIMENTS.md](FAILED_EXPERIMENTS.md) | Failed attempts: B1-B4 prediction heads, R3 rolled reconstruction, fR4/fR5 wrong decode alignment, pre-PR#33 misalignment. |
 | [FAILURE_MODES.md](FAILURE_MODES.md) | Per-config failure analysis of R1: periodic patterns, explosive trends, sharp spikes. |

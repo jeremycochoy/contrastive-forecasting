@@ -70,7 +70,7 @@ output AR/MA per channel. MSE loss + improvement-vs-zero metric.
 ### Correlation head (V5 recipe)
 
 `GRUCorrelationHead(H=1024, hidden_dim=128, num_gru_layers=2)` from
-`experiments/2026-05-04_contrastive-correlation/scripts/joint_channel_model.py`. Input is `h_hat`
+`experiments/2026-05-07_contrastive-correlation-v5/scripts/joint_channel_model.py`. Input is `h_hat`
 collapsed to a single sequence per sample by flattening the C dim and
 projecting back to H — i.e. we do the joint projection at the head's input
 boundary (since the backbone's transformer ran per-channel). Output: 6 pairs.

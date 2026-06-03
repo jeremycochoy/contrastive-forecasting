@@ -156,7 +156,7 @@ representative but not a clean 50k); **single seed**. The +4.5% gap to
 v11c exceeds the ±0.02 (n=3) noise estimate but is one seed — a clean
 50k re-run / second seed is the confirmation step. On the bottleneck
 arm the β2 optimum flips with τ (β2=0.98 best at τ=0.1, β2=0.95 best at
-τ=0.8). Filled the two RESULTS.md `_TBD_` cells; re-sorted the GM table
+τ=0.8). Filled the two ../bottleneck_beta2_confound.md `_TBD_` cells; re-sorted the GM table
 (B)-τ0.8 best→worst; added (B)-τ0.8 to plot_summary.py (now 8 bars,
 (B)-τ0.8 leftmost/best); perdomain_star_tau08.png already includes (B).
 WIP prepush — verdict drafted, main agent to ground/polish.
@@ -198,7 +198,7 @@ Fixes applied (WIP prepush, this commit):
 - plot_results.py: removed (B)-τ0.8 and β-τ0.8 from TAU08_ARMS (τ=0.8
   radar/curves now α+γ+v11c); added tau08_bneck_collapse.png plotting the
   two collapsing arms.
-- RESULTS.md: rewrote verdict + tables; moved (B)-τ0.8/β-τ0.8 into the
+- ../bottleneck_beta2_confound.md: rewrote verdict + tables; moved (B)-τ0.8/β-τ0.8 into the
   artifacts/failures section labeled "collapse-onset snapshot @ step
   ~324/500, not converged"; removed all "(B)-τ0.8 beats v11c / best arm"
   claims.

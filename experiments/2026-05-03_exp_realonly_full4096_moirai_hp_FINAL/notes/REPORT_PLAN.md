@@ -1,6 +1,6 @@
 # 2026-05-03_2026-05-02_exp_realonly_full4096_moirai_hp_FINAL — REPORT PLAN (#10)
 
-**Status:** plan only; full REPORT.md lands after STAGE E. Plan file
+**Status:** plan only; full ../exp_realonly_full4096_moirai_hp_FINAL.md lands after STAGE E. Plan file
 2026-05-03.
 
 ## Goal
@@ -93,7 +93,7 @@ launches `sync_loop.sh` after vastrun-provision returns SSH host/port.
 
 ## Followup
 
-REPORT.md will land after STAGE E with: per-stage trajectory plots
+../exp_realonly_full4096_moirai_hp_FINAL.md will land after STAGE E with: per-stage trajectory plots
 (loss + τ continuous from step 0 to 498k, head loss 0–30k, GIFT-Eval
 deltas vs #9 and #6), and a final go/no-go for any further axis
 exploration.

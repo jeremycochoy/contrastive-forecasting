@@ -13,7 +13,7 @@ default was the bottleneck. Single seed.
 
 **Run script**: not preserved as a `run.sh` here — original was
 `/tmp/run_revin_synth.sh` on the remote vast.ai instance and was lost
-when the instance was destroyed. See `REPORT.md` for the setup table
+when the instance was destroyed. See `../exp_revin_synth.md` for the setup table
 and use `../2026-04-27_exp_synth_only_redo/scripts/run.sh` as a template (substitute
 `--rev-norm-kind revin`, drop span, set bb to 60k).
 

@@ -114,7 +114,7 @@ For context, the R9_E13 reference's final 60k-step training loss is 0.1913 — a
 
 ## Files in this directory
 
-- `REPORT.md` — this file (the canonical experiment record).
+- `exp_encoder_forecaster_failed.md` — this file (the canonical experiment record).
 - `results/encoder_forecaster_metrics_multisample_n50.csv` — held-out N=50 aggregates for both arms.
 - `results/encoder_forecaster_metrics_persample_n50.csv` — per-window breakdown (50 rows × 2 arms).
 - `results/gift_eval_triage/all_results.csv` — per-config triage metrics (MASE / sMAPE / etc., 11 rows).

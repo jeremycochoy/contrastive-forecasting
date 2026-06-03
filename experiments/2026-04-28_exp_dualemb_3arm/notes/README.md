@@ -1,7 +1,7 @@
 # Three-arm norm comparison with dual freq+seasonality embeddings
 
-> **Results landed in [`REPORT.md`](../exp_dualemb_3arm.md).** This README is the
-> pre-run protocol; REPORT.md has the headline numbers and analysis.
+> **Results landed in [`exp_dualemb_3arm.md`](../exp_dualemb_3arm.md).** This README is the
+> pre-run protocol; ../exp_dualemb_3arm.md has the headline numbers and analysis.
 
 ## Why
 
@@ -58,7 +58,7 @@ tag (50% from synth + 25.5% × 50% from wiki).
 ## Files
 
 * `run.sh` — driver, runs the 3 arms sequentially
-* `REPORT.md` — written after the experiment completes
+* `../exp_dualemb_3arm.md` — written after the experiment completes
 * `results/gift_eval_{revin,ewma512,ewma128}/all_results.csv` — per-task
   MASE, WQL, skill scores
 * `plots/` — comparison plots

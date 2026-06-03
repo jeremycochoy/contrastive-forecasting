@@ -7,10 +7,10 @@ self-contained and reviewable.
 
 ## What's here now
 
-- `DESIGN.md` — the freq-embedding design doc (forward-looking; covers
+- `notes/DESIGN.md` — the freq-embedding design doc (forward-looking; covers
   the `FrequencyEmbedding` module, mixup augmentation, and the
   ablation arms).
-- `FOLLOWUP.md` — proposed but not-yet-run follow-ups (within-time
+- `notes/FOLLOWUP.md` — proposed but not-yet-run follow-ups (within-time
   contrastive negative — note: now in flight as `2026-04-27_exp_csb_synth`).
 - `scripts/` — the **shared script library** for the sequence. Every
   per-experiment `run.sh` references these by absolute path (e.g.,

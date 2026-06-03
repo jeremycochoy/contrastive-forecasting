@@ -2,7 +2,7 @@
 
 ## Why
 
-The previous patch-stats run (see `REPORT_patch_stats_mix05.md`) used
+The previous patch-stats run (see [`exp_patch_stats_mix05.md`](../2026-04-27_exp_patch_stats_mix05/exp_patch_stats_mix05.md)) used
 mix=0.5 + GIFT-Eval. Two problems:
 1. The GIFT-Eval is OOD relative to training data; an architectural
    change can help on training distribution but lose on OOD, confounding

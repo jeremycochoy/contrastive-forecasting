@@ -220,4 +220,4 @@ ways to close it further:
   backbone at peak gap (step 127 000).
 - `experiments/2026-05-07_contrastive-correlation-v5/checkpoints/corrV5_head_gru_best.pth` —
   GRU head best checkpoint (epoch 19 998).
-- `experiments/contrastive-correlation/plots/*_v5.png` — figures used here.
+- `plots/*_v5.png` — figures used here.

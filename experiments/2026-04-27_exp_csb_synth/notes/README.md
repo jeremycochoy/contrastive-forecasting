@@ -9,7 +9,7 @@ Single-axis change vs the established `cosine_similarity_batch_no_time_neg`.
 
 **Status**: Complete (single seed). Result: GM-MASE 0.886 / WQL 0.434 —
 **~4.5% worse on MASE, ~5.1% worse on WQL** vs the same arm without
-cross-time negatives (GM-MASE 0.848 / WQL 0.413). See `REPORT.md`.
+cross-time negatives (GM-MASE 0.848 / WQL 0.413). See `../exp_csb_synth.md`.
 
 **Run script**: `run.sh` — copy of `/tmp/run_wtn_v2.sh` from the
 remote vast.ai instance (snapshot at launch time). `run_v1.sh` is the

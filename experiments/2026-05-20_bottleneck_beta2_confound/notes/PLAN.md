@@ -38,4 +38,4 @@ seed 20260520.
 ## Deliverables (per REPORT_STANDARD)
 - Per-domain star, 4 lines: (B), α, β, γ, with v11c reference.
 - Training curves (loss / dim-usage / loss_tau_ref / 1−AUC) log/log.
-- `RESULTS.md` with α-match-v11c verdict.
+- `../bottleneck_beta2_confound.md` with α-match-v11c verdict.

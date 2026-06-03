@@ -93,7 +93,7 @@ for future arms but produced no published checkpoint.
 is the held-out N=50 eval against the **15k** GRU baseline FINAL.pth
 (`sync_tau_sweep/checkpoints/tau_sweep_0_10_FINAL.pth`). Used for an
 early read that turned out to be confounded by training duration; the
-headline RESULTS.md table uses the 50k baseline
+headline ../exp_transformer_encoder.md table uses the 50k baseline
 (`sync_tau_sweep_0_10_50k/.../tau_sweep_0_10_50k_r2_FINAL.pth`)
 instead. The 15k file is kept as supplementary data only.
 

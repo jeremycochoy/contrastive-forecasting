@@ -11,7 +11,7 @@ matched the previous-session run within noise. Synth grid plot
 generated (`plots/synth_qhead_grid_revin.png`).
 
 **Run script**: not preserved as a `run.sh` — the run was launched via
-inline bash. Setup parameters are documented in `REPORT.md` and the
+inline bash. Setup parameters are documented in `../exp_revin_repro.md` and the
 shared trainer at `../2026-04-27_freq-embedding/scripts/train.py` was invoked
 with the flags listed there.
 

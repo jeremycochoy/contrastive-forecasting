@@ -1,4 +1,4 @@
-# #316 execution log (operational; the science is in RESULTS.md)
+# #316 execution log (operational; the science is in ../cpc_multistep_linear.md)
 
 ## Setup
 - New experiment branch `experiment/2026-05-23-cpc-multistep-linear` off

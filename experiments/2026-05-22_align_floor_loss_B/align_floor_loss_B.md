@@ -74,7 +74,7 @@ and (next section) under a 6-layer one too.
 - **Compute**: elisa, free. The full-97 eval was sharded across both GPUs to
   halve wall time; the merge recomputes the GM over the union and was validated
   to reproduce (B)'s 1.3572 exactly. Triage ran separately with the #309 filter.
-  See `EXECUTION_LOG.md` for the sharding mechanics.
+  See [`notes/EXECUTION_LOG.md`](notes/EXECUTION_LOG.md) for the sharding mechanics.
 
 ## What we learned
 

@@ -46,5 +46,5 @@ report **triage(11)** and **full(97)** GM-Relative MASE.
   training curves (gap / R²_naive / dim-usage).
 
 ## Deliverables (per REPORT_STANDARD)
-`RESULTS.md`: GM-MASE summary bars (CPC vs β / v11c), per-domain radar vs v11c,
+`../cpc_multistep_linear.md`: GM-MASE summary bars (CPC vs β / v11c), per-domain radar vs v11c,
 training curves, GM-MASE-vs-step. Sub-agent review before merge.

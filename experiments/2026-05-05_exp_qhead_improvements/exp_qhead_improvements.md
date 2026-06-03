@@ -207,7 +207,7 @@ lowest R²_naive of the five.
 - triage results: `experiments/2026-05-05_exp_qhead_improvements/results/`
   (per-run summary.txt + all_results.csv).
 - best head (R5_E7): `sync_qhead_beta_rd5/checkpoints/R5_E7_xfmr12L_quant_moirai_cosine_60k_FINAL.pth`.
-- candidate ledger with rationale per round: `CANDIDATES.md`.
+- candidate ledger with rationale per round: `notes/CANDIDATES.md`.
 - code (merged on `experiments`): `src/forecasting_head.py`,
   `experiments/2026-04-13_gift-eval/scripts/{train_forecasting_head.py,
   eval_gift_eval_official.py}`, `tests/test_forecasting_head.py`.

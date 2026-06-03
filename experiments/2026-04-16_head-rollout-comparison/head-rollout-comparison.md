@@ -28,5 +28,5 @@ Value-space rollout narrowly beat latent-space rollout when using prediction hea
 
 | File | Description |
 |---|---|
-| `DESIGN.md` | Experiment design and rollout strategy definitions |
-| `EXECUTION_PLAN.md` | Vast.ai execution plan and cost breakdown |
+| `notes/DESIGN.md` | Experiment design and rollout strategy definitions |
+| `notes/EXECUTION_PLAN.md` | Vast.ai execution plan and cost breakdown |

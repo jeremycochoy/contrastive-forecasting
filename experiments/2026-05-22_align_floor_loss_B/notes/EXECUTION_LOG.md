@@ -1,4 +1,4 @@
-# #313 execution log (operational; science lives in RESULTS.md)
+# #313 execution log (operational; science lives in ../align_floor_loss_B.md)
 
 ## Question
 Does adding the two opt-in loss features from PR #312 to the **(B)** recipe
@@ -55,7 +55,7 @@ MAIN checkout). Code runs from worktree `/home/jupyter/cf-wt-align-floor`.
   best≡final). 16:37–17:42 — full-97 sharded (GPU0 free=18.4GB) ∥ GPU1; merged
   to 97 configs. 17:45 — triage(11) done. Results: full-97 **1.4308**, triage-11
   **1.6154** — worse than (B) (1.3572/1.4461) and v11c (1.292/1.3878). Verdict:
-  L_align(+floor) does not match v11c; it hurts. Science → RESULTS.md.
-- 17:50 — wrote RESULTS.md; sub-agent review pass; addressed 2 required fixes
+  L_align(+floor) does not match v11c; it hurts. Science → ../align_floor_loss_B.md.
+- 17:50 — wrote ../align_floor_loss_B.md; sub-agent review pass; addressed 2 required fixes
   (panel-1 caption floor/plateau wording; loss_tau_ref "indistinguishable" →
   "marginally lower", which the data show and which sharpens the finding).

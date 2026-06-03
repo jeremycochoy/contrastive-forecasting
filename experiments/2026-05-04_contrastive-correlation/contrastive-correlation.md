@@ -326,8 +326,8 @@ common-drift effect.
   (Linear, MLP, TimeAware) and training/eval logic.
 - `experiments/2026-05-04_contrastive-correlation/scripts/evaluate_and_plot.py` — figure generation.
 - `experiments/2026-05-04_contrastive-correlation/scripts/run.sh` — end-to-end pipeline.
-- `experiments/contrastive-correlation/checkpoints/corrV4_best_gap.pth` — backbone
+- `experiments/2026-05-04_contrastive-correlation/checkpoints/corrV4_best_gap.pth` — backbone
   checkpoint at the peak FF–FP gap (step 43 000).
-- `experiments/contrastive-correlation/checkpoints/corrV4_head_timeaware_h_best.pth`
+- `experiments/2026-05-04_contrastive-correlation/checkpoints/corrV4_head_timeaware_h_best.pth`
   — TimeAware head best checkpoint (epoch 29 871).
-- `experiments/contrastive-correlation/plots/` — figures used in this report.
+- `experiments/2026-05-04_contrastive-correlation/plots/` — figures used in this report.

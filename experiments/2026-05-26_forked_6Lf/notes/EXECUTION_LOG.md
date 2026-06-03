@@ -1,6 +1,6 @@
 # #320 — execution log
 
-Operational journey for this card. The science is in [`RESULTS.md`](../forked_6Lf.md);
+Operational journey for this card. The science is in [`forked_6Lf.md`](../forked_6Lf.md);
 this file holds the rest (recipe provenance, infra, corrections) so the report
 stays goal / protocol / science.
 

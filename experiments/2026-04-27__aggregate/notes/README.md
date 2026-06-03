@@ -6,7 +6,7 @@ sibling `experiments/exp_*` directories.
 
 ## What's here
 
-- `REPORT.md` — umbrella report covering all 4-6 ablations
+- `../aggregate.md` — umbrella report covering all 4-6 ablations
   (#23 freq embedding, #24 quantile head, #26 long head, #28 RevIN,
   plus mix=0.5 patch-stats and the 30k baseline arms). Aggregates
   skill scores across arms.
@@ -34,6 +34,6 @@ sibling `experiments/exp_*` directories.
   (`2026-04-27_exp_synth_only_redo`, `2026-04-27_exp_span_sweep_synth`, `2026-04-27_exp_revin_synth`).
   Splitting per-experiment would lose the cross-arm sort that makes
   the table useful.
-- The umbrella REPORT.md and the 4-6 panels under `predictions*/` argue
+- The umbrella ../aggregate.md and the 4-6 panels under `predictions*/` argue
   about all arms together; living next to the aggregate CSV keeps the
   argument self-consistent.

@@ -1,7 +1,7 @@
 # #322 — execution log
 
 Operational journey for this card (infra, decisions, corrections). The science is
-in [`RESULTS.md`](../forked_6Lf_b1024.md); the design rationale is in [`PLAN.md`](PLAN.md).
+in [`forked_6Lf_b1024.md`](../forked_6Lf_b1024.md); the design rationale is in [`PLAN.md`](PLAN.md).
 
 ## Base branch
 #322 needs three pieces of code, **none merged to `experiments`** yet:
@@ -108,7 +108,7 @@ max-abs diff < 1e-4). This is #322's enabling recipe deviation from #320 (unneed
 The non-standard V-norm was tried and removed.
 
 The diagnostic plots for this debugging trace (the companion `activation_amplitudes.png` is
-embedded in [`RESULTS.md`](../forked_6Lf_b1024.md) as the main finding):
+embedded in [`forked_6Lf_b1024.md`](../forked_6Lf_b1024.md) as the main finding):
 
 ![block_split — diverged b1024: the ENCODER attention output (red) runs away past 10³ while the
 FORECASTER's (blue) stays flat (~36), localising the runaway to the encoder self-attention and

@@ -80,4 +80,4 @@ when set. Defaults to None (preserves the LOSS_SPEC built-in 0.07).
 - [x] run.sh built (parameterised on τ).
 - [ ] τ=0.05 launched on RevIN box (with bs=96).
 - [ ] 3rd 5090 provisioned + τ=0.20 launched there.
-- [ ] Plot + REPORT.md.
+- [ ] Plot + ../exp_realonly_4096_smaller_tau_sweep.md.
