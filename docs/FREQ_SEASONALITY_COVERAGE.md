@@ -184,6 +184,6 @@ M/Q/A buckets is small (7 out of 97 configs).
 * `src/synthetic_periodic.py` — the joint-sampling synth
 * `tests/test_seasonality_embedding.py` — vocab/lookup tests
 * `tests/test_synthetic_periodic.py` — coverage and reproducibility tests
-* `experiments/2026-04-28_exp_dualemb_3arm/REPORT.md` — first downstream eval
+* `experiments/2026-04-28_exp_dualemb_3arm/exp_dualemb_3arm.md` — first downstream eval
   using the embeddings (single-axis spp_to_freq_id then; this doc
   describes the dual-axis successor)

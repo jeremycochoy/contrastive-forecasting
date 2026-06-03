@@ -48,7 +48,7 @@ The best configuration found through architecture search:
 - **Key metric**: FF-FP gap = 0.203 at 2M steps (93% higher than MLP encoder baseline)
 - **Recovery**: 6.96x improvement over zero-baseline on 4 AR + 4 MA coefficient prediction
 
-See [`experiments/2026-04-12_contrastive-arma/report/technical_report.md`](experiments/2026-04-12_contrastive-arma/report/technical_report.md) for the full optimization story.
+See [`experiments/2026-04-12_contrastive-arma/contrastive-arma.md`](experiments/2026-04-12_contrastive-arma/contrastive-arma.md) for the full optimization story.
 
 ## Training Data
 
