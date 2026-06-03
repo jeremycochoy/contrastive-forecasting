@@ -10,7 +10,7 @@ The backbone trained to a contrastive **gap** of around 0.40; its best checkpoin
 
 ![Training dashboard: per-step loss, contrastive gap, the FF/FP components, and a zoom on the 30k resume region.](plots/training_dashboard.png)
 
-Loss falls from ≈ 14 to near zero; the contrastive gap rises to a plateau around 0.40, with a mid-run dip near step 11k and a second, sharper dip at the step-30,000 resume — a resume artifact, not a property of the model (see the annex).
+Loss falls from ≈ 14 to near zero; the contrastive gap rises to a plateau around 0.40. The curve is not monotone — a mid-run dip near step 11k, and disturbances around the step-30,000 resume; the resume-region effects are infrastructure artifacts addressed in the annex (since fixed), not properties of the model.
 
 ## Protocol
 
@@ -35,4 +35,6 @@ The run did not complete on the first attempt; two infrastructure problems had t
 ![NaN-crash forensic: loss decays normally, then spikes to NaN and the run stops.](plots/crash_analysis.png)
 
 1. **An all-NaN data row crashed the run** (above): one row in the stream was entirely NaN and passed through the loader's forward-fill untouched, corrupting the weights until the next step produced NaN everywhere. Fixed by skipping rows still NaN after forward- then back-fill, plus a NaN/Inf guard that checkpoints and exits on contact.
-2. **Resumes lost state:** the checkpoint saved weights, optimiser, and step counter, but not `best_loss`, the EMAs, the RNG state, or the true stream position — so each resume overwrote the best checkpoint and perturbed the metrics (the dip at step 30,000 above, which recovers over several thousand steps). Fixed by saving and restoring the full state.
+2. **Resumes lost state:** the checkpoint saved weights, optimiser, and step counter, but not `best_loss`, the EMAs, the RNG state, or the true stream position — so each resume overwrote the best checkpoint and left the post-resume metrics unreliable. Fixed by saving and restoring the full state.
+
+(The interim fix for issue 1 — zero-filling NaN rows instead of skipping them — was itself harmful: it injected corrupted gradients and produced the large gap excursion around the resume region before the skip-row fix replaced it. Full timeline in the incident note.)

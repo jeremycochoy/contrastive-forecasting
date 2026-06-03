@@ -4,7 +4,7 @@ The v2 backbone (trained on synthetic data, then resumed) reached GM-Relative MA
 
 ## Result
 
-It did not. v3b reached **GM-Relative MASE 1.186** (97 GIFT-Eval configs) — slightly *worse* than the synthetic-trained v2 (1.168, trained to 500k). Training from scratch on real data did not help.
+It did not. v3b reached **GM-Relative MASE 1.186** (97 GIFT-Eval configs) — slightly *worse* than the synthetic-trained v2 (1.168 at 500k, the committed baseline in [periodic-synth-mix](../2026-04-27_periodic-synth-mix/periodic-synth-mix.md)). Training from scratch on real data did not help.
 
 > *GM-Relative MASE = geometric mean, over the 97 benchmark tasks, of (model MASE ÷ seasonal-naive MASE). 1.000 is the seasonal-naive baseline; lower is better. For reference: TimesFM 0.680, Moirai 0.809, **v3b 1.186**.*
 
