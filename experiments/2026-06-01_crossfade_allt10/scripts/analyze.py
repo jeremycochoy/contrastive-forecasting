@@ -160,8 +160,6 @@ def plot_summary(rows):
           [(r["xf_hi"] - r["xf_full"]) if r["xf_hi"] else 0 for r in rows]]
     ax.bar(x - w / 2, base, w, yerr=be, capsize=4, label="best recipe so far", color="#9bb8d3")
     ax.bar(x + w / 2, xf, w, yerr=xe, capsize=4, label="+ 10% regime crossfade", color="#2f6da8")
-    ax.axhline(V11C, ls="--", c="#888", lw=1)
-    ax.text(len(HEADS) - 0.5, V11C, " strongest prior backbone", va="bottom", ha="right", fontsize=8, c="#666")
     ax.axhline(NAIVE, ls=":", c="#aaa", lw=1)
     ax.text(len(HEADS) - 0.5, NAIVE, " seasonal-naive", va="bottom", ha="right", fontsize=8, c="#999")
     for xi, r in zip(x, rows):
