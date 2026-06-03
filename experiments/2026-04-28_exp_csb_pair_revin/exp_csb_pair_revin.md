@@ -48,8 +48,9 @@ Single-axis difference between arms:
 | **D** (`revin + cosine_similarity_batch`) | **0.936** | **0.453** | **-88%** | **-32%** |
 | Seasonal Naive (oracle period) | 0.497 | 0.344 | 0% | 0% |
 
-**D beats C by 12.7% on MASE and 14.7% on WQL.** Plot:
-`plots/synth_compare_pair_revin.png`.
+**D beats C by 12.7% on MASE and 14.7% on WQL.**
+
+![12-panel × 2-arm forecast grid for the RevIN pair: C (no_time_neg) vs D (csb)](plots/synth_compare_pair_revin.png)
 
 ### 4-arm cross-cutting grid (combined with `2026-04-28_exp_csb_pair_span512`)
 
@@ -61,7 +62,7 @@ Single-axis difference between arms:
 | D | RevIN | csb | 0.936 | 0.453 | -88% |
 | Seasonal Naive | — | — | 0.497 | 0.344 | 0% |
 
-Plot: `plots/synth_compare_grid_4arm.png`.
+![12-panel × 4-arm forecast grid covering EWMA × RevIN × ntn × csb](plots/synth_compare_grid_4arm.png)
 
 ## Findings
 

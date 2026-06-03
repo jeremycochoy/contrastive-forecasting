@@ -46,6 +46,8 @@ seasonal-naive sanity check — on 1000 random synth series, the SN/naive
 MASE ratio is **0.067** (SN beats naive by 15×). The data is a valid
 teacher signal for the "detect period, copy last period" skill.
 
+![Inspection grid of eyeballed synthetic samples — sinusoid / square / saw primitives across the log-uniform period and scale range](plots/inspect_grid.png)
+
 ## Training dynamics
 
 ![Training curves](plots/training_curves_backbone.png)

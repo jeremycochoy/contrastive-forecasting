@@ -84,7 +84,9 @@ Mixed.
 
 ### Synth grid
 
-`plots/synth_qhead_grid_pstats.png`. Visually
+![12-panel patch-stats synth grid: visually indistinguishable from the RevIN/fe+mu grids, with the same amplitude damping and phase drift on clean periodics](plots/synth_qhead_grid_pstats.png)
+
+Visually
 indistinguishable from RevIN/fe+mu grids — same amplitude damping and
 phase drift on clean periodics. Patch-stats does not fix the synth-grid
 issue either (single seed, qualitative read).

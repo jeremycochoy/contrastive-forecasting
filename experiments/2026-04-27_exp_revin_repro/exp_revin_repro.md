@@ -46,14 +46,20 @@ intervening session.
 
 ### Synth grid
 
-`plots/synth_qhead_grid_revin.png` (12-panel).
+12-panel synth grid for the RevIN arm:
+
+![12-panel RevIN synth grid on clean-periodic samples](plots/synth_qhead_grid_revin.png)
 
 ## Speculation (single seed, not validated)
 
 The grid is visually indistinguishable from the EWMA grid we had on
 file (`../2026-04-27__aggregate/plots/synth_qhead_grid.png`): same amplitude
 damping and phase drift on clean periodics, same panels work / don't
-work across the two normalisers. Read with caution — single seed,
+work across the two normalisers.
+
+![EWMA-arm 12-panel synth grid, shown for comparison: same amplitude damping and phase drift on clean periodics, same panels working / not working as the RevIN grid above](../2026-04-27__aggregate/plots/synth_qhead_grid.png)
+
+Read with caution — single seed,
 visual comparison only — but at least one reading is that switching
 RevEWMNorm → RevIN does not by itself fix the periodic-tracking
 problem on this data.

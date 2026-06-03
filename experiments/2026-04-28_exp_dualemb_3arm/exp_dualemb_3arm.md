@@ -38,8 +38,10 @@ Per-task labels at eval time: `freq_id = gluonts_freq_to_id(dataset.freq)`,
 | EWMA span=512  | **1.725** | **1.476** | 80.3 | 20 / 97 | **51 / 97** |
 | **EWMA span=128**  | **1.659** | 1.528 | **70.8** | 18 / 97 | 47 / 97 |
 
-`gift_eval_3arm_compare.png` (this directory): aggregate bar, MASE CDF
+The 3-arm GIFT-Eval comparison (this directory): aggregate bar, MASE CDF
 across configs, per-domain bars, head-to-head scatter.
+
+![3-arm GIFT-Eval comparison: aggregate GM-MASE bar, MASE CDF across configs, per-domain bars, and head-to-head scatter for RevIN vs EWMA span=512 vs EWMA span=128](plots/gift_eval_3arm_compare.png)
 
 ## Findings
 
