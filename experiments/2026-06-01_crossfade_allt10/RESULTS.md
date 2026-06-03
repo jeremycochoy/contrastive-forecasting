@@ -35,16 +35,16 @@ than the luck of which tasks the benchmark happens to contain.
 ## What we got, by domain
 
 Running the same paired bootstrap inside each domain splits the flat aggregate apart: the crossfade
-reliably improves Healthcare and Transport on both heads, reliably worsens Web/CloudOps on both, and
-leaves the rest within noise.
+reliably improves Healthcare and Transport on both heads, reliably worsens Web/CloudOps on both and
+Nature on the 6-layer head, and leaves the rest within noise.
 
 ![Per-domain change in error from the crossfade, both heads, with the 90% paired-bootstrap interval
 for each domain (the domain's task count in brackets). Green is a reliable improvement, the whole
 interval below zero; red a reliable worsening; grey within noise.](plots/perdomain_delta.png)
 
 The reliable wins sit on the smallest domains, where even a one-sided interval is wide (Healthcare
-is five tasks), while the reliable loss sits on a domain four times that size. Weighted by task
-count, the two sides cancel. So the crossfade is not adding accuracy; it is moving it from one kind
+is five tasks), while the clearest reliable loss, Web/CloudOps, is four times that size. Weighted by
+task count, the two sides cancel. So the crossfade is not adding accuracy; it is moving it from one kind
 of series to another. The parent experiment's strongest per-domain arm, carried along for reference,
 improves the same domains but gives up less on Web/CloudOps than the crossfade does.
 
@@ -74,7 +74,7 @@ sample and shared across channels.](plots/crossfade_schematic.png)
 
 With the crossfade the contrastive loss settles a little higher, and so does the **gap** between two
 cosine similarities: how much more a forecast resembles the true future than the present. The gap
-climbs from about 1.03 without the crossfade to about 1.18 with it.
+climbs from about 1.03 without the crossfade to about 1.2 with it.
 
 ![Training curves, crossfade (solid) versus the recipe alone (dashed), from step 100. Left, the
 contrastive loss falls cleanly on both and settles a little higher with the crossfade. Right, the

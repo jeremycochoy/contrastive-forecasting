@@ -212,6 +212,5 @@ if __name__ == "__main__":
     write_table(rows)
     if any(r["xf_full"] for r in rows):
         plot_summary(rows)
-        plot_delta(rows)
     else:
         print("\n(no crossfade eval summaries yet — table/plots will fill in once evals land)")
