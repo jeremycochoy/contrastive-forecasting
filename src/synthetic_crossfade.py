@@ -99,3 +99,59 @@ def generate_crossfade_batch(
         z = torch.zeros(n_out, dtype=torch.int64)
         return out, z, z
     return out
+
+
+def generate_crossfade_triplets(
+    real: torch.Tensor,
+    n_triplets: int,
+    *,
+    rng: Generator,
+    return_labels: bool = False,
+):
+    """Build ``n_triplets`` explicit (A_norm, B_norm, C) crossfade triplets (#328).
+
+    For each triplet, draw two distinct real rows A != B, z-normalise each per
+    series, and blend ``C = (1 - s(t))·A_norm + s(t)·B_norm`` with the same
+    monotone ramp s(t) as :func:`generate_crossfade_batch`. Unlike that function
+    (#326, which emits only C and leaves the raw real rows as its in-batch
+    parents), here BOTH z-normalised parents are emitted alongside the blend, so
+    the contrastive loss sees C with its two exact parents as batch-mates: A_norm
+    shares C's past, B_norm shares C's future, all on the same normalised scale.
+
+    Args:
+        real: ``[N, T, C]`` float32 real windows (``N >= 2``).
+        n_triplets: number of (A_norm, B_norm, C) triplets to produce.
+        rng: numpy ``Generator`` (drives source choice, midpoint, width).
+        return_labels: also return ``(freq_ids, seas_ids)``, both the sentinel 0.
+
+    Returns:
+        ``[3 * n_triplets, T, C]`` float32, rows ordered
+        ``[A0, B0, C0, A1, B1, C1, ...]`` (plus sentinel labels if requested).
+    """
+    N, T, C = real.shape
+    if n_triplets <= 0:
+        out = real.new_zeros((0, T, C))
+        if return_labels:
+            z = torch.zeros(0, dtype=torch.int64)
+            return out, z, z
+        return out
+    if N < 2:
+        raise ValueError(f"crossfade triplets need >=2 real rows, got {N}")
+
+    out = real.new_zeros((3 * n_triplets, T, C))
+    for k in range(n_triplets):
+        ia = int(rng.integers(0, N))
+        ib = int(rng.integers(0, N - 1))   # draw B != A uniformly over the rest
+        if ib >= ia:
+            ib += 1
+        a = _zscore_per_series(real[ia])
+        b = _zscore_per_series(real[ib])
+        s = torch.from_numpy(_sample_crossfade_weight(T, rng)).unsqueeze(-1)  # [T, 1]
+        out[3 * k] = a
+        out[3 * k + 1] = b
+        out[3 * k + 2] = (1.0 - s) * a + s * b
+
+    if return_labels:
+        z = torch.zeros(3 * n_triplets, dtype=torch.int64)
+        return out, z, z
+    return out

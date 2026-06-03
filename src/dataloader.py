@@ -996,17 +996,24 @@ class MixedForkedArmaLoader:
     prefix, divergent perturbed-ARMA continuation. When ``cross_bs > 0`` a
     further block of :func:`src.synthetic_crossfade.generate_crossfade_batch`
     rows — each a monotone blend of two distinct *real* windows from the same
-    step's HF sub-batch — is appended after the fork block. The block order is
-    ``[HF | forked-arma | crossfade]``, so with ``cross_bs == 0`` the fork-only
-    path (and its RNG draw order) is byte-identical to #318/#322.
+    step's HF sub-batch — is appended after the fork block. When
+    ``cross_triplets > 0`` a final ADDITIVE block of explicit
+    (A_norm, B_norm, C) triplets from
+    :func:`src.synthetic_crossfade.generate_crossfade_triplets` (#328) is
+    appended on top. The block order is
+    ``[HF | forked-arma | crossfade | crossfade-triplets]``, so with
+    ``cross_bs == 0`` and ``cross_triplets == 0`` the fork-only path (and its
+    RNG draw order) is byte-identical to #318/#322.
     Both synthetic streams carry no canonical frequency/seasonality → label 0.
     """
 
     def __init__(self, hf_loader, synth_bs, T_raw=1024, C=4, seed=None,
-                 emit_freq_ids=False, synth_kwargs=None, cross_bs=0):
+                 emit_freq_ids=False, synth_kwargs=None, cross_bs=0,
+                 cross_triplets=0):
         self.hf_loader = hf_loader
         self.synth_bs = synth_bs
         self.cross_bs = cross_bs
+        self.cross_triplets = cross_triplets
         self.T_raw = T_raw
         self.C = C
         self.emit_freq_ids = emit_freq_ids
@@ -1015,7 +1022,10 @@ class MixedForkedArmaLoader:
 
     def __iter__(self):
         from src.synthetic_forked_arma import generate_forked_arma_batch
-        from src.synthetic_crossfade import generate_crossfade_batch
+        from src.synthetic_crossfade import (
+            generate_crossfade_batch,
+            generate_crossfade_triplets,
+        )
         from src.freq_embedding import SOURCE_ID_TO_LABELS
 
         rng = np.random.default_rng(self._seed)
@@ -1081,6 +1091,27 @@ class MixedForkedArmaLoader:
                         x_hf, self.cross_bs, rng=rng,
                     ))
 
+            # Explicit (A_norm, B_norm, C) crossfade triplets (#328), appended
+            # last and ADDITIVE — they sit on top of the natural batch rather
+            # than consuming HF rows. cross_triplets==0 leaves the order above
+            # (and its RNG draws) untouched.
+            if self.cross_triplets > 0:
+                if hf_bs < 2:
+                    raise ValueError(
+                        f"crossfade triplets need >=2 real rows in the "
+                        f"sub-batch, got hf_bs={hf_bs}")
+                if self.emit_freq_ids:
+                    x_trip, freq_trip, seas_trip = generate_crossfade_triplets(
+                        x_hf, self.cross_triplets, rng=rng, return_labels=True,
+                    )
+                    blocks.append(x_trip)
+                    freq_blocks.append(freq_trip)
+                    seas_blocks.append(seas_trip)
+                else:
+                    blocks.append(generate_crossfade_triplets(
+                        x_hf, self.cross_triplets, rng=rng,
+                    ))
+
             x = torch.cat(blocks, dim=0) if len(blocks) > 1 else x_hf
 
             if self.emit_freq_ids:
@@ -1103,7 +1134,7 @@ def create_mixed_forked_arma_dataloader(
     path_in_repo: str = None, split: str = "train",
     skip_rows: int = 0, T_raw: int = 1024, seed: int | None = None,
     emit_freq_ids: bool = False, synth_kwargs: dict | None = None,
-    crossfade_ratio: float = 0.0,
+    crossfade_ratio: float = 0.0, cross_triplets: int = 0,
 ) -> "MixedForkedArmaLoader":
     """HF + forked-continuation-ARIMA synth mix, optionally plus a regime-
     crossfade stream (#325); same contract as the composite factory.
@@ -1111,26 +1142,31 @@ def create_mixed_forked_arma_dataloader(
     The batch splits as ``[hf_bs | synth_bs | cross_bs]`` where
     ``synth_bs = round(batch_size * mix_ratio)`` (forked-arma) and
     ``cross_bs = round(batch_size * crossfade_ratio)`` (crossfade rows blended
-    from the ``hf_bs`` real rows). With ``crossfade_ratio == 0`` this is the
-    #318/#322 fork-only loader unchanged. `synth_kwargs` forwards forked-ARMA
-    knobs (integrate, perturb_sigma, fork_frac_range, std, dimension)."""
+    from the ``hf_bs`` real rows). ``cross_triplets`` additionally appends
+    ``3 * cross_triplets`` (A_norm, B_norm, C) rows ON TOP (the total batch
+    becomes ``batch_size + 3 * cross_triplets``; #328). With
+    ``crossfade_ratio == 0`` and ``cross_triplets == 0`` this is the #318/#322
+    fork-only loader unchanged. `synth_kwargs` forwards forked-ARMA knobs
+    (integrate, perturb_sigma, fork_frac_range, std, dimension)."""
     if not 0.0 <= mix_ratio <= 1.0:
         raise ValueError(f"mix_ratio must be in [0, 1], got {mix_ratio}")
     if not 0.0 <= crossfade_ratio <= 1.0:
         raise ValueError(f"crossfade_ratio must be in [0, 1], got {crossfade_ratio}")
+    if cross_triplets < 0:
+        raise ValueError(f"cross_triplets must be >= 0, got {cross_triplets}")
     synth_bs = int(round(batch_size * mix_ratio))
     cross_bs = int(round(batch_size * crossfade_ratio))
-    hf_bs = batch_size - synth_bs - cross_bs
+    hf_bs = batch_size - synth_bs - cross_bs    # triplets are additive, not subtracted
     if hf_bs < 0:
         raise ValueError(
             f"mix_ratio + crossfade_ratio imply synth_bs+cross_bs="
             f"{synth_bs + cross_bs} > batch_size={batch_size}")
-    if cross_bs > 0 and hf_bs < 2:
+    if (cross_bs > 0 or cross_triplets > 0) and hf_bs < 2:
         raise ValueError(
             f"crossfade needs >=2 real rows but hf_bs={hf_bs} "
             f"(batch_size={batch_size}, mix_ratio={mix_ratio}, "
-            f"crossfade_ratio={crossfade_ratio})")
-    if synth_bs == 0 and cross_bs == 0 and not emit_freq_ids:
+            f"crossfade_ratio={crossfade_ratio}, cross_triplets={cross_triplets})")
+    if synth_bs == 0 and cross_bs == 0 and cross_triplets == 0 and not emit_freq_ids:
         return create_hf_dataloader(
             repo_id=repo_id, batch_size=batch_size, C=C,
             path_in_repo=path_in_repo, split=split, skip_rows=skip_rows,
@@ -1148,6 +1184,7 @@ def create_mixed_forked_arma_dataloader(
 
     return MixedForkedArmaLoader(
         hf_loader=hf_loader if hf_loader is not None else _EmptyHFLoader(),
-        synth_bs=synth_bs, cross_bs=cross_bs, T_raw=T_raw, C=C, seed=seed,
+        synth_bs=synth_bs, cross_bs=cross_bs, cross_triplets=cross_triplets,
+        T_raw=T_raw, C=C, seed=seed,
         emit_freq_ids=emit_freq_ids, synth_kwargs=synth_kwargs,
     )
