@@ -6,7 +6,7 @@ We froze the Tiny contrastive backbone, trained a forecasting head on top, and r
 
 Overall **GM-Relative MASE 1.256** — worse than seasonal-naive (1.0), and last of the ten small models in the per-domain comparison ([notes/DOMAIN_COMPARISON.md](notes/DOMAIN_COMPARISON.md)). The deficit is concentrated, and three probes rule out the obvious training-side levers.
 
-> *GM-Relative MASE = geometric mean over the 97 configs of (model MASE ÷ seasonal-naive MASE). 1.0 = seasonal-naive; lower is better; the best leaderboard models reach ≈0.6–0.83 per domain.*
+> *GM-Relative MASE = geometric mean over the 97 configs of (model MASE ÷ seasonal-naive MASE), where MASE is Mean Absolute Scaled Error. 1.0 = seasonal-naive; lower is better; the best leaderboard models reach ≈0.6–0.83 per domain.*
 
 **Where it loses** — only Sales and Nature beat seasonal-naive:
 
@@ -32,9 +32,9 @@ The root cause is the dataset layout: in `tiny_mixed_v1` the GIFT-Eval pretraini
 
 ## Protocol
 
-- **Model under test:** frozen Tiny contrastive backbone (C=4, H=512, W=16, GRU encoder, 6 layers, RevEWMNorm span=32; ~20M) + a GRU forecasting head (h=128, 2 layers; ~0.6M) trained on top (AdamW); the backbone is frozen, only the head learns.
+- **Model under test:** frozen Tiny contrastive backbone (C=4, H=512, W=16, GRU encoder, 6 layers, RevEWMNorm span=32 — reversible EWMA input normalisation; ~20M) + a GRU forecasting head (h=128, 2 layers; ~0.6M) trained on top (AdamW); the backbone is frozen, only the head learns.
 - **Benchmark:** the official GIFT-Eval suite via the `gift_eval` library + GluonTS — 97 configs across 7 domains — run as the leaderboard runs it (deterministic point forecast scored against seasonal-naive). Primary metric GM-Relative MASE.
-- The headline is the v2 backbone — trained on the rebuilt, cross-shard-shuffled `tiny_mixed_v2` dataset — at its 30k-step checkpoint. Every number *for our model* is computed from the per-config eval outputs in [results/](results/) (raw MASE, seasonal-naive, relative, and domain per config); the leaderboard reference lines and per-domain ◆ are published GIFT-Eval figures (notes/DOMAIN_COMPARISON.md).
+- The headline is the v2 backbone — trained on the rebuilt, cross-shard-shuffled `tiny_mixed_v2` dataset — at its 30k-step checkpoint. Every number *for our model* is computed from the per-config eval outputs in [results/](results/) (raw MASE, seasonal-naive, relative, and domain per config); the leaderboard reference lines and per-domain ◆ are published GIFT-Eval figures (notes/DOMAIN_COMPARISON.md) — note the scaling-curve reference lines and the per-domain ◆ are two different leaderboard panels, both in the 0.6–0.83 range.
 
 ## What we learned
 
