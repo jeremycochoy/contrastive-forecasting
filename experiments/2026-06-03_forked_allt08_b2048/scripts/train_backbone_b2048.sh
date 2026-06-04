@@ -64,8 +64,12 @@ if [ $rc -ne 0 ]; then
   log "BB train exited rc=$rc — NOT creating FINAL (incomplete; --resume next launch). tail: $(tail -3 "$tlog"|tr '\n' ' ')"
   log "BB FAILED rc=$rc"; exit 1
 fi
-if   [ -f "$RUNS/${NAME}_best_loss.pth" ]; then cp -f "$RUNS/${NAME}_best_loss.pth" "$BB"
-elif [ -f "$RUNS/${NAME}_final.pth" ];     then cp -f "$RUNS/${NAME}_final.pth"     "$BB"
-else cp -f "$(ls -t "$RUNS/${NAME}"_*k.pth 2>/dev/null|grep -v optimizer|head -1)" "$BB" 2>/dev/null; fi
+# FINAL = the END-OF-TRAINING checkpoint (step = total-steps), the honest "fully trained"
+# backbone and the comparator to #322's b1024 end-of-budget eval. NOT best_loss: at batch
+# 2048 the floor-subtracted loss is non-monotonic (lowest ~step 1089, then rises onto the
+# bumpy plateau), so best_loss would be a heavily under-trained early checkpoint.
+if   [ -f "$RUNS/${NAME}_final.pth" ];     then cp -f "$RUNS/${NAME}_final.pth"     "$BB"
+elif [ -n "$(ls -t "$RUNS/${NAME}"_*k.pth 2>/dev/null|grep -v optimizer|head -1)" ]; then cp -f "$(ls -t "$RUNS/${NAME}"_*k.pth 2>/dev/null|grep -v optimizer|head -1)" "$BB"
+else cp -f "$RUNS/${NAME}_best_loss.pth" "$BB" 2>/dev/null; fi
 [ -f "$BB" ] && { log "BB DONE -> ${NAME}_FINAL.pth ($(du -h "$BB"|cut -f1)); kept all checkpoints"; exit 0; }
 log "BB FAILED no checkpoint"; exit 1

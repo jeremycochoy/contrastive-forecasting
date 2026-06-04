@@ -45,3 +45,29 @@ run un-checkpointed; the flag is a pure memory device, reported as infra, not a 
   size). Both are numerically exact memory/speed knobs.
 - Step budget 6250 (= 12.8 M samples, #322's data) chosen to isolate the negative-pool size from
   training length. Periodic checkpoints every 1250 steps; `--resume` on relaunch (crash-safe).
+
+## FINAL checkpoint selection — corrected (best_loss was an early checkpoint)
+The training wrapper copied `best_loss.pth` to FINAL, as #322's did. That works when the
+floor-subtracted loss descends monotonically (it did at b1024). At b2048 the loss is
+**non-monotonic** — lowest at **step ~1089** (1.78), then it rises onto the bumpy plateau and never
+returns below ~2.2. So `best_loss` was a heavily *under-trained* step-1089 checkpoint, not the
+trained backbone. Caught at the downstream hand-off (the first final q-heads had already started on
+it); repointed FINAL to `_final.pth` (the step-6250 end-of-training weights — the honest "fully
+trained" backbone and the comparator to #322's b1024 end-of-budget eval), re-ran the final cells,
+and changed the wrapper's selection to prefer the end-of-training checkpoint over `best_loss`. The
+plateau-peak cells were unaffected (they load the explicit step-2500 `_2k.pth`).
+
+## Plateau test (added)
+A second set of cells trains a fresh 2L/6L head on the **step-2500 plateau-peak** checkpoint (the
+floor-subtracted loss's local maximum, `_2k.pth`) alongside the step-6250 cells — #322's plateau
+test, repeated at b2048: does the training tail past the plateau buy forecasting skill? (It does
+not — see RESULTS.)
+
+## Downstream compute — shared-box contention
+GPU 1 freed when the backbone finished, then was immediately taken by a foreign job
+(`/tmp/cf-328`, a batch-1024 ×12500 run) for the whole downstream phase — untouchable per the
+shared-machine rule. So the four q-head + GIFT-Eval cells ran **serially on GPU 0** (gated so a
+q-head never co-runs with another cell or the foreign tenants), the plateau cells while the backbone
+still owned GPU 1, the final cells after. GIFT-Eval full-97 is slow here (~3 h/cell — a handful of
+long-horizon configs dominate), so the four cells spanned the day. Nothing about the contention
+touches the science; it only set the wall-clock.
