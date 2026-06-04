@@ -1,46 +1,43 @@
-# GIFT-Eval Evaluation
+# GIFT-Eval: where, and why, the Tiny backbone underperforms
 
-Evaluation of the Tiny contrastive forecaster (~21M params) on the GIFT-Eval benchmark (97 configurations, 23 datasets, 7 domains). Includes training diagnostics, LR sweep, and per-domain comparison against published small foundation models.
+We froze the Tiny contrastive backbone, trained a forecasting head on top, and ran the official GIFT-Eval benchmark — both to get a leaderboard-comparable number and to find out *where* the model loses and *why*.
 
-## Key Result
+## Result
 
-GM-Relative MASE ~1.26 (below seasonal naive at 1.00). The scaling curve is flat from 20k to 80k backbone steps due to unshuffled training data (`tiny_mixed_v1`). A new dataset (`tiny_mixed_v2`) with proper inter-shard shuffling was prepared as a fix.
+Overall **GM-Relative MASE 1.256** — worse than seasonal-naive (1.0), and last of the ten small models in the per-domain comparison ([notes/DOMAIN_COMPARISON.md](notes/DOMAIN_COMPARISON.md)). The deficit is concentrated, and three probes rule out the obvious training-side levers.
 
-## Documents
+> *GM-Relative MASE = geometric mean over the 97 configs of (model MASE ÷ seasonal-naive MASE). 1.0 = seasonal-naive; lower is better; the best leaderboard models reach ≈0.6–0.83 per domain.*
 
-| File | Description |
-|---|---|
-| [EXPERIMENT_STATUS.md](notes/EXPERIMENT_STATUS.md) | Main experiment log: training curve, GIFT-Eval scores at 20k/50k/80k, NaN crash, data ordering root cause. |
-| [DOMAIN_COMPARISON.md](notes/DOMAIN_COMPARISON.md) | Per-domain comparison against 9 published small models. Domain-by-domain analysis with gap-to-close estimates. |
-| [LR_SWEEP_EXPERIMENT.md](notes/LR_SWEEP_EXPERIMENT.md) | Controlled LR sweep (1e-4 / 5e-5 / 1e-5) proving training instability is data-driven, not optimization-driven. |
+**Where it loses** — only Sales and Nature beat seasonal-naive:
 
-## Training Curve
+![Per-domain GM-Relative MASE (ours, bars) vs the best <50M leaderboard model per domain (◆). Red = worse than seasonal-naive, green = better.](plots/domain_breakdown.png)
 
-![Training curve 0-262k steps](plots/fig_500k_training_curve.png)
+Energy (1.55) is the biggest drag — a third of the benchmark (32/97 configs) and the worst score among the larger domains; pulling it alone to the leaderboard band (~0.85) would move the overall to ~1.03. Econ/Fin (1.79, six all-M4 configs) is the single worst-scoring domain. The leaderboard models (◆) sit at 0.6–0.83 in *every* domain, while our deficit is far from uniform — from +0.14 on Sales to ~+1.0 on Econ/Fin.
 
-## LR Sweep
+**Why not just train longer?** — doubling the backbone steps leaves the score flat:
 
-![LR sweep showing identical dip pattern at all learning rates](plots/fig_lr_sweep_final.png)
+![GM-Relative MASE vs backbone steps (v2, shuffled data): 1.256 at 30k, 1.274 at 60k — flat (single run per point).](plots/fig_v2_scaling_curve.png)
 
-## V2 Scaling Curve
+**Why not tune the optimizer?** — the contrastive training (v1, *unshuffled* data) dipped at fixed steps each epoch; an LR sweep from a shared step-20k checkpoint shows those dips are learning-rate-invariant:
 
-![Flat scaling curve from 30k to 112k](plots/fig_v2_scaling_curve.png)
+![Contrastive gap during an LR sweep at 1e-4 / 5e-5 / 1e-5 (v1, unshuffled). The gap collapses at the same steps by the same amount at every LR, then recovers identically.](plots/fig_lr_sweep_final.png)
 
-## Key Findings
+> *Contrastive gap (the plots' y-axis) = FF − FP: how much more a window's forecast resembles its own future (FF) than its present (FP) — the margin the contrastive loss grows.*
 
-1. **NaN crash at step 24,970**: all-NaN row in HF data silently passed through ffill. Fixed by skipping all-NaN rows entirely.
-2. **Training instability is data-driven**: same dip pattern at steps 24k/35k/40k regardless of LR (1e-4, 5e-5, 1e-5). Not gradient explosion, not normalization artifacts.
-3. **Flat scaling curve**: more backbone training does not improve GIFT-Eval MASE. Root cause: unshuffled dataset repeats the same distribution shift each epoch.
-4. **Energy domain is the bottleneck**: 32 of 97 configs, our relative MASE 1.550 vs best small models at ~0.83. Fixing energy alone would move overall score from 1.26 to ~1.0.
-5. **Sales and Nature are competitive**: relative MASE 0.83 and 0.95, both beating seasonal naive.
+The dips track specific data shards, not the optimizer (gradient norms and AdamW update sizes were normal through them). Over the full v1 run the same shards collapse the gap every epoch, though it still climbs to 0.677:
 
-## Files
+![Backbone training 0→262k steps (v1, ~2 epochs): loss (top) and contrastive gap (bottom). The same shard regions collapse the gap each epoch; it recovers to a higher peak each epoch.](plots/fig_500k_training_curve.png)
 
-| File | Description |
-|---|---|
-| `fig_500k_training_curve.png` | Full training curve 0-262k steps |
-| `fig_training_curve_clean_lr1e-4.png` | Clean run 0-69k (baseline for LR sweep) |
-| `fig_lr_sweep_final.png` | LR sweep comparison plot |
-| `fig_lr_sweep_preliminary.png` | Preliminary LR sweep (partial) |
-| `fig_v2_scaling_curve.png` | V2 backbone MASE scaling curve |
-| `plot_v2_scaling_curve.py` | Script to generate scaling curve plot |
+So we shuffled the shards (v2) to remove the recurring shift — and the GIFT-Eval MASE (the scaling curve above) did not move.
+
+## Protocol
+
+- **Model under test:** frozen Tiny contrastive backbone (C=4, H=512, W=16, GRU encoder, 6 layers, RevEWMNorm span=32; ~20M) + a GRU forecasting head (h=128, 2 layers; ~0.6M) trained on top (AdamW); the backbone is frozen, only the head learns.
+- **Benchmark:** the official GIFT-Eval suite via the `gift_eval` library + GluonTS — 97 configs across 7 domains — run as the leaderboard runs it (deterministic point forecast scored against seasonal-naive). Primary metric GM-Relative MASE.
+- The headline is the v2 (inter-shard-shuffled) backbone at its 30k-step checkpoint. Every number *for our model* is computed from the per-config eval outputs in [results/](results/) (raw MASE, seasonal-naive, relative, and domain per config); the leaderboard reference lines and per-domain ◆ are published GIFT-Eval figures (notes/DOMAIN_COMPARISON.md).
+
+## What we learned
+
+None of the training-side levers we tested moves the number: more backbone steps leave the MASE flat, shuffling the data order (v2) leaves it flat, and the training instability that could have explained a weak backbone is itself data-driven, not an optimizer fault (the dips are LR-invariant). The most likely remaining bottleneck — a hypothesis, since the architecture and head were not varied here — is the **pretraining data**: synthetic-only, it does not cover GIFT-Eval's real-world distributions, and the deficit is largest exactly where real structure matters most (Energy's diurnal/weekly seasonality, Web/CloudOps telemetry). That is what motivated the periodic-synth-mix and real-data training lines that follow.
+
+*(Operational detail — checkpoint inventory, the step-24,970 NaN-row crash and its fix, the RevEWMNorm-clamp side-thread — lives in [notes/](notes/).)*
