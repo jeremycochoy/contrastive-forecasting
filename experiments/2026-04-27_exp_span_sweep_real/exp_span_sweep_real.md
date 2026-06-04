@@ -32,8 +32,9 @@ Last-200 ema:
 | **128** | **2.827** | 0.316 |
 | 256 | 2.917 | 0.300 |
 
-(`plots/span_sweep_real.png` — both metrics across all 4 spans on the
-same axes.)
+Both metrics across all 4 spans on the same axes:
+
+![ema_loss and ema_gap across the four RevEWMNorm spans (32, 64, 128, 256) on the same axes](plots/span_sweep_real.png)
 
 ## Findings
 

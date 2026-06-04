@@ -37,9 +37,13 @@ from the synth-only redo (same config).
 | 1024 | 0.921 | 0.452 | −85% | −31% |
 | Seasonal Naive | 0.497 | 0.344 | 0% | 0% |
 
-(Plots: `plots/span_skill_synth.png` — inverted-U on a log-2 x-axis.
-`plots/span_compare_synth.png` for the 6-arm × 12-sample comparison
-grid.)
+MASE/WQL skill curves — inverted-U on a log-2 x-axis, peaking at span=512:
+
+![MASE and WQL skill vs EWMA span on a log-2 x-axis, inverted-U peaking at span=512](plots/span_skill_synth.png)
+
+6-arm × 12-sample forecast comparison grid:
+
+![6-arm × 12-sample synth forecast comparison grid across spans 32–1024](plots/span_compare_synth.png)
 
 ## Findings (single seed each)
 

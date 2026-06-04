@@ -63,7 +63,9 @@ Single-axis difference between the arms:
 | Seasonal Naive (oracle period) | 0.497 | 0.344 | 0% | 0% |
 
 **B beats A by 4.5% on MASE and 3.9% on WQL.** Plot of medians on 12
-random fixed-seed synth samples: `plots/synth_compare_pair.png`.
+random fixed-seed synth samples:
+
+![12-panel × 2-arm forecast grid, medians on 12 random fixed-seed synth samples: A (no_time_neg) vs B (csb), EWMA span=512](plots/synth_compare_pair.png)
 
 ### Comparison with historical rows on the same eval
 

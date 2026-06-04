@@ -71,6 +71,24 @@ synth data.)
    improvements/regressions, not from any arm "cracking" a class of
    panels the others miss.
 
+### Qualitative result grids (12-panel held-out synth)
+
+fe+mu (baseline, no patch-stats) @ 30k:
+
+![12-panel held-out synth qhead forecast grid, fe+mu baseline at 30k steps](plots/synth_qhead_grid_synth30k.png)
+
+fe+mu (baseline, no patch-stats) @ 60k:
+
+![12-panel held-out synth qhead forecast grid, fe+mu baseline at 60k steps](plots/synth_qhead_grid_synth60k.png)
+
+fe+mu+pstats (diff patch-stats) @ 30k:
+
+![12-panel held-out synth qhead forecast grid, fe+mu+pstats at 30k steps](plots/synth_qhead_grid_pstats_synth30k.png)
+
+fe+mu+pstats (diff patch-stats) @ 60k:
+
+![12-panel held-out synth qhead forecast grid, fe+mu+pstats at 60k steps](plots/synth_qhead_grid_pstats_synth60k.png)
+
 ## Bugs caught and fixed during this run
 
 1. **`_FINAL.pth = best_gap.pth`** made 30k and 60k synth backbones
@@ -115,5 +133,7 @@ knob in this report.
 - Heads: `checkpoints/R1q_femu_synth{30k,60k}_FINAL.pth`,
   `R1q_femu_pstats_synth{30k,60k}_FINAL.pth` (not tracked in git).
 - Eval CSV: `../2026-04-27__aggregate/results/synth_eval.csv` (rows 1-4).
-- Synth grids in this dir: `plots/synth_qhead_grid_{synth30k,synth60k,pstats_synth30k,pstats_synth60k}.png`.
+- Synth grids in this dir (embedded above under "Qualitative result grids"):
+  `plots/synth_qhead_grid_synth30k.png`, `synth_qhead_grid_synth60k.png`,
+  `synth_qhead_grid_pstats_synth30k.png`, `synth_qhead_grid_pstats_synth60k.png`.
 - Run script: `run.sh`.

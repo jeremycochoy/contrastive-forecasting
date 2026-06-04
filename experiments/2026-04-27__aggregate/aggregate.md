@@ -133,6 +133,8 @@ the design of the data. Our `fe+mu+qh` median visibly differs from SN
 on most panels: amplitude damping and phase drift even on clean
 in-distribution data.
 
+![12-panel grid of clean-periodic synth samples: SN tracks ground truth nearly perfectly while the fe+mu+qh median shows amplitude damping and phase drift](plots/synth_qhead_grid.png)
+
 User-flagged interpretation of that plot: the bottleneck is upstream of
 the head, not in the head itself. The head was trained with pinball
 loss on these exact distributions; if it could decode "next 16 samples
