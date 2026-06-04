@@ -11,7 +11,9 @@ OUT="${OUT:-/home/jupyter/workspaces/contrastive-forecasting/experiments/2026-06
 RES="$OUT/results"; mkdir -p "$RES" "$OUT/smoke_runs"
 NAME="smoke_trip"
 export PYTHONPATH="$WT" PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True OMP_NUM_THREADS=8
-export XSHH_ALLT_CHUNK="${XSHH_ALLT_CHUNK:-4}" CUDA_VISIBLE_DEVICES="$GPU"
+export XSHH_ALLT_CHUNK="${XSHH_ALLT_CHUNK:-2}" CUDA_VISIBLE_DEVICES="$GPU"
+# Match the real run's GRU patch-encoder memory management (byte-identical).
+export PATCH_ENC_CKPT=1 PATCH_ENC_CHUNK=4
 export HF_TOKEN="$(cat "$WT/experiments/hf_token.txt" 2>/dev/null)"; export HUGGING_FACE_HUB_TOKEN="$HF_TOKEN"
 TRAIN="$WT/experiments/2026-04-27_freq-embedding/scripts/train.py"
 tlog="$RES/smoke.log"; : > "$tlog"

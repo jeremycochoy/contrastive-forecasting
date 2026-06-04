@@ -19,7 +19,11 @@ NAME="bb_allt08_xftrip_nobn_enc3_qk_aon_b1024"
 RUNS="$OUT/runs"; RES="$OUT/results"; mkdir -p "$RUNS" "$RES"
 BB="$RUNS/${NAME}_FINAL.pth"
 export PYTHONPATH="$WT" PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True OMP_NUM_THREADS=8
-export XSHH_ALLT_CHUNK="${XSHH_ALLT_CHUNK:-4}" CUDA_VISIBLE_DEVICES="$GPU"
+export XSHH_ALLT_CHUNK="${XSHH_ALLT_CHUNK:-2}" CUDA_VISIBLE_DEVICES="$GPU"
+# GRU patch-encoder memory management for 1-GPU batch 1024 (byte-identical; chunks
+# + gradient-checkpoints the GRU, which otherwise needs an ~19 GB single alloc).
+# Same settings as #326's 1-GPU batch-1024 backbone.
+export PATCH_ENC_CKPT=1 PATCH_ENC_CHUNK=4
 export HF_TOKEN="$(cat "$WT/experiments/hf_token.txt" 2>/dev/null)"; export HUGGING_FACE_HUB_TOKEN="$HF_TOKEN"
 TRAIN="$WT/experiments/2026-04-27_freq-embedding/scripts/train.py"
 log(){ echo "[$(date '+%m-%d %H:%M:%S')] [bb-trip g$GPU] $*"; }
