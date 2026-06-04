@@ -16,7 +16,7 @@ Energy (1.55) is the biggest drag — a third of the benchmark (32/97 configs) a
 
 **Why not just train longer?** — doubling the backbone steps leaves the score flat:
 
-![GM-Relative MASE vs backbone steps (v2, shuffled data): 1.256 at 30k, 1.274 at 60k — flat (single run per point).](plots/fig_v2_scaling_curve.png)
+![GM-Relative MASE vs backbone steps (v2, shuffled data): 1.256 at 30k, 1.274 at 60k — flat (single run per point; GIFT-Eval scoring is deterministic, so the only noise is training-init).](plots/fig_v2_scaling_curve.png)
 
 **Why not tune the optimizer?** — the contrastive training (v1, *unshuffled* data) dipped at fixed steps each epoch; an LR sweep from a shared step-20k checkpoint shows those dips are learning-rate-invariant:
 
@@ -28,7 +28,7 @@ The dips track specific data shards, not the optimizer (gradient norms and AdamW
 
 ![Backbone training 0→262k steps (v1, ~2 epochs): loss (top) and contrastive gap (bottom). The same shard regions collapse the gap each epoch; it recovers to a higher peak each epoch.](plots/fig_500k_training_curve.png)
 
-The root cause is the dataset layout: in `tiny_mixed_v1` the GIFT-Eval pretraining data sits in the early shards and the synthetic data in the late ones, so every epoch replays the same shift. We rebuilt it as `tiny_mixed_v2` — the same data redistributed *across* all shards so each shard is a representative mix — which removed the recurring shift; the GIFT-Eval MASE (the v2 scaling curve above, 1.256) did not improve.
+The root cause is the dataset layout: in `tiny_mixed_v1` the GIFT-Eval pretraining data sits in the early shards and the synthetic data in the late ones, so every epoch replays the same shift. We rebuilt it as `tiny_mixed_v2` — the same data redistributed *across* all shards so each shard is a representative mix — and the GIFT-Eval MASE (the v2 scaling curve above, 1.256) did not improve.
 
 ## Protocol
 
@@ -38,6 +38,6 @@ The root cause is the dataset layout: in `tiny_mixed_v1` the GIFT-Eval pretraini
 
 ## What we learned
 
-None of the training-side levers we tested moves the number: more backbone steps leave the MASE flat, rebuilding the dataset with cross-shard shuffling (`tiny_mixed_v2`) leaves it flat, and the training instability that could have explained a weak backbone is itself data-driven, not an optimizer fault (the dips are LR-invariant). The most likely remaining bottleneck — a hypothesis, since the architecture and head were not varied here — is the **pretraining data**: synthetic-only, it does not cover GIFT-Eval's real-world distributions, and the deficit is largest exactly where real structure matters most (Energy's diurnal/weekly seasonality, Web/CloudOps telemetry). That is what motivated the periodic-synth-mix and real-data training lines that follow.
+None of the training-side levers we tested moves the number: more backbone steps leave the MASE flat, rebuilding the dataset with cross-shard shuffling (`tiny_mixed_v2`) leaves it flat, and the training instability that could have explained a weak backbone is itself data-driven, not an optimizer fault (the dips are LR-invariant). The most likely remaining bottleneck — a hypothesis, since the architecture and head were not varied here — is the **pretraining data**: synthetic-only, it does not cover GIFT-Eval's real-world distributions, and the model is worst on the domains that most demand that structure (Energy's diurnal/weekly seasonality, Web/CloudOps telemetry, the M4 series of Econ/Fin). That is what motivated the periodic-synth-mix and real-data training lines that follow.
 
 *(Operational detail — checkpoint inventory, the step-24,970 NaN-row crash and its fix, the RevEWMNorm-clamp side-thread — lives in [notes/](notes/).)*
