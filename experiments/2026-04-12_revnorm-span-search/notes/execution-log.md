@@ -34,9 +34,14 @@ gap-vs-step curves simply skip the missing points for those two spans.
 ## span=8 divergence
 
 `span=8` produced `loss=nan` from the very first validation at step 500 and
-`best=-inf` throughout (`logs/span_8.log`). With a span of 8 the EMA window is
-so short its running variance collapses toward zero on the near-constant
-stretches of integrated ARIMA, and the normalize-by-std step divides by ~0.
-This is consistent with the project rule of fixing divergence via
-data/normalization rather than grad-clip: the fix here is "don't use a span
-that small", not clipping.
+`best=-inf` throughout (`logs/span_8.log`). The cause is **numerical, not a
+variance collapse**: the normalize-by-std step is eps-clamped
+(`x / stdev.clamp(min=1e-5)` in `src/norm.py`), so it cannot divide by ~0. What
+overflows is the EMA cumsum trick — `inv_decay = 1/decay` with `decay = (1−α)^t`
+— whose `decay` underflows to 0 around t≈2961 for span=8 (α=0.222), giving
+`inv_decay = +inf` and then `inf × 0 = NaN` partway through the T=4096 sequence
+(the module's own NOTE in `src/norm.py` warns of this overflow). span=16's
+underflow threshold is t≈5947, past T=4096 — which is exactly why span=16 trains
+and span=8 NaNs. The practical fix is the same ("don't use a span that small"),
+but the failure is an fp64 limit of the cumsum implementation at T=4096, not the
+contrastive objective diverging, and is unrelated to grad-clip.
