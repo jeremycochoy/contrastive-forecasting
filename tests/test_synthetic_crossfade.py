@@ -277,6 +277,13 @@ def test_triplets_reproducible():
     assert torch.equal(a, b)
 
 
+def test_triplet_parents_are_distinct():
+    # The two parents in each triplet must come from different source rows (A != B).
+    X = generate_crossfade_triplets(_real(6, 96, 2, seed=4), 5, rng=np.random.default_rng(2))
+    for k in range(5):
+        assert not torch.equal(X[3 * k], X[3 * k + 1])
+
+
 # --- triplets in the dataloader (additive, on top of the natural batch) ----
 
 def test_loader_appends_triplet_block_additive():
@@ -312,6 +319,21 @@ def test_loader_triplets_zero_is_unchanged():
     trip = MixedForkedArmaLoader(hf_loader=_FakeHF(real), synth_bs=2, cross_bs=0,
                                  cross_triplets=0, T_raw=64, C=1, seed=0, emit_freq_ids=False)
     assert torch.equal(next(iter(base)), next(iter(trip)))
+
+
+def test_loader_triplets_leave_crossfade_block_unchanged():
+    # Triplets are appended AFTER the crossfade block and draw RNG only then, so a
+    # fork+crossfade batch is byte-identical in its [HF|fork|cross] prefix whether
+    # or not triplets are added (locks in the additive + RNG-after guarantee).
+    from src.dataloader import MixedForkedArmaLoader
+    real = _real(8, 96, 1, seed=6)
+    base = MixedForkedArmaLoader(hf_loader=_FakeHF(real), synth_bs=2, cross_bs=2,
+                                 cross_triplets=0, T_raw=96, C=1, seed=0, emit_freq_ids=False)
+    trip = MixedForkedArmaLoader(hf_loader=_FakeHF(real), synth_bs=2, cross_bs=2,
+                                 cross_triplets=2, T_raw=96, C=1, seed=0, emit_freq_ids=False)
+    b, t = next(iter(base)), next(iter(trip))
+    assert t.shape[0] == b.shape[0] + 6                       # 2 triplets appended
+    assert torch.equal(t[:b.shape[0]], b)                     # [HF|fork|cross] prefix unperturbed
 
 
 def test_loader_triplets_raise_when_real_subbatch_too_small():

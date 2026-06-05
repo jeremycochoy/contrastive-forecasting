@@ -857,8 +857,9 @@ def main():
 
     # -- Data -----------------------------------------------------------------
     C = args.n_channels
-    if args.crossfade_ratio > 0 and args.synth_kind != "forked-arma":
-        raise ValueError("--crossfade-ratio requires --synth-kind forked-arma")
+    if (args.crossfade_ratio > 0 or args.crossfade_triplets > 0) and args.synth_kind != "forked-arma":
+        raise ValueError(
+            "--crossfade-ratio / --crossfade-triplets require --synth-kind forked-arma")
     synth_bs = int(round(args.batch_size * args.mix_ratio))
     # Crossfade rows are blended FROM the real rows (they consume no extra HF
     # rows), so they shrink hf_bs but not hf_rows_per_step's per-real accounting.
