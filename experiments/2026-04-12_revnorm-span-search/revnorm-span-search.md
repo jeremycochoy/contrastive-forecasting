@@ -28,7 +28,7 @@ sweet-spot half-life is **sub-patch** — span=16/32 correspond to 0.4/0.7
 patches — and the two half-life-=-1-patch / =-2-patch points (span=45, 91)
 both land at ~0.21, *below* the sub-patch pair. The two extremes fail in
 opposite ways: **span=8 diverges** (EMA variance collapses → NaN, confirmed in
-`logs/span_8.log`), and **span=512 under-adapts** (gap 0.132, and ~3× slower
+`logs/span_8.log`), and **span=512 under-adapts** (gap 0.132, and ~2.7× slower
 wall-clock than the fast spans).
 
 The per-step trajectories that this best-gap curve summarizes:
@@ -100,7 +100,7 @@ over the run; for these monotone-ish runs it is the step-3000 value).
 | 64 | ~22 ts (1.4 patch) | 0.216 | 10.9× | plateau |
 | 91 | ~32 ts (2.0 patch) | 0.211 | 10.7× | plateau |
 | 128 | ~44 ts (2.8 patch) | 0.177 | 8.9× | under-adapting |
-| 512 | ~176 ts (11 patch) | 0.132 | 6.7× | under-adapting, ~3× slower |
+| 512 | ~176 ts (11 patch) | 0.132 | 6.7× | under-adapting, ~2.7× slower |
 | None | — | 0.020 | 1.0× | barely learns |
 
 **Gap vs step — initial round** (`—` = tick lost to log buffering, see notes):

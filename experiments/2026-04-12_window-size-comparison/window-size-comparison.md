@@ -6,7 +6,7 @@ The Tiny contrastive backbone patches each 4096-step series into windows of W ti
 
 ## Result
 
-**In this single-run-per-arm test, W=16 did not degrade the gap — it reached a higher one (0.093 vs 0.082 at 10k steps, +13%) while using 37% less VRAM, at the cost of being ~18% slower per step.** Single seed per arm, so treat the ranking as suggestive, not conclusive (see caveat below).
+**In this single-run-per-arm test, W=16 did not degrade the gap — it reached a higher peak gap (0.093 vs 0.082, both at step 9k of 10k, +13%) while using 37% less VRAM, at the cost of being ~18% slower per step.** Single seed per arm, so treat the ranking as suggestive, not conclusive (see caveat below).
 
 ![Contrastive gap vs training step, three arms to 10k steps (gap values parsed from the committed logs in `logs/`). W=16 bs=24 (red) is level with W=32 (blue) early, pulls clear after ~6k steps, and peaks at 0.093 vs W=32's 0.082. W=16 bs=28 (green) tracks bs=24 but was wall-time-capped at step ~6.9k.](plots/gap_vs_step.png)
 
@@ -33,12 +33,12 @@ Even after paying the 18% per-step penalty, W=16 bs=24 overtakes W=32 on wall ti
 - **Data:** on-the-fly synthetic ARMA batches (T_raw=4096, C=4), AdamW lr=1e-4, no grad clipping. Gap evaluated every 1000 steps on a fixed ARMA validation batch (seed 0).
 - **Arms:** W=32 bs=32 and W=16 bs=24 each ran 10k steps; W=16 bs=28 was capped at the W=32 run's wall time (29.2 min). One run per arm, RTX 4090.
 - **Why bs differs:** attention memory per sample scales with the square of the sequence length, so W=16's 256-patch sequence needs a smaller batch to fit. bs=24 was W=16's chosen operating point; bs=28 is the follow-up probe.
-- **Sources:** gap-vs-step values are parsed directly from `logs/window_test_{w32,w16,w16_bs28}.log` (authoritative). The wall-time axis comes from the per-step timing recorded with the report (the logs carry sps/VRAM but no timestamps). Plot script: [`scripts/plot_window_curves.py`](scripts/plot_window_curves.py).
+- **Sources:** gap-vs-step values are parsed directly from `logs/window_test_{w32,w16,w16_bs28}.log` (authoritative), as are the per-step speeds (all arms) and the W=16 / bs=28 VRAM (`vram=14.7GB` / `17.6GB`). The W=32 **23.4 GB** is from the run's manual record — that log carries no `vram=` field — so the "37% less VRAM" headline rests on one un-logged number (the *direction* is unambiguous; the exact 37% is not log-verified). The wall-time axis comes from the per-step timing recorded with the report (the logs have no timestamps). Plot script: [`scripts/plot_window_curves.py`](scripts/plot_window_curves.py).
 
 ## What we learned
 
 Halving the patch window to W=16 (256 patches) did not hurt contrastive learning on Tiny in this test — it produced a higher gap at both matched steps and matched wall time, and cut VRAM by more than a third, freeing headroom for larger models. The one cost, ~18% slower steps, was repaid by the per-step learning gain within ~21 minutes. Spending the freed VRAM on a larger batch (bs=28) was counterproductive; bs=24 was best.
 
-**Caveat — single seed.** Each arm is one run on one validation seed, and the W=16-vs-W=32 gap margin (~0.011) is small relative to the run-to-run wobble visible in both curves (e.g. W=32 dips to 0.073 at 8k between two 0.08+ points). This is a directional result — finer windows look at least as good as coarser ones here, not worse — and is not a clean A/B at matched batch size. A confident claim would need multiple seeds and a batch-matched W=32-vs-W=16 pair; this run varies W and batch together. It is not, on this evidence, an architectural conclusion.
+**Caveat — single seed.** Each arm is one run on one validation seed, and the W=16-vs-W=32 gap margin (~0.011) is small relative to the run-to-run wobble visible in both curves (e.g. W=32 dips to 0.073 at 8k, between 0.079 at 7k and 0.082 at 9k). This is a directional result — finer windows look at least as good as coarser ones here, not worse — and is not a clean A/B at matched batch size. A confident claim would need multiple seeds and a batch-matched W=32-vs-W=16 pair; this run varies W and batch together. It is not, on this evidence, an architectural conclusion.
 
 *(Notes on the bs=28 wall-time cap and an earlier copy-paste error in the bs=28 step table live in [notes/data-provenance.md](notes/data-provenance.md).)*
