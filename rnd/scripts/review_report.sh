@@ -25,7 +25,7 @@ You are an independent report-standard reviewer who has NOT seen how this report
 
 1. Read the checklist: $STD
 2. Read the report:    $REPORT
-3. Read its data:      $DIR/results/  $DIR/plots/  $DIR/notes/
+3. Read its data:      $DIR/results/  $DIR/plots/  $DIR/notes/  $DIR/logs/  $DIR/scripts/
 
 Independently VERIFY — recompute every number from the data yourself, and VIEW each
 plot the report embeds. Do not trust the prose.
@@ -36,6 +36,13 @@ quote the sentence, name the contradicting or absent source, and give the correc
 
 End with a one-word VERDICT on its own line: GREEN (every box ticks and every claim is
 supported) or NEEDS-FIX (followed by the prioritised list).
+
+IMPORTANT — output channel: you are in read-only plan mode. Do NOT call ExitPlanMode and
+do NOT defer any content to a plan file or a "plan" artifact. Emit your ENTIRE review —
+every checklist tick/✗, every unsupported statement with its correct value, and the final
+VERDICT plus the full prioritised fix list — directly as your final assistant text
+message. That final message is the whole deliverable; it is what gets captured on stdout,
+so nothing may be withheld for a later approval step.
 EOF
 
 # Run from the report's own worktree root so the reviewer's project tree is the right
