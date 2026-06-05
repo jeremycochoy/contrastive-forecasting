@@ -54,11 +54,14 @@ if [ $rc -ne 0 ]; then
   log "BB train exited rc=$rc — NOT creating FINAL (incomplete; --resume next launch). tail: $(tail -3 "$tlog"|tr '\n' ' ')"
   exit 1
 fi
-# Evaluate at the LAST checkpoint (step 12500) — same training budget for every
-# arm. best-loss is avoided here: the 3-layer-encoder arms drift up in loss late,
-# so best-loss would pick a ~half-trained step and compare unequally vs the base.
-if   [ -f "$RUNS/${NAME}_final.pth" ];     then cp -f "$RUNS/${NAME}_final.pth"     "$BB"
-elif [ -f "$RUNS/${NAME}_best_loss.pth" ]; then cp -f "$RUNS/${NAME}_best_loss.pth" "$BB"
+# Primary FINAL = best-loss checkpoint (the project convention; "best"). The
+# full-training (last, step 12500) checkpoint is also kept as final.pth and
+# evaluated separately via eval_last_ablation.sh (the 3-layer arms drift up in
+# loss late, so best vs full-training is reported for both).
+if   [ -f "$RUNS/${NAME}_best_loss.pth" ]; then cp -f "$RUNS/${NAME}_best_loss.pth" "$BB"
+elif [ -f "$RUNS/${NAME}_final.pth" ];     then cp -f "$RUNS/${NAME}_final.pth"     "$BB"
 else cp -f "$(ls -t "$RUNS/${NAME}"_*k.pth 2>/dev/null|head -1)" "$BB" 2>/dev/null; fi
+# Keep an explicit full-training copy so downstream can evaluate it too.
+[ -f "$RUNS/${NAME}_final.pth" ] && cp -f "$RUNS/${NAME}_final.pth" "$RUNS/${NAME}_LAST.pth" 2>/dev/null || true
 [ -f "$BB" ] && { log "BB DONE -> ${NAME}_FINAL.pth ($(du -h "$BB"|cut -f1))"; exit 0; }
 log "BB FAILED no checkpoint"; exit 1
