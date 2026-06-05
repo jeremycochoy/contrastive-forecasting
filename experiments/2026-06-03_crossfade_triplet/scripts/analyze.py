@@ -161,6 +161,7 @@ def plot_summary(rows):
             ax.text(xi + w / 2, r["trip_full"], f"{r['trip_full']:.3f}", ha="center", va="bottom", fontsize=8)
     ax.set_xticks(x)
     ax.set_xticklabels([HLAB[h] for h in HEADS])
+    ax.set_ylim(0, 1.5)                         # headroom so the legend clears the bars/labels
     ax.set_ylabel("GM-Relative MASE over 97 tasks (lower better)")
     ax.set_title("Crossfade triplet arm vs the 0.8%-fork base — GIFT-Eval")
     ax.legend(fontsize=8, loc="upper left")
@@ -169,41 +170,10 @@ def plot_summary(rows):
     print(f"wrote {PLOTS}/gm_summary.png")
 
 
-def plot_delta(rows):
-    fig, ax = plt.subplots(figsize=(7.6, 4.2))
-    x = np.arange(len(HEADS))
-    d = [r["delta"] for r in rows]
-    lo = [(r["delta"] - r["ci_lo"]) if r["ci_lo"] is not None else 0 for r in rows]
-    hi = [(r["ci_hi"] - r["delta"]) if r["ci_hi"] is not None else 0 for r in rows]
-    colors = []
-    for r in rows:
-        if r["ci_hi"] is not None and r["ci_hi"] < 0:
-            colors.append("#2ca02c")          # reliably better
-        elif r["ci_lo"] is not None and r["ci_lo"] > 0:
-            colors.append("#d62728")          # reliably worse
-        else:
-            colors.append("#999999")          # inconclusive
-    ax.bar(x, d, 0.5, yerr=[lo, hi], capsize=5, color=colors)
-    ax.axhline(0, c="k", lw=0.8)
-    for xi, r in zip(x, rows):
-        if r["delta"] is not None:
-            ax.text(xi, r["delta"], f"{r['delta']:+.3f}", ha="center",
-                    va="bottom" if r["delta"] >= 0 else "top", fontsize=9)
-    ax.set_xticks(x)
-    ax.set_xticklabels([HLAB[h] for h in HEADS])
-    ax.set_ylabel("change in error vs the 0.8%-fork base\n(GM-Relative MASE, negative = better)")
-    ax.set_title("Change in forecast error from the combined arm\n"
-                 "(90% paired interval over 97 tasks; grey = interval crosses zero)", fontsize=11)
-    fig.tight_layout()
-    fig.savefig(f"{PLOTS}/delta.png", dpi=130)
-    print(f"wrote {PLOTS}/delta.png")
-
-
 if __name__ == "__main__":
     rows = collect()
     write_table(rows)
     if any(r["trip_full"] for r in rows):
-        plot_summary(rows)
-        plot_delta(rows)
+        plot_summary(rows)            # per-domain delta lives in perdomain_stats.py
     else:
         print("\n(no triplet eval summaries yet — table/plots fill in once evals land)")

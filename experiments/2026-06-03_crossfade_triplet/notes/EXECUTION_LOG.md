@@ -40,4 +40,15 @@ Operational notes kept out of RESULTS.md per the report standard.
 1. `smoke.sh <gpu>` (batch 1024, ~20 steps) — validates + measures peak memory.
 2. `train_backbone_triplet.sh <gpu>` (background, ~17 h; resumes from latest *_Nk.pth on crash).
 3. `run_downstream.sh <gpu> [gpu2]` — 2L + 6L q-heads (30k each) + GIFT-Eval B4 full+triage.
-4. `analyze.py`, `perdomain_stats.py`, `plot_training_loglog.py`, `plot_cosines.py`.
+4. `analyze.py`, `perdomain_stats.py`, `plot_schematic.py`, `plot_training_metrics.py`.
+
+## Final status (complete)
+- Backbone: trained on GPU 1 (freed after a multi-hour wait for a genuinely-free card), 14.2 h,
+  ~22 GB peak. PATCH_ENC_CKPT/CHUNK added to fit batch 1024 on one card (byte-identical; a smoke
+  caught the ~19 GB GRU alloc before committing the run). Best-loss = step 6400 (loss 0.937).
+- Downstream: 2L + 6L q-heads trained in parallel on GPU 1 (30k steps, b256) + GIFT-Eval B4
+  (triage + full-97). Full evals slow (~3 h, large datasets); ran to completion, no retries needed.
+- Result: NEUTRAL-to-slightly-worse. 2L 1.213→1.220 (+0.007), 6L 1.198→1.211 (+0.013); both 90%
+  paired CIs straddle 0; arm trails the prior best (crossfade·10% 1.208/1.178). Per-domain:
+  Web/CloudOps reliably worse on both heads (only both-head reliable effect). Single seed; 3 changes
+  at once (joint effect).
