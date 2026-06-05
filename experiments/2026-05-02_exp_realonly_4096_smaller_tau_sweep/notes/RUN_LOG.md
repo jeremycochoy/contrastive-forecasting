@@ -52,7 +52,7 @@ All times UTC. Checkpoint paths are absolute on the laptop (`/Users/jeremycochoy
 
 - Hyperparams: `--tau 0.07 --learnable-tau` (CLIP-style log_inv_tau, init τ=0.07, clamp [0.01, 1.0] post optimizer step). Otherwise identical to #27.
 - Timeline: BB had two resumes visible in the local `run.log` (resume at step 17,100 from `_resume.pth`; second resume at step 21,700 after a 21k httpx-class crash — recovered through the same `_resume.pth` mechanism); STAGE B DONE Sat May 2 02:18; STAGE H DONE / STAGE E DONE; ALL DONE Sat May 2 04:18.
-- Backbone: final ema_loss 5.7039 at step 30,000 (lowest of the four arms — consistent with τ ending at 0.0525, even tighter than τ=0.05 fixed).
+- Backbone: final ema_loss 5.7039 at step 30,000 (the lowest of the four arms, but only marginally; τ ended at 0.0525 — slightly *looser* than the τ=0.05 fixed arm, not tighter).
 - Head: final ema_loss 0.06818 at step 30,000.
 - Final τ at end of training: 0.0526 (`log_inv_tau=2.9453`, auto-detected by both head trainer and eval).
 - Eval results CSV: `sync_realonly_4096_smaller_learnable_tau/learnable/results/all_results.csv`

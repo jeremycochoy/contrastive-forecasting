@@ -6,10 +6,11 @@ to isolate the normaliser comparison from OOD transfer.
 
 **When**: Late April 2026.
 
-**Status**: Completed. RevIN-synth was best of the *original* 4 synth
-arms (~5.7% better MASE than fe+mu @ 60k), but was later dominated by
-EWMA span=64+ when the span sweep revealed the previous EWMA span=32
-default was the bottleneck. Single seed.
+**Status**: Completed. RevIN-synth was best of the *original* 5 synth
+arms — it beat all four EWMA span=32 arms (~5.75% better MASE than
+fe+mu @ 60k) — but was later dominated by EWMA span=64+ when the span
+sweep revealed the previous EWMA span=32 default was the bottleneck.
+Single seed; the intra-group ordering is not seed-separated.
 
 **Run script**: not preserved as a `run.sh` here — original was
 `/tmp/run_revin_synth.sh` on the remote vast.ai instance and was lost

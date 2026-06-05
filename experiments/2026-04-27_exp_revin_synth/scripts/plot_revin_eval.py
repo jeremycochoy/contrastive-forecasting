@@ -39,8 +39,8 @@ ax.axhline(sn, color="#c0392b", ls="--", lw=1.4, zorder=2,
 ax.set_xticks(list(x)); ax.set_xticklabels(labels, fontsize=9)
 ax.set_ylabel("GM-MASE  (lower = better)")
 ax.set_ylim(0, max(mase) * 1.22)
-ax.set_title("Synth GM-MASE — RevIN best of the 4 original arms, all far above seasonal-naive\n"
-             "(span=32 normaliser; single seed; 1024 held-out synth samples)", fontsize=10)
+ax.set_title("Synth GM-MASE — RevIN best of the 5 original arms, all far above seasonal-naive\n"
+             "(RevIN vs four EWMA span=32 arms; single seed; 1024 held-out synth samples)", fontsize=10)
 ax.legend(loc="upper right", fontsize=9)
 plt.tight_layout()
 OUT = os.path.join(HERE, "..", "plots", "revin_eval.png")

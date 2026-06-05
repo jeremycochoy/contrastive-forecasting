@@ -1,6 +1,6 @@
 # Head / rollout comparison: is the forecasting head the ~1.27 MASE bottleneck?
 
-The frozen Tiny backbone keeps getting better at its own job — its contrastive gap rises from 0.10 to 0.43 as it trains — yet GIFT-Eval **GM-Relative MASE stays flat at ~1.27** regardless of backbone steps ([../2026-04-13_gift-eval/gift-eval.md](../2026-04-13_gift-eval/gift-eval.md)). So the limit is not the backbone. This experiment asks whether the **forecasting head and its rollout strategy** are what hold the score on that plateau: we hold the backbone fixed and swap in 6 different ways of turning latents into a forecast.
+The frozen Tiny backbone keeps getting better at its own job — its contrastive gap rises from 0.10 to 0.43 as it trains ([notes/DESIGN.md](notes/DESIGN.md); this is the v2 backbone, best gap 0.428, [notes/EXECUTION_PLAN.md](notes/EXECUTION_PLAN.md)) — yet its GIFT-Eval **GM-Relative MASE stays flat at ≈1.26 (1.256 @30k, 1.274 @60k)** ([../2026-04-13_gift-eval/gift-eval.md](../2026-04-13_gift-eval/gift-eval.md)). So the limit is not the backbone. This experiment asks whether the **forecasting head and its rollout strategy** are what hold the score on that plateau: we hold the backbone fixed and swap in 6 different ways of turning latents into a forecast.
 
 > *GM-Relative MASE = geometric mean over the 97 GIFT-Eval configs of (model MASE ÷ seasonal-naive MASE), where MASE is Mean Absolute Scaled Error. 1.0 = seasonal-naive; lower is better.*
 > *Contrastive gap = how much more a window's forecast resembles its own future than its present — the margin the backbone's contrastive loss grows.*
@@ -11,18 +11,18 @@ Every one of the 6 variants lands on the same plateau (1.258–1.288); none esca
 
 ![GM-Relative MASE for all 6 head/rollout variants. Red = value-space rollout (decode latents to values, then slide in value space); blue = latent-space rollout (roll the backbone's own latents forward, decode once). Green dashed line is seasonal-naive (1.0); grey band marks the 1.258–1.288 spread the whole family occupies. Lower is better.](plots/rollout_comparison.png)
 
-Latent-space rollout edges out value-space (best B = 1.258 vs the A1 baseline 1.275), and the value-space round-trip does look mildly harmful — but the entire effect is a ~0.03 swing within a tight cluster, far short of the ~0.25 that would close the gap to the leaderboard band. Whatever strategy decodes the latents, the result is the same plateau.
+Latent-space rollout edges out value-space (best B = 1.258 vs the A1 baseline 1.275), and the value-space round-trip does look mildly harmful — but the entire effect is a ~0.03 swing within a tight cluster — it does not even reach seasonal-naive parity (~0.25 below the plateau), let alone the leaderboard band (≈0.6–0.83, ~0.45 below the plateau). Whatever strategy decodes the latents, the result is the same plateau.
 
 | ID | Rollout space | Head output | Step | GM-Rel MASE | Source |
 |----|---------------|-------------|------|------------:|--------|
 | A1 | value | 128 values | slide by 128 | 1.275 | cited (v2 baseline) |
-| A2 | value | W=16 values | slide by 16 | 1.262 | cited prior eval |
+| A2 | value | W=16 values | slide by 16 | 1.262 | cited ([reconstruction-head.md](../2026-04-17_reconstruction-head/reconstruction-head.md), A2=1.2620) |
 | B1 | latent | 128 values | decode at end | **1.258** | recomputed |
 | B2 | latent | 128 → crop 16 | decode each step | **1.258** | recomputed |
 | B3 | latent | 128 non-overlap | decode every 8 | **1.260** | recomputed |
 | B4 | latent | W=16 values | decode each step | **1.288** | recomputed |
 
-*Single run per variant; GIFT-Eval scoring is deterministic, so the only noise is head-training init. Treat the sub-0.03 ordering as suggestive, not significant.*
+*Single run per variant, no variance estimated; GIFT-Eval scoring is deterministic, so the only noise is head-training init. Treat the sub-0.03 ordering as suggestive, not significant.*
 
 ## Protocol
 
@@ -33,4 +33,4 @@ Latent-space rollout edges out value-space (best B = 1.258 vs the A1 baseline 1.
 
 ## What we learned
 
-All six rollout strategies cluster on the same ~1.27 plateau, so **how the head decodes latents is not the bottleneck** — the value-space round-trip is at most a ~0.03 nuisance, not the ~0.25 that separates us from the leaderboard. Latent-space rollout being (slightly) better was itself the clue: the backbone already places `f[t] ≈ e[t+1]`, yet the head was trained to *predict the future* from a latent rather than *reconstruct the patch that latent already represents* — re-doing prediction the backbone had done. This experiment motivated that mis-alignment hypothesis; the follow-up [reconstruction-head experiment](../2026-04-17_reconstruction-head/reconstruction-head.md) confirms it — a head trained to reconstruct (R1) reaches 1.121, finally breaking the plateau (a 12% improvement over the A1 baseline).
+All six rollout strategies cluster on the same ~1.27 plateau, so **how the head decodes latents is not the bottleneck** — the value-space round-trip is at most a ~0.03 nuisance, nowhere near the ~0.45 that separates us from the leaderboard band (≈0.6–0.83), and not even the ~0.25 to seasonal-naive parity. The plateau pointed instead at a mis-alignment hypothesis: the backbone already places `f[t] ≈ e[t+1]`, yet every head here was trained to *predict the future* from a latent rather than *reconstruct the patch that latent already represents* — re-doing prediction the backbone had done. This experiment motivated that hypothesis; the follow-up [reconstruction-head experiment](../2026-04-17_reconstruction-head/reconstruction-head.md) confirmed it — a head trained to reconstruct (R1) reaches 1.121, finally breaking the plateau (a 12% improvement over the A1 baseline).

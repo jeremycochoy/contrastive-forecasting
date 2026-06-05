@@ -31,6 +31,11 @@ zero aggregate cost and a small non-periodic tax.
 
 ![MASE on the 6 periodic focus configs: CONTROL 30k (blue), MIX 30k (orange), v3b 120k reference (green), seasonal-naive (black line). Lower is better.](plots/mase_compare.png)
 
+> **Single seed (seed 42), one paired CONTROL/MIX run, no replication — no
+> variance is quantified and the bars carry no error bars.** The −3.4% subset
+> gain and the per-config Δ's below are point estimates from one run each; read
+> magnitudes as indicative, not statistically established.
+
 MIX (orange) beats CONTROL (blue) on **4 of 6** focus configs. The wins are
 on weekly and fine-grained (15-/10-min) periodicity — exactly the regime the
 synthesizer covers well. The two losses are the **hourly** configs
@@ -68,10 +73,20 @@ Aggregate GM-Rel is a tie; the action is entirely in the subset structure.
 | Model | Training | GM-Rel MASE |
 |---|---|---:|
 | Seasonal-naive | — | 1.000 |
-| R1 (v2 backbone) | 500k | 1.168 |
+| R1 (v2 backbone) | 500k | 1.168 † |
 | R1v3b (v3b backbone) | 120k | 1.1865 |
 | **R1v3c_ctrl** | 30k from-scratch | **1.2173** |
 | **R1v3c_mix** | 30k from-scratch | **1.2164** |
+
+> *† The v2-backbone 1.168 is **carried from the originating v2 eval** (synthetic
+> pre-train → resume, 500k steps), not recomputed from data committed here. It is
+> the same figure cited in
+> [`../2026-04-21_v3b-continuation/v3b-continuation.md`](../2026-04-21_v3b-continuation/v3b-continuation.md)
+> and [`../2026-04-17_reconstruction-head/notes/FAILED_EXPERIMENTS.md`](../2026-04-17_reconstruction-head/notes/FAILED_EXPERIMENTS.md).
+> The unreferenced `results/R1v3/all_results.csv` in this dir is **not** its source:
+> recomputed against the SN column of `comparison.txt` it gives GM-Rel **1.1876**
+> (a v3-family backbone, ≈ v3b's 1.1865), not 1.168. v3b (1.1865) and both v3c
+> arms above are recomputed locally.*
 
 The CONTROL–MIX aggregate gap is 0.0009 (within single-run noise). CONTROL at
 30k is ~2.6% worse than v3b-120k — a modest under-training discount at matched
@@ -96,14 +111,26 @@ regresses (n=4, small). The single worst regression is **us_births/M/short**
 Paired arms, identical except the batch composition (the only independent
 variable). Full design in [`notes/DESIGN.md`](notes/DESIGN.md).
 
-- **Backbone:** Tiny (C=4, H=512, W=16, 6-layer GRU + transformer, RevEWMNorm
-  span=32 — reversible EWMA input normalisation). Identical to v3b. ~20M.
+- **Backbone:** Tiny (C=4, H=512, W=16, GRU encoder + 6-layer transformer,
+  RevEWMNorm span=32 — reversible EWMA input normalisation), config identical to
+  v3b ([`scripts/train.py:52-57`](scripts/train.py); `encoder_type="gru",
+  num_layers=6`). ~20M params (inherited v3b config; not separately measured in
+  committed data).
 - **Training:** 30 000 steps, batch 24, lr 1e-4, from scratch, seed 42.
+  *base-bundles* = the `base_mixed_v1` real-time-series corpus on HF
+  (`jeremycochoy/contrastive-training-base-bundles`).
   - **CONTROL (`tiny_v3c_ctrl`):** 24 base-bundles (real time series) rows/batch.
   - **MIX (`tiny_v3c_mix`):** 12 base-bundles + 12 on-the-fly periodic-synth rows.
-- **Head:** R1 forecaster (reconstruction, W=16, GRU h=128 l=2, MSE) trained on
-  each frozen backbone, same 30k-step budget.
-- **Eval:** GIFT-Eval strategy B4, 97 configs, scored against seasonal-naive.
+- **Head:** R1 forecaster (reconstruction, forecast-len 16, GRU, MSE) trained on
+  each frozen backbone, same 30k-step budget. Head GRU `hidden_dim=128,
+  num_gru_layers=2` are the defaults of
+  [`../2026-04-13_gift-eval/scripts/train_forecasting_head.py:94`](../2026-04-13_gift-eval/scripts/train_forecasting_head.py)
+  invoked by [`scripts/run_remote.sh`](scripts/run_remote.sh) (which sets
+  `--forecast-len 16 --reconstruction forecaster`); not overridden here.
+- **Eval:** GIFT-Eval strategy B4 — the forecast rollout protocol used here:
+  latent-space autoregressive rollout, decoding each step with the W-value head
+  (`src/forecasting_head.py:955`, `forecast_B4`; one of the `--strategy` choices
+  A1/A2/B1/B2/B3/B3R/B4). 97 configs, scored against seasonal-naive.
 - **Synthesizer:** one primitive per series (sinusoid / square / saw),
   log-uniform samples-per-period in [8, 256], 50% sign-flip for square & saw,
   p=0.3 `exp(λt)` envelope (gain capped [0.1×, 10×]), log-uniform scale
@@ -121,36 +148,48 @@ synth series, seasonal-naive (with the true period) beats persist-last-value by
 
 ![Backbone contrastive loss (top) and gap (bottom), CONTROL vs MIX, log-space.](plots/training_curves_backbone.png)
 
-| Arm | final loss EMA | final gap EMA | best_gap step | best_gap |
-|---|---:|---:|---:|---:|
-| CONTROL | 2.357 | 0.322 | 29800 | 0.3247 |
-| MIX | **0.095** | **0.543** | 29400 | **0.5471** |
+All four values below are **read off the plot above** (the raw `*_losses.csv`
+lived on the sync host and is not in the repo), so treat them as eyeball
+estimates near end-of-run, not logged measurements.
 
-MIX's contrastive loss is ~25× lower and gap ~69% higher than CONTROL.
+| Arm | final loss EMA (est.) | final gap EMA (est.) |
+|---|---:|---:|
+| CONTROL | ~2.4 | ~0.32 |
+| MIX | **~0.1** | **~0.54** |
+
+By these estimates MIX's contrastive loss is roughly an order of magnitude lower
+(~25×) and its gap ~60–70% higher than CONTROL — both ratios inherit the
+plot-estimate inputs above.
 
 > *Contrastive gap = FF − FP: how much more a window's forecast resembles its
 > own future (FF) than its present (FP) — the margin the contrastive loss grows.*
 
 This is **expected, not predictive of a downstream win**: the clean-periodic
 half is trivial to separate from shuffled negatives, which drags the aggregate
-loss down and inflates the gap. CONTROL tracks v3b's trajectory tightly (v3b at
-120k had best_gap 0.3351; CONTROL hits 0.3247 at 30k — 97% of the gap in 25% of
-the steps), confirming CONTROL is a valid matched-compute reference.
+loss down and inflates the gap. CONTROL's end-of-run gap (~0.32 by the plot)
+sits close to v3b's at 120k, so CONTROL reaches a comparable gap in ~25% of the
+steps — consistent with it being a valid matched-compute reference. (v3b's exact
+best_gap is not in committed data here, so this is a visual comparison, not a
+ratio of logged values.)
 
 ![R1 head MSE on base-bundles data, CONTROL vs MIX.](plots/training_curves_head.png)
 
-| Arm | head final MSE | best MSE step |
-|---|---:|---:|
-| CONTROL | 0.073 | 30000 |
-| MIX | 0.087 | 30000 |
+Head MSE below is read from the plot legend (final ~0.0725 / ~0.0865; step from
+the curve), again a plot read-off, not a logged CSV:
 
-The MIX head's MSE on real base-bundles data is **19% higher**. The MIX
+| Arm | head final MSE (est.) | best MSE step |
+|---|---:|---:|
+| CONTROL | ~0.073 | 30000 |
+| MIX | ~0.087 | 30000 |
+
+The MIX head's MSE on real base-bundles data is **~19% higher**. The MIX
 backbone encodes the clean-synth half very efficiently, but its latents are
 slightly *less* linearly decodable on the noisier real half — the first hint
 that the MIX representation specialised in a not-universally-helpful direction.
 
-*(Training-curve numbers are read off the two committed plots above; the raw
-`*_losses.csv` lived on the sync host and is not in the repo.)*
+*(All training-dynamics numbers in this section are read off the two committed
+plots above — the raw `*_losses.csv` lived on the sync host and is not in the
+repo — so they are estimates, not measurements.)*
 
 ## What we learned
 
@@ -167,7 +206,8 @@ that the MIX representation specialised in a not-universally-helpful direction.
   2. **Real hourly data is noisy** (solar weather irregularity); a clean-synth
      model over-projects its trust when the signal is noisier.
 - **At this scale, compute beats synth-data design.** The v2 backbone (500k
-  steps, no synth) still beats the 30k synth mix at aggregate. Synth helps the
+  steps, synthetic pre-train; aggregate 1.168 carried from its originating eval,
+  see † above) still beats the 30k synth mix at aggregate. Synth helps the
   targeted slice but is not a shortcut around training budget.
 
 ## Addendum — extending MIX to 90k

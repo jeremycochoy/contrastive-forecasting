@@ -21,7 +21,9 @@ Each vertex is one positive pair `(f_{b,τ-1} → h_{b,τ})`.
 
 - `h_{b,τ}` — encoder embedding at position `τ`, batch `b`.
 - `f_{b,τ}` — forecast emitted at `τ`, batch `b`; trained to predict `h_{b,τ+1}`.
-- Anchor `(b, s, c)` — the index over which one InfoNCE ratio is computed, with
+- Anchor `(b, s, c)` — the index over which one InfoNCE ratio is computed
+  (InfoNCE = the contrastive loss `-log[ e^{pos/τ} / Σ e^{·/τ} ]`, one positive
+  in the numerator against a sum of negatives in the denominator), with
   positive pair `(f_{b,s,c}, h_{b,s+1,c})`, anchor index `s ∈ [0, T-2]`, channel
   `c`. A loss term is computed per anchor and summed over all anchors and all
   ordered batch pairs `(b, b')`, `b ≠ b'`.
@@ -57,7 +59,7 @@ under `b ↔ b'`.
 The existing-covered edges below are those produced by the
 `cosine_similarity_batch_square` loss branch — the variant that extends the base
 `cosine_similarity_batch` with the two missing clean batch-axis edges (it is the
-`loss_shape` string dispatched at `src/loss.py:1552-1620`; see
+`loss_shape` string dispatched at `src/loss.py:1552-1623`; see
 `src/loss.py::contrastive_latent_loss`). The blue/red cross-batch f↔f and h↔h
 edges are *new relative to the base loss* but already implemented in this
 branch, so they are shown faded.

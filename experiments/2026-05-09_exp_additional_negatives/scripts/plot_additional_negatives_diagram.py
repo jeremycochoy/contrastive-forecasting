@@ -34,7 +34,7 @@ for v in ("TL", "TM", "TR", "BL", "BM", "BR"):
 
 # ── Colour palette ─────────────────────────────────────────────────────────────
 C_POS   = "#2a9d2a"   # green   — positive
-C_TOPB  = "#bbbbbb"   # grey    — neg_zy temporal
+C_TOPB  = "#bbbbbb"   # grey    — neg_zy (f↔f) + neg_xy (h↔h) temporal adjacency
 C_DIAG  = "#c8a030"   # orange  — neg_cross_batch_forecast_embedding
 C_FSIDE = "#7aabdc"   # blue    — neg_cross_batch_forecast (new square)
 C_HSIDE = "#dc7a7a"   # red     — neg_cross_batch_embedding (new square)
@@ -73,7 +73,7 @@ def draw_diagram(echoes: bool, output_path: str) -> None:
     for v in ("TL", "TM", "TR", "BL", "BM", "BR"):
         arrow(f"f_{v}", f"h_{v}", C_POS, 2.4, arrowhead=True, zorder=5)
 
-    # ── EXISTING: neg_zy (temporal, adj. columns, same row) ───────────────────
+    # ── EXISTING: neg_zy (f↔f) + neg_xy (h↔h) temporal, adj. columns, same row ─
     for a, b, r in (
         ("f_TL", "f_TM", -0.18), ("f_TM", "f_TR", -0.18),
         ("h_TL", "h_TM", -0.18), ("h_TM", "h_TR", -0.18),
@@ -195,12 +195,14 @@ def draw_diagram(echoes: bool, output_path: str) -> None:
 
     # ── Title ─────────────────────────────────────────────────────────────────
     if echoes:
+        view = "extended view"
         subtitle = (r"Each colour drawn at every anchor $s$ and $(b,b')$ "
                     r"swap that fits the window.")
     else:
+        view = "centred view"
         subtitle = r"All new edges shown at tensor index $s = t-1$."
     ax.set_title(
-        "Uncovered negatives — (batch × time) extended view\n"
+        f"Uncovered negatives — (batch × time) {view}\n"
         r"Vertex = $(f_{b,\tau-1} \to h_{b,\tau})$.  "
         r"Dashed = new terms.  Faded = existing covered.  " + subtitle,
         fontsize=10.5, pad=10)
@@ -208,7 +210,7 @@ def draw_diagram(echoes: bool, output_path: str) -> None:
     # ── Legend (identical in both views) ──────────────────────────────────────
     exist_items = [
         mpatches.Patch(color=C_POS,              label=r"positive $f\!\to\!h$ within vertex"),
-        mpatches.Patch(color=C_TOPB, alpha=0.7,  label=r"$neg\_zy$: $f\!\leftrightarrow\!f$, $h\!\leftrightarrow\!h$ adj. $t$ (existing)"),
+        mpatches.Patch(color=C_TOPB, alpha=0.7,  label=r"$neg\_zy$ ($f\!\leftrightarrow\!f$) + $neg\_xy$ ($h\!\leftrightarrow\!h$) adj. $t$ (existing)"),
         mpatches.Patch(color=C_DIAG, alpha=0.7,  label=r"diag: $f_t^b\!\leftrightarrow\!h_{t+1}^{b'}$ (existing)"),
         mpatches.Patch(color=C_FSIDE,alpha=0.7,  label=r"$f_t^b\!\leftrightarrow\!f_t^{b'}$ (new square)"),
         mpatches.Patch(color=C_HSIDE,alpha=0.7,  label=r"$h_{t+1}^b\!\leftrightarrow\!h_{t+1}^{b'}$ (new square)"),
