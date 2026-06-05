@@ -285,8 +285,8 @@ def plot_train_curves():
         print("train_curves: no b2048 loss CSV — skip"); return
     fig, axes = plt.subplots(2, 3, figsize=(16, 8.5))
     for ax, (key, title, logy) in zip(axes.flat, panels):
-        for F, c, lab in ((LOSSCSV_B1024, C["b1024"], "b1024 (#322)"),
-                          (LOSSCSV, C["b2048"], "b2048 (#327)")):
+        for F, c, lab in ((LOSSCSV_B1024, C["b1024"], "batch 1024"),
+                          (LOSSCSV, C["b2048"], "batch 2048")):
             s, v = _loss_series(F, key)
             if s: ax.plot(s, v, color=c, lw=1.4, label=lab)
         ax.set_xscale("log")
