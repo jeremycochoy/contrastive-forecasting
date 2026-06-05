@@ -1,213 +1,176 @@
-# qhead-improvements — final report
+# qhead-improvements: a transformer head + eval-matched input layout
 
-**Goal**: improve the recovery (forecasting) head atop the frozen
-"backbone beta" (`tiny_full4096_moirai_hp_FRESH_RESUME50k_FINAL.pth`,
-C=1, H=384, nhead=6, num_layers=6, T_RAW=4096) under the working
-assumption that the backbone is competitive with Moirai. Target:
-GM-Relative MASE ≈ Moirai's **0.809**.
+## Question
 
-**Headline**: 9 rounds of experiments, 5 orthogonal axes explored.
-On the full 97-config GIFT-Eval, **R9_E13 = 1.029** vs the legacy GRU
-**baseline = 1.183** (−13.0%). On the 11-config triage proxy, R9_E13
-= 0.990 (below seasonal naive 1.000); full-eval bias on this run is
-+0.04. Remaining gap to Moirai (full) is +0.220 = +27% above Moirai
-0.809. None of the head-side axes tried in this report closed that
-gap.
+The frozen contrastive backbone "backbone-beta"
+(`tiny_full4096_moirai_hp_FRESH_RESUME50k_FINAL.pth`; C=1, H=384,
+nhead=6, 6 layers, T_RAW=4096) was trained to be competitive with
+Moirai. Atop it sits a *forecasting head* — a small network that reads
+the backbone's latents and emits the actual multi-step forecast. The
+legacy head is a bidirectional GRU inherited from earlier work. **With
+the backbone frozen, how far can a better head alone push downstream
+GIFT-Eval accuracy, and can it reach Moirai's 0.809?**
 
-## Final result
+> **GM-Rel MASE** (the metric throughout) = geometric mean over the
+> benchmark's configs of (model MASE ÷ seasonal-naive MASE), where MASE
+> is Mean Absolute Scaled Error. 1.000 = seasonal-naive; lower is
+> better; the best leaderboard models reach ~0.67–0.81. The full
+> benchmark is **97 configs**; a fast **triage proxy** (defined below)
+> uses 11 of them.
 
-| run | head | training | triage GM-MASE | vs naive (1.000) |
-|---|---|---|---|---|
-| baseline (legacy GRU) | GRU-q | 30k | 1.128 | +12.8% |
-| R1_E1 (linear) | linear-q | 30k | 1.066 | +6.6% |
-| R3_E4 (transformer breakthrough) | xfmr-q 6L | 30k | 1.017 | +1.7% |
-| R5_E7 (best with f-only training) | xfmr-q 12L | 60k | 1.002 | +0.2% |
-| R6_E8 (bidir+fl128 — regressed) | xfmr-q 6L bidir fl128 | 30k | 1.089 | +8.9% |
-| R7_E9 (longer, truncated) | xfmr-q 12L | 100k | 1.020 | +2.0% |
-| R8_E10 (Gaussian NLL) | xfmr-gauss 12L | 60k | 1.020 | +2.0% |
-| **R9_E13** (winner) | **xfmr-q 12L + e_then_f** | **60k** | **0.990** | **−1.0%** |
-| R9_E14 (R9 recipe, longer) | xfmr-q 12L + e_then_f | 100k | 0.994 | −0.6% |
+## Result
 
-Triage proxy: 11 small-test-set configs. Triage→full bias measured on
-two runs in this report: baseline (1.128 → 1.183, +0.055) and R9_E13
-(0.990 → 1.029, +0.039).
+Two head changes carry almost all of the gain. **(1)** Replace the
+legacy bidirectional GRU head with a *causal transformer* matching the
+backbone's depth and width (12 layers, H=384, nhead=6). **(2)** Match
+the head's train-time input layout to what it sees at eval — feed it
+`[encoder-latents, forecaster-latents]` (`e_then_f`) under a leak-free
+causal mask instead of forecaster-latents only. Together these take
+full 97-config GM-Rel MASE from **1.183** (legacy GRU baseline, the #10
+backbone) to **1.029** (run R9_E13) — **−13%**, just above
+seasonal-naive (1.000), still **+27% vs Moirai** (0.809).
 
-vs leaderboard (full eval, lower is better):
+![Full 97-config GIFT-Eval GM-Rel MASE. R9_E13 (solid green, recomputed from this experiment's committed full eval) lands at 1.029 — above seasonal-naive (1.000), still short of Moirai (0.809); the legacy GRU #10 baseline (hatched, carried from the prior #10 report) is 1.183. Lower is better.](plots/headline_full_eval.png)
 
-| Sundial | TimesFM | PatchTST | Chronos | Moirai | Naive | Baseline (#10) | **R9_E13 (full)** |
+R9_E13 is recomputed here as the geomean of the 97 per-config Relative
+values in
+`results/R9_E13_xfmr12L_quant_moirai_cosine_e_then_f_60k_full/summary.txt`
+(= 1.0288). The legacy-GRU baseline **1.183** is carried from the prior
+#10 RESUME50k report (recorded as GM-MASE 1.1828 in
+[notes/CANDIDATES.md](notes/CANDIDATES.md)); its per-config full eval is
+not committed in this experiment, so it is drawn hatched and not
+recomputed here. None of the head-side axes closed the remaining gap to
+Moirai.
+
+### The path to the winner
+
+Each round trains one head recipe and scores it on the 11-config
+triage proxy. The triage GM-Rel MASE per round (geomean of the Relative
+column in each `results/<run>_triage/summary.txt`):
+
+![Triage GM-Rel MASE per round (11-config proxy; lower better). Grey bars sit at or above seasonal-naive (red dashed, 1.000); the e_then_f winner R9_E13 (dark green, 0.990) is the best round — it and its longer-trained sibling R9_E14 (0.994) are the only two below the line. Moirai's full-eval 0.809 shown for scale (blue dotted). Single triage run per round (eval is deterministic). R7_E9 (*) was truncated by spot-instance preemption.](plots/round_progression.png)
+
+The thread is monotone where it should be and flat where it plateaus:
+the legacy GRU (1.128) → linear probe (R1_E1, 1.066) → causal
+transformer (R3_E4, 1.017) → deeper+longer transformer (R5_E7, 1.002),
+then a plateau at ~1.00–1.02 that three further axes (longer training,
+bidirectional+longer-forecast, Gaussian-NLL loss) do not break. The
+`e_then_f` input-layout fix crosses **under** seasonal-naive on triage
+(R9_E13 0.990, and R9_E14 0.994 at longer training); R6_E8 (1.089) is the
+only regression. The full-eval numbers for the two runs evaluated on all 97
+configs:
+
+| run | head + training | triage GM-MASE | full GM-MASE |
+|---|---|---|---|
+| baseline (legacy GRU) | GRU-q, 30k | 1.128 | 1.183 (carried, #10) |
+| **R9_E13** (winner) | **xfmr-q 12L + `e_then_f`, 60k** | **0.990** | **1.029** |
+
+vs the leaderboard on full eval (lower is better):
+
+| Sundial | TimesFM | PatchTST | Chronos | Moirai | Naive | Baseline #10 | **R9_E13** |
 |---|---|---|---|---|---|---|---|
 | 0.673 | 0.680 | 0.762 | 0.786 | 0.809 | 1.000 | 1.183 | **1.029** |
 
-R9_E13 is 13.0% lower than the prior backbone-beta baseline on full
-eval, 2.9% above seasonal naive, and 27.2% above Moirai.
+> **Triage proxy = 11 small-test-set configs** (`bizitobs_*`,
+> `ett{1,2}/{15T,H}`, `electricity/H`, `covid_deaths/D`,
+> `us_births/D`), kept because each finishes in seconds, turning a ~6 h
+> full eval into ~5 min. It is **biased low**: it drops whole
+> hard/long-horizon domains (M4, `loop_seattle`, `bitbrains_*`,
+> medium/long terms) rather than subsampling within configs. Measured
+> triage→full bias on the two runs evaluated both ways:
+> baseline 1.128 → 1.183 (+0.055) and R9_E13 0.990 → 1.029 (+0.039).
+> So a triage score below 1.000 (R9_E13's 0.990) does **not** imply
+> beating seasonal-naive on the full benchmark — R9_E13 is 1.029 there.
+> Full bias rationale in [notes/TRIAGE_NOTE.md](notes/TRIAGE_NOTE.md).
+
+## Protocol
+
+- **Model under test:** the frozen backbone-beta latents + a forecasting
+  head trained on top (AdamW; backbone weights never updated). Heads
+  vary across rounds along five axes: architecture (GRU / linear /
+  causal-transformer 6L / 12L / bidirectional), training length
+  (30k / 60k / 100k steps), LR schedule (constant / WSD / cosine), loss
+  (pinball-quantile / Gaussian-NLL), and train-time input layout
+  (forecaster-latents-only vs `e_then_f`).
+- **`e_then_f` layout (the winning change):** at eval the head sees
+  `[e_ctx, rolled_f]` — encoder latents for the context window followed
+  by rolled forecaster latents — but training used to feed it only
+  `f_0..f_{T-1}`. `--head-train-input e_then_f` instead feeds the
+  length-2T sequence `[e_0..e_{T-1}, f_0..f_{T-1}]` with a custom
+  no-leakage mask: every row is causal, and each f-block row may attend
+  to e-columns only up to its own position `p_f`, so it cannot peek at
+  `e_{p_f+1}` (which encodes the target patch). Without the mask,
+  the head reads leaked target info and training loss collapses; with the
+  mask it stays at the no-leak plateau yet eval still improves.
+- **Benchmark:** the official GIFT-Eval suite (`gift_eval` + GluonTS),
+  deterministic point forecast scored against seasonal-naive, primary
+  metric GM-Rel MASE. Every number for our runs is recomputed from the
+  per-config outputs in [results/](results/)
+  (`<run>_triage/summary.txt`, plus the committed full-eval summary for
+  R9_E13 — the only full 97-config eval committed here; R5_E7's full run
+  is a 28-config partial, so its full GM-MASE is not quoted); leaderboard
+  reference values are published GIFT-Eval figures.
 
 ## What worked
 
-1. **Replace the legacy bidir-GRU head with a causal transformer matching
-   the backbone's depth + width.** R3_E4 (6L H=384 nhead=6, ~10.7M params)
-   trained from scratch with Moirai HP (β2=0.98, wd=0.1, lr=1e-3) and
-   cosine LR + 1k-step warmup: triage GM-MASE **1.066 → 1.017** (−4.6%
-   vs the linear probe R1_E1).
-
-2. **Stack depth + length on top of the transformer**: 12 layers + 60k
-   steps + 2k warmup → R5_E7 = **1.002** (−1.5% on top of R3_E4).
-
-3. **Match the train-time input distribution to the eval-time input
-   distribution** (R9_E13). Discovered by reading
-   `_b_variant_decode`: at eval the head sees `[e_ctx, rolled_f]`
-   (encoder latents for context + rolled forecaster latents) but at
-   training it used to see only `f_0..f_{T-1}`. Adding
-   `--head-train-input e_then_f` feeds the head a length-2T sequence
-   `[e_0..e_{T-1}, f_0..f_{T-1}]` at training, with a custom
-   no-leakage mask: every row (including e-block rows) is causal, and
-   f-block rows can only attend to e-cols `0..p_f` so the head can't
-   peek at `e_{p_f+1}` (which encodes the target patch). Without this
-   mask, training-loss collapses to ~0.115 from leaked target info;
-   with it, training-loss matches R5_E7's 0.192 plateau but **eval
-   improves anyway** — 1.002 → **0.990** (−1.2%), finally below
-   seasonal naive (1.000) on triage.
+1. **Causal transformer head matching the backbone's depth + width.**
+   R3_E4 (6L, H=384, nhead=6, ~10.7M params), trained from scratch with
+   Moirai HP (β2=0.98, wd=0.1, lr=1e-3), cosine LR + 1k-step warmup:
+   triage **1.066 → 1.017** vs the linear probe. The linear probe
+   itself already beat the legacy GRU (1.128 → 1.066), so capacity was
+   not the GRU's problem — input *structure* was.
+2. **Stack depth + length on the transformer.** 12 layers + 60k steps +
+   2k warmup → R5_E7 = **1.002** (−1.5% on top of R3_E4). This is the
+   floor for everything that keeps the forecaster-only input layout.
+3. **Match the train-time input layout to eval (`e_then_f`).** R9_E13:
+   triage **1.002 → 0.990** (R9_E14, the same recipe at 100k, lands at
+   0.994 — both e_then_f rounds clear seasonal-naive on triage), and the
+   headline full-eval win (1.029).
 
 ## What didn't work (informative null results)
 
-1. **Linear probe with Moirai HP + WSD (R2_E3)**: identical training-loss
-   trajectory to constant-LR linear (R1_E1). The HP/schedule change
-   from R1_E1 to R2_E3 did not change the linear-probe training-loss
-   trajectory.
-2. **Bidir head + forecast_len=128 (R6_E8)**: triage GM-MASE 1.089
-   vs R3_E4's 1.017 at the same length. At training a bidir head sees
-   real f's; at eval it sees rolled-out f's. No ablation isolates which
-   factor (bidir vs fl128) drove the regression.
-3. **Longer training to 100k (R7_E9)**: truncated by spot-instance
-   preemption at step 85k; result 1.020 ≥ R5_E7's 1.002 even before
-   truncation. Extending the cosine schedule from 60k to 100k did not
-   improve triage GM-MASE in this run.
-4. **Gaussian NLL loss (R8_E10)**: same triage 1.020 as R7_E9.
-   Switching from pinball to Gaussian NLL with the same head and
-   schedule did not move triage GM-MASE from the ~1.02 plateau seen
-   across the other 12L transformer variants.
-5. **Longer training under matched-input setup (R9_E14)**: triage 0.994
-   vs R9_E13's 0.990 at 60k. Extending the cosine schedule from 60k to
-   100k under `e_then_f` did not improve triage GM-MASE; the +0.004
-   delta is within run-to-run noise on this 11-config subset.
+1. **Linear probe HP/schedule (R2_E3).** Switching the linear probe to
+   Moirai HP + WSD gave a training-loss trajectory identical to the
+   constant-LR linear probe (R1_E1) and the same ~1.066 triage score:
+   the linear head is at its representational ceiling regardless of HP.
+2. **Bidirectional head + forecast_len=128 (R6_E8).** Triage **1.089**
+   vs R3_E4's 1.017 — the only regression. A bidirectional head attends
+   to *real* future latents at training but *rolled-out* (error-laden)
+   ones at eval. No ablation isolates bidir vs fl128, so the cause is
+   the train/eval mismatch in aggregate, not pinned to one factor.
+3. **Longer training to 100k (R7_E9).** 1.020 ≥ R5_E7's 1.002; the run
+   was also truncated at ~85k by a spot-instance preemption, but it was
+   already not improving. Extending the cosine schedule past 60k did
+   not help.
+4. **Gaussian-NLL loss (R8_E10).** Triage 1.020, same as R7_E9 and worse
+   than R5_E7's 1.002. The ~1.02 plateau is not a pinball loss-surface
+   artifact — swapping to smooth parametric NLL with the same head and
+   schedule does not move it.
+5. **Longer training under `e_then_f` (R9_E14).** Triage 0.994 vs
+   R9_E13's 0.990 at 60k; the +0.004 is within run-to-run noise on this
+   11-config subset. Longer training does not add to the input-layout
+   win either.
 
 ## Hypothesis going forward
 
-Five axes explored: architecture, length, schedule, loss, train-eval
-input distribution. Four of them converge to ~1.00–1.02 triage GM-MASE.
-The fifth (matching the train input layout to the eval input layout
-via `e_then_f` + leak-free mask) finally crossed under seasonal naive
-on triage at **0.990**.
+Of the five head-side axes — architecture, length, schedule, loss,
+train/eval input layout — four converge to ~1.00–1.02 triage GM-MASE.
+Only matching the train input layout to the eval input layout
+(`e_then_f` + leak-free mask) crosses under seasonal-naive on triage
+(0.990) and delivers the full-eval headline (1.029). The remaining gap
+to Moirai on full eval is **+0.220** (1.029 vs 0.809, +27%), and none
+of these head-side changes closed it. The plateau across four
+orthogonal head axes — together with the linear probe already beating
+the GRU — points (a hypothesis, since no backbone was varied in the
+head experiments) to the **frozen backbone's latents** as the binding
+constraint rather than head capacity or recipe; scaling or retraining
+the backbone is the natural next line, out of scope here.
 
-Full eval on R9_E13 came back at **1.029** (97 configs;
-`results/R9_E13_xfmr12L_quant_moirai_cosine_e_then_f_60k_full/summary.txt`),
-+0.039 above triage — the bias estimate held within ~0.02. R9_E14
-(same recipe at 100k steps) was triage-only and landed at **0.994**,
-slightly above R9_E13's 0.990: longer training under the matched-input
-setup did not help further on this triage subset.
-
-Remaining gap to Moirai on full eval is +0.220 (R9_E13 1.029 vs Moirai
-0.809, +27.2%). None of the five head-side axes tried here closed it.
-This report does not include any backbone-side experiments.
-
-## Backbone metric trajectory
-
-Below we report R² = 1 − Q where Q is the error ratio mean_b e(forecast, target) / mean_b e(reference). R² = 0 means the forecast is no better than the baseline; R² = 1 means the forecast is exact. Q values are in `results/backbone_metrics_trajectory.csv`.
-
-Diagnostic on the *backbone* (not the head experiments). Every head experiment in this report shares the same backbone-beta = step 167k, so the table below shows how the backbone evolved across its own training, not a per-head comparison.
-
-![backbone metrics](plots/backbone_metrics_curve.png)
-
-| step | r2_random | r2_naive | u_temporal | u_batch | auc | top1 |
-|---|---|---|---|---|---|---|
-| 50000 | 0.6823 | 0.6097 | 0.0371 | 0.0752 | 0.8911 | 0.7440 |
-| 60000 | 0.7149 | 0.6421 | 0.0327 | 0.0653 | 0.8955 | 0.7509 |
-| 70000 | 0.6867 | 0.6145 | 0.0364 | 0.0733 | 0.8949 | 0.7496 |
-| 80000 | 0.6996 | 0.6266 | 0.0349 | 0.0692 | 0.8967 | 0.7521 |
-| 90000 | 0.6979 | 0.6255 | 0.0347 | 0.0680 | 0.8923 | 0.7447 |
-| 100000 | 0.6970 | 0.6209 | 0.0322 | 0.0595 | 0.8937 | 0.7471 |
-| 110000 | 0.6814 | 0.6052 | 0.0362 | 0.0707 | 0.8946 | 0.7486 |
-| 120000 | 0.7085 | 0.6309 | 0.0323 | 0.0627 | 0.8954 | 0.7518 |
-| 130000 | 0.7020 | 0.6272 | 0.0341 | 0.0661 | 0.8953 | 0.7508 |
-| 140000 | 0.6972 | 0.6239 | 0.0346 | 0.0674 | 0.8957 | 0.7536 |
-| 150000 | 0.6803 | 0.6015 | 0.0368 | 0.0723 | 0.8923 | 0.7454 |
-| 160000 | 0.7002 | 0.6257 | 0.0351 | 0.0693 | 0.8952 | 0.7510 |
-| 167000 | 0.6839 | 0.6080 | 0.0375 | 0.0762 | 0.8966 | 0.7531 |
-
-Between step 60k and step 167k on this held-out batch, all six metrics oscillate within a narrow band: r2_random range 0.6803–0.7149 (0.0345), r2_naive range 0.6015–0.6421 (0.0406), u_temporal range 0.0322–0.0375 (0.0053), u_batch range 0.0595–0.0762 (0.0167), auc range 0.8923–0.8967 (0.0044), top1 range 0.7447–0.7536 (0.0088). Across the full 50k–167k window: r2_random Δ=+0.0015, r2_naive Δ=-0.0017, u_temporal Δ=+0.0005, u_batch Δ=+0.0010, auc Δ=+0.0054, top1 Δ=+0.0092.
-
-### Cross-backbone comparison (best checkpoint per run)
-
-The "best_loss" checkpoint (or highest periodic save when no best_loss was emitted) of each completed backbone training run, evaluated on the same fixed held-out HF batch (skip=50M, B=256, seed=0). Architecture is held constant across runs (C=1, H=384, 6L, nhead=6); the runs differ in HP (β2, weight_decay, learnable τ on/off), schedule, and total training length.
-
-| name | r2_random | r2_naive | u_temporal | u_batch | auc | top1 |
-|---|---|---|---|---|---|---|
-| moirai_hp_FINAL_run1 | 0.6759 | 0.6091 | 0.0403 | 0.0754 | 0.8902 | 0.7402 |
-| backbone_beta_167k | 0.6839 | 0.6080 | 0.0375 | 0.0762 | 0.8966 | 0.7531 |
-| FRESH_50k | 0.6951 | 0.6244 | 0.0341 | 0.0670 | 0.8922 | 0.7468 |
-| moirai_hp_early | 0.6983 | 0.6319 | 0.0338 | 0.0659 | 0.8929 | 0.7432 |
-| learnable_tau | 0.7634 | 0.6952 | 0.0134 | 0.0205 | 0.8888 | 0.7365 |
-
-Largest value per metric (on this batch, across these five checkpoints): r2_random and r2_naive — `learnable_tau` (0.7634 and 0.6952); u_temporal — `moirai_hp_FINAL_run1` (0.0403); u_batch, auc, and top1 — `backbone_beta_167k` (0.0762, 0.8966, 0.7531). Spreads across the five: r2_random 0.0875, r2_naive 0.0872, u_batch 0.0557, u_temporal 0.0269, top1 0.0166, auc 0.0078. `learnable_tau` has the highest R² values and the lowest u_temporal, u_batch, auc, and top1 of the five.
-
-### R10 — proxy test: which metric predicts downstream MASE?
-
-To anchor the diagnostic metrics to the real objective, an R3_E4-recipe
-head (6L causal transformer + Moirai HP + cosine + 30k steps, no
-e_then_f) was trained on each of the five backbones above. Each head
-was triage-evaluated on the same 11-config subset (`run_eval_proxy.sh`).
-Results in `results/backbone_proxy_correlation.csv`.
-
-| name | proxy_mase | r2_random | r2_naive | u_temporal | u_batch | auc | top1 |
-|---|---|---|---|---|---|---|---|
-| backbone_beta_167k | 1.0166 | 0.6839 | 0.6080 | 0.0375 | 0.0762 | 0.8966 | 0.7531 |
-| moirai_hp_early | 1.0259 | 0.6983 | 0.6319 | 0.0338 | 0.0659 | 0.8929 | 0.7432 |
-| learnable_tau | 1.0278 | 0.7634 | 0.6952 | 0.0134 | 0.0205 | 0.8888 | 0.7365 |
-| FRESH_50k | 1.0285 | 0.6951 | 0.6244 | 0.0341 | 0.0670 | 0.8922 | 0.7468 |
-| moirai_hp_FINAL_run1 | 1.0940 | 0.6759 | 0.6091 | 0.0403 | 0.0754 | 0.8902 | 0.7402 |
-
-Spearman ρ between each metric's rank and the proxy_mase rank (n=5 — small sample, directional only):
-
-| metric | Spearman ρ vs proxy_mase rank |
-|---|---|
-| auc | +0.70 |
-| top1 | +0.50 |
-| u_batch | +0.40 |
-| r2_random | +0.30 |
-| r2_naive | +0.30 |
-| u_temporal | −0.10 |
-
-In this set, AUC ranks the backbones in the same order as proxy_mase
-except for one swap (FRESH_50k vs learnable_tau, MASE differ by 0.0007).
-R²_random and R²_naive do not match the proxy_mase ordering: the
-backbone with the highest R² values (`learnable_tau`, 0.7634/0.6952)
-is third in proxy_mase, not first; the proxy_mase winner
-(`backbone_beta_167k`) has the second-lowest R²_random and the
-lowest R²_naive of the five.
-
-## Pipeline summary
-
-- 8 rounds of experiments, R1–R8, ~$11 vast.ai credit ($21.98 budget;
-  vast topped out before R8).
-- 6 PRs adding code: WSD/cosine schedules + AdamW HP flags (#126);
-  linear-probe heads (#126); transformer head (#130); --head-causal
-  flag for bidirectional variant (#136); explicit eval env-var
-  overrides (#139); Gaussian NLL head (#141); plus 7 launcher PRs
-  (#127, #128, #129, #131, #133, #134, #137, #140, #142).
-- 88 unit tests on `tests/test_forecasting_head.py` covering each new
-  head class (shape, param-count, causal/bidir mask correctness, B4
-  strategy roundtrip, NLL loss correctness).
-- All 11 head-type/recipe combinations evaluated on the same 11-config
-  triage set with auto-detected head architecture from state dict.
-
-## Artifacts
-
-- launcher scripts: `experiments/2026-05-05_exp_qhead_improvements/scripts/`
-  (8 launchers + the eval driver `run_eval_elisa.sh` with explicit
-  `FL=`, `STRATEGY=`, `HEAD_CAUSAL=` env-var overrides).
-- triage results: `experiments/2026-05-05_exp_qhead_improvements/results/`
-  (per-run summary.txt + all_results.csv).
-- best head (R5_E7): `sync_qhead_beta_rd5/checkpoints/R5_E7_xfmr12L_quant_moirai_cosine_60k_FINAL.pth`.
-- candidate ledger with rationale per round: `notes/CANDIDATES.md`.
-- code (merged on `experiments`): `src/forecasting_head.py`,
-  `experiments/2026-04-13_gift-eval/scripts/{train_forecasting_head.py,
-  eval_gift_eval_official.py}`, `tests/test_forecasting_head.py`.
+*A side-investigation of which cheap backbone metric predicts
+downstream MASE (AUC ranked best, Spearman ρ≈+0.70, n=5) is in
+[notes/BACKBONE_DIAGNOSTICS.md](notes/BACKBONE_DIAGNOSTICS.md) — a
+different question that does not bear on the head-improvement thread.
+Per-round candidate rationale, the PR/test/artifact inventory, and
+operational events (budget, the R7_E9 preemption) live in
+[notes/CANDIDATES.md](notes/CANDIDATES.md) and
+[notes/PIPELINE.md](notes/PIPELINE.md).*

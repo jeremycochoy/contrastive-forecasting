@@ -1,112 +1,44 @@
-# Periodic Synth Mix — Experiment Report
+# Periodic synth mix — does clean-periodic synthetic data fix the periodic failures?
+
+The v3b backbone underperformed seasonal-naive on a cluster of strongly
+periodic GIFT-Eval datasets (the HANDOFF "periodic failure" set). The
+question here: at **matched 30k-step compute**, does mixing 50% clean-periodic
+synthetic data into every training batch teach the backbone to detect and
+copy periods, and does that recover those failures — without hurting the rest?
 
 ## TL;DR
 
-Adding 50% clean-periodic synthetic data to each training batch, at matched
-30k-step compute, delivers a **modest, uneven improvement on the 6 periodic
-failure datasets** identified in the v3b HANDOFF:
+A **modest, uneven win on the 6 periodic failure datasets**, at essentially
+zero aggregate cost and a small non-periodic tax.
 
 - **Periodic subset GM-Rel MASE: 2.8025 (CONTROL) → 2.7066 (MIX), −3.4%.**
-  MIX wins 4/6 of the periodic focus configs, losing 2/6.
-- Aggregate GM-Rel MASE on all 97 GIFT-Eval configs: 1.2173 → 1.2164
-  (essentially tied, 0.07% better for MIX).
-- Non-periodic subset (91 configs): MIX 0.15% *worse* than CONTROL —
-  visible "generalisation tax" offsetting part of the periodic gain.
-- Neither arm reaches seasonal-naive on any of the 6 focus configs at 30k
-  steps: the deficit narrows but doesn't close.
+  MIX wins 4/6 focus configs. *(Single 30k-step paired run; see caveat below.)*
+- Aggregate over all 97 configs: **1.2173 → 1.2164** — essentially tied.
+- Non-periodic subset (91 configs): MIX **0.15% worse** — a small but real
+  "generalisation tax" offsetting part of the periodic gain.
+- Neither arm reaches seasonal-naive on any of the 6 focus configs at 30k:
+  the deficit narrows, it does not close.
 
-The synthetic half dominates the contrastive training signal (28× lower
-loss, 68% higher gap) but the representation it induces transfers
-unevenly: weekly- and fine-grained periodic datasets benefit the most;
-hourly-with-noise datasets don't.
+> *GM-Rel MASE (geometric-mean relative MASE) = geometric mean over configs of
+> (model MASE ÷ seasonal-naive MASE). 1.0 = seasonal-naive; lower is better.
+> MASE = Mean Absolute Scaled Error.*
 
-## Setup
+> **Caveat — single run.** Each arm is one 30k-step run at seed 42; the arms
+> are paired (identical except the data mix) but the −3.4% subset gain is not
+> replicated across seeds, so treat magnitudes as indicative, not significant.
 
-See [`DESIGN.md`](notes/DESIGN.md). Short version:
+## Result — the periodic focus subset
 
-- Tiny architecture (C=4, H=512, W=16, 6-layer GRU + transformer, RevEWMNorm
-  span=32). Identical to v3b.
-- 30 000 steps, batch size 24, lr 1e-4, from scratch, seed 42. Paired between
-  arms so the *only* independent variable is the data mix.
-- **CONTROL (tiny_v3c_ctrl)**: 24 base-bundles rows per batch.
-- **MIX (tiny_v3c_mix)**: 12 base-bundles + 12 on-the-fly periodic synth rows.
-- R1 head on top of each frozen backbone (forecaster reconstruction,
-  W=16, GRU h=128 l=2, MSE), same 30k-step budget.
-- GIFT-Eval strategy B4, 97 configs.
+![MASE on the 6 periodic focus configs: CONTROL 30k (blue), MIX 30k (orange), v3b 120k reference (green), seasonal-naive (black line). Lower is better.](plots/mase_compare.png)
 
-### Synthesizer
+MIX (orange) beats CONTROL (blue) on **4 of 6** focus configs. The wins are
+on weekly and fine-grained (15-/10-min) periodicity — exactly the regime the
+synthesizer covers well. The two losses are the **hourly** configs
+(m4_hourly/H, solar/H), where MIX is worse than CONTROL. Both arms sit well
+above the seasonal-naive line: clean-synth narrows the gap but closes it
+nowhere.
 
-One primitive per series (sinusoid / square / saw), log-uniform samples-per-
-period in [8, 256], 50% sign-flip for square & saw, p=0.3 `exp(λt)` envelope
-capped to [0.1×, 10×] gain, log-uniform scale in [0.1, 1000]. No additive
-noise.
-
-**Validation before training:** 100 eyeballed samples + value dumps +
-seasonal-naive sanity check — on 1000 random synth series, the SN/naive
-MASE ratio is **0.067** (SN beats naive by 15×). The data is a valid
-teacher signal for the "detect period, copy last period" skill.
-
-![Inspection grid of eyeballed synthetic samples — sinusoid / square / saw primitives across the log-uniform period and scale range](plots/inspect_grid.png)
-
-## Training dynamics
-
-![Training curves](plots/training_curves_backbone.png)
-
-| Arm | final loss EMA | final gap EMA | best_gap step | best_gap |
-|---|---:|---:|---:|---:|
-| CONTROL | 2.357 | 0.322 | 29800 | 0.3247 |
-| MIX | **0.095** | **0.543** | 29400 | **0.5471** |
-
-MIX's contrastive loss is **25× lower** and gap **69% higher** than
-CONTROL. This is *expected* and not predictive of downstream win: the
-periodic half is trivial to distinguish from shuffled negatives, which
-pulls the aggregate loss down.
-
-The CONTROL curves match v3b's trajectory tightly (v3b at 120k had
-best_gap 0.3351; CONTROL at 30k hits 0.3247 — 97% of the v3b gap in 25%
-of the steps), which is our evidence that CONTROL is a valid
-matched-compute reference.
-
-### R1 head training
-
-![Head training](plots/training_curves_head.png)
-
-| Arm | head final MSE | best MSE step |
-|---|---:|---:|
-| CONTROL | 0.073 | 30000 |
-| MIX | 0.087 | 30000 |
-
-**MIX head loss is 19% higher** than CONTROL. The MIX backbone's latents
-are somewhat harder to linearly decode on real base-bundles data — a
-first hint that the MIX representation has specialised in a direction
-that isn't universally helpful.
-
-## GIFT-Eval results
-
-### Aggregate
-
-| Model | Training | GM-Rel MASE |
-|---|---|---:|
-| Sundial | — | 0.673 |
-| TimesFM | — | 0.680 |
-| PatchTST | — | 0.762 |
-| Chronos | — | 0.786 |
-| Moirai | — | 0.809 |
-| Seasonal-naive | — | 1.000 |
-| R1 (v2 backbone) | 500k | 1.168 |
-| R1v3b (v3b backbone) | 120k | 1.1865 |
-| **R1v3c_ctrl** | 30k from-scratch | **1.2173** |
-| **R1v3c_mix** | 30k from-scratch | **1.2164** |
-
-The CONTROL–MIX gap is 0.0009, essentially tied at aggregate level.
-CONTROL at 30k is ~2.6% worse than v3b-120k, consistent with a modest
-under-training discount at matched architecture.
-
-### Periodic focus subset (6 configs from HANDOFF)
-
-![MASE compare](plots/mase_compare.png)
-
-| Dataset | SN | CONTROL | MIX | v3b | Δ (MIX−CTRL) | % |
+| Dataset | SN | CONTROL | MIX | v3b 120k | Δ (MIX−CTRL) | % |
 |---|---:|---:|---:|---:|---:|---:|
 | ett1/15T/short | 0.93 | 1.83 | **1.76** | 1.78 | **−0.08** | −4.1% |
 | ett2/W/short | 0.78 | 1.82 | **1.54** | 1.64 | **−0.28** | **−15.5%** |
@@ -116,228 +48,182 @@ under-training discount at matched architecture.
 | solar/H/short | 0.95 | 2.18 | 2.30 | 2.08 | +0.12 | +5.4% |
 | **GM-Rel** | — | **2.8025** | **2.7066** | **2.6037** | **−0.096** | **−3.4%** |
 
-MIX wins 4/6 configs. The biggest win is ett2/W/short (−15.5%), a
-weekly-granularity electricity dataset — exactly the periodic regime
-our synth covers well.
+*(Source: [`results/periodic_datasets.txt`](results/periodic_datasets.txt).)*
 
-### Top wins / losses across all 97 configs
+The biggest win is **ett2/W/short (−15.5%)**, a weekly-granularity electricity
+dataset. Eyeballing its forecast shows why MIX helps and where it still falls
+short:
 
-**MIX wins most (Δ rel MASE most negative):**
+![ett2/W/short, two sample windows. Context (grey), truth (black), seasonal-naive (green), v3b 120k (blue), MIX 30k (orange). Top: a window where SN over-shoots badly (MASE 5.16) and MIX tracks the truth's level. Bottom: a window where all methods are close (MASE ≈ 0.5–0.7).](plots/predictions/ett2_W_short.png)
 
-| dataset | CTRL | MIX | SN | rel_C | rel_M | Δ |
-|---|---:|---:|---:|---:|---:|---:|
-| ett2/W/short | 1.82 | 1.54 | 0.78 | 2.34 | 1.97 | **−0.36** |
-| m4_yearly/A/short | 8.32 | 6.93 | 3.97 | 2.10 | 1.75 | **−0.35** |
-| electricity/15T/medium | 3.05 | 2.81 | 1.15 | 2.65 | 2.44 | −0.21 |
-| electricity/15T/long | 3.17 | 2.92 | 1.16 | 2.72 | 2.51 | −0.21 |
-| ett1/W/short | 1.86 | **1.50** | 1.77 | 1.05 | **0.85** | −0.20 |
-| us_births/W/short | 2.13 | 1.82 | 1.56 | 1.36 | 1.17 | −0.20 |
-| solar/10T/medium | 3.42 | 3.24 | 0.93 | 3.69 | 3.50 | −0.19 |
-| bitbrains_fast_storage/5T/long | 1.54 | 1.35 | 1.14 | 1.35 | 1.19 | −0.17 |
-| m4_quarterly/Q/short | 2.44 | 2.20 | 1.60 | 1.52 | 1.37 | −0.15 |
-| ett2/D/short | 1.79 | 1.63 | 1.39 | 1.29 | 1.17 | −0.12 |
+Top window: seasonal-naive copies a large spurious swing (its MASE 5.16) while
+MIX (orange) holds near the true level. Bottom window: the signal is calmer
+and every method is within noise. MIX wins this dataset by **avoiding SN's
+worst over-shoots**, not by precisely reconstructing the weekly shape.
 
-**MIX loses most (Δ rel MASE most positive):**
+## Result — aggregate and where the win/loss lands
 
-| dataset | CTRL | MIX | SN | rel_C | rel_M | Δ |
-|---|---:|---:|---:|---:|---:|---:|
-| us_births/M/short | 1.36 | 1.88 | 0.76 | 1.78 | 2.47 | +0.69 |
-| solar/W/short | 1.16 | 1.65 | 1.47 | 0.79 | 1.12 | +0.34 |
-| saugeen/M/short | 1.12 | 1.45 | 0.98 | 1.15 | 1.48 | +0.33 |
-| solar/H/medium | 1.45 | 1.74 | 0.94 | 1.55 | 1.86 | +0.31 |
-| m4_hourly/H/short | 5.79 | 6.04 | 1.19 | 4.85 | 5.06 | +0.21 |
-| car_parts/M/short | 1.17 | 1.41 | 1.20 | 0.98 | 1.18 | +0.20 |
-| bitbrains_fast_storage/5T/short | 1.12 | 1.31 | 1.14 | 0.98 | 1.15 | +0.17 |
-| solar/H/long | 1.56 | 1.73 | 1.07 | 1.45 | 1.62 | +0.16 |
-| bizitobs_application/10S/short | 5.26 | 5.60 | 2.24 | 2.34 | 2.50 | +0.15 |
-| saugeen/W/short | 1.98 | 2.23 | 1.99 | 1.00 | 1.12 | +0.13 |
+Aggregate GM-Rel is a tie; the action is entirely in the subset structure.
 
-### Domain breakdown
+| Model | Training | GM-Rel MASE |
+|---|---|---:|
+| Seasonal-naive | — | 1.000 |
+| R1 (v2 backbone) | 500k | 1.168 |
+| R1v3b (v3b backbone) | 120k | 1.1865 |
+| **R1v3c_ctrl** | 30k from-scratch | **1.2173** |
+| **R1v3c_mix** | 30k from-scratch | **1.2164** |
 
-| Domain | n | GM-Rel CTRL | GM-Rel MIX | Δ | wins (MIX) |
-|---|---:|---:|---:|---:|---:|
-| Econ/Fin | 6 | 1.813 | **1.712** | **−0.10** | 5/6 |
-| Energy | 32 | 1.417 | **1.402** | −0.015 | 21/32 |
-| Transport | 15 | 0.976 | 0.973 | −0.003 | 7/15 |
-| Nature | 15 | 0.970 | 0.978 | +0.008 | 9/15 |
-| Web/CloudOps | 20 | 1.282 | 1.295 | +0.013 | 11/20 |
-| Healthcare | 5 | 1.171 | 1.192 | +0.021 | 4/5 |
-| Sales | 4 | 0.862 | 0.919 | +0.058 | 1/4 |
+The CONTROL–MIX aggregate gap is 0.0009 (within single-run noise). CONTROL at
+30k is ~2.6% worse than v3b-120k — a modest under-training discount at matched
+architecture. Splitting the 97 configs:
 
-Econ/Fin is a clean win for MIX (many m4_* weekly/quarterly/yearly
-configs that benefit from period copying). Energy edges slightly MIX.
-Sales regresses — small sample (n=4).
+| Subset | n | GM-Rel CTRL | GM-Rel MIX | % |
+|---|---:|---:|---:|---:|
+| Periodic focus | 6 | 2.8025 | 2.7066 | **−3.4%** |
+| Non-periodic | 91 | 1.1521 | 1.1539 | +0.15% |
+| **All** | 97 | 1.2173 | 1.2164 | −0.07% |
 
-## Interpretation
+*(Recomputed from [`results/comparison.txt`](results/comparison.txt).)* MIX
+buys a −3.4% periodic gain for a +0.15% non-periodic tax; netted over 97
+configs they cancel. By domain, the gain concentrates where period-copying
+helps: **Econ/Fin** (6 configs, MIX wins 5/6, −0.10 GM-Rel — many m4 weekly/
+quarterly/yearly series) and **Energy** (32 configs, MIX wins 21/32). **Sales**
+regresses (n=4, small). The single worst regression is **us_births/M/short**
+(+0.69 rel) — monthly data, short horizon.
 
-- **Hypothesis H1 (MIX improves periodic datasets at matched compute):**
-  *Partially confirmed.* 4/6 focus configs improve (ett1, ett2, solar/10T
-  medium+long). 2/6 regress (m4_hourly/H/short, solar/H/short).
-  Aggregate on the subset: 3.4% better. The biggest wins are on weekly
-  and 15-min / 10-min granularities; hourly fails.
-- **Hypothesis H2 (MIX does not significantly hurt non-periodic):**
-  *Mostly true.* Non-periodic GM-Rel MASE is 0.15% worse (1.1539 vs
-  1.1522). The tax is small but present. Sales domain (n=4) takes the
-  worst hit.
-- **Hypothesis H3 (GM-Rel improves):** *Essentially tied.* 1.2164 vs
-  1.2173. Within noise for a single 30k-step paired run.
+## Protocol
 
-### Why do hourly configs fail?
+Paired arms, identical except the batch composition (the only independent
+variable). Full design in [`notes/DESIGN.md`](notes/DESIGN.md).
 
-m4_hourly/H/short and solar/H/{short,medium,long} all regress with MIX.
-Candidate explanations:
+- **Backbone:** Tiny (C=4, H=512, W=16, 6-layer GRU + transformer, RevEWMNorm
+  span=32 — reversible EWMA input normalisation). Identical to v3b. ~20M.
+- **Training:** 30 000 steps, batch 24, lr 1e-4, from scratch, seed 42.
+  - **CONTROL (`tiny_v3c_ctrl`):** 24 base-bundles (real time series) rows/batch.
+  - **MIX (`tiny_v3c_mix`):** 12 base-bundles + 12 on-the-fly periodic-synth rows.
+- **Head:** R1 forecaster (reconstruction, W=16, GRU h=128 l=2, MSE) trained on
+  each frozen backbone, same 30k-step budget.
+- **Eval:** GIFT-Eval strategy B4, 97 configs, scored against seasonal-naive.
+- **Synthesizer:** one primitive per series (sinusoid / square / saw),
+  log-uniform samples-per-period in [8, 256], 50% sign-flip for square & saw,
+  p=0.3 `exp(λt)` envelope (gain capped [0.1×, 10×]), log-uniform scale
+  [0.1, 1000]. **No additive noise.**
 
-1. **Daily-at-hourly is P=24 samples, which sits at the short end of our
-   synth range [8, 256].** We draw log-uniform, so P=24 is
-   well-sampled, but real hourly data also often has a 168-sample
-   weekly modulation that our single-primitive synth never shows.
-   The model may lock onto the stronger short period and miss the
-   weekly structure.
-2. **Noise in real hourly data breaks the clean-synth assumption.**
-   Our synth has no additive noise. Solar/H has weather-driven
-   irregularity on top of the diurnal cycle. A model trained to trust
-   clean periodicity will over-project that trust when the real signal
-   is noisier.
-3. **Short forecast horizon (16) on hourly data covers 2/3 of a day.**
-   Seasonal-naive just copies `y[t-24]`; our forecaster head has to
-   *infer* the 24-sample period from 1008-sample context and then
-   extrapolate — a harder task than our 1024-timestep synth-training
-   instance offers.
+The synth was validated as a teacher signal *before* training: on 1000 random
+synth series, seasonal-naive (with the true period) beats persist-last-value by
+15× (SN/naive MASE ratio **0.067**,
+[`results/seasonal_naive_sanity.txt`](results/seasonal_naive_sanity.txt)) — so
+"detect period, copy last period" is the right skill to learn from it.
 
-### Why does the MIX head loss rise?
+![Inspection grid of eyeballed synthetic samples — sinusoid / square / saw primitives across the log-uniform period and scale range.](plots/inspect_grid.png)
 
-On the training data (base-bundles real time series), the R1 head MSE
-rises from 0.073 (CONTROL) to 0.087 (MIX). The MIX backbone's latents
-encode the clean-periodic synth half very efficiently but this comes at
-the cost of being slightly less linearly predictive on the noisier real
-half. The contrastive gap splits its budget between "sort clean synth
-rows apart trivially" and "sort real rows apart non-trivially" — and
-under bs=24 with 12 synth rows, the easy half skews the metric.
+## Training dynamics
 
-## Cost
+![Backbone contrastive loss (top) and gap (bottom), CONTROL vs MIX, log-space.](plots/training_curves_backbone.png)
 
-~$4 of $10 vast.ai balance. ~16h total wall time (2.1h CONTROL + 1.3h
-MIX backbone + 1.3h+1.8h R1 heads + ~5h+~4h GIFT-Eval). One 2h stall
-on Stage 2a (prefetch-thread hang); resumed cleanly from the 10k
-checkpoint with no lost work.
+| Arm | final loss EMA | final gap EMA | best_gap step | best_gap |
+|---|---:|---:|---:|---:|
+| CONTROL | 2.357 | 0.322 | 29800 | 0.3247 |
+| MIX | **0.095** | **0.543** | 29400 | **0.5471** |
 
-## Addendum — 90k extension (post-hoc)
+MIX's contrastive loss is ~25× lower and gap ~69% higher than CONTROL.
 
-After the original 30k pair landed, we ran a **90k extension** of MIX
-(resume from the 30k `final` checkpoint, same base-bundles + 50/50 synth
-mix, 60k more steps). Fresh R1 head trained on the 90k backbone, then
-full GIFT-Eval B4.
+> *Contrastive gap = FF − FP: how much more a window's forecast resembles its
+> own future (FF) than its present (FP) — the margin the contrastive loss grows.*
 
-### Backbone dynamics (30k → 90k)
+This is **expected, not predictive of a downstream win**: the clean-periodic
+half is trivial to separate from shuffled negatives, which drags the aggregate
+loss down and inflates the gap. CONTROL tracks v3b's trajectory tightly (v3b at
+120k had best_gap 0.3351; CONTROL hits 0.3247 at 30k — 97% of the gap in 25% of
+the steps), confirming CONTROL is a valid matched-compute reference.
 
-- Best gap: **0.5471 → 0.5816** (+6.3%)
-- Best loss: **−0.083 → −1.007** (contrastive task near-saturated on synth half)
-- Head MSE on base-bundles: **0.087 → 0.087** (unchanged — the extra
-  backbone gap did not translate to easier forecasting decode)
+![R1 head MSE on base-bundles data, CONTROL vs MIX.](plots/training_curves_head.png)
 
-### GIFT-Eval comparison
+| Arm | head final MSE | best MSE step |
+|---|---:|---:|
+| CONTROL | 0.073 | 30000 |
+| MIX | 0.087 | 30000 |
 
-| Model | Params | Train | Aggregate | Periodic (6) | Seasonal (73) | Non-trend (24) | Stationary (17) |
-|---|---:|---|---:|---:|---:|---:|---:|
-| v2 (R1) | 20M | 500k resumed | **1.168** | **2.547** | **1.232** | **0.993** | **0.898** |
-| v3b (R1v3b) | 20M | 120k from-scratch | 1.186 | 2.604 | 1.250 | 1.013 | 0.919 |
-| **MIX 90k** | 20M | 90k from-scratch | 1.210 | 2.656 | 1.265 | 1.057 | 0.974 |
-| MIX 30k | 20M | 30k from-scratch | 1.216 | 2.707 | 1.283 | 1.036 | 0.942 |
-| CTRL 30k | 20M | 30k from-scratch | 1.217 | 2.803 | 1.271 | 1.067 | 0.965 |
+The MIX head's MSE on real base-bundles data is **19% higher**. The MIX
+backbone encodes the clean-synth half very efficiently, but its latents are
+slightly *less* linearly decodable on the noisier real half — the first hint
+that the MIX representation specialised in a not-universally-helpful direction.
 
-### Key findings
+*(Training-curve numbers are read off the two committed plots above; the raw
+`*_losses.csv` lived on the sync host and is not in the repo.)*
 
-- **Extending to 90k improves what we asked it to improve.** Aggregate −0.5%,
-  periodic −1.9%, seasonal −1.3% vs MIX 30k.
-- **…but at the cost of non-periodic transfer.** Non-trend subset +2.1% *worse*;
-  stationary subset +3.4% *worse*. The synth-periodic bias becomes more
-  pronounced with more training.
-- **Per-config highlights:** m4_hourly/H/short 6.04 → 5.40 (−0.64, the
-  biggest single win). ett2/W/short 1.54 → 1.46 (now best across all
-  arms). solar/10T/long 2.16 → 2.26 (small regression).
-- **v2 still dominates every subset.** At 5× the training compute and no
-  synth bias, plain base-bundles training beats our 50/50 synth mix on
-  every slice. Compute > synth-data-design at this scale.
+## What we learned
 
-### Interpretation
+- **A pure-periodic synth signal does teach period detection** — the 4/6
+  periodic wins, concentrated on weekly/fine-grained configs and in the
+  Econ/Fin domain, are real.
+- **…but it does not transfer cleanly to noisy, multi-scale real data.** The
+  two hourly losses (m4_hourly/H, solar/H) and the +19% head MSE point the same
+  way. Likely causes, all consistent with a backbone over-trusting clean
+  periodicity:
+  1. **Real hourly data is multi-period** (daily P=24 *and* weekly P=168); a
+     single-primitive synth never shows the weekly modulation, so the model
+     locks onto the stronger short period.
+  2. **Real hourly data is noisy** (solar weather irregularity); a clean-synth
+     model over-projects its trust when the signal is noisier.
+- **At this scale, compute beats synth-data design.** The v2 backbone (500k
+  steps, no synth) still beats the 30k synth mix at aggregate. Synth helps the
+  targeted slice but is not a shortcut around training budget.
 
-The 50/50 synth ratio is the binding knob: at 30k we pay a small
-stationary-subset tax for a small periodic gain; at 90k the tax grows
-roughly linearly with training and the periodic gain grows sublinearly.
-Net aggregate benefit shrinks from "essentially tied" (30k) to "+0.5%
-better" (90k). Exact pattern expected if clean synth over-specialises the
-backbone representation.
+## Addendum — extending MIX to 90k
 
-The per-config wins on periodic datasets confirm our working hypothesis
-that a pure-periodic synth signal *does* teach period detection, but the
-accompanying loss of general-purpose robustness means we can't scale this
-strategy further without one of:
+To probe the periodic-specialisation trend, MIX was resumed from its 30k
+`final` checkpoint for 60k more steps (same 50/50 mix), a fresh R1 head trained
+on the 90k backbone, and full GIFT-Eval B4 re-run.
+(Design: [`notes/FOLLOWUP_DESIGN.md`](notes/FOLLOWUP_DESIGN.md).)
 
-1. Multi-primitive synth (daily + weekly composition, matches real hourly data).
-2. Trend-augmented synth (user's observation — non-trend subset behaves like
-   pure persistence forecaster because synth has no trend signal).
-3. Explicit frequency conditioning via a learned embedding (queued task #23),
-   which should let the backbone keep general-purpose behaviour while
-   gaining freq-specific structure.
-4. Reduced synth ratio (25% rather than 50%) at the current scale.
+| Arm | Aggregate | Periodic (6) |
+|---|---:|---:|
+| CTRL 30k | 1.2174 | 2.8029 |
+| MIX 30k | 1.2165 | 2.7069 |
+| **MIX 90k** | **1.2105** | **2.6565** |
+
+*(Reconstructed from committed per-config MASE in
+`../2026-04-27_freq-embedding/results/R1v3c_{ctrl,mix,mix_90k}/all_results.csv`,
+scored against the SN column of `results/comparison.txt`.)*
+
+3× more training improves what we asked it to: aggregate **−0.5%**, periodic
+**−1.9%** vs MIX 30k. Per-config, **m4_hourly/H/short 6.04 → 5.40** (the biggest
+single win — the 30k hourly regression recovers), **ett2/W/short 1.54 → 1.46**
+(now the best across all arms), **solar/10T/long 2.16 → 2.26** (small
+regression).
+
+The freq-embedding follow-up reports that this periodic gain comes with a
+growing non-periodic tax (its non-trend / stationary subsets degrade further at
+90k) and that the v2 backbone still dominates every slice — i.e. the 50/50
+synth ratio is the binding knob and over-trains the periodic specialisation.
+Those subset numbers are defined and owned by that experiment
+([`../2026-04-27_freq-embedding/`](../2026-04-27_freq-embedding/)); only the
+aggregate and periodic columns above are reconstructible from data committed
+here.
 
 ## Recommendations for follow-up
 
-1. **Tune the mix ratio.** 50/50 is the knob we turned once. Probably
-   25% synth would cut the "generalisation tax" while retaining the
-   periodic wins — or even a curriculum (start 50/50, anneal to 0/100
-   over the back half of training).
-2. **Add a noisy-periodic variant to the synth.** `y = clean + ε` with
-   `ε ~ N(0, σ)` where σ is log-uniform. Would likely recover the
-   hourly-dataset losses — this is the prior failure mode of
-   solar/H/*.
-3. **Add multi-period composition.** Real seasonal data often has
-   daily+weekly (P=24 and P=168 on hourly). A single-primitive synth
-   can't teach this. A sum of two sinusoids at different periods would
-   close the gap on hourly datasets specifically.
-4. **Longer training.** 30k is under-trained; the fact that the
-   paired arms are still dropping at step 30k means the hypothesis
-   isn't fully exercised. A follow-up 100k-step paired run would
-   amortise the periodic-specialisation effect against more real-data
-   exposure.
-5. **Investigate the one big regression** (us_births/M/short, +0.69
-   Δ rel). Monthly data with a very short horizon — something in the
-   MIX representation is actively worse. May be a distraction, but
-   worth eyeballing predictions.
+1. **Tune the mix ratio.** 50/50 was turned once; ~25% synth (or a curriculum
+   annealing toward 0% over the back half) should cut the generalisation tax
+   while keeping most of the periodic gain.
+2. **Add a noisy-periodic variant** (`y = clean + ε`, σ log-uniform). The
+   hourly losses (solar/H, m4_hourly/H) are the clean-synth assumption failing;
+   noise should recover them.
+3. **Add multi-period composition** (sum of two sinusoids, e.g. P=24 + P=168).
+   A single-primitive synth cannot teach the daily+weekly structure real hourly
+   data has — the specific gap on the hourly configs.
 
 ## Artefacts
 
 All under `experiments/2026-04-27_periodic-synth-mix/`:
 
-- [`DESIGN.md`](notes/DESIGN.md) — experimental design.
-- [`plots/inspect_grid.png`](plots/inspect_grid.png), `inspect_zoom.png`,
-  `inspect_long_period.png`, `inspect_metadata.txt` — eyeballed synth.
-- [`plots/training_curves_backbone.png`](plots/training_curves_backbone.png)
-  — contrastive loss + gap, CONTROL vs MIX.
-- [`plots/training_curves_head.png`](plots/training_curves_head.png)
-  — R1 head MSE curves.
-- [`plots/mase_compare.png`](plots/mase_compare.png) — MASE bar chart
-  on the 6 periodic focus configs.
-- [`results/seasonal_naive_sanity.txt`](results/seasonal_naive_sanity.txt)
-  — SN / naive baselines on synth.
-- [`results/comparison.txt`](results/comparison.txt) — full 97-config
-  side-by-side CTRL / MIX / v3b.
-- [`results/periodic_datasets.txt`](results/periodic_datasets.txt) —
-  6-config focus table.
-- `../../results/R1v3c_ctrl/all_results.csv`, `.../summary.txt`.
-- `../../results/R1v3c_mix/all_results.csv`, `.../summary.txt`.
-- `../../sync_periodic_synth/run_all.log` — full pipeline log.
+- [`notes/DESIGN.md`](notes/DESIGN.md) / [`notes/FOLLOWUP_DESIGN.md`](notes/FOLLOWUP_DESIGN.md) — design.
+- [`notes/EXECUTION_NOTES.md`](notes/EXECUTION_NOTES.md) — cost, infra incidents, extra synth-validation plots.
+- [`results/comparison.txt`](results/comparison.txt) — full 97-config CTRL / MIX / v3b side-by-side.
+- [`results/periodic_datasets.txt`](results/periodic_datasets.txt) — 6-config focus table.
+- [`results/seasonal_naive_sanity.txt`](results/seasonal_naive_sanity.txt) — SN / naive baselines on synth.
+- Per-config raw MASE for the three arms: `../2026-04-27_freq-embedding/results/R1v3c_{ctrl,mix,mix_90k}/all_results.csv`.
 
 Code: `src/synthetic_periodic.py`, `src/dataloader.py::MixedPeriodicLoader`,
-`experiments/2026-04-27_periodic-synth-mix/scripts/` (train, inspect, sanity-check,
-plotting, comparison, sync).
-
-## Session notes
-
-- vastrun-kit's `attach-ssh` idempotency bug (already filed as #296)
-  hit 4 consecutive provisions; worked around with direct
-  `vastai create instance` + `pytorch/pytorch:2.8.0-cuda12.8-cudnn9-runtime`.
-- One 2h Stage 2a hang on 233-thread futex wait (HF-stream prefetch).
-  Resumed cleanly from the 10k checkpoint; no recurrence.
-- The local sync loop (5-min then 15-min cadence, atomic .tmp → mv,
-  ≥70 MB min-size guard) caught every checkpoint without issue.
+and [`scripts/`](scripts/) (train, inspect, sanity-check, plotting, comparison, sync).

@@ -1,115 +1,44 @@
-# Window Size Comparison: W=32 vs W=16
+# Window size: does halving the patch window (W=32 → W=16) hurt the Tiny backbone?
 
-## Objective
+The Tiny contrastive backbone patches each 4096-step series into windows of W timesteps. Halving W from 32 to 16 doubles the patch count (128 → 256), giving finer temporal resolution but making self-attention cost more (it scales with the square of the sequence length). The question: does the smaller window degrade contrastive learning — and is the extra cost worth it?
 
-Determine whether reducing the patch window size from W=32 to W=16 degrades contrastive learning performance on the Tiny backbone (H=512, L=6). A smaller window doubles the number of patches (128 to 256), giving finer temporal resolution but increasing attention cost quadratically.
+> *Contrastive gap = FF − FP: how much more a window's forecast resembles its own future (FF) than its present (FP). It is the margin the contrastive loss grows; higher is better. Here FF/FP are cosine similarities measured on a fixed held-out synthetic (ARMA) validation batch, seed 0.*
 
-## Setup
+## Result
 
-| Parameter | W=32 | W=16 |
-|-----------|------|------|
-| Backbone | Tiny (H=512, L=6, GRU encoder, 8 heads) | same |
-| Parameters | 19,960,576 | 19,952,384 |
-| Patch count (T_raw=4096) | 128 | 256 |
-| Batch size | 32 | 24 |
-| Learning rate | 1e-4 | 1e-4 |
-| VRAM (PyTorch reported) | 23.4 GB | 14.7 GB |
-| Speed | 5.7 step/s | 4.7 step/s |
-| GPU | RTX 4090 (GPU 0) | RTX 4090 (GPU 1) |
-| Training steps | 10,000 | 10,000 |
+**In this single-run-per-arm test, W=16 did not degrade the gap — it reached a higher one (0.093 vs 0.082 at 10k steps, +13%) while using 37% less VRAM, at the cost of being ~18% slower per step.** Single seed per arm, so treat the ranking as suggestive, not conclusive (see caveat below).
 
-Batch size for W=16 was set to 24 (vs 32 for W=32) due to the higher memory cost of attention over the 2x longer sequence. Both runs used identical loss configuration (cosine similarity, batch negatives, temperature 0.07).
+![Contrastive gap vs training step, three arms to 10k steps (gap values parsed from the committed logs in `logs/`). W=16 bs=24 (red) is level with W=32 (blue) early, pulls clear after ~6k steps, and peaks at 0.093 vs W=32's 0.082. W=16 bs=28 (green) tracks bs=24 but was wall-time-capped at step ~6.9k.](plots/gap_vs_step.png)
 
-## Results by Step
+W=16 is ahead at every matched step from 6k on and the margin widens, so the win is not a single lucky checkpoint. But "step budget" flatters the slower arm, so the fairer axis is wall time:
 
-| Step | W=32 gap (bs=32, 5.7sps, 23.4GB) | W=16 gap (bs=24, 4.7sps, 14.7GB) |
-|------|----------------------------------|----------------------------------|
-| 1k | 0.056 | 0.064 |
-| 2k | 0.068 | 0.064 |
-| 3k | 0.067 | 0.072 |
-| 4k | 0.073 | 0.077 |
-| 5k | 0.074 | 0.078 |
-| 6k | 0.075 | 0.080 |
-| 7k | 0.079 | 0.088 |
-| 8k | 0.073 | 0.091 |
-| 9k | 0.082 | 0.093 |
-| 10k | 0.082 | 0.092 |
+![Contrastive gap vs wall-clock minutes, same three arms (wall-time axis from the report's per-step timing; the gap-vs-step ranking above is the authoritative comparison). The arms overlap until ~21 min; past that W=16 bs=24 (red) pulls clear, reaching 0.093 by ~32 min. At the W=32 run's own 29-min budget (dashed line), W=16 bs=24 sits at ~0.091 and is still climbing while W=32 has plateaued at 0.082.](plots/gap_vs_walltime.png)
 
-**W=32 best gap: 0.082 (step 9k). W=16 best gap: 0.093 (step 9k).**
+Even after paying the 18% per-step penalty, W=16 bs=24 overtakes W=32 on wall time around 21 min and never gives the lead back. Summary of the three arms:
 
-## Results by Wall Time
+| Arm | Patches | Batch | VRAM | Speed | Best gap (step) |
+|-----|---------|-------|------|-------|-----------------|
+| **W=32** | 128 | 32 | 23.4 GB | 5.7 sps | 0.082 (9k) |
+| **W=16, bs=24** | 256 | 24 | 14.7 GB | 4.7 sps | **0.093 (9k)** |
+| W=16, bs=28 | 256 | 28 | 17.6 GB | 3.9 sps | 0.082 (6k)¹ |
 
-| Wall time | Step | W=32 gap (bs=32, 5.7sps, 23.4GB) | W=16 gap (bs=24, 4.7sps, 14.7GB) |
-|-----------|------|----------------------------------|----------------------------------|
-| 2.9 min | 1k | 0.056 | -- |
-| 3.5 min | 1k | -- | 0.064 |
-| 5.8 min | 2k | 0.068 | -- |
-| 7.1 min | 2k | -- | 0.064 |
-| 8.8 min | 3k | 0.067 | -- |
-| 10.6 min | 3k | -- | 0.072 |
-| 11.7 min | 4k | 0.073 | -- |
-| 14.2 min | 4k | -- | 0.077 |
-| 14.6 min | 5k | 0.074 | -- |
-| 17.5 min | 6k | 0.075 | -- |
-| 17.7 min | 5k | -- | 0.078 |
-| 20.5 min | 7k | 0.079 | -- |
-| 21.3 min | 6k | -- | 0.080 |
-| 23.4 min | 8k | 0.073 | -- |
-| 24.8 min | 7k | -- | 0.088 |
-| 26.3 min | 9k | 0.082 | -- |
-| 28.4 min | 8k | -- | 0.091 |
-| 29.2 min | 10k | 0.082 | -- |
-| 31.9 min | 9k | -- | 0.093 |
-| 35.5 min | 10k | -- | 0.092 |
+¹ bs=28 was wall-time-capped at 29.2 min (the W=32 run's wall time) and stopped at step 6895; it never ran the 7k–10k steps the other arms did.
 
-## Analysis
+**Does the VRAM headroom buy anything if spent on a bigger batch?** No — it backfires. Raising the W=16 batch from 24 to 28 (17.6 GB) slowed training 4.7 → 3.9 sps (17% slower) with no gap gain: in 29 min, bs=28 reaches the same ~0.082 as W=32, whereas bs=24 keeps stepping and reaches 0.093 a few minutes later. **More steps beat a bigger batch at matched wall time; bs=24 is the sweet spot for W=16 on Tiny.**
 
-### Speed
+## Protocol
 
-W=16 is **18% slower** per step (4.7 vs 5.7 step/s). This is expected: the attention mechanism scales quadratically with sequence length (256 vs 128 patches), partially offset by the GRU encoder processing shorter patches (16 vs 32 timesteps).
+- **Backbone:** Tiny (C=4, H=512, L=6, GRU encoder, 8 heads, ffn_mult=4, depthwise_conv=3, dropout=0.1). W=32 → 19,960,576 params; W=16 → 19,952,384 (the two differ only in the patch projection, ~8k params).
+- **Loss:** contrastive cosine similarity with batch negatives, temperature 0.07, identical across arms (`cosine_similarity_batch_no_time_neg`).
+- **Data:** on-the-fly synthetic ARMA batches (T_raw=4096, C=4), AdamW lr=1e-4, no grad clipping. Gap evaluated every 1000 steps on a fixed ARMA validation batch (seed 0).
+- **Arms:** W=32 bs=32 and W=16 bs=24 each ran 10k steps; W=16 bs=28 was capped at the W=32 run's wall time (29.2 min). One run per arm, RTX 4090.
+- **Why bs differs:** attention memory per sample scales with the square of the sequence length, so W=16's 256-patch sequence needs a smaller batch to fit. bs=24 was W=16's chosen operating point; bs=28 is the follow-up probe.
+- **Sources:** gap-vs-step values are parsed directly from `logs/window_test_{w32,w16,w16_bs28}.log` (authoritative). The wall-time axis comes from the per-step timing recorded with the report (the logs carry sps/VRAM but no timestamps). Plot script: [`scripts/plot_window_curves.py`](scripts/plot_window_curves.py).
 
-### VRAM
+## What we learned
 
-W=16 uses **37% less VRAM** (14.7 GB vs 23.4 GB) at its operating batch size (24 vs 32). The lower batch size was necessary because attention memory per sample scales with the square of the sequence length. Despite the smaller batch, the total VRAM is significantly lower, leaving headroom for larger models or higher batch sizes on the same hardware.
+Halving the patch window to W=16 (256 patches) did not hurt contrastive learning on Tiny in this test — it produced a higher gap at both matched steps and matched wall time, and cut VRAM by more than a third, freeing headroom for larger models. The one cost, ~18% slower steps, was repaid by the per-step learning gain within ~21 minutes. Spending the freed VRAM on a larger batch (bs=28) was counterproductive; bs=24 was best.
 
-### Performance
+**Caveat — single seed.** Each arm is one run on one validation seed, and the W=16-vs-W=32 gap margin (~0.011) is small relative to the run-to-run wobble visible in both curves (e.g. W=32 dips to 0.073 at 8k between two 0.08+ points). This is a directional result — finer windows look at least as good as coarser ones here, not worse — and is not a clean A/B at matched batch size. A confident claim would need multiple seeds and a batch-matched W=32-vs-W=16 pair; this run varies W and batch together. It is not, on this evidence, an architectural conclusion.
 
-W=16 achieves a **13% higher best gap** (0.093 vs 0.082) at 10k steps. The advantage is consistent: W=16 is ahead at every matched step count from 3k onward, and the margin widens over time.
-
-At matched wall time, W=16 and W=32 track closely through ~18 minutes, after which W=16 pulls ahead decisively. The 18% speed penalty is more than compensated by the per-step learning advantage.
-
-### Advantage of W=16
-
-- **+13% best gap** (0.093 vs 0.082) at matched step budget
-- **+13% best gap** at matched wall time (0.093 at 32 min vs 0.082 at 29 min)
-- **37% less VRAM**, freeing capacity for larger models or bigger batches
-- **18% slower per step**, but this is the only downside
-
-## Follow-up: W=16 with larger batch size (bs=28)
-
-To test whether the VRAM headroom of W=16 could be used for larger batches, a third run was conducted with bs=28 (17.6 GB VRAM), time-limited to 29.2 min (same wall time as the W=32 run).
-
-| Step | W=32 (bs=32, 5.7sps, 23.4GB) | W=16 (bs=24, 4.7sps, 14.7GB) | W=16 (bs=28, 3.9sps, 17.6GB) |
-|------|------------------------------|------------------------------|------------------------------|
-| 1k | 0.056 | 0.064 | 0.064 |
-| 2k | 0.068 | 0.064 | 0.069 |
-| 3k | 0.067 | 0.072 | 0.073 |
-| 4k | 0.073 | 0.077 | 0.078 |
-| 5k | 0.074 | 0.078 | 0.080 |
-| 6k | 0.075 | 0.080 | 0.082 |
-| 7k | 0.079 | 0.088 | -- |
-| 8k | 0.073 | 0.091 | -- |
-| 9k | 0.082 | 0.093 | -- |
-| 10k | 0.082 | 0.092 | -- |
-
-**W=16 bs=28 best gap: 0.082 (step 6k, 29.2 min wall time).**
-
-Increasing batch size from 24 to 28 slowed training from 4.7 to 3.9 sps (17% slower) without improving the gap at matched wall time. Both W=16 variants reach gap ~0.082 at 29 min, but bs=24 runs more steps in the same time and ultimately reaches 0.093 with a few extra minutes. The extra samples per step from bs=28 do not compensate for the reduced step count.
-
-**Takeaway**: for W=16 on the Tiny backbone, bs=24 is the sweet spot. Using VRAM headroom for larger batches is counterproductive -- better to run more steps.
-
-## Conclusion
-
-W=16 does not degrade performance -- it improves it. The finer temporal resolution (256 patches vs 128) gives the transformer more granular information to learn from, resulting in consistently higher contrastive gap. The speed penalty is modest and fully offset by the quality gain. The substantial VRAM savings is an additional practical benefit for scaling to larger architectures.
-
-The optimal operating point for Tiny W=16 is bs=24 (14.7 GB), not the maximum batch size that fits in memory.
+*(Notes on the bs=28 wall-time cap and an earlier copy-paste error in the bs=28 step table live in [notes/data-provenance.md](notes/data-provenance.md).)*

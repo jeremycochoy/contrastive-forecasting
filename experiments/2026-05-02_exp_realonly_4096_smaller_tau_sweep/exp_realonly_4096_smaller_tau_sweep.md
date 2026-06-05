@@ -108,83 +108,14 @@ End of run: `log_inv_tau=2.9453, τ=0.0526` (auto-detected by the head trainer a
 
 **Memorization caveat is load-bearing.** The 47-epoch repetition makes intra-sweep gaps suspect; the next runs (#6 30k learnable τ on full ~42.5M-window data, #9 MOIRAI HP on the same, #10 1-epoch FINAL retrain) will exit the memorization regime and show whether τ choice actually matters for generalisation. Pending those, the safe operational stance is: keep learnable τ for #6 since it auto-tunes toward what looks like a sensible neighbourhood, and don't promote τ=0.05 as the new fixed default until #9/#10 confirm.
 
-## 6. Per-arm details
+## 6. Per-arm operational detail → notes
 
-### 6a. τ = 0.05 (#27 arm 005)
+Per-arm timelines, crash/resume history, final ema-loss per stage, and the full checkpoint inventory (absolute paths, including the external sync-dir CSVs the metrics above derive from) are pure journey and live in [notes/RUN_LOG.md](notes/RUN_LOG.md). One arm (τ=0.07) was halted mid-head at step ~11.5k and has no eval — hence the "—" rows above.
 
-- Hyperparams: τ=0.05 fixed, AdamW, lr=1e-4 (BB) / 3e-4 (head), bs=96, 30k BB + 30k head steps.
-- Timeline: BB started Fri May 1 09:12 UTC, completed without crashes; STAGE H (head) started Fri May 1 ~16:55 UTC; STAGE E (gift_eval) ran Fri May 1 ~20:59 UTC after a partial-CSV resume (the credit-restore window forced a re-launch of eval with `--resume`, which cleanly skipped the 38 already-done configs); full pipeline DONE by Sat May 2 00:58 UTC.
-- Backbone: final ema_loss 5.7084 at step 30,000.
-- Head: final ema_loss 0.06923 at step 30,000.
-- Eval results CSV: `/Users/jeremycochoy/Desktop/workspace/trading/contrastive-forecasting/sync_realonly_4096_smaller_tau_sweep/tau005/results/all_results.csv`
-- Key checkpoints (all under `/Users/jeremycochoy/Desktop/workspace/trading/contrastive-forecasting/sync_realonly_4096_smaller_tau_sweep/tau005/checkpoints/`):
-  - `tiny_realonly_4096_smaller_tau005_FINAL.pth` (backbone)
-  - `tiny_realonly_4096_smaller_tau005_best_loss.pth` + `_best_loss_optimizer.pth`
-  - `tiny_realonly_4096_smaller_tau005_30k.pth` + `_30k_optimizer.pth` (last periodic)
-  - `R1q_realonly_4096_smaller_tau005_FINAL.pth` (head)
-  - `R1q_realonly_4096_smaller_tau005_best.pth` + `_best_optimizer.pth`
+## 7. Plots
 
-### 6b. τ = 0.07 (#27 arm 007 — halted)
+All three figures are embedded inline above; their source scripts are in `scripts/` (`plot_loss_curves.py`, `plot_eval_metrics_bars.py`, `plot_learnable_tau_trajectory.py`).
 
-- Hyperparams: τ=0.07 fixed, otherwise identical.
-- Timeline: hit two operational interruptions during BB — one at ~step 2k forcing a `_2k.pth` resume after the original machine3 was host-stopped, and a second around step ~3,600 during the credit-restore window forcing `_3600.pth` resume; BB finally reached step 30k as `STAGE B DONE` Sat May 2 ~05:47 UTC. STAGE H (head) started ~05:47 UTC; the qhead training process **stopped writing log/checkpoints at step ~11.5k** (Sat May 2 ~08:55 UTC) — root cause not preserved in local logs. User chose **not to resume** because the small-data ranking was deemed unreliable (47-epoch regime caveat). The dead process was confirmed gone by ssh inspection at ~10:53 UTC; instance was destroyed at ~10:57 UTC after final artifact pull.
-- Backbone: final ema_loss 5.7208 at step 30,000.
-- Head: ema_loss 0.07467 at step 11,800 (last CSV row); CSV has 11,800 rows, no FINAL.pth produced.
-- Eval results: **none** (the `results/` dir is empty).
-- Key checkpoints (all under `/Users/jeremycochoy/Desktop/workspace/trading/contrastive-forecasting/sync_realonly_4096_smaller_tau_sweep/tau007/checkpoints/`):
-  - `tiny_realonly_4096_smaller_tau007_FINAL.pth` (backbone — usable for resume into a future head retrain)
-  - `tiny_realonly_4096_smaller_tau007_best_loss.pth` + `_best_loss_optimizer.pth`
-  - `tiny_realonly_4096_smaller_tau007_30k.pth` + `_30k_optimizer.pth`
-  - `R1q_realonly_4096_smaller_tau007_best.pth` + `_best_optimizer.pth` (best of the truncated qhead run, ema_loss=0.0749 at step ~11.5k)
-  - **No `R1q_*_FINAL.pth`** — the run never completed; if a future task wants to finish this arm, resume the qhead from `R1q_..._best.pth` + `_best_optimizer.pth` and re-launch eval.
+## 8. Next steps
 
-### 6c. τ = 0.20 (#27 arm 020)
-
-- Hyperparams: τ=0.20 fixed, otherwise identical.
-- Timeline: BB ran with one resume around step 24k (`STAGE H (RESUME)` line at step 24,000, best_loss=0.0709) — the credit-restore window also touched this arm; recovered cleanly. STAGE B / H / E all completed; ALL DONE Fri May 1 23:20 UTC.
-- Backbone: final ema_loss 6.3888 at step 30,000 (notably higher than τ=0.05/0.07 — softer contrast yields a higher absolute InfoNCE; this is expected, not a deficiency).
-- Head: final ema_loss 0.07005 at step 30,000.
-- Eval results CSV: `/Users/jeremycochoy/Desktop/workspace/trading/contrastive-forecasting/sync_realonly_4096_smaller_tau_sweep/tau020/results/all_results.csv`
-- Key checkpoints (all under `/Users/jeremycochoy/Desktop/workspace/trading/contrastive-forecasting/sync_realonly_4096_smaller_tau_sweep/tau020/checkpoints/`):
-  - `tiny_realonly_4096_smaller_tau020_FINAL.pth` (backbone)
-  - `tiny_realonly_4096_smaller_tau020_best_loss.pth` + `_best_loss_optimizer.pth`
-  - `tiny_realonly_4096_smaller_tau020_30k.pth` + `_30k_optimizer.pth`
-  - `R1q_realonly_4096_smaller_tau020_FINAL.pth` (head)
-  - `R1q_realonly_4096_smaller_tau020_best.pth` + `_best_optimizer.pth`
-
-### 6d. learnable τ (#32)
-
-- Hyperparams: `--tau 0.07 --learnable-tau` (CLIP-style log_inv_tau, init τ=0.07, clamp [0.01, 1.0] post optimizer step). Otherwise identical to #27.
-- Timeline: BB had two resumes visible in the local `run.log` (resume at step 17,100 from `_resume.pth`; second resume at step 21,700 after a 21k httpx-class crash — recovered through the same `_resume.pth` mechanism); STAGE B DONE Sat May 2 02:18 UTC; STAGE H DONE / STAGE E DONE; ALL DONE Sat May 2 04:18 UTC.
-- Backbone: final ema_loss 5.7039 at step 30,000 (lowest of the four arms — consistent with τ ending at 0.0525, even tighter than τ=0.05 fixed).
-- Head: final ema_loss 0.06818 at step 30,000.
-- Final τ at end of training: 0.0526 (`log_inv_tau=2.9453`, auto-detected by both head trainer and eval).
-- Eval results CSV: `/Users/jeremycochoy/Desktop/workspace/trading/contrastive-forecasting/sync_realonly_4096_smaller_learnable_tau/learnable/results/all_results.csv`
-- Key checkpoints (all under `/Users/jeremycochoy/Desktop/workspace/trading/contrastive-forecasting/sync_realonly_4096_smaller_learnable_tau/learnable/checkpoints/`):
-  - `tiny_realonly_4096_smaller_learnable_tau_FINAL.pth` (backbone — embeds the final learned τ in the state dict)
-  - `tiny_realonly_4096_smaller_learnable_tau_best_loss.pth` + `_best_loss_optimizer.pth`
-  - `tiny_realonly_4096_smaller_learnable_tau_30k.pth` + `_30k_optimizer.pth`
-  - `R1q_realonly_4096_smaller_learnable_tau_FINAL.pth` (head)
-  - `R1q_realonly_4096_smaller_learnable_tau_best.pth` + `_best_optimizer.pth`
-
-## 7. Data-loss / operational notes
-
-τ=0.07 had two httpx-class crashes mid-BB (one ~step 2k, one ~step 3,600) and a third event mid-resume (around step 21k — visible as a `Resumed from ... at step 21100` line). Each was recovered through periodic-save anchors (`_2k.pth`, `_3600.pth`) shipped via the `resume_source/` mechanism. The qhead then died at step ~11.5k post-BB-completion; not resumed. The learnable τ run had two resumes for similar credit-restore-class events (step 17,100 and 21,700) and recovered through `_resume.pth` anchors. PR #94 (`fix-dataloader-resume-mod-wrap`) was developed in flight across these two experiments to harden the dataloader stream-position handling around the dataset epoch boundary; future readers should confirm it lands before #6/#9/#10. All four arms have a complete sync_loop tick log under `<sync_dir>/sync.log` and rotated `*.prev` copies; the data-loss surface is operationally clean.
-
-## 8. Plots — all in-tree
-
-The three figures embedded above are reproducible from the data in the local sync directories. Source scripts live alongside this report:
-
-- `scripts/plot_loss_curves.py` → `plots/loss_curves.png` (backbone + head, log-log)
-- `scripts/plot_learnable_tau_trajectory.py` → `plots/learnable_tau_trajectory.png` (τ vs step with fixed-τ refs)
-- `scripts/plot_eval_metrics_bars.py` → `plots/eval_metrics_bars.png` (GM-MASE / MAPE_SN / CRPS_SN bars)
-
-A pre-existing version of the loss-curves plot also lives at `<repo>/plots/tau_sweep_and_learnable_loss.png` (rendered earlier in the main checkout); the in-tree copy here is the canonical one going forward.
-
-## 9. Pointer to next steps
-
-- **#6** — 30k learnable-τ on the **full 42.5M-window dataset** (full pretrain, no memorization regime). Was running on machine5 (vast.ai 35985578); machine5 went offline mid-eval at config 1/97 with FINAL backbone + FINAL qhead saved locally; eval continuation provisioning on machine7 (vast.ai 36005039). This is the run that will tell us whether learnable τ beats the fixed-τ baselines once each window is seen <1×.
-- **#9** — MOIRAI-HP variant (`lr=1e-3, wd=0.1, β=(0.9, 0.98)`) on the **full 42.5M-window dataset** with the same arch + learnable τ as #6, isolating only the optimizer-HP axis. Provisioning on machine6 (vast.ai 36004921).
-- **#10** — 1-full-epoch FINAL retrain. Decision pending #6/#9 outcomes; will resume from whichever 30k checkpoint wins between {#6, #9} and continue for ~413k more steps (~1 full epoch of full-4096).
-
-The within-sweep ranking from this report is the best fixed-τ guidance we have until #6/#9 land; on that basis the planned #6 run uses learnable τ (init 0.07) and #9 has its τ schedule per the MOIRAI HP recipe.
+The within-sweep ranking here is only suggestive (47-epoch memorization regime). The full-dataset runs **#6** (30k learnable-τ), **#9** (MOIRAI optimizer-HP variant), and **#10** (1-full-epoch FINAL retrain) sit on the ~42.5M-window pretraining set — each window seen <1× over 30k steps — and will settle whether τ choice actually matters for generalisation. Until they land, the safe stance is to keep learnable τ (it auto-tunes toward a sensible neighbourhood) and not promote τ=0.05 as the fixed default. Operational placement of those runs is in [notes/RUN_LOG.md](notes/RUN_LOG.md).
