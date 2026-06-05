@@ -66,20 +66,30 @@ it is also the test of PR #110's deterministic-resume code (`hf_rows_consumed` f
 
 ![Resume continuity. (a) full trajectory FRESH 0–52.4k + RESUME50k 50k–167k — orange sits flush on blue at the boundary. (b) zoom of 40k–167k. (c) rolling-std clamped to the diagnostic band — green = #9's 0.23 baseline, red = v1/v2's corrupted 0.35 level; we hug green. (d) loss histograms over the matched 50k–52.4k window.](plots/resume50k_continuity.png)
 
-Over the matched [50k, 52.4k] window the resumed trajectory differs from the fresh one by
-**+0.07% in mean and +2.6% in std** — within noise (Welch t-test on means p = 0.41,
-Levene's test on variances p = 0.13). The deterministic-resume path is validated: it
-reproduces the trajectory rather than perturbing it. *(This is a within-run continuity
-check, not a held-out generalization claim. The continuity plot is committed; the scalar
-statistics — the mean/std deltas, the Welch/Levene p-values, and the v1/v2 reference
-levels — come from the run's training-loss diagnostic, whose CSV is not committed in this
-directory.)*
+What the committed plot shows directly: at the 50k boundary the resumed orange curve sits
+flush on the fresh blue one with no visible step (panels a/b), and the rolling-std hugs the
+green #9 baseline (≈0.23) rather than rising toward the red v1/v2 corrupted level (≈0.35) in
+panel (c). On the picture, the deterministic-resume path reproduces the trajectory instead
+of perturbing it.
+
+The run's own continuity diagnostic — read off the plot and its generator in the sync dir,
+not recomputed here — puts numbers on that picture: over the matched [50k, 52.4k] window the
+resumed trajectory differs from the fresh one by **+0.07% in mean and +2.6% in std**, within
+noise (Welch t-test on means p = 0.41, Levene's test on variances p = 0.13), against the
+~52% std jump v1/v2 showed (the 0.35 corrupted level vs the 0.23 baseline). *(This is a
+within-run continuity check, not a held-out generalization claim. The continuity plot is
+committed; the scalar statistics — the mean/std deltas, the Welch/Levene p-values, and the
+0.23/0.35 reference levels — are the run's own training-loss diagnostic, whose CSV is not
+committed in this directory, so they are reported as-diagnosed rather than independently
+recomputed here.)*
 
 ## Protocol
 
 - **Backbone under test** (`scripts/run_resume50k.sh`): Tiny contrastive backbone,
-  C = 1 channel, H = 384, nhead = 6, 6 layers, T_raw = 4096, RevIN EWMA (span 128),
-  learnable τ = 0.07, loss `cosine_similarity_batch`, mixup p = 0.3 — trained to
+  C = 1 channel, H = 384, nhead = 6, 6 layers, T_raw = 4096, RevIN EWMA (span 128 —
+  reversible exponential-moving-average input normalisation, EWMA span 128),
+  learnable τ = 0.07 (the contrastive/InfoNCE temperature, here a trainable scalar
+  initialised at 0.07), loss `cosine_similarity_batch`, mixup p = 0.3 — trained to
   **167,000 steps**, batch size 256, MOIRAI HP (**lr = 1e-3, weight-decay = 0.1,
   β = (0.9, 0.98)**, flat schedule, no warmup, no grad-clip). Data: real-only
   `jeremycochoy/gift-pretrain-full-4096` (path `small_v1`), mix-ratio 0.0. The run
@@ -88,7 +98,9 @@ directory.)*
 - **Quantile head** (`scripts/run_qhead_eval.sh`): a quantile forecasting head on the
   **frozen** backbone — 30,000 steps, forecast_len = 16, lr = 3e-4, batch size 256.
 - **Benchmark** (`scripts/run_eval_only.sh`): the official GIFT-Eval suite — 97 configs
-  across 7 domains, **B4** strategy, forecast_len = 16, scored against seasonal-naive.
+  across 7 domains, **B4** decoding (the GIFT-Eval rollout strategy: latent-space
+  autoregressive rollout, decoding each forecast step), forecast_len = 16, scored against
+  seasonal-naive.
   Every "ours" number is computed from the committed per-config outputs in
   [`results/gift_eval_resume50k_local/`](results/gift_eval_resume50k_local/); the
   leaderboard reference numbers (Sundial / TimesFM / PatchTST / Chronos / Moirai /

@@ -27,7 +27,7 @@ ROUNDS = [
     ("R3_E4", "R3_E4_xfmr6L_quant_moirai_cosine_triage", "xfmr-q 6L"),
     ("R5_E7", "R5_E7_xfmr12L_quant_moirai_cosine_60k_triage", "xfmr-q 12L 60k"),
     ("R6_E8", "R6_E8_xfmr6L_bidir_fl128_quant_moirai_cosine_triage", "bidir fl128"),
-    ("R7_E9", "R7_E9_xfmr12L_quant_moirai_cosine_100k_triage", "xfmr-q 12L 100k*"),
+    ("R7_E9", "R7_E9_xfmr12L_quant_moirai_cosine_100k_triage", "xfmr-q 12L 100k"),
     ("R8_E10", "R8_E10_xfmr12L_gauss_moirai_cosine_60k_triage", "gauss 12L"),
     ("R9_E13", "R9_E13_xfmr12L_quant_moirai_cosine_e_then_f_60k_triage", "e_then_f 60k"),
     ("R9_E14", "R9_E14_xfmr12L_quant_moirai_cosine_e_then_f_100k_triage", "e_then_f 100k"),

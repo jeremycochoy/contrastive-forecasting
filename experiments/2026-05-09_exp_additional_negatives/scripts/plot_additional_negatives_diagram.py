@@ -195,7 +195,7 @@ def draw_diagram(echoes: bool, output_path: str) -> None:
 
     # ── Title ─────────────────────────────────────────────────────────────────
     if echoes:
-        view = "extended view"
+        view = "echoes view"
         subtitle = (r"Each colour drawn at every anchor $s$ and $(b,b')$ "
                     r"swap that fits the window.")
     else:

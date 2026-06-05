@@ -7,9 +7,17 @@ Single-axis change vs the established `cosine_similarity_batch_no_time_neg`.
 
 **When**: Late April 2026.
 
-**Status**: Complete (single seed). Result: GM-MASE 0.886 / WQL 0.434 —
-**~4.5% worse on MASE, ~5.1% worse on WQL** vs the same arm without
-cross-time negatives (GM-MASE 0.848 / WQL 0.413). See `../exp_csb_synth.md`.
+**Status**: Complete (single seed). This run measured GM-MASE 0.886 /
+WQL 0.434 and compared it to the span sweep's 0.848 / 0.413 baseline — an
+apparent ~4.5% MASE / ~5.1% WQL regression. **That comparison was
+confounded** (the two checkpoints differ on selector — `best_gap` vs
+`best_loss` — and on continuity — clean vs multi-resume — not just the
+loss flag), so the apparent regression is not attributable to the loss.
+**The clean matched A/B in the follow-up
+[`2026-04-28_exp_csb_pair_span512`](../../2026-04-28_exp_csb_pair_span512/exp_csb_pair_span512.md)
+reversed it**: with selector and continuity held fixed,
+`cosine_similarity_batch` (0.883) beats `no_time_neg` (0.924) by ~4.5% on
+MASE. See `../exp_csb_synth.md` for the corrected analysis.
 
 **Run script**: `run.sh` — copy of `/tmp/run_wtn_v2.sh` from the
 remote vast.ai instance (snapshot at launch time). `run_v1.sh` is the
@@ -37,7 +45,7 @@ The final 30k-step backbone is the result of:
 therefore from a multi-resume run, not a clean single-shot 30k.
 
 **Resume-vs-result caveats dropped from the report body** (single-seed
-speculation, not load-bearing for the negative result):
+speculation, not load-bearing for the corrected, confound-reversed result):
 - Whether resume RNG re-seeding + CUDA non-determinism nudged the final
   weights slightly off a hypothetical single-shot 30k run — hard to
   disentangle from the loss change. A clean single-shot rerun would

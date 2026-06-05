@@ -23,10 +23,14 @@ Each vertex is one positive pair `(f_{b,τ-1} → h_{b,τ})`.
 - `f_{b,τ}` — forecast emitted at `τ`, batch `b`; trained to predict `h_{b,τ+1}`.
 - Anchor `(b, s, c)` — the index over which one InfoNCE ratio is computed
   (InfoNCE = the contrastive loss `-log[ e^{pos/τ} / Σ e^{·/τ} ]`, one positive
-  in the numerator against a sum of negatives in the denominator), with
+  in the numerator against a sum of negatives in the denominator — generic
+  textbook form; the default code path here is `log_neg_total − log_pos`, i.e.
+  it omits the positive from the denominator unless `pos_in_denom`), with
   positive pair `(f_{b,s,c}, h_{b,s+1,c})`, anchor index `s ∈ [0, T-2]`, channel
-  `c`. A loss term is computed per anchor and summed over all anchors and all
-  ordered batch pairs `(b, b')`, `b ≠ b'`.
+  `c`. A loss term is computed per anchor and summed over all anchors;
+  the *cross-batch* terms additionally sum over all ordered batch pairs
+  `(b, b')`, `b ≠ b'` (the within-batch terms `neg_xy`/`neg_zy` stay within a
+  single `b`).
 - Top row = batch `b`, bottom row = batch `b'` (`b ≠ b'`).
 
 ## The map — two views
@@ -70,7 +74,7 @@ branch, so they are shown faded.
 |---|---|---|
 | green solid | `(f_{b,τ-1}, h_{b,τ})` — positive | numerator of every InfoNCE ratio |
 | grey | within-`b` `(f_{b,τ}, f_{b,τ+1})` and `(h_{b,τ}, h_{b,τ+1})` — adj. `τ` | `neg_zy` (f-side) + `neg_xy` (h-side) |
-| orange (faded) | cross-`b` `(h_{b',τ+1}, f_{b,τ})` — h leads f by 1 | `neg_cross_batch` (`log_neg_cross_fe`) |
+| orange (faded) | cross-`b` `(h_{b',τ+1}, f_{b,τ})` — h leads f by 1 | `log_neg_cross_fe` (the cross-batch diagonal) |
 | blue | cross-`b` `(f_{b,τ}, f_{b',τ})` same `τ` | `neg_cross_batch_forecast` (`log_neg_cross_ff`) |
 | red | cross-`b` `(h_{b,τ+1}, h_{b',τ+1})` same `τ` | `neg_cross_batch_embedding` (`log_neg_cross_hh`) |
 

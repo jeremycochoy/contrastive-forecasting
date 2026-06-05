@@ -15,11 +15,12 @@ it need normalization at all?
 
 ## Result
 
-**Normalization is essential, and the backbone wants a *sub-patch* span: the
-gap is highest in the span≈16–32 band, ~12× the no-norm baseline (0.020) — but
-with one run per span the 0.235 (span=32) vs 0.228 (span=16) ordering sits
-inside single-seed noise, so the supported claim is "use a sub-patch span", not
-"32 beats 16".**
+**Normalization is essential** — the one large, robust effect. Within the working
+spans the gap forms a **broad plateau: span 16–91 all clear ≥10× the no-norm 0.020
+baseline**. The **best-observed region is sub-patch (16–32, ~0.23, vs ~0.21 for span
+45–91)**, but at one run per span neither that separation (~0.018) nor the 32-vs-16
+ordering (0.235 vs 0.228) is firmly outside single-seed noise — so use *a* sub-patch
+span, but don't read the within-plateau ranking as established.
 
 ![Best contrastive gap at 3k steps vs RevEWMNorm span (log-x). One run per span. The dashed line is the no-normalization baseline (0.020); span=8 diverged to NaN and is flagged in red. Highest at span=32 (0.235), with span=16 a single-seed near-tie (0.228), then an uneven decline (a small span=45→64 wiggle, then a steeper fall past span=91) as the EMA adapts too slowly. Top axis: EMA half-life in patches (patch width W=16).](plots/span_sweep_headline.png)
 
@@ -102,7 +103,7 @@ over the run; for these monotone-ish runs it is the step-3000 value).
 
 | span | EMA half-life | best gap @3k | × no-norm | status |
 |------|---------------|-------------:|----------:|--------|
-| 8 | ~3 ts (0.2 patch) | NaN | — | diverged (EMA variance → 0) |
+| 8 | ~3 ts (0.2 patch) | NaN | — | diverged (EMA cumsum overflow) |
 | **16** | ~6 ts (0.4 patch) | **0.228** | 11.5× | sub-patch, near-best |
 | **32** | ~11 ts (0.7 patch) | **0.235** | 11.9× | **best observed (1 seed)** |
 | 45 | ~16 ts (1.0 patch) | 0.214 | 10.8× | plateau |

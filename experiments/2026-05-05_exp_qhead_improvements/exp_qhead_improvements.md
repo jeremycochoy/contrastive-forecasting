@@ -49,7 +49,7 @@ Each round trains one head recipe and scores it on the 11-config
 triage proxy. The triage GM-Rel MASE per round (geomean of the Relative
 column in each `results/<run>_triage/summary.txt`):
 
-![Triage GM-Rel MASE per round (11-config proxy; lower better). Grey bars sit at or above seasonal-naive (red dashed, 1.000); the e_then_f winner R9_E13 (dark green, 0.990) is the best round — it and its longer-trained sibling R9_E14 (0.994) are the only two below the line. Moirai's full-eval 0.809 shown for scale (blue dotted). Single triage run per round (eval is deterministic). R7_E9 (*) was truncated by spot-instance preemption.](plots/round_progression.png)
+![Triage GM-Rel MASE per round (11-config proxy; lower better). Grey bars sit at or above seasonal-naive (red dashed, 1.000); the e_then_f winner R9_E13 (dark green, 0.990) is the best round — it and its longer-trained sibling R9_E14 (0.994) are the only two below the line. Moirai's full-eval 0.809 shown for scale (blue dotted). Single triage run per round (eval is deterministic).](plots/round_progression.png)
 
 The thread is monotone where it should be and flat where it plateaus:
 the legacy GRU (1.128) → linear probe (R1_E1, 1.066) → causal
@@ -58,8 +58,9 @@ then a plateau at ~1.00–1.02 that three further axes (longer training,
 bidirectional+longer-forecast, Gaussian-NLL loss) do not break. The
 `e_then_f` input-layout fix crosses **under** seasonal-naive on triage
 (R9_E13 0.990, and R9_E14 0.994 at longer training); R6_E8 (1.089) is the
-only regression. The full-eval numbers for the two runs evaluated on all 97
-configs:
+only large regression (R7_E9 1.020 and R8_E10 1.020 are also small
+regressions above the R5_E7 1.002 floor). The full-eval numbers for the
+two runs evaluated on all 97 configs:
 
 | run | head + training | triage GM-MASE | full GM-MASE |
 |---|---|---|---|
@@ -77,9 +78,10 @@ vs the leaderboard on full eval (lower is better):
 > `us_births/D`), kept because each finishes in seconds, turning a ~6 h
 > full eval into ~5 min. It is **biased low**: it drops whole
 > hard/long-horizon domains (M4, `loop_seattle`, `bitbrains_*`,
-> medium/long terms) rather than subsampling within configs. Measured
-> triage→full bias on the two runs evaluated both ways:
-> baseline 1.128 → 1.183 (+0.055) and R9_E13 0.990 → 1.029 (+0.039).
+> medium/long terms) rather than subsampling within configs. R9_E13 is
+> the only run evaluated both ways here: triage 0.990 → full 1.029
+> (+0.038). For the baseline, triage 1.128 (this experiment) vs full
+> 1.183 (carried from #10, not re-evaluated here) gives +0.055.
 > So a triage score below 1.000 (R9_E13's 0.990) does **not** imply
 > beating seasonal-naive on the full benchmark — R9_E13 is 1.029 there.
 > Full bias rationale in [notes/TRIAGE_NOTE.md](notes/TRIAGE_NOTE.md).
@@ -118,10 +120,10 @@ vs the leaderboard on full eval (lower is better):
    R3_E4 (6L, H=384, nhead=6, ~10.7M params), trained from scratch with
    Moirai HP (β2=0.98, wd=0.1, lr=1e-3), cosine LR + 1k-step warmup:
    triage **1.066 → 1.017** vs the linear probe. The linear probe
-   itself already beat the legacy GRU (1.128 → 1.066), so capacity was
-   not the GRU's problem — input *structure* was.
+   itself already beat the legacy GRU (1.128 → 1.066), so capacity is
+   not the binding constraint.
 2. **Stack depth + length on the transformer.** 12 layers + 60k steps +
-   2k warmup → R5_E7 = **1.002** (−1.5% on top of R3_E4). This is the
+   2k warmup → R5_E7 = **1.002** (−1.4% on top of R3_E4). This is the
    floor for everything that keeps the forecaster-only input layout.
 3. **Match the train-time input layout to eval (`e_then_f`).** R9_E13:
    triage **1.002 → 0.990** (R9_E14, the same recipe at 100k, lands at
@@ -131,26 +133,24 @@ vs the leaderboard on full eval (lower is better):
 ## What didn't work (informative null results)
 
 1. **Linear probe HP/schedule (R2_E3).** Switching the linear probe to
-   Moirai HP + WSD gave a training-loss trajectory identical to the
-   constant-LR linear probe (R1_E1) and the same ~1.066 triage score:
-   the linear head is at its representational ceiling regardless of HP.
+   Moirai HP + WSD reached the same ~1.066 triage score as the
+   constant-LR linear probe (R1_E1) (1.0669 vs 1.0655): the linear head
+   is at its representational ceiling regardless of HP.
 2. **Bidirectional head + forecast_len=128 (R6_E8).** Triage **1.089**
    vs R3_E4's 1.017 — the only regression. A bidirectional head attends
    to *real* future latents at training but *rolled-out* (error-laden)
-   ones at eval. No ablation isolates bidir vs fl128, so the cause is
-   the train/eval mismatch in aggregate, not pinned to one factor.
-3. **Longer training to 100k (R7_E9).** 1.020 ≥ R5_E7's 1.002; the run
-   was also truncated at ~85k by a spot-instance preemption, but it was
-   already not improving. Extending the cosine schedule past 60k did
-   not help.
+   ones at eval. No ablation isolates bidir vs fl128, so the regression
+   is consistent with a train/eval mismatch but not pinned to one factor.
+3. **Longer training to 100k (R7_E9).** 1.020 ≥ R5_E7's 1.002:
+   extending the cosine schedule past 60k did not help.
 4. **Gaussian-NLL loss (R8_E10).** Triage 1.020, same as R7_E9 and worse
    than R5_E7's 1.002. The ~1.02 plateau is not a pinball loss-surface
    artifact — swapping to smooth parametric NLL with the same head and
    schedule does not move it.
 5. **Longer training under `e_then_f` (R9_E14).** Triage 0.994 vs
-   R9_E13's 0.990 at 60k; the +0.004 is within run-to-run noise on this
-   11-config subset. Longer training does not add to the input-layout
-   win either.
+   R9_E13's 0.990 at 60k; the +0.004 is not interpreted as a real
+   difference — no replicates were run to estimate variance. Longer
+   training does not add to the input-layout win either.
 
 ## Hypothesis going forward
 

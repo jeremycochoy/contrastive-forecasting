@@ -4,11 +4,13 @@
 
 ## tl;dr
 
-Within this 47-epoch memorization-regime comparison, **all four τ policies land within noise** on both head loss (9k spread ~0.0017, ≈2%) and GIFT-Eval (GM-MASE spread <1.2%, 1.7770–1.7982). τ=0.05 edges τ=0.20 on all three GIFT-Eval metrics, but only the GM-MAPE_SN gap (~5%) is clearly outside that noise; the GM-MASE/CRPS gaps (<1%) are not. Learnable τ (init 0.07, drifts to ~0.0526) takes the best GM-MASE of the three eval'd arms. Among those three, the step-9k head-loss ranking (learnable < τ=0.05 < τ=0.20) **agrees with** the GM-MASE ranking — lower head loss tracks better eval here, not the reverse — but with both spreads at the noise floor, neither ordering is established. Bottom line: **nothing about τ is settled in this memorization regime**; the full-dataset runs (#6 / #9 / #10), where each window is seen <1×, will settle it.
+Within this 47-epoch memorization-regime comparison, **all four τ policies land within noise on head loss** (four-arm 9k spread ~0.0017, ≈2%) and **the three eval'd arms land within noise on GIFT-Eval** (GM-MASE spread <1.2%, 1.7770–1.7982; τ=0.07 was halted before eval). τ=0.05 edges τ=0.20 on all three GIFT-Eval metrics, but only the GM-MAPE_SN gap (~5%) is clearly outside that noise; the GM-MASE/CRPS gaps (<1.2%) are not. Learnable τ (init 0.07, drifts to ~0.0526) takes the best GM-MASE of the three eval'd arms. Among those three, the step-9k head-loss ranking (learnable < τ=0.05 < τ=0.20) **agrees with** the GM-MASE ranking — lower head loss tracks better eval here, not the reverse — but with both spreads at the noise floor, neither ordering is established. Bottom line: **nothing about τ is settled in this memorization regime**; the full-dataset runs (#6 / #9 / #10), where each window is seen <1×, will settle it.
 
 > *MASE = Mean Absolute Scaled Error (point error scaled by the in-sample seasonal-naive MAE); GM-MASE = its geometric mean over the 97 GIFT-Eval configs. GM-MAPE_SN / GM-CRPS_SN = geometric means of the seasonal-naive-normalised MAPE and weighted-quantile-loss ratios (model ÷ seasonal-naive). SN = seasonal-naive (repeat the value one season back). RevIN = reversible instance normalisation; "EWMA span" sets how fast its moving average adapts. τ = the contrastive (InfoNCE) temperature — smaller τ = sharper/tighter contrast.*
 
 ## 1. Setup
+
+**Question.** Phases 1–5 and #19/#20/#22 all fixed the contrastive (InfoNCE) temperature at the CLIP-convention τ=0.07; whether that is optimal for *this* setting (T=4096, C=1, mix=0.0, smaller arch, EWMA-128) was never checked. So: does a fixed τ of 0.05 or 0.20 beat 0.07 on GM-MASE/GM-MAPE_SN/GM-CRPS_SN, and does letting τ be learnable (init 0.07) do better than any fixed choice? (Fuller rationale in [notes/README.md](notes/README.md).)
 
 All four arms share the same architecture, optimizer, dataset, and hyperparameters; only the τ policy varies.
 
@@ -57,7 +59,7 @@ Notes:
 
 ## 3. Headline — GIFT-Eval geometric means (97 configs)
 
-Computed as the geometric mean (`scipy.stats.gmean`) over `eval_metrics/MASE[0.5]`, `eval_metrics/SN_MAPE_ratio`, `eval_metrics/SN_WQL_ratio` columns of each arm's `results/all_results.csv`.
+Computed by `scripts/plot_eval_metrics_bars.py` as a positive-only geometric mean (`np.exp(np.log(s[s>0]).mean())`, NaNs dropped) over the `eval_metrics/MASE[0.5]`, `eval_metrics/SN_MAPE_ratio`, `eval_metrics/SN_WQL_ratio` columns of each arm's `all_results.csv`. Those CSVs live in the **external sync dirs** the script's `ROOT` points at (`…/sync_realonly_4096_smaller_tau_sweep/tau{005,007,020}/results/all_results.csv` and `…/sync_realonly_4096_smaller_learnable_tau/learnable/results/all_results.csv`), **not** this experiment's `results/`, and are not committed to git — see the provenance note in [notes/RUN_LOG.md](notes/RUN_LOG.md).
 
 | arm                  | GM-MASE | GM-MAPE_SN | GM-CRPS_SN |
 |----------------------|--------:|-----------:|-----------:|
@@ -70,13 +72,15 @@ Computed as the geometric mean (`scipy.stats.gmean`) over `eval_metrics/MASE[0.5
 (The MOIRAI-Small MASE target from the Aksu paper isn't directly comparable here — the GIFT-Eval official MASE is the model-only number, not seasonal-naive normalised — so we omit a target.)
 
 Reading:
-- **τ=0.05 wins τ=0.20 on all three metrics**, by 0.55%/4.8%/0.7% on GM-MASE/GM-MAPE_SN/GM-CRPS_SN respectively. The MAPE gap is the only one that's clearly outside noise.
-- **Learnable τ has the best GM-MASE** of the three eval'd arms (1.7770 vs 1.7883 for τ=0.05) but is worse than τ=0.05 on both distributional metrics (MAPE_SN, CRPS_SN). The learned τ stabilises around 0.0526 — i.e. *looser* than the τ=0.05 fixed arm (smaller τ = tighter contrast), landing between 0.05 and the 0.07 init. So the best-MASE point is **not** "tighter than 0.05"; it sits just above it, with a small quantile-metric penalty. All three cross-arm gaps are <1% here except MAPE_SN, so read this as directional at most.
+- **τ=0.05 wins τ=0.20 on all three metrics**, by 0.55%/4.79%/0.7% on GM-MASE/GM-MAPE_SN/GM-CRPS_SN respectively (all relative to the τ=0.20 base; the same MAPE_SN gap is ~5% relative to the τ=0.05 base — 1.3622 vs 1.2969). The MAPE gap is the only one that's clearly outside noise.
+- **Learnable τ has the best GM-MASE** of the three eval'd arms (1.7770 vs 1.7883 for τ=0.05) but is worse than τ=0.05 on both distributional metrics (MAPE_SN, CRPS_SN). The learned τ stabilises around 0.0526 — i.e. *looser* than the τ=0.05 fixed arm (smaller τ = tighter contrast), landing between 0.05 and the 0.07 init. So the best-MASE point is **not** "tighter than 0.05"; it sits just above it, with a small quantile-metric penalty. All cross-arm GM-MASE/CRPS gaps are <1.2% here (the largest is the learnable→τ=0.20 GM-MASE gap at 1.19%) except MAPE_SN, so read this as directional at most.
 - Even the best arm sits ~47% above MOIRAI-Small on MAPE_SN and ~69% above on CRPS_SN; the small-data regime dominates the absolute scores. The cross-arm comparison is what's interesting, not the absolute.
+
+**On "noise floor".** This report has a single seed per arm and no error bars or bootstrap CI, so the noise floor is **not measured** — it is *inferred* from the small cross-arm spreads (head loss ~2%, GM-MASE <1.2%), i.e. "these gaps are the size we'd expect run-to-run scatter to produce" rather than a quantity we estimated. Every "within noise" / "at the noise floor" claim below should be read with that caveat; the full-dataset follow-ups (§7) are where a measured comparison becomes worthwhile.
 
 ![GIFT-Eval geometric means by arm](plots/eval_metrics_bars.png)
 
-*Three GM metrics across the four arms; τ=0.07 has an explicit "no eval" placeholder (run halted before STAGE E). Single run per arm — point estimates with no error bars; the cross-arm gaps (<1% except the ~5% MAPE_SN) sit at the noise floor. Aksu MOIRAI-Small reference is overlaid as a dashed horizontal line on the SN-normalised metrics. Generated by `scripts/plot_eval_metrics_bars.py`.*
+*Three GM metrics across the four arms; τ=0.07 has an explicit "no eval" placeholder (run halted before STAGE E). Single run per arm — point estimates with no error bars; the cross-arm gaps (<1.2% except MAPE_SN, which is 4.79% of the τ=0.20 base / ~5% of the τ=0.05 base) sit at the inferred noise floor. Aksu MOIRAI-Small reference is overlaid as a dashed horizontal line on the SN-normalised metrics. Generated by `scripts/plot_eval_metrics_bars.py`.*
 
 ## 4. τ trajectory for the learnable arm
 
@@ -93,7 +97,7 @@ The learnable run uses CLIP-style `log_inv_tau` as a single trainable scalar (`�
 | 29,100     | 0.0528 |
 | 30,000     | 0.0525 |
 
-End of run: `log_inv_tau=2.9453, τ=0.0526` (auto-detected by the head trainer and eval from the backbone checkpoint — confirmed in `run.log`). Qualitatively: τ decreases monotonically across the full visible range, by ~0.0062 over the last ~12.8k steps (≈0.5e-3 per 1k steps). The descent is approximately log-linear in step — log_inv_tau increases roughly linearly. The model "wants" tighter contrast than the 0.07 init, ending in the same neighbourhood as the τ=0.05 fixed arm.
+End of run: `log_inv_tau=2.9453`, giving `τ=exp(−2.9453)=0.0526` (auto-detected by the head trainer and eval from the backbone checkpoint — confirmed in `run.log`). The table and plot label the endpoint **0.0525** — that is the last logged `τ=…` sample (step 30,000); the **0.0526** here is recomputed from the final `log_inv_tau`. The 0.0001 difference is rounding between the two sources; both round to 0.053. Qualitatively: τ decreases monotonically across the full visible range, by ~0.0062 over the last ~12.8k steps (≈0.5e-3 per 1k steps). The descent is approximately log-linear in step — log_inv_tau increases roughly linearly. The model "wants" tighter contrast than the 0.07 init, ending in the same neighbourhood as the τ=0.05 fixed arm.
 
 ![Learnable τ trajectory](plots/learnable_tau_trajectory.png)
 
@@ -101,13 +105,13 @@ End of run: `log_inv_tau=2.9453, τ=0.0526` (auto-detected by the head trainer a
 
 ## 5. Discussion
 
-**Is τ=0.05 > τ=0.20 within this sweep, decisive?** The MAPE gap (1.2969 vs 1.3622, ~5%) is large enough to look real; the MASE/CRPS gaps are tighter (<1%). I'd call it a directional win for tighter τ within this 47-epoch regime, not a definitive result.
+**Is τ=0.05 > τ=0.20 within this sweep, decisive?** The MAPE gap (1.2969 vs 1.3622, ~5% of the τ=0.05 base) is large enough to look real; the τ=0.05↔τ=0.20 MASE/CRPS gaps are tighter (0.55%/0.7%). I'd call it a directional win for tighter τ within this 47-epoch regime, not a definitive result.
 
 **Does step-9k head loss predict step-30k eval ranking?** Among the three eval'd arms, the two orderings **agree** — though both spreads are at the noise floor:
 - 9k head ema_loss (eval'd arms): learnable **0.07743** < τ=0.05 **0.07818** < τ=0.20 **0.07829** (τ=0.20 is the highest, not the lowest).
 - GM-MASE (eval'd arms): learnable **1.7770** < τ=0.05 **1.7883** < τ=0.20 **1.7982**.
 - Same order: the arm with the lowest 9k head loss also has the best GM-MASE, and the highest 9k head loss the worst. (τ=0.07 has the lowest 9k loss of all four but no eval, so it can't be placed.)
-- But the 9k spread (~0.0017, ≈2%) and the GM-MASE spread (<1.2%) are both noise-floor-level, so the agreement may be coincidental: it does **not** establish that head loss predicts eval, only that the two do not contradict each other here. The honest read is that nothing separates the arms in this regime.
+- But the 9k spread across these three eval'd arms (0.07829−0.07743 = 0.00086, ~1.1%) and the GM-MASE spread (<1.2%) are both noise-floor-level, so the agreement may be coincidental: it does **not** establish that head loss predicts eval, only that the two do not contradict each other here. (The ~0.0017/≈2% spread in the tl;dr is the four-arm spread, dragged down by τ=0.07's 0.07666, which has no eval.) The honest read is that nothing separates the arms in this regime.
 
 **Memorization caveat is load-bearing.** The 47-epoch repetition makes intra-sweep gaps suspect; the next runs (#6 30k learnable τ on full ~42.5M-window data, #9 MOIRAI HP on the same, #10 1-epoch FINAL retrain) will exit the memorization regime and show whether τ choice actually matters for generalisation. Pending those, the safe operational stance is: keep learnable τ for #6 since it auto-tunes toward what looks like a sensible neighbourhood, and don't promote τ=0.05 as the new fixed default until #9/#10 confirm.
 
@@ -115,10 +119,8 @@ End of run: `log_inv_tau=2.9453, τ=0.0526` (auto-detected by the head trainer a
 
 Per-arm timelines, crash/resume history, final ema-loss per stage, and the full checkpoint inventory (absolute paths, including the external sync-dir CSVs the metrics above derive from) are pure journey and live in [notes/RUN_LOG.md](notes/RUN_LOG.md). One arm (τ=0.07) was halted mid-head at step ~11.5k and has no eval — hence the "—" rows above.
 
-## 7. Plots
+## 7. Next steps
 
-All three figures are embedded inline above; their source scripts are in `scripts/` (`plot_loss_curves.py`, `plot_eval_metrics_bars.py`, `plot_learnable_tau_trajectory.py`).
+The within-sweep ranking here is only suggestive (47-epoch memorization regime). The full-dataset runs **#6** (30k learnable-τ), **#9** (MOIRAI optimizer-HP variant), and **#10** (1-full-epoch FINAL retrain) sit on the ~42.5M-window pretraining set — each window seen <1× over 30k steps — and will settle whether τ choice actually matters for generalisation, with enough fresh windows that a measured (seeded / bootstrapped) cross-arm comparison becomes worthwhile. Per the §5 stance, until they land the safe move is to keep learnable τ and not promote τ=0.05 as the fixed default. Operational placement of those runs is in [notes/RUN_LOG.md](notes/RUN_LOG.md).
 
-## 8. Next steps
-
-The within-sweep ranking here is only suggestive (47-epoch memorization regime). The full-dataset runs **#6** (30k learnable-τ), **#9** (MOIRAI optimizer-HP variant), and **#10** (1-full-epoch FINAL retrain) sit on the ~42.5M-window pretraining set — each window seen <1× over 30k steps — and will settle whether τ choice actually matters for generalisation. Until they land, the safe stance is to keep learnable τ (it auto-tunes toward a sensible neighbourhood) and not promote τ=0.05 as the fixed default. Operational placement of those runs is in [notes/RUN_LOG.md](notes/RUN_LOG.md).
+(All three figures are embedded inline above; their source scripts are in `scripts/`: `plot_loss_curves.py`, `plot_eval_metrics_bars.py`, `plot_learnable_tau_trajectory.py`.)

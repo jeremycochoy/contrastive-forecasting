@@ -3,8 +3,8 @@
 ## Question
 
 The synth span sweep landed `span=512` as the best arm (GM-MASE 0.848).
-Its loss, `cosine_similarity_batch_no_time_neg`, had the within-series
-time negative removed during ARMA-era tuning. The paper-matching loss
+Its loss, `cosine_similarity_batch_no_time_neg`, has the within-series
+time negative removed (a variant from earlier tuning). The paper-matching loss
 `cosine_similarity_batch` re-introduces that term (plus cross-channel
 time negatives). On periodic data, adjacent latents walk a non-trivial
 manifold, so pushing them apart *might* sharpen the representation. Does
@@ -21,10 +21,10 @@ in-distribution synth?
 > cross-channel time negatives (`hx[c1]` vs `hy[c2]`, summed over all c2).*
 >
 > *Backbone **selector** = which checkpoint is kept as FINAL. `best_gap` =
-> the checkpoint at contrastive-gap saturation (≈step 1600 on synth —
-> effectively early-stopped); `best_loss` = the lowest-backbone-loss
-> checkpoint (later in training). On synth the two pick very different
-> points.*
+> the checkpoint at contrastive-gap saturation (the follow-up measured this
+> at ≈step 1600 on synth — effectively early-stopped); `best_loss` = the
+> lowest-backbone-loss checkpoint (later in training). On synth the two
+> pick very different points.*
 
 ## Result
 
@@ -107,14 +107,18 @@ emits the bar figure. Launch script: [`scripts/run.sh`](scripts/run.sh).
 
 *(The original draft's "higher training-time gap didn't buy better
 forecasts" claim has been removed: the two loss CSVs it rested on are not
-committed anywhere in the repo, and `notes/README.md` notes that gap
-values are not comparable across these two losses — `cosine_similarity_batch`
+committed anywhere in the repo, and `notes/README.md` notes that the
+loss-shape values are not comparable across these two arms — `cosine_similarity_batch`
 has strictly more negative terms, so a higher gap is mechanical, not a
 quality signal.)*
 
 ## Caveats
 
-- Single seed per arm.
+- Single seed per arm. Every GM-MASE/GM-WQL above is a single-seed point
+  estimate over 1024 held-out samples, reported without a confidence
+  interval. The ~4.5% (loss) and ~9% (selector) deltas are point
+  differences, **not significance-tested** — the follow-up itself notes the
+  gap "could partly be sampling noise."
 - This run's backbone was multi-resume (8k→24k→30k); the clean pair shows
   that was ≈ a clean run for the csb arm, but it remains a confound for
   this report's standalone comparison.
@@ -140,11 +144,13 @@ quality signal.)*
 | clean B (`csb`, matched — follow-up) | 0.883 | 0.432 | −77% | −26% | best_loss / clean |
 | Seasonal Naive | 0.497 | 0.344 | 0% | 0% | — |
 
-*Skill = percent improvement over seasonal-naive; negative = worse. Source
-rows in
-[`../2026-04-27__aggregate/results/synth_eval.csv`](../2026-04-27__aggregate/results/synth_eval.csv)
-(local copy: [`results/synth_eval.csv`](results/synth_eval.csv)). The clean
-A/B rows are produced by the follow-up experiment.*
+*Skill = percent improvement over seasonal-naive; negative = worse. All
+five rows live in
+[`../2026-04-27__aggregate/results/synth_eval.csv`](../2026-04-27__aggregate/results/synth_eval.csv);
+the local [`results/synth_eval.csv`](results/synth_eval.csv) holds only
+this run's `+cosine_similarity_batch` row (0.886). The baseline, seasonal-naive,
+and clean A/B rows exist only in the aggregate CSV (the clean A/B rows are
+produced by the follow-up experiment).*
 
 - Backbone `checkpoints/tiny_femu_span512_synth30k_csb_FINAL.pth`
   (~80 MB), qhead `…_csb_FINAL.pth` (~2.5 MB) — **not tracked in git**.

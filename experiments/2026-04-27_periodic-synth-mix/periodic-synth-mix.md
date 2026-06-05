@@ -31,10 +31,10 @@ zero aggregate cost and a small non-periodic tax.
 
 ![MASE on the 6 periodic focus configs: CONTROL 30k (blue), MIX 30k (orange), v3b 120k reference (green), seasonal-naive (black line). Lower is better.](plots/mase_compare.png)
 
-> **Single seed (seed 42), one paired CONTROL/MIX run, no replication — no
-> variance is quantified and the bars carry no error bars.** The −3.4% subset
-> gain and the per-config Δ's below are point estimates from one run each; read
-> magnitudes as indicative, not statistically established.
+> **Single seed (seed 42), one paired CONTROL/MIX run, no replication — these
+> are single-run point estimates, no error bars, and no variance is quantified.**
+> The −3.4% subset gain and the per-config Δ's below are point estimates from one
+> run each; read magnitudes as indicative, not statistically established.
 
 MIX (orange) beats CONTROL (blue) on **4 of 6** focus configs. The wins are
 on weekly and fine-grained (15-/10-min) periodicity — exactly the regime the
@@ -85,8 +85,9 @@ Aggregate GM-Rel is a tie; the action is entirely in the subset structure.
 > and [`../2026-04-17_reconstruction-head/notes/FAILED_EXPERIMENTS.md`](../2026-04-17_reconstruction-head/notes/FAILED_EXPERIMENTS.md).
 > The unreferenced `results/R1v3/all_results.csv` in this dir is **not** its source:
 > recomputed against the SN column of `comparison.txt` it gives GM-Rel **1.1876**
-> (a v3-family backbone, ≈ v3b's 1.1865), not 1.168. v3b (1.1865) and both v3c
-> arms above are recomputed locally.*
+> (script-reconstructed from per-config MASE, not a committed aggregate digest; a
+> v3-family backbone, ≈ v3b's 1.1865), not 1.168. v3b (1.1865) and both v3c arms
+> above are recomputed locally.*
 
 The CONTROL–MIX aggregate gap is 0.0009 (within single-run noise). CONTROL at
 30k is ~2.6% worse than v3b-120k — a modest under-training discount at matched
@@ -195,7 +196,8 @@ repo — so they are estimates, not measurements.)*
 
 - **A pure-periodic synth signal does teach period detection** — the 4/6
   periodic wins, concentrated on weekly/fine-grained configs and in the
-  Econ/Fin domain, are real.
+  Econ/Fin domain, are observed in this single seed-42 paired run (directional,
+  not statistically established).
 - **…but it does not transfer cleanly to noisy, multi-scale real data.** The
   two hourly losses (m4_hourly/H, solar/H) and the +19% head MSE point the same
   way. Likely causes, all consistent with a backbone over-trusting clean
@@ -205,10 +207,13 @@ repo — so they are estimates, not measurements.)*
      locks onto the stronger short period.
   2. **Real hourly data is noisy** (solar weather irregularity); a clean-synth
      model over-projects its trust when the signal is noisier.
-- **At this scale, compute beats synth-data design.** The v2 backbone (500k
-  steps, synthetic pre-train; aggregate 1.168 carried from its originating eval,
-  see † above) still beats the 30k synth mix at aggregate. Synth helps the
-  targeted slice but is not a shortcut around training budget.
+- **At this scale, more compute + a different backbone + synthetic pretrain
+  beats this synth-data mix.** The v2 backbone (500k steps, synthetic pre-train;
+  aggregate 1.168 carried from its originating eval, see † above) still beats the
+  30k synth mix at aggregate — but it differs in three things at once (500k vs
+  30k steps, v2 vs v3c backbone, and synthetic pretrain), so this is not isolated
+  "compute". Synth helps the targeted slice but is not a shortcut around training
+  budget.
 
 ## Addendum — extending MIX to 90k
 
@@ -225,7 +230,17 @@ on the 90k backbone, and full GIFT-Eval B4 re-run.
 
 *(Reconstructed from committed per-config MASE in
 `../2026-04-27_freq-embedding/results/R1v3c_{ctrl,mix,mix_90k}/all_results.csv`,
-scored against the SN column of `results/comparison.txt`.)*
+scored against the SN column of `results/comparison.txt`. The MIX-90k aggregate
+**1.2105** is script-reconstructed from those per-config values, not a committed
+aggregate digest. CTRL/MIX 30k here use the full-precision freq CSVs; the main
+table above re-derives the same two runs from `comparison.txt`'s 3-dp MASE — see
+the reconciliation note below.)*
+
+> *Reconciliation: the addendum's CTRL 1.2174 / MIX 1.2165 and the main table's
+> CTRL 1.2173 / MIX 1.2164 are the **same two 30k runs**, differing only by
+> 0.0001 — the main table re-derives them from `comparison.txt`'s 3-dp MASE while
+> the addendum uses the full-precision freq-embedding CSVs (rounding, not
+> different runs).*
 
 3× more training improves what we asked it to: aggregate **−0.5%**, periodic
 **−1.9%** vs MIX 30k. Per-config, **m4_hourly/H/short 6.04 → 5.40** (the biggest
@@ -265,5 +280,6 @@ All under `experiments/2026-04-27_periodic-synth-mix/`:
 - [`results/seasonal_naive_sanity.txt`](results/seasonal_naive_sanity.txt) — SN / naive baselines on synth.
 - Per-config raw MASE for the three arms: `../2026-04-27_freq-embedding/results/R1v3c_{ctrl,mix,mix_90k}/all_results.csv`.
 
-Code: `src/synthetic_periodic.py`, `src/dataloader.py::MixedPeriodicLoader`,
+Code: `src/synthetic_periodic.py`, `src/dataloader.py::create_mixed_periodic_dataloader`
+(the factory `train.py` imports and calls; returns a `MixedPeriodicLoader`),
 and [`scripts/`](scripts/) (train, inspect, sanity-check, plotting, comparison, sync).

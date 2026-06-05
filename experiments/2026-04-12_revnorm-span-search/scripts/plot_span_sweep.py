@@ -120,7 +120,7 @@ def main():
     ax.set_xlabel("RevEWMNorm span  (smaller = faster EMA adaptation)")
     ax.set_ylabel("best contrastive gap @ 3k steps  (FF − FP)")
     ax.set_title(
-        "RevEWMNorm span sweep on ARIMA(1,p,q), p,q in [1,8] — sub-patch span wins\n"
+        "RevEWMNorm span sweep on ARIMA(1,p,q), p,q in [1,8] — sub-patch span best-observed\n"
         "single run per span, 3k steps, Tiny backbone (W=16)",
         fontsize=11,
     )
