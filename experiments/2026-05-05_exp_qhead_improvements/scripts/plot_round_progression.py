@@ -96,7 +96,7 @@ ax.set_xticks(x)
 ax.set_xticklabels(labels, fontsize=9)
 ax.set_ylabel("Triage GM-Rel MASE  (11-config proxy; lower better)")
 ax.set_title("Head-improvement rounds: triage GM-Rel MASE\n"
-             "R9_E13 (e_then_f) is the only round below seasonal-naive")
+             "the two e_then_f rounds (R9_E13 best at 0.990) are the only ones below seasonal-naive")
 ax.set_ylim(0.80, 1.16)
 ax.legend(loc="upper right", fontsize=8.5, framealpha=0.95)
 ax.grid(axis="y", alpha=0.3, zorder=0)

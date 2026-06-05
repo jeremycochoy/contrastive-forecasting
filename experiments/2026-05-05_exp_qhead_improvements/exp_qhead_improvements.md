@@ -21,8 +21,9 @@ GIFT-Eval accuracy, and can it reach Moirai's 0.809?**
 ## Result
 
 Two head changes carry almost all of the gain. **(1)** Replace the
-legacy bidirectional GRU head with a *causal transformer* matching the
-backbone's depth and width (12 layers, H=384, nhead=6). **(2)** Match
+legacy bidirectional GRU head with a *causal transformer* at the
+backbone's width (H=384, nhead=6), stacked to 12 layers — deeper than the
+6-layer backbone. **(2)** Match
 the head's train-time input layout to what it sees at eval — feed it
 `[encoder-latents, forecaster-latents]` (`e_then_f`) under a leak-free
 causal mask instead of forecaster-latents only. Together these take
