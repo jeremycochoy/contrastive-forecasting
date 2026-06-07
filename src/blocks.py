@@ -1,7 +1,9 @@
 import math
+import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.utils.checkpoint
 from typing import Union, Callable, Optional
 from torch import Tensor
 
@@ -811,11 +813,22 @@ class TransformerBlock(nn.Module):
         # all-but-last under outer autocast, last layer in fp32 so the
         # forecaster latent feeding the loss is full precision.
         n_fcst = len(self.layers)
+        # Optional gradient-checkpointing of the (non-last) forecaster layers,
+        # mirroring the encoder-layer checkpointing — env-gated and training-only,
+        # so it is BYTE-IDENTICAL (exact recompute) and a no-op for every existing
+        # run/checkpoint. Lets the full-width-forecaster arm fit a single 24 GB card.
+        fcst_ckpt = (os.environ.get("FCST_GRAD_CKPT", "0") == "1"
+                     and self.training and x.requires_grad)
         for i, layer in enumerate(self.layers):
             if i == n_fcst - 1:
                 with torch.amp.autocast('cuda', enabled=False):
                     x = x.float()
                     x = layer(x, tgt_mask=self.causal_mask, tgt_is_causal=True)
+            elif fcst_ckpt:
+                x = torch.utils.checkpoint.checkpoint(
+                    lambda inp, lyr=layer: lyr(inp, tgt_mask=self.causal_mask,
+                                               tgt_is_causal=True),
+                    x, use_reentrant=False)
             else:
                 x = layer(x, tgt_mask=self.causal_mask, tgt_is_causal=True)
         if n_fcst > 0:

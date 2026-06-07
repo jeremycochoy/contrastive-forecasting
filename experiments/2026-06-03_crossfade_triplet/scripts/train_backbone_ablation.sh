@@ -24,7 +24,11 @@ RUNS="$OUT/runs"; RES="$OUT/results"; mkdir -p "$RUNS" "$RES"
 BB="$RUNS/${NAME}_FINAL.pth"
 export PYTHONPATH="$WT" PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True OMP_NUM_THREADS=8
 export XSHH_ALLT_CHUNK="${XSHH_ALLT_CHUNK:-2}" CUDA_VISIBLE_DEVICES="$GPU"
-export PATCH_ENC_CKPT=1 PATCH_ENC_CHUNK=4   # GRU memory mgmt for 1-GPU b1024 (byte-identical)
+export PATCH_ENC_CKPT=1 PATCH_ENC_CHUNK="${PATCH_ENC_CHUNK:-4}"   # GRU memory mgmt for 1-GPU b1024 (byte-identical)
+# The no-bottleneck arm (6-layer enc + full-width forecaster) is the largest and
+# needs the forecaster also gradient-checkpointed + the all-time Gram at chunk 1
+# to fit a single 24 GB card (byte-identical; recompute-for-memory).
+[ "$ARM" = nobn ] && { export FCST_GRAD_CKPT=1; export XSHH_ALLT_CHUNK=1; }
 export HF_TOKEN="$(cat "$WT/experiments/hf_token.txt" 2>/dev/null)"; export HUGGING_FACE_HUB_TOKEN="$HF_TOKEN"
 TRAIN="$WT/experiments/2026-04-27_freq-embedding/scripts/train.py"
 log(){ echo "[$(date '+%m-%d %H:%M:%S')] [bb-$ARM g$GPU] $*"; }
