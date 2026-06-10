@@ -382,6 +382,14 @@ def parse_args():
                         "(cosine_similarity_batch[_no_time_neg/_square/"
                         "_full_fh_negs]); a no-op default keeps every prior "
                         "run's objective unchanged.")
+    p.add_argument("--stopgrad-positive-h", action="store_true",
+                   help="SimSiam/BYOL-style target stop-grad on the InfoNCE "
+                        "positive: sim(sg(h_{t+1}), f_{t+1}) — the encoder "
+                        "side of the positive pair is detached everywhere "
+                        "that term appears (numerator and, with "
+                        "--pos-in-denominator, denominator). Negatives keep "
+                        "gradient on h; forward loss value is unchanged. "
+                        "Only the xshh_allt loss shape (raises otherwise).")
     p.add_argument("--align-loss-weight", type=float, nargs="?",
                    const=1.0, default=0.0,
                    help="λ for a BYOL/SimSiam alignment term "
@@ -765,6 +773,7 @@ def main():
     # Override the loss_shape from CLI (LOSS_SPEC is a module-level default).
     LOSS_SPEC.train_configuration["loss_shape"] = args.loss_shape
     LOSS_SPEC.train_configuration["include_positive_in_denominator"] = args.pos_in_denominator
+    LOSS_SPEC.train_configuration["stopgrad_positive_h"] = args.stopgrad_positive_h
     LOSS_SPEC.train_configuration["align_loss_weight"] = args.align_loss_weight
     LOSS_SPEC.train_configuration["subtract_contrastive_floor"] = args.subtract_contrastive_floor
     if args.tau is not None:
