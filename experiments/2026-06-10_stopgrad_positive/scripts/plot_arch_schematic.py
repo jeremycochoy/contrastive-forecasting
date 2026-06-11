@@ -30,9 +30,9 @@ box(2.45, Y, 1.15, 0.85, "EWMA\nnorm")
 box(4.15, Y, 1.45, 0.85, "GRU patch\nencoder")
 box(6.15, Y, 2.05, 0.85, "causal transformer\nencoder — 3 layers")
 box(8.75, Y, 0.62, 0.85, "h", fc="#dcead8", ec="#3a7d3a", fs=13, bold=True)
-box(9.95, Y, 2.35, 0.85, "causal transformer\nforecaster — 6 layers\nfull width, no bottleneck", fs=9)
+box(9.95, Y, 2.2, 0.85, "causal transformer\nforecaster — 6 layers\nfull width, no bottleneck", fs=9)
 box(12.4, Y, 0.5, 0.85, "f", fc="#f6e3d6", ec="#b65d23", fs=13, bold=True)
-for x0, x1 in [(1.9, 2.45), (3.6, 4.15), (5.6, 6.15), (8.2, 8.75), (9.37, 9.95), (12.3, 12.4)]:
+for x0, x1 in [(1.9, 2.45), (3.6, 4.15), (5.6, 6.15), (8.2, 8.75), (9.37, 9.95), (12.15, 12.4)]:
     arrow((x0, Y + 0.42), (x1, Y + 0.42))
 ax.text(8.75 + 0.31, Y + 1.05, "encoder output\n= contrastive target", ha="center",
         fontsize=8.5, color="#3a7d3a")
@@ -46,18 +46,18 @@ box(4.6, 0.25, 4.9, 1.0,
 
 # forward arrows into the loss
 arrow((9.06, Y - 0.06), (7.6, 1.32), color="#3a7d3a", label="target  h$_{t+1}$", lab_dxy=(0.25, -0.62))
-arrow((12.6, Y - 0.06), (9.35, 1.1), color="#b65d23", label="forecast  f$_{t+1}$", lab_dxy=(0.75, 0.12))
+arrow((12.6, Y - 0.06), (9.35, 1.1), color="#b65d23", label="forecast  f$_{t+1}$", lab_dxy=(-0.3, -0.55))
 
 # gradient arrows out of the loss
 arrow((9.6, 1.35), (12.45, Y - 0.12), color="#b65d23", ls="--", lw=1.8,
-      label="∂L/∂f — both arms", lab_dxy=(0.9, -0.25))
+      label="∂L/∂f — both arms", lab_dxy=(0.75, -0.3))
 arrow((6.9, 1.4), (8.85, Y - 0.12), color="#888888", ls="--", lw=1.8)
 ax.text(6.25, 2.82, "reference arm:\n∂L/∂h flows back to h", fontsize=9, color="#555555",
         ha="center")
 # the stop-grad cut
 ax.plot([7.78, 8.12], [2.18, 2.52], color="#d62728", lw=3.5)
 ax.plot([7.78, 8.12], [2.52, 2.18], color="#d62728", lw=3.5)
-ax.plot([4.35, 7.6], [2.3, 2.32], color="#d62728", lw=1.0, ls=":")
+ax.plot([4.55, 7.68], [2.3, 2.33], color="#d62728", lw=1.0, ls=":")
 ax.text(2.55, 2.3, "stop-grad arm: detach(h$_{t+1}$)\nin the positive — encoder gets\ngradient from negatives only",
         fontsize=10, color="#d62728", ha="center", va="center", fontweight="bold")
 

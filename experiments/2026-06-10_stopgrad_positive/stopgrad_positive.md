@@ -72,8 +72,8 @@ across time. The single change produces three clear differences:
 - **Discrimination is barely affected.** Ranking the positive against the negatives, the
   stop-grad arm scores AUC 0.998 with the positive ranked first (Top-1) ~92% of the time late
   in training, vs the reference's 1.000/1.000; cross-series cosine 0.022 vs 0.003,
-  near-orthogonal in both. The cut changes how
-  far the positive pair is pulled together, not whether pairs are told apart.
+  near-orthogonal in both. The stop-grad changes how far the positive pair is pulled together,
+  not whether the model can tell pairs apart.
 
 Both arms subtract the same floor constant, and the stop-grad leaves the forward loss value
 bit-identical (unit-tested), so the loss curves are directly comparable.
@@ -91,10 +91,9 @@ noise.
 
 ## What we learned
 
-- **Training does not break, and the higher pretext loss is not worse transfer.** The stop-grad
-  arm's contrastive loss stays about 5.5× higher than the reference's, yet it transfers better.
-  A lower contrastive loss therefore does not imply better transfer: the higher-loss arm wins
-  every matched cell, reliably so at the best-loss checkpoint.
+- **Training does not break.** The stop-grad arm's contrastive loss stays about 5.5× higher
+  than the reference's, yet it transfers better — it wins every matched cell, reliably so at
+  the best-loss checkpoint. A lower contrastive loss does not imply better transfer.
 - **The transfer peak arrives at about half the budget**: the reference needs all 12.5k steps
   for its best downstream score; the stop-grad arm matches that level by ~6.6k, and its two
   measured checkpoints differ by less than task-set noise.
