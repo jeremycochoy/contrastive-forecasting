@@ -11,9 +11,9 @@ dynamics and the downstream transfer of that recipe?
 batch-wise dimension usage settles ~4× higher), and the downstream forecast is **reliably better
 at the best-loss checkpoint on both heads** (2-layer −0.043, 6-layer −0.052; both 90% intervals
 fully below zero) and statistically tied at the last checkpoint. The stop-grad arm is nominally
-better in all four cells, and its 6-layer best-loss score (1.159) is the lowest GM-Relative MASE
-among the 2L/6L-head evaluations in this recipe line (deeper or longer-trained heads elsewhere
-in the project have scored lower).
+better in all four cells, and its 6-layer best-loss score (1.159) is the lowest of the eight
+cells measured here, below the reference's strongest cell (1.170, last checkpoint). Deeper or
+longer-trained heads elsewhere in the project have scored lower.
 
 *Forecast error is **GM-Relative MASE**: the geometric mean, over the GIFT-Eval benchmark's 97
 forecasting tasks, of a model's error divided by the seasonal-naive forecast's error. Lower is
@@ -23,26 +23,29 @@ better; 1.0 is seasonal-naive.*
 (blue) in every cell. Right: the paired-bootstrap change with its 90% interval — green intervals
 sit fully below zero (reliable improvement), grey straddle it.](plots/gm_summary.png)
 
-| forecasting head | checkpoint | reference | stop-grad | change | 90% interval |
-|---|---|--:|--:|--:|:--:|
-| 2-layer | best-loss | 1.220 | **1.177** | **−0.043** | (−0.071, −0.016) |
-| 2-layer | last (12.5k) | 1.181 | 1.180 | −0.001 | (−0.024, +0.023) |
-| 6-layer | best-loss | 1.211 | **1.159** | **−0.052** | (−0.079, −0.025) |
-| 6-layer | last (12.5k) | 1.170 | 1.163 | −0.007 | (−0.028, +0.015) |
+**Lower is better; bold = best score per head.** Δ = stop-grad − reference at the same head and
+checkpoint, with a **paired bootstrap** 90% interval (resample the 97-task list with repeats,
+score both arms on each resample so per-task difficulty cancels).
 
-Each change carries a **paired bootstrap** 90% interval (resample the 97-task list with repeats,
-score both models on each resample so per-task difficulty cancels). Both best-loss improvements
-are reliable; both last-checkpoint changes are within task-set noise. The reference's last
-checkpoint beats its own best-loss checkpoint by ~0.04 on both heads; the stop-grad arm is
-already at that level at its best-loss checkpoint — step ~6.6k, about half the training budget.
-Comparing each arm's strongest measured cell directly (stop-grad best-loss vs reference last),
-the stop-grad arm is nominally ahead on both heads (2L −0.004, CI (−0.028, +0.022); 6L −0.011,
-CI (−0.032, +0.011)) but within noise.
+| backbone | checkpoint | 2-layer head | Δ (90% interval) | 6-layer head | Δ (90% interval) |
+|---|---|--:|:--:|--:|:--:|
+| reference | best-loss (~6.4k) | 1.220 | — | 1.211 | — |
+| reference | last (12.5k) | 1.181 | — | 1.170 | — |
+| stop-grad | best-loss (~6.6k) | **1.177** | −0.043 (−0.071, −0.016) | **1.159** | −0.052 (−0.079, −0.025) |
+| stop-grad | last (12.5k) | 1.180 | −0.001 (−0.024, +0.023) | 1.163 | −0.007 (−0.028, +0.015) |
+
+Both best-loss improvements are reliable (the whole interval below zero); both last-checkpoint
+changes are within task-set noise. The reference's last checkpoint beats its own best-loss
+checkpoint by ~0.04 on both heads; the stop-grad arm is already at that level at its best-loss
+checkpoint, about half the training budget. Comparing each arm's strongest measured cell
+directly (stop-grad best-loss vs reference last), the stop-grad arm is nominally ahead on both
+heads (2L −0.004, CI (−0.028, +0.022); 6L −0.011, CI (−0.032, +0.011)) but within noise.
 
 ## Training dynamics: alignment stalls, no low-rank collapse
 
 ![Training metrics, log-log, stop-grad (solid red) vs the reference (dashed blue), from step
-100. Top row, lower is better: contrastive loss minus the analytic InfoNCE floor, the ratio gap
+100. Top row, lower is better: contrastive loss minus the analytic InfoNCE floor (the loss's
+lower bound for this negative count), the ratio gap
 (1−ff)/(1−fp), and 1−R²_naive. Bottom row: 1−R²_random (lower is better), then U_batch and
 U_temporal (higher = more embedding dimensions in use).](plots/training_metrics.png)
 
@@ -57,7 +60,7 @@ across time. The single change produces three clear differences:
   (the reference climbs to 0.99). The floor-subtracted loss settles around ≈5.5–6.1 (smoothed)
   after ~4k steps — its minimum (the evaluated best-loss checkpoint) at step ~6.6k — and ends
   at 5.88, about 5.5× the reference's 1.06. The skill metrics sit correspondingly higher
-  (1−R²_naive 0.66 vs 0.011).
+  (1−R²_naive 0.67 vs 0.012).
 - **Batch-wise dimension usage settles ~4× higher.** U_batch climbs to ~0.5 by ~3k steps and
   holds; the reference's never rises above ~0.14. Neither arm *falls* from a high value — the
   difference is the level reached, i.e. the reference trains in a much lower-rank regime
@@ -65,8 +68,8 @@ across time. The single change produces three clear differences:
   extra rank is across series, not across time.
 - **Discrimination is barely affected.** The reference ranks the positive above every negative
   essentially always (AUC and Top-1 = 1.000); the stop-grad arm nearly so (AUC 0.998, Top-1
-  ~0.92 late), and different series stay near-orthogonal in both (cross-series cosine 0.024 vs
-  0.002). The stop-grad mainly changes how far the positive pair is pulled together, not
+  ~0.92 late), and different series stay near-orthogonal in both (cross-series cosine 0.022 vs
+  0.003). The stop-grad mainly changes how far the positive pair is pulled together, not
   whether the model can tell pairs apart.
 
 Both arms subtract the same floor constant, and the stop-grad leaves the forward loss value
