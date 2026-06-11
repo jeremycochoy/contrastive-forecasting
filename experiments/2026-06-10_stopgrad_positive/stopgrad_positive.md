@@ -47,15 +47,16 @@ CI (−0.032, +0.011)) but within noise.
 U_temporal (higher = more embedding dimensions in use).](plots/training_metrics.png)
 
 Here **ff** is the forecast-to-future cosine (the positive pair's similarity), **fp** the
-forecast-to-present cosine, and **U_batch / U_temporal** the fraction of embedding dimensions
-that vary across the batch / across time. The single change splits the dynamics into two
-regimes:
+forecast-to-present cosine, **R²_naive / R²_random** the variance in the future embedding
+explained by the forecast, relative to a copy-the-present / random-embedding baseline, and
+**U_batch / U_temporal** the fraction of embedding dimensions that vary across the batch /
+across time. The single change splits the dynamics into two regimes:
 
 - **The positive alignment stalls.** With the encoder no longer pulled toward the forecast, the
   forecast-to-future cosine reaches ~0.44 by step 500 and stays there to the end (the reference
-  climbs to 0.99). The floor-subtracted loss settles in a 5.2–5.9 band after ~4k steps — its
-  minimum (the evaluated best-loss checkpoint) at step ~6.1k, ending at 5.86 — about 5.6× the
-  reference's 1.04. The skill metrics sit correspondingly higher (1−R²_naive 0.66 vs 0.011).
+  climbs to 0.99). The floor-subtracted loss settles around ≈5.5–6.1 (smoothed) after ~4k steps
+  — its minimum (the evaluated best-loss checkpoint) at step ~6.1k, ending at 5.86 — about 5.6×
+  the reference's 1.04. The skill metrics sit correspondingly higher (1−R²_naive 0.66 vs 0.011).
 - **Batch-wise dimension usage settles ~4× higher.** U_batch climbs to ~0.50 by ~2k steps and
   holds; the reference's never rises above ~0.14. Neither arm *falls* from a high value — the
   difference is the level reached, i.e. the reference trains in a much lower-rank regime
