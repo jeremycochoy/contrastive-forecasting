@@ -1,4 +1,4 @@
-# Crossfade triplet on the 0.8%-fork base — disentangling triplet, bottleneck, and encoder depth
+# Disentangling the crossfade triplet from bottleneck removal and encoder depth
 
 ## Question
 
@@ -15,73 +15,60 @@ scored through a quantile head, once two-layer (**2L**) and once six-layer (**6L
 difference from the base carries a 90% **paired-bootstrap** interval over the 97 tasks. One backbone
 seed per arm, so intervals are over tasks, not seeds.*
 
-## Result — checkpoint selection decides the verdict
+## Result
 
-The combined arm **L3+nobn+triplet** is neutral at its best-loss checkpoint but reliably better than
-the base after full training (the last checkpoint).
-
-| arm vs base | head | best-loss GM | Δ (90% CI) | last GM | Δ (90% CI) |
-|---|---|--:|:--:|--:|:--:|
-| L3+nobn+triplet | 2L | 1.220 | +0.007 (−0.014, +0.028) | **1.181** | **−0.032 (−0.050, −0.014)** |
-| L3+nobn+triplet | 6L | 1.211 | +0.013 (−0.012, +0.036) | **1.170** | **−0.029 (−0.049, −0.011)** |
-
-Base GM is 1.213 (2L) and 1.198 (6L). Selecting the backbone by lowest contrastive loss hid this
-gain; evaluating at full training revealed it. (The two checkpoint columns also differ in head
-protocol — fresh heads at best-loss, re-adapted at last, identically for every arm; see Protocol.)
-
-## Disentanglement — the gain tracks the triplet, not bottleneck removal
-
-Running the three changes one at a time (same base, same seed, same budget) separates their effects.
-The figure reads every 12.5k-budget arm against the base at both checkpoints and heads; exact values
-are in the Scoreboard.
+The triplet is the change that matters, and the experiment ends with two winners. **base+triplet**
+(the unmodified base plus only the triplet) is reliably better than the base with no architecture
+change at all; it holds the best score at the best-loss checkpoint and has the most stable gain
+across checkpoints. **L3+nobn+triplet** (the combined arm, no bottleneck) is neutral at its
+best-loss checkpoint but reliably better after full training on both heads, where it holds the best
+score overall. Neither architecture change alone gives a reliable both-head improvement, and the
+no-bottleneck 6-layer configuration ends reliably worse with or without the triplet.
 
 ![Change in GM-Relative MASE vs the base for every 12.5k-budget arm at the best-loss (solid) and
 last (hatched) checkpoints, 2L and 6L heads. Bars below zero are improvements; green and red mark a
 90% interval clear of zero (reliably better / reliably worse), grey is within noise.](plots/gm_summary.png)
 
+Selecting the backbone by lowest contrastive loss would have hidden the headline gain; evaluating at
+full training revealed it. (The two checkpoints also differ in head protocol — fresh heads at
+best-loss, re-adapted at last, identically for every arm; see Protocol.)
+
+## Which change is responsible
+
+Running the changes one at a time, and adding the triplet to other hosts, separates the effects
+(arm definitions in the annex; all numbers in the Scoreboard).
+
 **Dropping the bottleneck alone (L6+nobn)** is reliably worse in all four head × checkpoint cells;
 **shrinking the encoder alone (L3)** is inconsistent; **L3+nobn** is neutral except a marginal
-6L-last gain (−0.015). Adding the triplet is the only change that turns the arm into a reliable
-both-head improvement, so the full-training gain tracks the triplet. The direct paired contrast of
-L3+nobn+triplet against L3+nobn at the last checkpoint puts the triplet's own increment at −0.035
-(−0.050, −0.020) at 2L (reliable) and −0.014 (−0.030, +0.002) at 6L.
-
-## Triplet isolation — the triplet alone is sufficient on the base
-
-The headline arm bundles the triplet with two architecture changes. Two further arms isolate the
-triplet: each differs from its own reference by the triplet alone.
+6L-last gain. Adding the triplet is the only change that turns the arm into a reliable both-head
+improvement, so the full-training gain tracks the triplet. The triplet's own increment — the direct
+paired contrast of L3+nobn+triplet against L3+nobn — is reliable at 2L and same-direction, within
+noise, at 6L.
 
 **The triplet alone is sufficient.** **base+triplet** (the unmodified base plus only the triplet) is
-reliably better at both heads at best-loss (−0.027 / −0.013) and keeps its 2L gain at the last
-checkpoint (−0.025); only 6L-last is within noise (−0.008, same direction). Unlike the headline arm,
-its 2L verdict does not depend on checkpoint selection, and its gain is comparable to the headline
-arm's (−0.032 at 2L-last) — the architecture changes are not needed for the effect. The [predecessor
+reliably better at both heads at best-loss and keeps its 2L gain at the last checkpoint; only
+6L-last is within noise, in the same direction. Unlike the headline arm, its 2L verdict does not
+depend on checkpoint selection, and its gain is comparable to the headline arm's — the architecture
+changes are not needed for the effect. The [predecessor
 experiment](../2026-06-01_crossfade_allt10/crossfade_allt10.md) (a C-only crossfade slice on the
-10%-fork base) gave ≈−0.013 over its base — same direction, smaller.
+10%-fork base) found a smaller gain in the same direction.
 
 **The failure case is the no-bottleneck 6-layer configuration, not 6-layer encoders.**
-**L6+nobn+triplet** ends reliably worse than the base on both heads and degrades with training (2L
-last Δ +0.100). The direct paired contrast against L6+nobn (2L +0.039 [+0.017, +0.062], 6L +0.042
-[+0.017, +0.067]) shows the triplet actively hurts the one host that is already reliably worse on
-its own; it helps on the base (with bottleneck) and, at full training, on L3+nobn.
+**L6+nobn+triplet** ends reliably worse than the base on both heads and degrades with training. The
+direct paired contrast against L6+nobn shows the triplet reliably hurts the one host that is already
+reliably worse on its own; it helps on the base (with bottleneck) and, at full training, on L3+nobn.
 
-## Train-longer hurts
+## Training longer
 
 Extending the combined backbone from 12,500 to 25,000 steps (fresh data, equivalent to a single
-25k-step run) does not help. The eval uses a fresh 30k head, so the controlled comparisons are
-against the base and against the fresh-head best-loss checkpoint (step 6,400: 1.220 / 1.211):
+25k-step run) does not help. With fresh heads on both sides, the step-25k backbone is reliably worse
+than the base on both heads, and worse than the fresh-head best-loss checkpoint — reliably at 2L,
+same direction at 6L. 25k steps is ≈0.6 of one epoch of the pretrain set (epoch arithmetic in
+Protocol), so the degradation arrives within the first epoch — data starvation is not the cause.
+*Protocol note:* the 12.5k headline used a re-adapted head, so it sits on a different head-protocol
+curve and is not used for this contrast.
 
-| arm (step 25k, fresh head) | head | GM | Δ vs base (90% CI) | Δ vs step-6.4k (90% CI) |
-|---|---|--:|:--:|:--:|
-| L3+nobn+triplet @25k | 2L | 1.249 | +0.037 (+0.018, +0.055) worse | +0.030 (+0.002, +0.059) worse |
-| L3+nobn+triplet @25k | 6L | 1.222 | +0.024 (+0.013, +0.035) worse | +0.011 (−0.014, +0.037) ns |
-
-25k steps is ≈0.6 of one epoch (the pretrain set `small_v1` holds 42,571,692 windows; at 1,016 real
-rows/step one pass ≈ 41,900 steps), so the degradation arrives within the first epoch — data
-starvation is not the cause. *Protocol note:* the 12.5k headline (1.181 / 1.170) used a re-adapted
-head, so it is not on this fresh-head curve and is not used for the contrast.
-
-## Training dynamics — pretext loss does not predict transfer
+## Training dynamics
 
 The combined arm trains cleanly and does not collapse. The panels below overlay all arms on log-log
 axes.
@@ -93,12 +80,12 @@ moving average. Lower is better for: contrastive loss above its InfoNCE floor; t
 to a latent-persistence / random-pair baseline. Higher is better for: U_batch and U_temporal, the
 fraction of embedding dimensions in use.](plots/disentangle_metrics.png)
 
-At step 12,500 the pretext extremes sit in the opposite order downstream: the triplet gives the
-hardest pretext (loss 1.065 vs 0.895 for the base) yet improves transfer, while dropping the
-bottleneck gives the easiest (L6+nobn: loss 0.662, most used dimensions among the no-triplet arms)
-yet is reliably worse in all four cells. A harder pretext is not required either: base+triplet
-leaves the loss at the base value (0.881 vs 0.895) and still transfers better. No arm collapsed
-(used dimensions stay above zero; forecast-to-future cosine ≈0.99).
+At step 12,500 the pretext extremes sit in the opposite order downstream: the triplet arms give the
+hardest pretext yet improve transfer, while dropping the bottleneck gives the easiest pretext (and
+the most used dimensions among the no-triplet arms) yet is reliably worse in all four cells. A
+harder pretext is not required for a gain either: base+triplet leaves the pretext loss essentially
+at the base value and still transfers better. No arm collapsed: used dimensions stay above zero and
+the forecast-to-future cosine approaches one.
 
 ## Scoreboard
 
@@ -128,6 +115,17 @@ marks the best score per head in each checkpoint column.*
 | base+triplet | 2L | **1.186** | −0.027 (−0.042, −0.011) better | 1.187 | −0.025 (−0.042, −0.008) better |
 | base+triplet | 6L | **1.185** | −0.013 (−0.025, −0.002) better | 1.190 | −0.008 (−0.020, +0.003) ns |
 
+*Direct paired contrasts between arms (same metric and interval; last checkpoint unless stated):*
+
+| contrast | head | Δ (90% CI) |
+|---|---|:--:|
+| the triplet's increment: L3+nobn+triplet − L3+nobn | 2L | −0.035 (−0.050, −0.020) better |
+| the triplet's increment: L3+nobn+triplet − L3+nobn | 6L | −0.014 (−0.030, +0.002) ns |
+| the triplet on the failing host: L6+nobn+triplet − L6+nobn | 2L | +0.039 (+0.017, +0.062) worse |
+| the triplet on the failing host: L6+nobn+triplet − L6+nobn | 6L | +0.042 (+0.017, +0.067) worse |
+| training longer: @25k − best-loss (step 6,400), fresh heads | 2L | +0.030 (+0.002, +0.059) worse |
+| training longer: @25k − best-loss (step 6,400), fresh heads | 6L | +0.011 (−0.014, +0.037) ns |
+
 ## Protocol
 
 Each arm starts from the base recipe and changes only the stated components, holding everything else
@@ -140,7 +138,8 @@ fixed: the two batch-1024 stabilisers (**QK-norm** and an **attention-output nor
 temperature, and the random seed. The **triplet** adds, per step, one z-normalised window pair
 (A_norm, B_norm) and their blend C on top of the natural batch — C copies A's past, ramps across a
 transition band, and copies B's future, so position no longer separates the spliced window from its
-neighbours; the annex shows one example.
+neighbours; the annex shows one example. One epoch of the pretrain set `small_v1` (42,571,692
+windows) is ≈ 41,900 steps at 1,016 real rows per step.
 
 Each backbone is scored frozen, under two head protocols. At the **best-loss checkpoint** (lowest
 contrastive loss) a fresh 2L and a fresh 6L quantile head are trained on top (30k steps, batch 256)
@@ -161,26 +160,20 @@ isolate the components.
    combination with the triplet is, and only at full training.
 3. **The triplet alone is sufficient on the base.** base+triplet is reliably better at both heads at
    best-loss, with no architecture change.
-4. **Train-longer hurts.** Extending to 25k steps reliably worsens both heads, within the first
+4. **Training longer hurts.** Extending to 25k steps reliably worsens both heads, within the first
    epoch.
 5. **Pretext loss does not predict transfer in either direction** — checkpoint and arm selection
    should not be driven by the contrastive loss.
 
-## Follow-up — two candidate recipes and a stop-gradient test
-
-Two configurations improve on the base and carry forward: **base+triplet** (128-wide bottleneck
-kept) — the smaller gain but robust to checkpoint choice at 2L, and the simplest change — and
-**L3+nobn+triplet** (full-width forecaster) — the best single number (6L last 1.170) but only at
-full training, and it needed the encoder shrink to work.
-
-*Hypothesis — beyond what the data shows directly.* The L6+nobn results are consistent with the
-bottleneck protecting the objective from being exploited: with a full-width forecaster and no other
-change, the contrastive loss falls to 0.662 (base: 0.895) while the arm is reliably worse than the
-base in all four cells, i.e. the extra width appears to serve the pretext rather than the forecast.
-If the objective were fixed so that a full-width forecaster cannot exploit it, the no-bottleneck line
-would be the preferred direction — the forecaster would learn at the encoder's width instead of
-through a 128-wide pinch. The planned stop-gradient run (stop-grad on the encoder side of the
-positive term, numerator and denominator) is exactly such an attempt.
+Two winners carry forward: **base+triplet** — the best score at the best-loss checkpoint, the
+simplest change, and robust to checkpoint choice at 2L — and **L3+nobn+triplet** — the best score at
+full training, and the best recipe without a bottleneck. *Hypothesis — beyond what the data shows
+directly:* the L6+nobn results are consistent
+with the bottleneck protecting the objective from being exploited — with a full-width forecaster and
+no other change, the pretext loss falls well below the base's while the forecast is reliably worse —
+so if the objective were fixed (for example with a stop-gradient on the encoder side of the positive
+term), the no-bottleneck line would be the preferred direction: the forecaster would learn at the
+encoder's width instead of through a 128-wide pinch.
 
 ---
 
@@ -196,18 +189,17 @@ paired-bootstrap interval per domain. Green = reliable improvement, red = reliab
 within noise.](plots/perdomain_delta_last.png)
 
 At the last checkpoint — where the aggregate gain is — the only both-head reliable effect is an
-improvement on Energy, the largest domain (−0.066 at 2L, −0.089 at 6L, 32 tasks). Nature and
-Healthcare improve reliably at 2L, Sales at 6L; Transport worsens reliably at 2L (+0.036).
+improvement on Energy, the largest domain. Nature and Healthcare improve reliably at 2L, Sales at
+6L; Transport worsens reliably at 2L.
 
 ![Per-domain change in error for the combined arm at its best-loss checkpoint, both heads, with the
 90% paired-bootstrap interval per domain. Green = reliable improvement, red = reliable worsening,
 grey = within noise.](plots/perdomain_delta.png)
 
 At the best-loss checkpoint — where the aggregate is neutral — the only both-head reliable effect is
-a worsening on Web/CloudOps (+0.064 at 2L, +0.079 at 6L); that worsening is gone at the last
-checkpoint (2L −0.000, 6L +0.011, both within noise). On one head each, the arm reliably worsens
-Transport (2L) and Sales (6L) and reliably improves Healthcare (2L). Econ/Fin shows the largest
-nominal improvement on both heads but, on six tasks, its interval is far too wide to call.
+a worsening on Web/CloudOps; it is gone at the last checkpoint. On one head each, the arm reliably
+worsens Transport (2L) and Sales (6L) and reliably improves Healthcare (2L). Econ/Fin shows the
+largest nominal improvement on both heads but, on six tasks, its interval is far too wide to call.
 
 ### Crossfade triplet schematic
 
@@ -228,6 +220,6 @@ and copies B's future. Below, the blend weight rises 0→1 across the band.](plo
 | base+triplet | 6 | 128 (bottleneck) | yes | 12.7M |
 
 The triplet changes only the training batch, so each triplet arm matches its host's parameter count.
-The combined arm carries 16.7M parameters against the base's 12.7M — widening the forecaster
-outweighs dropping three encoder layers — so its last-checkpoint gain comes with more parameters
-than the base. base+triplet improves on the base at the base's own 12.7M.
+The combined arm carries more parameters than the base — widening the forecaster outweighs dropping
+three encoder layers — so its last-checkpoint gain comes with a larger model; base+triplet improves
+on the base at the base's own parameter count.
