@@ -7,7 +7,7 @@
 set -uo pipefail
 QN="${1:?head_run_name}"; BBF="${2:?bb_file}"; OUT_TAG="${3:?out_tag}"; HL="${4:?head_layers}"; GPU="${5:?gpu}"
 WT="${WT:-/tmp/cf-sgpos}"
-SYNC="${SYNC:-/home/jupyter/contrastive-forecasting/sync_sgpos_339/runs}"
+SYNC="${SYNC:-/home/jupyter/contrastive-forecasting/sync_sgpos_339/runs}"  # main elisa checkout (not a worktree), same as prior sync_* dirs; safety copies of finals also in $EXP/runs/
 EXP="${EXP:-/home/jupyter/workspaces/contrastive-forecasting/experiments/2026-06-10_stopgrad_positive}"
 RES="$EXP/results"; mkdir -p "$RES"
 BB="$SYNC/$BBF"

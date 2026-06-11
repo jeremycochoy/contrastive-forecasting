@@ -183,11 +183,42 @@ def test_f_grad_unchanged_h_grad_differs(pos_in_denom):
         "encoder gradient should change when the positive edge is cut"
 
 
-def test_other_loss_shape_raises():
-    """(4) The key on any other loss_shape fails loud."""
+@pytest.mark.parametrize("shape", [
+    "cosine_similarity_batch_full_hh_negs_xshh",
+    "cpc_multistep",  # early-returns before the tail guard — has its own
+])
+def test_other_loss_shape_raises(shape):
+    """(4) The key on any other loss_shape fails loud, including the CPC
+    variants that dispatch before the shared tail."""
     f, o = _latents(2, 4, 1, 4, seed=3)
     spec = _spec(0.1, pos_in_denom=False, stopgrad=True)
-    spec.train_configuration["loss_shape"] = \
-        "cosine_similarity_batch_full_hh_negs_xshh"
+    spec.train_configuration["loss_shape"] = shape
     with pytest.raises(NotImplementedError, match="stopgrad_positive_h"):
         contrastive_latent_loss((f, o), validation=False, spec=spec)
+
+
+@pytest.mark.parametrize("pos_in_denom", [False, True])
+def test_grads_match_brute_force_fused_path(pos_in_denom):
+    """(2b) XSHH_ALLT_FUSED=1 (the hand-written autograd.Function for the
+    cross-series term) composes with the flag identically — it computes only
+    a negative term, so the cut edge must be unaffected."""
+    B, T, C, H = 4, 8, 1, 8
+    tau = 0.1
+    f, o = _latents(B, T, C, H, seed=77)
+    fr = f.clone().requires_grad_(True)
+    orr = o.clone().requires_grad_(True)
+    ref = _brute_reference(fr, orr, tau, pos_in_denom, stopgrad=True)
+    ref.backward()
+    saved = os.environ.get("XSHH_ALLT_FUSED")
+    try:
+        os.environ["XSHH_ALLT_FUSED"] = "1"
+        loss, df, do = _loss_and_grads(
+            f, o, _spec(tau, pos_in_denom, stopgrad=True), chunk="2")
+    finally:
+        if saved is None:
+            os.environ.pop("XSHH_ALLT_FUSED", None)
+        else:
+            os.environ["XSHH_ALLT_FUSED"] = saved
+    _assert_match("fused loss", loss, ref.detach())
+    _assert_match("fused df", df, fr.grad)
+    _assert_match("fused do", do, orr.grad)

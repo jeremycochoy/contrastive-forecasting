@@ -3,14 +3,13 @@
 
 merge_shards.py-style scan finds which of the 97 display configs are missing
 from the union of <out> and <out>__shard*/all_results.csv, maps them to RAW
-config names (/tmp/display_to_raw.json — the eval script filters on raw names,
-which are partially uppercase), and runs N mop-up shard processes restricted
+config names (derived in-process from the eval script — it filters on raw
+names, which are partially uppercase), and runs N mop-up shard processes restricted
 to exactly those raw names. usage: mopup_evals.py <head_run_name> <bb_file>
 <out_tag> <head_layers> <n_shards> <gpu_list_csv>
 """
 import csv
 import glob
-import json
 import os
 import re
 import subprocess
@@ -19,12 +18,13 @@ import sys
 EXP = "/home/jupyter/workspaces/contrastive-forecasting/experiments/2026-06-10_stopgrad_positive"
 WT = "/tmp/cf-sgpos"
 EVAL_SH = f"{WT}/experiments/2026-06-10_stopgrad_positive/scripts/eval_on_elisa.sh"
+sys.path.insert(0, f"{WT}/experiments/2026-06-10_stopgrad_positive/scripts")
+from shard_evals import display_to_raw  # noqa: E402
 
 qn, bbf, out_tag, hl, n_shards, gpus = sys.argv[1:7]
 n_shards = int(n_shards)
 gpus = gpus.split(",")
-d2r = json.load(open("/tmp/display_to_raw.json"))
-assert len(d2r) == 97
+d2r = display_to_raw()
 
 main_out = f"{EXP}/results/gift_eval_full_{out_tag}_{hl}L"
 done = set()

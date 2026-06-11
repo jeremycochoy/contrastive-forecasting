@@ -52,7 +52,11 @@ do_eval(){ # run_name backbone out_tag
 
 # best
 train_head "qhead_${HL}L_${TAG}" "$BB" "" 30000 2000 && do_eval "qhead_${HL}L_${TAG}" "$BB" "$TAG"
-# last (full-training): resume best head onto final.pth, re-adapt
+# last (full-training): resume best head onto final.pth, re-adapt.
+# NOTE: resumes from the _FINAL.pth COPY, which deliberately has no
+# _optimizer.pth companion — the q-head trainer then loads weights only
+# and trains the full 10k re-adapt steps. Resuming from _best.pth (which
+# has a companion) would restore step=30000 and train ZERO steps.
 if [ -f "$BBLAST" ]; then
   train_head "qhead_${HL}L_${TAG}_last" "$BBLAST" "$RUNS/qhead_${HL}L_${TAG}_FINAL.pth" 10000 1000 \
     && do_eval "qhead_${HL}L_${TAG}_last" "$BBLAST" "${TAG}_last"

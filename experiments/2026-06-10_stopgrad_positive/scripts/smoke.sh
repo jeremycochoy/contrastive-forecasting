@@ -3,7 +3,7 @@
 # #328 best-arm recipe (L3 + no-bottleneck + triplet) at the real batch 1024
 # for a handful of steps WITH --stopgrad-positive-h, validating data pipeline,
 # forward, loss, and step before committing the full run. Asserts the mix
-# print, the flag in the arg echo, and a finite loss; leaves no FINAL.
+# print and a finite loss; leaves no FINAL.
 #   smoke.sh <gpu> [steps]
 set -uo pipefail
 GPU="${1:?gpu}"; STEPS="${2:-20}"

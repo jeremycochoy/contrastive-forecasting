@@ -517,6 +517,14 @@ def contrastive_latent_loss(predicted_position, validation, spec,
     # align_loss_weight / subtract_contrastive_floor are not defined for this
     # variant (no single positive pair / closed-form floor) and are ignored.
     if train_config.get('loss_shape') in ('cpc_multistep', 'cpc_multistep_cpcnegs'):
+        # stopgrad_positive_h is implemented only in the xshh_allt branch;
+        # the CPC variants return before the tail guard below, so fail loud
+        # here rather than silently training without the stop-grad.
+        if bool(train_config.get('stopgrad_positive_h', False)):
+            raise NotImplementedError(
+                "stopgrad_positive_h is only implemented for loss_shape="
+                "'cosine_similarity_batch_full_hh_negs_xshh_allt'; got "
+                f"{train_config.get('loss_shape')!r}.")
         if tau_override is not None:
             tau = tau_override
         else:
