@@ -1,4 +1,4 @@
-# Stop-gradient on the encoder side of the positive: better transfer, earlier, without collapse
+# A stop-gradient on the encoder side of the positive improves downstream transfer
 
 **Question.** The strongest backbone recipe in this line (#328's L3 + no-bottleneck +
 crossfade-triplet, PR #336) reliably beats its base on the downstream forecast at full training.
@@ -15,10 +15,10 @@ toward the forecast — it receives gradient only from the negatives.](plots/arc
 
 **Result.** Yes, both. The positive alignment stalls while batch-wise dimension usage settles
 ~4× higher, and the downstream forecast is **reliably better at the best-loss checkpoint on
-both heads** (2-layer −0.043, 6-layer −0.052; both 90% intervals fully below zero), tied at the
-last checkpoint, and nominally better in all four cells. The 6-layer best-loss score (1.159) is
-the lowest of the eight cells measured here, below the reference's strongest cell (1.170, last
-checkpoint). Deeper or longer-trained heads elsewhere in the project have scored lower.
+both heads** (both 90% intervals fully below zero), tied at the last checkpoint and nominally
+better in all four cells. Its best 6-layer score is the lowest of the eight cells measured here
+and edges the reference's strongest cell, though deeper or longer-trained heads elsewhere in the
+project have scored lower.
 
 *Forecast error is **GM-Relative MASE**: the geometric mean, over the GIFT-Eval benchmark's 97
 forecasting tasks, of a model's error divided by the seasonal-naive forecast's error. Lower is
@@ -89,9 +89,10 @@ noise.
 
 ## What we learned
 
-- The cut **does not break training**: the pretext loss sits ~5.5× higher, yet the
-  representation transfers better — lower contrastive loss does not imply better transfer; the
-  higher-loss arm wins every matched cell, reliably at best-loss.
+- **Training does not break, and the higher pretext loss is not worse transfer.** The stop-grad
+  arm's contrastive loss stays about 5.5× higher than the reference's, yet it transfers better.
+  A lower contrastive loss therefore does not imply better transfer: the higher-loss arm wins
+  every matched cell, reliably so at the best-loss checkpoint.
 - **The transfer peak arrives at about half the budget**: the reference needs all 12.5k steps
   for its best downstream score; the stop-grad arm matches that level by ~6.6k, and its two
   measured checkpoints differ by less than task-set noise.

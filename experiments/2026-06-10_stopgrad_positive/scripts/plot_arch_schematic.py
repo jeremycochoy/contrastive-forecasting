@@ -52,7 +52,7 @@ arrow((12.6, Y - 0.06), (9.35, 1.1), color="#b65d23", label="forecast  f$_{t+1}$
 arrow((9.6, 1.35), (12.45, Y - 0.12), color="#b65d23", ls="--", lw=1.8,
       label="∂L/∂f — both arms", lab_dxy=(0.9, -0.25))
 arrow((6.9, 1.4), (8.85, Y - 0.12), color="#888888", ls="--", lw=1.8)
-ax.text(6.3, 2.78, "∂L/∂h from the positive\nreference: flows", fontsize=9, color="#555555",
+ax.text(6.25, 2.82, "reference arm:\n∂L/∂h flows back to h", fontsize=9, color="#555555",
         ha="center")
 # the stop-grad cut
 ax.plot([7.78, 8.12], [2.18, 2.52], color="#d62728", lw=3.5)
