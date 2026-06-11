@@ -4,10 +4,9 @@
 crossfade-triplet, PR #336) reliably beats its base on the downstream forecast at full training.
 Concretely, both arms train that same backbone: a **GRU patch embedding**, a **3-layer** causal
 transformer encoder, and a **6-layer** transformer forecaster at full width (**no bottleneck**).
-In SimSiam/BYOL, stopping the gradient through the *target* branch of the positive pair is
-load-bearing. Does the analogous cut — training with `sim(stopgrad(h_{t+1}), f_{t+1})` as the
-positive, everywhere that term appears (numerator and denominator) — change the learning
-dynamics and the downstream transfer of that recipe?
+SimSiam and BYOL stop the gradient through the *target* branch of the positive pair. Does the
+same cut here — `sim(stopgrad(h_{t+1}), f_{t+1})` as the positive, in numerator and
+denominator — change the learning dynamics and the downstream transfer?
 
 ![The backbone (identical in both arms) and the single change. The encoder is trained to
 forecast its own future representation: the InfoNCE positive pulls the forecast f_{t+1} toward
