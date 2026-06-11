@@ -23,7 +23,9 @@ ED = os.environ.get("ED", "/tmp/cf-328/experiments/2026-06-03_crossfade_triplet"
 OUTCSV = os.environ.get("OUTCSV", f"{ED}/results/perdomain_stats.csv")
 OUTPNG = os.environ.get("OUTPNG", f"{ED}/plots/perdomain_delta.png")
 BASE_TAG = "xshh_allt_forked2_qk_aon_b1024"
-TRIP_TAG = "allt08_xftrip_nobn_enc3_qk_aon_b1024"
+TRIP_TAG = os.environ.get("TRIP_TAG", "allt08_xftrip_nobn_enc3_qk_aon_b1024")
+TITLE = os.environ.get("TITLE", "Per-domain change from the combined arm (whisker = 90% interval; "
+                                "green = reliably better, red = reliably worse, grey = within noise)")
 # fixed (task-count descending) order
 DOMAINS = ["Energy", "Web/CloudOps", "Nature", "Transport", "Econ/Fin", "Healthcare", "Sales"]
 HLAB = {"2L": "2-layer head", "6L": "6-layer head"}
@@ -118,8 +120,7 @@ if any(data[("6L", d)]["tasks"] >= 2 for d in DOMAINS):
         ax.set_title(HLAB[head], fontsize=12)
         ax.set_xlabel("change in error vs the 0.8%-fork base\n(GM-Relative MASE; left = better)")
         ax.grid(axis="x", alpha=0.25)
-    fig.suptitle("Per-domain change from the combined arm (whisker = 90% interval; "
-                 "green = reliably better, red = reliably worse, grey = within noise)", fontsize=11)
+    fig.suptitle(TITLE, fontsize=11)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
     os.makedirs(os.path.dirname(OUTPNG), exist_ok=True)
     fig.savefig(OUTPNG, dpi=130)
