@@ -13,7 +13,8 @@ case "$ARM" in
   # to fit a 24 GB card, exactly like the #336 twin (byte-identical knobs).
   nobn_enc6) EXTRA=(); export FCST_GRAD_CKPT=1 XSHH_ALLT_CHUNK=1
              WANT_PARAMS="22,063,164" ;;   # = #336 xftrip_nobn_enc6
-  bn_enc6)   EXTRA=(--forecaster-d-model 128 --forecaster-n-heads 4); WANT_PARAMS="12,714,684" ;;  # = #336 xftrip_bn_enc6
+  bn_enc6)   EXTRA=(--forecaster-d-model 128 --forecaster-n-heads 4); export XSHH_ALLT_CHUNK=1
+             WANT_PARAMS="12,714,684" ;;  # = #336 xftrip_bn_enc6 (Gram chunk 1 like the twin)
   *) echo "unknown arm: $ARM"; exit 2 ;;
 esac
 RES="$OUT/results"; mkdir -p "$RES" "$OUT/smoke_runs"

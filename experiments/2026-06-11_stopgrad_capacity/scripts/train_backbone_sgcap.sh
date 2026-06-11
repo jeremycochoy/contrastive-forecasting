@@ -20,7 +20,8 @@ case "$ARM" in
   # the all-time Gram at chunk 1 to fit a 24 GB card (both byte-identical;
   # smoke OOM'd without them).
   nobn_enc6) EXTRA=(); export FCST_GRAD_CKPT=1 XSHH_ALLT_CHUNK=1 ;;
-  bn_enc6)   EXTRA=(--forecaster-d-model 128 --forecaster-n-heads 4) ;;  # v13 bottleneck
+  # v13 bottleneck; Gram chunk 1 like its #336 twin (enc6 is what makes it big)
+  bn_enc6)   EXTRA=(--forecaster-d-model 128 --forecaster-n-heads 4); export XSHH_ALLT_CHUNK=1 ;;
   *) echo "unknown arm: $ARM (want nobn_enc6|bn_enc6)"; exit 2 ;;
 esac
 NAME="bb_allt08_xftrip_${ARM}_sgpos_qk_aon_b1024"
