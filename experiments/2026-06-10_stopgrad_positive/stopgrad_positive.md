@@ -15,9 +15,9 @@ better in all four cells, and its 6-layer best-loss score (1.159) is the lowest 
 among the 2L/6L-head evaluations in this recipe line (deeper or longer-trained heads elsewhere
 in the project have scored lower).
 
-*Forecast error is **GM-Relative MASE**: the geometric mean, over GIFT-Eval's 97 tasks, of a
-model's error divided by the seasonal-naive forecast's error. Lower is better; 1.0 is
-seasonal-naive.*
+*Forecast error is **GM-Relative MASE**: the geometric mean, over the GIFT-Eval benchmark's 97
+forecasting tasks, of a model's error divided by the seasonal-naive forecast's error. Lower is
+better; 1.0 is seasonal-naive.*
 
 ![Left: forecast error per head and checkpoint — the stop-grad arm (red) is below the reference
 (blue) in every cell. Right: the paired-bootstrap change with its 90% interval — green intervals
@@ -34,7 +34,7 @@ Each change carries a **paired bootstrap** 90% interval (resample the 97-task li
 score both models on each resample so per-task difficulty cancels). Both best-loss improvements
 are reliable; both last-checkpoint changes are within task-set noise. The reference's last
 checkpoint beats its own best-loss checkpoint by ~0.04 on both heads; the stop-grad arm is
-already at that level at its best-loss checkpoint — step ~6.1k, half the training budget.
+already at that level at its best-loss checkpoint — step ~6.6k, about half the training budget.
 Comparing each arm's strongest measured cell directly (stop-grad best-loss vs reference last),
 the stop-grad arm is nominally ahead on both heads (2L −0.004, CI (−0.028, +0.022); 6L −0.011,
 CI (−0.032, +0.011)) but within noise.
@@ -50,26 +50,27 @@ Here **ff** is the forecast-to-future cosine (the positive pair's similarity), *
 forecast-to-present cosine, **R²_naive / R²_random** the variance in the future embedding
 explained by the forecast, relative to a copy-the-present / random-embedding baseline, and
 **U_batch / U_temporal** the fraction of embedding dimensions that vary across the batch /
-across time. The single change splits the dynamics into two regimes:
+across time. The single change produces three clear differences:
 
 - **The positive alignment stalls.** With the encoder no longer pulled toward the forecast, the
-  forecast-to-future cosine reaches ~0.44 by step 500 and stays there to the end (the reference
-  climbs to 0.99). The floor-subtracted loss settles around ≈5.5–6.1 (smoothed) after ~4k steps
-  — its minimum (the evaluated best-loss checkpoint) at step ~6.1k, ending at 5.86 — about 5.6×
-  the reference's 1.04. The skill metrics sit correspondingly higher (1−R²_naive 0.66 vs 0.011).
-- **Batch-wise dimension usage settles ~4× higher.** U_batch climbs to ~0.50 by ~2k steps and
+  forecast-to-future cosine plateaus near 0.44 within ~800 steps and stays there to the end
+  (the reference climbs to 0.99). The floor-subtracted loss settles around ≈5.5–6.1 (smoothed)
+  after ~4k steps — its minimum (the evaluated best-loss checkpoint) at step ~6.6k — and ends
+  at 5.88, about 5.5× the reference's 1.06. The skill metrics sit correspondingly higher
+  (1−R²_naive 0.66 vs 0.011).
+- **Batch-wise dimension usage settles ~4× higher.** U_batch climbs to ~0.5 by ~3k steps and
   holds; the reference's never rises above ~0.14. Neither arm *falls* from a high value — the
   difference is the level reached, i.e. the reference trains in a much lower-rank regime
   batch-wise. U_temporal is slightly *lower* for the stop-grad arm (0.100 vs 0.115), so the
   extra rank is across series, not across time.
-- **Discrimination is barely affected.** The reference separates positives from negatives
-  perfectly (AUC and Top-1 = 1.000); the stop-grad arm nearly so (AUC 0.998, Top-1 ~0.92 late),
-  and different series stay near-orthogonal in both (cross-series cosine 0.024 vs 0.002). The
-  stop-grad mainly changes how far the positive pair is pulled together, not whether the model
-  can tell pairs apart.
+- **Discrimination is barely affected.** The reference ranks the positive above every negative
+  essentially always (AUC and Top-1 = 1.000); the stop-grad arm nearly so (AUC 0.998, Top-1
+  ~0.92 late), and different series stay near-orthogonal in both (cross-series cosine 0.024 vs
+  0.002). The stop-grad mainly changes how far the positive pair is pulled together, not
+  whether the model can tell pairs apart.
 
-Both arms log the same floor-subtracted loss (identical constant; the stop-grad does not change
-the forward value, verified bit-equal in tests), so the loss curves are directly comparable.
+Both arms subtract the same floor constant, and the stop-grad leaves the forward loss value
+bit-identical (unit-tested), so the loss curves are directly comparable.
 
 ## How the arm works
 
@@ -80,34 +81,30 @@ the forecaster chases the encoder, and the encoder is simultaneously pulled back
 forecast. The single change here detaches h_{t+1} in the positive term wherever it appears
 (numerator and denominator), so the encoder receives gradient only from the *negative* terms —
 it is trained to spread series apart, never to make its own representation easier to forecast.
-This is the same asymmetry SimSiam/BYOL apply to their target branch. Everything else — data
-mix, crossfade triplet, architecture, floor subtraction, temperature, seed, batch, step count —
-is identical to the reference run.
 
 ## Protocol
 
 One backbone per arm, single seed (20260520), 12,500 steps at batch 1024 on one RTX 4090. The
 reference is #328's best arm (L3 + no-bottleneck + triplet) unchanged; the stop-grad arm differs
-by the single flag described above (`--stopgrad-positive-h`, PR #336 follow-up). Each finished
-backbone is frozen and scored by training a fresh quantile forecasting head on top — once with
-two transformer layers, once with six — and evaluating on GIFT-Eval's 97 tasks, at two backbone
-checkpoints: **best-loss** (the step with the lowest contrastive loss; ~6.1k for the stop-grad
-arm, ~6.4k for the reference) and **last** (the full 12,500 steps; the regime where the
-reference's downstream advantage shows). Head training and evaluation use the same
+by the single flag described above (`--stopgrad-positive-h`). Each finished backbone is frozen
+and scored by training a fresh quantile forecasting head on top — once with two transformer
+layers, once with six — and evaluating on GIFT-Eval's 97 tasks, at two backbone
+checkpoints: **best-loss** (the step with the lowest smoothed contrastive loss; ~6.6k for the
+stop-grad arm, ~6.4k for the reference) and **last** (the full 12,500 steps; the regime where
+the reference's downstream advantage shows). Head training and evaluation use the same
 hyperparameters and eval data as the reference's runs. Intervals are paired bootstrap over
 tasks; one backbone per arm, so they quantify task-set noise, not seed noise.
 
 ## What we learned
 
 - The encoder-side stop-grad on the positive **does not break training** — despite the pretext
-  loss sitting ~5.6× higher, the representation transfers better.
-- **Lower contrastive loss does not imply better transfer** — this experiment is the starkest
-  instance yet in this line: the arm whose loss settles near 5.9 beats the arm that reaches
-  1.04 in every matched cell (reliably at best-loss). #328's disentanglement had already shown
-  this decoupling in both directions.
-- **The transfer peak arrives at half the budget.** The reference needs all 12.5k steps for its
-  best downstream score; the stop-grad arm matches that level by ~6.1k steps, and its two
-  measured checkpoints differ by less than task-set noise.
+  loss sitting ~5.5× higher, the representation transfers better.
+- **Lower contrastive loss does not imply better transfer** — the starkest instance yet in this
+  line: the higher-loss arm wins every matched cell (reliably at best-loss). #328's
+  disentanglement had already shown this decoupling in both directions.
+- **The transfer peak arrives at about half the budget.** The reference needs all 12.5k steps
+  for its best downstream score; the stop-grad arm matches that level by ~6.6k steps, and its
+  two measured checkpoints differ by less than task-set noise.
 - *Hypothesis (consistent with the curves, untested causally):* the gain comes from avoiding
   the low-rank regime — without the positive pulling h toward the forecast, the encoder keeps
   ~4× more batch-wise dimensions in use, and the higher-rank embedding is what the forecasting
@@ -116,7 +113,7 @@ tasks; one backbone per arm, so they quantify task-set noise, not seed noise.
 
 ## Follow-up
 
-The natural next card: **stop-grad + shorter training** (the measured peak is at ~6k steps —
-half the compute for the same transfer), and **multi-seed confirmation** of the best-loss gain,
-which on this single seed is the largest improvement a single change has produced in this
-recipe line.
+The natural next card: **stop-grad + shorter training** (the measured peak is at ~6.6k steps —
+roughly half the compute for the same transfer), and **multi-seed confirmation** of the
+best-loss gain, which on this single seed is the largest improvement a single change has
+produced in this recipe line.
