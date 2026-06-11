@@ -50,6 +50,21 @@ arm 3 = 22,063,164, arm 4 = 12,714,684 (asserted by `smoke_sgcap.sh`).
   arm 4 vs arms 1 and 2)?
 - Report PR into `experiments` passing the report checklist.
 
+## Report style (reviewer guidance, 2026-06-11)
+
+The #341 report must follow the same conventions the reviewer asked for on #339:
+
+- **Title = one plain declarative sentence** stating the finding (e.g. "Adding X
+  leads to better transfer"). No headline/colon constructions, no comma-spliced
+  fragment lists ("better transfer, earlier, without collapse" is wrong).
+- **Write like a research paper, not a feed.** No "claim: terse-fragment" or
+  participial constructions that no one would say aloud (flagged example: "The cut
+  does not break training: the pretext loss sits ~5.5× higher"). Use full natural
+  sentences.
+- **Don't restate in prose numbers that the figures and tables already carry.**
+  Prose states the interpretation; the table/plot carries the digits.
+- **Keep diagrams clean**, annotations in natural language.
+
 ## Artifact map
 
 - New runs/results: `~/workspaces/contrastive-forecasting/experiments/2026-06-11_stopgrad_capacity/{runs,results}` (elisa)
