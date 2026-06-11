@@ -1,10 +1,12 @@
-"""Tests for the regime-crossfade synthetic stream (#325)."""
+"""Tests for the regime-crossfade synthetic stream (#325) and the explicit
+(A_norm, B_norm, C) triplet variant (#328)."""
 import numpy as np
 import pytest
 import torch
 
 from src.synthetic_crossfade import (
     generate_crossfade_batch,
+    generate_crossfade_triplets,
     _sample_crossfade_weight,
     _zscore_per_series,
 )
@@ -204,3 +206,166 @@ def test_factory_rejects_ratios_over_one():
     with pytest.raises(ValueError):
         create_mixed_forked_arma_dataloader(
             repo_id="x", batch_size=100, C=1, mix_ratio=0.6, crossfade_ratio=0.6)
+
+
+# --- (A_norm, B_norm, C) triplets (#328) ----------------------------------
+
+def test_triplets_shape_and_grouping():
+    # n triplets -> 3n rows, ordered [A0, B0, C0, A1, B1, C1, ...].
+    X = generate_crossfade_triplets(_real(16, 128, 1), 5, rng=np.random.default_rng(0))
+    assert X.shape == (15, 128, 1) and X.dtype == torch.float32
+    assert torch.isfinite(X).all()
+
+
+def test_triplet_parents_are_z_normalised():
+    # Rows 3k and 3k+1 are the z-normed parents: zero mean, unit std per channel.
+    X = generate_crossfade_triplets(_real(12, 200, 3), 4, rng=np.random.default_rng(1))
+    for k in range(4):
+        for parent in (X[3 * k], X[3 * k + 1]):
+            assert torch.allclose(parent.mean(0), torch.zeros(3), atol=1e-5)
+            assert torch.allclose(parent.std(0, unbiased=False), torch.ones(3), atol=1e-4)
+
+
+def test_triplet_blend_is_convex_combo_of_its_own_two_parents():
+    # C (row 3k+2) lies pointwise on the segment between A (3k) and B (3k+1).
+    X = generate_crossfade_triplets(_real(8, 160, 2), 4, rng=np.random.default_rng(2))
+    for k in range(4):
+        a, b, c = X[3 * k], X[3 * k + 1], X[3 * k + 2]
+        lo, hi = torch.minimum(a, b), torch.maximum(a, b)
+        assert (c >= lo - 1e-4).all() and (c <= hi + 1e-4).all()
+
+
+def test_triplet_blend_starts_at_A_and_weight_shared_across_channels():
+    # s(0) == 0 (l >= 0), so C starts exactly at parent A; and the implied weight
+    # recovered from each channel agrees (one s(t) shared across channels).
+    T, C = 96, 3
+    X = generate_crossfade_triplets(_real(8, T, C, seed=11), 3, rng=np.random.default_rng(7))
+    for k in range(3):
+        a, b, c = X[3 * k], X[3 * k + 1], X[3 * k + 2]
+        assert torch.allclose(c[0], a[0], atol=1e-5)          # s(0)=0 -> C[0]=A[0]
+        denom = b - a
+        mask = denom.abs() > 0.3
+        for t in range(T):
+            safe = mask[t]
+            if int(safe.sum()) >= 2:
+                s = ((c[t] - a[t]) / denom[t])[safe]
+                assert float(s.max() - s.min()) < 1e-3
+
+
+def test_triplet_labels_are_unknown_sentinel():
+    X, freq, seas = generate_crossfade_triplets(
+        _real(8, 64, 1), 3, rng=np.random.default_rng(0), return_labels=True)
+    assert X.shape == (9, 64, 1)
+    assert freq.shape == (9,) and seas.shape == (9,)
+    assert freq.dtype == torch.int64 and (freq == 0).all() and (seas == 0).all()
+
+
+def test_triplets_empty_when_zero():
+    X, freq, seas = generate_crossfade_triplets(
+        _real(4, 32, 1), 0, rng=np.random.default_rng(0), return_labels=True)
+    assert X.shape == (0, 32, 1) and freq.shape == (0,) and seas.shape == (0,)
+
+
+def test_triplets_require_two_sources():
+    with pytest.raises(ValueError):
+        generate_crossfade_triplets(_real(1, 32, 1), 1, rng=np.random.default_rng(0))
+
+
+def test_triplets_reproducible():
+    a = generate_crossfade_triplets(_real(8, 64, 1, seed=1), 3, rng=np.random.default_rng(9))
+    b = generate_crossfade_triplets(_real(8, 64, 1, seed=1), 3, rng=np.random.default_rng(9))
+    assert torch.equal(a, b)
+
+
+def test_triplet_parents_are_distinct():
+    # The two parents in each triplet must come from different source rows (A != B).
+    X = generate_crossfade_triplets(_real(6, 96, 2, seed=4), 5, rng=np.random.default_rng(2))
+    for k in range(5):
+        assert not torch.equal(X[3 * k], X[3 * k + 1])
+
+
+# --- triplets in the dataloader (additive, on top of the natural batch) ----
+
+def test_loader_appends_triplet_block_additive():
+    from src.dataloader import MixedForkedArmaLoader
+    real = _real(10, 128, 1, seed=2)
+    loader = MixedForkedArmaLoader(
+        hf_loader=_FakeHF(real), synth_bs=0, cross_bs=0, cross_triplets=2,
+        T_raw=128, C=1, seed=0, emit_freq_ids=False)
+    batch = next(iter(loader))
+    assert batch.shape == (16, 128, 1)                        # 10 real + 3*2 triplet rows
+    assert torch.equal(batch[:10], real)                     # real block untouched
+
+
+def test_loader_fork_cross_and_triplets_sizes_and_labels():
+    from src.dataloader import MixedForkedArmaLoader
+    real = _real(8, 128, 1, seed=5)
+    loader = MixedForkedArmaLoader(
+        hf_loader=_FakeHF(real), synth_bs=3, cross_bs=2, cross_triplets=2,
+        T_raw=128, C=1, seed=0, emit_freq_ids=True)
+    x, freq, seas = next(iter(loader))
+    assert x.shape == (19, 128, 1)                            # 8 real +3 fork +2 cross +6 triplet
+    assert freq.shape == (19,) and seas.shape == (19,)
+    assert (freq[8:] == 0).all() and (seas[8:] == 0).all()   # all synthetic labels = unknown
+    assert torch.equal(x[:8], real)
+
+
+def test_loader_triplets_zero_is_unchanged():
+    # cross_triplets=0 must leave the fork-only batch byte-identical.
+    from src.dataloader import MixedForkedArmaLoader
+    real = _real(8, 64, 1, seed=3)
+    base = MixedForkedArmaLoader(hf_loader=_FakeHF(real), synth_bs=2, cross_bs=0,
+                                 T_raw=64, C=1, seed=0, emit_freq_ids=False)
+    trip = MixedForkedArmaLoader(hf_loader=_FakeHF(real), synth_bs=2, cross_bs=0,
+                                 cross_triplets=0, T_raw=64, C=1, seed=0, emit_freq_ids=False)
+    assert torch.equal(next(iter(base)), next(iter(trip)))
+
+
+def test_loader_triplets_leave_crossfade_block_unchanged():
+    # Triplets are appended AFTER the crossfade block and draw RNG only then, so a
+    # fork+crossfade batch is byte-identical in its [HF|fork|cross] prefix whether
+    # or not triplets are added (locks in the additive + RNG-after guarantee).
+    from src.dataloader import MixedForkedArmaLoader
+    real = _real(8, 96, 1, seed=6)
+    base = MixedForkedArmaLoader(hf_loader=_FakeHF(real), synth_bs=2, cross_bs=2,
+                                 cross_triplets=0, T_raw=96, C=1, seed=0, emit_freq_ids=False)
+    trip = MixedForkedArmaLoader(hf_loader=_FakeHF(real), synth_bs=2, cross_bs=2,
+                                 cross_triplets=2, T_raw=96, C=1, seed=0, emit_freq_ids=False)
+    b, t = next(iter(base)), next(iter(trip))
+    assert t.shape[0] == b.shape[0] + 6                       # 2 triplets appended
+    assert torch.equal(t[:b.shape[0]], b)                     # [HF|fork|cross] prefix unperturbed
+
+
+def test_loader_triplets_raise_when_real_subbatch_too_small():
+    from src.dataloader import MixedForkedArmaLoader
+    real = _real(1, 64, 1)
+    loader = MixedForkedArmaLoader(
+        hf_loader=_FakeHF(real), synth_bs=0, cross_bs=0, cross_triplets=1,
+        T_raw=64, C=1, seed=0, emit_freq_ids=False)
+    with pytest.raises(ValueError):
+        next(iter(loader))
+
+
+def test_factory_wires_cross_triplets_additively():
+    from src import dataloader as dl
+
+    captured = {}
+
+    class _Stub:
+        def __init__(self, *a, **k):
+            captured["batch_size"] = k.get("batch_size")
+
+        def __iter__(self):
+            while True:
+                yield torch.zeros(captured["batch_size"], 16, 1)
+
+    orig = dl.HFStreamingLoader
+    dl.HFStreamingLoader = _Stub
+    try:
+        ldr = dl.create_mixed_forked_arma_dataloader(
+            repo_id="x", batch_size=100, C=1, mix_ratio=0.10,
+            crossfade_ratio=0.0, cross_triplets=1, T_raw=16)
+        assert captured["batch_size"] == 90                  # hf_bs = 100 - 10 fork (triplets are additive)
+        assert ldr.synth_bs == 10 and ldr.cross_bs == 0 and ldr.cross_triplets == 1
+    finally:
+        dl.HFStreamingLoader = orig

@@ -118,6 +118,13 @@ def parse_args():
                         "from the step's real sub-batch. Stacks with --mix-ratio "
                         "(forked-arma); real fraction = 1 - mix_ratio - "
                         "crossfade_ratio. Only valid with --synth-kind forked-arma.")
+    p.add_argument("--crossfade-triplets", type=int, default=0,
+                   help="Number of explicit (A_norm, B_norm, C) crossfade "
+                        "triplets to append ON TOP of the batch (#328): both "
+                        "z-normalised parents plus their monotone blend, 3 rows "
+                        "per triplet, additive (total batch = batch_size + "
+                        "3*crossfade_triplets). Drawn from the real sub-batch; "
+                        "complements --crossfade-ratio (which adds C-only rows).")
     p.add_argument("--synth-seed", type=int, default=None)
     p.add_argument("--t-raw", type=int, default=T_RAW,
                    help="Raw window length (T) per sample. Default 1024 "
@@ -850,8 +857,9 @@ def main():
 
     # -- Data -----------------------------------------------------------------
     C = args.n_channels
-    if args.crossfade_ratio > 0 and args.synth_kind != "forked-arma":
-        raise ValueError("--crossfade-ratio requires --synth-kind forked-arma")
+    if (args.crossfade_ratio > 0 or args.crossfade_triplets > 0) and args.synth_kind != "forked-arma":
+        raise ValueError(
+            "--crossfade-ratio / --crossfade-triplets require --synth-kind forked-arma")
     synth_bs = int(round(args.batch_size * args.mix_ratio))
     # Crossfade rows are blended FROM the real rows (they consume no extra HF
     # rows), so they shrink hf_bs but not hf_rows_per_step's per-real accounting.
@@ -898,6 +906,7 @@ def main():
         data_loader = create_mixed_forked_arma_dataloader(
             repo_id=args.hf_repo, batch_size=args.batch_size, C=C,
             mix_ratio=args.mix_ratio, crossfade_ratio=args.crossfade_ratio,
+            cross_triplets=args.crossfade_triplets,
             path_in_repo=args.hf_path, split=args.split,
             skip_rows=hf_rows_consumed, T_raw=args.t_raw, seed=synth_seed,
             emit_freq_ids=(args.freq_emb_dim > 0 or args.seasonality_emb_dim > 0),
@@ -911,9 +920,12 @@ def main():
             emit_freq_ids=(args.freq_emb_dim > 0 or args.seasonality_emb_dim > 0),
         )
     real_frac = (1 - args.mix_ratio - args.crossfade_ratio) * 100
+    trip_rows = 3 * args.crossfade_triplets
     print(f"Data: MIX {real_frac:.0f}% HF + {args.mix_ratio*100:.0f}% synth "
-          f"({args.synth_kind}) + {args.crossfade_ratio*100:.0f}% crossfade, "
-          f"hf_bs={hf_bs}, synth_bs={synth_bs}, cross_bs={cross_bs}")
+          f"({args.synth_kind}) + {args.crossfade_ratio*100:.0f}% crossfade "
+          f"+ {args.crossfade_triplets} triplet(s)={trip_rows} rows, "
+          f"hf_bs={hf_bs}, synth_bs={synth_bs}, cross_bs={cross_bs}, "
+          f"total_bs={args.batch_size + trip_rows}")
     data_iter = iter(data_loader)
     sys.stdout.flush()
 
