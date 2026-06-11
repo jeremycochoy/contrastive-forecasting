@@ -104,9 +104,10 @@ At step 12,500 the arms rank on the pretext task in the opposite order to their 
   loss 0.662 and U_batch 0.197, the easiest pretext and the most-used embedding among the arms) — yet
   it transfers worst.
 
-On this benchmark a lower contrastive loss is not a sign of a better forecasting backbone; the
-triplet's harder pretext is what tracks the downstream gain. No arm collapsed: every used-dimension
-count stays well above zero and forecast-to-future cosine reaches ~0.99.
+On this benchmark a lower contrastive loss is not a sign of a better forecasting backbone. (A harder
+pretext is not required for a gain either — see base+triplet in the follow-up section, which leaves
+the pretext loss essentially unchanged and still transfers better.) No arm collapsed: every
+used-dimension count stays well above zero and forecast-to-future cosine reaches ~0.99.
 
 ## Protocol
 
@@ -136,31 +137,51 @@ comparison measures a joint effect; the disentanglement arms isolate the compone
    heads, and only at full training.
 3. **Train-longer hurts.** Extending to 25k reliably worsens both heads (2L +0.037, 6L +0.024);
    downstream peaks near 12.5k, within the first epoch.
-4. **Lower contrastive loss does not mean better transfer here.** The triplet raises the pretext loss
-   yet improves downstream; dropping the bottleneck lowers the pretext loss yet transfers worst.
+4. **Pretext loss does not predict transfer in either direction.** Dropping the bottleneck gives the
+   lowest contrastive loss and the worst transfer; the headline arm raises the loss and transfers
+   better; base+triplet leaves the loss essentially unchanged (0.881 vs 0.895) and still transfers
+   reliably better. Checkpoint and arm selection should not be driven by the contrastive loss.
 
 ## Follow-up — triplet isolation across architectures
 
 The headline arm bundles the triplet with two architecture changes. Two further arms isolate the
-triplet's effect; L6+nobn+triplet is complete, base+triplet is still training.
+triplet's effect: each pair below differs from its own reference by the triplet alone.
 
-| arm | difference from its base | what it tests | result |
-|---|---|---|---|
-| L6+nobn+triplet | adds the triplet to L6+nobn | does the triplet rescue the otherwise-harmful full-width forecaster at 6 encoder layers? | **No** — reliably worse than base and *degrades* with training: 2L 1.274 → 1.313 (last Δ +0.101), 6L 1.225 → 1.261 (last Δ +0.062). |
-| base+triplet | adds only the triplet to the base | cleanest triplet isolation — base vs base+triplet differ by the triplet alone | pending (backbone training, ETA tonight) |
+| arm | difference from its base | result |
+|---|---|---|
+| **base+triplet** | adds only the triplet to the unmodified base | **Reliably better at both heads at best-loss, and at 2L robust to checkpoint choice**: 2L best 1.186 (Δ −0.027 [−0.042, −0.011]), 2L last 1.187 (Δ −0.025 [−0.042, −0.008]), 6L best 1.185 (Δ −0.013 [−0.025, −0.002]), 6L last 1.190 (Δ −0.008 [−0.020, +0.003], same direction, ns). |
+| L6+nobn+triplet | adds the triplet to L6+nobn | Reliably worse than base and *degrades* with training: 2L 1.274 → 1.313 (last Δ +0.101), 6L 1.225 → 1.261 (last Δ +0.062). |
 
-**The triplet is encoder-depth-specific.** It helps only with the 3-layer encoder: L3+nobn+triplet
-improves with training to a reliable win, while L6+nobn+triplet (the same change on a 6-layer
-encoder) is harmful and worsens with training. This matches the pretext dynamics — at 3 layers the
-triplet raises the contrastive loss (a harder pretext that transfers), whereas at 6 layers the larger
-encoder absorbs it (loss 0.655, essentially the L6+nobn value 0.662), so there is no harder pretext
-and no transfer gain.
+Two readings follow.
 
-The predecessor #326 (a C-only crossfade slice on the 10%-fork base) gave ≈−0.013 over its base,
-smaller than the ≈−0.030 last-checkpoint gain here, so base+triplet is expected to show a modest
-positive effect; the magnitude will fix how much of this arm's gain is the triplet versus an
-interaction with the architecture changes. A further follow-up (carded separately) tests a
-stop-gradient on the encoder's positive term in this best arm.
+**The triplet alone is sufficient.** On the unmodified base it is reliably better at both heads at
+the best-loss checkpoint, without any architecture change — and unlike the headline arm, whose
+verdict flips between checkpoints, its gain does not depend on checkpoint selection at 2L (best
+−0.027, last −0.025, both reliable; at 6L the last checkpoint keeps the direction at −0.008 but is
+within noise). Its 2L gain matches the headline arm's (−0.032 at last); the architecture changes are
+not needed for the effect.
+
+**The failure case is the no-bottleneck 6-layer configuration, not 6-layer encoders.** The triplet
+helps on the base (6-layer encoder, with bottleneck) and on L3+nobn, but is reliably harmful on
+L6+nobn — the one configuration that is already reliably worse than base on its own. The
+pretext-difficulty reading does not explain this: base+triplet leaves the contrastive loss
+essentially at the base value (0.881 vs 0.895) yet transfers better, so a harder pretext is not the
+mechanism of the gain.
+
+The predecessor #326 (a C-only crossfade slice on the 10%-fork base) gave ≈−0.013 over its base —
+the same direction, smaller than base+triplet's −0.027 (2L) here.
+
+**Two candidate recipes, and where this points.** Two configurations improve on the base:
+**base+triplet** (with the 128-wide bottleneck) — the smaller gain but robust to checkpoint choice
+and the simplest change — and **L3+nobn+triplet** (full-width forecaster) — the best single number
+(6L last 1.169) but only at full training, and it needed the encoder shrink to work. The L6+nobn
+results are consistent with the bottleneck acting as protection against the objective being
+exploited: with a full-width forecaster and no other change, the contrastive loss drops to its
+lowest value across all arms while transfer is the worst, i.e. the extra width serves the pretext
+rather than the forecast. If the objective is fixed so that the full-width forecaster cannot exploit
+it, the no-bottleneck line is the preferred direction — the forecaster then learns at the encoder's
+width instead of through a 128-wide pinch. The stop-gradient follow-up (carded separately: stop-grad
+on the encoder side of the positive term, numerator and denominator) is exactly such an attempt.
 
 ---
 
