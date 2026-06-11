@@ -9,7 +9,10 @@ ARM="${1:?arm}"; GPU="${2:?gpu}"; STEPS="${3:-20}"
 WT="${WT:-/tmp/cf-341}"
 OUT="${OUT:-/home/jupyter/workspaces/contrastive-forecasting/experiments/2026-06-11_stopgrad_capacity}"
 case "$ARM" in
-  nobn_enc6) EXTRA=(); WANT_PARAMS="22,063,164" ;;   # = #336 xftrip_nobn_enc6
+  # enc6 + full-width: largest config — forecaster grad-ckpt + Gram chunk 1
+  # to fit a 24 GB card, exactly like the #336 twin (byte-identical knobs).
+  nobn_enc6) EXTRA=(); export FCST_GRAD_CKPT=1 XSHH_ALLT_CHUNK=1
+             WANT_PARAMS="22,063,164" ;;   # = #336 xftrip_nobn_enc6
   bn_enc6)   EXTRA=(--forecaster-d-model 128 --forecaster-n-heads 4); WANT_PARAMS="12,714,684" ;;  # = #336 xftrip_bn_enc6
   *) echo "unknown arm: $ARM"; exit 2 ;;
 esac

@@ -15,7 +15,11 @@ SEED=20260520
 WT="${WT:-/tmp/cf-341}"
 OUT="${OUT:-/home/jupyter/workspaces/contrastive-forecasting/experiments/2026-06-11_stopgrad_capacity}"
 case "$ARM" in
-  nobn_enc6) EXTRA=() ;;                                          # full-width forecaster
+  # enc6 + full-width forecaster is the largest config (22M params): like its
+  # #336 no-stop-grad twin, it needs the forecaster gradient-checkpointed and
+  # the all-time Gram at chunk 1 to fit a 24 GB card (both byte-identical;
+  # smoke OOM'd without them).
+  nobn_enc6) EXTRA=(); export FCST_GRAD_CKPT=1 XSHH_ALLT_CHUNK=1 ;;
   bn_enc6)   EXTRA=(--forecaster-d-model 128 --forecaster-n-heads 4) ;;  # v13 bottleneck
   *) echo "unknown arm: $ARM (want nobn_enc6|bn_enc6)"; exit 2 ;;
 esac
