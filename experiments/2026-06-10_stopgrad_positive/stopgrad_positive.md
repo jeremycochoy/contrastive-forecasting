@@ -18,8 +18,8 @@ toward the forecast — it receives gradient only from the negatives.](plots/arc
 ~4× higher, and the downstream forecast is **reliably better at the best-loss checkpoint on
 both heads** (both 90% intervals fully below zero), tied at the last checkpoint and nominally
 better in all four cells. Its best 6-layer score is the lowest of the eight cells measured here
-and edges the reference's strongest cell, though deeper or longer-trained heads elsewhere in the
-project have scored lower.
+and nominally below the reference's strongest cell, though deeper or longer-trained heads
+elsewhere in the project have scored lower.
 
 *Forecast error is **GM-Relative MASE**: the geometric mean, over the GIFT-Eval benchmark's 97
 forecasting tasks, of a model's error divided by the seasonal-naive forecast's error. Lower is
@@ -46,6 +46,20 @@ the budget. Comparing each arm's strongest cell directly (stop-grad best-loss vs
 last), the stop-grad arm is nominally ahead but within noise (2L −0.004 (−0.028, +0.022); 6L
 −0.011 (−0.032, +0.011)).
 
+## By domain
+
+![Per-domain change in error from the stop-grad — both heads (columns) and both checkpoints
+(rows), with the 90% paired-bootstrap interval per domain (task count in brackets). Green =
+reliably better, red = reliably worse, grey = within noise.](plots/perdomain_delta.png)
+
+At best-loss the gain is broad: Sales, Nature and Web/CloudOps improve reliably on both heads,
+and no domain worsens reliably. The largest move is Web/CloudOps (−0.13 / −0.16 on 20 tasks) —
+the one domain the triplet recipe had reliably worsened on both heads against its base (#336);
+the stop-grad recovers it. Econ/Fin moves against the arm on both heads, but six tasks give
+intervals too wide to conclude. At the last checkpoint the tied aggregate hides offsetting
+reliable moves — Econ/Fin (2-layer) and Energy (6-layer) worsen; Sales (2-layer), Healthcare
+and Web/CloudOps (both 6-layer) improve.
+
 ## Training dynamics: alignment stalls, no low-rank collapse
 
 ![Training metrics, log-log, stop-grad (solid red) vs the reference (dashed blue), from step
@@ -63,16 +77,25 @@ across time. The single change produces three clear differences:
 - **The positive alignment stalls.** ff plateaus near 0.44 within ~800 steps (the reference
   climbs to 0.99); the floor-subtracted loss settles around ≈5.5–6.1 — its minimum, the
   evaluated best-loss checkpoint, at step ~6.6k — and ends at 5.88 vs 1.06, about 5.5× higher.
-  The skill metrics sit correspondingly higher (1−R²_naive 0.67 vs 0.012).
+  Correspondingly, 1−R²_naive ends at 0.67 vs the reference's 0.012.
 - **Batch-wise dimension usage settles ~4× higher.** U_batch climbs to ~0.5 by ~3k steps and
   holds; the reference's never rises above ~0.14 — a much lower-rank regime, not a fall from a
   high value in either arm. U_temporal is slightly *lower* (0.100 vs 0.115), so the extra rank
   is across series, not across time.
 - **Discrimination is barely affected.** Ranking the positive against the negatives, the
-  stop-grad arm scores AUC 0.998 with the positive ranked first (Top-1) ~92% of the time late
-  in training, vs the reference's 1.000/1.000; cross-series cosine 0.022 vs 0.003,
-  near-orthogonal in both. The stop-grad changes how far the positive pair is pulled together,
-  not whether the model can tell pairs apart.
+  stop-grad arm scores AUC 0.999 with the positive ranked first (Top-1) ~92% of the time late
+  in training, vs the reference's 1.000/1.000; the cross-series cosine stays near zero in both
+  (0.022 vs 0.003, with brief late spikes to ~0.1 in the stop-grad arm). The stop-grad changes
+  how far the positive pair is pulled together, not whether the model can tell pairs apart.
+
+![The four contrastive cosines through training (log step): forecast-to-future ff,
+forecast-to-present fp, the future-to-present similarity tp, and the cross-series
+cosine.](plots/cosines.png)
+
+The cosines separate what stalls from what still moves. The reference ends with its forecast
+echoing only the future (fp 0.04) and its future and present encodings nearly orthogonal
+(tp 0.03). The stop-grad arm's forecast keeps tracking present and future about equally
+(fp 0.37 against ff 0.44), and its present and future encodings stay more similar (tp 0.16).
 
 Both arms subtract the same floor constant, and the stop-grad leaves the forward loss value
 bit-identical (unit-tested), so the loss curves are directly comparable.
@@ -105,5 +128,4 @@ noise.
 ## Follow-up
 
 **Stop-grad + shorter training** (the measured peak at ~6.6k ≈ half the compute for the same
-transfer), and **multi-seed confirmation** of the best-loss gain — on this seed the largest
-improvement a single change has produced in this recipe line.
+transfer), and **multi-seed confirmation** of the best-loss gain.

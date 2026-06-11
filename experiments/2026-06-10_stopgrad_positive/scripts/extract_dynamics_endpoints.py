@@ -12,7 +12,7 @@ ARMS = [
     ("reference", f"{EXP}/results/reference/bb_allt08_xftrip_nobn_enc3_qk_aon_b1024_losses.csv"),
     ("stop_grad", f"{EXP}/runs/bb_allt08_xftrip_nobn_enc3_sgpos_qk_aon_b1024_losses.csv"),
 ]
-METRICS = ["loss", "ff", "fp", "cross_batch", "r2_naive", "r2_random",
+METRICS = ["loss", "ff", "fp", "tp", "cross_batch", "r2_naive", "r2_random",
            "u_batch", "u_temporal", "auc", "top1"]
 WINDOW = 120
 OUT = "/tmp/cf-sgpos/experiments/2026-06-10_stopgrad_positive/results/dynamics_endpoints.csv"
