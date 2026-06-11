@@ -2,7 +2,7 @@
 
 ## Question
 
-Issue #328 changed three things at once on top of the strongest per-domain backbone (the
+The candidate recipe changed three things at once on top of the strongest per-domain backbone (the
 **base**: 6-layer encoder, a 128-wide bottleneck forecaster, no crossfade): it added an explicit
 crossfade **triplet** to the batch, **dropped the forecaster bottleneck** so the forecaster runs at
 the encoder width (384), and **shrank the encoder from six layers to three**. Does this combined
@@ -55,9 +55,9 @@ triplet: each differs from its own reference by the triplet alone.
 reliably better at both heads at best-loss (−0.027 / −0.013) and keeps its 2L gain at the last
 checkpoint (−0.025); only 6L-last is within noise (−0.008, same direction). Unlike the headline arm,
 its 2L verdict does not depend on checkpoint selection, and its gain is comparable to the headline
-arm's (−0.032 at 2L-last) — the architecture changes are not needed for the effect. The predecessor
-#326 (a C-only crossfade slice on the 10%-fork base) gave ≈−0.013 over its base — same direction,
-smaller.
+arm's (−0.032 at 2L-last) — the architecture changes are not needed for the effect. The [predecessor
+experiment](../2026-06-01_crossfade_allt10/crossfade_allt10.md) (a C-only crossfade slice on the
+10%-fork base) gave ≈−0.013 over its base — same direction, smaller.
 
 **The failure case is the no-bottleneck 6-layer configuration, not 6-layer encoders.**
 **L6+nobn+triplet** ends reliably worse than the base on both heads and degrades with training (2L
@@ -223,11 +223,11 @@ and copies B's future. Below, the blend weight rises 0→1 across the band.](plo
 | L3 | 3 | 128 (bottleneck) | no | 7.4M |
 | L6+nobn | 6 | 384 (full width) | no | 22.1M |
 | L3+nobn | 3 | 384 (full width) | no | 16.7M |
-| L3+nobn+triplet (#328) | 3 | 384 (full width) | yes | 16.7M |
+| L3+nobn+triplet | 3 | 384 (full width) | yes | 16.7M |
 | L6+nobn+triplet | 6 | 384 (full width) | yes | 22.1M |
 | base+triplet | 6 | 128 (bottleneck) | yes | 12.7M |
 
 The triplet changes only the training batch, so each triplet arm matches its host's parameter count.
-The combined #328 arm carries 16.7M parameters against the base's 12.7M — widening the forecaster
+The combined arm carries 16.7M parameters against the base's 12.7M — widening the forecaster
 outweighs dropping three encoder layers — so its last-checkpoint gain comes with more parameters
 than the base. base+triplet improves on the base at the base's own 12.7M.
