@@ -12,3 +12,11 @@
 - Monitoring cadence tightened to ~45 min after user feedback (another
   session's instance idled ~19h ≈ $30): every check = process alive +
   progress counter moving + GPU util, auto-restart idempotent stage if dead.
+
+## vast.ai instance ownership (#339 session)
+
+| instance | label | status | owner |
+|---|---|---|---|
+| 40410773 | cf-sgpos-339 | RUNNING the #339 pipeline — do not destroy | this session |
+| 40543259 | cf-sgpos-339-6L | destroyed (preempted pre-boot, $0.01) | this session |
+| 40407664 | cf328-basetrip-v4 | idle, NOT touched | #336 session |
