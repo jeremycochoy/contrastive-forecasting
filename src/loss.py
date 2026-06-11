@@ -500,6 +500,13 @@ def contrastive_latent_loss(predicted_position, validation, spec,
     of THAT objective). An explicit function arg overrides the config key
     (the `loss_tau_ref` diagnostic passes 0/False to stay a pure
     contrastive reference). See #309.
+
+    Config key ``stopgrad_positive_h`` (default False; the
+    ``--stopgrad-positive-h`` CLI flag): SimSiam/BYOL-style target
+    stop-grad on the InfoNCE positive — detach the encoder side h_{t+1}
+    of sim(h_{t+1}, f_{t+1}) in the positive term (numerator and, with
+    pos-in-denominator, denominator; negatives keep gradient on h).
+    Forward value unchanged; xshh_allt loss shape only (raises otherwise).
     """
     forecasted_latent, original_latent = predicted_position
     train_config = spec.train_configuration
@@ -510,6 +517,14 @@ def contrastive_latent_loss(predicted_position, validation, spec,
     # align_loss_weight / subtract_contrastive_floor are not defined for this
     # variant (no single positive pair / closed-form floor) and are ignored.
     if train_config.get('loss_shape') in ('cpc_multistep', 'cpc_multistep_cpcnegs'):
+        # stopgrad_positive_h is implemented only in the xshh_allt branch;
+        # the CPC variants return before the tail guard below, so fail loud
+        # here rather than silently training without the stop-grad.
+        if bool(train_config.get('stopgrad_positive_h', False)):
+            raise NotImplementedError(
+                "stopgrad_positive_h is only implemented for loss_shape="
+                "'cosine_similarity_batch_full_hh_negs_xshh_allt'; got "
+                f"{train_config.get('loss_shape')!r}.")
         if tau_override is not None:
             tau = tau_override
         else:
@@ -539,6 +554,16 @@ def contrastive_latent_loss(predicted_position, validation, spec,
     pos_in_denom = include_positive_in_denominator or bool(
         train_config.get('include_positive_in_denominator', False)
     )
+
+    # SimSiam/BYOL-style target stop-grad on the InfoNCE POSITIVE (#336
+    # follow-up): detach the ENCODER side h_{t+1} of the positive cosine
+    # sim(h_{t+1}, f_{t+1}) everywhere that term appears — the numerator
+    # and, under pos_in_denom, the denominator (both read `log_pos`, so
+    # detaching inside `log_pos` covers both). Every NEGATIVE keeps its
+    # gradient on h. Detach cuts only the backward edge, so the forward
+    # loss value is unchanged. Default False ⇒ byte-for-byte historical
+    # objective; only implemented for the xshh_allt shape (guarded below).
+    sg_pos = bool(train_config.get('stopgrad_positive_h', False))
 
     noise_sigma = train_config.get('contrastive_latent_noise')
     if noise_sigma is not None and not validation:
@@ -1107,7 +1132,11 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         # within-series h↔h is the kept all-time `log_neg_hh_all`). Numerically
         # stable logsumexp; --pos-in-denominator supported via the shared tail.
         neg_inf = float('-inf')
-        log_pos = cosine_similarity_from_normalized(hy_norm, hy_hat_norm) / tau
+        # stopgrad_positive_h: cut the encoder-side backward edge of the
+        # positive only. `hy_norm` keeps gradient in every negative term
+        # below (cross-batch f↔h, and h↔h via hx_norm/orig_norm).
+        hy_pos = hy_norm.detach() if sg_pos else hy_norm
+        log_pos = cosine_similarity_from_normalized(hy_pos, hy_hat_norm) / tau
 
         sims_xx = cosine_similarity_from_normalized(hx_norm.unsqueeze(3), hx_norm.unsqueeze(2))
         mask_mat = ~torch.eye(C, dtype=torch.bool, device=sims_xx.device)
@@ -1653,6 +1682,16 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             "cosine_similarity_batch_full_hh_negs_xshh_allt}; got "
             f"{train_config.get('loss_shape')!r}."
         )
+
+    # Guard: stopgrad_positive_h is applied inside the xshh_allt branch
+    # only. Any other `loss_shape` reaching here with it set would have
+    # silently trained WITHOUT the stop-grad — fail loud instead.
+    if sg_pos and train_config.get('loss_shape') != \
+            'cosine_similarity_batch_full_hh_negs_xshh_allt':
+        raise NotImplementedError(
+            "stopgrad_positive_h is only implemented for loss_shape="
+            "'cosine_similarity_batch_full_hh_negs_xshh_allt'; got "
+            f"{train_config.get('loss_shape')!r}.")
 
     # Optional add-ons (#309), both default OFF ⇒ the objective is
     # byte-for-byte unchanged for every existing run/test. Resolve from the

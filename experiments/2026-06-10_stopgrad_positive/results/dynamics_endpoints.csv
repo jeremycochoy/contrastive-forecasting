@@ -1,0 +1,14 @@
+# mean over the final 120 logged steps (right edge of the plot's 120-step MA); loss is floor-subtracted as logged
+metric,reference,stop_grad
+loss,1.0625,5.8766
+ff,0.9884,0.4426
+fp,0.0359,0.3719
+tp,0.0336,0.1594
+cross_batch,0.0032,0.0222
+r2_naive,0.9880,0.3329
+r2_random,0.9884,0.4344
+u_batch,0.1327,0.5142
+u_temporal,0.1155,0.0999
+auc,1.0000,0.9985
+top1,1.0000,0.9182
+last_step,12500.0000,12500.0000
