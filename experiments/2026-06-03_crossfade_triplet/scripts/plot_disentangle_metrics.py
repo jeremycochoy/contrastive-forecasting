@@ -14,17 +14,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 RUNS = "/home/jupyter/workspaces/contrastive-forecasting/experiments"
-ARMS = [  # (label, color, linestyle, csv)
-    ("base (6L + bottleneck)", "#888888", "--",
+CT = f"{RUNS}/2026-06-03_crossfade_triplet/runs"
+ARMS = [  # (label, color, linestyle, csv)  — consistent encoder-depth-prefixed naming
+    ("base", "#888888", "--",
      f"{RUNS}/2026-05-29_forked_6Lf_b1024/runs/bb_xshh_allt_forked2_qk_aon_6Lf_b1024_losses.csv"),
-    ("#328: L3 + no-bottleneck + triplet", "#2f6da8", "-",
-     f"{RUNS}/2026-06-03_crossfade_triplet/runs/bb_allt08_xftrip_nobn_enc3_qk_aon_b1024_losses.csv"),
-    ("L3 (3-layer encoder only)", "#2ca02c", "-",
-     f"{RUNS}/2026-06-03_crossfade_triplet/runs/bb_allt08_L3_qk_aon_b1024_losses.csv"),
-    ("L3 + no-bottleneck", "#e0a96d", "-",
-     f"{RUNS}/2026-06-03_crossfade_triplet/runs/bb_allt08_L3_nobn_qk_aon_b1024_losses.csv"),
-    ("no-bottleneck (6-layer)", "#d62728", "-",
-     f"{RUNS}/2026-06-03_crossfade_triplet/runs/bb_allt08_nobn_qk_aon_b1024_losses.csv"),
+    ("L3", "#2ca02c", "-", f"{CT}/bb_allt08_L3_qk_aon_b1024_losses.csv"),
+    ("L6+nobn", "#d62728", "-", f"{CT}/bb_allt08_nobn_qk_aon_b1024_stitched_losses.csv"),
+    ("L3+nobn", "#e0a96d", "-", f"{CT}/bb_allt08_L3_nobn_qk_aon_b1024_losses.csv"),
+    ("L3+nobn+triplet", "#2f6da8", "-", f"{CT}/bb_allt08_xftrip_nobn_enc3_qk_aon_b1024_losses.csv"),
+    ("L3+nobn+triplet @25k", "#17becf", "-", f"{CT}/bb_allt08_xftrip_nobn_enc3_qk_aon_b1024_to25000_losses.csv"),
+    ("L6+nobn+triplet", "#9467bd", "-", f"{CT}/bb_allt08_xftrip_nobn_enc6_qk_aon_b1024_losses.csv"),
+    ("base+triplet", "#8c564b", "-", f"{CT}/bb_allt08_xftrip_bn_enc6_qk_aon_b1024_stitched_losses.csv"),
 ]
 OUT = os.environ.get("OUT", "/tmp/cf-328/experiments/2026-06-03_crossfade_triplet/plots/disentangle_metrics.png")
 START = int(os.environ.get("START", "100"))
@@ -73,7 +73,7 @@ for ax, (key, title, tf) in zip(axes.ravel(), PANELS):
     ax.legend(fontsize=7, loc="best")
 laststep = max((int(d["step"][-1]) for _, _, _, d in loaded if d is not None), default=0)
 fig.suptitle("Disentanglement — training dynamics (log-log), all arms vs base "
-             f"(latest step {laststep}/12500; {SMOOTH}-step MA). Top: lower=better. "
+             f"(latest step {laststep}; {SMOOTH}-step MA). Top: lower=better. "
              "Bottom U_*: used dimensions, higher=better.", fontsize=12)
 fig.tight_layout(rect=(0, 0, 1, 0.96))
 os.makedirs(os.path.dirname(OUT), exist_ok=True)

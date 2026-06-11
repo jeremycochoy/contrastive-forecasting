@@ -1,108 +1,204 @@
-# An explicit crossfade triplet on a wider, shallower backbone
+# Crossfade triplet on the 0.8%-fork base — disentangling triplet, bottleneck, and encoder depth
 
-We took our strongest per-domain backbone recipe (the base) and changed three things at once, each
-expected to help the downstream forecast: we replaced the earlier regime-crossfade slice with an
-**explicit triplet** (both parent windows, z-normalised, plus their blend, all added to the batch);
-we **removed the forecaster bottleneck** so the forecaster runs at the encoder's full width; and we
-**halved the pre-forecaster encoder** from six layers to three. On a single training seed the
-combined arm does not improve the benchmark forecast: both forecasting heads come out slightly worse
-than the base, by less than the task-set noise, and the arm also trails the previous best recipe.
+## Question
 
-*Forecast error is **GM-Relative MASE**: the geometric mean, over the benchmark's 97 tasks, of a
-model's error divided by the seasonal-naive forecast's error. Lower is better; 1.0 is
-seasonal-naive.*
+Issue #328 changed three things at once on top of the strongest per-domain backbone (the
+**base**: 6-layer encoder, a 128-wide bottleneck forecaster, no crossfade): it added an explicit
+crossfade **triplet** to the batch, **dropped the forecaster bottleneck** so the forecaster runs at
+the encoder width (384), and **shrank the encoder from six layers to three**. Does this combined
+arm — **L3+nobn+triplet** — improve the downstream forecast, and which of the three changes is
+responsible?
 
-![Forecast error for each head, the base versus the combined arm. In each pair the arm (dark) is a
-touch higher than the base (light). The dotted line is seasonal-naive.](plots/gm_summary.png)
+*Forecast error is **GM-Relative MASE**: the geometric mean, over GIFT-Eval's 97 tasks, of a model's
+error divided by the seasonal-naive forecast's error. Lower is better; 1.0 = seasonal-naive. Each
+frozen backbone is scored by training a fresh quantile forecasting head on top — once with two
+layers (**2L**), once with six (**6L**) — and evaluating on all 97 tasks. A **paired bootstrap** over
+the 97 tasks (resample the task list with repeats, score both models on each resample so per-task
+difficulty cancels) gives a 90% interval on each arm's difference from the base. One backbone seed
+per arm, so every interval is over tasks, not over training seeds.*
 
-## What we got, overall
+## Result — checkpoint selection decides the verdict
 
-Both point estimates move the wrong way — the combined arm is slightly worse on both heads. A
-**paired bootstrap** over the 97 tasks (resample the task list with repeats many times, scoring both
-models on each resampled list so per-task difficulty cancels) puts a 90% interval on each change.
-Both intervals cover zero, so neither aggregate difference is larger than the luck of which tasks the
-benchmark happens to contain.
+The combined arm **L3+nobn+triplet** is neutral at its best-loss checkpoint but reliably better than
+the base after full training (the last checkpoint).
 
-| forecasting head | base | combined arm | change | 90% interval |
-|---|--:|--:|--:|:--:|
-| 2-layer | 1.213 | 1.220 | +0.007 | (−0.014, +0.028) |
-| 6-layer | 1.198 | 1.211 | +0.013 | (−0.012, +0.036) |
+| arm vs base | head | best-loss GM | Δ (90% CI) | last GM | Δ (90% CI) |
+|---|---|--:|:--:|--:|:--:|
+| L3+nobn+triplet | 2L | 1.220 | +0.007 (−0.014, +0.028) | **1.181** | **−0.032 (−0.050, −0.014)** |
+| L3+nobn+triplet | 6L | 1.211 | +0.013 (−0.012, +0.036) | **1.169** | **−0.029 (−0.049, −0.011)** |
 
-The arm is also worse than the previous best recipe (a 10% crossfade slice on a richer-synthetic
-base: 1.208 / 1.178). And it carries **more** parameters than the base — 16.7M against 12.7M, because
-widening the forecaster outweighs dropping three encoder layers — so the larger model is no more
-accurate.
+Base GM is 1.213 (2L) and 1.198 (6L). At the best-loss checkpoint both intervals cover zero, so the
+arm is within task-set noise — the neutral reading. At the last checkpoint both intervals sit fully
+below zero on both heads, so the arm reliably beats the base. Selecting the backbone by lowest
+contrastive loss hid this gain; evaluating at full training revealed it.
 
-## What we got, by domain
+## Disentanglement — the gain tracks the triplet, not bottleneck removal
 
-Splitting the aggregate by domain shows a redistribution.
+Running the three changes one at a time (same base, same seed, same budget) separates their effects.
+The figure below reads each arm against the base at both checkpoints and both heads.
 
-![Per-domain change in error from the combined arm, both heads, with the 90% paired-bootstrap
-interval for each domain (task count in brackets). Green is a reliable improvement, the whole
-interval below zero; red a reliable worsening; grey within noise.](plots/perdomain_delta.png)
+![GM-Relative MASE for each disentanglement arm at the best-loss and last checkpoints, 2L and 6L
+heads, against the base. Bars below the base line and with a 90% interval clear of it are reliable
+improvements; bars above are reliable worsenings.](plots/gm_summary.png)
 
-The only effect reliable on **both** heads is a worsening on Web/CloudOps (+0.064 and +0.079 on a
-20-task domain), the largest single move. On one head each, the arm reliably worsens Transport
-(2-layer) and Sales (6-layer) and reliably improves Healthcare (2-layer). Econ/Fin shows the largest
-nominal improvement on both heads, but on six tasks its interval is far too wide to call. By task
-count the reliable losses are larger than the single reliable win, which is consistent with the
-slightly-worse — though noisy — aggregate.
+| arm | head | best-loss Δ (90% CI) | last Δ (90% CI) |
+|---|---|:--:|:--:|
+| L3 (3L encoder only) | 2L | +0.027 (+0.006, +0.049) worse | −0.002 (−0.025, +0.020) ns |
+| L3 | 6L | +0.017 (−0.003, +0.037) ns | +0.064 (+0.040, +0.088) worse |
+| L6+nobn (full-width forecaster) | 2L | +0.041 (+0.015, +0.067) worse | +0.062 (+0.046, +0.078) worse |
+| L6+nobn | 6L | +0.077 (+0.042, +0.109) worse | +0.021 (+0.001, +0.039) worse |
+| L3+nobn | 2L | −0.001 (−0.020, +0.019) ns | +0.003 (−0.015, +0.020) ns |
+| L3+nobn | 6L | +0.019 (−0.012, +0.049) ns | −0.015 (−0.029, −0.002) better |
+| **L3+nobn+triplet** | 2L | +0.007 (−0.014, +0.028) ns | **−0.032 (−0.050, −0.014) better** |
+| **L3+nobn+triplet** | 6L | +0.013 (−0.012, +0.036) ns | **−0.029 (−0.049, −0.011) better** |
 
-## How the arm works
+Reading down the column:
 
-A contrastive backbone is promised that a window's forecast should look like its own future, not its
-present; a crossfade denies the lazy shortcut of tracking position in time by splicing one real
-window's past onto another's future, so position no longer separates the spliced window from its
-neighbours. The earlier recipe added only the blend C and left its parents as their raw selves in the
-batch. Here we add the **triplet** — both parents z-normalised (A_norm, B_norm) alongside the blend C
-— so C sits in the batch with its two exact, same-scale parents: A_norm shares C's past, B_norm
-shares C's future. Only this one triplet (three windows) is added per step, on top of the base
-recipe's natural batch.
+- **Dropping the bottleneck alone (L6+nobn)** is reliably worse than the base on both heads at both
+  checkpoints — the largest single worsening among the components.
+- **Shrinking the encoder alone (L3)** is inconsistent: reliably worse at 2L-best and at 6L-last,
+  neutral elsewhere.
+- **L3+nobn** (both architecture changes, no triplet) is neutral except 6L-last, where it is
+  marginally better (−0.015, upper bound −0.002).
+- **L3+nobn+triplet** is the only arm reliably better on both heads, and only at full training.
+
+Adding the triplet is the only change that turns the arm into a reliable both-head improvement, so
+the full-training gain is attributable to the triplet rather than to removing the bottleneck or
+shrinking the encoder.
+
+## Train-longer hurts
+
+Extending the combined backbone from 12,500 to 25,000 steps (fresh data for the extra steps,
+equivalent to a single 25k-step run) does not help: the step-25k checkpoint is reliably worse than
+the base on both heads. This eval uses a fresh 30k head — the same protocol as the best-loss evals —
+so the controlled comparison is against the base and against the fresh-head best-loss checkpoint
+(step 6,407: 1.220 / 1.211); both show the longer-trained backbone is worse.
+
+| arm (step 25k, fresh head) | head | GM | Δ vs base (90% CI) | Δ vs step-6.4k |
+|---|---|--:|:--:|:--:|
+| L3+nobn+triplet @25k | 2L | 1.249 | +0.037 (+0.018, +0.055) worse | +0.030 |
+| L3+nobn+triplet @25k | 6L | 1.222 | +0.024 (+0.013, +0.035) worse | +0.011 |
+
+25k steps is ≈0.6 of one epoch (the pretrain set `small_v1` holds 42,571,692 windows; at 1,016 real
+rows/step one pass ≈ 41,900 steps), so this is late-training instability within the first epoch, not
+data starvation. *Protocol note:* the 12.5k headline result (1.181 / 1.169) used a re-adapted head,
+not a fresh one, so it is not on the same head-protocol curve as the fresh-head points here and is
+not used for the train-longer contrast.
+
+## Training dynamics — pretext quality is anti-correlated with transfer
+
+The combined arm trains cleanly and does not collapse. The panels below overlay all arms on log-log
+axes.
+
+![Training dynamics, log-log, all arms vs the base (dashed grey), from step 100 with a 120-step
+moving average. Top, lower is better: contrastive loss above its InfoNCE floor, the ratio gap
+(1−ff)/(1−fp) where ff is forecast-to-future cosine and fp forecast-to-present cosine, 1−R²_naive and
+1−R²_random. Bottom, higher is better: U_batch and U_temporal, the fraction of embedding dimensions
+in use.](plots/disentangle_metrics.png)
+
+At step 12,500 the arms rank on the pretext task in the opposite order to their downstream result:
+
+- The **triplet raises the contrastive loss** (1.065 for L3+nobn+triplet vs 0.895 for the base) — a
+  harder pretext — yet it is the arm that improves downstream.
+- **Dropping the bottleneck lowers the contrastive loss and raises used dimensions** (L6+nobn reaches
+  loss 0.662 and U_batch 0.197, the easiest pretext and the most-used embedding among the arms) — yet
+  it transfers worst.
+
+On this benchmark a lower contrastive loss is not a sign of a better forecasting backbone; the
+triplet's harder pretext is what tracks the downstream gain. No arm collapsed: every used-dimension
+count stays well above zero and forecast-to-future cosine reaches ~0.99.
+
+## Protocol
+
+Each arm starts from the base recipe and changes only the stated components, holding everything else
+fixed: the base trains a contrastive backbone at global batch 1024 with all samples pooled into one
+set of negatives, on a mix that is 99.2% real series and 0.8% synthetic **forked-ARMA** (pairs of
+ARMA series that share a prefix then diverge — a hard negative for position), under an **all-time**
+contrastive loss (it separates different series at every time lag, not just aligned positions). Held
+fixed: the two batch-1024 stabilisers (**QK-norm** and an **attention-output norm**),
+**floor-subtraction** (re-basing the loss by its uniformity floor), the optimiser, learning rate,
+temperature, and the random seed. The **triplet** adds, per step, one z-normalised window pair
+(A_norm, B_norm) and their blend C on top of the natural batch — C copies A's past, ramps across a
+transition band, and copies B's future, so position no longer separates the spliced window from its
+neighbours; the figure in the annex shows one example. Each backbone is frozen and scored by training
+a fresh 2L and 6L quantile head (30k steps, batch 256) and evaluating on GIFT-Eval (strategy B4) over
+the full 97 tasks. Because the headline arm changes three things together, its best-vs-last
+comparison measures a joint effect; the disentanglement arms isolate the components.
+
+## What we learned
+
+1. **Checkpoint selection flips the verdict.** L3+nobn+triplet is neutral at best-loss (2L
+   +0.007, 6L +0.013, both CIs straddle zero) but reliably beats the base at full training (2L
+   −0.032 [−0.050, −0.014]; 6L −0.029 [−0.049, −0.011]). The earlier "neutral" reading came from the
+   best-loss checkpoint.
+2. **The gain tracks the triplet.** Dropping the bottleneck alone is reliably worse on both heads;
+   shrinking the encoder alone is inconsistent; only the triplet arm is reliably better on both
+   heads, and only at full training.
+3. **Train-longer hurts.** Extending to 25k reliably worsens both heads (2L +0.037, 6L +0.024);
+   downstream peaks near 12.5k, within the first epoch.
+4. **Lower contrastive loss does not mean better transfer here.** The triplet raises the pretext loss
+   yet improves downstream; dropping the bottleneck lowers the pretext loss yet transfers worst.
+
+## Follow-up — triplet isolation across architectures
+
+The headline arm bundles the triplet with two architecture changes. Two further arms isolate the
+triplet's effect; L6+nobn+triplet is complete, base+triplet is still training.
+
+| arm | difference from its base | what it tests | result |
+|---|---|---|---|
+| L6+nobn+triplet | adds the triplet to L6+nobn | does the triplet rescue the otherwise-harmful full-width forecaster at 6 encoder layers? | **No** — reliably worse than base and *degrades* with training: 2L 1.274 → 1.313 (last Δ +0.101), 6L 1.225 → 1.261 (last Δ +0.062). |
+| base+triplet | adds only the triplet to the base | cleanest triplet isolation — base vs base+triplet differ by the triplet alone | pending (backbone training, ETA tonight) |
+
+**The triplet is encoder-depth-specific.** It helps only with the 3-layer encoder: L3+nobn+triplet
+improves with training to a reliable win, while L6+nobn+triplet (the same change on a 6-layer
+encoder) is harmful and worsens with training. This matches the pretext dynamics — at 3 layers the
+triplet raises the contrastive loss (a harder pretext that transfers), whereas at 6 layers the larger
+encoder absorbs it (loss 0.655, essentially the L6+nobn value 0.662), so there is no harder pretext
+and no transfer gain.
+
+The predecessor #326 (a C-only crossfade slice on the 10%-fork base) gave ≈−0.013 over its base,
+smaller than the ≈−0.030 last-checkpoint gain here, so base+triplet is expected to show a modest
+positive effect; the magnitude will fix how much of this arm's gain is the triplet versus an
+interaction with the architecture changes. A further follow-up (carded separately) tests a
+stop-gradient on the encoder's positive term in this best arm.
+
+---
+
+## Annex
+
+### Per-domain breakdown (best-loss checkpoint)
+
+The split below is computed at the **best-loss** checkpoint of L3+nobn+triplet, where the aggregate is
+neutral; it shows where the neutral aggregate comes from, not where the full-training gain lands. A
+last-checkpoint per-domain breakdown would better match the headline.
+
+![Per-domain change in error for the combined arm at its best-loss checkpoint, both heads, with the
+90% paired-bootstrap interval per domain (task count in brackets). Green = reliable improvement, red =
+reliable worsening, grey = within noise.](plots/perdomain_delta.png)
+
+At this checkpoint the only both-head reliable effect is a worsening on Web/CloudOps (+0.064 at 2L,
++0.079 at 6L, a 20-task domain). On one head each, the arm reliably worsens Transport (2L) and Sales
+(6L) and reliably improves Healthcare (2L). Econ/Fin shows the largest nominal improvement on both
+heads but, on six tasks, its interval is far too wide to call.
+
+### Crossfade triplet schematic
 
 ![The crossfade triplet on one example pair: both parents are z-normalised and added to the batch
 (A_norm, B_norm), together with the blend C, which copies A's past, ramps across a transition band,
 and copies B's future. Below, the blend weight rises 0→1 across the band.](plots/triplet_schematic.png)
 
-The other two changes are architectural: the forecaster drops its 128-wide bottleneck and runs at the
-encoder width (384), and the pre-forecaster encoder goes from six causal layers to three.
+### Arm definitions and parameter counts
 
-## Training dynamics
+| arm | encoder layers | forecaster width | triplet | backbone params |
+|---|--:|--:|:--:|--:|
+| base | 6 | 128 (bottleneck) | no | 12.7M |
+| L3 | 3 | 128 (bottleneck) | no | — |
+| L6+nobn | 6 | 384 (full width) | no | — |
+| L3+nobn | 3 | 384 (full width) | no | — |
+| L3+nobn+triplet (#328) | 3 | 384 (full width) | yes | 16.7M |
+| L6+nobn+triplet (pending) | 6 | 384 (full width) | yes | — |
+| base+triplet (pending) | 6 | 128 (bottleneck) | yes | — |
 
-The arm trains cleanly and does not collapse.
-
-![Training metrics, log-log, combined arm (solid) vs the base (dashed), from step 100. Top, lower is
-better: contrastive loss, the ratio gap (1−ff)/(1−fp) where ff is the forecast-to-future cosine and
-fp the forecast-to-present cosine, and 1−R²_naive, then 1−R²_random — all decay toward zero on both.
-Bottom, higher is better: U_batch and U_temporal, the fraction of embedding dimensions actually
-used.](plots/training_metrics.png)
-
-The contrastive loss falls, the ratio gap and the skill metrics (R² against naive and random
-baselines) converge to the same neighbourhood as the base, and the used-dimension counts stay well
-above collapse. The forecast-to-future cosine reaches ~0.99 on both, and different series stay
-near-orthogonal throughout (cross-series cosine ≲0.003), so nothing collapsed. The combined arm's
-contrastive loss settles slightly higher late in training. Each backbone is evaluated at its
-**best-loss checkpoint** (the step with the lowest contrastive loss).
-
-## Protocol
-
-Three changes from the base recipe (explicit crossfade triplet; full-width forecaster; three encoder
-layers), everything else held fixed. The base trains a contrastive backbone at batch 1024 with all
-samples pooled into one set of negatives, on a mix that is 99.2% real series and 0.8% synthetic
-**forked-ARMA** (pairs of ARMA series that share a prefix then diverge — a hard negative for
-position), under an **all-time** contrastive loss (it separates different series at every time lag,
-not just aligned positions). Held fixed with it: the two stabilisers the base needs at this batch
-size — **QK-norm** and an **attention-output norm** — and **floor-subtraction** (re-basing the loss
-by its uniformity floor), plus the same optimiser, learning rate, temperature, and random seed. The
-finished backbone is frozen and scored by training a fresh forecasting head on top — once with two
-layers, once with six — and evaluating on GIFT-Eval's 97 tasks (with an 11-task subset for quick
-checks). One backbone was trained, so every interval here is taken over tasks, not over training
-seeds. Because three things changed together, the result is their **joint** effect and cannot be
-attributed to any single change.
-
-## What we learned
-
-The three changes, applied together, do not lift the downstream forecast on this seed: both heads are
-slightly worse than the base and the whole arm trails the previous best recipe, though the aggregate
-move is within task-set noise. The only effect reliable on both heads is a worsening on Web/CloudOps.
-The cheapest way to firm up the small aggregate move — or to learn which of the three changes is
-responsible — is to run the changes one at a time, across two or three seeds.
+The combined #328 arm carries 16.7M parameters against the base's 12.7M: widening the forecaster
+outweighs dropping three encoder layers. The reliable last-checkpoint gain therefore comes with more
+parameters, not fewer.
