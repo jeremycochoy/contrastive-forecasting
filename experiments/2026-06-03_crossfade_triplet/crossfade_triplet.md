@@ -18,9 +18,9 @@ seed per arm, so intervals are over tasks, not seeds.*
 ## Result
 
 The triplet is the change that matters, and the experiment ends with two winners. **base+triplet**
-(the unmodified base plus only the triplet) is reliably better than the base with no architecture
-change at all; it holds the best score at the best-loss checkpoint and has the most stable gain
-across checkpoints. **L3+nobn+triplet** (the combined arm, no bottleneck) is neutral at its
+(the unmodified base plus only the triplet) is reliably better than the base at both heads at the
+best-loss checkpoint — no architecture change needed — where it holds the best score; its gain is
+the most stable across checkpoints. **L3+nobn+triplet** (the combined arm, no bottleneck) is neutral at its
 best-loss checkpoint but reliably better after full training on both heads, where it holds the best
 score overall. Neither architecture change alone gives a reliable both-head improvement, and the
 no-bottleneck 6-layer configuration ends reliably worse with or without the triplet.
@@ -80,8 +80,8 @@ moving average. Lower is better for: contrastive loss above its InfoNCE floor; t
 to a latent-persistence / random-pair baseline. Higher is better for: U_batch and U_temporal, the
 fraction of embedding dimensions in use.](plots/disentangle_metrics.png)
 
-At step 12,500 the pretext extremes sit in the opposite order downstream: the triplet arms give the
-hardest pretext yet improve transfer, while dropping the bottleneck gives the easiest pretext (and
+At step 12,500 the pretext extremes sit in the opposite order downstream: the headline arm gives
+the hardest pretext yet improves transfer, while dropping the bottleneck gives the easiest pretext (and
 the most used dimensions among the no-triplet arms) yet is reliably worse in all four cells. A
 harder pretext is not required for a gain either: base+triplet leaves the pretext loss essentially
 at the base value and still transfers better. No arm collapsed: used dimensions stay above zero and
