@@ -23,8 +23,12 @@ QEVAL="$WT/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py"
 log(){ echo "[$(date '+%m-%d %H:%M:%S')] [dl-sgcap-$ARM ${HL}L g$GPU] $*"; }
 gm(){ grep 'Aggregate GM-Relative MASE' "$1" 2>/dev/null | grep -oE '[0-9]+\.[0-9]+$' | tail -1; }
 [ -f "$BB" ] || { log "ABORT backbone missing: $BB"; exit 1; }
+# Bottleneck arm: the q-head trainer / eval rebuild the backbone full-width by
+# default — pass the bottleneck explicitly (same as #328's downstream_generic.sh
+# with fcst_dmodel=128). Full-width + encoder depth are auto-detected.
+FCST=(); [ "$ARM" = bn_enc6 ] && FCST=(--forecaster-d-model 128 --forecaster-n-heads 4)
 arch=(--t-raw 4096 --n-channels 1 --d-model 384 --n-heads 6 --num-layers 6 \
-      --encoder-type gru --rev-norm-kind ewma --rev-norm-span 128)
+      "${FCST[@]}" --encoder-type gru --rev-norm-kind ewma --rev-norm-span 128)
 
 train_head(){ # run_name backbone resume_src total warmup
   local qn="$1" bb="$2" src="$3" tot="$4" wu="$5" qf="$RUNS/$1_FINAL.pth"
@@ -50,7 +54,7 @@ do_eval(){ # run_name backbone out_tag
   mkdir -p "$out"; log "EVAL $3 full-97 start"
   python3 -u "$QEVAL" --backbone-path "$2" --head-path "$qf" --output-dir "$out" --strategy B4 \
     --forecast-len 16 --t-raw 4096 --backbone-c 1 --d-model 384 --n-heads 6 --num-layers 6 \
-    --encoder-type gru --rev-norm-kind ewma --rev-norm-span 128 --device cuda --head-causal true \
+    "${FCST[@]}" --encoder-type gru --rev-norm-kind ewma --rev-norm-span 128 --device cuda --head-causal true \
     >>"$RES/run_eval_full_$3_${HL}L.log" 2>&1 || { log "EVAL $3 FAILED"; return 1; }
   log "EVAL $3 done GM=$(gm "$out/summary.txt")"; }
 
