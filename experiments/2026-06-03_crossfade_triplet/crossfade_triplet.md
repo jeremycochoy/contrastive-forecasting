@@ -144,6 +144,34 @@ pretext is not required for a gain either: base+triplet leaves the pretext loss 
 base value (0.881 vs 0.895) and still transfers better. No arm collapsed: every used-dimension count
 stays well above zero and forecast-to-future cosine reaches ~0.99.
 
+## Scoreboard
+
+Every cell of the experiment in one board: seven arms × two heads × two checkpoints.
+
+*Full-97 **GM-Relative MASE**; **lower is better**. Base reference: 1.213 (2L head), 1.198 (6L
+head). Δ = arm − base on the same head and checkpoint, with the 90% paired-bootstrap interval over
+the 97 tasks; better/worse = the interval is clear of zero, ns = it straddles zero. One backbone
+seed per arm. Best-loss columns use fresh 30k heads, last columns the re-adapted head (see
+Protocol); the @25k arm has a single checkpoint (step 25,000), scored with a fresh head. **Bold**
+marks the best score per head in each checkpoint column.*
+
+| arm | head | best-loss GM | Δ vs base (90% CI) | last GM | Δ vs base (90% CI) |
+|---|---|--:|:--:|--:|:--:|
+| L3 | 2L | 1.240 | +0.027 (+0.006, +0.049) worse | 1.210 | −0.002 (−0.025, +0.020) ns |
+| L3 | 6L | 1.215 | +0.017 (−0.003, +0.037) ns | 1.262 | +0.064 (+0.040, +0.088) worse |
+| L6+nobn | 2L | 1.254 | +0.041 (+0.015, +0.067) worse | 1.274 | +0.062 (+0.046, +0.078) worse |
+| L6+nobn | 6L | 1.275 | +0.077 (+0.042, +0.109) worse | 1.219 | +0.021 (+0.001, +0.039) worse |
+| L3+nobn | 2L | 1.212 | −0.001 (−0.020, +0.019) ns | 1.215 | +0.003 (−0.015, +0.020) ns |
+| L3+nobn | 6L | 1.217 | +0.019 (−0.012, +0.049) ns | 1.183 | −0.015 (−0.029, −0.002) better |
+| L3+nobn+triplet | 2L | 1.220 | +0.007 (−0.014, +0.028) ns | **1.181** | −0.032 (−0.050, −0.014) better |
+| L3+nobn+triplet | 6L | 1.211 | +0.013 (−0.012, +0.036) ns | **1.170** | −0.029 (−0.049, −0.011) better |
+| L3+nobn+triplet @25k | 2L | 1.249 | +0.037 (+0.018, +0.055) worse | — | — |
+| L3+nobn+triplet @25k | 6L | 1.222 | +0.024 (+0.013, +0.035) worse | — | — |
+| L6+nobn+triplet | 2L | 1.274 | +0.061 (+0.038, +0.085) worse | 1.313 | +0.100 (+0.076, +0.125) worse |
+| L6+nobn+triplet | 6L | 1.225 | +0.027 (−0.003, +0.054) ns | 1.260 | +0.062 (+0.033, +0.089) worse |
+| base+triplet | 2L | **1.186** | −0.027 (−0.042, −0.011) better | 1.187 | −0.025 (−0.042, −0.008) better |
+| base+triplet | 6L | **1.185** | −0.013 (−0.025, −0.002) better | 1.190 | −0.008 (−0.020, +0.003) ns |
+
 ## Protocol
 
 Each arm starts from the base recipe and changes only the stated components, holding everything else
