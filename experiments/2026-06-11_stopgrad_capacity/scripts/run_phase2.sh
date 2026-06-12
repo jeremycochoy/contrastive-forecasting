@@ -22,8 +22,9 @@ while [ ! -f "$RES/chain_nobn_enc6.done" ] || [ ! -f "$RES/chain_bn_enc6.done" ]
 log "both chains done — training fresh last heads (30k on last backbone)"
 
 train_fresh_last(){ # <tag> <hl> <gpu>
-  local tag="$1" hl="$2" gpu="$3" qn="qhead_${hl}L_${1}_lastfresh" qf
-  qf="$RUNS/qhead_${hl}L_${1}_lastfresh_FINAL.pth"
+  local tag="$1" hl="$2" gpu="$3"
+  local qn="qhead_${hl}L_${tag}_lastfresh"
+  local qf="$RUNS/qhead_${hl}L_${tag}_lastfresh_FINAL.pth"
   [ -f "$qf" ] && { log "head $qn skip (FINAL exists)"; return 0; }
   local FCST=(); case "$tag" in *nobn_enc6*) FCST=() ;; *bn_enc6*) FCST=(--forecaster-d-model 128 --forecaster-n-heads 4) ;; esac
   log "train $qn (30k, fresh, gpu$gpu) on bb_${tag}_final.pth"

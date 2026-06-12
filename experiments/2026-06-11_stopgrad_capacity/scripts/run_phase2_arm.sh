@@ -22,7 +22,9 @@ log "waiting for chain_${ARM}.done"
 while [ ! -f "$RES/chain_${ARM}.done" ]; do sleep 60; done
 FCST=(); case "$ARM" in nobn_enc6) FCST=() ;; bn_enc6) FCST=(--forecaster-d-model 128 --forecaster-n-heads 4) ;; esac
 train_fresh(){ # <hl>
-  local hl="$1" qn="qhead_${hl}L_${TAG}_lastfresh" qf="$RUNS/qhead_${hl}L_${TAG}_lastfresh_FINAL.pth"
+  local hl="$1"
+  local qn="qhead_${hl}L_${TAG}_lastfresh"
+  local qf="$RUNS/qhead_${hl}L_${TAG}_lastfresh_FINAL.pth"
   [ -f "$qf" ] && { log "head $qn skip (FINAL exists)"; return 0; }
   log "train $qn (30k fresh) on bb_${TAG}_final.pth"
   CUDA_VISIBLE_DEVICES="$GPU" python3 -u "$QTRAIN" --backbone-path "$RUNS/bb_${TAG}_final.pth" \
