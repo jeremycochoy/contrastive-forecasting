@@ -19,6 +19,9 @@ log "relaunching chains (finish unfinished heads), watchdog, phase2"
 setsid nohup bash "$SD/chain_sgcap.sh"     nobn_enc6 0 > "$RES/chain_nobn_enc6.out" 2>&1 </dev/null &
 setsid nohup bash "$SD/chain_sgcap.sh"     bn_enc6   1 > "$RES/chain_bn_enc6.out"   2>&1 </dev/null &
 setsid nohup bash "$SD/watchdog_sgcap.sh"               > "$RES/watchdog_driver.out" 2>&1 </dev/null &
-setsid nohup bash "$SD/run_phase2.sh"                   > "$RES/run_phase2.out"      2>&1 </dev/null &
-log "launched. monitor: tail $RES/run_phase2.out and $RES/watchdog.log"
+# per-arm phase 2 (each waits its own chain; bn on GPU1, nobn on GPU0 — matches
+# the chains' GPU assignment so an arm's fresh-last work lands on its freed card)
+setsid nohup bash "$SD/run_phase2_arm.sh" bn_enc6   1 > "$RES/run_phase2_bn.out"   2>&1 </dev/null &
+setsid nohup bash "$SD/run_phase2_arm.sh" nobn_enc6 0 > "$RES/run_phase2_nobn.out" 2>&1 </dev/null &
+log "launched. monitor: tail $RES/run_phase2_*.out and $RES/watchdog.log"
 echo "resume OK"
