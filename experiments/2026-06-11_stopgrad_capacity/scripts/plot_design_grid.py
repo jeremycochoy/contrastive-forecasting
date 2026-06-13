@@ -37,12 +37,12 @@ def card(cx, cy, title, sub, fc, ec, dashed=False):
 # main chain: arm 2 -> arm 3 -> arm 4 (left to right)
 y0 = 1.30
 x2, x3, x4 = 0.0, 1.98, 3.96
-card(x2, y0, "arm 2", "enc3 · full · sg\nreused — #339 winner", "#eef6ee", REUSE)
+card(x2, y0, "arm 2", "enc3 · full · sg\nreused — prior winner", "#eef6ee", REUSE)
 card(x3, y0, "arm 3", "enc6 · full · sg\nNEW", "#eaf5ea", NEW)
 card(x4, y0, "arm 4", "enc6 · bn · sg\nNEW", "#eaf5ea", NEW)
 # control hanging below arm 4 (same architecture, stop-grad removed)
 y1 = 0.02
-card(x4, y1, "arm 1", "enc6 · bn · NO sg\nreused — #336 control", "#fbeaea", NOSG)
+card(x4, y1, "arm 1", "enc6 · bn · NO sg\nreused — no-sg control", "#fbeaea", NOSG)
 
 
 def harrow(xa, xb, y, color):

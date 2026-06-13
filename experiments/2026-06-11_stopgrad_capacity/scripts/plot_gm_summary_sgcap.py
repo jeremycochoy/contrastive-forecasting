@@ -63,7 +63,7 @@ axL.annotate("stop-grad + bottleneck\ncollapses at 'last'\n(clipped at 1.4)", xy
              arrowprops=dict(arrowstyle="->", color="#d62728", lw=1.2))
 
 # Right: capacity step enc3->enc6, no-sg vs sg.
-SERIES = [("WITHOUT stop-grad (#336)", "c_nobn_enc3", "c_nobn_enc6", "#c0504d"),
+SERIES = [("WITHOUT stop-grad (reference)", "c_nobn_enc3", "c_nobn_enc6", "#c0504d"),
           ("WITH stop-grad (arms 2->3)", "a2_sg_enc3_nobn", "a3_sg_enc6_nobn", "#2e7d32")]
 xr = np.arange(len(CELLS))
 for k, (lab, A, B, col) in enumerate(SERIES):

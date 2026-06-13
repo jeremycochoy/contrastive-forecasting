@@ -21,8 +21,8 @@ for r in csv.DictReader(open(f"{EXP}/results/gm_table.csv")):
         gm[(r["arm"], r["head"], r["ckpt"])] = float(r["gm"])
 
 ARMS = [  # key, x-axis label (architecture)
-    ("a1_bn_enc6",      "arm1\nbn · no-sg\n(#336)"),
-    ("a2_sg_enc3_nobn", "arm2\nenc3 · full · sg\n(#339)"),
+    ("a1_bn_enc6",      "arm1\nbn · no-sg\n(reference)"),
+    ("a2_sg_enc3_nobn", "arm2\nenc3 · full · sg\n(prior winner)"),
     ("a3_sg_enc6_nobn", "arm3\nenc6 · full · sg\n(new)"),
     ("a4_sg_enc6_bn",   "arm4\nenc6 · bn · sg\n(new)"),
 ]

@@ -19,7 +19,7 @@ ARMS = [  # (label, color, linestyle, csv)
     # the stitched file covers 1..12500.
     ("base+triplet (bn enc6, no stop-grad)", "#2f6da8", "--",
      f"{W}/2026-06-03_crossfade_triplet/runs/bb_allt08_xftrip_bn_enc6_qk_aon_b1024_stitched_losses.csv"),
-    ("stop-grad L3+nobn (#339)", "#7f7f7f", "--",
+    ("stop-grad L3+nobn (prior winner)", "#7f7f7f", "--",
      f"{W}/2026-06-10_stopgrad_positive/runs/bb_allt08_xftrip_nobn_enc3_sgpos_qk_aon_b1024_losses.csv"),
     ("NEW stop-grad enc6+nobn", "#d62728", "-",
      f"{W}/2026-06-11_stopgrad_capacity/runs/bb_allt08_xftrip_nobn_enc6_sgpos_qk_aon_b1024_losses.csv"),
@@ -72,7 +72,7 @@ for ax, (key, title, tf) in zip(axes.ravel(), PANELS):
     ax.grid(True, which="both", alpha=0.25)
     ax.legend(fontsize=7, loc="best")
 laststep = max((int(d["step"][-1]) for _, _, _, d in loaded if d is not None), default=0)
-fig.suptitle("Stop-grad × capacity (#341) — training dynamics, new arms (solid) vs references "
+fig.suptitle("Stop-grad × capacity — training dynamics, new arms (solid) vs references "
              f"(dashed) (log-log; latest step {laststep}; {SMOOTH}-step MA). Top: lower=better. "
              "Bottom U_*: used dimensions, higher=better.", fontsize=12)
 fig.tight_layout(rect=(0, 0, 1, 0.96))
