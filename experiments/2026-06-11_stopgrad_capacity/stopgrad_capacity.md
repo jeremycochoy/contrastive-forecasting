@@ -7,8 +7,10 @@ recipe *without* the stop-grad (#336). If the stop-grad changes what the encoder
 the extra depth that hurt without it might start to pay. Does the stop-grad **flip the
 sign of the encoder-depth knob** — and how does it interact with the forecaster bottleneck?
 
-Four arms share the GRU patch-embedding, d_model 384 / 6 heads, the crossfade-triplet
-data mix, 12,500 steps at batch 1024, and seed 20260520. They differ only in three knobs:
+Two new backbones (arms 3–4, both with stop-grad) are compared against two **reused**
+references — arm 1 (no stop-grad, #336) and arm 2 (stop-grad, #339). All four share the
+GRU patch-embedding, d_model 384 / 6 heads, the crossfade-triplet data mix, 12,500 steps at
+batch 1024, and seed 20260520, and differ only in three knobs:
 
 | # | encoder | forecaster | stop-grad | role |
 |---|---|---|:--:|---|
@@ -49,6 +51,13 @@ forecast's error. Lower is better; 1.0 is seasonal-naive.*
 | 2 — enc3, full, sg (#339) | 1.177 / 1.180 | **1.159** / 1.163 |
 | 3 — enc6, full, sg | 1.180 / 1.213 | 1.161 / 1.193 |
 | 4 — enc6, bn, sg | 1.200 / **2.265** | 1.183 / **2.201** |
+
+![GM-Relative MASE grouped by architecture (x-axis), one bar per head × checkpoint — every
+arm's four cells sit at ~1.16–1.21 except arm 4 (enc6 + bottleneck + stop-grad), whose two
+last-checkpoint bars jump to ~2.2 while its best-loss bars stay with the pack.](plots/gm_by_arch.png)
+
+Read per architecture, only arm 4 has a within-arm split — best-loss normal, last-checkpoint
+collapsed; the other three arms are flat across all four cells.
 
 Each pairwise change carries a **paired-bootstrap** 90% interval (resample the 97-task
 list with repeats, score both arms on each resample so per-task difficulty cancels). The
