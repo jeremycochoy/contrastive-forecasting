@@ -16,14 +16,18 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 W = "/home/jupyter/workspaces/contrastive-forecasting/experiments"
-# Encoding: COLOUR = treatment (blue = no CPC / baseline, red = + CPC);
-#           LINESTYLE = architecture (solid = enc3, dashed = enc6).
-BLUE, RED = "C0", "C3"
+# Encoding: COLOUR FAMILY = treatment (blues = no CPC / baseline, reds = + CPC);
+#           within a family the two archs get a distinct hue + linestyle so all
+#           four curves stay legible where they overlap:
+#             enc3 = solid + the saturated hue (blue / red)
+#             enc6 = dashed + the lighter hue (cyan / orange-red)
+BLUE, CYAN = "#1f77b4", "#17becf"
+RED, ORANGERED = "#d62728", "#ff7f0e"
 RUNS = {
     "enc3 baseline": (f"{W}/2026-06-10_stopgrad_positive/runs/bb_allt08_xftrip_nobn_enc3_sgpos_qk_aon_b1024_losses.csv", BLUE, "-"),
-    "enc6 baseline": (f"{W}/2026-06-11_stopgrad_capacity/runs/bb_allt08_xftrip_nobn_enc6_sgpos_qk_aon_b1024_losses.csv", BLUE, "--"),
+    "enc6 baseline": (f"{W}/2026-06-11_stopgrad_capacity/runs/bb_allt08_xftrip_nobn_enc6_sgpos_qk_aon_b1024_losses.csv", CYAN, "--"),
     "enc3 + CPC":    (f"{W}/2026-06-13_cpc_infonce_aux/runs/bb_allt08_xftrip_nobn_enc3_sgpos_qk_aon_b1024_cpc_losses.csv", RED, "-"),
-    "enc6 + CPC":    (f"{W}/2026-06-13_cpc_infonce_aux/runs/bb_allt08_xftrip_nobn_enc6_sgpos_qk_aon_b1024_cpc_losses.csv", RED, "--"),
+    "enc6 + CPC":    (f"{W}/2026-06-13_cpc_infonce_aux/runs/bb_allt08_xftrip_nobn_enc6_sgpos_qk_aon_b1024_cpc_losses.csv", ORANGERED, "--"),
 }
 OUT = os.path.join(os.path.dirname(__file__), "..", "plots", "training_dynamics.png")
 SMOOTH = 25
@@ -35,8 +39,10 @@ PANELS = [
     ("cpc_aux",     "CPC InfoNCE auxiliary term  (↓, CPC arms only)", lambda v: v),
     ("gap_ratio",   "ratio gap (1−ff)/(1−fp)  (↓→0)", lambda v: v),
     ("u_batch",     "U_batch — batch-wise used dims  (↑)", lambda v: v),
+    ("u_temporal",  "U_temporal — time-wise used dims  (↑)", lambda v: v),
     ("r2_naive",    "1 − R²_naive  (↓)", lambda v: 1 - v),
     ("r2_random",   "1 − R²_random  (↓)", lambda v: 1 - v),
+    ("auc",         "1 − retrieval AUC  (↓)", lambda v: 1 - v),
 ]
 
 
@@ -70,7 +76,9 @@ def smooth(y, w):
 
 
 def main():
-    fig, axes = plt.subplots(2, 3, figsize=(16, 8))
+    fig, axes = plt.subplots(2, 4, figsize=(20, 8))
+    for ax in axes.flat[len(PANELS):]:
+        ax.set_visible(False)  # hide unused cells
     for ax, (col, title, tf) in zip(axes.flat, PANELS):
         for lab, (path, c, ls) in RUNS.items():
             d = load(path)
@@ -91,7 +99,7 @@ def main():
         ax.grid(alpha=0.3, which="both")
         ax.legend(fontsize=8)
     fig.suptitle("#344 CPC InfoNCE auxiliary — training dynamics (log-log; "
-                 "blue = no CPC, red = + CPC; solid = enc3, dashed = enc6)",
+                 "blues = no CPC, reds = + CPC; enc3 = solid/saturated, enc6 = dashed/light)",
                  fontsize=13)
     fig.tight_layout(rect=[0, 0, 1, 0.96])
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
