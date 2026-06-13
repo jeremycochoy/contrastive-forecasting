@@ -37,22 +37,29 @@ ARMS = [  # key, label, color
 ]
 fig, (axL, axR) = plt.subplots(1, 2, figsize=(15, 5), width_ratios=[1.25, 1])
 
+CEIL = 1.5  # collapsed bars (~2.2) are clipped here so the ~1.16-1.21 differences stay legible
 x = np.arange(len(CELLS)); w = 0.8 / len(ARMS)
 for j, (key, lab, col) in enumerate(ARMS):
     vals = [gm.get((key, h, c), np.nan) for h, c in CELLS]
+    drawn = [min(v, CEIL) if not np.isnan(v) else np.nan for v in vals]
     bx = x + (j - (len(ARMS) - 1) / 2) * w
-    axL.bar(bx, vals, w, label=lab, color=col)
+    axL.bar(bx, drawn, w, label=lab, color=col)
     for xi, v in zip(bx, vals):
-        if not np.isnan(v):
-            axL.text(xi, v + 0.01, f"{v:.3f}", ha="center", va="bottom", fontsize=6.5, rotation=90)
+        if np.isnan(v):
+            continue
+        if v > CEIL:  # clipped bar: draw to ceiling, label true value with an up-arrow
+            axL.text(xi, CEIL - 0.012, f"↑{v:.3f}", ha="center", va="top", fontsize=7,
+                     rotation=90, color="white", fontweight="bold")
+        else:
+            axL.text(xi, v + 0.008, f"{v:.3f}", ha="center", va="bottom", fontsize=6.5, rotation=90)
 axL.axhline(1.0, color="grey", ls=":", lw=1)
 axL.set_xticks(x, [f"{h} {c}" for h, c in CELLS])
 axL.set_ylabel("GM-Relative MASE (lower is better)")
-axL.set_ylim(1.0, 2.45)
+axL.set_ylim(1.0, CEIL)
 axL.legend(fontsize=8, ncols=2, loc="upper left")
 axL.set_title("Forecast error per arm × head × checkpoint", fontsize=10)
-axL.annotate("stop-grad + bottleneck\ncollapses at 'last'", xy=(1.27, 2.27), xytext=(0.45, 2.18),
-             fontsize=8, color="#d62728", ha="center",
+axL.annotate("stop-grad + bottleneck\ncollapses at 'last'\n(clipped at 1.5)", xy=(1.30, CEIL),
+             xytext=(2.05, 1.36), fontsize=8, color="#d62728", ha="center",
              arrowprops=dict(arrowstyle="->", color="#d62728", lw=1.2))
 
 # Right: capacity step enc3->enc6, no-sg vs sg.

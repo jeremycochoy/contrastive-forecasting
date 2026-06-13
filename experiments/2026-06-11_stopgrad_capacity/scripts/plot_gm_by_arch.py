@@ -32,22 +32,30 @@ CELLS = [("2L", "best", "2L best", "#a6d96a"),
          ("2L", "last", "2L last", "#fdae61"),
          ("6L", "last", "6L last", "#d7191c")]
 
+CEIL = 1.5  # collapsed bars (~2.2) are clipped here so the ~1.16-1.21 differences stay legible
 fig, ax = plt.subplots(figsize=(11, 5.2))
 x = np.arange(len(ARMS)); w = 0.8 / len(CELLS)
 for j, (h, c, lab, col) in enumerate(CELLS):
     vals = [gm.get((key, h, c), np.nan) for key, _ in ARMS]
+    drawn = [min(v, CEIL) if not np.isnan(v) else np.nan for v in vals]
     bx = x + (j - (len(CELLS) - 1) / 2) * w
-    ax.bar(bx, vals, w, label=lab, color=col)
+    ax.bar(bx, drawn, w, label=lab, color=col)
     for xi, v in zip(bx, vals):
-        if not np.isnan(v):
-            ax.text(xi, v + 0.012, f"{v:.3f}", ha="center", va="bottom", fontsize=7, rotation=90)
+        if np.isnan(v):
+            continue
+        if v > CEIL:  # clipped bar: draw to ceiling, label true value with an up-arrow
+            ax.text(xi, CEIL - 0.012, f"↑{v:.3f}", ha="center", va="top", fontsize=7.5,
+                    rotation=90, color="white", fontweight="bold")
+        else:
+            ax.text(xi, v + 0.008, f"{v:.3f}", ha="center", va="bottom", fontsize=7, rotation=90)
 ax.axhline(1.0, color="grey", ls=":", lw=1, label="seasonal-naive")
 ax.set_xticks(x, [lab for _, lab in ARMS])
 ax.set_ylabel("GM-Relative MASE (lower is better)")
-ax.set_ylim(1.0, 2.45)
+ax.set_ylim(1.0, CEIL)
 ax.legend(fontsize=8, ncols=5, loc="upper center")
 ax.set_title("GM-Relative MASE by architecture (one bar per head × checkpoint)", fontsize=11)
-ax.annotate("only arm 4's 'last'\nbars collapse", xy=(3.18, 2.27), xytext=(2.55, 2.2),
+ax.annotate("only arm 4's 'last' bars collapse\n(clipped at 1.5; true values labelled)",
+            xy=(3.0, CEIL), xytext=(1.75, 1.40),
             fontsize=8, color="#d7191c", ha="center",
             arrowprops=dict(arrowstyle="->", color="#d7191c", lw=1.2))
 fig.tight_layout()
