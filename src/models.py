@@ -77,6 +77,7 @@ class ConfigurableModel(torch.nn.Module):
                  forecaster_n_heads: int | None = None,
                  forecaster_kind: str = "transformer",
                  cpc_k_steps: int = 12,
+                 cpc_infonce: bool = False,
                  qk_norm: bool = False,
                  attn_out_norm: bool = False,
                  log_attn_amplitude: bool = False,
@@ -99,6 +100,18 @@ class ConfigurableModel(torch.nn.Module):
             self.log_inv_tau = torch.nn.Parameter(
                 torch.tensor(math.log(1.0 / float(tau_init)),
                              dtype=torch.float32))
+
+        # CPC InfoNCE auxiliary term (#344): a new learnable log-bilinear
+        # W_1 (van den Oord et al. 2018, Eq. 3) used ONLY by the auxiliary
+        # loss `cpc_infonce_aux_loss` to score e_{t+1}^T W_1 h_t. Registered
+        # here (not in the forecaster) so it is captured by the optimizer and
+        # checkpoint; it plays no role in the forward pass / downstream head,
+        # so head-training and eval strip `cpc_w1.*` before loading. Default
+        # off ⇒ the parameter is not created (state_dict byte-for-byte
+        # unchanged for every prior run).
+        self.cpc_infonce = bool(cpc_infonce)
+        if self.cpc_infonce:
+            self.cpc_w1 = torch.nn.Linear(H, H, bias=False)
 
         # Reversible normalization (optional). Two kinds:
         #   ewma  → RevEWMNorm(span=rev_norm_span)  (default, dynamic)

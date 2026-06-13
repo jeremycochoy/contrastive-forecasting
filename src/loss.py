@@ -236,6 +236,113 @@ def cpc_multistep_cpcnegs_loss(forecasted_multi, original_latent, tau,
     return torch.stack(per_k).mean()
 
 
+def cpc_infonce_aux_loss(forecasted_latent, original_latent, w1,
+                         cross_batch_chunk=256):
+    """CPC InfoNCE auxiliary term (van den Oord et al. 2018, Eq. 4; k=1), #344.
+
+    Predict the next-step encoder embedding ``e_{t+1}`` from the
+    autoregressive context ``h_t`` (the forecaster latent) through a
+    learnable LOG-BILINEAR score (Eq. 3) ``f(e_j, h_t) = exp(e_j^T W_1 h_t)``
+    over a candidate set ``C = {e_{t+1}} ∪ {negatives}``::
+
+        L = − log( exp(e_{t+1}^T W_1 h_t) / Σ_{e_j ∈ C} exp(e_j^T W_1 h_t) )
+
+    The positive ``e_{t+1}`` is itself one of the denominator terms (plain
+    softmax / cross-entropy over candidates), so ``L ≥ 0``. Both numerator
+    and denominator score the SAME projected context ``W_1 h_t`` against an
+    encoder embedding ``e_j = enc(x_j)``.
+
+    Roles, matched to the existing 1-step positive (f_t ↔ h_{t+1}):
+        ``h_t = forecasted_latent[:, t]`` — the AR context ``g_ar(e_{≤t})``
+            (the paper's ``c_t``), a tensor distinct from ``e_t``;
+        ``e_t = original_latent[:, t]``   — the per-step encoder embedding
+            (the paper's ``z_t``), L2-normalised here.
+
+    NO stop-gradient (paper-exact: encoder and AR model trained jointly,
+    gradient flows through both ``h_t`` and the targets ``e_j``). NO
+    temperature divisor: the unbounded bilinear ``W_1`` carries the scale,
+    so the term's theoretical minimum is already 0 (floor-subtraction would
+    be a no-op for it; the existing contrastive term keeps its own τ/floor).
+
+    Negatives are drawn from the empirical proposal ``p(x_{t+1})`` — the same
+    CPC-canonical set as :func:`cpc_multistep_cpcnegs_loss` (per-anchor, NOT
+    batch-pooled):
+        (a) cross-batch: ``e_{b', t+1}`` for every other sequence ``b' ≠ b``
+            at the matched target step ``t+1``;
+        (b) cross-time: ``e_{b, l}`` for every other step ``l ≠ t+1`` in the
+            same sequence.
+    The cross-batch Gram ``[B, B, T−1]`` (~1 GB at B=1024, T=256) is
+    GRADIENT-CHECKPOINTED in chunks over the source batch ``b'``: logsumexp
+    is associative, so the chunked result is exact and chunk-size
+    independent (chunk size only trades memory for kernel launches), and the
+    Gram is recomputed in backward one chunk at a time — capping peak memory
+    at a single chunk, exactly as the ``xshh_allt`` term does.
+
+    Args:
+        forecasted_latent: ``[B, T, C, H]`` — AR context ``h`` (forecaster).
+        original_latent:   ``[B, T, C, H]`` — encoder embeddings ``e``.
+        w1: ``nn.Linear(H, H, bias=False)`` applied to ``h_t`` (the bilinear
+            ``W_1``).
+        cross_batch_chunk: source-batch chunk for the checkpointed
+            cross-batch logsumexp (env override ``CPC_CB_CHUNK``).
+
+    Returns: scalar loss (mean over B, C, t).
+    """
+    B, T, C, H = forecasted_latent.shape
+    if T < 2:
+        return forecasted_latent.new_zeros(())
+    neg_inf = float('-inf')
+    e = F.normalize(original_latent, p=2, dim=-1)        # [B,T,C,H] unit embeddings e_j
+    q = w1(forecasted_latent)                            # [B,T,C,H] W_1 h_t (raw scale)
+
+    q_a = q[:, :-1]                                      # anchors h_t,  t=0..T-2 [B,T-1,C,H]
+    e_pos = e[:, 1:]                                     # target e_{t+1}         [B,T-1,C,H]
+
+    # Positive log-score  e_{t+1}^T W_1 h_t  (no τ; W_1 carries the scale).
+    log_pos = (q_a * e_pos).sum(-1)                      # [B,T-1,C]
+
+    # (b) cross-time negatives: e_{b,l} for all l != t+1, same sequence.
+    #     sims_t[b,c,t,l] = e_{b,c,l}^T W_1 h_{b,c,t}.
+    sims_t = torch.matmul(q_a.permute(0, 2, 1, 3),       # [B,C,T-1,H]
+                          e.permute(0, 2, 3, 1))         # [B,C,H,T]  -> [B,C,T-1,T]
+    t_idx = torch.arange(T - 1, device=e.device).view(T - 1, 1)
+    l_idx = torch.arange(T, device=e.device).view(1, T)
+    drop = (l_idx == (t_idx + 1)).view(1, 1, T - 1, T)   # mask the positive l=t+1
+    log_neg_time = torch.logsumexp(
+        sims_t.masked_fill(drop, neg_inf), dim=3).permute(0, 2, 1)  # [B,T-1,C]
+
+    # (a) cross-batch negatives: e_{b',t+1} for b' != b at the matched step,
+    #     chunked + checkpointed over the source batch b' (peak = one chunk).
+    CH = int(os.environ.get('CPC_CB_CHUNK', str(cross_batch_chunk)))
+    q_ap = q_a.permute(1, 2, 0, 3).contiguous()          # [T-1,C,B,H] anchors
+    e_pp = e_pos.permute(1, 2, 0, 3).contiguous()        # [T-1,C,B,H] targets at t+1
+    b_all = torch.arange(B, device=e.device)
+
+    def _cb_chunk_lse(anc, tgt_chunk, same_mask):
+        # anc [T-1,C,B,H], tgt_chunk [T-1,C,ch,H], same_mask [1,1,B,ch] bool.
+        gram = torch.matmul(anc, tgt_chunk.transpose(-2, -1))       # [T-1,C,B,ch]
+        gram = gram.masked_fill(same_mask, neg_inf)
+        return torch.logsumexp(gram, dim=3)                         # [T-1,C,B]
+
+    run = None
+    for s in range(0, B, CH):
+        ee = min(s + CH, B)
+        same = (b_all.view(B, 1) == b_all[s:ee].view(1, ee - s)).view(1, 1, B, ee - s)
+        chunk_lse = checkpoint(_cb_chunk_lse, q_ap, e_pp[:, :, s:ee], same,
+                               use_reentrant=False)
+        run = chunk_lse if run is None else torch.logsumexp(
+            torch.stack([run, chunk_lse], dim=0), dim=0)
+    log_neg_batch = run.permute(2, 0, 1)                 # [B,T-1,C]
+
+    # Normalized InfoNCE: positive in the denominator (loss >= 0). Per-anchor
+    # candidate set C = {e_{t+1}} ∪ {cross-time} ∪ {cross-batch}.
+    log_neg_total = torch.logsumexp(
+        torch.stack([log_neg_time, log_neg_batch], dim=0), dim=0)   # [B,T-1,C]
+    log_denom = torch.logsumexp(
+        torch.stack([log_pos, log_neg_total], dim=0), dim=0)
+    return (log_denom - log_pos).mean()
+
+
 # --- All-time cross-series Gram speedups (#327) ----------------------------
 #
 # The all-time cross-series negative in `cosine_similarity_batch_full_hh_negs_
