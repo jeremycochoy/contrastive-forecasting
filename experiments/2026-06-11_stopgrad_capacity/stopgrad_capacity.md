@@ -74,15 +74,3 @@ arm 1's per-task MASE to four decimals against #336's published numbers, so the 
 collapse is a real measurement. The last-checkpoint head was trained two ways — a 10k
 re-adapt from the best-loss head and a fresh 30k head — which agree within 0.011 GM on every
 cell; the table reports the re-adapt head.
-
-## What we learned
-
-- **Stop-grad does not make extra encoder depth pay.** It shrinks the depth penalty from up
-  to +0.13 without it (reliable on three of four cells) to ≤+0.035 with it — small but still
-  reliably positive at the last checkpoint — and the deeper encoder never beats the shallower
-  one. The #339 gain is the stop-grad itself, not unlocked capacity.
-- **Forecaster bottleneck and encoder-side stop-grad do not mix at full training** — fine
-  early, collapse below seasonal-naive by the last checkpoint, a failure neither the
-  full-width stop-grad arm nor the no-stop-grad bottleneck base shows.
-- **Use the best-loss checkpoint for these stop-grad recipes.** Transfer peaks at step
-  ~1000–1300 and degrades after; the smoothed-loss minimum is a good selector.
