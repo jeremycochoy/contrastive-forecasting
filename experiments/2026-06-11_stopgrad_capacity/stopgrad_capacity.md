@@ -20,7 +20,7 @@ data mix, 12,500 steps at batch 1024, and seed 20260520. They differ only in thr
 **Result.** Two findings, both in the figure below.
 
 ![Left: GM-Relative MASE per arm × head × checkpoint — every arm sits near 1.16–1.21
-except arm 4 (stop-grad + bottleneck), which collapses to ~2.2 at the last checkpoint
+except arm 4 (stop-grad + bottleneck), which collapses above 2.2 at the last checkpoint
 while remaining normal at best-loss. Right: the encoder-depth step (enc3→enc6) as a
 paired-bootstrap change with its 90% interval — without stop-grad (red) the step is a
 penalty on three of four cells (up to +0.13; the 6-layer best-loss cell is a smaller,
@@ -53,8 +53,8 @@ forecast's error. Lower is better; 1.0 is seasonal-naive.*
 Each pairwise change carries a **paired-bootstrap** 90% interval (resample the 97-task
 list with repeats, score both arms on each resample so per-task difficulty cancels). The
 depth step under stop-grad (arm 2→3) is ns at best-loss on both heads and reliably worse
-by ≈+0.03 at last; the same step without stop-grad (#336) is reliably worse on three of
-four cells, by up to +0.13. Adding stop-grad to the base recipe (arm 1→4) is ns at
+by ≈+0.03 at last; the same step without stop-grad (#336's no-bottleneck arms) is reliably
+worse on three of four cells, by up to +0.13. Adding stop-grad to the base recipe (arm 1→4) is ns at
 best-loss and reliably worse by ≈+1.0 at last.
 
 ## Training dynamics: transfer peaks early; only the bottleneck collapses after
@@ -65,12 +65,12 @@ the no-stop-grad base (dashed). The bottleneck arm's floor-subtracted contrastiv
 embedding dimensions in use (bottom-centre, U_batch) than the no-stop-grad
 base.](plots/training_metrics.png)
 
-For arm 4 the downstream score follows the pretext loss over training. Its floor-subtracted
+For arm 4 the downstream score tracks the pretext loss across the two measured checkpoints. Its floor-subtracted
 contrastive loss reaches its minimum at step ~1000 and then *rises* to a plateau; the
-best-loss checkpoint (step ~1000) transfers normally (~1.19) while the fully-trained
+best-loss checkpoint (step ~1000) transfers normally (~1.18–1.20) while the fully-trained
 checkpoint transfers far worse (~2.2). The full-width arm's loss rises after its own early
 minimum too, yet its last checkpoint stays close to its best (~1.16→~1.19) — so the shared
-late-training loss rise turns the representation untransferable only through the bottleneck.
+late-training loss rise coincides with a transfer collapse only in the bottleneck arm.
 Both stop-grad arms sit in the
 high-rank regime #339 identified — the encoder keeps many more batch-wise dimensions in
 use than the no-stop-grad base — so the collapse is not a rank collapse; it is specific to
@@ -98,20 +98,21 @@ head for consistency with arms 1–2.
 ## What we learned
 
 - **Stop-grad does not make extra encoder depth pay** — it shrinks the depth penalty from
-  reliable on three of four cells (up to +0.13 without it) to near-zero (≤+0.03), but the
+  reliable on three of four cells (up to +0.13 without it) to near-zero (≤+0.035), but the
   deeper encoder never beats the shallower one. The #339 gain is about the stop-grad itself, not a capacity
   that the stop-grad unlocks.
 - **A forecaster bottleneck and the encoder-side stop-grad do not mix at full training.**
   Together they are fine early but collapse below seasonal-naive by the last checkpoint —
   a failure neither the full-width stop-grad arm nor the no-stop-grad bottleneck base
-  shows. The forecaster width is therefore load-bearing for stop-grad's stability.
+  shows. The forecaster width is the only knob that differs between the collapsing arm (4)
+  and the stable one (3).
 - **Use the best-loss checkpoint for these stop-grad recipes.** Transfer peaks early (step
   ~1000–1300) and degrades with further training, sharply so for the bottleneck arm; the
   smoothed-loss minimum is a good selector.
 
 ## Follow-up
 
-The two new arms reach their best transfer at step ~1000, an order of magnitude before the
+The two new arms reach their best transfer at step ~1000–1300, an order of magnitude before the
 12,500-step budget — a **stop-grad + early-stop** card would test whether the full recipe
 line's downstream numbers can be matched at a fraction of the compute. Separately, the
 bottleneck collapse motivates a **forecaster-width sweep under stop-grad** to locate where
