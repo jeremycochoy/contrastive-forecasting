@@ -61,13 +61,17 @@ is not a rank collapse.
 
 ## Protocol
 
-One backbone per arm, single seed, on one RTX 4090. Arms 1–2 are reused unchanged from the
-two prior runs; arms 3–4 add the listed capacity change plus `--stopgrad-positive-h`. Each
-frozen backbone is scored by training a fresh quantile forecasting head on top — once with two
-transformer layers, once with six — and evaluating on GIFT-Eval's 97 tasks at two
-checkpoints: **best-loss** (lowest smoothed contrastive loss; step ~1000 for arm 4, ~1300 for
-arm 3) and **last** (12,500). The eval pipeline reproduces arm 1's per-task MASE to four
-decimals against its previously published numbers, so the arm-4 collapse is a real
-measurement. The last-checkpoint head was trained two ways — a 10k re-adapt from the best-loss
-head and a fresh 30k head — which agree within 0.011 GM on every cell; the table reports the
-re-adapt head.
+We train one backbone per arm, single seed, on one RTX 4090. Arms 1 and 2 are reused
+unchanged from the two prior runs; arms 3 and 4 are the new ones, each adding its capacity
+change plus the encoder-side stop-grad (`--stopgrad-positive-h`).
+
+To score a backbone, we freeze it and train a fresh quantile forecasting head on top, once
+with two transformer layers and once with six. We then evaluate on GIFT-Eval's 97 tasks at
+two checkpoints: the **best-loss** one (the lowest smoothed contrastive loss, around step
+1,000 for arm 4 and 1,300 for arm 3) and the **last** one (step 12,500).
+
+Two checks make the collapse trustworthy. First, the pipeline reproduces arm 1's per-task
+MASE to four decimals against its previously published numbers. Second, we train the
+last-checkpoint head two ways, a 10k re-adapt from the best-loss head and a fresh 30k head;
+they agree to within 0.011 GM on every cell, so the collapse is not an artifact of how the
+head was trained. The table reports the re-adapt head.
