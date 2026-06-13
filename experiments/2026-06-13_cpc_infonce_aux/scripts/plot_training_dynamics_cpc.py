@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
-"""#344 — training dynamics: do the CPC arms' contrastive trajectory and
-late-training stability differ from their baselines, and how does the CPC
-term itself evolve? Reads the four backbone losses.csv (two baselines, two
-CPC arms) and writes plots/training_dynamics.png.
+"""#344 — training-dynamics log-log panel (same layout/scales as #341's
+plot_training_metrics_sgcap.py, so the reports read the same way): the two CPC
+arms (solid) against their stop-grad baselines (dashed). 6 panels, all log-log.
+
+The "contrastive loss − floor" panel plots loss MINUS the CPC term
+(`loss - cpc_aux`) for the CPC arms, so the contrastive component is
+apples-to-apples with the baselines (whose `loss` has no CPC term). The CPC
+term itself gets its own panel.
 """
 import csv
 import os
-import sys
 
 import matplotlib
 matplotlib.use("Agg")
@@ -20,66 +23,72 @@ RUNS = {
     "enc6 + CPC":    (f"{W}/2026-06-13_cpc_infonce_aux/runs/bb_allt08_xftrip_nobn_enc6_sgpos_qk_aon_b1024_cpc_losses.csv", "C3", "-"),
 }
 OUT = os.path.join(os.path.dirname(__file__), "..", "plots", "training_dynamics.png")
+SMOOTH = 25
+
+# (column, title, transform). "contrastive" and "cpc_aux" are derived/optional.
+PANELS = [
+    ("contrastive", "contrastive loss − InfoNCE floor  (↓)", lambda v: v),
+    ("cpc_aux",     "CPC InfoNCE auxiliary term  (↓, CPC arms only)", lambda v: v),
+    ("gap_ratio",   "ratio gap (1−ff)/(1−fp)  (↓→0)", lambda v: v),
+    ("u_batch",     "U_batch — batch-wise used dims  (↑)", lambda v: v),
+    ("r2_naive",    "1 − R²_naive  (↓)", lambda v: 1 - v),
+    ("r2_random",   "1 − R²_random  (↓)", lambda v: 1 - v),
+]
 
 
 def load(path):
     if not os.path.exists(path):
         return None
-    cols = {}
+    d = {}
     for r in csv.DictReader(open(path)):
         for k, v in r.items():
             try:
-                cols.setdefault(k, []).append(float(v) if v not in ("", None) else float("nan"))
+                d.setdefault(k, []).append(float(v) if v not in ("", None) else float("nan"))
             except (ValueError, TypeError):
-                cols.setdefault(k, []).append(float("nan"))
-    return cols
+                d.setdefault(k, []).append(float("nan"))
+    # derived: contrastive = loss − cpc_aux (cpc_aux is 0/absent for baselines)
+    if "loss" in d:
+        cpc = d.get("cpc_aux")
+        d["contrastive"] = [l - (c if (cpc and c == c) else 0.0)
+                            for l, c in zip(d["loss"], (cpc or [0.0] * len(d["loss"])))]
+    return d
 
 
-def smooth(xs, ys, k=25):
-    out = []
-    for i in range(len(ys)):
-        lo = max(0, i - k)
-        win = [y for y in ys[lo:i + 1] if y == y]
+def smooth(y, w):
+    out, run = [], []
+    for v in y:
+        run.append(v)
+        if len(run) > w:
+            run.pop(0)
+        win = [x for x in run if x == x]
         out.append(sum(win) / len(win) if win else float("nan"))
-    return xs, out
-
-
-def panel(ax, col, title, ylabel, logy=False, only_cpc=False):
-    for label, (path, color, ls) in RUNS.items():
-        if only_cpc and "CPC" not in label:
-            continue
-        d = load(path)
-        if not d or col not in d:
-            continue
-        step, y = smooth(d["step"], d[col])
-        ax.plot(step, y, color=color, ls=ls, lw=1.6, label=label)
-    ax.set_title(title, fontsize=11)
-    ax.set_xlabel("step")
-    ax.set_ylabel(ylabel)
-    ax.set_xscale("log")
-    if logy:
-        ax.set_yscale("log")
-    ax.grid(alpha=0.3, which="both")
-    ax.legend(fontsize=8)
+    return out
 
 
 def main():
-    fig, axs = plt.subplots(2, 2, figsize=(13, 8))
-    panel(axs[0, 0], "loss_tau_ref",
-          "Contrastive reference loss (normalized InfoNCE, τ=0.07)\n— comparable across runs, CPC-term-free",
-          "loss_tau_ref")
-    panel(axs[0, 1], "cpc_aux",
-          "CPC InfoNCE auxiliary term (the added loss)",
-          "cpc_aux", only_cpc=True)
-    panel(axs[1, 0], "u_batch",
-          "U_batch — batch-wise embedding dimensions in use",
-          "U_batch")
-    panel(axs[1, 1], "gap_ratio",
-          "gap_ratio = (1−ff)/(1−fp) — forecast-vs-future gap (lower better)",
-          "gap_ratio")
-    fig.suptitle("#344 CPC InfoNCE auxiliary — training dynamics (CPC solid, baseline dashed)",
+    fig, axes = plt.subplots(2, 3, figsize=(16, 8))
+    for ax, (col, title, tf) in zip(axes.flat, PANELS):
+        for lab, (path, c, ls) in RUNS.items():
+            d = load(path)
+            if not d or col not in d:
+                continue
+            y = [tf(v) for v in d[col]]
+            sm = smooth(y, SMOOTH)
+            step = d["step"]
+            # log-log needs strictly positive y: mask the rest
+            xs = [s for s, v in zip(step, sm) if v == v and v > 0]
+            ys = [v for v in sm if v == v and v > 0]
+            if xs:
+                ax.plot(xs, ys, color=c, ls=ls, lw=1.5, label=lab)
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+        ax.set_title(title, fontsize=10)
+        ax.set_xlabel("step")
+        ax.grid(alpha=0.3, which="both")
+        ax.legend(fontsize=8)
+    fig.suptitle("#344 CPC InfoNCE auxiliary — training dynamics (log-log; CPC solid, baseline dashed)",
                  fontsize=13)
-    fig.tight_layout(rect=[0, 0, 1, 0.97])
+    fig.tight_layout(rect=[0, 0, 1, 0.96])
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     fig.savefig(OUT, dpi=110, bbox_inches="tight")
     print("wrote", os.path.abspath(OUT))
