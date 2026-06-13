@@ -26,7 +26,7 @@ The collapse is specific to the bottleneck-plus-stop-grad combination and only a
 training: forecaster width is the only knob differing between arm 4 and the stable arm 3.
 
 ![Left: GM-Relative MASE per arm × head × checkpoint (collapsed bars clipped at 1.4, true
-value labelled). Every arm sits at 1.16–1.21 except arm 4, whose last-checkpoint bars jump
+value labelled). Every arm sits near 1.16–1.21 except arm 4, whose last-checkpoint bars jump
 above 2.2 while its best-loss bars stay with the pack. Right: the depth step enc3→enc6 as a
 paired-bootstrap Δ with 90% interval — without stop-grad (red) it is a penalty on three of
 four cells; with stop-grad (green) it shrinks toward zero and never crosses
@@ -77,10 +77,10 @@ cell; the table reports the re-adapt head.
 
 ## What we learned
 
-- **Stop-grad does not make extra encoder depth pay.** It shrinks the depth penalty from
-  reliable on three of four cells (up to +0.13 without it) to near-zero (≤+0.035 with it), but
-  the deeper encoder never beats the shallower one. The #339 gain is the stop-grad itself, not
-  unlocked capacity.
+- **Stop-grad does not make extra encoder depth pay.** It shrinks the depth penalty from up
+  to +0.13 without it (reliable on three of four cells) to ≤+0.035 with it — small but still
+  reliably positive at the last checkpoint — and the deeper encoder never beats the shallower
+  one. The #339 gain is the stop-grad itself, not unlocked capacity.
 - **Forecaster bottleneck and encoder-side stop-grad do not mix at full training** — fine
   early, collapse below seasonal-naive by the last checkpoint, a failure neither the
   full-width stop-grad arm nor the no-stop-grad bottleneck base shows.
