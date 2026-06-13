@@ -168,9 +168,12 @@ The right next moves (in priority order):
   tests the step-starvation hypothesis directly.
 
 For the final cross-experiment plot covering both arms over the full
-30k (backbone loss + τ + head loss, log-step axes), see
-[`plots/full4096_3panel_final.png`](../2026-05-02_exp_realonly_full4096_moirai_hp/plots/full4096_3panel_final.png)
-(PR #102). The earlier 2-panel
+30k (backbone loss + τ + head loss, log-step axes), see the 3-panel
+final figure (PR #102).
+
+![Final cross-experiment 3-panel plot covering both arms (#6 default HP vs #9 MOIRAI HP) over the full 30k — backbone loss, τ trajectory, and head loss on log-step axes](../2026-05-02_exp_realonly_full4096_moirai_hp/plots/full4096_3panel_final.png)
+
+The earlier 2-panel
 `plots/full4096_default_vs_moirai_hp.png` (PR #98) was superseded by
 this 3-panel version.
 

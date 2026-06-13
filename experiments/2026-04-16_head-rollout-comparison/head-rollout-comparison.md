@@ -1,32 +1,36 @@
-# Head / Rollout Comparison
+# Head / rollout comparison: is the forecasting head the ~1.27 MASE bottleneck?
 
-Compared 6 rollout strategies (2 value-space, 4 latent-space) to determine whether the head/rollout architecture is the bottleneck preventing GIFT-Eval improvement beyond ~1.27 MASE. The backbone's contrastive gap improves from 0.10 to 0.43 with more training, but MASE stays flat -- suggesting the head, not the backbone, is the limiting factor.
+The frozen Tiny backbone keeps getting better at its own job — its contrastive gap rises from 0.10 to 0.43 as it trains ([notes/DESIGN.md](notes/DESIGN.md); this is the v2 backbone, best gap 0.428, [notes/EXECUTION_PLAN.md](notes/EXECUTION_PLAN.md) — the 0.428 is this experiment's v2 `best_gap` checkpoint, distinct from the 0.677 v1 262k-step peak reported in [../2026-04-13_gift-eval/gift-eval.md](../2026-04-13_gift-eval/gift-eval.md)) — yet its GIFT-Eval **GM-Relative MASE stays flat at ≈1.26 (1.256 @30k, 1.274 @60k)** ([../2026-04-13_gift-eval/gift-eval.md](../2026-04-13_gift-eval/gift-eval.md)). So the limit is not the backbone. This experiment asks whether the **forecasting head and its rollout strategy** are what hold the score on that plateau: we hold the backbone fixed and swap in 6 different ways of turning latents into a forecast.
 
-## Key Result
+> *GM-Relative MASE = geometric mean over the 97 GIFT-Eval configs of (model MASE ÷ seasonal-naive MASE), where MASE is Mean Absolute Scaled Error. 1.0 = seasonal-naive; lower is better.*
+> *Contrastive gap = how much more a window's forecast resembles its own future than its present — the margin the backbone's contrastive loss grows.*
 
-Value-space rollout narrowly beat latent-space rollout when using prediction heads (A1=1.275 vs B1=1.258). All B-variants scored similarly (~1.26-1.29), and none significantly outperformed A1. This led to the hypothesis that the head itself was misaligned: it predicted the future instead of reconstructing what each latent represents. That hypothesis was confirmed in the follow-up [reconstruction head experiment](../2026-04-17_reconstruction-head/reconstruction-head.md).
+## Result
 
-## Documents
+Every one of the 6 variants lands on the same plateau (1.258–1.288); none escapes it.
 
-| File | Description |
-|---|---|
-| [DESIGN.md](notes/DESIGN.md) | Detailed design: A1/A2 value-space variants, B1-B4 latent-space variants, implementation, training setup. |
-| [EXECUTION_PLAN.md](notes/EXECUTION_PLAN.md) | Infrastructure plan: 3x RTX 4090 on Vast.ai, parallel execution timeline, cost estimate ($6.50). |
+![GM-Relative MASE for all 6 head/rollout variants. Red = value-space rollout (decode latents to values, then slide in value space); blue = latent-space rollout (roll the backbone's own latents forward, decode once). Green dashed line is seasonal-naive (1.0); grey band marks the 1.258–1.288 spread the whole family occupies. Lower is better.](plots/rollout_comparison.png)
 
-## Variants
+Three of the four latent variants (B1 1.258, B2 1.258, B3 1.260) come in just below the A1 baseline (1.275), while the fourth (B4 1.288) is the worst of all six — so the family does not split cleanly into "latent beats value." The whole spread is a ~0.03 swing, and with a single run per variant that sub-0.03 ordering is not distinguishable from head-init noise; we don't read it as latent-vs-value at all. The point is the cluster: every variant sits on the ~1.27 plateau, not even reaching seasonal-naive parity (~0.25 below the plateau), let alone the leaderboard band (≈0.6–0.83, ~0.45 below the plateau). Whatever strategy decodes the latents, the result is the same plateau.
 
-| ID | Type | Head output | Strategy | GM-Rel MASE |
-|---|---|---|---|---|
-| A1 | Value-space | 128 values | Slide by 128 | 1.275 |
-| A2 | Value-space | W=16 values | Slide by 16 | 1.262 |
-| B1 | Latent-space | 128 values | Decode at end | 1.258 |
-| B2 | Latent-space | 128, crop to 16 | Decode each step | 1.258 |
-| B3 | Latent-space | 128 non-overlap | Decode every 8 | 1.260 |
-| B4 | Latent-space | W=16 values | Decode each step | 1.288 |
+| ID | Rollout space | Head output | Step | GM-Rel MASE | Source |
+|----|---------------|-------------|------|------------:|--------|
+| A1 | value | 128 values | slide by 128 | 1.275 | cited (v2 baseline) |
+| A2 | value | W=16 values | slide by 16 | 1.262 | cited ([reconstruction-head.md](../2026-04-17_reconstruction-head/reconstruction-head.md), A2=1.2620) |
+| B1 | latent | 128 values | decode at end | **1.258** | recomputed |
+| B2 | latent | 128 → crop 16 | decode each step | **1.258** | recomputed |
+| B3 | latent | 128 non-overlap | decode every 8 | **1.260** | recomputed |
+| B4 | latent | W=16 values | decode each step | **1.288** | recomputed |
 
-## Files
+*Single run per variant, no variance estimated; GIFT-Eval scoring is deterministic, so the only noise is head-training init. Treat the sub-0.03 ordering as suggestive, not significant.*
 
-| File | Description |
-|---|---|
-| `notes/DESIGN.md` | Experiment design and rollout strategy definitions |
-| `notes/EXECUTION_PLAN.md` | Vast.ai execution plan and cost breakdown |
+## Protocol
+
+- **Backbone (frozen):** Tiny v2 contrastive backbone (`tiny_v2_best_gap.pth`, gap 0.428; GRU patch encoder, 6 causal-transformer layers, ~20M). Identical across all 6 variants — only the head and the rollout strategy change.
+- **Head:** bidirectional-GRU forecasting head (~0.6M), trained 30k steps (AdamW, lr 3e-4, batch 24) on the `tiny_mixed_v2` split. Three heads cover the six variants (W=16-real → A2; 128-mixed → B1/B2/B3; W=16-mixed → B4); A1 reuses the existing 128-real head. Rollout strategy and head-output length per variant are defined in [notes/DESIGN.md](notes/DESIGN.md) (with the infrastructure plan in [notes/EXECUTION_PLAN.md](notes/EXECUTION_PLAN.md)).
+- **Eval:** official GIFT-Eval suite, 97 configs, deterministic point forecast scored against seasonal-naive — same harness as [../2026-04-13_gift-eval/gift-eval.md](../2026-04-13_gift-eval/gift-eval.md).
+- **B1–B4 numbers are recomputed from committed data.** Each variant's per-config MASE[0.5] is in [results/B1](results/B1/all_results.csv)…[results/B4](results/B4/all_results.csv) (97 configs each) but the seasonal-naive baseline is not. Seasonal-naive is dataset-intrinsic and identical across experiments, so [scripts/plot_rollout_comparison.py](scripts/plot_rollout_comparison.py) joins SN_MASE in by config string from the v2 GIFT-Eval summary (`../2026-04-13_gift-eval/results/v2_pair_30k_summary.txt`) — all 97 configs join — and takes the geomean of MASE/SN_MASE. **A1 (1.275) and A2 (1.262) are value-space evals evaluated separately; their per-config outputs are not committed here, so they are cited (A1 is the v2 baseline, [notes/EXECUTION_PLAN.md](notes/EXECUTION_PLAN.md)), not recomputed.**
+
+## What we learned
+
+All six rollout strategies cluster on the same ~1.27 plateau, so **how the head decodes latents is not the bottleneck** — the value-space round-trip is at most a ~0.03 nuisance, nowhere near the ~0.45 that separates us from the leaderboard band (≈0.6–0.83), and not even the ~0.25 to seasonal-naive parity. The plateau pointed instead at a mis-alignment hypothesis: the backbone already places `f[t] ≈ e[t+1]`, yet every head here was trained to *predict the future* from a latent rather than *reconstruct the patch that latent already represents* — re-doing prediction the backbone had done. This experiment motivated that hypothesis; the follow-up [reconstruction-head experiment](../2026-04-17_reconstruction-head/reconstruction-head.md) confirmed it — a head trained to reconstruct (R1) reaches 1.121, finally breaking the plateau (a 12% improvement over the A1 baseline).

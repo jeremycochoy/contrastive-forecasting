@@ -29,7 +29,7 @@ LOSS_SPEC = SimpleNamespace(train_configuration={
 })
 
 span_label = f"span={span}" if span is not None else "no_norm"
-print(f"Tiny W={W}: H={H}, L={L}, ARIMA(1,8,8), {span_label}, bs={BS}", flush=True)
+print(f"Tiny W={W}: H={H}, L={L}, ARIMA(1,p,q) p,q in [1,8], {span_label}, bs={BS}", flush=True)
 
 model = ConfigurableModel(
     C=C, H=H, W=W, encoder_type="gru", num_layers=L,

@@ -704,6 +704,23 @@ class TransformerBlock(nn.Module):
 
         self.causal_mask = None
 
+    def _run_layer(self, layer, x, mask, is_causal, ckpt):
+        """Run one decoder layer, optionally gradient-checkpointed (#327).
+
+        Checkpointing is BYTE-IDENTICAL in the forward — it only trades stored
+        activations for recompute in the backward. The attention mask is built
+        outside and captured here, so it is the same tensor on forward and
+        recompute (no RNG dependence); any layer-internal dropout is matched by
+        checkpoint's preserve_rng_state. Env-gated (BACKBONE_CKPT=1, training
+        only) so the default path is unchanged; lets global batch 2048 fit the
+        backbone-transformer forward on one 24 GB card (the GRU-encoder path's
+        main transformer is otherwise not checkpointed)."""
+        if ckpt:
+            return torch.utils.checkpoint.checkpoint(
+                lambda t: layer(t, tgt_mask=mask, tgt_is_causal=is_causal),
+                x, use_reentrant=False)
+        return layer(x, tgt_mask=mask, tgt_is_causal=is_causal)
+
     def forward(self, x, return_multi=False):
         # Apply input_to_latent if provided
         if self.input_to_latent is not None:
@@ -737,6 +754,9 @@ class TransformerBlock(nn.Module):
         # fp32 so the latent at the encoder boundary (x_original) is full
         # precision — required by the contrastive loss's small-τ logsumexp.
         n_enc = len(self.encoder_layers)
+        # #327: optionally gradient-checkpoint the non-last (non-fp32) layers so
+        # a global batch of 2048 fits the backbone forward on one 24 GB card.
+        bb_ckpt = self.training and os.environ.get("BACKBONE_CKPT", "0") == "1"
         for i, layer in enumerate(self.encoder_layers):
             if i == n_enc - 1:
                 # fp32 region for the last encoder layer
@@ -760,9 +780,9 @@ class TransformerBlock(nn.Module):
                             x.device, self.causal_mask.dtype,
                             self.encoder_dropkey,
                             self.encoder_dropkey_share_heads)
-                    x = layer(x, tgt_mask=dk_mask, tgt_is_causal=False)
+                    x = self._run_layer(layer, x, dk_mask, False, bb_ckpt)
                 else:
-                    x = layer(x, tgt_mask=self.causal_mask, tgt_is_causal=True)
+                    x = self._run_layer(layer, x, self.causal_mask, True, bb_ckpt)
 
         # Keep x in fp32 across the encoder/forecaster boundary so x_original
         # remains fp32 even after the outer autocast would re-cast the
@@ -830,7 +850,7 @@ class TransformerBlock(nn.Module):
                                                tgt_is_causal=True),
                     x, use_reentrant=False)
             else:
-                x = layer(x, tgt_mask=self.causal_mask, tgt_is_causal=True)
+                x = self._run_layer(layer, x, self.causal_mask, True, bb_ckpt)
         if n_fcst > 0:
             x = x.float()
 

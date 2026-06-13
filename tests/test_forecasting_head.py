@@ -92,6 +92,8 @@ class FakeTransformer(nn.Module):
         self._H = H
         self.input_to_latent = FakeEncoder(W_, H)
         self.layers = nn.ModuleList([FakeTransformerLayer(H)])
+        self.fcst_down_proj = nn.Identity()  # no forecaster bottleneck in this fake
+        self.fcst_up_proj = nn.Identity()
         self._dummy = nn.Parameter(torch.zeros(1))
 
     def forward(self, xr):
@@ -1079,6 +1081,8 @@ def _make_mock_backbone():
         def __init__(self):
             super().__init__()
             self.layers = nn.ModuleList([])
+            self.fcst_down_proj = nn.Identity()  # no forecaster bottleneck in this mock
+            self.fcst_up_proj = nn.Identity()
 
         def input_to_latent(self, xr):
             B, T, C, H = xr.shape
