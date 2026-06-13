@@ -16,14 +16,18 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 W = "/home/jupyter/workspaces/contrastive-forecasting/experiments"
+# Encoding: COLOUR = treatment (blue = no CPC / baseline, red = + CPC);
+#           LINESTYLE = architecture (solid = enc3, dashed = enc6).
+BLUE, RED = "C0", "C3"
 RUNS = {
-    "enc3 baseline": (f"{W}/2026-06-10_stopgrad_positive/runs/bb_allt08_xftrip_nobn_enc3_sgpos_qk_aon_b1024_losses.csv", "C0", "--"),
-    "enc3 + CPC":    (f"{W}/2026-06-13_cpc_infonce_aux/runs/bb_allt08_xftrip_nobn_enc3_sgpos_qk_aon_b1024_cpc_losses.csv", "C0", "-"),
-    "enc6 baseline": (f"{W}/2026-06-11_stopgrad_capacity/runs/bb_allt08_xftrip_nobn_enc6_sgpos_qk_aon_b1024_losses.csv", "C3", "--"),
-    "enc6 + CPC":    (f"{W}/2026-06-13_cpc_infonce_aux/runs/bb_allt08_xftrip_nobn_enc6_sgpos_qk_aon_b1024_cpc_losses.csv", "C3", "-"),
+    "enc3 baseline": (f"{W}/2026-06-10_stopgrad_positive/runs/bb_allt08_xftrip_nobn_enc3_sgpos_qk_aon_b1024_losses.csv", BLUE, "-"),
+    "enc6 baseline": (f"{W}/2026-06-11_stopgrad_capacity/runs/bb_allt08_xftrip_nobn_enc6_sgpos_qk_aon_b1024_losses.csv", BLUE, "--"),
+    "enc3 + CPC":    (f"{W}/2026-06-13_cpc_infonce_aux/runs/bb_allt08_xftrip_nobn_enc3_sgpos_qk_aon_b1024_cpc_losses.csv", RED, "-"),
+    "enc6 + CPC":    (f"{W}/2026-06-13_cpc_infonce_aux/runs/bb_allt08_xftrip_nobn_enc6_sgpos_qk_aon_b1024_cpc_losses.csv", RED, "--"),
 }
 OUT = os.path.join(os.path.dirname(__file__), "..", "plots", "training_dynamics.png")
 SMOOTH = 25
+START_STEP = 100  # drop the noisy warm-up (and the CPC term's huge init value)
 
 # (column, title, transform). "contrastive" and "cpc_aux" are derived/optional.
 PANELS = [
@@ -75,9 +79,9 @@ def main():
             y = [tf(v) for v in d[col]]
             sm = smooth(y, SMOOTH)
             step = d["step"]
-            # log-log needs strictly positive y: mask the rest
-            xs = [s for s, v in zip(step, sm) if v == v and v > 0]
-            ys = [v for v in sm if v == v and v > 0]
+            # start at STEP_START; log-log needs strictly positive y: mask the rest
+            xs = [s for s, v in zip(step, sm) if v == v and v > 0 and s >= START_STEP]
+            ys = [v for s, v in zip(step, sm) if v == v and v > 0 and s >= START_STEP]
             if xs:
                 ax.plot(xs, ys, color=c, ls=ls, lw=1.5, label=lab)
         ax.set_xscale("log")
@@ -86,7 +90,8 @@ def main():
         ax.set_xlabel("step")
         ax.grid(alpha=0.3, which="both")
         ax.legend(fontsize=8)
-    fig.suptitle("#344 CPC InfoNCE auxiliary — training dynamics (log-log; CPC solid, baseline dashed)",
+    fig.suptitle("#344 CPC InfoNCE auxiliary — training dynamics (log-log; "
+                 "blue = no CPC, red = + CPC; solid = enc3, dashed = enc6)",
                  fontsize=13)
     fig.tight_layout(rect=[0, 0, 1, 0.96])
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
