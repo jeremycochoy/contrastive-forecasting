@@ -32,7 +32,7 @@ CELLS = [("2L", "best", "2L best", "#a6d96a"),
          ("2L", "last", "2L last", "#fdae61"),
          ("6L", "last", "6L last", "#d7191c")]
 
-CEIL = 1.5  # collapsed bars (~2.2) are clipped here so the ~1.16-1.21 differences stay legible
+CEIL = 1.4  # collapsed bars (~2.2) are clipped here so the ~1.16-1.21 differences stay legible
 fig, ax = plt.subplots(figsize=(11, 5.2))
 x = np.arange(len(ARMS)); w = 0.8 / len(CELLS)
 for j, (h, c, lab, col) in enumerate(CELLS):
@@ -54,8 +54,8 @@ ax.set_ylabel("GM-Relative MASE (lower is better)")
 ax.set_ylim(1.0, CEIL)
 ax.legend(fontsize=8, ncols=5, loc="upper center")
 ax.set_title("GM-Relative MASE by architecture (one bar per head × checkpoint)", fontsize=11)
-ax.annotate("only arm 4's 'last' bars collapse\n(clipped at 1.5; true values labelled)",
-            xy=(3.0, CEIL), xytext=(1.75, 1.40),
+ax.annotate("only arm 4's 'last' bars collapse\n(clipped at 1.4; true values labelled)",
+            xy=(3.0, CEIL), xytext=(1.75, 1.30),
             fontsize=8, color="#d7191c", ha="center",
             arrowprops=dict(arrowstyle="->", color="#d7191c", lw=1.2))
 fig.tight_layout()

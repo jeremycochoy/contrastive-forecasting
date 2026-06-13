@@ -5,22 +5,27 @@ InfoNCE positive improved transfer; #336 (no stop-grad) found growing the encode
 *hurt* transfer. Does adding the stop-grad flip the sign of that depth knob — make the extra
 capacity start to pay — and how does it interact with the forecaster bottleneck?
 
-## The design: four arms, two stop-grad comparisons
+## The design
 
-![Four arms placed on the encoder-depth × forecaster-width plane. Arm 2 (enc3·full·sg,
-reused #339) and arm 3 (enc6·full·sg, new) bracket the depth step; arm 3 and arm 4
-(enc6·bottleneck·sg, new) bracket the width step. Arm 1 (enc6·bottleneck, reused #336)
-occupies the same cell as arm 4 but is the no-stop-grad reference. The enc3·bottleneck·sg
-cell was not run.](plots/design_grid.png)
+![The four arms as a comparison chain. From arm 2 (enc3·full·sg, the reused #339 stop-grad
+winner), a depth step gives the new arm 3 (enc6·full·sg) and a further width step gives the
+new arm 4 (enc6·bottleneck·sg). Arm 1 (enc6·bottleneck, reused #336) is arm 4 with the
+stop-grad removed — the control that isolates stop-grad's role in the
+collapse.](plots/design_grid.png)
 
-Both new backbones (arms 3–4) use stop-grad; the two reused references are arm 1 (no
-stop-grad, #336) and arm 2 (stop-grad, #339). Nothing this card trained omits the
-stop-grad. All four share the GRU patch-embedding, d_model 384 / 6 heads, the
-crossfade-triplet mix, 12,500 steps at batch 1024, and seed 20260520.
+All four share the GRU patch-embedding, d_model 384 / 6 heads, the crossfade-triplet mix,
+12,500 steps at batch 1024, and seed 20260520.
 
 ## Result
 
-![Left: GM-Relative MASE per arm × head × checkpoint (collapsed bars clipped at 1.5, true
+![GM-Relative MASE grouped by architecture, four bars (head × checkpoint) per arm, collapsed
+bars clipped at 1.4. Only arm 4 splits within-arm — best-loss with the pack, last-checkpoint
+collapsed; the other three arms are flat across all four cells.](plots/gm_by_arch.png)
+
+The collapse is specific to the bottleneck-plus-stop-grad combination and only at full
+training: forecaster width is the only knob differing between arm 4 and the stable arm 3.
+
+![Left: GM-Relative MASE per arm × head × checkpoint (collapsed bars clipped at 1.4, true
 value labelled). Every arm sits at 1.16–1.21 except arm 4, whose last-checkpoint bars jump
 above 2.2 while its best-loss bars stay with the pack. Right: the depth step enc3→enc6 as a
 paired-bootstrap Δ with 90% interval — without stop-grad (red) it is a penalty on three of
@@ -29,15 +34,7 @@ below.](plots/gm_summary.png)
 
 Stop-grad neutralises most of the depth penalty (green intervals straddle or barely clear
 zero) but the deeper encoder never *beats* the shallower one — capacity does not start to
-pay. Separately, the stop-grad + bottleneck arm (red, arm 4) is normal at best-loss and
-collapses below seasonal-naive at the last checkpoint; the full-width arm does not.
-
-![GM-Relative MASE grouped by architecture, four bars (head × checkpoint) per arm, collapsed
-bars clipped at 1.5. Only arm 4 splits within-arm — best-loss with the pack, last-checkpoint
-collapsed; the other three arms are flat across all four cells.](plots/gm_by_arch.png)
-
-The collapse is specific to the bottleneck-plus-stop-grad combination and only at full
-training: forecaster width is the only knob differing between arm 4 and the stable arm 3.
+pay.
 
 *Forecast error is **GM-Relative MASE**: the geometric mean, over GIFT-Eval's 97 forecasting
 tasks, of a model's error divided by the seasonal-naive forecast's error. Lower is better;
@@ -89,12 +86,3 @@ cell; the table reports the re-adapt head.
   full-width stop-grad arm nor the no-stop-grad bottleneck base shows.
 - **Use the best-loss checkpoint for these stop-grad recipes.** Transfer peaks at step
   ~1000–1300 and degrades after; the smoothed-loss minimum is a good selector.
-
-## Follow-up
-
-Best transfer at step ~1000–1300 is an order of magnitude before the 12,500-step budget — a
-**stop-grad + early-stop** card (**#343**) tests whether the recipe's downstream numbers hold
-at a fraction of the compute. The bottleneck collapse motivates a **forecaster-width sweep
-under stop-grad** to locate where stability breaks.
-
-Next: #343
