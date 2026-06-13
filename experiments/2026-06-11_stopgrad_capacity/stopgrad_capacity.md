@@ -23,8 +23,9 @@ data mix, 12,500 steps at batch 1024, and seed 20260520. They differ only in thr
 except arm 4 (stop-grad + bottleneck), which collapses to ~2.2 at the last checkpoint
 while remaining normal at best-loss. Right: the encoder-depth step (enc3→enc6) as a
 paired-bootstrap change with its 90% interval — without stop-grad (red) the step is a
-reliable penalty of +0.05 to +0.13; with stop-grad (green) it shrinks to between 0 and
-+0.03, never dropping below zero.](plots/gm_summary.png)
+penalty on three of four cells (up to +0.13; the 6-layer best-loss cell is a smaller,
+non-significant +0.015); with stop-grad (green) it shrinks toward zero (≤+0.035) and
+never reverses.](plots/gm_summary.png)
 
 1. **Stop-grad nearly cancels the depth penalty but does not reverse it.** With the
    full-width forecaster, growing the encoder 3→6 layers under stop-grad is tied at the
@@ -52,11 +53,11 @@ forecast's error. Lower is better; 1.0 is seasonal-naive.*
 Each pairwise change carries a **paired-bootstrap** 90% interval (resample the 97-task
 list with repeats, score both arms on each resample so per-task difficulty cancels). The
 depth step under stop-grad (arm 2→3) is ns at best-loss on both heads and reliably worse
-by ≈+0.03 at last; the same step without stop-grad (#336) is reliably worse by +0.05 to
-+0.13. Adding stop-grad to the base recipe (arm 1→4) is ns at best-loss and reliably worse
-by ≈+1.0 at last.
+by ≈+0.03 at last; the same step without stop-grad (#336) is reliably worse on three of
+four cells, by up to +0.13. Adding stop-grad to the base recipe (arm 1→4) is ns at
+best-loss and reliably worse by ≈+1.0 at last.
 
-## Training dynamics: the collapse tracks the pretext loss
+## Training dynamics: transfer peaks early; only the bottleneck collapses after
 
 ![Training metrics, log-log, the two new arms (solid) against the #339 stop-grad arm and
 the no-stop-grad base (dashed). The bottleneck arm's floor-subtracted contrastive loss
@@ -67,8 +68,10 @@ base.](plots/training_metrics.png)
 For arm 4 the downstream score follows the pretext loss over training. Its floor-subtracted
 contrastive loss reaches its minimum at step ~1000 and then *rises* to a plateau; the
 best-loss checkpoint (step ~1000) transfers normally (~1.19) while the fully-trained
-checkpoint transfers far worse (~2.2). The full-width arm's loss settles without the same
-late rise, and its last checkpoint stays close to its best. Both stop-grad arms sit in the
+checkpoint transfers far worse (~2.2). The full-width arm's loss rises after its own early
+minimum too, yet its last checkpoint stays close to its best (~1.16→~1.19) — so the shared
+late-training loss rise turns the representation untransferable only through the bottleneck.
+Both stop-grad arms sit in the
 high-rank regime #339 identified — the encoder keeps many more batch-wise dimensions in
 use than the no-stop-grad base — so the collapse is not a rank collapse; it is specific to
 how the bottleneck forecaster and the late-training encoder interact.
@@ -80,7 +83,7 @@ One backbone per arm, single seed, 12,500 steps at batch 1024 on one RTX 4090. A
 plus the `--stopgrad-positive-h` flag. Each finished backbone is frozen and scored by
 training a fresh quantile forecasting head on top — once with two transformer layers, once
 with six — and evaluating on GIFT-Eval's 97 tasks at two backbone checkpoints: **best-loss**
-(lowest smoothed contrastive loss; step ~1000 for both new arms) and **last** (12,500).
+(lowest smoothed contrastive loss; step ~1000 for arm 4, ~1300 for arm 3) and **last** (12,500).
 The eval pipeline was cross-checked against #336's published numbers (it reproduces arm 1's
 per-task MASE to four decimals), so the arm-4 collapse is a real measurement, not a pipeline
 artifact.
@@ -95,15 +98,15 @@ head for consistency with arms 1–2.
 ## What we learned
 
 - **Stop-grad does not make extra encoder depth pay** — it shrinks the depth penalty from
-  reliable (+0.05 to +0.13 without it) to near-zero (0 to +0.03), but the deeper encoder
-  never beats the shallower one. The #339 gain is about the stop-grad itself, not a capacity
+  reliable on three of four cells (up to +0.13 without it) to near-zero (≤+0.03), but the
+  deeper encoder never beats the shallower one. The #339 gain is about the stop-grad itself, not a capacity
   that the stop-grad unlocks.
 - **A forecaster bottleneck and the encoder-side stop-grad do not mix at full training.**
   Together they are fine early but collapse below seasonal-naive by the last checkpoint —
   a failure neither the full-width stop-grad arm nor the no-stop-grad bottleneck base
   shows. The forecaster width is therefore load-bearing for stop-grad's stability.
 - **Use the best-loss checkpoint for these stop-grad recipes.** Transfer peaks early (step
-  ~1000) and degrades with further training, sharply so for the bottleneck arm; the
+  ~1000–1300) and degrades with further training, sharply so for the bottleneck arm; the
   smoothed-loss minimum is a good selector.
 
 ## Follow-up
