@@ -1,4 +1,8 @@
 #!/bin/bash
+# NOTE: superseded by run_phase2_arm.sh (the per-arm variant RESUME.sh actually
+# launches, which overlaps one arm's fresh-last work with the other's chain).
+# Kept as the both-arms reference; not on the live resume path.
+#
 # #341 phase 2 (post-chains, resumable): the LAST-checkpoint cells use a FRESH
 # head trained 30k directly on the last backbone (NOT the 10k re-adapt from the
 # best head) — these arms' best-loss lands at step ~1k, so a 10k re-adapt from a

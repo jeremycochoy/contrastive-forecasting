@@ -91,7 +91,7 @@ artifact.
 The last-checkpoint head was trained two independent ways — a 10k re-adapt from the
 best-loss head, and a fresh 30k head trained directly on the last backbone — because the
 best-loss checkpoint lands so early (step ~1000) that a short re-adapt could in principle
-underfit. The two protocols agree within ±0.01 GM on every cell, so each last-checkpoint
+underfit. The two protocols agree within 0.011 GM on every cell, so each last-checkpoint
 score reflects the backbone, not the head-adaptation choice; the table reports the re-adapt
 head for consistency with arms 1–2.
 
