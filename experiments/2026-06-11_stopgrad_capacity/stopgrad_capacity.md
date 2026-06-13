@@ -113,7 +113,9 @@ head for consistency with arms 1–2.
 ## Follow-up
 
 The two new arms reach their best transfer at step ~1000–1300, an order of magnitude before the
-12,500-step budget — a **stop-grad + early-stop** card would test whether the full recipe
-line's downstream numbers can be matched at a fraction of the compute. Separately, the
-bottleneck collapse motivates a **forecaster-width sweep under stop-grad** to locate where
-stability breaks.
+12,500-step budget — a **stop-grad + early-stop** card (opened as **#343**) tests whether
+the full recipe line's downstream numbers can be matched at a fraction of the compute.
+Separately, the bottleneck collapse motivates a **forecaster-width sweep under stop-grad**
+to locate where stability breaks.
+
+Next: #343
