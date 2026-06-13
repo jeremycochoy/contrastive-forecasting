@@ -1,0 +1,25 @@
+arm,label,head,ckpt,gm,n
+a1_bn_enc6,arm1 base+triplet (enc6+bn),2L,best,1.1860846722795841,97
+a1_bn_enc6,arm1 base+triplet (enc6+bn),2L,last,1.1874496137210193,97
+a1_bn_enc6,arm1 base+triplet (enc6+bn),6L,best,1.1849447576820347,97
+a1_bn_enc6,arm1 base+triplet (enc6+bn),6L,last,1.1898136628470222,97
+a2_sg_enc3_nobn,arm2 stop-grad enc3+nobn (#339),2L,best,1.1767794644053335,97
+a2_sg_enc3_nobn,arm2 stop-grad enc3+nobn (#339),2L,last,1.180075049027856,97
+a2_sg_enc3_nobn,arm2 stop-grad enc3+nobn (#339),6L,best,1.1586636106803785,97
+a2_sg_enc3_nobn,arm2 stop-grad enc3+nobn (#339),6L,last,1.1629340235718684,97
+a3_sg_enc6_nobn,arm3 stop-grad enc6+nobn (NEW),2L,best,1.1800923396531624,97
+a3_sg_enc6_nobn,arm3 stop-grad enc6+nobn (NEW),2L,last,1.2134387976249226,97
+a3_sg_enc6_nobn,arm3 stop-grad enc6+nobn (NEW),6L,best,1.160596443446397,97
+a3_sg_enc6_nobn,arm3 stop-grad enc6+nobn (NEW),6L,last,1.1932610880596872,97
+a4_sg_enc6_bn,arm4 stop-grad enc6+bn (NEW),2L,best,1.1996625979638198,97
+a4_sg_enc6_bn,arm4 stop-grad enc6+bn (NEW),2L,last,2.26518459961727,97
+a4_sg_enc6_bn,arm4 stop-grad enc6+bn (NEW),6L,best,1.1830211840778482,97
+a4_sg_enc6_bn,arm4 stop-grad enc6+bn (NEW),6L,last,2.2007984936617206,97
+c_nobn_enc3,ctx enc3+nobn no-sg (#328 best),2L,best,1.2198627909753665,97
+c_nobn_enc3,ctx enc3+nobn no-sg (#328 best),2L,last,1.180605122676932,97
+c_nobn_enc3,ctx enc3+nobn no-sg (#328 best),6L,best,1.2108113310003146,97
+c_nobn_enc3,ctx enc3+nobn no-sg (#328 best),6L,last,1.1695196591380774,97
+c_nobn_enc6,ctx enc6+nobn no-sg,2L,best,1.2737848558597578,97
+c_nobn_enc6,ctx enc6+nobn no-sg,2L,last,1.3131516077713075,97
+c_nobn_enc6,ctx enc6+nobn no-sg,6L,best,1.225269420471126,97
+c_nobn_enc6,ctx enc6+nobn no-sg,6L,last,1.2604700409534642,97

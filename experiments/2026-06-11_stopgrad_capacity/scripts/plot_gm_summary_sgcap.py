@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
-"""#341 — headline figure from results/{gm_table,pairwise_table}.csv.
+"""#341 — headline figure.
 
-Left: GM-Relative MASE per arm (4 grouped bars) per head × checkpoint.
-Right: the three hypothesis contrasts (arm3−arm2: capacity under stop-grad;
-arm4−arm1: stop-grad on base; arm4−arm2: bottleneck+enc6 vs the #339 arm)
-as paired-bootstrap Δ with 90% CI. Env: OUT (png).
+Left: GM-Relative MASE per arm × cell (4 arms grouped). The stop-grad+bottleneck
+arm (4) collapses at the last checkpoint (~2.2) while every arm sits ~1.16-1.21
+at best-loss — the two findings in one panel.
+Right: the capacity step enc3->enc6 as a paired-bootstrap Δ with 90% CI, WITHOUT
+stop-grad (#336 references) vs WITH stop-grad (arms 2->3) — does stop-grad flip
+the sign of the capacity knob? (No: it shrinks the penalty toward 0, never below.)
+Env: OUT.
 """
 import csv
 import os
@@ -14,73 +17,61 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 EXP = "/home/jupyter/workspaces/contrastive-forecasting/experiments/2026-06-11_stopgrad_capacity"
-OUT = os.environ.get("OUT", "/tmp/cf-341/experiments/2026-06-11_stopgrad_capacity/plots/gm_summary.png")
+OUT = os.environ.get("OUT", f"{EXP}/plots/gm_summary.png")
 
-ARM_STYLE = [  # (key, short label, color)
-    ("a1_bn_enc6",      "base+triplet (no sg)", "#9dc3e6"),
-    ("a2_sg_enc3_nobn", "sg enc3+nobn (#339)",  "#7f7f7f"),
-    ("a3_sg_enc6_nobn", "sg enc6+nobn NEW",     "#c0504d"),
-    ("a4_sg_enc6_bn",   "sg enc6+bn NEW",       "#70ad47"),
-]
-CONTRASTS = [  # (A, B, label)
-    ("a2_sg_enc3_nobn", "a3_sg_enc6_nobn", "capacity under sg\n(arm3 − arm2)"),
-    ("a1_bn_enc6",      "a4_sg_enc6_bn",   "sg on base\n(arm4 − arm1)"),
-    ("a2_sg_enc3_nobn", "a4_sg_enc6_bn",   "enc6+bn vs #339 arm\n(arm4 − arm2)"),
-]
-CELLS = [("2L", "best"), ("2L", "last"), ("6L", "best"), ("6L", "last")]
-
-gms = {}
+gm = {}
 for r in csv.DictReader(open(f"{EXP}/results/gm_table.csv")):
     if r["gm"] not in ("", "None"):
-        gms[(r["arm"], r["head"], r["ckpt"])] = float(r["gm"])
-pairs = {}
+        gm[(r["arm"], r["head"], r["ckpt"])] = float(r["gm"])
+pair = {}
 for r in csv.DictReader(open(f"{EXP}/results/pairwise_table.csv")):
     if r["delta"] not in ("", "None"):
-        pairs[(r["A"], r["B"], r["head"], r["ckpt"])] = (
-            float(r["delta"]), float(r["ci_lo"]), float(r["ci_hi"]))
+        pair[(r["A"], r["B"], r["head"], r["ckpt"])] = (float(r["delta"]), float(r["ci_lo"]), float(r["ci_hi"]))
 
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 4.8), width_ratios=[1.15, 1])
+CELLS = [("2L", "best"), ("2L", "last"), ("6L", "best"), ("6L", "last")]
+ARMS = [  # key, label, color
+    ("a1_bn_enc6",      "arm1 bn·no-sg",     "#9dc3e6"),
+    ("a2_sg_enc3_nobn", "arm2 enc3·full·sg", "#7f7f7f"),
+    ("a3_sg_enc6_nobn", "arm3 enc6·full·sg", "#2ca02c"),
+    ("a4_sg_enc6_bn",   "arm4 enc6·bn·sg",   "#d62728"),
+]
+fig, (axL, axR) = plt.subplots(1, 2, figsize=(15, 5), width_ratios=[1.25, 1])
 
-x = np.arange(len(CELLS))
-nb = len(ARM_STYLE)
-w = 0.8 / nb
-vals_all = []
-for j, (key, lab, col) in enumerate(ARM_STYLE):
-    vals = [gms.get((key, h, c), np.nan) for h, c in CELLS]
-    vals_all += [v for v in vals if not np.isnan(v)]
-    ax1.bar(x + (j - (nb - 1) / 2) * w, vals, w, label=lab, color=col)
-    for xi, v in zip(x, vals):
+x = np.arange(len(CELLS)); w = 0.8 / len(ARMS)
+for j, (key, lab, col) in enumerate(ARMS):
+    vals = [gm.get((key, h, c), np.nan) for h, c in CELLS]
+    bx = x + (j - (len(ARMS) - 1) / 2) * w
+    axL.bar(bx, vals, w, label=lab, color=col)
+    for xi, v in zip(bx, vals):
         if not np.isnan(v):
-            ax1.text(xi + (j - (nb - 1) / 2) * w, v, f"{v:.3f}", ha="center",
-                     va="bottom", fontsize=6.5, rotation=90)
-ax1.set_xticks(x, [f"{h} {c}" for h, c in CELLS])
-ax1.set_ylabel("GM-Relative MASE (lower is better)")
-if vals_all:
-    ax1.set_ylim(min(vals_all) - 0.03, max(vals_all) + 0.05)
-ax1.legend(fontsize=8, ncols=2)
-ax1.set_title("Forecast error per head × checkpoint", fontsize=10)
+            axL.text(xi, v + 0.01, f"{v:.3f}", ha="center", va="bottom", fontsize=6.5, rotation=90)
+axL.axhline(1.0, color="grey", ls=":", lw=1)
+axL.set_xticks(x, [f"{h} {c}" for h, c in CELLS])
+axL.set_ylabel("GM-Relative MASE (lower is better)")
+axL.set_ylim(1.0, 2.45)
+axL.legend(fontsize=8, ncols=2, loc="upper left")
+axL.set_title("Forecast error per arm × head × checkpoint", fontsize=10)
+axL.annotate("stop-grad + bottleneck\ncollapses at 'last'", xy=(1.27, 2.27), xytext=(0.45, 2.18),
+             fontsize=8, color="#d62728", ha="center",
+             arrowprops=dict(arrowstyle="->", color="#d62728", lw=1.2))
 
-xticks, xlabels = [], []
-xi = 0
-for A, B, lab in CONTRASTS:
-    for h, c in CELLS:
-        if (A, B, h, c) in pairs:
-            d, lo, hi = pairs[(A, B, h, c)]
-            reliable = hi < 0 or lo > 0
-            col = ("#2e7d32" if hi < 0 else "#c62828") if reliable else "#777777"
-            ax2.errorbar(xi, d, yerr=[[d - lo], [hi - d]], fmt="o", color=col,
-                         capsize=4, lw=1.8, markersize=5)
-        xticks.append(xi)
-        xlabels.append(f"{h[0]}{c[0]}")  # 2b 2l 6b 6l
-        xi += 1
-    xi += 1  # gap between contrast groups
-ax2.axhline(0.0, color="grey", lw=1)
-ax2.set_xticks(xticks, xlabels, fontsize=8)
-for k, (A, B, lab) in enumerate(CONTRASTS):
-    ax2.text(k * 5 + 1.5, ax2.get_ylim()[1], lab, ha="center", va="top", fontsize=8)
-ax2.set_ylabel("Δ GM-Relative MASE (B − A)")
-ax2.set_title("Hypothesis contrasts: paired-bootstrap Δ, 90% CI (below 0 = B better)",
-              fontsize=10)
+# Right: capacity step enc3->enc6, no-sg vs sg.
+SERIES = [("WITHOUT stop-grad (#336)", "c_nobn_enc3", "c_nobn_enc6", "#c0504d"),
+          ("WITH stop-grad (arms 2->3)", "a2_sg_enc3_nobn", "a3_sg_enc6_nobn", "#2e7d32")]
+xr = np.arange(len(CELLS))
+for k, (lab, A, B, col) in enumerate(SERIES):
+    off = (k - 0.5) * 0.18
+    for xi, (h, c) in zip(xr, CELLS):
+        d = pair.get((A, B, h, c))
+        if d:
+            delta, lo, hi = d
+            axR.errorbar(xi + off, delta, yerr=[[delta - lo], [hi - delta]], fmt="o", color=col,
+                         capsize=4, lw=1.8, markersize=6, label=lab if xi == 0 else None)
+axR.axhline(0.0, color="grey", lw=1)
+axR.set_xticks(xr, [f"{h} {c}" for h, c in CELLS])
+axR.set_ylabel("Δ GM-Relative MASE  (enc6 − enc3)")
+axR.set_title("Capacity step enc3→enc6: penalty WITHOUT vs WITH stop-grad\n(Δ>0 = enc6 worse; 90% CI)", fontsize=10)
+axR.legend(fontsize=8, loc="upper left")
 
 fig.tight_layout()
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
