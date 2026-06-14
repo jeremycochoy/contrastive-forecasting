@@ -288,6 +288,12 @@ def cpc_infonce_aux_loss(forecasted_latent, original_latent, w1,
 
     Returns: scalar loss (mean over B, C, t).
     """
+    if forecasted_latent.dim() != 4:
+        raise ValueError(
+            "cpc_infonce_aux_loss expects a 4-D [B,T,C,H] forecaster latent "
+            f"(got {forecasted_latent.dim()}-D); the CPC InfoNCE auxiliary (#344) "
+            "is not defined for the cpc_multistep forecaster stack. Drop "
+            "--cpc-infonce-weight or use the transformer forecaster.")
     B, T, C, H = forecasted_latent.shape
     if T < 2:
         return forecasted_latent.new_zeros(())

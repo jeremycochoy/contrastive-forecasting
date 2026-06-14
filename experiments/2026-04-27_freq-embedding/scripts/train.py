@@ -789,6 +789,12 @@ def main():
     # CPC InfoNCE auxiliary (#344): create the learnable W_1 only when the
     # term is enabled (weight > 0), so disabled runs keep an unchanged
     # state_dict / param count.
+    if args.cpc_infonce_weight > 0 and args.forecaster_kind in ("cpc", "linear_cpc"):
+        raise SystemExit(
+            "--cpc-infonce-weight is the single-step CPC InfoNCE auxiliary (#344) "
+            "and operates on a 4-D forecaster latent; it is not defined for the "
+            f"cpc_multistep forecaster (--forecaster-kind {args.forecaster_kind}). "
+            "Use --forecaster-kind transformer, or drop --cpc-infonce-weight.")
     model_config["cpc_infonce"] = args.cpc_infonce_weight > 0
     model_config["qk_norm"] = bool(args.qk_norm)
     model_config["attn_out_norm"] = bool(args.attn_out_norm)

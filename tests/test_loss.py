@@ -1517,3 +1517,12 @@ class TestCPCInfonceAuxLoss:
         f, h = _random_inputs(B=2, T=1, C=1, H=8, seed=5)
         loss = cpc_infonce_aux_loss(f, h, self._w1(8))
         assert loss.item() == 0.0
+
+    def test_rejects_5d_forecaster(self):
+        # The cpc_multistep forecaster stack is 5-D [B,T,C,K,H]; the single-step
+        # aux term must reject it loudly (not a cryptic unpack error).
+        from src.loss import cpc_infonce_aux_loss
+        f5 = torch.randn(2, 4, 1, 3, 8)  # 5-D
+        h = torch.randn(2, 4, 1, 8)
+        with pytest.raises(ValueError):
+            cpc_infonce_aux_loss(f5, h, self._w1(8))
