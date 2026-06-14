@@ -37,3 +37,11 @@ Resume state for the agent. The science goes in `cpc_infonce_aux.md`.
   CPC-term-free contrastive reference comparable to baselines.
 - Memory: enc3 with the baseline chunk-2/no-grad-ckpt recipe + CPC hit 96% of 24 GB → restarted both
   arms with grad-ckpt + chunk 1 (byte-identical to the loss; memory↔kernel-launches only).
+
+## Final result (2026-06-14)
+All 8 cells evaluated. Verdict: **neutral at best-loss (4/4 ns), reliably better at last (4/4
+CI<0)**. Last-Δ: enc3·2L −0.027, enc3·6L −0.019, enc6·2L −0.033, enc6·6L −0.031. The CPC term's
+value collapses to ~0 by step ~1000 (unbounded W₁) yet improves the pretext representation and
+reverses the baselines' best→last degradation ⇒ a late-training stabiliser. Eval was accelerated:
+6L heads pretrained on the idle GPUs during the CPU-bound 2L evals, and the 6L cells evaluated
+4-wide via orchestrate_6L_evals.sh + eval_cell.sh (byte-identical do_eval command).
