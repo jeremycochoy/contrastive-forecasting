@@ -50,6 +50,10 @@ The mechanism is visible in the baselines: their last checkpoint is *worse* than
 drift — the last checkpoint lands at or below the best — so the gain is concentrated entirely in
 late training.
 
+**Follow-up (#347):** the stabilisation should be most visible where late training is worst — the
+enc6 + bottleneck + stop-grad arm (#341 arm 4) that *collapsed* at the last checkpoint
+(GM ~2.2 vs ~1.18 at best-loss). #347 tests whether the CPC term rescues it.
+
 ## Training dynamics: the term vanishes, the representation does not
 
 ![Training metrics, log-log (blues = no CPC, reds = + CPC; enc3 solid/saturated, enc6
