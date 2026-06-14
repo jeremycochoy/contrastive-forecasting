@@ -3,13 +3,17 @@
 # Tests whether CPC (single-step InfoNCE via the learnable bilinear W_1) plus a
 # separate forecaster loss (BYOL align, encoder target stop-gradded) beats the
 # elaborate xshh_allt contrastive objective. Everything else is the exact enc6
-# baseline recipe (allt·0.8% + crossfade triplet, qk-norm, attn-out-norm, tau
-# 0.10, batch 1024, 12 500 steps, seed 20260520). The main contrastive loss is
-# dropped (--no-main-contrastive-loss); --loss-shape is kept only so the
-# loss_tau_ref diagnostic stays a comparable contrastive-reference curve.
-#   train_backbone_cpcalign.sh <gpu> [steps] [save_every]
+# baseline recipe.
+#
+# Runs 2-GPU DDP (torchrun): --batch-size 512 PER RANK ⇒ GLOBAL batch 1024
+# (== the single-GPU baselines), and the loss is computed on the gathered
+# global batch (`gather_latents`, "global negatives, == 1-GPU @ global B") — so
+# CPC's cross-batch negatives and align span both GPUs' samples. ~2× faster than
+# single-GPU. On crash, --resume the latest periodic checkpoint (full state),
+# and train.py appends to the SAME losses CSV (continuous, conserved).
+#   train_backbone_cpcalign.sh [steps] [save_every]
 set -uo pipefail
-GPU="${1:?gpu}"; STEPS="${2:-12500}"; SAVE_EVERY="${3:-2500}"
+STEPS="${1:-12500}"; SAVE_EVERY="${2:-2500}"
 SEED=20260520
 WT="${WT:-/home/jupyter/contrastive-forecasting/.claude/worktrees/exp+cpc-infonce-344}"
 OUT="${OUT:-/home/jupyter/workspaces/contrastive-forecasting/experiments/2026-06-13_cpc_infonce_aux}"
@@ -17,20 +21,21 @@ NAME="bb_allt08_xftrip_nobn_enc6_cpcalign_qk_aon_b1024_cpc"
 RUNS="$OUT/runs"; RES="$OUT/results"; mkdir -p "$RUNS" "$RES"
 BB="$RUNS/${NAME}_FINAL.pth"
 export PYTHONPATH="$WT" PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True OMP_NUM_THREADS=8
-export CUDA_VISIBLE_DEVICES="$GPU"
+export CUDA_VISIBLE_DEVICES=0,1
 export FCST_GRAD_CKPT=1 XSHH_ALLT_CHUNK=1 CPC_CB_CHUNK="${CPC_CB_CHUNK:-64}"
 export PATCH_ENC_CKPT=1 PATCH_ENC_CHUNK=4
 export HF_TOKEN="$(cat "$WT/experiments/hf_token.txt" 2>/dev/null)"; export HUGGING_FACE_HUB_TOKEN="$HF_TOKEN"
 TRAIN="$WT/experiments/2026-04-27_freq-embedding/scripts/train.py"
-log(){ echo "[$(date '+%m-%d %H:%M:%S')] [bb-cpcalign g$GPU] $*"; }
-[ -n "$HF_TOKEN" ] || log "WARN: empty HF_TOKEN — HF stream will throttle the GPU"
+log(){ echo "[$(date '+%m-%d %H:%M:%S')] [bb-cpcalign-ddp] $*"; }
+[ -n "$HF_TOKEN" ] || log "WARN: empty HF_TOKEN — HF stream will throttle the GPUs"
 [ -f "$BB" ] && { log "BB SKIP ($NAME FINAL exists)"; exit 0; }
 tlog="$RES/run_${NAME}.log"
 RESUME=""; latest=$(ls -t "$RUNS/${NAME}"_*k.pth 2>/dev/null | grep -v optimizer | head -1)
 [ -n "$latest" ] && { RESUME="--resume $latest"; log "RESUME from $(basename "$latest")"; }
-log "BB START cpc+align/no-main bs=1024 steps=$STEPS ${RESUME}"
-python3 -u "$TRAIN" $RESUME --qk-norm --attn-out-norm \
-  --batch-size 1024 --device cuda --total-steps "$STEPS" --lr 1e-3 --weight-decay 0.1 \
+MP=$(python3 -c 'import socket;s=socket.socket();s.bind(("",0));print(s.getsockname()[1]);s.close()')
+log "BB START 2-GPU DDP (per-rank bs=512, global 1024) cpc+align/no-main steps=$STEPS port=$MP ${RESUME}"
+torchrun --nproc_per_node=2 --master_port="$MP" "$TRAIN" $RESUME --qk-norm --attn-out-norm \
+  --batch-size 512 --device cuda --total-steps "$STEPS" --lr 1e-3 --weight-decay 0.1 \
   --adam-beta1 0.9 --adam-beta2 0.98 --seed "$SEED" \
   --save-every "$SAVE_EVERY" --save-dir "$RUNS" --run-name "$NAME" --log-every 100 \
   --hf-repo jeremycochoy/gift-pretrain-full-4096 --hf-path small_v1 \
