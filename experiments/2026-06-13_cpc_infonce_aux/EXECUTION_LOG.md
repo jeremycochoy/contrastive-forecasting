@@ -45,3 +45,21 @@ value collapses to ~0 by step ~1000 (unbounded W₁) yet improves the pretext re
 reverses the baselines' best→last degradation ⇒ a late-training stabiliser. Eval was accelerated:
 6L heads pretrained on the idle GPUs during the CPU-bound 2L evals, and the 6L cells evaluated
 4-wide via orchestrate_6L_evals.sh + eval_cell.sh (byte-identical do_eval command).
+
+## Follow-up arm (2026-06-14): enc6 + CPC + align, NO main contrastive loss
+User-requested. Tests if CPC + a separate forecaster loss (BYOL align, encoder sg) beats the
+xshh_allt contrastive loss. Code: standalone `align_loss` + `--no-main-contrastive-loss` (skip
+contrastive_latent_loss; add align standalone). Launch: `train_backbone_cpcalign.sh 0` (supervised)
++ `watch_cpcalign.sh` (heads parallel 2L@g0/6L@g1, then 4-wide eval; TAG_OVERRIDE reuses
+downstream_cpc.sh/eval_cell.sh). Backbone NAME=bb_allt08_xftrip_nobn_enc6_cpcalign_qk_aon_b1024_cpc.
+analyze_cpc.py arm key `cpcalign_enc6`; pairs vs base_enc6 (main loss) and cpc_enc6 (main+cpc).
+After eval: add arm to report table + a paragraph, regen plots, update PR #346.
+
+### cpcalign arm runs 2-GPU DDP (2026-06-14)
+Switched the cpcalign backbone to torchrun --nproc_per_node=2, --batch-size 512/rank ⇒ GLOBAL
+batch 1024 (== single-GPU baselines). Loss on the gathered global batch (gather_latents: "global
+negatives, == 1-GPU @ global B"), verified at startup ("DDP rank x/2, global bs=1024, gathered
+loss"); CPC cross-batch negatives + align span both GPUs. ~2× faster (~6h). The 13-min single-GPU
+partial (step ~400, only best_loss.pth, no periodic full-state ckpt) was NOT resumable across the
+single→DDP topology change, so it was cleared for a clean CSV (no single+DDP mix). Crash-resume:
+supervisor --resume's the latest periodic _Nk.pth; train.py appends to the same CSV (conserved).
