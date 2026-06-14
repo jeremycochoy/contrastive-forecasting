@@ -37,7 +37,7 @@ Paired-bootstrap Δ = GM(+CPC) − GM(baseline), 90% interval (negative ⇒ CPC 
 |---|--:|--:|
 | enc3 · 2L | +0.008 (−0.007, +0.024) · ns | **−0.027 (−0.043, −0.012)** |
 | enc3 · 6L | −0.000 (−0.015, +0.014) · ns | **−0.019 (−0.033, −0.007)** |
-| enc6 · 2L | −0.002 (−0.016, +0.012) · ns | **−0.033 (−0.053, −0.014)** |
+| enc6 · 2L | −0.001 (−0.016, +0.012) · ns | **−0.033 (−0.053, −0.014)** |
 | enc6 · 6L | −0.003 (−0.011, +0.006) · ns | **−0.031 (−0.049, −0.014)** |
 
 *Forecast error is **GM-Relative MASE**: the geometric mean, over GIFT-Eval's 97 forecasting
@@ -53,15 +53,16 @@ late training.
 ## Training dynamics: the term vanishes, the representation does not
 
 ![Training metrics, log-log (blues = no CPC, reds = + CPC; enc3 solid/saturated, enc6
-dashed/light). The CPC term itself (top row, 2nd panel) plunges from ~8 to <10⁻³ within the first
-~1,000 steps; yet the CPC arms' contrastive reference loss, ratio-gap, 1−R², and 1−AUC all sit
-below the baselines, and their time-wise dimension usage (U_temporal) sits above.](plots/training_dynamics.png)
+dashed/light). The CPC term itself (top row, 2nd panel) plunges from its early peak (~19) to
+<10⁻³ within the first ~1,000 steps; yet the CPC arms' contrastive reference loss, ratio-gap,
+1−R², and 1−AUC all sit below the baselines, and their time-wise dimension usage (U_temporal) sits
+above.](plots/training_dynamics.png)
 
 The unbounded bilinear `W₁` drives the CPC loss to ~0 almost immediately — by step ~1,000 it
 contributes a vanishing *value*. But its early gradient reshapes the representation: the CPC arms
-reach a markedly lower contrastive reference loss, a halved ratio-gap, near-perfect retrieval
-(AUC→1.0) and higher time-wise dimension usage than the baselines, and they hold those through to
-the end. So the pretext task is learned better — but, per the table above, that pretext
+reach a markedly lower contrastive reference loss (≈10.2 vs ≈12.3–12.4), a lower ratio-gap
+(≈0.40 vs 0.62–0.85, roughly halved for enc3), near-perfect retrieval (AUC→1.0) and higher
+time-wise dimension usage than the baselines, and they hold those through to the end. So the pretext task is learned better — but, per the table above, that pretext
 improvement does not raise the best-loss transfer; it surfaces only as a steadier, better
 last checkpoint.
 
@@ -77,8 +78,8 @@ encoder depth: **enc3** (3 layers, = report arm 2) and **enc6** (6 layers, = rep
 
 To score a backbone we freeze it and train a fresh quantile forecasting head on top, once with two
 transformer layers and once with six. We evaluate on GIFT-Eval's 97 tasks at two checkpoints: the
-**best-loss** one (lowest smoothed contrastive loss, early in training) and the **last** one (step
-12,500). Baselines are the published same-arm numbers from the stop-grad-capacity report; the
+**best-loss** one (the lowest smoothed contrastive loss, reached within roughly the first
+quarter-to-half of training) and the **last** one (step 12,500). Baselines are the published same-arm numbers from the stop-grad-capacity report; the
 analysis reuses that report's GM and paired-bootstrap code unchanged and reproduces its baseline
 GMs to three decimals.
 
