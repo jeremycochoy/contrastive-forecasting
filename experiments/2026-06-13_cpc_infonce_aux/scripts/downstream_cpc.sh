@@ -8,7 +8,9 @@
 #   downstream_cpc.sh <arm: enc3|enc6> <head_layers: 2|6> <gpu>
 set -uo pipefail
 ARM="${1:?arm}"; HL="${2:?head_layers}"; GPU="${3:?gpu}"
-TAG="allt08_xftrip_nobn_${ARM}_sgpos_qk_aon_b1024_cpc"
+# TAG_OVERRIDE lets non-standard arms (e.g. the cpc+align/no-main arm, which
+# has no _sgpos_ in its name) reuse this downstream unchanged.
+TAG="${TAG_OVERRIDE:-allt08_xftrip_nobn_${ARM}_sgpos_qk_aon_b1024_cpc}"
 WT="${WT:-/home/jupyter/contrastive-forecasting/.claude/worktrees/exp+cpc-infonce-344}"
 OUT="${OUT:-/home/jupyter/workspaces/contrastive-forecasting/experiments/2026-06-13_cpc_infonce_aux}"
 RUNS="$OUT/runs"; RES="$OUT/results"; mkdir -p "$RUNS" "$RES"

@@ -25,6 +25,8 @@ ARMS = {
     "base_enc6": ("baseline enc6+full+sg (#341 arm3)", E341, "allt08_xftrip_nobn_enc6_sgpos_qk_aon_b1024"),
     "cpc_enc3":  ("CPC enc3+full+sg (NEW)",            E344, "allt08_xftrip_nobn_enc3_sgpos_qk_aon_b1024_cpc"),
     "cpc_enc6":  ("CPC enc6+full+sg (NEW)",            E344, "allt08_xftrip_nobn_enc6_sgpos_qk_aon_b1024_cpc"),
+    # follow-up arm: CPC + BYOL align, NO main contrastive loss
+    "cpcalign_enc6": ("CPC+align no-main enc6 (NEW)",  E344, "allt08_xftrip_nobn_enc6_cpcalign_qk_aon_b1024_cpc"),
 }
 
 # (A, B, why) — Δ = GM(B) − GM(A); negative Δ ⇒ B (the CPC arm) better.
@@ -32,6 +34,9 @@ PAIRS = [
     ("base_enc3", "cpc_enc3", "CPC term on enc3+full+sg [hypothesis]"),
     ("base_enc6", "cpc_enc6", "CPC term on enc6+full+sg [hypothesis]"),
     ("cpc_enc3",  "cpc_enc6", "enc3->enc6 WITH the CPC term (capacity knob)"),
+    # follow-up: does CPC + a separate forecaster loss beat the main contrastive loss?
+    ("base_enc6",     "cpcalign_enc6", "CPC+align (no main loss) vs baseline main loss [hypothesis]"),
+    ("cpc_enc6",      "cpcalign_enc6", "drop main loss (cpc+align only) vs main+cpc"),
 ]
 HEADS = ["2L", "6L"]
 CKPTS = [("best", ""), ("last", "_last")]
