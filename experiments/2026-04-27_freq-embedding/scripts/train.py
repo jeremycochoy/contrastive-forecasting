@@ -42,7 +42,7 @@ from src.dataloader import (
     create_mixed_forked_arma_dataloader,
     create_hf_dataloader,
 )
-from src.loss import contrastive_latent_loss, cpc_infonce_aux_loss
+from src.loss import contrastive_latent_loss, cpc_infonce_aux_loss, align_loss
 from src.checkpoint import save_training_state, load_training_state
 from src.dist_utils import (
     setup_distributed,
@@ -422,6 +422,17 @@ def parse_args():
                         "explicit λ. Applies to ANY 4-D loss_shape (not the "
                         "cpc_multistep stack). Cross-batch negatives are "
                         "chunked via env CPC_CB_CHUNK (default 256).")
+    p.add_argument("--no-main-contrastive-loss", action="store_true",
+                   help="Drop the main contrastive loss entirely; train only on "
+                        "the auxiliary terms (--cpc-infonce-weight and/or "
+                        "--align-loss-weight). Skips the contrastive_latent_loss "
+                        "call (no xshh_allt Gram in the backward), and the align "
+                        "term is then computed standalone (same BYOL form, encoder "
+                        "target stop-gradded). Use to test whether CPC + a separate "
+                        "forecaster loss beats the contrastive objective (#344). "
+                        "The loss_tau_ref diagnostic is still logged as a "
+                        "contrastive-reference curve. Requires at least one of "
+                        "--cpc-infonce-weight / --align-loss-weight > 0.")
     p.add_argument("--shard-loss-on-batch", action="store_true",
                    help="DDP only: compute the contrastive loss on each "
                         "rank's LOCAL shard instead of all-gathering latents "
@@ -795,6 +806,12 @@ def main():
             "and operates on a 4-D forecaster latent; it is not defined for the "
             f"cpc_multistep forecaster (--forecaster-kind {args.forecaster_kind}). "
             "Use --forecaster-kind transformer, or drop --cpc-infonce-weight.")
+    if args.no_main_contrastive_loss and not (
+            args.cpc_infonce_weight > 0 or args.align_loss_weight > 0):
+        raise SystemExit(
+            "--no-main-contrastive-loss drops the only contrastive term, so the "
+            "objective would be empty; pass --cpc-infonce-weight and/or "
+            "--align-loss-weight > 0.")
     model_config["cpc_infonce"] = args.cpc_infonce_weight > 0
     model_config["qk_norm"] = bool(args.qk_norm)
     model_config["attn_out_norm"] = bool(args.attn_out_norm)
@@ -1067,9 +1084,18 @@ def main():
         with torch.amp.autocast('cuda', enabled=False):
             tau_tensor_loss = (tau_tensor.float()
                                if tau_tensor is not None else None)
-            loss = contrastive_latent_loss(
-                (f_lat, o_lat), validation=False,
-                spec=LOSS_SPEC, tau_override=tau_tensor_loss)
+            if args.no_main_contrastive_loss:
+                # #344 follow-up arm: drop the main contrastive loss; train only
+                # on the auxiliary terms. Skip contrastive_latent_loss (no
+                # xshh_allt Gram backward) and add the BYOL align term standalone
+                # (same form, encoder target stop-gradded). L_cpc is added below.
+                loss = f_lat.new_zeros(())
+                if args.align_loss_weight > 0:
+                    loss = loss + align_loss(f_lat, o_lat, args.align_loss_weight)
+            else:
+                loss = contrastive_latent_loss(
+                    (f_lat, o_lat), validation=False,
+                    spec=LOSS_SPEC, tau_override=tau_tensor_loss)
             # CPC InfoNCE auxiliary (#344): total = contrastive + λ·L_cpc,
             # equal weight at λ=1. f_lat is the AR context h_t (4-D here; the
             # cpc_multistep stack is 5-D and returns earlier in the loss), o_lat

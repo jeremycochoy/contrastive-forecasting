@@ -349,6 +349,28 @@ def cpc_infonce_aux_loss(forecasted_latent, original_latent, w1,
     return (log_denom - log_pos).mean()
 
 
+def align_loss(forecasted_latent, original_latent, weight=1.0):
+    """BYOL/SimSiam alignment term, standalone (#344 follow-up arm).
+
+    ``L_align = weight · (2 − 2·cos(f_t, sg(h_{t+1}))).mean()`` — pull the
+    forecaster output ``f_t`` toward the *next* encoder embedding ``h_{t+1}``,
+    with the encoder target stop-gradded (gradient flows only through the
+    forecaster). This is byte-for-byte the alignment add-on inside
+    ``contrastive_latent_loss`` (the ``align_loss_weight`` path), exposed as a
+    standalone so a run can train on it WITHOUT the main contrastive loss —
+    to test whether CPC + a separate forecaster loss beats the contrastive
+    objective. ``2 − 2·cos = ‖f̂ − ĥ‖²`` ∈ [0, 4], min 0 at perfect alignment.
+
+    forecasted_latent, original_latent: ``[B, T, C, H]``. Returns scalar.
+    """
+    fore_norm = F.normalize(forecasted_latent, p=2, dim=-1)
+    orig_norm = F.normalize(original_latent, p=2, dim=-1)
+    hy_hat_norm = fore_norm[:, :-1, :, :]              # f_t
+    hy_norm = orig_norm[:, 1:, :, :].detach()          # sg(h_{t+1})
+    cos_align = cosine_similarity_from_normalized(hy_hat_norm, hy_norm)
+    return weight * (2.0 - 2.0 * cos_align).mean()
+
+
 # --- All-time cross-series Gram speedups (#327) ----------------------------
 #
 # The all-time cross-series negative in `cosine_similarity_batch_full_hh_negs_

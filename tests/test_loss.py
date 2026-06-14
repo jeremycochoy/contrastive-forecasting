@@ -1526,3 +1526,43 @@ class TestCPCInfonceAuxLoss:
         h = torch.randn(2, 4, 1, 8)
         with pytest.raises(ValueError):
             cpc_infonce_aux_loss(f5, h, self._w1(8))
+
+
+class TestAlignLoss:
+    """`align_loss` — the standalone BYOL alignment term (#344 follow-up arm)."""
+
+    def test_nonneg_scalar(self):
+        from src.loss import align_loss
+        f, h = _random_inputs(B=4, T=5, C=2, H=16, seed=7)
+        loss = align_loss(f, h, 1.0)
+        assert loss.ndim == 0 and 0.0 <= loss.item() <= 4.0
+
+    def test_grad_only_through_forecaster(self):
+        # encoder target is stop-gradded ⇒ grad reaches f, NOT h.
+        from src.loss import align_loss
+        f, h = _random_inputs(B=4, T=5, C=2, H=16, seed=8)
+        f.requires_grad_(True)
+        h.requires_grad_(True)
+        align_loss(f, h, 1.0).backward()
+        assert f.grad is not None and f.grad.abs().sum() > 0
+        assert h.grad is None or h.grad.abs().sum() == 0
+
+    def test_matches_inline_align_in_contrastive(self):
+        # Standalone align == the align add-on inside contrastive_latent_loss
+        # (contrastive weight isolated by differencing align_w=1 vs 0).
+        from src.loss import align_loss, contrastive_latent_loss
+        f, h = _random_inputs(B=3, T=4, C=2, H=8, seed=9)
+        spec = _make_spec("cosine_similarity_batch", tau=0.1)
+        base = contrastive_latent_loss((f, h), False, spec, align_loss_weight=0.0)
+        withal = contrastive_latent_loss((f, h), False, spec, align_loss_weight=1.0)
+        standalone = align_loss(f, h, 1.0)
+        assert abs((withal - base).item() - standalone.item()) < 1e-5
+
+    def test_perfect_alignment_zero(self):
+        from src.loss import align_loss
+        g = torch.Generator().manual_seed(10)
+        h = torch.randn(2, 6, 1, 16, generator=g)
+        f = torch.empty_like(h)
+        f[:, :-1] = h[:, 1:]   # f_t := h_{t+1} (perfect next-step alignment)
+        f[:, -1] = h[:, -1]
+        assert align_loss(f, h, 1.0).item() < 1e-5
