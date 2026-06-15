@@ -17,6 +17,16 @@ contrastive objective to predict the next token's embedding. "No encoder"
 patch-embedding tokens directly, and the contrastive target `e_t` becomes the
 patch-embedding output instead of an encoder output.*
 
+> **Side note on the CPC term (inherited from #344, unchanged here).** The CPC
+> InfoNCE auxiliary follows a common *practical* CPC negative-sampling scheme —
+> its negatives are other sequences' embeddings at the matched next step plus the
+> same sequence's embeddings at other steps. This is **narrower** than van den
+> Oord et al. (2018) Eq. 4, whose negatives are generic samples from the marginal
+> proposal `p(x_{t+1})` (any sequence, *any* step, not only the matched one). The
+> distinction concerns only the auxiliary term's negative set; it does not affect
+> the comparison in this report, because #344 and #348 use the byte-identical
+> term — so removing the encoder is the only thing that changes between the arms.
+
 <!-- RESULTS PENDING — filled when downstream evals land -->
 
 ## Result
