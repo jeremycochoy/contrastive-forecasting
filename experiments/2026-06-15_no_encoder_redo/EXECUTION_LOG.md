@@ -65,6 +65,13 @@ forked-arma mix 0.0078125 + crossfade-triplets 1, mixup-p 0.3, freq/seas emb 3.
   base backbone training (GPU0 100% util). Monitor log: $OUT/orchestrate.log + results/run_bb_*.log.
 - 2026-06-15: DRAFT PR **#349** opened (base experiments, stacked on #346). analyze_noenc.py validated
   (baselines reproduce #344). plot_gm_ladder.py written. Hourly wake-up loop monitoring.
+- 2026-06-15 ~13:17: **GPU 1 freed** (ops reclaimed a stale Jupyter kernel, Jeremy-authorized) -> parallelised.
+  Killed the single-GPU orchestrator's top PID only (base kept running on GPU 0, supervise reparented to
+  init). Now: **GPU 0 = base backbone (running) -> base downstream (watch_and_downstream_noenc.sh base 0)**;
+  **GPU 1 = cpc backbone -> cpc downstream (orchestrate_arm.sh cpc 1)**. Both single-GPU (exact #344 recipe).
+  Logs: orchestrate_cpc_g1.log, watch_base_g0.log, results/run_bb_*_{base,cpc}.log.
+  NOTE: orchestrate_gpu0.sh is now the single-GPU fallback only; do NOT re-launch it while the per-arm
+  pipelines run (it would double-launch on GPU 0). Re-launch per-arm via orchestrate_arm.sh / the watcher.
 
 ## Wake-up checklist (each hour)
 1. Is orchestrator alive? `pgrep -af orchestrate_gpu0` — if dead, re-launch `orchestrate_gpu0.sh 0` (idempotent).
