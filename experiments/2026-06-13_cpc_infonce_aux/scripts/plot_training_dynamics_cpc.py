@@ -22,12 +22,13 @@ W = "/home/jupyter/workspaces/contrastive-forecasting/experiments"
 #             enc3 = solid + the saturated hue (blue / red)
 #             enc6 = dashed + the lighter hue (cyan / orange-red)
 BLUE, CYAN = "#1f77b4", "#17becf"
-RED, ORANGERED = "#d62728", "#ff7f0e"
+RED, ORANGERED, GREEN = "#d62728", "#ff7f0e", "#2ca02c"
 RUNS = {
     "enc3 baseline": (f"{W}/2026-06-10_stopgrad_positive/runs/bb_allt08_xftrip_nobn_enc3_sgpos_qk_aon_b1024_losses.csv", BLUE, "-"),
     "enc6 baseline": (f"{W}/2026-06-11_stopgrad_capacity/runs/bb_allt08_xftrip_nobn_enc6_sgpos_qk_aon_b1024_losses.csv", CYAN, "--"),
     "enc3 + CPC":    (f"{W}/2026-06-13_cpc_infonce_aux/runs/bb_allt08_xftrip_nobn_enc3_sgpos_qk_aon_b1024_cpc_losses.csv", RED, "-"),
     "enc6 + CPC":    (f"{W}/2026-06-13_cpc_infonce_aux/runs/bb_allt08_xftrip_nobn_enc6_sgpos_qk_aon_b1024_cpc_losses.csv", ORANGERED, "--"),
+    "enc6 CPC+align (no main)": (f"{W}/2026-06-13_cpc_infonce_aux/runs/bb_allt08_xftrip_nobn_enc6_cpcalign_qk_aon_b1024_cpc_losses.csv", GREEN, "-"),
 }
 OUT = os.path.join(os.path.dirname(__file__), "..", "plots", "training_dynamics.png")
 SMOOTH = 25
@@ -35,7 +36,7 @@ START_STEP = 100  # drop the noisy warm-up (and the CPC term's huge init value)
 
 # (column, title, transform). "contrastive" and "cpc_aux" are derived/optional.
 PANELS = [
-    ("contrastive", "contrastive loss − InfoNCE floor  (↓)", lambda v: v),
+    ("loss_tau_ref", "contrastive reference loss (norm-InfoNCE τ=0.07, all arms)  (↓)", lambda v: v),
     ("cpc_aux",     "CPC InfoNCE auxiliary term  (↓, CPC arms only)", lambda v: v),
     ("gap_ratio",   "ratio gap (1−ff)/(1−fp)  (↓→0)", lambda v: v),
     ("u_batch",     "U_batch — batch-wise used dims  (↑)", lambda v: v),
@@ -98,8 +99,8 @@ def main():
         ax.set_xlabel("step")
         ax.grid(alpha=0.3, which="both")
         ax.legend(fontsize=8)
-    fig.suptitle("#344 CPC InfoNCE auxiliary — training dynamics (log-log; "
-                 "blues = no CPC, reds = + CPC; enc3 = solid/saturated, enc6 = dashed/light)",
+    fig.suptitle("#344 CPC InfoNCE auxiliary — training dynamics (log-log; blues = no CPC, "
+                 "reds = main+CPC, green = CPC+align/no-main; enc3 solid, enc6 dashed)",
                  fontsize=13)
     fig.tight_layout(rect=[0, 0, 1, 0.96])
     os.makedirs(os.path.dirname(OUT), exist_ok=True)

@@ -63,3 +63,11 @@ loss"); CPC cross-batch negatives + align span both GPUs. ~2× faster (~6h). The
 partial (step ~400, only best_loss.pth, no periodic full-state ckpt) was NOT resumable across the
 single→DDP topology change, so it was cleared for a clean CSV (no single+DDP mix). Crash-resume:
 supervisor --resume's the latest periodic _Nk.pth; train.py appends to the same CSV (conserved).
+
+### cpcalign final result (2026-06-15)
+All 4 cells done (4-wide eval). GM: 2L best 1.993, 2L last 1.378, 6L best 1.432, 6L last 1.214 —
+reliably/substantially WORSE than baseline (Δ +0.81/+0.16/+0.27 reliable; 6L-last +0.02 ns) and
+worse than main+CPC on all 4. Verdict: CPC + a separate forecaster loss does NOT replace the
+contrastive loss. Training was persistently unstable (CPC term oscillates ~0.01↔10; elevated
+reference loss / 1−R² / 1−AUC). Added as the report's Ablation section + plots/cpcalign_gm.png;
+training_dynamics.png now 5 arms (panel 1 = loss_tau_ref, comparable across all). Task #6 done.

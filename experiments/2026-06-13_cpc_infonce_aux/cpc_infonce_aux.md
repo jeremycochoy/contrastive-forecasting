@@ -11,7 +11,9 @@ late-training stability?
 **Answer.** It does not move the best-loss checkpoint (4/4 cells neutral), but it **reliably
 improves the last, full-training checkpoint** (4/4 cells better, every 90% interval below zero) —
 reversing the late-training degradation the baselines show. The CPC term is a late-training
-stabiliser, not a peak-performance lever.
+stabiliser, not a peak-performance lever. A further ablation (below) shows the CPC term is an
+*addition* to the contrastive loss, not a replacement: training on CPC + a separate forecaster
+alignment with the contrastive loss removed is reliably and substantially worse.
 
 ## Result
 
@@ -56,19 +58,50 @@ enc6 + bottleneck + stop-grad arm (#341 arm 4) that *collapsed* at the last chec
 
 ## Training dynamics: the term vanishes, the representation does not
 
-![Training metrics, log-log (blues = no CPC, reds = + CPC; enc3 solid/saturated, enc6
-dashed/light). The CPC term itself (top row, 2nd panel) plunges from its early peak (~19) to
-<10⁻³ within the first ~1,000 steps; yet the CPC arms' contrastive reference loss, ratio-gap,
-1−R², and 1−AUC all sit below the baselines, and their time-wise dimension usage (U_temporal) sits
-above.](plots/training_dynamics.png)
+![Training metrics, log-log (blues = no CPC, reds = main + CPC, green = the CPC+align/no-main arm
+below; enc3 solid, enc6 dashed). Panel 1 is the contrastive reference loss (normalized InfoNCE at
+τ=0.07, logged for every arm). The CPC term (top row, 2nd panel) plunges from its early peak (~19)
+to <10⁻³ within ~1,000 steps for the main+CPC arms; the CPC arms' reference loss, ratio-gap, 1−R²,
+and 1−AUC all sit below the baselines, with higher time-wise dimension usage
+(U_temporal).](plots/training_dynamics.png)
 
 The unbounded bilinear `W₁` drives the CPC loss to ~0 almost immediately — by step ~1,000 it
 contributes a vanishing *value*. But its early gradient reshapes the representation: the CPC arms
 reach a markedly lower contrastive reference loss (≈10.2 vs ≈12.3–12.4), a lower ratio-gap
 (≈0.40 vs 0.62–0.85, roughly halved for enc3), near-perfect retrieval (AUC→1.0) and higher
-time-wise dimension usage than the baselines, and they hold those through to the end. So the pretext task is learned better — but, per the table above, that pretext
-improvement does not raise the best-loss transfer; it surfaces only as a steadier, better
-last checkpoint.
+time-wise dimension usage than the baselines, and they hold those through to the end. So the
+pretext task is learned better — but, per the table above, that pretext improvement does not raise
+the best-loss transfer; it surfaces only as a steadier, better last checkpoint.
+
+## Ablation: can CPC + a separate forecaster loss replace the contrastive loss? No
+
+The auxiliary CPC term helps, so a natural question is whether CPC plus a *separate* forecaster
+loss could stand in for the contrastive objective entirely. We trained one more enc6 arm on
+**CPC + the BYOL align term (encoder target stop-gradded), with the main contrastive loss removed**
+— same recipe otherwise. (To keep it comparable at a fraction of the wall-clock, this arm ran
+2-GPU DDP at per-rank batch 512: the loss pools the gathered global batch of 1024, identical to the
+single-GPU baselines.)
+
+![enc6 GM-Relative MASE: baseline (contrastive, grey) vs main+CPC (green) vs CPC+align/no-main
+(red), per head × checkpoint (bars clipped at 1.45, true value labelled). The CPC+align/no-main
+bars tower over both — worst at the best-loss 2L cell (1.99).](plots/cpcalign_gm.png)
+
+Removing the contrastive loss is **reliably and substantially worse**, not better:
+
+| cell | baseline | + CPC | CPC+align, no main | Δ vs baseline (90% CI) |
+|---|--:|--:|--:|--:|
+| enc6 · 2L best | 1.180 | 1.179 | **1.993** | +0.813 (+0.71, +0.93) |
+| enc6 · 2L last | 1.213 | 1.180 | **1.378** | +0.164 (+0.13, +0.21) |
+| enc6 · 6L best | 1.161 | 1.158 | **1.432** | +0.272 (+0.23, +0.33) |
+| enc6 · 6L last | 1.193 | 1.162 | **1.214** | +0.021 (−0.01, +0.05) · ns |
+
+Three of four cells are reliably worse (the fourth only ties, and only because the baseline's own
+6L-last is already degraded); against the main+CPC arm all four are reliably worse. The training
+dynamics show why: without the contrastive loss anchoring the representation, the CPC term never
+settles — it oscillates ~0.01↔10 for the whole run (green, top-row 2nd panel), and the green arm's
+contrastive reference loss, 1−R², and 1−AUC stay elevated and noisy throughout. **The contrastive
+objective carries the representation; CPC and a forecaster alignment are useful additions to it,
+not a replacement for it.**
 
 ## Protocol
 
