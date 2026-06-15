@@ -49,5 +49,28 @@ forked-arma mix 0.0078125 + crossfade-triplets 1, mixup-p 0.3, freq/seas emb 3.
 4. Plots: adapt #344 plot scripts (gm summary as a depth ladder; training dynamics).
 5. Report: `no_encoder_redo.md` per REPORT_STANDARD; sub-agent review; PR; checklists.
 
+## Comparison baselines (validated — analyze_noenc.py reproduces #344 to 4 dp)
+| arm | 2L best / last | 6L best / last |
+|---|--|--|
+| base enc3 (#339) | 1.1768 / 1.1801 | 1.1587 / 1.1629 |
+| base enc6 (#341) | 1.1801 / 1.2134 | 1.1606 / 1.1933 |
+| +CPC enc3 (#344) | 1.1846 / 1.1531 | 1.1584 / 1.1436 |
+| +CPC enc6 (#344) | 1.1786 / 1.1803 | 1.1575 / 1.1623 |
+
 ## Status log
-- 2026-06-15: worktree + scripts + output dirs set up; smoke confirmed noenc trains; tuning mem knobs.
+- 2026-06-15: worktree + scripts + output dirs set up; smoke confirmed noenc trains (13.5 GB, ~3.1 s/step).
+- 2026-06-15: memory — keep all safe knobs ON (FCST_GRAD_CKPT=1, PATCH_ENC_CKPT=1/CHUNK=4, XSHH_ALLT_CHUNK=1);
+  relaxing forecaster ckpt or patch-enc ckpt OOMs at batch 1024. ~10.8 h/backbone.
+- 2026-06-15: orchestrate_gpu0.sh launched detached on GPU 0 (base bb -> cpc bb -> base chain -> cpc chain).
+  base backbone training (GPU0 100% util). Monitor log: $OUT/orchestrate.log + results/run_bb_*.log.
+- 2026-06-15: DRAFT PR **#349** opened (base experiments, stacked on #346). analyze_noenc.py validated
+  (baselines reproduce #344). plot_gm_ladder.py written. Hourly wake-up loop monitoring.
+
+## Wake-up checklist (each hour)
+1. Is orchestrator alive? `pgrep -af orchestrate_gpu0` — if dead, re-launch `orchestrate_gpu0.sh 0` (idempotent).
+2. Backbone progress: tail `results/run_bb_*_{base,cpc}.log` (step / sps / loss healthy, no NaN/Traceback).
+3. If GPU 1 became free AND confirmed idle (not the rnd run), opportunistically parallelise the next
+   un-started piece on it (e.g. cpc backbone, or a downstream cell).
+4. When `bb_..._FINAL.pth` lands -> watcher/chain auto-runs downstream. When `results/chain_{base,cpc}.done`
+   for both -> run analyze_noenc.py + plot_gm_ladder.py + training-dynamics, fill report, sub-agent review.
+5. Keep PR #349 / issue #348 comment threads answered.
