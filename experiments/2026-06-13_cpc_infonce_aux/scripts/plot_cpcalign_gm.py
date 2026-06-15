@@ -12,7 +12,10 @@ import matplotlib.pyplot as plt
 
 RES = "/home/jupyter/workspaces/contrastive-forecasting/experiments/2026-06-13_cpc_infonce_aux/results"
 OUT = os.path.join(os.path.dirname(__file__), "..", "plots", "cpcalign_gm.png")
-CLIP = 1.45
+# The no-main run diverged; cap its bars at 1.25 so the baseline/+CPC spread
+# stays readable (true values labelled). The cap signals "off the chart, didn't
+# train properly" rather than inviting a literal read of the diverged height.
+CLIP = 1.25
 
 
 def main():
@@ -36,9 +39,9 @@ def main():
     ax.set_ylim(1.1, CLIP + 0.04)
     ax.set_xticks(list(x)); ax.set_xticklabels([f"{h} {c}" for h, c in cells])
     ax.set_ylabel("GM-Relative MASE (lower better)")
-    ax.set_title("Can CPC + a separate forecaster loss replace the contrastive loss? No.\n"
-                 "enc6: baseline vs main+CPC vs CPC+align/no-main (bars clipped at "
-                 f"{CLIP}, true value labelled)", fontsize=11)
+    ax.set_title("Replacing the contrastive loss with CPC + align does not work.\n"
+                 "enc6: baseline vs main+CPC vs CPC+align/no-main — the no-main run diverged "
+                 f"(red bars capped at {CLIP}, true value labelled)", fontsize=11)
     ax.legend(fontsize=9)
     ax.grid(axis="y", alpha=0.3)
     fig.tight_layout()

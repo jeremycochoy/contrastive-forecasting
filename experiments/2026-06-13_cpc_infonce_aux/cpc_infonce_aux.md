@@ -1,146 +1,123 @@
-# A CPC InfoNCE auxiliary term stabilises late training
+# CPC for the forecaster: a late-training stabiliser, not a replacement for the contrastive loss
 
-**Question.** The contrastive objective pairs the forecaster's context with the *next* encoder
-embedding through a fixed-temperature cosine score. Contrastive Predictive Coding (van den Oord
-et al. 2018) scores that same next-step prediction with a *learnable* log-bilinear map `W₁`
-instead. Does adding CPC's InfoNCE term — summed equal-weight on top of the existing loss, with
-its own learnable `W₁` and no stop-gradient — improve transfer for the two full-forecaster
-stop-grad arms from the stop-grad-capacity report (enc3 and enc6), and does it change
-late-training stability?
+**Question.** Our backbone trains on a contrastive loss that pairs the forecaster's context with
+the *next* encoder embedding through a fixed-temperature cosine score. Contrastive Predictive
+Coding (van den Oord et al. 2018) scores that same next-step prediction with a *learnable*
+log-bilinear map `W₁` instead. We test how that idea fits our objective in three setups: the
+contrastive loss alone (the baseline), the contrastive loss **plus** a CPC term, and CPC **in
+place of** the contrastive loss (paired with a forecaster alignment). Does CPC help as an addition,
+can it stand alone, and what does it do to late-training stability?
 
-**Answer.** It does not move the best-loss checkpoint (4/4 cells neutral), but it **reliably
-improves the last, full-training checkpoint** (4/4 cells better, every 90% interval below zero) —
-reversing the late-training degradation the baselines show. The CPC term is a late-training
-stabiliser, not a peak-performance lever. A further ablation (below) shows the CPC term is an
-*addition* to the contrastive loss, not a replacement: training on CPC + a separate forecaster
-alignment with the contrastive loss removed is reliably and substantially worse.
+**Answer.** Added on top, CPC is a late-training stabiliser: it leaves the best-loss checkpoint
+untouched and reliably improves the last, full-training checkpoint. Used instead of the contrastive
+loss, it does not train — the run diverges and transfers far worse. CPC earns its place as an
+addition to the contrastive objective, not a substitute for it.
 
 ## Result
 
-![Left: GM-Relative MASE, baseline (grey) vs + CPC (green), for each arm × head × checkpoint.
-The best-loss bars are level; every last-checkpoint green bar sits clearly below its grey
-baseline. Right: the CPC − baseline paired-bootstrap Δ with 90% interval per cell — all four
-best-loss cells straddle zero (grey, ns), all four last-checkpoint cells lie entirely below zero
-(green, reliably better).](plots/gm_summary.png)
+![enc6 GM-Relative MASE for the three setups, per head × checkpoint. The CPC+align/no-main run
+diverged, so its bars are capped at 1.25 with the true value labelled. The +CPC bars (green) sit at
+or below the baseline, with the clearest gap at the last checkpoint.](plots/cpcalign_gm.png)
 
-The split is clean and holds across both encoder depths and both head sizes: at the **best-loss**
-checkpoint the term is neutral; at the **last** checkpoint it reliably helps.
+Two things stand out. **Dropping the contrastive loss** — training on CPC plus a forecaster
+alignment alone — does not work: the run diverges and its frozen backbone forecasts well above
+seasonal-naive. **Keeping the contrastive loss and adding CPC** leaves the best-loss checkpoint
+unchanged but pulls the last checkpoint down, undoing the upward drift the baseline shows between
+its best and last checkpoints.
 
-| arm | 2-layer head, base / +CPC | 6-layer head, base / +CPC |
-|---|--:|--:|
-| enc3, full, sg — best-loss | 1.177 / 1.185 | 1.159 / 1.158 |
-| enc3, full, sg — **last** | 1.180 / **1.153** | 1.163 / **1.144** |
-| enc6, full, sg — best-loss | 1.180 / 1.179 | 1.161 / 1.158 |
-| enc6, full, sg — **last** | 1.213 / **1.180** | 1.193 / **1.162** |
+![Left: GM-Relative MASE, baseline vs +CPC, for each arm × head × checkpoint. The best-loss bars
+are level; every last-checkpoint +CPC bar sits below its baseline. Right: the +CPC − baseline
+paired-bootstrap Δ with 90% interval — every best-loss cell straddles zero, every last-checkpoint
+cell lies entirely below it.](plots/gm_summary.png)
 
-Paired-bootstrap Δ = GM(+CPC) − GM(baseline), 90% interval (negative ⇒ CPC better):
+The late-training gain is reliable across both encoder depths and both head sizes: at the best-loss
+checkpoint the term is neutral, and at the last checkpoint every interval falls below zero.
 
-| cell | best-loss Δ (CI) | last Δ (CI) |
-|---|--:|--:|
-| enc3 · 2L | +0.008 (−0.007, +0.024) · ns | **−0.027 (−0.043, −0.012)** |
-| enc3 · 6L | −0.000 (−0.015, +0.014) · ns | **−0.019 (−0.033, −0.007)** |
-| enc6 · 2L | −0.001 (−0.016, +0.012) · ns | **−0.033 (−0.053, −0.014)** |
-| enc6 · 6L | −0.003 (−0.011, +0.006) · ns | **−0.031 (−0.049, −0.014)** |
+GM-Relative MASE, all arms (bold = a reliable improvement over the same-cell baseline):
 
-*Forecast error is **GM-Relative MASE**: the geometric mean, over GIFT-Eval's 97 forecasting
-tasks, of a model's error divided by the seasonal-naive forecast's error. Lower is better; 1.0 is
-seasonal-naive. Each pairwise Δ carries a **paired-bootstrap** 90% interval — resample the 97-task
-list with repeats and score both arms on each resample so per-task difficulty cancels.*
-
-The mechanism is visible in the baselines: their last checkpoint is *worse* than their best
-(enc6·2L 1.180→1.213, enc6·6L 1.161→1.193; enc3 drifts up too). Adding the CPC term removes that
-drift — the last checkpoint lands at or below the best — so the gain is concentrated entirely in
-late training.
-
-**Follow-up (#347):** the stabilisation should be most visible where late training is worst — the
-enc6 + bottleneck + stop-grad arm (#341 arm 4) that *collapsed* at the last checkpoint
-(GM ~2.2 vs ~1.18 at best-loss). #347 tests whether the CPC term rescues it.
-
-## Training dynamics: the term vanishes, the representation does not
-
-![Training metrics, log-log (blues = no CPC, reds = main + CPC, green = the CPC+align/no-main arm
-below; enc3 solid, enc6 dashed). Panel 1 is the contrastive reference loss (normalized InfoNCE at
-τ=0.07, logged for every arm). The CPC term (top row, 2nd panel) plunges from its early peak (~19)
-to <10⁻³ within ~1,000 steps for the main+CPC arms; the CPC arms' reference loss, ratio-gap, 1−R²,
-and 1−AUC all sit below the baselines, with higher time-wise dimension usage
-(U_temporal).](plots/training_dynamics.png)
-
-The unbounded bilinear `W₁` drives the CPC loss to ~0 almost immediately — by step ~1,000 it
-contributes a vanishing *value*. But its early gradient reshapes the representation: the CPC arms
-reach a markedly lower contrastive reference loss (≈10.2 vs ≈12.3–12.4), a lower ratio-gap
-(≈0.40 vs 0.62–0.85, roughly halved for enc3), near-perfect retrieval (AUC→1.0) and higher
-time-wise dimension usage than the baselines, and they hold those through to the end. So the
-pretext task is learned better — but, per the table above, that pretext improvement does not raise
-the best-loss transfer; it surfaces only as a steadier, better last checkpoint.
-
-## Ablation: can CPC + a separate forecaster loss replace the contrastive loss? No
-
-The auxiliary CPC term helps, so a natural question is whether CPC plus a *separate* forecaster
-loss could stand in for the contrastive objective entirely. We trained one more enc6 arm on
-**CPC + the BYOL align term (encoder target stop-gradded), with the main contrastive loss removed**
-— same recipe otherwise. (To keep it comparable at a fraction of the wall-clock, this arm ran
-2-GPU DDP at per-rank batch 512: the loss pools the gathered global batch of 1024, identical to the
-single-GPU baselines.)
-
-![enc6 GM-Relative MASE: baseline (contrastive, grey) vs main+CPC (green) vs CPC+align/no-main
-(red), per head × checkpoint. The 2L-best CPC+align/no-main bar exceeds the 1.45 axis cap and is
-labelled with its true value (1.99); every CPC+align/no-main bar towers over both other
-arms.](plots/cpcalign_gm.png)
-
-Removing the contrastive loss is **reliably and substantially worse**, not better:
-
-| cell | baseline | + CPC | CPC+align, no main | Δ vs baseline (90% CI) |
+| arm · setup | 2L best | 2L last | 6L best | 6L last |
 |---|--:|--:|--:|--:|
-| enc6 · 2L best | 1.180 | 1.179 | **1.993** | +0.813 (+0.71, +0.93) |
-| enc6 · 2L last | 1.213 | 1.180 | **1.378** | +0.164 (+0.13, +0.21) |
-| enc6 · 6L best | 1.161 | 1.158 | **1.432** | +0.272 (+0.23, +0.33) |
-| enc6 · 6L last | 1.193 | 1.162 | **1.214** | +0.021 (−0.01, +0.05) · ns |
+| enc3 · contrastive (baseline) | 1.177 | 1.180 | 1.159 | 1.163 |
+| enc3 · + CPC | 1.185 | **1.153** | 1.158 | **1.144** |
+| enc6 · contrastive (baseline) | 1.180 | 1.213 | 1.161 | 1.193 |
+| enc6 · + CPC | 1.179 | **1.180** | 1.158 | **1.162** |
+| enc6 · CPC + align, no contrastive | 1.99 | 1.38 | 1.43 | 1.21 |
 
-Three of four cells are reliably worse (the fourth only ties, and only because the baseline's own
-6L-last is already degraded); against the main+CPC arm all four are reliably worse. The training
-dynamics show why: without the contrastive loss anchoring the representation, the CPC term never
-settles — it oscillates ~0.01↔10 for the whole run (green, top-row 2nd panel), and the green arm's
-contrastive reference loss, 1−R², and 1−AUC stay elevated and noisy throughout. **The contrastive
-objective carries the representation; CPC and a forecaster alignment are useful additions to it,
-not a replacement for it.**
+*Forecast error is **GM-Relative MASE**: the geometric mean, over GIFT-Eval's 97 forecasting tasks,
+of a model's error divided by the seasonal-naive forecast's error — lower is better, 1.0 is
+seasonal-naive. Each comparison carries a **paired-bootstrap** 90% interval: resample the 97-task
+list with repeats and score both arms on each resample, so per-task difficulty cancels. Per-cell
+intervals are in the annex.*
+
+## Training dynamics
+
+![Training metrics, log-log (blues = no CPC, reds = main+CPC, green = CPC+align/no-main; enc3
+solid, enc6 dashed). The added CPC term (top row, second panel) collapses toward zero within the
+first ~1,000 steps for the main+CPC arms but swings by orders of magnitude for the whole run when
+the contrastive loss is absent.](plots/training_dynamics.png)
+
+The dynamics explain both halves of the result. Without the contrastive loss to anchor the
+representation, the green arm never settles — its reference loss, retrieval, and dimension usage
+stay poor and noisy throughout, and it never recovers. With the contrastive loss kept, the added
+CPC term's *value* vanishes almost immediately, yet its early gradient reshapes the representation:
+the +CPC arms hold a lower contrastive reference loss, a smaller forecast gap, near-perfect
+retrieval, and more time-wise dimensions in use than the baseline, and they keep those to the end.
+That better-learned representation does not lift the best-loss transfer — it surfaces as the
+steadier, better last checkpoint.
 
 ## Protocol
 
-We train one backbone per arm, single seed, on one RTX 4090. Each arm reuses its same-arm
-baseline **exactly** — the #339/#341 recipe (GRU patch-embedding, d_model 384 / 6 heads, a 6-layer
-full-width forecaster, the crossfade-triplet allt·0.8% data mix, qk-norm, attention-output norm,
-the `xshh_allt` contrastive loss with positive-in-denominator and floor subtraction, the
-encoder-side positive stop-gradient `--stopgrad-positive-h`, τ 0.10, batch 1024, 12,500 steps,
-seed 20260520) — with the single addition `--cpc-infonce-weight 1.0`. The two arms differ only in
-encoder depth: **enc3** (3 layers, = report arm 2) and **enc6** (6 layers, = report arm 3).
+We train one backbone per arm, single seed, on RTX 4090s. The baseline and +CPC arms reuse their
+same-arm recipe from the stop-grad-capacity report (#341) **exactly** — GRU patch-embedding,
+d_model 384 / 6 heads, a 6-layer full-width forecaster, the crossfade-triplet allt·0.8% data mix,
+qk-norm, attention-output norm, the `xshh_allt` contrastive loss with positive-in-denominator and
+floor subtraction, the encoder-side positive stop-gradient, τ 0.10, batch 1024, 12,500 steps, seed
+20260520 — differing only by the single addition `--cpc-infonce-weight 1.0` and the encoder depth
+(**enc3** = report arm 2, **enc6** = report arm 3). The CPC+align/no-main arm keeps that recipe but
+drops the contrastive loss, keeping only the CPC term and a BYOL forecaster alignment; it ran on
+two GPUs (per-rank batch 512, global batch 1024 via gathered loss — identical objective to the
+single-GPU baselines).
 
 To score a backbone we freeze it and train a fresh quantile forecasting head on top, once with two
-transformer layers and once with six. We evaluate on GIFT-Eval's 97 tasks at two checkpoints: the
+transformer layers and once with six, then evaluate on GIFT-Eval's 97 tasks at two checkpoints: the
 **best-loss** one (the lowest smoothed contrastive loss, reached within roughly the first
-quarter-to-half of training) and the **last** one (step 12,500). Baselines are the published same-arm numbers from the stop-grad-capacity report; the
-analysis reuses that report's GM and paired-bootstrap code unchanged and reproduces its baseline
-GMs to three decimals.
+quarter-to-half of training) and the **last** one (step 12,500). Baselines are the published
+same-arm numbers from #341; the analysis reuses that report's GM and paired-bootstrap code
+unchanged and reproduces its baseline GMs to three decimals.
 
 ## The added term
 
-Alongside the existing contrastive loss we add one CPC InfoNCE term (van den Oord et al. 2018,
-Eq. 4, horizon k = 1). For each step *t* it predicts the next encoder embedding `e_{t+1}` from the
-autoregressive context `h_t` (the forecaster's output at *t*) through a new learnable log-bilinear
-score `f(e_j, h_t) = exp(e_jᵀ W₁ h_t)`:
+The CPC term (van den Oord et al. 2018, Eq. 4, horizon k = 1) predicts the next encoder embedding
+`e_{t+1}` from the autoregressive context `h_t` (the forecaster's output at *t*) through a new
+learnable log-bilinear score:
 
 ```
 L_cpc = − log(  exp(e_{t+1}ᵀ W₁ h_t)  /  Σ_{e_j ∈ C}  exp(e_jᵀ W₁ h_t)  )
 ```
 
-The candidate set `C` is the true next embedding `e_{t+1}` plus negatives — other sequences'
-embeddings at the same step and the same sequence's embeddings at other steps. The positive sits
-in the denominator, so the term is a normalized InfoNCE that is always ≥ 0. Three choices keep it
-paper-faithful and orthogonal to the existing loss:
+The candidate set `C` is the true next embedding plus negatives — other sequences' embeddings at
+the same step, and the same sequence's embeddings at other steps. The positive sits in the
+denominator, so the term is a normalized InfoNCE that is always ≥ 0. A new learnable `W₁` carries
+the score (the embeddings stay unit-normalized, so `W₁` alone sets the scale — no temperature
+divisor); there is **no stop-gradient**, matching the paper's joint training of the encoder and the
+autoregressive model. When used as an addition, the total loss is the existing contrastive loss
+plus `L_cpc`, equal weight; the BYOL alignment term in the no-contrastive arm stop-grads its
+encoder target.
 
-- **A new learnable `W₁`** (an `H×H` matrix) carries the score; the encoder embeddings stay
-  unit-normalized, so `W₁` alone sets the scale. There is no temperature divisor, and the term's
-  theoretical minimum is already 0 — the existing loss keeps its own temperature and floor.
-- **No stop-gradient.** The paper trains the encoder and the autoregressive model jointly, so the
-  gradient flows through both `h_t` and the targets `e_j`. The `+sg` in the arm names keeps
-  governing only the existing contrastive term.
-- **Equal weight.** Total loss = existing stop-grad contrastive loss **+** `L_cpc`.
+**Next:** #347 — the stabiliser should help most where late training is worst, so #347 tests
+whether the CPC term rescues the bottleneck arm that collapsed at its last checkpoint in #341.
+
+## Annex — per-cell paired-bootstrap Δ (90% interval)
+
+Δ = GM(arm) − GM(same-cell baseline); negative ⇒ the arm beats the baseline.
+
+| cell | +CPC Δ (90% CI) | CPC+align/no-main Δ (90% CI) |
+|---|--:|--:|
+| enc3 · 2L best | +0.008 (−0.007, +0.024) | — |
+| enc3 · 2L last | **−0.027 (−0.043, −0.012)** | — |
+| enc3 · 6L best | −0.000 (−0.015, +0.014) | — |
+| enc3 · 6L last | **−0.019 (−0.033, −0.007)** | — |
+| enc6 · 2L best | −0.001 (−0.016, +0.012) | +0.813 (+0.71, +0.93) |
+| enc6 · 2L last | **−0.033 (−0.053, −0.014)** | +0.164 (+0.13, +0.21) |
+| enc6 · 6L best | −0.003 (−0.011, +0.006) | +0.272 (+0.23, +0.33) |
+| enc6 · 6L last | **−0.031 (−0.049, −0.014)** | +0.021 (−0.008, +0.052) |
