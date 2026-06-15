@@ -46,8 +46,10 @@ GM-Relative MASE, all arms (bold = a reliable improvement over the same-cell bas
 *Forecast error is **GM-Relative MASE**: the geometric mean, over GIFT-Eval's 97 forecasting tasks,
 of a model's error divided by the seasonal-naive forecast's error — lower is better, 1.0 is
 seasonal-naive. Each comparison carries a **paired-bootstrap** 90% interval: resample the 97-task
-list with repeats and score both arms on each resample, so per-task difficulty cancels. Per-cell
-intervals are in the annex.*
+list with repeats and score both arms on each resample, so per-task difficulty cancels. The
+interval is over tasks at a **single training seed** (as for the baselines); seed-level replication
+was not run, so "reliably" here means stable across tasks, not across seeds. Per-cell intervals are
+in the annex.*
 
 ## Training dynamics
 
@@ -56,14 +58,14 @@ solid, enc6 dashed). The added CPC term (top row, second panel) collapses toward
 first ~1,000 steps for the main+CPC arms but swings by orders of magnitude for the whole run when
 the contrastive loss is absent.](plots/training_dynamics.png)
 
-The dynamics explain both halves of the result. Without the contrastive loss to anchor the
-representation, the green arm never settles — its reference loss, retrieval, and dimension usage
-stay poor and noisy throughout, and it never recovers. With the contrastive loss kept, the added
-CPC term's *value* vanishes almost immediately, yet its early gradient reshapes the representation:
-the +CPC arms hold a lower contrastive reference loss, a smaller forecast gap, near-perfect
-retrieval, and more time-wise dimensions in use than the baseline, and they keep those to the end.
-That better-learned representation does not lift the best-loss transfer — it surfaces as the
-steadier, better last checkpoint.
+The dynamics track both halves of the result. With no contrastive loss, the green arm never
+settles: its CPC term swings by orders of magnitude, and its reference loss, retrieval, and
+dimension usage stay poor and noisy for the whole run. With the contrastive loss kept, the added
+CPC term's value falls to near zero almost immediately; over the rest of training the +CPC arms
+nonetheless show a lower contrastive reference loss, a smaller forecast gap, near-perfect retrieval,
+and more time-wise dimensions in use than the baseline, held to the end. These pretext diagnostics
+differ from the baseline while the best-loss transfer does not (table above); the only transfer
+difference is the lower last checkpoint.
 
 ## Protocol
 
@@ -74,9 +76,10 @@ qk-norm, attention-output norm, the `xshh_allt` contrastive loss with positive-i
 floor subtraction, the encoder-side positive stop-gradient, τ 0.10, batch 1024, 12,500 steps, seed
 20260520 — differing only by the single addition `--cpc-infonce-weight 1.0` and the encoder depth
 (**enc3** = report arm 2, **enc6** = report arm 3). The CPC+align/no-main arm keeps that recipe but
-drops the contrastive loss, keeping only the CPC term and a BYOL forecaster alignment; it ran on
-two GPUs (per-rank batch 512, global batch 1024 via gathered loss — identical objective to the
-single-GPU baselines).
+drops the contrastive loss, keeping only the CPC term and a BYOL-style alignment (the forecaster
+output pulled toward the next encoder embedding, that target stop-gradded); it ran on two GPUs
+(per-rank batch 512, global batch 1024 via gathered loss — identical objective to the single-GPU
+baselines).
 
 To score a backbone we freeze it and train a fresh quantile forecasting head on top, once with two
 transformer layers and once with six, then evaluate on GIFT-Eval's 97 tasks at two checkpoints: the
@@ -104,8 +107,9 @@ autoregressive model. When used as an addition, the total loss is the existing c
 plus `L_cpc`, equal weight; the BYOL alignment term in the no-contrastive arm stop-grads its
 encoder target.
 
-**Next:** #347 — the stabiliser should help most where late training is worst, so #347 tests
-whether the CPC term rescues the bottleneck arm that collapsed at its last checkpoint in #341.
+**Next:** #348 redoes these arms without the encoder, to deny a positional-embedding shortcut;
+#347 then tests whether this late-training stabiliser rescues the bottleneck arm that collapsed at
+its last checkpoint in #341.
 
 ## Annex — per-cell paired-bootstrap Δ (90% interval)
 
