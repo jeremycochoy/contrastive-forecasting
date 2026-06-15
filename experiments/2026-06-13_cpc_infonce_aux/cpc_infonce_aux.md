@@ -83,8 +83,9 @@ loss could stand in for the contrastive objective entirely. We trained one more 
 single-GPU baselines.)
 
 ![enc6 GM-Relative MASE: baseline (contrastive, grey) vs main+CPC (green) vs CPC+align/no-main
-(red), per head × checkpoint (bars clipped at 1.45, true value labelled). The CPC+align/no-main
-bars tower over both — worst at the best-loss 2L cell (1.99).](plots/cpcalign_gm.png)
+(red), per head × checkpoint. The 2L-best CPC+align/no-main bar exceeds the 1.45 axis cap and is
+labelled with its true value (1.99); every CPC+align/no-main bar towers over both other
+arms.](plots/cpcalign_gm.png)
 
 Removing the contrastive loss is **reliably and substantially worse**, not better:
 
