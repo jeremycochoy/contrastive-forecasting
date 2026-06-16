@@ -1,8 +1,7 @@
 # CPC for the forecaster: a late-training stabiliser, not a replacement for the contrastive loss
 
-*Caveat: this is a partial CPC. Its InfoNCE negatives do not cover the full batch×time grid — each
-anchor is contrasted against other sequences at the matched next step and the same sequence at
-other steps, but not other sequences at other steps (see "The added term").*
+*Caveat: this is a partial CPC — its InfoNCE negatives don't span all (batch, time) pairs; the
+"other sequence at another step" combinations are omitted (exact set in "The added term").*
 
 **Question.** Our contrastive loss pairs the forecaster's context with the next encoder embedding
 through a fixed-temperature cosine score; CPC (van den Oord et al. 2018) scores that same next-step
@@ -12,7 +11,7 @@ asking whether CPC helps as an addition, can stand alone, and changes late-train
 
 **Answer.** Added on top, CPC leaves the best-loss checkpoint untouched and reliably improves the
 last, full-training one — a late-training stabiliser. In its place, training diverges and transfers
-far worse. CPC is an addition, not a substitute.
+far worse.
 
 ## Result
 
@@ -46,9 +45,8 @@ steps when the contrastive loss is present, but swings by orders of magnitude fo
 when it is absent — and that no-contrastive arm's reference loss, retrieval, and dimension-usage
 curves stay poor and noisy throughout.](plots/training_dynamics.png)
 
-So the added CPC term's *value* vanishes early, yet the +CPC arms hold better pretext diagnostics
-than the baseline to the end — and that shows up in transfer only at the last checkpoint, not the
-best-loss one.
+So the added term's value vanishes early, yet +CPC pulls ahead of the baseline only at the last
+checkpoint — never at best-loss.
 
 ## Protocol
 
@@ -82,7 +80,7 @@ L_cpc = − log(  exp(e_{t+1}ᵀ W₁ h_t)  /  Σ_{e_j ∈ C}  exp(e_jᵀ W₁ h
 
 The candidate set `C` is the true next embedding plus negatives. We draw negatives from two slices
 only — other sequences' embeddings at the same next step, and the same sequence's embeddings at
-other steps — not the full batch×time cross-product (the caveat above). The positive sits in the
+other steps — not the full batch×time cross-product. The positive sits in the
 denominator, so the term is a normalized InfoNCE, always ≥ 0. A new learnable `W₁` carries the
 score (embeddings stay unit-normalized, so `W₁` alone sets the scale — no temperature divisor), and
 there is **no stop-gradient**, matching the paper's joint training of encoder and autoregressive
