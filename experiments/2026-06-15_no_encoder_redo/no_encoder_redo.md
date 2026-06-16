@@ -79,9 +79,9 @@ contrastive loss alone; **+ CPC** adds the CPC InfoNCE term (`--cpc-infonce-weig
 1.0`). To score a backbone we freeze it and train a fresh quantile forecasting
 head, once with two transformer layers and once with six, and evaluate on
 GIFT-Eval's 97 tasks at the best-loss checkpoint (lowest smoothed contrastive
-loss) and the last checkpoint (step 12,500). The 3- and 6-layer-encoder numbers
-are from prior runs of the identical recipe; the analysis reuses their GM and
-paired-bootstrap code unchanged.
+loss) and the last checkpoint (step 12,500). The enc-3 and enc-6 numbers come
+from separate backbones trained with this identical recipe at encoder depth 3
+and 6 — the experiment changes only the encoder depth.
 
 ## The CPC term
 
