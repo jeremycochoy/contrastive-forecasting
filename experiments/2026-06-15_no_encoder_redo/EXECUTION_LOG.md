@@ -106,7 +106,21 @@ forked-arma mix 0.0078125 + crossfade-triplets 1, mixup-p 0.3, freq/seas emb 3.
   + 6L head) — fits. base_finish.sh + cpc_takeover.sh pkill cpc/base patterns — NEVER put those patterns in
   an interactive command (it self-kills, exit 144); split the string or use a file.
 
-## DONE (2026-06-16)
+## CPC_All arm added (2026-06-16, user request)
+User asked to add ONE arm: no-encoder + **CPC_All** = paper-exact CPC InfoNCE
+(van den Oord Eq. 4) with the full marginal candidate set. Implemented
+`cpc_infonce_all_loss` (src/loss.py) + flag `--cpc-infonce-negs {matched,cross,all}`
++ 7 tests (80/80 pass). Decision after MI discussion: arm uses **cross** =
+{positive} ∪ every OTHER sequence b'≠b at all l — context-INDEPENDENT (marginal)
+negatives, so Theorem 1 holds EXACTLY (unique optimum = density ratio, I>=logN−L
+bound). `all` (full grid incl. same-sequence) kept as a flag — those negs are
+correlated with c_t ⇒ approximate bound. NO masking: denominator sums over X
+incl. the positive (Eq. 4). Score keeps unit-norm z + bilinear W1 (same as the
++CPC arm). cpcall arm: `orchestrate_arm.sh cpcall 1` on GPU1, seed 20260520, 12.5k
+steps, CPC_ALL_CHUNK=32 (~5.3 s/step, ~18.5 h). Smoke OK (cpc_aux≈11.3, no OOM).
+TODO when done: add noenc_cpcall to analyze_noenc.py + gm-ladder + report + PR.
+
+## DONE (2026-06-16) — original 2 no-encoder arms
 All 8 cells evaluated. Verdict: **removing the encoder reliably HURTS the plain
 contrastive arm** (base best +0.19–0.25, last +0.05–0.08 GM, all CIs>0); **with
 the CPC term it is neutral** (best 4/4 ns, last 3/4 ns) — the **CPC auxiliary
