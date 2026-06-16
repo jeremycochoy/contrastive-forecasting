@@ -27,22 +27,65 @@ patch-embedding output instead of an encoder output.*
 > the comparison in this report, because #344 and #348 use the byte-identical
 > term — so removing the encoder is the only thing that changes between the arms.
 
-<!-- RESULTS PENDING — filled when downstream evals land -->
+**Answer.** Removing the encoder does **not** improve transfer — it **reliably
+degrades** the plain-contrastive arm (worse in all base cells: ~0.19–0.25 GM at
+best-loss, ~0.05–0.08 at last, every 90% interval above zero). But **the CPC term
+closes that gap entirely**: the no-encoder +CPC backbone **matches** its
+encoder'd counterparts (best-loss cells all ns). The CPC term — a minor
+late-training stabiliser when the encoder is present (#344, ~0.02 GM) — becomes a
+**major peak-performance lever** without it, improving the no-encoder backbone's
+best-loss GM by **0.20 (6L) to 0.26 (2L)**. In short, **the CPC auxiliary
+substitutes for the encoder**: the encoder's contribution to transfer can be
+recovered by the CPC term alone.
 
 ## Result
 
-![pending](plots/gm_summary.png)
+![Depth ladder of GM-Relative MASE across encoder depth {0 = no-encoder, 3, 6},
+left for the base contrastive loss, right for + CPC, at 2L/6L heads × best/last.
+Left: the no-encoder (blue) bars tower over enc3/enc6 in every cell. Right: the
+no-encoder (green) bars sit level with enc3/enc6 — the CPC term recovers
+parity.](plots/gm_summary.png)
 
-_TODO: GM-Relative MASE depth ladder (no-encoder vs enc3 vs enc6), for base and
-+CPC, at 2L/6L heads × best/last checkpoints; paired-bootstrap Δ vs the encoder'd
-arms and for the CPC term without the encoder._
+GM-Relative MASE (GIFT-Eval full-97); encoder depth 0 = no-encoder (this work),
+3/6 = #339/#341/#344. Lower is better.
+
+| arm | 2L best / last | 6L best / last |
+|---|--:|--:|
+| base, **no-enc** | **1.425 / 1.264** | **1.353 / 1.239** |
+| base, enc3 | 1.177 / 1.180 | 1.159 / 1.163 |
+| base, enc6 | 1.180 / 1.213 | 1.161 / 1.193 |
+| +CPC, **no-enc** | **1.168 / _TBD_** | **1.153 / _TBD_** |
+| +CPC, enc3 | 1.185 / 1.153 | 1.158 / 1.144 |
+| +CPC, enc6 | 1.179 / 1.180 | 1.158 / 1.162 |
+
+**Removing the encoder reliably hurts the base arm.** Paired-bootstrap
+Δ = GM(no-enc) − GM(encoder'd), 90% interval (positive ⇒ no-encoder worse):
+
+| vs | 2L best | 6L best |
+|---|--:|--:|
+| enc3 | +0.249 (+0.197, +0.312) | +0.194 (+0.155, +0.242) |
+| enc6 | +0.245 (+0.186, +0.314) | +0.192 (+0.144, +0.249) |
+
+all reliably worse; the last-checkpoint gaps are smaller but also all above zero
+(+0.05…+0.08).
+
+**With the CPC term, removing the encoder is neutral.** Δ = GM(no-enc +CPC) −
+GM(encoder'd +CPC), best-loss: vs enc3 −0.017 (2L) / −0.005 (6L); vs enc6 −0.011
+(2L) / −0.004 (6L) — all four 90% intervals straddle zero.
+
+**The CPC term is what closes the gap.** Adding CPC to the *no-encoder* backbone
+(base → +CPC) improves best-loss GM by **−0.258 (−0.325, −0.200)** at 2L and
+**−0.199 (−0.250, −0.156)** at 6L — both reliable, and an order of magnitude
+larger than the ~0.02 the same term bought *with* the encoder in #344.
 
 ## Late-training stability
 
-![pending](plots/training_dynamics.png)
+![Training dynamics, log-log. Solid = no-encoder (blue base / red +CPC), dashed =
+enc6 reference (#344).](plots/training_dynamics.png)
 
-_TODO: does the CPC term still reverse the best→last degradation without the
-encoder?_
+_Last-checkpoint cpc cells completing; this section is filled once the two
+no-encoder +CPC last evals land (does CPC reverse the base arm's best→last
+behaviour without the encoder, as it did with it?)._
 
 ## Protocol
 

@@ -1,0 +1,25 @@
+arm,label,head,ckpt,gm,n
+noenc_base,"no-encoder, base contrastive (NEW)",2L,best,1.425271298133607,97
+noenc_base,"no-encoder, base contrastive (NEW)",2L,last,1.2638864398492142,97
+noenc_base,"no-encoder, base contrastive (NEW)",6L,best,1.352667944925973,97
+noenc_base,"no-encoder, base contrastive (NEW)",6L,last,1.2391954633743507,97
+noenc_cpc,"no-encoder, + CPC (NEW)",2L,best,1.167758520935493,97
+noenc_cpc,"no-encoder, + CPC (NEW)",2L,last,,0
+noenc_cpc,"no-encoder, + CPC (NEW)",6L,best,1.1532448080655535,97
+noenc_cpc,"no-encoder, + CPC (NEW)",6L,last,,0
+base_enc3,"enc3, base contrastive (#339 arm2)",2L,best,1.1767794644053335,97
+base_enc3,"enc3, base contrastive (#339 arm2)",2L,last,1.180075049027856,97
+base_enc3,"enc3, base contrastive (#339 arm2)",6L,best,1.1586636106803785,97
+base_enc3,"enc3, base contrastive (#339 arm2)",6L,last,1.1629340235718684,97
+base_enc6,"enc6, base contrastive (#341 arm3)",2L,best,1.1800923396531624,97
+base_enc6,"enc6, base contrastive (#341 arm3)",2L,last,1.2134387976249226,97
+base_enc6,"enc6, base contrastive (#341 arm3)",6L,best,1.160596443446397,97
+base_enc6,"enc6, base contrastive (#341 arm3)",6L,last,1.1932610880596872,97
+cpc_enc3,"enc3, + CPC (#344)",2L,best,1.1845955220800255,97
+cpc_enc3,"enc3, + CPC (#344)",2L,last,1.1531062578216253,97
+cpc_enc3,"enc3, + CPC (#344)",6L,best,1.1583832280133097,97
+cpc_enc3,"enc3, + CPC (#344)",6L,last,1.1435819294844403,97
+cpc_enc6,"enc6, + CPC (#344)",2L,best,1.1786259301811712,97
+cpc_enc6,"enc6, + CPC (#344)",2L,last,1.1803285769514595,97
+cpc_enc6,"enc6, + CPC (#344)",6L,best,1.1575495811428855,97
+cpc_enc6,"enc6, + CPC (#344)",6L,last,1.162280409057811,97
