@@ -349,6 +349,86 @@ def cpc_infonce_aux_loss(forecasted_latent, original_latent, w1,
     return (log_denom - log_pos).mean()
 
 
+def cpc_infonce_all_loss(forecasted_latent, original_latent, w1, source_chunk=8):
+    """CPC InfoNCE with the FULL marginal-proposal negative set (#348).
+
+    Same log-bilinear next-step objective as :func:`cpc_infonce_aux_loss`
+    (predict ``z_{t+1}`` from the AR context ``c_t`` through ``z_j^T W_1 c_t``;
+    no temperature, no stop-grad), but exactly van den Oord et al. 2018 Eq. 4:
+    the candidate set ``X`` is the **entire batch × time grid of embeddings** —
+    for each anchor ``c_{b,t}``, every ``z_{b',l}`` over all sequences ``b'`` and
+    all steps ``l``. The denominator ``Σ_{x_j ∈ X} f_k(x_j, c_t)`` sums over ALL
+    of ``X``; the positive ``z_{t+1}`` is itself one of those terms (numerator
+    and one denominator term) — there is **no masking**. The N−1 implicit
+    negatives are thus generic samples from the marginal ``p(x_{t+1})``, not the
+    narrower matched-step + same-sequence set of :func:`cpc_infonce_aux_loss`
+    (whose candidate set is a strict subset of this one, so for identical inputs
+    this loss is ``>=`` the aux loss).
+
+    The cross-sequence-all-time negatives form a ``[B, B, T-1, T]`` object; it
+    is streamed over the SOURCE batch ``b'`` in chunks, each chunk
+    gradient-checkpointed. logsumexp is associative, so the chunked result is
+    exact and chunk-size independent (chunk size only trades memory for kernel
+    launches). Env override: ``CPC_ALL_CHUNK``.
+
+    Args mirror :func:`cpc_infonce_aux_loss`. Returns a scalar (mean over B, C, t).
+    """
+    if forecasted_latent.dim() != 4:
+        raise ValueError(
+            "cpc_infonce_all_loss expects a 4-D [B,T,C,H] forecaster latent "
+            f"(got {forecasted_latent.dim()}-D); the CPC InfoNCE term (#344/#348) "
+            "is not defined for the cpc_multistep forecaster stack.")
+    B, T, C, H = forecasted_latent.shape
+    if T < 2:
+        return forecasted_latent.new_zeros(())
+    neg_inf = float('-inf')
+    e = F.normalize(original_latent, p=2, dim=-1)        # [B,T,C,H] unit embeddings z_j
+    q = w1(forecasted_latent)                            # [B,T,C,H] W_1 c_t (raw scale)
+    q_a = q[:, :-1]                                      # contexts c_t  [B,T-1,C,H]
+    e_pos = e[:, 1:]                                     # positive z_{t+1}  [B,T-1,C,H]
+    log_pos = (q_a * e_pos).sum(-1)                      # numerator score  [B,T-1,C]
+
+    # Denominator Σ_{x_j ∈ X} f_k(x_j, c_t) is over the ENTIRE batch×time grid of
+    # candidates X (Eq. 4) — the positive z_{t+1} is itself one of these terms,
+    # so there is NO masking. We sum it in two non-overlapping partitions to chunk
+    # the cross-sequence part: (i) the anchor's OWN sequence over all l, (ii) every
+    # OTHER sequence over all l. Their logsumexp is the full denominator.
+
+    # (i) same sequence, ALL l (includes l=t+1, the positive, and l=t, the present).
+    sims_t = torch.matmul(q_a.permute(0, 2, 1, 3),       # [B,C,T-1,H]
+                          e.permute(0, 2, 3, 1))         # [B,C,H,T]  -> [B,C,T-1,T]
+    log_den_self = torch.logsumexp(sims_t, dim=3).permute(0, 2, 1)    # [B,T-1,C]
+
+    # (ii) every OTHER sequence b' != b, ALL l — chunked + gradient-checkpointed
+    # over the source batch b'. The b'=b slice is dropped ONLY to avoid
+    # double-counting partition (i); those candidates are still in the denominator.
+    CH = int(os.environ.get('CPC_ALL_CHUNK', str(source_chunk)))
+    anchor = q_a.permute(0, 2, 1, 3).contiguous()        # [B,C,T-1,H]  (W_1 c_t)
+    src = e.permute(0, 2, 1, 3).contiguous()             # [B,C,T,H]    (z_{b',l}, all l)
+    b_all = torch.arange(B, device=e.device)
+
+    def _cross_chunk(anc, src_chunk, same_mask):
+        # anc [B,C,T-1,H], src_chunk [ch,C,T,H], same_mask [B,ch,1,1,1] bool.
+        gram = torch.matmul(anc.unsqueeze(1),                          # [B,1, C,T-1,H]
+                            src_chunk.permute(0, 1, 3, 2).unsqueeze(0))  # [1,ch,C,H,  T]
+        gram = gram.masked_fill(same_mask, neg_inf)                    # drop b'=b (partition i)
+        return torch.logsumexp(torch.logsumexp(gram, dim=4), dim=1)    # [B,C,T-1]
+
+    run = None
+    for s in range(0, B, CH):
+        ee = min(s + CH, B)
+        same = (b_all.view(B, 1) == b_all[s:ee].view(1, ee - s)).view(B, ee - s, 1, 1, 1)
+        chunk_lse = checkpoint(_cross_chunk, anchor, src[s:ee], same, use_reentrant=False)
+        run = chunk_lse if run is None else torch.logsumexp(
+            torch.stack([run, chunk_lse], dim=0), dim=0)
+    log_den_cross = run.permute(0, 2, 1)                 # [B,C,T-1] -> [B,T-1,C]
+
+    # Full denominator over X (positive included); loss = −log(num / denom).
+    log_denom = torch.logsumexp(
+        torch.stack([log_den_self, log_den_cross], dim=0), dim=0)     # [B,T-1,C]
+    return (log_denom - log_pos).mean()
+
+
 def align_loss(forecasted_latent, original_latent, weight=1.0):
     """BYOL/SimSiam alignment term, standalone (#344 follow-up arm).
 
