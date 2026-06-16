@@ -119,6 +119,10 @@ incl. the positive (Eq. 4). Score keeps unit-norm z + bilinear W1 (same as the
 +CPC arm). cpcall arm: `orchestrate_arm.sh cpcall 1` on GPU1, seed 20260520, 12.5k
 steps, CPC_ALL_CHUNK=32 (~5.3 s/step, ~18.5 h). Smoke OK (cpc_aux≈11.3, no OOM).
 TODO when done: add noenc_cpcall to analyze_noenc.py + gm-ladder + report + PR.
+**SINGLE-GPU constraint (user, 2026-06-16):** keep ALL cpcall work (backbone +
+the 4 downstream cells) on GPU1 ONLY — leave GPU0 for Kacper. Do NOT parallelise
+cpcall downstream across both GPUs (as was done for base/cpc). orchestrate_arm.sh
+cpcall 1 already runs backbone+chain on GPU1 sequentially; just don't add GPU0 work.
 
 ## DONE (2026-06-16) — original 2 no-encoder arms
 All 8 cells evaluated. Verdict: **removing the encoder reliably HURTS the plain
