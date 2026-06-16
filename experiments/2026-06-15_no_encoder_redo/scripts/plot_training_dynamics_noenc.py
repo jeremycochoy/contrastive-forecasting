@@ -16,12 +16,13 @@ import matplotlib.pyplot as plt
 W = "/home/jupyter/workspaces/contrastive-forecasting/experiments"
 E348 = f"{W}/2026-06-15_no_encoder_redo/runs"
 BLUE, CYAN = "#1f77b4", "#17becf"
-RED, ORANGERED = "#d62728", "#ff7f0e"
+RED, ORANGERED, GREEN = "#d62728", "#ff7f0e", "#2ca02c"
 RUNS = {
-    "no-enc base":  (f"{E348}/bb_allt08_xftrip_nobn_noenc_sgpos_qk_aon_b1024_base_losses.csv", BLUE, "-"),
-    "no-enc + CPC": (f"{E348}/bb_allt08_xftrip_nobn_noenc_sgpos_qk_aon_b1024_cpc_losses.csv", RED, "-"),
-    "enc6 base (ref)":  (f"{W}/2026-06-11_stopgrad_capacity/runs/bb_allt08_xftrip_nobn_enc6_sgpos_qk_aon_b1024_losses.csv", CYAN, "--"),
-    "enc6 + CPC (ref)": (f"{W}/2026-06-13_cpc_infonce_aux/runs/bb_allt08_xftrip_nobn_enc6_sgpos_qk_aon_b1024_cpc_losses.csv", ORANGERED, "--"),
+    "no-enc base":       (f"{E348}/bb_allt08_xftrip_nobn_noenc_sgpos_qk_aon_b1024_base_losses.csv", BLUE, "-"),
+    "no-enc + CPC":      (f"{E348}/bb_allt08_xftrip_nobn_noenc_sgpos_qk_aon_b1024_cpc_losses.csv", RED, "-"),
+    "no-enc + CPC_All":  (f"{E348}/bb_allt08_xftrip_nobn_noenc_sgpos_qk_aon_b1024_cpcall_losses.csv", GREEN, "-"),
+    "enc6 base (ref)":   (f"{W}/2026-06-11_stopgrad_capacity/runs/bb_allt08_xftrip_nobn_enc6_sgpos_qk_aon_b1024_losses.csv", CYAN, "--"),
+    "enc6 + CPC (ref)":  (f"{W}/2026-06-13_cpc_infonce_aux/runs/bb_allt08_xftrip_nobn_enc6_sgpos_qk_aon_b1024_cpc_losses.csv", ORANGERED, "--"),
 }
 OUT = os.path.join(os.path.dirname(__file__), "..", "plots", "training_dynamics.png")
 SMOOTH = 25
