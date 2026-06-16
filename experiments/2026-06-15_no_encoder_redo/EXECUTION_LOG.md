@@ -106,9 +106,19 @@ forked-arma mix 0.0078125 + crossfade-triplets 1, mixup-p 0.3, freq/seas emb 3.
   + 6L head) — fits. base_finish.sh + cpc_takeover.sh pkill cpc/base patterns — NEVER put those patterns in
   an interactive command (it self-kills, exit 144); split the string or use a file.
 
-## Wake-up checklist (each hour)
+## DONE (2026-06-16)
+All 8 cells evaluated. Verdict: **removing the encoder reliably HURTS the plain
+contrastive arm** (base best +0.19–0.25, last +0.05–0.08 GM, all CIs>0); **with
+the CPC term it is neutral** (best 4/4 ns, last 3/4 ns) — the **CPC auxiliary
+substitutes for the encoder**. Adding CPC to the no-encoder backbone: best
+−0.258(2L)/−0.199(6L), last −0.099/−0.079 (all reliable; vs ~0.003 best-loss with
+the encoder). Mechanism: CPC term stays ~3 without the encoder vs collapsing to
+~0 with it. Report final + sub-agent reviewed (4 minor fixes applied) + checklists
+pass. **PR #349 ready for review** (MERGEABLE/CLEAN, base `experiments`, stacked
+on #346). 0 comments on PR/issue. Both backbones + downstream complete; GPUs idle.
+Remaining: respond to any maintainer comments (hourly comment-watcher).
 
-## Wake-up checklist (each hour)
+## Wake-up checklist (legacy, training phase)
 1. Is orchestrator alive? `pgrep -af orchestrate_gpu0` — if dead, re-launch `orchestrate_gpu0.sh 0` (idempotent).
 2. Backbone progress: tail `results/run_bb_*_{base,cpc}.log` (step / sps / loss healthy, no NaN/Traceback).
 3. If GPU 1 became free AND confirmed idle (not the rnd run), opportunistically parallelise the next
