@@ -8,14 +8,14 @@ base_enc6,noenc_base,"remove encoder, base arm (vs enc6) [hypothesis]",2L,last,1
 base_enc6,noenc_base,"remove encoder, base arm (vs enc6) [hypothesis]",6L,best,1.160596443446397,1.352667944925973,0.1920715014795762,0.14386184958186088,0.24890210049923334,97,B worse (reliable)
 base_enc6,noenc_base,"remove encoder, base arm (vs enc6) [hypothesis]",6L,last,1.1932610880596872,1.2391954633743507,0.04593437531466349,0.017767109540010484,0.07608605911956312,97,B worse (reliable)
 cpc_enc3,noenc_cpc,"remove encoder, CPC arm (vs enc3) [hypothesis]",2L,best,1.1845955220800255,1.167758520935493,-0.01683700114453246,-0.038340753387930526,0.004261019099328411,97,ns (CI straddles 0)
-cpc_enc3,noenc_cpc,"remove encoder, CPC arm (vs enc3) [hypothesis]",2L,last,1.1531062578216253,,,,,0,pending
+cpc_enc3,noenc_cpc,"remove encoder, CPC arm (vs enc3) [hypothesis]",2L,last,1.1531062578216253,1.1645799210721977,0.011473663250572308,-0.001266712224028188,0.024735422173513433,97,ns (CI straddles 0)
 cpc_enc3,noenc_cpc,"remove encoder, CPC arm (vs enc3) [hypothesis]",6L,best,1.1583832280133097,1.1532448080655535,-0.005138419947756212,-0.026892110192949792,0.016746850049513817,97,ns (CI straddles 0)
-cpc_enc3,noenc_cpc,"remove encoder, CPC arm (vs enc3) [hypothesis]",6L,last,1.1435819294844403,,,,,0,pending
+cpc_enc3,noenc_cpc,"remove encoder, CPC arm (vs enc3) [hypothesis]",6L,last,1.1435819294844403,1.160011002800303,0.01642907331586274,0.0036954147866568032,0.03095264456227409,97,B worse (reliable)
 cpc_enc6,noenc_cpc,"remove encoder, CPC arm (vs enc6) [hypothesis]",2L,best,1.1786259301811712,1.167758520935493,-0.010867409245678195,-0.029763017950700243,0.008799544212470867,97,ns (CI straddles 0)
-cpc_enc6,noenc_cpc,"remove encoder, CPC arm (vs enc6) [hypothesis]",2L,last,1.1803285769514595,,,,,0,pending
+cpc_enc6,noenc_cpc,"remove encoder, CPC arm (vs enc6) [hypothesis]",2L,last,1.1803285769514595,1.1645799210721977,-0.015748655879261886,-0.03289827908540488,0.0018556826264539694,97,ns (CI straddles 0)
 cpc_enc6,noenc_cpc,"remove encoder, CPC arm (vs enc6) [hypothesis]",6L,best,1.1575495811428855,1.1532448080655535,-0.004304773077332014,-0.024532952353716553,0.016341996316838525,97,ns (CI straddles 0)
-cpc_enc6,noenc_cpc,"remove encoder, CPC arm (vs enc6) [hypothesis]",6L,last,1.162280409057811,,,,,0,pending
+cpc_enc6,noenc_cpc,"remove encoder, CPC arm (vs enc6) [hypothesis]",6L,last,1.162280409057811,1.160011002800303,-0.0022694062575079332,-0.018645870022647726,0.014943415148697126,97,ns (CI straddles 0)
 noenc_base,noenc_cpc,CPC term WITHOUT the encoder [key],2L,best,1.425271298133607,1.167758520935493,-0.25751277719811405,-0.3254499304708762,-0.1999348700695911,97,B BETTER (reliable)
-noenc_base,noenc_cpc,CPC term WITHOUT the encoder [key],2L,last,1.2638864398492142,,,,,0,pending
+noenc_base,noenc_cpc,CPC term WITHOUT the encoder [key],2L,last,1.2638864398492142,1.1645799210721977,-0.09930651877701657,-0.12427057829321209,-0.0763654518934207,97,B BETTER (reliable)
 noenc_base,noenc_cpc,CPC term WITHOUT the encoder [key],6L,best,1.352667944925973,1.1532448080655535,-0.19942313686041957,-0.24958938269628228,-0.15609410495519094,97,B BETTER (reliable)
-noenc_base,noenc_cpc,CPC term WITHOUT the encoder [key],6L,last,1.2391954633743507,,,,,0,pending
+noenc_base,noenc_cpc,CPC term WITHOUT the encoder [key],6L,last,1.2391954633743507,1.160011002800303,-0.07918446057404771,-0.10582830465778104,-0.05560488545067899,97,B BETTER (reliable)

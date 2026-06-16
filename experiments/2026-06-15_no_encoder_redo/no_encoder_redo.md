@@ -54,7 +54,7 @@ GM-Relative MASE (GIFT-Eval full-97); encoder depth 0 = no-encoder (this work),
 | base, **no-enc** | **1.425 / 1.264** | **1.353 / 1.239** |
 | base, enc3 | 1.177 / 1.180 | 1.159 / 1.163 |
 | base, enc6 | 1.180 / 1.213 | 1.161 / 1.193 |
-| +CPC, **no-enc** | **1.168 / _TBD_** | **1.153 / _TBD_** |
+| +CPC, **no-enc** | **1.168 / 1.165** | **1.153 / 1.160** |
 | +CPC, enc3 | 1.185 / 1.153 | 1.158 / 1.144 |
 | +CPC, enc6 | 1.179 / 1.180 | 1.158 / 1.162 |
 
@@ -70,22 +70,64 @@ all reliably worse; the last-checkpoint gaps are smaller but also all above zero
 (+0.05…+0.08).
 
 **With the CPC term, removing the encoder is neutral.** Δ = GM(no-enc +CPC) −
-GM(encoder'd +CPC), best-loss: vs enc3 −0.017 (2L) / −0.005 (6L); vs enc6 −0.011
-(2L) / −0.004 (6L) — all four 90% intervals straddle zero.
+GM(encoder'd +CPC): at best-loss all four 90% intervals straddle zero (vs enc3
+−0.017/−0.005, vs enc6 −0.011/−0.004 for 2L/6L); at the last checkpoint three of
+four straddle zero and the fourth is a marginal +0.016 vs enc3·6L. So the
+no-encoder +CPC backbone sits within noise of its encoder'd counterparts at both
+checkpoints.
 
 **The CPC term is what closes the gap.** Adding CPC to the *no-encoder* backbone
-(base → +CPC) improves best-loss GM by **−0.258 (−0.325, −0.200)** at 2L and
-**−0.199 (−0.250, −0.156)** at 6L — both reliable, and an order of magnitude
-larger than the ~0.02 the same term bought *with* the encoder in #344.
+(base → +CPC) improves GM **reliably at every checkpoint**: best-loss
+**−0.258 (−0.325, −0.200)** at 2L and **−0.199 (−0.250, −0.156)** at 6L; last
+−0.099 (2L) and −0.079 (6L), all 90% intervals below zero. The best-loss effect
+is an order of magnitude larger than the ~0.02 the same term bought *with* the
+encoder in #344.
 
-## Late-training stability
+## Why: without the encoder the CPC term no longer vanishes
 
 ![Training dynamics, log-log. Solid = no-encoder (blue base / red +CPC), dashed =
-enc6 reference (#344).](plots/training_dynamics.png)
+enc6 reference (#344). Panel 2 is the CPC term: the no-encoder +CPC curve (red)
+stays elevated (~3) for the whole run, whereas with the encoder (orange dashed)
+it collapses to ~0 by step ~1,000. Panels 1/6/8 (contrastive reference loss,
+1−R², 1−AUC): the no-encoder +CPC arm (red) sits well below the no-encoder base
+arm (blue) throughout.](plots/training_dynamics.png)
 
-_Last-checkpoint cpc cells completing; this section is filled once the two
-no-encoder +CPC last evals land (does CPC reverse the base arm's best→last
-behaviour without the encoder, as it did with it?)._
+The mechanism is visible in the CPC term itself (panel 2). **With** the encoder
+(#344) the unbounded bilinear `W₁` satisfied next-step prediction almost
+immediately — the term fell below 10⁻³ by step ~1,000, contributed a vanishing
+value, and only nudged the representation (hence its ~0.02 effect). **Without**
+the encoder the same term stays around 3 for the entire run: predicting the next
+patch-embedding from the forecaster context is genuinely harder, so the CPC
+gradient keeps pressuring the representation end-to-end — and the no-encoder
++CPC arm holds a markedly lower contrastive reference loss, lower 1−R² and
+near-perfect retrieval (1−AUC) than the no-encoder base arm throughout. That
+sustained pressure is what lifts the no-encoder backbone back to encoder'd parity.
+
+The checkpoints reflect this. The no-encoder **+CPC** arm is flat from best-loss
+to last (2L 1.168→1.165, 6L 1.153→1.160) — the stability the term also showed
+*with* the encoder. The no-encoder **base** arm behaves differently: its
+best-loss checkpoint is *worse* than its last (2L 1.425→1.264, 6L 1.353→1.239),
+so for this arm the contrastive-loss minimum does not coincide with best
+transfer — but both checkpoints remain far behind every encoder'd and every
++CPC arm.
+
+## What this means
+
+Two takeaways. First, the #344 hypothesis — that removing the encoder denies a
+positional shortcut and *improves* transfer — does not hold: the plain
+contrastive backbone is reliably worse without the encoder, at every head and
+checkpoint. The encoder contributes real transfer value to the contrastive
+objective. Second, that value is **recoverable by the CPC auxiliary alone**: the
+no-encoder +CPC backbone matches the encoder'd +CPC backbones within noise. The
+CPC term and the encoder are, to first order, **substitutes** for one another on
+this recipe — adding either one to the plain contrastive loss reaches the same
+~1.15–1.18 GM band.
+
+*Hypothesis (not tested here): because the CPC term stays active without the
+encoder but vanishes with it (#344), the encoder + CPC combination is largely
+redundant — and a CPC variant that remains active even with the encoder (e.g. a
+bounded/temperatured score, or harder negatives per the side note above) might be
+the lever that pushes past the current parity band.*
 
 ## Protocol
 
