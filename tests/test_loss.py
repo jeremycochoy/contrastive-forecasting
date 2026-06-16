@@ -1579,15 +1579,20 @@ class TestCPCInfonceAllLoss:
         for v in vals[1:]:
             assert abs(v - vals[0]) < 1e-5, vals
 
-    def test_at_least_aux_loss(self):
-        # `all` negatives are a strict superset of `aux` (matched-step +
-        # same-sequence), so its denominator — hence loss — is >= aux's.
+    def test_full_grid_superset_ordering(self):
+        # The full grid (marginal_only=False) is a strict superset of BOTH the
+        # cross-sequence-only (marginal_only=True) set AND the narrow aux set, so
+        # its denominator — hence loss — is >= both. (cross-only is NOT a superset
+        # of aux: it drops aux's same-sequence negatives, so they are unordered.)
         from src.loss import cpc_infonce_all_loss, cpc_infonce_aux_loss
         f, h = _random_inputs(B=6, T=5, C=1, H=16, seed=7)
         w1 = self._w1(16)
-        all_l = cpc_infonce_all_loss(f, h, w1).item()
-        aux_l = cpc_infonce_aux_loss(f, h, w1).item()
-        assert all_l >= aux_l - 1e-6, (all_l, aux_l)
+        full = cpc_infonce_all_loss(f, h, w1, marginal_only=False).item()
+        cross = cpc_infonce_all_loss(f, h, w1, marginal_only=True).item()
+        aux = cpc_infonce_aux_loss(f, h, w1).item()
+        assert full >= cross - 1e-6, (full, cross)
+        assert full >= aux - 1e-6, (full, aux)
+        assert cross >= 0.0
 
     def test_perfect_alignment_near_zero(self):
         from src.loss import cpc_infonce_all_loss

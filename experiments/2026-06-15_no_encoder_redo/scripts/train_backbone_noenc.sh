@@ -22,9 +22,14 @@ SEED=20260520
 WT="${WT:-/home/jupyter/contrastive-forecasting/.claude/worktrees/exp-no-encoder-348}"
 OUT="${OUT:-/home/jupyter/workspaces/contrastive-forecasting/experiments/2026-06-15_no_encoder_redo}"
 case "$ARM" in
-  base) CPC_FLAG=() ;;
-  cpc)  CPC_FLAG=(--cpc-infonce-weight 1.0) ;;
-  *) echo "unknown arm: $ARM (want base|cpc)"; exit 2 ;;
+  base)   CPC_FLAG=() ;;
+  cpc)    CPC_FLAG=(--cpc-infonce-weight 1.0) ;;
+  # CPC_All (#348): paper-exact CPC InfoNCE (van den Oord Eq. 4) with the STRICT
+  # marginal candidate set — {positive} ∪ every OTHER sequence at all steps
+  # (context-independent negatives ⇒ Theorem 1 / MI bound holds exactly). The
+  # cross-sequence-all-time Gram is chunked over the source batch (CPC_ALL_CHUNK).
+  cpcall) CPC_FLAG=(--cpc-infonce-weight 1.0 --cpc-infonce-negs cross); export CPC_ALL_CHUNK="${CPC_ALL_CHUNK:-32}" ;;
+  *) echo "unknown arm: $ARM (want base|cpc|cpcall)"; exit 2 ;;
 esac
 NAME="bb_allt08_xftrip_nobn_noenc_sgpos_qk_aon_b1024_${ARM}"
 RUNS="$OUT/runs"; RES="$OUT/results"; mkdir -p "$RUNS" "$RES"

@@ -349,21 +349,29 @@ def cpc_infonce_aux_loss(forecasted_latent, original_latent, w1,
     return (log_denom - log_pos).mean()
 
 
-def cpc_infonce_all_loss(forecasted_latent, original_latent, w1, source_chunk=8):
+def cpc_infonce_all_loss(forecasted_latent, original_latent, w1, source_chunk=8,
+                         marginal_only=True):
     """CPC InfoNCE with the FULL marginal-proposal negative set (#348).
 
-    Same log-bilinear next-step objective as :func:`cpc_infonce_aux_loss`
-    (predict ``z_{t+1}`` from the AR context ``c_t`` through ``z_j^T W_1 c_t``;
-    no temperature, no stop-grad), but exactly van den Oord et al. 2018 Eq. 4:
-    the candidate set ``X`` is the **entire batch × time grid of embeddings** —
-    for each anchor ``c_{b,t}``, every ``z_{b',l}`` over all sequences ``b'`` and
-    all steps ``l``. The denominator ``Σ_{x_j ∈ X} f_k(x_j, c_t)`` sums over ALL
-    of ``X``; the positive ``z_{t+1}`` is itself one of those terms (numerator
-    and one denominator term) — there is **no masking**. The N−1 implicit
-    negatives are thus generic samples from the marginal ``p(x_{t+1})``, not the
-    narrower matched-step + same-sequence set of :func:`cpc_infonce_aux_loss`
-    (whose candidate set is a strict subset of this one, so for identical inputs
-    this loss is ``>=`` the aux loss).
+    The paper-faithful CPC InfoNCE (van den Oord et al. 2018, Eq. 4): predict
+    ``z_{t+1}`` from the AR context ``c_t`` via the log-bilinear ``z_j^T W_1 c_t``
+    (no τ, no stop-grad). The denominator ``Σ_{x_j ∈ X} f_k(x_j, c_t)`` sums over
+    the whole candidate set ``X`` and the positive ``z_{t+1}`` is one of its terms
+    — there is **no masking**.
+
+    ``marginal_only=True`` (default): ``X = {positive z_{b,t+1}} ∪ {every OTHER
+        sequence's embeddings z_{b',l}, b'≠b, all l}``. The negatives are
+        independent of the context ``c_t`` — genuine marginal ``p(z_{t+1})``
+        draws — so van den Oord's Theorem 1 holds: the unique optimum is
+        ``f_k ∝ p(z|c)/p(z)`` and the loss attains the bound
+        ``I(z_{t+1}; c_t) >= log N − L_N``. This is the strict,
+        information-theoretically grounded form.
+    ``marginal_only=False``: ``X`` additionally includes the SAME sequence's
+        other steps (the literal full batch×time grid). Those are temporally
+        correlated with ``c_t`` (not marginal draws), so the MI bound becomes
+        approximate; kept as a maximal-negatives ablation. This full-grid set is
+        a strict superset of the narrow :func:`cpc_infonce_aux_loss` set, so for
+        identical inputs ``marginal_only=False`` >= the aux loss.
 
     The cross-sequence-all-time negatives form a ``[B, B, T-1, T]`` object; it
     is streamed over the SOURCE batch ``b'`` in chunks, each chunk
@@ -394,14 +402,12 @@ def cpc_infonce_all_loss(forecasted_latent, original_latent, w1, source_chunk=8)
     # the cross-sequence part: (i) the anchor's OWN sequence over all l, (ii) every
     # OTHER sequence over all l. Their logsumexp is the full denominator.
 
-    # (i) same sequence, ALL l (includes l=t+1, the positive, and l=t, the present).
-    sims_t = torch.matmul(q_a.permute(0, 2, 1, 3),       # [B,C,T-1,H]
-                          e.permute(0, 2, 3, 1))         # [B,C,H,T]  -> [B,C,T-1,T]
-    log_den_self = torch.logsumexp(sims_t, dim=3).permute(0, 2, 1)    # [B,T-1,C]
-
-    # (ii) every OTHER sequence b' != b, ALL l — chunked + gradient-checkpointed
-    # over the source batch b'. The b'=b slice is dropped ONLY to avoid
-    # double-counting partition (i); those candidates are still in the denominator.
+    # Cross-sequence candidates: every OTHER sequence b' != b, ALL l — the
+    # context-independent (marginal) draws. The [B,B,T-1,T] Gram is streamed over
+    # the source batch b' in gradient-checkpointed chunks (logsumexp is
+    # associative ⇒ exact and chunk-size independent; env CPC_ALL_CHUNK). The
+    # b'=b slice is dropped here (excluded entirely under marginal_only, or
+    # re-added via the same-sequence term below otherwise).
     CH = int(os.environ.get('CPC_ALL_CHUNK', str(source_chunk)))
     anchor = q_a.permute(0, 2, 1, 3).contiguous()        # [B,C,T-1,H]  (W_1 c_t)
     src = e.permute(0, 2, 1, 3).contiguous()             # [B,C,T,H]    (z_{b',l}, all l)
@@ -411,7 +417,7 @@ def cpc_infonce_all_loss(forecasted_latent, original_latent, w1, source_chunk=8)
         # anc [B,C,T-1,H], src_chunk [ch,C,T,H], same_mask [B,ch,1,1,1] bool.
         gram = torch.matmul(anc.unsqueeze(1),                          # [B,1, C,T-1,H]
                             src_chunk.permute(0, 1, 3, 2).unsqueeze(0))  # [1,ch,C,H,  T]
-        gram = gram.masked_fill(same_mask, neg_inf)                    # drop b'=b (partition i)
+        gram = gram.masked_fill(same_mask, neg_inf)                    # drop b'=b
         return torch.logsumexp(torch.logsumexp(gram, dim=4), dim=1)    # [B,C,T-1]
 
     run = None
@@ -423,9 +429,22 @@ def cpc_infonce_all_loss(forecasted_latent, original_latent, w1, source_chunk=8)
             torch.stack([run, chunk_lse], dim=0), dim=0)
     log_den_cross = run.permute(0, 2, 1)                 # [B,C,T-1] -> [B,T-1,C]
 
-    # Full denominator over X (positive included); loss = −log(num / denom).
-    log_denom = torch.logsumexp(
-        torch.stack([log_den_self, log_den_cross], dim=0), dim=0)     # [B,T-1,C]
+    # Denominator Σ_{x_j ∈ X} f_k(x_j, c_t) (Eq. 4) — the positive z_{t+1} is
+    # always one of its terms. marginal_only=True (default, strict van den Oord):
+    # X = {positive} ∪ {all OTHER-sequence embeddings}; the negatives are i.i.d.
+    # marginal draws (independent of c_t), so Theorem 1 holds EXACTLY — the unique
+    # optimum is the density ratio p(z|c)/p(z), maximizing the I >= log N − L
+    # bound. marginal_only=False: X also includes the SAME sequence's other steps
+    # (the literal full batch×time grid); those are correlated with c_t (not
+    # marginal draws), so the MI bound is only approximate.
+    if marginal_only:
+        log_denom = torch.logsumexp(
+            torch.stack([log_pos, log_den_cross], dim=0), dim=0)      # {pos} ∪ {cross}
+    else:
+        sims_t = torch.matmul(q_a.permute(0, 2, 1, 3), e.permute(0, 2, 3, 1))  # [B,C,T-1,T]
+        log_den_self = torch.logsumexp(sims_t, dim=3).permute(0, 2, 1)         # same-seq all l
+        log_denom = torch.logsumexp(
+            torch.stack([log_den_self, log_den_cross], dim=0), dim=0)
     return (log_denom - log_pos).mean()
 
 
