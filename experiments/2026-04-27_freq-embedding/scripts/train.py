@@ -42,7 +42,7 @@ from src.dataloader import (
     create_mixed_forked_arma_dataloader,
     create_hf_dataloader,
 )
-from src.loss import contrastive_latent_loss
+from src.loss import contrastive_latent_loss, cpc_infonce_aux_loss, align_loss
 from src.checkpoint import save_training_state, load_training_state
 from src.dist_utils import (
     setup_distributed,
@@ -408,6 +408,31 @@ def parse_args():
                         "at the uniformity floor (#309). Gradient-neutral "
                         "(a constant); needs --pos-in-denominator. N is "
                         "computed from the variant and B/T/C.")
+    p.add_argument("--cpc-infonce-weight", type=float, nargs="?",
+                   const=1.0, default=0.0,
+                   help="λ for the CPC InfoNCE auxiliary term (#344, van den "
+                        "Oord et al. 2018, Eq. 4; k=1) ADDED on top of the "
+                        "training contrastive loss: predict e_{t+1} from the "
+                        "AR context h_t through a new learnable log-bilinear "
+                        "W_1, L = −log(e^{e_{t+1}^T W_1 h_t} / Σ_C e^{e_j^T W_1 "
+                        "h_t}). NO stop-grad (paper-exact); the unbounded "
+                        "bilinear carries the scale (no τ). OPT-IN: omit ⇒ 0.0 "
+                        "(no term, W_1 not created, objective unchanged); bare "
+                        "--cpc-infonce-weight ⇒ 1.0 (equal weight); or pass an "
+                        "explicit λ. Applies to ANY 4-D loss_shape (not the "
+                        "cpc_multistep stack). Cross-batch negatives are "
+                        "chunked via env CPC_CB_CHUNK (default 256).")
+    p.add_argument("--no-main-contrastive-loss", action="store_true",
+                   help="Drop the main contrastive loss entirely; train only on "
+                        "the auxiliary terms (--cpc-infonce-weight and/or "
+                        "--align-loss-weight). Skips the contrastive_latent_loss "
+                        "call (no xshh_allt Gram in the backward), and the align "
+                        "term is then computed standalone (same BYOL form, encoder "
+                        "target stop-gradded). Use to test whether CPC + a separate "
+                        "forecaster loss beats the contrastive objective (#344). "
+                        "The loss_tau_ref diagnostic is still logged as a "
+                        "contrastive-reference curve. Requires at least one of "
+                        "--cpc-infonce-weight / --align-loss-weight > 0.")
     p.add_argument("--shard-loss-on-batch", action="store_true",
                    help="DDP only: compute the contrastive loss on each "
                         "rank's LOCAL shard instead of all-gathering latents "
@@ -601,13 +626,17 @@ class CSVLogger:
             # two can merge cleanly on column name).
             header += ["r2_random", "r2_naive", "u_temporal", "u_batch",
                        "auc", "top1", "top3"]
+            # cpc_aux (#344): the CPC InfoNCE auxiliary term's value (blank
+            # for runs without --cpc-infonce-weight). Trailing column so
+            # name-keyed readers of older CSVs are unaffected.
+            header += ["cpc_aux"]
             self._writer.writerow(header)
             self._file.flush()
 
     def log(self, step, loss, gap, gap_ratio, ff, fp, tp, cross_batch,
             hf_rows_consumed, synth_rows_consumed, mixup_applied,
             r2_random, r2_naive, u_temporal, u_batch, auc, top1, top3,
-            loss_tau_ref=None):
+            loss_tau_ref=None, cpc_aux=None):
         if not self._enabled:
             return
         row = [step, loss]
@@ -619,6 +648,7 @@ class CSVLogger:
         row += [gap, gap_ratio, ff, fp, tp, cross_batch,
                 hf_rows_consumed, synth_rows_consumed, int(mixup_applied)]
         row += [r2_random, r2_naive, u_temporal, u_batch, auc, top1, top3]
+        row.append('' if cpc_aux is None else cpc_aux)
         self._buffer.append(row)
         if len(self._buffer) >= self.flush_every:
             self.flush()
@@ -767,6 +797,22 @@ def main():
     # are a no-op for every legacy run/checkpoint.
     model_config["forecaster_kind"] = args.forecaster_kind
     model_config["cpc_k_steps"] = args.cpc_k_steps
+    # CPC InfoNCE auxiliary (#344): create the learnable W_1 only when the
+    # term is enabled (weight > 0), so disabled runs keep an unchanged
+    # state_dict / param count.
+    if args.cpc_infonce_weight > 0 and args.forecaster_kind in ("cpc", "linear_cpc"):
+        raise SystemExit(
+            "--cpc-infonce-weight is the single-step CPC InfoNCE auxiliary (#344) "
+            "and operates on a 4-D forecaster latent; it is not defined for the "
+            f"cpc_multistep forecaster (--forecaster-kind {args.forecaster_kind}). "
+            "Use --forecaster-kind transformer, or drop --cpc-infonce-weight.")
+    if args.no_main_contrastive_loss and not (
+            args.cpc_infonce_weight > 0 or args.align_loss_weight > 0):
+        raise SystemExit(
+            "--no-main-contrastive-loss drops the only contrastive term, so the "
+            "objective would be empty; pass --cpc-infonce-weight and/or "
+            "--align-loss-weight > 0.")
+    model_config["cpc_infonce"] = args.cpc_infonce_weight > 0
     model_config["qk_norm"] = bool(args.qk_norm)
     model_config["attn_out_norm"] = bool(args.attn_out_norm)
     model_config["log_attn_amplitude"] = bool(args.log_attn_amplitude)
@@ -1038,9 +1084,27 @@ def main():
         with torch.amp.autocast('cuda', enabled=False):
             tau_tensor_loss = (tau_tensor.float()
                                if tau_tensor is not None else None)
-            loss = contrastive_latent_loss(
-                (f_lat, o_lat), validation=False,
-                spec=LOSS_SPEC, tau_override=tau_tensor_loss)
+            if args.no_main_contrastive_loss:
+                # #344 follow-up arm: drop the main contrastive loss; train only
+                # on the auxiliary terms. Skip contrastive_latent_loss (no
+                # xshh_allt Gram backward) and add the BYOL align term standalone
+                # (same form, encoder target stop-gradded). L_cpc is added below.
+                loss = f_lat.new_zeros(())
+                if args.align_loss_weight > 0:
+                    loss = loss + align_loss(f_lat, o_lat, args.align_loss_weight)
+            else:
+                loss = contrastive_latent_loss(
+                    (f_lat, o_lat), validation=False,
+                    spec=LOSS_SPEC, tau_override=tau_tensor_loss)
+            # CPC InfoNCE auxiliary (#344): total = contrastive + λ·L_cpc,
+            # equal weight at λ=1. f_lat is the AR context h_t (4-D here; the
+            # cpc_multistep stack is 5-D and returns earlier in the loss), o_lat
+            # the encoder embeddings e. Same fp32 block as the contrastive loss.
+            cpc_aux_val = float('nan')
+            if args.cpc_infonce_weight > 0:
+                cpc_aux = cpc_infonce_aux_loss(f_lat, o_lat, model.cpc_w1)
+                loss = loss + args.cpc_infonce_weight * cpc_aux
+                cpc_aux_val = cpc_aux.item()
         # Diagnostic: same loss with fixed τ=0.07 (no gradient). Comparable
         # across runs regardless of --tau / --learnable-tau, useful as a
         # cross-experiment baseline curve. Re-uses the already-forwarded
@@ -1146,7 +1210,9 @@ def main():
                        mixup_applied,
                        r2_random_val, r2_naive_val, u_t, u_b,
                        auc_val, top1_val, top3_val,
-                       loss_tau_ref=loss_tau_ref_val)
+                       loss_tau_ref=loss_tau_ref_val,
+                       cpc_aux=(cpc_aux_val if args.cpc_infonce_weight > 0
+                                else None))
 
         if step % args.log_every == 0 and is_main_process():
             elapsed = time.time() - t0
@@ -1155,6 +1221,8 @@ def main():
             tau_str = ""
             if args.learnable_tau:
                 tau_str = f"  τ={float(model.tau().detach()):.4f}"
+            if args.cpc_infonce_weight > 0:
+                tau_str += f"  cpc={cpc_aux_val:.4f}"
             print(f"[{step:>7d}] loss={loss_val:.4f}  ema_loss={ema_loss:.4f}  "
                   f"gap={gap_val:.4f}  ema_gap={ema_gap:.4f}  "
                   f"mixup={mixup_applied_count}/{timing_count}  "

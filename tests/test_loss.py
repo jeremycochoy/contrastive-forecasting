@@ -1436,3 +1436,133 @@ class TestContrastiveFloor:
         with pytest.raises(NotImplementedError):
             contrastive_latent_loss(
                 (f, h), False, self._spec(floor=True, pos_denom=False))
+
+
+class TestCPCInfonceAuxLoss:
+    """`cpc_infonce_aux_loss` — the #344 CPC InfoNCE auxiliary term.
+
+    Pins the paper-faithful properties: normalized (≥ 0), joint-trained
+    (gradient reaches W_1 AND both latents — no stop-grad), exact under
+    source-batch chunking (logsumexp associativity), and → 0 at perfect
+    next-step alignment with spread negatives.
+    """
+
+    @staticmethod
+    def _w1(H, seed=0, scale=None):
+        g = torch.Generator().manual_seed(seed)
+        w = torch.nn.Linear(H, H, bias=False)
+        with torch.no_grad():
+            if scale is None:
+                w.weight.copy_(torch.randn(H, H, generator=g) / math.sqrt(H))
+            else:
+                w.weight.copy_(scale * torch.eye(H))
+        return w
+
+    def test_returns_nonneg_finite_scalar(self):
+        from src.loss import cpc_infonce_aux_loss
+        f, h = _random_inputs(B=4, T=5, C=2, H=16, seed=1)
+        loss = cpc_infonce_aux_loss(f, h, self._w1(16))
+        assert loss.ndim == 0
+        assert torch.isfinite(loss)
+        assert loss.item() >= 0.0  # positive in the denominator ⇒ ≥ 0
+
+    def test_grad_flows_to_w1_and_both_latents(self):
+        # Paper-exact: NO stop-grad — gradient must reach W_1, the AR context
+        # h_t (forecasted), AND the encoder targets e (original).
+        from src.loss import cpc_infonce_aux_loss
+        f, h = _random_inputs(B=4, T=5, C=2, H=16, seed=2)
+        f.requires_grad_(True)
+        h.requires_grad_(True)
+        w1 = self._w1(16)
+        loss = cpc_infonce_aux_loss(f, h, w1)
+        loss.backward()
+        for name, t in (("W_1", w1.weight), ("forecasted", f), ("original", h)):
+            assert t.grad is not None, f"no grad on {name}"
+            assert t.grad.abs().sum() > 0, f"zero grad on {name}"
+
+    def test_chunk_size_invariance(self):
+        # logsumexp is associative ⇒ the checkpointed cross-batch chunking is
+        # exact and chunk-size independent.
+        from src.loss import cpc_infonce_aux_loss
+        f, h = _random_inputs(B=8, T=4, C=1, H=16, seed=3)
+        w1 = self._w1(16)
+        vals = []
+        for ch in ("1", "3", "8", "100"):
+            os.environ["CPC_CB_CHUNK"] = ch
+            try:
+                vals.append(cpc_infonce_aux_loss(f, h, w1).item())
+            finally:
+                os.environ.pop("CPC_CB_CHUNK", None)
+        for v in vals[1:]:
+            assert abs(v - vals[0]) < 1e-5, (vals)
+
+    def test_perfect_alignment_near_zero(self):
+        # If the forecaster perfectly predicts the next embedding direction
+        # (h_t ∝ e_{t+1}) and W_1 = big·I, the positive score dominates the
+        # (near-orthogonal, high-dim) negatives ⇒ loss → 0.
+        from src.loss import cpc_infonce_aux_loss
+        g = torch.Generator().manual_seed(4)
+        B, T, C, H = 4, 6, 1, 64
+        h = torch.randn(B, T, C, H, generator=g)
+        # forecasted[:, t] := original[:, t+1] (perfect next-step direction).
+        f = torch.empty_like(h)
+        f[:, :-1] = h[:, 1:]
+        f[:, -1] = h[:, -1]
+        w1 = self._w1(H, scale=20.0)
+        loss = cpc_infonce_aux_loss(f, h, w1)
+        assert loss.item() < 0.05, loss.item()
+
+    def test_short_sequence_returns_zero(self):
+        from src.loss import cpc_infonce_aux_loss
+        f, h = _random_inputs(B=2, T=1, C=1, H=8, seed=5)
+        loss = cpc_infonce_aux_loss(f, h, self._w1(8))
+        assert loss.item() == 0.0
+
+    def test_rejects_5d_forecaster(self):
+        # The cpc_multistep forecaster stack is 5-D [B,T,C,K,H]; the single-step
+        # aux term must reject it loudly (not a cryptic unpack error).
+        from src.loss import cpc_infonce_aux_loss
+        f5 = torch.randn(2, 4, 1, 3, 8)  # 5-D
+        h = torch.randn(2, 4, 1, 8)
+        with pytest.raises(ValueError):
+            cpc_infonce_aux_loss(f5, h, self._w1(8))
+
+
+class TestAlignLoss:
+    """`align_loss` — the standalone BYOL alignment term (#344 follow-up arm)."""
+
+    def test_nonneg_scalar(self):
+        from src.loss import align_loss
+        f, h = _random_inputs(B=4, T=5, C=2, H=16, seed=7)
+        loss = align_loss(f, h, 1.0)
+        assert loss.ndim == 0 and 0.0 <= loss.item() <= 4.0
+
+    def test_grad_only_through_forecaster(self):
+        # encoder target is stop-gradded ⇒ grad reaches f, NOT h.
+        from src.loss import align_loss
+        f, h = _random_inputs(B=4, T=5, C=2, H=16, seed=8)
+        f.requires_grad_(True)
+        h.requires_grad_(True)
+        align_loss(f, h, 1.0).backward()
+        assert f.grad is not None and f.grad.abs().sum() > 0
+        assert h.grad is None or h.grad.abs().sum() == 0
+
+    def test_matches_inline_align_in_contrastive(self):
+        # Standalone align == the align add-on inside contrastive_latent_loss
+        # (contrastive weight isolated by differencing align_w=1 vs 0).
+        from src.loss import align_loss, contrastive_latent_loss
+        f, h = _random_inputs(B=3, T=4, C=2, H=8, seed=9)
+        spec = _make_spec("cosine_similarity_batch", tau=0.1)
+        base = contrastive_latent_loss((f, h), False, spec, align_loss_weight=0.0)
+        withal = contrastive_latent_loss((f, h), False, spec, align_loss_weight=1.0)
+        standalone = align_loss(f, h, 1.0)
+        assert abs((withal - base).item() - standalone.item()) < 1e-5
+
+    def test_perfect_alignment_zero(self):
+        from src.loss import align_loss
+        g = torch.Generator().manual_seed(10)
+        h = torch.randn(2, 6, 1, 16, generator=g)
+        f = torch.empty_like(h)
+        f[:, :-1] = h[:, 1:]   # f_t := h_{t+1} (perfect next-step alignment)
+        f[:, -1] = h[:, -1]
+        assert align_loss(f, h, 1.0).item() < 1e-5
