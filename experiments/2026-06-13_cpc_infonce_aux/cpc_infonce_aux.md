@@ -35,12 +35,8 @@ GM-Relative MASE, all arms (bold = a reliable improvement over the same-cell bas
 | enc6 · + CPC | 1.179 | **1.180** | 1.158 | **1.162** |
 | enc6 · CPC + align, no contrastive | 1.99 | 1.38 | 1.43 | 1.21 |
 
-*Forecast error is **GM-Relative MASE**: the geometric mean, over GIFT-Eval's 97 tasks, of a
-model's error divided by the seasonal-naive forecast's — lower is better, 1.0 is seasonal-naive.
-Each comparison carries a **paired-bootstrap** 90% interval (resample the 97-task list with repeats,
-score both arms on each resample, so per-task difficulty cancels). It is over tasks at a single
-training seed, as for the baselines — "reliably" means stable across tasks, not across seeds.
-Per-cell intervals are in the annex.*
+*GM-Relative MASE: the geometric mean, over GIFT-Eval's 97 tasks, of a model's error divided by the
+seasonal-naive forecast's — lower is better, 1.0 is seasonal-naive.*
 
 ## Training dynamics
 
@@ -99,7 +95,10 @@ in #341.
 
 ## Annex — per-cell paired-bootstrap Δ (90% interval)
 
-Δ = GM(arm) − GM(same-cell baseline); negative ⇒ the arm beats the baseline.
+Δ = GM(arm) − GM(same-cell baseline); negative ⇒ the arm beats the baseline. The interval is a
+**paired bootstrap** over the 97 tasks (resample with repeats, score both arms on each resample, so
+per-task difficulty cancels) at a single training seed, as for the baselines — it reflects spread
+across tasks, not across seeds.
 
 | cell | +CPC Δ (90% CI) | CPC+align/no-main Δ (90% CI) |
 |---|--:|--:|
