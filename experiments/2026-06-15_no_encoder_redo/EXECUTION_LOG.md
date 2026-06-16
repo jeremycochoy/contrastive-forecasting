@@ -73,6 +73,22 @@ forked-arma mix 0.0078125 + crossfade-triplets 1, mixup-p 0.3, freq/seas emb 3.
   NOTE: orchestrate_gpu0.sh is now the single-GPU fallback only; do NOT re-launch it while the per-arm
   pipelines run (it would double-launch on GPU 0). Re-launch per-arm via orchestrate_arm.sh / the watcher.
 
+- 2026-06-15 ~13:12: SHARED-MACHINE CONTENTION on GPU 0 — rnd_kacper trainline runs (mahalanobis port)
+  + an rnd ipykernel landed on GPU 0 (~6.4 GB combined). base stable at ~13.8 GB, GPU0 free ~3.9 GB.
+  NOT mine — DO NOT kill (shared account). base won't grow (fixed model/batch) and auto-resumes on OOM via
+  its supervisor. Watcher now alerts if GPU0 free < 800 MiB or a backbone crash/resume occurs. cpc on GPU 1
+  has ~10 GB free (safe). base step ~4300/12500 (ETA ~8h), cpc step ~900/12500 (ETA ~11.5h, cpc_aux≈4.35).
+
+- 2026-06-15 ~21:30: **base backbone DONE** (step 12500; _FINAL.pth=best-loss + _final.pth=last present).
+  Retired the sleeping base-dl watcher and launched base downstream directly: `chain_noenc.sh base 0`
+  (PID family 1126453; log chain_base_g0.log) — sequential 2L then 6L (best+last + full-97 eval) on GPU 0.
+  GPU 0 shared with Kacper's ~10 GB job, so base downstream stays sequential there (can't fit 2 cells).
+  cpc backbone still training on GPU 1 (~4.3 h left). 2L-base head: ~6 sps, ETA ~1.4h/30k.
+  PLAN when cpc backbone finishes: parallelise cpc downstream across the freed GPUs (GPU1 free immediately,
+  GPU0 free once base downstream ends). cpc orchestrate_arm.sh cpc 1 auto-starts cpc chain on GPU1 — let
+  2L run there and add 6L on GPU0 in parallel (idempotent; cells skip if FINAL exists). DO NOT relaunch a
+  second base/cpc downstream (double-write hazard on qhead_*.pth).
+
 ## Wake-up checklist (each hour)
 1. Is orchestrator alive? `pgrep -af orchestrate_gpu0` — if dead, re-launch `orchestrate_gpu0.sh 0` (idempotent).
 2. Backbone progress: tail `results/run_bb_*_{base,cpc}.log` (step / sps / loss healthy, no NaN/Traceback).
