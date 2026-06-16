@@ -89,6 +89,25 @@ forked-arma mix 0.0078125 + crossfade-triplets 1, mixup-p 0.3, freq/seas emb 3.
   2L run there and add 6L on GPU0 in parallel (idempotent; cells skip if FINAL exists). DO NOT relaunch a
   second base/cpc downstream (double-write hazard on qhead_*.pth).
 
+- 2026-06-16 ~02:49: **cpc backbone DONE** (GPU 1 freed, ~19 GB). Both backbones complete.
+  Downstream now PARALLEL: **GPU 0 = base (sequential, chain_noenc.sh base 0)**; **GPU 1 = cpc 2-wide**
+  via `/tmp/cpc_takeover.sh` -> two `downstream_noenc.sh cpc {2,6} 1` lanes (logs lane_cpc{2,6}_g1.log;
+  touches results/chain_cpc.done when both lanes finish). cpc 2L head ETA ~1.4h, 6L ~3h (2-wide sharing).
+  base 2L-best eval ~task 80/97. GPU0 still shares Kacper's ~10 GB (base stays 1-head-at-a-time there).
+  Targets: 8 head FINALs (qhead_{2,6}L_..._{base,cpc}[_last]_FINAL.pth) + 8 eval summaries.
+  When both chain_{base,cpc}.done -> run analyze_noenc.py + plot_gm_ladder.py + plot_training_dynamics_noenc.py,
+  fill report Result/stability, sub-agent review, finalise PR #349, checklists.
+  NOTE: cpc_takeover.sh is ONE-SHOT (its pkill would kill the running lanes) — do NOT re-run it.
+- 2026-06-16 ~04:27: base downstream ALSO taken over for parallelism (`/tmp/base_finish.sh`, PID family
+  1206894): stopped the base chain (in-flight 2L-last eval kept running, orphaned), now pretraining base 6L
+  heads on GPU0 overlapping that eval, then runs base 6L evals concurrently; touches chain_base.done when
+  all 4 base summaries exist. First result: **base no-enc 2L-best GM=1.4253** (vs enc3/enc6 ~1.18 — removing
+  the encoder HURTS, opposite of the hypothesis; preliminary, 1/8 cells). GPU0 ~3 GB free (Kacper 10 + eval
+  + 6L head) — fits. base_finish.sh + cpc_takeover.sh pkill cpc/base patterns — NEVER put those patterns in
+  an interactive command (it self-kills, exit 144); split the string or use a file.
+
+## Wake-up checklist (each hour)
+
 ## Wake-up checklist (each hour)
 1. Is orchestrator alive? `pgrep -af orchestrate_gpu0` — if dead, re-launch `orchestrate_gpu0.sh 0` (idempotent).
 2. Backbone progress: tail `results/run_bb_*_{base,cpc}.log` (step / sps / loss healthy, no NaN/Traceback).
