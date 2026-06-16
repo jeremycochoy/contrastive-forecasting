@@ -46,8 +46,10 @@ Left: the no-encoder (blue) bars tower over enc3/enc6 in every cell. Right: the
 no-encoder (green) bars sit level with enc3/enc6 — the CPC term recovers
 parity.](plots/gm_summary.png)
 
-GM-Relative MASE (GIFT-Eval full-97); encoder depth 0 = no-encoder (this work),
-3/6 = #339/#341/#344. Lower is better.
+GM-Relative MASE (geometric mean over GIFT-Eval's 97 tasks of a model's error ÷
+the seasonal-naive forecast's error; lower is better, 1.0 = seasonal-naive — full
+definition under Protocol); encoder depth 0 = no-encoder (this work),
+3/6 = #339/#341/#344.
 
 | arm | 2L best / last | 6L best / last |
 |---|--:|--:|
@@ -63,7 +65,7 @@ GM-Relative MASE (GIFT-Eval full-97); encoder depth 0 = no-encoder (this work),
 
 | vs | 2L best | 6L best |
 |---|--:|--:|
-| enc3 | +0.249 (+0.197, +0.312) | +0.194 (+0.155, +0.242) |
+| enc3 | +0.248 (+0.197, +0.312) | +0.194 (+0.155, +0.242) |
 | enc6 | +0.245 (+0.186, +0.314) | +0.192 (+0.144, +0.249) |
 
 all reliably worse; the last-checkpoint gaps are smaller but also all above zero
@@ -79,9 +81,10 @@ checkpoints.
 **The CPC term is what closes the gap.** Adding CPC to the *no-encoder* backbone
 (base → +CPC) improves GM **reliably at every checkpoint**: best-loss
 **−0.258 (−0.325, −0.200)** at 2L and **−0.199 (−0.250, −0.156)** at 6L; last
-−0.099 (2L) and −0.079 (6L), all 90% intervals below zero. The best-loss effect
-is an order of magnitude larger than the ~0.02 the same term bought *with* the
-encoder in #344.
+−0.099 (2L) and −0.079 (6L), all 90% intervals below zero. With the encoder the
+same term moved best-loss GM by a negligible ~0.003 (#344's headline ~0.02 was
+its *last-checkpoint* effect) — so dropping the encoder turns CPC from a
+near-no-op at peak performance into a 0.20–0.26 lever.
 
 ## Why: without the encoder the CPC term no longer vanishes
 
@@ -121,7 +124,7 @@ objective. Second, that value is **recoverable by the CPC auxiliary alone**: the
 no-encoder +CPC backbone matches the encoder'd +CPC backbones within noise. The
 CPC term and the encoder are, to first order, **substitutes** for one another on
 this recipe — adding either one to the plain contrastive loss reaches the same
-~1.15–1.18 GM band.
+~1.15–1.18 best-loss GM band.
 
 *Hypothesis (not tested here): because the CPC term stays active without the
 encoder but vanishes with it (#344), the encoder + CPC combination is largely
