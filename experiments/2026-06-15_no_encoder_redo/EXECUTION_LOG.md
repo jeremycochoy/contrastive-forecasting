@@ -123,6 +123,12 @@ TODO when done: add noenc_cpcall to analyze_noenc.py + gm-ladder + report + PR.
 the 4 downstream cells) on GPU1 ONLY — leave GPU0 for Kacper. Do NOT parallelise
 cpcall downstream across both GPUs (as was done for base/cpc). orchestrate_arm.sh
 cpcall 1 already runs backbone+chain on GPU1 sequentially; just don't add GPU0 work.
+- 2026-06-17 ~10:49: **cpcall backbone DONE** (12.5k; _FINAL+_final present, cpc_aux plateaued ~6.3,
+  did NOT collapse). Took over its downstream to run 2-wide **on GPU1 only** (`/tmp/cpcall_takeover.sh`,
+  one-shot): two `downstream_noenc.sh cpcall {2,6} 1` lanes; touches chain_cpcall.done when both finish.
+  Single-GPU honored (GPU0 left for Kacper); 2 head-trains fit GPU1 (~17.4 GB). analyze_noenc.py already
+  has the noenc_cpcall arm + pairs. When chain_cpcall.done: run analyze + add CPC_All to gm-ladder/report
+  (facts-only) + PR. NOTE: cpcall_takeover.sh is ONE-SHOT (pkill would kill the lanes) — don't re-run.
 
 ## DONE (2026-06-16) — original 2 no-encoder arms
 All 8 cells evaluated. Verdict: **removing the encoder reliably HURTS the plain
