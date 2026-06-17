@@ -21,7 +21,8 @@ seasonal-naive forecast's error; lower is better, 1.0 = seasonal-naive.*
 
 ![GM-Relative MASE across encoder depth {0 = no encoder, 3, 6}, left for the base
 contrastive loss, right for + CPC, at 2-layer / 6-layer heads × best-loss / last
-checkpoints.](plots/gm_summary.png)
+checkpoints. (+ CPC_All is a no-encoder-only arm — it appears in the table and the
+training curves, not this depth plot.)](plots/gm_summary.png)
 
 GM-Relative MASE (GIFT-Eval full-97; lower is better). Encoder depth 0 = no
 encoder (this work); 3 and 6 = the 3- and 6-layer-encoder backbones.
@@ -70,10 +71,11 @@ checkpoint vs enc-3).
 ![Training metrics, log-log. Solid = no encoder (blue base / red + CPC / green
 + CPC_All), dashed = enc-6 reference (blue/orange).](plots/training_dynamics.png)
 
-The CPC term's logged value (panel 2) stays near 3 (+ CPC) and near 6 (+ CPC_All)
-throughout the no-encoder runs; in the encoder'd run it falls below 10⁻³ by about
-step 1,000. (The + CPC and + CPC_All term values are on different scales — their
-candidate sets differ in size.) Across training the no-encoder + CPC and + CPC_All
+The CPC term's logged value (panel 2) stays elevated throughout the no-encoder
+runs — roughly 3–6 (+ CPC) and 6–9 (+ CPC_All) — rather than collapsing; in the
+encoder'd run it falls below 10⁻³ by about step 1,000. (The + CPC and + CPC_All
+term values are on different scales — their candidate sets differ in size.)
+Across training the no-encoder + CPC and + CPC_All
 runs record a lower contrastive reference loss, lower 1−R², and lower 1−AUC than
 the no-encoder base run (panels 1, 6, 8).
 
