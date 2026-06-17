@@ -130,6 +130,17 @@ cpcall 1 already runs backbone+chain on GPU1 sequentially; just don't add GPU0 w
   has the noenc_cpcall arm + pairs. When chain_cpcall.done: run analyze + add CPC_All to gm-ladder/report
   (facts-only) + PR. NOTE: cpcall_takeover.sh is ONE-SHOT (pkill would kill the lanes) — don't re-run.
 
+## Review round 2 (2026-06-17, maintainer)
+#346 MERGED -> rebased my branch onto experiments (PR now #348-only diff, 20 files; backup
+branch backup-pre-rebase-348). PR body trimmed to minimal with the REAL github.com URL (repo is
+contrastive-forecasting; "contrastive-learning" doesn't exist). GM figure redesigned: panel 2 now
+shows no-enc +CPC, no-enc +CPC_All, enc-3/enc-6 +CPC together (CPC_All first-class vs encoder'd).
+Dynamics figure cut to 4 legible panels (ref loss, CPC term, 1-R², 1-AUC). Dropped "#348" from
+figure titles; removed "rather than collapsing" (interpretation). Launched a primed review agent
+(read merged PRs + REPORT_STANDARD + facts-only directive) -> 3 blockers + 1 minor; all fixed and
+a 2nd agent verified CLOSED + numbers match. CPC_All result is slightly worse than narrow CPC at
+6L-best (+0.029 reliable), within noise elsewhere — measured fact, verified.
+
 ## CPC_All DONE (2026-06-17)
 All 4 cpcall cells evaluated (2-wide on GPU1, single-GPU). noenc_cpcall GM: 2L 1.177/1.171,
 6L 1.182/1.168. vs base reliably lower at all cells; vs encoder'd +CPC 6/8 straddle 0 (parity);
