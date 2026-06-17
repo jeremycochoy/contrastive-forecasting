@@ -28,14 +28,11 @@ OUT = os.path.join(os.path.dirname(__file__), "..", "plots", "training_dynamics.
 SMOOTH = 25
 START_STEP = 100
 
+# The four panels the report discusses; kept to 2×2 so each is legible.
 PANELS = [
-    ("loss_tau_ref", "contrastive reference loss (norm-InfoNCE τ=0.07, all arms)  (↓)", lambda v: v),
-    ("cpc_aux",      "CPC InfoNCE auxiliary term  (↓, CPC arms only)", lambda v: v),
-    ("gap_ratio",    "ratio gap (1−ff)/(1−fp)  (↓→0)", lambda v: v),
-    ("u_batch",      "U_batch — batch-wise used dims  (↑)", lambda v: v),
-    ("u_temporal",   "U_temporal — time-wise used dims  (↑)", lambda v: v),
+    ("loss_tau_ref", "contrastive reference loss (norm-InfoNCE τ=0.07)  (↓)", lambda v: v),
+    ("cpc_aux",      "CPC InfoNCE term value  (CPC / CPC_All arms)", lambda v: v),
     ("r2_naive",     "1 − R²_naive  (↓)", lambda v: 1 - v),
-    ("r2_random",    "1 − R²_random  (↓)", lambda v: 1 - v),
     ("auc",          "1 − retrieval AUC  (↓)", lambda v: 1 - v),
 ]
 
@@ -65,7 +62,7 @@ def smooth(y, w):
 
 
 def main():
-    fig, axes = plt.subplots(2, 4, figsize=(20, 8))
+    fig, axes = plt.subplots(2, 2, figsize=(14, 9))
     for ax in axes.flat[len(PANELS):]:
         ax.set_visible(False)
     for ax, (col, title, tf) in zip(axes.flat, PANELS):
@@ -86,8 +83,8 @@ def main():
         ax.set_xlabel("step")
         ax.grid(alpha=0.3, which="both")
         ax.legend(fontsize=8)
-    fig.suptitle("#348 No-encoder training dynamics (log-log; solid = no-encoder, "
-                 "dashed = enc6 reference; blue/cyan = base, red/orange = + CPC)", fontsize=13)
+    fig.suptitle("No-encoder training dynamics (log-log; solid = no-encoder base/+CPC/+CPC_All, "
+                 "dashed = enc-6 reference)", fontsize=13)
     fig.tight_layout(rect=[0, 0, 1, 0.96])
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     fig.savefig(OUT, dpi=110, bbox_inches="tight")

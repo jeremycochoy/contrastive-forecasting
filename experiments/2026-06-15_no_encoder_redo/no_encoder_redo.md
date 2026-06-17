@@ -1,12 +1,12 @@
 # No-encoder backbone: GIFT-Eval forecasting error with and without the CPC term
 
-We remove the encoder stack from the backbone (`--num-encoder-layers 0`) so the
-forecaster reads the patch-embedding directly, train it under three losses — the
-contrastive loss alone (**base**), the contrastive loss plus the CPC InfoNCE
-auxiliary term (**+ CPC**), and that term with its candidate set widened to the
-full van den Oord Eq. 4 marginal — every other sequence at every step
-(**+ CPC_All**) — and measure GIFT-Eval forecasting error (GM-Relative MASE). We
-compare against the same recipe trained with a 3-layer and a 6-layer encoder.
+We remove the encoder stack from the backbone (`--num-encoder-layers 0`), so the
+forecaster reads the patch-embedding directly, and measure GIFT-Eval forecasting
+error (GM-Relative MASE). We train three losses: the contrastive loss alone
+(**base**); that loss plus the CPC InfoNCE auxiliary term (**+ CPC**); and the
+CPC term with its candidate set widened to the full van den Oord Eq. 4 marginal —
+every other sequence at every step (**+ CPC_All**). We compare against the same
+recipe trained with a 3-layer and a 6-layer encoder.
 
 *A backbone here is patch-embedding → (encoder stack) → forecaster. The
 patch-embedding (a GRU) turns each window patch into one token; the encoder is a
@@ -68,16 +68,16 @@ checkpoint vs enc-3).
 
 ## Training curves
 
-![Training metrics, log-log. Solid = no encoder (blue base / red + CPC / green
-+ CPC_All), dashed = enc-6 reference (blue/orange).](plots/training_dynamics.png)
+![Four log-log panels: contrastive reference loss, CPC term value, 1−R², and
+1−AUC. Solid = no encoder (blue base / red + CPC / green + CPC_All); dashed =
+enc-6 reference (blue base / orange + CPC).](plots/training_dynamics.png)
 
-The CPC term's logged value (panel 2) stays elevated throughout the no-encoder
-runs — roughly 3–6 (+ CPC) and 6–9 (+ CPC_All) — rather than collapsing; in the
-encoder'd run it falls below 10⁻³ by about step 1,000. (The + CPC and + CPC_All
-term values are on different scales — their candidate sets differ in size.)
-Across training the no-encoder + CPC and + CPC_All
-runs record a lower contrastive reference loss, lower 1−R², and lower 1−AUC than
-the no-encoder base run (panels 1, 6, 8).
+The CPC term's logged value (top-right panel) is ≈3–6 for + CPC and ≈6–9 for
++ CPC_All across the no-encoder runs, and falls below 10⁻³ by about step 1,000 in
+the encoder'd run. (The + CPC and + CPC_All term values are on different scales —
+their candidate sets differ in size.) Across training the no-encoder + CPC and
++ CPC_All runs record a lower contrastive reference loss, lower 1−R², and lower
+1−AUC than the no-encoder base run (the other three panels).
 
 From best-loss to last checkpoint, the no-encoder + CPC GM changes by ≤0.007
 (2L 1.168→1.165, 6L 1.153→1.160); the no-encoder base GM is lower at the last
