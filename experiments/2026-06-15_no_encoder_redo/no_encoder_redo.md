@@ -1,10 +1,12 @@
 # No-encoder backbone: GIFT-Eval forecasting error with and without the CPC term
 
 We remove the encoder stack from the backbone (`--num-encoder-layers 0`) so the
-forecaster reads the patch-embedding directly, train it under two losses — the
-contrastive loss alone, and the contrastive loss plus the CPC InfoNCE auxiliary
-term — and measure GIFT-Eval forecasting error (GM-Relative MASE). We compare
-against the same recipe trained with a 3-layer and a 6-layer encoder.
+forecaster reads the patch-embedding directly, train it under three losses — the
+contrastive loss alone (**base**), the contrastive loss plus the CPC InfoNCE
+auxiliary term (**+ CPC**), and that term with its candidate set widened to the
+full van den Oord Eq. 4 marginal — every other sequence at every step
+(**+ CPC_All**) — and measure GIFT-Eval forecasting error (GM-Relative MASE). We
+compare against the same recipe trained with a 3-layer and a 6-layer encoder.
 
 *A backbone here is patch-embedding → (encoder stack) → forecaster. The
 patch-embedding (a GRU) turns each window patch into one token; the encoder is a
@@ -32,6 +34,7 @@ encoder (this work); 3 and 6 = the 3- and 6-layer-encoder backbones.
 | + CPC, **no encoder** | **1.168 / 1.165** | **1.153 / 1.160** |
 | + CPC, enc-3 | 1.185 / 1.153 | 1.158 / 1.144 |
 | + CPC, enc-6 | 1.179 / 1.180 | 1.158 / 1.162 |
+| + CPC_All, **no encoder** | **1.177 / 1.171** | **1.182 / 1.168** |
 
 Paired-bootstrap Δ = GM(no encoder) − GM(encoder'd), 90% interval (resampling the
 97-task list with repeats; positive ⇒ the no-encoder GM is higher):
@@ -52,15 +55,27 @@ interval: 2L best −0.258 (−0.325, −0.200), 6L best −0.199 (−0.250, −
 last −0.099 (−0.124, −0.076), 6L last −0.079 (−0.106, −0.056) — every interval
 below zero.
 
+**+ CPC_All** (no encoder, the full-marginal candidate set) vs **base**, same Δ:
+2L best −0.248 (−0.316, −0.190), 6L best −0.171 (−0.222, −0.122), 2L last −0.093
+(−0.114, −0.073), 6L last −0.071 (−0.094, −0.049) — every interval below zero.
+vs the no-encoder **+ CPC** arm, Δ = GM(+CPC_All) − GM(+CPC): 2L best +0.009
+(+0.000, +0.020), 6L best +0.029 (+0.011, +0.049), 2L last +0.007 (−0.002,
++0.015), 6L last +0.008 (−0.002, +0.019) — the two last cells straddle zero, the
+two best cells are above it. vs the encoder'd **+ CPC** arms, six of eight
+intervals straddle zero (the exceptions are +0.018 and +0.025 at the last
+checkpoint vs enc-3).
+
 ## Training curves
 
-![Training metrics, log-log. Solid = no encoder (blue base / red + CPC), dashed =
-enc-6 reference (blue/orange).](plots/training_dynamics.png)
+![Training metrics, log-log. Solid = no encoder (blue base / red + CPC / green
++ CPC_All), dashed = enc-6 reference (blue/orange).](plots/training_dynamics.png)
 
-The CPC term's logged value (panel 2) stays near 3 throughout the no-encoder run;
-in the encoder'd run it falls below 10⁻³ by about step 1,000. Across training the
-no-encoder + CPC run records a lower contrastive reference loss, lower 1−R², and
-lower 1−AUC than the no-encoder base run (panels 1, 6, 8).
+The CPC term's logged value (panel 2) stays near 3 (+ CPC) and near 6 (+ CPC_All)
+throughout the no-encoder runs; in the encoder'd run it falls below 10⁻³ by about
+step 1,000. (The + CPC and + CPC_All term values are on different scales — their
+candidate sets differ in size.) Across training the no-encoder + CPC and + CPC_All
+runs record a lower contrastive reference loss, lower 1−R², and lower 1−AUC than
+the no-encoder base run (panels 1, 6, 8).
 
 From best-loss to last checkpoint, the no-encoder + CPC GM changes by ≤0.007
 (2L 1.168→1.165, 6L 1.153→1.160); the no-encoder base GM is lower at the last
@@ -74,9 +89,10 @@ crossfade-triplet allt·0.8% data mix, qk-norm, attention-output norm, the
 `xshh_allt` contrastive loss with positive-in-denominator and floor subtraction,
 the encoder-side positive stop-gradient (`--stopgrad-positive-h`), τ 0.10, batch
 1024, 12,500 steps, seed 20260520 — with the encoder stack removed
-(`--num-encoder-layers 0`). The two arms differ only in the loss: **base** is the
+(`--num-encoder-layers 0`). The arms differ only in the loss: **base** is the
 contrastive loss alone; **+ CPC** adds the CPC InfoNCE term (`--cpc-infonce-weight
-1.0`). To score a backbone we freeze it and train a fresh quantile forecasting
+1.0`); **+ CPC_All** is the same term with its candidate set widened to the full
+marginal (`--cpc-infonce-negs cross`). To score a backbone we freeze it and train a fresh quantile forecasting
 head, once with two transformer layers and once with six, and evaluate on
 GIFT-Eval's 97 tasks at the best-loss checkpoint (lowest smoothed contrastive
 loss) and the last checkpoint (step 12,500). The enc-3 and enc-6 numbers come
@@ -96,5 +112,8 @@ L_cpc = − log(  exp(e_{t+1}ᵀ W₁ h_t)  /  Σ_{e_j ∈ C}  exp(e_jᵀ W₁ h
 
 The positive sits in the denominator (normalized InfoNCE ≥ 0), summed
 equal-weight, no stop-gradient, no temperature (`W₁` carries the scale). The
-candidate set `C` here is the matched-step cross-batch embeddings plus the same
-sequence's other-step embeddings.
+candidate set `C` differs by arm: **+ CPC** uses the matched-step cross-batch
+embeddings plus the same sequence's other-step embeddings; **+ CPC_All** uses the
+positive plus every other sequence's embeddings at every step (the full marginal
+`p(x_{t+1})` of van den Oord Eq. 4, whose negatives are independent of the context
+`h_t`).
