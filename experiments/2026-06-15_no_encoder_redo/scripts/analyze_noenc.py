@@ -29,6 +29,7 @@ E348 = f"{W}/2026-06-15_no_encoder_redo/results"
 ARMS = {
     "noenc_base": ("no-encoder, base contrastive (NEW)", E348, "allt08_xftrip_nobn_noenc_sgpos_qk_aon_b1024_base"),
     "noenc_cpc":  ("no-encoder, + CPC (NEW)",            E348, "allt08_xftrip_nobn_noenc_sgpos_qk_aon_b1024_cpc"),
+    "noenc_cpcall": ("no-encoder, + CPC_All paper-marginal (NEW)", E348, "allt08_xftrip_nobn_noenc_sgpos_qk_aon_b1024_cpcall"),
     "base_enc3":  ("enc3, base contrastive (#339 arm2)", E339, "allt08_xftrip_nobn_enc3_sgpos_qk_aon_b1024"),
     "base_enc6":  ("enc6, base contrastive (#341 arm3)", E341, "allt08_xftrip_nobn_enc6_sgpos_qk_aon_b1024"),
     "cpc_enc3":   ("enc3, + CPC (#344)",                 E344, "allt08_xftrip_nobn_enc3_sgpos_qk_aon_b1024_cpc"),
@@ -44,6 +45,11 @@ PAIRS = [
     ("cpc_enc6",  "noenc_cpc",  "remove encoder, CPC arm (vs enc6) [hypothesis]"),
     # does the CPC term still help WITHOUT the encoder? (B = + CPC)
     ("noenc_base", "noenc_cpc", "CPC term WITHOUT the encoder [key]"),
+    # CPC_All (paper-exact marginal negatives) on the no-encoder backbone
+    ("noenc_base", "noenc_cpcall", "CPC_All (paper-marginal) WITHOUT the encoder [key]"),
+    ("noenc_cpc",  "noenc_cpcall", "CPC_All vs narrow CPC, no encoder"),
+    ("cpc_enc3",   "noenc_cpcall", "no-encoder CPC_All vs enc3 narrow-CPC"),
+    ("cpc_enc6",   "noenc_cpcall", "no-encoder CPC_All vs enc6 narrow-CPC"),
 ]
 HEADS = ["2L", "6L"]
 CKPTS = [("best", ""), ("last", "_last")]
