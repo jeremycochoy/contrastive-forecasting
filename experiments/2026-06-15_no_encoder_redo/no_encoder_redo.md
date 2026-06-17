@@ -19,10 +19,10 @@ seasonal-naive forecast's error; lower is better, 1.0 = seasonal-naive.*
 
 ## Result
 
-![GM-Relative MASE across encoder depth {0 = no encoder, 3, 6}, left for the base
-contrastive loss, right for + CPC, at 2-layer / 6-layer heads × best-loss / last
-checkpoints. (+ CPC_All is a no-encoder-only arm — it appears in the table and the
-training curves, not this depth plot.)](plots/gm_summary.png)
+![Three panels of GM-Relative MASE (GIFT-Eval full-97), by head × checkpoint.
+Left and middle: the encoder-depth ladder {0 = no encoder, 3, 6} for the base
+loss and for + CPC. Right: the no-encoder loss comparison — base vs + CPC vs
++ CPC_All.](plots/gm_summary.png)
 
 GM-Relative MASE (GIFT-Eval full-97; lower is better). Encoder depth 0 = no
 encoder (this work); 3 and 6 = the 3- and 6-layer-encoder backbones.
