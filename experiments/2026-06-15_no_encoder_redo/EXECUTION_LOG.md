@@ -130,6 +130,14 @@ cpcall 1 already runs backbone+chain on GPU1 sequentially; just don't add GPU0 w
   has the noenc_cpcall arm + pairs. When chain_cpcall.done: run analyze + add CPC_All to gm-ladder/report
   (facts-only) + PR. NOTE: cpcall_takeover.sh is ONE-SHOT (pkill would kill the lanes) — don't re-run.
 
+## CPC_All DONE (2026-06-17)
+All 4 cpcall cells evaluated (2-wide on GPU1, single-GPU). noenc_cpcall GM: 2L 1.177/1.171,
+6L 1.182/1.168. vs base reliably lower at all cells; vs encoder'd +CPC 6/8 straddle 0 (parity);
+vs no-enc narrow CPC the best cells +0.009/+0.029 above (6L reliable), last cells straddle 0 —
+the full-marginal negatives recover the encoder gap but do not beat the narrow set. Added to
+report (facts-only), table, deltas, dynamics plot; sub-agent re-verified numbers + facts-only.
+PR #349 body + reply updated; MERGEABLE/CLEAN. Both reviewer comments addressed. Compute all done.
+
 ## DONE (2026-06-16) — original 2 no-encoder arms
 All 8 cells evaluated. Verdict: **removing the encoder reliably HURTS the plain
 contrastive arm** (base best +0.19–0.25, last +0.05–0.08 GM, all CIs>0); **with
