@@ -78,6 +78,8 @@ class ConfigurableModel(torch.nn.Module):
                  forecaster_kind: str = "transformer",
                  cpc_k_steps: int = 12,
                  cpc_infonce: bool = False,
+                 main_loss_bilinear: bool = False,
+                 main_bilinear_init_tau: float = 0.10,
                  qk_norm: bool = False,
                  attn_out_norm: bool = False,
                  log_attn_amplitude: bool = False,
@@ -112,6 +114,23 @@ class ConfigurableModel(torch.nn.Module):
         self.cpc_infonce = bool(cpc_infonce)
         if self.cpc_infonce:
             self.cpc_w1 = torch.nn.Linear(H, H, bias=False)
+
+        # Main-loss learnable log-bilinear W (#350): replaces the τ-scaled dot
+        # product uᵀv/τ in the main contrastive loss with the log-bilinear uᵀWv
+        # (τ dropped, W carries the scale), taking the same form as the CPC
+        # term's W₁. Registered here (like cpc_w1) so the optimizer and
+        # checkpoint capture it; it plays no role in the forward pass or the
+        # downstream head, so head-training and eval strip `main_w.*` before
+        # loading. Initialised to (1/τ₀)·I so the run starts exactly at the
+        # τ=τ₀ baseline, then W is free to learn off-diagonal/asymmetric
+        # structure and to rescale. Default off ⇒ the parameter is not created
+        # (state_dict byte-for-byte unchanged for every prior run).
+        self.main_loss_bilinear = bool(main_loss_bilinear)
+        if self.main_loss_bilinear:
+            self.main_w = torch.nn.Linear(H, H, bias=False)
+            with torch.no_grad():
+                self.main_w.weight.copy_(
+                    torch.eye(H) / float(main_bilinear_init_tau))
 
         # Reversible normalization (optional). Two kinds:
         #   ewma  → RevEWMNorm(span=rev_norm_span)  (default, dynamic)

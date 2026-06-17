@@ -674,7 +674,8 @@ def contrastive_latent_loss(predicted_position, validation, spec,
                             get_history=False, tau_override=None,
                             include_positive_in_denominator=False,
                             align_loss_weight=None,
-                            subtract_contrastive_floor=None):
+                            subtract_contrastive_floor=None,
+                            main_bilinear_W=None):
     """Compute the contrastive divergence loss.
 
     Args:
@@ -741,6 +742,14 @@ def contrastive_latent_loss(predicted_position, validation, spec,
     of sim(h_{t+1}, f_{t+1}) in the positive term (numerator and, with
     pos-in-denominator, denominator; negatives keep gradient on h).
     Forward value unchanged; xshh_allt loss shape only (raises otherwise).
+
+    ``main_bilinear_W`` (#350; default None → the τ-scaled dot product):
+    an ``nn.Linear(H, H, bias=False)`` that replaces every similarity
+    ``uᵀv / τ`` in the main loss with the log-bilinear ``uᵀ W v`` (τ
+    dropped, ``W`` carries the scale), exactly as the CPC term scores
+    ``eᵀ W₁ h``. ``W`` is applied to the first argument of each similarity;
+    at ``W = (1/τ)·I`` the loss equals the τ baseline byte-for-byte. Only
+    implemented for the ``xshh_allt`` loss shape (raises otherwise).
     """
     forecasted_latent, original_latent = predicted_position
     train_config = spec.train_configuration
@@ -1366,32 +1375,52 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         # within-series h↔h is the kept all-time `log_neg_hh_all`). Numerically
         # stable logsumexp; --pos-in-denominator supported via the shared tail.
         neg_inf = float('-inf')
+        # #350 learnable log-bilinear: replace every τ-scaled dot product
+        # uᵀv/τ with uᵀ W v (W applied to the FIRST argument of each
+        # similarity, τ dropped). `_sim` is the elementwise H-reduction,
+        # `_gram` the matmul (Gram) form. At W=(1/τ)·I both reduce to the τ
+        # baseline byte-for-byte, so the `main_bilinear_W is None` path is the
+        # historical objective unchanged. The xs_allt term reuses the existing
+        # chunked/checkpointed Gram by pre-projecting its anchor and passing
+        # τ=1 (autograd then carries the W-gradient through that projection).
+        use_W = main_bilinear_W is not None
+
+        def _sim(a, b):
+            a = main_bilinear_W(a) if use_W else a
+            s = cosine_similarity_from_normalized(a, b)
+            return s if use_W else s / tau
+
+        def _gram(a, bt):
+            a = main_bilinear_W(a) if use_W else a
+            g = torch.matmul(a, bt)
+            return g if use_W else g / tau
+
         # stopgrad_positive_h: cut the encoder-side backward edge of the
         # positive only. `hy_norm` keeps gradient in every negative term
         # below (cross-batch f↔h, and h↔h via hx_norm/orig_norm).
         hy_pos = hy_norm.detach() if sg_pos else hy_norm
-        log_pos = cosine_similarity_from_normalized(hy_pos, hy_hat_norm) / tau
+        log_pos = _sim(hy_pos, hy_hat_norm)
 
-        sims_xx = cosine_similarity_from_normalized(hx_norm.unsqueeze(3), hx_norm.unsqueeze(2))
+        sims_xx = _sim(hx_norm.unsqueeze(3), hx_norm.unsqueeze(2))
         mask_mat = ~torch.eye(C, dtype=torch.bool, device=sims_xx.device)
         mask_mat = mask_mat.view(1, 1, C, C)
         log_neg_xx = torch.logsumexp(
-            (sims_xx / tau).masked_fill(~mask_mat, neg_inf), dim=2
+            sims_xx.masked_fill(~mask_mat, neg_inf), dim=2
         )
 
-        sims_zy = cosine_similarity_from_normalized(hz_hat_norm.unsqueeze(3), hy_hat_norm.unsqueeze(2))
-        log_neg_zy = torch.logsumexp(sims_zy / tau, dim=2)
+        sims_zy = _sim(hz_hat_norm.unsqueeze(3), hy_hat_norm.unsqueeze(2))
+        log_neg_zy = torch.logsumexp(sims_zy, dim=2)
 
         # (B) all-time within-series term: (h_t, h_l) ∀ l ≠ t. Byte-for-β.
         t_idx = torch.arange(T - 1, device=orig_norm.device).view(T - 1, 1)
         l_idx = torch.arange(T, device=orig_norm.device).view(1, T)
-        sims_hh_all = torch.matmul(
+        sims_hh_all = _gram(
             hx_norm.permute(0, 2, 1, 3),     # [B, C, T-1, H]  (h_t)
             orig_norm.permute(0, 2, 3, 1),   # [B, C, H, T]    (h_l)
         )                                     # [B, C, T-1, T]
         drop_self = (l_idx == t_idx).view(1, 1, T - 1, T)
         log_neg_hh_all = torch.logsumexp(
-            (sims_hh_all / tau).masked_fill(drop_self, neg_inf), dim=3
+            sims_hh_all.masked_fill(drop_self, neg_inf), dim=3
         ).permute(0, 2, 1)                    # [B, T-1, C]
 
         # Cross-batch f↔h negative — byte-for-β's `log_neg_cross_batch`.
@@ -1399,11 +1428,11 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         mask_batch = mask_batch.view(B, B, 1, 1)
         hy_p = hy_norm.permute(1, 2, 0, 3)          # [T-1, C, B, H]  h_{t+1}
         hy_hat_p = hy_hat_norm.permute(1, 2, 0, 3)  # [T-1, C, B, H]  f_t
-        sims_cross_batch = torch.matmul(
+        sims_cross_batch = _gram(
             hy_hat_p, hy_p.transpose(-2, -1)        # [T-1, C, B, B]
         ).permute(2, 3, 0, 1).contiguous()          # [B, B, T-1, C]
         log_neg_cross_batch = torch.logsumexp(
-            (sims_cross_batch / tau).masked_fill(~mask_batch, neg_inf), dim=1
+            sims_cross_batch.masked_fill(~mask_batch, neg_inf), dim=1
         )
 
         # NEW: all-time cross-series h↔h — LSE_{b'≠b, ∀l} cos(h_{b,t}, h_{b',l})/τ.
@@ -1417,6 +1446,12 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         # launches). The anchor's own series (b'=b) is excluded entirely.
         anchor = hx_norm.permute(0, 2, 1, 3).contiguous()    # [B, C, T-1, H]  (h_t)
         src = orig_norm.permute(0, 2, 1, 3).contiguous()      # [B, C, T,   H]  (h_l, ∀l)
+        # Bilinear (#350): pre-project the anchor h_t by W and run the Gram with
+        # τ=1, so (W h_t)·h_l = h_tᵀ W h_l matches the other terms' convention.
+        # The projection is a normal autograd op outside the chunk loop / fused
+        # Function, so the W-gradient flows without touching their backward.
+        anchor_run = main_bilinear_W(anchor) if use_W else anchor
+        tau_run = 1.0 if use_W else tau
         b_all = torch.arange(B, device=orig_norm.device)
         CH = int(os.environ.get('XSHH_ALLT_CHUNK', '8'))
         # Optional speedups (#327), both default OFF ⇒ the checkpoint loop in
@@ -1428,16 +1463,16 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             and dist.get_world_size() > 1)
 
         if shard:
-            run = _XsAlltShardedLSE.apply(anchor, src, tau, CH)
+            run = _XsAlltShardedLSE.apply(anchor_run, src, tau_run, CH)
         elif fused:
-            run = _XsAlltFusedLSE.apply(anchor, src, tau, CH)
+            run = _XsAlltFusedLSE.apply(anchor_run, src, tau_run, CH)
         else:
             def _chunk_lse(anc, src_chunk, same_mask):
                 # anc [B,C,T-1,H], src_chunk [ch,C,T,H], same_mask [B,ch,1,1,1] bool.
                 gram = torch.matmul(
                     anc.unsqueeze(1),                             # [B, 1, C, T-1, H]
                     src_chunk.permute(0, 1, 3, 2).unsqueeze(0),   # [1, ch, C, H, T]
-                ) / tau                                           # [B, ch, C, T-1, T]
+                ) / tau_run                                       # [B, ch, C, T-1, T]
                 gram = gram.masked_fill(same_mask, neg_inf)
                 return torch.logsumexp(torch.logsumexp(gram, dim=4), dim=1)  # [B, C, T-1]
 
@@ -1445,7 +1480,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             for s in range(0, B, CH):
                 e = min(s + CH, B)
                 same = (b_all.view(B, 1) == b_all[s:e].view(1, e - s)).view(B, e - s, 1, 1, 1)
-                chunk_lse = checkpoint(_chunk_lse, anchor, src[s:e], same, use_reentrant=False)
+                chunk_lse = checkpoint(_chunk_lse, anchor_run, src[s:e], same, use_reentrant=False)
                 run = chunk_lse if run is None else torch.logsumexp(
                     torch.stack([run, chunk_lse], dim=0), dim=0)
         log_neg_xs_allt = run.permute(0, 2, 1)                # [B, T-1, C]
@@ -1924,6 +1959,17 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             'cosine_similarity_batch_full_hh_negs_xshh_allt':
         raise NotImplementedError(
             "stopgrad_positive_h is only implemented for loss_shape="
+            "'cosine_similarity_batch_full_hh_negs_xshh_allt'; got "
+            f"{train_config.get('loss_shape')!r}.")
+
+    # Guard: the learnable log-bilinear W (#350) is applied inside the
+    # xshh_allt branch only. Any other loss_shape reaching here with a W
+    # passed would have silently trained on the τ-scaled dot product — fail
+    # loud instead of ignoring the parameter.
+    if main_bilinear_W is not None and train_config.get('loss_shape') != \
+            'cosine_similarity_batch_full_hh_negs_xshh_allt':
+        raise NotImplementedError(
+            "main_bilinear_W is only implemented for loss_shape="
             "'cosine_similarity_batch_full_hh_negs_xshh_allt'; got "
             f"{train_config.get('loss_shape')!r}.")
 

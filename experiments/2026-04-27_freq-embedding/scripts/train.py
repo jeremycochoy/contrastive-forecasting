@@ -433,6 +433,18 @@ def parse_args():
                         "the same sequence's other steps (literal full batch×time "
                         "grid; correlated negatives ⇒ approximate bound). "
                         "Cross-sequence Gram chunked via env CPC_ALL_CHUNK (8).")
+    p.add_argument("--main-loss-bilinear", action="store_true",
+                   help="#350: replace the main contrastive loss similarity "
+                        "exp(uᵀv/τ) with the learnable log-bilinear exp(uᵀ W v) "
+                        "(τ dropped, W carries the scale), mirroring the CPC "
+                        "term's W₁. Adds an nn.Linear(H,H,bias=False) `main_w`, "
+                        "initialised to (1/τ₀)·I (--main-bilinear-init-tau) so "
+                        "the run starts exactly at the τ=τ₀ baseline, and "
+                        "excluded from weight decay (the τ analog it replaces is "
+                        "a fixed scalar). Only for the xshh_allt loss_shape.")
+    p.add_argument("--main-bilinear-init-tau", type=float, default=0.10,
+                   help="τ₀ for the --main-loss-bilinear init W=(1/τ₀)·I "
+                        "(default 0.10, matching the #348 τ baseline).")
     p.add_argument("--no-main-contrastive-loss", action="store_true",
                    help="Drop the main contrastive loss entirely; train only on "
                         "the auxiliary terms (--cpc-infonce-weight and/or "
@@ -824,6 +836,8 @@ def main():
             "objective would be empty; pass --cpc-infonce-weight and/or "
             "--align-loss-weight > 0.")
     model_config["cpc_infonce"] = args.cpc_infonce_weight > 0
+    model_config["main_loss_bilinear"] = bool(args.main_loss_bilinear)
+    model_config["main_bilinear_init_tau"] = args.main_bilinear_init_tau
     model_config["qk_norm"] = bool(args.qk_norm)
     model_config["attn_out_norm"] = bool(args.attn_out_norm)
     model_config["log_attn_amplitude"] = bool(args.log_attn_amplitude)
@@ -836,10 +850,23 @@ def main():
     if args.tau is not None:
         LOSS_SPEC.train_configuration["contrastive_divergence_temperature"] = args.tau
     model = ConfigurableModel(**model_config).to(device)
+    if args.main_loss_bilinear:
+        # #350: the bilinear W is the main loss's temperature/scale analog;
+        # like the fixed scalar τ it replaces, it is excluded from weight decay
+        # so the 0.1 decay does not pull it off its (1/τ₀)·I init. Every other
+        # parameter keeps the standard decay.
+        decayed = [p for n, p in model.named_parameters()
+                   if n != "main_w.weight"]
+        param_groups = [
+            {"params": decayed, "weight_decay": args.weight_decay},
+            {"params": [model.main_w.weight], "weight_decay": 0.0},
+        ]
+    else:
+        param_groups = [{"params": list(model.parameters()),
+                         "weight_decay": args.weight_decay}]
     optimizer = optim.AdamW(
-        model.parameters(),
+        param_groups,
         lr=args.lr,
-        weight_decay=args.weight_decay,
         betas=(args.adam_beta1, args.adam_beta2),
     )
 
@@ -1106,7 +1133,9 @@ def main():
             else:
                 loss = contrastive_latent_loss(
                     (f_lat, o_lat), validation=False,
-                    spec=LOSS_SPEC, tau_override=tau_tensor_loss)
+                    spec=LOSS_SPEC, tau_override=tau_tensor_loss,
+                    main_bilinear_W=(model.main_w
+                                     if args.main_loss_bilinear else None))
             # CPC InfoNCE auxiliary (#344): total = contrastive + λ·L_cpc,
             # equal weight at λ=1. f_lat is the AR context h_t (4-D here; the
             # cpc_multistep stack is 5-D and returns earlier in the loss), o_lat

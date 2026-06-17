@@ -557,10 +557,12 @@ def load_models(args, device):
         print(f"  [eval] auto-detected patch_stats={args.patch_stats}")
     BACKBONE_CONFIG["patch_stats_kind"] = args.patch_stats
     backbone = ConfigurableModel(**BACKBONE_CONFIG)
-    # CPC InfoNCE backbones (#344) carry a learnable `cpc_w1.*` used ONLY by
-    # the pretraining auxiliary loss; it has no role at eval. Drop it so the
-    # strict load matches the eval-time backbone (built without it).
-    sd = {k: v for k, v in sd.items() if not k.startswith("cpc_w1")}
+    # CPC InfoNCE backbones (#344) carry a learnable `cpc_w1.*`, and the #350
+    # bilinear-main-loss backbones a `main_w.*`, both used ONLY by the
+    # pretraining loss with no role at eval. Drop them so the strict load
+    # matches the eval-time backbone (built without them).
+    sd = {k: v for k, v in sd.items()
+          if not k.startswith("cpc_w1") and not k.startswith("main_w")}
     backbone.load_state_dict(sd)
     backbone = backbone.to(device)
     backbone.eval()
