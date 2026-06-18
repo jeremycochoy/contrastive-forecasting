@@ -747,9 +747,12 @@ def contrastive_latent_loss(predicted_position, validation, spec,
     an ``nn.Linear(H, H, bias=False)`` that replaces every similarity
     ``uᵀv / τ`` in the main loss with the log-bilinear ``uᵀ W v`` (τ
     dropped, ``W`` carries the scale), exactly as the CPC term scores
-    ``eᵀ W₁ h``. ``W`` is applied to the first argument of each similarity;
-    at ``W = (1/τ)·I`` the loss equals the τ baseline byte-for-byte. Only
-    implemented for the ``xshh_allt`` loss shape (raises otherwise).
+    ``eᵀ W₁ h``. ``W`` multiplies the ANCHOR of each InfoNCE term — the
+    autoregressive forecast ``f_t`` for the forecast-anchored terms (so the
+    positive and its cross-batch negatives both score ``s(f_t, h) = f_tᵀ Wᵀ
+    h`` with W on the same ``f_t``), the latent ``h_t`` for the h↔h
+    uniformity terms. At ``W = (1/τ)·I`` the loss equals the τ baseline
+    byte-for-byte. Only implemented for the ``xshh_allt`` loss shape.
     """
     forecasted_latent, original_latent = predicted_position
     train_config = spec.train_configuration
@@ -1375,14 +1378,20 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         # within-series h↔h is the kept all-time `log_neg_hh_all`). Numerically
         # stable logsumexp; --pos-in-denominator supported via the shared tail.
         neg_inf = float('-inf')
-        # #350 learnable log-bilinear: replace every τ-scaled dot product
-        # uᵀv/τ with uᵀ W v (W applied to the FIRST argument of each
-        # similarity, τ dropped). `_sim` is the elementwise H-reduction,
-        # `_gram` the matmul (Gram) form. At W=(1/τ)·I both reduce to the τ
-        # baseline byte-for-byte, so the `main_bilinear_W is None` path is the
-        # historical objective unchanged. The xs_allt term reuses the existing
-        # chunked/checkpointed Gram by pre-projecting its anchor and passing
-        # τ=1 (autograd then carries the W-gradient through that projection).
+        # #350 learnable log-bilinear: replace every τ-scaled dot product uᵀv/τ
+        # with the log-bilinear uᵀ W v (τ dropped). `_sim`/`_gram` apply W to
+        # their FIRST argument, which must be the ANCHOR of the InfoNCE term —
+        # the FORECAST f_t for the forecast-anchored terms (positive,
+        # cross-batch f↔h, the f↔f term), so the autoregressive forecast is
+        # scored as s(f_t, h) = f_tᵀ Wᵀ h with the SAME W on f_t in the
+        # numerator and its denominator (an asymmetric W on the wrong side makes
+        # positive and negatives incomparable); and the latent h_t for the
+        # h↔h uniformity terms (no forecast to carry W). At W=(1/τ)·I every
+        # term reduces to the τ baseline byte-for-byte, so the
+        # `main_bilinear_W is None` path is the historical objective unchanged.
+        # The xs_allt term reuses the existing chunked/checkpointed Gram by
+        # pre-projecting its anchor and passing τ=1 (autograd then carries the
+        # W-gradient through that projection).
         use_W = main_bilinear_W is not None
 
         def _sim(a, b):
@@ -1395,11 +1404,13 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             g = torch.matmul(a, bt)
             return g if use_W else g / tau
 
-        # stopgrad_positive_h: cut the encoder-side backward edge of the
-        # positive only. `hy_norm` keeps gradient in every negative term
-        # below (cross-batch f↔h, and h↔h via hx_norm/orig_norm).
+        # Positive s(f_t, h_{t+1}): W on the FORECAST f_t (hy_hat_norm), same as
+        # the cross-batch negatives below, so the InfoNCE is coherent under an
+        # asymmetric W. stopgrad_positive_h cuts the encoder-side backward edge
+        # of the positive target h_{t+1} only; `hy_norm` keeps gradient in every
+        # negative term (cross-batch f↔h, and h↔h via hx_norm/orig_norm).
         hy_pos = hy_norm.detach() if sg_pos else hy_norm
-        log_pos = _sim(hy_pos, hy_hat_norm)
+        log_pos = _sim(hy_hat_norm, hy_pos)
 
         sims_xx = _sim(hx_norm.unsqueeze(3), hx_norm.unsqueeze(2))
         mask_mat = ~torch.eye(C, dtype=torch.bool, device=sims_xx.device)
