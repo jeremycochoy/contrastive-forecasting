@@ -90,7 +90,7 @@ def main():
                  "dashed = enc-6 reference)", fontsize=13)
     fig.tight_layout(rect=[0, 0, 1, 0.96])
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
-    fig.savefig(OUT, dpi=110, bbox_inches="tight")
+    fig.savefig(OUT, dpi=135, bbox_inches="tight")
     print("wrote", os.path.abspath(OUT))
 
 
