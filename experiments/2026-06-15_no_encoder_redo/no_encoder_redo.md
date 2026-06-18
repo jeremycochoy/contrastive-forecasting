@@ -19,10 +19,11 @@ seasonal-naive forecast's error; lower is better, 1.0 = seasonal-naive.*
 
 ## Result
 
-![Three panels of GM-Relative MASE (GIFT-Eval full-97), by head × checkpoint.
-Left and middle: the encoder-depth ladder {0 = no encoder, 3, 6} for the base
-loss and for + CPC. Right: the no-encoder loss comparison — base vs + CPC vs
-+ CPC_All.](plots/gm_summary.png)
+![Three panels of GM-Relative MASE (GIFT-Eval full-97), grouped by head ×
+checkpoint. Left: the encoder-depth ladder {0 = no encoder, 3, 6} for the base
+loss. Middle: every + CPC arm side by side — no-encoder + CPC and + CPC_All
+beside the enc-3 and enc-6 + CPC backbones. Right: the no-encoder loss comparison
+— base vs + CPC vs + CPC_All.](plots/gm_summary.png)
 
 GM-Relative MASE (GIFT-Eval full-97; lower is better). Encoder depth 0 = no
 encoder (this work); 3 and 6 = the 3- and 6-layer-encoder backbones.
@@ -68,16 +69,18 @@ checkpoint vs enc-3).
 
 ## Training curves
 
-![Four log-log panels: contrastive reference loss, CPC term value, 1−R², and
-1−AUC. Solid = no encoder (blue base / red + CPC / green + CPC_All); dashed =
-enc-6 reference (blue base / orange + CPC).](plots/training_dynamics.png)
+![Eight log-log panels. Top row: contrastive reference loss, CPC InfoNCE term
+value, ratio gap (1−ff)/(1−fp), U_batch. Bottom row: U_temporal, 1−R²_naive,
+1−R²_random, 1−retrieval AUC. Solid = no encoder (blue base / red + CPC / green
++ CPC_All); dashed = enc-6 reference (cyan base / orange + CPC).](plots/training_dynamics.png)
 
-The CPC term's logged value (top-right panel) is ≈3–6 for + CPC and ≈6–9 for
-+ CPC_All across the no-encoder runs, and falls below 10⁻³ by about step 1,000 in
-the encoder'd run. (The + CPC and + CPC_All term values are on different scales —
-their candidate sets differ in size.) Across training the no-encoder + CPC and
-+ CPC_All runs record a lower contrastive reference loss, lower 1−R², and lower
-1−AUC than the no-encoder base run (the other three panels).
+The CPC term's logged value (the CPC InfoNCE term value panel) is ≈3–6 for + CPC
+and ≈6–10 for + CPC_All across the no-encoder runs, and falls below 10⁻³ by about
+step 800 in the encoder'd reference. (The + CPC and + CPC_All term values are on
+different scales — their candidate sets differ in size.) Across training the
+no-encoder + CPC and + CPC_All runs record a lower contrastive reference loss,
+lower 1−R² (both the naive and random panels), and lower 1−AUC than the
+no-encoder base run.
 
 From best-loss to last checkpoint, the no-encoder + CPC GM changes by ≤0.007
 (2L 1.168→1.165, 6L 1.153→1.160); the no-encoder base GM is lower at the last

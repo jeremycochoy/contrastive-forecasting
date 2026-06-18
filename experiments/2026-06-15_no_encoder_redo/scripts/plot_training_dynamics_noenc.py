@@ -28,11 +28,14 @@ OUT = os.path.join(os.path.dirname(__file__), "..", "plots", "training_dynamics.
 SMOOTH = 25
 START_STEP = 100
 
-# The four panels the report discusses; kept to 2×2 so each is legible.
 PANELS = [
     ("loss_tau_ref", "contrastive reference loss (norm-InfoNCE τ=0.07)  (↓)", lambda v: v),
     ("cpc_aux",      "CPC InfoNCE term value  (CPC / CPC_All arms)", lambda v: v),
+    ("gap_ratio",    "ratio gap (1−ff)/(1−fp)  (↓→0)", lambda v: v),
+    ("u_batch",      "U_batch — batch-wise used dims  (↑)", lambda v: v),
+    ("u_temporal",   "U_temporal — time-wise used dims  (↑)", lambda v: v),
     ("r2_naive",     "1 − R²_naive  (↓)", lambda v: 1 - v),
+    ("r2_random",    "1 − R²_random  (↓)", lambda v: 1 - v),
     ("auc",          "1 − retrieval AUC  (↓)", lambda v: 1 - v),
 ]
 
@@ -62,7 +65,7 @@ def smooth(y, w):
 
 
 def main():
-    fig, axes = plt.subplots(2, 2, figsize=(14, 9))
+    fig, axes = plt.subplots(2, 4, figsize=(22, 10))
     for ax in axes.flat[len(PANELS):]:
         ax.set_visible(False)
     for ax, (col, title, tf) in zip(axes.flat, PANELS):
