@@ -65,7 +65,7 @@ def smooth(y, w):
 
 
 def main():
-    fig, axes = plt.subplots(2, 4, figsize=(22, 10))
+    fig, axes = plt.subplots(4, 2, figsize=(14, 20))
     for ax in axes.flat[len(PANELS):]:
         ax.set_visible(False)
     for ax, (col, title, tf) in zip(axes.flat, PANELS):
@@ -82,15 +82,16 @@ def main():
                 ax.plot(xs, ys, color=c, ls=ls, lw=1.5, label=lab)
         ax.set_xscale("log")
         ax.set_yscale("log")
-        ax.set_title(title, fontsize=10)
-        ax.set_xlabel("step")
+        ax.set_title(title, fontsize=13)
+        ax.set_xlabel("step", fontsize=11)
+        ax.tick_params(labelsize=10)
         ax.grid(alpha=0.3, which="both")
-        ax.legend(fontsize=8)
+        ax.legend(fontsize=11)
     fig.suptitle("No-encoder training dynamics (log-log; solid = no-encoder base/+CPC/+CPC_All, "
-                 "dashed = enc-6 reference)", fontsize=13)
-    fig.tight_layout(rect=[0, 0, 1, 0.96])
+                 "dashed = enc-6 reference)", fontsize=15)
+    fig.tight_layout(rect=[0, 0, 1, 0.975])
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
-    fig.savefig(OUT, dpi=135, bbox_inches="tight")
+    fig.savefig(OUT, dpi=120, bbox_inches="tight")
     print("wrote", os.path.abspath(OUT))
 
 

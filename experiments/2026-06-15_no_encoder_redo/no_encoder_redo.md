@@ -12,7 +12,7 @@ Without the encoder the base loss has the highest error; either CPC term brings 
 
 ![Training diagnostics (log-log, 8 panels): no-encoder base / +CPC / +CPC_All (solid) vs the enc-6 reference (dashed)](plots/training_dynamics.png)
 
-Across the no-encoder runs, the CPC arms record a lower contrastive reference loss, lower 1−R² (naive and random), lower 1−AUC, and lower ratio gap than base, with higher U_batch and slightly lower U_temporal. In the panels, ff and fp are the forecast-to-future and forecast-to-present cosines (so the ratio gap (1−ff)/(1−fp) falls toward 0 as the positive separates); R²_naive / R²_random measure how much of the next embedding the forecast explains, against a copy-the-present / random-embedding baseline; U_batch / U_temporal are the fractions of embedding dimensions that vary across the batch / across time; retrieval AUC ranks the positive against the negatives; the reference loss is a fixed τ=0.07 normalised-InfoNCE diagnostic, distinct from the τ 0.10 training objective. The two CPC term-value curves are not comparable — the arms sum over candidate sets of different sizes.
+Across the no-encoder runs, the CPC arms record a lower contrastive reference loss, lower 1−R², lower 1−AUC, and lower ratio gap than base, with higher U_batch and slightly lower U_temporal. (The two CPC term-value curves are not comparable — the arms sum over candidate sets of different sizes; panel definitions are in *Metrics*.)
 
 ## Protocol
 
@@ -61,3 +61,7 @@ GM-Relative MASE (GIFT-Eval full-97; lower is better). Encoder depth 0 = no enco
 | + CPC, enc-3 | 1.185 / 1.153 | 1.158 / 1.144 |
 | + CPC, enc-6 | 1.179 / 1.180 | 1.158 / 1.162 |
 | + CPC_All, **no encoder** | **1.177 / 1.171** | **1.182 / 1.168** |
+
+## Metrics
+
+Training-curve panels: **ff** and **fp** are the forecast-to-future and forecast-to-present cosines, so the ratio gap (1−ff)/(1−fp) falls toward 0 as the positive separates; **R²_naive / R²_random** measure how much of the next embedding the forecast explains, against a copy-the-present / random-embedding baseline; **U_batch / U_temporal** are the fractions of embedding dimensions that vary across the batch / across time; **retrieval AUC** ranks the positive against the negatives; the **reference loss** is a fixed τ=0.07 normalised-InfoNCE diagnostic, distinct from the τ 0.10 training objective.
