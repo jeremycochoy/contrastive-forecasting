@@ -30,6 +30,10 @@ L_cpc = − log(  exp(e_{t+1}ᵀ W₁ h_t)  /  Σ_{e_j ∈ C}  exp(e_jᵀ W₁ h
 
 The positive sits in the denominator (normalised InfoNCE ≥ 0), summed equal-weight, no stop-gradient, no temperature (`W₁` carries the scale). The candidate set `C` differs by arm: **+ CPC** uses the matched-step cross-batch embeddings plus the same sequence's other-step embeddings; **+ CPC_All** uses the positive plus every other sequence's embeddings at every step (the full marginal `p(x_{t+1})` of van den Oord Eq. 4, whose negatives are independent of the context `h_t`).
 
+## Metrics
+
+Training-curve panels: **ff** and **fp** are the forecast-to-future and forecast-to-present cosines, so the ratio gap (1−ff)/(1−fp) falls toward 0 as the positive separates; **R²_naive / R²_random** measure how much of the next embedding the forecast explains, against a copy-the-present / random-embedding baseline; **U_batch / U_temporal** are the fractions of embedding dimensions that vary across the batch / across time; **retrieval AUC** ranks the positive against the negatives; the **reference loss** is a fixed τ=0.07 normalised-InfoNCE diagnostic, distinct from the τ 0.10 training objective.
+
 ## Paired bootstrap
 
 ![Paired-bootstrap Δ between arms, 90% intervals, one panel per head and checkpoint; filled marker = interval excludes zero](plots/deltas_forest.png)
@@ -61,7 +65,3 @@ GM-Relative MASE (GIFT-Eval full-97; lower is better). Encoder depth 0 = no enco
 | + CPC, enc-3 | 1.185 / 1.153 | 1.158 / 1.144 |
 | + CPC, enc-6 | 1.179 / 1.180 | 1.158 / 1.162 |
 | + CPC_All, **no encoder** | **1.177 / 1.171** | **1.182 / 1.168** |
-
-## Metrics
-
-Training-curve panels: **ff** and **fp** are the forecast-to-future and forecast-to-present cosines, so the ratio gap (1−ff)/(1−fp) falls toward 0 as the positive separates; **R²_naive / R²_random** measure how much of the next embedding the forecast explains, against a copy-the-present / random-embedding baseline; **U_batch / U_temporal** are the fractions of embedding dimensions that vary across the batch / across time; **retrieval AUC** ranks the positive against the negatives; the **reference loss** is a fixed τ=0.07 normalised-InfoNCE diagnostic, distinct from the τ 0.10 training objective.
