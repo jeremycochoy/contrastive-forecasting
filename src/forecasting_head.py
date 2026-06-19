@@ -438,6 +438,16 @@ def extract_forecaster_latents(backbone, x, freq_ids=None,
 
         f_flat, _ = backbone.transformer(xr)
 
+        # #350 — bilinear-main-loss backbones train the positive as
+        # (W h_{t+1}) · f_t, so the predicted next encoder latent (the maximum-
+        # correlation direction of h against f under that score) is Wᵀ·f_t.
+        # Apply Wᵀ here so every downstream consumer (head, sliding-window
+        # forecast, latent rollout) sees the actual predicted latent, not the
+        # raw forecaster output. main_w is nn.Linear (forward = x @ W.T), so
+        # Wᵀ·x is `x @ main_w.weight`. No-op for non-bilinear backbones.
+        if getattr(backbone, 'main_loss_bilinear', False):
+            f_flat = f_flat @ backbone.main_w.weight
+
     return f_flat.detach(), x_norm.detach()
 
 
@@ -730,8 +740,17 @@ def rollout_latent(backbone, encoder_latents, n_future_tokens):
                 x = layer(x, tgt_mask=causal_mask, tgt_is_causal=True)
             x = fcst_up_proj(x)  # back to dimension_e
 
-            # x[:, -1, :] is f[-1] ≈ e[next]
-            new_token = x[:, -1:, :]  # (B*C, 1, H)
+            # #350 — bilinear-main-loss backbones: in run-1's placement the
+            # positive scores (W h_{t+1}) · f_t, so the predicted next encoder
+            # latent is Wᵀ·f_t. Apply Wᵀ PER STEP to the last forecaster output
+            # before both (a) appending to `generated` (the head's eval input)
+            # and (b) feeding back into `seq` as the next encoder latent. This
+            # is the per-step "apply the bilinear matrix on top of each
+            # individual forecast". No-op for non-bilinear backbones.
+            last = x[:, -1:, :]
+            if getattr(backbone, 'main_loss_bilinear', False):
+                last = last @ backbone.main_w.weight   # Wᵀ · f_t
+            new_token = last  # (B*C, 1, H)
             generated.append(new_token)
 
             # Append as next encoder latent (in dimension_e — matches `seq`).

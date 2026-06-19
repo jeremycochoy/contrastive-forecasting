@@ -1404,13 +1404,18 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             g = torch.matmul(a, bt)
             return g if use_W else g / tau
 
-        # Positive s(f_t, h_{t+1}): W on the FORECAST f_t (hy_hat_norm), same as
-        # the cross-batch negatives below, so the InfoNCE is coherent under an
-        # asymmetric W. stopgrad_positive_h cuts the encoder-side backward edge
-        # of the positive target h_{t+1} only; `hy_norm` keeps gradient in every
-        # negative term (cross-batch f↔h, and h↔h via hx_norm/orig_norm).
+        # Positive s(f_t, h_{t+1}) = (W h_{t+1}) · f_t = f_tᵀ W h_{t+1}: W on
+        # the ENCODER-SIDE target h_{t+1}. The cross-batch f↔h negative below
+        # scores (W f_t) · h'_{t+1} = f_tᵀ Wᵀ h'_{t+1}, so positive and negative
+        # use bilinear forms transposed of each other — equivalent up to a
+        # transpose for a free learnable W. At init W = (1/τ₀)·I is symmetric so
+        # both forms coincide. Downstream extracts the predicted next encoder
+        # latent as Wᵀ·f_t (the maximum-correlation direction of h against f
+        # under (W h)·f), applied per step in the autoregressive rollout.
+        # stopgrad_positive_h cuts the encoder-side backward edge of h_{t+1}
+        # only; `hy_norm` keeps gradient in every negative term.
         hy_pos = hy_norm.detach() if sg_pos else hy_norm
-        log_pos = _sim(hy_hat_norm, hy_pos)
+        log_pos = _sim(hy_pos, hy_hat_norm)
 
         sims_xx = _sim(hx_norm.unsqueeze(3), hx_norm.unsqueeze(2))
         mask_mat = ~torch.eye(C, dtype=torch.bool, device=sims_xx.device)
