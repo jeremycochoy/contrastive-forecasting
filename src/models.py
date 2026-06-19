@@ -5,6 +5,7 @@ Contains the ConfigurableModel (configurable encoder + transformer backbone)
 and helper functions for batch generation and metric computation.
 """
 
+import copy
 import math
 import torch
 import torch.nn.functional as F
@@ -81,6 +82,8 @@ class ConfigurableModel(torch.nn.Module):
                  qk_norm: bool = False,
                  attn_out_norm: bool = False,
                  log_attn_amplitude: bool = False,
+                 ema_embedding: bool = False,
+                 ema_encoder: bool = False,
                  channel_mixing_kind='simple', channel_mixing_n_heads=8):
         super().__init__()
         self.C = C
@@ -239,6 +242,100 @@ class ConfigurableModel(torch.nn.Module):
                 "(expected 'simple' or 'attention')")
         self.channel_mixing_kind = channel_mixing_kind
 
+        # BYOL/JEPA EMA-teacher representation path (#353). Optional non-trained
+        # copies of the patch-embedding (input_to_latent) and the encoder
+        # transformer stack. When enabled, the teacher's encoder output replaces
+        # the student's h_{t+1} as the main-contrastive positive (a SimSiam/BYOL
+        # target stop-grad with a slowly-moving teacher); negatives, the
+        # forecaster, and the CPC term stay on the student. Teacher is held in
+        # eval() mode regardless of `model.train()` so dropkey/dropout never
+        # touch it. Update via update_teacher(tau) after optimizer.step.
+        # Saved in state_dict; head-train / eval strip `teacher_*.*` before
+        # strict-loading (the teacher has no downstream role).
+        self.ema_embedding = bool(ema_embedding)
+        self.ema_encoder = bool(ema_encoder)
+        if self.ema_embedding:
+            self.teacher_input_to_latent = copy.deepcopy(
+                self.transformer.input_to_latent)
+            for p in self.teacher_input_to_latent.parameters():
+                p.requires_grad_(False)
+        if self.ema_encoder:
+            self.teacher_encoder_layers = torch.nn.ModuleList([
+                copy.deepcopy(lyr) for lyr in self.transformer.encoder_layers])
+            for p in self.teacher_encoder_layers.parameters():
+                p.requires_grad_(False)
+
+    def train(self, mode: bool = True):
+        super().train(mode)
+        # Teacher modules (#353) stay in eval mode so dropout / dropkey-style
+        # randomness never affects the target. BYOL pattern.
+        if getattr(self, 'ema_embedding', False):
+            self.teacher_input_to_latent.eval()
+        if getattr(self, 'ema_encoder', False):
+            self.teacher_encoder_layers.eval()
+        return self
+
+    @torch.no_grad()
+    def teacher_forward(self, xr):
+        """Run the teacher representation path on a prepared encoder input.
+
+        ``xr`` matches the output of :meth:`prepare_encoder_input` — shape
+        ``[B, T, C, encoder_input]``. Returns the teacher encoder-output
+        latent in the same ``[B, T, C, H]`` layout that the loss expects
+        for ``original_latent``.
+
+        Whichever component is not under EMA falls back to the student's
+        (no_grad still detaches it, matching the issue's stop-grad-on-target
+        spec). Encoder layers run with a clean causal mask — no dropkey,
+        no autocast tricks — so the target is a stable, full-precision
+        snapshot of the slow-moving teacher representation.
+        """
+        if not (self.ema_embedding or self.ema_encoder):
+            raise RuntimeError(
+                "teacher_forward() called without --ema-embedding or "
+                "--ema-encoder enabled")
+        embed = (self.teacher_input_to_latent if self.ema_embedding
+                 else self.transformer.input_to_latent)
+        enc_layers = (self.teacher_encoder_layers if self.ema_encoder
+                      else self.transformer.encoder_layers)
+        x = embed(xr)                            # [B, T, C, H]
+        B, T, C, H = x.size()
+        x = x.permute(0, 2, 1, 3).reshape(B * C, T, H)
+        # Mirror TransformerBlock.forward's causal-mask cache by lazily
+        # building a [T, T] mask on the right device/dtype.
+        causal = TransformerBlock._generate_square_subsequent_mask(T).to(
+            device=x.device, dtype=x.dtype)
+        # Last encoder layer in fp32 to match the student boundary precision.
+        n = len(enc_layers)
+        x = x.float()
+        for i, layer in enumerate(enc_layers):
+            if i == n - 1:
+                with torch.amp.autocast('cuda', enabled=False):
+                    x = x.float()
+                    x = layer(x, tgt_mask=causal.float(),
+                              tgt_is_causal=True)
+            else:
+                x = layer(x, tgt_mask=causal, tgt_is_causal=True)
+        x = x.float()
+        # Back to [B, T, C, H] in the layout the loss expects.
+        return x.reshape(B, C, T, H).permute(0, 2, 1, 3)
+
+    @torch.no_grad()
+    def update_teacher(self, tau: float):
+        """EMA-update teacher params: θ_T ← τ·θ_T + (1−τ)·θ_S.
+
+        Buffers (none on the layers here in practice — LayerNorm has none)
+        are hard-copied from the student each call. τ closer to 1 → slower
+        teacher; the issue ships τ=0.99 constant.
+        """
+        if self.ema_embedding:
+            _ema_update(self.teacher_input_to_latent,
+                        self.transformer.input_to_latent, tau)
+        if self.ema_encoder:
+            for t, s in zip(self.teacher_encoder_layers,
+                            self.transformer.encoder_layers):
+                _ema_update(t, s, tau)
+
     def tau(self):
         """Current contrastive temperature.
 
@@ -359,6 +456,14 @@ class ConfigurableModel(torch.nn.Module):
         x = self.channel_mixing_module(x)
         x = x.reshape(B, T, C, H)
         return x, x_original
+
+
+def _ema_update(teacher: torch.nn.Module, student: torch.nn.Module, tau: float):
+    """In-place θ_T ← τ·θ_T + (1−τ)·θ_S over params; hard-copy buffers."""
+    for t, s in zip(teacher.parameters(), student.parameters()):
+        t.data.mul_(tau).add_(s.data.detach(), alpha=1.0 - tau)
+    for t, s in zip(teacher.buffers(), student.buffers()):
+        t.data.copy_(s.data)
 
 
 def generate_random_batch(batch_size=16, T_raw=4096, C=4, seed=None, dimension=4):

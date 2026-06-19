@@ -575,7 +575,8 @@ def contrastive_latent_loss(predicted_position, validation, spec,
                             get_history=False, tau_override=None,
                             include_positive_in_denominator=False,
                             align_loss_weight=None,
-                            subtract_contrastive_floor=None):
+                            subtract_contrastive_floor=None,
+                            teacher_original_latent=None):
     """Compute the contrastive divergence loss.
 
     Args:
@@ -642,6 +643,16 @@ def contrastive_latent_loss(predicted_position, validation, spec,
     of sim(h_{t+1}, f_{t+1}) in the positive term (numerator and, with
     pos-in-denominator, denominator; negatives keep gradient on h).
     Forward value unchanged; xshh_allt loss shape only (raises otherwise).
+
+    ``teacher_original_latent`` (#353): when provided, an EMA-teacher copy
+    of the encoder output of the same input (shape matches
+    ``original_latent``). The teacher's h_{t+1} replaces the student's
+    as the main-contrastive POSITIVE (numerator and, with pos-in-denom,
+    denominator) — a slowly-moving target with implicit stop-grad
+    (the teacher carries no autograd graph). Negatives stay on the
+    student. Mutually exclusive with ``stopgrad_positive_h`` (the
+    teacher is the stop-grad). Only implemented for the xshh_allt
+    loss shape (raises otherwise).
     """
     forecasted_latent, original_latent = predicted_position
     train_config = spec.train_configuration
@@ -700,6 +711,18 @@ def contrastive_latent_loss(predicted_position, validation, spec,
     # objective; only implemented for the xshh_allt shape (guarded below).
     sg_pos = bool(train_config.get('stopgrad_positive_h', False))
 
+    # BYOL/JEPA EMA-teacher positive (#353): when a teacher latent is supplied,
+    # the encoder side of the main-contrastive positive comes from the slowly-
+    # moving teacher (h^T_{t+1}) instead of the student. The teacher tensor
+    # already carries no grad (computed under no_grad in the model), so this
+    # is the stop-grad-on-target version of `sg_pos` with a smoothed target.
+    # Negatives keep the student's `hy_norm`. Mutually exclusive with sg_pos:
+    # the trainer rejects both flags together (cleaner intent).
+    if teacher_original_latent is not None and sg_pos:
+        raise ValueError(
+            "teacher_original_latent and stopgrad_positive_h are mutually "
+            "exclusive: the teacher path IS the target stop-grad.")
+
     noise_sigma = train_config.get('contrastive_latent_noise')
     if noise_sigma is not None and not validation:
         forecasted_latent = forecasted_latent + torch.randn_like(forecasted_latent) * noise_sigma
@@ -714,6 +737,13 @@ def contrastive_latent_loss(predicted_position, validation, spec,
     hz_hat_norm = fore_norm[:, 1:, :, :]
     hx_norm = orig_norm[:, :-1, :, :]
     hy_norm = orig_norm[:, 1:, :, :]
+
+    # Teacher-side normalized positive (only used in the xshh_allt branch).
+    if teacher_original_latent is not None:
+        teacher_orig_norm = F.normalize(teacher_original_latent, p=2, dim=-1)
+        hy_teacher_norm = teacher_orig_norm[:, 1:, :, :]
+    else:
+        hy_teacher_norm = None
 
     if train_config.get('loss_shape') == 'cosine_similarity_old':
         positives = torch.exp(
@@ -1270,7 +1300,15 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         # stopgrad_positive_h: cut the encoder-side backward edge of the
         # positive only. `hy_norm` keeps gradient in every negative term
         # below (cross-batch f↔h, and h↔h via hx_norm/orig_norm).
-        hy_pos = hy_norm.detach() if sg_pos else hy_norm
+        # EMA teacher (#353): when a teacher positive is supplied, it
+        # replaces the student `hy_norm` ONLY inside `log_pos` (negatives
+        # below still consume the student's `hy_norm`).
+        if hy_teacher_norm is not None:
+            hy_pos = hy_teacher_norm  # already no-grad (computed under no_grad)
+        elif sg_pos:
+            hy_pos = hy_norm.detach()
+        else:
+            hy_pos = hy_norm
         log_pos = cosine_similarity_from_normalized(hy_pos, hy_hat_norm) / tau
 
         sims_xx = cosine_similarity_from_normalized(hx_norm.unsqueeze(3), hx_norm.unsqueeze(2))
@@ -1825,6 +1863,16 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             'cosine_similarity_batch_full_hh_negs_xshh_allt':
         raise NotImplementedError(
             "stopgrad_positive_h is only implemented for loss_shape="
+            "'cosine_similarity_batch_full_hh_negs_xshh_allt'; got "
+            f"{train_config.get('loss_shape')!r}.")
+
+    # Same guard for the EMA-teacher positive (#353): only the xshh_allt
+    # branch reads it; any other shape reaching here with a teacher latent
+    # would have silently trained on the student positive — fail loud.
+    if hy_teacher_norm is not None and train_config.get('loss_shape') != \
+            'cosine_similarity_batch_full_hh_negs_xshh_allt':
+        raise NotImplementedError(
+            "teacher_original_latent is only implemented for loss_shape="
             "'cosine_similarity_batch_full_hh_negs_xshh_allt'; got "
             f"{train_config.get('loss_shape')!r}.")
 

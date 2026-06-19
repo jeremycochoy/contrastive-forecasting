@@ -368,8 +368,12 @@ def main():
 
     # -- Load models -----------------------------------------------------------
     backbone = ConfigurableModel(**BACKBONE_CONFIG)
-    backbone.load_state_dict(
-        torch.load(args.backbone_path, map_location=device, weights_only=True))
+    sd = torch.load(args.backbone_path, map_location=device, weights_only=True)
+    # Strip pretraining-only state (#344 cpc_w1, #353 EMA teacher).
+    sd = {k: v for k, v in sd.items()
+          if not k.startswith("cpc_w1")
+          and not k.startswith("teacher_")}
+    backbone.load_state_dict(sd)
     backbone = backbone.to(device)
     backbone.eval()
     for param in backbone.parameters():
