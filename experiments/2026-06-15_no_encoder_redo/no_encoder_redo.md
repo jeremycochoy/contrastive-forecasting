@@ -8,9 +8,9 @@ We remove the encoder stack (`--num-encoder-layers 0`) so the forecaster reads t
 
 Without the encoder the base loss has the highest error; either CPC term brings the no-encoder backbone level with the 3- and 6-layer encoder backbones. GM-Relative MASE is the geometric mean over the 97 tasks of model error / seasonal-naive error (lower is better; 1.0 = seasonal-naive).
 
-![Per-domain GM-Relative MASE (best-loss), both heads: the three no-encoder losses against the enc-6 baseline and the seasonal-naive ring; closer to centre is better, log radial](plots/perdomain_radar.png)
+![Per-domain GM-Relative MASE (best-loss), both heads: no-encoder + CPC against the best plain encoder (enc-3 base) and the encoder'd + CPC (enc-3 + CPC), with the seasonal-naive ring; closer to centre is better, log radial](plots/perdomain_radar.png)
 
-By domain, the no-encoder base's gap is concentrated in Energy, Transport, and Web/CloudOps (its outermost lobes), where either CPC term pulls in to the enc-6 baseline; + CPC_All is the worst arm in Econ/Fin.
+By domain, the no-encoder + CPC arm tracks both encoder'd backbones, lagging mainly in Econ/Fin and running slightly ahead in Web/CloudOps.
 
 ## Training curves
 

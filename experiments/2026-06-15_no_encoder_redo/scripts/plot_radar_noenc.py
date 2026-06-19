@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Per-domain forecast-error radar (house style): GM-Relative MASE by GIFT-Eval
-domain, both heads, best-loss checkpoint. Profiles: the three no-encoder losses
-(base / +CPC / +CPC_All) against the enc-6 base backbone (dashed reference) and
-the seasonal-naive ring (1.0). Closer to centre is better; log radial axis.
-Per-task relative error from each arm's summary.txt; dataset->domain from
-all_results.csv. Writes plots/perdomain_radar.png.
+domain, both heads, best-loss checkpoint. Profiles isolate the encoder vs CPC
+question: the best plain-encoder backbone (enc-3 base, dashed reference) against
+the no-encoder + CPC arm and the encoder'd + CPC arm (enc-3 + CPC), plus the
+seasonal-naive ring (1.0). Closer to centre is better; log radial axis. Per-task
+relative error from each arm's summary.txt; dataset->domain from all_results.csv.
+Writes plots/perdomain_radar.png.
 """
 import csv
 import math
@@ -18,15 +19,15 @@ from matplotlib.ticker import FixedLocator, NullLocator
 
 W = "/home/jupyter/workspaces/contrastive-forecasting/experiments"
 E348 = f"{W}/2026-06-15_no_encoder_redo/results"
-E341 = f"{W}/2026-06-11_stopgrad_capacity/results"
+E339 = f"{W}/2026-06-10_stopgrad_positive/results"
+E344 = f"{W}/2026-06-13_cpc_infonce_aux/results"
 OUT = os.path.join(os.path.dirname(__file__), "..", "plots", "perdomain_radar.png")
 DOMAINS = ["Econ/Fin", "Energy", "Healthcare", "Nature", "Sales", "Transport", "Web/CloudOps"]
 # (label, results_dir, tag, colour, linestyle)
 ARMS = [
-    ("no-enc base",      E348, "allt08_xftrip_nobn_noenc_sgpos_qk_aon_b1024_base",   "#1f77b4", "-"),
-    ("no-enc + CPC",     E348, "allt08_xftrip_nobn_noenc_sgpos_qk_aon_b1024_cpc",    "#d62728", "-"),
-    ("no-enc + CPC_All", E348, "allt08_xftrip_nobn_noenc_sgpos_qk_aon_b1024_cpcall", "#2ca02c", "-"),
-    ("enc-6 base (ref)", E341, "allt08_xftrip_nobn_enc6_sgpos_qk_aon_b1024",         "0.45",    "--"),
+    ("enc-3 base (best encoder, no CPC)", E339, "allt08_xftrip_nobn_enc3_sgpos_qk_aon_b1024",       "0.45",    "--"),
+    ("no-encoder + CPC",                  E348, "allt08_xftrip_nobn_noenc_sgpos_qk_aon_b1024_cpc",  "#d62728", "-"),
+    ("enc-3 + CPC",                       E344, "allt08_xftrip_nobn_enc3_sgpos_qk_aon_b1024_cpc",   "#1f77b4", "-"),
 ]
 
 
@@ -89,9 +90,9 @@ def main():
         ax.yaxis.set_minor_locator(NullLocator())
         ax.set_rlabel_position(88)
         ax.tick_params(labelsize=8)
-    fig.legend(handles[0], handles[1], loc="upper center", ncol=5, fontsize=9, bbox_to_anchor=(0.5, 0.97))
-    fig.suptitle("GM-Relative MASE by GIFT-Eval domain (best-loss; closer to centre is better, log radial)",
-                 fontsize=12, y=1.02)
+    fig.legend(handles[0], handles[1], loc="upper center", ncol=4, fontsize=9, bbox_to_anchor=(0.5, 0.97))
+    fig.suptitle("GM-Relative MASE by GIFT-Eval domain (best-loss): no-encoder + CPC vs encoder'd backbones "
+                 "(closer to centre is better, log radial)", fontsize=11, y=1.02)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     fig.savefig(OUT, dpi=130, bbox_inches="tight")
