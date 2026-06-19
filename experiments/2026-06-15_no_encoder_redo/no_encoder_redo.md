@@ -43,6 +43,21 @@ GIFT-Eval full-97, with the 90% interval from resampling the 97-task list. One
 panel per head × checkpoint; one row per comparison. A filled marker marks an
 interval that excludes zero, an open marker one that spans it.](plots/deltas_forest.png)
 
+Paired-bootstrap Δ = GM(left) − GM(right), 90% interval (resampling the 97-task
+list with repeats):
+
+| comparison (left − right) | 2L best | 2L last | 6L best | 6L last |
+|---|--:|--:|--:|--:|
+| no-enc base − enc-3 base | +0.248 (+0.197, +0.312) | +0.084 (+0.059, +0.110) | +0.194 (+0.155, +0.242) | +0.076 (+0.053, +0.104) |
+| no-enc base − enc-6 base | +0.245 (+0.186, +0.314) | +0.050 (+0.023, +0.079) | +0.192 (+0.144, +0.249) | +0.046 (+0.018, +0.076) |
+| no-enc +CPC − enc-3 +CPC | −0.017 (−0.038, +0.004) | +0.011 (−0.001, +0.025) | −0.005 (−0.027, +0.017) | +0.016 (+0.004, +0.031) |
+| no-enc +CPC − enc-6 +CPC | −0.011 (−0.030, +0.009) | −0.016 (−0.033, +0.002) | −0.004 (−0.025, +0.016) | −0.002 (−0.019, +0.015) |
+| no-enc +CPC − no-enc base | −0.258 (−0.325, −0.200) | −0.099 (−0.124, −0.076) | −0.199 (−0.250, −0.156) | −0.079 (−0.106, −0.056) |
+| no-enc +CPC_All − no-enc base | −0.248 (−0.316, −0.190) | −0.092 (−0.114, −0.073) | −0.171 (−0.222, −0.122) | −0.071 (−0.094, −0.049) |
+| no-enc +CPC_All − no-enc +CPC | +0.009 (+0.000, +0.020) | +0.007 (−0.002, +0.015) | +0.029 (+0.011, +0.049) | +0.008 (−0.002, +0.019) |
+| no-enc +CPC_All − enc-3 +CPC | −0.007 (−0.032, +0.019) | +0.018 (+0.002, +0.035) | +0.023 (−0.006, +0.055) | +0.025 (+0.010, +0.041) |
+| no-enc +CPC_All − enc-6 +CPC | −0.001 (−0.025, +0.024) | −0.009 (−0.028, +0.011) | +0.024 (−0.006, +0.056) | +0.006 (−0.011, +0.024) |
+
 Reading the intervals: for the **base** loss, every no-encoder − encoder'd
 interval excludes zero — the no-encoder GM is higher, and more so at best-loss
 than at the last checkpoint. For **+ CPC**, those intervals span zero in seven of
