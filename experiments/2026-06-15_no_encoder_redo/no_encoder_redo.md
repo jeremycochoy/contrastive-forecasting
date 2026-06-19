@@ -20,7 +20,7 @@ Across the no-encoder runs, the CPC arms record a lower contrastive reference lo
 
 ## Protocol
 
-One backbone per arm, single seed, one RTX 4090. The shared recipe: a GRU patch-embedding, d_model 384 / 6 heads, a 6-layer full-width forecaster, the crossfade-triplet allt·0.8% data mix, qk-norm and attention-output norm, the `xshh_allt` contrastive loss (positive-in-denominator, floor subtraction), the encoder-side positive stop-gradient (`--stopgrad-positive-h`), τ 0.10, batch 1024, 12,500 steps, seed 20260520; the encoder stack removed with `--num-encoder-layers 0`. A backbone is patch-embedding (a GRU, one token per patch) → encoder stack → causal-transformer forecaster, trained by the contrastive objective to predict the next token's embedding.
+One backbone per arm, single seed. The shared recipe: a GRU patch-embedding, d_model 384 / 6 heads, a 6-layer full-width forecaster, the crossfade-triplet allt·0.8% data mix, qk-norm and attention-output norm, the `xshh_allt` contrastive loss (positive-in-denominator, floor subtraction), the encoder-side positive stop-gradient (`--stopgrad-positive-h`), τ 0.10, batch 1024, 12,500 steps, seed 20260520; the encoder stack removed with `--num-encoder-layers 0`. A backbone is patch-embedding (a GRU, one token per patch) → encoder stack → causal-transformer forecaster, trained by the contrastive objective to predict the next token's embedding.
 
 The arms differ only in the loss: **base** is the contrastive loss alone; **+ CPC** adds the CPC InfoNCE term (`--cpc-infonce-weight 1.0`); **+ CPC_All** widens its candidate set to the full marginal (`--cpc-infonce-negs cross`). To score a backbone we freeze it, train a fresh quantile forecasting head (once with two transformer layers, once with six), and evaluate on GIFT-Eval's 97 tasks at the best-loss checkpoint (lowest smoothed contrastive loss) and the last checkpoint (step 12,500). The enc-3 and enc-6 backbones use this identical recipe at encoder depth 3 and 6.
 
@@ -58,7 +58,7 @@ For the base loss, every no-encoder − encoder Δ excludes zero (no-encoder hig
 
 ## Results
 
-GM-Relative MASE (GIFT-Eval full-97; lower is better). Encoder depth 0 = no encoder (this work); 3 and 6 = the 3- and 6-layer encoder backbones.
+GM-Relative MASE (GIFT-Eval full-97; lower is better). Encoder depth 0 = no encoder; 3 and 6 = the 3- and 6-layer encoder backbones.
 
 | arm | 2L head, best / last | 6L head, best / last |
 |---|--:|--:|
