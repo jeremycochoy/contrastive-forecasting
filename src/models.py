@@ -298,7 +298,22 @@ class ConfigurableModel(torch.nn.Module):
                  else self.transformer.input_to_latent)
         enc_layers = (self.teacher_encoder_layers if self.ema_encoder
                       else self.transformer.encoder_layers)
-        x = embed(xr)                            # [B, T, C, H]
+        # GRU patch-embed OOMs at B=1024 even under no_grad (cuDNN workspace ~
+        # 17 GiB at B·T·C = 131 k sequences). The student's encoder chunks
+        # automatically only when self.training=True (see encoders.py
+        # PATCH_ENC_CHUNK); the teacher stays in eval() so we chunk explicitly
+        # over the batch dim here. Env-gated through the same TEACHER_EMBED_CHUNK
+        # knob (default = PATCH_ENC_CHUNK, then 1), so memory tuning lives in
+        # one place.
+        import os as _os
+        nchunk = int(_os.environ.get(
+            "TEACHER_EMBED_CHUNK",
+            _os.environ.get("PATCH_ENC_CHUNK", "1")))
+        if nchunk > 1 and xr.size(0) >= nchunk:
+            x = torch.cat([embed(chunk)
+                           for chunk in xr.chunk(nchunk, dim=0)], dim=0)
+        else:
+            x = embed(xr)                        # [B, T, C, H]
         B, T, C, H = x.size()
         x = x.permute(0, 2, 1, 3).reshape(B * C, T, H)
         # Mirror TransformerBlock.forward's causal-mask cache by lazily
