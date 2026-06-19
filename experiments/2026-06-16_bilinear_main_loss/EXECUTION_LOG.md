@@ -10,19 +10,31 @@ Operational notes (kept out of the report, per REPORT_STANDARD "science, not jou
   (`.../2026-06-15_no_encoder_redo/results/gift_eval_full_*_cpc*`) reproduce the
   #348 report exactly (2L 1.1678/1.1646, 6L 1.1532/1.1600) and drive the paired
   bootstrap, so no baseline retrain is needed.
-- **W multiplies the anchor of each InfoNCE term** — the autoregressive forecast
-  `f_t` for the forecast-anchored terms (positive + cross-batch f↔h + f↔f), the
-  latent `h_t` for the h↔h uniformity terms. The xs_allt cross-series Gram
+- **W placement (run-1, the canonical form).** The positive scores
+  `s(f_t, h_{t+1}) = (W h_{t+1}) · f_t = f_tᵀ W h_{t+1}` (W on the target
+  `h_{t+1}`). The cross-batch f↔h negative scores `(W f_t) · h'_{t+1} = f_tᵀ Wᵀ h'_{t+1}`
+  (W on the forecast). The two terms use bilinear forms transposed of each
+  other — equivalent up to a transpose for a free learnable W; at init
+  `W = (1/τ₀)·I` is symmetric so both forms coincide. The h↔h uniformity
+  terms keep `W` on their latent anchor `h_t`. The xs_allt cross-series Gram
   pre-projects its anchor and runs with τ=1 so the existing chunked/fused
   autograd backward is untouched.
-- **Bug fixed mid-run (2026-06-18 08:19):** the first launch put W on the
-  positive's TARGET `h_{t+1}` while the cross-batch negatives put W on the
-  forecast `f_t` — incoherent under an asymmetric W (numerator/denominator score
-  different maps, so the discrimination does not train; flagged in review). Fixed
-  so the positive also scores `s(f_t, h_{t+1}) = (W f_t)·h_{t+1}` (W on the
-  forecast), restarted from scratch. The W=(1/τ)·I correctness gate is unchanged
-  (the dot product is symmetric there). Buggy v1 artifacts archived under
-  `_buggy_positive_v1/`.
+- **Inference applies Wᵀ to the forecaster output, per step.** Under this
+  placement the predicted next encoder latent is `Wᵀ f_t` (the maximum-
+  correlation direction of `h` against `f` under `(W h)·f`). Implemented in
+  `extract_forecaster_latents` (covers the sliding-window value-rollout and
+  the head trainer's default path) and inside `rollout_latent` (per step,
+  applied to the new token before both `generated` and the recurrent
+  feed-back into `seq`). New gate `test_inference_bilinear_W.py` verifies
+  byte-equality with the baseline at W=I and a visible change at W≠I.
+- **Run history.** Run-1 (W on target, this form) ran ~9.3k steps then was
+  swapped at 2026-06-18 08:19 by a prior agent who misread the cross-side
+  use of W as incoherent and put W on the forecast in both terms (run-2).
+  Run-2 was started fresh and reached ~3.9k steps before being stopped
+  (2026-06-18 12:43, no clear sign of training-time instability, but the
+  formulation change was unnecessary). Reverted to run-1's loss code,
+  added the Wᵀ-per-step inference correction (the missing piece from
+  before), archived run-2 under `_run2_aborted/`, relaunched from scratch.
 - **W init (1/τ₀)·I = 10·I** so step 0 is the τ=0.10 baseline byte-for-byte; W
   then learns freely. **Excluded from weight decay** (it is the loss's
   temperature/scale analog; the scalar τ it replaces is fixed and not decayed —
