@@ -32,7 +32,7 @@ The positive sits in the denominator (normalised InfoNCE ≥ 0), summed equal-we
 
 ## Metrics
 
-Training-curve panels: **ff** and **fp** are the forecast-to-future and forecast-to-present cosines, so the ratio gap (1−ff)/(1−fp) falls toward 0 as the positive separates; **R²_naive / R²_random** measure how much of the next embedding the forecast explains, against a copy-the-present / random-embedding baseline; **U_batch / U_temporal** are the fractions of embedding dimensions that vary across the batch / across time; **retrieval AUC** ranks the positive against the negatives; the **reference loss** is a fixed τ=0.07 normalised-InfoNCE diagnostic, distinct from the τ 0.10 training objective.
+Training-curve panels: **ff** and **fp** are the forecast-to-future and forecast-to-present cosines, so the ratio gap (1−ff)/(1−fp) falls toward 0 as the positive separates; **R²_naive / R²_random** measure how much of the next embedding the forecast explains, against a copy-the-present / random-embedding baseline; **U_batch / U_temporal** are the fractions of embedding dimensions that vary across the batch / across time; **retrieval AUC** ranks the positive against the negatives; the **reference loss** is a fixed τ=0.07 normalised-InfoNCE diagnostic, distinct from the τ 0.10 training objective. Its panel shows the no-encoder arms only: the InfoNCE floor (the perfect-alignment minimum, `log(1 + N·e^(−1/τ))`) depends on the negative count `N`, and the enc-6 reference was logged with a different `N`, so its raw curve is not on the same scale.
 
 ## Paired bootstrap
 

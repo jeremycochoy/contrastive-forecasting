@@ -29,7 +29,7 @@ SMOOTH = 25
 START_STEP = 100
 
 PANELS = [
-    ("loss_tau_ref", "contrastive reference loss (norm-InfoNCE τ=0.07)  (↓)", lambda v: v),
+    ("loss_tau_ref", "contrastive reference loss, no-encoder arms (norm-InfoNCE τ=0.07)  (↓)", lambda v: v),
     ("cpc_aux",      "CPC InfoNCE term value  (CPC / CPC_All arms)", lambda v: v),
     ("gap_ratio",    "ratio gap (1−ff)/(1−fp)  (↓→0)", lambda v: v),
     ("u_batch",      "U_batch — batch-wise used dims  (↑)", lambda v: v),
@@ -70,6 +70,11 @@ def main():
         ax.set_visible(False)
     for ax, (col, title, tf) in zip(axes.flat, PANELS):
         for lab, (path, c, ls) in RUNS.items():
+            # The enc-6 reference's reference-loss is logged with a different
+            # negative count → a different InfoNCE floor, so its raw curve is
+            # not on the same scale as the no-encoder arms; omit it here.
+            if col == "loss_tau_ref" and "(ref)" in lab:
+                continue
             d = load(path)
             if not d or col not in d or "step" not in d:
                 continue
