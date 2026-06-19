@@ -118,13 +118,16 @@ class ConfigurableModel(torch.nn.Module):
         # Main-loss learnable log-bilinear W (#350): replaces the τ-scaled dot
         # product uᵀv/τ in the main contrastive loss with the log-bilinear uᵀWv
         # (τ dropped, W carries the scale), taking the same form as the CPC
-        # term's W₁. Registered here (like cpc_w1) so the optimizer and
-        # checkpoint capture it; it plays no role in the forward pass or the
-        # downstream head, so head-training and eval strip `main_w.*` before
-        # loading. Initialised to (1/τ₀)·I so the run starts exactly at the
-        # τ=τ₀ baseline, then W is free to learn off-diagonal/asymmetric
-        # structure and to rescale. Default off ⇒ the parameter is not created
-        # (state_dict byte-for-byte unchanged for every prior run).
+        # term's W₁. Registered here (like cpc_w1) so the optimizer and the
+        # checkpoint capture it. Unlike cpc_w1, this W IS used at inference:
+        # `extract_forecaster_latents` and `rollout_latent` apply Wᵀ to the
+        # forecaster output (Wᵀ·f_t is the predicted next encoder latent
+        # under (W h)·f), so the downstream head and the eval loader build
+        # the backbone with `main_loss_bilinear=True` and strict-load
+        # `main_w.*` rather than stripping it. Initialised to (1/τ₀)·I so
+        # the run starts exactly at the τ=τ₀ baseline. Default off ⇒ the
+        # parameter is not created (state_dict byte-for-byte unchanged for
+        # every prior run).
         self.main_loss_bilinear = bool(main_loss_bilinear)
         if self.main_loss_bilinear:
             self.main_w = torch.nn.Linear(H, H, bias=False)

@@ -747,12 +747,18 @@ def contrastive_latent_loss(predicted_position, validation, spec,
     an ``nn.Linear(H, H, bias=False)`` that replaces every similarity
     ``uᵀv / τ`` in the main loss with the log-bilinear ``uᵀ W v`` (τ
     dropped, ``W`` carries the scale), exactly as the CPC term scores
-    ``eᵀ W₁ h``. ``W`` multiplies the ANCHOR of each InfoNCE term — the
-    autoregressive forecast ``f_t`` for the forecast-anchored terms (so the
-    positive and its cross-batch negatives both score ``s(f_t, h) = f_tᵀ Wᵀ
-    h`` with W on the same ``f_t``), the latent ``h_t`` for the h↔h
-    uniformity terms. At ``W = (1/τ)·I`` the loss equals the τ baseline
-    byte-for-byte. Only implemented for the ``xshh_allt`` loss shape.
+    ``eᵀ W₁ h``. ``W`` is applied to ``_sim``/``_gram``'s first argument,
+    which is set by the call sites: the encoder target ``h_{t+1}`` for the
+    positive (``log_pos = _sim(hy_pos, hy_hat_norm)`` so the score is
+    ``(W h_{t+1}) · f_t = f_tᵀ W h_{t+1}``); the forecast ``f_t`` for the
+    cross-batch f↔h negative (so its score is ``(W f_t) · h'_{t+1} = f_tᵀ
+    Wᵀ h'_{t+1}``); the latent ``h_t`` for the h↔h uniformity terms (which
+    carry no forecast). The positive and the cross-batch negative therefore
+    use bilinear forms transposed of each other, equivalent up to a
+    transpose for a free learnable ``W``. At ``W = (1/τ)·I`` the loss
+    equals the τ baseline byte-for-byte. Downstream, the predicted next
+    encoder latent under this placement is ``Wᵀ·f_t`` (applied per step in
+    ``rollout_latent``). Only implemented for the ``xshh_allt`` loss shape.
     """
     forecasted_latent, original_latent = predicted_position
     train_config = spec.train_configuration
@@ -1379,19 +1385,18 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         # stable logsumexp; --pos-in-denominator supported via the shared tail.
         neg_inf = float('-inf')
         # #350 learnable log-bilinear: replace every τ-scaled dot product uᵀv/τ
-        # with the log-bilinear uᵀ W v (τ dropped). `_sim`/`_gram` apply W to
-        # their FIRST argument, which must be the ANCHOR of the InfoNCE term —
-        # the FORECAST f_t for the forecast-anchored terms (positive,
-        # cross-batch f↔h, the f↔f term), so the autoregressive forecast is
-        # scored as s(f_t, h) = f_tᵀ Wᵀ h with the SAME W on f_t in the
-        # numerator and its denominator (an asymmetric W on the wrong side makes
-        # positive and negatives incomparable); and the latent h_t for the
-        # h↔h uniformity terms (no forecast to carry W). At W=(1/τ)·I every
-        # term reduces to the τ baseline byte-for-byte, so the
-        # `main_bilinear_W is None` path is the historical objective unchanged.
-        # The xs_allt term reuses the existing chunked/checkpointed Gram by
-        # pre-projecting its anchor and passing τ=1 (autograd then carries the
-        # W-gradient through that projection).
+        # with uᵀ W v (τ dropped, W carries the scale). `_sim`/`_gram` apply W
+        # to their FIRST argument; which vector that is depends on the call
+        # site (the positive uses (W h_{t+1})·f_t; the cross-batch f↔h
+        # negative uses (W f_t)·h'_{t+1}; the h↔h uniformity terms use
+        # (W h_t)·h_l). Positive and the f↔h negative therefore score with
+        # bilinear forms transposed of each other — equivalent up to a
+        # transpose for a free learnable W; at W=(1/τ)·I both coincide and
+        # every term reduces to the τ baseline byte-for-byte, so the
+        # `main_bilinear_W is None` path is the historical objective
+        # unchanged. The xs_allt term reuses the existing
+        # chunked/checkpointed Gram by pre-projecting its anchor and passing
+        # τ=1 (autograd carries the W-gradient through that projection).
         use_W = main_bilinear_W is not None
 
         def _sim(a, b):

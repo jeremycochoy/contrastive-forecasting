@@ -38,6 +38,17 @@ Both bilinear arms sit above the baseline; both CIs exclude zero.](plots/gm_summ
 **Verdict: worse than the τ baseline, in both bilinear placements.** Each CI is
 strictly above zero; the GM-Relative MASE roughly doubles (1.168 → 2.27 / 2.40).
 
+![Per-task scatter of Relative MASE: τ baseline (x-axis) vs each bilinear arm
+(y-axis), log-log; points above the diagonal are tasks where the bilinear arm
+is worse than the baseline. Both arms have the great majority of tasks above
+the diagonal.](plots/per_task_scatter.png)
+
+The GM regression is not driven by a small number of outliers: in both arms
+the great majority of the 97 tasks land above the parity diagonal. A handful
+of upper-tail tasks (jena_weather, bizitobs_application/service in the long
+horizons) contribute disproportionately to the GM because Relative MASE is
+unbounded above.
+
 ## What the learned W became
 
 Three checkpoints exist per arm (the 2,000-step periodic save, the best
@@ -62,6 +73,13 @@ run-1 and 0.488 in run-2. The condition number rises to 3,553 (run-1) and to
 112.3 then back to 67.9 (run-2). Run-1 develops a larger off-diagonal and
 antisymmetric component than run-2 at the matched checkpoint type; with one
 seed per arm, this is an observation, not a tested claim.
+
+![Learned W at best_loss for each arm: full matrix (colour clipped to the
+99.5th-percentile of the off-diagonal magnitude for visibility, so the +10
+diagonal saturates), off-diagonal only (W − diag(W)), and the antisymmetric
+part ½(W − Wᵀ). Top row: run-1 (W on h). Bottom row: run-2 (W on f). The
+init reference is the identity scaled by 10: a uniform red diagonal with no
+off-diagonal or antisymmetric content.](plots/W_heatmap.png)
 
 ## Training curves
 
