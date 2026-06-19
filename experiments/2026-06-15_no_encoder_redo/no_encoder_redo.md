@@ -1,4 +1,4 @@
-# Without the encoder the base loss has higher GIFT-Eval error; the + CPC and + CPC_All arms match the encoder'd backbones
+# Without the encoder the base loss has higher GIFT-Eval error; the + CPC and + CPC_All arms match the encoder backbones
 
 We remove the encoder stack from the backbone (`--num-encoder-layers 0`), so the
 forecaster reads the patch-embedding directly, and measure GIFT-Eval forecasting
@@ -8,14 +8,11 @@ CPC term with its candidate set widened to the full van den Oord Eq. 4 marginal 
 every other sequence at every step (**+ CPC_All**). We compare against the same
 recipe trained with a 3-layer and a 6-layer encoder.
 
-*A backbone here is patch-embedding → (encoder stack) → forecaster. The
-patch-embedding (a GRU) turns each window patch into one token; the encoder is a
-stack of causal transformer layers; the forecaster is a separate causal
-transformer trained by the contrastive objective to predict the next token's
-embedding. `num_encoder_layers=0` removes the encoder stack, leaving the
-forecaster to read the patch-embedding tokens directly. **GM-Relative MASE** is
-the geometric mean, over GIFT-Eval's 97 tasks, of a model's error divided by the
-seasonal-naive forecast's error; lower is better, 1.0 = seasonal-naive.*
+*A backbone here is patch-embedding (a GRU, one token per patch) →
+causal-transformer encoder stack → causal-transformer forecaster, trained by the
+contrastive objective to predict the next token's embedding. **GM-Relative MASE**
+= geometric mean over GIFT-Eval's 97 tasks of the model's error / seasonal-naive
+error; lower is better, 1.0 = seasonal-naive.*
 
 ## Result
 
@@ -58,21 +55,19 @@ list with repeats):
 | no-enc +CPC_All − enc-3 +CPC | −0.007 (−0.032, +0.019) | +0.018 (+0.002, +0.035) | +0.023 (−0.006, +0.055) | +0.025 (+0.010, +0.041) |
 | no-enc +CPC_All − enc-6 +CPC | −0.001 (−0.025, +0.024) | −0.009 (−0.028, +0.011) | +0.024 (−0.006, +0.056) | +0.006 (−0.011, +0.024) |
 
-Reading the intervals: for the **base** loss, every no-encoder − encoder'd
-interval excludes zero — the no-encoder GM is higher, and more so at best-loss
-than at the last checkpoint. For **+ CPC**, those intervals span zero in seven of
-eight cells. Adding either CPC term to the no-encoder backbone (**+ CPC** or
-**+ CPC_All** vs **base**) gives a negative interval that excludes zero in all
-eight cells. **+ CPC_All** sits within ±0.03 of the no-encoder **+ CPC** — the two
-best-loss cells exclude zero, the two last span it — and its intervals against the
-encoder'd **+ CPC** arms span zero in six of eight cells.
+For the **base** loss, every no-encoder − encoder Δ excludes zero (no-encoder
+higher). Adding either CPC term (**+ CPC** or **+ CPC_All** vs **base**) gives a
+negative Δ excluding zero in all eight cells, while the no-encoder + CPC and
++ CPC_All Δs against the encoder arms span zero in 7/8 and 6/8 cells.
 
 ## Training curves
 
 ![Eight log-log panels. Top row: contrastive reference loss, CPC InfoNCE term
 value, ratio gap (1−ff)/(1−fp), U_batch. Bottom row: U_temporal, 1−R²_naive,
 1−R²_random, 1−retrieval AUC. Solid = no encoder (blue base / red + CPC / green
-+ CPC_All); dashed = enc-6 reference (cyan base / orange + CPC).](plots/training_dynamics.png)
++ CPC_All); dashed = enc-6 reference (cyan base / orange + CPC). The + CPC and
++ CPC_All term-value curves are not comparable across arms — different
+candidate-set sizes.](plots/training_dynamics.png)
 
 In the panels, **ff** is the forecast-to-future cosine (the positive pair's
 similarity) and **fp** the forecast-to-present cosine, so the ratio gap
@@ -85,20 +80,9 @@ negatives. The contrastive reference loss is a fixed-recipe normalised-InfoNCE
 value at temperature 0.07, logged for cross-run comparison and distinct from the
 τ 0.10 training objective.
 
-The CPC term's logged value (CPC InfoNCE term value panel) is ≈3–6 for + CPC and
-≈6–10 for + CPC_All across the no-encoder runs; in the enc-6 reference it drops
-from ≈0.2 early into the 10⁻³–10⁻⁴ band (median ≈7×10⁻⁴ over the latter part of
-training). (The + CPC and + CPC_All term values are not on the same scale: by
-construction the two arms sum over candidate sets of different sizes — see *The
-CPC term*.) Across training the no-encoder + CPC and + CPC_All runs record a lower
-contrastive reference loss, lower 1−R² (both the naive and random panels), and
-lower 1−AUC than the no-encoder base run; they also settle at a lower ratio gap
-(≈0.81–0.83 vs base 1.03) and higher U_batch (≈0.34 vs 0.28), with U_temporal
-slightly lower (≈0.20–0.21 vs 0.23).
-
-From best-loss to last checkpoint, the no-encoder + CPC GM changes by ≤0.007
-(2L 1.168→1.165, 6L 1.153→1.160); the no-encoder base GM is lower at the last
-checkpoint than at best-loss (2L 1.425→1.264, 6L 1.353→1.239).
+Across the no-encoder runs, + CPC and + CPC_All record a lower contrastive
+reference loss, lower 1−R² (naive and random), lower 1−AUC, and lower ratio gap
+than base, with higher U_batch and slightly lower U_temporal.
 
 ## Protocol
 
