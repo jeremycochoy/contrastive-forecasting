@@ -119,7 +119,7 @@ def main():
     ax.axvline(0, color="grey", ls="--", lw=1, label="no difference vs baseline")
     ax.set_yticks(ys)
     ax.set_yticklabels(arms, fontsize=9)
-    ax.set_xlabel("Δ = GM(bilinear) − GM(#348 +CPC baseline)  (positive ⇒ worse)")
+    ax.set_xlabel("Δ = GM(bilinear) − GM(τ-baseline + CPC)  (positive ⇒ worse)")
     ax.set_title(f"Paired-bootstrap difference\n{N_BOOT} resamples, 90% CI")
     ax.grid(alpha=0.3, axis="x")
     ax.legend(loc="lower right", fontsize=8)

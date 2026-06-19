@@ -1384,19 +1384,10 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         # within-series h↔h is the kept all-time `log_neg_hh_all`). Numerically
         # stable logsumexp; --pos-in-denominator supported via the shared tail.
         neg_inf = float('-inf')
-        # #350 learnable log-bilinear: replace every τ-scaled dot product uᵀv/τ
-        # with uᵀ W v (τ dropped, W carries the scale). `_sim`/`_gram` apply W
-        # to their FIRST argument; which vector that is depends on the call
-        # site (the positive uses (W h_{t+1})·f_t; the cross-batch f↔h
-        # negative uses (W f_t)·h'_{t+1}; the h↔h uniformity terms use
-        # (W h_t)·h_l). Positive and the f↔h negative therefore score with
-        # bilinear forms transposed of each other — equivalent up to a
-        # transpose for a free learnable W; at W=(1/τ)·I both coincide and
-        # every term reduces to the τ baseline byte-for-byte, so the
-        # `main_bilinear_W is None` path is the historical objective
-        # unchanged. The xs_allt term reuses the existing
-        # chunked/checkpointed Gram by pre-projecting its anchor and passing
-        # τ=1 (autograd carries the W-gradient through that projection).
+        # Learnable log-bilinear: replace τ-scaled uᵀv/τ with uᵀWv. `_sim`/
+        # `_gram` apply W to their FIRST argument (the call site picks which
+        # vector). At W=(1/τ)·I every term reduces to the τ baseline exactly,
+        # so the `main_bilinear_W is None` path is the historical objective.
         use_W = main_bilinear_W is not None
 
         def _sim(a, b):
