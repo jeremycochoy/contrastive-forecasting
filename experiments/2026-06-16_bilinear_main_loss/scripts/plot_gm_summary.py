@@ -17,13 +17,13 @@ import matplotlib.pyplot as plt
 
 ROOT = "/home/jupyter/workspaces/contrastive-forecasting/experiments"
 PATHS = {
-    "τ-baseline +CPC (#348)":          f"{ROOT}/2026-06-15_no_encoder_redo/results/gift_eval_full_allt08_xftrip_nobn_noenc_sgpos_qk_aon_b1024_cpc_2L/summary.txt",
-    "bilinear W on h (run-1, #350)":   f"{ROOT}/2026-06-16_bilinear_main_loss/results/gift_eval_full_allt08_xftrip_nobn_noenc_sgpos_qk_aon_b1024_bilinear_2L/summary.txt",
-    "bilinear W on f (run-2, #350)":   f"{ROOT}/2026-06-16_bilinear_main_loss/results/gift_eval_full_allt08_xftrip_nobn_noenc_sgpos_qk_aon_b1024_bilinear2_2L/summary.txt",
+    "τ-baseline + CPC":          f"{ROOT}/2026-06-15_no_encoder_redo/results/gift_eval_full_allt08_xftrip_nobn_noenc_sgpos_qk_aon_b1024_cpc_2L/summary.txt",
+    "bilinear W on h (run-1)":   f"{ROOT}/2026-06-16_bilinear_main_loss/results/gift_eval_full_allt08_xftrip_nobn_noenc_sgpos_qk_aon_b1024_bilinear_2L/summary.txt",
+    "bilinear W on f (run-2)":   f"{ROOT}/2026-06-16_bilinear_main_loss/results/gift_eval_full_allt08_xftrip_nobn_noenc_sgpos_qk_aon_b1024_bilinear2_2L/summary.txt",
 }
-COLORS = {"τ-baseline +CPC (#348)": "#d62728",
-          "bilinear W on h (run-1, #350)": "#1f77b4",
-          "bilinear W on f (run-2, #350)": "#2ca02c"}
+COLORS = {"τ-baseline + CPC": "#d62728",
+          "bilinear W on h (run-1)": "#1f77b4",
+          "bilinear W on f (run-2)": "#2ca02c"}
 OUT = os.path.join(os.path.dirname(__file__), "..", "plots", "gm_summary.png")
 N_BOOT, CI, SEED = 2000, 0.90, 0
 
@@ -72,7 +72,7 @@ def main():
     runs = {k: parse(v) for k, v in PATHS.items()}
     tasks = sorted(set.intersection(*[set(d.keys()) for d in runs.values()]))
     assert len(tasks) == 97, f"expected 97 tasks, got {len(tasks)}"
-    base_key = "τ-baseline +CPC (#348)"
+    base_key = "τ-baseline + CPC"
     arms = [k for k in PATHS if k != base_key]
 
     fig, axes = plt.subplots(1, 2, figsize=(13, 5))

@@ -26,9 +26,9 @@ RED    = "#d62728"   # τ baseline #348
 LOSSES = "bb_allt08_xftrip_nobn_noenc_sgpos_qk_aon_b1024_bilinear_losses.csv"
 RUNS = {
     # Drawn FIRST goes UNDER. Bilinear arms last so they sit on top of the baseline.
-    "τ-baseline + CPC (#348)":          (f"{E348}/bb_allt08_xftrip_nobn_noenc_sgpos_qk_aon_b1024_cpc_losses.csv", RED, "--"),
-    "bilinear W on f (run-2, #350)":    (f"{E350_RUN2_ABORT}/{LOSSES}", GREEN, "-"),
-    "bilinear W on h (run-1, #350)":    (f"{E350}/{LOSSES}", BLUE, "-"),
+    "τ-baseline + CPC":          (f"{E348}/bb_allt08_xftrip_nobn_noenc_sgpos_qk_aon_b1024_cpc_losses.csv", RED, "--"),
+    "bilinear W on f (run-2)":   (f"{E350_RUN2_ABORT}/{LOSSES}", GREEN, "-"),
+    "bilinear W on h (run-1)":   (f"{E350}/{LOSSES}", BLUE, "-"),
 }
 OUT = os.path.join(os.path.dirname(__file__), "..", "plots", "training_dynamics.png")
 SMOOTH = 25
@@ -42,8 +42,8 @@ START_STEP = 100
 # the raw, ≥-0 InfoNCE value and is visible on log-y.
 INFONCE_FLOOR = 9.412098
 PER_RUN_TRANSFORM = {
-    ("bilinear W on h (run-1, #350)", "loss"): lambda v: v + INFONCE_FLOOR,
-    ("bilinear W on f (run-2, #350)", "loss"): lambda v: v + INFONCE_FLOOR,
+    ("bilinear W on h (run-1)", "loss"): lambda v: v + INFONCE_FLOOR,
+    ("bilinear W on f (run-2)", "loss"): lambda v: v + INFONCE_FLOOR,
 }
 PANELS = [
     ("loss",         "total training loss (raw / +floor for bilinears)  (↓)", lambda v: v),
@@ -108,7 +108,7 @@ def main():
         if plotted:
             ax.legend(fontsize=8, loc="best")
     fig.suptitle("Training dynamics (log-log; blue = bilinear W on h, "
-                 "green = bilinear W on f, red dashed = τ baseline +CPC #348)",
+                 "green = bilinear W on f, red dashed = τ baseline + CPC)",
                  fontsize=11)
     fig.tight_layout(rect=[0, 0, 1, 0.96])
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
