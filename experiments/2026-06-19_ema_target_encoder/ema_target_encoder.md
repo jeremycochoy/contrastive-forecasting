@@ -1,20 +1,26 @@
 # EMA-target encoder/embed on enc3+CPC: helps the early checkpoint, hurts the late one
 
-**Question.** Our enc3+CPC arm pairs the forecaster's context with the next
-encoder embedding through a fixed-temperature cosine score, with the
-encoder side of the positive pair stop-gradded (`--stopgrad-positive-h`). We
-swap that hard stop-grad for a slowly-moving EMA target — the GRU
-patch-embedding and the 3-layer encoder each get a non-trained EMA copy
-(τ = 0.99 constant), and the teacher's `h^T_{t+1}` replaces the student's as
-the main-contrastive positive. The forecaster, the negatives, and the CPC
-term all stay on the student. Does the EMA target transfer better than the
-hard stop-grad it replaces, head-matched, on GIFT-Eval's 97 tasks?
+**Question.** Our prior enc3+CPC arm trains a 3-layer encoder + 6-layer
+forecaster with a contrastive loss `sim(h_{t+1}, f_{t+1})` whose
+encoder-side positive `h_{t+1}` is detached (a SimSiam/BYOL-style hard
+stop-grad on the target — the `--stopgrad-positive-h` flag), plus a CPC
+(Contrastive Predictive Coding, van den Oord et al. 2018) auxiliary that
+predicts the next encoder embedding `e_{t+1}` from the AR context `h_t`
+through a learnable bilinear. We swap that hard stop-grad for a
+*slowly-moving* EMA target — the GRU patch-embedding and the 3-layer
+encoder each get a non-trained EMA copy (τ = 0.99 constant), and the
+teacher's `h^T_{t+1}` replaces the student's as the main-contrastive
+positive. The forecaster, the negatives, and the CPC term all stay on the
+student. Does the EMA target transfer better than the hard stop-grad it
+replaces, head-matched, on GIFT-Eval's 97 tasks?
 
-**Answer.** The early ("best-loss") checkpoint improves with the 2L head
-(GM 1.185 → 1.161, reliable) and is tied with the 6L head; the late
-("last") checkpoint moves the other way and is reliably worse on both head
-sizes (2L: 1.153 → 1.182; 6L: 1.144 → 1.160). Net, the EMA-target arm does
-not strictly dominate `--stopgrad-positive-h`.
+**Answer.** Single-seed verdict (paired-bootstrap over the 97 tasks, single
+backbone per arm — uncertainty is task-spread, *not* seed-spread): the
+early ("best-loss") checkpoint improves with the 2L head (GM 1.185 → 1.161)
+and is tied with the 6L head; the late ("last") checkpoint moves the other
+way on both head sizes (2L: 1.153 → 1.182; 6L: 1.144 → 1.160). Net, the
+EMA-target arm does not strictly dominate `--stopgrad-positive-h` at this
+seed.
 
 ## Result
 
@@ -47,53 +53,26 @@ objective. The `loss_tau_ref` panel (a fixed-τ=0.07 normalized-InfoNCE
 diagnostic computed identically student-side in both runs) and the CPC term
 panel are the comparable curves.](plots/training_dynamics.png)
 
-On the `loss_tau_ref` panel the EMA arm sits above the baseline throughout
+`loss_tau_ref` is the same contrastive loss re-evaluated under no-grad
+at a fixed canonical τ = 0.07 in normalized-InfoNCE form (positive in both
+numerator and denominator) — a constant-temperature reference comparable
+across runs. On that panel the EMA arm sits above the baseline throughout
 training. The CPC term's per-step median (steps ≥ 1k) is 0.0056 for the EMA
 arm vs 0.0004 for the baseline — about 14× higher. The EMA arm's
 "best-loss" criterion lands at step 1,100, the baseline's at step 3,800.
 
-## What we learned
-
-The EMA-target swap does not behave like an auxiliary regulariser that
-quietly improves transfer across all checkpoints, the way the CPC InfoNCE
-auxiliary did. Instead, the head-matched comparison cell-by-cell points in
-opposite directions:
-
-- The EMA target reliably *helps* downstream transfer when the backbone is
-  scored early, while the teacher is still close to the student's
-  initialisation.
-- The EMA target reliably *hurts* downstream transfer at the last
-  checkpoint — both 2L and 6L heads.
-
-Across the run the CPC term is ~14× larger than under the baseline, and
-the τ=0.07 student-side reference loss is also higher — both facts say
-`e_{t+1}` is harder to predict from `h_t` than under the baseline.
-Connecting that to the late-checkpoint drop is a *hypothesis*: the
-representation that the EMA-positive optimises seems to support less
-next-step structure in the encoder output, and the gap widens with
-training.
-
 ## Protocol
 
 One backbone, single seed, on two RTX 4090s. The EMA-target arm reuses the
-enc3+CPC stop-grad recipe **exactly** — GRU patch-embedding, d_model 384 / 6
-heads, 3-layer encoder, 6-layer full-width forecaster, the crossfade-triplet
-allt·0.8% data mix, qk-norm, attention-output norm, the `xshh_allt`
-contrastive loss (positive-in-denominator, floor subtraction), the CPC
-InfoNCE auxiliary term at λ=1 with its learnable W₁, τ 0.10, batch 1024,
-12,500 steps, seed 20260520 — with two flag swaps: drop
-`--stopgrad-positive-h` (the teacher carries no autograd graph, so the
-stop-grad on the positive is implicit), add `--ema-embedding --ema-encoder
---ema-tau 0.99` (constant, no schedule).
+prior enc3+CPC stop-grad recipe **exactly** — same backbone (GRU
+patch-embedding → 3-layer encoder → 6-layer forecaster, d_model 384), same
+data mix, same contrastive loss shape and CPC auxiliary, same
+τ = 0.10 / batch 1024 / 12,500 steps / seed 20260520. Two flag swaps:
 
-The teacher path is built as deep copies of the student's patch-embedding
-and 3-layer transformer encoder at step 0, marked `requires_grad=False`, and
-kept in `eval()` so dropkey/dropout never touch it. After every
-`optimizer.step()`, teacher params are pulled toward the just-stepped
-student: `θ_T ← τ·θ_T + (1−τ)·θ_S`. Teacher params are saved in the
-checkpoint state_dict (clean resume); head-train and eval strip
-`teacher_*.*` before strict-loading the backbone — they have no downstream
-role. EMA half-life `ln(0.5)/ln(τ)` ≈ 69 steps.
+- **Drop** `--stopgrad-positive-h` — the teacher carries no autograd graph,
+  so the stop-grad on the positive is implicit.
+- **Add** `--ema-embedding --ema-encoder --ema-tau 0.99` (constant, no
+  schedule).
 
 To score the backbone we freeze it, train a fresh quantile forecasting head
 (once with two transformer layers, once with six), and evaluate on
@@ -117,16 +96,42 @@ step 0, `θ_T = θ_S`. Each step:
 3. After `optimizer.step()`: `θ_T ← τ·θ_T + (1−τ)·θ_S` with τ = 0.99
    (half-life ≈ 69 steps).
 
+The teacher modules are deep copies at step 0, `requires_grad=False`, kept
+in `eval()` so dropkey/dropout never touch them. Teacher params are saved
+in the checkpoint state_dict (clean resume); head-train and eval strip
+`teacher_*.*` before strict-loading the backbone — they have no downstream
+role.
+
 **Forecaster is fully online — it is the predictor.** The CPC term is
 unchanged from the baseline: `exp(e_{t+1}ᵀ W₁ h_t)` all-student, no
 stop-grad. Negatives for the main-contrastive loss also stay on the
-student — that mismatch is the next-arm follow-up (`--moco-negatives` in
-the issue), out of scope here.
+student — that mismatch is a follow-up arm (`--moco-negatives`, drawing
+main-contrastive negatives from the teacher too), out of scope here.
+
+## What we learned
+
+The EMA-target swap does not behave like an auxiliary regulariser that
+quietly improves transfer across all checkpoints, the way the CPC InfoNCE
+auxiliary did. Instead, the head-matched comparison cell-by-cell points in
+opposite directions:
+
+- The EMA target *helps* downstream transfer when the backbone is scored
+  early, while the teacher is still close to the student's initialisation.
+- The EMA target *hurts* downstream transfer at the last checkpoint — both
+  2L and 6L heads.
+
+Across the run the CPC term is ~14× larger than under the baseline, and
+the τ=0.07 student-side reference loss is also higher — both facts say
+`e_{t+1}` is harder to predict from `h_t` than under the baseline.
+Connecting that to the late-checkpoint drop is a *hypothesis*: the
+representation that the EMA-positive optimises seems to support less
+next-step structure in the encoder output, and the gap widens with
+training.
 
 **Next:** the result rules out a straight one-arm replacement of
-`--stopgrad-positive-h` by the EMA target on enc3+CPC at this seed; the
-issue's arm 2 (`--moco-negatives`, sharing positive and negatives across the
-teacher) is the natural follow-up.
+`--stopgrad-positive-h` by the EMA target on enc3+CPC at this seed; arm 2
+of the issue (`--moco-negatives`, drawing the main-contrastive negatives
+from the teacher as well) is the natural follow-up.
 
 ## Annex — per-cell paired-bootstrap Δ (90% interval)
 
