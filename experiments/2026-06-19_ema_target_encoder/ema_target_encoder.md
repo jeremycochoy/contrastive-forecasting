@@ -38,8 +38,6 @@ divided by seasonal-naive error. Lower is better; 1.0 is seasonal-naive.*
 blue = EMA target; solid = best-loss, dashed = last. Ring at 1.0 =
 seasonal-naive.](plots/perdomain_radar.png)
 
-The split is broad. At best-loss the EMA arm sits inside the baseline on
-most domains; by the last checkpoint it has moved outside on most.
 
 ## Training dynamics
 
@@ -49,20 +47,15 @@ is measured against a moving target. `loss_tau_ref` (a fixed-τ=0.07
 normalized-InfoNCE diagnostic, student-side, identical in both runs) and
 the CPC term are the comparable curves.](plots/training_dynamics.png)
 
-- **The teacher makes the contrastive task harder for the student.**
-  `loss_tau_ref` stays above the baseline throughout, and the CPC term is
-  about an order of magnitude higher — the next-step shot is harder when
-  the target keeps drifting.
-- **More dimensions stay in use**, and the gain is bigger on the temporal
-  axis the hard stop-grad had left room on.
-- **The positive alignment loosens.** The forecast tracks present and
-  future about equally rather than only future.
-
-*Hypothesis (consistent with the curves, untested causally):* the
-late-checkpoint regression is the cost of the looser positive — rank gain
-is the dominant factor early on, but by 12,500 steps the student's
-next-step direction is no longer crisp enough for the 6-layer head to
-read off a clean signal.
+- **`loss_tau_ref` stays above the baseline throughout, and the CPC term
+  is about an order of magnitude higher.** Both diagnostics are computed
+  identically student-side in both runs, so they measure the same student
+  output under the same scoring rule.
+- **`U_batch` and `U_temporal` end higher than the baseline.** The
+  temporal axis gains more, and the baseline's `U_temporal` was the lower
+  of the two to begin with.
+- **`ff` is lower and `fp` is higher than the baseline** — the forecast
+  is less aligned with the future and more aligned with the present.
 
 ## Protocol
 
@@ -86,6 +79,6 @@ not seed noise.
 
 ## Follow-up
 
-If the hypothesis is right, the issue's **arm 2** (`--moco-negatives`,
-sending the main-contrastive *negatives* through the teacher too) sharpens
-the late-checkpoint positive without giving up the rank gain.
+Issue **arm 2** (`--moco-negatives`) sends the main-contrastive negatives
+through the teacher too, so the positive and the negatives share one
+slowly-moving space.
