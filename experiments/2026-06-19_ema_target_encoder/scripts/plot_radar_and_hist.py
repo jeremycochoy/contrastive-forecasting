@@ -1,0 +1,141 @@
+#!/usr/bin/env python3
+"""#353 — per-domain radar + per-task Δ histogram for the EMA-target arm
+vs the stop-grad-positive baseline.
+
+Two outputs in plots/:
+- perdomain_radar.png — per-domain geometric-mean relative MASE on
+  GIFT-Eval full-97, log-scale radial axis. One panel per (head ×
+  checkpoint) cell; baseline (grey) vs EMA-target (blue).
+- pertask_hist.png    — histograms of per-task Δ = rel(EMA) − rel(baseline)
+  over the 97 tasks, one panel per cell. Negative bins ⇒ EMA wins.
+"""
+import csv
+import math
+import os
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import numpy as np
+
+W = "/home/jupyter/workspaces/contrastive-forecasting/experiments"
+BASE_DIR = f"{W}/2026-06-13_cpc_infonce_aux/results"
+EMA_DIR = f"{W}/2026-06-19_ema_target_encoder/results"
+BASE_TAG = "allt08_xftrip_nobn_enc3_sgpos_qk_aon_b1024_cpc"
+EMA_TAG = "allt08_xftrip_nobn_enc3_emateach_qk_aon_b1024_cpc"
+PLOTS = os.path.join(os.path.dirname(__file__), "..", "plots")
+os.makedirs(PLOTS, exist_ok=True)
+GREY, BLUE = "0.4", "C0"
+
+CELLS = [
+    ("2L best", "2L", ""),
+    ("2L last", "2L", "_last"),
+    ("6L best", "6L", ""),
+    ("6L last", "6L", "_last"),
+]
+
+
+def dataset_domain(all_csv):
+    m = {}
+    if not os.path.exists(all_csv):
+        return m
+    for r in csv.DictReader(open(all_csv)):
+        m[r["dataset"]] = r.get("domain", "Other")
+    return m
+
+
+def relatives(sum_txt):
+    out = {}
+    if not os.path.exists(sum_txt):
+        return out
+    for line in open(sum_txt):
+        p = line.split()
+        if len(p) == 4 and "/" in p[0]:
+            try:
+                out[p[0]] = float(p[3])
+            except ValueError:
+                pass
+    return out
+
+
+def gm_by_domain(rels, dmap):
+    acc = {}
+    for cfg, rel in rels.items():
+        if rel <= 0 or cfg not in dmap:
+            continue
+        acc.setdefault(dmap[cfg], []).append(math.log(rel))
+    return {d: math.exp(sum(v) / len(v)) for d, v in acc.items()}
+
+
+def load_cell(eval_dir, tag, head, ckpt_suffix):
+    sum_t = f"{eval_dir}/gift_eval_full_{tag}{ckpt_suffix}_{head}/summary.txt"
+    all_c = f"{eval_dir}/gift_eval_full_{tag}{ckpt_suffix}_{head}/all_results.csv"
+    return relatives(sum_t), dataset_domain(all_c)
+
+
+# --- radar ---
+fig, axes = plt.subplots(1, 4, figsize=(20, 6),
+                         subplot_kw=dict(polar=True))
+for ax, (label, head, suf) in zip(axes, CELLS):
+    base_rel, dmap = load_cell(BASE_DIR, BASE_TAG, head, suf)
+    ema_rel, dmap_e = load_cell(EMA_DIR, EMA_TAG, head, suf)
+    # Prefer baseline's domain map; fall back to EMA's.
+    dmap = dmap or dmap_e
+    base_gm = gm_by_domain(base_rel, dmap)
+    ema_gm = gm_by_domain(ema_rel, dmap)
+    domains = sorted(set(base_gm) | set(ema_gm))
+    if not domains:
+        ax.text(0.5, 0.5, "no eval", transform=ax.transAxes); continue
+    N = len(domains)
+    theta = np.linspace(0, 2 * np.pi, N, endpoint=False)
+    theta_closed = np.concatenate([theta, theta[:1]])
+    vals = [v for g in (base_gm, ema_gm) for v in g.values()]
+    lo, hi = max(0.5, min(vals) * 0.92), max(vals) * 1.06
+    ax.set_theta_offset(np.pi / 2); ax.set_theta_direction(-1)
+    ax.set_xticks(theta); ax.set_xticklabels(domains, fontsize=8)
+    ax.set_rscale("log"); ax.set_ylim(lo, hi)
+    rticks = [t for t in (0.8, 1.0, 1.2, 1.5, 2.0) if lo < t < hi]
+    ax.set_yticks(rticks); ax.set_yticklabels(
+        [f"{t:g}" for t in rticks], fontsize=7, color="0.4")
+    ax.set_rlabel_position(90)
+    ax.plot(theta_closed, [1.0] * len(theta_closed),
+            color="k", ls=(0, (2, 2)), lw=0.8, alpha=0.6, zorder=1)
+    for lab, g, col in [("baseline (sg-positive)", base_gm, GREY),
+                        ("EMA-target", ema_gm, BLUE)]:
+        v = np.array([g.get(d, np.nan) for d in domains]
+                     + [g.get(domains[0], np.nan)])
+        ax.plot(theta_closed, v, color=col, lw=1.6, zorder=3,
+                marker="o", markersize=3, label=lab)
+    ax.set_title(label, fontsize=10, pad=14)
+axes[0].legend(loc="upper left", bbox_to_anchor=(-0.3, -0.06), fontsize=9,
+               frameon=False)
+fig.suptitle("Per-domain GM relative MASE on GIFT-Eval full-97 (radial = "
+             "log; ring at 1.0 = seasonal-naive; lower = better)",
+             fontsize=12)
+fig.tight_layout(rect=[0, 0.03, 1, 0.94])
+fig.savefig(f"{PLOTS}/perdomain_radar.png", dpi=110, bbox_inches="tight")
+plt.close(fig)
+print(f"wrote {PLOTS}/perdomain_radar.png")
+
+# --- per-task delta histogram ---
+fig, axes = plt.subplots(1, 4, figsize=(20, 4.5), sharey=True)
+for ax, (label, head, suf) in zip(axes, CELLS):
+    base_rel, _ = load_cell(BASE_DIR, BASE_TAG, head, suf)
+    ema_rel, _ = load_cell(EMA_DIR, EMA_TAG, head, suf)
+    common = sorted(set(base_rel) & set(ema_rel))
+    if not common:
+        ax.text(0.5, 0.5, "no eval", transform=ax.transAxes); continue
+    deltas = [ema_rel[c] - base_rel[c] for c in common]
+    wins = sum(1 for d in deltas if d < 0)
+    losses = sum(1 for d in deltas if d > 0)
+    ax.hist(deltas, bins=30, color=BLUE, edgecolor="black", linewidth=0.4)
+    ax.axvline(0, color="k", lw=1.0, ls="--")
+    ax.set_title(f"{label}  (EMA wins {wins} / loses {losses} / 97)",
+                 fontsize=10)
+    ax.set_xlabel("Δ = rel(EMA) − rel(baseline)")
+axes[0].set_ylabel("tasks")
+fig.suptitle("Per-task Δ over GIFT-Eval's 97 configs "
+             "(negative bins ⇒ EMA-target beats baseline)", fontsize=12)
+fig.tight_layout(rect=[0, 0, 1, 0.93])
+fig.savefig(f"{PLOTS}/pertask_hist.png", dpi=110, bbox_inches="tight")
+plt.close(fig)
+print(f"wrote {PLOTS}/pertask_hist.png")

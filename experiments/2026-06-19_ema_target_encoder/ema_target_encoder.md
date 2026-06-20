@@ -43,6 +43,26 @@ baseline):
 model's error divided by the seasonal-naive forecast's — lower is better,
 1.0 is seasonal-naive.*
 
+## Per-task and per-domain view
+
+![Per-task Δ over GIFT-Eval's 97 configs, one panel per (head ×
+checkpoint). Bars are histogram counts; negative ⇒ EMA-target beats the
+stop-grad-positive baseline on that task; the title shows the win/loss
+count.](plots/pertask_hist.png)
+
+The win/loss split tracks the GM verdict: at 2L best EMA wins more tasks
+than it loses; at 6L last it loses more than it wins; the two
+"reliably worse" cells both show a clear positive shift in the bulk of the
+distribution.
+
+![Per-domain GM relative MASE on GIFT-Eval full-97, log radial axis (ring
+at 1.0 = seasonal-naive; lower = better). Stop-grad baseline = grey,
+EMA-target = blue. One radial chart per cell.](plots/perdomain_radar.png)
+
+The per-domain trace stays on the same side as the GM-aggregate verdict —
+the late-checkpoint cells show the EMA arm sitting outside the baseline on
+most domains.
+
 ## Training dynamics
 
 ![Training metrics, log-log (blue = baseline `--stopgrad-positive-h`,
