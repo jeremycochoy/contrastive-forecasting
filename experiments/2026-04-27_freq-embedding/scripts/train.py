@@ -42,7 +42,8 @@ from src.dataloader import (
     create_mixed_forked_arma_dataloader,
     create_hf_dataloader,
 )
-from src.loss import contrastive_latent_loss, cpc_infonce_aux_loss, align_loss
+from src.loss import (contrastive_latent_loss, cpc_infonce_aux_loss,
+                      cpc_infonce_all_loss, align_loss)
 from src.checkpoint import save_training_state, load_training_state
 from src.dist_utils import (
     setup_distributed,
@@ -422,6 +423,16 @@ def parse_args():
                         "explicit λ. Applies to ANY 4-D loss_shape (not the "
                         "cpc_multistep stack). Cross-batch negatives are "
                         "chunked via env CPC_CB_CHUNK (default 256).")
+    p.add_argument("--cpc-infonce-negs", choices=["matched", "cross", "all"], default="matched",
+                   help="CPC InfoNCE candidate set (#348). 'matched' (default, "
+                        "the #344 term): cross-batch at the matched next step "
+                        "t+1 + same-sequence other steps. 'cross': van den Oord "
+                        "Eq. 4 STRICT — {positive} ∪ every OTHER sequence b'≠b at "
+                        "all steps l (marginal/context-independent negatives ⇒ "
+                        "Theorem 1 / MI bound holds exactly). 'all': also include "
+                        "the same sequence's other steps (literal full batch×time "
+                        "grid; correlated negatives ⇒ approximate bound). "
+                        "Cross-sequence Gram chunked via env CPC_ALL_CHUNK (8).")
     p.add_argument("--no-main-contrastive-loss", action="store_true",
                    help="Drop the main contrastive loss entirely; train only on "
                         "the auxiliary terms (--cpc-infonce-weight and/or "
@@ -1170,7 +1181,12 @@ def main():
             # the encoder embeddings e. Same fp32 block as the contrastive loss.
             cpc_aux_val = float('nan')
             if args.cpc_infonce_weight > 0:
-                cpc_aux = cpc_infonce_aux_loss(f_lat, o_lat, model.cpc_w1)
+                if args.cpc_infonce_negs == "matched":
+                    cpc_aux = cpc_infonce_aux_loss(f_lat, o_lat, model.cpc_w1)
+                else:  # "cross" (strict marginal) or "all" (full batch×time grid)
+                    cpc_aux = cpc_infonce_all_loss(
+                        f_lat, o_lat, model.cpc_w1,
+                        marginal_only=(args.cpc_infonce_negs == "cross"))
                 loss = loss + args.cpc_infonce_weight * cpc_aux
                 cpc_aux_val = cpc_aux.item()
         # Diagnostic: same loss with fixed τ=0.07 (no gradient). Comparable
