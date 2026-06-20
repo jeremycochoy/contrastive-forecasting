@@ -261,3 +261,65 @@ def test_sigreg_on_real_patch_embed_admits_backward():
     grads_seen = [p.grad is not None and p.grad.abs().sum().item() > 0
                   for p in model.transformer.input_to_latent.parameters()]
     assert any(grads_seen), "SIGReg gradient did not reach the patch-embed."
+
+
+# ---------------------------------------------------------------------------
+# return_embed contract for the CPC forecaster variants. The block has
+# three return sites (default transformer / 'cpc' / 'linear_cpc'); without
+# coverage on the cpc variants those paths are silently unverified
+# (#356-P2).
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("forecaster_kind", ["cpc", "linear_cpc"])
+def test_transformerblock_return_embed_cpc_variants(forecaster_kind):
+    from src.models import ConfigurableModel
+
+    torch.manual_seed(0)
+    C, H, W = 1, 32, 8
+    model = ConfigurableModel(
+        C=C, H=H, W=W, encoder_type='gru', num_layers=1, nhead=4,
+        ffn_mult=2, rev_norm_span=16, num_encoder_layers=1,
+        forecaster_kind=forecaster_kind, cpc_k_steps=2)
+    model.eval()
+    xr = torch.randn(2, 8, C, W).permute(0, 1, 3, 2).reshape(2, 8, C, W)
+    out_default = model.transformer(xr)
+    assert len(out_default) == 2
+    f_out, o_out, e_in = model.transformer(xr, return_embed=True)
+    assert e_in.shape == (2, 8, C, H)
+    assert torch.allclose(f_out, out_default[0], atol=0, rtol=0)
+    assert torch.allclose(o_out, out_default[1], atol=0, rtol=0)
+
+
+# ---------------------------------------------------------------------------
+# Memory smoke (GPU): the per-chunk body is gradient-checkpointed so n_chunk
+# is a real memory knob at production K (#356-P0/P1). Without checkpointing,
+# autograd retained every chunk's `ws` for the cos/sin backward and the M=
+# 1024 + K=384 path peaked at ~11.6 GB per call — two calls (e_t + h_t) ≈
+# 23 GB on a 24 GB card.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.gpu
+@pytest.mark.slow
+@pytest.mark.skipif(not torch.cuda.is_available(),
+                    reason="requires a CUDA device for max_memory_allocated")
+def test_sigreg_loss_memory_under_threshold_at_production_K():
+    """At (B,T,C,K)=(2,256,1,384), M=1024, T_knots=17, n_chunk=8192 the
+    forward+backward peak must sit well under the coarse 4 GB threshold —
+    pins the gradient-checkpointing contract for future tuning. Without
+    the per-chunk checkpoint the same call peaks at ~11-12 GB."""
+    device = torch.device("cuda", 0)
+    torch.cuda.set_device(device)
+    torch.cuda.empty_cache()
+    torch.cuda.reset_peak_memory_stats()
+    B, T, C, K = 2, 256, 1, 384
+    z = torch.randn(B, T, C, K, device=device, requires_grad=True)
+    out = sigreg_loss(z, M=1024, T_knots=17, n_chunk=8192)
+    out.backward()
+    peak_bytes = torch.cuda.max_memory_allocated()
+    peak_gb = peak_bytes / (1024 ** 3)
+    assert peak_gb < 4.0, (
+        f"sigreg_loss peak {peak_gb:.2f} GB exceeds 4 GB ceiling at "
+        f"(B,T,C,K)=({B},{T},{C},{K}), M=1024, n_chunk=8192 — gradient "
+        f"checkpointing may have regressed")

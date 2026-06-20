@@ -26,6 +26,9 @@ BB="$RUNS/${NAME}_FINAL.pth"
 export PYTHONPATH="$WT" PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True OMP_NUM_THREADS=8
 export CUDA_VISIBLE_DEVICES="$GPU"
 export PATCH_ENC_CKPT=1 PATCH_ENC_CHUNK=4
+# Teacher BiGRU embed under no_grad still allocates ~17 GB at B=512; chunk
+# the teacher forward over the batch so it fits alongside the SIGReg pass.
+export TEACHER_EMBED_CHUNK="${TEACHER_EMBED_CHUNK:-16}"
 export HF_TOKEN="$(cat "$WT/experiments/hf_token.txt" 2>/dev/null)"; export HUGGING_FACE_HUB_TOKEN="$HF_TOKEN"
 TRAIN="$WT/experiments/2026-04-27_freq-embedding/scripts/train.py"
 log(){ echo "[$(date '+%m-%d %H:%M:%S')] [bb-sigreg-enc3 g$GPU] $*"; }
@@ -46,7 +49,7 @@ python3 -u "$TRAIN" $RESUME --qk-norm --attn-out-norm \
   --depthwise-conv 3 --deprecated-depthwise-conv 0 \
   --loss-shape cosine_similarity_batch_full_hh_negs_xshh_allt --pos-in-denominator --subtract-contrastive-floor \
   --ema-embedding --ema-encoder --ema-tau 0.99 --cpc-infonce-weight 1.0 \
-  --sigreg-embedding --sigreg-encoding \
+  --sigreg-embedding --sigreg-encoding --sigreg-n-chunk 2048 \
   --tau 0.10 --rev-norm-kind ewma --rev-norm-span 128 --encoder-type gru \
   --synth-kind forked-arma --mix-ratio 0.0078125 --crossfade-triplets 1 \
   --mixup-p 0.3 --freq-emb-dim 3 --seasonality-emb-dim 3 \

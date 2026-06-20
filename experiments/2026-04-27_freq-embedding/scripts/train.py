@@ -501,6 +501,14 @@ def parse_args():
     p.add_argument("--sigreg-t-knots", type=int, default=17,
                    help="Trapezoidal-rule knot count for the Epps–Pulley "
                         "integral. LeJEPA default 17. (#355)")
+    p.add_argument("--sigreg-n-chunk", type=int, default=8192,
+                   help="Chunk size along the pooled sample axis N for the "
+                        "SIGReg cos/sin integrand evaluation. Each chunk's "
+                        "body is gradient-checkpointed (recomputed in "
+                        "backward), so this is a real memory knob — smaller "
+                        "chunk → smaller peak. Default 8192. Lower (e.g. "
+                        "2048-4096) when the backbone graph is already "
+                        "memory-tight. (#355)")
     p.add_argument("--shard-loss-on-batch", action="store_true",
                    help="DDP only: compute the contrastive loss on each "
                         "rank's LOCAL shard instead of all-gathering latents "
@@ -707,32 +715,54 @@ class CSVLogger:
             return
         self._file = open(path, "a", newline="")
         self._writer = csv.writer(self._file)
+        header = ["step", "loss"]
+        if self.tau_ref_column:
+            header.append("loss_tau_ref")
+        # gap_ratio = (1 - ff) / (1 - fp): forecast-vs-future gap
+        # normalized by past-vs-future gap. ff -> 1 (perfect forecast)
+        # and fp -> 0 (decorrelated past) drive this toward 0; lower is
+        # better. Sits next to `gap = ff - fp` so the two are read together.
+        header += ["gap", "gap_ratio", "ff", "fp", "tp", "cross_batch",
+                   "hf_rows_consumed", "synth_rows_consumed", "mixup_applied"]
+        # Per-batch backbone diagnostic metrics (same names as the
+        # post-hoc proxy CSV in 2026-05-05_exp_qhead_improvements so the
+        # two can merge cleanly on column name).
+        header += ["r2_random", "r2_naive", "u_temporal", "u_batch",
+                   "auc", "top1", "top3"]
+        # cpc_aux (#344): the CPC InfoNCE auxiliary term's value (blank
+        # for runs without --cpc-infonce-weight). Trailing column so
+        # name-keyed readers of older CSVs are unaffected.
+        header += ["cpc_aux"]
+        # SIGReg (#355): per-step term values and the e_t mirror of
+        # the dim-usage diagnostic (existing u_temporal/u_batch already
+        # read h_t). Blank for runs without --sigreg-embedding /
+        # --sigreg-encoding. Trailing so older CSV readers ignore them.
+        header += ["sigreg_e", "sigreg_h", "u_temporal_e", "u_batch_e"]
         if os.path.getsize(path) == 0:
-            header = ["step", "loss"]
-            if self.tau_ref_column:
-                header.append("loss_tau_ref")
-            # gap_ratio = (1 - ff) / (1 - fp): forecast-vs-future gap
-            # normalized by past-vs-future gap. ff -> 1 (perfect forecast)
-            # and fp -> 0 (decorrelated past) drive this toward 0; lower is
-            # better. Sits next to `gap = ff - fp` so the two are read together.
-            header += ["gap", "gap_ratio", "ff", "fp", "tp", "cross_batch",
-                       "hf_rows_consumed", "synth_rows_consumed", "mixup_applied"]
-            # Per-batch backbone diagnostic metrics (same names as the
-            # post-hoc proxy CSV in 2026-05-05_exp_qhead_improvements so the
-            # two can merge cleanly on column name).
-            header += ["r2_random", "r2_naive", "u_temporal", "u_batch",
-                       "auc", "top1", "top3"]
-            # cpc_aux (#344): the CPC InfoNCE auxiliary term's value (blank
-            # for runs without --cpc-infonce-weight). Trailing column so
-            # name-keyed readers of older CSVs are unaffected.
-            header += ["cpc_aux"]
-            # SIGReg (#355): per-step term values and the e_t mirror of
-            # the dim-usage diagnostic (existing u_temporal/u_batch already
-            # read h_t). Blank for runs without --sigreg-embedding /
-            # --sigreg-encoding. Trailing so older CSV readers ignore them.
-            header += ["sigreg_e", "sigreg_h", "u_temporal_e", "u_batch_e"]
             self._writer.writerow(header)
             self._file.flush()
+        else:
+            # Resume schema guard (#356-P5): if the existing CSV's header
+            # has fewer columns than the writer expects (e.g. a pre-SIGReg
+            # run resumed with --sigreg-embedding/--sigreg-encoding), the
+            # appended rows would silently shift column meaning. Refuse
+            # rather than corrupt the file. The check compares the first
+            # header row's column count against `header` — we don't try
+            # to handle a header that is a strict prefix; the safe action
+            # is fail-loudly and let the caller pick a fresh CSV.
+            try:
+                with open(path, "r", newline="") as f:
+                    existing_header = next(csv.reader(f), None)
+            except StopIteration:
+                existing_header = None
+            if existing_header is not None and \
+                    len(existing_header) != len(header):
+                raise SystemExit(
+                    f"CSV resume schema mismatch at {path}: existing "
+                    f"header has {len(existing_header)} columns, writer "
+                    f"expects {len(header)}. Refusing to append (would "
+                    f"corrupt the file). Pick a fresh --run-name or "
+                    f"move the old CSV aside.")
 
     def log(self, step, loss, gap, gap_ratio, ff, fp, tp, cross_batch,
             hf_rows_consumed, synth_rows_consumed, mixup_applied,
@@ -1178,6 +1208,11 @@ def main():
         t_fwd_start = time.perf_counter()
         use_ema = args.ema_embedding or args.ema_encoder
         use_sigreg = args.sigreg_embedding or args.sigreg_encoding
+        # e_lat is captured under either SIGReg flag: it powers the u_*_e
+        # mirror diagnostics (per-rank read) regardless of which term is
+        # active. The all-gather below is gated narrowly on the SIGReg-on-e
+        # term so a run with only --sigreg-encoding doesn't pay for a
+        # gather it never consumes (#356-P4).
         want_embed = use_sigreg
         if use_ema:
             res = forward_step(
@@ -1238,9 +1273,12 @@ def main():
                 # Same global pooling as o_lat; gather_latents is a no-op
                 # single-GPU. Teacher carries no grad either way.
                 _dummy, teacher_o_lat = gather_latents(teacher_o_lat, teacher_o_lat)
-            if e_lat is not None:
-                # SIGReg pools its statistic over the global batch — same
-                # gather contract as the contrastive loss.
+            if e_lat is not None and args.sigreg_embedding:
+                # SIGReg-on-e pools its statistic over the global batch —
+                # same gather contract as the contrastive loss. Skip the
+                # gather when only --sigreg-encoding is on (no SIGReg
+                # consumer for e_lat); the u_*_e diagnostics are per-rank
+                # marginal reads and work fine without a gather (#356-P4).
                 _dummy, e_lat = gather_latents(e_lat, e_lat)
         # CPC multi-step (#316): f_lat is [B,T,C,K,H]. The loss / loss_tau_ref
         # consume the full stack; the per-batch diagnostics (compute_metrics,
@@ -1292,13 +1330,15 @@ def main():
             if args.sigreg_embedding:
                 sigreg_e = sigreg_loss(
                     e_lat, M=args.sigreg_m, T_knots=args.sigreg_t_knots,
-                    post_normalize=args.sigreg_post_normalization)
+                    post_normalize=args.sigreg_post_normalization,
+                    n_chunk=args.sigreg_n_chunk)
                 loss = loss + args.sigreg_weight * sigreg_e
                 sigreg_e_val = sigreg_e.item()
             if args.sigreg_encoding:
                 sigreg_h = sigreg_loss(
                     o_lat, M=args.sigreg_m, T_knots=args.sigreg_t_knots,
-                    post_normalize=args.sigreg_post_normalization)
+                    post_normalize=args.sigreg_post_normalization,
+                    n_chunk=args.sigreg_n_chunk)
                 loss = loss + args.sigreg_weight * sigreg_h
                 sigreg_h_val = sigreg_h.item()
         # Diagnostic: same loss with fixed τ=0.07 (no gradient). Comparable

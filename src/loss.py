@@ -534,14 +534,23 @@ def sigreg_loss(z, sigma2=None, M=1024, T_knots=17, W=None,
 
     # φ̂(ω) over the sample axis — chunked along N to cap the [M,n_chunk,
     # T_knots] intermediate. cos/sin/sum is associative, so the chunked
-    # mean equals the unchunked one (pinned in tests).
+    # mean equals the unchunked one (pinned in tests). Each chunk's body
+    # (ws / cos / sin / sum) is wrapped in torch.utils.checkpoint so
+    # backward recomputes the per-chunk intermediates instead of keeping
+    # them in the graph — without this, n_chunk only trades chunk count
+    # for per-chunk size and the M=1024 / K=384 path OOMs on a 24 GB card
+    # (#356 review P0).
+    def _chunk_phi(s_chunk, omega):
+        ws = s_chunk.unsqueeze(-1) * omega                # [M, c, T_knots]
+        return torch.cos(ws).sum(dim=1), torch.sin(ws).sum(dim=1)
     phi_re = z.new_zeros(M, T_knots)
     phi_im = z.new_zeros(M, T_knots)
     for start in range(0, N, n_chunk):
         end = min(start + n_chunk, N)
-        ws = s[:, start:end].unsqueeze(-1) * omega        # [M, c, T_knots]
-        phi_re = phi_re + torch.cos(ws).sum(dim=1)
-        phi_im = phi_im + torch.sin(ws).sum(dim=1)
+        chunk_re, chunk_im = checkpoint(
+            _chunk_phi, s[:, start:end], omega, use_reentrant=False)
+        phi_re = phi_re + chunk_re
+        phi_im = phi_im + chunk_im
     phi_re = phi_re / N
     phi_im = phi_im / N
 
