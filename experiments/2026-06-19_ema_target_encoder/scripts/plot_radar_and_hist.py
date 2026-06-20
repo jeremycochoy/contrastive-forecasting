@@ -72,23 +72,31 @@ def load_cell(eval_dir, tag, head, ckpt_suffix):
     return relatives(sum_t), dataset_domain(all_c)
 
 
-# --- radar ---
-fig, axes = plt.subplots(1, 4, figsize=(20, 6),
+# --- radar: one panel per head, all 4 (arm × checkpoint) curves overlaid ---
+HEAD_PANELS = ["2L", "6L"]
+# (arm-label, eval-dir, eval-tag, ckpt-suffix, colour, linestyle)
+CURVES = [
+    ("baseline · best",  BASE_DIR, BASE_TAG, "",       GREY, "-"),
+    ("baseline · last",  BASE_DIR, BASE_TAG, "_last",  GREY, "--"),
+    ("EMA-target · best", EMA_DIR, EMA_TAG,  "",       BLUE, "-"),
+    ("EMA-target · last", EMA_DIR, EMA_TAG,  "_last",  BLUE, "--"),
+]
+fig, axes = plt.subplots(1, 2, figsize=(15, 8),
                          subplot_kw=dict(polar=True))
-for ax, (label, head, suf) in zip(axes, CELLS):
-    base_rel, dmap = load_cell(BASE_DIR, BASE_TAG, head, suf)
-    ema_rel, dmap_e = load_cell(EMA_DIR, EMA_TAG, head, suf)
-    # Prefer baseline's domain map; fall back to EMA's.
-    dmap = dmap or dmap_e
-    base_gm = gm_by_domain(base_rel, dmap)
-    ema_gm = gm_by_domain(ema_rel, dmap)
-    domains = sorted(set(base_gm) | set(ema_gm))
-    if not domains:
+for ax, head in zip(axes, HEAD_PANELS):
+    cells = []
+    for lab, edir, tag, suf, col, ls in CURVES:
+        rel, dmap = load_cell(edir, tag, head, suf)
+        gm = gm_by_domain(rel, dmap)
+        if gm:
+            cells.append((lab, gm, col, ls))
+    if not cells:
         ax.text(0.5, 0.5, "no eval", transform=ax.transAxes); continue
+    domains = sorted(set().union(*(g for _, g, _, _ in cells)))
     N = len(domains)
     theta = np.linspace(0, 2 * np.pi, N, endpoint=False)
     theta_closed = np.concatenate([theta, theta[:1]])
-    vals = [v for g in (base_gm, ema_gm) for v in g.values()]
+    vals = [v for _, g, _, _ in cells for v in g.values()]
     lo, hi = max(0.5, min(vals) * 0.92), max(vals) * 1.06
     ax.set_theta_offset(np.pi / 2); ax.set_theta_direction(-1)
     ax.set_xticks(theta); ax.set_xticklabels(domains, fontsize=8)
@@ -99,19 +107,19 @@ for ax, (label, head, suf) in zip(axes, CELLS):
     ax.set_rlabel_position(90)
     ax.plot(theta_closed, [1.0] * len(theta_closed),
             color="k", ls=(0, (2, 2)), lw=0.8, alpha=0.6, zorder=1)
-    for lab, g, col in [("baseline (sg-positive)", base_gm, GREY),
-                        ("EMA-target", ema_gm, BLUE)]:
+    for lab, g, col, ls in cells:
         v = np.array([g.get(d, np.nan) for d in domains]
                      + [g.get(domains[0], np.nan)])
-        ax.plot(theta_closed, v, color=col, lw=1.6, zorder=3,
+        ax.plot(theta_closed, v, color=col, ls=ls, lw=1.6, zorder=3,
                 marker="o", markersize=3, label=lab)
-    ax.set_title(label, fontsize=10, pad=14)
-axes[0].legend(loc="upper left", bbox_to_anchor=(-0.3, -0.06), fontsize=9,
-               frameon=False)
-fig.suptitle("Per-domain GM relative MASE on GIFT-Eval full-97 (radial = "
-             "log; ring at 1.0 = seasonal-naive; lower = better)",
-             fontsize=12)
-fig.tight_layout(rect=[0, 0.03, 1, 0.94])
+    ax.set_title(f"{head} q-head", fontsize=11, pad=14)
+    ax.legend(loc="upper left", bbox_to_anchor=(-0.05, -0.06),
+              fontsize=9, frameon=False, ncol=2)
+fig.suptitle("Per-domain GM relative MASE on GIFT-Eval full-97 "
+             "(grey = stop-grad baseline, blue = EMA-target; "
+             "solid = best-loss, dashed = last; radial = log; "
+             "ring at 1.0 = seasonal-naive; lower = better)", fontsize=11)
+fig.tight_layout(rect=[0, 0.03, 1, 0.93])
 fig.savefig(f"{PLOTS}/perdomain_radar.png", dpi=110, bbox_inches="tight")
 plt.close(fig)
 print(f"wrote {PLOTS}/perdomain_radar.png")
