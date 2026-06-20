@@ -294,9 +294,16 @@ def test_transformerblock_return_embed_cpc_variants(forecaster_kind):
 # ---------------------------------------------------------------------------
 # Memory smoke (GPU): the per-chunk body is gradient-checkpointed so n_chunk
 # is a real memory knob at production K (#356-P0/P1). Without checkpointing,
-# autograd retained every chunk's `ws` for the cos/sin backward and the M=
-# 1024 + K=384 path peaked at ~11.6 GB per call — two calls (e_t + h_t) ≈
-# 23 GB on a 24 GB card.
+# autograd retained every chunk's `ws / cos / sin` for the cos/sin backward
+# and the M=1024 + K=384 path peaked at ~11.6 GB per call at B=512 — two
+# calls (e_t + h_t) ≈ 23 GB on a 24 GB card.
+#
+# The test shape MUST drive the chunk loop through several iterations so
+# the with-/without-checkpoint memory paths diverge. With (B,T,C)=(64,256,
+# 1) and n_chunk=2048, N=16384 → 8 chunks. Measured on an RTX 4090:
+# checkpoint=0.82 GB, no-checkpoint=1.70 GB. Threshold 1.2 GB sits between
+# the two with ~380 MB margin on both sides, so removing the checkpoint
+# wrapper trips the assert (#356-round-2 P1).
 # ---------------------------------------------------------------------------
 
 
@@ -305,21 +312,29 @@ def test_transformerblock_return_embed_cpc_variants(forecaster_kind):
 @pytest.mark.skipif(not torch.cuda.is_available(),
                     reason="requires a CUDA device for max_memory_allocated")
 def test_sigreg_loss_memory_under_threshold_at_production_K():
-    """At (B,T,C,K)=(2,256,1,384), M=1024, T_knots=17, n_chunk=8192 the
-    forward+backward peak must sit well under the coarse 4 GB threshold —
-    pins the gradient-checkpointing contract for future tuning. Without
-    the per-chunk checkpoint the same call peaks at ~11-12 GB."""
+    """At (B,T,C,K)=(64,256,1,384), M=1024, T_knots=17, n_chunk=2048 the
+    chunk loop iterates 8 times; the forward+backward peak must sit under
+    the 1.2 GB threshold. Without the per-chunk checkpoint the same call
+    peaks at ~1.7 GB on this shape (and ~11 GB at B=512) — so removing
+    the checkpoint wrapper trips this test."""
     device = torch.device("cuda", 0)
     torch.cuda.set_device(device)
     torch.cuda.empty_cache()
     torch.cuda.reset_peak_memory_stats()
-    B, T, C, K = 2, 256, 1, 384
+    B, T, C, K = 64, 256, 1, 384
+    M, T_knots, n_chunk = 1024, 17, 2048
+    n_chunks_expected = (B * T * C + n_chunk - 1) // n_chunk
+    assert n_chunks_expected >= 4, (
+        f"shape must drive the chunk loop through multiple iterations "
+        f"to discriminate the checkpoint contract; got {n_chunks_expected} "
+        f"chunks (need >=4)")
     z = torch.randn(B, T, C, K, device=device, requires_grad=True)
-    out = sigreg_loss(z, M=1024, T_knots=17, n_chunk=8192)
+    out = sigreg_loss(z, M=M, T_knots=T_knots, n_chunk=n_chunk)
     out.backward()
     peak_bytes = torch.cuda.max_memory_allocated()
     peak_gb = peak_bytes / (1024 ** 3)
-    assert peak_gb < 4.0, (
-        f"sigreg_loss peak {peak_gb:.2f} GB exceeds 4 GB ceiling at "
-        f"(B,T,C,K)=({B},{T},{C},{K}), M=1024, n_chunk=8192 — gradient "
-        f"checkpointing may have regressed")
+    assert peak_gb < 1.2, (
+        f"sigreg_loss peak {peak_gb:.2f} GB exceeds 1.2 GB ceiling at "
+        f"(B,T,C,K)=({B},{T},{C},{K}), M={M}, n_chunk={n_chunk} "
+        f"({n_chunks_expected} chunks) — gradient checkpointing may "
+        f"have regressed (no-checkpoint baseline on this shape ~1.7 GB)")
