@@ -78,6 +78,8 @@ class ConfigurableModel(torch.nn.Module):
                  forecaster_kind: str = "transformer",
                  cpc_k_steps: int = 12,
                  cpc_infonce: bool = False,
+                 main_loss_bilinear: bool = False,
+                 main_bilinear_init_tau: float = 0.10,
                  qk_norm: bool = False,
                  attn_out_norm: bool = False,
                  log_attn_amplitude: bool = False,
@@ -112,6 +114,19 @@ class ConfigurableModel(torch.nn.Module):
         self.cpc_infonce = bool(cpc_infonce)
         if self.cpc_infonce:
             self.cpc_w1 = torch.nn.Linear(H, H, bias=False)
+
+        # Main-loss learnable log-bilinear W: replaces uᵀv/τ with uᵀWv (W
+        # carries the scale). Used at inference too — `extract_forecaster_latents`
+        # and `rollout_latent` apply Wᵀ to the forecaster output (Wᵀ·f_t is
+        # the predicted next encoder latent under the (W h)·f positive). Init
+        # at (1/τ₀)·I so step 0 reproduces the τ=τ₀ baseline. Default off ⇒
+        # no parameter created (state_dict unchanged for prior runs).
+        self.main_loss_bilinear = bool(main_loss_bilinear)
+        if self.main_loss_bilinear:
+            self.main_w = torch.nn.Linear(H, H, bias=False)
+            with torch.no_grad():
+                self.main_w.weight.copy_(
+                    torch.eye(H) / float(main_bilinear_init_tau))
 
         # Reversible normalization (optional). Two kinds:
         #   ewma  → RevEWMNorm(span=rev_norm_span)  (default, dynamic)

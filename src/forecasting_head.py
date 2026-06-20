@@ -438,6 +438,12 @@ def extract_forecaster_latents(backbone, x, freq_ids=None,
 
         f_flat, _ = backbone.transformer(xr)
 
+        # Bilinear-main-loss backbones train the positive as (W h_{t+1}) · f_t,
+        # so the predicted next encoder latent is Wᵀ·f_t. main_w is nn.Linear
+        # (forward = x @ W.T), so Wᵀ·x is `x @ main_w.weight`.
+        if getattr(backbone, 'main_loss_bilinear', False):
+            f_flat = f_flat @ backbone.main_w.weight
+
     return f_flat.detach(), x_norm.detach()
 
 
@@ -730,8 +736,13 @@ def rollout_latent(backbone, encoder_latents, n_future_tokens):
                 x = layer(x, tgt_mask=causal_mask, tgt_is_causal=True)
             x = fcst_up_proj(x)  # back to dimension_e
 
-            # x[:, -1, :] is f[-1] ≈ e[next]
-            new_token = x[:, -1:, :]  # (B*C, 1, H)
+            # Bilinear-main-loss: apply Wᵀ PER STEP to the last forecaster
+            # output before both `generated` (head's eval input) and the
+            # recurrent feed-back into `seq`.
+            last = x[:, -1:, :]
+            if getattr(backbone, 'main_loss_bilinear', False):
+                last = last @ backbone.main_w.weight   # Wᵀ · f_t
+            new_token = last  # (B*C, 1, H)
             generated.append(new_token)
 
             # Append as next encoder latent (in dimension_e — matches `seq`).

@@ -405,6 +405,14 @@ def main():
     if any(k.endswith(".attn_out_rms.weight") for k in sd):
         BACKBONE_CONFIG["attn_out_norm"] = True
         print("  [head-train] auto-detected attn_out_norm=True from backbone checkpoint")
+    # Auto-detect #350 bilinear-main-loss W. main_w.weight in the state_dict ⇒
+    # build the backbone with main_loss_bilinear=True so the matrix is
+    # registered and Wᵀ is applied to the forecaster output in
+    # extract_forecaster_latents / rollout_latent. The init value is irrelevant
+    # — load_state_dict overwrites it.
+    if "main_w.weight" in sd:
+        BACKBONE_CONFIG["main_loss_bilinear"] = True
+        print("  [head-train] auto-detected main_loss_bilinear=True (#350) from backbone checkpoint")
     # Auto-detect a CPC multi-step forecaster (#316). Two families:
     #   transformer.cpc_layers.<N>.*  → 'cpc'        (K transformer-1L heads, #1)
     #   transformer.cpc_heads.<N>.*   → 'linear_cpc' (K linear heads, #2/#3)
@@ -473,8 +481,10 @@ def main():
 
     backbone = ConfigurableModel(**BACKBONE_CONFIG)
     # CPC InfoNCE backbones (#344) carry a learnable `cpc_w1.*` used ONLY by
-    # the pretraining auxiliary loss; it has no role downstream. Drop it so
-    # the strict load matches the head-time backbone (built without it).
+    # the pretraining loss; strip it for strict load. The #350 main_w stays
+    # in the state_dict — it IS used downstream (Wᵀ applied to f_t in
+    # extract_forecaster_latents and per-step in rollout_latent), and the
+    # backbone was built above with main_loss_bilinear=True to receive it.
     sd = {k: v for k, v in sd.items() if not k.startswith("cpc_w1")}
     backbone.load_state_dict(sd)
     backbone = backbone.to(device)
