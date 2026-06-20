@@ -1,7 +1,7 @@
 # EMA-target encoder/embed on enc3+CPC: helps the early checkpoint, hurts the late one
 
-**Question.** The #344 enc3+CPC arm pairs the forecaster's context with the
-next encoder embedding through a fixed-temperature cosine score, with the
+**Question.** Our enc3+CPC arm pairs the forecaster's context with the next
+encoder embedding through a fixed-temperature cosine score, with the
 encoder side of the positive pair stop-gradded (`--stopgrad-positive-h`). We
 swap that hard stop-grad for a slowly-moving EMA target — the GRU
 patch-embedding and the 3-layer encoder each get a non-trained EMA copy
@@ -13,14 +13,15 @@ hard stop-grad it replaces, head-matched, on GIFT-Eval's 97 tasks?
 **Answer.** The early ("best-loss") checkpoint improves with the 2L head
 (GM 1.185 → 1.161, reliable) and is tied with the 6L head; the late
 ("last") checkpoint moves the other way and is reliably worse on both head
-sizes (2L: 1.153 → 1.182; 6L: 1.144 → 1.160). The verdict is the inverse of
-#344's auxiliary-CPC pattern (where the late checkpoint improved). Net,
-arm 1 of the issue does not strictly dominate `--stopgrad-positive-h`.
+sizes (2L: 1.153 → 1.182; 6L: 1.144 → 1.160). Net, the EMA-target arm does
+not strictly dominate `--stopgrad-positive-h`.
 
 ## Result
 
-![Left: GM-Relative MASE, #344 enc3+CPC baseline vs EMA-target, per head ×
-checkpoint. Right: EMA−baseline paired-bootstrap Δ with 90% CI per cell
+![GM-Relative MASE (geometric mean over GIFT-Eval's 97 tasks) per head ×
+checkpoint, single seed, single backbone per arm. Left: stop-grad baseline
+(grey) vs EMA-target (blue), 2L/6L q-head × best/last checkpoint. Right:
+paired-bootstrap Δ = GM(EMA) − GM(baseline) over the 97 tasks with 90% CI
 (negative ⇒ EMA better; green = reliably better, red = reliably worse, grey
 = ns).](plots/gm_summary.png)
 
@@ -39,23 +40,43 @@ model's error divided by the seasonal-naive forecast's — lower is better,
 ## Training dynamics
 
 ![Training metrics, log-log (blue = baseline `--stopgrad-positive-h`,
-green = EMA-target). Total/contrastive losses are not apples-to-apples
-across the two arms — the EMA arm's positive cosine is measured against a
-moving teacher target rather than the student, so the loss value reflects a
-different objective; the τ=0.07 reference loss (5th panel position in the
-log-log panel) and CPC term, both computed identically student-side, are
-the comparable curves.](plots/training_dynamics.png)
+green = EMA-target). The total and "contrastive only" panels are not
+apples-to-apples across the two arms — the EMA arm's positive cosine is
+measured against a moving teacher target, so the value reflects a different
+objective. The `loss_tau_ref` panel (a fixed-τ=0.07 normalized-InfoNCE
+diagnostic computed identically student-side in both runs) and the CPC term
+panel are the comparable curves.](plots/training_dynamics.png)
 
-On the τ=0.07 reference loss the EMA arm sits above the baseline throughout
-training; the CPC term sits an order of magnitude higher. The EMA arm's
-"best-loss" criterion lands at step 1,100 (when the teacher is still close
-to the student init), versus step 3,800 for the baseline — the criterion
-catches an earlier point under the EMA dynamics.
+On the `loss_tau_ref` panel the EMA arm sits above the baseline throughout
+training. The CPC term's per-step median (steps ≥ 1k) is 0.0056 for the EMA
+arm vs 0.0004 for the baseline — about 14× higher. The EMA arm's
+"best-loss" criterion lands at step 1,100, the baseline's at step 3,800.
+
+## What we learned
+
+The EMA-target swap does not behave like an auxiliary regulariser that
+quietly improves transfer across all checkpoints, the way the CPC InfoNCE
+auxiliary did. Instead, the head-matched comparison cell-by-cell points in
+opposite directions:
+
+- The EMA target reliably *helps* downstream transfer when the backbone is
+  scored early, while the teacher is still close to the student's
+  initialisation.
+- The EMA target reliably *hurts* downstream transfer at the last
+  checkpoint — both 2L and 6L heads.
+
+Across the run the CPC term is ~14× larger than under the baseline, and
+the τ=0.07 student-side reference loss is also higher — both facts say
+`e_{t+1}` is harder to predict from `h_t` than under the baseline.
+Connecting that to the late-checkpoint drop is a *hypothesis*: the
+representation that the EMA-positive optimises seems to support less
+next-step structure in the encoder output, and the gap widens with
+training.
 
 ## Protocol
 
 One backbone, single seed, on two RTX 4090s. The EMA-target arm reuses the
-#344 enc3+CPC recipe **exactly** — GRU patch-embedding, d_model 384 / 6
+enc3+CPC stop-grad recipe **exactly** — GRU patch-embedding, d_model 384 / 6
 heads, 3-layer encoder, 6-layer full-width forecaster, the crossfade-triplet
 allt·0.8% data mix, qk-norm, attention-output norm, the `xshh_allt`
 contrastive loss (positive-in-denominator, floor subtraction), the CPC
@@ -78,9 +99,9 @@ To score the backbone we freeze it, train a fresh quantile forecasting head
 (once with two transformer layers, once with six), and evaluate on
 GIFT-Eval's 97 tasks at two checkpoints: the **best-loss** one (lowest
 smoothed contrastive loss) and the **last** one (step 12,500). Baseline is
-the published #344 enc3+CPC numbers, head-trained on the identical recipe;
-this report's analysis reuses #341/#344's GM and paired-bootstrap code
-unchanged.
+the previously published enc3+CPC stop-grad-positive numbers, head-trained
+on the identical recipe; this report's analysis reuses that report's GM and
+paired-bootstrap code unchanged.
 
 ## The change
 
@@ -97,10 +118,10 @@ step 0, `θ_T = θ_S`. Each step:
    (half-life ≈ 69 steps).
 
 **Forecaster is fully online — it is the predictor.** The CPC term is
-unchanged from #344: `exp(e_{t+1}ᵀ W₁ h_t)` all-student, no stop-grad.
-Negatives for the main-contrastive loss also stay on the student — that
-mismatch is the next-arm follow-up (`--moco-negatives` in the issue), out
-of scope here.
+unchanged from the baseline: `exp(e_{t+1}ᵀ W₁ h_t)` all-student, no
+stop-grad. Negatives for the main-contrastive loss also stay on the
+student — that mismatch is the next-arm follow-up (`--moco-negatives` in
+the issue), out of scope here.
 
 **Next:** the result rules out a straight one-arm replacement of
 `--stopgrad-positive-h` by the EMA target on enc3+CPC at this seed; the
@@ -109,11 +130,11 @@ teacher) is the natural follow-up.
 
 ## Annex — per-cell paired-bootstrap Δ (90% interval)
 
-Δ = GM(EMA-target) − GM(#344 enc3+CPC baseline); negative ⇒ EMA beats the
-baseline. The interval is a paired bootstrap over the 97 tasks (resample
-with repeats, score both arms on each resample, so per-task difficulty
-cancels) at a single training seed, as for the baselines — it reflects
-spread across tasks, not across seeds.
+Δ = GM(EMA-target) − GM(stop-grad-positive baseline); negative ⇒ EMA beats
+the baseline. The interval is a paired bootstrap over the 97 tasks
+(resample with repeats, score both arms on each resample, so per-task
+difficulty cancels) at a single training seed, as for the baselines — it
+reflects spread across tasks, not across seeds.
 
 | cell | EMA Δ (90% CI) | verdict |
 |---|--:|---|
