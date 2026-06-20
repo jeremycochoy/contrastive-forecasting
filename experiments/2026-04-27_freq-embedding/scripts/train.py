@@ -444,6 +444,26 @@ def parse_args():
                         "The loss_tau_ref diagnostic is still logged as a "
                         "contrastive-reference curve. Requires at least one of "
                         "--cpc-infonce-weight / --align-loss-weight > 0.")
+    p.add_argument("--ema-embedding", action="store_true",
+                   help="BYOL/JEPA EMA-teacher copy of the patch-embedding "
+                        "(--encoder-type's input_to_latent). Non-trained; "
+                        "updated each step via θ_T ← τ·θ_T + (1−τ)·θ_S. "
+                        "Combined with --ema-encoder, forms the teacher "
+                        "representation path whose h_{t+1} replaces the "
+                        "student's as the main-contrastive POSITIVE. The "
+                        "forecaster, the negatives, and the CPC term stay "
+                        "on the student. Mutually exclusive with "
+                        "--stopgrad-positive-h (the teacher IS the target "
+                        "stop-grad). Only the xshh_allt loss shape. (#353)")
+    p.add_argument("--ema-encoder", action="store_true",
+                   help="BYOL/JEPA EMA-teacher copy of the transformer "
+                        "encoder layers (the stack between patch-embed and "
+                        "forecaster). Non-trained; updated each step via "
+                        "EMA. See --ema-embedding. (#353)")
+    p.add_argument("--ema-tau", type=float, default=0.99,
+                   help="EMA coefficient for --ema-embedding/--ema-encoder. "
+                        "Constant (no schedule). Default 0.99 (half-life "
+                        "ln(0.5)/ln(τ) ≈ 69 steps). (#353)")
     p.add_argument("--shard-loss-on-batch", action="store_true",
                    help="DDP only: compute the contrastive loss on each "
                         "rank's LOCAL shard instead of all-gathering latents "
@@ -498,11 +518,19 @@ def random_sign_flip(x):
 
 
 def forward_step(model, x, freq_ids=None, freq_embs=None,
-                  seasonality_ids=None, seasonality_embs=None):
+                  seasonality_ids=None, seasonality_embs=None,
+                  want_teacher=False):
     """Apply RevEWMNorm + transformer with optional freq + seasonality
     embeddings + optional patch-stats. Routes through
     ``model.prepare_encoder_input`` so the patching path is identical to
-    ``model.forward`` and to the head-trainer's ``extract_*_latents``."""
+    ``model.forward`` and to the head-trainer's ``extract_*_latents``.
+
+    When ``want_teacher=True`` (only meaningful with --ema-embedding/
+    --ema-encoder), also runs the model's teacher representation path on
+    the same prepared input and returns ``teacher_o_lat`` in the same
+    ``[B, T, C, H]`` layout as ``o_lat`` — the EMA-target encoder output
+    the loss substitutes for the student's positive (#353).
+    """
     H = model.H
     if model.rev_norm is not None:
         x = model.rev_norm(x, mode='norm')
@@ -521,6 +549,9 @@ def forward_step(model, x, freq_ids=None, freq_embs=None,
     else:
         f_lat = f_flat.reshape(B, C, T, H).permute(0, 2, 1, 3)
     o_lat = o_flat.reshape(B, C, T, H).permute(0, 2, 1, 3)
+    if want_teacher:
+        teacher_o_lat = model.teacher_forward(xr)
+        return f_lat, o_lat, teacher_o_lat
     return f_lat, o_lat
 
 
@@ -827,6 +858,25 @@ def main():
     model_config["qk_norm"] = bool(args.qk_norm)
     model_config["attn_out_norm"] = bool(args.attn_out_norm)
     model_config["log_attn_amplitude"] = bool(args.log_attn_amplitude)
+    # EMA-target teacher (#353). Two independent flags so the embedding-only
+    # and encoder-only ablations are reachable; arm 1 of the issue sets both.
+    # Combination with --stopgrad-positive-h is rejected here (the teacher
+    # IS the target stop-grad — passing both is intent-conflicting).
+    if (args.ema_embedding or args.ema_encoder) and args.stopgrad_positive_h:
+        raise SystemExit(
+            "--ema-embedding/--ema-encoder are mutually exclusive with "
+            "--stopgrad-positive-h: the teacher path replaces the stop-grad. "
+            "Drop one.")
+    if (args.ema_embedding or args.ema_encoder) and \
+            args.loss_shape != "cosine_similarity_batch_full_hh_negs_xshh_allt":
+        raise SystemExit(
+            "--ema-embedding/--ema-encoder only implemented for "
+            "--loss-shape cosine_similarity_batch_full_hh_negs_xshh_allt.")
+    if (args.ema_embedding or args.ema_encoder) and not (0.0 < args.ema_tau < 1.0):
+        raise SystemExit("--ema-tau must be in (0, 1); got "
+                         f"{args.ema_tau!r}.")
+    model_config["ema_embedding"] = bool(args.ema_embedding)
+    model_config["ema_encoder"] = bool(args.ema_encoder)
     # Override the loss_shape from CLI (LOSS_SPEC is a module-level default).
     LOSS_SPEC.train_configuration["loss_shape"] = args.loss_shape
     LOSS_SPEC.train_configuration["include_positive_in_denominator"] = args.pos_in_denominator
@@ -1051,10 +1101,21 @@ def main():
             ATTN_AMP_DIAG.set_active(True)
 
         t_fwd_start = time.perf_counter()
-        f_lat, o_lat = forward_step(
-            model, x,
-            freq_ids=freq_ids, freq_embs=freq_embs,
-            seasonality_ids=seasonality_ids, seasonality_embs=seasonality_embs)
+        use_ema = args.ema_embedding or args.ema_encoder
+        if use_ema:
+            f_lat, o_lat, teacher_o_lat = forward_step(
+                model, x,
+                freq_ids=freq_ids, freq_embs=freq_embs,
+                seasonality_ids=seasonality_ids,
+                seasonality_embs=seasonality_embs,
+                want_teacher=True)
+        else:
+            f_lat, o_lat = forward_step(
+                model, x,
+                freq_ids=freq_ids, freq_embs=freq_embs,
+                seasonality_ids=seasonality_ids,
+                seasonality_embs=seasonality_embs)
+            teacher_o_lat = None
         if log_attn_now:
             ATTN_AMP_DIAG.set_active(False)
             attn_amp_csv.write_rows(step, ATTN_AMP_DIAG.take_rows())
@@ -1067,6 +1128,8 @@ def main():
         # cause of v4/v5/v6/v9b divergences.
         f_lat = f_lat.float()
         o_lat = o_lat.float()
+        if teacher_o_lat is not None:
+            teacher_o_lat = teacher_o_lat.float()
         # DDP: gather latents across ranks so the contrastive loss pools
         # negatives over the GLOBAL (W*B) batch — 2-GPU @ B/2 == 1-GPU @ B.
         # Strict no-op single-GPU. Done on the fp32 latents so loss,
@@ -1081,6 +1144,10 @@ def main():
         # the per-rank local losses.
         if not args.shard_loss_on_batch:
             f_lat, o_lat = gather_latents(f_lat, o_lat)
+            if teacher_o_lat is not None:
+                # Same global pooling as o_lat; gather_latents is a no-op
+                # single-GPU. Teacher carries no grad either way.
+                _dummy, teacher_o_lat = gather_latents(teacher_o_lat, teacher_o_lat)
         # CPC multi-step (#316): f_lat is [B,T,C,K,H]. The loss / loss_tau_ref
         # consume the full stack; the per-batch diagnostics (compute_metrics,
         # q_*, retrieval_auc) want a single [B,T,C,H] forecaster latent, so
@@ -1106,7 +1173,8 @@ def main():
             else:
                 loss = contrastive_latent_loss(
                     (f_lat, o_lat), validation=False,
-                    spec=LOSS_SPEC, tau_override=tau_tensor_loss)
+                    spec=LOSS_SPEC, tau_override=tau_tensor_loss,
+                    teacher_original_latent=teacher_o_lat)
             # CPC InfoNCE auxiliary (#344): total = contrastive + λ·L_cpc,
             # equal weight at λ=1. f_lat is the AR context h_t (4-D here; the
             # cpc_multistep stack is 5-D and returns earlier in the loss), o_lat
@@ -1177,6 +1245,10 @@ def main():
         if args.learnable_tau:
             with torch.no_grad():
                 model.clamp_log_inv_tau()
+        # EMA-teacher update (#353): pull teacher params one fraction of the way
+        # toward the just-stepped student. θ_T = τ·θ_T + (1−τ)·θ_S, constant τ.
+        if use_ema:
+            model.update_teacher(args.ema_tau)
         t_bwd_end = time.perf_counter()
         t_step_end = time.perf_counter()
 

@@ -560,7 +560,11 @@ def load_models(args, device):
     # CPC InfoNCE backbones (#344) carry a learnable `cpc_w1.*` used ONLY by
     # the pretraining auxiliary loss; it has no role at eval. Drop it so the
     # strict load matches the eval-time backbone (built without it).
-    sd = {k: v for k, v in sd.items() if not k.startswith("cpc_w1")}
+    # EMA-teacher backbones (#353) carry `teacher_*` keys — pretraining-only;
+    # strip them too.
+    sd = {k: v for k, v in sd.items()
+          if not k.startswith("cpc_w1")
+          and not k.startswith("teacher_")}
     backbone.load_state_dict(sd)
     backbone = backbone.to(device)
     backbone.eval()

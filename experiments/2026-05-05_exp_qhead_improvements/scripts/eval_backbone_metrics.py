@@ -199,6 +199,11 @@ def eval_checkpoint(path: str, x_dev, freq_ids, seas_ids, device: str) -> dict:
                 f"Unexpected encoder in_features={ref.shape[1]}: extra={extra}")
 
     bb = ConfigurableModel(**cfg)
+    # Strip pretraining-only state (#344 cpc_w1, #353 EMA teacher) before
+    # strict load — these have no role in this eval path.
+    sd = {k: v for k, v in sd.items()
+          if not k.startswith("cpc_w1")
+          and not k.startswith("teacher_")}
     bb.load_state_dict(sd)
     bb.eval().to(device)
 

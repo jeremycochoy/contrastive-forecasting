@@ -174,6 +174,10 @@ def eval_backbone(name: str, path: str, x_dev, freq_ids, seas_ids,
 
     try:
         bb = ConfigurableModel(**cfg)
+        # Strip pretraining-only state (#344 cpc_w1, #353 EMA teacher).
+        sd = {k: v for k, v in sd.items()
+              if not k.startswith("cpc_w1")
+              and not k.startswith("teacher_")}
         bb.load_state_dict(sd)
     except (RuntimeError, ValueError) as e:
         print(f"  [eval] skipped: {name}: load_state_dict failed ({e})",

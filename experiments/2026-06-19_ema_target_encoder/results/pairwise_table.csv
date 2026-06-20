@@ -1,0 +1,5 @@
+A,B,why,head,ckpt,gm_A,gm_B,delta,ci_lo,ci_hi,n,verdict
+cpc_enc3,ema_enc3,EMA-target vs --stopgrad-positive-h on enc3+CPC [hypothesis],2L,best,1.1845955220800255,1.1613866318296977,-0.023208890250327796,-0.04003599874210417,-0.007402616736334133,97,B BETTER (reliable)
+cpc_enc3,ema_enc3,EMA-target vs --stopgrad-positive-h on enc3+CPC [hypothesis],2L,last,1.1531062578216253,1.181744211048286,0.02863795322666074,0.011426670430773944,0.04504769790997476,97,B worse (reliable)
+cpc_enc3,ema_enc3,EMA-target vs --stopgrad-positive-h on enc3+CPC [hypothesis],6L,best,1.1583832280133097,1.1575949824296796,-0.0007882455836301094,-0.016290824245263513,0.015819939698562546,97,ns (CI straddles 0)
+cpc_enc3,ema_enc3,EMA-target vs --stopgrad-positive-h on enc3+CPC [hypothesis],6L,last,1.1435819294844403,1.1597165968960816,0.01613466741164138,0.003999314440428892,0.02873540433833144,97,B worse (reliable)
