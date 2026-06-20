@@ -1,13 +1,8 @@
 #!/usr/bin/env python3
-"""#353 — per-domain radar + per-task Δ histogram for the EMA-target arm
-vs the stop-grad-positive baseline.
-
-Two outputs in plots/:
-- perdomain_radar.png — per-domain geometric-mean relative MASE on
-  GIFT-Eval full-97, log-scale radial axis. One panel per (head ×
-  checkpoint) cell; baseline (grey) vs EMA-target (blue).
-- pertask_hist.png    — histograms of per-task Δ = rel(EMA) − rel(baseline)
-  over the 97 tasks, one panel per cell. Negative bins ⇒ EMA wins.
+"""Per-domain radar for the EMA-target arm vs the stop-grad-positive
+baseline. Output in plots/perdomain_radar.png — per-domain geometric-mean
+relative MASE on GIFT-Eval full-97, log-scale radial axis, one panel per
+q-head depth (2L | 6L), curves for each (arm × checkpoint).
 """
 import csv
 import math
@@ -116,7 +111,7 @@ for ax, head in zip(axes, HEAD_PANELS):
     ax.legend(loc="upper left", bbox_to_anchor=(-0.05, -0.06),
               fontsize=9, frameon=False, ncol=2)
 fig.suptitle("Per-domain GM relative MASE on GIFT-Eval full-97 "
-             "(grey = stop-grad baseline, blue = EMA-target; "
+             "(grey = stop-grad on positive, blue = EMA-target; "
              "solid = best-loss, dashed = last; radial = log; "
              "ring at 1.0 = seasonal-naive; lower = better)", fontsize=11)
 fig.tight_layout(rect=[0, 0.03, 1, 0.93])
@@ -124,26 +119,3 @@ fig.savefig(f"{PLOTS}/perdomain_radar.png", dpi=110, bbox_inches="tight")
 plt.close(fig)
 print(f"wrote {PLOTS}/perdomain_radar.png")
 
-# --- per-task delta histogram ---
-fig, axes = plt.subplots(1, 4, figsize=(20, 4.5), sharey=True)
-for ax, (label, head, suf) in zip(axes, CELLS):
-    base_rel, _ = load_cell(BASE_DIR, BASE_TAG, head, suf)
-    ema_rel, _ = load_cell(EMA_DIR, EMA_TAG, head, suf)
-    common = sorted(set(base_rel) & set(ema_rel))
-    if not common:
-        ax.text(0.5, 0.5, "no eval", transform=ax.transAxes); continue
-    deltas = [ema_rel[c] - base_rel[c] for c in common]
-    wins = sum(1 for d in deltas if d < 0)
-    losses = sum(1 for d in deltas if d > 0)
-    ax.hist(deltas, bins=30, color=BLUE, edgecolor="black", linewidth=0.4)
-    ax.axvline(0, color="k", lw=1.0, ls="--")
-    ax.set_title(f"{label}  (EMA wins {wins} / loses {losses} / 97)",
-                 fontsize=10)
-    ax.set_xlabel("Δ = rel(EMA) − rel(baseline)")
-axes[0].set_ylabel("tasks")
-fig.suptitle("Per-task Δ over GIFT-Eval's 97 configs "
-             "(negative bins ⇒ EMA-target beats baseline)", fontsize=12)
-fig.tight_layout(rect=[0, 0, 1, 0.93])
-fig.savefig(f"{PLOTS}/pertask_hist.png", dpi=110, bbox_inches="tight")
-plt.close(fig)
-print(f"wrote {PLOTS}/pertask_hist.png")

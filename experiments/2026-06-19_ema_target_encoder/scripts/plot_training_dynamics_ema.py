@@ -21,11 +21,11 @@ BLUE, GREEN = "#1f77b4", "#2ca02c"
 # safe_run_name() suffix). Both segments share the same step axis so we read
 # them as a single concatenated sequence and re-sort by step.
 RUNS = {
-    "enc3+CPC baseline (--stopgrad-positive-h)": (
+    "hard stop-grad on positive target": (
         [f"{W}/2026-06-13_cpc_infonce_aux/runs/"
          "bb_allt08_xftrip_nobn_enc3_sgpos_qk_aon_b1024_cpc_losses.csv"],
         BLUE, "-"),
-    "enc3+CPC EMA-target (--ema-embedding --ema-encoder)": (
+    "EMA-target on positive (τ=0.99)": (
         [f"{W}/2026-06-19_ema_target_encoder/runs/"
          "bb_allt08_xftrip_nobn_enc3_emateach_qk_aon_b1024_cpc_losses.csv",
          f"{W}/2026-06-19_ema_target_encoder/runs/"
@@ -113,7 +113,7 @@ def main():
         ax.set_xlabel("step")
         ax.grid(alpha=0.3, which="both")
         ax.legend(fontsize=8)
-    fig.suptitle("#353 EMA-target on enc3+CPC — training dynamics (log-log; "
+    fig.suptitle("Training dynamics on the enc3+CPC recipe (log-log; "
                  "blue = stop-grad baseline, green = EMA-target)", fontsize=12)
     fig.tight_layout(rect=[0, 0, 1, 0.96])
     os.makedirs(os.path.dirname(OUT), exist_ok=True)

@@ -50,9 +50,9 @@ def main():
         return [min(v, CLIP) if v is not None else 0 for v in vals]
 
     axL.bar([i - w / 2 for i in x], clipped(base_vals), w,
-            label="baseline (#344 enc3+CPC, --stopgrad-positive-h)", color="0.6")
+            label="hard stop-grad on positive target", color="0.6")
     axL.bar([i + w / 2 for i in x], clipped(ema_vals), w,
-            label="EMA-target (--ema-embedding --ema-encoder)", color="C0")
+            label="EMA-target on positive (τ=0.99)", color="C0")
     for i, v in enumerate(base_vals):
         if v is not None and v > CLIP:
             axL.text(i - w / 2, CLIP, f"{v:.3f}", ha="center", va="bottom",
@@ -94,15 +94,15 @@ def main():
     axR.set_yticks(list(y))
     axR.set_yticklabels(ylabels, fontsize=9)
     axR.invert_yaxis()
-    axR.set_xlabel("Δ GM = GM(EMA-target) − GM(baseline)   "
-                   "(negative ⇒ EMA better)")
+    axR.set_xlabel("Δ GM = GM(EMA-target) − GM(stop-grad)   "
+                   "(negative ⇒ EMA-target better)")
     axR.set_title("Paired-bootstrap Δ, 90% CI\n"
                   "green=reliably better, red=reliably worse, grey=ns",
                   fontsize=10)
     axR.grid(axis="x", alpha=0.3)
 
-    fig.suptitle("#353 EMA-target encoder/embed vs stop-grad on enc3+CPC "
-                 "(GIFT-Eval full-97)", fontsize=12)
+    fig.suptitle("EMA-target vs hard stop-grad on the contrastive positive "
+                 "(GIFT-Eval full-97, enc3+CPC recipe)", fontsize=12)
     fig.tight_layout(rect=[0, 0, 1, 0.95])
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     fig.savefig(OUT, dpi=110, bbox_inches="tight")
