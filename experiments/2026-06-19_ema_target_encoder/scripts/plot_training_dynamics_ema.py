@@ -16,14 +16,20 @@ import matplotlib.pyplot as plt
 
 W = "/home/jupyter/workspaces/contrastive-forecasting/experiments"
 BLUE, GREEN = "#1f77b4", "#2ca02c"
+# EMA-target's CSV is split across two files because the run was paused at
+# the periodic step-10000 checkpoint and resumed under DDP (train.py's
+# safe_run_name() suffix). Both segments share the same step axis so we read
+# them as a single concatenated sequence and re-sort by step.
 RUNS = {
     "enc3+CPC baseline (--stopgrad-positive-h)": (
-        f"{W}/2026-06-13_cpc_infonce_aux/runs/"
-        "bb_allt08_xftrip_nobn_enc3_sgpos_qk_aon_b1024_cpc_losses.csv",
+        [f"{W}/2026-06-13_cpc_infonce_aux/runs/"
+         "bb_allt08_xftrip_nobn_enc3_sgpos_qk_aon_b1024_cpc_losses.csv"],
         BLUE, "-"),
     "enc3+CPC EMA-target (--ema-embedding --ema-encoder)": (
-        f"{W}/2026-06-19_ema_target_encoder/runs/"
-        "bb_allt08_xftrip_nobn_enc3_emateach_qk_aon_b1024_cpc_losses.csv",
+        [f"{W}/2026-06-19_ema_target_encoder/runs/"
+         "bb_allt08_xftrip_nobn_enc3_emateach_qk_aon_b1024_cpc_losses.csv",
+         f"{W}/2026-06-19_ema_target_encoder/runs/"
+         "bb_allt08_xftrip_nobn_enc3_emateach_qk_aon_b1024_cpc_r2_losses.csv"],
         GREEN, "-"),
 }
 OUT = os.path.join(os.path.dirname(__file__), "..", "plots",
@@ -43,23 +49,32 @@ PANELS = [
 ]
 
 
-def load(path):
-    if not os.path.exists(path):
-        return None
+def load(paths):
     d = {}
-    for r in csv.DictReader(open(path)):
-        for k, v in r.items():
-            try:
-                d.setdefault(k, []).append(
-                    float(v) if v not in ("", None) else float("nan"))
-            except (ValueError, TypeError):
-                d.setdefault(k, []).append(float("nan"))
+    for p in paths:
+        if not os.path.exists(p):
+            continue
+        for r in csv.DictReader(open(p)):
+            for k, v in r.items():
+                try:
+                    d.setdefault(k, []).append(
+                        float(v) if v not in ("", None) else float("nan"))
+                except (ValueError, TypeError):
+                    d.setdefault(k, []).append(float("nan"))
+    if not d:
+        return None
     if "loss" in d:
         cpc = d.get("cpc_aux")
         d["contrastive"] = [l - (c if (cpc and c == c) else 0.0)
                             for l, c in zip(
                                 d["loss"],
                                 (cpc or [0.0] * len(d["loss"])))]
+    # The two-segment EMA load may be out of step order; re-sort everything
+    # by `step` so the line plot doesn't draw a return-line from step 12500
+    # back to step 10001.
+    order = sorted(range(len(d["step"])), key=lambda i: d["step"][i])
+    for k in list(d.keys()):
+        d[k] = [d[k][i] for i in order]
     return d
 
 
@@ -79,8 +94,8 @@ def main():
     for ax in axes.flat[len(PANELS):]:
         ax.set_visible(False)
     for ax, (col, title, tf) in zip(axes.flat, PANELS):
-        for lab, (path, c, ls) in RUNS.items():
-            d = load(path)
+        for lab, (paths, c, ls) in RUNS.items():
+            d = load(paths)
             if not d or col not in d:
                 continue
             y = [tf(v) for v in d[col]]

@@ -1,79 +1,98 @@
-# EMA-target encoder/embed on enc3+CPC: TBD
+# EMA-target encoder/embed on enc3+CPC: helps the early checkpoint, hurts the late one
 
 **Question.** The #344 enc3+CPC arm pairs the forecaster's context with the
 next encoder embedding through a fixed-temperature cosine score, with the
-encoder side of the positive pair stop-gradded (`--stopgrad-positive-h`).
-We swap that hard stop-grad for a *slowly-moving* EMA target — the
+encoder side of the positive pair stop-gradded (`--stopgrad-positive-h`). We
+swap that hard stop-grad for a slowly-moving EMA target — the GRU
 patch-embedding and the 3-layer encoder each get a non-trained EMA copy
-(τ = 0.99 constant), and the teacher's `h^T_{t+1}` replaces the student's
-as the main-contrastive positive. The forecaster, the negatives, and the
-CPC term all stay on the student. Does the EMA target transfer better than
-the hard stop-grad it replaces, head-matched, on GIFT-Eval's 97 tasks?
+(τ = 0.99 constant), and the teacher's `h^T_{t+1}` replaces the student's as
+the main-contrastive positive. The forecaster, the negatives, and the CPC
+term all stay on the student. Does the EMA target transfer better than the
+hard stop-grad it replaces, head-matched, on GIFT-Eval's 97 tasks?
 
-**Answer.** TBD.
+**Answer.** The early ("best-loss") checkpoint improves with the 2L head
+(GM 1.185 → 1.161, reliable) and is tied with the 6L head; the late
+("last") checkpoint moves the other way and is reliably worse on both head
+sizes (2L: 1.153 → 1.182; 6L: 1.144 → 1.160). The verdict is the inverse of
+#344's auxiliary-CPC pattern (where the late checkpoint improved). Net,
+arm 1 of the issue does not strictly dominate `--stopgrad-positive-h`.
 
 ## Result
 
-![Left: GM-Relative MASE, #344 enc3+CPC baseline (stop-grad positive) vs
-EMA-target, per head × checkpoint. Right: EMA−baseline paired-bootstrap
-Δ with 90% CI per cell (negative ⇒ EMA better).](plots/gm_summary.png)
+![Left: GM-Relative MASE, #344 enc3+CPC baseline vs EMA-target, per head ×
+checkpoint. Right: EMA−baseline paired-bootstrap Δ with 90% CI per cell
+(negative ⇒ EMA better; green = reliably better, red = reliably worse, grey
+= ns).](plots/gm_summary.png)
 
-GM-Relative MASE, all cells (bold = a reliable improvement over the same-cell
+GM-Relative MASE, all cells (bold = reliable change vs the same-cell
 baseline):
 
 | arm · setup | 2L best | 2L last | 6L best | 6L last |
 |---|--:|--:|--:|--:|
-| enc3+CPC baseline (--stopgrad-positive-h) | 1.185 | 1.153 | 1.158 | 1.144 |
-| enc3+CPC EMA-target (--ema-embedding --ema-encoder) | TBD | TBD | TBD | TBD |
+| enc3+CPC baseline (`--stopgrad-positive-h`) | 1.185 | 1.153 | 1.158 | 1.144 |
+| enc3+CPC EMA-target (`--ema-embedding --ema-encoder`) | **1.161** | **1.182** | 1.158 | **1.160** |
 
-*GM-Relative MASE: the geometric mean, over GIFT-Eval's 97 tasks, of a model's
-error divided by the seasonal-naive forecast's — lower is better, 1.0 is
-seasonal-naive.*
+*GM-Relative MASE: the geometric mean, over GIFT-Eval's 97 tasks, of a
+model's error divided by the seasonal-naive forecast's — lower is better,
+1.0 is seasonal-naive.*
 
 ## Training dynamics
 
-![Training metrics, log-log (blue = #344 enc3+CPC stop-grad baseline,
-green = EMA-target).](plots/training_dynamics.png)
+![Training metrics, log-log (blue = baseline `--stopgrad-positive-h`,
+green = EMA-target). Total/contrastive losses are not apples-to-apples
+across the two arms — the EMA arm's positive cosine is measured against a
+moving teacher target rather than the student, so the loss value reflects a
+different objective; the τ=0.07 reference loss (5th panel position in the
+log-log panel) and CPC term, both computed identically student-side, are
+the comparable curves.](plots/training_dynamics.png)
+
+On the τ=0.07 reference loss the EMA arm sits above the baseline throughout
+training; the CPC term sits an order of magnitude higher. The EMA arm's
+"best-loss" criterion lands at step 1,100 (when the teacher is still close
+to the student init), versus step 3,800 for the baseline — the criterion
+catches an earlier point under the EMA dynamics.
 
 ## Protocol
 
-One backbone, single seed, single RTX 4090. The EMA-target arm reuses the
+One backbone, single seed, on two RTX 4090s. The EMA-target arm reuses the
 #344 enc3+CPC recipe **exactly** — GRU patch-embedding, d_model 384 / 6
 heads, 3-layer encoder, 6-layer full-width forecaster, the crossfade-triplet
 allt·0.8% data mix, qk-norm, attention-output norm, the `xshh_allt`
 contrastive loss (positive-in-denominator, floor subtraction), the CPC
 InfoNCE auxiliary term at λ=1 with its learnable W₁, τ 0.10, batch 1024,
-12,500 steps, seed 20260520 — with two flag swaps:
-
-- **Drop** `--stopgrad-positive-h` (the teacher carries no autograd graph, so
-  the stop-grad on the positive is implicit).
-- **Add** `--ema-embedding --ema-encoder --ema-tau 0.99` (constant, no schedule).
+12,500 steps, seed 20260520 — with two flag swaps: drop
+`--stopgrad-positive-h` (the teacher carries no autograd graph, so the
+stop-grad on the positive is implicit), add `--ema-embedding --ema-encoder
+--ema-tau 0.99` (constant, no schedule).
 
 The teacher path is built as deep copies of the student's patch-embedding
-(GRU) and 3-layer transformer encoder at step 0, marked `requires_grad=False`,
-and kept in `eval()` so dropout/dropkey never touch it. After every
+and 3-layer transformer encoder at step 0, marked `requires_grad=False`, and
+kept in `eval()` so dropkey/dropout never touch it. After every
 `optimizer.step()`, teacher params are pulled toward the just-stepped
 student: `θ_T ← τ·θ_T + (1−τ)·θ_S`. Teacher params are saved in the
-checkpoint state_dict (clean resume); head-train and eval strip `teacher_*.*`
-before strict-loading the backbone (no downstream role).
+checkpoint state_dict (clean resume); head-train and eval strip
+`teacher_*.*` before strict-loading the backbone — they have no downstream
+role. EMA half-life `ln(0.5)/ln(τ)` ≈ 69 steps.
 
 To score the backbone we freeze it, train a fresh quantile forecasting head
 (once with two transformer layers, once with six), and evaluate on
 GIFT-Eval's 97 tasks at two checkpoints: the **best-loss** one (lowest
-smoothed contrastive loss, within roughly the first quarter-to-half of
-training) and the **last** one (step 12,500). Baseline is the published
-#344 enc3+CPC numbers, head-trained on the identical recipe.
+smoothed contrastive loss) and the **last** one (step 12,500). Baseline is
+the published #344 enc3+CPC numbers, head-trained on the identical recipe;
+this report's analysis reuses #341/#344's GM and paired-bootstrap code
+unchanged.
 
 ## The change
 
 EMA-target representation path (BYOL / JEPA pattern). Let `θ_S` denote the
-student's patch-embedding + encoder parameters and `θ_T` the teacher's.
-At step 0, `θ_T = θ_S`. Each step:
+student's patch-embedding + encoder parameters and `θ_T` the teacher's. At
+step 0, `θ_T = θ_S`. Each step:
 
-1. Forward the input through both the student (full path: embed → encoder
-   → forecaster) and the teacher (representation only: embed → encoder).
-2. The main-contrastive positive `sim(h_{t+1}, f_{t+1})` reads `h_{t+1}` from
-   the teacher instead of the student. Negatives still read the student.
+1. Forward the input through both the student (full path: embed → encoder →
+   forecaster) and the teacher (representation only: embed → encoder).
+2. The main-contrastive positive `sim(h_{t+1}, f_{t+1})` reads `h_{t+1}`
+   from the teacher instead of the student. Negatives still read the
+   student.
 3. After `optimizer.step()`: `θ_T ← τ·θ_T + (1−τ)·θ_S` with τ = 0.99
    (half-life ≈ 69 steps).
 
@@ -83,8 +102,10 @@ Negatives for the main-contrastive loss also stay on the student — that
 mismatch is the next-arm follow-up (`--moco-negatives` in the issue), out
 of scope here.
 
-**Next:** TBD — outcome decides whether the moco-negatives follow-up (arm 2
-in #353) is worth running.
+**Next:** the result rules out a straight one-arm replacement of
+`--stopgrad-positive-h` by the EMA target on enc3+CPC at this seed; the
+issue's arm 2 (`--moco-negatives`, sharing positive and negatives across the
+teacher) is the natural follow-up.
 
 ## Annex — per-cell paired-bootstrap Δ (90% interval)
 
@@ -94,9 +115,9 @@ with repeats, score both arms on each resample, so per-task difficulty
 cancels) at a single training seed, as for the baselines — it reflects
 spread across tasks, not across seeds.
 
-| cell | EMA Δ (90% CI) |
-|---|--:|
-| 2L best | TBD |
-| 2L last | TBD |
-| 6L best | TBD |
-| 6L last | TBD |
+| cell | EMA Δ (90% CI) | verdict |
+|---|--:|---|
+| 2L best | **−0.023 (−0.040, −0.007)** | EMA reliably better |
+| 2L last | **+0.029 (+0.011, +0.045)** | EMA reliably worse |
+| 6L best | −0.001 (−0.016, +0.016) | ns (CI straddles 0) |
+| 6L last | **+0.016 (+0.004, +0.029)** | EMA reliably worse |
