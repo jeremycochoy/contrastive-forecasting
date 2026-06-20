@@ -59,12 +59,12 @@ the CPC term are the comparable curves.](plots/training_dynamics.png)
 
 ## Protocol
 
-One backbone per arm, single seed (20260520), 12,500 steps at batch 1024;
-first 10k single-GPU, then resumed on two RTX 4090s (per-rank 512, global
-1024 via gathered-loss — same objective as single-GPU). Baseline =
+One backbone per arm, single seed (20260520), 12,500 steps at batch 1024
+on two RTX 4090s (per-rank 512, global 1024 via the gathered-loss path —
+identical objective to single-GPU at the same global batch). Baseline =
 `experiments/2026-06-13_cpc_infonce_aux/` (enc3+CPC, stop-grad on the
-positive). This arm drops `--stopgrad-positive-h` and adds `--ema-embedding
---ema-encoder --ema-tau 0.99`; nothing else changes.
+positive). This arm drops `--stopgrad-positive-h` and adds
+`--ema-embedding --ema-encoder --ema-tau 0.99`; nothing else changes.
 
 The teacher is a deep copy of the student's patch-embedding and 3-layer
 encoder at step 0, `requires_grad=False`, held in `eval()`. Each step:
