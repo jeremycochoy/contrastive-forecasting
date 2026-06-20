@@ -13,11 +13,11 @@ teacher's `h^T_{t+1}` becomes the positive. Forecaster, negatives, and the
 CPC InfoNCE auxiliary (`exp(e_{t+1}ᵀ W₁ h_t)`, van den Oord et al. 2018)
 stay on the student.
 
-**Result.** Yes on rank, mixed on transfer. The teacher ends training with
-`U_temporal` 0.58 vs 0.40 (+43%) and `U_batch` 0.82 vs 0.74. But
-downstream this only wins one cell — the early 2L checkpoint
-(GM 1.185 → 1.161); 6L best is unchanged; both *late* cells are reliably
-worse (2L 1.153 → 1.182, 6L 1.144 → 1.160).
+**Result.** Yes on rank, mixed on transfer. The teacher ends training
+holding noticeably more of the embedding rank alive — on the temporal
+axis especially. Downstream, though, only the early 2L checkpoint
+improves reliably; the 6L best is unchanged, and both *late* checkpoints
+are reliably worse.
 
 ![Left: GM-Relative MASE per head × checkpoint, hard stop-grad (grey) vs
 EMA target (blue). Right: paired-bootstrap Δ with 90% interval — green
@@ -50,14 +50,13 @@ normalized-InfoNCE diagnostic, student-side, identical in both runs) and
 the CPC term are the comparable curves.](plots/training_dynamics.png)
 
 - **The teacher makes the contrastive task harder for the student.**
-  `loss_tau_ref` stays above the baseline throughout; the CPC term's
-  per-step median (steps ≥ 1k) is 0.0056 vs 0.0004 — ~14× higher. The
-  next-step shot is harder when the target keeps drifting.
-- **More dimensions stay in use** (the rank numbers above), and the gain
-  is bigger on the temporal axis the hard stop-grad had left room on.
-- **The positive alignment loosens.** ff = 0.50 vs 0.58, fp = +0.04 vs
-  −0.05 — the forecast tracks present and future about equally rather
-  than only future.
+  `loss_tau_ref` stays above the baseline throughout, and the CPC term is
+  about an order of magnitude higher — the next-step shot is harder when
+  the target keeps drifting.
+- **More dimensions stay in use**, and the gain is bigger on the temporal
+  axis the hard stop-grad had left room on.
+- **The positive alignment loosens.** The forecast tracks present and
+  future about equally rather than only future.
 
 *Hypothesis (consistent with the curves, untested causally):* the
 late-checkpoint regression is the cost of the looser positive — rank gain
