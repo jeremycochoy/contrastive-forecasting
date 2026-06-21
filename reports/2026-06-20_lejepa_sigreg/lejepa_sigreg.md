@@ -1,6 +1,6 @@
 # LeJEPA spherical regulariser at half batch size
 
-Does adding a spherical regulariser on the patch-embed and on the encoder output, with batch cut from 1024 to 512, keep the GIFT-Eval full-97 score within noise of the B=1024 reference and fill the latent sphere? GM-Rel MASE is within ≤0.006 of the EMA-target B=1024 reference in every cell (SIGReg below it in all four: Δ = −0.0004, −0.0059, −0.0033, −0.0041 at 2L/best, 2L/last, 6L/best, 6L/last). `h_t` fills the sphere to the same extent as the EMA-target reference (`u_batch` ends at 0.80 vs 0.82, `u_temporal` at 0.62 vs 0.57); `e_t` stays at ~17× / ~12× `1/K` (`u_batch_e` 0.0438, `u_temporal_e` 0.0315).
+Does adding a spherical regulariser on the patch-embed and on the encoder output, with batch cut from 1024 to 512, keep the GIFT-Eval full-97 GM-Rel MASE near the B=1024 reference and fill the latent sphere? The SIGReg arm is below the EMA-target reference in every cell by 0.0004–0.0059 GM-Rel MASE; on the sphere, `u_batch` (`h_t`) ends slightly below the reference (0.80 vs 0.82) and `u_temporal` (`h_t`) slightly above (0.62 vs 0.57).
 
 ## Result
 
@@ -32,21 +32,29 @@ GM-MASE (geometric mean of per-config `MASE[0.5]` across 97 configs; lower = bet
 
 ![Per-domain GM-Rel MASE on GIFT-Eval full-97, 2-layer head (left) and 6-layer head (right), three arms × {best, last}](plots/perdomain_radar.png)
 
+SIGReg (red) tracks the EMA-target reference (blue) on every domain in both head panels.
+
 ## Dimension usage
 
 ![Cross-batch (left) and cross-time (right) uniformity over training; h_t solid vs e_t dashed for the SIGReg arm, h_t overlays for the two reference arms](plots/uniformity.png)
+
+`u_batch_e` / `u_temporal_e` (`e_t`, dashed) stay near the `1/K` floor throughout; the three `h_t` curves track each other on `u_batch`, and SIGReg's `h_t` ends highest on `u_temporal`.
 
 ## Training loss
 
 ![Training loss, 50-step rolling mean, three arms overlaid](plots/loss_curve.png)
 
+All three arms track each other within the same envelope across training.
+
 ## SIGReg term magnitudes
 
 ![SIGReg term trajectories (upper) and their ratio to total loss (lower), 50-step rolling means](plots/sigreg_e_inspection.png)
 
+`L_SIGReg(h_t)` falls from a ~2.5×10⁻² peak to 3.8×10⁻⁴ (~65×); `L_SIGReg(e_t)` from ~2.6×10⁻³ to 1.0×10⁻³ (~2.5×).
+
 ## Protocol
 
-One arm, single seed `20260520`, 12 500 steps (N=1; no replicates run for this report or for the two reference arms it compares against). Launcher: [`experiments/2026-06-20_lejepa_sigreg/scripts/train_backbone_sigreg.sh`](../../experiments/2026-06-20_lejepa_sigreg/scripts/train_backbone_sigreg.sh).
+One arm, single seed `20260520`, 12 500 steps (no replicates run for this report or for the two reference arms it compares against). Launcher: [`experiments/2026-06-20_lejepa_sigreg/scripts/train_backbone_sigreg.sh`](../../experiments/2026-06-20_lejepa_sigreg/scripts/train_backbone_sigreg.sh).
 
 Backbone: GRU patch-embed → 3-layer transformer encoder (`K`=384, 6 heads). The arm changes exactly three flags vs the EMA-target enc3+CPC reference (B=1024):
 
@@ -83,18 +91,18 @@ The arm changes three things vs the EMA-target B=1024 reference: SIGReg on `e_t`
 
 ### D. Trajectory of SIGReg terms and `e_t` / `h_t` dimensionality
 
-50-step rolling means:
+50-step uncentered rolling means (matches the plots and `final_trajectories.txt`):
 
 | step | `L_SIGReg(e_t)` | `L_SIGReg(h_t)` | `u_batch_e` | `u_batch` (`h_t`) | `u_temporal_e` | `u_temporal` (`h_t`) | `loss` |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 250 | 1.76e-3 | 2.59e-3 | 0.0100 | 0.4072 | 0.0095 | 0.2332 | 3.13 |
-| 500 | 1.36e-3 | 1.91e-3 | 0.0110 | 0.5376 | 0.0103 | 0.2895 | 2.99 |
-| 1 000 | 7.54e-4 | 1.23e-3 | 0.0126 | 0.6173 | 0.0115 | 0.3422 | 2.88 |
-| 2 000 | 6.41e-4 | 8.58e-4 | 0.0151 | 0.7188 | 0.0131 | 0.4391 | 3.07 |
-| 5 000 | 9.37e-4 | 8.40e-4 | 0.0240 | 0.7862 | 0.0199 | 0.6083 | 4.50 |
-| 7 500 | 9.95e-4 | 5.18e-4 | 0.0341 | 0.7920 | 0.0243 | 0.6202 | 4.54 |
-| 10 000 | 9.69e-4 | 4.12e-4 | 0.0395 | 0.7938 | 0.0277 | 0.6197 | 4.43 |
-| 12 500 | 1.01e-3 | 3.81e-4 | 0.0438 | 0.8016 | 0.0315 | 0.6184 | 4.24 |
+| 250 | 1.81e-3 | 2.59e-3 | 0.0100 | 0.3834 | 0.0095 | 0.2238 | 3.08 |
+| 500 | 1.43e-3 | 1.97e-3 | 0.0109 | 0.5343 | 0.0102 | 0.2879 | 3.00 |
+| 1 000 | 7.99e-4 | 1.24e-3 | 0.0127 | 0.6157 | 0.0115 | 0.3398 | 2.90 |
+| 2 000 | 6.43e-4 | 8.49e-4 | 0.0152 | 0.7257 | 0.0131 | 0.4408 | 3.04 |
+| 5 000 | 9.52e-4 | 8.35e-4 | 0.0238 | 0.7819 | 0.0196 | 0.6082 | 4.49 |
+| 7 500 | 9.99e-4 | 5.23e-4 | 0.0338 | 0.7895 | 0.0245 | 0.6240 | 4.55 |
+| 10 000 | 9.74e-4 | 4.14e-4 | 0.0394 | 0.7961 | 0.0279 | 0.6227 | 4.45 |
+| 12 500 | 1.00e-3 | 3.81e-4 | 0.0438 | 0.7964 | 0.0315 | 0.6194 | 4.25 |
 
 `1/K` = 1/384 ≈ 0.00260.
 

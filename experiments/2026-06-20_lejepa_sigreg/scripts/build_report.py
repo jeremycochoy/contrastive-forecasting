@@ -132,6 +132,12 @@ ARM_COLOR = {
     "ema_enc3":    "#1f77b4",  # blue
     "sigreg_enc3": "#d62728",  # red
 }
+# Distinct palette for SIGReg term names (e_t vs h_t) so the reader does not
+# conflate term name with arm colour used elsewhere in the report.
+SIGREG_TERM_COLOR = {
+    "e_t": "#9467bd",  # purple
+    "h_t": "#ff7f0e",  # orange
+}
 
 
 def plot_loss_curves(sigreg_csv: Path, ema_csv: Path | None, cpc_csv: Path | None, out: Path):
@@ -195,17 +201,17 @@ def plot_sigreg_e_inspection(sigreg_csv: Path, out: Path, lam: float = 0.1):
     rh = (lam * s["sigreg_h"] / s["loss"].abs()).rolling(50, min_periods=1).mean()
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7), sharex=True)
     ax1.plot(step, se, label=r"$L_{SIGReg}(e_t)$",
-             color=ARM_COLOR["ema_enc3"], lw=1.4)
+             color=SIGREG_TERM_COLOR["e_t"], lw=1.4)
     ax1.plot(step, sh, label=r"$L_{SIGReg}(h_t)$",
-             color=ARM_COLOR["sigreg_enc3"], lw=1.4)
+             color=SIGREG_TERM_COLOR["h_t"], lw=1.4)
     ax1.set_ylabel("SIGReg loss value (50-step rolling mean)")
     ax1.set_title("SIGReg term trajectories")
     ax1.set_xscale("log"); ax1.set_yscale("log")
     ax1.legend(); ax1.grid(alpha=0.3, which="both")
     ax2.plot(step, re, label=r"$\lambda \cdot L_{SIGReg}(e_t) / |loss|$",
-             color=ARM_COLOR["ema_enc3"], lw=1.4)
+             color=SIGREG_TERM_COLOR["e_t"], lw=1.4)
     ax2.plot(step, rh, label=r"$\lambda \cdot L_{SIGReg}(h_t) / |loss|$",
-             color=ARM_COLOR["sigreg_enc3"], lw=1.4)
+             color=SIGREG_TERM_COLOR["h_t"], lw=1.4)
     ax2.set_xlabel("step")
     ax2.set_ylabel(r"$\lambda \cdot L_{SIGReg}$ as fraction of total loss")
     ax2.set_title(f"Magnitude balance: regulariser vs total loss (λ={lam})")
