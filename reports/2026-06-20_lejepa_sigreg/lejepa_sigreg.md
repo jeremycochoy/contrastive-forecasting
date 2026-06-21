@@ -26,7 +26,7 @@ GM-MASE (geometric mean of per-config `MASE[0.5]` across 97 configs; lower = bet
 
 **Metric scope.** GM-Rel MASE and GM-MASE are both available from the wrapper artefacts; GM-MAPE_SN and GM-CRPS_SN are not, since the per-config seasonal-naive denominators for MAPE and CRPS are not written to `all_results.csv` (annex C).
 
-**Reference-values provenance.** The enc3+CPC and EMA-target columns reproduce prior arms' published head-matched tables at their own code revisions: GM-Rel MASE as constants `REF_GM` / `EMA_GM` and GM-MASE as constants `REF_GM_MASE` / `EMA_GM_MASE` in [`build_report.py`](../../experiments/2026-06-20_lejepa_sigreg/scripts/build_report.py). The SIGReg column is the only fresh head-matched eval at this code revision and HF cache snapshot; its GM-MASE is read directly from each `gift_eval_full_<tag>{,_last}_{2L,6L}/all_results.csv` (`eval_metrics/MASE[0.5]` column, geometric mean over the 97 configs).
+**Reference-values provenance.** The enc3+CPC and EMA-target columns are hard-coded from prior arms (constants `REF_GM` / `EMA_GM` / `REF_GM_MASE` / `EMA_GM_MASE` in [`build_report.py`](../../experiments/2026-06-20_lejepa_sigreg/scripts/build_report.py)). The SIGReg column is freshly evaluated at this code revision and HF cache snapshot — GM-MASE is the geometric mean of `eval_metrics/MASE[0.5]` over the 97 configs in each `gift_eval_full_<tag>{,_last}_{2L,6L}/all_results.csv`.
 
 ## Per-domain split
 
@@ -36,27 +36,15 @@ GM-MASE (geometric mean of per-config `MASE[0.5]` across 97 configs; lower = bet
 
 ![Cross-batch (left) and cross-time (right) uniformity over training; h_t solid vs e_t dashed for the SIGReg arm, h_t overlays for the two reference arms](plots/uniformity.png)
 
-The two patch-embedding (`e_t`) curves (`u_batch_e` and `u_temporal_e`) stay low and rise only slowly (final 0.0438 and 0.0315, 17× and 12× the `1/K` floor of 0.00260); the encoder (`h_t`) curves climb (final 0.8016 cross-batch, 0.6184 cross-time).
+Both `e_t` curves (`u_batch_e`, `u_temporal_e`) stay low and rise only slowly; both `h_t` curves (`u_batch`, `u_temporal`) climb.
 
-## Other graphs
-
-### Training loss
+## Training loss
 
 ![Training loss, 50-step rolling mean, three arms overlaid](plots/loss_curve.png)
 
-### SIGReg term magnitudes
+## SIGReg term magnitudes
 
 ![SIGReg term trajectories on log scale (upper) and their ratio to total loss (lower), 50-step rolling means](plots/sigreg_e_inspection.png)
-
-Mean over the last 50 of 12 500 steps:
-
-| quantity | value |
-| --- | ---: |
-| total `loss` | 4.2478 |
-| `λ · L_SIGReg(e_t)` | 1.001e-4 |
-| `λ · L_SIGReg(h_t)` | 3.805e-5 |
-| `λ · L_SIGReg(e_t) / loss` | 2.36e-5 |
-| `λ · L_SIGReg(h_t) / loss` | 8.96e-6 |
 
 ## Protocol
 
@@ -80,12 +68,12 @@ Each backbone checkpoint (`best` = best train-loss, `last` = step 12 500) trains
 
 ### A. Cross-arm plot provenance
 
-All plots embed the SIGReg arm's training CSV `runs/bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_losses.csv` (12 500 rows, seed `20260520`). `loss_curve.png` and `uniformity.png` overlay:
+SIGReg arm training CSV: `runs/bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_losses.csv` (12 500 rows, seed `20260520`). `loss_curve.png`, `uniformity.png`, and `sigreg_e_inspection.png` read from this CSV; `loss_curve.png` and `uniformity.png` additionally overlay:
 
-- EMA-target arm: `experiments/2026-06-19_ema_target_encoder/runs/bb_allt08_xftrip_nobn_enc3_emateach_qk_aon_b1024_cpc_losses.csv` (steps 1 → 10 000) concatenated with `…_r2_losses.csv` (the resume continuation, steps 10 001 → 12 500)
+- EMA-target arm: `experiments/2026-06-19_ema_target_encoder/runs/bb_allt08_xftrip_nobn_enc3_emateach_qk_aon_b1024_cpc_losses.csv` (steps 1 → 10 000) concatenated with `…_r2_losses.csv` (steps 10 001 → 12 500)
 - enc3+CPC arm: `experiments/2026-06-13_cpc_infonce_aux/runs/bb_allt08_xftrip_nobn_enc3_sgpos_qk_aon_b1024_cpc_losses.csv`
 
-`perdomain_radar.png` reads `summary.txt` + `all_results.csv` from each arm's `gift_eval_full_<tag>{,_last}_{2L,6L}/` directory, computes the geometric mean of per-config `Relative MASE` within each domain, and overlays the three arms × {best, last}. Both overlay CSVs and the EMA-target / enc3+CPC eval directories are taken from those arms' own code revisions; no fresh re-training was run for this report. Colour mapping (bar plot + radar): grey = enc3+CPC B=1024, blue = EMA-target enc3+CPC B=1024, red = this arm.
+`gm_rel_mase.png` and `perdomain_radar.png` read each arm's `gift_eval_full_<tag>{,_last}_{2L,6L}/{summary.txt,all_results.csv}`; the radar takes the geometric mean of per-config `Relative MASE` within each of the 7 GIFT-Eval domains. Reference-arm CSVs and eval directories are taken from those arms' own code revisions; no fresh re-training was run for this report. Colour mapping (bar plot + radar): grey = enc3+CPC B=1024, blue = EMA-target enc3+CPC B=1024, red = this arm.
 
 ### B. Attribution — three axes move together
 
@@ -93,7 +81,7 @@ The arm changes three things vs the EMA-target B=1024 reference: SIGReg on `e_t`
 
 ### C. Metric availability from the wrapper artefacts
 
-`scripts/run_gift_eval_full.sh` writes `Aggregate GM-Relative MASE (97 configs)` plus per-config `Config / MASE / SN_MASE / Relative` columns to each `summary.txt`, and per-config raw `eval_metrics/MASE[0.5]`, `eval_metrics/MAPE[0.5]`, `eval_metrics/mean_weighted_sum_quantile_loss`, and `domain` to each `all_results.csv`. GM-Rel MASE is the wrapper's headline aggregate; GM-MASE is the geometric mean of per-config `MASE[0.5]` from `all_results.csv` and is reported alongside above. GM-MAPE_SN and GM-CRPS_SN are not formed here: the per-config seasonal-naive denominators for MAPE (and the seasonal-naive weighted quantile loss for CRPS) are not written to either file, so seasonal-naive normalisation of those two metrics is not available from the shipped artefacts.
+`scripts/run_gift_eval_full.sh` writes `Aggregate GM-Relative MASE (97 configs)` + per-config `Config / MASE / SN_MASE / Relative` to `summary.txt`, and per-config `eval_metrics/MASE[0.5]`, `eval_metrics/MAPE[0.5]`, `eval_metrics/mean_weighted_sum_quantile_loss`, `domain` to `all_results.csv`. GM-Rel MASE is the wrapper's headline aggregate. GM-MAPE_SN and GM-CRPS_SN need the per-config seasonal-naive denominators for MAPE and the seasonal-naive weighted quantile loss for CRPS, neither of which is written to either file.
 
 ### D. Trajectory of SIGReg terms and `e_t` / `h_t` dimensionality
 
