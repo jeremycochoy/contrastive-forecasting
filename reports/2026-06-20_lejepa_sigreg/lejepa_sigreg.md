@@ -36,7 +36,7 @@ GM-MASE (geometric mean of per-config `MASE[0.5]` across 97 configs; lower = bet
 
 ![Cross-batch (left) and cross-time (right) uniformity over training; h_t solid vs e_t dashed for the SIGReg arm, h_t overlays for the two reference arms](plots/uniformity.png)
 
-All dimension-usage curves improve except the patch-embedding (`u_batch_e`), which stays low and increases only slowly.
+The two patch-embedding (`e_t`) curves (`u_batch_e` and `u_temporal_e`) stay low and rise only slowly (final 0.0438 and 0.0315, both near `1/K`=0.00260); the encoder (`h_t`) curves climb (final 0.8016 cross-batch, 0.6184 cross-time).
 
 ## Other graphs
 
