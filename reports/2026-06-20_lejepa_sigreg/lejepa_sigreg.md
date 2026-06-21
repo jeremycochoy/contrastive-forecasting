@@ -32,19 +32,19 @@ GM-MASE (geometric mean of per-config `MASE[0.5]` across 97 configs; lower = bet
 
 ![Per-domain GM-Rel MASE on GIFT-Eval full-97, 2-layer head (left) and 6-layer head (right), three arms × {best, last}](plots/perdomain_radar.png)
 
-SIGReg (red) tracks the EMA-target reference (blue) on every domain in both head panels.
+SIGReg (red) tracks the EMA-target reference (blue) on most domains in both head panels; Econ/Fin at 2L/best shows the largest single-cell deviation (SIGReg 1.353 vs EMA 1.506).
 
 ## Dimension usage
 
 ![Cross-batch (left) and cross-time (right) uniformity over training; h_t solid vs e_t dashed for the SIGReg arm, h_t overlays for the two reference arms](plots/uniformity.png)
 
-`u_batch_e` / `u_temporal_e` (`e_t`, dashed) stay near the `1/K` floor throughout; the three `h_t` curves track each other on `u_batch`, and SIGReg's `h_t` ends highest on `u_temporal`.
+`u_batch_e` / `u_temporal_e` (`e_t`, dashed) sit ~1–2 decades below the `h_t` curves and drift up to ~17× / ~12× the `1/K` floor (0.0438 / 0.0315 vs 0.00260) over training. On `u_batch`, EMA and SIGReg `h_t` curves overlap (0.82 / 0.80) and CPC ends ~10% lower (0.74); SIGReg's `h_t` ends highest on `u_temporal` (0.62 vs EMA 0.57, CPC 0.40).
 
 ## Training loss
 
 ![Training loss, 50-step rolling mean, three arms overlaid](plots/loss_curve.png)
 
-All three arms track each other within the same envelope across training.
+CPC sits above SIGReg and EMA-target in the first ~3 000 steps then converges into the same envelope.
 
 ## SIGReg term magnitudes
 

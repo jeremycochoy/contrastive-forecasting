@@ -318,11 +318,11 @@ def plot_perdomain_radar(
         vals = [v for g, _, _ in cells for v in g.values()]
         lo, hi = max(0.5, min(vals) * 0.92), max(vals) * 1.06
         ax.set_theta_offset(np.pi / 2); ax.set_theta_direction(-1)
-        ax.set_xticks(theta); ax.set_xticklabels(domains, fontsize=8)
+        ax.set_xticks(theta); ax.set_xticklabels(domains, fontsize=14)
         ax.set_rscale("log"); ax.set_ylim(lo, hi)
         rticks = [t for t in (0.8, 1.0, 1.2, 1.5, 2.0) if lo < t < hi]
         ax.set_yticks(rticks)
-        ax.set_yticklabels([f"{t:g}" for t in rticks], fontsize=7, color="0.4")
+        ax.set_yticklabels([f"{t:g}" for t in rticks], fontsize=11, color="0.4")
         ax.set_rlabel_position(90)
         ax.plot(theta_closed, [1.0] * len(theta_closed),
                 color="k", ls=(0, (2, 2)), lw=0.8, alpha=0.6, zorder=1)
@@ -331,7 +331,7 @@ def plot_perdomain_radar(
                          + [g.get(domains[0], np.nan)])
             ax.plot(theta_closed, v, color=col, ls=ls, lw=1.6, zorder=3,
                     marker="o", markersize=3)
-        ax.set_title(f"{head} q-head", fontsize=11, pad=14)
+        ax.set_title(f"{head} q-head", fontsize=15, pad=14)
     arm_handles = [Line2D([0], [0], color=col, lw=1.6, marker="o", markersize=4,
                           label=ARM_LABEL[arm]) for arm, _, _, col in ARMS]
     ckpt_handles = [
@@ -339,13 +339,13 @@ def plot_perdomain_radar(
         Line2D([0], [0], color="0.2", lw=1.6, ls="--", label="dashed = last"),
     ]
     fig.legend(handles=arm_handles, loc="lower center",
-               bbox_to_anchor=(0.5, 0.06), ncol=3, fontsize=9, frameon=False)
+               bbox_to_anchor=(0.5, 0.07), ncol=3, fontsize=13, frameon=False)
     fig.legend(handles=ckpt_handles, loc="lower center",
-               bbox_to_anchor=(0.5, 0.015), ncol=2, fontsize=9, frameon=False)
+               bbox_to_anchor=(0.5, 0.015), ncol=2, fontsize=13, frameon=False)
     fig.suptitle(
         "Per-domain GM relative MASE on GIFT-Eval full-97 "
         "(radial log scale; ring at 1.0 = seasonal-naive; lower = better)",
-        fontsize=11)
+        fontsize=14)
     fig.tight_layout(rect=[0, 0.12, 1, 0.93])
     fig.savefig(out, dpi=110, bbox_inches="tight"); plt.close(fig)
 
