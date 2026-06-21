@@ -42,7 +42,7 @@ GM-MASE (geometric mean of per-config `MASE[0.5]` across 97 configs; lower = bet
 
 ## SIGReg term magnitudes
 
-![SIGReg term trajectories on log scale (upper) and their ratio to total loss (lower), 50-step rolling means](plots/sigreg_e_inspection.png)
+![SIGReg term trajectories (upper) and their ratio to total loss (lower), 50-step rolling means](plots/sigreg_e_inspection.png)
 
 ## Protocol
 

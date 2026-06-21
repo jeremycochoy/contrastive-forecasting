@@ -149,7 +149,8 @@ def plot_loss_curves(sigreg_csv: Path, ema_csv: Path | None, cpc_csv: Path | Non
                 label=ARM_LABEL["cpc_enc3"], color=ARM_COLOR["cpc_enc3"], lw=1.5)
     ax.set_xlabel("step"); ax.set_ylabel("loss (50-step rolling mean)")
     ax.set_title("Training loss")
-    ax.legend(); ax.grid(alpha=0.3)
+    ax.set_xscale("log"); ax.set_yscale("log")
+    ax.legend(); ax.grid(alpha=0.3, which="both")
     fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
 
 
@@ -157,7 +158,7 @@ def plot_uniformity(sigreg_csv: Path, ema_csv: Path | None, cpc_csv: Path | None
     s = pd.read_csv(sigreg_csv)
     e = _load_concat(ema_csv)
     c = _load_concat(cpc_csv)
-    fig, axes = plt.subplots(1, 2, figsize=(13, 4.5), sharey=True)
+    fig, axes = plt.subplots(1, 2, figsize=(13, 4.5))
     sig_lab = ARM_LABEL["sigreg_enc3"]
     ema_lab = ARM_LABEL["ema_enc3"]
     cpc_lab = ARM_LABEL["cpc_enc3"]
@@ -178,9 +179,38 @@ def plot_uniformity(sigreg_csv: Path, ema_csv: Path | None, cpc_csv: Path | None
         ax.set_xlabel("step")
         ax.set_ylabel("effective dimensionality")
         ax.set_title(f"u_{kind} ({'cross-batch' if kind=='batch' else 'cross-time'})")
-        ax.set_ylim(0, 1)
-        ax.legend(fontsize=7); ax.grid(alpha=0.3)
+        ax.set_xscale("log"); ax.set_yscale("log")
+        ax.legend(fontsize=7); ax.grid(alpha=0.3, which="both")
     fig.suptitle("Uniformity (cos²-based dim_usage; clipped to [1/K, 1])")
+    fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
+
+
+def plot_sigreg_e_inspection(sigreg_csv: Path, out: Path, lam: float = 0.1):
+    s = pd.read_csv(sigreg_csv)
+    step = s["step"]
+    se = s["sigreg_e"].rolling(50, min_periods=1).mean()
+    sh = s["sigreg_h"].rolling(50, min_periods=1).mean()
+    loss_abs = s["loss"].abs().rolling(50, min_periods=1).mean()
+    re = (lam * s["sigreg_e"] / s["loss"].abs()).rolling(50, min_periods=1).mean()
+    rh = (lam * s["sigreg_h"] / s["loss"].abs()).rolling(50, min_periods=1).mean()
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7), sharex=True)
+    ax1.plot(step, se, label=r"$L_{SIGReg}(e_t)$",
+             color=ARM_COLOR["ema_enc3"], lw=1.4)
+    ax1.plot(step, sh, label=r"$L_{SIGReg}(h_t)$",
+             color=ARM_COLOR["sigreg_enc3"], lw=1.4)
+    ax1.set_ylabel("SIGReg loss value (50-step rolling mean)")
+    ax1.set_title("SIGReg term trajectories")
+    ax1.set_xscale("log"); ax1.set_yscale("log")
+    ax1.legend(); ax1.grid(alpha=0.3, which="both")
+    ax2.plot(step, re, label=r"$\lambda \cdot L_{SIGReg}(e_t) / |loss|$",
+             color=ARM_COLOR["ema_enc3"], lw=1.4)
+    ax2.plot(step, rh, label=r"$\lambda \cdot L_{SIGReg}(h_t) / |loss|$",
+             color=ARM_COLOR["sigreg_enc3"], lw=1.4)
+    ax2.set_xlabel("step")
+    ax2.set_ylabel(r"$\lambda \cdot L_{SIGReg}$ as fraction of total loss")
+    ax2.set_title(f"Magnitude balance: regulariser vs total loss (λ={lam})")
+    ax2.set_xscale("log"); ax2.set_yscale("log")
+    ax2.legend(); ax2.grid(alpha=0.3, which="both")
     fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
 
 
@@ -358,6 +388,7 @@ if __name__ == "__main__":
     rows = write_gm_table(results, results / "gm_table.csv", args.sigreg_tag)
     plot_loss_curves(sigreg_csv, args.ema_csv, args.cpc_csv, plots / "loss_curve.png")
     plot_uniformity(sigreg_csv, args.ema_csv, args.cpc_csv, plots / "uniformity.png")
+    plot_sigreg_e_inspection(sigreg_csv, plots / "sigreg_e_inspection.png")
     plot_gm_bars(rows, plots / "gm_rel_mase.png")
     plot_perdomain_radar(
         sig_results=results, ema_results=args.ema_results, cpc_results=args.cpc_results,
