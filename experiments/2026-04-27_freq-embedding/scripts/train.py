@@ -473,13 +473,13 @@ def parse_args():
                         "the M unit-direction projections are resampled every "
                         "forward), so checkpoints / strict-loading are "
                         "byte-for-byte unchanged. Total loss adds "
-                        "λ·L_sigreg_embedding. (#355)")
+                        "--sigreg-embedding-weight · L_sigreg_embedding. (#355)")
     p.add_argument("--sigreg-encoding", action="store_true",
                    help="LeJEPA spherical SIGReg term on the encoding h_t "
                         "(the 3L transformer output — the codebase's "
                         "original_latent). Same statistic and stateless "
                         "contract as --sigreg-embedding. Total loss adds "
-                        "λ·L_sigreg_encoding. (#355)")
+                        "--sigreg-encoding-weight · L_sigreg_encoding. (#355)")
     p.add_argument("--sigreg-post-normalization", action="store_true",
                    help="When ON, both SIGReg terms are evaluated on the "
                         "POST-F.normalize unit-sphere version of e_t / h_t "

@@ -67,7 +67,9 @@ Backbone: GRU patch-embed → 3-layer transformer encoder (`K`=384, 6 heads). Th
 | `--sigreg-embedding` | OFF | ON |
 | `--sigreg-encoding` | OFF | ON |
 
-Other flags from the reference (`--ema-embedding --ema-encoder --ema-tau 0.99`, `--cpc-infonce-weight 1.0`, `--encoder-dropkey 0.70`, `--mix-ratio 0.0078125`, dataset, dtypes) are kept verbatim. `--sigreg-post-normalization` is OFF; `--sigreg-weight 0.1`, `--sigreg-m 1024`, `--sigreg-t-knots 17`.
+Other flags from the reference (`--ema-embedding --ema-encoder --ema-tau 0.99`, `--cpc-infonce-weight 1.0`, `--encoder-dropkey 0.70`, `--mix-ratio 0.0078125`, dataset, dtypes) are kept verbatim. `--sigreg-post-normalization` is OFF; `--sigreg-weight 0.1`[^sigreg-weight], `--sigreg-m 1024`, `--sigreg-t-knots 17`.
+
+[^sigreg-weight]: `--sigreg-weight` was the pre-#359 shared λ; #359 splits it into per-term `--sigreg-embedding-weight` / `--sigreg-encoding-weight` (both default 0.1). The #355 arm reported here ran with the shared default of 0.1.
 
 ### Head-matched downstream
 
