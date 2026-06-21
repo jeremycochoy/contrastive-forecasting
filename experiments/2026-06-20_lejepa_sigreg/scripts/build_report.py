@@ -21,6 +21,20 @@ EMA_GM = {
     ("ema_enc3", "6L", "best"): 1.1576,
     ("ema_enc3", "6L", "last"): 1.1597,
 }
+# Per-arm GM-MASE = geomean of `eval_metrics/MASE[0.5]` over the 97 configs in
+# `all_results.csv`. Independent of seasonal-naive denominators.
+REF_GM_MASE = {
+    ("cpc_enc3", "2L", "best"): 1.6559,
+    ("cpc_enc3", "2L", "last"): 1.6119,
+    ("cpc_enc3", "6L", "best"): 1.6193,
+    ("cpc_enc3", "6L", "last"): 1.5986,
+}
+EMA_GM_MASE = {
+    ("ema_enc3", "2L", "best"): 1.6235,
+    ("ema_enc3", "2L", "last"): 1.6519,
+    ("ema_enc3", "6L", "best"): 1.6182,
+    ("ema_enc3", "6L", "last"): 1.6211,
+}
 
 ARM_LABEL = {
     "cpc_enc3":    "enc3+CPC, B=1024",
@@ -45,33 +59,49 @@ def parse_n_configs(summary_path: Path) -> int:
     return int(m.group(1)) if m else 0
 
 
+def gm_mase_from_all_results(all_csv: Path) -> float | None:
+    if not all_csv.exists():
+        return None
+    mase = pd.read_csv(all_csv)["eval_metrics/MASE[0.5]"].astype(float)
+    mase = mase[mase > 0]
+    if mase.empty:
+        return None
+    return float(math.exp(mase.apply(math.log).mean()))
+
+
 def write_gm_table(results_dir: Path, out_csv: Path, tag: str):
     rows: list[dict] = []
     for (arm, head, ckpt), gm in REF_GM.items():
-        rows.append(dict(arm=arm, label=ARM_LABEL[arm], head=head, ckpt=ckpt, gm=gm, n=97))
+        rows.append(dict(arm=arm, label=ARM_LABEL[arm], head=head, ckpt=ckpt,
+                         gm=gm, gm_mase=REF_GM_MASE[(arm, head, ckpt)], n=97))
     for (arm, head, ckpt), gm in EMA_GM.items():
-        rows.append(dict(arm=arm, label=ARM_LABEL[arm], head=head, ckpt=ckpt, gm=gm, n=97))
+        rows.append(dict(arm=arm, label=ARM_LABEL[arm], head=head, ckpt=ckpt,
+                         gm=gm, gm_mase=EMA_GM_MASE[(arm, head, ckpt)], n=97))
 
     sigreg_map = {
-        ("2L", "best"): results_dir / f"gift_eval_full_{tag}_2L" / "summary.txt",
-        ("2L", "last"): results_dir / f"gift_eval_full_{tag}_last_2L" / "summary.txt",
-        ("6L", "best"): results_dir / f"gift_eval_full_{tag}_6L" / "summary.txt",
-        ("6L", "last"): results_dir / f"gift_eval_full_{tag}_last_6L" / "summary.txt",
+        ("2L", "best"): results_dir / f"gift_eval_full_{tag}_2L",
+        ("2L", "last"): results_dir / f"gift_eval_full_{tag}_last_2L",
+        ("6L", "best"): results_dir / f"gift_eval_full_{tag}_6L",
+        ("6L", "last"): results_dir / f"gift_eval_full_{tag}_last_6L",
     }
-    for (head, ckpt), sp in sigreg_map.items():
-        gm = parse_gm(sp)
-        n = parse_n_configs(sp)
+    for (head, ckpt), sub in sigreg_map.items():
+        gm = parse_gm(sub / "summary.txt")
+        n = parse_n_configs(sub / "summary.txt")
+        gm_mase = gm_mase_from_all_results(sub / "all_results.csv")
         if gm is not None:
             rows.append(dict(arm="sigreg_enc3", label=ARM_LABEL["sigreg_enc3"],
-                             head=head, ckpt=ckpt, gm=gm, n=n))
+                             head=head, ckpt=ckpt, gm=gm, gm_mase=gm_mase, n=n))
 
     with out_csv.open("w", newline="") as fh:
-        w = csv.DictWriter(fh, fieldnames=["arm", "label", "head", "ckpt", "gm", "n"])
+        w = csv.DictWriter(
+            fh, fieldnames=["arm", "label", "head", "ckpt", "gm", "gm_mase", "n"])
         w.writeheader()
         for r in rows:
-            # Force 4 dp for gm — DictWriter would otherwise strip trailing zeros
-            # (`1.1610` → `1.161`), breaking column precision consistency.
-            w.writerow({**r, "gm": f"{r['gm']:.4f}"})
+            # Force 4 dp for both gm columns — DictWriter would otherwise strip
+            # trailing zeros (`1.1610` → `1.161`), breaking column precision.
+            w.writerow({**r,
+                        "gm": f"{r['gm']:.4f}",
+                        "gm_mase": f"{r['gm_mase']:.4f}" if r['gm_mase'] is not None else ""})
     return rows
 
 
@@ -196,32 +226,32 @@ def plot_perdomain_radar(
     sig_tag: str, ema_tag: str, cpc_tag: str, out: Path,
 ):
     """2 panels (2L | 6L), 6 curves each (3 arms × {best, last})."""
+    from matplotlib.lines import Line2D
     HEADS = ["2L", "6L"]
     GREY, BLUE, RED = "#888888", "#1f77b4", "#d62728"
-    CURVES = [  # (arm-key, root, tag, ckpt-suffix, colour, linestyle, label)
-        ("cpc_enc3",    cpc_results, cpc_tag, "",      GREY, "-",  f"{ARM_LABEL['cpc_enc3']} · best"),
-        ("cpc_enc3",    cpc_results, cpc_tag, "_last", GREY, "--", f"{ARM_LABEL['cpc_enc3']} · last"),
-        ("ema_enc3",    ema_results, ema_tag, "",      BLUE, "-",  f"{ARM_LABEL['ema_enc3']} · best"),
-        ("ema_enc3",    ema_results, ema_tag, "_last", BLUE, "--", f"{ARM_LABEL['ema_enc3']} · last"),
-        ("sigreg_enc3", sig_results, sig_tag, "",      RED,  "-",  f"{ARM_LABEL['sigreg_enc3']} · best"),
-        ("sigreg_enc3", sig_results, sig_tag, "_last", RED,  "--", f"{ARM_LABEL['sigreg_enc3']} · last"),
+    ARMS = [  # (arm-key, root, tag, colour)
+        ("cpc_enc3",    cpc_results, cpc_tag, GREY),
+        ("ema_enc3",    ema_results, ema_tag, BLUE),
+        ("sigreg_enc3", sig_results, sig_tag, RED),
     ]
+    CKPTS = [("", "-"), ("_last", "--")]
     fig, axes = plt.subplots(1, 2, figsize=(15, 8), subplot_kw=dict(polar=True))
     for ax, head in zip(axes, HEADS):
         cells = []
-        for arm, root, tag, suf, col, ls, lab in CURVES:
-            sub = root / f"gift_eval_full_{tag}{suf}_{head}"
-            rel = _config_relatives(sub / "summary.txt")
-            dmap = _dataset_to_domain(sub / "all_results.csv")
-            gm = _gm_by_domain(rel, dmap)
-            if gm:
-                cells.append((lab, gm, col, ls))
+        for arm, root, tag, col in ARMS:
+            for suf, ls in CKPTS:
+                sub = root / f"gift_eval_full_{tag}{suf}_{head}"
+                rel = _config_relatives(sub / "summary.txt")
+                dmap = _dataset_to_domain(sub / "all_results.csv")
+                gm = _gm_by_domain(rel, dmap)
+                if gm:
+                    cells.append((gm, col, ls))
         if not cells:
             ax.text(0.5, 0.5, "no eval", transform=ax.transAxes); continue
-        domains = sorted(set().union(*(g for _, g, _, _ in cells)))
+        domains = sorted(set().union(*(g for g, _, _ in cells)))
         theta = np.linspace(0, 2 * np.pi, len(domains), endpoint=False)
         theta_closed = np.concatenate([theta, theta[:1]])
-        vals = [v for _, g, _, _ in cells for v in g.values()]
+        vals = [v for g, _, _ in cells for v in g.values()]
         lo, hi = max(0.5, min(vals) * 0.92), max(vals) * 1.06
         ax.set_theta_offset(np.pi / 2); ax.set_theta_direction(-1)
         ax.set_xticks(theta); ax.set_xticklabels(domains, fontsize=8)
@@ -232,19 +262,27 @@ def plot_perdomain_radar(
         ax.set_rlabel_position(90)
         ax.plot(theta_closed, [1.0] * len(theta_closed),
                 color="k", ls=(0, (2, 2)), lw=0.8, alpha=0.6, zorder=1)
-        for lab, g, col, ls in cells:
+        for g, col, ls in cells:
             v = np.array([g.get(d, np.nan) for d in domains]
                          + [g.get(domains[0], np.nan)])
             ax.plot(theta_closed, v, color=col, ls=ls, lw=1.6, zorder=3,
-                    marker="o", markersize=3, label=lab)
+                    marker="o", markersize=3)
         ax.set_title(f"{head} q-head", fontsize=11, pad=14)
-        ax.legend(loc="upper left", bbox_to_anchor=(-0.05, -0.06),
-                  fontsize=8, frameon=False, ncol=1)
+    arm_handles = [Line2D([0], [0], color=col, lw=1.6, marker="o", markersize=4,
+                          label=ARM_LABEL[arm]) for arm, _, _, col in ARMS]
+    ckpt_handles = [
+        Line2D([0], [0], color="0.2", lw=1.6, ls="-",  label="solid = best-loss"),
+        Line2D([0], [0], color="0.2", lw=1.6, ls="--", label="dashed = last"),
+    ]
+    fig.legend(handles=arm_handles, loc="lower center",
+               bbox_to_anchor=(0.5, 0.06), ncol=3, fontsize=9, frameon=False)
+    fig.legend(handles=ckpt_handles, loc="lower center",
+               bbox_to_anchor=(0.5, 0.015), ncol=2, fontsize=9, frameon=False)
     fig.suptitle(
         "Per-domain GM relative MASE on GIFT-Eval full-97 "
-        "(radial log scale; ring at 1.0 = seasonal-naive; lower = better; "
-        "solid = best-loss, dashed = last)", fontsize=11)
-    fig.tight_layout(rect=[0, 0.03, 1, 0.93])
+        "(radial log scale; ring at 1.0 = seasonal-naive; lower = better)",
+        fontsize=11)
+    fig.tight_layout(rect=[0, 0.12, 1, 0.93])
     fig.savefig(out, dpi=110, bbox_inches="tight"); plt.close(fig)
 
 

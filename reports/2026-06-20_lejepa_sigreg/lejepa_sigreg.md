@@ -22,6 +22,8 @@ Does adding a spherical regulariser on the patch-embed and on the encoder output
 
 ![GM-Rel MASE on the GIFT-Eval full-97 benchmark, four (head-depth, backbone-checkpoint) cells per arm](plots/gm_rel_mase.png)
 
+GM-Rel MASE (lower = better; 1.0 = seasonal-naive parity):
+
 | head / checkpoint | enc3+CPC, B=1024 | EMA-target enc3+CPC, B=1024 | SIGReg + EMA-target, B=512 |
 | --- | ---: | ---: | ---: |
 | 2L / best | 1.1846 | 1.1614 | 1.1610 |
@@ -29,13 +31,22 @@ Does adding a spherical regulariser on the patch-embed and on the encoder output
 | 6L / best | 1.1584 | 1.1576 | 1.1543 |
 | 6L / last | 1.1436 | 1.1597 | 1.1556 |
 
+GM-MASE (geometric mean of per-config `MASE[0.5]` across 97 configs; lower = better; not seasonal-naive-normalised):
+
+| head / checkpoint | enc3+CPC, B=1024 | EMA-target enc3+CPC, B=1024 | SIGReg + EMA-target, B=512 |
+| --- | ---: | ---: | ---: |
+| 2L / best | 1.6559 | 1.6235 | 1.6229 |
+| 2L / last | 1.6119 | 1.6519 | 1.6436 |
+| 6L / best | 1.6193 | 1.6182 | 1.6135 |
+| 6L / last | 1.5986 | 1.6211 | 1.6154 |
+
 ![Per-domain GM-Rel MASE on GIFT-Eval full-97, 2-layer head (left) and 6-layer head (right), three arms × {best, last}](plots/perdomain_radar.png)
 
 The four-cell head-to-head does not separate the SIGReg + B=512 arm from the EMA-target B=1024 reference in either direction.
 
-**Metric scope.** Wrapper emits only GM-Rel MASE; SN-relative MASE / MAPE / CRPS are not produced (annex C).
+**Metric scope.** GM-Rel MASE and GM-MASE are both available from the wrapper artefacts; GM-MAPE_SN and GM-CRPS_SN are not, since the per-config seasonal-naive denominators for MAPE and CRPS are not written to `all_results.csv` (annex C).
 
-**Reference-values provenance.** The enc3+CPC and EMA-target columns reproduce prior arms' published head-matched tables at their own code revisions, embedded as constants `REF_GM` and `EMA_GM` in [`build_report.py`](../../experiments/2026-06-20_lejepa_sigreg/scripts/build_report.py); the SIGReg column is the only fresh head-matched eval at this code revision and HF cache snapshot.
+**Reference-values provenance.** The enc3+CPC and EMA-target columns reproduce prior arms' published head-matched tables at their own code revisions: GM-Rel MASE as constants `REF_GM` / `EMA_GM` and GM-MASE as constants `REF_GM_MASE` / `EMA_GM_MASE` in [`build_report.py`](../../experiments/2026-06-20_lejepa_sigreg/scripts/build_report.py). The SIGReg column is the only fresh head-matched eval at this code revision and HF cache snapshot; its GM-MASE is read directly from each `gift_eval_full_<tag>{,_last}_{2L,6L}/all_results.csv` (`eval_metrics/MASE[0.5]` column, geometric mean over the 97 configs).
 
 ### What the two SIGReg terms did
 
@@ -57,7 +68,7 @@ Mean over the last 50 of 12 500 steps:
 
 ## Protocol
 
-One arm, seed `20260520`, 12 500 steps. Launcher: [`experiments/2026-06-20_lejepa_sigreg/scripts/train_backbone_sigreg.sh`](../../experiments/2026-06-20_lejepa_sigreg/scripts/train_backbone_sigreg.sh).
+One arm, single seed `20260520`, 12 500 steps (N=1; no replicates run for this report or for the two reference arms it compares against). Launcher: [`experiments/2026-06-20_lejepa_sigreg/scripts/train_backbone_sigreg.sh`](../../experiments/2026-06-20_lejepa_sigreg/scripts/train_backbone_sigreg.sh).
 
 Backbone: GRU patch-embed → 3-layer transformer encoder (`K`=384, 6 heads). The arm changes exactly three flags vs the EMA-target enc3+CPC reference (B=1024):
 
@@ -92,23 +103,23 @@ All plots embed the SIGReg arm's training CSV `runs/bb_allt08_xftrip_nobn_enc3_e
 
 The arm changes three things vs the EMA-target B=1024 reference: SIGReg on `e_t`, SIGReg on `h_t`, batch 1024 → 512. The four-cell GM-Rel MASE table measures the joint perturbation. The issue spec asks for the single B=512 arm; no-SIGReg B=512 and SIGReg B=1024 controls were not run.
 
-### C. GIFT-Eval wrapper emits only GM-Rel MASE
+### C. Metric availability from the wrapper artefacts
 
-`scripts/run_gift_eval_full.sh` writes `Aggregate GM-Relative MASE (97 configs)` to each `summary.txt`. The per-config `all_results.csv` carries raw `MASE[0.5]`, `MAPE[0.5]`, and `mean_weighted_sum_quantile_loss`, but not the seasonal-naive denominators needed to form GM-MASE / GM-MAPE_SN / GM-CRPS_SN.
+`scripts/run_gift_eval_full.sh` writes `Aggregate GM-Relative MASE (97 configs)` plus per-config `Config / MASE / SN_MASE / Relative` columns to each `summary.txt`, and per-config raw `eval_metrics/MASE[0.5]`, `eval_metrics/MAPE[0.5]`, `eval_metrics/mean_weighted_sum_quantile_loss`, and `domain` to each `all_results.csv`. GM-Rel MASE is the wrapper's headline aggregate; GM-MASE is the geometric mean of per-config `MASE[0.5]` from `all_results.csv` and is reported alongside above. GM-MAPE_SN and GM-CRPS_SN are not formed here: the per-config seasonal-naive denominators for MAPE (and the seasonal-naive weighted quantile loss for CRPS) are not written to either file, so seasonal-naive normalisation of those two metrics is not available from the shipped artefacts.
 
-### D. Trajectory of SIGReg terms and `e_t` dimensionality
+### D. Trajectory of SIGReg terms and `e_t` / `h_t` dimensionality
 
 50-step rolling means:
 
-| step | `L_SIGReg(e_t)` | `L_SIGReg(h_t)` | `u_batch_e` | `u_batch` (`h_t`) | `loss` |
-| ---: | ---: | ---: | ---: | ---: | ---: |
-| 250 | 1.76e-3 | 2.59e-3 | 0.0100 | 0.4069 | 3.13 |
-| 500 | 1.36e-3 | 1.92e-3 | 0.0110 | 0.5379 | 2.99 |
-| 1 000 | 7.55e-4 | 1.23e-3 | 0.0126 | 0.6173 | 2.88 |
-| 2 000 | 6.41e-4 | 8.57e-4 | 0.0151 | 0.7190 | 3.07 |
-| 5 000 | 9.38e-4 | 8.40e-4 | 0.0240 | 0.7867 | 4.50 |
-| 7 500 | 9.96e-4 | 5.17e-4 | 0.0341 | 0.7925 | 4.54 |
-| 10 000 | 9.70e-4 | 4.12e-4 | 0.0395 | 0.7923 | 4.43 |
-| 12 500 | 1.01e-3 | 3.81e-4 | 0.0438 | 0.8020 | 4.24 |
+| step | `L_SIGReg(e_t)` | `L_SIGReg(h_t)` | `u_batch_e` | `u_batch` (`h_t`) | `u_temporal_e` | `u_temporal` (`h_t`) | `loss` |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 250 | 1.76e-3 | 2.59e-3 | 0.0100 | 0.4072 | 0.0095 | 0.2332 | 3.13 |
+| 500 | 1.36e-3 | 1.91e-3 | 0.0110 | 0.5376 | 0.0103 | 0.2895 | 2.99 |
+| 1 000 | 7.54e-4 | 1.23e-3 | 0.0126 | 0.6173 | 0.0115 | 0.3422 | 2.88 |
+| 2 000 | 6.41e-4 | 8.58e-4 | 0.0151 | 0.7188 | 0.0131 | 0.4391 | 3.07 |
+| 5 000 | 9.37e-4 | 8.40e-4 | 0.0240 | 0.7862 | 0.0199 | 0.6083 | 4.50 |
+| 7 500 | 9.95e-4 | 5.18e-4 | 0.0341 | 0.7920 | 0.0243 | 0.6202 | 4.54 |
+| 10 000 | 9.69e-4 | 4.12e-4 | 0.0395 | 0.7938 | 0.0277 | 0.6197 | 4.43 |
+| 12 500 | 1.01e-3 | 3.81e-4 | 0.0438 | 0.8016 | 0.0315 | 0.6184 | 4.24 |
 
-`1/K` = 1/384 ≈ 0.00260. Final-step `u_temporal` = 0.6194, `u_temporal_e` = 0.0315.
+`1/K` = 1/384 ≈ 0.00260.
