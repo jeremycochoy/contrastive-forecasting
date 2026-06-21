@@ -82,7 +82,7 @@ Each backbone checkpoint (`best` = best train-loss, `last` = step 12 500) trains
 
 All plots embed the SIGReg arm's training CSV `runs/bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_losses.csv` (12 500 rows, seed `20260520`). `loss_curve.png` and `uniformity.png` overlay:
 
-- EMA-target arm: `experiments/2026-06-19_ema_target_encoder/runs/bb_allt08_xftrip_nobn_enc3_emateach_qk_aon_b1024_cpc_losses.csv`
+- EMA-target arm: `experiments/2026-06-19_ema_target_encoder/runs/bb_allt08_xftrip_nobn_enc3_emateach_qk_aon_b1024_cpc_losses.csv` (steps 1 → 10 000) concatenated with `…_r2_losses.csv` (the resume continuation, steps 10 001 → 12 500)
 - enc3+CPC arm: `experiments/2026-06-13_cpc_infonce_aux/runs/bb_allt08_xftrip_nobn_enc3_sgpos_qk_aon_b1024_cpc_losses.csv`
 
 `perdomain_radar.png` reads `summary.txt` + `all_results.csv` from each arm's `gift_eval_full_<tag>{,_last}_{2L,6L}/` directory, computes the geometric mean of per-config `Relative MASE` within each domain, and overlays the three arms × {best, last}. Both overlay CSVs and the EMA-target / enc3+CPC eval directories are taken from those arms' own code revisions; no fresh re-training was run for this report. Colour mapping (bar plot + radar): grey = enc3+CPC B=1024, blue = EMA-target enc3+CPC B=1024, red = this arm.

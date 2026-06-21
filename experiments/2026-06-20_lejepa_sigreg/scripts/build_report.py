@@ -105,17 +105,39 @@ def write_gm_table(results_dir: Path, out_csv: Path, tag: str):
     return rows
 
 
+def _load_concat(csv_path: Path | None) -> pd.DataFrame | None:
+    """Load a losses CSV and concatenate any sibling resume CSVs (<stem>_r<N>_losses.csv).
+
+    The EMA-target arm was resumed at step 10 001; r2 holds steps 10 001 → 12 500
+    at the same path. Sort by step, drop duplicate steps if the runs overlap, so the
+    overlay spans the full training window."""
+    if not csv_path or not csv_path.exists():
+        return None
+    frames = [pd.read_csv(csv_path)]
+    stem = csv_path.name.replace("_losses.csv", "")
+    n = 2
+    while True:
+        sib = csv_path.with_name(f"{stem}_r{n}_losses.csv")
+        if not sib.exists():
+            break
+        frames.append(pd.read_csv(sib))
+        n += 1
+    df = pd.concat(frames, ignore_index=True)
+    return (df.drop_duplicates(subset="step", keep="first")
+              .sort_values("step").reset_index(drop=True))
+
+
 def plot_loss_curves(sigreg_csv: Path, ema_csv: Path | None, cpc_csv: Path | None, out: Path):
     fig, ax = plt.subplots(figsize=(8, 4.5))
     s = pd.read_csv(sigreg_csv)
     ax.plot(s["step"], s["loss"].rolling(50, min_periods=1).mean(),
             label=ARM_LABEL["sigreg_enc3"], color="C0", lw=1.5)
-    if ema_csv and ema_csv.exists():
-        e = pd.read_csv(ema_csv)
+    e = _load_concat(ema_csv)
+    if e is not None:
         ax.plot(e["step"], e["loss"].rolling(50, min_periods=1).mean(),
                 label=ARM_LABEL["ema_enc3"], color="C1", lw=1.5)
-    if cpc_csv and cpc_csv.exists():
-        c = pd.read_csv(cpc_csv)
+    c = _load_concat(cpc_csv)
+    if c is not None:
         ax.plot(c["step"], c["loss"].rolling(50, min_periods=1).mean(),
                 label=ARM_LABEL["cpc_enc3"], color="C2", lw=1.5)
     ax.set_xlabel("step"); ax.set_ylabel("loss (50-step rolling mean)")
@@ -126,6 +148,8 @@ def plot_loss_curves(sigreg_csv: Path, ema_csv: Path | None, cpc_csv: Path | Non
 
 def plot_uniformity(sigreg_csv: Path, ema_csv: Path | None, cpc_csv: Path | None, out: Path):
     s = pd.read_csv(sigreg_csv)
+    e = _load_concat(ema_csv)
+    c = _load_concat(cpc_csv)
     fig, axes = plt.subplots(1, 2, figsize=(13, 4.5), sharey=True)
     sig_lab = ARM_LABEL["sigreg_enc3"]
     ema_lab = ARM_LABEL["ema_enc3"]
@@ -135,16 +159,12 @@ def plot_uniformity(sigreg_csv: Path, ema_csv: Path | None, cpc_csv: Path | None
                 label=f"u_{kind} (h_t) — {sig_lab}", color="C0", lw=1.5)
         ax.plot(s["step"], s[f"u_{kind}_e"].rolling(50, min_periods=1).mean(),
                 label=f"u_{kind}_e (e_t) — {sig_lab}", color="C0", lw=1.5, ls="--")
-        if ema_csv and ema_csv.exists():
-            e = pd.read_csv(ema_csv)
-            if f"u_{kind}" in e.columns:
-                ax.plot(e["step"], e[f"u_{kind}"].rolling(50, min_periods=1).mean(),
-                        label=f"u_{kind} (h_t) — {ema_lab}", color="C1", lw=1.0)
-        if cpc_csv and cpc_csv.exists():
-            c = pd.read_csv(cpc_csv)
-            if f"u_{kind}" in c.columns:
-                ax.plot(c["step"], c[f"u_{kind}"].rolling(50, min_periods=1).mean(),
-                        label=f"u_{kind} (h_t) — {cpc_lab}", color="C2", lw=1.0)
+        if e is not None and f"u_{kind}" in e.columns:
+            ax.plot(e["step"], e[f"u_{kind}"].rolling(50, min_periods=1).mean(),
+                    label=f"u_{kind} (h_t) — {ema_lab}", color="C1", lw=1.0)
+        if c is not None and f"u_{kind}" in c.columns:
+            ax.plot(c["step"], c[f"u_{kind}"].rolling(50, min_periods=1).mean(),
+                    label=f"u_{kind} (h_t) — {cpc_lab}", color="C2", lw=1.0)
         ax.set_xlabel("step")
         ax.set_ylabel("effective dimensionality")
         ax.set_title(f"u_{kind} ({'cross-batch' if kind=='batch' else 'cross-time'})")
