@@ -127,19 +127,26 @@ def _load_concat(csv_path: Path | None) -> pd.DataFrame | None:
               .sort_values("step").reset_index(drop=True))
 
 
+ARM_COLOR = {
+    "cpc_enc3":    "#888888",  # grey
+    "ema_enc3":    "#1f77b4",  # blue
+    "sigreg_enc3": "#d62728",  # red
+}
+
+
 def plot_loss_curves(sigreg_csv: Path, ema_csv: Path | None, cpc_csv: Path | None, out: Path):
     fig, ax = plt.subplots(figsize=(8, 4.5))
     s = pd.read_csv(sigreg_csv)
     ax.plot(s["step"], s["loss"].rolling(50, min_periods=1).mean(),
-            label=ARM_LABEL["sigreg_enc3"], color="C0", lw=1.5)
+            label=ARM_LABEL["sigreg_enc3"], color=ARM_COLOR["sigreg_enc3"], lw=1.5)
     e = _load_concat(ema_csv)
     if e is not None:
         ax.plot(e["step"], e["loss"].rolling(50, min_periods=1).mean(),
-                label=ARM_LABEL["ema_enc3"], color="C1", lw=1.5)
+                label=ARM_LABEL["ema_enc3"], color=ARM_COLOR["ema_enc3"], lw=1.5)
     c = _load_concat(cpc_csv)
     if c is not None:
         ax.plot(c["step"], c["loss"].rolling(50, min_periods=1).mean(),
-                label=ARM_LABEL["cpc_enc3"], color="C2", lw=1.5)
+                label=ARM_LABEL["cpc_enc3"], color=ARM_COLOR["cpc_enc3"], lw=1.5)
     ax.set_xlabel("step"); ax.set_ylabel("loss (50-step rolling mean)")
     ax.set_title("Training loss")
     ax.legend(); ax.grid(alpha=0.3)
@@ -154,17 +161,20 @@ def plot_uniformity(sigreg_csv: Path, ema_csv: Path | None, cpc_csv: Path | None
     sig_lab = ARM_LABEL["sigreg_enc3"]
     ema_lab = ARM_LABEL["ema_enc3"]
     cpc_lab = ARM_LABEL["cpc_enc3"]
+    sig_col = ARM_COLOR["sigreg_enc3"]
+    ema_col = ARM_COLOR["ema_enc3"]
+    cpc_col = ARM_COLOR["cpc_enc3"]
     for ax, kind in zip(axes, ("batch", "temporal")):
         ax.plot(s["step"], s[f"u_{kind}"].rolling(50, min_periods=1).mean(),
-                label=f"u_{kind} (h_t) — {sig_lab}", color="C0", lw=1.5)
+                label=f"u_{kind} (h_t) — {sig_lab}", color=sig_col, lw=1.5)
         ax.plot(s["step"], s[f"u_{kind}_e"].rolling(50, min_periods=1).mean(),
-                label=f"u_{kind}_e (e_t) — {sig_lab}", color="C0", lw=1.5, ls="--")
+                label=f"u_{kind}_e (e_t) — {sig_lab}", color=sig_col, lw=1.5, ls="--")
         if e is not None and f"u_{kind}" in e.columns:
             ax.plot(e["step"], e[f"u_{kind}"].rolling(50, min_periods=1).mean(),
-                    label=f"u_{kind} (h_t) — {ema_lab}", color="C1", lw=1.0)
+                    label=f"u_{kind} (h_t) — {ema_lab}", color=ema_col, lw=1.0)
         if c is not None and f"u_{kind}" in c.columns:
             ax.plot(c["step"], c[f"u_{kind}"].rolling(50, min_periods=1).mean(),
-                    label=f"u_{kind} (h_t) — {cpc_lab}", color="C2", lw=1.0)
+                    label=f"u_{kind} (h_t) — {cpc_lab}", color=cpc_col, lw=1.0)
         ax.set_xlabel("step")
         ax.set_ylabel("effective dimensionality")
         ax.set_title(f"u_{kind} ({'cross-batch' if kind=='batch' else 'cross-time'})")
@@ -182,13 +192,12 @@ def plot_gm_bars(rows: list[dict], out: Path):
     fig, ax = plt.subplots(figsize=(9, 4.5))
     x = np.arange(len(cells))
     w = 0.27
-    colors = {"cpc_enc3": "#888888", "ema_enc3": "#1f77b4", "sigreg_enc3": "#d62728"}
     for i, arm in enumerate(arms_order):
         vals = []
         for head, ckpt in cells:
             r = df[(df["arm"] == arm) & (df["head"] == head) & (df["ckpt"] == ckpt)]
             vals.append(r["gm"].values[0] if len(r) else np.nan)
-        ax.bar(x + (i - 1) * w, vals, w, label=ARM_LABEL[arm], color=colors[arm])
+        ax.bar(x + (i - 1) * w, vals, w, label=ARM_LABEL[arm], color=ARM_COLOR[arm])
         for xi, vi in zip(x + (i - 1) * w, vals):
             if not np.isnan(vi):
                 ax.text(xi, vi + 0.003, f"{vi:.4f}",
@@ -248,11 +257,10 @@ def plot_perdomain_radar(
     """2 panels (2L | 6L), 6 curves each (3 arms × {best, last})."""
     from matplotlib.lines import Line2D
     HEADS = ["2L", "6L"]
-    GREY, BLUE, RED = "#888888", "#1f77b4", "#d62728"
     ARMS = [  # (arm-key, root, tag, colour)
-        ("cpc_enc3",    cpc_results, cpc_tag, GREY),
-        ("ema_enc3",    ema_results, ema_tag, BLUE),
-        ("sigreg_enc3", sig_results, sig_tag, RED),
+        ("cpc_enc3",    cpc_results, cpc_tag, ARM_COLOR["cpc_enc3"]),
+        ("ema_enc3",    ema_results, ema_tag, ARM_COLOR["ema_enc3"]),
+        ("sigreg_enc3", sig_results, sig_tag, ARM_COLOR["sigreg_enc3"]),
     ]
     CKPTS = [("", "-"), ("_last", "--")]
     fig, axes = plt.subplots(1, 2, figsize=(15, 8), subplot_kw=dict(polar=True))

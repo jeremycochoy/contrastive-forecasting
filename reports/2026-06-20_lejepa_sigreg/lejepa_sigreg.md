@@ -1,6 +1,6 @@
 # LeJEPA spherical regulariser at half batch size
 
-Does adding a spherical regulariser on the patch-embed and on the encoder output, with batch cut from 1024 to 512, keep the GIFT-Eval full-97 score in the same neighbourhood as the B=1024 reference and fill the latent sphere? The four-cell head-to-head does not separate the SIGReg + B=512 arm from the EMA-target B=1024 reference in either direction.
+Does adding a spherical regulariser on the patch-embed and on the encoder output, with batch cut from 1024 to 512, keep the GIFT-Eval full-97 score within noise of the B=1024 reference and fill the latent sphere? GM-Rel MASE is within ≤0.006 of the EMA-target B=1024 reference in every cell (SIGReg below it in all four: Δ = −0.0004, −0.0059, −0.0033, −0.0041 at 2L/best, 2L/last, 6L/best, 6L/last). `h_t` fills the sphere to the same extent as the EMA-target reference (`u_batch` ends at 0.80 vs 0.82, `u_temporal` at 0.62 vs 0.57); `e_t` stays at ~17× `1/K` (`u_batch_e` 0.0438, `u_temporal_e` 0.0315).
 
 ## Result
 
@@ -35,8 +35,6 @@ GM-MASE (geometric mean of per-config `MASE[0.5]` across 97 configs; lower = bet
 ## Dimension usage
 
 ![Cross-batch (left) and cross-time (right) uniformity over training; h_t solid vs e_t dashed for the SIGReg arm, h_t overlays for the two reference arms](plots/uniformity.png)
-
-Both `e_t` curves (`u_batch_e`, `u_temporal_e`) stay low and rise only slowly; both `h_t` curves (`u_batch`, `u_temporal`) climb.
 
 ## Training loss
 
@@ -77,7 +75,7 @@ SIGReg arm training CSV: `runs/bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon
 
 ### B. Attribution — three axes move together
 
-The arm changes three things vs the EMA-target B=1024 reference: SIGReg on `e_t`, SIGReg on `h_t`, batch 1024 → 512. The four-cell GM-Rel MASE table measures the joint perturbation. The issue spec asks for the single B=512 arm; no-SIGReg B=512 and SIGReg B=1024 controls were not run.
+The arm changes three things vs the EMA-target B=1024 reference: SIGReg on `e_t`, SIGReg on `h_t`, batch 1024 → 512. The four-cell GM-Rel MASE table measures the joint perturbation. No-SIGReg B=512 and SIGReg B=1024 controls were not run.
 
 ### C. Metric availability from the wrapper artefacts
 
