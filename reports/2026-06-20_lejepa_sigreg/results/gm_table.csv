@@ -1,0 +1,13 @@
+arm,label,head,ckpt,gm,gm_mase,n
+cpc_enc3,"enc3+CPC, B=1024",2L,best,1.1846,1.6559,97
+cpc_enc3,"enc3+CPC, B=1024",2L,last,1.1531,1.6119,97
+cpc_enc3,"enc3+CPC, B=1024",6L,best,1.1584,1.6193,97
+cpc_enc3,"enc3+CPC, B=1024",6L,last,1.1436,1.5986,97
+ema_enc3,"EMA-target enc3+CPC, B=1024",2L,best,1.1614,1.6235,97
+ema_enc3,"EMA-target enc3+CPC, B=1024",2L,last,1.1817,1.6519,97
+ema_enc3,"EMA-target enc3+CPC, B=1024",6L,best,1.1576,1.6182,97
+ema_enc3,"EMA-target enc3+CPC, B=1024",6L,last,1.1597,1.6211,97
+sigreg_enc3,"SIGReg + EMA-target enc3+CPC, B=512",2L,best,1.1610,1.6229,97
+sigreg_enc3,"SIGReg + EMA-target enc3+CPC, B=512",2L,last,1.1758,1.6436,97
+sigreg_enc3,"SIGReg + EMA-target enc3+CPC, B=512",6L,best,1.1543,1.6135,97
+sigreg_enc3,"SIGReg + EMA-target enc3+CPC, B=512",6L,last,1.1556,1.6154,97

@@ -1528,6 +1528,92 @@ class TestCPCInfonceAuxLoss:
             cpc_infonce_aux_loss(f5, h, self._w1(8))
 
 
+class TestCPCInfonceAllLoss:
+    """`cpc_infonce_all_loss` — the #348 full marginal-proposal CPC variant.
+
+    Same log-bilinear next-step objective as the aux term, but with the FULL
+    batch×time grid as negatives (mask only the positive). Pins: ≥ 0, joint
+    gradient (W_1 + both latents), chunk-size invariance, → 0 at perfect
+    alignment, T<2 → 0, rejects 5-D, and the defining superset property —
+    `all` >= `aux` on identical inputs (its negatives are a strict superset).
+    """
+
+    @staticmethod
+    def _w1(H, seed=0, scale=None):
+        g = torch.Generator().manual_seed(seed)
+        w = torch.nn.Linear(H, H, bias=False)
+        with torch.no_grad():
+            if scale is None:
+                w.weight.copy_(torch.randn(H, H, generator=g) / math.sqrt(H))
+            else:
+                w.weight.copy_(scale * torch.eye(H))
+        return w
+
+    def test_returns_nonneg_finite_scalar(self):
+        from src.loss import cpc_infonce_all_loss
+        f, h = _random_inputs(B=4, T=5, C=2, H=16, seed=1)
+        loss = cpc_infonce_all_loss(f, h, self._w1(16))
+        assert loss.ndim == 0 and torch.isfinite(loss) and loss.item() >= 0.0
+
+    def test_grad_flows_to_w1_and_both_latents(self):
+        from src.loss import cpc_infonce_all_loss
+        f, h = _random_inputs(B=4, T=5, C=2, H=16, seed=2)
+        f.requires_grad_(True); h.requires_grad_(True)
+        w1 = self._w1(16)
+        cpc_infonce_all_loss(f, h, w1).backward()
+        for name, t in (("W_1", w1.weight), ("forecasted", f), ("original", h)):
+            assert t.grad is not None and t.grad.abs().sum() > 0, f"no grad on {name}"
+
+    def test_chunk_size_invariance(self):
+        # logsumexp is associative ⇒ source-batch chunking is exact.
+        from src.loss import cpc_infonce_all_loss
+        f, h = _random_inputs(B=8, T=4, C=1, H=16, seed=3)
+        w1 = self._w1(16)
+        vals = []
+        for ch in ("1", "3", "8", "100"):
+            os.environ["CPC_ALL_CHUNK"] = ch
+            try:
+                vals.append(cpc_infonce_all_loss(f, h, w1).item())
+            finally:
+                os.environ.pop("CPC_ALL_CHUNK", None)
+        for v in vals[1:]:
+            assert abs(v - vals[0]) < 1e-5, vals
+
+    def test_full_grid_superset_ordering(self):
+        # The full grid (marginal_only=False) is a strict superset of BOTH the
+        # cross-sequence-only (marginal_only=True) set AND the narrow aux set, so
+        # its denominator — hence loss — is >= both. (cross-only is NOT a superset
+        # of aux: it drops aux's same-sequence negatives, so they are unordered.)
+        from src.loss import cpc_infonce_all_loss, cpc_infonce_aux_loss
+        f, h = _random_inputs(B=6, T=5, C=1, H=16, seed=7)
+        w1 = self._w1(16)
+        full = cpc_infonce_all_loss(f, h, w1, marginal_only=False).item()
+        cross = cpc_infonce_all_loss(f, h, w1, marginal_only=True).item()
+        aux = cpc_infonce_aux_loss(f, h, w1).item()
+        assert full >= cross - 1e-6, (full, cross)
+        assert full >= aux - 1e-6, (full, aux)
+        assert cross >= 0.0
+
+    def test_perfect_alignment_near_zero(self):
+        from src.loss import cpc_infonce_all_loss
+        g = torch.Generator().manual_seed(4)
+        B, T, C, H = 4, 6, 1, 64
+        h = torch.randn(B, T, C, H, generator=g)
+        f = torch.empty_like(h); f[:, :-1] = h[:, 1:]; f[:, -1] = h[:, -1]
+        loss = cpc_infonce_all_loss(f, h, self._w1(H, scale=20.0))
+        assert loss.item() < 0.05, loss.item()
+
+    def test_short_sequence_returns_zero(self):
+        from src.loss import cpc_infonce_all_loss
+        f, h = _random_inputs(B=2, T=1, C=1, H=8, seed=5)
+        assert cpc_infonce_all_loss(f, h, self._w1(8)).item() == 0.0
+
+    def test_rejects_5d_forecaster(self):
+        from src.loss import cpc_infonce_all_loss
+        with pytest.raises(ValueError):
+            cpc_infonce_all_loss(torch.randn(2, 4, 1, 3, 8), torch.randn(2, 4, 1, 8), self._w1(8))
+
+
 class TestAlignLoss:
     """`align_loss` — the standalone BYOL alignment term (#344 follow-up arm)."""
 

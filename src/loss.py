@@ -349,6 +349,224 @@ def cpc_infonce_aux_loss(forecasted_latent, original_latent, w1,
     return (log_denom - log_pos).mean()
 
 
+def cpc_infonce_all_loss(forecasted_latent, original_latent, w1, source_chunk=8,
+                         marginal_only=True):
+    """CPC InfoNCE with the FULL marginal-proposal negative set (#348).
+
+    The paper-faithful CPC InfoNCE (van den Oord et al. 2018, Eq. 4): predict
+    ``z_{t+1}`` from the AR context ``c_t`` via the log-bilinear ``z_j^T W_1 c_t``
+    (no τ, no stop-grad). The denominator ``Σ_{x_j ∈ X} f_k(x_j, c_t)`` sums over
+    the whole candidate set ``X`` and the positive ``z_{t+1}`` is one of its terms
+    — there is **no masking**.
+
+    ``marginal_only=True`` (default): ``X = {positive z_{b,t+1}} ∪ {every OTHER
+        sequence's embeddings z_{b',l}, b'≠b, all l}``. The negatives are
+        independent of the context ``c_t`` — genuine marginal ``p(z_{t+1})``
+        draws — so van den Oord's Theorem 1 holds: the unique optimum is
+        ``f_k ∝ p(z|c)/p(z)`` and the loss attains the bound
+        ``I(z_{t+1}; c_t) >= log N − L_N``. This is the strict,
+        information-theoretically grounded form.
+    ``marginal_only=False``: ``X`` additionally includes the SAME sequence's
+        other steps (the literal full batch×time grid). Those are temporally
+        correlated with ``c_t`` (not marginal draws), so the MI bound becomes
+        approximate; kept as a maximal-negatives ablation. This full-grid set is
+        a strict superset of the narrow :func:`cpc_infonce_aux_loss` set, so for
+        identical inputs ``marginal_only=False`` >= the aux loss.
+
+    The cross-sequence-all-time negatives form a ``[B, B, T-1, T]`` object; it
+    is streamed over the SOURCE batch ``b'`` in chunks, each chunk
+    gradient-checkpointed. logsumexp is associative, so the chunked result is
+    exact and chunk-size independent (chunk size only trades memory for kernel
+    launches). Env override: ``CPC_ALL_CHUNK``.
+
+    Args mirror :func:`cpc_infonce_aux_loss`. Returns a scalar (mean over B, C, t).
+    """
+    if forecasted_latent.dim() != 4:
+        raise ValueError(
+            "cpc_infonce_all_loss expects a 4-D [B,T,C,H] forecaster latent "
+            f"(got {forecasted_latent.dim()}-D); the CPC InfoNCE term (#344/#348) "
+            "is not defined for the cpc_multistep forecaster stack.")
+    B, T, C, H = forecasted_latent.shape
+    if T < 2:
+        return forecasted_latent.new_zeros(())
+    neg_inf = float('-inf')
+    e = F.normalize(original_latent, p=2, dim=-1)        # [B,T,C,H] unit embeddings z_j
+    q = w1(forecasted_latent)                            # [B,T,C,H] W_1 c_t (raw scale)
+    q_a = q[:, :-1]                                      # contexts c_t  [B,T-1,C,H]
+    e_pos = e[:, 1:]                                     # positive z_{t+1}  [B,T-1,C,H]
+    log_pos = (q_a * e_pos).sum(-1)                      # numerator score  [B,T-1,C]
+
+    # Denominator Σ_{x_j ∈ X} f_k(x_j, c_t) is over the ENTIRE batch×time grid of
+    # candidates X (Eq. 4) — the positive z_{t+1} is itself one of these terms,
+    # so there is NO masking. We sum it in two non-overlapping partitions to chunk
+    # the cross-sequence part: (i) the anchor's OWN sequence over all l, (ii) every
+    # OTHER sequence over all l. Their logsumexp is the full denominator.
+
+    # Cross-sequence candidates: every OTHER sequence b' != b, ALL l — the
+    # context-independent (marginal) draws. The [B,B,T-1,T] Gram is streamed over
+    # the source batch b' in gradient-checkpointed chunks (logsumexp is
+    # associative ⇒ exact and chunk-size independent; env CPC_ALL_CHUNK). The
+    # b'=b slice is dropped here (excluded entirely under marginal_only, or
+    # re-added via the same-sequence term below otherwise).
+    CH = int(os.environ.get('CPC_ALL_CHUNK', str(source_chunk)))
+    anchor = q_a.permute(0, 2, 1, 3).contiguous()        # [B,C,T-1,H]  (W_1 c_t)
+    src = e.permute(0, 2, 1, 3).contiguous()             # [B,C,T,H]    (z_{b',l}, all l)
+    b_all = torch.arange(B, device=e.device)
+
+    def _cross_chunk(anc, src_chunk, same_mask):
+        # anc [B,C,T-1,H], src_chunk [ch,C,T,H], same_mask [B,ch,1,1,1] bool.
+        gram = torch.matmul(anc.unsqueeze(1),                          # [B,1, C,T-1,H]
+                            src_chunk.permute(0, 1, 3, 2).unsqueeze(0))  # [1,ch,C,H,  T]
+        gram = gram.masked_fill(same_mask, neg_inf)                    # drop b'=b
+        return torch.logsumexp(torch.logsumexp(gram, dim=4), dim=1)    # [B,C,T-1]
+
+    run = None
+    for s in range(0, B, CH):
+        ee = min(s + CH, B)
+        same = (b_all.view(B, 1) == b_all[s:ee].view(1, ee - s)).view(B, ee - s, 1, 1, 1)
+        chunk_lse = checkpoint(_cross_chunk, anchor, src[s:ee], same, use_reentrant=False)
+        run = chunk_lse if run is None else torch.logsumexp(
+            torch.stack([run, chunk_lse], dim=0), dim=0)
+    log_den_cross = run.permute(0, 2, 1)                 # [B,C,T-1] -> [B,T-1,C]
+
+    # Denominator Σ_{x_j ∈ X} f_k(x_j, c_t) (Eq. 4) — the positive z_{t+1} is
+    # always one of its terms. marginal_only=True (default, strict van den Oord):
+    # X = {positive} ∪ {all OTHER-sequence embeddings}; the negatives are i.i.d.
+    # marginal draws (independent of c_t), so Theorem 1 holds EXACTLY — the unique
+    # optimum is the density ratio p(z|c)/p(z), maximizing the I >= log N − L
+    # bound. marginal_only=False: X also includes the SAME sequence's other steps
+    # (the literal full batch×time grid); those are correlated with c_t (not
+    # marginal draws), so the MI bound is only approximate.
+    if marginal_only:
+        log_denom = torch.logsumexp(
+            torch.stack([log_pos, log_den_cross], dim=0), dim=0)      # {pos} ∪ {cross}
+    else:
+        sims_t = torch.matmul(q_a.permute(0, 2, 1, 3), e.permute(0, 2, 3, 1))  # [B,C,T-1,T]
+        log_den_self = torch.logsumexp(sims_t, dim=3).permute(0, 2, 1)         # same-seq all l
+        log_denom = torch.logsumexp(
+            torch.stack([log_den_self, log_den_cross], dim=0), dim=0)
+    return (log_denom - log_pos).mean()
+
+
+def sigreg_loss(z, sigma2=None, M=1024, T_knots=17, W=None,
+                post_normalize=False, n_chunk=8192, projections=None):
+    """LeJEPA spherical SIGReg statistic (Balestriero et al. 2025, #355).
+
+    Push the pooled marginal of the latent ``z`` toward ``Unif(S^{K-1})`` —
+    a principled, isotropic anti-collapse term that regularises the
+    *whole-batch* marginal distribution to fill the unit hypersphere
+    instead of concentrating on a low-dimensional subspace. Composes with
+    contrastive / EMA-target / CPC objectives — no pairwise relation,
+    stop-grad, predictor head, or queue.
+
+    Statistic — average the Epps–Pulley 1-D test over ``M`` random
+    unit-direction projections::
+
+        SIGReg(Z) = (1/M) · Σ_{m=1..M}  EP({ a_m^T z_i }_{i=1..N})
+
+        EP(s) = ∫_{ω ∈ [−W, W]}  | φ̂(ω) − exp(−½ σ² ω²) |²  dω
+        φ̂(ω) = (1/N) · Σ_i [ cos(ω s_i) + i sin(ω s_i) ]
+
+    ``a_m ∼ Unif(S^{K-1})`` are RESAMPLED every call (fresh randomness is
+    part of the regulariser, not a cached basis — no buffers, the term
+    contributes nothing to ``state_dict``). The integral is the
+    trapezoidal-rule sum on ``T_knots`` knots in ``[−W, W]``.
+
+    For ``K`` at the d_model scale (#355 issue: 384), projections of
+    ``Unif(S^{K-1})`` onto any unit direction are statistically
+    indistinguishable from ``N(0, 1/K)`` (excess kurtosis ``−6/(K+2)``
+    ≈ −0.016 at K=384), so the standard SIGReg target ``σ² = 1/K`` is
+    the principled choice — no Beta-target needed.
+
+    Args:
+        z: tensor with feature axis ``K = z.shape[-1]``; every other axis
+            is flattened into the sample axis ``N``.
+        sigma2: target projected variance. ``None`` → ``1/K`` (auto-scale
+            with the latent dim, matching the K-d-sphere marginal).
+        M: number of random 1-D projection directions per call. Ignored
+            when ``projections`` is supplied.
+        T_knots: number of trapezoidal-rule knots in ``[−W, W]``.
+        W: integration bound. ``None`` → ``6/√K`` (~6σ — the integrand
+            has decayed near the endpoints).
+        post_normalize: when True, ``z`` is L2-normalised on its last
+            axis before projection (LeJEPA's post-sphere-projection
+            placement; the strict ``σ² = 1/K`` regime). When False
+            (default), the statistic is on the raw pre-normalisation
+            vectors — pushes the encoder to LAND on the sphere with a
+            uniform marginal, leaving the downstream L2-normalise as a
+            near-identity.
+        n_chunk: chunk size along the sample axis ``N`` for the
+            ``cos/sin`` integrand evaluation — peaks at ``M·n_chunk·
+            T_knots`` floats per chunk. logsumexp-free averaging over
+            chunks is an exact sum split (the test pins this), so
+            ``n_chunk`` is a memory/throughput tradeoff only.
+        projections: optional ``[M, K]`` tensor of unit-direction
+            projections to use INSTEAD of resampling. Tests use this to
+            make the call deterministic; the training path never passes
+            it (fresh ``a_m`` every step is the contract).
+
+    Returns: scalar tensor (the mean EP statistic across the M directions).
+    """
+    K = z.shape[-1]
+    if sigma2 is None:
+        sigma2 = 1.0 / K
+    if W is None:
+        W = 6.0 / math.sqrt(K)
+    if post_normalize:
+        z = F.normalize(z, p=2, dim=-1)
+    z_flat = z.reshape(-1, K)                            # [N, K]
+    N = z_flat.shape[0]
+
+    if projections is None:
+        a = torch.randn(M, K, device=z.device, dtype=z.dtype)
+        a = F.normalize(a, p=2, dim=-1)                  # [M, K]
+    else:
+        if projections.shape[-1] != K:
+            raise ValueError(
+                f"projections has last dim {projections.shape[-1]}, "
+                f"expected K={K}.")
+        a = projections.to(device=z.device, dtype=z.dtype)
+        M = a.shape[0]
+
+    s = a @ z_flat.t()                                    # [M, N]
+
+    omega = torch.linspace(-W, W, T_knots, device=z.device, dtype=z.dtype)
+
+    # φ̂(ω) over the sample axis — chunked along N to cap the [M,n_chunk,
+    # T_knots] intermediate. cos/sin/sum is associative, so the chunked
+    # mean equals the unchunked one (pinned in tests). Each chunk's body
+    # (ws / cos / sin / sum) is wrapped in torch.utils.checkpoint so
+    # backward recomputes the per-chunk intermediates instead of keeping
+    # them in the graph — without this, n_chunk only trades chunk count
+    # for per-chunk size and the M=1024 / K=384 path OOMs on a 24 GB card
+    # (#356 review P0).
+    def _chunk_phi(s_chunk, omega):
+        ws = s_chunk.unsqueeze(-1) * omega                # [M, c, T_knots]
+        return torch.cos(ws).sum(dim=1), torch.sin(ws).sum(dim=1)
+    phi_re = z.new_zeros(M, T_knots)
+    phi_im = z.new_zeros(M, T_knots)
+    for start in range(0, N, n_chunk):
+        end = min(start + n_chunk, N)
+        chunk_re, chunk_im = checkpoint(
+            _chunk_phi, s[:, start:end], omega, use_reentrant=False)
+        phi_re = phi_re + chunk_re
+        phi_im = phi_im + chunk_im
+    phi_re = phi_re / N
+    phi_im = phi_im / N
+
+    # Target characteristic function — N(0, σ²) is purely real.
+    target = torch.exp(-0.5 * sigma2 * omega.pow(2))      # [T_knots]
+    integrand = (phi_re - target).pow(2) + phi_im.pow(2)  # [M, T_knots]
+
+    # Trapezoidal rule on [−W, W]: step h, endpoints weighted h/2.
+    h = 2.0 * W / (T_knots - 1)
+    trap_w = z.new_full((T_knots,), h)
+    trap_w[0] = trap_w[-1] = 0.5 * h
+
+    ep_per_dir = (integrand * trap_w).sum(dim=-1)         # [M]
+    return ep_per_dir.mean()
+
+
 def align_loss(forecasted_latent, original_latent, weight=1.0):
     """BYOL/SimSiam alignment term, standalone (#344 follow-up arm).
 
