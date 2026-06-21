@@ -1,22 +1,6 @@
 # LeJEPA spherical regulariser at half batch size
 
-## Question
-
-Does adding a spherical regulariser on the patch-embed and on the encoder output, with batch cut from 1024 to 512, keep the GIFT-Eval full-97 score in the same neighbourhood as the B=1024 reference and fill the latent sphere?
-
-## Vocabulary
-
-| term | definition |
-| --- | --- |
-| `enc3` | 3-layer transformer encoder (hidden size `K`=384, 6 heads — the codebase's depth used here). |
-| `CPC` | InfoNCE auxiliary head on the encoder, `--cpc-infonce-weight 1.0`. |
-| **EMA-target** | exponential-moving-average teacher on the encoder + patch-embed, `--ema-tau 0.99`. |
-| `e_t` | output of the GRU patch-embed, per (batch, time, channel) position; `K`=384. |
-| `h_t` | output of the 3-layer transformer encoder (the codebase's `original_latent`), same shape. |
-| **SIGReg** | LeJEPA-style spherical regulariser. Epps–Pulley test statistic averaged over `M`=1024 random unit-direction 1-D projections of the pooled latent, trapezoidal-integrated on `[−6/√K, 6/√K]` against `N(0, 1/K)`. Drives the pooled marginal toward `Unif(S^{K-1})`. Two terms here: `L_SIGReg(e_t)` (`--sigreg-embedding`) and `L_SIGReg(h_t)` (`--sigreg-encoding`), both pre-`F.normalize` (`--sigreg-post-normalization` OFF). Each weighted by `λ`=0.1. |
-| `u_batch` | cross-batch dimensionality usage of `h_t`, clipped to `[1/K, 1]`. `1/K` ≈ 0.00260 = one direction; 1 = uniform sphere coverage. `u_batch_e` is the same statistic on `e_t`. |
-| `u_temporal` | cross-time analogue of `u_batch`; `u_temporal_e` is the `e_t` version. |
-| **GM-Rel MASE** | GIFT-Eval full-97 aggregate: geometric mean over 97 configs of (model MASE ÷ seasonal-naive MASE). Lower = better; 1.0 = seasonal-naive parity. |
+Does adding a spherical regulariser on the patch-embed and on the encoder output, with batch cut from 1024 to 512, keep the GIFT-Eval full-97 score in the same neighbourhood as the B=1024 reference and fill the latent sphere? The four-cell head-to-head does not separate the SIGReg + B=512 arm from the EMA-target B=1024 reference in either direction.
 
 ## Result
 
@@ -40,15 +24,27 @@ GM-MASE (geometric mean of per-config `MASE[0.5]` across 97 configs; lower = bet
 | 6L / best | 1.6193 | 1.6182 | 1.6135 |
 | 6L / last | 1.5986 | 1.6211 | 1.6154 |
 
-![Per-domain GM-Rel MASE on GIFT-Eval full-97, 2-layer head (left) and 6-layer head (right), three arms × {best, last}](plots/perdomain_radar.png)
-
-The four-cell head-to-head does not separate the SIGReg + B=512 arm from the EMA-target B=1024 reference in either direction.
-
 **Metric scope.** GM-Rel MASE and GM-MASE are both available from the wrapper artefacts; GM-MAPE_SN and GM-CRPS_SN are not, since the per-config seasonal-naive denominators for MAPE and CRPS are not written to `all_results.csv` (annex C).
 
 **Reference-values provenance.** The enc3+CPC and EMA-target columns reproduce prior arms' published head-matched tables at their own code revisions: GM-Rel MASE as constants `REF_GM` / `EMA_GM` and GM-MASE as constants `REF_GM_MASE` / `EMA_GM_MASE` in [`build_report.py`](../../experiments/2026-06-20_lejepa_sigreg/scripts/build_report.py). The SIGReg column is the only fresh head-matched eval at this code revision and HF cache snapshot; its GM-MASE is read directly from each `gift_eval_full_<tag>{,_last}_{2L,6L}/all_results.csv` (`eval_metrics/MASE[0.5]` column, geometric mean over the 97 configs).
 
-### What the two SIGReg terms did
+## Per-domain split
+
+![Per-domain GM-Rel MASE on GIFT-Eval full-97, 2-layer head (left) and 6-layer head (right), three arms × {best, last}](plots/perdomain_radar.png)
+
+## Dimension usage
+
+![Cross-batch (left) and cross-time (right) uniformity over training; h_t solid vs e_t dashed for the SIGReg arm, h_t overlays for the two reference arms](plots/uniformity.png)
+
+All dimension-usage curves improve except the patch-embedding (`u_batch_e`), which stays low and increases only slowly.
+
+## Other graphs
+
+### Training loss
+
+![Training loss, 50-step rolling mean, three arms overlaid](plots/loss_curve.png)
+
+### SIGReg term magnitudes
 
 ![SIGReg term trajectories on log scale (upper) and their ratio to total loss (lower), 50-step rolling means](plots/sigreg_e_inspection.png)
 
@@ -61,10 +57,6 @@ Mean over the last 50 of 12 500 steps:
 | `λ · L_SIGReg(h_t)` | 3.805e-5 |
 | `λ · L_SIGReg(e_t) / loss` | 2.36e-5 |
 | `λ · L_SIGReg(h_t) / loss` | 8.96e-6 |
-
-### Sphere coverage
-
-![Cross-batch (left) and cross-time (right) uniformity over training; h_t solid vs e_t dashed for the SIGReg arm, h_t overlays for the two reference arms](plots/uniformity.png)
 
 ## Protocol
 
@@ -83,10 +75,6 @@ Other flags from the reference (`--ema-embedding --ema-encoder --ema-tau 0.99`, 
 ### Head-matched downstream
 
 Each backbone checkpoint (`best` = best train-loss, `last` = step 12 500) trains a 2-layer and a 6-layer quantile head, then evaluates on GIFT-Eval full-97 via `scripts/run_gift_eval_full.sh`. Per-cell summaries live at `results/gift_eval_full_<tag>{,_last}_{2L,6L}/summary.txt`.
-
-### Training loss
-
-![Training loss, 50-step rolling mean, three arms overlaid](plots/loss_curve.png)
 
 ## Annex
 
@@ -123,3 +111,17 @@ The arm changes three things vs the EMA-target B=1024 reference: SIGReg on `e_t`
 | 12 500 | 1.01e-3 | 3.81e-4 | 0.0438 | 0.8016 | 0.0315 | 0.6184 | 4.24 |
 
 `1/K` = 1/384 ≈ 0.00260.
+
+## Vocabulary
+
+| term | definition |
+| --- | --- |
+| `enc3` | 3-layer transformer encoder (hidden size `K`=384, 6 heads — the codebase's depth used here). |
+| `CPC` | InfoNCE auxiliary head on the encoder, `--cpc-infonce-weight 1.0`. |
+| **EMA-target** | exponential-moving-average teacher on the encoder + patch-embed, `--ema-tau 0.99`. |
+| `e_t` | output of the GRU patch-embed, per (batch, time, channel) position; `K`=384. |
+| `h_t` | output of the 3-layer transformer encoder (the codebase's `original_latent`), same shape. |
+| **SIGReg** | LeJEPA-style spherical regulariser. Epps–Pulley test statistic averaged over `M`=1024 random unit-direction 1-D projections of the pooled latent, trapezoidal-integrated on `[−6/√K, 6/√K]` against `N(0, 1/K)`. Drives the pooled marginal toward `Unif(S^{K-1})`. Two terms here: `L_SIGReg(e_t)` (`--sigreg-embedding`) and `L_SIGReg(h_t)` (`--sigreg-encoding`), both pre-`F.normalize` (`--sigreg-post-normalization` OFF). Each weighted by `λ`=0.1. |
+| `u_batch` | cross-batch dimensionality usage of `h_t`, clipped to `[1/K, 1]`. `1/K` ≈ 0.00260 = one direction; 1 = uniform sphere coverage. `u_batch_e` is the same statistic on `e_t`. |
+| `u_temporal` | cross-time analogue of `u_batch`; `u_temporal_e` is the `e_t` version. |
+| **GM-Rel MASE** | GIFT-Eval full-97 aggregate: geometric mean over 97 configs of (model MASE ÷ seasonal-naive MASE). Lower = better; 1.0 = seasonal-naive parity. |
