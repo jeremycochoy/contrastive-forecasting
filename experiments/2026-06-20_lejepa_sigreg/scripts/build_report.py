@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # #355 SIGReg report builder: plots + gm_table.csv from training CSV + GIFT-Eval summaries.
-import argparse, csv, os, re, sys
+import argparse, csv, math, os, re, sys
 from pathlib import Path
 
 import matplotlib
@@ -156,6 +156,98 @@ def plot_gm_bars(rows: list[dict], out: Path):
     fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
 
 
+def _dataset_to_domain(all_csv: Path) -> dict[str, str]:
+    m: dict[str, str] = {}
+    if not all_csv.exists():
+        return m
+    for r in csv.DictReader(open(all_csv)):
+        m[r["dataset"]] = r.get("domain", "Other")
+    return m
+
+
+def _config_relatives(summary_txt: Path) -> dict[str, float]:
+    out: dict[str, float] = {}
+    if not summary_txt.exists():
+        return out
+    for line in open(summary_txt):
+        p = line.split()
+        if len(p) == 4 and "/" in p[0]:
+            try:
+                out[p[0]] = float(p[3])
+            except ValueError:
+                pass
+    return out
+
+
+def _gm_by_domain(rels: dict[str, float], dmap: dict[str, str]) -> dict[str, float]:
+    acc: dict[str, list[float]] = {}
+    for cfg, rel in rels.items():
+        dom = dmap.get(cfg)
+        if rel <= 0 or dom is None:
+            continue
+        # Strip the freq/horizon suffix: per-dataset domain key is the prefix
+        # before the first '/'.
+        acc.setdefault(dom, []).append(math.log(rel))
+    return {d: math.exp(sum(v) / len(v)) for d, v in acc.items()}
+
+
+def plot_perdomain_radar(
+    sig_results: Path, ema_results: Path, cpc_results: Path,
+    sig_tag: str, ema_tag: str, cpc_tag: str, out: Path,
+):
+    """2 panels (2L | 6L), 6 curves each (3 arms × {best, last})."""
+    HEADS = ["2L", "6L"]
+    GREY, BLUE, RED = "#888888", "#1f77b4", "#d62728"
+    CURVES = [  # (arm-key, root, tag, ckpt-suffix, colour, linestyle, label)
+        ("cpc_enc3",    cpc_results, cpc_tag, "",      GREY, "-",  f"{ARM_LABEL['cpc_enc3']} · best"),
+        ("cpc_enc3",    cpc_results, cpc_tag, "_last", GREY, "--", f"{ARM_LABEL['cpc_enc3']} · last"),
+        ("ema_enc3",    ema_results, ema_tag, "",      BLUE, "-",  f"{ARM_LABEL['ema_enc3']} · best"),
+        ("ema_enc3",    ema_results, ema_tag, "_last", BLUE, "--", f"{ARM_LABEL['ema_enc3']} · last"),
+        ("sigreg_enc3", sig_results, sig_tag, "",      RED,  "-",  f"{ARM_LABEL['sigreg_enc3']} · best"),
+        ("sigreg_enc3", sig_results, sig_tag, "_last", RED,  "--", f"{ARM_LABEL['sigreg_enc3']} · last"),
+    ]
+    fig, axes = plt.subplots(1, 2, figsize=(15, 8), subplot_kw=dict(polar=True))
+    for ax, head in zip(axes, HEADS):
+        cells = []
+        for arm, root, tag, suf, col, ls, lab in CURVES:
+            sub = root / f"gift_eval_full_{tag}{suf}_{head}"
+            rel = _config_relatives(sub / "summary.txt")
+            dmap = _dataset_to_domain(sub / "all_results.csv")
+            gm = _gm_by_domain(rel, dmap)
+            if gm:
+                cells.append((lab, gm, col, ls))
+        if not cells:
+            ax.text(0.5, 0.5, "no eval", transform=ax.transAxes); continue
+        domains = sorted(set().union(*(g for _, g, _, _ in cells)))
+        theta = np.linspace(0, 2 * np.pi, len(domains), endpoint=False)
+        theta_closed = np.concatenate([theta, theta[:1]])
+        vals = [v for _, g, _, _ in cells for v in g.values()]
+        lo, hi = max(0.5, min(vals) * 0.92), max(vals) * 1.06
+        ax.set_theta_offset(np.pi / 2); ax.set_theta_direction(-1)
+        ax.set_xticks(theta); ax.set_xticklabels(domains, fontsize=8)
+        ax.set_rscale("log"); ax.set_ylim(lo, hi)
+        rticks = [t for t in (0.8, 1.0, 1.2, 1.5, 2.0) if lo < t < hi]
+        ax.set_yticks(rticks)
+        ax.set_yticklabels([f"{t:g}" for t in rticks], fontsize=7, color="0.4")
+        ax.set_rlabel_position(90)
+        ax.plot(theta_closed, [1.0] * len(theta_closed),
+                color="k", ls=(0, (2, 2)), lw=0.8, alpha=0.6, zorder=1)
+        for lab, g, col, ls in cells:
+            v = np.array([g.get(d, np.nan) for d in domains]
+                         + [g.get(domains[0], np.nan)])
+            ax.plot(theta_closed, v, color=col, ls=ls, lw=1.6, zorder=3,
+                    marker="o", markersize=3, label=lab)
+        ax.set_title(f"{head} q-head", fontsize=11, pad=14)
+        ax.legend(loc="upper left", bbox_to_anchor=(-0.05, -0.06),
+                  fontsize=8, frameon=False, ncol=1)
+    fig.suptitle(
+        "Per-domain GM relative MASE on GIFT-Eval full-97 "
+        "(radial log scale; ring at 1.0 = seasonal-naive; lower = better; "
+        "solid = best-loss, dashed = last)", fontsize=11)
+    fig.tight_layout(rect=[0, 0.03, 1, 0.93])
+    fig.savefig(out, dpi=110, bbox_inches="tight"); plt.close(fig)
+
+
 def final_trajectories(sigreg_csv: Path, n_tail: int = 50) -> dict[str, float]:
     s = pd.read_csv(sigreg_csv)
     tail = s.tail(n_tail)
@@ -179,6 +271,12 @@ if __name__ == "__main__":
         default=Path("/home/jupyter/workspaces/contrastive-forecasting/experiments/2026-06-19_ema_target_encoder/runs/bb_allt08_xftrip_nobn_enc3_emateach_qk_aon_b1024_cpc_losses.csv"))
     p.add_argument("--cpc-csv", type=Path,
         default=Path("/home/jupyter/workspaces/contrastive-forecasting/experiments/2026-06-13_cpc_infonce_aux/runs/bb_allt08_xftrip_nobn_enc3_sgpos_qk_aon_b1024_cpc_losses.csv"))
+    p.add_argument("--ema-results", type=Path,
+        default=Path("/home/jupyter/workspaces/contrastive-forecasting/experiments/2026-06-19_ema_target_encoder/results"))
+    p.add_argument("--cpc-results", type=Path,
+        default=Path("/home/jupyter/workspaces/contrastive-forecasting/experiments/2026-06-13_cpc_infonce_aux/results"))
+    p.add_argument("--ema-tag", default="allt08_xftrip_nobn_enc3_emateach_qk_aon_b1024_cpc")
+    p.add_argument("--cpc-tag", default="allt08_xftrip_nobn_enc3_sgpos_qk_aon_b1024_cpc")
     args = p.parse_args()
 
     report = args.report_dir
@@ -195,6 +293,11 @@ if __name__ == "__main__":
     plot_loss_curves(sigreg_csv, args.ema_csv, args.cpc_csv, plots / "loss_curve.png")
     plot_uniformity(sigreg_csv, args.ema_csv, args.cpc_csv, plots / "uniformity.png")
     plot_gm_bars(rows, plots / "gm_rel_mase.png")
+    plot_perdomain_radar(
+        sig_results=results, ema_results=args.ema_results, cpc_results=args.cpc_results,
+        sig_tag=args.sigreg_tag, ema_tag=args.ema_tag, cpc_tag=args.cpc_tag,
+        out=plots / "perdomain_radar.png",
+    )
 
     traj = final_trajectories(sigreg_csv)
     with (results / "final_trajectories.txt").open("w") as fh:
