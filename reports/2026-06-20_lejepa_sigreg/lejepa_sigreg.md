@@ -1,6 +1,6 @@
 # LeJEPA spherical regulariser at half batch size
 
-Does adding a spherical regulariser on the patch-embed and on the encoder output, with batch cut from 1024 to 512, keep the GIFT-Eval full-97 score within noise of the B=1024 reference and fill the latent sphere? GM-Rel MASE is within ≤0.006 of the EMA-target B=1024 reference in every cell (SIGReg below it in all four: Δ = −0.0004, −0.0059, −0.0033, −0.0041 at 2L/best, 2L/last, 6L/best, 6L/last). `h_t` fills the sphere to the same extent as the EMA-target reference (`u_batch` ends at 0.80 vs 0.82, `u_temporal` at 0.62 vs 0.57); `e_t` stays at ~17× `1/K` (`u_batch_e` 0.0438, `u_temporal_e` 0.0315).
+Does adding a spherical regulariser on the patch-embed and on the encoder output, with batch cut from 1024 to 512, keep the GIFT-Eval full-97 score within noise of the B=1024 reference and fill the latent sphere? GM-Rel MASE is within ≤0.006 of the EMA-target B=1024 reference in every cell (SIGReg below it in all four: Δ = −0.0004, −0.0059, −0.0033, −0.0041 at 2L/best, 2L/last, 6L/best, 6L/last). `h_t` fills the sphere to the same extent as the EMA-target reference (`u_batch` ends at 0.80 vs 0.82, `u_temporal` at 0.62 vs 0.57); `e_t` stays at ~17× / ~12× `1/K` (`u_batch_e` 0.0438, `u_temporal_e` 0.0315).
 
 ## Result
 
