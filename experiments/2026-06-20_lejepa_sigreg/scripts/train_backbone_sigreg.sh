@@ -7,7 +7,7 @@
 #   --sigreg-encoding                                    ON
 # --sigreg-post-normalization is left OFF (the issue's pre-normalisation
 # regime — the default). Everything else stays the #353 EMA-target enc3+CPC
-# recipe verbatim: --ema-embedding --ema-encoder --ema-tau 0.99,
+# recipe verbatim: --ema-embedding --ema-encoder --ema-tau 0.98 (half-life ≈34 steps),
 # --cpc-infonce-weight 1.0, GRU patch-embed, 3L encoder, 6L decoder, dropkey
 # 0.70, mix_ratio 0.0078125, 12,500 steps, same dtypes/seed/dataset.
 #
@@ -16,11 +16,11 @@ set -uo pipefail
 GPU="${1:?gpu}"; STEPS="${2:-12500}"; SAVE_EVERY="${3:-2500}"
 SEED=20260520
 WT="${WT:-/home/jupyter/contrastive-forecasting/.claude/worktrees/exp-sigreg-355}"
-OUT="${OUT:-/home/jupyter/workspaces/contrastive-forecasting/experiments/2026-06-20_lejepa_sigreg}"
+OUT="${OUT:-/home/jupyter/workspaces/contrastive-forecasting/experiments/2026-06-21_lejepa_sigreg_tau098}"
 # Same memory knobs as the #353 EMA-target enc3+CPC arm.
 ENC_LAYERS=6; NENC=3
 export FCST_GRAD_CKPT=1 XSHH_ALLT_CHUNK=1 CPC_CB_CHUNK="${CPC_CB_CHUNK:-64}"
-NAME="bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc"
+NAME="bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098"
 RUNS="$OUT/runs"; RES="$OUT/results"; mkdir -p "$RUNS" "$RES"
 BB="$RUNS/${NAME}_FINAL.pth"
 export PYTHONPATH="$WT" PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True OMP_NUM_THREADS=8
