@@ -43,7 +43,7 @@ from src.dataloader import (
     create_hf_dataloader,
 )
 from src.loss import (contrastive_latent_loss, cpc_infonce_aux_loss,
-                      cpc_infonce_all_loss, align_loss)
+                      cpc_infonce_all_loss, align_loss, sigreg_loss)
 from src.checkpoint import save_training_state, load_training_state
 from src.dist_utils import (
     setup_distributed,
@@ -464,6 +464,51 @@ def parse_args():
                    help="EMA coefficient for --ema-embedding/--ema-encoder. "
                         "Constant (no schedule). Default 0.99 (half-life "
                         "ln(0.5)/ln(τ) ≈ 69 steps). (#353)")
+    p.add_argument("--sigreg-embedding", action="store_true",
+                   help="LeJEPA spherical SIGReg term on the patch-embedding "
+                        "e_t (the GRU patch-embed output, [B,T,C,H] before "
+                        "the encoder transformer stack). Pushes the pooled "
+                        "marginal toward Unif(S^{K-1}); a principled, "
+                        "isotropic anti-collapse term. Stateless (no buffers; "
+                        "the M unit-direction projections are resampled every "
+                        "forward), so checkpoints / strict-loading are "
+                        "byte-for-byte unchanged. Total loss adds "
+                        "λ·L_sigreg_embedding. (#355)")
+    p.add_argument("--sigreg-encoding", action="store_true",
+                   help="LeJEPA spherical SIGReg term on the encoding h_t "
+                        "(the 3L transformer output — the codebase's "
+                        "original_latent). Same statistic and stateless "
+                        "contract as --sigreg-embedding. Total loss adds "
+                        "λ·L_sigreg_encoding. (#355)")
+    p.add_argument("--sigreg-post-normalization", action="store_true",
+                   help="When ON, both SIGReg terms are evaluated on the "
+                        "POST-F.normalize unit-sphere version of e_t / h_t "
+                        "(the LeJEPA-strict, σ²=1/K placement). When OFF "
+                        "(default — issue #355's arm), they are evaluated on "
+                        "the raw PRE-normalisation vectors — pushes the "
+                        "encoder to LAND on the sphere with a uniform "
+                        "marginal, leaving the downstream L2-normalize a "
+                        "near-identity. (#355)")
+    p.add_argument("--sigreg-weight", type=float, default=0.1,
+                   help="λ for each enabled SIGReg term in the total loss "
+                        "(L_sigreg_embedding and L_sigreg_encoding share this "
+                        "weight). LeJEPA default 0.1. No-op when neither "
+                        "--sigreg-embedding nor --sigreg-encoding is set. "
+                        "(#355)")
+    p.add_argument("--sigreg-m", type=int, default=1024,
+                   help="Number of random unit-direction projections per "
+                        "SIGReg forward call. LeJEPA default 1024. (#355)")
+    p.add_argument("--sigreg-t-knots", type=int, default=17,
+                   help="Trapezoidal-rule knot count for the Epps–Pulley "
+                        "integral. LeJEPA default 17. (#355)")
+    p.add_argument("--sigreg-n-chunk", type=int, default=8192,
+                   help="Chunk size along the pooled sample axis N for the "
+                        "SIGReg cos/sin integrand evaluation. Each chunk's "
+                        "body is gradient-checkpointed (recomputed in "
+                        "backward), so this is a real memory knob — smaller "
+                        "chunk → smaller peak. Default 8192. Lower (e.g. "
+                        "2048-4096) when the backbone graph is already "
+                        "memory-tight. (#355)")
     p.add_argument("--shard-loss-on-batch", action="store_true",
                    help="DDP only: compute the contrastive loss on each "
                         "rank's LOCAL shard instead of all-gathering latents "
@@ -519,7 +564,7 @@ def random_sign_flip(x):
 
 def forward_step(model, x, freq_ids=None, freq_embs=None,
                   seasonality_ids=None, seasonality_embs=None,
-                  want_teacher=False):
+                  want_teacher=False, want_embed=False):
     """Apply RevEWMNorm + transformer with optional freq + seasonality
     embeddings + optional patch-stats. Routes through
     ``model.prepare_encoder_input`` so the patching path is identical to
@@ -530,6 +575,12 @@ def forward_step(model, x, freq_ids=None, freq_embs=None,
     the same prepared input and returns ``teacher_o_lat`` in the same
     ``[B, T, C, H]`` layout as ``o_lat`` — the EMA-target encoder output
     the loss substitutes for the student's positive (#353).
+
+    When ``want_embed=True`` (used by the SIGReg term, #355), also returns
+    the patch-embedding output ``e_lat`` in ``[B, T, C, H]`` layout — the
+    GRU patch-embed output, before the encoder transformer stack. Returned
+    as the last tensor of the tuple so the existing ``f_lat, o_lat``
+    (optionally ``, teacher_o_lat``) prefix is preserved.
     """
     H = model.H
     if model.rev_norm is not None:
@@ -540,7 +591,12 @@ def forward_step(model, x, freq_ids=None, freq_embs=None,
         x, freq_ids=freq_ids, freq_embs=freq_embs,
         seasonality_ids=seasonality_ids, seasonality_embs=seasonality_embs)
     cpc = getattr(model, 'forecaster_kind', 'transformer') in ('cpc', 'linear_cpc')
-    f_flat, o_flat = model.transformer(xr, return_multi=cpc)
+    out = model.transformer(xr, return_multi=cpc, return_embed=want_embed)
+    if want_embed:
+        f_flat, o_flat, e_in = out
+    else:
+        f_flat, o_flat = out
+        e_in = None
     if cpc:
         # f_flat is the [B*C, T, K, H] multi-step stack; keep K as a 4th axis
         # so the loss sees [B, T, C, K, H]. Diagnostics in main() slice k=1.
@@ -549,9 +605,15 @@ def forward_step(model, x, freq_ids=None, freq_embs=None,
     else:
         f_lat = f_flat.reshape(B, C, T, H).permute(0, 2, 1, 3)
     o_lat = o_flat.reshape(B, C, T, H).permute(0, 2, 1, 3)
+    # e_in is captured PRE-permute, so it is already [B, T, C, H].
+    e_lat = e_in
+    teacher_o_lat = model.teacher_forward(xr) if want_teacher else None
+    if want_teacher and want_embed:
+        return f_lat, o_lat, teacher_o_lat, e_lat
     if want_teacher:
-        teacher_o_lat = model.teacher_forward(xr)
         return f_lat, o_lat, teacher_o_lat
+    if want_embed:
+        return f_lat, o_lat, e_lat
     return f_lat, o_lat
 
 
@@ -653,32 +715,61 @@ class CSVLogger:
             return
         self._file = open(path, "a", newline="")
         self._writer = csv.writer(self._file)
+        header = ["step", "loss"]
+        if self.tau_ref_column:
+            header.append("loss_tau_ref")
+        # gap_ratio = (1 - ff) / (1 - fp): forecast-vs-future gap
+        # normalized by past-vs-future gap. ff -> 1 (perfect forecast)
+        # and fp -> 0 (decorrelated past) drive this toward 0; lower is
+        # better. Sits next to `gap = ff - fp` so the two are read together.
+        header += ["gap", "gap_ratio", "ff", "fp", "tp", "cross_batch",
+                   "hf_rows_consumed", "synth_rows_consumed", "mixup_applied"]
+        # Per-batch backbone diagnostic metrics (same names as the
+        # post-hoc proxy CSV in 2026-05-05_exp_qhead_improvements so the
+        # two can merge cleanly on column name).
+        header += ["r2_random", "r2_naive", "u_temporal", "u_batch",
+                   "auc", "top1", "top3"]
+        # cpc_aux (#344): the CPC InfoNCE auxiliary term's value (blank
+        # for runs without --cpc-infonce-weight). Trailing column so
+        # name-keyed readers of older CSVs are unaffected.
+        header += ["cpc_aux"]
+        # SIGReg (#355): per-step term values and the e_t mirror of
+        # the dim-usage diagnostic (existing u_temporal/u_batch already
+        # read h_t). Blank for runs without --sigreg-embedding /
+        # --sigreg-encoding. Trailing so older CSV readers ignore them.
+        header += ["sigreg_e", "sigreg_h", "u_temporal_e", "u_batch_e"]
         if os.path.getsize(path) == 0:
-            header = ["step", "loss"]
-            if self.tau_ref_column:
-                header.append("loss_tau_ref")
-            # gap_ratio = (1 - ff) / (1 - fp): forecast-vs-future gap
-            # normalized by past-vs-future gap. ff -> 1 (perfect forecast)
-            # and fp -> 0 (decorrelated past) drive this toward 0; lower is
-            # better. Sits next to `gap = ff - fp` so the two are read together.
-            header += ["gap", "gap_ratio", "ff", "fp", "tp", "cross_batch",
-                       "hf_rows_consumed", "synth_rows_consumed", "mixup_applied"]
-            # Per-batch backbone diagnostic metrics (same names as the
-            # post-hoc proxy CSV in 2026-05-05_exp_qhead_improvements so the
-            # two can merge cleanly on column name).
-            header += ["r2_random", "r2_naive", "u_temporal", "u_batch",
-                       "auc", "top1", "top3"]
-            # cpc_aux (#344): the CPC InfoNCE auxiliary term's value (blank
-            # for runs without --cpc-infonce-weight). Trailing column so
-            # name-keyed readers of older CSVs are unaffected.
-            header += ["cpc_aux"]
             self._writer.writerow(header)
             self._file.flush()
+        else:
+            # Resume schema guard (#356-P5): if the existing CSV's header
+            # has fewer columns than the writer expects (e.g. a pre-SIGReg
+            # run resumed with --sigreg-embedding/--sigreg-encoding), the
+            # appended rows would silently shift column meaning. Refuse
+            # rather than corrupt the file. The check compares the first
+            # header row's column count against `header` — we don't try
+            # to handle a header that is a strict prefix; the safe action
+            # is fail-loudly and let the caller pick a fresh CSV.
+            try:
+                with open(path, "r", newline="") as f:
+                    existing_header = next(csv.reader(f), None)
+            except StopIteration:
+                existing_header = None
+            if existing_header is not None and \
+                    len(existing_header) != len(header):
+                raise SystemExit(
+                    f"CSV resume schema mismatch at {path}: existing "
+                    f"header has {len(existing_header)} columns, writer "
+                    f"expects {len(header)}. Refusing to append (would "
+                    f"corrupt the file). Pick a fresh --run-name or "
+                    f"move the old CSV aside.")
 
     def log(self, step, loss, gap, gap_ratio, ff, fp, tp, cross_batch,
             hf_rows_consumed, synth_rows_consumed, mixup_applied,
             r2_random, r2_naive, u_temporal, u_batch, auc, top1, top3,
-            loss_tau_ref=None, cpc_aux=None):
+            loss_tau_ref=None, cpc_aux=None,
+            sigreg_e=None, sigreg_h=None,
+            u_temporal_e=None, u_batch_e=None):
         if not self._enabled:
             return
         row = [step, loss]
@@ -691,6 +782,8 @@ class CSVLogger:
                 hf_rows_consumed, synth_rows_consumed, int(mixup_applied)]
         row += [r2_random, r2_naive, u_temporal, u_batch, auc, top1, top3]
         row.append('' if cpc_aux is None else cpc_aux)
+        for extra in (sigreg_e, sigreg_h, u_temporal_e, u_batch_e):
+            row.append('' if extra is None else extra)
         self._buffer.append(row)
         if len(self._buffer) >= self.flush_every:
             self.flush()
@@ -877,6 +970,18 @@ def main():
                          f"{args.ema_tau!r}.")
     model_config["ema_embedding"] = bool(args.ema_embedding)
     model_config["ema_encoder"] = bool(args.ema_encoder)
+    # LeJEPA SIGReg (#355): the term contributes nothing to the model's
+    # state_dict (no buffers; M projections resampled per forward), so
+    # there is no model_config to thread through — only the run-level
+    # knobs are read from args at the loss-call site below. Reject
+    # nonsense combinations here.
+    if args.sigreg_weight < 0:
+        raise SystemExit(f"--sigreg-weight must be ≥ 0; got {args.sigreg_weight}.")
+    if args.sigreg_m <= 0:
+        raise SystemExit(f"--sigreg-m must be > 0; got {args.sigreg_m}.")
+    if args.sigreg_t_knots < 3:
+        raise SystemExit("--sigreg-t-knots must be ≥ 3 (trapezoidal rule "
+                         f"needs at least 3 knots); got {args.sigreg_t_knots}.")
     # Override the loss_shape from CLI (LOSS_SPEC is a module-level default).
     LOSS_SPEC.train_configuration["loss_shape"] = args.loss_shape
     LOSS_SPEC.train_configuration["include_positive_in_denominator"] = args.pos_in_denominator
@@ -1102,19 +1207,37 @@ def main():
 
         t_fwd_start = time.perf_counter()
         use_ema = args.ema_embedding or args.ema_encoder
+        use_sigreg = args.sigreg_embedding or args.sigreg_encoding
+        # e_lat is captured under either SIGReg flag: it powers the u_*_e
+        # mirror diagnostics (per-rank read) regardless of which term is
+        # active. The all-gather below is gated narrowly on the SIGReg-on-e
+        # term so a run with only --sigreg-encoding doesn't pay for a
+        # gather it never consumes (#356-P4).
+        want_embed = use_sigreg
         if use_ema:
-            f_lat, o_lat, teacher_o_lat = forward_step(
+            res = forward_step(
                 model, x,
                 freq_ids=freq_ids, freq_embs=freq_embs,
                 seasonality_ids=seasonality_ids,
                 seasonality_embs=seasonality_embs,
-                want_teacher=True)
+                want_teacher=True, want_embed=want_embed)
+            if want_embed:
+                f_lat, o_lat, teacher_o_lat, e_lat = res
+            else:
+                f_lat, o_lat, teacher_o_lat = res
+                e_lat = None
         else:
-            f_lat, o_lat = forward_step(
+            res = forward_step(
                 model, x,
                 freq_ids=freq_ids, freq_embs=freq_embs,
                 seasonality_ids=seasonality_ids,
-                seasonality_embs=seasonality_embs)
+                seasonality_embs=seasonality_embs,
+                want_embed=want_embed)
+            if want_embed:
+                f_lat, o_lat, e_lat = res
+            else:
+                f_lat, o_lat = res
+                e_lat = None
             teacher_o_lat = None
         if log_attn_now:
             ATTN_AMP_DIAG.set_active(False)
@@ -1130,6 +1253,8 @@ def main():
         o_lat = o_lat.float()
         if teacher_o_lat is not None:
             teacher_o_lat = teacher_o_lat.float()
+        if e_lat is not None:
+            e_lat = e_lat.float()
         # DDP: gather latents across ranks so the contrastive loss pools
         # negatives over the GLOBAL (W*B) batch — 2-GPU @ B/2 == 1-GPU @ B.
         # Strict no-op single-GPU. Done on the fp32 latents so loss,
@@ -1148,6 +1273,13 @@ def main():
                 # Same global pooling as o_lat; gather_latents is a no-op
                 # single-GPU. Teacher carries no grad either way.
                 _dummy, teacher_o_lat = gather_latents(teacher_o_lat, teacher_o_lat)
+            if e_lat is not None and args.sigreg_embedding:
+                # SIGReg-on-e pools its statistic over the global batch —
+                # same gather contract as the contrastive loss. Skip the
+                # gather when only --sigreg-encoding is on (no SIGReg
+                # consumer for e_lat); the u_*_e diagnostics are per-rank
+                # marginal reads and work fine without a gather (#356-P4).
+                _dummy, e_lat = gather_latents(e_lat, e_lat)
         # CPC multi-step (#316): f_lat is [B,T,C,K,H]. The loss / loss_tau_ref
         # consume the full stack; the per-batch diagnostics (compute_metrics,
         # q_*, retrieval_auc) want a single [B,T,C,H] forecaster latent, so
@@ -1189,6 +1321,26 @@ def main():
                         marginal_only=(args.cpc_infonce_negs == "cross"))
                 loss = loss + args.cpc_infonce_weight * cpc_aux
                 cpc_aux_val = cpc_aux.item()
+            # LeJEPA SIGReg (#355): regularise the pooled marginal of e_t
+            # (patch-embed) and/or h_t (encoding) toward Unif(S^{K-1}). The
+            # statistic is stateless (no buffers; M projections resampled
+            # every forward); λ is shared across the two terms.
+            sigreg_e_val = float('nan')
+            sigreg_h_val = float('nan')
+            if args.sigreg_embedding:
+                sigreg_e = sigreg_loss(
+                    e_lat, M=args.sigreg_m, T_knots=args.sigreg_t_knots,
+                    post_normalize=args.sigreg_post_normalization,
+                    n_chunk=args.sigreg_n_chunk)
+                loss = loss + args.sigreg_weight * sigreg_e
+                sigreg_e_val = sigreg_e.item()
+            if args.sigreg_encoding:
+                sigreg_h = sigreg_loss(
+                    o_lat, M=args.sigreg_m, T_knots=args.sigreg_t_knots,
+                    post_normalize=args.sigreg_post_normalization,
+                    n_chunk=args.sigreg_n_chunk)
+                loss = loss + args.sigreg_weight * sigreg_h
+                sigreg_h_val = sigreg_h.item()
         # Diagnostic: same loss with fixed τ=0.07 (no gradient). Comparable
         # across runs regardless of --tau / --learnable-tau, useful as a
         # cross-experiment baseline curve. Re-uses the already-forwarded
@@ -1273,6 +1425,16 @@ def main():
                 o_det[:, :T_lat - 1]).item()
             u_t = dim_usage(o_det, axis=1).item()
             u_b = dim_usage(o_det, axis=0).item()
+            # Mirror metrics on the patch-embedding e_t (#355). Without
+            # --sigreg-embedding / --sigreg-encoding the trainer never
+            # captures e_lat, so leave the CSV columns blank (None).
+            if e_lat is not None:
+                e_det = e_lat.detach()
+                u_t_e = dim_usage(e_det, axis=1).item()
+                u_b_e = dim_usage(e_det, axis=0).item()
+            else:
+                u_t_e = None
+                u_b_e = None
             ret = retrieval_auc_topk(f_det[:, :T_lat - 1], o_det)
             r2_random_val = 1.0 - q_r
             r2_naive_val = 1.0 - q_n
@@ -1300,7 +1462,12 @@ def main():
                        auc_val, top1_val, top3_val,
                        loss_tau_ref=loss_tau_ref_val,
                        cpc_aux=(cpc_aux_val if args.cpc_infonce_weight > 0
-                                else None))
+                                else None),
+                       sigreg_e=(sigreg_e_val
+                                 if args.sigreg_embedding else None),
+                       sigreg_h=(sigreg_h_val
+                                 if args.sigreg_encoding else None),
+                       u_temporal_e=u_t_e, u_batch_e=u_b_e)
 
         if step % args.log_every == 0 and is_main_process():
             elapsed = time.time() - t0
