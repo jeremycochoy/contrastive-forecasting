@@ -23,9 +23,9 @@ EMA_GM = {
 }
 
 ARM_LABEL = {
-    "cpc_enc3":    "baseline enc3+CPC (#344)",
-    "ema_enc3":    "EMA-target enc3+CPC (#353)",
-    "sigreg_enc3": "SIGReg+EMA enc3+CPC B=512 (#355)",
+    "cpc_enc3":    "enc3+CPC, B=1024",
+    "ema_enc3":    "EMA-target enc3+CPC, B=1024",
+    "sigreg_enc3": "SIGReg + EMA-target enc3+CPC, B=512",
 }
 
 
@@ -79,58 +79,47 @@ def plot_loss_curves(sigreg_csv: Path, ema_csv: Path | None, cpc_csv: Path | Non
     fig, ax = plt.subplots(figsize=(8, 4.5))
     s = pd.read_csv(sigreg_csv)
     ax.plot(s["step"], s["loss"].rolling(50, min_periods=1).mean(),
-            label="SIGReg+EMA B=512 (#355)", color="C0", lw=1.5)
+            label=ARM_LABEL["sigreg_enc3"], color="C0", lw=1.5)
     if ema_csv and ema_csv.exists():
         e = pd.read_csv(ema_csv)
         ax.plot(e["step"], e["loss"].rolling(50, min_periods=1).mean(),
-                label="EMA-target B=1024 (#353)", color="C1", lw=1.5)
+                label=ARM_LABEL["ema_enc3"], color="C1", lw=1.5)
     if cpc_csv and cpc_csv.exists():
         c = pd.read_csv(cpc_csv)
         ax.plot(c["step"], c["loss"].rolling(50, min_periods=1).mean(),
-                label="enc3+CPC B=1024 (#344)", color="C2", lw=1.5)
+                label=ARM_LABEL["cpc_enc3"], color="C2", lw=1.5)
     ax.set_xlabel("step"); ax.set_ylabel("loss (50-step rolling mean)")
     ax.set_title("Training loss")
     ax.legend(); ax.grid(alpha=0.3)
     fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
 
 
-def plot_sigreg_terms(sigreg_csv: Path, out: Path):
-    s = pd.read_csv(sigreg_csv)
-    fig, ax = plt.subplots(figsize=(8, 4.5))
-    ax.plot(s["step"], s["sigreg_e"].rolling(50, min_periods=1).mean(),
-            label=r"$L_{\rm SIGReg}(e_t)$", color="C0", lw=1.5)
-    ax.plot(s["step"], s["sigreg_h"].rolling(50, min_periods=1).mean(),
-            label=r"$L_{\rm SIGReg}(h_t)$", color="C3", lw=1.5)
-    ax.set_xlabel("step"); ax.set_ylabel("SIGReg term (50-step rolling mean)")
-    ax.set_yscale("log")
-    ax.set_title("SIGReg terms")
-    ax.legend(); ax.grid(alpha=0.3, which="both")
-    fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
-
-
 def plot_uniformity(sigreg_csv: Path, ema_csv: Path | None, cpc_csv: Path | None, out: Path):
     s = pd.read_csv(sigreg_csv)
     fig, axes = plt.subplots(1, 2, figsize=(13, 4.5), sharey=True)
+    sig_lab = ARM_LABEL["sigreg_enc3"]
+    ema_lab = ARM_LABEL["ema_enc3"]
+    cpc_lab = ARM_LABEL["cpc_enc3"]
     for ax, kind in zip(axes, ("batch", "temporal")):
         ax.plot(s["step"], s[f"u_{kind}"].rolling(50, min_periods=1).mean(),
-                label=f"u_{kind} (h_t) #355", color="C0", lw=1.5)
+                label=f"u_{kind} (h_t) — {sig_lab}", color="C0", lw=1.5)
         ax.plot(s["step"], s[f"u_{kind}_e"].rolling(50, min_periods=1).mean(),
-                label=f"u_{kind}_e (e_t) #355", color="C0", lw=1.5, ls="--")
+                label=f"u_{kind}_e (e_t) — {sig_lab}", color="C0", lw=1.5, ls="--")
         if ema_csv and ema_csv.exists():
             e = pd.read_csv(ema_csv)
             if f"u_{kind}" in e.columns:
                 ax.plot(e["step"], e[f"u_{kind}"].rolling(50, min_periods=1).mean(),
-                        label=f"u_{kind} (h_t) #353", color="C1", lw=1.0)
+                        label=f"u_{kind} (h_t) — {ema_lab}", color="C1", lw=1.0)
         if cpc_csv and cpc_csv.exists():
             c = pd.read_csv(cpc_csv)
             if f"u_{kind}" in c.columns:
                 ax.plot(c["step"], c[f"u_{kind}"].rolling(50, min_periods=1).mean(),
-                        label=f"u_{kind} (h_t) #344", color="C2", lw=1.0)
+                        label=f"u_{kind} (h_t) — {cpc_lab}", color="C2", lw=1.0)
         ax.set_xlabel("step")
         ax.set_ylabel("effective dimensionality")
         ax.set_title(f"u_{kind} ({'cross-batch' if kind=='batch' else 'cross-time'})")
         ax.set_ylim(0, 1)
-        ax.legend(); ax.grid(alpha=0.3)
+        ax.legend(fontsize=7); ax.grid(alpha=0.3)
     fig.suptitle("Uniformity (cos²-based dim_usage; clipped to [1/K, 1])")
     fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
 
@@ -204,7 +193,6 @@ if __name__ == "__main__":
 
     rows = write_gm_table(results, results / "gm_table.csv", args.sigreg_tag)
     plot_loss_curves(sigreg_csv, args.ema_csv, args.cpc_csv, plots / "loss_curve.png")
-    plot_sigreg_terms(sigreg_csv, plots / "sigreg_terms.png")
     plot_uniformity(sigreg_csv, args.ema_csv, args.cpc_csv, plots / "uniformity.png")
     plot_gm_bars(rows, plots / "gm_rel_mase.png")
 
