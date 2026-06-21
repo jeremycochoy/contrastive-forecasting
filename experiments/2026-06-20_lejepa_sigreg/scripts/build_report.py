@@ -69,7 +69,9 @@ def write_gm_table(results_dir: Path, out_csv: Path, tag: str):
         w = csv.DictWriter(fh, fieldnames=["arm", "label", "head", "ckpt", "gm", "n"])
         w.writeheader()
         for r in rows:
-            w.writerow(r)
+            # Force 4 dp for gm — DictWriter would otherwise strip trailing zeros
+            # (`1.1610` → `1.161`), breaking column precision consistency.
+            w.writerow({**r, "gm": f"{r['gm']:.4f}"})
     return rows
 
 
