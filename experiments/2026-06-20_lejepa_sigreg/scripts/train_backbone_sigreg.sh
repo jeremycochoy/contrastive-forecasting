@@ -48,7 +48,7 @@ python3 -u "$TRAIN" $RESUME --qk-norm --attn-out-norm \
   --encoder-dropkey 0.70 --encoder-dropkey-share-heads --encoder-dropkey-share-layers \
   --depthwise-conv 3 --deprecated-depthwise-conv 0 \
   --loss-shape cosine_similarity_batch_full_hh_negs_xshh_allt --pos-in-denominator --subtract-contrastive-floor \
-  --ema-embedding --ema-encoder --ema-tau 0.99 --cpc-infonce-weight 1.0 \
+  --ema-embedding --ema-encoder --ema-tau 0.98 --cpc-infonce-weight 1.0 \
   --sigreg-embedding --sigreg-encoding --sigreg-n-chunk 2048 \
   --tau 0.10 --rev-norm-kind ewma --rev-norm-span 128 --encoder-type gru \
   --synth-kind forked-arma --mix-ratio 0.0078125 --crossfade-triplets 1 \
