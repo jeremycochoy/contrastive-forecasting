@@ -489,12 +489,18 @@ def parse_args():
                         "encoder to LAND on the sphere with a uniform "
                         "marginal, leaving the downstream L2-normalize a "
                         "near-identity. (#355)")
-    p.add_argument("--sigreg-weight", type=float, default=0.1,
-                   help="λ for each enabled SIGReg term in the total loss "
-                        "(L_sigreg_embedding and L_sigreg_encoding share this "
-                        "weight). LeJEPA default 0.1. No-op when neither "
-                        "--sigreg-embedding nor --sigreg-encoding is set. "
-                        "(#355)")
+    p.add_argument("--sigreg-embedding-weight", type=float, default=0.1,
+                   help="λ for L_sigreg_embedding (the e_t term) in the total "
+                        "loss. LeJEPA default 0.1. No-op when "
+                        "--sigreg-embedding is OFF. Independent from "
+                        "--sigreg-encoding-weight so the two sides can be "
+                        "tuned separately. (#359)")
+    p.add_argument("--sigreg-encoding-weight", type=float, default=0.1,
+                   help="λ for L_sigreg_encoding (the h_t term) in the total "
+                        "loss. LeJEPA default 0.1. No-op when "
+                        "--sigreg-encoding is OFF. Independent from "
+                        "--sigreg-embedding-weight so the two sides can be "
+                        "tuned separately. (#359)")
     p.add_argument("--sigreg-m", type=int, default=1024,
                    help="Number of random unit-direction projections per "
                         "SIGReg forward call. LeJEPA default 1024. (#355)")
@@ -975,8 +981,14 @@ def main():
     # there is no model_config to thread through — only the run-level
     # knobs are read from args at the loss-call site below. Reject
     # nonsense combinations here.
-    if args.sigreg_weight < 0:
-        raise SystemExit(f"--sigreg-weight must be ≥ 0; got {args.sigreg_weight}.")
+    if args.sigreg_embedding_weight < 0:
+        raise SystemExit(
+            f"--sigreg-embedding-weight must be ≥ 0; got "
+            f"{args.sigreg_embedding_weight}.")
+    if args.sigreg_encoding_weight < 0:
+        raise SystemExit(
+            f"--sigreg-encoding-weight must be ≥ 0; got "
+            f"{args.sigreg_encoding_weight}.")
     if args.sigreg_m <= 0:
         raise SystemExit(f"--sigreg-m must be > 0; got {args.sigreg_m}.")
     if args.sigreg_t_knots < 3:
@@ -1324,7 +1336,8 @@ def main():
             # LeJEPA SIGReg (#355): regularise the pooled marginal of e_t
             # (patch-embed) and/or h_t (encoding) toward Unif(S^{K-1}). The
             # statistic is stateless (no buffers; M projections resampled
-            # every forward); λ is shared across the two terms.
+            # every forward); λ is per-term (#359) so the two sides can be
+            # tuned independently.
             sigreg_e_val = float('nan')
             sigreg_h_val = float('nan')
             if args.sigreg_embedding:
@@ -1332,14 +1345,14 @@ def main():
                     e_lat, M=args.sigreg_m, T_knots=args.sigreg_t_knots,
                     post_normalize=args.sigreg_post_normalization,
                     n_chunk=args.sigreg_n_chunk)
-                loss = loss + args.sigreg_weight * sigreg_e
+                loss = loss + args.sigreg_embedding_weight * sigreg_e
                 sigreg_e_val = sigreg_e.item()
             if args.sigreg_encoding:
                 sigreg_h = sigreg_loss(
                     o_lat, M=args.sigreg_m, T_knots=args.sigreg_t_knots,
                     post_normalize=args.sigreg_post_normalization,
                     n_chunk=args.sigreg_n_chunk)
-                loss = loss + args.sigreg_weight * sigreg_h
+                loss = loss + args.sigreg_encoding_weight * sigreg_h
                 sigreg_h_val = sigreg_h.item()
         # Diagnostic: same loss with fixed τ=0.07 (no gradient). Comparable
         # across runs regardless of --tau / --learnable-tau, useful as a
