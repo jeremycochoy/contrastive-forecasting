@@ -279,23 +279,19 @@ def plot_sigreg_inspection(sig10_csv: Path, sig01_csv: Path | None, out: Path):
 def plot_uniformity(
     sig10_csv: Path, sig01_csv: Path | None, ema_csv: Path | None, cpc_csv: Path | None, out: Path,
 ):
+    """h_t uniformity only — e_t curves are crushed at the [0, 1] baseline and
+    are already shown clearly on the log y-axis of sigreg_e_inspection.png."""
     s10 = pd.read_csv(sig10_csv)
     fig, axes = plt.subplots(1, 2, figsize=(13, 4.5), sharey=True)
     for ax, kind in zip(axes, ("batch", "temporal")):
         ax.plot(s10["step"], s10[f"u_{kind}"].rolling(50, min_periods=1).mean(),
                 label=f"u_{kind} (h_t) — {ARM_LABEL['sigreg10_enc3']}",
                 color=ARM_COLOR["sigreg10_enc3"], lw=1.6)
-        ax.plot(s10["step"], s10[f"u_{kind}_e"].rolling(50, min_periods=1).mean(),
-                label=f"u_{kind}_e (e_t) — {ARM_LABEL['sigreg10_enc3']}",
-                color=ARM_COLOR["sigreg10_enc3"], lw=1.6, ls="--")
         if sig01_csv and sig01_csv.exists():
             s01 = pd.read_csv(sig01_csv)
             ax.plot(s01["step"], s01[f"u_{kind}"].rolling(50, min_periods=1).mean(),
                     label=f"u_{kind} (h_t) — {ARM_LABEL['sigreg01_enc3']}",
-                    color=ARM_COLOR["sigreg01_enc3"], lw=1.0)
-            ax.plot(s01["step"], s01[f"u_{kind}_e"].rolling(50, min_periods=1).mean(),
-                    label=f"u_{kind}_e (e_t) — {ARM_LABEL['sigreg01_enc3']}",
-                    color=ARM_COLOR["sigreg01_enc3"], lw=1.0, ls="--")
+                    color=ARM_COLOR["sigreg01_enc3"], lw=1.2)
         for arm, csv_path in (("ema_enc3", ema_csv), ("cpc_enc3", cpc_csv)):
             if csv_path and csv_path.exists():
                 d = pd.read_csv(csv_path)
@@ -304,11 +300,12 @@ def plot_uniformity(
                             label=f"u_{kind} (h_t) — {ARM_LABEL[arm]}",
                             color=ARM_COLOR[arm], lw=0.9)
         ax.set_xlabel("step")
-        ax.set_ylabel("effective dimensionality")
+        ax.set_ylabel("effective dimensionality (h_t)")
         ax.set_title(f"u_{kind} ({'cross-batch' if kind=='batch' else 'cross-time'})")
         ax.set_ylim(0, 1)
-        ax.legend(fontsize=6); ax.grid(alpha=0.3)
-    fig.suptitle("Uniformity (cos²-based dim_usage; clipped to [1/K, 1])")
+        ax.legend(fontsize=7); ax.grid(alpha=0.3)
+    fig.suptitle("Encoder-output uniformity h_t (cos²-based dim_usage; clipped to [1/K, 1]). "
+                 "e_t curves are on sigreg_e_inspection.png.")
     fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
 
 
@@ -376,7 +373,9 @@ def plot_gm_bars(rows: list[dict], ci_rows: list[dict], out: Path):
     ax.set_xticklabels([f"{h}/{c}" for h, c in cells])
     ax.set_ylabel("GM-Rel MASE (lower = better)")
     ax.set_title("GIFT-Eval full-97 GM-Rel MASE — head-matched (whiskers = paired bootstrap, B=10k)")
-    ax.axhline(1.0, color="k", lw=0.5, ls=":", alpha=0.5)
+    # axhline(1.0) (seasonal-naive parity) is dropped because the GM range is
+    # [1.14, 1.18] — including 1.0 would compress the bar differences; the
+    # metric's 1.0 = SN parity is defined in the report's vocabulary section.
     if vals_for_lim:
         lo = min(vals_for_lim) - 0.02
         hi = max(vals_for_lim) + 0.04
