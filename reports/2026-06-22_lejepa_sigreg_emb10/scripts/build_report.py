@@ -210,24 +210,6 @@ def write_gm_table(
     return rows
 
 
-def plot_loss_curves(
-    sig10_csv: Path, sig01_csv: Path | None, ema_csv: Path | None, cpc_csv: Path | None, out: Path,
-):
-    fig, ax = plt.subplots(figsize=(8, 4.5))
-    s = pd.read_csv(sig10_csv)
-    ax.plot(s["step"], s["loss"].rolling(50, min_periods=1).mean(),
-            label=ARM_LABEL["sigreg10_enc3"], color=ARM_COLOR["sigreg10_enc3"], lw=1.6)
-    for arm, csv_path in (("sigreg01_enc3", sig01_csv), ("ema_enc3", ema_csv), ("cpc_enc3", cpc_csv)):
-        if csv_path and csv_path.exists():
-            d = pd.read_csv(csv_path)
-            ax.plot(d["step"], d["loss"].rolling(50, min_periods=1).mean(),
-                    label=ARM_LABEL[arm], color=ARM_COLOR[arm], lw=1.2)
-    ax.set_xlabel("step"); ax.set_ylabel("loss (50-step rolling mean)")
-    ax.set_title("Training loss")
-    ax.legend(fontsize=8); ax.grid(alpha=0.3)
-    fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
-
-
 def plot_sigreg_inspection(sig10_csv: Path, sig01_csv: Path | None, out: Path):
     """Compare sigreg_e / sigreg_h / u_batch_e / u_temporal_e between the two
     λ_e weights. All four panels use log y-axis so the bottom row's tiny values
@@ -256,39 +238,6 @@ def plot_sigreg_inspection(sig10_csv: Path, sig01_csv: Path | None, out: Path):
         ax.set_xlabel("step"); ax.set_title(title)
         ax.legend(fontsize=8); ax.grid(alpha=0.3, which="both")
     fig.suptitle("Embedding-side SIGReg trajectory: λ_e=1.0 vs λ_e=0.1 — log y-axis on all panels")
-    fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
-
-
-def plot_uniformity(
-    sig10_csv: Path, sig01_csv: Path | None, ema_csv: Path | None, cpc_csv: Path | None, out: Path,
-):
-    """h_t uniformity only — e_t curves are crushed at the [0, 1] baseline and
-    are already shown clearly on the log y-axis of sigreg_e_inspection.png."""
-    s10 = pd.read_csv(sig10_csv)
-    fig, axes = plt.subplots(1, 2, figsize=(13, 4.5), sharey=True)
-    for ax, kind in zip(axes, ("batch", "temporal")):
-        ax.plot(s10["step"], s10[f"u_{kind}"].rolling(50, min_periods=1).mean(),
-                label=f"u_{kind} (h_t) — {ARM_LABEL['sigreg10_enc3']}",
-                color=ARM_COLOR["sigreg10_enc3"], lw=1.6)
-        if sig01_csv and sig01_csv.exists():
-            s01 = pd.read_csv(sig01_csv)
-            ax.plot(s01["step"], s01[f"u_{kind}"].rolling(50, min_periods=1).mean(),
-                    label=f"u_{kind} (h_t) — {ARM_LABEL['sigreg01_enc3']}",
-                    color=ARM_COLOR["sigreg01_enc3"], lw=1.2)
-        for arm, csv_path in (("ema_enc3", ema_csv), ("cpc_enc3", cpc_csv)):
-            if csv_path and csv_path.exists():
-                d = pd.read_csv(csv_path)
-                if f"u_{kind}" in d.columns:
-                    ax.plot(d["step"], d[f"u_{kind}"].rolling(50, min_periods=1).mean(),
-                            label=f"u_{kind} (h_t) — {ARM_LABEL[arm]}",
-                            color=ARM_COLOR[arm], lw=0.9)
-        ax.set_xlabel("step")
-        ax.set_ylabel("effective dimensionality (h_t)")
-        ax.set_title(f"u_{kind} ({'cross-batch' if kind=='batch' else 'cross-time'})")
-        ax.set_ylim(0, 1)
-        ax.legend(fontsize=7); ax.grid(alpha=0.3)
-    fig.suptitle("Encoder-output uniformity h_t (cos²-based dim_usage; clipped to [1/K, 1]). "
-                 "e_t curves are on sigreg_e_inspection.png.")
     fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
 
 
@@ -422,9 +371,8 @@ def plot_per_config_delta(
         ax.legend(loc="lower right", fontsize=7)
     axes[0].set_ylabel("Per-config rel-MASE  Δ = λ_e=1.0 − λ_e=0.1\n(< 0 → λ_e=1.0 better on that config)")
     fig.suptitle(
-        "Per-config rel-MASE deltas across the 97 GIFT-Eval configs (scatter); "
-        "black diamond = Δ_GM(λ_e=1.0 − λ_e=0.1) with 95% CI from paired bootstrap on "
-        "log-ratio of GMs — same statistic as gm_rel_mase.png / gm_table.csv",
+        "Per-config rel-MASE deltas (n=97 per panel); "
+        "black diamond = paired-bootstrap Δ_GM ± 95% CI",
         fontsize=10,
     )
     fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
@@ -515,10 +463,6 @@ if __name__ == "__main__":
     p.add_argument("--sig01-results", type=Path,
         default=Path("/tmp/contrastive-forecasting-359/reports/2026-06-20_lejepa_sigreg/results"))
     p.add_argument("--sig01-tag", default="allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc")
-    p.add_argument("--ema-csv", type=Path,
-        default=Path("/home/jupyter/workspaces/contrastive-forecasting/experiments/2026-06-19_ema_target_encoder/runs/bb_allt08_xftrip_nobn_enc3_emateach_qk_aon_b1024_cpc_losses.csv"))
-    p.add_argument("--cpc-csv", type=Path,
-        default=Path("/home/jupyter/workspaces/contrastive-forecasting/experiments/2026-06-13_cpc_infonce_aux/runs/bb_allt08_xftrip_nobn_enc3_sgpos_qk_aon_b1024_cpc_losses.csv"))
     args = p.parse_args()
 
     report = args.report_dir
@@ -537,9 +481,7 @@ if __name__ == "__main__":
         out_csv=results / "bootstrap_ci.csv",
     )
     rows = write_gm_table(results, results / "gm_table.csv", args.sig10_tag, ci_rows=ci_rows)
-    plot_loss_curves(sig10_csv, args.sig01_csv, args.ema_csv, args.cpc_csv, plots / "loss_curve.png")
     plot_sigreg_inspection(sig10_csv, args.sig01_csv, plots / "sigreg_e_inspection.png")
-    plot_uniformity(sig10_csv, args.sig01_csv, args.ema_csv, args.cpc_csv, plots / "uniformity.png")
     plot_gm_bars(rows, ci_rows, plots / "gm_rel_mase.png")
     plot_per_config_delta(
         sig10_results=results, sig01_results=args.sig01_results,
