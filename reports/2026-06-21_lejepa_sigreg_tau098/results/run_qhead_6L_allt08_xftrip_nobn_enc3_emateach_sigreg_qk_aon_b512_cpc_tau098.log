@@ -1,0 +1,208 @@
+  [head-train] auto-detected freq_emb_dim=3 from backbone checkpoint
+  [head-train] auto-detected seasonality_emb_dim=3 from backbone checkpoint
+  [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+  [head-train] auto-detected qk_norm=True from backbone checkpoint
+  [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+  [head-train] auto-detected patch_stats=none
+Backbone loaded from /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_FINAL.pth (0 params, frozen)
+/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/transformer.py:392: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  warnings.warn(
+Forecasting head [transformer-q (6L H384 nhead6 causal)]: 10,702,992 trainable params
+Optimizer: AdamW lr=0.001 betas=(0.9,0.98) wd=0.1 eps=1e-08
+Schedule: cosine warmup=2000 decay_start=24000 final_ratio=0.1
+Loss CSV: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_losses.csv
+Data: MIX 100% HF + 0% synth, hf_bs=256, synth_bs=0, synth_seed=20042, emit_labels=True
+
+Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+RECONSTRUCTION mode: forecaster (head decodes what latent represents, not future)
+Checkpoints: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_*.pth
+[    200] loss=0.236927  ema_loss=0.318278  2.5 sps  ETA 3.3h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_best.pth (ema_loss=0.318278)
+[    400] loss=0.222135  ema_loss=0.237012  2.6 sps  ETA 3.1h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_best.pth (ema_loss=0.237012)
+[    600] loss=0.212102  ema_loss=0.217784  2.6 sps  ETA 3.1h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_best.pth (ema_loss=0.217784)
+[    800] loss=0.197077  ema_loss=0.212064  2.6 sps  ETA 3.1h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_best.pth (ema_loss=0.212064)
+[   1000] loss=0.213866  ema_loss=0.210899  2.6 sps  ETA 3.0h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_best.pth (ema_loss=0.210899)
+[   1200] loss=0.207526  ema_loss=0.208302  2.6 sps  ETA 3.0h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_best.pth (ema_loss=0.208302)
+[   1400] loss=0.203961  ema_loss=0.207964  2.7 sps  ETA 3.0h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_best.pth (ema_loss=0.207964)
+[   1600] loss=0.198459  ema_loss=0.206445  2.7 sps  ETA 3.0h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_best.pth (ema_loss=0.206445)
+[   1800] loss=0.214949  ema_loss=0.207155  2.7 sps  ETA 2.9h
+[   2000] loss=0.201237  ema_loss=0.206229  2.7 sps  ETA 2.9h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_best.pth (ema_loss=0.206229)
+[   2200] loss=0.214170  ema_loss=0.206371  2.7 sps  ETA 2.9h
+[   2400] loss=0.204329  ema_loss=0.205666  2.7 sps  ETA 2.9h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_best.pth (ema_loss=0.205666)
+[   2600] loss=0.193606  ema_loss=0.204500  2.7 sps  ETA 2.9h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_best.pth (ema_loss=0.204500)
+[   2800] loss=0.193848  ema_loss=0.204370  2.7 sps  ETA 2.8h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_best.pth (ema_loss=0.204370)
+[   3000] loss=0.199800  ema_loss=0.203310  2.8 sps  ETA 2.7h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_best.pth (ema_loss=0.203310)
+[   3200] loss=0.195703  ema_loss=0.204452  2.8 sps  ETA 2.6h
+[   3400] loss=0.205844  ema_loss=0.203428  2.9 sps  ETA 2.6h
+[   3600] loss=0.189274  ema_loss=0.202352  2.9 sps  ETA 2.5h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_best.pth (ema_loss=0.202352)
+[   3800] loss=0.197732  ema_loss=0.202990  2.9 sps  ETA 2.5h
+[   4000] loss=0.222678  ema_loss=0.202125  3.0 sps  ETA 2.4h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_best.pth (ema_loss=0.202125)
+[   4200] loss=0.203217  ema_loss=0.202137  3.0 sps  ETA 2.4h
+[   4400] loss=0.199312  ema_loss=0.201970  3.0 sps  ETA 2.4h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_best.pth (ema_loss=0.201970)
+[   4600] loss=0.193136  ema_loss=0.201857  3.0 sps  ETA 2.3h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_best.pth (ema_loss=0.201857)
+[   4800] loss=0.198336  ema_loss=0.200970  3.1 sps  ETA 2.3h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_best.pth (ema_loss=0.200970)
+[   5000] loss=0.202510  ema_loss=0.201464  3.1 sps  ETA 2.3h
+[   5200] loss=0.211005  ema_loss=0.200947  3.1 sps  ETA 2.2h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_best.pth (ema_loss=0.200947)
+[   5400] loss=0.199713  ema_loss=0.201624  3.1 sps  ETA 2.2h
+[   5600] loss=0.192296  ema_loss=0.200409  3.1 sps  ETA 2.2h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_best.pth (ema_loss=0.200409)
+[   5800] loss=0.189988  ema_loss=0.200466  3.1 sps  ETA 2.1h
+[   6000] loss=0.193035  ema_loss=0.200074  3.2 sps  ETA 2.1h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_best.pth (ema_loss=0.200074)
+[   6200] loss=0.194051  ema_loss=0.200097  3.2 sps  ETA 2.1h
+[   6400] loss=0.216125  ema_loss=0.199323  3.2 sps  ETA 2.1h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_best.pth (ema_loss=0.199323)
+[   6600] loss=0.199375  ema_loss=0.198958  3.2 sps  ETA 2.0h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_best.pth (ema_loss=0.198958)
+[   6800] loss=0.210110  ema_loss=0.200243  3.2 sps  ETA 2.0h
+[   7000] loss=0.187244  ema_loss=0.199884  3.2 sps  ETA 2.0h
+[   7200] loss=0.186409  ema_loss=0.199695  3.2 sps  ETA 2.0h
+[   7400] loss=0.201346  ema_loss=0.200345  3.2 sps  ETA 1.9h
+[   7600] loss=0.204912  ema_loss=0.199610  3.2 sps  ETA 1.9h
+[   7800] loss=0.190185  ema_loss=0.199605  3.3 sps  ETA 1.9h
+[   8000] loss=0.194602  ema_loss=0.199330  3.3 sps  ETA 1.9h
+[   8200] loss=0.207095  ema_loss=0.199392  3.3 sps  ETA 1.9h
+[   8400] loss=0.200066  ema_loss=0.198188  3.3 sps  ETA 1.8h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_best.pth (ema_loss=0.198188)
+[   8600] loss=0.204104  ema_loss=0.198754  3.3 sps  ETA 1.8h
+[   8800] loss=0.203039  ema_loss=0.199037  3.3 sps  ETA 1.8h
+[   9000] loss=0.188620  ema_loss=0.198116  3.3 sps  ETA 1.8h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_best.pth (ema_loss=0.198116)
+[   9200] loss=0.178995  ema_loss=0.198325  3.3 sps  ETA 1.7h
+[   9400] loss=0.203110  ema_loss=0.199242  3.3 sps  ETA 1.7h
+[   9600] loss=0.204347  ema_loss=0.199282  3.3 sps  ETA 1.7h
+[   9800] loss=0.209449  ema_loss=0.198928  3.3 sps  ETA 1.7h
+[  10000] loss=0.195999  ema_loss=0.198469  3.3 sps  ETA 1.7h
+[  10200] loss=0.199381  ema_loss=0.198312  3.3 sps  ETA 1.6h
+[  10400] loss=0.203512  ema_loss=0.198189  3.3 sps  ETA 1.6h
+[  10600] loss=0.205760  ema_loss=0.197232  3.3 sps  ETA 1.6h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_best.pth (ema_loss=0.197232)
+[  10800] loss=0.197857  ema_loss=0.197271  3.3 sps  ETA 1.6h
+[  11000] loss=0.195635  ema_loss=0.198356  3.4 sps  ETA 1.6h
+[  11200] loss=0.206761  ema_loss=0.197572  3.4 sps  ETA 1.6h
+[  11400] loss=0.188664  ema_loss=0.197512  3.4 sps  ETA 1.5h
+[  11600] loss=0.184070  ema_loss=0.197273  3.4 sps  ETA 1.5h
+[  11800] loss=0.176760  ema_loss=0.198401  3.4 sps  ETA 1.5h
+[  12000] loss=0.194439  ema_loss=0.197505  3.4 sps  ETA 1.5h
+[  12200] loss=0.198689  ema_loss=0.196396  3.4 sps  ETA 1.5h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_best.pth (ema_loss=0.196396)
+[  12400] loss=0.205182  ema_loss=0.198045  3.4 sps  ETA 1.4h
+[  12600] loss=0.209805  ema_loss=0.198142  3.4 sps  ETA 1.4h
+[  12800] loss=0.191269  ema_loss=0.196879  3.4 sps  ETA 1.4h
+[  13000] loss=0.195022  ema_loss=0.196951  3.4 sps  ETA 1.4h
+[  13200] loss=0.198497  ema_loss=0.197256  3.4 sps  ETA 1.4h
+[  13400] loss=0.206500  ema_loss=0.196859  3.4 sps  ETA 1.4h
+[  13600] loss=0.192070  ema_loss=0.197641  3.4 sps  ETA 1.3h
+[  13800] loss=0.202407  ema_loss=0.196877  3.4 sps  ETA 1.3h
+[  14000] loss=0.210493  ema_loss=0.198322  3.4 sps  ETA 1.3h
+[  14200] loss=0.194345  ema_loss=0.196764  3.4 sps  ETA 1.3h
+[  14400] loss=0.191809  ema_loss=0.197006  3.4 sps  ETA 1.3h
+[  14600] loss=0.191758  ema_loss=0.196144  3.4 sps  ETA 1.2h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_best.pth (ema_loss=0.196144)
+[  14800] loss=0.207240  ema_loss=0.197291  3.4 sps  ETA 1.2h
+[  15000] loss=0.199767  ema_loss=0.197239  3.4 sps  ETA 1.2h
+[  15200] loss=0.187762  ema_loss=0.196554  3.4 sps  ETA 1.2h
+[  15400] loss=0.198936  ema_loss=0.196968  3.4 sps  ETA 1.2h
+[  15600] loss=0.201991  ema_loss=0.195791  3.4 sps  ETA 1.2h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_best.pth (ema_loss=0.195791)
+[  15800] loss=0.196415  ema_loss=0.196773  3.4 sps  ETA 1.1h
+[  16000] loss=0.208454  ema_loss=0.197067  3.4 sps  ETA 1.1h
+[  16200] loss=0.197861  ema_loss=0.196551  3.5 sps  ETA 1.1h
+[  16400] loss=0.182126  ema_loss=0.196177  3.5 sps  ETA 1.1h
+[  16600] loss=0.198266  ema_loss=0.197058  3.5 sps  ETA 1.1h
+[  16800] loss=0.182897  ema_loss=0.196806  3.5 sps  ETA 1.1h
+[  17000] loss=0.181382  ema_loss=0.195542  3.5 sps  ETA 1.0h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_best.pth (ema_loss=0.195542)
+[  17200] loss=0.203301  ema_loss=0.197103  3.5 sps  ETA 1.0h
+[  17400] loss=0.193463  ema_loss=0.196729  3.5 sps  ETA 1.0h
+[  17600] loss=0.207818  ema_loss=0.198611  3.5 sps  ETA 1.0h
+[  17800] loss=0.176903  ema_loss=0.196462  3.5 sps  ETA 1.0h
+[  18000] loss=0.204499  ema_loss=0.196534  3.5 sps  ETA 1.0h
+[  18200] loss=0.187542  ema_loss=0.196137  3.5 sps  ETA 0.9h
+[  18400] loss=0.201562  ema_loss=0.195880  3.5 sps  ETA 0.9h
+[  18600] loss=0.170150  ema_loss=0.195368  3.5 sps  ETA 0.9h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_best.pth (ema_loss=0.195368)
+[  18800] loss=0.190830  ema_loss=0.195310  3.5 sps  ETA 0.9h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_best.pth (ema_loss=0.195310)
+[  19000] loss=0.205615  ema_loss=0.196752  3.5 sps  ETA 0.9h
+[  19200] loss=0.186432  ema_loss=0.196224  3.5 sps  ETA 0.9h
+[  19400] loss=0.198610  ema_loss=0.196414  3.5 sps  ETA 0.8h
+[  19600] loss=0.193988  ema_loss=0.196285  3.5 sps  ETA 0.8h
+[  19800] loss=0.199697  ema_loss=0.196126  3.5 sps  ETA 0.8h
+[  20000] loss=0.194549  ema_loss=0.196392  3.5 sps  ETA 0.8h
+[  20200] loss=0.195333  ema_loss=0.196247  3.5 sps  ETA 0.8h
+[  20400] loss=0.191574  ema_loss=0.194847  3.5 sps  ETA 0.8h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_best.pth (ema_loss=0.194847)
+[  20600] loss=0.205674  ema_loss=0.195706  3.5 sps  ETA 0.7h
+[  20800] loss=0.188340  ema_loss=0.195682  3.5 sps  ETA 0.7h
+[  21000] loss=0.205936  ema_loss=0.196372  3.5 sps  ETA 0.7h
+[  21200] loss=0.189378  ema_loss=0.195426  3.5 sps  ETA 0.7h
+[  21400] loss=0.181210  ema_loss=0.196179  3.5 sps  ETA 0.7h
+[  21600] loss=0.197582  ema_loss=0.195873  3.5 sps  ETA 0.7h
+[  21800] loss=0.189433  ema_loss=0.195075  3.5 sps  ETA 0.7h
+[  22000] loss=0.203850  ema_loss=0.196004  3.5 sps  ETA 0.6h
+[  22200] loss=0.198788  ema_loss=0.195487  3.5 sps  ETA 0.6h
+[  22400] loss=0.202320  ema_loss=0.195053  3.5 sps  ETA 0.6h
+[  22600] loss=0.209031  ema_loss=0.195935  3.5 sps  ETA 0.6h
+[  22800] loss=0.194873  ema_loss=0.196043  3.5 sps  ETA 0.6h
+[  23000] loss=0.196575  ema_loss=0.196019  3.5 sps  ETA 0.6h
+[  23200] loss=0.205985  ema_loss=0.195340  3.5 sps  ETA 0.5h
+[  23400] loss=0.208224  ema_loss=0.195650  3.5 sps  ETA 0.5h
+[  23600] loss=0.180210  ema_loss=0.194605  3.5 sps  ETA 0.5h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_best.pth (ema_loss=0.194605)
+[  23800] loss=0.193039  ema_loss=0.195106  3.5 sps  ETA 0.5h
+[  24000] loss=0.199761  ema_loss=0.195578  3.5 sps  ETA 0.5h
+[  24200] loss=0.189673  ema_loss=0.194958  3.5 sps  ETA 0.5h
+[  24400] loss=0.204078  ema_loss=0.195962  3.5 sps  ETA 0.4h
+[  24600] loss=0.199415  ema_loss=0.196316  3.5 sps  ETA 0.4h
+[  24800] loss=0.203455  ema_loss=0.195422  3.5 sps  ETA 0.4h
+[  25000] loss=0.179646  ema_loss=0.195940  3.5 sps  ETA 0.4h
+[  25200] loss=0.197591  ema_loss=0.194653  3.5 sps  ETA 0.4h
+[  25400] loss=0.209858  ema_loss=0.195935  3.5 sps  ETA 0.4h
+[  25600] loss=0.190989  ema_loss=0.195230  3.5 sps  ETA 0.3h
+[  25800] loss=0.198787  ema_loss=0.194343  3.5 sps  ETA 0.3h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_best.pth (ema_loss=0.194343)
+[  26000] loss=0.194483  ema_loss=0.195040  3.5 sps  ETA 0.3h
+[  26200] loss=0.192385  ema_loss=0.194528  3.5 sps  ETA 0.3h
+[  26400] loss=0.191563  ema_loss=0.195545  3.5 sps  ETA 0.3h
+[  26600] loss=0.198801  ema_loss=0.195204  3.5 sps  ETA 0.3h
+[  26800] loss=0.195102  ema_loss=0.194305  3.5 sps  ETA 0.3h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_best.pth (ema_loss=0.194305)
+[  27000] loss=0.203881  ema_loss=0.195638  3.5 sps  ETA 0.2h
+[  27200] loss=0.196797  ema_loss=0.196189  3.5 sps  ETA 0.2h
+[  27400] loss=0.212076  ema_loss=0.195563  3.5 sps  ETA 0.2h
+[  27600] loss=0.208051  ema_loss=0.195544  3.5 sps  ETA 0.2h
+[  27800] loss=0.200129  ema_loss=0.195419  3.5 sps  ETA 0.2h
+[  28000] loss=0.201649  ema_loss=0.195372  3.5 sps  ETA 0.2h
+[  28200] loss=0.191721  ema_loss=0.195597  3.5 sps  ETA 0.1h
+[  28400] loss=0.205914  ema_loss=0.194739  3.5 sps  ETA 0.1h
+[  28600] loss=0.186598  ema_loss=0.194267  3.5 sps  ETA 0.1h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_best.pth (ema_loss=0.194267)
+[  28800] loss=0.192935  ema_loss=0.195134  3.5 sps  ETA 0.1h
+[  29000] loss=0.190132  ema_loss=0.195877  3.5 sps  ETA 0.1h
+[  29200] loss=0.192827  ema_loss=0.195147  3.5 sps  ETA 0.1h
+[  29400] loss=0.209932  ema_loss=0.195791  3.5 sps  ETA 0.0h
+[  29600] loss=0.194696  ema_loss=0.195758  3.5 sps  ETA 0.0h
+[  29800] loss=0.193666  ema_loss=0.195186  3.5 sps  ETA 0.0h
+[  30000] loss=0.186272  ema_loss=0.194154  3.5 sps  ETA 0.0h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau098_best.pth (ema_loss=0.194154)
+
+Done in 2.3h. Best loss=0.194154 at step 30000

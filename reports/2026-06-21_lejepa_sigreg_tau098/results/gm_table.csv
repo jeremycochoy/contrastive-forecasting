@@ -1,0 +1,17 @@
+arm,label,head,ckpt,gm,n
+cpc_enc3,"enc3+CPC, B=1024",2L,best,1.1846,97
+cpc_enc3,"enc3+CPC, B=1024",2L,last,1.1531,97
+cpc_enc3,"enc3+CPC, B=1024",6L,best,1.1584,97
+cpc_enc3,"enc3+CPC, B=1024",6L,last,1.1436,97
+ema_enc3,"EMA-target enc3+CPC, B=1024, τ=0.99",2L,best,1.1614,97
+ema_enc3,"EMA-target enc3+CPC, B=1024, τ=0.99",2L,last,1.1817,97
+ema_enc3,"EMA-target enc3+CPC, B=1024, τ=0.99",6L,best,1.1576,97
+ema_enc3,"EMA-target enc3+CPC, B=1024, τ=0.99",6L,last,1.1597,97
+sigreg_enc3_tau099,"SIGReg + EMA-target, B=512, τ=0.99",2L,best,1.1610,97
+sigreg_enc3_tau099,"SIGReg + EMA-target, B=512, τ=0.99",2L,last,1.1758,97
+sigreg_enc3_tau099,"SIGReg + EMA-target, B=512, τ=0.99",6L,best,1.1543,97
+sigreg_enc3_tau099,"SIGReg + EMA-target, B=512, τ=0.99",6L,last,1.1556,97
+sigreg_enc3_tau098,"SIGReg + EMA-target, B=512, τ=0.98",2L,best,1.1807,97
+sigreg_enc3_tau098,"SIGReg + EMA-target, B=512, τ=0.98",2L,last,1.1662,97
+sigreg_enc3_tau098,"SIGReg + EMA-target, B=512, τ=0.98",6L,best,1.1493,97
+sigreg_enc3_tau098,"SIGReg + EMA-target, B=512, τ=0.98",6L,last,1.1462,97
