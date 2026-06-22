@@ -246,31 +246,33 @@ def plot_loss_curves(
 
 
 def plot_sigreg_inspection(sig10_csv: Path, sig01_csv: Path | None, out: Path):
-    """Compare sigreg_e / sigreg_h / u_batch_e / u_temporal_e between the two λ_e weights."""
+    """Compare sigreg_e / sigreg_h / u_batch_e / u_temporal_e between the two
+    λ_e weights. All four panels use log y-axis so the bottom row's tiny values
+    (1/K ≈ 0.0026, u_batch_e ≈ 0.03–0.04) are readable instead of crammed at
+    the baseline of a [0,1] linear axis."""
     s10 = pd.read_csv(sig10_csv)
     s01 = pd.read_csv(sig01_csv) if (sig01_csv and sig01_csv.exists()) else None
     fig, axes = plt.subplots(2, 2, figsize=(13, 8))
     panels = [
-        ("sigreg_e",     "L_SIGReg(e_t)",     True),
-        ("sigreg_h",     "L_SIGReg(h_t)",     True),
-        ("u_batch_e",    "u_batch (e_t)",     False),
-        ("u_temporal_e", "u_temporal (e_t)",  False),
+        ("sigreg_e",     "L_SIGReg(e_t)"),
+        ("sigreg_h",     "L_SIGReg(h_t)"),
+        ("u_batch_e",    "u_batch (e_t)"),
+        ("u_temporal_e", "u_temporal (e_t)"),
     ]
     K = 384
-    for ax, (col, title, logy) in zip(axes.ravel(), panels):
+    for ax, (col, title) in zip(axes.ravel(), panels):
         ax.plot(s10["step"], s10[col].rolling(50, min_periods=1).mean(),
                 label="λ_e=1.0 (this arm, #359)", color=ARM_COLOR["sigreg10_enc3"], lw=1.6)
         if s01 is not None and col in s01.columns:
             ax.plot(s01["step"], s01[col].rolling(50, min_periods=1).mean(),
                     label="λ_e=0.1 (#355)", color=ARM_COLOR["sigreg01_enc3"], lw=1.2)
         if col in ("u_batch_e", "u_temporal_e"):
-            ax.axhline(1.0 / K, color="k", ls=":", alpha=0.5, label=f"1/K = 1/{K} ≈ {1/K:.4f}")
-            ax.set_ylim(0, 1)
-        if logy:
-            ax.set_yscale("log")
+            ax.axhline(1.0 / K, color="k", ls=":", alpha=0.5,
+                       label=f"1/K = 1/{K} ≈ {1/K:.4f}")
+        ax.set_yscale("log")
         ax.set_xlabel("step"); ax.set_title(title)
         ax.legend(fontsize=8); ax.grid(alpha=0.3, which="both")
-    fig.suptitle("Embedding-side SIGReg trajectory: λ_e=1.0 (#359) vs λ_e=0.1 (#355)")
+    fig.suptitle("Embedding-side SIGReg trajectory: λ_e=1.0 (#359) vs λ_e=0.1 (#355) — log y-axis on all panels")
     fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
 
 
@@ -449,73 +451,76 @@ def plot_perdomain_radar(
     sig10_results: Path, sig01_results: Path, ema_results: Path, cpc_results: Path,
     sig10_tag: str, sig01_tag: str, ema_tag: str, cpc_tag: str, out: Path,
 ):
-    """2 panels (2L | 6L), 8 curves each (4 arms × {best, last}). The #359-best
-    curve carries a per-domain bootstrap 95% CI as a shaded radial fill so the
-    headline arm's uncertainty is visible."""
+    """2×2 small-multiples (head ∈ {2L,6L} × ckpt ∈ {best,last}), 4 arm curves
+    per panel — split out from the previous 8-curve overlay so the green (#359)
+    and red (#355) SIGReg curves no longer merge. The #359 curve in each panel
+    (using that panel's own ckpt) carries the per-domain bootstrap 95% CI as a
+    shaded radial fill."""
     HEADS = ["2L", "6L"]
-    CURVES = [
-        ("cpc_enc3",      cpc_results,   cpc_tag,   "",      ARM_COLOR["cpc_enc3"],      "-",  f"{ARM_LABEL['cpc_enc3']} · best"),
-        ("cpc_enc3",      cpc_results,   cpc_tag,   "_last", ARM_COLOR["cpc_enc3"],      "--", f"{ARM_LABEL['cpc_enc3']} · last"),
-        ("ema_enc3",      ema_results,   ema_tag,   "",      ARM_COLOR["ema_enc3"],      "-",  f"{ARM_LABEL['ema_enc3']} · best"),
-        ("ema_enc3",      ema_results,   ema_tag,   "_last", ARM_COLOR["ema_enc3"],      "--", f"{ARM_LABEL['ema_enc3']} · last"),
-        ("sigreg01_enc3", sig01_results, sig01_tag, "",      ARM_COLOR["sigreg01_enc3"], "-",  f"{ARM_LABEL['sigreg01_enc3']} · best"),
-        ("sigreg01_enc3", sig01_results, sig01_tag, "_last", ARM_COLOR["sigreg01_enc3"], "--", f"{ARM_LABEL['sigreg01_enc3']} · last"),
-        ("sigreg10_enc3", sig10_results, sig10_tag, "",      ARM_COLOR["sigreg10_enc3"], "-",  f"{ARM_LABEL['sigreg10_enc3']} · best"),
-        ("sigreg10_enc3", sig10_results, sig10_tag, "_last", ARM_COLOR["sigreg10_enc3"], "--", f"{ARM_LABEL['sigreg10_enc3']} · last"),
+    CKPTS = [("best", ""), ("last", "_last")]
+    ARM_SPECS = [
+        ("cpc_enc3",      cpc_results,   cpc_tag,   ARM_COLOR["cpc_enc3"]),
+        ("ema_enc3",      ema_results,   ema_tag,   ARM_COLOR["ema_enc3"]),
+        ("sigreg01_enc3", sig01_results, sig01_tag, ARM_COLOR["sigreg01_enc3"]),
+        ("sigreg10_enc3", sig10_results, sig10_tag, ARM_COLOR["sigreg10_enc3"]),
     ]
-    fig, axes = plt.subplots(1, 2, figsize=(15, 8), subplot_kw=dict(polar=True))
-    for ax, head in zip(axes, HEADS):
-        cells = []
-        sig10_best_ci: dict[str, tuple[float, float, float]] | None = None
-        for arm, root, tag, suf, col, ls, lab in CURVES:
-            sub = root / f"gift_eval_full_{tag}{suf}_{head}"
-            rel = _config_relatives(sub / "summary.txt")
-            dmap = _dataset_to_domain(sub / "all_results.csv")
-            gm = _gm_by_domain(rel, dmap)
-            if gm:
-                cells.append((lab, gm, col, ls))
-            if arm == "sigreg10_enc3" and suf == "" and rel and dmap:
-                sig10_best_ci = _domain_bootstrap_ci(rel, dmap)
-        if not cells:
-            ax.text(0.5, 0.5, "no eval", transform=ax.transAxes); continue
-        domains = sorted(set().union(*(g for _, g, _, _ in cells)))
-        theta = np.linspace(0, 2 * np.pi, len(domains), endpoint=False)
-        theta_closed = np.concatenate([theta, theta[:1]])
-        vals = [v for _, g, _, _ in cells for v in g.values()]
-        if sig10_best_ci:
-            vals.extend(v for _, lo, hi in sig10_best_ci.values() for v in (lo, hi))
-        lo, hi = max(0.5, min(vals) * 0.92), max(vals) * 1.06
-        ax.set_theta_offset(np.pi / 2); ax.set_theta_direction(-1)
-        ax.set_xticks(theta); ax.set_xticklabels(domains, fontsize=8)
-        ax.set_rscale("log"); ax.set_ylim(lo, hi)
-        rticks = [t for t in (0.8, 1.0, 1.2, 1.5, 2.0) if lo < t < hi]
-        ax.set_yticks(rticks)
-        ax.set_yticklabels([f"{t:g}" for t in rticks], fontsize=7, color="0.4")
-        ax.set_rlabel_position(90)
-        ax.plot(theta_closed, [1.0] * len(theta_closed),
-                color="k", ls=(0, (2, 2)), lw=0.8, alpha=0.6, zorder=1)
-        if sig10_best_ci:
-            lo_v = np.array([sig10_best_ci.get(d, (np.nan, np.nan, np.nan))[1] for d in domains])
-            hi_v = np.array([sig10_best_ci.get(d, (np.nan, np.nan, np.nan))[2] for d in domains])
-            lo_v = np.concatenate([lo_v, lo_v[:1]])
-            hi_v = np.concatenate([hi_v, hi_v[:1]])
-            ax.fill_between(theta_closed, lo_v, hi_v,
-                            color=ARM_COLOR["sigreg10_enc3"], alpha=0.18, zorder=2,
-                            label="#359 · best  bootstrap 95% CI")
-        for lab, g, col, ls in cells:
-            v = np.array([g.get(d, np.nan) for d in domains]
-                         + [g.get(domains[0], np.nan)])
-            ax.plot(theta_closed, v, color=col, ls=ls, lw=1.4, zorder=3,
-                    marker="o", markersize=3, label=lab)
-        ax.set_title(f"{head} q-head", fontsize=11, pad=14)
-        ax.legend(loc="upper left", bbox_to_anchor=(-0.05, -0.06),
-                  fontsize=7, frameon=False, ncol=1)
+    fig, axes = plt.subplots(2, 2, figsize=(14, 13), subplot_kw=dict(polar=True))
+    for row, head in enumerate(HEADS):
+        for colj, (ckpt, suf) in enumerate(CKPTS):
+            ax = axes[row, colj]
+            cells: list[tuple[str, dict[str, float], str]] = []
+            sig10_ci: dict[str, tuple[float, float, float]] | None = None
+            for arm, root, tag, colr in ARM_SPECS:
+                sub = root / f"gift_eval_full_{tag}{suf}_{head}"
+                rel = _config_relatives(sub / "summary.txt")
+                dmap = _dataset_to_domain(sub / "all_results.csv")
+                gm = _gm_by_domain(rel, dmap)
+                if gm:
+                    cells.append((ARM_LABEL[arm], gm, colr))
+                if arm == "sigreg10_enc3" and rel and dmap:
+                    sig10_ci = _domain_bootstrap_ci(rel, dmap)
+            if not cells:
+                ax.text(0.5, 0.5, "no eval", transform=ax.transAxes)
+                continue
+            domains = sorted(set().union(*(g for _, g, _ in cells)))
+            theta = np.linspace(0, 2 * np.pi, len(domains), endpoint=False)
+            theta_closed = np.concatenate([theta, theta[:1]])
+            vals = [v for _, g, _ in cells for v in g.values()]
+            if sig10_ci:
+                vals.extend(v for _, lo, hi in sig10_ci.values() for v in (lo, hi))
+            lo, hi = max(0.5, min(vals) * 0.92), max(vals) * 1.06
+            ax.set_theta_offset(np.pi / 2); ax.set_theta_direction(-1)
+            ax.set_xticks(theta); ax.set_xticklabels(domains, fontsize=8)
+            ax.set_rscale("log"); ax.set_ylim(lo, hi)
+            rticks = [t for t in (0.8, 1.0, 1.2, 1.5, 2.0) if lo < t < hi]
+            ax.set_yticks(rticks)
+            ax.set_yticklabels([f"{t:g}" for t in rticks], fontsize=7, color="0.4")
+            ax.set_rlabel_position(90)
+            ax.plot(theta_closed, [1.0] * len(theta_closed),
+                    color="k", ls=(0, (2, 2)), lw=0.8, alpha=0.6, zorder=1)
+            if sig10_ci:
+                lo_v = np.array([sig10_ci.get(d, (np.nan, np.nan, np.nan))[1] for d in domains])
+                hi_v = np.array([sig10_ci.get(d, (np.nan, np.nan, np.nan))[2] for d in domains])
+                lo_v = np.concatenate([lo_v, lo_v[:1]])
+                hi_v = np.concatenate([hi_v, hi_v[:1]])
+                ax.fill_between(theta_closed, lo_v, hi_v,
+                                color=ARM_COLOR["sigreg10_enc3"], alpha=0.20, zorder=2,
+                                label=f"#359 · {ckpt}  bootstrap 95% CI")
+            for lab, g, colr in cells:
+                v = np.array([g.get(d, np.nan) for d in domains]
+                             + [g.get(domains[0], np.nan)])
+                ax.plot(theta_closed, v, color=colr, lw=1.6, zorder=3,
+                        marker="o", markersize=3.5, label=lab)
+            ax.set_title(f"{head} q-head · {ckpt}", fontsize=11, pad=12)
+            ax.legend(loc="upper left", bbox_to_anchor=(-0.10, -0.05),
+                      fontsize=7, frameon=False, ncol=1)
     fig.suptitle(
         "Per-domain GM relative MASE on GIFT-Eval full-97 "
         "(radial log scale; ring at 1.0 = seasonal-naive; lower = better; "
-        "solid = best-loss, dashed = last; shaded = #359-best per-domain bootstrap 95% CI)",
-        fontsize=11)
-    fig.tight_layout(rect=[0, 0.03, 1, 0.93])
+        "4-curve small-multiples × {2L,6L} × {best,last}; shaded = #359 per-domain bootstrap 95% CI)",
+        fontsize=11,
+    )
+    fig.tight_layout(rect=[0, 0.02, 1, 0.95])
     fig.savefig(out, dpi=110, bbox_inches="tight"); plt.close(fig)
 
 
@@ -526,8 +531,10 @@ def plot_per_config_delta(
     out: Path,
 ):
     """For each (head, ckpt), show the per-config rel-MASE delta (#359 − #355)
-    across the 97 configs as a strip-scatter; overlay mean ± paired bootstrap
-    95% CI. Negative = #359 better."""
+    across the 97 configs as a strip-scatter; overlay the absolute GM delta
+    (#359 − #355) ± its paired-bootstrap 95% CI computed on the log-ratio of
+    GMs — the same CI methodology used by gm_rel_mase.png / gm_table.csv, so
+    a single CI methodology is reported throughout. Negative = #359 better."""
     cells = [("2L", "best", ""), ("2L", "last", "_last"),
              ("6L", "best", ""), ("6L", "last", "_last")]
     ci_by_cell = {(r["head"], r["ckpt"]): r for r in ci_rows}
@@ -540,35 +547,40 @@ def plot_per_config_delta(
         r01 = parse_per_config_rel_mase(sub01)
         common = sorted(set(r10) & set(r01))
         d = np.array([r10[c] - r01[c] for c in common])
-        # log-delta CI is on GM(10)/GM(01); convert to absolute GM delta domain
-        # (anchored at #355's GM) for display alongside per-config deltas.
         x_jit = rng.uniform(-0.18, 0.18, size=len(d))
         ax.axhline(0, color="k", lw=0.7, alpha=0.6)
         ax.scatter(x_jit, d, s=9, alpha=0.55, color=ARM_COLOR["sigreg10_enc3"])
         ci = ci_by_cell.get((head, ckpt), {})
-        m_per_cfg = float(d.mean()) if len(d) else float("nan")
-        # CI of mean of per-config delta (paired bootstrap on raw deltas).
-        if len(d):
-            idx = rng.integers(0, len(d), size=(10_000, len(d)))
-            boot = d[idx].mean(axis=1)
-            ci_lo = float(np.quantile(boot, 0.025))
-            ci_hi = float(np.quantile(boot, 0.975))
-        else:
-            ci_lo = ci_hi = float("nan")
-        ax.errorbar([0], [m_per_cfg],
-                    yerr=[[m_per_cfg - ci_lo], [ci_hi - m_per_cfg]],
-                    fmt="D", color="k", ecolor="k",
-                    capsize=5, capthick=1.2, elinewidth=1.2, markersize=6,
-                    zorder=5,
-                    label=f"mean Δ={m_per_cfg:+.3f}\n95% CI [{ci_lo:+.3f}, {ci_hi:+.3f}]")
+        # Use the same CI as gm_rel_mase.png / gm_table.csv: paired bootstrap
+        # on the log-ratio of GMs, converted to absolute GM-delta scale via
+        # GM(#355) * (exp(log_ratio_quantile) - 1). gm_delta_abs / lo / hi are
+        # already in that scale in ci_by_cell.
+        gm_delta = ci.get("gm_delta_abs", float("nan"))
+        gm_lo    = ci.get("gm_delta_lo",  float("nan"))
+        gm_hi    = ci.get("gm_delta_hi",  float("nan"))
+        p_neg    = ci.get("p_below_zero", float("nan"))
+        if not (isinstance(gm_delta, float) and math.isnan(gm_delta)):
+            ax.errorbar([0], [gm_delta],
+                        yerr=[[gm_delta - gm_lo], [gm_hi - gm_delta]],
+                        fmt="D", color="k", ecolor="k",
+                        capsize=5, capthick=1.2, elinewidth=1.2, markersize=6,
+                        zorder=5,
+                        label=(
+                            f"Δ_GM={gm_delta:+.3f}\n"
+                            f"95% CI [{gm_lo:+.3f}, {gm_hi:+.3f}]\n"
+                            f"P(Δ<0)={p_neg:.2f}"
+                        ))
         ax.set_xlim(-0.45, 0.45); ax.set_xticks([])
         ax.set_title(f"{head}/{ckpt}\nn={len(d)}", fontsize=10)
         ax.grid(axis="y", alpha=0.3)
         ax.legend(loc="lower right", fontsize=7)
     axes[0].set_ylabel("Per-config rel-MASE  Δ = #359 − #355\n(< 0 → #359 better on that config)")
-    fig.suptitle("Per-config rel-MASE deltas across the 97 GIFT-Eval configs "
-                 "(scatter; black diamond = mean ± paired-bootstrap 95% CI)",
-                 fontsize=11)
+    fig.suptitle(
+        "Per-config rel-MASE deltas across the 97 GIFT-Eval configs (scatter); "
+        "black diamond = Δ_GM(#359−#355) with 95% CI from paired bootstrap on "
+        "log-ratio of GMs — same statistic as gm_rel_mase.png / gm_table.csv",
+        fontsize=10,
+    )
     fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
 
 
@@ -597,7 +609,20 @@ def write_trajectories_with_commentary(
     a 10x λ_e bump, did not lift off) plus the per-term sigreg → total-loss
     fraction note (λ_e * sigreg_e / loss went ~7.6x while λ_e went 10x because
     sigreg_e itself partially self-suppressed)."""
-    lines: list[str] = []
+    lines: list[str] = [
+        "# VERDICT (issue #359, single seed 20260520 as specified):",
+        '#   * Q1 "Does the bumped weight wake the embedding-side term?"  → NO.',
+        "#     u_batch_e moved TOWARD 1/K (16.8× → 13.0×), not away. u_temporal_e,",
+        "#     u_batch, u_temporal all also fell. The 10× λ_e bump did not lift e_t",
+        "#     uniformity off the 1/K floor.",
+        '#   * Q2 "Does it move downstream?"  → NO (not at α=0.05).',
+        "#     Point Δ on GM-Rel MASE = #359 − #355 in [−0.014, −0.007] across the",
+        "#     4 (head, ckpt) cells; ALL FOUR paired-bootstrap 95% CIs (B=10 000,",
+        "#     N=97 per-config rel-MASE deltas) include zero. P(Δ<0) in [0.83, 0.95].",
+        "#     Direction is consistent (4/4 cells point-negative) but magnitudes are",
+        "#     not separable from single-seed paired-config noise.",
+        "#",
+    ]
     if traj01:
         u_b_e_10 = traj10["u_batch_e"]; u_b_e_01 = traj01["u_batch_e"]
         u_t_e_10 = traj10["u_temporal_e"]; u_t_e_01 = traj01["u_temporal_e"]
