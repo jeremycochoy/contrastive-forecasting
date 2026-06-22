@@ -1,32 +1,55 @@
 # VERDICT (single seed 20260520):
-#   * Q1 "Does the bumped weight wake the embedding-side term?"  → NO.
-#     u_batch_e moved TOWARD 1/K (16.8× → 13.0×), not away. u_temporal_e,
-#     u_batch, u_temporal all also fell. The 10× λ_e bump did not lift e_t
-#     uniformity off the 1/K floor.
-#   * Q2 "Does it move downstream?"  → NO (not at α=0.05).
-#     Point Δ on GM-Rel MASE = this arm − prior arm in [−0.014, −0.007]
-#     across the 4 (head, ckpt) cells; ALL FOUR paired-bootstrap 95% CIs
-#     (B=10 000, N=97 per-config rel-MASE deltas) include zero.
-#     P(Δ<0) in [0.83, 0.95]. Direction is consistent (4/4 cells
-#     point-negative) but magnitudes are not separable from
-#     single-seed paired-config noise.
 #
-# Tail-50 trajectory facts (this arm SIGReg λ_e=1.0 vs prior arm SIGReg λ_e=0.1)
+# Q  Does stronger embedding-side pressure change the time course of
+#    u_batch_e / u_temporal_e / L_SIGReg(e_t) / λ_e·L_SIGReg(e_t)/loss,
+#    and is that linked to downstream GM-Rel MASE?
 #
-# u_batch_e direction:
-#   u_batch_e:     prior λ_e=0.1 → 0.0438 ≈ 16.8× 1/K  
-#                  this  λ_e=1.0 → 0.0339 ≈ 13.0× 1/K   (FELL — moved TOWARD 1/K, not away)
-#   u_temporal_e:  prior → 0.0315  →  this → 0.0238   (also fell)
-#   u_batch:       prior → 0.7964  →  this → 0.7754     (also fell)
-#   u_temporal:    prior → 0.6194  →  this → 0.5761     (also fell)
+# Facts (this arm λ_e=1.0 vs prior arm λ_e=0.1, single seed 20260520):
 #
-# SIGReg λ_e · sigreg_e / total-loss fraction:
-#   prior λ_e=0.1:  λ_e · sigreg_e / loss = 2.36e-05
-#   this  λ_e=1.0:  λ_e · sigreg_e / loss = 1.80e-04   (~7.6× under a 10× λ_e bump because
-#                  sigreg_e itself fell 1.00e-03 → 8.18e-04 — partial self-suppression).
+#   Early-50 (steps 1–50):
+#     u_batch_e, u_temporal_e, L_SIGReg(e_t) shift by <1e-5 between arms
+#     (indistinguishable at this resolution). λ_e·L_SIGReg(e_t)/loss
+#     shifts by ~+2.0e-4 (explicit 10× λ_e scaling on near-identical
+#     L_SIGReg(e_t)).
 #
-#   sigreg_h tail-50: prior → 3.80e-04  →  this → 6.51e-04
-#   loss     tail-50: prior → 4.2478    →  this → 4.5490
+#   Tail-50 (last 50 of 12 500 steps):
+#     u_batch_e: −0.0099 (this − prior); u_temporal_e: −0.0077;
+#     L_SIGReg(e_t): −1.8e-4; λ_e·L_SIGReg(e_t)/loss: +1.6e-4;
+#     loss: +0.30. End-state direction on u_batch_e / u_temporal_e /
+#     L_SIGReg(e_t) is opposite the small (≈0) early-window shift —
+#     they end LOWER under the 10× weight, not higher.
+#
+#   Downstream (GIFT-Eval full-97, head-matched, paired bootstrap B=10 000):
+#     Point Δ_GM (λ_e=1.0 − λ_e=0.1) is negative in all 4 (head, ckpt)
+#     cells, range [−0.014, −0.007]; all 4 paired-bootstrap 95% CIs
+#     include zero; P(Δ<0) in [0.83, 0.95].
+#
+# Early-50 vs Tail-50 trajectory means
+#
+# u_batch_e (this − prior):
+#   Early-50:  this 0.008881 | prior 0.008885 | Δ -4.13e-06
+#   Tail-50:   this 0.033888 | prior 0.043793 | Δ -0.0099
+#              (in 1/K units: this 13.0× | prior 16.8×)
+#
+# u_temporal_e (this − prior):
+#   Early-50:  this 0.008683 | prior 0.008686 | Δ -3.37e-06
+#   Tail-50:   this 0.023819 | prior 0.031513 | Δ -0.0077
+#
+# L_SIGReg(e_t) (this − prior):
+#   Early-50:  this 1.909e-03 | prior 1.914e-03 | Δ -5.56e-06
+#   Tail-50:   this 8.184e-04 | prior 1.001e-03 | Δ -1.82e-04
+#
+# λ_e · L_SIGReg(e_t) / loss (this − prior):
+#   Early-50:  this 2.223e-04 | prior 2.232e-05 | Δ +2.00e-04
+#   Tail-50:   this 1.800e-04 | prior 2.356e-05 | Δ +1.56e-04
+#              (Tail-50 ratio of ratios this/prior = 7.64×;
+#               under a 10× λ_e bump because L_SIGReg(e_t) self-suppressed)
+#
+# Other tail-50 quantities (this − prior):
+#   u_batch (h_t):    this 0.7754  prior 0.7964  Δ -0.0210
+#   u_temporal (h_t): this 0.5761  prior 0.6194  Δ -0.0433
+#   L_SIGReg(h_t):    this 6.513e-04  prior 3.805e-04  Δ +2.71e-04
+#   loss:             this 4.5490  prior 4.2478  Δ +0.3011
 
 # Raw tail-50 means below (key<TAB>value).
 u_batch	0.7754175102710724
@@ -36,4 +59,5 @@ u_temporal_e	0.023818777054548216
 sigreg_e	0.00081835942226457
 sigreg_h	0.000651321916375264
 loss	4.548958902359009
+sigreg_e_over_loss_ratio	0.00017999540458657086
 final_step	12500

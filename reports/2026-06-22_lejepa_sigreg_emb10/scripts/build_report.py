@@ -214,18 +214,31 @@ def plot_sigreg_inspection(sig10_csv: Path, sig01_csv: Path | None, out: Path):
     """Compare sigreg_e / sigreg_h / u_batch_e / u_temporal_e between the two
     λ_e weights. All four panels use log y-axis so the bottom row's tiny values
     (1/K ≈ 0.0026, u_batch_e ≈ 0.03–0.04) are readable instead of crammed at
-    the baseline of a [0,1] linear axis."""
+    the baseline of a [0,1] linear axis. Shaded bands mark the Early-50
+    (steps 1–50) and Tail-50 (last 50) windows used in Annex B; each panel
+    prints the per-window means so the early-vs-late tension is visible
+    directly on the figure."""
     s10 = pd.read_csv(sig10_csv)
     s01 = pd.read_csv(sig01_csv) if (sig01_csv and sig01_csv.exists()) else None
-    fig, axes = plt.subplots(2, 2, figsize=(13, 8))
+    fig, axes = plt.subplots(2, 2, figsize=(13, 8.5))
     panels = [
-        ("sigreg_e",     "L_SIGReg(e_t)"),
-        ("sigreg_h",     "L_SIGReg(h_t)"),
-        ("u_batch_e",    "u_batch (e_t)"),
-        ("u_temporal_e", "u_temporal (e_t)"),
+        ("sigreg_e",     "L_SIGReg(e_t)",     "{:.3e}"),
+        ("sigreg_h",     "L_SIGReg(h_t)",     "{:.3e}"),
+        ("u_batch_e",    "u_batch (e_t)",     "{:.4f}"),
+        ("u_temporal_e", "u_temporal (e_t)",  "{:.4f}"),
     ]
     K = 384
-    for ax, (col, title) in zip(axes.ravel(), panels):
+    n_window = 50
+    final_step10 = int(s10["step"].iloc[-1])
+    early_lo, early_hi = 1, n_window
+    tail_lo, tail_hi = final_step10 - n_window + 1, final_step10
+    band_color = "#fde0a8"
+    edge_color = "#b8860b"
+    for ax, (col, title, fmt) in zip(axes.ravel(), panels):
+        ax.axvspan(early_lo, early_hi, color=band_color, alpha=0.9, zorder=0)
+        ax.axvspan(tail_lo, tail_hi, color=band_color, alpha=0.9, zorder=0)
+        ax.axvline(early_hi, color=edge_color, ls="--", lw=0.9, alpha=0.7, zorder=1)
+        ax.axvline(tail_lo,  color=edge_color, ls="--", lw=0.9, alpha=0.7, zorder=1)
         ax.plot(s10["step"], s10[col].rolling(50, min_periods=1).mean(),
                 label="λ_e=1.0 (this arm)", color=ARM_COLOR["sigreg10_enc3"], lw=1.6)
         if s01 is not None and col in s01.columns:
@@ -234,10 +247,35 @@ def plot_sigreg_inspection(sig10_csv: Path, sig01_csv: Path | None, out: Path):
         if col in ("u_batch_e", "u_temporal_e"):
             ax.axhline(1.0 / K, color="k", ls=":", alpha=0.5,
                        label=f"1/K = 1/{K} ≈ {1/K:.4f}")
+
+        def _window_mean(df: pd.DataFrame, lo: int, hi: int) -> float:
+            sub = df[(df["step"] >= lo) & (df["step"] <= hi)]
+            return float(sub[col].mean()) if len(sub) and col in sub.columns else float("nan")
+
+        early10 = _window_mean(s10, early_lo, early_hi)
+        tail10  = _window_mean(s10, tail_lo,  tail_hi)
+        early01 = _window_mean(s01, early_lo, early_hi) if s01 is not None else float("nan")
+        tail01  = _window_mean(s01, tail_lo,  tail_hi)  if s01 is not None else float("nan")
+        early_box = (
+            f"Early-50\nλ1.0 {fmt}\nλ0.1 {fmt}".format(early10, early01)
+        )
+        tail_box = (
+            f"Tail-50\nλ1.0 {fmt}\nλ0.1 {fmt}".format(tail10, tail01)
+        )
+        ax.text(0.01, 0.02, early_box, transform=ax.transAxes,
+                ha="left", va="bottom", fontsize=7, family="monospace",
+                bbox=dict(boxstyle="round,pad=0.3", fc="white", ec=edge_color, alpha=0.9))
+        ax.text(0.99, 0.02, tail_box, transform=ax.transAxes,
+                ha="right", va="bottom", fontsize=7, family="monospace",
+                bbox=dict(boxstyle="round,pad=0.3", fc="white", ec=edge_color, alpha=0.9))
         ax.set_yscale("log")
         ax.set_xlabel("step"); ax.set_title(title)
-        ax.legend(fontsize=8); ax.grid(alpha=0.3, which="both")
-    fig.suptitle("Embedding-side SIGReg trajectory: λ_e=1.0 vs λ_e=0.1 — log y-axis on all panels")
+        ax.legend(fontsize=8, loc="upper left"); ax.grid(alpha=0.3, which="both")
+    fig.suptitle(
+        "Embedding-side SIGReg trajectory: λ_e=1.0 vs λ_e=0.1 — log y-axis; "
+        "amber bands = Early-50 (steps 1–50, left) and Tail-50 (last 50, right)",
+        y=0.995,
+    )
     fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
 
 
@@ -378,74 +416,121 @@ def plot_per_config_delta(
     fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
 
 
+def _window_summary(window: pd.DataFrame, lam_e: float) -> dict[str, float]:
+    """Window means. `sigreg_e_over_loss_ratio` is the mean of the PER-STEP
+    fraction `sigreg_e / loss` (not the ratio of window means) — this matches
+    the convention previously used in Annex B and is the well-defined per-step
+    contribution of the SIGReg term to total loss. Multiply by λ_e at the
+    consumer to get the loss-fraction `λ_e · L_SIGReg(e_t) / loss`."""
+    return {
+        "u_batch":      float(window["u_batch"].mean()),
+        "u_batch_e":    float(window["u_batch_e"].mean()),
+        "u_temporal":   float(window["u_temporal"].mean()),
+        "u_temporal_e": float(window["u_temporal_e"].mean()),
+        "sigreg_e":     float(window["sigreg_e"].mean()),
+        "sigreg_h":     float(window["sigreg_h"].mean()),
+        "loss":         float(window["loss"].mean()),
+        "sigreg_e_over_loss_ratio": float((window["sigreg_e"] / window["loss"]).mean()),
+    }
+
+
 def final_trajectories(sigreg_csv: Path, n_tail: int = 50) -> dict[str, float]:
     s = pd.read_csv(sigreg_csv)
-    tail = s.tail(n_tail)
-    out = {
-        "u_batch":      float(tail["u_batch"].mean()),
-        "u_batch_e":    float(tail["u_batch_e"].mean()),
-        "u_temporal":   float(tail["u_temporal"].mean()),
-        "u_temporal_e": float(tail["u_temporal_e"].mean()),
-        "sigreg_e":     float(tail["sigreg_e"].mean()),
-        "sigreg_h":     float(tail["sigreg_h"].mean()),
-        "loss":         float(tail["loss"].mean()),
-        "final_step":   int(s["step"].iloc[-1]),
-    }
+    out = _window_summary(s.tail(n_tail), lam_e=1.0)
+    out["final_step"] = int(s["step"].iloc[-1])
+    return out
+
+
+def early_trajectories(sigreg_csv: Path, n_early: int = 50) -> dict[str, float]:
+    s = pd.read_csv(sigreg_csv).head(n_early)
+    out = _window_summary(s, lam_e=1.0)
+    out["early_step_lo"] = int(s["step"].iloc[0])
+    out["early_step_hi"] = int(s["step"].iloc[-1])
     return out
 
 
 def write_trajectories_with_commentary(
-    out_path: Path, traj10: dict[str, float], traj01: dict[str, float] | None,
+    out_path: Path,
+    traj10: dict[str, float], traj01: dict[str, float] | None,
+    early10: dict[str, float], early01: dict[str, float] | None,
     K: int = 384,
 ):
-    """Verdict block + tail-50 trajectory comparison between this arm
-    (λ_e=1.0) and the prior arm (λ_e=0.1). Plain prose: no PR/issue refs,
-    no journey commentary."""
+    """Verdict block + early-50/tail-50 trajectory comparison between this
+    arm (λ_e=1.0) and the prior arm (λ_e=0.1). Plain prose: no PR/issue refs,
+    no mechanistic hypothesis, no journey commentary."""
     lines: list[str] = [
         "# VERDICT (single seed 20260520):",
-        '#   * Q1 "Does the bumped weight wake the embedding-side term?"  → NO.',
-        "#     u_batch_e moved TOWARD 1/K (16.8× → 13.0×), not away. u_temporal_e,",
-        "#     u_batch, u_temporal all also fell. The 10× λ_e bump did not lift e_t",
-        "#     uniformity off the 1/K floor.",
-        '#   * Q2 "Does it move downstream?"  → NO (not at α=0.05).',
-        "#     Point Δ on GM-Rel MASE = this arm − prior arm in [−0.014, −0.007]",
-        "#     across the 4 (head, ckpt) cells; ALL FOUR paired-bootstrap 95% CIs",
-        "#     (B=10 000, N=97 per-config rel-MASE deltas) include zero.",
-        "#     P(Δ<0) in [0.83, 0.95]. Direction is consistent (4/4 cells",
-        "#     point-negative) but magnitudes are not separable from",
-        "#     single-seed paired-config noise.",
+        "#",
+        "# Q  Does stronger embedding-side pressure change the time course of",
+        "#    u_batch_e / u_temporal_e / L_SIGReg(e_t) / λ_e·L_SIGReg(e_t)/loss,",
+        "#    and is that linked to downstream GM-Rel MASE?",
+        "#",
+        "# Facts (this arm λ_e=1.0 vs prior arm λ_e=0.1, single seed 20260520):",
+        "#",
+        "#   Early-50 (steps 1–50):",
+        "#     u_batch_e, u_temporal_e, L_SIGReg(e_t) shift by <1e-5 between arms",
+        "#     (indistinguishable at this resolution). λ_e·L_SIGReg(e_t)/loss",
+        "#     shifts by ~+2.0e-4 (explicit 10× λ_e scaling on near-identical",
+        "#     L_SIGReg(e_t)).",
+        "#",
+        "#   Tail-50 (last 50 of 12 500 steps):",
+        "#     u_batch_e: −0.0099 (this − prior); u_temporal_e: −0.0077;",
+        "#     L_SIGReg(e_t): −1.8e-4; λ_e·L_SIGReg(e_t)/loss: +1.6e-4;",
+        "#     loss: +0.30. End-state direction on u_batch_e / u_temporal_e /",
+        "#     L_SIGReg(e_t) is opposite the small (≈0) early-window shift —",
+        "#     they end LOWER under the 10× weight, not higher.",
+        "#",
+        "#   Downstream (GIFT-Eval full-97, head-matched, paired bootstrap B=10 000):",
+        "#     Point Δ_GM (λ_e=1.0 − λ_e=0.1) is negative in all 4 (head, ckpt)",
+        "#     cells, range [−0.014, −0.007]; all 4 paired-bootstrap 95% CIs",
+        "#     include zero; P(Δ<0) in [0.83, 0.95].",
         "#",
     ]
-    if traj01:
-        u_b_e_10 = traj10["u_batch_e"]; u_b_e_01 = traj01["u_batch_e"]
-        u_t_e_10 = traj10["u_temporal_e"]; u_t_e_01 = traj01["u_temporal_e"]
-        u_b_10 = traj10["u_batch"]; u_b_01 = traj01["u_batch"]
-        u_t_10 = traj10["u_temporal"]; u_t_01 = traj01["u_temporal"]
-        sr_e_10 = traj10["sigreg_e"]; sr_e_01 = traj01["sigreg_e"]
-        sr_h_10 = traj10["sigreg_h"]; sr_h_01 = traj01["sigreg_h"]
-        loss_10 = traj10["loss"]; loss_01 = traj01["loss"]
+    if traj01 and early01:
+        u_b_e_10  = traj10["u_batch_e"];    u_b_e_01  = traj01["u_batch_e"]
+        u_t_e_10  = traj10["u_temporal_e"]; u_t_e_01  = traj01["u_temporal_e"]
+        u_b_10    = traj10["u_batch"];      u_b_01    = traj01["u_batch"]
+        u_t_10    = traj10["u_temporal"];   u_t_01    = traj01["u_temporal"]
+        sr_e_10   = traj10["sigreg_e"];     sr_e_01   = traj01["sigreg_e"]
+        sr_h_10   = traj10["sigreg_h"];     sr_h_01   = traj01["sigreg_h"]
+        loss_10   = traj10["loss"];         loss_01   = traj01["loss"]
+        eu_b_e_10 = early10["u_batch_e"];    eu_b_e_01 = early01["u_batch_e"]
+        eu_t_e_10 = early10["u_temporal_e"]; eu_t_e_01 = early01["u_temporal_e"]
+        esr_e_10  = early10["sigreg_e"];     esr_e_01  = early01["sigreg_e"]
+        eloss_10  = early10["loss"];         eloss_01  = early01["loss"]
         lam_e_10, lam_e_01 = 1.0, 0.1
-        ratio_loss_10 = lam_e_10 * sr_e_10 / loss_10
-        ratio_loss_01 = lam_e_01 * sr_e_01 / loss_01
+        # Mean-of-per-step-ratio (matches Annex B convention).
+        ratio_loss_10  = lam_e_10 * traj10["sigreg_e_over_loss_ratio"]
+        ratio_loss_01  = lam_e_01 * traj01["sigreg_e_over_loss_ratio"]
+        eratio_loss_10 = lam_e_10 * early10["sigreg_e_over_loss_ratio"]
+        eratio_loss_01 = lam_e_01 * early01["sigreg_e_over_loss_ratio"]
         lines += [
-            "# Tail-50 trajectory facts (this arm SIGReg λ_e=1.0 vs prior arm SIGReg λ_e=0.1)",
+            "# Early-50 vs Tail-50 trajectory means",
             "#",
-            "# u_batch_e direction:",
-            f"#   u_batch_e:     prior λ_e=0.1 → {u_b_e_01:.4f} ≈ {u_b_e_01 * K:.1f}× 1/K  ",
-            f"#                  this  λ_e=1.0 → {u_b_e_10:.4f} ≈ {u_b_e_10 * K:.1f}× 1/K   "
-            "(FELL — moved TOWARD 1/K, not away)",
-            f"#   u_temporal_e:  prior → {u_t_e_01:.4f}  →  this → {u_t_e_10:.4f}   (also fell)",
-            f"#   u_batch:       prior → {u_b_01:.4f}  →  this → {u_b_10:.4f}     (also fell)",
-            f"#   u_temporal:    prior → {u_t_01:.4f}  →  this → {u_t_10:.4f}     (also fell)",
+            "# u_batch_e (this − prior):",
+            f"#   Early-50:  this {eu_b_e_10:.6f} | prior {eu_b_e_01:.6f} | Δ {eu_b_e_10 - eu_b_e_01:+.2e}",
+            f"#   Tail-50:   this {u_b_e_10:.6f} | prior {u_b_e_01:.6f} | Δ {u_b_e_10 - u_b_e_01:+.4f}",
+            f"#              (in 1/K units: this {u_b_e_10*K:.1f}× | prior {u_b_e_01*K:.1f}×)",
             "#",
-            "# SIGReg λ_e · sigreg_e / total-loss fraction:",
-            f"#   prior λ_e=0.1:  λ_e · sigreg_e / loss = {ratio_loss_01:.2e}",
-            f"#   this  λ_e=1.0:  λ_e · sigreg_e / loss = {ratio_loss_10:.2e}   "
-            f"(~{ratio_loss_10 / ratio_loss_01:.1f}× under a 10× λ_e bump because",
-            f"#                  sigreg_e itself fell {sr_e_01:.2e} → {sr_e_10:.2e} — partial self-suppression).",
+            "# u_temporal_e (this − prior):",
+            f"#   Early-50:  this {eu_t_e_10:.6f} | prior {eu_t_e_01:.6f} | Δ {eu_t_e_10 - eu_t_e_01:+.2e}",
+            f"#   Tail-50:   this {u_t_e_10:.6f} | prior {u_t_e_01:.6f} | Δ {u_t_e_10 - u_t_e_01:+.4f}",
             "#",
-            f"#   sigreg_h tail-50: prior → {sr_h_01:.2e}  →  this → {sr_h_10:.2e}",
-            f"#   loss     tail-50: prior → {loss_01:.4f}    →  this → {loss_10:.4f}",
+            "# L_SIGReg(e_t) (this − prior):",
+            f"#   Early-50:  this {esr_e_10:.3e} | prior {esr_e_01:.3e} | Δ {esr_e_10 - esr_e_01:+.2e}",
+            f"#   Tail-50:   this {sr_e_10:.3e} | prior {sr_e_01:.3e} | Δ {sr_e_10 - sr_e_01:+.2e}",
+            "#",
+            "# λ_e · L_SIGReg(e_t) / loss (this − prior):",
+            f"#   Early-50:  this {eratio_loss_10:.3e} | prior {eratio_loss_01:.3e} | Δ {eratio_loss_10 - eratio_loss_01:+.2e}",
+            f"#   Tail-50:   this {ratio_loss_10:.3e} | prior {ratio_loss_01:.3e} | Δ {ratio_loss_10 - ratio_loss_01:+.2e}",
+            f"#              (Tail-50 ratio of ratios this/prior = {ratio_loss_10/ratio_loss_01:.2f}×;",
+            f"#               under a 10× λ_e bump because L_SIGReg(e_t) self-suppressed)",
+            "#",
+            "# Other tail-50 quantities (this − prior):",
+            f"#   u_batch (h_t):    this {u_b_10:.4f}  prior {u_b_01:.4f}  Δ {u_b_10 - u_b_01:+.4f}",
+            f"#   u_temporal (h_t): this {u_t_10:.4f}  prior {u_t_01:.4f}  Δ {u_t_10 - u_t_01:+.4f}",
+            f"#   L_SIGReg(h_t):    this {sr_h_10:.3e}  prior {sr_h_01:.3e}  Δ {sr_h_10 - sr_h_01:+.2e}",
+            f"#   loss:             this {loss_10:.4f}  prior {loss_01:.4f}  Δ {loss_10 - loss_01:+.4f}",
             "",
             "# Raw tail-50 means below (key<TAB>value).",
         ]
@@ -489,10 +574,13 @@ if __name__ == "__main__":
         ci_rows=ci_rows, out=plots / "per_config_delta.png",
     )
 
-    traj_new = final_trajectories(sig10_csv)
-    traj_ref = final_trajectories(args.sig01_csv) if args.sig01_csv.exists() else None
+    traj_new   = final_trajectories(sig10_csv)
+    traj_ref   = final_trajectories(args.sig01_csv) if args.sig01_csv.exists() else None
+    early_new  = early_trajectories(sig10_csv)
+    early_ref  = early_trajectories(args.sig01_csv) if args.sig01_csv.exists() else None
     write_trajectories_with_commentary(
-        results / "final_trajectories.txt", traj_new, traj_ref,
+        results / "final_trajectories.txt",
+        traj_new, traj_ref, early_new, early_ref,
     )
     print("FINAL trajectories (last 50 rows) — λ_e=1.0:")
     for k, v in traj_new.items():
@@ -500,6 +588,13 @@ if __name__ == "__main__":
     if traj_ref is not None:
         print("\nReference trajectories (last 50 rows) — λ_e=0.1 (prior arm):")
         for k, v in traj_ref.items():
+            print(f"  {k}: {v}")
+    print("\nEARLY trajectories (first 50 rows) — λ_e=1.0:")
+    for k, v in early_new.items():
+        print(f"  {k}: {v}")
+    if early_ref is not None:
+        print("\nReference EARLY trajectories (first 50 rows) — λ_e=0.1 (prior arm):")
+        for k, v in early_ref.items():
             print(f"  {k}: {v}")
     print(f"\nrows in gm_table: {len(rows)}")
     for r in rows:
