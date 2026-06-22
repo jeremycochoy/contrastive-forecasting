@@ -71,13 +71,13 @@ Mean over the last 50 of 12 400 logged steps:
 | **`λ · L_SIGReg(e_t) / loss`** | **3.06e-5** (~33 000× smaller than total) |
 | **`λ · L_SIGReg(h_t) / loss`** | **1.48e-5** (~68 000× smaller than total) |
 
-Both SIGReg terms remained ~10⁴× smaller than the contrastive + CPC + EMA-target sum throughout training, the same regime as the τ=0.99 arm. The `L_SIGReg(e_t)` curve is non-monotone in the same way as under τ=0.99 — it drops to ~7.5e-4 around step 1 500, then rebounds and plateaus near ~1.2e-3 from step 5 000 onward (annex D).
+Both SIGReg terms remained ~10⁴× smaller than the contrastive + CPC + EMA-target sum throughout training, the same regime as the τ=0.99 arm.
 
 ### Sphere coverage
 
 ![Cross-batch (left) and cross-time (right) uniformity over training; h_t solid vs e_t dashed for both SIGReg arms (τ=0.98 green, τ=0.99 red); h_t overlays for the two reference arms](plots/uniformity.png)
 
-Tail-50 means at step 12 400: `h_t` reaches `u_batch` = 0.763 and `u_temporal` = 0.574, while `e_t` ends at `u_batch_e` = 0.033 and `u_temporal_e` = 0.025. The τ=0.99 arm at step 12 500 sat at `u_batch` = 0.796, `u_temporal` = 0.619, `u_batch_e` = 0.044, `u_temporal_e` = 0.032 (all higher). The contrastive loss `cosine_similarity_batch_full_hh_negs_xshh_allt` directly rewards angular separation between `h_t` vectors, so `h_t`'s sphere coverage is not attributable to the SIGReg term alone.
+The contrastive loss `cosine_similarity_batch_full_hh_negs_xshh_allt` directly rewards angular separation between `h_t` vectors, so `h_t`'s sphere coverage is not attributable to the SIGReg term alone.
 
 ## Protocol
 
@@ -99,7 +99,7 @@ Each backbone checkpoint trains a 2-layer and a 6-layer quantile head (`2L`/`6L`
 
 ![Training loss, 50-step rolling mean, four arms overlaid](plots/loss_curve.png)
 
-The τ=0.98 arm and the τ=0.99 arm both dip to ~2.5–3.0 around step 1 000, then rise to ~4.0–4.5 by step 5 000 where the curves plateau; the EMA-target enc3+CPC and enc3+CPC references show the same plateau range. This report does not isolate the cause of the shape. The τ=0.98 curve ends at step 12 400 (annex A).
+This report does not isolate the cause of the shape. The τ=0.98 curve ends at step 12 400 (annex A).
 
 ## Annex
 
