@@ -1,3 +1,25 @@
+# Tail-50 trajectory facts (#359 SIGReg λ_e=1.0 vs #355 SIGReg λ_e=0.1)
+#
+# u_batch_e DIRECTION (corrects the earlier PR #360 comment that said
+# u_batch_e 'lifts off' under λ_e=1.0 — the data says the opposite).
+#   u_batch_e:     #355 λ_e=0.1 → 0.0438 ≈ 16.8× 1/K  
+#                  #359 λ_e=1.0 → 0.0339 ≈ 13.0× 1/K   (FELL — moved TOWARD 1/K, not away)
+#   u_temporal_e:  #355 → 0.0315  →  #359 → 0.0238   (also fell)
+#   u_batch:       #355 → 0.7964  →  #359 → 0.7754     (also fell)
+#   u_temporal:    #355 → 0.6194  →  #359 → 0.5761     (also fell)
+#
+# SIGReg λ_e · sigreg_e / total-loss fraction:
+#   #355 λ_e=0.1:  λ_e · sigreg_e / loss = 2.36e-05
+#   #359 λ_e=1.0:  λ_e · sigreg_e / loss = 1.80e-04   (~7.6× under a 10× λ_e bump because
+#                  sigreg_e itself fell 1.00e-03 → 8.18e-04 — partial self-suppression).
+#
+#   sigreg_h tail-50: #355 → 3.80e-04  →  #359 → 6.51e-04
+#   loss     tail-50: #355 → 4.2478    →  #359 → 4.5490
+#
+# #357 (PR #358, --ema-tau 0.98) — eval has not yet landed; the 4 cells
+# carry NaN placeholders in gm_table.csv so the report writer can backfill.
+
+# Raw tail-50 means below (key<TAB>value).
 u_batch	0.7754175102710724
 u_batch_e	0.033887619003653474
 u_temporal	0.5761398947238923
