@@ -35,21 +35,21 @@ Following the prior arm (SIGReg + EMA-target, B=512, `λ_e=λ_h=0.1`), where the
 | `λ_e · L_SIGReg(e_t) / loss` | +2.0e-4 | +1.6e-4 |
 | total `loss` | +0.002 | +0.30 |
 
-Early-50: `u_batch_e`, `u_temporal_e`, and `L_SIGReg(e_t)` match across arms to within `|Δ| < 1e-5`. `λ_e · L_SIGReg(e_t) / loss` shifts +2.0e-4 (the explicit 10× `λ_e` scales a near-identical `L_SIGReg(e_t) / loss`: 2.23e-5 → 2.22e-4).
+Early-50: `u_batch_e`, `u_temporal_e`, and `L_SIGReg(e_t)` match across arms to within `|Δ| < 1e-5`. `L_SIGReg(e_t) / loss` is near-identical at Early-50 (≈ 2.23e-4 either side); the visible `λ_e · L_SIGReg(e_t) / loss` therefore shifts 2.23e-5 → 2.22e-4 with the 10× `λ_e` factor.
 
-Tail-50: `u_batch_e` shifts from 16.8·1/K to 13.0·1/K (Δ = −0.0099), `u_temporal_e` from 0.0315 to 0.0238 (Δ = −0.0077), and `L_SIGReg(e_t)` from 1.00e-3 to 8.18e-4 (Δ = −1.8e-4). All three end-state shifts have the opposite sign of the +10× shift in `λ_e`. `λ_e · L_SIGReg(e_t) / loss` ends at 1.80e-4 vs 2.36e-5 (this/prior = 7.6×): `L_SIGReg(e_t)` ends 18% lower in this arm and `loss` ends 4.25 → 4.55 (+7%).
+Tail-50: `u_batch_e` shifts from 16.8·1/K to 13.0·1/K (Δ = −0.0099), `u_temporal_e` from 0.0315 to 0.0238 (Δ = −0.0077), and `L_SIGReg(e_t)` from 1.00e-3 to 8.18e-4 (Δ = −1.8e-4). `λ_e · L_SIGReg(e_t) / loss` ends at 1.80e-4 vs 2.36e-5 (this/prior = 7.6×): `L_SIGReg(e_t)` ends 18% lower in this arm and `loss` ends 4.25 → 4.55 (+7%).
+
+![Embedding-side SIGReg trajectories on log y-axis: L_SIGReg(e_t), L_SIGReg(h_t), u_batch (e_t), u_temporal (e_t) for λ_e=1.0 (green) vs λ_e=0.1 (red); amber dashed lines mark Early-50 (steps 1–50) and Tail-50 (last 50) windows; per-panel boxes list each window's mean for both arms; dotted line at 1/K ≈ 0.00260.](plots/sigreg_e_inspection.png)
 
 **Q2 — downstream GIFT-Eval full-97 GM-Rel MASE (this arm − prior arm).**
 
-Point Δ_GM is negative in all 4 (head, ckpt) cells (range `[−0.014, −0.007]`); all 4 paired-bootstrap 95% CIs include zero (P(Δ<0) range `[0.83, 0.95]`). At α=0.05 the downstream improvement is not separable from single-seed paired-config noise.
+Point Δ_GM is negative in all 4 (head, ckpt) cells (range `[−0.014, −0.007]`); all 4 paired-bootstrap 95% CIs include zero (P(Δ<0) range `[0.83, 0.95]`). At α=0.05 the negative Δ_GM is not separable from single-seed paired-config noise.
 
 **Caveat: single seed (20260520); the CIs are over the 97 per-config rel-MASE values, not over seeds.**
 
 ![GIFT-Eval full-97 GM-Rel MASE, 4 (head-depth, backbone-checkpoint) cells × 4 arms; whiskers on the λ_e=1.0 bars = paired-bootstrap 95% CI vs the λ_e=0.1 arm; dashed tick at each cell = the λ_e=0.1 anchor.](plots/gm_rel_mase.png)
 
 ![Per-config rel-MASE deltas (λ_e=1.0 − λ_e=0.1) across the 97 GIFT-Eval configs (green scatter, per panel = (head, ckpt)); black diamond = absolute Δ_GM with paired-bootstrap 95% CI on the log-ratio of GMs.](plots/per_config_delta.png)
-
-![Embedding-side SIGReg trajectories on log y-axis: L_SIGReg(e_t), L_SIGReg(h_t), u_batch (e_t), u_temporal (e_t) for λ_e=1.0 (green) vs λ_e=0.1 (red); amber dashed lines mark Early-50 (steps 1–50) and Tail-50 (last 50) windows; per-panel boxes list each window's mean for both arms; dotted line at 1/K ≈ 0.00260.](plots/sigreg_e_inspection.png)
 
 ### GM table
 
@@ -130,8 +130,6 @@ Each backbone checkpoint (`best` = best train-loss, `last` = step 12 500) trains
 | `λ_e · L_SIGReg(e_t) / loss` | +2.00e-4 | +1.56e-4 |
 | total `loss` | +0.0020 | +0.3011 |
 
-`1/K` = 1/384 ≈ 0.00260.
-
 ### C. GIFT-Eval wrapper emits only GM-Rel MASE
 
-`scripts/run_gift_eval_full.sh` writes `Aggregate GM-Relative MASE (97 configs)` to each `summary.txt`. The per-config `all_results.csv` carries raw `MASE[0.5]`, `MAPE[0.5]`, and `mean_weighted_sum_quantile_loss`, but not the seasonal-naive denominators needed to form GM-MASE / GM-MAPE_SN / GM-CRPS_SN.
+`scripts/run_gift_eval_full.sh` emits only `Aggregate GM-Relative MASE (97 configs)` per `summary.txt`; the per-config CSV does not carry the seasonal-naive denominators needed for GM-MASE / GM-MAPE_SN / GM-CRPS_SN.
