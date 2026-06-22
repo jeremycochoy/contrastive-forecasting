@@ -1,35 +1,32 @@
-# VERDICT (issue #359, single seed 20260520 as specified):
+# VERDICT (single seed 20260520):
 #   * Q1 "Does the bumped weight wake the embedding-side term?"  → NO.
 #     u_batch_e moved TOWARD 1/K (16.8× → 13.0×), not away. u_temporal_e,
 #     u_batch, u_temporal all also fell. The 10× λ_e bump did not lift e_t
 #     uniformity off the 1/K floor.
 #   * Q2 "Does it move downstream?"  → NO (not at α=0.05).
-#     Point Δ on GM-Rel MASE = #359 − #355 in [−0.014, −0.007] across the
-#     4 (head, ckpt) cells; ALL FOUR paired-bootstrap 95% CIs (B=10 000,
-#     N=97 per-config rel-MASE deltas) include zero. P(Δ<0) in [0.83, 0.95].
-#     Direction is consistent (4/4 cells point-negative) but magnitudes are
-#     not separable from single-seed paired-config noise.
+#     Point Δ on GM-Rel MASE = this arm − prior arm in [−0.014, −0.007]
+#     across the 4 (head, ckpt) cells; ALL FOUR paired-bootstrap 95% CIs
+#     (B=10 000, N=97 per-config rel-MASE deltas) include zero.
+#     P(Δ<0) in [0.83, 0.95]. Direction is consistent (4/4 cells
+#     point-negative) but magnitudes are not separable from
+#     single-seed paired-config noise.
 #
-# Tail-50 trajectory facts (#359 SIGReg λ_e=1.0 vs #355 SIGReg λ_e=0.1)
+# Tail-50 trajectory facts (this arm SIGReg λ_e=1.0 vs prior arm SIGReg λ_e=0.1)
 #
-# u_batch_e DIRECTION (corrects the earlier PR #360 comment that said
-# u_batch_e 'lifts off' under λ_e=1.0 — the data says the opposite).
-#   u_batch_e:     #355 λ_e=0.1 → 0.0438 ≈ 16.8× 1/K  
-#                  #359 λ_e=1.0 → 0.0339 ≈ 13.0× 1/K   (FELL — moved TOWARD 1/K, not away)
-#   u_temporal_e:  #355 → 0.0315  →  #359 → 0.0238   (also fell)
-#   u_batch:       #355 → 0.7964  →  #359 → 0.7754     (also fell)
-#   u_temporal:    #355 → 0.6194  →  #359 → 0.5761     (also fell)
+# u_batch_e direction:
+#   u_batch_e:     prior λ_e=0.1 → 0.0438 ≈ 16.8× 1/K  
+#                  this  λ_e=1.0 → 0.0339 ≈ 13.0× 1/K   (FELL — moved TOWARD 1/K, not away)
+#   u_temporal_e:  prior → 0.0315  →  this → 0.0238   (also fell)
+#   u_batch:       prior → 0.7964  →  this → 0.7754     (also fell)
+#   u_temporal:    prior → 0.6194  →  this → 0.5761     (also fell)
 #
 # SIGReg λ_e · sigreg_e / total-loss fraction:
-#   #355 λ_e=0.1:  λ_e · sigreg_e / loss = 2.36e-05
-#   #359 λ_e=1.0:  λ_e · sigreg_e / loss = 1.80e-04   (~7.6× under a 10× λ_e bump because
+#   prior λ_e=0.1:  λ_e · sigreg_e / loss = 2.36e-05
+#   this  λ_e=1.0:  λ_e · sigreg_e / loss = 1.80e-04   (~7.6× under a 10× λ_e bump because
 #                  sigreg_e itself fell 1.00e-03 → 8.18e-04 — partial self-suppression).
 #
-#   sigreg_h tail-50: #355 → 3.80e-04  →  #359 → 6.51e-04
-#   loss     tail-50: #355 → 4.2478    →  #359 → 4.5490
-#
-# #357 (PR #358, --ema-tau 0.98) — eval has not yet landed; the 4 cells
-# carry NaN placeholders in gm_table.csv so the report writer can backfill.
+#   sigreg_h tail-50: prior → 3.80e-04  →  this → 6.51e-04
+#   loss     tail-50: prior → 4.2478    →  this → 4.5490
 
 # Raw tail-50 means below (key<TAB>value).
 u_batch	0.7754175102710724

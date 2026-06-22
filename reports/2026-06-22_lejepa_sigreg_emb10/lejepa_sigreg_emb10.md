@@ -17,7 +17,7 @@ Following the prior arm (SIGReg + EMA-target, B=512, `λ_e=λ_h=0.1`), where the
 | **EMA-target** | exponential-moving-average teacher on the encoder + patch-embed, `--ema-tau 0.99`. |
 | `e_t` | output of the GRU patch-embed, per (batch, time, channel) position; dimension `K`. |
 | `h_t` | output of the 3-layer transformer encoder (`original_latent`), same shape. |
-| **SIGReg** | LeJEPA spherical regulariser. Epps–Pulley test statistic averaged over `M`=1024 random unit-direction 1-D projections of the pooled latent, trapezoidal-integrated on `[−6/√K, 6/√K]` against `N(0, 1/K)`. Drives the pooled marginal toward `Unif(S^{K-1})`. Two terms: `L_SIGReg(e_t)` weighted by `λ_e`, `L_SIGReg(h_t)` weighted by `λ_h`; both pre-`F.normalize` (`--sigreg-post-normalization` OFF). |
+| **SIGReg** | LeJEPA spherical regulariser. Epps–Pulley test statistic averaged over `M`=1024 random unit-direction 1-D projections of the pooled latent, trapezoidal-integrated on `[−6/√K, 6/√K]` against `N(0, 1/K)`. Drives the pooled marginal toward `Unif(S^{K-1})`. Two terms: `L_SIGReg(e_t)` weighted by `λ_e`, `L_SIGReg(h_t)` weighted by `λ_h`; both computed before any L2-normalisation step on the latent (`--sigreg-post-normalization` OFF). |
 | `u_batch` | cross-batch dimensionality usage of `h_t`, clipped to `[1/K, 1]`. `1/K` = one direction; 1 = uniform sphere coverage. `u_batch_e` is the same statistic on `e_t`. |
 | `u_temporal` | cross-time analogue of `u_batch`; `u_temporal_e` is the `e_t` version. |
 | **GM-Rel MASE** | GIFT-Eval full-97 aggregate: geometric mean over 97 configs of (model MASE ÷ seasonal-naive MASE). Lower = better; 1.0 = seasonal-naive parity. |
@@ -25,7 +25,7 @@ Following the prior arm (SIGReg + EMA-target, B=512, `λ_e=λ_h=0.1`), where the
 
 ## Result
 
-**Q1: NO.** Tail-50 `u_batch_e` fell from 16.8 · 1/K to 13.0 · 1/K under the 10× weight bump — toward the 1/K floor, not away. The 10× `λ_e` translated to only a ~7.6× rise in `λ_e · L_SIGReg(e_t) / loss` because `L_SIGReg(e_t)` itself partially self-suppressed.
+**Q1: NO.** Tail-50 `u_batch_e` fell from 16.8 · 1/K to 13.0 · 1/K under the 10× weight bump — toward the 1/K floor, not away. The 10× `λ_e` translated to only a ~7.6× rise in `λ_e · L_SIGReg(e_t) / loss` because `L_SIGReg(e_t)` itself partially self-suppressed (1.00e-3 → 8.18e-4) and total loss rose 4.25 → 4.55.
 
 **Q2: NO at α=0.05.** Point Δ_GM (`λ_e=1.0` − `λ_e=0.1`) is negative in all 4 cells (range `[−0.014, −0.007]`); all 4 paired-bootstrap 95% CIs include zero (P(Δ<0) range `[0.83, 0.95]`).
 
@@ -37,8 +37,6 @@ Following the prior arm (SIGReg + EMA-target, B=512, `λ_e=λ_h=0.1`), where the
 
 ![Embedding-side SIGReg trajectories on log y-axis: L_SIGReg(e_t), L_SIGReg(h_t), u_batch (e_t), u_temporal (e_t) for λ_e=1.0 (green) vs λ_e=0.1 (red); dotted line at 1/K ≈ 0.00260.](plots/sigreg_e_inspection.png)
 
-![Per-domain GM relative MASE on GIFT-Eval full-97 in 2×2 small-multiples (head ∈ {2L, 6L} × ckpt ∈ {best, last}); shaded radial band = per-domain bootstrap 95% CI for the λ_e=1.0 arm; ring at 1.0 = seasonal-naive.](plots/perdomain_radar.png)
-
 ### GM table
 
 | head / ckpt | enc3+CPC, B=1024 | EMA-target enc3+CPC, B=1024 | SIGReg, B=512, `λ_e=λ_h=0.1` | SIGReg, B=512, `λ_e=1.0, λ_h=0.1` | Δ_GM (1.0 − 0.1) | 95% CI | P(Δ<0) |
@@ -48,7 +46,7 @@ Following the prior arm (SIGReg + EMA-target, B=512, `λ_e=λ_h=0.1`), where the
 | 6L / best | 1.1584 | 1.1576 | 1.1543 | 1.1408 | −0.0135 | [−0.0336, +0.0033] | 0.933 |
 | 6L / last | 1.1436 | 1.1597 | 1.1556 | 1.1482 | −0.0074 | [−0.0239, +0.0068] | 0.830 |
 
-CI is paired bootstrap (B=10 000) on the log-ratio of GMs, converted to absolute GM-Rel MASE scale; `n`=97 paired per-config rel-MASE values per cell.
+Paired bootstrap (see § Vocabulary); n=97 per cell.
 
 ## Protocol
 

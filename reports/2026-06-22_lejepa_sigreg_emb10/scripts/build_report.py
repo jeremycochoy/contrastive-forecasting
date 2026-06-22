@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
-# #359 SIGReg-emb10 report builder: plots + gm_table.csv from training CSV + GIFT-Eval summaries.
-# Compares against four references: enc3+CPC (#344), EMA-target (#353), SIGReg λ_e=λ_h=0.1 (#355),
-# and the new SIGReg λ_embedding=1.0 / λ_encoding=0.1 arm (#359).
+# SIGReg-emb10 report builder: plots + gm_table.csv from training CSV + GIFT-Eval summaries.
+# Compares against three references: enc3+CPC, EMA-target enc3+CPC, SIGReg λ_e=λ_h=0.1.
 import argparse, csv, math, os, re, sys
 from pathlib import Path
 
@@ -24,19 +23,11 @@ EMA_GM = {
     ("ema_enc3", "6L", "best"): 1.1576,
     ("ema_enc3", "6L", "last"): 1.1597,
 }
-SIGREG01_GM = {  # the #355 SIGReg arm with shared λ=0.1 (transcribed from #355 gm_table.csv)
+SIGREG01_GM = {  # prior SIGReg arm with shared λ=0.1, transcribed from its gm_table.csv.
     ("sigreg01_enc3", "2L", "best"): 1.1610,
     ("sigreg01_enc3", "2L", "last"): 1.1758,
     ("sigreg01_enc3", "6L", "best"): 1.1543,
     ("sigreg01_enc3", "6L", "last"): 1.1556,
-}
-# #357 (SIGReg + ema-tau 0.98) — PR #358 open, eval not yet landed. NaN row keeps the
-# slot visible so the report writer can backfill once #357 lands.
-SIGREG_TAU098_GM = {
-    ("sigreg_tau098", "2L", "best"): float("nan"),
-    ("sigreg_tau098", "2L", "last"): float("nan"),
-    ("sigreg_tau098", "6L", "best"): float("nan"),
-    ("sigreg_tau098", "6L", "last"): float("nan"),
 }
 
 ARM_LABEL = {
@@ -44,7 +35,6 @@ ARM_LABEL = {
     "ema_enc3":      "EMA-target enc3+CPC, B=1024",
     "sigreg01_enc3": "SIGReg + EMA-target, B=512 (λ_e=λ_h=0.1)",
     "sigreg10_enc3": "SIGReg + EMA-target, B=512 (λ_e=1.0, λ_h=0.1)",
-    "sigreg_tau098": "SIGReg + EMA-target, B=512 (λ_e=λ_h=0.1, τ=0.98) [#357 — pending]",
 }
 
 ARM_COLOR = {
@@ -52,7 +42,6 @@ ARM_COLOR = {
     "ema_enc3":      "#1f77b4",
     "sigreg01_enc3": "#d62728",
     "sigreg10_enc3": "#2ca02c",
-    "sigreg_tau098": "#9467bd",
 }
 
 
@@ -97,7 +86,8 @@ def compute_bootstrap_cells(
     out_csv: Path, B: int = 10_000,
 ) -> list[dict]:
     """For each of the 4 (head, ckpt) cells, compute the paired bootstrap CI of
-    GM(#359)/GM(#355). Saves bootstrap_ci.csv with absolute and log-delta CIs."""
+    GM(this arm)/GM(prior arm). Saves bootstrap_ci.csv with absolute and
+    log-delta CIs."""
     cells = [("2L", "best", ""), ("2L", "last", "_last"),
              ("6L", "best", ""), ("6L", "last", "_last")]
     rows: list[dict] = []
@@ -165,15 +155,14 @@ def write_gm_table(
     ci_rows: list[dict] | None = None,
 ):
     """Build gm_table.csv. The reference rows for cpc/ema/sigreg01 are
-    transcribed; sigreg10 cells are parsed from this experiment's summaries;
-    a sigreg_tau098 placeholder row is included so the writer can see the
-    pending #357 slot. Bootstrap CI columns (mean delta vs #355 and its 95% CI)
+    transcribed; sigreg10 cells are parsed from this experiment's summaries.
+    Bootstrap CI columns (mean delta vs the λ_e=0.1 prior arm and its 95% CI)
     are merged in for the sigreg10 cells when ci_rows is provided."""
     rows: list[dict] = []
     for d in (REF_GM, EMA_GM, SIGREG01_GM):
         for (arm, head, ckpt), gm in d.items():
             rows.append(dict(arm=arm, label=ARM_LABEL[arm], head=head, ckpt=ckpt, gm=gm, n=97,
-                             gm_delta_vs_355=float("nan"),
+                             gm_delta_vs_prior=float("nan"),
                              gm_delta_lo=float("nan"), gm_delta_hi=float("nan"),
                              p_below_zero=float("nan")))
 
@@ -192,16 +181,10 @@ def write_gm_table(
         ci = ci_by_cell.get((head, ckpt), {})
         rows.append(dict(arm="sigreg10_enc3", label=ARM_LABEL["sigreg10_enc3"],
                          head=head, ckpt=ckpt, gm=gm, n=n,
-                         gm_delta_vs_355=ci.get("gm_delta_abs", float("nan")),
+                         gm_delta_vs_prior=ci.get("gm_delta_abs", float("nan")),
                          gm_delta_lo=ci.get("gm_delta_lo", float("nan")),
                          gm_delta_hi=ci.get("gm_delta_hi", float("nan")),
                          p_below_zero=ci.get("p_below_zero", float("nan"))))
-
-    for (arm, head, ckpt), gm in SIGREG_TAU098_GM.items():
-        rows.append(dict(arm=arm, label=ARM_LABEL[arm], head=head, ckpt=ckpt, gm=gm, n=0,
-                         gm_delta_vs_355=float("nan"),
-                         gm_delta_lo=float("nan"), gm_delta_hi=float("nan"),
-                         p_below_zero=float("nan")))
 
     def _fmt(v: float, prec: int) -> str:
         if isinstance(v, float) and math.isnan(v):
@@ -209,7 +192,7 @@ def write_gm_table(
         return f"{v:.{prec}f}"
 
     fieldnames = ["arm", "label", "head", "ckpt", "gm", "n",
-                  "gm_delta_vs_355", "gm_delta_lo", "gm_delta_hi", "p_below_zero"]
+                  "gm_delta_vs_prior", "gm_delta_lo", "gm_delta_hi", "p_below_zero"]
     with out_csv.open("w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=fieldnames)
         w.writeheader()
@@ -219,10 +202,10 @@ def write_gm_table(
                 "head": r["head"], "ckpt": r["ckpt"],
                 "gm": _fmt(r["gm"], 4),
                 "n": r["n"],
-                "gm_delta_vs_355": _fmt(r["gm_delta_vs_355"], 4),
-                "gm_delta_lo":     _fmt(r["gm_delta_lo"], 4),
-                "gm_delta_hi":     _fmt(r["gm_delta_hi"], 4),
-                "p_below_zero":    _fmt(r["p_below_zero"], 4),
+                "gm_delta_vs_prior": _fmt(r["gm_delta_vs_prior"], 4),
+                "gm_delta_lo":       _fmt(r["gm_delta_lo"], 4),
+                "gm_delta_hi":       _fmt(r["gm_delta_hi"], 4),
+                "p_below_zero":      _fmt(r["p_below_zero"], 4),
             })
     return rows
 
@@ -311,9 +294,10 @@ def plot_uniformity(
 
 def plot_gm_bars(rows: list[dict], ci_rows: list[dict], out: Path):
     """Grouped bars over the 4 (head, ckpt) cells with per-arm GM-Rel MASE.
-    For the #359 (sigreg10) arm only, overlay paired-bootstrap 95% CI whiskers
-    on absolute-GM scale (re-anchored at #355's GM as reference) and draw a
-    horizontal tick at each #355 cell to anchor #359 against the direct reference."""
+    For the sigreg10 (λ_e=1.0) arm only, overlay paired-bootstrap 95% CI whiskers
+    on absolute-GM scale (re-anchored at the prior λ_e=0.1 arm's GM as reference)
+    and draw a horizontal tick at each prior-arm cell to anchor against the
+    direct reference."""
     df = pd.DataFrame(rows)
     arms_order = ["cpc_enc3", "ema_enc3", "sigreg01_enc3", "sigreg10_enc3"]
     cells = [("2L", "best"), ("2L", "last"), ("6L", "best"), ("6L", "last")]
@@ -336,7 +320,7 @@ def plot_gm_bars(rows: list[dict], ci_rows: list[dict], out: Path):
         for xi, vi in zip(x + offs, vals):
             if not math.isnan(vi):
                 ax.text(xi, vi + 0.004, f"{vi:.4f}", ha="center", va="bottom", fontsize=6.5)
-        # Whiskers + #355 anchor only on the #359 bars.
+        # Whiskers + prior-arm anchor only on the λ_e=1.0 bars.
         if arm == "sigreg10_enc3":
             for k, (head, ckpt) in enumerate(cells):
                 ci = ci_by_cell.get((head, ckpt))
@@ -353,8 +337,8 @@ def plot_gm_bars(rows: list[dict], ci_rows: list[dict], out: Path):
                             yerr=[[max(0.0, gm10 - y_lo)], [max(0.0, y_hi - gm10)]],
                             fmt="none", ecolor="k", elinewidth=1.0, capsize=3, capthick=1.0)
                 vals_for_lim.extend([y_lo, y_hi])
-    # Horizontal tick for each #355 cell — spans the #355 + #359 bar pair so the
-    # eye can compare directly.
+    # Horizontal tick for each prior-arm cell — spans the prior + this-arm bar
+    # pair so the eye can compare directly.
     offs_01 = (arms_order.index("sigreg01_enc3") - (len(arms_order) - 1) / 2) * w
     offs_10 = (arms_order.index("sigreg10_enc3") - (len(arms_order) - 1) / 2) * w
     for k, (head, ckpt) in enumerate(cells):
@@ -385,155 +369,18 @@ def plot_gm_bars(rows: list[dict], ci_rows: list[dict], out: Path):
     fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
 
 
-def _dataset_to_domain(all_csv: Path) -> dict[str, str]:
-    m: dict[str, str] = {}
-    if not all_csv.exists():
-        return m
-    for r in csv.DictReader(open(all_csv)):
-        m[r["dataset"]] = r.get("domain", "Other")
-    return m
-
-
-def _config_relatives(summary_txt: Path) -> dict[str, float]:
-    out: dict[str, float] = {}
-    if not summary_txt.exists():
-        return out
-    for line in open(summary_txt):
-        p = line.split()
-        if len(p) == 4 and "/" in p[0]:
-            try:
-                out[p[0]] = float(p[3])
-            except ValueError:
-                pass
-    return out
-
-
-def _gm_by_domain(rels: dict[str, float], dmap: dict[str, str]) -> dict[str, float]:
-    acc: dict[str, list[float]] = {}
-    for cfg, rel in rels.items():
-        dom = dmap.get(cfg)
-        if rel <= 0 or dom is None:
-            continue
-        acc.setdefault(dom, []).append(math.log(rel))
-    return {d: math.exp(sum(v) / len(v)) for d, v in acc.items()}
-
-
-def _domain_bootstrap_ci(
-    rels: dict[str, float], dmap: dict[str, str], B: int = 10_000, ci: float = 0.95,
-    seed: int = 20260622,
-) -> dict[str, tuple[float, float, float]]:
-    """Per-domain bootstrap CI on GM. Returns {domain: (gm, lo, hi)}."""
-    rng = np.random.default_rng(seed)
-    acc: dict[str, list[float]] = {}
-    for cfg, rel in rels.items():
-        dom = dmap.get(cfg)
-        if rel <= 0 or dom is None:
-            continue
-        acc.setdefault(dom, []).append(math.log(rel))
-    out: dict[str, tuple[float, float, float]] = {}
-    for d, logs in acc.items():
-        arr = np.array(logs)
-        n = len(arr)
-        if n == 0:
-            continue
-        idx = rng.integers(0, n, size=(B, n))
-        boot = np.exp(arr[idx].mean(axis=1))
-        out[d] = (
-            float(np.exp(arr.mean())),
-            float(np.quantile(boot, (1 - ci) / 2)),
-            float(np.quantile(boot, 1 - (1 - ci) / 2)),
-        )
-    return out
-
-
-def plot_perdomain_radar(
-    sig10_results: Path, sig01_results: Path, ema_results: Path, cpc_results: Path,
-    sig10_tag: str, sig01_tag: str, ema_tag: str, cpc_tag: str, out: Path,
-):
-    """2×2 small-multiples (head ∈ {2L,6L} × ckpt ∈ {best,last}), 4 arm curves
-    per panel — split out from the previous 8-curve overlay so the green (#359)
-    and red (#355) SIGReg curves no longer merge. The #359 curve in each panel
-    (using that panel's own ckpt) carries the per-domain bootstrap 95% CI as a
-    shaded radial fill."""
-    HEADS = ["2L", "6L"]
-    CKPTS = [("best", ""), ("last", "_last")]
-    ARM_SPECS = [
-        ("cpc_enc3",      cpc_results,   cpc_tag,   ARM_COLOR["cpc_enc3"]),
-        ("ema_enc3",      ema_results,   ema_tag,   ARM_COLOR["ema_enc3"]),
-        ("sigreg01_enc3", sig01_results, sig01_tag, ARM_COLOR["sigreg01_enc3"]),
-        ("sigreg10_enc3", sig10_results, sig10_tag, ARM_COLOR["sigreg10_enc3"]),
-    ]
-    fig, axes = plt.subplots(2, 2, figsize=(14, 13), subplot_kw=dict(polar=True))
-    for row, head in enumerate(HEADS):
-        for colj, (ckpt, suf) in enumerate(CKPTS):
-            ax = axes[row, colj]
-            cells: list[tuple[str, dict[str, float], str]] = []
-            sig10_ci: dict[str, tuple[float, float, float]] | None = None
-            for arm, root, tag, colr in ARM_SPECS:
-                sub = root / f"gift_eval_full_{tag}{suf}_{head}"
-                rel = _config_relatives(sub / "summary.txt")
-                dmap = _dataset_to_domain(sub / "all_results.csv")
-                gm = _gm_by_domain(rel, dmap)
-                if gm:
-                    cells.append((ARM_LABEL[arm], gm, colr))
-                if arm == "sigreg10_enc3" and rel and dmap:
-                    sig10_ci = _domain_bootstrap_ci(rel, dmap)
-            if not cells:
-                ax.text(0.5, 0.5, "no eval", transform=ax.transAxes)
-                continue
-            domains = sorted(set().union(*(g for _, g, _ in cells)))
-            theta = np.linspace(0, 2 * np.pi, len(domains), endpoint=False)
-            theta_closed = np.concatenate([theta, theta[:1]])
-            vals = [v for _, g, _ in cells for v in g.values()]
-            if sig10_ci:
-                vals.extend(v for _, lo, hi in sig10_ci.values() for v in (lo, hi))
-            lo, hi = max(0.5, min(vals) * 0.92), max(vals) * 1.06
-            ax.set_theta_offset(np.pi / 2); ax.set_theta_direction(-1)
-            ax.set_xticks(theta); ax.set_xticklabels(domains, fontsize=8)
-            ax.set_rscale("log"); ax.set_ylim(lo, hi)
-            rticks = [t for t in (0.8, 1.0, 1.2, 1.5, 2.0) if lo < t < hi]
-            ax.set_yticks(rticks)
-            ax.set_yticklabels([f"{t:g}" for t in rticks], fontsize=7, color="0.4")
-            ax.set_rlabel_position(90)
-            ax.plot(theta_closed, [1.0] * len(theta_closed),
-                    color="k", ls=(0, (2, 2)), lw=0.8, alpha=0.6, zorder=1)
-            if sig10_ci:
-                lo_v = np.array([sig10_ci.get(d, (np.nan, np.nan, np.nan))[1] for d in domains])
-                hi_v = np.array([sig10_ci.get(d, (np.nan, np.nan, np.nan))[2] for d in domains])
-                lo_v = np.concatenate([lo_v, lo_v[:1]])
-                hi_v = np.concatenate([hi_v, hi_v[:1]])
-                ax.fill_between(theta_closed, lo_v, hi_v,
-                                color=ARM_COLOR["sigreg10_enc3"], alpha=0.20, zorder=2,
-                                label=f"λ_e=1.0 · {ckpt}  bootstrap 95% CI")
-            for lab, g, colr in cells:
-                v = np.array([g.get(d, np.nan) for d in domains]
-                             + [g.get(domains[0], np.nan)])
-                ax.plot(theta_closed, v, color=colr, lw=1.6, zorder=3,
-                        marker="o", markersize=3.5, label=lab)
-            ax.set_title(f"{head} q-head · {ckpt}", fontsize=11, pad=12)
-            ax.legend(loc="upper left", bbox_to_anchor=(-0.10, -0.05),
-                      fontsize=7, frameon=False, ncol=1)
-    fig.suptitle(
-        "Per-domain GM relative MASE on GIFT-Eval full-97 "
-        "(radial log scale; ring at 1.0 = seasonal-naive; lower = better; "
-        "4-curve small-multiples × {2L,6L} × {best,last}; shaded = λ_e=1.0 per-domain bootstrap 95% CI)",
-        fontsize=11,
-    )
-    fig.tight_layout(rect=[0, 0.02, 1, 0.95])
-    fig.savefig(out, dpi=110, bbox_inches="tight"); plt.close(fig)
-
-
 def plot_per_config_delta(
     sig10_results: Path, sig01_results: Path,
     sig10_tag: str, sig01_tag: str,
     ci_rows: list[dict],
     out: Path,
 ):
-    """For each (head, ckpt), show the per-config rel-MASE delta (#359 − #355)
-    across the 97 configs as a strip-scatter; overlay the absolute GM delta
-    (#359 − #355) ± its paired-bootstrap 95% CI computed on the log-ratio of
-    GMs — the same CI methodology used by gm_rel_mase.png / gm_table.csv, so
-    a single CI methodology is reported throughout. Negative = #359 better."""
+    """For each (head, ckpt), show the per-config rel-MASE delta
+    (λ_e=1.0 − λ_e=0.1) across the 97 configs as a strip-scatter; overlay the
+    absolute GM delta ± its paired-bootstrap 95% CI computed on the log-ratio
+    of GMs — the same CI methodology used by gm_rel_mase.png / gm_table.csv,
+    so a single CI methodology is reported throughout.
+    Negative = λ_e=1.0 better."""
     cells = [("2L", "best", ""), ("2L", "last", "_last"),
              ("6L", "best", ""), ("6L", "last", "_last")]
     ci_by_cell = {(r["head"], r["ckpt"]): r for r in ci_rows}
@@ -552,7 +399,7 @@ def plot_per_config_delta(
         ci = ci_by_cell.get((head, ckpt), {})
         # Use the same CI as gm_rel_mase.png / gm_table.csv: paired bootstrap
         # on the log-ratio of GMs, converted to absolute GM-delta scale via
-        # GM(#355) * (exp(log_ratio_quantile) - 1). gm_delta_abs / lo / hi are
+        # GM(prior) * (exp(log_ratio_quantile) - 1). gm_delta_abs / lo / hi are
         # already in that scale in ci_by_cell.
         gm_delta = ci.get("gm_delta_abs", float("nan"))
         gm_lo    = ci.get("gm_delta_lo",  float("nan"))
@@ -603,23 +450,22 @@ def write_trajectories_with_commentary(
     out_path: Path, traj10: dict[str, float], traj01: dict[str, float] | None,
     K: int = 384,
 ):
-    """Replace the legacy bare-key-value trajectories file with a commentary block
-    that calls the embedding-side uniformity direction correctly (it FELL under
-    a 10x λ_e bump, did not lift off) plus the per-term sigreg → total-loss
-    fraction note (λ_e * sigreg_e / loss went ~7.6x while λ_e went 10x because
-    sigreg_e itself partially self-suppressed)."""
+    """Verdict block + tail-50 trajectory comparison between this arm
+    (λ_e=1.0) and the prior arm (λ_e=0.1). Plain prose: no PR/issue refs,
+    no journey commentary."""
     lines: list[str] = [
-        "# VERDICT (issue #359, single seed 20260520 as specified):",
+        "# VERDICT (single seed 20260520):",
         '#   * Q1 "Does the bumped weight wake the embedding-side term?"  → NO.',
         "#     u_batch_e moved TOWARD 1/K (16.8× → 13.0×), not away. u_temporal_e,",
         "#     u_batch, u_temporal all also fell. The 10× λ_e bump did not lift e_t",
         "#     uniformity off the 1/K floor.",
         '#   * Q2 "Does it move downstream?"  → NO (not at α=0.05).',
-        "#     Point Δ on GM-Rel MASE = #359 − #355 in [−0.014, −0.007] across the",
-        "#     4 (head, ckpt) cells; ALL FOUR paired-bootstrap 95% CIs (B=10 000,",
-        "#     N=97 per-config rel-MASE deltas) include zero. P(Δ<0) in [0.83, 0.95].",
-        "#     Direction is consistent (4/4 cells point-negative) but magnitudes are",
-        "#     not separable from single-seed paired-config noise.",
+        "#     Point Δ on GM-Rel MASE = this arm − prior arm in [−0.014, −0.007]",
+        "#     across the 4 (head, ckpt) cells; ALL FOUR paired-bootstrap 95% CIs",
+        "#     (B=10 000, N=97 per-config rel-MASE deltas) include zero.",
+        "#     P(Δ<0) in [0.83, 0.95]. Direction is consistent (4/4 cells",
+        "#     point-negative) but magnitudes are not separable from",
+        "#     single-seed paired-config noise.",
         "#",
     ]
     if traj01:
@@ -634,28 +480,24 @@ def write_trajectories_with_commentary(
         ratio_loss_10 = lam_e_10 * sr_e_10 / loss_10
         ratio_loss_01 = lam_e_01 * sr_e_01 / loss_01
         lines += [
-            "# Tail-50 trajectory facts (#359 SIGReg λ_e=1.0 vs #355 SIGReg λ_e=0.1)",
+            "# Tail-50 trajectory facts (this arm SIGReg λ_e=1.0 vs prior arm SIGReg λ_e=0.1)",
             "#",
-            "# u_batch_e DIRECTION (corrects the earlier PR #360 comment that said",
-            "# u_batch_e 'lifts off' under λ_e=1.0 — the data says the opposite).",
-            f"#   u_batch_e:     #355 λ_e=0.1 → {u_b_e_01:.4f} ≈ {u_b_e_01 * K:.1f}× 1/K  ",
-            f"#                  #359 λ_e=1.0 → {u_b_e_10:.4f} ≈ {u_b_e_10 * K:.1f}× 1/K   "
+            "# u_batch_e direction:",
+            f"#   u_batch_e:     prior λ_e=0.1 → {u_b_e_01:.4f} ≈ {u_b_e_01 * K:.1f}× 1/K  ",
+            f"#                  this  λ_e=1.0 → {u_b_e_10:.4f} ≈ {u_b_e_10 * K:.1f}× 1/K   "
             "(FELL — moved TOWARD 1/K, not away)",
-            f"#   u_temporal_e:  #355 → {u_t_e_01:.4f}  →  #359 → {u_t_e_10:.4f}   (also fell)",
-            f"#   u_batch:       #355 → {u_b_01:.4f}  →  #359 → {u_b_10:.4f}     (also fell)",
-            f"#   u_temporal:    #355 → {u_t_01:.4f}  →  #359 → {u_t_10:.4f}     (also fell)",
+            f"#   u_temporal_e:  prior → {u_t_e_01:.4f}  →  this → {u_t_e_10:.4f}   (also fell)",
+            f"#   u_batch:       prior → {u_b_01:.4f}  →  this → {u_b_10:.4f}     (also fell)",
+            f"#   u_temporal:    prior → {u_t_01:.4f}  →  this → {u_t_10:.4f}     (also fell)",
             "#",
             "# SIGReg λ_e · sigreg_e / total-loss fraction:",
-            f"#   #355 λ_e=0.1:  λ_e · sigreg_e / loss = {ratio_loss_01:.2e}",
-            f"#   #359 λ_e=1.0:  λ_e · sigreg_e / loss = {ratio_loss_10:.2e}   "
+            f"#   prior λ_e=0.1:  λ_e · sigreg_e / loss = {ratio_loss_01:.2e}",
+            f"#   this  λ_e=1.0:  λ_e · sigreg_e / loss = {ratio_loss_10:.2e}   "
             f"(~{ratio_loss_10 / ratio_loss_01:.1f}× under a 10× λ_e bump because",
             f"#                  sigreg_e itself fell {sr_e_01:.2e} → {sr_e_10:.2e} — partial self-suppression).",
             "#",
-            f"#   sigreg_h tail-50: #355 → {sr_h_01:.2e}  →  #359 → {sr_h_10:.2e}",
-            f"#   loss     tail-50: #355 → {loss_01:.4f}    →  #359 → {loss_10:.4f}",
-            "#",
-            "# #357 (PR #358, --ema-tau 0.98) — eval has not yet landed; the 4 cells",
-            "# carry NaN placeholders in gm_table.csv so the report writer can backfill.",
+            f"#   sigreg_h tail-50: prior → {sr_h_01:.2e}  →  this → {sr_h_10:.2e}",
+            f"#   loss     tail-50: prior → {loss_01:.4f}    →  this → {loss_10:.4f}",
             "",
             "# Raw tail-50 means below (key<TAB>value).",
         ]
@@ -677,12 +519,6 @@ if __name__ == "__main__":
         default=Path("/home/jupyter/workspaces/contrastive-forecasting/experiments/2026-06-19_ema_target_encoder/runs/bb_allt08_xftrip_nobn_enc3_emateach_qk_aon_b1024_cpc_losses.csv"))
     p.add_argument("--cpc-csv", type=Path,
         default=Path("/home/jupyter/workspaces/contrastive-forecasting/experiments/2026-06-13_cpc_infonce_aux/runs/bb_allt08_xftrip_nobn_enc3_sgpos_qk_aon_b1024_cpc_losses.csv"))
-    p.add_argument("--ema-results", type=Path,
-        default=Path("/home/jupyter/workspaces/contrastive-forecasting/experiments/2026-06-19_ema_target_encoder/results"))
-    p.add_argument("--cpc-results", type=Path,
-        default=Path("/home/jupyter/workspaces/contrastive-forecasting/experiments/2026-06-13_cpc_infonce_aux/results"))
-    p.add_argument("--ema-tag", default="allt08_xftrip_nobn_enc3_emateach_qk_aon_b1024_cpc")
-    p.add_argument("--cpc-tag", default="allt08_xftrip_nobn_enc3_sgpos_qk_aon_b1024_cpc")
     args = p.parse_args()
 
     report = args.report_dir
@@ -705,13 +541,6 @@ if __name__ == "__main__":
     plot_sigreg_inspection(sig10_csv, args.sig01_csv, plots / "sigreg_e_inspection.png")
     plot_uniformity(sig10_csv, args.sig01_csv, args.ema_csv, args.cpc_csv, plots / "uniformity.png")
     plot_gm_bars(rows, ci_rows, plots / "gm_rel_mase.png")
-    plot_perdomain_radar(
-        sig10_results=results, sig01_results=args.sig01_results,
-        ema_results=args.ema_results, cpc_results=args.cpc_results,
-        sig10_tag=args.sig10_tag, sig01_tag=args.sig01_tag,
-        ema_tag=args.ema_tag, cpc_tag=args.cpc_tag,
-        out=plots / "perdomain_radar.png",
-    )
     plot_per_config_delta(
         sig10_results=results, sig01_results=args.sig01_results,
         sig10_tag=args.sig10_tag, sig01_tag=args.sig01_tag,
@@ -727,19 +556,19 @@ if __name__ == "__main__":
     for k, v in traj_new.items():
         print(f"  {k}: {v}")
     if traj_ref is not None:
-        print("\nReference trajectories (last 50 rows) — λ_e=0.1 (#355):")
+        print("\nReference trajectories (last 50 rows) — λ_e=0.1 (prior arm):")
         for k, v in traj_ref.items():
             print(f"  {k}: {v}")
     print(f"\nrows in gm_table: {len(rows)}")
     for r in rows:
         if r["arm"] == "sigreg10_enc3":
-            gm_d = r["gm_delta_vs_355"]
+            gm_d = r["gm_delta_vs_prior"]
             lo, hi = r["gm_delta_lo"], r["gm_delta_hi"]
             ci_str = ""
             if not (isinstance(gm_d, float) and math.isnan(gm_d)):
                 ci_str = f"  Δ={gm_d:+.4f}  95% CI [{lo:+.4f}, {hi:+.4f}]"
             print(f"  {r['head']}/{r['ckpt']}  GM={r['gm']:.4f}  (n={r['n']}){ci_str}")
-    print("\nBootstrap CI cells (#359 − #355):")
+    print("\nBootstrap CI cells (λ_e=1.0 − λ_e=0.1):")
     for r in ci_rows:
         print(f"  {r['head']}/{r['ckpt']}  n={r['n']}  "
               f"GM ratio (10/01) = {r['gm_ratio']:.4f}  "
