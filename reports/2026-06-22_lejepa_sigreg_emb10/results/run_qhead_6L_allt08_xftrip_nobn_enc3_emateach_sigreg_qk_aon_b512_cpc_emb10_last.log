@@ -1,0 +1,87 @@
+  [head-train] auto-detected freq_emb_dim=3 from backbone checkpoint
+  [head-train] auto-detected seasonality_emb_dim=3 from backbone checkpoint
+  [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+  [head-train] auto-detected qk_norm=True from backbone checkpoint
+  [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+  [head-train] auto-detected patch_stats=none
+Backbone loaded from /tmp/contrastive-forecasting-359/reports/2026-06-22_lejepa_sigreg_emb10/runs/bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_final.pth (0 params, frozen)
+/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/transformer.py:392: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  warnings.warn(
+Forecasting head [transformer-q (6L H384 nhead6 causal)]: 10,702,992 trainable params
+Optimizer: AdamW lr=0.001 betas=(0.9,0.98) wd=0.1 eps=1e-08
+Schedule: cosine warmup=1000 decay_start=8000 final_ratio=0.1
+Loaded head weights from /tmp/contrastive-forecasting-359/reports/2026-06-22_lejepa_sigreg_emb10/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_FINAL.pth (no optimizer state)
+Loss CSV: /tmp/contrastive-forecasting-359/reports/2026-06-22_lejepa_sigreg_emb10/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_last_losses.csv
+Data: MIX 100% HF + 0% synth, hf_bs=256, synth_bs=0, synth_seed=20042, emit_labels=True
+
+Training for 10000 steps, bs=256, lr=0.001, forecast_len=16
+RECONSTRUCTION mode: forecaster (head decodes what latent represents, not future)
+Checkpoints: /tmp/contrastive-forecasting-359/reports/2026-06-22_lejepa_sigreg_emb10/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_last_*.pth
+[    200] loss=0.208384  ema_loss=0.224727  3.9 sps  ETA 0.7h
+  -> New best: /tmp/contrastive-forecasting-359/reports/2026-06-22_lejepa_sigreg_emb10/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_last_best.pth (ema_loss=0.224727)
+[    400] loss=0.206462  ema_loss=0.208071  4.1 sps  ETA 0.6h
+  -> New best: /tmp/contrastive-forecasting-359/reports/2026-06-22_lejepa_sigreg_emb10/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_last_best.pth (ema_loss=0.208071)
+[    600] loss=0.203100  ema_loss=0.204501  4.2 sps  ETA 0.6h
+  -> New best: /tmp/contrastive-forecasting-359/reports/2026-06-22_lejepa_sigreg_emb10/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_last_best.pth (ema_loss=0.204501)
+[    800] loss=0.189838  ema_loss=0.202227  4.2 sps  ETA 0.6h
+  -> New best: /tmp/contrastive-forecasting-359/reports/2026-06-22_lejepa_sigreg_emb10/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_last_best.pth (ema_loss=0.202227)
+[   1000] loss=0.206336  ema_loss=0.202085  4.3 sps  ETA 0.6h
+  -> New best: /tmp/contrastive-forecasting-359/reports/2026-06-22_lejepa_sigreg_emb10/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_last_best.pth (ema_loss=0.202085)
+[   1200] loss=0.199227  ema_loss=0.200097  4.3 sps  ETA 0.6h
+  -> New best: /tmp/contrastive-forecasting-359/reports/2026-06-22_lejepa_sigreg_emb10/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_last_best.pth (ema_loss=0.200097)
+[   1400] loss=0.195313  ema_loss=0.200123  4.3 sps  ETA 0.6h
+[   1600] loss=0.189486  ema_loss=0.198863  4.3 sps  ETA 0.5h
+  -> New best: /tmp/contrastive-forecasting-359/reports/2026-06-22_lejepa_sigreg_emb10/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_last_best.pth (ema_loss=0.198863)
+[   1800] loss=0.209045  ema_loss=0.199808  4.3 sps  ETA 0.5h
+[   2000] loss=0.194686  ema_loss=0.199184  4.3 sps  ETA 0.5h
+[   2200] loss=0.207193  ema_loss=0.199660  4.3 sps  ETA 0.5h
+[   2400] loss=0.198996  ema_loss=0.199208  4.3 sps  ETA 0.5h
+[   2600] loss=0.187430  ema_loss=0.198307  4.3 sps  ETA 0.5h
+  -> New best: /tmp/contrastive-forecasting-359/reports/2026-06-22_lejepa_sigreg_emb10/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_last_best.pth (ema_loss=0.198307)
+[   2800] loss=0.188522  ema_loss=0.198384  4.3 sps  ETA 0.5h
+[   3000] loss=0.193976  ema_loss=0.197660  4.3 sps  ETA 0.4h
+  -> New best: /tmp/contrastive-forecasting-359/reports/2026-06-22_lejepa_sigreg_emb10/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_last_best.pth (ema_loss=0.197660)
+[   3200] loss=0.190098  ema_loss=0.198942  4.3 sps  ETA 0.4h
+[   3400] loss=0.200511  ema_loss=0.197967  4.3 sps  ETA 0.4h
+[   3600] loss=0.183581  ema_loss=0.197128  4.3 sps  ETA 0.4h
+  -> New best: /tmp/contrastive-forecasting-359/reports/2026-06-22_lejepa_sigreg_emb10/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_last_best.pth (ema_loss=0.197128)
+[   3800] loss=0.192475  ema_loss=0.197830  4.3 sps  ETA 0.4h
+[   4000] loss=0.217988  ema_loss=0.197147  4.3 sps  ETA 0.4h
+[   4200] loss=0.197286  ema_loss=0.197360  4.3 sps  ETA 0.4h
+[   4400] loss=0.194762  ema_loss=0.197484  4.3 sps  ETA 0.4h
+[   4600] loss=0.188960  ema_loss=0.197408  4.3 sps  ETA 0.3h
+[   4800] loss=0.194629  ema_loss=0.196706  4.3 sps  ETA 0.3h
+  -> New best: /tmp/contrastive-forecasting-359/reports/2026-06-22_lejepa_sigreg_emb10/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_last_best.pth (ema_loss=0.196706)
+[   5000] loss=0.198736  ema_loss=0.197298  4.3 sps  ETA 0.3h
+[   5200] loss=0.207463  ema_loss=0.196858  4.3 sps  ETA 0.3h
+[   5400] loss=0.196781  ema_loss=0.197704  4.3 sps  ETA 0.3h
+[   5600] loss=0.187624  ema_loss=0.196488  4.3 sps  ETA 0.3h
+  -> New best: /tmp/contrastive-forecasting-359/reports/2026-06-22_lejepa_sigreg_emb10/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_last_best.pth (ema_loss=0.196488)
+[   5800] loss=0.186761  ema_loss=0.196616  4.3 sps  ETA 0.3h
+[   6000] loss=0.188603  ema_loss=0.196312  4.3 sps  ETA 0.3h
+  -> New best: /tmp/contrastive-forecasting-359/reports/2026-06-22_lejepa_sigreg_emb10/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_last_best.pth (ema_loss=0.196312)
+[   6200] loss=0.189443  ema_loss=0.196371  4.3 sps  ETA 0.2h
+[   6400] loss=0.213024  ema_loss=0.195637  4.3 sps  ETA 0.2h
+  -> New best: /tmp/contrastive-forecasting-359/reports/2026-06-22_lejepa_sigreg_emb10/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_last_best.pth (ema_loss=0.195637)
+[   6600] loss=0.195874  ema_loss=0.195323  4.3 sps  ETA 0.2h
+  -> New best: /tmp/contrastive-forecasting-359/reports/2026-06-22_lejepa_sigreg_emb10/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_last_best.pth (ema_loss=0.195323)
+[   6800] loss=0.205999  ema_loss=0.196665  4.3 sps  ETA 0.2h
+[   7000] loss=0.182835  ema_loss=0.196355  4.3 sps  ETA 0.2h
+[   7200] loss=0.182446  ema_loss=0.196174  4.3 sps  ETA 0.2h
+[   7400] loss=0.197613  ema_loss=0.196949  4.3 sps  ETA 0.2h
+[   7600] loss=0.201480  ema_loss=0.196261  4.3 sps  ETA 0.2h
+[   7800] loss=0.187017  ema_loss=0.196189  4.3 sps  ETA 0.1h
+[   8000] loss=0.190374  ema_loss=0.195870  4.3 sps  ETA 0.1h
+[   8200] loss=0.204223  ema_loss=0.196020  4.3 sps  ETA 0.1h
+[   8400] loss=0.196725  ema_loss=0.194927  4.3 sps  ETA 0.1h
+  -> New best: /tmp/contrastive-forecasting-359/reports/2026-06-22_lejepa_sigreg_emb10/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_last_best.pth (ema_loss=0.194927)
+[   8600] loss=0.201783  ema_loss=0.195510  4.3 sps  ETA 0.1h
+[   8800] loss=0.199494  ema_loss=0.195784  4.3 sps  ETA 0.1h
+[   9000] loss=0.185823  ema_loss=0.195005  4.3 sps  ETA 0.1h
+[   9200] loss=0.175939  ema_loss=0.195256  4.3 sps  ETA 0.1h
+[   9400] loss=0.200024  ema_loss=0.196164  4.3 sps  ETA 0.0h
+[   9600] loss=0.200530  ema_loss=0.196215  4.3 sps  ETA 0.0h
+[   9800] loss=0.206774  ema_loss=0.195945  4.3 sps  ETA 0.0h
+[  10000] loss=0.193145  ema_loss=0.195561  4.3 sps  ETA 0.0h
+
+Done in 0.6h. Best loss=0.194927 at step 8400
