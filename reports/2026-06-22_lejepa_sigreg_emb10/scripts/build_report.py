@@ -262,17 +262,17 @@ def plot_sigreg_inspection(sig10_csv: Path, sig01_csv: Path | None, out: Path):
     K = 384
     for ax, (col, title) in zip(axes.ravel(), panels):
         ax.plot(s10["step"], s10[col].rolling(50, min_periods=1).mean(),
-                label="λ_e=1.0 (this arm, #359)", color=ARM_COLOR["sigreg10_enc3"], lw=1.6)
+                label="λ_e=1.0 (this arm)", color=ARM_COLOR["sigreg10_enc3"], lw=1.6)
         if s01 is not None and col in s01.columns:
             ax.plot(s01["step"], s01[col].rolling(50, min_periods=1).mean(),
-                    label="λ_e=0.1 (#355)", color=ARM_COLOR["sigreg01_enc3"], lw=1.2)
+                    label="λ_e=0.1 (prior arm)", color=ARM_COLOR["sigreg01_enc3"], lw=1.2)
         if col in ("u_batch_e", "u_temporal_e"):
             ax.axhline(1.0 / K, color="k", ls=":", alpha=0.5,
                        label=f"1/K = 1/{K} ≈ {1/K:.4f}")
         ax.set_yscale("log")
         ax.set_xlabel("step"); ax.set_title(title)
         ax.legend(fontsize=8); ax.grid(alpha=0.3, which="both")
-    fig.suptitle("Embedding-side SIGReg trajectory: λ_e=1.0 (#359) vs λ_e=0.1 (#355) — log y-axis on all panels")
+    fig.suptitle("Embedding-side SIGReg trajectory: λ_e=1.0 vs λ_e=0.1 — log y-axis on all panels")
     fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
 
 
@@ -366,9 +366,9 @@ def plot_gm_bars(rows: list[dict], ci_rows: list[dict], out: Path):
         ax.hlines(y, x[k] + offs_01 - w / 2, x[k] + offs_10 + w / 2,
                   color="#d62728", lw=1.2, ls=(0, (3, 2)), alpha=0.8, zorder=4)
     ax.plot([], [], color="#d62728", ls=(0, (3, 2)), lw=1.2,
-            label="#355 anchor (rel. to #359)")
+            label="λ_e=0.1 anchor")
     ax.plot([], [], color="k", marker="|", linestyle="None", markersize=8,
-            label="bootstrap 95% CI (#359 − #355)")
+            label="bootstrap 95% CI (λ_e=1.0 − λ_e=0.1)")
     ax.set_xticks(x)
     ax.set_xticklabels([f"{h}/{c}" for h, c in cells])
     ax.set_ylabel("GM-Rel MASE (lower = better)")
@@ -504,7 +504,7 @@ def plot_perdomain_radar(
                 hi_v = np.concatenate([hi_v, hi_v[:1]])
                 ax.fill_between(theta_closed, lo_v, hi_v,
                                 color=ARM_COLOR["sigreg10_enc3"], alpha=0.20, zorder=2,
-                                label=f"#359 · {ckpt}  bootstrap 95% CI")
+                                label=f"λ_e=1.0 · {ckpt}  bootstrap 95% CI")
             for lab, g, colr in cells:
                 v = np.array([g.get(d, np.nan) for d in domains]
                              + [g.get(domains[0], np.nan)])
@@ -516,7 +516,7 @@ def plot_perdomain_radar(
     fig.suptitle(
         "Per-domain GM relative MASE on GIFT-Eval full-97 "
         "(radial log scale; ring at 1.0 = seasonal-naive; lower = better; "
-        "4-curve small-multiples × {2L,6L} × {best,last}; shaded = #359 per-domain bootstrap 95% CI)",
+        "4-curve small-multiples × {2L,6L} × {best,last}; shaded = λ_e=1.0 per-domain bootstrap 95% CI)",
         fontsize=11,
     )
     fig.tight_layout(rect=[0, 0.02, 1, 0.95])
@@ -573,10 +573,10 @@ def plot_per_config_delta(
         ax.set_title(f"{head}/{ckpt}\nn={len(d)}", fontsize=10)
         ax.grid(axis="y", alpha=0.3)
         ax.legend(loc="lower right", fontsize=7)
-    axes[0].set_ylabel("Per-config rel-MASE  Δ = #359 − #355\n(< 0 → #359 better on that config)")
+    axes[0].set_ylabel("Per-config rel-MASE  Δ = λ_e=1.0 − λ_e=0.1\n(< 0 → λ_e=1.0 better on that config)")
     fig.suptitle(
         "Per-config rel-MASE deltas across the 97 GIFT-Eval configs (scatter); "
-        "black diamond = Δ_GM(#359−#355) with 95% CI from paired bootstrap on "
+        "black diamond = Δ_GM(λ_e=1.0 − λ_e=0.1) with 95% CI from paired bootstrap on "
         "log-ratio of GMs — same statistic as gm_rel_mase.png / gm_table.csv",
         fontsize=10,
     )

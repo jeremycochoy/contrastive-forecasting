@@ -2,7 +2,7 @@
 
 ## Question
 
-Following the prior arm (SIGReg + EMA-target, B=512, `λ_e=λ_h=0.1`), where the embedding-side regulariser was effectively inert (`λ_e · L_SIGReg(e_t) / loss ≈ 2.4e-5`, `u_batch_e` finishing at ≈ 16.8 · 1/K):
+Following the prior arm (SIGReg + EMA-target, B=512, `λ_e=λ_h=0.1`), where the embedding-side regulariser contributed `λ_e · L_SIGReg(e_t) / loss ≈ 2.4e-5` and `u_batch_e` finished at ≈ 16.8 · 1/K:
 
 1. Does setting `λ_e=1.0` (`λ_h` unchanged at 0.1) move `u_batch_e` off the 1/K floor?
 2. Does it move GIFT-Eval full-97 GM-Rel MASE in the four (q-head depth, backbone checkpoint) cells, against the `λ_e=λ_h=0.1` arm with the same backbone, dataset, and seed?
@@ -11,30 +11,31 @@ Following the prior arm (SIGReg + EMA-target, B=512, `λ_e=λ_h=0.1`), where the
 
 | term | definition |
 | --- | --- |
-| `enc3` | 3-layer transformer encoder (hidden size `K`=384, 6 heads). |
+| `K` | latent dimensionality, 384 throughout this report. `1/K` ≈ 0.00260. |
+| `enc3` | 3-layer transformer encoder (hidden size `K`, 6 heads). |
 | `CPC` | InfoNCE auxiliary head on the encoder, `--cpc-infonce-weight 1.0`. |
 | **EMA-target** | exponential-moving-average teacher on the encoder + patch-embed, `--ema-tau 0.99`. |
-| `e_t` | output of the GRU patch-embed, per (batch, time, channel) position; `K`=384. |
+| `e_t` | output of the GRU patch-embed, per (batch, time, channel) position; dimension `K`. |
 | `h_t` | output of the 3-layer transformer encoder (`original_latent`), same shape. |
 | **SIGReg** | LeJEPA spherical regulariser. Epps–Pulley test statistic averaged over `M`=1024 random unit-direction 1-D projections of the pooled latent, trapezoidal-integrated on `[−6/√K, 6/√K]` against `N(0, 1/K)`. Drives the pooled marginal toward `Unif(S^{K-1})`. Two terms: `L_SIGReg(e_t)` weighted by `λ_e`, `L_SIGReg(h_t)` weighted by `λ_h`; both pre-`F.normalize` (`--sigreg-post-normalization` OFF). |
-| `u_batch` | cross-batch dimensionality usage of `h_t`, clipped to `[1/K, 1]`. `1/K` ≈ 0.00260 = one direction; 1 = uniform sphere coverage. `u_batch_e` is the same statistic on `e_t`. |
+| `u_batch` | cross-batch dimensionality usage of `h_t`, clipped to `[1/K, 1]`. `1/K` = one direction; 1 = uniform sphere coverage. `u_batch_e` is the same statistic on `e_t`. |
 | `u_temporal` | cross-time analogue of `u_batch`; `u_temporal_e` is the `e_t` version. |
 | **GM-Rel MASE** | GIFT-Eval full-97 aggregate: geometric mean over 97 configs of (model MASE ÷ seasonal-naive MASE). Lower = better; 1.0 = seasonal-naive parity. |
 | **paired bootstrap** | resample the 97 per-config rel-MASE values with replacement (B=10 000 draws), recompute the difference `mean(log(GM_A) − log(GM_B))`, take its 2.5/97.5 quantiles, convert back to absolute GM-Rel MASE scale via `GM_B · (exp(quantile) − 1)`. The reported CI on `Δ_GM` is on that absolute scale. |
 
 ## Result
 
-**Q1: NO.** Under the 10× embedding-side weight bump, the tail-50 mean of `u_batch_e` fell from 0.0438 (≈ 16.8 · 1/K) to 0.0339 (≈ 13.0 · 1/K) — toward the 1/K floor, not away. `u_temporal_e`, `u_batch`, and `u_temporal` also fell. The 10× `λ_e` bump translated to only a ~7.6× increase in the `λ_e · L_SIGReg(e_t) / loss` fraction (`2.36e-5 → 1.80e-4`), while `L_SIGReg(e_t)` itself fell `1.00e-3 → 8.18e-4` (tail-50 means).
+**Q1: NO.** Tail-50 `u_batch_e` fell from 16.8 · 1/K to 13.0 · 1/K under the 10× weight bump — toward the 1/K floor, not away. The 10× `λ_e` translated to only a ~7.6× rise in `λ_e · L_SIGReg(e_t) / loss` because `L_SIGReg(e_t)` itself partially self-suppressed.
 
-**Q2: NO at α=0.05.** Point Δ_GM = #359 − #355 is negative in all 4 cells (range `[−0.014, −0.007]`); all 4 paired-bootstrap 95% CIs include zero (P(Δ<0) range `[0.83, 0.95]`).
+**Q2: NO at α=0.05.** Point Δ_GM (`λ_e=1.0` − `λ_e=0.1`) is negative in all 4 cells (range `[−0.014, −0.007]`); all 4 paired-bootstrap 95% CIs include zero (P(Δ<0) range `[0.83, 0.95]`).
 
-**Caveat: single seed (20260520).** Both arms ran one seed each. The four reported CIs are over the 97 per-config rel-MASE values within each seed, not over independent seeds; they do not bound seed-to-seed variance.
+**Caveat: single seed (20260520); the CIs are over the 97 per-config rel-MASE values, not over seeds.**
 
 ![GIFT-Eval full-97 GM-Rel MASE, 4 (head-depth, backbone-checkpoint) cells × 4 arms; whiskers on the λ_e=1.0 bars = paired-bootstrap 95% CI vs the λ_e=0.1 arm; dashed tick at each cell = the λ_e=0.1 anchor.](plots/gm_rel_mase.png)
 
-![Per-config rel-MASE deltas (#359 − #355) across the 97 GIFT-Eval configs (green scatter, per panel = (head, ckpt)); black diamond = absolute Δ_GM with paired-bootstrap 95% CI on the log-ratio of GMs.](plots/per_config_delta.png)
+![Per-config rel-MASE deltas (λ_e=1.0 − λ_e=0.1) across the 97 GIFT-Eval configs (green scatter, per panel = (head, ckpt)); black diamond = absolute Δ_GM with paired-bootstrap 95% CI on the log-ratio of GMs.](plots/per_config_delta.png)
 
-![Embedding-side SIGReg trajectories on log y-axis: L_SIGReg(e_t), L_SIGReg(h_t), u_batch (e_t), u_temporal (e_t) for λ_e=1.0 (#359, green) vs λ_e=0.1 (#355, red); dotted line at 1/K = 1/384 ≈ 0.00260.](plots/sigreg_e_inspection.png)
+![Embedding-side SIGReg trajectories on log y-axis: L_SIGReg(e_t), L_SIGReg(h_t), u_batch (e_t), u_temporal (e_t) for λ_e=1.0 (green) vs λ_e=0.1 (red); dotted line at 1/K ≈ 0.00260.](plots/sigreg_e_inspection.png)
 
 ![Per-domain GM relative MASE on GIFT-Eval full-97 in 2×2 small-multiples (head ∈ {2L, 6L} × ckpt ∈ {best, last}); shaded radial band = per-domain bootstrap 95% CI for the λ_e=1.0 arm; ring at 1.0 = seasonal-naive.](plots/perdomain_radar.png)
 
@@ -48,14 +49,6 @@ Following the prior arm (SIGReg + EMA-target, B=512, `λ_e=λ_h=0.1`), where the
 | 6L / last | 1.1436 | 1.1597 | 1.1556 | 1.1482 | −0.0074 | [−0.0239, +0.0068] | 0.830 |
 
 CI is paired bootstrap (B=10 000) on the log-ratio of GMs, converted to absolute GM-Rel MASE scale; `n`=97 paired per-config rel-MASE values per cell.
-
-### Encoder-output uniformity
-
-![Cross-batch (left) and cross-time (right) h_t uniformity over training, four arms overlaid.](plots/uniformity.png)
-
-### Training loss
-
-![Training loss, 50-step rolling mean, four arms overlaid.](plots/loss_curve.png)
 
 ## Protocol
 
@@ -78,13 +71,15 @@ Each backbone checkpoint (`best` = best train-loss, `last` = step 12 500) trains
 
 ### A. Plot provenance
 
-All plots embed this arm's training CSV `runs/bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_losses.csv` (12 500 rows, seed `20260520`). The `λ_e=λ_h=0.1` overlay reads `reports/2026-06-20_lejepa_sigreg/runs/bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_losses.csv` and the matching GIFT-Eval summary tree under that report's `results/`. The EMA-target and enc3+CPC overlays read each arm's published `losses.csv` and `summary.txt` at that arm's code revision; no fresh re-training was run for this report. Bootstrap CI cells in `results/bootstrap_ci.csv` (B=10 000, seed 20260622). Reference GM values transcribed as constants `REF_GM`, `EMA_GM`, `SIGREG01_GM` in [`scripts/build_report.py`](scripts/build_report.py). Colour mapping: grey = enc3+CPC B=1024, blue = EMA-target enc3+CPC B=1024, red = SIGReg `λ_e=λ_h=0.1` B=512, green = SIGReg `λ_e=1.0, λ_h=0.1` B=512.
+- **Sources.** This arm's training CSV `runs/bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_losses.csv` (12 500 rows, seed `20260520`). The `λ_e=λ_h=0.1` overlay reads `reports/2026-06-20_lejepa_sigreg/runs/bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_losses.csv` and its matching GIFT-Eval summary tree. EMA-target and enc3+CPC overlays read each arm's published `losses.csv` and `summary.txt`; reference GM values transcribed as constants `REF_GM`, `EMA_GM`, `SIGREG01_GM` in [`scripts/build_report.py`](scripts/build_report.py).
+- **Bootstrap.** Per-cell paired bootstrap on the 97 per-config rel-MASE values, B=10 000, seed 20260622, statistic = `mean(log(rel_A) − log(rel_B))`, converted back to absolute GM-Rel MASE scale. Cells in `results/bootstrap_ci.csv`.
+- **Colour map.** grey = enc3+CPC B=1024; blue = EMA-target enc3+CPC B=1024; red = SIGReg `λ_e=λ_h=0.1` B=512; green = SIGReg `λ_e=1.0, λ_h=0.1` B=512.
 
 ### B. Tail-50 trajectory means
 
 50-step rolling means over the last 50 of 12 500 training steps:
 
-| quantity | `λ_e=0.1` (#355) | `λ_e=1.0` (this arm) |
+| quantity | `λ_e=0.1` (prior arm) | `λ_e=1.0` (this arm) |
 | --- | ---: | ---: |
 | `u_batch_e` | 0.0438 (≈ 16.8 · 1/K) | 0.0339 (≈ 13.0 · 1/K) |
 | `u_temporal_e` | 0.0315 | 0.0238 |
