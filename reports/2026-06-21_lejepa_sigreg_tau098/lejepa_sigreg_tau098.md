@@ -95,7 +95,7 @@ Mean over the last 50 of 12 400 logged steps:
 | **`λ · L_SIGReg(e_t) / loss`** | **3.06e-5** (~33 000× smaller than total) |
 | **`λ · L_SIGReg(h_t) / loss`** | **1.48e-5** (~68 000× smaller than total) |
 
-Both SIGReg terms remained ~10⁴× smaller than the contrastive + CPC + EMA-target sum throughout training, the same regime as the τ=0.99 arm.
+Both SIGReg terms remained ~10⁴× smaller than the contrastive + CPC + EMA-target sum throughout training.
 
 ### Sphere coverage
 
@@ -103,7 +103,7 @@ Both SIGReg terms remained ~10⁴× smaller than the contrastive + CPC + EMA-tar
 
 The contrastive loss `cosine_similarity_batch_full_hh_negs_xshh_allt` directly contains an angular-separation term over `h_t` vectors (see [`src/loss.py`](../../src/loss.py) for the formula).
 
-**Metric scope.** This GIFT-Eval wrapper emits only GM-Rel MASE per `summary.txt`. The project's preferred aggregates are GM-MASE / GM-MAPE_SN / GM-CRPS_SN; those are not produced here — the per-config `all_results.csv` carries raw `MASE[0.5]`, `MAPE[0.5]`, and `mean_weighted_sum_quantile_loss`, but not the seasonal-naive denominators needed to form the SN-relative versions (see annex C).
+**Metric scope.** Only GM-Rel MASE is emitted here; the project's GM-MASE / GM-MAPE_SN / GM-CRPS_SN aggregates are not produced (see annex C).
 
 **Reference-values provenance.** The `enc3+CPC`, `EMA-target enc3+CPC, τ=0.99`, and `SIGReg + EMA-target, τ=0.99` columns reproduce prior arms' published head-matched tables at their own code revisions — source experiments `experiments/2026-06-13_cpc_infonce_aux/`, `experiments/2026-06-19_ema_target_encoder/`, and `reports/2026-06-20_lejepa_sigreg/` respectively — embedded as constants `REF_GM`, `EMA_GM`, and `SIGREG_TAU099_GM` in [`build_report_tau098.py`](../../experiments/2026-06-20_lejepa_sigreg/scripts/build_report_tau098.py). The τ=0.98 and no-EMA columns are fresh head-matched evals at this code revision and HF cache snapshot.
 
@@ -132,8 +132,6 @@ Each backbone checkpoint trains a 2-layer and a 6-layer quantile head (`2L`/`6L`
 ### Training loss
 
 ![Training loss, 50-step rolling mean, five arms overlaid](plots/loss_curve.png)
-
-The τ=0.98 curve ends at step 12 400 (annex A). Tail-50 means: no-EMA 0.867, τ=0.98 4.083, τ=0.99 4.248; the two reference arms (`enc3+CPC`, `EMA-target enc3+CPC`) sit in the same 4–5 band visible on the plot.
 
 ## Annex
 
