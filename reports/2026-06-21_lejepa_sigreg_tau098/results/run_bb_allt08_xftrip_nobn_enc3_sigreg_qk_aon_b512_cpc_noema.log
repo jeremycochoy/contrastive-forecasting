@@ -1,0 +1,580 @@
+Device: cuda | Params: 16,894,908
+Training for 12500 steps, bs=512, lr=0.001, T=4096, C=1, mix_ratio=0.0078125, freq_emb_dim=3, seasonality_emb_dim=3, mixup_p=0.3, rev_norm_kind=ewma(span=128), patch_stats=none, encoder_type=gru
+Checkpoints: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_*.pth
+Loss CSV: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_losses.csv
+Attn-amplitude CSV: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_attn_amplitude.csv (every 200 steps)
+Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, hf_bs=508, synth_bs=4, cross_bs=0, total_bs=515
+[    100] loss=4.3536  ema_loss=11.3753  gap=0.0770  ema_gap=-0.1420  mixup=34/100  0.6 sps  ETA 5.6h  cpc=0.2367
+              R²_rand=0.8606  R²_naive=0.6021  U_t=0.0175  U_b=0.0387  AUC=1.0000  Top1=0.9925
+  timing: data=62.8ms  fwd=736.5ms  bwd=625.3ms  total=1425.2ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[    200] loss=3.1035  ema_loss=6.3750  gap=0.2147  ema_gap=0.0640  mixup=28/100  0.6 sps  ETA 5.5h  cpc=0.0371
+              R²_rand=0.9064  R²_naive=0.7527  U_t=0.0204  U_b=0.0552  AUC=1.0000  Top1=0.9999
+  timing: data=10.0ms  fwd=749.0ms  bwd=633.0ms  total=1392.8ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[    300] loss=2.5171  ema_loss=4.0750  gap=0.3077  ema_gap=0.2024  mixup=24/100  0.6 sps  ETA 5.4h  cpc=0.0065
+              R²_rand=0.9226  R²_naive=0.8224  U_t=0.0235  U_b=0.0675  AUC=1.0000  Top1=1.0000
+  timing: data=11.0ms  fwd=747.0ms  bwd=616.8ms  total=1375.6ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[    400] loss=2.1900  ema_loss=2.9800  gap=0.3424  ema_gap=0.2826  mixup=26/100  0.6 sps  ETA 5.4h  cpc=0.0017
+              R²_rand=0.9336  R²_naive=0.8521  U_t=0.0269  U_b=0.0774  AUC=1.0000  Top1=1.0000
+  timing: data=9.1ms  fwd=728.4ms  bwd=615.0ms  total=1353.3ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[    500] loss=1.9172  ema_loss=2.3770  gap=0.4171  ema_gap=0.3435  mixup=33/100  0.6 sps  ETA 5.3h  cpc=0.0007
+              R²_rand=0.9428  R²_naive=0.8872  U_t=0.0320  U_b=0.0894  AUC=1.0000  Top1=1.0000
+  timing: data=11.0ms  fwd=759.7ms  bwd=619.2ms  total=1390.6ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[    600] loss=1.7872  ema_loss=2.0364  gap=0.4393  ema_gap=0.3941  mixup=37/100  0.6 sps  ETA 5.3h  cpc=0.0005
+              R²_rand=0.9528  R²_naive=0.9081  U_t=0.0324  U_b=0.0928  AUC=1.0000  Top1=1.0000
+  timing: data=10.9ms  fwd=803.9ms  bwd=616.1ms  total=1431.7ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[    700] loss=1.6130  ema_loss=1.8195  gap=0.4674  ema_gap=0.4337  mixup=34/100  0.6 sps  ETA 5.2h  cpc=0.0001
+              R²_rand=0.9575  R²_naive=0.9209  U_t=0.0352  U_b=0.1022  AUC=1.0000  Top1=1.0000
+  timing: data=10.3ms  fwd=725.9ms  bwd=614.5ms  total=1351.4ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[    800] loss=1.4671  ema_loss=1.6270  gap=0.5265  ema_gap=0.4770  mixup=28/100  0.6 sps  ETA 5.2h  cpc=0.0001
+              R²_rand=0.9671  R²_naive=0.9431  U_t=0.0407  U_b=0.1055  AUC=1.0000  Top1=1.0000
+  timing: data=10.1ms  fwd=758.6ms  bwd=622.5ms  total=1392.0ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[    900] loss=1.3313  ema_loss=1.4755  gap=0.5616  ema_gap=0.5258  mixup=28/100  0.6 sps  ETA 5.1h  cpc=0.0000
+              R²_rand=0.9733  R²_naive=0.9560  U_t=0.0456  U_b=0.1122  AUC=1.0000  Top1=1.0000
+  timing: data=10.3ms  fwd=736.0ms  bwd=616.7ms  total=1363.8ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   1000] loss=1.2370  ema_loss=1.3445  gap=0.6230  ema_gap=0.5758  mixup=31/100  0.6 sps  ETA 5.1h  cpc=0.0001
+              R²_rand=0.9801  R²_naive=0.9695  U_t=0.0512  U_b=0.1149  AUC=1.0000  Top1=1.0000
+  timing: data=10.5ms  fwd=719.2ms  bwd=616.2ms  total=1346.5ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   1100] loss=1.1773  ema_loss=1.2515  gap=0.6444  ema_gap=0.6186  mixup=30/100  0.6 sps  ETA 5.0h  cpc=0.0002
+              R²_rand=0.9823  R²_naive=0.9736  U_t=0.0534  U_b=0.1184  AUC=1.0000  Top1=1.0000
+  timing: data=10.9ms  fwd=741.9ms  bwd=616.5ms  total=1370.0ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   1200] loss=1.1383  ema_loss=1.1850  gap=0.6669  ema_gap=0.6495  mixup=29/100  0.6 sps  ETA 5.0h  cpc=0.0000
+              R²_rand=0.9853  R²_naive=0.9786  U_t=0.0546  U_b=0.1216  AUC=1.0000  Top1=1.0000
+  timing: data=10.8ms  fwd=763.6ms  bwd=620.9ms  total=1396.2ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   1300] loss=1.1004  ema_loss=1.1384  gap=0.6945  ema_gap=0.6759  mixup=31/100  0.6 sps  ETA 4.9h  cpc=0.0000
+              R²_rand=0.9862  R²_naive=0.9808  U_t=0.0602  U_b=0.1251  AUC=1.0000  Top1=1.0000
+  timing: data=11.2ms  fwd=734.7ms  bwd=615.3ms  total=1362.0ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   1400] loss=1.0681  ema_loss=1.1029  gap=0.7307  ema_gap=0.6991  mixup=27/100  0.6 sps  ETA 4.9h  cpc=0.0000
+              R²_rand=0.9872  R²_naive=0.9828  U_t=0.0658  U_b=0.1284  AUC=1.0000  Top1=1.0000
+  timing: data=10.5ms  fwd=768.3ms  bwd=616.6ms  total=1396.2ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   1500] loss=1.0448  ema_loss=1.0724  gap=0.7406  ema_gap=0.7214  mixup=36/100  0.6 sps  ETA 5.0h  cpc=0.0000
+              R²_rand=0.9878  R²_naive=0.9841  U_t=0.0674  U_b=0.1313  AUC=1.0000  Top1=1.0000
+  timing: data=10.5ms  fwd=773.8ms  bwd=633.0ms  total=1418.1ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   1600] loss=1.0323  ema_loss=1.0514  gap=0.7536  ema_gap=0.7391  mixup=30/100  0.6 sps  ETA 5.0h  cpc=0.0000
+              R²_rand=0.9883  R²_naive=0.9847  U_t=0.0706  U_b=0.1321  AUC=1.0000  Top1=1.0000
+  timing: data=18.6ms  fwd=760.1ms  bwd=622.5ms  total=1402.1ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   1700] loss=1.0245  ema_loss=1.0336  gap=0.7675  ema_gap=0.7528  mixup=35/100  0.6 sps  ETA 4.9h  cpc=0.0000
+              R²_rand=0.9889  R²_naive=0.9858  U_t=0.0709  U_b=0.1341  AUC=1.0000  Top1=1.0000
+  timing: data=11.3ms  fwd=721.1ms  bwd=615.5ms  total=1348.7ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   1800] loss=1.0029  ema_loss=1.0191  gap=0.7661  ema_gap=0.7662  mixup=26/100  0.6 sps  ETA 4.9h  cpc=0.0000
+              R²_rand=0.9888  R²_naive=0.9856  U_t=0.0735  U_b=0.1362  AUC=1.0000  Top1=1.0000
+  timing: data=10.9ms  fwd=732.9ms  bwd=615.5ms  total=1360.1ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   1900] loss=0.9865  ema_loss=1.0019  gap=0.7876  ema_gap=0.7789  mixup=32/100  0.6 sps  ETA 4.8h  cpc=0.0000
+              R²_rand=0.9899  R²_naive=0.9874  U_t=0.0770  U_b=0.1377  AUC=1.0000  Top1=1.0000
+  timing: data=13.3ms  fwd=723.1ms  bwd=613.5ms  total=1350.5ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   2000] loss=0.9771  ema_loss=0.9909  gap=0.8069  ema_gap=0.7913  mixup=25/100  0.6 sps  ETA 4.8h  cpc=0.0000
+              R²_rand=0.9904  R²_naive=0.9883  U_t=0.0839  U_b=0.1376  AUC=1.0000  Top1=1.0000
+  timing: data=11.9ms  fwd=715.9ms  bwd=614.9ms  total=1343.2ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   2100] loss=0.9663  ema_loss=0.9815  gap=0.8124  ema_gap=0.8033  mixup=34/100  0.6 sps  ETA 4.7h  cpc=0.0000
+              R²_rand=0.9903  R²_naive=0.9883  U_t=0.0864  U_b=0.1400  AUC=1.0000  Top1=1.0000
+  timing: data=11.0ms  fwd=717.9ms  bwd=615.4ms  total=1345.1ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   2200] loss=0.9559  ema_loss=0.9686  gap=0.8313  ema_gap=0.8149  mixup=24/100  0.6 sps  ETA 4.6h  cpc=0.0000
+              R²_rand=0.9911  R²_naive=0.9894  U_t=0.0908  U_b=0.1399  AUC=1.0000  Top1=1.0000
+  timing: data=9.2ms  fwd=735.0ms  bwd=616.8ms  total=1361.8ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   2300] loss=0.9511  ema_loss=0.9599  gap=0.8332  ema_gap=0.8250  mixup=25/100  0.6 sps  ETA 4.6h  cpc=0.0000
+              R²_rand=0.9913  R²_naive=0.9897  U_t=0.0922  U_b=0.1410  AUC=1.0000  Top1=1.0000
+  timing: data=9.9ms  fwd=725.4ms  bwd=614.1ms  total=1350.0ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   2400] loss=0.9493  ema_loss=0.9550  gap=0.8425  ema_gap=0.8340  mixup=37/100  0.6 sps  ETA 4.5h  cpc=0.0000
+              R²_rand=0.9918  R²_naive=0.9903  U_t=0.0951  U_b=0.1408  AUC=1.0000  Top1=1.0000
+  timing: data=10.7ms  fwd=723.8ms  bwd=614.7ms  total=1350.0ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   2500] loss=0.9456  ema_loss=0.9500  gap=0.8476  ema_gap=0.8412  mixup=19/100  0.6 sps  ETA 4.5h  cpc=0.0000
+              R²_rand=0.9921  R²_naive=0.9908  U_t=0.0974  U_b=0.1407  AUC=1.0000  Top1=1.0000
+  timing: data=10.9ms  fwd=723.6ms  bwd=613.7ms  total=1348.8ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_2k.pth
+[   2600] loss=0.9447  ema_loss=0.9463  gap=0.8547  ema_gap=0.8474  mixup=33/100  0.6 sps  ETA 4.4h  cpc=0.0000
+              R²_rand=0.9922  R²_naive=0.9911  U_t=0.1009  U_b=0.1390  AUC=1.0000  Top1=1.0000
+  timing: data=10.5ms  fwd=722.0ms  bwd=616.5ms  total=1349.7ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   2700] loss=0.9390  ema_loss=0.9427  gap=0.8577  ema_gap=0.8540  mixup=33/100  0.6 sps  ETA 4.4h  cpc=0.0000
+              R²_rand=0.9925  R²_naive=0.9914  U_t=0.1050  U_b=0.1405  AUC=1.0000  Top1=1.0000
+  timing: data=10.8ms  fwd=722.8ms  bwd=615.8ms  total=1350.1ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   2800] loss=0.9386  ema_loss=0.9397  gap=0.8621  ema_gap=0.8611  mixup=24/100  0.6 sps  ETA 4.3h  cpc=0.0000
+              R²_rand=0.9928  R²_naive=0.9917  U_t=0.1068  U_b=0.1403  AUC=1.0000  Top1=1.0000
+  timing: data=9.5ms  fwd=727.5ms  bwd=615.9ms  total=1353.6ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   2900] loss=0.9371  ema_loss=0.9374  gap=0.8906  ema_gap=0.8700  mixup=35/100  0.6 sps  ETA 4.3h  cpc=0.0000
+              R²_rand=0.9930  R²_naive=0.9922  U_t=0.1152  U_b=0.1392  AUC=1.0000  Top1=1.0000
+  timing: data=10.8ms  fwd=746.6ms  bwd=624.8ms  total=1382.9ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   3000] loss=0.9307  ema_loss=0.9338  gap=0.8928  ema_gap=0.8782  mixup=32/100  0.6 sps  ETA 4.3h  cpc=0.0000
+              R²_rand=0.9931  R²_naive=0.9924  U_t=0.1127  U_b=0.1413  AUC=1.0000  Top1=1.0000
+  timing: data=12.8ms  fwd=724.3ms  bwd=614.0ms  total=1351.7ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   3100] loss=0.9272  ema_loss=0.9331  gap=0.8886  ema_gap=0.8871  mixup=29/100  0.6 sps  ETA 4.2h  cpc=0.0000
+              R²_rand=0.9933  R²_naive=0.9925  U_t=0.1162  U_b=0.1418  AUC=1.0000  Top1=1.0000
+  timing: data=11.5ms  fwd=721.6ms  bwd=614.8ms  total=1348.6ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   3200] loss=0.9273  ema_loss=0.9298  gap=0.9024  ema_gap=0.8939  mixup=28/100  0.6 sps  ETA 4.2h  cpc=0.0000
+              R²_rand=0.9934  R²_naive=0.9928  U_t=0.1175  U_b=0.1420  AUC=1.0000  Top1=1.0000
+  timing: data=9.9ms  fwd=723.9ms  bwd=616.1ms  total=1350.7ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   3300] loss=0.9255  ema_loss=0.9274  gap=0.9023  ema_gap=0.8998  mixup=29/100  0.6 sps  ETA 4.1h  cpc=0.0000
+              R²_rand=0.9937  R²_naive=0.9932  U_t=0.1208  U_b=0.1410  AUC=1.0000  Top1=1.0000
+  timing: data=11.0ms  fwd=736.8ms  bwd=615.1ms  total=1363.6ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   3400] loss=0.9211  ema_loss=0.9248  gap=0.9044  ema_gap=0.9049  mixup=31/100  0.6 sps  ETA 4.1h  cpc=0.0000
+              R²_rand=0.9939  R²_naive=0.9933  U_t=0.1207  U_b=0.1419  AUC=1.0000  Top1=1.0000
+  timing: data=13.1ms  fwd=719.8ms  bwd=613.3ms  total=1346.8ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   3500] loss=0.9245  ema_loss=0.9234  gap=0.9151  ema_gap=0.9101  mixup=28/100  0.6 sps  ETA 4.0h  cpc=0.0000
+              R²_rand=0.9939  R²_naive=0.9934  U_t=0.1212  U_b=0.1410  AUC=1.0000  Top1=1.0000
+  timing: data=15.3ms  fwd=730.5ms  bwd=612.1ms  total=1358.4ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   3600] loss=0.9214  ema_loss=0.9219  gap=0.9162  ema_gap=0.9140  mixup=26/100  0.6 sps  ETA 4.0h  cpc=0.0000
+              R²_rand=0.9940  R²_naive=0.9935  U_t=0.1235  U_b=0.1425  AUC=1.0000  Top1=1.0000
+  timing: data=14.4ms  fwd=722.4ms  bwd=611.9ms  total=1349.2ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   3700] loss=0.9244  ema_loss=0.9220  gap=0.9313  ema_gap=0.9185  mixup=34/100  0.6 sps  ETA 3.9h  cpc=0.0000
+              R²_rand=0.9938  R²_naive=0.9934  U_t=0.1237  U_b=0.1423  AUC=1.0000  Top1=1.0000
+  timing: data=14.8ms  fwd=729.9ms  bwd=614.7ms  total=1359.9ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+[   3800] loss=0.9240  ema_loss=0.9210  gap=0.9195  ema_gap=0.9217  mixup=34/100  0.6 sps  ETA 3.9h  cpc=0.0000
+              R²_rand=0.9940  R²_naive=0.9936  U_t=0.1245  U_b=0.1418  AUC=1.0000  Top1=1.0000
+  timing: data=10.7ms  fwd=729.5ms  bwd=615.0ms  total=1355.9ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   3900] loss=0.9188  ema_loss=0.9194  gap=0.9300  ema_gap=0.9255  mixup=23/100  0.6 sps  ETA 3.8h  cpc=0.0000
+              R²_rand=0.9943  R²_naive=0.9939  U_t=0.1274  U_b=0.1416  AUC=1.0000  Top1=1.0000
+  timing: data=10.3ms  fwd=753.6ms  bwd=616.6ms  total=1381.2ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   4000] loss=0.9210  ema_loss=0.9198  gap=0.9271  ema_gap=0.9289  mixup=31/100  0.6 sps  ETA 3.8h  cpc=0.0000
+              R²_rand=0.9941  R²_naive=0.9937  U_t=0.1253  U_b=0.1423  AUC=1.0000  Top1=1.0000
+  timing: data=10.9ms  fwd=755.0ms  bwd=619.2ms  total=1385.9ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+[   4100] loss=0.9178  ema_loss=0.9193  gap=0.9296  ema_gap=0.9320  mixup=29/100  0.6 sps  ETA 3.7h  cpc=0.0000
+              R²_rand=0.9943  R²_naive=0.9939  U_t=0.1270  U_b=0.1424  AUC=1.0000  Top1=1.0000
+  timing: data=12.0ms  fwd=734.6ms  bwd=615.0ms  total=1362.3ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   4200] loss=0.9161  ema_loss=0.9179  gap=0.9389  ema_gap=0.9348  mixup=31/100  0.6 sps  ETA 3.7h  cpc=0.0000
+              R²_rand=0.9944  R²_naive=0.9941  U_t=0.1271  U_b=0.1430  AUC=1.0000  Top1=1.0000
+  timing: data=9.9ms  fwd=743.7ms  bwd=615.5ms  total=1369.8ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   4300] loss=0.9171  ema_loss=0.9169  gap=0.9406  ema_gap=0.9379  mixup=36/100  0.6 sps  ETA 3.7h  cpc=0.0000
+              R²_rand=0.9943  R²_naive=0.9940  U_t=0.1275  U_b=0.1430  AUC=1.0000  Top1=1.0000
+  timing: data=11.0ms  fwd=753.6ms  bwd=616.5ms  total=1381.8ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   4400] loss=0.9160  ema_loss=0.9160  gap=0.9446  ema_gap=0.9411  mixup=30/100  0.6 sps  ETA 3.6h  cpc=0.0000
+              R²_rand=0.9945  R²_naive=0.9942  U_t=0.1272  U_b=0.1429  AUC=1.0000  Top1=1.0000
+  timing: data=10.0ms  fwd=741.7ms  bwd=618.0ms  total=1370.5ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   4500] loss=0.9148  ema_loss=0.9155  gap=0.9426  ema_gap=0.9434  mixup=36/100  0.6 sps  ETA 3.6h  cpc=0.0000
+              R²_rand=0.9945  R²_naive=0.9942  U_t=0.1286  U_b=0.1432  AUC=1.0000  Top1=1.0000
+  timing: data=11.7ms  fwd=774.0ms  bwd=705.4ms  total=1491.8ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   4600] loss=0.9162  ema_loss=0.9151  gap=0.9529  ema_gap=0.9464  mixup=30/100  0.6 sps  ETA 3.5h  cpc=0.0000
+              R²_rand=0.9945  R²_naive=0.9943  U_t=0.1311  U_b=0.1429  AUC=1.0000  Top1=1.0000
+  timing: data=10.5ms  fwd=718.1ms  bwd=614.1ms  total=1343.3ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   4700] loss=0.9160  ema_loss=0.9170  gap=0.9524  ema_gap=0.9511  mixup=35/100  0.6 sps  ETA 3.5h  cpc=0.0000
+              R²_rand=0.9945  R²_naive=0.9943  U_t=0.1276  U_b=0.1435  AUC=1.0000  Top1=1.0000
+  timing: data=10.2ms  fwd=718.7ms  bwd=617.2ms  total=1346.7ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+[   4800] loss=0.9128  ema_loss=0.9150  gap=0.9559  ema_gap=0.9527  mixup=32/100  0.6 sps  ETA 3.4h  cpc=0.0000
+              R²_rand=0.9946  R²_naive=0.9945  U_t=0.1310  U_b=0.1432  AUC=1.0000  Top1=1.0000
+  timing: data=10.4ms  fwd=722.8ms  bwd=615.1ms  total=1349.0ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   4900] loss=0.9125  ema_loss=0.9135  gap=0.9536  ema_gap=0.9541  mixup=27/100  0.6 sps  ETA 3.4h  cpc=0.0000
+              R²_rand=0.9947  R²_naive=0.9945  U_t=0.1305  U_b=0.1436  AUC=1.0000  Top1=1.0000
+  timing: data=10.8ms  fwd=739.8ms  bwd=616.5ms  total=1368.0ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   5000] loss=0.9141  ema_loss=0.9139  gap=0.9628  ema_gap=0.9566  mixup=39/100  0.6 sps  ETA 3.3h  cpc=0.0000
+              R²_rand=0.9946  R²_naive=0.9944  U_t=0.1317  U_b=0.1423  AUC=1.0000  Top1=1.0000
+  timing: data=12.6ms  fwd=733.4ms  bwd=616.4ms  total=1363.2ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_5k.pth
+[   5100] loss=0.9114  ema_loss=0.9122  gap=0.9583  ema_gap=0.9574  mixup=29/100  0.6 sps  ETA 3.3h  cpc=0.0000
+              R²_rand=0.9948  R²_naive=0.9946  U_t=0.1297  U_b=0.1427  AUC=1.0000  Top1=1.0000
+  timing: data=12.0ms  fwd=718.7ms  bwd=614.7ms  total=1346.0ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   5200] loss=0.9096  ema_loss=0.9114  gap=0.9574  ema_gap=0.9587  mixup=30/100  0.6 sps  ETA 3.2h  cpc=0.0000
+              R²_rand=0.9949  R²_naive=0.9947  U_t=0.1285  U_b=0.1440  AUC=1.0000  Top1=1.0000
+  timing: data=9.2ms  fwd=715.5ms  bwd=614.3ms  total=1339.7ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   5300] loss=0.9097  ema_loss=0.9110  gap=0.9639  ema_gap=0.9609  mixup=30/100  0.6 sps  ETA 3.2h  cpc=0.0000
+              R²_rand=0.9949  R²_naive=0.9948  U_t=0.1316  U_b=0.1436  AUC=1.0000  Top1=1.0000
+  timing: data=10.1ms  fwd=734.4ms  bwd=623.9ms  total=1369.2ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   5400] loss=0.9085  ema_loss=0.9098  gap=0.9597  ema_gap=0.9631  mixup=31/100  0.6 sps  ETA 3.1h  cpc=0.0000
+              R²_rand=0.9950  R²_naive=0.9949  U_t=0.1309  U_b=0.1438  AUC=1.0000  Top1=1.0000
+  timing: data=10.6ms  fwd=716.7ms  bwd=615.7ms  total=1343.7ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   5500] loss=0.9084  ema_loss=0.9084  gap=0.9697  ema_gap=0.9652  mixup=28/100  0.6 sps  ETA 3.1h  cpc=0.0000
+              R²_rand=0.9951  R²_naive=0.9950  U_t=0.1349  U_b=0.1431  AUC=1.0000  Top1=1.0000
+  timing: data=11.6ms  fwd=739.2ms  bwd=615.1ms  total=1366.6ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   5600] loss=0.9049  ema_loss=0.9071  gap=0.9747  ema_gap=0.9675  mixup=29/100  0.6 sps  ETA 3.1h  cpc=0.0000
+              R²_rand=0.9953  R²_naive=0.9953  U_t=0.1328  U_b=0.1436  AUC=1.0000  Top1=1.0000
+  timing: data=10.4ms  fwd=720.7ms  bwd=614.9ms  total=1346.8ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   5700] loss=0.9075  ema_loss=0.9064  gap=0.9621  ema_gap=0.9691  mixup=43/100  0.6 sps  ETA 3.0h  cpc=0.0000
+              R²_rand=0.9952  R²_naive=0.9950  U_t=0.1322  U_b=0.1438  AUC=1.0000  Top1=1.0000
+  timing: data=9.6ms  fwd=732.5ms  bwd=615.4ms  total=1358.4ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   5800] loss=0.9044  ema_loss=0.9061  gap=0.9710  ema_gap=0.9701  mixup=29/100  0.6 sps  ETA 3.0h  cpc=0.0000
+              R²_rand=0.9954  R²_naive=0.9952  U_t=0.1310  U_b=0.1441  AUC=1.0000  Top1=1.0000
+  timing: data=10.2ms  fwd=758.8ms  bwd=616.2ms  total=1385.9ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   5900] loss=0.9053  ema_loss=0.9053  gap=0.9718  ema_gap=0.9709  mixup=28/100  0.6 sps  ETA 2.9h  cpc=0.0000
+              R²_rand=0.9953  R²_naive=0.9952  U_t=0.1338  U_b=0.1438  AUC=1.0000  Top1=1.0000
+  timing: data=10.6ms  fwd=740.5ms  bwd=618.3ms  total=1370.1ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   6000] loss=0.9042  ema_loss=0.9047  gap=0.9732  ema_gap=0.9714  mixup=35/100  0.6 sps  ETA 2.9h  cpc=0.0000
+              R²_rand=0.9954  R²_naive=0.9953  U_t=0.1339  U_b=0.1439  AUC=1.0000  Top1=1.0000
+  timing: data=20.4ms  fwd=727.0ms  bwd=615.8ms  total=1364.0ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   6100] loss=0.9043  ema_loss=0.9043  gap=0.9744  ema_gap=0.9725  mixup=34/100  0.6 sps  ETA 2.8h  cpc=0.0000
+              R²_rand=0.9955  R²_naive=0.9954  U_t=0.1334  U_b=0.1435  AUC=1.0000  Top1=1.0000
+  timing: data=13.3ms  fwd=738.2ms  bwd=618.3ms  total=1370.4ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   6200] loss=0.9032  ema_loss=0.9040  gap=0.9747  ema_gap=0.9737  mixup=47/100  0.6 sps  ETA 2.8h  cpc=0.0000
+              R²_rand=0.9954  R²_naive=0.9954  U_t=0.1340  U_b=0.1438  AUC=1.0000  Top1=1.0000
+  timing: data=16.6ms  fwd=730.5ms  bwd=615.1ms  total=1362.8ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   6300] loss=0.9019  ema_loss=0.9039  gap=0.9724  ema_gap=0.9745  mixup=28/100  0.6 sps  ETA 2.7h  cpc=0.0000
+              R²_rand=0.9955  R²_naive=0.9954  U_t=0.1344  U_b=0.1443  AUC=1.0000  Top1=1.0000
+  timing: data=14.5ms  fwd=729.2ms  bwd=615.2ms  total=1359.5ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   6400] loss=0.9014  ema_loss=0.9035  gap=0.9769  ema_gap=0.9750  mixup=23/100  0.6 sps  ETA 2.7h  cpc=0.0000
+              R²_rand=0.9956  R²_naive=0.9955  U_t=0.1355  U_b=0.1442  AUC=1.0000  Top1=1.0000
+  timing: data=9.4ms  fwd=721.4ms  bwd=615.4ms  total=1346.9ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   6500] loss=0.9040  ema_loss=0.9029  gap=0.9778  ema_gap=0.9757  mixup=22/100  0.6 sps  ETA 2.7h  cpc=0.0000
+              R²_rand=0.9955  R²_naive=0.9955  U_t=0.1356  U_b=0.1436  AUC=1.0000  Top1=1.0000
+  timing: data=8.8ms  fwd=734.2ms  bwd=615.5ms  total=1359.2ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   6600] loss=0.9012  ema_loss=0.9023  gap=0.9726  ema_gap=0.9761  mixup=29/100  0.6 sps  ETA 2.6h  cpc=0.0000
+              R²_rand=0.9956  R²_naive=0.9955  U_t=0.1329  U_b=0.1445  AUC=1.0000  Top1=1.0000
+  timing: data=11.2ms  fwd=753.0ms  bwd=627.7ms  total=1392.6ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   6700] loss=0.9039  ema_loss=0.9023  gap=0.9775  ema_gap=0.9765  mixup=31/100  0.6 sps  ETA 2.6h  cpc=0.0000
+              R²_rand=0.9956  R²_naive=0.9955  U_t=0.1340  U_b=0.1435  AUC=1.0000  Top1=1.0000
+  timing: data=11.6ms  fwd=738.0ms  bwd=615.3ms  total=1365.6ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+[   6800] loss=0.9017  ema_loss=0.9022  gap=0.9757  ema_gap=0.9766  mixup=34/100  0.6 sps  ETA 2.5h  cpc=0.0000
+              R²_rand=0.9957  R²_naive=0.9956  U_t=0.1344  U_b=0.1444  AUC=1.0000  Top1=1.0000
+  timing: data=9.8ms  fwd=723.7ms  bwd=615.5ms  total=1349.7ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   6900] loss=0.9022  ema_loss=0.9013  gap=0.9780  ema_gap=0.9771  mixup=23/100  0.6 sps  ETA 2.5h  cpc=0.0000
+              R²_rand=0.9957  R²_naive=0.9956  U_t=0.1358  U_b=0.1440  AUC=1.0000  Top1=1.0000
+  timing: data=10.5ms  fwd=747.1ms  bwd=615.9ms  total=1374.3ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   7000] loss=0.9017  ema_loss=0.9012  gap=0.9782  ema_gap=0.9788  mixup=28/100  0.6 sps  ETA 2.4h  cpc=0.0000
+              R²_rand=0.9957  R²_naive=0.9956  U_t=0.1351  U_b=0.1443  AUC=1.0000  Top1=1.0000
+  timing: data=10.0ms  fwd=737.5ms  bwd=615.7ms  total=1364.0ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   7100] loss=0.8991  ema_loss=0.9009  gap=0.9790  ema_gap=0.9797  mixup=39/100  0.6 sps  ETA 2.4h  cpc=0.0000
+              R²_rand=0.9958  R²_naive=0.9957  U_t=0.1353  U_b=0.1445  AUC=1.0000  Top1=1.0000
+  timing: data=10.2ms  fwd=743.3ms  bwd=616.3ms  total=1370.6ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   7200] loss=0.8994  ema_loss=0.9000  gap=0.9797  ema_gap=0.9813  mixup=25/100  0.6 sps  ETA 2.3h  cpc=0.0000
+              R²_rand=0.9959  R²_naive=0.9958  U_t=0.1355  U_b=0.1439  AUC=1.0000  Top1=1.0000
+  timing: data=10.8ms  fwd=769.7ms  bwd=627.1ms  total=1408.4ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   7300] loss=0.8888  ema_loss=0.8973  gap=0.9714  ema_gap=0.9793  mixup=33/100  0.6 sps  ETA 2.3h  cpc=0.0000
+              R²_rand=0.9956  R²_naive=0.9955  U_t=0.1352  U_b=0.1461  AUC=1.0000  Top1=1.0000
+  timing: data=12.0ms  fwd=710.6ms  bwd=614.0ms  total=1337.3ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   7400] loss=0.8854  ema_loss=0.8905  gap=0.9743  ema_gap=0.9766  mixup=32/100  0.6 sps  ETA 2.3h  cpc=0.0000
+              R²_rand=0.9957  R²_naive=0.9956  U_t=0.1356  U_b=0.1468  AUC=1.0000  Top1=1.0000
+  timing: data=10.5ms  fwd=713.6ms  bwd=614.2ms  total=1339.0ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   7500] loss=0.8864  ema_loss=0.8878  gap=0.9776  ema_gap=0.9761  mixup=30/100  0.6 sps  ETA 2.2h  cpc=0.0000
+              R²_rand=0.9957  R²_naive=0.9957  U_t=0.1360  U_b=0.1467  AUC=1.0000  Top1=1.0000
+  timing: data=9.9ms  fwd=718.1ms  bwd=614.1ms  total=1342.8ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_7k.pth
+[   7600] loss=0.8844  ema_loss=0.8864  gap=0.9737  ema_gap=0.9765  mixup=33/100  0.6 sps  ETA 2.2h  cpc=0.0000
+              R²_rand=0.9959  R²_naive=0.9958  U_t=0.1367  U_b=0.1467  AUC=1.0000  Top1=1.0000
+  timing: data=9.2ms  fwd=722.3ms  bwd=615.0ms  total=1347.2ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   7700] loss=0.8841  ema_loss=0.8858  gap=0.9715  ema_gap=0.9772  mixup=28/100  0.6 sps  ETA 2.1h  cpc=0.0000
+              R²_rand=0.9959  R²_naive=0.9958  U_t=0.1369  U_b=0.1464  AUC=1.0000  Top1=1.0000
+  timing: data=10.9ms  fwd=715.0ms  bwd=614.8ms  total=1341.5ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   7800] loss=0.8836  ema_loss=0.8850  gap=0.9759  ema_gap=0.9783  mixup=27/100  0.6 sps  ETA 2.1h  cpc=0.0000
+              R²_rand=0.9959  R²_naive=0.9959  U_t=0.1381  U_b=0.1469  AUC=1.0000  Top1=1.0000
+  timing: data=10.1ms  fwd=725.9ms  bwd=615.9ms  total=1352.7ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   7900] loss=0.8851  ema_loss=0.8850  gap=0.9811  ema_gap=0.9796  mixup=30/100  0.6 sps  ETA 2.0h  cpc=0.0000
+              R²_rand=0.9959  R²_naive=0.9959  U_t=0.1353  U_b=0.1471  AUC=1.0000  Top1=1.0000
+  timing: data=11.3ms  fwd=720.8ms  bwd=614.6ms  total=1347.5ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   8000] loss=0.8837  ema_loss=0.8850  gap=0.9831  ema_gap=0.9809  mixup=35/100  0.6 sps  ETA 2.0h  cpc=0.0000
+              R²_rand=0.9959  R²_naive=0.9959  U_t=0.1363  U_b=0.1469  AUC=1.0000  Top1=1.0000
+  timing: data=9.2ms  fwd=722.9ms  bwd=614.8ms  total=1347.6ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   8100] loss=0.8850  ema_loss=0.8848  gap=0.9729  ema_gap=0.9814  mixup=31/100  0.6 sps  ETA 1.9h  cpc=0.0000
+              R²_rand=0.9959  R²_naive=0.9958  U_t=0.1355  U_b=0.1467  AUC=1.0000  Top1=1.0000
+  timing: data=10.0ms  fwd=732.2ms  bwd=616.2ms  total=1359.2ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   8200] loss=0.8837  ema_loss=0.8845  gap=0.9810  ema_gap=0.9815  mixup=34/100  0.6 sps  ETA 1.9h  cpc=0.0000
+              R²_rand=0.9959  R²_naive=0.9959  U_t=0.1364  U_b=0.1469  AUC=1.0000  Top1=1.0000
+  timing: data=11.1ms  fwd=727.8ms  bwd=615.1ms  total=1354.8ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   8300] loss=0.8862  ema_loss=0.8840  gap=0.9837  ema_gap=0.9815  mixup=28/100  0.6 sps  ETA 1.9h  cpc=0.0000
+              R²_rand=0.9959  R²_naive=0.9958  U_t=0.1346  U_b=0.1465  AUC=1.0000  Top1=1.0000
+  timing: data=10.8ms  fwd=751.7ms  bwd=632.8ms  total=1396.0ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   8400] loss=0.8826  ema_loss=0.8838  gap=0.9818  ema_gap=0.9821  mixup=24/100  0.6 sps  ETA 1.8h  cpc=0.0000
+              R²_rand=0.9961  R²_naive=0.9960  U_t=0.1358  U_b=0.1472  AUC=1.0000  Top1=1.0000
+  timing: data=9.1ms  fwd=714.6ms  bwd=614.8ms  total=1339.3ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   8500] loss=0.8829  ema_loss=0.8837  gap=0.9831  ema_gap=0.9836  mixup=34/100  0.6 sps  ETA 1.8h  cpc=0.0000
+              R²_rand=0.9960  R²_naive=0.9960  U_t=0.1357  U_b=0.1474  AUC=1.0000  Top1=1.0000
+  timing: data=11.7ms  fwd=718.1ms  bwd=614.3ms  total=1344.7ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   8600] loss=0.8820  ema_loss=0.8832  gap=0.9865  ema_gap=0.9837  mixup=27/100  0.6 sps  ETA 1.7h  cpc=0.0000
+              R²_rand=0.9961  R²_naive=0.9960  U_t=0.1354  U_b=0.1470  AUC=1.0000  Top1=1.0000
+  timing: data=9.8ms  fwd=713.3ms  bwd=614.1ms  total=1337.8ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   8700] loss=0.8813  ema_loss=0.8827  gap=0.9817  ema_gap=0.9837  mixup=27/100  0.6 sps  ETA 1.7h  cpc=0.0000
+              R²_rand=0.9961  R²_naive=0.9961  U_t=0.1353  U_b=0.1471  AUC=1.0000  Top1=1.0000
+  timing: data=9.3ms  fwd=716.0ms  bwd=614.9ms  total=1341.0ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   8800] loss=0.8834  ema_loss=0.8825  gap=0.9872  ema_gap=0.9841  mixup=35/100  0.6 sps  ETA 1.6h  cpc=0.0000
+              R²_rand=0.9961  R²_naive=0.9961  U_t=0.1344  U_b=0.1466  AUC=1.0000  Top1=1.0000
+  timing: data=10.5ms  fwd=732.7ms  bwd=615.5ms  total=1359.3ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   8900] loss=0.8828  ema_loss=0.8835  gap=0.9856  ema_gap=0.9858  mixup=23/100  0.6 sps  ETA 1.6h  cpc=0.0000
+              R²_rand=0.9961  R²_naive=0.9960  U_t=0.1359  U_b=0.1470  AUC=1.0000  Top1=1.0000
+  timing: data=13.5ms  fwd=724.7ms  bwd=612.2ms  total=1351.0ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+[   9000] loss=0.8811  ema_loss=0.8823  gap=0.9903  ema_gap=0.9866  mixup=23/100  0.6 sps  ETA 1.5h  cpc=0.0000
+              R²_rand=0.9962  R²_naive=0.9962  U_t=0.1377  U_b=0.1467  AUC=1.0000  Top1=1.0000
+  timing: data=9.0ms  fwd=719.2ms  bwd=614.6ms  total=1343.5ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   9100] loss=0.8826  ema_loss=0.8819  gap=0.9829  ema_gap=0.9873  mixup=33/100  0.6 sps  ETA 1.5h  cpc=0.0000
+              R²_rand=0.9962  R²_naive=0.9961  U_t=0.1378  U_b=0.1465  AUC=1.0000  Top1=1.0000
+  timing: data=9.6ms  fwd=725.6ms  bwd=615.9ms  total=1351.7ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   9200] loss=0.8816  ema_loss=0.8820  gap=0.9926  ema_gap=0.9877  mixup=34/100  0.6 sps  ETA 1.5h  cpc=0.0000
+              R²_rand=0.9962  R²_naive=0.9962  U_t=0.1361  U_b=0.1467  AUC=1.0000  Top1=1.0000
+  timing: data=9.8ms  fwd=730.6ms  bwd=616.4ms  total=1357.6ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+[   9300] loss=0.8800  ema_loss=0.8816  gap=0.9910  ema_gap=0.9872  mixup=34/100  0.6 sps  ETA 1.4h  cpc=0.0000
+              R²_rand=0.9963  R²_naive=0.9963  U_t=0.1365  U_b=0.1468  AUC=1.0000  Top1=1.0000
+  timing: data=10.3ms  fwd=722.6ms  bwd=641.9ms  total=1375.6ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   9400] loss=0.8803  ema_loss=0.8808  gap=0.9872  ema_gap=0.9881  mixup=32/100  0.6 sps  ETA 1.4h  cpc=0.0000
+              R²_rand=0.9963  R²_naive=0.9963  U_t=0.1383  U_b=0.1470  AUC=1.0000  Top1=1.0000
+  timing: data=12.7ms  fwd=726.0ms  bwd=613.3ms  total=1352.6ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   9500] loss=0.8795  ema_loss=0.8811  gap=0.9884  ema_gap=0.9875  mixup=31/100  0.6 sps  ETA 1.3h  cpc=0.0000
+              R²_rand=0.9963  R²_naive=0.9963  U_t=0.1358  U_b=0.1473  AUC=1.0000  Top1=1.0000
+  timing: data=9.9ms  fwd=715.2ms  bwd=615.8ms  total=1341.6ms
+[   9600] loss=0.8836  ema_loss=0.8820  gap=0.9860  ema_gap=0.9876  mixup=29/100  0.6 sps  ETA 1.3h  cpc=0.0000
+              R²_rand=0.9961  R²_naive=0.9961  U_t=0.1378  U_b=0.1465  AUC=1.0000  Top1=1.0000
+  timing: data=11.4ms  fwd=736.6ms  bwd=616.1ms  total=1364.8ms
+[   9700] loss=0.8795  ema_loss=0.8810  gap=0.9882  ema_gap=0.9883  mixup=30/100  0.6 sps  ETA 1.2h  cpc=0.0000
+              R²_rand=0.9964  R²_naive=0.9964  U_t=0.1379  U_b=0.1468  AUC=1.0000  Top1=1.0000
+  timing: data=11.6ms  fwd=722.7ms  bwd=613.4ms  total=1348.4ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+[   9800] loss=0.8813  ema_loss=0.8804  gap=0.9877  ema_gap=0.9885  mixup=30/100  0.6 sps  ETA 1.2h  cpc=0.0000
+              R²_rand=0.9963  R²_naive=0.9963  U_t=0.1365  U_b=0.1467  AUC=1.0000  Top1=1.0000
+  timing: data=9.6ms  fwd=720.0ms  bwd=615.0ms  total=1345.4ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[   9900] loss=0.8802  ema_loss=0.8803  gap=0.9865  ema_gap=0.9886  mixup=20/100  0.6 sps  ETA 1.1h  cpc=0.0000
+              R²_rand=0.9963  R²_naive=0.9963  U_t=0.1353  U_b=0.1471  AUC=1.0000  Top1=1.0000
+  timing: data=12.3ms  fwd=740.6ms  bwd=615.8ms  total=1369.5ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[  10000] loss=0.8804  ema_loss=0.8797  gap=0.9862  ema_gap=0.9877  mixup=23/100  0.6 sps  ETA 1.1h  cpc=0.0000
+              R²_rand=0.9964  R²_naive=0.9964  U_t=0.1362  U_b=0.1471  AUC=1.0000  Top1=1.0000
+  timing: data=12.0ms  fwd=721.2ms  bwd=614.5ms  total=1348.4ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_10k.pth
+[  10100] loss=0.8791  ema_loss=0.8795  gap=0.9912  ema_gap=0.9885  mixup=26/100  0.6 sps  ETA 1.1h  cpc=0.0000
+              R²_rand=0.9964  R²_naive=0.9964  U_t=0.1367  U_b=0.1475  AUC=1.0000  Top1=1.0000
+  timing: data=10.6ms  fwd=733.4ms  bwd=616.3ms  total=1361.0ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[  10200] loss=0.8800  ema_loss=0.8800  gap=0.9947  ema_gap=0.9895  mixup=36/100  0.6 sps  ETA 1.0h  cpc=0.0000
+              R²_rand=0.9964  R²_naive=0.9964  U_t=0.1368  U_b=0.1469  AUC=1.0000  Top1=1.0000
+  timing: data=11.4ms  fwd=712.7ms  bwd=612.2ms  total=1336.9ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_gap.pth
+[  10300] loss=0.8786  ema_loss=0.8797  gap=0.9907  ema_gap=0.9894  mixup=26/100  0.6 sps  ETA 1.0h  cpc=0.0000
+              R²_rand=0.9965  R²_naive=0.9965  U_t=0.1368  U_b=0.1471  AUC=1.0000  Top1=1.0000
+  timing: data=13.2ms  fwd=722.8ms  bwd=614.1ms  total=1350.8ms
+[  10400] loss=0.8843  ema_loss=0.8804  gap=0.9910  ema_gap=0.9881  mixup=32/100  0.6 sps  ETA 0.9h  cpc=0.0000
+              R²_rand=0.9961  R²_naive=0.9961  U_t=0.1368  U_b=0.1462  AUC=1.0000  Top1=1.0000
+  timing: data=13.2ms  fwd=722.3ms  bwd=613.6ms  total=1349.8ms
+[  10500] loss=0.8790  ema_loss=0.8797  gap=0.9880  ema_gap=0.9879  mixup=24/100  0.6 sps  ETA 0.9h  cpc=0.0000
+              R²_rand=0.9965  R²_naive=0.9965  U_t=0.1373  U_b=0.1468  AUC=1.0000  Top1=1.0000
+  timing: data=10.8ms  fwd=720.7ms  bwd=612.8ms  total=1344.8ms
+[  10600] loss=0.8799  ema_loss=0.8793  gap=0.9858  ema_gap=0.9883  mixup=37/100  0.6 sps  ETA 0.8h  cpc=0.0000
+              R²_rand=0.9965  R²_naive=0.9965  U_t=0.1368  U_b=0.1462  AUC=1.0000  Top1=1.0000
+  timing: data=13.7ms  fwd=724.3ms  bwd=614.1ms  total=1352.6ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[  10700] loss=0.8796  ema_loss=0.8809  gap=0.9886  ema_gap=0.9880  mixup=28/100  0.6 sps  ETA 0.8h  cpc=0.0000
+              R²_rand=0.9964  R²_naive=0.9964  U_t=0.1377  U_b=0.1471  AUC=1.0000  Top1=1.0000
+  timing: data=14.0ms  fwd=726.3ms  bwd=614.4ms  total=1355.3ms
+[  10800] loss=0.8778  ema_loss=0.8791  gap=0.9854  ema_gap=0.9873  mixup=30/100  0.6 sps  ETA 0.7h  cpc=0.0000
+              R²_rand=0.9966  R²_naive=0.9965  U_t=0.1382  U_b=0.1475  AUC=1.0000  Top1=1.0000
+  timing: data=14.5ms  fwd=730.8ms  bwd=613.3ms  total=1359.2ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[  10900] loss=0.8773  ema_loss=0.8787  gap=0.9918  ema_gap=0.9877  mixup=30/100  0.6 sps  ETA 0.7h  cpc=0.0000
+              R²_rand=0.9965  R²_naive=0.9965  U_t=0.1381  U_b=0.1473  AUC=1.0000  Top1=1.0000
+  timing: data=13.5ms  fwd=721.7ms  bwd=614.1ms  total=1349.9ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[  11000] loss=0.8684  ema_loss=0.8768  gap=0.9864  ema_gap=0.9862  mixup=30/100  0.6 sps  ETA 0.7h  cpc=0.0000
+              R²_rand=0.9962  R²_naive=0.9962  U_t=0.1368  U_b=0.1491  AUC=1.0000  Top1=1.0000
+  timing: data=62.7ms  fwd=719.4ms  bwd=613.9ms  total=1396.7ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[  11100] loss=0.8668  ema_loss=0.8703  gap=0.9853  ema_gap=0.9826  mixup=21/100  0.6 sps  ETA 0.6h  cpc=0.0000
+              R²_rand=0.9964  R²_naive=0.9963  U_t=0.1384  U_b=0.1493  AUC=1.0000  Top1=1.0000
+  timing: data=9.6ms  fwd=722.4ms  bwd=614.5ms  total=1347.3ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[  11200] loss=0.8665  ema_loss=0.8676  gap=0.9829  ema_gap=0.9816  mixup=23/100  0.6 sps  ETA 0.6h  cpc=0.0000
+              R²_rand=0.9964  R²_naive=0.9964  U_t=0.1390  U_b=0.1491  AUC=1.0000  Top1=1.0000
+  timing: data=9.7ms  fwd=741.4ms  bwd=616.7ms  total=1368.5ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[  11300] loss=0.8655  ema_loss=0.8668  gap=0.9800  ema_gap=0.9819  mixup=31/100  0.6 sps  ETA 0.5h  cpc=0.0000
+              R²_rand=0.9965  R²_naive=0.9964  U_t=0.1373  U_b=0.1497  AUC=1.0000  Top1=1.0000
+  timing: data=12.2ms  fwd=725.9ms  bwd=614.3ms  total=1353.1ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[  11400] loss=0.8648  ema_loss=0.8657  gap=0.9832  ema_gap=0.9819  mixup=30/100  0.6 sps  ETA 0.5h  cpc=0.0000
+              R²_rand=0.9965  R²_naive=0.9964  U_t=0.1399  U_b=0.1499  AUC=1.0000  Top1=1.0000
+  timing: data=13.5ms  fwd=728.9ms  bwd=614.6ms  total=1357.7ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[  11500] loss=0.8654  ema_loss=0.8652  gap=0.9810  ema_gap=0.9825  mixup=31/100  0.6 sps  ETA 0.4h  cpc=0.0000
+              R²_rand=0.9965  R²_naive=0.9965  U_t=0.1401  U_b=0.1492  AUC=1.0000  Top1=1.0000
+  timing: data=14.0ms  fwd=726.9ms  bwd=612.8ms  total=1354.3ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[  11600] loss=0.8640  ema_loss=0.8652  gap=0.9836  ema_gap=0.9828  mixup=32/100  0.6 sps  ETA 0.4h  cpc=0.0000
+              R²_rand=0.9965  R²_naive=0.9965  U_t=0.1392  U_b=0.1493  AUC=1.0000  Top1=1.0000
+  timing: data=12.2ms  fwd=723.9ms  bwd=614.3ms  total=1351.0ms
+[  11700] loss=0.8659  ema_loss=0.8650  gap=0.9795  ema_gap=0.9831  mixup=43/100  0.6 sps  ETA 0.4h  cpc=0.0000
+              R²_rand=0.9965  R²_naive=0.9965  U_t=0.1402  U_b=0.1488  AUC=1.0000  Top1=1.0000
+  timing: data=11.0ms  fwd=740.4ms  bwd=616.3ms  total=1368.6ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[  11800] loss=0.8643  ema_loss=0.8644  gap=0.9828  ema_gap=0.9834  mixup=22/100  0.6 sps  ETA 0.3h  cpc=0.0000
+              R²_rand=0.9966  R²_naive=0.9965  U_t=0.1395  U_b=0.1498  AUC=1.0000  Top1=1.0000
+  timing: data=10.4ms  fwd=720.6ms  bwd=613.6ms  total=1345.3ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_best_loss.pth
+[  11900] loss=0.8646  ema_loss=0.8647  gap=0.9836  ema_gap=0.9850  mixup=23/100  0.6 sps  ETA 0.3h  cpc=0.0000
+              R²_rand=0.9966  R²_naive=0.9966  U_t=0.1411  U_b=0.1490  AUC=1.0000  Top1=1.0000
+  timing: data=9.6ms  fwd=717.7ms  bwd=614.8ms  total=1342.8ms
+[  12000] loss=0.8651  ema_loss=0.8646  gap=0.9844  ema_gap=0.9852  mixup=30/100  0.6 sps  ETA 0.2h  cpc=0.0000
+              R²_rand=0.9966  R²_naive=0.9966  U_t=0.1399  U_b=0.1488  AUC=1.0000  Top1=1.0000
+  timing: data=10.6ms  fwd=725.7ms  bwd=615.9ms  total=1352.9ms
+[  12100] loss=0.8646  ema_loss=0.8651  gap=0.9843  ema_gap=0.9858  mixup=23/100  0.6 sps  ETA 0.2h  cpc=0.0000
+              R²_rand=0.9966  R²_naive=0.9965  U_t=0.1397  U_b=0.1497  AUC=1.0000  Top1=1.0000
+  timing: data=12.8ms  fwd=724.5ms  bwd=615.4ms  total=1353.4ms
+[  12200] loss=0.8640  ema_loss=0.8648  gap=0.9865  ema_gap=0.9853  mixup=29/100  0.6 sps  ETA 0.1h  cpc=0.0000
+              R²_rand=0.9966  R²_naive=0.9966  U_t=0.1415  U_b=0.1498  AUC=1.0000  Top1=1.0000
+  timing: data=11.8ms  fwd=721.4ms  bwd=614.8ms  total=1348.6ms
+[  12300] loss=0.8641  ema_loss=0.8648  gap=0.9857  ema_gap=0.9858  mixup=27/100  0.6 sps  ETA 0.1h  cpc=0.0000
+              R²_rand=0.9966  R²_naive=0.9966  U_t=0.1403  U_b=0.1491  AUC=1.0000  Top1=1.0000
+  timing: data=13.2ms  fwd=724.6ms  bwd=614.4ms  total=1352.9ms
+[  12400] loss=0.8641  ema_loss=0.8649  gap=0.9863  ema_gap=0.9871  mixup=28/100  0.6 sps  ETA 0.0h  cpc=0.0000
+              R²_rand=0.9966  R²_naive=0.9966  U_t=0.1434  U_b=0.1493  AUC=1.0000  Top1=1.0000
+  timing: data=12.3ms  fwd=725.7ms  bwd=614.1ms  total=1352.8ms
+[  12500] loss=0.8647  ema_loss=0.8664  gap=0.9934  ema_gap=0.9877  mixup=26/100  0.6 sps  ETA 0.0h  cpc=0.0000
+              R²_rand=0.9965  R²_naive=0.9965  U_t=0.1407  U_b=0.1493  AUC=1.0000  Top1=1.0000
+  timing: data=12.9ms  fwd=721.3ms  bwd=614.2ms  total=1349.0ms
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_12k.pth
+  -> Saved /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_final.pth
+
+Done in 5.5h. Best gap=0.9895 at step 10200, Best loss=0.8644 at step 11800
