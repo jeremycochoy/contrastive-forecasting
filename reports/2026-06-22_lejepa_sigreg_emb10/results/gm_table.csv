@@ -1,0 +1,17 @@
+arm,label,head,ckpt,gm,n,gm_delta_vs_prior,gm_delta_lo,gm_delta_hi,p_below_zero
+cpc_enc3,"enc3+CPC, B=1024",2L,best,1.1846,97,,,,
+cpc_enc3,"enc3+CPC, B=1024",2L,last,1.1531,97,,,,
+cpc_enc3,"enc3+CPC, B=1024",6L,best,1.1584,97,,,,
+cpc_enc3,"enc3+CPC, B=1024",6L,last,1.1436,97,,,,
+ema_enc3,"EMA-target enc3+CPC, B=1024",2L,best,1.1614,97,,,,
+ema_enc3,"EMA-target enc3+CPC, B=1024",2L,last,1.1817,97,,,,
+ema_enc3,"EMA-target enc3+CPC, B=1024",6L,best,1.1576,97,,,,
+ema_enc3,"EMA-target enc3+CPC, B=1024",6L,last,1.1597,97,,,,
+sigreg01_enc3,"SIGReg + EMA-target, B=512 (λ_e=λ_h=0.1)",2L,best,1.1610,97,,,,
+sigreg01_enc3,"SIGReg + EMA-target, B=512 (λ_e=λ_h=0.1)",2L,last,1.1758,97,,,,
+sigreg01_enc3,"SIGReg + EMA-target, B=512 (λ_e=λ_h=0.1)",6L,best,1.1543,97,,,,
+sigreg01_enc3,"SIGReg + EMA-target, B=512 (λ_e=λ_h=0.1)",6L,last,1.1556,97,,,,
+sigreg10_enc3,"SIGReg + EMA-target, B=512 (λ_e=1.0, λ_h=0.1)",2L,best,1.1470,97,-0.0139,-0.0333,0.0018,0.9532
+sigreg10_enc3,"SIGReg + EMA-target, B=512 (λ_e=1.0, λ_h=0.1)",2L,last,1.1681,97,-0.0077,-0.0195,0.0037,0.9038
+sigreg10_enc3,"SIGReg + EMA-target, B=512 (λ_e=1.0, λ_h=0.1)",6L,best,1.1408,97,-0.0135,-0.0336,0.0033,0.9334
+sigreg10_enc3,"SIGReg + EMA-target, B=512 (λ_e=1.0, λ_h=0.1)",6L,last,1.1482,97,-0.0074,-0.0239,0.0068,0.8301
