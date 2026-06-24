@@ -4,8 +4,8 @@
 
 In the prior `λ_e=λ_h=0.1` SIGReg arm the embedding-side regulariser contributed a negligible fraction of the total loss and `u_batch_e`, `u_temporal_e` stayed well below the spherical target.
 
-1. Does setting `λ_e=1.0` (`λ_h` unchanged at 0.1) change the **time course** of `u_batch_e`, `u_temporal_e`, `L_SIGReg(e_t)`, and the loss-fraction `λ_e · L_SIGReg(e_t) / loss` — measured by their Early-50 (first 50 logged training steps) and Tail-50 (last 50) means?
-2. Does it move GIFT-Eval full-97 GM-Rel MASE in the four (q-head depth, backbone checkpoint) cells, against the `λ_e=λ_h=0.1` arm with the same backbone, dataset, and seed?
+1. Does setting `λ_e=1.0` (`λ_h` unchanged at 0.1) move GIFT-Eval full-97 GM-Rel MASE in the four (q-head depth, backbone checkpoint) cells, against the `λ_e=λ_h=0.1` arm with the same backbone, dataset, and seed?
+2. Does it change the **time course** of `u_batch_e`, `u_temporal_e`, `L_SIGReg(e_t)`, and the loss-fraction `λ_e · L_SIGReg(e_t) / loss` — measured by their Early-50 (first 50 logged training steps) and Tail-50 (last 50) means?
 
 ## Result
 
