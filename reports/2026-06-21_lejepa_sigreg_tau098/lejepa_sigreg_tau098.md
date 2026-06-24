@@ -19,7 +19,7 @@ The reference arm at B=512 trains SIGReg on the patch-embed and on the encoder o
 
 ![τ-sweep: mean GM-Rel MASE over the (2L/last, 6L/last) cells; the no-EMA arm sits at the broken-axis position](plots/tau_sweep_last_avg.png)
 
-The four B=512 EMA-target arms' deltas vs the τ=0.99 reference are within or at the ~0.01 GM-Rel MASE seed-noise band from the τ-sweep card (annex F); no-EMA sits ≥+0.0347 above the band on every cell (annex A).
+τ=0.90 has the lowest GM-Rel MASE on all four B=512 cells. Its `*_last` deltas vs the τ=0.99 reference (2L −0.0134, 6L −0.0183) exceed the ~0.01 seed-noise band from the τ-sweep card (annex F); its `*_best` deltas (2L −0.0041, 6L −0.0054) sit within it. The τ axis is non-monotone — τ=0.99 → τ=0.90 improves, τ=0.90 → τ=0.80 reverses — on every cell. no-EMA sits +0.0347 to +0.0538 above τ=0.99 on every cell (annex A).
 
 ### Sphere coverage
 
