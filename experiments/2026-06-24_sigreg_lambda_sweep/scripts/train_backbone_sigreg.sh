@@ -18,8 +18,9 @@ GPU="${1:?gpu}"; LAMBDA_E="${2:?lambda_e}"; LAMBDA_H="${3:?lambda_h}"
 SUFFIX="${4:?suffix}"
 STEPS="${5:-12500}"; SAVE_EVERY="${6:-2500}"
 SEED=20260520
-WT="${WT:-/home/jupyter/contrastive-forecasting/.claude/worktrees/exp-sigreg-363}"
-OUT="${OUT:-/home/jupyter/workspaces/contrastive-forecasting/experiments/2026-06-24_sigreg_lambda_sweep}"
+: "${WT:?WT (worktree root containing train.py + experiments/hf_token.txt) must be set; e.g. WT=/home/jupyter/workspaces/contrastive-forecasting}"
+: "${OUT:?OUT (per-experiment output dir for runs/ and results/) must be set}"
+[ -d "$WT" ] || { echo "[bb-sigreg-${SUFFIX}] ABORT: WT does not exist: $WT" >&2; exit 2; }
 # Same memory knobs as the #353 / #359 EMA-target enc3+CPC arms.
 ENC_LAYERS=6; NENC=3
 export FCST_GRAD_CKPT=1 XSHH_ALLT_CHUNK=1 CPC_CB_CHUNK="${CPC_CB_CHUNK:-64}"
@@ -32,10 +33,13 @@ export PATCH_ENC_CKPT=1 PATCH_ENC_CHUNK=4
 # Teacher BiGRU embed under no_grad still allocates ~17 GB at B=512; chunk
 # the teacher forward over the batch so it fits alongside the SIGReg pass.
 export TEACHER_EMBED_CHUNK="${TEACHER_EMBED_CHUNK:-16}"
-export HF_TOKEN="$(cat "$WT/experiments/hf_token.txt" 2>/dev/null)"; export HUGGING_FACE_HUB_TOKEN="$HF_TOKEN"
+HF_TOKEN_PATH="$WT/experiments/hf_token.txt"
 TRAIN="$WT/experiments/2026-04-27_freq-embedding/scripts/train.py"
 log(){ echo "[$(date '+%m-%d %H:%M:%S')] [bb-sigreg-${SUFFIX} g$GPU] $*"; }
-[ -n "$HF_TOKEN" ] || { log "WARN: empty HF_TOKEN — HF stream will throttle the GPU"; }
+[ -f "$TRAIN" ] || { log "ABORT: TRAIN script not found at $TRAIN (check WT=$WT)"; exit 2; }
+[ -f "$HF_TOKEN_PATH" ] || { log "ABORT: HF token not found at $HF_TOKEN_PATH — HF stream throttles GPU, refusing to launch"; exit 2; }
+export HF_TOKEN="$(cat "$HF_TOKEN_PATH")"; export HUGGING_FACE_HUB_TOKEN="$HF_TOKEN"
+[ -n "$HF_TOKEN" ] || { log "ABORT: empty HF_TOKEN — HF stream throttles GPU, refusing to launch"; exit 2; }
 [ -f "$BB" ] && { log "BB SKIP ($NAME FINAL exists)"; exit 0; }
 tlog="$RES/run_${NAME}.log"
 RESUME=""; latest=$(ls -t "$RUNS/${NAME}"_*k.pth 2>/dev/null | grep -v optimizer | head -1)

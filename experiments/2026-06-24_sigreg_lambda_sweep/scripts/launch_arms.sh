@@ -16,12 +16,15 @@
 #   RUN_OPTIONAL=1 launch_arms.sh   also run emb10_enc10
 #   ONLY="emb100_enc10 emb100_enc100" launch_arms.sh   pick a subset
 set -uo pipefail
-WT="${WT:-/tmp/contrastive-forecasting-363}"
-OUT="${OUT:-/home/jupyter/workspaces/contrastive-forecasting/experiments/2026-06-24_sigreg_lambda_sweep}"
+: "${WT:?WT (worktree root containing experiments/<this-dir>/scripts/...) must be set; e.g. WT=/home/jupyter/workspaces/contrastive-forecasting}"
+: "${OUT:?OUT (per-experiment output dir for runs/ and results/) must be set; e.g. OUT=\$WT/experiments/2026-06-24_sigreg_lambda_sweep}"
 GPU="${GPU:-0}"
 export WT OUT
+[ -d "$WT" ] || { echo "[sweep] ABORT: WT does not exist: $WT" >&2; exit 2; }
 BB_SCRIPT="$WT/experiments/2026-06-24_sigreg_lambda_sweep/scripts/train_backbone_sigreg.sh"
 DL_SCRIPT="$WT/experiments/2026-06-24_sigreg_lambda_sweep/scripts/launch_downstream.sh"
+[ -f "$BB_SCRIPT" ] || { echo "[sweep] ABORT: BB_SCRIPT not found: $BB_SCRIPT" >&2; exit 2; }
+[ -f "$DL_SCRIPT" ] || { echo "[sweep] ABORT: DL_SCRIPT not found: $DL_SCRIPT" >&2; exit 2; }
 RES="$OUT/results"; mkdir -p "$RES"
 log(){ echo "[$(date '+%m-%d %H:%M:%S')] [sweep] $*"; }
 
