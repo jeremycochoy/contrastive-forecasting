@@ -31,7 +31,11 @@ import numpy as np
 import pandas as pd
 
 
-# Prior anchor GM values (transcribed verbatim from each arm's published gm_table.csv).
+# Prior anchor GM values (transcribed verbatim, all `n=97`). All four anchors
+# already coexist in the #359 published table — see
+# reports/2026-06-22_lejepa_sigreg_emb10/results/gm_table.csv (the cpc_enc3 /
+# ema_enc3 / sigreg01_enc3 / sigreg10_enc3 rows). Re-derived from there to
+# avoid drift across separate per-issue tables.
 ANCHOR_GM = {
     # #344 enc3+CPC, B=1024
     ("cpc_enc3",      "2L", "best"): 1.1846,
@@ -96,12 +100,12 @@ def parse_gm(summary_path: Path) -> float | None:
     return float(m.group(1)) if m else None
 
 
-def parse_n_configs(summary_path: Path) -> int:
+def parse_n_configs(summary_path: Path, default: int = 97) -> int:
     if not summary_path.exists():
-        return 0
+        return default
     txt = summary_path.read_text()
     m = re.search(r"Aggregate GM-Relative MASE \((\d+) configs\)", txt)
-    return int(m.group(1)) if m else 0
+    return int(m.group(1)) if m else default
 
 
 def base_tag() -> str:
@@ -164,7 +168,7 @@ def plot_loss_curves(runs: Path, ema_csv: Path | None, cpc_csv: Path | None,
 def plot_sigreg_inspection(runs: Path, sig01_csv: Path | None, sig10_csv: Path | None, out: Path):
     """L_SIGReg(e_t), L_SIGReg(h_t), u_batch_e, u_temporal_e across sweep arms + anchors."""
     fig, axes = plt.subplots(2, 2, figsize=(13, 8))
-    K = 384
+    K = 384  # d_model (embedding dim), not batch — sets the 1/K uniformity floor
     panels = [
         ("sigreg_e",     "L_SIGReg(e_t)",     True),
         ("sigreg_h",     "L_SIGReg(h_t)",     True),

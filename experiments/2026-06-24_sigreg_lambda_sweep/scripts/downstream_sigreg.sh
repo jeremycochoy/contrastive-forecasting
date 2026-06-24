@@ -8,17 +8,23 @@
 set -uo pipefail
 HL="${1:?head_layers}"; GPU="${2:?gpu}"; SUFFIX="${3:?suffix}"
 TAG="allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_${SUFFIX}"
-WT="${WT:-/home/jupyter/contrastive-forecasting/.claude/worktrees/exp-sigreg-363}"
-OUT="${OUT:-/home/jupyter/workspaces/contrastive-forecasting/experiments/2026-06-24_sigreg_lambda_sweep}"
+: "${WT:?WT (worktree root containing train.py + experiments/hf_token.txt) must be set; e.g. WT=/home/jupyter/workspaces/contrastive-forecasting}"
+: "${OUT:?OUT (per-experiment output dir for runs/ and results/) must be set}"
+[ -d "$WT" ] || { echo "[dl-sigreg-${SUFFIX} ${HL}L] ABORT: WT does not exist: $WT" >&2; exit 2; }
 RUNS="$OUT/runs"; RES="$OUT/results"; mkdir -p "$RUNS" "$RES"
 BB="$RUNS/bb_${TAG}_FINAL.pth"; BBLAST="$RUNS/bb_${TAG}_final.pth"
 export PYTHONPATH="$WT" PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True OMP_NUM_THREADS=8 CUDA_VISIBLE_DEVICES="$GPU"
-export HF_TOKEN="$(cat "$WT/experiments/hf_token.txt" 2>/dev/null)"; export HUGGING_FACE_HUB_TOKEN="$HF_TOKEN"
+HF_TOKEN_PATH="$WT/experiments/hf_token.txt"
 export GIFT_EVAL="${GIFT_EVAL:-/home/jupyter/workspaces/gift-eval-data}"
 QTRAIN="$WT/experiments/2026-04-13_gift-eval/scripts/train_forecasting_head.py"
 QEVAL="$WT/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py"
 log(){ echo "[$(date '+%m-%d %H:%M:%S')] [dl-sigreg-${SUFFIX} ${HL}L g$GPU] $*"; }
 gm(){ grep 'Aggregate GM-Relative MASE' "$1" 2>/dev/null | grep -oE '[0-9]+\.[0-9]+$' | tail -1; }
+[ -f "$QTRAIN" ] || { log "ABORT: QTRAIN script not found at $QTRAIN (check WT=$WT)"; exit 2; }
+[ -f "$QEVAL" ]  || { log "ABORT: QEVAL script not found at $QEVAL (check WT=$WT)"; exit 2; }
+[ -f "$HF_TOKEN_PATH" ] || { log "ABORT: HF token not found at $HF_TOKEN_PATH"; exit 2; }
+export HF_TOKEN="$(cat "$HF_TOKEN_PATH")"; export HUGGING_FACE_HUB_TOKEN="$HF_TOKEN"
+[ -n "$HF_TOKEN" ] || { log "ABORT: empty HF_TOKEN — HF stream throttles GPU"; exit 2; }
 [ -f "$BB" ] || { log "ABORT backbone missing: $BB"; exit 1; }
 arch=(--t-raw 4096 --n-channels 1 --d-model 384 --n-heads 6 --num-layers 6 \
       --encoder-type gru --rev-norm-kind ewma --rev-norm-span 128)

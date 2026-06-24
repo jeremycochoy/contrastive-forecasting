@@ -5,10 +5,12 @@
 #   launch_downstream.sh <suffix>      e.g. launch_downstream.sh emb100_enc01
 set -uo pipefail
 SUFFIX="${1:?suffix}"
-WT="${WT:-/tmp/contrastive-forecasting-363}"
-OUT="${OUT:-/home/jupyter/workspaces/contrastive-forecasting/experiments/2026-06-24_sigreg_lambda_sweep}"
+: "${WT:?WT (worktree root containing experiments/<this-dir>/scripts/...) must be set; e.g. WT=/home/jupyter/workspaces/contrastive-forecasting}"
+: "${OUT:?OUT (per-experiment output dir for runs/ and results/) must be set; e.g. OUT=\$WT/experiments/2026-06-24_sigreg_lambda_sweep}"
 export WT OUT
+[ -d "$WT" ] || { echo "[dl-launch ${SUFFIX}] ABORT: WT does not exist: $WT" >&2; exit 2; }
 SCRIPT="$WT/experiments/2026-06-24_sigreg_lambda_sweep/scripts/downstream_sigreg.sh"
+[ -f "$SCRIPT" ] || { echo "[dl-launch ${SUFFIX}] ABORT: downstream script not found: $SCRIPT" >&2; exit 2; }
 RES="$OUT/results"; mkdir -p "$RES"
 log(){ echo "[$(date '+%m-%d %H:%M:%S')] [dl-launch ${SUFFIX}] $*"; }
 

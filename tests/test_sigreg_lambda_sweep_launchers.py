@@ -222,3 +222,58 @@ def test_launch_downstream_drives_two_heads_on_two_gpus():
         "launcher must invoke <something> 6 1 \"$SUFFIX\""
     assert "downstream_sigreg.sh" in text, "launcher must reference downstream_sigreg.sh"
     assert "wait" in text, "launcher must wait on both GPU PIDs"
+
+
+# ---- Iter-2 review: WT/OUT must be required, no hardcoded path defaults ----
+
+@pytest.mark.parametrize("path", [BB_PATH, DL_PATH, LDS_PATH, SWEEP_PATH])
+def test_launchers_require_wt_and_out(path):
+    """Iter-1 review HIGH: WT and OUT must be required, not silently defaulted.
+    A `WT=/tmp/...` default sent runs to a non-existent path on elisa while
+    only WARNing on empty HF_TOKEN — the GPU then idled on anonymous rate
+    limits. The launchers must abort fast (`${VAR:?…}` or explicit check)."""
+    text = _read(path)
+    # ${VAR:?msg} form, OR explicit `[ -d "$WT" ] || ... exit` check.
+    has_wt_required = (
+        re.search(r'\$\{WT:\?[^}]+\}', text)
+        or re.search(r'\[\s*-d\s+"\$WT"\s*\]\s*\|\|', text))
+    assert has_wt_required, f"{path}: WT must be required (`${{WT:?...}}` or `[ -d $WT ] || exit`)"
+    has_out_required = re.search(r'\$\{OUT:\?[^}]+\}', text)
+    assert has_out_required, f"{path}: OUT must be required (`${{OUT:?...}}`)"
+    # No hardcoded default that resolves to /tmp/contrastive-forecasting-363
+    # or .claude/worktrees — those are review-time paths that don't exist on
+    # elisa and silently broke prior iter.
+    assert "WT:-/tmp/contrastive-forecasting-363" not in text, (
+        f"{path}: must not default WT to the review worktree path")
+    assert "WT:-/home/jupyter/contrastive-forecasting/.claude/worktrees" not in text, (
+        f"{path}: must not default WT to .claude/worktrees path")
+
+
+@pytest.mark.parametrize("path,refs", [
+    (BB_PATH,  ['"$WT/experiments/2026-04-27_freq-embedding/scripts/train.py"',
+                '"$WT/experiments/hf_token.txt"']),
+    (DL_PATH,  ['"$WT/experiments/2026-04-13_gift-eval/scripts/train_forecasting_head.py"',
+                '"$WT/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py"',
+                '"$WT/experiments/hf_token.txt"']),
+    (LDS_PATH, ['"$WT/experiments/2026-06-24_sigreg_lambda_sweep/scripts/downstream_sigreg.sh"']),
+    (SWEEP_PATH, ['"$WT/experiments/2026-06-24_sigreg_lambda_sweep/scripts/train_backbone_sigreg.sh"',
+                  '"$WT/experiments/2026-06-24_sigreg_lambda_sweep/scripts/launch_downstream.sh"']),
+])
+def test_launcher_wt_derived_paths_are_referenced(path, refs):
+    """Iter-1 review LOW: pin the exact WT-derived paths so a future rename
+    can't silently re-introduce a non-existent path under the review default."""
+    text = _read(path)
+    for ref in refs:
+        assert ref in text, f"{path}: expected reference {ref}"
+
+
+@pytest.mark.parametrize("path", [BB_PATH, DL_PATH])
+def test_launcher_fails_fast_on_missing_hf_token(path):
+    """Iter-1 review HIGH (related): empty HF_TOKEN must abort, not WARN.
+    Anonymous HF stream throttles the GPU to ~1 sps."""
+    text = _read(path)
+    # Must check token file exists, or abort on empty token.
+    assert re.search(r'\[\s*-f\s+"\$HF_TOKEN_PATH"\s*\]\s*\|\|.*exit', text), (
+        f"{path}: must check HF_TOKEN_PATH exists and exit if not")
+    assert re.search(r'\[\s*-n\s+"\$HF_TOKEN"\s*\]\s*\|\|.*exit', text), (
+        f"{path}: must exit on empty HF_TOKEN (not just WARN)")
