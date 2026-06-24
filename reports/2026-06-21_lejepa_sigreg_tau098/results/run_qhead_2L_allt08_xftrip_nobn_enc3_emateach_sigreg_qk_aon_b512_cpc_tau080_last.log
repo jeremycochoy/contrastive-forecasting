@@ -1,0 +1,138 @@
+  [head-train] auto-detected freq_emb_dim=3 from backbone checkpoint
+  [head-train] auto-detected seasonality_emb_dim=3 from backbone checkpoint
+  [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+  [head-train] auto-detected qk_norm=True from backbone checkpoint
+  [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+  [head-train] auto-detected patch_stats=none
+Backbone loaded from /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_final.pth (0 params, frozen)
+/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/transformer.py:392: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  warnings.warn(
+Forecasting head [transformer-q (2L H384 nhead6 causal)]: 3,605,136 trainable params
+Optimizer: AdamW lr=0.001 betas=(0.9,0.98) wd=0.1 eps=1e-08
+Schedule: cosine warmup=1000 decay_start=8000 final_ratio=0.1
+Traceback (most recent call last):
+  File "/tmp/contrastive-forecasting-357/experiments/2026-04-13_gift-eval/scripts/train_forecasting_head.py", line 883, in <module>
+    main()
+  File "/tmp/contrastive-forecasting-357/experiments/2026-04-13_gift-eval/scripts/train_forecasting_head.py", line 569, in main
+    ckpt = torch.load(args.resume, map_location=device, weights_only=True)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/serialization.py", line 1484, in load
+    with _open_file_like(f, "rb") as opened_file:
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/serialization.py", line 759, in _open_file_like
+    return _open_file(name_or_buffer, mode)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/serialization.py", line 740, in __init__
+    super().__init__(open(name, mode))
+FileNotFoundError: [Errno 2] No such file or directory: '/tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_FINAL.pth'
+  [head-train] auto-detected freq_emb_dim=3 from backbone checkpoint
+  [head-train] auto-detected seasonality_emb_dim=3 from backbone checkpoint
+  [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+  [head-train] auto-detected qk_norm=True from backbone checkpoint
+  [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+  [head-train] auto-detected patch_stats=none
+Backbone loaded from /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_final.pth (0 params, frozen)
+/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/transformer.py:392: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  warnings.warn(
+Forecasting head [transformer-q (2L H384 nhead6 causal)]: 3,605,136 trainable params
+Optimizer: AdamW lr=0.001 betas=(0.9,0.98) wd=0.1 eps=1e-08
+Schedule: cosine warmup=1000 decay_start=8000 final_ratio=0.1
+Traceback (most recent call last):
+  File "/tmp/contrastive-forecasting-357/experiments/2026-04-13_gift-eval/scripts/train_forecasting_head.py", line 883, in <module>
+    main()
+  File "/tmp/contrastive-forecasting-357/experiments/2026-04-13_gift-eval/scripts/train_forecasting_head.py", line 569, in main
+    ckpt = torch.load(args.resume, map_location=device, weights_only=True)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/serialization.py", line 1484, in load
+    with _open_file_like(f, "rb") as opened_file:
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/serialization.py", line 759, in _open_file_like
+    return _open_file(name_or_buffer, mode)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/serialization.py", line 740, in __init__
+    super().__init__(open(name, mode))
+FileNotFoundError: [Errno 2] No such file or directory: '/tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_FINAL.pth'
+  [head-train] auto-detected freq_emb_dim=3 from backbone checkpoint
+  [head-train] auto-detected seasonality_emb_dim=3 from backbone checkpoint
+  [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+  [head-train] auto-detected qk_norm=True from backbone checkpoint
+  [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+  [head-train] auto-detected patch_stats=none
+Backbone loaded from /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_final.pth (0 params, frozen)
+/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/transformer.py:392: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  warnings.warn(
+Forecasting head [transformer-q (2L H384 nhead6 causal)]: 3,605,136 trainable params
+Optimizer: AdamW lr=0.001 betas=(0.9,0.98) wd=0.1 eps=1e-08
+Schedule: cosine warmup=1000 decay_start=8000 final_ratio=0.1
+Loaded head weights from /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_FINAL.pth (no optimizer state)
+Loss CSV: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_last_losses.csv
+Data: MIX 100% HF + 0% synth, hf_bs=256, synth_bs=0, synth_seed=20042, emit_labels=True
+
+Training for 10000 steps, bs=256, lr=0.001, forecast_len=16
+RECONSTRUCTION mode: forecaster (head decodes what latent represents, not future)
+Checkpoints: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_last_*.pth
+[    200] loss=0.230169  ema_loss=0.289920  5.2 sps  ETA 0.5h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_last_best.pth (ema_loss=0.289920)
+[    400] loss=0.215038  ema_loss=0.226357  5.5 sps  ETA 0.5h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_last_best.pth (ema_loss=0.226357)
+[    600] loss=0.209584  ema_loss=0.213278  5.7 sps  ETA 0.5h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_last_best.pth (ema_loss=0.213278)
+[    800] loss=0.195456  ema_loss=0.209333  5.7 sps  ETA 0.4h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_last_best.pth (ema_loss=0.209333)
+[   1000] loss=0.212687  ema_loss=0.208758  5.8 sps  ETA 0.4h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_last_best.pth (ema_loss=0.208758)
+[   1200] loss=0.205589  ema_loss=0.206479  5.8 sps  ETA 0.4h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_last_best.pth (ema_loss=0.206479)
+[   1400] loss=0.201725  ema_loss=0.206269  5.8 sps  ETA 0.4h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_last_best.pth (ema_loss=0.206269)
+[   1600] loss=0.196144  ema_loss=0.204796  5.8 sps  ETA 0.4h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_last_best.pth (ema_loss=0.204796)
+[   1800] loss=0.213461  ema_loss=0.205675  5.8 sps  ETA 0.4h
+[   2000] loss=0.200243  ema_loss=0.204868  5.8 sps  ETA 0.4h
+[   2200] loss=0.213058  ema_loss=0.205218  5.8 sps  ETA 0.4h
+[   2400] loss=0.203043  ema_loss=0.204745  5.8 sps  ETA 0.4h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_last_best.pth (ema_loss=0.204745)
+[   2600] loss=0.193331  ema_loss=0.203810  5.8 sps  ETA 0.4h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_last_best.pth (ema_loss=0.203810)
+[   2800] loss=0.193225  ema_loss=0.203840  5.8 sps  ETA 0.3h
+[   3000] loss=0.199756  ema_loss=0.202979  5.8 sps  ETA 0.3h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_last_best.pth (ema_loss=0.202979)
+[   3200] loss=0.196331  ema_loss=0.204254  5.8 sps  ETA 0.3h
+[   3400] loss=0.205642  ema_loss=0.203402  5.8 sps  ETA 0.3h
+[   3600] loss=0.189587  ema_loss=0.202477  5.8 sps  ETA 0.3h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_last_best.pth (ema_loss=0.202477)
+[   3800] loss=0.198050  ema_loss=0.203182  5.8 sps  ETA 0.3h
+[   4000] loss=0.223249  ema_loss=0.202424  5.8 sps  ETA 0.3h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_last_best.pth (ema_loss=0.202424)
+[   4200] loss=0.204162  ema_loss=0.202571  5.8 sps  ETA 0.3h
+[   4400] loss=0.200389  ema_loss=0.202572  5.8 sps  ETA 0.3h
+[   4600] loss=0.193573  ema_loss=0.202550  5.8 sps  ETA 0.3h
+[   4800] loss=0.199558  ema_loss=0.201774  5.8 sps  ETA 0.2h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_last_best.pth (ema_loss=0.201774)
+[   5000] loss=0.203644  ema_loss=0.202418  5.8 sps  ETA 0.2h
+[   5200] loss=0.212032  ema_loss=0.201934  5.8 sps  ETA 0.2h
+[   5400] loss=0.200855  ema_loss=0.202754  5.8 sps  ETA 0.2h
+[   5600] loss=0.193607  ema_loss=0.201594  5.8 sps  ETA 0.2h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_last_best.pth (ema_loss=0.201594)
+[   5800] loss=0.191109  ema_loss=0.201753  5.8 sps  ETA 0.2h
+[   6000] loss=0.194263  ema_loss=0.201415  5.8 sps  ETA 0.2h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_last_best.pth (ema_loss=0.201415)
+[   6200] loss=0.195442  ema_loss=0.201473  5.8 sps  ETA 0.2h
+[   6400] loss=0.217366  ema_loss=0.200818  5.8 sps  ETA 0.2h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_last_best.pth (ema_loss=0.200818)
+[   6600] loss=0.200474  ema_loss=0.200447  5.8 sps  ETA 0.2h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_last_best.pth (ema_loss=0.200447)
+[   6800] loss=0.210912  ema_loss=0.201765  5.8 sps  ETA 0.2h
+[   7000] loss=0.189652  ema_loss=0.201469  5.8 sps  ETA 0.1h
+[   7200] loss=0.188494  ema_loss=0.201371  5.8 sps  ETA 0.1h
+[   7400] loss=0.202626  ema_loss=0.201966  5.8 sps  ETA 0.1h
+[   7600] loss=0.206451  ema_loss=0.201271  5.8 sps  ETA 0.1h
+[   7800] loss=0.191165  ema_loss=0.201387  5.9 sps  ETA 0.1h
+[   8000] loss=0.196767  ema_loss=0.201179  5.8 sps  ETA 0.1h
+[   8200] loss=0.208933  ema_loss=0.201326  5.8 sps  ETA 0.1h
+[   8400] loss=0.201847  ema_loss=0.200182  5.8 sps  ETA 0.1h
+  -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_last_best.pth (ema_loss=0.200182)
+[   8600] loss=0.206000  ema_loss=0.200789  5.8 sps  ETA 0.1h
+[   8800] loss=0.204745  ema_loss=0.201052  5.8 sps  ETA 0.1h
+[   9000] loss=0.190071  ema_loss=0.200193  5.8 sps  ETA 0.0h
+[   9200] loss=0.181878  ema_loss=0.200475  5.9 sps  ETA 0.0h
+[   9400] loss=0.205256  ema_loss=0.201370  5.8 sps  ETA 0.0h
+[   9600] loss=0.205572  ema_loss=0.201517  5.8 sps  ETA 0.0h
+[   9800] loss=0.211833  ema_loss=0.201194  5.8 sps  ETA 0.0h
+[  10000] loss=0.198770  ema_loss=0.200791  5.8 sps  ETA 0.0h
+
+Done in 0.5h. Best loss=0.200182 at step 8400

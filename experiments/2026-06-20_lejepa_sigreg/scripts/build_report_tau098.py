@@ -37,6 +37,8 @@ ARM_LABEL = {
     "ema_enc3":            "EMA-target enc3+CPC, B=1024, τ=0.99",
     "sigreg_enc3_tau099":  "SIGReg + EMA-target, B=512, τ=0.99",
     "sigreg_enc3_tau098":  "SIGReg + EMA-target, B=512, τ=0.98",
+    "sigreg_enc3_tau090":  "SIGReg + EMA-target, B=512, τ=0.90",
+    "sigreg_enc3_tau080":  "SIGReg + EMA-target, B=512, τ=0.80",
     "sigreg_enc3_noema":   "SIGReg (no EMA-target), B=512",
 }
 
@@ -45,6 +47,8 @@ ARM_COLOR = {
     "ema_enc3":           "#1f77b4",
     "sigreg_enc3_tau099": "#d62728",
     "sigreg_enc3_tau098": "#2ca02c",
+    "sigreg_enc3_tau090": "#ff7f0e",
+    "sigreg_enc3_tau080": "#17becf",
     "sigreg_enc3_noema":  "#9467bd",
 }
 
@@ -101,6 +105,23 @@ def write_gm_table(results_dir: Path, out_csv: Path, tag: str):
             rows.append(dict(arm="sigreg_enc3_noema", label=ARM_LABEL["sigreg_enc3_noema"],
                              head=head, ckpt=ckpt, gm=gm, n=n))
 
+    for arm_key, arm_tag in [
+        ("sigreg_enc3_tau090", "allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090"),
+        ("sigreg_enc3_tau080", "allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080"),
+    ]:
+        m = {
+            ("2L", "best"): results_dir / f"gift_eval_full_{arm_tag}_2L" / "summary.txt",
+            ("2L", "last"): results_dir / f"gift_eval_full_{arm_tag}_last_2L" / "summary.txt",
+            ("6L", "best"): results_dir / f"gift_eval_full_{arm_tag}_6L" / "summary.txt",
+            ("6L", "last"): results_dir / f"gift_eval_full_{arm_tag}_last_6L" / "summary.txt",
+        }
+        for (head, ckpt), sp in m.items():
+            gm = parse_gm(sp)
+            n = parse_n_configs(sp)
+            if gm is not None:
+                rows.append(dict(arm=arm_key, label=ARM_LABEL[arm_key],
+                                 head=head, ckpt=ckpt, gm=gm, n=n))
+
     with out_csv.open("w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=["arm", "label", "head", "ckpt", "gm", "n"])
         w.writeheader()
@@ -111,7 +132,8 @@ def write_gm_table(results_dir: Path, out_csv: Path, tag: str):
 
 def plot_loss_curves(this_csv: Path, sigreg099_csv: Path | None,
                      ema_csv: Path | None, cpc_csv: Path | None,
-                     noema_csv: Path | None, out: Path):
+                     noema_csv: Path | None,
+                     tau090_csv: Path | None, tau080_csv: Path | None, out: Path):
     fig, ax = plt.subplots(figsize=(8, 4.5))
     s = pd.read_csv(this_csv)
     ax.plot(s["step"], s["loss"].rolling(50, min_periods=1).mean(),
@@ -120,6 +142,14 @@ def plot_loss_curves(this_csv: Path, sigreg099_csv: Path | None,
         r = pd.read_csv(sigreg099_csv)
         ax.plot(r["step"], r["loss"].rolling(50, min_periods=1).mean(),
                 label=ARM_LABEL["sigreg_enc3_tau099"], color=ARM_COLOR["sigreg_enc3_tau099"], lw=1.5)
+    if tau090_csv and tau090_csv.exists():
+        t = pd.read_csv(tau090_csv)
+        ax.plot(t["step"], t["loss"].rolling(50, min_periods=1).mean(),
+                label=ARM_LABEL["sigreg_enc3_tau090"], color=ARM_COLOR["sigreg_enc3_tau090"], lw=1.5)
+    if tau080_csv and tau080_csv.exists():
+        t = pd.read_csv(tau080_csv)
+        ax.plot(t["step"], t["loss"].rolling(50, min_periods=1).mean(),
+                label=ARM_LABEL["sigreg_enc3_tau080"], color=ARM_COLOR["sigreg_enc3_tau080"], lw=1.5)
     if noema_csv and noema_csv.exists():
         n = pd.read_csv(noema_csv)
         ax.plot(n["step"], n["loss"].rolling(50, min_periods=1).mean(),
@@ -134,13 +164,14 @@ def plot_loss_curves(this_csv: Path, sigreg099_csv: Path | None,
                 label=ARM_LABEL["cpc_enc3"], color=ARM_COLOR["cpc_enc3"], lw=1.5)
     ax.set_xlabel("step"); ax.set_ylabel("loss (50-step rolling mean)")
     ax.set_title("Training loss")
-    ax.legend(fontsize=8); ax.grid(alpha=0.3)
+    ax.legend(fontsize=7); ax.grid(alpha=0.3)
     fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
 
 
 def plot_uniformity(this_csv: Path, sigreg099_csv: Path | None,
                     ema_csv: Path | None, cpc_csv: Path | None,
-                    noema_csv: Path | None, out: Path):
+                    noema_csv: Path | None,
+                    tau090_csv: Path | None, tau080_csv: Path | None, out: Path):
     s = pd.read_csv(this_csv)
     fig, axes = plt.subplots(1, 2, figsize=(13, 4.5), sharey=True)
     new_lab = ARM_LABEL["sigreg_enc3_tau098"]
@@ -148,6 +179,8 @@ def plot_uniformity(this_csv: Path, sigreg099_csv: Path | None,
     ema_lab = ARM_LABEL["ema_enc3"]
     cpc_lab = ARM_LABEL["cpc_enc3"]
     noe_lab = ARM_LABEL["sigreg_enc3_noema"]
+    t090_lab = ARM_LABEL["sigreg_enc3_tau090"]
+    t080_lab = ARM_LABEL["sigreg_enc3_tau080"]
     for ax, kind in zip(axes, ("batch", "temporal")):
         ax.plot(s["step"], s[f"u_{kind}"].rolling(50, min_periods=1).mean(),
                 label=f"u_{kind} (h_t) — {new_lab}", color=ARM_COLOR["sigreg_enc3_tau098"], lw=1.5)
@@ -161,6 +194,22 @@ def plot_uniformity(this_csv: Path, sigreg099_csv: Path | None,
             if f"u_{kind}_e" in r.columns:
                 ax.plot(r["step"], r[f"u_{kind}_e"].rolling(50, min_periods=1).mean(),
                         label=f"u_{kind}_e (e_t) — {sig_lab}", color=ARM_COLOR["sigreg_enc3_tau099"], lw=1.0, ls="--")
+        if tau090_csv and tau090_csv.exists():
+            t = pd.read_csv(tau090_csv)
+            if f"u_{kind}" in t.columns:
+                ax.plot(t["step"], t[f"u_{kind}"].rolling(50, min_periods=1).mean(),
+                        label=f"u_{kind} (h_t) — {t090_lab}", color=ARM_COLOR["sigreg_enc3_tau090"], lw=1.0)
+            if f"u_{kind}_e" in t.columns:
+                ax.plot(t["step"], t[f"u_{kind}_e"].rolling(50, min_periods=1).mean(),
+                        label=f"u_{kind}_e (e_t) — {t090_lab}", color=ARM_COLOR["sigreg_enc3_tau090"], lw=1.0, ls="--")
+        if tau080_csv and tau080_csv.exists():
+            t = pd.read_csv(tau080_csv)
+            if f"u_{kind}" in t.columns:
+                ax.plot(t["step"], t[f"u_{kind}"].rolling(50, min_periods=1).mean(),
+                        label=f"u_{kind} (h_t) — {t080_lab}", color=ARM_COLOR["sigreg_enc3_tau080"], lw=1.0)
+            if f"u_{kind}_e" in t.columns:
+                ax.plot(t["step"], t[f"u_{kind}_e"].rolling(50, min_periods=1).mean(),
+                        label=f"u_{kind}_e (e_t) — {t080_lab}", color=ARM_COLOR["sigreg_enc3_tau080"], lw=1.0, ls="--")
         if noema_csv and noema_csv.exists():
             n = pd.read_csv(noema_csv)
             if f"u_{kind}" in n.columns:
@@ -191,17 +240,18 @@ def plot_uniformity(this_csv: Path, sigreg099_csv: Path | None,
 def plot_gm_bars(rows: list[dict], out: Path):
     df = pd.DataFrame(rows)
     df = df.sort_values(["head", "ckpt", "arm"]).reset_index(drop=True)
-    arms_order = ["cpc_enc3", "ema_enc3", "sigreg_enc3_tau099", "sigreg_enc3_tau098", "sigreg_enc3_noema"]
+    arms_order = ["cpc_enc3", "ema_enc3", "sigreg_enc3_tau099", "sigreg_enc3_tau098",
+                  "sigreg_enc3_tau090", "sigreg_enc3_tau080", "sigreg_enc3_noema"]
     cells = [("2L", "best"), ("2L", "last"), ("6L", "best"), ("6L", "last")]
-    fig, ax = plt.subplots(figsize=(12, 5))
+    fig, ax = plt.subplots(figsize=(14, 5))
     x = np.arange(len(cells))
-    w = 0.17
+    w = 0.12
     for i, arm in enumerate(arms_order):
         vals = []
         for head, ckpt in cells:
             r = df[(df["arm"] == arm) & (df["head"] == head) & (df["ckpt"] == ckpt)]
             vals.append(r["gm"].values[0] if len(r) else np.nan)
-        ax.bar(x + (i - 2) * w, vals, w, label=ARM_LABEL[arm], color=ARM_COLOR[arm])
+        ax.bar(x + (i - 3) * w, vals, w, label=ARM_LABEL[arm], color=ARM_COLOR[arm])
         for xi, vi in zip(x + (i - 1.5) * w, vals):
             if not np.isnan(vi):
                 ax.text(xi, vi + 0.003, f"{vi:.4f}",
@@ -292,6 +342,10 @@ if __name__ == "__main__":
         default=Path("/home/jupyter/workspaces/contrastive-forecasting/experiments/2026-06-13_cpc_infonce_aux/runs/bb_allt08_xftrip_nobn_enc3_sgpos_qk_aon_b1024_cpc_losses.csv"))
     p.add_argument("--noema-csv", type=Path,
         default=Path("/tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_sigreg_qk_aon_b512_cpc_noema_losses.csv"))
+    p.add_argument("--tau090-csv", type=Path,
+        default=Path("/tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_losses.csv"))
+    p.add_argument("--tau080-csv", type=Path,
+        default=Path("/tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_losses.csv"))
     args = p.parse_args()
 
     report = args.report_dir
@@ -305,16 +359,19 @@ if __name__ == "__main__":
         sys.exit(f"missing: {this_csv}")
 
     rows = write_gm_table(results, results / "gm_table.csv", args.sigreg_tag)
-    plot_loss_curves(this_csv, args.sigreg099_csv, args.ema_csv, args.cpc_csv, args.noema_csv, plots / "loss_curve.png")
-    plot_uniformity(this_csv, args.sigreg099_csv, args.ema_csv, args.cpc_csv, args.noema_csv, plots / "uniformity.png")
+    plot_loss_curves(this_csv, args.sigreg099_csv, args.ema_csv, args.cpc_csv,
+                     args.noema_csv, args.tau090_csv, args.tau080_csv, plots / "loss_curve.png")
+    plot_uniformity(this_csv, args.sigreg099_csv, args.ema_csv, args.cpc_csv,
+                    args.noema_csv, args.tau090_csv, args.tau080_csv, plots / "uniformity.png")
     plot_gm_bars(rows, plots / "gm_rel_mase.png")
     plot_sigreg_e_inspection(this_csv, plots / "sigreg_e_inspection.png")
-    if args.noema_csv and args.noema_csv.exists():
-        plot_sigreg_e_inspection(args.noema_csv, plots / "sigreg_e_inspection_noema.png")
-        noema_traj = final_trajectories(args.noema_csv)
-        with (results / "final_trajectories_noema.txt").open("w") as fh:
-            for k, v in noema_traj.items():
-                fh.write(f"{k}\t{v}\n")
+    for suffix, csv_path in [("noema", args.noema_csv), ("tau090", args.tau090_csv), ("tau080", args.tau080_csv)]:
+        if csv_path and csv_path.exists():
+            plot_sigreg_e_inspection(csv_path, plots / f"sigreg_e_inspection_{suffix}.png")
+            traj = final_trajectories(csv_path)
+            with (results / f"final_trajectories_{suffix}.txt").open("w") as fh:
+                for k, v in traj.items():
+                    fh.write(f"{k}\t{v}\n")
 
     traj = final_trajectories(this_csv)
     with (results / "final_trajectories.txt").open("w") as fh:
