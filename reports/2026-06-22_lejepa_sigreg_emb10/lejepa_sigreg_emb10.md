@@ -2,14 +2,14 @@
 
 ## Question
 
-In the prior `λ_e=λ_h=0.1` SIGReg arm the embedding-side regulariser contributed a negligible fraction of the total loss and `u_batch_e`, `u_temporal_e` stayed well below the spherical target.
+In the prior `λ_e=λ_h=0.1` SIGReg arm the embedding-side regulariser contributed a negligible fraction of the total loss and `u_batch_e`, `u_temporal_e` stayed well below the spherical target (uniform sphere coverage = 1; one-direction floor = `1/K`).
 
 1. Does setting `λ_e=1.0` (`λ_h` unchanged at 0.1) move GIFT-Eval full-97 GM-Rel MASE in the four (q-head depth, backbone checkpoint) cells, against the `λ_e=λ_h=0.1` arm with the same backbone, dataset, and seed?
 2. Does it change the **time course** of `u_batch_e`, `u_temporal_e`, `L_SIGReg(e_t)`, and the loss-fraction `λ_e · L_SIGReg(e_t) / loss` — measured by their Early-50 (first 50 logged training steps) and Tail-50 (last 50) means?
 
 ## Result
 
-**Q2 — downstream GIFT-Eval full-97 GM-Rel MASE.**
+**Q1 — downstream GIFT-Eval full-97 GM-Rel MASE.**
 
 ![GIFT-Eval full-97 GM-Rel MASE, 4 (head-depth, backbone-checkpoint) cells × 4 arms; whiskers on the λ_e=1.0 bars = paired-bootstrap 95% CI vs the λ_e=0.1 arm; dashed tick at each cell = the λ_e=0.1 anchor.](plots/gm_rel_mase.png)
 
@@ -30,7 +30,7 @@ Per-domain curves of the two arms overlap on every domain at both q-head depths;
 
 Paired bootstrap on the 97 per-config rel-MASE values (B=10 000), CIs on the absolute GM scale; n=97 per cell. Full glossary in §Vocabulary at the back.
 
-**Q1 — time course (this arm − prior arm, single seed 20260520).**
+**Q2 — time course (this arm − prior arm, single seed 20260520).**
 
 | quantity | Early-50 Δ (steps 1–50) | Tail-50 Δ (last 50) |
 | --- | ---: | ---: |
