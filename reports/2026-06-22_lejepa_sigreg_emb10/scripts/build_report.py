@@ -356,64 +356,85 @@ def plot_gm_bars(rows: list[dict], ci_rows: list[dict], out: Path):
     fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
 
 
-def plot_per_config_delta(
-    sig10_results: Path, sig01_results: Path,
-    sig10_tag: str, sig01_tag: str,
-    ci_rows: list[dict],
+def _dataset_to_domain(all_csv: Path) -> dict[str, str]:
+    """Map GIFT-Eval config (e.g. `loop_seattle/5T/short`) to its `domain` field
+    (e.g. `Transport`). Read once per (head, ckpt) eval directory."""
+    m: dict[str, str] = {}
+    if not all_csv.exists():
+        return m
+    for r in csv.DictReader(open(all_csv)):
+        m[r["dataset"]] = r.get("domain", "Other")
+    return m
+
+
+def _gm_by_domain(rels: dict[str, float], dmap: dict[str, str]) -> dict[str, float]:
+    """Aggregate per-config rel-MASE into geometric mean per domain."""
+    acc: dict[str, list[float]] = {}
+    for cfg, rel in rels.items():
+        dom = dmap.get(cfg)
+        if rel <= 0 or dom is None:
+            continue
+        acc.setdefault(dom, []).append(math.log(rel))
+    return {d: math.exp(sum(v) / len(v)) for d, v in acc.items()}
+
+
+def plot_perdomain_radar(
+    sig10_results: Path, sig10_tag: str,
+    sig01_results: Path, sig01_tag: str,
     out: Path,
 ):
-    """For each (head, ckpt), show the per-config rel-MASE delta
-    (λ_e=1.0 − λ_e=0.1) across the 97 configs as a strip-scatter; overlay the
-    absolute GM delta ± its paired-bootstrap 95% CI computed on the log-ratio
-    of GMs — the same CI methodology used by gm_rel_mase.png / gm_table.csv,
-    so a single CI methodology is reported throughout.
-    Negative = λ_e=1.0 better."""
-    cells = [("2L", "best", ""), ("2L", "last", "_last"),
-             ("6L", "best", ""), ("6L", "last", "_last")]
-    ci_by_cell = {(r["head"], r["ckpt"]): r for r in ci_rows}
-    fig, axes = plt.subplots(1, 4, figsize=(15, 4.2), sharey=True)
-    rng = np.random.default_rng(20260622)
-    for ax, (head, ckpt, suf) in zip(axes, cells):
-        sub10 = sig10_results / f"gift_eval_full_{sig10_tag}{suf}_{head}" / "summary.txt"
-        sub01 = sig01_results / f"gift_eval_full_{sig01_tag}{suf}_{head}" / "summary.txt"
-        r10 = parse_per_config_rel_mase(sub10)
-        r01 = parse_per_config_rel_mase(sub01)
-        common = sorted(set(r10) & set(r01))
-        d = np.array([r10[c] - r01[c] for c in common])
-        x_jit = rng.uniform(-0.18, 0.18, size=len(d))
-        ax.axhline(0, color="k", lw=0.7, alpha=0.6)
-        ax.scatter(x_jit, d, s=9, alpha=0.55, color=ARM_COLOR["sigreg10_enc3"])
-        ci = ci_by_cell.get((head, ckpt), {})
-        # Use the same CI as gm_rel_mase.png / gm_table.csv: paired bootstrap
-        # on the log-ratio of GMs, converted to absolute GM-delta scale via
-        # GM(prior) * (exp(log_ratio_quantile) - 1). gm_delta_abs / lo / hi are
-        # already in that scale in ci_by_cell.
-        gm_delta = ci.get("gm_delta_abs", float("nan"))
-        gm_lo    = ci.get("gm_delta_lo",  float("nan"))
-        gm_hi    = ci.get("gm_delta_hi",  float("nan"))
-        p_neg    = ci.get("p_below_zero", float("nan"))
-        if not (isinstance(gm_delta, float) and math.isnan(gm_delta)):
-            ax.errorbar([0], [gm_delta],
-                        yerr=[[gm_delta - gm_lo], [gm_hi - gm_delta]],
-                        fmt="D", color="k", ecolor="k",
-                        capsize=5, capthick=1.2, elinewidth=1.2, markersize=6,
-                        zorder=5,
-                        label=(
-                            f"Δ_GM={gm_delta:+.3f}\n"
-                            f"95% CI [{gm_lo:+.3f}, {gm_hi:+.3f}]\n"
-                            f"P(Δ<0)={p_neg:.2f}"
-                        ))
-        ax.set_xlim(-0.45, 0.45); ax.set_xticks([])
-        ax.set_title(f"{head}/{ckpt}\nn={len(d)}", fontsize=10)
-        ax.grid(axis="y", alpha=0.3)
-        ax.legend(loc="lower right", fontsize=7)
-    axes[0].set_ylabel("Per-config rel-MASE  Δ = λ_e=1.0 − λ_e=0.1\n(< 0 → λ_e=1.0 better on that config)")
+    """2 panels (2L | 6L), 4 curves each (λ_e ∈ {1.0, 0.1} × {best, last}).
+    Solid = best-loss ckpt, dashed = last ckpt. Radial log scale; ring at 1.0
+    marks seasonal-naive parity; lower = better. Lifted from the parent SIGReg
+    report's `plot_perdomain_radar`, narrowed to the two SIGReg arms."""
+    HEADS = ["2L", "6L"]
+    RED, GREEN = ARM_COLOR["sigreg01_enc3"], ARM_COLOR["sigreg10_enc3"]
+    CURVES = [  # (root, tag, suf, colour, linestyle, label)
+        (sig10_results, sig10_tag, "",      GREEN, "-",  "λ_e=1.0 · best"),
+        (sig10_results, sig10_tag, "_last", GREEN, "--", "λ_e=1.0 · last"),
+        (sig01_results, sig01_tag, "",      RED,   "-",  "λ_e=0.1 · best"),
+        (sig01_results, sig01_tag, "_last", RED,   "--", "λ_e=0.1 · last"),
+    ]
+    fig, axes = plt.subplots(1, 2, figsize=(13, 7), subplot_kw=dict(polar=True))
+    for ax, head in zip(axes, HEADS):
+        cells = []
+        for root, tag, suf, col, ls, lab in CURVES:
+            sub = root / f"gift_eval_full_{tag}{suf}_{head}"
+            rel = parse_per_config_rel_mase(sub / "summary.txt")
+            dmap = _dataset_to_domain(sub / "all_results.csv")
+            gm = _gm_by_domain(rel, dmap)
+            if gm:
+                cells.append((lab, gm, col, ls))
+        if not cells:
+            ax.text(0.5, 0.5, "no eval", transform=ax.transAxes); continue
+        domains = sorted(set().union(*(g for _, g, _, _ in cells)))
+        theta = np.linspace(0, 2 * np.pi, len(domains), endpoint=False)
+        theta_closed = np.concatenate([theta, theta[:1]])
+        vals = [v for _, g, _, _ in cells for v in g.values()]
+        lo, hi = max(0.5, min(vals) * 0.92), max(vals) * 1.06
+        ax.set_theta_offset(np.pi / 2); ax.set_theta_direction(-1)
+        ax.set_xticks(theta); ax.set_xticklabels(domains, fontsize=8)
+        ax.set_rscale("log"); ax.set_ylim(lo, hi)
+        rticks = [t for t in (0.8, 1.0, 1.2, 1.5, 2.0) if lo < t < hi]
+        ax.set_yticks(rticks)
+        ax.set_yticklabels([f"{t:g}" for t in rticks], fontsize=7, color="0.4")
+        ax.set_rlabel_position(90)
+        ax.plot(theta_closed, [1.0] * len(theta_closed),
+                color="k", ls=(0, (2, 2)), lw=0.8, alpha=0.6, zorder=1)
+        for lab, g, col, ls in cells:
+            v = np.array([g.get(d, np.nan) for d in domains]
+                         + [g.get(domains[0], np.nan)])
+            ax.plot(theta_closed, v, color=col, ls=ls, lw=1.6, zorder=3,
+                    marker="o", markersize=3, label=lab)
+        ax.set_title(f"{head} q-head", fontsize=11, pad=14)
+        ax.legend(loc="upper left", bbox_to_anchor=(-0.05, -0.06),
+                  fontsize=8, frameon=False, ncol=1)
     fig.suptitle(
-        "Per-config rel-MASE deltas (n=97 per panel); "
-        "black diamond = paired-bootstrap Δ_GM ± 95% CI",
-        fontsize=10,
-    )
-    fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
+        "Per-domain GM relative MASE on GIFT-Eval full-97 "
+        "(radial log scale; ring at 1.0 = seasonal-naive; lower = better; "
+        "solid = best-loss ckpt, dashed = last)", fontsize=11)
+    fig.tight_layout(rect=[0, 0.03, 1, 0.93])
+    fig.savefig(out, dpi=110, bbox_inches="tight"); plt.close(fig)
 
 
 def _window_summary(window: pd.DataFrame, lam_e: float) -> dict[str, float]:
@@ -568,10 +589,10 @@ if __name__ == "__main__":
     rows = write_gm_table(results, results / "gm_table.csv", args.sig10_tag, ci_rows=ci_rows)
     plot_sigreg_inspection(sig10_csv, args.sig01_csv, plots / "sigreg_e_inspection.png")
     plot_gm_bars(rows, ci_rows, plots / "gm_rel_mase.png")
-    plot_per_config_delta(
-        sig10_results=results, sig01_results=args.sig01_results,
-        sig10_tag=args.sig10_tag, sig01_tag=args.sig01_tag,
-        ci_rows=ci_rows, out=plots / "per_config_delta.png",
+    plot_perdomain_radar(
+        sig10_results=results, sig10_tag=args.sig10_tag,
+        sig01_results=args.sig01_results, sig01_tag=args.sig01_tag,
+        out=plots / "perdomain_radar.png",
     )
 
     traj_new   = final_trajectories(sig10_csv)
