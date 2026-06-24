@@ -384,16 +384,17 @@ def plot_perdomain_radar(
     out: Path,
 ):
     """2 panels (2L | 6L), 4 curves each (λ_e ∈ {1.0, 0.1} × {best, last}).
-    Solid = best-loss ckpt, dashed = last ckpt. Radial log scale; ring at 1.0
-    marks seasonal-naive parity; lower = better. Lifted from the parent SIGReg
-    report's `plot_perdomain_radar`, narrowed to the two SIGReg arms."""
+    Palette: light-red (λ_e=0.1, best) / dark-red (λ_e=0.1, last) /
+    light-green (λ_e=1.0, best) / dark-green (λ_e=1.0, last). Radial log scale;
+    ring at 1.0 marks seasonal-naive parity; lower = better."""
     HEADS = ["2L", "6L"]
-    RED, GREEN = ARM_COLOR["sigreg01_enc3"], ARM_COLOR["sigreg10_enc3"]
+    LIGHT_RED, DARK_RED   = "#f08183", "#8a1416"
+    LIGHT_GREEN, DARK_GREEN = "#6dc56e", "#185f1a"
     CURVES = [  # (root, tag, suf, colour, linestyle, label)
-        (sig10_results, sig10_tag, "",      GREEN, "-",  "λ_e=1.0 · best"),
-        (sig10_results, sig10_tag, "_last", GREEN, "--", "λ_e=1.0 · last"),
-        (sig01_results, sig01_tag, "",      RED,   "-",  "λ_e=0.1 · best"),
-        (sig01_results, sig01_tag, "_last", RED,   "--", "λ_e=0.1 · last"),
+        (sig10_results, sig10_tag, "",      LIGHT_GREEN, "-", "λ_e=1.0 · best"),
+        (sig10_results, sig10_tag, "_last", DARK_GREEN,  "-", "λ_e=1.0 · last"),
+        (sig01_results, sig01_tag, "",      LIGHT_RED,   "-", "λ_e=0.1 · best"),
+        (sig01_results, sig01_tag, "_last", DARK_RED,    "-", "λ_e=0.1 · last"),
     ]
     fig, axes = plt.subplots(1, 2, figsize=(13, 7), subplot_kw=dict(polar=True))
     for ax, head in zip(axes, HEADS):
@@ -432,7 +433,7 @@ def plot_perdomain_radar(
     fig.suptitle(
         "Per-domain GM relative MASE on GIFT-Eval full-97 "
         "(radial log scale; ring at 1.0 = seasonal-naive; lower = better; "
-        "solid = best-loss ckpt, dashed = last)", fontsize=11)
+        "light shade = best-loss ckpt, dark shade = last)", fontsize=11)
     fig.tight_layout(rect=[0, 0.03, 1, 0.93])
     fig.savefig(out, dpi=110, bbox_inches="tight"); plt.close(fig)
 

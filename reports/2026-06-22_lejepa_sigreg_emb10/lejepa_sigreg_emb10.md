@@ -15,7 +15,7 @@ In the prior `λ_e=λ_h=0.1` SIGReg arm the embedding-side regulariser contribut
 
 Point Δ_GM (this arm − prior arm) is negative in all 4 (q-head depth, backbone-checkpoint) cells (range `[−0.014, −0.007]`); all 4 paired-bootstrap 95% CIs include zero (P(Δ<0) range `[0.83, 0.95]`).
 
-![Per-domain GM-Rel MASE on GIFT-Eval full-97 — 2 panels (2L | 6L q-head), 4 curves per panel: λ_e=1.0 (green) vs λ_e=0.1 (red), solid = best-loss ckpt, dashed = last; radial log scale, ring at 1.0 = seasonal-naive parity, lower = better.](plots/perdomain_radar.png)
+![Per-domain GM-Rel MASE on GIFT-Eval full-97 — 2 panels (2L | 6L q-head), 4 curves per panel: λ_e=1.0 (greens) vs λ_e=0.1 (reds), light shade = best-loss ckpt, dark shade = last; radial log scale, ring at 1.0 = seasonal-naive parity, lower = better.](plots/perdomain_radar.png)
 
 Per-domain curves of the two arms overlap on every domain at both q-head depths; no domain shows a separation visibly larger than the cross-ckpt within-arm gap.
 
@@ -79,9 +79,10 @@ Each backbone checkpoint (`best` = best train-loss, `last` = step 12 500) trains
 
 ### A. Plot provenance
 
-- **Sources.** Training CSV `runs/bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_losses.csv` (12 500 rows, seed `20260520`). `λ_e=λ_h=0.1` overlay reads `reports/2026-06-20_lejepa_sigreg/runs/bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_losses.csv` and its matching GIFT-Eval summary tree. Reference GMs transcribed as constants in [`scripts/build_report.py`](scripts/build_report.py).
+- **Sources.** Training CSV `runs/bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_losses.csv` (12 500 rows, seed `20260520`). `λ_e=λ_h=0.1` overlay reads `reports/2026-06-20_lejepa_sigreg/runs/bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_losses.csv` and its matching GIFT-Eval summary tree.
 - **Bootstrap.** Paired bootstrap on the 97 per-config rel-MASE values, B=10 000, seed 20260622, statistic = `mean(log(rel_A) − log(rel_B))`, converted to absolute GM-Rel MASE scale. Per-cell rows in `results/bootstrap_ci.csv`.
-- **Colour map.** grey = enc3+CPC B=1024; blue = EMA-target enc3+CPC B=1024; red = SIGReg `λ_e=λ_h=0.1` B=512; green = SIGReg `λ_e=1.0, λ_h=0.1` B=512.
+- **Colour map (bar chart).** grey = enc3+CPC B=1024; blue = EMA-target enc3+CPC B=1024; red = SIGReg `λ_e=λ_h=0.1` B=512; green = SIGReg `λ_e=1.0, λ_h=0.1` B=512.
+- **Colour map (radar).** light-red / dark-red = SIGReg `λ_e=λ_h=0.1` B=512 best / last ckpt; light-green / dark-green = SIGReg `λ_e=1.0, λ_h=0.1` B=512 best / last ckpt.
 
 ### B. Trajectory means — Early-50, Tail-50, and within-arm delta
 
@@ -126,6 +127,6 @@ Each backbone checkpoint (`best` = best train-loss, `last` = step 12 500) trains
 | `λ_e · L_SIGReg(e_t) / loss` | +2.00e-4 | +1.56e-4 |
 | total `loss` | +0.0020 | +0.3011 |
 
-### C. GIFT-Eval wrapper emits only GM-Rel MASE
+### C. Metric scope
 
-`scripts/run_gift_eval_full.sh` emits only `Aggregate GM-Relative MASE (97 configs)` per `summary.txt`; the per-config CSV does not carry the seasonal-naive denominators needed for GM-MASE / GM-MAPE_SN / GM-CRPS_SN.
+Reported GIFT-Eval aggregate: GM-Rel MASE only. GM-MASE, GM-MAPE_SN, and GM-CRPS_SN are out of scope — the per-config evaluation output does not carry the seasonal-naive denominators required to compute them.
