@@ -15,6 +15,8 @@ The four arms run:
 
 ## Result
 
+**Verdict.** Along the SIGReg-weight axis at this recipe, the only clear-of-noise improvement over the `λ_e=1.0, λ_h=0.1` anchor is arm 2 (`λ_e=10.0, λ_h=1.0`) on the `2L/best` cell; on the other 3 (head, ckpt) cells no sweep cell's 95% CI excludes zero, and arm 5 (`λ_e=100.0`) regresses against arm 1 on both last-ckpt cells.
+
 Across all 8 arms (4 anchors + 4 sweep), arm 2 (`λ_e=10.0, λ_h=1.0`) is the lowest on both best-ckpt cells. Among the 4 sweep arms, arm 1 (`λ_e=10.0, λ_h=0.1`) is the lowest on both last-ckpt cells; arm 5 (`λ_e=100.0, λ_h=0.1`) is the highest on both. Which arm "wins" depends on which checkpoint is reported.
 
 ![GIFT-Eval full-97 GM-Rel MASE bars across the 4 anchors and the 4 sweep arms, faceted by (q-head depth, backbone checkpoint); whiskers on the sweep bars = paired-bootstrap 95% CI vs the `λ_e=1.0, λ_h=0.1` anchor; per-cell horizontal lines mark each anchor at its published value (grey dotted = enc3+CPC, blue dotted = EMA enc3+CPC, red dashed = SIGReg λ_e=λ_h=0.1, green solid = SIGReg λ_e=1.0/λ_h=0.1); bar labels = GM-Rel MASE.](plots/gm_rel_mase.png)
@@ -25,7 +27,7 @@ Only one cell has a paired-bootstrap 95% CI vs the `λ_e=1.0, λ_h=0.1` anchor t
 
 ![Best→last checkpoint drift (`last GM − best GM`) per arm, split by 2L vs 6L q-head; the only arm with negative drift (`last better than best`) on both heads is the `enc3+CPC, B=1024` anchor.](plots/best_vs_last_drift.png)
 
-**λ_e ladder at fixed λ_h=0.1.** Walking `λ_e` from 0.1 → 1.0 → 10.0 → 100.0 at `λ_h=0.1`, the GM drops between 0.1 and 1.0 on all 4 cells, moves by Δ ∈ [−0.0071, +0.0039] between 1.0 and 10.0 (within the bootstrap CI on every cell), then rises at `λ_e=100.0` on all 4 cells. The per-cell minimum lands at `λ_e=1.0` for `6L/best` (1.1408) and `6L/last` (1.1482), at `λ_e=10.0` for `2L/best` (1.1474, +0.0004 above 1.0) and at `λ_e=10.0` for `2L/last` (1.1610, −0.0071 below 1.0).
+**λ_e ladder at fixed λ_h=0.1.** Walking `λ_e` from 0.1 → 1.0 → 10.0 → 100.0 at `λ_h=0.1`, the GM drops between 0.1 and 1.0 on all 4 cells, moves by Δ ∈ [−0.0071, +0.0039] between 1.0 and 10.0 (within the bootstrap CI on every cell), then rises at `λ_e=100.0` on all 4 cells. Per-cell minima: `2L/best` 1.1470 at `λ_e=1.0` (10.0 at 1.1474, inside the CI); `2L/last` 1.1610 at `λ_e=10.0` (−0.0071 below 1.0); `6L/best` 1.1408 at `λ_e=1.0` (10.0 at 1.1447); `6L/last` 1.1473 at `λ_e=10.0` (−0.0009 below 1.0).
 
 ![λ_e ladder at fixed λ_h=0.1: 4 line curves (2L/6L × best/last) versus log(λ_e); shaded bands = paired-bootstrap 95% CI vs the `λ_e=1.0` anchor. The 0.1 / 1.0 ticks come from the two prior anchors (#355, #359); 10.0 = arm 1; 100.0 = arm 5.](plots/lambda_e_ladder.png)
 
@@ -73,8 +75,6 @@ Arm 1 differs from the anchor by a single `λ_e` factor of 10×, so Δ vs arm 1 
 | arm 2 (10.0, 1.0) | 6L / last | +0.0042 | `[−0.0121, +0.0207]` | 0.294 |
 | arm 5 (100.0, 0.1) | 2L / last | +0.0218 | `[+0.0047, +0.0410]` | 0.005 |
 | arm 5 (100.0, 0.1) | 6L / last | +0.0209 | `[+0.0026, +0.0411]` | 0.011 |
-
-Vs arm 1, arm 2 improves both best-ckpt cells with 95% CIs that exclude zero; arm 2's `2L/last` regression has CI `[−0.001, +0.031]` (lower edge `−0.001`). Arm 5's two last-ckpt regressions have CIs that exclude zero.
 
 ### Training trajectory
 
@@ -146,7 +146,7 @@ Anchor GM values are transcribed verbatim from the prior `λ_e=1.0, λ_h=0.1` re
 
 ### B. Tail-50 trajectories per arm
 
-Tail-50 mean = mean of the last 50 of 12 500 training steps. Reported per arm.
+Tail-50 mean = mean over steps 12 451–12 500 (last 50 of 12 500 logged steps) of each per-arm `experiments/2026-06-24_sigreg_lambda_sweep/runs/bb_<tag>_losses.csv`; per-arm final-step values are tabulated alongside in [`results/final_trajectories.txt`](results/final_trajectories.txt) so the Tail-50 / final-step distinction is auditable.
 
 | arm | `loss` | `sigreg_e` | `sigreg_h` | `u_batch_e` | `u_temporal_e` | `u_batch` (`h_t`) | `u_temporal` (`h_t`) |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -154,8 +154,6 @@ Tail-50 mean = mean of the last 50 of 12 500 training steps. Reported per arm.
 | arm 2 (10.0, 1.0) | 4.550 | 4.49e-4 | 3.31e-4 | 0.0506 | 0.0340 | 0.7964 | 0.6291 |
 | arm 3 (10.0, 10.0) | 4.256 | 4.46e-4 | 3.20e-4 | 0.0588 | 0.0400 | 0.7853 | 0.6138 |
 | arm 5 (100.0, 0.1) | 3.878 | 7.10e-6 | 9.61e-5 | 0.0177 | 0.0160 | 0.6161 | 0.2705 |
-
-Tail-50 = mean over the last 50 training steps of each per-arm `bb_<tag>_<arm>_losses.csv`.
 
 ### C. Scope notes
 
