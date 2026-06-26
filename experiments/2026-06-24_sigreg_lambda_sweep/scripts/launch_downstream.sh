@@ -14,6 +14,16 @@ SCRIPT="$WT/experiments/2026-06-24_sigreg_lambda_sweep/scripts/downstream_sigreg
 RES="$OUT/results"; mkdir -p "$RES"
 log(){ echo "[$(date '+%m-%d %H:%M:%S')] [dl-launch ${SUFFIX}] $*"; }
 
+# Avoid GPU contention if a sibling-arm BB is still running (only relevant when
+# arm 2 BB was launched in parallel with arm 1 BB on the other GPU): block on
+# any train.py whose --run-name is a sweep backbone, except ours.
+while true; do
+  others=$(pgrep -af "train.py.*--run-name *bb_.*_sigreg_qk_aon_b512_cpc_(emb100_enc01|emb100_enc10|emb100_enc100|emb10_enc10)" 2>/dev/null | grep -vE -- "--run-name *bb_.*_${SUFFIX}\b" | wc -l)
+  [ "$others" = "0" ] && break
+  log "waiting for $others sibling-arm BB process(es) to finish before starting dl"
+  sleep 60
+done
+
 log "starting 2L on GPU 0 + 6L on GPU 1 (parallel) for arm=${SUFFIX}"
 bash "$SCRIPT" 2 0 "$SUFFIX" >>"$RES/dl_2L_${SUFFIX}.log" 2>&1 &
 pid2=$!
