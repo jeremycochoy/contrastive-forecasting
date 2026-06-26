@@ -1,0 +1,14 @@
+[06-24 15:18:39] [queue] queue start; arm1 PID 156050 (GPU 0); arm2 PID 163299 (GPU 1)
+[06-24 15:20:36] [queue] queue start (rev-2); arm1 PID 156050 (GPU 0); arm2 PID 163299 (GPU 1)
+[06-24 20:28:37] [queue] arm1 BB python exited; GPU 0 free
+[06-24 20:28:42] [queue] arm3 BB launched (bash PID 295321) -> /tmp/contrastive-forecasting-363/experiments/2026-06-24_sigreg_lambda_sweep/results/sweep_bb_emb100_enc100.log
+[06-24 20:43:42] [queue] arm2 BB python exited; GPU 1 free
+[06-25 02:04:42] [queue] arm3 BB bash exited
+[06-25 02:04:42] [queue] downstream start arm=emb100_enc01 -> /tmp/contrastive-forecasting-363/experiments/2026-06-24_sigreg_lambda_sweep/results/sweep_dl_emb100_enc01.log
+[06-25 11:27:51] [queue] downstream done arm=emb100_enc01 rc=0
+[06-25 11:27:51] [queue] downstream start arm=emb100_enc10 -> /tmp/contrastive-forecasting-363/experiments/2026-06-24_sigreg_lambda_sweep/results/sweep_dl_emb100_enc10.log
+[06-25 21:37:33] [queue] downstream done arm=emb100_enc10 rc=0
+[06-25 21:37:33] [queue] downstream start arm=emb100_enc100 -> /tmp/contrastive-forecasting-363/experiments/2026-06-24_sigreg_lambda_sweep/results/sweep_dl_emb100_enc100.log
+[06-26 09:49:56] [queue] downstream done arm=emb100_enc100 rc=0
+[06-26 09:49:56] [queue] aggregate_to_report.sh start
+[06-26 09:50:00] [queue] aggregate_to_report rc=0
