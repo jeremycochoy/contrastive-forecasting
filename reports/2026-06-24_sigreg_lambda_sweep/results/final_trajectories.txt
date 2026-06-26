@@ -1,0 +1,70 @@
+# Tail-50 mean per arm — mean of the last 50 of 12 500 logged training steps per per-arm bb_<tag>_losses.csv.
+
+== emb100_enc01 (SIGReg + EMA-target, B=512 (λ_e=10.0, λ_h=0.1)) ==
+steps	12451..12500
+u_batch_tail50_mean	0.7733798801898957
+u_batch_e_tail50_mean	0.018971550092101098
+u_temporal_tail50_mean	0.48248928129673
+u_temporal_e_tail50_mean	0.016426895819604395
+sigreg_e_tail50_mean	0.00018957645748741926
+sigreg_h_tail50_mean	0.0005067477747797966
+loss_tail50_mean	4.202711391448974
+u_batch_final_step	0.7925587892532349
+u_batch_e_final_step	0.02072063833475113
+u_temporal_final_step	0.49497076869010925
+u_temporal_e_final_step	0.01752864569425583
+sigreg_e_final_step	0.00019267488096375018
+sigreg_h_final_step	0.0005137962871231139
+loss_final_step	4.153156757354736
+
+== emb100_enc10 (SIGReg + EMA-target, B=512 (λ_e=10.0, λ_h=1.0)) ==
+steps	12451..12500
+u_batch_tail50_mean	0.7964490628242493
+u_batch_e_tail50_mean	0.05063991613686085
+u_temporal_tail50_mean	0.6290781390666962
+u_temporal_e_tail50_mean	0.03399892881512642
+sigreg_e_tail50_mean	0.0004488927824422717
+sigreg_h_tail50_mean	0.0003306270588655025
+loss_tail50_mean	4.549749670028686
+u_batch_final_step	0.8162073493003845
+u_batch_e_final_step	0.051198653876781464
+u_temporal_final_step	0.642802357673645
+u_temporal_e_final_step	0.03480452671647072
+sigreg_e_final_step	0.0004493187298066914
+sigreg_h_final_step	0.00032481158268637955
+loss_final_step	4.555217742919922
+
+== emb100_enc100 (SIGReg + EMA-target, B=512 (λ_e=10.0, λ_h=10.0)) ==
+steps	12451..12500
+u_batch_tail50_mean	0.7853197503089905
+u_batch_e_tail50_mean	0.058844018802046774
+u_temporal_tail50_mean	0.6137931656837463
+u_temporal_e_tail50_mean	0.04003516934812069
+sigreg_e_tail50_mean	0.0004460402100812644
+sigreg_h_tail50_mean	0.0003202667023288086
+loss_tail50_mean	4.255850868225098
+u_batch_final_step	0.8041423559188843
+u_batch_e_final_step	0.05967634171247482
+u_temporal_final_step	0.6257749199867249
+u_temporal_e_final_step	0.04098774120211601
+sigreg_e_final_step	0.00048468023305758834
+sigreg_h_final_step	0.000320843217195943
+loss_final_step	4.2706170082092285
+
+== emb1000_enc01 (SIGReg + EMA-target, B=512 (λ_e=100.0, λ_h=0.1)) ==
+steps	12451..12500
+u_batch_tail50_mean	0.6161189031600952
+u_batch_e_tail50_mean	0.017684743087738753
+u_temporal_tail50_mean	0.2705348116159439
+u_temporal_e_tail50_mean	0.015978250056505203
+sigreg_e_tail50_mean	7.101017126842635e-06
+sigreg_h_tail50_mean	9.613946473109536e-05
+loss_tail50_mean	3.8775733661651612
+u_batch_final_step	0.637500524520874
+u_batch_e_final_step	0.019421499222517014
+u_temporal_final_step	0.28206729888916016
+u_temporal_e_final_step	0.017184032127261162
+sigreg_e_final_step	4.978767719876487e-06
+sigreg_h_final_step	9.479482832830399e-05
+loss_final_step	3.797017812728882
+
