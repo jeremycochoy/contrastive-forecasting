@@ -23,7 +23,7 @@ Across all 8 arms (4 anchors + 4 sweep), arm 2 (`λ_e=10.0, λ_h=1.0`) is the lo
 
 Only one cell has a paired-bootstrap 95% CI vs the `λ_e=1.0, λ_h=0.1` anchor that excludes zero: arm 2 on `2L/best` (Δ = −0.017, 95% CI `[−0.029, −0.005]`, P(Δ<0) = 0.997). Every other sweep cell's CI vs that anchor straddles zero.
 
-**Best-vs-last divergence.** Arm 2's `2L` best→last drift is `+0.045` — the largest positive drift in the GM table. Recomputed against arm 1, arm 2's `2L/last` regression is Δ = +0.015 (95% CI `[−0.001, +0.031]`, P(Δ<0) = 0.033); the lower edge of the CI is `−0.001`. Arm 5 has the highest `2L/last` of all arms (1.1828); its `2L/last` and `6L/last` regressions vs arm 1 have CIs that exclude zero (`[+0.005, +0.041]` and `[+0.003, +0.041]` respectively).
+**Best-vs-last divergence.** Arm 2's `2L` best→last drift is `+0.045` — the largest positive drift in the GM table. Recomputed against arm 1, arm 2's `2L/last` regression is Δ = +0.015 (95% CI `[−0.001, +0.031]`, P(Δ<0) = 0.033). Arm 5 has the highest `2L/last` of all arms (1.1828); its `2L/last` and `6L/last` regressions vs arm 1 have CIs that exclude zero (`[+0.005, +0.041]` and `[+0.003, +0.041]` respectively).
 
 ![Best→last checkpoint drift (`last GM − best GM`) per arm, split by 2L vs 6L q-head; the only arm with negative drift (`last better than best`) on both heads is the `enc3+CPC, B=1024` anchor.](plots/best_vs_last_drift.png)
 
