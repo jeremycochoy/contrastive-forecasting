@@ -39,8 +39,7 @@ so $(\hat z_i \cdot \hat z_j)^2 \equiv 1$, $\overline{\cos^2} = 1$, and
 
 $$U \;=\; \frac{1}{d \cdot 1} \;=\; \frac{1}{d}.$$
 
-The two limits are **isotropic → 1**, **rank-1 → 1/d** — *not* the inverse
-suggested in the report Vocabulary entry (see §5).
+The two limits are **isotropic → 1**, **rank-1 → 1/d**.
 
 ## 3. Is U a per-dimension usage estimator?
 
