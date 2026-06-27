@@ -9,7 +9,7 @@ mkdir -p "$REP/runs" "$REP/results" "$REP/plots"
 
 # Backbones: losses CSVs only (full .pth checkpoints stay in experiments/runs/
 # — they're hundreds of MB each and not required for the report)
-for s in emb100_enc01 emb100_enc10 emb100_enc100 emb10_enc10; do
+for s in emb100_enc01 emb100_enc10 emb100_enc100 emb10_enc10 emb1000_enc01 emb10000_enc10; do
   src="$EXP/runs/bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_${s}_losses.csv"
   [ -f "$src" ] && cp -u "$src" "$REP/runs/"
 done
@@ -29,6 +29,9 @@ done
 for d in "$EXP"/results/gift_eval_full_*; do
   [ -d "$d" ] && cp -r -u "$d" "$REP/results/"
 done
+
+# Retroactive u_batchtime CSV (final-step pooled dim-usage per backbone)
+[ -f "$EXP/results/u_batchtime_retro.csv" ] && cp -u "$EXP/results/u_batchtime_retro.csv" "$REP/results/"
 
 # Anchor loss CSVs from prior reports — symlink, do not duplicate
 ln -sf "$WT/reports/2026-06-20_lejepa_sigreg/runs/bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_losses.csv" "$REP/runs/anchor_sigreg01.csv" 2>/dev/null || true

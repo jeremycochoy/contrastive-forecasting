@@ -312,42 +312,68 @@ def plot_sigreg_inspection(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Pat
     fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
 
 
-def plot_dim_usage(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Path, out: Path):
+def plot_dim_usage(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Path,
+                   retro_csv: Path, out: Path):
     """Dimension usage U on h_t (solid) and e_t (dashed) for sweep arms and the
     2 anchors. U measures how many of the K=384 latent dimensions are actively
     used; the 1/K floor corresponds to all K dimensions evenly used (max
     diversity), values near 1 to collapse onto a single direction.
-    `PLOT_START_STEP` cuts the warm-up regime in line with the other trajectory
-    plots."""
-    fig, axes = plt.subplots(1, 2, figsize=(13, 4.8), sharey=True)
+
+    Three rows on the same axis:
+      row 1 — U_batch (cross-batch),
+      row 2 — U_temporal (cross-time),
+      row 3 — U_batchtime (cross-(batch × time) pooled). The pooled variant
+        mirrors SIGReg's own (B·T, K) sample axis. Row 3 splits into a
+        trajectory subplot (auto-skips runs that predate the metric's
+        commit 2288c4d) and a final-step bar chart sourced from
+        `results/u_batchtime_retro.csv`. The bar chart covers the 4 finished
+        sweep arms and the 2 prior B=512 anchors at backbone FINAL.
+
+    `PLOT_START_STEP` cuts the warm-up regime in line with the other
+    trajectory plots."""
     K = 384
+    fig = plt.figure(figsize=(13, 13.0))
+    gs = fig.add_gridspec(3, 2, height_ratios=[1, 1, 1.15])
+    ax_batch = fig.add_subplot(gs[0, :])
+    ax_temporal = fig.add_subplot(gs[1, :])
+    ax_bt_traj = fig.add_subplot(gs[2, 0])
+    ax_bt_bars = fig.add_subplot(gs[2, 1])
     overlays = {
         "sigreg01_enc3": sigreg_runs / f"bb_{BASE_TAG}_losses.csv",
         "sigreg10_enc3": sigreg10_runs / f"bb_{BASE_TAG}_emb10_losses.csv",
     }
-    for ax, kind in zip(axes, ("batch", "temporal")):
+
+    def _draw_traj(ax, base_col):
         for arm, p in overlays.items():
             if p.exists():
                 d = pd.read_csv(p)
-                if f"u_{kind}" in d.columns:
-                    d = _smoothed(d, f"u_{kind}", PLOT_START_STEP)
-                    ax.plot(d["step"], d[f"u_{kind}_sm"],
+                if base_col in d.columns:
+                    ds = _smoothed(d, base_col, PLOT_START_STEP)
+                    ax.plot(ds["step"], ds[f"{base_col}_sm"],
                             label=f"{ARM_LABEL[arm]} · h_t",
                             color=ARM_COLOR[arm], lw=0.9)
+                if f"{base_col}_e" in d.columns:
+                    ds = _smoothed(d, f"{base_col}_e", PLOT_START_STEP)
+                    ax.plot(ds["step"], ds[f"{base_col}_e_sm"],
+                            label=f"{ARM_LABEL[arm]} · e_t",
+                            color=ARM_COLOR[arm], lw=0.9, ls="--")
         for arm in SWEEP_ARMS:
             p = arm_runs / f"bb_{BASE_TAG}_{arm}_losses.csv"
             if p.exists():
                 d = pd.read_csv(p)
-                if f"u_{kind}" in d.columns:
-                    ds = _smoothed(d, f"u_{kind}", PLOT_START_STEP)
-                    ax.plot(ds["step"], ds[f"u_{kind}_sm"],
+                if base_col in d.columns:
+                    ds = _smoothed(d, base_col, PLOT_START_STEP)
+                    ax.plot(ds["step"], ds[f"{base_col}_sm"],
                             label=f"{ARM_LABEL[arm]} · h_t",
                             color=ARM_COLOR[arm], lw=1.5)
-                if f"u_{kind}_e" in d.columns:
-                    ds = _smoothed(d, f"u_{kind}_e", PLOT_START_STEP)
-                    ax.plot(ds["step"], ds[f"u_{kind}_e_sm"],
+                if f"{base_col}_e" in d.columns:
+                    ds = _smoothed(d, f"{base_col}_e", PLOT_START_STEP)
+                    ax.plot(ds["step"], ds[f"{base_col}_e_sm"],
                             label=f"{ARM_LABEL[arm]} · e_t",
                             color=ARM_COLOR[arm], lw=1.5, ls="--")
+
+    for ax, kind in zip((ax_batch, ax_temporal), ("batch", "temporal")):
+        _draw_traj(ax, f"u_{kind}")
         ax.axhline(1.0 / K, color="k", ls=":", alpha=0.5,
                    label=f"1/K = 1/{K} ≈ {1/K:.4f} (all K dims evenly used)")
         ax.set_xlabel(f"step  (start = {PLOT_START_STEP})")
@@ -355,6 +381,63 @@ def plot_dim_usage(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Path, out: 
         ax.set_title(f"U_{kind} ({'cross-batch' if kind=='batch' else 'cross-time'})")
         ax.set_ylim(0, 1)
         ax.legend(fontsize=5.6); ax.grid(alpha=0.3)
+
+    _draw_traj(ax_bt_traj, "u_batchtime")
+    ax_bt_traj.axhline(1.0 / K, color="k", ls=":", alpha=0.5,
+                       label=f"1/K = 1/{K} ≈ {1/K:.4f} (all K dims evenly used)")
+    ax_bt_traj.set_xlabel(f"step  (start = {PLOT_START_STEP})")
+    ax_bt_traj.set_ylabel("U (dimension usage)")
+    ax_bt_traj.set_title(
+        "U_batchtime (cross-(batch × time) pooled) — trajectory\n"
+        "empty for runs predating the metric (commit 2288c4d)")
+    ax_bt_traj.set_ylim(0, 1)
+    ax_bt_traj.legend(fontsize=5.6, loc="upper right"); ax_bt_traj.grid(alpha=0.3)
+
+    retro = pd.read_csv(retro_csv)
+    retro_arm_map = {
+        "anchor_emb01":   "sigreg01_enc3",
+        "anchor_emb10":   "sigreg10_enc3",
+        "emb100_enc01":   "emb100_enc01",
+        "emb100_enc10":   "emb100_enc10",
+        "emb100_enc100":  "emb100_enc100",
+        "emb1000_enc01":  "emb1000_enc01",
+    }
+    bar_order = ["sigreg01_enc3", "sigreg10_enc3",
+                 "emb100_enc01", "emb100_enc10", "emb100_enc100", "emb1000_enc01"]
+    retro_by_arm = {retro_arm_map[r["arm"]]: r for _, r in retro.iterrows()
+                    if r["arm"] in retro_arm_map}
+    arms_present = [a for a in bar_order if a in retro_by_arm]
+    x = np.arange(len(arms_present))
+    w = 0.40
+    h_vals = [float(retro_by_arm[a]["u_batchtime"])   for a in arms_present]
+    e_vals = [float(retro_by_arm[a]["u_batchtime_e"]) for a in arms_present]
+    ax_bt_bars.bar(x - w / 2, h_vals, w,
+                   color=[ARM_COLOR[a] for a in arms_present],
+                   edgecolor="black", linewidth=0.4,
+                   label="u_batchtime · h_t")
+    ax_bt_bars.bar(x + w / 2, e_vals, w,
+                   color=[ARM_COLOR[a] for a in arms_present],
+                   edgecolor="black", linewidth=0.4, hatch="//",
+                   label="u_batchtime_e · e_t")
+    for xi, v in zip(x - w / 2, h_vals):
+        ax_bt_bars.text(xi, v + 0.006, f"{v:.4f}",
+                        ha="center", va="bottom", fontsize=6.5)
+    for xi, v in zip(x + w / 2, e_vals):
+        ax_bt_bars.text(xi, v + 0.006, f"{v:.4f}",
+                        ha="center", va="bottom", fontsize=6.5)
+    ax_bt_bars.axhline(1.0 / K, color="k", ls=":", alpha=0.5,
+                       label=f"1/K = 1/{K} ≈ {1/K:.4f} (all K dims evenly used)")
+    ax_bt_bars.set_xticks(x)
+    ax_bt_bars.set_xticklabels(
+        [ARM_LABEL[a].split(" (")[0].replace("SIGReg ", "") for a in arms_present],
+        rotation=18, ha="right", fontsize=7)
+    ax_bt_bars.set_ylabel("U_batchtime (final-step, retroactive)")
+    ax_bt_bars.set_title(
+        "U_batchtime (cross-(batch × time)) — backbone FINAL\n"
+        "retroactive from results/u_batchtime_retro.csv")
+    ax_bt_bars.set_ylim(0, max(h_vals + e_vals) * 1.18)
+    ax_bt_bars.legend(fontsize=6.5, loc="upper right"); ax_bt_bars.grid(axis="y", alpha=0.3)
+
     fig.suptitle("Dimension usage U — cos²-based; clipped to [1/K, 1] (floor = all K dims evenly used)")
     fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
 
@@ -383,7 +466,7 @@ def main(argv: list[str] | None = None) -> int:
     plot_sigreg_inspection(args.arm_runs, args.sigreg01_runs, args.sigreg10_runs,
                            plots / "sigreg_e_inspection.png")
     plot_dim_usage(args.arm_runs, args.sigreg01_runs, args.sigreg10_runs,
-                   plots / "dim_usage.png")
+                   results / "u_batchtime_retro.csv", plots / "dim_usage.png")
     print(f"wrote 7 plots under {plots}")
     return 0
 

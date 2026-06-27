@@ -101,7 +101,7 @@ Anchor data provenance (GM-table source, per-config rel-MASE files) is listed in
 | `e_t` | output of the GRU patch-embed at position (batch, time, channel); dimension `K`. |
 | `h_t` | output of the 3-layer transformer encoder at the same position. |
 | **SIGReg** | LeJEPA spherical regulariser. Epps–Pulley test statistic averaged over `M`=1024 random unit-direction 1-D projections of the pooled latent, trapezoidal-integrated on `[−6/√K, 6/√K]` against `N(0, 1/K)`. Two terms: `L_SIGReg(e_t)` weighted by `λ_e`, `L_SIGReg(h_t)` weighted by `λ_h`. |
-| `U`, `u_*` | **dimension usage** statistic of the latent, in `[1/K, 1]` with `K`=384. The `1/K` floor corresponds to all `K` dimensions evenly used (maximally spread); values near 1 correspond to collapse onto a single direction. **Lower = more dimensions in use.** Four variants on two axes: cross-batch (`u_batch`) vs cross-time (`u_temporal`); encoding side (no suffix, on `h_t`) vs embedding side (`_e` suffix, on `e_t`). Full set: `u_batch`, `u_temporal`, `u_batch_e`, `u_temporal_e`. |
+| `U`, `u_*` | **dimension usage** statistic of the latent, in `[1/K, 1]` with `K`=384. The `1/K` floor corresponds to all `K` dimensions evenly used (maximally spread); values near 1 correspond to collapse onto a single direction. **Lower = more dimensions in use.** Three pooling axes — cross-batch (`u_batch`, pools `B` per time slice), cross-time (`u_temporal`, pools `T` per batch slice), and cross-(batch × time) (`u_batchtime`, pools `B·T` jointly — the same `(B·T, K)` sample axis SIGReg's random-projection statistic uses). Each axis has an encoding-side variant on `h_t` (no suffix) and an embedding-side variant on `e_t` (`_e` suffix). Full set: `u_batch`, `u_temporal`, `u_batchtime`, `u_batch_e`, `u_temporal_e`, `u_batchtime_e`. Same `[1/K, 1]` range and `1/K` floor interpretation across all six. |
 | **GM-Rel MASE** | GIFT-Eval full-97 aggregate: geometric mean over 97 configs of (model MASE ÷ seasonal-naive MASE). Lower = better; 1.0 = seasonal-naive parity. |
 | **best-ckpt / last-ckpt** | `best` = backbone checkpoint at lowest train-loss step; `last` = backbone at step 12 500. The q-head is trained from each backbone separately. The preferred end-state is `last ≤ best` (model still improving at step 12 500). |
 | **paired bootstrap** | resample the 97 per-config rel-MASE values with replacement (B=10 000 draws, seed 20260624), recompute the statistic `mean(log(rel_arm) − log(rel_baseline))`, take its 2.5/97.5 quantiles, convert back to absolute GM scale via `GM_baseline · (exp(quantile) − 1)`. Aligned per config. |
@@ -163,7 +163,9 @@ Arm 1 differs from the anchor by a single `λ_e` factor of 10×, so Δ vs arm 1 
 
 ![Log-y trajectories of L_SIGReg(e_t), L_SIGReg(h_t), U_batch(e_t), U_temporal(e_t) from step 100 onwards for the 4 sweep arms and the 2 anchors; rolling 50-step mean. The bottom row is the embedding-side dimension-usage metric U; its 1/K ≈ 0.00260 dotted floor marks all K=384 dims evenly used.](plots/sigreg_e_inspection.png)
 
-![Cross-batch and cross-time dimension usage U on `h_t` (solid) and `e_t` (dashed) for the sweep arms and the 2 anchors from step 100 onwards; clipped to `[1/K, 1]`; the 1/K dotted floor marks all K=384 dims evenly used.](plots/dim_usage.png)
+![Three-row dimension-usage panel. Row 1 = cross-batch U (`u_batch`); row 2 = cross-time U (`u_temporal`); both as trajectories with `h_t` (solid) and `e_t` (dashed) for the sweep arms and 2 anchors from step 100 onwards. Row 3 = cross-(batch × time) pooled U (`u_batchtime`): left = trajectory subplot (empty for runs predating commit 2288c4d — see Anchor note below); right = bar chart of the final-step retroactive `u_batchtime` (`h_t`, solid colour) and `u_batchtime_e` (`e_t`, hatched) for the 4 finished sweep arms and the 2 prior B=512 anchors, sourced from `results/u_batchtime_retro.csv`. All panels clipped to `[1/K, 1]`; the 1/K dotted floor marks all K=384 dims evenly used.](plots/dim_usage.png)
+
+At fixed `λ_h=0.1`, the pooled `u_batchtime` (`h_t`) decreases monotonically along the `λ_e` ladder 0.1 → 1.0 → 10.0 → 100.0 (0.390 → 0.353 → 0.353 → 0.314). The per-arm values are tabulated in §Annex D below.
 
 #### Tail-50 trajectories per arm
 
@@ -175,6 +177,21 @@ Tail-50 mean = mean over steps 12 451–12 500 (last 50 of 12 500 logged steps) 
 | arm 2 (10.0, 1.0) | 4.550 | 4.49e-4 | 3.31e-4 | 0.0506 | 0.0340 | 0.7964 | 0.6291 |
 | arm 3 (10.0, 10.0) | 4.256 | 4.46e-4 | 3.20e-4 | 0.0588 | 0.0400 | 0.7853 | 0.6138 |
 | arm 5 (100.0, 0.1) | 3.878 | 7.10e-6 | 9.61e-5 | 0.0177 | 0.0160 | 0.6161 | 0.2705 |
+
+#### `u_batchtime` at backbone FINAL — retroactive
+
+`u_batchtime` (cross-(batch × time) pooled `U` on `h_t`) and `u_batchtime_e` (same on `e_t`) were added in commit 2288c4d, after the 4 finished sweep arms and the 2 prior B=512 anchors had already trained. Values below are computed retroactively from each backbone's `FINAL.pth` checkpoint over a single fixed batch (gift-pretrain-full-4096 / small_v1, seed 20260520, B=512); the per-arm training-time trajectory is empty in the dim-usage panel above for these 6 runs. Runs launched after commit 2288c4d log `u_batchtime` and `u_batchtime_e` directly as CSV columns alongside `u_batch_*` / `u_temporal_*`.
+
+| arm / anchor | recipe | `u_batchtime` (`h_t`) | `u_batchtime_e` (`e_t`) |
+| --- | --- | ---: | ---: |
+| #355 anchor | `λ_e=0.1, λ_h=0.1` | 0.3897 | 0.0136 |
+| #359 anchor | `λ_e=1.0, λ_h=0.1` | 0.3535 | 0.0133 |
+| arm 1 | `λ_e=10.0, λ_h=0.1` | 0.3527 | 0.0132 |
+| arm 2 | `λ_e=10.0, λ_h=1.0` | 0.3535 | 0.0131 |
+| arm 3 | `λ_e=10.0, λ_h=10.0` | 0.3663 | 0.0137 |
+| arm 5 | `λ_e=100.0, λ_h=0.1` | 0.3144 | 0.0154 |
+
+Source: [`results/u_batchtime_retro.csv`](results/u_batchtime_retro.csv); retroactive computation script `experiments/2026-06-24_sigreg_lambda_sweep/scripts/compute_u_batchtime_retro.py`.
 
 ### E. Scope notes
 
