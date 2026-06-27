@@ -33,11 +33,11 @@ Tail-50 mean total loss ordering (steps 12 451–12 500, table in §Annex D) is 
 
 ![Log-y trajectories of L_SIGReg(e_t), L_SIGReg(h_t), U_batch(e_t), U_temporal(e_t) from step 100 onwards for the 4 sweep arms and the 2 anchors; rolling 50-step mean. The bottom row is the embedding-side dimension-usage metric U; its 1/K ≈ 0.00260 dotted floor marks rank-1 collapse (one effective dim out of K=384). Higher U = more dimensions in use; K · U ≈ effective number of dims.](plots/sigreg_e_inspection.png)
 
-L_SIGReg(e_t) tail-50 floor is 7.10e-6 at arm 5 (`λ_e=100`) and 1.9e-4 to 4.5e-4 at the 3 `λ_e=10` arms; embedding-side `u_batch_e` and `u_temporal_e` at tail-50 stay below 0.06 and 0.04 respectively across the 4 sweep arms (per-arm values in §Annex D).
+Arm 5's `L_SIGReg(e_t)` tail-50 floor sits roughly an order of magnitude below the three `λ_e=10` arms (per-arm values in §Annex D).
 
 ![Dimension-usage U split by latent — top panel: `e_t` (embedding side) on log-y `[1/K, 0.1]`; bottom panel: `h_t` (encoder side) on log-y `[0.05, 1]`. Per panel: solid = `u_batch` (cross-batch), dashed = `u_temporal` (cross-time), star marker at step 12 500 = `u_batchtime` final-step retroactive (cross-(batch × time) pooled — same `(B·T, K)` sample axis SIGReg uses; no in-training trajectory for the 6 runs shown because training predates the metric — values sourced from `results/u_batchtime_retro.csv`, also tabulated in §Annex D). Colour = arm; dotted line at `1/K ≈ 0.0026` marks rank-1 collapse (one effective dim out of K=384). Higher U = more dimensions in use; K · U ≈ effective number of dims.](plots/dim_usage.png)
 
-Encoding-side (`u_batch`, `u_temporal`) on `h_t` at tail-50 span (0.62, 0.27) for arm 5 to (0.80, 0.63) for arm 2; pooled `u_batchtime` (`h_t`) at backbone FINAL along the `λ_e` ladder 0.1 → 1.0 → 10.0 → 100.0 reads 0.390 → 0.353 → 0.353 → 0.314 — the two middle arms tie within single-seed noise, the outer arms differ.
+Along the `λ_e` ladder 0.1 → 1.0 → 10.0 → 100.0 at fixed `λ_h=0.1`, pooled `u_batchtime` on `h_t` at backbone FINAL is highest at `λ_e=0.1` and lowest at `λ_e=100`; the two middle steps tie within single-seed noise (per-arm values in §Annex D).
 
 ### GM-Rel MASE — B=512 sweep family
 

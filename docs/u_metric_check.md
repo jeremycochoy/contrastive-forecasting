@@ -116,35 +116,31 @@ So for $K=384$:
 - $U = 0.04$ ⇔ ≈ 15 effective dimensions in use.
 - $U = 1/K \approx 0.0026$ ⇔ collapsed to a single direction.
 
-## 5. The report vocabulary is inverted
+## 5. The report vocabulary (now correct)
 
 `reports/2026-06-24_sigreg_lambda_sweep/sigreg_lambda_sweep.md` Vocabulary
-entry currently reads:
-
-> The `1/K` floor corresponds to all `K` dimensions evenly used (maximally
-> spread); values near 1 correspond to collapse onto a single direction.
-> **Lower = more dimensions in use.**
-
-This is the **opposite** of what `dim_usage` computes (and the opposite
-of what the docstring in `src/metrics.py` and the existing unit tests
-`test_dim_usage_orthonormal_is_one` / `test_dim_usage_collinear_is_one_over_d`
-already pin). The correct gloss is:
+entry now reads:
 
 > $U \in [1/K, 1]$ with $K{=}384$. $U{=}1$ means all $K$ dimensions
 > equally used (isotropic); $U{=}1/K$ means collapsed onto a single
 > direction. **Higher = more dimensions in use.** Effective number of
 > dimensions in use $\approx K \cdot U$.
 
-(The report `.md` was explicitly out of scope for this investigation, so
-the Vocabulary entry is *not* edited here — flag for a follow-up commit.)
+This matches `dim_usage` in `src/metrics.py`, the docstring there, and
+the existing unit tests `test_dim_usage_orthonormal_is_one` /
+`test_dim_usage_collinear_is_one_over_d`.
 
-This inversion also implies a substantive re-reading of the §Annex D
-numbers: e.g. the embedding-side tail-50 $u\_batch\_e \le 0.06$ at high
-$\lambda_e$ does **not** mean "the embedding uses many dimensions"; it
-means the embedding has been collapsed to $\approx K \cdot 0.06 \approx 23$
-effective dimensions, i.e. SIGReg is *concentrating* the embedding side,
-not spreading it. Whether that is the intended direction of the
-regulariser needs a separate look at how the SIGReg target is defined.
+Historical record: an earlier revision of the report glossed $U$ in the
+opposite direction ("`1/K` = maximally spread; near 1 = collapse;
+**Lower = more dimensions in use**"). That gloss was replaced in the
+report iteration that inverted the U direction in the Vocabulary entry
+and split the `dim_usage` panel per latent.
+
+Under the correct direction, the §Annex D numbers read as:
+embedding-side tail-50 $u\_batch\_e \le 0.06$ at high $\lambda_e$ means
+the embedding has been concentrated to $\approx K \cdot 0.06 \approx 23$
+effective dimensions out of $K{=}384$, i.e. SIGReg is concentrating the
+embedding side at this λ range, not spreading it.
 
 ## 6. Code fix?
 
