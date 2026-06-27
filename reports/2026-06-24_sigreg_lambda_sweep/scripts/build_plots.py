@@ -66,6 +66,11 @@ ARM_COLOR = {
 SWEEP_ARMS = ["emb100_enc01", "emb100_enc10", "emb100_enc100", "emb1000_enc01"]
 ANCHOR_ORDER = ["cpc_enc3", "ema_enc3", "sigreg01_enc3", "sigreg10_enc3"]
 CELLS = [("2L", "best"), ("2L", "last"), ("6L", "best"), ("6L", "last")]
+# Plot start step — cuts the warm-up regime so its early-step divergence
+# does not dominate the y-range. Matches the parent #359 report's log-y
+# convention; here the loss curve is log-log so the start step is required
+# (log x at step ≤ 0 is undefined).
+PLOT_START_STEP = 100
 
 
 def load_gm_table(p: Path) -> pd.DataFrame:
@@ -175,7 +180,10 @@ def plot_lambda_e_ladder(gm: pd.DataFrame, ci_vs_359: pd.DataFrame, out: Path):
 
 
 def plot_best_vs_last_drift(gm: pd.DataFrame, out: Path):
-    """For each arm, plot the (last − best) gap on 2L and 6L."""
+    """For each arm, plot (last − best) drift on 2L and 6L. Positive drift means
+    `last` is worse than `best`, i.e. the model stopped improving by step 12 500
+    (the desirable direction is negative drift: last ≤ best, model still
+    learning at the end)."""
     arms = ANCHOR_ORDER + SWEEP_ARMS
     rows = []
     for arm in arms:
@@ -185,7 +193,7 @@ def plot_best_vs_last_drift(gm: pd.DataFrame, out: Path):
             if len(b) and len(l):
                 rows.append((arm, head, float(l.gm.values[0]) - float(b.gm.values[0])))
     df = pd.DataFrame(rows, columns=["arm", "head", "drift"])
-    fig, ax = plt.subplots(figsize=(11, 4.6))
+    fig, ax = plt.subplots(figsize=(11, 4.8))
     x = np.arange(len(arms))
     w = 0.4
     for i, head in enumerate(("2L", "6L")):
@@ -201,75 +209,107 @@ def plot_best_vs_last_drift(gm: pd.DataFrame, out: Path):
     ax.axhline(0, color="k", lw=0.5, ls=":")
     ax.set_xticks(x)
     ax.set_xticklabels([ARM_LABEL[a].split(" (")[0] for a in arms], rotation=18, ha="right", fontsize=7.5)
-    ax.set_ylabel("last − best GM-Rel MASE")
-    ax.set_title("Best→last checkpoint drift per arm (positive = last is worse than best)")
+    ax.set_ylabel("last − best GM-Rel MASE  (positive = drift)")
+    ax.set_title(
+        "Drift = last − best GM-Rel MASE per arm\n"
+        "positive = last worse than best (stopped improving); "
+        "negative = last better than best (still improving)"
+    )
     ax.legend(fontsize=8); ax.grid(axis="y", alpha=0.3)
     fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
 
 
+def _smoothed(d: pd.DataFrame, col: str, start_step: int) -> pd.DataFrame:
+    """Apply 50-step rolling mean on the full curve, then trim to `step ≥ start_step`.
+    Smoothing on the full curve keeps the rolling window populated; trimming after
+    cuts the warm-up regime out of the plot range without re-introducing
+    edge-effect bias at `start_step`."""
+    out = d.copy()
+    out[f"{col}_sm"] = out[col].rolling(50, min_periods=1).mean()
+    return out[out["step"] >= start_step]
+
+
 def plot_loss_curves(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Path, out: Path):
-    fig, ax = plt.subplots(figsize=(9, 4.6))
+    """Log-log total-loss curve over the 12 500 steps. `PLOT_START_STEP` cuts the
+    warm-up: the first ~100 steps have loss > 10× the converged tail and would
+    dominate the y-range on linear axes; log x also requires step > 0."""
+    fig, ax = plt.subplots(figsize=(9, 4.8))
     overlays = {
         "sigreg01_enc3": sigreg_runs / f"bb_{BASE_TAG}_losses.csv",
         "sigreg10_enc3": sigreg10_runs / f"bb_{BASE_TAG}_emb10_losses.csv",
     }
     for arm, p in overlays.items():
         if p.exists():
-            d = pd.read_csv(p)
-            ax.plot(d["step"], d["loss"].rolling(50, min_periods=1).mean(),
+            d = _smoothed(pd.read_csv(p), "loss", PLOT_START_STEP)
+            ax.plot(d["step"], d["loss_sm"],
                     label=ARM_LABEL[arm], color=ARM_COLOR[arm], lw=1.0)
     for arm in SWEEP_ARMS:
         p = arm_runs / f"bb_{BASE_TAG}_{arm}_losses.csv"
         if p.exists():
-            d = pd.read_csv(p)
-            ax.plot(d["step"], d["loss"].rolling(50, min_periods=1).mean(),
+            d = _smoothed(pd.read_csv(p), "loss", PLOT_START_STEP)
+            ax.plot(d["step"], d["loss_sm"],
                     label=ARM_LABEL[arm], color=ARM_COLOR[arm], lw=1.6)
-    ax.set_xlabel("step"); ax.set_ylabel("loss (50-step rolling mean)")
-    ax.set_title("Total training loss — anchors (#355, #359) and the 4 sweep arms")
-    ax.legend(fontsize=7); ax.grid(alpha=0.3)
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_xlabel(f"step (log; start = {PLOT_START_STEP})")
+    ax.set_ylabel("loss (50-step rolling mean, log)")
+    ax.set_title("Total training loss — log-log; anchors (#355, #359) and the 4 sweep arms")
+    ax.legend(fontsize=7); ax.grid(alpha=0.3, which="both")
     fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
 
 
 def plot_sigreg_inspection(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Path, out: Path):
+    """4-panel log-y trajectories of L_SIGReg(e_t) / L_SIGReg(h_t) / u_batch(e_t) /
+    u_temporal(e_t). All panels use log y so the bottom row's tiny values
+    (1/K ≈ 0.0026, u_batch_e ≈ 0.02–0.06) are readable instead of crammed at
+    the baseline of a [0,1] linear axis; matches the parent #359 report's
+    sigreg_e_inspection convention. `PLOT_START_STEP` cuts the warm-up regime."""
     fig, axes = plt.subplots(2, 2, figsize=(13, 8))
     K = 384
     panels = [
-        ("sigreg_e",     "L_SIGReg(e_t)",     True),
-        ("sigreg_h",     "L_SIGReg(h_t)",     True),
-        ("u_batch_e",    "u_batch (e_t)",     False),
-        ("u_temporal_e", "u_temporal (e_t)",  False),
+        ("sigreg_e",     "L_SIGReg(e_t)"),
+        ("sigreg_h",     "L_SIGReg(h_t)"),
+        ("u_batch_e",    "u_batch (e_t)"),
+        ("u_temporal_e", "u_temporal (e_t)"),
     ]
     overlays = {
         "sigreg01_enc3": sigreg_runs / f"bb_{BASE_TAG}_losses.csv",
         "sigreg10_enc3": sigreg10_runs / f"bb_{BASE_TAG}_emb10_losses.csv",
     }
-    for ax, (col, title, logy) in zip(axes.ravel(), panels):
+    for ax, (col, title) in zip(axes.ravel(), panels):
         for arm, p in overlays.items():
             if p.exists():
                 d = pd.read_csv(p)
                 if col in d.columns:
-                    ax.plot(d["step"], d[col].rolling(50, min_periods=1).mean(),
+                    d = _smoothed(d, col, PLOT_START_STEP)
+                    ax.plot(d["step"], d[f"{col}_sm"],
                             label=ARM_LABEL[arm], color=ARM_COLOR[arm], lw=1.0)
         for arm in SWEEP_ARMS:
             p = arm_runs / f"bb_{BASE_TAG}_{arm}_losses.csv"
             if p.exists():
                 d = pd.read_csv(p)
                 if col in d.columns:
-                    ax.plot(d["step"], d[col].rolling(50, min_periods=1).mean(),
+                    d = _smoothed(d, col, PLOT_START_STEP)
+                    ax.plot(d["step"], d[f"{col}_sm"],
                             label=ARM_LABEL[arm], color=ARM_COLOR[arm], lw=1.6)
         if col in ("u_batch_e", "u_temporal_e"):
             ax.axhline(1.0 / K, color="k", ls=":", alpha=0.5,
                        label=f"1/K = 1/{K} ≈ {1/K:.4f}")
-            ax.set_ylim(0, 1)
-        if logy:
-            ax.set_yscale("log")
-        ax.set_xlabel("step"); ax.set_title(title)
-        ax.legend(fontsize=6); ax.grid(alpha=0.3, which="both")
-    fig.suptitle("SIGReg trajectories — sweep arms vs the two prior λ_h=0.1 anchors")
+        ax.set_yscale("log")
+        ax.set_xlabel(f"step  (start = {PLOT_START_STEP})")
+        ax.set_title(title)
+        ax.legend(fontsize=6, loc="best"); ax.grid(alpha=0.3, which="both")
+    fig.suptitle(
+        f"SIGReg trajectories — log y; sweep arms vs the two prior λ_h=0.1 anchors "
+        f"(start step = {PLOT_START_STEP}, 50-step rolling mean)"
+    )
     fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
 
 
 def plot_uniformity(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Path, out: Path):
+    """u_batch / u_temporal of h_t (solid) and e_t (dashed) for sweep arms and
+    the 2 anchors. `PLOT_START_STEP` cuts the warm-up regime in line with the
+    other trajectory plots."""
     fig, axes = plt.subplots(1, 2, figsize=(13, 4.8), sharey=True)
     overlays = {
         "sigreg01_enc3": sigreg_runs / f"bb_{BASE_TAG}_losses.csv",
@@ -280,7 +320,8 @@ def plot_uniformity(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Path, out:
             if p.exists():
                 d = pd.read_csv(p)
                 if f"u_{kind}" in d.columns:
-                    ax.plot(d["step"], d[f"u_{kind}"].rolling(50, min_periods=1).mean(),
+                    d = _smoothed(d, f"u_{kind}", PLOT_START_STEP)
+                    ax.plot(d["step"], d[f"u_{kind}_sm"],
                             label=f"{ARM_LABEL[arm]} · h_t",
                             color=ARM_COLOR[arm], lw=0.9)
         for arm in SWEEP_ARMS:
@@ -288,14 +329,17 @@ def plot_uniformity(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Path, out:
             if p.exists():
                 d = pd.read_csv(p)
                 if f"u_{kind}" in d.columns:
-                    ax.plot(d["step"], d[f"u_{kind}"].rolling(50, min_periods=1).mean(),
+                    ds = _smoothed(d, f"u_{kind}", PLOT_START_STEP)
+                    ax.plot(ds["step"], ds[f"u_{kind}_sm"],
                             label=f"{ARM_LABEL[arm]} · h_t",
                             color=ARM_COLOR[arm], lw=1.5)
                 if f"u_{kind}_e" in d.columns:
-                    ax.plot(d["step"], d[f"u_{kind}_e"].rolling(50, min_periods=1).mean(),
+                    ds = _smoothed(d, f"u_{kind}_e", PLOT_START_STEP)
+                    ax.plot(ds["step"], ds[f"u_{kind}_e_sm"],
                             label=f"{ARM_LABEL[arm]} · e_t",
                             color=ARM_COLOR[arm], lw=1.5, ls="--")
-        ax.set_xlabel("step"); ax.set_ylabel("effective dimensionality")
+        ax.set_xlabel(f"step  (start = {PLOT_START_STEP})")
+        ax.set_ylabel("effective dimensionality")
         ax.set_title(f"u_{kind} ({'cross-batch' if kind=='batch' else 'cross-time'})")
         ax.set_ylim(0, 1)
         ax.legend(fontsize=5.6); ax.grid(alpha=0.3)
