@@ -15,7 +15,7 @@ The four arms run:
 
 ## Result
 
-**Verdict.** Two baselines. Vs the `λ_e=1.0, λ_h=0.1` anchor (#359), only arm 2 (`λ_e=10.0, λ_h=1.0`) on `2L/best` is CI-clean (Δ = −0.017, 95% CI `[−0.029, −0.005]`, P(Δ<0) = 0.997); the other 3 (head, ckpt) cells straddle zero. Vs arm 1 (`λ_e=10.0, λ_h=0.1`), arm 5 (`λ_e=100.0`) regresses CI-clean on both last-ckpt cells (Annex B).
+**Verdict.** Two baselines. Vs the `λ_e=1.0, λ_h=0.1` anchor (#359), only arm 2 (`λ_e=10.0, λ_h=1.0`) on `2L/best` is CI-clean (Δ = −0.017, 95% CI `[−0.029, −0.005]`, P(Δ<0) = 0.997); the other 3 (head, ckpt) cells straddle zero. Vs arm 1 (`λ_e=10.0, λ_h=0.1`) — the `λ_h` 0.1 → 1.0 isolation contrast — arm 2 is CI-clean on both best-ckpt cells (`2L/best` Δ = −0.017, 95% CI `[−0.029, −0.006]`, P(Δ<0) = 0.9995; `6L/best` Δ = −0.015, 95% CI `[−0.028, −0.002]`, P(Δ<0) = 0.985). Vs arm 1, arm 5 (`λ_e=100.0`) regresses CI-clean on both last-ckpt cells (Annex B).
 
 ![GIFT-Eval full-97 GM-Rel MASE bars across the 4 anchors and the 4 sweep arms, faceted by (q-head depth, backbone checkpoint); whiskers on the sweep bars = paired-bootstrap 95% CI vs the `λ_e=1.0, λ_h=0.1` anchor; per-cell horizontal lines mark each anchor at its published value (grey dotted = enc3+CPC, blue dotted = EMA enc3+CPC, red dashed = SIGReg λ_e=λ_h=0.1, green solid = SIGReg λ_e=1.0/λ_h=0.1); bar labels = GM-Rel MASE.](plots/gm_rel_mase.png)
 
@@ -23,7 +23,7 @@ The four arms run:
 
 ![4-panel GM-Rel MASE heatmap over (λ_e, λ_h), one panel per (q-head depth, backbone checkpoint) cell. X axis = λ_e ∈ {0.1, 1.0, 10.0, 100.0} on a log grid; Y axis = λ_h ∈ {0.1, 1.0, 10.0} on a log grid. Diverging colormap centred on the per-cell SIGReg + EMA-target, B=512, λ_e=1.0, λ_h=0.1 anchor (#359): red = worse than that anchor, blue = better. Tile text = GM-Rel MASE. Hatched tiles = (λ_e, λ_h) points not run.](plots/heatmap.png)
 
-The 2D view shows three things the 1D ladder and the GM table do not: the interior point (λ_e=1.0, λ_h=1.0) was not run (hatched); the λ_h=0.1 row turns red across all 4 panels as λ_e walks from 10 to 100; and 6 of 12 grid tiles are blank, so the sweep covers the L-shape `{λ_e=10.0} ∪ {λ_h=0.1}` rather than the full grid.
+The 2D view shows three things the 1D ladder and the GM table do not: the interior point (λ_e=1.0, λ_h=1.0) was not run (hatched); on the λ_h=0.1 row, the λ_e=100 column is uniformly red across all 4 panels while the λ_e=10 column is mixed (2 blue, 2 red); and 6 of 12 grid tiles are blank, so the sweep covers the L-shape `{λ_e=10.0} ∪ {λ_h=0.1}` rather than the full grid.
 
 ### Training trajectory
 
@@ -52,7 +52,9 @@ Walking `λ_e` from 0.1 → 1.0 → 10.0 → 100.0 at `λ_h=0.1`, the GM drops b
 
 The desirable direction at step 12 500 is `last ≤ best` — i.e. the model is still improving at the end of training, so picking `last` would be at least as good as picking `best`. Positive `last − best` is therefore the drift / over-fitting signal.
 
-Only the `enc3+CPC, B=1024` anchor (#344) shows negative drift on both heads (still improving at step 12 500). Every SIGReg arm has positive drift on both heads. Arm 2's `2L` drift of `+0.045` is the largest in the table. Per-cell CIs of these last-ckpt regressions vs arm 1 are in §Annex B.
+Only the `enc3+CPC, B=1024` anchor (#344) shows negative drift on both heads (still improving at step 12 500). Every SIGReg arm has positive drift on both heads. Arm 2's `2L` drift of `+0.045` is the largest in the table.
+
+Drift is a within-arm diagnostic; cross-arm last-ckpt CIs vs arm 1 are tabulated separately in §Annex B.
 
 ![Drift = last − best GM-Rel MASE per arm, split by 2L vs 6L q-head. Positive = last is worse than best (model stopped improving by step 12 500); negative = last is better than best (model still improving). Only the `enc3+CPC, B=1024` anchor sits below zero on both heads.](plots/best_vs_last_drift.png)
 
@@ -86,7 +88,7 @@ The 4 anchors that share the GM table:
 | `SIGReg λ_e=λ_h=0.1, B=512` (#355) | `λ_e=λ_h=0.1` (per-config rel-MASE re-read from `reports/2026-06-20_lejepa_sigreg/`) |
 | `SIGReg λ_e=1.0, λ_h=0.1, B=512` (#359) | the bootstrap baseline (per-config rel-MASE re-read from `reports/2026-06-22_lejepa_sigreg_emb10/`) |
 
-Anchor GM values are transcribed verbatim from the prior `λ_e=1.0, λ_h=0.1` report's `gm_table.csv` (`reports/2026-06-22_lejepa_sigreg_emb10/results/gm_table.csv`), which already coexists with the same `cpc_enc3` / `ema_enc3` / `sigreg01_enc3` / `sigreg10_enc3` rows. The two SIGReg anchors also have per-config rel-MASE recoverable from their `gift_eval_full_<tag>{,_last}_{2L,6L}/summary.txt`; this report's bootstrap uses the `sigreg10` per-config values as the paired baseline.
+Anchor data provenance (GM-table source, per-config rel-MASE files) is listed in §Annex C.
 
 ## Vocabulary
 
@@ -150,7 +152,9 @@ Arm 1 differs from the anchor by a single `λ_e` factor of 10×, so Δ vs arm 1 
 
 - **Training CSVs.** `experiments/2026-06-24_sigreg_lambda_sweep/runs/bb_<tag>_<arm>_losses.csv` (12 500 rows each, seed 20260520).
 - **Per-config rel-MASE for sweep arms.** `experiments/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_<tag>_<arm>{,_last}_{2L,6L}/summary.txt`.
-- **Per-config rel-MASE for the bootstrap baseline.** `reports/2026-06-22_lejepa_sigreg_emb10/results/gift_eval_full_<tag>_emb10{,_last}_{2L,6L}/summary.txt`.
+- **Per-config rel-MASE for the bootstrap baseline (`sigreg10`, #359).** `reports/2026-06-22_lejepa_sigreg_emb10/results/gift_eval_full_<tag>_emb10{,_last}_{2L,6L}/summary.txt`.
+- **Per-config rel-MASE for the other SIGReg anchor (`sigreg01`, #355).** `reports/2026-06-20_lejepa_sigreg/results/gift_eval_full_<tag>{,_last}_{2L,6L}/summary.txt`.
+- **Anchor GM-Rel MASE values.** Transcribed verbatim from `reports/2026-06-22_lejepa_sigreg_emb10/results/gm_table.csv`, which carries `cpc_enc3` / `ema_enc3` / `sigreg01_enc3` / `sigreg10_enc3` rows alongside the prior arm.
 - **CI computation.** [`scripts/compute_bootstrap.py`](scripts/compute_bootstrap.py); outputs `results/bootstrap_ci_vs_359.csv` and `results/bootstrap_ci_vs_arm1.csv`.
 - **Plot script.** [`scripts/build_plots.py`](scripts/build_plots.py). Trajectory plots cut the first `PLOT_START_STEP = 100` steps so the warm-up regime does not dominate the y-range; the loss curve uses log x and log y, the SIGReg-inspection panels use log y throughout.
 - **Bar-chart colour map.** grey = `enc3+CPC, B=1024`; blue = `EMA enc3+CPC, B=1024`; red = `SIGReg λ_e=λ_h=0.1`; green = `SIGReg λ_e=1.0, λ_h=0.1`; purple = arm 1; brown = arm 2; pink = arm 3; cyan = arm 5.
