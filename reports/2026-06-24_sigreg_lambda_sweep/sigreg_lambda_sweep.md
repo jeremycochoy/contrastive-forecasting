@@ -23,13 +23,13 @@ The four arms run:
 
 ![4-panel GM-Rel MASE heatmap over (λ_e, λ_h), one panel per (q-head depth, backbone checkpoint) cell. X axis = λ_e ∈ {0.1, 1.0, 10.0, 100.0} on a log grid; Y axis = λ_h ∈ {0.1, 1.0, 10.0} on a log grid. Diverging colormap centred on the per-cell SIGReg + EMA-target, B=512, λ_e=1.0, λ_h=0.1 anchor (#359): red = worse than that anchor, blue = better. Tile text = GM-Rel MASE. Hatched tiles = (λ_e, λ_h) points not run.](plots/heatmap.png)
 
-The 2D view shows three things the 1D ladder and the GM table do not: the interior point (λ_e=1.0, λ_h=1.0) was not run (hatched); on the λ_h=0.1 row, the λ_e=100 column is uniformly red across all 4 panels while the λ_e=10 column is mixed (2 blue, 2 red); and 6 of 12 grid tiles are blank, so the sweep covers the L-shape `{λ_e=10.0} ∪ {λ_h=0.1}` rather than the full grid.
+The 2D view exposes the sweep's spatial coverage: the interior point (λ_e=1.0, λ_h=1.0) was not run (hatched), and 6 of 12 grid tiles are blank, so the sweep covers the L-shape `{λ_e=10.0} ∪ {λ_h=0.1}` rather than the full grid.
 
 ### Training trajectory
 
 ![Log-log total training loss (50-step rolling mean) from step 100 onwards for the 4 sweep arms and the 2 prior λ_h=0.1 anchors. Cutting the first 100 warm-up steps and log axes keep the converged regime readable.](plots/loss_curve.png)
 
-Final-step total loss ordering is arm 5 (3.88) < arm 1 (4.20) < arm 3 (4.26) < arm 2 (4.55); the two regulariser-side terms make total loss not directly comparable to the GM-Rel MASE ordering. SIGReg-term and dimension-usage trajectories are in §Annex D.
+Tail-50 mean total loss ordering (steps 12 451–12 500, table in §Annex D) is arm 5 (3.88) < arm 1 (4.20) < arm 3 (4.26) < arm 2 (4.55); the two regulariser-side terms make total loss not directly comparable to the GM-Rel MASE ordering. SIGReg-term and dimension-usage trajectories are in §Annex D.
 
 ### GM-Rel MASE — B=512 sweep family
 
