@@ -23,9 +23,9 @@ The four arms run:
 
 ![Log-log total training loss (50-step rolling mean) from step 100 onwards for the 4 sweep arms and the 2 prior λ_h=0.1 anchors. Cutting the first 100 warm-up steps and log axes keep the converged regime readable.](plots/loss_curve.png)
 
-![Log-y trajectories of L_SIGReg(e_t), L_SIGReg(h_t), u_batch(e_t), u_temporal(e_t) from step 100 onwards for the 4 sweep arms and the 2 anchors; rolling 50-step mean. The 1/K ≈ 0.00260 dotted line on the bottom row marks the one-direction floor of the dim-usage metrics.](plots/sigreg_e_inspection.png)
+![Log-y trajectories of L_SIGReg(e_t), L_SIGReg(h_t), U_batch(e_t), U_temporal(e_t) from step 100 onwards for the 4 sweep arms and the 2 anchors; rolling 50-step mean. The bottom row is the embedding-side dimension-usage metric U; its 1/K ≈ 0.00260 dotted floor marks all K=384 dims evenly used.](plots/sigreg_e_inspection.png)
 
-![Cross-batch and cross-time dim-usage of `h_t` (solid) and `e_t` (dashed) for the sweep arms and the 2 anchors from step 100 onwards; clipped to `[1/K, 1]`.](plots/uniformity.png)
+![Cross-batch and cross-time dimension usage U on `h_t` (solid) and `e_t` (dashed) for the sweep arms and the 2 anchors from step 100 onwards; clipped to `[1/K, 1]`; the 1/K dotted floor marks all K=384 dims evenly used.](plots/dim_usage.png)
 
 ### GM-Rel MASE — B=512 sweep family
 
@@ -95,8 +95,7 @@ Anchor GM values are transcribed verbatim from the prior `λ_e=1.0, λ_h=0.1` re
 | `e_t` | output of the GRU patch-embed at position (batch, time, channel); dimension `K`. |
 | `h_t` | output of the 3-layer transformer encoder at the same position. |
 | **SIGReg** | LeJEPA spherical regulariser. Epps–Pulley test statistic averaged over `M`=1024 random unit-direction 1-D projections of the pooled latent, trapezoidal-integrated on `[−6/√K, 6/√K]` against `N(0, 1/K)`. Two terms: `L_SIGReg(e_t)` weighted by `λ_e`, `L_SIGReg(h_t)` weighted by `λ_h`. |
-| `u_batch` | cross-batch dim-usage of `h_t`, clipped to `[1/K, 1]`. `1/K` = one direction; 1 = uniform sphere coverage. `u_batch_e` is the same statistic on `e_t`. |
-| `u_temporal` | cross-time analogue of `u_batch`; `u_temporal_e` is the `e_t` version. |
+| `U`, `u_*` | **dimension usage** of the latent: how many of the `K`=384 dimensions are actively used. cos²-based, clipped to `[1/K, 1]`. `1/K` floor = all `K` dims evenly used (max diversity); values near 1 = collapsed to a single direction. Four variants on two split axes: cross-batch (`u_batch`) vs cross-time (`u_temporal`); encoding side (no suffix, on `h_t`) vs embedding side (`_e` suffix, on `e_t`). Full set: `u_batch`, `u_temporal`, `u_batch_e`, `u_temporal_e`. |
 | **GM-Rel MASE** | GIFT-Eval full-97 aggregate: geometric mean over 97 configs of (model MASE ÷ seasonal-naive MASE). Lower = better; 1.0 = seasonal-naive parity. |
 | **best-ckpt / last-ckpt** | `best` = backbone checkpoint at lowest train-loss step; `last` = backbone at step 12 500. The q-head is trained from each backbone separately. The preferred end-state is `last ≤ best` (model still improving at step 12 500). |
 | **paired bootstrap** | resample the 97 per-config rel-MASE values with replacement (B=10 000 draws, seed 20260624), recompute the statistic `mean(log(rel_arm) − log(rel_baseline))`, take its 2.5/97.5 quantiles, convert back to absolute GM scale via `GM_baseline · (exp(quantile) − 1)`. Aligned per config. |

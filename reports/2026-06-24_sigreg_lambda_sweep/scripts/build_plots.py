@@ -9,7 +9,7 @@
 #   best_vs_last.png        — per-arm best-minus-last gap across the 4 cells.
 #   loss_curve.png          — total loss across arms + anchors (50-step rolling mean).
 #   sigreg_e_inspection.png — L_SIGReg(e_t), L_SIGReg(h_t), u_batch_e, u_temporal_e.
-#   uniformity.png          — u_batch/u_temporal trajectories on h_t/e_t.
+#   dim_usage.png           — U (dimension usage) on h_t/e_t, cross-batch and cross-time.
 import argparse
 import sys
 from pathlib import Path
@@ -50,6 +50,7 @@ ARM_LABEL = {
     "emb100_enc10":      "SIGReg λ_e=10.0, λ_h=1.0 (arm 2)",
     "emb100_enc100":     "SIGReg λ_e=10.0, λ_h=10.0 (arm 3)",
     "emb1000_enc01":     "SIGReg λ_e=100.0, λ_h=0.1 (arm 5)",
+    "emb10000_enc10":    "SIGReg λ_e=1000.0, λ_h=1.0 (arm 6)",
 }
 
 ARM_COLOR = {
@@ -61,9 +62,10 @@ ARM_COLOR = {
     "emb100_enc10":  "#8c564b",
     "emb100_enc100": "#e377c2",
     "emb1000_enc01": "#17becf",
+    "emb10000_enc10":"#bcbd22",
 }
 
-SWEEP_ARMS = ["emb100_enc01", "emb100_enc10", "emb100_enc100", "emb1000_enc01"]
+SWEEP_ARMS = ["emb100_enc01", "emb100_enc10", "emb100_enc100", "emb1000_enc01", "emb10000_enc10"]
 ANCHOR_ORDER = ["cpc_enc3", "ema_enc3", "sigreg01_enc3", "sigreg10_enc3"]
 CELLS = [("2L", "best"), ("2L", "last"), ("6L", "best"), ("6L", "last")]
 # Plot start step — cuts the warm-up regime so its early-step divergence
@@ -259,18 +261,20 @@ def plot_loss_curves(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Path, out
 
 
 def plot_sigreg_inspection(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Path, out: Path):
-    """4-panel log-y trajectories of L_SIGReg(e_t) / L_SIGReg(h_t) / u_batch(e_t) /
-    u_temporal(e_t). All panels use log y so the bottom row's tiny values
-    (1/K ≈ 0.0026, u_batch_e ≈ 0.02–0.06) are readable instead of crammed at
-    the baseline of a [0,1] linear axis; matches the parent #359 report's
-    sigreg_e_inspection convention. `PLOT_START_STEP` cuts the warm-up regime."""
+    """4-panel log-y trajectories of L_SIGReg(e_t) / L_SIGReg(h_t) / U_batch(e_t) /
+    U_temporal(e_t). Bottom row = dimension-usage U on the embedding side `e_t`,
+    clipped to `[1/K, 1]` with floor at 1/K = all K dims evenly used. All panels
+    use log y so the bottom row's tiny values (1/K ≈ 0.0026, u_batch_e ≈ 0.02–0.06)
+    are readable instead of crammed at the baseline of a [0,1] linear axis;
+    matches the parent #359 report's sigreg_e_inspection convention.
+    `PLOT_START_STEP` cuts the warm-up regime."""
     fig, axes = plt.subplots(2, 2, figsize=(13, 8))
     K = 384
     panels = [
         ("sigreg_e",     "L_SIGReg(e_t)"),
         ("sigreg_h",     "L_SIGReg(h_t)"),
-        ("u_batch_e",    "u_batch (e_t)"),
-        ("u_temporal_e", "u_temporal (e_t)"),
+        ("u_batch_e",    "U_batch (e_t) — cross-batch dimension usage"),
+        ("u_temporal_e", "U_temporal (e_t) — cross-time dimension usage"),
     ]
     overlays = {
         "sigreg01_enc3": sigreg_runs / f"bb_{BASE_TAG}_losses.csv",
@@ -294,7 +298,7 @@ def plot_sigreg_inspection(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Pat
                             label=ARM_LABEL[arm], color=ARM_COLOR[arm], lw=1.6)
         if col in ("u_batch_e", "u_temporal_e"):
             ax.axhline(1.0 / K, color="k", ls=":", alpha=0.5,
-                       label=f"1/K = 1/{K} ≈ {1/K:.4f}")
+                       label=f"1/K = 1/{K} ≈ {1/K:.4f} (all K dims evenly used)")
         ax.set_yscale("log")
         ax.set_xlabel(f"step  (start = {PLOT_START_STEP})")
         ax.set_title(title)
@@ -306,11 +310,15 @@ def plot_sigreg_inspection(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Pat
     fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
 
 
-def plot_uniformity(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Path, out: Path):
-    """u_batch / u_temporal of h_t (solid) and e_t (dashed) for sweep arms and
-    the 2 anchors. `PLOT_START_STEP` cuts the warm-up regime in line with the
-    other trajectory plots."""
+def plot_dim_usage(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Path, out: Path):
+    """Dimension usage U on h_t (solid) and e_t (dashed) for sweep arms and the
+    2 anchors. U measures how many of the K=384 latent dimensions are actively
+    used; the 1/K floor corresponds to all K dimensions evenly used (max
+    diversity), values near 1 to collapse onto a single direction.
+    `PLOT_START_STEP` cuts the warm-up regime in line with the other trajectory
+    plots."""
     fig, axes = plt.subplots(1, 2, figsize=(13, 4.8), sharey=True)
+    K = 384
     overlays = {
         "sigreg01_enc3": sigreg_runs / f"bb_{BASE_TAG}_losses.csv",
         "sigreg10_enc3": sigreg10_runs / f"bb_{BASE_TAG}_emb10_losses.csv",
@@ -338,12 +346,14 @@ def plot_uniformity(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Path, out:
                     ax.plot(ds["step"], ds[f"u_{kind}_e_sm"],
                             label=f"{ARM_LABEL[arm]} · e_t",
                             color=ARM_COLOR[arm], lw=1.5, ls="--")
+        ax.axhline(1.0 / K, color="k", ls=":", alpha=0.5,
+                   label=f"1/K = 1/{K} ≈ {1/K:.4f} (all K dims evenly used)")
         ax.set_xlabel(f"step  (start = {PLOT_START_STEP})")
-        ax.set_ylabel("effective dimensionality")
-        ax.set_title(f"u_{kind} ({'cross-batch' if kind=='batch' else 'cross-time'})")
+        ax.set_ylabel("U (dimension usage)")
+        ax.set_title(f"U_{kind} ({'cross-batch' if kind=='batch' else 'cross-time'})")
         ax.set_ylim(0, 1)
         ax.legend(fontsize=5.6); ax.grid(alpha=0.3)
-    fig.suptitle("Uniformity (cos²-based dim_usage; clipped to [1/K, 1])")
+    fig.suptitle("Dimension usage U — cos²-based; clipped to [1/K, 1] (floor = all K dims evenly used)")
     fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
 
 
@@ -369,8 +379,8 @@ def main(argv: list[str] | None = None) -> int:
                      plots / "loss_curve.png")
     plot_sigreg_inspection(args.arm_runs, args.sigreg01_runs, args.sigreg10_runs,
                            plots / "sigreg_e_inspection.png")
-    plot_uniformity(args.arm_runs, args.sigreg01_runs, args.sigreg10_runs,
-                    plots / "uniformity.png")
+    plot_dim_usage(args.arm_runs, args.sigreg01_runs, args.sigreg10_runs,
+                   plots / "dim_usage.png")
     print(f"wrote 6 plots under {plots}")
     return 0
 

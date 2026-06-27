@@ -13,7 +13,7 @@
 #   results/gm_table.csv        — anchors + present sweep arms × 4 cells
 #   plots/loss_curve.png        — training loss for present arms vs anchors
 #   plots/sigreg_e_inspection.png — sigreg_e/h, u_batch_e/temporal_e
-#   plots/uniformity.png        — u_batch / u_temporal on h_t and e_t
+#   plots/dim_usage.png         — U (dimension usage) on h_t and e_t, cross-batch and cross-time
 #   plots/gm_rel_mase.png       — per-cell GM-Rel MASE bars across arms
 #   results/final_trajectories.txt — Tail-50 means per arm
 import argparse
@@ -68,6 +68,8 @@ ARM_LABEL = {
     "emb100_enc10":      "SIGReg + EMA-target, B=512 (λ_e=10.0, λ_h=1.0)",
     "emb100_enc100":     "SIGReg + EMA-target, B=512 (λ_e=10.0, λ_h=10.0)",
     "emb10_enc10":       "SIGReg + EMA-target, B=512 (λ_e=1.0, λ_h=1.0)",
+    "emb1000_enc01":     "SIGReg + EMA-target, B=512 (λ_e=100.0, λ_h=0.1)",
+    "emb10000_enc10":    "SIGReg + EMA-target, B=512 (λ_e=1000.0, λ_h=1.0)",
 }
 
 ARM_COLOR = {
@@ -79,6 +81,8 @@ ARM_COLOR = {
     "emb100_enc10":  "#8c564b",
     "emb100_enc100": "#e377c2",
     "emb10_enc10":   "#17becf",
+    "emb1000_enc01": "#bcbd22",
+    "emb10000_enc10":"#7f7f7f",
 }
 
 SWEEP_ARMS = [
@@ -87,6 +91,8 @@ SWEEP_ARMS = [
     ("emb100_enc10",  10.0, 1.0),
     ("emb100_enc100", 10.0, 10.0),
     ("emb10_enc10",    1.0, 1.0),
+    ("emb1000_enc01", 100.0, 0.1),
+    ("emb10000_enc10",1000.0, 1.0),
 ]
 
 ANCHOR_ORDER = ["cpc_enc3", "ema_enc3", "sigreg01_enc3", "sigreg10_enc3"]
@@ -168,12 +174,12 @@ def plot_loss_curves(runs: Path, ema_csv: Path | None, cpc_csv: Path | None,
 def plot_sigreg_inspection(runs: Path, sig01_csv: Path | None, sig10_csv: Path | None, out: Path):
     """L_SIGReg(e_t), L_SIGReg(h_t), u_batch_e, u_temporal_e across sweep arms + anchors."""
     fig, axes = plt.subplots(2, 2, figsize=(13, 8))
-    K = 384  # d_model (embedding dim), not batch — sets the 1/K uniformity floor
+    K = 384  # d_model (embedding dim), not batch — sets the 1/K dimension-usage floor
     panels = [
-        ("sigreg_e",     "L_SIGReg(e_t)",     True),
-        ("sigreg_h",     "L_SIGReg(h_t)",     True),
-        ("u_batch_e",    "u_batch (e_t)",     False),
-        ("u_temporal_e", "u_temporal (e_t)",  False),
+        ("sigreg_e",     "L_SIGReg(e_t)",                                          True),
+        ("sigreg_h",     "L_SIGReg(h_t)",                                          True),
+        ("u_batch_e",    "U_batch (e_t) — cross-batch dimension usage",            False),
+        ("u_temporal_e", "U_temporal (e_t) — cross-time dimension usage",          False),
     ]
     sweep_csvs = [(s, sweep_run_csv(runs, s)) for s in present_arms(runs)]
     anchor_csvs = [
@@ -194,7 +200,7 @@ def plot_sigreg_inspection(runs: Path, sig01_csv: Path | None, sig10_csv: Path |
                         label=ARM_LABEL[suffix], color=ARM_COLOR[suffix], lw=1.6)
         if col in ("u_batch_e", "u_temporal_e"):
             ax.axhline(1.0 / K, color="k", ls=":", alpha=0.5,
-                       label=f"1/K = 1/{K} ≈ {1/K:.4f}")
+                       label=f"1/K = 1/{K} ≈ {1/K:.4f} (all K dims evenly used)")
             ax.set_ylim(0, 1)
         if logy:
             ax.set_yscale("log")
@@ -204,9 +210,14 @@ def plot_sigreg_inspection(runs: Path, sig01_csv: Path | None, sig10_csv: Path |
     fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
 
 
-def plot_uniformity(runs: Path, sig01_csv: Path | None, sig10_csv: Path | None,
-                    ema_csv: Path | None, cpc_csv: Path | None, out: Path):
+def plot_dim_usage(runs: Path, sig01_csv: Path | None, sig10_csv: Path | None,
+                   ema_csv: Path | None, cpc_csv: Path | None, out: Path):
+    """Dimension usage U on h_t (solid) and e_t (dashed) for sweep arms + 2
+    anchors. U measures how many of the K=384 latent dimensions are actively
+    used; 1/K floor = all K dims evenly used, values near 1 = collapsed to a
+    single direction."""
     fig, axes = plt.subplots(1, 2, figsize=(13, 4.8), sharey=True)
+    K = 384
     for ax, kind in zip(axes, ("batch", "temporal")):
         for arm, p in (("cpc_enc3", cpc_csv), ("ema_enc3", ema_csv),
                        ("sigreg01_enc3", sig01_csv), ("sigreg10_enc3", sig10_csv)):
@@ -226,11 +237,13 @@ def plot_uniformity(runs: Path, sig01_csv: Path | None, sig10_csv: Path | None,
                 ax.plot(d["step"], d[f"u_{kind}_e"].rolling(50, min_periods=1).mean(),
                         label=f"{ARM_LABEL[suffix]} · e_t",
                         color=ARM_COLOR[suffix], lw=1.5, ls="--")
-        ax.set_xlabel("step"); ax.set_ylabel("effective dimensionality")
-        ax.set_title(f"u_{kind} ({'cross-batch' if kind=='batch' else 'cross-time'})")
+        ax.axhline(1.0 / K, color="k", ls=":", alpha=0.5,
+                   label=f"1/K = 1/{K} ≈ {1/K:.4f} (all K dims evenly used)")
+        ax.set_xlabel("step"); ax.set_ylabel("U (dimension usage)")
+        ax.set_title(f"U_{kind} ({'cross-batch' if kind=='batch' else 'cross-time'})")
         ax.set_ylim(0, 1)
         ax.legend(fontsize=6); ax.grid(alpha=0.3)
-    fig.suptitle("Uniformity (cos²-based dim_usage; clipped to [1/K, 1])")
+    fig.suptitle("Dimension usage U — cos²-based; clipped to [1/K, 1] (floor = all K dims evenly used)")
     fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
 
 
@@ -303,8 +316,8 @@ def main(argv: list[str] | None = None) -> int:
                      plots / "loss_curve.png")
     plot_sigreg_inspection(runs, args.sig01_csv, args.sig10_csv,
                            plots / "sigreg_e_inspection.png")
-    plot_uniformity(runs, args.sig01_csv, args.sig10_csv, args.ema_csv, args.cpc_csv,
-                    plots / "uniformity.png")
+    plot_dim_usage(runs, args.sig01_csv, args.sig10_csv, args.ema_csv, args.cpc_csv,
+                   plots / "dim_usage.png")
     plot_gm_bars(rows, runs, plots / "gm_rel_mase.png")
 
     traj_lines = []

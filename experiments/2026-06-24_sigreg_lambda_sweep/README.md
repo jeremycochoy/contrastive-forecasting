@@ -54,7 +54,7 @@ experiments/2026-06-24_sigreg_lambda_sweep/
     build_report.py                      gm_table.csv + plots
   runs/                                  per-arm checkpoints, optimizer, losses csv
   results/                               per-arm logs, GIFT-Eval outputs, gm_table.csv
-  plots/                                 loss_curve, sigreg_e_inspection, uniformity, gm_rel_mase
+  plots/                                 loss_curve, sigreg_e_inspection, dim_usage, gm_rel_mase
 ```
 
 ## Anchors
