@@ -29,7 +29,15 @@ The 2D view exposes the sweep's spatial coverage: the interior point (λ_e=1.0, 
 
 ![Log-log total training loss (50-step rolling mean) from step 100 onwards for the 4 sweep arms and the 2 prior λ_h=0.1 anchors. Cutting the first 100 warm-up steps and log axes keep the converged regime readable.](plots/loss_curve.png)
 
-Tail-50 mean total loss ordering (steps 12 451–12 500, table in §Annex D) is arm 5 (3.88) < arm 1 (4.20) < arm 3 (4.26) < arm 2 (4.55); the two regulariser-side terms make total loss not directly comparable to the GM-Rel MASE ordering. SIGReg-term and dimension-usage trajectories are in §Annex D.
+Tail-50 mean total loss ordering (steps 12 451–12 500, table in §Annex D) is arm 5 (3.88) < arm 1 (4.20) < arm 3 (4.26) < arm 2 (4.55); the two regulariser-side terms make total loss not directly comparable to the GM-Rel MASE ordering.
+
+![Log-y trajectories of L_SIGReg(e_t), L_SIGReg(h_t), U_batch(e_t), U_temporal(e_t) from step 100 onwards for the 4 sweep arms and the 2 anchors; rolling 50-step mean. The bottom row is the embedding-side dimension-usage metric U; its 1/K ≈ 0.00260 dotted floor marks all K=384 dims evenly used.](plots/sigreg_e_inspection.png)
+
+L_SIGReg(e_t) tail-50 floor is 7.10e-6 at arm 5 (`λ_e=100`) and 1.9e-4 to 4.5e-4 at the 3 `λ_e=10` arms; embedding-side `u_batch_e` and `u_temporal_e` at tail-50 stay below 0.06 and 0.04 respectively across the 4 sweep arms (per-arm values in §Annex D).
+
+![Three-row dimension-usage panel. Row 1 = cross-batch U (`u_batch`); row 2 = cross-time U (`u_temporal`); both as trajectories with `h_t` (solid) and `e_t` (dashed) for the sweep arms and 2 anchors from step 100 onwards. Row 3 = cross-(batch × time) pooled U (`u_batchtime`): left = trajectory subplot (empty for the 4 sweep arms and 2 prior B=512 anchors, whose training predates the addition of the `u_batchtime` training-loop metric — retroactive final-step values appear in the right panel and the table in §Annex D); right = bar chart of the final-step retroactive `u_batchtime` (`h_t`, solid colour) and `u_batchtime_e` (`e_t`, hatched) for the 4 finished sweep arms and the 2 prior B=512 anchors, sourced from `results/u_batchtime_retro.csv`. All panels clipped to `[1/K, 1]`; the 1/K dotted floor marks all K=384 dims evenly used.](plots/dim_usage.png)
+
+Encoding-side (`u_batch`, `u_temporal`) on `h_t` at tail-50 span (0.62, 0.27) for arm 5 to (0.80, 0.63) for arm 2; pooled `u_batchtime` (`h_t`) at backbone FINAL along the `λ_e` ladder 0.1 → 1.0 → 10.0 → 100.0 reads 0.390 → 0.353 → 0.353 → 0.314 — the two middle arms tie within single-seed noise, the outer arms differ.
 
 ### GM-Rel MASE — B=512 sweep family
 
@@ -159,13 +167,7 @@ Arm 1 differs from the anchor by a single `λ_e` factor of 10×, so Δ vs arm 1 
 - **Plot script.** [`scripts/build_plots.py`](scripts/build_plots.py). Trajectory plots cut the first `PLOT_START_STEP = 100` steps so the warm-up regime does not dominate the y-range; the loss curve uses log x and log y, the SIGReg-inspection panels use log y throughout.
 - **Bar-chart colour map.** grey = `enc3+CPC, B=1024`; blue = `EMA enc3+CPC, B=1024`; red = `SIGReg λ_e=λ_h=0.1`; green = `SIGReg λ_e=1.0, λ_h=0.1`; purple = arm 1; brown = arm 2; pink = arm 3; cyan = arm 5.
 
-### D. Training diagnostics
-
-![Log-y trajectories of L_SIGReg(e_t), L_SIGReg(h_t), U_batch(e_t), U_temporal(e_t) from step 100 onwards for the 4 sweep arms and the 2 anchors; rolling 50-step mean. The bottom row is the embedding-side dimension-usage metric U; its 1/K ≈ 0.00260 dotted floor marks all K=384 dims evenly used.](plots/sigreg_e_inspection.png)
-
-![Three-row dimension-usage panel. Row 1 = cross-batch U (`u_batch`); row 2 = cross-time U (`u_temporal`); both as trajectories with `h_t` (solid) and `e_t` (dashed) for the sweep arms and 2 anchors from step 100 onwards. Row 3 = cross-(batch × time) pooled U (`u_batchtime`): left = trajectory subplot (empty for the 4 sweep arms and 2 prior B=512 anchors, whose training predates the addition of the `u_batchtime` training-loop metric — retroactive final-step values appear in the right panel and the table below); right = bar chart of the final-step retroactive `u_batchtime` (`h_t`, solid colour) and `u_batchtime_e` (`e_t`, hatched) for the 4 finished sweep arms and the 2 prior B=512 anchors, sourced from `results/u_batchtime_retro.csv`. All panels clipped to `[1/K, 1]`; the 1/K dotted floor marks all K=384 dims evenly used.](plots/dim_usage.png)
-
-At fixed `λ_h=0.1`, the pooled `u_batchtime` (`h_t`) along the `λ_e` ladder 0.1 → 1.0 → 10.0 → 100.0 reads 0.390 → 0.353 → 0.353 → 0.314 — the two middle arms tie within single-seed noise; the outer arms differ. Per-arm values are tabulated below.
+### D. Numeric annex — diagnostics tables
 
 #### Tail-50 trajectories per arm
 
