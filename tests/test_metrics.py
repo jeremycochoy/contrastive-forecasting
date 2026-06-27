@@ -106,6 +106,73 @@ def test_u_temporal_axis_param():
     assert 0.85 <= u <= 1.0, f"U_temporal={u}"
 
 
+# Analytic-limit pins at the training regime K=384 — answer to the
+# `verify U as a dimension-usage estimator` ask (issue #363):
+#
+#   U = 1 / (d · mean_{i≠j} cos²(z_i, z_j)), clipped to [0, 1].
+#
+# Limits (see `docs/u_metric_check.md` and `verify_u_formula.py`):
+#   • z uniform on S^(d-1): mean cos² → 1/d, so U → 1.
+#   • rank-1 collapse zi = αi v:    cos² ≡ 1,  so U = 1/d.
+# The earlier tests pinned these at d=8; these pin the K=384 regime that
+# the report and dim-usage plots use. They also pin the further fact
+# that d·U is the participation-ratio estimate (NOT 1/U) — i.e. the
+# effective number of dimensions in use is K·U, not 1/U.
+
+def test_dim_usage_isotropic_at_K384_near_one():
+    torch.manual_seed(0)
+    K = 384
+    z = torch.randn(4096, K)              # N=4096 ≫ K for tight estimate
+    u = dim_usage(z, axis=0).item()
+    assert 0.99 <= u <= 1.0, f"U={u}, expected ≈1 (NOT 1/K)"
+
+
+def test_dim_usage_rank1_at_K384_is_one_over_K():
+    K = 384
+    v = torch.randn(K); v = v / v.norm()
+    alpha = torch.randn(4096, 1)
+    z = alpha * v                          # rank-1 on the K axis
+    u = dim_usage(z, axis=0).item()
+    assert u == pytest.approx(1.0 / K, rel=1e-3), (
+        f"U={u}, expected 1/K={1/K} (NOT 1)")
+
+
+@pytest.mark.parametrize("r", [1, 4, 16, 64, 192, 384])
+def test_dim_usage_rank_r_isotropic_matches_K_times_U(r):
+    # rank-r isotropic latent in K=384: predicts U = r/K, so K·U ≈ r.
+    # 1/U would be K/r — the user's "1/U ≈ effective # dims" hypothesis
+    # is wrong; K·U is the correct estimator.
+    torch.manual_seed(r)
+    K, N = 384, 4096
+    coeffs = torch.randn(N, r)
+    basis = torch.linalg.qr(torch.randn(K, r)).Q          # (K, r) orthonormal
+    z = coeffs @ basis.t()
+    u = dim_usage(z, axis=0).item()
+    K_times_U = K * u
+    assert K_times_U == pytest.approx(r, rel=0.02, abs=0.5), (
+        f"r={r}: K·U={K_times_U} ≠ r={r}; "
+        f"1/U={1/u:.2f} (would be K/r={K/r:.2f}, not r)")
+
+
+def test_dim_usage_K_times_U_matches_participation_ratio():
+    # For a latent with a prescribed eigenvalue spectrum on the
+    # second-moment matrix, K·U should track the participation ratio
+    # PR = (Σ λ)² / Σ λ² of (1/N) Σ ẑ_i ẑ_iᵀ. Pins the
+    # interpretation U ≈ PR / K.
+    torch.manual_seed(0)
+    K, N = 384, 4096
+    # Power-law-decay spectrum with mid effective rank — non-saturating
+    # so the empirical PR is unbiased.
+    eigs = 1.0 / torch.arange(1, K + 1, dtype=torch.float)
+    z = torch.randn(N, K) * torch.sqrt(eigs)
+    u = dim_usage(z, axis=0).item()
+    zn = F.normalize(z, dim=-1)
+    G = (zn.t() @ zn) / N
+    pr = (G.trace() ** 2 / (G @ G).trace()).item()
+    assert K * u == pytest.approx(pr, rel=0.05), (
+        f"K·U={K*u:.2f} vs PR={pr:.2f}; expected K·U ≈ PR")
+
+
 # ---------------------------------------------------------------------------
 # u_batchtime (#363) — pools (B, T) into one sample axis, mirroring the
 # pooling SIGReg uses for its random-projection statistic.
