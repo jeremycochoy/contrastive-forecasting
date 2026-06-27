@@ -20,6 +20,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from build_heatmap import heatmap as plot_heatmap_grid
+
 BASE_TAG = "allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc"
 
 ANCHOR_GM = {
@@ -373,6 +375,7 @@ def main(argv: list[str] | None = None) -> int:
     ci = load_ci(results / "bootstrap_ci_vs_359.csv")
 
     plot_gm_bars(gm, ci, plots / "gm_rel_mase.png")
+    plot_heatmap_grid(gm, plots / "heatmap.png")
     plot_lambda_e_ladder(gm, ci, plots / "lambda_e_ladder.png")
     plot_best_vs_last_drift(gm, plots / "best_vs_last_drift.png")
     plot_loss_curves(args.arm_runs, args.sigreg01_runs, args.sigreg10_runs,
@@ -381,7 +384,7 @@ def main(argv: list[str] | None = None) -> int:
                            plots / "sigreg_e_inspection.png")
     plot_dim_usage(args.arm_runs, args.sigreg01_runs, args.sigreg10_runs,
                    plots / "dim_usage.png")
-    print(f"wrote 6 plots under {plots}")
+    print(f"wrote 7 plots under {plots}")
     return 0
 
 

@@ -19,6 +19,10 @@ The four arms run:
 
 ![GIFT-Eval full-97 GM-Rel MASE bars across the 4 anchors and the 4 sweep arms, faceted by (q-head depth, backbone checkpoint); whiskers on the sweep bars = paired-bootstrap 95% CI vs the `λ_e=1.0, λ_h=0.1` anchor; per-cell horizontal lines mark each anchor at its published value (grey dotted = enc3+CPC, blue dotted = EMA enc3+CPC, red dashed = SIGReg λ_e=λ_h=0.1, green solid = SIGReg λ_e=1.0/λ_h=0.1); bar labels = GM-Rel MASE.](plots/gm_rel_mase.png)
 
+### (λ_e, λ_h) heatmap
+
+![4-panel GM-Rel MASE heatmap over (λ_e, λ_h), one panel per (q-head depth, backbone checkpoint). X axis = λ_e ∈ {0.1, 1.0, 10.0, 100.0} on a log grid; Y axis = λ_h ∈ {0.1, 1.0, 10.0} on a log grid. Diverging colormap centred on the per-cell #359 anchor (λ_e=1.0, λ_h=0.1): red = worse than #359, blue = better. Cell text = GM-Rel MASE. Hatched cells = (λ_e, λ_h) points not run.](plots/heatmap.png)
+
 ### Training trajectory
 
 ![Log-log total training loss (50-step rolling mean) from step 100 onwards for the 4 sweep arms and the 2 prior λ_h=0.1 anchors. Cutting the first 100 warm-up steps and log axes keep the converged regime readable.](plots/loss_curve.png)
