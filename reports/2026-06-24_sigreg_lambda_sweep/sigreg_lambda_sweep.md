@@ -21,7 +21,7 @@ The four arms run:
 
 ### Training trajectory
 
-![Log-log total training loss (50-step rolling mean) from step 100 onwards for the 4 sweep arms and the 2 prior λ_h=0.1 anchors. Cutting the first ~100 warm-up steps and log axes keep the converged regime readable.](plots/loss_curve.png)
+![Log-log total training loss (50-step rolling mean) from step 100 onwards for the 4 sweep arms and the 2 prior λ_h=0.1 anchors. Cutting the first 100 warm-up steps and log axes keep the converged regime readable.](plots/loss_curve.png)
 
 ![Log-y trajectories of L_SIGReg(e_t), L_SIGReg(h_t), u_batch(e_t), u_temporal(e_t) from step 100 onwards for the 4 sweep arms and the 2 anchors; rolling 50-step mean. The 1/K ≈ 0.00260 dotted line on the bottom row marks the one-direction floor of the dim-usage metrics.](plots/sigreg_e_inspection.png)
 
@@ -48,7 +48,7 @@ Walking `λ_e` from 0.1 → 1.0 → 10.0 → 100.0 at `λ_h=0.1`, the GM drops b
 
 The desirable direction at step 12 500 is `last ≤ best` — i.e. the model is still improving at the end of training, so picking `last` would be at least as good as picking `best`. Positive `last − best` is therefore the drift / over-fitting signal.
 
-Only the `enc3+CPC, B=1024` anchor (#344) shows negative drift on both heads (still improving at step 12 500). Every SIGReg arm has positive drift on both heads. Arm 2's `2L` drift of `+0.045` is the largest in the table. Arm 5 has the highest `2L/last` and `6L/last` of all arms (1.1828 and 1.1682). Per-cell CIs of these last-ckpt regressions vs arm 1 are in §Annex B.
+Only the `enc3+CPC, B=1024` anchor (#344) shows negative drift on both heads (still improving at step 12 500). Every SIGReg arm has positive drift on both heads. Arm 2's `2L` drift of `+0.045` is the largest in the table. Per-cell CIs of these last-ckpt regressions vs arm 1 are in §Annex B.
 
 ![Drift = last − best GM-Rel MASE per arm, split by 2L vs 6L q-head. Positive = last is worse than best (model stopped improving by step 12 500); negative = last is better than best (model still improving). Only the `enc3+CPC, B=1024` anchor sits below zero on both heads.](plots/best_vs_last_drift.png)
 
@@ -138,7 +138,9 @@ Arm 1 differs from the anchor by a single `λ_e` factor of 10×, so Δ vs arm 1 
 | arm 2 (10.0, 1.0) | 2L / last | +0.0146 | `[−0.0009, +0.0306]` | 0.033 |
 | arm 2 (10.0, 1.0) | 6L / best | −0.0153 | `[−0.0280, −0.0018]` | 0.985 |
 | arm 2 (10.0, 1.0) | 6L / last | +0.0042 | `[−0.0121, +0.0207]` | 0.294 |
+| arm 5 (100.0, 0.1) | 2L / best | +0.0080 | `[−0.0022, +0.0179]` | 0.057 |
 | arm 5 (100.0, 0.1) | 2L / last | +0.0218 | `[+0.0047, +0.0410]` | 0.005 |
+| arm 5 (100.0, 0.1) | 6L / best | +0.0016 | `[−0.0100, +0.0107]` | 0.360 |
 | arm 5 (100.0, 0.1) | 6L / last | +0.0209 | `[+0.0026, +0.0411]` | 0.011 |
 
 ### C. Plot and CI provenance
