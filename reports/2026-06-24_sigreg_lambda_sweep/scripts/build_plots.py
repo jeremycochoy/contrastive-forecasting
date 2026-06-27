@@ -265,11 +265,13 @@ def plot_loss_curves(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Path, out
 def plot_sigreg_inspection(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Path, out: Path):
     """4-panel log-y trajectories of L_SIGReg(e_t) / L_SIGReg(h_t) / U_batch(e_t) /
     U_temporal(e_t). Bottom row = dimension-usage U on the embedding side `e_t`,
-    clipped to `[1/K, 1]` with floor at 1/K = all K dims evenly used. All panels
-    use log y so the bottom row's tiny values (1/K ≈ 0.0026, u_batch_e ≈ 0.02–0.06)
-    are readable instead of crammed at the baseline of a [0,1] linear axis;
-    matches the parent #359 report's sigreg_e_inspection convention.
-    `PLOT_START_STEP` cuts the warm-up regime."""
+    clipped to `[1/K, 1]`. U = 1 ⇔ isotropic / all K dims used; U = 1/K ⇔ rank-1
+    collapse (one effective dim); K · U ≈ effective number of dims in use. The
+    floor at 1/K marks rank-1 collapse. All panels use log y so the bottom row's
+    tiny values (1/K ≈ 0.0026, u_batch_e ≈ 0.02–0.06) are readable instead of
+    crammed at the baseline of a [0,1] linear axis; matches the parent #359
+    report's sigreg_e_inspection convention. `PLOT_START_STEP` cuts the warm-up
+    regime."""
     fig, axes = plt.subplots(2, 2, figsize=(13, 8))
     K = 384
     panels = [
@@ -300,7 +302,7 @@ def plot_sigreg_inspection(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Pat
                             label=ARM_LABEL[arm], color=ARM_COLOR[arm], lw=1.6)
         if col in ("u_batch_e", "u_temporal_e"):
             ax.axhline(1.0 / K, color="k", ls=":", alpha=0.5,
-                       label=f"1/K = 1/{K} ≈ {1/K:.4f} (all K dims evenly used)")
+                       label=f"1/K = 1/{K} ≈ {1/K:.4f} (rank-1 collapse, 1 effective dim)")
         ax.set_yscale("log")
         ax.set_xlabel(f"step  (start = {PLOT_START_STEP})")
         ax.set_title(title)
@@ -314,84 +316,58 @@ def plot_sigreg_inspection(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Pat
 
 def plot_dim_usage(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Path,
                    retro_csv: Path, out: Path):
-    """Dimension usage U on h_t (solid) and e_t (dashed) for sweep arms and the
-    2 anchors. U measures how many of the K=384 latent dimensions are actively
-    used; the 1/K floor corresponds to all K dimensions evenly used (max
-    diversity), values near 1 to collapse onto a single direction.
+    """Dimension usage U for sweep arms and the 2 anchors. U = participation-ratio
+    fraction in [1/K, 1] with K=384: U=1 ⇔ isotropic / all K dims used,
+    U=1/K ⇔ rank-1 collapse (one effective dim). Effective dims ≈ K · U.
 
-    Three rows on the same axis:
-      row 1 — U_batch (cross-batch),
-      row 2 — U_temporal (cross-time),
-      row 3 — U_batchtime (cross-(batch × time) pooled). The pooled variant
-        mirrors SIGReg's own (B·T, K) sample axis. Row 3 splits into a
-        trajectory subplot (auto-skips runs that predate the metric's
-        commit 2288c4d) and a final-step bar chart sourced from
-        `results/u_batchtime_retro.csv`. The bar chart covers the 4 finished
-        sweep arms and the 2 prior B=512 anchors at backbone FINAL.
+    Two stacked panels with shared x-axis and per-row y-scales:
+      top   — e_t (embedding side): u_batch_e, u_temporal_e trajectories;
+              u_batchtime_e final-step retroactive marker at step 12 500.
+              y ∈ [1/K, 0.1] (log).
+      bottom — h_t (encoder side): u_batch, u_temporal trajectories;
+              u_batchtime final-step retroactive marker at step 12 500.
+              y ∈ [0.05, 1] (log).
+
+    Linestyle = pooling axis (solid = u_batch, dashed = u_temporal,
+    star marker = u_batchtime final-step retroactive). Colour = arm.
+    `u_batchtime` / `u_batchtime_e` have no in-training trajectory for the
+    6 runs in this report (their training predates the metric, commit 2288c4d);
+    only the FINAL retroactive value is shown.
 
     `PLOT_START_STEP` cuts the warm-up regime in line with the other
     trajectory plots."""
     K = 384
-    fig = plt.figure(figsize=(13, 13.0))
-    gs = fig.add_gridspec(3, 2, height_ratios=[1, 1, 1.15])
-    ax_batch = fig.add_subplot(gs[0, :])
-    ax_temporal = fig.add_subplot(gs[1, :])
-    ax_bt_traj = fig.add_subplot(gs[2, 0])
-    ax_bt_bars = fig.add_subplot(gs[2, 1])
+    fig, (ax_e, ax_h) = plt.subplots(2, 1, sharex=True, figsize=(13, 9.5))
     overlays = {
         "sigreg01_enc3": sigreg_runs / f"bb_{BASE_TAG}_losses.csv",
         "sigreg10_enc3": sigreg10_runs / f"bb_{BASE_TAG}_emb10_losses.csv",
     }
 
-    def _draw_traj(ax, base_col):
+    def _draw_panel(ax, latent_suffix):
         for arm, p in overlays.items():
-            if p.exists():
-                d = pd.read_csv(p)
-                if base_col in d.columns:
-                    ds = _smoothed(d, base_col, PLOT_START_STEP)
-                    ax.plot(ds["step"], ds[f"{base_col}_sm"],
-                            label=f"{ARM_LABEL[arm]} · h_t",
-                            color=ARM_COLOR[arm], lw=0.9)
-                if f"{base_col}_e" in d.columns:
-                    ds = _smoothed(d, f"{base_col}_e", PLOT_START_STEP)
-                    ax.plot(ds["step"], ds[f"{base_col}_e_sm"],
-                            label=f"{ARM_LABEL[arm]} · e_t",
-                            color=ARM_COLOR[arm], lw=0.9, ls="--")
+            if not p.exists():
+                continue
+            d = pd.read_csv(p)
+            for base_col, ls in (("u_batch", "-"), ("u_temporal", "--")):
+                col = f"{base_col}{latent_suffix}"
+                if col in d.columns:
+                    ds = _smoothed(d, col, PLOT_START_STEP)
+                    ax.plot(ds["step"], ds[f"{col}_sm"],
+                            color=ARM_COLOR[arm], lw=1.0, ls=ls)
         for arm in SWEEP_ARMS:
             p = arm_runs / f"bb_{BASE_TAG}_{arm}_losses.csv"
-            if p.exists():
-                d = pd.read_csv(p)
-                if base_col in d.columns:
-                    ds = _smoothed(d, base_col, PLOT_START_STEP)
-                    ax.plot(ds["step"], ds[f"{base_col}_sm"],
-                            label=f"{ARM_LABEL[arm]} · h_t",
-                            color=ARM_COLOR[arm], lw=1.5)
-                if f"{base_col}_e" in d.columns:
-                    ds = _smoothed(d, f"{base_col}_e", PLOT_START_STEP)
-                    ax.plot(ds["step"], ds[f"{base_col}_e_sm"],
-                            label=f"{ARM_LABEL[arm]} · e_t",
-                            color=ARM_COLOR[arm], lw=1.5, ls="--")
+            if not p.exists():
+                continue
+            d = pd.read_csv(p)
+            for base_col, ls in (("u_batch", "-"), ("u_temporal", "--")):
+                col = f"{base_col}{latent_suffix}"
+                if col in d.columns:
+                    ds = _smoothed(d, col, PLOT_START_STEP)
+                    ax.plot(ds["step"], ds[f"{col}_sm"],
+                            color=ARM_COLOR[arm], lw=1.6, ls=ls)
 
-    for ax, kind in zip((ax_batch, ax_temporal), ("batch", "temporal")):
-        _draw_traj(ax, f"u_{kind}")
-        ax.axhline(1.0 / K, color="k", ls=":", alpha=0.5,
-                   label=f"1/K = 1/{K} ≈ {1/K:.4f} (all K dims evenly used)")
-        ax.set_xlabel(f"step  (start = {PLOT_START_STEP})")
-        ax.set_ylabel("U (dimension usage)")
-        ax.set_title(f"U_{kind} ({'cross-batch' if kind=='batch' else 'cross-time'})")
-        ax.set_ylim(0, 1)
-        ax.legend(fontsize=5.6); ax.grid(alpha=0.3)
-
-    _draw_traj(ax_bt_traj, "u_batchtime")
-    ax_bt_traj.axhline(1.0 / K, color="k", ls=":", alpha=0.5,
-                       label=f"1/K = 1/{K} ≈ {1/K:.4f} (all K dims evenly used)")
-    ax_bt_traj.set_xlabel(f"step  (start = {PLOT_START_STEP})")
-    ax_bt_traj.set_ylabel("U (dimension usage)")
-    ax_bt_traj.set_title(
-        "U_batchtime (cross-(batch × time) pooled) — trajectory\n"
-        "empty for runs predating the metric (commit 2288c4d)")
-    ax_bt_traj.set_ylim(0, 1)
-    ax_bt_traj.legend(fontsize=5.6, loc="upper right"); ax_bt_traj.grid(alpha=0.3)
+    _draw_panel(ax_e, "_e")
+    _draw_panel(ax_h, "")
 
     retro = pd.read_csv(retro_csv)
     retro_arm_map = {
@@ -402,43 +378,54 @@ def plot_dim_usage(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Path,
         "emb100_enc100":  "emb100_enc100",
         "emb1000_enc01":  "emb1000_enc01",
     }
-    bar_order = ["sigreg01_enc3", "sigreg10_enc3",
-                 "emb100_enc01", "emb100_enc10", "emb100_enc100", "emb1000_enc01"]
-    retro_by_arm = {retro_arm_map[r["arm"]]: r for _, r in retro.iterrows()
-                    if r["arm"] in retro_arm_map}
-    arms_present = [a for a in bar_order if a in retro_by_arm]
-    x = np.arange(len(arms_present))
-    w = 0.40
-    h_vals = [float(retro_by_arm[a]["u_batchtime"])   for a in arms_present]
-    e_vals = [float(retro_by_arm[a]["u_batchtime_e"]) for a in arms_present]
-    ax_bt_bars.bar(x - w / 2, h_vals, w,
-                   color=[ARM_COLOR[a] for a in arms_present],
-                   edgecolor="black", linewidth=0.4,
-                   label="u_batchtime · h_t")
-    ax_bt_bars.bar(x + w / 2, e_vals, w,
-                   color=[ARM_COLOR[a] for a in arms_present],
-                   edgecolor="black", linewidth=0.4, hatch="//",
-                   label="u_batchtime_e · e_t")
-    for xi, v in zip(x - w / 2, h_vals):
-        ax_bt_bars.text(xi, v + 0.006, f"{v:.4f}",
-                        ha="center", va="bottom", fontsize=6.5)
-    for xi, v in zip(x + w / 2, e_vals):
-        ax_bt_bars.text(xi, v + 0.006, f"{v:.4f}",
-                        ha="center", va="bottom", fontsize=6.5)
-    ax_bt_bars.axhline(1.0 / K, color="k", ls=":", alpha=0.5,
-                       label=f"1/K = 1/{K} ≈ {1/K:.4f} (all K dims evenly used)")
-    ax_bt_bars.set_xticks(x)
-    ax_bt_bars.set_xticklabels(
-        [ARM_LABEL[a].split(" (")[0].replace("SIGReg ", "") for a in arms_present],
-        rotation=18, ha="right", fontsize=7)
-    ax_bt_bars.set_ylabel("U_batchtime (final-step, retroactive)")
-    ax_bt_bars.set_title(
-        "U_batchtime (cross-(batch × time)) — backbone FINAL\n"
-        "retroactive from results/u_batchtime_retro.csv")
-    ax_bt_bars.set_ylim(0, max(h_vals + e_vals) * 1.18)
-    ax_bt_bars.legend(fontsize=6.5, loc="upper right"); ax_bt_bars.grid(axis="y", alpha=0.3)
+    bt_step = 12500
+    for _, r in retro.iterrows():
+        arm = retro_arm_map.get(r["arm"])
+        if arm is None:
+            continue
+        ax_e.scatter([bt_step], [float(r["u_batchtime_e"])],
+                     color=ARM_COLOR[arm], marker="*", s=110,
+                     edgecolor="black", linewidths=0.5, zorder=5)
+        ax_h.scatter([bt_step], [float(r["u_batchtime"])],
+                     color=ARM_COLOR[arm], marker="*", s=110,
+                     edgecolor="black", linewidths=0.5, zorder=5)
 
-    fig.suptitle("Dimension usage U — cos²-based; clipped to [1/K, 1] (floor = all K dims evenly used)")
+    for ax, (lo, hi), title in (
+        (ax_e, (1.0 / K, 0.1),  "e_t (embedding-side) — u_batch_e (solid), u_temporal_e (dashed), u_batchtime_e final (★)"),
+        (ax_h, (0.05, 1.0),     "h_t (encoder-side)  — u_batch (solid), u_temporal (dashed), u_batchtime final (★)"),
+    ):
+        ax.axhline(1.0 / K, color="k", ls=":", alpha=0.5,
+                   label=f"1/K = 1/{K} ≈ {1/K:.4f}  (rank-1 collapse: 1 effective dim)")
+        ax.set_yscale("log")
+        ax.set_ylim(lo, hi)
+        ax.set_ylabel("U (dimension usage; higher = more effective dims)")
+        ax.set_title(title)
+        ax.grid(alpha=0.3, which="both")
+
+    ax_h.set_xlabel(f"step  (start = {PLOT_START_STEP})")
+
+    plotted_arms = ["sigreg01_enc3", "sigreg10_enc3",
+                    "emb100_enc01", "emb100_enc10", "emb100_enc100", "emb1000_enc01"]
+    arm_handles = [plt.Line2D([0], [0], color=ARM_COLOR[a], lw=2.0,
+                              label=ARM_LABEL[a]) for a in plotted_arms]
+    style_handles = [
+        plt.Line2D([0], [0], color="black", ls="-",  lw=1.5, label="u_batch (cross-batch)"),
+        plt.Line2D([0], [0], color="black", ls="--", lw=1.5, label="u_temporal (cross-time)"),
+        plt.Line2D([0], [0], color="black", marker="*", markersize=9,
+                   markerfacecolor="white", markeredgecolor="black",
+                   linestyle="", label="u_batchtime FINAL — retroactive"),
+        plt.Line2D([0], [0], color="k", ls=":", alpha=0.5,
+                   label=f"1/K ≈ {1/K:.4f}  (rank-1 collapse)"),
+    ]
+    leg1 = ax_e.legend(handles=arm_handles, fontsize=6.5, loc="upper left",
+                       ncol=2, title="arm", title_fontsize=7)
+    ax_e.add_artist(leg1)
+    ax_h.legend(handles=style_handles, fontsize=6.8, loc="lower right",
+                title="pooling axis / marker", title_fontsize=7)
+
+    fig.suptitle(
+        "Dimension usage U — split by latent. K·U ≈ effective number of "
+        "dimensions in use (K=384). Higher = more dims used.")
     fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
 
 
