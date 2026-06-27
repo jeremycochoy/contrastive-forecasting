@@ -163,9 +163,9 @@ Arm 1 differs from the anchor by a single `λ_e` factor of 10×, so Δ vs arm 1 
 
 ![Log-y trajectories of L_SIGReg(e_t), L_SIGReg(h_t), U_batch(e_t), U_temporal(e_t) from step 100 onwards for the 4 sweep arms and the 2 anchors; rolling 50-step mean. The bottom row is the embedding-side dimension-usage metric U; its 1/K ≈ 0.00260 dotted floor marks all K=384 dims evenly used.](plots/sigreg_e_inspection.png)
 
-![Three-row dimension-usage panel. Row 1 = cross-batch U (`u_batch`); row 2 = cross-time U (`u_temporal`); both as trajectories with `h_t` (solid) and `e_t` (dashed) for the sweep arms and 2 anchors from step 100 onwards. Row 3 = cross-(batch × time) pooled U (`u_batchtime`): left = trajectory subplot (empty for runs predating commit 2288c4d — see Anchor note below); right = bar chart of the final-step retroactive `u_batchtime` (`h_t`, solid colour) and `u_batchtime_e` (`e_t`, hatched) for the 4 finished sweep arms and the 2 prior B=512 anchors, sourced from `results/u_batchtime_retro.csv`. All panels clipped to `[1/K, 1]`; the 1/K dotted floor marks all K=384 dims evenly used.](plots/dim_usage.png)
+![Three-row dimension-usage panel. Row 1 = cross-batch U (`u_batch`); row 2 = cross-time U (`u_temporal`); both as trajectories with `h_t` (solid) and `e_t` (dashed) for the sweep arms and 2 anchors from step 100 onwards. Row 3 = cross-(batch × time) pooled U (`u_batchtime`): left = trajectory subplot (empty for the 4 sweep arms and 2 prior B=512 anchors, whose training predates the addition of the `u_batchtime` training-loop metric — retroactive final-step values appear in the right panel and the table below); right = bar chart of the final-step retroactive `u_batchtime` (`h_t`, solid colour) and `u_batchtime_e` (`e_t`, hatched) for the 4 finished sweep arms and the 2 prior B=512 anchors, sourced from `results/u_batchtime_retro.csv`. All panels clipped to `[1/K, 1]`; the 1/K dotted floor marks all K=384 dims evenly used.](plots/dim_usage.png)
 
-At fixed `λ_h=0.1`, the pooled `u_batchtime` (`h_t`) decreases monotonically along the `λ_e` ladder 0.1 → 1.0 → 10.0 → 100.0 (0.390 → 0.353 → 0.353 → 0.314). The per-arm values are tabulated in §Annex D below.
+At fixed `λ_h=0.1`, the pooled `u_batchtime` (`h_t`) along the `λ_e` ladder 0.1 → 1.0 → 10.0 → 100.0 reads 0.390 → 0.353 → 0.353 → 0.314 — the two middle arms tie within single-seed noise; the outer arms differ. Per-arm values are tabulated below.
 
 #### Tail-50 trajectories per arm
 
@@ -180,7 +180,7 @@ Tail-50 mean = mean over steps 12 451–12 500 (last 50 of 12 500 logged steps) 
 
 #### `u_batchtime` at backbone FINAL — retroactive
 
-`u_batchtime` (cross-(batch × time) pooled `U` on `h_t`) and `u_batchtime_e` (same on `e_t`) were added in commit 2288c4d, after the 4 finished sweep arms and the 2 prior B=512 anchors had already trained. Values below are computed retroactively from each backbone's `FINAL.pth` checkpoint over a single fixed batch (gift-pretrain-full-4096 / small_v1, seed 20260520, B=512); the per-arm training-time trajectory is empty in the dim-usage panel above for these 6 runs. Runs launched after commit 2288c4d log `u_batchtime` and `u_batchtime_e` directly as CSV columns alongside `u_batch_*` / `u_temporal_*`.
+`u_batchtime` (cross-(batch × time) pooled `U` on `h_t`) and `u_batchtime_e` (same on `e_t`) were added to the training-loop metrics after the 4 finished sweep arms and the 2 prior B=512 anchors had already trained, so no in-training trajectory exists for those 6 runs. Values below are computed retroactively from each backbone's `FINAL.pth` checkpoint over a single fixed batch (gift-pretrain-full-4096 / small_v1, seed 20260520, B=512); the per-arm training-time trajectory is empty in the dim-usage panel above for these 6 runs. Runs launched after the metric addition log `u_batchtime` and `u_batchtime_e` directly as CSV columns alongside `u_batch_*` / `u_temporal_*`.
 
 | arm / anchor | recipe | `u_batchtime` (`h_t`) | `u_batchtime_e` (`e_t`) |
 | --- | --- | ---: | ---: |

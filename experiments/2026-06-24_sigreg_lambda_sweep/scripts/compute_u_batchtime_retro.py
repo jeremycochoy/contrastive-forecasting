@@ -162,7 +162,7 @@ CHECKPOINTS = [
     ),
     dict(
         arm="anchor_emb10",
-        recipe="λ_e=1.0, λ_h=1.0 (#359 anchor)",
+        recipe="λ_e=1.0, λ_h=0.1 (#359 anchor)",
         rel="reports/2026-06-22_lejepa_sigreg_emb10/runs/"
             "bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_"
             "emb10_FINAL.pth",
