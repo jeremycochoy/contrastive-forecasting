@@ -1,0 +1,209 @@
+  [head-train] auto-detected freq_emb_dim=3 from backbone checkpoint
+  [head-train] auto-detected seasonality_emb_dim=3 from backbone checkpoint
+  [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+  [head-train] auto-detected qk_norm=True from backbone checkpoint
+  [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+  [head-train] auto-detected patch_stats=none
+Backbone loaded from /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/runs/bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_FINAL.pth (0 params, frozen)
+/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/transformer.py:392: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  warnings.warn(
+Forecasting head [transformer-q (2L H384 nhead6 causal)]: 3,605,136 trainable params
+Optimizer: AdamW lr=0.001 betas=(0.9,0.98) wd=0.1 eps=1e-08
+Schedule: cosine warmup=2000 decay_start=24000 final_ratio=0.1
+Loss CSV: /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_losses.csv
+Data: MIX 100% HF + 0% synth, hf_bs=256, synth_bs=0, synth_seed=20042, emit_labels=True
+
+Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+RECONSTRUCTION mode: forecaster (head decodes what latent represents, not future)
+Checkpoints: /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_*.pth
+[    200] loss=0.245821  ema_loss=0.342459  5.2 sps  ETA 1.6h
+  -> New best: /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_best.pth (ema_loss=0.342459)
+[    400] loss=0.224291  ema_loss=0.244393  5.6 sps  ETA 1.5h
+  -> New best: /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_best.pth (ema_loss=0.244393)
+[    600] loss=0.213379  ema_loss=0.219968  5.7 sps  ETA 1.4h
+  -> New best: /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_best.pth (ema_loss=0.219968)
+[    800] loss=0.197105  ema_loss=0.212155  5.7 sps  ETA 1.4h
+  -> New best: /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_best.pth (ema_loss=0.212155)
+[   1000] loss=0.213776  ema_loss=0.210140  5.7 sps  ETA 1.4h
+  -> New best: /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_best.pth (ema_loss=0.210140)
+[   1200] loss=0.206458  ema_loss=0.207459  5.6 sps  ETA 1.4h
+  -> New best: /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_best.pth (ema_loss=0.207459)
+[   1400] loss=0.202127  ema_loss=0.206968  5.6 sps  ETA 1.4h
+  -> New best: /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_best.pth (ema_loss=0.206968)
+[   1600] loss=0.197333  ema_loss=0.205431  5.6 sps  ETA 1.4h
+  -> New best: /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_best.pth (ema_loss=0.205431)
+[   1800] loss=0.214542  ema_loss=0.206226  5.5 sps  ETA 1.4h
+[   2000] loss=0.200165  ema_loss=0.205376  5.5 sps  ETA 1.4h
+  -> New best: /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_best.pth (ema_loss=0.205376)
+[   2200] loss=0.213024  ema_loss=0.205565  5.5 sps  ETA 1.4h
+[   2400] loss=0.204053  ema_loss=0.204942  5.5 sps  ETA 1.4h
+  -> New best: /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_best.pth (ema_loss=0.204942)
+[   2600] loss=0.192515  ema_loss=0.203844  5.2 sps  ETA 1.5h
+  -> New best: /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_best.pth (ema_loss=0.203844)
+[   2800] loss=0.193308  ema_loss=0.203786  5.2 sps  ETA 1.4h
+  -> New best: /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_best.pth (ema_loss=0.203786)
+[   3000] loss=0.199888  ema_loss=0.202881  5.2 sps  ETA 1.4h
+  -> New best: /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_best.pth (ema_loss=0.202881)
+[   3200] loss=0.195839  ema_loss=0.204020  5.2 sps  ETA 1.4h
+[   3400] loss=0.205699  ema_loss=0.203062  5.2 sps  ETA 1.4h
+[   3600] loss=0.188854  ema_loss=0.202122  5.2 sps  ETA 1.4h
+  -> New best: /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_best.pth (ema_loss=0.202122)
+[   3800] loss=0.197316  ema_loss=0.202806  5.2 sps  ETA 1.4h
+[   4000] loss=0.222749  ema_loss=0.201981  5.2 sps  ETA 1.4h
+  -> New best: /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_best.pth (ema_loss=0.201981)
+[   4200] loss=0.203058  ema_loss=0.202094  5.2 sps  ETA 1.4h
+[   4400] loss=0.199871  ema_loss=0.202130  5.2 sps  ETA 1.4h
+[   4600] loss=0.193408  ema_loss=0.202117  5.2 sps  ETA 1.4h
+[   4800] loss=0.199144  ema_loss=0.201309  5.2 sps  ETA 1.4h
+  -> New best: /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_best.pth (ema_loss=0.201309)
+[   5000] loss=0.202991  ema_loss=0.201899  5.1 sps  ETA 1.4h
+[   5200] loss=0.211396  ema_loss=0.201372  5.1 sps  ETA 1.3h
+[   5400] loss=0.200539  ema_loss=0.202187  5.1 sps  ETA 1.3h
+[   5600] loss=0.193319  ema_loss=0.200982  5.1 sps  ETA 1.3h
+  -> New best: /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_best.pth (ema_loss=0.200982)
+[   5800] loss=0.191249  ema_loss=0.201118  5.1 sps  ETA 1.3h
+[   6000] loss=0.194150  ema_loss=0.200806  5.1 sps  ETA 1.3h
+  -> New best: /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_best.pth (ema_loss=0.200806)
+[   6200] loss=0.195188  ema_loss=0.200817  5.1 sps  ETA 1.3h
+[   6400] loss=0.216870  ema_loss=0.200108  5.1 sps  ETA 1.3h
+  -> New best: /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_best.pth (ema_loss=0.200108)
+[   6600] loss=0.200209  ema_loss=0.199758  5.0 sps  ETA 1.3h
+  -> New best: /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_best.pth (ema_loss=0.199758)
+[   6800] loss=0.210507  ema_loss=0.201069  5.1 sps  ETA 1.3h
+[   7000] loss=0.188304  ema_loss=0.200748  5.1 sps  ETA 1.3h
+[   7200] loss=0.187676  ema_loss=0.200652  5.0 sps  ETA 1.3h
+[   7400] loss=0.201861  ema_loss=0.201236  5.0 sps  ETA 1.2h
+[   7600] loss=0.205892  ema_loss=0.200535  5.0 sps  ETA 1.2h
+[   7800] loss=0.190643  ema_loss=0.200601  5.0 sps  ETA 1.2h
+[   8000] loss=0.195646  ema_loss=0.200336  5.0 sps  ETA 1.2h
+[   8200] loss=0.208455  ema_loss=0.200473  5.0 sps  ETA 1.2h
+[   8400] loss=0.201345  ema_loss=0.199297  5.0 sps  ETA 1.2h
+  -> New best: /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_best.pth (ema_loss=0.199297)
+[   8600] loss=0.205323  ema_loss=0.199882  5.0 sps  ETA 1.2h
+[   8800] loss=0.203992  ema_loss=0.200185  5.0 sps  ETA 1.2h
+[   9000] loss=0.189596  ema_loss=0.199309  5.0 sps  ETA 1.2h
+'HTTPSConnectionPool(host='us.aws.cdn.hf.co', port=443): Read timed out.' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00058.parquet
+Retrying in 1s [Retry 1/5].
+[   9200] loss=0.180333  ema_loss=0.199553  5.0 sps  ETA 1.2h
+[   9400] loss=0.204224  ema_loss=0.200446  5.0 sps  ETA 1.1h
+[   9600] loss=0.204863  ema_loss=0.200514  5.0 sps  ETA 1.1h
+[   9800] loss=0.210689  ema_loss=0.200177  5.0 sps  ETA 1.1h
+[  10000] loss=0.197554  ema_loss=0.199784  5.0 sps  ETA 1.1h
+[  10200] loss=0.200035  ema_loss=0.199644  5.0 sps  ETA 1.1h
+[  10400] loss=0.204809  ema_loss=0.199512  5.0 sps  ETA 1.1h
+[  10600] loss=0.207227  ema_loss=0.198582  5.0 sps  ETA 1.1h
+  -> New best: /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_best.pth (ema_loss=0.198582)
+[  10800] loss=0.199359  ema_loss=0.198642  5.0 sps  ETA 1.1h
+[  11000] loss=0.197133  ema_loss=0.199761  5.0 sps  ETA 1.1h
+[  11200] loss=0.207676  ema_loss=0.198998  5.0 sps  ETA 1.0h
+[  11400] loss=0.189792  ema_loss=0.198971  5.0 sps  ETA 1.0h
+[  11600] loss=0.185484  ema_loss=0.198736  5.0 sps  ETA 1.0h
+[  11800] loss=0.178775  ema_loss=0.199900  5.0 sps  ETA 1.0h
+[  12000] loss=0.195845  ema_loss=0.199034  5.0 sps  ETA 1.0h
+[  12200] loss=0.200142  ema_loss=0.197879  5.0 sps  ETA 1.0h
+  -> New best: /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_best.pth (ema_loss=0.197879)
+[  12400] loss=0.206809  ema_loss=0.199542  5.0 sps  ETA 1.0h
+[  12600] loss=0.211336  ema_loss=0.199703  5.0 sps  ETA 1.0h
+[  12800] loss=0.192823  ema_loss=0.198399  5.0 sps  ETA 1.0h
+[  13000] loss=0.196070  ema_loss=0.198511  5.0 sps  ETA 1.0h
+[  13200] loss=0.199874  ema_loss=0.198872  5.0 sps  ETA 0.9h
+[  13400] loss=0.208526  ema_loss=0.198472  5.0 sps  ETA 0.9h
+[  13600] loss=0.194000  ema_loss=0.199264  5.0 sps  ETA 0.9h
+[  13800] loss=0.204404  ema_loss=0.198493  5.0 sps  ETA 0.9h
+[  14000] loss=0.212524  ema_loss=0.199962  5.0 sps  ETA 0.9h
+[  14200] loss=0.196421  ema_loss=0.198430  5.0 sps  ETA 0.9h
+[  14400] loss=0.194001  ema_loss=0.198697  4.9 sps  ETA 0.9h
+[  14600] loss=0.193602  ema_loss=0.197850  4.9 sps  ETA 0.9h
+  -> New best: /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_best.pth (ema_loss=0.197850)
+[  14800] loss=0.208408  ema_loss=0.198999  4.9 sps  ETA 0.9h
+[  15000] loss=0.202391  ema_loss=0.198941  4.9 sps  ETA 0.8h
+[  15200] loss=0.189292  ema_loss=0.198250  4.9 sps  ETA 0.8h
+[  15400] loss=0.200085  ema_loss=0.198766  4.9 sps  ETA 0.8h
+[  15600] loss=0.203549  ema_loss=0.197539  4.9 sps  ETA 0.8h
+  -> New best: /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_best.pth (ema_loss=0.197539)
+[  15800] loss=0.197586  ema_loss=0.198543  4.9 sps  ETA 0.8h
+[  16000] loss=0.210435  ema_loss=0.198861  4.9 sps  ETA 0.8h
+[  16200] loss=0.200358  ema_loss=0.198373  4.9 sps  ETA 0.8h
+[  16400] loss=0.184547  ema_loss=0.197997  4.9 sps  ETA 0.8h
+[  16600] loss=0.199915  ema_loss=0.198910  4.9 sps  ETA 0.8h
+[  16800] loss=0.184735  ema_loss=0.198655  4.9 sps  ETA 0.7h
+[  17000] loss=0.183280  ema_loss=0.197387  4.9 sps  ETA 0.7h
+  -> New best: /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_best.pth (ema_loss=0.197387)
+[  17200] loss=0.205592  ema_loss=0.198958  4.9 sps  ETA 0.7h
+[  17400] loss=0.195313  ema_loss=0.198590  4.9 sps  ETA 0.7h
+[  17600] loss=0.209619  ema_loss=0.200532  4.9 sps  ETA 0.7h
+[  17800] loss=0.179178  ema_loss=0.198385  4.9 sps  ETA 0.7h
+[  18000] loss=0.206848  ema_loss=0.198414  4.9 sps  ETA 0.7h
+[  18200] loss=0.189557  ema_loss=0.198086  4.9 sps  ETA 0.7h
+[  18400] loss=0.203143  ema_loss=0.197831  4.9 sps  ETA 0.7h
+[  18600] loss=0.172785  ema_loss=0.197376  4.9 sps  ETA 0.7h
+  -> New best: /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_best.pth (ema_loss=0.197376)
+[  18800] loss=0.193200  ema_loss=0.197269  4.9 sps  ETA 0.6h
+  -> New best: /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_best.pth (ema_loss=0.197269)
+[  19000] loss=0.208281  ema_loss=0.198745  4.9 sps  ETA 0.6h
+[  19200] loss=0.188200  ema_loss=0.198205  4.9 sps  ETA 0.6h
+[  19400] loss=0.200062  ema_loss=0.198394  4.9 sps  ETA 0.6h
+[  19600] loss=0.196708  ema_loss=0.198281  4.9 sps  ETA 0.6h
+[  19800] loss=0.201601  ema_loss=0.198118  4.9 sps  ETA 0.6h
+[  20000] loss=0.196387  ema_loss=0.198450  4.9 sps  ETA 0.6h
+[  20200] loss=0.197514  ema_loss=0.198295  4.9 sps  ETA 0.6h
+[  20400] loss=0.193716  ema_loss=0.196899  4.9 sps  ETA 0.5h
+  -> New best: /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_best.pth (ema_loss=0.196899)
+[  20600] loss=0.208031  ema_loss=0.197768  4.9 sps  ETA 0.5h
+[  20800] loss=0.189910  ema_loss=0.197756  4.9 sps  ETA 0.5h
+[  21000] loss=0.208298  ema_loss=0.198451  4.9 sps  ETA 0.5h
+[  21200] loss=0.191982  ema_loss=0.197483  4.9 sps  ETA 0.5h
+[  21400] loss=0.183546  ema_loss=0.198292  4.9 sps  ETA 0.5h
+[  21600] loss=0.199489  ema_loss=0.197950  4.9 sps  ETA 0.5h
+[  21800] loss=0.191629  ema_loss=0.197231  4.9 sps  ETA 0.5h
+[  22000] loss=0.205865  ema_loss=0.198156  4.9 sps  ETA 0.5h
+[  22200] loss=0.201378  ema_loss=0.197585  4.9 sps  ETA 0.4h
+[  22400] loss=0.204125  ema_loss=0.197194  4.9 sps  ETA 0.4h
+[  22600] loss=0.211094  ema_loss=0.198086  4.9 sps  ETA 0.4h
+[  22800] loss=0.196406  ema_loss=0.198171  4.9 sps  ETA 0.4h
+[  23000] loss=0.198684  ema_loss=0.198154  4.9 sps  ETA 0.4h
+[  23200] loss=0.208156  ema_loss=0.197481  4.9 sps  ETA 0.4h
+[  23400] loss=0.210186  ema_loss=0.197808  4.9 sps  ETA 0.4h
+[  23600] loss=0.183103  ema_loss=0.196822  4.9 sps  ETA 0.4h
+  -> New best: /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_best.pth (ema_loss=0.196822)
+[  23800] loss=0.196041  ema_loss=0.197329  4.9 sps  ETA 0.4h
+[  24000] loss=0.201971  ema_loss=0.197784  4.8 sps  ETA 0.3h
+[  24200] loss=0.191639  ema_loss=0.197150  4.8 sps  ETA 0.3h
+[  24400] loss=0.206204  ema_loss=0.198140  4.8 sps  ETA 0.3h
+[  24600] loss=0.201708  ema_loss=0.198500  4.8 sps  ETA 0.3h
+[  24800] loss=0.205961  ema_loss=0.197645  4.8 sps  ETA 0.3h
+[  25000] loss=0.181677  ema_loss=0.198168  4.8 sps  ETA 0.3h
+[  25200] loss=0.199980  ema_loss=0.196929  4.8 sps  ETA 0.3h
+[  25400] loss=0.211935  ema_loss=0.198233  4.8 sps  ETA 0.3h
+[  25600] loss=0.193494  ema_loss=0.197474  4.8 sps  ETA 0.3h
+[  25800] loss=0.201302  ema_loss=0.196628  4.8 sps  ETA 0.2h
+  -> New best: /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_best.pth (ema_loss=0.196628)
+[  26000] loss=0.196334  ema_loss=0.197327  4.8 sps  ETA 0.2h
+[  26200] loss=0.194857  ema_loss=0.196809  4.8 sps  ETA 0.2h
+[  26400] loss=0.194038  ema_loss=0.197818  4.8 sps  ETA 0.2h
+[  26600] loss=0.200740  ema_loss=0.197483  4.8 sps  ETA 0.2h
+[  26800] loss=0.197283  ema_loss=0.196599  4.8 sps  ETA 0.2h
+  -> New best: /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_best.pth (ema_loss=0.196599)
+[  27000] loss=0.206594  ema_loss=0.197973  4.8 sps  ETA 0.2h
+'HTTPSConnectionPool(host='us.aws.cdn.hf.co', port=443): Read timed out.' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00173.parquet
+Retrying in 1s [Retry 1/5].
+[  27200] loss=0.199192  ema_loss=0.198531  4.8 sps  ETA 0.2h
+[  27400] loss=0.214579  ema_loss=0.197904  4.8 sps  ETA 0.1h
+[  27600] loss=0.210510  ema_loss=0.197868  4.8 sps  ETA 0.1h
+'HTTPSConnectionPool(host='us.aws.cdn.hf.co', port=443): Read timed out.' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00178.parquet
+Retrying in 1s [Retry 1/5].
+[  27800] loss=0.202676  ema_loss=0.197702  4.8 sps  ETA 0.1h
+[  28000] loss=0.203932  ema_loss=0.197657  4.8 sps  ETA 0.1h
+[  28200] loss=0.194957  ema_loss=0.197885  4.8 sps  ETA 0.1h
+[  28400] loss=0.208217  ema_loss=0.197084  4.8 sps  ETA 0.1h
+[  28600] loss=0.189321  ema_loss=0.196683  4.8 sps  ETA 0.1h
+[  28800] loss=0.194672  ema_loss=0.197524  4.8 sps  ETA 0.1h
+[  29000] loss=0.192202  ema_loss=0.198205  4.8 sps  ETA 0.1h
+[  29200] loss=0.195222  ema_loss=0.197476  4.8 sps  ETA 0.0h
+[  29400] loss=0.211603  ema_loss=0.198078  4.8 sps  ETA 0.0h
+[  29600] loss=0.196963  ema_loss=0.198121  4.8 sps  ETA 0.0h
+[  29800] loss=0.195757  ema_loss=0.197482  4.8 sps  ETA 0.0h
+[  30000] loss=0.187979  ema_loss=0.196493  4.8 sps  ETA 0.0h
+  -> New best: /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_best.pth (ema_loss=0.196493)
+
+Done in 1.7h. Best loss=0.196493 at step 30000

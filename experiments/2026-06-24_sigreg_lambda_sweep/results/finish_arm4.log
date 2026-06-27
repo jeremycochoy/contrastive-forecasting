@@ -1,0 +1,32 @@
+Current branch feature/contrastive-forecasting-363-v2 is up to date.
+[06-28 00:59:20] [finish-arm4] stash pop conflict — continuing; aggregate will refresh artefacts
+[06-28 00:59:20] [finish-arm4] running aggregate_to_report.sh
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+present sweep arms: ['emb100_enc01', 'emb100_enc10', 'emb100_enc100', 'emb10_enc10', 'emb1000_enc01', 'emb10000_enc10']
+rows in gm_table: 40
+REP=/tmp/cf-revert-363/reports/2026-06-24_sigreg_lambda_sweep
+-rw-rw-r-- 1 jupyter jupyter 1.8K Jun 28 00:59 /tmp/cf-revert-363/reports/2026-06-24_sigreg_lambda_sweep/results/final_trajectories.txt
+-rw-rw-r-- 1 jupyter jupyter 3.1K Jun 28 00:59 /tmp/cf-revert-363/reports/2026-06-24_sigreg_lambda_sweep/results/gm_table.csv
+
+/tmp/cf-revert-363/reports/2026-06-24_sigreg_lambda_sweep/plots/:
+total 1.1M
+-rw-rw-r-- 1 jupyter jupyter  73K Jun 27 12:38 best_vs_last_drift.png
+-rw-rw-r-- 1 jupyter jupyter 277K Jun 28 00:59 dim_usage.png
+-rw-rw-r-- 1 jupyter jupyter  68K Jun 28 00:59 gm_rel_mase.png
+-rw-rw-r-- 1 jupyter jupyter 161K Jun 27 12:34 heatmap.png
+-rw-rw-r-- 1 jupyter jupyter 108K Jun 27 12:34 lambda_e_ladder.png
+-rw-rw-r-- 1 jupyter jupyter  88K Jun 28 00:59 loss_curve.png
+-rw-rw-r-- 1 jupyter jupyter 283K Jun 28 00:59 sigreg_e_inspection.png
+[06-28 00:59:25] [finish-arm4] aggregate finished (rc=0)
+[06-28 00:59:25] [finish-arm4] running compute_bootstrap.py for paired-bootstrap CI refresh
+gm_table.csv rows: 36
+bootstrap_ci_vs_359.csv rows: 20
+bootstrap_ci_vs_arm1.csv rows: 16
+[06-28 00:59:25] [finish-arm4] compute_bootstrap finished (rc=0)
+[06-28 00:59:25] [finish-arm4] running build_plots.py for plot refresh
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote 7 plots under /tmp/cf-revert-363/reports/2026-06-24_sigreg_lambda_sweep/plots
+[06-28 00:59:31] [finish-arm4] build_plots finished (rc=0)
+[06-28 00:59:31] [finish-arm4] staging artefacts
