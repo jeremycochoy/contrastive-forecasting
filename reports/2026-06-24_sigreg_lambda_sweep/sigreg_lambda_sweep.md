@@ -15,13 +15,13 @@ The four arms run:
 
 ## Result
 
-**Verdict.** Along the SIGReg-weight axis at this recipe, the only clear-of-noise improvement over the `λ_e=1.0, λ_h=0.1` anchor is arm 2 (`λ_e=10.0, λ_h=1.0`) on the `2L/best` cell (Δ = −0.017, 95% CI `[−0.029, −0.005]`, P(Δ<0) = 0.997). On the other 3 (head, ckpt) cells no sweep cell's 95% CI excludes zero, and arm 5 (`λ_e=100.0`) regresses against arm 1 on both last-ckpt cells.
+**Verdict.** Two baselines. Vs the `λ_e=1.0, λ_h=0.1` anchor (#359), only arm 2 (`λ_e=10.0, λ_h=1.0`) on `2L/best` is CI-clean (Δ = −0.017, 95% CI `[−0.029, −0.005]`, P(Δ<0) = 0.997); the other 3 (head, ckpt) cells straddle zero. Vs arm 1 (`λ_e=10.0, λ_h=0.1`), arm 5 (`λ_e=100.0`) regresses CI-clean on both last-ckpt cells (Annex B).
 
 ![GIFT-Eval full-97 GM-Rel MASE bars across the 4 anchors and the 4 sweep arms, faceted by (q-head depth, backbone checkpoint); whiskers on the sweep bars = paired-bootstrap 95% CI vs the `λ_e=1.0, λ_h=0.1` anchor; per-cell horizontal lines mark each anchor at its published value (grey dotted = enc3+CPC, blue dotted = EMA enc3+CPC, red dashed = SIGReg λ_e=λ_h=0.1, green solid = SIGReg λ_e=1.0/λ_h=0.1); bar labels = GM-Rel MASE.](plots/gm_rel_mase.png)
 
 ### Training trajectory
 
-![Log-log total training loss (50-step rolling mean) from step 100 onwards for the 4 sweep arms and the 2 prior λ_h=0.1 anchors. Cutting the first ~100 warm-up steps and log axes keep the converged regime readable; the SIGReg-side spike between step 2 000 and 4 000 is what separates the arms.](plots/loss_curve.png)
+![Log-log total training loss (50-step rolling mean) from step 100 onwards for the 4 sweep arms and the 2 prior λ_h=0.1 anchors. Cutting the first ~100 warm-up steps and log axes keep the converged regime readable.](plots/loss_curve.png)
 
 ![Log-y trajectories of L_SIGReg(e_t), L_SIGReg(h_t), u_batch(e_t), u_temporal(e_t) from step 100 onwards for the 4 sweep arms and the 2 anchors; rolling 50-step mean. The 1/K ≈ 0.00260 dotted line on the bottom row marks the one-direction floor of the dim-usage metrics.](plots/sigreg_e_inspection.png)
 
@@ -29,7 +29,7 @@ The four arms run:
 
 ### GM-Rel MASE — B=512 sweep family
 
-Among the 4 B=512 sweep arms, arm 2 (`λ_e=10.0, λ_h=1.0`) is the lowest on both best-ckpt cells; arm 1 (`λ_e=10.0, λ_h=0.1`) is the lowest on both last-ckpt cells; arm 5 (`λ_e=100.0, λ_h=0.1`) is the highest on both. The 4 anchor rows are kept for reference; column-bold marks the row-minimum among the B=512 family (`λ_e=λ_h=0.1` (#355), `λ_e=1.0, λ_h=0.1` (#359), and the 4 sweep arms). The B=1024 cells (#344, #353) are not comparable to the B=512 family and are never bolded, regardless of their value.
+Among the 4 sweep arms, arm 5 (`λ_e=100.0, λ_h=0.1`) holds the highest GM in 3 of 4 cells (all except `6L/best`, where arm 3 edges it by 0.0003). The 4 anchor rows are kept for reference; column-bold marks the row-minimum among the B=512 family (`λ_e=λ_h=0.1` (#355), `λ_e=1.0, λ_h=0.1` (#359), and the 4 sweep arms). The B=1024 cells (#344, #353) are not comparable to the B=512 family and are never bolded, regardless of their value.
 
 | head / ckpt | `enc3+CPC`, B=1024 (#344) | `EMA enc3+CPC`, B=1024 (#353) | `λ_e=λ_h=0.1`, B=512 (#355) | `λ_e=1.0, λ_h=0.1`, B=512 (#359) | arm 1 (10.0, 0.1) | arm 2 (10.0, 1.0) | arm 3 (10.0, 10.0) | arm 5 (100.0, 0.1) |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -40,7 +40,7 @@ Among the 4 B=512 sweep arms, arm 2 (`λ_e=10.0, λ_h=1.0`) is the lowest on bot
 
 ### λ_e ladder at fixed λ_h=0.1
 
-Walking `λ_e` from 0.1 → 1.0 → 10.0 → 100.0 at `λ_h=0.1`, the GM drops between 0.1 and 1.0 on all 4 cells, moves by Δ ∈ [−0.0071, +0.0039] between 1.0 and 10.0 (within the bootstrap CI on every cell), then rises at `λ_e=100.0` on all 4 cells. Per-cell minima: `2L/best` 1.1470 at `λ_e=1.0` (10.0 at 1.1474, inside the CI); `2L/last` 1.1610 at `λ_e=10.0` (−0.0071 below 1.0); `6L/best` 1.1408 at `λ_e=1.0` (10.0 at 1.1447); `6L/last` 1.1473 at `λ_e=10.0` (−0.0009 below 1.0).
+Walking `λ_e` from 0.1 → 1.0 → 10.0 → 100.0 at `λ_h=0.1`, the GM drops between 0.1 and 1.0 on all 4 cells, moves by Δ ∈ [−0.0071, +0.0039] between 1.0 and 10.0 (within the bootstrap CI on every cell), then rises at `λ_e=100.0` on all 4 cells.
 
 ![λ_e ladder at fixed λ_h=0.1: 4 line curves (2L/6L × best/last) versus log(λ_e); shaded bands = paired-bootstrap 95% CI vs the `λ_e=1.0` anchor. The 0.1 / 1.0 ticks come from the two prior B=512 anchors (#355, #359); 10.0 = arm 1; 100.0 = arm 5.](plots/lambda_e_ladder.png)
 
