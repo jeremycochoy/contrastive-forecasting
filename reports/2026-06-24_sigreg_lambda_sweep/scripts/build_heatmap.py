@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 # #363 SIGReg λ-sweep — 2D heatmap of GM-Rel MASE over (λ_e, λ_h).
 #
-# 4 panels (2L/best, 2L/last, 6L/best, 6L/last). X axis = λ_e on a log grid
-# {0.1, 1.0, 10.0, 100.0}; Y axis = λ_h on a log grid {0.1, 1.0, 10.0}.
-# Cell colour = GM-Rel MASE on a diverging colormap centred on the per-cell
-# #359 anchor (1.0, 0.1) so red = worse than #359, blue = better. Cell text
-# = GM value. Un-run grid points are drawn with a hatched grey background.
+# 4 panels, one per (q-head depth, backbone checkpoint) cell. X axis = λ_e on
+# a log grid {0.1, 1.0, 10.0, 100.0}; Y axis = λ_h on a log grid {0.1, 1.0,
+# 10.0}. Tile colour = GM-Rel MASE on a diverging colormap centred on the
+# per-cell SIGReg + EMA-target, B=512, λ_e=1.0, λ_h=0.1 anchor (#359), so red
+# = worse than that anchor, blue = better. Tile text = GM value. Un-run grid
+# tiles are drawn with a hatched grey background.
 import argparse
 import sys
 from pathlib import Path
@@ -72,7 +73,7 @@ def heatmap(gm: pd.DataFrame, out: Path):
         im = ax.imshow(grid, cmap="RdBu_r", norm=norm, origin="lower", aspect="auto")
         last_im = im
 
-        # hatch the un-run cells
+        # hatch the un-run tiles
         for (le, lh) in UNRUN:
             xi = LAMBDA_E.index(le)
             yi = LAMBDA_H.index(lh)
@@ -82,7 +83,7 @@ def heatmap(gm: pd.DataFrame, out: Path):
             ax.text(xi, yi, "n/a", ha="center", va="center",
                     fontsize=7.0, color="#555555", zorder=3)
 
-        # value overlay + arm tag on each populated cell
+        # value overlay + arm tag on each populated tile
         for (le, lh), (arm_key, tag) in GRID_ARM.items():
             xi = LAMBDA_E.index(le)
             yi = LAMBDA_H.index(lh)
@@ -102,15 +103,16 @@ def heatmap(gm: pd.DataFrame, out: Path):
         ax.set_yticklabels([f"{v:g}" for v in LAMBDA_H])
         ax.set_xlabel("λ_e (log)")
         ax.set_ylabel("λ_h (log)")
-        ax.set_title(f"{head} q-head / {ckpt}-ckpt  —  centre = #359 ({anchor_val:.3f})")
+        ax.set_title(f"{head} q-head / {ckpt}-ckpt  —  centre = SIGReg+EMA λ_e=1.0, λ_h=0.1 (#359, {anchor_val:.3f})")
 
         cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
         cb.set_label("GM-Rel MASE", fontsize=8)
         cb.ax.tick_params(labelsize=7)
 
     fig.suptitle(
-        "GM-Rel MASE across (λ_e, λ_h) — diverging colormap centred on per-cell #359 anchor "
-        "(red = worse than #359, blue = better); hatched = not run",
+        "GM-Rel MASE across (λ_e, λ_h) — diverging colormap centred on per-cell "
+        "SIGReg + EMA-target, B=512, λ_e=1.0, λ_h=0.1 anchor (#359); "
+        "red = worse than that anchor, blue = better; hatched = not run",
         fontsize=10.5,
     )
     fig.savefig(out, dpi=120)

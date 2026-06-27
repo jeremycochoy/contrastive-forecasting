@@ -21,19 +21,19 @@ The four arms run:
 
 ### (λ_e, λ_h) heatmap
 
-![4-panel GM-Rel MASE heatmap over (λ_e, λ_h), one panel per (q-head depth, backbone checkpoint). X axis = λ_e ∈ {0.1, 1.0, 10.0, 100.0} on a log grid; Y axis = λ_h ∈ {0.1, 1.0, 10.0} on a log grid. Diverging colormap centred on the per-cell #359 anchor (λ_e=1.0, λ_h=0.1): red = worse than #359, blue = better. Cell text = GM-Rel MASE. Hatched cells = (λ_e, λ_h) points not run.](plots/heatmap.png)
+![4-panel GM-Rel MASE heatmap over (λ_e, λ_h), one panel per (q-head depth, backbone checkpoint) cell. X axis = λ_e ∈ {0.1, 1.0, 10.0, 100.0} on a log grid; Y axis = λ_h ∈ {0.1, 1.0, 10.0} on a log grid. Diverging colormap centred on the per-cell SIGReg + EMA-target, B=512, λ_e=1.0, λ_h=0.1 anchor (#359): red = worse than that anchor, blue = better. Tile text = GM-Rel MASE. Hatched tiles = (λ_e, λ_h) points not run.](plots/heatmap.png)
+
+The 2D view shows three things the 1D ladder and the GM table do not: the interior point (λ_e=1.0, λ_h=1.0) was not run (hatched); the λ_h=0.1 row turns red across all 4 panels as λ_e walks from 10 to 100; and 6 of 12 grid tiles are blank, so the sweep covers the L-shape `{λ_e=10.0} ∪ {λ_h=0.1}` rather than the full grid.
 
 ### Training trajectory
 
 ![Log-log total training loss (50-step rolling mean) from step 100 onwards for the 4 sweep arms and the 2 prior λ_h=0.1 anchors. Cutting the first 100 warm-up steps and log axes keep the converged regime readable.](plots/loss_curve.png)
 
-![Log-y trajectories of L_SIGReg(e_t), L_SIGReg(h_t), U_batch(e_t), U_temporal(e_t) from step 100 onwards for the 4 sweep arms and the 2 anchors; rolling 50-step mean. The bottom row is the embedding-side dimension-usage metric U; its 1/K ≈ 0.00260 dotted floor marks all K=384 dims evenly used.](plots/sigreg_e_inspection.png)
-
-![Cross-batch and cross-time dimension usage U on `h_t` (solid) and `e_t` (dashed) for the sweep arms and the 2 anchors from step 100 onwards; clipped to `[1/K, 1]`; the 1/K dotted floor marks all K=384 dims evenly used.](plots/dim_usage.png)
+Final-step total loss ordering is arm 5 (3.88) < arm 1 (4.20) < arm 3 (4.26) < arm 2 (4.55); the two regulariser-side terms make total loss not directly comparable to the GM-Rel MASE ordering. SIGReg-term and dimension-usage trajectories are in §Annex D.
 
 ### GM-Rel MASE — B=512 sweep family
 
-Among the 4 sweep arms, arm 5 (`λ_e=100.0, λ_h=0.1`) holds the highest GM in 3 of 4 cells (all except `6L/best`, where arm 3 edges it by 0.0003). The 4 anchor rows are kept for reference; column-bold marks the row-minimum among the B=512 family (`λ_e=λ_h=0.1` (#355), `λ_e=1.0, λ_h=0.1` (#359), and the 4 sweep arms). The B=1024 cells (#344, #353) are not comparable to the B=512 family and are never bolded, regardless of their value.
+Among the 4 sweep arms, arm 5 (`λ_e=100.0, λ_h=0.1`) holds the highest GM in 3 of 4 cells (`6L/best` is within noise of arm 3). The 4 anchor rows are kept for reference; column-bold marks the row-minimum among the B=512 family (`λ_e=λ_h=0.1` (#355), `λ_e=1.0, λ_h=0.1` (#359), and the 4 sweep arms). The B=1024 cells (#344, #353) are not comparable to the B=512 family and are never bolded, regardless of their value.
 
 | head / ckpt | `enc3+CPC`, B=1024 (#344) | `EMA enc3+CPC`, B=1024 (#353) | `λ_e=λ_h=0.1`, B=512 (#355) | `λ_e=1.0, λ_h=0.1`, B=512 (#359) | arm 1 (10.0, 0.1) | arm 2 (10.0, 1.0) | arm 3 (10.0, 10.0) | arm 5 (100.0, 0.1) |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -69,7 +69,7 @@ All other flags identical to the prior arm: `--batch-size 512`, `--sigreg-embedd
 
 ### Scope deviation
 
-The issue's optional 4th arm was `(λ_e=1.0, λ_h=1.0)` (interior point); it was not run. A 5th arm `(λ_e=100.0, λ_h=0.1)` was run instead, on user request, to extend the `λ_h=0.1` ladder one decade further. The arms in this report are therefore labelled 1, 2, 3, 5 — the slot for arm 4 is intentionally empty so arms 1–3 keep the issue-spec ordering.
+The issue's optional 4th arm was `(λ_e=1.0, λ_h=1.0)` (interior point); it was not run. A 5th arm `(λ_e=100.0, λ_h=0.1)` was run instead, to extend the `λ_h=0.1` ladder one decade further. The arms in this report are therefore labelled 1, 2, 3, 5 — the slot for arm 4 is intentionally empty so arms 1–3 keep the issue-spec ordering.
 
 ### Head-matched downstream
 
@@ -155,7 +155,13 @@ Arm 1 differs from the anchor by a single `λ_e` factor of 10×, so Δ vs arm 1 
 - **Plot script.** [`scripts/build_plots.py`](scripts/build_plots.py). Trajectory plots cut the first `PLOT_START_STEP = 100` steps so the warm-up regime does not dominate the y-range; the loss curve uses log x and log y, the SIGReg-inspection panels use log y throughout.
 - **Bar-chart colour map.** grey = `enc3+CPC, B=1024`; blue = `EMA enc3+CPC, B=1024`; red = `SIGReg λ_e=λ_h=0.1`; green = `SIGReg λ_e=1.0, λ_h=0.1`; purple = arm 1; brown = arm 2; pink = arm 3; cyan = arm 5.
 
-### D. Tail-50 trajectories per arm
+### D. Training diagnostics
+
+![Log-y trajectories of L_SIGReg(e_t), L_SIGReg(h_t), U_batch(e_t), U_temporal(e_t) from step 100 onwards for the 4 sweep arms and the 2 anchors; rolling 50-step mean. The bottom row is the embedding-side dimension-usage metric U; its 1/K ≈ 0.00260 dotted floor marks all K=384 dims evenly used.](plots/sigreg_e_inspection.png)
+
+![Cross-batch and cross-time dimension usage U on `h_t` (solid) and `e_t` (dashed) for the sweep arms and the 2 anchors from step 100 onwards; clipped to `[1/K, 1]`; the 1/K dotted floor marks all K=384 dims evenly used.](plots/dim_usage.png)
+
+#### Tail-50 trajectories per arm
 
 Tail-50 mean = mean over steps 12 451–12 500 (last 50 of 12 500 logged steps) of each per-arm `experiments/2026-06-24_sigreg_lambda_sweep/runs/bb_<tag>_losses.csv`; per-arm final-step values are tabulated alongside in [`results/final_trajectories.txt`](results/final_trajectories.txt) so the Tail-50 / final-step distinction is auditable.
 
