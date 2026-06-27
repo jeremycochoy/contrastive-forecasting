@@ -18,6 +18,7 @@ from src.metrics import (
     dim_usage,
     u_batch,
     u_temporal,
+    u_batchtime,
     retrieval_auc_top1_legacy,
     retrieval_auc_topk,
 )
@@ -103,6 +104,70 @@ def test_u_temporal_axis_param():
     z = torch.randn(8, 256, 3, 32)  # time at axis=1, n=256 isotropic
     u = u_temporal(z, time_axis=1).item()
     assert 0.85 <= u <= 1.0, f"U_temporal={u}"
+
+
+# ---------------------------------------------------------------------------
+# u_batchtime (#363) — pools (B, T) into one sample axis, mirroring the
+# pooling SIGReg uses for its random-projection statistic.
+# ---------------------------------------------------------------------------
+
+def test_u_batchtime_isotropic_near_one():
+    # Isotropic z over the pooled (B*T, ..., H) gives mean cos² ≈ 1/H,
+    # so U → 1. B*T = 1024 samples per channel slice; H = 32.
+    torch.manual_seed(0)
+    z = torch.randn(64, 16, 1, 32)
+    u = u_batchtime(z).item()
+    assert 0.9 <= u <= 1.0, f"U_batchtime={u}, expected ≈1"
+
+
+def test_u_batchtime_rank_one_collapse_is_one_over_d():
+    # Rank-1 collapse: every (b, t) sample is a scalar multiple of a
+    # single direction v. After L2-normalise every sample becomes ±v,
+    # so pairwise cos² = 1 and U → 1/H.
+    H = 32
+    v = torch.randn(H)
+    scales = torch.randn(64, 16, 1)         # (B, T, C)
+    z = scales.unsqueeze(-1) * v             # (B, T, C, H) — rank-1 on H
+    u = u_batchtime(z).item()
+    assert u == pytest.approx(1.0 / H, abs=1e-3), (
+        f"U_batchtime={u}, expected ≈1/H={1/H}")
+
+
+def test_u_batchtime_matches_explicit_reshape():
+    # Pin the API contract: u_batchtime(z) on (B, T, C, H) equals
+    # dim_usage(z.reshape(B*T, C, H), axis=0).
+    torch.manual_seed(1)
+    z = torch.randn(8, 12, 2, 16)
+    u_via_api = u_batchtime(z).item()
+    u_via_reshape = dim_usage(
+        z.reshape(8 * 12, 2, 16), axis=0).item()
+    assert u_via_api == pytest.approx(u_via_reshape, abs=1e-6)
+
+
+def test_u_batchtime_distinct_from_u_batch_and_u_temporal():
+    # Construct z so the three U variants are quantitatively distinct.
+    # Same direction d[t] across the batch axis at fixed t, but d varies
+    # across time:
+    #   u_batch  (per-t slice over B) sees a collinear set → 1/H.
+    #   u_temporal (per-b slice over T) sees T diverse directions → ≈ 1.
+    #   u_batchtime pools (B*T) — sees T directions, each repeated B
+    #     times — falls between the two floors. Distinct values pin
+    #     that the new metric is not redundant with either axis-specific
+    #     one.
+    torch.manual_seed(2)
+    B, T, C, H = 16, 16, 1, 32
+    d = torch.randn(T, H)
+    d = d / d.norm(dim=-1, keepdim=True)                     # (T, H) unit
+    scales = torch.randn(B, T, 1)                            # (B, T, C)
+    z = scales.unsqueeze(-1) * d.unsqueeze(0).unsqueeze(2)   # (B, T, C, H)
+    u_b = u_batch(z).item()
+    u_t = u_temporal(z, time_axis=1).item()
+    u_bt = u_batchtime(z).item()
+    assert u_b == pytest.approx(1.0 / H, abs=5e-3), u_b      # rank-1 per t
+    assert u_t > 0.85, u_t                                    # rank-T per b
+    # u_batchtime is strictly between the per-slice floor and the
+    # cross-time ceiling.
+    assert 1.0 / H < u_bt < u_t, (u_b, u_bt, u_t)
 
 
 # ---------------------------------------------------------------------------
