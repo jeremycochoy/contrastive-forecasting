@@ -41,7 +41,7 @@ Arm 4 (the interior point) has no cell whose CI excludes zero.
 
 ### GM-Rel MASE — B=512 sweep family
 
-Column-bold marks the row-minimum among the B=512 family (`λ_e=λ_h=0.1`, `λ_e=1.0, λ_h=0.1`, and the 6 sweep arms). The B=1024 cells are not comparable to the B=512 family and are never bolded, regardless of their value.
+In each (head, ckpt) row of the table, the lowest GM-Rel MASE within the B=512 family is bolded; B=1024 anchors are excluded from bolding.
 
 | head / ckpt | `enc3+CPC`, B=1024 | `EMA enc3+CPC`, B=1024 | `λ_e=λ_h=0.1`, B=512 | `λ_e=1.0, λ_h=0.1`, B=512 | arm 1 (10.0, 0.1) | arm 2 (10.0, 1.0) | arm 3 (10.0, 10.0) | arm 4 (1.0, 1.0) | arm 5 (100.0, 0.1) | arm 6 (1000.0, 1.0) |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -101,6 +101,7 @@ Anchor data provenance (GM-table source, per-config rel-MASE files) is listed in
 | **GM-Rel MASE** | GIFT-Eval full-97 aggregate: geometric mean over 97 configs of (model MASE ÷ seasonal-naive MASE). Lower = better; 1.0 = seasonal-naive parity. |
 | **best-ckpt / last-ckpt** | `best` = backbone checkpoint at lowest train-loss step; `last` = backbone at step 12 500. The q-head is trained from each backbone separately. The preferred end-state is `last ≤ best` (model still improving at step 12 500). |
 | **paired bootstrap** | resample the 97 per-config rel-MASE values with replacement (B=10 000 draws, seed 20260624), recompute the statistic `mean(log(rel_arm) − log(rel_baseline))`, take its 2.5/97.5 quantiles, convert back to absolute GM scale via `GM_baseline · (exp(quantile) − 1)`. Aligned per config. |
+| **CI-clean** | a cell whose 95% bootstrap CI excludes zero against the named baseline. Used as predicate adjective: "cell X is CI-clean vs baseline Y". |
 
 ## Annex
 
@@ -143,9 +144,9 @@ Arm 1 differs from the anchor by a single `λ_e` factor of 10×, so Δ vs arm 1 
 
 | arm | head / ckpt | Δ_GM | 95% CI | P(Δ<0) |
 | --- | --- | ---: | --- | ---: |
-| arm 2 (10.0, 1.0) | 2L / best | −0.0172 | `[−0.0291, −0.0062]` | 0.9995 |
+| **arm 2 (10.0, 1.0)** | **2L / best** | **−0.0172** | **`[−0.0291, −0.0062]`** | **0.9995** |
 | arm 2 (10.0, 1.0) | 2L / last | +0.0146 | `[−0.0009, +0.0306]` | 0.033 |
-| arm 2 (10.0, 1.0) | 6L / best | −0.0153 | `[−0.0280, −0.0018]` | 0.985 |
+| **arm 2 (10.0, 1.0)** | **6L / best** | **−0.0153** | **`[−0.0280, −0.0018]`** | **0.985** |
 | arm 2 (10.0, 1.0) | 6L / last | +0.0042 | `[−0.0121, +0.0207]` | 0.294 |
 | arm 3 (10.0, 10.0) | 2L / best | +0.0066 | `[−0.0065, +0.0200]` | 0.164 |
 | arm 3 (10.0, 10.0) | 2L / last | +0.0072 | `[−0.0072, +0.0215]` | 0.160 |
@@ -156,13 +157,15 @@ Arm 1 differs from the anchor by a single `λ_e` factor of 10×, so Δ vs arm 1 
 | arm 4 (1.0, 1.0) | 6L / best | +0.0003 | `[−0.0081, +0.0095]` | 0.483 |
 | arm 4 (1.0, 1.0) | 6L / last | +0.0045 | `[−0.0099, +0.0202]` | 0.272 |
 | arm 5 (100.0, 0.1) | 2L / best | +0.0080 | `[−0.0022, +0.0179]` | 0.057 |
-| arm 5 (100.0, 0.1) | 2L / last | +0.0218 | `[+0.0047, +0.0410]` | 0.005 |
+| **arm 5 (100.0, 0.1)** | **2L / last** | **+0.0218** | **`[+0.0047, +0.0410]`** | **0.005** |
 | arm 5 (100.0, 0.1) | 6L / best | +0.0016 | `[−0.0100, +0.0107]` | 0.360 |
-| arm 5 (100.0, 0.1) | 6L / last | +0.0209 | `[+0.0026, +0.0411]` | 0.011 |
+| **arm 5 (100.0, 0.1)** | **6L / last** | **+0.0209** | **`[+0.0026, +0.0411]`** | **0.011** |
 | arm 6 (1000.0, 1.0) | 2L / best | +0.0014 | `[−0.0125, +0.0150]` | 0.408 |
 | arm 6 (1000.0, 1.0) | 2L / last | −0.0073 | `[−0.0215, +0.0091]` | 0.828 |
 | arm 6 (1000.0, 1.0) | 6L / best | −0.0050 | `[−0.0188, +0.0081]` | 0.760 |
 | arm 6 (1000.0, 1.0) | 6L / last | −0.0057 | `[−0.0160, +0.0048]` | 0.858 |
+
+Bold = the cells whose 95% CI excludes zero.
 
 ### C. Plot and CI provenance
 
