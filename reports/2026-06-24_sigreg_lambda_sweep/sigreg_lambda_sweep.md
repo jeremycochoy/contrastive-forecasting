@@ -17,8 +17,6 @@ The 6 arms run:
 
 ## Result
 
-**Verdict.** Two baselines, 6 sweep arms.
-
 Vs the `λ_e=1.0, λ_h=0.1` anchor (#359), only arm 2 (`λ_e=10.0, λ_h=1.0`) on `2L/best` is CI-clean (Δ = −0.017, 95% CI `[−0.029, −0.005]`, P(Δ<0) = 0.997); every other (arm, head, ckpt) cell straddles zero. Arm 6 (`λ_e=1000.0, λ_h=1.0`) on `2L/last` reaches Δ = −0.014, 95% CI `[−0.030, +0.001]`, P(Δ<0) = 0.965 — the upper end just touches zero, so not CI-clean by the 95% rule.
 
 Vs arm 1 (`λ_e=10.0, λ_h=0.1`) — the `λ_h` 0.1 → 1.0 isolation contrast — arm 2 is CI-clean on both best-ckpt cells (`2L/best` Δ = −0.017, 95% CI `[−0.029, −0.006]`, P(Δ<0) = 0.9995; `6L/best` Δ = −0.015, 95% CI `[−0.028, −0.002]`, P(Δ<0) = 0.985). Arm 5 (`λ_e=100.0`) regresses CI-clean on both last-ckpt cells (Annex B).
@@ -34,7 +32,7 @@ Among the 6 SIGReg arms:
 
 ![4-panel GM-Rel MASE heatmap over (λ_e, λ_h), one panel per (q-head depth, backbone checkpoint) cell. X axis = λ_e ∈ {0.1, 1.0, 10.0, 100.0, 1000.0} on a log grid; Y axis = λ_h ∈ {0.1, 1.0, 10.0} on a log grid. Diverging colormap centred on the per-cell SIGReg + EMA-target, B=512, λ_e=1.0, λ_h=0.1 anchor (#359): red = worse than that anchor, blue = better. Tile text = GM-Rel MASE. Hatched tiles = (λ_e, λ_h) points not run.](plots/heatmap.png)
 
-The 2D view now spans 15 grid tiles (5 λ_e × 3 λ_h); 8 are populated (#355 + #359 + arms 1/2/3/4/5/6) and 7 are hatched. Inside the original 4 λ_e × 3 λ_h sub-grid that the sweep started from, only the high-`λ_h` corner at λ_e=100 and the `λ_e=0.1, λ_h≥1` corner remain unrun; arm 6 sits in a new λ_e=1000 column with its λ_h=0.1 and λ_h=10 neighbours unrun. The λ_h=1.0 row reads (arm 4: 1.143 / arm 2: 1.130 / arm 6: 1.149) on 2L/best — minimum at arm 2 — and (arm 4: 1.168 / arm 2: 1.176 / arm 6: 1.154) on 2L/last — minimum at arm 6.
+The 2D view spans 15 grid tiles (5 λ_e × 3 λ_h); 8 are populated (#355 + #359 + arms 1/2/3/4/5/6) and 7 are hatched. Inside the original 4 λ_e × 3 λ_h sub-grid that the sweep started from, only the high-`λ_h` corner at λ_e=100 and the `λ_e=0.1, λ_h≥1` corner remain unrun; arm 6 sits in a new λ_e=1000 column with its λ_h=0.1 and λ_h=10 neighbours unrun. The λ_h=1.0 row reads (arm 4: 1.143 / arm 2: 1.130 / arm 6: 1.149) on 2L/best — minimum at arm 2 — and (arm 4: 1.168 / arm 2: 1.176 / arm 6: 1.154) on 2L/last — minimum at arm 6.
 
 ### Training trajectory
 
@@ -44,11 +42,11 @@ Tail-50 mean total loss ordering (steps 12 451–12 500, table in §Annex D) is 
 
 ![Log-y trajectories of L_SIGReg(e_t), L_SIGReg(h_t), U_batch(e_t), U_temporal(e_t) from step 100 onwards for the 6 sweep arms and the 2 anchors; rolling 50-step mean. The bottom row is the embedding-side dimension-usage metric U; its 1/K ≈ 0.00260 dotted floor marks rank-1 collapse (one effective dim out of K=384). Higher U = more dimensions in use; K · U ≈ effective number of dims.](plots/sigreg_e_inspection.png)
 
-Arms 5 and 6 (the two `λ_e ≥ 100` arms) drive `L_SIGReg(e_t)` to tail-50 floors 1.5 to 2.5 orders of magnitude below the four `λ_e ≤ 10` arms (per-arm values in §Annex D).
+Arms 5 and 6 (the two `λ_e ≥ 100` arms) drive `L_SIGReg(e_t)` to tail-50 floors 1.4 to 2.3 orders of magnitude below the four `λ_e ≤ 10` arms (per-arm values in §Annex D).
 
 ![Dimension-usage U split by latent — top panel: `e_t` (embedding side) on log-y `[1/K, 0.1]`; bottom panel: `h_t` (encoder side) on log-y `[0.05, 1]`. Per panel: solid = `u_batch` (cross-batch), dashed = `u_temporal` (cross-time), dotted line with `●` markers = `u_batchtime` per-checkpoint trajectory (every 2 500 steps, retroactively scored on the saved backbones; only available for the 4 first sweep arms + 2 anchors — see §Annex D), `★` marker at the actual best-loss step = `u_batchtime` on the canonical `best_loss.pth` / `FINAL.pth` checkpoint (cross-(batch × time) pooled — same `(B·T, K)` sample axis SIGReg uses). Colour = arm; dotted line at `1/K ≈ 0.0026` marks rank-1 collapse (one effective dim out of K=384). Higher U = more dimensions in use; K · U ≈ effective number of dims.](plots/dim_usage.png)
 
-The `u_batchtime` trajectories now cover the 4 first sweep arms + 2 anchors across all saved checkpoints. On `h_t`, arms 1 and 2 climb from `≈ 0.38` at step 2 500 to `0.72 / 0.77` at step 12 500; arm 3 starts higher at `0.59` and plateaus near `0.75`; arm 5 stays in the `0.25–0.34` band throughout. The `★` marker for arms 1/2/3 sits well below the step-12 500 `●` because their `best_loss.pth` (= `FINAL.pth`) landed at step ≈ 1 400, before the late-training U climb; for arm 5 the `★` (step 1 700) and the step-12 500 `●` are close because U barely moves. Arms 4 and 6 are not in the trajectory or retro CSVs yet — those scoring passes are queued.
+The `u_batchtime` trajectories cover sweep arms 1/2/3/5 + 2 anchors across all saved checkpoints; arms 4 and 6 are absent from the trajectory and retro CSVs. The three `λ_e ≤ 10` sweep arms (1, 2, 3) climb on `h_t` through training; arm 5 (`λ_e=100`) stays low. The `★` marker for arms 1/2/3 sits well below the step-12 500 `●` because their `best_loss.pth` (= `FINAL.pth`) landed at step 1 400 — arm 3 at step 1 300 — before the late-training U climb; for arm 5 the `★` (step 1 700) and the step-12 500 `●` are close because U barely moves.
 
 ### GM-Rel MASE — B=512 sweep family
 
@@ -213,7 +211,7 @@ Tail-50 mean = mean over steps 12 451–12 500 (last 50 of 12 500 logged steps) 
 
 #### `u_batchtime` per-checkpoint trajectory (retroactive)
 
-`u_batchtime` (cross-(batch × time) pooled `U` on `h_t`) and `u_batchtime_e` (same on `e_t`) were added to the training-loop metrics after the 6 sweep arms and the 2 prior B=512 anchors had already trained, so no in-training trajectory exists in their losses CSVs. The values below are computed retroactively from each saved backbone checkpoint over a single fixed batch (gift-pretrain-full-4096 / small_v1, seed 20260520, B=512). All-checkpoint trajectories were scored for the 4 first sweep arms + 2 anchors; the same scoring pass for arms 4 and 6 is queued but not yet committed, so they appear in this table only at the FINAL retroactive row.
+`u_batchtime` (cross-(batch × time) pooled `U` on `h_t`) and `u_batchtime_e` (same on `e_t`) were added to the training-loop metrics after the 6 sweep arms and the 2 prior B=512 anchors had already trained, so no in-training trajectory exists in their losses CSVs. The values below are computed retroactively from each saved backbone checkpoint over a single fixed batch (gift-pretrain-full-4096 / small_v1, seed 20260520, B=512). The retroactive set — both the all-checkpoint trajectories and the FINAL rows below — covers sweep arms 1/2/3/5 + 2 anchors; arms 4 and 6 are not in it.
 
 `FINAL` rows (single-step retro on the `FINAL.pth` saved at training end):
 
