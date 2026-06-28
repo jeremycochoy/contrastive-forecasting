@@ -59,8 +59,17 @@ do_eval(){ # run_name backbone out_tag
 
 train_head "qhead_${HL}L_${TAG}" "$BB" "" 30000 2000 \
   && { [ "${DO_EVAL:-1}" = 1 ] && do_eval "qhead_${HL}L_${TAG}" "$BB" "$TAG" || true; }
-if [ -f "$BBLAST" ]; then
-  train_head "qhead_${HL}L_${TAG}_last" "$BBLAST" "$RUNS/qhead_${HL}L_${TAG}_FINAL.pth" 10000 1000 \
-    && { [ "${DO_EVAL:-1}" = 1 ] && do_eval "qhead_${HL}L_${TAG}_last" "$BBLAST" "${TAG}_last" || true; }
-else log "no final.pth ($BBLAST) — skipping last head"; fi
+# Last-checkpoint head is half the experiment (Arm-B rationale is
+# best-at-last). train.py writes ${run-name}_final.pth at end of training
+# (see experiments/2026-04-27_freq-embedding/scripts/train.py:1357). Its
+# absence here means BB did not finish — refuse to silently skip.
+if [ ! -f "$BBLAST" ]; then
+  log "ABORT: last-checkpoint backbone missing at $BBLAST."
+  log "    train.py emits \${run-name}_final.pth at end of training; absence"
+  log "    means BB did not complete. The Arm-B / last-cell read depends"
+  log "    on this checkpoint."
+  exit 1
+fi
+train_head "qhead_${HL}L_${TAG}_last" "$BBLAST" "$RUNS/qhead_${HL}L_${TAG}_FINAL.pth" 10000 1000 \
+  && { [ "${DO_EVAL:-1}" = 1 ] && do_eval "qhead_${HL}L_${TAG}_last" "$BBLAST" "${TAG}_last" || true; }
 log "cross downstream complete (${HL}L for ${SUFFIX})"

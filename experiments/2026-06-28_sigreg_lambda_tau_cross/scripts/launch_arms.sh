@@ -1,33 +1,78 @@
 #!/bin/bash
 # #366 — sweep driver: train each cross arm's backbone and then run its
 # downstream cells. Arms run sequentially on the same GPU pair; per-arm
-# downstream uses both GPUs in parallel (2L on GPU 0, 6L on GPU 1).
+# downstream uses both GPUs in parallel (2L on GPU_2L, 6L on GPU_6L).
 #
-# Two arms (issue #366 §Objective):
-#   Arm A — λ_e=10.0,   λ_h=1.0, τ=0.90   (lA_emb100_enc10_tau090)
-#     #363 best-at-best λ pair × #357 best τ.
-#   Arm B — λ_e=1000.0, λ_h=1.0, τ=0.90   (lB_emb10000_enc10_tau090)
-#     #363 best-at-last λ pair × #357 best τ.
+# The arm identities (λ pair × τ) are NOT baked in. They are read from a
+# winners manifest written at launch time — see `winners.sh.example` for
+# the format and re-verify procedure. The issue (#366) requires the λ
+# pairs and τ to be picked at launch from #363 / #357's final state, and
+# launch is gated on #363 closing.
 #
 #   launch_arms.sh                     run both arms
-#   ONLY="lA_emb100_enc10_tau090" launch_arms.sh   pick a subset
+#   ONLY="lA_..." launch_arms.sh       pick a subset by suffix
+#   WINNERS_FILE=... launch_arms.sh    override the manifest path
 set -uo pipefail
 : "${WT:?WT (worktree root containing experiments/<this-dir>/scripts/...) must be set; e.g. WT=/home/jupyter/workspaces/contrastive-forecasting}"
 : "${OUT:?OUT (per-experiment output dir for runs/ and results/) must be set; e.g. OUT=\$WT/experiments/2026-06-28_sigreg_lambda_tau_cross}"
 GPU="${GPU:-0}"
 export WT OUT
 [ -d "$WT" ] || { echo "[cross] ABORT: WT does not exist: $WT" >&2; exit 2; }
-BB_SCRIPT="$WT/experiments/2026-06-28_sigreg_lambda_tau_cross/scripts/train_backbone_sigreg.sh"
-DL_SCRIPT="$WT/experiments/2026-06-28_sigreg_lambda_tau_cross/scripts/launch_downstream.sh"
+EXP_SCRIPTS="$WT/experiments/2026-06-28_sigreg_lambda_tau_cross/scripts"
+BB_SCRIPT="$EXP_SCRIPTS/train_backbone_sigreg.sh"
+DL_SCRIPT="$EXP_SCRIPTS/launch_downstream.sh"
+WINNERS_EXAMPLE="$EXP_SCRIPTS/winners.sh.example"
 [ -f "$BB_SCRIPT" ] || { echo "[cross] ABORT: BB_SCRIPT not found: $BB_SCRIPT" >&2; exit 2; }
 [ -f "$DL_SCRIPT" ] || { echo "[cross] ABORT: DL_SCRIPT not found: $DL_SCRIPT" >&2; exit 2; }
 RES="$OUT/results"; mkdir -p "$RES"
 log(){ echo "[$(date '+%m-%d %H:%M:%S')] [cross] $*"; }
 
-# (lambda_e, lambda_h, tau, suffix) — Arm A then Arm B per the issue order.
+# Launch-time gate: require a manifest of the verified λ pairs × τ. The
+# manifest is created by the user after #363 closes and #357 is final
+# (see winners.sh.example).
+WINNERS_FILE="${WINNERS_FILE:-$OUT/winners.sh}"
+if [ ! -f "$WINNERS_FILE" ]; then
+  cat >&2 <<EOF
+[cross] ABORT: winners manifest not found at $WINNERS_FILE.
+
+Issue #366 requires the λ pair × τ to be re-verified at launch time
+because #363 / #357 winners may shift between scaffold and launch.
+
+To proceed:
+  cp $WINNERS_EXAMPLE $WINNERS_FILE
+  \$EDITOR $WINNERS_FILE       # fill in values + verification stamps
+  bash $0
+EOF
+  exit 2
+fi
+# shellcheck disable=SC1090
+. "$WINNERS_FILE"
+for v in ARM_A_LAMBDA_E ARM_A_LAMBDA_H ARM_B_LAMBDA_E ARM_B_LAMBDA_H BEST_TAU \
+         WINNERS_VERIFIED_BY WINNERS_VERIFIED_AT; do
+  if [ -z "${!v:-}" ]; then
+    echo "[cross] ABORT: $v is unset/empty in $WINNERS_FILE — re-verify and stamp." >&2
+    exit 2
+  fi
+done
+log "winners verified by ${WINNERS_VERIFIED_BY} on ${WINNERS_VERIFIED_AT}"
+log "Arm A (best-at-best): λ_e=${ARM_A_LAMBDA_E} λ_h=${ARM_A_LAMBDA_H} τ=${BEST_TAU}"
+log "Arm B (best-at-last): λ_e=${ARM_B_LAMBDA_E} λ_h=${ARM_B_LAMBDA_H} τ=${BEST_TAU}"
+
+# Derive a per-arm suffix from (prefix, λ_e, λ_h, τ). Encodes λ × 10 and
+# τ × 100, matching the #363 / #357 naming convention — a stale manifest
+# changes the suffix, so wrong values do not silently overwrite a prior
+# run's files. Public so the consistency test can shell out to it.
+suffix_for(){ # prefix lambda_e lambda_h tau
+  awk -v p="$1" -v le="$2" -v lh="$3" -v t="$4" \
+    'BEGIN { printf "%s_emb%d_enc%d_tau%03d\n", p, le*10, lh*10, t*100 }'
+}
+
+SUFFIX_A=$(suffix_for lA "$ARM_A_LAMBDA_E" "$ARM_A_LAMBDA_H" "$BEST_TAU")
+SUFFIX_B=$(suffix_for lB "$ARM_B_LAMBDA_E" "$ARM_B_LAMBDA_H" "$BEST_TAU")
+
 ARMS=(
-  "10.0   1.0 0.90 lA_emb100_enc10_tau090"
-  "1000.0 1.0 0.90 lB_emb10000_enc10_tau090"
+  "$ARM_A_LAMBDA_E $ARM_A_LAMBDA_H $BEST_TAU $SUFFIX_A"
+  "$ARM_B_LAMBDA_E $ARM_B_LAMBDA_H $BEST_TAU $SUFFIX_B"
 )
 
 run_arm(){ # lambda_e lambda_h tau suffix

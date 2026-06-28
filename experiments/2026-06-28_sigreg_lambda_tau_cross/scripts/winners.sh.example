@@ -1,0 +1,46 @@
+# #366 winners manifest — copy to `$OUT/winners.sh` and fill in at launch
+# time, AFTER #363 has closed and #357 is final. Sourced by launch_arms.sh.
+#
+# Why a manifest instead of baked-in literals: the issue specifies that the
+# λ pairs and τ are "picked at launch time from whatever #363 and #357 have
+# on disk as final". As of scaffold time (2026-06-28) #363 was still OPEN
+# and its report PR (#365) was pending human review, so the best-at-best /
+# best-at-last identities can shift before this card starts.
+#
+# Re-verify procedure (run through every box before launching):
+#   1. Confirm on GitHub that #363 is CLOSED.
+#   2. Read the merged #363 GM-Rel MASE table
+#      (reports/2026-06-24_sigreg_lambda_sweep/sigreg_lambda_sweep.md).
+#      - The (λ_e, λ_h) pair with the lowest *best-checkpoint* GM goes
+#        below as ARM_A_LAMBDA_E / ARM_A_LAMBDA_H.
+#      - The (λ_e, λ_h) pair with the lowest *last-checkpoint* GM goes
+#        below as ARM_B_LAMBDA_E / ARM_B_LAMBDA_H.
+#   3. Read #357's final report; copy the winning τ into BEST_TAU.
+#   4. Stamp WINNERS_VERIFIED_BY (your initials) and WINNERS_VERIFIED_AT
+#      (today's ISO date — must be on or after #363's close date).
+#   5. Update the README arm table in this experiment dir to match the
+#      manifest values; the consistency test in
+#      `tests/test_366_launcher_shape.py` will fail otherwise.
+#
+# The launcher derives each arm's suffix from these values (suffix encodes
+# λ × 10 and τ × 100), so a stale manifest produces visibly wrong run
+# names rather than silent results-on-the-wrong-arm.
+
+# #363 best-at-best λ pair (lowest best-checkpoint GM-Rel MASE).
+ARM_A_LAMBDA_E=10.0
+ARM_A_LAMBDA_H=1.0
+
+# #363 best-at-last λ pair (lowest last-checkpoint GM-Rel MASE).
+ARM_B_LAMBDA_E=1000.0
+ARM_B_LAMBDA_H=1.0
+
+# #357 best τ (lowest GM-Rel MASE).
+BEST_TAU=0.90
+
+# Verification stamps — both required, no default.
+WINNERS_VERIFIED_BY=
+WINNERS_VERIFIED_AT=
+
+# Source pointers (optional, for the audit trail).
+WINNERS_363_REPORT="reports/2026-06-24_sigreg_lambda_sweep/sigreg_lambda_sweep.md"
+WINNERS_357_REPORT=""
