@@ -21,7 +21,7 @@ Vs the `λ_e=1.0, λ_h=0.1` anchor (#359), only arm 2 (`λ_e=10.0, λ_h=1.0`) on
 
 Vs arm 1 (`λ_e=10.0, λ_h=0.1`) — the `λ_h` 0.1 → 1.0 isolation contrast — arm 2 is CI-clean on both best-ckpt cells (`2L/best` Δ = −0.017, 95% CI `[−0.029, −0.006]`, P(Δ<0) = 0.9995; `6L/best` Δ = −0.015, 95% CI `[−0.028, −0.002]`, P(Δ<0) = 0.985). Arm 5 (`λ_e=100.0`) regresses CI-clean on both last-ckpt cells (Annex B).
 
-Among the 6 SIGReg arms, arm 6 holds the row-minimum `last`-ckpt GM-Rel MASE on both heads within the B=512 family (2L/last = 1.1537; 6L/last = 1.1415). Arm 4 (the interior point) moves nothing CI-clean.
+Among the 6 SIGReg arms, arm 6 holds the row-minimum `last`-ckpt GM-Rel MASE on both heads within the B=512 family. Arm 4 (the interior point) moves nothing CI-clean.
 
 ![GIFT-Eval full-97 GM-Rel MASE bars across the 4 anchors and the 6 sweep arms, faceted by (q-head depth, backbone checkpoint); whiskers on the sweep bars = paired-bootstrap 95% CI vs the `λ_e=1.0, λ_h=0.1` anchor; per-cell horizontal lines mark each anchor at its published value (grey dotted = enc3+CPC, blue dotted = EMA enc3+CPC, red dashed = SIGReg λ_e=λ_h=0.1, green solid = SIGReg λ_e=1.0/λ_h=0.1); bar labels = GM-Rel MASE.](plots/gm_rel_mase.png)
 
@@ -29,13 +29,13 @@ Among the 6 SIGReg arms, arm 6 holds the row-minimum `last`-ckpt GM-Rel MASE on 
 
 ![4-panel GM-Rel MASE heatmap over (λ_e, λ_h), one panel per (q-head depth, backbone checkpoint) cell. X axis = λ_e ∈ {0.1, 1.0, 10.0, 100.0, 1000.0} on a log grid; Y axis = λ_h ∈ {0.1, 1.0, 10.0} on a log grid. Diverging colormap centred on the per-cell SIGReg + EMA-target, B=512, λ_e=1.0, λ_h=0.1 anchor (#359): red = worse than that anchor, blue = better. Tile text = GM-Rel MASE. Hatched tiles = (λ_e, λ_h) points not run.](plots/heatmap.png)
 
-The 2D view spans 15 grid tiles (5 λ_e × 3 λ_h); 8 are populated (#355 + #359 + arms 1/2/3/4/5/6) and 7 are hatched at `(λ_e, λ_h)` ∈ {(0.1, 1.0), (0.1, 10.0), (1.0, 10.0), (100.0, 1.0), (100.0, 10.0), (1000.0, 0.1), (1000.0, 10.0)}. The `λ_h=1.0` row reading is in §λ_e ladders below.
+The 2D view spans 15 grid tiles (5 λ_e × 3 λ_h); 8 are populated and 7 are hatched. The `λ_h=1.0` row reading is in §λ_e ladders below.
 
 ### Training trajectory
 
 ![Log-log total training loss (50-step rolling mean) from step 100 onwards for the 6 sweep arms and the 2 prior λ_h=0.1 anchors. Cutting the first 100 warm-up steps and log axes keep the converged regime readable.](plots/loss_curve.png)
 
-Tail-50 mean total loss ordering (steps 12 451–12 500, table in §Annex D) is arm 6 (3.64) < arm 5 (3.88) < arm 1 (4.20) < arm 3 (4.26) < arm 4 (4.47) < arm 2 (4.55); the two regulariser-side terms make total loss not directly comparable to the GM-Rel MASE ordering.
+Tail-50 mean total loss orders arm 6 < arm 5 < arm 1 < arm 3 < arm 4 < arm 2 (Annex D); the two regulariser-side terms make total loss not directly comparable to the GM-Rel MASE ordering.
 
 ![Log-y trajectories of L_SIGReg(e_t), L_SIGReg(h_t), U_batch(e_t), U_temporal(e_t) from step 100 onwards for the 6 sweep arms and the 2 anchors; rolling 50-step mean. The bottom row is the embedding-side dimension-usage metric U; its 1/K ≈ 0.00260 dotted floor marks rank-1 collapse (one effective dim out of K=384). Higher U = more dimensions in use; K · U ≈ effective number of dims.](plots/sigreg_e_inspection.png)
 
@@ -45,7 +45,7 @@ Dimension-usage `U` is split by latent — encoder side `h_t` (`U ∈ [0.05, 1]`
 
 ![U on `h_t` (encoder side) per pooling axis (`u_batch`, `u_temporal`, `u_batchtime`); log-y `[0.05, 1]`; colour = arm; `u_batchtime` panel: dotted + `●` = retroactive per-checkpoint trajectory (every 2 500 steps; arms 4 and 6 absent), `★` at the best-loss step (= `FINAL.pth`); the `1/K ≈ 0.0026` rank-1-collapse floor is off-axis (range stays above `0.05`).](plots/dim_usage_h.png)
 
-The three `λ_e ≤ 10` sweep arms (1, 2, 3) climb on `h_t` through training on all three pooling axes; arm 5 (`λ_e=100`) stays low. On `u_batchtime` the `★` marker for arms 1/2/3 sits well below the step-12 500 `●` because their `best_loss.pth` (= `FINAL.pth`) landed at step 1 400 — arm 3 at step 1 300 — before the late-training U climb; for arm 5 the `★` (step 1 700) and the step-12 500 `●` are close because U barely moves. The `u_batchtime` trajectories cover sweep arms 1/2/3/5 + 2 anchors across all saved checkpoints; arms 4 and 6 are absent from the trajectory and retro CSVs.
+The three `λ_e ≤ 10` sweep arms (1, 2, 3) climb on `h_t` through training on all three pooling axes; arm 5 (`λ_e=100`) stays low. On `u_batchtime` the `★` marker for arms 1/2/3 sits below the step-12 500 `●` because their `best_loss.pth` (= `FINAL.pth`) landed at step 1 400 — arm 3 at step 1 300 — before the late-training U climb; for arm 5 the `★` (step 1 700) and the step-12 500 `●` are close because U barely moves. The `u_batchtime` trajectories cover sweep arms 1/2/3/5 + 2 anchors across all saved checkpoints; arms 4 and 6 are absent from the trajectory and retro CSVs.
 
 ![U on `e_t` (embedding side) per pooling axis (`u_batch_e`, `u_temporal_e`, `u_batchtime_e`); log-y `[1/K, 0.1]`; colour = arm; `u_batchtime_e` panel: dotted + `●` = retroactive per-checkpoint trajectory (every 2 500 steps; arms 4 and 6 absent), `★` at the best-loss step (= `FINAL.pth`); the `1/K ≈ 0.0026` rank-1-collapse floor sits at the y-axis bottom.](plots/dim_usage_e.png)
 
@@ -74,11 +74,9 @@ The `λ_h=1.0` sub-ladder has 3 points (arm 4 → arm 2 → arm 6 at λ_e = 1.0 
 
 The desirable direction at step 12 500 is `last ≤ best` — i.e. the model is still improving at the end of training, so picking `last` would be at least as good as picking `best`. Positive `last − best` is therefore the drift signal.
 
-Only the `enc3+CPC, B=1024` anchor (#344) shows negative drift on both heads (still improving at step 12 500). Every SIGReg arm has positive drift on both heads. Arm 6 has the smallest positive drift on both heads (2L = +0.005, 6L = +0.002); arm 2's `2L` drift of `+0.045` is the largest in the table.
-
-Drift is a within-arm diagnostic; cross-arm last-ckpt CIs vs arm 1 are tabulated separately in §Annex B.
-
 ![Drift = last − best GM-Rel MASE per arm, split by 2L vs 6L q-head. Positive = last is worse than best (model stopped improving by step 12 500); negative = last is better than best (model still improving). Only the `enc3+CPC, B=1024` anchor sits below zero on both heads.](plots/best_vs_last_drift.png)
+
+Every SIGReg arm has positive drift on both heads. Drift is a within-arm diagnostic; cross-arm last-ckpt CIs vs arm 1 are tabulated separately in §Annex B.
 
 ## Protocol
 
