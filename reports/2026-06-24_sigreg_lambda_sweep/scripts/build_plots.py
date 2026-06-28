@@ -320,6 +320,7 @@ def plot_sigreg_inspection(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Pat
             ax.axhline(1.0 / K, color="k", ls=":", alpha=0.5,
                        label=f"1/K = 1/{K} ≈ {1/K:.4f} (rank-1 collapse, 1 effective dim)")
         ax.set_yscale("log")
+        ax.set_xlim(left=PLOT_START_STEP)
         ax.set_xlabel(f"step  (start = {PLOT_START_STEP})")
         ax.set_title(title)
         ax.legend(fontsize=6, loc="best"); ax.grid(alpha=0.3, which="both")
@@ -425,6 +426,7 @@ def plot_dim_usage(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Path,
         ax.axhline(1.0 / K, color="k", ls=":", alpha=0.5)
         ax.set_yscale("log")
         ax.set_ylim(*ylim)
+        ax.set_xlim(left=PLOT_START_STEP)
         ax.set_xlabel(f"step  (start = {PLOT_START_STEP})")
         ax.set_title(title, fontsize=10)
         ax.grid(alpha=0.3, which="both")
