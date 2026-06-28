@@ -37,8 +37,6 @@ Arm 4 (the interior point) moves nothing CI-clean.
 
 ![U on `h_t` (encoder side) per pooling axis (`u_batch`, `u_temporal`, `u_batchtime`); log-y `[0.05, 1]`; colour = arm; `u_batchtime` panel: dotted + `●` = retroactive per-checkpoint trajectory (every 2 500 steps; arms 4 and 6 absent), `★` at the best-loss step (= `FINAL.pth`); the `1/K ≈ 0.0026` rank-1-collapse floor is off-axis (range stays above `0.05`).](plots/dim_usage_h.png)
 
-On `u_batchtime` the `★` marker for arms 1/2/3 sits below the step-12 500 `●`, their `best_loss.pth` (= `FINAL.pth`) landed before the U climb; for arm 5 the `★` and the step-12 500 `●` are close, U barely moves.
-
 ![U on `e_t` (embedding side) per pooling axis (`u_batch_e`, `u_temporal_e`, `u_batchtime_e`); log-y `[1/K, 0.1]`; colour = arm; `u_batchtime_e` panel: dotted + `●` = retroactive per-checkpoint trajectory (every 2 500 steps; arms 4 and 6 absent), `★` at the best-loss step (= `FINAL.pth`); the `1/K ≈ 0.0026` rank-1-collapse floor sits at the y-axis bottom.](plots/dim_usage_e.png)
 
 ### GM-Rel MASE — B=512 sweep family
@@ -181,7 +179,7 @@ Arm 1 differs from the anchor by a single `λ_e` factor of 10×, so Δ vs arm 1 
 
 #### Tail-50 trajectories per arm
 
-Tail-50 mean = mean over steps 12 451–12 500 (last 50 of 12 500 logged steps) of each per-arm `experiments/2026-06-24_sigreg_lambda_sweep/runs/bb_<tag>_losses.csv`. The same Tail-50 values are also written to [`results/final_trajectories.txt`](results/final_trajectories.txt) (whose first per-arm line records the `final_step` index 12 500 alongside the Tail-50 means).
+Tail-50 mean = mean over steps 12 451–12 500 (last 50 of 12 500 logged steps) of each per-arm `experiments/2026-06-24_sigreg_lambda_sweep/runs/bb_<tag>_<arm>_losses.csv`. The same Tail-50 values are also written to [`results/final_trajectories.txt`](results/final_trajectories.txt) (whose first per-arm line records the `final_step` index 12 500 alongside the Tail-50 means).
 
 | arm | `loss` | `sigreg_e` | `sigreg_h` | `u_batch_e` | `u_temporal_e` | `u_batch` (`h_t`) | `u_temporal` (`h_t`) |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -194,9 +192,9 @@ Tail-50 mean = mean over steps 12 451–12 500 (last 50 of 12 500 logged steps) 
 
 #### `u_batchtime` per-checkpoint trajectory (retroactive)
 
-`u_batchtime` (cross-(batch × time) pooled `U` on `h_t`) and `u_batchtime_e` (same on `e_t`) were added to the training-loop metrics after the 6 sweep arms and the 2 prior B=512 anchors had already trained, so no in-training trajectory exists in their losses CSVs. The values below are computed retroactively from each saved backbone checkpoint over a single fixed batch (gift-pretrain-full-4096 / small_v1, seed 20260520, B=512). The retroactive set — both the all-checkpoint trajectories and the FINAL rows below — covers sweep arms 1/2/3/5 + 2 anchors; arms 4 and 6 are not in it.
+`u_batchtime` (cross-(batch × time) pooled `U` on `h_t`) and `u_batchtime_e` (same on `e_t`) are not in the losses CSVs; values come from saved backbone checkpoints, computed over a single fixed batch (gift-pretrain-full-4096 / small_v1, seed 20260520, B=512). The retroactive set — both the all-checkpoint trajectories and the FINAL rows below — covers sweep arms 1/2/3/5 + 2 anchors; arms 4 and 6 are not in it.
 
-`FINAL` rows (single-step retro on the `FINAL.pth` saved at training end):
+`FINAL.pth` is the best-train-loss snapshot, copied to that name at training end (the run's `_best_loss.pth` and `_FINAL.pth` are byte-identical). `FINAL` rows below = single-step retro on that snapshot:
 
 | arm / anchor | recipe | `u_batchtime` (`h_t`) | `u_batchtime_e` (`e_t`) |
 | --- | --- | ---: | ---: |
