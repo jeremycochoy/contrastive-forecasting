@@ -31,13 +31,13 @@ Arm 4 (the interior point) moves nothing CI-clean.
 
 ### Training trajectory
 
-![Log-log total training loss (50-step rolling mean) from step 100 onwards for the 6 sweep arms and the 2 prior λ_h=0.1 anchors. Cutting the first 100 warm-up steps and log axes keep the converged regime readable.](plots/loss_curve.png)
+![Log-log total training loss (50-step rolling mean) from step 100 onwards for the 6 sweep arms and the 2 prior λ_h=0.1 anchors.](plots/loss_curve.png)
 
-![Log-y trajectories of L_SIGReg(e_t), L_SIGReg(h_t), U_batch(e_t), U_temporal(e_t) from step 100 onwards for the 6 sweep arms and the 2 anchors; rolling 50-step mean. The bottom row is the embedding-side dimension-usage metric U; its 1/K ≈ 0.00260 dotted floor marks rank-1 collapse (one effective dim out of K=384). Higher U = more dimensions in use; K · U ≈ effective number of dims.](plots/sigreg_e_inspection.png)
+![Log-y trajectories of L_SIGReg(e_t), L_SIGReg(h_t), U_batch(e_t), U_temporal(e_t) from step 100 onwards for the 6 sweep arms and the 2 anchors; rolling 50-step mean. Bottom-row dotted line = 1/K ≈ 0.00260 floor.](plots/sigreg_e_inspection.png)
 
 ![U on `h_t` (encoder side) per pooling axis (`u_batch`, `u_temporal`, `u_batchtime`); log-y `[0.05, 1]`; colour = arm; `u_batchtime` panel: dotted + `●` = retroactive per-checkpoint trajectory (every 2 500 steps; arms 4 and 6 absent), `★` at the best-loss step (= `FINAL.pth`); the `1/K ≈ 0.0026` rank-1-collapse floor is off-axis (range stays above `0.05`).](plots/dim_usage_h.png)
 
-On `u_batchtime` the `★` marker for arms 1/2/3 sits below the step-12 500 `●`, their `best_loss.pth` (= `FINAL.pth`) landed early — before the U climb; for arm 5 the `★` and the step-12 500 `●` are close, U barely moves.
+On `u_batchtime` the `★` marker for arms 1/2/3 sits below the step-12 500 `●`, their `best_loss.pth` (= `FINAL.pth`) landed before the U climb; for arm 5 the `★` and the step-12 500 `●` are close, U barely moves.
 
 ![U on `e_t` (embedding side) per pooling axis (`u_batch_e`, `u_temporal_e`, `u_batchtime_e`); log-y `[1/K, 0.1]`; colour = arm; `u_batchtime_e` panel: dotted + `●` = retroactive per-checkpoint trajectory (every 2 500 steps; arms 4 and 6 absent), `★` at the best-loss step (= `FINAL.pth`); the `1/K ≈ 0.0026` rank-1-collapse floor sits at the y-axis bottom.](plots/dim_usage_e.png)
 
