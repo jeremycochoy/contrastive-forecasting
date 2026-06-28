@@ -21,9 +21,7 @@ Vs the `λ_e=1.0, λ_h=0.1` anchor (#359), only arm 2 (`λ_e=10.0, λ_h=1.0`) on
 
 Vs arm 1 (`λ_e=10.0, λ_h=0.1`) — the `λ_h` 0.1 → 1.0 isolation contrast — arm 2 is CI-clean on both best-ckpt cells (`2L/best` Δ = −0.017, 95% CI `[−0.029, −0.006]`, P(Δ<0) = 0.9995; `6L/best` Δ = −0.015, 95% CI `[−0.028, −0.002]`, P(Δ<0) = 0.985). Arm 5 (`λ_e=100.0`) regresses CI-clean on both last-ckpt cells (Annex B).
 
-Among the 6 SIGReg arms:
-- Arm 6 holds the lowest `last`-ckpt GM-Rel MASE on both heads (2L/last = 1.1537 vs the next-best SIGReg arm 1 at 1.1610; 6L/last = 1.1415 beats the `enc3+CPC, B=1024` anchor #344 at 1.1436 by 0.0021). 2L/last 1.1537 is 0.0006 above #344's 1.1531.
-- Arm 4 (interior point, `λ_e=1.0, λ_h=1.0`) lands mid-tier on `best`: 2L/best = 1.1435 sits between arm 1 (1.1474) and arm 2 (1.1302); 6L/best = 1.1449 is within 0.0002 of arm 1's 1.1447.
+Among the 6 SIGReg arms, arm 6 holds the row-minimum `last`-ckpt GM-Rel MASE on both heads within the B=512 family (2L/last = 1.1537; 6L/last = 1.1415). Arm 4 (the interior point) moves nothing CI-clean.
 
 ![GIFT-Eval full-97 GM-Rel MASE bars across the 4 anchors and the 6 sweep arms, faceted by (q-head depth, backbone checkpoint); whiskers on the sweep bars = paired-bootstrap 95% CI vs the `λ_e=1.0, λ_h=0.1` anchor; per-cell horizontal lines mark each anchor at its published value (grey dotted = enc3+CPC, blue dotted = EMA enc3+CPC, red dashed = SIGReg λ_e=λ_h=0.1, green solid = SIGReg λ_e=1.0/λ_h=0.1); bar labels = GM-Rel MASE.](plots/gm_rel_mase.png)
 
@@ -64,7 +62,7 @@ Column-bold marks the row-minimum among the B=512 family (`λ_e=λ_h=0.1` (#355)
 
 Walking `λ_e` from 0.1 → 1.0 → 10.0 → 100.0 at `λ_h=0.1`, the GM drops between 0.1 and 1.0 on all 4 cells, moves by Δ ∈ [−0.0071, +0.0039] between 1.0 and 10.0 (within the bootstrap CI on every cell), then rises at `λ_e=100.0` on all 4 cells.
 
-The `λ_h=1.0` sub-ladder has 3 points (arm 4 → arm 2 → arm 6 at λ_e = 1.0 → 10.0 → 1000.0) and #359 is *not* on this row. On the two `best` cells it is U-shaped, minimum at arm 2 (2L: 1.1435 → 1.1302 → 1.1488; 6L: 1.1449 → 1.1294 → 1.1397). On the two `last` cells the minimum is at arm 6 (2L: 1.1679 → 1.1756 → 1.1537 — non-monotonic, dip at λ_e=1000; 6L: 1.1517 → 1.1515 → 1.1415 — flat then drop).
+The `λ_h=1.0` sub-ladder has 3 points (arm 4 → arm 2 → arm 6 at λ_e = 1.0 → 10.0 → 1000.0) and #359 is *not* on this row. On both `best` cells it is U-shaped with minimum at arm 2; on both `last` cells the minimum is at arm 6.
 
 ### Best-vs-last divergence
 
