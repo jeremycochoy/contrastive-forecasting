@@ -39,7 +39,7 @@ Total loss is not directly comparable to GM-Rel MASE because of the two regulari
 
 ![Log-y trajectories of L_SIGReg(e_t), L_SIGReg(h_t), U_batch(e_t), U_temporal(e_t) from step 100 onwards for the 6 sweep arms and the 2 anchors; rolling 50-step mean. The bottom row is the embedding-side dimension-usage metric U; its 1/K ≈ 0.00260 dotted floor marks rank-1 collapse (one effective dim out of K=384). Higher U = more dimensions in use; K · U ≈ effective number of dims.](plots/sigreg_e_inspection.png)
 
-Dimension-usage `U` is split by latent — encoder side `h_t` (`U ∈ [0.05, 1]`) and embedding side `e_t` (`U ∈ [1/K, 0.1]`, an order of magnitude lower). Each figure shows the three pooling axes (`u_batch`, `u_temporal`, `u_batchtime`) in separate panels; colour = arm.
+Dimension-usage `U` is split by latent — encoder side `h_t` and embedding side `e_t`.
 
 ![U on `h_t` (encoder side) per pooling axis (`u_batch`, `u_temporal`, `u_batchtime`); log-y `[0.05, 1]`; colour = arm; `u_batchtime` panel: dotted + `●` = retroactive per-checkpoint trajectory (every 2 500 steps; arms 4 and 6 absent), `★` at the best-loss step (= `FINAL.pth`); the `1/K ≈ 0.0026` rank-1-collapse floor is off-axis (range stays above `0.05`).](plots/dim_usage_h.png)
 
