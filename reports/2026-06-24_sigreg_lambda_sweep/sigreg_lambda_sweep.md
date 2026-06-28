@@ -24,7 +24,6 @@ Vs arm 1 (`λ_e=10.0, λ_h=0.1`) — the `λ_h` 0.1 → 1.0 isolation contrast �
 Among the 6 SIGReg arms:
 - Arm 6 holds the lowest `last`-ckpt GM-Rel MASE on both heads (2L/last = 1.1537 vs the next-best SIGReg arm 1 at 1.1610; 6L/last = 1.1415 beats the `enc3+CPC, B=1024` anchor #344 at 1.1436 by 0.0021). 2L/last 1.1537 is 0.0006 above #344's 1.1531.
 - Arm 4 (interior point, `λ_e=1.0, λ_h=1.0`) lands mid-tier on `best`: 2L/best = 1.1435 sits between arm 1 (1.1474) and arm 2 (1.1302); 6L/best = 1.1449 is within 0.0002 of arm 1's 1.1447.
-- Arm 6 has the smallest positive best-vs-last drift of any SIGReg arm (2L drift = +0.005, 6L drift = +0.002); the runner-up is arm 1 on 6L at +0.003.
 
 ![GIFT-Eval full-97 GM-Rel MASE bars across the 4 anchors and the 6 sweep arms, faceted by (q-head depth, backbone checkpoint); whiskers on the sweep bars = paired-bootstrap 95% CI vs the `λ_e=1.0, λ_h=0.1` anchor; per-cell horizontal lines mark each anchor at its published value (grey dotted = enc3+CPC, blue dotted = EMA enc3+CPC, red dashed = SIGReg λ_e=λ_h=0.1, green solid = SIGReg λ_e=1.0/λ_h=0.1); bar labels = GM-Rel MASE.](plots/gm_rel_mase.png)
 
@@ -32,7 +31,7 @@ Among the 6 SIGReg arms:
 
 ![4-panel GM-Rel MASE heatmap over (λ_e, λ_h), one panel per (q-head depth, backbone checkpoint) cell. X axis = λ_e ∈ {0.1, 1.0, 10.0, 100.0, 1000.0} on a log grid; Y axis = λ_h ∈ {0.1, 1.0, 10.0} on a log grid. Diverging colormap centred on the per-cell SIGReg + EMA-target, B=512, λ_e=1.0, λ_h=0.1 anchor (#359): red = worse than that anchor, blue = better. Tile text = GM-Rel MASE. Hatched tiles = (λ_e, λ_h) points not run.](plots/heatmap.png)
 
-The 2D view spans 15 grid tiles (5 λ_e × 3 λ_h); 8 are populated (#355 + #359 + arms 1/2/3/4/5/6) and 7 are hatched. Inside the original 4 λ_e × 3 λ_h sub-grid that the sweep started from, only the high-`λ_h` corner at λ_e=100 and the `λ_e=0.1, λ_h≥1` corner remain unrun; arm 6 sits in a new λ_e=1000 column with its λ_h=0.1 and λ_h=10 neighbours unrun. The λ_h=1.0 row reads (arm 4: 1.143 / arm 2: 1.130 / arm 6: 1.149) on 2L/best — minimum at arm 2 — and (arm 4: 1.168 / arm 2: 1.176 / arm 6: 1.154) on 2L/last — minimum at arm 6.
+The 2D view spans 15 grid tiles (5 λ_e × 3 λ_h); 8 are populated (#355 + #359 + arms 1/2/3/4/5/6) and 7 are hatched at `(λ_e, λ_h)` ∈ {(0.1, 1.0), (0.1, 10.0), (1.0, 10.0), (100.0, 1.0), (100.0, 10.0), (1000.0, 0.1), (1000.0, 10.0)}. The `λ_h=1.0` row reading is in §λ_e ladders below.
 
 ### Training trajectory
 
@@ -50,7 +49,7 @@ The `u_batchtime` trajectories cover sweep arms 1/2/3/5 + 2 anchors across all s
 
 ### GM-Rel MASE — B=512 sweep family
 
-Among the 6 SIGReg sweep arms, arm 2 (`λ_e=10.0, λ_h=1.0`) holds the row-minimum on both `best` cells and arm 6 (`λ_e=1000.0, λ_h=1.0`) holds the row-minimum on both `last` cells. The 4 anchor rows are kept for reference; column-bold marks the row-minimum among the B=512 family (`λ_e=λ_h=0.1` (#355), `λ_e=1.0, λ_h=0.1` (#359), and the 6 sweep arms). The B=1024 cells (#344, #353) are not comparable to the B=512 family and are never bolded, regardless of their value.
+Column-bold marks the row-minimum among the B=512 family (`λ_e=λ_h=0.1` (#355), `λ_e=1.0, λ_h=0.1` (#359), and the 6 sweep arms). The B=1024 cells (#344, #353) are not comparable to the B=512 family and are never bolded, regardless of their value.
 
 | head / ckpt | `enc3+CPC`, B=1024 (#344) | `EMA enc3+CPC`, B=1024 (#353) | `λ_e=λ_h=0.1`, B=512 (#355) | `λ_e=1.0, λ_h=0.1`, B=512 (#359) | arm 1 (10.0, 0.1) | arm 2 (10.0, 1.0) | arm 3 (10.0, 10.0) | arm 4 (1.0, 1.0) | arm 5 (100.0, 0.1) | arm 6 (1000.0, 1.0) |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -69,7 +68,7 @@ The `λ_h=1.0` sub-ladder has 3 points (arm 4 → arm 2 → arm 6 at λ_e = 1.0 
 
 ### Best-vs-last divergence
 
-The desirable direction at step 12 500 is `last ≤ best` — i.e. the model is still improving at the end of training, so picking `last` would be at least as good as picking `best`. Positive `last − best` is therefore the drift / over-fitting signal.
+The desirable direction at step 12 500 is `last ≤ best` — i.e. the model is still improving at the end of training, so picking `last` would be at least as good as picking `best`. Positive `last − best` is therefore the drift signal.
 
 Only the `enc3+CPC, B=1024` anchor (#344) shows negative drift on both heads (still improving at step 12 500). Every SIGReg arm has positive drift on both heads. Arm 6 has the smallest positive drift on both heads (2L = +0.005, 6L = +0.002); arm 2's `2L` drift of `+0.045` is the largest in the table.
 
