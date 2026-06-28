@@ -29,8 +29,6 @@ Arm 4 (the interior point) moves nothing CI-clean.
 
 ![4-panel GM-Rel MASE heatmap over (λ_e, λ_h), one panel per (q-head depth, backbone checkpoint) cell. X axis = λ_e ∈ {0.1, 1.0, 10.0, 100.0, 1000.0} on a log grid; Y axis = λ_h ∈ {0.1, 1.0, 10.0} on a log grid. Diverging colormap centred on the per-cell SIGReg + EMA-target, B=512, λ_e=1.0, λ_h=0.1 anchor (#359): red = worse than that anchor, blue = better. Tile text = GM-Rel MASE. Hatched tiles = (λ_e, λ_h) points not run.](plots/heatmap.png)
 
-The `λ_h=1.0` row reading is in §λ_e ladders below.
-
 ### Training trajectory
 
 ![Log-log total training loss (50-step rolling mean) from step 100 onwards for the 6 sweep arms and the 2 prior λ_h=0.1 anchors. Cutting the first 100 warm-up steps and log axes keep the converged regime readable.](plots/loss_curve.png)
@@ -38,8 +36,6 @@ The `λ_h=1.0` row reading is in §λ_e ladders below.
 Total loss is not directly comparable to GM-Rel MASE because of the two regulariser-side terms (per-arm Tail-50 values in Annex D).
 
 ![Log-y trajectories of L_SIGReg(e_t), L_SIGReg(h_t), U_batch(e_t), U_temporal(e_t) from step 100 onwards for the 6 sweep arms and the 2 anchors; rolling 50-step mean. The bottom row is the embedding-side dimension-usage metric U; its 1/K ≈ 0.00260 dotted floor marks rank-1 collapse (one effective dim out of K=384). Higher U = more dimensions in use; K · U ≈ effective number of dims.](plots/sigreg_e_inspection.png)
-
-Dimension-usage `U` is split by latent — encoder side `h_t` and embedding side `e_t`.
 
 ![U on `h_t` (encoder side) per pooling axis (`u_batch`, `u_temporal`, `u_batchtime`); log-y `[0.05, 1]`; colour = arm; `u_batchtime` panel: dotted + `●` = retroactive per-checkpoint trajectory (every 2 500 steps; arms 4 and 6 absent), `★` at the best-loss step (= `FINAL.pth`); the `1/K ≈ 0.0026` rank-1-collapse floor is off-axis (range stays above `0.05`).](plots/dim_usage_h.png)
 
