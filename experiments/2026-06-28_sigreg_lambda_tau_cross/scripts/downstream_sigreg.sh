@@ -57,8 +57,22 @@ do_eval(){ # run_name backbone out_tag
     >>"$RES/run_eval_full_$3_${HL}L.log" 2>&1 || { log "EVAL $3 FAILED"; return 1; }
   log "EVAL $3 done GM=$(gm "$out/summary.txt")"; }
 
-train_head "qhead_${HL}L_${TAG}" "$BB" "" 30000 2000 \
-  && { [ "${DO_EVAL:-1}" = 1 ] && do_eval "qhead_${HL}L_${TAG}" "$BB" "$TAG" || true; }
+# Per-cell rc capture. Each (head, ckpt) failure increments `fail`; the
+# script exits with that count so launch_arms.sh's "failed arms" counter
+# is meaningful (a swallowed failure used to surface only by hand-reading
+# logs). Eval is independent of head training: a failed train_head skips
+# its own eval but does not block the last-cell head/eval.
+fail=0
+run_cell(){ # qn bb resume_src total warmup eval_tag
+  local qn="$1" bb="$2" src="$3" tot="$4" wu="$5" tag="$6"
+  if ! train_head "$qn" "$bb" "$src" "$tot" "$wu"; then
+    fail=$((fail+1)); return
+  fi
+  if [ "${DO_EVAL:-1}" = 1 ]; then
+    do_eval "$qn" "$bb" "$tag" || fail=$((fail+1))
+  fi
+}
+run_cell "qhead_${HL}L_${TAG}"      "$BB"     ""                                "30000" "2000" "$TAG"
 # Last-checkpoint head is half the experiment (Arm-B rationale is
 # best-at-last). train.py writes ${run-name}_final.pth at end of training
 # (see experiments/2026-04-27_freq-embedding/scripts/train.py:1357). Its
@@ -70,6 +84,6 @@ if [ ! -f "$BBLAST" ]; then
   log "    on this checkpoint."
   exit 1
 fi
-train_head "qhead_${HL}L_${TAG}_last" "$BBLAST" "$RUNS/qhead_${HL}L_${TAG}_FINAL.pth" 10000 1000 \
-  && { [ "${DO_EVAL:-1}" = 1 ] && do_eval "qhead_${HL}L_${TAG}_last" "$BBLAST" "${TAG}_last" || true; }
-log "cross downstream complete (${HL}L for ${SUFFIX})"
+run_cell "qhead_${HL}L_${TAG}_last" "$BBLAST" "$RUNS/qhead_${HL}L_${TAG}_FINAL.pth" "10000" "1000" "${TAG}_last"
+log "cross downstream complete (${HL}L for ${SUFFIX}): failed cells=$fail"
+exit "$fail"

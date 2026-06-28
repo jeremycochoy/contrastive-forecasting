@@ -54,7 +54,10 @@ export OUT=$WT/experiments/2026-06-28_sigreg_lambda_tau_cross
 # 3. Copy + edit the manifest:
 cp $OUT/scripts/winners.sh.example $OUT/winners.sh
 $EDITOR $OUT/winners.sh    # fill ARM_*_LAMBDA_*, BEST_TAU, verifier
-# 4. Update the "Current expected values" table above if values shifted.
+# 4. If λ/τ shifted, also update $OUT/scripts/winners.sh.example AND the
+#    "Current expected values" table above. Both are committed and pinned
+#    to each other by tests/test_366_launcher_shape.py — editing only one
+#    turns `pytest tests` red on merge.
 bash $OUT/scripts/launch_arms.sh
 # ONLY="lA_..." launch_arms.sh   to run just Arm A
 ```

@@ -42,11 +42,16 @@ def parse_suffix(suffix: str) -> tuple[str, float, float, float]:
 
 
 def derive_suffix_via_bash(prefix: str, le: str, lh: str, tau: str) -> str:
-    """Invoke the same awk expression `launch_arms.sh::suffix_for` uses."""
-    cmd = (
-        'awk -v p="%s" -v le="%s" -v lh="%s" -v t="%s" '
-        "'BEGIN { printf \"%%s_emb%%d_enc%%d_tau%%03d\\n\", p, le*10, lh*10, t*100 }'"
-    ) % (prefix, le, lh, tau)
+    """Extract `launch_arms.sh::suffix_for` and call it.
+
+    Sources the real function (not a hardcoded copy) so a future change to
+    the format string in launch_arms.sh flows into the tests without
+    re-touching this helper."""
+    script_text = (SCRIPTS / "launch_arms.sh").read_text()
+    m = re.search(r"^suffix_for\(\).*?^\}", script_text, re.DOTALL | re.MULTILINE)
+    assert m, "suffix_for function not found in launch_arms.sh"
+    func = m.group(0)
+    cmd = f'{func}\nsuffix_for "{prefix}" "{le}" "{lh}" "{tau}"\n'
     return subprocess.check_output(["bash", "-c", cmd], text=True).strip()
 
 
@@ -92,6 +97,20 @@ def test_bash_suffix_derivation_matches_encoding(prefix, le, lh, tau, expected):
     assert dtau == float(tau)
 
 
+def test_bash_suffix_rounds_not_truncates():
+    """awk `%.0f` rounds; `%d` truncates and would silently mis-encode.
+
+    τ=0.58 hits fp shenanigans (`0.58 * 100 → 57.999…`). `%d` truncates to
+    57 → wrong run-name; `%.0f` rounds to 58 → suffix matches the value
+    (and `parse_suffix` recovers `0.58`).
+    """
+    assert derive_suffix_via_bash("lA", "0.58", "0.58", "0.58") == "lA_emb6_enc6_tau058"
+    p, dle, dlh, dtau = parse_suffix("lA_emb6_enc6_tau058")
+    # λ × 10 → 5.8 → rounds to 6 → decodes to 0.6 (sub-decimal precision
+    # is intentionally dropped). τ × 100 → 58 → decodes back to 0.58.
+    assert (p, dle, dlh, dtau) == ("lA", 0.6, 0.6, 0.58)
+
+
 # --- README arm table internal consistency --------------------------------
 
 
@@ -118,6 +137,26 @@ def test_readme_table_matches_winners_example():
     tau = float(manifest["BEST_TAU"])
     assert float(arm_a[3]) == tau
     assert float(arm_b[3]) == tau
+
+
+def test_readme_procedure_names_winners_example():
+    """The launch procedure must tell the user to update the committed
+    example, not just the local manifest. test_readme_table_matches_winners_example
+    couples README ↔ winners.sh.example; if a future re-verify only edits
+    README, pytest goes red on merge — the procedure has to surface that."""
+    text = read(EXP_DIR / "README.md")
+    # Extract the "Launch-time gate" section so the test fails specifically
+    # when the *update* step is missing (the filename appears elsewhere as
+    # the `cp` source for the local manifest — a stray match isn't enough).
+    m = re.search(r"##\s*Launch-time gate(.*?)(?:^##\s|\Z)", text, re.DOTALL | re.MULTILINE)
+    assert m, "README is missing the `## Launch-time gate` section"
+    gate = m.group(1)
+    assert "winners.sh.example" in gate, \
+        "Launch-time gate procedure does not name `winners.sh.example`"
+    # Require an "update"/"edit" verb next to it so the step is procedural,
+    # not just a path reference.
+    assert re.search(r"(update|edit)[^.\n]*winners\.sh\.example", gate, re.IGNORECASE), \
+        "Launch-time gate does not tell the user to update `winners.sh.example`"
 
 
 # --- launch_arms.sh: launch-time gate + suffix derivation ----------------
@@ -201,6 +240,56 @@ def test_downstream_hard_errors_on_missing_last_checkpoint():
     assert 'ABORT: last-checkpoint backbone missing' in text
     # The prior silent-skip log line must be gone.
     assert "skipping last head" not in text
+
+
+def test_downstream_propagates_cell_failures():
+    """A failed (head, ckpt) cell must change the script's exit code.
+
+    The launch_arms.sh `failed arms` counter is the only summary an operator
+    sees; without per-cell rc propagation it counts 0 while cells are
+    missing, surfacing only by hand-reading logs.
+    """
+    text = read(SCRIPTS / "downstream_sigreg.sh")
+    # No `|| true` swallow on the train_head / do_eval chains.
+    assert "|| true" not in text, \
+        "downstream_sigreg.sh swallows failures via `|| true`"
+    # Script must exit on the accumulated failure count, not on a `log`.
+    assert re.search(r"^exit\s+\"?\$\{?fail\b", text, re.MULTILINE), \
+        "downstream_sigreg.sh must `exit $fail` after the cell loop"
+
+
+def test_downstream_propagation_smoke(tmp_path):
+    """Drive downstream_sigreg.sh end-to-end with stub deps and assert it
+    exits non-zero when q-head training fails."""
+    wt = tmp_path / "wt"
+    out = tmp_path / "out"
+    (wt / "experiments").mkdir(parents=True)
+    (wt / "experiments/hf_token.txt").write_text("stub-token\n")
+    runs = out / "runs"; runs.mkdir(parents=True)
+    res = out / "results"; res.mkdir(parents=True)
+    # Backbone artefacts the script expects.
+    tag = "allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lA_test"
+    (runs / f"bb_{tag}_FINAL.pth").write_text("stub-best")
+    (runs / f"bb_{tag}_final.pth").write_text("stub-last")
+    # Stub the q-head trainer (path baked into the script). Always fails so
+    # we can confirm the failure bubbles up to the script's exit code.
+    qtrain_dir = wt / "experiments/2026-04-13_gift-eval/scripts"
+    qtrain_dir.mkdir(parents=True)
+    qtrain = qtrain_dir / "train_forecasting_head.py"
+    qtrain.write_text("import sys; sys.exit(7)\n")
+    (qtrain_dir / "eval_gift_eval_official.py").write_text("import sys; sys.exit(0)\n")
+    env = {
+        "PATH": "/usr/bin:/bin",
+        "WT": str(wt),
+        "OUT": str(out),
+        "DO_EVAL": "0",  # skip eval; we only need to prove train_head failure propagates.
+        "GIFT_EVAL": str(tmp_path / "ge-stub"),
+    }
+    rc = subprocess.call(
+        ["bash", str(SCRIPTS / "downstream_sigreg.sh"), "2", "0", "lA_test"],
+        env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+    assert rc != 0, "downstream_sigreg.sh swallowed a failing train_head"
 
 
 # --- downstream_sigreg.sh tag matches backbone run-name pattern ----------

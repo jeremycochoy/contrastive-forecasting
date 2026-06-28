@@ -62,9 +62,13 @@ log "Arm B (best-at-last): λ_e=${ARM_B_LAMBDA_E} λ_h=${ARM_B_LAMBDA_H} τ=${BE
 # τ × 100, matching the #363 / #357 naming convention — a stale manifest
 # changes the suffix, so wrong values do not silently overwrite a prior
 # run's files. Public so the consistency test can shell out to it.
+#
+# `%.0f` rounds; `%d` would truncate toward zero. FP error pushes e.g.
+# 0.58 × 100 to 57.9999…, which `%d` mis-encodes as `tau057`, defeating
+# the stale-value-changes-suffix guarantee. Rounding round-trips.
 suffix_for(){ # prefix lambda_e lambda_h tau
   awk -v p="$1" -v le="$2" -v lh="$3" -v t="$4" \
-    'BEGIN { printf "%s_emb%d_enc%d_tau%03d\n", p, le*10, lh*10, t*100 }'
+    'BEGIN { printf "%s_emb%.0f_enc%.0f_tau%03.0f\n", p, le*10, lh*10, t*100 }'
 }
 
 SUFFIX_A=$(suffix_for lA "$ARM_A_LAMBDA_E" "$ARM_A_LAMBDA_H" "$BEST_TAU")
