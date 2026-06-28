@@ -9,7 +9,10 @@
 #   best_vs_last.png        — per-arm best-minus-last gap across the 4 cells.
 #   loss_curve.png          — total loss across arms + anchors (50-step rolling mean).
 #   sigreg_e_inspection.png — L_SIGReg(e_t), L_SIGReg(h_t), u_batch_e, u_temporal_e.
-#   dim_usage.png           — U (dimension usage) on h_t/e_t, cross-batch and cross-time.
+#   dim_usage_e.png         — U on e_t — one panel per pooling axis (u_batch_e,
+#                             u_temporal_e, u_batchtime_e).
+#   dim_usage_h.png         — U on h_t — one panel per pooling axis (u_batch,
+#                             u_temporal, u_batchtime).
 import argparse
 import sys
 from pathlib import Path
@@ -327,133 +330,125 @@ def plot_sigreg_inspection(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Pat
     fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
 
 
+RETRO_ARM_MAP = {
+    "anchor_emb01":   "sigreg01_enc3",
+    "anchor_emb10":   "sigreg10_enc3",
+    "emb100_enc01":   "emb100_enc01",
+    "emb100_enc10":   "emb100_enc10",
+    "emb100_enc100":  "emb100_enc100",
+    "emb10_enc10":    "emb10_enc10",
+    "emb1000_enc01":  "emb1000_enc01",
+    "emb10000_enc10": "emb10000_enc10",
+}
+
+PLOTTED_ARMS = ["sigreg01_enc3", "sigreg10_enc3",
+                "emb100_enc01", "emb100_enc10", "emb100_enc100",
+                "emb10_enc10", "emb1000_enc01", "emb10000_enc10"]
+
+
 def plot_dim_usage(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Path,
-                   retro_csv: Path, traj_csv: Path | None, out: Path):
-    """Dimension usage U for sweep arms and the 2 anchors. U = participation-ratio
-    fraction in [1/K, 1] with K=384: U=1 ⇔ isotropic / all K dims used,
-    U=1/K ⇔ rank-1 collapse (one effective dim). Effective dims ≈ K · U.
+                   traj_csv: Path | None, out: Path, latent: str):
+    """One figure per latent — 1 row × 3 cols, one panel per pooling axis
+    (u_batch, u_temporal, u_batchtime). 8 trajectories per panel (6 sweep arms
+    + 2 prior B=512 anchors). U = participation-ratio fraction in [1/K, 1]
+    with K=384: U=1 ⇔ isotropic / all K dims used, U=1/K ⇔ rank-1 collapse
+    (one effective dim). Effective dims ≈ K · U.
 
-    Two stacked panels with shared x-axis and per-row y-scales:
-      top   — e_t (embedding side): u_batch_e, u_temporal_e trajectories;
-              u_batchtime_e all-checkpoint trajectory (dotted) for the 4 prior
-              sweep arms + 2 anchors, terminal ★ at step 12 500. y ∈ [1/K, 0.1] (log).
-      bottom — h_t (encoder side): u_batch, u_temporal trajectories;
-              u_batchtime all-checkpoint trajectory (dotted) for the 4 prior
-              sweep arms + 2 anchors, terminal ★ at step 12 500. y ∈ [0.05, 1] (log).
-
-    Linestyle = pooling axis (solid = u_batch, dashed = u_temporal,
-    dotted+★ = u_batchtime checkpoint trajectory). Colour = arm.
-    For arms 4 and 6 (training post-dates the trajectory snapshot),
-    only the FINAL retroactive value (from `retro_csv`) is plotted as a ★."""
+    `latent`: "e" (embedding side, `e_t`, suffix `_e`) or "h" (encoder side,
+    `h_t`, no suffix). y-axis: e_t ∈ [1/K, 0.1] (log); h_t ∈ [0.05, 1] (log).
+    u_batch / u_temporal panels: in-training per-step CSV (50-step rolling mean,
+    PLOT_START_STEP cuts the warm-up). u_batchtime panel: per-checkpoint
+    retroactive trajectory (dotted + ● every 2 500 steps) + ★ at the actual
+    best-loss step (= FINAL.pth). Arms 4 and 6 are absent from the u_batchtime
+    panel because they were trained after the trajectory snapshot."""
     K = 384
-    fig, (ax_e, ax_h) = plt.subplots(2, 1, sharex=True, figsize=(13, 9.5))
+    if latent == "e":
+        suffix, ylim = "_e", (1.0 / K, 0.1)
+        latent_long = "e_t (embedding side)"
+    elif latent == "h":
+        suffix, ylim = "", (0.05, 1.0)
+        latent_long = "h_t (encoder side)"
+    else:
+        raise ValueError(f"latent must be 'e' or 'h', got {latent!r}")
+
+    fig, axes = plt.subplots(1, 3, figsize=(17, 5.2), sharey=True)
     overlays = {
         "sigreg01_enc3": sigreg_runs / f"bb_{BASE_TAG}_losses.csv",
         "sigreg10_enc3": sigreg10_runs / f"bb_{BASE_TAG}_emb10_losses.csv",
     }
+    panels = [
+        ("u_batch",     f"u_batch{suffix} — cross-batch pooled"),
+        ("u_temporal",  f"u_temporal{suffix} — cross-time pooled"),
+        ("u_batchtime", f"u_batchtime{suffix} — cross-(batch × time) pooled"),
+    ]
 
-    def _draw_panel(ax, latent_suffix):
-        for arm, p in overlays.items():
-            if not p.exists():
-                continue
-            d = pd.read_csv(p)
-            for base_col, ls in (("u_batch", "-"), ("u_temporal", "--")):
-                col = f"{base_col}{latent_suffix}"
-                if col in d.columns:
-                    ds = _smoothed(d, col, PLOT_START_STEP)
-                    ax.plot(ds["step"], ds[f"{col}_sm"],
-                            color=ARM_COLOR[arm], lw=1.0, ls=ls)
-        for arm in SWEEP_ARMS:
-            p = arm_runs / f"bb_{BASE_TAG}_{arm}_losses.csv"
-            if not p.exists():
-                continue
-            d = pd.read_csv(p)
-            for base_col, ls in (("u_batch", "-"), ("u_temporal", "--")):
-                col = f"{base_col}{latent_suffix}"
-                if col in d.columns:
-                    ds = _smoothed(d, col, PLOT_START_STEP)
-                    ax.plot(ds["step"], ds[f"{col}_sm"],
-                            color=ARM_COLOR[arm], lw=1.6, ls=ls)
-
-    _draw_panel(ax_e, "_e")
-    _draw_panel(ax_h, "")
-
-    retro_arm_map = {
-        "anchor_emb01":   "sigreg01_enc3",
-        "anchor_emb10":   "sigreg10_enc3",
-        "emb100_enc01":   "emb100_enc01",
-        "emb100_enc10":   "emb100_enc10",
-        "emb100_enc100":  "emb100_enc100",
-        "emb10_enc10":    "emb10_enc10",
-        "emb1000_enc01":  "emb1000_enc01",
-        "emb10000_enc10": "emb10000_enc10",
-    }
-
-    if traj_csv is not None and traj_csv.exists():
-        traj = pd.read_csv(traj_csv)
-        traj_step = traj[traj["ckpt_kind"].str.startswith("step_", na=False)].copy()
-        traj_best = traj[traj["ckpt_kind"] == "best_loss"].copy()
-        for arm_key, arm in retro_arm_map.items():
-            t = traj_step[traj_step["arm"] == arm_key].sort_values("step")
-            if not len(t):
-                continue
-            ax_e.plot(t["step"], t["u_batchtime_e"],
-                      color=ARM_COLOR[arm], lw=1.0, ls=":", marker="o",
-                      markersize=4, alpha=0.85, zorder=3)
-            ax_h.plot(t["step"], t["u_batchtime"],
-                      color=ARM_COLOR[arm], lw=1.0, ls=":", marker="o",
-                      markersize=4, alpha=0.85, zorder=3)
-            # best_loss / FINAL.pth: ★ at the actual best-loss step
-            tb = traj_best[traj_best["arm"] == arm_key]
-            if len(tb):
-                br = tb.iloc[0]
-                ax_e.scatter([int(br["step"])], [float(br["u_batchtime_e"])],
-                             color=ARM_COLOR[arm], marker="*", s=130,
-                             edgecolor="black", linewidths=0.5, zorder=5)
-                ax_h.scatter([int(br["step"])], [float(br["u_batchtime"])],
-                             color=ARM_COLOR[arm], marker="*", s=130,
-                             edgecolor="black", linewidths=0.5, zorder=5)
-
-    for ax, (lo, hi), title in (
-        (ax_e, (1.0 / K, 0.1),  "e_t (embedding-side) — u_batch_e (solid), u_temporal_e (dashed), u_batchtime_e trajectory (dotted+●), best_loss=FINAL.pth (★)"),
-        (ax_h, (0.05, 1.0),     "h_t (encoder-side)  — u_batch (solid), u_temporal (dashed), u_batchtime trajectory (dotted+●), best_loss=FINAL.pth (★)"),
-    ):
-        ax.axhline(1.0 / K, color="k", ls=":", alpha=0.5,
-                   label=f"1/K = 1/{K} ≈ {1/K:.4f}  (rank-1 collapse: 1 effective dim)")
+    for ax, (base_col, title) in zip(axes, panels):
+        col = f"{base_col}{suffix}"
+        if base_col in ("u_batch", "u_temporal"):
+            for arm, p in overlays.items():
+                if not p.exists():
+                    continue
+                d = pd.read_csv(p)
+                if col not in d.columns:
+                    continue
+                ds = _smoothed(d, col, PLOT_START_STEP)
+                ax.plot(ds["step"], ds[f"{col}_sm"],
+                        color=ARM_COLOR[arm], lw=1.2)
+            for arm in SWEEP_ARMS:
+                p = arm_runs / f"bb_{BASE_TAG}_{arm}_losses.csv"
+                if not p.exists():
+                    continue
+                d = pd.read_csv(p)
+                if col not in d.columns:
+                    continue
+                ds = _smoothed(d, col, PLOT_START_STEP)
+                ax.plot(ds["step"], ds[f"{col}_sm"],
+                        color=ARM_COLOR[arm], lw=1.6)
+        else:  # u_batchtime — retroactive per-checkpoint
+            if traj_csv is not None and traj_csv.exists():
+                traj = pd.read_csv(traj_csv)
+                traj_step = traj[traj["ckpt_kind"].str.startswith("step_", na=False)].copy()
+                traj_best = traj[traj["ckpt_kind"] == "best_loss"].copy()
+                for arm_key, arm in RETRO_ARM_MAP.items():
+                    t = traj_step[traj_step["arm"] == arm_key].sort_values("step")
+                    if not len(t):
+                        continue
+                    ax.plot(t["step"], t[col],
+                            color=ARM_COLOR[arm], lw=1.4, ls=":", marker="o",
+                            markersize=5, alpha=0.9, zorder=3)
+                    tb = traj_best[traj_best["arm"] == arm_key]
+                    if len(tb):
+                        br = tb.iloc[0]
+                        ax.scatter([int(br["step"])], [float(br[col])],
+                                   color=ARM_COLOR[arm], marker="*", s=160,
+                                   edgecolor="black", linewidths=0.5, zorder=5)
+        ax.axhline(1.0 / K, color="k", ls=":", alpha=0.5)
         ax.set_yscale("log")
-        ax.set_ylim(lo, hi)
-        ax.set_ylabel("U (dimension usage; higher = more effective dims)")
-        ax.set_title(title)
+        ax.set_ylim(*ylim)
+        ax.set_xlabel(f"step  (start = {PLOT_START_STEP})")
+        ax.set_title(title, fontsize=10)
         ax.grid(alpha=0.3, which="both")
 
-    ax_h.set_xlabel(f"step  (start = {PLOT_START_STEP})")
+    axes[0].set_ylabel(f"U on {latent_long}\n(log; higher = more effective dims)")
 
-    plotted_arms = ["sigreg01_enc3", "sigreg10_enc3",
-                    "emb100_enc01", "emb100_enc10", "emb100_enc100",
-                    "emb10_enc10", "emb1000_enc01", "emb10000_enc10"]
-    arm_handles = [plt.Line2D([0], [0], color=ARM_COLOR[a], lw=2.0,
-                              label=ARM_LABEL[a]) for a in plotted_arms]
-    style_handles = [
-        plt.Line2D([0], [0], color="black", ls="-",  lw=1.5, label="u_batch (cross-batch)"),
-        plt.Line2D([0], [0], color="black", ls="--", lw=1.5, label="u_temporal (cross-time)"),
-        plt.Line2D([0], [0], color="black", ls=":", marker="o", markersize=5,
-                   lw=1.0, label="u_batchtime — checkpoint trajectory"),
-        plt.Line2D([0], [0], color="black", marker="*", markersize=10,
-                   markerfacecolor="white", markeredgecolor="black",
-                   linestyle="", label="best_loss = FINAL.pth (★ at best-loss step)"),
-        plt.Line2D([0], [0], color="k", ls=":", alpha=0.5,
-                   label=f"1/K ≈ {1/K:.4f}  (rank-1 collapse)"),
-    ]
-    leg1 = ax_e.legend(handles=arm_handles, fontsize=6.5, loc="upper left",
-                       ncol=2, title="arm", title_fontsize=7)
-    ax_e.add_artist(leg1)
-    ax_h.legend(handles=style_handles, fontsize=6.8, loc="lower right",
-                title="pooling axis / marker", title_fontsize=7)
-
+    arm_handles = [plt.Line2D([0], [0], color=ARM_COLOR[a], lw=2.4,
+                              label=ARM_LABEL[a]) for a in PLOTTED_ARMS]
+    arm_handles.append(plt.Line2D([0], [0], color="k", ls=":", alpha=0.5,
+                                  label=f"1/K ≈ {1/K:.4f}  (rank-1 collapse)"))
+    arm_handles.append(plt.Line2D([0], [0], color="black", marker="*",
+                                  markersize=11, markerfacecolor="white",
+                                  markeredgecolor="black", linestyle="",
+                                  label="★ at best-loss step (= FINAL.pth, u_batchtime only)"))
+    fig.legend(handles=arm_handles, loc="lower center", ncol=4, fontsize=7.5,
+               bbox_to_anchor=(0.5, -0.02), frameon=True)
     fig.suptitle(
-        "Dimension usage U — split by latent. K·U ≈ effective number of "
-        "dimensions in use (K=384). Higher = more dims used.")
-    fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
+        f"Dimension usage U on {latent_long} — K·U ≈ effective number of "
+        f"dimensions in use (K=384). Higher = more dims used.",
+        fontsize=11,
+    )
+    fig.tight_layout(rect=(0, 0.08, 1, 0.96))
+    fig.savefig(out, dpi=120, bbox_inches="tight")
+    plt.close(fig)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -480,11 +475,12 @@ def main(argv: list[str] | None = None) -> int:
     plot_sigreg_inspection(args.arm_runs, args.sigreg01_runs, args.sigreg10_runs,
                            plots / "sigreg_e_inspection.png")
     traj_path = results / "u_batchtime_trajectory.csv"
+    traj_arg = traj_path if traj_path.exists() else None
     plot_dim_usage(args.arm_runs, args.sigreg01_runs, args.sigreg10_runs,
-                   results / "u_batchtime_retro.csv",
-                   traj_path if traj_path.exists() else None,
-                   plots / "dim_usage.png")
-    print(f"wrote 7 plots under {plots}")
+                   traj_arg, plots / "dim_usage_e.png", latent="e")
+    plot_dim_usage(args.arm_runs, args.sigreg01_runs, args.sigreg10_runs,
+                   traj_arg, plots / "dim_usage_h.png", latent="h")
+    print(f"wrote 8 plots under {plots}")
     return 0
 
 

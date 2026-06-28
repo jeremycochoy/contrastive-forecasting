@@ -41,9 +41,15 @@ Tail-50 mean total loss ordering (steps 12 451–12 500, table in §Annex D) is 
 
 Arms 5 and 6 (the two `λ_e ≥ 100` arms) drive `L_SIGReg(e_t)` to tail-50 floors 1.4 to 2.3 orders of magnitude below the four `λ_e ≤ 10` arms (per-arm values in §Annex D).
 
-![Dimension-usage U split by latent — top panel: `e_t` (embedding side) on log-y `[1/K, 0.1]`; bottom panel: `h_t` (encoder side) on log-y `[0.05, 1]`. Per panel: solid = `u_batch` (cross-batch), dashed = `u_temporal` (cross-time), dotted line with `●` markers = `u_batchtime` per-checkpoint trajectory (every 2 500 steps, retroactively scored on the saved backbones; only available for the 4 first sweep arms + 2 anchors — see §Annex D), `★` marker at the actual best-loss step = `u_batchtime` on the canonical `best_loss.pth` / `FINAL.pth` checkpoint (cross-(batch × time) pooled — same `(B·T, K)` sample axis SIGReg uses). Colour = arm; dotted line at `1/K ≈ 0.0026` marks rank-1 collapse (one effective dim out of K=384). Higher U = more dimensions in use; K · U ≈ effective number of dims.](plots/dim_usage.png)
+Dimension-usage `U` is split by latent — encoder side `h_t` (`U ∈ [0.05, 1]`) and embedding side `e_t` (`U ∈ [1/K, 0.1]`, an order of magnitude lower). Each figure shows the three pooling axes (`u_batch`, `u_temporal`, `u_batchtime`) in separate panels; colour = arm.
 
-The `u_batchtime` trajectories cover sweep arms 1/2/3/5 + 2 anchors across all saved checkpoints; arms 4 and 6 are absent from the trajectory and retro CSVs. The three `λ_e ≤ 10` sweep arms (1, 2, 3) climb on `h_t` through training; arm 5 (`λ_e=100`) stays low. The `★` marker for arms 1/2/3 sits well below the step-12 500 `●` because their `best_loss.pth` (= `FINAL.pth`) landed at step 1 400 — arm 3 at step 1 300 — before the late-training U climb; for arm 5 the `★` (step 1 700) and the step-12 500 `●` are close because U barely moves.
+![U on `h_t` (encoder side) per pooling axis (`u_batch`, `u_temporal`, `u_batchtime`); log-y `[0.05, 1]`; colour = arm; `u_batchtime` panel: dotted + `●` = retroactive per-checkpoint trajectory (every 2 500 steps; arms 4 and 6 absent), `★` at the best-loss step (= `FINAL.pth`); the `1/K ≈ 0.0026` rank-1-collapse floor is off-axis (range stays above `0.05`).](plots/dim_usage_h.png)
+
+The three `λ_e ≤ 10` sweep arms (1, 2, 3) climb on `h_t` through training on all three pooling axes; arm 5 (`λ_e=100`) stays low. On `u_batchtime` the `★` marker for arms 1/2/3 sits well below the step-12 500 `●` because their `best_loss.pth` (= `FINAL.pth`) landed at step 1 400 — arm 3 at step 1 300 — before the late-training U climb; for arm 5 the `★` (step 1 700) and the step-12 500 `●` are close because U barely moves. The `u_batchtime` trajectories cover sweep arms 1/2/3/5 + 2 anchors across all saved checkpoints; arms 4 and 6 are absent from the trajectory and retro CSVs.
+
+![U on `e_t` (embedding side) per pooling axis (`u_batch_e`, `u_temporal_e`, `u_batchtime_e`); log-y `[1/K, 0.1]`; colour = arm; `u_batchtime_e` panel: dotted + `●` = retroactive per-checkpoint trajectory (every 2 500 steps; arms 4 and 6 absent), `★` at the best-loss step (= `FINAL.pth`); the `1/K ≈ 0.0026` rank-1-collapse floor sits at the y-axis bottom.](plots/dim_usage_e.png)
+
+On `e_t` the U range sits an order of magnitude below `h_t` (within `[1/K, 0.1]`); among the sweep arms the `λ_h ≥ 1.0` arms (2/3/4/6) end above the `λ_h = 0.1` arms (1, 5) on `u_batch_e` and `u_temporal_e` (Tail-50 values in §Annex D).
 
 ### GM-Rel MASE — B=512 sweep family
 
@@ -188,7 +194,7 @@ Arm 1 differs from the anchor by a single `λ_e` factor of 10×, so Δ vs arm 1 
 - **Per-config rel-MASE for the other SIGReg anchor (`sigreg01`, #355).** `reports/2026-06-20_lejepa_sigreg/results/gift_eval_full_<tag>{,_last}_{2L,6L}/summary.txt`.
 - **Anchor GM-Rel MASE values.** Transcribed verbatim from `reports/2026-06-22_lejepa_sigreg_emb10/results/gm_table.csv`, which carries `cpc_enc3` / `ema_enc3` / `sigreg01_enc3` / `sigreg10_enc3` rows alongside the prior arm.
 - **CI computation.** [`scripts/compute_bootstrap.py`](scripts/compute_bootstrap.py); outputs `results/bootstrap_ci_vs_359.csv` and `results/bootstrap_ci_vs_arm1.csv`.
-- **Plot script.** [`scripts/build_plots.py`](scripts/build_plots.py). Trajectory plots cut the first `PLOT_START_STEP = 100` steps so the warm-up regime does not dominate the y-range; the loss curve uses log x and log y, the SIGReg-inspection panels and the split `dim_usage.png` panels use log y throughout.
+- **Plot script.** [`scripts/build_plots.py`](scripts/build_plots.py). Trajectory plots cut the first `PLOT_START_STEP = 100` steps so the warm-up regime does not dominate the y-range; the loss curve uses log x and log y, the SIGReg-inspection panels and the per-latent `dim_usage_e.png` / `dim_usage_h.png` panels use log y throughout.
 - **Bar-chart colour map.** grey = `enc3+CPC, B=1024`; blue = `EMA enc3+CPC, B=1024`; red = `SIGReg λ_e=λ_h=0.1`; green = `SIGReg λ_e=1.0, λ_h=0.1`; purple = arm 1; brown = arm 2; pink = arm 3; cyan = arm 4; olive = arm 5; orange = arm 6.
 
 ### D. Numeric annex — diagnostics tables
