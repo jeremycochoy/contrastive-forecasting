@@ -37,7 +37,7 @@ Arm 4 (the interior point) moves nothing CI-clean.
 
 ![U on `h_t` (encoder side) per pooling axis (`u_batch`, `u_temporal`, `u_batchtime`); log-y `[0.05, 1]`; colour = arm; `u_batchtime` panel: dotted + `●` = retroactive per-checkpoint trajectory (every 2 500 steps; arms 4 and 6 absent), `★` at the best-loss step (= `FINAL.pth`); the `1/K ≈ 0.0026` rank-1-collapse floor is off-axis (range stays above `0.05`).](plots/dim_usage_h.png)
 
-On `u_batchtime` the `★` marker for arms 1/2/3 sits below the step-12 500 `●`, their `best_loss.pth` (= `FINAL.pth`) landed early — before the late-training U climb; for arm 5 the `★` and the step-12 500 `●` are close, U barely moves.
+On `u_batchtime` the `★` marker for arms 1/2/3 sits below the step-12 500 `●`, their `best_loss.pth` (= `FINAL.pth`) landed early — before the U climb; for arm 5 the `★` and the step-12 500 `●` are close, U barely moves.
 
 ![U on `e_t` (embedding side) per pooling axis (`u_batch_e`, `u_temporal_e`, `u_batchtime_e`); log-y `[1/K, 0.1]`; colour = arm; `u_batchtime_e` panel: dotted + `●` = retroactive per-checkpoint trajectory (every 2 500 steps; arms 4 and 6 absent), `★` at the best-loss step (= `FINAL.pth`); the `1/K ≈ 0.0026` rank-1-collapse floor sits at the y-axis bottom.](plots/dim_usage_e.png)
 
@@ -200,8 +200,8 @@ Tail-50 mean = mean over steps 12 451–12 500 (last 50 of 12 500 logged steps) 
 
 | arm / anchor | recipe | `u_batchtime` (`h_t`) | `u_batchtime_e` (`e_t`) |
 | --- | --- | ---: | ---: |
-| #355 anchor | `λ_e=0.1, λ_h=0.1` | 0.3897 | 0.0136 |
-| #359 anchor | `λ_e=1.0, λ_h=0.1` | 0.3535 | 0.0133 |
+| `λ_e=0.1, λ_h=0.1` (#355) | `λ_e=0.1, λ_h=0.1` | 0.3897 | 0.0136 |
+| `λ_e=1.0, λ_h=0.1` (#359) | `λ_e=1.0, λ_h=0.1` | 0.3535 | 0.0133 |
 | arm 1 | `λ_e=10.0, λ_h=0.1` | 0.3527 | 0.0132 |
 | arm 2 | `λ_e=10.0, λ_h=1.0` | 0.3535 | 0.0131 |
 | arm 3 | `λ_e=10.0, λ_h=10.0` | 0.3663 | 0.0137 |
