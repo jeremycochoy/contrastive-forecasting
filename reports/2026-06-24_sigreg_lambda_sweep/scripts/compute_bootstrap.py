@@ -48,11 +48,15 @@ ARM_LABEL = {
     "emb100_enc01":      "SIGReg λ_e=10.0, λ_h=0.1",
     "emb100_enc10":      "SIGReg λ_e=10.0, λ_h=1.0",
     "emb100_enc100":     "SIGReg λ_e=10.0, λ_h=10.0",
+    "emb10_enc10":       "SIGReg λ_e=1.0, λ_h=1.0",
     "emb1000_enc01":     "SIGReg λ_e=100.0, λ_h=0.1",
     "emb10000_enc10":    "SIGReg λ_e=1000.0, λ_h=1.0",
 }
 
-SWEEP_ARMS = ["emb100_enc01", "emb100_enc10", "emb100_enc100", "emb1000_enc01", "emb10000_enc10"]
+SWEEP_ARMS = [
+    "emb100_enc01", "emb100_enc10", "emb100_enc100",
+    "emb10_enc10", "emb1000_enc01", "emb10000_enc10",
+]
 ANCHOR_ORDER = ["cpc_enc3", "ema_enc3", "sigreg01_enc3", "sigreg10_enc3"]
 CELLS = [("2L", "best", ""), ("2L", "last", "_last"),
          ("6L", "best", ""), ("6L", "last", "_last")]

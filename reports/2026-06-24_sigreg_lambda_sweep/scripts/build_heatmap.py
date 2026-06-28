@@ -19,33 +19,36 @@ import pandas as pd
 from matplotlib.colors import TwoSlopeNorm
 from matplotlib.patches import Rectangle
 
-LAMBDA_E = [0.1, 1.0, 10.0, 100.0]
+LAMBDA_E = [0.1, 1.0, 10.0, 100.0, 1000.0]
 LAMBDA_H = [0.1, 1.0, 10.0]
 CELLS = [("2L", "best"), ("2L", "last"), ("6L", "best"), ("6L", "last")]
 
 # (λ_e, λ_h) -> arm key in gm_table.csv
 GRID_ARM = {
-    (0.1,   0.1):  ("sigreg01_enc3", "#355 anchor"),
-    (1.0,   0.1):  ("sigreg10_enc3", "#359 anchor"),
-    (10.0,  0.1):  ("emb100_enc01",  "arm 1"),
-    (10.0,  1.0):  ("emb100_enc10",  "arm 2"),
-    (10.0,  10.0): ("emb100_enc100", "arm 3"),
-    (100.0, 0.1):  ("emb1000_enc01", "arm 5"),
+    (0.1,    0.1):  ("sigreg01_enc3", "#355 anchor"),
+    (1.0,    0.1):  ("sigreg10_enc3", "#359 anchor"),
+    (10.0,   0.1):  ("emb100_enc01",  "arm 1"),
+    (10.0,   1.0):  ("emb100_enc10",  "arm 2"),
+    (10.0,   10.0): ("emb100_enc100", "arm 3"),
+    (1.0,    1.0):  ("emb10_enc10",   "arm 4"),
+    (100.0,  0.1):  ("emb1000_enc01", "arm 5"),
+    (1000.0, 1.0):  ("emb10000_enc10","arm 6"),
 }
 # (λ_e, λ_h) cells whose GM is not yet known: drawn as hatched gaps.
 UNRUN = [
-    (0.1,   1.0),
-    (0.1,   10.0),
-    (1.0,   1.0),
-    (1.0,   10.0),
-    (100.0, 1.0),
-    (100.0, 10.0),
+    (0.1,    1.0),
+    (0.1,    10.0),
+    (1.0,    10.0),
+    (100.0,  1.0),
+    (100.0,  10.0),
+    (1000.0, 0.1),
+    (1000.0, 10.0),
 ]
 ANCHOR_KEY = "sigreg10_enc3"  # #359, (1.0, 0.1) — diverging-colormap centre
 
 
 def heatmap(gm: pd.DataFrame, out: Path):
-    fig, axes = plt.subplots(2, 2, figsize=(11.0, 7.6), constrained_layout=True)
+    fig, axes = plt.subplots(2, 2, figsize=(13.5, 8.6), constrained_layout=True)
     nx, ny = len(LAMBDA_E), len(LAMBDA_H)
 
     all_vals = []
@@ -103,17 +106,18 @@ def heatmap(gm: pd.DataFrame, out: Path):
         ax.set_yticklabels([f"{v:g}" for v in LAMBDA_H])
         ax.set_xlabel("λ_e (log)")
         ax.set_ylabel("λ_h (log)")
-        ax.set_title(f"{head} q-head / {ckpt}-ckpt  —  centre = SIGReg+EMA λ_e=1.0, λ_h=0.1 (#359, {anchor_val:.3f})")
+        ax.set_title(f"{head} q-head / {ckpt}-ckpt  —  centre = #359 anchor ({anchor_val:.3f})",
+                     fontsize=9.5)
 
         cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
         cb.set_label("GM-Rel MASE", fontsize=8)
         cb.ax.tick_params(labelsize=7)
 
     fig.suptitle(
-        "GM-Rel MASE across (λ_e, λ_h) — diverging colormap centred on per-cell "
-        "SIGReg + EMA-target, B=512, λ_e=1.0, λ_h=0.1 anchor (#359); "
-        "red = worse than that anchor, blue = better; hatched = not run",
-        fontsize=10.5,
+        "GM-Rel MASE across (λ_e, λ_h)\n"
+        "centre = per-cell SIGReg+EMA λ_e=1.0, λ_h=0.1 (#359); "
+        "red = worse than #359, blue = better; hatched = not run",
+        fontsize=11,
     )
     fig.savefig(out, dpi=120)
     plt.close(fig)

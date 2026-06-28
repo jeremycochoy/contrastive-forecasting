@@ -51,6 +51,7 @@ ARM_LABEL = {
     "emb100_enc01":      "SIGReg λ_e=10.0, λ_h=0.1 (arm 1)",
     "emb100_enc10":      "SIGReg λ_e=10.0, λ_h=1.0 (arm 2)",
     "emb100_enc100":     "SIGReg λ_e=10.0, λ_h=10.0 (arm 3)",
+    "emb10_enc10":       "SIGReg λ_e=1.0, λ_h=1.0 (arm 4)",
     "emb1000_enc01":     "SIGReg λ_e=100.0, λ_h=0.1 (arm 5)",
     "emb10000_enc10":    "SIGReg λ_e=1000.0, λ_h=1.0 (arm 6)",
 }
@@ -63,11 +64,15 @@ ARM_COLOR = {
     "emb100_enc01":  "#9467bd",
     "emb100_enc10":  "#8c564b",
     "emb100_enc100": "#e377c2",
-    "emb1000_enc01": "#17becf",
-    "emb10000_enc10":"#bcbd22",
+    "emb10_enc10":   "#17becf",
+    "emb1000_enc01": "#bcbd22",
+    "emb10000_enc10":"#ff7f0e",
 }
 
-SWEEP_ARMS = ["emb100_enc01", "emb100_enc10", "emb100_enc100", "emb1000_enc01", "emb10000_enc10"]
+SWEEP_ARMS = [
+    "emb100_enc01", "emb100_enc10", "emb100_enc100",
+    "emb10_enc10", "emb1000_enc01", "emb10000_enc10",
+]
 ANCHOR_ORDER = ["cpc_enc3", "ema_enc3", "sigreg01_enc3", "sigreg10_enc3"]
 CELLS = [("2L", "best"), ("2L", "last"), ("6L", "best"), ("6L", "last")]
 # Plot start step — cuts the warm-up regime so its early-step divergence
@@ -142,44 +147,52 @@ def plot_gm_bars(gm: pd.DataFrame, ci_vs_359: pd.DataFrame, out: Path):
 
 
 def plot_lambda_e_ladder(gm: pd.DataFrame, ci_vs_359: pd.DataFrame, out: Path):
-    """λ_e ladder at λ_h=0.1: 0.1 (#355) → 1.0 (#359) → 10.0 (arm 1) → 100.0 (arm 5).
-    Whiskers: paired-bootstrap 95% CI on the absolute GM scale vs #359 anchor."""
-    ladder = [
-        ("sigreg01_enc3", 0.1),
-        ("sigreg10_enc3", 1.0),
-        ("emb100_enc01",  10.0),
-        ("emb1000_enc01", 100.0),
-    ]
-    fig, ax = plt.subplots(figsize=(8.8, 5.2))
-    for head, ckpt in CELLS:
-        xs, ys, lo, hi = [], [], [], []
-        for arm, lam_e in ladder:
-            r = gm[(gm["arm"] == arm) & (gm["head"] == head) & (gm["ckpt"] == ckpt)]
-            v = float(r.gm.values[0]) if len(r) else np.nan
-            xs.append(lam_e); ys.append(v)
-            if arm in SWEEP_ARMS:
-                cr = ci_vs_359[(ci_vs_359["arm"] == arm) & (ci_vs_359["head"] == head) & (ci_vs_359["ckpt"] == ckpt)]
-                if len(cr) and not np.isnan(cr.gm_delta_lo.values[0]):
-                    point = float(cr.gm_delta_abs.values[0])
-                    lo.append(v - (point - float(cr.gm_delta_lo.values[0])))
-                    hi.append(v + (float(cr.gm_delta_hi.values[0]) - point))
+    """Two λ_e ladders, one per λ_h row:
+       λ_h=0.1:  0.1 (#355) → 1.0 (#359) → 10.0 (arm 1) → 100.0 (arm 5).
+       λ_h=1.0:  1.0 (arm 4) → 10.0 (arm 2) → 1000.0 (arm 6).
+    Whiskers: paired-bootstrap 95% CI on the absolute GM scale vs #359."""
+    ladders = {
+        0.1: [("sigreg01_enc3", 0.1), ("sigreg10_enc3", 1.0),
+              ("emb100_enc01",  10.0), ("emb1000_enc01", 100.0)],
+        1.0: [("emb10_enc10",    1.0), ("emb100_enc10",  10.0),
+              ("emb10000_enc10", 1000.0)],
+    }
+    fig, axes = plt.subplots(1, 2, figsize=(13, 5.2), sharey=True)
+    for ax, (lam_h, ladder) in zip(axes, ladders.items()):
+        for head, ckpt in CELLS:
+            xs, ys, lo, hi = [], [], [], []
+            for arm, lam_e in ladder:
+                r = gm[(gm["arm"] == arm) & (gm["head"] == head) & (gm["ckpt"] == ckpt)]
+                v = float(r.gm.values[0]) if len(r) else np.nan
+                xs.append(lam_e); ys.append(v)
+                if arm in SWEEP_ARMS:
+                    cr = ci_vs_359[(ci_vs_359["arm"] == arm) & (ci_vs_359["head"] == head) & (ci_vs_359["ckpt"] == ckpt)]
+                    if len(cr) and not np.isnan(cr.gm_delta_lo.values[0]):
+                        point = float(cr.gm_delta_abs.values[0])
+                        lo.append(v - (point - float(cr.gm_delta_lo.values[0])))
+                        hi.append(v + (float(cr.gm_delta_hi.values[0]) - point))
+                    else:
+                        lo.append(v); hi.append(v)
                 else:
                     lo.append(v); hi.append(v)
-            else:
-                lo.append(v); hi.append(v)
-        label = f"{head} / {ckpt}-ckpt"
-        ls = "-" if ckpt == "best" else "--"
-        col = "#1f77b4" if head == "2L" else "#d62728"
-        ax.plot(xs, ys, marker="o", lw=1.4, ls=ls, color=col, label=label)
-        # whiskers on the two sweep entries only (10.0, 100.0)
-        ax.fill_between(xs, lo, hi, color=col, alpha=0.10)
-    ax.set_xscale("log")
-    ax.set_xticks([0.1, 1.0, 10.0, 100.0])
-    ax.set_xticklabels(["0.1\n(#355)", "1.0\n(#359)", "10.0\n(arm 1)", "100.0\n(arm 5)"])
-    ax.set_xlabel("λ_e  (at fixed λ_h=0.1)")
-    ax.set_ylabel("GM-Rel MASE (lower = better)")
-    ax.set_title("λ_e ladder at λ_h=0.1 — bands = paired-bootstrap 95% CI vs #359")
-    ax.legend(fontsize=8); ax.grid(alpha=0.3, which="both")
+            label = f"{head} / {ckpt}-ckpt"
+            ls = "-" if ckpt == "best" else "--"
+            col = "#1f77b4" if head == "2L" else "#d62728"
+            ax.plot(xs, ys, marker="o", lw=1.4, ls=ls, color=col, label=label)
+            ax.fill_between(xs, lo, hi, color=col, alpha=0.10)
+        ax.set_xscale("log")
+        if lam_h == 0.1:
+            ax.set_xticks([0.1, 1.0, 10.0, 100.0])
+            ax.set_xticklabels(["0.1\n(#355)", "1.0\n(#359)", "10.0\n(arm 1)", "100.0\n(arm 5)"])
+        else:
+            ax.set_xticks([1.0, 10.0, 1000.0])
+            ax.set_xticklabels(["1.0\n(arm 4)", "10.0\n(arm 2)", "1000.0\n(arm 6)"])
+        ax.set_xlabel(f"λ_e  (at fixed λ_h={lam_h:g})")
+        ax.set_title(f"λ_h = {lam_h:g}")
+        ax.grid(alpha=0.3, which="both")
+    axes[0].set_ylabel("GM-Rel MASE (lower = better)")
+    axes[0].legend(fontsize=8, loc="best")
+    fig.suptitle("λ_e ladders at λ_h=0.1 (left) and λ_h=1.0 (right) — bands = paired-bootstrap 95% CI vs #359")
     fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
 
 
@@ -257,7 +270,7 @@ def plot_loss_curves(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Path, out
     ax.set_yscale("log")
     ax.set_xlabel(f"step (log; start = {PLOT_START_STEP})")
     ax.set_ylabel("loss (50-step rolling mean, log)")
-    ax.set_title("Total training loss — log-log; anchors (#355, #359) and the 4 sweep arms")
+    ax.set_title("Total training loss — log-log; anchors (#355, #359) and the 6 sweep arms")
     ax.legend(fontsize=7); ax.grid(alpha=0.3, which="both")
     fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
 
@@ -308,34 +321,30 @@ def plot_sigreg_inspection(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Pat
         ax.set_title(title)
         ax.legend(fontsize=6, loc="best"); ax.grid(alpha=0.3, which="both")
     fig.suptitle(
-        f"SIGReg trajectories — log y; sweep arms vs the two prior λ_h=0.1 anchors "
+        f"SIGReg trajectories — log y; the 6 sweep arms vs the two prior λ_h=0.1 anchors "
         f"(start step = {PLOT_START_STEP}, 50-step rolling mean)"
     )
     fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
 
 
 def plot_dim_usage(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Path,
-                   retro_csv: Path, out: Path):
+                   retro_csv: Path, traj_csv: Path | None, out: Path):
     """Dimension usage U for sweep arms and the 2 anchors. U = participation-ratio
     fraction in [1/K, 1] with K=384: U=1 ⇔ isotropic / all K dims used,
     U=1/K ⇔ rank-1 collapse (one effective dim). Effective dims ≈ K · U.
 
     Two stacked panels with shared x-axis and per-row y-scales:
       top   — e_t (embedding side): u_batch_e, u_temporal_e trajectories;
-              u_batchtime_e final-step retroactive marker at step 12 500.
-              y ∈ [1/K, 0.1] (log).
+              u_batchtime_e all-checkpoint trajectory (dotted) for the 4 prior
+              sweep arms + 2 anchors, terminal ★ at step 12 500. y ∈ [1/K, 0.1] (log).
       bottom — h_t (encoder side): u_batch, u_temporal trajectories;
-              u_batchtime final-step retroactive marker at step 12 500.
-              y ∈ [0.05, 1] (log).
+              u_batchtime all-checkpoint trajectory (dotted) for the 4 prior
+              sweep arms + 2 anchors, terminal ★ at step 12 500. y ∈ [0.05, 1] (log).
 
     Linestyle = pooling axis (solid = u_batch, dashed = u_temporal,
-    star marker = u_batchtime final-step retroactive). Colour = arm.
-    `u_batchtime` / `u_batchtime_e` have no in-training trajectory for the
-    6 runs in this report (their training predates the metric, commit 2288c4d);
-    only the FINAL retroactive value is shown.
-
-    `PLOT_START_STEP` cuts the warm-up regime in line with the other
-    trajectory plots."""
+    dotted+★ = u_batchtime checkpoint trajectory). Colour = arm.
+    For arms 4 and 6 (training post-dates the trajectory snapshot),
+    only the FINAL retroactive value (from `retro_csv`) is plotted as a ★."""
     K = 384
     fig, (ax_e, ax_h) = plt.subplots(2, 1, sharex=True, figsize=(13, 9.5))
     overlays = {
@@ -369,30 +378,45 @@ def plot_dim_usage(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Path,
     _draw_panel(ax_e, "_e")
     _draw_panel(ax_h, "")
 
-    retro = pd.read_csv(retro_csv)
     retro_arm_map = {
         "anchor_emb01":   "sigreg01_enc3",
         "anchor_emb10":   "sigreg10_enc3",
         "emb100_enc01":   "emb100_enc01",
         "emb100_enc10":   "emb100_enc10",
         "emb100_enc100":  "emb100_enc100",
+        "emb10_enc10":    "emb10_enc10",
         "emb1000_enc01":  "emb1000_enc01",
+        "emb10000_enc10": "emb10000_enc10",
     }
-    bt_step = 12500
-    for _, r in retro.iterrows():
-        arm = retro_arm_map.get(r["arm"])
-        if arm is None:
-            continue
-        ax_e.scatter([bt_step], [float(r["u_batchtime_e"])],
-                     color=ARM_COLOR[arm], marker="*", s=110,
-                     edgecolor="black", linewidths=0.5, zorder=5)
-        ax_h.scatter([bt_step], [float(r["u_batchtime"])],
-                     color=ARM_COLOR[arm], marker="*", s=110,
-                     edgecolor="black", linewidths=0.5, zorder=5)
+
+    if traj_csv is not None and traj_csv.exists():
+        traj = pd.read_csv(traj_csv)
+        traj_step = traj[traj["ckpt_kind"].str.startswith("step_", na=False)].copy()
+        traj_best = traj[traj["ckpt_kind"] == "best_loss"].copy()
+        for arm_key, arm in retro_arm_map.items():
+            t = traj_step[traj_step["arm"] == arm_key].sort_values("step")
+            if not len(t):
+                continue
+            ax_e.plot(t["step"], t["u_batchtime_e"],
+                      color=ARM_COLOR[arm], lw=1.0, ls=":", marker="o",
+                      markersize=4, alpha=0.85, zorder=3)
+            ax_h.plot(t["step"], t["u_batchtime"],
+                      color=ARM_COLOR[arm], lw=1.0, ls=":", marker="o",
+                      markersize=4, alpha=0.85, zorder=3)
+            # best_loss / FINAL.pth: ★ at the actual best-loss step
+            tb = traj_best[traj_best["arm"] == arm_key]
+            if len(tb):
+                br = tb.iloc[0]
+                ax_e.scatter([int(br["step"])], [float(br["u_batchtime_e"])],
+                             color=ARM_COLOR[arm], marker="*", s=130,
+                             edgecolor="black", linewidths=0.5, zorder=5)
+                ax_h.scatter([int(br["step"])], [float(br["u_batchtime"])],
+                             color=ARM_COLOR[arm], marker="*", s=130,
+                             edgecolor="black", linewidths=0.5, zorder=5)
 
     for ax, (lo, hi), title in (
-        (ax_e, (1.0 / K, 0.1),  "e_t (embedding-side) — u_batch_e (solid), u_temporal_e (dashed), u_batchtime_e final (★)"),
-        (ax_h, (0.05, 1.0),     "h_t (encoder-side)  — u_batch (solid), u_temporal (dashed), u_batchtime final (★)"),
+        (ax_e, (1.0 / K, 0.1),  "e_t (embedding-side) — u_batch_e (solid), u_temporal_e (dashed), u_batchtime_e trajectory (dotted+●), best_loss=FINAL.pth (★)"),
+        (ax_h, (0.05, 1.0),     "h_t (encoder-side)  — u_batch (solid), u_temporal (dashed), u_batchtime trajectory (dotted+●), best_loss=FINAL.pth (★)"),
     ):
         ax.axhline(1.0 / K, color="k", ls=":", alpha=0.5,
                    label=f"1/K = 1/{K} ≈ {1/K:.4f}  (rank-1 collapse: 1 effective dim)")
@@ -405,15 +429,18 @@ def plot_dim_usage(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Path,
     ax_h.set_xlabel(f"step  (start = {PLOT_START_STEP})")
 
     plotted_arms = ["sigreg01_enc3", "sigreg10_enc3",
-                    "emb100_enc01", "emb100_enc10", "emb100_enc100", "emb1000_enc01"]
+                    "emb100_enc01", "emb100_enc10", "emb100_enc100",
+                    "emb10_enc10", "emb1000_enc01", "emb10000_enc10"]
     arm_handles = [plt.Line2D([0], [0], color=ARM_COLOR[a], lw=2.0,
                               label=ARM_LABEL[a]) for a in plotted_arms]
     style_handles = [
         plt.Line2D([0], [0], color="black", ls="-",  lw=1.5, label="u_batch (cross-batch)"),
         plt.Line2D([0], [0], color="black", ls="--", lw=1.5, label="u_temporal (cross-time)"),
-        plt.Line2D([0], [0], color="black", marker="*", markersize=9,
+        plt.Line2D([0], [0], color="black", ls=":", marker="o", markersize=5,
+                   lw=1.0, label="u_batchtime — checkpoint trajectory"),
+        plt.Line2D([0], [0], color="black", marker="*", markersize=10,
                    markerfacecolor="white", markeredgecolor="black",
-                   linestyle="", label="u_batchtime FINAL — retroactive"),
+                   linestyle="", label="best_loss = FINAL.pth (★ at best-loss step)"),
         plt.Line2D([0], [0], color="k", ls=":", alpha=0.5,
                    label=f"1/K ≈ {1/K:.4f}  (rank-1 collapse)"),
     ]
@@ -452,8 +479,11 @@ def main(argv: list[str] | None = None) -> int:
                      plots / "loss_curve.png")
     plot_sigreg_inspection(args.arm_runs, args.sigreg01_runs, args.sigreg10_runs,
                            plots / "sigreg_e_inspection.png")
+    traj_path = results / "u_batchtime_trajectory.csv"
     plot_dim_usage(args.arm_runs, args.sigreg01_runs, args.sigreg10_runs,
-                   results / "u_batchtime_retro.csv", plots / "dim_usage.png")
+                   results / "u_batchtime_retro.csv",
+                   traj_path if traj_path.exists() else None,
+                   plots / "dim_usage.png")
     print(f"wrote 7 plots under {plots}")
     return 0
 
