@@ -17,9 +17,9 @@ The 6 arms run:
 
 ## Result
 
-Vs the `λ_e=1.0, λ_h=0.1` anchor (#359), only arm 2 (`λ_e=10.0, λ_h=1.0`) on `2L/best` is CI-clean (Annex A); every other cell straddles zero. Arm 6 (`λ_e=1000.0, λ_h=1.0`) on `2L/last` is the closest near-miss (Annex A).
+Vs the `λ_e=1.0, λ_h=0.1` anchor, only arm 2 (`λ_e=10.0, λ_h=1.0`) on `2L/best` is CI-clean (Annex A); every other cell straddles zero.
 
-Vs arm 1 (`λ_e=10.0, λ_h=0.1`) — the `λ_h` 0.1 → 1.0 isolation contrast — arm 2 is CI-clean on both best-ckpt cells (Annex B). Arm 5 (`λ_e=100.0`) regresses CI-clean on both last-ckpt cells (Annex B).
+Vs arm 1 (`λ_e=10.0, λ_h=0.1`), arm 2 is CI-clean on both best-ckpt cells (Annex B). Arm 5 (`λ_e=100.0`) regresses CI-clean on both last-ckpt cells (Annex B).
 
 Arm 4 (the interior point) moves nothing CI-clean.
 
@@ -27,29 +27,25 @@ Arm 4 (the interior point) moves nothing CI-clean.
 
 ### (λ_e, λ_h) heatmap
 
-![4-panel GM-Rel MASE heatmap over (λ_e, λ_h), one panel per (q-head depth, backbone checkpoint) cell. X axis = λ_e ∈ {0.1, 1.0, 10.0, 100.0, 1000.0} on a log grid; Y axis = λ_h ∈ {0.1, 1.0, 10.0} on a log grid. Diverging colormap centred on the per-cell SIGReg + EMA-target, B=512, λ_e=1.0, λ_h=0.1 anchor (#359): red = worse than that anchor, blue = better. Tile text = GM-Rel MASE. Hatched tiles = (λ_e, λ_h) points not run.](plots/heatmap.png)
+![4-panel GM-Rel MASE heatmap over (λ_e, λ_h), one panel per (q-head depth, backbone checkpoint) cell. X axis = λ_e ∈ {0.1, 1.0, 10.0, 100.0, 1000.0} on a log grid; Y axis = λ_h ∈ {0.1, 1.0, 10.0} on a log grid. Diverging colormap centred on the per-cell SIGReg + EMA-target, B=512, λ_e=1.0, λ_h=0.1 anchor: red = worse than that anchor, blue = better. Tile text = GM-Rel MASE. Hatched tiles = (λ_e, λ_h) points not run.](plots/heatmap.png)
 
 ### Training trajectory
 
 ![Log-log total training loss (50-step rolling mean) from step 100 onwards for the 6 sweep arms and the 2 prior λ_h=0.1 anchors. Cutting the first 100 warm-up steps and log axes keep the converged regime readable.](plots/loss_curve.png)
 
-Total loss is not directly comparable to GM-Rel MASE because of the two regulariser-side terms (per-arm Tail-50 values in Annex D).
-
 ![Log-y trajectories of L_SIGReg(e_t), L_SIGReg(h_t), U_batch(e_t), U_temporal(e_t) from step 100 onwards for the 6 sweep arms and the 2 anchors; rolling 50-step mean. The bottom row is the embedding-side dimension-usage metric U; its 1/K ≈ 0.00260 dotted floor marks rank-1 collapse (one effective dim out of K=384). Higher U = more dimensions in use; K · U ≈ effective number of dims.](plots/sigreg_e_inspection.png)
 
 ![U on `h_t` (encoder side) per pooling axis (`u_batch`, `u_temporal`, `u_batchtime`); log-y `[0.05, 1]`; colour = arm; `u_batchtime` panel: dotted + `●` = retroactive per-checkpoint trajectory (every 2 500 steps; arms 4 and 6 absent), `★` at the best-loss step (= `FINAL.pth`); the `1/K ≈ 0.0026` rank-1-collapse floor is off-axis (range stays above `0.05`).](plots/dim_usage_h.png)
 
-The three `λ_e ≤ 10` sweep arms (1, 2, 3) climb on `h_t` through training on all three pooling axes; arm 5 (`λ_e=100`) stays low. On `u_batchtime` the `★` marker for arms 1/2/3 sits below the step-12 500 `●` because their `best_loss.pth` (= `FINAL.pth`) landed early — before the late-training U climb; for arm 5 the `★` and the step-12 500 `●` are close because U barely moves.
+On `u_batchtime` the `★` marker for arms 1/2/3 sits below the step-12 500 `●`, their `best_loss.pth` (= `FINAL.pth`) landed early — before the late-training U climb; for arm 5 the `★` and the step-12 500 `●` are close, U barely moves.
 
 ![U on `e_t` (embedding side) per pooling axis (`u_batch_e`, `u_temporal_e`, `u_batchtime_e`); log-y `[1/K, 0.1]`; colour = arm; `u_batchtime_e` panel: dotted + `●` = retroactive per-checkpoint trajectory (every 2 500 steps; arms 4 and 6 absent), `★` at the best-loss step (= `FINAL.pth`); the `1/K ≈ 0.0026` rank-1-collapse floor sits at the y-axis bottom.](plots/dim_usage_e.png)
 
-Among the sweep arms the `λ_h ≥ 1.0` arms (2/3/4/6) end above the `λ_h = 0.1` arms (1, 5) on `u_batch_e` and `u_temporal_e` (Tail-50 values in §Annex D).
-
 ### GM-Rel MASE — B=512 sweep family
 
-Column-bold marks the row-minimum among the B=512 family (`λ_e=λ_h=0.1` (#355), `λ_e=1.0, λ_h=0.1` (#359), and the 6 sweep arms). The B=1024 cells (#344, #353) are not comparable to the B=512 family and are never bolded, regardless of their value.
+Column-bold marks the row-minimum among the B=512 family (`λ_e=λ_h=0.1`, `λ_e=1.0, λ_h=0.1`, and the 6 sweep arms). The B=1024 cells are not comparable to the B=512 family and are never bolded, regardless of their value.
 
-| head / ckpt | `enc3+CPC`, B=1024 (#344) | `EMA enc3+CPC`, B=1024 (#353) | `λ_e=λ_h=0.1`, B=512 (#355) | `λ_e=1.0, λ_h=0.1`, B=512 (#359) | arm 1 (10.0, 0.1) | arm 2 (10.0, 1.0) | arm 3 (10.0, 10.0) | arm 4 (1.0, 1.0) | arm 5 (100.0, 0.1) | arm 6 (1000.0, 1.0) |
+| head / ckpt | `enc3+CPC`, B=1024 | `EMA enc3+CPC`, B=1024 | `λ_e=λ_h=0.1`, B=512 | `λ_e=1.0, λ_h=0.1`, B=512 | arm 1 (10.0, 0.1) | arm 2 (10.0, 1.0) | arm 3 (10.0, 10.0) | arm 4 (1.0, 1.0) | arm 5 (100.0, 0.1) | arm 6 (1000.0, 1.0) |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | 2L / best | 1.1846 | 1.1614 | 1.1610 | 1.1470 | 1.1474 | **1.1302** | 1.1540 | 1.1435 | 1.1554 | 1.1488 |
 | 2L / last | 1.1531 | 1.1817 | 1.1758 | 1.1681 | 1.1610 | 1.1756 | 1.1682 | 1.1679 | 1.1828 | **1.1537** |
@@ -58,15 +54,11 @@ Column-bold marks the row-minimum among the B=512 family (`λ_e=λ_h=0.1` (#355)
 
 ### λ_e ladders at λ_h=0.1 and λ_h=1.0
 
-![Two λ_e ladders. Left: λ_h=0.1, 0.1 (#355) → 1.0 (#359) → 10.0 (arm 1) → 100.0 (arm 5). Right: λ_h=1.0, 1.0 (arm 4) → 10.0 (arm 2) → 1000.0 (arm 6). Both axes log; 4 line curves per panel (2L/6L × best/last); shaded bands = paired-bootstrap 95% CI vs the `λ_e=1.0, λ_h=0.1` anchor (#359).](plots/lambda_e_ladder.png)
-
-#359 (the CI anchor) is not a point on the `λ_h=1.0` row.
+![Two λ_e ladders. Left: λ_h=0.1, 0.1 → 1.0 → 10.0 (arm 1) → 100.0 (arm 5). Right: λ_h=1.0, 1.0 (arm 4) → 10.0 (arm 2) → 1000.0 (arm 6). Both axes log; 4 line curves per panel (2L/6L × best/last); shaded bands = paired-bootstrap 95% CI vs the `λ_e=1.0, λ_h=0.1` anchor.](plots/lambda_e_ladder.png)
 
 ### Best-vs-last divergence
 
 ![Drift = last − best GM-Rel MASE per arm, split by 2L vs 6L q-head. Positive = last is worse than best (model stopped improving by step 12 500); negative = last is better than best (model still improving). Only the `enc3+CPC, B=1024` anchor sits below zero on both heads.](plots/best_vs_last_drift.png)
-
-Drift is a within-arm diagnostic; cross-arm last-ckpt CIs vs arm 1 are tabulated separately in §Annex B.
 
 ## Protocol
 

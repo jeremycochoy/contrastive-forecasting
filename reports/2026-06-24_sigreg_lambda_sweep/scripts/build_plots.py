@@ -47,10 +47,10 @@ ANCHOR_GM = {
 }
 
 ARM_LABEL = {
-    "cpc_enc3":          "enc3+CPC, B=1024 (#344)",
-    "ema_enc3":          "EMA enc3+CPC, B=1024 (#353)",
-    "sigreg01_enc3":     "SIGReg λ_e=0.1, λ_h=0.1 (#355)",
-    "sigreg10_enc3":     "SIGReg λ_e=1.0, λ_h=0.1 (#359)",
+    "cpc_enc3":          "enc3+CPC, B=1024",
+    "ema_enc3":          "EMA enc3+CPC, B=1024",
+    "sigreg01_enc3":     "SIGReg λ_e=0.1, λ_h=0.1",
+    "sigreg10_enc3":     "SIGReg λ_e=1.0, λ_h=0.1",
     "emb100_enc01":      "SIGReg λ_e=10.0, λ_h=0.1 (arm 1)",
     "emb100_enc10":      "SIGReg λ_e=10.0, λ_h=1.0 (arm 2)",
     "emb100_enc100":     "SIGReg λ_e=10.0, λ_h=10.0 (arm 3)",
@@ -79,10 +79,10 @@ SWEEP_ARMS = [
 ANCHOR_ORDER = ["cpc_enc3", "ema_enc3", "sigreg01_enc3", "sigreg10_enc3"]
 CELLS = [("2L", "best"), ("2L", "last"), ("6L", "best"), ("6L", "last")]
 # Plot start step — cuts the warm-up regime so its early-step divergence
-# does not dominate the y-range. Matches the parent #359 report's log-y
-# convention; here the loss curve is log-log so the start step is required
-# (log x at step ≤ 0 is undefined).
+# does not dominate the y-range. The loss curve is log-log so the start step
+# is required (log x at step ≤ 0 is undefined).
 PLOT_START_STEP = 100
+PLOT_END_STEP = 12_500
 
 
 def load_gm_table(p: Path) -> pd.DataFrame:
@@ -142,7 +142,7 @@ def plot_gm_bars(gm: pd.DataFrame, ci_vs_359: pd.DataFrame, out: Path):
     ax.set_xticks(x)
     ax.set_xticklabels([f"{h}/{c}" for h, c in CELLS])
     ax.set_ylabel("GM-Rel MASE (lower = better)")
-    ax.set_title("GIFT-Eval full-97 GM-Rel MASE — whiskers = paired-bootstrap 95% CI vs #359 (sweep arms only)")
+    ax.set_title("GIFT-Eval full-97 GM-Rel MASE — whiskers = paired-bootstrap 95% CI vs λ_e=1.0, λ_h=0.1 anchor (sweep arms only)")
     ax.set_ylim(baseline, max(vals_all) + 0.020)
     ax.legend(loc="upper left", fontsize=6.5, ncol=2)
     ax.grid(axis="y", alpha=0.3)
@@ -186,7 +186,7 @@ def plot_lambda_e_ladder(gm: pd.DataFrame, ci_vs_359: pd.DataFrame, out: Path):
         ax.set_xscale("log")
         if lam_h == 0.1:
             ax.set_xticks([0.1, 1.0, 10.0, 100.0])
-            ax.set_xticklabels(["0.1\n(#355)", "1.0\n(#359)", "10.0\n(arm 1)", "100.0\n(arm 5)"])
+            ax.set_xticklabels(["0.1", "1.0", "10.0\n(arm 1)", "100.0\n(arm 5)"])
         else:
             ax.set_xticks([1.0, 10.0, 1000.0])
             ax.set_xticklabels(["1.0\n(arm 4)", "10.0\n(arm 2)", "1000.0\n(arm 6)"])
@@ -195,7 +195,7 @@ def plot_lambda_e_ladder(gm: pd.DataFrame, ci_vs_359: pd.DataFrame, out: Path):
         ax.grid(alpha=0.3, which="both")
     axes[0].set_ylabel("GM-Rel MASE (lower = better)")
     axes[0].legend(fontsize=8, loc="best")
-    fig.suptitle("λ_e ladders at λ_h=0.1 (left) and λ_h=1.0 (right) — bands = paired-bootstrap 95% CI vs #359")
+    fig.suptitle("λ_e ladders at λ_h=0.1 (left) and λ_h=1.0 (right) — bands = paired-bootstrap 95% CI vs λ_e=1.0, λ_h=0.1 anchor")
     fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
 
 
@@ -271,9 +271,10 @@ def plot_loss_curves(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Path, out
                     label=ARM_LABEL[arm], color=ARM_COLOR[arm], lw=1.6)
     ax.set_xscale("log")
     ax.set_yscale("log")
+    ax.set_xlim(PLOT_START_STEP, PLOT_END_STEP)
     ax.set_xlabel(f"step (log; start = {PLOT_START_STEP})")
     ax.set_ylabel("loss (50-step rolling mean, log)")
-    ax.set_title("Total training loss — log-log; anchors (#355, #359) and the 6 sweep arms")
+    ax.set_title("Total training loss — log-log; the two prior λ_h=0.1 anchors and the 6 sweep arms")
     ax.legend(fontsize=7); ax.grid(alpha=0.3, which="both")
     fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
 
@@ -320,7 +321,7 @@ def plot_sigreg_inspection(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Pat
             ax.axhline(1.0 / K, color="k", ls=":", alpha=0.5,
                        label=f"1/K = 1/{K} ≈ {1/K:.4f} (rank-1 collapse, 1 effective dim)")
         ax.set_yscale("log")
-        ax.set_xlim(left=PLOT_START_STEP)
+        ax.set_xlim(PLOT_START_STEP, PLOT_END_STEP)
         ax.set_xlabel(f"step  (start = {PLOT_START_STEP})")
         ax.set_title(title)
         ax.legend(fontsize=6, loc="best"); ax.grid(alpha=0.3, which="both")
@@ -426,7 +427,7 @@ def plot_dim_usage(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Path,
         ax.axhline(1.0 / K, color="k", ls=":", alpha=0.5)
         ax.set_yscale("log")
         ax.set_ylim(*ylim)
-        ax.set_xlim(left=PLOT_START_STEP)
+        ax.set_xlim(PLOT_START_STEP, PLOT_END_STEP)
         ax.set_xlabel(f"step  (start = {PLOT_START_STEP})")
         ax.set_title(title, fontsize=10)
         ax.grid(alpha=0.3, which="both")

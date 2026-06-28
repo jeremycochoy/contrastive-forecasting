@@ -4,8 +4,8 @@
 # 4 panels, one per (q-head depth, backbone checkpoint) cell. X axis = λ_e on
 # a log grid {0.1, 1.0, 10.0, 100.0}; Y axis = λ_h on a log grid {0.1, 1.0,
 # 10.0}. Tile colour = GM-Rel MASE on a diverging colormap centred on the
-# per-cell SIGReg + EMA-target, B=512, λ_e=1.0, λ_h=0.1 anchor (#359), so red
-# = worse than that anchor, blue = better. Tile text = GM value. Un-run grid
+# per-cell SIGReg + EMA-target, B=512, λ_e=1.0, λ_h=0.1 anchor, so red =
+# worse than that anchor, blue = better. Tile text = GM value. Un-run grid
 # tiles are drawn with a hatched grey background.
 import argparse
 import sys
@@ -25,8 +25,8 @@ CELLS = [("2L", "best"), ("2L", "last"), ("6L", "best"), ("6L", "last")]
 
 # (λ_e, λ_h) -> arm key in gm_table.csv
 GRID_ARM = {
-    (0.1,    0.1):  ("sigreg01_enc3", "#355 anchor"),
-    (1.0,    0.1):  ("sigreg10_enc3", "#359 anchor"),
+    (0.1,    0.1):  ("sigreg01_enc3", "anchor"),
+    (1.0,    0.1):  ("sigreg10_enc3", "centre"),
     (10.0,   0.1):  ("emb100_enc01",  "arm 1"),
     (10.0,   1.0):  ("emb100_enc10",  "arm 2"),
     (10.0,   10.0): ("emb100_enc100", "arm 3"),
@@ -44,7 +44,7 @@ UNRUN = [
     (1000.0, 0.1),
     (1000.0, 10.0),
 ]
-ANCHOR_KEY = "sigreg10_enc3"  # #359, (1.0, 0.1) — diverging-colormap centre
+ANCHOR_KEY = "sigreg10_enc3"  # (λ_e=1.0, λ_h=0.1) — diverging-colormap centre
 
 
 def heatmap(gm: pd.DataFrame, out: Path):
@@ -106,7 +106,7 @@ def heatmap(gm: pd.DataFrame, out: Path):
         ax.set_yticklabels([f"{v:g}" for v in LAMBDA_H])
         ax.set_xlabel("λ_e (log)")
         ax.set_ylabel("λ_h (log)")
-        ax.set_title(f"{head} q-head / {ckpt}-ckpt  —  centre = #359 anchor ({anchor_val:.3f})",
+        ax.set_title(f"{head} q-head / {ckpt}-ckpt  —  centre = λ_e=1.0, λ_h=0.1 anchor ({anchor_val:.3f})",
                      fontsize=9.5)
 
         cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
@@ -115,8 +115,8 @@ def heatmap(gm: pd.DataFrame, out: Path):
 
     fig.suptitle(
         "GM-Rel MASE across (λ_e, λ_h)\n"
-        "centre = per-cell SIGReg+EMA λ_e=1.0, λ_h=0.1 (#359); "
-        "red = worse than #359, blue = better; hatched = not run",
+        "centre = per-cell SIGReg+EMA λ_e=1.0, λ_h=0.1 anchor; "
+        "red = worse than centre, blue = better; hatched = not run",
         fontsize=11,
     )
     fig.savefig(out, dpi=120)
