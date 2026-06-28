@@ -2,7 +2,7 @@
 
 ## Question
 
-The prior arm (`λ_e=1.0, λ_h=0.1`) had a lower GM-Rel MASE than the `λ_e=λ_h=0.1` arm in all 4 (q-head depth, backbone checkpoint) cells (point Δ_GM range `[−0.014, −0.007]`), but every paired-bootstrap 95% CI vs that anchor straddled zero. Continue the sweep on the same recipe (SIGReg + EMA-target, B=512, enc3+CPC, 12 500 steps, seed 20260520) to find either a clear-of-noise improvement or a ceiling on the SIGReg-weight axis.
+The prior arm (`λ_e=1.0, λ_h=0.1`) had a lower GM-Rel MASE than the `λ_e=λ_h=0.1` arm in all 4 (q-head depth, backbone checkpoint) cells (point Δ_GM range `[−0.014, −0.007]`), but every paired-bootstrap 95% CI vs that anchor included zero. Continue the sweep on the same recipe (SIGReg + EMA-target, B=512, enc3+CPC, 12 500 steps, seed 20260520) to find either an improvement whose CI excludes zero or a ceiling on the SIGReg-weight axis.
 
 The 6 arms run:
 
@@ -17,11 +17,11 @@ The 6 arms run:
 
 ## Result
 
-Vs the `λ_e=1.0, λ_h=0.1` anchor, only arm 2 (`λ_e=10.0, λ_h=1.0`) on `2L/best` is CI-clean (Annex A); every other cell straddles zero.
+Vs the `λ_e=1.0, λ_h=0.1` anchor, only arm 2 (`λ_e=10.0, λ_h=1.0`) on `2L/best` is CI-clean (Annex A); every other cell's CI includes zero.
 
-Vs arm 1 (`λ_e=10.0, λ_h=0.1`), arm 2 is CI-clean on both best-ckpt cells (Annex B). Arm 5 (`λ_e=100.0`) regresses CI-clean on both last-ckpt cells (Annex B).
+Vs arm 1 (`λ_e=10.0, λ_h=0.1`), arm 2 is CI-clean on both best-ckpt cells (Annex B). Arm 5 (`λ_e=100.0`) is significantly worse on both last-ckpt cells (CI excludes zero, Annex B).
 
-Arm 4 (the interior point) moves nothing CI-clean.
+Arm 4 (the interior point) has no cell whose CI excludes zero.
 
 ![GIFT-Eval full-97 GM-Rel MASE bars across the 4 anchors and the 6 sweep arms, faceted by (q-head depth, backbone checkpoint); whiskers on the sweep bars = paired-bootstrap 95% CI vs the `λ_e=1.0, λ_h=0.1` anchor; per-cell horizontal lines mark each anchor at its published value (grey dotted = enc3+CPC, blue dotted = EMA enc3+CPC, red dashed = SIGReg λ_e=λ_h=0.1, green solid = SIGReg λ_e=1.0/λ_h=0.1); bar labels = GM-Rel MASE.](plots/gm_rel_mase.png)
 
@@ -56,7 +56,7 @@ Column-bold marks the row-minimum among the B=512 family (`λ_e=λ_h=0.1`, `λ_e
 
 ### Best-vs-last divergence
 
-![Drift = last − best GM-Rel MASE per arm, split by 2L vs 6L q-head. Positive = last is worse than best (model stopped improving by step 12 500); negative = last is better than best (model still improving). Only the `enc3+CPC, B=1024` anchor sits below zero on both heads.](plots/best_vs_last_drift.png)
+![Drift = last − best GM-Rel MASE per arm, split by 2L vs 6L q-head. Positive = last is worse than best (model stopped improving by step 12 500); negative = last is better than best (model still improving). Only the `enc3+CPC, B=1024` anchor is below zero on both heads.](plots/best_vs_last_drift.png)
 
 ## Protocol
 
