@@ -64,9 +64,9 @@ the manifest points at — is `results/winners.locked.txt`.
 The `λ_e=10` cross trails the best single-axis anchor in every group.
 The `λ_e=1000` cross sits just below the best anchor at both
 `last`-checkpoint cells (by 0.17 % at 2L / last and 0.29 % at 6L / last)
-and above it at both `best`-checkpoint cells. The 0.17 % / 0.29 %
-last-checkpoint deltas sit inside the **−3.4 % to +0.9 %** within-arm
-best→last band measured on the same data (`results/notes.md`).
+and above it at both `best`-checkpoint cells. Both deltas sit inside
+the **−3.4 % to +0.9 %** within-arm best→last band measured on the
+same data (`results/notes.md`).
 
 ![Per (head × checkpoint) group: the two cross bars (coloured) and a
 black tick marking the lowest single-axis anchor in that
