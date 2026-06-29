@@ -1,0 +1,10 @@
+[06-28 09:38:59] [par-orch] Arm A: λ_e=10.0 λ_h=1.0 τ=0.90 suffix=lA_emb100_enc10_tau090
+[06-28 09:38:59] [par-orch] Arm B: λ_e=1000.0 λ_h=1.0 τ=0.90 suffix=lB_emb10000_enc10_tau090
+[06-28 09:38:59] [par-orch] BB phase: A on GPU 0, B on GPU 1 in parallel
+[06-28 09:38:59] [par-orch] BB pids: A=2162653  B=2162654
+[06-28 15:29:21] [par-orch] BB done: A rc=0  B rc=0
+[06-28 15:29:21] [par-orch] DL phase: A first (2L on GPU 0, 6L on GPU 1, parallel)
+[06-29 00:58:09] [par-orch] DL A done rc=0
+[06-29 00:58:09] [par-orch] DL phase: B (2L on GPU 0, 6L on GPU 1, parallel)
+[06-29 09:30:29] [par-orch] DL B done rc=1
+[06-29 09:30:29] [par-orch] all phases complete; rc A=0 B=0 DL_A=0 DL_B=1

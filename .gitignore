@@ -28,5 +28,8 @@ fig_*.png
 # Secrets (the read-only HF token — created by anyone setting up the repo)
 experiments/hf_token.txt
 
+# Per-launch winners manifest (#366): local-only, holds verifier stamps.
+experiments/2026-06-28_sigreg_lambda_tau_cross/winners.sh
+
 # Training output sync targets (vast.ai pulls)
 sync_*/

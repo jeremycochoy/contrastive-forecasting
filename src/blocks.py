@@ -721,10 +721,14 @@ class TransformerBlock(nn.Module):
                 x, use_reentrant=False)
         return layer(x, tgt_mask=mask, tgt_is_causal=is_causal)
 
-    def forward(self, x, return_multi=False):
-        # Apply input_to_latent if provided
+    def forward(self, x, return_multi=False, return_embed=False):
+        # Apply input_to_latent if provided. Capture the patch-embedding
+        # output e_t when requested (#355 SIGReg attaches a regulariser to
+        # this pre-encoder latent); the captured tensor is in [B,T,C,H]
+        # layout, before the [B*C,T,H] reshape used inside this block.
         if self.input_to_latent is not None:
             x = self.input_to_latent(x)
+        embed = x if return_embed else None
 
         B,T,C,H = x.size()
         x = x.permute(0,2,1,3)
@@ -805,9 +809,10 @@ class TransformerBlock(nn.Module):
                 h = x.float()
                 f_stack = torch.stack(
                     [head(h) for head in self.cpc_heads], dim=2)  # [B*C, T, K, H]
-            if return_multi:
-                return f_stack, x_original
-            return f_stack[:, :, 0, :], x_original
+            f_out = f_stack if return_multi else f_stack[:, :, 0, :]
+            if return_embed:
+                return f_out, x_original, embed
+            return f_out, x_original
 
         if self.forecaster_kind == "cpc":
             with torch.amp.autocast('cuda', enabled=False):
@@ -819,9 +824,10 @@ class TransformerBlock(nn.Module):
                         xk = layer(xk, tgt_mask=self.causal_mask, tgt_is_causal=True)
                     preds.append(kup(xk))
                 f_stack = torch.stack(preds, dim=2)               # [B*C, T, K, H]
-            if return_multi:
-                return f_stack, x_original
-            return f_stack[:, :, 0, :], x_original
+            f_out = f_stack if return_multi else f_stack[:, :, 0, :]
+            if return_embed:
+                return f_out, x_original, embed
+            return f_out, x_original
 
         # Forecaster bottleneck (#286 follow-up, v13). When configured
         # smaller than `dimension_e`, `fcst_down_proj` is a Linear that
@@ -859,6 +865,8 @@ class TransformerBlock(nn.Module):
         # same H-dim space as `x_original` (the encoder-side latent).
         x = self.fcst_up_proj(x)
 
+        if return_embed:
+            return x, x_original, embed
         return x, x_original
 
     @staticmethod

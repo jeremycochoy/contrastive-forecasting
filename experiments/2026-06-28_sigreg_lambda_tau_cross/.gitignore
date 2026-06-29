@@ -1,0 +1,8 @@
+# Local artefacts that shouldn't ship to the repo.
+#
+# `runs/` is the per-arm checkpoint + per-step CSV directory. The root
+# .gitignore already filters `*.pth`, but the per-step `*_losses.csv`
+# (~5 MB / arm) and `*_attn_amplitude.csv` are bulky and never read
+# downstream — every figure / table consumed from this experiment
+# reads `results/`, not `runs/`. Drop the whole tree from the index.
+runs/
