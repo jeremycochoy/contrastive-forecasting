@@ -168,6 +168,27 @@ def u_temporal(z: Tensor, time_axis: int) -> Tensor:
     return dim_usage(z, axis=time_axis)
 
 
+def u_batchtime(z: Tensor) -> Tensor:
+    """U with batch and time pooled into a single n axis of size ``B*T``.
+
+    Mirrors SIGReg's pooling — ``z.reshape(-1, K)`` flattens every non-
+    feature axis into one sample axis. Here we pool the two leading
+    axes (batch, time) so the n-axis sees ``B*T`` samples per channel
+    slice. ``z`` must have shape ``(B, T, ..., H)``.
+
+    Complements ``u_batch`` (cross-batch only, per-time) and
+    ``u_temporal`` (cross-time only, per-batch): the (batch × time)
+    product is the single statistic SIGReg actually regularises, so
+    pinning the matching dimension-usage version closes the loop on the
+    dim-usage panel.
+    """
+    assert z.ndim >= 3, (
+        f"u_batchtime expects (B, T, ..., H); got shape {tuple(z.shape)}")
+    B, T = z.shape[0], z.shape[1]
+    pooled = z.reshape(B * T, *z.shape[2:])
+    return dim_usage(pooled, axis=0)
+
+
 @torch.no_grad()
 def retrieval_auc_top1_legacy(
     f: Tensor,

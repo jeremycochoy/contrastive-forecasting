@@ -448,6 +448,125 @@ def cpc_infonce_all_loss(forecasted_latent, original_latent, w1, source_chunk=8,
     return (log_denom - log_pos).mean()
 
 
+def sigreg_loss(z, sigma2=None, M=1024, T_knots=17, W=None,
+                post_normalize=False, n_chunk=8192, projections=None):
+    """LeJEPA spherical SIGReg statistic (Balestriero et al. 2025, #355).
+
+    Push the pooled marginal of the latent ``z`` toward ``Unif(S^{K-1})`` —
+    a principled, isotropic anti-collapse term that regularises the
+    *whole-batch* marginal distribution to fill the unit hypersphere
+    instead of concentrating on a low-dimensional subspace. Composes with
+    contrastive / EMA-target / CPC objectives — no pairwise relation,
+    stop-grad, predictor head, or queue.
+
+    Statistic — average the Epps–Pulley 1-D test over ``M`` random
+    unit-direction projections::
+
+        SIGReg(Z) = (1/M) · Σ_{m=1..M}  EP({ a_m^T z_i }_{i=1..N})
+
+        EP(s) = ∫_{ω ∈ [−W, W]}  | φ̂(ω) − exp(−½ σ² ω²) |²  dω
+        φ̂(ω) = (1/N) · Σ_i [ cos(ω s_i) + i sin(ω s_i) ]
+
+    ``a_m ∼ Unif(S^{K-1})`` are RESAMPLED every call (fresh randomness is
+    part of the regulariser, not a cached basis — no buffers, the term
+    contributes nothing to ``state_dict``). The integral is the
+    trapezoidal-rule sum on ``T_knots`` knots in ``[−W, W]``.
+
+    For ``K`` at the d_model scale (#355 issue: 384), projections of
+    ``Unif(S^{K-1})`` onto any unit direction are statistically
+    indistinguishable from ``N(0, 1/K)`` (excess kurtosis ``−6/(K+2)``
+    ≈ −0.016 at K=384), so the standard SIGReg target ``σ² = 1/K`` is
+    the principled choice — no Beta-target needed.
+
+    Args:
+        z: tensor with feature axis ``K = z.shape[-1]``; every other axis
+            is flattened into the sample axis ``N``.
+        sigma2: target projected variance. ``None`` → ``1/K`` (auto-scale
+            with the latent dim, matching the K-d-sphere marginal).
+        M: number of random 1-D projection directions per call. Ignored
+            when ``projections`` is supplied.
+        T_knots: number of trapezoidal-rule knots in ``[−W, W]``.
+        W: integration bound. ``None`` → ``6/√K`` (~6σ — the integrand
+            has decayed near the endpoints).
+        post_normalize: when True, ``z`` is L2-normalised on its last
+            axis before projection (LeJEPA's post-sphere-projection
+            placement; the strict ``σ² = 1/K`` regime). When False
+            (default), the statistic is on the raw pre-normalisation
+            vectors — pushes the encoder to LAND on the sphere with a
+            uniform marginal, leaving the downstream L2-normalise as a
+            near-identity.
+        n_chunk: chunk size along the sample axis ``N`` for the
+            ``cos/sin`` integrand evaluation — peaks at ``M·n_chunk·
+            T_knots`` floats per chunk. logsumexp-free averaging over
+            chunks is an exact sum split (the test pins this), so
+            ``n_chunk`` is a memory/throughput tradeoff only.
+        projections: optional ``[M, K]`` tensor of unit-direction
+            projections to use INSTEAD of resampling. Tests use this to
+            make the call deterministic; the training path never passes
+            it (fresh ``a_m`` every step is the contract).
+
+    Returns: scalar tensor (the mean EP statistic across the M directions).
+    """
+    K = z.shape[-1]
+    if sigma2 is None:
+        sigma2 = 1.0 / K
+    if W is None:
+        W = 6.0 / math.sqrt(K)
+    if post_normalize:
+        z = F.normalize(z, p=2, dim=-1)
+    z_flat = z.reshape(-1, K)                            # [N, K]
+    N = z_flat.shape[0]
+
+    if projections is None:
+        a = torch.randn(M, K, device=z.device, dtype=z.dtype)
+        a = F.normalize(a, p=2, dim=-1)                  # [M, K]
+    else:
+        if projections.shape[-1] != K:
+            raise ValueError(
+                f"projections has last dim {projections.shape[-1]}, "
+                f"expected K={K}.")
+        a = projections.to(device=z.device, dtype=z.dtype)
+        M = a.shape[0]
+
+    s = a @ z_flat.t()                                    # [M, N]
+
+    omega = torch.linspace(-W, W, T_knots, device=z.device, dtype=z.dtype)
+
+    # φ̂(ω) over the sample axis — chunked along N to cap the [M,n_chunk,
+    # T_knots] intermediate. cos/sin/sum is associative, so the chunked
+    # mean equals the unchunked one (pinned in tests). Each chunk's body
+    # (ws / cos / sin / sum) is wrapped in torch.utils.checkpoint so
+    # backward recomputes the per-chunk intermediates instead of keeping
+    # them in the graph — without this, n_chunk only trades chunk count
+    # for per-chunk size and the M=1024 / K=384 path OOMs on a 24 GB card
+    # (#356 review P0).
+    def _chunk_phi(s_chunk, omega):
+        ws = s_chunk.unsqueeze(-1) * omega                # [M, c, T_knots]
+        return torch.cos(ws).sum(dim=1), torch.sin(ws).sum(dim=1)
+    phi_re = z.new_zeros(M, T_knots)
+    phi_im = z.new_zeros(M, T_knots)
+    for start in range(0, N, n_chunk):
+        end = min(start + n_chunk, N)
+        chunk_re, chunk_im = checkpoint(
+            _chunk_phi, s[:, start:end], omega, use_reentrant=False)
+        phi_re = phi_re + chunk_re
+        phi_im = phi_im + chunk_im
+    phi_re = phi_re / N
+    phi_im = phi_im / N
+
+    # Target characteristic function — N(0, σ²) is purely real.
+    target = torch.exp(-0.5 * sigma2 * omega.pow(2))      # [T_knots]
+    integrand = (phi_re - target).pow(2) + phi_im.pow(2)  # [M, T_knots]
+
+    # Trapezoidal rule on [−W, W]: step h, endpoints weighted h/2.
+    h = 2.0 * W / (T_knots - 1)
+    trap_w = z.new_full((T_knots,), h)
+    trap_w[0] = trap_w[-1] = 0.5 * h
+
+    ep_per_dir = (integrand * trap_w).sum(dim=-1)         # [M]
+    return ep_per_dir.mean()
+
+
 def align_loss(forecasted_latent, original_latent, weight=1.0):
     """BYOL/SimSiam alignment term, standalone (#344 follow-up arm).
 
