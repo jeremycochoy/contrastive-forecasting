@@ -24,14 +24,20 @@ A363_E10000 = "anchor_363_emb10000_enc10"
 A357 = "anchor_357_tau090"
 
 ARMS = [
-    (CROSS_A, r"cross_A  $\lambda_e{=}10,\ \tau{=}0.90$", "#1f77b4"),
-    (CROSS_B, r"cross_B  $\lambda_e{=}1000,\ \tau{=}0.90$", "#ff7f0e"),
-    (A363_E100, r"anchor_363  $\lambda_e{=}10,\ \tau{=}0.99$", "#9ecae1"),
-    (A363_E10000, r"anchor_363  $\lambda_e{=}1000,\ \tau{=}0.99$", "#c6dbef"),
-    (A357, r"anchor_357  $\lambda_e{=}\lambda_h{=}0.1,\ \tau{=}0.90$", "#bdbdbd"),
+    (CROSS_A,    r"cross  $\lambda_e{=}10,\ \lambda_h{=}1,\ \tau{=}0.90$",       "#1f77b4"),
+    (CROSS_B,    r"cross  $\lambda_e{=}1000,\ \lambda_h{=}1,\ \tau{=}0.90$",     "#ff7f0e"),
+    (A363_E100,  r"SIGReg sweep  $\lambda_e{=}10,\ \lambda_h{=}1,\ \tau{=}0.99$", "#9ecae1"),
+    (A363_E10000,r"SIGReg sweep  $\lambda_e{=}1000,\ \lambda_h{=}1,\ \tau{=}0.99$","#c6dbef"),
+    (A357,       r"EMA-$\tau$ sweep  $\lambda_e{=}\lambda_h{=}0.1,\ \tau{=}0.90$","#bdbdbd"),
 ]
 
 GROUPS = [("2L", "best"), ("2L", "last"), ("6L", "best"), ("6L", "last")]
+
+ANCHOR_LABEL_SHORT = {
+    A363_E100:   r"SIGReg, $\lambda_e{=}10,\tau{=}0.99$",
+    A363_E10000: r"SIGReg, $\lambda_e{=}1000,\tau{=}0.99$",
+    A357:        r"EMA-$\tau$, $\lambda{=}0.1,\tau{=}0.90$",
+}
 
 
 def headline():
@@ -50,7 +56,7 @@ def headline():
     ax.set_xticklabels([f"{h} / {c}" for h, c in GROUPS])
     ax.set_ylabel("GM-Relative MASE  (lower is better)")
     ax.set_ylim(1.10, 1.21)
-    ax.set_title("Two crosses vs the three single-axis anchors  (N=1 seed; no error bars)")
+    ax.set_title("Two crosses vs three single-axis anchors  (N=1 seed; no error bars)")
     handles, labels = ax.get_legend_handles_labels()
     handles.append(sn_line)
     labels.append("seasonal-naive  (GM-Rel MASE = 1.0)")
@@ -93,41 +99,6 @@ def four_metric():
     plt.close(fig)
 
 
-def training_curves():
-    cols = ["loss", "loss_tau_ref", "u_temporal", "u_batch", "sigreg_e", "sigreg_h"]
-    titles = {
-        "loss": "loss  (objective at run τ)",
-        "loss_tau_ref": "loss_tau_ref  (fixed-τ=0.07 diagnostic)",
-        "u_temporal": "U_temporal  (temporal-axis usage)",
-        "u_batch": "U_batch  (batch-axis usage)",
-        "sigreg_e": "sigreg_e  (per-step embedding regulariser)",
-        "sigreg_h": "sigreg_h  (per-step encoding regulariser)",
-    }
-    files = {
-        "cross_A": EXP / "runs" / "bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lA_emb100_enc10_tau090_losses.csv",
-        "cross_B": EXP / "runs" / "bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lB_emb10000_enc10_tau090_losses.csv",
-    }
-    fig, axes = plt.subplots(2, 3, figsize=(13.5, 6.8))
-    colours = {"cross_A": "#1f77b4", "cross_B": "#ff7f0e"}
-    for arm, path in files.items():
-        df = pd.read_csv(path)
-        for ax, col in zip(axes.ravel(), cols):
-            y = df[col].rolling(100, min_periods=1).mean()
-            ax.plot(df["step"], y, color=colours[arm], label=arm, linewidth=1.1)
-    for ax, col in zip(axes.ravel(), cols):
-        ax.set_title(titles[col], fontsize=10)
-        ax.set_xlabel("step", fontsize=9)
-        ax.set_xscale("log")
-        ax.grid(True, linestyle=":", alpha=0.4)
-        if col in {"sigreg_e", "sigreg_h"}:
-            ax.set_yscale("log")
-    axes[0, 0].legend(fontsize=9)
-    fig.suptitle("Backbone training curves  (rolling 100-step mean; log-x)", y=0.99)
-    fig.tight_layout(rect=(0, 0, 1, 0.96))
-    fig.savefig(HERE / "training_curves.png", dpi=140)
-    plt.close(fig)
-
-
 def cross_vs_best_anchor():
     """Per group, plot the cross value as a coloured bar and overlay the best anchor as a tick."""
     fig, ax = plt.subplots(figsize=(9.5, 4.8))
@@ -147,8 +118,10 @@ def cross_vs_best_anchor():
         best_anchor_vals.append(best[1])
         best_anchor_names.append(best[0])
 
-    b_a = ax.bar(x - width / 2, cross_a_vals, width, color="#1f77b4", label="cross_A")
-    b_b = ax.bar(x + width / 2, cross_b_vals, width, color="#ff7f0e", label="cross_B")
+    ax.bar(x - width / 2, cross_a_vals, width, color="#1f77b4",
+           label=r"cross  $\lambda_e{=}10,\ \tau{=}0.90$")
+    ax.bar(x + width / 2, cross_b_vals, width, color="#ff7f0e",
+           label=r"cross  $\lambda_e{=}1000,\ \tau{=}0.90$")
     for xi, va, vb in zip(x, cross_a_vals, cross_b_vals):
         ax.text(xi - width / 2, va + 0.003, f"{va:.4f}", ha="center", va="bottom",
                 fontsize=8, rotation=90)
@@ -156,9 +129,9 @@ def cross_vs_best_anchor():
                 fontsize=8, rotation=90)
     for xi, v, name in zip(x, best_anchor_vals, best_anchor_names):
         ax.hlines(v, xi - width, xi + width, color="k", linewidth=1.6,
-                  label="best anchor in group" if xi == 0 else None)
-        ax.text(xi, v - 0.004, f"{v:.4f}\n({name.replace('anchor_', '#')})",
-                ha="center", va="top", fontsize=7.2)
+                  label="best single-axis anchor in group" if xi == 0 else None)
+        ax.text(xi, v - 0.004, f"{v:.4f}\n({ANCHOR_LABEL_SHORT[name]})",
+                ha="center", va="top", fontsize=6.8)
 
     ax.set_xticks(x)
     ax.set_xticklabels([f"{h} / {c}" for h, c in GROUPS])
@@ -176,5 +149,4 @@ if __name__ == "__main__":
     headline()
     cross_vs_best_anchor()
     four_metric()
-    training_curves()
     print("plots written to", HERE)

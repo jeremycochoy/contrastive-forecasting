@@ -8,73 +8,82 @@ the gain, or does the new operating point sit between its single-axis
 parents?
 
 **Answer.** It does not compound. On all four GM aggregates the best cell
-is a single-axis `anchor_363` cell, not a cross arm.
+is a single-axis anchor, not a cross arm.
 
 | GM aggregate | best cell | arm | head / ckpt |
 | --- | --: | --- | --- |
-| Rel-MASE         | **1.1294** | anchor_363  `λ_e=10,  τ=0.99` | 6L / best |
-| MASE (raw)       | **1.5788** | anchor_363  `λ_e=10,  τ=0.99` | 6L / best |
-| MAPE / SN_MAPE   | **1.0618** | anchor_363  `λ_e=10,  τ=0.99` | 6L / last |
-| CRPS / SN_CRPS   | **0.8502** | anchor_363  `λ_e=1000,τ=0.99` | 2L / last |
+| Rel-MASE         | **1.1294** | SIGReg sweep, λ_e=10  λ_h=1, τ=0.99   | 6L / best |
+| MASE (raw)       | **1.5788** | SIGReg sweep, λ_e=10  λ_h=1, τ=0.99   | 6L / best |
+| MAPE / SN_MAPE   | **1.0618** | SIGReg sweep, λ_e=10  λ_h=1, τ=0.99   | 6L / last |
+| CRPS / SN_CRPS   | **0.8502** | SIGReg sweep, λ_e=1000 λ_h=1, τ=0.99 | 2L / last |
 
 *GM-Relative MASE: geometric mean over GIFT-Eval's 97 tasks of model MASE
 divided by seasonal-naive MASE. Lower is better; 1.0 = seasonal-naive.
 The other three are the analogous geometric means of raw MASE, of
 MAPE / SN_MAPE, and of mean-weighted-sum-quantile-loss / SN_CRPS.*
 
-![GM-Relative MASE per (head × checkpoint) group, for the two crosses
-(`cross_A`, `cross_B`) and the three single-axis anchors. The global
-minimum across all twenty bars is an anchor (anchor_363 `λ_e=10, τ=0.99`,
-6L / best, 1.1294). Within the two 'best' groups every anchor bar sits
-below every cross bar; within the two 'last' groups cross_B sits below
-every anchor, by ≤ 0.3 % of the best anchor in that group.](plots/headline_relmase.png)
+The global minimum across all twenty bars is a SIGReg-sweep cell
+(`λ_e=10, τ=0.99`, 6L / best, 1.1294). Within the two `best`-checkpoint
+groups every single-axis anchor sits below every cross bar; within the
+two `last`-checkpoint groups the `λ_e=1000` cross sits below every anchor
+by ≤ 0.3 % of the best anchor in that group.
+
+![Grouped-bar chart: GM-Relative MASE per (head depth × checkpoint) group, five
+arms per group — two cross arms (τ=0.90) and three single-axis anchors
+(τ=0.99 at λ_e=10, τ=0.99 at λ_e=1000, τ=0.90 at λ_e=λ_h=0.1). Horizontal
+dotted line at GM-Rel MASE = 1.0 marks the seasonal-naive
+baseline.](plots/headline_relmase.png)
 
 ## Arms
 
-| arm | λ_e | λ_h | τ | provenance |
-| --- | --: | --: | --: | --- |
-| **cross_A**       | 10   | 1   | 0.90 | λ pair = prior λ-sweep best-at-best; τ = prior τ-sweep winner |
-| **cross_B**       | 1000 | 1   | 0.90 | λ pair = prior λ-sweep best-at-last; τ = prior τ-sweep winner |
-| anchor_363 (low)  | 10   | 1   | 0.99 | prior λ-sweep best-at-best (its native τ) |
-| anchor_363 (high) | 1000 | 1   | 0.99 | prior λ-sweep best-at-last (its native τ) |
-| anchor_357        | 0.1  | 0.1 | 0.90 | prior τ-sweep winner (its native λ pair) |
+| arm                                              | λ_e   | λ_h | τ    | provenance |
+| ---                                              | --:   | --: | --:  | --- |
+| **cross, λ_e=10 λ_h=1, τ=0.90**                  | 10    | 1   | 0.90 | λ pair = prior λ-sweep best-at-best; τ = prior τ-sweep winner |
+| **cross, λ_e=1000 λ_h=1, τ=0.90**                | 1000  | 1   | 0.90 | λ pair = prior λ-sweep best-at-last; τ = prior τ-sweep winner |
+| SIGReg sweep, λ_e=10 λ_h=1, τ=0.99               | 10    | 1   | 0.99 | prior λ-sweep best-at-best (its native τ) |
+| SIGReg sweep, λ_e=1000 λ_h=1, τ=0.99             | 1000  | 1   | 0.99 | prior λ-sweep best-at-last (its native τ) |
+| EMA-τ sweep, λ_e=λ_h=0.1, τ=0.90                 | 0.1   | 0.1 | 0.90 | prior τ-sweep winner (its native λ pair) |
 
-Backbone, q-heads, optimiser, batch (`B=512`), step count (12,500),
-dataset, and seed (`20260520`) are held constant across arms. Only
-`λ_e`, `λ_h`, and `τ` change. The launch-time manifest — including the
-git revisions of the source sweeps and the cell values the manifest
-points at — is `results/winners.locked.txt`.
+Backbone, q-heads, optimiser, batch (`B=512`), backbone step count
+(12,500), dataset, and backbone seed (`20260520`) are held constant
+across arms. The downstream q-head protocol (head arch, total-steps
+30000 best / 10000 resume-on-last, lr `1e-3`, schedule cosine, warmup
+2000/1000, AMP off, full-97 GIFT-Eval at strategy B4) matches byte-for-byte
+between this experiment's `scripts/downstream_sigreg.sh` and the two
+anchor branches' equivalents
+(`feature/contrastive-forecasting-363-v2:experiments/2026-06-24_sigreg_lambda_sweep/scripts/downstream_sigreg.sh`
+and
+`feature/contrastive-forecasting-357:experiments/2026-06-20_lejepa_sigreg/scripts/downstream_sigreg_tau090.sh`).
+Only `λ_e`, `λ_h`, and `τ` change between arms. The launch-time manifest
+— including the git revisions of the source sweeps and the cell values
+the manifest points at — is `results/winners.locked.txt`.
 
 ## Where the cross lands vs the best anchor in the same group
 
-![For each (head × checkpoint) group: the two cross bars and a black
-tick marking the lowest single-axis anchor in that group. cross_A trails
-the best anchor in every group; cross_B sits just below the best anchor at
-both 'last' cells (Δ = −0.0020 on 2L / last, Δ = −0.0033 on 6L / last)
-and above it at both 'best' cells.](plots/cross_vs_best_anchor.png)
+The `λ_e=10` cross trails the best single-axis anchor in every group.
+The `λ_e=1000` cross sits just below the best anchor at both
+`last`-checkpoint cells (by 0.17 % at 2L / last and 0.29 % at 6L / last)
+and above it at both `best`-checkpoint cells. The 0.17 % / 0.29 %
+last-checkpoint deltas sit inside the **−3.4 % to +0.9 %** within-arm
+best→last band measured on the same data (`results/notes.md`).
 
-Cross-vs-best-anchor deltas at last-checkpoint cells are −0.17 % (2L) and
-−0.29 % (6L) in favour of cross_B. Within a single arm the best→last gap
-on this same data spans **−3.4 % to +0.9 %** (`results/notes.md`), so
-the cross-vs-anchor differences sit inside the per-arm best-vs-last band.
+![Per (head × checkpoint) group: the two cross bars (coloured) and a
+black tick marking the lowest single-axis anchor in that
+group.](plots/cross_vs_best_anchor.png)
 
 ## Four aggregates
 
-![Same five arms scored on GM-Relative MASE (top-left), raw GM-MASE
+The same five arms scored on the other three GM aggregates — raw MASE,
+MAPE / SN_MAPE, CRPS / SN_CRPS — keep the same ordering at the
+`best`-checkpoint groups (a single-axis anchor wins each). On the
+`last`-checkpoint groups the `λ_e=1000` cross is the lowest cell on
+Rel-MASE and on raw MASE, but loses both `last` groups on MAPE_SN and
+on CRPS_SN.
+
+![Four-panel grouped-bar chart: GM-Relative MASE (top-left), raw GM-MASE
 (top-right), GM-MAPE / SN_MAPE (bottom-left), GM-CRPS / SN_CRPS
-(bottom-right). The globally lowest bar on each panel is an anchor_363
-cell. cross_B is the lowest within the two last-checkpoint groups on
-Rel-MASE and on raw MASE, but loses both last-checkpoint groups on
-MAPE_SN and on CRPS_SN.](plots/four_aggregates.png)
-
-## Training curves
-
-![Backbone training curves for the two arms, rolling 100-step mean,
-log-x. The total `loss`, the fixed-τ=0.07 diagnostic `loss_tau_ref`,
-and the two utilisation diagnostics (`U_temporal`, `U_batch`) sit on
-top of each other to the eye. The two SIGReg per-term penalties
-(`sigreg_e`, `sigreg_h`) separate by roughly two orders of magnitude
-because `λ_e` differs by 100× between the arms.](plots/training_curves.png)
+(bottom-right). Five arms per (head × checkpoint) group, same colour
+coding as the headline figure.](plots/four_aggregates.png)
 
 ## Method
 
@@ -92,13 +101,10 @@ seasonal-naive `all_results.csv` from `~/workspaces/gift-eval/results/`.
 
 ## Caveat — single seed
 
-Each cell is `N=1`. The cross-vs-best-anchor deltas at the last-checkpoint
-cells are 0.17 % and 0.29 %, which is inside the **−3.4 % to +0.9 %**
-within-arm best→last band on the same arms. Per the issue spec — *"if an
-arm wins a headline cell clear of noise, multi-seed-replicate before
-claiming"* — no cell wins clear of noise and the negative headline above
-does not require multi-seed replication.
-
-If the project wants to investigate the marginal `cross_B` 6L / last
-advantage (1.1340 vs `anchor_357` 1.1373 = −0.29 % on Rel-MASE),
-that confirmation is its own chained follow-up issue, not part of #366.
+Each cell is `N=1`. The cross-vs-best-anchor deltas at the
+`last`-checkpoint cells are 0.17 % and 0.29 %, inside the **−3.4 % to
++0.9 %** within-arm best→last band on the same arms; the
+`λ_e=1000` cross at 6L / last (1.1340) differs from the best EMA-τ
+anchor (1.1373) by 0.29 %, inside that single-seed noise band, and a
+multi-seed replicate that cleared the band would be required to claim
+that cell as a win.
