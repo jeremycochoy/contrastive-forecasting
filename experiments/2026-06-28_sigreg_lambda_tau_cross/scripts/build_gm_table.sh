@@ -38,7 +38,7 @@ declare -A ARM_LABEL=(
           echo "MISSING: $s" >&2
           val=""
         fi
-        echo "cross_${arm: -3:1},\"${ARM_LABEL[$arm]}\",${HL}L,${ckpt},${val},97"
+        echo "cross_${arm:1:1},\"${ARM_LABEL[$arm]}\",${HL}L,${ckpt},${val},97"
       done
     done
   done
