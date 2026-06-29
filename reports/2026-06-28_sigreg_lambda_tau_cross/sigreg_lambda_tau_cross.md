@@ -20,13 +20,14 @@ is a single-axis anchor, not a cross arm.
 *GM-Relative MASE: geometric mean over GIFT-Eval's 97 tasks of model MASE
 divided by seasonal-naive MASE. Lower is better; 1.0 = seasonal-naive.
 The other three are the analogous geometric means of raw MASE, of
-MAPE / SN_MAPE, and of mean-weighted-sum-quantile-loss / SN_CRPS.*
+MAPE / SN_MAPE, and of mean-weighted-sum-quantile-loss / SN_CRPS. Each
+"best cell" is the global minimum across all twenty
+(2 head depths × 2 ckpts × 5 arms) configurations for that aggregate.*
 
-The global minimum across all twenty bars is a SIGReg-sweep cell
-(`λ_e=10, τ=0.99`, 6L / best, 1.1294). Within the two `best`-checkpoint
-groups every single-axis anchor sits below every cross bar; within the
-two `last`-checkpoint groups the `λ_e=1000` cross sits below every anchor
-by ≤ 0.3 % of the best anchor in that group.
+Within the two `best`-checkpoint groups every single-axis anchor sits
+below every cross bar; within the two `last`-checkpoint groups the
+`λ_e=1000` cross sits below every anchor by ≤ 0.3 % of the best anchor
+in that group.
 
 ![Grouped-bar chart: GM-Relative MASE per (head depth × checkpoint) group, five
 arms per group — two cross arms (τ=0.90) and three single-axis anchors
@@ -101,10 +102,7 @@ seasonal-naive `all_results.csv` from `~/workspaces/gift-eval/results/`.
 
 ## Caveat — single seed
 
-Each cell is `N=1`. The cross-vs-best-anchor deltas at the
-`last`-checkpoint cells are 0.17 % and 0.29 %, inside the **−3.4 % to
-+0.9 %** within-arm best→last band on the same arms; the
-`λ_e=1000` cross at 6L / last (1.1340) differs from the best EMA-τ
-anchor (1.1373) by 0.29 %, inside that single-seed noise band, and a
+Each cell is `N=1`. The two `last`-checkpoint cross-vs-anchor deltas
+sit inside the within-arm best→last band reported above, so a
 multi-seed replicate that cleared the band would be required to claim
-that cell as a win.
+either as a win.
