@@ -1,4 +1,4 @@
-# Crossing the SIGReg λ and EMA-τ single-axis winners does not produce a cell that beats either axis alone
+# Crossing the SIGReg λ and EMA-τ single-axis winners: the global-best cell on all four GM aggregates is a single-axis anchor, not a cross arm
 
 **Question.** SIGReg's per-term weights (`λ_e`, `λ_h`) and the EMA-teacher
 temperature `τ` were each tuned in isolation in prior work — a λ sweep
