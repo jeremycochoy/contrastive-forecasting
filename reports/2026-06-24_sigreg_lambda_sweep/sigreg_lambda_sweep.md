@@ -45,7 +45,7 @@ In each (head, ckpt) row of the table, the lowest GM-Rel MASE within the B=512 f
 
 ## Protocol
 
-Single seed `20260520`, 12 500 steps. Launcher: [`scripts/train_backbone_sigreg.sh`](../../experiments/2026-06-24_sigreg_lambda_sweep/scripts/train_backbone_sigreg.sh). Backbone: GRU patch-embed → 3-layer transformer encoder (`K`=384, 6 heads). The 6 arms change exactly two flags vs the `λ_e=1.0, λ_h=0.1` anchor:
+Single seed `20260520`, 12 500 steps. Launcher: [`scripts/train_backbone_sigreg.sh`](../../experiments/2026-06-24_sigreg_lambda_sweep/scripts/train_backbone_sigreg.sh). Backbone: GRU patch-embed → 3-layer transformer encoder (`K`=384, 6 heads). The 6 arms vary only two flags (`λ_e`, `λ_h`); all others identical to the `λ_e=1.0, λ_h=0.1` anchor:
 
 | flag | arm 1 | arm 2 | arm 3 | arm 4 | arm 5 | arm 6 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
