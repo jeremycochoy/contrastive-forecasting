@@ -145,8 +145,73 @@ def cross_vs_best_anchor():
     plt.close(fig)
 
 
+def lambda_grid_tau090():
+    """Per (head × ckpt) cell, a (λ_e, λ_h) heatmap restricted to τ=0.90 runs.
+
+    Only three cells have been measured at τ=0.90 — `λ_e=λ_h=0.1` (the EMA-τ
+    sweep anchor) and the two crosses `λ_e=10, λ_h=1` and `λ_e=1000, λ_h=1`.
+    Unmeasured cells are hatched. Colour is GM-Relative MASE.
+    """
+    lam_e = [0.1, 1.0, 10.0, 100.0, 1000.0]
+    lam_h = [0.1, 1.0, 10.0]
+    cells_tau090 = {
+        (0.1,  0.1):  A357,
+        (10.0, 1.0):  CROSS_A,
+        (1000.0, 1.0): CROSS_B,
+    }
+    arm_short = {
+        A357:    r"EMA-$\tau$ sweep",
+        CROSS_A: "cross",
+        CROSS_B: "cross",
+    }
+
+    fig, axes = plt.subplots(2, 2, figsize=(11.5, 6.6))
+    vmin, vmax = 1.13, 1.19
+    cmap = plt.get_cmap("RdBu_r")
+    for ax, (head, ckpt) in zip(axes.ravel(), GROUPS):
+        grid = np.full((len(lam_h), len(lam_e)), np.nan)
+        for (le, lh), arm in cells_tau090.items():
+            i = lam_h.index(lh); j = lam_e.index(le)
+            grid[i, j] = cell(arm, head, ckpt)
+        im = ax.imshow(grid, cmap=cmap, vmin=vmin, vmax=vmax,
+                       origin="lower", aspect="auto")
+        for i in range(len(lam_h)):
+            for j in range(len(lam_e)):
+                v = grid[i, j]
+                if np.isnan(v):
+                    ax.add_patch(plt.Rectangle((j - 0.5, i - 0.5), 1, 1,
+                                               fill=False, hatch="///",
+                                               edgecolor="#888", linewidth=0))
+                else:
+                    arm = cells_tau090[(lam_e[j], lam_h[i])]
+                    ax.text(j, i + 0.13, f"{v:.4f}",
+                            ha="center", va="center", fontsize=10,
+                            fontweight="bold", color="black")
+                    ax.text(j, i - 0.20, arm_short[arm],
+                            ha="center", va="center", fontsize=7.5,
+                            color="black")
+        ax.set_xticks(range(len(lam_e)))
+        ax.set_xticklabels([f"{v:g}" for v in lam_e])
+        ax.set_yticks(range(len(lam_h)))
+        ax.set_yticklabels([f"{v:g}" for v in lam_h])
+        ax.set_xlabel(r"$\lambda_e$  (log)")
+        ax.set_ylabel(r"$\lambda_h$  (log)")
+        ax.set_title(f"{head} q-head / {ckpt}-ckpt")
+    cbar = fig.colorbar(im, ax=axes.ravel().tolist(),
+                        shrink=0.85, pad=0.02, label="GM-Relative MASE")
+    fig.suptitle(
+        r"$(\lambda_e, \lambda_h)$ grid restricted to $\tau{=}0.90$ runs"
+        "  (hatched = not run; blue = better, red = worse)",
+        y=0.99,
+    )
+    fig.savefig(HERE / "lambda_grid_tau090.png", dpi=140,
+                bbox_inches="tight")
+    plt.close(fig)
+
+
 if __name__ == "__main__":
     headline()
     cross_vs_best_anchor()
     four_metric()
+    lambda_grid_tau090()
     print("plots written to", HERE)

@@ -86,6 +86,17 @@ on CRPS_SN.
 (bottom-right). Five arms per (head × checkpoint) group, same colour
 coding as the headline figure.](plots/four_aggregates.png)
 
+## (λ_e, λ_h) grid at τ=0.90
+
+The same headline GM-Relative MASE plotted as a (λ_e, λ_h) heatmap
+restricted to the τ=0.90 runs. Three cells are measured: the EMA-τ-sweep
+anchor at the corner (λ_e=λ_h=0.1) and the two crosses (λ_e=10, λ_h=1)
+and (λ_e=1000, λ_h=1). Hatched cells are not run.
+
+![2×2 grid: (λ_e, λ_h) heatmap of GM-Relative MASE, one panel per
+(head × checkpoint) group. Three filled cells; the rest hatched.
+Blue = better, red = worse.](plots/lambda_grid_tau090.png)
+
 ## Method
 
 Each backbone is trained 12,500 steps on `gift-pretrain-full-4096 /
