@@ -2,7 +2,7 @@
 
 ## Question
 
-Sweep the EMA-target window `τ ∈ {0.99, 0.98, 0.90, 0.80}` plus a no-EMA arm at B=512, head-matched on GIFT-Eval full-97 GM-Rel MASE.
+Sweep the EMA-target window `τ ∈ {0.99, 0.98, 0.90, 0.80}` plus a no-EMA (τ=0) arm at B=512, head-matched on GIFT-Eval full-97 GM-Rel MASE.
 
 ## Result
 
@@ -17,11 +17,11 @@ Sweep the EMA-target window `τ ∈ {0.99, 0.98, 0.90, 0.80}` plus a no-EMA arm 
 
 Bold = column minimum within B=512 (the experimental axis); reference-row cells are never bolded. ⁂ τ=0.98 `*_best` cells use the `_10k.pth` periodic save (no `best_loss.pth` tracker), so cross-arm `*_best` deltas in that column are proxies.
 
-![τ-sweep: mean GM-Rel MASE over the (2L/last, 6L/last) cells; the no-EMA arm sits at the broken-axis position](plots/tau_sweep_last_avg.png)
+![τ-sweep: mean GM-Rel MASE over the (2L/last, 6L/last) cells; no-EMA (τ=0) at left](plots/tau_sweep_last_avg.png)
 
 ### Sphere coverage
 
-![Cross-batch (left) and cross-time (right) uniformity over training; h_t solid vs e_t dashed for the four SIGReg + EMA-target arms and the no-EMA arm; h_t overlays for the two reference arms](plots/uniformity.png)
+![Cross-batch (left) and cross-time (right) uniformity over training; h_t solid vs e_t dashed for the four SIGReg + EMA-target arms and the no-EMA (τ=0) arm; h_t overlays for the two reference arms](plots/uniformity.png)
 
 ### Training loss
 
@@ -97,7 +97,7 @@ Source: `results/trajectory_table.csv`, `results/final_trajectories.txt`.
 | --- | --- |
 | `enc3` | 3-layer transformer encoder (hidden size `K`=384, 6 heads). |
 | `CPC` | InfoNCE auxiliary head on the encoder, `--cpc-infonce-weight 1.0`. |
-| **EMA-target** | exponential-moving-average teacher on the encoder + patch-embed; `--ema-tau τ`, half-life ≈ ln(2)/(1−τ) steps. `τ=0.99` ≈69, `τ=0.98` ≈34, `τ=0.90` ≈7, `τ=0.80` ≈3. The no-EMA arm passes neither `--ema-embedding`, `--ema-encoder`, nor `--ema-tau`. |
+| **EMA-target** | exponential-moving-average teacher on the encoder + patch-embed; `--ema-tau τ`, half-life ≈ ln(2)/(1−τ) steps. `τ=0.99` ≈69, `τ=0.98` ≈34, `τ=0.90` ≈7, `τ=0.80` ≈3. The no-EMA (τ=0) arm passes neither `--ema-embedding`, `--ema-encoder`, nor `--ema-tau`. |
 | `e_t` | output of the GRU patch-embed, per (batch, time, channel) position; `K`=384. |
 | `h_t` | output of the 3-layer transformer encoder (the codebase's `original_latent`), same shape. |
 | **SIGReg** | LeJEPA-style spherical regulariser. Epps–Pulley test statistic averaged over `M`=1024 random unit-direction 1-D projections of the pooled latent, trapezoidal-integrated on `[−6/√K, 6/√K]` against `N(0, 1/K)`. Two terms: `L_SIGReg(e_t)` (`--sigreg-embedding`) and `L_SIGReg(h_t)` (`--sigreg-encoding`), both pre-`F.normalize` (`--sigreg-post-normalization` OFF), each weighted by `λ`=0.1. |
