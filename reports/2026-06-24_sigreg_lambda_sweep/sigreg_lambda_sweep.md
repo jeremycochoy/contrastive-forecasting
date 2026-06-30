@@ -2,31 +2,11 @@
 
 ## Question
 
-Find a good `(λ_e, λ_h)` hyperparameter pair for SIGReg by probing the log grid efficiently rather than exhaustively.
+Sweep `(λ_e, λ_h)` on the SIGReg + EMA-target, B=512 recipe (six arms on a log grid), head-matched on GIFT-Eval full-97 GM-Rel MASE.
 
 ## Result
 
-Arm 2 (`λ_e=10.0, λ_h=1.0`) is the only CI-clean improvement over the `λ_e=1.0, λ_h=0.1` anchor.
-
-![GIFT-Eval full-97 GM-Rel MASE bars across the 4 anchors and the 6 sweep arms, faceted by (q-head depth, backbone checkpoint); whiskers on the sweep bars = paired-bootstrap 95% CI vs the `λ_e=1.0, λ_h=0.1` anchor; per-cell horizontal lines mark each anchor at its published value (grey dotted = enc3+CPC, blue dotted = EMA enc3+CPC, red dashed = SIGReg λ_e=λ_h=0.1, green solid = SIGReg λ_e=1.0/λ_h=0.1); bar labels = GM-Rel MASE.](plots/gm_rel_mase.png)
-
-### (λ_e, λ_h) heatmap
-
-![4-panel GM-Rel MASE heatmap over (λ_e, λ_h), one panel per (q-head depth, backbone checkpoint) cell. X axis = λ_e ∈ {0.1, 1.0, 10.0, 100.0, 1000.0} on a log grid; Y axis = λ_h ∈ {0.1, 1.0, 10.0} on a log grid. Diverging colormap centred on the per-cell SIGReg + EMA-target, B=512, λ_e=1.0, λ_h=0.1 anchor: red = worse than that anchor, blue = better. Tile text = GM-Rel MASE. Hatched tiles = (λ_e, λ_h) points not run.](plots/heatmap.png)
-
-### Training trajectory
-
-![Log-log total training loss (50-step rolling mean) from step 100 onwards for the 6 sweep arms and the 2 prior λ_h=0.1 anchors.](plots/loss_curve.png)
-
-![Log-y trajectories of L_SIGReg(e_t), L_SIGReg(h_t), U_batch(e_t), U_temporal(e_t) from step 100 onwards for the 6 sweep arms and the 2 anchors; rolling 50-step mean. Bottom-row dotted line = 1/K ≈ 0.00260 floor.](plots/sigreg_e_inspection.png)
-
-![U on `h_t` (encoder side) per pooling axis (`u_batch`, `u_temporal`, `u_batchtime`); log-y `[0.05, 1]`; colour = arm; `u_batchtime` panel: dotted + `●` = retroactive per-checkpoint trajectory (every 2 500 steps; arms 4 and 6 absent), `★` at the best-loss step (= `FINAL.pth`); the `1/K ≈ 0.0026` rank-1-collapse floor is off-axis (range stays above `0.05`).](plots/dim_usage_h.png)
-
-![U on `e_t` (embedding side) per pooling axis (`u_batch_e`, `u_temporal_e`, `u_batchtime_e`); log-y `[1/K, 0.1]`; colour = arm; `u_batchtime_e` panel: dotted + `●` = retroactive per-checkpoint trajectory (every 2 500 steps; arms 4 and 6 absent), `★` at the best-loss step (= `FINAL.pth`); the `1/K ≈ 0.0026` rank-1-collapse floor sits at the y-axis bottom.](plots/dim_usage_e.png)
-
-### GM-Rel MASE — B=512 sweep family
-
-In each (head, ckpt) row of the table, the lowest GM-Rel MASE within the B=512 family is bolded; B=1024 anchors are excluded from bolding.
+![GM-Rel MASE on the GIFT-Eval full-97 benchmark, four (q-head depth, backbone checkpoint) cells per arm; sweep-arm bars carry paired-bootstrap 95% CI whiskers vs the `λ_e=1.0, λ_h=0.1` anchor; horizontal lines = the four anchors](plots/gm_rel_mase.png)
 
 | head / ckpt | `enc3+CPC`, B=1024 | `EMA enc3+CPC`, B=1024 | `λ_e=λ_h=0.1`, B=512 | `λ_e=1.0, λ_h=0.1`, B=512 | arm 1 (10.0, 0.1) | arm 2 (10.0, 1.0) | arm 3 (10.0, 10.0) | arm 4 (1.0, 1.0) | arm 5 (100.0, 0.1) | arm 6 (1000.0, 1.0) |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -35,32 +15,44 @@ In each (head, ckpt) row of the table, the lowest GM-Rel MASE within the B=512 f
 | 6L / best | 1.1584 | 1.1576 | 1.1543 | 1.1408 | 1.1447 | **1.1294** | 1.1465 | 1.1449 | 1.1462 | 1.1397 |
 | 6L / last | 1.1436 | 1.1597 | 1.1556 | 1.1482 | 1.1473 | 1.1515 | 1.1538 | 1.1517 | 1.1682 | **1.1415** |
 
-### λ_e ladders at λ_h=0.1 and λ_h=1.0
+Bold = column minimum within the B=512 sweep family; B=1024 anchor cells are never bolded. Arm 2 (`λ_e=10.0, λ_h=1.0`) holds both `*_best` columns with deltas vs the `λ_e=1.0, λ_h=0.1` anchor exceeding the ~0.01 seed-noise band (annex K); arm 6 (`λ_e=1000.0, λ_h=1.0`) holds both `*_last` columns, 2L delta exceeding the band, 6L inside it.
 
-![Two λ_e ladders. Left: λ_h=0.1, 0.1 → 1.0 → 10.0 (arm 1) → 100.0 (arm 5). Right: λ_h=1.0, 1.0 (arm 4) → 10.0 (arm 2) → 1000.0 (arm 6). Both axes log; 4 line curves per panel (2L/6L × best/last); shaded bands = paired-bootstrap 95% CI vs the `λ_e=1.0, λ_h=0.1` anchor.](plots/lambda_e_ladder.png)
+### Sphere coverage
 
-### Best-vs-last divergence
+![Dimension usage `U` on `h_t` per pooling axis (`u_batch`, `u_temporal`, `u_batchtime`); log-y `[0.05, 1]`; `u_batchtime` panel: dotted line + `●` = retroactive per-checkpoint trajectory (arms 4 and 6 absent), `★` at the best-loss step (= `FINAL.pth`); higher `U` = more dims, `1/K ≈ 0.0026` floor off-axis below](plots/dim_usage_h.png)
 
-![Drift = last − best GM-Rel MASE per arm, split by 2L vs 6L q-head. Positive = last is worse than best (model stopped improving by step 12 500); negative = last is better than best (model still improving).](plots/best_vs_last_drift.png)
+![Dimension usage `U` on `e_t` per pooling axis (`u_batch_e`, `u_temporal_e`, `u_batchtime_e`); log-y `[1/K, 0.1]`; `u_batchtime_e` panel: dotted line + `●` = retroactive per-checkpoint trajectory (arms 4 and 6 absent), `★` at the best-loss step (= `FINAL.pth`); higher `U` = more dims, `1/K ≈ 0.0026` floor at y-axis bottom](plots/dim_usage_e.png)
+
+### Training loss
+
+![Total training loss, log-y, 50-step rolling mean from step 100 onwards; six sweep arms plus the two prior `λ_h=0.1` SIGReg anchors overlaid](plots/loss_curve.png)
+
+### SIGReg term trajectories
+
+![SIGReg-term and embedding-side dim-usage trajectories from step 100 onwards: `L_SIGReg(e_t)`, `L_SIGReg(h_t)`, `u_batch_e`, `u_temporal_e`; log-y, 50-step rolling mean; bottom-row dotted line = `1/K ≈ 0.0026` floor](plots/sigreg_e_inspection.png)
+
+| tail-50 mean at step 12 500 | arm 1 (10.0, 0.1) | arm 2 (10.0, 1.0) | arm 3 (10.0, 10.0) | arm 4 (1.0, 1.0) | arm 5 (100.0, 0.1) | arm 6 (1000.0, 1.0) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `L_SIGReg(e_t)` | 1.90e-4 | 4.49e-4 | 4.46e-4 | 8.49e-4 | 7.10e-6 | 4.50e-6 |
+| `L_SIGReg(h_t)` | 5.07e-4 | 3.31e-4 | 3.20e-4 | 3.41e-4 | 9.61e-5 | 1.64e-4 |
+| `u_batch_e` | 0.0190 | 0.0506 | 0.0588 | 0.0363 | 0.0177 | 0.0318 |
+| `u_temporal_e` | 0.0164 | 0.0340 | 0.0400 | 0.0259 | 0.0160 | 0.0267 |
+| `u_batch` (`h_t`) | 0.7734 | 0.7964 | 0.7853 | 0.7822 | 0.6161 | 0.5930 |
+| `u_temporal` (`h_t`) | 0.4825 | 0.6291 | 0.6138 | 0.5977 | 0.2705 | 0.2562 |
+| total `loss` | 4.203 | 4.550 | 4.256 | 4.467 | 3.878 | 3.636 |
 
 ## Protocol
 
-Single seed `20260520`, 12 500 steps. Launcher: [`scripts/train_backbone_sigreg.sh`](../../experiments/2026-06-24_sigreg_lambda_sweep/scripts/train_backbone_sigreg.sh). Backbone: GRU patch-embed → 3-layer transformer encoder (`K`=384, 6 heads). The 6 arms vary only two flags (`λ_e`, `λ_h`); all others identical to the `λ_e=1.0, λ_h=0.1` anchor:
+Per-arm launcher: [`scripts/train_backbone_sigreg.sh`](../../experiments/2026-06-24_sigreg_lambda_sweep/scripts/train_backbone_sigreg.sh). Seed `20260520`, 12 500 steps, dataset `gift-pretrain-full-4096` / `small_v1`. Only `λ_e` and `λ_h` change across arms; all other flags identical to the `λ_e=1.0, λ_h=0.1` anchor. The issue specified arms 1–3 plus arm 4 as an optional interior point; arms 5 and 6 extend the `λ_e` axis. Each arm produces two backbone checkpoints (`best` = best train-loss, `last` = step 12 500); each backbone trains a 2-layer and a 6-layer quantile head, evaluated on GIFT-Eval full-97 via `scripts/run_gift_eval_full.sh`. Eval wrapper emits only GM-Rel MASE (annex J); ~0.01 GM-Rel MASE seed-noise band (annex K).
 
 | flag | arm 1 | arm 2 | arm 3 | arm 4 | arm 5 | arm 6 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | `--sigreg-embedding-weight` (`λ_e`) | 10.0 | 10.0 | 10.0 | 1.0 | 100.0 | 1000.0 |
 | `--sigreg-encoding-weight` (`λ_h`) | 0.1 | 1.0 | 10.0 | 1.0 | 0.1 | 1.0 |
 
-All other flags identical to the `λ_e=1.0, λ_h=0.1` anchor: `--batch-size 512`, `--sigreg-embedding --sigreg-encoding`, `--sigreg-n-chunk 2048`, `--sigreg-post-normalization` OFF, `--ema-embedding --ema-encoder --ema-tau 0.99`, `--cpc-infonce-weight 1.0`, `--encoder-dropkey 0.70`, `--mix-ratio 0.0078125`, `--sigreg-m 1024`, `--sigreg-t-knots 17`, same dataset (`gift-pretrain-full-4096` / `small_v1`), dtypes.
+## Annex
 
-### Head-matched downstream
-
-For each arm, each backbone checkpoint (`best` = best train-loss, `last` = step 12 500) trains a 2-layer and a 6-layer quantile head; each head is evaluated on GIFT-Eval full-97 via `scripts/run_gift_eval_full.sh`. Per-cell summaries: `results/gift_eval_full_<tag>{,_last}_{2L,6L}/summary.txt`.
-
-### Anchors
-
-The 4 anchors that share the GM table:
+### A. Anchors
 
 | label | recipe |
 | --- | --- |
@@ -69,118 +61,46 @@ The 4 anchors that share the GM table:
 | `SIGReg λ_e=λ_h=0.1, B=512` (#355) | `λ_e=λ_h=0.1` (per-config rel-MASE re-read from `reports/2026-06-20_lejepa_sigreg/`) |
 | `SIGReg λ_e=1.0, λ_h=0.1, B=512` (#359) | the `λ_e=1.0, λ_h=0.1` anchor (per-config rel-MASE re-read from `reports/2026-06-22_lejepa_sigreg_emb10/`) |
 
-## Vocabulary
+### B. (λ_e, λ_h) heatmap
 
-| term | definition |
-| --- | --- |
-| `K` | latent dimensionality, 384 throughout this report. `1/K ≈ 0.00260`. |
-| `enc3` | 3-layer transformer encoder (hidden size `K`, 6 heads). |
-| `CPC` | InfoNCE auxiliary head on the encoder, `--cpc-infonce-weight 1.0`. |
-| **EMA-target** | exponential-moving-average teacher on the encoder + patch-embed, `--ema-tau 0.99`. |
-| `e_t` | output of the GRU patch-embed at position (batch, time, channel); dimension `K`. |
-| `h_t` | output of the 3-layer transformer encoder at the same position. |
-| **SIGReg** | LeJEPA spherical regulariser. Epps–Pulley test statistic averaged over `M`=1024 random unit-direction 1-D projections of the pooled latent, trapezoidal-integrated on `[−6/√K, 6/√K]` against `N(0, 1/K)`. Two terms: `L_SIGReg(e_t)` weighted by `λ_e`, `L_SIGReg(h_t)` weighted by `λ_h`. |
-| `U`, `u_*` | **dimension usage** statistic of the latent, in `[1/K, 1]` with `K`=384. `U = 1 / (K · E[cos²(z_i, z_j)])` clipped at 1. The `1/K` floor = rank-1 collapse, i.e. one effective dim; values near 1 = all K dims used (isotropic). **Higher = more dimensions in use.** `K · U ≈` effective number of dimensions in use; e.g. `U = 0.79` at `K=384` corresponds to `≈ 303` effective dims, `U = 0.013` to `≈ 5` effective dims. Three pooling axes — cross-batch (`u_batch`, pools `B` per time slice), cross-time (`u_temporal`, pools `T` per batch slice), and cross-(batch × time) (`u_batchtime`, pools `B·T` jointly — the same `(B·T, K)` sample axis SIGReg's random-projection statistic uses). Each axis has an encoding-side variant on `h_t` (no suffix) and an embedding-side variant on `e_t` (`_e` suffix). Full set: `u_batch`, `u_temporal`, `u_batchtime`, `u_batch_e`, `u_temporal_e`, `u_batchtime_e`. Same `[1/K, 1]` range and rank-1-collapse floor interpretation across all six. Math check + verification: [`docs/u_metric_check.md`](../../docs/u_metric_check.md). |
-| **GM-Rel MASE** | GIFT-Eval full-97 aggregate: geometric mean over 97 configs of (model MASE ÷ seasonal-naive MASE). Lower = better; 1.0 = seasonal-naive parity. |
-| **best-ckpt / last-ckpt** | `best` = backbone checkpoint at lowest train-loss step; `last` = backbone at step 12 500. The q-head is trained from each backbone separately. The preferred end-state is `last ≤ best` (model still improving at step 12 500). |
-| **paired bootstrap** | resample the 97 per-config rel-MASE values with replacement (B=10 000 draws, seed 20260624), recompute the statistic `mean(log(rel_arm) − log(rel_baseline))`, take its 2.5/97.5 quantiles, convert back to absolute GM scale via `GM_baseline · (exp(quantile) − 1)`. Aligned per config. |
-| **CI-clean** | a cell whose 95% bootstrap CI excludes zero against the named baseline. Used as predicate adjective: "cell X is CI-clean vs baseline Y". |
+![4-panel GM-Rel MASE heatmap over (λ_e, λ_h), one panel per (q-head depth, backbone checkpoint) cell; log axes; diverging colormap centred on the per-cell `λ_e=1.0, λ_h=0.1` anchor (red = worse, blue = better); hatched tiles = points not run](plots/heatmap.png)
 
-## Annex
+### C. λ_e ladders
 
-### A. Δ vs `λ_e=1.0, λ_h=0.1` (#359) with paired-bootstrap 95% CI
+![Two λ_e ladders. Left: λ_h=0.1, λ_e ∈ {0.1, 1.0, 10.0 (arm 1), 100.0 (arm 5)}. Right: λ_h=1.0, λ_e ∈ {1.0 (arm 4), 10.0 (arm 2), 1000.0 (arm 6)}. Log axes; 4 curves per panel (2L/6L × best/last); shaded bands = paired-bootstrap 95% CI vs the `λ_e=1.0, λ_h=0.1` anchor](plots/lambda_e_ladder.png)
 
-B=10 000 bootstrap draws, n=97 configs, paired on per-config rel-MASE. Δ on the absolute GM-Rel MASE scale via `GM_anchor · (exp(quantile) − 1)`.
+### D. Best-vs-last drift
 
-| arm | head / ckpt | Δ_GM | 95% CI | P(Δ<0) |
-| --- | --- | ---: | --- | ---: |
-| arm 1 (10.0, 0.1) | 2L / best | +0.0004 | `[−0.0081, +0.0106]` | 0.494 |
-| arm 1 (10.0, 0.1) | 2L / last | −0.0071 | `[−0.0230, +0.0087]` | 0.807 |
-| arm 1 (10.0, 0.1) | 6L / best | +0.0039 | `[−0.0036, +0.0130]` | 0.188 |
-| arm 1 (10.0, 0.1) | 6L / last | −0.0010 | `[−0.0156, +0.0175]` | 0.583 |
-| **arm 2 (10.0, 1.0)** | **2L / best** | **−0.0168** | **`[−0.0293, −0.0045]`** | **0.997** |
-| arm 2 (10.0, 1.0) | 2L / last | +0.0075 | `[−0.0061, +0.0220]` | 0.140 |
-| arm 2 (10.0, 1.0) | 6L / best | −0.0114 | `[−0.0258, +0.0067]` | 0.906 |
-| arm 2 (10.0, 1.0) | 6L / last | +0.0032 | `[−0.0110, +0.0185]` | 0.328 |
-| arm 3 (10.0, 10.0) | 2L / best | +0.0070 | `[−0.0035, +0.0193]` | 0.102 |
-| arm 3 (10.0, 10.0) | 2L / last | +0.0002 | `[−0.0143, +0.0142]` | 0.479 |
-| arm 3 (10.0, 10.0) | 6L / best | +0.0057 | `[−0.0042, +0.0173]` | 0.142 |
-| arm 3 (10.0, 10.0) | 6L / last | +0.0056 | `[−0.0105, +0.0221]` | 0.242 |
-| arm 4 (1.0, 1.0) | 2L / best | −0.0035 | `[−0.0113, +0.0048]` | 0.810 |
-| arm 4 (1.0, 1.0) | 2L / last | −0.0002 | `[−0.0145, +0.0155]` | 0.510 |
-| arm 4 (1.0, 1.0) | 6L / best | +0.0042 | `[−0.0038, +0.0134]` | 0.169 |
-| arm 4 (1.0, 1.0) | 6L / last | +0.0035 | `[−0.0114, +0.0213]` | 0.347 |
-| arm 5 (100.0, 0.1) | 2L / best | +0.0084 | `[−0.0010, +0.0188]` | 0.042 |
-| arm 5 (100.0, 0.1) | 2L / last | +0.0148 | `[−0.0055, +0.0363]` | 0.083 |
-| arm 5 (100.0, 0.1) | 6L / best | +0.0055 | `[−0.0034, +0.0147]` | 0.116 |
-| arm 5 (100.0, 0.1) | 6L / last | +0.0199 | `[−0.0045, +0.0458]` | 0.051 |
-| arm 6 (1000.0, 1.0) | 2L / best | +0.0018 | `[−0.0144, +0.0204]` | 0.429 |
-| arm 6 (1000.0, 1.0) | 2L / last | −0.0144 | `[−0.0299, +0.0013]` | 0.965 |
-| arm 6 (1000.0, 1.0) | 6L / best | −0.0011 | `[−0.0151, +0.0129]` | 0.551 |
-| arm 6 (1000.0, 1.0) | 6L / last | −0.0067 | `[−0.0254, +0.0146]` | 0.753 |
+![Drift = last − best GM-Rel MASE per arm, split by 2L vs 6L q-head; positive = `last` worse than `best`, negative = still improving at step 12 500](plots/best_vs_last_drift.png)
 
-Bold = the one cell whose 95% CI excludes zero.
+### E. Δ vs the `λ_e=1.0, λ_h=0.1` anchor with paired-bootstrap 95% CI
 
-### B. Δ vs arm 1
+B=10 000 draws, n=97 configs, paired on per-config rel-MASE; Δ on absolute GM-Rel MASE scale via `GM_anchor · (exp(quantile) − 1)`. Bold = 95% CI excludes zero.
 
-Arm 1 differs from the `λ_e=1.0, λ_h=0.1` anchor by a single `λ_e` factor of 10×, so Δ vs arm 1 isolates the `λ_h` and `λ_e ∈ {1.0, 100.0, 1000.0}` axes.
+| arm | 2L / best | 2L / last | 6L / best | 6L / last |
+| --- | --- | --- | --- | --- |
+| arm 1 (10.0, 0.1) | +0.0004 `[−0.0081, +0.0106]` | −0.0071 `[−0.0230, +0.0087]` | +0.0039 `[−0.0036, +0.0130]` | −0.0010 `[−0.0156, +0.0175]` |
+| arm 2 (10.0, 1.0) | **−0.0168 `[−0.0293, −0.0045]`** | +0.0075 `[−0.0061, +0.0220]` | −0.0114 `[−0.0258, +0.0067]` | +0.0032 `[−0.0110, +0.0185]` |
+| arm 3 (10.0, 10.0) | +0.0070 `[−0.0035, +0.0193]` | +0.0002 `[−0.0143, +0.0142]` | +0.0057 `[−0.0042, +0.0173]` | +0.0056 `[−0.0105, +0.0221]` |
+| arm 4 (1.0, 1.0) | −0.0035 `[−0.0113, +0.0048]` | −0.0002 `[−0.0145, +0.0155]` | +0.0042 `[−0.0038, +0.0134]` | +0.0035 `[−0.0114, +0.0213]` |
+| arm 5 (100.0, 0.1) | +0.0084 `[−0.0010, +0.0188]` | +0.0148 `[−0.0055, +0.0363]` | +0.0055 `[−0.0034, +0.0147]` | +0.0199 `[−0.0045, +0.0458]` |
+| arm 6 (1000.0, 1.0) | +0.0018 `[−0.0144, +0.0204]` | −0.0144 `[−0.0299, +0.0013]` | −0.0011 `[−0.0151, +0.0129]` | −0.0067 `[−0.0254, +0.0146]` |
 
-| arm | head / ckpt | Δ_GM | 95% CI | P(Δ<0) |
-| --- | --- | ---: | --- | ---: |
-| **arm 2 (10.0, 1.0)** | **2L / best** | **−0.0172** | **`[−0.0291, −0.0062]`** | **0.9995** |
-| arm 2 (10.0, 1.0) | 2L / last | +0.0146 | `[−0.0009, +0.0306]` | 0.033 |
-| **arm 2 (10.0, 1.0)** | **6L / best** | **−0.0153** | **`[−0.0280, −0.0018]`** | **0.985** |
-| arm 2 (10.0, 1.0) | 6L / last | +0.0042 | `[−0.0121, +0.0207]` | 0.294 |
-| arm 3 (10.0, 10.0) | 2L / best | +0.0066 | `[−0.0065, +0.0200]` | 0.164 |
-| arm 3 (10.0, 10.0) | 2L / last | +0.0072 | `[−0.0072, +0.0215]` | 0.160 |
-| arm 3 (10.0, 10.0) | 6L / best | +0.0018 | `[−0.0073, +0.0106]` | 0.339 |
-| arm 3 (10.0, 10.0) | 6L / last | +0.0066 | `[−0.0089, +0.0219]` | 0.194 |
-| arm 4 (1.0, 1.0) | 2L / best | −0.0039 | `[−0.0156, +0.0068]` | 0.756 |
-| arm 4 (1.0, 1.0) | 2L / last | +0.0069 | `[−0.0061, +0.0201]` | 0.149 |
-| arm 4 (1.0, 1.0) | 6L / best | +0.0003 | `[−0.0081, +0.0095]` | 0.483 |
-| arm 4 (1.0, 1.0) | 6L / last | +0.0045 | `[−0.0099, +0.0202]` | 0.272 |
-| arm 5 (100.0, 0.1) | 2L / best | +0.0080 | `[−0.0022, +0.0179]` | 0.057 |
-| **arm 5 (100.0, 0.1)** | **2L / last** | **+0.0218** | **`[+0.0047, +0.0410]`** | **0.005** |
-| arm 5 (100.0, 0.1) | 6L / best | +0.0016 | `[−0.0100, +0.0107]` | 0.360 |
-| **arm 5 (100.0, 0.1)** | **6L / last** | **+0.0209** | **`[+0.0026, +0.0411]`** | **0.011** |
-| arm 6 (1000.0, 1.0) | 2L / best | +0.0014 | `[−0.0125, +0.0150]` | 0.408 |
-| arm 6 (1000.0, 1.0) | 2L / last | −0.0073 | `[−0.0215, +0.0091]` | 0.828 |
-| arm 6 (1000.0, 1.0) | 6L / best | −0.0050 | `[−0.0188, +0.0081]` | 0.760 |
-| arm 6 (1000.0, 1.0) | 6L / last | −0.0057 | `[−0.0160, +0.0048]` | 0.858 |
+### F. Δ vs arm 1
 
-Bold = the cells whose 95% CI excludes zero.
+Arm 1 = `λ_e=10.0, λ_h=0.1`. Vs arm 1, the single-axis arms are 2 (`λ_h`: 0.1 → 1.0), 3 (`λ_h`: 0.1 → 10.0), 5 (`λ_e`: 10.0 → 100.0); arms 4 (`λ_e` 10.0 → 1.0 *and* `λ_h` 0.1 → 1.0) and 6 (`λ_e` 10.0 → 1000.0 *and* `λ_h` 0.1 → 1.0) move both axes. Bold = 95% CI excludes zero.
 
-### C. Plot and CI provenance
+| arm | 2L / best | 2L / last | 6L / best | 6L / last |
+| --- | --- | --- | --- | --- |
+| arm 2 (10.0, 1.0) | **−0.0172 `[−0.0291, −0.0062]`** | +0.0146 `[−0.0009, +0.0306]` | **−0.0153 `[−0.0280, −0.0018]`** | +0.0042 `[−0.0121, +0.0207]` |
+| arm 3 (10.0, 10.0) | +0.0066 `[−0.0065, +0.0200]` | +0.0072 `[−0.0072, +0.0215]` | +0.0018 `[−0.0073, +0.0106]` | +0.0066 `[−0.0089, +0.0219]` |
+| arm 4 (1.0, 1.0) | −0.0039 `[−0.0156, +0.0068]` | +0.0069 `[−0.0061, +0.0201]` | +0.0003 `[−0.0081, +0.0095]` | +0.0045 `[−0.0099, +0.0202]` |
+| arm 5 (100.0, 0.1) | +0.0080 `[−0.0022, +0.0179]` | **+0.0218 `[+0.0047, +0.0410]`** | +0.0016 `[−0.0100, +0.0107]` | **+0.0209 `[+0.0026, +0.0411]`** |
+| arm 6 (1000.0, 1.0) | +0.0014 `[−0.0125, +0.0150]` | −0.0073 `[−0.0215, +0.0091]` | −0.0050 `[−0.0188, +0.0081]` | −0.0057 `[−0.0160, +0.0048]` |
 
-- **Training CSVs.** `experiments/2026-06-24_sigreg_lambda_sweep/runs/bb_<tag>_<arm>_losses.csv` (12 500 rows each, seed 20260520).
-- **Per-config rel-MASE for sweep arms.** `experiments/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_<tag>_<arm>{,_last}_{2L,6L}/summary.txt`.
-- **Per-config rel-MASE for the `λ_e=1.0, λ_h=0.1` anchor (`sigreg10`, #359).** `reports/2026-06-22_lejepa_sigreg_emb10/results/gift_eval_full_<tag>_emb10{,_last}_{2L,6L}/summary.txt`.
-- **Per-config rel-MASE for the other SIGReg anchor (`sigreg01`, #355).** `reports/2026-06-20_lejepa_sigreg/results/gift_eval_full_<tag>{,_last}_{2L,6L}/summary.txt`.
-- **Anchor GM-Rel MASE values.** Transcribed verbatim from `reports/2026-06-22_lejepa_sigreg_emb10/results/gm_table.csv`, which carries `cpc_enc3` / `ema_enc3` / `sigreg01_enc3` / `sigreg10_enc3` rows (the last row is the `λ_e=1.0, λ_h=0.1` anchor).
-- **CI computation.** [`scripts/compute_bootstrap.py`](scripts/compute_bootstrap.py); outputs `results/bootstrap_ci_vs_359.csv` and `results/bootstrap_ci_vs_arm1.csv`.
-- **Plot script.** [`scripts/build_plots.py`](scripts/build_plots.py). Trajectory plots cut the first `PLOT_START_STEP = 100` steps so the warm-up regime does not dominate the y-range; the loss curve uses log x and log y, the SIGReg-inspection panels and the per-latent `dim_usage_e.png` / `dim_usage_h.png` panels use log y throughout.
-- **Bar-chart colour map.** grey = `enc3+CPC, B=1024`; blue = `EMA enc3+CPC, B=1024`; red = `SIGReg λ_e=λ_h=0.1`; green = `SIGReg λ_e=1.0, λ_h=0.1`; purple = arm 1; brown = arm 2; pink = arm 3; cyan = arm 4; olive = arm 5; orange = arm 6.
+### G. `u_batchtime` per-checkpoint retroactive table
 
-### D. Numeric annex — diagnostics tables
-
-#### Tail-50 trajectories per arm
-
-Tail-50 mean = mean over steps 12 451–12 500 (last 50 of 12 500 logged steps) of each per-arm `experiments/2026-06-24_sigreg_lambda_sweep/runs/bb_<tag>_<arm>_losses.csv`. The same Tail-50 values are also written to [`results/final_trajectories.txt`](results/final_trajectories.txt) (whose first per-arm line records the `final_step` index 12 500 alongside the Tail-50 means).
-
-| arm | `loss` | `sigreg_e` | `sigreg_h` | `u_batch_e` | `u_temporal_e` | `u_batch` (`h_t`) | `u_temporal` (`h_t`) |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| arm 1 (10.0, 0.1) | 4.203 | 1.90e-4 | 5.07e-4 | 0.0190 | 0.0164 | 0.7734 | 0.4825 |
-| arm 2 (10.0, 1.0) | 4.550 | 4.49e-4 | 3.31e-4 | 0.0506 | 0.0340 | 0.7964 | 0.6291 |
-| arm 3 (10.0, 10.0) | 4.256 | 4.46e-4 | 3.20e-4 | 0.0588 | 0.0400 | 0.7853 | 0.6138 |
-| arm 4 (1.0, 1.0) | 4.467 | 8.49e-4 | 3.41e-4 | 0.0363 | 0.0259 | 0.7822 | 0.5977 |
-| arm 5 (100.0, 0.1) | 3.878 | 7.10e-6 | 9.61e-5 | 0.0177 | 0.0160 | 0.6161 | 0.2705 |
-| arm 6 (1000.0, 1.0) | 3.636 | 4.50e-6 | 1.64e-4 | 0.0318 | 0.0267 | 0.5930 | 0.2562 |
-
-#### `u_batchtime` per-checkpoint trajectory (retroactive)
-
-`u_batchtime` (cross-(batch × time) pooled `U` on `h_t`) and `u_batchtime_e` (same on `e_t`) are not in the losses CSVs; values come from saved backbone checkpoints, computed over a single fixed batch (gift-pretrain-full-4096 / small_v1, seed 20260520, B=512). The retroactive set — both the all-checkpoint trajectories and the FINAL rows below — covers sweep arms 1/2/3/5 + 2 anchors; arms 4 and 6 are not in it.
-
-`FINAL.pth` is the best-train-loss snapshot, copied to that name at training end (the run's `_best_loss.pth` and `_FINAL.pth` are byte-identical). `FINAL` rows below = single-step retro on that snapshot:
+`u_batchtime` is not in the losses CSVs; values come from saved backbone checkpoints over a fixed batch (B=512, seed 20260520). `FINAL.pth` = the best-train-loss checkpoint, copied byte-identical at training end; below = single-step retro on that snapshot. Retro set covers arms 1/2/3/5 plus the two SIGReg anchors; arms 4 and 6 are not in it.
 
 | arm / anchor | recipe | `u_batchtime` (`h_t`) | `u_batchtime_e` (`e_t`) |
 | --- | --- | ---: | ---: |
@@ -191,9 +111,40 @@ Tail-50 mean = mean over steps 12 451–12 500 (last 50 of 12 500 logged steps) 
 | arm 3 | `λ_e=10.0, λ_h=10.0` | 0.3663 | 0.0137 |
 | arm 5 | `λ_e=100.0, λ_h=0.1` | 0.3144 | 0.0154 |
 
-Sources: [`results/u_batchtime_retro.csv`](results/u_batchtime_retro.csv) (FINAL rows), [`results/u_batchtime_trajectory.csv`](results/u_batchtime_trajectory.csv) (all-checkpoint rows for the 4 first sweep arms + 2 anchors); retroactive computation scripts `experiments/2026-06-24_sigreg_lambda_sweep/scripts/compute_u_batchtime_retro.py` and `compute_u_batchtime_trajectory.py`.
+Sources: [`results/u_batchtime_retro.csv`](results/u_batchtime_retro.csv), [`results/u_batchtime_trajectory.csv`](results/u_batchtime_trajectory.csv); `scripts/compute_u_batchtime_retro.py`, `compute_u_batchtime_trajectory.py`.
 
-### E. Scope notes
+### H. Plot and CI provenance
 
-- Reported GIFT-Eval aggregate is GM-Rel MASE only. GM-MASE, GM-MAPE_SN, GM-CRPS_SN are out of scope: the per-config evaluation output does not carry the seasonal-naive denominators required to compute them.
-- Single seed; the bootstrap CIs above describe sampling variability across the 97 GIFT-Eval configs, not run-to-run seed variability.
+- **Training CSVs.** `experiments/2026-06-24_sigreg_lambda_sweep/runs/bb_<tag>_<arm>_losses.csv` (12 500 rows each).
+- **Per-config rel-MASE.** `experiments/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_<tag>_<arm>{,_last}_{2L,6L}/summary.txt`.
+- **CI computation.** [`scripts/compute_bootstrap.py`](scripts/compute_bootstrap.py) → `results/bootstrap_ci_vs_359.csv`, `results/bootstrap_ci_vs_arm1.csv`.
+- **Plot scripts.** [`scripts/build_plots.py`](scripts/build_plots.py), [`scripts/build_heatmap.py`](scripts/build_heatmap.py). All trajectory panels pin `PLOT_START_STEP = 100` via `ax.set_xlim(100, 12500)`.
+- **Bar-chart colour map.** grey = `enc3+CPC, B=1024`; blue = `EMA enc3+CPC, B=1024`; red = `λ_e=λ_h=0.1`; green = `λ_e=1.0, λ_h=0.1`; purple/brown/pink/cyan/olive/orange = arms 1/2/3/4/5/6.
+
+### I. Reference-values provenance
+
+Anchor GM-Rel MASE values are transcribed from `reports/2026-06-22_lejepa_sigreg_emb10/results/gm_table.csv`. The `λ_e=λ_h=0.1` anchor's per-config rel-MASE is re-read from `reports/2026-06-20_lejepa_sigreg/`; the `λ_e=1.0, λ_h=0.1` anchor's from `reports/2026-06-22_lejepa_sigreg_emb10/`.
+
+### J. GIFT-Eval wrapper emits only GM-Rel MASE
+
+`scripts/run_gift_eval_full.sh` emits `Aggregate GM-Relative MASE (97 configs)` only; seasonal-naive denominators for GM-MASE / GM-MAPE_SN / GM-CRPS_SN are not produced.
+
+### K. Seed-noise band
+
+`experiments/2026-05-08_exp_tau_sweep` paired re-runs: ~0.01 GM-Rel MASE band. Each arm here is one seed; the §E/F paired-bootstrap CIs cover sampling variability across the 97 GIFT-Eval configs, not run-to-run seed variability.
+
+### L. Vocabulary
+
+| term | definition |
+| --- | --- |
+| `K` | latent dimensionality, 384. `1/K ≈ 0.00260`. |
+| `enc3` | 3-layer transformer encoder (hidden size `K`, 6 heads). |
+| `CPC` | InfoNCE auxiliary head on the encoder, `--cpc-infonce-weight 1.0`. |
+| **EMA-target** | exponential-moving-average teacher on encoder + patch-embed, `--ema-tau 0.99`. |
+| `e_t` | GRU patch-embed output at position (batch, time, channel); dimension `K`. |
+| `h_t` | 3-layer transformer encoder output at the same position. |
+| **SIGReg** | LeJEPA spherical regulariser: Epps–Pulley statistic over `M`=1024 random 1-D projections of the pooled latent, against `N(0, 1/K)`. Two terms: `L_SIGReg(e_t)` weighted by `λ_e`, `L_SIGReg(h_t)` by `λ_h`. |
+| `U`, `u_*` | **dimension usage** of the latent: `U = 1 / (K · E[cos²(z_i, z_j)])`, clipped to `[1/K, 1]`. `1/K` = rank-1 collapse; **higher = more dims in use**; `K · U ≈` effective dims (`U = 0.79` at `K=384` ≈ 303). Pooling axes: cross-batch (`u_batch`), cross-time (`u_temporal`), cross-(batch × time) (`u_batchtime`, same `(B·T, K)` sample axis SIGReg uses), each on `h_t` (no suffix) and `e_t` (`_e` suffix). Math check: [`docs/u_metric_check.md`](../../docs/u_metric_check.md). |
+| **GM-Rel MASE** | GIFT-Eval full-97 aggregate: geometric mean over 97 configs of (model MASE ÷ seasonal-naive MASE). Lower = better; 1.0 = seasonal-naive parity. |
+| **best-ckpt / last-ckpt** | `best` = backbone at lowest-train-loss step; `last` = backbone at step 12 500. |
+| **paired bootstrap** | resample 97 per-config rel-MASE values with replacement (B=10 000 draws, seed 20260624), statistic `mean(log(rel_arm) − log(rel_baseline))`, 2.5/97.5 quantiles, back to GM scale via `GM_baseline · (exp(quantile) − 1)`. |
