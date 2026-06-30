@@ -175,66 +175,39 @@ def plot_uniformity(this_csv: Path, sigreg099_csv: Path | None,
                     noema_csv: Path | None,
                     tau090_csv: Path | None, tau080_csv: Path | None, out: Path):
     s = pd.read_csv(this_csv)
-    fig, axes = plt.subplots(1, 2, figsize=(13, 4.5), sharey=True)
-    new_lab = ARM_LABEL["sigreg_enc3_tau098"]
-    sig_lab = ARM_LABEL["sigreg_enc3_tau099"]
-    ema_lab = ARM_LABEL["ema_enc3"]
-    cpc_lab = ARM_LABEL["cpc_enc3"]
-    noe_lab = ARM_LABEL["sigreg_enc3_noema"]
-    t090_lab = ARM_LABEL["sigreg_enc3_tau090"]
-    t080_lab = ARM_LABEL["sigreg_enc3_tau080"]
-    for ax, kind in zip(axes, ("batch", "temporal")):
-        ax.plot(s["step"], s[f"u_{kind}"].rolling(50, min_periods=1).mean(),
-                label=f"u_{kind} (h_t) — {new_lab}", color=ARM_COLOR["sigreg_enc3_tau098"], lw=1.5)
-        ax.plot(s["step"], s[f"u_{kind}_e"].rolling(50, min_periods=1).mean(),
-                label=f"u_{kind}_e (e_t) — {new_lab}", color=ARM_COLOR["sigreg_enc3_tau098"], lw=1.5, ls="--")
-        if sigreg099_csv and sigreg099_csv.exists():
-            r = pd.read_csv(sigreg099_csv)
-            if f"u_{kind}" in r.columns:
-                ax.plot(r["step"], r[f"u_{kind}"].rolling(50, min_periods=1).mean(),
-                        label=f"u_{kind} (h_t) — {sig_lab}", color=ARM_COLOR["sigreg_enc3_tau099"], lw=1.0)
-            if f"u_{kind}_e" in r.columns:
-                ax.plot(r["step"], r[f"u_{kind}_e"].rolling(50, min_periods=1).mean(),
-                        label=f"u_{kind}_e (e_t) — {sig_lab}", color=ARM_COLOR["sigreg_enc3_tau099"], lw=1.0, ls="--")
-        if tau090_csv and tau090_csv.exists():
-            t = pd.read_csv(tau090_csv)
-            if f"u_{kind}" in t.columns:
-                ax.plot(t["step"], t[f"u_{kind}"].rolling(50, min_periods=1).mean(),
-                        label=f"u_{kind} (h_t) — {t090_lab}", color=ARM_COLOR["sigreg_enc3_tau090"], lw=1.0)
-            if f"u_{kind}_e" in t.columns:
-                ax.plot(t["step"], t[f"u_{kind}_e"].rolling(50, min_periods=1).mean(),
-                        label=f"u_{kind}_e (e_t) — {t090_lab}", color=ARM_COLOR["sigreg_enc3_tau090"], lw=1.0, ls="--")
-        if tau080_csv and tau080_csv.exists():
-            t = pd.read_csv(tau080_csv)
-            if f"u_{kind}" in t.columns:
-                ax.plot(t["step"], t[f"u_{kind}"].rolling(50, min_periods=1).mean(),
-                        label=f"u_{kind} (h_t) — {t080_lab}", color=ARM_COLOR["sigreg_enc3_tau080"], lw=1.0)
-            if f"u_{kind}_e" in t.columns:
-                ax.plot(t["step"], t[f"u_{kind}_e"].rolling(50, min_periods=1).mean(),
-                        label=f"u_{kind}_e (e_t) — {t080_lab}", color=ARM_COLOR["sigreg_enc3_tau080"], lw=1.0, ls="--")
-        if noema_csv and noema_csv.exists():
-            n = pd.read_csv(noema_csv)
-            if f"u_{kind}" in n.columns:
-                ax.plot(n["step"], n[f"u_{kind}"].rolling(50, min_periods=1).mean(),
-                        label=f"u_{kind} (h_t) — {noe_lab}", color=ARM_COLOR["sigreg_enc3_noema"], lw=1.0)
-            if f"u_{kind}_e" in n.columns:
-                ax.plot(n["step"], n[f"u_{kind}_e"].rolling(50, min_periods=1).mean(),
-                        label=f"u_{kind}_e (e_t) — {noe_lab}", color=ARM_COLOR["sigreg_enc3_noema"], lw=1.0, ls="--")
-        if ema_csv and ema_csv.exists():
-            e = pd.read_csv(ema_csv)
-            if f"u_{kind}" in e.columns:
-                ax.plot(e["step"], e[f"u_{kind}"].rolling(50, min_periods=1).mean(),
-                        label=f"u_{kind} (h_t) — {ema_lab}", color=ARM_COLOR["ema_enc3"], lw=1.0)
-        if cpc_csv and cpc_csv.exists():
-            c = pd.read_csv(cpc_csv)
-            if f"u_{kind}" in c.columns:
-                ax.plot(c["step"], c[f"u_{kind}"].rolling(50, min_periods=1).mean(),
-                        label=f"u_{kind} (h_t) — {cpc_lab}", color=ARM_COLOR["cpc_enc3"], lw=1.0)
-        ax.set_xlabel("step")
-        ax.set_ylabel("effective dimensionality")
-        ax.set_title(f"u_{kind} ({'cross-batch' if kind=='batch' else 'cross-time'})")
+    fig, axes = plt.subplots(2, 2, figsize=(13, 9), sharex=True, sharey=True)
+    arms = [
+        ("sigreg_enc3_tau099", sigreg099_csv, 1.0),
+        ("sigreg_enc3_tau098", this_csv, 1.5),
+        ("sigreg_enc3_tau090", tau090_csv, 1.0),
+        ("sigreg_enc3_tau080", tau080_csv, 1.0),
+        ("sigreg_enc3_noema",  noema_csv,   1.0),
+        ("ema_enc3",           ema_csv,     1.0),
+        ("cpc_enc3",           cpc_csv,     1.0),
+    ]
+    panels = [
+        (0, 0, "batch",    "",  "u_batch (h_t)"),
+        (0, 1, "batch",    "_e","u_batch (e_t)"),
+        (1, 0, "temporal", "",  "u_temporal (h_t)"),
+        (1, 1, "temporal", "_e","u_temporal (e_t)"),
+    ]
+    for r, c, kind, suffix, title in panels:
+        ax = axes[r][c]
+        col = f"u_{kind}{suffix}"
+        for arm_key, csv_path, lw in arms:
+            if csv_path is None or not csv_path.exists():
+                continue
+            d = pd.read_csv(csv_path)
+            if col not in d.columns:
+                continue
+            ax.plot(d["step"], d[col].rolling(50, min_periods=1).mean(),
+                    label=ARM_LABEL[arm_key], color=ARM_COLOR[arm_key], lw=lw)
+        ax.set_title(title)
         ax.set_ylim(0, 1)
-        ax.legend(fontsize=6.5); ax.grid(alpha=0.3)
+        ax.grid(alpha=0.3)
+        if r == 1: ax.set_xlabel("step")
+        if c == 0: ax.set_ylabel("effective dimensionality")
+    axes[0][0].legend(fontsize=7, loc="lower right")
     fig.suptitle("Uniformity (cos²-based dim_usage; clipped to [1/K, 1])")
     fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
 
