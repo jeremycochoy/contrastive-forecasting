@@ -1,0 +1,24 @@
+# #366 winners manifest — re-verified at launch time 2026-06-28.
+#
+# Verification source-of-truth:
+#   • #363 GM table:   feature/contrastive-forecasting-363-v2:reports/2026-06-24_sigreg_lambda_sweep/results/gm_table.csv
+#   • #357 GM table:   feature/contrastive-forecasting-357:reports/2026-06-21_lejepa_sigreg_tau098/results/gm_table.csv
+#   • Author stamp:    issue #366 comment dated 2026-06-28 by jeremycochoy resolving
+#                      best-at-best / best-at-last / best-τ to the values below.
+
+# #363 best-at-best λ pair (`emb100_enc10`): 2L/best 1.1302, 6L/best 1.1294.
+ARM_A_LAMBDA_E=10.0
+ARM_A_LAMBDA_H=1.0
+
+# #363 best-at-last λ pair (`emb10000_enc10`): 2L/last 1.1537, 6L/last 1.1415.
+ARM_B_LAMBDA_E=1000.0
+ARM_B_LAMBDA_H=1.0
+
+# #357 best τ: wins every B=512 cell.
+BEST_TAU=0.90
+
+WINNERS_VERIFIED_BY=ExperimentRunner-claude-opus-4-7
+WINNERS_VERIFIED_AT=2026-06-28
+
+WINNERS_363_REPORT="reports/2026-06-24_sigreg_lambda_sweep/results/gm_table.csv (363-v2 branch)"
+WINNERS_357_REPORT="reports/2026-06-21_lejepa_sigreg_tau098/results/gm_table.csv (357 branch)"
