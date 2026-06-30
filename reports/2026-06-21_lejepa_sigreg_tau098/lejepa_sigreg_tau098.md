@@ -15,7 +15,7 @@ Sweep the EMA-target window `τ ∈ {0.99, 0.98, 0.90, 0.80}` plus a no-EMA arm 
 | 6L / best | 1.1584 | 1.1576 | 1.1543 | 1.1493 ⁂ | **1.1489** | 1.1867 | 1.2081 |
 | 6L / last | 1.1436 | 1.1597 | 1.1556 | 1.1462 | **1.1373** | 1.1470 | 1.1999 |
 
-⁂ τ=0.98 `*_best` cells use the `_10k.pth` periodic save (no `best_loss.pth` tracker), so cross-arm `*_best` deltas in that column are proxies.
+Bold = column minimum within B=512 (the experimental axis); reference-row cells are never bolded. ⁂ τ=0.98 `*_best` cells use the `_10k.pth` periodic save (no `best_loss.pth` tracker), so cross-arm `*_best` deltas in that column are proxies.
 
 ![τ-sweep: mean GM-Rel MASE over the (2L/last, 6L/last) cells; the no-EMA arm sits at the broken-axis position](plots/tau_sweep_last_avg.png)
 
@@ -29,7 +29,7 @@ Sweep the EMA-target window `τ ∈ {0.99, 0.98, 0.90, 0.80}` plus a no-EMA arm 
 
 ### SIGReg term trajectories
 
-![SIGReg term trajectories on log scale (upper) and their ratio to total loss (lower), 50-step rolling means — τ=0.90 arm representative; other arms in `plots/sigreg_e_inspection*.png`](plots/sigreg_e_inspection_tau090.png)
+![SIGReg term trajectories on log scale (upper) and their ratio to total loss (lower), 50-step rolling means — τ=0.90 arm shown; other arms in `plots/sigreg_e_inspection*.png`](plots/sigreg_e_inspection_tau090.png)
 
 | tail-50 mean at step | τ=0.99 (12 500) | τ=0.98 (12 400) | τ=0.90 (12 500) | τ=0.80 (12 500) | no-EMA (12 500) |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -40,6 +40,8 @@ Sweep the EMA-target window `τ ∈ {0.99, 0.98, 0.90, 0.80}` plus a no-EMA arm 
 | `L_SIGReg(e_t)` | 1.001e-3 | 1.251e-3 | 1.989e-3 | 1.697e-3 | 5.68e-7 |
 | `L_SIGReg(h_t)` | 3.80e-4 | 6.04e-4 | 4.58e-4 | 4.84e-4 | 7.81e-5 |
 | total `loss` | 4.248 | 4.083 | 3.830 | 3.893 | 0.867 |
+
+τ=0.90 is the column minimum among the swept B=512 arms; `*_last` deltas vs τ=0.99 exceed the ~0.01 seed band, `*_best` deltas sit inside.
 
 ## Protocol
 
