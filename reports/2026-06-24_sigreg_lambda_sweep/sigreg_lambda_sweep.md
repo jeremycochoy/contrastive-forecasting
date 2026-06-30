@@ -15,7 +15,7 @@ Sweep `(λ_e, λ_h)` on the SIGReg + EMA-target, B=512 recipe (six arms on a log
 | 6L / best | 1.1584 | 1.1576 | 1.1543 | 1.1408 | 1.1447 | **1.1294** | 1.1465 | 1.1449 | 1.1462 | 1.1397 |
 | 6L / last | 1.1436 | 1.1597 | 1.1556 | 1.1482 | 1.1473 | 1.1515 | 1.1538 | 1.1517 | 1.1682 | **1.1415** |
 
-Bold = column minimum within the B=512 sweep family; B=1024 anchor cells are never bolded. Arm 2 (`λ_e=10.0, λ_h=1.0`) holds both `*_best` columns with deltas vs the `λ_e=1.0, λ_h=0.1` anchor exceeding the ~0.01 seed-noise band (annex K); arm 6 (`λ_e=1000.0, λ_h=1.0`) holds both `*_last` columns, 2L delta exceeding the band, 6L inside it.
+Bold = column minimum within the B=512 sweep family; B=1024 anchor cells are never bolded. Arm 2 (`λ_e=10.0, λ_h=1.0`) holds both `*_best` column minima; only its 2L/best Δ vs the `λ_e=1.0, λ_h=0.1` anchor has a paired-bootstrap 95% CI excluding zero (annex E). Arm 6 (`λ_e=1000.0, λ_h=1.0`) holds both `*_last` column minima but within the ~0.01 seed-noise band (annex K).
 
 ### Sphere coverage
 
