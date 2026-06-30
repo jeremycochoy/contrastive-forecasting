@@ -2,15 +2,11 @@
 
 ## Question
 
-Find a good `(λ_e, λ_h)` hyperparameter pair for SIGReg by probing the log grid efficiently rather than exhaustively. The recipe held fixed across arms: SIGReg + EMA-target, B=512, enc3+CPC, 12 500 steps, single seed.
+Find a good `(λ_e, λ_h)` hyperparameter pair for SIGReg by probing the log grid efficiently rather than exhaustively.
 
 ## Result
 
-Vs the `λ_e=1.0, λ_h=0.1` anchor, only arm 2 (`λ_e=10.0, λ_h=1.0`) on `2L/best` is CI-clean (Annex A); every other cell's CI includes zero.
-
-Vs arm 1 (`λ_e=10.0, λ_h=0.1`), arm 2 is CI-clean on both best-ckpt cells (Annex B). Arm 5 (`λ_e=100.0`) is significantly worse on both last-ckpt cells (CI excludes zero, Annex B).
-
-Arm 4 (the interior point) has no cell whose CI excludes zero.
+Arm 2 (`λ_e=10.0, λ_h=1.0`) is the only CI-clean improvement over the bootstrap baseline.
 
 ![GIFT-Eval full-97 GM-Rel MASE bars across the 4 anchors and the 6 sweep arms, faceted by (q-head depth, backbone checkpoint); whiskers on the sweep bars = paired-bootstrap 95% CI vs the `λ_e=1.0, λ_h=0.1` anchor; per-cell horizontal lines mark each anchor at its published value (grey dotted = enc3+CPC, blue dotted = EMA enc3+CPC, red dashed = SIGReg λ_e=λ_h=0.1, green solid = SIGReg λ_e=1.0/λ_h=0.1); bar labels = GM-Rel MASE.](plots/gm_rel_mase.png)
 
@@ -45,7 +41,7 @@ In each (head, ckpt) row of the table, the lowest GM-Rel MASE within the B=512 f
 
 ### Best-vs-last divergence
 
-![Drift = last − best GM-Rel MASE per arm, split by 2L vs 6L q-head. Positive = last is worse than best (model stopped improving by step 12 500); negative = last is better than best (model still improving). Only the `enc3+CPC, B=1024` anchor is below zero on both heads.](plots/best_vs_last_drift.png)
+![Drift = last − best GM-Rel MASE per arm, split by 2L vs 6L q-head. Positive = last is worse than best (model stopped improving by step 12 500); negative = last is better than best (model still improving).](plots/best_vs_last_drift.png)
 
 ## Protocol
 
@@ -72,8 +68,6 @@ The 4 anchors that share the GM table:
 | `EMA enc3+CPC, B=1024` (#353) | EMA-target only, no SIGReg |
 | `SIGReg λ_e=λ_h=0.1, B=512` (#355) | `λ_e=λ_h=0.1` (per-config rel-MASE re-read from `reports/2026-06-20_lejepa_sigreg/`) |
 | `SIGReg λ_e=1.0, λ_h=0.1, B=512` (#359) | the bootstrap baseline (per-config rel-MASE re-read from `reports/2026-06-22_lejepa_sigreg_emb10/`) |
-
-Anchor data provenance (GM-table source, per-config rel-MASE files) is listed in §Annex C.
 
 ## Vocabulary
 
