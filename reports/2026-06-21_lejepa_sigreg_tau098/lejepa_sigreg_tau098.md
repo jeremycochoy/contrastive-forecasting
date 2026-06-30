@@ -43,7 +43,7 @@ Sweep the EMA-target window `τ ∈ {0.99, 0.98, 0.90, 0.80}` plus a no-EMA arm 
 
 ## Protocol
 
-Per-arm launchers: [τ=0.98](../../experiments/2026-06-20_lejepa_sigreg/scripts/train_backbone_sigreg.sh), [τ=0.90](../../experiments/2026-06-20_lejepa_sigreg/scripts/train_backbone_sigreg_tau090.sh), [τ=0.80](../../experiments/2026-06-20_lejepa_sigreg/scripts/train_backbone_sigreg_tau080.sh), [no-EMA](../../experiments/2026-06-20_lejepa_sigreg/scripts/train_backbone_sigreg_noema.sh). Seed `20260520`, target 12 500 steps, dataset `gift-pretrain-full-4096` / `small_v1`. Caveats: τ=0.98 CSV ends at step 12 400, `*_best` uses `_10k.pth`; eval wrapper emits only GM-Rel MASE (annex D); ~0.01 seed-noise band (annex F).
+Per-arm launchers: [τ=0.98](../../experiments/2026-06-20_lejepa_sigreg/scripts/train_backbone_sigreg.sh), [τ=0.90](../../experiments/2026-06-20_lejepa_sigreg/scripts/train_backbone_sigreg_tau090.sh), [τ=0.80](../../experiments/2026-06-20_lejepa_sigreg/scripts/train_backbone_sigreg_tau080.sh), [no-EMA](../../experiments/2026-06-20_lejepa_sigreg/scripts/train_backbone_sigreg_noema.sh). Seed `20260520`, target 12 500 steps, dataset `gift-pretrain-full-4096` / `small_v1`. Eval wrapper emits only GM-Rel MASE (annex D); ~0.01 seed-noise band (annex F).
 
 ## Annex
 
