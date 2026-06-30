@@ -175,7 +175,7 @@ def plot_uniformity(this_csv: Path, sigreg099_csv: Path | None,
                     noema_csv: Path | None,
                     tau090_csv: Path | None, tau080_csv: Path | None, out: Path):
     s = pd.read_csv(this_csv)
-    fig, axes = plt.subplots(2, 2, figsize=(13, 9), sharex=True, sharey=True)
+    fig, axes = plt.subplots(2, 2, figsize=(13, 9), sharex=True, sharey="row")
     arms = [
         ("sigreg_enc3_tau099", sigreg099_csv, 1.0),
         ("sigreg_enc3_tau098", this_csv, 1.5),
@@ -187,8 +187,8 @@ def plot_uniformity(this_csv: Path, sigreg099_csv: Path | None,
     ]
     panels = [
         (0, 0, "batch",    "",  "u_batch (h_t)"),
-        (0, 1, "batch",    "_e","u_batch (e_t)"),
-        (1, 0, "temporal", "",  "u_temporal (h_t)"),
+        (0, 1, "temporal", "",  "u_temporal (h_t)"),
+        (1, 0, "batch",    "_e","u_batch (e_t)"),
         (1, 1, "temporal", "_e","u_temporal (e_t)"),
     ]
     for r, c, kind, suffix, title in panels:
@@ -203,7 +203,8 @@ def plot_uniformity(this_csv: Path, sigreg099_csv: Path | None,
             ax.plot(d["step"], d[col].rolling(50, min_periods=1).mean(),
                     label=ARM_LABEL[arm_key], color=ARM_COLOR[arm_key], lw=lw)
         ax.set_title(title)
-        ax.set_ylim(0, 1)
+        if suffix == "":
+            ax.set_ylim(0, 1)
         ax.grid(alpha=0.3)
         if r == 1: ax.set_xlabel("step")
         if c == 0: ax.set_ylabel("effective dimensionality")
