@@ -2,18 +2,7 @@
 
 ## Question
 
-The prior arm (`λ_e=1.0, λ_h=0.1`) had a lower GM-Rel MASE than the `λ_e=λ_h=0.1` arm in all 4 (q-head depth, backbone checkpoint) cells (point Δ_GM range `[−0.014, −0.007]`), but every paired-bootstrap 95% CI vs that anchor included zero. Continue the sweep on the same recipe (SIGReg + EMA-target, B=512, enc3+CPC, 12 500 steps, seed 20260520) to find either an improvement whose CI excludes zero or a ceiling on the SIGReg-weight axis.
-
-The 6 arms run:
-
-| arm | `λ_e` | `λ_h` |
-| --- | ---: | ---: |
-| 1 | 10.0 | 0.1 |
-| 2 | 10.0 | 1.0 |
-| 3 | 10.0 | 10.0 |
-| 4 | 1.0 | 1.0 |
-| 5 | 100.0 | 0.1 |
-| 6 | 1000.0 | 1.0 |
+Find a good `(λ_e, λ_h)` hyperparameter pair for SIGReg by probing the log grid efficiently rather than exhaustively. The recipe held fixed across arms: SIGReg + EMA-target, B=512, enc3+CPC, 12 500 steps, single seed.
 
 ## Result
 
