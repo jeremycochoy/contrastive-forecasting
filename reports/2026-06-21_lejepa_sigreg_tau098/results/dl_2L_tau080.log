@@ -1,0 +1,24 @@
+[06-23 18:06:08] [dl-sigreg-tau080 2L g1] QH qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080 train 30000 on bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_FINAL.pth
+[06-23 18:35:24] [dl-sigreg-tau080 2L g1] QH qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080 FAILED (tail:   File "/tmp/contrastive-forecasting-357/experiments/2026-04-13_gift-eval/scripts/train_forecasting_head.py", line 301, in flush     self._file.flush() OSError: [Errno 28] No space left on device )
+[06-23 18:35:24] [dl-sigreg-tau080 2L g1] QH qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_last train 10000 on bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_final.pth
+[06-23 18:35:26] [dl-sigreg-tau080 2L g1] QH qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_last FAILED (tail: )
+[06-23 18:35:26] [dl-sigreg-tau080 2L g1] sigreg-tau080 downstream complete (2L)
+[06-23 18:39:02] [dl-sigreg-tau080 2L g1] QH qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080 train 30000 on bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_FINAL.pth
+[06-23 18:53:25] [dl-sigreg-tau080 2L g1] QH qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080 FAILED (tail:   -> New best: /tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_best.pth (ema_loss=0.203045) [   5000] loss=0.205012  ema_loss=0.203651  5.9 sps  ETA 1.2h Trace)
+[06-23 18:53:25] [dl-sigreg-tau080 2L g1] QH qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_last train 10000 on bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_final.pth
+[06-23 18:53:28] [dl-sigreg-tau080 2L g1] QH qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_last FAILED (tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/torch/serialization.py", line 740, in __init__     super().__init__(open(name, mode)) FileNotFoundError: [Errno 2] No such file or directory: '/tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_FINAL.pth' )
+[06-23 18:53:28] [dl-sigreg-tau080 2L g1] sigreg-tau080 downstream complete (2L)
+[06-23 19:02:49] [dl-sigreg-tau080 2L g1] QH qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080 train 30000 on bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_FINAL.pth
+[06-23 20:25:28] [dl-sigreg-tau080 2L g1] QH qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080 FAILED (tail:   File "/tmp/contrastive-forecasting-357/experiments/2026-04-13_gift-eval/scripts/train_forecasting_head.py", line 301, in flush     self._file.flush() OSError: [Errno 28] No space left on device)
+[06-23 20:25:28] [dl-sigreg-tau080 2L g1] QH qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_last train 10000 on bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_final.pth
+[06-23 20:25:31] [dl-sigreg-tau080 2L g1] QH qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_last FAILED (tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/torch/serialization.py", line 740, in __init__     super().__init__(open(name, mode)) FileNotFoundError: [Errno 2] No such file or directory: '/tmp/contrastive-forecasting-357/reports/2026-06-21_lejepa_sigreg_tau098/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_FINAL.pth' )
+[06-23 20:25:31] [dl-sigreg-tau080 2L g1] sigreg-tau080 downstream complete (2L)
+[06-24 05:53:31] [dl-sigreg-tau080 2L g1] QH qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080 train 30000 on bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_FINAL.pth
+[06-24 07:17:46] [dl-sigreg-tau080 2L g1] QH qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080 done
+[06-24 07:17:46] [dl-sigreg-tau080 2L g1] EVAL allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080 full-97 start
+[06-24 10:40:56] [dl-sigreg-tau080 2L g1] EVAL allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080 done GM=1.1904
+[06-24 10:40:56] [dl-sigreg-tau080 2L g1] QH qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_last train 10000 on bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_final.pth
+[06-24 11:09:29] [dl-sigreg-tau080 2L g1] QH qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_last done
+[06-24 11:09:29] [dl-sigreg-tau080 2L g1] EVAL allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_last full-97 start
+[06-24 14:31:33] [dl-sigreg-tau080 2L g1] EVAL allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau080_last done GM=1.1667
+[06-24 14:31:33] [dl-sigreg-tau080 2L g1] sigreg-tau080 downstream complete (2L)
