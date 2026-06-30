@@ -6,7 +6,7 @@ Find a good `(λ_e, λ_h)` hyperparameter pair for SIGReg by probing the log gri
 
 ## Result
 
-Arm 2 (`λ_e=10.0, λ_h=1.0`) is the only CI-clean improvement over the bootstrap baseline.
+Arm 2 (`λ_e=10.0, λ_h=1.0`) is the only CI-clean improvement over the `λ_e=1.0, λ_h=0.1` anchor.
 
 ![GIFT-Eval full-97 GM-Rel MASE bars across the 4 anchors and the 6 sweep arms, faceted by (q-head depth, backbone checkpoint); whiskers on the sweep bars = paired-bootstrap 95% CI vs the `λ_e=1.0, λ_h=0.1` anchor; per-cell horizontal lines mark each anchor at its published value (grey dotted = enc3+CPC, blue dotted = EMA enc3+CPC, red dashed = SIGReg λ_e=λ_h=0.1, green solid = SIGReg λ_e=1.0/λ_h=0.1); bar labels = GM-Rel MASE.](plots/gm_rel_mase.png)
 
@@ -52,7 +52,7 @@ Single seed `20260520`, 12 500 steps. Launcher: [`scripts/train_backbone_sigreg.
 | `--sigreg-embedding-weight` (`λ_e`) | 10.0 | 10.0 | 10.0 | 1.0 | 100.0 | 1000.0 |
 | `--sigreg-encoding-weight` (`λ_h`) | 0.1 | 1.0 | 10.0 | 1.0 | 0.1 | 1.0 |
 
-All other flags identical to the prior arm: `--batch-size 512`, `--sigreg-embedding --sigreg-encoding`, `--sigreg-n-chunk 2048`, `--sigreg-post-normalization` OFF, `--ema-embedding --ema-encoder --ema-tau 0.99`, `--cpc-infonce-weight 1.0`, `--encoder-dropkey 0.70`, `--mix-ratio 0.0078125`, `--sigreg-m 1024`, `--sigreg-t-knots 17`, same dataset (`gift-pretrain-full-4096` / `small_v1`), dtypes.
+All other flags identical to the `λ_e=1.0, λ_h=0.1` anchor: `--batch-size 512`, `--sigreg-embedding --sigreg-encoding`, `--sigreg-n-chunk 2048`, `--sigreg-post-normalization` OFF, `--ema-embedding --ema-encoder --ema-tau 0.99`, `--cpc-infonce-weight 1.0`, `--encoder-dropkey 0.70`, `--mix-ratio 0.0078125`, `--sigreg-m 1024`, `--sigreg-t-knots 17`, same dataset (`gift-pretrain-full-4096` / `small_v1`), dtypes.
 
 ### Head-matched downstream
 
@@ -67,7 +67,7 @@ The 4 anchors that share the GM table:
 | `enc3+CPC, B=1024` (#344) | non-SIGReg, non-EMA baseline |
 | `EMA enc3+CPC, B=1024` (#353) | EMA-target only, no SIGReg |
 | `SIGReg λ_e=λ_h=0.1, B=512` (#355) | `λ_e=λ_h=0.1` (per-config rel-MASE re-read from `reports/2026-06-20_lejepa_sigreg/`) |
-| `SIGReg λ_e=1.0, λ_h=0.1, B=512` (#359) | the bootstrap baseline (per-config rel-MASE re-read from `reports/2026-06-22_lejepa_sigreg_emb10/`) |
+| `SIGReg λ_e=1.0, λ_h=0.1, B=512` (#359) | the `λ_e=1.0, λ_h=0.1` anchor (per-config rel-MASE re-read from `reports/2026-06-22_lejepa_sigreg_emb10/`) |
 
 ## Vocabulary
 
@@ -123,7 +123,7 @@ Bold = the one cell whose 95% CI excludes zero.
 
 ### B. Δ vs arm 1
 
-Arm 1 differs from the anchor by a single `λ_e` factor of 10×, so Δ vs arm 1 isolates the `λ_h` and `λ_e ∈ {1.0, 100.0, 1000.0}` axes.
+Arm 1 differs from the `λ_e=1.0, λ_h=0.1` anchor by a single `λ_e` factor of 10×, so Δ vs arm 1 isolates the `λ_h` and `λ_e ∈ {1.0, 100.0, 1000.0}` axes.
 
 | arm | head / ckpt | Δ_GM | 95% CI | P(Δ<0) |
 | --- | --- | ---: | --- | ---: |
@@ -154,9 +154,9 @@ Bold = the cells whose 95% CI excludes zero.
 
 - **Training CSVs.** `experiments/2026-06-24_sigreg_lambda_sweep/runs/bb_<tag>_<arm>_losses.csv` (12 500 rows each, seed 20260520).
 - **Per-config rel-MASE for sweep arms.** `experiments/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_<tag>_<arm>{,_last}_{2L,6L}/summary.txt`.
-- **Per-config rel-MASE for the bootstrap baseline (`sigreg10`, #359).** `reports/2026-06-22_lejepa_sigreg_emb10/results/gift_eval_full_<tag>_emb10{,_last}_{2L,6L}/summary.txt`.
+- **Per-config rel-MASE for the `λ_e=1.0, λ_h=0.1` anchor (`sigreg10`, #359).** `reports/2026-06-22_lejepa_sigreg_emb10/results/gift_eval_full_<tag>_emb10{,_last}_{2L,6L}/summary.txt`.
 - **Per-config rel-MASE for the other SIGReg anchor (`sigreg01`, #355).** `reports/2026-06-20_lejepa_sigreg/results/gift_eval_full_<tag>{,_last}_{2L,6L}/summary.txt`.
-- **Anchor GM-Rel MASE values.** Transcribed verbatim from `reports/2026-06-22_lejepa_sigreg_emb10/results/gm_table.csv`, which carries `cpc_enc3` / `ema_enc3` / `sigreg01_enc3` / `sigreg10_enc3` rows alongside the prior arm.
+- **Anchor GM-Rel MASE values.** Transcribed verbatim from `reports/2026-06-22_lejepa_sigreg_emb10/results/gm_table.csv`, which carries `cpc_enc3` / `ema_enc3` / `sigreg01_enc3` / `sigreg10_enc3` rows (the last row is the `λ_e=1.0, λ_h=0.1` anchor).
 - **CI computation.** [`scripts/compute_bootstrap.py`](scripts/compute_bootstrap.py); outputs `results/bootstrap_ci_vs_359.csv` and `results/bootstrap_ci_vs_arm1.csv`.
 - **Plot script.** [`scripts/build_plots.py`](scripts/build_plots.py). Trajectory plots cut the first `PLOT_START_STEP = 100` steps so the warm-up regime does not dominate the y-range; the loss curve uses log x and log y, the SIGReg-inspection panels and the per-latent `dim_usage_e.png` / `dim_usage_h.png` panels use log y throughout.
 - **Bar-chart colour map.** grey = `enc3+CPC, B=1024`; blue = `EMA enc3+CPC, B=1024`; red = `SIGReg λ_e=λ_h=0.1`; green = `SIGReg λ_e=1.0, λ_h=0.1`; purple = arm 1; brown = arm 2; pink = arm 3; cyan = arm 4; olive = arm 5; orange = arm 6.
