@@ -21,7 +21,7 @@ Bold = column minimum within B=512 (the experimental axis); reference-row cells 
 
 ### Sphere coverage
 
-![Cross-batch (left) and cross-time (right) uniformity over training; h_t solid vs e_t dashed for the four SIGReg + EMA-target arms and the no-EMA (τ=0) arm; h_t overlays for the two reference arms](plots/uniformity.png)
+![Cross-batch and cross-time uniformity; top row h_t (shared 0–1), bottom row e_t (auto-scaled); five SIGReg + EMA-target arms (including no-EMA at τ=0) plus two reference overlays for h_t](plots/uniformity.png)
 
 ### Training loss
 
