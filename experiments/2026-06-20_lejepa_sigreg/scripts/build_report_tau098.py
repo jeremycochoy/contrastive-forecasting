@@ -162,9 +162,11 @@ def plot_loss_curves(this_csv: Path, sigreg099_csv: Path | None,
         c = pd.read_csv(cpc_csv)
         ax.plot(c["step"], c["loss"].rolling(50, min_periods=1).mean(),
                 label=ARM_LABEL["cpc_enc3"], color=ARM_COLOR["cpc_enc3"], lw=1.5)
-    ax.set_xlabel("step"); ax.set_ylabel("loss (50-step rolling mean)")
+    ax.set_xscale("log"); ax.set_yscale("log")
+    ax.set_xlim(left=100)
+    ax.set_xlabel("step (log)"); ax.set_ylabel("loss (50-step rolling mean, log)")
     ax.set_title("Training loss")
-    ax.legend(fontsize=7); ax.grid(alpha=0.3)
+    ax.legend(fontsize=7); ax.grid(alpha=0.3, which="both")
     fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
 
 
@@ -281,16 +283,18 @@ def plot_sigreg_e_inspection(this_csv: Path, out: Path, lam: float = 0.1):
     ax = axes[0]
     ax.plot(s["step"], se, label="L_SIGReg(e_t)", color="C3", lw=1.5)
     ax.plot(s["step"], sh, label="L_SIGReg(h_t)", color="C0", lw=1.5)
-    ax.set_yscale("log")
+    ax.set_xscale("log"); ax.set_yscale("log")
+    ax.set_xlim(left=100)
     ax.set_ylabel("SIGReg term (log)")
     ax.set_title("SIGReg term trajectories (50-step rolling mean)")
     ax.legend(fontsize=8); ax.grid(alpha=0.3, which="both")
     ax = axes[1]
     ax.plot(s["step"], lam * se / loss.clip(lower=1e-6), label=f"λ·L_SIGReg(e_t) / loss (λ={lam})", color="C3", lw=1.5)
     ax.plot(s["step"], lam * sh / loss.clip(lower=1e-6), label=f"λ·L_SIGReg(h_t) / loss", color="C0", lw=1.5)
-    ax.set_yscale("log")
+    ax.set_xscale("log"); ax.set_yscale("log")
+    ax.set_xlim(left=100)
     ax.set_ylabel("share of total loss (log)")
-    ax.set_xlabel("step")
+    ax.set_xlabel("step (log)")
     ax.legend(fontsize=8); ax.grid(alpha=0.3, which="both")
     fig.tight_layout(); fig.savefig(out, dpi=120); plt.close(fig)
     return float(se.tail(50).mean()), float(sh.tail(50).mean()), float(loss.tail(50).mean())
