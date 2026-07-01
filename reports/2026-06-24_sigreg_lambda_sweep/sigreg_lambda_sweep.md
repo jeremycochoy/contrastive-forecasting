@@ -8,7 +8,7 @@ Sweep `(λ_e, λ_h)` on the SIGReg + EMA-target, B=512 recipe (six arms on a log
 
 ![GM-Rel MASE on the GIFT-Eval full-97 benchmark, four (q-head depth, backbone checkpoint) cells per arm; sweep-arm bars carry paired-bootstrap 95% CI whiskers vs the `λ_e=1.0, λ_h=0.1` anchor; horizontal lines = the four anchors](plots/gm_rel_mase.png)
 
-![4-panel GM-Rel MASE heatmap over (λ_e, λ_h), one panel per (q-head depth, backbone checkpoint) cell; log axes; diverging colormap centred on the per-cell `λ_e=1.0, λ_h=0.1` anchor (red = worse, blue = better); 7 hatched tiles = un-run points; the 8 populated tiles trace an L-shape (λ_h=0.1 row + λ_e=10.0 column), with arm 4 filling the (1.0, 1.0) interior tile](plots/heatmap.png)
+![4-panel GM-Rel MASE heatmap over (λ_e, λ_h), one panel per (q-head depth, backbone checkpoint) cell; log axes; diverging colormap centred on the per-cell `λ_e=1.0, λ_h=0.1` anchor (red = worse, blue = better); 7 hatched tiles = un-run points; 8 populated tiles = an L (λ_h=0.1 row across λ_e ∈ {0.1, 1.0, 10.0, 100.0}, 4 tiles + λ_e=10.0 column across λ_h ∈ {0.1, 1.0, 10.0}, 3 tiles, sharing the (10.0, 0.1) corner) plus arm 4 at (1.0, 1.0) filling the interior and arm 6 at (1000.0, 1.0) extending the λ_h=1.0 row one decade further right, off the L](plots/heatmap.png)
 
 | head / ckpt | `enc3+CPC`, B=1024 | `EMA enc3+CPC`, B=1024 | `λ_e=λ_h=0.1`, B=512 | `λ_e=1.0, λ_h=0.1`, B=512 | arm 1 (10.0, 0.1) | arm 2 (10.0, 1.0) | arm 3 (10.0, 10.0) | arm 4 (1.0, 1.0) | arm 5 (100.0, 0.1) | arm 6 (1000.0, 1.0) |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -129,7 +129,7 @@ Anchor GM-Rel MASE values are transcribed from `reports/2026-06-22_lejepa_sigreg
 
 ### J. Seed-noise band
 
-`experiments/2026-05-08_exp_tau_sweep` paired re-runs: ~0.01 GM-Rel MASE band. Each arm here is one seed; the §E/F paired-bootstrap CIs cover sampling variability across the 97 GIFT-Eval configs, not run-to-run seed variability.
+`experiments/2026-05-08_exp_tau_sweep` paired re-runs: ~0.01 GM-Rel MASE band. Each arm here is one seed; the §D/E paired-bootstrap CIs cover sampling variability across the 97 GIFT-Eval configs, not run-to-run seed variability.
 
 ### K. Vocabulary
 
