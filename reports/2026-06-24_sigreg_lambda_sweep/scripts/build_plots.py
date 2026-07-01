@@ -352,20 +352,24 @@ def plot_dim_usage(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Path,
                    traj_csv: Path | None, out: Path, latent: str):
     """One figure per latent — 1 row × 3 cols, one panel per pooling axis
     (u_batch, u_temporal, u_batchtime). 8 trajectories per panel (6 sweep arms
-    + 2 prior B=512 anchors). U = participation-ratio fraction in [1/K, 1]
-    with K=384: U=1 ⇔ isotropic / all K dims used, U=1/K ⇔ rank-1 collapse
-    (one effective dim). Effective dims ≈ K · U.
+    + 2 prior B=512 anchors). Plotted as (1 − U) on a log y-axis: U saturates
+    near 1 (isotropic ceiling, hit by h_t) and near 1/K (rank-1 floor, hit by
+    e_t); plotting the complement on log reveals late-training differences
+    that the linear-U view compresses. Direction: HIGH on the plot = closer
+    to rank-1 collapse (BAD), LOW = closer to isotropic (GOOD, all K dims
+    used) — inverted from the U convention.
 
     `latent`: "e" (embedding side, `e_t`, suffix `_e`) or "h" (encoder side,
-    `h_t`, no suffix). y-axis: e_t ∈ [1/K, 0.1] (log); h_t ∈ [0.05, 1] (log).
-    u_batch / u_temporal panels: in-training per-step CSV (50-step rolling mean,
-    PLOT_START_STEP cuts the warm-up). u_batchtime panel: per-checkpoint
-    retroactive trajectory (dotted + ● every 2 500 steps) + ★ at the actual
-    best-loss step (= FINAL.pth). Arms 4 and 6 are absent from the u_batchtime
-    panel because they were trained after the trajectory snapshot."""
+    `h_t`, no suffix). y-axis: e_t (1 − U) ∈ [0.9, 1.0] (log); h_t (1 − U) ∈
+    [0.05, 1.0] (log). u_batch / u_temporal panels: in-training per-step CSV
+    (50-step rolling mean on U before mapping to 1 − U, PLOT_START_STEP cuts
+    the warm-up). u_batchtime panel: per-checkpoint retroactive trajectory
+    (dotted + ● every 2 500 steps) + ★ at the actual best-loss step
+    (= FINAL.pth). Arms 4 and 6 are absent from the u_batchtime panel because
+    they were trained after the trajectory snapshot."""
     K = 384
     if latent == "e":
-        suffix, ylim = "_e", (1.0 / K, 0.1)
+        suffix, ylim = "_e", (0.9, 1.0)
         latent_long = "e_t (embedding side)"
     elif latent == "h":
         suffix, ylim = "", (0.05, 1.0)
@@ -379,9 +383,9 @@ def plot_dim_usage(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Path,
         "sigreg10_enc3": sigreg10_runs / f"bb_{BASE_TAG}_emb10_losses.csv",
     }
     panels = [
-        ("u_batch",     f"u_batch{suffix} — cross-batch pooled"),
-        ("u_temporal",  f"u_temporal{suffix} — cross-time pooled"),
-        ("u_batchtime", f"u_batchtime{suffix} — cross-(batch × time) pooled"),
+        ("u_batch",     f"1 − u_batch{suffix} — cross-batch pooled"),
+        ("u_temporal",  f"1 − u_temporal{suffix} — cross-time pooled"),
+        ("u_batchtime", f"1 − u_batchtime{suffix} — cross-(batch × time) pooled"),
     ]
 
     for ax, (base_col, title) in zip(axes, panels):
@@ -394,7 +398,7 @@ def plot_dim_usage(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Path,
                 if col not in d.columns:
                     continue
                 ds = _smoothed(d, col, PLOT_START_STEP)
-                ax.plot(ds["step"], ds[f"{col}_sm"],
+                ax.plot(ds["step"], 1.0 - ds[f"{col}_sm"],
                         color=ARM_COLOR[arm], lw=1.2)
             for arm in SWEEP_ARMS:
                 p = arm_runs / f"bb_{BASE_TAG}_{arm}_losses.csv"
@@ -404,7 +408,7 @@ def plot_dim_usage(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Path,
                 if col not in d.columns:
                     continue
                 ds = _smoothed(d, col, PLOT_START_STEP)
-                ax.plot(ds["step"], ds[f"{col}_sm"],
+                ax.plot(ds["step"], 1.0 - ds[f"{col}_sm"],
                         color=ARM_COLOR[arm], lw=1.6)
         else:  # u_batchtime — retroactive per-checkpoint
             if traj_csv is not None and traj_csv.exists():
@@ -415,16 +419,15 @@ def plot_dim_usage(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Path,
                     t = traj_step[traj_step["arm"] == arm_key].sort_values("step")
                     if not len(t):
                         continue
-                    ax.plot(t["step"], t[col],
+                    ax.plot(t["step"], 1.0 - t[col],
                             color=ARM_COLOR[arm], lw=1.4, ls=":", marker="o",
                             markersize=5, alpha=0.9, zorder=3)
                     tb = traj_best[traj_best["arm"] == arm_key]
                     if len(tb):
                         br = tb.iloc[0]
-                        ax.scatter([int(br["step"])], [float(br[col])],
+                        ax.scatter([int(br["step"])], [1.0 - float(br[col])],
                                    color=ARM_COLOR[arm], marker="*", s=160,
                                    edgecolor="black", linewidths=0.5, zorder=5)
-        ax.axhline(1.0 / K, color="k", ls=":", alpha=0.5)
         ax.set_yscale("log")
         ax.set_ylim(*ylim)
         ax.set_xlim(PLOT_START_STEP, PLOT_END_STEP)
@@ -432,12 +435,13 @@ def plot_dim_usage(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Path,
         ax.set_title(title, fontsize=10)
         ax.grid(alpha=0.3, which="both")
 
-    axes[0].set_ylabel(f"U on {latent_long}\n(log; higher = more effective dims)")
+    axes[0].set_ylabel(
+        f"1 − U on {latent_long}\n"
+        f"(log; higher = closer to rank-1 collapse, lower = closer to isotropic)"
+    )
 
     arm_handles = [plt.Line2D([0], [0], color=ARM_COLOR[a], lw=2.4,
                               label=ARM_LABEL[a]) for a in PLOTTED_ARMS]
-    arm_handles.append(plt.Line2D([0], [0], color="k", ls=":", alpha=0.5,
-                                  label=f"1/K ≈ {1/K:.4f}  (rank-1 collapse)"))
     arm_handles.append(plt.Line2D([0], [0], color="black", marker="*",
                                   markersize=11, markerfacecolor="white",
                                   markeredgecolor="black", linestyle="",
@@ -445,8 +449,8 @@ def plot_dim_usage(arm_runs: Path, sigreg_runs: Path, sigreg10_runs: Path,
     fig.legend(handles=arm_handles, loc="lower center", ncol=4, fontsize=7.5,
                bbox_to_anchor=(0.5, -0.02), frameon=True)
     fig.suptitle(
-        f"Dimension usage U on {latent_long} — K·U ≈ effective number of "
-        f"dimensions in use (K=384). Higher = more dims used.",
+        f"1 − U on {latent_long} — distance from the isotropic ceiling (K=384). "
+        f"Higher on the axis = closer to rank-1 collapse; lower = more dims used.",
         fontsize=11,
     )
     fig.tight_layout(rect=(0, 0.08, 1, 0.96))

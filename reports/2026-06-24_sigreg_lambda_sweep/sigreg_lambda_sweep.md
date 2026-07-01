@@ -19,9 +19,9 @@ Bold = column minimum within the B=512 sweep family; B=1024 anchor cells are nev
 
 ### Sphere coverage
 
-![Dimension usage `U` on `h_t` per pooling axis (`u_batch`, `u_temporal`, `u_batchtime`); log-y `[0.05, 1]`; `u_batchtime` panel: dotted line + `●` = retroactive per-checkpoint trajectory (arms 4 and 6 absent), `★` at the best-loss step (= `FINAL.pth`); higher `U` = more dims, `1/K ≈ 0.0026` floor off-axis below](plots/dim_usage_h.png)
+![(1 − U) on `h_t` per pooling axis (`u_batch`, `u_temporal`, `u_batchtime`); log-y `[0.05, 1]`; `u_batchtime` panel: dotted line + `●` = retroactive per-checkpoint trajectory (arms 4 and 6 absent), `★` at the best-loss step (= `FINAL.pth`); HIGH on the plot = closer to rank-1 collapse (BAD), LOW = closer to isotropic (GOOD, all K dims used) — inverted from the U convention](plots/dim_usage_h.png)
 
-![Dimension usage `U` on `e_t` per pooling axis (`u_batch_e`, `u_temporal_e`, `u_batchtime_e`); log-y `[1/K, 0.1]`; `u_batchtime_e` panel: dotted line + `●` = retroactive per-checkpoint trajectory (arms 4 and 6 absent), `★` at the best-loss step (= `FINAL.pth`); higher `U` = more dims, `1/K ≈ 0.0026` floor at y-axis bottom](plots/dim_usage_e.png)
+![(1 − U) on `e_t` per pooling axis (`u_batch_e`, `u_temporal_e`, `u_batchtime_e`); log-y `[0.9, 1.0]`; `u_batchtime_e` panel: dotted line + `●` = retroactive per-checkpoint trajectory (arms 4 and 6 absent), `★` at the best-loss step (= `FINAL.pth`); HIGH on the plot = closer to rank-1 collapse (BAD), LOW = closer to isotropic (GOOD, all K dims used) — inverted from the U convention](plots/dim_usage_e.png)
 
 ### Training loss
 
@@ -144,7 +144,7 @@ Anchor GM-Rel MASE values are transcribed from `reports/2026-06-22_lejepa_sigreg
 | `e_t` | GRU patch-embed output at position (batch, time, channel); dimension `K`. |
 | `h_t` | 3-layer transformer encoder output at the same position. |
 | **SIGReg** | LeJEPA spherical regulariser: Epps–Pulley statistic over `M`=1024 random 1-D projections of the pooled latent, against `N(0, 1/K)`. Two terms: `L_SIGReg(e_t)` weighted by `λ_e`, `L_SIGReg(h_t)` by `λ_h`. |
-| `U`, `u_*` | **dimension usage** of the latent: `U = 1 / (K · E[cos²(z_i, z_j)])`, clipped to `[1/K, 1]`. `1/K` = rank-1 collapse; **higher = more dims in use**; `K · U ≈` effective dims (`U = 0.79` at `K=384` ≈ 303). Pooling axes: cross-batch (`u_batch`), cross-time (`u_temporal`), cross-(batch × time) (`u_batchtime`, same `(B·T, K)` sample axis SIGReg uses), each on `h_t` (no suffix) and `e_t` (`_e` suffix). Math check: [`docs/u_metric_check.md`](../../docs/u_metric_check.md). |
+| `U`, `u_*` | **dimension usage** of the latent: `U = 1 / (K · E[cos²(z_i, z_j)])`, clipped to `[1/K, 1]`. `1/K` = rank-1 collapse; **higher = more dims in use**; `K · U ≈` effective dims (`U = 0.79` at `K=384` ≈ 303). Pooling axes: cross-batch (`u_batch`), cross-time (`u_temporal`), cross-(batch × time) (`u_batchtime`, same `(B·T, K)` sample axis SIGReg uses), each on `h_t` (no suffix) and `e_t` (`_e` suffix). Plotted as `1 − U` on log y-scale in §Sphere coverage — the log axis reveals late-training distances from the isotropic ceiling. Math check: [`docs/u_metric_check.md`](../../docs/u_metric_check.md). |
 | **GM-Rel MASE** | GIFT-Eval full-97 aggregate: geometric mean over 97 configs of (model MASE ÷ seasonal-naive MASE). Lower = better; 1.0 = seasonal-naive parity. |
 | **best-ckpt / last-ckpt** | `best` = backbone at lowest-train-loss step; `last` = backbone at step 12 500. |
 | **paired bootstrap** | resample 97 per-config rel-MASE values with replacement (B=10 000 draws, seed 20260624), statistic `mean(log(rel_arm) − log(rel_baseline))`, 2.5/97.5 quantiles, back to GM scale via `GM_baseline · (exp(quantile) − 1)`. |
