@@ -8,6 +8,8 @@ Sweep `(λ_e, λ_h)` on the SIGReg + EMA-target, B=512 recipe (six arms on a log
 
 ![GM-Rel MASE on the GIFT-Eval full-97 benchmark, four (q-head depth, backbone checkpoint) cells per arm; sweep-arm bars carry paired-bootstrap 95% CI whiskers vs the `λ_e=1.0, λ_h=0.1` anchor; horizontal lines = the four anchors](plots/gm_rel_mase.png)
 
+![4-panel GM-Rel MASE heatmap over (λ_e, λ_h), one panel per (q-head depth, backbone checkpoint) cell; log axes; diverging colormap centred on the per-cell `λ_e=1.0, λ_h=0.1` anchor (red = worse, blue = better); 7 hatched tiles = un-run points; the 8 populated tiles trace an L-shape (λ_h=0.1 row + λ_e=10.0 column), with arm 4 filling the (1.0, 1.0) interior tile](plots/heatmap.png)
+
 | head / ckpt | `enc3+CPC`, B=1024 | `EMA enc3+CPC`, B=1024 | `λ_e=λ_h=0.1`, B=512 | `λ_e=1.0, λ_h=0.1`, B=512 | arm 1 (10.0, 0.1) | arm 2 (10.0, 1.0) | arm 3 (10.0, 10.0) | arm 4 (1.0, 1.0) | arm 5 (100.0, 0.1) | arm 6 (1000.0, 1.0) |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | 2L / best | 1.1846 | 1.1614 | 1.1610 | 1.1470 | 1.1474 | **1.1302** | 1.1540 | 1.1435 | 1.1554 | 1.1488 |
@@ -15,7 +17,7 @@ Sweep `(λ_e, λ_h)` on the SIGReg + EMA-target, B=512 recipe (six arms on a log
 | 6L / best | 1.1584 | 1.1576 | 1.1543 | 1.1408 | 1.1447 | **1.1294** | 1.1465 | 1.1449 | 1.1462 | 1.1397 |
 | 6L / last | 1.1436 | 1.1597 | 1.1556 | 1.1482 | 1.1473 | 1.1515 | 1.1538 | 1.1517 | 1.1682 | **1.1415** |
 
-Bold = column minimum within the B=512 sweep family; B=1024 anchor cells are never bolded. Arm 2 (`λ_e=10.0, λ_h=1.0`) holds both `*_best` column minima; only its 2L/best Δ vs the `λ_e=1.0, λ_h=0.1` anchor has a paired-bootstrap 95% CI excluding zero (annex E). Arm 6 (`λ_e=1000.0, λ_h=1.0`) holds both `*_last` column minima but within the ~0.01 seed-noise band (annex K).
+Bold = column minimum within the B=512 sweep family; B=1024 anchor cells are never bolded. Arm 2 (`λ_e=10.0, λ_h=1.0`) holds both `*_best` column minima; only its 2L/best Δ vs the `λ_e=1.0, λ_h=0.1` anchor has a paired-bootstrap 95% CI excluding zero (annex D). Arm 6 (`λ_e=1000.0, λ_h=1.0`) holds both `*_last` column minima but within the ~0.01 seed-noise band (annex J).
 
 ### Sphere coverage
 
@@ -43,7 +45,7 @@ Bold = column minimum within the B=512 sweep family; B=1024 anchor cells are nev
 
 ## Protocol
 
-Per-arm launcher: [`scripts/train_backbone_sigreg.sh`](../../experiments/2026-06-24_sigreg_lambda_sweep/scripts/train_backbone_sigreg.sh). Seed `20260520`, 12 500 steps, dataset `gift-pretrain-full-4096` / `small_v1`. Only `λ_e` and `λ_h` change across arms; all other flags identical to the `λ_e=1.0, λ_h=0.1` anchor. The issue specified arms 1–3 plus arm 4 as an optional interior point; arms 5 and 6 extend the `λ_e` axis. Each arm produces two backbone checkpoints (`best` = best train-loss, `last` = step 12 500); each backbone trains a 2-layer and a 6-layer quantile head, evaluated on GIFT-Eval full-97 via `scripts/run_gift_eval_full.sh`. Eval wrapper emits only GM-Rel MASE (annex J); ~0.01 GM-Rel MASE seed-noise band (annex K).
+Per-arm launcher: [`scripts/train_backbone_sigreg.sh`](../../experiments/2026-06-24_sigreg_lambda_sweep/scripts/train_backbone_sigreg.sh). Seed `20260520`, 12 500 steps, dataset `gift-pretrain-full-4096` / `small_v1`. Only `λ_e` and `λ_h` change across arms; all other flags identical to the `λ_e=1.0, λ_h=0.1` anchor. The issue specified arms 1–3 plus arm 4 as an optional interior point; arms 5 and 6 extend the `λ_e` axis. Each arm produces two backbone checkpoints (`best` = best train-loss, `last` = step 12 500); each backbone trains a 2-layer and a 6-layer quantile head, evaluated on GIFT-Eval full-97 via `scripts/run_gift_eval_full.sh`. Eval wrapper emits only GM-Rel MASE (annex I); ~0.01 GM-Rel MASE seed-noise band (annex J).
 
 | flag | arm 1 | arm 2 | arm 3 | arm 4 | arm 5 | arm 6 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -61,19 +63,15 @@ Per-arm launcher: [`scripts/train_backbone_sigreg.sh`](../../experiments/2026-06
 | `SIGReg λ_e=λ_h=0.1, B=512` (#355) | `λ_e=λ_h=0.1` (per-config rel-MASE re-read from `reports/2026-06-20_lejepa_sigreg/`) |
 | `SIGReg λ_e=1.0, λ_h=0.1, B=512` (#359) | the `λ_e=1.0, λ_h=0.1` anchor (per-config rel-MASE re-read from `reports/2026-06-22_lejepa_sigreg_emb10/`) |
 
-### B. (λ_e, λ_h) heatmap
-
-![4-panel GM-Rel MASE heatmap over (λ_e, λ_h), one panel per (q-head depth, backbone checkpoint) cell; log axes; diverging colormap centred on the per-cell `λ_e=1.0, λ_h=0.1` anchor (red = worse, blue = better); hatched tiles = points not run](plots/heatmap.png)
-
-### C. λ_e ladders
+### B. λ_e ladders
 
 ![Two λ_e ladders. Left: λ_h=0.1, λ_e ∈ {0.1, 1.0, 10.0 (arm 1), 100.0 (arm 5)}. Right: λ_h=1.0, λ_e ∈ {1.0 (arm 4), 10.0 (arm 2), 1000.0 (arm 6)}. Log axes; 4 curves per panel (2L/6L × best/last); shaded bands = paired-bootstrap 95% CI vs the `λ_e=1.0, λ_h=0.1` anchor](plots/lambda_e_ladder.png)
 
-### D. Best-vs-last drift
+### C. Best-vs-last drift
 
 ![Drift = last − best GM-Rel MASE per arm, split by 2L vs 6L q-head; positive = `last` worse than `best`, negative = still improving at step 12 500](plots/best_vs_last_drift.png)
 
-### E. Δ vs the `λ_e=1.0, λ_h=0.1` anchor with paired-bootstrap 95% CI
+### D. Δ vs the `λ_e=1.0, λ_h=0.1` anchor with paired-bootstrap 95% CI
 
 B=10 000 draws, n=97 configs, paired on per-config rel-MASE; Δ on absolute GM-Rel MASE scale via `GM_anchor · (exp(quantile) − 1)`. Bold = 95% CI excludes zero.
 
@@ -86,7 +84,7 @@ B=10 000 draws, n=97 configs, paired on per-config rel-MASE; Δ on absolute GM-R
 | arm 5 (100.0, 0.1) | +0.0084 `[−0.0010, +0.0188]` | +0.0148 `[−0.0055, +0.0363]` | +0.0055 `[−0.0034, +0.0147]` | +0.0199 `[−0.0045, +0.0458]` |
 | arm 6 (1000.0, 1.0) | +0.0018 `[−0.0144, +0.0204]` | −0.0144 `[−0.0299, +0.0013]` | −0.0011 `[−0.0151, +0.0129]` | −0.0067 `[−0.0254, +0.0146]` |
 
-### F. Δ vs arm 1
+### E. Δ vs arm 1
 
 Arm 1 = `λ_e=10.0, λ_h=0.1`. Vs arm 1, the single-axis arms are 2 (`λ_h`: 0.1 → 1.0), 3 (`λ_h`: 0.1 → 10.0), 5 (`λ_e`: 10.0 → 100.0); arms 4 (`λ_e` 10.0 → 1.0 *and* `λ_h` 0.1 → 1.0) and 6 (`λ_e` 10.0 → 1000.0 *and* `λ_h` 0.1 → 1.0) move both axes. Bold = 95% CI excludes zero.
 
@@ -98,7 +96,7 @@ Arm 1 = `λ_e=10.0, λ_h=0.1`. Vs arm 1, the single-axis arms are 2 (`λ_h`: 0.1
 | arm 5 (100.0, 0.1) | +0.0080 `[−0.0022, +0.0179]` | **+0.0218 `[+0.0047, +0.0410]`** | +0.0016 `[−0.0100, +0.0107]` | **+0.0209 `[+0.0026, +0.0411]`** |
 | arm 6 (1000.0, 1.0) | +0.0014 `[−0.0125, +0.0150]` | −0.0073 `[−0.0215, +0.0091]` | −0.0050 `[−0.0188, +0.0081]` | −0.0057 `[−0.0160, +0.0048]` |
 
-### G. `u_batchtime` per-checkpoint retroactive table
+### F. `u_batchtime` per-checkpoint retroactive table
 
 `u_batchtime` is not in the losses CSVs; values come from saved backbone checkpoints over a fixed batch (B=512, seed 20260520). `FINAL.pth` = the best-train-loss checkpoint, copied byte-identical at training end; below = single-step retro on that snapshot. Retro set covers arms 1/2/3/5 plus the two SIGReg anchors; arms 4 and 6 are not in it.
 
@@ -113,7 +111,7 @@ Arm 1 = `λ_e=10.0, λ_h=0.1`. Vs arm 1, the single-axis arms are 2 (`λ_h`: 0.1
 
 Sources: [`results/u_batchtime_retro.csv`](results/u_batchtime_retro.csv), [`results/u_batchtime_trajectory.csv`](results/u_batchtime_trajectory.csv); `scripts/compute_u_batchtime_retro.py`, `compute_u_batchtime_trajectory.py`.
 
-### H. Plot and CI provenance
+### G. Plot and CI provenance
 
 - **Training CSVs.** `experiments/2026-06-24_sigreg_lambda_sweep/runs/bb_<tag>_<arm>_losses.csv` (12 500 rows each).
 - **Per-config rel-MASE.** `experiments/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_<tag>_<arm>{,_last}_{2L,6L}/summary.txt`.
@@ -121,19 +119,19 @@ Sources: [`results/u_batchtime_retro.csv`](results/u_batchtime_retro.csv), [`res
 - **Plot scripts.** [`scripts/build_plots.py`](scripts/build_plots.py), [`scripts/build_heatmap.py`](scripts/build_heatmap.py). All trajectory panels pin `PLOT_START_STEP = 100` via `ax.set_xlim(100, 12500)`.
 - **Bar-chart colour map.** grey = `enc3+CPC, B=1024`; blue = `EMA enc3+CPC, B=1024`; red = `λ_e=λ_h=0.1`; green = `λ_e=1.0, λ_h=0.1`; purple/brown/pink/cyan/olive/orange = arms 1/2/3/4/5/6.
 
-### I. Reference-values provenance
+### H. Reference-values provenance
 
 Anchor GM-Rel MASE values are transcribed from `reports/2026-06-22_lejepa_sigreg_emb10/results/gm_table.csv`. The `λ_e=λ_h=0.1` anchor's per-config rel-MASE is re-read from `reports/2026-06-20_lejepa_sigreg/`; the `λ_e=1.0, λ_h=0.1` anchor's from `reports/2026-06-22_lejepa_sigreg_emb10/`.
 
-### J. GIFT-Eval wrapper emits only GM-Rel MASE
+### I. GIFT-Eval wrapper emits only GM-Rel MASE
 
 `scripts/run_gift_eval_full.sh` emits `Aggregate GM-Relative MASE (97 configs)` only; seasonal-naive denominators for GM-MASE / GM-MAPE_SN / GM-CRPS_SN are not produced.
 
-### K. Seed-noise band
+### J. Seed-noise band
 
 `experiments/2026-05-08_exp_tau_sweep` paired re-runs: ~0.01 GM-Rel MASE band. Each arm here is one seed; the §E/F paired-bootstrap CIs cover sampling variability across the 97 GIFT-Eval configs, not run-to-run seed variability.
 
-### L. Vocabulary
+### K. Vocabulary
 
 | term | definition |
 | --- | --- |
