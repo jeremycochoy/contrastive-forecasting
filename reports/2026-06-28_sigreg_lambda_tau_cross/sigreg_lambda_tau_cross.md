@@ -89,13 +89,25 @@ coding as the headline figure.](plots/four_aggregates.png)
 ## (λ_e, λ_h) grid at τ=0.90
 
 The same headline GM-Relative MASE plotted as a (λ_e, λ_h) heatmap
-restricted to the τ=0.90 runs. Three cells are measured: the EMA-τ-sweep
-anchor at the corner (λ_e=λ_h=0.1) and the two crosses (λ_e=10, λ_h=1)
-and (λ_e=1000, λ_h=1). Hatched cells are not run.
+restricted to the τ=0.90 runs. Seven cells are measured — the EMA-τ-sweep
+anchor at (λ_e=λ_h=0.1) plus six additional arms filling the grid at
+(1, 1), (10, 1), (10, 10), (100, 100), (1000, 1) and (1000, 1000).
+Hatched cells are not run.
 
 ![2×2 grid: (λ_e, λ_h) heatmap of GM-Relative MASE, one panel per
-(head × checkpoint) group. Three filled cells; the rest hatched.
+(head × checkpoint) group. Seven filled cells; the rest hatched.
 Blue = better, red = worse.](plots/lambda_grid_tau090.png)
+
+## (last − best) drift per grid cell
+
+Same seven cells, plotted as the checkpoint drift `GM-Rel MASE(last) −
+GM-Rel MASE(best)`, one panel per q-head depth. Negative (blue) means the
+`last` checkpoint improved on the `best` checkpoint after the extra
+training steps; positive (red) means it regressed.
+
+![Two-panel heatmap of (last − best) drift per (λ_e, λ_h) cell at
+τ=0.90, one panel per q-head depth. Blue = last beats best; red = last
+regresses.](plots/lambda_grid_last_minus_best_tau090.png)
 
 ## Method
 
