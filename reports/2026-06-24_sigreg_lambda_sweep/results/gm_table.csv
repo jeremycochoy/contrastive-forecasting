@@ -1,0 +1,41 @@
+arm,label,head,ckpt,gm,n
+cpc_enc3,"enc3+CPC, B=1024",2L,best,1.1846,97
+cpc_enc3,"enc3+CPC, B=1024",2L,last,1.1531,97
+cpc_enc3,"enc3+CPC, B=1024",6L,best,1.1584,97
+cpc_enc3,"enc3+CPC, B=1024",6L,last,1.1436,97
+ema_enc3,"EMA-target enc3+CPC, B=1024",2L,best,1.1614,97
+ema_enc3,"EMA-target enc3+CPC, B=1024",2L,last,1.1817,97
+ema_enc3,"EMA-target enc3+CPC, B=1024",6L,best,1.1576,97
+ema_enc3,"EMA-target enc3+CPC, B=1024",6L,last,1.1597,97
+sigreg01_enc3,"SIGReg λ_e=0.1, λ_h=0.1",2L,best,1.1610,97
+sigreg01_enc3,"SIGReg λ_e=0.1, λ_h=0.1",2L,last,1.1758,97
+sigreg01_enc3,"SIGReg λ_e=0.1, λ_h=0.1",6L,best,1.1543,97
+sigreg01_enc3,"SIGReg λ_e=0.1, λ_h=0.1",6L,last,1.1556,97
+sigreg10_enc3,"SIGReg λ_e=1.0, λ_h=0.1",2L,best,1.1470,97
+sigreg10_enc3,"SIGReg λ_e=1.0, λ_h=0.1",2L,last,1.1681,97
+sigreg10_enc3,"SIGReg λ_e=1.0, λ_h=0.1",6L,best,1.1408,97
+sigreg10_enc3,"SIGReg λ_e=1.0, λ_h=0.1",6L,last,1.1482,97
+emb100_enc01,"SIGReg λ_e=10.0, λ_h=0.1",2L,best,1.1474,97
+emb100_enc01,"SIGReg λ_e=10.0, λ_h=0.1",2L,last,1.1610,97
+emb100_enc01,"SIGReg λ_e=10.0, λ_h=0.1",6L,best,1.1447,97
+emb100_enc01,"SIGReg λ_e=10.0, λ_h=0.1",6L,last,1.1473,97
+emb100_enc10,"SIGReg λ_e=10.0, λ_h=1.0",2L,best,1.1302,97
+emb100_enc10,"SIGReg λ_e=10.0, λ_h=1.0",2L,last,1.1756,97
+emb100_enc10,"SIGReg λ_e=10.0, λ_h=1.0",6L,best,1.1294,97
+emb100_enc10,"SIGReg λ_e=10.0, λ_h=1.0",6L,last,1.1515,97
+emb100_enc100,"SIGReg λ_e=10.0, λ_h=10.0",2L,best,1.1540,97
+emb100_enc100,"SIGReg λ_e=10.0, λ_h=10.0",2L,last,1.1682,97
+emb100_enc100,"SIGReg λ_e=10.0, λ_h=10.0",6L,best,1.1465,97
+emb100_enc100,"SIGReg λ_e=10.0, λ_h=10.0",6L,last,1.1538,97
+emb10_enc10,"SIGReg λ_e=1.0, λ_h=1.0",2L,best,1.1435,97
+emb10_enc10,"SIGReg λ_e=1.0, λ_h=1.0",2L,last,1.1679,97
+emb10_enc10,"SIGReg λ_e=1.0, λ_h=1.0",6L,best,1.1449,97
+emb10_enc10,"SIGReg λ_e=1.0, λ_h=1.0",6L,last,1.1517,97
+emb1000_enc01,"SIGReg λ_e=100.0, λ_h=0.1",2L,best,1.1554,97
+emb1000_enc01,"SIGReg λ_e=100.0, λ_h=0.1",2L,last,1.1828,97
+emb1000_enc01,"SIGReg λ_e=100.0, λ_h=0.1",6L,best,1.1462,97
+emb1000_enc01,"SIGReg λ_e=100.0, λ_h=0.1",6L,last,1.1682,97
+emb10000_enc10,"SIGReg λ_e=1000.0, λ_h=1.0",2L,best,1.1488,97
+emb10000_enc10,"SIGReg λ_e=1000.0, λ_h=1.0",2L,last,1.1537,97
+emb10000_enc10,"SIGReg λ_e=1000.0, λ_h=1.0",6L,best,1.1397,97
+emb10000_enc10,"SIGReg λ_e=1000.0, λ_h=1.0",6L,last,1.1415,97

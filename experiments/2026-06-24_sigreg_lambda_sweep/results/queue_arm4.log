@@ -1,0 +1,10 @@
+[06-27 06:41:07] [queue-arm4] queue start  WT=/tmp/cf-revert-363  OUT=/tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep  SUFFIX=emb10_enc10  GPU_BB=1  arm6_queue_pid=1774205
+[06-27 06:41:07] [queue-arm4] BB phase: bash /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/scripts/train_backbone_sigreg.sh 1 1.0 1.0 emb10_enc10
+[06-27 12:18:24] [queue-arm4] BB phase finished rc=0
+[06-27 12:18:24] [queue-arm4] waiting for arm-6 queue (PID 1774205) to exit before launching DL
+[06-27 15:03:24] [queue-arm4] arm-6 queue PID 1774205 has exited
+[06-27 15:03:24] [queue-arm4] no arm-6 processes — proceeding to DL
+[06-27 15:03:24] [queue-arm4] DL phase: bash /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/scripts/launch_downstream.sh emb10_enc10
+[06-28 00:58:32] [queue-arm4] DL phase finished rc=0
+[06-28 00:58:32] [queue-arm4] DL phase complete — all 4 summary.txt files present
+[06-28 00:58:32] [queue-arm4] queue done

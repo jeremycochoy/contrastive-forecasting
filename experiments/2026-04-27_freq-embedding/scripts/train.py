@@ -57,6 +57,7 @@ from src.metrics import (
     q_random,
     q_naive_latent,
     dim_usage,
+    u_batchtime,
     retrieval_auc_topk,
 )
 
@@ -744,6 +745,11 @@ class CSVLogger:
         # read h_t). Blank for runs without --sigreg-embedding /
         # --sigreg-encoding. Trailing so older CSV readers ignore them.
         header += ["sigreg_e", "sigreg_h", "u_temporal_e", "u_batch_e"]
+        # (#363) Cross-(batch × time) dim-usage on h_t and e_t. Pools
+        # (B, T) into one sample axis — same axis SIGReg pools over for
+        # its random-projection statistic, so this is the dim-usage
+        # measurement that matches what SIGReg regularises.
+        header += ["u_batchtime", "u_batchtime_e"]
         if os.path.getsize(path) == 0:
             self._writer.writerow(header)
             self._file.flush()
@@ -775,7 +781,8 @@ class CSVLogger:
             r2_random, r2_naive, u_temporal, u_batch, auc, top1, top3,
             loss_tau_ref=None, cpc_aux=None,
             sigreg_e=None, sigreg_h=None,
-            u_temporal_e=None, u_batch_e=None):
+            u_temporal_e=None, u_batch_e=None,
+            u_batchtime=None, u_batchtime_e=None):
         if not self._enabled:
             return
         row = [step, loss]
@@ -788,7 +795,8 @@ class CSVLogger:
                 hf_rows_consumed, synth_rows_consumed, int(mixup_applied)]
         row += [r2_random, r2_naive, u_temporal, u_batch, auc, top1, top3]
         row.append('' if cpc_aux is None else cpc_aux)
-        for extra in (sigreg_e, sigreg_h, u_temporal_e, u_batch_e):
+        for extra in (sigreg_e, sigreg_h, u_temporal_e, u_batch_e,
+                      u_batchtime, u_batchtime_e):
             row.append('' if extra is None else extra)
         self._buffer.append(row)
         if len(self._buffer) >= self.flush_every:
@@ -1438,6 +1446,10 @@ def main():
                 o_det[:, :T_lat - 1]).item()
             u_t = dim_usage(o_det, axis=1).item()
             u_b = dim_usage(o_det, axis=0).item()
+            # Cross-(batch × time) dim-usage on h_t (#363). Pools (B, T)
+            # into one sample axis — SIGReg's own pooling — so the dim-
+            # usage panel reports what SIGReg actually regularises.
+            u_bt = u_batchtime(o_det).item()
             # Mirror metrics on the patch-embedding e_t (#355). Without
             # --sigreg-embedding / --sigreg-encoding the trainer never
             # captures e_lat, so leave the CSV columns blank (None).
@@ -1445,9 +1457,11 @@ def main():
                 e_det = e_lat.detach()
                 u_t_e = dim_usage(e_det, axis=1).item()
                 u_b_e = dim_usage(e_det, axis=0).item()
+                u_bt_e = u_batchtime(e_det).item()
             else:
                 u_t_e = None
                 u_b_e = None
+                u_bt_e = None
             ret = retrieval_auc_topk(f_det[:, :T_lat - 1], o_det)
             r2_random_val = 1.0 - q_r
             r2_naive_val = 1.0 - q_n
@@ -1480,7 +1494,8 @@ def main():
                                  if args.sigreg_embedding else None),
                        sigreg_h=(sigreg_h_val
                                  if args.sigreg_encoding else None),
-                       u_temporal_e=u_t_e, u_batch_e=u_b_e)
+                       u_temporal_e=u_t_e, u_batch_e=u_b_e,
+                       u_batchtime=u_bt, u_batchtime_e=u_bt_e)
 
         if step % args.log_every == 0 and is_main_process():
             elapsed = time.time() - t0

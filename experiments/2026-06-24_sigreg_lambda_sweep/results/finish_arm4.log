@@ -1,0 +1,252 @@
+Current branch feature/contrastive-forecasting-363-v2 is up to date.
+[06-28 00:59:20] [finish-arm4] stash pop conflict — continuing; aggregate will refresh artefacts
+[06-28 00:59:20] [finish-arm4] running aggregate_to_report.sh
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+present sweep arms: ['emb100_enc01', 'emb100_enc10', 'emb100_enc100', 'emb10_enc10', 'emb1000_enc01', 'emb10000_enc10']
+rows in gm_table: 40
+REP=/tmp/cf-revert-363/reports/2026-06-24_sigreg_lambda_sweep
+-rw-rw-r-- 1 jupyter jupyter 1.8K Jun 28 00:59 /tmp/cf-revert-363/reports/2026-06-24_sigreg_lambda_sweep/results/final_trajectories.txt
+-rw-rw-r-- 1 jupyter jupyter 3.1K Jun 28 00:59 /tmp/cf-revert-363/reports/2026-06-24_sigreg_lambda_sweep/results/gm_table.csv
+
+/tmp/cf-revert-363/reports/2026-06-24_sigreg_lambda_sweep/plots/:
+total 1.1M
+-rw-rw-r-- 1 jupyter jupyter  73K Jun 27 12:38 best_vs_last_drift.png
+-rw-rw-r-- 1 jupyter jupyter 277K Jun 28 00:59 dim_usage.png
+-rw-rw-r-- 1 jupyter jupyter  68K Jun 28 00:59 gm_rel_mase.png
+-rw-rw-r-- 1 jupyter jupyter 161K Jun 27 12:34 heatmap.png
+-rw-rw-r-- 1 jupyter jupyter 108K Jun 27 12:34 lambda_e_ladder.png
+-rw-rw-r-- 1 jupyter jupyter  88K Jun 28 00:59 loss_curve.png
+-rw-rw-r-- 1 jupyter jupyter 283K Jun 28 00:59 sigreg_e_inspection.png
+[06-28 00:59:25] [finish-arm4] aggregate finished (rc=0)
+[06-28 00:59:25] [finish-arm4] running compute_bootstrap.py for paired-bootstrap CI refresh
+gm_table.csv rows: 36
+bootstrap_ci_vs_359.csv rows: 20
+bootstrap_ci_vs_arm1.csv rows: 16
+[06-28 00:59:25] [finish-arm4] compute_bootstrap finished (rc=0)
+[06-28 00:59:25] [finish-arm4] running build_plots.py for plot refresh
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote 7 plots under /tmp/cf-revert-363/reports/2026-06-24_sigreg_lambda_sweep/plots
+[06-28 00:59:31] [finish-arm4] build_plots finished (rc=0)
+[06-28 00:59:31] [finish-arm4] staging artefacts
+[06-28 00:59:31] [finish-arm4] git status:
+A  experiments/2026-06-24_sigreg_lambda_sweep/results/dl_2L_emb10_enc10.log
+A  experiments/2026-06-24_sigreg_lambda_sweep/results/dl_6L_emb10_enc10.log
+AM experiments/2026-06-24_sigreg_lambda_sweep/results/finish_arm4.log
+A  experiments/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_2L/all_results.csv
+A  experiments/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_2L/summary.txt
+A  experiments/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_6L/all_results.csv
+A  experiments/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_6L/summary.txt
+A  experiments/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_last_2L/all_results.csv
+A  experiments/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_last_2L/summary.txt
+A  experiments/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_last_6L/all_results.csv
+A  experiments/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_last_6L/summary.txt
+A  experiments/2026-06-24_sigreg_lambda_sweep/results/queue_arm4.log
+A  experiments/2026-06-24_sigreg_lambda_sweep/results/run_bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10.log
+A  experiments/2026-06-24_sigreg_lambda_sweep/results/run_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_2L.log
+A  experiments/2026-06-24_sigreg_lambda_sweep/results/run_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_6L.log
+A  experiments/2026-06-24_sigreg_lambda_sweep/results/run_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_last_2L.log
+A  experiments/2026-06-24_sigreg_lambda_sweep/results/run_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_last_6L.log
+A  experiments/2026-06-24_sigreg_lambda_sweep/results/run_qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10.log
+A  experiments/2026-06-24_sigreg_lambda_sweep/results/run_qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_last.log
+A  experiments/2026-06-24_sigreg_lambda_sweep/results/run_qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10.log
+A  experiments/2026-06-24_sigreg_lambda_sweep/results/run_qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_last.log
+A  experiments/2026-06-24_sigreg_lambda_sweep/results/supervisor_arm4.log
+A  experiments/2026-06-24_sigreg_lambda_sweep/results/sweep_bb_emb10_enc10.log
+A  experiments/2026-06-24_sigreg_lambda_sweep/results/sweep_dl_emb10_enc10.log
+A  experiments/2026-06-24_sigreg_lambda_sweep/runs/bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_attn_amplitude.csv
+A  experiments/2026-06-24_sigreg_lambda_sweep/runs/bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_losses.csv
+A  experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_last_losses.csv
+A  experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_losses.csv
+A  experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_last_losses.csv
+A  experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_losses.csv
+A  experiments/2026-06-24_sigreg_lambda_sweep/scripts/compute_u_batchtime_trajectory.py
+A  experiments/2026-06-24_sigreg_lambda_sweep/scripts/finish_arm4.sh
+A  experiments/2026-06-24_sigreg_lambda_sweep/scripts/finish_arm6.sh
+A  experiments/2026-06-24_sigreg_lambda_sweep/scripts/queue_arm4.sh
+A  experiments/2026-06-24_sigreg_lambda_sweep/scripts/queue_arm6.sh
+A  experiments/2026-06-24_sigreg_lambda_sweep/scripts/supervisor_arm4.sh
+A  experiments/2026-06-24_sigreg_lambda_sweep/scripts/supervisor_arm6.sh
+M  reports/2026-06-24_sigreg_lambda_sweep/plots/best_vs_last_drift.png
+M  reports/2026-06-24_sigreg_lambda_sweep/plots/dim_usage.png
+M  reports/2026-06-24_sigreg_lambda_sweep/plots/gm_rel_mase.png
+M  reports/2026-06-24_sigreg_lambda_sweep/plots/loss_curve.png
+M  reports/2026-06-24_sigreg_lambda_sweep/plots/sigreg_e_inspection.png
+M  reports/2026-06-24_sigreg_lambda_sweep/results/bootstrap_ci_vs_359.csv
+M  reports/2026-06-24_sigreg_lambda_sweep/results/bootstrap_ci_vs_arm1.csv
+A  reports/2026-06-24_sigreg_lambda_sweep/results/dl_2L_emb10000_enc10.log
+A  reports/2026-06-24_sigreg_lambda_sweep/results/dl_2L_emb10_enc10.log
+A  reports/2026-06-24_sigreg_lambda_sweep/results/dl_6L_emb10000_enc10.log
+A  reports/2026-06-24_sigreg_lambda_sweep/results/dl_6L_emb10_enc10.log
+M  reports/2026-06-24_sigreg_lambda_sweep/results/final_trajectories.txt
+A  reports/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_2L/all_results.csv
+A  reports/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_2L/summary.txt
+A  reports/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_6L/all_results.csv
+A  reports/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_6L/summary.txt
+A  reports/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_last_2L/all_results.csv
+A  reports/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_last_2L/summary.txt
+A  reports/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_last_6L/all_results.csv
+A  reports/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_last_6L/summary.txt
+A  reports/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_2L/all_results.csv
+A  reports/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_2L/summary.txt
+A  reports/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_6L/all_results.csv
+A  reports/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_6L/summary.txt
+A  reports/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_last_2L/all_results.csv
+A  reports/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_last_2L/summary.txt
+A  reports/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_last_6L/all_results.csv
+A  reports/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_last_6L/summary.txt
+M  reports/2026-06-24_sigreg_lambda_sweep/results/gm_table.csv
+A  reports/2026-06-24_sigreg_lambda_sweep/results/run_bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10.log
+A  reports/2026-06-24_sigreg_lambda_sweep/results/run_bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10.log
+A  reports/2026-06-24_sigreg_lambda_sweep/results/run_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_2L.log
+A  reports/2026-06-24_sigreg_lambda_sweep/results/run_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_6L.log
+A  reports/2026-06-24_sigreg_lambda_sweep/results/run_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_last_2L.log
+A  reports/2026-06-24_sigreg_lambda_sweep/results/run_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_last_6L.log
+A  reports/2026-06-24_sigreg_lambda_sweep/results/run_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_2L.log
+A  reports/2026-06-24_sigreg_lambda_sweep/results/run_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_6L.log
+A  reports/2026-06-24_sigreg_lambda_sweep/results/run_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_last_2L.log
+A  reports/2026-06-24_sigreg_lambda_sweep/results/run_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_last_6L.log
+A  reports/2026-06-24_sigreg_lambda_sweep/results/run_qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10.log
+A  reports/2026-06-24_sigreg_lambda_sweep/results/run_qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_last.log
+A  reports/2026-06-24_sigreg_lambda_sweep/results/run_qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10.log
+A  reports/2026-06-24_sigreg_lambda_sweep/results/run_qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_last.log
+A  reports/2026-06-24_sigreg_lambda_sweep/results/run_qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10.log
+A  reports/2026-06-24_sigreg_lambda_sweep/results/run_qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_last.log
+A  reports/2026-06-24_sigreg_lambda_sweep/results/run_qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10.log
+A  reports/2026-06-24_sigreg_lambda_sweep/results/run_qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_last.log
+A  reports/2026-06-24_sigreg_lambda_sweep/results/sweep_bb_emb10000_enc10.log
+A  reports/2026-06-24_sigreg_lambda_sweep/results/sweep_bb_emb10_enc10.log
+A  reports/2026-06-24_sigreg_lambda_sweep/results/sweep_dl_emb10000_enc10.log
+A  reports/2026-06-24_sigreg_lambda_sweep/results/sweep_dl_emb10000_enc10_rerun.log
+A  reports/2026-06-24_sigreg_lambda_sweep/results/sweep_dl_emb10_enc10.log
+M  reports/2026-06-24_sigreg_lambda_sweep/runs/anchor_sigreg01.csv
+M  reports/2026-06-24_sigreg_lambda_sweep/runs/anchor_sigreg10.csv
+A  reports/2026-06-24_sigreg_lambda_sweep/runs/bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_losses.csv
+A  reports/2026-06-24_sigreg_lambda_sweep/runs/bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_losses.csv
+M  reports/2026-06-24_sigreg_lambda_sweep/scripts/compute_bootstrap.py
+?? experiments/2026-06-24_sigreg_lambda_sweep/results/dl_2L_emb10000_enc10.log
+?? experiments/2026-06-24_sigreg_lambda_sweep/results/dl_6L_emb10000_enc10.log
+?? experiments/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_2L/
+?? experiments/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_6L/
+?? experiments/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_last_2L/
+?? experiments/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_last_6L/
+?? experiments/2026-06-24_sigreg_lambda_sweep/results/queue_arm6.log
+?? experiments/2026-06-24_sigreg_lambda_sweep/results/run_bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10.log
+?? experiments/2026-06-24_sigreg_lambda_sweep/results/run_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_2L.log
+?? experiments/2026-06-24_sigreg_lambda_sweep/results/run_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_6L.log
+?? experiments/2026-06-24_sigreg_lambda_sweep/results/run_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_last_2L.log
+?? experiments/2026-06-24_sigreg_lambda_sweep/results/run_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_last_6L.log
+?? experiments/2026-06-24_sigreg_lambda_sweep/results/run_qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10.log
+?? experiments/2026-06-24_sigreg_lambda_sweep/results/run_qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_last.log
+?? experiments/2026-06-24_sigreg_lambda_sweep/results/run_qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10.log
+?? experiments/2026-06-24_sigreg_lambda_sweep/results/run_qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_last.log
+?? experiments/2026-06-24_sigreg_lambda_sweep/results/supervisor_arm6.log
+?? experiments/2026-06-24_sigreg_lambda_sweep/results/sweep_bb_emb10000_enc10.log
+?? experiments/2026-06-24_sigreg_lambda_sweep/results/sweep_dl_emb10000_enc10.log
+?? experiments/2026-06-24_sigreg_lambda_sweep/results/sweep_dl_emb10000_enc10_rerun.log
+?? experiments/2026-06-24_sigreg_lambda_sweep/results/u_batchtime_trajectory.csv
+?? experiments/2026-06-24_sigreg_lambda_sweep/runs/bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_attn_amplitude.csv
+?? experiments/2026-06-24_sigreg_lambda_sweep/runs/bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_losses.csv
+?? experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_last_losses.csv
+?? experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_losses.csv
+?? experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_last_losses.csv
+?? experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_losses.csv
+?? tests/test_u_batchtime_trajectory.py
+[06-28 00:59:31] [finish-arm4] arm-4 GM values: 2L/best=1.1435  2L/last=1.1679  6L/best=1.1449  6L/last=1.1517
+[feature/contrastive-forecasting-363-v2 9b754d6] exp(#363): commit arm-4 raw artefacts (emb10_enc10, λ_e=1.0, λ_h=1.0)
+ 94 files changed, 129046 insertions(+), 73 deletions(-)
+ create mode 100644 experiments/2026-06-24_sigreg_lambda_sweep/results/dl_2L_emb10_enc10.log
+ create mode 100644 experiments/2026-06-24_sigreg_lambda_sweep/results/dl_6L_emb10_enc10.log
+ create mode 100644 experiments/2026-06-24_sigreg_lambda_sweep/results/finish_arm4.log
+ create mode 100644 experiments/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_2L/all_results.csv
+ create mode 100644 experiments/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_2L/summary.txt
+ create mode 100644 experiments/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_6L/all_results.csv
+ create mode 100644 experiments/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_6L/summary.txt
+ create mode 100644 experiments/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_last_2L/all_results.csv
+ create mode 100644 experiments/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_last_2L/summary.txt
+ create mode 100644 experiments/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_last_6L/all_results.csv
+ create mode 100644 experiments/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_last_6L/summary.txt
+ create mode 100644 experiments/2026-06-24_sigreg_lambda_sweep/results/queue_arm4.log
+ create mode 100644 experiments/2026-06-24_sigreg_lambda_sweep/results/run_bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10.log
+ create mode 100644 experiments/2026-06-24_sigreg_lambda_sweep/results/run_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_2L.log
+ create mode 100644 experiments/2026-06-24_sigreg_lambda_sweep/results/run_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_6L.log
+ create mode 100644 experiments/2026-06-24_sigreg_lambda_sweep/results/run_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_last_2L.log
+ create mode 100644 experiments/2026-06-24_sigreg_lambda_sweep/results/run_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_last_6L.log
+ create mode 100644 experiments/2026-06-24_sigreg_lambda_sweep/results/run_qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10.log
+ create mode 100644 experiments/2026-06-24_sigreg_lambda_sweep/results/run_qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_last.log
+ create mode 100644 experiments/2026-06-24_sigreg_lambda_sweep/results/run_qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10.log
+ create mode 100644 experiments/2026-06-24_sigreg_lambda_sweep/results/run_qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_last.log
+ create mode 100644 experiments/2026-06-24_sigreg_lambda_sweep/results/supervisor_arm4.log
+ create mode 100644 experiments/2026-06-24_sigreg_lambda_sweep/results/sweep_bb_emb10_enc10.log
+ create mode 100644 experiments/2026-06-24_sigreg_lambda_sweep/results/sweep_dl_emb10_enc10.log
+ create mode 100644 experiments/2026-06-24_sigreg_lambda_sweep/runs/bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_attn_amplitude.csv
+ create mode 100644 experiments/2026-06-24_sigreg_lambda_sweep/runs/bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_losses.csv
+ create mode 100644 experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_last_losses.csv
+ create mode 100644 experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_losses.csv
+ create mode 100644 experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_last_losses.csv
+ create mode 100644 experiments/2026-06-24_sigreg_lambda_sweep/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_losses.csv
+ create mode 100644 experiments/2026-06-24_sigreg_lambda_sweep/scripts/compute_u_batchtime_trajectory.py
+ create mode 100755 experiments/2026-06-24_sigreg_lambda_sweep/scripts/finish_arm4.sh
+ create mode 100755 experiments/2026-06-24_sigreg_lambda_sweep/scripts/finish_arm6.sh
+ create mode 100755 experiments/2026-06-24_sigreg_lambda_sweep/scripts/queue_arm4.sh
+ create mode 100755 experiments/2026-06-24_sigreg_lambda_sweep/scripts/queue_arm6.sh
+ create mode 100755 experiments/2026-06-24_sigreg_lambda_sweep/scripts/supervisor_arm4.sh
+ create mode 100755 experiments/2026-06-24_sigreg_lambda_sweep/scripts/supervisor_arm6.sh
+ rewrite reports/2026-06-24_sigreg_lambda_sweep/plots/best_vs_last_drift.png (99%)
+ rewrite reports/2026-06-24_sigreg_lambda_sweep/plots/dim_usage.png (85%)
+ rewrite reports/2026-06-24_sigreg_lambda_sweep/plots/gm_rel_mase.png (98%)
+ rewrite reports/2026-06-24_sigreg_lambda_sweep/plots/loss_curve.png (97%)
+ rewrite reports/2026-06-24_sigreg_lambda_sweep/plots/sigreg_e_inspection.png (95%)
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/dl_2L_emb10000_enc10.log
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/dl_2L_emb10_enc10.log
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/dl_6L_emb10000_enc10.log
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/dl_6L_emb10_enc10.log
+ rewrite reports/2026-06-24_sigreg_lambda_sweep/results/final_trajectories.txt (89%)
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_2L/all_results.csv
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_2L/summary.txt
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_6L/all_results.csv
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_6L/summary.txt
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_last_2L/all_results.csv
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_last_2L/summary.txt
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_last_6L/all_results.csv
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_last_6L/summary.txt
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_2L/all_results.csv
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_2L/summary.txt
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_6L/all_results.csv
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_6L/summary.txt
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_last_2L/all_results.csv
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_last_2L/summary.txt
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_last_6L/all_results.csv
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_last_6L/summary.txt
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/run_bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10.log
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/run_bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10.log
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/run_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_2L.log
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/run_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_6L.log
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/run_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_last_2L.log
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/run_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_last_6L.log
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/run_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_2L.log
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/run_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_6L.log
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/run_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_last_2L.log
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/run_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_last_6L.log
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/run_qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10.log
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/run_qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_last.log
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/run_qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10.log
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/run_qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_last.log
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/run_qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10.log
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/run_qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_last.log
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/run_qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10.log
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/run_qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_last.log
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/sweep_bb_emb10000_enc10.log
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/sweep_bb_emb10_enc10.log
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/sweep_dl_emb10000_enc10.log
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/sweep_dl_emb10000_enc10_rerun.log
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/results/sweep_dl_emb10_enc10.log
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/runs/bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_losses.csv
+ create mode 100644 reports/2026-06-24_sigreg_lambda_sweep/runs/bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10_enc10_losses.csv
+[06-28 00:59:31] [finish-arm4] git commit rc=0
+From github.com.contrastive-forecasting:jeremycochoy/contrastive-forecasting
+ * branch            feature/contrastive-forecasting-363-v2 -> FETCH_HEAD
+error: cannot rebase: You have unstaged changes.
+error: Please commit or stash them.
+[06-28 00:59:32] [finish-arm4] post-commit rebase failed — manual intervention needed

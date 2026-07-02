@@ -18,6 +18,7 @@ from src.metrics import (
     dim_usage,
     u_batch,
     u_temporal,
+    u_batchtime,
     retrieval_auc_top1_legacy,
     retrieval_auc_topk,
 )
@@ -103,6 +104,137 @@ def test_u_temporal_axis_param():
     z = torch.randn(8, 256, 3, 32)  # time at axis=1, n=256 isotropic
     u = u_temporal(z, time_axis=1).item()
     assert 0.85 <= u <= 1.0, f"U_temporal={u}"
+
+
+# Analytic-limit pins at the training regime K=384 — answer to the
+# `verify U as a dimension-usage estimator` ask (issue #363):
+#
+#   U = 1 / (d · mean_{i≠j} cos²(z_i, z_j)), clipped to [0, 1].
+#
+# Limits (see `docs/u_metric_check.md` and `verify_u_formula.py`):
+#   • z uniform on S^(d-1): mean cos² → 1/d, so U → 1.
+#   • rank-1 collapse zi = αi v:    cos² ≡ 1,  so U = 1/d.
+# The earlier tests pinned these at d=8; these pin the K=384 regime that
+# the report and dim-usage plots use. They also pin the further fact
+# that d·U is the participation-ratio estimate (NOT 1/U) — i.e. the
+# effective number of dimensions in use is K·U, not 1/U.
+
+def test_dim_usage_isotropic_at_K384_near_one():
+    torch.manual_seed(0)
+    K = 384
+    z = torch.randn(4096, K)              # N=4096 ≫ K for tight estimate
+    u = dim_usage(z, axis=0).item()
+    assert 0.99 <= u <= 1.0, f"U={u}, expected ≈1 (NOT 1/K)"
+
+
+def test_dim_usage_rank1_at_K384_is_one_over_K():
+    K = 384
+    v = torch.randn(K); v = v / v.norm()
+    alpha = torch.randn(4096, 1)
+    z = alpha * v                          # rank-1 on the K axis
+    u = dim_usage(z, axis=0).item()
+    assert u == pytest.approx(1.0 / K, rel=1e-3), (
+        f"U={u}, expected 1/K={1/K} (NOT 1)")
+
+
+@pytest.mark.parametrize("r", [1, 4, 16, 64, 192, 384])
+def test_dim_usage_rank_r_isotropic_matches_K_times_U(r):
+    # rank-r isotropic latent in K=384: predicts U = r/K, so K·U ≈ r.
+    # 1/U would be K/r — the user's "1/U ≈ effective # dims" hypothesis
+    # is wrong; K·U is the correct estimator.
+    torch.manual_seed(r)
+    K, N = 384, 4096
+    coeffs = torch.randn(N, r)
+    basis = torch.linalg.qr(torch.randn(K, r)).Q          # (K, r) orthonormal
+    z = coeffs @ basis.t()
+    u = dim_usage(z, axis=0).item()
+    K_times_U = K * u
+    assert K_times_U == pytest.approx(r, rel=0.02, abs=0.5), (
+        f"r={r}: K·U={K_times_U} ≠ r={r}; "
+        f"1/U={1/u:.2f} (would be K/r={K/r:.2f}, not r)")
+
+
+def test_dim_usage_K_times_U_matches_participation_ratio():
+    # For a latent with a prescribed eigenvalue spectrum on the
+    # second-moment matrix, K·U should track the participation ratio
+    # PR = (Σ λ)² / Σ λ² of (1/N) Σ ẑ_i ẑ_iᵀ. Pins the
+    # interpretation U ≈ PR / K.
+    torch.manual_seed(0)
+    K, N = 384, 4096
+    # Power-law-decay spectrum with mid effective rank — non-saturating
+    # so the empirical PR is unbiased.
+    eigs = 1.0 / torch.arange(1, K + 1, dtype=torch.float)
+    z = torch.randn(N, K) * torch.sqrt(eigs)
+    u = dim_usage(z, axis=0).item()
+    zn = F.normalize(z, dim=-1)
+    G = (zn.t() @ zn) / N
+    pr = (G.trace() ** 2 / (G @ G).trace()).item()
+    assert K * u == pytest.approx(pr, rel=0.05), (
+        f"K·U={K*u:.2f} vs PR={pr:.2f}; expected K·U ≈ PR")
+
+
+# ---------------------------------------------------------------------------
+# u_batchtime (#363) — pools (B, T) into one sample axis, mirroring the
+# pooling SIGReg uses for its random-projection statistic.
+# ---------------------------------------------------------------------------
+
+def test_u_batchtime_isotropic_near_one():
+    # Isotropic z over the pooled (B*T, ..., H) gives mean cos² ≈ 1/H,
+    # so U → 1. B*T = 1024 samples per channel slice; H = 32.
+    torch.manual_seed(0)
+    z = torch.randn(64, 16, 1, 32)
+    u = u_batchtime(z).item()
+    assert 0.9 <= u <= 1.0, f"U_batchtime={u}, expected ≈1"
+
+
+def test_u_batchtime_rank_one_collapse_is_one_over_d():
+    # Rank-1 collapse: every (b, t) sample is a scalar multiple of a
+    # single direction v. After L2-normalise every sample becomes ±v,
+    # so pairwise cos² = 1 and U → 1/H.
+    H = 32
+    v = torch.randn(H)
+    scales = torch.randn(64, 16, 1)         # (B, T, C)
+    z = scales.unsqueeze(-1) * v             # (B, T, C, H) — rank-1 on H
+    u = u_batchtime(z).item()
+    assert u == pytest.approx(1.0 / H, abs=1e-3), (
+        f"U_batchtime={u}, expected ≈1/H={1/H}")
+
+
+def test_u_batchtime_matches_explicit_reshape():
+    # Pin the API contract: u_batchtime(z) on (B, T, C, H) equals
+    # dim_usage(z.reshape(B*T, C, H), axis=0).
+    torch.manual_seed(1)
+    z = torch.randn(8, 12, 2, 16)
+    u_via_api = u_batchtime(z).item()
+    u_via_reshape = dim_usage(
+        z.reshape(8 * 12, 2, 16), axis=0).item()
+    assert u_via_api == pytest.approx(u_via_reshape, abs=1e-6)
+
+
+def test_u_batchtime_distinct_from_u_batch_and_u_temporal():
+    # Construct z so the three U variants are quantitatively distinct.
+    # Same direction d[t] across the batch axis at fixed t, but d varies
+    # across time:
+    #   u_batch  (per-t slice over B) sees a collinear set → 1/H.
+    #   u_temporal (per-b slice over T) sees T diverse directions → ≈ 1.
+    #   u_batchtime pools (B*T) — sees T directions, each repeated B
+    #     times — falls between the two floors. Distinct values pin
+    #     that the new metric is not redundant with either axis-specific
+    #     one.
+    torch.manual_seed(2)
+    B, T, C, H = 16, 16, 1, 32
+    d = torch.randn(T, H)
+    d = d / d.norm(dim=-1, keepdim=True)                     # (T, H) unit
+    scales = torch.randn(B, T, 1)                            # (B, T, C)
+    z = scales.unsqueeze(-1) * d.unsqueeze(0).unsqueeze(2)   # (B, T, C, H)
+    u_b = u_batch(z).item()
+    u_t = u_temporal(z, time_axis=1).item()
+    u_bt = u_batchtime(z).item()
+    assert u_b == pytest.approx(1.0 / H, abs=5e-3), u_b      # rank-1 per t
+    assert u_t > 0.85, u_t                                    # rank-T per b
+    # u_batchtime is strictly between the per-slice floor and the
+    # cross-time ceiling.
+    assert 1.0 / H < u_bt < u_t, (u_b, u_bt, u_t)
 
 
 # ---------------------------------------------------------------------------

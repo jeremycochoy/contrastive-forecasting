@@ -1,0 +1,6 @@
+[06-27 05:59:55] [queue-arm6] queue start  WT=/tmp/cf-revert-363  OUT=/tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep  SUFFIX=emb10000_enc10  GPU_BB=0
+[06-27 05:59:55] [queue-arm6] BB phase: bash /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/scripts/train_backbone_sigreg.sh 0 1000.0 1.0 emb10000_enc10
+[06-27 11:35:26] [queue-arm6] BB phase finished rc=0
+[06-27 11:35:26] [queue-arm6] DL phase: bash /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/scripts/launch_downstream.sh emb10000_enc10
+[06-27 15:03:01] [queue-arm6] DL phase finished rc=0
+[06-27 15:03:01] [queue-arm6] DL phase incomplete — missing: /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_2L/summary.txt /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_last_2L/summary.txt /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_6L/summary.txt /tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_last_6L/summary.txt

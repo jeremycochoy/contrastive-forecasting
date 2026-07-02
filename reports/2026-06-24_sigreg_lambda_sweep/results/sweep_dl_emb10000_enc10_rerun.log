@@ -1,0 +1,15 @@
+/tmp/cf-revert-363/experiments/2026-06-24_sigreg_lambda_sweep/scripts/downstream_sigreg.sh: line 11: WT: WT (worktree root containing train.py + experiments/hf_token.txt) must be set; e.g. WT=/home/jupyter/workspaces/contrastive-forecasting
+[06-27 15:06:10] [dl-sigreg-emb10000_enc10 2L g0] QH qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10 skip (FINAL exists)
+[06-27 15:06:10] [dl-sigreg-emb10000_enc10 2L g0] EVAL allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10 full-97 start
+[06-27 15:06:42] [dl-sigreg-emb10000_enc10 6L g1] QH qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10 skip (FINAL exists)
+[06-27 15:06:42] [dl-sigreg-emb10000_enc10 6L g1] EVAL allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10 full-97 start
+[06-27 18:52:22] [dl-sigreg-emb10000_enc10 2L g0] EVAL allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10 done GM=1.1488
+[06-27 18:52:22] [dl-sigreg-emb10000_enc10 2L g0] QH qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_last skip (FINAL exists)
+[06-27 18:52:22] [dl-sigreg-emb10000_enc10 2L g0] EVAL allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_last full-97 start
+[06-27 19:06:22] [dl-sigreg-emb10000_enc10 6L g1] EVAL allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10 done GM=1.1397
+[06-27 19:06:22] [dl-sigreg-emb10000_enc10 6L g1] QH qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_last skip (FINAL exists)
+[06-27 19:06:22] [dl-sigreg-emb10000_enc10 6L g1] EVAL allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_last full-97 start
+[06-27 22:19:50] [dl-sigreg-emb10000_enc10 2L g0] EVAL allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_last done GM=1.1537
+[06-27 22:19:50] [dl-sigreg-emb10000_enc10 2L g0] sigreg downstream complete (2L for emb10000_enc10)
+[06-27 22:44:52] [dl-sigreg-emb10000_enc10 6L g1] EVAL allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_emb10000_enc10_last done GM=1.1415
+[06-27 22:44:52] [dl-sigreg-emb10000_enc10 6L g1] sigreg downstream complete (6L for emb10000_enc10)
