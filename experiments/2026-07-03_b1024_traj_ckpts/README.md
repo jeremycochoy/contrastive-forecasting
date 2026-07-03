@@ -25,6 +25,13 @@ operator writes at launch time, once #366 arms A–I have all finished
 and the last-ckpt winner is confirmed. See `scripts/winners.sh.example`
 for the format and the re-verify procedure.
 
+`PARENT_BEST_LOSS_STEP` in the manifest must be a positive multiple of
+`TRAJ_SAVE_EVERY` (default 500) — trajectory checkpoints land on those
+step boundaries and nowhere else. The parent's raw `best_loss_step`
+from the losses CSV has no reason to align, so snap it to the nearest
+multiple of 500 when stamping the manifest. The launcher validates
+this invariant and hard-aborts with a clear error if it's violated.
+
 The launch procedure:
 
 ```bash

@@ -254,3 +254,115 @@ def test_downstream_tag_matches_backbone_run_name():
     dl_pattern = "allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_"
     assert bb_pattern in bb
     assert dl_pattern in dl
+
+
+# --- PARENT_BEST_LOSS_STEP × TRAJ_SAVE_EVERY invariant --------------------
+#
+# The retrained backbone emits `_step<N>.pth` only for N that are
+# multiples of --traj-save-every (=500 by default). If the operator
+# stamps a raw best_loss_step (e.g. 8237) from the parent's losses CSV
+# without snapping it, the parent-best-step cell in downstream_b1024.sh
+# hard-aborts on a missing checkpoint. Guard: (1) invariant on the
+# committed example manifest; (2) launch_experiment.sh fails fast with
+# a clear msg.
+
+
+TRAJ_SAVE_EVERY_DEFAULT = 500
+
+
+def test_winners_example_parent_step_is_traj_multiple():
+    """The committed manifest example must satisfy the invariant so
+    a naive copy-and-fill flow doesn't blow up. Snap the placeholder
+    if you change TRAJ_SAVE_EVERY_DEFAULT."""
+    manifest = parse_manifest(SCRIPTS / "winners.sh.example")
+    step = int(manifest["PARENT_BEST_LOSS_STEP"])
+    assert step > 0, "PARENT_BEST_LOSS_STEP must be positive"
+    assert step % TRAJ_SAVE_EVERY_DEFAULT == 0, (
+        f"PARENT_BEST_LOSS_STEP={step} in winners.sh.example is not a "
+        f"multiple of TRAJ_SAVE_EVERY={TRAJ_SAVE_EVERY_DEFAULT}; the "
+        "backbone's `_step<N>.pth` cadence would never emit it and "
+        "downstream_b1024.sh would hard-abort."
+    )
+
+
+def test_launch_experiment_validates_parent_step_multiple():
+    """The launcher must enforce the invariant with a clear ABORT."""
+    text = read(SCRIPTS / "launch_experiment.sh")
+    assert "PARENT_BEST_LOSS_STEP % TRAJ_SAVE_EVERY" in text, (
+        "launch_experiment.sh does not validate "
+        "PARENT_BEST_LOSS_STEP % TRAJ_SAVE_EVERY == 0"
+    )
+    assert "is not a multiple" in text, (
+        "launch_experiment.sh must fail with a clear "
+        "'not a multiple of TRAJ_SAVE_EVERY' error"
+    )
+
+
+def _run_launcher_stub(manifest_body: str, tmp_path) -> subprocess.CompletedProcess:
+    """Invoke launch_experiment.sh against a stub WT/OUT with the given
+    manifest. Sets BB_ONLY=1 and DL_ONLY=1 to skip both work blocks so
+    only the manifest gate + PARENT_BEST_LOSS_STEP guard is exercised.
+    Returns the CompletedProcess.
+    """
+    launcher = SCRIPTS / "launch_experiment.sh"
+    wt = tmp_path / "wt"
+    exp_scripts = wt / "experiments" / "2026-07-03_b1024_traj_ckpts" / "scripts"
+    exp_scripts.mkdir(parents=True)
+    (exp_scripts / "train_backbone_b1024.sh").write_text("#!/bin/bash\nexit 0\n")
+    (exp_scripts / "downstream_b1024.sh").write_text("#!/bin/bash\nexit 0\n")
+    (exp_scripts / "winners.sh.example").write_text("# stub\n")
+    out = tmp_path / "out"
+    out.mkdir()
+    (out / "winners.sh").write_text(manifest_body)
+    env = {
+        "WT": str(wt),
+        "OUT": str(out),
+        "BB_ONLY": "1",
+        "DL_ONLY": "1",
+        "PATH": "/usr/bin:/bin",
+    }
+    return subprocess.run(
+        ["bash", str(launcher)],
+        env=env, capture_output=True, text=True, check=False,
+    )
+
+
+def _valid_manifest(step: int) -> str:
+    return (
+        f"LAMBDA_E=1.0\nLAMBDA_H=1.0\nTAU=0.90\n"
+        f"PARENT_BEST_LOSS_STEP={step}\n"
+        f"WINNERS_VERIFIED_BY=tester\nWINNERS_VERIFIED_AT=2026-07-03\n"
+    )
+
+
+def test_launch_experiment_aborts_on_non_multiple(tmp_path):
+    """A non-multiple step must fail fast with the guard message."""
+    result = _run_launcher_stub(_valid_manifest(8237), tmp_path)
+    assert result.returncode != 0
+    assert "is not a multiple" in result.stderr, (
+        f"expected multiple-check ABORT, got stderr:\n{result.stderr}"
+    )
+
+
+def test_launch_experiment_accepts_multiple(tmp_path):
+    """A valid multiple must pass the guard and proceed to the stubbed
+    backbone/downstream (which we've neutered to `true`)."""
+    result = _run_launcher_stub(_valid_manifest(8500), tmp_path)
+    assert result.returncode == 0, (
+        f"expected success for 500-multiple, got rc={result.returncode}, "
+        f"stderr:\n{result.stderr}"
+    )
+
+
+def test_launch_experiment_aborts_on_non_integer(tmp_path):
+    """A non-integer step must fail fast."""
+    result = _run_launcher_stub(_valid_manifest("abc"), tmp_path)
+    assert result.returncode != 0
+    assert "not a non-negative integer" in result.stderr
+
+
+def test_launch_experiment_aborts_on_zero(tmp_path):
+    """Step 0 is not a valid trajectory checkpoint (loop starts at step 1)."""
+    result = _run_launcher_stub(_valid_manifest(0), tmp_path)
+    assert result.returncode != 0
+    assert "out of range" in result.stderr

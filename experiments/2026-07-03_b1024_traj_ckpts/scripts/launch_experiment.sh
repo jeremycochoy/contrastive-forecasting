@@ -57,6 +57,41 @@ done
 log "winners verified by ${WINNERS_VERIFIED_BY} on ${WINNERS_VERIFIED_AT}"
 log "Arm: λ_e=${LAMBDA_E} λ_h=${LAMBDA_H} τ=${TAU} B=1024 parent_best_loss_step=${PARENT_BEST_LOSS_STEP}"
 
+STEPS="${STEPS:-12500}"
+TRAJ_SAVE_EVERY="${TRAJ_SAVE_EVERY:-500}"
+SAVE_EVERY="${SAVE_EVERY:-2500}"
+
+# PARENT_BEST_LOSS_STEP must land on a trajectory-checkpoint boundary,
+# otherwise `_step<PARENT_BEST_LOSS_STEP>.pth` is never emitted by the
+# backbone and downstream_b1024.sh hard-aborts on the parent-best cell.
+# The parent's raw `best_loss_step` (from the losses CSV) has no reason
+# to align — the operator MUST snap to the nearest TRAJ_SAVE_EVERY
+# multiple when filling the manifest. Guard fails fast with a clear msg.
+if ! [[ "$PARENT_BEST_LOSS_STEP" =~ ^[0-9]+$ ]]; then
+  echo "[b1024] ABORT: PARENT_BEST_LOSS_STEP='${PARENT_BEST_LOSS_STEP}' is not a non-negative integer." >&2
+  exit 2
+fi
+if [ "$PARENT_BEST_LOSS_STEP" -le 0 ] || [ "$PARENT_BEST_LOSS_STEP" -gt "$STEPS" ]; then
+  echo "[b1024] ABORT: PARENT_BEST_LOSS_STEP=${PARENT_BEST_LOSS_STEP} out of range (1..${STEPS})." >&2
+  exit 2
+fi
+if [ $((PARENT_BEST_LOSS_STEP % TRAJ_SAVE_EVERY)) -ne 0 ]; then
+  cat >&2 <<EOF
+[b1024] ABORT: PARENT_BEST_LOSS_STEP=${PARENT_BEST_LOSS_STEP} is not a multiple
+of TRAJ_SAVE_EVERY=${TRAJ_SAVE_EVERY}.
+
+Trajectory checkpoints only land on multiples of TRAJ_SAVE_EVERY, so
+downstream_b1024.sh will hard-abort looking for the missing
+_step${PARENT_BEST_LOSS_STEP}.pth.
+
+Snap PARENT_BEST_LOSS_STEP to the nearest TRAJ_SAVE_EVERY multiple in
+${WINNERS_FILE} (e.g. round the parent's raw best_loss_step down to
+$((PARENT_BEST_LOSS_STEP - PARENT_BEST_LOSS_STEP % TRAJ_SAVE_EVERY)) or
+up to $((PARENT_BEST_LOSS_STEP - PARENT_BEST_LOSS_STEP % TRAJ_SAVE_EVERY + TRAJ_SAVE_EVERY))).
+EOF
+  exit 2
+fi
+
 # Derive suffix from the manifest, matching #366's encoding
 # (`emb<10·λ_e>_enc<10·λ_h>_tau<100·τ>`) with a `_b1024` marker appended.
 # The `_b1024` marker is what distinguishes this run's checkpoints from
@@ -69,10 +104,6 @@ suffix_for(){ # lambda_e lambda_h tau
 }
 SUFFIX=$(suffix_for "$LAMBDA_E" "$LAMBDA_H" "$TAU")
 log "derived suffix: ${SUFFIX}"
-
-STEPS="${STEPS:-12500}"
-TRAJ_SAVE_EVERY="${TRAJ_SAVE_EVERY:-500}"
-SAVE_EVERY="${SAVE_EVERY:-2500}"
 
 # Backbone (one GPU).
 if [ "${DL_ONLY:-0}" != 1 ]; then
