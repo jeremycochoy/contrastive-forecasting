@@ -61,6 +61,39 @@ STEPS="${STEPS:-12500}"
 TRAJ_SAVE_EVERY="${TRAJ_SAVE_EVERY:-500}"
 SAVE_EVERY="${SAVE_EVERY:-2500}"
 
+# STEPS must land on a trajectory-checkpoint boundary, otherwise the
+# retrained backbone's `_step<STEPS>.pth` (the last-locus checkpoint)
+# is never emitted and downstream_b1024.sh hard-aborts on the last cell.
+# Same failure mode as the PARENT_BEST_LOSS_STEP guard below; check STEPS
+# first so any operator STEPS override fails fast before we validate the
+# parent step against a broken total.
+if ! [[ "$STEPS" =~ ^[0-9]+$ ]]; then
+  echo "[b1024] ABORT: STEPS='${STEPS}' is not a non-negative integer." >&2
+  exit 2
+fi
+if ! [[ "$TRAJ_SAVE_EVERY" =~ ^[0-9]+$ ]] || [ "$TRAJ_SAVE_EVERY" -le 0 ]; then
+  echo "[b1024] ABORT: TRAJ_SAVE_EVERY='${TRAJ_SAVE_EVERY}' must be a positive integer." >&2
+  exit 2
+fi
+if [ "$STEPS" -le 0 ]; then
+  echo "[b1024] ABORT: STEPS=${STEPS} must be positive." >&2
+  exit 2
+fi
+if [ $((STEPS % TRAJ_SAVE_EVERY)) -ne 0 ]; then
+  cat >&2 <<EOF
+[b1024] ABORT: STEPS=${STEPS} is not a multiple of TRAJ_SAVE_EVERY=${TRAJ_SAVE_EVERY}.
+
+The last-locus checkpoint _step${STEPS}.pth only lands if STEPS is a
+multiple of TRAJ_SAVE_EVERY, so downstream_b1024.sh will hard-abort on
+the last cell.
+
+Snap STEPS to the nearest TRAJ_SAVE_EVERY multiple (e.g. round down to
+$((STEPS - STEPS % TRAJ_SAVE_EVERY)) or up to
+$((STEPS - STEPS % TRAJ_SAVE_EVERY + TRAJ_SAVE_EVERY))).
+EOF
+  exit 2
+fi
+
 # PARENT_BEST_LOSS_STEP must land on a trajectory-checkpoint boundary,
 # otherwise `_step<PARENT_BEST_LOSS_STEP>.pth` is never emitted by the
 # backbone and downstream_b1024.sh hard-aborts on the parent-best cell.

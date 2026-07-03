@@ -32,6 +32,12 @@ from the losses CSV has no reason to align, so snap it to the nearest
 multiple of 500 when stamping the manifest. The launcher validates
 this invariant and hard-aborts with a clear error if it's violated.
 
+`STEPS` (default 12,500; 25,000 for the follow-up per §Success criteria)
+is subject to the same invariant: it must be a positive multiple of
+`TRAJ_SAVE_EVERY`, otherwise the last-locus checkpoint `_step<STEPS>.pth`
+is never emitted and the last-cell of `downstream_b1024.sh` hard-aborts.
+The launcher validates this too.
+
 The launch procedure:
 
 ```bash

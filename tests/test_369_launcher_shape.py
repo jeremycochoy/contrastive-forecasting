@@ -298,10 +298,17 @@ def test_launch_experiment_validates_parent_step_multiple():
     )
 
 
-def _run_launcher_stub(manifest_body: str, tmp_path) -> subprocess.CompletedProcess:
+def _run_launcher_stub(
+    manifest_body: str,
+    tmp_path,
+    extra_env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess:
     """Invoke launch_experiment.sh against a stub WT/OUT with the given
     manifest. Sets BB_ONLY=1 and DL_ONLY=1 to skip both work blocks so
-    only the manifest gate + PARENT_BEST_LOSS_STEP guard is exercised.
+    only the manifest gate + STEPS/PARENT_BEST_LOSS_STEP guards are
+    exercised. `extra_env` overrides (e.g. STEPS, TRAJ_SAVE_EVERY) let
+    tests target the STEPS × TRAJ_SAVE_EVERY invariant without editing
+    the manifest.
     Returns the CompletedProcess.
     """
     launcher = SCRIPTS / "launch_experiment.sh"
@@ -321,6 +328,8 @@ def _run_launcher_stub(manifest_body: str, tmp_path) -> subprocess.CompletedProc
         "DL_ONLY": "1",
         "PATH": "/usr/bin:/bin",
     }
+    if extra_env:
+        env.update(extra_env)
     return subprocess.run(
         ["bash", str(launcher)],
         env=env, capture_output=True, text=True, check=False,
@@ -366,3 +375,81 @@ def test_launch_experiment_aborts_on_zero(tmp_path):
     result = _run_launcher_stub(_valid_manifest(0), tmp_path)
     assert result.returncode != 0
     assert "out of range" in result.stderr
+
+
+# --- STEPS × TRAJ_SAVE_EVERY invariant -----------------------------------
+#
+# `_step<STEPS>.pth` (the last-locus checkpoint that downstream_b1024.sh
+# reads at TOTAL_STEPS) is only emitted when STEPS is a multiple of
+# TRAJ_SAVE_EVERY. An operator STEPS override that breaks this invariant
+# (e.g. `STEPS=12501` for the 25k-step follow-up) would let backbone
+# training finish and then hard-abort the downstream last-cell on a
+# missing file. Same guard shape as PARENT_BEST_LOSS_STEP above.
+
+
+def test_launch_experiment_validates_steps_multiple():
+    """Static: launcher must check `STEPS % TRAJ_SAVE_EVERY == 0`."""
+    text = read(SCRIPTS / "launch_experiment.sh")
+    assert "STEPS % TRAJ_SAVE_EVERY" in text, (
+        "launch_experiment.sh does not validate STEPS % TRAJ_SAVE_EVERY == 0"
+    )
+    # Distinct error message from PARENT_BEST_LOSS_STEP's abort so the
+    # operator can tell them apart.
+    assert re.search(
+        r"STEPS=\$\{?STEPS\}?\s+is not a multiple of TRAJ_SAVE_EVERY",
+        text,
+    ), "STEPS-multiple abort must name STEPS explicitly"
+
+
+def test_launch_experiment_aborts_on_non_multiple_steps(tmp_path):
+    """STEPS=12501 (non-multiple of 500) must fail fast with the STEPS
+    guard, before PARENT_BEST_LOSS_STEP is validated against a broken
+    total. Use a manifest with a valid parent step so any failure
+    unambiguously points at the STEPS guard."""
+    result = _run_launcher_stub(
+        _valid_manifest(8500), tmp_path, extra_env={"STEPS": "12501"},
+    )
+    assert result.returncode != 0
+    assert "STEPS=12501 is not a multiple" in result.stderr, (
+        f"expected STEPS-multiple ABORT, got stderr:\n{result.stderr}"
+    )
+
+
+def test_launch_experiment_aborts_on_non_integer_steps(tmp_path):
+    """A non-integer STEPS override must fail fast."""
+    result = _run_launcher_stub(
+        _valid_manifest(8500), tmp_path, extra_env={"STEPS": "abc"},
+    )
+    assert result.returncode != 0
+    assert "STEPS='abc' is not a non-negative integer" in result.stderr
+
+
+def test_launch_experiment_aborts_on_zero_steps(tmp_path):
+    """STEPS=0 makes no sense: no training loop, no checkpoints."""
+    result = _run_launcher_stub(
+        _valid_manifest(8500), tmp_path, extra_env={"STEPS": "0"},
+    )
+    assert result.returncode != 0
+    assert "STEPS=0 must be positive" in result.stderr
+
+
+def test_launch_experiment_aborts_on_non_positive_traj_save_every(tmp_path):
+    """TRAJ_SAVE_EVERY=0 would cause `STEPS % 0` division by zero — must
+    be caught before the modulo check runs."""
+    result = _run_launcher_stub(
+        _valid_manifest(8500), tmp_path, extra_env={"TRAJ_SAVE_EVERY": "0"},
+    )
+    assert result.returncode != 0
+    assert "TRAJ_SAVE_EVERY='0' must be a positive integer" in result.stderr
+
+
+def test_launch_experiment_accepts_steps_multiple(tmp_path):
+    """25000-step follow-up (per #369 §Success criteria) must pass the
+    guard when STEPS is set explicitly to a 500-multiple."""
+    result = _run_launcher_stub(
+        _valid_manifest(8500), tmp_path, extra_env={"STEPS": "25000"},
+    )
+    assert result.returncode == 0, (
+        f"expected success for STEPS=25000, got rc={result.returncode}, "
+        f"stderr:\n{result.stderr}"
+    )

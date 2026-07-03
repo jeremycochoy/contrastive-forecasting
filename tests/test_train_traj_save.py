@@ -153,19 +153,22 @@ def test_coarse_and_fine_cadence_are_separate_saves():
 # --- runtime: end-to-end file emission on disk ---------------------------
 
 
-def _can_run_train_py() -> tuple[bool, str]:
-    """Guard: skip runtime test if the training environment isn't wired.
-    train.py needs torch + numpy + datasets + the src.* modules on PYTHONPATH.
+def _assert_train_deps_available() -> None:
+    """Fail loudly if the runtime deps train.py needs aren't installed.
+
+    Previous version skipped, which let CI report a green traj-save test
+    when the subprocess never actually ran. Explicit failure surfaces
+    env-drift immediately (reviewer round-2 LOW).
     """
     for mod in ("torch", "numpy", "datasets"):
         try:
             __import__(mod)
         except ImportError as e:
-            return False, f"missing dep {mod}: {e}"
-    src_pkg = REPO_ROOT / "src"
-    if not (src_pkg / "models.py").exists():
-        return False, f"src/models.py not found at {src_pkg}"
-    return True, ""
+            pytest.fail(
+                f"train.py dep {mod!r} not importable: {e}. "
+                "This test MUST run in CI — do not silently skip; either "
+                "install the dep or drop this test from the CI selector."
+            )
 
 
 def test_trajectory_save_emits_expected_files_on_disk(tmp_path):
@@ -179,15 +182,31 @@ def test_trajectory_save_emits_expected_files_on_disk(tmp_path):
     total_steps, so `_step<total_steps>.pth` MUST exist. If someone
     changes the loop bound to be exclusive, this test breaks loudly
     instead of the launch silently failing on a missing checkpoint.
+
+    Fails loudly (not `pytest.skip`) whenever anything about the env
+    prevents the train loop from running end-to-end — a silent skip
+    would let CI report the traj-save wiring green while it's actually
+    untested. The marker-file assertion at the tail (`_losses.csv`
+    written by CSVLogger) proves the loop reached the training phase,
+    not merely that argparse succeeded.
     """
-    ok, why = _can_run_train_py()
-    if not ok:
-        pytest.skip(why)
+    _assert_train_deps_available()
 
     save_dir = tmp_path / "runs"
     save_dir.mkdir()
     run_name = "trajtest"
     env = os.environ.copy()
+    # train.py imports `src.models`, `src.blocks`, ... — those live under
+    # REPO_ROOT/src. Assert the package is on disk BEFORE we run the
+    # subprocess so a moved import root fails here loudly, not as an
+    # opaque non-zero rc buried in the subprocess stderr.
+    src_models = REPO_ROOT / "src" / "models.py"
+    assert src_models.exists(), (
+        f"train.py imports `src.models` but {src_models} does not exist. "
+        "Either the import root moved or this test's REPO_ROOT is wrong. "
+        "Do NOT convert to skip — fix the path so the traj-save wiring is "
+        "actually exercised in CI."
+    )
     env["PYTHONPATH"] = str(REPO_ROOT) + os.pathsep + env.get("PYTHONPATH", "")
     cmd = [
         sys.executable, "-u", str(TRAIN_PY),
@@ -229,6 +248,24 @@ def test_trajectory_save_emits_expected_files_on_disk(tmp_path):
             f"stdout tail:\n{result.stdout[-2000:]}\n"
             f"stderr tail:\n{result.stderr[-2000:]}"
         )
+
+    # Unconditional loop-ran marker: train.py opens `<run>_losses.csv`
+    # BEFORE the step loop and flushes on close. Its existence proves
+    # the subprocess reached the training phase, not merely that
+    # argparse succeeded. This is the "did the test actually run the
+    # train loop?" assertion — if this fails, every downstream
+    # assertion below is meaningless, so we check it first.
+    losses_csv = save_dir / f"{run_name}_losses.csv"
+    assert losses_csv.exists(), (
+        f"train.py exited rc=0 but did NOT write {losses_csv.name}. "
+        "The training loop was never entered — every trajectory-save "
+        "assertion below would be vacuously green. Files in save_dir: "
+        f"{sorted(x.name for x in save_dir.iterdir())}"
+    )
+    assert losses_csv.stat().st_size > 0, (
+        f"{losses_csv.name} is empty — CSVLogger wrote no rows, so the "
+        "step loop ran zero iterations. Traj-save wiring is untested."
+    )
 
     for step in (2, 4):
         p = save_dir / f"{run_name}_step{step}.pth"
