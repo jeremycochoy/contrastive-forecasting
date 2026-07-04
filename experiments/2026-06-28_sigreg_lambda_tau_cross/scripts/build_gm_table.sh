@@ -48,6 +48,9 @@ declare -A ARM_LABEL=(
   [lD_emb100_enc100_tau090]="cross_D: λ_e=10, λ_h=10, τ=0.90"
   [lE_emb1000_enc1000_tau090]="cross_E: λ_e=100, λ_h=100, τ=0.90"
   [lF_emb10000_enc10000_tau090]="cross_F: λ_e=1000, λ_h=1000, τ=0.90"
+  [lG_emb1000_enc100_tau090]="cross_G: λ_e=100, λ_h=10, τ=0.90"
+  [lH_emb10_enc100_tau090]="cross_H: λ_e=1, λ_h=10, τ=0.90"
+  [lI_emb1000_enc10_tau090]="cross_I: λ_e=100, λ_h=1, τ=0.90"
 )
 
 # Compute aggregates from a local all_results.csv; echoes a CSV row.
@@ -77,7 +80,9 @@ emit_anchor(){
   # --- cross rows (this experiment) ---------------------------------------
   for arm in lA_emb100_enc10_tau090 lB_emb10000_enc10_tau090 \
              lC_emb10_enc10_tau090 lD_emb100_enc100_tau090 \
-             lE_emb1000_enc1000_tau090 lF_emb10000_enc10000_tau090; do
+             lE_emb1000_enc1000_tau090 lF_emb10000_enc10000_tau090 \
+             lG_emb1000_enc100_tau090 lH_emb10_enc100_tau090 \
+             lI_emb1000_enc10_tau090; do
     for HL in 2 6; do
       for ckpt in best last; do
         if [ "$ckpt" = best ]; then

@@ -30,6 +30,9 @@ CROSS_C = "cross_C"
 CROSS_D = "cross_D"
 CROSS_E = "cross_E"
 CROSS_F = "cross_F"
+CROSS_G = "cross_G"
+CROSS_H = "cross_H"
+CROSS_I = "cross_I"
 A363_E100 = "anchor_363_emb100_enc10"
 A363_E10000 = "anchor_363_emb10000_enc10"
 A357 = "anchor_357_tau090"
@@ -168,20 +171,20 @@ def lambda_grid_tau090():
     cells_tau090 = {
         (0.1,   0.1):    A357,
         (1.0,   1.0):    CROSS_C,
+        (1.0,   10.0):   CROSS_H,
         (10.0,  1.0):    CROSS_A,
         (10.0,  10.0):   CROSS_D,
+        (100.0, 1.0):    CROSS_I,
+        (100.0, 10.0):   CROSS_G,
         (100.0, 100.0):  CROSS_E,
         (1000.0, 1.0):   CROSS_B,
         (1000.0, 1000.0): CROSS_F,
     }
     arm_short = {
         A357:    r"EMA-$\tau$ anchor",
-        CROSS_A: "arm A",
-        CROSS_B: "arm B",
-        CROSS_C: "arm C",
-        CROSS_D: "arm D",
-        CROSS_E: "arm E",
-        CROSS_F: "arm F",
+        CROSS_A: "arm A", CROSS_B: "arm B", CROSS_C: "arm C",
+        CROSS_D: "arm D", CROSS_E: "arm E", CROSS_F: "arm F",
+        CROSS_G: "arm G", CROSS_H: "arm H", CROSS_I: "arm I",
     }
 
     fig, axes = plt.subplots(2, 2, figsize=(12.5, 8.0))
@@ -241,15 +244,19 @@ def lambda_grid_last_minus_best_tau090():
     cells_tau090 = {
         (0.1,   0.1):    A357,
         (1.0,   1.0):    CROSS_C,
+        (1.0,   10.0):   CROSS_H,
         (10.0,  1.0):    CROSS_A,
         (10.0,  10.0):   CROSS_D,
+        (100.0, 1.0):    CROSS_I,
+        (100.0, 10.0):   CROSS_G,
         (100.0, 100.0):  CROSS_E,
         (1000.0, 1.0):   CROSS_B,
         (1000.0, 1000.0): CROSS_F,
     }
     arm_short = {A357: r"EMA-$\tau$ anchor", CROSS_A: "arm A",
                  CROSS_B: "arm B", CROSS_C: "arm C", CROSS_D: "arm D",
-                 CROSS_E: "arm E", CROSS_F: "arm F"}
+                 CROSS_E: "arm E", CROSS_F: "arm F", CROSS_G: "arm G",
+                 CROSS_H: "arm H", CROSS_I: "arm I"}
     heads = ["2L", "6L"]
 
     fig, axes = plt.subplots(1, 2, figsize=(12.5, 5.4))
