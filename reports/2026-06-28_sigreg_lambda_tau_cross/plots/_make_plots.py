@@ -1,4 +1,4 @@
-"""Generate plots for the SIGReg λ × EMA-τ cross report."""
+"""Generate plots for the SIGReg (λ_e, λ_h) × EMA-τ report."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -38,22 +38,16 @@ A363_E10000 = "anchor_363_emb10000_enc10"
 A357 = "anchor_357_tau090"
 
 ARMS = [
-    (CROSS_A,    r"cross  $\lambda_e{=}10,\ \lambda_h{=}1,\ \tau{=}0.90$",       "#1f77b4"),
-    (CROSS_B,    r"cross  $\lambda_e{=}1000,\ \lambda_h{=}1,\ \tau{=}0.90$",     "#ff7f0e"),
-    (CROSS_C,    r"grid  $\lambda_e{=}1,\ \lambda_h{=}1,\ \tau{=}0.90$",         "#2ca02c"),
-    (CROSS_H,    r"grid  $\lambda_e{=}1,\ \lambda_h{=}10,\ \tau{=}0.90$",        "#e377c2"),
-    (A363_E100,  r"SIGReg sweep  $\lambda_e{=}10,\ \lambda_h{=}1,\ \tau{=}0.99$", "#9ecae1"),
-    (A363_E10000,r"SIGReg sweep  $\lambda_e{=}1000,\ \lambda_h{=}1,\ \tau{=}0.99$","#c6dbef"),
-    (A357,       r"EMA-$\tau$ sweep  $\lambda_e{=}\lambda_h{=}0.1,\ \tau{=}0.90$","#bdbdbd"),
+    (CROSS_A,    r"$\lambda_e{=}10,\ \lambda_h{=}1,\ \tau{=}0.90$",     "#1f77b4"),
+    (CROSS_B,    r"$\lambda_e{=}1000,\ \lambda_h{=}1,\ \tau{=}0.90$",   "#ff7f0e"),
+    (CROSS_C,    r"$\lambda_e{=}1,\ \lambda_h{=}1,\ \tau{=}0.90$",      "#2ca02c"),
+    (CROSS_H,    r"$\lambda_e{=}1,\ \lambda_h{=}10,\ \tau{=}0.90$",     "#e377c2"),
+    (A363_E100,  r"$\lambda_e{=}10,\ \lambda_h{=}1,\ \tau{=}0.99$",     "#9ecae1"),
+    (A363_E10000,r"$\lambda_e{=}1000,\ \lambda_h{=}1,\ \tau{=}0.99$",   "#c6dbef"),
+    (A357,       r"$\lambda_e{=}\lambda_h{=}0.1,\ \tau{=}0.90$",        "#bdbdbd"),
 ]
 
 GROUPS = [("2L", "best"), ("2L", "last"), ("6L", "best"), ("6L", "last")]
-
-ANCHOR_LABEL_SHORT = {
-    A363_E100:   r"SIGReg, $\lambda_e{=}10,\tau{=}0.99$",
-    A363_E10000: r"SIGReg, $\lambda_e{=}1000,\tau{=}0.99$",
-    A357:        r"EMA-$\tau$, $\lambda{=}0.1,\tau{=}0.90$",
-}
 
 
 def headline():
@@ -72,7 +66,7 @@ def headline():
     ax.set_xticklabels([f"{h} / {c}" for h, c in GROUPS])
     ax.set_ylabel("GM-Relative MASE  (lower is better)")
     ax.set_ylim(1.10, 1.21)
-    ax.set_title("Crossed arms + best grid arms vs single-axis anchors  (N=1 seed; no error bars)")
+    ax.set_title("GM-Relative MASE, seven of the twelve arms  (N=1 seed; no error bars)")
     handles, labels = ax.get_legend_handles_labels()
     handles.append(sn_line)
     labels.append("seasonal-naive  (GM-Rel MASE = 1.0)")
@@ -109,64 +103,15 @@ def four_metric():
     handles, labels = axes[0, 0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="lower center", ncol=3, fontsize=8.5,
                bbox_to_anchor=(0.5, -0.01))
-    fig.suptitle("Four GM aggregates — crossed and best grid arms vs anchors", y=0.99)
+    fig.suptitle("Four GM aggregates, same seven arms  (N=1 seed; no error bars)", y=0.99)
     fig.tight_layout(rect=(0, 0.06, 1, 0.97))
     fig.savefig(HERE / "four_aggregates.png", dpi=140)
     plt.close(fig)
 
 
-def cross_vs_best_anchor():
-    """Per group, plot the cross value as a coloured bar and overlay the best anchor as a tick."""
-    fig, ax = plt.subplots(figsize=(9.5, 4.8))
-    x = np.arange(len(GROUPS))
-    width = 0.32
-    cross_a_vals = [cell(CROSS_A, h, c) for h, c in GROUPS]
-    cross_b_vals = [cell(CROSS_B, h, c) for h, c in GROUPS]
-    best_anchor_vals = []
-    best_anchor_names = []
-    for h, c in GROUPS:
-        anchors = [
-            (A363_E100, cell(A363_E100, h, c)),
-            (A363_E10000, cell(A363_E10000, h, c)),
-            (A357, cell(A357, h, c)),
-        ]
-        best = min(anchors, key=lambda kv: kv[1])
-        best_anchor_vals.append(best[1])
-        best_anchor_names.append(best[0])
-
-    ax.bar(x - width / 2, cross_a_vals, width, color="#1f77b4",
-           label=r"cross  $\lambda_e{=}10,\ \tau{=}0.90$")
-    ax.bar(x + width / 2, cross_b_vals, width, color="#ff7f0e",
-           label=r"cross  $\lambda_e{=}1000,\ \tau{=}0.90$")
-    for xi, va, vb in zip(x, cross_a_vals, cross_b_vals):
-        ax.text(xi - width / 2, va + 0.003, f"{va:.4f}", ha="center", va="bottom",
-                fontsize=8, rotation=90)
-        ax.text(xi + width / 2, vb + 0.003, f"{vb:.4f}", ha="center", va="bottom",
-                fontsize=8, rotation=90)
-    for xi, v, name in zip(x, best_anchor_vals, best_anchor_names):
-        ax.hlines(v, xi - width, xi + width, color="k", linewidth=1.6,
-                  label="best single-axis anchor in group" if xi == 0 else None)
-        ax.text(xi, v - 0.004, f"{v:.4f}\n({ANCHOR_LABEL_SHORT[name]})",
-                ha="center", va="top", fontsize=6.8)
-
-    ax.set_xticks(x)
-    ax.set_xticklabels([f"{h} / {c}" for h, c in GROUPS])
-    ax.set_ylabel("GM-Relative MASE")
-    ax.set_ylim(1.10, 1.21)
-    ax.set_title("Each cross vs the best single-axis anchor in the same group")
-    ax.legend(fontsize=9, loc="upper right")
-    ax.grid(axis="y", linestyle=":", alpha=0.4)
-    fig.tight_layout()
-    fig.savefig(HERE / "cross_vs_best_anchor.png", dpi=140)
-    plt.close(fig)
-
-
 def lambda_grid_tau090():
-    """Per (head × ckpt) cell, a (λ_e, λ_h) heatmap restricted to τ=0.90 runs.
-
-    Ten measured cells: the EMA-τ-sweep anchor at (0.1, 0.1) plus nine
-    arms A-I covering the λ_h=1 row, the λ_h=10 row and the diagonal.
-    Unmeasured cells are hatched. Colour is GM-Relative MASE.
+    """(λ_e, λ_h) heatmap of GM-Relative MASE over the τ=0.90 arms,
+    one panel per (head depth, checkpoint). Cells not run are hatched.
     """
     lam_e = [0.1, 1.0, 10.0, 100.0, 1000.0]
     lam_h = [0.1, 1.0, 10.0, 100.0, 1000.0]
@@ -182,14 +127,9 @@ def lambda_grid_tau090():
         (1000.0, 1.0):   CROSS_B,
         (1000.0, 1000.0): CROSS_F,
     }
-    arm_short = {
-        A357:    r"EMA-$\tau$ anchor",
-        CROSS_A: "arm A", CROSS_B: "arm B", CROSS_C: "arm C",
-        CROSS_D: "arm D", CROSS_E: "arm E", CROSS_F: "arm F",
-        CROSS_G: "arm G", CROSS_H: "arm H", CROSS_I: "arm I",
-    }
 
     fig, axes = plt.subplots(2, 2, figsize=(12.5, 8.0))
+    fig.subplots_adjust(hspace=0.35)
     vmin, vmax = 1.12, 1.19
     cmap = plt.get_cmap("RdBu_r")
     for ax, (head, ckpt) in zip(axes.ravel(), GROUPS):
@@ -210,13 +150,9 @@ def lambda_grid_tau090():
                                                fill=False, hatch="///",
                                                edgecolor="#888", linewidth=0))
                 else:
-                    arm = cells_tau090[(lam_e[j], lam_h[i])]
-                    ax.text(j, i + 0.14, f"{v:.4f}",
+                    ax.text(j, i, f"{v:.4f}",
                             ha="center", va="center", fontsize=9.5,
                             fontweight="bold", color="black")
-                    ax.text(j, i - 0.22, arm_short[arm],
-                            ha="center", va="center", fontsize=7.5,
-                            color="black")
         ax.set_xticks(range(len(lam_e)))
         ax.set_xticklabels([f"{v:g}" for v in lam_e])
         ax.set_yticks(range(len(lam_h)))
@@ -227,7 +163,7 @@ def lambda_grid_tau090():
     cbar = fig.colorbar(im, ax=axes.ravel().tolist(),
                         shrink=0.85, pad=0.02, label="GM-Relative MASE")
     fig.suptitle(
-        r"$(\lambda_e, \lambda_h)$ grid restricted to $\tau{=}0.90$ runs"
+        r"GM-Relative MASE per $(\lambda_e, \lambda_h)$ at $\tau{=}0.90$"
         "  (hatched = not run; blue = better, red = worse)",
         y=0.99,
     )
@@ -237,9 +173,8 @@ def lambda_grid_tau090():
 
 
 def lambda_grid_last_minus_best_tau090():
-    """(last − best) GM-Rel MASE per (λ_e, λ_h) cell at τ=0.90, one panel per
-    head depth. Negative = last-ckpt beat best-ckpt (blue, we're happy).
-    Positive = last regressed vs best (red).
+    """(last − best) GM-Relative MASE per (λ_e, λ_h) cell at τ=0.90,
+    one panel per head depth. Negative = last checkpoint better than best.
     """
     lam_e = [0.1, 1.0, 10.0, 100.0, 1000.0]
     lam_h = [0.1, 1.0, 10.0, 100.0, 1000.0]
@@ -255,10 +190,6 @@ def lambda_grid_last_minus_best_tau090():
         (1000.0, 1.0):   CROSS_B,
         (1000.0, 1000.0): CROSS_F,
     }
-    arm_short = {A357: r"EMA-$\tau$ anchor", CROSS_A: "arm A",
-                 CROSS_B: "arm B", CROSS_C: "arm C", CROSS_D: "arm D",
-                 CROSS_E: "arm E", CROSS_F: "arm F", CROSS_G: "arm G",
-                 CROSS_H: "arm H", CROSS_I: "arm I"}
     heads = ["2L", "6L"]
 
     fig, axes = plt.subplots(1, 2, figsize=(12.5, 5.4))
@@ -283,13 +214,9 @@ def lambda_grid_last_minus_best_tau090():
                                                fill=False, hatch="///",
                                                edgecolor="#888", linewidth=0))
                 else:
-                    arm = cells_tau090[(lam_e[j], lam_h[i])]
-                    ax.text(j, i + 0.14, f"{v:+.4f}",
+                    ax.text(j, i, f"{v:+.4f}",
                             ha="center", va="center", fontsize=9.5,
                             fontweight="bold", color="black")
-                    ax.text(j, i - 0.22, arm_short[arm],
-                            ha="center", va="center", fontsize=7.5,
-                            color="black")
         ax.set_xticks(range(len(lam_e)))
         ax.set_xticklabels([f"{v:g}" for v in lam_e])
         ax.set_yticks(range(len(lam_h)))
@@ -300,8 +227,8 @@ def lambda_grid_last_minus_best_tau090():
     fig.colorbar(im, ax=axes.ravel().tolist(), shrink=0.85, pad=0.02,
                  label="GM-Rel MASE  (last − best)")
     fig.suptitle(
-        r"last − best drift per $(\lambda_e, \lambda_h)$ cell at $\tau{=}0.90$"
-        "  (blue = last beats best; red = last regresses)",
+        r"GM-Relative MASE, last − best checkpoint, per $(\lambda_e, \lambda_h)$ at $\tau{=}0.90$"
+        "  (blue = last is better; red = last is worse)",
         y=1.00,
     )
     fig.savefig(HERE / "lambda_grid_last_minus_best_tau090.png", dpi=140,
@@ -311,7 +238,6 @@ def lambda_grid_last_minus_best_tau090():
 
 if __name__ == "__main__":
     headline()
-    cross_vs_best_anchor()
     four_metric()
     lambda_grid_tau090()
     lambda_grid_last_minus_best_tau090()
