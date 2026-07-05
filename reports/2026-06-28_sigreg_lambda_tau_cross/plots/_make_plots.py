@@ -40,6 +40,8 @@ A357 = "anchor_357_tau090"
 ARMS = [
     (CROSS_A,    r"cross  $\lambda_e{=}10,\ \lambda_h{=}1,\ \tau{=}0.90$",       "#1f77b4"),
     (CROSS_B,    r"cross  $\lambda_e{=}1000,\ \lambda_h{=}1,\ \tau{=}0.90$",     "#ff7f0e"),
+    (CROSS_C,    r"grid  $\lambda_e{=}1,\ \lambda_h{=}1,\ \tau{=}0.90$",         "#2ca02c"),
+    (CROSS_H,    r"grid  $\lambda_e{=}1,\ \lambda_h{=}10,\ \tau{=}0.90$",        "#e377c2"),
     (A363_E100,  r"SIGReg sweep  $\lambda_e{=}10,\ \lambda_h{=}1,\ \tau{=}0.99$", "#9ecae1"),
     (A363_E10000,r"SIGReg sweep  $\lambda_e{=}1000,\ \lambda_h{=}1,\ \tau{=}0.99$","#c6dbef"),
     (A357,       r"EMA-$\tau$ sweep  $\lambda_e{=}\lambda_h{=}0.1,\ \tau{=}0.90$","#bdbdbd"),
@@ -57,7 +59,7 @@ ANCHOR_LABEL_SHORT = {
 def headline():
     fig, ax = plt.subplots(figsize=(9.5, 5.0))
     x = np.arange(len(GROUPS))
-    width = 0.16
+    width = 0.12
     for i, (arm, label, colour) in enumerate(ARMS):
         vals = [cell(arm, h, c) for h, c in GROUPS]
         offset = (i - (len(ARMS) - 1) / 2) * width
@@ -70,7 +72,7 @@ def headline():
     ax.set_xticklabels([f"{h} / {c}" for h, c in GROUPS])
     ax.set_ylabel("GM-Relative MASE  (lower is better)")
     ax.set_ylim(1.10, 1.21)
-    ax.set_title("Two crosses vs three single-axis anchors  (N=1 seed; no error bars)")
+    ax.set_title("Crossed arms + best grid arms vs single-axis anchors  (N=1 seed; no error bars)")
     handles, labels = ax.get_legend_handles_labels()
     handles.append(sn_line)
     labels.append("seasonal-naive  (GM-Rel MASE = 1.0)")
@@ -90,7 +92,7 @@ def four_metric():
     ]
     fig, axes = plt.subplots(2, 2, figsize=(11.5, 7.5))
     x = np.arange(len(GROUPS))
-    width = 0.16
+    width = 0.12
     for ax, (col, title) in zip(axes.ravel(), metrics):
         for i, (arm, label, colour) in enumerate(ARMS):
             vals = [cell(arm, h, c, col=col) for h, c in GROUPS]
@@ -107,7 +109,7 @@ def four_metric():
     handles, labels = axes[0, 0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="lower center", ncol=3, fontsize=8.5,
                bbox_to_anchor=(0.5, -0.01))
-    fig.suptitle("Four GM aggregates — two crosses vs three anchors", y=0.99)
+    fig.suptitle("Four GM aggregates — crossed and best grid arms vs anchors", y=0.99)
     fig.tight_layout(rect=(0, 0.06, 1, 0.97))
     fig.savefig(HERE / "four_aggregates.png", dpi=140)
     plt.close(fig)
@@ -162,8 +164,8 @@ def cross_vs_best_anchor():
 def lambda_grid_tau090():
     """Per (head × ckpt) cell, a (λ_e, λ_h) heatmap restricted to τ=0.90 runs.
 
-    Only three cells have been measured at τ=0.90 — `λ_e=λ_h=0.1` (the EMA-τ
-    sweep anchor) and the two crosses `λ_e=10, λ_h=1` and `λ_e=1000, λ_h=1`.
+    Ten measured cells: the EMA-τ-sweep anchor at (0.1, 0.1) plus nine
+    arms A-I covering the λ_h=1 row, the λ_h=10 row and the diagonal.
     Unmeasured cells are hatched. Colour is GM-Relative MASE.
     """
     lam_e = [0.1, 1.0, 10.0, 100.0, 1000.0]

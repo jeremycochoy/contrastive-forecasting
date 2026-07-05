@@ -1,46 +1,56 @@
-# Crossing the SIGReg λ and EMA-τ single-axis winners: the global-best cell on all four GM aggregates is a single-axis anchor, not a cross arm
+# Crossing the SIGReg λ and EMA-τ winners does not compound; a nine-arm (λ_e, λ_h) grid at τ=0.90 moves every GM global minimum to a λ_e=1 cell, within single-seed noise
 
 **Question.** SIGReg's per-term weights (`λ_e`, `λ_h`) and the EMA-teacher
 temperature `τ` were each tuned in isolation in prior work — a λ sweep
 chose `λ_e` at fixed `τ=0.99`, and a τ sweep chose `τ=0.90` at fixed
-`λ_e=λ_h=0.1`. Does pairing each axis's winner in a single run compound
-the gain, or does the new operating point sit between its single-axis
-parents?
+`λ_e=λ_h=0.1`. Two questions, answered in sequence: does pairing each
+axis's winner in a single run compound the gain? And, extending the two
+crossed arms to a nine-arm grid, where does the τ=0.90 optimum actually
+sit in the (λ_e, λ_h) plane?
 
-**Answer.** It does not compound. On all four GM aggregates the best cell
-is a single-axis anchor, not a cross arm.
+**Answer.** Crossing the winners does not compound: neither crossed arm
+(λ_e=10 or λ_e=1000, λ_h=1, τ=0.90) holds any of the four global
+minima. The grid instead moves every global minimum to a λ_e=1 cell at
+τ=0.90 — but each by a margin (0.08–0.47 %) inside the single-seed
+noise band.
 
-| GM aggregate | best cell | arm | head / ckpt |
-| --- | --: | --- | --- |
-| Rel-MASE         | **1.1294** | SIGReg sweep, λ_e=10  λ_h=1, τ=0.99   | 6L / best |
-| MASE (raw)       | **1.5788** | SIGReg sweep, λ_e=10  λ_h=1, τ=0.99   | 6L / best |
-| MAPE / SN_MAPE   | **1.0618** | SIGReg sweep, λ_e=10  λ_h=1, τ=0.99   | 6L / last |
-| CRPS / SN_CRPS   | **0.8502** | SIGReg sweep, λ_e=1000 λ_h=1, τ=0.99 | 2L / last |
+| GM aggregate | best cell | arm | head / ckpt | margin over best other arm |
+| --- | --: | --- | --- | --- |
+| Rel-MASE         | **1.1254** | grid, λ_e=1 λ_h=1, τ=0.90  | 6L / last | 0.35 % (1.1294, SIGReg sweep λ_e=10, 6L/best) |
+| MASE (raw)       | **1.5732** | grid, λ_e=1 λ_h=1, τ=0.90  | 6L / last | 0.35 % (1.5788, SIGReg sweep λ_e=10, 6L/best) |
+| MAPE / SN_MAPE   | **1.0568** | grid, λ_e=1 λ_h=10, τ=0.90 | 6L / best | 0.47 % (1.0618, SIGReg sweep λ_e=10, 6L/last) |
+| CRPS / SN_CRPS   | **0.8495** | grid, λ_e=1 λ_h=1, τ=0.90  | 6L / last | 0.08 % (0.8502, SIGReg sweep λ_e=1000, 2L/last) |
 
 *GM-Relative MASE: geometric mean over GIFT-Eval's 97 tasks of model MASE
 divided by seasonal-naive MASE. Lower is better; 1.0 = seasonal-naive.
 The other three are the analogous geometric means of raw MASE, of
 MAPE / SN_MAPE, and of mean-weighted-sum-quantile-loss / SN_CRPS. Each
-"best cell" is the global minimum across all twenty
-(2 head depths × 2 ckpts × 5 arms) configurations for that aggregate.*
+"best cell" is the global minimum across all forty-eight
+(2 head depths × 2 ckpts × 12 arms) configurations for that aggregate.*
 
-Within the two `best`-checkpoint groups every single-axis anchor sits
-below every cross bar; within the two `last`-checkpoint groups the
-`λ_e=1000` cross sits below every anchor by ≤ 0.3 % of the best anchor
-in that group.
+At the two `best`-checkpoint groups the lowest Rel-MASE cell is the
+τ=0.99 SIGReg-sweep anchor; at the two `last`-checkpoint groups it is
+the grid's (λ_e=1, λ_h=1) arm.
 
-![Grouped-bar chart: GM-Relative MASE per (head depth × checkpoint) group, five
-arms per group — two cross arms (τ=0.90) and three single-axis anchors
-(τ=0.99 at λ_e=10, τ=0.99 at λ_e=1000, τ=0.90 at λ_e=λ_h=0.1). Horizontal
-dotted line at GM-Rel MASE = 1.0 marks the seasonal-naive
-baseline.](plots/headline_relmase.png)
+![Grouped-bar chart: GM-Relative MASE per (head depth × checkpoint)
+group, seven arms per group — the two crossed arms, the two best grid
+arms (λ_e=1 λ_h=1 and λ_e=1 λ_h=10, both τ=0.90) and three single-axis
+anchors. Horizontal dotted line at GM-Rel MASE = 1.0 marks the
+seasonal-naive baseline.](plots/headline_relmase.png)
 
 ## Arms
 
 | arm                                              | λ_e   | λ_h | τ    | provenance |
 | ---                                              | --:   | --: | --:  | --- |
-| **cross, λ_e=10 λ_h=1, τ=0.90**                  | 10    | 1   | 0.90 | λ pair = prior λ-sweep best-at-best; τ = prior τ-sweep winner |
-| **cross, λ_e=1000 λ_h=1, τ=0.90**                | 1000  | 1   | 0.90 | λ pair = prior λ-sweep best-at-last; τ = prior τ-sweep winner |
+| **arm A (crossed winners)**                      | 10    | 1   | 0.90 | λ pair = prior λ-sweep best-at-best; τ = prior τ-sweep winner |
+| **arm B (crossed winners)**                      | 1000  | 1   | 0.90 | λ pair = prior λ-sweep best-at-last; τ = prior τ-sweep winner |
+| arm C (grid)                                     | 1     | 1   | 0.90 | grid extension |
+| arm D (grid)                                     | 10    | 10  | 0.90 | grid extension |
+| arm E (grid)                                     | 100   | 100 | 0.90 | grid extension |
+| arm F (grid)                                     | 1000  | 1000| 0.90 | grid extension |
+| arm G (grid)                                     | 100   | 10  | 0.90 | grid extension |
+| arm H (grid)                                     | 1     | 10  | 0.90 | grid extension |
+| arm I (grid)                                     | 100   | 1   | 0.90 | grid extension |
 | SIGReg sweep, λ_e=10 λ_h=1, τ=0.99               | 10    | 1   | 0.99 | prior λ-sweep best-at-best (its native τ) |
 | SIGReg sweep, λ_e=1000 λ_h=1, τ=0.99             | 1000  | 1   | 0.99 | prior λ-sweep best-at-last (its native τ) |
 | EMA-τ sweep, λ_e=λ_h=0.1, τ=0.90                 | 0.1   | 0.1 | 0.90 | prior τ-sweep winner (its native λ pair) |
@@ -74,33 +84,34 @@ group.](plots/cross_vs_best_anchor.png)
 
 ## Four aggregates
 
-The same five arms scored on the other three GM aggregates — raw MASE,
-MAPE / SN_MAPE, CRPS / SN_CRPS — keep the same ordering at the
-`best`-checkpoint groups (a single-axis anchor wins each). On the
-`last`-checkpoint groups the `λ_e=1000` cross is the lowest cell on
-Rel-MASE and on raw MASE, but loses both `last` groups on MAPE_SN and
-on CRPS_SN.
+The two crossed arms hold none of the sixteen (aggregate × head × ckpt)
+group minima. At the `best`-checkpoint groups the τ=0.99 SIGReg-sweep
+anchor holds seven of eight — the grid's (1, 10) arm takes MAPE_SN at
+6L. At the `last`-checkpoint groups the grid's (1, 1) arm holds six of
+eight — the τ=0.99 anchors keep MAPE_SN at 6L and CRPS_SN at 2L.
 
 ![Four-panel grouped-bar chart: GM-Relative MASE (top-left), raw GM-MASE
 (top-right), GM-MAPE / SN_MAPE (bottom-left), GM-CRPS / SN_CRPS
-(bottom-right). Five arms per (head × checkpoint) group, same colour
+(bottom-right). Seven arms per (head × checkpoint) group, same colour
 coding as the headline figure.](plots/four_aggregates.png)
 
 ## (λ_e, λ_h) grid at τ=0.90
 
 The same headline GM-Relative MASE plotted as a (λ_e, λ_h) heatmap
-restricted to the τ=0.90 runs. Seven cells are measured — the EMA-τ-sweep
-anchor at (λ_e=λ_h=0.1) plus six additional arms filling the grid at
-(1, 1), (10, 1), (10, 10), (100, 100), (1000, 1) and (1000, 1000).
-Hatched cells are not run.
+restricted to the τ=0.90 runs. Ten cells are measured — the EMA-τ-sweep
+anchor at (λ_e=λ_h=0.1) plus the nine arms at (1, 1), (1, 10), (10, 1),
+(10, 10), (100, 1), (100, 10), (100, 100), (1000, 1) and (1000, 1000).
+Hatched cells are not run. Performance degrades from the (1, 1) corner
+toward large λ on both axes; the (1000, 1000) arm holds the worst cell
+of the whole experiment on every aggregate.
 
 ![2×2 grid: (λ_e, λ_h) heatmap of GM-Relative MASE, one panel per
-(head × checkpoint) group. Seven filled cells; the rest hatched.
+(head × checkpoint) group. Ten filled cells; the rest hatched.
 Blue = better, red = worse.](plots/lambda_grid_tau090.png)
 
 ## (last − best) drift per grid cell
 
-Same seven cells, plotted as the checkpoint drift `GM-Rel MASE(last) −
+Same ten cells, plotted as the checkpoint drift `GM-Rel MASE(last) −
 GM-Rel MASE(best)`, one panel per q-head depth. Negative (blue) means the
 `last` checkpoint improved on the `best` checkpoint after the extra
 training steps; positive (red) means it regressed.
@@ -118,14 +129,17 @@ SIGReg with per-term weights `λ_e` (embedding) and `λ_h` (encoding) on
 the student. Each scored cell freezes the backbone, trains a fresh
 quantile head (2L or 6L) at the same step budget, and evaluates on
 GIFT-Eval's 97 tasks at `best-loss` and at `last` (step 12,500). Two
-ckpts × two head depths × five arms = 20 GIFT-Eval cells; the cross arms
-contribute eight of them, the three anchors contribute the other twelve.
+ckpts × two head depths × twelve arms = 48 GIFT-Eval cells; the two
+crossed arms contribute eight, the seven grid-extension arms twenty-eight,
+and the three anchors twelve.
 GM aggregates are computed by `scripts/_compute_gm.py` against the
 seasonal-naive `all_results.csv` from `~/workspaces/gift-eval/results/`.
 
 ## Caveat — single seed
 
-Each cell is `N=1`. The two `last`-checkpoint cross-vs-anchor deltas
-sit inside the within-arm best→last band reported above, so a
-multi-seed replicate that cleared the band would be required to claim
-either as a win.
+Each cell is `N=1`. The four global-minimum margins in the headline
+table (0.35 %, 0.35 %, 0.47 %, 0.08 %) and the two crossed-arm deltas
+above all sit inside the **−3.4 % to +0.9 %** within-arm best→last band
+measured on the same data (`results/notes.md`), so a multi-seed
+replicate that cleared the band would be required to claim any of them
+as a win.
