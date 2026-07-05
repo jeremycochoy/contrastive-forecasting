@@ -3,9 +3,9 @@
 **Question.** SIGReg's per-term weights (`λ_e`, `λ_h`) and the EMA-teacher
 temperature `τ` were each tuned in isolation in prior work — a λ sweep
 chose `λ_e` at fixed `τ=0.99`, and a τ sweep chose `τ=0.90` at fixed
-`λ_e=λ_h=0.1`. Two questions, answered in sequence: does pairing each
-axis's winner in a single run compound the gain? And, extending the two
-crossed arms to a nine-arm grid, where does the τ=0.90 optimum actually
+`λ_e=λ_h=0.1`. Two questions: does pairing each axis's winner in a
+single run compound the gain? And, over a nine-arm (λ_e, λ_h) grid at
+τ=0.90 that contains both crossed arms, where does the optimum actually
 sit in the (λ_e, λ_h) plane?
 
 **Answer.** Crossing the winners does not compound: neither crossed arm
@@ -44,13 +44,13 @@ seasonal-naive baseline.](plots/headline_relmase.png)
 | ---                                              | --:   | --: | --:  | --- |
 | **arm A (crossed winners)**                      | 10    | 1   | 0.90 | λ pair = prior λ-sweep best-at-best; τ = prior τ-sweep winner |
 | **arm B (crossed winners)**                      | 1000  | 1   | 0.90 | λ pair = prior λ-sweep best-at-last; τ = prior τ-sweep winner |
-| arm C (grid)                                     | 1     | 1   | 0.90 | grid extension |
-| arm D (grid)                                     | 10    | 10  | 0.90 | grid extension |
-| arm E (grid)                                     | 100   | 100 | 0.90 | grid extension |
-| arm F (grid)                                     | 1000  | 1000| 0.90 | grid extension |
-| arm G (grid)                                     | 100   | 10  | 0.90 | grid extension |
-| arm H (grid)                                     | 1     | 10  | 0.90 | grid extension |
-| arm I (grid)                                     | 100   | 1   | 0.90 | grid extension |
+| arm C (grid)                                     | 1     | 1   | 0.90 | grid diagonal (λ_e = λ_h) |
+| arm D (grid)                                     | 10    | 10  | 0.90 | grid diagonal (λ_e = λ_h) |
+| arm E (grid)                                     | 100   | 100 | 0.90 | grid diagonal (λ_e = λ_h) |
+| arm F (grid)                                     | 1000  | 1000| 0.90 | grid diagonal (λ_e = λ_h) |
+| arm G (grid)                                     | 100   | 10  | 0.90 | grid off-diagonal |
+| arm H (grid)                                     | 1     | 10  | 0.90 | grid off-diagonal |
+| arm I (grid)                                     | 100   | 1   | 0.90 | grid off-diagonal |
 | SIGReg sweep, λ_e=10 λ_h=1, τ=0.99               | 10    | 1   | 0.99 | prior λ-sweep best-at-best (its native τ) |
 | SIGReg sweep, λ_e=1000 λ_h=1, τ=0.99             | 1000  | 1   | 0.99 | prior λ-sweep best-at-last (its native τ) |
 | EMA-τ sweep, λ_e=λ_h=0.1, τ=0.90                 | 0.1   | 0.1 | 0.90 | prior τ-sweep winner (its native λ pair) |
@@ -130,7 +130,7 @@ the student. Each scored cell freezes the backbone, trains a fresh
 quantile head (2L or 6L) at the same step budget, and evaluates on
 GIFT-Eval's 97 tasks at `best-loss` and at `last` (step 12,500). Two
 ckpts × two head depths × twelve arms = 48 GIFT-Eval cells; the two
-crossed arms contribute eight, the seven grid-extension arms twenty-eight,
+crossed arms contribute eight, the seven other grid arms twenty-eight,
 and the three anchors twelve.
 GM aggregates are computed by `scripts/_compute_gm.py` against the
 seasonal-naive `all_results.csv` from `~/workspaces/gift-eval/results/`.
