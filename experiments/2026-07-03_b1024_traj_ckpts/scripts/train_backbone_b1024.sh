@@ -68,8 +68,14 @@ if [ $rc -ne 0 ]; then
   log "BB train exited rc=$rc — NOT creating FINAL. tail: $(tail -3 "$tlog"|tr '\n' ' ')"
   exit 1
 fi
-if   [ -f "$RUNS/${NAME}_best_loss.pth" ]; then cp -f "$RUNS/${NAME}_best_loss.pth" "$BB"
-elif [ -f "$RUNS/${NAME}_final.pth" ];     then cp -f "$RUNS/${NAME}_final.pth"     "$BB"
+# Prefer the deterministic last-step trajectory checkpoint so `_FINAL.pth`
+# is always the model at STEPS. Falling back to `_best_loss.pth` (as an
+# earlier revision did) silently substituted the best-training-loss step
+# — for #369's arm that step was 700, not 12500, which would rewind any
+# resume tooling picking up `_FINAL.pth`.
+if   [ -f "$RUNS/${NAME}_step${STEPS}.pth" ]; then cp -f "$RUNS/${NAME}_step${STEPS}.pth" "$BB"
+elif [ -f "$RUNS/${NAME}_final.pth" ];        then cp -f "$RUNS/${NAME}_final.pth"        "$BB"
+elif [ -f "$RUNS/${NAME}_best_loss.pth" ];    then cp -f "$RUNS/${NAME}_best_loss.pth"    "$BB"
 else cp -f "$(ls -t "$RUNS/${NAME}"_*k.pth 2>/dev/null|head -1)" "$BB" 2>/dev/null; fi
 [ -f "$BB" ] && { log "BB DONE -> ${NAME}_FINAL.pth ($(du -h "$BB"|cut -f1))"; exit 0; }
 log "BB FAILED no checkpoint"; exit 1
