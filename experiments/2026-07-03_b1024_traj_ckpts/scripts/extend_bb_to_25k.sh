@@ -20,11 +20,33 @@ ENC_LAYERS=6; NENC=3
 LAMBDA_E="${LAMBDA_E:?}"; LAMBDA_H="${LAMBDA_H:?}"; TAU="${TAU:?}"
 
 RUNS="$OUT/runs"; RES="$OUT/results"
-# Derive NAME from the actual _12k.pth on disk to avoid float-format drift.
-RESUME_FROM="$(ls -t "$RUNS/"bb_*_b1024_12k.pth 2>/dev/null | grep -v optimizer | head -1)"
-[ -n "$RESUME_FROM" ] && [ -f "$RESUME_FROM" ] \
-  || { echo "ABORT: could not locate a bb_..._b1024_12k.pth in $RUNS" >&2; exit 2; }
-NAME="$(basename "$RESUME_FROM" _12k.pth)"
+# Locate the resume checkpoint. Two modes:
+#   RESUME_FROM=path/to/bb.pth     — explicit override (used to re-fire
+#                                    the same script on a different
+#                                    starting step, e.g. 25000 → 37500).
+#   (default)                      — pick the newest `_step<N>.pth`
+#                                    trajectory checkpoint (last-step
+#                                    training reached), across ALL
+#                                    resume suffixes (_r0/_r1/_r2/…).
+if [ -n "${RESUME_FROM:-}" ]; then
+  [ -f "$RESUME_FROM" ] || { echo "ABORT: RESUME_FROM=$RESUME_FROM missing" >&2; exit 2; }
+else
+  # Prefer traj `_step<N>.pth`; sort by step number so we always take the highest.
+  RESUME_FROM="$(ls "$RUNS"/bb_*_b1024*_step*.pth 2>/dev/null \
+                 | grep -v optimizer \
+                 | awk -F_step 'match($NF, /^[0-9]+/) {print substr($NF, RSTART, RLENGTH), $0}' \
+                 | sort -n | tail -1 | cut -d' ' -f2-)"
+  [ -n "$RESUME_FROM" ] && [ -f "$RESUME_FROM" ] \
+    || { echo "ABORT: no bb_..._step<N>.pth found in $RUNS" >&2; exit 2; }
+fi
+# NAME = the base run-name that train.py will pass to safe_run_name;
+# strip the step suffix (`_step<N>.pth`) and any `_r<n>` chain so
+# train.py re-suffixes cleanly from the ORIGINAL base.
+BASE="$(basename "$RESUME_FROM")"
+BASE="${BASE%.pth}"
+BASE="${BASE%_step[0-9]*}"    # drop _step<N>
+BASE="${BASE%_r[0-9]*}"       # drop _r<N> (added by an earlier safe_run_name)
+NAME="$BASE"
 SUFFIX="${NAME#bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_}"
 
 HF_TOKEN_PATH="$WT/experiments/hf_token.txt"
