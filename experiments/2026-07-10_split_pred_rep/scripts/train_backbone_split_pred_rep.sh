@@ -1,15 +1,16 @@
 #!/bin/bash
 # #374 — Split the champion loss into L_pred + L_rep.
 #
-# Same recipe as the #366 arm C champion (train_backbone_sigreg_tau090.sh)
-# except:
+# Same recipe as the champion arm C recipe from #366
+# (experiments/2026-06-28_sigreg_lambda_tau_cross/scripts/train_backbone_sigreg.sh
+# invoked with λ_e=1, λ_h=1, τ=0.90 by launch_arms_cd.sh) except:
 #   --loss-shape cosine_similarity_batch_full_hh_negs_xshh_allt
 #     → cosine_similarity_batch_split_pred_rep
 #   --pos-in-denominator          — DROPPED (L_pred is normalized by construction)
 #   --subtract-contrastive-floor  — DROPPED (formula derived for the combined shape)
-# CPC / SIGReg / EMA-teacher / τ=0.10 / B=512 / seed / 12,500 steps
-# unchanged; head protocol is teacher-forced probe (2L + 6L, best-loss +
-# last), full-97 GIFT-Eval B4.
+# CPC / SIGReg (λ_e=λ_h=1.0) / EMA-teacher / τ=0.10 / B=512 / seed / 12,500
+# steps unchanged; head protocol is teacher-forced probe (2L + 6L,
+# best-loss + last), full-97 GIFT-Eval B4.
 #
 #   train_backbone_split_pred_rep.sh <gpu> [steps] [save_every]
 set -uo pipefail
@@ -29,7 +30,7 @@ export TEACHER_EMBED_CHUNK="${TEACHER_EMBED_CHUNK:-16}"
 export HF_TOKEN="$(cat "$WT/experiments/hf_token.txt" 2>/dev/null)"; export HUGGING_FACE_HUB_TOKEN="$HF_TOKEN"
 TRAIN="$WT/experiments/2026-04-27_freq-embedding/scripts/train.py"
 log(){ echo "[$(date '+%m-%d %H:%M:%S')] [bb-split-pred-rep g$GPU] $*"; }
-[ -n "$HF_TOKEN" ] || { log "WARN: empty HF_TOKEN — HF stream will throttle the GPU"; }
+[ -n "$HF_TOKEN" ] || { log "ABORT: empty HF_TOKEN — HF stream would throttle GPU"; exit 1; }
 [ -f "$BB" ] && { log "BB SKIP ($NAME FINAL exists)"; exit 0; }
 tlog="$RES/run_${NAME}.log"
 RESUME=""; latest=$(ls -t "$RUNS/${NAME}"_*k.pth 2>/dev/null | grep -v optimizer | head -1)
@@ -47,6 +48,7 @@ python3 -u "$TRAIN" $RESUME --qk-norm --attn-out-norm \
   --loss-shape cosine_similarity_batch_split_pred_rep \
   --ema-embedding --ema-encoder --ema-tau 0.9 --cpc-infonce-weight 1.0 \
   --sigreg-embedding --sigreg-encoding --sigreg-n-chunk 2048 \
+  --sigreg-embedding-weight 1.0 --sigreg-encoding-weight 1.0 \
   --tau 0.10 --rev-norm-kind ewma --rev-norm-span 128 --encoder-type gru \
   --synth-kind forked-arma --mix-ratio 0.0078125 --crossfade-triplets 1 \
   --mixup-p 0.3 --freq-emb-dim 3 --seasonality-emb-dim 3 \
