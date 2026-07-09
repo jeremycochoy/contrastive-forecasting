@@ -1379,12 +1379,18 @@ def main():
         # goes negative once positives separate. ONLY this diagnostic
         # call passes the flag; the training loss keeps the default.
         with torch.no_grad():
+            # `cosine_similarity_batch_split_pred_rep` (#374) is L_pred +
+            # L_rep where L_pred is ALREADY normalized-InfoNCE; the shape
+            # rejects `include_positive_in_denominator` as a semantic no-op.
+            # Its own default at τ=0.07 IS the correct reference.
+            _pos_in_denom_ref = (
+                args.loss_shape != "cosine_similarity_batch_split_pred_rep")
             loss_tau_ref = contrastive_latent_loss(
                 (f_lat.detach(), o_lat.detach()),
                 validation=False, spec=LOSS_SPEC,
                 tau_override=torch.tensor(
                     0.07, device=f_lat.device, dtype=f_lat.dtype),
-                include_positive_in_denominator=True,
+                include_positive_in_denominator=_pos_in_denom_ref,
                 # Keep this a PURE contrastive reference regardless of the
                 # run's --align-loss-weight / --subtract-contrastive-floor.
                 align_loss_weight=0.0,
