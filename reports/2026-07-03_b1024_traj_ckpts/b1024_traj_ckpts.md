@@ -27,11 +27,13 @@ quantile heads) beat the parent's `last-ckpt` on GM-Rel MASE, extend to
 One arm: the joint winner of the previous τ=0.90 A–I grid on both
 `2L / last-ckpt` and `6L / last-ckpt` — **arm C** (λ_e = 1, λ_h = 1,
 τ = 0.90). Backbone retrained at B=1024 for 12,500 steps with
-backbone checkpoints saved every 500 steps. Two quantile heads (2L,
-6L; 2-layer and 6-layer MLP over the frozen backbone) trained from
-each of the step-500 and step-12,500 backbone checkpoints; every head
-evaluated on the full 97-task GIFT-Eval grid. Single seed, matched to
-the parent.
+backbone checkpoints saved every 500 steps. Two causal transformer
+quantile heads (2-layer and 6-layer, 6 attention heads, trained over
+the frozen backbone) per backbone checkpoint; every head evaluated on
+the full 97-task GIFT-Eval grid. Head-training protocol matches the
+parent's: the step-500 head is trained 30,000 steps from scratch, and
+every later locus resumes from that head for a 10,000-step re-adapt.
+Single seed, matched to the parent.
 
 Vocabulary. **τ** is the EMA rate for the target encoder. **λ_e, λ_h**
 are the SIGReg weights on the embedding and head branches respectively.
