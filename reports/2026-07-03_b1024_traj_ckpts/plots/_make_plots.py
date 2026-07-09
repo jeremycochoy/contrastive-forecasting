@@ -59,7 +59,7 @@ def gm_vs_step() -> None:
     ax.axvline(PARENT_BUDGET_STEP, color="k", linestyle=":", linewidth=1.0, alpha=0.6)
     ax.text(PARENT_BUDGET_STEP, 1.198, "  spec budget (12,500 steps)", fontsize=8, va="top")
     ax.axvspan(PARENT_BUDGET_STEP, 38000, color="grey", alpha=0.06)
-    ax.text(25000, 1.198, "owner-authorized extension",
+    ax.text(25000, 1.198, "extension (out of issue scope)",
             ha="center", va="top", fontsize=8, style="italic", color="dimgrey")
 
     ax.set_xlabel("Backbone step (B=1024)")
@@ -99,7 +99,7 @@ def backbone_loss() -> None:
     ax.axvline(PARENT_BUDGET_STEP, color="k", linestyle=":", linewidth=1.0, alpha=0.6)
     ax.text(PARENT_BUDGET_STEP + 400, 4.35, "spec budget (12,500)", fontsize=8, va="top")
     ax.axvspan(PARENT_BUDGET_STEP, df["step"].max(), color="grey", alpha=0.06)
-    ax.text(25000, 4.35, "owner-authorized extension",
+    ax.text(25000, 4.35, "extension (out of issue scope)",
             ha="center", va="top", fontsize=8, style="italic", color="dimgrey")
     ax.set_xlabel("Backbone step (B=1024)")
     ax.set_ylabel("training loss")

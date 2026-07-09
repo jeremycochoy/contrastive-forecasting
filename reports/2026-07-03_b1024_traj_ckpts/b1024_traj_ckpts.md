@@ -41,8 +41,8 @@ are the SIGReg weights on the embedding and head branches respectively.
 ## Result — spec-scoped
 
 At the issue's fixed 12,500-step budget, **B=1024 loses every cell to
-parent B=512**: 2L 1.1621 vs 1.1491 (+0.0130); 6L 1.1407 vs 1.1254
-(+0.0153). Under the issue's stop rule, the experiment stopped here.
+parent B=512**. Under the issue's stop rule, the experiment stopped
+here.
 
 ![GM-Rel MASE vs backbone step](plots/gm_vs_step.png)
 
@@ -57,29 +57,25 @@ The parent B=512 numbers come from the previous experiment's committed
 `experiments/2026-06-28_sigreg_lambda_tau_cross/results/gm_table.csv`
 at commit `ba1df52`, arm `cross_C`.
 
-## Result — owner-authorized extension
+## Result — extension to 37,500 steps
 
-The repo owner authorized continuing past the stop rule in-session
-(*"We can try to push a bit longer yes"*, after the 12,500-step numbers
-were reported). Backbone training was extended to 25,000 steps, then to
-37,500 steps, keeping the same B=1024 recipe and 500-step trajectory
-saves. Heads were retrained from the step-15,000/20,000/25,000/30,000/35,000/37,500
-backbone checkpoints and re-scored on the same 97-task grid.
+Backbone training was extended past the stop rule at the repo owner's
+direction (out of issue scope), to 25,000 and then 37,500 steps, same
+B=1024 recipe and 500-step trajectory saves. Heads retrained at steps
+15,000/20,000/25,000/30,000/35,000/37,500, scored on the same 97-task
+grid.
 
-- **6L crosses parent at step 30,000** (1.1206 < parent 1.1254) —
-  2.4× the parent step budget, 4.8× the parent sample budget
-  (batch doubling × step ratio). Best 1.1197 at step 37,500 (3.0×
-  steps, 6.0× samples).
-- **2L never crosses parent** (best 1.1560 at step 25,000) and degrades
+- **6L falls below the parent from step 30,000 on** (1.1206 at 30,000,
+  best 1.1197 at 37,500, vs parent 1.1254) — at 2.4–3.0× the parent
+  step budget and 4.8–6.0× its sample budget. The margin (−0.0057 at
+  best) is a single-seed point estimate.
+- **2L never reaches parent** (best 1.1560 at step 25,000) and degrades
   past step 30,000 (1.1789 at 35,000, 1.1731 at 37,500).
 
 ![Backbone training loss](plots/backbone_loss.png)
 
-Training loss falls to a first minimum near step 500 (matching the
-parent's best-loss step), rebounds to ~4.25 by step 2,500, and settles
-to ~3.75 by step 12,500. The extension drifts down to ~3.65 by step
-37,500 — a decrease not tracked by the 2L head-eval curve, which
-degrades past step 30,000.
+Backbone training loss keeps decreasing through the extension; the 2L
+head-eval curve decouples from it, degrading past step 30,000.
 
 ## Notes
 
@@ -89,9 +85,5 @@ degrades past step 30,000.
   quoted without a variance band. "Worse" vs "within noise" is not
   separated.
 - **The step-500 locus is a near-untrained backbone** (4 % of the
-  12,500-step budget). Its cells — 2L 1.1873 and 6L 1.1746, the worst
-  in the table — reflect that, not model quality. The locus is included
-  only because the parent's best-loss step landed there.
-- **`step25000_6L` per-task CSV is a clean re-evaluation** whose
-  aggregate reproduces the original exactly (GM-Rel MASE = 1.1289).
-  The original per-task CSV is quarantined uncommitted.
+  12,500-step budget). It is included only because the parent's
+  best-loss step landed there.
