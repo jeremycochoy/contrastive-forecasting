@@ -1625,6 +1625,124 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         else:
             loss = (log_neg_total - log_pos).mean()
 
+    elif train_config.get('loss_shape') == 'cosine_similarity_batch_split_pred_rep':
+        # #374 split. Same negative families as `..._xshh_allt`, but the
+        # single pooled denominator is broken into TWO independent terms:
+        #
+        #   L_pred = normalized InfoNCE — positive cos(f_t, h^T_{t+1})/τ
+        #            over denominator = f-anchored families only
+        #            (cross-batch f↔h'_{t+1} + adjacent f↔f).
+        #   L_rep  = pooled LSE of h-anchored families, NO positive
+        #            (cross-channel xx + within-series all-time hh
+        #             + cross-series all-time xs).
+        #   L      = L_pred + L_rep.
+        #
+        # Same τ in both, same teacher-side/stopgrad positive, same batch
+        # pooling inside each term. `include_positive_in_denominator` and
+        # `subtract_contrastive_floor` are rejected: L_pred is normalized
+        # by construction, and the floor formula is derived for the
+        # combined shape's single denominator.
+        neg_inf = float('-inf')
+        if hy_teacher_norm is not None:
+            hy_pos = hy_teacher_norm
+        elif sg_pos:
+            hy_pos = hy_norm.detach()
+        else:
+            hy_pos = hy_norm
+        log_pos = cosine_similarity_from_normalized(hy_pos, hy_hat_norm) / tau
+
+        # h-anchored family 1: cross-channel same-time h↔h (xx).
+        sims_xx = cosine_similarity_from_normalized(
+            hx_norm.unsqueeze(3), hx_norm.unsqueeze(2))
+        mask_mat = ~torch.eye(C, dtype=torch.bool, device=sims_xx.device)
+        mask_mat = mask_mat.view(1, 1, C, C)
+        log_neg_xx = torch.logsumexp(
+            (sims_xx / tau).masked_fill(~mask_mat, neg_inf), dim=2)
+
+        # f-anchored family: adjacent f_{t+1}↔f_t (zy), cross-channel.
+        sims_zy = cosine_similarity_from_normalized(
+            hz_hat_norm.unsqueeze(3), hy_hat_norm.unsqueeze(2))
+        log_neg_zy = torch.logsumexp(sims_zy / tau, dim=2)
+
+        # h-anchored family 2: within-series all-time h↔h (hh_all).
+        t_idx = torch.arange(T - 1, device=orig_norm.device).view(T - 1, 1)
+        l_idx = torch.arange(T, device=orig_norm.device).view(1, T)
+        sims_hh_all = torch.matmul(
+            hx_norm.permute(0, 2, 1, 3),
+            orig_norm.permute(0, 2, 3, 1),
+        )
+        drop_self = (l_idx == t_idx).view(1, 1, T - 1, T)
+        log_neg_hh_all = torch.logsumexp(
+            (sims_hh_all / tau).masked_fill(drop_self, neg_inf), dim=3
+        ).permute(0, 2, 1)
+
+        # f-anchored family: cross-batch f_t ↔ h'_{t+1}.
+        mask_batch = ~torch.eye(B, dtype=torch.bool, device=orig_norm.device)
+        mask_batch = mask_batch.view(B, B, 1, 1)
+        hy_p = hy_norm.permute(1, 2, 0, 3)
+        hy_hat_p = hy_hat_norm.permute(1, 2, 0, 3)
+        sims_cross_batch = torch.matmul(
+            hy_hat_p, hy_p.transpose(-2, -1)
+        ).permute(2, 3, 0, 1).contiguous()
+        log_neg_cross_batch = torch.logsumexp(
+            (sims_cross_batch / tau).masked_fill(~mask_batch, neg_inf), dim=1)
+
+        # h-anchored family 3: cross-series all-time h↔h' (xs_allt),
+        # gradient-checkpointed via the same chunked path as `..._xshh_allt`.
+        anchor = hx_norm.permute(0, 2, 1, 3).contiguous()
+        src = orig_norm.permute(0, 2, 1, 3).contiguous()
+        b_all = torch.arange(B, device=orig_norm.device)
+        CH = int(os.environ.get('XSHH_ALLT_CHUNK', '8'))
+        fused = os.environ.get('XSHH_ALLT_FUSED', '0') == '1'
+        shard = os.environ.get('XSHH_ALLT_SHARD', '0') == '1' and (
+            dist.is_available() and dist.is_initialized()
+            and dist.get_world_size() > 1)
+        if shard:
+            run = _XsAlltShardedLSE.apply(anchor, src, tau, CH)
+        elif fused:
+            run = _XsAlltFusedLSE.apply(anchor, src, tau, CH)
+        else:
+            def _chunk_lse(anc, src_chunk, same_mask):
+                gram = torch.matmul(
+                    anc.unsqueeze(1),
+                    src_chunk.permute(0, 1, 3, 2).unsqueeze(0),
+                ) / tau
+                gram = gram.masked_fill(same_mask, neg_inf)
+                return torch.logsumexp(torch.logsumexp(gram, dim=4), dim=1)
+            run = None
+            for s in range(0, B, CH):
+                e = min(s + CH, B)
+                same = (b_all.view(B, 1) == b_all[s:e].view(1, e - s)
+                        ).view(B, e - s, 1, 1, 1)
+                chunk_lse = checkpoint(
+                    _chunk_lse, anchor, src[s:e], same, use_reentrant=False)
+                run = chunk_lse if run is None else torch.logsumexp(
+                    torch.stack([run, chunk_lse], dim=0), dim=0)
+        log_neg_xs_allt = run.permute(0, 2, 1)
+
+        # L_pred: normalized InfoNCE with the f-anchored families in denom.
+        negs_pred = torch.stack([log_neg_zy, log_neg_cross_batch], dim=0)
+        log_neg_per_anchor_pred = torch.logsumexp(negs_pred, dim=0)
+        log_neg_total_pred = torch.logsumexp(
+            log_neg_per_anchor_pred, dim=0, keepdim=True)
+        log_denom_pred = torch.logsumexp(
+            torch.stack(
+                [log_pos, log_neg_total_pred.expand_as(log_pos)], dim=0
+            ),
+            dim=0,
+        )
+        loss_pred = (log_denom_pred - log_pos).mean()
+
+        # L_rep: pooled LSE of h-anchored families, no positive.
+        negs_rep = torch.stack(
+            [log_neg_xx, log_neg_hh_all, log_neg_xs_allt], dim=0)
+        log_neg_per_anchor_rep = torch.logsumexp(negs_rep, dim=0)
+        log_neg_total_rep = torch.logsumexp(
+            log_neg_per_anchor_rep, dim=0, keepdim=True)
+        loss_rep = log_neg_total_rep.mean()
+
+        loss = loss_pred + loss_rep
+
     elif train_config.get('loss_shape') == 'cosine_similarity_batch_add_f_cross_negs':
         # NON-cumulative variant: identical to `cosine_similarity_batch` except
         # `negatives` includes an extra f-side cross-(b,c) term at fixed t —
@@ -2074,25 +2192,26 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             f"{train_config.get('loss_shape')!r}."
         )
 
-    # Guard: stopgrad_positive_h is applied inside the xshh_allt branch
-    # only. Any other `loss_shape` reaching here with it set would have
-    # silently trained WITHOUT the stop-grad — fail loud instead.
-    if sg_pos and train_config.get('loss_shape') != \
-            'cosine_similarity_batch_full_hh_negs_xshh_allt':
+    # Guard: stopgrad_positive_h is applied inside the xshh_allt / split
+    # branches only. Any other `loss_shape` reaching here with it set
+    # would have silently trained WITHOUT the stop-grad — fail loud instead.
+    _SG_POS_SHAPES = (
+        'cosine_similarity_batch_full_hh_negs_xshh_allt',
+        'cosine_similarity_batch_split_pred_rep',
+    )
+    if sg_pos and train_config.get('loss_shape') not in _SG_POS_SHAPES:
         raise NotImplementedError(
-            "stopgrad_positive_h is only implemented for loss_shape="
-            "'cosine_similarity_batch_full_hh_negs_xshh_allt'; got "
-            f"{train_config.get('loss_shape')!r}.")
+            "stopgrad_positive_h is only implemented for loss_shape in "
+            f"{_SG_POS_SHAPES}; got {train_config.get('loss_shape')!r}.")
 
-    # Same guard for the EMA-teacher positive (#353): only the xshh_allt
-    # branch reads it; any other shape reaching here with a teacher latent
-    # would have silently trained on the student positive — fail loud.
-    if hy_teacher_norm is not None and train_config.get('loss_shape') != \
-            'cosine_similarity_batch_full_hh_negs_xshh_allt':
+    # Same guard for the EMA-teacher positive (#353): only the xshh_allt /
+    # split branches read it; any other shape reaching here with a teacher
+    # latent would have silently trained on the student positive — fail loud.
+    if hy_teacher_norm is not None and \
+            train_config.get('loss_shape') not in _SG_POS_SHAPES:
         raise NotImplementedError(
-            "teacher_original_latent is only implemented for loss_shape="
-            "'cosine_similarity_batch_full_hh_negs_xshh_allt'; got "
-            f"{train_config.get('loss_shape')!r}.")
+            "teacher_original_latent is only implemented for loss_shape in "
+            f"{_SG_POS_SHAPES}; got {train_config.get('loss_shape')!r}.")
 
     # Optional add-ons (#309), both default OFF ⇒ the objective is
     # byte-for-byte unchanged for every existing run/test. Resolve from the

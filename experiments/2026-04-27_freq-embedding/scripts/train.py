@@ -366,6 +366,7 @@ def parse_args():
                             "cosine_similarity_batch_full_hh_negs_xbfree",
                             "cosine_similarity_batch_full_hh_negs_xshh",
                             "cosine_similarity_batch_full_hh_negs_xshh_allt",
+                            "cosine_similarity_batch_split_pred_rep",
                             "cpc_multistep",
                             "cpc_multistep_cpcnegs",
                             "cosine_similarity",
@@ -974,11 +975,15 @@ def main():
             "--ema-embedding/--ema-encoder are mutually exclusive with "
             "--stopgrad-positive-h: the teacher path replaces the stop-grad. "
             "Drop one.")
+    _EMA_LOSS_SHAPES = (
+        "cosine_similarity_batch_full_hh_negs_xshh_allt",
+        "cosine_similarity_batch_split_pred_rep",
+    )
     if (args.ema_embedding or args.ema_encoder) and \
-            args.loss_shape != "cosine_similarity_batch_full_hh_negs_xshh_allt":
+            args.loss_shape not in _EMA_LOSS_SHAPES:
         raise SystemExit(
             "--ema-embedding/--ema-encoder only implemented for "
-            "--loss-shape cosine_similarity_batch_full_hh_negs_xshh_allt.")
+            f"--loss-shape in {_EMA_LOSS_SHAPES}.")
     if (args.ema_embedding or args.ema_encoder) and not (0.0 < args.ema_tau < 1.0):
         raise SystemExit("--ema-tau must be in (0, 1); got "
                          f"{args.ema_tau!r}.")
