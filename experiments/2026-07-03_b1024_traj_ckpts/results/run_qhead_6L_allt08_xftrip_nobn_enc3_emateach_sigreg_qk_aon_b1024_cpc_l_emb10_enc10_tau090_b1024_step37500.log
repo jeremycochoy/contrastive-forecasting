@@ -1,0 +1,91 @@
+  [head-train] auto-detected freq_emb_dim=3 from backbone checkpoint
+  [head-train] auto-detected seasonality_emb_dim=3 from backbone checkpoint
+  [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+  [head-train] auto-detected qk_norm=True from backbone checkpoint
+  [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+  [head-train] auto-detected patch_stats=none
+Backbone loaded from /home/jupyter/cf-369/experiments/2026-07-03_b1024_traj_ckpts/runs/bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_r3_step37500.pth (0 params, frozen)
+/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/transformer.py:392: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  warnings.warn(
+Forecasting head [transformer-q (6L H384 nhead6 causal)]: 10,702,992 trainable params
+Optimizer: AdamW lr=0.001 betas=(0.9,0.98) wd=0.1 eps=1e-08
+Schedule: cosine warmup=1000 decay_start=8000 final_ratio=0.1
+Loaded head weights from /home/jupyter/cf-369/experiments/2026-07-03_b1024_traj_ckpts/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_parentstep_FINAL.pth (no optimizer state)
+Loss CSV: /home/jupyter/cf-369/experiments/2026-07-03_b1024_traj_ckpts/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step37500_losses.csv
+Data: MIX 100% HF + 0% synth, hf_bs=256, synth_bs=0, synth_seed=20042, emit_labels=True
+
+Training for 10000 steps, bs=256, lr=0.001, forecast_len=16
+RECONSTRUCTION mode: forecaster (head decodes what latent represents, not future)
+Checkpoints: /home/jupyter/cf-369/experiments/2026-07-03_b1024_traj_ckpts/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step37500_*.pth
+[    200] loss=0.220223  ema_loss=0.268501  3.3 sps  ETA 0.8h
+  -> New best: /home/jupyter/cf-369/experiments/2026-07-03_b1024_traj_ckpts/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step37500_best.pth (ema_loss=0.268501)
+[    400] loss=0.210323  ema_loss=0.218511  3.5 sps  ETA 0.8h
+  -> New best: /home/jupyter/cf-369/experiments/2026-07-03_b1024_traj_ckpts/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step37500_best.pth (ema_loss=0.218511)
+[    600] loss=0.206579  ema_loss=0.209000  3.5 sps  ETA 0.7h
+  -> New best: /home/jupyter/cf-369/experiments/2026-07-03_b1024_traj_ckpts/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step37500_best.pth (ema_loss=0.209000)
+[    800] loss=0.192648  ema_loss=0.205746  3.6 sps  ETA 0.7h
+  -> New best: /home/jupyter/cf-369/experiments/2026-07-03_b1024_traj_ckpts/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step37500_best.pth (ema_loss=0.205746)
+[   1000] loss=0.209143  ema_loss=0.205214  3.6 sps  ETA 0.7h
+  -> New best: /home/jupyter/cf-369/experiments/2026-07-03_b1024_traj_ckpts/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step37500_best.pth (ema_loss=0.205214)
+[   1200] loss=0.202576  ema_loss=0.202935  3.6 sps  ETA 0.7h
+  -> New best: /home/jupyter/cf-369/experiments/2026-07-03_b1024_traj_ckpts/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step37500_best.pth (ema_loss=0.202935)
+[   1400] loss=0.197908  ema_loss=0.202764  3.6 sps  ETA 0.7h
+  -> New best: /home/jupyter/cf-369/experiments/2026-07-03_b1024_traj_ckpts/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step37500_best.pth (ema_loss=0.202764)
+[   1600] loss=0.192081  ema_loss=0.201305  3.6 sps  ETA 0.6h
+  -> New best: /home/jupyter/cf-369/experiments/2026-07-03_b1024_traj_ckpts/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step37500_best.pth (ema_loss=0.201305)
+[   1800] loss=0.210461  ema_loss=0.202066  3.6 sps  ETA 0.6h
+[   2000] loss=0.195811  ema_loss=0.201209  3.6 sps  ETA 0.6h
+  -> New best: /home/jupyter/cf-369/experiments/2026-07-03_b1024_traj_ckpts/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step37500_best.pth (ema_loss=0.201209)
+[   2200] loss=0.209104  ema_loss=0.201507  3.6 sps  ETA 0.6h
+[   2400] loss=0.200066  ema_loss=0.200906  3.6 sps  ETA 0.6h
+  -> New best: /home/jupyter/cf-369/experiments/2026-07-03_b1024_traj_ckpts/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step37500_best.pth (ema_loss=0.200906)
+[   2600] loss=0.189261  ema_loss=0.199943  3.6 sps  ETA 0.6h
+  -> New best: /home/jupyter/cf-369/experiments/2026-07-03_b1024_traj_ckpts/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step37500_best.pth (ema_loss=0.199943)
+[   2800] loss=0.189250  ema_loss=0.199987  3.6 sps  ETA 0.5h
+[   3000] loss=0.195655  ema_loss=0.199185  3.6 sps  ETA 0.5h
+  -> New best: /home/jupyter/cf-369/experiments/2026-07-03_b1024_traj_ckpts/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step37500_best.pth (ema_loss=0.199185)
+[   3200] loss=0.192151  ema_loss=0.200508  3.6 sps  ETA 0.5h
+[   3400] loss=0.202007  ema_loss=0.199496  3.5 sps  ETA 0.5h
+[   3600] loss=0.185027  ema_loss=0.198615  3.4 sps  ETA 0.5h
+  -> New best: /home/jupyter/cf-369/experiments/2026-07-03_b1024_traj_ckpts/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step37500_best.pth (ema_loss=0.198615)
+[   3800] loss=0.193494  ema_loss=0.199305  3.4 sps  ETA 0.5h
+[   4000] loss=0.219492  ema_loss=0.198568  3.3 sps  ETA 0.5h
+  -> New best: /home/jupyter/cf-369/experiments/2026-07-03_b1024_traj_ckpts/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step37500_best.pth (ema_loss=0.198568)
+[   4200] loss=0.198995  ema_loss=0.198786  3.3 sps  ETA 0.5h
+[   4400] loss=0.196245  ema_loss=0.198862  3.3 sps  ETA 0.5h
+[   4600] loss=0.189985  ema_loss=0.198783  3.2 sps  ETA 0.5h
+[   4800] loss=0.196142  ema_loss=0.198067  3.2 sps  ETA 0.4h
+  -> New best: /home/jupyter/cf-369/experiments/2026-07-03_b1024_traj_ckpts/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step37500_best.pth (ema_loss=0.198067)
+[   5000] loss=0.200132  ema_loss=0.198650  3.2 sps  ETA 0.4h
+[   5200] loss=0.208561  ema_loss=0.198192  3.2 sps  ETA 0.4h
+[   5400] loss=0.197599  ema_loss=0.199007  3.1 sps  ETA 0.4h
+[   5600] loss=0.189274  ema_loss=0.197796  3.1 sps  ETA 0.4h
+  -> New best: /home/jupyter/cf-369/experiments/2026-07-03_b1024_traj_ckpts/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step37500_best.pth (ema_loss=0.197796)
+[   5800] loss=0.187733  ema_loss=0.197954  3.1 sps  ETA 0.4h
+[   6000] loss=0.190519  ema_loss=0.197660  3.1 sps  ETA 0.4h
+  -> New best: /home/jupyter/cf-369/experiments/2026-07-03_b1024_traj_ckpts/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step37500_best.pth (ema_loss=0.197660)
+[   6200] loss=0.190392  ema_loss=0.197687  3.1 sps  ETA 0.3h
+[   6400] loss=0.213908  ema_loss=0.196937  3.1 sps  ETA 0.3h
+  -> New best: /home/jupyter/cf-369/experiments/2026-07-03_b1024_traj_ckpts/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step37500_best.pth (ema_loss=0.196937)
+[   6600] loss=0.197286  ema_loss=0.196645  3.1 sps  ETA 0.3h
+  -> New best: /home/jupyter/cf-369/experiments/2026-07-03_b1024_traj_ckpts/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step37500_best.pth (ema_loss=0.196645)
+[   6800] loss=0.207669  ema_loss=0.197945  3.1 sps  ETA 0.3h
+[   7000] loss=0.184217  ema_loss=0.197647  3.0 sps  ETA 0.3h
+[   7200] loss=0.183731  ema_loss=0.197479  3.0 sps  ETA 0.3h
+[   7400] loss=0.199198  ema_loss=0.198203  3.0 sps  ETA 0.2h
+[   7600] loss=0.202853  ema_loss=0.197543  3.0 sps  ETA 0.2h
+[   7800] loss=0.188264  ema_loss=0.197470  3.0 sps  ETA 0.2h
+[   8000] loss=0.191708  ema_loss=0.197169  3.0 sps  ETA 0.2h
+[   8200] loss=0.205642  ema_loss=0.197330  3.0 sps  ETA 0.2h
+[   8400] loss=0.198058  ema_loss=0.196201  3.0 sps  ETA 0.1h
+  -> New best: /home/jupyter/cf-369/experiments/2026-07-03_b1024_traj_ckpts/runs/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step37500_best.pth (ema_loss=0.196201)
+[   8600] loss=0.202995  ema_loss=0.196780  3.0 sps  ETA 0.1h
+[   8800] loss=0.200601  ema_loss=0.197042  3.0 sps  ETA 0.1h
+[   9000] loss=0.187237  ema_loss=0.196312  3.0 sps  ETA 0.1h
+[   9200] loss=0.177289  ema_loss=0.196531  3.0 sps  ETA 0.1h
+[   9400] loss=0.201028  ema_loss=0.197424  3.0 sps  ETA 0.1h
+[   9600] loss=0.201838  ema_loss=0.197478  3.0 sps  ETA 0.0h
+[   9800] loss=0.207773  ema_loss=0.197232  3.0 sps  ETA 0.0h
+[  10000] loss=0.194443  ema_loss=0.196833  3.0 sps  ETA 0.0h
+
+Done in 0.9h. Best loss=0.196201 at step 8400
