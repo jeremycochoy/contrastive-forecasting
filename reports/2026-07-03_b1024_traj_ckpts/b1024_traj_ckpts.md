@@ -59,9 +59,9 @@ at commit `ba1df52`, arm `cross_C`.
 
 ## Result — extension to 37,500 steps
 
-Backbone training was extended past the stop rule at the repo owner's
-direction (out of issue scope), to 25,000 and then 37,500 steps, same
-B=1024 recipe and 500-step trajectory saves. Heads retrained at steps
+Backbone training was extended past the stop rule (out of issue
+scope), to 25,000 and then 37,500 steps, same B=1024 recipe and
+500-step trajectory saves. Heads retrained at steps
 15,000/20,000/25,000/30,000/35,000/37,500, scored on the same 97-task
 grid.
 
@@ -81,7 +81,7 @@ head-eval curve decouples from it, degrading past step 30,000.
 
 - **Single seed, no confidence intervals.** The seed is fixed by spec
   (matched to the parent). All differences above are point-estimate GM
-  aggregates over 97 tasks; the ~0.003 – 0.015 GM-Rel MASE gaps are
+  aggregates over 97 tasks; the 0.006 – 0.019 GM-Rel MASE gaps are
   quoted without a variance band. "Worse" vs "within noise" is not
   separated.
 - **The step-500 locus is a near-untrained backbone** (4 % of the
