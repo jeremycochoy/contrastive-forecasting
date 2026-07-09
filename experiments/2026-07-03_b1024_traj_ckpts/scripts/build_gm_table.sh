@@ -35,15 +35,16 @@ LABEL_RETRAIN="retrain: λ_e=${LAMBDA_E}, λ_h=${LAMBDA_H}, τ=${TAU}, B=1024"
 # same encoding as launch_experiment.sh but without the `_b1024` marker.
 # Override at the command line if the parent lives under a different cell
 # label (e.g. arm C → `lC_emb10_enc10_tau090`).
-PARENT_CELL=$(awk -v le="$LAMBDA_E" -v lh="$LAMBDA_H" -v t="$TAU" \
-  'BEGIN { printf "emb%.0f_enc%.0f_tau%03.0f\n", le*10, lh*10, t*100 }')
-PARENT_TAG_PREFIX="${PARENT_TAG_PREFIX:-allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc}"
-# `lX_` prefix — set from the actual winner arm letter at launch time
-# (see README §Arms). Defaults to `l_` (no letter); override in env.
-PARENT_ARM_LETTER="${PARENT_ARM_LETTER:-}"
-PARENT_CELL_FULL="${PARENT_ARM_LETTER}${PARENT_CELL}"
-ARCHIVE_366_BRANCH="${ARCHIVE_366_BRANCH:-origin/feature/contrastive-forecasting-366-title-tweak}"
-ARCHIVE_366_DIR="${ARCHIVE_366_DIR:-experiments/2026-06-28_sigreg_lambda_tau_cross/results}"
+# Parent aggregates come from #366's committed gm_table.csv (arm C's raw
+# per-task CSVs were never committed — only the 4-cell aggregates). Pin a
+# commit rather than a branch so drift can't change the numbers.
+ARCHIVE_366_COMMIT="${ARCHIVE_366_COMMIT:-ba1df52}"
+ARCHIVE_366_GM_TABLE="${ARCHIVE_366_GM_TABLE:-experiments/2026-06-28_sigreg_lambda_tau_cross/results/gm_table.csv}"
+PARENT_ARM="${PARENT_ARM:-cross_C}"
+
+# Extra trajectory steps scored by dl_at_step.sh (space-separated, may be
+# empty). Each has a `gift_eval_full_${TAG}_step<N>_{2L,6L}` results dir.
+EXTENDED_STEPS="${EXTENDED_STEPS:-15000 20000 25000 30000 35000 37500}"
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
@@ -51,7 +52,10 @@ trap 'rm -rf "$TMP"' EXIT
 emit_row(){
   local source="$1" arm="$2" label="$3" head="$4" ckpt="$5" csv="$6"
   local vals
-  vals=$(python3 "$SCRIPT_DIR/_compute_gm.py" "$csv")
+  if ! vals=$(python3 "$SCRIPT_DIR/_compute_gm.py" "$csv" 2>/dev/null); then
+    echo "SKIP (unreadable per-task CSV): $csv" >&2
+    return 0
+  fi
   echo "${source},${arm},\"${label}\",${head},${ckpt},${vals}"
 }
 
@@ -65,17 +69,6 @@ emit_from_local(){
   emit_row "$source" "$arm" "$label" "$head" "$ckpt" "$csv"
 }
 
-emit_from_366(){
-  local source="$1" arm="$2" label="$3" head="$4" ckpt="$5" cell="$6"
-  local dest="$TMP/${source}_${cell}_${head}_${ckpt}.csv"
-  if ! git show "${ARCHIVE_366_BRANCH}:${ARCHIVE_366_DIR}/gift_eval_full_${cell}_${head}/all_results.csv" \
-        >"$dest" 2>/dev/null; then
-    echo "MISSING parent: ${ARCHIVE_366_BRANCH}:${ARCHIVE_366_DIR}/gift_eval_full_${cell}_${head}/all_results.csv" >&2
-    return
-  fi
-  emit_row "$source" "$arm" "$label" "$head" "$ckpt" "$dest"
-}
-
 {
   echo "source,arm,label,head,ckpt,gm,gm_mase,gm_mape_sn,gm_crps_sn,n"
 
@@ -83,28 +76,28 @@ emit_from_366(){
   # Cell 1: retrained backbone at parent's best-loss step
   for HL in 2L 6L; do
     emit_from_local "retrain" "b1024_parentstep" "${LABEL_RETRAIN} @ parent-best-step (${PARENT_BEST_LOSS_STEP})" \
-                    "$HL" "best" "${TAG}_parentstep"
+                    "$HL" "step${PARENT_BEST_LOSS_STEP}" "${TAG}_parentstep"
   done
   # Cell 2: retrained backbone at last (12,500)
   for HL in 2L 6L; do
     emit_from_local "retrain" "b1024_last" "${LABEL_RETRAIN} @ last (12,500)" \
-                    "$HL" "last" "${TAG}_last"
+                    "$HL" "step12500" "${TAG}_last"
   done
-
-  # Parent rows: fetched from #366's branch. Cover all four cells so the
-  # comparison shows best-ckpt AND last-ckpt sides.
-  parent_label="parent (#366 τ=${TAU}, λ_e=${LAMBDA_E}, λ_h=${LAMBDA_H}, B=512)"
-  for HL in 2L 6L; do
-    for ckpt in best last; do
-      if [ "$ckpt" = best ]; then
-        cell="${PARENT_TAG_PREFIX}_${PARENT_CELL_FULL}"
-      else
-        cell="${PARENT_TAG_PREFIX}_${PARENT_CELL_FULL}_last"
-      fi
-      emit_from_366 "parent_366" "parent_366_${PARENT_CELL_FULL}" "$parent_label" \
-                    "$HL" "$ckpt" "$cell"
+  # Extended-trajectory rows (follow-up sweep past the issue's 12,500).
+  for STEP in $EXTENDED_STEPS; do
+    for HL in 2L 6L; do
+      emit_from_local "retrain" "b1024_step${STEP}" "${LABEL_RETRAIN} @ step ${STEP}" \
+                      "$HL" "step${STEP}" "${TAG}_step${STEP}"
     done
   done
+
+  # Parent rows: copied verbatim from #366's committed gm_table.csv
+  # (aggregates only; raw per-task CSVs were never committed).
+  if ! git -C "$EXP_DIR" show "${ARCHIVE_366_COMMIT}:${ARCHIVE_366_GM_TABLE}" 2>/dev/null \
+      | awk -F, -v arm="$PARENT_ARM" '$2==arm {print "parent_366," $0}' \
+      | sed 's/^parent_366,cross,/parent_366,/'; then
+    echo "MISSING parent rows: ${ARCHIVE_366_COMMIT}:${ARCHIVE_366_GM_TABLE} arm=${PARENT_ARM}" >&2
+  fi
 } >"$OUT"
 echo "Wrote $OUT"
 cat "$OUT"
