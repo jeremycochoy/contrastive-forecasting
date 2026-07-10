@@ -817,6 +817,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
                             include_positive_in_denominator=False,
                             align_loss_weight=None,
                             subtract_contrastive_floor=None,
+                            moco_negatives=None,
                             teacher_original_latent=None):
     """Compute the contrastive divergence loss.
 
@@ -1707,7 +1708,9 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         # positive and negatives share one space (MoCo-style).
         mask_batch = ~torch.eye(B, dtype=torch.bool, device=orig_norm.device)
         mask_batch = mask_batch.view(B, B, 1, 1)
-        moco_negs = bool(train_config.get('moco_negatives', False))
+        moco_negs = (
+            moco_negatives if moco_negatives is not None
+            else bool(train_config.get('moco_negatives', False)))
         if moco_negs and hy_teacher_norm is not None:
             hy_p = hy_teacher_norm.permute(1, 2, 0, 3)
         else:
@@ -2250,7 +2253,12 @@ def contrastive_latent_loss(predicted_position, validation, spec,
     # trained WITHOUT sending negatives through the teacher — fail loud.
     # Also requires the EMA-teacher path to be active (no teacher → the
     # flag has nothing to route through and is silently ignored otherwise).
-    if bool(train_config.get('moco_negatives', False)):
+    # The function-arg override (moco_negatives=False from the loss_tau_ref
+    # diagnostic) takes precedence over the config key.
+    _moco_effective = (
+        moco_negatives if moco_negatives is not None
+        else bool(train_config.get('moco_negatives', False)))
+    if _moco_effective:
         if train_config.get('loss_shape') != \
                 'cosine_similarity_batch_split_pred_rep':
             raise NotImplementedError(

@@ -1402,9 +1402,13 @@ def main():
                     0.07, device=f_lat.device, dtype=f_lat.dtype),
                 include_positive_in_denominator=_pos_in_denom_ref,
                 # Keep this a PURE contrastive reference regardless of the
-                # run's --align-loss-weight / --subtract-contrastive-floor.
+                # run's --align-loss-weight / --subtract-contrastive-floor
+                # / --moco-negatives (the diagnostic doesn't have a teacher
+                # to route through anyway; force off to keep it a fixed
+                # student-side reference).
                 align_loss_weight=0.0,
                 subtract_contrastive_floor=False,
+                moco_negatives=False,
             )
         loss_tau_ref_val = loss_tau_ref.item()
         t_fwd_end = time.perf_counter()
