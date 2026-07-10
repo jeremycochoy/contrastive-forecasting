@@ -77,16 +77,15 @@ steps between 15,000 and 50,000, scored on the same 97-task grid.
 
 ![Backbone training loss](plots/backbone_loss.png)
 
-Backbone training loss keeps decreasing through the extension; the
-head-eval curves decouple from it, both degrading past step 40,000.
+The training-loss minimum (≈ step 35,700 on the 200-step moving
+average) does not coincide with the head-eval minimum (step 40,000).
 
 ## Notes
 
 - **Single seed, no confidence intervals.** The seed is fixed by spec
   (matched to the parent). All differences above are point-estimate GM
-  aggregates over 97 tasks; the 0.006 – 0.019 GM-Rel MASE gaps are
-  quoted without a variance band. "Worse" vs "within noise" is not
-  separated.
+  aggregates over 97 tasks, quoted without a variance band. "Worse" vs
+  "within noise" is not separated.
 - **The step-500 locus is a near-untrained backbone** (4 % of the
   12,500-step budget). It is included only because the parent's
   best-loss step landed there.
