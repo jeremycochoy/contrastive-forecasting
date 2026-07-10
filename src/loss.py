@@ -50,6 +50,29 @@ def infonce_floor(tau, n_negatives):
     return math.log1p(float(n_negatives) * math.exp(-1.0 / float(tau)))
 
 
+def _split_pred_rep_floors(tau, B, T, C):
+    """(f_pred, f_rep) — the two constants to re-base L_pred + L_rep by.
+
+    L_pred has one positive against B batch-pooled f-anchored negatives per
+    (t,c):
+        N_pred = B · (C + (B − 1))
+                          ─── adj-f (LSE over C channels of f_{t+1})
+                              ─── cross-batch fh (LSE over B−1 batches)
+    Its floor is the InfoNCE floor at that count:
+        f_pred = log(1 + N_pred · e^(−1/τ))
+
+    L_rep has NO positive; its value at cos ≡ 0 is simply log(#terms in the
+    pooled logsumexp), i.e. log(N_rep) where:
+        N_rep = B · ((C − 1) + (T − 1) + (B − 1) · T)
+                       ─── xx (LSE over C−1 other channels)
+                                ─── hh_all (LSE over T−1 other times, same series)
+                                            ─── xs_allt (LSE over (B−1)·T other series×times)
+    """
+    n_pred = B * (C + (B - 1))
+    n_rep  = B * ((C - 1) + (T - 1) + (B - 1) * T)
+    return (infonce_floor(tau, n_pred), math.log(n_rep))
+
+
 def _effective_negative_count(loss_shape, B, T, C):
     """Exact count of negative cosine terms aggregated into `log_neg_total`
     for a logsumexp variant — used only by `infonce_floor`. `log_neg_total`
@@ -2276,21 +2299,32 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         loss = loss + align_w * (2.0 - 2.0 * cos_align).mean()
 
     if sub_floor:
-        # Re-base the loss by the (constant) normalized-InfoNCE floor so the
-        # logged curve reads ~0 at the uniformity floor. Gradient-neutral.
-        if not pos_in_denom:
-            raise NotImplementedError(
-                "subtract_contrastive_floor requires the normalized-InfoNCE "
-                "objective (include_positive_in_denominator): "
-                "log(1 + N·e^(−1/τ)) is the floor of THAT form, not of the "
-                "default negatives-only loss.")
-        n_neg = _effective_negative_count(
-            train_config.get('loss_shape'), B, T, C)
-        if n_neg is None:
-            raise NotImplementedError(
-                "subtract_contrastive_floor is not implemented for "
-                f"loss_shape={train_config.get('loss_shape')!r}.")
-        loss = loss - infonce_floor(tau, n_neg)
+        # Re-base the loss by the (constant) uniformity floor so the logged
+        # curve reads ~0 at that floor. Gradient-neutral.
+        if train_config.get('loss_shape') == \
+                'cosine_similarity_batch_split_pred_rep':
+            # Split shape has TWO independent terms; subtract each side's
+            # own floor. L_pred is normalized-InfoNCE by construction (its
+            # own floor is the InfoNCE floor at its negative count);
+            # L_rep has no positive, so its floor is log(#terms).
+            f_pred, f_rep = _split_pred_rep_floors(tau, B, T, C)
+            loss = loss - float(f_pred) - float(f_rep)
+        else:
+            # Pooled shapes: floor requires the normalized form (positive
+            # in the denominator).
+            if not pos_in_denom:
+                raise NotImplementedError(
+                    "subtract_contrastive_floor requires the normalized-"
+                    "InfoNCE objective (include_positive_in_denominator): "
+                    "log(1 + N·e^(−1/τ)) is the floor of THAT form, not of "
+                    "the default negatives-only loss.")
+            n_neg = _effective_negative_count(
+                train_config.get('loss_shape'), B, T, C)
+            if n_neg is None:
+                raise NotImplementedError(
+                    "subtract_contrastive_floor is not implemented for "
+                    f"loss_shape={train_config.get('loss_shape')!r}.")
+            loss = loss - infonce_floor(tau, n_neg)
 
     if get_history:
         return loss, (forecasted_latent, original_latent)
