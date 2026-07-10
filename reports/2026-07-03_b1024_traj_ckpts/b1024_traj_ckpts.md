@@ -28,7 +28,7 @@ issue's stop rule fired:
 Extending past the stop rule (out of issue scope), to 50,000 steps:
 
 - **6L bottoms at step 40,000** (1.1179, −0.0075 vs parent last) and
-  sits below the B=512 re-run at every scored step from 20,000 through
+  sits below the B=512 re-run at every scored step from 15,000 through
   37,500 (the re-run's current end).
 - **2L never durably beats B=512**: it oscillates over ~0.03
   (1.1485 – 1.1789) past step 25,000.
