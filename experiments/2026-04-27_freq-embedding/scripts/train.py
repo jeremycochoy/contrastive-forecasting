@@ -466,6 +466,15 @@ def parse_args():
                    help="EMA coefficient for --ema-embedding/--ema-encoder. "
                         "Constant (no schedule). Default 0.99 (half-life "
                         "ln(0.5)/ln(τ) ≈ 69 steps). (#353)")
+    p.add_argument("--moco-negatives", action="store_true",
+                   help="MoCo-style negatives for the split_pred_rep loss "
+                        "(#374 arm 3): route the cross-batch f↔h negatives "
+                        "through the EMA teacher (hy_teacher_norm) instead "
+                        "of the student, so the positive and the f-anchored "
+                        "cross-batch negatives share one slowly-moving "
+                        "space. Requires --ema-embedding/--ema-encoder and "
+                        "--loss-shape cosine_similarity_batch_split_pred_rep; "
+                        "raises otherwise.")
     p.add_argument("--sigreg-embedding", action="store_true",
                    help="LeJEPA spherical SIGReg term on the patch-embedding "
                         "e_t (the GRU patch-embed output, [B,T,C,H] before "
@@ -1013,6 +1022,7 @@ def main():
     LOSS_SPEC.train_configuration["stopgrad_positive_h"] = args.stopgrad_positive_h
     LOSS_SPEC.train_configuration["align_loss_weight"] = args.align_loss_weight
     LOSS_SPEC.train_configuration["subtract_contrastive_floor"] = args.subtract_contrastive_floor
+    LOSS_SPEC.train_configuration["moco_negatives"] = args.moco_negatives
     if args.tau is not None:
         LOSS_SPEC.train_configuration["contrastive_divergence_temperature"] = args.tau
     model = ConfigurableModel(**model_config).to(device)

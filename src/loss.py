@@ -1677,9 +1677,18 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         ).permute(0, 2, 1)
 
         # f-anchored family: cross-batch f_t ↔ h'_{t+1}.
+        # MoCo-negatives (#374 arm 3, config key `moco_negatives`): when on
+        # AND an EMA teacher is available, replace the student h'_{t+1} with
+        # the teacher's h^T_{t+1} — the "keys" in the cross-batch f↔h term
+        # then come from the same slowly-moving encoder as the positive, so
+        # positive and negatives share one space (MoCo-style).
         mask_batch = ~torch.eye(B, dtype=torch.bool, device=orig_norm.device)
         mask_batch = mask_batch.view(B, B, 1, 1)
-        hy_p = hy_norm.permute(1, 2, 0, 3)
+        moco_negs = bool(train_config.get('moco_negatives', False))
+        if moco_negs and hy_teacher_norm is not None:
+            hy_p = hy_teacher_norm.permute(1, 2, 0, 3)
+        else:
+            hy_p = hy_norm.permute(1, 2, 0, 3)
         hy_hat_p = hy_hat_norm.permute(1, 2, 0, 3)
         sims_cross_batch = torch.matmul(
             hy_hat_p, hy_p.transpose(-2, -1)
@@ -2212,6 +2221,24 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         raise NotImplementedError(
             "teacher_original_latent is only implemented for loss_shape in "
             f"{_SG_POS_SHAPES}; got {train_config.get('loss_shape')!r}.")
+
+    # Guard: moco_negatives (#374 arm 3) is only wired into the split
+    # branch; any other shape reaching here with it set would have silently
+    # trained WITHOUT sending negatives through the teacher — fail loud.
+    # Also requires the EMA-teacher path to be active (no teacher → the
+    # flag has nothing to route through and is silently ignored otherwise).
+    if bool(train_config.get('moco_negatives', False)):
+        if train_config.get('loss_shape') != \
+                'cosine_similarity_batch_split_pred_rep':
+            raise NotImplementedError(
+                "moco_negatives is only implemented for loss_shape="
+                "'cosine_similarity_batch_split_pred_rep'; got "
+                f"{train_config.get('loss_shape')!r}.")
+        if hy_teacher_norm is None:
+            raise ValueError(
+                "moco_negatives requires an EMA teacher (pass "
+                "teacher_original_latent, i.e. --ema-embedding / "
+                "--ema-encoder at training time).")
 
     # Optional add-ons (#309), both default OFF ⇒ the objective is
     # byte-for-byte unchanged for every existing run/test. Resolve from the

@@ -30,7 +30,7 @@ NAME = "cosine_similarity_batch_split_pred_rep"
 
 
 def _spec(tau=0.1, teacher=False, stopgrad=False, pos_in_denom=False,
-          sub_floor=False, align=None):
+          sub_floor=False, align=None, moco_negatives=False):
     tc = {
         "contrastive_divergence_temperature": tau,
         "contrastive_latent_noise": None,
@@ -39,6 +39,7 @@ def _spec(tau=0.1, teacher=False, stopgrad=False, pos_in_denom=False,
         "include_positive_in_denominator": pos_in_denom,
         "stopgrad_positive_h": stopgrad,
         "subtract_contrastive_floor": sub_floor,
+        "moco_negatives": moco_negatives,
     }
     if align is not None:
         tc["align_loss_weight"] = align
@@ -52,7 +53,7 @@ def _latents(B, T, C, H, seed, dtype=torch.float64):
     return f, o
 
 
-def _split_reference(f, o, tau, teacher_o=None, stopgrad=False):
+def _split_reference(f, o, tau, teacher_o=None, stopgrad=False, moco_negatives=False):
     """Independent brute-force reference: build every negative family as a
     full dense Gram (no chunking / checkpointing), then combine into
     L_pred + L_rep exactly as specified in the issue."""
@@ -96,7 +97,14 @@ def _split_reference(f, o, tau, teacher_o=None, stopgrad=False):
     sims_zy = torch.einsum('btih,btjh->btij', hz_hat_norm, hy_hat_norm) / tau
     log_neg_zy = torch.logsumexp(sims_zy, dim=2)
 
-    sims_cb = torch.einsum('atch,btch->abtc', hy_hat_norm, hy_norm) / tau
+    # Arm 3 moco_negatives (#374): the cross-batch f↔h keys are the teacher's
+    # h^T_{t+1} when the flag is on AND a teacher was provided (otherwise
+    # student h, matching the base split).
+    if moco_negatives and teacher_o is not None:
+        hy_cb = F.normalize(teacher_o, p=2, dim=-1)[:, 1:]
+    else:
+        hy_cb = hy_norm
+    sims_cb = torch.einsum('atch,btch->abtc', hy_hat_norm, hy_cb) / tau
     sims_cb = sims_cb.masked_fill(
         torch.eye(B, dtype=torch.bool).view(B, B, 1, 1), neg_inf)
     log_neg_cross_batch = torch.logsumexp(sims_cb, dim=1)
@@ -267,6 +275,84 @@ class TestSplitPredRep:
         # cos ∈ [-1, 1] ⇒ 2 - 2·cos ∈ [0, 4] ⇒ increment ∈ [0, 2] (λ=0.5)
         assert withal > base - 1e-9
         assert withal - base <= 2.0 + 1e-6
+
+    def test_moco_negatives_off_is_base_split(self):
+        """With `moco_negatives=False` the cross-batch f↔h keys are the
+        student's h — byte-for-byte the base split-shape loss."""
+        B, T, C, H = 4, 5, 2, 12
+        g = torch.Generator().manual_seed(7373)
+        f = torch.randn(B, T, C, H, generator=g, dtype=torch.float64)
+        o = torch.randn(B, T, C, H, generator=g, dtype=torch.float64)
+        teacher = torch.randn(B, T, C, H, generator=g, dtype=torch.float64)
+        base = contrastive_latent_loss(
+            (f, o), False, _spec(tau=0.1),
+            teacher_original_latent=teacher)
+        with_flag = contrastive_latent_loss(
+            (f, o), False, _spec(tau=0.1, moco_negatives=False),
+            teacher_original_latent=teacher)
+        assert torch.allclose(base, with_flag, atol=1e-12, rtol=1e-12)
+
+    def test_moco_negatives_on_uses_teacher_in_cross_batch(self):
+        """With `moco_negatives=True` the cross-batch f↔h keys are the
+        teacher's h^T; reference reproduces the swap exactly."""
+        B, T, C, H = 4, 5, 2, 12
+        g = torch.Generator().manual_seed(7374)
+        f = torch.randn(B, T, C, H, generator=g, dtype=torch.float64)
+        o = torch.randn(B, T, C, H, generator=g, dtype=torch.float64)
+        teacher = torch.randn(B, T, C, H, generator=g, dtype=torch.float64)
+        got = contrastive_latent_loss(
+            (f, o), False, _spec(tau=0.1, moco_negatives=True),
+            teacher_original_latent=teacher)
+        want, _, _ = _split_reference(
+            f, o, 0.1, teacher_o=teacher, moco_negatives=True)
+        assert torch.allclose(got, want, atol=1e-9, rtol=1e-9)
+
+    def test_moco_negatives_shifts_loss_vs_base_split(self):
+        """The moco flag SHOULD change the loss (the negatives are drawn
+        from a different distribution). Sanity check that the flag is
+        actually plumbed and not silently dropped."""
+        B, T, C, H = 4, 5, 2, 12
+        g = torch.Generator().manual_seed(7375)
+        f = torch.randn(B, T, C, H, generator=g, dtype=torch.float64)
+        o = torch.randn(B, T, C, H, generator=g, dtype=torch.float64)
+        teacher = torch.randn(B, T, C, H, generator=g, dtype=torch.float64)
+        base = contrastive_latent_loss(
+            (f, o), False, _spec(tau=0.1),
+            teacher_original_latent=teacher)
+        moco = contrastive_latent_loss(
+            (f, o), False, _spec(tau=0.1, moco_negatives=True),
+            teacher_original_latent=teacher)
+        assert not torch.allclose(base, moco, atol=1e-6)
+
+    def test_moco_negatives_requires_teacher(self):
+        """Passing `moco_negatives=True` without an EMA teacher must fail
+        loud (the flag has nothing to route the negatives through)."""
+        f, o = _latents(B=3, T=4, C=1, H=8, seed=2)
+        with pytest.raises(ValueError):
+            contrastive_latent_loss(
+                (f, o), False, _spec(tau=0.1, moco_negatives=True))
+
+    def test_moco_negatives_rejects_other_loss_shapes(self):
+        """The flag is only wired into the split branch; any other
+        loss_shape reaching contrastive_latent_loss with it set must
+        raise (avoids silently training WITHOUT teacher-in-negs)."""
+        f, o = _latents(B=3, T=4, C=1, H=8, seed=2)
+        teacher = torch.randn(3, 4, 1, 8, generator=torch.Generator().manual_seed(1),
+                              dtype=torch.float64)
+        tc = {
+            "contrastive_divergence_temperature": 0.1,
+            "contrastive_latent_noise": None,
+            "loss_shape": "cosine_similarity_batch_full_hh_negs_xshh_allt",
+            "contrastive_latent_delay": 0,
+            "include_positive_in_denominator": False,
+            "stopgrad_positive_h": False,
+            "subtract_contrastive_floor": False,
+            "moco_negatives": True,
+        }
+        with pytest.raises(NotImplementedError):
+            contrastive_latent_loss(
+                (f, o), False, SimpleNamespace(train_configuration=tc),
+                teacher_original_latent=teacher)
 
     def test_zero_when_teacher_positive_and_negs_are_far(self):
         """If f_t := teacher's h^T_{t+1} (positive cos = 1) AND every h_t is
