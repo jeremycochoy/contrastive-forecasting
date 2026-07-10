@@ -43,8 +43,11 @@ while [ ! -f "$FINAL" ]; do
   for f in losses.csv attn_amplitude.csv; do
     pull "$REMOTE/runs/${NAME}_$f" "$LOCAL/runs/${NAME}_$f" "${MIN[$f]}"
   done
-  # Pull periodic step checkpoints if they appear (2500k, 5000k, 7500k, 10000k, 12500k).
-  for step in 2500 5000 7500 10000 12500; do
+  # Pull periodic step checkpoints. train.py names them as
+  # `{run_name}_{step // 1000}k.pth`, so with --save-every 2500 the
+  # checkpoints are 2k (step 2500), 5k (step 5000), 7k (step 7500),
+  # 10k (step 10000), 12k (step 12500).
+  for step in 2 5 7 10 12; do
     pull "$REMOTE/runs/${NAME}_${step}k.pth" "$LOCAL/runs/${NAME}_${step}k.pth" 80000000
     pull "$REMOTE/runs/${NAME}_${step}k_optimizer.pth" "$LOCAL/runs/${NAME}_${step}k_optimizer.pth" 120000000
   done
