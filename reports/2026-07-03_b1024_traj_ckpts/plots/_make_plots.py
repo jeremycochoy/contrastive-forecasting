@@ -58,6 +58,10 @@ def gm_vs_step() -> None:
         steps, gms = _b512(head)
         ax.plot(steps, gms, "s--", color=colour, linewidth=1.2, markersize=4,
                 alpha=0.65, label=f"B=512, {head} head")
+    ax.text(0.99, 0.02,
+            "B=512 curve: seed-1 best point (step 533) + seed-2 re-run points",
+            transform=ax.transAxes, ha="right", va="bottom",
+            fontsize=7, color="dimgrey")
 
     ax.axvline(PARENT_BUDGET_STEP, color="k", linestyle=":", linewidth=1.0, alpha=0.6)
     ax.text(PARENT_BUDGET_STEP, 1.198, "  spec budget (12,500 steps)", fontsize=8, va="top")
@@ -99,7 +103,9 @@ def backbone_loss() -> None:
     ax.axvline(PARENT_BUDGET_STEP, color="k", linestyle=":", linewidth=1.0, alpha=0.6)
     ax.text(PARENT_BUDGET_STEP + 400, 4.35, "spec budget (12,500)", fontsize=8, va="top")
     ax.set_xlim(0, XMAX)
-    ax.set_ylim(3.5, 4.4)
+    # Lower bound must include the early dip (global MA min ~3.23 near
+    # step 680) — clipping it once misled the report's caption.
+    ax.set_ylim(3.15, 4.4)
     ax.set_xlabel("Backbone step")
     ax.set_ylabel("training loss")
     ax.set_title("Backbone training loss (200-step MA) — B=1024 vs B=512")

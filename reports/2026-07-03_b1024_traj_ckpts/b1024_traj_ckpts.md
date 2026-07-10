@@ -1,10 +1,11 @@
 # B=1024 retrain of the τ=0.90 last-ckpt winner
 
 **Question: does doubling the training batch size (B=512 → B=1024,
-everything else fixed) make forecasts better? Answer: not at equal
-step count — the doubled batch is worse everywhere. Trained ~3×
-longer, it overtakes B=512 on the 6-layer head only, by a small
-single-seed margin, and degrades past step 40,000.**
+everything else fixed) make forecasts better? Answer: not within the
+issue's 12,500-step budget — the doubled batch is worse in every spec
+cell. Trained ~3× longer (≈ 6.4× the samples), it overtakes B=512 on
+the 6-layer head only, by a small single-seed margin, and degrades
+past step 40,000.**
 
 ![GM-Rel MASE vs backbone step](plots/gm_vs_step.png)
 
@@ -27,20 +28,26 @@ issue's stop rule fired:
 Extending past the stop rule (out of issue scope), to 50,000 steps:
 
 - **6L bottoms at step 40,000** (1.1179, −0.0075 vs parent last) and
-  sits below the B=512 re-run at every step from 20,000 on.
+  sits below the B=512 re-run at every scored step from 20,000 through
+  37,500 (the re-run's current end).
 - **2L never durably beats B=512**: it oscillates over ~0.03
   (1.1485 – 1.1789) past step 25,000.
-- Both batch sizes spike at step 35,000, and both degrade past 40,000.
+- Both batch sizes spike at step 35,000; past 40,000 both B=1024
+  heads degrade.
 
 ![Backbone training loss](plots/backbone_loss.png)
 
-The B=1024 loss minimum (≈ step 35,700 on the 200-step moving average)
-does not coincide with its head-eval minimum (step 40,000).
+The B=1024 loss minimum (≈ 3.23 at step ~680 on the 200-step moving
+average, the early dip) does not coincide with its head-eval minimum
+(step 40,000); within the extension the loss bottoms near step 35,700
+and rises after.
 
 ## Protocol
 
 - Backbone retrained at B=1024, seed matched to the parent, 12,500
-  steps (extended to 50,000), checkpoint every 500 steps.
+  steps (extended to 50,000), checkpoint every 500 steps. The
+  "best-loss step (500)" locus is the parent's measured best (step
+  533) snapped to that 500-step checkpoint grid.
 - Two causal transformer quantile heads (2- and 6-layer) per scored
   checkpoint, over the frozen backbone; the step-500 head trains 30,000
   steps from scratch, later loci resume from it for a 10,000-step
