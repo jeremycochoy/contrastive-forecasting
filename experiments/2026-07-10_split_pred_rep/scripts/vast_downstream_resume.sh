@@ -26,7 +26,8 @@ arch=(--t-raw 4096 --n-channels 1 --d-model 384 --n-heads 6 --num-layers 6 \
       --encoder-type gru --rev-norm-kind ewma --rev-norm-span 128)
 
 train_head(){ # HL run_name backbone resume_src total warmup
-  local HL="$1" qn="$2" bb="$3" src="$4" tot="$5" wu="$6" qf="$RUNS/${qn}_FINAL.pth"
+  local HL="$1" qn="$2" bb="$3" src="$4" tot="$5" wu="$6"
+  local qf="$RUNS/${qn}_FINAL.pth"
   [ -f "$qf" ] && { log "QH $qn skip (FINAL exists)"; return 0; }
   local rflag=(); [ -n "$src" ] && rflag=(--resume "$src")
   log "QH $qn train $tot on $(basename "$bb")"
@@ -44,7 +45,9 @@ train_head(){ # HL run_name backbone resume_src total warmup
   [ -f "$qf" ] || { log "QH $qn no checkpoint"; return 1; }; log "QH $qn done"; }
 
 do_eval(){ # HL run_name backbone out_tag
-  local HL="$1" qn="$2" bb="$3" tag="$4" qf="$RUNS/${qn}_FINAL.pth" out="$RES/gift_eval_full_${tag}_${HL}L"
+  local HL="$1" qn="$2" bb="$3" tag="$4"
+  local qf="$RUNS/${qn}_FINAL.pth"
+  local out="$RES/gift_eval_full_${tag}_${HL}L"
   [ -f "$out/summary.txt" ] && { log "EVAL ${tag}_${HL}L skip (summary exists)"; return 0; }
   mkdir -p "$out"; local resume_flag=""
   [ -f "$out/all_results.csv" ] && resume_flag="--resume"
