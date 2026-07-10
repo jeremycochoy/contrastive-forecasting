@@ -91,21 +91,44 @@ def _b1024_losses() -> pd.DataFrame:
 
 
 def backbone_loss() -> None:
+    # Batch-coded colours, deliberately distinct from the GM plot's
+    # head-coded blue/red so the two figures cannot be cross-read.
     fig, ax = plt.subplots(figsize=(9.5, 4.0))
-    for label, df, colour, alpha in [
-        ("B=1024 (seed 1)", _b1024_losses(), "#333333", 1.0),
-        ("B=512 (seed 2)", pd.read_csv(SEED2 / "steps_loss.csv"), "#888888", 0.9),
+    for label, df, colour in [
+        ("B=1024 (seed 1)", _b1024_losses(), "#6a3d9a"),
+        ("B=512 (seed 2)", pd.read_csv(SEED2 / "steps_loss.csv"), "#ff8c00"),
     ]:
         df = df.sort_values("step")
         df["ma"] = df["loss"].rolling(200, min_periods=1).mean()
         df = df[df["step"] >= 200]
-        ax.plot(df["step"], df["ma"], color=colour, linewidth=1.2, alpha=alpha, label=label)
+        ax.plot(df["step"], df["ma"], color=colour, linewidth=1.3, label=label)
+        # Mark the global MA minimum of each curve (the caption's anchor).
+        i = df["ma"].idxmin()
+        ax.plot(df.loc[i, "step"], df.loc[i, "ma"], "o", color=colour,
+                markersize=6, fillstyle="none", markeredgewidth=1.4)
+        ax.annotate(f"min {df.loc[i, 'ma']:.2f}",
+                    (df.loc[i, "step"], df.loc[i, "ma"]),
+                    textcoords="offset points", xytext=(8, -11),
+                    fontsize=7.5, color=colour)
+    # The B=1024 extension minimum, second anchor of the caption.
+    b1024 = _b1024_losses().sort_values("step")
+    b1024["ma"] = b1024["loss"].rolling(200, min_periods=1).mean()
+    ext = b1024[b1024["step"] >= PARENT_BUDGET_STEP]
+    j = ext["ma"].idxmin()
+    ax.plot(ext.loc[j, "step"], ext.loc[j, "ma"], "o", color="#6a3d9a",
+            markersize=6, fillstyle="none", markeredgewidth=1.4)
+    ax.annotate(f"extension min {ext.loc[j, 'ma']:.2f}",
+                (ext.loc[j, "step"], ext.loc[j, "ma"]),
+                textcoords="offset points", xytext=(8, -11),
+                fontsize=7.5, color="#6a3d9a")
     ax.axvline(PARENT_BUDGET_STEP, color="k", linestyle=":", linewidth=1.0, alpha=0.6)
-    ax.text(PARENT_BUDGET_STEP + 400, 4.35, "spec budget (12,500)", fontsize=8, va="top")
+    ax.text(PARENT_BUDGET_STEP + 400, 4.45, "spec budget (12,500)", fontsize=8, va="top")
     ax.set_xlim(0, XMAX)
-    # Lower bound must include the early dip (global MA min ~3.23 near
-    # step 680) — clipping it once misled the report's caption.
-    ax.set_ylim(3.15, 4.4)
+    # Bounds must include every post-warmup feature: the early dips
+    # (global MA minima 3.23 / 3.38) and the B=512 rebound peak (4.43 at
+    # step ~5,650). Only the step<~300 warmup transient may run off-scale
+    # — clipping a real extremum once misled the report's caption.
+    ax.set_ylim(3.15, 4.5)
     ax.set_xlabel("Backbone step")
     ax.set_ylabel("training loss")
     ax.set_title("Backbone training loss (200-step MA) — B=1024 vs B=512")
