@@ -2,84 +2,73 @@
 
 Reads:
   ../../experiments/2026-07-03_b1024_traj_ckpts/results/gm_table.csv
+  ../../experiments/2026-07-03_b1024_traj_ckpts/results/b512_seed2/  (gm.csv, steps_loss.csv)
   ../../experiments/2026-07-03_b1024_traj_ckpts/runs/bb_..._losses.csv (+ _r2.._r4)
 
 Emits into this directory:
-  gm_vs_step.png       — GM-Rel MASE per head vs backbone step, parent lines
-  backbone_loss.png    — contrastive loss (10-step ma) vs backbone step
+  gm_vs_step.png       — GM-Rel MASE per head vs backbone step, B=1024 vs B=512
+  backbone_loss.png    — contrastive loss (200-step MA), B=1024 vs B=512
 """
 from __future__ import annotations
 
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 
 HERE = Path(__file__).parent
 EXP = HERE.parent.parent.parent / "experiments" / "2026-07-03_b1024_traj_ckpts"
 GM = pd.read_csv(EXP / "results" / "gm_table.csv")
+SEED2 = EXP / "results" / "b512_seed2"
 RUNS = EXP / "runs"
 TAG = "bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024"
 
 PARENT_BUDGET_STEP = 12500
-PARENT_BEST_LOSS_STEP = 500
+PARENT_BEST_LOSS_STEP_RAW = 533  # parent's own best-loss step (unsnapped)
 COLOR_2L = "#1f77b4"
 COLOR_6L = "#d62728"
+XMAX = 51500
 
 
-def _step_of(ckpt: str) -> int:
-    return int(ckpt.replace("step", ""))
-
-
-def _trajectory(head: str) -> tuple[list[int], list[float]]:
+def _b1024(head: str) -> tuple[list[int], list[float]]:
     rows = GM[(GM["source"] == "retrain") & (GM["head"] == head)].copy()
-    rows["step"] = rows["ckpt"].map(_step_of)
+    rows["step"] = rows["ckpt"].str.replace("step", "").astype(int)
     rows = rows.sort_values("step")
     return rows["step"].tolist(), rows["gm"].tolist()
 
 
-def _parent(head: str, ckpt: str) -> float:
-    row = GM[(GM["source"] == "parent_366") & (GM["head"] == head) & (GM["ckpt"] == ckpt)]
-    return float(row["gm"].iloc[0])
-
-
-PARENT_BEST_LOSS_STEP_RAW = 533  # parent's own best-loss step (unsnapped)
+def _b512(head: str) -> tuple[list[int], list[float]]:
+    """One curve: the parent's best point (seed 1), then every seed-2 re-run point."""
+    best = GM[(GM["source"] == "parent_366") & (GM["head"] == head) & (GM["ckpt"] == "best")]
+    s2 = pd.read_csv(SEED2 / "gm.csv")
+    s2 = s2[s2["head"] == head].sort_values("step")
+    return ([PARENT_BEST_LOSS_STEP_RAW] + s2["step"].tolist(),
+            [float(best["gm"].iloc[0])] + s2["gm"].tolist())
 
 
 def gm_vs_step() -> None:
     fig, ax = plt.subplots(figsize=(9.5, 5.5))
     for head, colour in [("2L", COLOR_2L), ("6L", COLOR_6L)]:
-        steps, gms = _trajectory(head)
-        ax.plot(steps, gms, "o-", color=colour, label=f"B=1024 retrain, {head} head", linewidth=1.6, markersize=5)
+        steps, gms = _b1024(head)
+        ax.plot(steps, gms, "o-", color=colour, linewidth=1.7, markersize=5,
+                label=f"B=1024, {head} head")
         for s, g in zip(steps, gms):
-            ax.text(s, g + 0.0022, f"{g:.4f}", ha="center", va="bottom", fontsize=7, color=colour, rotation=90)
-        # Parent B=512 was scored at two checkpoints only (best-loss 533,
-        # last 12,500): draw that 2-point segment, then continue its last
-        # value as a dotted level line so the whole extension compares
-        # against it.
-        p_best, p_last = _parent(head, "best"), _parent(head, "last")
-        ax.plot([PARENT_BEST_LOSS_STEP_RAW, PARENT_BUDGET_STEP], [p_best, p_last],
-                "s--", color=colour, linewidth=1.2, markersize=5, fillstyle="none",
-                label=f"parent B=512, {head} head (2 ckpts)")
-        ax.plot([PARENT_BUDGET_STEP, 51000], [p_last, p_last],
-                linestyle=":", color=colour, linewidth=1.0, alpha=0.7)
-        for s, g in [(PARENT_BEST_LOSS_STEP_RAW, p_best), (PARENT_BUDGET_STEP, p_last)]:
-            ax.text(s, g - 0.0022, f"{g:.4f}", ha="center", va="top", fontsize=7, color=colour, rotation=90)
+            ax.text(s, g + 0.0022, f"{g:.4f}", ha="center", va="bottom",
+                    fontsize=7, color=colour, rotation=90)
+        steps, gms = _b512(head)
+        ax.plot(steps, gms, "s--", color=colour, linewidth=1.2, markersize=4,
+                alpha=0.65, label=f"B=512, {head} head")
 
     ax.axvline(PARENT_BUDGET_STEP, color="k", linestyle=":", linewidth=1.0, alpha=0.6)
     ax.text(PARENT_BUDGET_STEP, 1.198, "  spec budget (12,500 steps)", fontsize=8, va="top")
-    ax.axvspan(PARENT_BUDGET_STEP, 51000, color="grey", alpha=0.06)
-    ax.text(31000, 1.198, "extension (out of issue scope)",
-            ha="center", va="top", fontsize=8, style="italic", color="dimgrey")
 
-    ax.set_xlabel("Backbone step (B=1024)")
+    ax.set_xlabel("Backbone step")
     ax.set_ylabel("GM-Relative MASE  (lower is better)")
-    ax.set_xlim(0, 51500)
-    ax.set_ylim(1.115, 1.20)
+    ax.set_xlim(0, XMAX)
+    ax.set_ylim(1.112, 1.20)
     ax.set_xticks([500, 12500, 20000, 25000, 30000, 35000, 40000, 45000, 50000])
     ax.set_xticklabels(["500", "12500", "20k", "25k", "30k", "35k", "40k", "45k", "50k"], fontsize=8)
-    ax.set_title("GM-Rel MASE vs backbone step — B=1024 retrain vs B=512 parent (arm C, τ=0.90)")
+    ax.set_title("GM-Rel MASE vs backbone step — arm C (τ=0.90), B=1024 vs B=512")
     ax.grid(axis="y", linestyle=":", alpha=0.4)
     ax.legend(loc="upper right", fontsize=9)
     fig.tight_layout()
@@ -87,34 +76,33 @@ def gm_vs_step() -> None:
     plt.close(fig)
 
 
-def _read_losses() -> pd.DataFrame:
+def _b1024_losses() -> pd.DataFrame:
     frames = []
     for suffix in ["", "_r2", "_r3", "_r4"]:
         path = RUNS / f"{TAG}{suffix}_losses.csv"
         if path.exists():
             frames.append(pd.read_csv(path)[["step", "loss"]])
-    return pd.concat(frames, ignore_index=True).sort_values("step")
+    df = pd.concat(frames, ignore_index=True).drop_duplicates("step", keep="last")
+    return df.sort_values("step")
 
 
 def backbone_loss() -> None:
-    df = _read_losses()
-    df["loss_ma"] = df["loss"].rolling(200, min_periods=1).mean()
-    df = df[df["step"] >= 200]
     fig, ax = plt.subplots(figsize=(9.5, 4.0))
-    ax.plot(df["step"], df["loss_ma"], color="#333", linewidth=1.2, label="contrastive loss (200-step MA)")
-    ax.set_xlim(0, df["step"].max())
-    ax.set_ylim(3.5, 4.4)
-    ax.axvline(PARENT_BEST_LOSS_STEP, color=COLOR_2L, linestyle=":", linewidth=1.0, alpha=0.7)
-    ax.text(PARENT_BEST_LOSS_STEP + 400, 4.35, "parent best-loss step (500)",
-            fontsize=8, va="top", color=COLOR_2L)
+    for label, df, colour, alpha in [
+        ("B=1024 (seed 1)", _b1024_losses(), "#333333", 1.0),
+        ("B=512 (seed 2)", pd.read_csv(SEED2 / "steps_loss.csv"), "#888888", 0.9),
+    ]:
+        df = df.sort_values("step")
+        df["ma"] = df["loss"].rolling(200, min_periods=1).mean()
+        df = df[df["step"] >= 200]
+        ax.plot(df["step"], df["ma"], color=colour, linewidth=1.2, alpha=alpha, label=label)
     ax.axvline(PARENT_BUDGET_STEP, color="k", linestyle=":", linewidth=1.0, alpha=0.6)
     ax.text(PARENT_BUDGET_STEP + 400, 4.35, "spec budget (12,500)", fontsize=8, va="top")
-    ax.axvspan(PARENT_BUDGET_STEP, df["step"].max(), color="grey", alpha=0.06)
-    ax.text(31000, 4.35, "extension (out of issue scope)",
-            ha="center", va="top", fontsize=8, style="italic", color="dimgrey")
-    ax.set_xlabel("Backbone step (B=1024)")
+    ax.set_xlim(0, XMAX)
+    ax.set_ylim(3.5, 4.4)
+    ax.set_xlabel("Backbone step")
     ax.set_ylabel("training loss")
-    ax.set_title("Backbone training loss — base run + continuations to 50,000 (200-step MA)")
+    ax.set_title("Backbone training loss (200-step MA) — B=1024 vs B=512")
     ax.grid(axis="y", linestyle=":", alpha=0.4)
     ax.legend(loc="lower right", fontsize=9)
     fig.tight_layout()
