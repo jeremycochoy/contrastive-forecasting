@@ -340,6 +340,33 @@ class TestSplitPredRep:
             contrastive_latent_loss(
                 (f, o), False, _spec(tau=0.1, moco_negatives=True))
 
+    def test_moco_negatives_hh_families_still_gradient_to_encoder(self):
+        """#375 pre-launch check: with moco_negatives on, the three h↔h
+        families (xx, hh_all, xs_allt) must still deliver gradient to the
+        encoder. The flag only swaps the cross_batch f↔h key side; the
+        repulsion terms are pure student both sides and must keep training
+        the encoder. Verified by zeroing the f-side gradient path (detach
+        f) and confirming a nonzero gradient still lands on h."""
+        B, T, C, H = 4, 5, 2, 12
+        g = torch.Generator().manual_seed(9101)
+        f = torch.randn(B, T, C, H, generator=g, dtype=torch.float64).detach()
+        o = torch.randn(B, T, C, H, generator=g, dtype=torch.float64,
+                        requires_grad=True)
+        teacher = torch.randn(B, T, C, H, generator=g, dtype=torch.float64).detach()
+        loss = contrastive_latent_loss(
+            (f, o), False, _spec(tau=0.1, moco_negatives=True),
+            teacher_original_latent=teacher)
+        loss.backward()
+        # Grad on o must be nonzero — it flows only through the h↔h families
+        # and the h-side of the (student-side) f↔h cross-batch positive when
+        # teacher is the key. The teacher-positive branch of the split shape
+        # substitutes teacher for the STUDENT h_{t+1} inside log_pos, so the
+        # gradient here comes strictly from L_rep + adj-f (adj-f has no h).
+        assert o.grad is not None
+        assert o.grad.abs().sum().item() > 1e-6, (
+            f"encoder grad from h↔h families vanished (moco_negatives "
+            f"leaked into the repulsion terms)")
+
     def test_moco_negatives_rejects_other_loss_shapes(self):
         """The flag is only wired into the split branch; any other
         loss_shape reaching contrastive_latent_loss with it set must
