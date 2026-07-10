@@ -1,16 +1,22 @@
 # B=1024 retrain of the τ=0.90 last-ckpt winner
 
+**Question: does doubling the training batch size (B=512 → B=1024,
+everything else fixed) make forecasts better? Answer: not at equal
+step count — the doubled batch is worse everywhere. Trained ~3×
+longer it overtakes the original on one of the two heads, by a small
+single-seed margin, then degrades.**
+
 Follow-up to the τ=0.90 (λ_e, λ_h) grid landed at
-`experiments/2026-06-28_sigreg_lambda_tau_cross/`.
+`experiments/2026-06-28_sigreg_lambda_tau_cross/`. The model being
+retrained is that grid's winner, **arm C** (λ_e = 1, λ_h = 1,
+τ = 0.90); the B=512 original is called the **parent** throughout.
 
-## Question
+## Question, precisely
 
-Does doubling the contrastive batch size from B=512 to B=1024 — everything
-else held fixed (seed, steps, τ, λ pair, optimiser, dataset) — reduce
-GM-Rel MASE at the two spec-defined checkpoints?
+Does the B=1024 retrain reduce GM-Rel MASE at two checkpoints?
 
-- **Parent best-loss locus.** The step at which the parent B=512 arm
-  reached its lowest training loss (step 533, snapped to the nearest
+- **Parent best-loss locus.** The step at which the parent reached its
+  lowest training loss (step 533, snapped to the nearest
   trajectory-checkpoint multiple of 500 = step 500).
 - **Spec-budget locus.** The parent's training budget of 12,500 steps.
 
@@ -24,16 +30,15 @@ quantile heads) beat the parent's `last-ckpt` on GM-Rel MASE, extend to
 
 ## Design
 
-One arm: the joint winner of the previous τ=0.90 A–I grid on both
-`2L / last-ckpt` and `6L / last-ckpt` — **arm C** (λ_e = 1, λ_h = 1,
-τ = 0.90). Backbone retrained at B=1024 for 12,500 steps with
-backbone checkpoints saved every 500 steps. Two causal transformer
-quantile heads (2-layer and 6-layer, 6 attention heads, trained over
-the frozen backbone) per backbone checkpoint; every head evaluated on
-the full 97-task GIFT-Eval grid. Head-training protocol matches the
-parent's: the step-500 head is trained 30,000 steps from scratch, and
-every later locus resumes from that head for a 10,000-step re-adapt.
-Single seed, matched to the parent.
+- **Backbone**: arm C retrained at B=1024 for 12,500 steps, a
+  checkpoint saved every 500 steps. Single seed, matched to the parent.
+- **Heads**: two causal transformer quantile heads (2-layer and
+  6-layer, 6 attention heads) trained over the frozen backbone at each
+  scored checkpoint.
+- **Head protocol** (matches the parent's): the step-500 head trains
+  30,000 steps from scratch; every later locus resumes from that head
+  for a 10,000-step re-adapt.
+- **Scoring**: every head evaluated on the full 97-task GIFT-Eval grid.
 
 Vocabulary. **τ** is the EMA rate for the target encoder. **λ_e, λ_h**
 are the SIGReg weights on the embedding and head branches respectively.
