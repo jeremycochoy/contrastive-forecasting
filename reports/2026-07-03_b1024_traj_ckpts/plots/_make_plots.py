@@ -44,6 +44,9 @@ def _parent(head: str, ckpt: str) -> float:
     return float(row["gm"].iloc[0])
 
 
+PARENT_BEST_LOSS_STEP_RAW = 533  # parent's own best-loss step (unsnapped)
+
+
 def gm_vs_step() -> None:
     fig, ax = plt.subplots(figsize=(9.5, 5.5))
     for head, colour in [("2L", COLOR_2L), ("6L", COLOR_6L)]:
@@ -51,10 +54,18 @@ def gm_vs_step() -> None:
         ax.plot(steps, gms, "o-", color=colour, label=f"B=1024 retrain, {head} head", linewidth=1.6, markersize=5)
         for s, g in zip(steps, gms):
             ax.text(s, g + 0.0022, f"{g:.4f}", ha="center", va="bottom", fontsize=7, color=colour, rotation=90)
-        parent_last = _parent(head, "last")
-        ax.axhline(parent_last, color=colour, linestyle="--", linewidth=1.0, alpha=0.8)
-        ax.text(1500, parent_last - 0.0018, f"parent B=512 last  {parent_last:.4f}",
-                ha="left", va="top", fontsize=8, color=colour)
+        # Parent B=512 was scored at two checkpoints only (best-loss 533,
+        # last 12,500): draw that 2-point segment, then continue its last
+        # value as a dotted level line so the whole extension compares
+        # against it.
+        p_best, p_last = _parent(head, "best"), _parent(head, "last")
+        ax.plot([PARENT_BEST_LOSS_STEP_RAW, PARENT_BUDGET_STEP], [p_best, p_last],
+                "s--", color=colour, linewidth=1.2, markersize=5, fillstyle="none",
+                label=f"parent B=512, {head} head (2 ckpts)")
+        ax.plot([PARENT_BUDGET_STEP, 51000], [p_last, p_last],
+                linestyle=":", color=colour, linewidth=1.0, alpha=0.7)
+        for s, g in [(PARENT_BEST_LOSS_STEP_RAW, p_best), (PARENT_BUDGET_STEP, p_last)]:
+            ax.text(s, g - 0.0022, f"{g:.4f}", ha="center", va="top", fontsize=7, color=colour, rotation=90)
 
     ax.axvline(PARENT_BUDGET_STEP, color="k", linestyle=":", linewidth=1.0, alpha=0.6)
     ax.text(PARENT_BUDGET_STEP, 1.198, "  spec budget (12,500 steps)", fontsize=8, va="top")
