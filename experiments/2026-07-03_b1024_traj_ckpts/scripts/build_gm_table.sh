@@ -44,7 +44,7 @@ PARENT_ARM="${PARENT_ARM:-cross_C}"
 
 # Extra trajectory steps scored by dl_at_step.sh (space-separated, may be
 # empty). Each has a `gift_eval_full_${TAG}_step<N>_{2L,6L}` results dir.
-EXTENDED_STEPS="${EXTENDED_STEPS:-15000 20000 25000 30000 35000 37500}"
+EXTENDED_STEPS="${EXTENDED_STEPS:-15000 20000 25000 30000 35000 37500 40000 45000 50000}"
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT

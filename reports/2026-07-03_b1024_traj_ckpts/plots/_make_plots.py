@@ -2,7 +2,7 @@
 
 Reads:
   ../../experiments/2026-07-03_b1024_traj_ckpts/results/gm_table.csv
-  ../../experiments/2026-07-03_b1024_traj_ckpts/runs/bb_..._losses.csv (+ _r2 + _r3)
+  ../../experiments/2026-07-03_b1024_traj_ckpts/runs/bb_..._losses.csv (+ _r2.._r4)
 
 Emits into this directory:
   gm_vs_step.png       — GM-Rel MASE per head vs backbone step, parent lines
@@ -58,16 +58,16 @@ def gm_vs_step() -> None:
 
     ax.axvline(PARENT_BUDGET_STEP, color="k", linestyle=":", linewidth=1.0, alpha=0.6)
     ax.text(PARENT_BUDGET_STEP, 1.198, "  spec budget (12,500 steps)", fontsize=8, va="top")
-    ax.axvspan(PARENT_BUDGET_STEP, 38000, color="grey", alpha=0.06)
-    ax.text(25000, 1.198, "extension (out of issue scope)",
+    ax.axvspan(PARENT_BUDGET_STEP, 51000, color="grey", alpha=0.06)
+    ax.text(31000, 1.198, "extension (out of issue scope)",
             ha="center", va="top", fontsize=8, style="italic", color="dimgrey")
 
     ax.set_xlabel("Backbone step (B=1024)")
     ax.set_ylabel("GM-Relative MASE  (lower is better)")
-    ax.set_xlim(0, 39000)
+    ax.set_xlim(0, 51500)
     ax.set_ylim(1.115, 1.20)
-    ax.set_xticks([500, 12500, 15000, 20000, 25000, 30000, 35000, 37500])
-    ax.set_xticklabels(["500", "12500", "15k", "20k", "25k", "30k", "35k", "37.5k"], fontsize=8)
+    ax.set_xticks([500, 12500, 20000, 25000, 30000, 35000, 40000, 45000, 50000])
+    ax.set_xticklabels(["500", "12500", "20k", "25k", "30k", "35k", "40k", "45k", "50k"], fontsize=8)
     ax.set_title("GM-Rel MASE vs backbone step — B=1024 retrain vs B=512 parent (arm C, τ=0.90)")
     ax.grid(axis="y", linestyle=":", alpha=0.4)
     ax.legend(loc="upper right", fontsize=9)
@@ -78,7 +78,7 @@ def gm_vs_step() -> None:
 
 def _read_losses() -> pd.DataFrame:
     frames = []
-    for suffix in ["", "_r2", "_r3"]:
+    for suffix in ["", "_r2", "_r3", "_r4"]:
         path = RUNS / f"{TAG}{suffix}_losses.csv"
         if path.exists():
             frames.append(pd.read_csv(path)[["step", "loss"]])
@@ -99,11 +99,11 @@ def backbone_loss() -> None:
     ax.axvline(PARENT_BUDGET_STEP, color="k", linestyle=":", linewidth=1.0, alpha=0.6)
     ax.text(PARENT_BUDGET_STEP + 400, 4.35, "spec budget (12,500)", fontsize=8, va="top")
     ax.axvspan(PARENT_BUDGET_STEP, df["step"].max(), color="grey", alpha=0.06)
-    ax.text(25000, 4.35, "extension (out of issue scope)",
+    ax.text(31000, 4.35, "extension (out of issue scope)",
             ha="center", va="top", fontsize=8, style="italic", color="dimgrey")
     ax.set_xlabel("Backbone step (B=1024)")
     ax.set_ylabel("training loss")
-    ax.set_title("Backbone training loss — base run + continuations to 37,500 (200-step MA)")
+    ax.set_title("Backbone training loss — base run + continuations to 50,000 (200-step MA)")
     ax.grid(axis="y", linestyle=":", alpha=0.4)
     ax.legend(loc="lower right", fontsize=9)
     fig.tight_layout()

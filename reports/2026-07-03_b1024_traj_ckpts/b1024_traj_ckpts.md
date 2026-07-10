@@ -57,25 +57,28 @@ The parent B=512 numbers come from the previous experiment's committed
 `experiments/2026-06-28_sigreg_lambda_tau_cross/results/gm_table.csv`
 at commit `ba1df52`, arm `cross_C`.
 
-## Result — extension to 37,500 steps
+## Result — extension to 50,000 steps
 
 Backbone training was extended past the stop rule (out of issue
-scope), to 25,000 and then 37,500 steps, same B=1024 recipe and
-500-step trajectory saves. Heads retrained at steps
-15,000/20,000/25,000/30,000/35,000/37,500, scored on the same 97-task
-grid.
+scope), in three legs (to 25,000, 37,500, then 50,000 steps), same
+B=1024 recipe and 500-step trajectory saves. Heads retrained at nine
+steps between 15,000 and 50,000, scored on the same 97-task grid.
 
-- **6L falls below the parent from step 30,000 on** (1.1206 at 30,000,
-  best 1.1197 at 37,500, vs parent 1.1254) — at 2.4–3.0× the parent
-  step budget and 4.8–6.0× its sample budget. The margin (−0.0057 at
-  best) is a single-seed point estimate.
-- **2L never reaches parent** (best 1.1560 at step 25,000) and degrades
-  past step 30,000 (1.1789 at 35,000, 1.1731 at 37,500).
+- **6L traces a U-curve with its minimum at step 40,000** (1.1179 vs
+  parent 1.1254, margin −0.0075): below the parent over steps
+  30,000–45,000, back above at 50,000 (1.1286). The minimum sits at
+  3.2× the parent step budget, 6.4× its sample budget. The margin is a
+  single-seed point estimate.
+- **2L never durably reaches parent.** Past step 25,000 it oscillates
+  over a ~0.03 range (1.1485 – 1.1789); its single sub-parent point
+  (1.1485 at step 40,000, margin −0.0006) is far smaller than that
+  oscillation.
+- Past step 40,000 both heads degrade.
 
 ![Backbone training loss](plots/backbone_loss.png)
 
-Backbone training loss keeps decreasing through the extension; the 2L
-head-eval curve decouples from it, degrading past step 30,000.
+Backbone training loss keeps decreasing through the extension; the
+head-eval curves decouple from it, both degrading past step 40,000.
 
 ## Notes
 
