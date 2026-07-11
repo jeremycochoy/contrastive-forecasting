@@ -1,4 +1,4 @@
-# Splitting the main loss into L_pred + L_rep does not improve GM-Relative MASE (+2.3–2.7 % vs the pooled champion at 6L/last, single seed); in the pooled arm (arm 4) the h-anchored families hold 0.86–0.88 of the denominator
+# Splitting the main loss into L_pred + L_rep does not improve GM-Relative MASE at 6L/last (+2.3–2.7 % vs the pooled champion, single seed)
 
 **Question.** The champion backbone of the [SIGReg (λ_e, λ_h) × EMA-τ
 sweep](../2026-06-28_sigreg_lambda_tau_cross/sigreg_lambda_tau_cross.md)
@@ -9,10 +9,12 @@ independent terms — `L_pred` (the positive against the f-anchored
 negatives) and `L_rep` (pooled logsumexp of the h-anchored negatives, no
 positive) — improve the full-97 GM-Relative MASE?
 
-**Answer.** No. The best split cell, 1.1338 (arm 3, 6L/best), does not reach
-the champion's 1.1254 (6L/last); at the champion's own cell (6L/last) the
-split arms sit at +2.7 % (arm 1) and +2.3 % (arm 3). All margins are
-single-seed (see Caveat).
+**Answer.** The result is cell-dependent. At 6L/last, arm 1 and arm 3 land
+at +2.7 % and +2.3 % vs the champion's 1.1254. At the "best-loss" cells
+(30k head-train on `best_loss.pth`, no 10k re-adapt), arm 3 beats the
+champion at 2L/best by 1.2 % (1.1548 vs 1.1682) and at 6L/best by 1.9 %
+(1.1338 vs 1.1561); at the "last" cells the champion wins in every row.
+All margins are single-seed (see Caveat).
 
 ![GM-Relative MASE bars for the split arms across the four (head, checkpoint) cells; arm 4 pending.](plots/headline_relmase.png)
 
@@ -27,50 +29,48 @@ Arm names follow the experiment's internal numbering.
 | arm 4 | `cosine_similarity_batch_full_hh_negs_xshh_allt` | on | pooled champion shape with teacher keys — downstream scores pending |
 | arm C ref | `cosine_similarity_batch_full_hh_negs_xshh_allt` | off | champion (λ_e = 1, λ_h = 1, τ = 0.90) of the earlier sweep, reused without retraining |
 
-Negative families (tensor names from the measurement CSV): the f-anchored
-pair is `log_neg_cross_batch` (cross-batch f_t ↔ h′_{t+1}) and `log_neg_zy`
-(adjacent f_{t+1} ↔ f_t); the h-anchored group is `log_neg_hh_all`
-(within-series all-time h ↔ h) and `log_neg_xs_allt` (cross-series all-time
-h ↔ h′), plus cross-channel `log_neg_xx`, which is empty at C = 1. f is the
-forecaster's predicted latent, h the encoder latent; primes mark other
-series of the batch. The pooled shape puts all families into one
-denominator; the split gives the f-anchored pair to `L_pred` and the
-h-anchored group to `L_rep`.
+Negative families (tensor names from the measurement CSV): the two
+f-anchored families are `log_neg_cross_batch` (cross-batch f_t ↔ h′_{t+1})
+and `log_neg_zy` (adjacent f_{t+1} ↔ f_t); the three h-anchored families are
+`log_neg_hh_all` (within-series all-time h ↔ h), `log_neg_xs_allt`
+(cross-series all-time h ↔ h′), and cross-channel `log_neg_xx`, which is
+empty at C = 1. f is the forecaster's predicted latent, h the encoder
+latent; primes mark other series of the batch. The pooled shape puts all
+families into one denominator; the split gives the two f-anchored families
+to `L_pred` and the three h-anchored families to `L_rep`.
 
 ## Downstream GM-Relative MASE
 
 | arm | 2L / best | 2L / last | 6L / best | 6L / last |
 | --- | --: | --: | --: | --: |
 | arm 1 (split) | 1.1654 | 1.1669 | 1.1575 | 1.1557 |
-| arm 3 (split + MoCo) | 1.1548 | 1.1683 | 1.1338 | 1.1511 |
+| arm 3 (split + MoCo) | **1.1548** | 1.1683 | **1.1338** | 1.1511 |
 | arm 4 (pooled + MoCo) | TODO | TODO | TODO | TODO |
-| arm C ref (champion) | — | — | — | **1.1254** |
+| arm C ref (champion) | 1.1682 | 1.1491 | 1.1561 | **1.1254** |
 
 *GM-Relative MASE: geometric mean, over GIFT-Eval's 97 evaluation configs,
 of model MASE divided by seasonal-naive MASE; 1.0 = seasonal-naive, lower is
 better. One cell = one (head depth, checkpoint) evaluation of an arm.
-Values are the "Aggregate GM-Relative MASE (97 configs)" line of each
-`summary.txt` under `experiments/2026-07-10_split_pred_rep/results/`; the
-champion value is the (cross_C, 6L, last) row of
+Split-arm values are the "Aggregate GM-Relative MASE (97 configs)" line
+of each `summary.txt` under `experiments/2026-07-10_split_pred_rep/results/`;
+champion values are the four `cross_C` (λ_e = 1, λ_h = 1, τ = 0.90) rows of
 `experiments/2026-06-28_sigreg_lambda_tau_cross/results/gm_table.csv`.
-Arm 4's head training and evaluation are still running; its cells will be
-filled in when they finish.*
+Boldface marks cells where the split arm beats the champion at the same
+head / checkpoint. Arm 4's head training and evaluation are still running;
+its cells will be filled in when they finish.*
 
 ## Gradient share
 
-![Stacked per-family shares of each term's denominator at the final checkpoint, mixed and periodic batches.](plots/gradient_share_stack.png)
+![Stacked per-family shares of each term's denominator at each arm's step-12,500 backbone snapshot, mixed and periodic batches.](plots/gradient_share_stack.png)
 
-In the split shape, `log_neg_cross_batch` holds 0.98–0.99 of the `L_pred`
-denominator on the periodic batch (0.86–0.90 on the mixed batch) across
-arm 1's four measured checkpoints, and 0.997 (periodic) / 0.937 (mixed) at
-arm 3's final checkpoint. In the pooled shape (arm 4, final checkpoint)
-the same tensor holds 0.003, and the h-anchored pair `log_neg_hh_all` +
-`log_neg_xs_allt` holds 0.877 (periodic) / 0.860 (mixed). The downstream
-scores of the split arms (table above) are worse than the pooled champion:
-arm 1 is +2.7 % at 6L/last.
+In the split shape at step 12,500, `log_neg_cross_batch` holds 0.99 of the
+`L_pred` denominator on the periodic batch (0.90 mixed) in arm 1, and 0.997
+(periodic) / 0.937 (mixed) in arm 3. In the pooled shape (arm 4) the same
+family holds 0.003 on both batches; the h-anchored families `log_neg_hh_all`
+and `log_neg_xs_allt` together hold 0.877 (periodic) / 0.860 (mixed).
 
 *Measurement (`scripts/gradient_share_measurement.py`; full table
-`results/gradient_share_measurement.csv`, 120 rows): each backbone
+`results/gradient_share_measurement.csv`, 132 rows): each backbone
 checkpoint runs in eval mode on two fixed batches (B = 64, T = 4096) —
 "mixed" = training HF stream, "periodic" = solar/H + electricity/H windows
 from GIFT-Eval — and each family's share of its own term's denominator is
@@ -84,8 +84,11 @@ all arms; the EMA teacher is not run at measurement time.*
 
 Each curve is the run's total training loss (contrastive + CPC + SIGReg
 terms) shifted by its own final level (mean over steps 12,401–12,500), so
-the three runs align at 0. Between steps 10,000 and 12,500 the smoothed
-level (101-step rolling mean) of each curve changes by at most 0.10 nats.
+the three runs align at 0. Between steps 10,000 and 12,500 the endpoint
+levels of the 101-step rolling means differ by 0.034 (arm 1), 0.063
+(arm 3) and 0.097 nats (arm 4); the max − min over the same window is
+0.138 / 0.103 / 0.310 nats (arm 4's spike at step ≈12,264 accounts for
+its larger max − min).
 
 ## Method
 
@@ -103,9 +106,10 @@ same seasonal-naive reference as the champion.
 
 ## Caveat — single seed
 
-Every evaluation is N = 1. The gaps to the champion (+0.7 % to +3.8 %
-across the eight scored cells) are of the same order as the spread between
-the best and last checkpoints of the same (arm, head) pair (last relative
-to best), which spans −0.2 % to +1.5 % here and −3.4 % to +4.0 % in the
-champion's own sweep. A multi-seed replicate would be needed to call any
-ordering real.
+Every evaluation is N = 1. Matched-cell gaps to the champion span
+−1.9 % (arm 3, 6L / best: 1.1338 vs 1.1561) to +2.7 % (arm 1, 6L / last:
+1.1557 vs 1.1254) across the eight scored cells; four of the eight are
+within ±0.6 %. The spread between best and last checkpoints of the same
+(arm, head) pair (last relative to best) spans −0.2 % to +1.5 % here and
+−3.4 % to +4.0 % in the champion's own sweep. A multi-seed replicate
+would be needed to call any ordering real.

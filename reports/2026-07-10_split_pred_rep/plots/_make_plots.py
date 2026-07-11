@@ -53,19 +53,20 @@ def read_aggregate(arm: str, head: str, ckpt: str) -> float:
     return float(m.group(1))
 
 
-def champion_ref() -> float:
+def champion_cells() -> dict:
     gm = pd.read_csv(SIGREG / "results" / "gm_table.csv")
-    row = gm[(gm["arm"] == "cross_C") & (gm["head"] == "6L") & (gm["ckpt"] == "last")]
-    return float(row["gm"].iloc[0])
+    rows = gm[gm["arm"] == "cross_C"]
+    return {(r["head"], r["ckpt"]): float(r["gm"]) for _, r in rows.iterrows()}
 
 
 def headline() -> None:
-    champ = champion_ref()
+    champ = champion_cells()
     fig, ax = plt.subplots(figsize=(11.5, 5.2))
     x = np.arange(len(GROUPS))
-    width = 0.24
-    for off, arm, colour, label in [(-width, "arm1", C_ARM1, "arm 1 (split)"),
-                                    (0.0, "arm3", C_ARM3, "arm 3 (split + MoCo)")]:
+    width = 0.20
+    C_CHAMP = "#52514e"
+    for off, arm, colour, label in [(-1.5 * width, "arm1", C_ARM1, "arm 1 (split)"),
+                                    (-0.5 * width, "arm3", C_ARM3, "arm 3 (split + MoCo)")]:
         vals = [read_aggregate(arm, h, c) for h, c in GROUPS]
         bars = ax.bar(x + off, np.array(vals) - 1.0, width, bottom=1.0,
                       color=colour, label=label)
@@ -73,14 +74,18 @@ def headline() -> None:
             ax.text(b.get_x() + b.get_width() / 2, v + 0.002, f"{v:.4f}",
                     ha="center", va="bottom", rotation=90, fontsize=8.5, color=INK)
     for gx in x:  # arm 4 slots: results pending, full-height hatched placeholder
-        ax.bar(gx + width, 0.20, width, bottom=0.99, facecolor="none",
+        ax.bar(gx + 0.5 * width, 0.20, width, bottom=0.99, facecolor="none",
                edgecolor=C_ARM4, hatch="///", linewidth=0.9, alpha=0.45)
-        ax.text(gx + width, 1.085, "pending", ha="center", va="center",
+        ax.text(gx + 0.5 * width, 1.085, "pending", ha="center", va="center",
                 rotation=90, fontsize=8.5, color=C_ARM4)
+    champ_vals = [champ[g] for g in GROUPS]
+    bars = ax.bar(x + 1.5 * width, np.array(champ_vals) - 1.0, width, bottom=1.0,
+                  color=C_CHAMP, label="arm C ref (champion)")
+    for b, v in zip(bars, champ_vals):
+        ax.text(b.get_x() + b.get_width() / 2, v + 0.002, f"{v:.4f}",
+                ha="center", va="bottom", rotation=90, fontsize=8.5, color=INK)
     ax.bar(0, 0, facecolor="none", edgecolor=C_ARM4, hatch="///",
            label="arm 4 (pooled + MoCo) — pending")
-    ax.axhline(champ, color="#52514e", lw=1.6,
-               label=f"arm C ref (champion, 6L/last) = {champ:.4f}")
     ax.axhline(1.0, color=MUTED, lw=1.2, ls="--", label="seasonal-naive = 1.0")
     ax.set_xticks(x, [f"{h} / {c}" for h, c in GROUPS])
     ax.set_xlim(-0.55, 3.55)
@@ -98,7 +103,7 @@ def headline() -> None:
     plt.close(fig)
 
 
-FINAL_CKPT = {"arm1": "_12k.pth", "arm3": "_FINAL.pth", "arm4": "_FINAL.pth"}
+FINAL_CKPT = {"arm1": "_FINAL.pth", "arm3": "_FINAL.pth", "arm4": "_FINAL.pth"}
 STACK_ORDER = ["log_neg_zy", "log_neg_cross_batch", "log_neg_hh_all", "log_neg_xs_allt"]
 TENSOR_LABEL = {
     "log_neg_zy": "log_neg_zy  (adjacent f↔f)",
@@ -153,7 +158,7 @@ def gradient_share_stack() -> None:
     fig.legend(handles, [TENSOR_LABEL[t] for t in STACK_ORDER],
                loc="upper center", ncol=2, fontsize=8.5, frameon=False,
                bbox_to_anchor=(0.5, 1.0))
-    fig.suptitle("Per-family denominator share at the final checkpoint  "
+    fig.suptitle("Per-family denominator share at each arm's step-12,500 backbone snapshot  "
                  "(τ = 0.10, fixed batches, B = 64)", y=0.88, fontsize=11)
     fig.tight_layout(rect=(0, 0, 1, 0.84))
     fig.savefig(HERE / "gradient_share_stack.png")
