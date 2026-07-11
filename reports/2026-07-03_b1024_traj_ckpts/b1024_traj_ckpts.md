@@ -7,7 +7,8 @@ the doubled batch is worse in every cell. Training longer helps both
 batch sizes up to a point — B=512 bottoms near step 30,000, B=1024 at
 40,000 — then hurts. The deep head decides the batch question: B=1024's
 6L minimum (1.1179) beats every B=512 measurement from either seed; on
-the shallow 2L head B=512 stays ahead throughout.**
+the shallow 2L head the best B=512 cell (1.1333) beats the best B=1024
+cell (1.1485).**
 
 ![GM-Rel MASE vs backbone step](plots/gm_vs_step.png)
 
@@ -31,22 +32,24 @@ B=1024 loses every spec cell and the issue's stop rule fired:
 | 2L | last (12,500) | **1.1491** | **1.1621** | **+0.0130** |
 | 6L | last (12,500) | **1.1254** | **1.1407** | **+0.0153** |
 
-## Training longer (both batch sizes, out of issue scope)
+## Training longer
 
-- **B=1024 bottoms at step 40,000**: 6L 1.1179 (−0.0075 vs parent
-  last), below the B=512 re-run at every scored step from 15,000
-  through 50,000; 2L never durably beats B=512 (oscillates
-  1.1485 – 1.1789 past 25,000). Both heads degrade past 40,000.
-- **B=512 bottoms at step 30,000** (2L 1.1333, 6L 1.1302 — the 2L
-  value leads every B=1024 2L cell), then degrades hard: 45,000 spikes
-  to 1.1943 / 1.1667 and 50,000 stays worse than its own 12,500 cells.
+- **B=1024 bottoms at step 40,000** (extension past #369's stop rule):
+  6L 1.1179 (−0.0075 vs parent last), below the B=512 re-run at every
+  scored step from 15,000 through 50,000; 2L (oscillating
+  1.1485 – 1.1789 past 25,000) never reaches B=512's best (1.1333).
+  Both heads degrade past 40,000.
+- **B=512 bottoms at step 30,000** (prolongation is #371's scope):
+  2L 1.1333, 6L 1.1302 — then degrades hard: 45,000 spikes to
+  1.1943 / 1.1667 and 50,000 stays worse than its own 12,500 cells.
   Per #371's stop rule (extended last must beat pre-extension last),
   that is a stop-and-report.
 - **Seed spread, measured at 12,500 (B=512)**: seed 2 scores 1.1441 /
   1.1318 vs seed 1's 1.1491 / 1.1254 — |Δ| ≈ 0.005 – 0.006 with
   opposite signs per head. Cross-batch margins below ~0.006 should be
-  read against that spread; the 6L cross-batch gap at the respective
-  minima (1.1302 − 1.1179 = 0.0123) is about twice it.
+  read against that spread. The 6L gap at the respective minima
+  (1.1302 − 1.1179 = 0.0123) is about twice it, and costs ≈ 2.7× the
+  samples (40,000 × 1024 vs 30,000 × 512).
 - Both batch sizes spike at step 35,000.
 
 ![Backbone training loss](plots/backbone_loss.png)
@@ -74,5 +77,6 @@ loss climbs from ≈ 42,000, matching its GM degradation.
 - Parent numbers in the table: `#366`'s committed `gm_table.csv` at
   `ba1df52`, arm `cross_C`. The plots' B=512 curves: the parent's best
   point (step 533, seed 1) continued by the seed-2 re-run
-  (`results/b512_seed2/` extracts). Single run per batch size; apart
-  from the one measured seed pair, margins are point estimates.
+  (`results/b512_seed2/` extracts). One B=1024 run and two B=512 runs
+  (the seeds above); apart from the one measured seed pair, margins
+  are point estimates.
