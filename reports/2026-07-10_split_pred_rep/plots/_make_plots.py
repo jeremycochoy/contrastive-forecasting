@@ -104,23 +104,22 @@ def headline() -> None:
 
 
 FINAL_CKPT = {"arm1": "_FINAL.pth", "arm3": "_FINAL.pth", "arm4": "_FINAL.pth"}
-STACK_ORDER = ["log_neg_zy", "log_neg_cross_batch", "log_neg_hh_all", "log_neg_xs_allt"]
+STACK_ORDER = ["log_neg_cross_batch", "log_neg_hh_all", "log_neg_xs_allt"]
 TENSOR_LABEL = {
-    "log_neg_zy": "log_neg_zy  (adjacent f↔f)",
     "log_neg_cross_batch": "log_neg_cross_batch  (cross-batch f↔h′)",
     "log_neg_hh_all": "log_neg_hh_all  (within-series h↔h)",
     "log_neg_xs_allt": "log_neg_xs_allt  (cross-series h↔h′)",
 }
 BAR_SLOTS = [("arm1", "pred", "arm 1\nL_pred", 0.0), ("arm1", "rep", "arm 1\nL_rep", 0.85),
              ("arm3", "pred", "arm 3\nL_pred", 2.05), ("arm3", "rep", "arm 3\nL_rep", 2.90),
-             ("arm4", "pooled", "arm 4\npooled", 4.10)]
+             ("arm4", "pooled", "arm 4 / arm C\npooled", 4.20)]
 
 
 def gradient_share_stack() -> None:
     df = pd.read_csv(EXP / "results" / "gradient_share_measurement.csv")
     df["share"] = pd.to_numeric(df.share, errors="coerce")  # "n/a" -> NaN
     df = df.dropna(subset=["share"])
-    fig, axes = plt.subplots(1, 2, figsize=(10, 4.6), sharey=True)
+    fig, axes = plt.subplots(1, 2, figsize=(11.5, 5.0), sharey=True)
     for ax, batch in zip(axes, ["mixed", "periodic"]):
         for arm, denom, ticklabel, xpos in BAR_SLOTS:
             rows = df[(df.arm_name == arm) & (df.batch_type == batch)
@@ -142,10 +141,10 @@ def gradient_share_stack() -> None:
                 if arm == "arm4" and tensor == "log_neg_cross_batch":
                     ax.annotate(f"log_neg_cross_batch\nshare = {share:.3f}",
                                 xy=(xpos + 0.36, bottom + share / 2),
-                                xytext=(xpos + 0.55, 0.17), fontsize=8, color=INK,
+                                xytext=(xpos + 1.05, 0.30), fontsize=8, color=INK,
                                 arrowprops=dict(arrowstyle="-", color=MUTED, lw=0.9))
                 bottom += share
-        ax.set_xlim(-0.6, 5.9)
+        ax.set_xlim(-0.6, 6.9)
         ax.set_xticks([s[3] for s in BAR_SLOTS], [s[2] for s in BAR_SLOTS], fontsize=9)
         ax.set_title(f"{batch} batch", fontsize=10.5)
         ax.set_ylim(0, 1.02)
@@ -158,9 +157,10 @@ def gradient_share_stack() -> None:
     fig.legend(handles, [TENSOR_LABEL[t] for t in STACK_ORDER],
                loc="upper center", ncol=2, fontsize=8.5, frameon=False,
                bbox_to_anchor=(0.5, 1.0))
-    fig.suptitle("Per-family denominator share at each arm's step-12,500 backbone snapshot  "
-                 "(τ = 0.10, fixed batches, B = 64)", y=0.88, fontsize=11)
-    fig.tight_layout(rect=(0, 0, 1, 0.84))
+    fig.suptitle("Per-family denominator share at each arm's step-12,500 backbone snapshot"
+                 "\n(τ = 0.10, B = 64; log_neg_zy < 0.05 everywhere, omitted)",
+                 y=0.90, fontsize=10.5)
+    fig.tight_layout(rect=(0, 0, 1, 0.82))
     fig.savefig(HERE / "gradient_share_stack.png")
     plt.close(fig)
 
