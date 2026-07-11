@@ -1576,9 +1576,20 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         ).permute(0, 2, 1)                    # [B, T-1, C]
 
         # Cross-batch f↔h negative — byte-for-β's `log_neg_cross_batch`.
+        # MoCo-negatives (#374 arm 4, config key `moco_negatives`): when on
+        # AND an EMA teacher is available, the keys h'_{t+1} come from the
+        # teacher instead of the student — same swap as the split shape
+        # below. The three h↔h families (xx, hh_all, xs_allt) stay pure
+        # student on both sides.
         mask_batch = ~torch.eye(B, dtype=torch.bool, device=orig_norm.device)
         mask_batch = mask_batch.view(B, B, 1, 1)
-        hy_p = hy_norm.permute(1, 2, 0, 3)          # [T-1, C, B, H]  h_{t+1}
+        moco_negs = (
+            moco_negatives if moco_negatives is not None
+            else bool(train_config.get('moco_negatives', False)))
+        if moco_negs and hy_teacher_norm is not None:
+            hy_p = hy_teacher_norm.permute(1, 2, 0, 3)  # [T-1, C, B, H]  h^T_{t+1}
+        else:
+            hy_p = hy_norm.permute(1, 2, 0, 3)          # [T-1, C, B, H]  h_{t+1}
         hy_hat_p = hy_hat_norm.permute(1, 2, 0, 3)  # [T-1, C, B, H]  f_t
         sims_cross_batch = torch.matmul(
             hy_hat_p, hy_p.transpose(-2, -1)        # [T-1, C, B, B]
@@ -2248,22 +2259,25 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             "teacher_original_latent is only implemented for loss_shape in "
             f"{_SG_POS_SHAPES}; got {train_config.get('loss_shape')!r}.")
 
-    # Guard: moco_negatives (#374 arm 3) is only wired into the split
-    # branch; any other shape reaching here with it set would have silently
-    # trained WITHOUT sending negatives through the teacher — fail loud.
-    # Also requires the EMA-teacher path to be active (no teacher → the
-    # flag has nothing to route through and is silently ignored otherwise).
-    # The function-arg override (moco_negatives=False from the loss_tau_ref
-    # diagnostic) takes precedence over the config key.
+    # Guard: moco_negatives (#374 arms 3+4) is only wired into the split /
+    # xshh_allt branches; any other shape reaching here with it set would
+    # have silently trained WITHOUT sending negatives through the teacher —
+    # fail loud. Also requires the EMA-teacher path to be active (no teacher
+    # → the flag has nothing to route through and is silently ignored
+    # otherwise). The function-arg override (moco_negatives=False from the
+    # loss_tau_ref diagnostic) takes precedence over the config key.
+    _MOCO_NEG_SHAPES = (
+        'cosine_similarity_batch_split_pred_rep',
+        'cosine_similarity_batch_full_hh_negs_xshh_allt',
+    )
     _moco_effective = (
         moco_negatives if moco_negatives is not None
         else bool(train_config.get('moco_negatives', False)))
     if _moco_effective:
-        if train_config.get('loss_shape') != \
-                'cosine_similarity_batch_split_pred_rep':
+        if train_config.get('loss_shape') not in _MOCO_NEG_SHAPES:
             raise NotImplementedError(
-                "moco_negatives is only implemented for loss_shape="
-                "'cosine_similarity_batch_split_pred_rep'; got "
+                "moco_negatives is only implemented for loss_shape in "
+                f"{_MOCO_NEG_SHAPES}; got "
                 f"{train_config.get('loss_shape')!r}.")
         if hy_teacher_norm is None:
             raise ValueError(

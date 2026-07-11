@@ -368,16 +368,16 @@ class TestSplitPredRep:
             f"leaked into the repulsion terms)")
 
     def test_moco_negatives_rejects_other_loss_shapes(self):
-        """The flag is only wired into the split branch; any other
-        loss_shape reaching contrastive_latent_loss with it set must
-        raise (avoids silently training WITHOUT teacher-in-negs)."""
+        """The flag is only wired into the split + xshh_allt branches
+        (#374 arms 3+4); any other loss_shape reaching
+        contrastive_latent_loss with it set must raise (avoids silently
+        training WITHOUT teacher-in-negs). No teacher is passed so the
+        moco shape guard — not the teacher shape guard — is what fires."""
         f, o = _latents(B=3, T=4, C=1, H=8, seed=2)
-        teacher = torch.randn(3, 4, 1, 8, generator=torch.Generator().manual_seed(1),
-                              dtype=torch.float64)
         tc = {
             "contrastive_divergence_temperature": 0.1,
             "contrastive_latent_noise": None,
-            "loss_shape": "cosine_similarity_batch_full_hh_negs_xshh_allt",
+            "loss_shape": "cosine_similarity_batch",
             "contrastive_latent_delay": 0,
             "include_positive_in_denominator": False,
             "stopgrad_positive_h": False,
@@ -386,8 +386,7 @@ class TestSplitPredRep:
         }
         with pytest.raises(NotImplementedError):
             contrastive_latent_loss(
-                (f, o), False, SimpleNamespace(train_configuration=tc),
-                teacher_original_latent=teacher)
+                (f, o), False, SimpleNamespace(train_configuration=tc))
 
     def test_zero_when_teacher_positive_and_negs_are_far(self):
         """If f_t := teacher's h^T_{t+1} (positive cos = 1) AND every h_t is

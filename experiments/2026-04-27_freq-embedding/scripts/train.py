@@ -467,13 +467,14 @@ def parse_args():
                         "Constant (no schedule). Default 0.99 (half-life "
                         "ln(0.5)/ln(τ) ≈ 69 steps). (#353)")
     p.add_argument("--moco-negatives", action="store_true",
-                   help="MoCo-style negatives for the split_pred_rep loss "
-                        "(#374 arm 3): route the cross-batch f↔h negatives "
-                        "through the EMA teacher (hy_teacher_norm) instead "
-                        "of the student, so the positive and the f-anchored "
-                        "cross-batch negatives share one slowly-moving "
-                        "space. Requires --ema-embedding/--ema-encoder and "
-                        "--loss-shape cosine_similarity_batch_split_pred_rep; "
+                   help="MoCo-style negatives (#374 arms 3+4): route the "
+                        "cross-batch f↔h negatives through the EMA teacher "
+                        "(hy_teacher_norm) instead of the student, so the "
+                        "positive and the f-anchored cross-batch negatives "
+                        "share one slowly-moving space. Requires "
+                        "--ema-embedding/--ema-encoder and --loss-shape "
+                        "cosine_similarity_batch_split_pred_rep or "
+                        "cosine_similarity_batch_full_hh_negs_xshh_allt; "
                         "raises otherwise.")
     p.add_argument("--sigreg-embedding", action="store_true",
                    help="LeJEPA spherical SIGReg term on the patch-embedding "
