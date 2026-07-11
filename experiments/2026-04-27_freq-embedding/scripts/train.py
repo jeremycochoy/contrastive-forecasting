@@ -367,6 +367,7 @@ def parse_args():
                             "cosine_similarity_batch_full_hh_negs_xshh",
                             "cosine_similarity_batch_full_hh_negs_xshh_allt",
                             "cosine_similarity_batch_split_pred_rep",
+                            "cosine_similarity_batch_rep_only",
                             "cpc_multistep",
                             "cpc_multistep_cpcnegs",
                             "cosine_similarity",
@@ -988,6 +989,7 @@ def main():
     _EMA_LOSS_SHAPES = (
         "cosine_similarity_batch_full_hh_negs_xshh_allt",
         "cosine_similarity_batch_split_pred_rep",
+        "cosine_similarity_batch_rep_only",
     )
     if (args.ema_embedding or args.ema_encoder) and \
             args.loss_shape not in _EMA_LOSS_SHAPES:
@@ -1395,7 +1397,9 @@ def main():
             # rejects `include_positive_in_denominator` as a semantic no-op.
             # Its own default at τ=0.07 IS the correct reference.
             _pos_in_denom_ref = (
-                args.loss_shape != "cosine_similarity_batch_split_pred_rep")
+                args.loss_shape not in (
+                    "cosine_similarity_batch_split_pred_rep",
+                    "cosine_similarity_batch_rep_only"))
             loss_tau_ref = contrastive_latent_loss(
                 (f_lat.detach(), o_lat.detach()),
                 validation=False, spec=LOSS_SPEC,
