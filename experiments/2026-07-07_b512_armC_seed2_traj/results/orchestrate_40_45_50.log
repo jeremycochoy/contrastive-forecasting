@@ -1,0 +1,27 @@
+[07-10 15:24:56] [orch] step40000 backbone landed — 2L + 6L on GPU 0
+[07-10 15:24:56] [dl-cell-2L-step40000 g0] QH train 10000 on bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lC_emb10_enc10_tau090_seed2_r4_step40000.pth resume=qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lC_emb10_enc10_tau090_seed2_step12500_FINAL.pth
+[07-10 15:24:56] [dl-cell-6L-step40000 g0] QH train 10000 on bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lC_emb10_enc10_tau090_seed2_r4_step40000.pth resume=qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lC_emb10_enc10_tau090_seed2_step12500_FINAL.pth
+[07-10 16:14:49] [dl-cell-2L-step40000 g0] QH done
+[07-10 16:14:49] [dl-cell-2L-step40000 g0] EVAL full-97 start
+[07-10 16:23:58] [dl-cell-6L-step40000 g0] QH done
+[07-10 16:23:58] [dl-cell-6L-step40000 g0] EVAL full-97 start
+[07-10 20:00:09] [dl-cell-2L-step40000 g0] EVAL done GM=1.1468
+[07-10 20:14:01] [dl-cell-6L-step40000 g0] EVAL done GM=1.1368
+[07-10 20:14:01] [orch] step40000 both depths complete
+[07-10 20:14:01] [orch] step45000 backbone landed — 2L + 6L on GPU 0
+[07-10 20:14:01] [dl-cell-6L-step45000 g0] QH train 10000 on bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lC_emb10_enc10_tau090_seed2_r4_step45000.pth resume=qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lC_emb10_enc10_tau090_seed2_step12500_FINAL.pth
+[07-10 20:14:01] [dl-cell-2L-step45000 g0] QH train 10000 on bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lC_emb10_enc10_tau090_seed2_r4_step45000.pth resume=qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lC_emb10_enc10_tau090_seed2_step12500_FINAL.pth
+[07-10 20:14:11] [dl-cell-2L-step45000 g0] QH FAILED
+[07-10 20:14:11] [dl-cell-6L-step45000 g0] QH FAILED
+[07-10 20:14:11] [orch] step45000 both depths complete
+[07-10 20:14:11] [orch] step50000 backbone landed — 2L + 6L on GPU 1
+[07-10 20:14:11] [dl-cell-6L-step50000 g1] QH train 10000 on bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lC_emb10_enc10_tau090_seed2_r4_step50000.pth resume=qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lC_emb10_enc10_tau090_seed2_step12500_FINAL.pth
+[07-10 20:14:11] [dl-cell-2L-step50000 g1] QH train 10000 on bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lC_emb10_enc10_tau090_seed2_r4_step50000.pth resume=qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lC_emb10_enc10_tau090_seed2_step12500_FINAL.pth
+[07-10 21:01:00] [dl-cell-2L-step50000 g1] QH done
+[07-10 21:01:00] [dl-cell-2L-step50000 g1] EVAL full-97 start
+[07-10 21:11:19] [dl-cell-6L-step50000 g1] QH done
+[07-10 21:11:19] [dl-cell-6L-step50000 g1] EVAL full-97 start
+[07-11 01:07:28] [dl-cell-2L-step50000 g1] EVAL done GM=1.1768
+[07-11 01:21:06] [dl-cell-6L-step50000 g1] EVAL done GM=1.1510
+[07-11 01:21:06] [orch] step50000 both depths complete
+[07-11 01:21:06] [orch] orchestration complete
