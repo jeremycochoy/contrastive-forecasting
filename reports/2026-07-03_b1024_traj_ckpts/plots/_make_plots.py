@@ -69,12 +69,15 @@ def gm_vs_step() -> None:
     ax.set_xlabel("Backbone step")
     ax.set_ylabel("GM-Relative MASE  (lower is better)")
     ax.set_xlim(0, XMAX)
-    ax.set_ylim(1.112, 1.20)
+    # Ceiling must clear the highest data point (B=512 2L 1.1943 at 45k).
+    ax.set_ylim(1.112, 1.205)
     ax.set_xticks([500, 12500, 20000, 25000, 30000, 35000, 40000, 45000, 50000])
     ax.set_xticklabels(["500", "12500", "20k", "25k", "30k", "35k", "40k", "45k", "50k"], fontsize=8)
     ax.set_title("GM-Rel MASE vs backbone step — arm C (τ=0.90), B=1024 vs B=512")
     ax.grid(axis="y", linestyle=":", alpha=0.4)
-    ax.legend(loc="upper right", fontsize=9)
+    # Legend outside the axes so it can never occlude data.
+    ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.045), ncol=4,
+              fontsize=8.5, frameon=False)
     fig.tight_layout()
     fig.savefig(HERE / "gm_vs_step.png", dpi=140)
     plt.close(fig)
