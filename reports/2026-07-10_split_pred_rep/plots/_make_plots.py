@@ -104,8 +104,9 @@ def headline() -> None:
 
 
 FINAL_CKPT = {"arm1": "_FINAL.pth", "arm3": "_FINAL.pth", "arm4": "_FINAL.pth"}
-STACK_ORDER = ["log_neg_cross_batch", "log_neg_hh_all", "log_neg_xs_allt"]
+STACK_ORDER = ["log_neg_zy", "log_neg_cross_batch", "log_neg_hh_all", "log_neg_xs_allt"]
 TENSOR_LABEL = {
+    "log_neg_zy": "log_neg_zy  (adjacent f↔f)",
     "log_neg_cross_batch": "log_neg_cross_batch  (cross-batch f↔h′)",
     "log_neg_hh_all": "log_neg_hh_all  (within-series h↔h)",
     "log_neg_xs_allt": "log_neg_xs_allt  (cross-series h↔h′)",
@@ -158,9 +159,9 @@ def gradient_share_stack() -> None:
                loc="upper center", ncol=2, fontsize=8.5, frameon=False,
                bbox_to_anchor=(0.5, 1.0))
     fig.suptitle("Per-family denominator share at each arm's step-12,500 backbone snapshot"
-                 "\n(τ = 0.10, B = 64; log_neg_zy < 0.05 everywhere, omitted)",
-                 y=0.90, fontsize=10.5)
-    fig.tight_layout(rect=(0, 0, 1, 0.82))
+                 "\n(τ = 0.10, B = 64)",
+                 y=0.92, fontsize=10.5)
+    fig.tight_layout(rect=(0, 0, 1, 0.83))
     fig.savefig(HERE / "gradient_share_stack.png")
     plt.close(fig)
 
