@@ -75,8 +75,9 @@ loss climbs from ≈ 42,000, matching its GM degradation.
 - τ is the EMA rate of the target encoder; λ_e, λ_h are the SIGReg
   weights on the embedding and encoding branches.
 - Parent numbers in the table: `#366`'s committed `gm_table.csv` at
-  `ba1df52`, arm `cross_C`. The plots' B=512 curves: the parent's best
-  point (step 533, seed 1) continued by the seed-2 re-run
-  (`results/b512_seed2/` extracts). One B=1024 run and two B=512 runs
-  (the seeds above); apart from the one measured seed pair, margins
-  are point estimates.
+  `ba1df52`, arm `cross_C`. The GM plot's B=512 curves: the parent's
+  best point (step 533, seed 1) continued by the seed-2 re-run
+  (`results/b512_seed2/` extracts); the loss plot's B=512 curve is the
+  seed-2 run alone. One B=1024 run and two B=512 runs (the seeds
+  above); apart from the one measured seed pair, margins are point
+  estimates.
