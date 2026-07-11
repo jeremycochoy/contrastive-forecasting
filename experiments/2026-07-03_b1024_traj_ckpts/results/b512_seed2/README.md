@@ -11,3 +11,7 @@ checkpointing).
 - `gm.csv` — `head,step,gm`: GM-Rel MASE of every completed seed-2
   trajectory cell (steps 12,500–50,000 at extraction time). B=512
   re-run points for the report's GM plot.
+
+Update 2026-07-11: the #371 run has since been committed —
+`experiments/2026-07-07_b512_armC_seed2_traj/` on `experiments`
+(PR #377). Spot-checked identical to these extracts.
