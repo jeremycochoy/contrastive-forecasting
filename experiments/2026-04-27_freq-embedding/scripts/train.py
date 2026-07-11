@@ -107,6 +107,14 @@ def parse_args():
     p.add_argument("--resume", default=None)
     p.add_argument("--log-every", type=int, default=100)
     p.add_argument("--save-every", type=int, default=5000)
+    p.add_argument("--traj-save-every", type=int, default=0,
+                   help="If > 0, also write a fine-grained trajectory "
+                        "checkpoint every N steps as "
+                        "`<run>_step<STEP>.pth`. Separate cadence from "
+                        "--save-every: the coarse `<run>_<K>k.pth` files "
+                        "are still emitted. Use for sub-1000-step "
+                        "trajectories where the coarse `step // 1000` "
+                        "naming collides. Default 0 = off.")
     p.add_argument("--ema-decay", type=float, default=0.99)
     p.add_argument("--grad-clip", type=float, default=None)
     p.add_argument("--hf-repo", default=None)
@@ -1543,6 +1551,14 @@ def main():
 
         if step % args.save_every == 0:
             path = os.path.join(args.save_dir, f"{args.run_name}_{step // 1000}k.pth")
+            save_snapshot(model, optimizer, path, step,
+                          best_gap, best_gap_step, best_loss, best_loss_step,
+                          ema_loss=ema_loss, ema_gap=ema_gap,
+                          hf_rows_consumed=hf_rows_consumed,
+                          synth_rows_consumed=synth_rows_consumed)
+
+        if args.traj_save_every > 0 and step % args.traj_save_every == 0:
+            path = os.path.join(args.save_dir, f"{args.run_name}_step{step}.pth")
             save_snapshot(model, optimizer, path, step,
                           best_gap, best_gap_step, best_loss, best_loss_step,
                           ema_loss=ema_loss, ema_gap=ema_gap,

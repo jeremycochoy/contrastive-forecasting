@@ -9,6 +9,8 @@ hidden-dim space is actually used.
 
 from __future__ import annotations
 
+import os
+
 import torch
 import torch.nn.functional as F
 from torch import Tensor
@@ -145,11 +147,28 @@ def dim_usage(z: Tensor, axis: int) -> Tensor:
     # Flatten fixed axes for batched matmul; restore at end.
     fixed_shape = z_norm.shape[1:-1]
     flat = z_norm.reshape(n, -1, d).permute(1, 0, 2)   # (S, n, d)
-    sim = torch.matmul(flat, flat.transpose(-1, -2))   # (S, n, n)
-    sq = sim.pow(2)
-    # mean over off-diagonal: (sum_all - sum_diag) / (n*(n-1))
-    sum_all = sq.sum(dim=(-1, -2))
-    sum_diag = torch.diagonal(sq, dim1=-2, dim2=-1).sum(dim=-1)
+    # Materialising sim = flat @ flat.T is (S, n, n) — 16 GiB at n=65k
+    # (#369, B=1024). Accumulate Σ sim² row-chunk-wise so peak allocation
+    # is (S, chunk, n) instead. Chunk size settable via env for tuning.
+    chunk = int(os.environ.get("DIM_USAGE_CHUNK", "4096"))
+    if chunk <= 0 or chunk >= n:
+        sim = torch.matmul(flat, flat.transpose(-1, -2))   # (S, n, n)
+        sq = sim.pow(2)
+        sum_all = sq.sum(dim=(-1, -2))
+        sum_diag = torch.diagonal(sq, dim1=-2, dim2=-1).sum(dim=-1)
+    else:
+        S = flat.shape[0]
+        sum_all = torch.zeros(S, device=z.device, dtype=flat.dtype)
+        sum_diag = torch.zeros(S, device=z.device, dtype=flat.dtype)
+        flat_T = flat.transpose(-1, -2)  # (S, d, n)
+        for i in range(0, n, chunk):
+            j = min(i + chunk, n)
+            sim_chunk = torch.matmul(flat[:, i:j, :], flat_T)   # (S, c, n)
+            sq_chunk = sim_chunk.pow(2)
+            sum_all = sum_all + sq_chunk.sum(dim=(-1, -2))
+            # Diagonal entries at (k, i+k) within the chunk.
+            idx = torch.arange(i, j, device=z.device)
+            sum_diag = sum_diag + sq_chunk[:, torch.arange(j - i, device=z.device), idx].sum(dim=-1)
     off_mean = (sum_all - sum_diag) / (n * (n - 1))
     u_per_slice = (1.0 / (d * off_mean.clamp_min(1e-12))).clamp_max(1.0)
     if fixed_shape:

@@ -1,0 +1,141 @@
+[07-07 02:14:35] [dl-chain g0] queue: 6L@15000 2L@20000 6L@20000 2L@25000 6L@25000
+[07-07 02:14:35] [dl-chain g0] RUN 6L@15000 on GPU 0
+[07-07 02:14:35] [dl-step15000 6L g0] QH qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step15000 train 10000 on bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_r2_step15000.pth resume=qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_parentstep_FINAL.pth
+[07-07 02:53:25] [dl-step15000 6L g0] QH qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step15000 done
+[07-07 02:53:25] [dl-step15000 6L g0] EVAL step15000 full-97 start
+[07-07 06:15:50] [dl-step15000 6L g0] EVAL step15000 done GM=1.1445
+[07-07 06:15:50] [dl-chain g0] DONE 6L@15000 rc=0
+[07-07 06:15:50] [dl-chain g0] RUN 2L@20000 on GPU 0
+[07-07 06:15:50] [dl-step20000 2L g0] QH qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step20000 train 10000 on bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_r2_step20000.pth resume=qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_parentstep_FINAL.pth
+[07-07 06:44:41] [dl-step20000 2L g0] QH qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step20000 done
+[07-07 06:44:41] [dl-step20000 2L g0] EVAL step20000 full-97 start
+[07-07 10:04:33] [dl-step20000 2L g0] EVAL step20000 done GM=1.1609
+[07-07 10:04:33] [dl-chain g0] DONE 2L@20000 rc=0
+[07-07 10:04:33] [dl-chain g0] RUN 6L@20000 on GPU 0
+[07-07 10:04:33] [dl-step20000 6L g0] QH qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step20000 train 10000 on bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_r2_step20000.pth resume=qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_parentstep_FINAL.pth
+[07-07 10:45:30] [dl-step20000 6L g0] QH qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step20000 done
+[07-07 10:45:30] [dl-step20000 6L g0] EVAL step20000 full-97 start
+[07-07 14:09:57] [dl-step20000 6L g0] EVAL step20000 done GM=1.1286
+[07-07 14:09:57] [dl-chain g0] DONE 6L@20000 rc=0
+[07-07 14:09:57] [dl-chain g0] RUN 2L@25000 on GPU 0
+[07-07 14:09:57] [dl-step25000 2L g0] QH qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step25000 train 10000 on bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_r2_step25000.pth resume=qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_parentstep_FINAL.pth
+[07-07 14:38:09] [dl-step25000 2L g0] QH qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step25000 done
+[07-07 14:38:09] [dl-step25000 2L g0] EVAL step25000 full-97 start
+[07-07 18:03:58] [dl-step25000 2L g0] EVAL step25000 done GM=1.1560
+[07-07 18:03:58] [dl-chain g0] DONE 2L@25000 rc=0
+[07-07 18:03:58] [dl-chain g0] RUN 6L@25000 on GPU 0
+[07-07 18:03:58] [dl-step25000 6L g0] QH qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step25000 skip (FINAL exists)
+[07-07 18:03:58] [dl-step25000 6L g0] EVAL step25000 full-97 start
+[07-07 20:44:42] [dl-chain g0] queue: 2L@30000 6L@30000 2L@35000 6L@35000 2L@37500 6L@37500
+[07-07 20:44:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-07 20:49:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-07 20:54:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-07 20:59:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-07 21:04:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-07 21:09:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-07 21:14:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-07 21:19:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-07 21:24:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-07 21:29:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-07 21:34:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-07 21:39:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-07 21:44:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-07 21:49:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-07 21:54:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-07 21:59:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-07 22:04:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-07 22:09:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-07 22:14:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-07 22:19:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-07 22:24:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-07 22:29:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-07 22:34:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-07 22:39:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-07 22:44:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-07 22:49:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-07 22:54:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-07 22:59:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-07 23:04:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-07 23:09:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-07 23:14:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-07 23:19:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-07 23:24:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-07 23:29:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-07 23:34:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-07 23:39:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-07 23:44:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-07 23:49:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-07 23:54:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-07 23:59:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-08 00:04:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-08 00:09:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-08 00:14:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-08 00:19:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-08 00:24:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-08 00:29:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-08 00:34:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-08 00:39:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-08 00:44:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-08 00:49:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-08 00:54:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-08 00:59:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-08 01:04:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-08 01:09:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-08 01:14:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-08 01:19:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-08 01:24:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-08 01:29:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-08 01:34:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-08 01:39:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-08 01:44:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-08 01:49:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-08 01:54:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-08 01:59:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-08 02:04:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-08 02:09:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-08 02:14:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-08 02:19:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-08 02:24:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-08 02:29:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-08 02:34:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-08 02:39:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-08 02:44:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-08 02:49:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-08 02:54:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-08 02:59:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-08 03:04:42] [dl-chain g0] WAIT for bb_..._step30000.pth
+[07-08 03:09:42] [dl-chain g0] RUN 2L@30000 on GPU 0
+[07-08 03:09:42] [dl-step30000 2L g0] QH qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step30000 train 10000 on bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_r3_step30000.pth resume=qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_parentstep_FINAL.pth
+[07-08 03:58:42] [dl-step30000 2L g0] QH qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step30000 done
+[07-08 03:58:42] [dl-step30000 2L g0] EVAL step30000 full-97 start
+[07-08 08:28:11] [dl-step30000 2L g0] EVAL step30000 done GM=1.1568
+[07-08 08:28:11] [dl-chain g0] DONE 2L@30000 rc=0
+[07-08 08:28:11] [dl-chain g0] RUN 6L@30000 on GPU 0
+[07-08 08:28:11] [dl-step30000 6L g0] QH qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step30000 train 10000 on bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_r3_step30000.pth resume=qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_parentstep_FINAL.pth
+[07-08 09:39:40] [dl-step30000 6L g0] QH qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step30000 done
+[07-08 09:39:40] [dl-step30000 6L g0] EVAL step30000 full-97 start
+[07-08 13:33:06] [dl-step30000 6L g0] EVAL step30000 done GM=1.1206
+[07-08 13:33:06] [dl-chain g0] DONE 6L@30000 rc=0
+[07-08 13:33:06] [dl-chain g0] RUN 2L@35000 on GPU 0
+[07-08 13:33:06] [dl-step35000 2L g0] QH qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step35000 train 10000 on bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_r3_step35000.pth resume=qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_parentstep_FINAL.pth
+[07-08 14:01:36] [dl-step35000 2L g0] QH qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step35000 done
+[07-08 14:01:36] [dl-step35000 2L g0] EVAL step35000 full-97 start
+[07-08 17:19:13] [dl-step35000 2L g0] EVAL step35000 done GM=1.1789
+[07-08 17:19:13] [dl-chain g0] DONE 2L@35000 rc=0
+[07-08 17:19:13] [dl-chain g0] RUN 6L@35000 on GPU 0
+[07-08 17:19:13] [dl-step35000 6L g0] QH qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step35000 train 10000 on bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_r3_step35000.pth resume=qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_parentstep_FINAL.pth
+[07-08 17:58:04] [dl-step35000 6L g0] QH qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step35000 done
+[07-08 17:58:04] [dl-step35000 6L g0] EVAL step35000 full-97 start
+[07-08 21:26:03] [dl-step35000 6L g0] EVAL step35000 done GM=1.1250
+[07-08 21:26:03] [dl-chain g0] DONE 6L@35000 rc=0
+[07-08 21:26:03] [dl-chain g0] RUN 2L@37500 on GPU 0
+[07-08 21:26:03] [dl-step37500 2L g0] QH qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step37500 train 10000 on bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_r3_step37500.pth resume=qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_parentstep_FINAL.pth
+[07-08 21:55:33] [dl-step37500 2L g0] QH qhead_2L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step37500 done
+[07-08 21:55:33] [dl-step37500 2L g0] EVAL step37500 full-97 start
+[07-09 01:18:32] [dl-step37500 2L g0] EVAL step37500 done GM=1.1731
+[07-09 01:18:32] [dl-chain g0] DONE 2L@37500 rc=0
+[07-09 01:18:32] [dl-chain g0] RUN 6L@37500 on GPU 0
+[07-09 01:18:32] [dl-step37500 6L g0] QH qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step37500 skip (FINAL exists)
+[07-09 01:18:32] [dl-step37500 6L g0] EVAL step37500 skip (concurrent eval in flight — lock 2 h old)
+[07-09 01:18:32] [dl-chain g0] DONE 6L@37500 rc=0
+[07-09 01:18:32] [dl-chain g0] chain complete

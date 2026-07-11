@@ -91,6 +91,18 @@ def test_dim_usage_collinear_is_one_over_d():
     assert u == pytest.approx(1.0 / d, abs=1e-3)
 
 
+def test_dim_usage_chunked_equals_unchunked(monkeypatch):
+    # The chunked accumulation path (#369, DIM_USAGE_CHUNK < n) must be
+    # numerically identical to the one-shot matmul path.
+    torch.manual_seed(0)
+    z = torch.randn(64, 3, 16)  # (n=64, fixed=3, d=16)
+    monkeypatch.setenv("DIM_USAGE_CHUNK", "0")   # one-shot path
+    u_full = dim_usage(z, axis=0).item()
+    monkeypatch.setenv("DIM_USAGE_CHUNK", "7")   # chunked path, n % chunk != 0
+    u_chunked = dim_usage(z, axis=0).item()
+    assert u_chunked == pytest.approx(u_full, abs=1e-6)
+
+
 def test_u_batch_isotropic_near_one():
     torch.manual_seed(0)
     z = torch.randn(256, 4, 3, 32)  # (B=256, T, C, H)

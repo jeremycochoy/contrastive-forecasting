@@ -1,0 +1,18 @@
+[07-07 14:41:41] [dl-chain g1] queue: 6L@25000 2L@25000 6L@20000
+[07-07 14:41:41] [dl-chain g1] RUN 6L@25000 on GPU 1
+[07-07 14:41:41] [dl-step25000 6L g1] QH qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step25000 train 10000 on bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_r2_step25000.pth resume=qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_parentstep_FINAL.pth
+[07-07 15:20:43] [dl-step25000 6L g1] QH qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step25000 done
+[07-07 15:20:43] [dl-step25000 6L g1] EVAL step25000 full-97 start
+[07-07 18:54:24] [dl-step25000 6L g1] EVAL step25000 done GM=1.1289
+[07-07 18:54:24] [dl-chain g1] DONE 6L@25000 rc=0
+[07-07 18:54:24] [dl-chain g1] SKIP 2L@25000 (already scored — /home/jupyter/cf-369/experiments/2026-07-03_b1024_traj_ckpts/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step25000_2L/summary.txt)
+[07-07 18:54:24] [dl-chain g1] SKIP 6L@20000 (already scored — /home/jupyter/cf-369/experiments/2026-07-03_b1024_traj_ckpts/results/gift_eval_full_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step20000_6L/summary.txt)
+[07-07 18:54:24] [dl-chain g1] chain complete
+[07-08 21:26:25] [dl-chain g1] queue: 6L@37500
+[07-08 21:26:25] [dl-chain g1] RUN 6L@37500 on GPU 1
+[07-08 21:26:25] [dl-step37500 6L g1] QH qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step37500 train 10000 on bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_r3_step37500.pth resume=qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_parentstep_FINAL.pth
+[07-08 22:22:55] [dl-step37500 6L g1] QH qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b1024_cpc_l_emb10_enc10_tau090_b1024_step37500 done
+[07-08 22:22:55] [dl-step37500 6L g1] EVAL step37500 full-97 start
+[07-09 01:55:54] [dl-step37500 6L g1] EVAL step37500 done GM=1.1197
+[07-09 01:55:54] [dl-chain g1] DONE 6L@37500 rc=0
+[07-09 01:55:54] [dl-chain g1] chain complete
