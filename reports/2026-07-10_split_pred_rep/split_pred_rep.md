@@ -29,6 +29,7 @@ All quoted margins are single-seed point differences (see Caveat).
 | arm 1 (split) | 1.1654 | 1.1669 | 1.1575 | 1.1557 |
 | arm 3 (split + MoCo) | **1.1548** | 1.1683 | **1.1338** | 1.1511 |
 | arm 4 (pooled + MoCo) | **1.1602** | TODO | 1.1603 | 1.1405 |
+| arm 5 (`L_align` + `L_rep`) | TODO | TODO | 1.2554 | TODO |
 | arm C ref (champion) | 1.1682 | 1.1491 | 1.1561 | **1.1254** |
 
 *GM-Relative MASE: geometric mean, over GIFT-Eval's 97 evaluation configs,
@@ -105,7 +106,8 @@ split shape), so their absolute levels are not directly comparable.
 | --- | --- | :-: | --- |
 | arm 1 | `cosine_similarity_batch_split_pred_rep` | off | split objective `L = L_pred + L_rep`, equal weight |
 | arm 3 | `cosine_similarity_batch_split_pred_rep` | on | split objective; cross-batch f ↔ h keys come from the EMA teacher (MoCo-style) instead of the student |
-| arm 4 | `cosine_similarity_batch_full_hh_negs_xshh_allt` | on | pooled champion shape with teacher keys — downstream scores pending |
+| arm 4 | `cosine_similarity_batch_full_hh_negs_xshh_allt` | on | pooled champion shape with teacher keys |
+| arm 5 | `cosine_similarity_batch_rep_only` + `--align-loss-weight 1.0` | off | replace `L_pred` with BYOL-style alignment: `L = L_align + L_rep` (no InfoNCE denominator on the f side) |
 | arm C ref | `cosine_similarity_batch_full_hh_negs_xshh_allt` | off | champion (λ_e = 1, λ_h = 1, τ = 0.90) of the earlier sweep, reused without retraining |
 
 Arm 2 was reserved in the issue-card follow-up list (λ-weighted variant
