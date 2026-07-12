@@ -36,7 +36,7 @@ from 1 at nominal 95 % under either the task-level or the
 28-dataset-clustered bootstrap. Arm 5 vs arms 1 / 3 / 4 (12 rows,
 task-level ratios [1.0557, 1.1581], lower bounds [1.0220, 1.1116])
 sits above 1 on every row; at `n_boot` = 200 000 all twelve rows
-clear α = 0.0021 (all two-sided p ≤ 0.0018 and margin ≥ 2.3 × MC SE
+clear α = 0.05 / 24 ≈ 0.002083 (all two-sided p ≤ 0.0018; worst-case margin 2.3 × MC SE
 on the worst row, `pairwise_bootstrap_ci_arm5_nboot200k.csv`). On
 point estimates the pooled champion (arm C) leads every new arm at
 the `last` cells (2L 1.1491 vs the best new arm's 1.1546; 6L 1.1254
@@ -109,6 +109,21 @@ count (30 k + 10 k both) but the head warmed up on very different
 backbones (step 11 800 vs step 600), so it is not matched on
 adaptation content either.
 
+**Selection rule for the `best` column.** `best_loss.pth` is the
+argmin of *each arm's own smoothed training loss*, and the four arms
+optimise different objectives on different scales (arm 1 ≈ 24 → 25;
+arm 3 ≈ 23; arm 4 ≈ 3.3 → 3.6; arm 5 ≈ 18 → 18). No held-out
+backbone-validation loss enters the protocol. So the `best` column
+selects step 12,500 / 11,800 / 600 / 11,800 across the four arms not
+because those are the best backbones on some shared criterion but
+because each arm's own loss curve has a different shape — arm 4's
+never returns below its step-600 value, so it selects step 600 by
+construction. Six of the twelve arm-1 / 3 / 4 rows in the Bonferroni
+family are `best` rows, and they mix the loss-shape axis under test
+with a checkpoint-selection axis that the loss shape itself
+determines. Reading a `best`-row separation as evidence about the
+loss shape confounds the two.
+
 ## f-anchored retrieval saturation
 
 `auc` and `top1` are the batch-cross InfoNCE retrieval diagnostics
@@ -148,9 +163,15 @@ the divisor cancels in the paired ratio. Driver:
 `experiments/2026-07-10_split_pred_rep/scripts/build_ci_panel.py`.
 Output CSVs live in the same `results/` directory. Ratio `A/B < 1`
 means arm A beats arm B. Bonferroni family: the 24-contrast full-97
-panel (6 arm pairs × 4 (head, ckpt) cells) at α = 0.05 / 24 = 0.0021;
+panel (6 arm pairs × 4 (head, ckpt) cells) at α = 0.05 / 24 ≈ 0.002083;
 the periodic and medium+long panels are read at nominal 95 % as
-diagnostics and no "Bonferroni" claim is made about them.
+diagnostics and no "Bonferroni" claim is made about them. When arm 6
+(pending) lands its four cells enter the panel as 6 new arm pairs =
+16 additional rows, and arm C's per-task file — if it lands from the
+sweep tree — adds 4 more rows against every existing arm; both would
+re-declare the family (44 rows with arm 6 alone, 60 with arm C too;
+α = 0.001136 and 0.000833 respectively) and rows read at 0.002083
+would have to be re-checked.
 
 ### Full-97 (`pairwise_bootstrap_ci.csv`, 24 rows; `_clustered.csv` for 28-dataset resample)
 
@@ -183,47 +204,58 @@ at `n_boot` = 20 000; re-run at `n_boot` = 200 000 in
 `pairwise_bootstrap_ci_arm5_nboot200k.csv`): task-level ratios
 [1.0557, 1.1581], lower bounds [1.0220, 1.1116]; all twelve above 1
 under both the task-level and clustered schemes. At `n_boot` = 200 000
-all twelve rows clear Bonferroni α = 0.05 / 24 = 0.0021. Nine rows
-carry a zero-event count out of 200 000 (two-sided p < 5 × 10⁻⁶); of
+all twelve rows clear Bonferroni α = 0.05 / 24 ≈ 0.002083. Nine rows
+carry a zero-event count out of 200 000 (rule-of-three upper bound:
+one-sided p < 3 / 200 000 = 1.5 × 10⁻⁵, two-sided < 3 × 10⁻⁵); of
 the three rows with non-zero counts the worst is 6L / last arm 5 vs
 arm 1 (one-sided p = 0.00089, two-sided p = 0.00178, Monte-Carlo
 standard error on the one-sided proportion
 SE₁ = √(p₁(1 − p₁) / B) = 0.000067, SE on the two-sided p is
-2 × SE₁ = 0.000133; distance to α is 0.00032, so the row clears at
-2.4 × MC SE). Other non-zero rows: 6L / best arm 5 vs arm 4 = 0.00093
-(margin/SE 12.0), 6L / best arm 5 vs arm 1 = 0.00032 (margin/SE 31.2),
-6L / last arm 5 vs arm 3 = 0.00012 (margin/SE 56.7).
+2 × SE₁ = 0.000133; distance to α is 0.000303, so the row clears at
+2.3 × MC SE). Other non-zero rows: 6L / best arm 5 vs arm 4 = 0.00093
+(margin/SE 11.9), 6L / best arm 5 vs arm 1 = 0.00032 (margin/SE 31.1),
+6L / last arm 5 vs arm 3 = 0.00012 (margin/SE 56.4).
 
 ### Periodic-cluster subset (37 configs — `solar/`, `electricity/`, `ett1/`, `m4_hourly/`, `bizitobs_*`)
 
 Family-prefix selection, so the subset does not condition on the
 outcome. Eleven of twelve arm-1 / 3 / 4 task-level CIs straddle 1;
 the exception is 6L / last arm 1 vs arm 4 = 1.0381 [1.0010, 1.0871]
-(one-sided p = 0.0208 — nominally separates). Eight of twelve arm-5
-CIs sit above 1; four straddle. Full 24 rows in
-`pairwise_bootstrap_ci_periodic.csv`.
+(one-sided p = 0.0208 — nominally separates). Under the
+dataset-clustered bootstrap (7 datasets in the periodic subset) all
+twelve arm-1 / 3 / 4 CIs straddle 1; the lone task-level exception
+6L / last arm 1 vs arm 4 widens to [0.9961, 1.1029] under clustering. Eight of twelve arm-5 CIs sit above 1; four straddle.
+Full 24 rows in `pairwise_bootstrap_ci_periodic.csv` (task) and
+`pairwise_bootstrap_ci_periodic_clustered.csv` (clustered).
 
 ### Medium+long horizon subset (42 configs — every `dataset/*/{medium,long}`)
 
 The card's secondary read. Compute-matched (`last`, all arms at step
 12 500):
 
-| cell | contrast | ratio A/B | 95 % CI task | one-sided `p_a_beats_b` |
-| --- | --- | --: | --- | --: |
-| 2L / last | arm 3 vs arm 4 | 1.0228 | [1.0059, 1.0403] | 0.0042 |
-| 6L / last | arm 3 vs arm 4 | 1.0140 | [1.0031, 1.0252] | 0.0064 |
-| 2L / last | arm 1 vs arm 3 | 0.9717 | [0.9521, 0.9926] | 0.9951 |
-| 6L / last | arm 1 vs arm 3 | 0.9833 | [0.9668, 1.0009] | 0.9690 |
-| 2L / last | arm 1 vs arm 4 | 0.9939 | [0.9757, 1.0132] | 0.7381 |
-| 6L / last | arm 1 vs arm 4 | 0.9971 | [0.9799, 1.0150] | 0.6232 |
+| cell | contrast | ratio A/B | 95 % CI task | 95 % CI clustered (14 datasets) | one-sided `p_a_beats_b` (task / clustered) |
+| --- | --- | --: | --- | --- | --: |
+| 2L / last | arm 3 vs arm 4 | 1.0228 | [1.0059, 1.0403] | [0.9960, 1.0490] | 0.0042 / 0.0461 |
+| 6L / last | arm 3 vs arm 4 | 1.0140 | [1.0031, 1.0252] | [1.0044, 1.0251] | 0.0064 / 0.0015 |
+| 2L / last | arm 1 vs arm 3 | 0.9717 | [0.9521, 0.9926] | [0.9473, 0.9975] | 0.9951 / 0.9837 |
+| 6L / last | arm 1 vs arm 3 | 0.9833 | [0.9668, 1.0009] | [0.9658, 1.0022] | 0.9690 / 0.9607 |
+| 2L / last | arm 1 vs arm 4 | 0.9939 | [0.9757, 1.0132] | [0.9816, 1.0034] | 0.7381 / 0.8813 |
+| 6L / last | arm 1 vs arm 4 | 0.9971 | [0.9799, 1.0150] | [0.9836, 1.0113] | 0.6685 / 0.6685 |
 
-Three rows separate at nominal 95 %. The two arm 3 vs arm 4 rows
-(split ↔ pooled) are matched on backbone step but the heads warmed
-up on very different backbones (step 11 800 vs step 600) — the head
-adaptation content is asymmetric across this pair too. The arm 1 vs
-arm 3 2L / last row's direction (no-MoCo better than MoCo) coincides
-with the arm-1 40 k-vs-arm-3 10 k head-adaptation asymmetry disclosed
-in §Backbone step, so it is not attributable to MoCo alone.
+Task-level: three rows separate at nominal 95 %. Under the more
+conservative dataset-clustered bootstrap (14 base datasets in the
+subset — `bizitobs_l2c`, `bizitobs_service`, `electricity`, `ett1`,
+`ett2`, `jena_weather`, `kdd_cup_2018`, `loop_seattle`, `m4_hourly`,
+`m4_monthly`, `m4_quarterly`, `m_dense`, `solar`, `sz_taxi`), 2L / last
+arm 3 vs arm 4 falls to [0.9960, 1.0490] and straddles 1 (p = 0.046,
+just above the 0.025 one-sided threshold); only 6L / last arm 3 vs
+arm 4 and 2L / last arm 1 vs arm 3 stay separated under both schemes.
+Head-adaptation asymmetry: arm 3 vs arm 4 warmed up on very different
+backbones (step 11 800 vs step 600), and arm 1 vs arm 3 mixes the MoCo
+axis with the 40 k-vs-10 k head-adaptation asymmetry disclosed in
+§Backbone step. Full 24 rows in
+`pairwise_bootstrap_ci_medlong.csv` (task) and
+`pairwise_bootstrap_ci_medlong_clustered.csv` (clustered).
 
 **Medium+long `best` cells.** All four arm-4-vs-trained-arms point
 ratios are above 1 (i.e. arm 4's step-600 backbone scores lower
