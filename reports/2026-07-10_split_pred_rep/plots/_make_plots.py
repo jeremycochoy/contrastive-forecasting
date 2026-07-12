@@ -83,22 +83,16 @@ def headline() -> None:
         else:
             vals = [read_aggregate(arm, h, c) for h, c in GROUPS]
         for xi, v in zip(x, vals):
-            if v is None:
-                ax.bar(xi + off, 0.20, width, bottom=0.99, facecolor="none",
-                       edgecolor=colour, hatch="///", linewidth=0.9, alpha=0.45)
-                ax.text(xi + off, 1.085, "pending", ha="center", va="center",
-                        rotation=90, fontsize=7.5, color=colour)
-            else:
-                ax.bar(xi + off, v - 1.0, width, bottom=1.0, color=colour)
-                ax.text(xi + off, v + 0.002, f"{v:.4f}",
-                        ha="center", va="bottom", rotation=90, fontsize=7.5, color=INK)
+            ax.bar(xi + off, v - 1.0, width, bottom=1.0, color=colour)
+            ax.text(xi + off, v + 0.003, f"{v:.4f}",
+                    ha="center", va="bottom", rotation=90, fontsize=7.5, color=INK)
         ax.bar(0, 0, color=colour, label=label)  # legend proxy
     ax.axhline(1.0, color=MUTED, lw=1.2, ls="--", label="seasonal-naive = 1.0")
     ax.set_xticks(x, [f"{h} / {c}" for h, c in GROUPS])
     ax.set_xlim(-0.55, 3.55)
-    ax.set_ylim(0.99, 1.28)
+    ax.set_ylim(0.99, 1.38)
     ax.set_ylabel("GM-Relative MASE (97 configs)\nlower is better")
-    ax.set_title("Downstream GM-Relative MASE, 97 GIFT-Eval configs  (N = 1 seed; hatched = eval pending)")
+    ax.set_title("Downstream GM-Relative MASE, 97 GIFT-Eval configs  (N = 1 seed)")
     ax.grid(axis="y", color=GRID, lw=0.7)
     ax.set_axisbelow(True)
     for side in ("top", "right"):
@@ -165,8 +159,8 @@ def gradient_share_stack() -> None:
     fig.legend(handles, [TENSOR_LABEL[t] for t in STACK_ORDER],
                loc="upper center", ncol=2, fontsize=8.5, frameon=False,
                bbox_to_anchor=(0.5, 1.0))
-    fig.suptitle("Per-family denominator share at each arm's step-12,500 backbone snapshot"
-                 "\n(τ = 0.10, B = 64)",
+    fig.suptitle("Per-family denominator share at each arm's FINAL.pth backbone snapshot"
+                 "\n(arm 1: step 12,500; arm 3: step 504; arm 4: step 494  —  τ = 0.10, B = 64)",
                  y=0.92, fontsize=10.5)
     fig.tight_layout(rect=(0, 0, 1, 0.83))
     fig.savefig(HERE / "gradient_share_stack.png")
@@ -183,6 +177,9 @@ LOSS_CSVS = {
     "arm 4 (pooled + MoCo)": (
         "runs_arm4/bb_allt08_moco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm4_tau090_losses.csv",
         C_ARM4, "-."),
+    "arm 5 (L_align + L_rep)": (
+        "runs_arm5/bb_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090_losses.csv",
+        C_ARM5, ":"),
 }
 
 

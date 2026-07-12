@@ -1,4 +1,4 @@
-# Splitting the main loss into L_pred + L_rep does not improve GM-Relative MASE at 6L / last (+2.3 to +2.7 % vs the pooled champion, single seed)
+# At the four compute-matched cells no split-vs-pooled or MoCo contrast separates from zero at 95 % CI; `L_align + L_rep` is a real regression (+5 % to +15 %)
 
 **Question.** The champion backbone of the [SIGReg (λ_e, λ_h) × EMA-τ
 sweep](../2026-06-28_sigreg_lambda_tau_cross/sigreg_lambda_tau_cross.md)
@@ -13,30 +13,38 @@ to isolate the MoCo axis, and arm 5 drops the InfoNCE denominator on the
 f side entirely, replacing `L_pred` with a BYOL-style alignment
 (`L = L_align + L_rep`).
 
-**Answer.** No at the 6L / last cell (arm 1 +2.7 %, arm 3 +2.3 %, arm 4
-+1.3 %; champion-denominated). At the compute-matched `last` cells (all
-at backbone step 12,500), the champion wins in every row. At the
-non-compute-matched `best` cells (see backbone-step table below), arm 3,
-arm 4 and arm 1 each sit at or below the champion in at least one row —
-but each `best` cell head-trains on the arm's own `best_loss` step, which
-is 600 for arm 4 and 11,800 for arm 3, so those margins mix backbone-step
-differences into the ranking. Dropping the InfoNCE denominator on the
-f side (arm 5, `L_align + L_rep`) is a clear regression: arm 5 loses on
-every cell, +8.4 % to +14.5 % (champion-denominated), with the largest
-gap at 2L / best (1.3374 vs 1.1682). All quoted margins are single-seed
-point differences (see Caveat).
+**Answer.** At the four `last` cells (all four arms at backbone step
+12,500 — the only cross-arm compute-matched read), a 20 000-resample
+paired bootstrap over the 97 configs gives every pairwise ratio between
+arms 1, 3 and 4 as a 95 % CI that straddles 1 (see the *Paired-bootstrap*
+subsection below). The single-axis split-vs-pooled contrast (arm 3 vs
+arm 4) is 1.0119 [0.9970, 1.0267] at 2L and 1.0093 [0.9960, 1.0269] at
+6L; the MoCo axis (arm 1 vs arm 3) is 0.9988 [0.9834, 1.0158] at 2L and
+1.0039 [0.9902, 1.0195] at 6L. The point-difference ranking the champion
+enjoys in every `last` row (arm 1 +2.7 %, arm 3 +2.3 %, arm 4 +1.3 % at
+6L) is therefore not separated from noise at N = 1. Dropping the InfoNCE
+denominator on the f side (arm 5, `L_align + L_rep`) is a real
+regression: arm 5 vs arm 1 is 1.0557 [1.0220, 1.0891] at 6L / last and
+1.1041 [1.0632, 1.1473] at 2L / last (both intervals lie above 1),
+so arm 5 is worse than every other arm on every scored cell. Note: this
+report has no per-task `all_results.csv` for arm C on this branch, so
+paired CIs vs the champion are computed against arm 1 instead of arm C;
+the two arms are at matched backbone step 12,500 and their
+point-difference at 6L / last is 0.0303 (arm 1 minus champion), so an
+arm 5-vs-champion 6L / last interval would sit slightly higher than the
+arm 5-vs-arm 1 interval — still above 1.
 
-![GM-Relative MASE across arms and (head, checkpoint) cells; hatched bars = eval still in progress.](plots/headline_relmase.png)
+![GM-Relative MASE across arms and (head, checkpoint) cells.](plots/headline_relmase.png)
 
 ## Downstream GM-Relative MASE
 
 | arm | 2L / best | 2L / last | 6L / best | 6L / last |
 | --- | --: | --: | --: | --: |
 | arm 1 (split) | 1.1654 | 1.1669 | 1.1575 | 1.1557 |
-| arm 3 (split + MoCo) | 1.1548 | 1.1683 | **1.1338** | 1.1511 |
+| arm 3 (split + MoCo) | **1.1548** | 1.1683 | **1.1338** | 1.1511 |
 | arm 4 (pooled + MoCo) | 1.1602 | 1.1546 | 1.1603 | 1.1405 |
 | arm 5 (`L_align` + `L_rep`) | 1.3374 | 1.2883 | 1.2554 | 1.2201 |
-| arm C ref (champion) | 1.1682 | 1.1491 | 1.1561 | **1.1254** |
+| arm C ref (champion) | 1.1682 | **1.1491** | 1.1561 | **1.1254** |
 
 *GM-Relative MASE: geometric mean, over GIFT-Eval's 97 evaluation configs,
 of model MASE divided by seasonal-naive MASE; 1.0 = seasonal-naive, lower
@@ -46,36 +54,79 @@ Arms 1 / 3 values are `Aggregate GM-Relative MASE (97 configs)` in each
 arms 4 / 5 values are the same line under `results_arm4/` and
 `results_arm5/`. Champion values are the four `cross_C` (λ_e = 1, λ_h = 1,
 τ = 0.90) rows of `experiments/2026-06-28_sigreg_lambda_tau_cross/results/gm_table.csv`.
-Boldface marks the minimum GM-Rel MASE in each column across all arms.
-Arm 5's 2L cells and 6L / last are still evaluating.*
+Boldface marks the column minimum across all arms. Point-difference
+rankings by themselves cannot be read as evidence at this seed count —
+see the paired-bootstrap subsection below and the Caveat.*
 
 **Backbone step behind each cell.** The head-training protocol trains on
 the arm's `FINAL.pth` for the `best` cell, then resumes on `final.pth`
-for the `last` cell. Each launcher copies `best_loss.pth` into
-`FINAL.pth` at end-of-training, so the `best` cell head-trains on
-whatever step each arm's total loss was minimum at:
+for the `last` cell. Each launcher's end-of-training block is
+`cp best_loss.pth → FINAL.pth`, falling through to `final.pth` if
+`best_loss.pth` is absent. The actual step behind each arm's `FINAL.pth`
+is verified below by md5-comparing `FINAL.pth` to each of
+`best_loss.pth`, `final.pth` and the intermediate `Xk.pth` snapshots:
 
-| arm | `best` cell backbone step | `last` cell backbone step |
-| --- | --: | --: |
-| arm 1 (split) | 12,500 | 12,500 |
-| arm 3 (split + MoCo) | 11,800 | 12,500 |
-| arm 4 (pooled + MoCo) | 600 | 12,500 |
-| arm 5 (`L_align` + `L_rep`) | 11,800 | 12,500 |
-| arm C ref (champion) | not on this branch | not on this branch |
+| arm | `best` cell backbone step | `last` cell backbone step | `FINAL.pth` md5-matches |
+| --- | --: | --: | --- |
+| arm 1 (split) | 12,500 | 12,500 | `final.pth` (weights also equal to `12k.pth` — see below) |
+| arm 3 (split + MoCo) | 504 | 12,500 | `best_loss.pth` |
+| arm 4 (pooled + MoCo) | 494 | 12,500 | `best_loss.pth` |
+| arm 5 (`L_align` + `L_rep`) | 11,809 | 12,500 | `best_loss.pth` |
+| arm C ref (champion) | *n/a on this branch* | 12,500 | (per sweep protocol; `best_loss.pth` step not exported here) |
 
-The `last` column (backbone step 12,500 for every arm) is the only
-matched-backbone comparison across arms; `best` cells mix objective
-differences with backbone-step differences.
+For arm 1, `FINAL.pth`, `final.pth` and `12k.pth` are byte-different
+files but the 193 tensors in each state-dict are identical
+(`torch.equal` across all keys), so arm 1's backbone did not update in
+the final 500 steps and the `best` and `last` cells are on the same
+weights. For arms 3, 4 and 5, `FINAL.pth` is a byte-identical copy of
+`best_loss.pth`; the reported step is the losses-CSV `argmin(loss)`
+step. Only the four `last` cells (arm 1 through arm 5 all at step
+12,500 for the head's second training phase) are cross-arm
+compute-matched; every `best` cell mixes objective differences with
+backbone-step differences.
+
+## Paired-bootstrap 95 % CI on GM-Relative MASE ratios
+
+20 000 resamples over the 97 configs, seed 42, using each arm's
+per-task `MASE[0.5]` normalised by the shared seasonal-naive reference.
+Ratio `A/B < 1` means arm A beats arm B. `arm C` is absent because its
+per-task `all_results.csv` is not on this branch (`paired_bootstrap.py`
+requires it); the arm 5 read vs the champion falls out of the arm 1
+column plus the +0.0303 point-difference between arm 1 and the champion
+at 6L / last. Full 24-row table:
+`experiments/2026-07-10_split_pred_rep/results/pairwise_bootstrap_ci.csv`.
+Cells at compute-matched `last` (step 12,500 across all four arms):
+
+| cell | contrast | axis toggled | ratio A/B | 95 % CI | separates from 1? |
+| --- | --- | --- | --: | --- | :-: |
+| 2L / last | arm 3 vs arm 4 | split ↔ pooled (MoCo fixed) | 1.0119 | [0.9970, 1.0267] | no |
+| 6L / last | arm 3 vs arm 4 | split ↔ pooled (MoCo fixed) | 1.0093 | [0.9960, 1.0269] | no |
+| 2L / last | arm 1 vs arm 3 | MoCo off ↔ on (split fixed) | 0.9988 | [0.9834, 1.0158] | no |
+| 6L / last | arm 1 vs arm 3 | MoCo off ↔ on (split fixed) | 1.0039 | [0.9902, 1.0195] | no |
+| 2L / last | arm 1 vs arm 4 | joint (split + no-MoCo ↔ pooled + MoCo) | 1.0107 | [0.9963, 1.0262] | no |
+| 6L / last | arm 1 vs arm 4 | joint | 1.0133 | [0.9957, 1.0344] | no |
+| 2L / last | arm 5 vs arm 1 | `L_align + L_rep` ↔ split | 1.1041 | [1.0632, 1.1473] | **yes (arm 5 worse)** |
+| 6L / last | arm 5 vs arm 1 | `L_align + L_rep` ↔ split | 1.0557 | [1.0220, 1.0891] | **yes (arm 5 worse)** |
+
+None of the arm 1 / 3 / 4 pairwise contrasts separate from zero at
+compute-matched cells. Arm 5's regression separates from zero on every
+scored cell (12 CIs; see `pairwise_bootstrap_ci.csv`), and also
+separates when read against arms 3 / 4 (ratios ≥ 1.055 with lower CI
+bounds ≥ 1.019 across all four cells).
 
 ## Denominator share
 
-![Stacked per-family shares of each term's denominator at each arm's `FINAL.pth` snapshot (arm 1 = step 12,500, arm 3 = step 11,800, arm 4 = step 600); mixed and periodic batches.](plots/gradient_share_stack.png)
+![Stacked per-family shares of each term's denominator at each arm's `FINAL.pth` snapshot (arm 1 = step 12,500 weights, arm 3 = step 504, arm 4 = step 494); mixed and periodic batches.](plots/gradient_share_stack.png)
 
 `log_neg_cross_batch` holds 0.90–0.99 of `L_pred`'s denominator in the
 split shape (arms 1 and 3, periodic and mixed batches). The same tensor
 holds 0.003 in arm 4's pooled denominator on both batches, while the
 h-anchored families (`log_neg_hh_all` + `log_neg_xs_allt`) hold 0.877
-(periodic) / 0.860 (mixed).
+(periodic) / 0.860 (mixed). The measurement thus confirms the pooled
+shape's motivating hypothesis — the cross-batch f-anchored family is
+crowded out by the two h-anchored families — on arm 4's step-494
+backbone. This is the arm the report ships; per issue #374, the card
+asks for the measurement to run on arm C, which is a follow-up.
 
 *Measurement (`scripts/gradient_share_measurement.py`; full table
 `results/gradient_share_measurement.csv`, 132 rows). Each backbone
@@ -94,14 +145,19 @@ the EMA teacher.*
 
 ## Training loss
 
-![Total training loss, tail-aligned to zero, log-x from step 100.](plots/loss_curves.png)
+![Total training loss per arm, tail-aligned to zero, log-x from step 100.](plots/loss_curves.png)
 
-Each curve is the run's total training loss (contrastive + CPC + SIGReg
-+ `L_align` if arm 5), tail-aligned by subtracting the mean of steps
-12,401 – 12,500. The pooled shape (arm 4) keeps the champion's
-`--pos-in-denominator --subtract-contrastive-floor`, the split shape
-drops both, and arm 5 adds a BYOL alignment term; the absolute loss
-levels are not the same functional and are not directly comparable.
+Each curve is the run's total training loss, shifted by the mean of
+steps 12 401–12 500 so the tails meet at zero. The three InfoNCE arms
+(1, 3, 4) and the BYOL-alignment arm (5) optimise different functionals
+and their absolute loss levels are not directly comparable; the shape
+axis this figure captures is *time to reach the tail* on each objective.
+Arms 3 and 4 drop below their own tail level by step ~500 and stay
+essentially flat afterwards — consistent with their `best_loss.pth` at
+step 504 / 494 in the backbone-step table. Arm 1 keeps a small monotonic
+drift after step ~1 000. Arm 5's `L_align + L_rep` reaches its tail
+around step 4 000 and continues to fluctuate around it, with the
+`best_loss.pth` step at 11 809.
 
 ## Arms
 
@@ -159,22 +215,35 @@ the split shape does not define. For each backbone a quantile probe head
 (2 or 6 layers) is trained for 30,000 steps on `FINAL.pth` (`best-loss`
 copied), then for 10,000 more steps — resuming the same head — on
 `final.pth` (step 12,500). Each head is evaluated on GIFT-Eval's 97
-configs against the same seasonal-naive reference file as the champion.
+configs against the same seasonal-naive reference file
+(`/home/jupyter/workspaces/gift-eval/results/seasonal_naive/all_results.csv`,
+also used for the paired-bootstrap CI computation).
 
-## Caveat — single seed
+## Caveat — single seed, one uncheckable cell
 
-Every evaluation is N = 1. Matched-cell point differences vs the
-champion, over the twelve scored cells of arms 1 / 3 / 4 (arm 5 has one
-scored cell so far, 6L / best = 1.2554 = +8.6 %), span −1.9 % (arm 3,
-6L / best) to +2.7 % (arm 1, 6L / last); four of the twelve are within
-±0.6 % and eight are within ±1.6 %. The spread between the `best` and
-`last` cells of the same (arm, head) pair (last relative to best) spans
-−1.7 % (arm 4, 6L: 1.1405 vs 1.1603) to +1.5 % (arm 3, 2L: 1.1683 vs
-1.1548) here, i.e. bigger than most matched-cell margins. The card's
-primary success criterion — paired-bootstrap CI vs arm C's per-task
-MASE — needs arm C's per-task `all_results.csv`, which is not on this
-branch; the arm 3 vs arm 4 contrast (single-axis, split vs pooled at
-matched MoCo) can be computed from the committed `all_results.csv` for
-both arms with `scripts/paired_bootstrap.py` — that CI is a follow-up
-addition to this report. A multi-seed replicate would be needed to call
-any ordering real.
+Every evaluation is N = 1. The paired bootstrap above measures within-run
+across-task variability; between-seed variance is not measured on this
+branch and would need a replicate run to bound. `results_arm4/…_last_6L/all_results.csv`
+was on-disk truncated (the first 10 244 bytes were NUL-filled by a lost
+write); the file was reconstructed from `summary.txt`, so its
+`MASE[0.5]` column exactly reproduces the summary's aggregate 1.1405
+but its non-MASE columns are `NaN`. All paired-bootstrap ratios above
+depend only on `MASE[0.5]` and are unaffected. Matched-cell point
+differences vs the champion, over the sixteen scored cells of arms 1 /
+3 / 4 / 5, span −1.9 % (arm 3, 6L / best, best-cell not compute-matched)
+to +14.5 % (arm 5, 2L / best); on the four compute-matched `last` cells
+alone, point differences vs the champion span +0.5 % (arm 4, 2L / last:
+1.1546 vs 1.1491) to +2.7 % (arm 1, 6L / last: 1.1557 vs 1.1254) for
+arms 1 / 3 / 4 and reach +12.1 % (arm 5, 2L / last: 1.2883 vs 1.1491)
+for arm 5. The best → last spread of the same (arm, head) pair (last
+relative to best) at compute-matched `last` step 12 500 ranges from
+−3.7 % (arm 5, 2L: 1.2883 vs 1.3374) to +1.5 % (arm 3, 6L: 1.1511 vs
+1.1338 = +1.53 %); the +1.17 % at arm 3, 2L (1.1683 vs 1.1548) is
+smaller. Arm 4's underfit-backbone `best` cells (backbone step 494)
+sit within 0.5 % of arm 1's fully-trained `best` cells at both head
+depths, which independently indicates the downstream metric is
+insensitive to backbone step at the ±1–3 % margins this experiment
+chases; the underfit-backbone control asked for on the review pass
+(one head-train + full-97 eval from a randomly-initialised or
+early-step backbone) is a follow-up card that would close the
+sensitivity question directly.
