@@ -1,4 +1,4 @@
-# No compute-matched arm 1 / 3 / 4 contrast on the full 97-config GM-Relative MASE panel clears Bonferroni α = 0.05 / 24 = 0.0021; on point estimates the pooled champion beats every new arm at both `last` cells; arm 5 (`L_align + L_rep`) regresses on every scored evaluation
+# No arm 1 / 3 / 4 contrast on the full 97-config GM-Relative MASE panel clears Bonferroni α = 0.05 / 24 = 0.0021 (best- and last-cell contrasts alike; smallest two-sided p = 0.0099); arm 5 (`L_align + L_rep`) regresses on every scored evaluation (all 12 rows clear α at `n_boot` = 200 000); the card's primary criterion — paired bootstrap vs the pooled champion — is unmet on this branch and champion `last`-cell point-estimate gaps sit inside the card's ±0.02 single-seed band
 
 **Definitions.** *GM-Relative MASE* is the geometric mean, over the 97
 GIFT-Eval forecasting configs, of `(model MASE) / (seasonal-naive
@@ -24,39 +24,41 @@ to isolate the MoCo axis, and arm 5 drops the InfoNCE denominator on the
 f side entirely, replacing `L_pred` with a BYOL-style alignment
 (`L = L_align + L_rep`). Arm 2 in the card's numbering (a λ-weighted
 split, `α L_pred + β L_rep`) is a follow-up not run here. Arm 6
-(`L_align` + MoCo) launched on elisa alongside this report — a
-backbone-training run of ~6 h wall-clock at the time of writing; its
-cells will land in a follow-up commit and are marked pending in the
-downstream table below.
+(`L_align` + MoCo) is part of this experiment and is still training
+at the time of writing; its cells appear as *pending* in the
+downstream table.
 
-**Answer.** No arm-1 / 3 / 4 pairwise contrast in the full-97 panel
-clears Bonferroni α = 0.05 / 24 = 0.0021 (12 rows tested; largest
-two-sided p on that panel is 0.0099, 6L / best arm 3 vs arm 4, which
-is 11,200-step confounded); no compute-matched `last`-cell CI
-separates from 1 at nominal 95 % under either the task-level or the
+**Answer.** No arm-1 / 3 / 4 pairwise contrast in the 12-row full-97
+panel clears Bonferroni α = 0.05 / 24 = 0.0021 (the *smallest* two-sided
+p on that panel is 0.0099, 6L / best arm 3 vs arm 4, which is
+11,200-step confounded); no compute-matched `last`-cell CI separates
+from 1 at nominal 95 % under either the task-level or the
 28-dataset-clustered bootstrap. Arm 5 vs arms 1 / 3 / 4 (12 rows,
 task-level ratios [1.0557, 1.1581], lower bounds [1.0220, 1.1116])
-sits above 1 on every row: 11 of 12 clear Bonferroni with margin
-> 10 × the bootstrap's Monte-Carlo standard error; the 12th
-(6L / last arm 5 vs arm 1, two-sided p = 0.0018 ± 0.0004 MC SE) is
-unresolvable against α = 0.0021 at `n_boot` = 20 000. On point
-estimates the pooled champion (arm C) leads every new arm at the
-`last` cells (2L / last 1.1491 vs the best new arm's 1.1546; 6L / last
-1.1254 vs 1.1405), but neither gap has a CI on this branch (arm C's
-per-task file is on the sweep tree only), and both gaps sit inside the
-card's own ±0.02 single-seed noise band. Arm 4's `best` cells run on
-a step-600 backbone (2 % of training) and score at or below — i.e.
-better than — arms 1 / 3's step-12 500 / step-11 800 `best` cells on
-the medium+long horizon subset (three of four ratios separate at
-nominal 95 %); on that same subset the single-axis arm 3 vs arm 4
-`last`-cell pair is 2L 1.0228 [1.0059, 1.0403] and 6L 1.0140
-[1.0031, 1.0252] — nominally in the direction of pooled better than
-split, but the medium+long subset is not in the Bonferroni family
-declared for the panel, so no ranking is claimed from those rows.
-Whether the step-600 backbone reading up-ranked reflects arm 4's
-loss shape at compute-early or the readout's resolution at ±1–3 % is
-not answerable on this branch; the underfit-random-init backbone
-control that would say is a follow-up.
+sits above 1 on every row; at `n_boot` = 200 000 all twelve rows
+clear α = 0.0021 (all two-sided p ≤ 0.0018 and margin ≥ 2.3 × MC SE
+on the worst row, `pairwise_bootstrap_ci_arm5_nboot200k.csv`). On
+point estimates the pooled champion (arm C) leads every new arm at
+the `last` cells (2L 1.1491 vs the best new arm's 1.1546; 6L 1.1254
+vs 1.1405); arm C's per-task file is on the sweep tree only, so
+neither gap has a CI on this branch, and both gaps sit inside the
+card's ±0.02 single-seed noise band. Arm 4's `best` cells run on a
+step-600 backbone (600 / 12,500 = 4.8 % of training) and score at or
+below arms 1 / 3's step-12,500 / step-11,800 `best` cells on the
+medium+long horizon subset (three of four ratios above 1, i.e. arm 4
+better, three separate at nominal 95 %). The card's canonical
+split-vs-pooled contrast — arm 3 vs arm 4 with MoCo held fixed on
+both sides — is 1.0119 [0.9970, 1.0267] at 2L / last and 1.0093
+[0.9960, 1.0269] at 6L / last on the full-97 panel; on the medium+long
+subset it separates at nominal 95 % (2L / last 1.0228 [1.0059,
+1.0403]; 6L / last 1.0140 [1.0031, 1.0252]) in the direction of pooled
+better than split, but the medium+long panel is not in the Bonferroni
+family so no ranking is claimed from those rows. Neither this
+contrast nor arm 1 vs arm 3 is matched on head-adaptation content
+(arms 3 / 4 head-trained 30 000 steps on their own `best_loss.pth`
+step-11,800 / step-600 backbones and only 10 000 on the evaluated
+step-12,500), so the compute-matched panel is on backbone step but
+not on head adaptation.
 
 ![GM-Relative MASE across arms and (head, checkpoint) scored evaluations.](plots/headline_relmase.png)
 
@@ -127,18 +129,14 @@ the pre-resume steps too) and from arms 3 / 4 / 5's `..._losses.csv`:
 | arm 4 | 1.0000 / 0.9993 | 1.0000 / 0.9995 | 1.0000 / 0.9994 | 1.0000 / 0.9974 | 0.9505 (step 934) |
 | arm 5 | 1.0000 / 1.0000 | 1.0000 / 1.0000 | 1.0000 / 1.0000 | 1.0000 / 1.0000 | 1.0000 |
 
-Read the four-step sample and the min column together: arm 1's `top1`
-at step 600 is 0.9998 (0.02 % error) but dips to 0.8348 at step 3 343
-and sits below 0.99 at 46 % of logged steps ≥ 600 (5 479 / 11 901);
-arm 4's `top1` dips to 0.9505 at step 934; the sampled columns
-{600, 2 000, 6 000, 12 500} land between the dips. So "at ceiling
-throughout" is not what the CSVs say — the correct statement is that
-the retrieval diagnostic reaches ~0 % top-1 error by step 600 and
-excursions of order 10 pp appear later without recovering the `loss`
-trajectory (which rises 24.05 → 25.36 on arm 1 and 3.26 → 3.61 on
-arm 4, and never dips below the step-600 value at any later logged
-step on either arm; the run log's last `best_loss.pth` save is at
-step 600 for arm 4 and no post-resume save at all for arm 1).
+Arm 1's `top1` at step 600 is 0.9998 (0.02 % error), dips to 0.8348 at
+step 3 343 and sits below 0.99 at 5 479 of 11 901 logged steps ≥ 600
+(46.0 %); arm 4's `top1` dips to 0.9505 at step 934. Total training
+`loss` rises after step 600 on both arms (arm 1: 24.05 → 25.36;
+arm 4: 3.26 → 3.61) and never dips below the step-600 value at any
+later logged step; the run log's last `best_loss.pth` save is at
+step 600 for arm 4 and there is no post-resume `best_loss.pth` save at
+all for arm 1.
 
 ## Paired-bootstrap 95 % CI on GM-Relative MASE ratios
 
@@ -180,16 +178,21 @@ two separate — both at 6L (arm 1 vs arm 3 and arm 3 vs arm 4) — and
 both are step-confounded (700-step gap for arm 1 vs arm 3;
 11 200-step gap for arm 3 vs arm 4).
 
-Arm 5 vs arms 1 / 3 / 4 (12 rows, in `pairwise_bootstrap_ci.csv`):
-task-level ratios [1.0557, 1.1581], lower bounds [1.0220, 1.1116];
-all twelve above 1 under both the task-level and clustered schemes.
-11 of the 12 clear Bonferroni α = 0.05 / 24 = 0.0021 with margin
-> 10 × MC SE at `n_boot` = 20 000. The worst row (6L / last arm 5 vs
-arm 1) has two-sided p = 0.0018 with MC SE = 0.00042 (SE = 2 × √(p(1−p)/B)
-on a two-sided p, from the underlying one-sided count of 18 / 20 000);
-distance to α is 0.00028, so this row does not resolve against
-α = 0.0021 at the current resample count. Raising `n_boot` on that
-panel to 200 000 puts the SE near 0.0001 and would settle it.
+Arm 5 vs arms 1 / 3 / 4 (12 rows, in `pairwise_bootstrap_ci.csv`
+at `n_boot` = 20 000; re-run at `n_boot` = 200 000 in
+`pairwise_bootstrap_ci_arm5_nboot200k.csv`): task-level ratios
+[1.0557, 1.1581], lower bounds [1.0220, 1.1116]; all twelve above 1
+under both the task-level and clustered schemes. At `n_boot` = 200 000
+all twelve rows clear Bonferroni α = 0.05 / 24 = 0.0021. Nine rows
+carry a zero-event count out of 200 000 (two-sided p < 5 × 10⁻⁶); of
+the three rows with non-zero counts the worst is 6L / last arm 5 vs
+arm 1 (one-sided p = 0.00089, two-sided p = 0.00178, Monte-Carlo
+standard error on the one-sided proportion
+SE₁ = √(p₁(1 − p₁) / B) = 0.000067, SE on the two-sided p is
+2 × SE₁ = 0.000133; distance to α is 0.00032, so the row clears at
+2.4 × MC SE). Other non-zero rows: 6L / best arm 5 vs arm 4 = 0.00093
+(margin/SE 12.0), 6L / best arm 5 vs arm 1 = 0.00032 (margin/SE 31.2),
+6L / last arm 5 vs arm 3 = 0.00012 (margin/SE 56.7).
 
 ### Periodic-cluster subset (37 configs — `solar/`, `electricity/`, `ett1/`, `m4_hourly/`, `bizitobs_*`)
 
@@ -234,13 +237,10 @@ this subset); three of the four separate at nominal 95 %.
 | 2L / best | arm 1 (12,500) vs arm 4 (600) | 1.0185 | [1.0015, 1.0370] | 0.0158 |
 | 6L / best | arm 1 (12,500) vs arm 4 (600) | 1.0104 | [0.9958, 1.0264] | 0.0865 |
 
-The 30 000-step probe head scores arm 4's step-600 backbone at
-slightly lower GM-Rel MASE than arm 3's step-11 800 and arm 1's
-step-12 500 on this subset at both head depths. Whether that
-reflects the arms' loss shapes at the compute-early regime or the
-readout's resolution at ±1–3 % on medium+long is not answerable on
-this branch; the underfit-random-init backbone control is a
-follow-up.
+On this subset arm 4's step-600 backbone gives lower GM-Relative
+MASE than arm 3's step-11 800 and arm 1's step-12 500 at both head
+depths; the underfit-random-init backbone control is a follow-up (see
+§Caveat).
 
 ## Denominator share
 
@@ -253,13 +253,17 @@ all of `L_pred`'s denominator on arms 1 / 3's `FINAL.pth` snapshots
 arm 4's pooled denominator at step 600 while the two h-anchored
 families (`log_neg_hh_all` + `log_neg_xs_allt`) hold ≥ 0.86 on both
 batches; arm 4's step-10 000 snapshot gives the same pattern. The
-card's requirement is a measurement on arm C — pooled, MoCo **off**.
-Arm 4 sources the cross-batch keys from the EMA teacher — the same
-family whose share is the quantity of interest — so arm 4 is not an
-arm-C substitute. Arm 3's `FINAL.pth` is byte-identical to its
-`best_loss.pth`, so arm 3 contributes one distinct checkpoint listed
-twice in the CSV. `results/gradient_share_measurement.csv` also holds
-per-tensor `max` values alongside the `mean` used above.
+card asks for the measurement on arm C — a pooled backbone trained
+with MoCo **off**. The probe at measurement time uses student-side
+keys (identical to arm C's training regime), so the *tensor form*
+measured on arm 4 is the pooled-MoCo-off denominator; what is different
+from an arm-C measurement is the weights (arm 4 was trained under MoCo,
+i.e. with teacher-side keys, so its checkpoint reflects a training-time
+gradient distribution arm C's would not). The card's specific
+prediction (`share(hh + xs) ≈ 1`, `share(cross_batch) ≈ 0` on the
+periodic batch under the pooled shape at C = 1) reads correctly on
+arm 4's weights at every measured step, but a re-run on arm C's own
+checkpoint remains a follow-up.
 
 *Method (`scripts/gradient_share_measurement.py`; full table
 `results/gradient_share_measurement.csv`, 132 rows). Each backbone
