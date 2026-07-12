@@ -1,4 +1,4 @@
-# The contrastive retrieval task is at ceiling (`auc ≈ 1`, `top1 ≥ 0.99`) from step 600 in every arm; no compute-matched arm 1 / 3 / 4 contrast on the full 97-config GM-Relative MASE panel clears Bonferroni α = 0.05 / 24 = 0.0021; on point estimates the pooled champion (arm C) beats every new arm at both `last` cells; arm 5 (`L_align + L_rep`) regresses on every scored evaluation
+# No compute-matched arm 1 / 3 / 4 contrast on the full 97-config GM-Relative MASE panel clears Bonferroni α = 0.05 / 24 = 0.0021; on point estimates the pooled champion beats every new arm at both `last` cells; arm 5 (`L_align + L_rep`) regresses on every scored evaluation
 
 **Definitions.** *GM-Relative MASE* is the geometric mean, over the 97
 GIFT-Eval forecasting configs, of `(model MASE) / (seasonal-naive
@@ -43,13 +43,11 @@ at both head depths — 2L / last 1.0228 [1.0059, 1.0403], 6L / last
 backbones (four of four point ratios in the direction *arm 4 better*;
 three separate at nominal 95 %). Arm 5 is worse than every other arm
 on every one of its twelve full-97 pairwise contrasts (task-level
-ratios in [1.0557, 1.1581], lower bounds in [1.0220, 1.1116]); the
-largest two-sided p across those twelve is 0.0018, which clears
-α = 0.0021 by 0.0003 on that worst-case row. The contrastive
-retrieval diagnostics logged in every backbone losses CSV
-(`auc`, `top1`) reach ceiling by step 600 for every arm and stay
-there, so the loss shape the arms differ in is optimising a task its
-own diagnostics score as solved after ~5 % of training.
+ratios in [1.0557, 1.1581], lower bounds in [1.0220, 1.1116]); every
+one of the twelve clears Bonferroni at α = 0.05 / 24 = 0.0021 (largest
+two-sided p ≈ 0.0018, on the same order as the bootstrap's own
+Monte-Carlo standard error at `n_boot` = 20 000, so treat that row as
+"clears" without a numeric margin).
 
 ![GM-Relative MASE across arms and (head, checkpoint) scored evaluations.](plots/headline_relmase.png)
 
@@ -98,25 +96,37 @@ count (30 k + 10 k both) but the head warmed up on very different
 backbones (step 11 800 vs step 600), so it is not matched on
 adaptation content either.
 
-## Contrastive-task saturation
+## f-anchored retrieval saturation
 
-Every backbone's contrastive retrieval diagnostics reach ceiling by
-step 600 and stay there. From the committed backbone losses CSVs:
+`auc` and `top1` (the InfoNCE cross-batch retrieval diagnostics logged
+next to `loss` in every backbone losses CSV) score the f-anchored
+prediction task that `L_pred` optimises; they do not score `L_rep`,
+which has no positive. From `..._losses_full.csv` at fixed sampled
+steps:
 
-| arm | step 600 (or 901 for arm 1) | step 2,000 | step 6,000 | step 12,500 |
-| --- | --- | --- | --- | --- |
-| arm 1 | auc 1.0000 / top1 0.9970 | 0.9999 / 0.9835 | 1.0000 / 0.9952 | 1.0000 / 0.9926 |
-| arm 3 | 1.0000 / 0.9998 | 1.0000 / 0.9992 | 1.0000 / 0.9996 | 1.0000 / 0.9993 |
-| arm 4 | 1.0000 / 0.9993 | 1.0000 / 0.9995 | 1.0000 / 0.9994 | 1.0000 / 0.9974 |
-| arm 5 | 1.0000 / 1.0000 | 1.0000 / 1.0000 | 1.0000 / 1.0000 | 1.0000 / 1.0000 |
+| arm | step 600 | step 2,000 | step 6,000 | step 12,500 | `top1` min at step ≥ 600 |
+| --- | --- | --- | --- | --- | --- |
+| arm 1 | auc 1.0000 / top1 0.9998 | 0.9999 / 0.9835 | 1.0000 / 0.9952 | 1.0000 / 0.9926 | 0.8348 (step 3,342) |
+| arm 3 | 1.0000 / 0.9998 | 1.0000 / 0.9992 | 1.0000 / 0.9996 | 1.0000 / 0.9993 | 0.9825 (step 3,538) |
+| arm 4 | 1.0000 / 0.9993 | 1.0000 / 0.9995 | 1.0000 / 0.9994 | 1.0000 / 0.9974 | 0.9505 (step 934) |
+| arm 5 | 1.0000 / 1.0000 | 1.0000 / 1.0000 | 1.0000 / 1.0000 | 1.0000 / 1.0000 | 1.0000 |
 
-Arm 4's total training loss reaches its global minimum at step 600
-(3.263), rises to 4.320 at step 2 000, and never returns below the
-step-600 value (3.608 at 12 500) — which is why its `best_loss.pth`
-lives at step 600. Arm 1's total loss goes from 24.05 at step 925 to
-25.36 at step 12 500 — also up. The loss shape the arms differ in is
-being optimised against a task the diagnostics already score as
-solved.
+The `top1` at fixed sampled steps sits ≥ 0.9835 in every cell, and the
+step-≥-600 `top1` min column shows arm 1 dips to 0.8348 and arm 4 to
+0.9505; the sampled columns hide those dips. The total training loss
+does not settle here either: arm 1's raw `loss` rises from 24.05 at
+step 600 to 25.36 at step 12 500 and its post-step-600 minimum-across-
+steps is the step-600 value itself (i.e. `loss` never drops below the
+step-600 value at any later logged step); arm 4's rises from 3.26 at
+step 600 to 3.61 at step 12 500, likewise never returning below the
+step-600 value at any later step (this is why `best_loss.pth` for
+arm 4 saves at step 600). Read the section as: the f-anchored InfoNCE
+retrieval that `L_pred` scores is at ~1 % top-1 error after ~5 % of
+training; what the rest of training moves are the h-anchored terms
+(`L_rep` under the split, or the h-anchored families inside the
+pooled shape's single denominator), which `auc` and `top1` do not
+score, and the downstream GM-Rel MASE, which the panel above shows
+does not resolve those movements between arms 1 / 3 / 4.
 
 ## Paired-bootstrap 95 % CI on GM-Relative MASE ratios
 
@@ -155,13 +165,17 @@ Rows marked `*` are `best` cells with step or checkpoint-selection
 confounds. Of the six compute-matched `last` rows, none separates
 from 1 at nominal 95 % under either scheme. Of the six `best` rows,
 two separate — both at 6L (arm 1 vs arm 3 and arm 3 vs arm 4) — and
-both are step-confounded (11 200-step and 700-step gaps).
+both are step-confounded (700-step gap for arm 1 vs arm 3;
+11 200-step gap for arm 3 vs arm 4).
 
 Arm 5 vs arms 1 / 3 / 4 (12 rows, in `pairwise_bootstrap_ci.csv`):
 task-level ratios [1.0557, 1.1581], lower bounds [1.0220, 1.1116];
 all twelve above 1 under both the task-level and clustered schemes.
-The largest two-sided p across the twelve is 0.0018 (worst case);
-Bonferroni margin 0.0003 at α = 0.0021.
+The largest two-sided p across the twelve is ≈ 0.0018 (worst-case
+row: 6L / last arm 5 vs arm 1); at `n_boot` = 20 000 the Monte-Carlo
+standard error on that p-estimate is ≈ 0.0003, comparable to the
+distance from α = 0.0021, so the row is best read as "clears" without
+quoting a numeric margin.
 
 ### Periodic-cluster subset (37 configs — `solar/`, `electricity/`, `ett1/`, `m4_hourly/`, `bizitobs_*`)
 
@@ -195,7 +209,9 @@ with the arm-1 40 k-vs-arm-3 10 k head-adaptation asymmetry disclosed
 in §Backbone step, so it is not attributable to MoCo alone.
 
 **Medium+long `best` cells.** All four arm-4-vs-trained-arms point
-ratios are above 1; three of four separate at nominal 95 %.
+ratios are above 1 (i.e. arm 4's step-600 backbone scores lower
+GM-Rel MASE than arms 1 / 3's step-12 500 / step-11 800 backbones on
+this subset); three of the four separate at nominal 95 %.
 
 | cell | contrast | ratio A/B | 95 % CI task | one-sided `p_a_beats_b` |
 | --- | --- | --: | --- | --: |
@@ -204,12 +220,13 @@ ratios are above 1; three of four separate at nominal 95 %.
 | 2L / best | arm 1 (12,500) vs arm 4 (600) | 1.0185 | [1.0015, 1.0370] | 0.0158 |
 | 6L / best | arm 1 (12,500) vs arm 4 (600) | 1.0104 | [0.9958, 1.0264] | 0.0865 |
 
-The measurement is that the 30 000-step probe head reads arm 4's
-step-600 backbone as slightly better than arm 3's step-11 800 and
-arm 1's step-12 500 on this subset at both head depths. The report
-does not read a mechanism off this — the random-init or early-step
-underfit backbone control that would say whether the metric resolves
-backbones at these margins is a follow-up.
+The 30 000-step probe head scores arm 4's step-600 backbone at
+slightly lower GM-Rel MASE than arm 3's step-11 800 and arm 1's
+step-12 500 on this subset at both head depths. Whether that
+reflects the arms' loss shapes at the compute-early regime or the
+readout's resolution at ±1–3 % on medium+long is not answerable on
+this branch; the underfit-random-init backbone control is a
+follow-up.
 
 ## Denominator share
 
@@ -257,12 +274,17 @@ measurement, teacher-side at training.*
 construction (positive in denominator), so `--pos-in-denominator` is
 a no-op for the split; `--subtract-contrastive-floor` is supported by
 the split (subtracts `f_pred + f_rep`, a constant, gradient-neutral).
-Arm 1 vs arm C ref therefore differs on one effective axis — the
-loss functional (split vs pooled). Arm 3 vs arm 4 is the same
-functional axis with MoCo on both sides; arm 1 vs arm 3 is the MoCo
-axis with the split shape held fixed. Arm 5 vs arm 1 changes two
-axes at once: `L_pred` (InfoNCE) → `L_align` (BYOL alignment) plus
-the `--align-loss-weight 1.0` addition.
+Arm 1 vs arm C ref therefore differs on one effective loss-shape
+axis (split vs pooled) — arm C's head protocol is documented on the
+sweep branch and not re-verified here, so any head-adaptation
+difference between arm 1 and arm C is unmeasured. Arm 3 vs arm 4 is
+the same functional axis with MoCo on both sides (backbone-step-
+matched but head warm-up backbone unmatched — 11 800 vs 600); arm 1
+vs arm 3 is the MoCo axis with the split shape held fixed
+(backbone-step-matched, head-adaptation-asymmetric — 40 k on the
+evaluated backbone vs 30 k + 10 k). Arm 5 vs arm 1 changes two axes at
+once: `L_pred` (InfoNCE) → `L_align` (BYOL alignment) plus the
+`--align-loss-weight 1.0` addition.
 
 Negative families (measurement CSV tensor names): f-anchored are
 `log_neg_cross_batch` (cross-batch f_t ↔ h′_{t+1}) and `log_neg_zy`
