@@ -18,3 +18,12 @@
 
 === arm 5 (L_align + L_rep) ===
   FINAL.pth md5: 31af1eafda689b3514c95336eb4af29e
+  == bb_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090_best_loss.pth (md5 match)
+  run-log best_loss saves: n=40  last-save-step=11800
+  closing: Done in 7.8h. Best gap=0.7516 at step 10700, Best loss=17.5838 at step 11800
+
+arm 1 torch.equal FINAL == final    : True
+arm 1 torch.equal FINAL == 12k      : True
+arm 1 torch.equal FINAL == best_loss: False
+arm 1 num keys checked              : 193
+== done: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/results/backbone_step_verification.log ==

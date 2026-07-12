@@ -3,15 +3,21 @@
 Iterates over every pair of arms in {arm1, arm3, arm4, arm5} at every
 (head, ckpt) in {2L, 6L} × {best, last}, calling the paired-bootstrap
 utility with n_boot=20000, seed 42, and the branch-committed
-seasonal-naive reference. Also emits (i) the same panel restricted to
-the periodic-cluster subset the issue-card names (28 configs), and
-(ii) a dataset-clustered bootstrap that resamples the 28 base
-datasets instead of the 97 configs.
+seasonal-naive reference. Emits four panels:
+  (i)   task-level over all 97 configs;
+  (ii)  the periodic-cluster subset the card names (37 configs — solar,
+        electricity, ett1, m4_hourly, bizitobs_* — selected by family
+        prefix, not by rel ≥ 1.25, to avoid conditioning on the outcome);
+  (iii) a dataset-clustered bootstrap that resamples the 28 base
+        datasets rather than the 97 configs;
+  (iv)  the medium+long horizon subset the card's secondary read names
+        (42 configs — dataset/*/{medium,long}).
 
 Idempotent; writes:
-  results/pairwise_bootstrap_ci.csv   (task-level, 24 rows)
-  results/pairwise_bootstrap_ci_periodic.csv (periodic subset, 24 rows)
-  results/pairwise_bootstrap_ci_clustered.csv (dataset-clustered, 24 rows)
+  results/pairwise_bootstrap_ci.csv           (task-level over all 97 configs, 24 rows)
+  results/pairwise_bootstrap_ci_periodic.csv  (37-config periodic subset, 24 rows)
+  results/pairwise_bootstrap_ci_clustered.csv (dataset-clustered over 28 base datasets, 24 rows)
+  results/pairwise_bootstrap_ci_medlong.csv   (42-config medium+long horizon subset, 24 rows)
 
 Usage:  python3 scripts/build_ci_panel.py
 """
@@ -25,6 +31,7 @@ SN = EXP / "results" / "seasonal_naive_all_results.csv"
 OUT_ALL = EXP / "results" / "pairwise_bootstrap_ci.csv"
 OUT_PER = EXP / "results" / "pairwise_bootstrap_ci_periodic.csv"
 OUT_CLU = EXP / "results" / "pairwise_bootstrap_ci_clustered.csv"
+OUT_HOR = EXP / "results" / "pairwise_bootstrap_ci_medlong.csv"
 
 ARMS = {
     "arm1": ("results", "gift_eval_full_split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090"),
@@ -38,6 +45,7 @@ N_BOOT = 20000
 SEED = 42
 
 PERIODIC_PREFIXES = ("solar/", "electricity/", "ett1/", "m4_hourly/", "bizitobs_")
+MEDLONG_SUFFIXES = ("/medium", "/long")  # the term suffix used in the config name
 
 
 def base_dataset(name: str) -> str:
@@ -93,12 +101,14 @@ def main():
     sn = pd.read_csv(SN).set_index("dataset")
 
     print(f"n_boot={N_BOOT} seed={SEED}  sn={SN}")
-    rows_all, rows_per, rows_clu = [], [], []
+    rows_all, rows_per, rows_clu, rows_hor = [], [], [], []
     for HL, ck in GROUPS:
         # cache each arm's per-task rel-MASE at this cell
         rel = {a: rel_mase(csv_path(a, HL, ck), sn) for a in ARMS}
         rel_periodic = {a: v[[t for t in v.index if t.startswith(PERIODIC_PREFIXES)]]
                         for a, v in rel.items()}
+        rel_medlong = {a: v[[t for t in v.index if t.endswith(MEDLONG_SUFFIXES)]]
+                       for a, v in rel.items()}
         for a, b in itertools.combinations(ARMS, 2):
             rng = np.random.default_rng(SEED)
             ga, gb, r, lo, hi, p, n = bootstrap_task(rel[a], rel[b], rng)
@@ -109,8 +119,12 @@ def main():
             rng = np.random.default_rng(SEED)
             ga_c, gb_c, r_c, lo_c, hi_c, p_c, n_c, n_ds = bootstrap_cluster(rel[a], rel[b], rng)
             rows_clu.append([HL, ck, a, b, ga_c, gb_c, r_c, lo_c, hi_c, p_c, n_c, n_ds, N_BOOT, SEED])
-            print(f"{HL}/{ck}  {a} vs {b}: task-ratio={r:.4f} [{lo:.4f},{hi:.4f}]  "
-                  f"cluster [{lo_c:.4f},{hi_c:.4f}]  periodic-n={n_p} ratio={r_p:.4f} [{lo_p:.4f},{hi_p:.4f}]")
+            rng = np.random.default_rng(SEED)
+            ga_h, gb_h, r_h, lo_h, hi_h, p_h, n_h = bootstrap_task(rel_medlong[a], rel_medlong[b], rng)
+            rows_hor.append([HL, ck, a, b, ga_h, gb_h, r_h, lo_h, hi_h, p_h, n_h, N_BOOT, SEED])
+            print(f"{HL}/{ck}  {a} vs {b}: task={r:.4f} [{lo:.4f},{hi:.4f}]  "
+                  f"clu [{lo_c:.4f},{hi_c:.4f}]  per n={n_p} [{lo_p:.4f},{hi_p:.4f}]  "
+                  f"med+long n={n_h} [{lo_h:.4f},{hi_h:.4f}]")
 
     def write(path, header, rows):
         with open(path, "w", newline="") as f:
@@ -121,7 +135,8 @@ def main():
     write(OUT_ALL, ["head","ckpt","arm_a","arm_b","gm_a","gm_b","ratio_a_over_b","ci_lo","ci_hi","p_a_beats_b","n","n_boot","seed"], rows_all)
     write(OUT_PER, ["head","ckpt","arm_a","arm_b","gm_a","gm_b","ratio_a_over_b","ci_lo","ci_hi","p_a_beats_b","n_periodic","n_boot","seed"], rows_per)
     write(OUT_CLU, ["head","ckpt","arm_a","arm_b","gm_a","gm_b","ratio_a_over_b","ci_lo","ci_hi","p_a_beats_b","n","n_datasets","n_boot","seed"], rows_clu)
-    print(f"wrote {OUT_ALL.name}, {OUT_PER.name}, {OUT_CLU.name}")
+    write(OUT_HOR, ["head","ckpt","arm_a","arm_b","gm_a","gm_b","ratio_a_over_b","ci_lo","ci_hi","p_a_beats_b","n_medlong","n_boot","seed"], rows_hor)
+    print(f"wrote {OUT_ALL.name}, {OUT_PER.name}, {OUT_CLU.name}, {OUT_HOR.name}")
 
 
 if __name__ == "__main__":
