@@ -43,7 +43,8 @@ from src.dataloader import (
     create_hf_dataloader,
 )
 from src.loss import (contrastive_latent_loss, cpc_infonce_aux_loss,
-                      cpc_infonce_all_loss, align_loss, sigreg_loss)
+                      cpc_infonce_all_loss, align_loss, align_moco_loss,
+                      sigreg_loss)
 from src.checkpoint import save_training_state, load_training_state
 from src.dist_utils import (
     setup_distributed,
@@ -406,6 +407,17 @@ def parse_args():
                         "positive's −(1−p₊)/τ which fades once the negatives "
                         "separate (p₊→1). Stop-grad on the encoder target. "
                         "Applies to ANY loss_shape.")
+    p.add_argument("--align-moco-loss-weight", type=float, nargs="?",
+                   const=1.0, default=0.0,
+                   help="λ for a MoCo-style InfoNCE alignment (#374 arm 6): "
+                        "positive = cos(h_{b,t}, h^T_{b,t}) / τ, denominator = "
+                        "LSE over cos(h_{b,t}, h^T_{b',t}) / τ across b'. The "
+                        "student encoder is the anchor (gradient flows through "
+                        "h); the EMA teacher supplies both the positive and "
+                        "the cross-batch keys (gradient blocked by the EMA "
+                        "update path). Requires --ema-encoder to be on and "
+                        "uses the loop's `tau_tensor` for τ. Applies on top of "
+                        "any loss_shape; 0.0 ⇒ off (default).")
     p.add_argument("--subtract-contrastive-floor", action="store_true",
                    help="Re-base the loss by the constant normalized-InfoNCE "
                         "floor log(1+N·e^(−1/τ)) so the logged curve reads ~0 "
@@ -1345,6 +1357,21 @@ def main():
                     (f_lat, o_lat), validation=False,
                     spec=LOSS_SPEC, tau_override=tau_tensor_loss,
                     teacher_original_latent=teacher_o_lat)
+            # #374 arm 6: MoCo-style alignment on the encoder side (student
+            # query, teacher key). Requires teacher_o_lat.
+            align_moco_val = float('nan')
+            if args.align_moco_loss_weight > 0:
+                if teacher_o_lat is None:
+                    raise SystemExit(
+                        "--align-moco-loss-weight > 0 requires an EMA teacher "
+                        "(--ema-encoder). teacher_o_lat is None.")
+                _tau_am = (float(tau_tensor.detach()) if tau_tensor is not None
+                           else args.tau)
+                align_moco = align_moco_loss(
+                    o_lat, teacher_o_lat, tau=_tau_am,
+                    weight=args.align_moco_loss_weight)
+                loss = loss + align_moco
+                align_moco_val = align_moco.item()
             # CPC InfoNCE auxiliary (#344): total = contrastive + λ·L_cpc,
             # equal weight at λ=1. f_lat is the AR context h_t (4-D here; the
             # cpc_multistep stack is 5-D and returns earlier in the loss), o_lat

@@ -612,6 +612,34 @@ def align_loss(forecasted_latent, original_latent, weight=1.0):
     return weight * (2.0 - 2.0 * cos_align).mean()
 
 
+def align_moco_loss(original_latent, teacher_original_latent, tau=0.10, weight=1.0):
+    """MoCo-style InfoNCE with student encoder anchor + EMA-teacher keys.
+
+    Positive:  cos(h_{b,t}, h^T_{b,t}) / τ
+    Negatives: cos(h_{b,t}, h^T_{b',t}) / τ for all b' ≠ b (cross-batch, same t)
+
+    Loss = LSE_{denom = {positive} ∪ {negatives}}(cos / τ) − log_pos, mean over
+    anchors (b, t, c). Same-batch keys only (no cross-time), matching the
+    `log_neg_cross_batch` denominator's structure — but here the anchor is
+    the student's h_{b,t} (not the forecaster's f_{b,t}) and the keys are
+    the teacher's h^T_{b',t} (not the student's h_{b',t}). Purpose is to
+    prevent the student encoder from drifting too fast away from the EMA
+    teacher: the query is student-side (gradient flows through h), the keys
+    are teacher-side (gradient blocked by the EMA update path).
+
+    original_latent, teacher_original_latent: ``[B, T, C, H]``. Returns scalar.
+    """
+    q = F.normalize(original_latent, p=2, dim=-1)                # [B, T, C, H]
+    k = F.normalize(teacher_original_latent, p=2, dim=-1)        # [B, T, C, H]
+    # sims[t, c, b1, b2] = cos(q[b1, t, c], k[b2, t, c]) / τ.
+    q_p = q.permute(1, 2, 0, 3)                                   # [T, C, B, H]
+    k_p = k.permute(1, 2, 0, 3)                                   # [T, C, B, H]
+    sims = torch.matmul(q_p, k_p.transpose(-2, -1)) / tau         # [T, C, B, B]
+    log_pos = torch.diagonal(sims, dim1=-2, dim2=-1).permute(2, 0, 1)   # [B, T, C]
+    log_denom = torch.logsumexp(sims, dim=-1).permute(2, 0, 1)          # [B, T, C]
+    return weight * (log_denom - log_pos).mean()
+
+
 # --- All-time cross-series Gram speedups (#327) ----------------------------
 #
 # The all-time cross-series negative in `cosine_similarity_batch_full_hh_negs_
