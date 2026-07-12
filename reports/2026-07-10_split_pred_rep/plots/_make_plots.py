@@ -40,17 +40,21 @@ plt.rcParams.update({
 })
 
 GROUPS = [("2L", "best"), ("2L", "last"), ("6L", "best"), ("6L", "last")]
-ARM_DIRS = {
-    "arm1": "gift_eval_full_split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090",
-    "arm3": "gift_eval_full_split_pred_rep_moco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090",
+ARM_SPECS = {
+    "arm1": (EXP / "results", "gift_eval_full_split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090"),
+    "arm3": (EXP / "results", "gift_eval_full_split_pred_rep_moco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090"),
+    "arm4": (EXP / "results_arm4", "gift_eval_full_allt08_moco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm4_tau090"),
+    "arm5": (EXP / "results_arm5", "gift_eval_full_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090"),
 }
 
 
-def read_aggregate(arm: str, head: str, ckpt: str) -> float:
+def read_aggregate(arm: str, head: str, ckpt: str):
+    root, base = ARM_SPECS[arm]
     suffix = f"_{head}" if ckpt == "best" else f"_last_{head}"
-    text = (EXP / "results" / (ARM_DIRS[arm] + suffix) / "summary.txt").read_text()
-    m = re.search(r"Aggregate GM-Relative MASE \(97 configs\): ([0-9.]+)", text)
-    return float(m.group(1))
+    p = root / (base + suffix) / "summary.txt"
+    if not p.exists(): return None
+    m = re.search(r"Aggregate GM-Relative MASE \(97 configs\): ([0-9.]+)", p.read_text())
+    return float(m.group(1)) if m else None
 
 
 def champion_cells() -> dict:
@@ -59,39 +63,42 @@ def champion_cells() -> dict:
     return {(r["head"], r["ckpt"]): float(r["gm"]) for _, r in rows.iterrows()}
 
 
+C_ARM5 = "#8b1e8b"
+
+
 def headline() -> None:
     champ = champion_cells()
-    fig, ax = plt.subplots(figsize=(11.5, 5.2))
+    fig, ax = plt.subplots(figsize=(13.5, 5.6))
     x = np.arange(len(GROUPS))
-    width = 0.20
+    width = 0.16
     C_CHAMP = "#52514e"
-    for off, arm, colour, label in [(-1.5 * width, "arm1", C_ARM1, "arm 1 (split)"),
-                                    (-0.5 * width, "arm3", C_ARM3, "arm 3 (split + MoCo)")]:
-        vals = [read_aggregate(arm, h, c) for h, c in GROUPS]
-        bars = ax.bar(x + off, np.array(vals) - 1.0, width, bottom=1.0,
-                      color=colour, label=label)
-        for b, v in zip(bars, vals):
-            ax.text(b.get_x() + b.get_width() / 2, v + 0.002, f"{v:.4f}",
-                    ha="center", va="bottom", rotation=90, fontsize=8.5, color=INK)
-    for gx in x:  # arm 4 slots: results pending, full-height hatched placeholder
-        ax.bar(gx + 0.5 * width, 0.20, width, bottom=0.99, facecolor="none",
-               edgecolor=C_ARM4, hatch="///", linewidth=0.9, alpha=0.45)
-        ax.text(gx + 0.5 * width, 1.085, "pending", ha="center", va="center",
-                rotation=90, fontsize=8.5, color=C_ARM4)
-    champ_vals = [champ[g] for g in GROUPS]
-    bars = ax.bar(x + 1.5 * width, np.array(champ_vals) - 1.0, width, bottom=1.0,
-                  color=C_CHAMP, label="arm C ref (champion)")
-    for b, v in zip(bars, champ_vals):
-        ax.text(b.get_x() + b.get_width() / 2, v + 0.002, f"{v:.4f}",
-                ha="center", va="bottom", rotation=90, fontsize=8.5, color=INK)
-    ax.bar(0, 0, facecolor="none", edgecolor=C_ARM4, hatch="///",
-           label="arm 4 (pooled + MoCo) — pending")
+    arm_slots = [(-2 * width, "arm1", C_ARM1, "arm 1 (split)"),
+                 (-1 * width, "arm3", C_ARM3, "arm 3 (split + MoCo)"),
+                 (0.0,       "arm4", C_ARM4, "arm 4 (pooled + MoCo)"),
+                 (1.0 * width, "arm5", C_ARM5, "arm 5 (L_align + L_rep)"),
+                 (2.0 * width, None,  C_CHAMP, "arm C ref (champion)")]
+    for off, arm, colour, label in arm_slots:
+        if arm is None:
+            vals = [champ[g] for g in GROUPS]
+        else:
+            vals = [read_aggregate(arm, h, c) for h, c in GROUPS]
+        for xi, v in zip(x, vals):
+            if v is None:
+                ax.bar(xi + off, 0.20, width, bottom=0.99, facecolor="none",
+                       edgecolor=colour, hatch="///", linewidth=0.9, alpha=0.45)
+                ax.text(xi + off, 1.085, "pending", ha="center", va="center",
+                        rotation=90, fontsize=7.5, color=colour)
+            else:
+                ax.bar(xi + off, v - 1.0, width, bottom=1.0, color=colour)
+                ax.text(xi + off, v + 0.002, f"{v:.4f}",
+                        ha="center", va="bottom", rotation=90, fontsize=7.5, color=INK)
+        ax.bar(0, 0, color=colour, label=label)  # legend proxy
     ax.axhline(1.0, color=MUTED, lw=1.2, ls="--", label="seasonal-naive = 1.0")
     ax.set_xticks(x, [f"{h} / {c}" for h, c in GROUPS])
     ax.set_xlim(-0.55, 3.55)
-    ax.set_ylim(0.99, 1.19)
+    ax.set_ylim(0.99, 1.28)
     ax.set_ylabel("GM-Relative MASE (97 configs)\nlower is better")
-    ax.set_title("Downstream GM-Relative MASE, 97 GIFT-Eval configs  (N = 1 seed; no error bars)")
+    ax.set_title("Downstream GM-Relative MASE, 97 GIFT-Eval configs  (N = 1 seed; hatched = eval pending)")
     ax.grid(axis="y", color=GRID, lw=0.7)
     ax.set_axisbelow(True)
     for side in ("top", "right"):
