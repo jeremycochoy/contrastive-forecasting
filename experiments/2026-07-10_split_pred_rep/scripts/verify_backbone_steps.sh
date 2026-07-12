@@ -28,7 +28,8 @@ verify(){
   cd - >/dev/null
 
   if [ -f "$run_log" ]; then
-    local n_saves=$(grep -c "Saved.*${bb_stem}_best_loss\.pth" "$run_log" || echo 0)
+    local n_saves=$(grep -c "Saved.*${bb_stem}_best_loss\.pth" "$run_log" 2>/dev/null)
+    [ -n "$n_saves" ] || n_saves=0
     local last_step=$(grep -B4 "Saved.*${bb_stem}_best_loss\.pth" "$run_log" | \
                        grep -oE "^\[ *[0-9]+\]" | tr -d '[] ' | sort -n | tail -1)
     log "  run-log best_loss saves: n=$n_saves  last-save-step=${last_step:-none}"

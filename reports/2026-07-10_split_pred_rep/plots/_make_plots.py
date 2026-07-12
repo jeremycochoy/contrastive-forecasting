@@ -160,61 +160,75 @@ def gradient_share_stack() -> None:
                loc="upper center", ncol=2, fontsize=8.5, frameon=False,
                bbox_to_anchor=(0.5, 1.0))
     fig.suptitle("Per-family denominator share at each arm's FINAL.pth backbone snapshot"
-                 "\n(arm 1: step 12,500; arm 3: step 504; arm 4: step 494  —  τ = 0.10, B = 64)",
+                 "\n(arm 1: step 12,500; arm 3: step 11,800; arm 4: step 600  —  τ = 0.10, B = 64)",
                  y=0.92, fontsize=10.5)
     fig.tight_layout(rect=(0, 0, 1, 0.83))
     fig.savefig(HERE / "gradient_share_stack.png")
     plt.close(fig)
 
 
-LOSS_CSVS = {
-    "arm 1 (split)": (
-        "runs/bb_split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_losses_full.csv",
-        C_ARM1, "-"),
-    "arm 3 (split + MoCo)": (
-        "runs/bb_split_pred_rep_moco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_losses.csv",
-        C_ARM3, "--"),
-    "arm 4 (pooled + MoCo)": (
-        "runs_arm4/bb_allt08_moco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm4_tau090_losses.csv",
-        C_ARM4, "-."),
-    "arm 5 (L_align + L_rep)": (
-        "runs_arm5/bb_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090_losses.csv",
-        C_ARM5, ":"),
-}
+FOREST_ROWS = [
+    ("2L / last", "arm 3 vs arm 4", "split ↔ pooled  (MoCo fixed)", "arm3", "arm4"),
+    ("6L / last", "arm 3 vs arm 4", "split ↔ pooled  (MoCo fixed)", "arm3", "arm4"),
+    ("2L / last", "arm 1 vs arm 3", "MoCo off ↔ on  (split fixed)", "arm1", "arm3"),
+    ("6L / last", "arm 1 vs arm 3", "MoCo off ↔ on  (split fixed)", "arm1", "arm3"),
+    ("2L / last", "arm 1 vs arm 4", "joint (split+no-MoCo ↔ pooled+MoCo)", "arm1", "arm4"),
+    ("6L / last", "arm 1 vs arm 4", "joint (split+no-MoCo ↔ pooled+MoCo)", "arm1", "arm4"),
+    ("6L / best*", "arm 1 vs arm 3", "MoCo — ckpt-selection confound", "arm1", "arm3"),
+    ("6L / best*", "arm 3 vs arm 4", "split — 11,200-step gap", "arm3", "arm4"),
+    ("2L / last", "arm 5 vs arm 1", "L_align+L_rep ↔ split", "arm5", "arm1"),
+    ("6L / last", "arm 5 vs arm 1", "L_align+L_rep ↔ split", "arm5", "arm1"),
+]
 
 
-def loss_curves() -> None:
-    fig, ax = plt.subplots(figsize=(9, 4.6))
-    for label, (rel, colour, ls) in LOSS_CSVS.items():
-        df = pd.read_csv(EXP / rel, usecols=["step", "loss"]).set_index("step")
-        final_level = df.loc[12401:12500, "loss"].mean()
-        shifted = df.loss - final_level
-        smooth = shifted.rolling(101, center=True, min_periods=1).mean()
-        ax.plot(shifted.loc[100:].index, shifted.loc[100:], color=colour,
-                lw=0.5, alpha=0.15)
-        ax.plot(smooth.loc[100:].index, smooth.loc[100:], color=colour,
-                lw=1.8, ls=ls, label=label)
-    ax.axhline(0.0, color=MUTED, lw=1.0, ls=":")
-    ax.set_xscale("log")
-    ax.set_xlim(100, 12500)
-    ax.set_xticks([100, 300, 1000, 3000, 10000],
-                  ["100", "300", "1,000", "3,000", "10,000"])
-    ax.set_xlabel("training step (log scale)")
-    ax.set_ylabel("total training loss − final level (nats)")
-    ax.set_title("Total training loss, shifted by each run's final level "
-                 "(mean of steps 12,401–12,500)")
-    ax.grid(color=GRID, lw=0.7)
-    ax.set_axisbelow(True)
-    for side in ("top", "right"):
-        ax.spines[side].set_visible(False)
-    ax.legend(loc="upper right", fontsize=9)
+def _lookup(df, cell, arm_a, arm_b):
+    head, ck = cell.split(" / ")
+    ck = ck.rstrip("*")
+    r = df[(df["head"] == head) & (df["ckpt"] == ck) &
+           (df["arm_a"] == arm_a) & (df["arm_b"] == arm_b)]
+    if r.empty:
+        r = df[(df["head"] == head) & (df["ckpt"] == ck) &
+               (df["arm_a"] == arm_b) & (df["arm_b"] == arm_a)]
+        row = r.iloc[0]
+        return 1.0/row["ratio_a_over_b"], 1.0/row["ci_hi"], 1.0/row["ci_lo"]
+    row = r.iloc[0]
+    return row["ratio_a_over_b"], row["ci_lo"], row["ci_hi"]
+
+
+def ci_forest() -> None:
+    task = pd.read_csv(EXP / "results" / "pairwise_bootstrap_ci.csv")
+    clu  = pd.read_csv(EXP / "results" / "pairwise_bootstrap_ci_clustered.csv")
+    fig, ax = plt.subplots(figsize=(10.5, 5.6))
+    n = len(FOREST_ROWS)
+    for i, (cell, contrast, ax_label, a, b) in enumerate(FOREST_ROWS):
+        yt = n - 1 - i
+        rt, lot, hit = _lookup(task, cell, a, b)
+        rc, loc_, hic = _lookup(clu,  cell, a, b)
+        col = "#8b1e8b" if a == "arm5" else INK
+        ax.plot([lot, hit], [yt + 0.12, yt + 0.12], color=col, lw=1.6)
+        ax.plot(rt, yt + 0.12, "o", color=col, markersize=6)
+        ax.plot([loc_, hic], [yt - 0.12, yt - 0.12], color=col, lw=1.0, alpha=0.55)
+        ax.plot(rc, yt - 0.12, "s", color=col, markersize=5, alpha=0.55)
+        ax.text(-0.02, yt, f"{cell:<10s}  {contrast:<16s}  {ax_label}",
+                transform=ax.get_yaxis_transform(), ha="right", va="center",
+                fontsize=9, family="monospace")
+    ax.axvline(1.0, color=MUTED, lw=1.2, ls="--")
+    ax.set_yticks([])
+    ax.set_xlim(0.82, 1.20)
+    ax.set_xlabel("ratio A / B  (ratio < 1 → A better; ratio > 1 → A worse)")
+    ax.set_title("Paired-bootstrap 95 % CIs on GM-Relative MASE ratios  "
+                 "(top per row: task-level; bottom: dataset-clustered)")
+    ax.grid(axis="x", color=GRID, lw=0.7); ax.set_axisbelow(True)
+    for side in ("top", "right"): ax.spines[side].set_visible(False)
+    ax.text(1.005, -0.15, "cells marked * are checkpoint-selection or step-confounded — see report.",
+            transform=ax.transAxes, ha="right", va="top", fontsize=8, color=MUTED)
     fig.tight_layout()
-    fig.savefig(HERE / "loss_curves.png")
+    fig.savefig(HERE / "ci_forest.png")
     plt.close(fig)
 
 
 if __name__ == "__main__":
     headline()
     gradient_share_stack()
-    loss_curves()
+    ci_forest()
     print("wrote", *(p.name for p in sorted(HERE.glob("*.png"))))

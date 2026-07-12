@@ -1701,10 +1701,12 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         #   L      = L_pred + L_rep.
         #
         # Same τ in both, same teacher-side/stopgrad positive, same batch
-        # pooling inside each term. `include_positive_in_denominator` and
-        # `subtract_contrastive_floor` are rejected: L_pred is normalized
-        # by construction, and the floor formula is derived for the
-        # combined shape's single denominator.
+        # pooling inside each term. `include_positive_in_denominator` is
+        # a no-op for this shape (L_pred is normalized-InfoNCE by
+        # construction). `subtract_contrastive_floor` IS supported and
+        # handled below in `contrastive_latent_loss` — it subtracts the
+        # per-term constants `f_pred + f_rep` (see `_split_pred_rep_floors`)
+        # and is gradient-neutral.
         neg_inf = float('-inf')
         if hy_teacher_norm is not None:
             hy_pos = hy_teacher_norm
