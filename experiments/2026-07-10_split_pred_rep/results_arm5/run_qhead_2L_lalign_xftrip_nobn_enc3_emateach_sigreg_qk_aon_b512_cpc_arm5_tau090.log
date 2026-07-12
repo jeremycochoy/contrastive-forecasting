@@ -1,0 +1,56 @@
+  [head-train] auto-detected freq_emb_dim=3 from backbone checkpoint
+  [head-train] auto-detected seasonality_emb_dim=3 from backbone checkpoint
+  [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+  [head-train] auto-detected qk_norm=True from backbone checkpoint
+  [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+  [head-train] auto-detected patch_stats=none
+Backbone loaded from /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_arm5/bb_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090_FINAL.pth (0 params, frozen)
+/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/transformer.py:392: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  warnings.warn(
+Forecasting head [transformer-q (2L H384 nhead6 causal)]: 3,605,136 trainable params
+Optimizer: AdamW lr=0.001 betas=(0.9,0.98) wd=0.1 eps=1e-08
+Schedule: cosine warmup=3000 decay_start=24000 final_ratio=0.1
+Loss CSV: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_arm5/qhead_2L_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090_losses.csv
+Data: MIX 100% HF + 0% synth, hf_bs=256, synth_bs=0, synth_seed=20042, emit_labels=True
+
+Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+RECONSTRUCTION mode: forecaster (head decodes what latent represents, not future)
+Checkpoints: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_arm5/qhead_2L_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090_*.pth
+[    200] loss=0.239103  ema_loss=0.323859  5.3 sps  ETA 1.6h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_arm5/qhead_2L_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090_best.pth (ema_loss=0.323859)
+[    400] loss=0.221594  ema_loss=0.237049  5.6 sps  ETA 1.5h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_arm5/qhead_2L_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090_best.pth (ema_loss=0.237049)
+[    600] loss=0.215755  ema_loss=0.220051  5.7 sps  ETA 1.4h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_arm5/qhead_2L_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090_best.pth (ema_loss=0.220051)
+[    800] loss=0.199781  ema_loss=0.214511  5.7 sps  ETA 1.4h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_arm5/qhead_2L_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090_best.pth (ema_loss=0.214511)
+[   1000] loss=0.216092  ema_loss=0.212903  5.8 sps  ETA 1.4h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_arm5/qhead_2L_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090_best.pth (ema_loss=0.212903)
+[   1200] loss=0.209103  ema_loss=0.210172  5.9 sps  ETA 1.4h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_arm5/qhead_2L_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090_best.pth (ema_loss=0.210172)
+[   1400] loss=0.204930  ema_loss=0.209764  5.9 sps  ETA 1.3h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_arm5/qhead_2L_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090_best.pth (ema_loss=0.209764)
+[   1600] loss=0.200601  ema_loss=0.208028  5.9 sps  ETA 1.3h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_arm5/qhead_2L_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090_best.pth (ema_loss=0.208028)
+[   1800] loss=0.216589  ema_loss=0.208669  5.9 sps  ETA 1.3h
+[   2000] loss=0.202264  ema_loss=0.207555  5.9 sps  ETA 1.3h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_arm5/qhead_2L_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090_best.pth (ema_loss=0.207555)
+[   2200] loss=0.214745  ema_loss=0.207743  6.0 sps  ETA 1.3h
+[   2400] loss=0.205620  ema_loss=0.207081  6.0 sps  ETA 1.3h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_arm5/qhead_2L_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090_best.pth (ema_loss=0.207081)
+[   2600] loss=0.194753  ema_loss=0.205988  6.0 sps  ETA 1.3h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_arm5/qhead_2L_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090_best.pth (ema_loss=0.205988)
+[   2800] loss=0.195618  ema_loss=0.205907  6.0 sps  ETA 1.3h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_arm5/qhead_2L_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090_best.pth (ema_loss=0.205907)
+[   3000] loss=0.202220  ema_loss=0.204849  6.0 sps  ETA 1.2h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_arm5/qhead_2L_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090_best.pth (ema_loss=0.204849)
+[   3200] loss=0.198544  ema_loss=0.205996  6.0 sps  ETA 1.2h
+[   3400] loss=0.207078  ema_loss=0.205006  6.0 sps  ETA 1.2h
+[   3600] loss=0.190763  ema_loss=0.204035  6.0 sps  ETA 1.2h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_arm5/qhead_2L_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090_best.pth (ema_loss=0.204035)
+[   3800] loss=0.199402  ema_loss=0.204607  6.1 sps  ETA 1.2h
+[   4000] loss=0.224485  ema_loss=0.203695  6.0 sps  ETA 1.2h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_arm5/qhead_2L_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090_best.pth (ema_loss=0.203695)
+[   4200] loss=0.205382  ema_loss=0.203866  6.0 sps  ETA 1.2h
+[   4400] loss=0.201095  ema_loss=0.203746  6.0 sps  ETA 1.2h
+[   4600] loss=0.195096  ema_loss=0.203698  6.0 sps  ETA 1.2h
