@@ -1,0 +1,11 @@
+[07-11 23:34:13] [elisa-moco-arm4] BB SKIP (bb_allt08_moco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm4_tau090 FINAL exists)
+[07-11 23:34:13] [elisa-moco-arm4] recovery: re-running 2L cell on GPU 1 (original GPU 0 run OOM'd)
+[07-11 23:34:13] [elisa-moco-arm4] QH qhead_2L_allt08_moco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm4_tau090 train 30000 on bb_allt08_moco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm4_tau090_FINAL.pth (gpu 1)
+[07-12 02:09:28] [elisa-moco-arm4] QH qhead_2L_allt08_moco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm4_tau090 done
+[07-12 02:09:28] [elisa-moco-arm4] EVAL allt08_moco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm4_tau090 2L full-97 start (gpu 1)
+[07-12 06:14:42] [elisa-moco-arm4] EVAL allt08_moco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm4_tau090 2L done GM=1.1602
+[07-12 06:14:42] [elisa-moco-arm4] QH qhead_2L_allt08_moco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm4_tau090_last train 10000 on bb_allt08_moco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm4_tau090_final.pth (gpu 1)
+[07-12 06:48:29] [elisa-moco-arm4] QH qhead_2L_allt08_moco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm4_tau090_last done
+[07-12 06:48:29] [elisa-moco-arm4] EVAL allt08_moco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm4_tau090_last 2L full-97 start (gpu 1)
+[07-12 10:22:47] [elisa-moco-arm4] EVAL allt08_moco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm4_tau090_last 2L done GM=1.1546
+[07-12 10:22:47] [elisa-moco-arm4] recovery: 2L cell done rc=0
