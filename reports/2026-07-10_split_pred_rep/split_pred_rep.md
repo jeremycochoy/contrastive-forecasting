@@ -21,8 +21,9 @@ arm 4 and arm 1 each sit at or below the champion in at least one row —
 but each `best` cell head-trains on the arm's own `best_loss` step, which
 is 600 for arm 4 and 11,800 for arm 3, so those margins mix backbone-step
 differences into the ranking. Dropping the InfoNCE denominator on the
-f side (arm 5, `L_align + L_rep`) is a clear regression: arm 5 / 6L / best
-= 1.2554 = +8.6 % vs the champion. All quoted margins are single-seed
+f side (arm 5, `L_align + L_rep`) is a clear regression: arm 5 loses on
+every cell, +8.4 % to +14.5 % (champion-denominated), with the largest
+gap at 2L / best (1.3374 vs 1.1682). All quoted margins are single-seed
 point differences (see Caveat).
 
 ![GM-Relative MASE across arms and (head, checkpoint) cells; hatched bars = eval still in progress.](plots/headline_relmase.png)
@@ -34,7 +35,7 @@ point differences (see Caveat).
 | arm 1 (split) | 1.1654 | 1.1669 | 1.1575 | 1.1557 |
 | arm 3 (split + MoCo) | 1.1548 | 1.1683 | **1.1338** | 1.1511 |
 | arm 4 (pooled + MoCo) | 1.1602 | 1.1546 | 1.1603 | 1.1405 |
-| arm 5 (`L_align` + `L_rep`) | 1.3374 | TODO | 1.2554 | 1.2201 |
+| arm 5 (`L_align` + `L_rep`) | 1.3374 | 1.2883 | 1.2554 | 1.2201 |
 | arm C ref (champion) | 1.1682 | 1.1491 | 1.1561 | **1.1254** |
 
 *GM-Relative MASE: geometric mean, over GIFT-Eval's 97 evaluation configs,
@@ -59,7 +60,7 @@ whatever step each arm's total loss was minimum at:
 | arm 1 (split) | 12,500 | 12,500 |
 | arm 3 (split + MoCo) | 11,800 | 12,500 |
 | arm 4 (pooled + MoCo) | 600 | 12,500 |
-| arm 5 (`L_align` + `L_rep`) | pending | pending |
+| arm 5 (`L_align` + `L_rep`) | 11,800 | 12,500 |
 | arm C ref (champion) | not on this branch | not on this branch |
 
 The `last` column (backbone step 12,500 for every arm) is the only
