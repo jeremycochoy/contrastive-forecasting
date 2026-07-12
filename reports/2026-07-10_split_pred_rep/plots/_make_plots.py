@@ -114,7 +114,7 @@ TENSOR_LABEL = {
 }
 BAR_SLOTS = [("arm1", "pred", "arm 1\nL_pred", 0.0), ("arm1", "rep", "arm 1\nL_rep", 0.85),
              ("arm3", "pred", "arm 3\nL_pred", 2.05), ("arm3", "rep", "arm 3\nL_rep", 2.90),
-             ("arm4", "pooled", "arm 4 / arm C\npooled", 4.20)]
+             ("arm4", "pooled", "arm 4\npooled", 4.20)]
 
 
 def gradient_share_stack() -> None:
