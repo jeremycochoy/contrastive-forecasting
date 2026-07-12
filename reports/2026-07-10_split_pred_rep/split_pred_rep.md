@@ -28,7 +28,7 @@ All quoted margins are single-seed point differences (see Caveat).
 | --- | --: | --: | --: | --: |
 | arm 1 (split) | 1.1654 | 1.1669 | 1.1575 | 1.1557 |
 | arm 3 (split + MoCo) | **1.1548** | 1.1683 | **1.1338** | 1.1511 |
-| arm 4 (pooled + MoCo) | **1.1602** | TODO | 1.1603 | 1.1405 |
+| arm 4 (pooled + MoCo) | **1.1602** | 1.1546 | 1.1603 | 1.1405 |
 | arm 5 (`L_align` + `L_rep`) | TODO | TODO | 1.2554 | TODO |
 | arm C ref (champion) | 1.1682 | 1.1491 | 1.1561 | **1.1254** |
 
