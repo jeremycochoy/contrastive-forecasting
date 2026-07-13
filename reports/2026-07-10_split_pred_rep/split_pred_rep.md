@@ -74,7 +74,7 @@ three axes:
 
 ![GM-Relative MASE across arms and (head, checkpoint) scored evaluations.](plots/headline_relmase.png)
 
-![Paired-bootstrap 95 % CIs on GM-Relative MASE ratios — all six `last` and all six `best` rows of the three compute-matched arm-1/3/4 full-97 axes (arm 3 vs arm 4, arm 1 vs arm 3, arm 1 vs arm 4), the two arm 5 vs arm 1 `last` rows, and the eight arm 6 `last` rows (arm 1 / 3 / 4 / 5 vs arm 6 at 2L / 6L). 22 of 40 full-97 rows drawn; the 18 undrawn are 8 arm-5 `best` and cross-pairs (arm 5 vs arm 1 `best`, arm 3 vs arm 5 `best`/`last`, arm 4 vs arm 5 `best`/`last`) plus 8 arm-6 `best` rows. `n_boot` = 20,000, seed 42. Task-level bootstrap (top per row) and 28-dataset-clustered bootstrap (bottom per row); * marks step- or checkpoint-selection-confounded rows.](plots/ci_forest.png)
+![Paired-bootstrap 95 % CIs on GM-Relative MASE ratios — all six `last` and all six `best` rows of the three compute-matched arm-1/3/4 full-97 axes (arm 3 vs arm 4, arm 1 vs arm 3, arm 1 vs arm 4), the two arm 5 vs arm 1 `last` rows, and the eight arm 6 `last` rows (arm 1 / 3 / 4 / 5 vs arm 6 at 2L / 6L). 22 of 40 full-97 rows drawn; the 18 undrawn are 10 arm-5 rows (arm 5 vs arm 1 `best`, arm 3 vs arm 5 `best`/`last`, arm 4 vs arm 5 `best`/`last`) plus 8 arm-6 `best` rows. `n_boot` = 20,000, seed 42. Task-level bootstrap (top per row) and 28-dataset-clustered bootstrap (bottom per row); * marks step- or checkpoint-selection-confounded rows.](plots/ci_forest.png)
 
 ## Downstream GM-Relative MASE
 
@@ -203,13 +203,8 @@ Output CSVs live in the same `results/` directory. Ratio `A/B < 1`
 means arm A beats arm B. The one-sided `p_a_beats_b` column stored in
 every CSV is the bootstrap proportion `P(ratio A/B < 1)`; the
 two-sided p we quote is `2 · min(p, 1 − p)`. Bonferroni family: the 40-contrast full-97
-panel (10 arm pairs × 4 (head, ckpt) cells) at α = 0.05 / 40 = 0.00125;
-note that arm 1's `best` and `last` cells share md5-identical backbone
-weights (`FINAL.pth` = `final.pth`, no post-resume `best_loss.pth` save)
-and differ only in head-training length (30k vs 40k head steps), so
-the sixteen arm-1-involving rows (arm 1 vs 3 / 4 / 5 / 6: 4 pairs of
-`best`/`last`) are eight backbone contrasts, not sixteen, doubled by
-head-adaptation length. The periodic, medium+long and short panels are read at
+panel (10 arm pairs × 4 (head, ckpt) cells) at α = 0.05 / 40 = 0.00125.
+The periodic, medium+long and short panels are read at
 nominal 95 % as diagnostics and no "Bonferroni" claim is made about
 them.
 
@@ -277,7 +272,13 @@ better than split at compute-matched step 12,500 on the periodic
 cluster the split hypothesis targets. The lone task-level exception
 6L / last arm 1 vs arm 4 widens to [0.9961, 1.1029] under clustering.
 Eight of twelve arm-5 CIs sit above 1; four straddle (arm 5 / arm X
-convention throughout). Full 40 rows in
+convention throughout).
+
+**Arm 6 on periodic.** All twelve arm-1/3/4-vs-arm-6 task-level ratios
+are below 1 (0.898 – 0.944), i.e. arm 6 scores worse than arms 1/3/4 on
+periodic; nine of the twelve separate at nominal 95 % task and eleven
+of the twelve under clustering. Arm 5 vs arm 6 straddles across all
+four cells under both schemes (ratios 0.948 – 1.080). Full 40 rows in
 `pairwise_bootstrap_ci_periodic.csv` (task) and
 `pairwise_bootstrap_ci_periodic_clustered.csv` (clustered).
 
@@ -310,6 +311,16 @@ axis with the 40 k-vs-10 k head-adaptation asymmetry disclosed in
 §Backbone step. Full 40 rows in
 `pairwise_bootstrap_ci_medlong.csv` (task) and
 `pairwise_bootstrap_ci_medlong_clustered.csv` (clustered).
+
+**Arm 6 on medium+long.** Of the twelve arm-1/3/4-vs-arm-6 task-level
+rows, ten straddle 1 (ratios 0.978 – 1.023) and only two separate at
+nominal 95 % — both are 2L/best or 6L/best arm 4 (600) vs arm 6 (10,100)
+at ratio 0.98, hit by the same 11,200-step confound as arm 4-vs-arm-3;
+under clustering the 6L/best arm-4 row folds into the straddling group.
+Arm 6's GM-Rel MASE on this subset lands inside the arm-1/3/4 spread, in
+contrast to arm 5 (2L/last arm 5 vs arm 6 = 1.29 [1.24, 1.35]; 6L/last
+= 1.15 [1.11, 1.20]) — arm 5's medium+long deficit does not appear on
+arm 6.
 
 **Medium+long `best` cells.** All four arm-4-vs-trained-arms point
 ratios are above 1 (i.e. arm 4's step-600 backbone scores lower
@@ -370,6 +381,14 @@ clustered (MoCo off better; both schemes). Both rows are at backbone
 step 12,500 for both arms. Head adaptation is asymmetric (arm 1: 40 k
 on the evaluated backbone; arm 3: 30 k on step-11,800 + 10 k on
 step-12,500), so the reversal is not attributable to MoCo alone.
+
+**Arm 6 on the short subset.** All twelve arm-1/3/4-vs-arm-6 task-level
+ratios are below 1 (0.904 – 0.961); eleven of the twelve separate at
+nominal 95 %, both schemes, with the single straddler 6L/best arm 4
+(600) vs arm 6 (10,100) = 0.9612 [0.9156, 1.0024]. Arm 5 vs arm 6 is
+below 1 in all four cells (0.906 – 0.919); all four separate under both
+schemes. So on short arm 6 is worse than every other trained arm
+including arm 5.
 
 **Arm 5 on the short subset.** Eleven of the twelve arm-5 contrasts
 here straddle 1; the one that separates is 6L / best arm 4 vs arm 5
@@ -496,7 +515,10 @@ the sweep branch; this branch does not re-verify it.
 N = 1. The paired bootstrap measures within-run across-task
 variability; between-seed variance is not measured here and the
 card's single-seed noise band ±0.02 is comparable to every
-non-arm-5 point difference in the tables. `results_arm4/…_last_6L/all_results.csv`
+arm-1/3/4 pairwise point difference in the tables; arm 5 and arm 6
+differences from the arm-1/3/4 group are 6.1 – 20 % and 3.4 – 6.5 %,
+each well beyond the band, so the CI table separations against arm 5
+and arm 6 are not attributable to seed noise. `results_arm4/…_last_6L/all_results.csv`
 was reconstructed from `summary.txt`. Deferred to follow-up cards, needed to close the card fully:
 (i) arm C per-task `all_results.csv` + paired CI vs arm C (the card's
 primary criterion); (ii) denominator share measured on arm C (the

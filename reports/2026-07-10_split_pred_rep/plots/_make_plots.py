@@ -218,8 +218,8 @@ def ci_forest() -> None:
         yt = n - 1 - i
         rt, lot, hit = _lookup(task, cell, a, b)
         rc, loc_, hic = _lookup(clu,  cell, a, b)
-        col = ("#8b1e8b" if a == "arm5" else
-               "#b8860b" if a == "arm6" or b == "arm6" else INK)
+        col = ("#b8860b" if a == "arm6" or b == "arm6" else
+               "#8b1e8b" if a == "arm5" or b == "arm5" else INK)
         ax.plot([lot, hit], [yt + 0.12, yt + 0.12], color=col, lw=1.6)
         ax.plot(rt, yt + 0.12, "o", color=col, markersize=6)
         ax.plot([loc_, hic], [yt - 0.12, yt - 0.12], color=col, lw=1.0, alpha=0.55)
