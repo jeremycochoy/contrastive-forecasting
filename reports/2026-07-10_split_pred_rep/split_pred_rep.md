@@ -104,30 +104,17 @@ nominal 95 % seven `last` rows separate across the three subsets
   0.9971) and both straddle 1; the joint axis's direction is not
   consistent across subsets.
 
-The smallest two-sided `last`-row p across the three subsets is
-medium+long 6L / last arm 3 vs arm 4 = 1.0140 (clustered p = 0.0031,
-task p = 0.013); short 6L / last arm 1 vs arm 3 = 1.0200 (task p =
-0.040) and medium+long 2L / last arm 3 vs arm 4 = 1.0228 (task p =
-0.0084) follow. Two
-subset `best` rows on the same axis do clear α (medium+long, arm 3
-vs arm 4 at both head depths: two-sided p < 1 × 10⁻⁴ and p = 0.0005),
-but the `best` cells here compare arm 3 at step 11 800 against arm 4
-at step 600 — the axis is confounded with the 11 200-step gap and no
-compute-matched direction can be read off them. The compute-matched
-direction on the arm 3 vs arm 4 axis is stable — all six `last` rows
-(2L + 6L across full-97 / periodic / medium+long) sit above 1; three of the six `best`-cell (panel × head) rows on
-that axis run the other way (arm 3 better than arm 4: full-97
-2L / best = 0.9953, full-97 6L / best = 0.9771, periodic 6L / best
-= 0.9908), which reflects arm 4's step-600 `best`-cell backbone
-selection rather than a compute-matched direction. The arm 1
-vs arm 4 axis (joint: split + no-MoCo ↔ pooled + MoCo) runs slightly
-below 1 at medium+long `last` (0.9939, 0.9971), so the "pooled
-better" direction is on the single-axis contrast only. Neither this
-contrast nor arm 1 vs arm 3 is matched on head-adaptation content
-(arms 3 / 4 head-trained 30 000 steps on their own `best_loss.pth`
-step-11,800 / step-600 backbones and only 10 000 on the evaluated
-step-12,500), so the compute-matched panel is on backbone step but
-not on head adaptation.
+The compute-matched direction on the arm 3 vs arm 4 axis is stable —
+all six `last` rows (2L + 6L across full-97 / periodic / medium+long)
+sit above 1; three of the six `best`-cell rows on that axis run the
+other way (arm 3 better than arm 4: full-97 2L / best = 0.9953,
+full-97 6L / best = 0.9771, periodic 6L / best = 0.9908), which
+reflects arm 4's step-600 `best`-cell backbone selection rather than
+a compute-matched direction. Neither this contrast nor arm 1 vs arm 3
+is matched on head-adaptation content (arms 3 / 4 head-trained
+30 000 steps on their own `best_loss.pth` step-11,800 / step-600
+backbones and only 10 000 on the evaluated step-12,500), so the
+compute-matched panel is on backbone step but not on head adaptation.
 
 ![GM-Relative MASE across arms and (head, checkpoint) scored evaluations.](plots/headline_relmase.png)
 
@@ -397,7 +384,11 @@ step-12,500), so the reversal is not attributable to MoCo alone.
 **Arm 5 on the short subset.** Eleven of the twelve arm-5 contrasts
 here straddle 1; the one that separates is 6L / best arm 4 vs arm 5
 = 1.0498 [1.0055, 1.1076] task, [1.0097, 1.1033] clustered — arm 5
-**beats arm 4 by 5 %** on that row. On the short subset arm 5's
+scores 5 % lower GM-Relative MASE than arm 4 on that row. This is
+a `best`-cell row: arm 5's `best` cell is step-11 800 and arm 4's is
+step-600 (11 200-step gap), so the row cannot be read as evidence
+about the loss shape (same confound as arm 3 vs arm 4 6L / best;
+§Selection rule). On the short subset arm 5's
 GM-Relative MASE is 0.975 – 0.997 across the four cells and it holds
 the lowest level in two of them (2L / last 0.9947, 6L / last 0.9785).
 The title's medium+long-vs-short scope reflects this: the deficit is
