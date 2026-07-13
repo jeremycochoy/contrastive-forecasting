@@ -94,11 +94,17 @@ three axes:
   step-12 500). The smallest two-sided `last`-row p across the two
   subsets is medium+long 6L / last arm 3 vs arm 4 = 1.0140 (clustered
   p = 0.0031, task p = 0.013); the split-axis 2L / last row's task
-  p = 0.0084 is second smallest; this MoCo row's p = 0.0099 is third.
+  p = 0.0084 is second smallest; this MoCo row's task p = 0.0099
+  (`p_a_beats_b` = 0.99505 in `pairwise_bootstrap_ci_medlong.csv`) is
+  third.
 - **arm 1 vs arm 4 (joint, split + no-MoCo ↔ pooled + MoCo):** periodic
-  6L / last 1.0381 (task only) — split-no-MoCo better than
-  pooled-MoCo on this subset row; the same panel's other five arm 1
-  vs arm 4 rows straddle 1. Two
+  6L / last 1.0381 (task only; clustered [0.9961, 1.1029] straddles).
+  Per the convention `A/B < 1 ⇒ A beats B`, ratio 1.0381 > 1 means
+  arm 4 (pooled + MoCo) beats arm 1 on that row — same direction as
+  the arm 3 vs arm 4 split-axis separators. The medium+long `last`
+  arm 1 vs arm 4 rows point the other way (2L 0.9939, 6L 0.9971)
+  and both straddle 1, so the joint axis's direction is not
+  consistent across subsets. Two
 subset `best` rows on the same axis do clear α (medium+long, arm 3
 vs arm 4 at both head depths: two-sided p < 1 × 10⁻⁴ and p = 0.0005),
 but the `best` cells here compare arm 3 at step 11 800 against arm 4
