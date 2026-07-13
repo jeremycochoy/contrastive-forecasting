@@ -45,8 +45,8 @@ neither gap has a CI on this branch, and both gaps sit inside the
 card's ±0.02 single-seed noise band. Arm 4's `best` cells run on a
 step-600 backbone (600 / 12,500 = 4.8 % of training) and score at or
 below arms 1 / 3's step-12,500 / step-11,800 `best` cells on the
-medium+long horizon subset (three of four ratios above 1, i.e. arm 4
-better, three separate at nominal 95 %). The card's canonical
+medium+long horizon subset (all four ratios above 1, i.e. arm 4
+better; three separate at nominal 95 %). The card's canonical
 split-vs-pooled contrast — arm 3 vs arm 4 with MoCo held fixed on
 both sides — is 1.0119 [0.9970, 1.0267] at 2L / last and 1.0093
 [0.9960, 1.0269] at 6L / last on the full-97 panel; on the medium+long
@@ -204,10 +204,11 @@ at `n_boot` = 20 000; re-run at `n_boot` = 200 000 in
 `pairwise_bootstrap_ci_arm5_nboot200k.csv`): task-level ratios
 [1.0557, 1.1581], lower bounds [1.0220, 1.1116]; all twelve above 1
 under both the task-level and clustered schemes. At `n_boot` = 200 000
-all twelve rows clear Bonferroni α = 0.05 / 24 ≈ 0.002083. Nine rows
-carry a zero-event count out of 200 000 (rule-of-three upper bound:
-one-sided p < 3 / 200 000 = 1.5 × 10⁻⁵, two-sided < 3 × 10⁻⁵); of
-the three rows with non-zero counts the worst is 6L / last arm 5 vs
+all twelve rows clear Bonferroni α = 0.05 / 24 ≈ 0.002083. Eight of
+the twelve rows carry a zero-event count out of 200 000
+(rule-of-three upper bound: one-sided p < 3 / 200 000 = 1.5 × 10⁻⁵,
+two-sided < 3 × 10⁻⁵); of the four rows with non-zero counts the
+worst is 6L / last arm 5 vs
 arm 1 (one-sided p = 0.00089, two-sided p = 0.00178, Monte-Carlo
 standard error on the one-sided proportion
 SE₁ = √(p₁(1 − p₁) / B) = 0.000067, SE on the two-sided p is
@@ -267,7 +268,7 @@ this subset); three of the four separate at nominal 95 %.
 | 2L / best | arm 3 (11,800) vs arm 4 (600) | 1.0296 | [1.0158, 1.0427] | < 1 × 10⁻⁴ |
 | 6L / best | arm 3 (11,800) vs arm 4 (600) | 1.0154 | [1.0058, 1.0257] | 0.00025 |
 | 2L / best | arm 1 (12,500) vs arm 4 (600) | 1.0185 | [1.0015, 1.0370] | 0.0158 |
-| 6L / best | arm 1 (12,500) vs arm 4 (600) | 1.0104 | [0.9958, 1.0264] | 0.0865 |
+| 6L / best | arm 1 (12,500) vs arm 4 (600) | 1.0104 | [0.9957, 1.0264] | 0.0865 |
 
 On this subset arm 4's step-600 backbone gives lower GM-Relative
 MASE than arm 3's step-11 800 and arm 1's step-12 500 at both head
@@ -281,21 +282,23 @@ depths; the underfit-random-init backbone control is a follow-up (see
 `log_neg_cross_batch` (cross-batch f_t ↔ h'_{t+1}) holds essentially
 all of `L_pred`'s denominator on arms 1 / 3's `FINAL.pth` snapshots
 (arm 1: mixed 0.90, periodic 0.99; arm 3: mixed 0.94, periodic 1.00
-— all four checkpoints in the plot). The same tensor holds 0.003 in
-arm 4's pooled denominator at step 600 while the two h-anchored
-families (`log_neg_hh_all` + `log_neg_xs_allt`) hold ≥ 0.86 on both
-batches; arm 4's step-10 000 snapshot gives the same pattern. The
-card asks for the measurement on arm C — a pooled backbone trained
-with MoCo **off**. The probe at measurement time uses student-side
-keys (identical to arm C's training regime), so the *tensor form*
-measured on arm 4 is the pooled-MoCo-off denominator; what is different
-from an arm-C measurement is the weights (arm 4 was trained under MoCo,
+— the plot shows one snapshot per arm on both batches). The same
+tensor holds 0.003 in arm 4's pooled denominator at step 600 while
+the two h-anchored families (`log_neg_hh_all` + `log_neg_xs_allt`)
+together hold 0.877 (periodic) and 0.860 (mixed); arm 4's step-10 000
+snapshot gives 0.867 / 0.913 for the same combined family. The card
+asks for the measurement on arm C — a pooled backbone trained with
+MoCo **off**. The probe at measurement time uses student-side keys
+(identical to arm C's training regime), so the *tensor form* measured
+on arm 4 is the pooled-MoCo-off denominator; what is different from
+an arm-C measurement is the weights (arm 4 was trained under MoCo,
 i.e. with teacher-side keys, so its checkpoint reflects a training-time
-gradient distribution arm C's would not). The card's specific
-prediction (`share(hh + xs) ≈ 1`, `share(cross_batch) ≈ 0` on the
-periodic batch under the pooled shape at C = 1) reads correctly on
-arm 4's weights at every measured step, but a re-run on arm C's own
-checkpoint remains a follow-up.
+gradient distribution arm C's would not). The card's directional
+prediction (h-anchored much larger than cross-batch on the periodic
+batch under the pooled shape at C = 1) reads correctly on arm 4's
+weights at every measured step (h-anchored 0.87–0.91 versus
+cross-batch 0.003–0.005); a re-run on arm C's own checkpoint is the
+follow-up.
 
 *Method (`scripts/gradient_share_measurement.py`; full table
 `results/gradient_share_measurement.csv`, 132 rows). Each backbone
