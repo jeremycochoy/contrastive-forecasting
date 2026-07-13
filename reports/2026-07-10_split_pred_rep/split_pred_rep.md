@@ -24,7 +24,11 @@ to isolate the MoCo axis, and arm 5 drops the InfoNCE denominator on the
 f side entirely, replacing `L_pred` with a BYOL-style alignment
 (`L = L_align + L_rep`). Arm 2 in the card's numbering (a λ-weighted
 split, `α L_pred + β L_rep`) is a follow-up not run here. Arm 6
-(`L_align` + MoCo) is part of this experiment.
+replaces arm 5's BYOL alignment `L_align` with a MoCo-style
+contrastive alignment `L_align_moco` (student encoder anchor
+`h_{b,t}` against teacher-encoder keys `h^T_{b',t}` at the same
+timestep, cross-batch negatives — same-timestep, no forecaster-latent
+term), while keeping `L_rep`: `L = L_align_moco + L_rep`.
 
 **Answer.** No arm-1 / 3 / 4 full-97 pairwise contrast clears
 Bonferroni α = 0.05 / 24 = 0.0021 (smallest two-sided p = 0.0099,
@@ -67,7 +71,7 @@ three axes:
 | arm 3 (split + MoCo) | **1.1548** | 1.1683 | **1.1338** | 1.1511 |
 | arm 4 (pooled + MoCo) | 1.1602 | **1.1546** | 1.1603 | **1.1405** |
 | arm 5 (`L_align` + `L_rep`) | 1.3374 | 1.2883 | 1.2554 | 1.2201 |
-| arm 6 (`L_align` + MoCo) | 1.2188 | 1.2133 | 1.1963 | 1.2033 |
+| arm 6 (`L_align_moco` + `L_rep`) | 1.2188 | 1.2133 | 1.1963 | 1.2033 |
 | arm C ref (champion, point reference) | 1.1682 | 1.1491 | 1.1561 | 1.1254 |
 
 *Boldface = column minimum across arms 1 / 3 / 4 / 5. Arm C values
@@ -89,6 +93,7 @@ smoothed loss on 100-step boundaries, so `argmin` of the raw
 | arm 3 (split + MoCo) | 11,800 (15 saves, ending at step 11,800) | 12,500 |
 | arm 4 (pooled + MoCo) | 600 (6 saves, all in [100, 600]) | 12,500 |
 | arm 5 (`L_align` + `L_rep`) | 11,800 (40 saves, ending at step 11,800) | 12,500 |
+| arm 6 (`L_align_moco` + `L_rep`) | 10,100 (55 saves, ending at step 10,100) | 12,500 |
 | arm C ref (champion) | not exported to this branch | 12,500 |
 
 **Head-adaptation asymmetry across the `last` column.** The head
@@ -109,7 +114,7 @@ adaptation content either.
 its own smoothed training loss)". No held-out backbone-validation
 loss enters the protocol, and the four arms optimise different
 objectives on different scales (arm 1 ≈ 24 → 25; arm 3 ≈ 23; arm 4
-≈ 3.3 → 3.6). As shipped, the rule fires
+≈ 3.3 → 3.6; arm 6 ≈ 31 → 17). As shipped, the rule fires
 inconsistently across the four arms because of a
 checkpoint-promotion gap on arm 1: arm 1's `FINAL.pth` equals
 `final.pth` (step 12,500) — its post-resume `best_loss.pth` was never
@@ -394,6 +399,7 @@ checkpoint.*
 | arm 3 | `cosine_similarity_batch_split_pred_rep` | on | split objective; cross-batch f ↔ h keys come from the EMA teacher |
 | arm 4 | `cosine_similarity_batch_full_hh_negs_xshh_allt` | on | pooled champion shape with EMA-teacher keys |
 | arm 5 | `cosine_similarity_batch_rep_only` + `--align-loss-weight 1.0` | off | replace `L_pred` with BYOL alignment to the EMA-teacher latent: `L = L_align + L_rep`; `--pos-in-denominator` and `--subtract-contrastive-floor` drop out |
+| arm 6 | `cosine_similarity_batch_rep_only` + `--align-loss-weight 0` + `--align-moco-loss-weight 1.0` | n/a | replace arm 5's BYOL `L_align` with a MoCo-style contrastive `L_align_moco` (`src/loss.py:align_moco_loss`): student encoder anchor `h_{b,t}`, teacher-encoder key `h^T_{b',t}` at the same timestep, cross-batch negatives, τ = 0.10, positive at b' = b. No forecaster-latent term in either summand (`L_rep` has no positive; `L_align_moco`'s positive is same-timestep encoder alignment, not next-step prediction). `L = L_align_moco + L_rep` |
 | arm C ref | `cosine_similarity_batch_full_hh_negs_xshh_allt` | off | champion (λ_e = 1, λ_h = 1, τ = 0.90) of the earlier sweep, reused without retraining |
 
 **Confound.** The split's `L_pred` is normalized InfoNCE by

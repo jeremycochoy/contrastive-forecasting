@@ -1,0 +1,20 @@
+[07-12 21:58:23] [elisa-lalign-moco-arm6] BB START arm=lalign-moco bs=512 steps=12500 
+[07-13 03:53:23] [elisa-lalign-moco-arm6] BB DONE -> bb_lalignmoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm6_tau090_FINAL.pth (87M)
+[07-13 03:53:23] [elisa-lalign-moco-arm6] arm6 downstream start (6L → 2L sequential)
+[07-13 03:53:23] [elisa-lalign-moco-arm6] QH qhead_6L_lalignmoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm6_tau090 train 30000 on bb_lalignmoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm6_tau090_FINAL.pth
+[07-13 05:52:25] [elisa-lalign-moco-arm6] QH qhead_6L_lalignmoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm6_tau090 done
+[07-13 05:52:25] [elisa-lalign-moco-arm6] EVAL lalignmoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm6_tau090 6L full-97 start
+[07-13 09:18:00] [elisa-lalign-moco-arm6] EVAL lalignmoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm6_tau090 6L done GM=1.1963
+[07-13 09:18:00] [elisa-lalign-moco-arm6] QH qhead_6L_lalignmoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm6_tau090_last train 10000 on bb_lalignmoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm6_tau090_final.pth
+[07-13 09:57:45] [elisa-lalign-moco-arm6] QH qhead_6L_lalignmoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm6_tau090_last done
+[07-13 09:57:45] [elisa-lalign-moco-arm6] EVAL lalignmoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm6_tau090_last 6L full-97 start
+[07-13 13:22:16] [elisa-lalign-moco-arm6] EVAL lalignmoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm6_tau090_last 6L done GM=1.2033
+[07-13 13:22:16] [elisa-lalign-moco-arm6] QH qhead_2L_lalignmoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm6_tau090 train 30000 on bb_lalignmoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm6_tau090_FINAL.pth
+[07-13 14:50:36] [elisa-lalign-moco-arm6] QH qhead_2L_lalignmoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm6_tau090 done
+[07-13 14:50:36] [elisa-lalign-moco-arm6] EVAL lalignmoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm6_tau090 2L full-97 start
+[07-13 18:09:01] [elisa-lalign-moco-arm6] EVAL lalignmoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm6_tau090 2L done GM=1.2188
+[07-13 18:09:01] [elisa-lalign-moco-arm6] QH qhead_2L_lalignmoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm6_tau090_last train 10000 on bb_lalignmoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm6_tau090_final.pth
+[07-13 18:38:30] [elisa-lalign-moco-arm6] QH qhead_2L_lalignmoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm6_tau090_last done
+[07-13 18:38:30] [elisa-lalign-moco-arm6] EVAL lalignmoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm6_tau090_last 2L full-97 start
+[07-13 21:56:53] [elisa-lalign-moco-arm6] EVAL lalignmoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm6_tau090_last 2L done GM=1.2133
+[07-13 21:56:53] [elisa-lalign-moco-arm6] arm6 ALL DONE
