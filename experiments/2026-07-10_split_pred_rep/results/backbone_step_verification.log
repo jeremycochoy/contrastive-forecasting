@@ -22,6 +22,12 @@
   run-log best_loss saves: n=40  last-save-step=11800
   closing: Done in 7.8h. Best gap=0.7516 at step 10700, Best loss=17.5838 at step 11800
 
+=== arm 6 (L_align_moco + L_rep) ===
+  FINAL.pth md5: 330c81985d3f62d23971bce93b21055b
+  == bb_lalignmoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm6_tau090_best_loss.pth (md5 match)
+  run-log best_loss saves: n=55  last-save-step=10100
+  closing: Done in 5.9h. Best gap=-0.4328 at step 700, Best loss=17.0040 at step 10100
+
 arm 1 torch.equal FINAL == final    : True
 arm 1 torch.equal FINAL == 12k      : True
 arm 1 torch.equal FINAL == best_loss: False

@@ -61,6 +61,11 @@ verify "arm 5 (L_align + L_rep)" \
   "bb_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090" \
   "$EXP/results_arm5/run_bb_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090.log"
 
+verify "arm 6 (L_align_moco + L_rep)" \
+  "$EXP/runs_arm6" \
+  "bb_lalignmoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm6_tau090" \
+  "$EXP/results_arm6/run_bb_lalignmoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm6_tau090.log"
+
 # Additionally, for arm 1: check torch.equal across all 193 tensors between
 # FINAL.pth, final.pth and 12k.pth — the state-dict identity used in the
 # report to say arm 1's backbone did not update in the final 500 steps.

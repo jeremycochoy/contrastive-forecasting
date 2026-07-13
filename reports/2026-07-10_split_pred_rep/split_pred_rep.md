@@ -119,10 +119,10 @@ adaptation content either.
 **Selection rule for the `best` column.** The rule as documented is
 "downstream head-train on each backbone's `best_loss.pth` (argmin of
 its own smoothed training loss)". No held-out backbone-validation
-loss enters the protocol, and the four arms optimise different
+loss enters the protocol, and the five arms optimise different
 objectives on different scales (arm 1 ≈ 24 → 25; arm 3 ≈ 23; arm 4
 ≈ 3.3 → 3.6; arm 6 ≈ 31 → 17). As shipped, the rule fires
-inconsistently across the four arms because of a
+inconsistently across the five arms because of a
 checkpoint-promotion gap on arm 1: arm 1's `FINAL.pth` equals
 `final.pth` (step 12,500) — its post-resume `best_loss.pth` was never
 saved (the run log has zero `Saved …_best_loss.pth` events after
@@ -449,8 +449,9 @@ auxiliary predicting `e` from `h` at matched (b, t) indices.
 Backbone training: 12,500 steps, B = 512, T = 4096, C = 1, lr 1e-3,
 seed 20260520, dataset `gift-pretrain-full-4096 / small_v1`, EMA
 teacher τ = 0.90, contrastive τ = 0.10, SIGReg λ_e = λ_h = 1, CPC
-auxiliary. Arms differ in `--loss-shape` and `--moco-negatives`; the
-pooled arm additionally keeps
+auxiliary. Arms differ in `--loss-shape`, `--moco-negatives`,
+`--align-loss-weight`, and `--align-moco-loss-weight` (see §Arms);
+the pooled arm additionally keeps
 `--pos-in-denominator --subtract-contrastive-floor`. Downstream: a
 quantile probe head (2 or 6 layers) trains 30 000 steps on
 `FINAL.pth`, then 10 000 more on `final.pth` (step 12 500). Each head
