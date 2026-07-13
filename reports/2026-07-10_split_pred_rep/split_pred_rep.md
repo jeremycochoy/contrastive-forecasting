@@ -79,32 +79,36 @@ contrast is 6L / last 1.0239 [0.9979, 1.0643] (task-level, straddles
 1) / [1.0003, 1.0847] (7-dataset clustered, separates by 0.0003 on
 the lower bound) — direction consistent, but the separation is
 under the clustered scheme only and at the resolution floor of a
-7-cluster resample. Neither subset panel is in the Bonferroni family: at
+7-cluster resample. None of the subset panels is in the Bonferroni family: at
 α = 0.05 / 24 ≈ 0.002083 none of these subset `last` rows clears; at
-nominal 95 % five `last` rows separate across the two subsets, on
-three axes:
+nominal 95 % seven `last` rows separate across the three subsets
+(medium+long, periodic, short), on three axes:
 - **arm 3 vs arm 4 (split ↔ pooled, MoCo fixed):** medium+long 2L /
   last 1.0228 (task) — pooled better; medium+long 6L / last 1.0140
   (task and clustered) — pooled better; periodic 6L / last 1.0239
   (clustered only) — pooled better.
 - **arm 1 vs arm 3 (MoCo off ↔ on, split fixed):** medium+long 2L /
-  last 0.9717 (task-level p = 0.0099; clustered p = 0.033) — MoCo
-  off better than MoCo on. Head-adaptation asymmetric (arm 1: 40 k
-  on the evaluated backbone; arm 3: 30 k on step-11 800 + 10 k on
-  step-12 500). The smallest two-sided `last`-row p across the two
-  subsets is medium+long 6L / last arm 3 vs arm 4 = 1.0140 (clustered
-  p = 0.0031, task p = 0.013); the split-axis 2L / last row's task
-  p = 0.0084 is second smallest; this MoCo row's task p = 0.0099
-  (`p_a_beats_b` = 0.99505 in `pairwise_bootstrap_ci_medlong.csv`) is
-  third.
+  last 0.9717 (task p = 0.0099; clustered p = 0.033) — MoCo off
+  better; short 6L / last 1.0200 (task and clustered separating) —
+  MoCo on better. **The MoCo axis direction reverses across horizons
+  at compute-matched `last` cells**, both under both schemes.
+  Head-adaptation asymmetric on both rows (arm 1: 40 k on the
+  evaluated backbone; arm 3: 30 k on step-11 800 + 10 k on
+  step-12 500).
 - **arm 1 vs arm 4 (joint, split + no-MoCo ↔ pooled + MoCo):** periodic
-  6L / last 1.0381 (task only; clustered [0.9961, 1.1029] straddles).
-  Per the convention `A/B < 1 ⇒ A beats B`, ratio 1.0381 > 1 means
-  arm 4 (pooled + MoCo) beats arm 1 on that row — same direction as
-  the arm 3 vs arm 4 split-axis separators. The medium+long `last`
-  arm 1 vs arm 4 rows point the other way (2L 0.9939, 6L 0.9971)
-  and both straddle 1, so the joint axis's direction is not
-  consistent across subsets. Two
+  6L / last 1.0381 (task only; clustered [0.9961, 1.1029] straddles) —
+  arm 4 wins on that row (convention `A/B < 1 ⇒ A beats B`; ratio
+  1.0381 > 1 means arm 4 beats arm 1). Short 2L / last 1.0237 (task
+  and clustered separating) — same direction, arm 4 wins. Medium+long
+  `last` arm 1 vs arm 4 rows point the other way (2L 0.9939, 6L
+  0.9971) and both straddle 1; the joint axis's direction is not
+  consistent across subsets.
+
+The smallest two-sided `last`-row p across the three subsets is
+medium+long 6L / last arm 3 vs arm 4 = 1.0140 (clustered p = 0.0031,
+task p = 0.013); short 6L / last arm 1 vs arm 3 = 1.0200 (task p =
+0.040) and medium+long 2L / last arm 3 vs arm 4 = 1.0228 (task p =
+0.0084) follow. Two
 subset `best` rows on the same axis do clear α (medium+long, arm 3
 vs arm 4 at both head depths: two-sided p < 1 × 10⁻⁴ and p = 0.0005),
 but the `best` cells here compare arm 3 at step 11 800 against arm 4
@@ -393,11 +397,11 @@ arm 3's 30 k on step-11,800 + 10 k on step-12,500).
 here straddle 1; the one that separates is 6L / best arm 4 vs arm 5
 = 1.0498 [1.0055, 1.1076] task, [1.0097, 1.1033] clustered — arm 5
 **beats arm 4 by 5 %** on that row. On the short subset arm 5's
-level GM-Relative MASE is 0.995 – 1.022 across the four cells and it
-holds the lowest level in two of them; the title's "clearly worse on
-every scored evaluation" statement is a full-97 aggregate claim, and
-the deficit is concentrated on the medium+long subset (arm 5 = 1.63
-– 1.97 there vs 1.38 – 1.43 for arms 1 / 3 / 4). Full 24 rows in
+GM-Relative MASE is 0.975 – 0.997 across the four cells and it holds
+the lowest level in two of them (2L / last 0.9947, 6L / last 0.9785).
+The title's medium+long-vs-short scope reflects this: the deficit is
+concentrated on medium+long (arm 5 = 1.63 – 1.97 there vs 1.36 – 1.43
+for arms 1 / 3 / 4). Full 24 rows in
 `pairwise_bootstrap_ci_short.csv` (task) and
 `pairwise_bootstrap_ci_short_clustered.csv` (clustered).
 
