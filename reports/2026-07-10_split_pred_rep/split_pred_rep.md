@@ -47,7 +47,7 @@ arms 1 / 3 / 4 better (ratios A / B = 0.947 – 0.970); at
 **four of the twelve clear α = 0.00125** (2L / best arm 3 / 4 vs
 arm 6, 2L / last arm 4 vs arm 6, 6L / best arm 3 vs arm 6; 2L / last
 arm 4 vs arm 6 clears by only 1.0 × MC SE, p₂ = 0.00114 vs α, SE
-0.000107 — the other three clear by ≥ 6.6 × MC SE). Two of
+0.000107 — the other three clear by ≥ 6.5 × MC SE). Two of
 the four arm 5 vs arm 6 rows separate at nominal 95 % (2L / best
 1.0973; 2L / last 1.0618 — arm 6 better) but at `n_boot` = 200,000
 none clear α = 0.00125 (smallest two-sided p = 0.00772). Details in
@@ -356,7 +356,7 @@ resolve some 2–5 % differences between backbones on short
 horizons; it does not establish that the readout resolves
 backbone-training amount as a single axis. The random-init /
 early-step underfit backbone control that would give a single-axis
-measurement (arm 1's committed `_2k` / `_5k` / `_12k` intermediate
+measurement (arm 1's `_2k` / `_5k` / `_12k` intermediate
 checkpoints head-trained under the identical two-stage protocol on
 step-12,500 weights, evaluated on the 97 configs) remains the pivotal
 open item — it is one head-train + one eval, no new backbone.
@@ -521,14 +521,14 @@ same-cell differences from the arm-1/3/4 group are 0.064 – 0.183 GM
 and 0.036 – 0.064 GM. A two-run seed noise budget is √2 × 0.02 ≈
 0.028 GM, so the arm-5 separations are 2 – 7 × that budget and the
 arm-6 separations 1.3 – 2.3 × — arm 5 is well above the seed band on
-every cell; arm 6's smallest cells (2L/best arm 3 vs arm 6 = 0.036;
-6L/best arm 3 vs arm 6 = 0.038) sit close enough that a second seed
+every cell; arm 6's smallest cells (6L/best arm 4 vs arm 6 = 0.036;
+6L/best arm 1 vs arm 6 = 0.039) sit close enough that a second seed
 of arm 6 could shrink or close the gap. `results_arm4/…_last_6L/all_results.csv`
 was reconstructed from `summary.txt`. Deferred to follow-up cards, needed to close the card fully:
 (i) arm C per-task `all_results.csv` + paired CI vs arm C (the card's
 primary criterion); (ii) denominator share measured on arm C (the
 card's required measurement); (iii) a single-axis underfit backbone
-control — arm 1's committed `_2k` / `_5k` / `_12k` intermediate
+control — arm 1's `_2k` / `_5k` / `_12k` intermediate
 checkpoints head-trained under the identical two-stage protocol on
 step-12,500 weights, evaluated on the 97 configs, giving a
 backbone-amount measurement with the loss shape held fixed. The
