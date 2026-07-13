@@ -287,7 +287,11 @@ both are step-confounded (700-step gap for arm 1 vs arm 3;
 
 Arm 5 vs arms 1 / 3 / 4 (12 rows, in `pairwise_bootstrap_ci.csv`
 at `n_boot` = 20 000; re-run at `n_boot` = 200 000 in
-`pairwise_bootstrap_ci_arm5_nboot200k.csv`): task-level ratios
+`pairwise_bootstrap_ci_arm5_nboot200k.csv`): the CSVs store these
+rows as `arm_a = arm{1,3,4}`, `arm_b = arm5` (ratio arm X / arm 5 in
+[0.8635, 0.9472], i.e. arm 5 loses); the report quotes the
+reciprocal arm 5 / arm X so all ratios face the same "> 1 → worse"
+convention as the arm-1 / 3 / 4 pairs. Reciprocals: task-level ratios
 [1.0557, 1.1581], lower bounds [1.0220, 1.1116]; all twelve above 1
 under both the task-level and clustered schemes. At `n_boot` = 200 000
 all twelve rows clear Bonferroni α = 0.05 / 24 ≈ 0.002083. Eight of
