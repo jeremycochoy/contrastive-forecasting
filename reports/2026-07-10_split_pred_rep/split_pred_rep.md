@@ -110,9 +110,12 @@ cells (2L / last and 6L / last), each sliced four ways for tabulation
 and periodic overlaps medium+long on 20 configs, so the eight subset
 re-aggregations are not eight independent comparisons. The point
 estimate is ≥ 1 in every slice (1.0119, 1.0093, 1.0160, 1.0239, 1.0228,
-1.0140, 1.0036, 1.0057). Nominal-95 % separation: medium+long 2L / last
-and 6L / last under both schemes; periodic 6L / last under the
-clustered scheme only ([1.0003, 1.0847]). Five of the eight
+1.0140, 1.0036, 1.0057). Nominal-95 % separation: medium+long 6L / last
+under both schemes ([1.0031, 1.0252] task, [1.0044, 1.0251] clustered);
+medium+long 2L / last under the task scheme only ([1.0059, 1.0403] task,
+[0.9960, 1.0490] clustered); periodic 6L / last under the clustered
+scheme only ([0.9979, 1.0643] task, [1.0003, 1.0847] clustered); the
+other five straddle 1 under both schemes. Five of the eight
 `best`-cell rows on the same axis run the other way (arm 3 better
 than arm 4: full-97 2L 0.9953, full-97 6L 0.9771, periodic 6L 0.9908,
 short 2L 0.9699, short 6L 0.9489 — the last one clears α = 0.002083
@@ -126,7 +129,7 @@ compute-matched panel is on backbone step but not on head adaptation.
 
 ![GM-Relative MASE across arms and (head, checkpoint) scored evaluations.](plots/headline_relmase.png)
 
-![Paired-bootstrap 95 % CIs on GM-Relative MASE ratios — all six `last` and all six `best` rows of the three compute-matched full-97 axes (arm 3 vs arm 4, arm 1 vs arm 3, arm 1 vs arm 4), plus the two arm 5 vs arm 1 `last` rows (14 of 24 full-97 rows total; the remaining ten are 12 arm-5 rows that do not lie on a compute-matched axis and 2 arm 3/4 vs arm 1 non-compute-matched joint rows). `n_boot` = 20 000, seed 42. Task-level bootstrap (top per row) and 28-dataset-clustered bootstrap (bottom per row); * marks step- or checkpoint-selection-confounded rows.](plots/ci_forest.png)
+![Paired-bootstrap 95 % CIs on GM-Relative MASE ratios — all six `last` and all six `best` rows of the three compute-matched full-97 axes (arm 3 vs arm 4, arm 1 vs arm 3, arm 1 vs arm 4), plus the two arm 5 vs arm 1 `last` rows (14 of 24 full-97 rows total). The remaining ten undrawn full-97 rows are all arm-5 pairwise rows: two arm 5 vs arm 1 `best` rows plus all four arm 3 vs arm 5 rows and all four arm 4 vs arm 5 rows. `n_boot` = 20 000, seed 42. Task-level bootstrap (top per row) and 28-dataset-clustered bootstrap (bottom per row); * marks step- or checkpoint-selection-confounded rows.](plots/ci_forest.png)
 
 ## Downstream GM-Relative MASE
 
