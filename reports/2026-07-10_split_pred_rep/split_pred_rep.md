@@ -36,26 +36,26 @@ Bonferroni α = 0.05 / 40 = 0.00125 (smallest two-sided p = 0.0099,
 compute-matched `last` CI on the full-97 panel separates from 1 at
 nominal 95 % under either bootstrap scheme (see §Full-97). Arm 5 vs
 arms 1 / 3 / 4 sits above 1 on all twelve rows; at
-`n_boot` = 200 000 eleven of the twelve clear α = 0.00125 (worst-row
+`n_boot` = 200,000 eleven of the twelve clear α = 0.00125 (worst-row
 6L / last arm 5 vs arm 1 has two-sided p = 0.00178 — fails α by 4
 × MC SE; the other eleven clear either at zero events or well below
 threshold). Arm 6 point estimates sit above (worse than) arms 1 / 3
 / 4 on every cell and below (better than) arm 5 on every cell. All
 twelve arm 1 / 3 / 4 vs arm 6 rows separate at nominal 95 % with
 arms 1 / 3 / 4 better (ratios A / B = 0.947 – 0.970); at
-`n_boot` = 200 000 (`pairwise_bootstrap_ci_arm6_nboot200k.csv`)
+`n_boot` = 200,000 (`pairwise_bootstrap_ci_arm6_nboot200k.csv`)
 **four of the twelve clear α = 0.00125** (2L / best arm 3 / 4 vs
 arm 6, 2L / last arm 4 vs arm 6, 6L / best arm 3 vs arm 6). Two of
 the four arm 5 vs arm 6 rows separate at nominal 95 % (2L / best
-1.0973; 2L / last 1.0618 — arm 6 better) but at `n_boot` = 200 000
+1.0973; 2L / last 1.0618 — arm 6 better) but at `n_boot` = 200,000
 none clear α = 0.00125 (smallest two-sided p = 0.00772). Details in
 §Full-97.
 On point estimates the pooled champion (arm C) still leads every new
-arm at the `last` cells, but the card's primary criterion — a paired
+arm at the `last` cells, but the primary criterion — a paired
 bootstrap of each arm against arm C — was not run because arm C's
 per-task file is not available.
 
-The card's canonical arm 3 vs arm 4 (split ↔ pooled, MoCo fixed)
+The canonical arm 3 vs arm 4 (split ↔ pooled, MoCo fixed)
 sits at 1.0119 / 1.0093 (2L / 6L `last`, full-97) — direction pooled
 better, but not resolved by either scheme (§Full-97). On the
 subset panels (read at nominal 95 % as diagnostics, outside the
@@ -74,7 +74,7 @@ three axes:
 
 ![GM-Relative MASE across arms and (head, checkpoint) scored evaluations.](plots/headline_relmase.png)
 
-![Paired-bootstrap 95 % CIs on GM-Relative MASE ratios — all six `last` and all six `best` rows of the three compute-matched arm-1/3/4 full-97 axes (arm 3 vs arm 4, arm 1 vs arm 3, arm 1 vs arm 4), plus the two arm 5 vs arm 1 `last` rows (14 of 40 full-97 rows drawn; arm 6 is folded into the 40-row Bonferroni family but not into this forest — its rows are in `pairwise_bootstrap_ci.csv`). The remaining 26 undrawn full-97 rows are 10 arm-5 pairwise rows (arm 5 vs arm 1 `best`, arm 3 vs arm 5, arm 4 vs arm 5) plus 16 arm-6 pairwise rows (arm 6 vs each of arms 1 / 3 / 4 / 5 at 4 cells). `n_boot` = 20 000, seed 42. Task-level bootstrap (top per row) and 28-dataset-clustered bootstrap (bottom per row); * marks step- or checkpoint-selection-confounded rows.](plots/ci_forest.png)
+![Paired-bootstrap 95 % CIs on GM-Relative MASE ratios — all six `last` and all six `best` rows of the three compute-matched arm-1/3/4 full-97 axes (arm 3 vs arm 4, arm 1 vs arm 3, arm 1 vs arm 4), the two arm 5 vs arm 1 `last` rows, and the eight arm 6 `last` rows (arm 1 / 3 / 4 / 5 vs arm 6 at 2L / 6L). 22 of 40 full-97 rows drawn; the 18 undrawn are 8 arm-5 `best` and cross-pairs (arm 5 vs arm 1 `best`, arm 3 vs arm 5 `best`/`last`, arm 4 vs arm 5 `best`/`last`) plus 8 arm-6 `best` rows. `n_boot` = 20,000, seed 42. Task-level bootstrap (top per row) and 28-dataset-clustered bootstrap (bottom per row); * marks step- or checkpoint-selection-confounded rows.](plots/ci_forest.png)
 
 ## Downstream GM-Relative MASE
 
@@ -110,16 +110,16 @@ smoothed loss on 100-step boundaries, so `argmin` of the raw
 | arm C ref (champion) | not exported to this branch | 12,500 |
 
 **Head-adaptation asymmetry across the `last` column.** The head
-trains 30 000 steps on `FINAL.pth`, then 10 000 on `final.pth`. For
+trains 30,000 steps on `FINAL.pth`, then 10,000 on `final.pth`. For
 arm 1, `FINAL.pth` == `final.pth` (md5 match), so arm 1's `last` head
-trained 40 000 steps on the evaluated backbone. For arms 3 / 4 / 5,
-whose `FINAL.pth` is `best_loss.pth`, the `last` head trained 30 000
-on a different backbone (step 11 800 / 600 / 11 800) and 10 000 on
-step 12 500. `last`-cell contrasts are therefore
+trained 40,000 steps on the evaluated backbone. For arms 3 / 4 / 5,
+whose `FINAL.pth` is `best_loss.pth`, the `last` head trained 30,000
+on a different backbone (step 11,800 / 600 / 11,800) and 10,000 on
+step 12,500. `last`-cell contrasts are therefore
 backbone-step-matched (all four eval on step 12,500) but
 head-adaptation-asymmetric. Arm 3 vs arm 4 is matched on head-step
 count (30 k + 10 k both) but the head warmed up on very different
-backbones (step 11 800 vs step 600), so it is not matched on
+backbones (step 11,800 vs step 600), so it is not matched on
 adaptation content either.
 
 **Selection rule for the `best` column.** The rule as documented is
@@ -149,10 +149,13 @@ separation as evidence about the loss shape confounds the three.
 
 ## f-anchored retrieval saturation
 
-`auc` and `top1` are the batch-cross InfoNCE retrieval diagnostics
-logged next to `loss` in every backbone losses CSV; they score the
-f-anchored prediction task that `L_pred` optimises (retrieval of the
-positive `h'_{t+1}` against the cross-batch f ↔ h′ candidates). Arms
+`auc` (area-under-ROC of the positive-score distribution against the
+cross-batch negatives at each anchor) and `top1` (fraction of anchors
+whose positive scores highest of the B candidates) are the batch-cross
+InfoNCE retrieval diagnostics logged next to `loss` in every backbone
+losses CSV; they score the f-anchored prediction task that `L_pred`
+optimises (retrieval of the positive `h'_{t+1}` against the
+cross-batch f ↔ h′ candidates). Arms
 1 / 3 / 4 use this positive directly (arms 1 / 3 in `L_pred`, arm 4
 in the pooled shape). Arms 5 / 6 have no forecaster-latent positive
 (arm 5's `L_align` is BYOL alignment, arm 6's `L_align_moco` is same-
@@ -190,7 +193,7 @@ post-resume `best_loss.pth` save for arm 1.
 
 ## Paired-bootstrap 95 % CI on GM-Relative MASE ratios
 
-20 000 resamples, seed 42, seasonal-naive divisor at
+20,000 resamples, seed 42, seasonal-naive divisor at
 `experiments/2026-07-10_split_pred_rep/results/seasonal_naive_all_results.csv`
 (sha256
 `d89f8247cf455a953cdfb961b1ddd8fe452bfd8e3131b641fcc54234b710d949`);
@@ -234,20 +237,20 @@ confounds. Of the six compute-matched `last` rows, none separates
 from 1 at nominal 95 % under either scheme. Of the six `best` rows,
 two separate — both at 6L (arm 1 vs arm 3 and arm 3 vs arm 4) — and
 both are step-confounded (700-step gap for arm 1 vs arm 3;
-11 200-step gap for arm 3 vs arm 4).
+11,200-step gap for arm 3 vs arm 4).
 
 Arm 5 vs arms 1 / 3 / 4 (12 rows, in `pairwise_bootstrap_ci.csv` at
-`n_boot` = 20 000; re-run at `n_boot` = 200 000 in
+`n_boot` = 20,000; re-run at `n_boot` = 200,000 in
 `pairwise_bootstrap_ci_arm5_nboot200k.csv`): quoted in the arm 5 /
 arm X direction throughout (same "> 1 → worse" convention as the
 other pairs), task-level ratios [1.0557, 1.1581], lower bounds
 [1.0220, 1.1116]; all twelve above 1 under both task-level and
-clustered schemes. At `n_boot` = 200 000
+clustered schemes. At `n_boot` = 200,000
 eleven of the twelve rows clear Bonferroni α = 0.05 / 40 = 0.00125;
 the exception is 6L / last arm 5 vs arm 1 (two-sided p = 0.00178,
 MC SE 0.000133; fails α by ~4 × MC SE). Eight of
-the twelve rows carry a zero-event count out of 200 000
-(rule-of-three upper bound: one-sided p < 3 / 200 000 = 1.5 × 10⁻⁵,
+the twelve rows carry a zero-event count out of 200,000
+(rule-of-three upper bound: one-sided p < 3 / 200,000 = 1.5 × 10⁻⁵,
 two-sided < 3 × 10⁻⁵); of the four rows with non-zero counts the
 worst is 6L / last arm 5 vs
 arm 1 (one-sided p = 0.00089, two-sided p = 0.00178, Monte-Carlo
@@ -270,8 +273,8 @@ dataset-clustered bootstrap (7 datasets in the periodic subset)
 eleven of twelve straddle 1; the exception under clustering is the
 card's canonical single-axis contrast — 6L / last arm 3 vs arm 4 =
 1.0239 [1.0003, 1.0847] (one-sided p = 0.0208), pointing pooled
-better than split at compute-matched step 12 500 on the exact cluster
-the card's mechanism is about. The lone task-level exception
+better than split at compute-matched step 12,500 on the periodic
+cluster the split hypothesis targets. The lone task-level exception
 6L / last arm 1 vs arm 4 widens to [0.9961, 1.1029] under clustering.
 Eight of twelve arm-5 CIs sit above 1; four straddle (arm 5 / arm X
 convention throughout). Full 40 rows in
@@ -280,8 +283,8 @@ convention throughout). Full 40 rows in
 
 ### Medium+long horizon subset (42 configs — every `dataset/*/{medium,long}`)
 
-The card's secondary read. Compute-matched (`last`, all arms at step
-12 500):
+A secondary read. Compute-matched (`last`, all arms at step
+12,500):
 
 | cell | contrast | ratio A/B | 95 % CI task | 95 % CI clustered (14 datasets) | one-sided `p_a_beats_b` (task / clustered) |
 | --- | --- | --: | --- | --- | --: |
@@ -302,7 +305,7 @@ arm 3 vs arm 4 falls to [0.9960, 1.0490] and straddles 1 (p = 0.046,
 just above the 0.025 one-sided threshold); only 6L / last arm 3 vs
 arm 4 and 2L / last arm 1 vs arm 3 stay separated under both schemes.
 Head-adaptation asymmetry: arm 3 vs arm 4 warmed up on very different
-backbones (step 11 800 vs step 600), and arm 1 vs arm 3 mixes the MoCo
+backbones (step 11,800 vs step 600), and arm 1 vs arm 3 mixes the MoCo
 axis with the 40 k-vs-10 k head-adaptation asymmetry disclosed in
 §Backbone step. Full 40 rows in
 `pairwise_bootstrap_ci_medlong.csv` (task) and
@@ -310,7 +313,7 @@ axis with the 40 k-vs-10 k head-adaptation asymmetry disclosed in
 
 **Medium+long `best` cells.** All four arm-4-vs-trained-arms point
 ratios are above 1 (i.e. arm 4's step-600 backbone scores lower
-GM-Rel MASE than arms 1 / 3's step-12 500 / step-11 800 backbones on
+GM-Rel MASE than arms 1 / 3's step-12,500 / step-11,800 backbones on
 this subset); three of the four separate at nominal 95 %.
 
 | cell | contrast | ratio A/B | 95 % CI task | one-sided `p_a_beats_b` |
@@ -372,8 +375,8 @@ step-12,500), so the reversal is not attributable to MoCo alone.
 here straddle 1; the one that separates is 6L / best arm 4 vs arm 5
 = 1.0498 [1.0055, 1.1076] task, [1.0097, 1.1033] clustered — arm 5
 scores 5 % lower GM-Relative MASE than arm 4 on that row. This is
-a `best`-cell row: arm 5's `best` cell is step-11 800 and arm 4's is
-step-600 (11 200-step gap), so the row cannot be read as evidence
+a `best`-cell row: arm 5's `best` cell is step-11,800 and arm 4's is
+step-600 (11,200-step gap), so the row cannot be read as evidence
 about the loss shape (same confound as arm 3 vs arm 4 6L / best;
 §Selection rule). On the short subset arm 5's
 GM-Relative MASE is 0.975 – 0.997 across the four cells and it holds
@@ -388,15 +391,15 @@ for arms 1 / 3 / 4). Full 40 rows in
 
 ![Stacked per-family shares of each term's denominator at each arm's `FINAL.pth` snapshot (arm 1: step 12,500 weights; arm 3: step 11,800; arm 4: step 600); mixed and periodic batches.](plots/gradient_share_stack.png)
 
-`log_neg_cross_batch` (cross-batch f_t ↔ h'_{t+1}) holds essentially
-all of `L_pred`'s denominator on arms 1 / 3's `FINAL.pth` snapshots
+`log_neg_cross_batch` (cross-batch f_t ↔ h'_{t+1}) holds 0.90 – 1.00
+of `L_pred`'s denominator on arms 1 / 3's `FINAL.pth` snapshots
 (arm 1: mixed 0.90, periodic 0.99; arm 3: mixed 0.94, periodic 1.00
 — the plot shows one snapshot per arm on both batches). The same
 tensor holds 0.003 in arm 4's pooled denominator at step 600 while
 the two h-anchored families (`log_neg_hh_all` + `log_neg_xs_allt`)
-together hold 0.877 (periodic) and 0.860 (mixed); arm 4's step-10 000
+together hold 0.877 (periodic) and 0.860 (mixed); arm 4's step-10,000
 snapshot gives 0.867 (periodic) / 0.913 (mixed) for the same combined
-family. The card's directional prediction (h-anchored much larger
+family. The issue's directional prediction (h-anchored much larger
 than cross-batch on the periodic batch under the pooled shape at
 C = 1) reads correctly on arm 4's weights at every measured step: on
 the periodic batch h-anchored sits at 0.867 – 0.901 across the four
@@ -449,7 +452,7 @@ axis (split vs pooled) — arm C's head protocol is documented on the
 sweep branch and not re-verified here, so any head-adaptation
 difference between arm 1 and arm C is unmeasured. Arm 3 vs arm 4 is
 the same functional axis with MoCo on both sides (backbone-step-
-matched but head warm-up backbone unmatched — 11 800 vs 600); arm 1
+matched but head warm-up backbone unmatched — 11,800 vs 600); arm 1
 vs arm 3 is the MoCo axis with the split shape held fixed
 (backbone-step-matched, head-adaptation-asymmetric — 40 k on the
 evaluated backbone vs 30 k + 10 k). Arm 5 vs arm 1 changes two axes at
@@ -482,8 +485,8 @@ auxiliary. Arms differ in `--loss-shape`, `--moco-negatives`,
 `--align-loss-weight`, and `--align-moco-loss-weight` (see §Arms);
 the pooled arm additionally keeps
 `--pos-in-denominator --subtract-contrastive-floor`. Downstream: a
-quantile probe head (2 or 6 layers) trains 30 000 steps on
-`FINAL.pth`, then 10 000 more on `final.pth` (step 12 500). Each head
+quantile probe head (2 or 6 layers) trains 30,000 steps on
+`FINAL.pth`, then 10,000 more on `final.pth` (step 12,500). Each head
 is evaluated on GIFT-Eval's 97 configs against the branch-committed
 seasonal-naive reference. Arm C ref's head protocol is documented on
 the sweep branch; this branch does not re-verify it.

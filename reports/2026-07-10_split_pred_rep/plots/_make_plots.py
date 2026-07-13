@@ -184,6 +184,14 @@ FOREST_ROWS = [
     ("6L / best*", "arm 1 vs arm 4", "joint — ckpt-selection confound", "arm1", "arm4"),
     ("2L / last",  "arm 5 vs arm 1", "L_align+L_rep ↔ split", "arm5", "arm1"),
     ("6L / last",  "arm 5 vs arm 1", "L_align+L_rep ↔ split", "arm5", "arm1"),
+    ("2L / last",  "arm 1 vs arm 6", "split ↔ L_align_moco+L_rep", "arm1", "arm6"),
+    ("6L / last",  "arm 1 vs arm 6", "split ↔ L_align_moco+L_rep", "arm1", "arm6"),
+    ("2L / last",  "arm 3 vs arm 6", "split+MoCo ↔ L_align_moco+L_rep", "arm3", "arm6"),
+    ("6L / last",  "arm 3 vs arm 6", "split+MoCo ↔ L_align_moco+L_rep", "arm3", "arm6"),
+    ("2L / last",  "arm 4 vs arm 6", "pooled+MoCo ↔ L_align_moco+L_rep", "arm4", "arm6"),
+    ("6L / last",  "arm 4 vs arm 6", "pooled+MoCo ↔ L_align_moco+L_rep", "arm4", "arm6"),
+    ("2L / last",  "arm 5 vs arm 6", "L_align ↔ L_align_moco (L_rep fixed)", "arm5", "arm6"),
+    ("6L / last",  "arm 5 vs arm 6", "L_align ↔ L_align_moco (L_rep fixed)", "arm5", "arm6"),
 ]
 
 
@@ -204,13 +212,14 @@ def _lookup(df, cell, arm_a, arm_b):
 def ci_forest() -> None:
     task = pd.read_csv(EXP / "results" / "pairwise_bootstrap_ci.csv")
     clu  = pd.read_csv(EXP / "results" / "pairwise_bootstrap_ci_clustered.csv")
-    fig, ax = plt.subplots(figsize=(10.5, 7.2))
+    fig, ax = plt.subplots(figsize=(11.5, 10.5))
     n = len(FOREST_ROWS)
     for i, (cell, contrast, ax_label, a, b) in enumerate(FOREST_ROWS):
         yt = n - 1 - i
         rt, lot, hit = _lookup(task, cell, a, b)
         rc, loc_, hic = _lookup(clu,  cell, a, b)
-        col = "#8b1e8b" if a == "arm5" else INK
+        col = ("#8b1e8b" if a == "arm5" else
+               "#b8860b" if a == "arm6" or b == "arm6" else INK)
         ax.plot([lot, hit], [yt + 0.12, yt + 0.12], color=col, lw=1.6)
         ax.plot(rt, yt + 0.12, "o", color=col, markersize=6)
         ax.plot([loc_, hic], [yt - 0.12, yt - 0.12], color=col, lw=1.0, alpha=0.55)
