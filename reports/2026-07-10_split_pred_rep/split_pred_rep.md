@@ -37,7 +37,13 @@ from 1 at nominal 95 % under either the task-level or the
 task-level ratios [1.0557, 1.1581], lower bounds [1.0220, 1.1116])
 sits above 1 on every row; at `n_boot` = 200 000 all twelve rows
 clear α = 0.05 / 24 ≈ 0.002083 (all two-sided p ≤ 0.0018; worst-case margin 2.3 × MC SE
-on the worst row, `pairwise_bootstrap_ci_arm5_nboot200k.csv`). On
+on the worst row, `pairwise_bootstrap_ci_arm5_nboot200k.csv`). Note
+that if arm 6 (pending, still training) lands, its cells enter the
+panel as 16 additional rows (family = 40; α → 0.05 / 40 = 0.00125),
+at which the worst arm-5 row (p = 0.00178) no longer clears, and if
+arm C's per-task file also lands the family reaches 60 rows
+(α → 0.000833) and the second-worst arm-5 row (p = 0.00093) fails
+too; every other arm-5 row survives both expansions. On
 point estimates the pooled champion (arm C) leads every new arm at
 the `last` cells (2L 1.1491 vs the best new arm's 1.1546; 6L 1.1254
 vs 1.1405); arm C's per-task file is on the sweep tree only, so
@@ -50,10 +56,16 @@ better; three separate at nominal 95 %). The card's canonical
 split-vs-pooled contrast — arm 3 vs arm 4 with MoCo held fixed on
 both sides — is 1.0119 [0.9970, 1.0267] at 2L / last and 1.0093
 [0.9960, 1.0269] at 6L / last on the full-97 panel; on the medium+long
-subset it separates at nominal 95 % (2L / last 1.0228 [1.0059,
-1.0403]; 6L / last 1.0140 [1.0031, 1.0252]) in the direction of pooled
-better than split, but the medium+long panel is not in the Bonferroni
-family so no ranking is claimed from those rows. Neither this
+subset it is 2L / last 1.0228 [1.0059, 1.0403] and 6L / last 1.0140
+[1.0031, 1.0252] (task-level nominal 95 %) in the direction of pooled
+better than split, and on the periodic subset (the cluster the card's
+mechanism is specifically about) the same contrast is 6L / last
+1.0239 [1.0003, 1.0847] under the dataset-clustered bootstrap — again
+pointing pooled better than split. Neither subset panel is in the
+Bonferroni family: at α = 0.05 / 24 ≈ 0.002083 none of these subset
+rows clears; at nominal 95 % they consistently point one way on the
+axis the card exists to test, and no arm-1 / 3 / 4 point estimate
+runs the other way on either subset. Neither this
 contrast nor arm 1 vs arm 3 is matched on head-adaptation content
 (arms 3 / 4 head-trained 30 000 steps on their own `best_loss.pth`
 step-11,800 / step-600 backbones and only 10 000 on the evaluated
@@ -223,10 +235,15 @@ Family-prefix selection, so the subset does not condition on the
 outcome. Eleven of twelve arm-1 / 3 / 4 task-level CIs straddle 1;
 the exception is 6L / last arm 1 vs arm 4 = 1.0381 [1.0010, 1.0871]
 (one-sided p = 0.0208 — nominally separates). Under the
-dataset-clustered bootstrap (7 datasets in the periodic subset) all
-twelve arm-1 / 3 / 4 CIs straddle 1; the lone task-level exception
-6L / last arm 1 vs arm 4 widens to [0.9961, 1.1029] under clustering. Eight of twelve arm-5 CIs sit above 1; four straddle.
-Full 24 rows in `pairwise_bootstrap_ci_periodic.csv` (task) and
+dataset-clustered bootstrap (7 datasets in the periodic subset)
+eleven of twelve straddle 1; the exception under clustering is the
+card's canonical single-axis contrast — 6L / last arm 3 vs arm 4 =
+1.0239 [1.0003, 1.0847] (one-sided p = 0.0208), pointing pooled
+better than split at compute-matched step 12 500 on the exact cluster
+the card's mechanism is about. The lone task-level exception
+6L / last arm 1 vs arm 4 widens to [0.9961, 1.1029] under clustering.
+Eight of twelve arm-5 CIs sit above 1; four straddle. Full 24 rows
+in `pairwise_bootstrap_ci_periodic.csv` (task) and
 `pairwise_bootstrap_ci_periodic_clustered.csv` (clustered).
 
 ### Medium+long horizon subset (42 configs — every `dataset/*/{medium,long}`)
