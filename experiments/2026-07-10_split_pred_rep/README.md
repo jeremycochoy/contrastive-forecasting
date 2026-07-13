@@ -20,8 +20,10 @@ single positive:
 
 Same champion recipe (12,500 steps, B = 512, T = 4096, seed 20260520,
 SIGReg λ_e = λ_h = 1, EMA teacher τ = 0.90, contrastive τ = 0.10, CPC
-auxiliary) for each arm; `--loss-shape` and `--moco-negatives` are the
-only training-flag differences. The full arm table, the paired-bootstrap
+auxiliary) for each arm; arms differ in `--loss-shape`,
+`--moco-negatives`, `--align-loss-weight`, and
+`--align-moco-loss-weight` (arms 5 and 6 use `L_align` / `L_align_moco`
+respectively). The full arm table, the paired-bootstrap
 CI table, the denominator-share measurement and every scored evaluation
 live in the report linked above.
 

@@ -39,11 +39,14 @@ arms 1 / 3 / 4 sits above 1 on all twelve rows; at
 `n_boot` = 200 000 eleven of the twelve clear α = 0.00125 (worst-row
 6L / last arm 5 vs arm 1 has two-sided p = 0.00178 — fails α by 4
 × MC SE; the other eleven clear either at zero events or well below
-threshold). Arm 6 sits below arm 5 and above arms 1 / 3 / 4 on every
-cell; all twelve arm-6-vs-arms-1/3/4 rows separate at nominal 95 %
-(ratio < 1 direction), all four arm-6-vs-arm-5 rows separate at
-2L / best / last and straddle at 6L / best / last (details in
-§Full-97).
+threshold). Arm 6 point estimates sit above (worse than) arms 1 / 3
+/ 4 on every cell and below (better than) arm 5 on every cell. All
+twelve arm 1 / 3 / 4 vs arm 6 rows separate at nominal 95 % with
+arms 1 / 3 / 4 better (ratios A / B = 0.947 – 0.970); three clear
+α = 0.00125 at `n_boot` = 20 000 (2L / best arm 3 / 4 vs arm 6 and
+6L / best arm 3 vs arm 6). Two of the four arm 5 vs arm 6 rows
+separate at nominal 95 % (2L / best 1.0973; 2L / last 1.0618 — arm 6
+better); the other two straddle 1 (6L cells; details in §Full-97).
 On point estimates the pooled champion (arm C) still leads every new
 arm at the `last` cells, but the card's primary criterion — a paired
 bootstrap of each arm against arm C — was not run because arm C's
@@ -68,7 +71,7 @@ three axes:
 
 ![GM-Relative MASE across arms and (head, checkpoint) scored evaluations.](plots/headline_relmase.png)
 
-![Paired-bootstrap 95 % CIs on GM-Relative MASE ratios — all six `last` and all six `best` rows of the three compute-matched full-97 axes (arm 3 vs arm 4, arm 1 vs arm 3, arm 1 vs arm 4), plus the two arm 5 vs arm 1 `last` rows (14 of 24 full-97 rows total). The remaining ten undrawn full-97 rows are all arm-5 pairwise rows: two arm 5 vs arm 1 `best` rows plus all four arm 3 vs arm 5 rows and all four arm 4 vs arm 5 rows. `n_boot` = 20 000, seed 42. Task-level bootstrap (top per row) and 28-dataset-clustered bootstrap (bottom per row); * marks step- or checkpoint-selection-confounded rows.](plots/ci_forest.png)
+![Paired-bootstrap 95 % CIs on GM-Relative MASE ratios — all six `last` and all six `best` rows of the three compute-matched arm-1/3/4 full-97 axes (arm 3 vs arm 4, arm 1 vs arm 3, arm 1 vs arm 4), plus the two arm 5 vs arm 1 `last` rows (14 of 40 full-97 rows drawn; arm 6 is folded into the 40-row Bonferroni family but not into this forest — its rows are in `pairwise_bootstrap_ci.csv`). The remaining 26 undrawn full-97 rows are 10 arm-5 pairwise rows (arm 5 vs arm 1 `best`, arm 3 vs arm 5, arm 4 vs arm 5) plus 16 arm-6 pairwise rows (arm 6 vs each of arms 1 / 3 / 4 / 5 at 4 cells). `n_boot` = 20 000, seed 42. Task-level bootstrap (top per row) and 28-dataset-clustered bootstrap (bottom per row); * marks step- or checkpoint-selection-confounded rows.](plots/ci_forest.png)
 
 ## Downstream GM-Relative MASE
 
@@ -127,10 +130,11 @@ checkpoint-promotion gap on arm 1: arm 1's `FINAL.pth` equals
 `final.pth` (step 12,500) — its post-resume `best_loss.pth` was never
 saved (the run log has zero `Saved …_best_loss.pth` events after
 resume at step 900) so the shipped `best` artefact is the final
-checkpoint, not the argmin. Arms 3 / 4 / 5's `FINAL.pth` all equal
-their own `best_loss.pth` (steps 11,800 / 600 / 11,800). So the
-`best` column scores 12,500 / 11,800 / 600 / 11,800 across the four
-arms: arm 1's is the final checkpoint (rule-off); arm 4's is the
+checkpoint, not the argmin. Arms 3 / 4 / 5 / 6's `FINAL.pth` all
+equal their own `best_loss.pth` (steps 11,800 / 600 / 11,800 /
+10,100). So the `best` column scores 12,500 / 11,800 / 600 / 11,800
+/ 10,100 across the five arms: arm 1's is the final checkpoint
+(rule-off); arm 4's is the
 argmin of a curve that never returns below step 600 (rule-on but
 early-fit); arm 3 / 5's are argmins of curves that keep improving
 (rule-on late). Six of the twelve arm-1 / 3 / 4 rows in the
@@ -226,10 +230,12 @@ worst is 6L / last arm 5 vs
 arm 1 (one-sided p = 0.00089, two-sided p = 0.00178, Monte-Carlo
 standard error on the one-sided proportion
 SE₁ = √(p₁(1 − p₁) / B) = 0.000067, SE on the two-sided p is
-2 × SE₁ = 0.000133; distance to α is 0.000303, so the row clears at
-2.3 × MC SE). The three other non-zero rows have two-sided p = 0.00093
-(6L / best arm 5 vs arm 4), 0.00032 (6L / best arm 5 vs arm 1) and
-0.00012 (6L / last arm 5 vs arm 3), all well below α.
+2 × SE₁ = 0.000133; distance to α = 0.00125 is 0.00053, so the row
+**fails** α by ~4 × MC SE — the only arm-5 row that does not clear
+the 40-row family's threshold). The three other non-zero rows have
+two-sided p = 0.00093 (6L / best arm 5 vs arm 4), 0.00032 (6L / best
+arm 5 vs arm 1) and 0.00012 (6L / last arm 5 vs arm 3), all below α =
+0.00125.
 
 ### Periodic-cluster subset (37 configs — `solar/`, `electricity/`, `ett1/`, `m4_hourly/`, `bizitobs_*`)
 
