@@ -31,12 +31,19 @@ timestep, cross-batch negatives — same-timestep, no forecaster-latent
 term), while keeping `L_rep`: `L = L_align_moco + L_rep`.
 
 **Answer.** No arm-1 / 3 / 4 full-97 pairwise contrast clears
-Bonferroni α = 0.05 / 24 = 0.0021 (smallest two-sided p = 0.0099,
+Bonferroni α = 0.05 / 40 = 0.00125 (smallest two-sided p = 0.0099,
 6L / best arm 3 vs arm 4, 11,200-step confounded), and no arm-1 / 3 / 4
 compute-matched `last` CI on the full-97 panel separates from 1 at
 nominal 95 % under either bootstrap scheme (see §Full-97). Arm 5 vs
-arms 1 / 3 / 4 sits above 1 on all twelve rows and clears α at
-`n_boot` = 200 000 (worst-row margin 2.3 × MC SE; details in §Full-97).
+arms 1 / 3 / 4 sits above 1 on all twelve rows; at
+`n_boot` = 200 000 eleven of the twelve clear α = 0.00125 (worst-row
+6L / last arm 5 vs arm 1 has two-sided p = 0.00178 — fails α by 4
+× MC SE; the other eleven clear either at zero events or well below
+threshold). Arm 6 sits below arm 5 and above arms 1 / 3 / 4 on every
+cell; all twelve arm-6-vs-arms-1/3/4 rows separate at nominal 95 %
+(ratio < 1 direction), all four arm-6-vs-arm-5 rows separate at
+2L / best / last and straddle at 6L / best / last (details in
+§Full-97).
 On point estimates the pooled champion (arm C) still leads every new
 arm at the `last` cells, but the card's primary criterion — a paired
 bootstrap of each arm against arm C — was not run because arm C's
@@ -165,18 +172,18 @@ the divisor cancels in the paired ratio. Driver:
 Output CSVs live in the same `results/` directory. Ratio `A/B < 1`
 means arm A beats arm B. The one-sided `p_a_beats_b` column stored in
 every CSV is the bootstrap proportion `P(ratio A/B < 1)`; the
-two-sided p we quote is `2 · min(p, 1 − p)`. Bonferroni family: the 24-contrast full-97
-panel (6 arm pairs × 4 (head, ckpt) cells) at α = 0.05 / 24 ≈ 0.002083;
+two-sided p we quote is `2 · min(p, 1 − p)`. Bonferroni family: the 40-contrast full-97
+panel (10 arm pairs × 4 (head, ckpt) cells) at α = 0.05 / 40 = 0.00125;
 note that arm 1's `best` and `last` cells share md5-identical backbone
 weights (`FINAL.pth` = `final.pth`, no post-resume `best_loss.pth` save)
 and differ only in head-training length (30k vs 40k head steps), so
-the eight arm-1-involving rows (arm 1 vs 3 / 4: 4 pairs of `best`/`last`)
-are four backbone contrasts, not eight, doubled by head-adaptation
-length. The periodic, medium+long and short panels are read at
+the sixteen arm-1-involving rows (arm 1 vs 3 / 4 / 5 / 6: 4 pairs of
+`best`/`last`) are eight backbone contrasts, not sixteen, doubled by
+head-adaptation length. The periodic, medium+long and short panels are read at
 nominal 95 % as diagnostics and no "Bonferroni" claim is made about
 them.
 
-### Full-97 (`pairwise_bootstrap_ci.csv`, 24 rows; `_clustered.csv` for 28-dataset resample)
+### Full-97 (`pairwise_bootstrap_ci.csv`, 40 rows; `_clustered.csv` for 28-dataset resample)
 
 Every arm-1 / 3 / 4 pairwise contrast:
 
@@ -209,7 +216,9 @@ arm X direction throughout (same "> 1 → worse" convention as the
 other pairs), task-level ratios [1.0557, 1.1581], lower bounds
 [1.0220, 1.1116]; all twelve above 1 under both task-level and
 clustered schemes. At `n_boot` = 200 000
-all twelve rows clear Bonferroni α = 0.05 / 24 ≈ 0.002083. Eight of
+eleven of the twelve rows clear Bonferroni α = 0.05 / 40 = 0.00125;
+the exception is 6L / last arm 5 vs arm 1 (two-sided p = 0.00178,
+MC SE 0.000133; fails α by ~4 × MC SE). Eight of
 the twelve rows carry a zero-event count out of 200 000
 (rule-of-three upper bound: one-sided p < 3 / 200 000 = 1.5 × 10⁻⁵,
 two-sided < 3 × 10⁻⁵); of the four rows with non-zero counts the
@@ -236,7 +245,7 @@ better than split at compute-matched step 12 500 on the exact cluster
 the card's mechanism is about. The lone task-level exception
 6L / last arm 1 vs arm 4 widens to [0.9961, 1.1029] under clustering.
 Eight of twelve arm-5 CIs sit above 1; four straddle (arm 5 / arm X
-convention throughout). Full 24 rows in
+convention throughout). Full 40 rows in
 `pairwise_bootstrap_ci_periodic.csv` (task) and
 `pairwise_bootstrap_ci_periodic_clustered.csv` (clustered).
 
@@ -266,7 +275,7 @@ arm 4 and 2L / last arm 1 vs arm 3 stay separated under both schemes.
 Head-adaptation asymmetry: arm 3 vs arm 4 warmed up on very different
 backbones (step 11 800 vs step 600), and arm 1 vs arm 3 mixes the MoCo
 axis with the 40 k-vs-10 k head-adaptation asymmetry disclosed in
-§Backbone step. Full 24 rows in
+§Backbone step. Full 40 rows in
 `pairwise_bootstrap_ci_medlong.csv` (task) and
 `pairwise_bootstrap_ci_medlong_clustered.csv` (clustered).
 
@@ -342,7 +351,7 @@ GM-Relative MASE is 0.975 – 0.997 across the four cells and it holds
 the lowest level in two of them (2L / last 0.9947, 6L / last 0.9785).
 The title's medium+long-vs-short scope reflects this: the deficit is
 concentrated on medium+long (arm 5 = 1.63 – 1.97 there vs 1.36 – 1.43
-for arms 1 / 3 / 4). Full 24 rows in
+for arms 1 / 3 / 4). Full 40 rows in
 `pairwise_bootstrap_ci_short.csv` (task) and
 `pairwise_bootstrap_ci_short_clustered.csv` (clustered).
 

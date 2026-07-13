@@ -49,6 +49,7 @@ ARMS = {
     "arm3": ("results", "gift_eval_full_split_pred_rep_moco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090"),
     "arm4": ("results_arm4", "gift_eval_full_allt08_moco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm4_tau090"),
     "arm5": ("results_arm5", "gift_eval_full_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090"),
+    "arm6": ("results_arm6", "gift_eval_full_lalignmoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm6_tau090"),
 }
 GROUPS = [("2L", "best"), ("2L", "last"), ("6L", "best"), ("6L", "last")]
 MASE = "eval_metrics/MASE[0.5]"
