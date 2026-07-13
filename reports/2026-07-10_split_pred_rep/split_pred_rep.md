@@ -31,7 +31,7 @@ downstream table.
 **Answer.** No arm-1 / 3 / 4 pairwise contrast in the 12-row full-97
 panel clears Bonferroni α = 0.05 / 24 = 0.0021 (the *smallest* two-sided
 p on that panel is 0.0099, 6L / best arm 3 vs arm 4, which is
-11,200-step confounded); no compute-matched `last`-cell CI separates
+11,200-step confounded); no arm-1 / 3 / 4 compute-matched `last`-cell CI separates
 from 1 at nominal 95 % under either the task-level or the
 28-dataset-clustered bootstrap. Arm 5 vs arms 1 / 3 / 4 (12 rows,
 task-level ratios [1.0557, 1.1581]; task-level lower bounds
@@ -68,8 +68,11 @@ than split. Neither subset panel is in the Bonferroni family: at
 α = 0.05 / 24 ≈ 0.002083 none of these subset rows clears; at nominal
 95 % three rows separate (medium+long 2L / last task, medium+long 6L /
 last under both schemes, periodic 6L / last clustered), all in the
-direction pooled better than split; no arm-1 / 3 / 4 point estimate
-on either subset runs the other way. Neither this
+direction pooled better than split. The directional consistency is
+on the compute-matched `last` cells only: on `best` cells the
+arm 3 vs arm 4 axis runs the other way at 6L on two of the three
+panels (full-97 = 0.9771, periodic = 0.9908), which reflects arm 4's
+step-600 `best`-cell backbone and is not a compute-matched read. Neither this
 contrast nor arm 1 vs arm 3 is matched on head-adaptation content
 (arms 3 / 4 head-trained 30 000 steps on their own `best_loss.pth`
 step-11,800 / step-600 backbones and only 10 000 on the evaluated
