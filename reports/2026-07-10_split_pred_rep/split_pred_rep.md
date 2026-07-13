@@ -35,7 +35,7 @@ p on that panel is 0.0099, 6L / best arm 3 vs arm 4, which is
 compute-matched `last`-cell CI separates from 1 at nominal 95 %
 under either the task-level or the 28-dataset-clustered bootstrap
 (the subset panels are read at nominal 95 % as diagnostics and are
-listed below; seven subset `last` rows do separate at nominal 95 %
+listed below; seven arm-1/3/4 subset `last` rows do separate at nominal 95 %
 on three different axes). Arm 5 vs arms 1 / 3 / 4 (12 rows,
 task-level ratios [1.0557, 1.1581]; task-level lower bounds
 [1.0220, 1.1116] at `n_boot` = 20 000 and [1.0217, 1.1112] at
@@ -118,8 +118,9 @@ scheme only ([0.9979, 1.0643] task, [1.0003, 1.0847] clustered); the
 other five straddle 1 under both schemes. Five of the eight
 `best`-cell rows on the same axis run the other way (arm 3 better
 than arm 4: full-97 2L 0.9953, full-97 6L 0.9771, periodic 6L 0.9908,
-short 2L 0.9699, short 6L 0.9489 — the last one clears α = 0.002083
-under both schemes but at an 11,200-step confound), which reflects
+short 2L 0.9699, short 6L 0.9489 — the last row separates at
+nominal 95 % under both schemes but sits at an 11,200-step confound
+(§Selection rule)), which reflects
 arm 4's step-600 `best`-cell backbone selection rather than a
 compute-matched direction. Neither this contrast nor arm 1 vs arm 3
 is matched on head-adaptation content (arms 3 / 4 head-trained
@@ -373,7 +374,7 @@ Every trained-vs-step-600 backbone-amount contrast on `best` cells:
 | 2L / best | arm 1 (12,500) vs arm 4 (600) | 0.9939 | [0.9650, 1.0281] | [0.9660, 1.0229] | straddles |
 | 6L / best | arm 1 (12,500) vs arm 4 (600) | 0.9878 | [0.9692, 1.0084] | [0.9676, 1.0084] | straddles |
 | 2L / best | arm 3 (11,800) vs arm 4 (600) | 0.9699 | [0.9346, 1.0032] | [0.9375, 1.0001] | straddles |
-| 6L / best | arm 3 (11,800) vs arm 4 (600) | **0.9489** | [0.9176, 0.9778] | [0.9201, 0.9759] | **separates** (task p = 1 × 10⁻⁴, `p_a_beats_b` = 0.99995 → 1 event / 20,000; clears α = 0.002083 under both schemes) |
+| 6L / best | arm 3 (11,800) vs arm 4 (600) | **0.9489** | [0.9176, 0.9778] | [0.9201, 0.9759] | **separates** at nominal 95 % under both schemes (task p = 1 × 10⁻⁴, `p_a_beats_b` = 0.99995 → 1 event / 20,000); this is a `best`-cell row outside the Bonferroni family (see §Selection rule for the 11,200-step confound) |
 
 Only the last row separates. The arm 1 vs arm 4 pair — an 11,900-step
 backbone gap on the same MoCo axis (both no-MoCo vs pooled+MoCo) —
