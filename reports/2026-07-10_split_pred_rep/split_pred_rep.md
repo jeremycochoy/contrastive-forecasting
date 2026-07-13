@@ -1,4 +1,4 @@
-# Splitting the contrastive loss into prediction and repulsion terms does not improve GM-Relative MASE at any properly controlled comparison; replacing the prediction term with BYOL alignment makes it clearly worse; the primary paired-CI-vs-champion criterion is unmet on this branch
+# Splitting the contrastive loss into prediction and repulsion terms does not improve full-97 GM-Relative MASE at any properly controlled comparison; replacing the prediction term with BYOL alignment is worse on the full-97 aggregate and on medium+long horizons but level or slightly ahead on short horizons; the primary paired-CI-vs-champion criterion is unmet on this branch
 
 **Definitions.** *GM-Relative MASE* is the geometric mean, over the 97
 GIFT-Eval forecasting configs, of `(model MASE) / (seasonal-naive
@@ -349,40 +349,56 @@ depths.
 
 ### Short-horizon subset (55 configs — every `dataset/*/short`, the disjoint complement of medium+long)
 
-The readout-sensitivity question the medium+long `best`-cell result
-raises — whether arm 4's step-600 backbone beats trained backbones
-because the probe can't see the difference, or because arm 4's
-objective reaches useful representations early on those horizons — is
-settled by this subset: on short horizons the trained backbones beat
-the step-600 backbone by a clean margin at nominal 95 %, in the
-expected direction.
+Every trained-vs-step-600 backbone-amount contrast on `best` cells:
 
-| cell | contrast | ratio A/B | 95 % CI task | 95 % CI clustered (25 datasets) | two-sided p (task) |
-| --- | --- | --: | --- | --- | --: |
-| 6L / best | arm 3 (11,800) vs arm 4 (600) | **0.9489** | [0.9176, 0.9778] | [0.9105, 0.9772] | **< 1 × 10⁻⁴** |
-| 2L / best | arm 3 (11,800) vs arm 4 (600) | 0.9699 | [0.9346, 1.0032] | [0.9316, 1.0093] | 0.079 |
-| 6L / best | arm 1 (12,500) vs arm 3 (11,800) | 1.0410 | [1.0147, 1.0725] | [1.0155, 1.0725] | 0.0008 |
-| 6L / last | arm 1 (12,500) vs arm 3 (11,800) | 1.0200 | [1.0008, 1.0432] | [1.0004, 1.0435] | 0.040 |
-| 2L / last | arm 1 (12,500) vs arm 4 (12,500) | 1.0237 | [1.0039, 1.0472] | [1.0075, 1.0432] | 0.015 |
+| cell | contrast (backbone steps A / B) | ratio A/B | 95 % CI task | 95 % CI clustered (25 datasets) | verdict |
+| --- | --- | --: | --- | --- | --- |
+| 2L / best | arm 1 (12,500) vs arm 4 (600) | 0.9939 | [0.9650, 1.0281] | [0.9660, 1.0229] | straddles |
+| 6L / best | arm 1 (12,500) vs arm 4 (600) | 0.9878 | [0.9692, 1.0084] | [0.9676, 1.0084] | straddles |
+| 2L / best | arm 3 (11,800) vs arm 4 (600) | 0.9699 | [0.9346, 1.0032] | [0.9375, 1.0001] | straddles |
+| 6L / best | arm 3 (11,800) vs arm 4 (600) | **0.9489** | [0.9176, 0.9778] | [0.9201, 0.9759] | **separates** (task p < 1 × 10⁻⁴; clears α = 0.002083 under both schemes) |
 
-The single row that clears the report's own Bonferroni α = 0.05 / 24
-= 0.002083 on this subset is 6L / best arm 3 vs arm 4 = 0.9489
-[0.9176, 0.9778], two-sided p < 1 × 10⁻⁴. It clears at ~11 200
-backbone steps of separation: arm 3 (step 11 800) beats arm 4 (step
-600) by ~5 % on short horizons. The 6L / best arm 1 vs arm 3 row
-(MoCo axis, split fixed) also clears α at nominal 95 % (p = 0.0008)
-pointing MoCo-on better than MoCo-off, and the direction is the
-opposite of the medium+long MoCo separator (0.9717, no-MoCo better)
-— MoCo helps on short and hurts on medium/long at 6L / best.
+Only the last row separates. The arm 1 vs arm 4 pair — an 11,900-step
+backbone gap on the same MoCo axis (both no-MoCo vs pooled+MoCo) —
+straddles under both schemes at both head depths. The separating row
+moves two variables at once (11,200 backbone steps AND split ↔
+pooled), so it cannot isolate backbone-training amount from loss
+shape. What the short subset shows is that this readout **can**
+resolve some 1–5 % differences between backbones at 6L on short
+horizons; it does not establish that the readout resolves
+backbone-training amount as a single axis. The random-init /
+early-step underfit backbone control that would give a single-axis
+measurement (arm 1's committed `_2k` / `_5k` / `_10k` intermediate
+checkpoints head-trained under the identical two-stage protocol on
+step-12,500 weights, evaluated on the 97 configs) remains the pivotal
+open item — it is one head-train + one eval, no new backbone.
 
-**The readout resolves backbone-training amount at ±5 %** on short-
-horizon 6L / best. The medium+long `best`-cell reversal (arm 4 wins
-by 1.5 – 3 %) is a horizon-specific inversion, not a blind readout;
-the full-97 aggregate at 6L / best arm 3 vs arm 4 = 0.9771 (arm 3
-better, separating) is the mixture of a strong short-horizon signal
-in one direction and a weaker medium+long signal in the other.
+Other short-subset separators at nominal 95 % (arm-1/3/4):
 
-Full 24 rows in `pairwise_bootstrap_ci_short.csv` (task) and
+| cell | contrast | ratio A/B | 95 % CI task | two-sided p (task) |
+| --- | --- | --: | --- | --: |
+| 6L / best | arm 1 (12,500) vs arm 3 (11,800) | 1.0410 | [1.0147, 1.0725] | 0.0008 |
+| 6L / last | arm 1 vs arm 3 (both 12,500) | 1.0200 | [1.0008, 1.0432] | 0.040 |
+| 2L / last | arm 1 vs arm 4 (both 12,500) | 1.0237 | [1.0039, 1.0472] | 0.015 |
+
+MoCo direction on short is opposite to medium+long: on short 6L / best
+the MoCo axis (arm 1 vs arm 3, split fixed, near-compute-matched
+12,500 vs 11,800) separates at p = 0.0008 with MoCo on better; on
+medium+long 2L / last the same axis separates at p = 0.0099 with
+MoCo off better. Neither medium+long nor short is compute-matched on
+head adaptation (arm 1's head trained 40 k on the evaluated backbone;
+arm 3's 30 k on step-11,800 + 10 k on step-12,500).
+
+**Arm 5 on the short subset.** Eleven of the twelve arm-5 contrasts
+here straddle 1; the one that separates is 6L / best arm 4 vs arm 5
+= 1.0498 [1.0055, 1.1076] task, [1.0097, 1.1033] clustered — arm 5
+**beats arm 4 by 5 %** on that row. On the short subset arm 5's
+level GM-Relative MASE is 0.995 – 1.022 across the four cells and it
+holds the lowest level in two of them; the title's "clearly worse on
+every scored evaluation" statement is a full-97 aggregate claim, and
+the deficit is concentrated on the medium+long subset (arm 5 = 1.63
+– 1.97 there vs 1.38 – 1.43 for arms 1 / 3 / 4). Full 24 rows in
+`pairwise_bootstrap_ci_short.csv` (task) and
 `pairwise_bootstrap_ci_short_clustered.csv` (clustered).
 
 ## Denominator share
@@ -489,12 +505,16 @@ variability; between-seed variance is not measured here and the
 card's single-seed noise band ±0.02 is comparable to every
 non-arm-5 point difference in the tables. `results_arm4/…_last_6L/all_results.csv`
 was reconstructed from `summary.txt` (raw file NUL-truncated on disk)
-and carries `MASE[0.5]` only. Deferred to follow-up cards, still needed
-to close the card fully: (i) arm C per-task `all_results.csv` +
-paired CI vs arm C (the card's primary criterion), (ii) denominator
-share measured on arm C (the card's required measurement). The
-random-init / early-step underfit backbone control that would
-independently bound the readout's resolution is worth running for
-its own sake, but is no longer the pivotal open question: the
-short-horizon subset below settles the readout-sensitivity concern
-that motivated it.
+and carries `MASE[0.5]` only. Deferred to follow-up cards, needed to close the card fully:
+(i) arm C per-task `all_results.csv` + paired CI vs arm C (the card's
+primary criterion); (ii) denominator share measured on arm C (the
+card's required measurement); (iii) a single-axis underfit backbone
+control — arm 1's committed `_2k` / `_5k` / `_10k` intermediate
+checkpoints head-trained under the identical two-stage protocol on
+step-12,500 weights, evaluated on the 97 configs, giving a
+backbone-amount measurement with the loss shape held fixed. The
+short-horizon subset already shows the readout can resolve some
+5 % differences between backbones (arm 3 vs arm 4 at 6L / best,
+p < 1 × 10⁻⁴), but the row that separates moves two variables at
+once (backbone step and split ↔ pooled), so it does not establish
+single-axis backbone-amount resolution.
