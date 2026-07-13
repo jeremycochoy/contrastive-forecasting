@@ -315,12 +315,10 @@ axis with the 40 k-vs-10 k head-adaptation asymmetry disclosed in
 **Arm 6 on medium+long.** Of the twelve arm-1/3/4-vs-arm-6 task-level
 rows, ten straddle 1 (ratios 0.978 – 1.023) and only two separate at
 nominal 95 % — both are 2L/best or 6L/best arm 4 (600) vs arm 6 (10,100)
-at ratio 0.98, hit by the same 11,200-step confound as arm 4-vs-arm-3;
-under clustering the 6L/best arm-4 row folds into the straddling group.
-Arm 6's GM-Rel MASE on this subset lands inside the arm-1/3/4 spread, in
-contrast to arm 5 (2L/last arm 5 vs arm 6 = 1.29 [1.24, 1.35]; 6L/last
-= 1.15 [1.11, 1.20]) — arm 5's medium+long deficit does not appear on
-arm 6.
+at ratio 0.98, step-confounded by the 9,500-step backbone gap; under
+clustering the 6L/best arm-4 row folds into the straddling group. Arm
+5's medium+long deficit does not appear on arm 6 (2L/last arm 5 vs
+arm 6 = 1.29 [1.24, 1.35]; 6L/last = 1.15 [1.11, 1.20]).
 
 **Medium+long `best` cells.** All four arm-4-vs-trained-arms point
 ratios are above 1 (i.e. arm 4's step-600 backbone scores lower
@@ -516,9 +514,10 @@ N = 1. The paired bootstrap measures within-run across-task
 variability; between-seed variance is not measured here and the
 card's single-seed noise band ±0.02 is comparable to every
 arm-1/3/4 pairwise point difference in the tables; arm 5 and arm 6
-differences from the arm-1/3/4 group are 6.1 – 20 % and 3.4 – 6.5 %,
-each well beyond the band, so the CI table separations against arm 5
-and arm 6 are not attributable to seed noise. `results_arm4/…_last_6L/all_results.csv`
+same-cell differences from the arm-1/3/4 group are 0.064 – 0.183 GM
+and 0.036 – 0.064 GM (against a ±0.02 band), so the CI table
+separations against arm 5 and arm 6 are not attributable to seed
+noise. `results_arm4/…_last_6L/all_results.csv`
 was reconstructed from `summary.txt`. Deferred to follow-up cards, needed to close the card fully:
 (i) arm C per-task `all_results.csv` + paired CI vs arm C (the card's
 primary criterion); (ii) denominator share measured on arm C (the
