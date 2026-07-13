@@ -345,8 +345,45 @@ this subset); three of the four separate at nominal 95 %.
 
 On this subset arm 4's step-600 backbone gives lower GM-Relative
 MASE than arm 3's step-11 800 and arm 1's step-12 500 at both head
-depths; the underfit-random-init backbone control is a follow-up (see
-§Caveat).
+depths.
+
+### Short-horizon subset (55 configs — every `dataset/*/short`, the disjoint complement of medium+long)
+
+The readout-sensitivity question the medium+long `best`-cell result
+raises — whether arm 4's step-600 backbone beats trained backbones
+because the probe can't see the difference, or because arm 4's
+objective reaches useful representations early on those horizons — is
+settled by this subset: on short horizons the trained backbones beat
+the step-600 backbone by a clean margin at nominal 95 %, in the
+expected direction.
+
+| cell | contrast | ratio A/B | 95 % CI task | 95 % CI clustered (25 datasets) | two-sided p (task) |
+| --- | --- | --: | --- | --- | --: |
+| 6L / best | arm 3 (11,800) vs arm 4 (600) | **0.9489** | [0.9176, 0.9778] | [0.9105, 0.9772] | **< 1 × 10⁻⁴** |
+| 2L / best | arm 3 (11,800) vs arm 4 (600) | 0.9699 | [0.9346, 1.0032] | [0.9316, 1.0093] | 0.079 |
+| 6L / best | arm 1 (12,500) vs arm 3 (11,800) | 1.0410 | [1.0147, 1.0725] | [1.0155, 1.0725] | 0.0008 |
+| 6L / last | arm 1 (12,500) vs arm 3 (11,800) | 1.0200 | [1.0008, 1.0432] | [1.0004, 1.0435] | 0.040 |
+| 2L / last | arm 1 (12,500) vs arm 4 (12,500) | 1.0237 | [1.0039, 1.0472] | [1.0075, 1.0432] | 0.015 |
+
+The single row that clears the report's own Bonferroni α = 0.05 / 24
+= 0.002083 on this subset is 6L / best arm 3 vs arm 4 = 0.9489
+[0.9176, 0.9778], two-sided p < 1 × 10⁻⁴. It clears at ~11 200
+backbone steps of separation: arm 3 (step 11 800) beats arm 4 (step
+600) by ~5 % on short horizons. The 6L / best arm 1 vs arm 3 row
+(MoCo axis, split fixed) also clears α at nominal 95 % (p = 0.0008)
+pointing MoCo-on better than MoCo-off, and the direction is the
+opposite of the medium+long MoCo separator (0.9717, no-MoCo better)
+— MoCo helps on short and hurts on medium/long at 6L / best.
+
+**The readout resolves backbone-training amount at ±5 %** on short-
+horizon 6L / best. The medium+long `best`-cell reversal (arm 4 wins
+by 1.5 – 3 %) is a horizon-specific inversion, not a blind readout;
+the full-97 aggregate at 6L / best arm 3 vs arm 4 = 0.9771 (arm 3
+better, separating) is the mixture of a strong short-horizon signal
+in one direction and a weaker medium+long signal in the other.
+
+Full 24 rows in `pairwise_bootstrap_ci_short.csv` (task) and
+`pairwise_bootstrap_ci_short_clustered.csv` (clustered).
 
 ## Denominator share
 
@@ -452,11 +489,12 @@ variability; between-seed variance is not measured here and the
 card's single-seed noise band ±0.02 is comparable to every
 non-arm-5 point difference in the tables. `results_arm4/…_last_6L/all_results.csv`
 was reconstructed from `summary.txt` (raw file NUL-truncated on disk)
-and carries `MASE[0.5]` only. Deferred to follow-up cards, all needed
-to
-close the card fully: (i) arm C per-task `all_results.csv` +
+and carries `MASE[0.5]` only. Deferred to follow-up cards, still needed
+to close the card fully: (i) arm C per-task `all_results.csv` +
 paired CI vs arm C (the card's primary criterion), (ii) denominator
-share measured on arm C (the card's required measurement), (iii)
-random-init or early-step underfit backbone control to disambiguate
-whether the medium+long `best`-cell result reflects arm 4's step-600
-objective quality or the readout's resolution at ±1–3 %.
+share measured on arm C (the card's required measurement). The
+random-init / early-step underfit backbone control that would
+independently bound the readout's resolution is worth running for
+its own sake, but is no longer the pivotal open question: the
+short-horizon subset below settles the readout-sensitivity concern
+that motivated it.

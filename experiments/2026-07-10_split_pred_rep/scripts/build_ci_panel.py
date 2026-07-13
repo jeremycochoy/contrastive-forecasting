@@ -3,7 +3,7 @@
 Iterates over every pair of arms in {arm1, arm3, arm4, arm5} at every
 (head, ckpt) in {2L, 6L} × {best, last}, calling the paired-bootstrap
 utility with n_boot=20000, seed 42, and the branch-committed
-seasonal-naive reference. Emits four panels:
+seasonal-naive reference. Emits panels:
   (i)   task-level over all 97 configs;
   (ii)  the periodic-cluster subset the card names (37 configs — solar,
         electricity, ett1, m4_hourly, bizitobs_* — selected by family
@@ -11,7 +11,8 @@ seasonal-naive reference. Emits four panels:
   (iii) a dataset-clustered bootstrap that resamples the 28 base
         datasets rather than the 97 configs;
   (iv)  the medium+long horizon subset the card's secondary read names
-        (42 configs — dataset/*/{medium,long}).
+        (42 configs — dataset/*/{medium,long});
+  (v)   the short-horizon complement of (iv) (55 configs — dataset/*/short).
 
 Idempotent; writes six panels:
   results/pairwise_bootstrap_ci.csv                    (task-level, 97 configs, 24 rows)
@@ -38,7 +39,10 @@ OUT_HOR = EXP / "results" / "pairwise_bootstrap_ci_medlong.csv"
 OUT_PER_CLU = EXP / "results" / "pairwise_bootstrap_ci_periodic_clustered.csv"
 OUT_HOR_CLU = EXP / "results" / "pairwise_bootstrap_ci_medlong_clustered.csv"
 OUT_ARM5_200K = EXP / "results" / "pairwise_bootstrap_ci_arm5_nboot200k.csv"
+OUT_SHORT = EXP / "results" / "pairwise_bootstrap_ci_short.csv"
+OUT_SHORT_CLU = EXP / "results" / "pairwise_bootstrap_ci_short_clustered.csv"
 N_BOOT_ARM5 = 200000
+SHORT_SUFFIXES = ("/short",)
 
 ARMS = {
     "arm1": ("results", "gift_eval_full_split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090"),
@@ -112,6 +116,7 @@ def main():
     print(f"n_boot={N_BOOT} seed={SEED}  sn={SN}")
     rows_all, rows_per, rows_clu, rows_hor = [], [], [], []
     rows_per_clu, rows_hor_clu = [], []
+    rows_short, rows_short_clu = [], []
     rows_arm5_200k = []
     for HL, ck in GROUPS:
         # cache each arm's per-task rel-MASE at this cell
@@ -120,6 +125,8 @@ def main():
                         for a, v in rel.items()}
         rel_medlong = {a: v[[t for t in v.index if t.endswith(MEDLONG_SUFFIXES)]]
                        for a, v in rel.items()}
+        rel_short = {a: v[[t for t in v.index if t.endswith(SHORT_SUFFIXES)]]
+                     for a, v in rel.items()}
         for a, b in itertools.combinations(ARMS, 2):
             rng = np.random.default_rng(SEED)
             ga, gb, r, lo, hi, p, n = bootstrap_task(rel[a], rel[b], rng)
@@ -139,6 +146,12 @@ def main():
             rng = np.random.default_rng(SEED)
             ga_hc, gb_hc, r_hc, lo_hc, hi_hc, p_hc, n_hc, n_hds = bootstrap_cluster(rel_medlong[a], rel_medlong[b], rng)
             rows_hor_clu.append([HL, ck, a, b, ga_hc, gb_hc, r_hc, lo_hc, hi_hc, p_hc, n_hc, n_hds, N_BOOT, SEED])
+            rng = np.random.default_rng(SEED)
+            ga_s, gb_s, r_s, lo_s, hi_s, p_s, n_s = bootstrap_task(rel_short[a], rel_short[b], rng)
+            rows_short.append([HL, ck, a, b, ga_s, gb_s, r_s, lo_s, hi_s, p_s, n_s, N_BOOT, SEED])
+            rng = np.random.default_rng(SEED)
+            ga_sc, gb_sc, r_sc, lo_sc, hi_sc, p_sc, n_sc, n_sds = bootstrap_cluster(rel_short[a], rel_short[b], rng)
+            rows_short_clu.append([HL, ck, a, b, ga_sc, gb_sc, r_sc, lo_sc, hi_sc, p_sc, n_sc, n_sds, N_BOOT, SEED])
         # arm-5 rows at n_boot = 200 000 for the Bonferroni-resolution question:
         for other in ("arm1", "arm3", "arm4"):
             rng = np.random.default_rng(SEED)
@@ -160,8 +173,11 @@ def main():
     write(OUT_PER_CLU, ["head","ckpt","arm_a","arm_b","gm_a","gm_b","ratio_a_over_b","ci_lo","ci_hi","p_a_beats_b","n","n_datasets","n_boot","seed"], rows_per_clu)
     write(OUT_HOR_CLU, ["head","ckpt","arm_a","arm_b","gm_a","gm_b","ratio_a_over_b","ci_lo","ci_hi","p_a_beats_b","n","n_datasets","n_boot","seed"], rows_hor_clu)
     write(OUT_ARM5_200K, ["head","ckpt","arm_a","arm_b","gm_a","gm_b","ratio_a_over_b","ci_lo","ci_hi","one_sided_p","two_sided_p","mc_se_two_sided","n","n_boot","seed"], rows_arm5_200k)
+    write(OUT_SHORT, ["head","ckpt","arm_a","arm_b","gm_a","gm_b","ratio_a_over_b","ci_lo","ci_hi","p_a_beats_b","n_short","n_boot","seed"], rows_short)
+    write(OUT_SHORT_CLU, ["head","ckpt","arm_a","arm_b","gm_a","gm_b","ratio_a_over_b","ci_lo","ci_hi","p_a_beats_b","n","n_datasets","n_boot","seed"], rows_short_clu)
     print(f"wrote {OUT_ALL.name}, {OUT_PER.name}, {OUT_CLU.name}, {OUT_HOR.name}, "
-          f"{OUT_PER_CLU.name}, {OUT_HOR_CLU.name}, {OUT_ARM5_200K.name}")
+          f"{OUT_PER_CLU.name}, {OUT_HOR_CLU.name}, {OUT_SHORT.name}, {OUT_SHORT_CLU.name}, "
+          f"{OUT_ARM5_200K.name}")
 
 
 if __name__ == "__main__":
