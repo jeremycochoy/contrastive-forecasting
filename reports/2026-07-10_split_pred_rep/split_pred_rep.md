@@ -35,7 +35,7 @@ p on that panel is 0.0099, 6L / best arm 3 vs arm 4, which is
 compute-matched `last`-cell CI separates from 1 at nominal 95 %
 under either the task-level or the 28-dataset-clustered bootstrap
 (the subset panels are read at nominal 95 % as diagnostics and are
-listed below; five subset `last` rows do separate at nominal 95 %
+listed below; seven subset `last` rows do separate at nominal 95 %
 on three different axes). Arm 5 vs arms 1 / 3 / 4 (12 rows,
 task-level ratios [1.0557, 1.1581]; task-level lower bounds
 [1.0220, 1.1116] at `n_boot` = 20 000 and [1.0217, 1.1112] at
@@ -360,7 +360,7 @@ Every trained-vs-step-600 backbone-amount contrast on `best` cells:
 | 2L / best | arm 1 (12,500) vs arm 4 (600) | 0.9939 | [0.9650, 1.0281] | [0.9660, 1.0229] | straddles |
 | 6L / best | arm 1 (12,500) vs arm 4 (600) | 0.9878 | [0.9692, 1.0084] | [0.9676, 1.0084] | straddles |
 | 2L / best | arm 3 (11,800) vs arm 4 (600) | 0.9699 | [0.9346, 1.0032] | [0.9375, 1.0001] | straddles |
-| 6L / best | arm 3 (11,800) vs arm 4 (600) | **0.9489** | [0.9176, 0.9778] | [0.9201, 0.9759] | **separates** (task p < 1 × 10⁻⁴; clears α = 0.002083 under both schemes) |
+| 6L / best | arm 3 (11,800) vs arm 4 (600) | **0.9489** | [0.9176, 0.9778] | [0.9201, 0.9759] | **separates** (task p = 1 × 10⁻⁴, `p_a_beats_b` = 0.99995 → 1 event / 20,000; clears α = 0.002083 under both schemes) |
 
 Only the last row separates. The arm 1 vs arm 4 pair — an 11,900-step
 backbone gap on the same MoCo axis (both no-MoCo vs pooled+MoCo) —
@@ -385,13 +385,14 @@ Other short-subset separators at nominal 95 % (arm-1/3/4):
 | 6L / last | arm 1 vs arm 3 (both 12,500) | 1.0200 | [1.0008, 1.0432] | 0.040 |
 | 2L / last | arm 1 vs arm 4 (both 12,500) | 1.0237 | [1.0039, 1.0472] | 0.015 |
 
-MoCo direction on short is opposite to medium+long: on short 6L / best
-the MoCo axis (arm 1 vs arm 3, split fixed, near-compute-matched
-12,500 vs 11,800) separates at p = 0.0008 with MoCo on better; on
-medium+long 2L / last the same axis separates at p = 0.0099 with
-MoCo off better. Neither medium+long nor short is compute-matched on
-head adaptation (arm 1's head trained 40 k on the evaluated backbone;
-arm 3's 30 k on step-11,800 + 10 k on step-12,500).
+The MoCo direction reverses across horizons at compute-matched `last`
+cells: short 6L / last arm 1 vs arm 3 = 1.0200 [1.0008, 1.0432] task,
+[1.0021, 1.0387] clustered (MoCo on better; both schemes) against
+medium+long 2L / last 0.9717 [0.9520, 0.9926] task, [0.9473, 0.9975]
+clustered (MoCo off better; both schemes). Both rows are at backbone
+step 12,500 for both arms. Head adaptation is asymmetric (arm 1: 40 k
+on the evaluated backbone; arm 3: 30 k on step-11,800 + 10 k on
+step-12,500), so the reversal is not attributable to MoCo alone.
 
 **Arm 5 on the short subset.** Eleven of the twelve arm-5 contrasts
 here straddle 1; the one that separates is 6L / best arm 4 vs arm 5
@@ -519,6 +520,6 @@ step-12,500 weights, evaluated on the 97 configs, giving a
 backbone-amount measurement with the loss shape held fixed. The
 short-horizon subset already shows the readout can resolve some
 5 % differences between backbones (arm 3 vs arm 4 at 6L / best,
-p < 1 × 10⁻⁴), but the row that separates moves two variables at
+task p ≈ 1 × 10⁻⁴), but the row that separates moves two variables at
 once (backbone step and split ↔ pooled), so it does not establish
 single-axis backbone-amount resolution.
