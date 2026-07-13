@@ -48,10 +48,16 @@ arm C's per-task file also lands the family reaches 60 rows
 too; every other arm-5 row survives both expansions. On
 point estimates the pooled champion (arm C) leads every new arm at
 the `last` cells (2L 1.1491 vs the best new arm's 1.1546; 6L 1.1254
-vs 1.1405); arm C's per-task file is on the sweep tree only, so
-neither gap has a CI on this branch, and both gaps sit inside the
+vs 1.1405); the card's primary criterion — a paired bootstrap of
+each arm against arm C — was not run because the seed-1 arm C
+per-task `all_results.csv` (the numerator input the paired ratio
+needs; the seasonal-naive divisor cancels in the ratio) is not on
+this branch or any accessible tree. Both level gaps sit inside the
 card's ±0.02 single-seed noise band (from the issue text; not
-independently measured on this branch, which has N = 1). Arm 4's
+independently measured on this branch, which has N = 1); the arm C
+values also sit on a seasonal-naive divisor whose sha256 is not
+verifiable here, so the level comparison in the Downstream table is
+scale-unchecked (the paired *ratio* would not need that check). Arm 4's
 `best` cells run on a
 step-600 backbone (600 / 12,500 = 4.8 % of training) and score
 strictly below arms 1 / 3's step-12,500 / step-11,800 `best` cells on the
@@ -64,9 +70,13 @@ subset it is 2L / last 1.0228 [1.0059, 1.0403] (task) / [0.9960, 1.0490]
 (clustered — straddles 1) and 6L / last 1.0140 [1.0031, 1.0252] (task) /
 [1.0044, 1.0251] (clustered) in the direction of pooled better than
 split; on the periodic subset (the cluster the card's mechanism is
-specifically about) the same contrast is 6L / last 1.0239 [1.0003,
-1.0847] under the dataset-clustered bootstrap — again pooled better
-than split. Neither subset panel is in the Bonferroni family: at
+specifically about, though 20 of its 37 configs also appear in the
+medium+long subset — the two panels are not independent) the same
+contrast is 6L / last 1.0239 [0.9979, 1.0643] (task-level, straddles
+1) / [1.0003, 1.0847] (7-dataset clustered, separates by 0.0003 on
+the lower bound) — direction consistent, but the separation is
+under the clustered scheme only and at the resolution floor of a
+7-cluster resample. Neither subset panel is in the Bonferroni family: at
 α = 0.05 / 24 ≈ 0.002083 none of these subset `last` rows clears; at
 nominal 95 % three `last` rows separate (medium+long 2L task,
 medium+long 6L under both schemes, periodic 6L clustered), all on the
