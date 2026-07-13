@@ -28,61 +28,24 @@ split, `α L_pred + β L_rep`) is a follow-up not run here. Arm 6
 at the time of writing; its cells appear as *pending* in the
 downstream table.
 
-**Answer.** No arm-1 / 3 / 4 pairwise contrast in the 12-row full-97
-panel clears Bonferroni α = 0.05 / 24 = 0.0021 (the *smallest* two-sided
-p on that panel is 0.0099, 6L / best arm 3 vs arm 4, which is
-11,200-step confounded); on the full-97 panel no arm-1 / 3 / 4
-compute-matched `last`-cell CI separates from 1 at nominal 95 %
-under either the task-level or the 28-dataset-clustered bootstrap
-(the subset panels are read at nominal 95 % as diagnostics and are
-listed below; seven arm-1/3/4 subset `last` rows do separate at nominal 95 %
-on three different axes). Arm 5 vs arms 1 / 3 / 4 (12 rows,
-task-level ratios [1.0557, 1.1581]; task-level lower bounds
-[1.0220, 1.1116] at `n_boot` = 20 000 and [1.0217, 1.1112] at
-`n_boot` = 200 000) sits above 1 on every row; at `n_boot` = 200 000
-all twelve rows
-clear α = 0.05 / 24 ≈ 0.002083 (all two-sided p ≤ 0.0018; worst-case margin 2.3 × MC SE
-on the worst row, `pairwise_bootstrap_ci_arm5_nboot200k.csv`). Note
-that if arm 6 (pending, still training) lands, its cells enter the
-panel as 16 additional rows (family = 40; α → 0.05 / 40 = 0.00125),
-at which the worst arm-5 row (p = 0.00178) no longer clears, and if
-arm C's per-task file also lands the family reaches 60 rows
-(α → 0.000833) and the second-worst arm-5 row (p = 0.00093) fails
-too; every other arm-5 row survives both expansions. On
-point estimates the pooled champion (arm C) leads every new arm at
-the `last` cells (2L 1.1491 vs the best new arm's 1.1546; 6L 1.1254
-vs 1.1405); the card's primary criterion — a paired bootstrap of
-each arm against arm C — was not run because the seed-1 arm C
-per-task `all_results.csv` (the numerator input the paired ratio
-needs; the seasonal-naive divisor cancels in the ratio) is not on
-this branch or any accessible tree. Both level gaps sit inside the
-card's ±0.02 single-seed noise band (from the issue text; not
-independently measured on this branch, which has N = 1); the arm C
-values also sit on a seasonal-naive divisor whose sha256 is not
-verifiable here, so the level comparison in the Downstream table is
-scale-unchecked (the paired *ratio* would not need that check). Arm 4's
-`best` cells run on a
-step-600 backbone (600 / 12,500 = 4.8 % of training) and score
-strictly below arms 1 / 3's step-12,500 / step-11,800 `best` cells on the
-medium+long horizon subset (all four ratios above 1, i.e. arm 4
-better; three separate at nominal 95 %). The card's canonical
-split-vs-pooled contrast — arm 3 vs arm 4 with MoCo held fixed on
-both sides — is 1.0119 [0.9970, 1.0267] at 2L / last and 1.0093
-[0.9960, 1.0269] at 6L / last on the full-97 panel; on the medium+long
-subset it is 2L / last 1.0228 [1.0059, 1.0403] (task) / [0.9960, 1.0490]
-(clustered — straddles 1) and 6L / last 1.0140 [1.0031, 1.0252] (task) /
-[1.0044, 1.0251] (clustered) in the direction of pooled better than
-split; on the periodic subset (the cluster the card's mechanism is
-specifically about, though 20 of its 37 configs also appear in the
-medium+long subset — the two panels are not independent) the same
-contrast is 6L / last 1.0239 [0.9979, 1.0643] (task-level, straddles
-1) / [1.0003, 1.0847] (7-dataset clustered, separates by 0.0003 on
-the lower bound) — direction consistent, but the separation is
-under the clustered scheme only and at the resolution floor of a
-7-cluster resample. Subset panels are read at nominal 95 % as
-diagnostics and are outside the Bonferroni family; on that reading,
-seven `last` rows separate across the three subsets (medium+long,
-periodic, short), on three axes:
+**Answer.** No arm-1 / 3 / 4 full-97 pairwise contrast clears
+Bonferroni α = 0.05 / 24 = 0.0021 (smallest two-sided p = 0.0099,
+6L / best arm 3 vs arm 4, 11,200-step confounded), and no arm-1 / 3 / 4
+compute-matched `last` CI on the full-97 panel separates from 1 at
+nominal 95 % under either bootstrap scheme (see §Full-97). Arm 5 vs
+arms 1 / 3 / 4 sits above 1 on all twelve rows and clears α at
+`n_boot` = 200 000 (worst-row margin 2.3 × MC SE; details in §Full-97).
+On point estimates the pooled champion (arm C) still leads every new
+arm at the `last` cells, but the card's primary criterion — a paired
+bootstrap of each arm against arm C — was not run because arm C's
+per-task file is not on any accessible tree.
+
+The card's canonical arm 3 vs arm 4 (split ↔ pooled, MoCo fixed)
+sits at 1.0119 / 1.0093 (2L / 6L `last`, full-97) — direction pooled
+better, but not resolved by either scheme (§Full-97). On the
+subset panels (read at nominal 95 % as diagnostics, outside the
+Bonferroni family), seven arm-1 / 3 / 4 `last` rows separate across
+three axes:
 - **arm 3 vs arm 4 (split ↔ pooled, MoCo fixed):** medium+long 2L /
   last 1.0228 (task) — pooled better; medium+long 6L / last 1.0140
   (task and clustered) — pooled better; periodic 6L / last 1.0239
@@ -249,15 +212,8 @@ the eight arm-1-involving rows (arm 1 vs 3 / 4: 4 pairs of `best`/`last`)
 are four backbone contrasts, not eight, doubled by head-adaptation
 length. A stricter family that removes the arm 1 `best` duplicates
 would be 20 rows and α = 0.05 / 20 = 0.0025;
-the periodic and medium+long panels are read at nominal 95 % as
-diagnostics and no "Bonferroni" claim is made about them. When arm 6
-(pending) lands, its four cells add 4 new arm pairs (vs arms 1 / 3 /
-4 / 5) × 4 (head, ckpt) cells = 16 additional rows, so the family
-becomes 40 rows and α = 0.05 / 40 = 0.00125. If arm C's per-task
-file also lands from the sweep tree, arm C adds a 6th arm; six arms
-give C(6, 2) = 15 arm pairs × 4 cells = 60 rows and α = 0.05 / 60
-≈ 0.000833. Rows read at 0.002083 would have to be re-checked
-against those thresholds.
+the periodic, medium+long and short panels are read at nominal 95 %
+as diagnostics and no "Bonferroni" claim is made about them.
 
 ### Full-97 (`pairwise_bootstrap_ci.csv`, 24 rows; `_clustered.csv` for 28-dataset resample)
 
