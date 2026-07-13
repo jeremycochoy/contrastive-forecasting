@@ -241,6 +241,13 @@ means arm A beats arm B. The one-sided `p_a_beats_b` column stored in
 every CSV is the bootstrap proportion `P(ratio A/B < 1)`; the
 two-sided p we quote is `2 · min(p, 1 − p)`. Bonferroni family: the 24-contrast full-97
 panel (6 arm pairs × 4 (head, ckpt) cells) at α = 0.05 / 24 ≈ 0.002083;
+note that arm 1's `best` and `last` cells share md5-identical backbone
+weights (`FINAL.pth` = `final.pth`, no post-resume `best_loss.pth` save)
+and differ only in head-training length (30k vs 40k head steps), so
+the eight arm-1-involving rows (arm 1 vs 3 / 4: 4 pairs of `best`/`last`)
+are four backbone contrasts, not eight, doubled by head-adaptation
+length. A stricter family that removes the arm 1 `best` duplicates
+would be 20 rows and α = 0.05 / 20 = 0.0025;
 the periodic and medium+long panels are read at nominal 95 % as
 diagnostics and no "Bonferroni" claim is made about them. When arm 6
 (pending) lands, its four cells add 4 new arm pairs (vs arms 1 / 3 /
@@ -465,7 +472,15 @@ gradient shares of the MoCo arms — measurement B = 64 vs training
 B = 512 (the training-time share at B = 512 was not measured; the
 count of cross-batch negatives scales with B); `.eval()` disables the
 0.70 encoder dropkey; for the MoCo arms (3, 4) keys are student-side
-at measurement, teacher-side at training.*
+at measurement, teacher-side at training. The step at which each arm
+is probed is `FINAL.pth`: arm 1 = step 12,500, arm 3 = step 11,800,
+arm 4 = step 600 (see §Backbone step). Every compute-matched `last`
+contrast is evaluated on step 12,500 backbones instead, so for arm 3
+and arm 4 the probe reports the loss landscape at a different step
+than the one the downstream `last` cells score. `final.pth` at step
+12,500 exists on the branch for both arms; the follow-up is one
+forward pass per arm on that file plus a re-run on arm C's own
+checkpoint.*
 
 ## Arms
 
