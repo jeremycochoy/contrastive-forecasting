@@ -78,9 +78,21 @@ the lower bound) — direction consistent, but the separation is
 under the clustered scheme only and at the resolution floor of a
 7-cluster resample. Neither subset panel is in the Bonferroni family: at
 α = 0.05 / 24 ≈ 0.002083 none of these subset `last` rows clears; at
-nominal 95 % three `last` rows separate (medium+long 2L task,
-medium+long 6L under both schemes, periodic 6L clustered), all on the
-arm 3 vs arm 4 axis in the direction pooled better than split. Two
+nominal 95 % five `last` rows separate across the two subsets, on
+three axes:
+- **arm 3 vs arm 4 (split ↔ pooled, MoCo fixed):** medium+long 2L /
+  last 1.0228 (task) — pooled better; medium+long 6L / last 1.0140
+  (task and clustered) — pooled better; periodic 6L / last 1.0239
+  (clustered only) — pooled better.
+- **arm 1 vs arm 3 (MoCo off ↔ on, split fixed):** medium+long 2L /
+  last 0.9717 (task and clustered, two-sided p = 0.0099 — smallest
+  `last`-row p in the report) — MoCo off better than MoCo on. Head-
+  adaptation asymmetric (arm 1: 40 k on the evaluated backbone;
+  arm 3: 30 k on step-11 800 + 10 k on step-12 500).
+- **arm 1 vs arm 4 (joint, split + no-MoCo ↔ pooled + MoCo):** periodic
+  6L / last 1.0381 (task only) — split-no-MoCo better than
+  pooled-MoCo on this subset row; the same panel's other five arm 1
+  vs arm 4 rows straddle 1. Two
 subset `best` rows on the same axis do clear α (medium+long, arm 3
 vs arm 4 at both head depths: two-sided p < 1 × 10⁻⁴ and p = 0.0005),
 but the `best` cells here compare arm 3 at step 11 800 against arm 4
