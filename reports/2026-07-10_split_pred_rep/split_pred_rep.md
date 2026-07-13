@@ -88,10 +88,13 @@ three axes:
   (task and clustered) — pooled better; periodic 6L / last 1.0239
   (clustered only) — pooled better.
 - **arm 1 vs arm 3 (MoCo off ↔ on, split fixed):** medium+long 2L /
-  last 0.9717 (task and clustered, two-sided p = 0.0099 — smallest
-  `last`-row p in the report) — MoCo off better than MoCo on. Head-
-  adaptation asymmetric (arm 1: 40 k on the evaluated backbone;
-  arm 3: 30 k on step-11 800 + 10 k on step-12 500).
+  last 0.9717 (task-level p = 0.0099; clustered p = 0.033) — MoCo
+  off better than MoCo on. Head-adaptation asymmetric (arm 1: 40 k
+  on the evaluated backbone; arm 3: 30 k on step-11 800 + 10 k on
+  step-12 500). The smallest two-sided `last`-row p across the two
+  subsets is medium+long 6L / last arm 3 vs arm 4 = 1.0140 (clustered
+  p = 0.0031, task p = 0.013); the split-axis 2L / last row's task
+  p = 0.0084 is second smallest; this MoCo row's p = 0.0099 is third.
 - **arm 1 vs arm 4 (joint, split + no-MoCo ↔ pooled + MoCo):** periodic
   6L / last 1.0381 (task only) — split-no-MoCo better than
   pooled-MoCo on this subset row; the same panel's other five arm 1
