@@ -38,7 +38,7 @@ arms 1 / 3 / 4 sits above 1 on all twelve rows and clears α at
 On point estimates the pooled champion (arm C) still leads every new
 arm at the `last` cells, but the card's primary criterion — a paired
 bootstrap of each arm against arm C — was not run because arm C's
-per-task file is not on any accessible tree.
+per-task file is not available.
 
 The card's canonical arm 3 vs arm 4 (split ↔ pooled, MoCo fixed)
 sits at 1.0119 / 1.0093 (2L / 6L `last`, full-97) — direction pooled
@@ -56,18 +56,6 @@ three axes:
 - **arm 1 vs arm 4 (joint):** periodic 6L (task) and short 2L (both
   schemes) point arm-4-better; medium+long `last` rows point the other
   way and both straddle — direction inconsistent across subsets.
-
-The arm 3 vs arm 4 axis point estimate is ≥ 1 in every slice
-(compute-matched `last` cells: full-97, periodic, medium+long, short);
-the eight re-aggregations are not eight independent comparisons since
-short + medium+long = full-97 and periodic overlaps medium+long on 20
-configs. `best`-cell rows on the same axis mostly run the other way
-because arm 4's `best`-cell backbone is at step 600 (§Selection rule).
-Head-adaptation content differs on both arm 3 vs 4 and arm 1 vs 3
-compute-matched `last` cells (arms 3 / 4 head-trained 30 k on their
-own `best_loss.pth` step-11,800 / step-600 and only 10 k on the
-evaluated step-12,500), so the compute-matched panel is on backbone
-step but not on head adaptation.
 
 ![GM-Relative MASE across arms and (head, checkpoint) scored evaluations.](plots/headline_relmase.png)
 
@@ -123,7 +111,7 @@ adaptation content either.
 its own smoothed training loss)". No held-out backbone-validation
 loss enters the protocol, and the four arms optimise different
 objectives on different scales (arm 1 ≈ 24 → 25; arm 3 ≈ 23; arm 4
-≈ 3.3 → 3.6; arm 5 ≈ 18 → 18). As shipped, the rule fires
+≈ 3.3 → 3.6). As shipped, the rule fires
 inconsistently across the four arms because of a
 checkpoint-promotion gap on arm 1: arm 1's `FINAL.pth` equals
 `final.pth` (step 12,500) — its post-resume `best_loss.pth` was never
@@ -149,26 +137,23 @@ f-anchored prediction task that `L_pred` optimises (retrieval of the
 positive `h'_{t+1}` against the cross-batch f ↔ h′ candidates) and
 they do not score `L_rep`, which has no positive. Arm 5 has no
 `L_pred`, so those diagnostics do not have their nominal meaning for
-arm 5; its row below is included for completeness. Sampled step values
-from arm 1's `..._losses_full.csv` (arm 1 was resumed at step 900 and
-the post-resume `losses.csv` starts at step 901; the full CSV keeps
-the pre-resume steps too) and from arms 3 / 4 / 5's `..._losses.csv`:
+arm 5 and no arm 5 row is reported. Sampled step values from arm 1's
+`..._losses_full.csv` (arm 1 was resumed at step 900 and the
+post-resume `losses.csv` starts at step 901; the full CSV keeps the
+pre-resume steps too) and from arms 3 / 4's `..._losses.csv`:
 
 | arm | step 600 | step 2,000 | step 6,000 | step 12,500 | `top1` min at step ≥ 600 |
 | --- | --- | --- | --- | --- | --- |
 | arm 1 | auc 1.0000 / top1 0.9998 | 0.9999 / 0.9835 | 1.0000 / 0.9952 | 1.0000 / 0.9926 | 0.8348 (step 3,343) |
 | arm 3 | 1.0000 / 0.9998 | 1.0000 / 0.9992 | 1.0000 / 0.9996 | 1.0000 / 0.9993 | 0.9825 (step 3,538) |
 | arm 4 | 1.0000 / 0.9993 | 1.0000 / 0.9995 | 1.0000 / 0.9994 | 1.0000 / 0.9974 | 0.9505 (step 934) |
-| arm 5 | 1.0000 / 1.0000 | 1.0000 / 1.0000 | 1.0000 / 1.0000 | 1.0000 / 1.0000 | 1.0000 |
 
-Arm 1's `top1` at step 600 is 0.9998 (0.02 % error), dips to 0.8348 at
-step 3 343 and sits below 0.99 at 5 479 of 11 901 logged steps ≥ 600
-(46.0 %); arm 4's `top1` dips to 0.9505 at step 934. Total training
-`loss` rises after step 600 on both arms (arm 1: 24.05 → 25.36;
-arm 4: 3.26 → 3.61) and never dips below the step-600 value at any
-later logged step; the run log's last `best_loss.pth` save is at
-step 600 for arm 4 and there is no post-resume `best_loss.pth` save at
-all for arm 1.
+Arm 1's `top1` sits below 0.99 at 5,479 of 11,901 logged steps ≥ 600
+(46.0 %). Total training `loss` rises after step 600 on both arms
+(arm 1: 24.05 → 25.36; arm 4: 3.26 → 3.61) and never dips below the
+step-600 value at any later logged step; the run log's last
+`best_loss.pth` save is at step 600 for arm 4 and there is no
+post-resume `best_loss.pth` save for arm 1.
 
 ## Paired-bootstrap 95 % CI on GM-Relative MASE ratios
 
@@ -188,10 +173,9 @@ weights (`FINAL.pth` = `final.pth`, no post-resume `best_loss.pth` save)
 and differ only in head-training length (30k vs 40k head steps), so
 the eight arm-1-involving rows (arm 1 vs 3 / 4: 4 pairs of `best`/`last`)
 are four backbone contrasts, not eight, doubled by head-adaptation
-length. A stricter family that removes the arm 1 `best` duplicates
-would be 20 rows and α = 0.05 / 20 = 0.0025;
-the periodic, medium+long and short panels are read at nominal 95 %
-as diagnostics and no "Bonferroni" claim is made about them.
+length. The periodic, medium+long and short panels are read at
+nominal 95 % as diagnostics and no "Bonferroni" claim is made about
+them.
 
 ### Full-97 (`pairwise_bootstrap_ci.csv`, 24 rows; `_clustered.csv` for 28-dataset resample)
 
@@ -306,10 +290,6 @@ this subset); three of the four separate at nominal 95 %.
 | 2L / best | arm 1 (12,500) vs arm 4 (600) | 1.0185 | [1.0015, 1.0370] | 0.0158 |
 | 6L / best | arm 1 (12,500) vs arm 4 (600) | 1.0104 | [0.9957, 1.0264] | 0.0865 |
 
-On this subset arm 4's step-600 backbone gives lower GM-Relative
-MASE than arm 3's step-11 800 and arm 1's step-12 500 at both head
-depths.
-
 ### Short-horizon subset (55 configs — every `dataset/*/short`, the disjoint complement of medium+long)
 
 Every trained-vs-step-600 backbone-amount contrast on `best` cells:
@@ -402,9 +382,7 @@ checkpoints while cross-batch sits at 0.0026 – 0.0050. The
 periodic-**specific** half of the prediction is not supported by the
 same measurement: on the mixed batch h-anchored = 0.860 – 0.914 and
 cross-batch = 0.0032 – 0.0036, i.e. the crowding pattern is
-approximately the same magnitude on both batch types. So under the
-pooled shape at C = 1 the prediction family gets about 0.3 % of the
-denominator on both batch types. The split removes the h-anchored
+approximately the same magnitude on both batch types. The split removes the h-anchored
 families from the f-side denominator by construction, and the
 measurement's f-side reflects that (arm 1 `log_neg_cross_batch` share
 of `L_pred`'s denominator: 0.90 mixed / 0.99 periodic; h-anchored
@@ -496,8 +474,7 @@ N = 1. The paired bootstrap measures within-run across-task
 variability; between-seed variance is not measured here and the
 card's single-seed noise band ±0.02 is comparable to every
 non-arm-5 point difference in the tables. `results_arm4/…_last_6L/all_results.csv`
-was reconstructed from `summary.txt` (raw file NUL-truncated on disk)
-and carries `MASE[0.5]` only. Deferred to follow-up cards, needed to close the card fully:
+was reconstructed from `summary.txt` and carries `MASE[0.5]` only. Deferred to follow-up cards, needed to close the card fully:
 (i) arm C per-task `all_results.csv` + paired CI vs arm C (the card's
 primary criterion); (ii) denominator share measured on arm C (the
 card's required measurement); (iii) a single-axis underfit backbone
