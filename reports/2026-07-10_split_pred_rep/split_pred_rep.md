@@ -104,16 +104,20 @@ nominal 95 % seven `last` rows separate across the three subsets
   0.9971) and both straddle 1; the joint axis's direction is not
   consistent across subsets.
 
-The compute-matched direction on the arm 3 vs arm 4 axis is stable —
-all eight `last` rows (2L + 6L across full-97 / periodic / medium+long
-/ short: 1.0119, 1.0093, 1.0160, 1.0239, 1.0228, 1.0140, 1.0036,
-1.0057) sit at or above 1; five of the eight `best`-cell rows on
-that axis run the other way (arm 3 better than arm 4: full-97 2L
-0.9953, full-97 6L 0.9771, periodic 6L 0.9908, short 2L 0.9699,
-short 6L 0.9489 — the last one clears α = 0.002083 under both schemes
-but at an 11,200-step confound), which reflects arm 4's step-600
-`best`-cell backbone selection rather than a compute-matched
-direction. Neither this contrast nor arm 1 vs arm 3
+The compute-matched arm 3 vs arm 4 axis has two independent `last`
+cells (2L / last and 6L / last), each sliced four ways for tabulation
+(full-97, periodic, medium+long, short); short + medium+long = full-97
+and periodic overlaps medium+long on 20 configs, so the eight subset
+re-aggregations are not eight independent comparisons. Under both
+schemes the point estimate is ≥ 1 in every slice (1.0119, 1.0093,
+1.0160, 1.0239, 1.0228, 1.0140, 1.0036, 1.0057), and only the
+medium+long rows separate at nominal 95 %. Five of the eight
+`best`-cell rows on the same axis run the other way (arm 3 better
+than arm 4: full-97 2L 0.9953, full-97 6L 0.9771, periodic 6L 0.9908,
+short 2L 0.9699, short 6L 0.9489 — the last one clears α = 0.002083
+under both schemes but at an 11,200-step confound), which reflects
+arm 4's step-600 `best`-cell backbone selection rather than a
+compute-matched direction. Neither this contrast nor arm 1 vs arm 3
 is matched on head-adaptation content (arms 3 / 4 head-trained
 30 000 steps on their own `best_loss.pth` step-11,800 / step-600
 backbones and only 10 000 on the evaluated step-12,500), so the
@@ -378,7 +382,7 @@ Other short-subset separators at nominal 95 % (arm-1/3/4):
 The MoCo direction reverses across horizons at compute-matched `last`
 cells: short 6L / last arm 1 vs arm 3 = 1.0200 [1.0008, 1.0432] task,
 [1.0021, 1.0387] clustered (MoCo on better; both schemes) against
-medium+long 2L / last 0.9717 [0.9520, 0.9926] task, [0.9473, 0.9975]
+medium+long 2L / last 0.9717 [0.9521, 0.9926] task, [0.9473, 0.9975]
 clustered (MoCo off better; both schemes). Both rows are at backbone
 step 12,500 for both arms. Head adaptation is asymmetric (arm 1: 40 k
 on the evaluated backbone; arm 3: 30 k on step-11,800 + 10 k on
@@ -430,10 +434,13 @@ same measurement: on the mixed batch h-anchored = 0.860 – 0.914 and
 cross-batch = 0.0032 – 0.0036, i.e. the crowding pattern is
 approximately the same magnitude on both batch types. So under the
 pooled shape at C = 1 the prediction family gets about 0.3 % of the
-denominator on both batch types, and the split does remove that
-crowding on the f side (arm 1: 0.90 mixed / 0.99 periodic), yet
-downstream GM-Relative MASE does not improve. A re-run on arm C's
-own checkpoint is the follow-up.
+denominator on both batch types. The split removes the h-anchored
+families from the f-side denominator by construction, and the
+measurement's f-side reflects that (arm 1 `log_neg_cross_batch` share
+of `L_pred`'s denominator: 0.90 mixed / 0.99 periodic; h-anchored
+share of `L_pred` = 0 by definition of the split). Downstream
+GM-Relative MASE does not improve. A re-run on arm C's own checkpoint
+is the follow-up.
 
 *Method (`scripts/gradient_share_measurement.py`; full table
 `results/gradient_share_measurement.csv`, 132 rows). Each backbone
