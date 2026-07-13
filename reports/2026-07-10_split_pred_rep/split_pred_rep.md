@@ -105,12 +105,15 @@ nominal 95 % seven `last` rows separate across the three subsets
   consistent across subsets.
 
 The compute-matched direction on the arm 3 vs arm 4 axis is stable —
-all six `last` rows (2L + 6L across full-97 / periodic / medium+long)
-sit above 1; three of the six `best`-cell rows on that axis run the
-other way (arm 3 better than arm 4: full-97 2L / best = 0.9953,
-full-97 6L / best = 0.9771, periodic 6L / best = 0.9908), which
-reflects arm 4's step-600 `best`-cell backbone selection rather than
-a compute-matched direction. Neither this contrast nor arm 1 vs arm 3
+all eight `last` rows (2L + 6L across full-97 / periodic / medium+long
+/ short: 1.0119, 1.0093, 1.0160, 1.0239, 1.0228, 1.0140, 1.0036,
+1.0057) sit at or above 1; five of the eight `best`-cell rows on
+that axis run the other way (arm 3 better than arm 4: full-97 2L
+0.9953, full-97 6L 0.9771, periodic 6L 0.9908, short 2L 0.9699,
+short 6L 0.9489 — the last one clears α = 0.002083 under both schemes
+but at an 11,200-step confound), which reflects arm 4's step-600
+`best`-cell backbone selection rather than a compute-matched
+direction. Neither this contrast nor arm 1 vs arm 3
 is matched on head-adaptation content (arms 3 / 4 head-trained
 30 000 steps on their own `best_loss.pth` step-11,800 / step-600
 backbones and only 10 000 on the evaluated step-12,500), so the
@@ -420,9 +423,17 @@ gradient distribution arm C's would not). The card's directional
 prediction (h-anchored much larger than cross-batch on the periodic
 batch under the pooled shape at C = 1) reads correctly on arm 4's
 weights at every measured step: on the periodic batch h-anchored
-(`hh_all + xs_allt`) sits at 0.87 – 0.90 across the four measured
-checkpoints while cross-batch sits at 0.003 – 0.005. A re-run on
-arm C's own checkpoint is the follow-up.
+(`hh_all + xs_allt`) sits at 0.867 – 0.901 across the four measured
+checkpoints while cross-batch sits at 0.0026 – 0.0050. The
+periodic-**specific** half of the prediction is not supported by the
+same measurement: on the mixed batch h-anchored = 0.860 – 0.914 and
+cross-batch = 0.0032 – 0.0036, i.e. the crowding pattern is
+approximately the same magnitude on both batch types. So under the
+pooled shape at C = 1 the prediction family gets about 0.3 % of the
+denominator on both batch types, and the split does remove that
+crowding on the f side (arm 1: 0.90 mixed / 0.99 periodic), yet
+downstream GM-Relative MASE does not improve. A re-run on arm C's
+own checkpoint is the follow-up.
 
 *Method (`scripts/gradient_share_measurement.py`; full table
 `results/gradient_share_measurement.csv`, 132 rows). Each backbone
