@@ -24,9 +24,7 @@ to isolate the MoCo axis, and arm 5 drops the InfoNCE denominator on the
 f side entirely, replacing `L_pred` with a BYOL-style alignment
 (`L = L_align + L_rep`). Arm 2 in the card's numbering (a λ-weighted
 split, `α L_pred + β L_rep`) is a follow-up not run here. Arm 6
-(`L_align` + MoCo) is part of this experiment and is still training
-at the time of writing; its cells appear as *pending* in the
-downstream table.
+(`L_align` + MoCo) is part of this experiment.
 
 **Answer.** No arm-1 / 3 / 4 full-97 pairwise contrast clears
 Bonferroni α = 0.05 / 24 = 0.0021 (smallest two-sided p = 0.0099,
@@ -69,7 +67,7 @@ three axes:
 | arm 3 (split + MoCo) | **1.1548** | 1.1683 | **1.1338** | 1.1511 |
 | arm 4 (pooled + MoCo) | 1.1602 | **1.1546** | 1.1603 | **1.1405** |
 | arm 5 (`L_align` + `L_rep`) | 1.3374 | 1.2883 | 1.2554 | 1.2201 |
-| arm 6 (`L_align` + MoCo) | *pending* | *pending* | *pending* | *pending* |
+| arm 6 (`L_align` + MoCo) | 1.2188 | 1.2133 | 1.1963 | 1.2033 |
 | arm C ref (champion, point reference) | 1.1682 | 1.1491 | 1.1561 | 1.1254 |
 
 *Boldface = column minimum across arms 1 / 3 / 4 / 5. Arm C values
