@@ -79,10 +79,10 @@ contrast is 6L / last 1.0239 [0.9979, 1.0643] (task-level, straddles
 1) / [1.0003, 1.0847] (7-dataset clustered, separates by 0.0003 on
 the lower bound) — direction consistent, but the separation is
 under the clustered scheme only and at the resolution floor of a
-7-cluster resample. None of the subset panels is in the Bonferroni family: at
-α = 0.05 / 24 ≈ 0.002083 none of these subset `last` rows clears; at
-nominal 95 % seven `last` rows separate across the three subsets
-(medium+long, periodic, short), on three axes:
+7-cluster resample. Subset panels are read at nominal 95 % as
+diagnostics and are outside the Bonferroni family; on that reading,
+seven `last` rows separate across the three subsets (medium+long,
+periodic, short), on three axes:
 - **arm 3 vs arm 4 (split ↔ pooled, MoCo fixed):** medium+long 2L /
   last 1.0228 (task) — pooled better; medium+long 6L / last 1.0140
   (task and clustered) — pooled better; periodic 6L / last 1.0239
@@ -90,11 +90,11 @@ nominal 95 % seven `last` rows separate across the three subsets
 - **arm 1 vs arm 3 (MoCo off ↔ on, split fixed):** medium+long 2L /
   last 0.9717 (task p = 0.0099; clustered p = 0.033) — MoCo off
   better; short 6L / last 1.0200 (task and clustered separating) —
-  MoCo on better. **The MoCo axis direction reverses across horizons
-  at compute-matched `last` cells**, both under both schemes.
-  Head-adaptation asymmetric on both rows (arm 1: 40 k on the
-  evaluated backbone; arm 3: 30 k on step-11 800 + 10 k on
-  step-12 500).
+  MoCo on better. Direction reverses across horizons at
+  compute-matched `last` cells (both schemes), but head-adaptation
+  content differs on both rows (arm 1: 40 k on step-12,500; arm 3:
+  30 k on step-11,800 + 10 k on step-12,500), so the reversal is not
+  attributable to the MoCo axis alone.
 - **arm 1 vs arm 4 (joint, split + no-MoCo ↔ pooled + MoCo):** periodic
   6L / last 1.0381 (task only; clustered [0.9961, 1.1029] straddles) —
   arm 4 wins on that row (convention `A/B < 1 ⇒ A beats B`; ratio
@@ -392,11 +392,16 @@ open item — it is one head-train + one eval, no new backbone.
 
 Other short-subset separators at nominal 95 % (arm-1/3/4):
 
-| cell | contrast | ratio A/B | 95 % CI task | two-sided p (task) |
-| --- | --- | --: | --- | --: |
-| 6L / best | arm 1 (12,500) vs arm 3 (11,800) | 1.0410 | [1.0147, 1.0725] | 0.0008 |
-| 6L / last | arm 1 vs arm 3 (both 12,500) | 1.0200 | [1.0008, 1.0432] | 0.040 |
-| 2L / last | arm 1 vs arm 4 (both 12,500) | 1.0237 | [1.0039, 1.0472] | 0.015 |
+| cell | contrast | ratio A/B | 95 % CI task | 95 % CI clustered (28 datasets) | two-sided p task / clustered |
+| --- | --- | --: | --- | --- | --: |
+| 6L / best | arm 1 (12,500) vs arm 3 (11,800) | 1.0410 | [1.0147, 1.0725] | [1.0159, 1.0680] | 0.0008 / 0.0007 |
+| 6L / last | arm 1 vs arm 3 (both 12,500) | 1.0200 | [1.0008, 1.0432] | [1.0021, 1.0387] | 0.040 / 0.028 |
+| 2L / last | arm 1 vs arm 4 (both 12,500) | 1.0237 | [1.0039, 1.0472] | [1.0009, 1.0476] | 0.015 / 0.040 |
+| 2L / best\* | arm 1 (12,500) vs arm 3 (11,800) | 1.0247 | [0.9997, 1.0556] straddles | [1.0019, 1.0483] separates | 0.053 / 0.033 |
+
+*\* 2L / best arm 1 vs arm 3 straddles under the task scheme and
+separates under clustering only; `best`-cell rows also hit §Selection
+rule.*
 
 The MoCo direction reverses across horizons at compute-matched `last`
 cells: short 6L / last arm 1 vs arm 3 = 1.0200 [1.0008, 1.0432] task,
