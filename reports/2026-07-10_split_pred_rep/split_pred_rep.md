@@ -302,9 +302,10 @@ The card's secondary read. Compute-matched (`last`, all arms at step
 
 Task-level: three rows separate at nominal 95 %. Under the more
 conservative dataset-clustered bootstrap (14 base datasets in the
-subset — `bizitobs_l2c`, `bizitobs_service`, `electricity`, `ett1`,
-`ett2`, `jena_weather`, `kdd_cup_2018`, `loop_seattle`, `m4_hourly`,
-`m4_monthly`, `m4_quarterly`, `m_dense`, `solar`, `sz_taxi`), 2L / last
+subset — `bitbrains_fast_storage`, `bitbrains_rnd`,
+`bizitobs_application`, `bizitobs_l2c`, `bizitobs_service`,
+`electricity`, `ett1`, `ett2`, `jena_weather`, `kdd_cup_2018`,
+`loop_seattle`, `m_dense`, `solar`, `sz_taxi`), 2L / last
 arm 3 vs arm 4 falls to [0.9960, 1.0490] and straddles 1 (p = 0.046,
 just above the 0.025 one-sided threshold); only 6L / last arm 3 vs
 arm 4 and 2L / last arm 1 vs arm 3 stay separated under both schemes.
