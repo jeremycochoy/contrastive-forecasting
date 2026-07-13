@@ -39,19 +39,11 @@ arms 1 / 3 / 4 sits above 1 on all twelve rows; at
 `n_boot` = 200,000 eleven of the twelve clear α = 0.00125 (worst-row
 6L / last arm 5 vs arm 1 has two-sided p = 0.00178 — fails α by 4
 × MC SE; the other eleven clear either at zero events or well below
-threshold). Arm 6 point estimates sit above (worse than) arms 1 / 3
-/ 4 on every cell and below (better than) arm 5 on every cell. All
-twelve arm 1 / 3 / 4 vs arm 6 rows separate at nominal 95 % with
-arms 1 / 3 / 4 better (ratios A / B = 0.947 – 0.970); at
-`n_boot` = 200,000 (`pairwise_bootstrap_ci_arm6_nboot200k.csv`)
-**four of the twelve clear α = 0.00125** (2L / best arm 3 / 4 vs
-arm 6, 2L / last arm 4 vs arm 6, 6L / best arm 3 vs arm 6; 2L / last
-arm 4 vs arm 6 clears by only 1.0 × MC SE, p₂ = 0.00114 vs α, SE
-0.000107 — the other three clear by ≥ 6.5 × MC SE). Two of
-the four arm 5 vs arm 6 rows separate at nominal 95 % (2L / best
-1.0973; 2L / last 1.0618 — arm 6 better) but at `n_boot` = 200,000
-none clear α = 0.00125 (smallest two-sided p = 0.00772). Details in
-§Full-97.
+threshold). Arm 6 point estimates sit above (worse than) arms 1 / 3 / 4 on every
+cell and below (better than) arm 5 on every cell; all twelve arm 1 /
+3 / 4 vs arm 6 rows separate at nominal 95 % (arms 1 / 3 / 4 better,
+ratios 0.947 – 0.970), and at `n_boot` = 200,000 four rows clear
+Bonferroni α = 0.00125 (details in §Full-97).
 On point estimates the pooled champion (arm C) still leads every new
 arm at the `last` cells, but the primary criterion — a paired
 bootstrap of each arm against arm C — was not run because arm C's
@@ -174,12 +166,9 @@ score arms 5 / 6's actual optimisation targets. Sampled step values:
 | arm 6 | 0.7307 / 0.0875 | 0.7249 / 0.1529 | 0.6377 / 0.0991 | 0.5405 / 0.0689 | 0.0392 (step 10,587) |
 
 Arms 5 and 6 read this diagnostic very differently: arm 5's `auc` /
-`top1` pin at 1.0000 across every logged step on both `mixed` and
-`periodic` batches (no drift, no dip), while arm 5's backbone was
-never trained on the batch-cross f ↔ h′ retrieval task. Whether the
-pinning reflects arm 5's BYOL objective happening to render the same
-candidates trivially retrievable, or something else, is not tested
-here. Arm 6's
+`top1` pin at 1.0000 across every logged step (no drift, no dip),
+while arm 5's backbone was never trained on the batch-cross f ↔ h′
+retrieval task. Arm 6's
 `L_align_moco` aligns student encoder to teacher encoder at the
 *same* timestep — it never touches the next-step f ↔ h′ retrieval
 setup — and its `auc` / `top1` collapse toward random (`auc` from
