@@ -168,16 +168,20 @@ def gradient_share_stack() -> None:
 
 
 FOREST_ROWS = [
-    ("2L / last", "arm 3 vs arm 4", "split ↔ pooled  (MoCo fixed)", "arm3", "arm4"),
-    ("6L / last", "arm 3 vs arm 4", "split ↔ pooled  (MoCo fixed)", "arm3", "arm4"),
-    ("2L / last", "arm 1 vs arm 3", "MoCo off ↔ on  (split fixed)", "arm1", "arm3"),
-    ("6L / last", "arm 1 vs arm 3", "MoCo off ↔ on  (split fixed)", "arm1", "arm3"),
-    ("2L / last", "arm 1 vs arm 4", "joint (split+no-MoCo ↔ pooled+MoCo)", "arm1", "arm4"),
-    ("6L / last", "arm 1 vs arm 4", "joint (split+no-MoCo ↔ pooled+MoCo)", "arm1", "arm4"),
-    ("6L / best*", "arm 1 vs arm 3", "MoCo — ckpt-selection confound", "arm1", "arm3"),
+    ("2L / last",  "arm 3 vs arm 4", "split ↔ pooled  (MoCo fixed)", "arm3", "arm4"),
+    ("6L / last",  "arm 3 vs arm 4", "split ↔ pooled  (MoCo fixed)", "arm3", "arm4"),
+    ("2L / last",  "arm 1 vs arm 3", "MoCo off ↔ on  (split fixed)", "arm1", "arm3"),
+    ("6L / last",  "arm 1 vs arm 3", "MoCo off ↔ on  (split fixed)", "arm1", "arm3"),
+    ("2L / last",  "arm 1 vs arm 4", "joint (split+no-MoCo ↔ pooled+MoCo)", "arm1", "arm4"),
+    ("6L / last",  "arm 1 vs arm 4", "joint (split+no-MoCo ↔ pooled+MoCo)", "arm1", "arm4"),
+    ("2L / best*", "arm 3 vs arm 4", "split — 11,200-step gap", "arm3", "arm4"),
     ("6L / best*", "arm 3 vs arm 4", "split — 11,200-step gap", "arm3", "arm4"),
-    ("2L / last", "arm 5 vs arm 1", "L_align+L_rep ↔ split", "arm5", "arm1"),
-    ("6L / last", "arm 5 vs arm 1", "L_align+L_rep ↔ split", "arm5", "arm1"),
+    ("2L / best*", "arm 1 vs arm 3", "MoCo — ckpt-selection confound", "arm1", "arm3"),
+    ("6L / best*", "arm 1 vs arm 3", "MoCo — ckpt-selection confound", "arm1", "arm3"),
+    ("2L / best*", "arm 1 vs arm 4", "joint — ckpt-selection confound", "arm1", "arm4"),
+    ("6L / best*", "arm 1 vs arm 4", "joint — ckpt-selection confound", "arm1", "arm4"),
+    ("2L / last",  "arm 5 vs arm 1", "L_align+L_rep ↔ split", "arm5", "arm1"),
+    ("6L / last",  "arm 5 vs arm 1", "L_align+L_rep ↔ split", "arm5", "arm1"),
 ]
 
 
@@ -198,7 +202,7 @@ def _lookup(df, cell, arm_a, arm_b):
 def ci_forest() -> None:
     task = pd.read_csv(EXP / "results" / "pairwise_bootstrap_ci.csv")
     clu  = pd.read_csv(EXP / "results" / "pairwise_bootstrap_ci_clustered.csv")
-    fig, ax = plt.subplots(figsize=(10.5, 5.6))
+    fig, ax = plt.subplots(figsize=(10.5, 7.2))
     n = len(FOREST_ROWS)
     for i, (cell, contrast, ax_label, a, b) in enumerate(FOREST_ROWS):
         yt = n - 1 - i
