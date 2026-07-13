@@ -287,13 +287,15 @@ both are step-confounded (700-step gap for arm 1 vs arm 3;
 
 Arm 5 vs arms 1 / 3 / 4 (12 rows, in `pairwise_bootstrap_ci.csv`
 at `n_boot` = 20 000; re-run at `n_boot` = 200 000 in
-`pairwise_bootstrap_ci_arm5_nboot200k.csv`): the CSVs store these
-rows as `arm_a = arm{1,3,4}`, `arm_b = arm5` (ratio arm X / arm 5 in
-[0.8635, 0.9472], i.e. arm 5 loses); the report quotes the
-reciprocal arm 5 / arm X so all ratios face the same "> 1 → worse"
-convention as the arm-1 / 3 / 4 pairs. Reciprocals: task-level ratios
-[1.0557, 1.1581], lower bounds [1.0220, 1.1116]; all twelve above 1
-under both the task-level and clustered schemes. At `n_boot` = 200 000
+`pairwise_bootstrap_ci_arm5_nboot200k.csv`): the 20 000 CSV stores
+these rows as `arm_a = arm{1,3,4}`, `arm_b = arm5` (ratio arm X / arm
+5 in [0.8635, 0.9472], i.e. arm 5 loses); the 200 000 CSV stores them
+arm-5-first as `arm_a = arm5`, `arm_b = arm{1,3,4}` (ratio arm 5 / arm
+X > 1). Report values below are quoted in the arm 5 / arm X direction
+so all ratios face the same "> 1 → worse" convention as the arm-1 / 3
+/ 4 pairs: task-level ratios [1.0557, 1.1581], lower bounds [1.0220,
+1.1116]; all twelve above 1 under both the task-level and clustered
+schemes. At `n_boot` = 200 000
 all twelve rows clear Bonferroni α = 0.05 / 24 ≈ 0.002083. Eight of
 the twelve rows carry a zero-event count out of 200 000
 (rule-of-three upper bound: one-sided p < 3 / 200 000 = 1.5 × 10⁻⁵,
@@ -320,8 +322,12 @@ card's canonical single-axis contrast — 6L / last arm 3 vs arm 4 =
 better than split at compute-matched step 12 500 on the exact cluster
 the card's mechanism is about. The lone task-level exception
 6L / last arm 1 vs arm 4 widens to [0.9961, 1.1029] under clustering.
-Eight of twelve arm-5 CIs sit above 1; four straddle. Full 24 rows
-in `pairwise_bootstrap_ci_periodic.csv` (task) and
+Eight of twelve arm-5 CIs sit above 1 in the arm 5 / arm X
+convention used here (in the CSV, which stores rows as
+`arm_a = arm{1,3,4}`, `arm_b = arm5`, the same eight sit **below** 1
+because ratio arm X / arm 5 = 1 / (arm 5 / arm X)); four straddle
+under either convention. Full 24 rows in
+`pairwise_bootstrap_ci_periodic.csv` (task) and
 `pairwise_bootstrap_ci_periodic_clustered.csv` (clustered).
 
 ### Medium+long horizon subset (42 configs — every `dataset/*/{medium,long}`)
