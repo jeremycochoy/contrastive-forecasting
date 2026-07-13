@@ -42,11 +42,14 @@ arms 1 / 3 / 4 sits above 1 on all twelve rows; at
 threshold). Arm 6 point estimates sit above (worse than) arms 1 / 3
 / 4 on every cell and below (better than) arm 5 on every cell. All
 twelve arm 1 / 3 / 4 vs arm 6 rows separate at nominal 95 % with
-arms 1 / 3 / 4 better (ratios A / B = 0.947 – 0.970); three clear
-α = 0.00125 at `n_boot` = 20 000 (2L / best arm 3 / 4 vs arm 6 and
-6L / best arm 3 vs arm 6). Two of the four arm 5 vs arm 6 rows
-separate at nominal 95 % (2L / best 1.0973; 2L / last 1.0618 — arm 6
-better); the other two straddle 1 (6L cells; details in §Full-97).
+arms 1 / 3 / 4 better (ratios A / B = 0.947 – 0.970); at
+`n_boot` = 200 000 (`pairwise_bootstrap_ci_arm6_nboot200k.csv`)
+**four of the twelve clear α = 0.00125** (2L / best arm 3 / 4 vs
+arm 6, 2L / last arm 4 vs arm 6, 6L / best arm 3 vs arm 6). Two of
+the four arm 5 vs arm 6 rows separate at nominal 95 % (2L / best
+1.0973; 2L / last 1.0618 — arm 6 better) but at `n_boot` = 200 000
+none clear α = 0.00125 (smallest two-sided p = 0.00772). Details in
+§Full-97.
 On point estimates the pooled champion (arm C) still leads every new
 arm at the `last` cells, but the card's primary criterion — a paired
 bootstrap of each arm against arm C — was not run because arm C's
@@ -123,8 +126,9 @@ adaptation content either.
 "downstream head-train on each backbone's `best_loss.pth` (argmin of
 its own smoothed training loss)". No held-out backbone-validation
 loss enters the protocol, and the five arms optimise different
-objectives on different scales (arm 1 ≈ 24 → 25; arm 3 ≈ 23; arm 4
-≈ 3.3 → 3.6; arm 6 ≈ 31 → 17). As shipped, the rule fires
+objectives on different scales (all quoted from step 600 → step
+12,500: arm 1 ≈ 24 → 25; arm 3 ≈ 23 → 23; arm 4 ≈ 3.3 → 3.6; arm 5
+≈ 18 → 18; arm 6 ≈ 17.5 → 17.0). As shipped, the rule fires
 inconsistently across the five arms because of a
 checkpoint-promotion gap on arm 1: arm 1's `FINAL.pth` equals
 `final.pth` (step 12,500) — its post-resume `best_loss.pth` was never
@@ -148,15 +152,34 @@ separation as evidence about the loss shape confounds the three.
 `auc` and `top1` are the batch-cross InfoNCE retrieval diagnostics
 logged next to `loss` in every backbone losses CSV; they score the
 f-anchored prediction task that `L_pred` optimises (retrieval of the
-positive `h'_{t+1}` against the cross-batch f ↔ h′ candidates) and
-they do not score `L_rep`, which has no positive; arm 5 is
-therefore not reported below. Sampled step values:
+positive `h'_{t+1}` against the cross-batch f ↔ h′ candidates). Arms
+1 / 3 / 4 use this positive directly (arms 1 / 3 in `L_pred`, arm 4
+in the pooled shape). Arms 5 / 6 have no forecaster-latent positive
+(arm 5's `L_align` is BYOL alignment, arm 6's `L_align_moco` is same-
+timestep encoder alignment), so `auc` / `top1` are logged from the
+diagnostic head but not trained against; the columns therefore do not
+score arms 5 / 6's actual optimisation targets. Sampled step values:
 
 | arm | step 600 | step 2,000 | step 6,000 | step 12,500 | `top1` min at step ≥ 600 |
 | --- | --- | --- | --- | --- | --- |
 | arm 1 | auc 1.0000 / top1 0.9998 | 0.9999 / 0.9835 | 1.0000 / 0.9952 | 1.0000 / 0.9926 | 0.8348 (step 3,343) |
 | arm 3 | 1.0000 / 0.9998 | 1.0000 / 0.9992 | 1.0000 / 0.9996 | 1.0000 / 0.9993 | 0.9825 (step 3,538) |
 | arm 4 | 1.0000 / 0.9993 | 1.0000 / 0.9995 | 1.0000 / 0.9994 | 1.0000 / 0.9974 | 0.9505 (step 934) |
+| arm 5 | 1.0000 / 1.0000 | 1.0000 / 1.0000 | 1.0000 / 1.0000 | 1.0000 / 1.0000 | 1.0000 |
+| arm 6 | 0.7307 / 0.0875 | 0.7249 / 0.1529 | 0.6377 / 0.0991 | 0.5405 / 0.0689 | 0.0392 (step 10,587) |
+
+Arms 5 and 6 read this diagnostic very differently: arm 5's BYOL
+target is student-vs-teacher-latent similarity on the same held-out
+data used by the retrieval head, so the head aces the retrieval task
+whether or not it is optimised for it (pinned at 1.0000). Arm 6's
+`L_align_moco` aligns student encoder to teacher encoder at the
+*same* timestep — it never touches the next-step f ↔ h′ retrieval
+setup — and its `auc` / `top1` collapse toward random (`auc` from
+0.73 at step 600 to 0.54 at step 12,500; `top1` from 0.09 to 0.07;
+`auc` min 0.4749 at step 10,200 sits below chance). This is not a
+retrieval-saturation failure the way arm 1 / 4's dips are; it is the
+diagnostic reflecting that arm 6's backbone is never trained to
+predict.
 
 Arm 1's `top1` sits below 0.99 at 5,479 of 11,901 logged steps ≥ 600
 (46.0 %). Total training `loss` rises after step 600 on both arms
