@@ -173,11 +173,13 @@ score arms 5 / 6's actual optimisation targets. Sampled step values:
 | arm 5 | 1.0000 / 1.0000 | 1.0000 / 1.0000 | 1.0000 / 1.0000 | 1.0000 / 1.0000 | 1.0000 |
 | arm 6 | 0.7307 / 0.0875 | 0.7249 / 0.1529 | 0.6377 / 0.0991 | 0.5405 / 0.0689 | 0.0392 (step 10,587) |
 
-Arms 5 and 6 read this diagnostic very differently: arm 5's BYOL
-target is student-vs-teacher-latent similarity on the same
-batch-cross candidate set the retrieval head scores, so the head
-aces the retrieval task whether or not it is optimised for it
-(pinned at 1.0000). Arm 6's
+Arms 5 and 6 read this diagnostic very differently: arm 5's `auc` /
+`top1` pin at 1.0000 across every logged step on both `mixed` and
+`periodic` batches (no drift, no dip), while arm 5's backbone was
+never trained on the batch-cross f ↔ h′ retrieval task. Whether the
+pinning reflects arm 5's BYOL objective happening to render the same
+candidates trivially retrievable, or something else, is not tested
+here. Arm 6's
 `L_align_moco` aligns student encoder to teacher encoder at the
 *same* timestep — it never touches the next-step f ↔ h′ retrieval
 setup — and its `auc` / `top1` collapse toward random (`auc` from
@@ -260,6 +262,20 @@ the 40-row family's threshold). The three other non-zero rows have
 two-sided p = 0.00093 (6L / best arm 5 vs arm 4), 0.00032 (6L / best
 arm 5 vs arm 1) and 0.00012 (6L / last arm 5 vs arm 3), all below α =
 0.00125.
+
+Arm 6 vs arms 1 / 3 / 4 (12 rows, task-level, in
+`pairwise_bootstrap_ci.csv` at `n_boot` = 20,000; re-run at `n_boot` =
+200,000 in `pairwise_bootstrap_ci_arm6_nboot200k.csv`): all twelve
+task-level ratios (arm 1 / 3 / 4 vs arm 6 direction) 0.947 – 0.970,
+upper bounds all below 1. At `n_boot` = 200,000 four rows clear
+α = 0.00125 — 2L / best arm 3 vs arm 6 (p₂ = 0.00070, +6.6 × MC SE),
+2L / best arm 4 vs arm 6 (p₂ = 0.00002, +87 × MC SE), 2L / last arm 4
+vs arm 6 (p₂ = 0.00114, +1.03 × MC SE — clears by ~1 MC SE only) and
+6L / best arm 3 vs arm 6 (p₂ = 0.00022, +22 × MC SE); the remaining
+eight rows fail α (two-sided p 0.00185 – 0.02940). Arm 5 vs arm 6
+task-level: 2 of 4 rows separate at nominal 95 % (2L / best arm 5 vs
+arm 6 = 1.0973; 2L / last arm 5 vs arm 6 = 1.0618, both arm 6 lower);
+at `n_boot` = 200,000 none clear α (smallest two-sided p = 0.00772).
 
 ### Periodic-cluster subset (37 configs — `solar/`, `electricity/`, `ett1/`, `m4_hourly/`, `bizitobs_*`)
 
