@@ -36,10 +36,8 @@ Bonferroni α = 0.05 / 40 = 0.00125 (smallest two-sided p = 0.0099,
 compute-matched `last` CI on the full-97 panel separates from 1 at
 nominal 95 % under either bootstrap scheme (see §Full-97). Arm 5 vs
 arms 1 / 3 / 4 sits above 1 on all twelve rows; at
-`n_boot` = 200,000 eleven of the twelve clear α = 0.00125 (worst-row
-6L / last arm 5 vs arm 1 has two-sided p = 0.00178 — fails α by 4
-× MC SE; the other eleven clear either at zero events or well below
-threshold). Arm 6 point estimates sit above (worse than) arms 1 / 3 / 4 on every
+`n_boot` = 200,000 eleven of the twelve clear α = 0.00125 (details in
+§Full-97). Arm 6 point estimates sit above (worse than) arms 1 / 3 / 4 on every
 cell and below (better than) arm 5 on every cell; all twelve arm 1 /
 3 / 4 vs arm 6 rows separate at nominal 95 % (arms 1 / 3 / 4 better,
 ratios 0.947 – 0.970), and at `n_boot` = 200,000 four rows clear
@@ -173,10 +171,7 @@ retrieval task. Arm 6's
 *same* timestep — it never touches the next-step f ↔ h′ retrieval
 setup — and its `auc` / `top1` collapse toward random (`auc` from
 0.73 at step 600 to 0.54 at step 12,500; `top1` from 0.09 to 0.07;
-`auc` min 0.4749 at step 10,200 sits below chance). This is not a
-retrieval-saturation failure the way arm 1 / 4's dips are; it is the
-diagnostic reflecting that arm 6's backbone is never trained to
-predict.
+`auc` min 0.4749 at step 10,200 sits below chance).
 
 Arm 1's `top1` sits below 0.99 at 5,479 of 11,901 logged steps ≥ 600
 (46.0 %). Total training `loss` rises after step 600 on both arms
