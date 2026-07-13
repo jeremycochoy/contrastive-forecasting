@@ -173,20 +173,28 @@ count (30 k + 10 k both) but the head warmed up on very different
 backbones (step 11 800 vs step 600), so it is not matched on
 adaptation content either.
 
-**Selection rule for the `best` column.** `best_loss.pth` is the
-argmin of *each arm's own smoothed training loss*, and the four arms
-optimise different objectives on different scales (arm 1 ≈ 24 → 25;
-arm 3 ≈ 23; arm 4 ≈ 3.3 → 3.6; arm 5 ≈ 18 → 18). No held-out
-backbone-validation loss enters the protocol. So the `best` column
-selects step 12,500 / 11,800 / 600 / 11,800 across the four arms not
-because those are the best backbones on some shared criterion but
-because each arm's own loss curve has a different shape — arm 4's
-never returns below its step-600 value, so it selects step 600 by
-construction. Six of the twelve arm-1 / 3 / 4 rows in the Bonferroni
-family are `best` rows, and they mix the loss-shape axis under test
-with a checkpoint-selection axis that the loss shape itself
-determines. Reading a `best`-row separation as evidence about the
-loss shape confounds the two.
+**Selection rule for the `best` column.** The rule as documented is
+"downstream head-train on each backbone's `best_loss.pth` (argmin of
+its own smoothed training loss)". No held-out backbone-validation
+loss enters the protocol, and the four arms optimise different
+objectives on different scales (arm 1 ≈ 24 → 25; arm 3 ≈ 23; arm 4
+≈ 3.3 → 3.6; arm 5 ≈ 18 → 18). As shipped, the rule fires
+inconsistently across the four arms because of a
+checkpoint-promotion gap on arm 1: arm 1's `FINAL.pth` equals
+`final.pth` (step 12,500) — its post-resume `best_loss.pth` was never
+saved (the run log has zero `Saved …_best_loss.pth` events after
+resume at step 900) so the shipped `best` artefact is the final
+checkpoint, not the argmin. Arms 3 / 4 / 5's `FINAL.pth` all equal
+their own `best_loss.pth` (steps 11,800 / 600 / 11,800). So the
+`best` column scores 12,500 / 11,800 / 600 / 11,800 across the four
+arms: arm 1's is the final checkpoint (rule-off); arm 4's is the
+argmin of a curve that never returns below step 600 (rule-on but
+early-fit); arm 3 / 5's are argmins of curves that keep improving
+(rule-on late). Six of the twelve arm-1 / 3 / 4 rows in the
+Bonferroni family are `best` rows, and they mix the loss-shape axis
+under test with two separate checkpoint-selection axes (arm 1's
+promotion gap; arm 4's early-fit curve). Reading a `best`-row
+separation as evidence about the loss shape confounds the three.
 
 ## f-anchored retrieval saturation
 
@@ -350,7 +358,7 @@ depths.
 
 Every trained-vs-step-600 backbone-amount contrast on `best` cells:
 
-| cell | contrast (backbone steps A / B) | ratio A/B | 95 % CI task | 95 % CI clustered (25 datasets) | verdict |
+| cell | contrast (backbone steps A / B) | ratio A/B | 95 % CI task | 95 % CI clustered (28 datasets) | verdict |
 | --- | --- | --: | --- | --- | --- |
 | 2L / best | arm 1 (12,500) vs arm 4 (600) | 0.9939 | [0.9650, 1.0281] | [0.9660, 1.0229] | straddles |
 | 6L / best | arm 1 (12,500) vs arm 4 (600) | 0.9878 | [0.9692, 1.0084] | [0.9676, 1.0084] | straddles |
