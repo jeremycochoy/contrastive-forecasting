@@ -1,4 +1,4 @@
-# No arm 1 / 3 / 4 contrast on the full 97-config GM-Relative MASE panel clears Bonferroni α = 0.05 / 24 = 0.0021 (best- and last-cell contrasts alike; smallest two-sided p = 0.0099); arm 5 (`L_align + L_rep`) regresses on every scored evaluation (all 12 rows clear α at `n_boot` = 200 000); the card's primary criterion — paired bootstrap vs the pooled champion — is unmet on this branch and champion `last`-cell point-estimate gaps sit inside the card's ±0.02 single-seed band
+# Splitting the contrastive loss into prediction and repulsion terms does not improve GM-Relative MASE at any properly controlled comparison; replacing the prediction term with BYOL alignment makes it clearly worse; the primary paired-CI-vs-champion criterion is unmet on this branch
 
 **Definitions.** *GM-Relative MASE* is the geometric mean, over the 97
 GIFT-Eval forecasting configs, of `(model MASE) / (seasonal-naive
@@ -51,8 +51,8 @@ the `last` cells (2L 1.1491 vs the best new arm's 1.1546; 6L 1.1254
 vs 1.1405); arm C's per-task file is on the sweep tree only, so
 neither gap has a CI on this branch, and both gaps sit inside the
 card's ±0.02 single-seed noise band. Arm 4's `best` cells run on a
-step-600 backbone (600 / 12,500 = 4.8 % of training) and score at or
-below arms 1 / 3's step-12,500 / step-11,800 `best` cells on the
+step-600 backbone (600 / 12,500 = 4.8 % of training) and score
+strictly below arms 1 / 3's step-12,500 / step-11,800 `best` cells on the
 medium+long horizon subset (all four ratios above 1, i.e. arm 4
 better; three separate at nominal 95 %). The card's canonical
 split-vs-pooled contrast — arm 3 vs arm 4 with MoCo held fixed on
@@ -65,14 +65,22 @@ split; on the periodic subset (the cluster the card's mechanism is
 specifically about) the same contrast is 6L / last 1.0239 [1.0003,
 1.0847] under the dataset-clustered bootstrap — again pooled better
 than split. Neither subset panel is in the Bonferroni family: at
-α = 0.05 / 24 ≈ 0.002083 none of these subset rows clears; at nominal
-95 % three rows separate (medium+long 2L / last task, medium+long 6L /
-last under both schemes, periodic 6L / last clustered), all in the
-direction pooled better than split. The directional consistency is
-on the compute-matched `last` cells only: on `best` cells the
-arm 3 vs arm 4 axis runs the other way at 6L on two of the three
-panels (full-97 = 0.9771, periodic = 0.9908), which reflects arm 4's
-step-600 `best`-cell backbone and is not a compute-matched read. Neither this
+α = 0.05 / 24 ≈ 0.002083 none of these subset `last` rows clears; at
+nominal 95 % three `last` rows separate (medium+long 2L task,
+medium+long 6L under both schemes, periodic 6L clustered), all on the
+arm 3 vs arm 4 axis in the direction pooled better than split. Two
+subset `best` rows on the same axis do clear α (medium+long, arm 3
+vs arm 4 at both head depths: two-sided p < 1 × 10⁻⁴ and p = 0.0005),
+but the `best` cells here compare arm 3 at step 11 800 against arm 4
+at step 600 — the axis is confounded with the 11 200-step gap and no
+compute-matched direction can be read off them. The compute-matched
+direction on the arm 3 vs arm 4 axis is stable across the three
+`last` rows; on `best` cells the same axis runs the other way at 6L
+on two of the three panels (full-97 = 0.9771, periodic = 0.9908),
+reflecting arm 4's step-600 `best`-cell backbone selection. The arm 1
+vs arm 4 axis (joint: split + no-MoCo ↔ pooled + MoCo) runs slightly
+below 1 at medium+long `last` (0.9939, 0.9971), so the "pooled
+better" direction is on the single-axis contrast only. Neither this
 contrast nor arm 1 vs arm 3 is matched on head-adaptation content
 (arms 3 / 4 head-trained 30 000 steps on their own `best_loss.pth`
 step-11,800 / step-600 backbones and only 10 000 on the evaluated
@@ -81,7 +89,7 @@ not on head adaptation.
 
 ![GM-Relative MASE across arms and (head, checkpoint) scored evaluations.](plots/headline_relmase.png)
 
-![Paired-bootstrap 95 % CIs on GM-Relative MASE ratios. Task-level bootstrap (top per row) and dataset-clustered bootstrap (bottom per row); * marks step- or checkpoint-selection-confounded rows.](plots/ci_forest.png)
+![Paired-bootstrap 95 % CIs on GM-Relative MASE ratios — curated subset of 10 of 24 full-97 rows (`FOREST_ROWS` in `plots/_make_plots.py`; full panel in the tables below), `n_boot` = 20 000, seed 42. Task-level bootstrap (top per row) and 28-dataset-clustered bootstrap (bottom per row); * marks step- or checkpoint-selection-confounded rows.](plots/ci_forest.png)
 
 ## Downstream GM-Relative MASE
 
@@ -181,7 +189,9 @@ all for arm 1.
 the divisor cancels in the paired ratio. Driver:
 `experiments/2026-07-10_split_pred_rep/scripts/build_ci_panel.py`.
 Output CSVs live in the same `results/` directory. Ratio `A/B < 1`
-means arm A beats arm B. Bonferroni family: the 24-contrast full-97
+means arm A beats arm B. The one-sided `p_a_beats_b` column stored in
+every CSV is the bootstrap proportion `P(ratio A/B < 1)`; the
+two-sided p we quote is `2 · min(p, 1 − p)`. Bonferroni family: the 24-contrast full-97
 panel (6 arm pairs × 4 (head, ckpt) cells) at α = 0.05 / 24 ≈ 0.002083;
 the periodic and medium+long panels are read at nominal 95 % as
 diagnostics and no "Bonferroni" claim is made about them. When arm 6
