@@ -31,9 +31,12 @@ downstream table.
 **Answer.** No arm-1 / 3 / 4 pairwise contrast in the 12-row full-97
 panel clears Bonferroni α = 0.05 / 24 = 0.0021 (the *smallest* two-sided
 p on that panel is 0.0099, 6L / best arm 3 vs arm 4, which is
-11,200-step confounded); no arm-1 / 3 / 4 compute-matched `last`-cell CI separates
-from 1 at nominal 95 % under either the task-level or the
-28-dataset-clustered bootstrap. Arm 5 vs arms 1 / 3 / 4 (12 rows,
+11,200-step confounded); on the full-97 panel no arm-1 / 3 / 4
+compute-matched `last`-cell CI separates from 1 at nominal 95 %
+under either the task-level or the 28-dataset-clustered bootstrap
+(the subset panels are read at nominal 95 % as diagnostics and are
+listed below; five subset `last` rows do separate at nominal 95 %
+on three different axes). Arm 5 vs arms 1 / 3 / 4 (12 rows,
 task-level ratios [1.0557, 1.1581]; task-level lower bounds
 [1.0220, 1.1116] at `n_boot` = 20 000 and [1.0217, 1.1112] at
 `n_boot` = 200 000) sits above 1 on every row; at `n_boot` = 200 000
