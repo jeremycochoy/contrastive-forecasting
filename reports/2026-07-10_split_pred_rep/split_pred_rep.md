@@ -34,8 +34,10 @@ p on that panel is 0.0099, 6L / best arm 3 vs arm 4, which is
 11,200-step confounded); no compute-matched `last`-cell CI separates
 from 1 at nominal 95 % under either the task-level or the
 28-dataset-clustered bootstrap. Arm 5 vs arms 1 / 3 / 4 (12 rows,
-task-level ratios [1.0557, 1.1581], lower bounds [1.0220, 1.1116])
-sits above 1 on every row; at `n_boot` = 200 000 all twelve rows
+task-level ratios [1.0557, 1.1581]; task-level lower bounds
+[1.0220, 1.1116] at `n_boot` = 20 000 and [1.0217, 1.1112] at
+`n_boot` = 200 000) sits above 1 on every row; at `n_boot` = 200 000
+all twelve rows
 clear α = 0.05 / 24 ≈ 0.002083 (all two-sided p ≤ 0.0018; worst-case margin 2.3 × MC SE
 on the worst row, `pairwise_bootstrap_ci_arm5_nboot200k.csv`). Note
 that if arm 6 (pending, still training) lands, its cells enter the
@@ -56,16 +58,18 @@ better; three separate at nominal 95 %). The card's canonical
 split-vs-pooled contrast — arm 3 vs arm 4 with MoCo held fixed on
 both sides — is 1.0119 [0.9970, 1.0267] at 2L / last and 1.0093
 [0.9960, 1.0269] at 6L / last on the full-97 panel; on the medium+long
-subset it is 2L / last 1.0228 [1.0059, 1.0403] and 6L / last 1.0140
-[1.0031, 1.0252] (task-level nominal 95 %) in the direction of pooled
-better than split, and on the periodic subset (the cluster the card's
-mechanism is specifically about) the same contrast is 6L / last
-1.0239 [1.0003, 1.0847] under the dataset-clustered bootstrap — again
-pointing pooled better than split. Neither subset panel is in the
-Bonferroni family: at α = 0.05 / 24 ≈ 0.002083 none of these subset
-rows clears; at nominal 95 % they consistently point one way on the
-axis the card exists to test, and no arm-1 / 3 / 4 point estimate
-runs the other way on either subset. Neither this
+subset it is 2L / last 1.0228 [1.0059, 1.0403] (task) / [0.9960, 1.0490]
+(clustered — straddles 1) and 6L / last 1.0140 [1.0031, 1.0252] (task) /
+[1.0044, 1.0251] (clustered) in the direction of pooled better than
+split; on the periodic subset (the cluster the card's mechanism is
+specifically about) the same contrast is 6L / last 1.0239 [1.0003,
+1.0847] under the dataset-clustered bootstrap — again pooled better
+than split. Neither subset panel is in the Bonferroni family: at
+α = 0.05 / 24 ≈ 0.002083 none of these subset rows clears; at nominal
+95 % three rows separate (medium+long 2L / last task, medium+long 6L /
+last under both schemes, periodic 6L / last clustered), all in the
+direction pooled better than split; no arm-1 / 3 / 4 point estimate
+on either subset runs the other way. Neither this
 contrast nor arm 1 vs arm 3 is matched on head-adaptation content
 (arms 3 / 4 head-trained 30 000 steps on their own `best_loss.pth`
 step-11,800 / step-600 backbones and only 10 000 on the evaluated
@@ -178,12 +182,13 @@ means arm A beats arm B. Bonferroni family: the 24-contrast full-97
 panel (6 arm pairs × 4 (head, ckpt) cells) at α = 0.05 / 24 ≈ 0.002083;
 the periodic and medium+long panels are read at nominal 95 % as
 diagnostics and no "Bonferroni" claim is made about them. When arm 6
-(pending) lands its four cells enter the panel as 6 new arm pairs =
-16 additional rows, and arm C's per-task file — if it lands from the
-sweep tree — adds 4 more rows against every existing arm; both would
-re-declare the family (44 rows with arm 6 alone, 60 with arm C too;
-α = 0.001136 and 0.000833 respectively) and rows read at 0.002083
-would have to be re-checked.
+(pending) lands, its four cells add 4 new arm pairs (vs arms 1 / 3 /
+4 / 5) × 4 (head, ckpt) cells = 16 additional rows, so the family
+becomes 40 rows and α = 0.05 / 40 = 0.00125. If arm C's per-task
+file also lands from the sweep tree, arm C adds a 6th arm; six arms
+give C(6, 2) = 15 arm pairs × 4 cells = 60 rows and α = 0.05 / 60
+≈ 0.000833. Rows read at 0.002083 would have to be re-checked
+against those thresholds.
 
 ### Full-97 (`pairwise_bootstrap_ci.csv`, 24 rows; `_clustered.csv` for 28-dataset resample)
 
@@ -225,9 +230,10 @@ arm 1 (one-sided p = 0.00089, two-sided p = 0.00178, Monte-Carlo
 standard error on the one-sided proportion
 SE₁ = √(p₁(1 − p₁) / B) = 0.000067, SE on the two-sided p is
 2 × SE₁ = 0.000133; distance to α is 0.000303, so the row clears at
-2.3 × MC SE). Other non-zero rows: 6L / best arm 5 vs arm 4 = 0.00093
-(margin/SE 11.9), 6L / best arm 5 vs arm 1 = 0.00032 (margin/SE 31.1),
-6L / last arm 5 vs arm 3 = 0.00012 (margin/SE 56.4).
+2.3 × MC SE). The three other non-zero rows have two-sided p ≤ 0.00093 (6L / best arm 5 vs arm 4),
+0.00032 (6L / best arm 5 vs arm 1), 0.00012 (6L / last arm 5 vs arm 3) —
+all well above their MC-SE and above the α threshold, so their margins
+resolve.
 
 ### Periodic-cluster subset (37 configs — `solar/`, `electricity/`, `ett1/`, `m4_hourly/`, `bizitobs_*`)
 
@@ -258,7 +264,7 @@ The card's secondary read. Compute-matched (`last`, all arms at step
 | 2L / last | arm 1 vs arm 3 | 0.9717 | [0.9521, 0.9926] | [0.9473, 0.9975] | 0.9951 / 0.9837 |
 | 6L / last | arm 1 vs arm 3 | 0.9833 | [0.9668, 1.0009] | [0.9658, 1.0022] | 0.9690 / 0.9607 |
 | 2L / last | arm 1 vs arm 4 | 0.9939 | [0.9757, 1.0132] | [0.9816, 1.0034] | 0.7381 / 0.8813 |
-| 6L / last | arm 1 vs arm 4 | 0.9971 | [0.9799, 1.0150] | [0.9836, 1.0113] | 0.6685 / 0.6685 |
+| 6L / last | arm 1 vs arm 4 | 0.9971 | [0.9799, 1.0150] | [0.9836, 1.0113] | 0.6232 / 0.6685 |
 
 Task-level: three rows separate at nominal 95 %. Under the more
 conservative dataset-clustered bootstrap (14 base datasets in the
@@ -303,7 +309,8 @@ all of `L_pred`'s denominator on arms 1 / 3's `FINAL.pth` snapshots
 tensor holds 0.003 in arm 4's pooled denominator at step 600 while
 the two h-anchored families (`log_neg_hh_all` + `log_neg_xs_allt`)
 together hold 0.877 (periodic) and 0.860 (mixed); arm 4's step-10 000
-snapshot gives 0.867 / 0.913 for the same combined family. The card
+snapshot gives 0.867 (periodic) / 0.913 (mixed) for the same combined
+family. The card
 asks for the measurement on arm C — a pooled backbone trained with
 MoCo **off**. The probe at measurement time uses student-side keys
 (identical to arm C's training regime), so the *tensor form* measured
@@ -313,9 +320,10 @@ i.e. with teacher-side keys, so its checkpoint reflects a training-time
 gradient distribution arm C's would not). The card's directional
 prediction (h-anchored much larger than cross-batch on the periodic
 batch under the pooled shape at C = 1) reads correctly on arm 4's
-weights at every measured step (h-anchored 0.87–0.91 versus
-cross-batch 0.003–0.005); a re-run on arm C's own checkpoint is the
-follow-up.
+weights at every measured step: on the periodic batch h-anchored
+(`hh_all + xs_allt`) sits at 0.87 – 0.90 across the four measured
+checkpoints while cross-batch sits at 0.003 – 0.005. A re-run on
+arm C's own checkpoint is the follow-up.
 
 *Method (`scripts/gradient_share_measurement.py`; full table
 `results/gradient_share_measurement.csv`, 132 rows). Each backbone
@@ -393,8 +401,9 @@ N = 1. The paired bootstrap measures within-run across-task
 variability; between-seed variance is not measured here and the
 card's single-seed noise band ±0.02 is comparable to every
 non-arm-5 point difference in the tables. `results_arm4/…_last_6L/all_results.csv`
-carries `MASE[0.5]` only (reconstructed from `summary.txt`); the CIs
-use `MASE[0.5]` alone. Deferred to follow-up cards, all needed to
+was reconstructed from `summary.txt` (raw file NUL-truncated on disk)
+and carries `MASE[0.5]` only. Deferred to follow-up cards, all needed
+to
 close the card fully: (i) arm C per-task `all_results.csv` +
 paired CI vs arm C (the card's primary criterion), (ii) denominator
 share measured on arm C (the card's required measurement), (iii)
