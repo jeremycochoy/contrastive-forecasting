@@ -46,50 +46,28 @@ better, but not resolved by either scheme (§Full-97). On the
 subset panels (read at nominal 95 % as diagnostics, outside the
 Bonferroni family), seven arm-1 / 3 / 4 `last` rows separate across
 three axes:
-- **arm 3 vs arm 4 (split ↔ pooled, MoCo fixed):** medium+long 2L /
-  last 1.0228 (task) — pooled better; medium+long 6L / last 1.0140
-  (task and clustered) — pooled better; periodic 6L / last 1.0239
-  (clustered only) — pooled better.
-- **arm 1 vs arm 3 (MoCo off ↔ on, split fixed):** medium+long 2L /
-  last 0.9717 (task p = 0.0099; clustered p = 0.033) — MoCo off
-  better; short 6L / last 1.0200 (task and clustered separating) —
-  MoCo on better. Direction reverses across horizons at
-  compute-matched `last` cells (both schemes), but head-adaptation
-  content differs on both rows (arm 1: 40 k on step-12,500; arm 3:
-  30 k on step-11,800 + 10 k on step-12,500), so the reversal is not
-  attributable to the MoCo axis alone.
-- **arm 1 vs arm 4 (joint, split + no-MoCo ↔ pooled + MoCo):** periodic
-  6L / last 1.0381 (task only; clustered [0.9961, 1.1029] straddles) —
-  arm 4 wins on that row (convention `A/B < 1 ⇒ A beats B`; ratio
-  1.0381 > 1 means arm 4 beats arm 1). Short 2L / last 1.0237 (task
-  and clustered separating) — same direction, arm 4 wins. Medium+long
-  `last` arm 1 vs arm 4 rows point the other way (2L 0.9939, 6L
-  0.9971) and both straddle 1; the joint axis's direction is not
-  consistent across subsets.
+- **arm 3 vs arm 4 (split ↔ pooled, MoCo fixed):** three rows in the
+  pooled-better direction (medium+long 2L task, medium+long 6L both
+  schemes, periodic 6L clustered).
+- **arm 1 vs arm 3 (MoCo off ↔ on, split fixed):** direction reverses
+  across horizons (medium+long 2L MoCo-off better; short 6L MoCo-on
+  better), but head-adaptation content differs on both rows so the
+  reversal is not attributable to the MoCo axis alone.
+- **arm 1 vs arm 4 (joint):** periodic 6L (task) and short 2L (both
+  schemes) point arm-4-better; medium+long `last` rows point the other
+  way and both straddle — direction inconsistent across subsets.
 
-The compute-matched arm 3 vs arm 4 axis has two independent `last`
-cells (2L / last and 6L / last), each sliced four ways for tabulation
-(full-97, periodic, medium+long, short); short + medium+long = full-97
-and periodic overlaps medium+long on 20 configs, so the eight subset
-re-aggregations are not eight independent comparisons. The point
-estimate is ≥ 1 in every slice (1.0119, 1.0093, 1.0160, 1.0239, 1.0228,
-1.0140, 1.0036, 1.0057). Nominal-95 % separation: medium+long 6L / last
-under both schemes ([1.0031, 1.0252] task, [1.0044, 1.0251] clustered);
-medium+long 2L / last under the task scheme only ([1.0059, 1.0403] task,
-[0.9960, 1.0490] clustered); periodic 6L / last under the clustered
-scheme only ([0.9979, 1.0643] task, [1.0003, 1.0847] clustered); the
-other five straddle 1 under both schemes. Five of the eight
-`best`-cell rows on the same axis run the other way (arm 3 better
-than arm 4: full-97 2L 0.9953, full-97 6L 0.9771, periodic 6L 0.9908,
-short 2L 0.9699, short 6L 0.9489 — the last row separates at
-nominal 95 % under both schemes but sits at an 11,200-step confound
-(§Selection rule)), which reflects
-arm 4's step-600 `best`-cell backbone selection rather than a
-compute-matched direction. Neither this contrast nor arm 1 vs arm 3
-is matched on head-adaptation content (arms 3 / 4 head-trained
-30 000 steps on their own `best_loss.pth` step-11,800 / step-600
-backbones and only 10 000 on the evaluated step-12,500), so the
-compute-matched panel is on backbone step but not on head adaptation.
+The arm 3 vs arm 4 axis point estimate is ≥ 1 in every slice
+(compute-matched `last` cells: full-97, periodic, medium+long, short);
+the eight re-aggregations are not eight independent comparisons since
+short + medium+long = full-97 and periodic overlaps medium+long on 20
+configs. `best`-cell rows on the same axis mostly run the other way
+because arm 4's `best`-cell backbone is at step 600 (§Selection rule).
+Head-adaptation content differs on both arm 3 vs 4 and arm 1 vs 3
+compute-matched `last` cells (arms 3 / 4 head-trained 30 k on their
+own `best_loss.pth` step-11,800 / step-600 and only 10 k on the
+evaluated step-12,500), so the compute-matched panel is on backbone
+step but not on head adaptation.
 
 ![GM-Relative MASE across arms and (head, checkpoint) scored evaluations.](plots/headline_relmase.png)
 
