@@ -76,8 +76,8 @@ vs arm 4 at both head depths: two-sided p < 1 × 10⁻⁴ and p = 0.0005),
 but the `best` cells here compare arm 3 at step 11 800 against arm 4
 at step 600 — the axis is confounded with the 11 200-step gap and no
 compute-matched direction can be read off them. The compute-matched
-direction on the arm 3 vs arm 4 axis is stable across the three
-`last` rows; three of the six `best`-cell (panel × head) rows on
+direction on the arm 3 vs arm 4 axis is stable — all six `last` rows
+(2L + 6L across full-97 / periodic / medium+long) sit above 1; three of the six `best`-cell (panel × head) rows on
 that axis run the other way (arm 3 better than arm 4: full-97
 2L / best = 0.9953, full-97 6L / best = 0.9771, periodic 6L / best
 = 0.9908), which reflects arm 4's step-600 `best`-cell backbone
@@ -247,10 +247,9 @@ arm 1 (one-sided p = 0.00089, two-sided p = 0.00178, Monte-Carlo
 standard error on the one-sided proportion
 SE₁ = √(p₁(1 − p₁) / B) = 0.000067, SE on the two-sided p is
 2 × SE₁ = 0.000133; distance to α is 0.000303, so the row clears at
-2.3 × MC SE). The three other non-zero rows have two-sided p ≤ 0.00093 (6L / best arm 5 vs arm 4),
-0.00032 (6L / best arm 5 vs arm 1), 0.00012 (6L / last arm 5 vs arm 3) —
-all well above their MC-SE and above the α threshold, so their margins
-resolve.
+2.3 × MC SE). The three other non-zero rows have two-sided p = 0.00093
+(6L / best arm 5 vs arm 4), 0.00032 (6L / best arm 5 vs arm 1) and
+0.00012 (6L / last arm 5 vs arm 3), all well below α.
 
 ### Periodic-cluster subset (37 configs — `solar/`, `electricity/`, `ett1/`, `m4_hourly/`, `bizitobs_*`)
 
@@ -277,7 +276,7 @@ The card's secondary read. Compute-matched (`last`, all arms at step
 | cell | contrast | ratio A/B | 95 % CI task | 95 % CI clustered (14 datasets) | one-sided `p_a_beats_b` (task / clustered) |
 | --- | --- | --: | --- | --- | --: |
 | 2L / last | arm 3 vs arm 4 | 1.0228 | [1.0059, 1.0403] | [0.9960, 1.0490] | 0.0042 / 0.0461 |
-| 6L / last | arm 3 vs arm 4 | 1.0140 | [1.0031, 1.0252] | [1.0044, 1.0251] | 0.0064 / 0.0015 |
+| 6L / last | arm 3 vs arm 4 | 1.0140 | [1.0031, 1.0252] | [1.0044, 1.0251] | 0.0064 / 0.0016 |
 | 2L / last | arm 1 vs arm 3 | 0.9717 | [0.9521, 0.9926] | [0.9473, 0.9975] | 0.9951 / 0.9837 |
 | 6L / last | arm 1 vs arm 3 | 0.9833 | [0.9668, 1.0009] | [0.9658, 1.0022] | 0.9690 / 0.9607 |
 | 2L / last | arm 1 vs arm 4 | 0.9939 | [0.9757, 1.0132] | [0.9816, 1.0034] | 0.7381 / 0.8813 |
