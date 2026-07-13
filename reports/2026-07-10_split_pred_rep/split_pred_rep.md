@@ -50,7 +50,9 @@ point estimates the pooled champion (arm C) leads every new arm at
 the `last` cells (2L 1.1491 vs the best new arm's 1.1546; 6L 1.1254
 vs 1.1405); arm C's per-task file is on the sweep tree only, so
 neither gap has a CI on this branch, and both gaps sit inside the
-card's ±0.02 single-seed noise band. Arm 4's `best` cells run on a
+card's ±0.02 single-seed noise band (from the issue text; not
+independently measured on this branch, which has N = 1). Arm 4's
+`best` cells run on a
 step-600 backbone (600 / 12,500 = 4.8 % of training) and score
 strictly below arms 1 / 3's step-12,500 / step-11,800 `best` cells on the
 medium+long horizon subset (all four ratios above 1, i.e. arm 4
@@ -75,9 +77,11 @@ but the `best` cells here compare arm 3 at step 11 800 against arm 4
 at step 600 — the axis is confounded with the 11 200-step gap and no
 compute-matched direction can be read off them. The compute-matched
 direction on the arm 3 vs arm 4 axis is stable across the three
-`last` rows; on `best` cells the same axis runs the other way at 6L
-on two of the three panels (full-97 = 0.9771, periodic = 0.9908),
-reflecting arm 4's step-600 `best`-cell backbone selection. The arm 1
+`last` rows; three of the six `best`-cell (panel × head) rows on
+that axis run the other way (arm 3 better than arm 4: full-97
+2L / best = 0.9953, full-97 6L / best = 0.9771, periodic 6L / best
+= 0.9908), which reflects arm 4's step-600 `best`-cell backbone
+selection rather than a compute-matched direction. The arm 1
 vs arm 4 axis (joint: split + no-MoCo ↔ pooled + MoCo) runs slightly
 below 1 at medium+long `last` (0.9939, 0.9971), so the "pooled
 better" direction is on the single-axis contrast only. Neither this
