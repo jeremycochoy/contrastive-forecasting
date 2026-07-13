@@ -381,7 +381,7 @@ straddles under both schemes at both head depths. The separating row
 moves two variables at once (11,200 backbone steps AND split ↔
 pooled), so it cannot isolate backbone-training amount from loss
 shape. What the short subset shows is that this readout **can**
-resolve some 1–5 % differences between backbones at 6L on short
+resolve some 2–5 % differences between backbones on short
 horizons; it does not establish that the readout resolves
 backbone-training amount as a single axis. The random-init /
 early-step underfit backbone control that would give a single-axis
