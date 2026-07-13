@@ -135,12 +135,8 @@ separation as evidence about the loss shape confounds the three.
 logged next to `loss` in every backbone losses CSV; they score the
 f-anchored prediction task that `L_pred` optimises (retrieval of the
 positive `h'_{t+1}` against the cross-batch f ↔ h′ candidates) and
-they do not score `L_rep`, which has no positive. Arm 5 has no
-`L_pred`, so those diagnostics do not have their nominal meaning for
-arm 5 and no arm 5 row is reported. Sampled step values from arm 1's
-`..._losses_full.csv` (arm 1 was resumed at step 900 and the
-post-resume `losses.csv` starts at step 901; the full CSV keeps the
-pre-resume steps too) and from arms 3 / 4's `..._losses.csv`:
+they do not score `L_rep`, which has no positive; arm 5 is
+therefore not reported below. Sampled step values:
 
 | arm | step 600 | step 2,000 | step 6,000 | step 12,500 | `top1` min at step ≥ 600 |
 | --- | --- | --- | --- | --- | --- |
@@ -203,17 +199,13 @@ two separate — both at 6L (arm 1 vs arm 3 and arm 3 vs arm 4) — and
 both are step-confounded (700-step gap for arm 1 vs arm 3;
 11 200-step gap for arm 3 vs arm 4).
 
-Arm 5 vs arms 1 / 3 / 4 (12 rows, in `pairwise_bootstrap_ci.csv`
-at `n_boot` = 20 000; re-run at `n_boot` = 200 000 in
-`pairwise_bootstrap_ci_arm5_nboot200k.csv`): the 20 000 CSV stores
-these rows as `arm_a = arm{1,3,4}`, `arm_b = arm5` (ratio arm X / arm
-5 in [0.8635, 0.9472], i.e. arm 5 loses); the 200 000 CSV stores them
-arm-5-first as `arm_a = arm5`, `arm_b = arm{1,3,4}` (ratio arm 5 / arm
-X > 1). Report values below are quoted in the arm 5 / arm X direction
-so all ratios face the same "> 1 → worse" convention as the arm-1 / 3
-/ 4 pairs: task-level ratios [1.0557, 1.1581], lower bounds [1.0220,
-1.1116]; all twelve above 1 under both the task-level and clustered
-schemes. At `n_boot` = 200 000
+Arm 5 vs arms 1 / 3 / 4 (12 rows, in `pairwise_bootstrap_ci.csv` at
+`n_boot` = 20 000; re-run at `n_boot` = 200 000 in
+`pairwise_bootstrap_ci_arm5_nboot200k.csv`): quoted in the arm 5 /
+arm X direction throughout (same "> 1 → worse" convention as the
+other pairs), task-level ratios [1.0557, 1.1581], lower bounds
+[1.0220, 1.1116]; all twelve above 1 under both task-level and
+clustered schemes. At `n_boot` = 200 000
 all twelve rows clear Bonferroni α = 0.05 / 24 ≈ 0.002083. Eight of
 the twelve rows carry a zero-event count out of 200 000
 (rule-of-three upper bound: one-sided p < 3 / 200 000 = 1.5 × 10⁻⁵,
@@ -240,11 +232,8 @@ card's canonical single-axis contrast — 6L / last arm 3 vs arm 4 =
 better than split at compute-matched step 12 500 on the exact cluster
 the card's mechanism is about. The lone task-level exception
 6L / last arm 1 vs arm 4 widens to [0.9961, 1.1029] under clustering.
-Eight of twelve arm-5 CIs sit above 1 in the arm 5 / arm X
-convention used here (in the CSV, which stores rows as
-`arm_a = arm{1,3,4}`, `arm_b = arm5`, the same eight sit **below** 1
-because ratio arm X / arm 5 = 1 / (arm 5 / arm X)); four straddle
-under either convention. Full 24 rows in
+Eight of twelve arm-5 CIs sit above 1; four straddle (arm 5 / arm X
+convention throughout). Full 24 rows in
 `pairwise_bootstrap_ci_periodic.csv` (task) and
 `pairwise_bootstrap_ci_periodic_clustered.csv` (clustered).
 
@@ -366,29 +355,17 @@ tensor holds 0.003 in arm 4's pooled denominator at step 600 while
 the two h-anchored families (`log_neg_hh_all` + `log_neg_xs_allt`)
 together hold 0.877 (periodic) and 0.860 (mixed); arm 4's step-10 000
 snapshot gives 0.867 (periodic) / 0.913 (mixed) for the same combined
-family. The card
-asks for the measurement on arm C — a pooled backbone trained with
-MoCo **off**. The probe at measurement time uses student-side keys
-(identical to arm C's training regime), so the *tensor form* measured
-on arm 4 is the pooled-MoCo-off denominator; what is different from
-an arm-C measurement is the weights (arm 4 was trained under MoCo,
-i.e. with teacher-side keys, so its checkpoint reflects a training-time
-gradient distribution arm C's would not). The card's directional
-prediction (h-anchored much larger than cross-batch on the periodic
-batch under the pooled shape at C = 1) reads correctly on arm 4's
-weights at every measured step: on the periodic batch h-anchored
-(`hh_all + xs_allt`) sits at 0.867 – 0.901 across the four measured
-checkpoints while cross-batch sits at 0.0026 – 0.0050. The
+family. The card's directional prediction (h-anchored much larger
+than cross-batch on the periodic batch under the pooled shape at
+C = 1) reads correctly on arm 4's weights at every measured step: on
+the periodic batch h-anchored sits at 0.867 – 0.901 across the four
+measured checkpoints while cross-batch sits at 0.0026 – 0.0050. The
 periodic-**specific** half of the prediction is not supported by the
 same measurement: on the mixed batch h-anchored = 0.860 – 0.914 and
-cross-batch = 0.0032 – 0.0036, i.e. the crowding pattern is
-approximately the same magnitude on both batch types. The split removes the h-anchored
-families from the f-side denominator by construction, and the
-measurement's f-side reflects that (arm 1 `log_neg_cross_batch` share
-of `L_pred`'s denominator: 0.90 mixed / 0.99 periodic; h-anchored
-share of `L_pred` = 0 by definition of the split). Downstream
-GM-Relative MASE does not improve. A re-run on arm C's own checkpoint
-is the follow-up.
+cross-batch = 0.0032 – 0.0036 — approximately the same magnitude on
+both batch types. Downstream GM-Relative MASE does not improve on
+the split. The probe ran on arm 4's checkpoint, not arm C's;
+a re-run on arm C is the follow-up.
 
 *Method (`scripts/gradient_share_measurement.py`; full table
 `results/gradient_share_measurement.csv`, 132 rows). Each backbone
@@ -474,7 +451,7 @@ N = 1. The paired bootstrap measures within-run across-task
 variability; between-seed variance is not measured here and the
 card's single-seed noise band ±0.02 is comparable to every
 non-arm-5 point difference in the tables. `results_arm4/…_last_6L/all_results.csv`
-was reconstructed from `summary.txt` and carries `MASE[0.5]` only. Deferred to follow-up cards, needed to close the card fully:
+was reconstructed from `summary.txt`. Deferred to follow-up cards, needed to close the card fully:
 (i) arm C per-task `all_results.csv` + paired CI vs arm C (the card's
 primary criterion); (ii) denominator share measured on arm C (the
 card's required measurement); (iii) a single-axis underfit backbone
