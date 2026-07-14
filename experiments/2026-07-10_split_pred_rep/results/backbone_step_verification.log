@@ -28,6 +28,12 @@
   run-log best_loss saves: n=55  last-save-step=10100
   closing: Done in 5.9h. Best gap=-0.4328 at step 700, Best loss=17.0040 at step 10100
 
+=== arm bimoco (split + moco on L_pred and L_rep) ===
+  FINAL.pth md5: a5fe557ed2cdbe28c3f9c56f84e2494d
+  == bb_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best_loss.pth (md5 match)
+  run-log best_loss saves: n=63  last-save-step=10000
+  closing: Done in 5.3h. Best gap=0.7594 at step 3400, Best loss=22.8149 at step 10000
+
 arm 1 torch.equal FINAL == final    : True
 arm 1 torch.equal FINAL == 12k      : True
 arm 1 torch.equal FINAL == best_loss: False

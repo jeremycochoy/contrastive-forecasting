@@ -31,25 +31,26 @@ timestep, cross-batch negatives — same-timestep, no forecaster-latent
 term), while keeping `L_rep`: `L = L_align_moco + L_rep`.
 
 **Answer.** No arm-1 / 3 / 4 full-97 pairwise contrast clears
-Bonferroni α = 0.05 / 40 = 0.00125 (smallest two-sided p = 0.0099,
+Bonferroni α = 0.05 / 60 = 0.000833 (smallest two-sided p = 0.0099,
 6L / best arm 3 vs arm 4, 11,200-step confounded), and no arm-1 / 3 / 4
 compute-matched `last` CI on the full-97 panel separates from 1 at
 nominal 95 % under either bootstrap scheme (see §Full-97). Arm 5 vs
 arms 1 / 3 / 4 sits above 1 on all twelve rows; at
-`n_boot` = 200,000 eleven of the twelve clear α = 0.00125 (details in
+`n_boot` = 200,000 ten of the twelve clear α = 0.000833 (details in
 §Full-97). Arm 6 point estimates sit above (worse than) arms 1 / 3 / 4 on every
 cell and below (better than) arm 5 on every cell; all twelve arm 1 /
 3 / 4 vs arm 6 rows separate at nominal 95 % (arms 1 / 3 / 4 better,
-ratios 0.947 – 0.970), and at `n_boot` = 200,000 four rows clear
-Bonferroni α = 0.00125 (details in §Full-97). Arm bimoco (split with
-MoCo on both `L_pred` and `L_rep`) sits inside the arm 1 / 3 / 4 band
-on every cell (2L / best 1.1486, 2L / last 1.1569, 6L / best 1.1413,
-6L / last 1.1417); only 2 of 12 arm 1 / 3 / 4 vs bimoco rows separate
-at nominal 95 % on task-level 20k (both `best` cells with the
-step-selection confounds noted below), and all four arm 5 / arm 6 vs
-bimoco pairs at 2L clear α = 0.00125 at `n_boot` = 200,000 with
-bimoco better. Bimoco is not distinguishable from arms 1 / 3 / 4 at
-the family threshold.
+ratios 0.947 – 0.970), and at `n_boot` = 200,000 three rows clear
+Bonferroni α = 0.000833 (details in §Full-97). Arm bimoco (split with
+MoCo on both `L_pred` and `L_rep`) point estimates: 2L / best 1.1486
+(new column minimum, below arm 3's 1.1548), 2L / last 1.1569,
+6L / best 1.1413, 6L / last 1.1417. Only 2 of 12 arm 1 / 3 / 4 vs
+bimoco rows separate at nominal 95 % on task-level 20k (both `best`
+cells with the step-selection confounds noted below), and none clear
+α = 0.000833 at `n_boot` = 200,000 (all p₂ ≥ 0.02455); bimoco is not
+distinguishable from arms 1 / 3 / 4 at the family threshold. All 8
+arm 5 / arm 6 vs bimoco rows separate at nominal 95 % and all 8 clear
+α = 0.000833 at `n_boot` = 200,000, bimoco lower.
 On point estimates the pooled champion (arm C) still leads every new
 arm at the `last` cells, but the primary criterion — a paired
 bootstrap of each arm against arm C — was not run because arm C's
@@ -204,13 +205,15 @@ the divisor cancels in the paired ratio. Driver:
 Output CSVs live in the same `results/` directory. Ratio `A/B < 1`
 means arm A beats arm B. The one-sided `p_a_beats_b` column stored in
 every CSV is the bootstrap proportion `P(ratio A/B < 1)`; the
-two-sided p we quote is `2 · min(p, 1 − p)`. Bonferroni family: the 40-contrast full-97
-panel (10 arm pairs × 4 (head, ckpt) cells) at α = 0.05 / 40 = 0.00125.
+two-sided p we quote is `2 · min(p, 1 − p)`. Bonferroni family: the 60-contrast full-97
+panel (15 arm pairs × 4 (head, ckpt) cells) at α = 0.05 / 60 = 0.000833
+(family enlarged when bimoco was added; arm 1 / 3 / 4 / 5 / 6 headline
+counts against α are updated below relative to the prior α = 0.00125).
 The periodic, medium+long and short panels are read at
 nominal 95 % as diagnostics and no "Bonferroni" claim is made about
 them.
 
-### Full-97 (`pairwise_bootstrap_ci.csv`, 40 rows; `_clustered.csv` for 28-dataset resample)
+### Full-97 (`pairwise_bootstrap_ci.csv`, 60 rows; `_clustered.csv` for 28-dataset resample)
 
 Every arm-1 / 3 / 4 pairwise contrast:
 
@@ -243,33 +246,29 @@ arm X direction throughout (same "> 1 → worse" convention as the
 other pairs), task-level ratios [1.0557, 1.1581], lower bounds
 [1.0220, 1.1116]; all twelve above 1 under both task-level and
 clustered schemes. At `n_boot` = 200,000
-eleven of the twelve rows clear Bonferroni α = 0.05 / 40 = 0.00125;
-the exception is 6L / last arm 5 vs arm 1 (two-sided p = 0.00178,
-MC SE 0.000133; fails α by ~4 × MC SE). Eight of
+ten of the twelve rows clear Bonferroni α = 0.05 / 60 = 0.000833; the
+two exceptions are 6L / last arm 5 vs arm 1 (p₂ = 0.00178, MC SE
+0.000133; fails by ~7 × MC SE against α = 0.000833) and 6L / best
+arm 5 vs arm 4 (p₂ = 0.00093, MC SE 0.0000964; fails by ~1 × MC SE —
+was in the clear zone at the prior α = 0.00125, moves to fail as the
+family enlarged from 40 to 60 tests). Eight of
 the twelve rows carry a zero-event count out of 200,000
 (rule-of-three upper bound: one-sided p < 3 / 200,000 = 1.5 × 10⁻⁵,
-two-sided < 3 × 10⁻⁵); of the four rows with non-zero counts the
-worst is 6L / last arm 5 vs
-arm 1 (one-sided p = 0.00089, two-sided p = 0.00178, Monte-Carlo
-standard error on the one-sided proportion
-SE₁ = √(p₁(1 − p₁) / B) = 0.000067, SE on the two-sided p is
-2 × SE₁ = 0.000133; distance to α = 0.00125 is 0.00053, so the row
-**fails** α by ~4 × MC SE — the only arm-5 row that does not clear
-the 40-row family's threshold). The three other non-zero rows have
-two-sided p = 0.00093 (6L / best arm 5 vs arm 4), 0.00032 (6L / best
-arm 5 vs arm 1) and 0.00012 (6L / last arm 5 vs arm 3), all below α =
-0.00125.
+two-sided < 3 × 10⁻⁵); the four non-zero rows are the four just
+mentioned plus 6L / best arm 5 vs arm 1 (p₂ = 0.00032) and 6L / last
+arm 5 vs arm 3 (p₂ = 0.00012), both below α = 0.000833.
 
 Arm 6 vs arms 1 / 3 / 4 (12 rows, task-level, in
 `pairwise_bootstrap_ci.csv` at `n_boot` = 20,000; re-run at `n_boot` =
 200,000 in `pairwise_bootstrap_ci_arm6_nboot200k.csv`): all twelve
 task-level ratios (arm 1 / 3 / 4 vs arm 6 direction) 0.947 – 0.970,
-upper bounds all below 1. At `n_boot` = 200,000 four rows clear
-α = 0.00125 — 2L / best arm 3 vs arm 6 (p₂ = 0.00070, +6.6 × MC SE),
-2L / best arm 4 vs arm 6 (p₂ = 0.00002, +87 × MC SE), 2L / last arm 4
-vs arm 6 (p₂ = 0.00114, +1.03 × MC SE — clears by ~1 MC SE only) and
-6L / best arm 3 vs arm 6 (p₂ = 0.00022, +22 × MC SE); the remaining
-eight rows fail α (two-sided p 0.00185 – 0.02940). Arm 5 vs arm 6
+upper bounds all below 1. At `n_boot` = 200,000 three rows clear
+α = 0.05 / 60 = 0.000833 — 2L / best arm 3 vs arm 6 (p₂ = 0.00070,
++1.4 × MC SE against α = 0.000833), 2L / best arm 4 vs arm 6
+(p₂ = 0.00002, +59 × MC SE) and 6L / best arm 3 vs arm 6 (p₂ =
+0.00022, +13 × MC SE). The nine failing rows include 2L / last arm 4
+vs arm 6 (p₂ = 0.00114, −3 × MC SE against α = 0.000833; was a
+marginal clear against the prior α = 0.00125). Arm 5 vs arm 6
 task-level: 2 of 4 rows separate at nominal 95 % (2L / best arm 5 vs
 arm 6 = 1.0973; 2L / last arm 5 vs arm 6 = 1.0618, both arm 6 lower);
 at `n_boot` = 200,000 none clear α (smallest two-sided p = 0.00772).
@@ -282,11 +281,11 @@ bimoco direction throughout — same "> 1 → worse" convention): ratios
 at nominal 95 % (6L / best arm 1 vs bimoco = 1.0142 [1.0014, 1.0284]
 and 6L / best arm 4 vs bimoco = 1.0166 [1.0026, 1.0307]; both hit the
 `best`-cell step-selection confounds — arm 1 promotion gap, arm 4
-early-fit) and none clear α = 0.00125 at 200k (all p₂ ≥ 0.02455). Arm
-5 vs bimoco and arm 6 vs bimoco (8 rows) all separate at nominal 95 %
-with bimoco lower, and all 8 clear α = 0.00125 at `n_boot` = 200,000
-(tightest is 6L / best arm 6 vs bimoco = 1.0482 [1.0197, 1.0814],
-p₂ = 0.00028, +18 × MC SE).
+early-fit) and none clear α = 0.000833 at 200k (all p₂ ≥ 0.02455).
+Arm 5 vs bimoco and arm 6 vs bimoco (8 rows) all separate at nominal
+95 % with bimoco lower, and all 8 clear α = 0.000833 at `n_boot` =
+200,000 (tightest is 6L / best arm 6 vs bimoco = 1.0482 [1.0197,
+1.0814], p₂ = 0.00028, +11 × MC SE against α = 0.000833).
 
 ### Periodic-cluster subset (37 configs — `solar/`, `electricity/`, `ett1/`, `m4_hourly/`, `bizitobs_*`)
 
@@ -345,7 +344,7 @@ arm 4 and 2L / last arm 1 vs arm 3 stay separated under both schemes.
 Head-adaptation asymmetry: arm 3 vs arm 4 warmed up on very different
 backbones (step 11,800 vs step 600), and arm 1 vs arm 3 mixes the MoCo
 axis with the 40 k-vs-10 k head-adaptation asymmetry disclosed in
-§Backbone step. Full 40 rows in
+§Backbone step. Full 60 rows in
 `pairwise_bootstrap_ci_medlong.csv` (task) and
 `pairwise_bootstrap_ci_medlong_clustered.csv` (clustered).
 
@@ -358,11 +357,16 @@ clustering the 6L/best arm-4 row folds into the straddling group. Arm
 arm 6 = 1.29 [1.24, 1.35]; 6L/last = 1.15 [1.11, 1.20]).
 
 **Arm bimoco on medium+long.** Twelve arm-1/3/4-vs-bimoco ratios in
-[0.986, 1.035]; 4/12 separate at nominal 95 % task, only 1/12 under
-clustering (arm 4 (600) vs bimoco (10,000), same 9,400-step confound
-as arm 4-vs-arm 3 on this subset). Bimoco sits inside the arm-1/3/4
-spread. Arm 5 / arm 6 vs bimoco: 6/8 separate task, 4/8 clustered,
-bimoco lower.
+[0.986, 1.035]; 4/12 separate at nominal 95 % task and 1/12 under
+clustering. The clustering survivor is **2L / last arm 4 vs bimoco =
+1.0117 [1.0003, 1.0223]** — both arms at step 12,500, fully
+compute-matched, bimoco lower. The two task-only separators point in
+the same direction (2L / best arm 3 vs bimoco = 1.0150, 2L / last
+arm 3 vs bimoco = 1.0348, bimoco lower — both step-matched on the
+`last` side); the fourth task separator 2L / best arm 4 vs bimoco =
+0.9858 goes the opposite way and carries a 9,400-step confound
+(arm 4's step 600 vs bimoco's step 10,000 on this subset). Arm 5 /
+arm 6 vs bimoco: 6/8 separate task, 4/8 clustered, bimoco lower.
 
 **Medium+long `best` cells.** All four arm-4-vs-trained-arms point
 ratios are above 1 (i.e. arm 4's step-600 backbone scores lower
@@ -449,7 +453,7 @@ GM-Relative MASE is 0.975 – 0.997 across the four cells and it holds
 the lowest level in two of them (2L / last 0.9947, 6L / last 0.9785).
 The title's medium+long-vs-short scope reflects this: the deficit is
 concentrated on medium+long (arm 5 = 1.63 – 1.97 there vs 1.36 – 1.43
-for arms 1 / 3 / 4). Full 40 rows in
+for arms 1 / 3 / 4). Full 60 rows in
 `pairwise_bootstrap_ci_short.csv` (task) and
 `pairwise_bootstrap_ci_short_clustered.csv` (clustered).
 
