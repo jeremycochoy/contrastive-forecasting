@@ -1829,26 +1829,63 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         )
         loss_pred = (log_denom_pred - log_pos).mean()
 
-        # L_rep: pooled LSE of h-anchored families, no positive.
+        # L_rep: pooled LSE of h-anchored families.
+        # Without moco_rep_keys: student anchor + student keys everywhere. The
+        # same-batch same-time <h_{b,t}, h_{b,t}> pair is trivially 1 (self-
+        # cosine); we omit it (adds a constant to the loss, gradient-neutral).
+        # With moco_rep_keys: keys are teacher-side. The same-batch same-time
+        # pair becomes the non-trivial student↔teacher <h_{b,t}, h^T_{b,t}>,
+        # so the loss becomes a normalized InfoNCE with that positive in the
+        # denominator (same form as L_pred, symmetric on the h side).
         negs_rep = torch.stack(
             [log_neg_xx, log_neg_hh_all, log_neg_xs_allt], dim=0)
         log_neg_per_anchor_rep = torch.logsumexp(negs_rep, dim=0)
         log_neg_total_rep = torch.logsumexp(
             log_neg_per_anchor_rep, dim=0, keepdim=True)
-        loss_rep = log_neg_total_rep.mean()
+        if moco_rep and teacher_orig_norm is not None:
+            hx_teacher_norm = teacher_orig_norm[:, :-1, :, :]
+            log_pos_h = cosine_similarity_from_normalized(
+                hx_norm, hx_teacher_norm) / tau                      # [B, T-1, C]
+            log_denom_rep = torch.logsumexp(
+                torch.stack(
+                    [log_pos_h, log_neg_total_rep.expand_as(log_pos_h)],
+                    dim=0,
+                ),
+                dim=0,
+            )
+            loss_rep = (log_denom_rep - log_pos_h).mean()
+        else:
+            loss_rep = log_neg_total_rep.mean()
 
         loss = loss_pred + loss_rep
 
     elif train_config.get('loss_shape') == 'cosine_similarity_batch_rep_only':
         # #374 follow-up arm: drop L_pred from the split shape and pair
-        # `L_rep` (h-anchored logsumexp, no positive) with `align_loss`
-        # added by the training script via --align-loss-weight. Same
-        # h-anchored families as `..._split_pred_rep`'s L_rep branch;
-        # no f-anchored negatives, no positive term.
+        # `L_rep` (h-anchored logsumexp) with `align_loss` added by the
+        # training script via --align-loss-weight. Same h-anchored families
+        # as `..._split_pred_rep`'s L_rep branch.
+        #
+        # Without moco_rep_keys: keys are student-side; same-batch same-time
+        # pair is trivially <h,h>=1 so no positive is added (constant drop).
+        # With moco_rep_keys: keys are teacher-side; the same-batch same-time
+        # pair becomes non-trivial <h_student, h_teacher> and enters the
+        # normalized-InfoNCE positive-in-denominator form (identical to the
+        # split shape's L_rep_moco).
         neg_inf = float('-inf')
+        moco_rep = (
+            moco_rep_keys if moco_rep_keys is not None
+            else bool(train_config.get('moco_rep_keys', False)))
+        if moco_rep and teacher_original_latent is not None:
+            teacher_orig_norm_local = F.normalize(teacher_original_latent, p=2, dim=-1)
+            hx_key = teacher_orig_norm_local[:, :-1, :, :]
+            orig_key = teacher_orig_norm_local
+        else:
+            teacher_orig_norm_local = None
+            hx_key = hx_norm
+            orig_key = orig_norm
         # h-anchored family 1: cross-channel same-time h↔h (xx).
         sims_xx = cosine_similarity_from_normalized(
-            hx_norm.unsqueeze(3), hx_norm.unsqueeze(2))
+            hx_norm.unsqueeze(3), hx_key.unsqueeze(2))
         mask_mat = ~torch.eye(C, dtype=torch.bool, device=sims_xx.device)
         mask_mat = mask_mat.view(1, 1, C, C)
         log_neg_xx = torch.logsumexp(
@@ -1858,7 +1895,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         l_idx = torch.arange(T, device=orig_norm.device).view(1, T)
         sims_hh_all = torch.matmul(
             hx_norm.permute(0, 2, 1, 3),
-            orig_norm.permute(0, 2, 3, 1),
+            orig_key.permute(0, 2, 3, 1),
         )
         drop_self = (l_idx == t_idx).view(1, 1, T - 1, T)
         log_neg_hh_all = torch.logsumexp(
@@ -1867,7 +1904,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         # h-anchored family 3: cross-series all-time h↔h′ (xs_allt),
         # gradient-checkpointed via the same chunked path as `..._xshh_allt`.
         anchor = hx_norm.permute(0, 2, 1, 3).contiguous()
-        src = orig_norm.permute(0, 2, 1, 3).contiguous()
+        src = orig_key.permute(0, 2, 1, 3).contiguous()
         b_all = torch.arange(B, device=orig_norm.device)
         CH = int(os.environ.get('XSHH_ALLT_CHUNK', '8'))
         fused = os.environ.get('XSHH_ALLT_FUSED', '0') == '1'
@@ -1896,13 +1933,27 @@ def contrastive_latent_loss(predicted_position, validation, spec,
                 run = chunk_lse if run is None else torch.logsumexp(
                     torch.stack([run, chunk_lse], dim=0), dim=0)
         log_neg_xs_allt = run.permute(0, 2, 1)
-        # L_rep: pooled LSE of h-anchored families, no positive.
+        # L_rep: pooled LSE of h-anchored families.
+        # See split branch for the moco_rep_keys positive-in-denominator form.
         negs_rep = torch.stack(
             [log_neg_xx, log_neg_hh_all, log_neg_xs_allt], dim=0)
         log_neg_per_anchor_rep = torch.logsumexp(negs_rep, dim=0)
         log_neg_total_rep = torch.logsumexp(
             log_neg_per_anchor_rep, dim=0, keepdim=True)
-        loss = log_neg_total_rep.mean()
+        if moco_rep and teacher_orig_norm_local is not None:
+            hx_teacher_norm = teacher_orig_norm_local[:, :-1, :, :]
+            log_pos_h = cosine_similarity_from_normalized(
+                hx_norm, hx_teacher_norm) / tau
+            log_denom_rep = torch.logsumexp(
+                torch.stack(
+                    [log_pos_h, log_neg_total_rep.expand_as(log_pos_h)],
+                    dim=0,
+                ),
+                dim=0,
+            )
+            loss = (log_denom_rep - log_pos_h).mean()
+        else:
+            loss = log_neg_total_rep.mean()
 
     elif train_config.get('loss_shape') == 'cosine_similarity_batch_add_f_cross_negs':
         # NON-cumulative variant: identical to `cosine_similarity_batch` except
@@ -2411,12 +2462,15 @@ def contrastive_latent_loss(predicted_position, validation, spec,
     _moco_rep_effective = (
         moco_rep_keys if moco_rep_keys is not None
         else bool(train_config.get('moco_rep_keys', False)))
+    _MOCO_REP_SHAPES = (
+        'cosine_similarity_batch_split_pred_rep',
+        'cosine_similarity_batch_rep_only',
+    )
     if _moco_rep_effective:
-        if train_config.get('loss_shape') != \
-                'cosine_similarity_batch_split_pred_rep':
+        if train_config.get('loss_shape') not in _MOCO_REP_SHAPES:
             raise NotImplementedError(
-                "moco_rep_keys is only implemented for loss_shape="
-                "'cosine_similarity_batch_split_pred_rep'; got "
+                "moco_rep_keys is only implemented for loss_shape in "
+                f"{_MOCO_REP_SHAPES}; got "
                 f"{train_config.get('loss_shape')!r}.")
         if teacher_original_latent is None:
             raise ValueError(
