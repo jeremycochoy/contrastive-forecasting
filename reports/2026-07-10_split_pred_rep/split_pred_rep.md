@@ -41,7 +41,15 @@ arms 1 / 3 / 4 sits above 1 on all twelve rows; at
 cell and below (better than) arm 5 on every cell; all twelve arm 1 /
 3 / 4 vs arm 6 rows separate at nominal 95 % (arms 1 / 3 / 4 better,
 ratios 0.947 – 0.970), and at `n_boot` = 200,000 four rows clear
-Bonferroni α = 0.00125 (details in §Full-97).
+Bonferroni α = 0.00125 (details in §Full-97). Arm bimoco (split with
+MoCo on both `L_pred` and `L_rep`) sits inside the arm 1 / 3 / 4 band
+on every cell (2L / best 1.1486, 2L / last 1.1569, 6L / best 1.1413,
+6L / last 1.1417); only 2 of 12 arm 1 / 3 / 4 vs bimoco rows separate
+at nominal 95 % on task-level 20k (both `best` cells with the
+step-selection confounds noted below), and all four arm 5 / arm 6 vs
+bimoco pairs at 2L clear α = 0.00125 at `n_boot` = 200,000 with
+bimoco better. Bimoco is not distinguishable from arms 1 / 3 / 4 at
+the family threshold.
 On point estimates the pooled champion (arm C) still leads every new
 arm at the `last` cells, but the primary criterion — a paired
 bootstrap of each arm against arm C — was not run because arm C's
@@ -66,20 +74,21 @@ three axes:
 
 ![GM-Relative MASE across arms and (head, checkpoint) scored evaluations.](plots/headline_relmase.png)
 
-![Paired-bootstrap 95 % CIs on GM-Relative MASE ratios — all six `last` and all six `best` rows of the three compute-matched arm-1/3/4 full-97 axes (arm 3 vs arm 4, arm 1 vs arm 3, arm 1 vs arm 4), the two arm 5 vs arm 1 `last` rows, and the eight arm 6 `last` rows (arm 1 / 3 / 4 / 5 vs arm 6 at 2L / 6L). 22 of 40 full-97 rows drawn; the 18 undrawn are 10 arm-5 rows (arm 5 vs arm 1 `best`, arm 3 vs arm 5 `best`/`last`, arm 4 vs arm 5 `best`/`last`) plus 8 arm-6 `best` rows. `n_boot` = 20,000, seed 42. Task-level bootstrap (top per row) and 28-dataset-clustered bootstrap (bottom per row); * marks step- or checkpoint-selection-confounded rows.](plots/ci_forest.png)
+![Paired-bootstrap 95 % CIs on GM-Relative MASE ratios — all six `last` and all six `best` rows of the three compute-matched arm-1/3/4 full-97 axes (arm 3 vs arm 4, arm 1 vs arm 3, arm 1 vs arm 4), the two arm 5 vs arm 1 `last` rows, the eight arm 6 `last` rows (arm 1 / 3 / 4 / 5 vs arm 6 at 2L / 6L), and the six arm 1 / 3 / 4 vs bimoco `last` rows (at 2L / 6L). 28 of 60 full-97 rows drawn; the 32 undrawn are 10 arm-5 rows (arm 5 vs arm 1 `best`, arm 3 vs arm 5 `best`/`last`, arm 4 vs arm 5 `best`/`last`) plus 8 arm-6 `best` rows plus 14 bimoco rows (all 10 bimoco `best` rows plus arm 5 / arm 6 vs bimoco `last`). `n_boot` = 20,000, seed 42. Task-level bootstrap (top per row) and 28-dataset-clustered bootstrap (bottom per row); * marks step- or checkpoint-selection-confounded rows.](plots/ci_forest.png)
 
 ## Downstream GM-Relative MASE
 
 | arm | 2L / best | 2L / last | 6L / best | 6L / last |
 | --- | --: | --: | --: | --: |
 | arm 1 (split) | 1.1654 | 1.1669 | 1.1575 | 1.1557 |
-| arm 3 (split + MoCo) | **1.1548** | 1.1683 | **1.1338** | 1.1511 |
+| arm 3 (split + MoCo) | 1.1548 | 1.1683 | **1.1338** | 1.1511 |
 | arm 4 (pooled + MoCo) | 1.1602 | **1.1546** | 1.1603 | **1.1405** |
 | arm 5 (`L_align` + `L_rep`) | 1.3374 | 1.2883 | 1.2554 | 1.2201 |
 | arm 6 (`L_align_moco` + `L_rep`) | 1.2188 | 1.2133 | 1.1963 | 1.2033 |
+| arm bimoco (split, MoCo on both `L_pred` and `L_rep`) | **1.1486** | 1.1569 | 1.1413 | 1.1417 |
 | arm C ref (champion, point reference) | 1.1682 | 1.1491 | 1.1561 | 1.1254 |
 
-*Boldface = column minimum across arms 1 / 3 / 4 / 5. Arm C values
+*Boldface = column minimum across arms 1 / 3 / 4 / 5 / 6 / bimoco. Arm C values
 are from `experiments/2026-06-28_sigreg_lambda_tau_cross/results/gm_table.csv`,
 row `arm == "cross_C"` (λ_e = 1, λ_h = 1, τ = 0.90); per-task file is
 on the sweep tree only, so no CI against arm C is computable here.*
@@ -99,6 +108,7 @@ smoothed loss on 100-step boundaries, so `argmin` of the raw
 | arm 4 (pooled + MoCo) | 600 (6 saves, all in [100, 600]) | 12,500 |
 | arm 5 (`L_align` + `L_rep`) | 11,800 (40 saves, ending at step 11,800) | 12,500 |
 | arm 6 (`L_align_moco` + `L_rep`) | 10,100 (55 saves, ending at step 10,100) | 12,500 |
+| arm bimoco (split + MoCo both) | 10,000 (`FINAL.pth` md5 = `best_loss.pth` at step 10,000) | 12,500 |
 | arm C ref (champion) | not exported to this branch | 12,500 |
 
 **Head-adaptation asymmetry across the `last` column.** The head
@@ -120,20 +130,21 @@ its own smoothed training loss)". No held-out backbone-validation
 loss enters the protocol, and the five arms optimise different
 objectives on different scales (all quoted from step 600 → step
 12,500: arm 1 ≈ 24 → 25; arm 3 ≈ 23 → 23; arm 4 ≈ 3.3 → 3.6; arm 5
-≈ 18 → 18; arm 6 ≈ 17.5 → 17.0). As shipped, the rule fires
-inconsistently across the five arms because of a
+≈ 18 → 18; arm 6 ≈ 17.5 → 17.0; arm bimoco ≈ 29.5 → 22.7).
+As shipped, the rule fires inconsistently across the six arms
+because of a
 checkpoint-promotion gap on arm 1: arm 1's `FINAL.pth` equals
 `final.pth` (step 12,500) — its post-resume `best_loss.pth` was never
 saved (the run log has zero `Saved …_best_loss.pth` events after
 resume at step 900) so the shipped `best` artefact is the final
-checkpoint, not the argmin. Arms 3 / 4 / 5 / 6's `FINAL.pth` all
-equal their own `best_loss.pth` (steps 11,800 / 600 / 11,800 /
-10,100). So the `best` column scores 12,500 / 11,800 / 600 / 11,800
-/ 10,100 across the five arms: arm 1's is the final checkpoint
-(rule-off); arm 4's is the
+checkpoint, not the argmin. Arms 3 / 4 / 5 / 6 / bimoco's `FINAL.pth`
+all equal their own `best_loss.pth` (steps 11,800 / 600 / 11,800 /
+10,100 / 10,000). So the `best` column scores 12,500 / 11,800 / 600 /
+11,800 / 10,100 / 10,000 across the six arms: arm 1's is the final
+checkpoint (rule-off); arm 4's is the
 argmin of a curve that never returns below step 600 (rule-on but
-early-fit); arm 3 / 5's are argmins of curves that keep improving
-(rule-on late). Six of the twelve arm-1 / 3 / 4 rows in the
+early-fit); arm 3 / 5 / 6 / bimoco's are argmins of curves that keep
+improving (rule-on late). Six of the twelve arm-1 / 3 / 4 rows in the
 Bonferroni family are `best` rows, and they mix the loss-shape axis
 under test with two separate checkpoint-selection axes (arm 1's
 promotion gap; arm 4's early-fit curve). Reading a `best`-row
@@ -148,12 +159,13 @@ InfoNCE retrieval diagnostics logged next to `loss` in every backbone
 losses CSV; they score the f-anchored prediction task that `L_pred`
 optimises (retrieval of the positive `h'_{t+1}` against the
 cross-batch f ↔ h′ candidates). Arms
-1 / 3 / 4 use this positive directly (arms 1 / 3 in `L_pred`, arm 4
-in the pooled shape). Arms 5 / 6 have no forecaster-latent positive
-(arm 5's `L_align` is BYOL alignment, arm 6's `L_align_moco` is same-
-timestep encoder alignment), so `auc` / `top1` are logged from the
-diagnostic head but not trained against; the columns therefore do not
-score arms 5 / 6's actual optimisation targets. Sampled step values:
+1 / 3 / 4 / bimoco use this positive directly (arms 1 / 3 / bimoco in
+`L_pred`, arm 4 in the pooled shape). Arms 5 / 6 have no
+forecaster-latent positive (arm 5's `L_align` is BYOL alignment,
+arm 6's `L_align_moco` is same-timestep encoder alignment), so
+`auc` / `top1` are logged from the diagnostic head but not trained
+against; the columns therefore do not score arms 5 / 6's actual
+optimisation targets. Sampled step values:
 
 | arm | step 600 | step 2,000 | step 6,000 | step 12,500 | `top1` min at step ≥ 600 |
 | --- | --- | --- | --- | --- | --- |
@@ -162,6 +174,7 @@ score arms 5 / 6's actual optimisation targets. Sampled step values:
 | arm 4 | 1.0000 / 0.9993 | 1.0000 / 0.9995 | 1.0000 / 0.9994 | 1.0000 / 0.9974 | 0.9505 (step 934) |
 | arm 5 | 1.0000 / 1.0000 | 1.0000 / 1.0000 | 1.0000 / 1.0000 | 1.0000 / 1.0000 | 1.0000 |
 | arm 6 | 0.7307 / 0.0875 | 0.7249 / 0.1529 | 0.6377 / 0.0991 | 0.5405 / 0.0689 | 0.0392 (step 10,587) |
+| arm bimoco | 0.9981 / 0.7728 | 0.9996 / 0.8847 | 1.0000 / 0.9984 | 1.0000 / 0.9996 | 0.4243 (step 629) |
 
 Arms 5 and 6 read this diagnostic very differently: arm 5's `auc` /
 `top1` pin at 1.0000 across every logged step (no drift, no dip),
@@ -261,6 +274,20 @@ task-level: 2 of 4 rows separate at nominal 95 % (2L / best arm 5 vs
 arm 6 = 1.0973; 2L / last arm 5 vs arm 6 = 1.0618, both arm 6 lower);
 at `n_boot` = 200,000 none clear α (smallest two-sided p = 0.00772).
 
+Bimoco vs arms 1 / 3 / 4 (12 rows, task-level, in
+`pairwise_bootstrap_ci.csv`; re-run at `n_boot` = 200,000 in
+`pairwise_bootstrap_ci_bimoco_nboot200k.csv`, quoted in the arm X vs
+bimoco direction throughout — same "> 1 → worse" convention): ratios
+0.9934 – 1.0166, tightly clustered around 1. Only 2 of 12 rows separate
+at nominal 95 % (6L / best arm 1 vs bimoco = 1.0142 [1.0014, 1.0284]
+and 6L / best arm 4 vs bimoco = 1.0166 [1.0026, 1.0307]; both hit the
+`best`-cell step-selection confounds — arm 1 promotion gap, arm 4
+early-fit) and none clear α = 0.00125 at 200k (all p₂ ≥ 0.02455). Arm
+5 vs bimoco and arm 6 vs bimoco (8 rows) all separate at nominal 95 %
+with bimoco lower, and all 8 clear α = 0.00125 at `n_boot` = 200,000
+(tightest is 6L / best arm 6 vs bimoco = 1.0482 [1.0197, 1.0814],
+p₂ = 0.00028, +18 × MC SE).
+
 ### Periodic-cluster subset (37 configs — `solar/`, `electricity/`, `ett1/`, `m4_hourly/`, `bizitobs_*`)
 
 Family-prefix selection, so the subset does not condition on the
@@ -281,9 +308,16 @@ convention throughout).
 are below 1 (0.898 – 0.944), i.e. arm 6 scores worse than arms 1/3/4 on
 periodic; nine of the twelve separate at nominal 95 % task and eleven
 of the twelve under clustering. Arm 5 vs arm 6 straddles across all
-four cells under both schemes (ratios 0.948 – 1.080). Full 40 rows in
-`pairwise_bootstrap_ci_periodic.csv` (task) and
-`pairwise_bootstrap_ci_periodic_clustered.csv` (clustered).
+four cells under both schemes (ratios 0.948 – 1.080).
+
+**Arm bimoco on periodic.** All twelve arm-1/3/4-vs-bimoco ratios sit
+in [0.976, 1.017] and 0/12 separate under either scheme — bimoco is
+indistinguishable from arms 1/3/4 on periodic. Arm 5 vs bimoco and
+arm 6 vs bimoco: 6 of 8 rows separate at nominal 95 % task with bimoco
+lower.
+
+Full 60 rows per panel in `pairwise_bootstrap_ci_periodic.csv` (task)
+and `pairwise_bootstrap_ci_periodic_clustered.csv` (clustered).
 
 ### Medium+long horizon subset (42 configs — every `dataset/*/{medium,long}`)
 
@@ -322,6 +356,13 @@ at ratio 0.98, step-confounded by the 9,500-step backbone gap; under
 clustering the 6L/best arm-4 row folds into the straddling group. Arm
 5's medium+long deficit does not appear on arm 6 (2L/last arm 5 vs
 arm 6 = 1.29 [1.24, 1.35]; 6L/last = 1.15 [1.11, 1.20]).
+
+**Arm bimoco on medium+long.** Twelve arm-1/3/4-vs-bimoco ratios in
+[0.986, 1.035]; 4/12 separate at nominal 95 % task, only 1/12 under
+clustering (arm 4 (600) vs bimoco (10,000), same 9,400-step confound
+as arm 4-vs-arm 3 on this subset). Bimoco sits inside the arm-1/3/4
+spread. Arm 5 / arm 6 vs bimoco: 6/8 separate task, 4/8 clustered,
+bimoco lower.
 
 **Medium+long `best` cells.** All four arm-4-vs-trained-arms point
 ratios are above 1 (i.e. arm 4's step-600 backbone scores lower
@@ -390,6 +431,11 @@ nominal 95 %, both schemes, with the single straddler 6L/best arm 4
 below 1 in all four cells (0.906 – 0.919); all four separate under both
 schemes. So on short arm 6 is worse than every other trained arm
 including arm 5.
+
+**Arm bimoco on the short subset.** Twelve arm-1/3/4-vs-bimoco ratios
+in [0.982, 1.035]; 4/12 separate task, 3/12 clustered — bimoco is
+close to but usually indistinguishable from arms 1/3/4 on short. Arm 5
+/ arm 6 vs bimoco: 4/8 rows separate under both schemes, bimoco lower.
 
 **Arm 5 on the short subset.** Eleven of the twelve arm-5 contrasts
 here straddle 1; the one that separates is 6L / best arm 4 vs arm 5
@@ -461,6 +507,7 @@ checkpoint.*
 | arm 4 | `cosine_similarity_batch_full_hh_negs_xshh_allt` | on | pooled champion shape with EMA-teacher keys |
 | arm 5 | `cosine_similarity_batch_rep_only` + `--align-loss-weight 1.0` | off | replace `L_pred` with BYOL alignment to the EMA-teacher latent: `L = L_align + L_rep`; `--pos-in-denominator` and `--subtract-contrastive-floor` drop out |
 | arm 6 | `cosine_similarity_batch_rep_only` + `--align-loss-weight 0` + `--align-moco-loss-weight 1.0` | n/a | replace arm 5's BYOL `L_align` with a MoCo-style contrastive `L_align_moco` (`src/loss.py:align_moco_loss`): student encoder anchor `h_{b,t}`, teacher-encoder key `h^T_{b',t}` at the same timestep, cross-batch negatives, τ = 0.10, positive at b' = b. No forecaster-latent term in either summand (`L_rep` has no positive; `L_align_moco`'s positive is same-timestep encoder alignment, not next-step prediction). `L = L_align_moco + L_rep` |
+| arm bimoco | `cosine_similarity_batch_split_pred_rep` + `--moco-negatives` + `--moco-rep-keys` | on | arm-1 split objective, teacher-side keys on both terms. `L_pred` is arm-3-style MoCo (cross-batch f ↔ h keys through the EMA teacher). `L_rep` swaps the KEY side of its three h-anchored families (`log_neg_xx`, `log_neg_hh_all`, `log_neg_xs_allt`) to teacher `h^T_{b',l}` while anchor stays student. No positive added on L_rep; it remains a pooled LSE. `L = L_pred + L_rep` |
 | arm C ref | `cosine_similarity_batch_full_hh_negs_xshh_allt` | off | champion (λ_e = 1, λ_h = 1, τ = 0.90) of the earlier sweep, reused without retraining |
 
 **Confound.** The split's `L_pred` is normalized InfoNCE by

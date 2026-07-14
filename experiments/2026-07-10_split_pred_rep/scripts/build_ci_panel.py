@@ -40,6 +40,7 @@ OUT_PER_CLU = EXP / "results" / "pairwise_bootstrap_ci_periodic_clustered.csv"
 OUT_HOR_CLU = EXP / "results" / "pairwise_bootstrap_ci_medlong_clustered.csv"
 OUT_ARM5_200K = EXP / "results" / "pairwise_bootstrap_ci_arm5_nboot200k.csv"
 OUT_ARM6_200K = EXP / "results" / "pairwise_bootstrap_ci_arm6_nboot200k.csv"
+OUT_BIMOCO_200K = EXP / "results" / "pairwise_bootstrap_ci_bimoco_nboot200k.csv"
 OUT_SHORT = EXP / "results" / "pairwise_bootstrap_ci_short.csv"
 OUT_SHORT_CLU = EXP / "results" / "pairwise_bootstrap_ci_short_clustered.csv"
 N_BOOT_ARM5 = 200000
@@ -51,6 +52,7 @@ ARMS = {
     "arm4": ("results_arm4", "gift_eval_full_allt08_moco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm4_tau090"),
     "arm5": ("results_arm5", "gift_eval_full_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090"),
     "arm6": ("results_arm6", "gift_eval_full_lalignmoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm6_tau090"),
+    "bimoco": ("results_bimoco", "gift_eval_full_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090"),
 }
 GROUPS = [("2L", "best"), ("2L", "last"), ("6L", "best"), ("6L", "last")]
 MASE = "eval_metrics/MASE[0.5]"
@@ -121,6 +123,7 @@ def main():
     rows_short, rows_short_clu = [], []
     rows_arm5_200k = []
     rows_arm6_200k = []
+    rows_bimoco_200k = []
     for HL, ck in GROUPS:
         # cache each arm's per-task rel-MASE at this cell
         rel = {a: rel_mase(csv_path(a, HL, ck), sn) for a in ARMS}
@@ -169,6 +172,13 @@ def main():
             p2 = 2 * min(p6, 1 - p6)
             se_1 = float(np.sqrt(p6 * (1 - p6) / N_BOOT_ARM5))
             rows_arm6_200k.append([HL, ck, other, "arm6", ga6, gb6, r6, lo6, hi6, p6, p2, 2 * se_1, n6, N_BOOT_ARM5, SEED])
+        # arm-bimoco rows at n_boot = 200 000:
+        for other in ("arm1", "arm3", "arm4", "arm5", "arm6"):
+            rng = np.random.default_rng(SEED)
+            gaB, gbB, rB, loB, hiB, pB, nB = bootstrap_task(rel[other], rel["bimoco"], rng, n_boot=N_BOOT_ARM5)
+            p2 = 2 * min(pB, 1 - pB)
+            se_1 = float(np.sqrt(pB * (1 - pB) / N_BOOT_ARM5))
+            rows_bimoco_200k.append([HL, ck, other, "bimoco", gaB, gbB, rB, loB, hiB, pB, p2, 2 * se_1, nB, N_BOOT_ARM5, SEED])
 
     def write(path, header, rows):
         with open(path, "w", newline="") as f:
@@ -184,6 +194,7 @@ def main():
     write(OUT_HOR_CLU, ["head","ckpt","arm_a","arm_b","gm_a","gm_b","ratio_a_over_b","ci_lo","ci_hi","p_a_beats_b","n","n_datasets","n_boot","seed"], rows_hor_clu)
     write(OUT_ARM5_200K, ["head","ckpt","arm_a","arm_b","gm_a","gm_b","ratio_a_over_b","ci_lo","ci_hi","one_sided_p","two_sided_p","mc_se_two_sided","n","n_boot","seed"], rows_arm5_200k)
     write(OUT_ARM6_200K, ["head","ckpt","arm_a","arm_b","gm_a","gm_b","ratio_a_over_b","ci_lo","ci_hi","one_sided_p","two_sided_p","mc_se_two_sided","n","n_boot","seed"], rows_arm6_200k)
+    write(OUT_BIMOCO_200K, ["head","ckpt","arm_a","arm_b","gm_a","gm_b","ratio_a_over_b","ci_lo","ci_hi","one_sided_p","two_sided_p","mc_se_two_sided","n","n_boot","seed"], rows_bimoco_200k)
     write(OUT_SHORT, ["head","ckpt","arm_a","arm_b","gm_a","gm_b","ratio_a_over_b","ci_lo","ci_hi","p_a_beats_b","n_short","n_boot","seed"], rows_short)
     write(OUT_SHORT_CLU, ["head","ckpt","arm_a","arm_b","gm_a","gm_b","ratio_a_over_b","ci_lo","ci_hi","p_a_beats_b","n","n_datasets","n_boot","seed"], rows_short_clu)
     print(f"wrote {OUT_ALL.name}, {OUT_PER.name}, {OUT_CLU.name}, {OUT_HOR.name}, "

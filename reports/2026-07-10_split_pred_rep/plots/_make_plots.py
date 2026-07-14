@@ -23,7 +23,7 @@ EXP = ROOT / "experiments" / "2026-07-10_split_pred_rep"
 SIGREG = ROOT / "experiments" / "2026-06-28_sigreg_lambda_tau_cross"
 
 # Arm colours (validated categorical trio; hatch/linestyle carry identity too).
-C_ARM1, C_ARM3, C_ARM4, C_ARM6 = "#2a78d6", "#eb6834", "#008300", "#b8860b"
+C_ARM1, C_ARM3, C_ARM4, C_ARM6, C_BIMOCO = "#2a78d6", "#eb6834", "#008300", "#b8860b", "#00a3a3"
 # Tensor colours (validated categorical quad).
 C_TENSOR = {
     "log_neg_zy": "#1baf7a",
@@ -46,6 +46,7 @@ ARM_SPECS = {
     "arm4": (EXP / "results_arm4", "gift_eval_full_allt08_moco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm4_tau090"),
     "arm5": (EXP / "results_arm5", "gift_eval_full_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090"),
     "arm6": (EXP / "results_arm6", "gift_eval_full_lalignmoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm6_tau090"),
+    "bimoco": (EXP / "results_bimoco", "gift_eval_full_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090"),
 }
 
 
@@ -69,16 +70,17 @@ C_ARM5 = "#8b1e8b"
 
 def headline() -> None:
     champ = champion_cells()
-    fig, ax = plt.subplots(figsize=(14.5, 5.6))
+    fig, ax = plt.subplots(figsize=(16.5, 5.6))
     x = np.arange(len(GROUPS))
-    width = 0.14
+    width = 0.12
     C_CHAMP = "#52514e"
-    arm_slots = [(-2.5 * width, "arm1", C_ARM1, "arm 1 (split)"),
-                 (-1.5 * width, "arm3", C_ARM3, "arm 3 (split + MoCo)"),
-                 (-0.5 * width, "arm4", C_ARM4, "arm 4 (pooled + MoCo)"),
-                 ( 0.5 * width, "arm5", C_ARM5, "arm 5 (L_align + L_rep)"),
-                 ( 1.5 * width, "arm6", C_ARM6, "arm 6 (L_align_moco + L_rep)"),
-                 ( 2.5 * width, None,  C_CHAMP, "arm C ref (champion)")]
+    arm_slots = [(-3.0 * width, "arm1", C_ARM1, "arm 1 (split)"),
+                 (-2.0 * width, "arm3", C_ARM3, "arm 3 (split + MoCo)"),
+                 (-1.0 * width, "arm4", C_ARM4, "arm 4 (pooled + MoCo)"),
+                 ( 0.0 * width, "arm5", C_ARM5, "arm 5 (L_align + L_rep)"),
+                 ( 1.0 * width, "arm6", C_ARM6, "arm 6 (L_align_moco + L_rep)"),
+                 ( 2.0 * width, "bimoco", C_BIMOCO, "arm bimoco (split + moco both)"),
+                 ( 3.0 * width, None,  C_CHAMP, "arm C ref (champion)")]
     for off, arm, colour, label in arm_slots:
         if arm is None:
             vals = [champ[g] for g in GROUPS]
@@ -192,6 +194,12 @@ FOREST_ROWS = [
     ("6L / last",  "arm 4 vs arm 6", "pooled+MoCo ↔ L_align_moco+L_rep", "arm4", "arm6"),
     ("2L / last",  "arm 5 vs arm 6", "L_align ↔ L_align_moco (L_rep fixed)", "arm5", "arm6"),
     ("6L / last",  "arm 5 vs arm 6", "L_align ↔ L_align_moco (L_rep fixed)", "arm5", "arm6"),
+    ("2L / last",  "arm 1 vs bimoco",  "split ↔ split + moco (both L_pred and L_rep)", "arm1", "bimoco"),
+    ("6L / last",  "arm 1 vs bimoco",  "split ↔ split + moco (both L_pred and L_rep)", "arm1", "bimoco"),
+    ("2L / last",  "arm 3 vs bimoco",  "split+MoCo(pred) ↔ split+MoCo(pred+rep)", "arm3", "bimoco"),
+    ("6L / last",  "arm 3 vs bimoco",  "split+MoCo(pred) ↔ split+MoCo(pred+rep)", "arm3", "bimoco"),
+    ("2L / last",  "arm 4 vs bimoco",  "pooled+MoCo ↔ split + MoCo both terms", "arm4", "bimoco"),
+    ("6L / last",  "arm 4 vs bimoco",  "pooled+MoCo ↔ split + MoCo both terms", "arm4", "bimoco"),
 ]
 
 
@@ -218,7 +226,8 @@ def ci_forest() -> None:
         yt = n - 1 - i
         rt, lot, hit = _lookup(task, cell, a, b)
         rc, loc_, hic = _lookup(clu,  cell, a, b)
-        col = ("#b8860b" if a == "arm6" or b == "arm6" else
+        col = ("#00a3a3" if a == "bimoco" or b == "bimoco" else
+               "#b8860b" if a == "arm6" or b == "arm6" else
                "#8b1e8b" if a == "arm5" or b == "arm5" else INK)
         ax.plot([lot, hit], [yt + 0.12, yt + 0.12], color=col, lw=1.6)
         ax.plot(rt, yt + 0.12, "o", color=col, markersize=6)
