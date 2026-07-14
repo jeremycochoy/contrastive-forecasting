@@ -206,9 +206,7 @@ Output CSVs live in the same `results/` directory. Ratio `A/B < 1`
 means arm A beats arm B. The one-sided `p_a_beats_b` column stored in
 every CSV is the bootstrap proportion `P(ratio A/B < 1)`; the
 two-sided p we quote is `2 · min(p, 1 − p)`. Bonferroni family: the 60-contrast full-97
-panel (15 arm pairs × 4 (head, ckpt) cells) at α = 0.05 / 60 = 0.000833
-(family enlarged when bimoco was added; arm 1 / 3 / 4 / 5 / 6 headline
-counts against α are updated below relative to the prior α = 0.00125).
+panel (15 arm pairs × 4 (head, ckpt) cells) at α = 0.05 / 60 = 0.000833.
 The periodic, medium+long and short panels are read at
 nominal 95 % as diagnostics and no "Bonferroni" claim is made about
 them.
@@ -248,15 +246,13 @@ other pairs), task-level ratios [1.0557, 1.1581], lower bounds
 clustered schemes. At `n_boot` = 200,000
 ten of the twelve rows clear Bonferroni α = 0.05 / 60 = 0.000833; the
 two exceptions are 6L / last arm 5 vs arm 1 (p₂ = 0.00178, MC SE
-0.000133; fails by ~7 × MC SE against α = 0.000833) and 6L / best
-arm 5 vs arm 4 (p₂ = 0.00093, MC SE 0.0000964; fails by ~1 × MC SE —
-was in the clear zone at the prior α = 0.00125, moves to fail as the
-family enlarged from 40 to 60 tests). Eight of
-the twelve rows carry a zero-event count out of 200,000
+0.000133; fails by ~7 × MC SE) and 6L / best arm 5 vs arm 4
+(p₂ = 0.00093, MC SE 0.0000964; fails by ~1 × MC SE). Eight of the
+twelve rows carry a zero-event count out of 200,000
 (rule-of-three upper bound: one-sided p < 3 / 200,000 = 1.5 × 10⁻⁵,
-two-sided < 3 × 10⁻⁵); the four non-zero rows are the four just
+two-sided < 3 × 10⁻⁵); the four non-zero rows are the two just
 mentioned plus 6L / best arm 5 vs arm 1 (p₂ = 0.00032) and 6L / last
-arm 5 vs arm 3 (p₂ = 0.00012), both below α = 0.000833.
+arm 5 vs arm 3 (p₂ = 0.00012), both below α.
 
 Arm 6 vs arms 1 / 3 / 4 (12 rows, task-level, in
 `pairwise_bootstrap_ci.csv` at `n_boot` = 20,000; re-run at `n_boot` =
@@ -264,11 +260,10 @@ Arm 6 vs arms 1 / 3 / 4 (12 rows, task-level, in
 task-level ratios (arm 1 / 3 / 4 vs arm 6 direction) 0.947 – 0.970,
 upper bounds all below 1. At `n_boot` = 200,000 three rows clear
 α = 0.05 / 60 = 0.000833 — 2L / best arm 3 vs arm 6 (p₂ = 0.00070,
-+1.4 × MC SE against α = 0.000833), 2L / best arm 4 vs arm 6
-(p₂ = 0.00002, +59 × MC SE) and 6L / best arm 3 vs arm 6 (p₂ =
-0.00022, +13 × MC SE). The nine failing rows include 2L / last arm 4
-vs arm 6 (p₂ = 0.00114, −3 × MC SE against α = 0.000833; was a
-marginal clear against the prior α = 0.00125). Arm 5 vs arm 6
++1.6 × MC SE), 2L / best arm 4 vs arm 6 (p₂ = 0.00002, +58 × MC SE)
+and 6L / best arm 3 vs arm 6 (p₂ = 0.00022, +13 × MC SE). The nine
+failing rows include 2L / last arm 4 vs arm 6 (p₂ = 0.00114, −3 ×
+MC SE). Arm 5 vs arm 6
 task-level: 2 of 4 rows separate at nominal 95 % (2L / best arm 5 vs
 arm 6 = 1.0973; 2L / last arm 5 vs arm 6 = 1.0618, both arm 6 lower);
 at `n_boot` = 200,000 none clear α (smallest two-sided p = 0.00772).
@@ -285,7 +280,7 @@ early-fit) and none clear α = 0.000833 at 200k (all p₂ ≥ 0.02455).
 Arm 5 vs bimoco and arm 6 vs bimoco (8 rows) all separate at nominal
 95 % with bimoco lower, and all 8 clear α = 0.000833 at `n_boot` =
 200,000 (tightest is 6L / best arm 6 vs bimoco = 1.0482 [1.0197,
-1.0814], p₂ = 0.00028, +11 × MC SE against α = 0.000833).
+1.0814], p₂ = 0.00028, +10 × MC SE).
 
 ### Periodic-cluster subset (37 configs — `solar/`, `electricity/`, `ett1/`, `m4_hourly/`, `bizitobs_*`)
 
@@ -360,13 +355,14 @@ arm 6 = 1.29 [1.24, 1.35]; 6L/last = 1.15 [1.11, 1.20]).
 [0.986, 1.035]; 4/12 separate at nominal 95 % task and 1/12 under
 clustering. The clustering survivor is **2L / last arm 4 vs bimoco =
 1.0117 [1.0003, 1.0223]** — both arms at step 12,500, fully
-compute-matched, bimoco lower. The two task-only separators point in
-the same direction (2L / best arm 3 vs bimoco = 1.0150, 2L / last
-arm 3 vs bimoco = 1.0348, bimoco lower — both step-matched on the
-`last` side); the fourth task separator 2L / best arm 4 vs bimoco =
-0.9858 goes the opposite way and carries a 9,400-step confound
-(arm 4's step 600 vs bimoco's step 10,000 on this subset). Arm 5 /
-arm 6 vs bimoco: 6/8 separate task, 4/8 clustered, bimoco lower.
+compute-matched, bimoco lower. Of the three task-only separators, 2L
+/ last arm 3 vs bimoco = 1.0348 is also compute-matched (both at
+step 12,500) and points bimoco lower; 2L / best arm 3 vs bimoco =
+1.0150 carries a 1,800-step gap (arm 3's step 11,800 vs bimoco's
+step 10,000); 2L / best arm 4 vs bimoco = 0.9858 goes the opposite
+way with a 9,400-step confound (arm 4's step 600 vs bimoco's step
+10,000). Arm 5 / arm 6 vs bimoco: 6/8 separate task, 4/8 clustered,
+bimoco lower.
 
 **Medium+long `best` cells.** All four arm-4-vs-trained-arms point
 ratios are above 1 (i.e. arm 4's step-600 backbone scores lower
@@ -566,10 +562,13 @@ the sweep branch; this branch does not re-verify it.
 
 N = 1. The paired bootstrap measures within-run across-task
 variability; between-seed variance is not measured here and the
-card's single-seed noise band ±0.02 is comparable to every
-arm-1/3/4 pairwise point difference in the tables; arm 5 and arm 6
-same-cell differences from the arm-1/3/4 group are 0.064 – 0.183 GM
-and 0.036 – 0.064 GM. A two-run seed noise budget is √2 × 0.02 ≈
+card's single-seed noise band ±0.02 is on the order of the
+arm-1/3/4 pairwise point differences (0.001 – 0.027 GM across cells;
+the 0.027 upper end is arm 3 vs arm 4 at 6L / best, 1.1338 vs 1.1603,
+which sits just above the band). Bimoco's differences from the
+arm-1/3/4 group are 0.008 – 0.019 GM (all inside the band). Arm 5
+and arm 6 same-cell differences from the arm-1/3/4 group are
+0.064 – 0.183 GM and 0.036 – 0.064 GM. A two-run seed noise budget is √2 × 0.02 ≈
 0.028 GM, so the arm-5 separations are 2 – 7 × that budget and the
 arm-6 separations 1.3 – 2.3 × — arm 5 is well above the seed band on
 every cell; arm 6's smallest cells (6L/best arm 4 vs arm 6 = 0.036;
