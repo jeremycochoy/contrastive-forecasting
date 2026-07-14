@@ -1451,6 +1451,7 @@ def main():
                 align_loss_weight=0.0,
                 subtract_contrastive_floor=False,
                 moco_negatives=False,
+                moco_rep_keys=False,
             )
         loss_tau_ref_val = loss_tau_ref.item()
         t_fwd_end = time.perf_counter()

@@ -846,6 +846,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
                             align_loss_weight=None,
                             subtract_contrastive_floor=None,
                             moco_negatives=None,
+                            moco_rep_keys=None,
                             teacher_original_latent=None):
     """Compute the contrastive divergence loss.
 
@@ -1723,7 +1724,9 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         # h^T. Anchors (hx_norm) stay student-side; keys become teacher-side.
         # Mirrors `moco_negatives` (which does the same for the cross-batch
         # f↔h family on the L_pred side).
-        moco_rep = bool(train_config.get('moco_rep_keys', False))
+        moco_rep = (
+            moco_rep_keys if moco_rep_keys is not None
+            else bool(train_config.get('moco_rep_keys', False)))
         if moco_rep and teacher_orig_norm is not None:
             hx_key = teacher_orig_norm[:, :-1, :, :]           # teacher h at t
             orig_key = teacher_orig_norm                       # teacher h at all times
@@ -2401,8 +2404,14 @@ def contrastive_latent_loss(predicted_position, validation, spec,
     # Guard: moco_rep_keys (#374 arm bimoco) is only wired into the split
     # branch's L_rep families; any other shape reaching here with it set
     # would have silently trained on student-side keys — fail loud. Also
-    # requires the EMA-teacher path to be active.
-    if bool(train_config.get('moco_rep_keys', False)):
+    # requires the EMA-teacher path to be active. The function-arg override
+    # (moco_rep_keys=False from the loss_tau_ref diagnostic) takes precedence
+    # over the config key, so the diagnostic can force it off even when the
+    # run has it on.
+    _moco_rep_effective = (
+        moco_rep_keys if moco_rep_keys is not None
+        else bool(train_config.get('moco_rep_keys', False)))
+    if _moco_rep_effective:
         if train_config.get('loss_shape') != \
                 'cosine_similarity_batch_split_pred_rep':
             raise NotImplementedError(
