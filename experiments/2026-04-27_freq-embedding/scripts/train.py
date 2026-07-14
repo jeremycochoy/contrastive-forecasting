@@ -489,6 +489,15 @@ def parse_args():
                         "cosine_similarity_batch_split_pred_rep or "
                         "cosine_similarity_batch_full_hh_negs_xshh_allt; "
                         "raises otherwise.")
+    p.add_argument("--moco-rep-keys", action="store_true",
+                   help="MoCo-style keys on L_rep (#374 arm bimoco): route "
+                        "the three h-anchored families in the split shape "
+                        "(log_neg_xx, log_neg_hh_all, log_neg_xs_allt) "
+                        "through the EMA teacher on the key side — student "
+                        "anchor h_{b,t}, teacher keys h^T_{b',l}. No "
+                        "positive added; L_rep stays a pooled LSE. Requires "
+                        "--ema-embedding/--ema-encoder and --loss-shape "
+                        "cosine_similarity_batch_split_pred_rep.")
     p.add_argument("--sigreg-embedding", action="store_true",
                    help="LeJEPA spherical SIGReg term on the patch-embedding "
                         "e_t (the GRU patch-embed output, [B,T,C,H] before "
@@ -1038,6 +1047,7 @@ def main():
     LOSS_SPEC.train_configuration["align_loss_weight"] = args.align_loss_weight
     LOSS_SPEC.train_configuration["subtract_contrastive_floor"] = args.subtract_contrastive_floor
     LOSS_SPEC.train_configuration["moco_negatives"] = args.moco_negatives
+    LOSS_SPEC.train_configuration["moco_rep_keys"] = args.moco_rep_keys
     if args.tau is not None:
         LOSS_SPEC.train_configuration["contrastive_divergence_temperature"] = args.tau
     model = ConfigurableModel(**model_config).to(device)

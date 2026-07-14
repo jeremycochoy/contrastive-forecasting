@@ -1013,6 +1013,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         teacher_orig_norm = F.normalize(teacher_original_latent, p=2, dim=-1)
         hy_teacher_norm = teacher_orig_norm[:, 1:, :, :]
     else:
+        teacher_orig_norm = None
         hy_teacher_norm = None
 
     if train_config.get('loss_shape') == 'cosine_similarity_old':
@@ -1716,9 +1717,23 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             hy_pos = hy_norm
         log_pos = cosine_similarity_from_normalized(hy_pos, hy_hat_norm) / tau
 
+        # MoCo-keys on L_rep (#374 arm bimoco, config key `moco_rep_keys`):
+        # when on AND an EMA teacher is available, replace the STUDENT h on
+        # the KEY side of the three h-anchored families with the teacher's
+        # h^T. Anchors (hx_norm) stay student-side; keys become teacher-side.
+        # Mirrors `moco_negatives` (which does the same for the cross-batch
+        # f↔h family on the L_pred side).
+        moco_rep = bool(train_config.get('moco_rep_keys', False))
+        if moco_rep and teacher_orig_norm is not None:
+            hx_key = teacher_orig_norm[:, :-1, :, :]           # teacher h at t
+            orig_key = teacher_orig_norm                       # teacher h at all times
+        else:
+            hx_key = hx_norm
+            orig_key = orig_norm
+
         # h-anchored family 1: cross-channel same-time h↔h (xx).
         sims_xx = cosine_similarity_from_normalized(
-            hx_norm.unsqueeze(3), hx_norm.unsqueeze(2))
+            hx_norm.unsqueeze(3), hx_key.unsqueeze(2))
         mask_mat = ~torch.eye(C, dtype=torch.bool, device=sims_xx.device)
         mask_mat = mask_mat.view(1, 1, C, C)
         log_neg_xx = torch.logsumexp(
@@ -1734,7 +1749,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         l_idx = torch.arange(T, device=orig_norm.device).view(1, T)
         sims_hh_all = torch.matmul(
             hx_norm.permute(0, 2, 1, 3),
-            orig_norm.permute(0, 2, 3, 1),
+            orig_key.permute(0, 2, 3, 1),
         )
         drop_self = (l_idx == t_idx).view(1, 1, T - 1, T)
         log_neg_hh_all = torch.logsumexp(
@@ -1765,8 +1780,10 @@ def contrastive_latent_loss(predicted_position, validation, spec,
 
         # h-anchored family 3: cross-series all-time h↔h' (xs_allt),
         # gradient-checkpointed via the same chunked path as `..._xshh_allt`.
+        # With moco_rep_keys on, the KEY side uses teacher_orig_norm (see the
+        # `orig_key` selection above); the anchor stays student-side.
         anchor = hx_norm.permute(0, 2, 1, 3).contiguous()
-        src = orig_norm.permute(0, 2, 1, 3).contiguous()
+        src = orig_key.permute(0, 2, 1, 3).contiguous()
         b_all = torch.arange(B, device=orig_norm.device)
         CH = int(os.environ.get('XSHH_ALLT_CHUNK', '8'))
         fused = os.environ.get('XSHH_ALLT_FUSED', '0') == '1'
@@ -2378,6 +2395,23 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         if hy_teacher_norm is None:
             raise ValueError(
                 "moco_negatives requires an EMA teacher (pass "
+                "teacher_original_latent, i.e. --ema-embedding / "
+                "--ema-encoder at training time).")
+
+    # Guard: moco_rep_keys (#374 arm bimoco) is only wired into the split
+    # branch's L_rep families; any other shape reaching here with it set
+    # would have silently trained on student-side keys — fail loud. Also
+    # requires the EMA-teacher path to be active.
+    if bool(train_config.get('moco_rep_keys', False)):
+        if train_config.get('loss_shape') != \
+                'cosine_similarity_batch_split_pred_rep':
+            raise NotImplementedError(
+                "moco_rep_keys is only implemented for loss_shape="
+                "'cosine_similarity_batch_split_pred_rep'; got "
+                f"{train_config.get('loss_shape')!r}.")
+        if teacher_original_latent is None:
+            raise ValueError(
+                "moco_rep_keys requires an EMA teacher (pass "
                 "teacher_original_latent, i.e. --ema-embedding / "
                 "--ema-encoder at training time).")
 
