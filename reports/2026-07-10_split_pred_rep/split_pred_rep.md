@@ -388,7 +388,7 @@ Every trained-vs-step-600 backbone-amount contrast on `best` cells:
 | 6L / best | arm 3 (11,800) vs arm 4 (600) | **0.9489** | [0.9176, 0.9778] | [0.9201, 0.9759] | **separates** at nominal 95 % under both schemes (task p = 1 × 10⁻⁴, `p_a_beats_b` = 0.99995 → 1 event / 20,000); this is a `best`-cell row outside the Bonferroni family (see §Selection rule for the 11,200-step confound) |
 
 Only the last row separates. The arm 1 vs arm 4 pair — an 11,900-step
-backbone gap on the same MoCo axis (both no-MoCo vs pooled+MoCo) —
+backbone gap on the joint axis (split-no-MoCo vs pooled-with-MoCo) —
 straddles under both schemes at both head depths. The separating row
 moves two variables at once (11,200 backbone steps AND split ↔
 pooled), so it cannot isolate backbone-training amount from loss
@@ -566,11 +566,12 @@ card's single-seed noise band ±0.02 is on the order of the
 arm-1/3/4 pairwise point differences (0.001 – 0.027 GM across cells;
 the 0.027 upper end is arm 3 vs arm 4 at 6L / best, 1.1338 vs 1.1603,
 which sits just above the band). Bimoco's differences from the
-arm-1/3/4 group are 0.008 – 0.019 GM (all inside the band). Arm 5
+arm-1/3/4 group are 0.001 – 0.019 GM (all inside the band). Arm 5
 and arm 6 same-cell differences from the arm-1/3/4 group are
 0.064 – 0.183 GM and 0.036 – 0.064 GM. A two-run seed noise budget is √2 × 0.02 ≈
-0.028 GM, so the arm-5 separations are 2 – 7 × that budget and the
-arm-6 separations 1.3 – 2.3 × — arm 5 is well above the seed band on
+0.028 GM, so the arm-5 separations are 2.3 – 6.5 × that budget and
+the arm-6 separations 1.3 – 2.3 × — arm 5 is well above the seed
+band on
 every cell; arm 6's smallest cells (6L/best arm 4 vs arm 6 = 0.036;
 6L/best arm 1 vs arm 6 = 0.039) sit close enough that a second seed
 of arm 6 could shrink or close the gap. `results_arm4/…_last_6L/all_results.csv`
