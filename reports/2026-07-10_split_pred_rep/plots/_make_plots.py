@@ -45,8 +45,11 @@ ARM_SPECS = {
     "arm3": (EXP / "results", "gift_eval_full_split_pred_rep_moco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090"),
     "arm4": (EXP / "results_arm4", "gift_eval_full_allt08_moco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm4_tau090"),
     "arm5": (EXP / "results_arm5", "gift_eval_full_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090"),
-    "arm6": (EXP / "results_arm6", "gift_eval_full_lalignmoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm6_tau090"),
-    "bimoco": (EXP / "results_bimoco", "gift_eval_full_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090"),
+    "arm6": (EXP / "results_arm6_v2", "gift_eval_full_lalign_lrepmoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm6v2_tau090"),
+    "bimoco": (EXP / "results_bimoco_v2", "gift_eval_full_split_pred_rep_bimoco_v2_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090"),
+    # Wrong-implementation snapshots kept for the headline plot only (semi-transparent).
+    "arm6_wrong": (EXP / "results_arm6", "gift_eval_full_lalignmoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm6_tau090"),
+    "bimoco_wrong": (EXP / "results_bimoco", "gift_eval_full_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090"),
 }
 
 
@@ -78,8 +81,8 @@ def headline() -> None:
                  (-2.0 * width, "arm3", C_ARM3, "arm 3 (split + MoCo)"),
                  (-1.0 * width, "arm4", C_ARM4, "arm 4 (pooled + MoCo)"),
                  ( 0.0 * width, "arm5", C_ARM5, "arm 5 (L_align + L_rep)"),
-                 ( 1.0 * width, "arm6", C_ARM6, "arm 6 (L_align_moco + L_rep)"),
-                 ( 2.0 * width, "bimoco", C_BIMOCO, "arm bimoco (split + moco both)"),
+                 ( 1.0 * width, "arm6", C_ARM6, "arm 6 (L_align + L_rep_moco)"),
+                 ( 2.0 * width, "bimoco", C_BIMOCO, "arm bimoco (L_pred_moco + L_rep_moco)"),
                  ( 3.0 * width, None,  C_CHAMP, "arm C ref (champion)")]
     for off, arm, colour, label in arm_slots:
         if arm is None:
@@ -91,6 +94,19 @@ def headline() -> None:
             ax.text(xi + off, v + 0.003, f"{v:.4f}",
                     ha="center", va="bottom", rotation=90, fontsize=7.5, color=INK)
         ax.bar(0, 0, color=colour, label=label)  # legend proxy
+    # Wrong-implementation snapshots for arm 6 and bimoco, drawn semi-transparent
+    # over the correct bars so the earlier (misimplemented) point estimates remain
+    # visible without being usable.
+    for off, arm, arm_wrong in (( 1.0 * width, "arm6",  "arm6_wrong"),
+                                ( 2.0 * width, "bimoco","bimoco_wrong")):
+        vals = [read_aggregate(arm_wrong, h, c) for h, c in GROUPS]
+        for xi, v in zip(x, vals):
+            if v is None:
+                continue
+            ax.plot([xi + off - width / 2, xi + off + width / 2], [v, v],
+                    color=INK, lw=1.0, alpha=0.35, ls=":")
+    ax.plot([], [], color=INK, lw=1.0, alpha=0.35, ls=":",
+            label="earlier (wrong) arm 6 / bimoco point")
     ax.axhline(1.0, color=MUTED, lw=1.2, ls="--", label="seasonal-naive = 1.0")
     ax.set_xticks(x, [f"{h} / {c}" for h, c in GROUPS])
     ax.set_xlim(-0.55, 3.55)
@@ -186,14 +202,14 @@ FOREST_ROWS = [
     ("6L / best*", "arm 1 vs arm 4", "joint — ckpt-selection confound", "arm1", "arm4"),
     ("2L / last",  "arm 5 vs arm 1", "L_align+L_rep ↔ split", "arm5", "arm1"),
     ("6L / last",  "arm 5 vs arm 1", "L_align+L_rep ↔ split", "arm5", "arm1"),
-    ("2L / last",  "arm 1 vs arm 6", "split ↔ L_align_moco+L_rep", "arm1", "arm6"),
-    ("6L / last",  "arm 1 vs arm 6", "split ↔ L_align_moco+L_rep", "arm1", "arm6"),
-    ("2L / last",  "arm 3 vs arm 6", "split+MoCo ↔ L_align_moco+L_rep", "arm3", "arm6"),
-    ("6L / last",  "arm 3 vs arm 6", "split+MoCo ↔ L_align_moco+L_rep", "arm3", "arm6"),
-    ("2L / last",  "arm 4 vs arm 6", "pooled+MoCo ↔ L_align_moco+L_rep", "arm4", "arm6"),
-    ("6L / last",  "arm 4 vs arm 6", "pooled+MoCo ↔ L_align_moco+L_rep", "arm4", "arm6"),
-    ("2L / last",  "arm 5 vs arm 6", "L_align ↔ L_align_moco (L_rep fixed)", "arm5", "arm6"),
-    ("6L / last",  "arm 5 vs arm 6", "L_align ↔ L_align_moco (L_rep fixed)", "arm5", "arm6"),
+    ("2L / last",  "arm 1 vs arm 6", "split ↔ L_align+L_rep_moco", "arm1", "arm6"),
+    ("6L / last",  "arm 1 vs arm 6", "split ↔ L_align+L_rep_moco", "arm1", "arm6"),
+    ("2L / last",  "arm 3 vs arm 6", "split+MoCo ↔ L_align+L_rep_moco", "arm3", "arm6"),
+    ("6L / last",  "arm 3 vs arm 6", "split+MoCo ↔ L_align+L_rep_moco", "arm3", "arm6"),
+    ("2L / last",  "arm 4 vs arm 6", "pooled+MoCo ↔ L_align+L_rep_moco", "arm4", "arm6"),
+    ("6L / last",  "arm 4 vs arm 6", "pooled+MoCo ↔ L_align+L_rep_moco", "arm4", "arm6"),
+    ("2L / last",  "arm 5 vs arm 6", "L_rep ↔ L_rep_moco (L_align fixed)", "arm5", "arm6"),
+    ("6L / last",  "arm 5 vs arm 6", "L_rep ↔ L_rep_moco (L_align fixed)", "arm5", "arm6"),
     ("2L / last",  "arm 1 vs bimoco",  "split ↔ split + moco (both L_pred and L_rep)", "arm1", "bimoco"),
     ("6L / last",  "arm 1 vs bimoco",  "split ↔ split + moco (both L_pred and L_rep)", "arm1", "bimoco"),
     ("2L / last",  "arm 3 vs bimoco",  "split+MoCo(pred) ↔ split+MoCo(pred+rep)", "arm3", "bimoco"),
