@@ -1401,9 +1401,19 @@ class TestContrastiveFloor:
         return spec
 
     def test_infonce_floor_formula(self):
+        # Strict best lower bound: cos_pos = +1, cos_neg = −1 ⇒
+        # floor = log(exp(+1/τ) + N·exp(−1/τ)) − 1/τ = log(1 + N·e^(−2/τ)).
         for tau, n in [(0.1, 100), (0.07, 5000), (0.2, 256 * 511)]:
             assert abs(infonce_floor(tau, n)
-                       - math.log1p(n * math.exp(-1.0 / tau))) < 1e-12
+                       - math.log1p(n * math.exp(-2.0 / tau))) < 1e-12
+
+    def test_subtract_floor_keeps_loss_nonnegative(self):
+        # With the strict-min floor, `loss − floor ≥ 0` on any batch.
+        for seed in (3, 11, 42, 101):
+            f, h = _random_inputs(B=3, T=5, C=1, H=8, seed=seed)
+            L = contrastive_latent_loss((f, h), False, self._spec(floor=True))
+            assert L.item() >= -1e-6, (
+                f"rebased loss must be ≥ 0 with strict-min floor; got {L.item()}")
 
     def test_effective_negative_count_matches_structure(self):
         # full_fh_negs, C=1: per-anchor = (xy+xx+zy)=2 + fh_all(T-1) + (B-1); ×B.
