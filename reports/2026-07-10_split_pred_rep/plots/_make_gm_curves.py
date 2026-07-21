@@ -1,6 +1,11 @@
-"""GM-Relative MASE trajectory per arm (2L / 6L), (best_step, best_GM) and
-(12500, last_GM). Two points per (arm, HL) at present — the 25k extension
-will add a third when it lands.
+"""GM-Relative MASE trajectory per arm across backbone steps.
+
+Points per (arm, HL): whichever of these are available in results/,
+each read as `gift_eval_full_<base>[_suffix]_<HL>L/summary.txt`:
+  * step ~2,000  (suffix `_2k` — 25k-prolongation Round A)
+  * arm's best-loss step   (suffix ""    — `best` cell)
+  * step 12,500  (suffix `_last`)
+  * step 25,000  (suffix `_25k` — 25k-prolongation Round B)
 """
 from __future__ import annotations
 
@@ -22,18 +27,7 @@ plt.rcParams.update({
     "xtick.color": INK, "ytick.color": INK,
 })
 
-# (label, results-dir, base name, best_step, colour). Labels use a short slug
-# that names what each arm actually is, followed by the report's arm-N tag for
-# tie-back:
-#   split         — arm 1: baseline split L_pred + L_rep, no MoCo.
-#   split+moco    — arm 3: split with MoCo on L_pred (teacher-keys on the
-#                   cross-batch f↔h family).
-#   pooled+moco   — arm 4: arm C's pooled xshh_allt shape + MoCo negatives.
-#   byol+rep      — arm 5: L_align (BYOL, positive only) + L_rep, no InfoNCE.
-#   moco-align+rep — arm 6: L_align_moco (MoCo-style same-time encoder align)
-#                   + L_rep.
-#   bimoco        — split with MoCo on BOTH L_pred AND L_rep (teacher-keys on
-#                   every h-anchored family).
+# (label, results-dir, base name, best_step, colour).
 ARMS = [
     ("L_pred + L_rep",                    "results",           "gift_eval_full_split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090",           12500, C_ARM1),
     ("L_pred_moco + L_rep",               "results",           "gift_eval_full_split_pred_rep_moco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090",      11800, C_ARM3),
@@ -55,24 +49,35 @@ fig, axes = plt.subplots(1, 2, figsize=(14, 6), sharey=True)
 for i, HL in enumerate(("2L", "6L")):
     ax = axes[i]
     for label, rd, base, best_step, colour in ARMS:
-        best = gm(EXP / rd / (base + f"_{HL}") / "summary.txt")
-        last = gm(EXP / rd / (base + f"_last_{HL}") / "summary.txt")
-        if best is None or last is None:
+        # (step, suffix) — each read as f"{base}{suffix}_{HL}"
+        candidates = [
+            (2000, "_2k"),
+            (best_step, ""),
+            (12500, "_last"),
+            (25000, "_25k"),
+            (50000, "_50k"),
+        ]
+        pts = []
+        for step, suffix in candidates:
+            val = gm(EXP / rd / (base + suffix + f"_{HL}") / "summary.txt")
+            if val is not None:
+                pts.append((step, val))
+        # dedupe on step (arm 1's best == last since FINAL.pth md5 = final.pth)
+        pts = sorted({step: val for step, val in pts}.items())
+        if not pts:
             continue
-        ax.plot([best_step, 12500], [best, last], color=colour, lw=1.5,
-                marker="o", markersize=6, label=label)
-        # step-25k `last` will land here as a third point once the extension eval finishes.
+        xs, ys = zip(*pts)
+        ax.plot(xs, ys, color=colour, lw=1.5, marker="o", markersize=6, label=label)
     ax.axhline(1.0, color=MUTED, lw=1.0, ls="--")
     ax.set_xlabel("backbone step")
     ax.set_title(f"{HL} quantile head", fontsize=10)
     ax.grid(True, color=GRID, alpha=0.6)
-    ax.set_xlim(0, 15000)
+    ax.set_xlim(0, 51000)
 axes[0].set_ylabel("Aggregate GM-Relative MASE (full-97)")
 axes[0].legend(loc="upper right", fontsize=9, frameon=False)
 fig.suptitle(
-    "GM-Relative MASE per arm at (best-loss step, 12,500 last). "
-    "L_pred + L_rep collapses to a single point at step 12,500 (its FINAL.pth md5 = final.pth). "
-    "25k extension in flight adds a third point per (arm, HL) when the eval cell lands.",
+    "GM-Relative MASE per arm across backbone step  "
+    "(2k / best / 12,500 last / 25k / 50k where available; fresh 40k head at each new backbone-step cell)",
     fontsize=9)
 fig.tight_layout()
 out = HERE / "gm_curve_per_arm.png"
