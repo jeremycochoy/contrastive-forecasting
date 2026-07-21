@@ -495,14 +495,17 @@ def parse_args():
                         "cosine_similarity_batch_full_hh_negs_xshh_allt; "
                         "raises otherwise.")
     p.add_argument("--moco-rep-keys", action="store_true",
-                   help="MoCo-style keys on L_rep (#374 arm bimoco): route "
-                        "the three h-anchored families in the split shape "
+                   help="MoCo-style keys on L_rep (#374 arm bimoco / arm 6 "
+                        "v2): route the three h-anchored families "
                         "(log_neg_xx, log_neg_hh_all, log_neg_xs_allt) "
                         "through the EMA teacher on the key side — student "
-                        "anchor h_{b,t}, teacher keys h^T_{b',l}. No "
-                        "positive added; L_rep stays a pooled LSE. Requires "
-                        "--ema-embedding/--ema-encoder and --loss-shape "
-                        "cosine_similarity_batch_split_pred_rep.")
+                        "anchor h_{b,t}, teacher keys h^T_{b',l}. Adds a "
+                        "same-batch same-time student↔teacher positive; "
+                        "L_rep becomes a normalized InfoNCE (positive-in-"
+                        "denominator). Requires --ema-embedding/"
+                        "--ema-encoder and --loss-shape in "
+                        "{cosine_similarity_batch_split_pred_rep, "
+                        "cosine_similarity_batch_rep_only}.")
     p.add_argument("--sigreg-embedding", action="store_true",
                    help="LeJEPA spherical SIGReg term on the patch-embedding "
                         "e_t (the GRU patch-embed output, [B,T,C,H] before "
@@ -705,10 +708,35 @@ def parse_extra_save_steps(spec):
 
     None / empty → empty set. Used by --extra-save-steps to add off-cadence
     snapshots on top of --save-every without changing the base cadence.
+
+    Raises SystemExit if any entry is not a positive integer, or if two
+    entries fall in the same 1000-block. The snapshot filename is
+    `{run}_{step // 1000}k.pth`, so two extras within the same 1000-block
+    (e.g. 2500 and 2800) would silently overwrite each other. Reject at
+    parse time rather than during training when the collision surfaces
+    hours in.
     """
     if not spec:
         return frozenset()
-    return frozenset(int(s.strip()) for s in spec.split(",") if s.strip())
+    try:
+        vals = [int(s.strip()) for s in spec.split(",") if s.strip()]
+    except ValueError as e:
+        raise SystemExit(
+            f"--extra-save-steps: cannot parse {spec!r} as a comma-"
+            f"separated list of integers ({e}).")
+    if any(v <= 0 for v in vals):
+        raise SystemExit(
+            f"--extra-save-steps: every entry must be > 0; got {vals!r}.")
+    blocks = {}
+    for v in vals:
+        b = v // 1000
+        if b in blocks and blocks[b] != v:
+            raise SystemExit(
+                f"--extra-save-steps: entries {blocks[b]} and {v} share "
+                f"1000-block {b} — snapshot filename `_{b}k.pth` would "
+                f"overwrite. Space them into distinct 1000-blocks.")
+        blocks[b] = v
+    return frozenset(vals)
 
 
 def should_snapshot(step, save_every, extra_steps):
@@ -1043,6 +1071,10 @@ def main():
     if (args.ema_embedding or args.ema_encoder) and not (0.0 < args.ema_tau < 1.0):
         raise SystemExit("--ema-tau must be in (0, 1); got "
                          f"{args.ema_tau!r}.")
+    # Parse --extra-save-steps at validation time (not deep in the training
+    # loop) so a malformed value fails immediately instead of after model +
+    # dataloader construction — the parser raises SystemExit on bad input.
+    _extra_save_steps = parse_extra_save_steps(args.extra_save_steps)
     model_config["ema_embedding"] = bool(args.ema_embedding)
     model_config["ema_encoder"] = bool(args.ema_encoder)
     # LeJEPA SIGReg (#355): the term contributes nothing to the model's
@@ -1238,7 +1270,6 @@ def main():
     t_data_sum, t_fwd_sum, t_bwd_sum, t_step_sum = 0.0, 0.0, 0.0, 0.0
     timing_count = 0
     mixup_applied_count = 0
-    _extra_save_steps = parse_extra_save_steps(args.extra_save_steps)
 
     for step in range(start_step + 1, args.total_steps + 1):
         t_step_start = time.perf_counter()
