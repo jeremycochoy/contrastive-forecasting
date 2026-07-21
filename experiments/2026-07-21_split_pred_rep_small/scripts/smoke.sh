@@ -1,17 +1,16 @@
 #!/bin/bash
-# #379 end-to-end smoke — runs one arm's full chain (backbone train →
-# extra-save snapshot → q-head train → tiny GIFT-Eval) in ~10 min so any
-# breakage in the checkpoint-naming, load_state_dict, or eval path
-# surfaces BEFORE 35 hours of GPU time is committed.
+# #379 backbone-only smoke — runs one arm's backbone for 200 steps in
+# ~3 min so any breakage in the training config, checkpoint naming, or
+# training-dynamics logging surfaces BEFORE 15-20 h of GPU time is
+# committed. No q-head, no eval — matches the real experiment shape.
 #
 # Exercises:
-#   1. `--extra-save-steps 150` snapshot lands as `_0k.pth` and is
-#      discoverable by `run_arm.sh`'s `ckpt_path 0` glob.
-#   2. `train_forecasting_head.py` auto-detects freq_emb_dim,
-#      seasonality_emb_dim, num_encoder_layers, qk_norm, attn_out_norm,
-#      depthwise_conv from the small-model backbone state_dict — the
-#      exact path that fails at 35 h if any arch flag disagrees.
-#   3. `eval_gift_eval_official.py` runs one downstream cell end-to-end.
+#   1. Training config actually loads and runs (loss / arch / SIGReg
+#      combined) for the requested arm.
+#   2. `--extra-save-steps 150` snapshot lands as `_0k.pth` next to the
+#      regular save-every snapshot.
+#   3. `_losses.csv` picks up the `ff`, `u_batchtime`, `u_batchtime_e`
+#      columns the plot scripts depend on.
 #
 # Any failure short-circuits with a non-zero exit and a clear message.
 # Success prints `SMOKE OK` and a one-line summary.
@@ -31,18 +30,18 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$HERE/../../.." && pwd)"
 
 # WT for the smoke — under $HOME so it passes run_arm.sh's under-/tmp
-# guard and, in the same stroke, is not the throwaway agent worktree that
-# real launches ban.
+# guard and, in the same stroke, is not the throwaway agent worktree
+# that real launches ban.
 SMOKE_WT="${HOME}/.cache/cf-379-smoke-$$"
 cleanup(){ rm -rf "$SMOKE_WT"; }
 trap cleanup EXIT
 mkdir -p "$SMOKE_WT"
 
 # Layer the smoke WT over the real repo: symlink every top-level dir so
-# the launcher finds train.py, the HF token, safe_pull.sh, etc., but
-# override the experiment dir with a fresh one so runs/ and results/ are
-# empty and writable without polluting the real checkout.
-for d in src scripts docs tests reports; do
+# the launcher finds train.py and the HF token, but override the
+# experiment dir with a fresh one so runs/ and results/ are empty and
+# writable without polluting the real checkout.
+for d in src scripts docs tests reports pytrade; do
   [ -e "$REPO_ROOT/$d" ] && ln -s "$REPO_ROOT/$d" "$SMOKE_WT/$d"
 done
 mkdir -p "$SMOKE_WT/experiments"
@@ -59,7 +58,6 @@ ln -s "$REPO_ROOT/experiments/2026-07-21_split_pred_rep_small/sync" \
   ln -s "$REPO_ROOT/experiments/2026-07-21_split_pred_rep_small/README.md" \
         "$SMOKE_WT/experiments/2026-07-21_split_pred_rep_small/README.md"
 
-# HF token: prefer the real one, fall back to $HF_TOKEN env, else fail.
 TOK="$REPO_ROOT/experiments/hf_token.txt"
 [ -f "$TOK" ] || {
   echo "[smoke-379] ABORT: HF token missing at $TOK — set HF_TOKEN in the env" \
@@ -68,18 +66,12 @@ TOK="$REPO_ROOT/experiments/hf_token.txt"
 }
 
 echo "[smoke-379] SMOKE_WT=$SMOKE_WT ARM=$ARM GPU=$GPU"
-echo "[smoke-379] 200-step backbone + 200-step head + 1-cell eval — ~10-15 min on 4090"
+echo "[smoke-379] 200-step backbone smoke — ~3 min on 4090"
 
 # 200-step backbone. save-every=100 (regular snapshot at 100, 200);
 # extras=150 (exercises the union rule + sub-1000 filename `_0k.pth`).
-# Downstream restricted to the extra-save cell only (BB_STEPS_K="0")
-# so the smoke tests the off-cadence load path — the exact one that
-# BB_STEPS_K=2 (extra_save=2500 → `_2k.pth`) exercises in the real run.
 STEPS=200 SAVE_EVERY=100 EXTRA_SAVES="150" \
-HEAD_STEPS=200 HEAD_WARMUP=20 \
-BB_STEPS_K="0" \
-QEVAL_EXTRA_ARGS="--config-filter ett1/15T" \
-WT="$SMOKE_WT" BB_GPU="$GPU" GPU_2L="$GPU" GPU_6L="$GPU" \
+WT="$SMOKE_WT" BB_GPU="$GPU" \
   bash "$SMOKE_WT/experiments/2026-07-21_split_pred_rep_small/scripts/run_arm.sh" "$ARM" \
   > "$SMOKE_WT/smoke.log" 2>&1 || {
     echo "[smoke-379] SMOKE FAILED — tail:" >&2
@@ -89,31 +81,53 @@ WT="$SMOKE_WT" BB_GPU="$GPU" GPU_2L="$GPU" GPU_6L="$GPU" \
 
 # Verify the artefacts we expect are on disk.
 RUNS="$SMOKE_WT/experiments/2026-07-21_split_pred_rep_small/runs"
-RES="$SMOKE_WT/experiments/2026-07-21_split_pred_rep_small/results"
-ls "$RUNS"/*_FINAL.pth >/dev/null 2>&1 || {
+FINAL=$(ls "$RUNS"/*_FINAL.pth 2>/dev/null | head -1) || true
+[ -n "$FINAL" ] || {
   echo "[smoke-379] SMOKE FAILED — no backbone FINAL.pth in $RUNS." >&2
   tail -20 "$SMOKE_WT/smoke.log" >&2
   exit 1
 }
-ls "$RUNS"/*_0k.pth >/dev/null 2>&1 || {
+EXTRA=$(ls "$RUNS"/*_0k.pth 2>/dev/null | head -1) || true
+[ -n "$EXTRA" ] || {
   echo "[smoke-379] SMOKE FAILED — extra-save snapshot _0k.pth missing." >&2
   tail -20 "$SMOKE_WT/smoke.log" >&2
   exit 1
 }
-ls "$RUNS"/qhead_*_FINAL.pth >/dev/null 2>&1 || {
-  echo "[smoke-379] SMOKE FAILED — no q-head FINAL.pth produced." >&2
+CSV=$(ls "$RUNS"/*_losses.csv 2>/dev/null | head -1) || true
+[ -n "$CSV" ] || {
+  echo "[smoke-379] SMOKE FAILED — losses.csv missing (training-dynamics log)." >&2
   tail -20 "$SMOKE_WT/smoke.log" >&2
   exit 1
 }
-ls "$RES"/gift_eval_full_*/summary.txt >/dev/null 2>&1 || {
-  echo "[smoke-379] SMOKE FAILED — no GIFT-Eval summary.txt produced." >&2
-  tail -20 "$SMOKE_WT/smoke.log" >&2
+# The plot scripts read the ff / u_batchtime / u_batchtime_e columns —
+# any missing column means the deliverable plots would silently fail.
+# Also read the last populated row to confirm the trainer actually
+# wrote numeric values (a bare header would pass the column check).
+mapfile -t VALS < <(python3 - "$CSV" <<'PY'
+import csv, sys
+required = ("ff", "u_batchtime", "u_batchtime_e")
+with open(sys.argv[1], newline="") as f:
+    reader = csv.DictReader(f)
+    missing = [c for c in required if c not in (reader.fieldnames or ())]
+    if missing:
+        print("MISSING_COLS=" + ",".join(missing))
+        sys.exit(2)
+    last = None
+    for row in reader:
+        if all(row.get(c) not in (None, "") for c in required):
+            last = row
+if last is None:
+    print("NO_ROW")
+    sys.exit(3)
+for c in required:
+    print(last[c])
+PY
+) || {
+  echo "[smoke-379] SMOKE FAILED — training-dynamics check on $CSV: ${VALS[*]:-<empty>}" >&2
   exit 1
 }
-gm=$(grep -h 'Aggregate GM-Relative MASE' "$RES"/gift_eval_full_*/summary.txt | head -1 || true)
 
 echo "[smoke-379] SMOKE OK — arm=$ARM"
-echo "[smoke-379]   backbone: $(ls "$RUNS"/*_FINAL.pth | head -1 | xargs basename)"
-echo "[smoke-379]   extra:    $(ls "$RUNS"/*_0k.pth | head -1 | xargs basename)"
-echo "[smoke-379]   q-head:   $(ls "$RUNS"/qhead_*_FINAL.pth | head -1 | xargs basename)"
-[ -n "$gm" ] && echo "[smoke-379]   $gm"
+echo "[smoke-379]   backbone: $(basename "$FINAL")"
+echo "[smoke-379]   extra:    $(basename "$EXTRA")"
+echo "[smoke-379]   losses:   $(basename "$CSV")  (final ff=${VALS[0]}  u_batchtime=${VALS[1]}  u_batchtime_e=${VALS[2]})"

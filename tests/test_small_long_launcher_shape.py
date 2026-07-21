@@ -1,10 +1,10 @@
-"""Consistency tests for the #379 consolidated arm launcher.
+"""Consistency tests for the #379 consolidated backbone-only arm launcher.
 
 `experiments/2026-07-21_split_pred_rep_small/scripts/run_arm.sh` is a
 single launcher parameterised by `$ARM ∈ {arm1, arm3, arm4, arm5,
 arm6_v2, bimoco}`. Each arm shares the same backbone config (small
-model, 200k steps, save-every 10k + extras at 2500,25000) and only the
-per-arm case block picks the loss flags copied verbatim from #374.
+model, 200k steps, save-every 25000, extra snapshot at 2500) and only
+the per-arm case block picks the loss flags copied verbatim from #374.
 
 These tests do not re-verify the loss shapes — those are guarded by
 `test_loss*`. They lock in:
@@ -12,9 +12,7 @@ These tests do not re-verify the loss shapes — those are guarded by
   * every arm's per-arm case block sets NAME, ARM_DESC, and LOSS_ARGS;
   * the small-model backbone config appears exactly once in the
     consolidated body (so a stray edit can't specialise one arm);
-  * downstream fans out to the 5 backbone-step cells (2k, 25k, 50k,
-    100k, 200k) and both head-layer sizes (2L, 6L);
-  * the ckpt_path glob tolerates restart suffixes (blocking-1 fix);
+  * the launcher is backbone-only — no q-head training, no eval;
   * the WT-under-/tmp guard is present (blocking-2 fix).
 """
 
@@ -33,15 +31,15 @@ ARMS = ("arm1", "arm3", "arm4", "arm5", "arm6_v2", "bimoco")
 
 # Small-model backbone config that the shared body must carry verbatim.
 BACKBONE_LITERALS = (
-    "--batch-size 128",
+    "--batch-size 64",
     "--total-steps \"$STEPS\"",
     "--seed \"$SEED\"",
     "--save-every \"$SAVE_EVERY\"",
     "--extra-save-steps \"$EXTRA_SAVES\"",
     "--t-raw 4096",
     "--n-channels 1",
-    "--d-model 128",
-    "--n-heads 16",
+    "--d-model 64",
+    "--n-heads 8",
     "--num-encoder-layers \"$NENC\"",
     "--num-layers \"$NLAY\"",
     "--rev-norm-kind ewma",
@@ -63,24 +61,22 @@ BACKBONE_LITERALS = (
 )
 
 # Per-arm expected NAME suffix + LOSS_ARGS contents.
-# `expected_name_stub` is a substring of NAME that uniquely identifies
-# the arm; `must_have`/`must_not_have` pin the loss-arg tokens.
 ARM_EXPECTATIONS = {
     "arm1": dict(
-        name_stub="bb_small_arm1_split_pred_rep_enc3l3_b128_200k",
+        name_stub="bb_small_arm1_split_pred_rep_enc3l3_b64_200k",
         must_have=("--loss-shape cosine_similarity_batch_split_pred_rep",),
         must_not_have=("--moco-negatives", "--moco-rep-keys",
                        "--align-loss-weight", "--pos-in-denominator"),
     ),
     "arm3": dict(
-        name_stub="bb_small_arm3_split_pred_rep_moco_enc3l3_b128_200k",
+        name_stub="bb_small_arm3_split_pred_rep_moco_enc3l3_b64_200k",
         must_have=("--loss-shape cosine_similarity_batch_split_pred_rep",
                    "--moco-negatives"),
         must_not_have=("--moco-rep-keys", "--align-loss-weight",
                        "--pos-in-denominator"),
     ),
     "arm4": dict(
-        name_stub="bb_small_arm4_xshh_allt_moco_enc3l3_b128_200k",
+        name_stub="bb_small_arm4_xshh_allt_moco_enc3l3_b64_200k",
         must_have=(
             "--loss-shape cosine_similarity_batch_full_hh_negs_xshh_allt",
             "--pos-in-denominator",
@@ -90,20 +86,20 @@ ARM_EXPECTATIONS = {
         must_not_have=("--moco-rep-keys", "--align-loss-weight"),
     ),
     "arm5": dict(
-        name_stub="bb_small_arm5_lalign_lrep_enc3l3_b128_200k",
+        name_stub="bb_small_arm5_lalign_lrep_enc3l3_b64_200k",
         must_have=("--loss-shape cosine_similarity_batch_rep_only",
                    "--align-loss-weight 1.0"),
         must_not_have=("--moco-negatives", "--moco-rep-keys",
                        "--pos-in-denominator"),
     ),
     "arm6_v2": dict(
-        name_stub="bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b128_200k",
+        name_stub="bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k",
         must_have=("--loss-shape cosine_similarity_batch_rep_only",
                    "--align-loss-weight 1.0", "--moco-rep-keys"),
         must_not_have=("--moco-negatives", "--pos-in-denominator"),
     ),
     "bimoco": dict(
-        name_stub="bb_small_bimoco_split_pred_rep_moco_bothsides_enc3l3_b128_200k",
+        name_stub="bb_small_bimoco_split_pred_rep_moco_bothsides_enc3l3_b64_200k",
         must_have=("--loss-shape cosine_similarity_batch_split_pred_rep",
                    "--moco-negatives", "--moco-rep-keys"),
         must_not_have=("--align-loss-weight", "--pos-in-denominator"),
@@ -138,7 +134,6 @@ def extract_arm_case_body(code: str, arm: str) -> str:
 
 def test_launcher_exists(launcher_source: str):
     assert launcher_source, "run_arm.sh is empty"
-    # Preamble must include the ARM positional arg.
     assert 'ARM="${1:?' in launcher_source, (
         "run_arm.sh must take <arm> as its first positional argument.")
 
@@ -174,122 +169,106 @@ def test_arm_case_block_loss_args(launcher_code: str, arm: str):
 @pytest.mark.parametrize("literal", BACKBONE_LITERALS)
 def test_backbone_config_literal_present(launcher_code: str, literal: str):
     # These are shared across all arms — they must appear in the outer
-    # (post-case) training invocation. One occurrence is fine and expected.
+    # training invocation. One occurrence is fine and expected.
     assert launcher_code.count(literal) >= 1, (
         f"backbone literal {literal!r} missing from run_arm.sh (shared body).")
 
 
-def test_downstream_step_loop_pins_five_cells(launcher_code: str):
-    # `for sk in $BB_STEPS_K; do …` iterates the 5 backbone-step cells.
-    m = re.search(r'BB_STEPS_K="\$\{BB_STEPS_K:-([^}]+)\}"', launcher_code)
-    assert m is not None, "BB_STEPS_K default must be set in run_arm.sh"
-    steps = tuple(m.group(1).split())
-    assert steps == ("2", "25", "50", "100", "200"), (
-        f"BB_STEPS_K must default to '2 25 50 100 200' (the 5 downstream "
-        f"cells); got {steps!r}")
+def test_save_cadence_defaults(launcher_code: str):
+    # Pivot: save-every 25000, single extra snapshot at 2500 (labelled `_2k`).
+    m_se = re.search(r'SAVE_EVERY="\$\{SAVE_EVERY:-([0-9]+)\}"', launcher_code)
+    assert m_se is not None and m_se.group(1) == "25000", (
+        f"SAVE_EVERY default must be 25000; got {m_se.group(1) if m_se else 'unset'!r}")
+    m_ex = re.search(r'EXTRA_SAVES="\$\{EXTRA_SAVES:-([^}]+)\}"', launcher_code)
+    assert m_ex is not None and m_ex.group(1).strip() == "2500", (
+        f"EXTRA_SAVES default must be '2500'; got {m_ex.group(1) if m_ex else 'unset'!r}")
 
 
-def test_downstream_head_layers_2_and_6(launcher_code: str):
-    # Look for the specific invocations that spawn the 2L / 6L pipelines.
-    m2 = re.search(r'downstream_hl\s+2\s+"\$GPU_2L"', launcher_code)
-    m6 = re.search(r'downstream_hl\s+6\s+"\$GPU_6L"', launcher_code)
-    assert m2 is not None, "run_arm.sh must launch downstream_hl 2 on GPU_2L"
-    assert m6 is not None, "run_arm.sh must launch downstream_hl 6 on GPU_6L"
-
-
-def test_ckpt_path_uses_glob_tolerant_of_restart_suffix(launcher_code: str):
-    # Blocking-1 fix: `ls "$RUNS/${NAME}"*_${sk}k.pth` (note the `*` between
-    # NAME and `_${sk}k.pth`) — the wildcard picks up `_r2` / `_r3` suffixes
-    # from safe_run_name. A literal `${NAME}_${sk}k.pth` would silently miss
-    # them.
-    assert re.search(
-        r'\$\{NAME\}"?\*_\$\{sk\}k\.pth', launcher_code
-    ) is not None, (
-        "ckpt_path must glob NAME*_${sk}k.pth so restart-suffixed "
-        "checkpoints (_r2, _r3) are still resolved (blocking #1).")
-
-
-def test_missing_ckpt_is_loud_abort(launcher_code: str):
-    # Blocking-1 companion: a missing backbone snapshot must NOT be
-    # silently counted as a failed head cell — the downstream must
-    # abort loudly so the operator sees it.
-    assert "ABORT downstream" in launcher_code, (
-        "downstream_hl must emit `ABORT downstream ...` when a "
-        "backbone-step checkpoint cannot be resolved (blocking #1).")
+def test_launcher_is_backbone_only(launcher_code: str):
+    # Pivot: no downstream / q-head / eval sections.
+    forbidden = (
+        "QTRAIN=", "QEVAL=", "train_head_cell", "eval_cell", "downstream_hl",
+        "--head-nhead", "--quantile-head", "--head-arch", "--forecast-len",
+        "gift_eval_full_", "BB_STEPS_K", "QEVAL_EXTRA_ARGS", "GPU_2L", "GPU_6L",
+        "HEAD_STEPS", "HEAD_WARMUP",
+    )
+    for token in forbidden:
+        assert token not in launcher_code, (
+            f"run_arm.sh must be backbone-only — found forbidden token "
+            f"{token!r} (issue #379 pivot removed all downstream wiring)")
 
 
 def test_wt_under_tmp_is_rejected(launcher_code: str):
-    # Blocking-2 fix: default WT under $HOME and refuse /tmp.
+    # Default WT under $HOME and refuse /tmp.
     assert re.search(r'WT="\$\{WT:-\$HOME/', launcher_code), (
         "run_arm.sh should default WT under $HOME (a persistent checkout), "
-        "never /tmp (blocking #2).")
+        "never /tmp.")
     assert "/tmp/*|/tmp" in launcher_code, (
-        "run_arm.sh must reject WT under /tmp with a loud ABORT (blocking #2).")
+        "run_arm.sh must reject WT under /tmp with a loud ABORT.")
 
 
 def test_arm_label_in_complete_log_line(launcher_code: str):
-    # Item-6 fix: the completion log must reference the current arm, not
-    # hard-coded "arm 1".
+    # The completion log must reference the current arm, not hard-coded "arm 1".
     assert '"$ARM complete:' in launcher_code, (
-        'run_arm.sh completion log must read `"$ARM complete: …"` — the '
-        'six-launcher version hard-coded "arm 1 complete" everywhere '
-        '(item #6).')
+        'run_arm.sh completion log must read `"$ARM complete: …"`.')
 
 
 def test_no_dead_bblast_var(launcher_code: str):
-    # Item-9 fix: BBLAST was set in every launcher and never read.
     assert "BBLAST=" not in launcher_code, (
-        "run_arm.sh must not carry the dead BBLAST assignment (item #9).")
+        "run_arm.sh must not carry the dead BBLAST assignment.")
 
 
 def test_orchestrator_sequences_three_phases():
     orch = (EXP_DIR / "scripts" / "orchestrate.sh").read_text()
     body = strip_comments(orch)
-    # Item-10 fix: three phases across 2 GPUs, pairing arms.
     for phase in ("PHASE A", "PHASE B", "PHASE C"):
         assert phase in body, f"orchestrate.sh missing {phase}"
     for arm in ARMS:
         assert f"launch_arm {arm} " in body, (
-            f"orchestrate.sh must include `launch_arm {arm} …` (item #10)")
+            f"orchestrate.sh must include `launch_arm {arm} …`")
+    # Pivot: no downstream wiring in the orchestrator either.
+    for token in ("GPU_2L=", "GPU_6L=", "dl_2L", "dl_6L"):
+        assert token not in body, (
+            f"orchestrate.sh must not carry downstream token {token!r}")
 
 
 def test_sync_loop_covers_all_arms_and_classes():
     sync = (EXP_DIR / "sync" / "sync_loop.sh").read_text()
-    # Blocking-2 fix: sync_loop.sh exists, covers all 6 arms, and has
-    # per-class size floors (not one blanket number).
     for arm in ARMS:
-        assert f"NAME_{arm}=" in sync, (
-            f"sync_loop.sh must define NAME_{arm} (blocking #2)")
-    for floor in ("BACKBONE_MIN=", "BACKBONE_OPT_MIN=", "HEAD_MIN=",
-                  "HEAD_OPT_MIN=", "TEXT_MIN="):
-        assert floor in sync, (
-            f"sync_loop.sh must define per-class floor {floor} (blocking #2)")
+        assert f"NAME_{arm}=" in sync, f"sync_loop.sh must define NAME_{arm}"
+    # b64 name suffix must match the launcher.
+    for arm in ARMS:
+        assert "_b64_200k_" in sync, "sync_loop.sh names must carry `_b64_200k_` suffix"
+        break
+    for floor in ("BACKBONE_MIN=", "BACKBONE_OPT_MIN=", "TEXT_MIN="):
+        assert floor in sync, f"sync_loop.sh must define per-class floor {floor}"
+    # Pivot: no head / eval file classes.
+    for token in ("HEAD_MIN=", "HEAD_OPT_MIN=", "gift_eval_full_", "qhead_"):
+        assert token not in sync, (
+            f"sync_loop.sh must not carry downstream token {token!r}")
+    # Backbone-step cadence: 2 (extra) + 25/50/…/200 (save-every=25000).
+    assert 'BACKBONE_STEPS_K="2 25 50 75 100 125 150 175 200"' in sync, (
+        "sync_loop.sh BACKBONE_STEPS_K must be the union of extra-save {2} "
+        "and save-every=25000 cadence out to 200k.")
     assert "/tmp/*|/tmp" in sync, (
-        "sync_loop.sh must reject LOCAL_DIR under /tmp (blocking #2)")
+        "sync_loop.sh must reject LOCAL_DIR under /tmp.")
 
 
-def test_head_nhead_divides_d_model(launcher_code: str):
-    # The q-head and eval must use --head-nhead=8, not the #374 default 6.
-    # d_model=128 is not divisible by 6 (nn.MultiheadAttention asserts
-    # embed_dim % num_heads == 0); the smoke caught this at ~86s of
-    # backbone + head-build time. Both the q-head trainer and the
-    # evaluator must carry --head-nhead 8.
-    assert re.search(r'--head-nhead\s+8\b', launcher_code) is not None, (
-        "run_arm.sh must set --head-nhead 8 (d_model=128 % 8 == 0). "
-        "The #374 default of 6 does NOT divide 128 — will crash.")
-    # Neither call may keep the #374 head-nhead 6.
-    assert re.search(r'--head-nhead\s+6\b', launcher_code) is None, (
-        "run_arm.sh must NOT use --head-nhead 6 anywhere (d_model=128 % 6 ≠ 0).")
-
-
-def test_smoke_script_exists():
-    # Blocking-3: an end-to-end smoke must exist so the arch flag
-    # completeness is exercised before ~35h of GPU is committed.
+def test_smoke_script_is_backbone_only():
     smoke = EXP_DIR / "scripts" / "smoke.sh"
-    assert smoke.is_file(), "smoke.sh missing (blocking #3)"
+    assert smoke.is_file(), "smoke.sh missing"
     body = smoke.read_text()
-    assert "STEPS=200" in body and "HEAD_STEPS=200" in body, (
-        "smoke.sh should use a very short STEPS + HEAD_STEPS so a ~10min "
-        "run validates the full pipeline (blocking #3).")
+    assert "STEPS=200" in body, (
+        "smoke.sh should use a very short STEPS so a ~3min run validates "
+        "the backbone pipeline.")
+    # Pivot: no head / eval steps in the smoke either.
+    for token in ("HEAD_STEPS", "QEVAL_EXTRA_ARGS", "qhead_", "gift_eval_full_",
+                  "--head-nhead", "--quantile-head"):
+        assert token not in body, (
+            f"smoke.sh must be backbone-only — found forbidden token {token!r}")
+    # Smoke must verify the training-dynamics columns the plots depend on.
+    for col in ("ff", "u_batchtime", "u_batchtime_e"):
+        assert col in body, (
+            f"smoke.sh should verify losses.csv column {col!r} is populated.")
     assert "SMOKE OK" in body, (
-        "smoke.sh should print `SMOKE OK` on success (blocking #3).")
+        "smoke.sh should print `SMOKE OK` on success.")

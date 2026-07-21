@@ -5,18 +5,18 @@ present.
 
 Floors are the STRICT best lower bound of each recorded loss column.
 For a term of the shape `LSE(exp(pos/τ), exp(neg/τ)·N) − pos/τ` the
-strict min is `log(1 + N·exp(−2/τ))` (attained at cos_pos = +1,
+strict min is `log1p(N·exp(−2/τ))` (attained at cos_pos = +1,
 cos_neg = −1). For a pure LSE with no positive (`L_rep`), the strict
 min is `log(N·exp(−1/τ)) = log(N) − 1/τ`. `L_align = 2 − 2·cos` has
 strict min 0. Sums decompose additively.
 
-For the small-model sweep, B = 128, T = 4096, C = 1, τ = 0.10:
-  N_pred = B·(C + (B - 1))     = 128 · 128         = 16,384
-  N_rep  = B·((C-1) + (T-1) + (B-1)·T) = 128 · (0 + 4095 + 127·4096)
-                                        = 66,617,344
-  L_pred (+moco) strict min ≈ log1p(N_pred·e^-2)             ≈ 8.5e-6
-  L_rep          strict min = log(N_rep) - 10                  = 8.10
-  L_rep_moco     strict min = log1p(N_rep·e^-2)                = 8.10 (dominates)
+For the small-model sweep, B = 64, T = 4096, C = 1, τ = 0.10:
+  N_pred = B·(C + (B - 1))              = 64 · 64             = 4,096
+  N_rep  = B·((C-1) + (T-1) + (B-1)·T)  = 64 · (0 + 4095 + 63·4096)
+                                                              = 16,777,152
+  L_pred (+moco) strict min = log1p(N_pred·e^-2)              ≈ 5.5e-4
+  L_rep          strict min = log(N_rep) - 10                   = 6.63
+  L_rep_moco     strict min = log1p(N_rep·e^-2)                 = 6.63 (dominates)
 
 Sums decompose additively; arm 4's pooled loss already subtracts a
 floor at train time and stays at 0.
@@ -32,7 +32,7 @@ import pandas as pd
 HERE = Path(__file__).parent
 ROOT = HERE.parent.parent.parent
 EXP = ROOT / "experiments" / "2026-07-21_split_pred_rep_small"
-B, T, C, TAU = 128, 4096, 1, 0.10
+B, T, C, TAU = 64, 4096, 1, 0.10
 
 
 def infonce_floor(tau: float, n_negatives: int) -> float:
@@ -56,22 +56,22 @@ F_BIMOCO_STRICT = F_INFONCE_PRED_STRICT + F_INFONCE_REP_STRICT
 
 RUNS = [
     ("arm 1  (L_pred + L_rep)",
-     "bb_small_arm1_split_pred_rep_enc3l3_b128_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "bb_small_arm1_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
      F_ARM1_STRICT, "#2a78d6"),
     ("arm 3  (L_pred_moco + L_rep)",
-     "bb_small_arm3_split_pred_rep_moco_enc3l3_b128_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "bb_small_arm3_split_pred_rep_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
      F_ARM3_STRICT, "#eb6834"),
     ("arm 4  (pooled + MoCo, floor pre-subtracted)",
-     "bb_small_arm4_xshh_allt_moco_enc3l3_b128_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "bb_small_arm4_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
      F_ARM4_STRICT, "#008300"),
     ("arm 5  (L_align + L_rep)",
-     "bb_small_arm5_lalign_lrep_enc3l3_b128_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "bb_small_arm5_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
      F_ARM5_STRICT, "#8b1e8b"),
     ("arm 6 v2  (L_align + L_rep_moco)",
-     "bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b128_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
      F_ARM6_STRICT, "#b8860b"),
     ("bimoco  (L_pred_moco + L_rep_moco)",
-     "bb_small_bimoco_split_pred_rep_moco_bothsides_enc3l3_b128_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "bb_small_bimoco_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
      F_BIMOCO_STRICT, "#00a3a3"),
 ]
 
@@ -86,12 +86,10 @@ plt.rcParams.update({
 def load(name: str) -> pd.DataFrame:
     base = EXP / "runs" / f"{name}_losses.csv"
     df = pd.read_csv(base, usecols=["step", "loss"])
-    r2 = EXP / "runs" / f"{name}_r2_losses.csv"
-    if r2.exists() and pd.read_csv(r2, usecols=["step"])["step"].max() > 10_000:
-        df = pd.concat([df, pd.read_csv(r2, usecols=["step", "loss"])], ignore_index=True)
-    r3 = EXP / "runs" / f"{name}_r3_losses.csv"
-    if r3.exists() and pd.read_csv(r3, usecols=["step"])["step"].max() > 10_000:
-        df = pd.concat([df, pd.read_csv(r3, usecols=["step", "loss"])], ignore_index=True)
+    for suffix in ("_r2", "_r3"):
+        alt = EXP / "runs" / f"{name}{suffix}_losses.csv"
+        if alt.exists() and pd.read_csv(alt, usecols=["step"])["step"].max() > 10_000:
+            df = pd.concat([df, pd.read_csv(alt, usecols=["step", "loss"])], ignore_index=True)
     return df.sort_values("step").reset_index(drop=True)
 
 

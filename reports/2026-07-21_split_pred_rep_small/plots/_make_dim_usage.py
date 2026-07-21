@@ -23,22 +23,22 @@ EXP = ROOT / "experiments" / "2026-07-21_split_pred_rep_small"
 
 RUNS = [
     ("arm 1  (L_pred + L_rep)",
-     "bb_small_arm1_split_pred_rep_enc3l3_b128_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "bb_small_arm1_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
      "#2a78d6"),
     ("arm 3  (L_pred_moco + L_rep)",
-     "bb_small_arm3_split_pred_rep_moco_enc3l3_b128_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "bb_small_arm3_split_pred_rep_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
      "#eb6834"),
     ("arm 4  (pooled + MoCo)",
-     "bb_small_arm4_xshh_allt_moco_enc3l3_b128_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "bb_small_arm4_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
      "#008300"),
     ("arm 5  (L_align + L_rep)",
-     "bb_small_arm5_lalign_lrep_enc3l3_b128_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "bb_small_arm5_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
      "#8b1e8b"),
     ("arm 6 v2  (L_align + L_rep_moco)",
-     "bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b128_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
      "#b8860b"),
     ("bimoco  (L_pred_moco + L_rep_moco)",
-     "bb_small_bimoco_split_pred_rep_moco_bothsides_enc3l3_b128_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "bb_small_bimoco_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
      "#00a3a3"),
 ]
 
@@ -55,12 +55,10 @@ COLS_NEEDED = ["step", "u_batchtime", "u_batchtime_e"]
 def load(name: str) -> pd.DataFrame:
     base = EXP / "runs" / f"{name}_losses.csv"
     df = pd.read_csv(base, usecols=COLS_NEEDED)
-    r2 = EXP / "runs" / f"{name}_r2_losses.csv"
-    if r2.exists() and pd.read_csv(r2, usecols=["step"])["step"].max() > 10_000:
-        df = pd.concat([df, pd.read_csv(r2, usecols=COLS_NEEDED)], ignore_index=True)
-    r3 = EXP / "runs" / f"{name}_r3_losses.csv"
-    if r3.exists() and pd.read_csv(r3, usecols=["step"])["step"].max() > 10_000:
-        df = pd.concat([df, pd.read_csv(r3, usecols=COLS_NEEDED)], ignore_index=True)
+    for suffix in ("_r2", "_r3"):
+        alt = EXP / "runs" / f"{name}{suffix}_losses.csv"
+        if alt.exists() and pd.read_csv(alt, usecols=["step"])["step"].max() > 10_000:
+            df = pd.concat([df, pd.read_csv(alt, usecols=COLS_NEEDED)], ignore_index=True)
     return df.sort_values("step").reset_index(drop=True)
 
 
