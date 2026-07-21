@@ -320,6 +320,16 @@ def parse_args():
     p.add_argument("--tau", type=float, default=None,
                    help="Contrastive temperature. None = use the LOSS_SPEC "
                         "default (0.07). Used by 2026-05-02_exp_realonly_4096_smaller_tau_sweep.")
+    p.add_argument("--tau-rep", type=float, default=None,
+                   help="Separate temperature for the L_rep term of split "
+                        "loss shapes (#379 tau_rep=1.0 arms). When unset "
+                        "(default) both L_pred and L_rep share --tau — "
+                        "byte-for-byte identical to the historical objective. "
+                        "When set, L_pred keeps --tau and L_rep (the "
+                        "h-anchored family aggregate) uses --tau-rep. "
+                        "Only meaningful for loss_shape in "
+                        "{cosine_similarity_batch_split_pred_rep, "
+                        "cosine_similarity_batch_rep_only}; ignored elsewhere.")
     p.add_argument("--learnable-tau", action="store_true",
                    help="CLIP-style learnable τ (#28). Adds log_inv_tau as "
                         "an nn.Parameter on the model; loss uses τ = "
@@ -1105,6 +1115,12 @@ def main():
     LOSS_SPEC.train_configuration["moco_rep_keys"] = args.moco_rep_keys
     if args.tau is not None:
         LOSS_SPEC.train_configuration["contrastive_divergence_temperature"] = args.tau
+    if args.tau_rep is not None:
+        # #379 — separate temperature for the L_rep term of split shapes.
+        # When unset the loss code falls back to `tau` (see src/loss.py's
+        # split_pred_rep / rep_only branches), preserving historical
+        # objectives byte-for-byte.
+        LOSS_SPEC.train_configuration["contrastive_divergence_temperature_rep"] = args.tau_rep
     model = ConfigurableModel(**model_config).to(device)
     optimizer = optim.AdamW(
         model.parameters(),

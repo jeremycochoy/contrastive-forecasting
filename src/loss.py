@@ -50,7 +50,7 @@ def infonce_floor(tau, n_negatives):
     return math.log1p(float(n_negatives) * math.exp(-1.0 / float(tau)))
 
 
-def _split_pred_rep_floors(tau, B, T, C):
+def _split_pred_rep_floors(tau, B, T, C, tau_rep=None):
     """(f_pred, f_rep) — the two constants to re-base L_pred + L_rep by.
 
     L_pred has one positive against B batch-pooled f-anchored negatives per
@@ -67,7 +67,17 @@ def _split_pred_rep_floors(tau, B, T, C):
                        ─── xx (LSE over C−1 other channels)
                                 ─── hh_all (LSE over T−1 other times, same series)
                                             ─── xs_allt (LSE over (B−1)·T other series×times)
+
+    The pure-LSE (moco_rep_keys off) form of L_rep is log(N_rep) at cos≡0
+    for any temperature — the τ divisor cancels between the exponents and
+    the resulting logsumexp — so `tau_rep` does not enter that expression.
+    `tau_rep` is accepted for symmetry with the split branch's `tau` /
+    `tau_rep` wiring (#379); it's a no-op here. The moco_rep_keys shape,
+    which does depend on τ_rep via `log(1 + N_rep · e^(−1/τ_rep))`, is not
+    currently routed through `_split_pred_rep_floors` — no bimoco arm sets
+    `--subtract-contrastive-floor` in #374/#379.
     """
+    del tau_rep  # placeholder for the moco_rep_keys shape (see docstring).
     n_pred = B * (C + (B - 1))
     n_rep  = B * ((C - 1) + (T - 1) + (B - 1) * T)
     return (infonce_floor(tau, n_pred), math.log(n_rep))
@@ -964,6 +974,21 @@ def contrastive_latent_loss(predicted_position, validation, spec,
     else:
         tau = train_config.get('contrastive_divergence_temperature', 1.0)
 
+    # #379 — separate τ for the L_rep term of split shapes. When
+    # `contrastive_divergence_temperature_rep` is absent or None (default),
+    # `tau_rep` aliases `tau`, so the objective for the 6-base arms of #374
+    # / #379 and every pre-#379 run is byte-for-byte unchanged. When set
+    # (e.g. via the training script's --tau-rep flag), the split_pred_rep
+    # and rep_only branches use it for the h-anchored family LSE terms
+    # (log_neg_xx, log_neg_hh_all, log_neg_xs_allt, and log_pos_h when
+    # moco_rep_keys is on); L_pred stays on `tau`. tau_override still wins
+    # for both (it's the learnable-τ / loss_tau_ref pipeline).
+    if tau_override is not None:
+        tau_rep = tau_override
+    else:
+        _tr = train_config.get('contrastive_divergence_temperature_rep')
+        tau_rep = tau if _tr is None else _tr
+
     # Normalized-InfoNCE (positive in BOTH numerator and denominator) is
     # opt-in via EITHER the function arg (diagnostic loss_tau_ref) OR the
     # training-config key (a run-level knob, e.g. the --pos-in-denominator
@@ -1735,14 +1760,15 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             orig_key = orig_norm
 
         # h-anchored family 1: cross-channel same-time h↔h (xx).
+        # #379: rep-family LSE uses tau_rep (aliases tau when --tau-rep unset).
         sims_xx = cosine_similarity_from_normalized(
             hx_norm.unsqueeze(3), hx_key.unsqueeze(2))
         mask_mat = ~torch.eye(C, dtype=torch.bool, device=sims_xx.device)
         mask_mat = mask_mat.view(1, 1, C, C)
         log_neg_xx = torch.logsumexp(
-            (sims_xx / tau).masked_fill(~mask_mat, neg_inf), dim=2)
+            (sims_xx / tau_rep).masked_fill(~mask_mat, neg_inf), dim=2)
 
-        # f-anchored family: adjacent f_{t+1}↔f_t (zy), cross-channel.
+        # f-anchored family: adjacent f_{t+1}↔f_t (zy), cross-channel. Stays on tau.
         sims_zy = cosine_similarity_from_normalized(
             hz_hat_norm.unsqueeze(3), hy_hat_norm.unsqueeze(2))
         log_neg_zy = torch.logsumexp(sims_zy / tau, dim=2)
@@ -1756,7 +1782,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         )
         drop_self = (l_idx == t_idx).view(1, 1, T - 1, T)
         log_neg_hh_all = torch.logsumexp(
-            (sims_hh_all / tau).masked_fill(drop_self, neg_inf), dim=3
+            (sims_hh_all / tau_rep).masked_fill(drop_self, neg_inf), dim=3
         ).permute(0, 2, 1)
 
         # f-anchored family: cross-batch f_t ↔ h'_{t+1}.
@@ -1785,6 +1811,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         # gradient-checkpointed via the same chunked path as `..._xshh_allt`.
         # With moco_rep_keys on, the KEY side uses teacher_orig_norm (see the
         # `orig_key` selection above); the anchor stays student-side.
+        # #379: this family is h-anchored → tau_rep.
         anchor = hx_norm.permute(0, 2, 1, 3).contiguous()
         src = orig_key.permute(0, 2, 1, 3).contiguous()
         b_all = torch.arange(B, device=orig_norm.device)
@@ -1794,15 +1821,15 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             dist.is_available() and dist.is_initialized()
             and dist.get_world_size() > 1)
         if shard:
-            run = _XsAlltShardedLSE.apply(anchor, src, tau, CH)
+            run = _XsAlltShardedLSE.apply(anchor, src, tau_rep, CH)
         elif fused:
-            run = _XsAlltFusedLSE.apply(anchor, src, tau, CH)
+            run = _XsAlltFusedLSE.apply(anchor, src, tau_rep, CH)
         else:
             def _chunk_lse(anc, src_chunk, same_mask):
                 gram = torch.matmul(
                     anc.unsqueeze(1),
                     src_chunk.permute(0, 1, 3, 2).unsqueeze(0),
-                ) / tau
+                ) / tau_rep
                 gram = gram.masked_fill(same_mask, neg_inf)
                 return torch.logsumexp(torch.logsumexp(gram, dim=4), dim=1)
             run = None
@@ -1837,6 +1864,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         # pair becomes the non-trivial student↔teacher <h_{b,t}, h^T_{b,t}>,
         # so the loss becomes a normalized InfoNCE with that positive in the
         # denominator (same form as L_pred, symmetric on the h side).
+        # #379: the moco_rep positive is a rep-family term → tau_rep.
         negs_rep = torch.stack(
             [log_neg_xx, log_neg_hh_all, log_neg_xs_allt], dim=0)
         log_neg_per_anchor_rep = torch.logsumexp(negs_rep, dim=0)
@@ -1845,7 +1873,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         if moco_rep and teacher_orig_norm is not None:
             hx_teacher_norm = teacher_orig_norm[:, :-1, :, :]
             log_pos_h = cosine_similarity_from_normalized(
-                hx_norm, hx_teacher_norm) / tau                      # [B, T-1, C]
+                hx_norm, hx_teacher_norm) / tau_rep                  # [B, T-1, C]
             log_denom_rep = torch.logsumexp(
                 torch.stack(
                     [log_pos_h, log_neg_total_rep.expand_as(log_pos_h)],
@@ -1871,6 +1899,9 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         # pair becomes non-trivial <h_student, h_teacher> and enters the
         # normalized-InfoNCE positive-in-denominator form (identical to the
         # split shape's L_rep_moco).
+        #
+        # #379: the entire loss IS L_rep here, so every τ divisor is
+        # tau_rep (which aliases tau when --tau-rep is unset).
         neg_inf = float('-inf')
         moco_rep = (
             moco_rep_keys if moco_rep_keys is not None
@@ -1889,7 +1920,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         mask_mat = ~torch.eye(C, dtype=torch.bool, device=sims_xx.device)
         mask_mat = mask_mat.view(1, 1, C, C)
         log_neg_xx = torch.logsumexp(
-            (sims_xx / tau).masked_fill(~mask_mat, neg_inf), dim=2)
+            (sims_xx / tau_rep).masked_fill(~mask_mat, neg_inf), dim=2)
         # h-anchored family 2: within-series all-time h↔h (hh_all).
         t_idx = torch.arange(T - 1, device=orig_norm.device).view(T - 1, 1)
         l_idx = torch.arange(T, device=orig_norm.device).view(1, T)
@@ -1899,7 +1930,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         )
         drop_self = (l_idx == t_idx).view(1, 1, T - 1, T)
         log_neg_hh_all = torch.logsumexp(
-            (sims_hh_all / tau).masked_fill(drop_self, neg_inf), dim=3
+            (sims_hh_all / tau_rep).masked_fill(drop_self, neg_inf), dim=3
         ).permute(0, 2, 1)
         # h-anchored family 3: cross-series all-time h↔h′ (xs_allt),
         # gradient-checkpointed via the same chunked path as `..._xshh_allt`.
@@ -1912,15 +1943,15 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             dist.is_available() and dist.is_initialized()
             and dist.get_world_size() > 1)
         if shard:
-            run = _XsAlltShardedLSE.apply(anchor, src, tau, CH)
+            run = _XsAlltShardedLSE.apply(anchor, src, tau_rep, CH)
         elif fused:
-            run = _XsAlltFusedLSE.apply(anchor, src, tau, CH)
+            run = _XsAlltFusedLSE.apply(anchor, src, tau_rep, CH)
         else:
             def _chunk_lse(anc, src_chunk, same_mask):
                 gram = torch.matmul(
                     anc.unsqueeze(1),
                     src_chunk.permute(0, 1, 3, 2).unsqueeze(0),
-                ) / tau
+                ) / tau_rep
                 gram = gram.masked_fill(same_mask, neg_inf)
                 return torch.logsumexp(torch.logsumexp(gram, dim=4), dim=1)
             run = None
@@ -1943,7 +1974,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         if moco_rep and teacher_orig_norm_local is not None:
             hx_teacher_norm = teacher_orig_norm_local[:, :-1, :, :]
             log_pos_h = cosine_similarity_from_normalized(
-                hx_norm, hx_teacher_norm) / tau
+                hx_norm, hx_teacher_norm) / tau_rep
             log_denom_rep = torch.logsumexp(
                 torch.stack(
                     [log_pos_h, log_neg_total_rep.expand_as(log_pos_h)],
@@ -2522,7 +2553,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             # own floor. L_pred is normalized-InfoNCE by construction (its
             # own floor is the InfoNCE floor at its negative count);
             # L_rep has no positive, so its floor is log(#terms).
-            f_pred, f_rep = _split_pred_rep_floors(tau, B, T, C)
+            f_pred, f_rep = _split_pred_rep_floors(tau, B, T, C, tau_rep=tau_rep)
             loss = loss - float(f_pred) - float(f_rep)
         else:
             # Pooled shapes: floor requires the normalized form (positive
