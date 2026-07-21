@@ -28,6 +28,10 @@ EXP_DIR = REPO_ROOT / "experiments" / "2026-07-21_split_pred_rep_small"
 LAUNCHER = EXP_DIR / "scripts" / "run_arm.sh"
 
 ARMS = ("arm1", "arm3", "arm4", "arm5", "arm6_v2", "bimoco")
+# #379 tau_rep=1.0 reruns — the 5 arms whose loss has a separate L_rep
+# term. arm 4 is xshh_allt (single pooled denom, no split L_rep) and is
+# not rerun.
+ARMS_TR1 = ("arm1_tr1", "arm3_tr1", "arm5_tr1", "arm6_v2_tr1", "bimoco_tr1")
 
 # Small-model backbone config that the shared body must carry verbatim.
 BACKBONE_LITERALS = (
@@ -104,6 +108,43 @@ ARM_EXPECTATIONS = {
                    "--moco-negatives", "--moco-rep-keys"),
         must_not_have=("--align-loss-weight", "--pos-in-denominator"),
     ),
+    # #379 tau_rep=1.0 reruns — same loss-shape flags as the base arm plus
+    # `--tau-rep 1.0`. The NAME stub carries the `_tr1_` marker so base and
+    # rerun checkpoints never collide on disk.
+    "arm1_tr1": dict(
+        name_stub="bb_small_arm1_tr1_split_pred_rep_enc3l3_b64_200k",
+        must_have=("--loss-shape cosine_similarity_batch_split_pred_rep",
+                   "--tau-rep 1.0"),
+        must_not_have=("--moco-negatives", "--moco-rep-keys",
+                       "--align-loss-weight", "--pos-in-denominator"),
+    ),
+    "arm3_tr1": dict(
+        name_stub="bb_small_arm3_tr1_split_pred_rep_moco_enc3l3_b64_200k",
+        must_have=("--loss-shape cosine_similarity_batch_split_pred_rep",
+                   "--moco-negatives", "--tau-rep 1.0"),
+        must_not_have=("--moco-rep-keys", "--align-loss-weight",
+                       "--pos-in-denominator"),
+    ),
+    "arm5_tr1": dict(
+        name_stub="bb_small_arm5_tr1_lalign_lrep_enc3l3_b64_200k",
+        must_have=("--loss-shape cosine_similarity_batch_rep_only",
+                   "--align-loss-weight 1.0", "--tau-rep 1.0"),
+        must_not_have=("--moco-negatives", "--moco-rep-keys",
+                       "--pos-in-denominator"),
+    ),
+    "arm6_v2_tr1": dict(
+        name_stub="bb_small_arm6_v2_tr1_lalign_lrepmoco_enc3l3_b64_200k",
+        must_have=("--loss-shape cosine_similarity_batch_rep_only",
+                   "--align-loss-weight 1.0", "--moco-rep-keys",
+                   "--tau-rep 1.0"),
+        must_not_have=("--moco-negatives", "--pos-in-denominator"),
+    ),
+    "bimoco_tr1": dict(
+        name_stub="bb_small_bimoco_tr1_split_pred_rep_moco_bothsides_enc3l3_b64_200k",
+        must_have=("--loss-shape cosine_similarity_batch_split_pred_rep",
+                   "--moco-negatives", "--moco-rep-keys", "--tau-rep 1.0"),
+        must_not_have=("--align-loss-weight", "--pos-in-denominator"),
+    ),
 }
 
 
@@ -156,6 +197,34 @@ def test_arm_case_block_name_stub(launcher_code: str, arm: str):
 
 @pytest.mark.parametrize("arm", ARMS)
 def test_arm_case_block_loss_args(launcher_code: str, arm: str):
+    body = extract_arm_case_body(launcher_code, arm)
+    expect = ARM_EXPECTATIONS[arm]
+    for token in expect["must_have"]:
+        assert token in body, (
+            f"arm {arm}: LOSS_ARGS must contain {token!r} — got:\n{body}")
+    for token in expect["must_not_have"]:
+        assert token not in body, (
+            f"arm {arm}: LOSS_ARGS must NOT contain {token!r} — got:\n{body}")
+
+
+@pytest.mark.parametrize("arm", ARMS_TR1)
+def test_tau_rep_arm_case_block_sets_required_vars(launcher_code: str, arm: str):
+    body = extract_arm_case_body(launcher_code, arm)
+    for var in ("NAME=", "ARM_DESC=", "LOSS_ARGS="):
+        assert var in body, (
+            f"arm {arm}: case block must set {var} — got:\n{body}")
+
+
+@pytest.mark.parametrize("arm", ARMS_TR1)
+def test_tau_rep_arm_case_block_name_stub(launcher_code: str, arm: str):
+    body = extract_arm_case_body(launcher_code, arm)
+    stub = ARM_EXPECTATIONS[arm]["name_stub"]
+    assert stub in body, (
+        f"arm {arm}: NAME must contain {stub!r} — got:\n{body}")
+
+
+@pytest.mark.parametrize("arm", ARMS_TR1)
+def test_tau_rep_arm_case_block_loss_args(launcher_code: str, arm: str):
     body = extract_arm_case_body(launcher_code, arm)
     expect = ARM_EXPECTATIONS[arm]
     for token in expect["must_have"]:
@@ -234,8 +303,11 @@ def test_orchestrator_sequences_three_phases():
 
 def test_sync_loop_covers_all_arms_and_classes():
     sync = (EXP_DIR / "sync" / "sync_loop.sh").read_text()
-    for arm in ARMS:
+    for arm in ARMS + ARMS_TR1:
         assert f"NAME_{arm}=" in sync, f"sync_loop.sh must define NAME_{arm}"
+        assert f" {arm} " in sync or f" {arm})" in sync or f"({arm} " in sync \
+               or f" {arm}" in sync, (
+            f"sync_loop.sh ARMS list must include `{arm}`")
     # b64 name suffix must match the launcher.
     for arm in ARMS:
         assert "_b64_200k_" in sync, "sync_loop.sh names must carry `_b64_200k_` suffix"
@@ -252,6 +324,24 @@ def test_sync_loop_covers_all_arms_and_classes():
         "and save-every=25000 cadence out to 200k.")
     assert "/tmp/*|/tmp" in sync, (
         "sync_loop.sh must reject LOCAL_DIR under /tmp.")
+    # #379 — tau_rep orchestrator log must be pulled too.
+    assert "orchestrate_tau_rep.log" in sync, (
+        "sync_loop.sh must pull `orchestrate_tau_rep.log` so #379 rerun "
+        "phases D/E/F land locally.")
+
+
+def test_orchestrate_tau_rep_sequences_three_phases():
+    orch = (EXP_DIR / "scripts" / "orchestrate_tau_rep.sh").read_text()
+    body = strip_comments(orch)
+    for phase in ("PHASE D", "PHASE E", "PHASE F"):
+        assert phase in body, f"orchestrate_tau_rep.sh missing {phase}"
+    for arm in ARMS_TR1:
+        assert f"launch_arm {arm} " in body, (
+            f"orchestrate_tau_rep.sh must include `launch_arm {arm} …`")
+    # Pivot: no downstream wiring in the tau_rep orchestrator either.
+    for token in ("GPU_2L=", "GPU_6L=", "dl_2L", "dl_6L"):
+        assert token not in body, (
+            f"orchestrate_tau_rep.sh must not carry downstream token {token!r}")
 
 
 def test_smoke_script_is_backbone_only():

@@ -94,3 +94,75 @@ fig.tight_layout()
 out = HERE / "cos_error_per_arm.png"
 fig.savefig(out)
 print(f"wrote {out}")
+
+
+# ---- #379 tau_rep=1.0 overlay ------------------------------------------------
+# Second axes: for each of the 5 L_rep-bearing arms (all but arm 4), pair
+# the base τ=0.10 curve with the `_tr1` rerun at τ_rep=1.0. Same colour per
+# arm, base solid, rerun dashed — one legend entry per arm pair. This is
+# the answer to Q3 in the issue: does raising τ_rep change the `1 − ff`
+# trajectory shape / u_batchtime(h_t) collapse / alignment plateau.
+#
+# Kept as an ADDITIONAL figure — the primary 6-arm chart above is
+# unchanged (a header plot the report already refers to by filename).
+TR1_PAIRS = [
+    # (label, base_name, rerun_name, colour) — same colour as the primary
+    # figure so viewers can cross-reference.
+    ("arm 1  (L_pred + L_rep)",
+     "bb_small_arm1_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "bb_small_arm1_tr1_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#2a78d6"),
+    ("arm 3  (L_pred_moco + L_rep)",
+     "bb_small_arm3_split_pred_rep_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "bb_small_arm3_tr1_split_pred_rep_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#eb6834"),
+    ("arm 5  (L_align + L_rep)",
+     "bb_small_arm5_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "bb_small_arm5_tr1_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#8b1e8b"),
+    ("arm 6 v2  (L_align + L_rep_moco)",
+     "bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "bb_small_arm6_v2_tr1_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#b8860b"),
+    ("bimoco  (L_pred_moco + L_rep_moco)",
+     "bb_small_bimoco_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "bb_small_bimoco_tr1_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#00a3a3"),
+]
+
+fig_tr, ax_tr = plt.subplots(figsize=(9, 5.5))
+for label, base_name, rerun_name, colour in TR1_PAIRS:
+    try:
+        base_df = load(base_name)
+    except FileNotFoundError:
+        base_df = None
+    try:
+        rerun_df = load(rerun_name)
+    except FileNotFoundError:
+        rerun_df = None
+    if base_df is not None:
+        base_df = base_df[base_df["step"] >= 100]
+        if not base_df.empty:
+            ax_tr.plot(base_df["step"], 1.0 - base_df["ff"],
+                       color=colour, lw=1.4, linestyle="-",
+                       label=f"{label}  τ_rep=0.10")
+    if rerun_df is not None:
+        rerun_df = rerun_df[rerun_df["step"] >= 100]
+        if not rerun_df.empty:
+            ax_tr.plot(rerun_df["step"], 1.0 - rerun_df["ff"],
+                       color=colour, lw=1.4, linestyle="--",
+                       label=f"{label}  τ_rep=1.00")
+
+ax_tr.set_xscale("log")
+ax_tr.set_xlim(100, 210_000)
+ax_tr.set_xlabel("training step (log)")
+ax_tr.set_ylabel("1 − ff  (log perplexity of f̂ under future's vMF)")
+ax_tr.grid(True, color=GRID, alpha=0.6, which="both")
+ax_tr.legend(loc="upper right", fontsize=8, frameon=False, ncols=1)
+ax_tr.set_title(
+    "1 − ⟨cos(f̂, f_true)⟩ — τ_rep=0.10 (solid) vs τ_rep=1.00 (dashed)",
+    fontsize=11)
+fig_tr.tight_layout()
+out_tr = HERE / "cos_error_tau_rep_overlay.png"
+fig_tr.savefig(out_tr)
+print(f"wrote {out_tr}")

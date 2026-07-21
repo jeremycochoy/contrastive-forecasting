@@ -1,4 +1,4 @@
-# Small-model long-training sweep — 6 arms × 200k steps (#379)
+# Small-model long-training sweep — 11 arms × 200k steps (#379)
 
 *v0 — implementation-only. Fills in as backbones finish.*
 
@@ -15,10 +15,15 @@ Specifically:
    through 200k, or plateau, or reverse?
 2. Does arm 5's alignment plateau (`1 − ff ≈ 0.4` at 50k in #374)
    break through at 100k or 200k?
+3. For each of the 5 L_rep arms (arm 1/3/5/6_v2 + bimoco), does raising
+   `τ_rep` from 0.10 to 1.0 change the `1 − ff` trajectory shape, the
+   `u_batchtime(h_t)` collapse, or the alignment plateau?
 
 ## Design
 
-Six arms, same loss recipes as #374 (see arm table in
+Six base arms plus five `tau_rep=1.0` reruns of every L_rep-bearing arm
+(all but arm 4 — its pooled shape has no separate L_rep term). Loss
+recipes as in #374 (see arm table in
 [`../../experiments/2026-07-21_split_pred_rep_small/README.md`](../../experiments/2026-07-21_split_pred_rep_small/README.md)).
 **Backbone-only** — no downstream q-head training, no GIFT-Eval.
 Only backbone architecture and training length change:
@@ -61,9 +66,29 @@ Uses `B=64, T=4096, C=1, τ=0.10` for the strict-min floor.
 
 ![per-run loss](plots/per_run_loss.png)
 
-## Answers to the two questions
+### `τ_rep=1.0` vs `τ_rep=0.10` overlay
 
-*Filled in once all six backbones reach step 200,000.*
+Same `1 − ff` axis, one line per (base, rerun) pair — base τ_rep=0.10
+solid, rerun τ_rep=1.00 dashed, shared colour per arm. Applies to the
+five L_rep-bearing arms (arm 1/3/5/6_v2 + bimoco); arm 4 has no
+separate L_rep term and is not rerun. Same figure is written by
+`_make_cos_error.py` alongside the 6-arm headline plot.
+
+Regenerate: `python3 plots/_make_cos_error.py` →
+`plots/cos_error_tau_rep_overlay.png`.
+
+![cos error τ_rep overlay](plots/cos_error_tau_rep_overlay.png)
+
+*Interpretation goes here once curves are populated — does raising τ_rep
+flatten the h_t collapse in bimoco / arm 6 v2? Does it change arm 5's
+alignment plateau step? Does it move arm 1 / arm 3's `1 − ff` shape
+at all, or is L_rep at τ=0.10 already effectively negligible relative to
+L_pred?*
+
+## Answers to the three questions
+
+*Filled in once all eleven backbones reach step 200,000.*
 
 1. bimoco / arm 6 v2 `1 − cos(f̂, h_{t+1})` at 200k — *TBD*.
 2. arm 5 `1 − ff` at 100k, 200k vs #374's 50k plateau of ≈ 0.4 — *TBD*.
+3. τ_rep=0.10 vs τ_rep=1.0 for each of arm 1/3/5/6_v2/bimoco — *TBD*.

@@ -41,7 +41,7 @@ SAFE_PULL="$(dirname "$LOCAL_DIR")/../2026-04-27_periodic-synth-mix/scripts/safe
   exit 2
 }
 
-ARMS=(arm1 arm3 arm4 arm5 arm6_v2 bimoco)
+ARMS=(arm1 arm3 arm4 arm5 arm6_v2 bimoco arm1_tr1 arm3_tr1 arm5_tr1 arm6_v2_tr1 bimoco_tr1)
 # Base run names must match the case block in run_arm.sh — kept in sync
 # manually because both files are short and edits to either are rare.
 NAME_arm1="bb_small_arm1_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090"
@@ -50,6 +50,13 @@ NAME_arm4="bb_small_arm4_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_ta
 NAME_arm5="bb_small_arm5_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090"
 NAME_arm6_v2="bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090"
 NAME_bimoco="bb_small_bimoco_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090"
+# #379 tau_rep=1.0 reruns — same base config, `_tr1_` marker in the NAME
+# so base + rerun artefacts land in distinct filenames.
+NAME_arm1_tr1="bb_small_arm1_tr1_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090"
+NAME_arm3_tr1="bb_small_arm3_tr1_split_pred_rep_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090"
+NAME_arm5_tr1="bb_small_arm5_tr1_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090"
+NAME_arm6_v2_tr1="bb_small_arm6_v2_tr1_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090"
+NAME_bimoco_tr1="bb_small_bimoco_tr1_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090"
 
 # Per-class minimum-byte floors (never one blanket number — CLAUDE.md).
 # Small backbone (d_model=64, 3+3 layers, ~1-2M params) → backbone
@@ -109,8 +116,12 @@ while true; do
     # Per-arm launcher log.
     pull "$REMOTE_DIR/results/dl_${arm}.log" "$LOCAL_DIR/results/dl_${arm}.log" "$TEXT_MIN"
   done
-  # Orchestrator log lives at the experiment root.
-  pull "$REMOTE_DIR/results/orchestrate.log" "$LOCAL_DIR/results/orchestrate.log" "$TEXT_MIN"
+  # Orchestrator logs live at the experiment root. Base 6-arm sweep uses
+  # `orchestrate.log`; the #379 tau_rep=1.0 rerun sweep writes to
+  # `orchestrate_tau_rep.log`. safe_pull silently skips missing files, so
+  # listing both is fine even when only one orchestrator has ever run.
+  pull "$REMOTE_DIR/results/orchestrate.log"         "$LOCAL_DIR/results/orchestrate.log"         "$TEXT_MIN"
+  pull "$REMOTE_DIR/results/orchestrate_tau_rep.log" "$LOCAL_DIR/results/orchestrate_tau_rep.log" "$TEXT_MIN"
 
   # Optional single-arm early exit (used by smoke.sh).
   if [ -n "$FINAL_SENTINEL" ] && [ -f "$FINAL_SENTINEL" ]; then

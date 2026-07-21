@@ -7,16 +7,19 @@
 # Usage:
 #   WT=/absolute/path/to/checkout BB_GPU=1 bash run_arm.sh <arm>
 #
-# where <arm> ∈ {arm1, arm3, arm4, arm5, arm6_v2, bimoco}. Each arm shares
-# the same backbone architecture and training schedule (d_model=64,
-# n_heads=8, num_encoder_layers=3, num_layers=3, bs=64, 200k steps,
+# where <arm> ∈ {arm1, arm3, arm4, arm5, arm6_v2, bimoco,
+#                arm1_tr1, arm3_tr1, arm5_tr1, arm6_v2_tr1, bimoco_tr1}.
+# The _tr1 arms are the #379 tau_rep=1.0 reruns of the L_rep-bearing
+# arms (arm 1/3/5/6_v2 + bimoco). Each arm shares the same backbone
+# architecture and training schedule (d_model=64, n_heads=8,
+# num_encoder_layers=3, num_layers=3, bs=64, 200k steps,
 # save-every=25000, extra snapshot at 2500); only the arm-specific bits
 # (run name, human label, extra CLI flags after --loss-shape) come from
 # the per-arm case block below. See `README.md` for the parent-experiment
 # mapping to #374.
 set -uo pipefail
 
-ARM="${1:?usage: run_arm.sh <arm1|arm3|arm4|arm5|arm6_v2|bimoco>}"
+ARM="${1:?usage: run_arm.sh <arm1|arm3|arm4|arm5|arm6_v2|bimoco|arm1_tr1|arm3_tr1|arm5_tr1|arm6_v2_tr1|bimoco_tr1>}"
 
 # WT MUST be an absolute path under a persistent checkout — never /tmp.
 # /tmp gets wiped by reboots and by `git worktree remove --force`
@@ -76,9 +79,46 @@ case "$ARM" in
     LOSS_ARGS=(--loss-shape cosine_similarity_batch_split_pred_rep \
                --moco-negatives --moco-rep-keys)
     ;;
+  # ---- #379 tau_rep=1.0 reruns ---------------------------------------------
+  # Every arm with an L_rep term (i.e. all but arm 4), rerun with the
+  # temperature of L_rep raised to 1.0 while L_pred stays at 0.10.
+  # `--tau-rep 1.0` is the only per-arm change; loss flags mirror the base
+  # arm 1:1. Name suffix `_tr1` is threaded through the checkpoint filename
+  # so the base and rerun artefacts never collide on disk.
+  arm1_tr1)
+    NAME="bb_small_arm1_tr1_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090"
+    ARM_DESC="arm 1_tr1: split_pred_rep + tau_rep=1.0"
+    LOSS_ARGS=(--loss-shape cosine_similarity_batch_split_pred_rep \
+               --tau-rep 1.0)
+    ;;
+  arm3_tr1)
+    NAME="bb_small_arm3_tr1_split_pred_rep_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090"
+    ARM_DESC="arm 3_tr1: split_pred_rep + moco-negatives + tau_rep=1.0"
+    LOSS_ARGS=(--loss-shape cosine_similarity_batch_split_pred_rep \
+               --moco-negatives --tau-rep 1.0)
+    ;;
+  arm5_tr1)
+    NAME="bb_small_arm5_tr1_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090"
+    ARM_DESC="arm 5_tr1: rep_only + align-loss-weight 1.0 + tau_rep=1.0"
+    LOSS_ARGS=(--loss-shape cosine_similarity_batch_rep_only \
+               --align-loss-weight 1.0 --tau-rep 1.0)
+    ;;
+  arm6_v2_tr1)
+    NAME="bb_small_arm6_v2_tr1_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090"
+    ARM_DESC="arm 6 v2_tr1: rep_only + align-loss-weight 1.0 + moco-rep-keys + tau_rep=1.0"
+    LOSS_ARGS=(--loss-shape cosine_similarity_batch_rep_only \
+               --align-loss-weight 1.0 --moco-rep-keys --tau-rep 1.0)
+    ;;
+  bimoco_tr1)
+    NAME="bb_small_bimoco_tr1_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090"
+    ARM_DESC="bimoco_tr1: split_pred_rep + moco-negatives + moco-rep-keys + tau_rep=1.0"
+    LOSS_ARGS=(--loss-shape cosine_similarity_batch_split_pred_rep \
+               --moco-negatives --moco-rep-keys --tau-rep 1.0)
+    ;;
   *)
     echo "ABORT: unknown arm '$ARM'" >&2
     echo "  valid: arm1 arm3 arm4 arm5 arm6_v2 bimoco" >&2
+    echo "         arm1_tr1 arm3_tr1 arm5_tr1 arm6_v2_tr1 bimoco_tr1" >&2
     exit 2
     ;;
 esac
