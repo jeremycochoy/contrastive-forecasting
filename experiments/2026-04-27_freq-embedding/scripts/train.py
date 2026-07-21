@@ -108,6 +108,11 @@ def parse_args():
     p.add_argument("--resume", default=None)
     p.add_argument("--log-every", type=int, default=100)
     p.add_argument("--save-every", type=int, default=5000)
+    p.add_argument("--extra-save-steps", default=None,
+                   help="Comma-separated list of extra step counts at which "
+                        "to snapshot on top of --save-every (e.g. "
+                        "'2500,25000' when the base cadence is 10000 but "
+                        "downstream eval needs off-cadence cells).")
     p.add_argument("--ema-decay", type=float, default=0.99)
     p.add_argument("--grad-clip", type=float, default=None)
     p.add_argument("--hf-repo", default=None)
@@ -695,6 +700,24 @@ def maybe_mixup(x, freq_ids, seasonality_ids, model, args):
     return x_mix, freq_ids, freq_emb_mix, seasonality_ids, seas_emb_mix
 
 
+def parse_extra_save_steps(spec):
+    """Parse a comma-separated list of extra checkpoint steps.
+
+    None / empty → empty set. Used by --extra-save-steps to add off-cadence
+    snapshots on top of --save-every without changing the base cadence.
+    """
+    if not spec:
+        return frozenset()
+    return frozenset(int(s.strip()) for s in spec.split(",") if s.strip())
+
+
+def should_snapshot(step, save_every, extra_steps):
+    """True at step > 0 if step matches --save-every or is in the extras set."""
+    if step <= 0:
+        return False
+    return (step % save_every == 0) or (step in extra_steps)
+
+
 def save_snapshot(model, optimizer, path, step, best_gap, best_gap_step,
                   best_loss, best_loss_step, ema_loss=None, ema_gap=None,
                   hf_rows_consumed=0, synth_rows_consumed=0):
@@ -1215,6 +1238,7 @@ def main():
     t_data_sum, t_fwd_sum, t_bwd_sum, t_step_sum = 0.0, 0.0, 0.0, 0.0
     timing_count = 0
     mixup_applied_count = 0
+    _extra_save_steps = parse_extra_save_steps(args.extra_save_steps)
 
     for step in range(start_step + 1, args.total_steps + 1):
         t_step_start = time.perf_counter()
@@ -1609,7 +1633,7 @@ def main():
                               hf_rows_consumed=hf_rows_consumed,
                               synth_rows_consumed=synth_rows_consumed)
 
-        if step % args.save_every == 0:
+        if should_snapshot(step, args.save_every, _extra_save_steps):
             path = os.path.join(args.save_dir, f"{args.run_name}_{step // 1000}k.pth")
             save_snapshot(model, optimizer, path, step,
                           best_gap, best_gap_step, best_loss, best_loss_step,
