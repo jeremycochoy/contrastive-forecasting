@@ -48,14 +48,14 @@ length change.
 
 ## Arm table (loss flags copied from #374)
 
-| Arm      | Launcher                          | Loss shape                                              | Extra flags                                          |
-|----------|-----------------------------------|---------------------------------------------------------|------------------------------------------------------|
-| arm 1    | `elisa_arm1_launch.sh`            | `cosine_similarity_batch_split_pred_rep`                | —                                                    |
-| arm 3    | `elisa_arm3_launch.sh`            | `cosine_similarity_batch_split_pred_rep`                | `--moco-negatives`                                   |
-| arm 4    | `elisa_arm4_launch.sh`            | `cosine_similarity_batch_full_hh_negs_xshh_allt`        | `--pos-in-denominator --subtract-contrastive-floor --moco-negatives` |
-| arm 5    | `elisa_arm5_launch.sh`            | `cosine_similarity_batch_rep_only`                      | `--align-loss-weight 1.0`                            |
-| arm 6 v2 | `elisa_arm6_v2_launch.sh`         | `cosine_similarity_batch_rep_only`                      | `--align-loss-weight 1.0 --moco-rep-keys`            |
-| bimoco   | `elisa_bimoco_launch.sh`          | `cosine_similarity_batch_split_pred_rep`                | `--moco-negatives --moco-rep-keys`                   |
+| Arm      | Extra flags added to `--loss-shape`                                 |
+|----------|---------------------------------------------------------------------|
+| arm 1    | `cosine_similarity_batch_split_pred_rep` — no extras                |
+| arm 3    | `cosine_similarity_batch_split_pred_rep --moco-negatives`           |
+| arm 4    | `cosine_similarity_batch_full_hh_negs_xshh_allt --pos-in-denominator --subtract-contrastive-floor --moco-negatives` |
+| arm 5    | `cosine_similarity_batch_rep_only --align-loss-weight 1.0`          |
+| arm 6 v2 | `cosine_similarity_batch_rep_only --align-loss-weight 1.0 --moco-rep-keys` |
+| bimoco   | `cosine_similarity_batch_split_pred_rep --moco-negatives --moco-rep-keys` |
 
 ## Downstream (per arm)
 
@@ -66,17 +66,94 @@ total. Each cell: 40k-step transformer q-head training
 `head_ffn_mult=4.0`, `head_train_input=e_then_f`, `forecast_len=16`,
 `batch_size=256`, `lr=1e-3`), then full-97 GIFT-Eval B4.
 
+## How to launch
+
+1. **Smoke test first** (~10 min, one arm, 200 backbone steps + 200
+   head steps + one eval cell). Validates the checkpoint naming,
+   load_state_dict, and eval path end-to-end BEFORE the ~35h backbone
+   runs commit compute:
+   ```bash
+   ARM=arm1 GPU=0 bash scripts/smoke.sh
+   # SMOKE OK — arm=arm1
+   ```
+   Then repeat with `ARM=bimoco` to exercise `--moco-negatives +
+   --moco-rep-keys`.
+
+2. **Sync loop** (from the machine that owns the local persistent
+   checkout, in a separate shell — CLAUDE.md § Remote Machine
+   Monitoring):
+   ```bash
+   REMOTE_HOST=elisa \
+   REMOTE_DIR=~/workspaces/contrastive-forecasting/experiments/2026-07-21_split_pred_rep_small \
+   LOCAL_DIR=$HOME/workspaces/contrastive-forecasting/experiments/2026-07-21_split_pred_rep_small \
+     nohup setsid bash sync/sync_loop.sh > sync/sync_loop.log 2>&1 &
+   ```
+   Verify the first tick by `ls`-ing the local `runs/` and `results/`
+   after ~15 minutes; do not trust `sync_loop.log`'s absence of `✗`
+   lines (CLAUDE.md — a missing `✗` line can mean the pattern didn't
+   match).
+
+3. **Orchestrator** (on elisa, once smoke passes):
+   ```bash
+   WT=$HOME/workspaces/contrastive-forecasting \
+     nohup setsid bash scripts/orchestrate.sh > results/orchestrate.log 2>&1 &
+   ```
+   Pipelines the six arms across 2 × 4090 in three phases (arm 1 + arm
+   3 | arm 4 + arm 5 | arm 6 v2 + bimoco).
+
+To relaunch a single arm outside the orchestrator (e.g. after fixing a
+bug in one recipe):
+```bash
+WT=$HOME/workspaces/contrastive-forecasting BB_GPU=0 GPU_2L=1 GPU_6L=0 \
+  bash scripts/run_arm.sh arm4
+```
+
+`WT` MUST be an absolute path under a persistent checkout — the
+launcher aborts if `WT` is under `/tmp` (CLAUDE.md § Checkpoint Safety
+Rule 4, Apr-2026 incident).
+
+## Restart
+
+`train.py`'s `safe_run_name` (see [`docs/restart_protocol.md`](../../docs/restart_protocol.md))
+appends `_r2`, `_r3`, … to the run name whenever it finds existing
+checkpoints for the same base name. `run_arm.sh`'s `ckpt_path` resolves
+the downstream backbone cells by glob (`${NAME}*_${sk}k.pth`) so
+post-restart snapshots (`${NAME}_r2_50k.pth`) are picked up
+transparently. A missing cell checkpoint is a loud `ABORT downstream`,
+not a silently-counted failure.
+
 ## Reusable code changes
 
 - `experiments/2026-04-27_freq-embedding/scripts/train.py` gains
   `--extra-save-steps` (comma-separated) so a run can snapshot off the
-  `--save-every` cadence (needed here for the 2500 and 25000 cells).
+  `--save-every` cadence. Parsed at argument-validation time; rejects
+  non-positive entries and entries that share a 1000-block (the
+  filename `_{step // 1000}k.pth` would silently overwrite).
   Covered by `tests/test_extra_save_steps.py`.
 
 ## Test coverage
 
-- `tests/test_extra_save_steps.py` — schedule union semantics for
-  `parse_extra_save_steps` / `should_snapshot`.
-- `tests/test_small_long_launcher_shape.py` — verifies every arm
-  launcher carries the small-model backbone config, the correct
-  arm-specific loss flags, and the 5 backbone-step / 2 head-layer cells.
+- `tests/test_extra_save_steps.py` — schedule union semantics and
+  malformed-input rejection for `parse_extra_save_steps` /
+  `should_snapshot`.
+- `tests/test_small_long_launcher_shape.py` — pins the per-arm case
+  block in `run_arm.sh`, the shared backbone-config literals, the
+  5-cell downstream loop, the restart-safe `ckpt_path` glob, the
+  under-`/tmp` guard, the orchestrator phase layout, and the sync
+  loop's coverage of all arms and file classes.
+
+## Plots
+
+Committed under [`reports/2026-07-21_split_pred_rep_small/plots/`](../../reports/2026-07-21_split_pred_rep_small/plots/):
+
+- `_make_gm_curves.py` — GM-Relative MASE per arm across the 5
+  backbone-step cells (2L + 6L, one PNG each).
+- `_make_cos_error.py` — `1 − ff` per arm across training steps
+  (log-x, per-subplot y).
+- `_make_dim_usage.py` — `u_batchtime` for `h_t` and `e_t` per arm.
+- `_make_per_run_loss.py` — training-loss deviation from strict-min
+  floor, log-log.
+
+Each script reads directly from this experiment's `runs/` (losses
+CSVs) and `results/` (GIFT-Eval summaries); adapted from the #374
+plot scripts.

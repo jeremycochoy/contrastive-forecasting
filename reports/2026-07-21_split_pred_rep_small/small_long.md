@@ -37,20 +37,22 @@ Only backbone architecture and training length change:
 
 ### GM-Relative MASE per arm × backbone step
 
-Placeholder: `plots/gm_curve_per_arm_2L.png`,
-`plots/gm_curve_per_arm_6L.png`.
+Regenerate: `python3 plots/_make_gm_curves.py` — writes
+`plots/gm_curve_per_arm_2L.png` and `plots/gm_curve_per_arm_6L.png`
+from the `results/gift_eval_full_*/summary.txt` cells.
 
-### `1 − cos(f̂, h_{t+1})` (cos_error) per arm
+### `1 − ff` (cos-error) per arm
 
-Placeholder: `plots/cos_error_per_arm.png`.
+Regenerate: `python3 plots/_make_cos_error.py` → `plots/cos_error_per_arm.png`.
 
 ### Dim usage per arm (u_batchtime for `h_t` and `e_t`)
 
-Placeholder: `plots/dim_usage_per_arm.png`.
+Regenerate: `python3 plots/_make_dim_usage.py` → `plots/dim_usage_per_arm.png`.
 
 ### Per-run training-loss curves
 
-Placeholder: `plots/per_run_loss.png`.
+Regenerate: `python3 plots/_make_per_run_loss.py` → `plots/per_run_loss.png`.
+Uses `B=128, T=4096, C=1, τ=0.10` for the strict-min floor.
 
 ### Side-by-side vs #374 finals
 
