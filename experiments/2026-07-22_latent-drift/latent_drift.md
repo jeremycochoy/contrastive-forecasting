@@ -8,6 +8,14 @@ Six-arm sweep from
 [`scripts/latent_drift.py`](../../scripts/latent_drift.py) over the
 saved backbone snapshots.
 
+The arms differ only in the contrastive loss recipe applied to the
+same backbone. `h_t` is the encoder output (patch-embedding + causal
+encoder-layer stack) — the tensor a downstream forecasting head reads.
+`L_pred`, `L_rep`, `L_align`, MoCo, "arm 6 v2", "bimoco", and arm 2's
+absence (arm 2 was cut in #374) are defined in PR
+[#376](https://github.com/jeremycochoy/contrastive-forecasting/pull/376);
+the six-arm mapping is repeated in the panel titles below.
+
 ## Question
 
 How much does the encoder latent `h_t` move between consecutive
@@ -47,6 +55,19 @@ seam. Regenerate:
 --out results/drift_374.csv` on a host with the backbones on disk;
 `python3 plots/_make_plots.py` for the PNGs.
 
+Probe-noise band. The metric is a comparison, so both operands must
+share ONE probe batch — but the CHOICE of batch is a nuisance. Two
+extra runs at seeds `20260723` and `20260724` on the identical
+manifest sit in
+[`results/drift_374_seed20260723.csv`](results/drift_374_seed20260723.csv)
+and
+[`results/drift_374_seed20260724.csv`](results/drift_374_seed20260724.csv);
+across-seed standard deviation is `≤ 0.029` for `drift_cos`, `≤ 0.015`
+for `drift_cos_aligned`, `≤ 0.023` for `rot_gap`, `≤ 0.038` for `cka`
+at the worst interval, means an order of magnitude smaller. Every
+inter-arm and regime difference discussed below is `> 5×` the worst
+probe-noise sigma.
+
 ## Results
 
 Adjacent-pair curves for all four metrics. X axis: step at the END of
@@ -58,9 +79,10 @@ Y axis linear, arm-panel scales shared across arms within a metric.
 ![drift_total](plots/drift_total.png)
 
 Every arm's `h_t` keeps moving substantially across the whole training
-window. Bimoco is the least-moving arm (`~0.4` late); arms 3 and 5 sit
-above `0.9` for their full trajectories — successive checkpoint pairs
-are effectively orthogonal on the unit sphere.
+window. Arm 6 v2 (`0.35–0.63`) and bimoco (`0.39–0.61`) are the two
+lowest-drift arms; arm 3 is flat at `0.91–0.92`; arm 5 stays high
+(`0.78–0.98`) — successive checkpoint pairs are close to orthogonal on
+the unit sphere.
 
 ### Uninformative rotation
 
@@ -90,25 +112,27 @@ arm reorganizes MORE late in training than early.
 
 ![cka](plots/cka.png)
 
-Cross-check on token-Gram similarity. Arm 4 preserves the most
-geometry (`0.55–0.73`). Arms 1 / 6 v2 / bimoco sit in `0.5–0.8`
-throughout. Arm 5 collapses from `0.91` at step 15k to `0.36` from
-step 30k on — matches the `drift_cos_aligned` climb; the token
-geometry is being rewritten, not rotated.
+Cross-check on token-Gram similarity. Adjacent-pair CKA ranges: arm 1
+`0.50–0.67`, arm 3 `0.26–0.57`, arm 4 `0.46–0.73`, arm 5 `0.35–0.91`,
+arm 6 v2 `0.63–0.79`, bimoco `0.66–0.82`. Arm 5 collapses from
+`0.91` at step 15k to `0.36` from step 30k on — matches the
+`drift_cos_aligned` climb; the token geometry is being rewritten, not
+rotated.
 
 ## What we learned
 
 - **Uninformative rotation never stops in any #374 arm.** `rot_gap` is
   bounded away from zero at every arm's terminal interval. The
   encoder frame keeps rotating deep into training even when a linear
-  head would see a nearly-stable geometry (arm 1 / 6 v2 / bimoco).
+  head would see a nearly-stable geometry (arm 6 v2, bimoco — the two
+  arms with the lowest late-training informative drift).
 - **Arm 5 has a two-regime trajectory** the training logs don't
-  surface. Through `~15k` steps its movement is mostly rotation
-  (`drift_cos_aligned < 0.15`, `cka > 0.9`). From `~25k` onwards it
-  swaps: `drift_cos_aligned` roughly triples to `~0.45` and CKA
-  collapses to `~0.36`. `L_align + L_rep` continues reshaping the
-  token geometry — not just the frame — long after the paper-scale
-  `12.5k`-step budget of #374 ends.
+  surface. At step 15k, `drift_cos_aligned = 0.12` and `cka = 0.91`
+  — most of the movement between consecutive checkpoints is
+  reparameterization. Through step 50k, `drift_cos_aligned` climbs to
+  `0.43–0.48` and CKA drops to `0.35–0.38` — the token geometry is
+  being rewritten. `L_align + L_rep` continues reshaping the encoder
+  long after #374's `12.5k`-step budget ended.
 - **Bimoco and arm 6 v2 are the geometrically-quietest arms.** Late-
   training mean informative drift `0.18` (bimoco) and `0.23` (arm 6 v2)
   — roughly half of the other L_rep-bearing arms (arm 1 `0.36`, arm 4
