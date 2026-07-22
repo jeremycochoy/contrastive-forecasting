@@ -19,7 +19,7 @@
 # mapping to #374.
 set -uo pipefail
 
-ARM="${1:?usage: run_arm.sh <arm1|arm3|arm4|arm5|arm6_v2|bimoco|arm1_tr1|arm3_tr1|arm5_tr1|arm6_v2_tr1|bimoco_tr1>}"
+ARM="${1:?usage: run_arm.sh <arm1|arm3|arm4|arm5|arm6_v2|bimoco|arm1_tr1|arm3_tr1|arm5_tr1|arm6_v2_tr1|bimoco_tr1|arm1_nse|arm3_nse|arm4_nse|arm5_nse|arm6_v2_nse|bimoco_nse|arm1_ncpc|arm3_ncpc|arm4_ncpc|arm5_ncpc|arm6_v2_ncpc|bimoco_ncpc>}"
 
 # WT MUST be an absolute path under a persistent checkout — never /tmp.
 # /tmp gets wiped by reboots and by `git worktree remove --force`
@@ -38,13 +38,19 @@ OUT="$WT/experiments/2026-07-21_split_pred_rep_small"
 RUNS="$OUT/runs"; RES="$OUT/results"; mkdir -p "$RUNS" "$RES"
 
 # ---- Per-arm dispatch --------------------------------------------------------
-# NAME:      base run name (all backbone artefacts prefix on it).
-# ARM_DESC:  human-readable one-line description used in the BB START log line.
-# LOSS_ARGS: extra CLI flags added AFTER --loss-shape (loss-shape itself included).
+# NAME:       base run name (all backbone artefacts prefix on it).
+# ARM_DESC:   human-readable one-line description used in the BB START log line.
+# LOSS_ARGS:  extra CLI flags added AFTER --loss-shape (loss-shape itself included).
+# EXTRA_ARGS: flags appended at the END of the trainer invocation, so a
+#             repeated flag (e.g. `--sigreg-embedding-weight 0.0` or
+#             `--cpc-infonce-weight 0.0`) overrides the earlier default —
+#             Python argparse keeps the LAST value on repeat. Empty for
+#             base + tau_rep arms.
 #
 # When adding a 7th arm, add one case here and one entry in the launcher
 # shape test (tests/test_small_long_launcher_shape.py). Nothing else in
 # this script needs to change.
+EXTRA_ARGS=()
 case "$ARM" in
   arm1)
     NAME="bb_small_arm1_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090"
@@ -115,10 +121,101 @@ case "$ARM" in
     LOSS_ARGS=(--loss-shape cosine_similarity_batch_split_pred_rep \
                --moco-negatives --moco-rep-keys --tau-rep 1.0)
     ;;
+  # ---- #379 no-sigreg-embedding (nse) reruns -------------------------------
+  # Each `_nse` arm mirrors its base arm 1:1 and appends
+  # `--sigreg-embedding-weight 0.0` via EXTRA_ARGS (placed AFTER the shared
+  # `--sigreg-embedding-weight 1.0` in the trainer call so argparse's
+  # last-wins rule zeroes the e_t regulariser). The h_t regulariser
+  # (`--sigreg-encoding-weight 1.0`) is kept as in the base.
+  arm1_nse)
+    NAME="bb_small_arm1_nse_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090"
+    ARM_DESC="arm 1_nse: split_pred_rep + sigreg_embedding=0"
+    LOSS_ARGS=(--loss-shape cosine_similarity_batch_split_pred_rep)
+    EXTRA_ARGS=(--sigreg-embedding-weight 0.0)
+    ;;
+  arm3_nse)
+    NAME="bb_small_arm3_nse_split_pred_rep_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090"
+    ARM_DESC="arm 3_nse: split_pred_rep + moco-negatives + sigreg_embedding=0"
+    LOSS_ARGS=(--loss-shape cosine_similarity_batch_split_pred_rep --moco-negatives)
+    EXTRA_ARGS=(--sigreg-embedding-weight 0.0)
+    ;;
+  arm4_nse)
+    NAME="bb_small_arm4_nse_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090"
+    ARM_DESC="arm 4_nse: xshh_allt + moco-negatives + sigreg_embedding=0"
+    LOSS_ARGS=(--loss-shape cosine_similarity_batch_full_hh_negs_xshh_allt \
+               --pos-in-denominator --subtract-contrastive-floor --moco-negatives)
+    EXTRA_ARGS=(--sigreg-embedding-weight 0.0)
+    ;;
+  arm5_nse)
+    NAME="bb_small_arm5_nse_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090"
+    ARM_DESC="arm 5_nse: rep_only + align-loss-weight 1.0 + sigreg_embedding=0"
+    LOSS_ARGS=(--loss-shape cosine_similarity_batch_rep_only --align-loss-weight 1.0)
+    EXTRA_ARGS=(--sigreg-embedding-weight 0.0)
+    ;;
+  arm6_v2_nse)
+    NAME="bb_small_arm6_v2_nse_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090"
+    ARM_DESC="arm 6 v2_nse: rep_only + align-loss-weight 1.0 + moco-rep-keys + sigreg_embedding=0"
+    LOSS_ARGS=(--loss-shape cosine_similarity_batch_rep_only \
+               --align-loss-weight 1.0 --moco-rep-keys)
+    EXTRA_ARGS=(--sigreg-embedding-weight 0.0)
+    ;;
+  bimoco_nse)
+    NAME="bb_small_bimoco_nse_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090"
+    ARM_DESC="bimoco_nse: split_pred_rep + moco-negatives + moco-rep-keys + sigreg_embedding=0"
+    LOSS_ARGS=(--loss-shape cosine_similarity_batch_split_pred_rep \
+               --moco-negatives --moco-rep-keys)
+    EXTRA_ARGS=(--sigreg-embedding-weight 0.0)
+    ;;
+  # ---- #379 no-CPC (ncpc) reruns -------------------------------------------
+  # Each `_ncpc` arm mirrors its base arm 1:1 and appends
+  # `--cpc-infonce-weight 0.0` via EXTRA_ARGS (placed AFTER the shared
+  # `--cpc-infonce-weight 1.0` in the trainer call so argparse's
+  # last-wins rule disables the CPC auxiliary while keeping SIGReg on).
+  arm1_ncpc)
+    NAME="bb_small_arm1_ncpc_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090"
+    ARM_DESC="arm 1_ncpc: split_pred_rep + cpc_infonce_weight=0"
+    LOSS_ARGS=(--loss-shape cosine_similarity_batch_split_pred_rep)
+    EXTRA_ARGS=(--cpc-infonce-weight 0.0)
+    ;;
+  arm3_ncpc)
+    NAME="bb_small_arm3_ncpc_split_pred_rep_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090"
+    ARM_DESC="arm 3_ncpc: split_pred_rep + moco-negatives + cpc_infonce_weight=0"
+    LOSS_ARGS=(--loss-shape cosine_similarity_batch_split_pred_rep --moco-negatives)
+    EXTRA_ARGS=(--cpc-infonce-weight 0.0)
+    ;;
+  arm4_ncpc)
+    NAME="bb_small_arm4_ncpc_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090"
+    ARM_DESC="arm 4_ncpc: xshh_allt + moco-negatives + cpc_infonce_weight=0"
+    LOSS_ARGS=(--loss-shape cosine_similarity_batch_full_hh_negs_xshh_allt \
+               --pos-in-denominator --subtract-contrastive-floor --moco-negatives)
+    EXTRA_ARGS=(--cpc-infonce-weight 0.0)
+    ;;
+  arm5_ncpc)
+    NAME="bb_small_arm5_ncpc_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090"
+    ARM_DESC="arm 5_ncpc: rep_only + align-loss-weight 1.0 + cpc_infonce_weight=0"
+    LOSS_ARGS=(--loss-shape cosine_similarity_batch_rep_only --align-loss-weight 1.0)
+    EXTRA_ARGS=(--cpc-infonce-weight 0.0)
+    ;;
+  arm6_v2_ncpc)
+    NAME="bb_small_arm6_v2_ncpc_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090"
+    ARM_DESC="arm 6 v2_ncpc: rep_only + align-loss-weight 1.0 + moco-rep-keys + cpc_infonce_weight=0"
+    LOSS_ARGS=(--loss-shape cosine_similarity_batch_rep_only \
+               --align-loss-weight 1.0 --moco-rep-keys)
+    EXTRA_ARGS=(--cpc-infonce-weight 0.0)
+    ;;
+  bimoco_ncpc)
+    NAME="bb_small_bimoco_ncpc_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090"
+    ARM_DESC="bimoco_ncpc: split_pred_rep + moco-negatives + moco-rep-keys + cpc_infonce_weight=0"
+    LOSS_ARGS=(--loss-shape cosine_similarity_batch_split_pred_rep \
+               --moco-negatives --moco-rep-keys)
+    EXTRA_ARGS=(--cpc-infonce-weight 0.0)
+    ;;
   *)
     echo "ABORT: unknown arm '$ARM'" >&2
     echo "  valid: arm1 arm3 arm4 arm5 arm6_v2 bimoco" >&2
     echo "         arm1_tr1 arm3_tr1 arm5_tr1 arm6_v2_tr1 bimoco_tr1" >&2
+    echo "         arm1_nse arm3_nse arm4_nse arm5_nse arm6_v2_nse bimoco_nse" >&2
+    echo "         arm1_ncpc arm3_ncpc arm4_ncpc arm5_ncpc arm6_v2_ncpc bimoco_ncpc" >&2
     exit 2
     ;;
 esac
@@ -217,6 +314,7 @@ CUDA_VISIBLE_DEVICES="$BB_GPU" python3 -u "$TRAIN" $RESUME --qk-norm --attn-out-
   --mixup-p 0.3 --freq-emb-dim 3 --seasonality-emb-dim 3 \
   --log-attn-amplitude --log-attn-amplitude-every 200 \
   --residual-dtype fp32 --attn-dtype fp16 --ffn-dtype fp16 --conv-dtype fp16 --patch-emb-dtype fp32 \
+  "${EXTRA_ARGS[@]}" \
   >>"$tlog" 2>&1
 rc=$?
 if [ $rc -ne 0 ]; then

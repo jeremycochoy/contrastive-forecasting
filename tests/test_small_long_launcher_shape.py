@@ -32,6 +32,14 @@ ARMS = ("arm1", "arm3", "arm4", "arm5", "arm6_v2", "bimoco")
 # term. arm 4 is xshh_allt (single pooled denom, no split L_rep) and is
 # not rerun.
 ARMS_TR1 = ("arm1_tr1", "arm3_tr1", "arm5_tr1", "arm6_v2_tr1", "bimoco_tr1")
+# #379 no-sigreg-embedding reruns — all 6 base arms with
+# --sigreg-embedding-weight 0.0 appended (h_t regulariser kept).
+ARMS_NSE = ("arm1_nse", "arm3_nse", "arm4_nse", "arm5_nse", "arm6_v2_nse",
+            "bimoco_nse")
+# #379 no-CPC reruns — all 6 base arms with --cpc-infonce-weight 0.0
+# appended (SIGReg kept as base).
+ARMS_NCPC = ("arm1_ncpc", "arm3_ncpc", "arm4_ncpc", "arm5_ncpc",
+             "arm6_v2_ncpc", "bimoco_ncpc")
 
 # Small-model backbone config that the shared body must carry verbatim.
 BACKBONE_LITERALS = (
@@ -145,6 +153,122 @@ ARM_EXPECTATIONS = {
                    "--moco-negatives", "--moco-rep-keys", "--tau-rep 1.0"),
         must_not_have=("--align-loss-weight", "--pos-in-denominator"),
     ),
+    # #379 no-sigreg-embedding (nse) reruns — same loss-shape as the base
+    # arm; the `--sigreg-embedding-weight 0.0` override is emitted via
+    # EXTRA_ARGS after the trainer's shared `--sigreg-embedding-weight 1.0`
+    # (Python argparse's last-value-wins rule zeroes the e_t regulariser).
+    # NAME stub carries the `_nse_` marker so base and rerun checkpoints
+    # never collide on disk.
+    "arm1_nse": dict(
+        name_stub="bb_small_arm1_nse_split_pred_rep_enc3l3_b64_200k",
+        must_have=("--loss-shape cosine_similarity_batch_split_pred_rep",
+                   "--sigreg-embedding-weight 0.0"),
+        must_not_have=("--moco-negatives", "--moco-rep-keys",
+                       "--align-loss-weight", "--pos-in-denominator",
+                       "--tau-rep", "--cpc-infonce-weight 0.0"),
+    ),
+    "arm3_nse": dict(
+        name_stub="bb_small_arm3_nse_split_pred_rep_moco_enc3l3_b64_200k",
+        must_have=("--loss-shape cosine_similarity_batch_split_pred_rep",
+                   "--moco-negatives", "--sigreg-embedding-weight 0.0"),
+        must_not_have=("--moco-rep-keys", "--align-loss-weight",
+                       "--pos-in-denominator", "--tau-rep",
+                       "--cpc-infonce-weight 0.0"),
+    ),
+    "arm4_nse": dict(
+        name_stub="bb_small_arm4_nse_xshh_allt_moco_enc3l3_b64_200k",
+        must_have=(
+            "--loss-shape cosine_similarity_batch_full_hh_negs_xshh_allt",
+            "--pos-in-denominator",
+            "--subtract-contrastive-floor",
+            "--moco-negatives",
+            "--sigreg-embedding-weight 0.0",
+        ),
+        must_not_have=("--moco-rep-keys", "--align-loss-weight",
+                       "--tau-rep", "--cpc-infonce-weight 0.0"),
+    ),
+    "arm5_nse": dict(
+        name_stub="bb_small_arm5_nse_lalign_lrep_enc3l3_b64_200k",
+        must_have=("--loss-shape cosine_similarity_batch_rep_only",
+                   "--align-loss-weight 1.0",
+                   "--sigreg-embedding-weight 0.0"),
+        must_not_have=("--moco-negatives", "--moco-rep-keys",
+                       "--pos-in-denominator", "--tau-rep",
+                       "--cpc-infonce-weight 0.0"),
+    ),
+    "arm6_v2_nse": dict(
+        name_stub="bb_small_arm6_v2_nse_lalign_lrepmoco_enc3l3_b64_200k",
+        must_have=("--loss-shape cosine_similarity_batch_rep_only",
+                   "--align-loss-weight 1.0", "--moco-rep-keys",
+                   "--sigreg-embedding-weight 0.0"),
+        must_not_have=("--moco-negatives", "--pos-in-denominator",
+                       "--tau-rep", "--cpc-infonce-weight 0.0"),
+    ),
+    "bimoco_nse": dict(
+        name_stub="bb_small_bimoco_nse_split_pred_rep_moco_bothsides_enc3l3_b64_200k",
+        must_have=("--loss-shape cosine_similarity_batch_split_pred_rep",
+                   "--moco-negatives", "--moco-rep-keys",
+                   "--sigreg-embedding-weight 0.0"),
+        must_not_have=("--align-loss-weight", "--pos-in-denominator",
+                       "--tau-rep", "--cpc-infonce-weight 0.0"),
+    ),
+    # #379 no-CPC (ncpc) reruns — same loss-shape as the base arm; the
+    # `--cpc-infonce-weight 0.0` override is emitted via EXTRA_ARGS after
+    # the trainer's shared `--cpc-infonce-weight 1.0` (last-value-wins
+    # disables the CPC auxiliary while keeping SIGReg on).
+    "arm1_ncpc": dict(
+        name_stub="bb_small_arm1_ncpc_split_pred_rep_enc3l3_b64_200k",
+        must_have=("--loss-shape cosine_similarity_batch_split_pred_rep",
+                   "--cpc-infonce-weight 0.0"),
+        must_not_have=("--moco-negatives", "--moco-rep-keys",
+                       "--align-loss-weight", "--pos-in-denominator",
+                       "--tau-rep", "--sigreg-embedding-weight 0.0"),
+    ),
+    "arm3_ncpc": dict(
+        name_stub="bb_small_arm3_ncpc_split_pred_rep_moco_enc3l3_b64_200k",
+        must_have=("--loss-shape cosine_similarity_batch_split_pred_rep",
+                   "--moco-negatives", "--cpc-infonce-weight 0.0"),
+        must_not_have=("--moco-rep-keys", "--align-loss-weight",
+                       "--pos-in-denominator", "--tau-rep",
+                       "--sigreg-embedding-weight 0.0"),
+    ),
+    "arm4_ncpc": dict(
+        name_stub="bb_small_arm4_ncpc_xshh_allt_moco_enc3l3_b64_200k",
+        must_have=(
+            "--loss-shape cosine_similarity_batch_full_hh_negs_xshh_allt",
+            "--pos-in-denominator",
+            "--subtract-contrastive-floor",
+            "--moco-negatives",
+            "--cpc-infonce-weight 0.0",
+        ),
+        must_not_have=("--moco-rep-keys", "--align-loss-weight",
+                       "--tau-rep", "--sigreg-embedding-weight 0.0"),
+    ),
+    "arm5_ncpc": dict(
+        name_stub="bb_small_arm5_ncpc_lalign_lrep_enc3l3_b64_200k",
+        must_have=("--loss-shape cosine_similarity_batch_rep_only",
+                   "--align-loss-weight 1.0",
+                   "--cpc-infonce-weight 0.0"),
+        must_not_have=("--moco-negatives", "--moco-rep-keys",
+                       "--pos-in-denominator", "--tau-rep",
+                       "--sigreg-embedding-weight 0.0"),
+    ),
+    "arm6_v2_ncpc": dict(
+        name_stub="bb_small_arm6_v2_ncpc_lalign_lrepmoco_enc3l3_b64_200k",
+        must_have=("--loss-shape cosine_similarity_batch_rep_only",
+                   "--align-loss-weight 1.0", "--moco-rep-keys",
+                   "--cpc-infonce-weight 0.0"),
+        must_not_have=("--moco-negatives", "--pos-in-denominator",
+                       "--tau-rep", "--sigreg-embedding-weight 0.0"),
+    ),
+    "bimoco_ncpc": dict(
+        name_stub="bb_small_bimoco_ncpc_split_pred_rep_moco_bothsides_enc3l3_b64_200k",
+        must_have=("--loss-shape cosine_similarity_batch_split_pred_rep",
+                   "--moco-negatives", "--moco-rep-keys",
+                   "--cpc-infonce-weight 0.0"),
+        must_not_have=("--align-loss-weight", "--pos-in-denominator",
+                       "--tau-rep", "--sigreg-embedding-weight 0.0"),
+    ),
 }
 
 
@@ -235,6 +359,79 @@ def test_tau_rep_arm_case_block_loss_args(launcher_code: str, arm: str):
             f"arm {arm}: LOSS_ARGS must NOT contain {token!r} — got:\n{body}")
 
 
+# ---------------------------------------------------------------------------
+# #379 nse / ncpc arm case-block coverage — same shape as ARMS_TR1: each
+# arm sets NAME + ARM_DESC + LOSS_ARGS, its NAME carries the `_nse_` /
+# `_ncpc_` marker so base and rerun artefacts never collide, and the
+# per-arm block emits the override flag via EXTRA_ARGS (must_have below).
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("arm", ARMS_NSE + ARMS_NCPC)
+def test_variant_arm_case_block_sets_required_vars(launcher_code: str, arm: str):
+    body = extract_arm_case_body(launcher_code, arm)
+    for var in ("NAME=", "ARM_DESC=", "LOSS_ARGS=", "EXTRA_ARGS="):
+        assert var in body, (
+            f"arm {arm}: case block must set {var} — got:\n{body}")
+
+
+@pytest.mark.parametrize("arm", ARMS_NSE + ARMS_NCPC)
+def test_variant_arm_case_block_name_stub(launcher_code: str, arm: str):
+    body = extract_arm_case_body(launcher_code, arm)
+    stub = ARM_EXPECTATIONS[arm]["name_stub"]
+    assert stub in body, (
+        f"arm {arm}: NAME must contain {stub!r} — got:\n{body}")
+
+
+@pytest.mark.parametrize("arm", ARMS_NSE + ARMS_NCPC)
+def test_variant_arm_case_block_flags(launcher_code: str, arm: str):
+    body = extract_arm_case_body(launcher_code, arm)
+    expect = ARM_EXPECTATIONS[arm]
+    for token in expect["must_have"]:
+        assert token in body, (
+            f"arm {arm}: case block must contain {token!r} — got:\n{body}")
+    for token in expect["must_not_have"]:
+        assert token not in body, (
+            f"arm {arm}: case block must NOT contain {token!r} — got:\n{body}")
+
+
+def test_extra_args_appended_after_shared_defaults(launcher_code: str):
+    """Argparse's last-value-wins rule requires EXTRA_ARGS AFTER defaults.
+
+    `--sigreg-embedding-weight 1.0` and `--cpc-infonce-weight 1.0` are
+    part of the shared trainer body. The per-arm EXTRA_ARGS carries
+    `--sigreg-embedding-weight 0.0` / `--cpc-infonce-weight 0.0`
+    overrides — those MUST land after the shared defaults on the trainer
+    command line so Python argparse picks the zero.
+    """
+    idx_default_sigreg = launcher_code.find("--sigreg-embedding-weight 1.0")
+    idx_default_cpc    = launcher_code.find("--cpc-infonce-weight 1.0")
+    idx_extra_args     = launcher_code.find('"${EXTRA_ARGS[@]}"')
+    assert idx_default_sigreg > 0 and idx_default_cpc > 0, (
+        "run_arm.sh must still carry the shared "
+        "`--sigreg-embedding-weight 1.0` and `--cpc-infonce-weight 1.0` "
+        "defaults in the trainer body.")
+    assert idx_extra_args > 0, (
+        "run_arm.sh must emit `\"${EXTRA_ARGS[@]}\"` on the trainer "
+        "command line (per-arm override channel for nse / ncpc reruns).")
+    assert idx_extra_args > idx_default_sigreg, (
+        "`\"${EXTRA_ARGS[@]}\"` must appear AFTER "
+        "`--sigreg-embedding-weight 1.0` so the nse override wins.")
+    assert idx_extra_args > idx_default_cpc, (
+        "`\"${EXTRA_ARGS[@]}\"` must appear AFTER "
+        "`--cpc-infonce-weight 1.0` so the ncpc override wins.")
+
+
+def test_extra_args_default_is_empty_array(launcher_code: str):
+    """Base + tau_rep arms don't override anything → EXTRA_ARGS must
+    default to an empty array so `set -u` + `"${EXTRA_ARGS[@]}"` stays
+    well-defined for those arms.
+    """
+    assert re.search(r'^\s*EXTRA_ARGS=\(\)\s*$', launcher_code, re.MULTILINE), (
+        "run_arm.sh must default `EXTRA_ARGS=()` before the case block "
+        "so base + tau_rep arms don't hit an unbound-array expansion.")
+
+
 @pytest.mark.parametrize("literal", BACKBONE_LITERALS)
 def test_backbone_config_literal_present(launcher_code: str, literal: str):
     # These are shared across all arms — they must appear in the outer
@@ -303,7 +500,7 @@ def test_orchestrator_sequences_three_phases():
 
 def test_sync_loop_covers_all_arms_and_classes():
     sync = (EXP_DIR / "sync" / "sync_loop.sh").read_text()
-    for arm in ARMS + ARMS_TR1:
+    for arm in ARMS + ARMS_TR1 + ARMS_NSE + ARMS_NCPC:
         assert f"NAME_{arm}=" in sync, f"sync_loop.sh must define NAME_{arm}"
         assert f" {arm} " in sync or f" {arm})" in sync or f"({arm} " in sync \
                or f" {arm}" in sync, (
@@ -329,10 +526,15 @@ def test_sync_loop_covers_all_arms_and_classes():
             f"(union of base + tau_rep-wave-1 cadences).")
     assert "/tmp/*|/tmp" in sync, (
         "sync_loop.sh must reject LOCAL_DIR under /tmp.")
-    # #379 — tau_rep orchestrator log must be pulled too.
-    assert "orchestrate_tau_rep.log" in sync, (
-        "sync_loop.sh must pull `orchestrate_tau_rep.log` so #379 rerun "
-        "wave logs land locally.")
+    # #379 — every orchestrator log must be pulled so the wave/phase
+    # audit trail lands locally alongside the checkpoints. The three
+    # new orchestrators (nse, ncpc, base-fresh) each write their own
+    # log at the experiment-root results/ dir.
+    for log_name in ("orchestrate_tau_rep.log", "orchestrate_no_sigreg_e.log",
+                     "orchestrate_no_cpc.log", "orchestrate_base_fresh.log"):
+        assert log_name in sync, (
+            f"sync_loop.sh must pull `{log_name}` so its #379 rerun-wave "
+            "audit trail lands locally.")
 
 
 # ---------------------------------------------------------------------------
@@ -604,6 +806,183 @@ def test_run_arm_resume_flag_pipes_intermediate_checkpoint(launcher_code: str):
     assert 'RESUME="--resume $latest"' in launcher_code, (
         "run_arm.sh must pass `--resume <path>` to the trainer when a "
         "prior checkpoint exists.")
+
+
+# ---------------------------------------------------------------------------
+# #379 nse / ncpc / base-fresh orchestrators — each mirrors the tau_rep
+# staged-wave shape with its own phase-letter block (G/H/I, J/K/L,
+# M/N/O). MAX_WAVE env var support gates the outer loop so a run can
+# stop after a chosen wave (Wave-D-first barrier — all variants hit 40k
+# before any advances further).
+# ---------------------------------------------------------------------------
+
+# Per-orchestrator spec: file name, arm-suffix, phase letters
+# (wave_1 / wave_2 / wave_3), and the sub-phase pairings that the
+# corresponding `run_wave` must emit. `subphases` is a list of tuples —
+# each tuple is (gpu0_arm, gpu1_arm_or_None). None → solo on GPU 0.
+_NEW_ORCHESTRATORS = [
+    dict(
+        file="orchestrate_no_sigreg_e.sh",
+        tag="nse",
+        letters=("G", "H", "I"),
+        arm_count=6,
+        subphases=(
+            ("arm1_nse", "arm3_nse"),
+            ("arm4_nse", "arm5_nse"),
+            ("arm6_v2_nse", "bimoco_nse"),
+        ),
+    ),
+    dict(
+        file="orchestrate_no_cpc.sh",
+        tag="ncpc",
+        letters=("J", "K", "L"),
+        arm_count=6,
+        subphases=(
+            ("arm1_ncpc", "arm3_ncpc"),
+            ("arm4_ncpc", "arm5_ncpc"),
+            ("arm6_v2_ncpc", "bimoco_ncpc"),
+        ),
+    ),
+    dict(
+        file="orchestrate_base_fresh.sh",
+        tag="base_fresh",
+        letters=("M", "N", "O"),
+        arm_count=2,
+        subphases=(
+            ("arm6_v2", "bimoco"),
+        ),
+    ),
+]
+
+
+def _read_new_orch(name: str) -> str:
+    return strip_comments((EXP_DIR / "scripts" / name).read_text())
+
+
+@pytest.mark.parametrize("spec", _NEW_ORCHESTRATORS,
+                         ids=[s["file"] for s in _NEW_ORCHESTRATORS])
+def test_new_orchestrator_wave_schedule(spec):
+    body = _read_new_orch(spec["file"])
+    wave1, wave2, wave3 = spec["letters"]
+    for entry in (
+        f'"1|{wave1}|40000|10000|2500,40000"',
+        f'"2|{wave2}|100000|25000|100000"',
+        f'"3|{wave3}|200000|25000|"',
+    ):
+        assert entry in body, (
+            f"{spec['file']} WAVE_SCHEDULE must contain {entry!r}.")
+    assert re.search(r'for\s+\w+\s+in\s+"\$\{WAVE_SCHEDULE\[@\]\}"', body), (
+        f"{spec['file']} must drive waves with `for … in "
+        '"${WAVE_SCHEDULE[@]}"` so adding/removing a wave is a single '
+        "edit.")
+    assert re.search(r'FINAL_STEPS=200000\b', body), (
+        f"{spec['file']} must set FINAL_STEPS=200000.")
+
+
+@pytest.mark.parametrize("spec", _NEW_ORCHESTRATORS,
+                         ids=[s["file"] for s in _NEW_ORCHESTRATORS])
+def test_new_orchestrator_max_wave_support(spec):
+    """`MAX_WAVE` env var must, when set, break the outer loop after
+    that phase letter — this is the Wave-D-first barrier the researcher
+    imposed on the 23-arm sweep. When unset, all waves run as before.
+    """
+    body = _read_new_orch(spec["file"])
+    assert re.search(r'MAX_WAVE="\$\{MAX_WAVE:-\}"', body), (
+        f"{spec['file']} must declare `MAX_WAVE=\"${{MAX_WAVE:-}}\"` so "
+        "the outer loop treats an unset env var as \"run everything\".")
+    assert re.search(
+        r'if\s+\[\s+-n\s+"\$MAX_WAVE"\s+\]\s*&&\s*'
+        r'\[\s+"\$LETTER"\s*=\s*"\$MAX_WAVE"\s+\]\s*;\s*then'
+        r'.*?break',
+        body, re.DOTALL), (
+        f"{spec['file']} outer loop must `break` after `$LETTER` matches "
+        "`$MAX_WAVE` (only when `MAX_WAVE` is non-empty).")
+
+
+@pytest.mark.parametrize("spec", _NEW_ORCHESTRATORS,
+                         ids=[s["file"] for s in _NEW_ORCHESTRATORS])
+def test_new_orchestrator_wave_to_phase_letter_mapping(spec):
+    body = _read_new_orch(spec["file"])
+    assert re.search(
+        r'read\s+-r\s+WAVE\s+LETTER\s+TARGET\s+SAVE_EVERY\s+EXTRAS', body), (
+        f"{spec['file']} outer loop must destructure "
+        "`WAVE|LETTER|TARGET|SAVE_EVERY|EXTRAS` from each schedule entry.")
+    assert 'local wave="$1" letter="$2"' in body, (
+        f"{spec['file']} run_wave signature must start with "
+        "`local wave=\"$1\" letter=\"$2\" …`.")
+    assert re.search(
+        r'run_wave\s+"\$WAVE"\s+"\$LETTER"\s+"\$TARGET"\s+"\$SAVE_EVERY"\s+"\$EXTRAS"',
+        body), (
+        f"{spec['file']} outer loop must call `run_wave` with WAVE, "
+        "LETTER, TARGET, SAVE_EVERY, EXTRAS in that order.")
+
+
+@pytest.mark.parametrize("spec", _NEW_ORCHESTRATORS,
+                         ids=[s["file"] for s in _NEW_ORCHESTRATORS])
+def test_new_orchestrator_subphase_layout(spec):
+    """Every arm appears as a `launch_arm` call in the expected sub-phase
+    slot. Sub-phase names use the parent phase letter (`${letter}1`,
+    etc.) so wave-1 vs wave-2 vs wave-3 log lines never collide.
+    """
+    body = _read_new_orch(spec["file"])
+    assert re.search(r'^run_wave\s*\(\)\s*\{', body, re.MULTILINE), (
+        f"{spec['file']} must define a `run_wave()` function so each "
+        "wave runs an identical sub-phase pipeline.")
+    for idx, pair in enumerate(spec["subphases"], start=1):
+        gpu0, gpu1 = pair
+        # Sub-phase log line: names both arms + the parent phase letter.
+        pattern = rf'sub-phase \$\{{letter\}}{idx}.*{re.escape(gpu0)}'
+        if gpu1 is not None:
+            pattern += rf'.*{re.escape(gpu1)}'
+        assert re.search(pattern, body), (
+            f"{spec['file']} sub-phase ${{letter}}{idx} must pair "
+            f"{gpu0} (GPU 0) with {gpu1} (GPU 1).")
+    # Every arm shows up in an actual launch_arm invocation.
+    for pair in spec["subphases"]:
+        for arm in pair:
+            if arm is None:
+                continue
+            assert re.search(rf'\blaunch_arm\s+{re.escape(arm)}\b', body), (
+                f"{spec['file']} must include `launch_arm {arm} …` in "
+                "run_wave.")
+    # Pair count = number of sub-phases with a second GPU (2 backgrounded
+    # calls per pair → matching pid_a / pid_b counts).
+    pair_count = sum(1 for pair in spec["subphases"] if pair[1] is not None)
+    assert body.count("pid_a=$!") == pair_count, (
+        f"{spec['file']} run_wave must background exactly {pair_count} "
+        "pid_a= assignments (one per 2-arm sub-phase).")
+    assert body.count("pid_b=$!") == pair_count, (
+        f"{spec['file']} run_wave must background exactly {pair_count} "
+        "pid_b= assignments (one per 2-arm sub-phase).")
+
+
+@pytest.mark.parametrize("spec", _NEW_ORCHESTRATORS,
+                         ids=[s["file"] for s in _NEW_ORCHESTRATORS])
+def test_new_orchestrator_wave_end_summary(spec):
+    body = _read_new_orch(spec["file"])
+    assert "count_arms_at_step" in body, (
+        f"{spec['file']} must count how many arms reached the wave "
+        "target and log the ratio.")
+    assert re.search(r'PHASE\s+\$letter\s+DONE', body), (
+        f"{spec['file']} must log `PHASE $letter DONE — wave $wave · "
+        "arms at ≥ …` at the end of each wave.")
+    assert f"/ {spec['arm_count']}" in body, (
+        f"{spec['file']} phase-summary line must divide by "
+        f"{spec['arm_count']} (this orchestrator's arm count).")
+
+
+@pytest.mark.parametrize("spec", _NEW_ORCHESTRATORS,
+                         ids=[s["file"] for s in _NEW_ORCHESTRATORS])
+def test_new_orchestrator_delegates_target_and_final(spec):
+    body = _read_new_orch(spec["file"])
+    assert 'TARGET_STEPS="$target"' in body, (
+        f"{spec['file']} must pass TARGET_STEPS to run_arm.sh.")
+    assert 'FINAL_STEPS="$FINAL_STEPS"' in body, (
+        f"{spec['file']} must pass FINAL_STEPS to run_arm.sh.")
+    assert 'SAVE_EVERY="$se"' in body, (
+        f"{spec['file']} must pass per-wave SAVE_EVERY to run_arm.sh.")
+    assert 'EXTRA_SAVES="$ex"' in body, (
+        f"{spec['file']} must pass per-wave EXTRA_SAVES to run_arm.sh.")
 
 
 def test_smoke_script_is_backbone_only():

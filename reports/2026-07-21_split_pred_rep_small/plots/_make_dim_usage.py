@@ -40,7 +40,58 @@ RUNS = [
     ("bimoco  (L_pred_moco + L_rep_moco)",
      "bb_small_bimoco_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
      "#00a3a3"),
+    # #379 no-sigreg-embedding reruns — paler variant of the base colour.
+    ("arm 1 nse  (sigreg_e=0)",
+     "bb_small_arm1_nse_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#a6c8ee"),
+    ("arm 3 nse  (sigreg_e=0)",
+     "bb_small_arm3_nse_split_pred_rep_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#f5b39a"),
+    ("arm 4 nse  (sigreg_e=0)",
+     "bb_small_arm4_nse_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#7fc17f"),
+    ("arm 5 nse  (sigreg_e=0)",
+     "bb_small_arm5_nse_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#c58fc5"),
+    ("arm 6 v2 nse  (sigreg_e=0)",
+     "bb_small_arm6_v2_nse_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#dcc385"),
+    ("bimoco nse  (sigreg_e=0)",
+     "bb_small_bimoco_nse_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#7fd1d1"),
+    # #379 no-CPC reruns — same base colour, dashed via STYLE below.
+    ("arm 1 ncpc  (cpc=0)",
+     "bb_small_arm1_ncpc_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#2a78d6"),
+    ("arm 3 ncpc  (cpc=0)",
+     "bb_small_arm3_ncpc_split_pred_rep_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#eb6834"),
+    ("arm 4 ncpc  (cpc=0)",
+     "bb_small_arm4_ncpc_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#008300"),
+    ("arm 5 ncpc  (cpc=0)",
+     "bb_small_arm5_ncpc_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#8b1e8b"),
+    ("arm 6 v2 ncpc  (cpc=0)",
+     "bb_small_arm6_v2_ncpc_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#b8860b"),
+    ("bimoco ncpc  (cpc=0)",
+     "bb_small_bimoco_ncpc_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#00a3a3"),
 ]
+SLUGS = ["arm1", "arm3", "arm4", "arm5", "arm6_v2", "bimoco",
+         "arm1_nse", "arm3_nse", "arm4_nse", "arm5_nse", "arm6_v2_nse", "bimoco_nse",
+         "arm1_ncpc", "arm3_ncpc", "arm4_ncpc", "arm5_ncpc", "arm6_v2_ncpc", "bimoco_ncpc"]
+# ncpc runs render dashed so a shared base colour + linestyle disambiguates
+# CPC-off from base in the per-panel plot.
+STYLE = {
+    "arm1_ncpc": "--",
+    "arm3_ncpc": "--",
+    "arm4_ncpc": "--",
+    "arm5_ncpc": "--",
+    "arm6_v2_ncpc": "--",
+    "bimoco_ncpc": "--",
+}
 
 INK, MUTED, GRID = "#0b0b0b", "#898781", "#e1e0d9"
 plt.rcParams.update({

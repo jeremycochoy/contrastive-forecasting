@@ -82,10 +82,63 @@ RUNS = [
     ("bimoco τ_rep=1.0",
      "bb_small_bimoco_tr1_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
      "#66c4c4"),
+    # #379 no-sigreg-embedding reruns — paler variant of the base colour.
+    ("arm 1 nse  (sigreg_e=0)",
+     "bb_small_arm1_nse_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#a6c8ee"),
+    ("arm 3 nse  (sigreg_e=0)",
+     "bb_small_arm3_nse_split_pred_rep_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#f5b39a"),
+    ("arm 4 nse  (sigreg_e=0)",
+     "bb_small_arm4_nse_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#7fc17f"),
+    ("arm 5 nse  (sigreg_e=0)",
+     "bb_small_arm5_nse_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#c58fc5"),
+    ("arm 6 v2 nse  (sigreg_e=0)",
+     "bb_small_arm6_v2_nse_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#dcc385"),
+    ("bimoco nse  (sigreg_e=0)",
+     "bb_small_bimoco_nse_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#7fd1d1"),
+    # #379 no-CPC reruns — same base colour, dashed via STYLE below.
+    ("arm 1 ncpc  (cpc=0)",
+     "bb_small_arm1_ncpc_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#2a78d6"),
+    ("arm 3 ncpc  (cpc=0)",
+     "bb_small_arm3_ncpc_split_pred_rep_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#eb6834"),
+    ("arm 4 ncpc  (cpc=0)",
+     "bb_small_arm4_ncpc_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#008300"),
+    ("arm 5 ncpc  (cpc=0)",
+     "bb_small_arm5_ncpc_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#8b1e8b"),
+    ("arm 6 v2 ncpc  (cpc=0)",
+     "bb_small_arm6_v2_ncpc_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#b8860b"),
+    ("bimoco ncpc  (cpc=0)",
+     "bb_small_bimoco_ncpc_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#00a3a3"),
 ]
-# Short slug per arm — used to select via --arms.
+# Short slug per arm — used to select via --arms. Parallel to RUNS by
+# index; STYLE below is keyed on slug (dashed for ncpc, solid default).
 SLUGS = ["arm1", "arm3", "arm4", "arm5", "arm6_v2", "bimoco",
-         "arm1_tr1", "arm3_tr1", "arm5_tr1", "arm6_v2_tr1", "bimoco_tr1"]
+         "arm1_tr1", "arm3_tr1", "arm5_tr1", "arm6_v2_tr1", "bimoco_tr1",
+         "arm1_nse", "arm3_nse", "arm4_nse", "arm5_nse", "arm6_v2_nse", "bimoco_nse",
+         "arm1_ncpc", "arm3_ncpc", "arm4_ncpc", "arm5_ncpc", "arm6_v2_ncpc", "bimoco_ncpc"]
+# Per-slug linestyle override for the h_t panel. ncpc → dashed on top of
+# the shared base colour; everything else stays solid. The e_t panel is
+# already dashed as an axis-level convention, so ncpc's dashed override
+# only applies to ax_h.
+STYLE = {
+    "arm1_ncpc": "--",
+    "arm3_ncpc": "--",
+    "arm4_ncpc": "--",
+    "arm5_ncpc": "--",
+    "arm6_v2_ncpc": "--",
+    "bimoco_ncpc": "--",
+}
 
 INK, MUTED, GRID = "#0b0b0b", "#898781", "#e1e0d9"
 plt.rcParams.update({
@@ -219,14 +272,14 @@ def main() -> None:
         raise SystemExit(f"runs dir not found: {runs_dir}")
 
     selected = set(args.arms.split(",")) if args.arms else set(SLUGS)
-    plan = [(lbl, name, colour) for (lbl, name, colour), slug
+    plan = [(lbl, name, colour, slug) for (lbl, name, colour), slug
             in zip(RUNS, SLUGS) if slug in selected]
 
     batch = make_fixed_batch(args)
     print(f"fixed batch: shape={tuple(batch.shape)} device=cpu → {args.device}")
 
     fig, (ax_h, ax_e) = plt.subplots(2, 1, figsize=(9, 8), sharex=True)
-    for label, name, colour in plan:
+    for label, name, colour, slug in plan:
         points = compute_arm_movements(runs_dir, name, batch, args.device)
         if not points:
             print(f"  skip {label}: fewer than 2 periodic checkpoints under {name}")
@@ -234,7 +287,9 @@ def main() -> None:
         steps = [p[0] for p in points]
         mv_h  = [p[1] for p in points]
         mv_e  = [p[2] for p in points]
-        ax_h.plot(steps, mv_h, marker="o", color=colour, lw=1.4, label=label)
+        ls_h = STYLE.get(slug, "-")
+        ax_h.plot(steps, mv_h, marker="o", color=colour, lw=1.4,
+                  linestyle=ls_h, label=label)
         ax_e.plot(steps, mv_e, marker="o", color=colour, lw=1.4,
                   linestyle="--", label=label)
         print(f"  {label}: {len(points)} pairs → h_last={mv_h[-1]:.4f}  e_last={mv_e[-1]:.4f}")
