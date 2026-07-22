@@ -18,35 +18,35 @@ three metrics.
 
 ![drift_total](plots/drift_total.png)
 
-Arm 5 stays in `0.77–0.97` across every interval; arm 3 sits at
-`0.91–0.92` (2 intervals); the other four arms terminate in
-`0.41–0.69`.
+Arms 3 and 5's `h_t` is nearly orthogonal between consecutive
+checkpoints; the other four arms drop to moderate drift after early
+training.
 
 ![rot_gap](plots/rot_gap.png)
 
-Arm 5's terminal rotational drift is `0.46` (never falls below);
-the other five arms terminate in `0.20–0.27`.
+Arm 5's drift is dominated by a large, sustained feature-axis
+rotation throughout training; the other arms' rotational share
+shrinks and stabilises lower.
 
 ![drift_residual](plots/drift_residual.png)
 
-Arm 5 climbs from `0.12` at step 15k to `0.43–0.48` through step 50k;
-arm 4 sits at `0.30–0.47`; arm 6 v2 and bimoco stay lowest at
-`0.16–0.28`.
+Arm 5 crosses a regime around step 15k — early intervals are
+dominated by rotation, later intervals accumulate substantial
+head-non-absorbable drift. Bimoco and arm 6 v2 stay in the
+low-residual regime throughout.
 
 ![cka](plots/cka.png)
 
-Arm 5's CKA drops from `0.91` at step 15k to `0.35–0.38` through
-step 50k; the other five arms terminate at `0.26–0.82` (arm 3 lowest
-at `0.26`, bimoco highest at `0.82`).
+Arm 5 preserves its token geometry through mid-training then
+collapses abruptly around step 20k; the other arms show no
+comparable collapse.
 
 ## GM-Relative MASE reference (from #374)
 
 ![gm_mase_374](plots/gm_mase_374.png)
 
-At step 12,500 (6L quantile head): bimoco `1.11` (lowest);
-arm 3 `1.15`; arm 4 `1.14`; arm 1 `1.16`; arm 6 v2 `1.18`;
-arm 5 `1.22` (highest). Arm 5 has the highest MASE at both of the
-eval steps recorded for it (`11800` and `12500`).
+Arm 5 has the highest MASE at every recorded eval step; the other
+five arms cluster tightly.
 
 ## Metric derivation
 
