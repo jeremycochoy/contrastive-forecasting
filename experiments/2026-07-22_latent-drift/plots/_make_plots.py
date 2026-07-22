@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
-"""Render 4 latent-drift plots for the #374 arm sweep.
+"""Render 5 plots for the #374 latent-drift experiment.
 
-Each PNG is a 2×3 grid, one panel per arm. Each panel shows the
-"adjacent-pair" trajectory for one drift metric across training steps.
+Four drift plots: one per metric (drift_cos, rot_gap, drift_cos_aligned,
+cka), 6 arms overlaid on a single axis — the values live on the same
+scale so the comparison is direct.
 
-Input: ../results/drift_374.csv
-Output: drift_total.png, rot_gap.png, drift_informative.png, cka.png
+One reference plot: GM-Relative MASE per arm at the eval steps recorded
+by #374 (`results/gm_mase_374.csv`, 6L quantile head), on the same
+x-axis as the drift plots — so a vertical line at any step aligns
+across figures.
 
-Colors: validated dataviz slots 1–6 (blue/orange/aqua/yellow/magenta/green),
-one hue per arm, same assignment across all four figures so the reader
-carries "arm 1 = blue" between plots.
+Input: ../results/drift_374.csv, ../results/gm_mase_374.csv.
+Output: drift_total.png, rot_gap.png, drift_informative.png, cka.png,
+        gm_mase_374.png.
 """
 
 from __future__ import annotations
@@ -21,10 +24,9 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-CSV_PATH = os.path.join(HERE, "..", "results", "drift_374.csv")
+DRIFT_CSV = os.path.join(HERE, "..", "results", "drift_374.csv")
+GM_CSV = os.path.join(HERE, "..", "results", "gm_mase_374.csv")
 
-# Order matters — colour is assigned by position, so this locks the
-# arm ↔ hue mapping across all four figures.
 ARM_ORDER = ["arm1", "arm3", "arm4", "arm5", "arm6v2", "bimoco"]
 ARM_LABEL = {
     "arm1":   "arm 1  L_pred + L_rep",
@@ -34,7 +36,6 @@ ARM_LABEL = {
     "arm6v2": "arm 6 v2  L_align + L_rep(MoCo)",
     "bimoco": "bimoco  L_pred(MoCo) + L_rep(MoCo)",
 }
-# Validated palette slots 1–6 (light mode).
 ARM_COLOR = {
     "arm1":   "#2a78d6",  # blue
     "arm3":   "#eb6834",  # orange
@@ -49,22 +50,31 @@ METRICS = [
      "Total per-token drift",
      r"$1 - \langle\cos(h_t^A, h_t^B)\rangle$"),
     ("rot_gap",           "rot_gap.png",
-     "Uninformative rotation",
-     r"$\mathrm{drift\_cos} - \mathrm{drift\_cos\_aligned}$"),
-    ("drift_cos_aligned", "drift_informative.png",
-     "Informative drift (Procrustes-aligned)",
-     r"$1 - (1/N)\sum_k \sigma_k(A^\top B)$"),
+     "Rotational drift",
+     r"$\mathrm{drift\_cos} - \mathrm{drift\_cos\_aligned}$  "
+     r"(the part removed by the best global feature-axis rotation)"),
+    ("drift_cos_aligned", "drift_residual.png",
+     "Residual drift (Procrustes-aligned)",
+     r"$1 - (1/N)\sum_k \sigma_k(A^\top B)$  "
+     r"(the part a linear head cannot absorb)"),
     ("cka",               "cka.png",
      "Linear CKA",
      r"$\mathrm{HSIC}(A,B) / \sqrt{\mathrm{HSIC}(A,A)\,\mathrm{HSIC}(B,B)}$"),
 ]
 
+XLIM = (0, 51_000)
+XTICKS = [0, 12_500, 25_000, 50_000]
+XTICK_LABELS = ["0", "12.5k", "25k", "50k"]
+SURFACE = "#fcfcfb"
+TEXT_PRIMARY = "#0b0b0b"
+TEXT_SECONDARY = "#52514e"
+SPINE_MUTED = "#c3c2b7"
 
-def _load():
-    """{arm: [(step_b, {metric: value}), …]} sorted by step, adjacent only."""
-    rows = list(csv.DictReader(open(CSV_PATH)))
+
+def _load_drift():
+    """{arm: [(step_b, {metric: value}), …]} adjacent only, sorted by step."""
     out = defaultdict(list)
-    for r in rows:
+    for r in csv.DictReader(open(DRIFT_CSV)):
         if r["kind"] != "adjacent":
             continue
         step_b = int(r["step_b"])
@@ -75,64 +85,95 @@ def _load():
     return out
 
 
-def _make(metric_key, out_name, title, subtitle, data):
-    fig, axes = plt.subplots(
-        2, 3, figsize=(11, 6.6), sharex=True,
-        constrained_layout=True)
-    # Global y-limits so all six panels use one axis for direct comparison.
-    all_ys = [v[metric_key] for arm in ARM_ORDER for _, v in data.get(arm, [])]
-    if not all_ys:
-        return
-    ymin, ymax = min(all_ys), max(all_ys)
-    pad = 0.05 * (ymax - ymin if ymax > ymin else 1.0)
-    ylim = (ymin - pad, ymax + pad)
-    for ax, arm in zip(axes.ravel(), ARM_ORDER):
+def _load_gm():
+    """{arm: [(step, gm_rel_mase), …]} for 6L head only, sorted by step."""
+    out = defaultdict(list)
+    for r in csv.DictReader(open(GM_CSV)):
+        if r["head_layers"] != "6L":
+            continue
+        out[r["arm"]].append((int(r["step"]), float(r["gm_rel_mase"])))
+    for arm in out:
+        out[arm].sort(key=lambda kv: kv[0])
+    return out
+
+
+def _style_axis(ax, ylabel, xlabel="training step"):
+    ax.grid(True, which="major", alpha=0.25, linewidth=0.6)
+    ax.set_xlim(*XLIM)
+    ax.set_xticks(XTICKS)
+    ax.set_xticklabels(XTICK_LABELS)
+    ax.set_xlabel(xlabel, fontsize=9, color=TEXT_SECONDARY)
+    ax.set_ylabel(ylabel, fontsize=10, color=TEXT_SECONDARY)
+    ax.tick_params(labelsize=9, colors=TEXT_SECONDARY)
+    for s in ("top", "right"):
+        ax.spines[s].set_visible(False)
+    for s in ("left", "bottom"):
+        ax.spines[s].set_color(SPINE_MUTED)
+
+
+def _plot_drift(metric_key, out_name, title, subtitle, data):
+    fig, ax = plt.subplots(figsize=(9.5, 5.2), constrained_layout=True)
+    for arm in ARM_ORDER:
         pts = data.get(arm, [])
-        colour = ARM_COLOR[arm]
-        if pts:
-            xs = [p[0] for p in pts]
-            ys = [p[1][metric_key] for p in pts]
-            ax.plot(xs, ys, color=colour, linewidth=2.0,
-                    marker="o", markersize=5,
-                    markerfacecolor=colour, markeredgecolor="white",
-                    markeredgewidth=1.2)
-        ax.set_title(ARM_LABEL[arm], fontsize=9.5, loc="left",
-                     color="#0b0b0b", pad=4)
-        ax.grid(True, which="major", alpha=0.25, linewidth=0.6)
-        ax.set_xlim(0, 51_000)
-        ax.set_xticks([0, 12_500, 25_000, 50_000])
-        ax.set_xticklabels(["0", "12.5k", "25k", "50k"])
-        ax.set_ylim(ylim)
-        ax.tick_params(labelsize=8, colors="#52514e")
-        for spine in ("top", "right"):
-            ax.spines[spine].set_visible(False)
-        for spine in ("left", "bottom"):
-            ax.spines[spine].set_color("#c3c2b7")
-    for ax in axes[-1, :]:
-        ax.set_xlabel("training step (end of adjacent interval)",
-                      fontsize=9, color="#52514e")
-    # Compact 2-line header sitting ABOVE the axes so it can't collide
-    # with any panel title.
-    fig.suptitle(f"{title}\n{subtitle}",
-                 fontsize=12, x=0.005, y=1.0,
-                 ha="left", va="bottom", color="#0b0b0b")
-    out_path = os.path.join(HERE, out_name)
-    fig.savefig(out_path, dpi=150, bbox_inches="tight",
-                facecolor="#fcfcfb")
+        if not pts:
+            continue
+        xs = [p[0] for p in pts]
+        ys = [p[1][metric_key] for p in pts]
+        c = ARM_COLOR[arm]
+        ax.plot(xs, ys, color=c, linewidth=2.0, marker="o", markersize=5.5,
+                markerfacecolor=c, markeredgecolor="white", markeredgewidth=1.2,
+                label=ARM_LABEL[arm])
+    _style_axis(ax, ylabel=metric_key,
+                xlabel="training step (end of adjacent interval)")
+    ax.legend(loc="best", fontsize=8.5, frameon=False,
+              labelcolor=TEXT_PRIMARY)
+    fig.suptitle(f"{title}\n{subtitle}", fontsize=12, x=0.005, y=1.0,
+                 ha="left", va="bottom", color=TEXT_PRIMARY)
+    out = os.path.join(HERE, out_name)
+    fig.savefig(out, dpi=150, bbox_inches="tight", facecolor=SURFACE)
     plt.close(fig)
-    print(f"wrote {out_path}")
+    print(f"wrote {out}")
+
+
+def _plot_gm(gm_data):
+    fig, ax = plt.subplots(figsize=(9.5, 5.2), constrained_layout=True)
+    for arm in ARM_ORDER:
+        pts = gm_data.get(arm, [])
+        if not pts:
+            continue
+        xs = [p[0] for p in pts]
+        ys = [p[1] for p in pts]
+        c = ARM_COLOR[arm]
+        ax.plot(xs, ys, color=c, linewidth=2.0, marker="o", markersize=6.5,
+                markerfacecolor=c, markeredgecolor="white", markeredgewidth=1.2,
+                linestyle="-" if len(pts) > 1 else "None",
+                label=ARM_LABEL[arm])
+    ax.axhline(1.0, color=SPINE_MUTED, linewidth=1.0, linestyle="--")
+    _style_axis(ax, ylabel="GM-Relative MASE (full-97, 6L quantile head)")
+    ax.legend(loc="upper right", fontsize=8.5, frameon=False,
+              labelcolor=TEXT_PRIMARY)
+    fig.suptitle(
+        "GM-Relative MASE (reference, from #374)\n"
+        r"eval points on the same x-axis as the drift plots above",
+        fontsize=12, x=0.005, y=1.0,
+        ha="left", va="bottom", color=TEXT_PRIMARY)
+    out = os.path.join(HERE, "gm_mase_374.png")
+    fig.savefig(out, dpi=150, bbox_inches="tight", facecolor=SURFACE)
+    plt.close(fig)
+    print(f"wrote {out}")
 
 
 def main():
     plt.rcParams.update({
         "font.family": "sans-serif",
         "font.sans-serif": ["Helvetica", "Arial", "DejaVu Sans"],
-        "axes.edgecolor": "#c3c2b7",
-        "axes.labelcolor": "#52514e",
+        "axes.edgecolor": SPINE_MUTED,
+        "axes.labelcolor": TEXT_SECONDARY,
     })
-    data = _load()
+    drift_data = _load_drift()
     for metric_key, out_name, title, subtitle in METRICS:
-        _make(metric_key, out_name, title, subtitle, data)
+        _plot_drift(metric_key, out_name, title, subtitle, drift_data)
+    _plot_gm(_load_gm())
 
 
 if __name__ == "__main__":
