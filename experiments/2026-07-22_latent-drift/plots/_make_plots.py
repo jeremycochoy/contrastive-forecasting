@@ -86,14 +86,17 @@ def _load_drift():
 
 
 def _load_gm():
-    """{arm: [(step, gm_rel_mase), …]} for 6L head only, sorted by step."""
-    out = defaultdict(list)
+    """{head_layers: {arm: [(step, gm_rel_mase), …]}} sorted by step."""
+    out = {"2L": defaultdict(list), "6L": defaultdict(list)}
     for r in csv.DictReader(open(GM_CSV)):
-        if r["head_layers"] != "6L":
+        hl = r["head_layers"]
+        if hl not in out:
             continue
-        out[r["arm"]].append((int(r["step"]), float(r["gm_rel_mase"])))
-    for arm in out:
-        out[arm].sort(key=lambda kv: kv[0])
+        out[hl][r["arm"]].append(
+            (int(r["step"]), float(r["gm_rel_mase"])))
+    for hl in out:
+        for arm in out[hl]:
+            out[hl][arm].sort(key=lambda kv: kv[0])
     return out
 
 
@@ -136,22 +139,40 @@ def _plot_drift(metric_key, out_name, title, subtitle, data):
 
 
 def _plot_gm(gm_data):
-    fig, ax = plt.subplots(figsize=(9.5, 5.2), constrained_layout=True)
-    for arm in ARM_ORDER:
-        pts = gm_data.get(arm, [])
-        if not pts:
-            continue
-        xs = [p[0] for p in pts]
-        ys = [p[1] for p in pts]
-        c = ARM_COLOR[arm]
-        ax.plot(xs, ys, color=c, linewidth=2.0, marker="o", markersize=6.5,
-                markerfacecolor=c, markeredgecolor="white", markeredgewidth=1.2,
-                linestyle="-" if len(pts) > 1 else "None",
-                label=ARM_LABEL[arm])
-    ax.axhline(1.0, color=SPINE_MUTED, linewidth=1.0, linestyle="--")
-    _style_axis(ax, ylabel="GM-Relative MASE (full-97, 6L quantile head)")
-    ax.legend(loc="upper right", fontsize=8.5, frameon=False,
-              labelcolor=TEXT_PRIMARY)
+    """Side-by-side 2L | 6L quantile-head subplots. Same 6-arm colour
+    map as the drift plots, shared y-axis for direct comparison
+    across heads."""
+    all_ys = [y for hl in ("2L", "6L") for arm in ARM_ORDER
+              for _, y in gm_data[hl].get(arm, [])]
+    if not all_ys:
+        return
+    ymin, ymax = min(all_ys), max(all_ys)
+    pad = 0.05 * (ymax - ymin)
+    ylim = (min(1.0, ymin - pad), ymax + pad)
+    fig, axes = plt.subplots(1, 2, figsize=(12.5, 5.2), sharey=True,
+                             constrained_layout=True)
+    for i, hl in enumerate(("2L", "6L")):
+        ax = axes[i]
+        for arm in ARM_ORDER:
+            pts = gm_data[hl].get(arm, [])
+            if not pts:
+                continue
+            xs = [p[0] for p in pts]
+            ys = [p[1] for p in pts]
+            c = ARM_COLOR[arm]
+            ax.plot(xs, ys, color=c, linewidth=2.0, marker="o",
+                    markersize=6.5, markerfacecolor=c,
+                    markeredgecolor="white", markeredgewidth=1.2,
+                    linestyle="-" if len(pts) > 1 else "None",
+                    label=ARM_LABEL[arm] if i == 0 else None)
+        ax.axhline(1.0, color=SPINE_MUTED, linewidth=1.0, linestyle="--")
+        _style_axis(ax, ylabel=("GM-Relative MASE (full-97)"
+                                if i == 0 else ""))
+        ax.set_ylim(*ylim)
+        ax.set_title(f"{hl} quantile head", fontsize=10,
+                     loc="left", color=TEXT_PRIMARY)
+    axes[0].legend(loc="upper right", fontsize=8.5, frameon=False,
+                   labelcolor=TEXT_PRIMARY)
     fig.suptitle(
         "GM-Relative MASE (reference, from #374)\n"
         r"eval points on the same x-axis as the drift plots above",
