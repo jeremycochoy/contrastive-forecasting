@@ -26,6 +26,12 @@
 
 ![Per-arm GM-Relative MASE trajectory across backbone steps, at (best-loss step, 12,500 last). Two points per (arm, head layers). Arm 1's `best`/`last` collapse to a single point because its `FINAL.pth` md5 = `final.pth` md5 (see §Backbone step).](plots/gm_curve_per_arm.png)
 
+## Alignment during training vs downstream forecast quality
+
+![Per arm: 2L-head GM-Relative MASE at each evaluated backbone step (top panel of each pair) above 1 − ff across training (bottom panel), shared x-axis; dotted verticals mark the evaluated steps. Steps past 12,500 come from resumed continuations of the same backbones.](plots/gm_2L_vs_cos_error_per_arm.png)
+
+`ff` is the per-step training mean of cos(f̂, next-step h) on L2-normalized vectors, logged in every backbone losses CSV; perfect alignment gives 1 − ff = 0. A lower 1 − ff during training does not translate into a lower GM-Relative MASE. Arm 5 reaches the lowest 1 − ff of the four arms whose alignment error decreases (minimum 0.383 vs 0.415–0.575 for arms 1, 3, 4) yet has the worst GM-Relative MASE at every evaluated step (1.221–1.337; every other arm stays at or below 1.208). In both `L_rep_moco` arms 1 − ff rises across training — arm 6 from ≈ 0.28 to ≈ 0.54 by step 50,000, bimoco from ≈ 0.23 to ≈ 0.34 by 25,000 — while arm 6's score stays within 1.160–1.191 and bimoco's moves from 1.118 at step 12,500 to 1.134 at 25,000. Arm 4, whose 1 − ff plateaus at ≈ 0.44, has the lowest score past step 12,500: 1.133 at 25,000 (bimoco: 1.134) and 1.141 at 50,000. Script: `plots/_make_gm_vs_cos_error.py`.
+
 ## Paired-bootstrap 95 % CIs on GM-Relative MASE ratios
 
 ![28 of 60 full-97 rows drawn: the 12 arm-1/3/4 axes (6 `last`, 6 `best`), 2 arm-5 vs arm-1 `last` rows, 8 arm-6 `last` rows (arm 1/3/4/5 vs arm 6 at 2L/6L), 6 arm-1/3/4 vs bimoco `last` rows. `n_boot` = 20,000, seed 42. Task-level bootstrap top, 28-dataset-clustered below. `*` marks step- or checkpoint-selection-confounded rows.](plots/ci_forest.png)
