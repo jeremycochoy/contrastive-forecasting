@@ -66,6 +66,26 @@ Uses `B=64, T=4096, C=1, τ=0.10` for the strict-min floor.
 
 ![per-run loss](plots/per_run_loss.png)
 
+### Supporting: latent movement per arm
+
+Per adjacent checkpoint pair `(step_i, step_j)` under one fixed
+held-out batch (`torch.manual_seed(20260722)`, `B=64, T=4096, C=1`):
+
+    movement_h = mean over (b, t, c) of  1 − cos(h_t(model_j), h_t(model_i))
+    movement_e = mean over (b, t, c) of  1 − cos(e_t(model_j), e_t(model_i))
+
+`h_t` is the encoder-output latent; `e_t` is the patch-embedding
+latent. Two panels — solid `h_t` on top, dashed `e_t` below —
+share the same log x-axis (training step of the LATER checkpoint) and
+per-arm colours from the headline plot. Nine periodic snapshots per
+arm at `{2, 25, 50, 75, 100, 125, 150, 175, 200}k` give 8 adjacent
+pairs → 8 datapoints per curve.
+
+Regenerate: `python3 plots/_make_latent_movement.py` →
+`plots/latent_movement_per_arm.png`.
+
+![latent movement per arm](plots/latent_movement_per_arm.png)
+
 ### `τ_rep=1.0` vs `τ_rep=0.10` overlay
 
 Same `1 − ff` axis, one line per (base, rerun) pair — base τ_rep=0.10
