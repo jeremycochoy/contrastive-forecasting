@@ -70,7 +70,10 @@ echo "[smoke-379] 200-step backbone smoke — ~3 min on 4090"
 
 # 200-step backbone. save-every=100 (regular snapshot at 100, 200);
 # extras=150 (exercises the union rule + sub-1000 filename `_0k.pth`).
-STEPS=200 SAVE_EVERY=100 EXTRA_SAVES="150" \
+# TARGET_STEPS and FINAL_STEPS both = 200 so run_arm.sh treats this as
+# the final wave and copies `_FINAL.pth` (the sentinel the artefact
+# check below looks for). See run_arm.sh § Staged-wave support.
+TARGET_STEPS=200 FINAL_STEPS=200 SAVE_EVERY=100 EXTRA_SAVES="150" \
 WT="$SMOKE_WT" BB_GPU="$GPU" \
   bash "$SMOKE_WT/experiments/2026-07-21_split_pred_rep_small/scripts/run_arm.sh" "$ARM" \
   > "$SMOKE_WT/smoke.log" 2>&1 || {

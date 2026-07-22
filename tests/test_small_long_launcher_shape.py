@@ -318,30 +318,292 @@ def test_sync_loop_covers_all_arms_and_classes():
     for token in ("HEAD_MIN=", "HEAD_OPT_MIN=", "gift_eval_full_", "qhead_"):
         assert token not in sync, (
             f"sync_loop.sh must not carry downstream token {token!r}")
-    # Backbone-step cadence: 2 (extra) + 25/50/…/200 (save-every=25000).
-    assert 'BACKBONE_STEPS_K="2 25 50 75 100 125 150 175 200"' in sync, (
-        "sync_loop.sh BACKBONE_STEPS_K must be the union of extra-save {2} "
-        "and save-every=25000 cadence out to 200k.")
+    # Backbone-step cadence covers the union of base 6-arm (save-every 25 000
+    # + extra {2500}) and #379 tau_rep staged waves (wave 1 save-every 10 000
+    # → adds 10/20/30/40). Missing any step here means that arm's
+    # `_<N>k.pth` never lands locally.
+    for step_k in ("2", "10", "20", "25", "30", "40",
+                   "50", "75", "100", "125", "150", "175", "200"):
+        assert re.search(rf'BACKBONE_STEPS_K="[^"]*\b{step_k}\b', sync), (
+            f"sync_loop.sh BACKBONE_STEPS_K must include step_k={step_k} "
+            f"(union of base + tau_rep-wave-1 cadences).")
     assert "/tmp/*|/tmp" in sync, (
         "sync_loop.sh must reject LOCAL_DIR under /tmp.")
     # #379 — tau_rep orchestrator log must be pulled too.
     assert "orchestrate_tau_rep.log" in sync, (
         "sync_loop.sh must pull `orchestrate_tau_rep.log` so #379 rerun "
-        "phases D/E/F land locally.")
+        "wave logs land locally.")
 
 
-def test_orchestrate_tau_rep_sequences_three_phases():
-    orch = (EXP_DIR / "scripts" / "orchestrate_tau_rep.sh").read_text()
-    body = strip_comments(orch)
-    for phase in ("PHASE D", "PHASE E", "PHASE F"):
-        assert phase in body, f"orchestrate_tau_rep.sh missing {phase}"
+# ---------------------------------------------------------------------------
+# #379 staged tau_rep=1.0 orchestrator — waves 40 000 → 100 000 → 200 000,
+# each wave broken into 3 sub-phases (5 arms across 2 GPUs).
+# ---------------------------------------------------------------------------
+
+def _read_orch_tau_rep_code() -> str:
+    return strip_comments(
+        (EXP_DIR / "scripts" / "orchestrate_tau_rep.sh").read_text())
+
+
+# Wave index → phase letter (continues A/B/C from the base 6-arm
+# orchestrator so a shared log is unambiguous).
+WAVE_TO_PHASE = {"1": "D", "2": "E", "3": "F"}
+
+
+def test_orchestrate_tau_rep_wave_schedule():
+    body = _read_orch_tau_rep_code()
+    # Wave schedule literals — one entry per wave. Each entry is
+    # 'wave|phase_letter|target|save_every|extras'. Locking the
+    # target / save_every / letter here is what makes the staged
+    # behaviour a contract, not a coincidence.
+    for entry in (
+        '"1|D|40000|10000|2500,40000"',
+        '"2|E|100000|25000|100000"',
+        '"3|F|200000|25000|"',
+    ):
+        assert entry in body, (
+            f"orchestrate_tau_rep.sh WAVE_SCHEDULE must contain {entry!r}.")
+    # An outer loop that iterates the wave entries — a plain sequence of
+    # three inline blocks would let a future edit silently reorder or
+    # drop a wave. Enforce the loop form.
+    assert re.search(r'for\s+\w+\s+in\s+"\$\{WAVE_SCHEDULE\[@\]\}"', body), (
+        "orchestrate_tau_rep.sh must drive waves with `for … in "
+        '"${WAVE_SCHEDULE[@]}"` so adding/removing a wave is a single-'
+        "line edit.")
+    # FINAL_STEPS is the arm's true final and must equal wave-3's target.
+    assert re.search(r'FINAL_STEPS=200000\b', body), (
+        "orchestrate_tau_rep.sh must set FINAL_STEPS=200000 (the true "
+        "final step; run_arm.sh only writes _FINAL.pth when TARGET_STEPS "
+        "reaches this).")
+
+
+def test_orchestrate_tau_rep_wave_to_phase_letter_mapping():
+    """wave 1 → PHASE D, wave 2 → PHASE E, wave 3 → PHASE F.
+
+    The letter travels through the orchestrator on three surfaces —
+    the schedule entries (asserted in
+    ``test_orchestrate_tau_rep_wave_schedule``), the outer loop's
+    destructuring, and `run_wave`'s positional signature. If any of
+    those drops the letter, log lines silently fall back to bare
+    "WAVE 1" style and the D/E/F contract is lost.
+    """
+    body = _read_orch_tau_rep_code()
+    assert re.search(
+        r'read\s+-r\s+WAVE\s+LETTER\s+TARGET\s+SAVE_EVERY\s+EXTRAS', body), (
+        "orchestrate_tau_rep.sh outer loop must destructure "
+        "`WAVE|LETTER|TARGET|SAVE_EVERY|EXTRAS` from each schedule entry.")
+    # `run_wave` must accept the letter positionally so it appears in
+    # both the phase-start and phase-end logs.
+    assert 'local wave="$1" letter="$2"' in body, (
+        "run_wave must accept `wave` and `letter` as its first two "
+        "positional arguments (via `local wave=\"$1\" letter=\"$2\" …`).")
+    # The outer driver line — passes WAVE and LETTER into run_wave in
+    # that order, matching run_wave's signature.
+    assert re.search(
+        r'run_wave\s+"\$WAVE"\s+"\$LETTER"\s+"\$TARGET"\s+"\$SAVE_EVERY"\s+"\$EXTRAS"',
+        body), (
+        "orchestrate_tau_rep.sh outer loop must call "
+        "`run_wave \"$WAVE\" \"$LETTER\" \"$TARGET\" \"$SAVE_EVERY\" "
+        "\"$EXTRAS\"` — argument order must match the run_wave signature.")
+
+
+def test_orchestrate_tau_rep_three_subphases_per_wave():
+    body = _read_orch_tau_rep_code()
+    # Sub-phase X1 pair, sub-phase X2 pair, sub-phase X3 solo — the shape
+    # the base 6-arm orchestrator uses but re-run once per wave. The
+    # `run_wave` function is the only place that fans out the arms;
+    # asserting the arm-to-GPU assignments there prevents a stray edit
+    # from doubling up two arms on GPU 0 (would OOM at bs=64). Sub-phase
+    # names use the parent phase letter (`${letter}1`, etc.) so D-wave
+    # and E-wave log lines never collide in the shared log.
+    assert re.search(r'^run_wave\s*\(\)\s*\{', body, re.MULTILINE), (
+        "orchestrate_tau_rep.sh must define a `run_wave()` function so "
+        "each wave runs an identical 3-sub-phase pipeline.")
+    assert re.search(r'sub-phase \$\{letter\}1.*arm1_tr1.*arm3_tr1', body), (
+        "sub-phase ${letter}1 must pair arm1_tr1 (GPU 0) with arm3_tr1 (GPU 1).")
+    assert re.search(r'sub-phase \$\{letter\}2.*arm5_tr1.*arm6_v2_tr1', body), (
+        "sub-phase ${letter}2 must pair arm5_tr1 (GPU 0) with arm6_v2_tr1 (GPU 1).")
+    assert re.search(r'sub-phase \$\{letter\}3.*bimoco_tr1.*GPU 0.*solo', body), (
+        "sub-phase ${letter}3 must run bimoco_tr1 alone on GPU 0.")
+    # Each arm must appear as a `launch_arm` call so the shape test can
+    # grep for it directly (mirrors the base-6 orchestrator's contract).
     for arm in ARMS_TR1:
-        assert f"launch_arm {arm} " in body, (
-            f"orchestrate_tau_rep.sh must include `launch_arm {arm} …`")
-    # Pivot: no downstream wiring in the tau_rep orchestrator either.
-    for token in ("GPU_2L=", "GPU_6L=", "dl_2L", "dl_6L"):
-        assert token not in body, (
-            f"orchestrate_tau_rep.sh must not carry downstream token {token!r}")
+        assert re.search(rf'\blaunch_arm\s+{re.escape(arm)}\b', body), (
+            f"orchestrate_tau_rep.sh must include `launch_arm {arm} …` in "
+            f"run_wave (found via regex search on the stripped body).")
+    # GPU pairing: three lines that assign `pid_a` / `pid_b` so
+    # `wait_pair` gets the right two PIDs. If someone re-numbers the
+    # sub-phases, the pair-wait must still barrier correctly.
+    assert body.count("pid_a=$!") == 2, (
+        "run_wave must background exactly 2 arms per pair (sub-phase ${letter}1 "
+        "+ sub-phase ${letter}2).")
+    assert body.count("pid_b=$!") == 2, (
+        "run_wave must background exactly 2 arms per pair (sub-phase ${letter}1 "
+        "+ sub-phase ${letter}2).")
+
+
+def test_orchestrate_tau_rep_barrier_per_wave():
+    body = _read_orch_tau_rep_code()
+    # `wait_pair` and the solo direct call inside `run_wave` create the
+    # per-wave barrier: `run_wave` cannot return until every arm in the
+    # wave finishes. The outer loop then advances to the next wave.
+    # `wait_pair` must appear twice inside run_wave (once per pair). The
+    # solo bimoco call is synchronous. The outer `for` loop over
+    # WAVE_SCHEDULE only calls `run_wave` after the previous returns.
+    m = re.search(r'^run_wave\s*\(\)\s*\{(.*?)^\}', body,
+                  re.MULTILINE | re.DOTALL)
+    assert m is not None, "orchestrate_tau_rep.sh: cannot locate run_wave body"
+    inside = m.group(1)
+    assert inside.count("wait_pair ") == 2, (
+        "run_wave must wait_pair twice (one per 2-arm sub-phase).")
+    # Solo call — not backgrounded (no trailing &).
+    assert re.search(r'launch_arm\s+bimoco_tr1\b[^&]*$', inside, re.MULTILINE), (
+        "run_wave's bimoco_tr1 call must NOT be backgrounded (& absent) "
+        "so its return code gates the wave summary.")
+
+
+def test_orchestrate_tau_rep_wave_end_summary():
+    body = _read_orch_tau_rep_code()
+    # An end-of-wave summary log makes the resumption / debugging
+    # story auditable; without it a partial wave failure is invisible
+    # in the orchestrator log.
+    assert "count_arms_at_step" in body, (
+        "orchestrate_tau_rep.sh must count how many arms reached the "
+        "wave target and log the ratio (auditability).")
+    assert re.search(r'PHASE\s+\$letter\s+DONE', body), (
+        "orchestrate_tau_rep.sh must log `PHASE $letter DONE — wave $wave · "
+        "arms at ≥ …` at the end of each wave.")
+
+
+def test_orchestrate_tau_rep_delegates_target_and_final_to_run_arm():
+    body = _read_orch_tau_rep_code()
+    # The orchestrator's contract with run_arm.sh: TARGET_STEPS gates
+    # this wave's total_steps; FINAL_STEPS gates whether _FINAL.pth is
+    # written. Missing either → the intermediate waves would incorrectly
+    # write _FINAL.pth (breaking the resume chain).
+    assert 'TARGET_STEPS="$target"' in body, (
+        "orchestrate_tau_rep.sh must pass TARGET_STEPS to run_arm.sh.")
+    assert 'FINAL_STEPS="$FINAL_STEPS"' in body, (
+        "orchestrate_tau_rep.sh must pass FINAL_STEPS to run_arm.sh.")
+    assert 'SAVE_EVERY="$se"' in body, (
+        "orchestrate_tau_rep.sh must pass per-wave SAVE_EVERY to run_arm.sh.")
+    assert 'EXTRA_SAVES="$ex"' in body, (
+        "orchestrate_tau_rep.sh must pass per-wave EXTRA_SAVES to run_arm.sh.")
+
+
+def test_orchestrate_tau_rep_target_steps_per_wave():
+    """TARGET_STEPS pass-through: wave N's target must be the schedule value.
+
+    Ties the schedule table (targets 40 000 / 100 000 / 200 000) to what
+    `launch_arm` actually sends to `run_arm.sh`. Without this, a rewrite
+    could keep the schedule literals but silently pass e.g. FINAL_STEPS
+    to run_arm.sh (arms would jump straight to 200k on wave 1).
+    """
+    body = _read_orch_tau_rep_code()
+    # launch_arm's TARGET_STEPS assignment must reference the parameter
+    # named `target`, which run_wave forwards from its own `$3`.
+    assert re.search(
+        r'launch_arm\s*\(\).*?local\s+arm="\$1"\s+bb_gpu="\$2"\s+letter="\$3"\s+target="\$4"',
+        body, re.DOTALL), (
+        "orchestrate_tau_rep.sh launch_arm signature must be "
+        "`arm bb_gpu letter target save_every extras` (positions 1..6) — "
+        "so run_wave's `$target` reaches run_arm.sh untouched.")
+    # And the actual TARGET_STEPS env var passed to the subshell.
+    assert re.search(
+        r'TARGET_STEPS="\$target"\s+FINAL_STEPS="\$FINAL_STEPS"',
+        body), (
+        "orchestrate_tau_rep.sh must set both `TARGET_STEPS=$target` and "
+        "`FINAL_STEPS=$FINAL_STEPS` on the run_arm.sh sub-shell "
+        "(single assignment line).")
+
+
+# ---------------------------------------------------------------------------
+# #379 run_arm.sh wave-support: TARGET_STEPS / FINAL_STEPS handling,
+# _FINAL.pth gating, wave idempotency skip.
+# ---------------------------------------------------------------------------
+
+def test_run_arm_accepts_target_and_final_steps(launcher_code: str):
+    # TARGET_STEPS overrides STEPS; STEPS still recognised as a legacy
+    # alias so pre-refactor callers (base 6-arm orchestrator) keep
+    # working without edits.
+    assert 'TARGET_STEPS="${TARGET_STEPS:-${STEPS:-200000}}"' in launcher_code, (
+        "run_arm.sh must derive TARGET_STEPS from TARGET_STEPS ∨ STEPS "
+        "∨ default 200000 (in that precedence).")
+    assert 'STEPS="$TARGET_STEPS"' in launcher_code, (
+        "run_arm.sh must set STEPS=$TARGET_STEPS so the existing "
+        "--total-steps \"$STEPS\" line picks up the wave target.")
+    assert 'FINAL_STEPS="${FINAL_STEPS:-200000}"' in launcher_code, (
+        "run_arm.sh must accept FINAL_STEPS (default 200000).")
+
+
+def test_run_arm_final_pth_gated_on_target_reaching_final(launcher_code: str):
+    # The wave-boundary contract: only write _FINAL.pth (the run_arm.sh
+    # skip sentinel) when this launch trained all the way to the arm's
+    # true final step. Otherwise the next wave's launcher would
+    # short-circuit on the FINAL-exists guard and never resume.
+    assert re.search(
+        r'if\s+\[\s+"\$TARGET_STEPS"\s+-lt\s+"\$FINAL_STEPS"\s+\]\s*;\s*then\s*\n'
+        r'.*?wave complete.*?exit\s+0',
+        launcher_code, re.DOTALL), (
+        "run_arm.sh must exit 0 without copying _FINAL.pth when "
+        "TARGET_STEPS < FINAL_STEPS (intermediate wave).")
+
+
+def test_run_arm_wave_skip_when_target_already_reached(launcher_code: str):
+    # Wave-idempotency: if an existing _<N>k.pth is already at or past
+    # TARGET_STEPS on an intermediate wave, re-running the orchestrator
+    # should short-circuit rather than pay the trainer startup cost.
+    assert "WAVE SKIP" in launcher_code, (
+        "run_arm.sh must log a `WAVE SKIP` when a periodic checkpoint "
+        "already meets the wave target and this is not the final wave.")
+    # The gate must include the < FINAL_STEPS condition (else re-running
+    # a completed arm's final wave would skip creating _FINAL.pth).
+    assert re.search(
+        r'\[\s+"\$TARGET_STEPS"\s+-lt\s+"\$FINAL_STEPS"\s+\]\s*&&\s*'
+        r'\[\s+"\$best_ck_k"\s+-ge\s+"\$target_k"\s+\]',
+        launcher_code), (
+        "run_arm.sh WAVE SKIP guard must combine "
+        "TARGET_STEPS < FINAL_STEPS AND best_ck_k ≥ target_k.")
+
+
+def test_run_arm_wave_endpoint_backfilled_into_extra_saves(launcher_code: str):
+    """Intermediate wave: run_arm.sh must ensure TARGET_STEPS is a saved snapshot.
+
+    Rationale: the next wave's launcher resumes from the newest
+    `_<N>k.pth`. If TARGET_STEPS isn't a save-every multiple and the
+    caller forgets to list it in EXTRA_SAVES, the trainer would stop one
+    save-every short and the resume chain breaks. The backfill is
+    idempotent (dedup'd by the parse_extra_save_steps 1000-block guard —
+    same-value dupes are permitted).
+    """
+    # The gating condition — only backfill on intermediate waves.
+    assert re.search(
+        r'if\s+\[\s+"\$TARGET_STEPS"\s+-lt\s+"\$FINAL_STEPS"\s+\]\s*;\s*then'
+        r'.*?case\s+",\$EXTRA_SAVES,"',
+        launcher_code, re.DOTALL), (
+        "run_arm.sh must gate the EXTRA_SAVES wave-endpoint backfill "
+        "on `TARGET_STEPS < FINAL_STEPS` (only intermediate waves).")
+    # The append (idempotent: `EXTRA_SAVES:+…,` yields "" when empty so
+    # we don't accidentally prepend a stray comma).
+    assert 'EXTRA_SAVES="${EXTRA_SAVES:+$EXTRA_SAVES,}$TARGET_STEPS"' in launcher_code, (
+        "run_arm.sh must append `$TARGET_STEPS` to EXTRA_SAVES with the "
+        "`${EXTRA_SAVES:+$EXTRA_SAVES,}` prefix so an empty EXTRA_SAVES "
+        "becomes just `$TARGET_STEPS` (no leading comma).")
+
+
+def test_run_arm_resume_flag_pipes_intermediate_checkpoint(launcher_code: str):
+    # Resume path: pick the latest `_<N>k.pth` (excluding optimizer
+    # sidecar). The trainer's own resume path takes over from there.
+    # `_FINAL.pth` (uppercase L) doesn't match `_*k.pth` — that's the
+    # invariant that keeps the sentinel out of the resume candidate list.
+    assert re.search(
+        r'latest=\$\(ls -t\s+"\$RUNS/\$\{NAME\}"_\*k\.pth\b',
+        launcher_code), (
+        "run_arm.sh resume-latest logic must ls _<N>k.pth candidates "
+        "sorted by mtime.")
+    assert 'RESUME="--resume $latest"' in launcher_code, (
+        "run_arm.sh must pass `--resume <path>` to the trainer when a "
+        "prior checkpoint exists.")
 
 
 def test_smoke_script_is_backbone_only():

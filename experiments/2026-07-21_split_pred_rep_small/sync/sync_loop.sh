@@ -65,9 +65,16 @@ BACKBONE_MIN=3000000         # ~5 MB actual, floor 3 MB
 BACKBONE_OPT_MIN=6000000     # ~10 MB actual, floor 6 MB
 TEXT_MIN=100                 # CSVs / logs: at least a header
 
-# Backbone snapshot step_k values on disk: extra-save at 2500 (`_2k.pth`)
-# plus save-every=25000 cadence out to 200k.
-BACKBONE_STEPS_K="2 25 50 75 100 125 150 175 200"
+# Backbone snapshot step_k values on disk. Union across the base 6-arm
+# sweep and the #379 tau_rep=1.0 staged reruns:
+#   base 6-arm     : extra-save {2500} ∪ save-every 25 000 → {2, 25, 50, …, 200}
+#   tau_rep wave 1 : save-every 10 000 (0…40k)             → {10, 20, 30, 40}
+#   tau_rep wave 2 : save-every 25 000 (40k…100k)          → {50, 75, 100}
+#   tau_rep wave 3 : save-every 25 000 (100k…200k)         → {125, 150, 175, 200}
+# safe_pull silently skips missing files, so listing every possible step
+# is cheap — the tau_rep-only steps (10/20/30/40) simply no-op for the
+# base 6 arms and vice versa.
+BACKBONE_STEPS_K="2 10 20 25 30 40 50 75 100 125 150 175 200"
 
 pull(){ # remote_path local_path min_bytes
   bash "$SAFE_PULL" "$REMOTE_HOST" "$REMOTE_PORT" "$1" "$2" "$3" \

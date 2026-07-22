@@ -124,8 +124,33 @@ case "$ARM" in
 esac
 
 SEED=20260520
-STEPS="${STEPS:-200000}"; SAVE_EVERY="${SAVE_EVERY:-25000}"
+# Staged-wave support (issue #379 refinement).
+#   TARGET_STEPS: per-launch training target (total_steps for this run).
+#   FINAL_STEPS:  the arm's true final step. `_FINAL.pth` is only written
+#                 when TARGET_STEPS ≥ FINAL_STEPS. During intermediate
+#                 waves (40k / 100k), leave FINAL_STEPS=200000 so we
+#                 finish this wave, stop cleanly, and let the next
+#                 orchestrator invocation resume from the saved
+#                 `_<N>k.pth` intermediate.
+# STEPS is kept as an alias so callers using the older env var still work.
+TARGET_STEPS="${TARGET_STEPS:-${STEPS:-200000}}"
+STEPS="$TARGET_STEPS"
+FINAL_STEPS="${FINAL_STEPS:-200000}"
+SAVE_EVERY="${SAVE_EVERY:-25000}"
 EXTRA_SAVES="${EXTRA_SAVES:-2500}"
+
+# Wave-endpoint auto-backfill: on an intermediate wave, the next wave's
+# launcher resumes from the newest `_<N>k.pth`, so we must have a snapshot
+# at TARGET_STEPS. `--save-every` covers the endpoint when TARGET_STEPS is
+# a multiple, but a caller passing an off-cadence target (or forgetting
+# the extras field) would otherwise stop 1 save-every short. Idempotent —
+# same-value entries are dedup'd by parse_extra_save_steps.
+if [ "$TARGET_STEPS" -lt "$FINAL_STEPS" ]; then
+  case ",$EXTRA_SAVES," in
+    *",$TARGET_STEPS,"*) : ;;
+    *) EXTRA_SAVES="${EXTRA_SAVES:+$EXTRA_SAVES,}$TARGET_STEPS" ;;
+  esac
+fi
 NENC=3; NLAY=3
 BB_GPU="${BB_GPU:-0}"
 
@@ -150,9 +175,29 @@ if [ -f "$BB" ]; then
   exit 0
 fi
 
+# Wave idempotency (issue #379): if an existing periodic checkpoint has
+# already reached (or exceeded) TARGET_STEPS and this is an intermediate
+# wave (TARGET_STEPS < FINAL_STEPS), skip re-running the trainer. This
+# saves the ~30 s of load / no-op that the trainer's own start_step ≥
+# total_steps handling would do anyway when the orchestrator re-fires a
+# completed wave (e.g. after a re-launch mid-crash).
+target_k=$(( TARGET_STEPS / 1000 ))
+best_ck_k=-1
+for f in "$RUNS/${NAME}"_*k.pth; do
+  [ -e "$f" ] || continue
+  case "$f" in *_optimizer.pth) continue;; esac
+  k=$(basename "$f" | sed -E 's/.*_([0-9]+)k\.pth$/\1/')
+  case "$k" in ''|*[!0-9]*) continue;; esac
+  (( k > best_ck_k )) && best_ck_k=$k
+done
+if [ "$TARGET_STEPS" -lt "$FINAL_STEPS" ] && [ "$best_ck_k" -ge "$target_k" ]; then
+  log "WAVE SKIP: existing _${best_ck_k}k.pth ≥ target ${target_k}k (final=$FINAL_STEPS not reached)"
+  exit 0
+fi
+
 RESUME=""; latest=$(ls -t "$RUNS/${NAME}"_*k.pth 2>/dev/null | grep -v optimizer | head -1)
 [ -n "$latest" ] && { RESUME="--resume $latest"; log "RESUME from $(basename "$latest")"; }
-log "BB START ($ARM_DESC) gpu=$BB_GPU steps=$STEPS bs=64 ${RESUME}"
+log "BB START ($ARM_DESC) gpu=$BB_GPU target=$TARGET_STEPS final=$FINAL_STEPS bs=64 ${RESUME}"
 CUDA_VISIBLE_DEVICES="$BB_GPU" python3 -u "$TRAIN" $RESUME --qk-norm --attn-out-norm \
   --batch-size 64 --device cuda --total-steps "$STEPS" --lr 1e-3 --weight-decay 0.1 \
   --adam-beta1 0.9 --adam-beta2 0.98 --seed "$SEED" \
@@ -178,6 +223,16 @@ if [ $rc -ne 0 ]; then
   log "BB train exited rc=$rc — NOT creating FINAL. tail: $(tail -3 "$tlog"|tr '\n' ' ')"
   exit 1
 fi
+
+# Intermediate wave — do not write _FINAL.pth (the run_arm.sh skip
+# sentinel). The next wave's launcher resumes from the latest
+# `_<N>k.pth` on disk.
+if [ "$TARGET_STEPS" -lt "$FINAL_STEPS" ]; then
+  latest_ck=$(ls -t "$RUNS/${NAME}"_*k.pth 2>/dev/null | grep -v optimizer | head -1)
+  log "$ARM wave complete: target=$TARGET_STEPS (< final $FINAL_STEPS) — latest ck $(basename "${latest_ck:-<none>}")"
+  exit 0
+fi
+
 if   [ -f "$RUNS/${NAME}_best_loss.pth" ]; then cp -f "$RUNS/${NAME}_best_loss.pth" "$BB"
 elif [ -f "$RUNS/${NAME}_final.pth" ];     then cp -f "$RUNS/${NAME}_final.pth"     "$BB"
 else cp -f "$(ls -t "$RUNS/${NAME}"_*k.pth 2>/dev/null|head -1)" "$BB" 2>/dev/null; fi
