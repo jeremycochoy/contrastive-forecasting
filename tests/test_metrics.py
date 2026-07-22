@@ -16,6 +16,7 @@ from src.metrics import (
     q_hard_neg,
     m_z,
     dim_usage,
+    drift_pair,
     u_batch,
     u_temporal,
     retrieval_auc_top1_legacy,
@@ -484,3 +485,108 @@ def test_retrieval_auc_topk_sim_neg_einsum_equals_gather(B, T, H):
     # Public fn still runs and returns finite scalars.
     out = retrieval_auc_topk(f, h_full, lookback_lags=lags, n_batch_negs=n_neg)
     assert all(torch.isfinite(v) for v in out.values())
+
+
+# ---------------------------------------------------------------------------
+# drift_pair (latent-drift decomposition)
+# ---------------------------------------------------------------------------
+
+def test_drift_pair_identity_is_zero():
+    """Same tensor twice → drift_cos = drift_cos_aligned = rot_gap = 0,
+    cka = 1. The base case; anything else means the metric is buggy."""
+    torch.manual_seed(0)
+    A = torch.randn(16, 32, 1, 24)
+    m = drift_pair(A, A)
+    assert m["drift_cos"].item() == pytest.approx(0.0, abs=1e-5)
+    assert m["drift_cos_aligned"].item() == pytest.approx(0.0, abs=1e-5)
+    assert m["rot_gap"].item() == pytest.approx(0.0, abs=1e-5)
+    assert m["cka"].item() == pytest.approx(1.0, abs=1e-5)
+
+
+def test_drift_pair_row_scaling_zeroes_cosine_drift():
+    """Per-row positive scaling preserves the direction of every row.
+    Cosine drift (which normalises rows first) and the Procrustes-
+    aligned drift (which does too) must both be 0. CKA is NOT tested
+    here — it operates on centered, non-normalised rows and per-row
+    rescaling reweights the Gram-matrix contribution of each token,
+    so CKA is not a per-row-scale invariant."""
+    torch.manual_seed(0)
+    A = torch.randn(32, 24, 1, 16)
+    scales = torch.rand(32, 24, 1, 1) * 2 + 0.5   # 0.5–2.5, positive
+    B = A * scales
+    m = drift_pair(A, B)
+    assert m["drift_cos"].item() == pytest.approx(0.0, abs=1e-4)
+    assert m["drift_cos_aligned"].item() == pytest.approx(0.0, abs=1e-4)
+
+
+def test_drift_pair_global_scaling_preserves_cka():
+    """CKA is invariant to global scalar multiplication. Under
+    B = c · A with c > 0, CKA = 1 (Gram-matrix ratio unchanged)."""
+    torch.manual_seed(0)
+    A = torch.randn(32, 24, 1, 16)
+    B = 3.7 * A
+    m = drift_pair(A, B)
+    assert m["cka"].item() == pytest.approx(1.0, abs=1e-4)
+
+
+def test_drift_pair_orthogonal_feature_rotation_is_pure_rot_gap():
+    """Rotate features by a global orthogonal Q ∈ R^{H×H}. Rows on the
+    unit sphere move (drift_cos > 0) but the Procrustes rotation
+    recovers them (drift_cos_aligned ≈ 0), so rot_gap ≈ drift_cos and
+    CKA ≈ 1 (CKA is invariant to feature-axis rotation)."""
+    torch.manual_seed(0)
+    H = 24
+    A = torch.randn(48, 16, 1, H)
+    # Random rotation via QR on a random matrix.
+    Q = torch.linalg.qr(torch.randn(H, H))[0]
+    B = A @ Q                                       # (…, H) @ (H, H)
+    m = drift_pair(A, B)
+    assert m["drift_cos"].item() > 0.1, (
+        f"expected non-trivial raw cosine drift, got {m['drift_cos'].item()}")
+    assert m["drift_cos_aligned"].item() == pytest.approx(0.0, abs=1e-3)
+    assert m["rot_gap"].item() == pytest.approx(
+        m["drift_cos"].item(), abs=1e-3)
+    assert m["cka"].item() == pytest.approx(1.0, abs=1e-4)
+
+
+def test_drift_pair_independent_random_saturates_metrics():
+    """Two independent random tensors: high raw drift, high aligned
+    drift (rotation can't recover independence), low CKA. Bounds are
+    generous to keep the test stable across seeds."""
+    torch.manual_seed(0)
+    A = torch.randn(32, 128, 1, 24)
+    B = torch.randn_like(A)
+    m = drift_pair(A, B)
+    assert 0.8 <= m["drift_cos"].item() <= 1.2
+    # Even orthogonal alignment can't remove independence; residual is
+    # still O(1). Only require it stayed non-trivially positive.
+    assert m["drift_cos_aligned"].item() > 0.3
+    # Two independent random tensors on N = 32·128·1 = 4096 samples,
+    # H = 24, share very little linear structure — CKA should be small.
+    assert 0.0 <= m["cka"].item() < 0.1
+
+
+def test_drift_pair_shape_flattening():
+    """(B, T, C, H) and (N, H) with the same underlying data give
+    identical results — the metric flattens the sample axes."""
+    torch.manual_seed(0)
+    A4 = torch.randn(4, 8, 2, 16)
+    B4 = A4 + 0.1 * torch.randn_like(A4)
+    A2 = A4.reshape(-1, 16)
+    B2 = B4.reshape(-1, 16)
+    m4 = drift_pair(A4, B4)
+    m2 = drift_pair(A2, B2)
+    for k in ("drift_cos", "drift_cos_aligned", "rot_gap", "cka"):
+        assert torch.allclose(m4[k], m2[k], atol=1e-6), (
+            f"{k} mismatch: 4D={m4[k].item()} vs 2D={m2[k].item()}")
+
+
+def test_drift_pair_rot_gap_equals_diff():
+    """Definitional invariant: rot_gap = drift_cos - drift_cos_aligned."""
+    torch.manual_seed(1)
+    A = torch.randn(24, 40, 1, 16)
+    B = A + 0.3 * torch.randn_like(A)
+    m = drift_pair(A, B)
+    assert m["rot_gap"].item() == pytest.approx(
+        m["drift_cos"].item() - m["drift_cos_aligned"].item(),
+        abs=1e-6)
