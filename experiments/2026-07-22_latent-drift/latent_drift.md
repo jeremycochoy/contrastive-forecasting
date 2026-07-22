@@ -45,8 +45,9 @@ comparable collapse.
 
 ![gm_mase_374](plots/gm_mase_374.png)
 
-Arm 5 has the highest MASE at every recorded eval step; the other
-five arms cluster tightly.
+Arm 5 stays highest MASE across the whole trajectory and its
+best-loss step spikes higher than its endpoints; the other five arms
+cluster in a narrow band.
 
 ## Metric derivation
 
