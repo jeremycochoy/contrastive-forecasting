@@ -67,9 +67,25 @@ RUNS = [
     ("bimoco  (L_pred_moco + L_rep_moco)",
      "bb_small_bimoco_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
      "#00a3a3"),
+    ("arm 1 τ_rep=1.0",
+     "bb_small_arm1_tr1_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#7fb0e8"),
+    ("arm 3 τ_rep=1.0",
+     "bb_small_arm3_tr1_split_pred_rep_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#f4a680"),
+    ("arm 5 τ_rep=1.0",
+     "bb_small_arm5_tr1_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#c98cc9"),
+    ("arm 6 v2 τ_rep=1.0",
+     "bb_small_arm6_v2_tr1_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#dcbb60"),
+    ("bimoco τ_rep=1.0",
+     "bb_small_bimoco_tr1_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#66c4c4"),
 ]
 # Short slug per arm — used to select via --arms.
-SLUGS = ["arm1", "arm3", "arm4", "arm5", "arm6_v2", "bimoco"]
+SLUGS = ["arm1", "arm3", "arm4", "arm5", "arm6_v2", "bimoco",
+         "arm1_tr1", "arm3_tr1", "arm5_tr1", "arm6_v2_tr1", "bimoco_tr1"]
 
 INK, MUTED, GRID = "#0b0b0b", "#898781", "#e1e0d9"
 plt.rcParams.update({
