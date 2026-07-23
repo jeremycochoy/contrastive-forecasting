@@ -68,6 +68,37 @@ def champion_cells() -> dict:
     return {(r["head"], r["ckpt"]): float(r["gm"]) for _, r in rows.iterrows()}
 
 
+def cell_relatives(arm: str, head: str, ckpt: str):
+    """Per-config 'Relative' column from a cell's summary.txt (table rows only)."""
+    root, base = ARM_SPECS[arm]
+    suffix = f"_{head}" if ckpt == "best" else f"_last_{head}"
+    p = root / (base + suffix) / "summary.txt"
+    if not p.exists():
+        return []
+    lines = p.read_text().splitlines()
+    dashes = [i for i, l in enumerate(lines) if set(l.strip()) == {"-"}]
+    if len(dashes) < 2:
+        return []
+    vals = []
+    for l in lines[dashes[0] + 1:dashes[1]]:
+        try:
+            vals.append(float(l.split()[-1]))
+        except (ValueError, IndexError):
+            pass
+    return vals
+
+
+def bootstrap_gm_ci(vals, n_resamples=20000, seed=42):
+    """95% band on the geometric mean via config bootstrap (single-seed, task-level)."""
+    if not vals:
+        return None
+    rng = np.random.default_rng(seed)
+    logs = np.log(np.asarray(vals))
+    idx = rng.integers(0, len(logs), size=(n_resamples, len(logs)))
+    gms = np.exp(logs[idx].mean(axis=1))
+    return float(np.percentile(gms, 2.5)), float(np.percentile(gms, 97.5))
+
+
 C_ARM5 = "#8b1e8b"
 
 
@@ -89,24 +120,16 @@ def headline() -> None:
             vals = [champ[g] for g in GROUPS]
         else:
             vals = [read_aggregate(arm, h, c) for h, c in GROUPS]
-        for xi, v in zip(x, vals):
+        for xi, (v, (h, c)) in zip(x, zip(vals, GROUPS)):
             ax.bar(xi + off, v - 1.0, width, bottom=1.0, color=colour)
             ax.text(xi + off, v + 0.003, f"{v:.4f}",
                     ha="center", va="bottom", rotation=90, fontsize=7.5, color=INK)
+            if arm is not None:
+                ci = bootstrap_gm_ci(cell_relatives(arm, h, c))
+                if ci is not None:
+                    ax.errorbar(xi + off, v, yerr=[[v - ci[0]], [ci[1] - v]],
+                                fmt="none", ecolor=INK, elinewidth=1.0, capsize=2)
         ax.bar(0, 0, color=colour, label=label)  # legend proxy
-    # Wrong-implementation snapshots for arm 6 and bimoco, drawn semi-transparent
-    # over the correct bars so the earlier (misimplemented) point estimates remain
-    # visible without being usable.
-    for off, arm, arm_wrong in (( 1.0 * width, "arm6",  "arm6_wrong"),
-                                ( 2.0 * width, "bimoco","bimoco_wrong")):
-        vals = [read_aggregate(arm_wrong, h, c) for h, c in GROUPS]
-        for xi, v in zip(x, vals):
-            if v is None:
-                continue
-            ax.plot([xi + off - width / 2, xi + off + width / 2], [v, v],
-                    color=INK, lw=1.0, alpha=0.35, ls=":")
-    ax.plot([], [], color=INK, lw=1.0, alpha=0.35, ls=":",
-            label="earlier (wrong) arm 6 / bimoco point")
     ax.axhline(1.0, color=MUTED, lw=1.2, ls="--", label="seasonal-naive = 1.0")
     ax.set_xticks(x, [f"{h} / {c}" for h, c in GROUPS])
     ax.set_xlim(-0.55, 3.55)
@@ -141,7 +164,7 @@ def gradient_share_stack() -> None:
     df = pd.read_csv(EXP / "results" / "gradient_share_measurement.csv")
     df["share"] = pd.to_numeric(df.share, errors="coerce")  # "n/a" -> NaN
     df = df.dropna(subset=["share"])
-    fig, axes = plt.subplots(1, 2, figsize=(11.5, 5.0), sharey=True)
+    fig, axes = plt.subplots(1, 2, figsize=(11.5, 5.8), sharey=True)
     for ax, batch in zip(axes, ["mixed", "periodic"]):
         for arm, denom, ticklabel, xpos in BAR_SLOTS:
             rows = df[(df.arm_name == arm) & (df.batch_type == batch)
@@ -178,11 +201,11 @@ def gradient_share_stack() -> None:
     handles = [plt.Rectangle((0, 0), 1, 1, color=C_TENSOR[t]) for t in STACK_ORDER]
     fig.legend(handles, [TENSOR_LABEL[t] for t in STACK_ORDER],
                loc="upper center", ncol=2, fontsize=8.5, frameon=False,
-               bbox_to_anchor=(0.5, 1.0))
+               bbox_to_anchor=(0.5, 0.995))
     fig.suptitle("Per-family denominator share at each arm's FINAL.pth backbone snapshot"
                  "\n(arm 1: step 12,500; arm 3: step 11,800; arm 4: step 600  —  τ = 0.10, B = 64)",
-                 y=0.92, fontsize=10.5)
-    fig.tight_layout(rect=(0, 0, 1, 0.83))
+                 y=0.86, fontsize=10.5)
+    fig.tight_layout(rect=(0, 0, 1, 0.78))
     fig.savefig(HERE / "gradient_share_stack.png")
     plt.close(fig)
 
@@ -216,6 +239,12 @@ FOREST_ROWS = [
     ("6L / last",  "arm 3 vs bimoco",  "split+MoCo(pred) ↔ split+MoCo(pred+rep)", "arm3", "bimoco"),
     ("2L / last",  "arm 4 vs bimoco",  "pooled+MoCo ↔ split + MoCo both terms", "arm4", "bimoco"),
     ("6L / last",  "arm 4 vs bimoco",  "pooled+MoCo ↔ split + MoCo both terms", "arm4", "bimoco"),
+    ("2L / best*", "arm 1 vs bimoco",  "split ↔ split + moco (both terms)", "arm1", "bimoco"),
+    ("6L / best*", "arm 1 vs bimoco",  "split ↔ split + moco (both terms)", "arm1", "bimoco"),
+    ("2L / best*", "arm 3 vs bimoco",  "split+MoCo(pred) ↔ split+MoCo(pred+rep)", "arm3", "bimoco"),
+    ("6L / best*", "arm 3 vs bimoco",  "split+MoCo(pred) ↔ split+MoCo(pred+rep)", "arm3", "bimoco"),
+    ("2L / best*", "arm 4 vs bimoco",  "pooled+MoCo ↔ split + MoCo both terms", "arm4", "bimoco"),
+    ("6L / best*", "arm 4 vs bimoco",  "pooled+MoCo ↔ split + MoCo both terms", "arm4", "bimoco"),
 ]
 
 
@@ -255,12 +284,23 @@ def ci_forest() -> None:
     ax.axvline(1.0, color=MUTED, lw=1.2, ls="--")
     ax.set_yticks([])
     ax.set_xlim(0.82, 1.20)
+    ax.set_ylim(-1.2, n + 0.6)
     ax.set_xlabel("ratio A / B  (ratio < 1 → A better; ratio > 1 → A worse)")
-    ax.set_title("Paired-bootstrap 95 % CIs on GM-Relative MASE ratios  "
-                 "(top per row: task-level; bottom: dataset-clustered)")
+    ax.text(0.5, n + 0.2,
+            "Paired-bootstrap 95 % CIs on GM-Relative MASE ratios",
+            transform=ax.get_yaxis_transform(), ha="center", va="bottom",
+            fontsize=12, fontweight="bold", color=INK)
     ax.grid(axis="x", color=GRID, lw=0.7); ax.set_axisbelow(True)
     for side in ("top", "right"): ax.spines[side].set_visible(False)
-    ax.text(1.005, -0.15, "cells marked * are checkpoint-selection or step-confounded — see report.",
+    marker_handles = [
+        plt.Line2D([], [], color=INK, marker="o", markersize=6, lw=1.6,
+                   label="task-level bootstrap (97 configs)"),
+        plt.Line2D([], [], color=INK, marker="s", markersize=5, lw=1.0,
+                   alpha=0.55, label="28-dataset-clustered bootstrap"),
+    ]
+    ax.legend(handles=marker_handles, loc="upper right", fontsize=8.5,
+              frameon=False)
+    ax.text(1.005, -0.06, "cells marked * are checkpoint-selection or step-confounded — see report.",
             transform=ax.transAxes, ha="right", va="top", fontsize=8, color=MUTED)
     fig.tight_layout()
     fig.savefig(HERE / "ci_forest.png")

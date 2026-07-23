@@ -13,6 +13,7 @@ import re
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import pandas as pd
 
 HERE = Path(__file__).parent
 ROOT = HERE.parent.parent.parent
@@ -45,9 +46,19 @@ def gm(path: Path) -> float | None:
     return float(m.group(1)) if m else None
 
 
+# arm C (champion cross_C) references from the sigreg cross experiment.
+SIGREG = ROOT / "experiments" / "2026-06-28_sigreg_lambda_tau_cross"
+_gm = pd.read_csv(SIGREG / "results" / "gm_table.csv")
+_cc = _gm[_gm["arm"] == "cross_C"]
+ARM_C_REF = {(r["head"], r["ckpt"]): float(r["gm"]) for _, r in _cc.iterrows()}
+
 fig, axes = plt.subplots(1, 2, figsize=(14, 6), sharey=True)
 for i, HL in enumerate(("2L", "6L")):
     ax = axes[i]
+    for j, ck in enumerate(("best", "last")):
+        ref = ARM_C_REF[(HL, ck)]
+        ax.axhline(ref, color=MUTED, lw=1.2, ls="--",
+                   label="arm C ref (champion)" if (i == 0 and j == 0) else None)
     for label, rd, base, best_step, colour in ARMS:
         # (step, suffix) — each read as f"{base}{suffix}_{HL}"
         candidates = [
@@ -76,8 +87,9 @@ for i, HL in enumerate(("2L", "6L")):
 axes[0].set_ylabel("Aggregate GM-Relative MASE (full-97)")
 axes[0].legend(loc="upper right", fontsize=9, frameon=False)
 fig.suptitle(
-    "GM-Relative MASE per arm across backbone step  "
-    "(2k / best / 12,500 last / 25k / 50k where available; fresh 40k head at each new backbone-step cell)",
+    "GM-Relative MASE per arm across backbone step\n"
+    "best / last cells: 30k-step best-loss q-head (+10k-step resume for last);  "
+    "2k / 25k / 50k cells: fresh 40k-step q-head on that backbone snapshot",
     fontsize=9)
 fig.tight_layout()
 out = HERE / "gm_curve_per_arm.png"
