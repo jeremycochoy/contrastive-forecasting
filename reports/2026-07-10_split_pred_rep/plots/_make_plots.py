@@ -122,8 +122,6 @@ def headline() -> None:
             vals = [read_aggregate(arm, h, c) for h, c in GROUPS]
         for xi, (v, (h, c)) in zip(x, zip(vals, GROUPS)):
             ax.bar(xi + off, v - 1.0, width, bottom=1.0, color=colour)
-            ax.text(xi + off, v + 0.003, f"{v:.4f}",
-                    ha="center", va="bottom", rotation=90, fontsize=7.5, color=INK)
             if arm is not None:
                 ci = bootstrap_gm_ci(cell_relatives(arm, h, c))
                 if ci is not None:

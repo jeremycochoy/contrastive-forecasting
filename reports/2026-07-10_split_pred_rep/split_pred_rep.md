@@ -1,12 +1,12 @@
 # Split L_pred + L_rep contrastive loss — arm sweep on the SIGReg-champion backbone
 
-**Question.** The champion loss merges five negative tensors under one pooled log-sum-exp denominator. Does splitting it into `L_pred` (f-anchored, positive against the next-step h) and `L_rep` (h-anchored, log-sum-exp only) improve GM-Relative MASE on the GIFT-Eval 97-config panel, and does adding EMA-teacher (MoCo) keys or replacing `L_pred` with BYOL alignment change the answer?
+**Question.** The champion loss merges five negative tensors under one pooled log-sum-exp denominator. Does splitting it into `L_pred` (f-anchored, positive against the next-step h) and `L_rep` (h-anchored, log-sum-exp only) improve GM-Relative MASE (geometric-mean forecast error relative to seasonal-naive; defined in annex) on the GIFT-Eval 97-config panel, and does adding EMA-teacher MoCo keys (momentum-contrast: keys from an EMA teacher) or replacing `L_pred` with BYOL alignment (negative-free predictor-to-teacher matching) change the answer?
 
-**Answer.** `L_pred_moco + L_rep_moco` (arm bimoco) has the lowest GM-Relative MASE in all four (head, checkpoint) cells: 1.1225 / 1.1180 / 1.1138 / 1.1087 against the champion's 1.1682 / 1.1491 / 1.1561 / 1.1254. Splitting alone (arm 1) does not separate from the champion in any cell, and arms 1, 3, 4, 5 and 6 are level with or worse than the champion in every cell. All arms are one seed (20260520); the paired bootstrap is over the 97 tasks of that single run and does not cover seed variance (single-seed noise ±0.02).
+**Answer.** At the four 12,500-step (head, checkpoint) cells the ranking is defined on, `L_pred_moco + L_rep_moco` (arm bimoco) has the lowest *point estimate* of GM-Relative MASE: 1.1225 / 1.1180 / 1.1138 / 1.1087 against the champion's 1.1682 / 1.1491 / 1.1561 / 1.1254. No per-task file for the champion (arm C) exists on this branch, so no confidence interval against the champion is available; the champion comparison is point-estimate only, and the narrowest gap (6L / last, 1.1254 − 1.1087 = 0.0167) is small. Separation at 95 % is established only against the sibling arms 1, 3, 4, 5 and 6 (paired task-bootstrap, below), where bimoco is the lowest arm in all four cells. The winner flips with longer training: arm 4 (pooled + MoCo) matches or beats bimoco once the backbones continue past 12,500 steps (arm 4 6L 25k = 1.1073 vs bimoco 6L 25k = 1.1319). All arms are one seed (20260520).
 
 ## Result
 
-![Downstream GM-Relative MASE per arm at each (head, checkpoint) cell. Error bar = 95 % task-bootstrap interval over the 97 configs of the single run; these marginal bands include the task-to-task variance shared across arms, which the paired bootstrap (see the CI section) cancels — arm separation is read there, not from the band overlap here. Dashed line = seasonal-naive (1.0).](plots/headline_relmase.png)
+![Downstream GM-Relative MASE per arm at each (head, checkpoint) cell. Bars carry the 95 % task-bootstrap band over the 97 configs; the champion (arm C) carries no paired CI, and these marginal bands are not the separation test — separation is read from the CI-forest figure below. Dashed line = seasonal-naive (1.0).](plots/headline_relmase.png)
 
 | arm | 2L / best | 2L / last | 6L / best | 6L / last |
 | --- | --: | --: | --: | --: |
@@ -18,15 +18,15 @@
 | arm bimoco (`L_pred_moco` + `L_rep_moco`) | **1.1225** | **1.1180** | **1.1138** | **1.1087** |
 | arm C ref (SIGReg-cross champion) | 1.1682 | 1.1491 | 1.1561 | 1.1254 |
 
-arm C ref: aggregate read from `experiments/2026-06-28_sigreg_lambda_tau_cross/results/gm_table.csv` (arm `cross_C`); no per-task file exists on this branch, so no confidence interval against arm C is available in this report. The bimoco intervals below are all against arms 1, 3, 4, 5 and 6, not against arm C.
+arm C ref: aggregate read from `experiments/2026-06-28_sigreg_lambda_tau_cross/results/gm_table.csv` (arm `cross_C`); no per-task file exists on this branch, so no confidence interval against arm C is available in this report, and arm C was not itself probed for the denominator share (arm 4, the same pooled shape plus MoCo keys, stands in for it there). The bimoco intervals below are all against arms 1, 3, 4, 5 and 6, not against arm C.
 
 ## Denominator share
 
-The card's required measurement: in a shared softmax denominator the gradient through pair set *i* at an anchor is `exp(tensor_i − log_denom)`; on periodic series the h↔h scores approach cos ≈ 1 (1/τ = 10), so the h-anchored tensors dominate the denominator and the prediction pairs' share falls toward zero. The split gives the prediction pairs their own denominator.
+In a shared softmax denominator the gradient through pair set *i* at an anchor scales as `exp(tensor_i − log_denom)`; on periodic series the h↔h scores approach cos ≈ 1 (1/τ = 10), so the h-anchored tensors dominate the denominator and the prediction pairs' share falls toward zero. The split gives the prediction pairs their own denominator.
 
-![Per-family denominator share at each arm's FINAL.pth backbone snapshot (arm 1: step 12,500; arm 3: step 11,800; arm 4: step 600), on a mixed batch and a periodic-only batch (solar/electricity windows), τ = 0.10, B = 64.](plots/gradient_share_stack.png)
+![Per-family denominator share at each arm's FINAL.pth backbone snapshot (arm 1: step 12,500; arm 3: step 11,800; arm 4: step 600), on a mixed batch and a periodic-only batch (solar/electricity windows), τ = 0.10, probe B = 64.](plots/gradient_share_stack.png)
 
-In the pooled shape the prediction family (`log_neg_cross_batch`) holds 0.003 of the denominator on both the mixed and the periodic batch, against 0.901 (mixed) / 0.991 (periodic) once the same family sits in its own `L_pred` denominator. Arm C itself was not probed; arm 4 (the same pooled shape plus MoCo keys) stands in for it, at step 600.
+The share is measured at probe B = 64 (diagnostic), whereas training ran at B = 512; cross-batch share is B-dependent, so the absolute shares are indicative, not identical to the training-time split. In the pooled shape the prediction family (`log_neg_cross_batch`) holds 0.003 of the denominator on both the mixed and the periodic batch, against 0.901 (mixed) / 0.991 (periodic) once the same family sits in its own `L_pred` denominator (arm C stands in via arm 4, per the arm-C note above).
 
 ## GM-Relative MASE across backbone step
 
@@ -59,11 +59,7 @@ Within the arm-1/3/4-vs-bimoco family, 10 of the 12 rows also clear the Bonferro
 
 All backbones: B = 512, T = 4096, C = 1, τ = 0.10, `lr = 1e-3`, seed 20260520, dataset `gift-pretrain-full-4096 / small_v1`, EMA teacher τ = 0.90, SIGReg λ_e = λ_h = 1, CPC auxiliary, 12,500 steps. Downstream head (quantile, 2L or 6L): the `best` cell trains a fresh 30k-step head on `FINAL.pth` (the best-loss backbone); the `last` cell resumes that head +10k steps on `final.pth` (step 12,500). The 2k / 25k / 50k trajectory cells each train a fresh 40k-step head on the corresponding backbone snapshot. Eval: GIFT-Eval 97 configs, strategy B4, quantile-median MASE divided by the branch-committed seasonal-naive reference (`experiments/2026-07-10_split_pred_rep/results/seasonal_naive_all_results.csv`).
 
-Two earlier arm-6 and bimoco runs implemented a different loss; every number and interval in this report comes from the correct-implementation runs `results_arm6_v2/` and `results_bimoco_v2/`.
-
 ## Arms (annex)
-
-Arm 2 was dropped before launch and is not reported; the remaining arms keep their original numbering.
 
 | arm | loss shape | flags | key structure |
 | --- | --- | --- | --- |
@@ -102,5 +98,3 @@ Arms 1 and 4's `best`-cell backbone is not the argmin of a comparable curve: arm
 - *best / last cell* — the two downstream checkpoints per arm: `best` = head on the best-loss backbone, `last` = head resumed on the step-12,500 backbone.
 - *arm C* — the SIGReg-cross champion recipe (`cross_C`: λ_e = 1, λ_h = 1, EMA τ = 0.90), the baseline this sweep is ranked against.
 - *Bonferroni family* — 60 contrasts = 15 arm pairs × 4 (head, checkpoint) cells on the full-97 panel, α = 0.05 / 60 = 0.000833.
-</content>
-</invoke>
