@@ -278,7 +278,8 @@ def main() -> None:
     batch = make_fixed_batch(args)
     print(f"fixed batch: shape={tuple(batch.shape)} device=cpu → {args.device}")
 
-    fig, (ax_h, ax_e) = plt.subplots(2, 1, figsize=(9, 8), sharex=True)
+    # Compute all curves first so we can compute shared y-limits per column.
+    per_arm: dict[str, tuple[list, list, list, str, str]] = {}
     for label, name, colour, slug in plan:
         points = compute_arm_movements(runs_dir, name, batch, args.device)
         if not points:
@@ -287,23 +288,51 @@ def main() -> None:
         steps = [p[0] for p in points]
         mv_h  = [p[1] for p in points]
         mv_e  = [p[2] for p in points]
-        ls_h = STYLE.get(slug, "-")
-        ax_h.plot(steps, mv_h, marker="o", color=colour, lw=1.4,
-                  linestyle=ls_h, label=label)
-        ax_e.plot(steps, mv_e, marker="o", color=colour, lw=1.4,
-                  linestyle="--", label=label)
+        per_arm[slug] = (steps, mv_h, mv_e, colour, label)
         print(f"  {label}: {len(points)} pairs → h_last={mv_h[-1]:.4f}  e_last={mv_e[-1]:.4f}")
 
-    for ax, ylabel in ((ax_h, "1 − cos(h_prev, h_next)   [encoder out]"),
-                       (ax_e, "1 − cos(e_prev, e_next)   [patch embedding]")):
-        ax.set_xscale("log")
-        ax.set_ylabel(ylabel)
-        ax.grid(True, color=GRID, alpha=0.6, which="both")
-        ax.legend(loc="upper right", fontsize=8, frameon=False)
-    ax_e.set_xlabel("training step of the later checkpoint (log)")
-    fig.suptitle("Latent movement between adjacent checkpoints  (fixed held-out batch)",
-                 fontsize=11)
-    fig.tight_layout()
+    y_h_max = max((max(mv_h) for _, mv_h, _, _, _ in per_arm.values()), default=1.0)
+    y_h_min = min((min(mv_h) for _, mv_h, _, _, _ in per_arm.values()), default=0.0)
+    y_e_max = max((max(mv_e) for _, _, mv_e, _, _ in per_arm.values()), default=1.0)
+    y_e_min = min((min(mv_e) for _, _, mv_e, _, _ in per_arm.values()), default=0.0)
+
+    # 4 rows (variants) × 2 cols (h_t, e_t); shared y per column.
+    PANELS = [
+        ("base  (τ_rep=0.10, sigreg_e=1.0, cpc=1.0)", ""),
+        ("tr1  (τ_rep=1.00)", "_tr1"),
+        ("nse  (sigreg_e=0)", "_nse"),
+        ("ncpc  (cpc=0)", "_ncpc"),
+    ]
+    fig, axes = plt.subplots(len(PANELS), 2, figsize=(14, 3.4 * len(PANELS)),
+                             sharex=True)
+    for row_idx, (panel_title, suffix) in enumerate(PANELS):
+        ax_h, ax_e = axes[row_idx]
+        for slug, (steps, mv_h, mv_e, colour, label) in per_arm.items():
+            if suffix == "":
+                if any(s in slug for s in ("_tr1", "_nse", "_ncpc")):
+                    continue
+            else:
+                if not slug.endswith(suffix):
+                    continue
+            ax_h.plot(steps, mv_h, marker="o", markersize=6, color=colour,
+                      lw=1.4, label=label)
+            ax_e.plot(steps, mv_e, marker="o", markersize=6, color=colour,
+                      lw=1.4, linestyle="--", label=label)
+        for ax in (ax_h, ax_e):
+            ax.set_xscale("log")
+            ax.grid(True, color=GRID, alpha=0.6, which="both")
+            ax.legend(loc="upper right", fontsize=7, frameon=False)
+        ax_h.set_ylim(y_h_min, y_h_max)
+        ax_e.set_ylim(y_e_min, y_e_max)
+        ax_h.set_ylabel(f"{panel_title}\n1 − cos(h_prev, h_next)", fontsize=9)
+        ax_e.set_ylabel("1 − cos(e_prev, e_next)", fontsize=9)
+    axes[0, 0].set_title("h_t  (encoder out)", fontsize=10)
+    axes[0, 1].set_title("e_t  (patch embedding)", fontsize=10)
+    axes[-1, 0].set_xlabel("training step of the later checkpoint (log)")
+    axes[-1, 1].set_xlabel("training step of the later checkpoint (log)")
+    fig.suptitle("Latent movement between adjacent checkpoints  "
+                 "(fixed held-out batch, shared y per column)", fontsize=11)
+    fig.tight_layout(rect=(0, 0, 1, 0.98))
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out)
