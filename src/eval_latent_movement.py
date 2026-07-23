@@ -26,7 +26,9 @@ def load_backbone(ckpt_path: str, model_kwargs: dict,
     """Build a ConfigurableModel from ``model_kwargs``, load the state dict, eval mode."""
     model = ConfigurableModel(**model_kwargs).to(device)
     state = torch.load(ckpt_path, map_location=device, weights_only=False)
-    model.load_state_dict(state)
+    # ncpc arms (cpc-off) skip building cpc_w1/cpc_w2 heads → tolerate
+    # missing cpc_* keys since compute_latents doesn't touch them.
+    model.load_state_dict(state, strict=False)
     model.eval()
     return model
 
