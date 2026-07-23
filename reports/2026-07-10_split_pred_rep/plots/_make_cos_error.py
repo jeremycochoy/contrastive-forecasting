@@ -29,22 +29,22 @@ EXP = ROOT / "experiments" / "2026-07-10_split_pred_rep"
 RUNS = [
     ("arm 1  (L_pred + L_rep)",
      "runs", "bb_split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090",
-     "#2a78d6"),
+     "#2a78d6", (2000, 12500, 25000)),
     ("arm 3  (L_pred_moco + L_rep)",
      "runs", "bb_split_pred_rep_moco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090",
-     "#eb6834"),
+     "#eb6834", (2000, 11800, 12500, 25000)),
     ("arm 4  (pooled + MoCo)",
      "runs_arm4", "bb_allt08_moco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm4_tau090",
-     "#008300"),
+     "#008300", (600, 2000, 12500, 25000, 50000)),
     ("arm 5  (L_align + L_rep)",
      "runs_arm5", "bb_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090",
-     "#8b1e8b"),
+     "#8b1e8b", (2000, 11800, 12500, 25000, 50000)),
     ("arm 6  (L_align + L_rep_moco)",
      "runs_arm6_v2", "bb_lalign_lrepmoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm6v2_tau090",
-     "#b8860b"),
+     "#b8860b", (2000, 8700, 12500, 25000, 50000)),
     ("bimoco  (L_pred_moco + L_rep_moco)",
      "runs_bimoco_v2", "bb_split_pred_rep_bimoco_v2_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090",
-     "#00a3a3"),
+     "#00a3a3", (2000, 12400, 12500, 25000)),
 ]
 
 INK, MUTED, GRID = "#0b0b0b", "#898781", "#e1e0d9"
@@ -63,13 +63,17 @@ def load(dir_: str, name: str) -> pd.DataFrame:
     if r2.exists() and pd.read_csv(r2, usecols=["step"])["step"].max() > 12500:
         df = pd.concat([df, pd.read_csv(r2, usecols=["step", "ff"])], ignore_index=True)
     ext = EXP / dir_ / f"{name}_ext25k_losses.csv"
-    if ext.exists():
+    ext_shift = ext.exists()
+    if ext_shift:
         df_ext = pd.read_csv(ext, usecols=["step", "ff"])
         df_ext["step"] += 12500
         df = pd.concat([df, df_ext], ignore_index=True)
     r3 = EXP / dir_ / f"{name}_r3_losses.csv"
     if r3.exists():
-        df = pd.concat([df, pd.read_csv(r3, usecols=["step", "ff"])], ignore_index=True)
+        d = pd.read_csv(r3, usecols=["step", "ff"])
+        if ext_shift:  # r3 counter continues the ext25k counter, not the absolute backbone step
+            d["step"] += 12500
+        df = pd.concat([df, d], ignore_index=True)
     return df.sort_values("step").reset_index(drop=True)
 
 
@@ -79,7 +83,7 @@ ROWS = math.ceil(N / COLS)
 fig, axes = plt.subplots(ROWS, COLS, figsize=(4.6 * COLS, 3.4 * ROWS), sharex=False)
 axes = axes.flatten()
 
-for ax, (label, dir_, name, colour) in zip(axes, RUNS):
+for ax, (label, dir_, name, colour, eval_steps) in zip(axes, RUNS):
     try:
         df = load(dir_, name)
     except FileNotFoundError:
@@ -88,17 +92,20 @@ for ax, (label, dir_, name, colour) in zip(axes, RUNS):
     df = df[df["step"] >= 100]
     y = 1.0 - df["ff"]
     ax.plot(df["step"], y, color=colour, lw=1.2)
-    ax.set_xscale("log")
-    ax.set_xlim(100, 52500)
+    # vertical dotted lines at the backbone steps where GIFT-Eval was run;
+    # these are the same x-locations as the points on gm_curve_per_arm.
+    for s in eval_steps:
+        ax.axvline(s, color=INK, ls=":", lw=0.8, alpha=0.6)
+    ax.set_xlim(0, 51000)
     ax.set_title(f"{label}\nfinal step {df['step'].max():,}   final ff = {df['ff'].iloc[-1]:.3f}", fontsize=8.5)
     ax.grid(True, color=GRID, alpha=0.6, which="both")
-    ax.set_xlabel("training step (log)")
+    ax.set_xlabel("backbone step")
     ax.set_ylabel("1 − ff")
 
 for extra in axes[N:]:
     extra.set_visible(False)
 
-fig.suptitle("Average cosine error 1 − ⟨cos(f̂, f_true)⟩ per arm  (log x, linear y — target 0)", fontsize=10)
+fig.suptitle("Average cosine error 1 − ⟨cos(f̂, f_true)⟩ per arm  (linear x aligned with gm_curve; dotted lines = GIFT-Eval checkpoint steps)", fontsize=10)
 fig.tight_layout(rect=(0, 0, 1, 0.97))
 out = HERE / "cos_error_per_arm.png"
 fig.savefig(out)

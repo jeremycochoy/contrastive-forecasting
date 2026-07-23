@@ -28,12 +28,12 @@ RUNS = [
      "bb_split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090",
      "split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090",
      "#2a78d6",
-     [(2000, "_2k"), (12500, "_last"), (25000, "_25k")]),
+     [(2000, "_2k"), (12500, "_last"), (25000, "_25k"), (50000, "_50k")]),
     ("arm 3  (L_pred_moco + L_rep)", "runs", "results",
      "bb_split_pred_rep_moco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090",
      "split_pred_rep_moco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090",
      "#eb6834",
-     [(2000, "_2k"), (11800, ""), (12500, "_last"), (25000, "_25k")]),
+     [(2000, "_2k"), (11800, ""), (12500, "_last"), (25000, "_25k"), (50000, "_50k")]),
     ("arm 4  (pooled + MoCo)", "runs_arm4", "results_arm4",
      "bb_allt08_moco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm4_tau090",
      "allt08_moco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm4_tau090",
@@ -72,13 +72,17 @@ def load_ff(runs_dir: str, name: str) -> pd.DataFrame:
     if r2.exists() and pd.read_csv(r2, usecols=["step"])["step"].max() > 12500:
         df = pd.concat([df, pd.read_csv(r2, usecols=["step", "ff"])], ignore_index=True)
     ext = EXP / runs_dir / f"{name}_ext25k_losses.csv"
-    if ext.exists():
+    ext_shift = ext.exists()
+    if ext_shift:
         d = pd.read_csv(ext, usecols=["step", "ff"])
         d["step"] += 12500
         df = pd.concat([df, d], ignore_index=True)
     r3 = EXP / runs_dir / f"{name}_r3_losses.csv"
     if r3.exists():
-        df = pd.concat([df, pd.read_csv(r3, usecols=["step", "ff"])], ignore_index=True)
+        d = pd.read_csv(r3, usecols=["step", "ff"])
+        if ext_shift:  # r3 counter continues the ext25k counter, not the absolute backbone step
+            d["step"] += 12500
+        df = pd.concat([df, d], ignore_index=True)
     return df.sort_values("step").reset_index(drop=True)
 
 
