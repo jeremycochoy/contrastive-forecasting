@@ -143,8 +143,17 @@ def load(name: str) -> pd.DataFrame:
     return df.sort_values("step").reset_index(drop=True)
 
 
-fig, ax = plt.subplots(figsize=(9, 5.5))
+# 2x2 panel grid, one variant per panel. Same shared y-limits so panels
+# are directly comparable at the same 1−ff altitude.
+PANEL_SUFFIXES = [
+    ("base  (τ_rep=0.10, sigreg_e=1.0, cpc=1.0)", ""),
+    ("tr1  (τ_rep=1.00)", "_tr1"),
+    ("nse  (sigreg_e=0)", "_nse"),
+    ("ncpc  (cpc=0)", "_ncpc"),
+]
 
+# Cache curves once so we can compute a shared y-limit before drawing.
+CURVES: dict[str, tuple[list, list, str, str]] = {}
 for (label, name, colour), slug in zip(RUNS, SLUGS):
     try:
         df = load(name)
@@ -153,19 +162,41 @@ for (label, name, colour), slug in zip(RUNS, SLUGS):
     df = df[df["step"] >= 100]
     if df.empty:
         continue
-    ax.plot(df["step"], 1.0 - df["ff"], color=colour, lw=1.4,
-            linestyle=STYLE.get(slug, "-"), label=label)
+    CURVES[slug] = (df["step"].tolist(), (1.0 - df["ff"]).tolist(),
+                    colour, label)
 
-ax.set_xscale("log")
-ax.set_xlim(100, 210_000)
-ax.set_xlabel("training step (log)")
-ax.set_ylabel("1 − ff  (log perplexity of f̂ under future's vMF)")
-ax.grid(True, color=GRID, alpha=0.6, which="both")
-ax.legend(loc="upper right", fontsize=9, frameon=False)
-ax.set_title(
-    "1 − ⟨cos(f̂, f_true)⟩ per arm  (log-x temporal axis, linear y)",
+y_max = max((max(vals) for _, vals, _, _ in CURVES.values()), default=1.0)
+y_min = min((min(vals) for _, vals, _, _ in CURVES.values()), default=0.0)
+
+fig, axes = plt.subplots(2, 2, figsize=(14, 9), sharex=True, sharey=True)
+axes = axes.flatten()
+
+for ax, (panel_title, suffix) in zip(axes, PANEL_SUFFIXES):
+    for slug, (steps, vals, colour, label) in CURVES.items():
+        if suffix == "":
+            # Base panel: any slug WITHOUT tr1/nse/ncpc suffix.
+            if any(s in slug for s in ("_tr1", "_nse", "_ncpc")):
+                continue
+        else:
+            if not slug.endswith(suffix):
+                continue
+        ax.plot(steps, vals, color=colour, lw=1.4, label=label)
+    ax.set_xscale("log")
+    ax.set_xlim(100, 210_000)
+    ax.set_ylim(y_min, y_max)
+    ax.grid(True, color=GRID, alpha=0.6, which="both")
+    ax.legend(loc="upper right", fontsize=8, frameon=False)
+    ax.set_title(panel_title, fontsize=10)
+
+axes[2].set_xlabel("training step (log)")
+axes[3].set_xlabel("training step (log)")
+axes[0].set_ylabel("1 − ff  (log perplexity)")
+axes[2].set_ylabel("1 − ff  (log perplexity)")
+
+fig.suptitle(
+    "1 − ⟨cos(f̂, f_true)⟩ per arm — 2×2 grid by variant  (shared axes)",
     fontsize=11)
-fig.tight_layout()
+fig.tight_layout(rect=(0, 0, 1, 0.97))
 out = HERE / "cos_error_per_arm.png"
 fig.savefig(out)
 print(f"wrote {out}")
