@@ -97,11 +97,31 @@ RUNS = [
     ("bimoco ncpc  (L_pred_moco + L_rep_moco, cpc=0)",
      "bb_small_bimoco_ncpc_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
      "#00a3a3"),
+    # combab: all τ=1.0 + cpc=0 + nse (arm1/3/4 only)
+    ("arm 1 combab  (τ=1.0 + cpc=0 + sigreg_e=0)",
+     "bb_small_arm1_combab_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#2a78d6"),
+    ("arm 3 combab  (τ=1.0 + cpc=0 + sigreg_e=0)",
+     "bb_small_arm3_combab_split_pred_rep_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#eb6834"),
+    ("arm 4 combab  (τ=1.0 + cpc=0 + sigreg_e=0)",
+     "bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#008300"),
+    ("arm 5 combab  (τ_rep=1.0 + cpc=0)",
+     "bb_small_arm5_combab_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#8b1e8b"),
+    ("arm 6 v2 combab  (τ_rep=1.0 + cpc=0)",
+     "bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#b8860b"),
+    ("bimoco combab  (all τ=1.0 + cpc=0)",
+     "bb_small_bimoco_combab_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#00a3a3"),
 ]
 SLUGS = ["arm1", "arm3", "arm4", "arm5", "arm6_v2", "bimoco",
          "arm1_tr1", "arm3_tr1", "arm4_tr1", "arm5_tr1", "arm6_v2_tr1", "bimoco_tr1",
          "arm1_nse", "arm3_nse", "arm4_nse", "arm5_nse", "arm6_v2_nse", "bimoco_nse",
-         "arm1_ncpc", "arm3_ncpc", "arm4_ncpc", "arm5_ncpc", "arm6_v2_ncpc", "bimoco_ncpc"]
+         "arm1_ncpc", "arm3_ncpc", "arm4_ncpc", "arm5_ncpc", "arm6_v2_ncpc", "bimoco_ncpc",
+         "arm1_combab", "arm3_combab", "arm4_combab", "arm5_combab", "arm6_v2_combab", "bimoco_combab"]
 # ncpc runs render dashed so a shared base colour + linestyle disambiguates
 # CPC-off from base in the per-panel plot.
 STYLE = {

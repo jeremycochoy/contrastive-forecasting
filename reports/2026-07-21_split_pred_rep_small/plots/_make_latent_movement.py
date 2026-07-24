@@ -123,13 +123,33 @@ RUNS = [
     ("bimoco ncpc  (L_pred_moco + L_rep_moco, cpc=0)",
      "bb_small_bimoco_ncpc_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
      "#00a3a3"),
+    # combab: all τ=1.0 + cpc=0 + nse (arm1/3/4 only, per nse stat test)
+    ("arm 1 combab  (τ=1.0 + cpc=0 + sigreg_e=0)",
+     "bb_small_arm1_combab_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#2a78d6"),
+    ("arm 3 combab  (τ=1.0 + cpc=0 + sigreg_e=0)",
+     "bb_small_arm3_combab_split_pred_rep_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#eb6834"),
+    ("arm 4 combab  (τ=1.0 + cpc=0 + sigreg_e=0)",
+     "bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#008300"),
+    ("arm 5 combab  (τ_rep=1.0 + cpc=0)",
+     "bb_small_arm5_combab_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#8b1e8b"),
+    ("arm 6 v2 combab  (τ_rep=1.0 + cpc=0)",
+     "bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#b8860b"),
+    ("bimoco combab  (all τ=1.0 + cpc=0)",
+     "bb_small_bimoco_combab_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#00a3a3"),
 ]
 # Short slug per arm — used to select via --arms. Parallel to RUNS by
 # index; STYLE below is keyed on slug (dashed for ncpc, solid default).
 SLUGS = ["arm1", "arm3", "arm4", "arm5", "arm6_v2", "bimoco",
          "arm1_tr1", "arm3_tr1", "arm4_tr1", "arm5_tr1", "arm6_v2_tr1", "bimoco_tr1",
          "arm1_nse", "arm3_nse", "arm4_nse", "arm5_nse", "arm6_v2_nse", "bimoco_nse",
-         "arm1_ncpc", "arm3_ncpc", "arm4_ncpc", "arm5_ncpc", "arm6_v2_ncpc", "bimoco_ncpc"]
+         "arm1_ncpc", "arm3_ncpc", "arm4_ncpc", "arm5_ncpc", "arm6_v2_ncpc", "bimoco_ncpc",
+         "arm1_combab", "arm3_combab", "arm4_combab", "arm5_combab", "arm6_v2_combab", "bimoco_combab"]
 # Per-slug linestyle override for the h_t panel. ncpc → dashed on top of
 # the shared base colour; everything else stays solid. The e_t panel is
 # already dashed as an axis-level convention, so ncpc's dashed override
@@ -301,10 +321,11 @@ def main() -> None:
 
     # 4 rows (variants) × 2 cols (h_t, e_t); shared y per column.
     PANELS = [
-        ("base  (τ_rep=0.10, sigreg_e=1.0, cpc=1.0)", ""),
+        ("base  (all τ=0.10, sigreg_e=1.0, cpc=1.0)", ""),
         ("tr1  (all τ=1.00)", "_tr1"),
         ("nse  (sigreg_e=0)", "_nse"),
         ("ncpc  (cpc=0)", "_ncpc"),
+        ("combab  (all τ=1.0 + cpc=0 + cond. nse)", "_combab"),
     ]
     fig, axes = plt.subplots(len(PANELS), 2, figsize=(14, 3.4 * len(PANELS)),
                              sharex=True)
@@ -312,7 +333,7 @@ def main() -> None:
         ax_h, ax_e = axes[row_idx]
         for slug, (steps, mv_h, mv_e, colour, label) in per_arm.items():
             if suffix == "":
-                if any(s in slug for s in ("_tr1", "_nse", "_ncpc")):
+                if any(s in slug for s in ("_tr1", "_nse", "_ncpc", "_combab")):
                     continue
             else:
                 if not slug.endswith(suffix):

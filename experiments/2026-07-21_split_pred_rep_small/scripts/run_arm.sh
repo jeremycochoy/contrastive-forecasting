@@ -217,12 +217,61 @@ case "$ARM" in
                --moco-negatives --moco-rep-keys)
     EXTRA_ARGS=(--cpc-infonce-weight 0.0)
     ;;
+  # ---- #379 combined-ablation (combab) reruns ------------------------------
+  # combab = all τ raised to 1.0 + CPC-InfoNCE off + (conditionally) SIGReg
+  # on the embedding off. nse is added ONLY for arms where the Wave-D nse
+  # stat test showed a reduction in latent movement (arm1/3/4). arm5, arm6_v2
+  # and bimoco keep sigreg_e=1.0 because nse hurt them there.
+  arm1_combab)
+    NAME="bb_small_arm1_combab_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090"
+    ARM_DESC="arm 1_combab: split_pred_rep + all τ=1.0 + cpc=0 + sigreg_e=0"
+    LOSS_ARGS=(--loss-shape cosine_similarity_batch_split_pred_rep \
+               --tau 1.0 --tau-rep 1.0)
+    EXTRA_ARGS=(--cpc-infonce-weight 0.0 --sigreg-embedding-weight 0.0)
+    ;;
+  arm3_combab)
+    NAME="bb_small_arm3_combab_split_pred_rep_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090"
+    ARM_DESC="arm 3_combab: split_pred_rep + moco-negatives + all τ=1.0 + cpc=0 + sigreg_e=0"
+    LOSS_ARGS=(--loss-shape cosine_similarity_batch_split_pred_rep \
+               --moco-negatives --tau 1.0 --tau-rep 1.0)
+    EXTRA_ARGS=(--cpc-infonce-weight 0.0 --sigreg-embedding-weight 0.0)
+    ;;
+  arm4_combab)
+    NAME="bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090"
+    ARM_DESC="arm 4_combab: xshh_allt + moco-negatives + τ=1.0 + cpc=0 + sigreg_e=0"
+    LOSS_ARGS=(--loss-shape cosine_similarity_batch_full_hh_negs_xshh_allt \
+               --pos-in-denominator --subtract-contrastive-floor --moco-negatives \
+               --tau 1.0)
+    EXTRA_ARGS=(--cpc-infonce-weight 0.0 --sigreg-embedding-weight 0.0)
+    ;;
+  arm5_combab)
+    NAME="bb_small_arm5_combab_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090"
+    ARM_DESC="arm 5_combab: rep_only + align + τ_rep=1.0 + cpc=0 (nse SKIPPED: nse hurt arm5)"
+    LOSS_ARGS=(--loss-shape cosine_similarity_batch_rep_only \
+               --align-loss-weight 1.0 --tau-rep 1.0)
+    EXTRA_ARGS=(--cpc-infonce-weight 0.0)
+    ;;
+  arm6_v2_combab)
+    NAME="bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090"
+    ARM_DESC="arm 6 v2_combab: rep_only + align + moco-rep-keys + τ_rep=1.0 + cpc=0 (nse SKIPPED: nse hurt arm6_v2)"
+    LOSS_ARGS=(--loss-shape cosine_similarity_batch_rep_only \
+               --align-loss-weight 1.0 --moco-rep-keys --tau-rep 1.0)
+    EXTRA_ARGS=(--cpc-infonce-weight 0.0)
+    ;;
+  bimoco_combab)
+    NAME="bb_small_bimoco_combab_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090"
+    ARM_DESC="bimoco_combab: split_pred_rep + moco-negatives + moco-rep-keys + all τ=1.0 + cpc=0 (nse SKIPPED: nse hurt bimoco)"
+    LOSS_ARGS=(--loss-shape cosine_similarity_batch_split_pred_rep \
+               --moco-negatives --moco-rep-keys --tau 1.0 --tau-rep 1.0)
+    EXTRA_ARGS=(--cpc-infonce-weight 0.0)
+    ;;
   *)
     echo "ABORT: unknown arm '$ARM'" >&2
     echo "  valid: arm1 arm3 arm4 arm5 arm6_v2 bimoco" >&2
-    echo "         arm1_tr1 arm3_tr1 arm5_tr1 arm6_v2_tr1 bimoco_tr1" >&2
+    echo "         arm1_tr1 arm3_tr1 arm4_tr1 arm5_tr1 arm6_v2_tr1 bimoco_tr1" >&2
     echo "         arm1_nse arm3_nse arm4_nse arm5_nse arm6_v2_nse bimoco_nse" >&2
     echo "         arm1_ncpc arm3_ncpc arm4_ncpc arm5_ncpc arm6_v2_ncpc bimoco_ncpc" >&2
+    echo "         arm1_combab arm3_combab arm4_combab arm5_combab arm6_v2_combab bimoco_combab" >&2
     exit 2
     ;;
 esac

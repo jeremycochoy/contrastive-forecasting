@@ -110,13 +110,34 @@ RUNS = [
     ("bimoco ncpc  (L_pred_moco + L_rep_moco, cpc=0)",
      "bb_small_bimoco_ncpc_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
      "#00a3a3"),
+    # #379 combined-ablation (combab): all τ=1.0 + cpc=0 + nse (only for
+    # arm1/3/4 where nse helped; arm5/6_v2/bimoco keep sigreg_e=1.0).
+    ("arm 1 combab  (τ=1.0 + cpc=0 + sigreg_e=0)",
+     "bb_small_arm1_combab_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#2a78d6"),
+    ("arm 3 combab  (τ=1.0 + cpc=0 + sigreg_e=0)",
+     "bb_small_arm3_combab_split_pred_rep_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#eb6834"),
+    ("arm 4 combab  (τ=1.0 + cpc=0 + sigreg_e=0)",
+     "bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#008300"),
+    ("arm 5 combab  (τ_rep=1.0 + cpc=0)",
+     "bb_small_arm5_combab_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#8b1e8b"),
+    ("arm 6 v2 combab  (τ_rep=1.0 + cpc=0)",
+     "bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#b8860b"),
+    ("bimoco combab  (all τ=1.0 + cpc=0)",
+     "bb_small_bimoco_combab_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#00a3a3"),
 ]
 # Short slug per arm (parallel to RUNS by index). Used both for legend
 # grouping and to gate --arms in the latent-movement plot.
 SLUGS = ["arm1", "arm3", "arm4", "arm5", "arm6_v2", "bimoco",
          "arm1_tr1", "arm3_tr1", "arm4_tr1", "arm5_tr1", "arm6_v2_tr1", "bimoco_tr1",
          "arm1_nse", "arm3_nse", "arm4_nse", "arm5_nse", "arm6_v2_nse", "bimoco_nse",
-         "arm1_ncpc", "arm3_ncpc", "arm4_ncpc", "arm5_ncpc", "arm6_v2_ncpc", "bimoco_ncpc"]
+         "arm1_ncpc", "arm3_ncpc", "arm4_ncpc", "arm5_ncpc", "arm6_v2_ncpc", "bimoco_ncpc",
+         "arm1_combab", "arm3_combab", "arm4_combab", "arm5_combab", "arm6_v2_combab", "bimoco_combab"]
 # Per-slug linestyle. ncpc → dashed (base colour reused). Everything else
 # defaults to solid via the .get() fallback.
 STYLE = {
@@ -149,10 +170,11 @@ def load(name: str) -> pd.DataFrame:
 # 2x2 panel grid, one variant per panel. Same shared y-limits so panels
 # are directly comparable at the same 1−ff altitude.
 PANEL_SUFFIXES = [
-    ("base  (τ_rep=0.10, sigreg_e=1.0, cpc=1.0)", ""),
+    ("base  (all τ=0.10, sigreg_e=1.0, cpc=1.0)", ""),
     ("tr1  (all τ=1.00)", "_tr1"),
     ("nse  (sigreg_e=0)", "_nse"),
     ("ncpc  (cpc=0)", "_ncpc"),
+    ("combab  (all τ=1.0 + cpc=0 + conditional nse)", "_combab"),
 ]
 
 # Cache curves once so we can compute a shared y-limit before drawing.
@@ -171,14 +193,18 @@ for (label, name, colour), slug in zip(RUNS, SLUGS):
 y_max = max((max(vals) for _, vals, _, _ in CURVES.values()), default=1.0)
 y_min = min((min(vals) for _, vals, _, _ in CURVES.values()), default=0.0)
 
-fig, axes = plt.subplots(2, 2, figsize=(14, 9), sharex=True, sharey=True)
+import math as _math
+ncols = 3
+nrows = _math.ceil(len(PANEL_SUFFIXES) / ncols)
+fig, axes = plt.subplots(nrows, ncols, figsize=(6.5 * ncols, 4.5 * nrows),
+                         sharex=True, sharey=True)
 axes = axes.flatten()
 
 for ax, (panel_title, suffix) in zip(axes, PANEL_SUFFIXES):
     for slug, (steps, vals, colour, label) in CURVES.items():
         if suffix == "":
-            # Base panel: any slug WITHOUT tr1/nse/ncpc suffix.
-            if any(s in slug for s in ("_tr1", "_nse", "_ncpc")):
+            # Base panel: any slug WITHOUT tr1/nse/ncpc/combab suffix.
+            if any(s in slug for s in ("_tr1", "_nse", "_ncpc", "_combab")):
                 continue
         else:
             if not slug.endswith(suffix):
@@ -191,13 +217,17 @@ for ax, (panel_title, suffix) in zip(axes, PANEL_SUFFIXES):
     ax.legend(loc="upper right", fontsize=8, frameon=False)
     ax.set_title(panel_title, fontsize=10)
 
-axes[2].set_xlabel("training step (log)")
-axes[3].set_xlabel("training step (log)")
-axes[0].set_ylabel("1 − ff  (log perplexity)")
-axes[2].set_ylabel("1 − ff  (log perplexity)")
+# Blank the unused panels.
+for extra in axes[len(PANEL_SUFFIXES):]:
+    extra.set_visible(False)
+
+for col in range(ncols):
+    axes[-ncols + col].set_xlabel("training step (log)")
+for row in range(nrows):
+    axes[row * ncols].set_ylabel("1 − ff  (log perplexity)")
 
 fig.suptitle(
-    "1 − ⟨cos(f̂, f_true)⟩ per arm — 2×2 grid by variant  (shared axes)",
+    "1 − ⟨cos(f̂, f_true)⟩ per arm — grid by variant  (shared axes)",
     fontsize=11)
 fig.tight_layout(rect=(0, 0, 1, 0.97))
 out = HERE / "cos_error_per_arm.png"
