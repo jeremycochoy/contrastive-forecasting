@@ -1,18 +1,16 @@
 # Bimoco at 12,500 steps and pooled + MoCo (arm 4) from 25,000 onward are the lowest arms, and both beat the SIGReg champion with a 95 % paired-bootstrap CI.
 
-**Question.** The champion loss merges five negative tensors under one pooled log-sum-exp denominator. Does splitting it into `L_pred` (f-anchored) and `L_rep` (h-anchored) improve GM-Relative MASE on the GIFT-Eval 97-config panel, and does adding EMA-teacher MoCo keys or replacing `L_pred` with BYOL alignment change the answer? (terms defined in annex)
+**Question.** The champion loss puts every negative under a single log-sum-exp denominator. Does splitting it into `L_pred` (f-anchored) and `L_rep` (h-anchored) improve GM-Relative MASE — the geometric mean over the 97 GIFT-Eval configs of per-task (model MASE) / (seasonal-naive MASE), lower is better and 1.0 matches seasonal-naive — and does adding EMA-teacher MoCo keys or replacing `L_pred` with BYOL alignment change the answer? (arms and other terms defined in annex)
 
 **Answer.** Which arm is lowest depends on the backbone step at which the arms are compared.
 
-At 12,500 steps the lowest GM-Relative MASE in all four (head, checkpoint) cells belongs to `L_pred_moco + L_rep_moco` — *bimoco*, the split loss with EMA-teacher MoCo keys on both terms. It is 95 %-separated from arms 1, 3, 4, 5 and 6 in every cell: the task-level 95 % CI on the ratio excludes 1.0. On the `last` cells bimoco is also CI-separated from the SIGReg champion arm C: 6L / last 1.1087 vs arm C step-12,500 1.1318, ratio 0.980, CI [0.963, 0.994]; 2L / last 1.1180 vs 1.1441, ratio 0.977, CI [0.964, 0.991].
+At 12,500 steps the lowest GM-Relative MASE in all four (head, checkpoint) cells belongs to `L_pred_moco + L_rep_moco` — *bimoco*, the split loss with EMA-teacher MoCo keys on both terms. It is 95 %-separated from every other sibling arm in every cell, and on the `last` cells also 95 %-separated from arm C (representative: 6L ratio 0.980, CI [0.963, 0.994]).
 
-That ordering does not survive further training. At 25,000 steps arm 4 (pooled + MoCo) is lowest in both panels: 1.1073 against bimoco's 1.1319 on 6L, and 1.1332 against 1.1339 on 2L. At 50,000 steps arm 4 is again lowest, at 1.1199 on 6L and 1.1414 on 2L; bimoco has no 50,000-step cell. Against arm C at matching steps, arm 4 is CI-separated at 6L / 25k (ratio 0.978, CI [0.967, 0.988]) and at both heads at 50k (6L ratio 0.973, CI [0.959, 0.987]; 2L ratio 0.970, CI [0.950, 0.989]). Arm 3 also beats arm C at 50k on both heads (6L ratio 0.975, CI [0.958, 0.991]; 2L ratio 0.974, CI [0.959, 0.988]).
+That ordering does not survive further training. At 25,000 steps arm 4 (pooled + MoCo) takes the lead in both panels, and holds it at 50,000; bimoco has no 50,000-step cell. Arm 4 is 95 %-separated from arm C at 6L / 25k and at both heads at 50k, and arm 3 joins at 50k on both heads (ratios and CIs in the paired-bootstrap annex).
 
 The lowest cell measured anywhere is arm 4, 6L, 25,000 steps, at 1.1073.
 
-Arm C's per-task file is a same-recipe seed-2 retrain (λ_e = 1, λ_h = 1, τ = 0.90; `experiments/2026-07-10_split_pred_rep/results_armC_seed2/`); the original seed-20260520 run's per-task file was not committed and is now gone. The sibling arms all train under seed 20260520, so each vs-arm-C CI absorbs one seed of noise on top of the loss-shape difference. Every other separation claim in this report is a same-seed contrast.
-
-One further caution: on the two arm-4 `best` rows the compared backbones are 11,800 steps apart — arm 4 at step 600 against bimoco at step 12,400 — so those two rows mix loss shape with backbone step. Single seed (20260520) for the sibling arms.
+Arm C's per-task file is a same-recipe seed-2 retrain; the sibling arms train at seed 20260520, so each vs-arm-C CI absorbs one seed of noise on top of the loss-shape difference. Every other separation claim in this report is a same-seed contrast. On the two arm-4 `best` rows the compared backbones are 11,800 steps apart (arm 4 step 600 vs bimoco step 12,400), so those two rows mix loss shape with backbone step.
 
 ## Result
 
@@ -22,11 +20,11 @@ One further caution: on the two arm-4 `best` rows the compared backbones are 11,
 
 ![Backbone training loss aligned with evaluated GM-Relative MASE snapshots](plots/loss_vs_gm_snapshots.png)
 
-*Backbone training loss on the left axis, as a 100-step rolling mean concatenated across the 1–12,500, 12,500–25,000 and 25,000–50,000 training segments. The right axis carries the arm's evaluated GM-Relative MASE cells: 2L as circles on a thin dotted line, 6L as triangles on a thin dashed line. A vertical guide marks each evaluated backbone step. `loss` is not comparable across arms, because the arms optimise different loss shapes, different negative counts, and in arm 4 a subtracted contrastive floor. Each panel is therefore read within itself. Sources in the trajectory annex and `plots/_make_loss_vs_gm.py`.*
+*Backbone training loss on the left axis, as a 100-step rolling mean concatenated across the 1–12,500, 12,500–25,000 and 25,000–50,000 training segments. The right axis carries the arm's evaluated GM-Relative MASE cells: 2L as circles on a thin dotted line, 6L as triangles on a thin dashed line. A vertical guide marks each evaluated backbone step. `loss` is not comparable across arms, because the arms optimise different loss shapes, different negative counts, and in arm 4 a subtracted contrastive floor. Each panel is therefore read within itself. Sources in the trajectory annex.*
 
 ![Retrieval error (1 − ff) aligned with evaluated GM-Relative MASE snapshots, per arm](plots/ff_vs_gm_snapshots.png)
 
-*Same alignment as the previous figure, but with `1 − ff` in the top rectangle instead of the training loss, and the downstream GM-Relative MASE at each snapshot step in the bottom rectangle (shared x-axis per arm). `ff = cos(f̂_t, f_true_{t+1})` is the training-time positive-pair cosine similarity, read from the `ff` column of each arm's losses CSV. Unlike raw `loss`, `1 − ff` is a common training-time diagnostic on the same numeric scale for every arm; interpretation still differs (arms 1, 3, 4, bimoco push it down through InfoNCE on that pair, arm 5 through BYOL alignment, arm 6 through BYOL alignment with teacher-side representation-side MoCo). 2L cells are circles on a thin dotted line, 6L cells triangles on a thin dashed line. Sources in the trajectory annex and `plots/_make_ff_vs_gm.py`.*
+*Same alignment as the previous figure, but with `1 − ff` in the top rectangle instead of the training loss, and the downstream GM-Relative MASE at each snapshot step in the bottom rectangle (shared x-axis per arm). `ff = cos(f̂_t, f_true_{t+1})` is the training-time positive-pair cosine similarity, read from the `ff` column of each arm's losses CSV. Unlike raw `loss`, `1 − ff` is a common training-time diagnostic on the same numeric scale for every arm; interpretation still differs (arms 1, 3, 4, bimoco push it down through InfoNCE on that pair, arm 5 through BYOL alignment, arm 6 through BYOL alignment with teacher-side representation-side MoCo). 2L cells are circles on a thin dotted line, 6L cells triangles on a thin dashed line. Sources in the trajectory annex.*
 
 ### 12,500-step cells
 
@@ -44,35 +42,7 @@ One further caution: on the two arm-4 `best` rows the compared backbones are 11,
 | arm bimoco (`L_pred_moco` + `L_rep_moco`) | **1.1225** | **1.1180** | **1.1138** | **1.1087** |
 | arm C ref (seed 2, step 12,500) | — | 1.1441 | — | 1.1318 |
 
-Every sibling-arm cell is the `Aggregate GM-Relative MASE (97 configs)` line of `summary.txt`, under `experiments/2026-07-10_split_pred_rep/<dir>/gift_eval_full_<arm base name>[_suffix]_<2L|6L>/`. The directory `<dir>` differs per arm:
-
-- arm 1 — `results/`, base name `…_split_pred_rep_xftrip_…`
-- arm 3 — `results/`, base name `…_split_pred_rep_moco_xftrip_…`
-- arm 4 — `results_arm4/`
-- arm 5 — `results_arm5/`
-- arm 6 — `results_arm6_v2/`
-- bimoco — `results_bimoco_v2/`
-- arm C ref — `results_armC_seed2/gift_eval_full_armC_seed2_step{12500,25000,50000}_{2L,6L}/`
-
-The superseded `results_arm6/` and `results_bimoco/` directories are not used in this report.
-
-## Denominator share
-
-![Per-family denominator share](plots/gradient_share_stack.png)
-
-*Per-family denominator share at each arm's best-cell backbone snapshot — step 12,500 for arm 1, step 11,800 for arm 3, step 600 for arm 4. Each snapshot is probed on a mixed batch and on a periodic-only batch of solar and electricity windows, at τ = 0.10 and probe B = 64. `share_i = exp(mean(logit_i − log-denominator))` is a per-anchor geometric mean, so the families need not sum to 1. Each bar's column sum Σ is printed above it.*
-
-Measured share of the cross-batch `f ↔ h′` family (`log_neg_cross_batch`) in the term carrying the prediction pairs (`experiments/2026-07-10_split_pred_rep/results/gradient_share_measurement.csv`):
-
-| arm | term | mixed batch | periodic batch |
-| --- | --- | --: | --: |
-| arm 1 (split, step 12,500) | `L_pred` | 0.901 | 0.991 |
-| arm 3 (split + MoCo, step 11,800) | `L_pred` | 0.937 | 0.997 |
-| arm 4 (pooled, step 600) | pooled | 0.003 | 0.003 |
-
-The three probed snapshots span 11,900 steps, so this split-vs-pooled difference is not separated from backbone step. bimoco was not probed.
-
-The probe runs at B = 64, whereas training ran at B = 512. Cross-batch share depends on B, so the absolute shares above are indicative rather than identical to the training-time split.
+Per-arm result-directory paths are in the Method annex.
 
 ## Trajectory cells (annex)
 
@@ -109,7 +79,35 @@ The `best` cell trains a fresh 30k-step quantile head, 2L or 6L, on the best-cel
 
 Eval: GIFT-Eval 97 configs, strategy B4, quantile-median MASE divided by the seasonal-naive reference in `experiments/2026-07-10_split_pred_rep/results/seasonal_naive_all_results.csv`.
 
+Every sibling-arm cell is the `Aggregate GM-Relative MASE (97 configs)` line of `summary.txt`, under `experiments/2026-07-10_split_pred_rep/<dir>/gift_eval_full_<arm base name>[_suffix]_<2L|6L>/`. The directory `<dir>` differs per arm:
+
+- arm 1 — `results/`, base name `…_split_pred_rep_xftrip_…`
+- arm 3 — `results/`, base name `…_split_pred_rep_moco_xftrip_…`
+- arm 4 — `results_arm4/`
+- arm 5 — `results_arm5/`
+- arm 6 — `results_arm6_v2/`
+- bimoco — `results_bimoco_v2/`
+- arm C ref — `results_armC_seed2/gift_eval_full_armC_seed2_step{12500,25000,50000}_{2L,6L}/`
+
+The superseded `results_arm6/` and `results_bimoco/` directories are not used in this report.
+
 f-anchored retrieval is saturated across all arms after step 600. `auc` stays at or above 0.9975, and the lowest `top1` is 0.8348, at arm 1 step 3,343, with every other arm above 0.95 (`auc` / `top1` columns of `experiments/2026-07-10_split_pred_rep/runs*/bb_*_losses*.csv`). This diagnostic therefore does not separate the arms.
+
+## Denominator share (annex)
+
+![Per-family denominator share](plots/gradient_share_stack.png)
+
+*Per-family denominator share at each arm's best-cell backbone snapshot — step 12,500 for arm 1, step 11,800 for arm 3, step 600 for arm 4. Each snapshot is probed on a mixed batch and on a periodic-only batch of solar and electricity windows, at τ = 0.10 and probe B = 64. `share_i = exp(mean(logit_i − log-denominator))` is a per-anchor geometric mean, so the families need not sum to 1. Each bar's column sum Σ is printed above it.*
+
+Measured share of the cross-batch `f ↔ h′` family (`log_neg_cross_batch`) in the term carrying the prediction pairs (`experiments/2026-07-10_split_pred_rep/results/gradient_share_measurement.csv`):
+
+| arm | term | mixed batch | periodic batch |
+| --- | --- | --: | --: |
+| arm 1 (split, step 12,500) | `L_pred` | 0.901 | 0.991 |
+| arm 3 (split + MoCo, step 11,800) | `L_pred` | 0.937 | 0.997 |
+| arm 4 (pooled, step 600) | pooled | 0.003 | 0.003 |
+
+The three probed snapshots span 11,900 steps, so this split-vs-pooled difference is not separated from backbone step. bimoco was not probed. The probe runs at B = 64, whereas training ran at B = 512; cross-batch share depends on B, so the absolute shares above are indicative rather than identical to the training-time split.
 
 ## Arms (annex)
 
