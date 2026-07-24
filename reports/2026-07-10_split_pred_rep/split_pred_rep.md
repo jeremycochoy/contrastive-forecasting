@@ -12,13 +12,13 @@
 
 ![Backbone training loss aligned with evaluated GM-Relative MASE snapshots](plots/loss_vs_gm_snapshots.png)
 
-*Backbone training loss (left axis, 100-step rolling mean, concatenated across the 1–12,500, 12,500–25,000 and 25,000–50,000 training segments) against the arm's evaluated GM-Relative MASE cells (right axis, 2L = circle, 6L = triangle), with a vertical guide at each evaluated backbone step. `loss` is not comparable across arms — the arms optimise different loss shapes, negative counts and (arm 4) a subtracted contrastive floor — so each panel is read within itself. Sources in the trajectory annex and `plots/_make_loss_vs_gm.py`.*
+*Backbone training loss (left axis, 100-step rolling mean, concatenated across the 1–12,500, 12,500–25,000 and 25,000–50,000 training segments) against the arm's evaluated GM-Relative MASE cells (right axis, 2L = circle + thin dotted line, 6L = triangle + thin dashed line), with a vertical guide at each evaluated backbone step. `loss` is not comparable across arms — the arms optimise different loss shapes, negative counts and (arm 4) a subtracted contrastive floor — so each panel is read within itself. Sources in the trajectory annex and `plots/_make_loss_vs_gm.py`.*
 
 ### 12,500-step cells
 
 ![Downstream GM-Relative MASE per arm](plots/headline_relmase.png)
 
-*Downstream GM-Relative MASE per arm at each (head, checkpoint) cell (point estimates; N = 1 seed). Dashed line = seasonal-naive (1.0). The hatched bar is arm C ref † — an external aggregate read from `experiments/2026-06-28_sigreg_lambda_tau_cross/results/gm_table.csv`, not reproducible from this experiment's results, and with no CI. Arm separation is the paired task-bootstrap in the CI-forest figure below, not a bar-to-bar comparison here.*
+*Downstream GM-Relative MASE per arm at each (head, checkpoint) cell (point estimates; N = 1 seed). Dashed line = seasonal-naive (1.0). The hatched bar is arm C ref † — an external aggregate read from `experiments/2026-06-28_sigreg_lambda_tau_cross/results/gm_table.csv`, not reproducible from this experiment's results, and with no CI. Arm separation is the paired task-bootstrap in the paired-bootstrap annex, not a bar-to-bar comparison here.*
 
 | arm | 2L / best | 2L / last | 6L / best | 6L / last |
 | --- | --: | --: | --: | --: |
@@ -33,25 +33,6 @@
 Sibling-arm cells: the `Aggregate GM-Relative MASE (97 configs)` line of `summary.txt` under `experiments/2026-07-10_split_pred_rep/<dir>/gift_eval_full_<arm base name>[_suffix]_<2L|6L>/`, with `<dir>` = `results/` for arm 1 (base `…_split_pred_rep_xftrip_…`) and arm 3 (base `…_split_pred_rep_moco_xftrip_…`), `results_arm4/` for arm 4, `results_arm5/` for arm 5, `results_arm6_v2/` for arm 6, `results_bimoco_v2/` for bimoco. The superseded `results_arm6/` and `results_bimoco/` directories are not used in this report.
 
 † arm C ref: aggregate read from `experiments/2026-06-28_sigreg_lambda_tau_cross/results/gm_table.csv` (arm `cross_C`); no per-task file exists.
-
-## Paired-bootstrap 95 % CIs on GM-Relative MASE ratios
-
-![Paired-bootstrap 95 % CIs on GM-Relative MASE ratios](plots/ci_forest.png)
-
-*Paired-bootstrap 95 % CIs on GM-Relative MASE ratios. Circle = task-level bootstrap; square (faded) = 28-dataset-clustered bootstrap. `*` marks checkpoint-selection- or step-confounded rows. n_boot = 20,000, seed 42. The figure shows 34 of the 60 contrasts counted in the table below: all 12 arm-1/3/4 pairwise rows and all 12 arm-1/3/4-vs-bimoco rows (`best` and `last`), plus the `last`-cell rows for arm 5 vs arm 1, arms 1/3/4 vs arm 6, and arm 5 vs arm 6. The remaining 26 contrasts are counted in the table but not plotted.*
-
-Rows counted as separated when the task-level 95 % CI excludes ratio 1.0 (`experiments/2026-07-10_split_pred_rep/results/pairwise_bootstrap_ci_*_nboot200k.csv` for the arm-5/6/bimoco references, `experiments/2026-07-10_split_pred_rep/results/pairwise_bootstrap_ci.csv` for the arm-1/3/4 pairwise; direction ratio > 1 → the named arm is worse than the reference). All rows use the 12,500-step cells.
-
-| contrast set | rows | separated at 95 % (task-level CI) |
-| --- | --: | --: |
-| arm 1 / 3 / 4 pairwise | 12 | 2 / 12 (both `best`, checkpoint-confounded) |
-| arm 5 vs arm 1 / 3 / 4 | 12 | 12 / 12 (arm 5 worse) |
-| arm 6 vs arm 1 / 3 / 4 | 12 | 4 / 12 (6L: best arm 3; last arms 1, 3, 4 lower than arm 6) |
-| arm 5 vs arm 6 | 4 | 3 / 4 (arm 6 lower) |
-| **arm 1 / 3 / 4 vs bimoco** | **12** | **12 / 12 (bimoco lower)** |
-| arm 5 / arm 6 vs bimoco | 8 | 8 / 8 (bimoco lower) |
-
-Within the arm-1/3/4-vs-bimoco family, 10 of the 12 rows also clear the Bonferroni threshold α = 0.05 / 60 = 0.000833; the two that miss are 2L / best arm 4 vs bimoco (p₂ = 0.00435) and 6L / best arm 3 vs bimoco (p₂ = 0.00426) (`two_sided_p` column of `experiments/2026-07-10_split_pred_rep/results/pairwise_bootstrap_ci_bimoco_nboot200k.csv`). On the periodic subset (37 of the 97 configs, `experiments/2026-07-10_split_pred_rep/results/pairwise_bootstrap_ci_periodic.csv`) bimoco is again the lowest arm in every cell, separated at 95 % on 10 of the 12 arm-1/3/4 rows; both exceptions are arm 4 `best` (2L CI 0.976–1.103, 6L CI 0.991–1.108).
 
 ## Denominator share
 
@@ -146,3 +127,22 @@ Arms 1 and 4's `best`-cell backbone is not the argmin of a comparable curve: arm
 - *28-dataset-clustered bootstrap* — resampling the 28 source datasets rather than the 97 configs, so within-dataset correlation between configs is not counted as independent evidence.
 - *arm C* — the SIGReg-cross champion recipe (`cross_C`: λ_e = 1, λ_h = 1, EMA τ = 0.90), the baseline this sweep is ranked against.
 - *Bonferroni family* — 60 contrasts = 15 arm pairs × 4 (head, checkpoint) cells on the full-97 panel, α = 0.05 / 60 = 0.000833.
+
+## Paired-bootstrap 95 % CIs (annex)
+
+![Paired-bootstrap 95 % CIs on GM-Relative MASE ratios](plots/ci_forest.png)
+
+*Paired-bootstrap 95 % CIs on GM-Relative MASE ratios. Circle = task-level bootstrap; square (faded) = 28-dataset-clustered bootstrap. `*` marks checkpoint-selection- or step-confounded rows. n_boot = 20,000, seed 42. The figure shows 34 of the 60 contrasts counted in the table below: all 12 arm-1/3/4 pairwise rows and all 12 arm-1/3/4-vs-bimoco rows (`best` and `last`), plus the `last`-cell rows for arm 5 vs arm 1, arms 1/3/4 vs arm 6, and arm 5 vs arm 6. The remaining 26 contrasts are counted in the table but not plotted.*
+
+Rows counted as separated when the task-level 95 % CI excludes ratio 1.0 (`experiments/2026-07-10_split_pred_rep/results/pairwise_bootstrap_ci_*_nboot200k.csv` for the arm-5/6/bimoco references, `experiments/2026-07-10_split_pred_rep/results/pairwise_bootstrap_ci.csv` for the arm-1/3/4 pairwise; direction ratio > 1 → the named arm is worse than the reference). All rows use the 12,500-step cells.
+
+| contrast set | rows | separated at 95 % (task-level CI) |
+| --- | --: | --: |
+| arm 1 / 3 / 4 pairwise | 12 | 2 / 12 (both `best`, checkpoint-confounded) |
+| arm 5 vs arm 1 / 3 / 4 | 12 | 12 / 12 (arm 5 worse) |
+| arm 6 vs arm 1 / 3 / 4 | 12 | 4 / 12 (6L: best arm 3; last arms 1, 3, 4 lower than arm 6) |
+| arm 5 vs arm 6 | 4 | 3 / 4 (arm 6 lower) |
+| **arm 1 / 3 / 4 vs bimoco** | **12** | **12 / 12 (bimoco lower)** |
+| arm 5 / arm 6 vs bimoco | 8 | 8 / 8 (bimoco lower) |
+
+Within the arm-1/3/4-vs-bimoco family, 10 of the 12 rows also clear the Bonferroni threshold α = 0.05 / 60 = 0.000833; the two that miss are 2L / best arm 4 vs bimoco (p₂ = 0.00435) and 6L / best arm 3 vs bimoco (p₂ = 0.00426) (`two_sided_p` column of `experiments/2026-07-10_split_pred_rep/results/pairwise_bootstrap_ci_bimoco_nboot200k.csv`). On the periodic subset (37 of the 97 configs, `experiments/2026-07-10_split_pred_rep/results/pairwise_bootstrap_ci_periodic.csv`) bimoco is again the lowest arm in every cell, separated at 95 % on 10 of the 12 arm-1/3/4 rows; both exceptions are arm 4 `best` (2L CI 0.976–1.103, 6L CI 0.991–1.108).

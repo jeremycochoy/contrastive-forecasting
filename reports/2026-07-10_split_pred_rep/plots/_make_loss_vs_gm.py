@@ -80,6 +80,7 @@ ARMS = [
 ]
 
 MARKER = {"2L": "o", "6L": "^"}
+LINESTYLE = {"2L": ":", "6L": "--"}
 
 
 def gm(path: Path) -> float | None:
@@ -129,8 +130,8 @@ for ax, (label, colour, rd, base, best_step, runs_dir, segs) in zip(axes.ravel()
         if not pts:
             continue
         xs, ys = zip(*pts)
-        ax2.plot(xs, ys, color=INK, lw=0, marker=MARKER[HL], markersize=6,
-                 markerfacecolor="none", markeredgewidth=1.3)
+        ax2.plot(xs, ys, color=INK, lw=0.7, ls=LINESTYLE[HL], marker=MARKER[HL],
+                 markersize=6, markerfacecolor="none", markeredgewidth=1.3)
         for x in xs:
             ax.axvline(x, color=MUTED, lw=0.6, ls=":", alpha=0.7)
     ax2.set_ylim(1.09, 1.35)
@@ -141,9 +142,9 @@ for ax in axes[1]:
 
 fig.legend(handles=[
     Line2D([], [], color=INK, lw=1.2, label="backbone training loss (left axis)"),
-    Line2D([], [], color=INK, lw=0, marker="o", markerfacecolor="none",
+    Line2D([], [], color=INK, lw=0.7, ls=":", marker="o", markerfacecolor="none",
            markeredgewidth=1.3, label="GM-Relative MASE, 2L head (right axis)"),
-    Line2D([], [], color=INK, lw=0, marker="^", markerfacecolor="none",
+    Line2D([], [], color=INK, lw=0.7, ls="--", marker="^", markerfacecolor="none",
            markeredgewidth=1.3, label="GM-Relative MASE, 6L head (right axis)"),
 ], loc="lower center", ncol=3, fontsize=8, frameon=False)
 fig.suptitle(
