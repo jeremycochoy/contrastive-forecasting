@@ -55,10 +55,12 @@ ARM_C_REF = {(r["head"], r["ckpt"]): float(r["gm"]) for _, r in _cc.iterrows()}
 fig, axes = plt.subplots(1, 2, figsize=(14, 6), sharey=True)
 for i, HL in enumerate(("2L", "6L")):
     ax = axes[i]
-    for j, ck in enumerate(("best", "last")):
+    REF_STYLE = {"best": (":", "arm C best †"), "last": ("--", "arm C last †")}
+    for ck in ("best", "last"):
         ref = ARM_C_REF[(HL, ck)]
-        ax.axhline(ref, color=MUTED, lw=1.2, ls="--",
-                   label="arm C ref (champion)" if (i == 0 and j == 0) else None)
+        ls, ref_label = REF_STYLE[ck]
+        ax.axhline(ref, color=MUTED, lw=1.4, ls=ls,
+                   label=ref_label if i == 0 else None)
     for label, rd, base, best_step, colour in ARMS:
         # (step, suffix) — each read as f"{base}{suffix}_{HL}"
         candidates = [

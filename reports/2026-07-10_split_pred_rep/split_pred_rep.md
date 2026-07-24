@@ -1,4 +1,4 @@
-# Splitting the contrastive loss (L_pred + L_rep) does not beat the SIGReg champion; MoCo-on-both leads the sibling arms at 12,500 steps
+# Splitting the contrastive loss (L_pred + L_rep) is not established as beating the SIGReg champion; MoCo-on-both (bimoco) point-beats the champion in all four (head, checkpoint) cells and leads the sibling arms with CIs at 12,500 steps
 
 **Question.** The champion loss merges five negative tensors under one pooled log-sum-exp denominator. Does splitting it into `L_pred` (f-anchored) and `L_rep` (h-anchored) improve GM-Relative MASE on the GIFT-Eval 97-config panel, and does adding EMA-teacher MoCo keys or replacing `L_pred` with BYOL alignment change the answer? (terms defined in annex)
 
@@ -6,7 +6,7 @@
 
 ## Result
 
-![Downstream GM-Relative MASE per arm at each (head, checkpoint) cell (point estimates; N = 1 seed). Dashed line = seasonal-naive (1.0). Arm separation is the paired task-bootstrap in the CI-forest figure below, not a bar-to-bar comparison here.](plots/headline_relmase.png)
+![Downstream GM-Relative MASE per arm at each (head, checkpoint) cell (point estimates; N = 1 seed). Dashed line = seasonal-naive (1.0). The hatched bar is arm C ref † — an external aggregate read from `experiments/2026-06-28_sigreg_lambda_tau_cross/results/gm_table.csv`, not reproducible from this experiment's `results/`, and with no CI. Arm separation is the paired task-bootstrap in the CI-forest figure below, not a bar-to-bar comparison here.](plots/headline_relmase.png)
 
 | arm | 2L / best | 2L / last | 6L / best | 6L / last |
 | --- | --: | --: | --: | --: |
@@ -22,9 +22,9 @@
 
 ## GM-Relative MASE across backbone step
 
-![GM-Relative MASE per arm across backbone step (2k / best / 12,500 / 25k / 50k where available), shared y-axis, with the arm C champion † best and last cells as horizontal references. The 12,500 `best`/`last` cells use a 30k best-loss head (+10k resume for `last`); the 2k / 25k / 50k cells use a fresh 40k head on that snapshot.](plots/gm_curve_per_arm.png)
+![GM-Relative MASE per arm across backbone step (2k / best / 12,500 / 25k / 50k where available), shared y-axis, with the arm C champion † best (dotted) and last (dashed) cells as horizontal references. The 12,500 `best`/`last` cells use a 30k best-loss head (+10k resume for `last`); the 2k / 25k / 50k cells use a fresh 40k head on that snapshot.](plots/gm_curve_per_arm.png)
 
-Continuing the backbones past 12,500 steps does not lower any arm below its 12,500-step value on the 2L head; arm 1 rises the most (2L GM 1.1669 at 12,500 → 1.2334 at 50,000, the only non-arm-5 arm above 1.21). In the 25,000 continuations arm 4 (pooled + MoCo) reaches GM comparable to or below bimoco (arm 4 6L 25k = 1.1073 vs bimoco 6L 25k = 1.1319), so the bimoco advantage is established at the four 12,500-step cells used for the arm ranking, not across the full trajectory.
+Continuing past 12,500 steps lowers no arm below its 12,500-step value, and arm 4 (pooled + MoCo) matches or beats bimoco at 25k (arm 4 6L 25k = 1.1073 vs bimoco 6L 25k = 1.1319), so the bimoco lead is established only at the four 12,500-step cells used for the arm ranking.
 
 ## Paired-bootstrap 95 % CIs on GM-Relative MASE ratios
 
@@ -41,7 +41,7 @@ Rows counted as separated when the task-level 95 % CI excludes ratio 1.0 (`exper
 | **arm 1 / 3 / 4 vs bimoco** | **12** | **12 / 12 (bimoco lower)** |
 | arm 5 / arm 6 vs bimoco | 8 | 8 / 8 (bimoco lower) |
 
-Within the arm-1/3/4-vs-bimoco family, 10 of the 12 rows also clear the Bonferroni threshold α = 0.05 / 60 = 0.000833; the two that miss are 2L / best arm 4 vs bimoco (p₂ = 0.00435) and 6L / best arm 3 vs bimoco (p₂ = 0.00426). On the periodic-cluster subset (`results/pairwise_bootstrap_ci_periodic.csv`) bimoco is again the lowest arm in every cell, separated at 95 % on 10 of the 12 arm-1/3/4 rows (both exceptions are arm 4 `best`).
+Within the arm-1/3/4-vs-bimoco family, 10 of the 12 rows also clear the Bonferroni threshold α = 0.05 / 60 = 0.000833; the two that miss are 2L / best arm 4 vs bimoco (p₂ = 0.00435) and 6L / best arm 3 vs bimoco (p₂ = 0.00426) (`two_sided_p` column of `results/pairwise_bootstrap_ci_bimoco_nboot200k.csv`). On the periodic-cluster subset (`results/pairwise_bootstrap_ci_periodic.csv`) bimoco is again the lowest arm in every cell, separated at 95 % on 10 of the 12 arm-1/3/4 rows (both exceptions are arm 4 `best`).
 
 ## Denominator share
 
@@ -101,4 +101,4 @@ Arms 1 and 4's `best`-cell backbone is not the argmin of a comparable curve: arm
 
 ## f-anchored retrieval saturation (annex)
 
-f-anchored retrieval is saturated across all arms after step 600: `auc` ≥ 0.9975, minimum `top1` 0.8348 (arm 1, step 3,343), every other arm above 0.95.
+f-anchored retrieval is saturated across all arms after step 600: `auc` ≥ 0.9975, minimum `top1` 0.8348 (arm 1, step 3,343; `runs/bb_split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_losses_full.csv`, `top1` column), every other arm above 0.95.

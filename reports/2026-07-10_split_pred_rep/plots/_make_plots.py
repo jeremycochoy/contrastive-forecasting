@@ -114,15 +114,17 @@ def headline() -> None:
                  ( 0.0 * width, "arm5", C_ARM5, "arm 5 (L_align + L_rep)"),
                  ( 1.0 * width, "arm6", C_ARM6, "arm 6 (L_align + L_rep_moco)"),
                  ( 2.0 * width, "bimoco", C_BIMOCO, "arm bimoco (L_pred_moco + L_rep_moco)"),
-                 ( 3.0 * width, None,  C_CHAMP, "arm C ref (champion)")]
+                 ( 3.0 * width, None,  C_CHAMP, "arm C ref † (external, no CI)")]
     for off, arm, colour, label in arm_slots:
-        if arm is None:
+        is_ref = arm is None
+        if is_ref:
             vals = [champ[g] for g in GROUPS]
         else:
             vals = [read_aggregate(arm, h, c) for h, c in GROUPS]
+        bar_kw = dict(hatch="////", edgecolor="white", linewidth=0.0) if is_ref else {}
         for xi, (v, (h, c)) in zip(x, zip(vals, GROUPS)):
-            ax.bar(xi + off, v - 1.0, width, bottom=1.0, color=colour)
-        ax.bar(0, 0, color=colour, label=label)  # legend proxy
+            ax.bar(xi + off, v - 1.0, width, bottom=1.0, color=colour, **bar_kw)
+        ax.bar(0, 0, color=colour, label=label, **bar_kw)  # legend proxy
     ax.axhline(1.0, color=MUTED, lw=1.2, ls="--", label="seasonal-naive = 1.0")
     ax.set_xticks(x, [f"{h} / {c}" for h, c in GROUPS])
     ax.set_xlim(-0.55, 3.55)
