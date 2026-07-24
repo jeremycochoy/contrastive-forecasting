@@ -30,12 +30,12 @@ plt.rcParams.update({
 
 # (label, results-dir, base name, best_step, colour).
 ARMS = [
-    ("L_pred + L_rep",                    "results",           "gift_eval_full_split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090",           12500, C_ARM1),
-    ("L_pred_moco + L_rep",               "results",           "gift_eval_full_split_pred_rep_moco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090",      11800, C_ARM3),
-    ("L_pooled_moco",                     "results_arm4",      "gift_eval_full_allt08_moco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm4_tau090",           600, C_ARM4),
-    ("L_align + L_rep",                   "results_arm5",      "gift_eval_full_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090",             11800, C_ARM5),
-    ("L_align + L_rep_moco (arm 6)",      "results_arm6_v2",   "gift_eval_full_lalign_lrepmoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm6v2_tau090",   8700, C_ARM6),
-    ("L_pred_moco + L_rep_moco (bimoco)", "results_bimoco_v2", "gift_eval_full_split_pred_rep_bimoco_v2_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090", 12400, C_BIMOCO),
+    ("arm 1 (split)",                  "results",           "gift_eval_full_split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090",           12500, C_ARM1),
+    ("arm 3 (split + MoCo)",           "results",           "gift_eval_full_split_pred_rep_moco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090",      11800, C_ARM3),
+    ("arm 4 (pooled + MoCo)",          "results_arm4",      "gift_eval_full_allt08_moco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm4_tau090",           600, C_ARM4),
+    ("arm 5 (L_align + L_rep)",        "results_arm5",      "gift_eval_full_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090",             11800, C_ARM5),
+    ("arm 6 (L_align + L_rep_moco)",   "results_arm6_v2",   "gift_eval_full_lalign_lrepmoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm6v2_tau090",   8700, C_ARM6),
+    ("arm bimoco (L_pred_moco + L_rep_moco)", "results_bimoco_v2", "gift_eval_full_split_pred_rep_bimoco_v2_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090", 12400, C_BIMOCO),
 ]
 
 

@@ -1,8 +1,8 @@
 # Split L_pred + L_rep contrastive loss — arm sweep on the SIGReg-champion backbone
 
-**Question.** The champion loss merges five negative tensors under one pooled log-sum-exp denominator. Does splitting it into `L_pred` (f-anchored: `f` = forecast latent, scored positive against the next-step representation latent `h`) and `L_rep` (h-anchored, log-sum-exp only) improve GM-Relative MASE (geometric-mean forecast error relative to seasonal-naive; defined in annex) on the GIFT-Eval 97-config panel, and does adding EMA-teacher MoCo keys (momentum-contrast: keys from an EMA teacher) or replacing `L_pred` with BYOL alignment (negative-free predictor-to-teacher matching) change the answer?
+**Question.** The champion loss merges five negative tensors under one pooled log-sum-exp denominator. Does splitting it into `L_pred` (f-anchored) and `L_rep` (h-anchored) improve GM-Relative MASE on the GIFT-Eval 97-config panel, and does adding EMA-teacher MoCo keys or replacing `L_pred` with BYOL alignment change the answer? (terms defined in annex)
 
-**Answer.** No arm is established as beating the champion: only point estimates exist against arm C (no per-task file → no CI), bimoco's estimates are lower in all four cells but the narrowest gap is 0.0167 (6L / last: 1.1254 → 1.1087). Among the six sibling arms, `L_pred_moco + L_rep_moco` (bimoco) has the lowest GM-Relative MASE at all four 12,500-step (head, checkpoint) cells — 1.1225 / 1.1180 / 1.1138 / 1.1087 — and is 95 %-separated from arms 1, 3, 4, 5, 6 in every cell (paired task-bootstrap, below). The lead does not hold past 12,500 steps: arm 4 (pooled + MoCo) matches or beats bimoco at 25k (arm 4 6L 25k = 1.1073 vs bimoco 1.1319). Single seed (20260520).
+**Answer.** No arm is established as beating the SIGReg-champion. Only point estimates exist against arm C (no per-task file → no CI). bimoco's estimates are lower than arm C in all four cells, but the narrowest gap is 0.0167 (6L / last: 1.1254 → 1.1087) — 1.1254 is the arm-C point estimate, an external file with no per-task CI, so the 0.0167 gap is a point-estimate difference only. Among the six sibling arms, `L_pred_moco + L_rep_moco` (bimoco) has the lowest GM-Relative MASE at all four 12,500-step (head, checkpoint) cells — 1.1225 / 1.1180 / 1.1138 / 1.1087 — and is 95 %-separated from arms 1, 3, 4, 5, 6 in every cell (paired task-bootstrap, below). The lead does not hold past 12,500 steps: arm 4 (pooled + MoCo) matches or beats bimoco at 25k. Single seed (20260520).
 
 ## Result
 
@@ -47,7 +47,7 @@ Within the arm-1/3/4-vs-bimoco family, 10 of the 12 rows also clear the Bonferro
 
 ## Denominator share
 
-In the pooled shape the prediction family (`log_neg_cross_batch`) holds 0.003 of the denominator on both the mixed and periodic batch; the split gives the prediction pairs their own denominator (0.901 mixed / 0.991 periodic). Arm 4 stands in for arm C, per the arm-C note above.
+Splitting gives the prediction pairs a near-full denominator; pooling collapses their share to 0.003 (both batches). Arm 4 stands in for arm C, per the arm-C note above.
 
 ![Per-family denominator share at each arm's FINAL.pth backbone snapshot (arm 1: step 12,500; arm 3: step 11,800; arm 4: step 600), on a mixed batch and a periodic-only batch (solar/electricity windows), τ = 0.10, probe B = 64.](plots/gradient_share_stack.png)
 
