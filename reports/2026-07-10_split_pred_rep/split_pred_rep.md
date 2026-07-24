@@ -1,14 +1,12 @@
-# Split L_pred + L_rep contrastive loss — arm sweep on the SIGReg-champion backbone
+# Splitting the contrastive loss into L_pred + L_rep does not beat the SIGReg-champion; MoCo-on-both (bimoco) leads the sibling arms, but only at 12,500 steps
 
 **Question.** The champion loss merges five negative tensors under one pooled log-sum-exp denominator. Does splitting it into `L_pred` (f-anchored) and `L_rep` (h-anchored) improve GM-Relative MASE on the GIFT-Eval 97-config panel, and does adding EMA-teacher MoCo keys or replacing `L_pred` with BYOL alignment change the answer? (terms defined in annex)
 
-**Answer.** No arm is established as beating the SIGReg-champion. Only point estimates exist against arm C (no per-task file → no CI). bimoco's estimates are lower than arm C in all four cells, but the narrowest gap is 0.0167 (6L / last: 1.1254 → 1.1087) — 1.1254 is the arm-C point estimate, an external file with no per-task CI, so the 0.0167 gap is a point-estimate difference only. Among the six sibling arms, `L_pred_moco + L_rep_moco` (bimoco) has the lowest GM-Relative MASE at all four 12,500-step (head, checkpoint) cells — 1.1225 / 1.1180 / 1.1138 / 1.1087 — and is 95 %-separated from arms 1, 3, 4, 5, 6 in every cell (paired task-bootstrap, below). The lead does not hold past 12,500 steps: arm 4 (pooled + MoCo) matches or beats bimoco at 25k. Single seed (20260520).
+**Answer.** No arm is established as beating the SIGReg-champion (arm C). Among the six sibling arms, `L_pred_moco + L_rep_moco` (bimoco) has the lowest GM-Relative MASE at all four 12,500-step (head, checkpoint) cells and is 95 %-separated from arms 1, 3, 4, 5, 6 in every cell (paired task-bootstrap, below). bimoco's point estimates are also below arm C in all four cells (narrowest gap 0.0167 at 6L / last), but arm C has no per-task file on this branch, so that gap is a point-estimate difference with no CI. The lead does not hold past 12,500 steps: arm 4 (pooled + MoCo) matches or beats bimoco at 25k. Single seed (20260520).
 
 ## Result
 
-![Downstream GM-Relative MASE per arm at each (head, checkpoint) cell. Bars carry the 95 % task-bootstrap band over the 97 configs; the champion (arm C) carries no paired CI. Dashed line = seasonal-naive (1.0).](plots/headline_relmase.png)
-
-These marginal bands are not the separation test; arm separation is read from the CI-forest figure below.
+![Downstream GM-Relative MASE per arm at each (head, checkpoint) cell (point estimates; N = 1 seed). Dashed line = seasonal-naive (1.0). Arm separation is the paired task-bootstrap in the CI-forest figure below, not a bar-to-bar comparison here.](plots/headline_relmase.png)
 
 | arm | 2L / best | 2L / last | 6L / best | 6L / last |
 | --- | --: | --: | --: | --: |
@@ -73,6 +71,8 @@ All backbones: B = 512, T = 4096, C = 1, τ = 0.10, `lr = 1e-3`, seed 20260520, 
 | arm bimoco | `cosine_similarity_batch_split_pred_rep` | `--moco-negatives --moco-rep-keys` | `L = L_pred_moco + L_rep_moco`; MoCo + positive-in-denominator on both terms |
 | arm C ref | `cosine_similarity_batch_full_hh_negs_xshh_allt` | — | SIGReg-cross champion (λ_e = 1, λ_h = 1, EMA τ = 0.90), reused without retraining |
 
+Arm 2 is a slot in the original issue numbering that was not run in this sweep; the arm sequence is 1, 3, 4, 5, 6, bimoco, C.
+
 ## Backbone step (annex)
 
 | arm | `best` cell step | `last` cell step | `FINAL.pth` = |
@@ -89,12 +89,13 @@ Arms 1 and 4's `best`-cell backbone is not the argmin of a comparable curve: arm
 
 ## Definitions (annex)
 
+- *f* / *h* — *f* is the forecaster's next-step latent (the forecast); *h* is the encoder's original latent. *f-anchored* / *h-anchored* families take *f* resp. *h* as the query.
 - *GM-Relative MASE* — geometric mean over the 97 GIFT-Eval configs of `(model MASE) / (seasonal-naive MASE)`, at quantile 0.5. Lower is better; 1.0 = seasonal-naive.
 - *log-sum-exp denominator* — the InfoNCE normaliser at an anchor: the soft-max over all negative similarity scores (and, under `--pos-in-denominator`, the positive score too).
 - *MoCo* — cross-batch keys sourced from an EMA teacher (τ = 0.90) instead of the student.
 - *SIGReg* — the spectral isotropy regulariser applied to the encoder (λ_e) and head (λ_h) latents; the champion uses λ_e = λ_h = 1.
 - *CPC* — the contrastive predictive-coding auxiliary head, on in every arm.
-- *BYOL alignment (`L_align`)* — `2 − 2·cos(f_t, sg(h^T_{t+1}))`; negative-free, minimum 0.
+- *BYOL alignment (`L_align`)* — `2 − 2·cos(f_t, sg(h^T_{t+1}))` (sg = stop-gradient); negative-free, minimum 0.
 - *`L_rep_moco`* — normalized InfoNCE over the three h-anchored families with teacher-side keys; the same-batch same-time student ↔ teacher pair sits in both numerator and denominator log-sum-exp.
 - *`auc` / `top1`* — retrieval quality of the f-anchored positive against the B = 512 cross-batch candidates: ROC area of the positive-score distribution, and the fraction of anchors whose positive ranks first.
 - *B4* — GIFT-Eval evaluation strategy B4 (teacher-forced probe over the full 97-config panel).

@@ -122,11 +122,6 @@ def headline() -> None:
             vals = [read_aggregate(arm, h, c) for h, c in GROUPS]
         for xi, (v, (h, c)) in zip(x, zip(vals, GROUPS)):
             ax.bar(xi + off, v - 1.0, width, bottom=1.0, color=colour)
-            if arm is not None:
-                ci = bootstrap_gm_ci(cell_relatives(arm, h, c))
-                if ci is not None:
-                    ax.errorbar(xi + off, v, yerr=[[v - ci[0]], [ci[1] - v]],
-                                fmt="none", ecolor=INK, elinewidth=1.0, capsize=2)
         ax.bar(0, 0, color=colour, label=label)  # legend proxy
     ax.axhline(1.0, color=MUTED, lw=1.2, ls="--", label="seasonal-naive = 1.0")
     ax.set_xticks(x, [f"{h} / {c}" for h, c in GROUPS])
