@@ -184,10 +184,14 @@ def gradient_share_stack() -> None:
                                 xytext=(xpos + 1.05, 0.30), fontsize=8, color=INK,
                                 arrowprops=dict(arrowstyle="-", color=MUTED, lw=0.9))
                 bottom += share
+            if bottom > 0:
+                dy = 0.015 if BAR_SLOTS.index((arm, denom, ticklabel, xpos)) % 2 == 0 else 0.075
+                ax.text(xpos, bottom + dy, f"Σ = {bottom:.3f}", ha="center",
+                        va="bottom", fontsize=8, color=MUTED)
         ax.set_xlim(-0.6, 6.9)
         ax.set_xticks([s[3] for s in BAR_SLOTS], [s[2] for s in BAR_SLOTS], fontsize=9)
         ax.set_title(f"{batch} batch", fontsize=10.5)
-        ax.set_ylim(0, 1.02)
+        ax.set_ylim(0, 1.10)
         ax.grid(axis="y", color=GRID, lw=0.7)
         ax.set_axisbelow(True)
         for side in ("top", "right"):
@@ -196,11 +200,13 @@ def gradient_share_stack() -> None:
     handles = [plt.Rectangle((0, 0), 1, 1, color=C_TENSOR[t]) for t in STACK_ORDER]
     fig.legend(handles, [TENSOR_LABEL[t] for t in STACK_ORDER],
                loc="upper center", ncol=2, fontsize=8.5, frameon=False,
-               bbox_to_anchor=(0.5, 0.995))
-    fig.suptitle("Per-family denominator share at each arm's FINAL.pth backbone snapshot"
-                 "\n(arm 1: step 12,500; arm 3: step 11,800; arm 4: step 600  —  τ = 0.10, B = 64)",
-                 y=0.86, fontsize=10.5)
-    fig.tight_layout(rect=(0, 0, 1, 0.78))
+               bbox_to_anchor=(0.5, 0.855))
+    fig.suptitle("Per-family denominator share at each arm's best-cell backbone snapshot"
+                 "\n(arm 1: step 12,500; arm 3: step 11,800; arm 4: step 600  —  τ = 0.10, B = 64)"
+                 "\nshare_i = exp(mean(logit_i − log-denominator)): a per-anchor geometric mean, "
+                 "so the families need not sum to 1 (column sums Σ shown above each bar)",
+                 y=0.985, fontsize=10.5)
+    fig.tight_layout(rect=(0, 0, 1, 0.83))
     fig.savefig(HERE / "gradient_share_stack.png")
     plt.close(fig)
 
