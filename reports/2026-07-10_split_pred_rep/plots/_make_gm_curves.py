@@ -21,6 +21,7 @@ EXP = ROOT / "experiments" / "2026-07-10_split_pred_rep"
 
 C_ARM1, C_ARM3, C_ARM4 = "#2a78d6", "#eb6834", "#008300"
 C_ARM5, C_ARM6, C_BIMOCO = "#8b1e8b", "#b8860b", "#00a3a3"
+C_ARMC = "#52514e"
 INK, MUTED, GRID = "#0b0b0b", "#898781", "#e1e0d9"
 plt.rcParams.update({
     "figure.dpi": 150, "savefig.dpi": 150, "font.size": 10,
@@ -46,21 +47,32 @@ def gm(path: Path) -> float | None:
     return float(m.group(1)) if m else None
 
 
-# arm C (champion cross_C) references from the sigreg cross experiment.
-SIGREG = ROOT / "experiments" / "2026-06-28_sigreg_lambda_tau_cross"
-_gm = pd.read_csv(SIGREG / "results" / "gm_table.csv")
-_cc = _gm[_gm["arm"] == "cross_C"]
-ARM_C_REF = {(r["head"], r["ckpt"]): float(r["gm"]) for _, r in _cc.iterrows()}
+# arm C (SIGReg-cross champion recipe) — seed-2 retrain trajectory.
+# The original seed-20260520 arm C per-task file was never committed and
+# is now gone; a same-recipe seed-2 retrain lives here with per-task files
+# at backbone steps 12,500 / 25,000 / 50,000.
+ARM_C_STEPS = (12500, 25000, 50000)
+ARM_C_DIR = EXP / "results_armC_seed2"
+
+
+def arm_c(head: str) -> list[tuple[int, float]]:
+    pts = []
+    for step in ARM_C_STEPS:
+        v = gm(ARM_C_DIR / f"gift_eval_full_armC_seed2_step{step}_{head}" / "summary.txt")
+        if v is not None:
+            pts.append((step, v))
+    return pts
+
 
 fig, axes = plt.subplots(1, 2, figsize=(14, 6), sharey=True)
 for i, HL in enumerate(("2L", "6L")):
     ax = axes[i]
-    REF_STYLE = {"best": (":", "arm C best †"), "last": ("--", "arm C last †")}
-    for ck in ("best", "last"):
-        ref = ARM_C_REF[(HL, ck)]
-        ls, ref_label = REF_STYLE[ck]
-        ax.axhline(ref, color=MUTED, lw=1.4, ls=ls,
-                   label=ref_label if i == 0 else None)
+    # arm C (seed-2) — solid line, distinct grey.
+    c_pts = arm_c(HL)
+    if c_pts:
+        xs, ys = zip(*c_pts)
+        ax.plot(xs, ys, color=C_ARMC, lw=1.8, marker="D", markersize=6,
+                label="arm C (SIGReg champion, seed 2)" if i == 0 else None)
     for label, rd, base, best_step, colour in ARMS:
         # (step, suffix) — each read as f"{base}{suffix}_{HL}"
         candidates = [

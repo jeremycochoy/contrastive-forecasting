@@ -63,9 +63,20 @@ def read_aggregate(arm: str, head: str, ckpt: str):
 
 
 def champion_cells() -> dict:
-    gm = pd.read_csv(SIGREG / "results" / "gm_table.csv")
-    rows = gm[gm["arm"] == "cross_C"]
-    return {(r["head"], r["ckpt"]): float(r["gm"]) for _, r in rows.iterrows()}
+    """arm C aggregates from the seed-2 retrain at backbone step 12,500.
+
+    The sibling `last` cells all use the step-12,500 backbone, so we place
+    the seed-2 arm C step-12,500 value under `last`. The sibling `best`
+    cells use each arm's own best-loss checkpoint (a different step per
+    arm); arm C has no best-loss save, so `best` is left unset here and
+    is not plotted for arm C.
+    """
+    out = {}
+    for HL in ("2L", "6L"):
+        p = EXP / "results_armC_seed2" / f"gift_eval_full_armC_seed2_step12500_{HL}" / "summary.txt"
+        m = re.search(r"Aggregate GM-Relative MASE \(97 configs\): ([0-9.]+)", p.read_text())
+        out[(HL, "last")] = float(m.group(1))
+    return out
 
 
 def cell_relatives(arm: str, head: str, ckpt: str):
@@ -114,15 +125,18 @@ def headline() -> None:
                  ( 0.0 * width, "arm5", C_ARM5, "arm 5 (L_align + L_rep)"),
                  ( 1.0 * width, "arm6", C_ARM6, "arm 6 (L_align + L_rep_moco)"),
                  ( 2.0 * width, "bimoco", C_BIMOCO, "arm bimoco (L_pred_moco + L_rep_moco)"),
-                 ( 3.0 * width, None,  C_CHAMP, "arm C ref † (external, no CI)")]
+                 ( 3.0 * width, None,  C_CHAMP, "arm C ref (seed 2, step 12,500)")]
     for off, arm, colour, label in arm_slots:
         is_ref = arm is None
         if is_ref:
-            vals = [champ[g] for g in GROUPS]
+            # arm C only has a step-12,500 seed-2 aggregate, matched to `last` cells.
+            vals = [champ.get(g) for g in GROUPS]
         else:
             vals = [read_aggregate(arm, h, c) for h, c in GROUPS]
         bar_kw = dict(hatch="////", edgecolor="white", linewidth=0.0) if is_ref else {}
         for xi, (v, (h, c)) in zip(x, zip(vals, GROUPS)):
+            if v is None:
+                continue  # arm C `best` columns: nothing to plot
             ax.bar(xi + off, v - 1.0, width, bottom=1.0, color=colour, **bar_kw)
         ax.bar(0, 0, color=colour, label=label, **bar_kw)  # legend proxy
     ax.axhline(1.0, color=MUTED, lw=1.2, ls="--", label="seasonal-naive = 1.0")
@@ -248,6 +262,23 @@ FOREST_ROWS = [
     ("6L / best*", "arm 4 vs bimoco",  "pooled+MoCo ↔ split + MoCo both terms", "arm4", "bimoco"),
 ]
 
+# Sibling `last` cells (step 12,500 backbone) vs seed-2 arm C step-12,500.
+# Task-level bootstrap only — arm C has no 28-dataset-clustered pass.
+ARM_C_FOREST_ROWS = [
+    ("2L / last",  "arm 1 vs arm C", "split ↔ SIGReg champion",       "arm1",   "armC_seed2"),
+    ("6L / last",  "arm 1 vs arm C", "split ↔ SIGReg champion",       "arm1",   "armC_seed2"),
+    ("2L / last",  "arm 3 vs arm C", "split+MoCo ↔ SIGReg champion",  "arm3",   "armC_seed2"),
+    ("6L / last",  "arm 3 vs arm C", "split+MoCo ↔ SIGReg champion",  "arm3",   "armC_seed2"),
+    ("2L / last",  "arm 4 vs arm C", "pooled+MoCo ↔ SIGReg champion", "arm4",   "armC_seed2"),
+    ("6L / last",  "arm 4 vs arm C", "pooled+MoCo ↔ SIGReg champion", "arm4",   "armC_seed2"),
+    ("2L / last",  "arm 5 vs arm C", "L_align+L_rep ↔ SIGReg champion",         "arm5",   "armC_seed2"),
+    ("6L / last",  "arm 5 vs arm C", "L_align+L_rep ↔ SIGReg champion",         "arm5",   "armC_seed2"),
+    ("2L / last",  "arm 6 vs arm C", "L_align+L_rep_moco ↔ SIGReg champion",    "arm6",   "armC_seed2"),
+    ("6L / last",  "arm 6 vs arm C", "L_align+L_rep_moco ↔ SIGReg champion",    "arm6",   "armC_seed2"),
+    ("2L / last",  "bimoco vs arm C","split+MoCo(both terms) ↔ SIGReg champion","bimoco", "armC_seed2"),
+    ("6L / last",  "bimoco vs arm C","split+MoCo(both terms) ↔ SIGReg champion","bimoco", "armC_seed2"),
+]
+
 
 def _lookup(df, cell, arm_a, arm_b):
     head, ck = cell.split(" / ")
@@ -263,23 +294,42 @@ def _lookup(df, cell, arm_a, arm_b):
     return row["ratio_a_over_b"], row["ci_lo"], row["ci_hi"]
 
 
+def _lookup_armc(df, cell, arm_a):
+    head, ck = cell.split(" / ")
+    ck = ck.rstrip("*")
+    # arm C schema: head + cell in {last, 25k, 50k}, arm_a arm_b.
+    r = df[(df["head"] == head) & (df["cell"] == ck) & (df["arm_a"] == arm_a) &
+           (df["arm_b"] == "armC_seed2")]
+    row = r.iloc[0]
+    return row["ratio_a_over_b"], row["ci_lo"], row["ci_hi"]
+
+
 def ci_forest() -> None:
     task = pd.read_csv(EXP / "results" / "pairwise_bootstrap_ci.csv")
     clu  = pd.read_csv(EXP / "results" / "pairwise_bootstrap_ci_clustered.csv")
-    fig, ax = plt.subplots(figsize=(11.5, 10.5))
-    n = len(FOREST_ROWS)
-    for i, (cell, contrast, ax_label, a, b) in enumerate(FOREST_ROWS):
+    armc = pd.read_csv(EXP / "results" / "pairwise_bootstrap_ci_vs_armC.csv")
+    all_rows = FOREST_ROWS + ARM_C_FOREST_ROWS
+    fig, ax = plt.subplots(figsize=(11.5, 12.5))
+    n = len(all_rows)
+    for i, (cell, contrast, ax_label, a, b) in enumerate(all_rows):
         yt = n - 1 - i
-        rt, lot, hit = _lookup(task, cell, a, b)
-        rc, loc_, hic = _lookup(clu,  cell, a, b)
-        col = ("#00a3a3" if a == "bimoco" or b == "bimoco" else
+        is_armc = b == "armC_seed2"
+        if is_armc:
+            rt, lot, hit = _lookup_armc(armc, cell, a)
+            rc, loc_, hic = None, None, None
+        else:
+            rt, lot, hit = _lookup(task, cell, a, b)
+            rc, loc_, hic = _lookup(clu, cell, a, b)
+        col = ("#52514e" if is_armc else
+               "#00a3a3" if a == "bimoco" or b == "bimoco" else
                "#b8860b" if a == "arm6" or b == "arm6" else
                "#8b1e8b" if a == "arm5" or b == "arm5" else INK)
         ax.plot([lot, hit], [yt + 0.12, yt + 0.12], color=col, lw=1.6)
         ax.plot(rt, yt + 0.12, "o", color=col, markersize=6)
-        ax.plot([loc_, hic], [yt - 0.12, yt - 0.12], color=col, lw=1.0, alpha=0.55)
-        ax.plot(rc, yt - 0.12, "s", color=col, markersize=5, alpha=0.55)
-        ax.text(-0.02, yt, f"{cell:<10s}  {contrast:<16s}  {ax_label}",
+        if rc is not None:
+            ax.plot([loc_, hic], [yt - 0.12, yt - 0.12], color=col, lw=1.0, alpha=0.55)
+            ax.plot(rc, yt - 0.12, "s", color=col, markersize=5, alpha=0.55)
+        ax.text(-0.02, yt, f"{cell:<10s}  {contrast:<20s}  {ax_label}",
                 transform=ax.get_yaxis_transform(), ha="right", va="center",
                 fontsize=9, family="monospace")
     ax.axvline(1.0, color=MUTED, lw=1.2, ls="--")
