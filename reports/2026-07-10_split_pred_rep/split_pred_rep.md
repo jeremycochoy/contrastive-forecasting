@@ -1,8 +1,16 @@
-# The arm ranking reverses with backbone step: MoCo on both split terms is lowest at 12,500 steps, pooled + MoCo is lowest at 25,000 and 50,000; no arm's advantage over the SIGReg champion is established
+# The lowest arm changes with backbone step: bimoco at 12,500, pooled + MoCo at 25,000 and 50,000. Point estimates dip below the SIGReg champion, but no CI can be computed against it — arm C has no per-task file.
 
 **Question.** The champion loss merges five negative tensors under one pooled log-sum-exp denominator. Does splitting it into `L_pred` (f-anchored) and `L_rep` (h-anchored) improve GM-Relative MASE on the GIFT-Eval 97-config panel, and does adding EMA-teacher MoCo keys or replacing `L_pred` with BYOL alignment change the answer? (terms defined in annex)
 
-**Answer.** Which arm is lowest depends on the backbone step at which the arms are compared. At 12,500 steps the lowest GM-Relative MASE in all four (head, checkpoint) cells belongs to `L_pred_moco + L_rep_moco` — *bimoco*, the split loss with EMA-teacher MoCo keys on both terms. It is 95 %-separated from arms 1, 3, 4, 5 and 6 in every cell, meaning the task-level 95 % CI on the ratio excludes 1.0. That ordering does not survive further training. At 25,000 steps arm 4 (pooled + MoCo) is lowest in both panels: 1.1073 against bimoco's 1.1319 on 6L, and 1.1332 against 1.1339 on 2L. At 50,000 steps arm 4 is again lowest, at 1.1199 on 6L and 1.1414 on 2L; bimoco has no 50,000-step cell. The lowest cell measured anywhere in this experiment is arm 4, 6L, 25,000 steps, at 1.1073. That sits below all four arm C references, the lowest of which is 1.1254. But arm C has no per-task file, so the difference carries no CI, and no arm is established as beating the SIGReg champion. One further caution: on the two arm-4 `best` rows the compared backbones are 11,800 steps apart — arm 4 at step 600 against bimoco at step 12,400 — so those two rows mix loss shape with backbone step. Single seed (20260520).
+**Answer.** Which arm is lowest depends on the backbone step at which the arms are compared.
+
+At 12,500 steps the lowest GM-Relative MASE in all four (head, checkpoint) cells belongs to `L_pred_moco + L_rep_moco` — *bimoco*, the split loss with EMA-teacher MoCo keys on both terms. It is 95 %-separated from arms 1, 3, 4, 5 and 6 in every cell: the task-level 95 % CI on the ratio excludes 1.0.
+
+That ordering does not survive further training. At 25,000 steps arm 4 (pooled + MoCo) is lowest in both panels: 1.1073 against bimoco's 1.1319 on 6L, and 1.1332 against 1.1339 on 2L. At 50,000 steps arm 4 is again lowest, at 1.1199 on 6L and 1.1414 on 2L; bimoco has no 50,000-step cell.
+
+The point estimates show a lead over the SIGReg champion. Bimoco's best cell is 1.1087 (6L / last), arm 4's best is 1.1073 (6L / 25k), and both sit below every arm C reference — the lowest of which is 1.1254. But every separation claim elsewhere in this report is a paired-bootstrap CI on per-task ratios, and arm C is a saved aggregate from an earlier experiment; no per-task file exists. So the vs-arm-C differences cannot be given a CI, and no arm is established as beating the SIGReg champion in the same statistical sense as the arm-1/3/4-vs-bimoco separations. What can be said is that two arms — bimoco at 12,500 and arm 4 from 25,000 onward — have point estimates below the champion.
+
+One further caution: on the two arm-4 `best` rows the compared backbones are 11,800 steps apart — arm 4 at step 600 against bimoco at step 12,400 — so those two rows mix loss shape with backbone step. Single seed (20260520).
 
 ## Result
 
