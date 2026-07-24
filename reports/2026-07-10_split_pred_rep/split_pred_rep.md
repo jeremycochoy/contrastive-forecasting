@@ -12,11 +12,11 @@ The lowest cell measured anywhere is arm 4, 6L, 25,000 steps, at 1.1073.
 
 Arm C's per-task file is a same-recipe seed-2 retrain; the sibling arms train at seed 20260520, so each vs-arm-C CI absorbs one seed of noise on top of the loss-shape difference. Every other separation claim in this report is a same-seed contrast. On the two arm-4 `best` rows the compared backbones are 11,800 steps apart (arm 4 step 600 vs bimoco step 12,400), so those two rows mix loss shape with backbone step.
 
-## Result
-
 ![GM-Relative MASE per arm across backbone step](plots/gm_curve_per_arm.png)
 
 *GM-Relative MASE per arm across backbone step, on a shared y-axis. Arm C — the SIGReg champion recipe — is plotted as a solid dark-grey curve with diamond markers at its evaluated snapshots (step 12,500 / 25,000 / 50,000, seed-2 retrain). For each sibling arm one line joins every evaluated cell of that arm across backbone step; marker shape marks the head protocol on that cell (solid disks = fresh 40k-step head, used for 2k / 25k / 50k; hollow circles = 30k-step best-loss head, used for `best` and `last`, resumed a further 10k steps for `last`). Not every arm is evaluated at every step: bimoco has no 50,000-step cell, so its line stops at 25,000. Digits in the trajectory annex.*
+
+## Aligning the training signal with downstream MASE
 
 ![Backbone training loss aligned with evaluated GM-Relative MASE snapshots](plots/loss_vs_gm_snapshots.png)
 
@@ -26,23 +26,11 @@ Arm C's per-task file is a same-recipe seed-2 retrain; the sibling arms train at
 
 *Same alignment as the previous figure, but with `1 − ff` in the top rectangle instead of the training loss, and the downstream GM-Relative MASE at each snapshot step in the bottom rectangle (shared x-axis per arm). `ff = cos(f̂_t, f_true_{t+1})` is the training-time positive-pair cosine similarity, read from the `ff` column of each arm's losses CSV. Unlike raw `loss`, `1 − ff` is a common training-time diagnostic on the same numeric scale for every arm; interpretation still differs (arms 1, 3, 4, bimoco push it down through InfoNCE on that pair, arm 5 through BYOL alignment, arm 6 through BYOL alignment with teacher-side representation-side MoCo). 2L cells are circles on a thin dotted line, 6L cells triangles on a thin dashed line. Sources in the trajectory annex.*
 
-### 12,500-step cells
+## Snapshot at 12,500 backbone steps
 
 ![Downstream GM-Relative MASE per arm](plots/headline_relmase.png)
 
-*Downstream GM-Relative MASE per arm at each (head, checkpoint) cell. These are point estimates from N = 1 seed. The dashed line marks seasonal-naive at 1.0. The hatched bars are arm C, the SIGReg-cross champion recipe (`cross_C`: λ_e = 1, λ_h = 1, τ = 0.90); the value shown is the same-recipe seed-2 retrain at backbone step 12,500, which matches the sibling `last` cells' step. Arm C has no best-loss save so no `best`-cell analog is plotted. Arm separation is the paired task-bootstrap in the paired-bootstrap annex, not a bar-to-bar comparison here.*
-
-| arm | 2L / best | 2L / last | 6L / best | 6L / last |
-| --- | --: | --: | --: | --: |
-| arm 1 (split) | 1.1654 | 1.1669 | 1.1575 | 1.1557 |
-| arm 3 (split + MoCo on `L_pred`) | 1.1548 | 1.1683 | 1.1338 | 1.1511 |
-| arm 4 (pooled + MoCo) | 1.1602 | 1.1546 | 1.1603 | 1.1405 |
-| arm 5 (`L_align` + `L_rep`) | 1.3374 | 1.2883 | 1.2554 | 1.2201 |
-| arm 6 (`L_align` + `L_rep_moco`) | 1.1771 | 1.1712 | 1.1768 | 1.1767 |
-| arm bimoco (`L_pred_moco` + `L_rep_moco`) | **1.1225** | **1.1180** | **1.1138** | **1.1087** |
-| arm C ref (seed 2, step 12,500) | — | 1.1441 | — | 1.1318 |
-
-Per-arm result-directory paths are in the Method annex.
+*Downstream GM-Relative MASE per arm at each (head, checkpoint) cell, on N = 1 seed. The dashed line marks seasonal-naive at 1.0. The hatched bars are arm C, the SIGReg-cross champion recipe (`cross_C`: λ_e = 1, λ_h = 1, τ = 0.90); the value shown is the same-recipe seed-2 retrain at backbone step 12,500, which matches the sibling `last` cells' step. Arm C has no best-loss save so no `best`-cell analog is plotted. Arm separation is the paired task-bootstrap in the paired-bootstrap annex, not a bar-to-bar comparison here. Numeric values are in the trajectory annex (columns `2L best` / `2L last` / `6L best` / `6L last`).*
 
 ## Trajectory cells (annex)
 
