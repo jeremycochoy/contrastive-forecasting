@@ -93,15 +93,22 @@ case "$ARM" in
   # so the base and rerun artefacts never collide on disk.
   arm1_tr1)
     NAME="bb_small_arm1_tr1_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090"
-    ARM_DESC="arm 1_tr1: split_pred_rep + tau_rep=1.0"
+    ARM_DESC="arm 1_tr1: split_pred_rep + tau=1.0 + tau_rep=1.0 (all tau at 1.0)"
     LOSS_ARGS=(--loss-shape cosine_similarity_batch_split_pred_rep \
-               --tau-rep 1.0)
+               --tau 1.0 --tau-rep 1.0)
     ;;
   arm3_tr1)
     NAME="bb_small_arm3_tr1_split_pred_rep_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090"
-    ARM_DESC="arm 3_tr1: split_pred_rep + moco-negatives + tau_rep=1.0"
+    ARM_DESC="arm 3_tr1: split_pred_rep + moco-negatives + tau=1.0 + tau_rep=1.0 (all tau at 1.0)"
     LOSS_ARGS=(--loss-shape cosine_similarity_batch_split_pred_rep \
-               --moco-negatives --tau-rep 1.0)
+               --moco-negatives --tau 1.0 --tau-rep 1.0)
+    ;;
+  arm4_tr1)
+    NAME="bb_small_arm4_tr1_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090"
+    ARM_DESC="arm 4_tr1: xshh_allt + moco-negatives + tau=1.0 (single pooled tau)"
+    LOSS_ARGS=(--loss-shape cosine_similarity_batch_full_hh_negs_xshh_allt \
+               --pos-in-denominator --subtract-contrastive-floor --moco-negatives \
+               --tau 1.0)
     ;;
   arm5_tr1)
     NAME="bb_small_arm5_tr1_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090"
@@ -117,9 +124,9 @@ case "$ARM" in
     ;;
   bimoco_tr1)
     NAME="bb_small_bimoco_tr1_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090"
-    ARM_DESC="bimoco_tr1: split_pred_rep + moco-negatives + moco-rep-keys + tau_rep=1.0"
+    ARM_DESC="bimoco_tr1: split_pred_rep + moco-negatives + moco-rep-keys + tau=1.0 + tau_rep=1.0 (all tau at 1.0)"
     LOSS_ARGS=(--loss-shape cosine_similarity_batch_split_pred_rep \
-               --moco-negatives --moco-rep-keys --tau-rep 1.0)
+               --moco-negatives --moco-rep-keys --tau 1.0 --tau-rep 1.0)
     ;;
   # ---- #379 no-sigreg-embedding (nse) reruns -------------------------------
   # Each `_nse` arm mirrors its base arm 1:1 and appends

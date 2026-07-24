@@ -54,19 +54,22 @@ RUNS = [
      "bb_small_bimoco_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
      "#00a3a3"),
     # #379 tau_rep=1.0 reruns — paler variant of the base colour.
-    ("arm 1 tr1  (L_pred + L_rep, τ_rep=1.0)",
+    ("arm 1 tr1  (L_pred + L_rep, all τ=1.0)",
      "bb_small_arm1_tr1_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
      "#7fb0e8"),
-    ("arm 3 tr1  (L_pred_moco + L_rep, τ_rep=1.0)",
+    ("arm 3 tr1  (L_pred_moco + L_rep, all τ=1.0)",
      "bb_small_arm3_tr1_split_pred_rep_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
      "#f4a680"),
-    ("arm 5 tr1  (L_align + L_rep, τ_rep=1.0)",
+    ("arm 4 tr1  (pooled + MoCo, all τ=1.0)",
+     "bb_small_arm4_tr1_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#7fc17f"),
+    ("arm 5 tr1  (L_align + L_rep, all τ=1.0)",
      "bb_small_arm5_tr1_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
      "#c98cc9"),
-    ("arm 6 v2 tr1  (L_align + L_rep_moco, τ_rep=1.0)",
+    ("arm 6 v2 tr1  (L_align + L_rep_moco, all τ=1.0)",
      "bb_small_arm6_v2_tr1_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
      "#dcbb60"),
-    ("bimoco tr1  (L_pred_moco + L_rep_moco, τ_rep=1.0)",
+    ("bimoco tr1  (L_pred_moco + L_rep_moco, all τ=1.0)",
      "bb_small_bimoco_tr1_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
      "#66c4c4"),
     # #379 no-sigreg-embedding reruns — palest variant of the base colour.
@@ -111,7 +114,7 @@ RUNS = [
 # Short slug per arm (parallel to RUNS by index). Used both for legend
 # grouping and to gate --arms in the latent-movement plot.
 SLUGS = ["arm1", "arm3", "arm4", "arm5", "arm6_v2", "bimoco",
-         "arm1_tr1", "arm3_tr1", "arm5_tr1", "arm6_v2_tr1", "bimoco_tr1",
+         "arm1_tr1", "arm3_tr1", "arm4_tr1", "arm5_tr1", "arm6_v2_tr1", "bimoco_tr1",
          "arm1_nse", "arm3_nse", "arm4_nse", "arm5_nse", "arm6_v2_nse", "bimoco_nse",
          "arm1_ncpc", "arm3_ncpc", "arm4_ncpc", "arm5_ncpc", "arm6_v2_ncpc", "bimoco_ncpc"]
 # Per-slug linestyle. ncpc → dashed (base colour reused). Everything else
@@ -147,7 +150,7 @@ def load(name: str) -> pd.DataFrame:
 # are directly comparable at the same 1−ff altitude.
 PANEL_SUFFIXES = [
     ("base  (τ_rep=0.10, sigreg_e=1.0, cpc=1.0)", ""),
-    ("tr1  (τ_rep=1.00)", "_tr1"),
+    ("tr1  (all τ=1.00)", "_tr1"),
     ("nse  (sigreg_e=0)", "_nse"),
     ("ncpc  (cpc=0)", "_ncpc"),
 ]
@@ -204,7 +207,7 @@ print(f"wrote {out}")
 
 # ---- #379 tau_rep=1.0 overlay ------------------------------------------------
 # Second axes: for each of the 5 L_rep-bearing arms (all but arm 4), pair
-# the base τ=0.10 curve with the `_tr1` rerun at τ_rep=1.0. Same colour per
+# the base τ=0.10 curve with the `_tr1` rerun at all τ=1.0. Same colour per
 # arm, base solid, rerun dashed — one legend entry per arm pair. This is
 # the answer to Q3 in the issue: does raising τ_rep change the `1 − ff`
 # trajectory shape / u_batchtime(h_t) collapse / alignment plateau.
@@ -257,7 +260,7 @@ for label, base_name, rerun_name, colour in TR1_PAIRS:
         if not rerun_df.empty:
             ax_tr.plot(rerun_df["step"], 1.0 - rerun_df["ff"],
                        color=colour, lw=1.4, linestyle="--",
-                       label=f"{label}  τ_rep=1.00")
+                       label=f"{label}  all τ=1.00")
 
 ax_tr.set_xscale("log")
 ax_tr.set_xlim(100, 210_000)
@@ -266,7 +269,7 @@ ax_tr.set_ylabel("1 − ff  (log perplexity of f̂ under future's vMF)")
 ax_tr.grid(True, color=GRID, alpha=0.6, which="both")
 ax_tr.legend(loc="upper right", fontsize=8, frameon=False, ncols=1)
 ax_tr.set_title(
-    "1 − ⟨cos(f̂, f_true)⟩ — τ_rep=0.10 (solid) vs τ_rep=1.00 (dashed)",
+    "1 − ⟨cos(f̂, f_true)⟩ — τ_rep=0.10 (solid) vs all τ=1.00 (dashed)",
     fontsize=11)
 fig_tr.tight_layout()
 out_tr = HERE / "cos_error_tau_rep_overlay.png"
