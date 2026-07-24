@@ -82,26 +82,33 @@ for i, HL in enumerate(("2L", "6L")):
             (25000, "_25k"),
             (50000, "_50k"),
         ]
-        # Head protocol differs: 2k/25k/50k = fresh 40k head (connected line);
-        # best/last = 30k best-loss head (+10k resume) — hollow, unconnected.
-        fresh, resumed = [], []
+        # Head protocol differs: 2k/25k/50k = fresh 40k head; best/last =
+        # 30k best-loss head (+10k resume). Marker shape (solid disk vs hollow
+        # circle) carries that distinction; a single per-arm trajectory line
+        # joins every evaluated cell so the reader can follow the arm's
+        # downstream quality across backbone step.
+        fresh, resumed = {}, {}
         for step, suffix in candidates:
             val = gm(EXP / rd / (base + suffix + f"_{HL}") / "summary.txt")
             if val is None:
                 continue
-            (fresh if suffix in ("_2k", "_25k", "_50k") else resumed).append((step, val))
-        # dedupe on step (arm 1's best == last since FINAL.pth md5 = final.pth)
-        fresh = sorted({s: v for s, v in fresh}.items())
-        resumed = sorted({s: v for s, v in resumed}.items())
+            (fresh if suffix in ("_2k", "_25k", "_50k") else resumed)[step] = val
+        # Combined trajectory (dedup: fresh wins if both protocols land at
+        # the same backbone step — e.g. arm 1 `last`==step-12,500).
+        combined = dict(resumed); combined.update(fresh)
+        combined = sorted(combined.items())
+        if not combined:
+            continue
+        xs, ys = zip(*combined)
+        ax.plot(xs, ys, color=colour, lw=1.5, label=label)
+        # Solid disks for fresh-head cells, hollow circles for resumed-head cells.
         if fresh:
-            xs, ys = zip(*fresh)
-            ax.plot(xs, ys, color=colour, lw=1.5, marker="o", markersize=6,
-                    label=label)
+            fx, fy = zip(*sorted(fresh.items()))
+            ax.plot(fx, fy, color=colour, lw=0, marker="o", markersize=6)
         if resumed:
-            xs, ys = zip(*resumed)
-            ax.plot(xs, ys, color=colour, lw=0, marker="o", markersize=7,
-                    markerfacecolor="none", markeredgewidth=1.6,
-                    label=None if fresh else label)
+            rx, ry = zip(*sorted(resumed.items()))
+            ax.plot(rx, ry, color=colour, lw=0, marker="o", markersize=7,
+                    markerfacecolor="none", markeredgewidth=1.6)
     ax.axhline(1.0, color=MUTED, lw=1.0, ls="--")
     ax.set_xlabel("backbone step")
     ax.set_title(f"{HL} quantile head", fontsize=10)
@@ -114,15 +121,15 @@ handles, labels = axes[0].get_legend_handles_labels()
 handles += [
     Line2D([], [], color=INK, lw=1.5, marker="o", markersize=6,
            label="fresh 40k head (2k / 25k / 50k)"),
-    Line2D([], [], color=INK, lw=0, marker="o", markersize=7,
+    Line2D([], [], color=INK, lw=1.5, marker="o", markersize=7,
            markerfacecolor="none", markeredgewidth=1.6,
            label="30k best-loss head, +10k resume (best / last)"),
 ]
 axes[0].legend(handles=handles, loc="upper right", fontsize=8, frameon=False)
 fig.suptitle(
-    "GM-Relative MASE per arm across backbone step\n"
-    "solid line = fresh 40k-step q-head on that snapshot;  "
-    "hollow markers = 30k-step best-loss q-head (+10k-step resume for last)",
+    "GM-Relative MASE per arm across backbone step  —  line joins every evaluated cell of that arm\n"
+    "solid disks = fresh 40k-step q-head on that snapshot;  "
+    "hollow circles = 30k-step best-loss q-head (+10k-step resume for last)",
     fontsize=9)
 fig.tight_layout()
 out = HERE / "gm_curve_per_arm.png"

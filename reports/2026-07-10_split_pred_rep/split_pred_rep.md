@@ -18,11 +18,15 @@ One further caution: on the two arm-4 `best` rows the compared backbones are 11,
 
 ![GM-Relative MASE per arm across backbone step](plots/gm_curve_per_arm.png)
 
-*GM-Relative MASE per arm across backbone step, on a shared y-axis. Arm C — the SIGReg champion recipe — is plotted as a solid dark-grey curve with diamond markers at its evaluated snapshots (step 12,500 / 25,000 / 50,000, seed-2 retrain). The six sibling arms use two marker styles from two head protocols, so those two styles are not connected: the solid line joins the 2k / 25k / 50k cells, each a fresh 40k-step head on that snapshot; the hollow markers are the `best` and `last` cells, which use a 30k-step best-loss head, resumed a further 10k steps for `last`. Curves are drawn only through the cells that exist, and not every arm is evaluated at every step — bimoco has no 50,000-step cell, so its curve stops at 25,000 rather than declining. Digits in the trajectory annex.*
+*GM-Relative MASE per arm across backbone step, on a shared y-axis. Arm C — the SIGReg champion recipe — is plotted as a solid dark-grey curve with diamond markers at its evaluated snapshots (step 12,500 / 25,000 / 50,000, seed-2 retrain). For each sibling arm one line joins every evaluated cell of that arm across backbone step; marker shape marks the head protocol on that cell (solid disks = fresh 40k-step head, used for 2k / 25k / 50k; hollow circles = 30k-step best-loss head, used for `best` and `last`, resumed a further 10k steps for `last`). Not every arm is evaluated at every step: bimoco has no 50,000-step cell, so its line stops at 25,000. Digits in the trajectory annex.*
 
 ![Backbone training loss aligned with evaluated GM-Relative MASE snapshots](plots/loss_vs_gm_snapshots.png)
 
 *Backbone training loss on the left axis, as a 100-step rolling mean concatenated across the 1–12,500, 12,500–25,000 and 25,000–50,000 training segments. The right axis carries the arm's evaluated GM-Relative MASE cells: 2L as circles on a thin dotted line, 6L as triangles on a thin dashed line. A vertical guide marks each evaluated backbone step. `loss` is not comparable across arms, because the arms optimise different loss shapes, different negative counts, and in arm 4 a subtracted contrastive floor. Each panel is therefore read within itself. Sources in the trajectory annex and `plots/_make_loss_vs_gm.py`.*
+
+![Retrieval error (1 − ff) aligned with evaluated GM-Relative MASE snapshots, per arm](plots/ff_vs_gm_snapshots.png)
+
+*Same alignment as the previous figure, but with `1 − ff` in the top rectangle instead of the training loss, and the downstream GM-Relative MASE at each snapshot step in the bottom rectangle (shared x-axis per arm). `ff = cos(f̂_t, f_true_{t+1})` is the training-time positive-pair cosine similarity, read from the `ff` column of each arm's losses CSV. Unlike raw `loss`, `1 − ff` is a common training-time diagnostic on the same numeric scale for every arm; interpretation still differs (arms 1, 3, 4, bimoco push it down through InfoNCE on that pair, arm 5 through BYOL alignment, arm 6 through BYOL alignment with teacher-side representation-side MoCo). 2L cells are circles on a thin dotted line, 6L cells triangles on a thin dashed line. Sources in the trajectory annex and `plots/_make_ff_vs_gm.py`.*
 
 ### 12,500-step cells
 
