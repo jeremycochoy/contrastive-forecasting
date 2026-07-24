@@ -1,8 +1,8 @@
-# Splitting the contrastive loss into L_pred + L_rep does not beat the SIGReg-champion; MoCo-on-both (bimoco) leads the sibling arms, but only at 12,500 steps
+# Splitting the contrastive loss (L_pred + L_rep) does not beat the SIGReg champion; MoCo-on-both leads the sibling arms at 12,500 steps
 
 **Question.** The champion loss merges five negative tensors under one pooled log-sum-exp denominator. Does splitting it into `L_pred` (f-anchored) and `L_rep` (h-anchored) improve GM-Relative MASE on the GIFT-Eval 97-config panel, and does adding EMA-teacher MoCo keys or replacing `L_pred` with BYOL alignment change the answer? (terms defined in annex)
 
-**Answer.** No arm is established as beating the SIGReg-champion (arm C). Among the six sibling arms, `L_pred_moco + L_rep_moco` (bimoco) has the lowest GM-Relative MASE at all four 12,500-step (head, checkpoint) cells and is 95 %-separated from arms 1, 3, 4, 5, 6 in every cell (paired task-bootstrap, below). bimoco's point estimates are also below arm C in all four cells (narrowest gap 0.0167 at 6L / last), but arm C has no per-task file on this branch, so that gap is a point-estimate difference with no CI. The lead does not hold past 12,500 steps: arm 4 (pooled + MoCo) matches or beats bimoco at 25k. Single seed (20260520).
+**Answer.** No arm is established as beating the SIGReg-champion (arm C). Among the six sibling arms, `L_pred_moco + L_rep_moco` (bimoco) has the lowest GM-Relative MASE at all four 12,500-step (head, checkpoint) cells and is 95 %-separated (task-level 95 % CI excludes ratio 1.0) from arms 1, 3, 4, 5, 6 in every cell (paired task-bootstrap, below). bimoco's point estimates are also below arm C in all four cells (narrowest gap 0.0167 at 6L / last), but arm C has no per-task file on this branch, so that gap is a point-estimate difference with no CI. The lead does not hold past 12,500 steps: arm 4 (pooled + MoCo) matches or beats bimoco at 25k. Single seed (20260520).
 
 ## Result
 
@@ -16,15 +16,15 @@
 | arm 5 (`L_align` + `L_rep`) | 1.3374 | 1.2883 | 1.2554 | 1.2201 |
 | arm 6 (`L_align` + `L_rep_moco`) | 1.1771 | 1.1712 | 1.1768 | 1.1767 |
 | arm bimoco (`L_pred_moco` + `L_rep_moco`) | **1.1225** | **1.1180** | **1.1138** | **1.1087** |
-| arm C ref (SIGReg-cross champion) | 1.1682 | 1.1491 | 1.1561 | 1.1254 |
+| arm C ref (SIGReg-cross champion) † | 1.1682 | 1.1491 | 1.1561 | 1.1254 |
 
-arm C ref: aggregate read from `experiments/2026-06-28_sigreg_lambda_tau_cross/results/gm_table.csv` (arm `cross_C`); no per-task file exists on this branch, so no confidence interval against arm C is available in this report, and arm C was not itself probed for the denominator share (arm 4, the same pooled shape plus MoCo keys, stands in for it there). The bimoco intervals below are all against arms 1, 3, 4, 5 and 6, not against arm C. These four point estimates are read from an external file and cannot be reproduced from `results/` in this experiment.
+† arm C ref: aggregate read from `experiments/2026-06-28_sigreg_lambda_tau_cross/results/gm_table.csv` (arm `cross_C`); no per-task file exists on this branch. These four point estimates are read from an external file and cannot be reproduced from `results/` in this experiment.
 
 ## GM-Relative MASE across backbone step
 
-![GM-Relative MASE per arm across backbone step (2k / best / 12,500 / 25k / 50k where available), shared y-axis, with the arm C champion best and last cells as horizontal references. The 12,500 `best`/`last` cells use a 30k best-loss head (+10k resume for `last`); the 2k / 25k / 50k cells use a fresh 40k head on that snapshot.](plots/gm_curve_per_arm.png)
+![GM-Relative MASE per arm across backbone step (2k / best / 12,500 / 25k / 50k where available), shared y-axis, with the arm C champion † best and last cells as horizontal references. The 12,500 `best`/`last` cells use a 30k best-loss head (+10k resume for `last`); the 2k / 25k / 50k cells use a fresh 40k head on that snapshot.](plots/gm_curve_per_arm.png)
 
-Continuing the backbones past 12,500 steps does not lower any arm below its 12,500-step value on the 2L head; arm 1 rises the most (2L GM 1.1669 at 12,500 → 1.2334 at 50,000, the only non-arm-5 arm above 1.21). In the 25,000 / 50,000 continuations arm 4 (pooled + MoCo) reaches GM comparable to or below bimoco (arm 4 6L 25k = 1.1073 vs bimoco 6L 25k = 1.1319), so the bimoco advantage is established at the four 12,500-step cells used for the arm ranking, not across the full trajectory.
+Continuing the backbones past 12,500 steps does not lower any arm below its 12,500-step value on the 2L head; arm 1 rises the most (2L GM 1.1669 at 12,500 → 1.2334 at 50,000, the only non-arm-5 arm above 1.21). In the 25,000 continuations arm 4 (pooled + MoCo) reaches GM comparable to or below bimoco (arm 4 6L 25k = 1.1073 vs bimoco 6L 25k = 1.1319), so the bimoco advantage is established at the four 12,500-step cells used for the arm ranking, not across the full trajectory.
 
 ## Paired-bootstrap 95 % CIs on GM-Relative MASE ratios
 
@@ -45,15 +45,11 @@ Within the arm-1/3/4-vs-bimoco family, 10 of the 12 rows also clear the Bonferro
 
 ## Denominator share
 
-Splitting gives the prediction pairs a near-full denominator; pooling collapses their share to 0.003 (both batches). Arm 4 stands in for arm C, per the arm-C note above.
-
 ![Per-family denominator share at each arm's FINAL.pth backbone snapshot (arm 1: step 12,500; arm 3: step 11,800; arm 4: step 600), on a mixed batch and a periodic-only batch (solar/electricity windows), τ = 0.10, probe B = 64.](plots/gradient_share_stack.png)
 
+Splitting gives the prediction pairs a near-full denominator; pooling collapses their share to 0.003 (both batches).
+
 The share is measured at probe B = 64 (diagnostic), whereas training ran at B = 512; cross-batch share is B-dependent, so the absolute shares are indicative, not identical to the training-time split.
-
-## f-anchored retrieval saturation
-
-f-anchored retrieval is saturated across all arms after step 600: `auc` ≥ 0.9975, minimum `top1` 0.8348 (arm 1, step 3,343), every other arm above 0.95.
 
 ## Method (annex)
 
@@ -70,8 +66,6 @@ All backbones: B = 512, T = 4096, C = 1, τ = 0.10, `lr = 1e-3`, seed 20260520, 
 | arm 6 | `cosine_similarity_batch_rep_only` | `--align-loss-weight 1.0 --moco-rep-keys` | arm 5's `L_align` + `L_rep_moco`: h-family keys routed through EMA teacher |
 | arm bimoco | `cosine_similarity_batch_split_pred_rep` | `--moco-negatives --moco-rep-keys` | `L = L_pred_moco + L_rep_moco`; MoCo + positive-in-denominator on both terms |
 | arm C ref | `cosine_similarity_batch_full_hh_negs_xshh_allt` | — | SIGReg-cross champion (λ_e = 1, λ_h = 1, EMA τ = 0.90), reused without retraining |
-
-Arm 2 is a slot in the original issue numbering that was not run in this sweep; the arm sequence is 1, 3, 4, 5, 6, bimoco, C.
 
 ## Backbone step (annex)
 
@@ -90,6 +84,8 @@ Arms 1 and 4's `best`-cell backbone is not the argmin of a comparable curve: arm
 ## Definitions (annex)
 
 - *f* / *h* — *f* is the forecaster's next-step latent (the forecast); *h* is the encoder's original latent. *f-anchored* / *h-anchored* families take *f* resp. *h* as the query.
+- *`L_pred`* — normalized InfoNCE, f-anchored: positive `cos(f_t, h'_{t+1})`; denominator = adjacent `f_{t+1} ↔ f_t` negatives plus cross-batch `f_t ↔ h'_{t+1}` negatives.
+- *`L_rep`* — pooled log-sum-exp of three h-anchored families (cross-channel `h ↔ h`, within-series all-time `h ↔ h`, cross-series all-time `h ↔ h'`), with no positive term.
 - *GM-Relative MASE* — geometric mean over the 97 GIFT-Eval configs of `(model MASE) / (seasonal-naive MASE)`, at quantile 0.5. Lower is better; 1.0 = seasonal-naive.
 - *log-sum-exp denominator* — the InfoNCE normaliser at an anchor: the soft-max over all negative similarity scores (and, under `--pos-in-denominator`, the positive score too).
 - *MoCo* — cross-batch keys sourced from an EMA teacher (τ = 0.90) instead of the student.
@@ -102,3 +98,7 @@ Arms 1 and 4's `best`-cell backbone is not the argmin of a comparable curve: arm
 - *best / last cell* — the two downstream checkpoints per arm: `best` = head on the best-loss backbone, `last` = head resumed on the step-12,500 backbone.
 - *arm C* — the SIGReg-cross champion recipe (`cross_C`: λ_e = 1, λ_h = 1, EMA τ = 0.90), the baseline this sweep is ranked against.
 - *Bonferroni family* — 60 contrasts = 15 arm pairs × 4 (head, checkpoint) cells on the full-97 panel, α = 0.05 / 60 = 0.000833.
+
+## f-anchored retrieval saturation (annex)
+
+f-anchored retrieval is saturated across all arms after step 600: `auc` ≥ 0.9975, minimum `top1` 0.8348 (arm 1, step 3,343), every other arm above 0.95.
