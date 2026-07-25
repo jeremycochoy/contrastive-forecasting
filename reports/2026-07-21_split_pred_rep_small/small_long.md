@@ -1,91 +1,73 @@
-# Small-model long-training sweep — 29 arms of #374 at d_model=64, B=64, up to 200k steps
+# Small-model contrastive-loss ablation sweep — 29 arms at 40k steps
 
-*v1 — Wave D (all arms at 40k) + 11-cell 2L GM-MASE evaluation complete. Wave E (extension to 100k) in progress.*
+At backbone step 40k, the `combab` configuration (all InfoNCE temperatures τ raised from 0.10 to 1.0 + CPC-InfoNCE auxiliary off + SIGReg-on-embedding off where it helps) gives the lowest forecasting error of the 11 evaluated cells: `arm6_v2_combab` reaches GM-Relative MASE `1.2025`, ~12× the ±0.01 borrowed seed-noise band ahead of the next-best `arm5_tr1` (`1.3254`). Combab occupies 3 of the top 5 slots.
 
-## Question
+![GM-Relative MASE at backbone step 40k, quantile-head trained 15k steps on top, GIFT-Eval B4 full-97 datasets. Error bars ±0.01 = borrowed seed-noise band (see caveat).](plots/eval_2L_gm_mase_bars.png)
 
-Do the training-dynamics observations from #374 ([`reports/2026-07-10_split_pred_rep/split_pred_rep.md`](../2026-07-10_split_pred_rep/split_pred_rep.md)) at 12.5–50k steps on the 17M-parameter backbone hold when the model is shrunk to `d_model=64` (~1M params) and trained longer? And can we identify a knob that reduces the observed late-training latent drift?
+## Definitions
 
-## Design
+- `ff` = mean `cos(f̂, h_{t+1})` between the forecaster's next-step prediction `f̂` and the encoder's next-step latent `h_{t+1}` (unit-normalised on the sphere). `1 − ff` is a distance in [0, 2], smaller = better forecast; behaves like a log perplexity of `f̂` under the true `h_{t+1}` von-Mises-Fisher.
+- `h_t`, `e_t`: the encoder-output latent and the patch-embedding latent respectively, shape `[B, T, C, H]`.
+- `u_batchtime` = `1/(d · off-diag Gram mean)` over `(B×T)` samples of the specified latent, clamped to `[0, 1]`. 1 = every H dim carries independent info; low = collapsed onto a subspace. Exactly what SIGReg regularises.
+- **Latent drift** at checkpoint pair `(step_i, step_j)` on a fixed held-out batch (`torch.manual_seed(20260722)`, `B=8` ARMA-synthetic): `mean_{b,t,c} 1 − cos(h_t(model_j), h_t(model_i))` (and analogously for `e_t`). Range `[0, 2]`; low = the mapping learned by the model on this fixed input hasn't rotated between the two checkpoints. Referred to below as "drift".
+- **GM-Relative MASE** = geometric mean over 97 GIFT-Eval configs of `MASE(model) / MASE(seasonal_naive)`, official B4 strategy, forecast horizon 16 (see `experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py`). Lower = better; > 1 = beaten by seasonal-naive on that geometric average.
+- Loss recipes for the six base arms are inherited verbatim from #374: arm 1 (`L_pred + L_rep`), arm 3 (`L_pred_moco + L_rep`), arm 4 (`pooled + MoCo`), arm 5 (`L_align + L_rep`), arm 6 v2 (`L_align + L_rep_moco`), bimoco (`L_pred_moco + L_rep_moco`). `MoCo` = negatives drawn from an EMA teacher. Ablations: `tr1` = all InfoNCE temperatures `τ` set to 1.0; `nse` = `--sigreg-embedding-weight 0.0`; `ncpc` = `--cpc-infonce-weight 0.0`; `combab` = all three (nse only applied to arm 1/3/4 — the arms where nse reduces drift per §Latent-drift results).
 
-Small backbone (`d_model=64, n_heads=8, num_encoder_layers=3, num_layers=3, batch_size=64, seed=20260520`), trained on the `gift-pretrain-full-4096` dataset. Six loss-shape arms carried from #374 (arm 1 · arm 3 · arm 4 · arm 5 · arm 6 v2 · bimoco), each rerun under four ablations:
+## Backbone and training
 
-- **base**: original spec (all `τ=0.10`, `sigreg_e=1.0`, `cpc=1.0`)
-- **tr1**: all `τ` raised to `1.0` (originally mis-specified as `τ_rep`-only on arm 1/3/bimoco; corrected mid-experiment; arm 5/6_v2 rep-only shape unaffected by the correction; arm 4 gets a new `arm4_tr1` at pooled `τ=1.0`)
-- **nse**: `sigreg_embedding_weight=0.0` (SIGReg on `e_t` disabled)
-- **ncpc**: `cpc_infonce_weight=0.0` (CPC auxiliary disabled)
-- **combab**: all `τ=1.0` + `cpc=0` + `nse` (only for arm 1/3/4 where nse helped per stat test)
+`d_model=64, n_heads=8, num_encoder_layers=3, num_layers=3, batch_size=64, seed=20260520`, dataset `jeremycochoy/gift-pretrain-full-4096 / small_v1`. All 29 configurations trained to step 40,000 (`save_every=10000`, extra snapshot at 2500 and 40000). Data behind every number in this report is under `results/`.
 
-Total 29 arm configurations. Staged rollout brings every arm to step 40k first (Wave D). Wave E extends non-completed arms to step 100k. Wave F would extend to 200k.
+## Latent-drift results
 
-## Results — Wave D (all arms at 40k)
+Paired Wilcoxon signed-rank on end-of-40k mean drift, ablation vs base, N=6 arm pairs (arm 1/3/4/5/6_v2/bimoco). Underlying values: `results/wave_d_metrics.csv`.
 
-### Latent stability (paired stat tests, N=6, base vs ablation)
+| Ablation | h_t drift lower vs base / 6 | h_t p (one-sided base > ablation) | e_t drift lower vs base / 6 | e_t p | verdict |
+|----------|-----------------------------|-----------------------------------|-----------------------------|-------|---------|
+| ncpc     | 3/6 (arm 5/6_v2/bimoco)     | not significant                   | **5/6**                     | **0.031** | reliably reduces `e_t` drift; `h_t` effect loss-shape-dependent |
+| nse      | 3/6 (arm 1/3/4)             | 0.219                             | 3/6                         | not significant | drops on arm 1/3/4, rises on arm 5/6_v2/bimoco |
+| tr1      | 1/5                         | 0.906                             | 2/5                         | 0.688 | no drift reduction |
 
-Wilcoxon signed-rank on end-of-40k mean `1 − cos(h_prev, h_next)` and `1 − cos(e_prev, e_next)` per arm:
+(Correction versus an earlier round: the h_t Wilcoxon on the six-arm CSV matches 3/6 for ncpc, not 6/6 — the previous 6/6 count came from a comparison on a different early-window definition and is dropped here.)
 
-| Ablation | h_t (win/6) | h_t p | e_t (win/6) | e_t p | verdict |
-|----------|-------------|-------|-------------|-------|---------|
-| ncpc     | 6/6         | 0.016 | 5/6         | 0.031 | **reduces shaking** |
-| nse      | 3/6         | 0.219 | 4/6         | 0.109 | mixed (helps arm 1/3/4, hurts arm 5/6v2/bimoco) |
-| tr1      | 1/5         | 0.906 | 2/5         | 0.688 | does not reduce shaking |
+![Latent drift per adjacent-checkpoint pair — rows = variant, columns = h_t / e_t. The ncpc row (`h_t` column) is not below the base row for arm 1/3/4 but is below it for arm 5/6_v2/bimoco. In the e_t column ncpc is below base for 5 of 6 arms. combab traces stay below base on both latents for arm 6 v2 and bimoco.](plots/latent_movement_per_arm.png)
 
-Disabling CPC is the only single-axis fix that reliably reduces late-window encoder-latent drift on the fixed held-out batch.
+## GM-Relative MASE at step 40k (11 arms)
 
-### 2L GM-Relative MASE at 40k (11-cell subset)
+15,000 head-training steps of a 2-layer transformer quantile head (`--head-arch transformer --head-num-layers 2 --head-nhead 8 --head-ffn-mult 4.0 --head-causal true --head-train-input e_then_f --forecast-len 16 --batch-size 256 --lr 1e-3`) on the frozen 40k backbone, then GIFT-Eval B4 on all 97 official configs. Per-cell summaries: `results/eval_gm_mase/`.
 
-Head trained 15k steps on the frozen 40k backbone; GIFT-Eval B4 full-97 configs. Candidate arms picked from three separate criteria: (a) lowest end-of-40k `1 − ff`, (b) trajectory still improving with least rebound, (c) lowest `h_t` movement. Plus researcher-added coverage for arm 3 (combab) and arm 4 (tr1, nse).
+| Rank | Arm            | GM-Rel MASE | Δ from #1 |
+|------|----------------|-------------|-----------|
+| 1    | arm6_v2_combab | 1.2025      | —         |
+| 2    | arm5_tr1       | 1.3254      | +0.1229   |
+| 3    | arm3_combab    | 1.4056      | +0.2031   |
+| 4    | arm4_tr1       | 1.4414      | +0.2389   |
+| 5    | bimoco_combab  | 1.4420      | +0.2395   |
+| 6    | arm3_tr1       | 1.4547      | +0.2522   |
+| 7    | arm5_nse       | 1.4682      | +0.2657   |
+| 8    | arm6_v2_tr1    | 1.4684      | +0.2659   |
+| 9    | arm4_nse       | 1.4852      | +0.2827   |
+| 10   | bimoco_tr1     | 1.4892      | +0.2867   |
+| 11   | arm5_ncpc      | 1.5079      | +0.3054   |
 
-| Rank | Arm             | GM-Rel MASE | Notes |
-|------|-----------------|-------------|-------|
-| 1    | arm6_v2_combab  | **1.2025**  | winner by 0.12 |
-| 2    | arm5_tr1        | 1.3254      | best single-fix |
-| 3    | arm3_combab     | 1.4056      | |
-| 4    | arm4_tr1        | 1.4414      | pooled-τ=1.0 helps arm 4 too |
-| 5    | bimoco_combab   | 1.4420      | |
-| 6    | arm3_tr1        | 1.4547      | |
-| 7    | arm5_nse        | 1.4682      | |
-| 8    | arm6_v2_tr1     | 1.4684      | |
-| 9    | arm4_nse        | 1.4852      | |
-| 10   | bimoco_tr1      | 1.4892      | |
-| 11   | arm5_ncpc       | 1.5079      | worst tested |
+Positions 3–11 span 0.1023.
 
-Seed-noise band ≈ ±0.01 (per 2026-05-08 τ-sweep paired reruns, referenced in [LeJEPA-SIGReg-τ report annex F](../2026-06-21_lejepa_sigreg_tau098/lejepa_sigreg_tau098.md#f-seed-noise-band)). The 0.12 gap between #1 and #2 is ~12× seed-noise → real. Positions 3-11 are within a 0.10 band and mostly separated by 1-6× seed-noise.
+Coverage caveat: 11 of the 29 arm configurations were evaluated at 40k. Candidates were selected from three separate criteria on Wave-D snapshots (best 40k `1−ff`, still-improving trajectory, lowest `h_t` drift), with researcher-added coverage for arm 3 and arm 4. Combab is over-sampled (3/11 vs 6/29 in the population); ncpc is under-sampled (1/11 arm5_ncpc only vs 6/29). The 18 non-evaluated arms may include values better than the current ranks 6–11.
 
-**combab (all-τ=1 + cpc=0 + conditional nse) dominates the top of the ranking (positions 1, 3, 5).** arm5_tr1 is the best single-axis fix, landing ahead of every base and every non-arm6_v2 ablation.
+**Caveat on the error bars.** The ±0.01 shown is not a measured seed-replicate CI for this experiment (each cell is `N=1`). It is a borrowed constant from the 2026-05-08 τ-sweep paired reruns via [LeJEPA-SIGReg-τ report annex F](../2026-06-21_lejepa_sigreg_tau098/lejepa_sigreg_tau098.md#f-seed-noise-band), on a different backbone (17M params, T=4096, τ=0.90) and a different recipe. It is here as a visual reference for "differences smaller than this in the past turned out to be within-seed noise", not as a confidence interval for this ranking. The top-vs-#2 gap of 0.1229 is 12× that borrowed band, which is why it is called out separately.
 
-## Figures
+## Supporting figures
 
-### 1. `1 − ff` per arm (log perplexity), 2×3 grid by variant, shared y
+![1 − ff per arm across training steps, 3×2 grid by variant (base/tr1/nse/ncpc/combab), shared y. In every panel except tr1, the six arms cluster and separate similarly to base, meaning the variants change absolute perplexity more than they change which arm is "hardest" to fit. tr1 explodes arm 1 and pulls bimoco/arm 6 v2 to near-zero — a loss-shape rescaling effect visible before any encoder-quality claim.](plots/cos_error_per_arm.png)
 
-![cos_error per arm](plots/cos_error_per_arm.png)
+![u_batchtime per arm (one panel per arm, h_t solid + e_t dashed). The two arm-groups from #374 hold at d_model=64: arm 3/4/5 keep `u_batchtime(h_t) ≥ 0.97` (nearly independent dimensions) while arm 6 v2 and bimoco compress `h_t` toward 0.5–0.8 by 40k. combab variants of arm 6 v2 and bimoco compress further into the low-`u_batchtime` regime.](plots/dim_usage_per_arm.png)
 
-### 2. Dimension usage `u_batchtime` per arm
+## Annex
 
-![dim usage per arm](plots/dim_usage_per_arm.png)
+### A. Candidate selection for the 11 evaluated cells
 
-### 3. Latent movement between adjacent checkpoints (variant × h_t/e_t grid)
+Three criteria applied to the 29-arm Wave-D snapshot:
+- A. Lowest end-of-40k `1 − ff` (best perplexity so far).
+- B. Trajectory still improving with least post-min rebound in the [20k, 40k] window.
+- C. Lowest `h_t` drift.
 
-![latent movement](plots/latent_movement_per_arm.png)
-
-### 4. GM-Relative MASE bars — 11 arms at 40k, ±0.01 seed-noise error bars
-
-![eval bars](plots/eval_2L_gm_mase_bars.png)
-
-## Status
-
-- Wave D: **DONE** for all 29 arms.
-- 11-cell 2L GM-MASE eval at bb=40k: **DONE**.
-- Wave E (bring all non-completed arms to 100k): **IN PROGRESS** (~35h).
-- Wave F (extend to 200k): pending.
-- Full report (with 100k trajectories + optional 100k GM-MASE cells): pending Wave E completion.
-
-## Preliminary answers to the questions
-
-From Wave D + eval only; extended answers require Wave E and beyond.
-
-1. **arm 6 v2 / bimoco h_t movement at 40k**: still elevated for base; combab drops it dramatically for arm 6 v2 (`mv_h` from 0.635 → 0.425).
-2. **arm 5 alignment plateau**: `1 − ff` at 40k ≈ 0.30 in base — trending toward but not yet at the #374 50k plateau of ≈0.4. Wave E will resolve.
-3. **`τ_rep=1.0` (misspec) vs base**: 4/5 arms have LOWER `1 − ff`; but 4/5 arms have HIGHER latent movement. Softening the temperature helps the loss surface, not the encoder stability.
-4. **`nse` (sigreg_e=0)**: helps arm 1/3/4 latent movement, hurts arm 5/6v2/bimoco. Loss-shape-dependent.
-5. **`ncpc` (cpc=0)**: the clearest single-axis fix — reduces both `h_t` and `e_t` movement across 5-6 of 6 arms.
+Top ~3 per criterion, deduped, plus researcher-added `arm3_combab`, `arm4_tr1`, `arm4_nse` for arm 3 and arm 4 coverage. Selection favours arms already scoring well on training-side metrics; the ranking above is conditional on that selection.
