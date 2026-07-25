@@ -1,4 +1,4 @@
-# Small-model contrastive-loss ablation sweep — 29 arms at 40k steps
+# No loss-shape ablation beats seasonal-naive at 40k on GIFT-Eval
 
 At backbone step 40k, every one of the 11 evaluated arms is worse than the seasonal-naive baseline on GM-Relative MASE (all values > 1.0). Among the 11, `arm6_v2_combab` is the lowest.
 
@@ -19,7 +19,7 @@ At backbone step 40k, every one of the 11 evaluated arms is worse than the seaso
 
 ## Backbone
 
-`d_model=64, n_heads=8, num_encoder_layers=3, num_layers=3, batch_size=64, seed=20260520`, dataset `jeremycochoy/gift-pretrain-full-4096 / small_v1`. All 29 configurations have at least a step-40k checkpoint (`_40k.pth`); several arms have been extended past 40k via a separate scheduler and appear at their extended horizon in the training-side figures. The ranking uses each backbone's 40k checkpoint. Data behind every number in this report is under `results/`.
+`d_model=64, n_heads=8, num_encoder_layers=3, num_layers=3, batch_size=64, seed=20260520`, dataset `jeremycochoy/gift-pretrain-full-4096 / small_v1`. All 29 configurations have at least a step-40k checkpoint (`_40k.pth`); several arms have been extended past 40k and appear at their extended horizon in the training-side figures. The ranking uses each backbone's 40k checkpoint. Data behind every number in this report is under `results/`.
 
 ## GM-Relative MASE at step 40k (11 arms)
 
