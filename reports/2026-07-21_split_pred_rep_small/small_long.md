@@ -1,8 +1,8 @@
 # Small-model contrastive-loss ablation sweep — 29 arms at 40k steps
 
-At backbone step 40k, the `combab` configuration (all InfoNCE temperatures τ raised from 0.10 to 1.0 + CPC-InfoNCE auxiliary off + SIGReg-on-embedding off where it helps) gives the lowest forecasting error of the 11 evaluated cells: `arm6_v2_combab` reaches GM-Relative MASE `1.2025`, ~12× the ±0.01 borrowed seed-noise band ahead of the next-best `arm5_tr1` (`1.3254`). Combab occupies 3 of the top 5 slots.
+At backbone step 40k, every one of the 11 evaluated arms is worse than the seasonal-naive baseline on GM-Relative MASE (all values > 1.0). Among the 11, `arm6_v2_combab` reaches the lowest at `1.2025`; the next-best is `arm5_tr1` at `1.3254`.
 
-![GM-Relative MASE at backbone step 40k, quantile-head trained 15k steps on top, GIFT-Eval B4 full-97 datasets. Error bars ±0.01 = borrowed seed-noise band (see caveat).](plots/eval_2L_gm_mase_bars.png)
+![GM-Relative MASE at backbone step 40k, quantile-head trained 15k steps on top, GIFT-Eval B4 full-97 datasets. Red dashed line at 1.0 = seasonal-naive reference; every arm is above it. Error bars ±0.01 = borrowed seed-noise band (see caveat).](plots/eval_2L_gm_mase_bars.png)
 
 ## Definitions
 
@@ -21,13 +21,13 @@ At backbone step 40k, the `combab` configuration (all InfoNCE temperatures τ ra
 
 Paired Wilcoxon signed-rank on end-of-40k mean drift, ablation vs base, N=6 arm pairs (arm 1/3/4/5/6_v2/bimoco). Underlying values: `results/wave_d_metrics.csv`.
 
-| Ablation | h_t drift lower vs base / 6 | h_t p (one-sided base > ablation) | e_t drift lower vs base / 6 | e_t p | verdict |
-|----------|-----------------------------|-----------------------------------|-----------------------------|-------|---------|
-| ncpc     | 3/6 (arm 5/6_v2/bimoco)     | not significant                   | **5/6**                     | **0.031** | reliably reduces `e_t` drift; `h_t` effect loss-shape-dependent |
-| nse      | 3/6 (arm 1/3/4)             | 0.219                             | 3/6                         | not significant | drops on arm 1/3/4, rises on arm 5/6_v2/bimoco |
-| tr1      | 1/5                         | 0.906                             | 2/5                         | 0.688 | no drift reduction |
+Signed-rank test (`scipy.stats.wilcoxon(base, ablation, alternative='greater', zero_method='wilcox')`), recomputed from the committed CSV:
 
-(Correction versus an earlier round: the h_t Wilcoxon on the six-arm CSV matches 3/6 for ncpc, not 6/6 — the previous 6/6 count came from a comparison on a different early-window definition and is dropped here.)
+| Ablation | h_t drift lower vs base / 6 | h_t p | e_t drift lower vs base / 6 | e_t p | verdict |
+|----------|-----------------------------|-------|-----------------------------|-------|---------|
+| ncpc     | 3/6 (arm 5/6_v2/bimoco)     | 0.281 | **5/6**                     | **0.047** | reduces `e_t` drift; `h_t` effect loss-shape-dependent |
+| nse      | 3/6 (arm 1/3/4)             | 0.344 | 3/6                         | 0.281 | mixed; helps arm 1/3/4, hurts arm 5/6_v2/bimoco |
+| tr1      | 1/6                         | 0.922 | 3/6                         | 0.656 | no drift reduction |
 
 ![Latent drift per adjacent-checkpoint pair — rows = variant, columns = h_t / e_t. The ncpc row (`h_t` column) is not below the base row for arm 1/3/4 but is below it for arm 5/6_v2/bimoco. In the e_t column ncpc is below base for 5 of 6 arms. combab traces stay below base on both latents for arm 6 v2 and bimoco.](plots/latent_movement_per_arm.png)
 
@@ -48,8 +48,6 @@ Paired Wilcoxon signed-rank on end-of-40k mean drift, ablation vs base, N=6 arm 
 | 9    | arm4_nse       | 1.4852      | +0.2827   |
 | 10   | bimoco_tr1     | 1.4892      | +0.2867   |
 | 11   | arm5_ncpc      | 1.5079      | +0.3054   |
-
-Positions 3–11 span 0.1023.
 
 Coverage caveat: 11 of the 29 arm configurations were evaluated at 40k. Candidates were selected from three separate criteria on Wave-D snapshots (best 40k `1−ff`, still-improving trajectory, lowest `h_t` drift), with researcher-added coverage for arm 3 and arm 4. Combab is over-sampled (3/11 vs 6/29 in the population); ncpc is under-sampled (1/11 arm5_ncpc only vs 6/29). The 18 non-evaluated arms may include values better than the current ranks 6–11.
 

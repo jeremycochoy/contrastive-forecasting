@@ -40,20 +40,25 @@ plt.rcParams.update({
     "xtick.color": INK, "ytick.color": INK,
 })
 fig, ax = plt.subplots(figsize=(11, 5.5))
-xs, ys, cs, labs = [], [], [], []
-for i, (label, slug, colour) in enumerate(ARMS):
+# Collect + sort ascending (best MASE first). Skip arms with no value.
+rows = []
+for label, slug, colour in ARMS:
     v = read_agg(slug)
-    xs.append(i); labs.append(label); cs.append(colour)
-    ys.append(v if v is not None else float('nan'))
+    if v is None: continue
+    rows.append((label, colour, v))
+rows.sort(key=lambda r: r[2])
+xs = list(range(len(rows)))
+labs = [r[0] for r in rows]
+cs = [r[1] for r in rows]
+ys = [r[2] for r in rows]
 
 bars = ax.bar(xs, ys, color=cs, yerr=SEED_NOISE, capsize=6,
               error_kw={"ecolor": INK, "elinewidth": 1.2})
+# Seasonal-naive reference (MASE=1). Every arm above this line loses to it.
+ax.axhline(1.0, color="#c04040", lw=1.2, linestyle="--",
+           label="seasonal-naive reference (MASE=1)")
 for x, v in zip(xs, ys):
-    if v == v:
-        ax.text(x, v + 0.015, f"{v:.4f}", ha="center", va="bottom", fontsize=9)
-    else:
-        ax.text(x, 0.02, "queued", ha="center", va="bottom", fontsize=8,
-                color=MUTED, style="italic")
+    ax.text(x, v + 0.015, f"{v:.4f}", ha="center", va="bottom", fontsize=9)
 ax.set_xticks(xs); ax.set_xticklabels(labs, rotation=30, ha="right")
 ax.set_ylabel("Aggregate GM-Relative MASE  (lower is better)")
 ax.set_title(
@@ -61,10 +66,11 @@ ax.set_title(
     f"error bars: ±{SEED_NOISE} seed-noise band (from 2026-05-08 τ-sweep paired reruns)",
     fontsize=10)
 ax.grid(True, axis="y", color=GRID, alpha=0.6)
-finite = [v for v in ys if v == v]
-if finite:
-    ymin = min(finite) - 3 * SEED_NOISE   # ~3 seed-noise bands below min
-    ymax = max(finite) + 3 * SEED_NOISE
+ax.legend(loc="lower right", fontsize=9, frameon=False)
+if ys:
+    # Include 1.0 line in the visible range so it's readable.
+    ymin = min(min(ys) - 3 * SEED_NOISE, 1.0 - 3 * SEED_NOISE)
+    ymax = max(ys) + 3 * SEED_NOISE
     ax.set_ylim(ymin, ymax)
 fig.tight_layout()
 out = HERE / "eval_2L_gm_mase_bars.png"
