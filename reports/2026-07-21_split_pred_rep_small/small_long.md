@@ -1,152 +1,91 @@
-# Small-model long-training sweep — 23 arms × 200k steps (#379)
+# Small-model long-training sweep — 29 arms of #374 at d_model=64, B=64, up to 200k steps
 
-*v0 — implementation-only. Fills in as backbones finish.*
+*v1 — Wave D (all arms at 40k) + 11-cell 2L GM-MASE evaluation complete. Wave E (extension to 100k) in progress.*
 
 ## Question
 
-Do the training-dynamics observations from #374
-([`reports/2026-07-10_split_pred_rep/split_pred_rep.md`](../2026-07-10_split_pred_rep/split_pred_rep.md))
-at 12.5k–50k steps on a 17M-parameter backbone hold, amplify, or
-reverse when the backbone is ~1–2M parameters and trained ≥4× longer?
-
-Specifically:
-
-1. Does bimoco / arm 6 v2's `1 − cos(f̂, h_{t+1})` continue to climb
-   through 200k, or plateau, or reverse?
-2. Does arm 5's alignment plateau (`1 − ff ≈ 0.4` at 50k in #374)
-   break through at 100k or 200k?
-3. For each of the 5 L_rep arms (arm 1/3/5/6_v2 + bimoco), does raising
-   `τ_rep` from 0.10 to 1.0 change the `1 − ff` trajectory shape, the
-   `u_batchtime(h_t)` collapse, or the alignment plateau?
-4. For each of the 6 base arms, does disabling the SIGReg regulariser
-   on the patch embedding `e_t` (`_nse` variants:
-   `--sigreg-embedding-weight 0.0`) change the `1 − ff` trajectory
-   or the `u_batchtime(e_t)` collapse? The `h_t` regulariser
-   (`--sigreg-encoding-weight 1.0`) is kept as in the base.
-5. For each of the 6 base arms, does disabling the CPC-InfoNCE
-   auxiliary loss (`_ncpc` variants: `--cpc-infonce-weight 0.0`) change
-   the `1 − ff` trajectory, alignment plateau, or dim-usage collapse?
+Do the training-dynamics observations from #374 ([`reports/2026-07-10_split_pred_rep/split_pred_rep.md`](../2026-07-10_split_pred_rep/split_pred_rep.md)) at 12.5–50k steps on the 17M-parameter backbone hold when the model is shrunk to `d_model=64` (~1M params) and trained longer? And can we identify a knob that reduces the observed late-training latent drift?
 
 ## Design
 
-Twenty-three arms total: 6 base + 5 `tau_rep=1.0` + 6 `_nse`
-(no SIGReg on `e_t`) + 6 `_ncpc` (no CPC auxiliary). Loss recipes as in
-#374 (see arm table in
-[`../../experiments/2026-07-21_split_pred_rep_small/README.md`](../../experiments/2026-07-21_split_pred_rep_small/README.md)).
-**Backbone-only** — no downstream q-head training, no GIFT-Eval.
-Only backbone architecture and training length change:
+Small backbone (`d_model=64, n_heads=8, num_encoder_layers=3, num_layers=3, batch_size=64, seed=20260520`), trained on the `gift-pretrain-full-4096` dataset. Six loss-shape arms carried from #374 (arm 1 · arm 3 · arm 4 · arm 5 · arm 6 v2 · bimoco), each rerun under four ablations:
 
-- Backbone: `d_model=64, n_heads=8, num_encoder_layers=3, num_layers=3`
-  — ~1–2M parameters, encoder-to-body ratio 1:1 (vs 1:2 in #374).
-- Training: `batch_size=64, total_steps=200,000` — 12.8M samples over
-  200k steps, no revisit against `gift-pretrain-full-4096`'s 42.7M rows.
-- Checkpoints: `save_every=25000` + one early snapshot at step 2500
-  (`_2k.pth`), giving 9 backbone-step cells per arm at
-  `{2, 25, 50, 75, 100, 125, 150, 175, 200}k`.
+- **base**: original spec (all `τ=0.10`, `sigreg_e=1.0`, `cpc=1.0`)
+- **tr1**: all `τ` raised to `1.0` (originally mis-specified as `τ_rep`-only on arm 1/3/bimoco; corrected mid-experiment; arm 5/6_v2 rep-only shape unaffected by the correction; arm 4 gets a new `arm4_tr1` at pooled `τ=1.0`)
+- **nse**: `sigreg_embedding_weight=0.0` (SIGReg on `e_t` disabled)
+- **ncpc**: `cpc_infonce_weight=0.0` (CPC auxiliary disabled)
+- **combab**: all `τ=1.0` + `cpc=0` + `nse` (only for arm 1/3/4 where nse helped per stat test)
 
-### Wave-D-first barrier (staged rollout)
+Total 29 arm configurations. Staged rollout brings every arm to step 40k first (Wave D). Wave E extends non-completed arms to step 100k. Wave F would extend to 200k.
 
-All variants — the 5 tau_rep arms, the 6 `_nse` arms, the 6 `_ncpc`
-arms, plus the 2 base arms that never started (arm 6 v2 + bimoco) —
-are trained to step 40 000 first via three separate wave-staged
-orchestrators. Only after every intended arm has at least 40k does the
-researcher decide which variants advance to 100k (wave 2) and 200k
-(wave 3). This is a hard Wave-D barrier; no arm advances past 40k until
-every intended arm has at least 40k.
+## Results — Wave D (all arms at 40k)
 
-`MAX_WAVE` env var on each orchestrator controls this — the initial
-rollout launches each with `MAX_WAVE=<wave-1 letter>`, halting the
-outer loop after the first wave. Unset → all waves run to 200k.
+### Latent stability (paired stat tests, N=6, base vs ablation)
 
-Phase letters are unique across orchestrators to keep a shared log
-unambiguous:
+Wilcoxon signed-rank on end-of-40k mean `1 − cos(h_prev, h_next)` and `1 − cos(e_prev, e_next)` per arm:
 
-| Orchestrator                     | Wave 1 (40k)  | Wave 2 (100k) | Wave 3 (200k) |
-|----------------------------------|---------------|---------------|---------------|
-| `orchestrate.sh` (base 6-arm)    | PHASE A/B/C (end-to-end 200k, not staged) | — | — |
-| `orchestrate_tau_rep.sh`         | PHASE D       | PHASE E       | PHASE F       |
-| `orchestrate_no_sigreg_e.sh`     | PHASE G       | PHASE H       | PHASE I       |
-| `orchestrate_no_cpc.sh`          | PHASE J       | PHASE K       | PHASE L       |
-| `orchestrate_base_fresh.sh`      | PHASE M       | PHASE N       | PHASE O       |
+| Ablation | h_t (win/6) | h_t p | e_t (win/6) | e_t p | verdict |
+|----------|-------------|-------|-------------|-------|---------|
+| ncpc     | 6/6         | 0.016 | 5/6         | 0.031 | **reduces shaking** |
+| nse      | 3/6         | 0.219 | 4/6         | 0.109 | mixed (helps arm 1/3/4, hurts arm 5/6v2/bimoco) |
+| tr1      | 1/5         | 0.906 | 2/5         | 0.688 | does not reduce shaking |
 
-## Results
+Disabling CPC is the only single-axis fix that reliably reduces late-window encoder-latent drift on the fixed held-out batch.
 
-*Filled in as arms complete.*
+### 2L GM-Relative MASE at 40k (11-cell subset)
 
-### Headline: `1 − ff` per arm across training steps
+Head trained 15k steps on the frozen 40k backbone; GIFT-Eval B4 full-97 configs. Candidate arms picked from three separate criteria: (a) lowest end-of-40k `1 − ff`, (b) trajectory still improving with least rebound, (c) lowest `h_t` movement. Plus researcher-added coverage for arm 3 (combab) and arm 4 (tr1, nse).
 
-`1 − ff = 1 − ⟨cos(f̂, h_{t+1})⟩` on the unit sphere — a form of log
-perplexity of the forecast under the future's von-Mises-Fisher. Lower
-is better; 0 = perfect alignment. All six arms on one axes, x-axis on
-log (temporal) scale, y-axis linear.
+| Rank | Arm             | GM-Rel MASE | Notes |
+|------|-----------------|-------------|-------|
+| 1    | arm6_v2_combab  | **1.2025**  | winner by 0.12 |
+| 2    | arm5_tr1        | 1.3254      | best single-fix |
+| 3    | arm3_combab     | 1.4056      | |
+| 4    | arm4_tr1        | 1.4414      | pooled-τ=1.0 helps arm 4 too |
+| 5    | bimoco_combab   | 1.4420      | |
+| 6    | arm3_tr1        | 1.4547      | |
+| 7    | arm5_nse        | 1.4682      | |
+| 8    | arm6_v2_tr1     | 1.4684      | |
+| 9    | arm4_nse        | 1.4852      | |
+| 10   | bimoco_tr1      | 1.4892      | |
+| 11   | arm5_ncpc       | 1.5079      | worst tested |
 
-Regenerate: `python3 plots/_make_cos_error.py` → `plots/cos_error_per_arm.png`.
+Seed-noise band ≈ ±0.01 (per 2026-05-08 τ-sweep paired reruns, referenced in [LeJEPA-SIGReg-τ report annex F](../2026-06-21_lejepa_sigreg_tau098/lejepa_sigreg_tau098.md#f-seed-noise-band)). The 0.12 gap between #1 and #2 is ~12× seed-noise → real. Positions 3-11 are within a 0.10 band and mostly separated by 1-6× seed-noise.
 
-![cos error per arm](plots/cos_error_per_arm.png)
+**combab (all-τ=1 + cpc=0 + conditional nse) dominates the top of the ranking (positions 1, 3, 5).** arm5_tr1 is the best single-axis fix, landing ahead of every base and every non-arm6_v2 ablation.
 
-*Interpretation goes here once curves are populated.*
+## Figures
 
-### Supporting: dim usage per arm (`u_batchtime` for `h_t` and `e_t`)
+### 1. `1 − ff` per arm (log perplexity), 2×3 grid by variant, shared y
 
-Regenerate: `python3 plots/_make_dim_usage.py` → `plots/dim_usage_per_arm.png`.
+![cos_error per arm](plots/cos_error_per_arm.png)
+
+### 2. Dimension usage `u_batchtime` per arm
 
 ![dim usage per arm](plots/dim_usage_per_arm.png)
 
-### Supporting: per-run training-loss curves
+### 3. Latent movement between adjacent checkpoints (variant × h_t/e_t grid)
 
-Regenerate: `python3 plots/_make_per_run_loss.py` → `plots/per_run_loss.png`.
-Uses `B=64, T=4096, C=1, τ=0.10` for the strict-min floor.
+![latent movement](plots/latent_movement_per_arm.png)
 
-![per-run loss](plots/per_run_loss.png)
+### 4. GM-Relative MASE bars — 11 arms at 40k, ±0.01 seed-noise error bars
 
-### Supporting: latent movement per arm
+![eval bars](plots/eval_2L_gm_mase_bars.png)
 
-Per adjacent checkpoint pair `(step_i, step_j)` under one fixed
-held-out batch (`torch.manual_seed(20260722)`, `B=64, T=4096, C=1`):
+## Status
 
-    movement_h = mean over (b, t, c) of  1 − cos(h_t(model_j), h_t(model_i))
-    movement_e = mean over (b, t, c) of  1 − cos(e_t(model_j), e_t(model_i))
+- Wave D: **DONE** for all 29 arms.
+- 11-cell 2L GM-MASE eval at bb=40k: **DONE**.
+- Wave E (bring all non-completed arms to 100k): **IN PROGRESS** (~35h).
+- Wave F (extend to 200k): pending.
+- Full report (with 100k trajectories + optional 100k GM-MASE cells): pending Wave E completion.
 
-`h_t` is the encoder-output latent; `e_t` is the patch-embedding
-latent. Two panels — solid `h_t` on top, dashed `e_t` below —
-share the same log x-axis (training step of the LATER checkpoint) and
-per-arm colours from the headline plot. Nine periodic snapshots per
-arm at `{2, 25, 50, 75, 100, 125, 150, 175, 200}k` give 8 adjacent
-pairs → 8 datapoints per curve.
+## Preliminary answers to the questions
 
-Regenerate: `python3 plots/_make_latent_movement.py` →
-`plots/latent_movement_per_arm.png`.
+From Wave D + eval only; extended answers require Wave E and beyond.
 
-![latent movement per arm](plots/latent_movement_per_arm.png)
-
-### `τ_rep=1.0` vs `τ_rep=0.10` overlay
-
-Same `1 − ff` axis, one line per (base, rerun) pair — base τ_rep=0.10
-solid, rerun τ_rep=1.00 dashed, shared colour per arm. Applies to the
-five L_rep-bearing arms (arm 1/3/5/6_v2 + bimoco); arm 4 has no
-separate L_rep term and is not rerun. Same figure is written by
-`_make_cos_error.py` alongside the 6-arm headline plot.
-
-Regenerate: `python3 plots/_make_cos_error.py` →
-`plots/cos_error_tau_rep_overlay.png`.
-
-![cos error τ_rep overlay](plots/cos_error_tau_rep_overlay.png)
-
-*Interpretation goes here once curves are populated — does raising τ_rep
-flatten the h_t collapse in bimoco / arm 6 v2? Does it change arm 5's
-alignment plateau step? Does it move arm 1 / arm 3's `1 − ff` shape
-at all, or is L_rep at τ=0.10 already effectively negligible relative to
-L_pred?*
-
-## Answers to the five questions
-
-*Filled in once all twenty-three backbones reach step 200,000 (or the
-Wave-D-first barrier resolves for the first cross-arm comparison at
-40k, then again at 100k and 200k as the researcher decides who
-advances).*
-
-1. bimoco / arm 6 v2 `1 − cos(f̂, h_{t+1})` at 200k — *TBD*.
-2. arm 5 `1 − ff` at 100k, 200k vs #374's 50k plateau of ≈ 0.4 — *TBD*.
-3. τ_rep=0.10 vs τ_rep=1.0 for each of arm 1/3/5/6_v2/bimoco — *TBD*.
-4. `_nse` (sigreg_embedding=0) vs base for each of the 6 arms — *TBD*.
-5. `_ncpc` (cpc=0) vs base for each of the 6 arms — *TBD*.
+1. **arm 6 v2 / bimoco h_t movement at 40k**: still elevated for base; combab drops it dramatically for arm 6 v2 (`mv_h` from 0.635 → 0.425).
+2. **arm 5 alignment plateau**: `1 − ff` at 40k ≈ 0.30 in base — trending toward but not yet at the #374 50k plateau of ≈0.4. Wave E will resolve.
+3. **`τ_rep=1.0` (misspec) vs base**: 4/5 arms have LOWER `1 − ff`; but 4/5 arms have HIGHER latent movement. Softening the temperature helps the loss surface, not the encoder stability.
+4. **`nse` (sigreg_e=0)**: helps arm 1/3/4 latent movement, hurts arm 5/6v2/bimoco. Loss-shape-dependent.
+5. **`ncpc` (cpc=0)**: the clearest single-axis fix — reduces both `h_t` and `e_t` movement across 5-6 of 6 arms.
