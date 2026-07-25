@@ -78,7 +78,7 @@ Inherited verbatim from the split-pred/rep sweep (`reports/2026-07-10_split_pred
 
 ### B. Candidate selection for the 11 evaluated cells
 
-Three criteria applied to the 29-arm Wave-D snapshot: (A) lowest end-of-40k `1 − ff`, (B) trajectory still improving with least post-min rebound in the [20k, 40k] window, (C) lowest `h_t` drift. Top ~3 per criterion, deduped, plus researcher-added `arm3_combab`, `arm4_tr1`, `arm4_nse` for arm 3 and arm 4 coverage.
+Three criteria applied to the 29 arm-configurations at their step-40k checkpoints: (A) lowest end-of-40k `1 − ff`, (B) trajectory still improving with least post-min rebound in the [20k, 40k] window, (C) lowest `h_t` drift. Top ~3 per criterion, deduped, plus researcher-added `arm3_combab`, `arm4_tr1`, `arm4_nse` for arm 3 and arm 4 coverage.
 
 ### C. 2L quantile-head training settings
 
