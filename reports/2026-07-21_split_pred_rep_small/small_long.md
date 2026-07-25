@@ -1,6 +1,6 @@
 # Small-model contrastive-loss ablation sweep — 29 arms at 40k steps
 
-At backbone step 40k, every one of the 11 evaluated arms is worse than the seasonal-naive baseline on GM-Relative MASE (all values > 1.0). Among the 11, `arm6_v2_combab` is the lowest and `arm5_tr1` is next.
+At backbone step 40k, every one of the 11 evaluated arms is worse than the seasonal-naive baseline on GM-Relative MASE (all values > 1.0). Among the 11, `arm6_v2_combab` is the lowest.
 
 ![GM-Relative MASE at backbone step 40k, quantile-head trained 15k steps on top, GIFT-Eval B4 full-97 datasets. Red dashed line at 1.0 = seasonal-naive reference; every arm is above it. Error bars ±0.01 = borrowed seed-noise band (see caveat).](plots/eval_2L_gm_mase_bars.png)
 
@@ -19,11 +19,11 @@ At backbone step 40k, every one of the 11 evaluated arms is worse than the seaso
 
 ## Backbone
 
-`d_model=64, n_heads=8, num_encoder_layers=3, num_layers=3, batch_size=64, seed=20260520`, dataset `jeremycochoy/gift-pretrain-full-4096 / small_v1`. All 29 configurations trained to step 40,000. Data behind every number in this report is under `results/`.
+`d_model=64, n_heads=8, num_encoder_layers=3, num_layers=3, batch_size=64, seed=20260520`, dataset `jeremycochoy/gift-pretrain-full-4096 / small_v1`. All 29 configurations have at least a step-40k checkpoint (`_40k.pth`); several arms have been extended past 40k via a separate scheduler and appear at their extended horizon in the training-side figures. The ranking uses each backbone's 40k checkpoint. Data behind every number in this report is under `results/`.
 
 ## GM-Relative MASE at step 40k (11 arms)
 
-15,000 head-training steps of a 2-layer transformer quantile head (`--head-arch transformer --head-num-layers 2 --head-nhead 8 --head-ffn-mult 4.0 --head-causal true --head-train-input e_then_f --forecast-len 16 --batch-size 256 --lr 1e-3`) on the frozen 40k backbone, then GIFT-Eval B4 on all 97 official configs. Per-cell summaries: `results/eval_gm_mase/`.
+15,000 head-training steps of a 2-layer transformer quantile head (settings in Annex C) on the frozen 40k backbone, then GIFT-Eval B4 on all 97 official configs. Per-cell summaries: `results/eval_gm_mase/`.
 
 | Rank | Arm            | GM-Rel MASE | Δ from #1 |
 |------|----------------|-------------|-----------|
@@ -39,9 +39,9 @@ At backbone step 40k, every one of the 11 evaluated arms is worse than the seaso
 | 10   | bimoco_tr1     | 1.4892      | +0.2867   |
 | 11   | arm5_ncpc      | 1.5079      | +0.3054   |
 
-Coverage caveat: 11 of the 29 configurations were evaluated at 40k. Combab is over-sampled (3/11 vs 6/29 in the population); ncpc is under-sampled (1/11 vs 6/29). Non-evaluated arms may include values better than the current ranks 6–11. Selection procedure in Annex A.
+Coverage caveat: 11 of the 29 configurations were evaluated at 40k. Combab is over-sampled and ncpc is under-sampled versus the arm-population distribution; non-evaluated arms may include values better than the current ranks 6–11. Selection procedure in Annex B.
 
-**Caveat on the error bars.** The ±0.01 shown is not a measured seed-replicate CI for this experiment (each cell is `N=1`). It is a borrowed constant from the 2026-05-08 τ-sweep paired reruns via [LeJEPA-SIGReg-τ report annex F](../2026-06-21_lejepa_sigreg_tau098/lejepa_sigreg_tau098.md#f-seed-noise-band). It is here as a visual reference for "differences smaller than this in the past turned out to be within-seed noise", not as a confidence interval for this ranking. The top-vs-#2 gap is 12× that borrowed band.
+**Caveat on the error bars.** The ±0.01 shown is not a measured seed-replicate CI for this experiment (each cell is `N=1`). It is a borrowed constant from the 2026-05-08 τ-sweep paired reruns via [LeJEPA-SIGReg-τ report annex F](../2026-06-21_lejepa_sigreg_tau098/lejepa_sigreg_tau098.md#f-seed-noise-band). It is here as a visual reference for "differences smaller than this in the past turned out to be within-seed noise", not as a confidence interval for this ranking.
 
 ## Latent-drift results
 
@@ -79,3 +79,18 @@ Inherited verbatim from the split-pred/rep sweep (`reports/2026-07-10_split_pred
 ### B. Candidate selection for the 11 evaluated cells
 
 Three criteria applied to the 29-arm Wave-D snapshot: (A) lowest end-of-40k `1 − ff`, (B) trajectory still improving with least post-min rebound in the [20k, 40k] window, (C) lowest `h_t` drift. Top ~3 per criterion, deduped, plus researcher-added `arm3_combab`, `arm4_tr1`, `arm4_nse` for arm 3 and arm 4 coverage.
+
+### C. 2L quantile-head training settings
+
+| Param                | Value          |
+|----------------------|----------------|
+| `--head-arch`        | `transformer`  |
+| `--head-num-layers`  | 2              |
+| `--head-nhead`       | 8              |
+| `--head-ffn-mult`    | 4.0            |
+| `--head-causal`      | true           |
+| `--head-train-input` | `e_then_f`     |
+| `--forecast-len`     | 16             |
+| `--batch-size`       | 256            |
+| `--lr`               | 1e-3           |
+| `--total-steps`      | 15,000         |
