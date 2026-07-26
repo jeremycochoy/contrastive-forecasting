@@ -2,7 +2,7 @@
 
 **Question.** The champion loss puts every negative under a single log-sum-exp denominator. Does splitting it into `L_pred` (f-anchored) and `L_rep` (h-anchored) improve GM-Relative MASE, and does adding EMA-teacher MoCo keys or replacing `L_pred` with cosine-distance minimization to the teacher (`L_align`) change the answer?
 
-**Answer.** Which arm is lowest depends on backbone step: bimoco at 12,500, arm 4 (pooled MoCo) from 25,000 onward (bimoco has no 50k cell). Both beat the SIGReg champion with a 95 % paired-bootstrap CI (Annex D).
+**Answer.** Two arms beat the SIGReg champion with a 95 % paired-bootstrap CI (Annex D). Which one is lowest depends on backbone step: bimoco at 12,500, arm 4 (pooled MoCo) from 25,000 onward (bimoco has no 50k cell).
 
 ![GM-Relative MASE per arm across backbone step](plots/gm_curve_per_arm.png)
 
@@ -83,11 +83,7 @@ Eval: GIFT-Eval 97 configs, strategy B4, quantile-median MASE / seasonal-naive. 
 
 ![Paired-bootstrap 95 % CIs on GM-Relative MASE ratios](plots/ci_forest.png)
 
-*Circles = task-level bootstrap; faded squares = 28-dataset-clustered bootstrap (resamples the 28 source datasets instead of the 97 configs); `*` marks rows confounded by checkpoint selection or backbone step. n_boot = 20,000 (seed 42), raised to 200,000 for the arm-5/6/bimoco-reference and arm-C rows. The arm-C rows are task-level only (no clustered pass) against the seed-2 retrain at step 12,500.*
-
-Separated = the task-level 95 % CI excludes ratio 1.0; ratio > 1 = the named arm is worse than the reference. Rows in the table below use the 12,500-step cells; source CSVs in the experiment README.
-
-| contrast set | rows | separated at 95 % (task-level CI) |
+| contrast set | rows | separated at 95 % (task-level CI excludes 1.0) |
 | --- | --: | --: |
 | arm 1 / 3 / 4 pairwise | 12 | 2 / 12 (both `best`, checkpoint-confounded) |
 | arm 5 vs arm 1 / 3 / 4 | 12 | 12 / 12 (arm 5 worse) |
@@ -96,19 +92,4 @@ Separated = the task-level 95 % CI excludes ratio 1.0; ratio > 1 = the named arm
 | **arm 1 / 3 / 4 vs bimoco** | **12** | **12 / 12 (bimoco lower)** |
 | arm 5 / arm 6 vs bimoco | 8 | 8 / 8 (bimoco lower) |
 
-10 of the 12 arm-1/3/4-vs-bimoco rows also clear Bonferroni α = 0.05 / 60.
-
-Contrasts vs arm C (seed-2 retrain at the matching backbone step):
-
-| cell | arm 1 | arm 3 | arm 4 | arm 5 | arm 6 | bimoco |
-| --- | --: | --: | --: | --: | --: | --: |
-| 2L / last (vs step-12,500) | 1.020 [1.004, 1.039] | 1.021 [1.009, 1.034] | 1.009 [0.999, 1.021] | 1.126 [1.092, 1.162] | 1.024 [1.004, 1.046] | **0.977 [0.964, 0.991]** |
-| 6L / last (vs step-12,500) | 1.021 [1.006, 1.038] | 1.017 [1.003, 1.032] | 1.008 [0.994, 1.021] | 1.078 [1.052, 1.105] | 1.040 [1.019, 1.065] | **0.980 [0.963, 0.994]** |
-| 2L / 25k  (vs step-25,000) | 1.030 [1.010, 1.052] | 1.006 [0.987, 1.024] | 0.993 [0.980, 1.007] | 1.076 [1.055, 1.098] | 1.026 [1.006, 1.048] | 0.993 [0.978, 1.009] |
-| 6L / 25k  (vs step-25,000) | 1.016 [0.997, 1.036] | 0.986 [0.969, 1.002] | **0.978 [0.967, 0.988]** | 1.050 [1.032, 1.069] | 1.029 [1.008, 1.052] | 0.999 [0.983, 1.018] |
-| 2L / 50k  (vs step-50,000) | 1.048 [1.023, 1.075] | **0.974 [0.959, 0.988]** | **0.970 [0.950, 0.989]** | 1.135 [1.098, 1.173] | 1.012 [0.988, 1.038] | — |
-| 6L / 50k  (vs step-50,000) | 1.054 [1.031, 1.078] | **0.975 [0.958, 0.991]** | **0.973 [0.959, 0.987]** | 1.067 [1.039, 1.095] | 1.027 [1.001, 1.057] | — |
-
-Ratio = arm / arm C; below 1 the arm is better; bold = CI excludes 1.0 on the better side.
-
-On the 37-config periodic subset bimoco is again lowest in every cell.
+10 of the 12 arm-1/3/4-vs-bimoco rows also clear Bonferroni α = 0.05 / 60. On the 37-config periodic subset bimoco is again lowest in every cell.

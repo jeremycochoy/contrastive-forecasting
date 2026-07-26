@@ -293,66 +293,88 @@ def _lookup(df, cell, arm_a, arm_b):
     return row["ratio_a_over_b"], row["ci_lo"], row["ci_hi"]
 
 
-def _lookup_armc(df, cell, arm_a):
-    head, ck = cell.split(" / ")
-    ck = ck.rstrip("*")
-    # arm C schema: head + cell in {last, 25k, 50k}, arm_a arm_b.
-    r = df[(df["head"] == head) & (df["cell"] == ck) & (df["arm_a"] == arm_a) &
-           (df["arm_b"] == "armC_seed2")]
-    row = r.iloc[0]
-    return row["ratio_a_over_b"], row["ci_lo"], row["ci_hi"]
+ARM_COLOR = {"arm1": "#2a78d6", "arm3": "#eb6834", "arm4": "#008300",
+             "arm5": "#8b1e8b", "arm6": "#b8860b", "bimoco": "#00a3a3"}
+ARM_TICK = {"arm1": "arm 1", "arm3": "arm 3", "arm4": "arm 4",
+            "arm5": "arm 5", "arm6": "arm 6", "bimoco": "bimoco"}
 
 
 def ci_forest() -> None:
     task = pd.read_csv(EXP / "results" / "pairwise_bootstrap_ci.csv")
     clu  = pd.read_csv(EXP / "results" / "pairwise_bootstrap_ci_clustered.csv")
     armc = pd.read_csv(EXP / "results" / "pairwise_bootstrap_ci_vs_armC.csv")
-    all_rows = FOREST_ROWS + ARM_C_FOREST_ROWS
-    fig, ax = plt.subplots(figsize=(11.5, 12.5))
-    n = len(all_rows)
-    for i, (cell, contrast, ax_label, a, b) in enumerate(all_rows):
+    fig, (axA, axB) = plt.subplots(1, 2, figsize=(17.5, 11.5))
+
+    # Panel A — between arms, 12,500-step cells (task + clustered).
+    n = len(FOREST_ROWS)
+    for i, (cell, contrast, ax_label, a, b) in enumerate(FOREST_ROWS):
         yt = n - 1 - i
-        is_armc = b == "armC_seed2"
-        if is_armc:
-            rt, lot, hit = _lookup_armc(armc, cell, a)
-            rc, loc_, hic = None, None, None
-        else:
-            rt, lot, hit = _lookup(task, cell, a, b)
-            rc, loc_, hic = _lookup(clu, cell, a, b)
-        col = ("#52514e" if is_armc else
-               "#00a3a3" if a == "bimoco" or b == "bimoco" else
+        rt, lot, hit = _lookup(task, cell, a, b)
+        rc, loc_, hic = _lookup(clu, cell, a, b)
+        col = ("#00a3a3" if a == "bimoco" or b == "bimoco" else
                "#b8860b" if a == "arm6" or b == "arm6" else
                "#8b1e8b" if a == "arm5" or b == "arm5" else INK)
-        ax.plot([lot, hit], [yt + 0.12, yt + 0.12], color=col, lw=1.6)
-        ax.plot(rt, yt + 0.12, "o", color=col, markersize=6)
-        if rc is not None:
-            ax.plot([loc_, hic], [yt - 0.12, yt - 0.12], color=col, lw=1.0, alpha=0.55)
-            ax.plot(rc, yt - 0.12, "s", color=col, markersize=5, alpha=0.55)
-        ax.text(-0.02, yt, f"{cell:<10s}  {contrast:<20s}  {ax_label}",
-                transform=ax.get_yaxis_transform(), ha="right", va="center",
-                fontsize=9, family="monospace")
-    ax.axvline(1.0, color=MUTED, lw=1.2, ls="--")
-    ax.set_yticks([])
-    ax.set_xlim(0.82, 1.20)
-    ax.set_ylim(-1.2, n + 0.6)
-    ax.set_xlabel("ratio A / B  (ratio < 1 → A better; ratio > 1 → A worse)")
-    ax.text(0.5, n + 0.2,
-            "Paired-bootstrap 95 % CIs on GM-Relative MASE ratios",
-            transform=ax.get_yaxis_transform(), ha="center", va="bottom",
-            fontsize=12, fontweight="bold", color=INK)
-    ax.grid(axis="x", color=GRID, lw=0.7); ax.set_axisbelow(True)
-    for side in ("top", "right"): ax.spines[side].set_visible(False)
+        axA.plot([lot, hit], [yt + 0.12, yt + 0.12], color=col, lw=1.6)
+        axA.plot(rt, yt + 0.12, "o", color=col, markersize=6)
+        axA.plot([loc_, hic], [yt - 0.12, yt - 0.12], color=col, lw=1.0, alpha=0.55)
+        axA.plot(rc, yt - 0.12, "s", color=col, markersize=5, alpha=0.55)
+        axA.text(-0.02, yt, f"{cell:<10s}  {contrast:<20s}  {ax_label}",
+                 transform=axA.get_yaxis_transform(), ha="right", va="center",
+                 fontsize=9, family="monospace")
+    axA.set_ylim(-1.2, n + 0.6)
+    axA.set_title("between arms — 12,500-step cells\n"
+                  "circle = task-level bootstrap (97 configs), n_boot 20,000–200,000;  "
+                  "faded square = 28-dataset-clustered", fontsize=9.5)
     marker_handles = [
         plt.Line2D([], [], color=INK, marker="o", markersize=6, lw=1.6,
-                   label="task-level bootstrap (97 configs)"),
+                   label="task-level bootstrap"),
         plt.Line2D([], [], color=INK, marker="s", markersize=5, lw=1.0,
                    alpha=0.55, label="28-dataset-clustered bootstrap"),
     ]
-    ax.legend(handles=marker_handles, loc="upper right", fontsize=8.5,
-              frameon=False)
-    ax.text(1.005, -0.06, "cells marked * are checkpoint-selection or step-confounded — see report.",
-            transform=ax.transAxes, ha="right", va="top", fontsize=8, color=MUTED)
-    fig.tight_layout()
+    axA.legend(handles=marker_handles, loc="upper right", fontsize=8.5, frameon=False)
+    axA.text(1.005, -0.045,
+             "cells marked * compare checkpoints selected at different steps",
+             transform=axA.transAxes, ha="right", va="top", fontsize=8, color=MUTED)
+
+    # Panel B — every arm vs arm C at the matching backbone step (task-level).
+    cells = [("last", "2L", "vs step-12,500"), ("last", "6L", "vs step-12,500"),
+             ("25k", "2L", "vs step-25,000"), ("25k", "6L", "vs step-25,000"),
+             ("50k", "2L", "vs step-50,000"), ("50k", "6L", "vs step-50,000")]
+    arms_order = ["arm1", "arm3", "arm4", "arm5", "arm6", "bimoco"]
+    rowsB = []
+    for cell, head, ref in cells:
+        for a in arms_order:
+            r = armc[(armc["cell"] == cell) & (armc["head"] == head) & (armc["arm_a"] == a)]
+            if r.empty:
+                continue
+            row = r.iloc[0]
+            rowsB.append((f"{head} / {cell:<4s} {ARM_TICK[a]:<7s} {ref}", a,
+                          row["ratio_a_over_b"], row["ci_lo"], row["ci_hi"]))
+    m = len(rowsB)
+    for i, (label, a, rt, lo, hi) in enumerate(rowsB):
+        yt = m - 1 - i
+        col = ARM_COLOR[a]
+        axB.plot([lo, hi], [yt, yt], color=col, lw=1.6)
+        axB.plot(rt, yt, "o", color=col, markersize=6)
+        axB.text(-0.02, yt, label, transform=axB.get_yaxis_transform(),
+                 ha="right", va="center", fontsize=9, family="monospace")
+    axB.set_ylim(-1.2, m + 0.6)
+    axB.set_title("each arm vs arm C (seed-2 retrain) at the matching backbone step\n"
+                  "task-level bootstrap, n_boot 200,000;  CI left of 1.0 → the arm beats arm C",
+                  fontsize=9.5)
+
+    for ax in (axA, axB):
+        ax.axvline(1.0, color=MUTED, lw=1.2, ls="--")
+        ax.set_yticks([])
+        ax.set_xlim(0.82, 1.20)
+        ax.set_xlabel("GM-Relative MASE ratio  (< 1 → left-named arm better)")
+        ax.grid(axis="x", color=GRID, lw=0.7)
+        ax.set_axisbelow(True)
+        for side in ("top", "right"):
+            ax.spines[side].set_visible(False)
+    fig.suptitle("Paired-bootstrap 95 % CIs on GM-Relative MASE ratios  (seed 42)",
+                 fontsize=12, fontweight="bold")
+    fig.tight_layout(rect=(0, 0, 1, 0.97))
     fig.savefig(HERE / "ci_forest.png")
     plt.close(fig)
 
