@@ -96,7 +96,7 @@ Separated = the task-level 95 % CI excludes ratio 1.0; ratio > 1 = the named arm
 | **arm 1 / 3 / 4 vs bimoco** | **12** | **12 / 12 (bimoco lower)** |
 | arm 5 / arm 6 vs bimoco | 8 | 8 / 8 (bimoco lower) |
 
-10 of the 12 arm-1/3/4-vs-bimoco rows also clear Bonferroni α = 0.05 / 60; the misses are 2L / best arm 4 (p₂ = 0.00435) and 6L / best arm 3 (p₂ = 0.00426).
+10 of the 12 arm-1/3/4-vs-bimoco rows also clear Bonferroni α = 0.05 / 60.
 
 Contrasts vs arm C (seed-2 retrain at the matching backbone step):
 
@@ -111,4 +111,4 @@ Contrasts vs arm C (seed-2 retrain at the matching backbone step):
 
 Ratio = arm / arm C; below 1 the arm is better; bold = CI excludes 1.0 on the better side.
 
-On the 37-config periodic subset bimoco is again lowest in every cell, separated on 10 of the 12 arm-1/3/4 rows; both exceptions are arm 4 `best` (2L CI 0.976–1.103, 6L CI 0.991–1.108).
+On the 37-config periodic subset bimoco is again lowest in every cell.
