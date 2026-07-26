@@ -6,7 +6,7 @@
 
 ![GM-Relative MASE per arm across backbone step](plots/gm_curve_per_arm.png)
 
-*Bimoco has no 50,000-step cell, so its line stops at 25,000. Digits in the trajectory annex.*
+*Bimoco has no 50,000-step cell.*
 
 ## Aligning the training signal with downstream MASE
 
@@ -58,34 +58,15 @@ The `2k` / `25k` / `50k` cells use a fresh 40k-step head; `best` / `last` use a 
 | arm bimoco | 1.1438 | **1.1225** | **1.1180** | 1.1339 | — | 1.1337 | **1.1138** | **1.1087** | 1.1319 | — |
 | arm C ref (seed 2) | — | — | 1.1441 | 1.1415 | 1.1768 | — | — | 1.1318 | 1.1325 | 1.1510 |
 
-Bold = column minimum. Directories in the Method annex; the `2k` / `25k` / `50k` cells carry the matching suffix, `last` carries `_last`, `best` no suffix.
-
-The loss and `1 − ff` curves in the alignment figures concatenate, per arm:
-
-- arm 1 — `runs/…_losses_full.csv` + `…_r2_losses.csv` + `…_r3_losses.csv`
-- arm 3 — `runs/…_moco_…_losses.csv` + `…_ext25k_losses.csv` + `…_r3_losses.csv`; the two resume runs re-index their step counter from 1 and are offset by +12,500
-- arms 4, 5, 6 — `runs_arm4/`, `runs_arm5/`, `runs_arm6_v2/`, each base + `_r2` + `_r3`
-- bimoco — `runs_bimoco_v2/` base + `_r2`; no 25k–50k segment
+Bold = column minimum.
 
 ## Method (annex)
 
-All six arms' backbones: B = 512, T = 4096, C = 1, τ = 0.10, `lr = 1e-3`, seed 20260520, dataset `gift-pretrain-full-4096 / small_v1`, EMA teacher τ = 0.90, SIGReg λ_e = λ_h = 1, CPC auxiliary, 12,500 steps, prolonged to 25,000 and (five arms) 50,000.
+All six arms' backbones: B = 512, T = 4096, C = 1, τ = 0.10, `lr = 1e-3`, seed 20260520, dataset `gift-pretrain-full-4096 / small_v1`, EMA teacher τ = 0.90, SIGReg λ_e = λ_h = 1, CPC auxiliary, 12,500 steps, prolonged to 25,000 and (five arms) 50,000. Arm C is the SIGReg-cross champion recipe (λ_e = 1, λ_h = 1, τ = 0.90); its per-task data is a same-recipe seed-2 retrain evaluated at steps 12,500 / 25,000 / 50,000.
 
-Arm C: the SIGReg-cross champion recipe (`cross_C`: λ_e = 1, λ_h = 1, τ = 0.90). Its per-task data is a same-recipe seed-2 retrain (`results_armC_seed2/`, backbone steps 12,500 / 25,000 / 50,000, both heads); of the original seed-20260520 run only the aggregate row in `2026-06-28_sigreg_lambda_tau_cross/results/gm_table.csv` survives.
+Eval: GIFT-Eval 97 configs, strategy B4, quantile-median MASE / seasonal-naive. Per-cell source paths and checkpoint layout: `experiments/2026-07-10_split_pred_rep/README.md`.
 
-Downstream cells: `best` trains a fresh 30k-step quantile head on the arm's `_best_loss.pth` backbone (shipped as `bb_<run>_FINAL.pth`); `last` resumes that head +10k steps on the step-12,500 backbone (`bb_<run>_final.pth`); `2k` / `25k` / `50k` each train a fresh 40k-step head on that snapshot. Arm 1 recorded no best-loss save, so its two backbones are byte-identical (`results/backbone_step_verification.log`).
-
-Eval: GIFT-Eval 97 configs, strategy B4, quantile-median MASE / seasonal-naive (`results/seasonal_naive_all_results.csv`). Each cell is the `Aggregate GM-Relative MASE (97 configs)` line of `summary.txt` under `experiments/2026-07-10_split_pred_rep/<dir>/gift_eval_full_<arm base name>[_suffix]_<2L|6L>/`:
-
-- arm 1 — `results/`, base name `…_split_pred_rep_xftrip_…`
-- arm 3 — `results/`, base name `…_split_pred_rep_moco_xftrip_…`
-- arm 4 — `results_arm4/`
-- arm 5 — `results_arm5/`
-- arm 6 — `results_arm6_v2/`
-- bimoco — `results_bimoco_v2/`
-- arm C ref — `results_armC_seed2/gift_eval_full_armC_seed2_step{12500,25000,50000}_{2L,6L}/`
-
-The superseded `results_arm6/` and `results_bimoco/` directories are not used. f-anchored retrieval saturates by step 600 in every arm (`auc` ≥ 0.9975, lowest `top1` 0.8348; `auc` / `top1` columns of `runs*/bb_*_losses*.csv`) and does not separate the arms.
+f-anchored retrieval saturates by step 600 in every arm (`auc` ≥ 0.9975, lowest `top1` 0.8348) and does not separate the arms.
 
 ## Denominator share (annex)
 
@@ -101,7 +82,7 @@ Share of the cross-batch `f ↔ h′` family in the term carrying the prediction
 | arm 3 (split + MoCo, step 11,800) | `L_pred` | 0.937 | 0.997 |
 | arm 4 (pooled, step 600) | pooled | 0.003 | 0.003 |
 
-The three snapshots span 11,900 steps and bimoco was not probed, so the split-vs-pooled contrast is not separated from backbone step; the probe's B = 64 differs from training's B = 512, so shares are indicative.
+Bimoco was not probed. The arms sit at different backbone steps and the probe's B = 64 differs from training's 512, so shares are indicative.
 
 ## Backbone step (annex)
 
@@ -115,7 +96,7 @@ The three snapshots span 11,900 steps and bimoco was not probed, so the split-vs
 | arm bimoco | 12,400 | 12,500 | `_best_loss.pth` at step 12,400 |
 | arm C ref | — (no best-loss save) | 12,500 | seed-2 retrain at steps 12,500 / 25,000 / 50,000 |
 
-Arms 1 and 4's `best` backbones are not loss-argmin picks (arm 1 ships its step-12,500 checkpoint; arm 4's loss never returns below step 600), so `best` rows mix loss shape with checkpoint selection.
+`best` rows mix loss shape with checkpoint selection: arms 1 and 4's `best` backbones are not loss-argmin picks.
 
 ## Paired-bootstrap 95 % CIs (annex)
 
@@ -123,7 +104,7 @@ Arms 1 and 4's `best` backbones are not loss-argmin picks (arm 1 ships its step-
 
 *Circles = task-level bootstrap; faded squares = 28-dataset-clustered bootstrap (resamples the 28 source datasets instead of the 97 configs); `*` marks rows confounded by checkpoint selection or backbone step. n_boot = 20,000 (seed 42), raised to 200,000 for the arm-5/6/bimoco-reference and arm-C rows. The arm-C rows are task-level only (no clustered pass) against the seed-2 retrain at step 12,500.*
 
-Separated = the task-level 95 % CI excludes ratio 1.0; ratio > 1 = the named arm is worse than the reference. Sources: `results/pairwise_bootstrap_ci.csv` (arm-1/3/4 pairwise), `results/pairwise_bootstrap_ci_*_nboot200k.csv` (arm-5/6/bimoco references), `results/pairwise_bootstrap_ci_vs_armC.csv` (arm C). Rows in the table below use the 12,500-step cells.
+Separated = the task-level 95 % CI excludes ratio 1.0; ratio > 1 = the named arm is worse than the reference. Rows in the table below use the 12,500-step cells; source CSVs in the experiment README.
 
 | contrast set | rows | separated at 95 % (task-level CI) |
 | --- | --: | --: |
