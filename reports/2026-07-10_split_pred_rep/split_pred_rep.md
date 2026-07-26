@@ -20,8 +20,6 @@
 
 ![Downstream GM-Relative MASE per arm](plots/headline_relmase.png)
 
-*Arm C appears only in the `last` cells (no best-loss save).*
-
 ## The arms
 
 Notation: `h_t` = encoder latent; `f_t` = forecaster's next-step latent (the forecast); `h′` = cross-batch latent; `ᵀ` = EMA-teacher copy (τ_ema = 0.90); `sg` = stop-gradient. Cosine similarities at τ = 0.10.
