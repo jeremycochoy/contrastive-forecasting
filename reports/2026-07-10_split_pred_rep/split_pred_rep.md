@@ -2,7 +2,7 @@
 
 **Question.** The champion loss puts every negative under a single log-sum-exp denominator. Does splitting it into `L_pred` (f-anchored) and `L_rep` (h-anchored) improve GM-Relative MASE (geometric mean, over the 97 GIFT-Eval configs, of per-task MASE / seasonal-naive MASE; lower is better), and does adding EMA-teacher MoCo keys or replacing `L_pred` with BYOL alignment change the answer?
 
-**Answer.** Which arm is lowest depends on backbone step: bimoco at 12,500, arm 4 from 25,000 onward (bimoco has no 50k cell). Ratios and CIs in the paired-bootstrap annex. Caveats: arm C's per-task data is a same-recipe seed-2 retrain, so vs-arm-C CIs absorb one seed of noise — every sibling contrast is same-seed; the two arm-4 `best` rows compare backbones 11,800 steps apart.
+**Answer.** Which arm is lowest depends on backbone step: bimoco at 12,500, arm 4 from 25,000 onward (bimoco has no 50k cell).
 
 ![GM-Relative MASE per arm across backbone step](plots/gm_curve_per_arm.png)
 
@@ -71,7 +71,7 @@ Training-loss curves in the loss-alignment figure concatenate, per arm:
 
 ## Method (annex)
 
-All sibling backbones: B = 512, T = 4096, C = 1, τ = 0.10, `lr = 1e-3`, seed 20260520, dataset `gift-pretrain-full-4096 / small_v1`, EMA teacher τ = 0.90, SIGReg λ_e = λ_h = 1, CPC auxiliary, 12,500 steps, prolonged to 25,000 and (five arms) 50,000.
+All six arms' backbones: B = 512, T = 4096, C = 1, τ = 0.10, `lr = 1e-3`, seed 20260520, dataset `gift-pretrain-full-4096 / small_v1`, EMA teacher τ = 0.90, SIGReg λ_e = λ_h = 1, CPC auxiliary, 12,500 steps, prolonged to 25,000 and (five arms) 50,000.
 
 Arm C: the SIGReg-cross champion recipe (`cross_C`: λ_e = 1, λ_h = 1, τ = 0.90). Its per-task data is a same-recipe seed-2 retrain (`results_armC_seed2/`, backbone steps 12,500 / 25,000 / 50,000, both heads); of the original seed-20260520 run only the aggregate row in `2026-06-28_sigreg_lambda_tau_cross/results/gm_table.csv` survives.
 
@@ -125,7 +125,7 @@ Arms 1 and 4's `best` backbones are not loss-argmin picks (arm 1 ships its step-
 
 *Circles = task-level bootstrap; faded squares = 28-dataset-clustered bootstrap (resamples the 28 source datasets instead of the 97 configs); `*` marks rows confounded by checkpoint selection or backbone step. n_boot = 20,000 (seed 42), raised to 200,000 for the arm-5/6/bimoco-reference and arm-C rows. The arm-C rows are task-level only (no clustered pass) against the seed-2 retrain at step 12,500.*
 
-Separated = the task-level 95 % CI excludes ratio 1.0; ratio > 1 = the named arm is worse than the reference. Sources: `results/pairwise_bootstrap_ci.csv` (arm-1/3/4 pairwise), `results/pairwise_bootstrap_ci_*_nboot200k.csv` (arm-5/6/bimoco references), `results/pairwise_bootstrap_ci_vs_armC.csv` (arm C). Sibling rows use the 12,500-step cells.
+Separated = the task-level 95 % CI excludes ratio 1.0; ratio > 1 = the named arm is worse than the reference. Sources: `results/pairwise_bootstrap_ci.csv` (arm-1/3/4 pairwise), `results/pairwise_bootstrap_ci_*_nboot200k.csv` (arm-5/6/bimoco references), `results/pairwise_bootstrap_ci_vs_armC.csv` (arm C). Rows in the table below use the 12,500-step cells.
 
 | contrast set | rows | separated at 95 % (task-level CI) |
 | --- | --: | --: |
@@ -140,7 +140,7 @@ Separated = the task-level 95 % CI excludes ratio 1.0; ratio > 1 = the named arm
 
 Contrasts vs arm C (seed-2 retrain at the matching backbone step):
 
-| sibling cell | arm 1 | arm 3 | arm 4 | arm 5 | arm 6 | bimoco |
+| cell | arm 1 | arm 3 | arm 4 | arm 5 | arm 6 | bimoco |
 | --- | --: | --: | --: | --: | --: | --: |
 | 2L / last (vs step-12,500) | 1.020 [1.004, 1.039] | 1.021 [1.009, 1.034] | 1.009 [0.999, 1.021] | 1.126 [1.092, 1.162] | 1.024 [1.004, 1.046] | **0.977 [0.964, 0.991]** |
 | 6L / last (vs step-12,500) | 1.021 [1.006, 1.038] | 1.017 [1.003, 1.032] | 1.008 [0.994, 1.021] | 1.078 [1.052, 1.105] | 1.040 [1.019, 1.065] | **0.980 [0.963, 0.994]** |
@@ -149,6 +149,6 @@ Contrasts vs arm C (seed-2 retrain at the matching backbone step):
 | 2L / 50k  (vs step-50,000) | 1.048 [1.023, 1.075] | **0.974 [0.959, 0.988]** | **0.970 [0.950, 0.989]** | 1.135 [1.098, 1.173] | 1.012 [0.988, 1.038] | — |
 | 6L / 50k  (vs step-50,000) | 1.054 [1.031, 1.078] | **0.975 [0.958, 0.991]** | **0.973 [0.959, 0.987]** | 1.067 [1.039, 1.095] | 1.027 [1.001, 1.057] | — |
 
-Ratio = sibling / arm C; below 1 the sibling is better; bold = CI excludes 1.0 on the better side.
+Ratio = arm / arm C; below 1 the arm is better; bold = CI excludes 1.0 on the better side. These ratios also absorb the seed difference: the six arms train at seed 20260520, arm C at seed 2.
 
 On the 37-config periodic subset (`results/pairwise_bootstrap_ci_periodic.csv`) bimoco is again lowest in every cell, separated on 10 of the 12 arm-1/3/4 rows; both exceptions are arm 4 `best` (2L CI 0.976–1.103, 6L CI 0.991–1.108).
