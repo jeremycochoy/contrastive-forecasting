@@ -2,7 +2,7 @@
 
 **Question.** The champion loss puts every negative under a single log-sum-exp denominator. Does splitting it into `L_pred` (f-anchored) and `L_rep` (h-anchored) improve GM-Relative MASE, and does adding EMA-teacher MoCo keys or replacing `L_pred` with cosine-distance minimization to the teacher (`L_align`) change the answer?
 
-**Answer.** Which arm is lowest depends on backbone step: bimoco at 12,500, arm 4 from 25,000 onward (bimoco has no 50k cell).
+**Answer.** Which arm is lowest depends on backbone step: bimoco at 12,500, arm 4 (pooled MoCo) from 25,000 onward (bimoco has no 50k cell).
 
 ![GM-Relative MASE per arm across backbone step](plots/gm_curve_per_arm.png)
 
