@@ -2,7 +2,7 @@
 
 **Question.** The champion loss puts every negative under a single log-sum-exp denominator. Does splitting it into `L_pred` (f-anchored) and `L_rep` (h-anchored) improve GM-Relative MASE (geometric mean, over the 97 GIFT-Eval configs, of per-task MASE / seasonal-naive MASE; lower is better), and does adding EMA-teacher MoCo keys or replacing `L_pred` with BYOL alignment change the answer?
 
-**Answer.** Which arm is lowest depends on backbone step. At 12,500 steps bimoco (`L_pred_moco + L_rep_moco`) is lowest in all four (head, checkpoint) cells and 95 %-separated — the paired-bootstrap 95 % CI on the GM ratio excludes 1.0 — from every sibling arm and, on the `last` cells, from arm C. From 25,000 steps arm 4 (pooled + MoCo) leads, reaching the lowest measured cell (6L / 25k, 1.1073); it is 95 %-separated from arm C at 6L / 25k and at both heads at 50k, as is arm 3 at 50k (bimoco has no 50k cell). Caveats: arm C's per-task data is a same-recipe seed-2 retrain, so vs-arm-C CIs absorb one seed of noise — every sibling contrast is same-seed; the two arm-4 `best` rows compare backbones 11,800 steps apart. Ratios and CIs in the paired-bootstrap annex.
+**Answer.** Which arm is lowest depends on backbone step: bimoco at 12,500, arm 4 from 25,000 onward (bimoco has no 50k cell). Ratios and CIs in the paired-bootstrap annex. Caveats: arm C's per-task data is a same-recipe seed-2 retrain, so vs-arm-C CIs absorb one seed of noise — every sibling contrast is same-seed; the two arm-4 `best` rows compare backbones 11,800 steps apart.
 
 ![GM-Relative MASE per arm across backbone step](plots/gm_curve_per_arm.png)
 
