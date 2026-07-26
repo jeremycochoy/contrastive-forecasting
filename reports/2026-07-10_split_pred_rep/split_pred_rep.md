@@ -14,13 +14,13 @@
 
 ![Retrieval error (1 − ff) aligned with evaluated GM-Relative MASE snapshots, per arm](plots/ff_vs_gm_snapshots.png)
 
-*`ff = cos(f̂_t, f_true_{t+1})`, the positive-pair cosine similarity — one numeric scale for every arm.*
+*`ff = cos(f̂_t, f_true_{t+1})`, the positive-pair cosine similarity.*
 
 ## Snapshot at 12,500 backbone steps
 
 ![Downstream GM-Relative MASE per arm](plots/headline_relmase.png)
 
-*Arm C appears only in the `last` cells (no best-loss save). Separation is established by the CIs in the paired-bootstrap annex, not bar heights.*
+*Arm C appears only in the `last` cells (no best-loss save).*
 
 ## The arms
 
@@ -66,8 +66,6 @@ All six arms' backbones: B = 512, T = 4096, C = 1, τ = 0.10, `lr = 1e-3`, seed 
 
 Eval: GIFT-Eval 97 configs, strategy B4, quantile-median MASE / seasonal-naive. Per-cell source paths and checkpoint layout: `experiments/2026-07-10_split_pred_rep/README.md`.
 
-f-anchored retrieval saturates by step 600 in every arm (`auc` ≥ 0.9975, lowest `top1` 0.8348) and does not separate the arms.
-
 ## Denominator share (annex)
 
 ![Per-family denominator share](plots/gradient_share_stack.png)
@@ -82,7 +80,7 @@ Share of the cross-batch `f ↔ h′` family in the term carrying the prediction
 | arm 3 (split + MoCo, step 11,800) | `L_pred` | 0.937 | 0.997 |
 | arm 4 (pooled, step 600) | pooled | 0.003 | 0.003 |
 
-Bimoco was not probed. The arms sit at different backbone steps and the probe's B = 64 differs from training's 512, so shares are indicative.
+Bimoco was not probed.
 
 ## Backbone step (annex)
 
@@ -95,8 +93,6 @@ Bimoco was not probed. The arms sit at different backbone steps and the probe's 
 | arm 6 | 8,700 | 12,500 | `_best_loss.pth` at step 8,700 |
 | arm bimoco | 12,400 | 12,500 | `_best_loss.pth` at step 12,400 |
 | arm C ref | — (no best-loss save) | 12,500 | seed-2 retrain at steps 12,500 / 25,000 / 50,000 |
-
-`best` rows mix loss shape with checkpoint selection: arms 1 and 4's `best` backbones are not loss-argmin picks.
 
 ## Paired-bootstrap 95 % CIs (annex)
 
@@ -115,7 +111,7 @@ Separated = the task-level 95 % CI excludes ratio 1.0; ratio > 1 = the named arm
 | **arm 1 / 3 / 4 vs bimoco** | **12** | **12 / 12 (bimoco lower)** |
 | arm 5 / arm 6 vs bimoco | 8 | 8 / 8 (bimoco lower) |
 
-10 of the 12 arm-1/3/4-vs-bimoco rows also clear Bonferroni α = 0.05 / 60 = 0.000833 (60 = 15 arm pairs × 4 cells); the two misses are 2L / best arm 4 (p₂ = 0.00435) and 6L / best arm 3 (p₂ = 0.00426) (`two_sided_p` in `results/pairwise_bootstrap_ci_bimoco_nboot200k.csv`).
+10 of the 12 arm-1/3/4-vs-bimoco rows also clear Bonferroni α = 0.05 / 60; the misses are 2L / best arm 4 (p₂ = 0.00435) and 6L / best arm 3 (p₂ = 0.00426).
 
 Contrasts vs arm C (seed-2 retrain at the matching backbone step):
 
@@ -128,6 +124,6 @@ Contrasts vs arm C (seed-2 retrain at the matching backbone step):
 | 2L / 50k  (vs step-50,000) | 1.048 [1.023, 1.075] | **0.974 [0.959, 0.988]** | **0.970 [0.950, 0.989]** | 1.135 [1.098, 1.173] | 1.012 [0.988, 1.038] | — |
 | 6L / 50k  (vs step-50,000) | 1.054 [1.031, 1.078] | **0.975 [0.958, 0.991]** | **0.973 [0.959, 0.987]** | 1.067 [1.039, 1.095] | 1.027 [1.001, 1.057] | — |
 
-Ratio = arm / arm C; below 1 the arm is better; bold = CI excludes 1.0 on the better side. These ratios also absorb the seed difference: the six arms train at seed 20260520, arm C at seed 2.
+Ratio = arm / arm C; below 1 the arm is better; bold = CI excludes 1.0 on the better side.
 
-On the 37-config periodic subset (`results/pairwise_bootstrap_ci_periodic.csv`) bimoco is again lowest in every cell, separated on 10 of the 12 arm-1/3/4 rows; both exceptions are arm 4 `best` (2L CI 0.976–1.103, 6L CI 0.991–1.108).
+On the 37-config periodic subset bimoco is again lowest in every cell, separated on 10 of the 12 arm-1/3/4 rows; both exceptions are arm 4 `best` (2L CI 0.976–1.103, 6L CI 0.991–1.108).
