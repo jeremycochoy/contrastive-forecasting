@@ -40,9 +40,9 @@ L_align       2 − 2·cos(f_t, sg(hᵀ_{t+1}))   cosine-distance minimization, 
 | arm 5 | `L_align + L_rep` | `rep_only` `--align-loss-weight 1.0` |
 | arm 6 | `L_align + L_rep_moco` | `rep_only` `--align-loss-weight 1.0 --moco-rep-keys` |
 | bimoco | `L_pred_moco + L_rep_moco` | `split_pred_rep` `--moco-negatives --moco-rep-keys` |
-| arm C | arm 4's pooled shape with student keys | champion baseline; seed-2 retrain (Method annex) |
+| arm C | arm 4's pooled shape with student keys | champion baseline; seed-2 retrain (Annex C) |
 
-## Trajectory cells (annex)
+## Annex A — Trajectory cells
 
 The `2k` / `25k` / `50k` cells use a fresh 40k-step head; `best` / `last` use a 30k-step best-loss head (+10k resume for `last`). The `best` backbone step differs per arm and is given in the arm label.
 
@@ -58,13 +58,7 @@ The `2k` / `25k` / `50k` cells use a fresh 40k-step head; `best` / `last` use a 
 
 Bold = column minimum.
 
-## Method (annex)
-
-All six arms' backbones: B = 512, T = 4096, C = 1, τ = 0.10, `lr = 1e-3`, seed 20260520, dataset `gift-pretrain-full-4096 / small_v1`, EMA teacher τ = 0.90, SIGReg λ_e = λ_h = 1, CPC auxiliary, 12,500 steps, prolonged to 25,000 and (five arms) 50,000. Arm C is the SIGReg-cross champion recipe (λ_e = 1, λ_h = 1, τ = 0.90); its per-task data is a same-recipe seed-2 retrain evaluated at steps 12,500 / 25,000 / 50,000.
-
-Eval: GIFT-Eval 97 configs, strategy B4, quantile-median MASE / seasonal-naive. Per-cell source paths and checkpoint layout: `experiments/2026-07-10_split_pred_rep/README.md`.
-
-## Denominator share (annex)
+## Annex B — Denominator share
 
 ![Per-family denominator share](plots/gradient_share_stack.png)
 
@@ -79,7 +73,13 @@ Share of the cross-batch `f ↔ h′` family in the term carrying the prediction
 | bimoco | `L_pred_moco` | 0.515 | 0.893 |
 | arm 4 | pooled | 0.004 | 0.004 |
 
-## Paired-bootstrap 95 % CIs (annex)
+## Annex C — Method
+
+All six arms' backbones: B = 512, T = 4096, C = 1, τ = 0.10, `lr = 1e-3`, seed 20260520, dataset `gift-pretrain-full-4096 / small_v1`, EMA teacher τ = 0.90, SIGReg λ_e = λ_h = 1, CPC auxiliary, 12,500 steps, prolonged to 25,000 and (five arms) 50,000. Arm C is the SIGReg-cross champion recipe (λ_e = 1, λ_h = 1, τ = 0.90); its per-task data is a same-recipe seed-2 retrain evaluated at steps 12,500 / 25,000 / 50,000.
+
+Eval: GIFT-Eval 97 configs, strategy B4, quantile-median MASE / seasonal-naive. Per-cell source paths and checkpoint layout: `experiments/2026-07-10_split_pred_rep/README.md`.
+
+## Annex D — Paired-bootstrap 95 % CIs
 
 ![Paired-bootstrap 95 % CIs on GM-Relative MASE ratios](plots/ci_forest.png)
 
