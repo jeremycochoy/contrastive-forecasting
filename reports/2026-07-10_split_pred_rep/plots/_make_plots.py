@@ -156,7 +156,6 @@ def headline() -> None:
     plt.close(fig)
 
 
-FINAL_CKPT = {"arm1": "_FINAL.pth", "arm3": "_FINAL.pth", "arm4": "_FINAL.pth"}
 STACK_ORDER = ["log_neg_zy", "log_neg_cross_batch", "log_neg_hh_all", "log_neg_xs_allt"]
 TENSOR_LABEL = {
     "log_neg_zy": "log_neg_zy  (adjacent f↔f)",
@@ -166,19 +165,19 @@ TENSOR_LABEL = {
 }
 BAR_SLOTS = [("arm1", "pred", "arm 1\nL_pred", 0.0), ("arm1", "rep", "arm 1\nL_rep", 0.85),
              ("arm3", "pred", "arm 3\nL_pred", 2.05), ("arm3", "rep", "arm 3\nL_rep", 2.90),
-             ("arm4", "pooled", "arm 4\npooled", 4.20)]
+             ("bimoco", "pred", "bimoco\nL_pred", 4.10), ("bimoco", "rep", "bimoco\nL_rep", 4.95),
+             ("arm4", "pooled", "arm 4\npooled", 6.25)]
 
 
 def gradient_share_stack() -> None:
-    df = pd.read_csv(EXP / "results" / "gradient_share_measurement.csv")
+    df = pd.read_csv(EXP / "results" / "gradient_share_measurement_step12500.csv")
     df["share"] = pd.to_numeric(df.share, errors="coerce")  # "n/a" -> NaN
     df = df.dropna(subset=["share"])
-    fig, axes = plt.subplots(1, 2, figsize=(11.5, 5.8), sharey=True)
+    fig, axes = plt.subplots(1, 2, figsize=(12.5, 5.8), sharey=True)
     for ax, batch in zip(axes, ["mixed", "periodic"]):
         for arm, denom, ticklabel, xpos in BAR_SLOTS:
             rows = df[(df.arm_name == arm) & (df.batch_type == batch)
-                      & (df.denom == denom)
-                      & df.ckpt_path.str.endswith(FINAL_CKPT[arm])]
+                      & (df.denom == denom)]
             bottom = 0.0
             for tensor in STACK_ORDER:
                 r = rows[rows.tensor == tensor]
@@ -195,14 +194,14 @@ def gradient_share_stack() -> None:
                 if arm == "arm4" and tensor == "log_neg_cross_batch":
                     ax.annotate(f"log_neg_cross_batch\nshare = {share:.3f}",
                                 xy=(xpos + 0.36, bottom + share / 2),
-                                xytext=(xpos + 1.05, 0.30), fontsize=8, color=INK,
+                                xytext=(xpos + 0.9, 0.30), fontsize=8, color=INK,
                                 arrowprops=dict(arrowstyle="-", color=MUTED, lw=0.9))
                 bottom += share
             if bottom > 0:
                 dy = 0.015 if BAR_SLOTS.index((arm, denom, ticklabel, xpos)) % 2 == 0 else 0.075
                 ax.text(xpos, bottom + dy, f"Σ = {bottom:.3f}", ha="center",
                         va="bottom", fontsize=8, color=MUTED)
-        ax.set_xlim(-0.6, 6.9)
+        ax.set_xlim(-0.6, 8.4)
         ax.set_xticks([s[3] for s in BAR_SLOTS], [s[2] for s in BAR_SLOTS], fontsize=9)
         ax.set_title(f"{batch} batch", fontsize=10.5)
         ax.set_ylim(0, 1.10)

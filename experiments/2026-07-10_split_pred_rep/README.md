@@ -29,7 +29,7 @@ live in the report linked above.
 
 Denominator-share is measured by `scripts/gradient_share_measurement.py`
 (no `logit_magnitudes.py`; the earlier plan file used a different name);
-the CSV lands at `results/gradient_share_measurement.csv`.
+the CSV lands at `results/gradient_share_measurement.csv` (original probe at each arm's best-cell step) and `results/gradient_share_measurement_step12500.csv` (matched-step re-probe at every arm's step-12,500 backbone, bimoco included — the one the report uses).
 
 ## Result directories
 

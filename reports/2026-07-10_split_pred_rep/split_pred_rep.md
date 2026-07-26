@@ -44,16 +44,16 @@ L_align       2 − 2·cos(f_t, sg(hᵀ_{t+1}))   BYOL: negative-free
 
 ## Trajectory cells (annex)
 
-The `2k` / `25k` / `50k` cells use a fresh 40k-step head; `best` / `last` use a 30k-step best-loss head (+10k resume for `last`); per-arm `best` steps in the backbone-step annex.
+The `2k` / `25k` / `50k` cells use a fresh 40k-step head; `best` / `last` use a 30k-step best-loss head (+10k resume for `last`). The `best` backbone step differs per arm and is given in the arm label.
 
 | arm | 2L 2k | 2L best | 2L last (12,500) | 2L 25k | 2L 50k | 6L 2k | 6L best | 6L last (12,500) | 6L 25k | 6L 50k |
 | --- | --: | --: | --: | --: | --: | --: | --: | --: | --: | --: |
-| arm 1 | 1.2005 | 1.1654 | 1.1669 | 1.1761 | 1.2334 | 1.1938 | 1.1575 | 1.1557 | 1.1500 | 1.2129 |
-| arm 3 | 1.2075 | 1.1548 | 1.1683 | 1.1484 | 1.1461 | 1.1825 | 1.1338 | 1.1511 | 1.1170 | 1.1221 |
-| arm 4 | 1.1874 | 1.1602 | 1.1546 | **1.1332** | 1.1414 | 1.1564 | 1.1603 | 1.1405 | **1.1073** | 1.1199 |
-| arm 5 | 1.2208 | 1.3374 | 1.2883 | 1.2279 | 1.3357 | 1.1829 | 1.2554 | 1.2201 | 1.1889 | 1.2279 |
-| arm 6 | 1.1601 | 1.1771 | 1.1712 | 1.1714 | 1.1907 | 1.1604 | 1.1768 | 1.1767 | 1.1655 | 1.1823 |
-| arm bimoco | 1.1438 | **1.1225** | **1.1180** | 1.1339 | — | 1.1337 | **1.1138** | **1.1087** | 1.1319 | — |
+| arm 1 (best @ 12,500) | 1.2005 | 1.1654 | 1.1669 | 1.1761 | 1.2334 | 1.1938 | 1.1575 | 1.1557 | 1.1500 | 1.2129 |
+| arm 3 (best @ 11,800) | 1.2075 | 1.1548 | 1.1683 | 1.1484 | 1.1461 | 1.1825 | 1.1338 | 1.1511 | 1.1170 | 1.1221 |
+| arm 4 (best @ 600) | 1.1874 | 1.1602 | 1.1546 | **1.1332** | 1.1414 | 1.1564 | 1.1603 | 1.1405 | **1.1073** | 1.1199 |
+| arm 5 (best @ 11,800) | 1.2208 | 1.3374 | 1.2883 | 1.2279 | 1.3357 | 1.1829 | 1.2554 | 1.2201 | 1.1889 | 1.2279 |
+| arm 6 (best @ 8,700) | 1.1601 | 1.1771 | 1.1712 | 1.1714 | 1.1907 | 1.1604 | 1.1768 | 1.1767 | 1.1655 | 1.1823 |
+| arm bimoco (best @ 12,400) | 1.1438 | **1.1225** | **1.1180** | 1.1339 | — | 1.1337 | **1.1138** | **1.1087** | 1.1319 | — |
 | arm C ref (seed 2) | — | — | 1.1441 | 1.1415 | 1.1768 | — | — | 1.1318 | 1.1325 | 1.1510 |
 
 Bold = column minimum.
@@ -68,29 +68,16 @@ Eval: GIFT-Eval 97 configs, strategy B4, quantile-median MASE / seasonal-naive. 
 
 ![Per-family denominator share](plots/gradient_share_stack.png)
 
-*Per-family denominator share at each arm's best-cell backbone snapshot (arm 1: step 12,500; arm 3: 11,800; arm 4: 600), probed on a mixed and a periodic-only batch at τ = 0.10, B = 64. `share_i = exp(mean(logit_i − log-denominator))` is a per-anchor geometric mean, so families need not sum to 1; each bar's Σ is printed above it.*
+*Per-family denominator share at every arm's step-12,500 backbone, probed on a mixed and a periodic-only batch at τ = 0.10, B = 64. `share_i = exp(mean(logit_i − log-denominator))` is a per-anchor geometric mean, so families need not sum to 1; each bar's Σ is printed above it.*
 
-Share of the cross-batch `f ↔ h′` family in the term carrying the prediction pairs (`results/gradient_share_measurement.csv`):
+Share of the cross-batch `f ↔ h′` family in the term carrying the prediction pairs (`results/gradient_share_measurement_step12500.csv`):
 
 | arm | term | mixed batch | periodic batch |
 | --- | --- | --: | --: |
-| arm 1 (split, step 12,500) | `L_pred` | 0.901 | 0.991 |
-| arm 3 (split + MoCo, step 11,800) | `L_pred` | 0.937 | 0.997 |
-| arm 4 (pooled, step 600) | pooled | 0.003 | 0.003 |
-
-Bimoco was not probed.
-
-## Backbone step (annex)
-
-| arm | `best` cell step | `last` cell step | best-cell backbone = |
-| --- | --: | --: | --- |
-| arm 1 | 12,500 | 12,500 | the step-12,500 checkpoint, not a loss-argmin checkpoint |
-| arm 3 | 11,800 | 12,500 | `_best_loss.pth` at step 11,800 |
-| arm 4 | 600 | 12,500 | `_best_loss.pth` at step 600 |
-| arm 5 | 11,800 | 12,500 | `_best_loss.pth` at step 11,800 |
-| arm 6 | 8,700 | 12,500 | `_best_loss.pth` at step 8,700 |
-| arm bimoco | 12,400 | 12,500 | `_best_loss.pth` at step 12,400 |
-| arm C ref | — (no best-loss save) | 12,500 | seed-2 retrain at steps 12,500 / 25,000 / 50,000 |
+| arm 1 | `L_pred` | 0.901 | 0.991 |
+| arm 3 | `L_pred_moco` | 0.925 | 0.995 |
+| bimoco | `L_pred_moco` | 0.515 | 0.893 |
+| arm 4 | pooled | 0.004 | 0.004 |
 
 ## Paired-bootstrap 95 % CIs (annex)
 
