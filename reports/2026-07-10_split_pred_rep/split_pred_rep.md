@@ -1,6 +1,6 @@
 # Bimoco at 12,500 steps and pooled + MoCo (arm 4) from 25,000 onward are the lowest arms, and both beat the SIGReg champion with a 95 % paired-bootstrap CI.
 
-**Question.** The champion loss puts every negative under a single log-sum-exp denominator. Does splitting it into `L_pred` (f-anchored) and `L_rep` (h-anchored) improve GM-Relative MASE, and does adding EMA-teacher MoCo keys or replacing `L_pred` with BYOL alignment change the answer?
+**Question.** The champion loss puts every negative under a single log-sum-exp denominator. Does splitting it into `L_pred` (f-anchored) and `L_rep` (h-anchored) improve GM-Relative MASE, and does adding EMA-teacher MoCo keys or replacing `L_pred` with cosine-distance minimization to the teacher (`L_align`) change the answer?
 
 **Answer.** Which arm is lowest depends on backbone step: bimoco at 12,500, arm 4 from 25,000 onward (bimoco has no 50k cell).
 
@@ -29,7 +29,7 @@ L_pred        f-anchored NCE:  positive cos(f_t, h′_{t+1});  negatives  adjace
 L_pred_moco   = L_pred with the cross-batch keys taken from the teacher
 L_rep         h-anchored LSE:  cross-channel h↔h  ∪  within-series h↔h  ∪  cross-series h↔h′;  no positive term
 L_rep_moco    = L_rep with teacher-side keys; the same-time student↔teacher pair is the positive and also sits in the denominator
-L_align       2 − 2·cos(f_t, sg(hᵀ_{t+1}))   BYOL: negative-free
+L_align       2 − 2·cos(f_t, sg(hᵀ_{t+1}))   cosine-distance minimization, no negatives
 ```
 
 | arm | loss | shape (prefix `cosine_similarity_batch_`) + flags |
