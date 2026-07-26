@@ -8,6 +8,20 @@
 
 *Bimoco has no 50,000-step cell, so its line stops at 25,000. Digits in the trajectory annex.*
 
+## Aligning the training signal with downstream MASE
+
+![Backbone training loss aligned with evaluated GM-Relative MASE snapshots](plots/loss_vs_gm_snapshots.png)
+
+![Retrieval error (1 − ff) aligned with evaluated GM-Relative MASE snapshots, per arm](plots/ff_vs_gm_snapshots.png)
+
+*`ff = cos(f̂_t, f_true_{t+1})`, the positive-pair cosine similarity — one numeric scale for every arm.*
+
+## Snapshot at 12,500 backbone steps
+
+![Downstream GM-Relative MASE per arm](plots/headline_relmase.png)
+
+*Arm C appears only in the `last` cells (no best-loss save). Separation is established by the CIs in the paired-bootstrap annex, not bar heights.*
+
 ## The arms
 
 Notation: `h_t` = encoder latent; `f_t` = forecaster's next-step latent (the forecast); `h′` = cross-batch latent; `ᵀ` = EMA-teacher copy (τ_ema = 0.90); `sg` = stop-gradient. Cosine similarities at τ = 0.10.
@@ -29,20 +43,6 @@ L_align       2 − 2·cos(f_t, sg(hᵀ_{t+1}))   BYOL: negative-free
 | arm 6 | `L_align + L_rep_moco` | `rep_only` `--align-loss-weight 1.0 --moco-rep-keys` |
 | bimoco | `L_pred_moco + L_rep_moco` | `split_pred_rep` `--moco-negatives --moco-rep-keys` |
 | arm C | arm 4's pooled shape with student keys | champion baseline; seed-2 retrain (Method annex) |
-
-## Aligning the training signal with downstream MASE
-
-![Backbone training loss aligned with evaluated GM-Relative MASE snapshots](plots/loss_vs_gm_snapshots.png)
-
-![Retrieval error (1 − ff) aligned with evaluated GM-Relative MASE snapshots, per arm](plots/ff_vs_gm_snapshots.png)
-
-*`ff = cos(f̂_t, f_true_{t+1})`, the positive-pair cosine similarity — one numeric scale for every arm.*
-
-## Snapshot at 12,500 backbone steps
-
-![Downstream GM-Relative MASE per arm](plots/headline_relmase.png)
-
-*Arm C appears only in the `last` cells (no best-loss save). Separation is established by the CIs in the paired-bootstrap annex, not bar heights.*
 
 ## Trajectory cells (annex)
 
