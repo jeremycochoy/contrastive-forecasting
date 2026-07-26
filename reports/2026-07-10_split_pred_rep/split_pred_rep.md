@@ -6,7 +6,7 @@
 
 ![GM-Relative MASE per arm across backbone step](plots/gm_curve_per_arm.png)
 
-*One line per arm through its evaluated cells; marker shape gives the head protocol (legend). Bimoco stops at 25,000 — no 50,000-step cell. Digits in the trajectory annex.*
+*Bimoco has no 50,000-step cell, so its line stops at 25,000. Digits in the trajectory annex.*
 
 ## The arms
 
@@ -34,21 +34,19 @@ L_align       2 − 2·cos(f_t, sg(hᵀ_{t+1}))   BYOL: negative-free
 
 ![Backbone training loss aligned with evaluated GM-Relative MASE snapshots](plots/loss_vs_gm_snapshots.png)
 
-*Training loss (left axis, 100-step rolling mean) against the evaluated GM-Relative MASE cells (right axis). `loss` is not on one scale across arms — different loss shapes, negative counts, and arm 4's subtracted floor — so each panel is read within itself.*
-
 ![Retrieval error (1 − ff) aligned with evaluated GM-Relative MASE snapshots, per arm](plots/ff_vs_gm_snapshots.png)
 
-*Same layout with `1 − ff` on top. `ff = cos(f̂_t, f_true_{t+1})` is the positive-pair cosine similarity — one numeric scale for every arm, though each arm optimises it through a different loss.*
+*`ff = cos(f̂_t, f_true_{t+1})`, the positive-pair cosine similarity — one numeric scale for every arm.*
 
 ## Snapshot at 12,500 backbone steps
 
 ![Downstream GM-Relative MASE per arm](plots/headline_relmase.png)
 
-*Downstream GM-Relative MASE per arm at each (head, checkpoint) cell, N = 1 seed; dashed line = seasonal-naive. The hatched arm C bars are the seed-2 retrain at step 12,500 — the `last` step — and appear only there because arm C has no best-loss save. Separation claims come from the paired-bootstrap annex, not bar-to-bar comparison. Digits in the trajectory annex.*
+*Arm C appears only in the `last` cells (no best-loss save). Separation is established by the CIs in the paired-bootstrap annex, not bar heights.*
 
 ## Trajectory cells (annex)
 
-Aggregate GM-Relative MASE per evaluated cell; blank = not evaluated. The `2k` / `25k` / `50k` cells use a fresh 40k-step head; `best` / `last` use a 30k-step best-loss head (+10k resume for `last`); per-arm `best` steps in the backbone-step annex.
+The `2k` / `25k` / `50k` cells use a fresh 40k-step head; `best` / `last` use a 30k-step best-loss head (+10k resume for `last`); per-arm `best` steps in the backbone-step annex.
 
 | arm | 2L 2k | 2L best | 2L last (12,500) | 2L 25k | 2L 50k | 6L 2k | 6L best | 6L last (12,500) | 6L 25k | 6L 50k |
 | --- | --: | --: | --: | --: | --: | --: | --: | --: | --: | --: |
