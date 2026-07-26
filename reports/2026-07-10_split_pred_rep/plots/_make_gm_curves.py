@@ -47,7 +47,7 @@ def gm(path: Path) -> float | None:
     return float(m.group(1)) if m else None
 
 
-# arm C (SIGReg-cross champion recipe) — seed-2 retrain trajectory.
+# arm C (baseline recipe) — seed-2 retrain trajectory.
 # The original seed-20260520 arm C per-task file was never committed and
 # is now gone; a same-recipe seed-2 retrain lives here with per-task files
 # at backbone steps 12,500 / 25,000 / 50,000.
@@ -72,7 +72,7 @@ for i, HL in enumerate(("2L", "6L")):
     if c_pts:
         xs, ys = zip(*c_pts)
         ax.plot(xs, ys, color=C_ARMC, lw=1.8, marker="D", markersize=6,
-                label="arm C (SIGReg champion, seed 2)" if i == 0 else None)
+                label="arm C (baseline, seed 2)" if i == 0 else None)
     for label, rd, base, best_step, colour in ARMS:
         # (step, suffix) — each read as f"{base}{suffix}_{HL}"
         candidates = [

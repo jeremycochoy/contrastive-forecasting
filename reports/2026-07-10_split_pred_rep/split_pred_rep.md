@@ -1,8 +1,8 @@
 # Splitting the contrastive loss (L_pred + L_rep) and MoCo-style teacher latents
 
-**Question.** The champion loss puts every negative under a single log-sum-exp denominator. Does splitting it into `L_pred` (f-anchored) and `L_rep` (h-anchored) improve GM-Relative MASE, and does adding EMA-teacher MoCo keys or replacing `L_pred` with cosine-distance minimization to the teacher (`L_align`) change the answer?
+**Question.** The baseline loss, arm C, puts every negative under a single log-sum-exp denominator. Does splitting it into `L_pred` (f-anchored) and `L_rep` (h-anchored) improve GM-Relative MASE, and does adding EMA-teacher MoCo keys or replacing `L_pred` with cosine-distance minimization to the teacher (`L_align`) change the answer?
 
-**Answer.** Two arms beat the SIGReg champion with a 95 % paired-bootstrap CI (Annex D). Which one is lowest depends on backbone step: bimoco at 12,500, arm 4 (pooled MoCo) from 25,000 onward (bimoco has no 50k cell).
+**Answer.** Two arms beat the arm C baseline with a 95 % paired-bootstrap CI (Annex D). Which one is lowest depends on backbone step: bimoco at 12,500, arm 4 (pooled MoCo) from 25,000 onward (bimoco has no 50k cell).
 
 ![GM-Relative MASE per arm across backbone step](plots/gm_curve_per_arm.png)
 
@@ -40,7 +40,7 @@ L_align       2 − 2·cos(f_t, sg(hᵀ_{t+1}))   cosine-distance minimization, 
 | arm 5 | `L_align + L_rep` | `rep_only` `--align-loss-weight 1.0` |
 | arm 6 | `L_align + L_rep_moco` | `rep_only` `--align-loss-weight 1.0 --moco-rep-keys` |
 | bimoco | `L_pred_moco + L_rep_moco` | `split_pred_rep` `--moco-negatives --moco-rep-keys` |
-| arm C | arm 4's pooled shape with student keys | champion baseline; seed-2 retrain (Annex C) |
+| arm C | arm 4's pooled shape with student keys | baseline; seed-2 retrain (Annex C) |
 
 ## Annex A — Trajectory cells
 
@@ -75,7 +75,7 @@ Share of the cross-batch `f ↔ h′` family in the term carrying the prediction
 
 ## Annex C — Method
 
-All six arms' backbones: B = 512, T = 4096, C = 1, τ = 0.10, `lr = 1e-3`, seed 20260520, dataset `gift-pretrain-full-4096 / small_v1`, EMA teacher τ = 0.90, SIGReg λ_e = λ_h = 1, CPC auxiliary, 12,500 steps, prolonged to 25,000 and (five arms) 50,000. Arm C is the SIGReg-cross champion recipe (λ_e = 1, λ_h = 1, τ = 0.90); its per-task data is a same-recipe seed-2 retrain evaluated at steps 12,500 / 25,000 / 50,000.
+All six arms' backbones: B = 512, T = 4096, C = 1, τ = 0.10, `lr = 1e-3`, seed 20260520, dataset `gift-pretrain-full-4096 / small_v1`, EMA teacher τ = 0.90, SIGReg λ_e = λ_h = 1, CPC auxiliary, 12,500 steps, prolonged to 25,000 and (five arms) 50,000. Arm C, the baseline, is the best recipe of the `2026-06-28_sigreg_lambda_tau_cross` experiment (λ_e = 1, λ_h = 1, τ = 0.90); its per-task data is a same-recipe seed-2 retrain evaluated at steps 12,500 / 25,000 / 50,000.
 
 Eval: GIFT-Eval 97 configs, strategy B4, quantile-median MASE / seasonal-naive. Per-cell source paths and checkpoint layout: `experiments/2026-07-10_split_pred_rep/README.md`.
 

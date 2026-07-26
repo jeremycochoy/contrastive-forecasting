@@ -2,7 +2,7 @@
 
 Reads only checked-in experiment artefacts:
   * GIFT-Eval summaries   experiments/2026-07-10_split_pred_rep/results/gift_eval_full_*/summary.txt
-  * champion reference    experiments/2026-06-28_sigreg_lambda_tau_cross/results/gm_table.csv
+  * baseline reference    experiments/2026-06-28_sigreg_lambda_tau_cross/results/gm_table.csv
   * gradient shares       experiments/2026-07-10_split_pred_rep/results/gradient_share_measurement.csv
   * training losses       experiments/2026-07-10_split_pred_rep/runs*/bb_*_losses*.csv
 
@@ -62,7 +62,7 @@ def read_aggregate(arm: str, head: str, ckpt: str):
     return float(m.group(1)) if m else None
 
 
-def champion_cells() -> dict:
+def baseline_cells() -> dict:
     """arm C aggregates from the seed-2 retrain at backbone step 12,500.
 
     The sibling `last` cells all use the step-12,500 backbone, so we place
@@ -114,7 +114,7 @@ C_ARM5 = "#8b1e8b"
 
 
 def headline() -> None:
-    champ = champion_cells()
+    champ = baseline_cells()
     fig, ax = plt.subplots(figsize=(16.5, 5.6))
     x = np.arange(len(GROUPS))
     width = 0.12
@@ -261,22 +261,6 @@ FOREST_ROWS = [
     ("6L / best*", "arm 4 vs bimoco",  "pooled+MoCo ↔ split + MoCo both terms", "arm4", "bimoco"),
 ]
 
-# Sibling `last` cells (step 12,500 backbone) vs seed-2 arm C step-12,500.
-# Task-level bootstrap only — arm C has no 28-dataset-clustered pass.
-ARM_C_FOREST_ROWS = [
-    ("2L / last",  "arm 1 vs arm C", "split ↔ SIGReg champion",       "arm1",   "armC_seed2"),
-    ("6L / last",  "arm 1 vs arm C", "split ↔ SIGReg champion",       "arm1",   "armC_seed2"),
-    ("2L / last",  "arm 3 vs arm C", "split+MoCo ↔ SIGReg champion",  "arm3",   "armC_seed2"),
-    ("6L / last",  "arm 3 vs arm C", "split+MoCo ↔ SIGReg champion",  "arm3",   "armC_seed2"),
-    ("2L / last",  "arm 4 vs arm C", "pooled+MoCo ↔ SIGReg champion", "arm4",   "armC_seed2"),
-    ("6L / last",  "arm 4 vs arm C", "pooled+MoCo ↔ SIGReg champion", "arm4",   "armC_seed2"),
-    ("2L / last",  "arm 5 vs arm C", "L_align+L_rep ↔ SIGReg champion",         "arm5",   "armC_seed2"),
-    ("6L / last",  "arm 5 vs arm C", "L_align+L_rep ↔ SIGReg champion",         "arm5",   "armC_seed2"),
-    ("2L / last",  "arm 6 vs arm C", "L_align+L_rep_moco ↔ SIGReg champion",    "arm6",   "armC_seed2"),
-    ("6L / last",  "arm 6 vs arm C", "L_align+L_rep_moco ↔ SIGReg champion",    "arm6",   "armC_seed2"),
-    ("2L / last",  "bimoco vs arm C","split+MoCo(both terms) ↔ SIGReg champion","bimoco", "armC_seed2"),
-    ("6L / last",  "bimoco vs arm C","split+MoCo(both terms) ↔ SIGReg champion","bimoco", "armC_seed2"),
-]
 
 
 def _lookup(df, cell, arm_a, arm_b):
