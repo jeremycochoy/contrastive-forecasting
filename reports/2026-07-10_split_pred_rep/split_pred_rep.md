@@ -62,7 +62,7 @@ Aggregate GM-Relative MASE per evaluated cell; blank = not evaluated. The `2k` /
 
 Bold = column minimum. Directories in the Method annex; the `2k` / `25k` / `50k` cells carry the matching suffix, `last` carries `_last`, `best` no suffix.
 
-Training-loss curves in the loss-alignment figure concatenate, per arm:
+The loss and `1 − ff` curves in the alignment figures concatenate, per arm:
 
 - arm 1 — `runs/…_losses_full.csv` + `…_r2_losses.csv` + `…_r3_losses.csv`
 - arm 3 — `runs/…_moco_…_losses.csv` + `…_ext25k_losses.csv` + `…_r3_losses.csv`; the two resume runs re-index their step counter from 1 and are offset by +12,500
