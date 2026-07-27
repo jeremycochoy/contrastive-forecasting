@@ -22,7 +22,7 @@
 
 ## The arms
 
-Notation: `h_t` = encoder latent; `f_t` = forecaster's next-step latent (the forecast); `h′` = cross-batch latent; `ᵀ` = EMA-teacher copy (τ_ema = 0.90); `sg` = stop-gradient. Cosine similarities at τ = 0.10.
+Notation: `h_t` = encoder latent; `f_t` = forecaster's next-step latent (the forecast); `h′` = cross-batch latent; `ᵀ` = EMA-teacher copy (τ_ema = 0.90); `sg` = stop-gradient. Every InfoNCE softmax below divides each cosine similarity by τ = 0.10.
 
 ```
 L_pred        f-anchored NCE:  positive cos(f_t, h′_{t+1});  negatives  adjacent f_{t+1}↔f_t  ∪  cross-batch f_t↔h′_{t+1}
