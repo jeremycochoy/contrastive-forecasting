@@ -60,6 +60,8 @@ Bold = column minimum.
 
 ## Annex B — Denominator share
 
+How much of each loss term's denominator does the cross-batch `f ↔ h′` family occupy? Under the pooled shape it competes with four other families in one log-sum-exp; splitting gives it `L_pred`'s denominator almost to itself.
+
 ![Per-family denominator share](plots/gradient_share_stack.png)
 
 *Per-family denominator share at every arm's step-12,500 backbone, probed on a mixed and a periodic-only batch at τ = 0.10, B = 64. `share_i = exp(mean(logit_i − log-denominator))` is a per-anchor geometric mean, so families need not sum to 1; each bar's Σ is printed above it.*
