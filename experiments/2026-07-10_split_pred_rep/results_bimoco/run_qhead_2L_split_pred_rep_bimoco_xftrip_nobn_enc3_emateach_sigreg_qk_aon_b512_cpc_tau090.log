@@ -1,0 +1,208 @@
+  [head-train] auto-detected freq_emb_dim=3 from backbone checkpoint
+  [head-train] auto-detected seasonality_emb_dim=3 from backbone checkpoint
+  [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+  [head-train] auto-detected qk_norm=True from backbone checkpoint
+  [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+  [head-train] auto-detected patch_stats=none
+Backbone loaded from /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/bb_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_FINAL.pth (0 params, frozen)
+/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/transformer.py:392: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  warnings.warn(
+Forecasting head [transformer-q (2L H384 nhead6 causal)]: 3,605,136 trainable params
+Optimizer: AdamW lr=0.001 betas=(0.9,0.98) wd=0.1 eps=1e-08
+Schedule: cosine warmup=2000 decay_start=24000 final_ratio=0.1
+Loss CSV: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_losses.csv
+Data: MIX 100% HF + 0% synth, hf_bs=256, synth_bs=0, synth_seed=20042, emit_labels=True
+
+Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+RECONSTRUCTION mode: forecaster (head decodes what latent represents, not future)
+Checkpoints: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_*.pth
+[    200] loss=0.256969  ema_loss=0.351327  5.0 sps  ETA 1.6h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best.pth (ema_loss=0.351327)
+[    400] loss=0.239926  ema_loss=0.255064  5.4 sps  ETA 1.5h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best.pth (ema_loss=0.255064)
+[    600] loss=0.224753  ema_loss=0.231970  5.6 sps  ETA 1.5h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best.pth (ema_loss=0.231970)
+[    800] loss=0.206015  ema_loss=0.222620  5.6 sps  ETA 1.4h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best.pth (ema_loss=0.222620)
+[   1000] loss=0.221078  ema_loss=0.219066  5.7 sps  ETA 1.4h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best.pth (ema_loss=0.219066)
+[   1200] loss=0.214140  ema_loss=0.215165  5.7 sps  ETA 1.4h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best.pth (ema_loss=0.215165)
+[   1400] loss=0.210191  ema_loss=0.214053  5.8 sps  ETA 1.4h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best.pth (ema_loss=0.214053)
+[   1600] loss=0.204508  ema_loss=0.212249  5.7 sps  ETA 1.4h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best.pth (ema_loss=0.212249)
+[   1800] loss=0.219750  ema_loss=0.212802  5.7 sps  ETA 1.4h
+[   2000] loss=0.206943  ema_loss=0.211641  5.8 sps  ETA 1.3h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best.pth (ema_loss=0.211641)
+[   2200] loss=0.218691  ema_loss=0.211730  5.8 sps  ETA 1.3h
+[   2400] loss=0.208264  ema_loss=0.210928  5.8 sps  ETA 1.3h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best.pth (ema_loss=0.210928)
+[   2600] loss=0.199190  ema_loss=0.209760  5.8 sps  ETA 1.3h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best.pth (ema_loss=0.209760)
+[   2800] loss=0.199070  ema_loss=0.209564  5.8 sps  ETA 1.3h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best.pth (ema_loss=0.209564)
+[   3000] loss=0.205367  ema_loss=0.208440  5.8 sps  ETA 1.3h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best.pth (ema_loss=0.208440)
+[   3200] loss=0.200767  ema_loss=0.209438  5.8 sps  ETA 1.3h
+[   3400] loss=0.210224  ema_loss=0.208445  5.8 sps  ETA 1.3h
+[   3600] loss=0.194103  ema_loss=0.207285  5.8 sps  ETA 1.3h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best.pth (ema_loss=0.207285)
+[   3800] loss=0.202877  ema_loss=0.207888  5.8 sps  ETA 1.3h
+[   4000] loss=0.227873  ema_loss=0.207018  5.8 sps  ETA 1.2h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best.pth (ema_loss=0.207018)
+[   4200] loss=0.209294  ema_loss=0.207004  5.8 sps  ETA 1.2h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best.pth (ema_loss=0.207004)
+[   4400] loss=0.205287  ema_loss=0.206852  5.8 sps  ETA 1.2h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best.pth (ema_loss=0.206852)
+[   4600] loss=0.197631  ema_loss=0.206837  5.8 sps  ETA 1.2h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best.pth (ema_loss=0.206837)
+[   4800] loss=0.203639  ema_loss=0.205861  5.8 sps  ETA 1.2h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best.pth (ema_loss=0.205861)
+[   5000] loss=0.207494  ema_loss=0.206489  5.8 sps  ETA 1.2h
+[   5200] loss=0.215588  ema_loss=0.205933  5.8 sps  ETA 1.2h
+[   5400] loss=0.204379  ema_loss=0.206650  5.8 sps  ETA 1.2h
+[   5600] loss=0.198284  ema_loss=0.205531  5.8 sps  ETA 1.2h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best.pth (ema_loss=0.205531)
+[   5800] loss=0.195452  ema_loss=0.205591  5.8 sps  ETA 1.2h
+[   6000] loss=0.197528  ema_loss=0.205231  5.8 sps  ETA 1.2h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best.pth (ema_loss=0.205231)
+[   6200] loss=0.199142  ema_loss=0.205210  5.8 sps  ETA 1.1h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best.pth (ema_loss=0.205210)
+[   6400] loss=0.219876  ema_loss=0.204508  5.8 sps  ETA 1.1h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best.pth (ema_loss=0.204508)
+[   6600] loss=0.204237  ema_loss=0.204123  5.8 sps  ETA 1.1h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best.pth (ema_loss=0.204123)
+[   6800] loss=0.214788  ema_loss=0.205375  5.8 sps  ETA 1.1h
+[   7000] loss=0.193522  ema_loss=0.205088  5.8 sps  ETA 1.1h
+[   7200] loss=0.192268  ema_loss=0.205017  5.8 sps  ETA 1.1h
+[   7400] loss=0.206722  ema_loss=0.205455  5.8 sps  ETA 1.1h
+[   7600] loss=0.210368  ema_loss=0.204791  5.8 sps  ETA 1.1h
+[   7800] loss=0.194548  ema_loss=0.204918  5.8 sps  ETA 1.1h
+[   8000] loss=0.199845  ema_loss=0.204698  5.8 sps  ETA 1.1h
+[   8200] loss=0.212299  ema_loss=0.204809  5.8 sps  ETA 1.0h
+[   8400] loss=0.205585  ema_loss=0.203612  5.8 sps  ETA 1.0h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best.pth (ema_loss=0.203612)
+[   8600] loss=0.208785  ema_loss=0.204171  5.8 sps  ETA 1.0h
+[   8800] loss=0.208282  ema_loss=0.204441  5.8 sps  ETA 1.0h
+[   9000] loss=0.193725  ema_loss=0.203541  5.8 sps  ETA 1.0h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best.pth (ema_loss=0.203541)
+[   9200] loss=0.185159  ema_loss=0.203789  5.8 sps  ETA 1.0h
+[   9400] loss=0.208134  ema_loss=0.204639  5.8 sps  ETA 1.0h
+[   9600] loss=0.208999  ema_loss=0.204762  5.8 sps  ETA 1.0h
+[   9800] loss=0.214486  ema_loss=0.204385  5.8 sps  ETA 1.0h
+[  10000] loss=0.202017  ema_loss=0.203955  5.8 sps  ETA 1.0h
+[  10200] loss=0.204382  ema_loss=0.203841  5.8 sps  ETA 0.9h
+[  10400] loss=0.209617  ema_loss=0.203746  5.8 sps  ETA 0.9h
+[  10600] loss=0.210747  ema_loss=0.202777  5.8 sps  ETA 0.9h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best.pth (ema_loss=0.202777)
+[  10800] loss=0.203960  ema_loss=0.202852  5.8 sps  ETA 0.9h
+[  11000] loss=0.201364  ema_loss=0.204001  5.8 sps  ETA 0.9h
+[  11200] loss=0.211554  ema_loss=0.203211  5.8 sps  ETA 0.9h
+[  11400] loss=0.193393  ema_loss=0.203203  5.8 sps  ETA 0.9h
+[  11600] loss=0.190110  ema_loss=0.202947  5.8 sps  ETA 0.9h
+[  11800] loss=0.182913  ema_loss=0.204142  5.8 sps  ETA 0.9h
+[  12000] loss=0.200118  ema_loss=0.203239  5.8 sps  ETA 0.9h
+[  12200] loss=0.204082  ema_loss=0.202114  5.8 sps  ETA 0.9h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best.pth (ema_loss=0.202114)
+[  12400] loss=0.210488  ema_loss=0.203693  5.8 sps  ETA 0.8h
+[  12600] loss=0.214473  ema_loss=0.203916  5.8 sps  ETA 0.8h
+[  12800] loss=0.196047  ema_loss=0.202558  5.8 sps  ETA 0.8h
+[  13000] loss=0.199233  ema_loss=0.202722  5.8 sps  ETA 0.8h
+[  13200] loss=0.204095  ema_loss=0.203028  5.8 sps  ETA 0.8h
+[  13400] loss=0.213101  ema_loss=0.202711  5.8 sps  ETA 0.8h
+[  13600] loss=0.198814  ema_loss=0.203399  5.8 sps  ETA 0.8h
+[  13800] loss=0.209436  ema_loss=0.202669  5.8 sps  ETA 0.8h
+[  14000] loss=0.217624  ema_loss=0.204138  5.8 sps  ETA 0.8h
+[  14200] loss=0.200632  ema_loss=0.202566  5.8 sps  ETA 0.8h
+[  14400] loss=0.198568  ema_loss=0.202891  5.8 sps  ETA 0.7h
+[  14600] loss=0.198183  ema_loss=0.202069  5.8 sps  ETA 0.7h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best.pth (ema_loss=0.202069)
+[  14800] loss=0.211971  ema_loss=0.203149  5.8 sps  ETA 0.7h
+[  15000] loss=0.207664  ema_loss=0.203085  5.8 sps  ETA 0.7h
+[  15200] loss=0.193912  ema_loss=0.202389  5.8 sps  ETA 0.7h
+[  15400] loss=0.203787  ema_loss=0.202946  5.8 sps  ETA 0.7h
+[  15600] loss=0.208285  ema_loss=0.201716  5.8 sps  ETA 0.7h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best.pth (ema_loss=0.201716)
+[  15800] loss=0.201616  ema_loss=0.202699  5.8 sps  ETA 0.7h
+[  16000] loss=0.213533  ema_loss=0.203045  5.8 sps  ETA 0.7h
+[  16200] loss=0.205531  ema_loss=0.202485  5.8 sps  ETA 0.7h
+[  16400] loss=0.189368  ema_loss=0.202114  5.8 sps  ETA 0.7h
+[  16600] loss=0.204063  ema_loss=0.203059  5.8 sps  ETA 0.6h
+[  16800] loss=0.188416  ema_loss=0.202777  5.8 sps  ETA 0.6h
+[  17000] loss=0.187456  ema_loss=0.201566  5.8 sps  ETA 0.6h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best.pth (ema_loss=0.201566)
+[  17200] loss=0.210065  ema_loss=0.203112  5.8 sps  ETA 0.6h
+[  17400] loss=0.199479  ema_loss=0.202750  5.8 sps  ETA 0.6h
+[  17600] loss=0.213645  ema_loss=0.204660  5.8 sps  ETA 0.6h
+[  17800] loss=0.183655  ema_loss=0.202463  5.8 sps  ETA 0.6h
+[  18000] loss=0.211128  ema_loss=0.202553  5.8 sps  ETA 0.6h
+[  18200] loss=0.193382  ema_loss=0.202251  5.8 sps  ETA 0.6h
+[  18400] loss=0.207268  ema_loss=0.202004  5.8 sps  ETA 0.6h
+[  18600] loss=0.176851  ema_loss=0.201558  5.8 sps  ETA 0.5h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best.pth (ema_loss=0.201558)
+[  18800] loss=0.196283  ema_loss=0.201425  5.8 sps  ETA 0.5h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best.pth (ema_loss=0.201425)
+[  19000] loss=0.212504  ema_loss=0.202867  5.8 sps  ETA 0.5h
+[  19200] loss=0.191667  ema_loss=0.202365  5.8 sps  ETA 0.5h
+[  19400] loss=0.203713  ema_loss=0.202534  5.8 sps  ETA 0.5h
+[  19600] loss=0.200479  ema_loss=0.202373  5.8 sps  ETA 0.5h
+[  19800] loss=0.206411  ema_loss=0.202264  5.8 sps  ETA 0.5h
+[  20000] loss=0.201322  ema_loss=0.202600  5.8 sps  ETA 0.5h
+[  20200] loss=0.202468  ema_loss=0.202466  5.8 sps  ETA 0.5h
+[  20400] loss=0.197931  ema_loss=0.201087  5.8 sps  ETA 0.5h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best.pth (ema_loss=0.201087)
+[  20600] loss=0.212558  ema_loss=0.201918  5.8 sps  ETA 0.5h
+[  20800] loss=0.194764  ema_loss=0.201928  5.8 sps  ETA 0.4h
+[  21000] loss=0.212872  ema_loss=0.202573  5.8 sps  ETA 0.4h
+[  21200] loss=0.198169  ema_loss=0.201644  5.8 sps  ETA 0.4h
+[  21400] loss=0.188102  ema_loss=0.202424  5.8 sps  ETA 0.4h
+[  21600] loss=0.203261  ema_loss=0.202117  5.8 sps  ETA 0.4h
+[  21800] loss=0.196062  ema_loss=0.201419  5.8 sps  ETA 0.4h
+[  22000] loss=0.209974  ema_loss=0.202324  5.8 sps  ETA 0.4h
+[  22200] loss=0.206485  ema_loss=0.201657  5.8 sps  ETA 0.4h
+[  22400] loss=0.207799  ema_loss=0.201362  5.8 sps  ETA 0.4h
+[  22600] loss=0.214875  ema_loss=0.202201  5.8 sps  ETA 0.4h
+[  22800] loss=0.200687  ema_loss=0.202308  5.8 sps  ETA 0.3h
+[  23000] loss=0.202406  ema_loss=0.202268  5.8 sps  ETA 0.3h
+[  23200] loss=0.211944  ema_loss=0.201635  5.8 sps  ETA 0.3h
+[  23400] loss=0.213172  ema_loss=0.201871  5.8 sps  ETA 0.3h
+[  23600] loss=0.188393  ema_loss=0.200958  5.8 sps  ETA 0.3h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best.pth (ema_loss=0.200958)
+[  23800] loss=0.200646  ema_loss=0.201433  5.8 sps  ETA 0.3h
+[  24000] loss=0.205896  ema_loss=0.201880  5.8 sps  ETA 0.3h
+[  24200] loss=0.194969  ema_loss=0.201284  5.8 sps  ETA 0.3h
+[  24400] loss=0.210086  ema_loss=0.202215  5.8 sps  ETA 0.3h
+[  24600] loss=0.205953  ema_loss=0.202565  5.8 sps  ETA 0.3h
+[  24800] loss=0.210183  ema_loss=0.201754  5.8 sps  ETA 0.2h
+[  25000] loss=0.185259  ema_loss=0.202259  5.8 sps  ETA 0.2h
+[  25200] loss=0.204576  ema_loss=0.201064  5.8 sps  ETA 0.2h
+[  25400] loss=0.215707  ema_loss=0.202337  5.8 sps  ETA 0.2h
+[  25600] loss=0.198244  ema_loss=0.201583  5.8 sps  ETA 0.2h
+[  25800] loss=0.205339  ema_loss=0.200747  5.8 sps  ETA 0.2h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best.pth (ema_loss=0.200747)
+[  26000] loss=0.200178  ema_loss=0.201476  5.8 sps  ETA 0.2h
+[  26200] loss=0.199047  ema_loss=0.200923  5.8 sps  ETA 0.2h
+[  26400] loss=0.197933  ema_loss=0.201883  5.8 sps  ETA 0.2h
+[  26600] loss=0.204635  ema_loss=0.201545  5.8 sps  ETA 0.2h
+[  26800] loss=0.201022  ema_loss=0.200713  5.8 sps  ETA 0.2h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best.pth (ema_loss=0.200713)
+[  27000] loss=0.210864  ema_loss=0.202081  5.8 sps  ETA 0.1h
+[  27200] loss=0.203411  ema_loss=0.202659  5.8 sps  ETA 0.1h
+[  27400] loss=0.218158  ema_loss=0.201999  5.8 sps  ETA 0.1h
+[  27600] loss=0.213840  ema_loss=0.201943  5.8 sps  ETA 0.1h
+[  27800] loss=0.206684  ema_loss=0.201783  5.8 sps  ETA 0.1h
+[  28000] loss=0.208124  ema_loss=0.201706  5.8 sps  ETA 0.1h
+[  28200] loss=0.200072  ema_loss=0.201944  5.8 sps  ETA 0.1h
+[  28400] loss=0.211805  ema_loss=0.201156  5.8 sps  ETA 0.1h
+[  28600] loss=0.194105  ema_loss=0.200891  5.8 sps  ETA 0.1h
+[  28800] loss=0.199017  ema_loss=0.201624  5.8 sps  ETA 0.1h
+[  29000] loss=0.195866  ema_loss=0.202249  5.8 sps  ETA 0.0h
+[  29200] loss=0.198968  ema_loss=0.201498  5.8 sps  ETA 0.0h
+[  29400] loss=0.215151  ema_loss=0.202089  5.8 sps  ETA 0.0h
+[  29600] loss=0.200246  ema_loss=0.202205  5.8 sps  ETA 0.0h
+[  29800] loss=0.199757  ema_loss=0.201533  5.8 sps  ETA 0.0h
+[  30000] loss=0.192177  ema_loss=0.200604  5.8 sps  ETA 0.0h
+  -> New best: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs_bimoco/qhead_2L_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best.pth (ema_loss=0.200604)
+
+Done in 1.4h. Best loss=0.200604 at step 30000

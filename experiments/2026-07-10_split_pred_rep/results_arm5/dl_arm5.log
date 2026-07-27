@@ -1,0 +1,30 @@
+[07-11 18:16:11] [elisa-lalign-arm5] BB START arm=lalign bs=512 steps=12500 
+[07-11 18:16:13] [elisa-lalign-arm5] BB train exited rc=1 — NOT creating FINAL. tail: --ema-embedding/--ema-encoder only implemented for --loss-shape in ('cosine_similarity_batch_full_hh_negs_xshh_allt', 'cosine_similarity_batch_split_pred_rep'). 
+[07-11 18:16:54] [elisa-lalign-arm5] BB START arm=lalign bs=512 steps=12500 
+[07-11 18:17:03] [elisa-lalign-arm5] BB train exited rc=1 — NOT creating FINAL. tail:   File "/tmp/contrastive-forecasting-374/src/loss.py", line 2323, in contrastive_latent_loss     raise NotImplementedError( NotImplementedError: teacher_original_latent is only implemented for loss_shape in ('cosine_similarity_batch_full_hh_negs_xshh_allt', 'cosine_similarity_batch_split_pred_rep'); got 'cosine_similarity_batch_rep_only'. 
+[07-11 18:17:51] [elisa-lalign-arm5] BB START arm=lalign bs=512 steps=12500 
+[07-11 18:18:01] [elisa-lalign-arm5] BB train exited rc=1 — NOT creating FINAL. tail:   File "/tmp/contrastive-forecasting-374/src/loss.py", line 2289, in contrastive_latent_loss     raise NotImplementedError( NotImplementedError: include_positive_in_denominator (function arg or train_configuration key) is only implemented for loss_shape in {cosine_similarity_batch, cosine_similarity_batch_no_time_neg, cosine_similarity_batch_square, cosine_similarity_batch_full_fh_negs, cosine_similarity_batch_full_hh_negs, cosine_similarity_batch_full_ff_negs, cosine_similarity_batch_full_fh_hh_negs, cosine_similarity_batch_full_hh_ff_negs, cosine_similarity_batch_full_fh_hh_ff_negs, cosine_similarity_batch_full_hh_negs_xbfree, cosine_similarity_batch_full_hh_negs_xshh, cosine_similarity_batch_full_hh_negs_xshh_allt}; got 'cosine_similarity_batch_rep_only'. 
+[07-11 18:18:35] [elisa-lalign-arm5] BB START arm=lalign bs=512 steps=12500 
+[07-12 02:07:52] [elisa-lalign-arm5] BB DONE -> bb_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090_FINAL.pth (87M)
+[07-12 02:07:52] [elisa-lalign-arm5] QH qhead_6L_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090 train 30000 on bb_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090_FINAL.pth
+[07-12 02:07:54] [elisa-lalign-arm5] QH qhead_6L_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090 FAILED rc=2 (tail:                                  [--head-train-input {f_only,e_then_f}]                                  [--amp-dtype {none,bf16,fp16}] train_forecasting_head.py: error: unrecognized arguments: --n-head-layers 6 --n-quantiles 9 --adam-beta1 0.9 --adam-beta2 0.98 --num-encoder-layers 3 --encoder-dropkey 0.70 --encoder-dropkey-share-heads --encoder-dropkey-share-layers --depthwise-conv 3 --deprecated-depthwise-conv 0 --residual-dtype fp32 --attn-dtype fp16 --ffn-dtype fp16 --conv-dtype fp16 --patch-emb-dtype fp32 )
+[07-12 02:21:45] [arm5-dl] arm5 downstream start on GPU 1 (6L → 2L sequential)
+[07-12 02:21:45] [arm5-dl] QH qhead_6L_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090 train 30000 on bb_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090_FINAL.pth
+[07-12 04:51:27] [arm5-dl] QH qhead_6L_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090 done
+[07-12 05:22:54] [arm5-dl] arm5 downstream start on GPU 1 (6L → 2L sequential)
+[07-12 05:22:54] [arm5-dl] QH qhead_6L_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090 skip (FINAL exists)
+[07-12 05:22:54] [arm5-dl] EVAL lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090 6L full-97 start
+[07-12 08:58:04] [arm5-dl] EVAL lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090 6L done GM=1.2554
+[07-12 08:58:04] [arm5-dl] QH qhead_6L_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090_last train 10000 on bb_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090_final.pth
+[07-12 09:43:09] [arm5-dl] QH qhead_6L_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090_last done
+[07-12 09:43:09] [arm5-dl] EVAL lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090_last 6L full-97 start
+[07-12 13:12:47] [arm5-dl] EVAL lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090_last 6L done GM=1.2201
+[07-12 13:12:47] [arm5-dl] QH qhead_2L_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090 train 30000 on bb_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090_FINAL.pth
+[07-12 14:37:41] [arm5-dl] QH qhead_2L_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090 done
+[07-12 14:37:41] [arm5-dl] EVAL lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090 2L full-97 start
+[07-12 17:57:34] [arm5-dl] EVAL lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090 2L done GM=1.3374
+[07-12 17:57:34] [arm5-dl] QH qhead_2L_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090_last train 10000 on bb_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090_final.pth
+[07-12 18:25:17] [arm5-dl] QH qhead_2L_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090_last done
+[07-12 18:25:17] [arm5-dl] EVAL lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090_last 2L full-97 start
+[07-12 21:42:30] [arm5-dl] EVAL lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090_last 2L done GM=1.2883
+[07-12 21:42:30] [arm5-dl] arm5 downstream ALL DONE

@@ -1,0 +1,5 @@
+[07-14 03:47:46] [elisa-bimoco] BB START (bimoco: split_pred_rep + moco-negatives + moco-rep-keys) gpu=1 steps=12500 bs=512 
+[07-14 09:03:14] [elisa-bimoco] BB DONE -> bb_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_FINAL.pth (87M)
+[07-14 09:03:14] [elisa-bimoco] downstream start: 2L on GPU 0 + 6L on GPU 1 (parallel)
+[07-14 09:03:14] [elisa-bimoco] downstream PIDs: 2L=1277082  6L=1277083
+[07-14 18:26:10] [elisa-bimoco] arm bimoco complete: 2L failed-cells=0  6L failed-cells=0

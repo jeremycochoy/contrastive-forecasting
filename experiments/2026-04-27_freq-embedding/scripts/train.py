@@ -43,7 +43,8 @@ from src.dataloader import (
     create_hf_dataloader,
 )
 from src.loss import (contrastive_latent_loss, cpc_infonce_aux_loss,
-                      cpc_infonce_all_loss, align_loss, sigreg_loss)
+                      cpc_infonce_all_loss, align_loss, align_moco_loss,
+                      sigreg_loss)
 from src.checkpoint import save_training_state, load_training_state
 from src.dist_utils import (
     setup_distributed,
@@ -400,6 +401,8 @@ def parse_args():
                             "cosine_similarity_batch_full_hh_negs_xbfree",
                             "cosine_similarity_batch_full_hh_negs_xshh",
                             "cosine_similarity_batch_full_hh_negs_xshh_allt",
+                            "cosine_similarity_batch_split_pred_rep",
+                            "cosine_similarity_batch_rep_only",
                             "cpc_multistep",
                             "cpc_multistep_cpcnegs",
                             "cosine_similarity",
@@ -438,6 +441,17 @@ def parse_args():
                         "positive's −(1−p₊)/τ which fades once the negatives "
                         "separate (p₊→1). Stop-grad on the encoder target. "
                         "Applies to ANY loss_shape.")
+    p.add_argument("--align-moco-loss-weight", type=float, nargs="?",
+                   const=1.0, default=0.0,
+                   help="λ for a MoCo-style InfoNCE alignment (#374 arm 6): "
+                        "positive = cos(h_{b,t}, h^T_{b,t}) / τ, denominator = "
+                        "LSE over cos(h_{b,t}, h^T_{b',t}) / τ across b'. The "
+                        "student encoder is the anchor (gradient flows through "
+                        "h); the EMA teacher supplies both the positive and "
+                        "the cross-batch keys (gradient blocked by the EMA "
+                        "update path). Requires --ema-encoder to be on and "
+                        "uses the loop's `tau_tensor` for τ. Applies on top of "
+                        "any loss_shape; 0.0 ⇒ off (default).")
     p.add_argument("--subtract-contrastive-floor", action="store_true",
                    help="Re-base the loss by the constant normalized-InfoNCE "
                         "floor log(1+N·e^(−1/τ)) so the logged curve reads ~0 "
@@ -499,6 +513,25 @@ def parse_args():
                    help="EMA coefficient for --ema-embedding/--ema-encoder. "
                         "Constant (no schedule). Default 0.99 (half-life "
                         "ln(0.5)/ln(τ) ≈ 69 steps). (#353)")
+    p.add_argument("--moco-negatives", action="store_true",
+                   help="MoCo-style negatives (#374 arms 3+4): route the "
+                        "cross-batch f↔h negatives through the EMA teacher "
+                        "(hy_teacher_norm) instead of the student, so the "
+                        "positive and the f-anchored cross-batch negatives "
+                        "share one slowly-moving space. Requires "
+                        "--ema-embedding/--ema-encoder and --loss-shape "
+                        "cosine_similarity_batch_split_pred_rep or "
+                        "cosine_similarity_batch_full_hh_negs_xshh_allt; "
+                        "raises otherwise.")
+    p.add_argument("--moco-rep-keys", action="store_true",
+                   help="MoCo-style keys on L_rep (#374 arm bimoco): route "
+                        "the three h-anchored families in the split shape "
+                        "(log_neg_xx, log_neg_hh_all, log_neg_xs_allt) "
+                        "through the EMA teacher on the key side — student "
+                        "anchor h_{b,t}, teacher keys h^T_{b',l}. No "
+                        "positive added; L_rep stays a pooled LSE. Requires "
+                        "--ema-embedding/--ema-encoder and --loss-shape "
+                        "cosine_similarity_batch_split_pred_rep.")
     p.add_argument("--sigreg-embedding", action="store_true",
                    help="LeJEPA spherical SIGReg term on the patch-embedding "
                         "e_t (the GRU patch-embed output, [B,T,C,H] before "
@@ -1103,11 +1136,16 @@ def main():
             "--ema-embedding/--ema-encoder are mutually exclusive with "
             "--stopgrad-positive-h: the teacher path replaces the stop-grad. "
             "Drop one.")
+    _EMA_LOSS_SHAPES = (
+        "cosine_similarity_batch_full_hh_negs_xshh_allt",
+        "cosine_similarity_batch_split_pred_rep",
+        "cosine_similarity_batch_rep_only",
+    )
     if (args.ema_embedding or args.ema_encoder) and \
-            args.loss_shape != "cosine_similarity_batch_full_hh_negs_xshh_allt":
+            args.loss_shape not in _EMA_LOSS_SHAPES:
         raise SystemExit(
             "--ema-embedding/--ema-encoder only implemented for "
-            "--loss-shape cosine_similarity_batch_full_hh_negs_xshh_allt.")
+            f"--loss-shape in {_EMA_LOSS_SHAPES}.")
     if (args.ema_embedding or args.ema_encoder) and not (0.0 < args.ema_tau < 1.0):
         raise SystemExit("--ema-tau must be in (0, 1); got "
                          f"{args.ema_tau!r}.")
@@ -1137,6 +1175,8 @@ def main():
     LOSS_SPEC.train_configuration["stopgrad_positive_h"] = args.stopgrad_positive_h
     LOSS_SPEC.train_configuration["align_loss_weight"] = args.align_loss_weight
     LOSS_SPEC.train_configuration["subtract_contrastive_floor"] = args.subtract_contrastive_floor
+    LOSS_SPEC.train_configuration["moco_negatives"] = args.moco_negatives
+    LOSS_SPEC.train_configuration["moco_rep_keys"] = args.moco_rep_keys
     if args.tau is not None:
         LOSS_SPEC.train_configuration["contrastive_divergence_temperature"] = args.tau
     model = ConfigurableModel(**model_config).to(device)
@@ -1481,6 +1521,21 @@ def main():
                     (f_lat, o_lat), validation=False,
                     spec=LOSS_SPEC, tau_override=tau_tensor_loss,
                     teacher_original_latent=teacher_o_lat)
+            # #374 arm 6: MoCo-style alignment on the encoder side (student
+            # query, teacher key). Requires teacher_o_lat.
+            align_moco_val = float('nan')
+            if args.align_moco_loss_weight > 0:
+                if teacher_o_lat is None:
+                    raise SystemExit(
+                        "--align-moco-loss-weight > 0 requires an EMA teacher "
+                        "(--ema-encoder). teacher_o_lat is None.")
+                _tau_am = (float(tau_tensor.detach()) if tau_tensor is not None
+                           else args.tau)
+                align_moco = align_moco_loss(
+                    o_lat, teacher_o_lat, tau=_tau_am,
+                    weight=args.align_moco_loss_weight)
+                loss = loss + align_moco
+                align_moco_val = align_moco.item()
             # CPC InfoNCE auxiliary (#344): total = contrastive + λ·L_cpc,
             # equal weight at λ=1. f_lat is the AR context h_t (4-D here; the
             # cpc_multistep stack is 5-D and returns earlier in the loss), o_lat
@@ -1528,16 +1583,29 @@ def main():
         # goes negative once positives separate. ONLY this diagnostic
         # call passes the flag; the training loss keeps the default.
         with torch.no_grad():
+            # `cosine_similarity_batch_split_pred_rep` (#374) is L_pred +
+            # L_rep where L_pred is ALREADY normalized-InfoNCE; the shape
+            # rejects `include_positive_in_denominator` as a semantic no-op.
+            # Its own default at τ=0.07 IS the correct reference.
+            _pos_in_denom_ref = (
+                args.loss_shape not in (
+                    "cosine_similarity_batch_split_pred_rep",
+                    "cosine_similarity_batch_rep_only"))
             loss_tau_ref = contrastive_latent_loss(
                 (f_lat.detach(), o_lat.detach()),
                 validation=False, spec=LOSS_SPEC,
                 tau_override=torch.tensor(
                     0.07, device=f_lat.device, dtype=f_lat.dtype),
-                include_positive_in_denominator=True,
+                include_positive_in_denominator=_pos_in_denom_ref,
                 # Keep this a PURE contrastive reference regardless of the
-                # run's --align-loss-weight / --subtract-contrastive-floor.
+                # run's --align-loss-weight / --subtract-contrastive-floor
+                # / --moco-negatives (the diagnostic doesn't have a teacher
+                # to route through anyway; force off to keep it a fixed
+                # student-side reference).
                 align_loss_weight=0.0,
                 subtract_contrastive_floor=False,
+                moco_negatives=False,
+                moco_rep_keys=False,
             )
         loss_tau_ref_val = loss_tau_ref.item()
         t_fwd_end = time.perf_counter()

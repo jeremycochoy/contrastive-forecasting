@@ -1,0 +1,41 @@
+=== arm 1 (split) ===
+  FINAL.pth md5: f440d83a174f7fbc694d2be426e112c5
+  == bb_split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_final.pth (md5 match)
+  run-log best_loss saves: n=0  last-save-step=none
+  closing: Done in 3.6h. Best gap=0.3906 at step 12100, Best loss=24.3572 at step 600
+
+=== arm 3 (split + MoCo) ===
+  FINAL.pth md5: 1540fbda042a38ccea87f262a1322b74
+  == bb_split_pred_rep_moco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best_loss.pth (md5 match)
+  run-log best_loss saves: n=15  last-save-step=11800
+  closing: Done in 3.7h. Best gap=0.5453 at step 12300, Best loss=23.2338 at step 11800
+
+=== arm 4 (pooled + MoCo) ===
+  FINAL.pth md5: 97d1174386cae659b45b94a2c719c93e
+  == bb_allt08_moco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm4_tau090_best_loss.pth (md5 match)
+  run-log best_loss saves: n=6  last-save-step=600
+  closing: Done in 5.9h. Best gap=0.5813 at step 10300, Best loss=3.3643 at step 600
+
+=== arm 5 (L_align + L_rep) ===
+  FINAL.pth md5: 31af1eafda689b3514c95336eb4af29e
+  == bb_lalign_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm5_tau090_best_loss.pth (md5 match)
+  run-log best_loss saves: n=40  last-save-step=11800
+  closing: Done in 7.8h. Best gap=0.7516 at step 10700, Best loss=17.5838 at step 11800
+
+=== arm 6 (L_align_moco + L_rep) ===
+  FINAL.pth md5: 330c81985d3f62d23971bce93b21055b
+  == bb_lalignmoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm6_tau090_best_loss.pth (md5 match)
+  run-log best_loss saves: n=55  last-save-step=10100
+  closing: Done in 5.9h. Best gap=-0.4328 at step 700, Best loss=17.0040 at step 10100
+
+=== arm bimoco (split + moco on L_pred and L_rep) ===
+  FINAL.pth md5: a5fe557ed2cdbe28c3f9c56f84e2494d
+  == bb_split_pred_rep_bimoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_best_loss.pth (md5 match)
+  run-log best_loss saves: n=63  last-save-step=10000
+  closing: Done in 5.3h. Best gap=0.7594 at step 3400, Best loss=22.8149 at step 10000
+
+arm 1 torch.equal FINAL == final    : True
+arm 1 torch.equal FINAL == 12k      : True
+arm 1 torch.equal FINAL == best_loss: False
+arm 1 num keys checked              : 193
+== done: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/results/backbone_step_verification.log ==

@@ -50,6 +50,29 @@ def infonce_floor(tau, n_negatives):
     return math.log1p(float(n_negatives) * math.exp(-1.0 / float(tau)))
 
 
+def _split_pred_rep_floors(tau, B, T, C):
+    """(f_pred, f_rep) — the two constants to re-base L_pred + L_rep by.
+
+    L_pred has one positive against B batch-pooled f-anchored negatives per
+    (t,c):
+        N_pred = B · (C + (B − 1))
+                          ─── adj-f (LSE over C channels of f_{t+1})
+                              ─── cross-batch fh (LSE over B−1 batches)
+    Its floor is the InfoNCE floor at that count:
+        f_pred = log(1 + N_pred · e^(−1/τ))
+
+    L_rep has NO positive; its value at cos ≡ 0 is simply log(#terms in the
+    pooled logsumexp), i.e. log(N_rep) where:
+        N_rep = B · ((C − 1) + (T − 1) + (B − 1) · T)
+                       ─── xx (LSE over C−1 other channels)
+                                ─── hh_all (LSE over T−1 other times, same series)
+                                            ─── xs_allt (LSE over (B−1)·T other series×times)
+    """
+    n_pred = B * (C + (B - 1))
+    n_rep  = B * ((C - 1) + (T - 1) + (B - 1) * T)
+    return (infonce_floor(tau, n_pred), math.log(n_rep))
+
+
 def _effective_negative_count(loss_shape, B, T, C):
     """Exact count of negative cosine terms aggregated into `log_neg_total`
     for a logsumexp variant — used only by `infonce_floor`. `log_neg_total`
@@ -589,6 +612,34 @@ def align_loss(forecasted_latent, original_latent, weight=1.0):
     return weight * (2.0 - 2.0 * cos_align).mean()
 
 
+def align_moco_loss(original_latent, teacher_original_latent, tau=0.10, weight=1.0):
+    """MoCo-style InfoNCE with student encoder anchor + EMA-teacher keys.
+
+    Positive:  cos(h_{b,t}, h^T_{b,t}) / τ
+    Negatives: cos(h_{b,t}, h^T_{b',t}) / τ for all b' ≠ b (cross-batch, same t)
+
+    Loss = LSE_{denom = {positive} ∪ {negatives}}(cos / τ) − log_pos, mean over
+    anchors (b, t, c). Same-batch keys only (no cross-time), matching the
+    `log_neg_cross_batch` denominator's structure — but here the anchor is
+    the student's h_{b,t} (not the forecaster's f_{b,t}) and the keys are
+    the teacher's h^T_{b',t} (not the student's h_{b',t}). Purpose is to
+    prevent the student encoder from drifting too fast away from the EMA
+    teacher: the query is student-side (gradient flows through h), the keys
+    are teacher-side (gradient blocked by the EMA update path).
+
+    original_latent, teacher_original_latent: ``[B, T, C, H]``. Returns scalar.
+    """
+    q = F.normalize(original_latent, p=2, dim=-1)                # [B, T, C, H]
+    k = F.normalize(teacher_original_latent, p=2, dim=-1)        # [B, T, C, H]
+    # sims[t, c, b1, b2] = cos(q[b1, t, c], k[b2, t, c]) / τ.
+    q_p = q.permute(1, 2, 0, 3)                                   # [T, C, B, H]
+    k_p = k.permute(1, 2, 0, 3)                                   # [T, C, B, H]
+    sims = torch.matmul(q_p, k_p.transpose(-2, -1)) / tau         # [T, C, B, B]
+    log_pos = torch.diagonal(sims, dim1=-2, dim2=-1).permute(2, 0, 1)   # [B, T, C]
+    log_denom = torch.logsumexp(sims, dim=-1).permute(2, 0, 1)          # [B, T, C]
+    return weight * (log_denom - log_pos).mean()
+
+
 # --- All-time cross-series Gram speedups (#327) ----------------------------
 #
 # The all-time cross-series negative in `cosine_similarity_batch_full_hh_negs_
@@ -794,6 +845,8 @@ def contrastive_latent_loss(predicted_position, validation, spec,
                             include_positive_in_denominator=False,
                             align_loss_weight=None,
                             subtract_contrastive_floor=None,
+                            moco_negatives=None,
+                            moco_rep_keys=None,
                             teacher_original_latent=None):
     """Compute the contrastive divergence loss.
 
@@ -961,6 +1014,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         teacher_orig_norm = F.normalize(teacher_original_latent, p=2, dim=-1)
         hy_teacher_norm = teacher_orig_norm[:, 1:, :, :]
     else:
+        teacher_orig_norm = None
         hy_teacher_norm = None
 
     if train_config.get('loss_shape') == 'cosine_similarity_old':
@@ -1552,9 +1606,20 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         ).permute(0, 2, 1)                    # [B, T-1, C]
 
         # Cross-batch f↔h negative — byte-for-β's `log_neg_cross_batch`.
+        # MoCo-negatives (#374 arm 4, config key `moco_negatives`): when on
+        # AND an EMA teacher is available, the keys h'_{t+1} come from the
+        # teacher instead of the student — same swap as the split shape
+        # below. The three h↔h families (xx, hh_all, xs_allt) stay pure
+        # student on both sides.
         mask_batch = ~torch.eye(B, dtype=torch.bool, device=orig_norm.device)
         mask_batch = mask_batch.view(B, B, 1, 1)
-        hy_p = hy_norm.permute(1, 2, 0, 3)          # [T-1, C, B, H]  h_{t+1}
+        moco_negs = (
+            moco_negatives if moco_negatives is not None
+            else bool(train_config.get('moco_negatives', False)))
+        if moco_negs and hy_teacher_norm is not None:
+            hy_p = hy_teacher_norm.permute(1, 2, 0, 3)  # [T-1, C, B, H]  h^T_{t+1}
+        else:
+            hy_p = hy_norm.permute(1, 2, 0, 3)          # [T-1, C, B, H]  h_{t+1}
         hy_hat_p = hy_hat_norm.permute(1, 2, 0, 3)  # [T-1, C, B, H]  f_t
         sims_cross_batch = torch.matmul(
             hy_hat_p, hy_p.transpose(-2, -1)        # [T-1, C, B, B]
@@ -1624,6 +1689,271 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             loss = (log_denom - log_pos).mean()
         else:
             loss = (log_neg_total - log_pos).mean()
+
+    elif train_config.get('loss_shape') == 'cosine_similarity_batch_split_pred_rep':
+        # #374 split. Same negative families as `..._xshh_allt`, but the
+        # single pooled denominator is broken into TWO independent terms:
+        #
+        #   L_pred = normalized InfoNCE — positive cos(f_t, h^T_{t+1})/τ
+        #            over denominator = f-anchored families only
+        #            (cross-batch f↔h'_{t+1} + adjacent f↔f).
+        #   L_rep  = pooled LSE of h-anchored families, NO positive
+        #            (cross-channel xx + within-series all-time hh
+        #             + cross-series all-time xs).
+        #   L      = L_pred + L_rep.
+        #
+        # Same τ in both, same teacher-side/stopgrad positive, same batch
+        # pooling inside each term. `include_positive_in_denominator` is
+        # a no-op for this shape (L_pred is normalized-InfoNCE by
+        # construction). `subtract_contrastive_floor` IS supported and
+        # handled below in `contrastive_latent_loss` — it subtracts the
+        # per-term constants `f_pred + f_rep` (see `_split_pred_rep_floors`)
+        # and is gradient-neutral.
+        neg_inf = float('-inf')
+        if hy_teacher_norm is not None:
+            hy_pos = hy_teacher_norm
+        elif sg_pos:
+            hy_pos = hy_norm.detach()
+        else:
+            hy_pos = hy_norm
+        log_pos = cosine_similarity_from_normalized(hy_pos, hy_hat_norm) / tau
+
+        # MoCo-keys on L_rep (#374 arm bimoco, config key `moco_rep_keys`):
+        # when on AND an EMA teacher is available, replace the STUDENT h on
+        # the KEY side of the three h-anchored families with the teacher's
+        # h^T. Anchors (hx_norm) stay student-side; keys become teacher-side.
+        # Mirrors `moco_negatives` (which does the same for the cross-batch
+        # f↔h family on the L_pred side).
+        moco_rep = (
+            moco_rep_keys if moco_rep_keys is not None
+            else bool(train_config.get('moco_rep_keys', False)))
+        if moco_rep and teacher_orig_norm is not None:
+            hx_key = teacher_orig_norm[:, :-1, :, :]           # teacher h at t
+            orig_key = teacher_orig_norm                       # teacher h at all times
+        else:
+            hx_key = hx_norm
+            orig_key = orig_norm
+
+        # h-anchored family 1: cross-channel same-time h↔h (xx).
+        sims_xx = cosine_similarity_from_normalized(
+            hx_norm.unsqueeze(3), hx_key.unsqueeze(2))
+        mask_mat = ~torch.eye(C, dtype=torch.bool, device=sims_xx.device)
+        mask_mat = mask_mat.view(1, 1, C, C)
+        log_neg_xx = torch.logsumexp(
+            (sims_xx / tau).masked_fill(~mask_mat, neg_inf), dim=2)
+
+        # f-anchored family: adjacent f_{t+1}↔f_t (zy), cross-channel.
+        sims_zy = cosine_similarity_from_normalized(
+            hz_hat_norm.unsqueeze(3), hy_hat_norm.unsqueeze(2))
+        log_neg_zy = torch.logsumexp(sims_zy / tau, dim=2)
+
+        # h-anchored family 2: within-series all-time h↔h (hh_all).
+        t_idx = torch.arange(T - 1, device=orig_norm.device).view(T - 1, 1)
+        l_idx = torch.arange(T, device=orig_norm.device).view(1, T)
+        sims_hh_all = torch.matmul(
+            hx_norm.permute(0, 2, 1, 3),
+            orig_key.permute(0, 2, 3, 1),
+        )
+        drop_self = (l_idx == t_idx).view(1, 1, T - 1, T)
+        log_neg_hh_all = torch.logsumexp(
+            (sims_hh_all / tau).masked_fill(drop_self, neg_inf), dim=3
+        ).permute(0, 2, 1)
+
+        # f-anchored family: cross-batch f_t ↔ h'_{t+1}.
+        # MoCo-negatives (#374 arm 3, config key `moco_negatives`): when on
+        # AND an EMA teacher is available, replace the student h'_{t+1} with
+        # the teacher's h^T_{t+1} — the "keys" in the cross-batch f↔h term
+        # then come from the same slowly-moving encoder as the positive, so
+        # positive and negatives share one space (MoCo-style).
+        mask_batch = ~torch.eye(B, dtype=torch.bool, device=orig_norm.device)
+        mask_batch = mask_batch.view(B, B, 1, 1)
+        moco_negs = (
+            moco_negatives if moco_negatives is not None
+            else bool(train_config.get('moco_negatives', False)))
+        if moco_negs and hy_teacher_norm is not None:
+            hy_p = hy_teacher_norm.permute(1, 2, 0, 3)
+        else:
+            hy_p = hy_norm.permute(1, 2, 0, 3)
+        hy_hat_p = hy_hat_norm.permute(1, 2, 0, 3)
+        sims_cross_batch = torch.matmul(
+            hy_hat_p, hy_p.transpose(-2, -1)
+        ).permute(2, 3, 0, 1).contiguous()
+        log_neg_cross_batch = torch.logsumexp(
+            (sims_cross_batch / tau).masked_fill(~mask_batch, neg_inf), dim=1)
+
+        # h-anchored family 3: cross-series all-time h↔h' (xs_allt),
+        # gradient-checkpointed via the same chunked path as `..._xshh_allt`.
+        # With moco_rep_keys on, the KEY side uses teacher_orig_norm (see the
+        # `orig_key` selection above); the anchor stays student-side.
+        anchor = hx_norm.permute(0, 2, 1, 3).contiguous()
+        src = orig_key.permute(0, 2, 1, 3).contiguous()
+        b_all = torch.arange(B, device=orig_norm.device)
+        CH = int(os.environ.get('XSHH_ALLT_CHUNK', '8'))
+        fused = os.environ.get('XSHH_ALLT_FUSED', '0') == '1'
+        shard = os.environ.get('XSHH_ALLT_SHARD', '0') == '1' and (
+            dist.is_available() and dist.is_initialized()
+            and dist.get_world_size() > 1)
+        if shard:
+            run = _XsAlltShardedLSE.apply(anchor, src, tau, CH)
+        elif fused:
+            run = _XsAlltFusedLSE.apply(anchor, src, tau, CH)
+        else:
+            def _chunk_lse(anc, src_chunk, same_mask):
+                gram = torch.matmul(
+                    anc.unsqueeze(1),
+                    src_chunk.permute(0, 1, 3, 2).unsqueeze(0),
+                ) / tau
+                gram = gram.masked_fill(same_mask, neg_inf)
+                return torch.logsumexp(torch.logsumexp(gram, dim=4), dim=1)
+            run = None
+            for s in range(0, B, CH):
+                e = min(s + CH, B)
+                same = (b_all.view(B, 1) == b_all[s:e].view(1, e - s)
+                        ).view(B, e - s, 1, 1, 1)
+                chunk_lse = checkpoint(
+                    _chunk_lse, anchor, src[s:e], same, use_reentrant=False)
+                run = chunk_lse if run is None else torch.logsumexp(
+                    torch.stack([run, chunk_lse], dim=0), dim=0)
+        log_neg_xs_allt = run.permute(0, 2, 1)
+
+        # L_pred: normalized InfoNCE with the f-anchored families in denom.
+        negs_pred = torch.stack([log_neg_zy, log_neg_cross_batch], dim=0)
+        log_neg_per_anchor_pred = torch.logsumexp(negs_pred, dim=0)
+        log_neg_total_pred = torch.logsumexp(
+            log_neg_per_anchor_pred, dim=0, keepdim=True)
+        log_denom_pred = torch.logsumexp(
+            torch.stack(
+                [log_pos, log_neg_total_pred.expand_as(log_pos)], dim=0
+            ),
+            dim=0,
+        )
+        loss_pred = (log_denom_pred - log_pos).mean()
+
+        # L_rep: pooled LSE of h-anchored families.
+        # Without moco_rep_keys: student anchor + student keys everywhere. The
+        # same-batch same-time <h_{b,t}, h_{b,t}> pair is trivially 1 (self-
+        # cosine); we omit it (adds a constant to the loss, gradient-neutral).
+        # With moco_rep_keys: keys are teacher-side. The same-batch same-time
+        # pair becomes the non-trivial student↔teacher <h_{b,t}, h^T_{b,t}>,
+        # so the loss becomes a normalized InfoNCE with that positive in the
+        # denominator (same form as L_pred, symmetric on the h side).
+        negs_rep = torch.stack(
+            [log_neg_xx, log_neg_hh_all, log_neg_xs_allt], dim=0)
+        log_neg_per_anchor_rep = torch.logsumexp(negs_rep, dim=0)
+        log_neg_total_rep = torch.logsumexp(
+            log_neg_per_anchor_rep, dim=0, keepdim=True)
+        if moco_rep and teacher_orig_norm is not None:
+            hx_teacher_norm = teacher_orig_norm[:, :-1, :, :]
+            log_pos_h = cosine_similarity_from_normalized(
+                hx_norm, hx_teacher_norm) / tau                      # [B, T-1, C]
+            log_denom_rep = torch.logsumexp(
+                torch.stack(
+                    [log_pos_h, log_neg_total_rep.expand_as(log_pos_h)],
+                    dim=0,
+                ),
+                dim=0,
+            )
+            loss_rep = (log_denom_rep - log_pos_h).mean()
+        else:
+            loss_rep = log_neg_total_rep.mean()
+
+        loss = loss_pred + loss_rep
+
+    elif train_config.get('loss_shape') == 'cosine_similarity_batch_rep_only':
+        # #374 follow-up arm: drop L_pred from the split shape and pair
+        # `L_rep` (h-anchored logsumexp) with `align_loss` added by the
+        # training script via --align-loss-weight. Same h-anchored families
+        # as `..._split_pred_rep`'s L_rep branch.
+        #
+        # Without moco_rep_keys: keys are student-side; same-batch same-time
+        # pair is trivially <h,h>=1 so no positive is added (constant drop).
+        # With moco_rep_keys: keys are teacher-side; the same-batch same-time
+        # pair becomes non-trivial <h_student, h_teacher> and enters the
+        # normalized-InfoNCE positive-in-denominator form (identical to the
+        # split shape's L_rep_moco).
+        neg_inf = float('-inf')
+        moco_rep = (
+            moco_rep_keys if moco_rep_keys is not None
+            else bool(train_config.get('moco_rep_keys', False)))
+        if moco_rep and teacher_original_latent is not None:
+            teacher_orig_norm_local = F.normalize(teacher_original_latent, p=2, dim=-1)
+            hx_key = teacher_orig_norm_local[:, :-1, :, :]
+            orig_key = teacher_orig_norm_local
+        else:
+            teacher_orig_norm_local = None
+            hx_key = hx_norm
+            orig_key = orig_norm
+        # h-anchored family 1: cross-channel same-time h↔h (xx).
+        sims_xx = cosine_similarity_from_normalized(
+            hx_norm.unsqueeze(3), hx_key.unsqueeze(2))
+        mask_mat = ~torch.eye(C, dtype=torch.bool, device=sims_xx.device)
+        mask_mat = mask_mat.view(1, 1, C, C)
+        log_neg_xx = torch.logsumexp(
+            (sims_xx / tau).masked_fill(~mask_mat, neg_inf), dim=2)
+        # h-anchored family 2: within-series all-time h↔h (hh_all).
+        t_idx = torch.arange(T - 1, device=orig_norm.device).view(T - 1, 1)
+        l_idx = torch.arange(T, device=orig_norm.device).view(1, T)
+        sims_hh_all = torch.matmul(
+            hx_norm.permute(0, 2, 1, 3),
+            orig_key.permute(0, 2, 3, 1),
+        )
+        drop_self = (l_idx == t_idx).view(1, 1, T - 1, T)
+        log_neg_hh_all = torch.logsumexp(
+            (sims_hh_all / tau).masked_fill(drop_self, neg_inf), dim=3
+        ).permute(0, 2, 1)
+        # h-anchored family 3: cross-series all-time h↔h′ (xs_allt),
+        # gradient-checkpointed via the same chunked path as `..._xshh_allt`.
+        anchor = hx_norm.permute(0, 2, 1, 3).contiguous()
+        src = orig_key.permute(0, 2, 1, 3).contiguous()
+        b_all = torch.arange(B, device=orig_norm.device)
+        CH = int(os.environ.get('XSHH_ALLT_CHUNK', '8'))
+        fused = os.environ.get('XSHH_ALLT_FUSED', '0') == '1'
+        shard = os.environ.get('XSHH_ALLT_SHARD', '0') == '1' and (
+            dist.is_available() and dist.is_initialized()
+            and dist.get_world_size() > 1)
+        if shard:
+            run = _XsAlltShardedLSE.apply(anchor, src, tau, CH)
+        elif fused:
+            run = _XsAlltFusedLSE.apply(anchor, src, tau, CH)
+        else:
+            def _chunk_lse(anc, src_chunk, same_mask):
+                gram = torch.matmul(
+                    anc.unsqueeze(1),
+                    src_chunk.permute(0, 1, 3, 2).unsqueeze(0),
+                ) / tau
+                gram = gram.masked_fill(same_mask, neg_inf)
+                return torch.logsumexp(torch.logsumexp(gram, dim=4), dim=1)
+            run = None
+            for s in range(0, B, CH):
+                e = min(s + CH, B)
+                same = (b_all.view(B, 1) == b_all[s:e].view(1, e - s)
+                        ).view(B, e - s, 1, 1, 1)
+                chunk_lse = checkpoint(
+                    _chunk_lse, anchor, src[s:e], same, use_reentrant=False)
+                run = chunk_lse if run is None else torch.logsumexp(
+                    torch.stack([run, chunk_lse], dim=0), dim=0)
+        log_neg_xs_allt = run.permute(0, 2, 1)
+        # L_rep: pooled LSE of h-anchored families.
+        # See split branch for the moco_rep_keys positive-in-denominator form.
+        negs_rep = torch.stack(
+            [log_neg_xx, log_neg_hh_all, log_neg_xs_allt], dim=0)
+        log_neg_per_anchor_rep = torch.logsumexp(negs_rep, dim=0)
+        log_neg_total_rep = torch.logsumexp(
+            log_neg_per_anchor_rep, dim=0, keepdim=True)
+        if moco_rep and teacher_orig_norm_local is not None:
+            hx_teacher_norm = teacher_orig_norm_local[:, :-1, :, :]
+            log_pos_h = cosine_similarity_from_normalized(
+                hx_norm, hx_teacher_norm) / tau
+            log_denom_rep = torch.logsumexp(
+                torch.stack(
+                    [log_pos_h, log_neg_total_rep.expand_as(log_pos_h)],
+                    dim=0,
+                ),
+                dim=0,
+            )
+            loss = (log_denom_rep - log_pos_h).mean()
+        else:
+            loss = log_neg_total_rep.mean()
 
     elif train_config.get('loss_shape') == 'cosine_similarity_batch_add_f_cross_negs':
         # NON-cumulative variant: identical to `cosine_similarity_batch` except
@@ -2074,25 +2404,79 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             f"{train_config.get('loss_shape')!r}."
         )
 
-    # Guard: stopgrad_positive_h is applied inside the xshh_allt branch
-    # only. Any other `loss_shape` reaching here with it set would have
-    # silently trained WITHOUT the stop-grad — fail loud instead.
-    if sg_pos and train_config.get('loss_shape') != \
-            'cosine_similarity_batch_full_hh_negs_xshh_allt':
+    # Guard: stopgrad_positive_h is applied inside the xshh_allt / split
+    # branches only. Any other `loss_shape` reaching here with it set
+    # would have silently trained WITHOUT the stop-grad — fail loud instead.
+    _SG_POS_SHAPES = (
+        'cosine_similarity_batch_full_hh_negs_xshh_allt',
+        'cosine_similarity_batch_split_pred_rep',
+        'cosine_similarity_batch_rep_only',
+    )
+    if sg_pos and train_config.get('loss_shape') not in _SG_POS_SHAPES:
         raise NotImplementedError(
-            "stopgrad_positive_h is only implemented for loss_shape="
-            "'cosine_similarity_batch_full_hh_negs_xshh_allt'; got "
-            f"{train_config.get('loss_shape')!r}.")
+            "stopgrad_positive_h is only implemented for loss_shape in "
+            f"{_SG_POS_SHAPES}; got {train_config.get('loss_shape')!r}.")
 
-    # Same guard for the EMA-teacher positive (#353): only the xshh_allt
-    # branch reads it; any other shape reaching here with a teacher latent
-    # would have silently trained on the student positive — fail loud.
-    if hy_teacher_norm is not None and train_config.get('loss_shape') != \
-            'cosine_similarity_batch_full_hh_negs_xshh_allt':
+    # Same guard for the EMA-teacher positive (#353): only the xshh_allt /
+    # split branches read it; any other shape reaching here with a teacher
+    # latent would have silently trained on the student positive — fail loud.
+    if hy_teacher_norm is not None and \
+            train_config.get('loss_shape') not in _SG_POS_SHAPES:
         raise NotImplementedError(
-            "teacher_original_latent is only implemented for loss_shape="
-            "'cosine_similarity_batch_full_hh_negs_xshh_allt'; got "
-            f"{train_config.get('loss_shape')!r}.")
+            "teacher_original_latent is only implemented for loss_shape in "
+            f"{_SG_POS_SHAPES}; got {train_config.get('loss_shape')!r}.")
+
+    # Guard: moco_negatives (#374 arms 3+4) is only wired into the split /
+    # xshh_allt branches; any other shape reaching here with it set would
+    # have silently trained WITHOUT sending negatives through the teacher —
+    # fail loud. Also requires the EMA-teacher path to be active (no teacher
+    # → the flag has nothing to route through and is silently ignored
+    # otherwise). The function-arg override (moco_negatives=False from the
+    # loss_tau_ref diagnostic) takes precedence over the config key.
+    _MOCO_NEG_SHAPES = (
+        'cosine_similarity_batch_split_pred_rep',
+        'cosine_similarity_batch_full_hh_negs_xshh_allt',
+    )
+    _moco_effective = (
+        moco_negatives if moco_negatives is not None
+        else bool(train_config.get('moco_negatives', False)))
+    if _moco_effective:
+        if train_config.get('loss_shape') not in _MOCO_NEG_SHAPES:
+            raise NotImplementedError(
+                "moco_negatives is only implemented for loss_shape in "
+                f"{_MOCO_NEG_SHAPES}; got "
+                f"{train_config.get('loss_shape')!r}.")
+        if hy_teacher_norm is None:
+            raise ValueError(
+                "moco_negatives requires an EMA teacher (pass "
+                "teacher_original_latent, i.e. --ema-embedding / "
+                "--ema-encoder at training time).")
+
+    # Guard: moco_rep_keys (#374 arm bimoco) is only wired into the split
+    # branch's L_rep families; any other shape reaching here with it set
+    # would have silently trained on student-side keys — fail loud. Also
+    # requires the EMA-teacher path to be active. The function-arg override
+    # (moco_rep_keys=False from the loss_tau_ref diagnostic) takes precedence
+    # over the config key, so the diagnostic can force it off even when the
+    # run has it on.
+    _moco_rep_effective = (
+        moco_rep_keys if moco_rep_keys is not None
+        else bool(train_config.get('moco_rep_keys', False)))
+    _MOCO_REP_SHAPES = (
+        'cosine_similarity_batch_split_pred_rep',
+        'cosine_similarity_batch_rep_only',
+    )
+    if _moco_rep_effective:
+        if train_config.get('loss_shape') not in _MOCO_REP_SHAPES:
+            raise NotImplementedError(
+                "moco_rep_keys is only implemented for loss_shape in "
+                f"{_MOCO_REP_SHAPES}; got "
+                f"{train_config.get('loss_shape')!r}.")
+        if teacher_original_latent is None:
+            raise ValueError(
+                "moco_rep_keys requires an EMA teacher (pass "
+                "teacher_original_latent, i.e. --ema-embedding / "
+                "--ema-encoder at training time).")
 
     # Optional add-ons (#309), both default OFF ⇒ the objective is
     # byte-for-byte unchanged for every existing run/test. Resolve from the
@@ -2130,21 +2514,32 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         loss = loss + align_w * (2.0 - 2.0 * cos_align).mean()
 
     if sub_floor:
-        # Re-base the loss by the (constant) normalized-InfoNCE floor so the
-        # logged curve reads ~0 at the uniformity floor. Gradient-neutral.
-        if not pos_in_denom:
-            raise NotImplementedError(
-                "subtract_contrastive_floor requires the normalized-InfoNCE "
-                "objective (include_positive_in_denominator): "
-                "log(1 + N·e^(−1/τ)) is the floor of THAT form, not of the "
-                "default negatives-only loss.")
-        n_neg = _effective_negative_count(
-            train_config.get('loss_shape'), B, T, C)
-        if n_neg is None:
-            raise NotImplementedError(
-                "subtract_contrastive_floor is not implemented for "
-                f"loss_shape={train_config.get('loss_shape')!r}.")
-        loss = loss - infonce_floor(tau, n_neg)
+        # Re-base the loss by the (constant) uniformity floor so the logged
+        # curve reads ~0 at that floor. Gradient-neutral.
+        if train_config.get('loss_shape') == \
+                'cosine_similarity_batch_split_pred_rep':
+            # Split shape has TWO independent terms; subtract each side's
+            # own floor. L_pred is normalized-InfoNCE by construction (its
+            # own floor is the InfoNCE floor at its negative count);
+            # L_rep has no positive, so its floor is log(#terms).
+            f_pred, f_rep = _split_pred_rep_floors(tau, B, T, C)
+            loss = loss - float(f_pred) - float(f_rep)
+        else:
+            # Pooled shapes: floor requires the normalized form (positive
+            # in the denominator).
+            if not pos_in_denom:
+                raise NotImplementedError(
+                    "subtract_contrastive_floor requires the normalized-"
+                    "InfoNCE objective (include_positive_in_denominator): "
+                    "log(1 + N·e^(−1/τ)) is the floor of THAT form, not of "
+                    "the default negatives-only loss.")
+            n_neg = _effective_negative_count(
+                train_config.get('loss_shape'), B, T, C)
+            if n_neg is None:
+                raise NotImplementedError(
+                    "subtract_contrastive_floor is not implemented for "
+                    f"loss_shape={train_config.get('loss_shape')!r}.")
+            loss = loss - infonce_floor(tau, n_neg)
 
     if get_history:
         return loss, (forecasted_latent, original_latent)

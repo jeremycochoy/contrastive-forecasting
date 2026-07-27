@@ -1,0 +1,14 @@
+Device: cuda | Params: 16,894,908
+Training for 12500 steps, bs=512, lr=0.001, T=4096, C=1, mix_ratio=0.0078125, freq_emb_dim=3, seasonality_emb_dim=3, mixup_p=0.3, rev_norm_kind=ewma(span=128), patch_stats=none, encoder_type=gru
+Checkpoints: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs/bb_split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_*.pth
+Loss CSV: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs/bb_split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_losses.csv
+Attn-amplitude CSV: /tmp/contrastive-forecasting-374/experiments/2026-07-10_split_pred_rep/runs/bb_split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_attn_amplitude.csv (every 200 steps)
+Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, hf_bs=508, synth_bs=4, cross_bs=0, total_bs=515
+Traceback (most recent call last):
+  File "/tmp/contrastive-forecasting-374/experiments/2026-04-27_freq-embedding/scripts/train.py", line 1577, in <module>
+    main()
+  File "/tmp/contrastive-forecasting-374/experiments/2026-04-27_freq-embedding/scripts/train.py", line 1382, in main
+    loss_tau_ref = contrastive_latent_loss(
+  File "/tmp/contrastive-forecasting-374/src/loss.py", line 2178, in contrastive_latent_loss
+    raise NotImplementedError(
+NotImplementedError: include_positive_in_denominator (function arg or train_configuration key) is only implemented for loss_shape in {cosine_similarity_batch, cosine_similarity_batch_no_time_neg, cosine_similarity_batch_square, cosine_similarity_batch_full_fh_negs, cosine_similarity_batch_full_hh_negs, cosine_similarity_batch_full_ff_negs, cosine_similarity_batch_full_fh_hh_negs, cosine_similarity_batch_full_hh_ff_negs, cosine_similarity_batch_full_fh_hh_ff_negs, cosine_similarity_batch_full_hh_negs_xbfree, cosine_similarity_batch_full_hh_negs_xshh, cosine_similarity_batch_full_hh_negs_xshh_allt}; got 'cosine_similarity_batch_split_pred_rep'.

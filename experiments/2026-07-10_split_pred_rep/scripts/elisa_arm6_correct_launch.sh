@@ -1,0 +1,149 @@
+#!/bin/bash
+# #374 arm 6 (CORRECT loss) — L_align + L_rep_moco, per the user's original
+# spec: "lalign + lrep with moco : numerator isn't 1 but is <h_bt, h~_bt>
+# and denominator has pairs <h_*, h~_*> where h is the student latent of
+# the encoder but h~ is the teacher latent".
+#
+# The earlier arm 6 (runs_arm6/, results_arm6/) used `align_moco_loss` — a
+# same-time cross-batch normalized InfoNCE on h with truncated negatives and
+# no L_rep_moco. That was a mis-implementation of the request and is
+# retained under its original directory names, marked wrong in the report.
+# This run lands under runs_arm6_v2/ and results_arm6_v2/.
+#
+# Loss form:
+#   L = L_align  +  L_rep_moco
+#     L_align    = (2 − 2·cos(f_t, sg(h_{t+1}))).mean()                — BYOL
+#     L_rep_moco = normalized-InfoNCE, positive-in-denominator, positive
+#                  <h_student_{b,t}, h_teacher_{b,t}>, negatives = the three
+#                  h-anchored families (xx / hh_all / xs_allt) with teacher-h
+#                  on the key side.
+#
+# Backbone (12,500 steps) + downstream 2L on GPU 0 + 6L on GPU 1 in parallel,
+# same protocol as arm 5 and arm 6 v1.
+set -uo pipefail
+WT="${WT:-/tmp/contrastive-forecasting-374}"
+OUT="$WT/experiments/2026-07-10_split_pred_rep"
+RUNS="$OUT/runs_arm6_v2"; RES="$OUT/results_arm6_v2"; mkdir -p "$RUNS" "$RES"
+NAME="bb_lalign_lrepmoco_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_arm6v2_tau090"
+TAG="${NAME#bb_}"
+SEED=20260520
+STEPS=12500; SAVE_EVERY=2500
+ENC_LAYERS=6; NENC=3
+BB_GPU="${BB_GPU:-0}"; GPU_2L="${GPU_2L:-0}"; GPU_6L="${GPU_6L:-1}"
+export PYTHONPATH="$WT" PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True OMP_NUM_THREADS=8
+export FCST_GRAD_CKPT=1 XSHH_ALLT_CHUNK=1 CPC_CB_CHUNK="${CPC_CB_CHUNK:-64}"
+export GIFT_EVAL="${GIFT_EVAL:-/home/jupyter/workspaces/gift-eval-data}"
+export PATCH_ENC_CKPT=1 PATCH_ENC_CHUNK=4
+export TEACHER_EMBED_CHUNK="${TEACHER_EMBED_CHUNK:-16}"
+HF_TOKEN_PATH="$WT/experiments/hf_token.txt"
+TRAIN="$WT/experiments/2026-04-27_freq-embedding/scripts/train.py"
+QTRAIN="$WT/experiments/2026-04-13_gift-eval/scripts/train_forecasting_head.py"
+QEVAL="$WT/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py"
+DL_LOG="$RES/dl_arm6_v2.log"
+log(){ echo "[$(date '+%m-%d %H:%M:%S')] [elisa-arm6-v2] $*" | tee -a "$DL_LOG"; }
+gm(){ grep 'Aggregate GM-Relative MASE' "$1" 2>/dev/null | grep -oE '[0-9]+\.[0-9]+$' | tail -1; }
+[ -f "$TRAIN" ]  || { log "ABORT: TRAIN not at $TRAIN"; exit 2; }
+[ -f "$QTRAIN" ] || { log "ABORT: QTRAIN not at $QTRAIN"; exit 2; }
+[ -f "$QEVAL" ]  || { log "ABORT: QEVAL not at $QEVAL"; exit 2; }
+[ -f "$HF_TOKEN_PATH" ] || { log "ABORT: HF token missing at $HF_TOKEN_PATH"; exit 2; }
+export HF_TOKEN="$(cat "$HF_TOKEN_PATH")"; export HUGGING_FACE_HUB_TOKEN="$HF_TOKEN"
+[ -n "$HF_TOKEN" ] || { log "ABORT: empty HF_TOKEN"; exit 2; }
+
+BB="$RUNS/${NAME}_FINAL.pth"
+BBLAST="$RUNS/${NAME}_final.pth"
+tlog="$RES/run_${NAME}.log"
+
+if [ -f "$BB" ]; then
+  log "BB SKIP ($NAME FINAL exists)"
+else
+  RESUME=""; latest=$(ls -t "$RUNS/${NAME}"_*k.pth 2>/dev/null | grep -v optimizer | head -1)
+  [ -n "$latest" ] && { RESUME="--resume $latest"; log "RESUME from $(basename "$latest")"; }
+  log "BB START (arm 6 CORRECT: L_align + L_rep_moco) gpu=$BB_GPU steps=$STEPS bs=512 ${RESUME}"
+  CUDA_VISIBLE_DEVICES="$BB_GPU" python3 -u "$TRAIN" $RESUME --qk-norm --attn-out-norm \
+    --batch-size 512 --device cuda --total-steps "$STEPS" --lr 1e-3 --weight-decay 0.1 \
+    --adam-beta1 0.9 --adam-beta2 0.98 --seed "$SEED" \
+    --save-every "$SAVE_EVERY" --save-dir "$RUNS" --run-name "$NAME" --log-every 100 \
+    --hf-repo jeremycochoy/gift-pretrain-full-4096 --hf-path small_v1 \
+    --t-raw 4096 --n-channels 1 --d-model 384 --n-heads 6 \
+    --num-encoder-layers "$NENC" --num-layers "$ENC_LAYERS" \
+    --encoder-dropkey 0.70 --encoder-dropkey-share-heads --encoder-dropkey-share-layers \
+    --depthwise-conv 3 --deprecated-depthwise-conv 0 \
+    --loss-shape cosine_similarity_batch_rep_only \
+    --align-loss-weight 1.0 --moco-rep-keys \
+    --ema-embedding --ema-encoder --ema-tau 0.9 --cpc-infonce-weight 1.0 \
+    --sigreg-embedding --sigreg-encoding --sigreg-n-chunk 2048 \
+    --sigreg-embedding-weight 1.0 --sigreg-encoding-weight 1.0 \
+    --tau 0.10 --rev-norm-kind ewma --rev-norm-span 128 --encoder-type gru \
+    --synth-kind forked-arma --mix-ratio 0.0078125 --crossfade-triplets 1 \
+    --mixup-p 0.3 --freq-emb-dim 3 --seasonality-emb-dim 3 \
+    --log-attn-amplitude --log-attn-amplitude-every 200 \
+    --residual-dtype fp32 --attn-dtype fp16 --ffn-dtype fp16 --conv-dtype fp16 --patch-emb-dtype fp32 \
+    >>"$tlog" 2>&1
+  rc=$?
+  if [ $rc -ne 0 ]; then
+    log "BB train exited rc=$rc — NOT creating FINAL. tail: $(tail -3 "$tlog"|tr '\n' ' ')"
+    exit 1
+  fi
+  if   [ -f "$RUNS/${NAME}_best_loss.pth" ]; then cp -f "$RUNS/${NAME}_best_loss.pth" "$BB"
+  elif [ -f "$RUNS/${NAME}_final.pth" ];     then cp -f "$RUNS/${NAME}_final.pth"     "$BB"
+  else cp -f "$(ls -t "$RUNS/${NAME}"_*k.pth 2>/dev/null|head -1)" "$BB" 2>/dev/null; fi
+  [ -f "$BB" ] || { log "BB FAILED no checkpoint"; exit 1; }
+  log "BB DONE -> ${NAME}_FINAL.pth ($(du -h "$BB"|cut -f1))"
+fi
+
+arch=(--t-raw 4096 --n-channels 1 --d-model 384 --n-heads 6 --num-layers 6 \
+      --encoder-type gru --rev-norm-kind ewma --rev-norm-span 128)
+
+train_head(){
+  local HL="$1" gpu="$2" qn="$3" bb="$4" src="$5" tot="$6" wu="$7" qf="$RUNS/$3_FINAL.pth"
+  [ -f "$qf" ] && { log "QH $qn skip (FINAL exists)"; return 0; }
+  local rflag=(); [ -n "$src" ] && rflag=(--resume "$src")
+  log "QH $qn train $tot on $(basename "$bb") (gpu $gpu)"
+  CUDA_VISIBLE_DEVICES="$gpu" python3 -u "$QTRAIN" "${rflag[@]}" --backbone-path "$bb" --forecast-len 16 --quantile-head \
+    --head-arch transformer --head-causal true --head-num-layers "$HL" --head-nhead 6 --head-ffn-mult 4.0 \
+    --head-dropout 0.1 --head-train-input e_then_f --total-steps "$tot" --batch-size 256 --lr 1e-3 \
+    --beta1 0.9 --beta2 0.98 --weight-decay 0.1 --schedule cosine --warmup-steps "$wu" --final-lr-ratio 0.1 \
+    --save-every 100000 --log-every 200 --save-dir "$RUNS" --run-name "$qn" \
+    --hf-repo jeremycochoy/gift-pretrain-full-4096 --hf-path small_v1 \
+    --device cuda "${arch[@]}" --mix-ratio 0.0 --reconstruction forecaster --amp-dtype none \
+    >>"$RES/run_${qn}.log" 2>&1 || { log "QH $qn FAILED"; return 1; }
+  if   [ -f "$RUNS/${qn}_best.pth" ];  then cp -f "$RUNS/${qn}_best.pth"  "$qf"
+  elif [ -f "$RUNS/${qn}_final.pth" ]; then cp -f "$RUNS/${qn}_final.pth" "$qf"
+  else cp -f "$(ls -t "$RUNS/${qn}"_*k.pth 2>/dev/null|head -1)" "$qf"; fi
+  [ -f "$qf" ] || { log "QH $qn no checkpoint"; return 1; }; log "QH $qn done"; }
+
+do_eval(){
+  local HL="$1" gpu="$2" qf="$RUNS/$3_FINAL.pth" out="$RES/gift_eval_full_$5_${1}L"
+  [ -f "$out/summary.txt" ] && { log "EVAL $5 ${HL}L skip GM=$(gm "$out/summary.txt")"; return 0; }
+  mkdir -p "$out"; log "EVAL $5 ${HL}L full-97 start (gpu $gpu)"
+  CUDA_VISIBLE_DEVICES="$gpu" python3 -u "$QEVAL" --backbone-path "$4" --head-path "$qf" --output-dir "$out" --strategy B4 \
+    --forecast-len 16 --t-raw 4096 --backbone-c 1 --d-model 384 --n-heads 6 --num-layers 6 \
+    --encoder-type gru --rev-norm-kind ewma --rev-norm-span 128 --device cuda --head-causal true \
+    >>"$RES/run_eval_full_$5_${HL}L.log" 2>&1 || { log "EVAL $5 ${HL}L FAILED"; return 1; }
+  log "EVAL $5 ${HL}L done GM=$(gm "$out/summary.txt")"; }
+
+downstream_hl(){
+  local HL="$1" gpu="$2" fail=0
+  local qn_best="qhead_${HL}L_${TAG}" qn_last="qhead_${HL}L_${TAG}_last"
+  if train_head "$HL" "$gpu" "$qn_best" "$BB" "" 30000 2000; then
+    do_eval "$HL" "$gpu" "$qn_best" "$BB" "$TAG" || fail=$((fail+1))
+  else fail=$((fail+1)); fi
+  if [ ! -f "$BBLAST" ]; then
+    log "ABORT ${HL}L: last-checkpoint backbone missing at $BBLAST"; return $((fail+1))
+  fi
+  if train_head "$HL" "$gpu" "$qn_last" "$BBLAST" "$RUNS/${qn_best}_FINAL.pth" 10000 1000; then
+    do_eval "$HL" "$gpu" "$qn_last" "$BBLAST" "${TAG}_last" || fail=$((fail+1))
+  else fail=$((fail+1)); fi
+  return "$fail"
+}
+
+log "downstream start: 2L on GPU $GPU_2L + 6L on GPU $GPU_6L (parallel)"
+downstream_hl 2 "$GPU_2L" >>"$RES/dl_2L.log" 2>&1 &
+pid2=$!
+downstream_hl 6 "$GPU_6L" >>"$RES/dl_6L.log" 2>&1 &
+pid6=$!
+log "downstream PIDs: 2L=$pid2  6L=$pid6"
+wait $pid2; rc2=$?
+wait $pid6; rc6=$?
+log "arm 6 (correct) complete: 2L failed-cells=$rc2  6L failed-cells=$rc6"
+exit $(( rc2 != 0 || rc6 != 0 ))

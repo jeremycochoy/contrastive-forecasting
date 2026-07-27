@@ -1,0 +1,41 @@
+[07-10 11:53:03] [orch-sync-done] waiting for all 4 summary.txt files
+[07-10 18:39:04] [orch-sync-done] all 4 cells present locally
+[feature/contrastive-forecasting-374 9a76bcd] experiment(#374): split_pred_rep downstream artefacts (2L/6L × best/last)
+ 35 files changed, 4488 insertions(+), 2 deletions(-)
+ create mode 100644 experiments/2026-07-10_split_pred_rep/results/dl_2L.log
+ create mode 100644 experiments/2026-07-10_split_pred_rep/results/dl_6L.log
+ create mode 100644 experiments/2026-07-10_split_pred_rep/results/gift_eval_full_split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_2L/all_results.csv
+ create mode 100644 experiments/2026-07-10_split_pred_rep/results/gift_eval_full_split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_2L/all_results.csv.prev
+ create mode 100644 experiments/2026-07-10_split_pred_rep/results/gift_eval_full_split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_2L/summary.txt
+ create mode 100644 experiments/2026-07-10_split_pred_rep/results/gift_eval_full_split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_2L/summary.txt.prev
+ create mode 100644 experiments/2026-07-10_split_pred_rep/results/gift_eval_full_split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_6L/all_results.csv
+ create mode 100644 experiments/2026-07-10_split_pred_rep/results/gift_eval_full_split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_6L/all_results.csv.prev
+ create mode 100644 experiments/2026-07-10_split_pred_rep/results/gift_eval_full_split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_6L/summary.txt
+ create mode 100644 experiments/2026-07-10_split_pred_rep/results/gift_eval_full_split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_6L/summary.txt.prev
+ create mode 100644 experiments/2026-07-10_split_pred_rep/results/gift_eval_full_split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_last_2L/all_results.csv
+ create mode 100644 experiments/2026-07-10_split_pred_rep/results/gift_eval_full_split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_last_2L/all_results.csv.prev
+ create mode 100644 experiments/2026-07-10_split_pred_rep/results/gift_eval_full_split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_last_2L/summary.txt
+ create mode 100644 experiments/2026-07-10_split_pred_rep/results/gift_eval_full_split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_last_2L/summary.txt.prev
+ create mode 100644 experiments/2026-07-10_split_pred_rep/results/gift_eval_full_split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_last_6L/all_results.csv
+ create mode 100644 experiments/2026-07-10_split_pred_rep/results/gift_eval_full_split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_last_6L/all_results.csv.prev
+ create mode 100644 experiments/2026-07-10_split_pred_rep/results/gift_eval_full_split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_last_6L/summary.txt
+ create mode 100644 experiments/2026-07-10_split_pred_rep/results/gift_eval_full_split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_last_6L/summary.txt.prev
+ create mode 100644 experiments/2026-07-10_split_pred_rep/results/launcher.stdout
+ create mode 100644 experiments/2026-07-10_split_pred_rep/results/orchestrate_after_backbone.log
+ create mode 100644 experiments/2026-07-10_split_pred_rep/results/orchestrate_after_final_sync.log
+ create mode 100644 experiments/2026-07-10_split_pred_rep/results/orchestrate_after_sync_done.log
+ create mode 100644 experiments/2026-07-10_split_pred_rep/results/orchestrate_after_sync_done.stdout
+ create mode 100644 experiments/2026-07-10_split_pred_rep/results/run_bb_split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090.log
+ create mode 100644 experiments/2026-07-10_split_pred_rep/results/run_bb_split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090.log.aborted
+ create mode 100644 experiments/2026-07-10_split_pred_rep/results/run_bb_split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090.log.pre-launch
+ create mode 100644 experiments/2026-07-10_split_pred_rep/results/run_bb_split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090.log.prev
+ create mode 100644 experiments/2026-07-10_split_pred_rep/results/run_eval_full_split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_2L.log
+ create mode 100644 experiments/2026-07-10_split_pred_rep/results/run_eval_full_split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090_6L.log
+ create mode 100644 experiments/2026-07-10_split_pred_rep/results/run_qhead_2L_split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090.log
+ create mode 100644 experiments/2026-07-10_split_pred_rep/results/run_qhead_6L_split_pred_rep_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_tau090.log
+ create mode 100644 experiments/2026-07-10_split_pred_rep/results/sync_loop_374.log
+ create mode 100644 experiments/2026-07-10_split_pred_rep/results/sync_loop_374_downstream.log
+ create mode 100755 experiments/2026-07-10_split_pred_rep/scripts/orchestrate_after_final_sync.sh
+To github.com.contrastive-forecasting:jeremycochoy/contrastive-forecasting.git
+   1ec6b93..9a76bcd  feature/contrastive-forecasting-374 -> feature/contrastive-forecasting-374
+[07-10 18:39:06] [orch-sync-done] state written; downstream complete
