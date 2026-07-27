@@ -6,7 +6,7 @@
 
 ![GM-Relative MASE per arm across backbone step](plots/gm_curve_per_arm.png)
 
-*Bimoco has no 50,000-step cell.*
+*We didn't run bimoco's 50,000-step cell: its GM-Relative MASE had already worsened at 25,000.*
 
 ## Aligning the training signal with downstream MASE
 
