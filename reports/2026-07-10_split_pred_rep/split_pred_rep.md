@@ -44,7 +44,7 @@ L_align       2 − 2·cos(f_t, sg(hᵀ_{t+1}))   cosine-distance minimization, 
 
 ## Annex A — Trajectory cells
 
-One cell = one arm's GM-Relative MASE evaluated at one backbone training step; a row is that arm's trajectory across training.
+One cell holds one arm's GM-Relative MASE at one backbone training step; a row is that arm's trajectory across training.
 
 | arm | 2L 2k | 2L best | 2L last (12,500) | 2L 25k | 2L 50k | 6L 2k | 6L best | 6L last (12,500) | 6L 25k | 6L 50k |
 | --- | --: | --: | --: | --: | --: | --: | --: | --: | --: | --: |
@@ -64,7 +64,7 @@ How much of each loss term's denominator does the cross-batch `f ↔ h′` famil
 
 ![Per-family denominator share](plots/gradient_share_stack.png)
 
-*Per-family denominator share at every arm's step-12,500 backbone, probed on a mixed and a periodic-only batch at τ = 0.10, B = 64. `share_i = exp(mean(logit_i − log-denominator))` is a per-anchor geometric mean, so families need not sum to 1; each bar's Σ is printed above it.*
+*Per-family denominator share at every arm's step-12,500 backbone; we probe on a mixed batch and a periodic-only batch at τ = 0.10, B = 64. `share_i = exp(mean(logit_i − log-denominator))` is a per-anchor geometric mean, so families need not sum to 1; each bar shows its column sum Σ above.*
 
 Share of the cross-batch `f ↔ h′` family in the term carrying the prediction pairs (`results/gradient_share_measurement_step12500.csv`):
 
@@ -77,9 +77,9 @@ Share of the cross-batch `f ↔ h′` family in the term carrying the prediction
 
 ## Annex C — Method
 
-All six arms' backbones: B = 512, T = 4096, C = 1, τ = 0.10, `lr = 1e-3`, seed 20260520, dataset `gift-pretrain-full-4096 / small_v1`, EMA teacher τ = 0.90, SIGReg λ_e = λ_h = 1, CPC auxiliary, 12,500 steps, prolonged to 25,000 and (five arms) 50,000. Arm C, the baseline, is the best recipe of the `2026-06-28_sigreg_lambda_tau_cross` experiment (λ_e = 1, λ_h = 1, τ = 0.90); its per-task data is a same-recipe seed-2 retrain evaluated at steps 12,500 / 25,000 / 50,000.
+The six arms share a backbone recipe: B = 512, T = 4096, C = 1, τ = 0.10, `lr = 1e-3`, seed 20260520, dataset `gift-pretrain-full-4096 / small_v1`, EMA teacher τ = 0.90, SIGReg λ_e = λ_h = 1, CPC auxiliary. Each ran 12,500 steps; we extended five of them to 25,000 and 50,000. Arm C, the baseline, uses the best recipe of the `2026-06-28_sigreg_lambda_tau_cross` experiment (λ_e = 1, λ_h = 1, τ = 0.90); we retrained it here with a fresh seed and evaluated at steps 12,500 / 25,000 / 50,000.
 
-Eval: GIFT-Eval 97 configs, strategy B4, quantile-median MASE / seasonal-naive. The `2k` / `25k` / `50k` cells train a fresh 40k-step quantile head on that snapshot; `best` / `last` use a 30k-step best-loss head, resumed a further 10k steps for `last`. Per-cell source paths and checkpoint layout: `experiments/2026-07-10_split_pred_rep/README.md`.
+Eval: GIFT-Eval 97 configs, strategy B4, quantile-median MASE / seasonal-naive. For each `2k` / `25k` / `50k` cell we train a fresh 40k-step quantile head on that snapshot; for `best` we train a 30k-step best-loss head, and for `last` we resume that head a further 10k steps. Per-cell source paths and checkpoint layout: `experiments/2026-07-10_split_pred_rep/README.md`.
 
 ## Annex D — Paired-bootstrap 95 % CIs
 
