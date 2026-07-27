@@ -1,4 +1,4 @@
-# Splitting the contrastive loss (L_pred + L_rep) and MoCo-style teacher latents
+# Splitting the contrastive loss (L_pred + L_rep) and/or MoCo-style teacher latents both improve forecasting
 
 **Question.** The baseline loss, arm C, puts every negative under a single log-sum-exp denominator. Does splitting it into `L_pred` (f-anchored) and `L_rep` (h-anchored) improve GM-Relative MASE, and does adding EMA-teacher MoCo keys or replacing `L_pred` with cosine-distance minimization to the teacher (`L_align`) change the answer?
 
