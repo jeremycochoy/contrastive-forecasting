@@ -24,13 +24,15 @@
 
 Notation: `h_t` = encoder latent; `f_t` = forecaster's next-step latent (the forecast); `h′` = cross-batch latent; `ᵀ` = EMA-teacher copy (τ_ema = 0.90); `sg` = stop-gradient. Every InfoNCE softmax below divides each cosine similarity by τ = 0.10.
 
-```
-L_pred        f-anchored NCE:  positive cos(f_t, h′_{t+1});  negatives  adjacent f_{t+1}↔f_t  ∪  cross-batch f_t↔h′_{t+1}
-L_pred_moco   = L_pred with the cross-batch keys taken from the teacher
-L_rep         h-anchored LSE:  cross-channel h↔h  ∪  within-series h↔h  ∪  cross-series h↔h′;  no positive term
-L_rep_moco    = L_rep with teacher-side keys; the same-time student↔teacher pair is the positive and also sits in the denominator
-L_align       2 − 2·cos(f_t, sg(hᵀ_{t+1}))   cosine-distance minimization, no negatives
-```
+Each arm's loss is a sum of the five terms below; the arms table gives the composition.
+
+- **`L_pred`** — InfoNCE at anchor `f_t`.
+  - positive: `cos(f_t, h′_{t+1})`
+  - negatives: adjacent `cos(f_{t+1}, f_t)` and cross-batch `cos(f_t, h′_{t+1})` over the other windows
+- **`L_pred_moco`** — `L_pred`, but the cross-batch `h′_{t+1}` keys come from the EMA teacher.
+- **`L_rep`** — pure repulsion at anchor `h_t`, no positive: `h ↔ h` across channels, across time within one series, and across the batch.
+- **`L_rep_moco`** — `L_rep` with teacher-side keys; the same-time student↔teacher pair sits as the positive and inside the denominator.
+- **`L_align`** — cosine-distance minimization to the teacher's next-step `h`: `2 − 2·cos(f_t, sg(hᵀ_{t+1}))`. No negatives.
 
 | arm | loss | shape (prefix `cosine_similarity_batch_`) + flags |
 | --- | --- | --- |
