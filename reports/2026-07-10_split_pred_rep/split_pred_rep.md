@@ -14,7 +14,7 @@
 
 ![Retrieval error (1 − ff) aligned with evaluated GM-Relative MASE snapshots, per arm](plots/ff_vs_gm_snapshots.png)
 
-*`ff = cos(f̂_t, f_true_{t+1})`, the positive-pair cosine similarity.*
+*`ff = cos(f̂_t, f_true_{t+1})` is the positive-pair cosine similarity.*
 
 ## Snapshot at 12,500 backbone steps
 
