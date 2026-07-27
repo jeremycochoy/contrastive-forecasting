@@ -60,7 +60,7 @@ Bold = column minimum.
 
 ## Annex B — Denominator share
 
-How much of each loss term's denominator does the cross-batch `f ↔ h′` family occupy? Under the pooled shape it competes with four other families in one log-sum-exp; splitting gives it `L_pred`'s denominator almost to itself.
+How much of each loss term's denominator does the cross-batch `f ↔ h′` family occupy?
 
 ![Per-family denominator share](plots/gradient_share_stack.png)
 
