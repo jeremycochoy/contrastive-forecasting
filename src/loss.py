@@ -924,6 +924,12 @@ def contrastive_latent_loss(predicted_position, validation, spec,
     student. Mutually exclusive with ``stopgrad_positive_h`` (the
     teacher is the stop-grad). Only implemented for the xshh_allt
     loss shape (raises otherwise).
+
+    Config keys ``pred_loss_weight`` / ``rep_loss_weight`` (#382; both
+    default 1.0 → historical objective unchanged): per-term scalar
+    weights on L_pred and L_rep in the ``..._split_pred_rep`` shape.
+    Setting one to 0.0 isolates the other term for the loss-term-
+    isolation ablation. No-op for every other loss shape.
     """
     forecasted_latent, original_latent = predicted_position
     train_config = spec.train_configuration
@@ -1857,7 +1863,12 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         else:
             loss_rep = log_neg_total_rep.mean()
 
-        loss = loss_pred + loss_rep
+        # Per-term scalar weights (#382). Default 1.0 keeps the historical
+        # objective byte-for-byte; setting one side to 0.0 isolates the
+        # other term for the loss-term-isolation ablation.
+        w_pred = float(train_config.get('pred_loss_weight', 1.0))
+        w_rep = float(train_config.get('rep_loss_weight', 1.0))
+        loss = w_pred * loss_pred + w_rep * loss_rep
 
     elif train_config.get('loss_shape') == 'cosine_similarity_batch_rep_only':
         # #374 follow-up arm: drop L_pred from the split shape and pair

@@ -34,7 +34,8 @@ import torch
 import torch.optim as optim
 from types import SimpleNamespace
 
-from src.models import ConfigurableModel, compute_metrics, count_parameters
+from src.models import (ConfigurableModel, compute_metrics, count_parameters,
+                        generate_random_batch)
 from src.blocks import ATTN_AMP_DIAG
 from src.dataloader import (
     create_mixed_periodic_dataloader,
@@ -485,14 +486,29 @@ def parse_args():
     p.add_argument("--no-main-contrastive-loss", action="store_true",
                    help="Drop the main contrastive loss entirely; train only on "
                         "the auxiliary terms (--cpc-infonce-weight and/or "
-                        "--align-loss-weight). Skips the contrastive_latent_loss "
-                        "call (no xshh_allt Gram in the backward), and the align "
-                        "term is then computed standalone (same BYOL form, encoder "
-                        "target stop-gradded). Use to test whether CPC + a separate "
-                        "forecaster loss beats the contrastive objective (#344). "
+                        "--align-loss-weight and/or --sigreg-embedding/-encoding). "
+                        "Skips the contrastive_latent_loss call (no xshh_allt Gram "
+                        "in the backward), and the align term is then computed "
+                        "standalone (same BYOL form, encoder target stop-gradded). "
+                        "Use to test whether CPC + a separate forecaster loss beats "
+                        "the contrastive objective (#344), or to isolate a single "
+                        "auxiliary term (SIGReg / CPC / align) end-to-end (#382). "
                         "The loss_tau_ref diagnostic is still logged as a "
                         "contrastive-reference curve. Requires at least one of "
-                        "--cpc-infonce-weight / --align-loss-weight > 0.")
+                        "--cpc-infonce-weight / --align-loss-weight / "
+                        "--sigreg-embedding / --sigreg-encoding > 0.")
+    p.add_argument("--pred-loss-weight", type=float, default=1.0,
+                   help="Scalar weight on L_pred inside the "
+                        "cosine_similarity_batch_split_pred_rep shape (#382). "
+                        "Default 1.0 = historical objective. Set to 0.0 to "
+                        "isolate L_rep (e.g. the 'rep' and 'rep_moco' arms); a "
+                        "no-op for every other loss_shape.")
+    p.add_argument("--rep-loss-weight", type=float, default=1.0,
+                   help="Scalar weight on L_rep inside the "
+                        "cosine_similarity_batch_split_pred_rep shape (#382). "
+                        "Default 1.0 = historical objective. Set to 0.0 to "
+                        "isolate L_pred (e.g. the 'pred' and 'pred_moco' arms); a "
+                        "no-op for every other loss_shape.")
     p.add_argument("--ema-embedding", action="store_true",
                    help="BYOL/JEPA EMA-teacher copy of the patch-embedding "
                         "(--encoder-type's input_to_latent). Non-trained; "
@@ -1118,11 +1134,13 @@ def main():
             f"cpc_multistep forecaster (--forecaster-kind {args.forecaster_kind}). "
             "Use --forecaster-kind transformer, or drop --cpc-infonce-weight.")
     if args.no_main_contrastive_loss and not (
-            args.cpc_infonce_weight > 0 or args.align_loss_weight > 0):
+            args.cpc_infonce_weight > 0 or args.align_loss_weight > 0
+            or args.sigreg_embedding or args.sigreg_encoding):
         raise SystemExit(
             "--no-main-contrastive-loss drops the only contrastive term, so the "
             "objective would be empty; pass --cpc-infonce-weight and/or "
-            "--align-loss-weight > 0.")
+            "--align-loss-weight > 0 and/or --sigreg-embedding / "
+            "--sigreg-encoding.")
     model_config["cpc_infonce"] = args.cpc_infonce_weight > 0
     model_config["qk_norm"] = bool(args.qk_norm)
     model_config["attn_out_norm"] = bool(args.attn_out_norm)
@@ -1177,6 +1195,8 @@ def main():
     LOSS_SPEC.train_configuration["subtract_contrastive_floor"] = args.subtract_contrastive_floor
     LOSS_SPEC.train_configuration["moco_negatives"] = args.moco_negatives
     LOSS_SPEC.train_configuration["moco_rep_keys"] = args.moco_rep_keys
+    LOSS_SPEC.train_configuration["pred_loss_weight"] = args.pred_loss_weight
+    LOSS_SPEC.train_configuration["rep_loss_weight"] = args.rep_loss_weight
     if args.tau is not None:
         LOSS_SPEC.train_configuration["contrastive_divergence_temperature"] = args.tau
     model = ConfigurableModel(**model_config).to(device)
