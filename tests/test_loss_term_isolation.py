@@ -71,15 +71,20 @@ class TestPredRepDecomposition:
             f"{l10.item()} + {l01.item()} = {(l10+l01).item()}")
 
     def test_zero_zero_gives_zero(self):
-        """Both weights 0 ⇒ loss is exactly 0.0, gradient is zero everywhere."""
+        """Both weights 0 ⇒ loss is exactly 0.0. After the round-2 short-
+        circuit (Gap 3) neither term is even in the graph, so `loss` is a
+        detached `torch.zeros(())` and `.backward()` on it is not defined —
+        which is exactly the point of the short-circuit (no Gram compute,
+        no autograd graph). Callers that hit (0,0) should not be calling
+        `.backward()` on this loss anyway."""
         f, o = _latents(seed=29)
         f = f.requires_grad_(True)
         o = o.requires_grad_(True)
         loss = contrastive_latent_loss((f, o), False, _spec(w_pred=0.0, w_rep=0.0))
         assert loss.item() == 0.0
-        loss.backward()
-        assert f.grad is not None and torch.all(f.grad == 0)
-        assert o.grad is not None and torch.all(o.grad == 0)
+        assert not loss.requires_grad, (
+            "loss at (w_pred=0, w_rep=0) must have no autograd graph — the "
+            "short-circuit skipped both terms' Gram compute.")
 
     def test_rep_arm_matches_pure_l_rep(self):
         """The `rep` arm (w_pred=0, w_rep=1) must equal the standalone L_rep
@@ -106,15 +111,18 @@ class TestZeroWeightMeansNoGradient:
     leak any signal from the other term either."""
 
     def test_pred_weight_zero_matches_rep_only_gradient(self):
-        """∇L when (w_pred=0, w_rep=1) == ∇L_rep alone: L_rep never touches f,
-        so ∂L/∂f is exactly zero; ∂L/∂o matches the reference."""
+        """∇L when (w_pred=0, w_rep=1) == ∇L_rep alone: L_rep never touches
+        f, so ∂L/∂f is either all-zero (grad flowed through 0·loss_pred)
+        or None (short-circuit skipped the pred branch entirely — round-2
+        Gap 3). ∂L/∂o matches the reference either way."""
         f, o = _latents(seed=53)
         f1 = f.clone().requires_grad_(True)
         o1 = o.clone().requires_grad_(True)
         loss_iso = contrastive_latent_loss(
             (f1, o1), False, _spec(w_pred=0.0, w_rep=1.0))
         loss_iso.backward()
-        assert torch.all(f1.grad == 0), "L_rep does not depend on f — grad must be 0"
+        assert f1.grad is None or torch.all(f1.grad == 0), \
+            "L_rep does not depend on f — grad must be None or 0"
 
         o2 = o.clone().requires_grad_(True)
         _reference_l_rep(f.clone(), o2, tau=0.1).backward()
@@ -136,6 +144,69 @@ class TestZeroWeightMeansNoGradient:
         grad_f_ref, grad_o_ref = f2.grad, o2.grad
         assert torch.allclose(grad_f_iso, grad_f_ref, atol=1e-10)
         assert torch.allclose(grad_o_iso, grad_o_ref, atol=1e-10)
+
+
+class TestZeroWeightShortCircuit:
+    """Round-2 Gap 3: a weight of exactly 0.0 must short-circuit — no Gram
+    compute, no autograd edge into the disabled term's inputs. Verifies
+    (a) numerical parity at (1,1) against the reference implementations,
+    (b) autograd walks only the enabled term (grad on `f` is `None` when
+    `w_pred == 0` because `f` never entered the loss graph)."""
+
+    def test_default_weights_still_match_split_shape_reference(self):
+        """(a) Guard rail against a stray edit changing the (1,1) forward:
+        `L(1,1)` must equal `_reference_l_pred + _reference_l_rep` (fp64)."""
+        f, o = _latents(seed=131, C=2)
+        got = contrastive_latent_loss((f, o), False, _spec(w_pred=1.0, w_rep=1.0))
+        want = _reference_l_pred(f, o, tau=0.1) + _reference_l_rep(f, o, tau=0.1)
+        assert torch.allclose(got, want, atol=1e-9, rtol=1e-9), (
+            f"L(1,1) = {got.item():.10f}; reference L_pred + L_rep = "
+            f"{want.item():.10f}. Short-circuit must be a strict no-op at "
+            f"the default weights.")
+
+    def test_pred_weight_zero_skips_pred_branch(self):
+        """(b) L_pred touches `f` (forecasted_latent); L_rep does not.
+        With w_pred=0.0 the short-circuit must make `f.grad` be `None` —
+        proof that the entire L_pred graph (log_pos, log_neg_zy, cross-batch
+        matmul) was skipped and `f` never entered the loss."""
+        f, o = _latents(seed=137)
+        f1 = f.clone().requires_grad_(True)
+        o1 = o.clone().requires_grad_(True)
+        loss = contrastive_latent_loss(
+            (f1, o1), False, _spec(w_pred=0.0, w_rep=1.0))
+        loss.backward()
+        assert f1.grad is None, (
+            "w_pred=0.0 must short-circuit L_pred — `f` should never enter "
+            "the loss graph. `.grad` is not None, so the Gram compute ran.")
+        assert o1.grad is not None and o1.grad.abs().sum() > 0, (
+            "L_rep depends on `o`; ∂L/∂o must be non-trivial when w_rep>0.")
+
+    def test_rep_weight_zero_skips_rep_branch(self):
+        """(b) L_rep depends on `o` at every time step; L_pred depends on
+        `o` only through `hy_norm = o[:, 1:]`. With w_rep=0.0 the short-
+        circuit must skip the h-anchored Gram / xs_allt chunked path.
+        Confirm the observable: the (1,0) loss equals `_reference_l_pred`
+        (already checked in `test_pred_arm_matches_pure_l_pred`), and
+        `f.grad` is populated (L_pred backprops through it)."""
+        f, o = _latents(seed=139)
+        f1 = f.clone().requires_grad_(True)
+        o1 = o.clone().requires_grad_(True)
+        loss = contrastive_latent_loss(
+            (f1, o1), False, _spec(w_pred=1.0, w_rep=0.0))
+        loss.backward()
+        assert f1.grad is not None and f1.grad.abs().sum() > 0, (
+            "L_pred depends on `f`; ∂L/∂f must be non-trivial when w_pred>0.")
+
+    def test_disabled_term_zero_scalar_matches_input_dtype(self):
+        """`torch.zeros(())` for the short-circuited term must match the
+        input dtype so the fp32/fp64 sum stays a well-typed tensor. fp64
+        inputs must yield fp64 loss even with a term at weight 0."""
+        f, o = _latents(seed=149)  # default fp64
+        loss = contrastive_latent_loss(
+            (f, o), False, _spec(w_pred=1.0, w_rep=0.0))
+        assert loss.dtype == torch.float64, (
+            f"fp64 latents + w_rep=0 short-circuit produced dtype "
+            f"{loss.dtype}; expected torch.float64.")
 
 
 class TestScalarLinearity:

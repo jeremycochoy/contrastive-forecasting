@@ -1715,159 +1715,186 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         # handled below in `contrastive_latent_loss` — it subtracts the
         # per-term constants `f_pred + f_rep` (see `_split_pred_rep_floors`)
         # and is gradient-neutral.
+        # Per-term scalar weights (#382). Default 1.0 keeps the historical
+        # objective byte-for-byte; setting one side to 0.0 isolates the
+        # other term for the loss-term-isolation ablation. Read early so we
+        # can short-circuit the Gram compute for a disabled side entirely
+        # (see the `w_pred != 0.0` / `w_rep != 0.0` guards below).
+        w_pred = float(train_config.get('pred_loss_weight', 1.0))
+        w_rep = float(train_config.get('rep_loss_weight', 1.0))
+        zero_scalar = torch.zeros(
+            (), device=hy_hat_norm.device, dtype=hy_hat_norm.dtype,
+            requires_grad=False)
+
         neg_inf = float('-inf')
-        if hy_teacher_norm is not None:
-            hy_pos = hy_teacher_norm
-        elif sg_pos:
-            hy_pos = hy_norm.detach()
-        else:
-            hy_pos = hy_norm
-        log_pos = cosine_similarity_from_normalized(hy_pos, hy_hat_norm) / tau
 
-        # MoCo-keys on L_rep (#374 arm bimoco, config key `moco_rep_keys`):
-        # when on AND an EMA teacher is available, replace the STUDENT h on
-        # the KEY side of the three h-anchored families with the teacher's
-        # h^T. Anchors (hx_norm) stay student-side; keys become teacher-side.
-        # Mirrors `moco_negatives` (which does the same for the cross-batch
-        # f↔h family on the L_pred side).
-        moco_rep = (
-            moco_rep_keys if moco_rep_keys is not None
-            else bool(train_config.get('moco_rep_keys', False)))
-        if moco_rep and teacher_orig_norm is not None:
-            hx_key = teacher_orig_norm[:, :-1, :, :]           # teacher h at t
-            orig_key = teacher_orig_norm                       # teacher h at all times
-        else:
-            hx_key = hx_norm
-            orig_key = orig_norm
+        # L_pred: normalized InfoNCE — positive cos(f_t, h^T_{t+1})/τ over
+        # denominator = f-anchored families only (adjacent f↔f + cross-batch
+        # f↔h'_{t+1}). Every operation below is L_pred-only; when the arm
+        # sets `--pred-loss-weight 0.0` we skip the entire block (no positive
+        # gather, no cross-batch matmul) — reviewer round-2 Gap 3.
+        if w_pred != 0.0:
+            if hy_teacher_norm is not None:
+                hy_pos = hy_teacher_norm
+            elif sg_pos:
+                hy_pos = hy_norm.detach()
+            else:
+                hy_pos = hy_norm
+            log_pos = cosine_similarity_from_normalized(hy_pos, hy_hat_norm) / tau
 
-        # h-anchored family 1: cross-channel same-time h↔h (xx).
-        sims_xx = cosine_similarity_from_normalized(
-            hx_norm.unsqueeze(3), hx_key.unsqueeze(2))
-        mask_mat = ~torch.eye(C, dtype=torch.bool, device=sims_xx.device)
-        mask_mat = mask_mat.view(1, 1, C, C)
-        log_neg_xx = torch.logsumexp(
-            (sims_xx / tau).masked_fill(~mask_mat, neg_inf), dim=2)
+            # f-anchored family: adjacent f_{t+1}↔f_t (zy), cross-channel.
+            sims_zy = cosine_similarity_from_normalized(
+                hz_hat_norm.unsqueeze(3), hy_hat_norm.unsqueeze(2))
+            log_neg_zy = torch.logsumexp(sims_zy / tau, dim=2)
 
-        # f-anchored family: adjacent f_{t+1}↔f_t (zy), cross-channel.
-        sims_zy = cosine_similarity_from_normalized(
-            hz_hat_norm.unsqueeze(3), hy_hat_norm.unsqueeze(2))
-        log_neg_zy = torch.logsumexp(sims_zy / tau, dim=2)
+            # f-anchored family: cross-batch f_t ↔ h'_{t+1}.
+            # MoCo-negatives (#374 arm 3, config key `moco_negatives`): when
+            # on AND an EMA teacher is available, replace the student
+            # h'_{t+1} with the teacher's h^T_{t+1} — the "keys" in the
+            # cross-batch f↔h term then come from the same slowly-moving
+            # encoder as the positive, so positive and negatives share one
+            # space (MoCo-style).
+            mask_batch = ~torch.eye(B, dtype=torch.bool, device=orig_norm.device)
+            mask_batch = mask_batch.view(B, B, 1, 1)
+            moco_negs = (
+                moco_negatives if moco_negatives is not None
+                else bool(train_config.get('moco_negatives', False)))
+            if moco_negs and hy_teacher_norm is not None:
+                hy_p = hy_teacher_norm.permute(1, 2, 0, 3)
+            else:
+                hy_p = hy_norm.permute(1, 2, 0, 3)
+            hy_hat_p = hy_hat_norm.permute(1, 2, 0, 3)
+            sims_cross_batch = torch.matmul(
+                hy_hat_p, hy_p.transpose(-2, -1)
+            ).permute(2, 3, 0, 1).contiguous()
+            log_neg_cross_batch = torch.logsumexp(
+                (sims_cross_batch / tau).masked_fill(~mask_batch, neg_inf), dim=1)
 
-        # h-anchored family 2: within-series all-time h↔h (hh_all).
-        t_idx = torch.arange(T - 1, device=orig_norm.device).view(T - 1, 1)
-        l_idx = torch.arange(T, device=orig_norm.device).view(1, T)
-        sims_hh_all = torch.matmul(
-            hx_norm.permute(0, 2, 1, 3),
-            orig_key.permute(0, 2, 3, 1),
-        )
-        drop_self = (l_idx == t_idx).view(1, 1, T - 1, T)
-        log_neg_hh_all = torch.logsumexp(
-            (sims_hh_all / tau).masked_fill(drop_self, neg_inf), dim=3
-        ).permute(0, 2, 1)
-
-        # f-anchored family: cross-batch f_t ↔ h'_{t+1}.
-        # MoCo-negatives (#374 arm 3, config key `moco_negatives`): when on
-        # AND an EMA teacher is available, replace the student h'_{t+1} with
-        # the teacher's h^T_{t+1} — the "keys" in the cross-batch f↔h term
-        # then come from the same slowly-moving encoder as the positive, so
-        # positive and negatives share one space (MoCo-style).
-        mask_batch = ~torch.eye(B, dtype=torch.bool, device=orig_norm.device)
-        mask_batch = mask_batch.view(B, B, 1, 1)
-        moco_negs = (
-            moco_negatives if moco_negatives is not None
-            else bool(train_config.get('moco_negatives', False)))
-        if moco_negs and hy_teacher_norm is not None:
-            hy_p = hy_teacher_norm.permute(1, 2, 0, 3)
-        else:
-            hy_p = hy_norm.permute(1, 2, 0, 3)
-        hy_hat_p = hy_hat_norm.permute(1, 2, 0, 3)
-        sims_cross_batch = torch.matmul(
-            hy_hat_p, hy_p.transpose(-2, -1)
-        ).permute(2, 3, 0, 1).contiguous()
-        log_neg_cross_batch = torch.logsumexp(
-            (sims_cross_batch / tau).masked_fill(~mask_batch, neg_inf), dim=1)
-
-        # h-anchored family 3: cross-series all-time h↔h' (xs_allt),
-        # gradient-checkpointed via the same chunked path as `..._xshh_allt`.
-        # With moco_rep_keys on, the KEY side uses teacher_orig_norm (see the
-        # `orig_key` selection above); the anchor stays student-side.
-        anchor = hx_norm.permute(0, 2, 1, 3).contiguous()
-        src = orig_key.permute(0, 2, 1, 3).contiguous()
-        b_all = torch.arange(B, device=orig_norm.device)
-        CH = int(os.environ.get('XSHH_ALLT_CHUNK', '8'))
-        fused = os.environ.get('XSHH_ALLT_FUSED', '0') == '1'
-        shard = os.environ.get('XSHH_ALLT_SHARD', '0') == '1' and (
-            dist.is_available() and dist.is_initialized()
-            and dist.get_world_size() > 1)
-        if shard:
-            run = _XsAlltShardedLSE.apply(anchor, src, tau, CH)
-        elif fused:
-            run = _XsAlltFusedLSE.apply(anchor, src, tau, CH)
-        else:
-            def _chunk_lse(anc, src_chunk, same_mask):
-                gram = torch.matmul(
-                    anc.unsqueeze(1),
-                    src_chunk.permute(0, 1, 3, 2).unsqueeze(0),
-                ) / tau
-                gram = gram.masked_fill(same_mask, neg_inf)
-                return torch.logsumexp(torch.logsumexp(gram, dim=4), dim=1)
-            run = None
-            for s in range(0, B, CH):
-                e = min(s + CH, B)
-                same = (b_all.view(B, 1) == b_all[s:e].view(1, e - s)
-                        ).view(B, e - s, 1, 1, 1)
-                chunk_lse = checkpoint(
-                    _chunk_lse, anchor, src[s:e], same, use_reentrant=False)
-                run = chunk_lse if run is None else torch.logsumexp(
-                    torch.stack([run, chunk_lse], dim=0), dim=0)
-        log_neg_xs_allt = run.permute(0, 2, 1)
-
-        # L_pred: normalized InfoNCE with the f-anchored families in denom.
-        negs_pred = torch.stack([log_neg_zy, log_neg_cross_batch], dim=0)
-        log_neg_per_anchor_pred = torch.logsumexp(negs_pred, dim=0)
-        log_neg_total_pred = torch.logsumexp(
-            log_neg_per_anchor_pred, dim=0, keepdim=True)
-        log_denom_pred = torch.logsumexp(
-            torch.stack(
-                [log_pos, log_neg_total_pred.expand_as(log_pos)], dim=0
-            ),
-            dim=0,
-        )
-        loss_pred = (log_denom_pred - log_pos).mean()
-
-        # L_rep: pooled LSE of h-anchored families.
-        # Without moco_rep_keys: student anchor + student keys everywhere. The
-        # same-batch same-time <h_{b,t}, h_{b,t}> pair is trivially 1 (self-
-        # cosine); we omit it (adds a constant to the loss, gradient-neutral).
-        # With moco_rep_keys: keys are teacher-side. The same-batch same-time
-        # pair becomes the non-trivial student↔teacher <h_{b,t}, h^T_{b,t}>,
-        # so the loss becomes a normalized InfoNCE with that positive in the
-        # denominator (same form as L_pred, symmetric on the h side).
-        negs_rep = torch.stack(
-            [log_neg_xx, log_neg_hh_all, log_neg_xs_allt], dim=0)
-        log_neg_per_anchor_rep = torch.logsumexp(negs_rep, dim=0)
-        log_neg_total_rep = torch.logsumexp(
-            log_neg_per_anchor_rep, dim=0, keepdim=True)
-        if moco_rep and teacher_orig_norm is not None:
-            hx_teacher_norm = teacher_orig_norm[:, :-1, :, :]
-            log_pos_h = cosine_similarity_from_normalized(
-                hx_norm, hx_teacher_norm) / tau                      # [B, T-1, C]
-            log_denom_rep = torch.logsumexp(
+            negs_pred = torch.stack([log_neg_zy, log_neg_cross_batch], dim=0)
+            log_neg_per_anchor_pred = torch.logsumexp(negs_pred, dim=0)
+            log_neg_total_pred = torch.logsumexp(
+                log_neg_per_anchor_pred, dim=0, keepdim=True)
+            log_denom_pred = torch.logsumexp(
                 torch.stack(
-                    [log_pos_h, log_neg_total_rep.expand_as(log_pos_h)],
-                    dim=0,
+                    [log_pos, log_neg_total_pred.expand_as(log_pos)], dim=0
                 ),
                 dim=0,
             )
-            loss_rep = (log_denom_rep - log_pos_h).mean()
+            loss_pred = (log_denom_pred - log_pos).mean()
         else:
-            loss_rep = log_neg_total_rep.mean()
+            loss_pred = zero_scalar
 
-        # Per-term scalar weights (#382). Default 1.0 keeps the historical
-        # objective byte-for-byte; setting one side to 0.0 isolates the
-        # other term for the loss-term-isolation ablation.
-        w_pred = float(train_config.get('pred_loss_weight', 1.0))
-        w_rep = float(train_config.get('rep_loss_weight', 1.0))
+        # L_rep: pooled LSE of h-anchored families (cross-channel xx +
+        # within-series all-time hh + cross-series all-time xs). MoCo-keys
+        # (`moco_rep_keys`) replaces the student KEY side with the EMA
+        # teacher — turns L_rep into a normalized-InfoNCE with the
+        # student↔teacher same-batch same-time pair as its positive.
+        # `--rep-loss-weight 0.0` skips the entire block (no Gram matmul,
+        # no xs_allt chunked accumulator).
+        if w_rep != 0.0:
+            # MoCo-keys on L_rep (#374 arm bimoco, config key
+            # `moco_rep_keys`): when on AND an EMA teacher is available,
+            # replace the STUDENT h on the KEY side of the three h-anchored
+            # families with the teacher's h^T. Anchors (hx_norm) stay
+            # student-side; keys become teacher-side. Mirrors
+            # `moco_negatives` (which does the same for the cross-batch f↔h
+            # family on the L_pred side).
+            moco_rep = (
+                moco_rep_keys if moco_rep_keys is not None
+                else bool(train_config.get('moco_rep_keys', False)))
+            if moco_rep and teacher_orig_norm is not None:
+                hx_key = teacher_orig_norm[:, :-1, :, :]           # teacher h at t
+                orig_key = teacher_orig_norm                       # teacher h at all times
+            else:
+                hx_key = hx_norm
+                orig_key = orig_norm
+
+            # h-anchored family 1: cross-channel same-time h↔h (xx).
+            sims_xx = cosine_similarity_from_normalized(
+                hx_norm.unsqueeze(3), hx_key.unsqueeze(2))
+            mask_mat = ~torch.eye(C, dtype=torch.bool, device=sims_xx.device)
+            mask_mat = mask_mat.view(1, 1, C, C)
+            log_neg_xx = torch.logsumexp(
+                (sims_xx / tau).masked_fill(~mask_mat, neg_inf), dim=2)
+
+            # h-anchored family 2: within-series all-time h↔h (hh_all).
+            t_idx = torch.arange(T - 1, device=orig_norm.device).view(T - 1, 1)
+            l_idx = torch.arange(T, device=orig_norm.device).view(1, T)
+            sims_hh_all = torch.matmul(
+                hx_norm.permute(0, 2, 1, 3),
+                orig_key.permute(0, 2, 3, 1),
+            )
+            drop_self = (l_idx == t_idx).view(1, 1, T - 1, T)
+            log_neg_hh_all = torch.logsumexp(
+                (sims_hh_all / tau).masked_fill(drop_self, neg_inf), dim=3
+            ).permute(0, 2, 1)
+
+            # h-anchored family 3: cross-series all-time h↔h' (xs_allt),
+            # gradient-checkpointed via the same chunked path as
+            # `..._xshh_allt`. With moco_rep_keys on, the KEY side uses
+            # teacher_orig_norm (see `orig_key` selection above); the anchor
+            # stays student-side.
+            anchor = hx_norm.permute(0, 2, 1, 3).contiguous()
+            src = orig_key.permute(0, 2, 1, 3).contiguous()
+            b_all = torch.arange(B, device=orig_norm.device)
+            CH = int(os.environ.get('XSHH_ALLT_CHUNK', '8'))
+            fused = os.environ.get('XSHH_ALLT_FUSED', '0') == '1'
+            shard = os.environ.get('XSHH_ALLT_SHARD', '0') == '1' and (
+                dist.is_available() and dist.is_initialized()
+                and dist.get_world_size() > 1)
+            if shard:
+                run = _XsAlltShardedLSE.apply(anchor, src, tau, CH)
+            elif fused:
+                run = _XsAlltFusedLSE.apply(anchor, src, tau, CH)
+            else:
+                def _chunk_lse(anc, src_chunk, same_mask):
+                    gram = torch.matmul(
+                        anc.unsqueeze(1),
+                        src_chunk.permute(0, 1, 3, 2).unsqueeze(0),
+                    ) / tau
+                    gram = gram.masked_fill(same_mask, neg_inf)
+                    return torch.logsumexp(torch.logsumexp(gram, dim=4), dim=1)
+                run = None
+                for s in range(0, B, CH):
+                    e = min(s + CH, B)
+                    same = (b_all.view(B, 1) == b_all[s:e].view(1, e - s)
+                            ).view(B, e - s, 1, 1, 1)
+                    chunk_lse = checkpoint(
+                        _chunk_lse, anchor, src[s:e], same, use_reentrant=False)
+                    run = chunk_lse if run is None else torch.logsumexp(
+                        torch.stack([run, chunk_lse], dim=0), dim=0)
+            log_neg_xs_allt = run.permute(0, 2, 1)
+
+            # Without moco_rep_keys: student anchor + student keys everywhere.
+            # The same-batch same-time <h_{b,t}, h_{b,t}> pair is trivially 1
+            # (self-cosine); we omit it (adds a constant to the loss,
+            # gradient-neutral). With moco_rep_keys: keys are teacher-side.
+            # The same-batch same-time pair becomes the non-trivial
+            # student↔teacher <h_{b,t}, h^T_{b,t}>, so the loss becomes a
+            # normalized InfoNCE with that positive in the denominator
+            # (same form as L_pred, symmetric on the h side).
+            negs_rep = torch.stack(
+                [log_neg_xx, log_neg_hh_all, log_neg_xs_allt], dim=0)
+            log_neg_per_anchor_rep = torch.logsumexp(negs_rep, dim=0)
+            log_neg_total_rep = torch.logsumexp(
+                log_neg_per_anchor_rep, dim=0, keepdim=True)
+            if moco_rep and teacher_orig_norm is not None:
+                hx_teacher_norm = teacher_orig_norm[:, :-1, :, :]
+                log_pos_h = cosine_similarity_from_normalized(
+                    hx_norm, hx_teacher_norm) / tau                  # [B, T-1, C]
+                log_denom_rep = torch.logsumexp(
+                    torch.stack(
+                        [log_pos_h, log_neg_total_rep.expand_as(log_pos_h)],
+                        dim=0,
+                    ),
+                    dim=0,
+                )
+                loss_rep = (log_denom_rep - log_pos_h).mean()
+            else:
+                loss_rep = log_neg_total_rep.mean()
+        else:
+            loss_rep = zero_scalar
+
         loss = w_pred * loss_pred + w_rep * loss_rep
 
     elif train_config.get('loss_shape') == 'cosine_similarity_batch_rep_only':

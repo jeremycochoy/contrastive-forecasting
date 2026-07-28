@@ -18,7 +18,7 @@ TODO: results — the 8 arms of #382 train on cf-382-loss-term-isolation, one lo
 
 ## Backbone
 
-`d_model=64, n_heads=8, num_encoder_layers=3, num_layers=3, T=4096, C=1, rev_norm=ewma(span=128), encoder_type=gru, batch_size=64, lr=1e-3, wd=0.1, adam_beta1=0.9, adam_beta2=0.98, seed=20260520`, dataset `jeremycochoy/gift-pretrain-full-4096 / small_v1`. Every arm trains for 100k steps with a checkpoint every 5k (20 checkpoints per arm).
+`d_model=64, n_heads=8, num_encoder_layers=3, num_layers=3, T=1024, C=1, rev_norm=ewma(span=128), encoder_type=gru, batch_size=64, lr=1e-3, wd=0.1, adam_beta1=0.9, adam_beta2=0.98, seed=20260520`, dataset `jeremycochoy/gift-pretrain-full-4096 / small_v1`. Every arm trains for 100k steps with a checkpoint every 5k (20 checkpoints per arm). T=1024 is the HF-stream cap on the experiments branch; #379's `--t-raw 4096` flag is downgraded by the loader and its runs are effectively also T=1024, so the two studies compare like-for-like.
 
 ## Arms
 
