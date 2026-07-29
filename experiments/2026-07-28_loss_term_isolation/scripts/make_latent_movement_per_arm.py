@@ -81,8 +81,10 @@ def main():
             steps = [r[1] for r in rs]
             drifts = [r[3] for r in rs]
             ax.plot(steps, drifts, lw=1.2, marker="o", ms=3)
+        ax.axhline(0.1, color="red", linestyle=":", linewidth=0.8,
+                   label="drift = 0.1")
         ax.axhline(1.0, color="black", linestyle="--", linewidth=0.8,
-                   label="drift = 1 (ceiling reference)")
+                   label="drift = 1 (ceiling)")
         ax.set_title(arm)
         ax.set_xscale("log")
         ax.set_xlabel("step")
