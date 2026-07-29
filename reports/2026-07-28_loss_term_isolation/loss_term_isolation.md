@@ -4,7 +4,7 @@ Trained alone for 100k steps on the small backbone, `h_t` drift on a fixed held-
 
 ## Headline figure
 
-![Per-arm h_t drift trajectory, one value per adjacent 5k-step checkpoint pair, drift_cos_h in [0,2] on a linear y-axis, log training step on x. One panel per arm; red dotted line at drift = 0.1; black dashed line at drift = 1 for scale reference.](plots/latent_movement_per_arm.png)
+![Per-arm h_t drift trajectory, one value per adjacent 5k-step checkpoint pair, drift_cos_h in [0,2] on a linear y-axis, log training step on x. One panel per arm; red dotted line at drift = 0; black dashed line at drift = 1 for scale reference.](plots/latent_movement_per_arm.png)
 
 Drift trend per arm, grouped by direction. Early drift is the mean over steps 5k–25k, late drift the mean over steps 80k–100k, slope the log-linear fit of `drift_cos_h` against `log10(step)` over the full 5k–100k range. Within each group, arms are ordered by decreasing slope magnitude. Values from `results/latent_movement_per_arm.csv`.
 
