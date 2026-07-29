@@ -78,12 +78,3 @@ The four arms that carry no `L_pred`/`L_rep` positive (`sigreg_e`, `sigreg_h`, `
 | cpc       | CPC-InfoNCE | `--no-main-contrastive-loss --cpc-infonce-weight 1.0`               |
 
 Terms that degenerate by construction under single-term training: `align` reaches loss=0 / ff=1 (`f≡h` collapse), `sigreg_e`/`sigreg_h` loss→0, `cpc` loss→0, and `rep` sits at loss≈13.25 with ff≈0 (h-anchored logsumexp with no positive). These are the designed outcomes of isolating one term; the comparison in this report is on drift, not on loss magnitude.
-
-### B. Code changes shipped in the scaffold PR
-
-- Two new CLI flags on `experiments/2026-04-27_freq-embedding/scripts/train.py`: `--pred-loss-weight`, `--rep-loss-weight` (both default 1.0). Threaded into `train_configuration` and consumed inside `contrastive_latent_loss`'s `cosine_similarity_batch_split_pred_rep` branch as `loss = w_pred·L_pred + w_rep·L_rep`. Default 1.0/1.0 is byte-for-byte the historical split objective.
-- Loosened `--no-main-contrastive-loss` guard: the flag is now accepted with any SIGReg term on, so the `sigreg_e` / `sigreg_h` arms can drop the contrastive forward entirely while training on the SIGReg regulariser alone.
-
-### C. Compute and provenance
-
-Vast.ai run under label `cf-382-loss-term-isolation`, single 1×RTX 4090 instance (vast id 46124214), aggregate wall-clock ~20h42m (aggregate provenance 4.27; per-arm timestamps not retained). Per-arm checkpoints and training logs are mirrored on elisa under `/home/jupyter/checkpoints_backup/cf-382/runs_vast/<arm>/`.
