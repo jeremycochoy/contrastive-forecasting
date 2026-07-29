@@ -81,13 +81,15 @@ def main():
             steps = [r[1] for r in rs]
             drifts = [r[3] for r in rs]
             ax.plot(steps, drifts, lw=1.2, marker="o", ms=3)
+        ax.axhline(0.1, color="red", ls=":", lw=1.0)
         ax.set_title(arm)
+        ax.set_xscale("log")
         ax.set_xlabel("step")
         if i % 3 == 0:
             ax.set_ylabel("drift_cos (h_t)")
         ax.grid(alpha=0.3)
     axs[-1].axis("off")
-    fig.suptitle("Latent drift per adjacent checkpoint pair (h_t only, #382)")
+    fig.suptitle("Latent drift per adjacent checkpoint pair (h_t only)")
     fig.tight_layout()
     plots_dir = os.path.join(args.exp_dir, "plots")
     os.makedirs(plots_dir, exist_ok=True)

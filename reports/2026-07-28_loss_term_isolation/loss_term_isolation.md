@@ -4,9 +4,7 @@ Trained alone for 100k steps on the small backbone, only `sigreg_e` brings end-o
 
 ## Headline figure
 
-![Per-arm h_t drift trajectory, one value per adjacent 5k-step checkpoint pair, drift_cos_h in [0,2] on a linear y-axis, log training step on x. One panel per arm.](plots/latent_movement_per_arm.png)
-
-At step 95k→100k the arms rank, lowest drift first: `sigreg_e` (0.05213), `rep_moco` (0.28837), `align` (0.31101), `sigreg_h` (0.37894), `cpc` (0.43988), `pred_moco` (0.45757), `rep` (0.60357), `pred` (0.86053).
+![Per-arm h_t drift trajectory, one value per adjacent 5k-step checkpoint pair, drift_cos_h in [0,2] on a linear y-axis, log training step on x; red dotted line marks drift = 0.1. One panel per arm.](plots/latent_movement_per_arm.png)
 
 ## Definitions
 
@@ -24,22 +22,22 @@ At step 95k→100k the arms rank, lowest drift first: `sigreg_e` (0.05213), `rep
 
 ## Backbone
 
-`d_model=64, n_heads=8, num_encoder_layers=3, num_layers=3, T=1024, C=1, rev_norm=ewma(span=128), encoder_type=gru, batch_size=64, lr=1e-3, wd=0.1, adam_beta1=0.9, adam_beta2=0.98, seed=20260520`, dataset `jeremycochoy/gift-pretrain-full-4096 / small_v1`. Every arm trains for 100k steps with a checkpoint every 5k (20 checkpoints per arm). T=1024 is the HF-stream cap on the experiments branch; #379's `--t-raw 4096` flag is downgraded by the loader and its runs are effectively also T=1024, so the two studies compare like-for-like.
+`d_model=64, n_heads=8, num_encoder_layers=3, num_layers=3, T=1024, C=1, rev_norm=ewma(span=128), encoder_type=gru, batch_size=64, lr=1e-3, wd=0.1, adam_beta1=0.9, adam_beta2=0.98, seed=20260520`, dataset `jeremycochoy/gift-pretrain-full-4096 / small_v1`. Every arm trains for 100k steps with a checkpoint every 5k (20 checkpoints per arm).
 
 ## Arms
 
 Each arm activates exactly one loss term; every other term (the two SIGReg regularisers and the CPC auxiliary included) is at weight 0. All eight arms completed the full 100k steps (20 drift intervals each).
 
-| Arm       | Only-term active                                                       |
-|-----------|------------------------------------------------------------------------|
-| pred      | `L_pred` from the split shape (`--pred-loss-weight 1 --rep-loss-weight 0`) |
-| rep       | `L_rep` from the split shape (`--pred-loss-weight 0 --rep-loss-weight 1`)  |
-| align     | `L_align` standalone (`--no-main-contrastive-loss --align-loss-weight 1`)  |
-| pred_moco | `L_pred` with `--moco-negatives` (EMA-teacher cross-batch keys)         |
-| rep_moco  | `L_rep` with `--moco-rep-keys` (EMA-teacher h-anchored keys)            |
-| sigreg_e  | SIGReg on `e_t` only (`--sigreg-embedding-weight 1.0`)                 |
-| sigreg_h  | SIGReg on `h_t` only (`--sigreg-encoding-weight 1.0`)                  |
-| cpc       | CPC-InfoNCE auxiliary only (`--cpc-infonce-weight 1.0`)                 |
+| Arm       | Only-term active                                          |
+|-----------|-----------------------------------------------------------|
+| pred      | `L_pred` from the split shape                             |
+| rep       | `L_rep` from the split shape                              |
+| align     | `L_align` standalone                                      |
+| pred_moco | `L_pred` with EMA-teacher cross-batch keys               |
+| rep_moco  | `L_rep` with EMA-teacher h-anchored keys                 |
+| sigreg_e  | SIGReg on `e_t` only                                      |
+| sigreg_h  | SIGReg on `h_t` only                                      |
+| cpc       | CPC-InfoNCE auxiliary only                               |
 
 ## Latent-drift results
 
@@ -56,17 +54,17 @@ End-of-100k `h_t` drift (`drift_cos_h`, step 95k→100k) per arm, ranked lowest 
 | 7    | rep       | 0.60357               | +0.5514   |
 | 8    | pred      | 0.86053               | +0.8084   |
 
-`sigreg_e` reaches 0.15901 by step 10k and stays below 0.066 from step 20k onward. `pred` sits above 0.63 for every interval after step 40k. `cpc` swings between 0.26753 (60k→65k) and 1.05153 (70k→75k) with no downward trend.
+Only rank 1 (`sigreg_e`, 0.05213) is gap-separated. Ranks 2–8 (0.28837–0.86053) fall in a tight band; on a single seed they swing widely between adjacent 5k intervals, so their relative order is not robust.
 
 ## Supporting figures
 
 ![1 − ff per arm across training step, one panel per arm, `1 − ff` in [0,2] on the y-axis, log training step on x.](plots/cos_error_per_arm.png)
 
-The four arms that carry no `L_pred`/`L_rep` positive (`sigreg_e`, `sigreg_h`, `cpc`, `align`) do not optimise `1 − ff`; among the four arms that do, `pred_moco` and `rep_moco` reach lower `1 − ff` than `pred` and `rep`.
+The four arms that carry no `L_pred`/`L_rep` positive (`sigreg_e`, `sigreg_h`, `cpc`, `align`) do not optimise `1 − ff`; among the four arms that do, the non-MoCo variants reach lower end-of-100k `1 − ff` (`pred` 0.02572, `rep` 1.01788) than their MoCo counterparts (`pred_moco` 0.24110, `rep_moco` 1.02540).
 
 ![u_batchtime per arm, `h_t` solid and `e_t` dashed, u_batchtime in [0,1] on the y-axis, log training step on x.](plots/dim_usage_per_arm.png)
 
-`u_batchtime_e` (the dashed `e_t` line) is logged only for `sigreg_e` and `sigreg_h` and is empty for the other six arms; `sigreg_e` is the only arm whose `h_t` `u_batchtime` stays near 1 across training.
+`u_batchtime_e` (the dashed `e_t` line) is logged only for `sigreg_e` and `sigreg_h` and is empty for the other six arms. On `h_t`, `rep` ends highest (0.99893, near the 1.0 ceiling) and `align` lowest (0.01563).
 
 ## Annex
 

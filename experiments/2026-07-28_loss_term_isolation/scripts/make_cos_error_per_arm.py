@@ -77,12 +77,13 @@ def main():
         if steps:
             ax.plot(steps, vals, lw=1.2)
         ax.set_title(arm)
+        ax.set_xscale("log")
         ax.set_xlabel("step")
         if i % 3 == 0:
             ax.set_ylabel("1 − ff")
         ax.grid(alpha=0.3)
     axs[-1].axis("off")
-    fig.suptitle("1 − ff per arm across training step (#382)")
+    fig.suptitle("1 − ff per arm across training step")
     fig.tight_layout()
     plots_dir = os.path.join(args.exp_dir, "plots")
     os.makedirs(plots_dir, exist_ok=True)

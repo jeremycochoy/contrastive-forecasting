@@ -94,7 +94,7 @@ def main():
         if i == 0:
             ax.legend(loc="best", fontsize=8)
     axs[-1].axis("off")
-    fig.suptitle("u_batchtime per arm — h_t solid, e_t dashed (#382)")
+    fig.suptitle("u_batchtime per arm — h_t solid, e_t dashed")
     fig.tight_layout()
     plots_dir = os.path.join(args.exp_dir, "plots")
     os.makedirs(plots_dir, exist_ok=True)
