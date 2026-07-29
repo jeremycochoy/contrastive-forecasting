@@ -85,7 +85,7 @@ def main():
                    label="drift = 0 (no drift)")
         ax.axhline(1.0, color="black", linestyle="--", linewidth=0.8,
                    label="drift = 1 (ceiling)")
-        ax.set_ylim(bottom=-0.02, top=1.05)
+        ax.set_ylim(bottom=-0.05, top=1.40)
         ax.set_title(arm)
         ax.set_xscale("log")
         ax.set_xlabel("step")
