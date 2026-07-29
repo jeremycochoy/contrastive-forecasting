@@ -12,6 +12,7 @@ Contrastive-forecasting trains small transformer backbones on time series via co
 
 - Each experiment lives under `experiments/<YYYY-MM-DD>_<name>/` with its own `results/`, `plots/`, `sync/`. No stray results/plots at repo root.
 - Shared utilities in top-level `scripts/`; experiment-specific launchers go in the experiment dir as `run.sh`.
+- **Code Exploration**: Use `codegraph` to explore and read code, queryable from the CLI — see `codegraph --help`.
 
 ## How the user works
 
