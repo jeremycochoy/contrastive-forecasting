@@ -1,10 +1,23 @@
-# SIGReg on e_t is the only single term whose end-of-100k h_t drift stays below 0.1; the other seven terms end between 0.29 and 0.86
+# h_t drift trends down for six of eight single-term arms, flat for CPC, up for `L_pred` alone
 
-Trained alone for 100k steps on the small backbone, only `sigreg_e` brings end-of-100k `h_t` drift below 0.1 (0.05213); the remaining seven terms end between 0.2884 (`rep_moco`) and 0.8605 (`pred`). `pred` climbs across the second half of training and `cpc` oscillates over a wide range (0.2675–1.0515) without settling.
+Trained alone for 100k steps on the small backbone, `h_t` drift on a fixed held-out batch trends **down** for six of the eight single-term arms (`L_align`, `SIGReg on h_t`, `L_rep`, `SIGReg on e_t`, `L_rep_moco`, `L_pred_moco`), stays **flat** for the `CPC` arm, and trends **up** for `L_pred` alone. Among the six down-trending arms, `SIGReg on e_t` reaches the lowest late-training drift.
 
 ## Headline figure
 
-![Per-arm h_t drift trajectory, one value per adjacent 5k-step checkpoint pair, drift_cos_h in [0,2] on a linear y-axis, log training step on x; red dotted line marks drift = 0.1. One panel per arm.](plots/latent_movement_per_arm.png)
+![Per-arm h_t drift trajectory, one value per adjacent 5k-step checkpoint pair, drift_cos_h in [0,2] on a linear y-axis, log training step on x. One panel per arm.](plots/latent_movement_per_arm.png)
+
+Drift trend per arm, grouped by direction. Early drift is the mean over steps 5k–25k, late drift the mean over steps 80k–100k, slope the log-linear fit of `drift_cos_h` against `log10(step)` over the full 5k–100k range. Within each group, arms are ordered by decreasing slope magnitude. Values from `results/latent_movement_per_arm.csv`.
+
+| Trend | Arm            | Early drift | Late drift | Slope    |
+|-------|----------------|-------------|------------|----------|
+| down  | `L_align`      | 1.065       | 0.2653     | −0.7986  |
+| down  | `SIGReg on h_t`| 0.5878      | 0.3415     | −0.3632  |
+| down  | `L_rep`        | 0.8143      | 0.4090     | −0.3110  |
+| down  | `SIGReg on e_t`| 0.1977      | 0.03670    | −0.2683  |
+| down  | `L_rep_moco`   | 0.4400      | 0.2531     | −0.2588  |
+| down  | `L_pred_moco`  | 0.5400      | 0.4198     | −0.2155  |
+| flat  | `CPC`          | 0.7272      | 0.6393     | −0.1325  |
+| up    | `L_pred`       | 0.6461      | 0.7837     | +0.07480 |
 
 ## Definitions
 
@@ -38,23 +51,6 @@ Each arm activates exactly one loss term; every other term (the two SIGReg regul
 | sigreg_e  | SIGReg on `e_t` only                                      |
 | sigreg_h  | SIGReg on `h_t` only                                      |
 | cpc       | CPC-InfoNCE auxiliary only                               |
-
-## Latent-drift results
-
-End-of-100k `h_t` drift (`drift_cos_h`, step 95k→100k) per arm, ranked lowest first. Values from `results/latent_movement_per_arm.csv`.
-
-| Rank | Arm       | End-of-100k h_t drift | Δ from #1 |
-|------|-----------|-----------------------|-----------|
-| 1    | sigreg_e  | 0.05213               | —         |
-| 2    | rep_moco  | 0.28837               | +0.2362   |
-| 3    | align     | 0.31101               | +0.2589   |
-| 4    | sigreg_h  | 0.37894               | +0.3268   |
-| 5    | cpc       | 0.43988               | +0.3877   |
-| 6    | pred_moco | 0.45757               | +0.4054   |
-| 7    | rep       | 0.60357               | +0.5514   |
-| 8    | pred      | 0.86053               | +0.8084   |
-
-Only rank 1 (`sigreg_e`, 0.05213) is gap-separated. Ranks 2–8 (0.28837–0.86053) fall in a tight band; on a single seed they swing widely between adjacent 5k intervals, so their relative order is not robust.
 
 ## Supporting figures
 
