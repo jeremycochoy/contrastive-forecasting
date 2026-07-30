@@ -1,16 +1,8 @@
-"""Bar plot of 2L GM-Relative MASE at backbone step 40k, all evaluated arms, #379.
+"""Bar plot of 2L GM-Relative MASE at backbone step 100k, head 30k steps.
 
-Includes the original 11 cells + the 12 new cells from the 2026-07-27 vast batch
-(plus arm3_ncpc/arm4_combab which finished only partial gift-eval on vast — those
-land under a red hatched bar to flag config coverage <97).
-
-Error bars: ±0.01 GM-Rel MASE = seed-noise band from the 2026-05-08 τ-sweep
-paired re-runs (LeJEPA sigreg-tau report annex F).
-
-Aggregate is read preferentially from the report-flat summary file
-`results/eval_gm_mase/<slug>_bb40k_hd15000s_summary.txt` (populated by the
-vast sync loop), falling back to the experiments-side
-`<slug>_bb40k_hd15000s/summary.txt` for cells run locally on elisa."""
+Reads from `results/eval_gm_mase/<slug>_bb100k_hd30000s_summary.txt`. Missing
+cells are simply not rendered (fill in as Wave-F lands). Layout / palette
+mirror _make_eval_bars.py (bb=40k plot)."""
 from pathlib import Path
 import re
 import matplotlib.pyplot as plt
@@ -54,17 +46,13 @@ ARMS = [
 SEED_NOISE = 0.01
 
 def read_agg(arm_slug):
-    """Return (gm_rel_mase, n_configs) or (None, None) if missing.
-
-    Prefers the report-flat file (holds full-97 aggregates from vast + local),
-    falls back to the experiments-side summary."""
-    for p in (EVAL_ROOT_REP / f"{arm_slug}_bb40k_hd15000s_summary.txt",
-              EVAL_ROOT_EXP / f"{arm_slug}_bb40k_hd15000s" / "summary.txt"):
+    for p in (EVAL_ROOT_REP / f"{arm_slug}_bb100k_hd30000s_summary.txt",
+              EVAL_ROOT_EXP / f"{arm_slug}_bb100k_hd30000s" / "summary.txt"):
         if not p.exists(): continue
         text = p.read_text()
-        m_agg = re.search(r"Aggregate\s+GM-Relative\s+MASE\s+\((\d+)\s+configs\):\s+([0-9]+\.[0-9]+)", text)
-        if m_agg:
-            return float(m_agg.group(2)), int(m_agg.group(1))
+        m = re.search(r"Aggregate\s+GM-Relative\s+MASE\s+\((\d+)\s+configs\):\s+([0-9]+\.[0-9]+)", text)
+        if m:
+            return float(m.group(2)), int(m.group(1))
     return None, None
 
 INK, MUTED, GRID = "#0b0b0b", "#898781", "#e1e0d9"
@@ -85,15 +73,14 @@ labs = [r[0] for r in rows]
 cs = [r[1] for r in rows]
 ys = [r[2] for r in rows]
 ns = [r[3] for r in rows]
-hatches = ["///" if n < 97 else None for n in ns]
 
-YMAX = 1.75  # truncate — outliers >YMAX are marked with an arrow + value
+YMAX = 1.82
 bars = ax.bar(xs, ys, color=cs, yerr=SEED_NOISE, capsize=6,
               edgecolor=[INK if n < 97 else c for n, c in zip(ns, cs)],
               linewidth=[1.6 if n < 97 else 0.8 for n in ns],
               error_kw={"ecolor": INK, "elinewidth": 1.2})
-for bar, hatch in zip(bars, hatches):
-    if hatch: bar.set_hatch(hatch)
+for bar, n in zip(bars, ns):
+    if n < 97: bar.set_hatch("///")
 ax.axhline(1.0, color="#c04040", lw=1.2, linestyle="--",
            label="seasonal-naive reference (MASE=1)")
 for x, v, n in zip(xs, ys, ns):
@@ -107,8 +94,8 @@ ax.set_xticks(xs); ax.set_xticklabels(labs, rotation=45, ha="right")
 ax.set_ylabel("Aggregate GM-Relative MASE  (lower is better)")
 n_full = sum(1 for n in ns if n == 97)
 ax.set_title(
-    f"2L GM-Relative MASE at backbone step 40k, head 15k steps, GIFT-Eval B4  "
-    f"({n_full}/{len(rows)} cells full-97, hatched = partial)\n"
+    f"2L GM-Relative MASE at backbone step 100k, head 30k steps, GIFT-Eval B4  "
+    f"({len(rows)}/30 cells landed; {n_full}/{len(rows)} full-97)\n"
     f"error bars: ±{SEED_NOISE} seed-noise band (from 2026-05-08 τ-sweep paired reruns)",
     fontsize=10)
 ax.grid(True, axis="y", color=GRID, alpha=0.6)
@@ -118,6 +105,6 @@ if ys:
     ymin = min(ymin, 1.0 - 3 * SEED_NOISE)
     ax.set_ylim(ymin, YMAX)
 fig.tight_layout()
-out = HERE / "eval_2L_gm_mase_bars.png"
+out = HERE / "eval_2L_gm_mase_bars_100k.png"
 fig.savefig(out)
-print(f"wrote {out}  ({len(rows)} cells, {n_full} full-97, {len(rows)-n_full} partial)")
+print(f"wrote {out}  ({len(rows)}/30 cells, {n_full} full-97, {len(rows)-n_full} partial)")

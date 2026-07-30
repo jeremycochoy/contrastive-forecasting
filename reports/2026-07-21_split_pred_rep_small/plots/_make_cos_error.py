@@ -227,7 +227,7 @@ for row in range(nrows):
     axes[row * ncols].set_ylabel("1 − ff  (log perplexity)")
 
 fig.suptitle(
-    "1 − ⟨cos(f̂, f_true)⟩ per arm — grid by variant  (shared axes)",
+    "1 − ff per arm — grid by variant  (shared axes)",
     fontsize=11)
 fig.tight_layout(rect=(0, 0, 1, 0.97))
 out = HERE / "cos_error_per_arm.png"
