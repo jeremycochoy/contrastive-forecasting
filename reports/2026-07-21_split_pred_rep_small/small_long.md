@@ -12,31 +12,25 @@ Each line is one cell. Labels carry the 100k value and the change from 40k.
 
 ![Slope chart, GM-Relative MASE at backbone 40k (head 15k) and backbone 100k (head 30k), 30 paired cells; line colour = loss recipe, line style = setting; arm1 combab clipped at 1.85 (its 40k value is 3.13).](plots/eval_2L_gm_mase_progression.png)
 
-### 2. Change from 40k to 100k, sorted
-
-Same 30 cells as figure 1, showing only the difference. The grey band is ±0.01.
-
-![Horizontal bars of GM-Relative MASE at backbone 100k minus backbone 40k, sorted; green (left) = lower at 100k, red (right) = higher at 100k; arm1 combab's bar clipped at −0.42, actual −1.366.](plots/eval_2L_gm_mase_delta.png)
-
-### 3. Ranking at backbone 40k
+### 2. Ranking at backbone 40k
 
 ![Bar chart of GM-Relative MASE for all 30 cells at backbone step 40k, head 15k steps, sorted ascending; red dashed line at 1.0 = seasonal-naive; arm1 combab (3.13) clipped at 1.75.](plots/eval_2L_gm_mase_bars.png)
 
-### 4. Ranking at backbone 100k
+### 3. Ranking at backbone 100k
 
 ![Bar chart of GM-Relative MASE for all 30 cells at backbone step 100k, head 30k steps, sorted ascending; red dashed line at 1.0 = seasonal-naive.](plots/eval_2L_gm_mase_bars_100k.png)
 
-### 5. Latent movement between adjacent checkpoints
+### 4. Latent movement between adjacent checkpoints
 
 How far the latents of a fixed held-out batch rotate between one saved checkpoint and the next. Rows = setting, columns = `h_t` / `e_t`.
 
 ![Latent drift per adjacent-checkpoint pair, 5 rows (base / tr1 / nse / ncpc / combab) × 2 columns (h_t encoder output, e_t patch embedding), x-axis log training step, y shared per column.](plots/latent_movement_per_arm.png)
 
-### 6. Forecast-to-latent distance `1 − ff` during training
+### 5. Forecast-to-latent distance `1 − ff` during training
 
 ![1 − ff per arm across training steps, one panel per setting (base / tr1 / nse / ncpc / combab), shared y axis, x-axis log training step.](plots/cos_error_per_arm.png)
 
-### 7. Dimension usage `u_batchtime` during training
+### 6. Dimension usage `u_batchtime` during training
 
 ![u_batchtime per arm, one panel per arm × setting, h_t solid and e_t dashed, x-axis log training step.](plots/dim_usage_per_arm.png)
 
@@ -116,7 +110,7 @@ Ranked by the 100k value. Per-cell summaries: `results/eval_gm_mase/`.
 | 29 | `arm3 nse`       | 1.4432 | 1.7372 | +0.2940 |
 | 30 | `arm1 combab`    | 3.1251 | 1.7595 | −1.3656 |
 
-**On the ±0.01 error bars in figures 2, 3 and 4.** Each cell is `N=1`, so this is not a measured seed-replicate interval for this experiment. It is a constant borrowed from the 2026-05-08 τ-sweep paired reruns via the [LeJEPA-SIGReg-τ report annex F](../2026-06-21_lejepa_sigreg_tau098/lejepa_sigreg_tau098.md#f-seed-noise-band), shown as a visual reference for "differences smaller than this have previously turned out to be within-seed noise", not as a confidence interval for this ranking.
+**On the ±0.01 error bars in figures 2 and 3.** Each cell is `N=1`, so this is not a measured seed-replicate interval for this experiment. It is a constant borrowed from the 2026-05-08 τ-sweep paired reruns via the [LeJEPA-SIGReg-τ report annex F](../2026-06-21_lejepa_sigreg_tau098/lejepa_sigreg_tau098.md#f-seed-noise-band), shown as a visual reference for "differences smaller than this have previously turned out to be within-seed noise", not as a confidence interval for this ranking.
 
 ### Latent drift, setting vs base
 
