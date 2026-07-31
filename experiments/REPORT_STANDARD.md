@@ -10,7 +10,7 @@ A "report" here means a single canonical Markdown file per experiment (typically
 
 - [ ] **Pictures over prose.** Use a plot wherever one can carry the meaning, with each plot directly above its interpretation sentence. Do not write a sentence the plot already shows.
 
-- [ ] **Result tables go inline** with their plot; **additional detail / annex tables** (arm rationale, metric definitions, big raw-number tables) go to the back.
+- [ ] **Tables go to the back**, after the plots, most of the time.
 
 - [ ] **Facts only.** State measurements directly.
 
