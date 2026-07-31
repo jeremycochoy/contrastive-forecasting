@@ -323,8 +323,8 @@ export HF_TOKEN="$(cat "$HF_TOKEN_PATH")"; export HUGGING_FACE_HUB_TOKEN="$HF_TO
 BB="$RUNS/${NAME}_FINAL.pth"
 tlog="$RES/run_${NAME}.log"
 
-if [ -f "$BB" ]; then
-  log "BB SKIP ($NAME FINAL exists)"
+if [ -f "$BB" ] && [ "${FORCE:-0}" != "1" ]; then
+  log "BB SKIP ($NAME FINAL exists — set FORCE=1 to override)"
   exit 0
 fi
 
@@ -343,12 +343,12 @@ for f in "$RUNS/${NAME}"_*k.pth; do
   case "$k" in ''|*[!0-9]*) continue;; esac
   (( k > best_ck_k )) && best_ck_k=$k
 done
-if [ "$TARGET_STEPS" -lt "$FINAL_STEPS" ] && [ "$best_ck_k" -ge "$target_k" ]; then
-  log "WAVE SKIP: existing _${best_ck_k}k.pth ≥ target ${target_k}k (final=$FINAL_STEPS not reached)"
+if [ "$TARGET_STEPS" -lt "$FINAL_STEPS" ] && [ "$best_ck_k" -ge "$target_k" ] && [ "${FORCE:-0}" != "1" ]; then
+  log "WAVE SKIP: existing _${best_ck_k}k.pth ≥ target ${target_k}k (final=$FINAL_STEPS not reached — set FORCE=1 to override)"
   exit 0
 fi
 
-RESUME=""; latest=$(ls -t "$RUNS/${NAME}"_*k.pth 2>/dev/null | grep -v optimizer | head -1)
+RESUME=""; latest="${RESUME_FROM:-$(ls -t "$RUNS/${NAME}"_*k.pth 2>/dev/null | grep -v optimizer | head -1)}"
 [ -n "$latest" ] && { RESUME="--resume $latest"; log "RESUME from $(basename "$latest")"; }
 log "BB START ($ARM_DESC) gpu=$BB_GPU target=$TARGET_STEPS final=$FINAL_STEPS bs=64 ${RESUME}"
 CUDA_VISIBLE_DEVICES="$BB_GPU" python3 -u "$TRAIN" $RESUME --qk-norm --attn-out-norm \

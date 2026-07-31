@@ -32,8 +32,9 @@ HEAD_STEPS="${HEAD_STEPS:-15000}"
 NAME=$(awk -v pat="^[[:space:]]*${ARM})" 'BEGIN{on=0} $0 ~ pat {on=1; next} on && /NAME=/{print; on=0}' "$SCRIPTS/run_arm.sh" | grep -oE 'NAME="[^"]+"' | head -1 | sed 's/NAME="//;s/"$//')
 [ -n "$NAME" ] || { echo "ABORT: could not resolve NAME for arm '$ARM'" >&2; exit 2; }
 
-# Locate the ${BB_STEP_K}k.pth checkpoint (base or _r2_ prefixed).
-BB=$(ls "$RUNS/${NAME}"_${BB_STEP_K}k.pth "$RUNS/${NAME}"_r2_${BB_STEP_K}k.pth "$RUNS/${NAME}"_r3_${BB_STEP_K}k.pth 2>/dev/null | head -1)
+# Locate the ${BB_STEP_K}k.pth checkpoint. Each resume appends a fresh
+# `_r<N>` safe-run-name suffix, so match any of them, newest first.
+BB=$(ls -t "$RUNS/${NAME}"_${BB_STEP_K}k.pth "$RUNS/${NAME}"_r*_${BB_STEP_K}k.pth 2>/dev/null | head -1)
 [ -f "$BB" ] || { echo "ABORT: no ${BB_STEP_K}k backbone for arm '$ARM' (name=$NAME)" >&2; exit 3; }
 
 CELL="${ARM}_bb${BB_STEP_K}k_hd${HEAD_STEPS}s"
@@ -84,7 +85,7 @@ CUDA_VISIBLE_DEVICES="$BB_GPU" python3 -u "$GEVAL" \
   --backbone-path "$BB" \
   --head-path "$HEAD_CKPT" \
   --output-dir "$OUT/gift" \
-  --strategy B4 --forecast-len 16 \
+  --strategy B4 --forecast-len 16 --resume \
   "${ARCH_EVAL[@]}" \
   --head-nhead 8 --head-causal true \
   >>"$LOG" 2>&1
