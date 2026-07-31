@@ -22,7 +22,7 @@ A "report" here means a single canonical Markdown file per experiment (typically
 
 - [ ] **Less is more**: removing a sentence that doesn't carry clear signal is a positive change, especially if the sentence is confusing.
 
-- [ ] **Define specialized vocabulary** where it first appears. Do not define terms standard in the field — standard means used often in other reports.
+- [ ] **Define specialized vocabulary** where it first appears. Do not define terms standard in the field (ex: terms used often in other reports).
 
 - [ ] **Plots embedded inline.** Any plot referenced in the report is stored in a `plots/` subdirectory and embedded inline in the Markdown. No orphan images.
 
