@@ -4,7 +4,7 @@ A "report" here means a single canonical Markdown file per experiment (typically
 
 ## Checklist
 
-- [ ] **One file per experiment.** A single canonical Markdown file is the report. Supporting information lives elsewhere in the experiment directory (scripts, docstrings, execution logs, notebooks), never in additional report files.
+- [ ] **One canonical Markdown report per experiment.** Supporting information lives elsewhere in the experiment directory (scripts, docstrings, execution logs, notebooks), never in additional report files.
 
 - [ ] **Structure: question → result → protocol → what we learned → optional follow-up / hypothesis.** The reader who arrives cold should understand the question, the design, and the conclusion in that order.
 
