@@ -6,7 +6,7 @@ A "report" here means a single canonical Markdown file per experiment (typically
 
 - [ ] **One canonical Markdown report per experiment.** Supporting information lives elsewhere in the experiment directory (scripts, docstrings, execution logs, notebooks), never in additional report files.
 
-- [ ] **Structure: question → answer → the plot carrying it → protocol → details.** Highest value to the reader first: a cold reader gets the conclusion in the first screen, off a plot. Anything that only matters once the conclusion is accepted goes last.
+- [ ] **Structure: question → result → protocol → what we learned → optional follow-up / hypothesis.** The reader who arrives cold should understand the question, the design, and the conclusion in that order.
 
 - [ ] **Pictures over prose.** Use a plot wherever one can carry the meaning, with each plot directly above its interpretation sentence. Do not write a sentence the plot already shows.
 
