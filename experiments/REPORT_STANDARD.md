@@ -18,6 +18,8 @@ A "report" here means a single canonical Markdown file per experiment (typically
 
 - [ ] The reader follows a **single forward thread** from question to verdict, no backtracking, no open questions left hanging.
 
+- [ ] **Low cognitive load.** Short, direct sentences: active voice, the subject named. The reader skips a sentence that needs a second read.
+
 - [ ] **Less is more**: removing a sentence that doesn't carry clear signal is a positive change, especially if the sentence is confusing.
 
 - [ ] **Define specialized vocabulary** where it first appears. Do not define terms standard in the field — standard means used often in other reports.
