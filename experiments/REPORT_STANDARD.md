@@ -24,6 +24,6 @@ A "report" here means a single canonical Markdown file per experiment (typically
 
 - [ ] **Define specialized vocabulary** where it first appears. Do not define terms standard in the field (ex: terms used often in other reports).
 
-- [ ] **Plots embedded inline.** Any plot referenced in the report is stored in a `plots/` subdirectory and embedded inline in the Markdown. No orphan images.
+- [ ] **Plots embedded inline.** Store plots in a `plots/` subdirectory and embed them inline. No orphan images.
 
 - [ ] **Multi-sample held-out eval** when comparing arms whose differences could plausibly be within single-batch noise. Report mean and variance over multiple samples; show uncertainty visually.
