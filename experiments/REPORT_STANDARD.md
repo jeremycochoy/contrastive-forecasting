@@ -1,6 +1,6 @@
 # Report standard
 
-A "report" here means a single canonical Markdown file per experiment (typically `{experiment_name}.md`). The list below is what a sub-agent should check before any report is finalised — feed it the report + the underlying data CSVs and ask "which boxes don't tick?". Address every flagged item.
+A "report" here means a single canonical Markdown file per experiment (typically `{experiment_name}.md`).
 
 ## Checklist
 
