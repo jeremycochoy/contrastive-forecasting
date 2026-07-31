@@ -8,7 +8,7 @@ A "report" here means a single canonical Markdown file per experiment (typically
 
 - [ ] **Structure: question → result → protocol → what we learned → optional follow-up / hypothesis.** The reader who arrives cold should understand the question, the design, and the conclusion in that order.
 
-- [ ] **Pictures over prose.** Use a plot wherever one can carry the meaning, with each plot directly above its interpretation sentence.
+- [ ] **Pictures over prose.** Use a plot wherever one can carry the meaning, with each plot directly above its interpretation sentence. Do not write a sentence the plot already shows.
 
 - [ ] **Result tables go inline** with their plot; **additional detail / annex tables** (arm rationale, metric definitions, big raw-number tables) go to the back.
 
@@ -20,10 +20,8 @@ A "report" here means a single canonical Markdown file per experiment (typically
 
 - [ ] **Less is more**: removing a sentence that doesn't carry clear signal is a positive change, especially if the sentence is confusing.
 
-- [ ] **Define specialized vocabulary** where it first appears. The reader should understand what each metric quantifies without prior knowledge of the project.
+- [ ] **Define specialized vocabulary** where it first appears. Do not define terms standard in the field — standard means used often in other reports.
 
 - [ ] **Plots embedded inline.** Any plot referenced in the report is stored in a `plots/` subdirectory and embedded inline in the Markdown. No orphan images.
 
 - [ ] **Multi-sample held-out eval** when comparing arms whose differences could plausibly be within single-batch noise. Report mean and variance over multiple samples; show uncertainty visually.
-
-- [ ] **Sub-agent review pass.** Before merging the report, dispatch a sub-agent: pass it the report + underlying data; ask which claims aren't directly supported. Address every flagged item.
