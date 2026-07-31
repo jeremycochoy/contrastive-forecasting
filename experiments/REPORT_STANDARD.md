@@ -14,7 +14,7 @@ A "report" here means a single canonical Markdown file per experiment (typically
 
 - [ ] **Facts only.** State measurements directly.
 
-- [ ] **Science, not journey.** Operational events (retries, infrastructure incidents, preemptions, debugging detours) belong outside the main report. If the same experiment were re-run cleanly, would this sentence still belong? If not, it's journey.
+- [ ] **Science, not journey.** Operational events (retries, infrastructure incidents, preemptions, debugging detours) belong outside the main report.
 
 - [ ] The reader follows a **single forward thread** from question to verdict, no backtracking, no open questions left hanging.
 
