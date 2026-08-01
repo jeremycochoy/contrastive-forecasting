@@ -1,0 +1,133 @@
+  [head-train] auto-detected freq_emb_dim=3 from backbone checkpoint
+  [head-train] auto-detected seasonality_emb_dim=3 from backbone checkpoint
+  [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+  [head-train] auto-detected qk_norm=True from backbone checkpoint
+  [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+  [head-train] auto-detected patch_stats=none
+Backbone loaded from /home/jupyter/contrastive-forecasting/sync_b512_armC_seed2/bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lC_emb10_enc10_tau090_seed2_step25000.pth (0 params, frozen)
+/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/transformer.py:392: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  warnings.warn(
+Forecasting head [transformer-q (6L H384 nhead6 causal)]: 10,702,992 trainable params
+Optimizer: AdamW lr=0.001 betas=(0.9,0.98) wd=0.1 eps=1e-08
+Schedule: cosine warmup=1000 decay_start=8000 final_ratio=0.1
+Loaded head weights from /home/jupyter/contrastive-forecasting/sync_b512_armC_seed2/heads/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lC_emb10_enc10_tau090_seed2_step12500_FINAL.pth (no optimizer state)
+Loss CSV: /home/jupyter/contrastive-forecasting/sync_b512_armC_seed2/heads/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lC_emb10_enc10_tau090_seed2_step25000_losses.csv
+Data: MIX 100% HF + 0% synth, hf_bs=256, synth_bs=0, synth_seed=20042, emit_labels=True
+
+Training for 10000 steps, bs=256, lr=0.001, forecast_len=16
+RECONSTRUCTION mode: forecaster (head decodes what latent represents, not future)
+Checkpoints: /home/jupyter/contrastive-forecasting/sync_b512_armC_seed2/heads/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lC_emb10_enc10_tau090_seed2_step25000_*.pth
+Traceback (most recent call last):
+  File "/home/jupyter/cf-371/experiments/2026-04-13_gift-eval/scripts/train_forecasting_head.py", line 883, in <module>
+    main()
+  File "/home/jupyter/cf-371/experiments/2026-04-13_gift-eval/scripts/train_forecasting_head.py", line 746, in main
+    f_bc, x_norm = extract_forecaster_latents(
+  File "/home/jupyter/cf-371/src/forecasting_head.py", line 439, in extract_forecaster_latents
+    f_flat, _ = backbone.transformer(xr)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/jupyter/cf-371/src/blocks.py", line 730, in forward
+    x = self.input_to_latent(x)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/jupyter/cf-371/src/encoders.py", line 125, in forward
+    h = _last_hidden(flat)
+  File "/home/jupyter/cf-371/src/encoders.py", line 112, in _last_hidden
+    _, hidden = self.gru(fl)  # [num_layers*2, N, intermediate_dim]
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/rnn.py", line 1391, in forward
+    result = _VF.gru(
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 4.32 GiB. GPU 0 has a total capacity of 23.64 GiB of which 2.34 GiB is free. Process 531842 has 20.21 GiB memory in use. Including non-PyTorch memory, this process has 1.07 GiB memory in use. Of the allocated memory 632.20 MiB is allocated by PyTorch, and 15.80 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+  [head-train] auto-detected freq_emb_dim=3 from backbone checkpoint
+  [head-train] auto-detected seasonality_emb_dim=3 from backbone checkpoint
+  [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+  [head-train] auto-detected qk_norm=True from backbone checkpoint
+  [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+  [head-train] auto-detected patch_stats=none
+Backbone loaded from /home/jupyter/contrastive-forecasting/sync_b512_armC_seed2/bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lC_emb10_enc10_tau090_seed2_step25000.pth (0 params, frozen)
+/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/transformer.py:392: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  warnings.warn(
+Forecasting head [transformer-q (6L H384 nhead6 causal)]: 10,702,992 trainable params
+Optimizer: AdamW lr=0.001 betas=(0.9,0.98) wd=0.1 eps=1e-08
+Schedule: cosine warmup=1000 decay_start=8000 final_ratio=0.1
+Loaded head weights from /home/jupyter/contrastive-forecasting/sync_b512_armC_seed2/heads/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lC_emb10_enc10_tau090_seed2_step12500_FINAL.pth (no optimizer state)
+Loss CSV: /home/jupyter/contrastive-forecasting/sync_b512_armC_seed2/heads/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lC_emb10_enc10_tau090_seed2_step25000_losses.csv
+Data: MIX 100% HF + 0% synth, hf_bs=256, synth_bs=0, synth_seed=20042, emit_labels=True
+
+Training for 10000 steps, bs=256, lr=0.001, forecast_len=16
+RECONSTRUCTION mode: forecaster (head decodes what latent represents, not future)
+Checkpoints: /home/jupyter/contrastive-forecasting/sync_b512_armC_seed2/heads/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lC_emb10_enc10_tau090_seed2_step25000_*.pth
+[    200] loss=0.206708  ema_loss=0.220272  2.3 sps  ETA 1.2h
+  -> New best: /home/jupyter/contrastive-forecasting/sync_b512_armC_seed2/heads/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lC_emb10_enc10_tau090_seed2_step25000_best.pth (ema_loss=0.220272)
+[    400] loss=0.203599  ema_loss=0.205703  2.5 sps  ETA 1.1h
+  -> New best: /home/jupyter/contrastive-forecasting/sync_b512_armC_seed2/heads/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lC_emb10_enc10_tau090_seed2_step25000_best.pth (ema_loss=0.205703)
+[    600] loss=0.202594  ema_loss=0.202846  2.8 sps  ETA 0.9h
+  -> New best: /home/jupyter/contrastive-forecasting/sync_b512_armC_seed2/heads/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lC_emb10_enc10_tau090_seed2_step25000_best.pth (ema_loss=0.202846)
+[    800] loss=0.189489  ema_loss=0.201472  3.0 sps  ETA 0.9h
+  -> New best: /home/jupyter/contrastive-forecasting/sync_b512_armC_seed2/heads/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lC_emb10_enc10_tau090_seed2_step25000_best.pth (ema_loss=0.201472)
+[   1000] loss=0.205913  ema_loss=0.201887  3.2 sps  ETA 0.8h
+[   1200] loss=0.198893  ema_loss=0.200359  3.3 sps  ETA 0.7h
+  -> New best: /home/jupyter/contrastive-forecasting/sync_b512_armC_seed2/heads/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lC_emb10_enc10_tau090_seed2_step25000_best.pth (ema_loss=0.200359)
+[   1400] loss=0.195377  ema_loss=0.200674  3.3 sps  ETA 0.7h
+[   1600] loss=0.189735  ema_loss=0.199517  3.4 sps  ETA 0.7h
+  -> New best: /home/jupyter/contrastive-forecasting/sync_b512_armC_seed2/heads/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lC_emb10_enc10_tau090_seed2_step25000_best.pth (ema_loss=0.199517)
+[   1800] loss=0.210101  ema_loss=0.200703  3.4 sps  ETA 0.7h
+[   2000] loss=0.195136  ema_loss=0.200096  3.4 sps  ETA 0.6h
+[   2200] loss=0.207938  ema_loss=0.200690  3.4 sps  ETA 0.6h
+[   2400] loss=0.200084  ema_loss=0.200250  3.5 sps  ETA 0.6h
+[   2600] loss=0.188564  ema_loss=0.199407  3.5 sps  ETA 0.6h
+  -> New best: /home/jupyter/contrastive-forecasting/sync_b512_armC_seed2/heads/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lC_emb10_enc10_tau090_seed2_step25000_best.pth (ema_loss=0.199407)
+[   2800] loss=0.189263  ema_loss=0.199556  3.5 sps  ETA 0.6h
+[   3000] loss=0.195291  ema_loss=0.198889  3.5 sps  ETA 0.6h
+  -> New best: /home/jupyter/contrastive-forecasting/sync_b512_armC_seed2/heads/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lC_emb10_enc10_tau090_seed2_step25000_best.pth (ema_loss=0.198889)
+[   3200] loss=0.192310  ema_loss=0.200253  3.5 sps  ETA 0.5h
+[   3400] loss=0.201945  ema_loss=0.199344  3.5 sps  ETA 0.5h
+[   3600] loss=0.184547  ema_loss=0.198460  3.5 sps  ETA 0.5h
+  -> New best: /home/jupyter/contrastive-forecasting/sync_b512_armC_seed2/heads/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lC_emb10_enc10_tau090_seed2_step25000_best.pth (ema_loss=0.198460)
+[   3800] loss=0.193554  ema_loss=0.199184  3.5 sps  ETA 0.5h
+[   4000] loss=0.219387  ema_loss=0.198535  3.5 sps  ETA 0.5h
+[   4200] loss=0.198969  ema_loss=0.198788  3.6 sps  ETA 0.5h
+[   4400] loss=0.196520  ema_loss=0.198937  3.6 sps  ETA 0.4h
+[   4600] loss=0.190189  ema_loss=0.198906  3.6 sps  ETA 0.4h
+[   4800] loss=0.196816  ema_loss=0.198173  3.6 sps  ETA 0.4h
+  -> New best: /home/jupyter/contrastive-forecasting/sync_b512_armC_seed2/heads/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lC_emb10_enc10_tau090_seed2_step25000_best.pth (ema_loss=0.198173)
+[   5000] loss=0.200409  ema_loss=0.198791  3.6 sps  ETA 0.4h
+[   5200] loss=0.208737  ema_loss=0.198383  3.6 sps  ETA 0.4h
+[   5400] loss=0.197599  ema_loss=0.199173  3.6 sps  ETA 0.4h
+[   5600] loss=0.189370  ema_loss=0.197988  3.6 sps  ETA 0.3h
+  -> New best: /home/jupyter/contrastive-forecasting/sync_b512_armC_seed2/heads/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lC_emb10_enc10_tau090_seed2_step25000_best.pth (ema_loss=0.197988)
+[   5800] loss=0.188747  ema_loss=0.198138  3.6 sps  ETA 0.3h
+[   6000] loss=0.190245  ema_loss=0.197874  3.6 sps  ETA 0.3h
+  -> New best: /home/jupyter/contrastive-forecasting/sync_b512_armC_seed2/heads/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lC_emb10_enc10_tau090_seed2_step25000_best.pth (ema_loss=0.197874)
+[   6200] loss=0.190210  ema_loss=0.197893  3.6 sps  ETA 0.3h
+[   6400] loss=0.214183  ema_loss=0.197141  3.6 sps  ETA 0.3h
+  -> New best: /home/jupyter/contrastive-forecasting/sync_b512_armC_seed2/heads/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lC_emb10_enc10_tau090_seed2_step25000_best.pth (ema_loss=0.197141)
+[   6600] loss=0.197487  ema_loss=0.196888  3.6 sps  ETA 0.3h
+  -> New best: /home/jupyter/contrastive-forecasting/sync_b512_armC_seed2/heads/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lC_emb10_enc10_tau090_seed2_step25000_best.pth (ema_loss=0.196888)
+[   6800] loss=0.208104  ema_loss=0.198164  3.6 sps  ETA 0.2h
+[   7000] loss=0.184097  ema_loss=0.197863  3.6 sps  ETA 0.2h
+[   7200] loss=0.183937  ema_loss=0.197719  3.6 sps  ETA 0.2h
+[   7400] loss=0.199341  ema_loss=0.198449  3.6 sps  ETA 0.2h
+[   7600] loss=0.203214  ema_loss=0.197784  3.6 sps  ETA 0.2h
+[   7800] loss=0.188890  ema_loss=0.197709  3.6 sps  ETA 0.2h
+[   8000] loss=0.192071  ema_loss=0.197414  3.6 sps  ETA 0.2h
+[   8200] loss=0.205916  ema_loss=0.197590  3.5 sps  ETA 0.1h
+[   8400] loss=0.198082  ema_loss=0.196434  3.5 sps  ETA 0.1h
+  -> New best: /home/jupyter/contrastive-forecasting/sync_b512_armC_seed2/heads/qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lC_emb10_enc10_tau090_seed2_step25000_best.pth (ema_loss=0.196434)
+[   8600] loss=0.203290  ema_loss=0.197025  3.4 sps  ETA 0.1h
+[   8800] loss=0.200776  ema_loss=0.197288  3.4 sps  ETA 0.1h
+[   9000] loss=0.187581  ema_loss=0.196564  3.4 sps  ETA 0.1h
+[   9200] loss=0.177450  ema_loss=0.196772  3.4 sps  ETA 0.1h
+[   9400] loss=0.201453  ema_loss=0.197706  3.3 sps  ETA 0.1h
+[   9600] loss=0.202053  ema_loss=0.197718  3.3 sps  ETA 0.0h
+[   9800] loss=0.208012  ema_loss=0.197438  3.3 sps  ETA 0.0h
+[  10000] loss=0.194533  ema_loss=0.197094  3.3 sps  ETA 0.0h
+
+Done in 0.9h. Best loss=0.196434 at step 8400

@@ -1,0 +1,44 @@
+# #369 launch-time manifest — the winning (λ_e, λ_h) arm from #366's
+# τ=0.90 A–I grid PLUS the parent's best-loss step number.
+#
+# Re-verify at launch time (once #366's arm I is confirmed on
+# `experiments/2026-06-28_sigreg_lambda_tau_cross/results/gm_table.csv`):
+#
+#   1. Identify the arm minimising GM-Rel MASE on BOTH `2L/last` and
+#      `6L/last` at τ=0.90. If two different arms win, pick the one
+#      closer to the other's number (per #369 tie-break).
+#   2. Pull the parent arm's `_best_loss.pth` step number from its
+#      losses CSV (the `best_loss_step` column) — the retrained B=1024
+#      backbone will match this step from its trajectory checkpoints.
+#   3. Fill LAMBDA_E, LAMBDA_H, TAU, PARENT_BEST_LOSS_STEP below.
+#   4. Stamp WINNERS_VERIFIED_BY (your handle) and WINNERS_VERIFIED_AT
+#      (YYYY-MM-DD).
+#   5. `cp winners.sh.example winners.sh` and commit BOTH copies —
+#      pytest keeps README ↔ this file ↔ launcher-suffix consistent.
+#
+# Placeholder values reflect the current provisional #366 winner
+# (arm C, λ_e=λ_h=1, τ=0.90). arms G/H/I are still in flight; overwrite
+# below with the confirmed values before launch.
+
+LAMBDA_E=1.0
+LAMBDA_H=1.0
+TAU=0.90
+
+# Parent's best-loss step (its `best_loss_step` from the losses CSV).
+# The launcher trains the head from the retrained backbone's
+# `_step<PARENT_BEST_LOSS_STEP>.pth` checkpoint so that both the parent
+# best-loss cell AND the retrained cell are read at the same step.
+#
+# MUST be a positive multiple of TRAJ_SAVE_EVERY (=500 by default):
+# trajectory checkpoints only land on those step boundaries, and the
+# launcher's guard hard-aborts otherwise. The parent's raw best_loss_step
+# from the losses CSV has no reason to align — snap it to the nearest
+# multiple of 500 before stamping here (round-to-nearest is fine; the
+# ≤250-step drift is well within the coarse best-vs-last gap #369 is
+# probing).
+PARENT_BEST_LOSS_STEP=8500
+
+# Re-verification stamps — bump on every relaunch (a stale manifest
+# should fail loudly, not silently propagate).
+WINNERS_VERIFIED_BY=""
+WINNERS_VERIFIED_AT=""

@@ -798,11 +798,13 @@ def test_run_arm_resume_flag_pipes_intermediate_checkpoint(launcher_code: str):
     # sidecar). The trainer's own resume path takes over from there.
     # `_FINAL.pth` (uppercase L) doesn't match `_*k.pth` — that's the
     # invariant that keeps the sentinel out of the resume candidate list.
+    # #379 added a RESUME_FROM override in front of the mtime default, so the
+    # default is now the `:-` fallback rather than the whole assignment.
     assert re.search(
-        r'latest=\$\(ls -t\s+"\$RUNS/\$\{NAME\}"_\*k\.pth\b',
+        r'latest="\$\{RESUME_FROM:-\$\(ls -t\s+"\$RUNS/\$\{NAME\}"_\*k\.pth\b',
         launcher_code), (
-        "run_arm.sh resume-latest logic must ls _<N>k.pth candidates "
-        "sorted by mtime.")
+        "run_arm.sh resume-latest logic must honour RESUME_FROM and otherwise "
+        "ls _<N>k.pth candidates sorted by mtime.")
     assert 'RESUME="--resume $latest"' in launcher_code, (
         "run_arm.sh must pass `--resume <path>` to the trainer when a "
         "prior checkpoint exists.")

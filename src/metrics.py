@@ -9,6 +9,8 @@ hidden-dim space is actually used.
 
 from __future__ import annotations
 
+import os
+
 import torch
 import torch.nn.functional as F
 from torch import Tensor
@@ -145,11 +147,28 @@ def dim_usage(z: Tensor, axis: int) -> Tensor:
     # Flatten fixed axes for batched matmul; restore at end.
     fixed_shape = z_norm.shape[1:-1]
     flat = z_norm.reshape(n, -1, d).permute(1, 0, 2)   # (S, n, d)
-    sim = torch.matmul(flat, flat.transpose(-1, -2))   # (S, n, n)
-    sq = sim.pow(2)
-    # mean over off-diagonal: (sum_all - sum_diag) / (n*(n-1))
-    sum_all = sq.sum(dim=(-1, -2))
-    sum_diag = torch.diagonal(sq, dim1=-2, dim2=-1).sum(dim=-1)
+    # Materialising sim = flat @ flat.T is (S, n, n) — 16 GiB at n=65k
+    # (#369, B=1024). Accumulate Σ sim² row-chunk-wise so peak allocation
+    # is (S, chunk, n) instead. Chunk size settable via env for tuning.
+    chunk = int(os.environ.get("DIM_USAGE_CHUNK", "4096"))
+    if chunk <= 0 or chunk >= n:
+        sim = torch.matmul(flat, flat.transpose(-1, -2))   # (S, n, n)
+        sq = sim.pow(2)
+        sum_all = sq.sum(dim=(-1, -2))
+        sum_diag = torch.diagonal(sq, dim1=-2, dim2=-1).sum(dim=-1)
+    else:
+        S = flat.shape[0]
+        sum_all = torch.zeros(S, device=z.device, dtype=flat.dtype)
+        sum_diag = torch.zeros(S, device=z.device, dtype=flat.dtype)
+        flat_T = flat.transpose(-1, -2)  # (S, d, n)
+        for i in range(0, n, chunk):
+            j = min(i + chunk, n)
+            sim_chunk = torch.matmul(flat[:, i:j, :], flat_T)   # (S, c, n)
+            sq_chunk = sim_chunk.pow(2)
+            sum_all = sum_all + sq_chunk.sum(dim=(-1, -2))
+            # Diagonal entries at (k, i+k) within the chunk.
+            idx = torch.arange(i, j, device=z.device)
+            sum_diag = sum_diag + sq_chunk[:, torch.arange(j - i, device=z.device), idx].sum(dim=-1)
     off_mean = (sum_all - sum_diag) / (n * (n - 1))
     u_per_slice = (1.0 / (d * off_mean.clamp_min(1e-12))).clamp_max(1.0)
     if fixed_shape:
@@ -187,6 +206,83 @@ def u_batchtime(z: Tensor) -> Tensor:
     B, T = z.shape[0], z.shape[1]
     pooled = z.reshape(B * T, *z.shape[2:])
     return dim_usage(pooled, axis=0)
+
+
+@torch.no_grad()
+def drift_pair(A: Tensor, B: Tensor, eps: float = 1e-8) -> dict[str, Tensor]:
+    """Latent-drift metric between two representations of the SAME probe
+    batch at two training steps.
+
+    Splits per-token movement into an informative component and a pure
+    feature-axis rotation component. Given two tensors ``A`` and ``B``
+    of matching shape ``(..., H)``, all non-feature axes are flattened
+    into an ``N``-row sample axis; rows are then L2-normalised (the
+    loss geometry lives on the unit sphere, so drift measured there is
+    the drift the objective actually moves) before three quantities
+    are computed:
+
+    ``drift_cos`` (``1 − mean_i cos(A_i, B_i)``) — raw per-token
+    movement. Zero when ``A_i = c_i B_i`` for any positive scalar; ``1``
+    at orthogonality; ``2`` for antipodal pairs. Includes both
+    informative geometric change and uninformative feature-axis
+    rotation.
+
+    ``drift_cos_aligned`` (``1 − (1/N) Σ_k σ_k(A^T B)``) — same
+    per-token movement AFTER a Procrustes rotation ``R* = argmin_R
+    ||A R − B||_F`` (``R`` orthogonal on the feature axis) removes the
+    best global feature-axis rotation. This is the movement a
+    downstream linear head cannot absorb — real information change.
+    Derivation: on unit rows, ``mean_i cos(R* A_i, B_i) = (1/N)
+    trace(A R* B^T)``; the maximum over orthogonal ``R`` is ``Σ_k σ_k``
+    (Von-Neumann trace inequality applied to the SVD of ``A^T B``).
+
+    ``rot_gap`` (``drift_cos − drift_cos_aligned``) — the raw movement
+    that is pure feature-axis rotation. Non-zero late in training
+    means the encoder keeps rotating its output frame without changing
+    the token geometry a linear head sees.
+
+    ``cka`` (linear centered CKA) — cross-check. Ranges ``[0, 1]``.
+    Rotation-invariant on the feature axis and scale-invariant. High
+    ``cka`` with ``drift_cos > 0`` confirms the movement is
+    reparameterization, not geometric change.
+
+    Args:
+        A, B: same-shape latent tensors ``(..., H)``. Typical shapes:
+            ``(B, T, C, H)`` and ``(B*C, T, H)`` — both work.
+        eps: L2-normalization and clamp floor for stability.
+
+    Returns:
+        dict with scalar tensors ``drift_cos``, ``drift_cos_aligned``,
+        ``rot_gap``, ``cka``. All computed in fp32 regardless of input
+        dtype (the trace and Gram products are small).
+    """
+    assert A.shape == B.shape, (A.shape, B.shape)
+    H = A.shape[-1]
+    A = A.reshape(-1, H).float()
+    B = B.reshape(-1, H).float()
+    N = A.shape[0]
+    An = F.normalize(A, p=2, dim=-1, eps=eps)
+    Bn = F.normalize(B, p=2, dim=-1, eps=eps)
+    drift_cos = 1.0 - (An * Bn).sum(dim=-1).mean()
+    M = An.transpose(0, 1) @ Bn                                # (H, H)
+    svd = torch.linalg.svdvals(M)                              # (H,)
+    drift_cos_aligned = 1.0 - svd.sum() / N
+    rot_gap = drift_cos - drift_cos_aligned
+    Ac = A - A.mean(dim=0, keepdim=True)
+    Bc = B - B.mean(dim=0, keepdim=True)
+    Mc = Ac.transpose(0, 1) @ Bc
+    hsic_xy = (Mc * Mc).sum()
+    Mxx = Ac.transpose(0, 1) @ Ac
+    Myy = Bc.transpose(0, 1) @ Bc
+    hsic_xx = (Mxx * Mxx).sum().clamp_min(eps)
+    hsic_yy = (Myy * Myy).sum().clamp_min(eps)
+    cka = hsic_xy / (hsic_xx.sqrt() * hsic_yy.sqrt())
+    return {
+        "drift_cos": drift_cos,
+        "drift_cos_aligned": drift_cos_aligned,
+        "rot_gap": rot_gap,
+        "cka": cka,
+    }
 
 
 @torch.no_grad()

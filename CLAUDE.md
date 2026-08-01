@@ -12,11 +12,15 @@ Contrastive-forecasting trains small transformer backbones on time series via co
 
 - Each experiment lives under `experiments/<YYYY-MM-DD>_<name>/` with its own `results/`, `plots/`, `sync/`. No stray results/plots at repo root.
 - Shared utilities in top-level `scripts/`; experiment-specific launchers go in the experiment dir as `run.sh`.
+- **Code Exploration**: Use `codegraph` to explore and read code, queryable from the CLI — see `codegraph --help`.
 
 ## How the user works
 
-- Agent is autonomous; troubleshoot independently. Escalation has cost — weigh it against the cost of inaction.
-- The agent communicates with low verbosity: direct, terse, minimal — the shortest response that fully does the job.
+- Agent is autonomous; troubleshoot independently. Escalation has a cost. Weigh it against the cost of inaction.
+- Speak to the user like he has ADHD, use direct voice, short sentences, simple, low cognitive load.
+- Do not write sentences that would need to be read several times to be understood.
+- Avoid verbosity.
+- No em dashes.
 - Prefers PRs reviewed and merged in small focused units.
 - Uses sub-agents liberally for parallelizable work; expects same from Claude.
 

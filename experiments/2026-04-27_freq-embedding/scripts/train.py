@@ -34,7 +34,8 @@ import torch
 import torch.optim as optim
 from types import SimpleNamespace
 
-from src.models import ConfigurableModel, compute_metrics, count_parameters
+from src.models import (ConfigurableModel, compute_metrics, count_parameters,
+                        generate_random_batch)
 from src.blocks import ATTN_AMP_DIAG
 from src.dataloader import (
     create_mixed_periodic_dataloader,
@@ -58,9 +59,11 @@ from src.metrics import (
     q_random,
     q_naive_latent,
     dim_usage,
+    drift_pair,
     u_batchtime,
     retrieval_auc_topk,
 )
+from src.forecasting_head import extract_encoder_latents
 
 # -- Tiny architecture (identical to v3c) -----------------------------------
 # C and T_raw can be overridden at runtime via --n-channels / --t-raw to
@@ -113,6 +116,38 @@ def parse_args():
                         "to snapshot on top of --save-every (e.g. "
                         "'2500,25000' when the base cadence is 10000 but "
                         "downstream eval needs off-cadence cells).")
+    p.add_argument("--traj-save-every", type=int, default=0,
+                   help="If > 0, also write a fine-grained trajectory "
+                        "checkpoint every N steps as "
+                        "`<run>_step<STEP>.pth`. Separate cadence from "
+                        "--save-every: the coarse `<run>_<K>k.pth` files "
+                        "are still emitted. Use for sub-1000-step "
+                        "trajectories where the coarse `step // 1000` "
+                        "naming collides. Default 0 = off.")
+    # Latent-drift probe (#XXX). Fixed synthetic probe batch, no-grad
+    # forward every N steps, dumps drift_cos / drift_cos_aligned /
+    # rot_gap / cka between the current h_t and (a) the previous probe
+    # and (b) the initial probe. Rank-0 only; CSV goes to
+    # `<save_dir>/<run_name>_latent_drift.csv`. Default on — probe cost
+    # is one no-grad forward per cadence step (≪ 1 s per probe at the
+    # #374 arch), so leaving it on for every future run gives us "free"
+    # drift curves.
+    p.add_argument("--latent-drift-probe",
+                   action=argparse.BooleanOptionalAction, default=True,
+                   help="Track h_t drift on a fixed probe batch. "
+                        "Writes <run>_latent_drift.csv. Default on. "
+                        "Pass --no-latent-drift-probe to disable.")
+    p.add_argument("--latent-drift-probe-every", type=int, default=0,
+                   help="Probe cadence in steps. 0 (default) = mirror "
+                        "--save-every so probes coincide with snapshots.")
+    p.add_argument("--latent-drift-probe-batch-size", type=int, default=64,
+                   help="Probe batch (fixed ARMA draw). Kept small — the "
+                        "metric is the geometry of h_t, not throughput.")
+    p.add_argument("--latent-drift-probe-seed", type=int, default=20260722,
+                   help="Seed for the fixed ARMA probe batch. Held "
+                        "constant across a run so every probe sees the "
+                        "same input; change it to check probe-noise "
+                        "sensitivity.")
     p.add_argument("--ema-decay", type=float, default=0.99)
     p.add_argument("--grad-clip", type=float, default=None)
     p.add_argument("--hf-repo", default=None)
@@ -466,14 +501,29 @@ def parse_args():
     p.add_argument("--no-main-contrastive-loss", action="store_true",
                    help="Drop the main contrastive loss entirely; train only on "
                         "the auxiliary terms (--cpc-infonce-weight and/or "
-                        "--align-loss-weight). Skips the contrastive_latent_loss "
-                        "call (no xshh_allt Gram in the backward), and the align "
-                        "term is then computed standalone (same BYOL form, encoder "
-                        "target stop-gradded). Use to test whether CPC + a separate "
-                        "forecaster loss beats the contrastive objective (#344). "
+                        "--align-loss-weight and/or --sigreg-embedding/-encoding). "
+                        "Skips the contrastive_latent_loss call (no xshh_allt Gram "
+                        "in the backward), and the align term is then computed "
+                        "standalone (same BYOL form, encoder target stop-gradded). "
+                        "Use to test whether CPC + a separate forecaster loss beats "
+                        "the contrastive objective (#344), or to isolate a single "
+                        "auxiliary term (SIGReg / CPC / align) end-to-end (#382). "
                         "The loss_tau_ref diagnostic is still logged as a "
                         "contrastive-reference curve. Requires at least one of "
-                        "--cpc-infonce-weight / --align-loss-weight > 0.")
+                        "--cpc-infonce-weight / --align-loss-weight / "
+                        "--sigreg-embedding / --sigreg-encoding > 0.")
+    p.add_argument("--pred-loss-weight", type=float, default=1.0,
+                   help="Scalar weight on L_pred inside the "
+                        "cosine_similarity_batch_split_pred_rep shape (#382). "
+                        "Default 1.0 = historical objective. Set to 0.0 to "
+                        "isolate L_rep (e.g. the 'rep' and 'rep_moco' arms); a "
+                        "no-op for every other loss_shape.")
+    p.add_argument("--rep-loss-weight", type=float, default=1.0,
+                   help="Scalar weight on L_rep inside the "
+                        "cosine_similarity_batch_split_pred_rep shape (#382). "
+                        "Default 1.0 = historical objective. Set to 0.0 to "
+                        "isolate L_pred (e.g. the 'pred' and 'pred_moco' arms); a "
+                        "no-op for every other loss_shape.")
     p.add_argument("--ema-embedding", action="store_true",
                    help="BYOL/JEPA EMA-teacher copy of the patch-embedding "
                         "(--encoder-type's input_to_latent). Non-trained; "
@@ -909,6 +959,101 @@ class CSVLogger:
         self._file.close()
 
 
+class LatentDriftProbe:
+    """Fixed-batch h_t drift probe. Rank-0-only CSV writer.
+
+    Holds a fixed ARMA probe batch in device memory. Each ``probe(step)``
+    call runs a no-grad, ``eval()``-mode forward through
+    ``extract_encoder_latents`` and computes :func:`src.metrics.drift_pair`
+    against (a) the previous probe's ``h`` (``kind="adjacent"``) and
+    (b) the initial probe's ``h`` (``kind="vs_initial"``). Both rows are
+    written per probe step. The initial probe fires on the first
+    ``probe`` call and writes no comparison row.
+
+    CSV columns::
+        step, kind, step_ref, delta_step,
+        drift_cos, drift_cos_aligned, rot_gap, cka
+
+    Cached ``h`` tensors are kept on CPU as fp16 so memory stays trivial
+    (~10 MB per snapshot at ``B=64, T_lat=256, H=384``). The metric
+    itself runs in fp32 on ``device`` after cast-back.
+    """
+
+    def __init__(self, csv_path, probe_x, device):
+        self.csv_path = csv_path
+        self.probe_x = probe_x.to(device)
+        self.device = device
+        self.initial_h = None
+        self.initial_step = None
+        self.prev_h = None
+        self.prev_step = None
+        self._enabled = is_main_process()
+        if not self._enabled:
+            self._file = None
+            self._writer = None
+            return
+        new_file = (not os.path.exists(csv_path)
+                    or os.path.getsize(csv_path) == 0)
+        self._file = open(csv_path, "a", newline="")
+        self._writer = csv.writer(self._file)
+        if new_file:
+            self._writer.writerow([
+                "step", "kind", "step_ref", "delta_step",
+                "drift_cos", "drift_cos_aligned", "rot_gap", "cka",
+            ])
+            self._file.flush()
+
+    @torch.no_grad()
+    def _extract_h(self, model):
+        was_training = model.training
+        model.eval()
+        try:
+            h, _ = extract_encoder_latents(model, self.probe_x)
+        finally:
+            if was_training:
+                model.train()
+        return h.detach().cpu().to(torch.float16)
+
+    def probe(self, model, step: int):
+        if not self._enabled:
+            return
+        h = self._extract_h(model)
+        if self.initial_h is None:
+            self.initial_h = h
+            self.initial_step = step
+            self.prev_h = h
+            self.prev_step = step
+            return
+        cur = h.to(self.device).float()
+        adj = drift_pair(self.prev_h.to(self.device).float(), cur)
+        self._writer.writerow([
+            step, "adjacent", self.prev_step, step - self.prev_step,
+            f"{adj['drift_cos'].item():.6f}",
+            f"{adj['drift_cos_aligned'].item():.6f}",
+            f"{adj['rot_gap'].item():.6f}",
+            f"{adj['cka'].item():.6f}",
+        ])
+        # vs_initial only when the adjacent-pair isn't already the
+        # initial-pair; a second write would be a redundant duplicate row.
+        if self.prev_step != self.initial_step:
+            ini = drift_pair(self.initial_h.to(self.device).float(), cur)
+            self._writer.writerow([
+                step, "vs_initial", self.initial_step,
+                step - self.initial_step,
+                f"{ini['drift_cos'].item():.6f}",
+                f"{ini['drift_cos_aligned'].item():.6f}",
+                f"{ini['rot_gap'].item():.6f}",
+                f"{ini['cka'].item():.6f}",
+            ])
+        self._file.flush()
+        self.prev_h = h
+        self.prev_step = step
+
+    def close(self):
+        if self._file is not None:
+            self._file.close()
+
+
 class AttnAmplitudeCSV:
     """Sidecar CSV for the attention-amplitude diagnostic.
 
@@ -1050,11 +1195,13 @@ def main():
             f"cpc_multistep forecaster (--forecaster-kind {args.forecaster_kind}). "
             "Use --forecaster-kind transformer, or drop --cpc-infonce-weight.")
     if args.no_main_contrastive_loss and not (
-            args.cpc_infonce_weight > 0 or args.align_loss_weight > 0):
+            args.cpc_infonce_weight > 0 or args.align_loss_weight > 0
+            or args.sigreg_embedding or args.sigreg_encoding):
         raise SystemExit(
             "--no-main-contrastive-loss drops the only contrastive term, so the "
             "objective would be empty; pass --cpc-infonce-weight and/or "
-            "--align-loss-weight > 0.")
+            "--align-loss-weight > 0 and/or --sigreg-embedding / "
+            "--sigreg-encoding.")
     model_config["cpc_infonce"] = args.cpc_infonce_weight > 0
     model_config["qk_norm"] = bool(args.qk_norm)
     model_config["attn_out_norm"] = bool(args.attn_out_norm)
@@ -1113,6 +1260,8 @@ def main():
     LOSS_SPEC.train_configuration["subtract_contrastive_floor"] = args.subtract_contrastive_floor
     LOSS_SPEC.train_configuration["moco_negatives"] = args.moco_negatives
     LOSS_SPEC.train_configuration["moco_rep_keys"] = args.moco_rep_keys
+    LOSS_SPEC.train_configuration["pred_loss_weight"] = args.pred_loss_weight
+    LOSS_SPEC.train_configuration["rep_loss_weight"] = args.rep_loss_weight
     if args.tau is not None:
         LOSS_SPEC.train_configuration["contrastive_divergence_temperature"] = args.tau
     if args.tau_rep is not None:
@@ -1195,6 +1344,31 @@ def main():
     csv_path = os.path.join(args.save_dir, f"{args.run_name}_losses.csv")
     csv_logger = CSVLogger(csv_path, flush_every=100)
     print(f"Loss CSV: {csv_path}")
+
+    # Latent-drift probe (rank-0 only). Fixed ARMA batch drawn once and
+    # kept for the whole run. Cadence defaults to --save-every.
+    latent_drift_probe = None
+    if args.latent_drift_probe:
+        drift_every = (args.latent_drift_probe_every
+                       if args.latent_drift_probe_every > 0
+                       else args.save_every)
+        drift_csv_path = os.path.join(
+            args.save_dir, f"{args.run_name}_latent_drift.csv")
+        probe_x = generate_random_batch(
+            batch_size=args.latent_drift_probe_batch_size,
+            T_raw=args.t_raw, C=args.n_channels,
+            seed=args.latent_drift_probe_seed, dimension=4)
+        latent_drift_probe = LatentDriftProbe(
+            drift_csv_path, probe_x, device)
+        print(f"Latent-drift CSV: {drift_csv_path} "
+              f"(every {drift_every} steps, "
+              f"probe_bs={args.latent_drift_probe_batch_size}, "
+              f"probe_seed={args.latent_drift_probe_seed})")
+        # Initial probe at start_step so the first adjacent-pair row
+        # covers step_ref=start_step.
+        latent_drift_probe.probe(model, start_step)
+    else:
+        drift_every = 0
 
     # Sidecar attention-amplitude diagnostic CSV (opt-in). Only created when
     # --log-attn-amplitude is set; otherwise None and the per-step hook is a
@@ -1688,12 +1862,29 @@ def main():
                           hf_rows_consumed=hf_rows_consumed,
                           synth_rows_consumed=synth_rows_consumed)
 
+        if args.traj_save_every > 0 and step % args.traj_save_every == 0:
+            path = os.path.join(args.save_dir, f"{args.run_name}_step{step}.pth")
+            save_snapshot(model, optimizer, path, step,
+                          best_gap, best_gap_step, best_loss, best_loss_step,
+                          ema_loss=ema_loss, ema_gap=ema_gap,
+                          hf_rows_consumed=hf_rows_consumed,
+                          synth_rows_consumed=synth_rows_consumed)
+
+        if latent_drift_probe is not None and drift_every > 0 \
+                and step % drift_every == 0:
+            latent_drift_probe.probe(model, step)
+
     path = os.path.join(args.save_dir, f"{args.run_name}_final.pth")
     save_snapshot(model, optimizer, path, args.total_steps,
                   best_gap, best_gap_step, best_loss, best_loss_step,
                   ema_loss=ema_loss, ema_gap=ema_gap,
                   hf_rows_consumed=hf_rows_consumed,
                   synth_rows_consumed=synth_rows_consumed)
+    if latent_drift_probe is not None:
+        # One final probe at total_steps so the CSV covers the run's tail.
+        if latent_drift_probe.prev_step != args.total_steps:
+            latent_drift_probe.probe(model, args.total_steps)
+        latent_drift_probe.close()
     csv_logger.close()
     if attn_amp_csv is not None:
         attn_amp_csv.close()

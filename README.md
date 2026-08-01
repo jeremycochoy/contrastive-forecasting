@@ -38,6 +38,20 @@ experiments/             Experiment logs and reports
     train_*.py               Original training scripts (frozen)
 ```
 
+## Code Exploration
+
+Use `codegraph` to explore and read code, queryable from the CLI — see `codegraph --help`.
+
+```
+codegraph explore <query>      # symbols' source + call paths, one shot
+codegraph node <symbol|file>   # one symbol's source + callers
+codegraph callers/callees <symbol>
+codegraph impact <symbol>      # blast radius (--depth)
+codegraph query <search>       # symbol search (--kind, --json)
+codegraph affected [files...]  # which tests a change touches
+codegraph status               # incl. pending-sync check
+```
+
 ## Model Architecture
 
 The best configuration found through architecture search:

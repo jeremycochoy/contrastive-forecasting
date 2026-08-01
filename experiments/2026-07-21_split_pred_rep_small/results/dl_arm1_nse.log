@@ -1,0 +1,13 @@
+[07-22 17:55:07] [elisa-arm1_nse] BB START (arm 1_nse: split_pred_rep + sigreg_embedding=0) gpu=1 target=40000 final=200000 bs=64 
+[07-22 17:55:07] [elisa-arm1_nse] BB START (arm 1_nse: split_pred_rep + sigreg_embedding=0) gpu=1 target=40000 final=200000 bs=64 
+[07-22 20:04:41] [elisa-arm1_nse] arm1_nse wave complete: target=40000 (< final 200000) — latest ck bb_small_arm1_nse_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth
+[07-22 20:04:41] [elisa-arm1_nse] arm1_nse wave complete: target=40000 (< final 200000) — latest ck bb_small_arm1_nse_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth
+[07-26 01:59:22] [elisa-arm1_nse] RESUME from bb_small_arm1_nse_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth
+[07-26 01:59:22] [elisa-arm1_nse] RESUME from bb_small_arm1_nse_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth
+[07-26 01:59:22] [elisa-arm1_nse] BB START (arm 1_nse: split_pred_rep + sigreg_embedding=0) gpu=0 target=100000 final=200000 bs=64 --resume /home/jupyter/wt-cf-379-train/experiments/2026-07-21_split_pred_rep_small/runs/bb_small_arm1_nse_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth
+[07-26 01:59:22] [elisa-arm1_nse] BB START (arm 1_nse: split_pred_rep + sigreg_embedding=0) gpu=0 target=100000 final=200000 bs=64 --resume /home/jupyter/wt-cf-379-train/experiments/2026-07-21_split_pred_rep_small/runs/bb_small_arm1_nse_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth
+[07-26 05:11:44] [elisa-arm1_nse] arm1_nse wave complete: target=100000 (< final 200000) — latest ck bb_small_arm1_nse_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_r2_100k.pth
+[07-26 05:11:44] [elisa-arm1_nse] arm1_nse wave complete: target=100000 (< final 200000) — latest ck bb_small_arm1_nse_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_r2_100k.pth
+[07-31 19:31:47] [elisa-arm1_nse] RESUME from bb_small_arm1_nse_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_r2_100k.pth
+[07-31 19:31:47] [elisa-arm1_nse] BB START (arm 1_nse: split_pred_rep + sigreg_embedding=0) gpu=1 target=200000 final=200000 bs=64 --resume /home/jupyter/wt-cf-379-train/experiments/2026-07-21_split_pred_rep_small/runs/bb_small_arm1_nse_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_r2_100k.pth
+[08-01 01:15:37] [elisa-arm1_nse] arm1_nse complete: BB DONE -> bb_small_arm1_nse_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_FINAL.pth (5.0M)

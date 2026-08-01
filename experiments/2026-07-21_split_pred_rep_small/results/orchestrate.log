@@ -1,0 +1,43 @@
+nohup: ignoring input
+[07-21 20:28:25] [orch-379] orchestrator start — WT=/home/jupyter/wt-cf-379-train
+[07-21 20:28:25] [orch-379] PHASE A: arm 1 on GPU 0, arm 3 on GPU 1
+[07-21 20:28:25] [orch-379] arm arm1 start: BB_GPU=0
+[07-21 20:28:25] [orch-379] arm arm3 start: BB_GPU=1
+[07-22 08:37:00] [orch-379] arm arm1 done rc=0
+[07-22 08:53:55] [orch-379] arm arm3 done rc=0
+[07-22 08:53:55] [orch-379] phase A joined: pids=2400167/2400168 rc=0/0
+[07-22 08:53:55] [orch-379] PHASE B: arm 4 on GPU 0, arm 5 on GPU 1
+[07-22 08:53:55] [orch-379] arm arm4 start: BB_GPU=0
+[07-22 08:53:55] [orch-379] arm arm5 start: BB_GPU=1
+[07-22 13:01:41] [orch-379] arm arm5 done rc=1
+[07-22 13:01:41] [orch-379] arm arm4 done rc=1
+[07-22 13:01:41] [orch-379] phase B joined: pids=2476105/2476106 rc=1/1
+[07-22 13:01:41] [orch-379] phase B had failing arm(s) — continuing to phase C
+[07-22 13:01:41] [orch-379] PHASE C: arm 6_v2 on GPU 0, bimoco on GPU 1
+[07-22 13:01:41] [orch-379] arm arm6_v2 start: BB_GPU=0
+[07-22 13:01:41] [orch-379] arm bimoco start: BB_GPU=1
+[07-22 13:02:37] [orch-379] arm bimoco done rc=1
+[07-22 13:02:37] [orch-379] arm arm6_v2 done rc=1
+[07-22 13:02:37] [orch-379] phase C joined: pids=2524395/2524396 rc=1/1
+[07-22 13:02:37] [orch-379] phase C had failing arm(s)
+[07-22 13:02:37] [orch-379] orchestrator done — backbones FINAL: 2 / 6
+[07-22 13:02:37] [orch-379] state written to /home/jupyter/wt-cf-379-train/experiments/2026-07-21_split_pred_rep_small/results/orchestrate_state.json
+ome/jupyter/.local/lib/python3.10/site-packages/torch/autograd/grad_mode.py", line 187, in __init__     torch._C._set_grad_enabled(mode) KeyboardInterrupt 
+[07-22 13:01:41] [orch-379] arm arm5 done rc=1
+[07-22 13:01:41] [elisa-arm4] BB train exited rc=130 — NOT creating FINAL. tail:   File "/home/jupyter/wt-cf-379-train/src/loss.py", line 1669, in contrastive_latent_loss     same = (b_all.view(B, 1) == b_all[s:e].view(1, e - s)).view(B, e - s, 1, 1, 1) KeyboardInterrupt 
+[07-22 13:01:41] [orch-379] arm arm4 done rc=1
+[07-22 13:01:41] [orch-379] phase B joined: pids=2476105/2476106 rc=1/1
+[07-22 13:01:41] [orch-379] phase B had failing arm(s) — continuing to phase C
+[07-22 13:01:41] [orch-379] PHASE C: arm 6_v2 on GPU 0, bimoco on GPU 1
+[07-22 13:01:41] [orch-379] arm arm6_v2 start: BB_GPU=0
+[07-22 13:01:41] [orch-379] arm bimoco start: BB_GPU=1
+[07-22 13:01:41] [elisa-bimoco] BB START (bimoco: split_pred_rep + moco-negatives + moco-rep-keys) gpu=1 steps=200000 bs=64 
+[07-22 13:01:41] [elisa-arm6_v2] BB START (arm 6 v2: rep_only + align-loss-weight 1.0 + moco-rep-keys) gpu=0 steps=200000 bs=64 
+[07-22 13:02:37] [elisa-bimoco] BB train exited rc=130 — NOT creating FINAL. tail:   File "/home/jupyter/wt-cf-379-train/src/loss.py", line 590, in sigreg_loss     return ep_per_dir.mean() KeyboardInterrupt 
+[07-22 13:02:37] [orch-379] arm bimoco done rc=1
+[07-22 13:02:37] [elisa-arm6_v2] BB train exited rc=130 — NOT creating FINAL. tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/linear.py", line 125, in forward     return F.linear(input, self.weight, self.bias) KeyboardInterrupt 
+[07-22 13:02:37] [orch-379] arm arm6_v2 done rc=1
+[07-22 13:02:37] [orch-379] phase C joined: pids=2524395/2524396 rc=1/1
+[07-22 13:02:37] [orch-379] phase C had failing arm(s)
+[07-22 13:02:37] [orch-379] orchestrator done — backbones FINAL: 2 / 6
+[07-22 13:02:37] [orch-379] state written to /home/jupyter/wt-cf-379-train/experiments/2026-07-21_split_pred_rep_small/results/orchestrate_state.json

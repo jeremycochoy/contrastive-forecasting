@@ -1,0 +1,30 @@
+[07-22 13:04:07] [orch-379-tr1] orchestrator start — WT=/home/jupyter/wt-cf-379-train (tau_rep=1.0 reruns · staged waves)
+[07-22 13:04:07] [orch-379-tr1] wave schedule: 1|D|40000|10000|2500,40000 2|E|100000|25000|100000 3|F|200000|25000| 
+[07-22 13:04:07] [orch-379-tr1] PHASE D START — wave 1 · target=40000 save_every=10000 extras=[2500,40000]
+[07-22 13:04:07] [orch-379-tr1] PHASE D · sub-phase D1: arm1_tr1 (GPU 0) + arm3_tr1 (GPU 1)
+[07-22 13:04:07] [orch-379-tr1] PHASE D · arm arm1_tr1 start: BB_GPU=0 target=40000 save_every=10000 extras=[2500,40000]
+[07-22 13:04:07] [orch-379-tr1] PHASE D · arm arm3_tr1 start: BB_GPU=1 target=40000 save_every=10000 extras=[2500,40000]
+[07-22 15:19:01] [orch-379-tr1] PHASE D · arm arm3_tr1 done rc=0
+[07-22 15:31:53] [orch-379-tr1] PHASE D · arm arm1_tr1 done rc=0
+[07-22 15:31:53] [orch-379-tr1] PHASE D · sub-phase D1 joined: pids=2524919/2524920 rc=0/0
+[07-22 15:31:53] [orch-379-tr1] PHASE D · sub-phase D2: arm5_tr1 (GPU 0) + arm6_v2_tr1 (GPU 1)
+[07-22 15:31:53] [orch-379-tr1] PHASE D · arm arm5_tr1 start: BB_GPU=0 target=40000 save_every=10000 extras=[2500,40000]
+[07-22 15:31:53] [orch-379-tr1] PHASE D · arm arm6_v2_tr1 start: BB_GPU=1 target=40000 save_every=10000 extras=[2500,40000]
+[07-22 17:35:13] [orch-379-tr1] PHASE D · arm arm6_v2_tr1 done rc=0
+[07-22 17:38:52] [orch-379-tr1] PHASE D · arm arm5_tr1 done rc=0
+[07-22 17:38:52] [orch-379-tr1] PHASE D · sub-phase D2 joined: pids=2552119/2552120 rc=0/0
+[07-22 17:38:52] [orch-379-tr1] PHASE D · sub-phase D3: bimoco_tr1 (GPU 0, solo)
+[07-22 17:38:52] [orch-379-tr1] PHASE D · arm bimoco_tr1 start: BB_GPU=0 target=40000 save_every=10000 extras=[2500,40000]
+ASE D · arm arm5_tr1 start: BB_GPU=0 target=40000 save_every=10000 extras=[2500,40000]
+[07-22 15:31:53] [orch-379-tr1] PHASE D · arm arm6_v2_tr1 start: BB_GPU=1 target=40000 save_every=10000 extras=[2500,40000]
+[07-22 15:31:53] [elisa-arm5_tr1] BB START (arm 5_tr1: rep_only + align-loss-weight 1.0 + tau_rep=1.0) gpu=0 target=40000 final=200000 bs=64 
+[07-22 15:31:53] [elisa-arm6_v2_tr1] BB START (arm 6 v2_tr1: rep_only + align-loss-weight 1.0 + moco-rep-keys + tau_rep=1.0) gpu=1 target=40000 final=200000 bs=64 
+[07-22 17:35:13] [elisa-arm6_v2_tr1] arm6_v2_tr1 wave complete: target=40000 (< final 200000) — latest ck bb_small_arm6_v2_tr1_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth
+[07-22 17:35:13] [orch-379-tr1] PHASE D · arm arm6_v2_tr1 done rc=0
+[07-22 17:38:52] [elisa-arm5_tr1] arm5_tr1 wave complete: target=40000 (< final 200000) — latest ck bb_small_arm5_tr1_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth
+[07-22 17:38:52] [orch-379-tr1] PHASE D · arm arm5_tr1 done rc=0
+[07-22 17:38:52] [orch-379-tr1] PHASE D · sub-phase D2 joined: pids=2552119/2552120 rc=0/0
+[07-22 17:38:52] [orch-379-tr1] PHASE D · sub-phase D3: bimoco_tr1 (GPU 0, solo)
+[07-22 17:38:52] [orch-379-tr1] PHASE D · arm bimoco_tr1 start: BB_GPU=0 target=40000 save_every=10000 extras=[2500,40000]
+[07-22 17:38:52] [elisa-bimoco_tr1] BB START (bimoco_tr1: split_pred_rep + moco-negatives + moco-rep-keys + tau_rep=1.0) gpu=0 target=40000 final=200000 bs=64 
+[07-22 19:49:38] [elisa-bimoco_tr1] bimoco_tr1 wave complete: target=40000 (< final 200000) — latest ck bb_small_bimoco_tr1_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth

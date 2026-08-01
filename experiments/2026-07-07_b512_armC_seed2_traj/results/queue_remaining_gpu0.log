@@ -1,0 +1,32 @@
+[07-10 02:49:19] [queue g0] RUN cell HL=6 step=20000
+[07-10 02:49:19] [dl-cell-6L-step20000 g0] QH skip (FINAL exists)
+[07-10 02:49:19] [dl-cell-6L-step20000 g0] EVAL skip GM=1.1349
+[07-10 02:49:19] [queue g0] OK  cell HL=6 step=20000
+[07-10 02:49:19] [queue g0] RUN cell HL=6 step=25000
+[07-10 02:49:19] [dl-cell-6L-step25000 g0] skip (claim held by another worker)
+[07-10 02:49:19] [queue g0] OK  cell HL=6 step=25000
+[07-10 02:49:19] [queue g0] RUN cell HL=2 step=30000
+[07-10 02:49:19] [dl-cell-2L-step30000 g0] skip (claim held by another worker)
+[07-10 02:49:19] [queue g0] OK  cell HL=2 step=30000
+[07-10 02:49:19] [queue g0] RUN cell HL=6 step=30000
+[07-10 02:49:19] [dl-cell-6L-step30000 g0] QH train 10000 on bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lC_emb10_enc10_tau090_seed2_r2_step30000.pth resume=qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lC_emb10_enc10_tau090_seed2_step12500_FINAL.pth
+[07-10 03:55:57] [dl-cell-6L-step30000 g0] QH done
+[07-10 03:55:57] [dl-cell-6L-step30000 g0] EVAL full-97 start
+[07-10 08:01:50] [dl-cell-6L-step30000 g0] EVAL done GM=1.1302
+[07-10 08:01:50] [queue g0] OK  cell HL=6 step=30000
+[07-10 08:01:50] [queue g0] RUN cell HL=2 step=35000
+[07-10 08:01:50] [dl-cell-2L-step35000 g0] skip (claim held by another worker)
+[07-10 08:01:50] [queue g0] OK  cell HL=2 step=35000
+[07-10 08:01:50] [queue g0] RUN cell HL=6 step=35000
+[07-10 08:01:50] [dl-cell-6L-step35000 g0] skip (claim held by another worker)
+[07-10 08:01:50] [queue g0] OK  cell HL=6 step=35000
+[07-10 08:01:50] [queue g0] RUN cell HL=2 step=37500
+[07-10 08:01:50] [dl-cell-2L-step37500 g0] skip (claim held by another worker)
+[07-10 08:01:50] [queue g0] OK  cell HL=2 step=37500
+[07-10 08:01:50] [queue g0] RUN cell HL=6 step=37500
+[07-10 08:01:50] [dl-cell-6L-step37500 g0] QH train 10000 on bb_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lC_emb10_enc10_tau090_seed2_r2_step37500.pth resume=qhead_6L_allt08_xftrip_nobn_enc3_emateach_sigreg_qk_aon_b512_cpc_lC_emb10_enc10_tau090_seed2_step12500_FINAL.pth
+[07-10 09:08:08] [dl-cell-6L-step37500 g0] QH done
+[07-10 09:08:08] [dl-cell-6L-step37500 g0] EVAL full-97 start
+[07-10 12:48:22] [dl-cell-6L-step37500 g0] EVAL done GM=1.1400
+[07-10 12:48:22] [queue g0] OK  cell HL=6 step=37500
+[07-10 12:48:22] [queue g0] queue done
