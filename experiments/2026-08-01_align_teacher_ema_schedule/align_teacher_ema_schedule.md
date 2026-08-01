@@ -38,7 +38,8 @@ WT=$PWD bash experiments/2026-08-01_align_teacher_ema_schedule/scripts/analyse.s
 `orchestrate.sh` runs the four arms two per GPU on elisa and writes checkpoints
 to `/home/jupyter/checkpoints_backup/cf-388/`, outside the worktree.
 `monitor.sh` ticks every 15 minutes: it copies the training CSVs into `sync/`
-and watches for NaN and for a trainer that died before the budget.
+(a local mirror, git-ignored) and watches for NaN and for a trainer that died
+before the budget.
 `analyse.sh` runs the post-hoc probe over every 5000-step checkpoint of both
 experiments, reduces the training CSVs, and writes the table and the figures.
 
