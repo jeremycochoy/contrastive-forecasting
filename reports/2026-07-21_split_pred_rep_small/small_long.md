@@ -6,7 +6,7 @@ Going from 40k to 100k, 10 of 30 cells improve. Of those 10 taken on to 200k, 5 
 
 Definitions of each recipe and each setting are in [Architectures](#architectures); all numbers are in [Results](#results).
 
-⚠ `L_align` targets the student latent, not the EMA teacher latent.
+## ⚠ `L_align` targets the student latent, not the EMA teacher latent.
 
 ## Figures
 
