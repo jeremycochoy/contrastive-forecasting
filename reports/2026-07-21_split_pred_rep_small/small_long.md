@@ -16,9 +16,9 @@ One panel per loss recipe, sharing axes. Inside a panel the five settings are co
 
 ### 2. GM-Relative MASE per dataset domain
 
-The headline number is one geometric mean over all 97 configs. These radars apply that same geometric mean inside each of the 7 GIFT-Eval domains, so a cell's strong and weak domains are visible instead of averaged away. Left: the 3 lowest cells, each at its last evaluated backbone step. Right: every cell that improved from 100k to 200k.
+The headline number is one geometric mean over all 97 configs. These radars apply that same geometric mean inside each of the 7 GIFT-Eval domains, so a cell's strong and weak domains are visible instead of averaged away. Left: the 5 lowest cells, each at its last evaluated backbone step. Right: every cell that improved from 100k to 200k.
 
-![Two radar charts over the 7 GIFT-Eval dataset domains, radial axis log2 of the GM-Relative MASE ratio; a red dashed ring marks seasonal-naive parity at 1.0, inside it the model is better; left panel the 3 lowest cells, right panel the 5 cells that improved from backbone 100k to 200k.](plots/eval_domain_radar.png)
+![Two radar charts over the 7 GIFT-Eval dataset domains, radial axis log2 of the GM-Relative MASE ratio; a red dashed ring marks seasonal-naive parity at 1.0, inside it the model is better; left panel the 5 lowest cells, right panel the 5 cells that improved from backbone 100k to 200k.](plots/eval_domain_radar.png)
 
 ### 3. Ranking at backbone 40k
 

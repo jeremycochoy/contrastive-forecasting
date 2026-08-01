@@ -5,7 +5,7 @@ radars split that same geometric mean by dataset domain, so a cell's strong and
 weak domains are visible instead of averaged away.
 
 Two panels:
-  left  — the 3 lowest cells by their last evaluated backbone step
+  left  — the 5 lowest cells by their last evaluated backbone step
   right — every cell that improved from backbone 100k to 200k
 
 The radial axis is log2(ratio): the plotted quantity is a ratio whose headline
@@ -40,7 +40,7 @@ for arm, var, vals in cells:
     if v is not None:
         scored.append((v, arm, var, C.HORIZONS[i][0], C.HORIZONS[i][1]))
 scored.sort(key=lambda r: r[0])
-top3 = scored[:3]
+topn = scored[:5]
 
 improved = []
 for arm, var, vals in cells:
@@ -57,7 +57,7 @@ N = len(DOMAINS)
 ANG = [n / N * 2 * math.pi for n in range(N)] + [0.0]
 
 allv = []
-for _v, arm, var, bb, hd in top3 + improved:
+for _v, arm, var, bb, hd in topn + improved:
     d, _c = series(arm, var, bb, hd)
     if d: allv += [d[k] for k in DOMAINS if k in d]
 LO, HI = min(allv), max(allv)
@@ -113,7 +113,7 @@ def draw(ax, rows, title):
 
 fig, axes = plt.subplots(1, 2, figsize=(14.5, 9.4),
                          subplot_kw={"projection": "polar"})
-draw(axes[0], top3, "3 lowest cells, each at its last evaluated backbone step")
+draw(axes[0], topn, "5 lowest cells, each at its last evaluated backbone step")
 draw(axes[1], improved, "Cells that improved from backbone 100k to 200k (shown at 200k)")
 fig.suptitle("GM-Relative MASE per dataset domain — the headline geometric mean split by domain\n"
              "inside the red ring = better than seasonal-naive;  radial axis is log2(ratio)",
@@ -122,6 +122,6 @@ fig.tight_layout(rect=[0, 0.10, 1, 0.94])
 out = HERE / "eval_domain_radar.png"
 fig.savefig(out)
 print(f"wrote {out}")
-print("  panel 1:", ", ".join(f"{C.label(a,v)}@bb{bb}k" for _, a, v, bb, _ in top3))
+print("  panel 1:", ", ".join(f"{C.label(a,v)}@bb{bb}k" for _, a, v, bb, _ in topn))
 print("  panel 2:", ", ".join(C.label(a, v) for _, a, v, _, _ in improved))
 print(f"  ratio range {LO:.3f}–{HI:.3f}, ticks {TICKS}")
