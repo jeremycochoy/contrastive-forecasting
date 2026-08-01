@@ -45,7 +45,10 @@ while true; do
     sps="$(grep -oE '[0-9.]+ sps' "$tlog" 2>/dev/null | tail -1)"
     alive=$(pgrep -f "run-name $name" >/dev/null && echo yes || echo no)
     [ "$alive" = yes ] && running=$((running + 1))
-    nan=$(grep -c 'NaN/Inf DETECTED' "$tlog" 2>/dev/null || echo 0)
+    # `grep -c` exits 1 on zero matches but still prints "0", so swallow the
+    # status rather than appending an `echo 0` (which produced "0\n0" and a
+    # false NaN alert on the first tick).
+    nan=$(grep -c 'NaN/Inf DETECTED' "$tlog" 2>/dev/null || true)
     echo "$ts $arm step=${last:-0} ${sps:-?} alive=$alive nan=$nan" >>"$LOG"
     [ "$nan" != 0 ] && echo "$ts *** NaN in $arm ***" >>"$LOG"
     if [ "$alive" = no ] && [ -n "$last" ] && [ "$last" -lt 100000 ]; then

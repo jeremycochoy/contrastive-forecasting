@@ -195,3 +195,63 @@ Data: MIX 50% HF + 50% synth (periodic) + 0% crossfade + 0 triplet(s)=0 rows, hf
               R²_rand=0.9146  R²_naive=0.5391  U_t=0.0171  U_b=0.0205  AUC=0.9992  Top1=0.9699
   timing: data=2.9ms  fwd=28.5ms  bwd=9.8ms  total=41.6ms
   -> Saved /home/jupyter/checkpoints_backup/cf-388/align_teacher_sched/ats_align_teacher_sched_best_loss.pth
+[   4000] loss=0.0147  ema_loss=0.0159  gap=0.0008  ema_gap=0.0010  mixup=0/100  15.2 sps  ETA 1.8h
+              R²_rand=0.9258  R²_naive=0.4991  U_t=0.0172  U_b=0.0207  AUC=0.9983  Top1=0.9611
+  timing: data=3.3ms  fwd=28.9ms  bwd=9.6ms  total=42.3ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-388/align_teacher_sched/ats_align_teacher_sched_best_loss.pth
+[   4100] loss=0.0147  ema_loss=0.0150  gap=0.0005  ema_gap=0.0010  mixup=0/100  15.2 sps  ETA 1.8h
+              R²_rand=0.9281  R²_naive=0.5125  U_t=0.0172  U_b=0.0208  AUC=0.9985  Top1=0.9656
+  timing: data=3.5ms  fwd=30.6ms  bwd=9.8ms  total=44.5ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-388/align_teacher_sched/ats_align_teacher_sched_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-388/align_teacher_sched/ats_align_teacher_sched_best_loss.pth
+[   4200] loss=0.0130  ema_loss=0.0141  gap=0.0008  ema_gap=0.0010  mixup=0/100  15.2 sps  ETA 1.7h
+              R²_rand=0.9251  R²_naive=0.5043  U_t=0.0171  U_b=0.0203  AUC=0.9977  Top1=0.9648
+  timing: data=3.4ms  fwd=27.9ms  bwd=9.6ms  total=41.4ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-388/align_teacher_sched/ats_align_teacher_sched_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-388/align_teacher_sched/ats_align_teacher_sched_best_loss.pth
+[   4300] loss=0.0121  ema_loss=0.0132  gap=0.0011  ema_gap=0.0010  mixup=0/100  15.3 sps  ETA 1.7h
+              R²_rand=0.9271  R²_naive=0.5229  U_t=0.0170  U_b=0.0196  AUC=0.9986  Top1=0.9687
+  timing: data=3.6ms  fwd=28.9ms  bwd=10.1ms  total=43.1ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-388/align_teacher_sched/ats_align_teacher_sched_best_loss.pth
+[   4400] loss=0.0114  ema_loss=0.0123  gap=0.0013  ema_gap=0.0011  mixup=0/100  15.3 sps  ETA 1.7h
+              R²_rand=0.9267  R²_naive=0.5480  U_t=0.0168  U_b=0.0196  AUC=0.9992  Top1=0.9705
+  timing: data=4.1ms  fwd=29.8ms  bwd=9.7ms  total=44.1ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-388/align_teacher_sched/ats_align_teacher_sched_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-388/align_teacher_sched/ats_align_teacher_sched_best_loss.pth
+[   4500] loss=0.0111  ema_loss=0.0116  gap=0.0017  ema_gap=0.0011  mixup=0/100  15.4 sps  ETA 1.7h
+              R²_rand=0.9304  R²_naive=0.5506  U_t=0.0167  U_b=0.0197  AUC=0.9970  Top1=0.9114
+  timing: data=3.5ms  fwd=28.7ms  bwd=10.2ms  total=42.9ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-388/align_teacher_sched/ats_align_teacher_sched_best_loss.pth
+[   4600] loss=0.0102  ema_loss=0.0109  gap=0.0002  ema_gap=0.0010  mixup=0/100  15.4 sps  ETA 1.7h
+              R²_rand=0.9342  R²_naive=0.4964  U_t=0.0168  U_b=0.0194  AUC=0.9966  Top1=0.9139
+  timing: data=3.5ms  fwd=27.9ms  bwd=9.3ms  total=41.2ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-388/align_teacher_sched/ats_align_teacher_sched_best_loss.pth
+[   4700] loss=0.0094  ema_loss=0.0104  gap=0.0009  ema_gap=0.0009  mixup=0/100  15.4 sps  ETA 1.7h
+              R²_rand=0.9406  R²_naive=0.5232  U_t=0.0167  U_b=0.0193  AUC=0.9984  Top1=0.9293
+  timing: data=3.3ms  fwd=28.4ms  bwd=9.6ms  total=41.9ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-388/align_teacher_sched/ats_align_teacher_sched_best_loss.pth
+[   4800] loss=0.0092  ema_loss=0.0098  gap=0.0018  ema_gap=0.0010  mixup=0/100  15.5 sps  ETA 1.7h
+              R²_rand=0.9325  R²_naive=0.5521  U_t=0.0166  U_b=0.0191  AUC=0.9983  Top1=0.9500
+  timing: data=3.8ms  fwd=28.1ms  bwd=11.3ms  total=43.7ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-388/align_teacher_sched/ats_align_teacher_sched_best_loss.pth
+[   4900] loss=0.0093  ema_loss=0.0093  gap=0.0007  ema_gap=0.0009  mixup=0/100  15.6 sps  ETA 1.7h
+              R²_rand=0.9386  R²_naive=0.5120  U_t=0.0165  U_b=0.0192  AUC=0.9988  Top1=0.9628
+  timing: data=3.5ms  fwd=20.5ms  bwd=11.3ms  total=35.8ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-388/align_teacher_sched/ats_align_teacher_sched_best_loss.pth
+[   5000] loss=0.0077  ema_loss=0.0087  gap=0.0007  ema_gap=0.0010  mixup=0/100  15.2 sps  ETA 1.7h
+              R²_rand=0.9467  R²_naive=0.5138  U_t=0.0166  U_b=0.0190  AUC=0.9980  Top1=0.9682
+  timing: data=120.1ms  fwd=18.8ms  bwd=9.8ms  total=149.2ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-388/align_teacher_sched/ats_align_teacher_sched_best_loss.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-388/align_teacher_sched/ats_align_teacher_sched_5k.pth
+[   5100] loss=0.0075  ema_loss=0.0081  gap=0.0013  ema_gap=0.0011  mixup=0/100  15.2 sps  ETA 1.7h
+              R²_rand=0.9447  R²_naive=0.5567  U_t=0.0164  U_b=0.0189  AUC=0.9988  Top1=0.9577
+  timing: data=3.7ms  fwd=30.4ms  bwd=9.5ms  total=44.1ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-388/align_teacher_sched/ats_align_teacher_sched_best_loss.pth
+[   5200] loss=0.0070  ema_loss=0.0076  gap=0.0012  ema_gap=0.0010  mixup=0/100  15.2 sps  ETA 1.7h
+              R²_rand=0.9444  R²_naive=0.5478  U_t=0.0165  U_b=0.0186  AUC=0.9972  Top1=0.9074
+  timing: data=3.3ms  fwd=26.0ms  bwd=12.4ms  total=42.3ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-388/align_teacher_sched/ats_align_teacher_sched_best_loss.pth
+[   5300] loss=0.0075  ema_loss=0.0071  gap=0.0005  ema_gap=0.0010  mixup=0/100  15.2 sps  ETA 1.7h
+              R²_rand=0.9405  R²_naive=0.5162  U_t=0.0164  U_b=0.0187  AUC=0.9984  Top1=0.9693
+  timing: data=3.3ms  fwd=27.6ms  bwd=12.4ms  total=43.8ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-388/align_teacher_sched/ats_align_teacher_sched_best_loss.pth
