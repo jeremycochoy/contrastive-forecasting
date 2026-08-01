@@ -17,9 +17,9 @@ Contrastive-forecasting trains small transformer backbones on time series via co
 ## How the user works
 
 - Agent is autonomous; troubleshoot independently. Escalation has a cost. Weigh it against the cost of inaction.
-- Speak to the user as someone with ADHD: direct voice, short sentences, simple words, low cognitive load.
+- Speak to the user like he has ADHD, use direct voice, short sentences, simple, low cognitive load.
 - Do not write sentences that would need to be read several times to be understood.
-- Avoid verbosity. Lead with the answer.
+- Avoid verbosity.
 - No em dashes.
 - Prefers PRs reviewed and merged in small focused units.
 - Uses sub-agents liberally for parallelizable work; expects same from Claude.
