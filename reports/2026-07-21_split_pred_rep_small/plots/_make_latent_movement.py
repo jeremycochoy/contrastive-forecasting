@@ -23,6 +23,8 @@ CLI / env knobs (all optional):
     --batch-cache PATH   cache path for the fixed batch (default:
                          HERE/_latent_movement_batch.pt)
     --out PATH           output png (default: HERE/latent_movement_per_arm.png)
+    --dump-csv PATH      also write per-pair drift values as CSV, so downstream
+                         figures do not need a GPU to re-derive them
 """
 from __future__ import annotations
 
@@ -187,6 +189,8 @@ def parse_args() -> argparse.Namespace:
                    help="Use a deterministic ARMA batch instead of HF stream.")
     p.add_argument("--batch-cache", default=str(HERE / "_latent_movement_batch.pt"))
     p.add_argument("--out", default=str(HERE / "latent_movement_per_arm.png"))
+    p.add_argument("--dump-csv", default=None,
+                   help="write per-checkpoint-pair drift values to this CSV")
     return p.parse_args()
 
 
@@ -313,6 +317,16 @@ def main() -> None:
         mv_e  = [p[2] for p in points]
         per_arm[slug] = (steps, mv_h, mv_e, colour, label)
         print(f"  {label}: {len(points)} pairs → h_last={mv_h[-1]:.4f}  e_last={mv_e[-1]:.4f}")
+
+    if args.dump_csv:
+        import csv as _csv
+        with open(args.dump_csv, "w", newline="") as fh:
+            w = _csv.writer(fh)
+            w.writerow(["arm_slug", "label", "step_later", "drift_h", "drift_e"])
+            for slug, (steps, mv_h, mv_e, _c, label) in per_arm.items():
+                for st, h, e in zip(steps, mv_h, mv_e):
+                    w.writerow([slug, label, st, f"{h:.6f}", f"{e:.6f}"])
+        print(f"wrote {args.dump_csv}")
 
     y_h_max = max((max(mv_h) for _, mv_h, _, _, _ in per_arm.values()), default=1.0)
     y_h_min = min((min(mv_h) for _, mv_h, _, _, _ in per_arm.values()), default=0.0)

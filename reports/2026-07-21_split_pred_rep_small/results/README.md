@@ -7,6 +7,7 @@
 | `training_curves/<run>_losses.csv` | per-step backbone training metrics: `loss`, `gap`, `ff`, `u_batchtime`, `u_batchtime_e`, `sigreg_e`, `sigreg_h`, `cpc_aux`, `auc`, `top1`, `top3` and more (26 columns). **Downsampled**: every step up to 500, then every 200th step. |
 | `attn_amplitude/<run>_attn_amplitude.csv` | per-layer attention amplitude diagnostics (`qk_logit_maxabs`, `sa_in_maxabs`, `sa_out_maxabs`, `resid_post_sa_maxabs`, `resid_post_ffn_maxabs`), logged every 200 steps. |
 | `seasonal_naive_all_results.csv` | the seasonal-naive baseline, one row per config. This is the denominator of every GM-Relative MASE in the report — `MASE(model) / MASE(seasonal_naive)`, geometric mean over configs. |
+| `latent_movement_pairs.csv` | one row per cell per adjacent-checkpoint pair: `step_later`, `drift_h`, `drift_e`. Produced by `plots/_make_latent_movement.py --dump-csv`, so the drift figures can be rebuilt without a GPU. |
 | `wave_d_metrics.csv` | one row per cell at the step-40k snapshot: end-of-window `ff`, `u_batchtime`, and `h_t` / `e_t` latent drift. |
 
 Cell naming is `<arm><variant>_bb<backbone step>k_hd<head steps>s`, e.g. `arm6_v2_combab_bb100k_hd30000s`.

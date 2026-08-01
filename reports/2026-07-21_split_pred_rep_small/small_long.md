@@ -54,6 +54,22 @@ How far the latents of a fixed held-out batch rotate between one saved checkpoin
 
 ![u_batchtime per arm, one panel per arm × setting, h_t solid and e_t dashed, x-axis log training step.](plots/dim_usage_per_arm.png)
 
+## The cells that kept improving to 200k
+
+### 10. Per-domain trajectory of each improving cell
+
+One radar per cell, each with its own radial scale, overlaying the three backbone horizons. A shared scale would flatten the cells whose values move by only a few hundredths. `arm6_v2 combab` is included as the reference the others are chasing, even though it is flat over 100k→200k.
+
+![Six radar panels, one per cell, each over the 7 GIFT-Eval domains with its own log2 radial scale; three overlaid polygons per panel for backbone 40k, 100k and 200k; a red dashed ring marks seasonal-naive parity.](plots/eval_domain_radar_improvers.png)
+
+### 11. Latent movement against the improvement
+
+Panels 1 and 2 put `h_t` drift and GM-Relative MASE on the same log-step axis for those same cells. Panel 3 is the test the first two cannot supply: panels 1 and 2 show only cells selected for having improved, so they cannot say whether drift distinguishes improvers from the rest. Panel 3 plots mean late-window drift against the 100k→200k change for all 10 extended cells, the 5 that worsened included.
+
+![Three panels: h_t drift between adjacent checkpoints for six cells with the 100k-200k window shaded; the GM-Relative MASE of the same cells on the same log-step axis; and a scatter of mean late-window h_t drift against the 100k-to-200k GM-MASE change for all ten extended cells, coloured green for improved and red for worsened.](plots/drift_vs_improvement.png)
+
+Across the 10 extended cells, mean `h_t` drift over the 100k→200k checkpoints and the GM-Relative MASE change over the same stretch have Spearman ρ = −0.03. The two cells with the lowest late drift, `bimoco base` (0.587) and `arm6_v2 combab` (0.740), sit on opposite sides of zero change, and the four largest improvements all come from cells whose late drift is above 0.92. On these 10 cells, at this window, latent movement does not separate the cells that improved from the cells that did not.
+
 ## Architectures
 
 ### Six loss recipes
