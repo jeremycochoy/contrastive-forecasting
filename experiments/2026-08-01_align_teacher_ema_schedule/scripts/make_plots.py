@@ -13,7 +13,7 @@ Writes the report's five figures into plots/:
     drift_500.png         adjacent 500-step drift, the four new runs
 
 and one supporting figure into plots/supporting/, which the issue does not
-ask for and the report does not carry:
+ask for:
 
     dim_usage.png         how much of h_t stays alive. A flat drift curve
                           is either a stable representation or a dead one,
@@ -242,26 +242,19 @@ def plot_alpha(alpha_csv, out_png):
         for r in csv.DictReader(fh):
             series[r["run"]].append((int(r["step"]), float(r["ema_tau"])))
     fig, ax = plt.subplots(figsize=(7.2, 4.0))
-    # The three scheduled runs share one schedule, so their lines coincide
-    # exactly. Nested widths keep all four legend entries visible on the
-    # figure instead of leaving whichever drew last as the only one.
-    # The three scheduled runs share one line exactly, so the legend carries
-    # two entries: the constant arm and the schedule the other three share.
-    seen = set()
+    # One line per DISTINCT schedule, not one per run: the three scheduled
+    # runs share one identical ramp, so drawing them separately would put
+    # more entries in the legend than there are visible curves.
+    distinct = {}
     for run, pts in sorted(series.items()):
-        pts.sort()
+        distinct.setdefault(tuple(sorted(pts)), []).append(run)
+    for pts, runs in sorted(distinct.items(), key=lambda kv: kv[0][-1][1]):
         sched = len({p[1] for p in pts}) > 1
-        label = ("0.9 to 1.0 linear (three scheduled runs)" if sched
-                 else "0.9 constant (align_teacher_a09)")
+        label = (r"$\alpha:0.9\rightarrow1.0$ linear"
+                 if sched else r"$\alpha=0.9$ constant")
         ax.plot([p[0] for p in pts], [p[1] for p in pts],
                 color="#1f78b4" if sched else "#555555", lw=2.0,
-                label=None if label in seen else label,
-                solid_capstyle="butt")
-        seen.add(label)
-    ax.axhline(0.9, color="#b0b0b0", linestyle="--", linewidth=1.0)
-    ax.text(0.01, 0.9, "prior runs: α = 0.9 for the whole run",
-            transform=ax.get_yaxis_transform(), ha="left", va="bottom",
-            fontsize=8, color="#707070")
+                label=label, solid_capstyle="butt")
     style_axes(ax, "EMA momentum α", logx=False)
     ax.set_ylim(0.88, 1.02)
     ax.legend(frameon=False, fontsize=9, loc="lower right")
@@ -410,7 +403,7 @@ def main():
     support = os.path.join(plots, "supporting")
     os.makedirs(support, exist_ok=True)
     plot_alpha(os.path.join(res, "alpha_schedule.csv"),
-               os.path.join(support, "alpha_schedule.png"))
+               os.path.join(plots, "alpha_schedule.png"))
     plot_dim_usage(os.path.join(res, "loss_curve.csv"),
                    os.path.join(support, "dim_usage.png"))
 

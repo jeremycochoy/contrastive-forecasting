@@ -54,13 +54,6 @@ its predecessor. The `align_teacher` panel climbs to 0.8529 at 100k while the
 same run's adjacent-window drift stays at 0.0123: slow per-window drift still
 accumulates, so the representation is not fixed in place.*
 
-![Drift between probes 500 steps apart](plots/drift_500.png)
-
-*The in-training probe, 500-step spacing, the four runs of this card only. Only
-`align_teacher` was run at both α settings, so the other two panels carry the
-schedule alone. All arms drop below 0.1 between 1000 and 2000 steps and stay
-there.*
-
 For the earlier `align` arm, raw adjacent `drift_cos` spans 0.0133 to 1.3226, while
 `drift_cos_aligned` peaks at 0.0464 and stays at or below 1e-5 from 40k on.
 Removing the global feature-axis rotation removes nearly all of the raw drift.
@@ -71,6 +64,23 @@ of 64, so the schedule has almost nothing to act on. On the MoCo arms the
 schedule lowers late-window mean `drift_cos_aligned`, from 0.2942 to 0.1111
 (`pred_moco`) and from 0.1240 to 0.0258 (`rep_moco`); both are single-seed
 differences that no spread supports.
+
+## The α schedule
+
+![EMA momentum against training step](plots/alpha_schedule.png)
+
+*The two α settings used here. `align_teacher_a09` holds α = 0.9; the three
+scheduled runs share the same 0.9 → 1.0 linear ramp over 100k steps, so they
+draw one line.*
+
+## Drift at 500-step spacing
+
+![Drift between probes 500 steps apart](plots/drift_500.png)
+
+*The in-training probe, 500-step spacing, the four runs of this card only. Only
+`align_teacher` was run at both α settings, so the other two panels carry the
+schedule alone. All arms drop below 0.1 between 1000 and 2000 steps and stay
+there.*
 
 ## What this measures
 
