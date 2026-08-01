@@ -6,12 +6,7 @@ Going from 40k to 100k, 10 of 30 cells improve. Of those 10 taken on to 200k, 5 
 
 Definitions of each recipe and each setting are in [Architectures](#architectures); all numbers are in [Results](#results).
 
-> **⚠ `L_align` targets the student latent, not the EMA teacher latent.**
-> `L_align = (2 − 2·cos(f_t, sg(h_{t+1}))).mean()`, and `h_{t+1}` there is the **student** encoder output with a stop-gradient on it — `src/loss.py:2543` applies `hy_norm.detach()`, where `hy_norm` is derived from `original_latent` (`src/loss.py:1030-1035`). The EMA teacher latent is a separate variable, `teacher_original_latent` (`src/loss.py:1039`), and the other terms that use it — `L_rep_moco`, `align_moco_loss` — read it explicitly. `L_align` never does.
->
-> The intended design was to forecast the EMA teacher latent. What ran is the stop-grad-student form (SimSiam-style) rather than the EMA-teacher form (BYOL-style). This affects the two recipes carrying `L_align`: **`arm5`** (`L_align + L_rep`) and **`arm6_v2`** (`L_align + L_rep_moco`) — the latter includes `arm6_v2 combab`, the lowest-scoring cell in this study.
->
-> The runs were not recomputed. Every number below is what the code above produced, so read `L_align` throughout this report as the stop-grad-student term.
+⚠ `L_align` targets the stop-gradded student latent, not the EMA teacher latent it was meant to (`src/loss.py:2543`); affects `arm5` and `arm6_v2`, not recomputed.
 
 ## Figures
 
