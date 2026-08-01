@@ -5,6 +5,11 @@
 #
 # elisa has two RTX 4090s. Each arm is the small #379 backbone (720k
 # params, ~5 MB checkpoint), so two arms share a card comfortably.
+#
+# Checkpoints go to /home/jupyter/checkpoints_backup/cf-388/, outside the
+# worktree, so a `git worktree remove` cannot delete them. The
+# full-resolution <run>_losses.csv (~30 MB each) stay in that run dir;
+# results/ carries only the every-100-steps reduction the figures read.
 set -uo pipefail
 
 STEPS="${1:-100000}"

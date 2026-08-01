@@ -206,12 +206,19 @@ def plot_alpha(alpha_csv, out_png):
     # The three scheduled runs share one schedule, so their lines coincide
     # exactly. Nested widths keep all four legend entries visible on the
     # figure instead of leaving whichever drew last as the only one.
-    items = sorted(series.items())
-    for i, (run, pts) in enumerate(items):
+    # The three scheduled runs share one line exactly, so the legend carries
+    # two entries: the constant arm and the schedule the other three share.
+    seen = set()
+    for run, pts in sorted(series.items()):
         pts.sort()
+        sched = len({p[1] for p in pts}) > 1
+        label = ("0.9 to 1.0 linear (three scheduled runs)" if sched
+                 else "0.9 constant (align_teacher_a09)")
         ax.plot([p[0] for p in pts], [p[1] for p in pts],
-                color=RUN_COLOR.get(run, "#555555"),
-                lw=4.0 - 0.9 * i, label=run, solid_capstyle="butt")
+                color="#1f78b4" if sched else "#555555", lw=2.0,
+                label=None if label in seen else label,
+                solid_capstyle="butt")
+        seen.add(label)
     ax.axhline(0.9, color="#b0b0b0", linestyle="--", linewidth=1.0)
     ax.text(0.01, 0.9, "prior runs: α = 0.9 for the whole run",
             transform=ax.get_yaxis_transform(), ha="left", va="bottom",
@@ -271,8 +278,15 @@ def plot_drift_500(path, out_png):
         ax.set_title(arm, fontsize=11)
         style_axes(ax, "drift_cos ($h_t$), 500-step pairs"
                    if arm == TEACHER_ARMS[0] else None)
-    fig.legend(handles=legend_handles(["const_0.9", "sched_0.9_1.0"]),
-               loc="lower center", ncol=4, frameon=False, fontsize=10,
+        # Only align_teacher has both α settings in this probe; a shared
+        # legend would advertise a constant-α curve the other panels lack.
+        present = sorted({a for a, _, _ in curves(series, arm, "adjacent")})
+        ax.legend(handles=[Line2D([], [], color="#555555", lw=1.8,
+                                  linestyle=STYLE[a], label=ALPHA_LABEL[a])
+                           for a in present],
+                  frameon=False, fontsize=8.5, loc="upper right")
+    fig.legend(handles=legend_handles([]),
+               loc="lower center", ncol=2, frameon=False, fontsize=10,
                bbox_to_anchor=(0.5, -0.01))
     fig.suptitle("Drift of $h_t$ between probes 500 steps apart "
                  "(the four new runs only)", fontsize=13)
@@ -317,9 +331,13 @@ def plot_dim_usage(loss_csv, out_png, n_dims=64):
             # constant-α is drawn as a wide pale band so the scheduled
             # curve stays visible where the two coincide.
             wide = ls == "-"
+            # The constant-α band must stay visible under the scheduled
+            # curve where the two coincide: wide enough to show on both
+            # sides, and the dashes are long-gapped so it shows through.
+            kw = dict(lw=6.0, alpha=0.30) if wide else dict(
+                lw=1.6, dashes=(5, 4))
             ax.plot([p[0] for p in pts], [p[1] for p in pts], color=color,
-                    linestyle=ls, lw=3.4 if wide else 1.4,
-                    alpha=0.35 if wide else 1.0, label=label)
+                    linestyle=ls, label=label, **kw)
         ax.axhline(1.0 / n_dims, color="#b0b0b0", linestyle=":", linewidth=1.0)
         ax.text(0.01, 1.0 / n_dims, f"collinear $h_t$ (1/{n_dims})",
                 transform=ax.get_yaxis_transform(), ha="left", va="bottom",
@@ -347,13 +365,13 @@ def main():
     series = read_drift(os.path.join(res, "drift.csv"))
     plot_headline(series, os.path.join(plots, "drift_headline.png"))
     plot_align_fix(series, os.path.join(plots, "align_fix.png"))
-    plot_alpha(os.path.join(res, "alpha_schedule.csv"),
-               os.path.join(plots, "alpha_schedule.png"))
     plot_cumulative(series, os.path.join(plots, "cumulative_drift.png"))
     plot_drift_500(os.path.join(res, "drift_500.csv"),
                    os.path.join(plots, "drift_500.png"))
     support = os.path.join(plots, "supporting")
     os.makedirs(support, exist_ok=True)
+    plot_alpha(os.path.join(res, "alpha_schedule.csv"),
+               os.path.join(support, "alpha_schedule.png"))
     plot_dim_usage(os.path.join(res, "loss_curve.csv"),
                    os.path.join(support, "dim_usage.png"))
 

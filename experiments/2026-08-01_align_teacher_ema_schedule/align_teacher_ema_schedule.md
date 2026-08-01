@@ -1,37 +1,38 @@
-# Pointing L_align at the EMA teacher removes the latent drift, and both align arms end on one direction
+# Pointing L_align at the EMA teacher removes the checkpoint-to-checkpoint drift, and both align arms end using one direction out of 64
 
-**TL;DR.** With the target fixed to the EMA teacher's latent, early `drift_cos`
-falls from 1.0715 to 0.0531. Both align arms end at the dimension-usage floor,
-one live direction out of 64, so that low drift is measured on a representation
-with almost nothing left to rotate.
-
-## The target fix
+**TL;DR.** Making the `L_align` target the exponential-moving-average (EMA)
+teacher's latent cuts early `drift_cos` between checkpoints 5000 steps apart
+from 1.0715 to 0.0531. Both align arms finish within 7% and 16% of the
+dimension-usage floor along the time axis, so that low drift is measured on a
+representation with almost nothing left to rotate.
 
 ![L_align with the teacher as target](plots/align_fix.png)
 
-*`drift_cos` of the student `h_t` between checkpoints 5000 steps apart, fixed
-ARMA probe batch, α = 0.9 constant. Purple: the earlier `align` arm, whose
-target was the student's own `sg(h_{t+1})`. Blue: `align_teacher`, target = EMA
-teacher `h_{t+1}`. The orange band is the EMA-teacher latent of the same run;
-it lies under the student curve. Mean over 10k-25k: 1.0715 against 0.0531.*
-
-## Why that number does not mean the representation settled
+*`drift_cos` = 1 − mean cosine similarity between two sets of encoder latents
+`h_t`, on one fixed probe batch: a single ARMA draw of 64 series, 1024 raw
+timesteps, seed 20260722, shared by every checkpoint of every run. 0 means the
+representation did not move, 1 means orthogonal. Checkpoints 5000 steps apart,
+α = 0.9 constant, where α is the weight the teacher keeps on itself in
+`θ_teacher ← α·θ_teacher + (1 − α)·θ_student`, applied after every optimizer
+step. Purple: the earlier `align` arm, whose target was the student's own
+stop-gradient `sg(h_{t+1})`. Blue: `align_teacher`, target = EMA teacher
+`h_{t+1}`. The orange band is the EMA-teacher latent of the same run; it lies
+under the student curve.*
 
 ![Dimension usage](plots/supporting/dim_usage.png)
 
-*`U = 1/(64 · mean cos²)` over the time axis, from the training logs. 1 is
-isotropic, 1/64 = 0.015625 means every timestep points the same way. At 100k:
-`align_teacher` 0.0167 with α = 0.9 and 0.0182 with the schedule, the earlier
-`align` arm exactly 0.015625, `rep_moco` 0.5800 and `rep_moco_sched` 0.5609,
-`pred_moco` 0.0443 and `pred_moco_sched` 0.0510. Wide pale curves are constant
-α, dashed are the schedule; on the MoCo arms the two coincide.*
+*Dimension usage `U = 1/(d · mean cos²)` with `d = 64`, measured over the time
+axis, from the training logs. 1 is isotropic, 1/64 = 0.015625 means every
+timestep points the same way. At 100k, `align_teacher` reads 0.016709 with
+α = 0.9 and 0.018166 with the schedule, 7% and 16% above the floor. Along the
+batch axis the same two runs read 0.057068 and 0.074540, well off the floor:
+the collapse is across time, not across the batch. Wide pale curves are
+constant α, dashed are the schedule; on the MoCo (momentum-contrast) arms the
+two nearly coincide.*
 
-`dim_usage` L2-normalises before measuring, so it reports direction only. The
-rotation-invariant columns of `results/drift.csv` say the same thing about the
-earlier `align` arm: raw adjacent `drift_cos` spans 0.0133 to 1.3226, while
-`drift_cos_aligned` peaks at 0.0464 and sits at or below 0.0001 from 40k
-onward, and `cka` against the 5k checkpoint is 0.0000 at 100k. Removing the
-global feature-axis rotation removes nearly all of the raw drift.
+One seed per arm and one probe batch, so every ratio here is a single
+measurement without a spread. No downstream forecasting evaluation was run in
+this experiment.
 
 ## All arms, same probe
 
@@ -44,42 +45,32 @@ dashed is α: 0.9 → 1.0.*
 ![Cumulative drift away from the 5k checkpoint](plots/cumulative_drift.png)
 
 *Same probe, each checkpoint compared to the run's 5k checkpoint instead of to
-its predecessor. `rep_moco` ends close to orthogonal at 100k: 0.9870 with
-constant α, 0.9719 with the schedule.*
+its predecessor. The `align_teacher` panel climbs to 0.8529 at 100k while the
+same run's adjacent-window drift stays at 0.0123: slow per-window drift still
+accumulates, so the representation is not fixed in place.*
 
 ![Drift between probes 500 steps apart](plots/drift_500.png)
 
-*The in-training probe, 500-step spacing, four runs of this card only. All three
-arms drop below 0.1 between 1000 and 2000 steps and stay there.*
+*The in-training probe, 500-step spacing, the four runs of this card only. Only
+`align_teacher` was run at both α settings, so the other two panels carry the
+schedule alone. All arms drop below 0.1 between 1000 and 2000 steps and stay
+there.*
 
-## The α schedule
+For the earlier `align` arm, raw adjacent `drift_cos` spans 0.0133 to 1.3226, while
+`drift_cos_aligned` peaks at 0.0464 and stays at or below 1e-5 from 40k on.
+Removing the global feature-axis rotation removes nearly all of the raw drift.
 
-![EMA momentum against training step](plots/alpha_schedule.png)
-
-*α is the weight the teacher keeps on itself in `θ_teacher ← α·θ_teacher +
-(1 − α)·θ_student`, applied after every optimizer step. The three scheduled runs
-share one line; `align_teacher_a09` is the flat line at 0.9.*
-
-Stated rotation-invariantly, on `drift_cos_aligned` against the 5k checkpoint at
-100k, the schedule moves `rep_moco` from 0.7836 to 0.7789 and `pred_moco` from
-0.4619 to 0.4588. On `align_teacher` the late-window raw `drift_cos` reads
-0.0123 with constant α and 0.0120 with the schedule; both sit at the floor, and
-a metric at its floor cannot move, so this arm carries no information about the
-schedule. One seed per arm and one probe batch, so every ratio here is a single
-measurement without a spread.
-
-No downstream forecasting evaluation was run in this experiment.
+On `align_teacher` the late-window raw `drift_cos` reads 0.0123 with constant α
+and 0.0120 with the schedule, on a representation that uses one direction out
+of 64, so the schedule has almost nothing to act on. On the MoCo arms the
+schedule moves `drift_cos_aligned` by 0.0047 (`rep_moco`) and 0.0031
+(`pred_moco`); both are single-seed differences that no spread supports.
 
 ## What this measures
 
-`drift_cos` is one minus the mean cosine similarity between two sets of encoder
-latents `h_t` on the same fixed ARMA probe batch, rows L2-normalised. 0 means
-the representation did not move, 1 means orthogonal.
-
-`drift_cos_aligned` is the same quantity after a Procrustes rotation removes the
-best global feature-axis rotation: the movement a downstream linear head cannot
-absorb. `rot_gap` is the difference, the part that is pure rotation. `cka` is
-linear centered CKA, rotation- and scale-invariant, in [0, 1].
+`drift_cos_aligned` is `drift_cos` after a Procrustes rotation removes the best
+global feature-axis rotation: the movement a downstream linear head cannot
+absorb. `cka` is linear centered CKA, rotation- and scale-invariant, in [0, 1].
 
 ## Runs
 
@@ -97,12 +88,40 @@ were not re-run.
 | `pred_moco_sched` | `L_pred` + MoCo negatives | 0.9 → 1.0 linear |
 | `rep_moco_sched` | `L_rep` + MoCo keys | 0.9 → 1.0 linear |
 
-## Drift per arm and latent
+## Drift against the 5k checkpoint, at 100k
 
-`drift_cos` of the adjacent-checkpoint probe, averaged over the two windows.
-Slope is per decade of training step, from `results/summary.csv`.
+Student `h_t`, from `results/drift.csv` (`kind=vs_initial`).
 
-| Run | Latent | α | mean 10k-25k | mean 80k-100k | slope / decade |
+| Run | α | drift_cos vs 5k | drift_cos_aligned vs 5k | cka vs 5k |
+|---|---|---|---|---|
+| `align` | none | 1.237727 | 0.000035 | 0.000000 |
+| `align_teacher_a09` | const 0.9 | 0.852939 | 0.011372 | 0.368196 |
+| `align_teacher_sched` | 0.9 → 1.0 | 0.697010 | 0.029031 | 0.288741 |
+| `pred_moco` | const 0.9 | 0.899133 | 0.461897 | 0.158591 |
+| `pred_moco_sched` | 0.9 → 1.0 | 0.924765 | 0.458751 | 0.171612 |
+| `rep_moco` | const 0.9 | 0.986973 | 0.783621 | 0.084590 |
+| `rep_moco_sched` | 0.9 → 1.0 | 0.971899 | 0.778909 | 0.084094 |
+
+## Dimension usage at 100k
+
+From `results/loss_curve.csv`, floor 1/64 = 0.015625 on both axes.
+
+| Run | U, time axis | U, batch axis |
+|---|---|---|
+| `align` | 0.015625 | 0.015625 |
+| `align_teacher_a09` | 0.016709 | 0.057068 |
+| `align_teacher_sched` | 0.018166 | 0.074540 |
+| `pred_moco` | 0.044333 | 0.559589 |
+| `pred_moco_sched` | 0.050975 | 0.597697 |
+| `rep_moco` | 0.580033 | 0.794081 |
+| `rep_moco_sched` | 0.560926 | 0.827109 |
+
+## Adjacent-checkpoint drift per arm and latent
+
+Mean `drift_cos` of the adjacent-checkpoint probe over each window. Slope is
+per decade of training step, from `results/summary.csv`.
+
+| Run | Latent | α | mean drift_cos 10k-25k | mean drift_cos 80k-100k | slope / decade |
 |---|---|---|---|---|---|
 | `pred` | student | none | 0.5672 | 0.7837 | +0.2778 |
 | `rep` | student | none | 0.8281 | 0.4090 | −0.3678 |
@@ -130,14 +149,3 @@ WT=$PWD bash experiments/2026-08-01_align_teacher_ema_schedule/scripts/smoke.sh 
 WT=$PWD bash experiments/2026-08-01_align_teacher_ema_schedule/scripts/orchestrate.sh 100000
 WT=$PWD bash experiments/2026-08-01_align_teacher_ema_schedule/scripts/analyse.sh 0
 ```
-
-`orchestrate.sh` runs the four arms two per GPU on elisa and writes checkpoints
-to `/home/jupyter/checkpoints_backup/cf-388/`, outside the worktree.
-`monitor.sh` ticks every 15 minutes: it copies the training CSVs into `sync/`
-(a local mirror, git-ignored) and watches for NaN and for a trainer that died
-before the budget. `analyse.sh` runs the post-hoc probe over every 5000-step
-checkpoint of both experiments, reduces the training CSVs, and writes the tables
-and the figures.
-
-The full-resolution `<run>_losses.csv` (~30 MB each) stay in the run directory;
-`results/` carries the every-100-steps reduction the figures read.
