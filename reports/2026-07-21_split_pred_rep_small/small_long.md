@@ -10,29 +10,35 @@ Definitions of each recipe and each setting are in [Architectures](#architecture
 
 ### 1. GM-Relative MASE across backbone horizons
 
-Each line is one cell. Cells reaching 200k are marked `←200k` in the label; every label carries the cell's last value and its change from the previous horizon.
+One panel per loss recipe, sharing axes. Inside a panel the five settings are coloured and the other 25 cells are grey, so each recipe is readable on its own and still in context. Labels carry the cell's last value and its change from the previous horizon; `←200k` marks the cells extended to 200k.
 
-![Slope chart of GM-Relative MASE at backbone 40k (head 15k), 100k (head 30k) and 200k (head 30k); all 30 cells span the first two horizons, the 10 that improved continue to the third; line colour = loss recipe, line style = setting; arm1 combab clipped at 1.85 (its 40k value is 3.13).](plots/eval_2L_gm_mase_progression.png)
+![Six panels, one per loss recipe, each plotting GM-Relative MASE at backbone 40k (head 15k), 100k (head 30k) and 200k (head 30k); the panel's own five settings are in colour with the other 25 cells in grey; line style encodes the setting; the grey horizontal band is ±0.01 around the best cell; arm1 combab's 3.13 at 40k is annotated above the axis.](plots/eval_2L_gm_mase_progression.png)
 
-### 2. Ranking at backbone 40k
+### 2. GM-Relative MASE per dataset domain
+
+The headline number is one geometric mean over all 97 configs. These radars apply that same geometric mean inside each of the 7 GIFT-Eval domains, so a cell's strong and weak domains are visible instead of averaged away. Left: the 3 lowest cells, each at its last evaluated backbone step. Right: every cell that improved from 100k to 200k.
+
+![Two radar charts over the 7 GIFT-Eval dataset domains, radial axis log2 of the GM-Relative MASE ratio; a red dashed ring marks seasonal-naive parity at 1.0, inside it the model is better; left panel the 3 lowest cells, right panel the 5 cells that improved from backbone 100k to 200k.](plots/eval_domain_radar.png)
+
+### 3. Ranking at backbone 40k
 
 ![Bar chart of GM-Relative MASE for all 30 cells at backbone step 40k, head 15k steps, sorted ascending; red dashed line at 1.0 = seasonal-naive; arm1 combab (3.13) clipped at 1.75.](plots/eval_2L_gm_mase_bars.png)
 
-### 3. Ranking at backbone 100k
+### 4. Ranking at backbone 100k
 
 ![Bar chart of GM-Relative MASE for all 30 cells at backbone step 100k, head 30k steps, sorted ascending; red dashed line at 1.0 = seasonal-naive.](plots/eval_2L_gm_mase_bars_100k.png)
 
-### 4. Latent movement between adjacent checkpoints
+### 5. Latent movement between adjacent checkpoints
 
 How far the latents of a fixed held-out batch rotate between one saved checkpoint and the next. Rows = setting, columns = `h_t` / `e_t`.
 
 ![Latent drift per adjacent-checkpoint pair, 5 rows (base / tr1 / nse / ncpc / combab) × 2 columns (h_t encoder output, e_t patch embedding), x-axis log training step, y shared per column.](plots/latent_movement_per_arm.png)
 
-### 5. Forecast-to-latent distance `1 − ff` during training
+### 6. Forecast-to-latent distance `1 − ff` during training
 
 ![1 − ff per arm across training steps, one panel per setting (base / tr1 / nse / ncpc / combab), shared y axis, x-axis log training step.](plots/cos_error_per_arm.png)
 
-### 6. Dimension usage `u_batchtime` during training
+### 7. Dimension usage `u_batchtime` during training
 
 ![u_batchtime per arm, one panel per arm × setting, h_t solid and e_t dashed, x-axis log training step.](plots/dim_usage_per_arm.png)
 
@@ -112,7 +118,24 @@ Ranked by the 100k value. A dash in the 200k columns means the cell was not exte
 | 29 | `arm3 nse`        | 1.4432 | 1.7372 | +0.2940 | — | — |
 | 30 | `arm1 combab`     | 3.1251 | 1.7595 | −1.3656 | 1.7107 | −0.0488 |
 
-**On the ±0.01 error bars in figures 2 and 3.** Each cell is `N=1`, so this is not a measured seed-replicate interval for this experiment. It is a constant borrowed from the 2026-05-08 τ-sweep paired reruns via the [LeJEPA-SIGReg-τ report annex F](../2026-06-21_lejepa_sigreg_tau098/lejepa_sigreg_tau098.md#f-seed-noise-band), shown as a visual reference for "differences smaller than this have previously turned out to be within-seed noise", not as a confidence interval for this ranking.
+**On the ±0.01 error bars in figures 3 and 4.** Each cell is `N=1`, so this is not a measured seed-replicate interval for this experiment. It is a constant borrowed from the 2026-05-08 τ-sweep paired reruns via the [LeJEPA-SIGReg-τ report annex F](../2026-06-21_lejepa_sigreg_tau098/lejepa_sigreg_tau098.md#f-seed-noise-band), shown as a visual reference for "differences smaller than this have previously turned out to be within-seed noise", not as a confidence interval for this ranking.
+
+### GM-Relative MASE per domain, the cells evaluated at backbone 200k
+
+Same geometric mean as the headline number, restricted to each domain. Values below 1.0 beat seasonal-naive on that domain. The reference is `results/seasonal_naive_all_results.csv`; the per-config rows are in `results/eval_gm_mase/<cell>/all_results.csv`.
+
+| Cell (bb 200k) | Energy (32) | Web/CloudOps (20) | Transport (15) | Nature (15) | Econ/Fin (6) | Healthcare (5) | Sales (4) | all 97 |
+|---|---|---|---|---|---|---|---|---|
+| `arm6_v2 combab` | 1.420 | 1.216 | 1.023 | **0.857** | 1.387 | 1.144 | **0.785** | 1.1652 |
+| `arm5 combab` | 1.437 | 1.291 | 1.030 | **0.864** | 1.578 | 1.278 | **0.787** | 1.2034 |
+| `arm6_v2 ncpc` | 1.586 | 1.368 | 1.165 | **0.915** | 1.706 | 1.224 | **0.844** | 1.3011 |
+| `arm1 nse` | 1.594 | 1.368 | 1.226 | **0.954** | 1.823 | 1.225 | **0.898** | 1.3308 |
+| `bimoco base` | 1.668 | 1.554 | 1.195 | **0.978** | 2.192 | 1.234 | **0.840** | 1.3993 |
+| `arm1 ncpc` | 1.617 | 1.559 | 1.173 | **0.998** | 2.442 | 1.329 | **0.886** | 1.4041 |
+| `arm1 combab` | 1.985 | 1.799 | 1.379 | 1.208 | 3.934 | 1.572 | 1.068 | 1.7107 |
+| *cells below 1.0, of 10* | 0/10 | 0/10 | 0/10 | 7/10 | 0/10 | 0/10 | 9/10 | 0/10 |
+
+All 10 extended cells are above 1.0 on Energy, Web/CloudOps, Transport, Econ/Fin and Healthcare. On Nature 7 of 10 are below 1.0 and on Sales 9 of 10 are. Energy carries 32 of the 97 configs and Sales 4, so the domains where these cells beat seasonal-naive are the ones with least weight in the headline geometric mean.
 
 ### Latent drift, setting vs base
 
