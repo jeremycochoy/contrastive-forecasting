@@ -21,7 +21,11 @@ ask for and the report does not carry:
                           L_align panels: both align arms sit within ~10%
                           of the collinear floor on the time axis.
 
-Encoding used everywhere: colour = which encoder (student / EMA
+Encoding in drift_headline.png: one colour per named series, so a curve
+is identified from a single legend row. No crossed colour/line-style
+encoding, no band-under-line drawing.
+
+Encoding in the other figures: colour = which encoder (student / EMA
 teacher), line style = the α schedule (solid = constant, dashed =
 0.9 -> 1.0).
 """
@@ -126,17 +130,45 @@ def legend_handles(alphas):
 
 
 def plot_headline(series, out_png):
+    # One named series = one colour = one legend row. Okabe-Ito palette,
+    # distinct under the three common colour-vision deficiencies and where
+    # curves overlap. Equal line weight everywhere: no curve is a backdrop
+    # for another.
+    # Drawing order = list order; the student of each pair goes last so it
+    # stays visible where the two coincide. The caption names those spans.
+    named = [
+        (("const_0.9", "teacher_h"), "#E69F00",
+         "EMA teacher $h_t$, alpha = 0.9"),
+        (("sched_0.9_1.0", "teacher_h"), "#CC79A7",
+         "EMA teacher $h_t$, alpha: 0.9 -> 1.0"),
+        (("const_0.9", "student_h"), "#0072B2", "student $h_t$, alpha = 0.9"),
+        (("sched_0.9_1.0", "student_h"), "#009E73",
+         "student $h_t$, alpha: 0.9 -> 1.0"),
+    ]
+    legend_order = [2, 0, 3, 1]
+    solo_color, solo_label = "#333333", "student $h_t$"
+    kw = dict(lw=1.5, linestyle="-", marker="o", ms=3.0,
+              markeredgecolor="white", markeredgewidth=0.5)
+
     fig, axs = plt.subplots(3, 3, figsize=(11.5, 8.5), sharey=True,
                             sharex=True)
     axs = axs.ravel()
     for ax, arm in zip(axs, ARMS):
         ax.axhline(0.0, color="#b0b0b0", linestyle=":", linewidth=0.9)
-        for alpha, latent, pts in curves(series, arm, "adjacent"):
-            ax.plot([p[0] for p in pts], [p[1] for p in pts],
-                    color=COLOR[latent], linestyle=STYLE[alpha],
-                    **LATENT_KW[latent])
+        pts_of = {(a, l): p for a, l, p in curves(series, arm, "adjacent")}
         if arm in TEACHER_ARMS:
+            for z, (key, color, _) in enumerate(named):
+                pts = pts_of.get(key, [])
+                if not pts:
+                    print(f"  (missing {arm} {key})")
+                    continue
+                ax.plot([p[0] for p in pts], [p[1] for p in pts],
+                        color=color, zorder=2 + z, **kw)
             ax.set_facecolor("#fdf6f0")
+        else:
+            for pts in pts_of.values():
+                ax.plot([p[0] for p in pts], [p[1] for p in pts],
+                        color=solo_color, zorder=3, **kw)
         ax.set_title(arm, fontsize=11)
         ax.set_ylim(-0.05, 1.40)
         style_axes(ax, "drift_cos ($h_t$)")
@@ -145,12 +177,14 @@ def plot_headline(series, out_png):
     for i, ax in enumerate(axs):
         if i % 3:
             ax.set_ylabel("")
-    fig.legend(handles=legend_handles(["const_0.9", "sched_0.9_1.0"]),
-               loc="lower center", ncol=4, frameon=False, fontsize=10,
-               bbox_to_anchor=(0.5, -0.005))
+    handles = [Line2D([], [], color=solo_color, lw=1.5, label=solo_label)]
+    handles += [Line2D([], [], color=named[i][1], lw=1.5, label=named[i][2])
+                for i in legend_order]
+    fig.legend(handles=handles, loc="lower center", ncol=3, frameon=False,
+               fontsize=10, bbox_to_anchor=(0.5, -0.005))
     fig.suptitle("Drift of $h_t$ between checkpoints 5000 steps apart "
                  "— shaded panels have an EMA teacher", fontsize=13)
-    fig.tight_layout(rect=(0, 0.045, 1, 1))
+    fig.tight_layout(rect=(0, 0.085, 1, 1))
     fig.savefig(out_png, dpi=120)
     print(f"wrote {out_png}")
 

@@ -6,18 +6,27 @@ from 1.0715 to 0.0531. Both align arms finish within 7% and 16% of the
 dimension-usage floor along the time axis, so that low drift is measured on a
 representation with almost nothing left to rotate.
 
-![L_align with the teacher as target](plots/align_fix.png)
+![Drift between checkpoints 5000 steps apart](plots/drift_headline.png)
 
 *`drift_cos` = 1 − mean cosine similarity between two sets of encoder latents
 `h_t`, on one fixed probe batch: a single ARMA draw of 64 series, 1024 raw
 timesteps, seed 20260722, shared by every checkpoint of every run. 0 means the
-representation did not move, 1 means orthogonal. Checkpoints 5000 steps apart,
-α = 0.9 constant, where α is the weight the teacher keeps on itself in
-`θ_teacher ← α·θ_teacher + (1 − α)·θ_student`, applied after every optimizer
-step. Purple: the earlier `align` arm, whose target was the student's own
-stop-gradient `sg(h_{t+1})`. Blue: `align_teacher`, target = EMA teacher
-`h_{t+1}`. The orange band is the EMA-teacher latent of the same run; it lies
-under the student curve.*
+representation did not move, 1 means orthogonal. Here each checkpoint is
+compared to its predecessor 5000 steps earlier. α is the weight the teacher
+keeps on itself in `θ_teacher ← α·θ_teacher + (1 − α)·θ_student`, applied after
+every optimizer step. One panel per loss term, same axes for all nine. Shaded
+panels have an EMA teacher and carry four named curves; the other six have no
+teacher and carry one. In every teacher panel the EMA-teacher curve lies under
+its student curve for the whole run, within a line width: orange under blue for
+α = 0.9, pink under green for the schedule. The two α settings separate from
+about 40k on `pred_moco` and `rep_moco`, and stay together on `align_teacher`.*
+
+![L_align with the teacher as target](plots/align_fix.png)
+
+*Same probe and same 5000-step spacing, α = 0.9 constant. Purple: the earlier
+`align` arm, whose target was the student's own stop-gradient `sg(h_{t+1})`.
+Blue: `align_teacher`, target = EMA teacher `h_{t+1}`. The orange band is the
+EMA-teacher latent of the same run; it lies under the student curve.*
 
 ![Dimension usage](plots/supporting/dim_usage.png)
 
@@ -34,13 +43,7 @@ One seed per arm and one probe batch, so every ratio here is a single
 measurement without a spread. No downstream forecasting evaluation was run in
 this experiment.
 
-## All arms, same probe
-
-![Drift between checkpoints 5000 steps apart](plots/drift_headline.png)
-
-*One panel per loss term, student `h_t` in blue, EMA-teacher `h_t` as the orange
-band beneath it. Shaded panels have a teacher. Solid is α = 0.9 constant,
-dashed is α: 0.9 → 1.0.*
+## Same probe, other windows
 
 ![Cumulative drift away from the 5k checkpoint](plots/cumulative_drift.png)
 
@@ -63,8 +66,9 @@ Removing the global feature-axis rotation removes nearly all of the raw drift.
 On `align_teacher` the late-window raw `drift_cos` reads 0.0123 with constant α
 and 0.0120 with the schedule, on a representation that uses one direction out
 of 64, so the schedule has almost nothing to act on. On the MoCo arms the
-schedule moves `drift_cos_aligned` by 0.0047 (`rep_moco`) and 0.0031
-(`pred_moco`); both are single-seed differences that no spread supports.
+schedule lowers late-window mean `drift_cos_aligned`, from 0.2942 to 0.1111
+(`pred_moco`) and from 0.1240 to 0.0258 (`rep_moco`); both are single-seed
+differences that no spread supports.
 
 ## What this measures
 
