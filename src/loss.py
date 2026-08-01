@@ -600,7 +600,8 @@ def sigreg_loss(z, sigma2=None, M=1024, T_knots=17, W=None,
     return ep_per_dir.mean()
 
 
-def align_loss(forecasted_latent, original_latent, weight=1.0):
+def align_loss(forecasted_latent, original_latent, weight=1.0,
+               target_latent=None):
     """BYOL/SimSiam alignment term, standalone (#344 follow-up arm).
 
     ``L_align = weight · (2 − 2·cos(f_t, sg(h_{t+1}))).mean()`` — pull the
@@ -612,12 +613,20 @@ def align_loss(forecasted_latent, original_latent, weight=1.0):
     to test whether CPC + a separate forecaster loss beats the contrastive
     objective. ``2 − 2·cos = ‖f̂ − ĥ‖²`` ∈ [0, 4], min 0 at perfect alignment.
 
-    forecasted_latent, original_latent: ``[B, T, C, H]``. Returns scalar.
+    ``target_latent`` (#388) replaces ``original_latent`` on the target side
+    only. Pass the EMA teacher's ``h`` to get the BYOL form the term was
+    designed for: a slowly-moving target the student cannot chase within a
+    step. Left at None the target is the student's own ``sg(h_{t+1})``, which
+    is what #382's `align` arm trained on.
+
+    forecasted_latent, original_latent, target_latent: ``[B, T, C, H]``.
+    Returns scalar.
     """
+    target = original_latent if target_latent is None else target_latent
     fore_norm = F.normalize(forecasted_latent, p=2, dim=-1)
-    orig_norm = F.normalize(original_latent, p=2, dim=-1)
+    targ_norm = F.normalize(target, p=2, dim=-1)
     hy_hat_norm = fore_norm[:, :-1, :, :]              # f_t
-    hy_norm = orig_norm[:, 1:, :, :].detach()          # sg(h_{t+1})
+    hy_norm = targ_norm[:, 1:, :, :].detach()          # sg(target_{t+1})
     cos_align = cosine_similarity_from_normalized(hy_hat_norm, hy_norm)
     return weight * (2.0 - 2.0 * cos_align).mean()
 

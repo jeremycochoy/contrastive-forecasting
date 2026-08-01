@@ -35,7 +35,7 @@ import torch.optim as optim
 from types import SimpleNamespace
 
 from src.models import (ConfigurableModel, compute_metrics, count_parameters,
-                        generate_random_batch)
+                        ema_tau_at_step, generate_random_batch)
 from src.blocks import ATTN_AMP_DIAG
 from src.dataloader import (
     create_mixed_periodic_dataloader,
@@ -63,7 +63,8 @@ from src.metrics import (
     u_batchtime,
     retrieval_auc_topk,
 )
-from src.forecasting_head import extract_encoder_latents
+from src.forecasting_head import (extract_encoder_latents,
+                                  extract_teacher_encoder_latents)
 
 # -- Tiny architecture (identical to v3c) -----------------------------------
 # C and T_raw can be overridden at runtime via --n-channels / --t-raw to
@@ -457,6 +458,15 @@ def parse_args():
                         "positive's −(1−p₊)/τ which fades once the negatives "
                         "separate (p₊→1). Stop-grad on the encoder target. "
                         "Applies to ANY loss_shape.")
+    p.add_argument("--align-target", choices=("student", "teacher"),
+                   default="student",
+                   help="Target of the standalone L_align term (#388). "
+                        "'student' (default) is the student's own "
+                        "sg(h_{t+1}) — what #382's `align` arm trained on. "
+                        "'teacher' is the EMA teacher's h_{t+1}, the BYOL "
+                        "form L_align was designed for; requires "
+                        "--ema-embedding / --ema-encoder and "
+                        "--no-main-contrastive-loss.")
     p.add_argument("--align-moco-loss-weight", type=float, nargs="?",
                    const=1.0, default=0.0,
                    help="λ for a MoCo-style InfoNCE alignment (#374 arm 6): "
@@ -541,9 +551,19 @@ def parse_args():
                         "forecaster). Non-trained; updated each step via "
                         "EMA. See --ema-embedding. (#353)")
     p.add_argument("--ema-tau", type=float, default=0.99,
-                   help="EMA coefficient for --ema-embedding/--ema-encoder. "
-                        "Constant (no schedule). Default 0.99 (half-life "
-                        "ln(0.5)/ln(τ) ≈ 69 steps). (#353)")
+                   help="EMA momentum α for --ema-embedding/--ema-encoder: "
+                        "the weight the teacher keeps on its own previous "
+                        "value in θ_T ← α·θ_T + (1−α)·θ_S. Higher α = slower "
+                        "teacher. Constant unless --ema-tau-end is given. "
+                        "Default 0.99 (half-life ln(0.5)/ln(α) ≈ 69 "
+                        "steps). (#353)")
+    p.add_argument("--ema-tau-end", type=float, default=None,
+                   help="End value of a LINEAR α schedule (#388): α goes from "
+                        "--ema-tau at step 0 to this value at --total-steps, "
+                        "then holds. Omit (default) ⇒ α constant at --ema-tau, "
+                        "so runs predating #388 are unchanged. 1.0 freezes the "
+                        "teacher at the end of the budget. The live α is "
+                        "written to <run>_losses.csv every step.")
     p.add_argument("--moco-negatives", action="store_true",
                    help="MoCo-style negatives (#374 arms 3+4): route the "
                         "cross-batch f↔h negatives through the EMA teacher "
@@ -894,6 +914,10 @@ class CSVLogger:
         # its random-projection statistic, so this is the dim-usage
         # measurement that matches what SIGReg regularises.
         header += ["u_batchtime", "u_batchtime_e"]
+        # ema_tau (#388): the live EMA momentum α of the step. Constant for
+        # runs without --ema-tau-end, blank for runs without a teacher.
+        # Trailing so name-keyed readers of older CSVs are unaffected.
+        header += ["ema_tau"]
         if os.path.getsize(path) == 0:
             self._writer.writerow(header)
             self._file.flush()
@@ -926,7 +950,7 @@ class CSVLogger:
             loss_tau_ref=None, cpc_aux=None,
             sigreg_e=None, sigreg_h=None,
             u_temporal_e=None, u_batch_e=None,
-            u_batchtime=None, u_batchtime_e=None):
+            u_batchtime=None, u_batchtime_e=None, ema_tau=None):
         if not self._enabled:
             return
         row = [step, loss]
@@ -940,7 +964,7 @@ class CSVLogger:
         row += [r2_random, r2_naive, u_temporal, u_batch, auc, top1, top3]
         row.append('' if cpc_aux is None else cpc_aux)
         for extra in (sigreg_e, sigreg_h, u_temporal_e, u_batch_e,
-                      u_batchtime, u_batchtime_e):
+                      u_batchtime, u_batchtime_e, ema_tau):
             row.append('' if extra is None else extra)
         self._buffer.append(row)
         if len(self._buffer) >= self.flush_every:
@@ -970,22 +994,32 @@ class LatentDriftProbe:
     written per probe step. The initial probe fires on the first
     ``probe`` call and writes no comparison row.
 
-    CSV columns::
-        step, kind, step_ref, delta_step,
-        drift_cos, drift_cos_aligned, rot_gap, cka
+    When the model carries an EMA teacher (#388), every probe also runs the
+    teacher path and writes the same two rows for it, tagged ``teacher_h``
+    in the ``latent`` column. Both curves then come from one probe batch at
+    one cadence, so they are directly comparable.
+
+    CSV columns are ``COLUMNS`` below. A resume starts the probe over: the
+    first ``probe`` call of the resumed leg becomes that leg's initial
+    snapshot, so its ``vs_initial`` rows reference the resume step, not step
+    0. ``step_ref`` records which, and readers must group on it — see
+    ``read_drift`` in the #388 experiment's ``make_plots.py``.
 
     Cached ``h`` tensors are kept on CPU as fp16 so memory stays trivial
     (~10 MB per snapshot at ``B=64, T_lat=256, H=384``). The metric
     itself runs in fp32 on ``device`` after cast-back.
     """
 
+    COLUMNS = ["step", "latent", "kind", "step_ref", "delta_step",
+               "drift_cos", "drift_cos_aligned", "rot_gap", "cka"]
+
     def __init__(self, csv_path, probe_x, device):
         self.csv_path = csv_path
         self.probe_x = probe_x.to(device)
         self.device = device
-        self.initial_h = None
+        self.initial_h = {}
         self.initial_step = None
-        self.prev_h = None
+        self.prev_h = {}
         self.prev_step = None
         self._enabled = is_main_process()
         if not self._enabled:
@@ -994,57 +1028,87 @@ class LatentDriftProbe:
             return
         new_file = (not os.path.exists(csv_path)
                     or os.path.getsize(csv_path) == 0)
+        if not new_file:
+            self.assert_csv_schema(csv_path)
         self._file = open(csv_path, "a", newline="")
         self._writer = csv.writer(self._file)
         if new_file:
-            self._writer.writerow([
-                "step", "kind", "step_ref", "delta_step",
-                "drift_cos", "drift_cos_aligned", "rot_gap", "cka",
-            ])
+            self._writer.writerow(self.COLUMNS)
             self._file.flush()
 
+    @classmethod
+    def assert_csv_schema(cls, csv_path):
+        """Refuse to append rows written under a different schema.
+
+        ``latent`` sits at column 2 (#388), not at the end, so a drift CSV
+        written before #388 would swallow 9-field rows under its 8-field
+        header without an error and every column after ``step`` would read
+        shifted. Runs are in flight against ``COLUMNS``, so the order is
+        fixed; on a mismatch the safe action is to stop and let the caller
+        move the old CSV aside.
+        """
+        with open(csv_path, "r", newline="") as fh:
+            existing = next(csv.reader(fh), None)
+        if existing is not None and existing != cls.COLUMNS:
+            raise SystemExit(
+                f"CSV resume schema mismatch at {csv_path}: existing header "
+                f"{existing} != writer header {cls.COLUMNS}. Refusing to "
+                "append (would corrupt the file). Move the old CSV aside or "
+                "pick a fresh --run-name.")
+
     @torch.no_grad()
-    def _extract_h(self, model):
+    def extract_h(self, model):
+        """{latent_name: h} on CPU fp16 — the student always, the EMA
+        teacher too when the model has one.
+
+        Teacher presence is read off ``ConfigurableModel.ema_embedding`` /
+        ``.ema_encoder``; both are pinned by
+        ``tests/test_388_align_teacher_ema_schedule.py`` so a rename cannot
+        quietly drop every ``teacher_h`` row.
+        """
         was_training = model.training
         model.eval()
         try:
             h, _ = extract_encoder_latents(model, self.probe_x)
+            out = {"student_h": h.detach().cpu().to(torch.float16)}
+            if getattr(model, "ema_embedding", False) or \
+                    getattr(model, "ema_encoder", False):
+                t, _ = extract_teacher_encoder_latents(model, self.probe_x)
+                out["teacher_h"] = t.detach().cpu().to(torch.float16)
         finally:
             if was_training:
                 model.train()
-        return h.detach().cpu().to(torch.float16)
+        return out
+
+    def _write(self, step, latent, kind, step_ref, m):
+        self._writer.writerow([
+            step, latent, kind, step_ref, step - step_ref,
+            f"{m['drift_cos'].item():.6f}",
+            f"{m['drift_cos_aligned'].item():.6f}",
+            f"{m['rot_gap'].item():.6f}",
+            f"{m['cka'].item():.6f}",
+        ])
 
     def probe(self, model, step: int):
         if not self._enabled:
             return
-        h = self._extract_h(model)
-        if self.initial_h is None:
+        h = self.extract_h(model)
+        if not self.initial_h:
             self.initial_h = h
             self.initial_step = step
             self.prev_h = h
             self.prev_step = step
             return
-        cur = h.to(self.device).float()
-        adj = drift_pair(self.prev_h.to(self.device).float(), cur)
-        self._writer.writerow([
-            step, "adjacent", self.prev_step, step - self.prev_step,
-            f"{adj['drift_cos'].item():.6f}",
-            f"{adj['drift_cos_aligned'].item():.6f}",
-            f"{adj['rot_gap'].item():.6f}",
-            f"{adj['cka'].item():.6f}",
-        ])
-        # vs_initial only when the adjacent-pair isn't already the
-        # initial-pair; a second write would be a redundant duplicate row.
-        if self.prev_step != self.initial_step:
-            ini = drift_pair(self.initial_h.to(self.device).float(), cur)
-            self._writer.writerow([
-                step, "vs_initial", self.initial_step,
-                step - self.initial_step,
-                f"{ini['drift_cos'].item():.6f}",
-                f"{ini['drift_cos_aligned'].item():.6f}",
-                f"{ini['rot_gap'].item():.6f}",
-                f"{ini['cka'].item():.6f}",
-            ])
+        for latent, snapshot in h.items():
+            cur = snapshot.to(self.device).float()
+            adj = drift_pair(self.prev_h[latent].to(self.device).float(), cur)
+            self._write(step, latent, "adjacent", self.prev_step, adj)
+            # vs_initial only when the adjacent-pair isn't already the
+            # initial-pair; a second write would be a redundant duplicate row.
+            if self.prev_step != self.initial_step:
+                ini = drift_pair(
+                    self.initial_h[latent].to(self.device).float(), cur)
+                self._write(step, latent, "vs_initial", self.initial_step, ini)
         self._file.flush()
         self.prev_h = h
         self.prev_step = step
@@ -1220,7 +1284,13 @@ def main():
         "cosine_similarity_batch_split_pred_rep",
         "cosine_similarity_batch_rep_only",
     )
+    # The shape restriction is about the teacher's h_{t+1} REPLACING the
+    # student's positive inside contrastive_latent_loss. Under
+    # --no-main-contrastive-loss that call never happens, so the teacher only
+    # feeds the auxiliary terms (--align-target teacher, #388) and any shape
+    # is fine.
     if (args.ema_embedding or args.ema_encoder) and \
+            not args.no_main_contrastive_loss and \
             args.loss_shape not in _EMA_LOSS_SHAPES:
         raise SystemExit(
             "--ema-embedding/--ema-encoder only implemented for "
@@ -1232,6 +1302,31 @@ def main():
     # loop) so a malformed value fails immediately instead of after model +
     # dataloader construction — the parser raises SystemExit on bad input.
     _extra_save_steps = parse_extra_save_steps(args.extra_save_steps)
+    # α = 1.0 is a legal END value (a teacher frozen at the end of the
+    # budget); it is not a legal start value, since a teacher that never
+    # moves at all is a plain frozen init.
+    if args.ema_tau_end is not None and not (0.0 < args.ema_tau_end <= 1.0):
+        raise SystemExit("--ema-tau-end must be in (0, 1]; got "
+                         f"{args.ema_tau_end!r}.")
+    if args.ema_tau_end is not None and not (args.ema_embedding
+                                             or args.ema_encoder):
+        raise SystemExit("--ema-tau-end schedules the EMA teacher's momentum "
+                         "but no teacher exists; pass --ema-embedding "
+                         "and/or --ema-encoder.")
+    # #388: L_align's teacher target. Both preconditions are hard errors —
+    # silently falling back to the student target is the #382 bug this flag
+    # exists to fix.
+    if args.align_target == "teacher":
+        if not (args.ema_embedding or args.ema_encoder):
+            raise SystemExit(
+                "--align-target teacher needs an EMA teacher; pass "
+                "--ema-embedding and/or --ema-encoder.")
+        if not args.no_main_contrastive_loss:
+            raise SystemExit(
+                "--align-target teacher only applies to the standalone "
+                "L_align term. With the main contrastive loss on, the align "
+                "add-on lives inside contrastive_latent_loss and targets the "
+                "student. Pass --no-main-contrastive-loss.")
     model_config["ema_embedding"] = bool(args.ema_embedding)
     model_config["ema_encoder"] = bool(args.ema_encoder)
     # LeJEPA SIGReg (#355): the term contributes nothing to the model's
@@ -1606,7 +1701,19 @@ def main():
                 # (same form, encoder target stop-gradded). L_cpc is added below.
                 loss = f_lat.new_zeros(())
                 if args.align_loss_weight > 0:
-                    loss = loss + align_loss(f_lat, o_lat, args.align_loss_weight)
+                    # #388: --align-target teacher swaps the target for the
+                    # EMA teacher's h_{t+1} (the BYOL form). Argparse rejects
+                    # `teacher` without a teacher — assert it here too, where
+                    # the value is used: a None target silently falls back to
+                    # the student, which is the #382 bug this flag fixes.
+                    if args.align_target == "teacher":
+                        assert teacher_o_lat is not None, \
+                            "--align-target teacher but no teacher latents"
+                    align_target = (teacher_o_lat
+                                    if args.align_target == "teacher" else None)
+                    loss = loss + align_loss(f_lat, o_lat,
+                                             args.align_loss_weight,
+                                             target_latent=align_target)
             else:
                 loss = contrastive_latent_loss(
                     (f_lat, o_lat), validation=False,
@@ -1732,9 +1839,14 @@ def main():
             with torch.no_grad():
                 model.clamp_log_inv_tau()
         # EMA-teacher update (#353): pull teacher params one fraction of the way
-        # toward the just-stepped student. θ_T = τ·θ_T + (1−τ)·θ_S, constant τ.
+        # toward the just-stepped student, θ_T = α·θ_T + (1−α)·θ_S. α is
+        # constant unless --ema-tau-end sets a linear schedule (#388); the
+        # value used here is the one logged to the losses CSV below.
+        ema_tau_now = None
         if use_ema:
-            model.update_teacher(args.ema_tau)
+            ema_tau_now = ema_tau_at_step(
+                step, args.total_steps, args.ema_tau, args.ema_tau_end)
+            model.update_teacher(ema_tau_now)
         t_bwd_end = time.perf_counter()
         t_step_end = time.perf_counter()
 
@@ -1808,7 +1920,8 @@ def main():
                        sigreg_h=(sigreg_h_val
                                  if args.sigreg_encoding else None),
                        u_temporal_e=u_t_e, u_batch_e=u_b_e,
-                       u_batchtime=u_bt, u_batchtime_e=u_bt_e)
+                       u_batchtime=u_bt, u_batchtime_e=u_bt_e,
+                       ema_tau=ema_tau_now)
 
         if step % args.log_every == 0 and is_main_process():
             elapsed = time.time() - t0
