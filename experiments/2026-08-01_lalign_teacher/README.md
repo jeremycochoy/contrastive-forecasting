@@ -97,15 +97,46 @@ The issue's schedule is three waves, 40,000 → 100,000 → 200,000 backbone
 steps, with a q-head and a GIFT-Eval measurement after each, and the third
 wave restricted to cells whose GM-Relative MASE fell from wave 1 to wave 2.
 
-```bash
-# always start the watchdog alongside the wave — CLAUDE.md requires a sync
-# loop for the FULL duration of every run, short or long
-WT=$HOME/workspaces/contrastive-forecasting WAVE=1 \
-  nohup setsid bash scripts/monitor.sh > /dev/null 2>&1 &
+`scripts/pipeline.sh` is all three waves, both stages of each, in one
+background process. It is what the actual run used:
 
-WT=$HOME/workspaces/contrastive-forecasting WAVE=1 \
-  nohup setsid bash scripts/orchestrate.sh > /dev/null 2>&1 &
+```bash
+# the watchdog covers the WHOLE pipeline, not one wave — CLAUDE.md requires a
+# sync loop for the full duration of every run
+WT=/home/jupyter/wt-cf-390-train \
+  nohup setsid bash scripts/watchdog.sh > /dev/null 2>&1 &
+
+WT=/home/jupyter/wt-cf-390-train \
+  nohup setsid bash scripts/pipeline.sh > /dev/null 2>&1 &
+
+bash scripts/status.sh          # one screen, read off disk, safe any time
 ```
+
+Every stage is idempotent, so re-running `pipeline.sh` after a crash resumes:
+`run_arm.sh` short-circuits on a checkpoint already at the wave's target, and
+`eval_arm.sh` short-circuits on a trained head and resumes a partial
+GIFT-Eval from its own CSV.
+
+### Two slots per GPU
+
+The pipeline runs four cells at once, two per 4090, not two. Measured on
+elisa before the launch — 400 backbone steps of `arm6_v2`, same GPU, minutes
+apart, both GPUs shared with unrelated jobs
+([`results/probe_concurrency.txt`](results/probe_concurrency.txt)):
+
+| trainers on one 4090 | sps each      | aggregate |
+|----------------------|---------------|-----------|
+| 1                    | 3.2           | 3.2       |
+| 2                    | 2.9 + 2.8     | **5.7**   |
+
+A second trainer costs the first ~10% of its step rate and buys 78% more
+aggregate throughput. On a sweep of this size that is more than a day. A
+third slot does not fit: two trainers already hold ~10.7 GB of the 24 GB
+card, and the box's other tenants held ~7 GB.
+
+`scripts/gpu_pool.sh` is the slot pool; `scripts/orchestrate_pool.sh` is the
+backbone stage on top of it. The reviewed pair-at-a-time `orchestrate.sh` is
+unchanged and still valid — the tests pin its behaviour:
 
 `orchestrate.sh` runs the 10 cells two at a time, one per GPU, and picks
 `TARGET_STEPS` / `SAVE_EVERY` from `WAVE`. Wave 3 takes the surviving
@@ -138,10 +169,18 @@ Before any launch, walk
 
 | script                | role                                                                 |
 |-----------------------|----------------------------------------------------------------------|
+| `scripts/pipeline.sh` | **the whole experiment**: three waves, backbone + head + GIFT-Eval each, the wave-3 gate between them. |
 | `scripts/run_arm.sh`  | one arm, one wave. #379's command line plus `--align-target teacher`. |
+| `scripts/eval_arm.sh` | one cell's measurement: fresh q-head, then GIFT-Eval B4 over all 97 configs. Never writes a summary for a partial. |
 | `scripts/smoke.sh`    | 200-step backbone smoke: config, checkpoint naming, dynamics columns, step time. |
-| `scripts/orchestrate.sh` | one wave of the 10 cells, two GPUs.                               |
-| `scripts/monitor.sh`  | 15-min watchdog on the training host: copies the CSVs into `sync/`, shouts on NaN or a dead trainer. |
+| `scripts/orchestrate.sh` | one wave of the 10 cells, two GPUs, one cell per GPU at a time.    |
+| `scripts/orchestrate_pool.sh` | the same wave with `SLOTS_PER_GPU` cells per GPU. What the run used. |
+| `scripts/eval_wave.sh`| the measurement stage of one wave, over the same slot pool.           |
+| `scripts/gpu_pool.sh` | the slot pool itself: keeps N jobs alive per GPU, refills on exit.    |
+| `scripts/select_wave3.py` | the wave-3 gate — the cells whose GM-Relative MASE fell from 40k to 100k. |
+| `scripts/monitor.sh`  | 15-min watchdog for ONE wave: copies the CSVs into `sync/`, shouts on NaN or a dead trainer. |
+| `scripts/watchdog.sh` | the same, for the whole multi-wave pipeline. Exits only when `pipeline.pid` is gone. |
+| `scripts/status.sh`   | one-screen status, read off disk. `ONELINE=1` gives a heartbeat line. |
 | `scripts/arm_names.sh`| the arm → run-name mapping and the three-wave table, derived once and pinned against `run_arm.sh` by the tests. |
 | `sync/sync_loop.sh`   | 15-min pull of checkpoints, optimizers, CSVs and logs into a persistent off-host checkout. |
 
