@@ -11,6 +11,9 @@ Writes five PNGs into plots/.
     alpha_schedule.png    α against training step
     cumulative_drift.png  drift vs the first probe, teacher arms
     drift_500.png         adjacent 500-step drift, the four new runs
+    dim_usage.png         how much of h_t stays alive (reads the drift
+                          curves' ambiguity out: a flat curve is either a
+                          stable representation or a dead one)
 
 Encoding used everywhere: colour = which encoder (student / EMA
 teacher), line style = the α schedule (solid = constant, dashed =
@@ -228,6 +231,57 @@ def plot_drift_500(path, out_png):
     print(f"wrote {out_png}")
 
 
+# --- 6. dim usage: is a flat drift curve stability or collapse? -----------
+
+
+DIM_PANELS = [
+    ("L_align", [("align", "#7570b3", "-", "#382 `align` (student target)"),
+                 ("align_teacher_a09", STUDENT, "-",
+                  r"`align_teacher`, $\alpha=0.9$"),
+                 ("align_teacher_sched", STUDENT, "--",
+                  r"`align_teacher`, $\alpha:0.9\rightarrow1.0$")]),
+    ("MoCo arms", [("pred_moco", "#1b9e77", "-", r"#382 `pred_moco`"),
+                   ("pred_moco_sched", "#1b9e77", "--",
+                    r"`pred_moco`, $\alpha:0.9\rightarrow1.0$"),
+                   ("rep_moco", "#e7298a", "-", r"#382 `rep_moco`"),
+                   ("rep_moco_sched", "#e7298a", "--",
+                    r"`rep_moco`, $\alpha:0.9\rightarrow1.0$")]),
+]
+
+
+def plot_dim_usage(loss_csv, out_png, n_dims=64):
+    series = defaultdict(list)
+    with open(loss_csv) as fh:
+        for r in csv.DictReader(fh):
+            series[r["run"]].append((int(r["step"]),
+                                     float(r["u_temporal"])))
+    for k in series:
+        series[k].sort()
+    fig, axs = plt.subplots(1, 2, figsize=(11, 4.1), sharey=True)
+    for ax, (title, entries) in zip(axs, DIM_PANELS):
+        for run, color, ls, label in entries:
+            pts = series.get(run, [])
+            if not pts:
+                print(f"  (missing {run} in {os.path.basename(loss_csv)})")
+                continue
+            ax.plot([p[0] for p in pts], [p[1] for p in pts], color=color,
+                    linestyle=ls, lw=1.5, label=label)
+        ax.axhline(1.0 / n_dims, color="#b0b0b0", linestyle=":", linewidth=1.0)
+        ax.text(0.01, 1.0 / n_dims, f"collinear $h_t$ (1/{n_dims})",
+                transform=ax.get_yaxis_transform(), ha="left", va="bottom",
+                fontsize=8, color="#707070")
+        ax.set_title(title, fontsize=11)
+        ax.set_yscale("log")
+        style_axes(ax, r"dim usage $U$ of $h_t$ across time"
+                   if title == DIM_PANELS[0][0] else None)
+        ax.legend(frameon=False, fontsize=8.5, loc="best")
+    fig.suptitle(r"Dimension usage $U=1/(d\cdot\overline{\cos^2})$ of $h_t$: "
+                 "1 is isotropic, 1/64 is collapsed", fontsize=13)
+    fig.tight_layout()
+    fig.savefig(out_png, dpi=120)
+    print(f"wrote {out_png}")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--exp-dir", required=True)
@@ -244,6 +298,8 @@ def main():
     plot_cumulative(series, os.path.join(plots, "cumulative_drift.png"))
     plot_drift_500(os.path.join(res, "drift_500.csv"),
                    os.path.join(plots, "drift_500.png"))
+    plot_dim_usage(os.path.join(res, "loss_curve.csv"),
+                   os.path.join(plots, "dim_usage.png"))
 
 
 if __name__ == "__main__":
