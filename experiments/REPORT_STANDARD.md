@@ -26,4 +26,4 @@ A "report" here means a single canonical Markdown file per experiment (typically
 
 - [ ] **Plots embedded inline.** Store plots in a `plots/` subdirectory and embed them inline. No orphan images.
 
-- [ ] **Multi-sample held-out eval** when comparing arms whose differences could plausibly be within single-batch noise. Report mean and variance over multiple samples; show uncertainty visually.
+- [ ] **Present the uncertainty.** If two arms are close, one eval run can't call a winner. Eval several times and put error bars on the plot.
