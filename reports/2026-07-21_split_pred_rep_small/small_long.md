@@ -34,17 +34,23 @@ The headline number is one geometric mean over all 97 configs. These radars appl
 
 ![Bar chart of GM-Relative MASE for all 30 cells at backbone step 100k, head 30k steps, sorted ascending; red dashed line at 1.0 = seasonal-naive.](plots/eval_2L_gm_mase_bars_100k.png)
 
-### 6. Latent movement between adjacent checkpoints
+### 6. Ranking at backbone 200k
 
-How far the latents of a fixed held-out batch rotate between one saved checkpoint and the next. Rows = setting, columns = `h_t` / `e_t`.
+Only the 10 cells extended past 100k, so this is a ranking of that subset, not of the full 30-cell field. Each bar carries the cell's 100k value as a black tick, so the extension's effect is readable here too.
+
+![Bar chart of GM-Relative MASE for the 10 cells evaluated at backbone step 200k, head 30k steps, sorted ascending; a black tick on each bar marks the same cell's value at backbone 100k and the change is printed above.](plots/eval_2L_gm_mase_bars_200k.png)
+
+### 7. Latent movement between adjacent checkpoints
+
+How far the latents of a fixed held-out batch rotate between one saved checkpoint and the next. Rows = setting, columns = `h_t` / `e_t`. Curves run to each cell's last checkpoint, so the 10 extended cells continue past 10^5 where the other 20 stop.
 
 ![Latent drift per adjacent-checkpoint pair, 5 rows (base / tr1 / nse / ncpc / combab) × 2 columns (h_t encoder output, e_t patch embedding), x-axis log training step, y shared per column.](plots/latent_movement_per_arm.png)
 
-### 7. Forecast-to-latent distance `1 − ff` during training
+### 8. Forecast-to-latent distance `1 − ff` during training
 
 ![1 − ff per arm across training steps, one panel per setting (base / tr1 / nse / ncpc / combab), shared y axis, x-axis log training step.](plots/cos_error_per_arm.png)
 
-### 8. Dimension usage `u_batchtime` during training
+### 9. Dimension usage `u_batchtime` during training
 
 ![u_batchtime per arm, one panel per arm × setting, h_t solid and e_t dashed, x-axis log training step.](plots/dim_usage_per_arm.png)
 
@@ -124,7 +130,7 @@ Ranked by the 100k value. A dash in the 200k columns means the cell was not exte
 | 29 | `arm3 nse`        | 1.4432 | 1.7372 | +0.2940 | — | — |
 | 30 | `arm1 combab`     | 3.1251 | 1.7595 | −1.3656 | 1.7107 | −0.0488 |
 
-**On the ±0.01 error bars in figures 4 and 5.** Each cell is `N=1`, so this is not a measured seed-replicate interval for this experiment. It is a constant borrowed from the 2026-05-08 τ-sweep paired reruns via the [LeJEPA-SIGReg-τ report annex F](../2026-06-21_lejepa_sigreg_tau098/lejepa_sigreg_tau098.md#f-seed-noise-band), shown as a visual reference for "differences smaller than this have previously turned out to be within-seed noise", not as a confidence interval for this ranking.
+**On the ±0.01 error bars in figures 4, 5 and 6.** Each cell is `N=1`, so this is not a measured seed-replicate interval for this experiment. It is a constant borrowed from the 2026-05-08 τ-sweep paired reruns via the [LeJEPA-SIGReg-τ report annex F](../2026-06-21_lejepa_sigreg_tau098/lejepa_sigreg_tau098.md#f-seed-noise-band), shown as a visual reference for "differences smaller than this have previously turned out to be within-seed noise", not as a confidence interval for this ranking.
 
 ### GM-Relative MASE per domain, the cells evaluated at backbone 200k
 
