@@ -26,4 +26,4 @@ A "report" here means a single canonical Markdown file per experiment (typically
 
 - [ ] **Plots embedded inline.** Store plots in a `plots/` subdirectory and embed them inline. No orphan images.
 
-- [ ] **Present the uncertainty.** If two arms are close, one eval run can't call a winner. Eval several times and put error bars on the plot.
+- [ ] **Present the uncertainty.** If two arms are close, one eval run is not enough to decide which is better. Show several evals as error bars with the mean and the std.
