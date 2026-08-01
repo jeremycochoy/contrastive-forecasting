@@ -301,6 +301,34 @@ class TestEndToEnd:
         rows = list(csv.DictReader(open(save_dir / "a388const_losses.csv")))
         assert {float(r["ema_tau"]) for r in rows} == {0.9}
 
+    def test_schedule_survives_a_resume(self, tmp_path):
+        """α is a function of the global step, so a run that dies at step 2
+        and resumes must pick the schedule up where it left off — not
+        restart it. Also guards the CSV append: the new `ema_tau` column
+        must not trip the resume schema check."""
+        _assert_train_deps_available()
+        res, save_dir = _run_train(
+            tmp_path, "a388res",
+            TEACHER_ARM + ["--ema-tau-end", "1.0", "--save-every", "2"])
+        if res.returncode != 0:
+            pytest.fail(f"first leg rc={res.returncode}\n{res.stderr[-3000:]}")
+        ckpt = save_dir / "a388res_0k.pth"
+        assert ckpt.exists(), sorted(p.name for p in save_dir.iterdir())
+
+        res2, _ = _run_train(
+            tmp_path, "a388res",
+            TEACHER_ARM + ["--ema-tau-end", "1.0", "--save-every", "2",
+                           "--resume", str(ckpt)])
+        if res2.returncode != 0:
+            pytest.fail(f"resume rc={res2.returncode}\n{res2.stderr[-3000:]}")
+
+        rows = list(csv.DictReader(open(save_dir / "a388res_losses.csv")))
+        by_step = {int(r["step"]): float(r["ema_tau"]) for r in rows}
+        # Steps 3 and 4 come from the resumed leg; α must be 0.975 / 1.0,
+        # the values the schedule gives at those global steps.
+        assert by_step[3] == pytest.approx(0.975)
+        assert by_step[4] == pytest.approx(1.0)
+
     def test_align_target_teacher_without_a_teacher_aborts(self, tmp_path):
         """Silently falling back to the student target is what #382 did by
         accident. Fail loudly instead."""
