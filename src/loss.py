@@ -32,45 +32,68 @@ _NORMALIZED_FORM_SHAPES = (
 
 
 def infonce_floor(tau, n_negatives):
-    """Theoretical minimum of the normalized-InfoNCE loss (positive in the
-    denominator): the value at perfect alignment (cos(f, h⁺) = 1) with
-    maximally-spread negatives (cos⁻ ≈ 0)::
+    """Strict best lower bound of the normalized-InfoNCE loss (positive in
+    the denominator): the value at perfect alignment (cos(f, h⁺) = 1) with
+    all negatives at cos⁻ = −1::
 
-        floor = log(1 + N · e^(−1/τ))            # a CONSTANT given (τ, N)
+        floor = log(1 + N · e^(−2/τ))            # a CONSTANT given (τ, N)
 
-    Subtracting it only RE-BASES the curve so that ~0 means "at the
-    uniformity floor". It is **gradient-neutral** (a constant has zero
-    gradient; a monotonic shift leaves argmin / EMA / NaN-checks
-    unchanged). It is a function of τ AND the negative count N (not τ
-    alone), and it is a *lower* bound (assumes cos⁻ ≡ 0, cos⁺ ≡ 1), so a
-    real run's contrastive loss approaches it from above — the re-based
-    curve settles slightly above 0, not exactly at it. `float(tau)`
+    Attained iff cos⁺ = +1 AND every cos⁻ = −1. The recorded loss is
+    guaranteed ≥ floor, so `loss − floor ≥ 0` in every batch.
+
+    Subtracting it re-bases the curve so 0 = strict theoretical minimum.
+    It is **gradient-neutral** (a constant has zero gradient; a monotonic
+    shift leaves argmin / EMA / NaN-checks unchanged). `float(tau)`
     detaches a learnable-τ tensor, keeping the subtraction grad-neutral.
+
+    NOTE (pre-2026-07-17): earlier this function returned the "uniformity"
+    reference `log(1 + N · e^(−1/τ))` (cos⁻ ≡ 0), which is NOT a lower
+    bound — a run that pushes cos⁻ < 0 drives the loss below it. Reports
+    generated with the old formula showed `loss − floor` going negative on
+    the L_rep / L_align arms; that was the reference being wrong, not the
+    loss going negative. The recorded contrastive loss is strictly
+    positive; the floor is now the strict min so subtraction stays ≥ 0.
     """
-    return math.log1p(float(n_negatives) * math.exp(-1.0 / float(tau)))
+    return math.log1p(float(n_negatives) * math.exp(-2.0 / float(tau)))
+
+
+def lse_only_floor(tau, n_negatives):
+    """Strict best lower bound of a pure-LSE term (no positive), i.e.
+    `L = log(Σ_j exp(cos_j / τ))` over N negatives: attained at cos_j =
+    −1 for all j::
+
+        floor = log(N · e^(−1/τ)) = log(N) − 1/τ
+
+    Used by `L_rep` in the split objective (no positive by construction).
+    Recorded L_rep ≥ this floor always.
+    """
+    return math.log(float(n_negatives)) - 1.0 / float(tau)
 
 
 def _split_pred_rep_floors(tau, B, T, C):
-    """(f_pred, f_rep) — the two constants to re-base L_pred + L_rep by.
+    """(f_pred, f_rep) — strict best lower bounds for L_pred and L_rep.
 
     L_pred has one positive against B batch-pooled f-anchored negatives per
     (t,c):
         N_pred = B · (C + (B − 1))
                           ─── adj-f (LSE over C channels of f_{t+1})
                               ─── cross-batch fh (LSE over B−1 batches)
-    Its floor is the InfoNCE floor at that count:
-        f_pred = log(1 + N_pred · e^(−1/τ))
+    Its strict min is the InfoNCE strict lower bound at that count:
+        f_pred = log(1 + N_pred · e^(−2/τ))          (cos⁺=+1, cos⁻=−1)
 
-    L_rep has NO positive; its value at cos ≡ 0 is simply log(#terms in the
-    pooled logsumexp), i.e. log(N_rep) where:
+    L_rep has NO positive; its strict min at cos ≡ −1 is:
+        f_rep = log(N_rep) − 1/τ
+    where:
         N_rep = B · ((C − 1) + (T − 1) + (B − 1) · T)
                        ─── xx (LSE over C−1 other channels)
                                 ─── hh_all (LSE over T−1 other times, same series)
                                             ─── xs_allt (LSE over (B−1)·T other series×times)
+
+    Recorded L_pred + L_rep ≥ f_pred + f_rep in every batch.
     """
     n_pred = B * (C + (B - 1))
     n_rep  = B * ((C - 1) + (T - 1) + (B - 1) * T)
-    return (infonce_floor(tau, n_pred), math.log(n_rep))
+    return (infonce_floor(tau, n_pred), lse_only_floor(tau, n_rep))
 
 
 def _effective_negative_count(loss_shape, B, T, C):

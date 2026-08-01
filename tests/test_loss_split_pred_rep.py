@@ -258,11 +258,12 @@ class TestSplitPredRep:
                 include_positive_in_denominator=True)
 
     def test_subtract_contrastive_floor_shifts_loss_by_constants(self):
-        """The split has TWO floors (one per side). Subtracting them is a
-        constant shift = log(1+N_pred·e^(−1/τ)) + log(N_rep), unchanged by
-        the inputs — the delta between (sub_floor on) and (off) matches."""
+        """The split has TWO floors (one per side), both strict best lower
+        bounds. Subtracting them is a constant shift =
+        log(1 + N_pred·e^(−2/τ)) + (log(N_rep) − 1/τ), unchanged by the
+        inputs — the delta between (sub_floor on) and (off) matches."""
         import math as _math
-        from src.loss import infonce_floor as _floor
+        from src.loss import infonce_floor as _floor, lse_only_floor as _rep_floor
         B, T, C, H = 3, 5, 2, 12
         f, o = _latents(B=B, T=T, C=C, H=H, seed=91)
         base = contrastive_latent_loss((f, o), False, _spec(tau=0.1))
@@ -270,7 +271,7 @@ class TestSplitPredRep:
             (f, o), False, _spec(tau=0.1, sub_floor=True))
         n_pred = B * (C + (B - 1))
         n_rep  = B * ((C - 1) + (T - 1) + (B - 1) * T)
-        expected = _floor(0.1, n_pred) + _math.log(n_rep)
+        expected = _floor(0.1, n_pred) + _rep_floor(0.1, n_rep)
         assert abs((base.item() - rebased.item()) - expected) < 1e-6
 
     def test_align_loss_still_additive(self):
