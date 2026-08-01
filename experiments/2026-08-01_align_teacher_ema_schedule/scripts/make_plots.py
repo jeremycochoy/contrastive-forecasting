@@ -52,20 +52,32 @@ RUN_COLOR = {"align_teacher_a09": "#7570b3",
 
 
 def read_drift(path):
-    """{(run, arm, alpha, latent, kind): [(step, drift_cos), ...]}."""
+    """{(run, arm, alpha, latent, kind[, step_ref]): [(step, drift_cos), ...]}.
+
+    `vs_initial` rows carry their `step_ref` in the key. A run that resumed
+    re-seeds the probe's reference snapshot to the resume step, and two
+    references are two curves: joining them would draw the reset as drift.
+    `adjacent` rows reference the previous probe by construction, so their
+    `step_ref` moves every row and stays out of the key.
+    """
     series = defaultdict(list)
     with open(path) as fh:
         for r in csv.DictReader(fh):
-            series[(r["run"], r["arm"], r["alpha"], r["latent"],
-                    r["kind"])].append((int(r["step"]),
-                                        float(r["drift_cos"])))
+            key = (r["run"], r["arm"], r["alpha"], r["latent"], r["kind"])
+            if r["kind"] == "vs_initial":
+                key += (int(r["step_ref"]),)
+            series[key].append((int(r["step"]), float(r["drift_cos"])))
     for key in series:
         series[key].sort()
     return series
 
 
 def curves(series, arm, kind):
-    """Every (alpha, latent, points) of one arm, constant-α first."""
+    """Every (alpha, latent, points) of one arm, constant-α first.
+
+    A resumed run contributes one `vs_initial` entry per reference step, so
+    its segments are drawn as separate lines instead of one false curve.
+    """
     out = [(k[2], k[3], v) for k, v in series.items()
            if k[1] == arm and k[4] == kind]
     return sorted(out, key=lambda t: (t[0], t[1]))
