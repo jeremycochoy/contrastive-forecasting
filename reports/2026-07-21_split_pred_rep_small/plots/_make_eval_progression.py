@@ -1,7 +1,7 @@
-"""GM-MASE progression: for every cell where both bb=40k (head 15k) and
-bb=100k (head 30k) are landed, draw a line 40k -> 100k. Cells with only one
-endpoint show as isolated markers. Colour by arm; variant styles are given
-in-line labels at the 100k endpoint, de-overlapped and joined by leader lines."""
+"""GM-MASE progression across backbone horizons. All 30 cells have bb=40k and
+bb=100k; the 10 that improved from 40k to 100k were extended to bb=200k.
+Lines connect the horizons a cell has; labels are de-overlapped with leader
+lines and carry the cell's last value."""
 from pathlib import Path
 import re
 import matplotlib.pyplot as plt
@@ -10,10 +10,8 @@ HERE = Path(__file__).parent
 REP = HERE.parent / "results" / "eval_gm_mase"
 EXP = HERE.parent.parent.parent / "experiments" / "2026-07-21_split_pred_rep_small" / "eval_gm_mase"
 
-# Arm palette (same base colour per arm across variants)
 ARM_COLOR = {"arm1": "#2a78d6", "arm3": "#eb6834", "arm4": "#008300",
              "arm5": "#8b1e8b", "arm6_v2": "#b8860b", "bimoco": "#00a3a3"}
-# Loss-recipe short label per arm.
 ARM_LOSS = {
     "arm1":    "L_pred + L_rep",
     "arm3":    "L_pred_moco + L_rep",
@@ -22,7 +20,6 @@ ARM_LOSS = {
     "arm6_v2": "L_align + L_rep_moco",
     "bimoco":  "L_pred_moco + L_rep_moco",
 }
-# Variant -> knobs turned. arm 1/3/4 combab also sets sigreg_e=0.
 def variant_annotation(arm, var):
     if var == "":        return "tau=0.10, cpc=1, sigreg_e=1"
     if var == "_tr1":    return "tau=1.0"
@@ -32,7 +29,6 @@ def variant_annotation(arm, var):
         parts = ["tau=1.0", "cpc=0"]
         if arm in ("arm1", "arm3", "arm4"): parts.append("sigreg_e=0")
         return " + ".join(parts)
-# Variant -> linestyle + marker
 VAR_STYLE = {
     "":        {"ls": "-",  "marker": "o", "lw": 2.0, "ms": 8, "short": "base"},
     "_tr1":    {"ls": "--", "marker": "s", "lw": 1.5, "ms": 7, "short": "tr1"},
@@ -42,13 +38,16 @@ VAR_STYLE = {
 }
 ARMS = ["arm1", "arm3", "arm4", "arm5", "arm6_v2", "bimoco"]
 VARIANTS = ["", "_tr1", "_nse", "_ncpc", "_combab"]
+# x position per horizon, and the head-training steps used at each
+HORIZONS = [(40, 15000, 40), (100, 30000, 100), (200, 30000, 160)]
 
 def read(slug, bb, hd):
     for p in (REP / f"{slug}_bb{bb}k_hd{hd}s_summary.txt",
               EXP / f"{slug}_bb{bb}k_hd{hd}s" / "summary.txt"):
         if not p.exists(): continue
         m = re.search(r"Aggregate.*\((\d+) configs\):\s+([0-9.]+)", p.read_text())
-        if m: return float(m.group(2))
+        # Only full-97 values are comparable.
+        if m and m.group(1) == "97": return float(m.group(2))
     return None
 
 def spread(anchors, gap, lo, hi):
@@ -56,13 +55,11 @@ def spread(anchors, gap, lo, hi):
     order = sorted(range(len(anchors)), key=lambda i: anchors[i])
     pos = list(anchors)
     prev = lo - gap
-    for i in order:                      # upward pass
-        pos[i] = max(pos[i], prev + gap)
-        prev = pos[i]
+    for i in order:
+        pos[i] = max(pos[i], prev + gap); prev = pos[i]
     prev = hi + gap
-    for i in reversed(order):            # downward pass, keeps everything inside
-        pos[i] = min(pos[i], prev - gap)
-        prev = pos[i]
+    for i in reversed(order):
+        pos[i] = min(pos[i], prev - gap); prev = pos[i]
     return pos
 
 INK, MUTED, GRID = "#0b0b0b", "#898781", "#e1e0d9"
@@ -78,45 +75,47 @@ cells = []
 for arm in ARMS:
     for var in VARIANTS:
         slug = f"{arm}{var}"
-        v40, v100 = read(slug, 40, 15000), read(slug, 100, 30000)
-        if v40 is None and v100 is None: continue
-        cells.append((arm, var, v40, v100))
+        vals = [(x, read(slug, bb, hd)) for bb, hd, x in HORIZONS]
+        if all(v is None for _, v in vals): continue
+        cells.append((arm, var, vals))
 
-for arm, var, v40, v100 in cells:
+for arm, var, vals in cells:
     style, colour = VAR_STYLE[var], ARM_COLOR[arm]
-    v40p = min(v40, YMAX) if v40 is not None else None
-    v100p = min(v100, YMAX) if v100 is not None else None
-    if v40p is not None and v100p is not None:
-        ax.plot([40, 100], [v40p, v100p], color=colour, alpha=0.9,
+    pts = [(x, min(v, YMAX)) for x, v in vals if v is not None]
+    if len(pts) > 1:
+        ax.plot([p[0] for p in pts], [p[1] for p in pts], color=colour, alpha=0.9,
                 linestyle=style["ls"], linewidth=style["lw"],
                 marker=style["marker"], markersize=style["ms"], markeredgewidth=0)
-    else:
-        x, y = (40, v40p) if v40p is not None else (100, v100p)
-        ax.plot([x], [y], color=colour, alpha=0.5, linestyle="",
+    elif pts:
+        ax.plot([pts[0][0]], [pts[0][1]], color=colour, alpha=0.5, linestyle="",
                 marker=style["marker"], markersize=style["ms"])
-    for v, x in ((v40, 40), (v100, 100)):
+    for x, v in vals:
         if v is not None and v > YMAX:
             ax.annotate(f"^{v:.2f}", xy=(x, YMAX - 0.01), fontsize=7,
                         color=colour, ha="center", va="top")
 
-# Labels at the right edge: anchor on the 100k value, de-overlap, leader lines.
-labelled = [c for c in cells if c[3] is not None]
-anchors = [min(c[3], YMAX) for c in labelled]
+# Label at each cell's LAST available horizon, de-overlapped at the right edge.
+anchors, labelled = [], []
+for arm, var, vals in cells:
+    last = [(x, v) for x, v in vals if v is not None][-1]
+    anchors.append(min(last[1], YMAX)); labelled.append((arm, var, vals, last))
 ys = spread(anchors, gap=(YMAX - YMIN) / (len(anchors) + 1), lo=YMIN, hi=YMAX)
-LABEL_X = 118
-for (arm, var, v40, v100), y_anchor, y_lab in zip(labelled, anchors, ys):
+LABEL_X = 178
+for (arm, var, vals, last), y_anchor, y_lab in zip(labelled, anchors, ys):
     colour = ARM_COLOR[arm]
-    delta = "" if v40 is None else f"  ({v100 - v40:+.3f})"
-    text = (f"{arm} {VAR_STYLE[var]['short']}  {v100:.3f}{delta}"
+    have = [v for _, v in vals if v is not None]
+    delta = f"  ({have[-1] - have[-2]:+.3f})" if len(have) > 1 else ""
+    mark = " ←200k" if last[0] == 160 else ""
+    text = (f"{arm} {VAR_STYLE[var]['short']}  {last[1]:.3f}{delta}{mark}"
             f"   [{ARM_LOSS[arm]} | {variant_annotation(arm, var)}]")
-    ax.plot([101, LABEL_X - 1], [y_anchor, y_lab], color=colour,
+    ax.plot([last[0] + 1, LABEL_X - 1], [y_anchor, y_lab], color=colour,
             lw=0.6, alpha=0.45, zorder=0)
     ax.text(LABEL_X, y_lab, text, color=colour, fontsize=7.5, va="center", ha="left")
 
 ax.axhline(1.0, color="#c04040", lw=1.2, linestyle="--")
-ax.set_xticks([40, 100])
-ax.set_xticklabels(["bb 40k\n(head 15k)", "bb 100k\n(head 30k)"])
-ax.set_xlim(25, 305)
+ax.set_xticks([x for _, _, x in HORIZONS])
+ax.set_xticklabels(["bb 40k\n(head 15k)", "bb 100k\n(head 30k)", "bb 200k\n(head 30k)"])
+ax.set_xlim(25, 372)
 ax.set_ylim(YMIN, YMAX)
 ax.set_ylabel("Aggregate GM-Relative MASE  (lower is better)")
 ax.grid(True, axis="y", color=GRID, alpha=0.6)
@@ -129,12 +128,13 @@ var_handles = [Line2D([], [], color=INK, linestyle=VAR_STYLE[v]["ls"],
 ax.legend(handles=var_handles, loc="lower left", fontsize=8, frameon=False,
           ncol=5, title="variant")
 
-n_paired = sum(1 for c in cells if c[2] is not None and c[3] is not None)
-down = sum(1 for c in cells if c[2] is not None and c[3] is not None and c[3] < c[2])
-ax.set_title(f"GM-Relative MASE, backbone 40k -> 100k  "
-             f"({n_paired} cells with both endpoints; {down} improve, {n_paired - down} worsen; "
-             f"labels carry the 100k value and the change)", fontsize=11)
+n200 = sum(1 for _, _, vals in cells if vals[2][1] is not None)
+down = sum(1 for _, _, vals in cells
+           if vals[2][1] is not None and vals[2][1] < vals[1][1])
+ax.set_title(f"GM-Relative MASE across backbone horizons  "
+             f"(30 cells at 40k and 100k; the {n200} that improved 40k→100k were "
+             f"extended to 200k, of which {down} improved again)", fontsize=11)
 fig.tight_layout()
 out = HERE / "eval_2L_gm_mase_progression.png"
 fig.savefig(out)
-print(f"wrote {out}  ({n_paired} paired lines, {down} improving)")
+print(f"wrote {out}  ({len(cells)} cells, {n200} at 200k, {down} improved again)")

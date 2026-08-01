@@ -1,16 +1,18 @@
-# No cell beats seasonal-naive at 40k or at 100k; `arm6_v2 combab` is the lowest at both
+# No cell beats seasonal-naive at any backbone horizon; `arm6_v2 combab` is the lowest at all three
 
-30 cells (6 loss recipes × 5 settings) evaluated at two backbone horizons — step 40k with a 15k-step quantile head, and step 100k with a 30k-step head. All 60 evaluations cover the full 97 GIFT-Eval B4 configs. Every value is above 1.0, i.e. worse than seasonal-naive on the geometric average. Going from 40k to 100k, 10 cells improve and 20 worsen; the sign of that change differs between cells inside every one of the six recipes.
+30 cells (6 loss recipes × 5 settings) evaluated at backbone step 40k with a 15k-step quantile head and at step 100k with a 30k-step head. The 10 cells that improved from 40k to 100k were then extended to step 200k and evaluated again with the same 30k-step head. All 70 evaluations cover the full 97 GIFT-Eval B4 configs. Every value is above 1.0, i.e. worse than seasonal-naive on the geometric average.
+
+Going from 40k to 100k, 10 of 30 cells improve. Of those 10 taken on to 200k, 5 improve again and 5 worsen. The sign of the change differs between cells inside every one of the six recipes, at both steps.
 
 Definitions of each recipe and each setting are in [Architectures](#architectures); all numbers are in [Results](#results).
 
 ## Figures
 
-### 1. GM-Relative MASE, backbone 40k → 100k
+### 1. GM-Relative MASE across backbone horizons
 
-Each line is one cell. Labels carry the 100k value and the change from 40k.
+Each line is one cell. Cells reaching 200k are marked `←200k` in the label; every label carries the cell's last value and its change from the previous horizon.
 
-![Slope chart, GM-Relative MASE at backbone 40k (head 15k) and backbone 100k (head 30k), 30 paired cells; line colour = loss recipe, line style = setting; arm1 combab clipped at 1.85 (its 40k value is 3.13).](plots/eval_2L_gm_mase_progression.png)
+![Slope chart of GM-Relative MASE at backbone 40k (head 15k), 100k (head 30k) and 200k (head 30k); all 30 cells span the first two horizons, the 10 that improved continue to the third; line colour = loss recipe, line style = setting; arm1 combab clipped at 1.85 (its 40k value is 3.13).](plots/eval_2L_gm_mase_progression.png)
 
 ### 2. Ranking at backbone 40k
 
@@ -73,42 +75,42 @@ Inherited verbatim from the split-pred/rep sweep (`reports/2026-07-10_split_pred
 
 ## Results
 
-### GM-Relative MASE, all 30 cells at both horizons
+### GM-Relative MASE, all 30 cells
 
-Ranked by the 100k value. Per-cell summaries: `results/eval_gm_mase/`.
+Ranked by the 100k value. A dash in the 200k columns means the cell was not extended: only the 10 cells that improved from 40k to 100k were taken to 200k. Per-cell summaries and the per-config GIFT-Eval rows behind each aggregate: `results/eval_gm_mase/`.
 
-| Rank @100k | Cell | bb 40k (head 15k) | bb 100k (head 30k) | change |
-|------|------------------|--------|--------|---------|
-| 1  | `arm6_v2 combab` | 1.2025 | 1.1616 | −0.0409 |
-| 2  | `arm5 combab`    | 1.2868 | 1.2456 | −0.0412 |
-| 3  | `arm6_v2 ncpc`   | 1.3623 | 1.2978 | −0.0645 |
-| 4  | `arm4 combab`    | 1.2748 | 1.3219 | +0.0471 |
-| 5  | `arm4 ncpc`      | 1.2957 | 1.3441 | +0.0484 |
-| 6  | `arm6_v2 base`   | 1.3149 | 1.3449 | +0.0300 |
-| 7  | `bimoco ncpc`    | 1.3739 | 1.3833 | +0.0094 |
-| 8  | `arm1 base`      | 1.3674 | 1.3909 | +0.0235 |
-| 9  | `arm6_v2 nse`    | 1.3791 | 1.3914 | +0.0123 |
-| 10 | `arm5 nse`       | 1.4682 | 1.3980 | −0.0702 |
-| 11 | `arm4 base`      | 1.3537 | 1.4051 | +0.0514 |
-| 12 | `bimoco base`    | 1.5123 | 1.4144 | −0.0979 |
-| 13 | `bimoco nse`     | 1.3673 | 1.4234 | +0.0561 |
-| 14 | `arm5 tr1`       | 1.3254 | 1.4249 | +0.0995 |
-| 15 | `arm5 ncpc`      | 1.5079 | 1.4459 | −0.0620 |
-| 16 | `arm3 tr1`       | 1.4547 | 1.4467 | −0.0080 |
-| 17 | `arm4 tr1`       | 1.4414 | 1.4469 | +0.0055 |
-| 18 | `bimoco combab`  | 1.4420 | 1.4517 | +0.0097 |
-| 19 | `arm1 nse`       | 1.5579 | 1.4548 | −0.1031 |
-| 20 | `arm3 combab`    | 1.4056 | 1.4921 | +0.0865 |
-| 21 | `arm1 ncpc`      | 1.5100 | 1.4963 | −0.0137 |
-| 22 | `arm6_v2 tr1`    | 1.4684 | 1.5188 | +0.0504 |
-| 23 | `arm3 base`      | 1.4545 | 1.5255 | +0.0710 |
-| 24 | `arm5 base`      | 1.5478 | 1.5579 | +0.0101 |
-| 25 | `arm4 nse`       | 1.4852 | 1.5687 | +0.0835 |
-| 26 | `bimoco tr1`     | 1.4892 | 1.5823 | +0.0931 |
-| 27 | `arm3 ncpc`      | 1.4635 | 1.5973 | +0.1338 |
-| 28 | `arm1 tr1`       | 1.3725 | 1.6036 | +0.2311 |
-| 29 | `arm3 nse`       | 1.4432 | 1.7372 | +0.2940 |
-| 30 | `arm1 combab`    | 3.1251 | 1.7595 | −1.3656 |
+| Rank @100k | Cell | bb 40k (head 15k) | bb 100k (head 30k) | 40k→100k | bb 200k (head 30k) | 100k→200k |
+|------|------------------|--------|--------|---------|--------|---------|
+| 1  | `arm6_v2 combab`  | 1.2025 | 1.1616 | −0.0409 | 1.1652 | +0.0036 |
+| 2  | `arm5 combab`     | 1.2868 | 1.2456 | −0.0412 | 1.2034 | −0.0422 |
+| 3  | `arm6_v2 ncpc`    | 1.3623 | 1.2978 | −0.0645 | 1.3011 | +0.0033 |
+| 4  | `arm4 combab`     | 1.2748 | 1.3219 | +0.0471 | — | — |
+| 5  | `arm4 ncpc`       | 1.2957 | 1.3441 | +0.0484 | — | — |
+| 6  | `arm6_v2 base`    | 1.3149 | 1.3449 | +0.0300 | — | — |
+| 7  | `bimoco ncpc`     | 1.3739 | 1.3833 | +0.0094 | — | — |
+| 8  | `arm1 base`       | 1.3674 | 1.3909 | +0.0235 | — | — |
+| 9  | `arm6_v2 nse`     | 1.3791 | 1.3914 | +0.0123 | — | — |
+| 10 | `arm5 nse`        | 1.4682 | 1.3980 | −0.0702 | 1.6565 | +0.2585 |
+| 11 | `arm4 base`       | 1.3537 | 1.4051 | +0.0514 | — | — |
+| 12 | `bimoco base`     | 1.5123 | 1.4144 | −0.0979 | 1.3993 | −0.0151 |
+| 13 | `bimoco nse`      | 1.3673 | 1.4234 | +0.0561 | — | — |
+| 14 | `arm5 tr1`        | 1.3254 | 1.4249 | +0.0995 | — | — |
+| 15 | `arm5 ncpc`       | 1.5079 | 1.4459 | −0.0620 | 1.5692 | +0.1233 |
+| 16 | `arm3 tr1`        | 1.4547 | 1.4467 | −0.0080 | 1.4706 | +0.0239 |
+| 17 | `arm4 tr1`        | 1.4414 | 1.4469 | +0.0055 | — | — |
+| 18 | `bimoco combab`   | 1.4420 | 1.4517 | +0.0097 | — | — |
+| 19 | `arm1 nse`        | 1.5579 | 1.4548 | −0.1031 | 1.3308 | −0.1240 |
+| 20 | `arm3 combab`     | 1.4056 | 1.4921 | +0.0865 | — | — |
+| 21 | `arm1 ncpc`       | 1.5100 | 1.4963 | −0.0137 | 1.4041 | −0.0922 |
+| 22 | `arm6_v2 tr1`     | 1.4684 | 1.5188 | +0.0504 | — | — |
+| 23 | `arm3 base`       | 1.4545 | 1.5255 | +0.0710 | — | — |
+| 24 | `arm5 base`       | 1.5478 | 1.5579 | +0.0101 | — | — |
+| 25 | `arm4 nse`        | 1.4852 | 1.5687 | +0.0835 | — | — |
+| 26 | `bimoco tr1`      | 1.4892 | 1.5823 | +0.0931 | — | — |
+| 27 | `arm3 ncpc`       | 1.4635 | 1.5973 | +0.1338 | — | — |
+| 28 | `arm1 tr1`        | 1.3725 | 1.6036 | +0.2311 | — | — |
+| 29 | `arm3 nse`        | 1.4432 | 1.7372 | +0.2940 | — | — |
+| 30 | `arm1 combab`     | 3.1251 | 1.7595 | −1.3656 | 1.7107 | −0.0488 |
 
 **On the ±0.01 error bars in figures 2 and 3.** Each cell is `N=1`, so this is not a measured seed-replicate interval for this experiment. It is a constant borrowed from the 2026-05-08 τ-sweep paired reruns via the [LeJEPA-SIGReg-τ report annex F](../2026-06-21_lejepa_sigreg_tau098/lejepa_sigreg_tau098.md#f-seed-noise-band), shown as a visual reference for "differences smaller than this have previously turned out to be within-seed noise", not as a confidence interval for this ranking.
 
@@ -124,19 +126,19 @@ Paired Wilcoxon signed-rank on end-of-40k mean drift, N=6 recipe pairs, one-side
 
 ## Setup
 
-Backbone: `d_model=64, n_heads=8, num_encoder_layers=3, num_layers=3, batch_size=64, seed=20260520`, dataset `jeremycochoy/gift-pretrain-full-4096 / small_v1`.
+Backbone: `d_model=64, n_heads=8, num_encoder_layers=3, num_layers=3, batch_size=64, seed=20260520`, dataset `jeremycochoy/gift-pretrain-full-4096 / small_v1`. The 200k backbones continue the same run from its 100k checkpoint with the saved optimizer state, same seed and same flags.
 
 Quantile head, trained on the frozen backbone:
 
-| Param                | bb 40k        | bb 100k       |
-|----------------------|---------------|---------------|
-| `--head-arch`        | `transformer` | `transformer` |
-| `--head-num-layers`  | 2             | 2             |
-| `--head-nhead`       | 8             | 8             |
-| `--head-ffn-mult`    | 4.0           | 4.0           |
-| `--head-causal`      | true          | true          |
-| `--head-train-input` | `e_then_f`    | `e_then_f`    |
-| `--forecast-len`     | 16            | 16            |
-| `--batch-size`       | 256           | 256           |
-| `--lr`               | 1e-3          | 1e-3          |
-| `--total-steps`      | 15,000        | 30,000        |
+| Param                | bb 40k        | bb 100k       | bb 200k       |
+|----------------------|---------------|---------------|---------------|
+| `--head-arch`        | `transformer` | `transformer` | `transformer` |
+| `--head-num-layers`  | 2             | 2             | 2             |
+| `--head-nhead`       | 8             | 8             | 8             |
+| `--head-ffn-mult`    | 4.0           | 4.0           | 4.0           |
+| `--head-causal`      | true          | true          | true          |
+| `--head-train-input` | `e_then_f`    | `e_then_f`    | `e_then_f`    |
+| `--forecast-len`     | 16            | 16            | 16            |
+| `--batch-size`       | 256           | 256           | 256           |
+| `--lr`               | 1e-3          | 1e-3          | 1e-3          |
+| `--total-steps`      | 15,000        | 30,000        | 30,000        |
