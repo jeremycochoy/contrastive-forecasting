@@ -1,0 +1,34 @@
+[probe] shape=(64, 1024, 1) seed=20260722
+[pred] 20 checkpoints (5000…100000)
+[rep] 20 checkpoints (5000…100000)
+[align] 20 checkpoints (5000…100000)
+[sigreg_e] 20 checkpoints (5000…100000)
+[sigreg_h] 20 checkpoints (5000…100000)
+[cpc] 20 checkpoints (5000…100000)
+[pred_moco] 20 checkpoints (5000…100000)
+[rep_moco] 20 checkpoints (5000…100000)
+[align_teacher_a09] 20 checkpoints (5000…100000)
+[align_teacher_sched] 20 checkpoints (5000…100000)
+[pred_moco_sched] 20 checkpoints (5000…100000)
+[rep_moco_sched] 20 checkpoints (5000…100000)
+[out] /tmp/contrastive-forecasting-388/experiments/2026-08-01_align_teacher_ema_schedule/results/drift.csv (684 rows)
+[align_teacher_a09] alpha rows=1001 drift rows=798
+[align_teacher_sched] alpha rows=1001 drift rows=798
+[pred_moco_sched] alpha rows=1001 drift rows=798
+[rep_moco_sched] alpha rows=1001 drift rows=798
+[align] (#382) loss rows=1001
+[pred_moco] (#382) loss rows=1001
+[rep_moco] (#382) loss rows=1001
+wrote /tmp/contrastive-forecasting-388/experiments/2026-08-01_align_teacher_ema_schedule/results/alpha_schedule.csv
+wrote /tmp/contrastive-forecasting-388/experiments/2026-08-01_align_teacher_ema_schedule/results/loss_curve.csv
+wrote /tmp/contrastive-forecasting-388/experiments/2026-08-01_align_teacher_ema_schedule/results/drift_500.csv
+wrote /tmp/contrastive-forecasting-388/experiments/2026-08-01_align_teacher_ema_schedule/results/summary.csv
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-388/experiments/2026-08-01_align_teacher_ema_schedule/plots/drift_headline.png
+wrote /tmp/contrastive-forecasting-388/experiments/2026-08-01_align_teacher_ema_schedule/plots/align_fix.png
+wrote /tmp/contrastive-forecasting-388/experiments/2026-08-01_align_teacher_ema_schedule/plots/alpha_schedule.png
+wrote /tmp/contrastive-forecasting-388/experiments/2026-08-01_align_teacher_ema_schedule/plots/cumulative_drift.png
+wrote /tmp/contrastive-forecasting-388/experiments/2026-08-01_align_teacher_ema_schedule/plots/drift_500.png
+wrote /tmp/contrastive-forecasting-388/experiments/2026-08-01_align_teacher_ema_schedule/plots/dim_usage.png
+analysis done
