@@ -6,6 +6,13 @@ Going from 40k to 100k, 10 of 30 cells improve. Of those 10 taken on to 200k, 5 
 
 Definitions of each recipe and each setting are in [Architectures](#architectures); all numbers are in [Results](#results).
 
+> **⚠ `L_align` targets the student latent, not the EMA teacher latent.**
+> `L_align = (2 − 2·cos(f_t, sg(h_{t+1}))).mean()`, and `h_{t+1}` there is the **student** encoder output with a stop-gradient on it — `src/loss.py:2543` applies `hy_norm.detach()`, where `hy_norm` is derived from `original_latent` (`src/loss.py:1030-1035`). The EMA teacher latent is a separate variable, `teacher_original_latent` (`src/loss.py:1039`), and the other terms that use it — `L_rep_moco`, `align_moco_loss` — read it explicitly. `L_align` never does.
+>
+> The intended design was to forecast the EMA teacher latent. What ran is the stop-grad-student form (SimSiam-style) rather than the EMA-teacher form (BYOL-style). This affects the two recipes carrying `L_align`: **`arm5`** (`L_align + L_rep`) and **`arm6_v2`** (`L_align + L_rep_moco`) — the latter includes `arm6_v2 combab`, the lowest-scoring cell in this study.
+>
+> The runs were not recomputed. Every number below is what the code above produced, so read `L_align` throughout this report as the stop-grad-student term.
+
 ## Figures
 
 ### 1. GM-Relative MASE across backbone horizons — all 30 cells
@@ -81,9 +88,11 @@ Inherited verbatim from the split-pred/rep sweep (`reports/2026-07-10_split_pred
 | `arm1`    | `L_pred + L_rep`           |
 | `arm3`    | `L_pred_moco + L_rep`      |
 | `arm4`    | `pooled + MoCo`            |
-| `arm5`    | `L_align + L_rep`          |
-| `arm6_v2` | `L_align + L_rep_moco`     |
+| `arm5`    | `L_align + L_rep` ⚠         |
+| `arm6_v2` | `L_align + L_rep_moco` ⚠    |
 | `bimoco`  | `L_pred_moco + L_rep_moco` |
+
+⚠ `L_align` targets the stop-gradded **student** latent, not the EMA teacher latent it was meant to target — see the note at the top of this report.
 
 ### Five settings applied to each recipe
 
@@ -106,6 +115,7 @@ Inherited verbatim from the split-pred/rep sweep (`reports/2026-07-10_split_pred
 - **SIGReg** — the LeJEPA-style spectral regulariser pushing each latent's Gram matrix toward a Gaussian off-diagonal; `--sigreg-embedding-weight` (`sigreg_e`) applies it to `e_t`, `--sigreg-encoding-weight` to `h_t`.
 - **CPC** (`--cpc-infonce-weight`) — the CPC-InfoNCE auxiliary of van den Oord et al. 2018, predicting `e_{t+1}` from a bilinear projection of `h_t`.
 - **MoCo** — negatives drawn from an EMA teacher (momentum contrast).
+- **`L_align`** — `(2 − 2·cos(f_t, sg(h_{t+1}))).mean()`, pulling the forecaster output toward the next encoder latent with a stop-gradient on the target so gradient flows only through the forecaster. The target is the **student** encoder's `h_{t+1}` (`src/loss.py:2543`), not the EMA teacher's; see the note at the top.
 
 ## Results
 
