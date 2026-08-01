@@ -70,7 +70,7 @@ Panels 1 and 2 put `h_t` drift and GM-Relative MASE on the same log-step axis fo
 
 ![Three panels: h_t drift between adjacent checkpoints for six cells with the 100k-200k window shaded; the GM-Relative MASE of the same cells on the same log-step axis; and a scatter of mean late-window h_t drift against the 100k-to-200k GM-MASE change for all ten extended cells, coloured green for improved and red for worsened.](plots/drift_vs_improvement.png)
 
-Across the 10 extended cells, mean `h_t` drift over the 100k→200k checkpoints and the GM-Relative MASE change over the same stretch have Spearman ρ = −0.03. The two cells with the lowest late drift, `bimoco base` (0.587) and `arm6_v2 combab` (0.740), sit on opposite sides of zero change, and the four largest improvements all come from cells whose late drift is above 0.92. On these 10 cells, at this window, latent movement does not separate the cells that improved from the cells that did not.
+Across the 10 extended cells, mean `h_t` drift over the 100k→200k checkpoints and the GM-Relative MASE change over the same stretch have Spearman ρ = −0.03. The two cells with the lowest late drift, `bimoco base` (0.587) and `arm6_v2 ncpc` (0.739), sit on opposite sides of zero change, and the four largest improvements all come from cells whose late drift is above 0.92. On these 10 cells, at this window, latent movement does not separate the cells that improved from the cells that did not.
 
 ## Architectures
 
