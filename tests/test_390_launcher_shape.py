@@ -275,7 +275,7 @@ def test_arm_names_lists_the_ten_cells():
     assert sorted(got.stdout.split()) == sorted(ARMS)
 
 
-@pytest.mark.parametrize("path", [MONITOR_SH, SYNC_LOOP_SH])
+@pytest.mark.parametrize("path", [MONITOR_SH, SYNC_LOOP_SH, ORCHESTRATE_SH])
 def test_watchers_derive_names_rather_than_retyping_them(path: Path):
     code = strip_comments(path.read_text())
     assert "arm_names.sh" in code, (
@@ -287,18 +287,34 @@ def test_watchers_derive_names_rather_than_retyping_them(path: Path):
         f"{path.name} hard-codes a run name — derive it with bb_name.")
 
 
+def arm_names_value(expr: str) -> list[str]:
+    """Expand an arm_names.sh variable, as the scripts sourcing it see it."""
+    got = subprocess.run(["bash", "-c", f'source "{ARM_NAMES_SH}"; echo {expr}'],
+                         capture_output=True, text=True, check=True)
+    return got.stdout.split()
+
+
 def test_orchestrate_covers_every_cell_and_every_wave():
+    """The 10 cells and the wave schedule live in arm_names.sh, the one file
+    monitor.sh and sync_loop.sh read them from too. Check the table, then
+    check orchestrate.sh drives the wave from it instead of keeping a second
+    copy that can drift."""
+    assert sorted(arm_names_value('"${CF390_ARMS[*]}"')) == sorted(ARMS)
+    # The issue's schedule: 40k → 100k → 200k. Index 0 pads the array so the
+    # wave number indexes it directly.
+    assert arm_names_value('"${CF390_WAVE_TARGET_STEPS[*]}"') == [
+        "0", "40000", "100000", "200000"]
+    assert arm_names_value('"${CF390_WAVE_SAVE_EVERY[*]}"') == [
+        "0", "10000", "25000", "25000"]
+    # Only the last wave is final: run_arm.sh writes `_FINAL.pth` only when
+    # TARGET ≥ FINAL, so waves 1 and 2 must leave FINAL_STEPS at the arm's
+    # true end and let the next wave resume from the newest _<N>k.pth.
+    assert arm_names_value('"$CF390_FINAL_STEPS"') == ["200000"]
+
     code = strip_comments(ORCHESTRATE_SH.read_text())
-    for arm in ARMS:
-        assert re.search(rf'\b{re.escape(arm)}\b', code), (
-            f"orchestrate.sh does not cover {arm}")
-    # The issue's schedule: 40k → 100k → 200k, and only the last wave is
-    # final (run_arm.sh writes `_FINAL.pth` only when TARGET ≥ FINAL).
-    for steps in ("40000", "100000", "200000"):
-        assert steps in code, f"orchestrate.sh has no wave at {steps} steps"
-    assert "FINAL_STEPS=200000" in code, (
-        "waves 1 and 2 must leave FINAL_STEPS at the arm's true end so the "
-        "next wave resumes from the newest _<N>k.pth.")
+    for var in ("CF390_ARMS", "CF390_WAVE_TARGET_STEPS",
+                "CF390_WAVE_SAVE_EVERY", "CF390_FINAL_STEPS"):
+        assert var in code, f"orchestrate.sh must take {var} from arm_names.sh"
 
 
 def test_orchestrate_and_monitor_reject_wt_under_tmp():

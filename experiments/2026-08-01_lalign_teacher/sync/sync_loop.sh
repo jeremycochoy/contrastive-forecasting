@@ -63,13 +63,12 @@ BACKBONE_MIN=3000000         # ~5 MB actual, floor 3 MB
 BACKBONE_OPT_MIN=6000000     # ~10 MB actual, floor 6 MB
 TEXT_MIN=100                 # CSVs / logs: at least a header
 
-# Checkpoint step_k values the three waves put on disk:
-#   wave 1 | extra-save 2500 ∪ save-every 10 000 (0…40k)    → {2, 10, 20, 30, 40}
-#   wave 2 | save-every 25 000 (40k…100k)                   → {50, 75, 100}
-#   wave 3 | save-every 25 000 (100k…200k)                  → {125, 150, 175, 200}
-# safe_pull silently skips missing files, so listing every possible step is
-# cheap — a wave-1-only run simply no-ops on the later entries.
-BACKBONE_STEPS_K="2 10 20 30 40 50 75 100 125 150 175 200"
+# Checkpoint step_k values the three waves put on disk, derived from the wave
+# table in scripts/arm_names.sh rather than retyped here: a hand-kept list
+# stops pulling the snapshot the next wave resumes from the moment a cadence
+# moves. safe_pull silently skips missing files, so listing every possible
+# step is cheap — a wave-1-only run simply no-ops on the later entries.
+BACKBONE_STEPS_K="${BACKBONE_STEPS_K:-$(wave_checkpoint_steps_k | tr '\n' ' ')}"
 
 pull(){ # remote_path local_path min_bytes
   bash "$SAFE_PULL" "$REMOTE_HOST" "$REMOTE_PORT" "$1" "$2" "$3" \

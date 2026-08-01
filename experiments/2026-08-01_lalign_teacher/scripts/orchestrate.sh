@@ -35,20 +35,28 @@ case "$WT" in
     ;;
 esac
 
+# The wave table, the 10 cell names and the arm → run-name mapping all live
+# in arm_names.sh, so this script, monitor.sh and sync/sync_loop.sh cannot
+# drift apart.
+HERE="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=arm_names.sh
+source "$HERE/arm_names.sh"
+
 WAVE="${WAVE:-1}"
 case "$WAVE" in
-  1) TARGET_STEPS=40000;  SAVE_EVERY=10000; EXTRA_SAVES="2500" ;;
-  2) TARGET_STEPS=100000; SAVE_EVERY=25000; EXTRA_SAVES="2500" ;;
-  3) TARGET_STEPS=200000; SAVE_EVERY=25000; EXTRA_SAVES="2500" ;;
+  1|2|3) : ;;
   *) echo "ABORT: WAVE must be 1, 2 or 3; got '$WAVE'" >&2; exit 2 ;;
 esac
+TARGET_STEPS="${CF390_WAVE_TARGET_STEPS[$WAVE]}"
+SAVE_EVERY="${CF390_WAVE_SAVE_EVERY[$WAVE]}"
+EXTRA_SAVES="$CF390_EXTRA_SAVES"
 # FINAL_STEPS stays at the arm's true end (200k) for waves 1 and 2, so
 # run_arm.sh writes no `_FINAL.pth` and the next wave resumes from the
 # latest `_<N>k.pth`. See run_arm.sh § Staged-wave support.
-FINAL_STEPS=200000
+FINAL_STEPS="$CF390_FINAL_STEPS"
 
 # All 10 cells by default. Wave 3 is expected to carry a subset.
-ARMS="${ARMS:-arm5 arm5_tr1 arm5_nse arm5_ncpc arm5_combab arm6_v2 arm6_v2_tr1 arm6_v2_nse arm6_v2_ncpc arm6_v2_combab}"
+ARMS="${ARMS:-${CF390_ARMS[*]}}"
 read -r -a ARM_LIST <<< "$ARMS"
 
 OUT="$WT/experiments/2026-08-01_lalign_teacher"
@@ -58,6 +66,13 @@ LOG="$RES/orchestrate_wave${WAVE}.log"
 STATE="$RES/orchestrate_wave${WAVE}_state.json"
 
 log(){ echo "[$(date '+%m-%d %H:%M:%S')] [orch-390-w$WAVE] $*" | tee -a "$LOG"; }
+
+# The pairs run sequentially, so "nothing is training right now" is true at
+# every phase boundary and says nothing about the wave. monitor.sh watches
+# this PID instead, and must not exit while it is alive.
+PIDFILE="$RES/orchestrate_wave${WAVE}.pid"
+echo $$ > "$PIDFILE"
+trap 'rm -f "$PIDFILE"' EXIT
 
 launch_arm(){ # arm bb_gpu
   local arm="$1" bb_gpu="$2"
@@ -94,12 +109,17 @@ while [ "$i" -lt "${#ARM_LIST[@]}" ]; do
   i=$((i + 2))
 done
 
-# Summary — how many arms reached this wave's step budget on disk.
+# Summary — how many arms reached this wave's step budget on disk. This
+# number decides whether the next wave starts, so each arm is matched on its
+# exact run name: `arm5` and `arm5_tr1` share the `bb_small_arm5` prefix, and
+# a glob that crosses them credits a crashed cell with its neighbour's
+# progress.
 target_k=$(( TARGET_STEPS / 1000 ))
 reached=0
 for arm in "${ARM_LIST[@]}"; do
+  name="$(bb_name "$arm")" || { log "  $arm: unknown arm — not counted"; continue; }
   best=-1
-  for f in "$OUT/runs/"*"_${arm}_"*k.pth "$OUT/runs/"*"${arm}"*_*k.pth; do
+  for f in "$OUT/runs/${name}"_*k.pth; do
     [ -e "$f" ] || continue
     case "$f" in *_optimizer.pth) continue;; esac
     k=$(basename "$f" | sed -E 's/.*_([0-9]+)k\.pth$/\1/')

@@ -142,10 +142,18 @@ Before any launch, walk
 | `scripts/smoke.sh`    | 200-step backbone smoke: config, checkpoint naming, dynamics columns, step time. |
 | `scripts/orchestrate.sh` | one wave of the 10 cells, two GPUs.                               |
 | `scripts/monitor.sh`  | 15-min watchdog on the training host: copies the CSVs into `sync/`, shouts on NaN or a dead trainer. |
-| `scripts/arm_names.sh`| the arm → run-name mapping, derived once and pinned against `run_arm.sh` by the tests. |
+| `scripts/arm_names.sh`| the arm → run-name mapping and the three-wave table, derived once and pinned against `run_arm.sh` by the tests. |
 | `sync/sync_loop.sh`   | 15-min pull of checkpoints, optimizers, CSVs and logs into a persistent off-host checkout. |
 
-`monitor.sh` guards the small CSVs where the runs happen; `sync/sync_loop.sh`
-runs on the machine that owns the durable copy and pulls everything,
-checkpoints and optimizer state included. Verify a sync by `ls`-ing the
-target after a tick, never by reading its log.
+`monitor.sh` runs on the training host, so its `runs/` → `sync/` copy is
+same-disk: a watchdog and a stable point-in-time copy, not machine-death
+protection. Surviving the machine is `sync/sync_loop.sh`, which runs where
+the durable checkout lives and pulls everything, checkpoints and optimizer
+state included. Verify a sync by `ls`-ing the target after a tick, never by
+reading its log.
+
+`monitor.sh` runs for the whole wave, not just while a trainer is up:
+`orchestrate.sh` runs the cells as five sequential pairs, so nothing is
+training at each phase boundary. It publishes its PID to
+`results/orchestrate_wave<N>.pid`, and the monitor exits only once that
+process is gone.

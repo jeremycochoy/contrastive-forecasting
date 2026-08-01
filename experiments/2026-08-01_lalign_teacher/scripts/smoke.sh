@@ -108,7 +108,13 @@ CSV=$(ls "$RUNS"/*_losses.csv 2>/dev/null | head -1) || true
 # The plot scripts read ff / u_batchtime / u_batchtime_e — a missing column
 # means the deliverable plots silently fail. Read the last populated row too,
 # so a bare header does not pass.
-mapfile -t VALS < <(python3 - "$CSV" <<'PY'
+#
+# Take the helper's own exit status, not a wrapper's: `mapfile -t V < <(…)`
+# reports mapfile's status (always 0) and `set -e` does not reach into a
+# process substitution, so the exit 2 / exit 3 below would be swallowed and
+# a broken CSV would print SMOKE OK.
+DYN_RC=0
+DYN_OUT="$(python3 - "$CSV" <<'PY'
 import csv, sys
 required = ("ff", "u_batchtime", "u_batchtime_e")
 with open(sys.argv[1], newline="") as f:
@@ -127,8 +133,16 @@ if last is None:
 for c in required:
     print(last[c])
 PY
-) || {
-  echo "[smoke-390] SMOKE FAILED — training-dynamics check on $CSV: ${VALS[*]:-<empty>}" >&2
+)" || DYN_RC=$?
+if [ "$DYN_RC" -ne 0 ]; then
+  echo "[smoke-390] SMOKE FAILED — training-dynamics check on $CSV" \
+       "(rc=$DYN_RC): ${DYN_OUT:-<no output>}" >&2
+  exit 1
+fi
+mapfile -t VALS <<< "$DYN_OUT"
+[ "${#VALS[@]}" -eq 3 ] || {
+  echo "[smoke-390] SMOKE FAILED — training-dynamics check on $CSV returned" \
+       "${#VALS[@]} values, expected 3: ${VALS[*]}" >&2
   exit 1
 }
 
