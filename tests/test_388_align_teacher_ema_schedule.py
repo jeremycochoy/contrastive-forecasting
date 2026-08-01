@@ -11,12 +11,18 @@ Three pieces of behaviour, each independently defaulting to the #382 run:
 3. train.py wires both through CLI flags, writes the live α to
    ``<run>_losses.csv``, and the latent-drift probe records the teacher's
    ``h_t`` next to the student's.
+4. Both CSVs refuse to append under a header from another schema: the runs
+   auto-resume, and a pre-#388 file would take the new rows silently and
+   shift every column after the first.
+5. `vs_initial` drift rows are grouped by their reference step, because a
+   resumed probe re-seeds that reference.
 """
 
 from __future__ import annotations
 
 import ast
 import csv
+import importlib.util
 import os
 import subprocess
 import sys
@@ -249,15 +255,57 @@ def _run_train(tmp_path, run_name, extra):
                           cwd=str(tmp_path), timeout=900), save_dir
 
 
-TEACHER_ARM = [
+# The standalone L_align arm: main contrastive loss off, align term on.
+NO_TEACHER_ARM = [
     "--loss-shape", "cosine_similarity_batch_no_time_neg",
     "--no-main-contrastive-loss", "--align-loss-weight", "1.0",
-    "--align-target", "teacher",
-    "--ema-embedding", "--ema-encoder", "--ema-tau", "0.9",
 ]
+# The same arm with an EMA teacher attached, at #388's starting α.
+ARM_BASE = NO_TEACHER_ARM + ["--ema-embedding", "--ema-encoder",
+                             "--ema-tau", "0.9"]
+TEACHER_ARM = ARM_BASE + ["--align-target", "teacher"]
+STUDENT_ARM = ARM_BASE + ["--align-target", "student"]
 
 
 class TestEndToEnd:
+
+    def test_align_target_reaches_the_loss(self, tmp_path):
+        """The whole point of #388: the teacher's h has to arrive at
+        ``align_loss``. Three 4-step runs, same seed, same arm, same RNG
+        draws. Two of them differ only in ``--align-target``; the third
+        repeats the student one and pins the run down as deterministic, so
+        the difference can only come from the target. If train.py passed the
+        student target in both (the #382 bug), the columns would match."""
+        _assert_train_deps_available()
+        names = ("a388student", "a388student2", "a388teacher")
+        arms = (STUDENT_ARM, STUDENT_ARM, TEACHER_ARM)
+        save_dir = None
+        for name, arm in zip(names, arms):
+            res, save_dir = _run_train(tmp_path, name, arm)
+            if res.returncode != 0:
+                pytest.fail(f"{name} rc={res.returncode}\n{res.stderr[-3000:]}")
+
+        def losses(name):
+            path = save_dir / f"{name}_losses.csv"
+            return [float(r["loss"]) for r in csv.DictReader(open(path))]
+
+        student, repeat, teacher = (losses(n) for n in names)
+        assert len(student) == len(teacher) == 4
+        assert student == repeat, "the run is not deterministic at this seed"
+        assert student != teacher, (
+            "--align-target teacher trained on the same loss as student: "
+            f"{student} vs {teacher}")
+
+    def test_ema_tau_is_blank_without_a_teacher(self, tmp_path):
+        """The column is promised blank — not 0, not the default α — for a
+        run with no teacher, so a reader can tell 'no teacher' from 'α=0.9'."""
+        _assert_train_deps_available()
+        res, save_dir = _run_train(tmp_path, "a388noema", NO_TEACHER_ARM)
+        if res.returncode != 0:
+            pytest.fail(f"rc={res.returncode}\n{res.stderr[-3000:]}")
+        rows = list(csv.DictReader(open(save_dir / "a388noema_losses.csv")))
+        assert rows and "ema_tau" in rows[0]
+        assert {r["ema_tau"] for r in rows} == {""}
 
     def test_scheduled_alpha_is_logged_every_step(self, tmp_path):
         """α must appear in <run>_losses.csv and move from start to end."""
@@ -333,9 +381,192 @@ class TestEndToEnd:
         """Silently falling back to the student target is what #382 did by
         accident. Fail loudly instead."""
         _assert_train_deps_available()
-        res, _ = _run_train(tmp_path, "a388noteacher", [
-            "--loss-shape", "cosine_similarity_batch_no_time_neg",
-            "--no-main-contrastive-loss", "--align-loss-weight", "1.0",
-            "--align-target", "teacher"])
+        res, _ = _run_train(tmp_path, "a388noteacher",
+                            NO_TEACHER_ARM + ["--align-target", "teacher"])
         assert res.returncode != 0
         assert "align-target" in (res.stdout + res.stderr)
+
+
+# --- 6. CSV schema guards and probe teacher detection ---------------------
+
+
+def load_train_module():
+    """Import train.py as a module — its ``main()`` sits behind ``__main__``."""
+    _assert_train_deps_available()
+    spec = importlib.util.spec_from_file_location("train_py_388", TRAIN_PY)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+# The losses-CSV header as it stood before #388 appended `ema_tau` — what a
+# run started on the #382 code left on disk.
+LOSSES_HEADER_PRE_388 = [
+    "step", "loss", "loss_tau_ref", "gap", "gap_ratio", "ff", "fp", "tp",
+    "cross_batch", "hf_rows_consumed", "synth_rows_consumed", "mixup_applied",
+    "r2_random", "r2_naive", "u_temporal", "u_batch", "auc", "top1", "top3",
+    "cpc_aux", "sigreg_e", "sigreg_h", "u_temporal_e", "u_batch_e",
+    "u_batchtime", "u_batchtime_e",
+]
+
+# The drift-CSV header as it stood before #388 inserted `latent` (PR #387).
+DRIFT_HEADER_PRE_388 = [
+    "step", "kind", "step_ref", "delta_step",
+    "drift_cos", "drift_cos_aligned", "rot_gap", "cka",
+]
+
+
+def write_csv(path, header, rows=()):
+    with open(path, "w", newline="") as fh:
+        wr = csv.writer(fh)
+        wr.writerow(header)
+        wr.writerows(rows)
+    return str(path)
+
+
+class TestLossesCsvResumeSchema:
+
+    def test_pre_388_losses_csv_is_refused(self, tmp_path):
+        """A #382 CSV has 26 columns, the #388 writer 27. Appending would
+        shift every value one column left from the resume step on."""
+        train = load_train_module()
+        path = write_csv(tmp_path / "old_losses.csv", LOSSES_HEADER_PRE_388,
+                         [[0] * len(LOSSES_HEADER_PRE_388)])
+        with pytest.raises(SystemExit, match="schema mismatch"):
+            train.CSVLogger(path)
+
+    def test_current_losses_csv_is_appended_to(self, tmp_path):
+        train = load_train_module()
+        path = write_csv(tmp_path / "cur_losses.csv",
+                         LOSSES_HEADER_PRE_388 + ["ema_tau"])
+        logger = train.CSVLogger(path)
+        logger.close()
+        with open(path) as fh:
+            assert len(list(csv.reader(fh))) == 1     # no duplicate header
+
+
+class TestDriftCsvResumeSchema:
+
+    def probe(self, train, path):
+        return train.LatentDriftProbe(str(path), torch.zeros(2, 64, 1), "cpu")
+
+    def test_pre_388_drift_csv_is_refused(self, tmp_path):
+        """`latent` is column 2, so a pre-#388 file cannot take the new rows:
+        the header would say `kind` where the row now says `student_h`."""
+        train = load_train_module()
+        path = write_csv(tmp_path / "old_latent_drift.csv",
+                         DRIFT_HEADER_PRE_388,
+                         [[0, "adjacent", 0, 0, 0.0, 0.0, 0.0, 1.0]])
+        with pytest.raises(SystemExit, match="schema mismatch"):
+            self.probe(train, path)
+
+    def test_current_drift_csv_is_appended_to(self, tmp_path):
+        train = load_train_module()
+        path = write_csv(tmp_path / "cur_latent_drift.csv",
+                         train.LatentDriftProbe.COLUMNS)
+        self.probe(train, path).close()
+        with open(path) as fh:
+            assert len(list(csv.reader(fh))) == 1     # no duplicate header
+
+    def test_column_order_is_the_one_the_runs_write(self):
+        """The #388 runs are in flight against this exact order; moving a
+        column would corrupt their CSV on the next resume."""
+        train = load_train_module()
+        assert train.LatentDriftProbe.COLUMNS == [
+            "step", "latent", "kind", "step_ref", "delta_step",
+            "drift_cos", "drift_cos_aligned", "rot_gap", "cka"]
+
+
+class TestProbeTeacherDetection:
+    """The probe reads the teacher off the model by attribute. A rename would
+    silently drop every teacher_h row, so pin the detection to a real model."""
+
+    def probe_of(self, train, tmp_path, model):
+        p = train.LatentDriftProbe(str(tmp_path / "d.csv"),
+                                   torch.zeros(2, 64, 1), "cpu")
+        try:
+            return p.extract_h(model)
+        finally:
+            p.close()
+
+    def test_teacher_h_present_when_the_model_has_a_teacher(self, tmp_path):
+        train = load_train_module()
+        h = self.probe_of(train, tmp_path, _tiny_model())
+        assert set(h) == {"student_h", "teacher_h"}
+        assert h["teacher_h"].shape == h["student_h"].shape
+
+    def test_encoder_only_teacher_is_detected(self, tmp_path):
+        """--ema-encoder alone still makes a teacher."""
+        train = load_train_module()
+        h = self.probe_of(train, tmp_path,
+                          _tiny_model(ema_embedding=False, ema_encoder=True))
+        assert set(h) == {"student_h", "teacher_h"}
+
+    def test_student_only_without_a_teacher(self, tmp_path):
+        train = load_train_module()
+        h = self.probe_of(train, tmp_path,
+                          _tiny_model(ema_embedding=False, ema_encoder=False))
+        assert set(h) == {"student_h"}
+
+    def test_probe_leaves_training_mode_untouched(self, tmp_path):
+        train = load_train_module()
+        model = _tiny_model().train()
+        self.probe_of(train, tmp_path, model)
+        assert model.training
+
+
+# --- 7. drift curves across a resume --------------------------------------
+
+
+MAKE_PLOTS = (REPO_ROOT / "experiments"
+              / "2026-08-01_align_teacher_ema_schedule" / "scripts"
+              / "make_plots.py")
+
+DRIFT_COLUMNS = ["run", "arm", "alpha", "latent", "kind", "step", "step_ref",
+                 "delta_step", "drift_cos", "drift_cos_aligned", "rot_gap",
+                 "cka"]
+
+
+def load_make_plots():
+    pytest.importorskip("matplotlib")
+    spec = importlib.util.spec_from_file_location("make_plots_388", MAKE_PLOTS)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def drift_row(kind, step, step_ref, drift):
+    return ["align_teacher_a09", "align_teacher", "const_0.9", "student_h",
+            kind, step, step_ref, step - step_ref, drift, drift, 0.0, 1.0]
+
+
+class TestDriftSeriesAcrossAResume:
+    """run_arm.sh auto-resumes, and a resumed probe re-seeds its `vs_initial`
+    reference to the resume step. Two references are two curves."""
+
+    def test_vs_initial_splits_on_the_reference_step(self, tmp_path):
+        mp = load_make_plots()
+        path = write_csv(tmp_path / "drift.csv", DRIFT_COLUMNS, [
+            drift_row("vs_initial", 10_000, 5_000, 0.20),
+            drift_row("vs_initial", 15_000, 5_000, 0.30),
+            drift_row("vs_initial", 25_000, 20_000, 0.05),   # after a resume
+            drift_row("vs_initial", 30_000, 20_000, 0.09),
+        ])
+        got = mp.curves(mp.read_drift(path), "align_teacher", "vs_initial")
+        assert len(got) == 2, "two baselines were joined into one curve"
+        assert sorted(len(pts) for _, _, pts in got) == [2, 2]
+
+    def test_adjacent_rows_stay_one_curve(self, tmp_path):
+        """`adjacent` references the previous probe, so its step_ref moves
+        every row — keying on it would shatter the curve into single points."""
+        mp = load_make_plots()
+        path = write_csv(tmp_path / "drift.csv", DRIFT_COLUMNS, [
+            drift_row("adjacent", 10_000, 5_000, 0.20),
+            drift_row("adjacent", 15_000, 10_000, 0.18),
+            drift_row("adjacent", 20_000, 15_000, 0.17),
+        ])
+        got = mp.curves(mp.read_drift(path), "align_teacher", "adjacent")
+        assert len(got) == 1
+        assert [s for s, _ in got[0][2]] == [10_000, 15_000, 20_000]

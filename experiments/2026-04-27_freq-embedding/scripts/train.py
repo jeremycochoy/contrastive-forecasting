@@ -938,14 +938,19 @@ class LatentDriftProbe:
     in the ``latent`` column. Both curves then come from one probe batch at
     one cadence, so they are directly comparable.
 
-    CSV columns::
-        step, latent, kind, step_ref, delta_step,
-        drift_cos, drift_cos_aligned, rot_gap, cka
+    CSV columns are ``COLUMNS`` below. A resume starts the probe over: the
+    first ``probe`` call of the resumed leg becomes that leg's initial
+    snapshot, so its ``vs_initial`` rows reference the resume step, not step
+    0. ``step_ref`` records which, and readers must group on it — see
+    ``read_drift`` in the #388 experiment's ``make_plots.py``.
 
     Cached ``h`` tensors are kept on CPU as fp16 so memory stays trivial
     (~10 MB per snapshot at ``B=64, T_lat=256, H=384``). The metric
     itself runs in fp32 on ``device`` after cast-back.
     """
+
+    COLUMNS = ["step", "latent", "kind", "step_ref", "delta_step",
+               "drift_cos", "drift_cos_aligned", "rot_gap", "cka"]
 
     def __init__(self, csv_path, probe_x, device):
         self.csv_path = csv_path
@@ -962,19 +967,44 @@ class LatentDriftProbe:
             return
         new_file = (not os.path.exists(csv_path)
                     or os.path.getsize(csv_path) == 0)
+        if not new_file:
+            self.assert_csv_schema(csv_path)
         self._file = open(csv_path, "a", newline="")
         self._writer = csv.writer(self._file)
         if new_file:
-            self._writer.writerow([
-                "step", "latent", "kind", "step_ref", "delta_step",
-                "drift_cos", "drift_cos_aligned", "rot_gap", "cka",
-            ])
+            self._writer.writerow(self.COLUMNS)
             self._file.flush()
 
+    @classmethod
+    def assert_csv_schema(cls, csv_path):
+        """Refuse to append rows written under a different schema.
+
+        ``latent`` sits at column 2 (#388), not at the end, so a drift CSV
+        written before #388 would swallow 9-field rows under its 8-field
+        header without an error and every column after ``step`` would read
+        shifted. Runs are in flight against ``COLUMNS``, so the order is
+        fixed; on a mismatch the safe action is to stop and let the caller
+        move the old CSV aside.
+        """
+        with open(csv_path, "r", newline="") as fh:
+            existing = next(csv.reader(fh), None)
+        if existing is not None and existing != cls.COLUMNS:
+            raise SystemExit(
+                f"CSV resume schema mismatch at {csv_path}: existing header "
+                f"{existing} != writer header {cls.COLUMNS}. Refusing to "
+                "append (would corrupt the file). Move the old CSV aside or "
+                "pick a fresh --run-name.")
+
     @torch.no_grad()
-    def _extract_h(self, model):
+    def extract_h(self, model):
         """{latent_name: h} on CPU fp16 — the student always, the EMA
-        teacher too when the model has one."""
+        teacher too when the model has one.
+
+        Teacher presence is read off ``ConfigurableModel.ema_embedding`` /
+        ``.ema_encoder``; both are pinned by
+        ``tests/test_388_align_teacher_ema_schedule.py`` so a rename cannot
+        quietly drop every ``teacher_h`` row.
+        """
         was_training = model.training
         model.eval()
         try:
@@ -1001,7 +1031,7 @@ class LatentDriftProbe:
     def probe(self, model, step: int):
         if not self._enabled:
             return
-        h = self._extract_h(model)
+        h = self.extract_h(model)
         if not self.initial_h:
             self.initial_h = h
             self.initial_step = step
@@ -1601,9 +1631,13 @@ def main():
                 loss = f_lat.new_zeros(())
                 if args.align_loss_weight > 0:
                     # #388: --align-target teacher swaps the target for the
-                    # EMA teacher's h_{t+1} (the BYOL form). Argparse already
-                    # rejected `teacher` without a teacher, so teacher_o_lat
-                    # is non-None here.
+                    # EMA teacher's h_{t+1} (the BYOL form). Argparse rejects
+                    # `teacher` without a teacher — assert it here too, where
+                    # the value is used: a None target silently falls back to
+                    # the student, which is the #382 bug this flag fixes.
+                    if args.align_target == "teacher":
+                        assert teacher_o_lat is not None, \
+                            "--align-target teacher but no teacher latents"
                     align_target = (teacher_o_lat
                                     if args.align_target == "teacher" else None)
                     loss = loss + align_loss(f_lat, o_lat,
