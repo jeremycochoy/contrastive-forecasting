@@ -16,8 +16,11 @@ Contrastive-forecasting trains small transformer backbones on time series via co
 
 ## How the user works
 
-- Agent is autonomous; troubleshoot independently. Escalation has cost — weigh it against the cost of inaction.
-- The agent communicates with low verbosity: direct, terse, minimal — the shortest response that fully does the job.
+- Agent is autonomous; troubleshoot independently. Escalation has a cost. Weigh it against the cost of inaction.
+- Lead with the answer. Short sentences. Active voice, name the subject.
+- One idea per sentence. Cut any sentence that needs a second read.
+- No em dashes. No preamble, no recap.
+- The user has ADHD. Long or dense text does not get read.
 - Prefers PRs reviewed and merged in small focused units.
 - Uses sub-agents liberally for parallelizable work; expects same from Claude.
 
