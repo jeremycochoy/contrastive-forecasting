@@ -680,6 +680,48 @@ def extract_encoder_latents(backbone, x, freq_ids=None, seasonality_ids=None):
     return e_bc.detach(), x_norm.detach()
 
 
+def extract_teacher_encoder_latents(backbone, x, freq_ids=None,
+                                    seasonality_ids=None):
+    """EMA-teacher counterpart of :func:`extract_encoder_latents` (#388).
+
+    Same input preparation, same output layout, but the patch-embed and the
+    encoder stack are the teacher's EMA copies (``backbone.teacher_forward``).
+    Use it to measure the teacher's ``h_t`` on the same probe batch as the
+    student's, so the two drift curves are directly comparable.
+
+    Raises RuntimeError when the backbone carries no teacher (built without
+    ``ema_embedding`` / ``ema_encoder``).
+
+    Returns:
+        h_bc: (B*C, T, H) teacher encoder latents (detached)
+        x_norm: (B, T_raw, C) normalized input
+    """
+    with torch.no_grad():
+        if backbone.rev_norm is not None:
+            x_norm = backbone.rev_norm(x, mode='norm')
+        else:
+            x_norm = x
+
+        B = x_norm.shape[0]
+        if (getattr(backbone, 'freq_embedding', None) is not None
+                and freq_ids is None):
+            default = int(getattr(backbone, '_eval_freq_id', 0))
+            freq_ids = torch.full((B,), default, dtype=torch.long, device=x.device)
+        if (getattr(backbone, 'seasonality_embedding', None) is not None
+                and seasonality_ids is None):
+            default = int(getattr(backbone, '_eval_seasonality_id', 0))
+            seasonality_ids = torch.full((B,), default, dtype=torch.long, device=x.device)
+
+        xr = backbone.prepare_encoder_input(
+            x_norm, freq_ids=freq_ids, seasonality_ids=seasonality_ids)
+
+        h = backbone.teacher_forward(xr)                 # (B, T, C, H)
+        B, T, C, H = h.size()
+        h_bc = h.permute(0, 2, 1, 3).reshape(B * C, T, H)
+
+    return h_bc.detach(), x_norm.detach()
+
+
 def rollout_latent(backbone, encoder_latents, n_future_tokens):
     """Generate future forecaster latents via autoregressive rollout.
 

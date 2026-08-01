@@ -481,6 +481,26 @@ def _ema_update(teacher: torch.nn.Module, student: torch.nn.Module, tau: float):
         t.data.copy_(s.data)
 
 
+def ema_tau_at_step(step: int, total_steps: int, tau_start: float,
+                    tau_end: float | None) -> float:
+    """EMA momentum α for `step`, linear from `tau_start` to `tau_end`.
+
+    α is the weight the teacher keeps on its own previous value in
+    ``θ_T ← α·θ_T + (1−α)·θ_S``, so a larger α is a slower teacher and
+    α = 1 freezes it. ``tau_end=None`` returns ``tau_start`` at every step,
+    which is the constant-α behaviour every run before #388 had.
+
+    `step` is clamped into ``[0, total_steps]``, so a resume that overshoots
+    the budget stays at the end value instead of extrapolating past it.
+    """
+    if tau_end is None:
+        return float(tau_start)
+    if total_steps <= 0:
+        return float(tau_end)
+    frac = min(max(step / total_steps, 0.0), 1.0)
+    return float(tau_start) + frac * (float(tau_end) - float(tau_start))
+
+
 def generate_random_batch(batch_size=16, T_raw=4096, C=4, seed=None, dimension=4):
     """Generate a random ARMA batch (discarding parameters)."""
     X, _ = generate_arma_batch(batch_size=batch_size, T_raw=T_raw, C=C, seed=seed, dimension=dimension)
