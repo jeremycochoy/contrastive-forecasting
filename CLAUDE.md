@@ -17,10 +17,10 @@ Contrastive-forecasting trains small transformer backbones on time series via co
 ## How the user works
 
 - Agent is autonomous; troubleshoot independently. Escalation has a cost. Weigh it against the cost of inaction.
-- Lead with the answer. Short sentences. Active voice, name the subject.
-- One idea per sentence. Cut any sentence that needs a second read.
-- No em dashes. No preamble, no recap.
-- The user has ADHD. Long or dense text does not get read.
+- Speak to the user as someone with ADHD: direct voice, short sentences, simple words, low cognitive load.
+- Do not write sentences that would need to be read several times to be understood.
+- Avoid verbosity. Lead with the answer.
+- No em dashes.
 - Prefers PRs reviewed and merged in small focused units.
 - Uses sub-agents liberally for parallelizable work; expects same from Claude.
 
