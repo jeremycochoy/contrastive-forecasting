@@ -8,37 +8,43 @@ Definitions of each recipe and each setting are in [Architectures](#architecture
 
 ## Figures
 
-### 1. GM-Relative MASE across backbone horizons
+### 1. GM-Relative MASE across backbone horizons — all 30 cells
 
-One panel per loss recipe, sharing axes. Inside a panel the five settings are coloured and the other 25 cells are grey, so each recipe is readable on its own and still in context. Labels carry the cell's last value and its change from the previous horizon; `←200k` marks the cells extended to 200k.
+Every cell on one chart. Colour is the loss recipe, line style is the setting, and both are decoded in the legends. Labels carry the cell's last value and its change from the previous horizon; `←200k` marks the cells extended to 200k.
 
-![Six panels, one per loss recipe, each plotting GM-Relative MASE at backbone 40k (head 15k), 100k (head 30k) and 200k (head 30k); the panel's own five settings are in colour with the other 25 cells in grey; line style encodes the setting; the grey horizontal band is ±0.01 around the best cell; arm1 combab's 3.13 at 40k is annotated above the axis.](plots/eval_2L_gm_mase_progression.png)
+![One chart plotting GM-Relative MASE for all 30 cells at backbone 40k (head 15k), 100k (head 30k) and 200k (head 30k); colour encodes the loss recipe and line style the setting; the grey horizontal band is ±0.01 around the best cell; arm1 combab's 3.13 at 40k is annotated above the axis.](plots/eval_2L_gm_mase_progression.png)
 
-### 2. GM-Relative MASE per dataset domain
+### 2. The same data, one panel per loss recipe
+
+Each panel colours its own five settings and greys the other 25 cells, so a recipe can be read without tracing one line across the other 29.
+
+![Six panels, one per loss recipe, each plotting GM-Relative MASE at backbone 40k, 100k and 200k; the panel's own five settings are in colour with the other 25 cells in grey; line style encodes the setting; the grey horizontal band is ±0.01 around the best cell.](plots/eval_2L_gm_mase_per_recipe.png)
+
+### 3. GM-Relative MASE per dataset domain
 
 The headline number is one geometric mean over all 97 configs. These radars apply that same geometric mean inside each of the 7 GIFT-Eval domains, so a cell's strong and weak domains are visible instead of averaged away. Left: the 5 lowest cells, each at its last evaluated backbone step. Right: every cell that improved from 100k to 200k.
 
 ![Two radar charts over the 7 GIFT-Eval dataset domains, radial axis log2 of the GM-Relative MASE ratio; a red dashed ring marks seasonal-naive parity at 1.0, inside it the model is better; left panel the 5 lowest cells, right panel the 5 cells that improved from backbone 100k to 200k.](plots/eval_domain_radar.png)
 
-### 3. Ranking at backbone 40k
+### 4. Ranking at backbone 40k
 
 ![Bar chart of GM-Relative MASE for all 30 cells at backbone step 40k, head 15k steps, sorted ascending; red dashed line at 1.0 = seasonal-naive; arm1 combab (3.13) clipped at 1.75.](plots/eval_2L_gm_mase_bars.png)
 
-### 4. Ranking at backbone 100k
+### 5. Ranking at backbone 100k
 
 ![Bar chart of GM-Relative MASE for all 30 cells at backbone step 100k, head 30k steps, sorted ascending; red dashed line at 1.0 = seasonal-naive.](plots/eval_2L_gm_mase_bars_100k.png)
 
-### 5. Latent movement between adjacent checkpoints
+### 6. Latent movement between adjacent checkpoints
 
 How far the latents of a fixed held-out batch rotate between one saved checkpoint and the next. Rows = setting, columns = `h_t` / `e_t`.
 
 ![Latent drift per adjacent-checkpoint pair, 5 rows (base / tr1 / nse / ncpc / combab) × 2 columns (h_t encoder output, e_t patch embedding), x-axis log training step, y shared per column.](plots/latent_movement_per_arm.png)
 
-### 6. Forecast-to-latent distance `1 − ff` during training
+### 7. Forecast-to-latent distance `1 − ff` during training
 
 ![1 − ff per arm across training steps, one panel per setting (base / tr1 / nse / ncpc / combab), shared y axis, x-axis log training step.](plots/cos_error_per_arm.png)
 
-### 7. Dimension usage `u_batchtime` during training
+### 8. Dimension usage `u_batchtime` during training
 
 ![u_batchtime per arm, one panel per arm × setting, h_t solid and e_t dashed, x-axis log training step.](plots/dim_usage_per_arm.png)
 
@@ -118,7 +124,7 @@ Ranked by the 100k value. A dash in the 200k columns means the cell was not exte
 | 29 | `arm3 nse`        | 1.4432 | 1.7372 | +0.2940 | — | — |
 | 30 | `arm1 combab`     | 3.1251 | 1.7595 | −1.3656 | 1.7107 | −0.0488 |
 
-**On the ±0.01 error bars in figures 3 and 4.** Each cell is `N=1`, so this is not a measured seed-replicate interval for this experiment. It is a constant borrowed from the 2026-05-08 τ-sweep paired reruns via the [LeJEPA-SIGReg-τ report annex F](../2026-06-21_lejepa_sigreg_tau098/lejepa_sigreg_tau098.md#f-seed-noise-band), shown as a visual reference for "differences smaller than this have previously turned out to be within-seed noise", not as a confidence interval for this ranking.
+**On the ±0.01 error bars in figures 4 and 5.** Each cell is `N=1`, so this is not a measured seed-replicate interval for this experiment. It is a constant borrowed from the 2026-05-08 τ-sweep paired reruns via the [LeJEPA-SIGReg-τ report annex F](../2026-06-21_lejepa_sigreg_tau098/lejepa_sigreg_tau098.md#f-seed-noise-band), shown as a visual reference for "differences smaller than this have previously turned out to be within-seed noise", not as a confidence interval for this ranking.
 
 ### GM-Relative MASE per domain, the cells evaluated at backbone 200k
 
