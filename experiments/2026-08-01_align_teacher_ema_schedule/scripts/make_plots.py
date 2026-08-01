@@ -21,9 +21,10 @@ ask for and the report does not carry:
                           L_align panels: both align arms sit within ~10%
                           of the collinear floor on the time axis.
 
-Encoding in drift_headline.png: one colour per named series, so a curve
-is identified from a single legend row. No crossed colour/line-style
-encoding, no band-under-line drawing.
+Encoding in drift_headline.png and align_fix.png: one colour per named
+series, so a curve is identified from a single legend row. The EMA-teacher
+series are drawn last and dashed, so where a teacher coincides with its
+student both stay visible.
 
 Encoding in the other figures: colour = which encoder (student / EMA
 teacher), line style = the α schedule (solid = constant, dashed =
@@ -134,20 +135,23 @@ def plot_headline(series, out_png):
     # distinct under the three common colour-vision deficiencies and where
     # curves overlap. Equal line weight everywhere: no curve is a backdrop
     # for another.
-    # Drawing order = list order; the student of each pair goes last so it
-    # stays visible where the two coincide. The caption names those spans.
+    # Drawing order = list order; the teacher of each pair goes LAST so it
+    # renders on top where the two coincide, and is dashed so the student
+    # shows through the gaps. Colour still identifies the curve on its own;
+    # the dash is an extra cue, not a replacement.
     named = [
-        (("const_0.9", "teacher_h"), "#E69F00",
-         "EMA teacher $h_t$, alpha = 0.9"),
-        (("sched_0.9_1.0", "teacher_h"), "#CC79A7",
-         "EMA teacher $h_t$, alpha: 0.9 -> 1.0"),
-        (("const_0.9", "student_h"), "#0072B2", "student $h_t$, alpha = 0.9"),
+        (("const_0.9", "student_h"), "#0072B2", "student $h_t$, alpha = 0.9",
+         "-"),
         (("sched_0.9_1.0", "student_h"), "#009E73",
-         "student $h_t$, alpha: 0.9 -> 1.0"),
+         "student $h_t$, alpha: 0.9 -> 1.0", "-"),
+        (("const_0.9", "teacher_h"), "#E69F00",
+         "EMA teacher $h_t$, alpha = 0.9", (0, (4, 3))),
+        (("sched_0.9_1.0", "teacher_h"), "#CC79A7",
+         "EMA teacher $h_t$, alpha: 0.9 -> 1.0", (0, (4, 3))),
     ]
-    legend_order = [2, 0, 3, 1]
+    legend_order = [0, 2, 1, 3]
     solo_color, solo_label = "#333333", "student $h_t$"
-    kw = dict(lw=1.5, linestyle="-", marker="o", ms=3.0,
+    kw = dict(lw=1.5, marker="o", ms=3.0,
               markeredgecolor="white", markeredgewidth=0.5)
 
     fig, axs = plt.subplots(3, 3, figsize=(11.5, 8.5), sharey=True,
@@ -157,13 +161,13 @@ def plot_headline(series, out_png):
         ax.axhline(0.0, color="#b0b0b0", linestyle=":", linewidth=0.9)
         pts_of = {(a, l): p for a, l, p in curves(series, arm, "adjacent")}
         if arm in TEACHER_ARMS:
-            for z, (key, color, _) in enumerate(named):
+            for z, (key, color, _, ls) in enumerate(named):
                 pts = pts_of.get(key, [])
                 if not pts:
                     print(f"  (missing {arm} {key})")
                     continue
                 ax.plot([p[0] for p in pts], [p[1] for p in pts],
-                        color=color, zorder=2 + z, **kw)
+                        color=color, linestyle=ls, zorder=2 + z, **kw)
             ax.set_facecolor("#fdf6f0")
         else:
             for pts in pts_of.values():
@@ -178,7 +182,8 @@ def plot_headline(series, out_png):
         if i % 3:
             ax.set_ylabel("")
     handles = [Line2D([], [], color=solo_color, lw=1.5, label=solo_label)]
-    handles += [Line2D([], [], color=named[i][1], lw=1.5, label=named[i][2])
+    handles += [Line2D([], [], color=named[i][1], lw=1.5,
+                       linestyle=named[i][3], label=named[i][2])
                 for i in legend_order]
     fig.legend(handles=handles, loc="lower center", ncol=3, frameon=False,
                fontsize=10, bbox_to_anchor=(0.5, -0.005))
@@ -194,31 +199,31 @@ def plot_headline(series, out_png):
 
 def plot_align_fix(series, out_png):
     fig, ax = plt.subplots(figsize=(7.2, 4.6))
-    # Drawn teacher-first so the student's line sits on top of its band;
-    # the legend is re-sorted afterwards to read student before teacher.
+    # The teacher is drawn LAST and dashed, so it renders on top of the
+    # student it coincides with and the student shows through the gaps.
     wanted = [
         (("align", "align", "none", "student_h", "adjacent"),
          "#7570b3", "prior `align`: target = student sg($h_{t+1}$)",
-         dict(MARK, zorder=3)),
-        (("align_teacher_a09", "align_teacher", "const_0.9", "teacher_h",
-          "adjacent"), TEACHER, "`align_teacher`: EMA-teacher $h_t$",
-         LATENT_KW["teacher_h"]),
+         "-", dict(MARK, zorder=3)),
         (("align_teacher_a09", "align_teacher", "const_0.9", "student_h",
           "adjacent"), STUDENT, "`align_teacher`: student $h_t$",
-         LATENT_KW["student_h"]),
+         "-", dict(MARK, zorder=4)),
+        (("align_teacher_a09", "align_teacher", "const_0.9", "teacher_h",
+          "adjacent"), TEACHER, "`align_teacher`: EMA-teacher $h_t$",
+         (0, (4, 3)), dict(lw=1.6, zorder=5)),
     ]
     handles = {}
-    for key, color, label, kw in wanted:
+    for key, color, label, ls, kw in wanted:
         pts = series.get(key, [])
         if not pts:
             print(f"  (missing {key})")
             continue
         handles[label], = ax.plot([p[0] for p in pts], [p[1] for p in pts],
-                                  color=color, linestyle="-", label=label,
+                                  color=color, linestyle=ls, label=label,
                                   **kw)
     ax.axhline(0.0, color="#b0b0b0", linestyle=":", linewidth=0.9)
     style_axes(ax, "drift_cos ($h_t$)")
-    order = [w[2] for w in (wanted[0], wanted[2], wanted[1])]
+    order = [w[2] for w in wanted]
     ax.legend([handles[k] for k in order if k in handles],
               [k for k in order if k in handles], frameon=False, fontsize=9)
     ax.set_title("L_align with the teacher as target, α = 0.9 constant",

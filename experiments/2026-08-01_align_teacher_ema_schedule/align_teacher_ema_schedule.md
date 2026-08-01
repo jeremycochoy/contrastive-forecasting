@@ -16,17 +16,19 @@ compared to its predecessor 5000 steps earlier. α is the weight the teacher
 keeps on itself in `θ_teacher ← α·θ_teacher + (1 − α)·θ_student`, applied after
 every optimizer step. One panel per loss term, same axes for all nine. Shaded
 panels have an EMA teacher and carry four named curves; the other six have no
-teacher and carry one. In every teacher panel the EMA-teacher curve lies under
-its student curve for the whole run, within a line width: orange under blue for
-α = 0.9, pink under green for the schedule. The two α settings separate from
+teacher and carry one. Solid = student, dashed = EMA teacher. In every teacher
+panel the EMA-teacher curve tracks its student curve within a line width for
+the whole run: orange on blue for α = 0.9, pink on green for the schedule. The
+two α settings separate from
 about 40k on `pred_moco` and `rep_moco`, and stay together on `align_teacher`.*
 
 ![L_align with the teacher as target](plots/align_fix.png)
 
 *Same probe and same 5000-step spacing, α = 0.9 constant. Purple: the earlier
 `align` arm, whose target was the student's own stop-gradient `sg(h_{t+1})`.
-Blue: `align_teacher`, target = EMA teacher `h_{t+1}`. The orange band is the
-EMA-teacher latent of the same run; it lies under the student curve.*
+Blue: `align_teacher`, target = EMA teacher `h_{t+1}`. Dashed orange: the
+EMA-teacher latent of the same run, which tracks the student curve within a
+line width for the whole run.*
 
 ![Dimension usage](plots/supporting/dim_usage.png)
 
