@@ -465,11 +465,12 @@ def parse_args():
                         "sg(h_{t+1}) — what #382 and #379 trained on. "
                         "'teacher' is the EMA teacher's h_{t+1}, the BYOL "
                         "form L_align was designed for; requires "
-                        "--ema-embedding / --ema-encoder. Applies to both "
-                        "L_align paths: the standalone term under "
-                        "--no-main-contrastive-loss and the "
-                        "--align-loss-weight add-on inside the contrastive "
-                        "loss.")
+                        "--ema-embedding / --ema-encoder. Selects the target "
+                        "of the --align-loss-weight term on both of its "
+                        "paths: standalone under --no-main-contrastive-loss, "
+                        "and as the add-on inside the contrastive loss. "
+                        "--align-moco-loss-weight is a separate term with a "
+                        "teacher target of its own and is NOT affected.")
     p.add_argument("--align-moco-loss-weight", type=float, nargs="?",
                    const=1.0, default=0.0,
                    help="λ for a MoCo-style InfoNCE alignment (#374 arm 6): "
@@ -1707,12 +1708,16 @@ def main():
                 if args.align_loss_weight > 0:
                     # #388: --align-target teacher swaps the target for the
                     # EMA teacher's h_{t+1} (the BYOL form). Argparse rejects
-                    # `teacher` without a teacher — assert it here too, where
-                    # the value is used: a None target silently falls back to
-                    # the student, which is the #382 bug this flag fixes.
-                    if args.align_target == "teacher":
-                        assert teacher_o_lat is not None, \
-                            "--align-target teacher but no teacher latents"
+                    # `teacher` without a teacher — re-check it here too,
+                    # where the value is used: a None target silently falls
+                    # back to the student, which is the #382 bug this flag
+                    # fixes. `raise`, not `assert`: `python -O` strips
+                    # asserts and would reinstate that exact fallback.
+                    if args.align_target == "teacher" and teacher_o_lat is None:
+                        raise SystemExit(
+                            "--align-target teacher but no teacher latents "
+                            "at the loss call. Falling back to the student "
+                            "target is the #382 defect this flag removes.")
                     align_target = (teacher_o_lat
                                     if args.align_target == "teacher" else None)
                     loss = loss + align_loss(f_lat, o_lat,

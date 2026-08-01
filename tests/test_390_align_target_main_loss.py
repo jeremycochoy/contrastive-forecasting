@@ -25,10 +25,20 @@ Pinned here:
 6. TRAIN WIRING — ``--align-target teacher`` reaches the loss with the main
    contrastive loss ON (the #379 cell shape), and the flag combinations that
    cannot do anything abort.
+7. CALL SITES — ``align_target`` is a RUN-LEVEL key on
+   ``LOSS_SPEC.train_configuration``, so every call reading that spec sees it,
+   not only the training step. The teacher guard raises, so a call site that
+   reads a ``'teacher'`` spec without handing over the teacher latent would
+   die *mid-run* — hours into a 200k-step wave. The shapes of the trainer's
+   other calls are pinned here.
+8. NO ASSERT — ``python -O`` strips ``assert``. A stripped guard is exactly
+   the silent student fallback this flag exists to remove, so no guard on the
+   teacher target may be an ``assert``.
 """
 
 from __future__ import annotations
 
+import ast
 import csv
 import os
 import subprocess
@@ -210,6 +220,107 @@ class TestAlignTargetGuards:
                                     teacher_original_latent=t)
 
 
+class TestAlignTargetCallSites:
+    """Every call site that reads a shared spec has to stay alive.
+
+    ``align_target`` is a run-level key, so it reaches every call passing
+    that spec. Before #390 those calls could omit the teacher latent
+    harmlessly; now the guard raises. The trainer makes two calls per step —
+    the training one (teacher passed) and the ``loss_tau_ref`` diagnostic
+    (weight forced to 0, no teacher) — and the two optional entry points
+    (``validation=True``, ``get_history=True``) take the same branch.
+    """
+
+    def test_validation_call_honours_the_teacher_target(self):
+        """`validation` gates only the latent-noise injection, so the
+        add-on must be the same term on both sides."""
+        f, o, t = _latents(seed=51)
+        got = contrastive_latent_loss(
+            (f, o), True, _spec(align_target="teacher"),
+            teacher_original_latent=t)
+        train = contrastive_latent_loss(
+            (f, o), False, _spec(align_target="teacher"),
+            teacher_original_latent=t)
+        assert torch.allclose(got, train, atol=0.0, rtol=0.0)
+
+    def test_validation_call_without_a_teacher_raises(self):
+        """The guard is not gated on `validation` — a validation call
+        reading a 'teacher' spec must not silently score the student."""
+        f, o, _ = _latents(seed=52)
+        with pytest.raises(ValueError, match="align_target"):
+            contrastive_latent_loss((f, o), True, _spec(align_target="teacher"))
+
+    def test_loss_tau_ref_call_shape_survives_a_teacher_spec(self):
+        """train.py's per-step diagnostic passes `align_loss_weight=0.0`
+        and NO teacher while the shared spec says `align_target='teacher'`.
+        It must stay a pure contrastive reference, not raise. This is the
+        crash that would land hours into a wave."""
+        f, o, _ = _latents(seed=53)
+        spec = _spec(align_target="teacher")
+        got = contrastive_latent_loss(
+            (f.detach(), o.detach()), False, spec,
+            tau_override=torch.tensor(0.07, dtype=f.dtype),
+            align_loss_weight=0.0,
+            subtract_contrastive_floor=False,
+            moco_negatives=False, moco_rep_keys=False)
+        want = contrastive_latent_loss(
+            (f.detach(), o.detach()), False, _spec(align_weight=0.0),
+            tau_override=torch.tensor(0.07, dtype=f.dtype),
+            align_loss_weight=0.0,
+            subtract_contrastive_floor=False,
+            moco_negatives=False, moco_rep_keys=False)
+        assert torch.allclose(got, want, atol=0.0, rtol=0.0)
+
+    def test_zero_weight_in_the_config_needs_no_teacher(self):
+        """Same guarantee through the config key rather than the arg: a
+        run-level 'teacher' target with the term off costs nothing."""
+        f, o, _ = _latents(seed=54)
+        got = contrastive_latent_loss(
+            (f, o), False, _spec(align_weight=0.0, align_target="teacher"))
+        want = contrastive_latent_loss((f, o), False, _spec(align_weight=0.0))
+        assert torch.allclose(got, want, atol=0.0, rtol=0.0)
+
+    def test_get_history_call_honours_the_teacher_target(self):
+        """The diagnostic history path returns through the same branch."""
+        f, o, t = _latents(seed=55)
+        got, hist = contrastive_latent_loss(
+            (f, o), False, _spec(align_target="teacher"),
+            teacher_original_latent=t, get_history=True)
+        want = _base_loss(f, o, t, moco_rep=False) + _align_reference(f, t)
+        assert torch.allclose(got, want, atol=1e-12, rtol=0.0)
+        assert hist == (f, o)
+
+    def test_get_history_without_a_teacher_raises(self):
+        f, o, _ = _latents(seed=56)
+        with pytest.raises(ValueError, match="align_target"):
+            contrastive_latent_loss((f, o), False, _spec(align_target="teacher"),
+                                    get_history=True)
+
+    def test_trainer_call_sites_all_stay_on_the_safe_side(self):
+        """The two calls train.py makes with the shared LOSS_SPEC, checked at
+        the source. Each must EITHER hand over the teacher latent OR force
+        the add-on off. Losing either property turns a teacher-target run
+        into a crash hours into a wave, which unit tests on synthetic
+        tensors would not catch."""
+        tree = ast.parse(TRAIN_PY.read_text())
+        calls = [n for n in ast.walk(tree)
+                 if isinstance(n, ast.Call)
+                 and getattr(n.func, "id", None) == "contrastive_latent_loss"]
+        assert len(calls) == 2, (
+            f"expected the training call and the loss_tau_ref diagnostic, "
+            f"found {len(calls)} — new call site, re-check this guarantee.")
+        for call in calls:
+            kw = {k.arg: k for k in call.keywords}
+            passes_teacher = "teacher_original_latent" in kw
+            forces_off = (
+                "align_loss_weight" in kw
+                and ast.unparse(kw["align_loss_weight"].value) == "0.0")
+            assert passes_teacher or forces_off, (
+                f"{TRAIN_PY.name}:{call.lineno} reads LOSS_SPEC (which may "
+                "carry align_target='teacher') but neither passes "
+                "teacher_original_latent nor forces align_loss_weight=0.0.")
+
+
 class TestAlignTargetGradient:
 
     def test_no_gradient_reaches_the_teacher(self):
@@ -247,13 +358,13 @@ def _assert_train_deps_available() -> None:
             pytest.fail(f"train.py dep {mod!r} not importable: {e}")
 
 
-def _run_train(tmp_path, run_name, extra):
+def _run_train(tmp_path, run_name, extra, py_flags=()):
     env = os.environ.copy()
     env["PYTHONPATH"] = str(REPO_ROOT) + os.pathsep + env.get("PYTHONPATH", "")
     save_dir = tmp_path / "runs"
     save_dir.mkdir(exist_ok=True)
     cmd = [
-        sys.executable, "-u", str(TRAIN_PY),
+        sys.executable, "-u", *py_flags, str(TRAIN_PY),
         "--device", "cpu", "--total-steps", "4", "--save-every", "100",
         "--batch-size", "2", "--lr", "1e-3", "--weight-decay", "0.1",
         "--save-dir", str(save_dir), "--run-name", run_name,
@@ -341,5 +452,37 @@ class TestTrainWiring:
             tmp_path, "a390noweight",
             ["--loss-shape", SHAPE, "--ema-embedding", "--ema-encoder",
              "--ema-tau", "0.9", "--align-target", "teacher"])
+        assert res.returncode != 0
+        assert "align-target" in (res.stdout + res.stderr)
+
+
+class TestGuardsSurviveOptimizedMode:
+    """`python -O` strips every `assert`. A guard that vanishes under -O
+    silently reinstates the student target — the #382 defect."""
+
+    def test_no_assert_guards_the_teacher_target(self):
+        """Source-level, because the guard sits on a branch the CLI checks
+        already make unreachable: with `--align-target teacher` argparse
+        demands an EMA teacher, so `teacher_o_lat` is never None there. It
+        is defence in depth, and defence in depth must not evaporate."""
+        tree = ast.parse(TRAIN_PY.read_text())
+        offenders = [
+            node.lineno for node in ast.walk(tree)
+            if isinstance(node, ast.Assert)
+            and "teacher" in ast.unparse(node)
+            and "align" in ast.unparse(node).lower()]
+        assert not offenders, (
+            "assert guards the L_align teacher target at "
+            f"{TRAIN_PY.name}:{offenders} — `python -O` removes it and the "
+            "target falls back to the student. Raise instead.")
+
+    def test_cli_guard_still_aborts_under_dash_O(self, tmp_path):
+        """End-to-end -O run of the combination the launcher can never
+        produce but a hand-edited command line can."""
+        _assert_train_deps_available()
+        res, _ = _run_train(
+            tmp_path, "a390dashO",
+            ["--loss-shape", SHAPE, "--align-loss-weight", "1.0",
+             "--align-target", "teacher"], py_flags=("-O",))
         assert res.returncode != 0
         assert "align-target" in (res.stdout + res.stderr)
