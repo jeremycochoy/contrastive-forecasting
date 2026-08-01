@@ -492,6 +492,10 @@ def ema_tau_at_step(step: int, total_steps: int, tau_start: float,
 
     `step` is clamped into ``[0, total_steps]``, so a resume that overshoots
     the budget stays at the end value instead of extrapolating past it.
+
+    The training loop is 1-indexed, so the start value is never applied
+    exactly: a 0.9 → 1.0 schedule over 100k steps first updates the teacher
+    at α(1) = 0.900001 and last at α(100000) = 1.0, a no-op update.
     """
     if tau_end is None:
         return float(tau_start)

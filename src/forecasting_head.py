@@ -684,10 +684,13 @@ def extract_teacher_encoder_latents(backbone, x, freq_ids=None,
                                     seasonality_ids=None):
     """EMA-teacher counterpart of :func:`extract_encoder_latents` (#388).
 
-    Same input preparation, same output layout, but the patch-embed and the
-    encoder stack are the teacher's EMA copies (``backbone.teacher_forward``).
-    Use it to measure the teacher's ``h_t`` on the same probe batch as the
-    student's, so the two drift curves are directly comparable.
+    Same output layout, and the same input preparation: normalisation,
+    patching and the freq / seasonality embedding tables are the student's,
+    because the teacher covers only ``input_to_latent`` and the encoder
+    stack. ``backbone.teacher_forward`` then runs those two from the EMA
+    copies, falling back to the student's copy of whichever one is not under
+    EMA. Use it to measure the teacher's ``h_t`` on the same probe batch as
+    the student's, so the two drift curves are directly comparable.
 
     Raises RuntimeError when the backbone carries no teacher (built without
     ``ema_embedding`` / ``ema_encoder``).
