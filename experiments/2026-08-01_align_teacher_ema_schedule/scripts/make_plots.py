@@ -164,7 +164,7 @@ def plot_align_fix(series, out_png):
     # the legend is re-sorted afterwards to read student before teacher.
     wanted = [
         (("align", "align", "none", "student_h", "adjacent"),
-         "#7570b3", "#382 `align`: target = student sg($h_{t+1}$)",
+         "#7570b3", "prior `align`: target = student sg($h_{t+1}$)",
          dict(MARK, zorder=3)),
         (("align_teacher_a09", "align_teacher", "const_0.9", "teacher_h",
           "adjacent"), TEACHER, "`align_teacher`: EMA-teacher $h_t$",
@@ -213,7 +213,7 @@ def plot_alpha(alpha_csv, out_png):
                 color=RUN_COLOR.get(run, "#555555"),
                 lw=4.0 - 0.9 * i, label=run, solid_capstyle="butt")
     ax.axhline(0.9, color="#b0b0b0", linestyle="--", linewidth=1.0)
-    ax.text(0.01, 0.9, "#382 runs: α = 0.9 for the whole run",
+    ax.text(0.01, 0.9, "prior runs: α = 0.9 for the whole run",
             transform=ax.get_yaxis_transform(), ha="left", va="bottom",
             fontsize=8, color="#707070")
     style_axes(ax, "EMA momentum α", logx=False)
@@ -275,7 +275,7 @@ def plot_drift_500(path, out_png):
                loc="lower center", ncol=4, frameon=False, fontsize=10,
                bbox_to_anchor=(0.5, -0.01))
     fig.suptitle("Drift of $h_t$ between probes 500 steps apart "
-                 "(the four #388 runs only)", fontsize=13)
+                 "(the four new runs only)", fontsize=13)
     fig.tight_layout(rect=(0, 0.09, 1, 1))
     fig.savefig(out_png, dpi=120)
     print(f"wrote {out_png}")
@@ -285,15 +285,15 @@ def plot_drift_500(path, out_png):
 
 
 DIM_PANELS = [
-    ("L_align", [("align", "#7570b3", "-", "#382 `align` (student target)"),
+    ("L_align", [("align", "#7570b3", "-", "prior `align` (student target)"),
                  ("align_teacher_a09", STUDENT, "-",
                   r"`align_teacher`, $\alpha=0.9$"),
                  ("align_teacher_sched", STUDENT, "--",
                   r"`align_teacher`, $\alpha:0.9\rightarrow1.0$")]),
-    ("MoCo arms", [("pred_moco", "#1b9e77", "-", r"#382 `pred_moco`"),
+    ("MoCo arms", [("pred_moco", "#1b9e77", "-", r"prior `pred_moco`"),
                    ("pred_moco_sched", "#1b9e77", "--",
                     r"`pred_moco`, $\alpha:0.9\rightarrow1.0$"),
-                   ("rep_moco", "#e7298a", "-", r"#382 `rep_moco`"),
+                   ("rep_moco", "#e7298a", "-", r"prior `rep_moco`"),
                    ("rep_moco_sched", "#e7298a", "--",
                     r"`rep_moco`, $\alpha:0.9\rightarrow1.0$")]),
 ]
@@ -314,8 +314,12 @@ def plot_dim_usage(loss_csv, out_png, n_dims=64):
             if not pts:
                 print(f"  (missing {run} in {os.path.basename(loss_csv)})")
                 continue
+            # constant-α is drawn as a wide pale band so the scheduled
+            # curve stays visible where the two coincide.
+            wide = ls == "-"
             ax.plot([p[0] for p in pts], [p[1] for p in pts], color=color,
-                    linestyle=ls, lw=1.5, label=label)
+                    linestyle=ls, lw=3.4 if wide else 1.4,
+                    alpha=0.35 if wide else 1.0, label=label)
         ax.axhline(1.0 / n_dims, color="#b0b0b0", linestyle=":", linewidth=1.0)
         ax.text(0.01, 1.0 / n_dims, f"collinear $h_t$ (1/{n_dims})",
                 transform=ax.get_yaxis_transform(), ha="left", va="bottom",
