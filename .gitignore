@@ -37,7 +37,7 @@ sync_*/
 # CodeGraph index (local snapshot, rebuilt with `codegraph sync`)
 .codegraph/
 
-# #388 sync target: full-resolution training CSVs (~30 MB/run). The report
-# ships reduced copies under results/; the originals stay in the durable run
-# directory (/home/jupyter/checkpoints_backup/cf-388/).
+# #388 sync target: the live mirror pulled while the runs were training. The
+# finished CSVs are committed under artifacts/ (full resolution) and results/
+# (reduced); checkpoints stay in /home/jupyter/checkpoints_backup/cf-388/.
 experiments/2026-08-01_align_teacher_ema_schedule/sync/
