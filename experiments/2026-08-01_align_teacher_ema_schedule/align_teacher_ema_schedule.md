@@ -15,9 +15,11 @@ run: orange on blue for α = 0.9, pink on green for the schedule. The two α
 settings separate from 40k on for `pred_moco` and `rep_moco`, and stay together
 on `align_teacher`.*
 
-Three regimes: drift stays near zero for `align_teacher` and `sigreg_e`; drift
+Four regimes: drift stays near zero for `align_teacher` and `sigreg_e`; drift
 falls with training for `align`, `rep`, `sigreg_h` and `rep_moco`; drift does
-not fall for `pred` and `cpc`.
+not fall for `pred` and `cpc`; `pred_moco` sits between, flat at a mid level
+under α = 0.9 (slope −0.07 per decade) and falling only under the schedule
+(−0.32).
 
 ![L_align with the teacher as target](plots/align_fix.png)
 
