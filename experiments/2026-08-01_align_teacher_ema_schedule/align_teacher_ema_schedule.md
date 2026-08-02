@@ -57,7 +57,16 @@ still accumulates, so the representation is not fixed in place.*
 
 *The in-training probe, 500-step spacing, the four runs of this card only. Only
 `align_teacher` was run at both α settings, so the other two panels carry the
-schedule alone.*
+schedule alone. In the three scheduled runs the teacher curve dives away from its
+student at the end of the ramp: at 100k, student against teacher, 2.45e-03 against
+9.00e-06 for `align_teacher_sched`, 2.35e-02 against 2.05e-04 for `pred_moco_sched`,
+9.00e-03 against 4.45e-04 for `rep_moco_sched`. Under constant α = 0.9 the two stay
+together, 1.77e-03 against 1.66e-03. This is by construction: at α = 1.0 the update
+`θ_teacher ← α·θ_teacher + (1 − α)·θ_student` keeps the teacher fixed, so the
+teacher stops moving. A slower teacher does drive its own movement to zero, and it
+does so from the α = 1.0 endpoint, not as an emergent effect. The student curve of
+`align_teacher_a09` bottoms out at 4.06e-04 at 17.5k and rises to 1.77e-03 at 100k,
+a factor of 4.4.*
 
 ## The α schedule
 
