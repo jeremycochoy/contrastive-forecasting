@@ -7,7 +7,7 @@ results/alpha_schedule.csv (in-training, from make_results_csvs.py).
 Writes the report's five figures into plots/:
 
     drift_headline.png    3x3 arm panel, adjacent 5k-pair drift
-    align_fix.png         what swapping L_align's target changed
+    align_fix.png         align_teacher's student and EMA-teacher latent
     alpha_schedule.png    α against training step
     cumulative_drift.png  drift vs the first probe, teacher arms
     drift_500.png         adjacent 500-step drift, the four new runs
@@ -21,14 +21,10 @@ ask for:
                           L_align panels: both align arms sit within ~10%
                           of the collinear floor on the time axis.
 
-Encoding in drift_headline.png and align_fix.png: one colour per named
-series, so a curve is identified from a single legend row. The EMA-teacher
-series are drawn last and dashed, so where a teacher coincides with its
-student both stay visible.
-
-Encoding in the other figures: colour = which encoder (student / EMA
-teacher), line style = the α schedule (solid = constant, dashed =
-0.9 -> 1.0).
+Encoding, everywhere: one colour per named series, so a curve is identified
+from a single legend row and the legend carries no entry that maps to no
+visible curve. The EMA-teacher series are drawn last and dashed, so where a
+teacher coincides with its student both stay visible.
 """
 
 from __future__ import annotations
@@ -49,29 +45,31 @@ ARMS = ["pred", "rep", "align", "align_teacher", "pred_moco",
 TEACHER_ARMS = ["align_teacher", "pred_moco", "rep_moco"]
 
 STUDENT, TEACHER = "#1f77b4", "#d95f02"        # CVD-validated pair
-COLOR = {"student_h": STUDENT, "teacher_h": TEACHER}
-LATENT_LABEL = {"student_h": "student $h_t$", "teacher_h": "EMA-teacher $h_t$"}
-STYLE = {"none": "-", "const_0.9": "-", "sched_0.9_1.0": "--"}
-ALPHA_LABEL = {"const_0.9": r"$\alpha=0.9$ constant",
-               "sched_0.9_1.0": r"$\alpha:0.9\rightarrow1.0$"}
 MARK = dict(lw=1.6, marker="o", ms=3.2, markeredgecolor="white",
             markeredgewidth=0.5)
 
-# The teacher tracks the student closely enough that on most arms the two
-# curves coincide to within a line width. Drawn identically, whichever goes
-# on top erases the other and the figure looks like it is missing a curve.
-# So the teacher is a wide soft band and the student a thin line on top of
-# it: coincidence reads as a blue line inside an orange band, divergence
-# reads as two curves.
-LATENT_KW = {
-    "student_h": dict(lw=1.5, marker="o", ms=3.0, markeredgecolor="white",
-                      markeredgewidth=0.5, zorder=3),
-    "teacher_h": dict(lw=3.6, alpha=0.45, solid_capstyle="round", zorder=2),
-}
-RUN_COLOR = {"align_teacher_a09": "#7570b3",
-             "align_teacher_sched": "#1b9e77",
-             "pred_moco_sched": "#d95f02",
-             "rep_moco_sched": "#e7298a"}
+# One named series = one colour = one legend row, Okabe-Ito, equal line
+# weight everywhere so no curve is a backdrop for another. The teacher of
+# each pair is drawn LAST and dashed, so it renders on top where the two
+# coincide and the student shows through the gaps. Shared by the headline,
+# the cumulative figure and the 500-step figure.
+NAMED = [
+    (("const_0.9", "student_h"), "#0072B2", "student $h_t$, alpha = 0.9", "-"),
+    (("sched_0.9_1.0", "student_h"), "#009E73",
+     "student $h_t$, alpha: 0.9 -> 1.0", "-"),
+    (("const_0.9", "teacher_h"), "#E69F00",
+     "EMA teacher $h_t$, alpha = 0.9", (0, (4, 3))),
+    (("sched_0.9_1.0", "teacher_h"), "#CC79A7",
+     "EMA teacher $h_t$, alpha: 0.9 -> 1.0", (0, (4, 3))),
+]
+NAMED_ORDER = [0, 2, 1, 3]          # student/teacher pairs side by side
+
+
+def named_handles(keys_present):
+    """One legend entry per curve actually drawn in the figure."""
+    return [Line2D([], [], color=NAMED[i][1], lw=1.5,
+                   linestyle=NAMED[i][3], label=NAMED[i][2])
+            for i in NAMED_ORDER if NAMED[i][0] in keys_present]
 
 
 def read_drift(path):
@@ -96,15 +94,13 @@ def read_drift(path):
 
 
 def curves(series, arm, kind):
-    """Every (alpha, latent, points) of one arm, constant-α first.
+    """Every (alpha, latent, points) of one arm.
 
     A resumed run contributes one `vs_initial` entry per reference step, so
     its segments are drawn as separate lines instead of one false curve.
     """
-    out = [(k[2], k[3], v) for k, v in series.items()
-           if k[1] == arm and k[4] == kind]
-    # Teacher first so the student's thin line lands on top of its band.
-    return sorted(out, key=lambda t: (t[0], t[1] != "teacher_h"))
+    return sorted((k[2], k[3], v) for k, v in series.items()
+                  if k[1] == arm and k[4] == kind)
 
 
 def style_axes(ax, ylabel=None, xlabel="training step", logx=True):
@@ -116,15 +112,6 @@ def style_axes(ax, ylabel=None, xlabel="training step", logx=True):
     ax.set_xlabel(xlabel)
     if ylabel:
         ax.set_ylabel(ylabel)
-
-
-def legend_handles(alphas):
-    h = [Line2D([], [], color=COLOR[l], label=LATENT_LABEL[l],
-                lw=LATENT_KW[l]["lw"], alpha=LATENT_KW[l].get("alpha", 1.0))
-         for l in ("student_h", "teacher_h")]
-    h += [Line2D([], [], color="#555555", lw=1.8, linestyle=STYLE[a],
-                 label=ALPHA_LABEL[a]) for a in alphas]
-    return h
 
 
 # --- 1. headline -----------------------------------------------------------
@@ -139,17 +126,7 @@ def plot_headline(series, out_png):
     # renders on top where the two coincide, and is dashed so the student
     # shows through the gaps. Colour still identifies the curve on its own;
     # the dash is an extra cue, not a replacement.
-    named = [
-        (("const_0.9", "student_h"), "#0072B2", "student $h_t$, alpha = 0.9",
-         "-"),
-        (("sched_0.9_1.0", "student_h"), "#009E73",
-         "student $h_t$, alpha: 0.9 -> 1.0", "-"),
-        (("const_0.9", "teacher_h"), "#E69F00",
-         "EMA teacher $h_t$, alpha = 0.9", (0, (4, 3))),
-        (("sched_0.9_1.0", "teacher_h"), "#CC79A7",
-         "EMA teacher $h_t$, alpha: 0.9 -> 1.0", (0, (4, 3))),
-    ]
-    legend_order = [0, 2, 1, 3]
+    named, legend_order = NAMED, NAMED_ORDER
     solo_color, solo_label = "#333333", "student $h_t$"
     kw = dict(lw=1.5, marker="o", ms=3.0,
               markeredgecolor="white", markeredgewidth=0.5)
@@ -202,9 +179,6 @@ def plot_align_fix(series, out_png):
     # The teacher is drawn LAST and dashed, so it renders on top of the
     # student it coincides with and the student shows through the gaps.
     wanted = [
-        (("align", "align", "none", "student_h", "adjacent"),
-         "#7570b3", "prior `align`: target = student sg($h_{t+1}$)",
-         "-", dict(MARK, zorder=3)),
         (("align_teacher_a09", "align_teacher", "const_0.9", "student_h",
           "adjacent"), STUDENT, "`align_teacher`: student $h_t$",
          "-", dict(MARK, zorder=4)),
@@ -226,8 +200,8 @@ def plot_align_fix(series, out_png):
     order = [w[2] for w in wanted]
     ax.legend([handles[k] for k in order if k in handles],
               [k for k in order if k in handles], frameon=False, fontsize=9)
-    ax.set_title("L_align with the teacher as target, α = 0.9 constant",
-                 fontsize=12)
+    ax.set_title("`align_teacher`: student and EMA-teacher $h_t$, "
+                 "α = 0.9 constant", fontsize=12)
     fig.tight_layout()
     fig.savefig(out_png, dpi=120)
     print(f"wrote {out_png}")
@@ -269,11 +243,18 @@ def plot_alpha(alpha_csv, out_png):
 
 def plot_cumulative(series, out_png):
     fig, axs = plt.subplots(1, 3, figsize=(12, 4.1), sharey=True)
+    kw = dict(lw=1.5, marker="o", ms=3.0,
+              markeredgecolor="white", markeredgewidth=0.5)
+    present = set()
     for ax, arm in zip(axs, TEACHER_ARMS):
-        for alpha, latent, pts in curves(series, arm, "vs_initial"):
-            ax.plot([p[0] for p in pts], [p[1] for p in pts],
-                    color=COLOR[latent], linestyle=STYLE[alpha],
-                    **LATENT_KW[latent])
+        drawn = curves(series, arm, "vs_initial")
+        for z, (key, color, _, ls) in enumerate(NAMED):
+            for alpha, latent, pts in drawn:
+                if (alpha, latent) != key:
+                    continue
+                present.add(key)
+                ax.plot([p[0] for p in pts], [p[1] for p in pts],
+                        color=color, linestyle=ls, zorder=2 + z, **kw)
         ax.axhline(1.0, color="#b0b0b0", linestyle="--", linewidth=0.9)
         ax.text(0.98, 0.99, "orthogonal (drift = 1)", transform=ax.transAxes,
                 ha="right", va="top", fontsize=8, color="#707070")
@@ -281,7 +262,7 @@ def plot_cumulative(series, out_png):
         ax.set_ylim(0.0, 1.15)
         style_axes(ax, "drift_cos vs the 5k checkpoint"
                    if arm == TEACHER_ARMS[0] else None)
-    fig.legend(handles=legend_handles(["const_0.9", "sched_0.9_1.0"]),
+    fig.legend(handles=named_handles(present),
                loc="lower center", ncol=4, frameon=False, fontsize=10,
                bbox_to_anchor=(0.5, -0.01))
     fig.suptitle("Cumulative drift of $h_t$ away from the 5k checkpoint",
@@ -297,28 +278,25 @@ def plot_cumulative(series, out_png):
 def plot_drift_500(path, out_png):
     series = read_drift(path)
     fig, axs = plt.subplots(1, 3, figsize=(12, 4.1), sharey=True)
+    present = set()
     for ax, arm in zip(axs, TEACHER_ARMS):
-        for alpha, latent, pts in curves(series, arm, "adjacent"):
-            # 199 points per series: markers would smear, so this panel
-            # keeps the band/line pairing but drops them.
-            wide = latent == "teacher_h"
-            ax.plot([p[0] for p in pts], [p[1] for p in pts],
-                    color=COLOR[latent], linestyle=STYLE[alpha],
-                    lw=2.8 if wide else 1.0, alpha=0.35 if wide else 0.95,
-                    zorder=2 if wide else 3)
-        ax.axhline(0.0, color="#b0b0b0", linestyle=":", linewidth=0.9)
+        drawn = curves(series, arm, "adjacent")
+        for z, (key, color, _, ls) in enumerate(NAMED):
+            for alpha, latent, pts in drawn:
+                if (alpha, latent) != key:
+                    continue
+                present.add(key)
+                # 199 points per series: markers would smear, so no markers.
+                ax.plot([p[0] for p in pts], [p[1] for p in pts],
+                        color=color, linestyle=ls, lw=1.5, zorder=2 + z)
         ax.set_title(arm, fontsize=11)
+        # Linear, the first two probes set the whole range and flatten
+        # everything past 1000 steps. Log spans the post-1000 behaviour.
+        ax.set_yscale("log")
         style_axes(ax, "drift_cos ($h_t$), 500-step pairs"
                    if arm == TEACHER_ARMS[0] else None)
-        # Only align_teacher has both α settings in this probe; a shared
-        # legend would advertise a constant-α curve the other panels lack.
-        present = sorted({a for a, _, _ in curves(series, arm, "adjacent")})
-        ax.legend(handles=[Line2D([], [], color="#555555", lw=1.8,
-                                  linestyle=STYLE[a], label=ALPHA_LABEL[a])
-                           for a in present],
-                  frameon=False, fontsize=8.5, loc="upper right")
-    fig.legend(handles=legend_handles([]),
-               loc="lower center", ncol=2, frameon=False, fontsize=10,
+    fig.legend(handles=named_handles(present),
+               loc="lower center", ncol=4, frameon=False, fontsize=10,
                bbox_to_anchor=(0.5, -0.01))
     fig.suptitle("Drift of $h_t$ between probes 500 steps apart "
                  "(the four new runs only)", fontsize=13)

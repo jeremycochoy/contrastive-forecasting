@@ -23,13 +23,9 @@ under α = 0.9 (slope −0.07 per decade) and falling only under the schedule
 
 ![L_align with the teacher as target](plots/align_fix.png)
 
-*Same probe and same 5000-step spacing, α = 0.9 constant. Purple: the earlier
-`align` arm, whose target was the student's own stop-gradient `sg(h_{t+1})`
-(`sg(·)` blocks gradient flow through its argument). Blue: `align_teacher`,
+*Same probe and same 5000-step spacing, α = 0.9 constant. Blue: `align_teacher`,
 target = EMA teacher `h_{t+1}`. Dashed orange: the EMA-teacher latent of the
-same run, which tracks the student curve within a line width for the whole run.
-With the teacher as target the latent no longer moves wildly between adjacent
-checkpoints.*
+same run, which tracks the student curve within a line width for the whole run.*
 
 ![Dimension usage](plots/supporting/dim_usage.png)
 
@@ -53,7 +49,7 @@ this experiment.
 ![Cumulative drift away from the 5k checkpoint](plots/cumulative_drift.png)
 
 *Same probe, each checkpoint compared to the run's 5k checkpoint instead of to
-its predecessor. The `align_teacher` panel reaches 0.8529 at 100k while the same
+its predecessor. `align_teacher_a09` reaches 0.8529 at 100k while the same
 run's adjacent-window drift averages 0.0123 over 80k–100k: slow per-window drift
 still accumulates, so the representation is not fixed in place.*
 
@@ -61,8 +57,7 @@ still accumulates, so the representation is not fixed in place.*
 
 *The in-training probe, 500-step spacing, the four runs of this card only. Only
 `align_teacher` was run at both α settings, so the other two panels carry the
-schedule alone. All arms drop below 0.1 between 1000 and 2000 steps and stay
-there.*
+schedule alone.*
 
 ## The α schedule
 
@@ -117,7 +112,9 @@ Student `h_t`, adjacent-checkpoint probe, mean over the 80k–100k window, from
 | `rep_moco` | const 0.9 | 0.2531 | 0.1240 |
 | `rep_moco_sched` | 0.9 → 1.0 | 0.0326 | 0.0258 |
 
-Across the whole run the `align` arm's raw adjacent `drift_cos` spans 0.0133 to
+The prior `align` arm's target was the student's own stop-gradient
+`sg(h_{t+1})`; `sg(·)` blocks gradient flow through its argument. Across the
+whole run that arm's raw adjacent `drift_cos` spans 0.0133 to
 1.3226, while its `drift_cos_aligned` peaks at 0.0464 and stays at or below
 7e-06 from 40k on.
 
