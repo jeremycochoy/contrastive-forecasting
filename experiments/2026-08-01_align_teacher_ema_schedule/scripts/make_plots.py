@@ -2,13 +2,11 @@
 """Figures for #388: teacher-target L_align and the 0.9 -> 1.0 α schedule.
 
 Reads results/drift.csv (post-hoc, 5000-step cadence, from
-teacher_latent_drift.py), results/drift_500.csv and
-results/alpha_schedule.csv (in-training, from make_results_csvs.py).
-Writes the report's five figures into plots/:
+teacher_latent_drift.py) and results/drift_500.csv (in-training, from
+make_results_csvs.py). Writes the report's four figures into plots/:
 
     drift_headline.png    3x3 arm panel, adjacent 5k-pair drift
     align_fix.png         align_teacher's student and EMA-teacher latent
-    alpha_schedule.png    α against training step
     cumulative_drift.png  drift vs the first probe, teacher arms
     drift_500.png         adjacent 500-step drift, the four new runs
 
@@ -55,15 +53,28 @@ MARK = dict(lw=1.6, marker="o", ms=3.2, markeredgecolor="white",
 # coincide and the student shows through the gaps. Shared by the headline,
 # the cumulative figure and the 500-step figure.
 NAMED = [
-    (("const_0.9", "student_h"), "#0072B2", "student $h_t$, alpha = 0.9", "-"),
+    (("const_0.9", "student_h"), "#0072B2",
+     "student $h_t$, alpha = 0.9 constant", "-"),
     (("sched_0.9_1.0", "student_h"), "#009E73",
-     "student $h_t$, alpha: 0.9 -> 1.0", "-"),
+     "student $h_t$, alpha ramps 0.9 to 1.0", "-"),
     (("const_0.9", "teacher_h"), "#E69F00",
-     "EMA teacher $h_t$, alpha = 0.9", (0, (4, 3))),
+     "EMA teacher $h_t$, alpha = 0.9 constant", (0, (4, 3))),
     (("sched_0.9_1.0", "teacher_h"), "#CC79A7",
-     "EMA teacher $h_t$, alpha: 0.9 -> 1.0", (0, (4, 3))),
+     "EMA teacher $h_t$, alpha ramps 0.9 to 1.0", (0, (4, 3))),
 ]
 NAMED_ORDER = [0, 2, 1, 3]          # student/teacher pairs side by side
+
+# The drift metric, spelled out inside every figure that plots it.
+DRIFT_YLABEL = ("drift of $h_t$: 1 - cosine similarity\n"
+                "(0 = no movement, 1 = orthogonal)")
+
+# What each arm trained, in the words of the report's Runs table. Panel
+# titles carry this instead of the internal run id.
+ARM_TITLE = {
+    "align_teacher": "L_align, target = EMA teacher",
+    "pred_moco": "L_pred + MoCo negatives",
+    "rep_moco": "L_rep + MoCo keys",
+}
 
 
 def named_handles(keys_present):
@@ -172,20 +183,23 @@ def plot_headline(series, out_png):
         ax.set_yscale("log")
         ax.set_ylim(2.5e-3, 2.0)
         log_yticks(ax, [0.003, 0.01, 0.03, 0.1, 0.3, 1.0])
-        style_axes(ax, "drift_cos ($h_t$)")
+        style_axes(ax)
     for ax in axs[:6]:
         ax.set_xlabel("")
-    for i, ax in enumerate(axs):
-        if i % 3:
-            ax.set_ylabel("")
+    # The y axis is shared by all nine panels, so the label is written once,
+    # on the middle-left panel: three copies of a two-line label collide.
+    axs[3].set_ylabel(DRIFT_YLABEL)
     handles = [Line2D([], [], color=solo_color, lw=1.5, label=solo_label)]
     handles += [Line2D([], [], color=named[i][1], lw=1.5,
                        linestyle=named[i][3], label=named[i][2])
                 for i in legend_order]
     fig.legend(handles=handles, loc="lower center", ncol=3, frameon=False,
                fontsize=10, bbox_to_anchor=(0.5, -0.005))
-    fig.suptitle("Drift of $h_t$ between checkpoints 5000 steps apart "
-                 "— shaded panels have an EMA teacher", fontsize=13)
+    fig.suptitle(
+        "Drift of $h_t$ between checkpoints 5000 steps apart, "
+        "one panel per loss term\n"
+        "Shaded panels have an EMA teacher; its latent is drawn dashed "
+        "on top of the student", fontsize=13)
     fig.tight_layout(rect=(0, 0.085, 1, 1))
     fig.savefig(out_png, dpi=120)
     print(f"wrote {out_png}")
@@ -195,15 +209,15 @@ def plot_headline(series, out_png):
 
 
 def plot_align_fix(series, out_png):
-    fig, ax = plt.subplots(figsize=(7.2, 4.6))
+    fig, ax = plt.subplots(figsize=(9.4, 4.8))
     # The teacher is drawn LAST and dashed, so it renders on top of the
     # student it coincides with and the student shows through the gaps.
     wanted = [
         (("align_teacher_a09", "align_teacher", "const_0.9", "student_h",
-          "adjacent"), STUDENT, "`align_teacher`: student $h_t$",
+          "adjacent"), STUDENT, "student $h_t$, the network being trained",
          "-", dict(MARK, zorder=4)),
         (("align_teacher_a09", "align_teacher", "const_0.9", "teacher_h",
-          "adjacent"), TEACHER, "`align_teacher`: EMA-teacher $h_t$",
+          "adjacent"), TEACHER, "EMA teacher $h_t$, the target of $L_{align}$",
          (0, (4, 3)), dict(lw=1.6, zorder=5)),
     ]
     handles = {}
@@ -216,53 +230,25 @@ def plot_align_fix(series, out_png):
                                   color=color, linestyle=ls, label=label,
                                   **kw)
     ax.axhline(0.0, color="#b0b0b0", linestyle=":", linewidth=0.9)
-    style_axes(ax, "drift_cos ($h_t$)")
+    style_axes(ax, DRIFT_YLABEL)
     order = [w[2] for w in wanted]
     ax.legend([handles[k] for k in order if k in handles],
               [k for k in order if k in handles], frameon=False, fontsize=9)
-    ax.set_title("`align_teacher`: student and EMA-teacher $h_t$, "
-                 "α = 0.9 constant", fontsize=12)
+    ax.set_title(
+        "L_align with the EMA teacher as the target: "
+        "the teacher latent moves with the student\n"
+        "Drift between checkpoints 5000 steps apart, "
+        "alpha = 0.9 constant, linear scale", fontsize=12)
     fig.tight_layout()
     fig.savefig(out_png, dpi=120)
     print(f"wrote {out_png}")
 
 
-# --- 3. the schedule -------------------------------------------------------
-
-
-def plot_alpha(alpha_csv, out_png):
-    series = defaultdict(list)
-    with open(alpha_csv) as fh:
-        for r in csv.DictReader(fh):
-            series[r["run"]].append((int(r["step"]), float(r["ema_tau"])))
-    fig, ax = plt.subplots(figsize=(7.2, 4.0))
-    # One line per DISTINCT schedule, not one per run: the three scheduled
-    # runs share one identical ramp, so drawing them separately would put
-    # more entries in the legend than there are visible curves.
-    distinct = {}
-    for run, pts in sorted(series.items()):
-        distinct.setdefault(tuple(sorted(pts)), []).append(run)
-    for pts, runs in sorted(distinct.items(), key=lambda kv: kv[0][-1][1]):
-        sched = len({p[1] for p in pts}) > 1
-        label = (r"$\alpha:0.9\rightarrow1.0$ linear"
-                 if sched else r"$\alpha=0.9$ constant")
-        ax.plot([p[0] for p in pts], [p[1] for p in pts],
-                color="#1f78b4" if sched else "#555555", lw=2.0,
-                label=label, solid_capstyle="butt")
-    style_axes(ax, "EMA momentum α", logx=False)
-    ax.set_ylim(0.88, 1.02)
-    ax.legend(frameon=False, fontsize=9, loc="lower right")
-    ax.set_title("EMA momentum against training step", fontsize=12)
-    fig.tight_layout()
-    fig.savefig(out_png, dpi=120)
-    print(f"wrote {out_png}")
-
-
-# --- 4. cumulative drift ---------------------------------------------------
+# --- 3. cumulative drift ---------------------------------------------------
 
 
 def plot_cumulative(series, out_png):
-    fig, axs = plt.subplots(1, 3, figsize=(12, 4.1), sharey=True)
+    fig, axs = plt.subplots(1, 3, figsize=(12, 5.0), sharey=True)
     kw = dict(lw=1.5, marker="o", ms=3.0,
               markeredgecolor="white", markeredgewidth=0.5)
     present = set()
@@ -278,29 +264,36 @@ def plot_cumulative(series, out_png):
         ax.axhline(1.0, color="#b0b0b0", linestyle="--", linewidth=0.9)
         ax.text(0.98, 0.99, "orthogonal (drift = 1)", transform=ax.transAxes,
                 ha="right", va="top", fontsize=8, color="#707070")
-        ax.set_title(arm, fontsize=11)
+        ax.set_title(ARM_TITLE[arm], fontsize=11)
         ax.set_ylim(0.0, 1.15)
-        style_axes(ax, "drift_cos vs the 5k checkpoint"
+        style_axes(ax, DRIFT_YLABEL + "\nagainst the 5k checkpoint"
                    if arm == TEACHER_ARMS[0] else None)
+        ax.yaxis.label.set_fontsize(9)
     fig.legend(handles=named_handles(present),
-               loc="lower center", ncol=4, frameon=False, fontsize=10,
-               bbox_to_anchor=(0.5, -0.01))
-    fig.suptitle("Cumulative drift of $h_t$ away from the 5k checkpoint",
-                 fontsize=13)
-    fig.tight_layout(rect=(0, 0.09, 1, 1))
+               loc="lower center", ncol=2, frameon=False, fontsize=10,
+               bbox_to_anchor=(0.5, 0.005))
+    fig.suptitle(
+        "Small drift per window still adds up: by 100k steps every arm is "
+        "far from its 5k checkpoint\n"
+        "Two runs per panel: alpha = 0.9 constant, and alpha ramping "
+        "0.9 to 1.0", fontsize=13)
+    fig.tight_layout(rect=(0, 0.15, 1, 1))
     fig.savefig(out_png, dpi=120)
     print(f"wrote {out_png}")
 
 
-# --- 5. the 500-step probe -------------------------------------------------
+# --- 4. the 500-step probe -------------------------------------------------
 
 
 def plot_drift_500(path, out_png):
     series = read_drift(path)
-    fig, axs = plt.subplots(1, 3, figsize=(12, 4.1), sharey=True)
-    present = set()
+    fig, axs = plt.subplots(1, 3, figsize=(13, 5.0), sharey=True)
     for ax, arm in zip(axs, TEACHER_ARMS):
         drawn = curves(series, arm, "adjacent")
+        # The constant-alpha halves of pred_moco and rep_moco come from the
+        # loss-term isolation runs, which have no 500-step probe. So each
+        # panel legends only the curves that panel actually draws.
+        present = set()
         for z, (key, color, _, ls) in enumerate(NAMED):
             for alpha, latent, pts in drawn:
                 if (alpha, latent) != key:
@@ -309,7 +302,9 @@ def plot_drift_500(path, out_png):
                 # 199 points per series: markers would smear, so no markers.
                 ax.plot([p[0] for p in pts], [p[1] for p in pts],
                         color=color, linestyle=ls, lw=1.5, zorder=2 + z)
-        ax.set_title(arm, fontsize=11)
+        ax.legend(handles=named_handles(present), frameon=False,
+                  fontsize=8.5, loc="best")
+        ax.set_title(ARM_TITLE[arm], fontsize=11)
         # Linear, the first two probes set the whole range and flatten
         # everything past 1000 steps. Log spans the post-1000 behaviour.
         ax.set_yscale("log")
@@ -318,19 +313,19 @@ def plot_drift_500(path, out_png):
         # decades of mostly empty space. Clip the floor to where the data is.
         ax.set_ylim(3e-4, 1.0)
         log_yticks(ax, [0.0003, 0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1.0])
-        style_axes(ax, "drift_cos ($h_t$), 500-step pairs"
+        style_axes(ax, DRIFT_YLABEL + "\n500-step pairs"
                    if arm == TEACHER_ARMS[0] else None)
-    fig.legend(handles=named_handles(present),
-               loc="lower center", ncol=4, frameon=False, fontsize=10,
-               bbox_to_anchor=(0.5, -0.01))
-    fig.suptitle("Drift of $h_t$ between probes 500 steps apart "
-                 "(the four new runs only)", fontsize=13)
-    fig.tight_layout(rect=(0, 0.09, 1, 1))
+        ax.yaxis.label.set_fontsize(9)
+    fig.suptitle(
+        "Drift of $h_t$ between probes 500 steps apart\n"
+        "Student and EMA teacher move together in every arm, "
+        "at every alpha", fontsize=13)
+    fig.tight_layout()
     fig.savefig(out_png, dpi=120)
     print(f"wrote {out_png}")
 
 
-# --- 6. dim usage: is a flat drift curve stability or collapse? -----------
+# --- 5. dim usage: is a flat drift curve stability or collapse? -----------
 
 
 # One named series = one colour, used once in the whole figure, and equal
@@ -338,17 +333,17 @@ def plot_drift_500(path, out_png):
 # α, dashed = the ramp; the dashed curve is drawn last with long gaps, so
 # the solid one shows through where the two coincide.
 DIM_PANELS = [
-    ("L_align", [("align", "#7570b3", "-", "prior `align` (student target)"),
-                 ("align_teacher_a09", "#0072B2", "-",
-                  r"`align_teacher`, $\alpha=0.9$"),
-                 ("align_teacher_sched", "#D55E00", "--",
-                  r"`align_teacher`, $\alpha:0.9\rightarrow1.0$")]),
-    ("MoCo arms", [("pred_moco", "#009E73", "-", r"prior `pred_moco`"),
-                   ("pred_moco_sched", "#56B4E9", "--",
-                    r"`pred_moco`, $\alpha:0.9\rightarrow1.0$"),
-                   ("rep_moco", "#CC79A7", "-", r"prior `rep_moco`"),
-                   ("rep_moco_sched", "#E69F00", "--",
-                    r"`rep_moco`, $\alpha:0.9\rightarrow1.0$")]),
+    ("Runs trained with L_align",
+     [("align", "#7570b3", "-", "align, target = student h_t+1"),
+      ("align_teacher_a09", "#0072B2", "-",
+       "align_teacher, alpha = 0.9 constant"),
+      ("align_teacher_sched", "#0072B2", "--",
+       "align_teacher, alpha: 0.9 -> 1.0")]),
+    ("Runs trained with MoCo negatives",
+     [("pred_moco", "#0072B2", "-", "pred_moco, alpha = 0.9 constant"),
+      ("pred_moco_sched", "#0072B2", "--", "pred_moco, alpha: 0.9 -> 1.0"),
+      ("rep_moco", "#D55E00", "-", "rep_moco, alpha = 0.9 constant"),
+      ("rep_moco_sched", "#D55E00", "--", "rep_moco, alpha: 0.9 -> 1.0")]),
 ]
 
 # Labelled ticks for the dim-usage axis. The 1/64 floor gets its own label
@@ -375,7 +370,17 @@ def plot_dim_usage(loss_csv, out_png, n_dims=64):
                 continue
             # Equal weight for both, and the dashed scheduled curve is
             # long-gapped, so where two curves coincide each stays visible.
-            kw = dict(lw=1.6) if ls == "-" else dict(lw=1.6, dashes=(5, 4))
+            # Same colour for the two runs of one arm, so the ramp is told
+            # apart by its dashes alone. Equal line weight: the ramp is drawn
+            # last, and its gaps expose the background, so where the two runs
+            # coincide the line reads as dashed instead of hiding one of them.
+            # The two runs of one arm share a colour and can sit within a
+            # line width of each other, so the ramp carries sparse markers:
+            # its legend row then maps to something visible even there.
+            kw = (dict(lw=2.0) if ls == "-" else
+                  dict(lw=1.6, dashes=(4, 4), marker="o", ms=4.5,
+                       markevery=110, markeredgecolor="white",
+                       markeredgewidth=0.6))
             ax.plot([p[0] for p in pts], [p[1] for p in pts], color=color,
                     linestyle=ls, label=label, **kw)
         # The floor line is identified by its own y tick, so no text label.
@@ -387,11 +392,14 @@ def plot_dim_usage(loss_csv, out_png, n_dims=64):
         ax.set_yscale("log")
         ax.set_ylim(0.0145, 0.85)
         log_yticks(ax, DIM_TICKS, DIM_TICK_LABELS)
-        style_axes(ax, r"dim usage $U$ of $h_t$ across time"
+        style_axes(ax, "dimension usage $U$ of $h_t$, across time"
                    if title == DIM_PANELS[0][0] else None)
         ax.legend(frameon=False, fontsize=8.5, loc="best")
-    fig.suptitle(r"Dimension usage $U=1/(d\cdot\overline{\cos^2})$ of $h_t$: "
-                 "1 is isotropic, 1/64 is collapsed", fontsize=13)
+    fig.suptitle(
+        "Both L_align arms end with $h_t$ almost collinear across time, "
+        "so little is left to rotate\n"
+        r"Dimension usage $U=1/(d\cdot\overline{\cos^2})$ of $h_t$: "
+        "1 = all 64 dimensions used, 1/64 = one direction", fontsize=13)
     fig.tight_layout()
     fig.savefig(out_png, dpi=120)
     print(f"wrote {out_png}")
@@ -413,8 +421,6 @@ def main():
                    os.path.join(plots, "drift_500.png"))
     support = os.path.join(plots, "supporting")
     os.makedirs(support, exist_ok=True)
-    plot_alpha(os.path.join(res, "alpha_schedule.csv"),
-               os.path.join(plots, "alpha_schedule.png"))
     plot_dim_usage(os.path.join(res, "loss_curve.csv"),
                    os.path.join(support, "dim_usage.png"))
 
