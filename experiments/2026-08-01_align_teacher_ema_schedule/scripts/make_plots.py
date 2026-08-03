@@ -39,6 +39,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
+from matplotlib.ticker import FixedLocator, FuncFormatter, NullLocator
 
 ARMS = ["pred", "rep", "align", "align_teacher", "pred_moco",
         "rep_moco", "sigreg_e", "sigreg_h", "cpc"]
@@ -103,6 +104,19 @@ def curves(series, arm, kind):
                   if k[1] == arm and k[4] == kind)
 
 
+def log_yticks(ax, ticks, labels=None):
+    """Shared log y axis with every tick labelled.
+
+    Matplotlib's default log locator labels decades only, which leaves one
+    or two labels over a panel's height and nothing to read a value off.
+    """
+    ax.yaxis.set_major_locator(FixedLocator(ticks))
+    ax.yaxis.set_minor_locator(NullLocator())
+    fmt = dict(zip(ticks, labels)) if labels else {}
+    ax.yaxis.set_major_formatter(
+        FuncFormatter(lambda v, _: fmt.get(v, f"{v:g}")))
+
+
 def style_axes(ax, ylabel=None, xlabel="training step", logx=True):
     if logx:
         ax.set_xscale("log")
@@ -135,7 +149,6 @@ def plot_headline(series, out_png):
                             sharex=True)
     axs = axs.ravel()
     for ax, arm in zip(axs, ARMS):
-        ax.axhline(0.0, color="#b0b0b0", linestyle=":", linewidth=0.9)
         pts_of = {(a, l): p for a, l, p in curves(series, arm, "adjacent")}
         if arm in TEACHER_ARMS:
             for z, (key, color, _, ls) in enumerate(named):
@@ -151,7 +164,14 @@ def plot_headline(series, out_png):
                 ax.plot([p[0] for p in pts], [p[1] for p in pts],
                         color=solo_color, zorder=3, **kw)
         ax.set_title(arm, fontsize=11)
-        ax.set_ylim(-0.05, 1.40)
+        # The claim this figure carries is a comparison of magnitudes ACROSS
+        # panels, so the y scale stays shared. Drift spans 0.0035 to 1.32,
+        # nearly three decades, which a linear axis flattens into the zero
+        # line for every low-drift arm. Log keeps the panels comparable and
+        # separates them. Limits contain every plotted point.
+        ax.set_yscale("log")
+        ax.set_ylim(2.5e-3, 2.0)
+        log_yticks(ax, [0.003, 0.01, 0.03, 0.1, 0.3, 1.0])
         style_axes(ax, "drift_cos ($h_t$)")
     for ax in axs[:6]:
         ax.set_xlabel("")
@@ -293,6 +313,11 @@ def plot_drift_500(path, out_png):
         # Linear, the first two probes set the whole range and flatten
         # everything past 1000 steps. Log spans the post-1000 behaviour.
         ax.set_yscale("log")
+        # 1593 of the 1600 points sit above 3e-4; a handful of end-of-ramp
+        # points reach 1e-5 and would stretch the shared axis over six
+        # decades of mostly empty space. Clip the floor to where the data is.
+        ax.set_ylim(3e-4, 1.0)
+        log_yticks(ax, [0.0003, 0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1.0])
         style_axes(ax, "drift_cos ($h_t$), 500-step pairs"
                    if arm == TEACHER_ARMS[0] else None)
     fig.legend(handles=named_handles(present),
@@ -308,19 +333,29 @@ def plot_drift_500(path, out_png):
 # --- 6. dim usage: is a flat drift curve stability or collapse? -----------
 
 
+# One named series = one colour, used once in the whole figure, and equal
+# line weight, so no curve is a pale backdrop for another. Solid = constant
+# α, dashed = the ramp; the dashed curve is drawn last with long gaps, so
+# the solid one shows through where the two coincide.
 DIM_PANELS = [
     ("L_align", [("align", "#7570b3", "-", "prior `align` (student target)"),
-                 ("align_teacher_a09", STUDENT, "-",
+                 ("align_teacher_a09", "#0072B2", "-",
                   r"`align_teacher`, $\alpha=0.9$"),
-                 ("align_teacher_sched", STUDENT, "--",
+                 ("align_teacher_sched", "#D55E00", "--",
                   r"`align_teacher`, $\alpha:0.9\rightarrow1.0$")]),
-    ("MoCo arms", [("pred_moco", "#1b9e77", "-", r"prior `pred_moco`"),
-                   ("pred_moco_sched", "#1b9e77", "--",
+    ("MoCo arms", [("pred_moco", "#009E73", "-", r"prior `pred_moco`"),
+                   ("pred_moco_sched", "#56B4E9", "--",
                     r"`pred_moco`, $\alpha:0.9\rightarrow1.0$"),
-                   ("rep_moco", "#e7298a", "-", r"prior `rep_moco`"),
-                   ("rep_moco_sched", "#e7298a", "--",
+                   ("rep_moco", "#CC79A7", "-", r"prior `rep_moco`"),
+                   ("rep_moco_sched", "#E69F00", "--",
                     r"`rep_moco`, $\alpha:0.9\rightarrow1.0$")]),
 ]
+
+# Labelled ticks for the dim-usage axis. The 1/64 floor gets its own label
+# so the "both align arms end near the floor" claim is checkable.
+DIM_TICKS = [1.0 / 64, 0.02, 0.03, 0.05, 0.1, 0.2, 0.4, 0.6]
+DIM_TICK_LABELS = ["1/64 = 0.0156 (collinear)", "0.02", "0.03", "0.05",
+                   "0.1", "0.2", "0.4", "0.6"]
 
 
 def plot_dim_usage(loss_csv, out_png, n_dims=64):
@@ -338,22 +373,20 @@ def plot_dim_usage(loss_csv, out_png, n_dims=64):
             if not pts:
                 print(f"  (missing {run} in {os.path.basename(loss_csv)})")
                 continue
-            # constant-α is drawn as a wide pale band so the scheduled
-            # curve stays visible where the two coincide.
-            wide = ls == "-"
-            # The constant-α band must stay visible under the scheduled
-            # curve where the two coincide: wide enough to show on both
-            # sides, and the dashes are long-gapped so it shows through.
-            kw = dict(lw=6.0, alpha=0.30) if wide else dict(
-                lw=1.6, dashes=(5, 4))
+            # Equal weight for both, and the dashed scheduled curve is
+            # long-gapped, so where two curves coincide each stays visible.
+            kw = dict(lw=1.6) if ls == "-" else dict(lw=1.6, dashes=(5, 4))
             ax.plot([p[0] for p in pts], [p[1] for p in pts], color=color,
                     linestyle=ls, label=label, **kw)
+        # The floor line is identified by its own y tick, so no text label.
         ax.axhline(1.0 / n_dims, color="#b0b0b0", linestyle=":", linewidth=1.0)
-        ax.text(0.01, 1.0 / n_dims, f"collinear $h_t$ (1/{n_dims})",
-                transform=ax.get_yaxis_transform(), ha="left", va="bottom",
-                fontsize=8, color="#707070")
         ax.set_title(title, fontsize=11)
+        # Shared log axis, but the data spans 0.0156 to 0.617: the default
+        # decade locator labels 10^-1 alone over the whole height and
+        # nothing can be read off. Label the ticks, floor included.
         ax.set_yscale("log")
+        ax.set_ylim(0.0145, 0.85)
+        log_yticks(ax, DIM_TICKS, DIM_TICK_LABELS)
         style_axes(ax, r"dim usage $U$ of $h_t$ across time"
                    if title == DIM_PANELS[0][0] else None)
         ax.legend(frameon=False, fontsize=8.5, loc="best")
