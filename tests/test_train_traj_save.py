@@ -140,8 +140,11 @@ def test_coarse_and_fine_cadence_are_separate_saves():
     save writing `_step<STEP>.pth`. Merging them would drop the coarse
     disk cadence for runs that also set the fine cadence."""
     src = load_train_source()
+    # #379 routed the coarse cadence through should_snapshot() so
+    # --extra-save-steps can add off-cadence snapshots; the block still owns
+    # the `_Nk.pth` filename, which is what this test is guarding.
     assert re.search(
-        r'if step % args\.save_every == 0:\s*\n\s*path\s*=\s*os\.path\.join\([^)]*"\{args\.run_name\}_\{step // 1000\}k\.pth"',
+        r'if should_snapshot\(step, args\.save_every, [^)]*\):\s*\n\s*path\s*=\s*os\.path\.join\([^)]*"\{args\.run_name\}_\{step // 1000\}k\.pth"',
         src,
     ), "coarse `_Nk.pth` save block must remain intact"
     assert re.search(

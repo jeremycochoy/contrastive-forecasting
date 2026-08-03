@@ -1,0 +1,24 @@
+[07-22 13:04:07] [elisa-arm1_tr1] BB START (arm 1_tr1: split_pred_rep + tau_rep=1.0) gpu=0 target=40000 final=200000 bs=64 
+[07-22 15:31:53] [elisa-arm1_tr1] arm1_tr1 wave complete: target=40000 (< final 200000) — latest ck bb_small_arm1_tr1_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth
+[07-23 18:43:29] [elisa-arm1_tr1] RESUME from bb_small_arm1_tr1_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth
+[07-23 18:43:29] [elisa-arm1_tr1] RESUME from bb_small_arm1_tr1_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth
+[07-23 18:43:29] [elisa-arm1_tr1] BB START (arm 1_tr1: split_pred_rep + tau_rep=1.0) gpu=0 target=100000 final=200000 bs=64 --resume /home/jupyter/wt-cf-379-train/experiments/2026-07-21_split_pred_rep_small/runs/bb_small_arm1_tr1_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth
+[07-23 18:43:29] [elisa-arm1_tr1] BB START (arm 1_tr1: split_pred_rep + tau_rep=1.0) gpu=0 target=100000 final=200000 bs=64 --resume /home/jupyter/wt-cf-379-train/experiments/2026-07-21_split_pred_rep_small/runs/bb_small_arm1_tr1_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth
+[07-23 21:59:45] [elisa-arm1_tr1] arm1_tr1 wave complete: target=100000 (< final 200000) — latest ck bb_small_arm1_tr1_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_r2_100k.pth
+[07-23 21:59:45] [elisa-arm1_tr1] arm1_tr1 wave complete: target=100000 (< final 200000) — latest ck bb_small_arm1_tr1_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_r2_100k.pth
+[07-24 01:19:46] [elisa-arm1_tr1] BB START (arm 1_tr1: split_pred_rep + tau=1.0 + tau_rep=1.0 (all tau at 1.0)) gpu=0 target=40000 final=200000 bs=64 
+[07-24 01:19:46] [elisa-arm1_tr1] BB START (arm 1_tr1: split_pred_rep + tau=1.0 + tau_rep=1.0 (all tau at 1.0)) gpu=0 target=40000 final=200000 bs=64 
+[07-24 03:29:01] [elisa-arm1_tr1] arm1_tr1 wave complete: target=40000 (< final 200000) — latest ck bb_small_arm1_tr1_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth
+[07-24 03:29:01] [elisa-arm1_tr1] arm1_tr1 wave complete: target=40000 (< final 200000) — latest ck bb_small_arm1_tr1_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth
+[07-24 13:45:15] [elisa-arm1_tr1] RESUME from bb_small_arm1_tr1_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth
+[07-24 13:45:15] [elisa-arm1_tr1] RESUME from bb_small_arm1_tr1_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth
+[07-24 13:45:15] [elisa-arm1_tr1] BB START (arm 1_tr1: split_pred_rep + tau=1.0 + tau_rep=1.0 (all tau at 1.0)) gpu=0 target=100000 final=200000 bs=64 --resume /home/jupyter/wt-cf-379-train/experiments/2026-07-21_split_pred_rep_small/runs/bb_small_arm1_tr1_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth
+[07-24 13:45:15] [elisa-arm1_tr1] BB START (arm 1_tr1: split_pred_rep + tau=1.0 + tau_rep=1.0 (all tau at 1.0)) gpu=0 target=100000 final=200000 bs=64 --resume /home/jupyter/wt-cf-379-train/experiments/2026-07-21_split_pred_rep_small/runs/bb_small_arm1_tr1_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth
+[07-24 14:11:24] [elisa-arm1_tr1] BB train exited rc=130 — NOT creating FINAL. tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/torch/utils/checkpoint.py", line 1121, in pack_hook     def pack_hook(x): KeyboardInterrupt 
+[07-24 14:11:24] [elisa-arm1_tr1] BB train exited rc=130 — NOT creating FINAL. tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/torch/utils/checkpoint.py", line 1121, in pack_hook     def pack_hook(x): KeyboardInterrupt 
+[07-25 09:58:50] [elisa-arm1_tr1] RESUME from bb_small_arm1_tr1_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth
+[07-25 09:58:50] [elisa-arm1_tr1] RESUME from bb_small_arm1_tr1_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth
+[07-25 09:58:50] [elisa-arm1_tr1] BB START (arm 1_tr1: split_pred_rep + tau=1.0 + tau_rep=1.0 (all tau at 1.0)) gpu=0 target=100000 final=200000 bs=64 --resume /home/jupyter/wt-cf-379-train/experiments/2026-07-21_split_pred_rep_small/runs/bb_small_arm1_tr1_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth
+[07-25 09:58:50] [elisa-arm1_tr1] BB START (arm 1_tr1: split_pred_rep + tau=1.0 + tau_rep=1.0 (all tau at 1.0)) gpu=0 target=100000 final=200000 bs=64 --resume /home/jupyter/wt-cf-379-train/experiments/2026-07-21_split_pred_rep_small/runs/bb_small_arm1_tr1_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth
+[07-25 13:14:21] [elisa-arm1_tr1] arm1_tr1 wave complete: target=100000 (< final 200000) — latest ck bb_small_arm1_tr1_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_r2_100k.pth
+[07-25 13:14:21] [elisa-arm1_tr1] arm1_tr1 wave complete: target=100000 (< final 200000) — latest ck bb_small_arm1_tr1_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_r2_100k.pth

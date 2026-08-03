@@ -1,0 +1,15 @@
+[07-22 13:01:41] [elisa-bimoco] BB START (bimoco: split_pred_rep + moco-negatives + moco-rep-keys) gpu=1 steps=200000 bs=64 
+[07-22 13:02:37] [elisa-bimoco] BB train exited rc=130 — NOT creating FINAL. tail:   File "/home/jupyter/wt-cf-379-train/src/loss.py", line 590, in sigreg_loss     return ep_per_dir.mean() KeyboardInterrupt 
+[07-23 00:55:03] [elisa-bimoco] BB START (bimoco: split_pred_rep + moco-negatives + moco-rep-keys) gpu=1 target=40000 final=200000 bs=64 
+[07-23 00:55:03] [elisa-bimoco] BB START (bimoco: split_pred_rep + moco-negatives + moco-rep-keys) gpu=1 target=40000 final=200000 bs=64 
+[07-23 03:08:59] [elisa-bimoco] bimoco wave complete: target=40000 (< final 200000) — latest ck bb_small_bimoco_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth
+[07-23 03:08:59] [elisa-bimoco] bimoco wave complete: target=40000 (< final 200000) — latest ck bb_small_bimoco_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth
+[07-23 15:37:56] [elisa-bimoco] RESUME from bb_small_bimoco_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth
+[07-23 15:37:56] [elisa-bimoco] RESUME from bb_small_bimoco_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth
+[07-23 15:37:56] [elisa-bimoco] BB START (bimoco: split_pred_rep + moco-negatives + moco-rep-keys) gpu=1 target=100000 final=200000 bs=64 --resume /home/jupyter/wt-cf-379-train/experiments/2026-07-21_split_pred_rep_small/runs/bb_small_bimoco_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth
+[07-23 15:37:56] [elisa-bimoco] BB START (bimoco: split_pred_rep + moco-negatives + moco-rep-keys) gpu=1 target=100000 final=200000 bs=64 --resume /home/jupyter/wt-cf-379-train/experiments/2026-07-21_split_pred_rep_small/runs/bb_small_bimoco_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth
+[07-23 18:58:45] [elisa-bimoco] bimoco wave complete: target=100000 (< final 200000) — latest ck bb_small_bimoco_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_r2_100k.pth
+[07-23 18:58:45] [elisa-bimoco] bimoco wave complete: target=100000 (< final 200000) — latest ck bb_small_bimoco_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_r2_100k.pth
+[07-31 13:56:48] [elisa-bimoco] RESUME from bb_small_bimoco_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_r2_100k.pth
+[07-31 13:56:48] [elisa-bimoco] BB START (bimoco: split_pred_rep + moco-negatives + moco-rep-keys) gpu=0 target=200000 final=200000 bs=64 --resume /home/jupyter/wt-cf-379-train/experiments/2026-07-21_split_pred_rep_small/runs/bb_small_bimoco_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_r2_100k.pth
+[07-31 19:33:43] [elisa-bimoco] bimoco complete: BB DONE -> bb_small_bimoco_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_FINAL.pth (5.0M)

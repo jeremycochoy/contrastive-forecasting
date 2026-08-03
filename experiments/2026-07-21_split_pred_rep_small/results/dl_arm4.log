@@ -1,0 +1,33 @@
+[07-22 08:53:55] [elisa-arm4] BB START (arm 4: xshh_allt + moco-negatives) gpu=0 steps=200000 bs=64 
+[07-22 13:01:41] [elisa-arm4] BB train exited rc=130 — NOT creating FINAL. tail:   File "/home/jupyter/wt-cf-379-train/src/loss.py", line 1669, in contrastive_latent_loss     same = (b_all.view(B, 1) == b_all[s:e].view(1, e - s)).view(B, e - s, 1, 1, 1) KeyboardInterrupt 
+[07-23 11:43:49] [elisa-arm4] RESUME from bb_small_arm4_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_50k.pth
+[07-23 11:43:49] [elisa-arm4] RESUME from bb_small_arm4_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_50k.pth
+[07-23 11:43:49] [elisa-arm4] BB START (arm 4: xshh_allt + moco-negatives) gpu=0 target=100000 final=200000 bs=64 --resume /home/jupyter/wt-cf-379-train/experiments/2026-07-21_split_pred_rep_small/runs/bb_small_arm4_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_50k.pth
+[07-23 11:43:49] [elisa-arm4] BB START (arm 4: xshh_allt + moco-negatives) gpu=0 target=100000 final=200000 bs=64 --resume /home/jupyter/wt-cf-379-train/experiments/2026-07-21_split_pred_rep_small/runs/bb_small_arm4_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_50k.pth
+[07-23 14:32:39] [elisa-arm4] arm4 wave complete: target=100000 (< final 200000) — latest ck bb_small_arm4_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_r2_100k.pth
+[07-23 14:32:39] [elisa-arm4] arm4 wave complete: target=100000 (< final 200000) — latest ck bb_small_arm4_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_r2_100k.pth
+[07-23 14:34:46] [elisa-arm4] WAVE SKIP: existing _100k.pth ≥ target 100k (final=200000 not reached)
+[07-23 14:34:46] [elisa-arm4] WAVE SKIP: existing _100k.pth ≥ target 100k (final=200000 not reached)
+[07-23 14:40:11] [elisa-arm4] WAVE SKIP: existing _100k.pth ≥ target 100k (final=200000 not reached)
+[07-23 14:40:11] [elisa-arm4] WAVE SKIP: existing _100k.pth ≥ target 100k (final=200000 not reached)
+[07-23 14:45:36] [elisa-arm4] WAVE SKIP: existing _100k.pth ≥ target 100k (final=200000 not reached)
+[07-23 14:45:36] [elisa-arm4] WAVE SKIP: existing _100k.pth ≥ target 100k (final=200000 not reached)
+[07-23 14:51:02] [elisa-arm4] WAVE SKIP: existing _100k.pth ≥ target 100k (final=200000 not reached)
+[07-23 14:51:02] [elisa-arm4] WAVE SKIP: existing _100k.pth ≥ target 100k (final=200000 not reached)
+[07-23 14:56:27] [elisa-arm4] WAVE SKIP: existing _100k.pth ≥ target 100k (final=200000 not reached)
+[07-23 14:56:27] [elisa-arm4] WAVE SKIP: existing _100k.pth ≥ target 100k (final=200000 not reached)
+[07-23 15:01:52] [elisa-arm4] WAVE SKIP: existing _100k.pth ≥ target 100k (final=200000 not reached)
+[07-23 15:01:52] [elisa-arm4] WAVE SKIP: existing _100k.pth ≥ target 100k (final=200000 not reached)
+[07-23 15:07:17] [elisa-arm4] WAVE SKIP: existing _100k.pth ≥ target 100k (final=200000 not reached)
+[07-23 15:07:17] [elisa-arm4] WAVE SKIP: existing _100k.pth ≥ target 100k (final=200000 not reached)
+[07-23 15:12:42] [elisa-arm4] WAVE SKIP: existing _100k.pth ≥ target 100k (final=200000 not reached)
+[07-23 15:12:42] [elisa-arm4] WAVE SKIP: existing _100k.pth ≥ target 100k (final=200000 not reached)
+[07-23 15:18:07] [elisa-arm4] WAVE SKIP: existing _100k.pth ≥ target 100k (final=200000 not reached)
+[07-23 15:18:07] [elisa-arm4] WAVE SKIP: existing _100k.pth ≥ target 100k (final=200000 not reached)
+[07-23 15:23:33] [elisa-arm4] WAVE SKIP: existing _100k.pth ≥ target 100k (final=200000 not reached)
+[07-23 15:23:33] [elisa-arm4] WAVE SKIP: existing _100k.pth ≥ target 100k (final=200000 not reached)
+[07-23 15:28:58] [elisa-arm4] WAVE SKIP: existing _100k.pth ≥ target 100k (final=200000 not reached)
+[07-23 15:28:58] [elisa-arm4] WAVE SKIP: existing _100k.pth ≥ target 100k (final=200000 not reached)
+[07-28 01:13:50] [elisa-arm4] RESUME from bb_small_arm4_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_25k.pth
+[07-28 01:13:50] [elisa-arm4] BB START (arm 4: xshh_allt + moco-negatives) gpu=1 target=40000 final=200000 bs=64 --resume /home/jupyter/wt-cf-379-train/experiments/2026-07-21_split_pred_rep_small/runs/bb_small_arm4_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_25k.pth
+[07-28 02:01:51] [elisa-arm4] arm4 wave complete: target=40000 (< final 200000) — latest ck bb_small_arm4_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_r3_40k.pth

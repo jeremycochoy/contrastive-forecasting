@@ -1,0 +1,11 @@
+[07-22 08:53:55] [elisa-arm5] BB START (arm 5: rep_only + align-loss-weight 1.0) gpu=1 steps=200000 bs=64 
+[07-22 13:01:41] [elisa-arm5] BB train exited rc=130 — NOT creating FINAL. tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/torch/autograd/grad_mode.py", line 187, in __init__     torch._C._set_grad_enabled(mode) KeyboardInterrupt 
+[07-23 11:49:15] [elisa-arm5] RESUME from bb_small_arm5_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_50k.pth
+[07-23 11:49:15] [elisa-arm5] RESUME from bb_small_arm5_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_50k.pth
+[07-23 11:49:15] [elisa-arm5] BB START (arm 5: rep_only + align-loss-weight 1.0) gpu=1 target=100000 final=200000 bs=64 --resume /home/jupyter/wt-cf-379-train/experiments/2026-07-21_split_pred_rep_small/runs/bb_small_arm5_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_50k.pth
+[07-23 11:49:15] [elisa-arm5] BB START (arm 5: rep_only + align-loss-weight 1.0) gpu=1 target=100000 final=200000 bs=64 --resume /home/jupyter/wt-cf-379-train/experiments/2026-07-21_split_pred_rep_small/runs/bb_small_arm5_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_50k.pth
+[07-23 15:16:24] [elisa-arm5] arm5 wave complete: target=100000 (< final 200000) — latest ck bb_small_arm5_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_r2_100k.pth
+[07-23 15:16:24] [elisa-arm5] arm5 wave complete: target=100000 (< final 200000) — latest ck bb_small_arm5_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_r2_100k.pth
+[07-28 00:25:37] [elisa-arm5] RESUME from bb_small_arm5_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_25k.pth
+[07-28 00:25:37] [elisa-arm5] BB START (arm 5: rep_only + align-loss-weight 1.0) gpu=1 target=40000 final=200000 bs=64 --resume /home/jupyter/wt-cf-379-train/experiments/2026-07-21_split_pred_rep_small/runs/bb_small_arm5_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_25k.pth
+[07-28 01:13:50] [elisa-arm5] arm5 wave complete: target=40000 (< final 200000) — latest ck bb_small_arm5_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_r3_40k.pth

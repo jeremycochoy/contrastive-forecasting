@@ -112,6 +112,11 @@ def parse_args():
     p.add_argument("--resume", default=None)
     p.add_argument("--log-every", type=int, default=100)
     p.add_argument("--save-every", type=int, default=5000)
+    p.add_argument("--extra-save-steps", default=None,
+                   help="Comma-separated list of extra step counts at which "
+                        "to snapshot on top of --save-every (e.g. "
+                        "'2500,25000' when the base cadence is 10000 but "
+                        "downstream eval needs off-cadence cells).")
     p.add_argument("--traj-save-every", type=int, default=0,
                    help="If > 0, also write a fine-grained trajectory "
                         "checkpoint every N steps as "
@@ -351,6 +356,16 @@ def parse_args():
     p.add_argument("--tau", type=float, default=None,
                    help="Contrastive temperature. None = use the LOSS_SPEC "
                         "default (0.07). Used by 2026-05-02_exp_realonly_4096_smaller_tau_sweep.")
+    p.add_argument("--tau-rep", type=float, default=None,
+                   help="Separate temperature for the L_rep term of split "
+                        "loss shapes (#379 tau_rep=1.0 arms). When unset "
+                        "(default) both L_pred and L_rep share --tau — "
+                        "byte-for-byte identical to the historical objective. "
+                        "When set, L_pred keeps --tau and L_rep (the "
+                        "h-anchored family aggregate) uses --tau-rep. "
+                        "Only meaningful for loss_shape in "
+                        "{cosine_similarity_batch_split_pred_rep, "
+                        "cosine_similarity_batch_rep_only}; ignored elsewhere.")
     p.add_argument("--learnable-tau", action="store_true",
                    help="CLIP-style learnable τ (#28). Adds log_inv_tau as "
                         "an nn.Parameter on the model; loss uses τ = "
@@ -560,14 +575,17 @@ def parse_args():
                         "cosine_similarity_batch_full_hh_negs_xshh_allt; "
                         "raises otherwise.")
     p.add_argument("--moco-rep-keys", action="store_true",
-                   help="MoCo-style keys on L_rep (#374 arm bimoco): route "
-                        "the three h-anchored families in the split shape "
+                   help="MoCo-style keys on L_rep (#374 arm bimoco / arm 6 "
+                        "v2): route the three h-anchored families "
                         "(log_neg_xx, log_neg_hh_all, log_neg_xs_allt) "
                         "through the EMA teacher on the key side — student "
-                        "anchor h_{b,t}, teacher keys h^T_{b',l}. No "
-                        "positive added; L_rep stays a pooled LSE. Requires "
-                        "--ema-embedding/--ema-encoder and --loss-shape "
-                        "cosine_similarity_batch_split_pred_rep.")
+                        "anchor h_{b,t}, teacher keys h^T_{b',l}. Adds a "
+                        "same-batch same-time student↔teacher positive; "
+                        "L_rep becomes a normalized InfoNCE (positive-in-"
+                        "denominator). Requires --ema-embedding/"
+                        "--ema-encoder and --loss-shape in "
+                        "{cosine_similarity_batch_split_pred_rep, "
+                        "cosine_similarity_batch_rep_only}.")
     p.add_argument("--sigreg-embedding", action="store_true",
                    help="LeJEPA spherical SIGReg term on the patch-embedding "
                         "e_t (the GRU patch-embed output, [B,T,C,H] before "
@@ -763,6 +781,49 @@ def maybe_mixup(x, freq_ids, seasonality_ids, model, args):
         seas_emb_mix = None
 
     return x_mix, freq_ids, freq_emb_mix, seasonality_ids, seas_emb_mix
+
+
+def parse_extra_save_steps(spec):
+    """Parse a comma-separated list of extra checkpoint steps.
+
+    None / empty → empty set. Used by --extra-save-steps to add off-cadence
+    snapshots on top of --save-every without changing the base cadence.
+
+    Raises SystemExit if any entry is not a positive integer, or if two
+    entries fall in the same 1000-block. The snapshot filename is
+    `{run}_{step // 1000}k.pth`, so two extras within the same 1000-block
+    (e.g. 2500 and 2800) would silently overwrite each other. Reject at
+    parse time rather than during training when the collision surfaces
+    hours in.
+    """
+    if not spec:
+        return frozenset()
+    try:
+        vals = [int(s.strip()) for s in spec.split(",") if s.strip()]
+    except ValueError as e:
+        raise SystemExit(
+            f"--extra-save-steps: cannot parse {spec!r} as a comma-"
+            f"separated list of integers ({e}).")
+    if any(v <= 0 for v in vals):
+        raise SystemExit(
+            f"--extra-save-steps: every entry must be > 0; got {vals!r}.")
+    blocks = {}
+    for v in vals:
+        b = v // 1000
+        if b in blocks and blocks[b] != v:
+            raise SystemExit(
+                f"--extra-save-steps: entries {blocks[b]} and {v} share "
+                f"1000-block {b} — snapshot filename `_{b}k.pth` would "
+                f"overwrite. Space them into distinct 1000-blocks.")
+        blocks[b] = v
+    return frozenset(vals)
+
+
+def should_snapshot(step, save_every, extra_steps):
+    """True at step > 0 if step matches --save-every or is in the extras set."""
+    if step <= 0:
+        return False
+    return (step % save_every == 0) or (step in extra_steps)
 
 
 def save_snapshot(model, optimizer, path, step, best_gap, best_gap_step,
@@ -1262,6 +1323,10 @@ def main():
                 "L_align term. With the main contrastive loss on, the align "
                 "add-on lives inside contrastive_latent_loss and targets the "
                 "student. Pass --no-main-contrastive-loss.")
+    # Parse --extra-save-steps at validation time (not deep in the training
+    # loop) so a malformed value fails immediately instead of after model +
+    # dataloader construction — the parser raises SystemExit on bad input.
+    _extra_save_steps = parse_extra_save_steps(args.extra_save_steps)
     model_config["ema_embedding"] = bool(args.ema_embedding)
     model_config["ema_encoder"] = bool(args.ema_encoder)
     # LeJEPA SIGReg (#355): the term contributes nothing to the model's
@@ -1294,6 +1359,12 @@ def main():
     LOSS_SPEC.train_configuration["rep_loss_weight"] = args.rep_loss_weight
     if args.tau is not None:
         LOSS_SPEC.train_configuration["contrastive_divergence_temperature"] = args.tau
+    if args.tau_rep is not None:
+        # #379 — separate temperature for the L_rep term of split shapes.
+        # When unset the loss code falls back to `tau` (see src/loss.py's
+        # split_pred_rep / rep_only branches), preserving historical
+        # objectives byte-for-byte.
+        LOSS_SPEC.train_configuration["contrastive_divergence_temperature_rep"] = args.tau_rep
     model = ConfigurableModel(**model_config).to(device)
     optimizer = optim.AdamW(
         model.parameters(),
@@ -1896,7 +1967,7 @@ def main():
                               hf_rows_consumed=hf_rows_consumed,
                               synth_rows_consumed=synth_rows_consumed)
 
-        if step % args.save_every == 0:
+        if should_snapshot(step, args.save_every, _extra_save_steps):
             path = os.path.join(args.save_dir, f"{args.run_name}_{step // 1000}k.pth")
             save_snapshot(model, optimizer, path, step,
                           best_gap, best_gap_step, best_loss, best_loss_step,
