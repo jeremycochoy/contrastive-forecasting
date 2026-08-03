@@ -1,94 +1,55 @@
 # A per-loss-term map of latent movement, measured on the student and the EMA teacher latent
 
-**TL;DR.** Nine loss terms, one fixed probe batch, drift measured between
-checkpoints 5000 steps apart. In every arm that has an exponential-moving-average
-(EMA) teacher, the teacher latent tracks the student latent. The nine terms
-separate into distinct movement regimes.
+**TL;DR.** Across nine loss terms, the exponential-moving-average (EMA) teacher latent tracks the student latent. The nine terms split into four movement regimes.
 
 ![Drift between checkpoints 5000 steps apart](plots/drift_headline.png)
 
-*One panel per loss term, same axes for all nine. Shaded panels have an EMA
-teacher and carry four named curves; the other six have no teacher and carry
-one. Solid = student, dashed = EMA teacher. In every teacher panel the
-EMA-teacher curve tracks its student curve within a line width for the whole
-run: orange on blue for α = 0.9, pink on green for the schedule. The two α
-settings separate from 40k on for `pred_moco` and `rep_moco`, and stay together
-on `align_teacher`.*
+*Solid = student, dashed = EMA teacher; shaded panels have a teacher, blue/orange = α 0.9, green/pink = schedule.*
 
-Four regimes: drift stays near zero for `align_teacher` and `sigreg_e`; drift
-falls with training for `align`, `rep`, `sigreg_h` and `rep_moco`; drift does
-not fall for `pred` and `cpc`; `pred_moco` sits between, flat at a mid level
-under α = 0.9 (slope −0.07 per decade) and falling only under the schedule
-(−0.32).
+Four regimes: near-zero drift for `align_teacher` and `sigreg_e`; falling drift for `align`, `rep`, `sigreg_h` and `rep_moco`; no fall for `pred` and `cpc`; `pred_moco` flat under α = 0.9 and falling only under the schedule.
 
 ![L_align with the teacher as target](plots/align_fix.png)
 
-*Same probe and same 5000-step spacing, α = 0.9 constant. Blue: `align_teacher`,
-target = EMA teacher `h_{t+1}`. Dashed orange: the EMA-teacher latent of the
-same run, which tracks the student curve within a line width for the whole run.*
+*`align_teacher` at α = 0.9, target = EMA teacher `h_{t+1}`.*
 
 ![Dimension usage](plots/supporting/dim_usage.png)
 
-*Dimension usage `U = 1/(d · mean cos²)` with `d = 64`, measured over the time
-axis, from the training logs. 1 means isotropic, i.e. the directions spread
-evenly over all 64 axes; 1/64 = 0.015625 means every timestep points the same
-way. Both align arms end near that floor: at 100k, `align_teacher` reads
-0.016709 with α = 0.9 and 0.018166 with the schedule, 6.9% and 16.3% above the
-floor, so the low drift of those arms is measured on a representation with
-almost nothing left to rotate. Along the batch axis the same two runs read
-0.057068 and 0.074540, well off the floor: the collapse is across time, not
-across the batch. Wide pale curves are constant α, dashed are the schedule; on
-the MoCo (momentum-contrast) arms the two nearly coincide.*
+*Both align arms end near the 1/64 time-axis floor, so their low drift is measured on a representation with almost nothing left to rotate.*
 
-One seed per arm and one probe batch, so every number here is a single
-measurement without a spread. No downstream forecasting evaluation was run in
-this experiment.
+One seed per arm, one probe batch, no downstream forecasting evaluation, so every number is a single measurement without a spread.
 
 ## Other windows on the same probe
 
 ![Cumulative drift away from the 5k checkpoint](plots/cumulative_drift.png)
 
-*Same probe, each checkpoint compared to the run's 5k checkpoint instead of to
-its predecessor. `align_teacher_a09` reaches 0.8529 at 100k while the same
-run's adjacent-window drift averages 0.0123 over 80k–100k: slow per-window drift
-still accumulates, so the representation is not fixed in place.*
+*Slow per-window drift still accumulates: `align_teacher_a09` reaches 0.8529 against its 5k checkpoint.*
 
 ![Drift between probes 500 steps apart](plots/drift_500.png)
-
-*The in-training probe, 500-step spacing, the four runs of this card only. Only
-`align_teacher` was run at both α settings, so the other two panels carry the
-schedule alone.*
 
 ## The α schedule
 
 ![EMA momentum against training step](plots/alpha_schedule.png)
 
-*α is the weight the teacher keeps on itself in
-`θ_teacher ← α·θ_teacher + (1 − α)·θ_student`, applied after every optimizer
-step. `align_teacher_a09` holds α = 0.9; the three scheduled runs share the same
-0.9 → 1.0 linear ramp over 100k steps, so they draw one line.*
+*α is the weight the teacher keeps on itself in `θ_teacher ← α·θ_teacher + (1 − α)·θ_student`, applied after every optimizer step.*
 
 ## What this measures
 
-`drift_cos` = 1 − mean cosine similarity between two sets of encoder latents
-`h_t`, on one fixed probe batch: a single ARMA draw of 64 series, 1024 raw
-timesteps, seed 20260722, shared by every checkpoint of every run. 0 means the
-representation did not move, 1 means orthogonal.
-
-`drift_cos_aligned` is `drift_cos` after a Procrustes rotation, the single
-orthogonal transform that best maps one latent set onto the other, is removed.
-What remains is the movement a downstream linear head cannot absorb. `cka` is
-linear centered kernel alignment, a rotation- and scale-invariant similarity in
-[0, 1].
+| Quantity | Definition |
+|---|---|
+| probe batch | one ARMA draw, 64 series, 1024 raw timesteps, seed 20260722, shared by every checkpoint of every run |
+| `drift_cos` | 1 − mean cosine similarity between two sets of encoder latents `h_t`; 0 = no movement, 1 = orthogonal |
+| `drift_cos_aligned` | `drift_cos` after removing the best orthogonal (Procrustes) map; the movement a linear head cannot absorb |
+| `cka` | linear centered kernel alignment, rotation- and scale-invariant, in [0, 1]; reads 0 when a latent is collinear across time, as `align` is at 100k |
+| `U` | dimension usage `1/(d · mean cos²)`, `d = 64`; 1 = isotropic, 1/64 = 0.015625 = every vector aligned |
+| adjacent probe | checkpoints 5000 steps apart; `vs_initial` compares each checkpoint to the run's 5k checkpoint |
 
 ## Runs
 
-Four runs. Same backbone, seed, dataset and 100k-step budget as the loss-term
-isolation experiment
-([report](../2026-07-28_loss_term_isolation/loss_term_isolation.md)). That
-experiment supplies the earlier `align` arm and the constant-α halves of
-`pred_moco` and `rep_moco`. `pred`, `rep`, `sigreg_e`, `sigreg_h` and `cpc` have
-no teacher and were not re-run.
+| Setup | Value |
+|---|---|
+| new runs | 4 |
+| shared with [loss-term isolation](../2026-07-28_loss_term_isolation/loss_term_isolation.md) | backbone, seed, dataset, 100k-step budget |
+| taken from that experiment | `align`, and the constant-α halves of `pred_moco` and `rep_moco` |
 
 | Run | Loss term | α |
 |---|---|---|
@@ -96,11 +57,10 @@ no teacher and were not re-run.
 | `align_teacher_sched` | same | 0.9 → 1.0 linear |
 | `pred_moco_sched` | `L_pred` + MoCo negatives | 0.9 → 1.0 linear |
 | `rep_moco_sched` | `L_rep` + MoCo keys | 0.9 → 1.0 linear |
+| `align` | `L_align`, target = student `sg(h_{t+1})` | no teacher |
+| `pred`, `rep`, `sigreg_e`, `sigreg_h`, `cpc` | as in loss-term isolation | no teacher |
 
-## Late-window adjacent drift, 80k–100k
-
-Student `h_t`, adjacent-checkpoint probe, mean over the 80k–100k window, from
-`results/drift.csv`.
+## Late-window adjacent drift, student `h_t`, mean over 80k–100k, from `results/drift.csv`
 
 | Run | α | mean drift_cos 80k–100k | mean drift_cos_aligned 80k–100k |
 |---|---|---|---|
@@ -112,15 +72,7 @@ Student `h_t`, adjacent-checkpoint probe, mean over the 80k–100k window, from
 | `rep_moco` | const 0.9 | 0.2531 | 0.1240 |
 | `rep_moco_sched` | 0.9 → 1.0 | 0.0326 | 0.0258 |
 
-The prior `align` arm's target was the student's own stop-gradient
-`sg(h_{t+1})`; `sg(·)` blocks gradient flow through its argument. Across the
-whole run that arm's raw adjacent `drift_cos` spans 0.0133 to
-1.3226, while its `drift_cos_aligned` peaks at 0.0464 and stays at or below
-7e-06 from 40k on.
-
-## Drift against the 5k checkpoint, measured at 100k
-
-Student `h_t`, from `results/drift.csv` (`kind=vs_initial`).
+## Drift against the 5k checkpoint at 100k, student `h_t`, from `results/drift.csv` (`kind=vs_initial`)
 
 | Run | α | drift_cos vs 5k | drift_cos_aligned vs 5k | cka vs 5k |
 |---|---|---|---|---|
@@ -132,13 +84,7 @@ Student `h_t`, from `results/drift.csv` (`kind=vs_initial`).
 | `rep_moco` | const 0.9 | 0.986973 | 0.783621 | 0.084590 |
 | `rep_moco_sched` | 0.9 → 1.0 | 0.971899 | 0.778909 | 0.084094 |
 
-The `align` row reads `cka` 0.000000 next to an aligned drift of 0.000035
-because that latent is collinear across time at 100k: its time-axis `U` is
-0.015625, exactly the floor, so there is no spread left for CKA to correlate.
-
-## Dimension usage at 100k
-
-From `results/loss_curve.csv`, floor 1/64 = 0.015625 on both axes.
+## Dimension usage at 100k, from `results/loss_curve.csv`, floor 1/64 = 0.015625 on both axes
 
 | Run | U, time axis | U, batch axis |
 |---|---|---|
@@ -150,10 +96,7 @@ From `results/loss_curve.csv`, floor 1/64 = 0.015625 on both axes.
 | `rep_moco` | 0.580033 | 0.794081 |
 | `rep_moco_sched` | 0.560926 | 0.827109 |
 
-## Adjacent-checkpoint drift per arm and latent
-
-Mean raw `drift_cos` of the adjacent-checkpoint probe over each window. Slope is
-per decade of training step, from `results/summary.csv`.
+## Adjacent-checkpoint drift per arm and latent, mean raw `drift_cos` per window, slope per decade of training step, from `results/summary.csv`
 
 | Run | Latent | α | mean drift_cos 10k-25k | mean drift_cos 80k-100k | slope / decade |
 |---|---|---|---|---|---|
