@@ -65,8 +65,7 @@ NAMED = [
 NAMED_ORDER = [0, 2, 1, 3]          # student/teacher pairs side by side
 
 # The drift metric, spelled out inside every figure that plots it.
-DRIFT_YLABEL = ("drift of $h_t$: 1 - cosine similarity\n"
-                "(0 = no movement, 1 = orthogonal)")
+DRIFT_YLABEL = "drift of $h_t$: 1 - cosine similarity"
 
 # What each arm trained, in the words of the report's Runs table. Panel
 # titles carry this instead of the internal run id.
@@ -241,7 +240,7 @@ def plot_align_fix(series, out_png):
 
 
 def plot_cumulative(series, out_png):
-    fig, axs = plt.subplots(1, 3, figsize=(12, 5.0), sharey=True)
+    fig, axs = plt.subplots(1, 3, figsize=(12, 5.0), sharey=False)
     kw = dict(lw=1.5, marker="o", ms=3.0,
               markeredgecolor="white", markeredgewidth=0.5)
     present = set()
@@ -258,7 +257,8 @@ def plot_cumulative(series, out_png):
         ax.text(0.98, 0.99, "orthogonal (drift = 1)", transform=ax.transAxes,
                 ha="right", va="top", fontsize=8, color="#707070")
         ax.set_title(ARM_TITLE[arm], fontsize=11)
-        ax.set_ylim(0.0, 1.15)
+        # Each panel autoscales and carries its own ticks: the arms end at
+        # different heights, and a shared axis flattens the smaller ones.
         style_axes(ax, DRIFT_YLABEL + "\nagainst the 5k checkpoint"
                    if arm == TEACHER_ARMS[0] else None)
         ax.yaxis.label.set_fontsize(9)

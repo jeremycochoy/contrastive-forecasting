@@ -15,7 +15,7 @@ Four regimes:
 
 ![Dimension usage](plots/supporting/dim_usage.png)
 
-In the left panel both `L_align` runs reach the 1/64 floor: `h_t` collapses to a single direction across time, so almost nothing is left to rotate.
+In the left panel every `L_align` run ends close to the 1/64 floor: `h_t` is nearly collinear across time, so almost nothing is left to rotate.
 
 ## Drift measured over other step intervals
 
