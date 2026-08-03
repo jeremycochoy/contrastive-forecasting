@@ -195,11 +195,8 @@ def plot_headline(series, out_png):
                 for i in legend_order]
     fig.legend(handles=handles, loc="lower center", ncol=3, frameon=False,
                fontsize=10, bbox_to_anchor=(0.5, -0.005))
-    fig.suptitle(
-        "Drift of $h_t$ between checkpoints 5000 steps apart, "
-        "one panel per loss term\n"
-        "Shaded panels have an EMA teacher; its latent is drawn dashed "
-        "on top of the student", fontsize=13)
+    fig.suptitle("Drift over 5000-step windows, one panel per loss term",
+                 fontsize=13)
     fig.tight_layout(rect=(0, 0.085, 1, 1))
     fig.savefig(out_png, dpi=120)
     print(f"wrote {out_png}")
@@ -234,11 +231,7 @@ def plot_align_fix(series, out_png):
     order = [w[2] for w in wanted]
     ax.legend([handles[k] for k in order if k in handles],
               [k for k in order if k in handles], frameon=False, fontsize=9)
-    ax.set_title(
-        "L_align with the EMA teacher as the target: "
-        "the teacher latent moves with the student\n"
-        "Drift between checkpoints 5000 steps apart, "
-        "alpha = 0.9 constant, linear scale", fontsize=12)
+    ax.set_title("L_align, teacher as target, alpha = 0.9", fontsize=12)
     fig.tight_layout()
     fig.savefig(out_png, dpi=120)
     print(f"wrote {out_png}")
@@ -272,11 +265,7 @@ def plot_cumulative(series, out_png):
     fig.legend(handles=named_handles(present),
                loc="lower center", ncol=2, frameon=False, fontsize=10,
                bbox_to_anchor=(0.5, 0.005))
-    fig.suptitle(
-        "Small drift per window still adds up: by 100k steps every arm is "
-        "far from its 5k checkpoint\n"
-        "Two runs per panel: alpha = 0.9 constant, and alpha ramping "
-        "0.9 to 1.0", fontsize=13)
+    fig.suptitle("Cumulative drift", fontsize=13)
     fig.tight_layout(rect=(0, 0.15, 1, 1))
     fig.savefig(out_png, dpi=120)
     print(f"wrote {out_png}")
@@ -316,10 +305,7 @@ def plot_drift_500(path, out_png):
         style_axes(ax, DRIFT_YLABEL + "\n500-step pairs"
                    if arm == TEACHER_ARMS[0] else None)
         ax.yaxis.label.set_fontsize(9)
-    fig.suptitle(
-        "Drift of $h_t$ between probes 500 steps apart\n"
-        "Student and EMA teacher move together in every arm, "
-        "at every alpha", fontsize=13)
+    fig.suptitle("Drift over 500-step windows", fontsize=13)
     fig.tight_layout()
     fig.savefig(out_png, dpi=120)
     print(f"wrote {out_png}")
@@ -396,9 +382,7 @@ def plot_dim_usage(loss_csv, out_png, n_dims=64):
                    if title == DIM_PANELS[0][0] else None)
         ax.legend(frameon=False, fontsize=8.5, loc="best")
     fig.suptitle(
-        "Both L_align arms end with $h_t$ almost collinear across time, "
-        "so little is left to rotate\n"
-        r"Dimension usage $U=1/(d\cdot\overline{\cos^2})$ of $h_t$: "
+        r"$U=1/(d\cdot\overline{\cos^2})$: "
         "1 = all 64 dimensions used, 1/64 = one direction", fontsize=13)
     fig.tight_layout()
     fig.savefig(out_png, dpi=120)
