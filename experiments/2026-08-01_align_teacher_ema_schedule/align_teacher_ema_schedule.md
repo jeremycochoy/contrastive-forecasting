@@ -15,7 +15,7 @@ Four regimes:
 
 ![Dimension usage](plots/supporting/dim_usage.png)
 
-One seed per arm, one probe batch, no downstream forecasting evaluation, so every number is a single measurement without a spread.
+In the left panel both `L_align` runs reach the 1/64 floor: `h_t` collapses to a single direction across time, so almost nothing is left to rotate.
 
 ## Drift measured over other step intervals
 

@@ -332,11 +332,9 @@ DIM_PANELS = [
       ("rep_moco_sched", "#D55E00", "--", "rep_moco, alpha: 0.9 -> 1.0")]),
 ]
 
-# Labelled ticks for the dim-usage axis. The 1/64 floor gets its own label
-# so the "both align arms end near the floor" claim is checkable.
-DIM_TICKS = [1.0 / 64, 0.02, 0.03, 0.05, 0.1, 0.2, 0.4, 0.6]
-DIM_TICK_LABELS = ["1/64 = 0.0156 (collinear)", "0.02", "0.03", "0.05",
-                   "0.1", "0.2", "0.4", "0.6"]
+# Labelled ticks for the dim-usage axis.
+DIM_TICKS = [0.02, 0.03, 0.05, 0.1, 0.2, 0.4, 0.6]
+DIM_TICK_LABELS = ["0.02", "0.03", "0.05", "0.1", "0.2", "0.4", "0.6"]
 
 
 def plot_dim_usage(loss_csv, out_png, n_dims=64):
