@@ -1,0 +1,13 @@
+[08-01-14:30] launched align_teacher_a09 on gpu 0 (pid 2228430)
+[08-01-14:30] START arm=align_teacher_a09 steps=100000 save_every=5000 probe_every=500 gpu=0
+[08-01-14:30] launched align_teacher_sched on gpu 0 (pid 2228561)
+[08-01-14:30] START arm=align_teacher_sched steps=100000 save_every=5000 probe_every=500 gpu=0
+[08-01-14:31] launched pred_moco_sched on gpu 1 (pid 2228683)
+[08-01-14:31] START arm=pred_moco_sched steps=100000 save_every=5000 probe_every=500 gpu=1
+[08-01-14:31] launched rep_moco_sched on gpu 1 (pid 2228814)
+[08-01-14:31] START arm=rep_moco_sched steps=100000 save_every=5000 probe_every=500 gpu=1
+[08-01-16:08] DONE arm=pred_moco_sched (5.0M)
+[08-01-16:18] DONE arm=align_teacher_a09 (5.0M)
+[08-01-16:19] DONE arm=align_teacher_sched (5.0M)
+[08-01-18:43] DONE arm=rep_moco_sched (5.0M)
+[08-01-18:43] all arms finished, rc=0
