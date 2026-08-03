@@ -4,7 +4,12 @@ Across nine loss terms, the exponential-moving-average (EMA) teacher latent trac
 
 ![Drift between checkpoints 5000 steps apart](plots/drift_headline.png)
 
-Four regimes: near-zero drift for `align_teacher` and `sigreg_e`; falling drift for `align`, `rep`, `sigreg_h` and `rep_moco`; no fall for `pred` and `cpc`; `pred_moco` flat under α = 0.9 and falling only under the schedule.
+Four regimes:
+
+- Near-zero drift: `align_teacher`, `sigreg_e`.
+- Falling drift: `align`, `rep`, `sigreg_h`, `rep_moco`.
+- No fall: `pred`, `cpc`.
+- `pred_moco`: flat under α = 0.9, falling only under the schedule.
 
 ![L_align with the teacher as target](plots/align_fix.png)
 
