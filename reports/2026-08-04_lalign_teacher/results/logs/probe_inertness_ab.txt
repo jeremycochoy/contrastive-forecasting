@@ -1,0 +1,15 @@
+# #390 — latent-drift probe inertness A/B. elisa, RTX 4090 (GPU 1).
+# arm5's own command line, 200 steps, seed 20260520, back to back.
+# The probe defaults ON; #379's sweep ran on code that had none.
+
+## probe on (rc=0)
+Latent-drift CSV: /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/runs_probe_ab/probe_ab_on_latent_drift.csv (every 25000 steps, probe_bs=64, probe_seed=20260722)
+[    200] loss=15.1889  ema_loss=17.0983  gap=-0.1545  ema_gap=-0.2884  mixup=59/200  3.3 sps  ETA 0.0h  cpc=0.4558
+              R²_rand=0.3055  R²_naive=0.3151  U_t=0.5419  U_b=0.7118  AUC=0.9530  Top1=0.3132
+
+## probe off (rc=0)
+(no latent-drift CSV line)
+[    200] loss=15.1889  ema_loss=17.0983  gap=-0.1545  ema_gap=-0.2884  mixup=59/200  2.4 sps  ETA 0.0h  cpc=0.4558
+              R²_rand=0.3055  R²_naive=0.3151  U_t=0.5419  U_b=0.7118  AUC=0.9530  Top1=0.3132
+
+VERDICT: identical at step 200 — the probe is inert w.r.t. training.

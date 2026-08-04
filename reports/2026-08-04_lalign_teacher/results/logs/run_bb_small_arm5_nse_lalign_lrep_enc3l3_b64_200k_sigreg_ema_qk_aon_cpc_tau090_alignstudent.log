@@ -1,0 +1,37 @@
+Device: cuda | Params: 724,764
+Training for 40000 steps, bs=64, lr=0.001, T=4096, C=1, mix_ratio=0.0078125, freq_emb_dim=3, seasonality_emb_dim=3, mixup_p=0.3, rev_norm_kind=ewma(span=128), patch_stats=none, encoder_type=gru
+Checkpoints: /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/runs/bb_small_arm5_nse_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignstudent_*.pth
+Loss CSV: /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/runs/bb_small_arm5_nse_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignstudent_losses.csv
+Latent-drift CSV: /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/runs/bb_small_arm5_nse_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignstudent_latent_drift.csv (every 10000 steps, probe_bs=64, probe_seed=20260722)
+Attn-amplitude CSV: /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/runs/bb_small_arm5_nse_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignstudent_attn_amplitude.csv (every 200 steps)
+Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, hf_bs=64, synth_bs=0, cross_bs=0, total_bs=67
+[    200] loss=15.2455  ema_loss=17.2492  gap=-0.0199  ema_gap=-0.2405  mixup=59/200  3.5 sps  ETA 3.1h  cpc=0.3578
+              R²_rand=0.3764  R²_naive=0.3853  U_t=0.5951  U_b=0.7449  AUC=0.9826  Top1=0.5007
+  timing: data=48.3ms  fwd=130.1ms  bwd=81.1ms  total=260.4ms
+  -> Saved /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/runs/bb_small_arm5_nse_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignstudent_best_gap.pth
+  -> Saved /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/runs/bb_small_arm5_nse_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignstudent_best_loss.pth
+[    400] loss=14.5379  ema_loss=15.0284  gap=0.3487  ema_gap=0.1875  mixup=67/200  3.9 sps  ETA 2.8h  cpc=0.0723
+              R²_rand=0.4856  R²_naive=0.5109  U_t=0.8212  U_b=0.8915  AUC=0.9994  Top1=0.9237
+  timing: data=4.0ms  fwd=126.7ms  bwd=76.7ms  total=208.2ms
+  -> Saved /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/runs/bb_small_arm5_nse_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignstudent_best_gap.pth
+  -> Saved /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/runs/bb_small_arm5_nse_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignstudent_best_loss.pth
+[    600] loss=14.3649  ema_loss=14.4993  gap=0.5233  ema_gap=0.4397  mixup=67/200  4.0 sps  ETA 2.7h  cpc=0.0368
+              R²_rand=0.5294  R²_naive=0.5674  U_t=0.8584  U_b=0.9024  AUC=0.9999  Top1=0.9821
+  timing: data=4.5ms  fwd=128.6ms  bwd=77.9ms  total=211.8ms
+  -> Saved /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/runs/bb_small_arm5_nse_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignstudent_best_gap.pth
+  -> Saved /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/runs/bb_small_arm5_nse_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignstudent_best_loss.pth
+[    800] loss=14.2812  ema_loss=14.3362  gap=0.6025  ema_gap=0.5578  mixup=62/200  4.0 sps  ETA 2.7h  cpc=0.0223
+              R²_rand=0.5619  R²_naive=0.5950  U_t=0.8608  U_b=0.9296  AUC=1.0000  Top1=0.9929
+  timing: data=18.1ms  fwd=125.4ms  bwd=78.2ms  total=222.4ms
+  -> Saved /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/runs/bb_small_arm5_nse_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignstudent_best_gap.pth
+  -> Saved /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/runs/bb_small_arm5_nse_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignstudent_best_loss.pth
+[   1000] loss=14.2309  ema_loss=14.2601  gap=0.6427  ema_gap=0.6167  mixup=73/200  4.1 sps  ETA 2.7h  cpc=0.0118
+              R²_rand=0.5744  R²_naive=0.6138  U_t=0.8913  U_b=0.9154  AUC=1.0000  Top1=0.9959
+  timing: data=3.6ms  fwd=125.8ms  bwd=76.8ms  total=206.9ms
+  -> Saved /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/runs/bb_small_arm5_nse_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignstudent_best_gap.pth
+  -> Saved /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/runs/bb_small_arm5_nse_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignstudent_best_loss.pth
+[   1200] loss=14.1979  ema_loss=14.2155  gap=0.6728  ema_gap=0.6603  mixup=62/200  4.1 sps  ETA 2.6h  cpc=0.0092
+              R²_rand=0.5842  R²_naive=0.6286  U_t=0.8870  U_b=0.9275  AUC=1.0000  Top1=0.9967
+  timing: data=3.9ms  fwd=126.1ms  bwd=74.5ms  total=205.2ms
+  -> Saved /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/runs/bb_small_arm5_nse_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignstudent_best_gap.pth
+  -> Saved /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/runs/bb_small_arm5_nse_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignstudent_best_loss.pth

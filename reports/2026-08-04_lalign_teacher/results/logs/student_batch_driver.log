@@ -1,0 +1,13 @@
+[08-04 12:30:41] [student-batch] 9 cells, 2 slot(s) per GPU, bb=40k head=15000: arm5_tr1 arm5_nse arm5_ncpc arm5_combab arm6_v2 arm6_v2_tr1 arm6_v2_nse arm6_v2_ncpc arm6_v2_combab
+[08-04 12:30:41] [student-batch] START arm5_tr1 on GPU 0
+[08-04 12:30:41] [student-control/arm5_tr1] stage 1/2 — backbone 0 -> 40k, --align-target student, GPU 0
+[08-04 12:30:41] [elisa-arm5_tr1] BB START (arm 5_tr1: rep_only + align-loss-weight 1.0 + tau_rep=1.0 + align-target student) gpu=0 target=40000 final=200000 bs=64 
+[08-04 12:30:46] [student-batch] START arm5_nse on GPU 0
+[08-04 12:30:46] [student-control/arm5_nse] stage 1/2 — backbone 0 -> 40k, --align-target student, GPU 0
+[08-04 12:30:46] [elisa-arm5_nse] BB START (arm 5_nse: rep_only + align-loss-weight 1.0 + sigreg_embedding=0 + align-target student) gpu=0 target=40000 final=200000 bs=64 
+[08-04 12:30:51] [student-batch] START arm5_ncpc on GPU 1
+[08-04 12:30:51] [student-control/arm5_ncpc] stage 1/2 — backbone 0 -> 40k, --align-target student, GPU 1
+[08-04 12:30:51] [elisa-arm5_ncpc] BB START (arm 5_ncpc: rep_only + align-loss-weight 1.0 + cpc_infonce_weight=0 + align-target student) gpu=1 target=40000 final=200000 bs=64 
+[08-04 12:30:56] [student-batch] START arm5_combab on GPU 1
+[08-04 12:30:56] [student-control/arm5_combab] stage 1/2 — backbone 0 -> 40k, --align-target student, GPU 1
+[08-04 12:30:56] [elisa-arm5_combab] BB START (arm 5_combab: rep_only + align + τ_rep=1.0 + cpc=0 + align-target student (nse SKIPPED: nse hurt arm5)) gpu=1 target=40000 final=200000 bs=64 

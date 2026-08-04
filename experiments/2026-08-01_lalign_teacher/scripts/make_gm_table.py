@@ -5,8 +5,16 @@ Reads every ``eval_gm_mase/<cell>_summary.txt`` in a results directory,
 re-counts the configs from that cell's ``all_results.csv`` rather than
 trusting the summary line, and writes
 
-    arm_slug,variant,align_target,bb_steps,head_steps,bb_seed,head_seed,
-    cell,gm_rel_mase,n_configs,source
+    arm_slug,variant,align_target,code_snapshot,bb_steps,head_steps,
+    bb_seed,head_seed,cell,gm_rel_mase,n_configs,source
+
+``code_snapshot`` is the column that keeps the report honest. arm5 at 40k
+with ``--align-target student`` and seed 20260520 reads 1.5478 in #379's
+sweep and 1.4501 when the identical command line is re-run on this branch:
+0.0977 of movement that belongs to the code, not to the flag. So a delta is
+only a statement about ``--align-target`` when both sides carry the same
+value here. ``#379-sweep`` and ``#390-branch`` are the two snapshots;
+``source`` records the same split from the artefact's point of view.
 
 The report's central comparison is a teacher cell against its student
 counterpart at a fixed backbone step, so both have to be rebuildable from
@@ -41,6 +49,10 @@ CELL_RE = re.compile(r"^(?P<arm>.+?)_bb(?P<bb>\d+)k_hd(?P<hd>\d+)s$")
 VAL_RE = re.compile(r"\((?P<n>\d+) configs\):\s*(?P<v>[0-9.]+)")
 VARIANTS = ("tr1", "nse", "ncpc", "combab")
 RETRAINED_PREFIX = ("arm5", "arm6_v2")
+
+# The two code snapshots any number in this directory can come from.
+SNAP_379 = "#379-sweep"      # experiments/2026-07-21_split_pred_rep_small
+SNAP_390 = "#390-branch"     # feature/contrastive-forecasting-390
 
 REPO = Path(__file__).resolve().parents[3]
 LAUNCHER_390 = REPO / "experiments/2026-08-01_lalign_teacher/scripts/run_arm.sh"
@@ -130,9 +142,13 @@ def main() -> int:
             # here, and the whole point of it is that it is NOT #379's number.
             align_target = tag_target or "teacher"
             source = "#379" if copied else "#390"
+        # Which code produced the number. Copied cells were measured by the
+        # #379 sweep and were never re-run; everything else ran here.
+        code_snapshot = SNAP_379 if source == "#379" else SNAP_390
         rows.append({
             "arm_slug": arm, "variant": variant,
             "align_target": align_target,
+            "code_snapshot": code_snapshot,
             "bb_steps": int(m.group("bb")) * 1000,
             "head_steps": int(m.group("hd")),
             "bb_seed": bb_seed, "head_seed": head_seed,
@@ -167,6 +183,18 @@ def main() -> int:
     if unpaired:
         print("UNPAIRED (no student counterpart): "
               + " ".join(f"{a}@{s}" for a, s in unpaired))
+    # The pairing that actually licenses a statement about the flag: both
+    # sides measured on THIS branch. A teacher cell whose only student
+    # counterpart is #379's carries the code-snapshot shift as well.
+    same_snap = {(r["arm_slug"], r["bb_steps"]) for r in rows
+                 if r["align_target"] == "student"
+                 and r["code_snapshot"] == SNAP_390}
+    print(f"of those, controlled (student measured on {SNAP_390} too): "
+          f"{len(teacher & same_snap)}")
+    cross_only = sorted((teacher & student) - same_snap)
+    if cross_only:
+        print("CROSS-EXPERIMENT ONLY (student is " + SNAP_379 + "): "
+              + " ".join(f"{a}@{s}" for a, s in cross_only))
     short = [r["cell"] for r in rows if r["n_configs"] != 97]
     if short:
         print("NOT 97 CONFIGS: " + " ".join(short))
