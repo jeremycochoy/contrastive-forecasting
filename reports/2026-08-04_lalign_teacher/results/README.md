@@ -9,9 +9,12 @@ between the two reports, so all 30 arms sit on one scale.
 
 | Path | Contents |
 |------|----------|
-| `gm_relative_mase.csv` | one row per measured cell: `arm_slug`, `variant`, `align_target`, `bb_steps`, `head_steps`, `bb_seed`, `head_seed`, `cell`, `gm_rel_mase`, `n_configs`, `source`. 93 cells over 30 arms. `align_target` is `teacher` / `student` / `none` (the twenty arms with no `L_align` term). `source` is `#390` for a cell measured here and `#379` for a copied one. Every teacher cell has its student counterpart at the same arm and backbone step, so the report's central delta rebuilds from this file alone. |
-| `eval_bootstrap_ci.csv` | 95% intervals on the teacher/student ratio per arm per backbone step, from a **dataset-level** paired bootstrap over the per-config log differences, with the config-level interval beside it for contrast. `ci_excludes_1` is the per-cell verdict. |
-| `eval_paired_tests.csv` | the same comparison across the ten arms at a fixed backbone step: counts, median ratio, sign-test and Wilcoxon p. |
+| `gm_relative_mase.csv` | one row per measured cell: `arm_slug`, `variant`, `align_target`, `code_snapshot`, `bb_steps`, `head_steps`, `bb_seed`, `head_seed`, `cell`, `gm_rel_mase`, `n_configs`, `source`. `align_target` is `teacher` / `student` / `none` (the twenty arms with no `L_align` term). **`code_snapshot` is `#379-sweep` or `#390-branch`** — which code produced the number, see below. `source` records the same split from the artefact's side. A cell with a same-branch student control keeps BOTH student rows; neither replaces the other. |
+| `controlled_delta_40k.csv` | **the headline table.** Per arm at backbone 40k: `gm_teacher_390`, `gm_student_390`, `gm_student_379`, the controlled delta `gm_teacher_390 - gm_student_390` with a dataset-level paired bootstrap interval, the cross-experiment delta the wave tables report, and `code_snapshot_shift` = `gm_student_390 - gm_student_379`. Both sides of the controlled delta ran on this branch under launchers that differ by `--align-target` and nothing else, so it is the only column in this directory attributable to the flag. |
+| `controlled_paired_tests_40k.csv` | the three comparisons across the ten arms at 40k — controlled, cross-experiment, and the snapshot shift on its own — with counts, mean and median delta, sign-test and Wilcoxon p. The gap between the first two rows is the size of the contamination. |
+| `eval_bootstrap_ci.csv` | 95% intervals on the teacher/student ratio per arm per backbone step, from a **dataset-level** paired bootstrap over the per-config log differences, with the config-level interval beside it for contrast. `ci_excludes_1` is the per-cell verdict. **Cross-experiment**: the student side is #379's sweep, so these intervals cover the flag and the snapshot together. |
+| `eval_paired_tests.csv` | the same comparison across the ten arms at a fixed backbone step: counts, median ratio, sign-test and Wilcoxon p. Cross-experiment, same caveat. |
+| `seed_spread.csv` | per cell with replicate head seeds: the seeds, min/max/mean, and the range the cell moves under nothing but the head seed. The bar every claimed gap has to clear. |
 | `anomaly_inspection.csv` | one row per backbone: non-finite count, rise from the run's own loss minimum, largest step-to-step jump in units of the run's IQR, peak attention logit magnitude and its trend. All 40 backbones, so "unusual" is measured against neighbours. |
 | `anomaly_windows.csv` | the same runs cut at the wave boundaries (0–40k, 40k–100k, 100k–200k). A whole-run summary hides a wave; the flagged cells' behaviour is inside one. |
 | `probe_inertness_ab.txt` | arm5's command line, 200 steps, latent-drift probe on vs off, same seed, back to back on one 4090. |
@@ -38,6 +41,36 @@ Cell naming is `<arm><variant><tags>_bb<backbone step>k_hd<head steps>s`, e.g.
 The `379` is load-bearing: `arm5_alignstudent379_bb40k_hd15000s` is #379's
 number and `arm5_alignstudent_bb40k_hd15000s` is this branch's re-run of it.
 They are the two sides of the code-boundary check and must not share a name.
+
+## The code snapshot, and what it does to every delta
+
+arm5, backbone step 40 000, `--align-target student`, seed 20260520, the
+same command line, all 97 configs:
+
+| | GM-Relative MASE |
+|---|---|
+| student target, #379's sweep, older code | 1.5478 |
+| student target, this branch (the control) | 1.4501 |
+| teacher target, this branch | 1.3515 |
+
+The first two rows differ only in the code they ran on, and they are 0.0977
+apart. The teacher-vs-#379 delta of -0.1963 is therefore not a measurement
+of the flag: inside one snapshot the flag is worth -0.0986 on this cell,
+about half of it.
+
+So a delta in this directory means one of two different things, and
+`code_snapshot` is how a reader tells them apart:
+
+* **controlled** — both sides `#390-branch`. `controlled_delta_40k.csv`.
+  Attributable to `--align-target`. Exists at backbone 40k only.
+* **cross-experiment** — teacher `#390-branch`, student `#379-sweep`.
+  `eval_bootstrap_ci.csv`, `eval_paired_tests.csv`, and every 100k and 200k
+  row anywhere in this directory. Carries the flag and the snapshot shift
+  together and cannot separate them.
+
+The 100k and 200k rows have no same-branch student control and cannot get
+one without retraining those cells to 100k/200k with the student target.
+They stay cross-experiment and are labelled that way.
 
 A run that was resumed writes a fresh `_r<N>` file rather than appending, so a
 full trajectory is the concatenation of the `_losses.csv` files sharing a run
@@ -106,6 +139,11 @@ anywhere in the 40 backbones):
 
 ## Caveats the report has to carry
 
+* **Only the 40k comparison is controlled.** Everything else in this
+  directory compares a #390 number against a #379 one across a code
+  boundary worth 0.0977 on the one cell where both sides were measured.
+  The 100k and 200k rows cannot be decontaminated without retraining, so
+  they stay cross-experiment.
 * **The 200k row is doubly selected.** Teacher cells were promoted to wave 3
   by the teacher trajectory and student cells by their own, so no
   like-for-like 200k claim exists. `eval_paired_tests.csv` deliberately
@@ -145,4 +183,18 @@ python3 experiments/2026-08-01_lalign_teacher/scripts/merge_latent_movement.py \
 python3 experiments/2026-08-01_lalign_teacher/scripts/make_gm_table.py \
   reports/2026-08-04_lalign_teacher/results \
   reports/2026-08-04_lalign_teacher/results/gm_relative_mase.csv
+python3 experiments/2026-08-01_lalign_teacher/scripts/controlled_delta.py \
+  --results reports/2026-08-04_lalign_teacher/results \
+  --student-379-results reports/2026-07-21_split_pred_rep_small/results \
+  --out-delta reports/2026-08-04_lalign_teacher/results/controlled_delta_40k.csv \
+  --out-tests reports/2026-08-04_lalign_teacher/results/controlled_paired_tests_40k.csv
+python3 experiments/2026-08-01_lalign_teacher/scripts/seed_spread.py \
+  --table reports/2026-08-04_lalign_teacher/results/gm_relative_mase.csv \
+  --ci reports/2026-08-04_lalign_teacher/results/eval_bootstrap_ci.csv \
+  --out reports/2026-08-04_lalign_teacher/results/seed_spread.csv
 ```
+
+The nine remaining student controls themselves come from
+`scripts/run_student_control_batch.sh` on elisa, which runs each cell's
+#379 command line with `--align-target student` at seed 20260520 to step
+40 000, then the 15 000-step head and the full 97-config GIFT-Eval.

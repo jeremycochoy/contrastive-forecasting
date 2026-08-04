@@ -165,6 +165,42 @@ from the newest `_<N>k.pth`.
 Before any launch, walk
 [`../REMOTE_LAUNCH_CHECKLIST.md`](../REMOTE_LAUNCH_CHECKLIST.md).
 
+## The student control, and why all ten cells needed one
+
+The comparison this experiment exists to make is a #390 teacher cell against
+its #379 student counterpart. That comparison spans a code boundary. Running
+arm5's exact #379 command line — `--align-target student`, seed 20260520 — on
+THIS branch measures the size of it:
+
+| arm5, backbone 40k, 97/97 configs | GM-Relative MASE |
+|-----------------------------------|------------------|
+| student target, #379's sweep       | 1.5478 |
+| student target, this branch        | **1.4501** |
+| teacher target, this branch        | 1.3515 |
+
+0.0977 of the number moves between code snapshots under an identical command
+line. The cross-experiment delta of -0.1963 is therefore about half snapshot
+and half flag: inside one snapshot the flag is worth -0.0986 here.
+
+So the control was extended to the other nine cells. Each runs its own #379
+command line with the one flag flipped, to step 40 000 only, then the same
+15 000-step head and the same 97-config GIFT-Eval:
+
+```bash
+WT=/home/jupyter/wt-cf-390-train SLOTS_PER_GPU=2 \
+  nohup bash scripts/run_student_control_batch.sh \
+  > results/student_batch_driver.log 2>&1 &
+```
+
+`run_arm_student.sh` does not restate the command line. It derives the
+launcher from `run_arm.sh` by three textual substitutions and refuses to run
+if any of them matched nothing, so the control cannot drift from the teacher
+arms by anything except `--align-target`.
+`tests/test_390_student_control.py` pins the transformation.
+
+Nothing was re-run past step 40 000, so 40k is the only controlled row. The
+100k and 200k comparisons stay cross-experiment.
+
 ## Scripts
 
 | script                | role                                                                 |
@@ -177,6 +213,12 @@ Before any launch, walk
 | `scripts/orchestrate_pool.sh` | the same wave with `SLOTS_PER_GPU` cells per GPU. What the run used. |
 | `scripts/eval_wave.sh`| the measurement stage of one wave, over the same slot pool.           |
 | `scripts/gpu_pool.sh` | the slot pool itself: keeps N jobs alive per GPU, refills on exit.    |
+| `scripts/run_arm_student.sh` | `run_arm.sh` with `--align-target student`, derived by substitution rather than restated. |
+| `scripts/run_student_control.sh` | one cell's control end to end: backbone 0→40k, head, GIFT-Eval. |
+| `scripts/run_student_control_batch.sh` | the nine remaining controls over the slot pool, one generated launcher per cell. |
+| `scripts/run_head_seeds.sh` | the same frozen backbone, extra head seeds, full eval — the seed-spread measurement. |
+| `scripts/controlled_delta.py` | the headline table: teacher minus student at 40k with both sides on this branch, dataset-level paired bootstrap. |
+| `scripts/seed_spread.py` | the range a cell moves under nothing but the head seed, and the gaps read against it. |
 | `scripts/select_wave3.py` | the wave-3 gate — the cells whose GM-Relative MASE fell from 40k to 100k. |
 | `scripts/monitor.sh`  | 15-min watchdog for ONE wave: copies the CSVs into `sync/`, shouts on NaN or a dead trainer. |
 | `scripts/watchdog.sh` | the same, for the whole multi-wave pipeline. Exits only when `pipeline.pid` is gone. |
