@@ -10,7 +10,7 @@ The earlier small-model sweep computed `L_align` against the student encoder und
 
 ![GM-Relative MASE of all 30 cells at backbone 40k, seasonal-naive parity dashed](plots/eval_2L_gm_mase_bars.png)
 
-*All 30 cells at backbone 40k against the dashed parity line at 1.0.*
+*All 30 cells at backbone 40k against the dashed parity line at 1.0. Coloured = the 10 cells retrained with `--align-target teacher`.*
 
 > **Cell** here is one loss recipe plus one setting, e.g. `arm5 combab`. The CSVs name it `arm_slug`. A cell measured under several head seeds is still one cell. The recipes and the settings are tabulated in [Protocol](#8-protocol).
 
@@ -39,7 +39,7 @@ Of the five finished controls, four reproduce the earlier sweep's number exactly
 
 *Four frozen backbones, the quantile head retrained under extra seeds — its init and its data order — and the full 97-config eval re-run each time (`results/seed_spread.csv`). Only these four cells carry replicate head seeds.*
 
-Against the largest range in that figure, 8 of the 20 cross-experiment teacher-minus-earlier differences are larger in absolute terms and 11 of 20 are larger in relative terms.
+The largest head-seed range is 0.0908, or 5.1% of that cell's lowest seed. Of the 20 cross-experiment differences in section 5, 8 exceed it in absolute value and 11 exceed it in relative value.
 
 ## 3. Where the 30 cells sit across backbone horizons
 
@@ -49,7 +49,7 @@ Against the largest range in that figure, 8 of the 20 cross-experiment teacher-m
 
 ![GM-Relative MASE of the 8 cells extended to backbone 200k](plots/eval_2L_gm_mase_bars_200k.png)
 
-*The 8 cells extended past 100k. Filled dot = backbone 200k, hollow = 100k, vertical whisker = measured head-seed range.*
+*The 8 cells extended past 100k. Filled dot = backbone 200k, hollow = 100k, vertical whisker = measured head-seed range, on the 3 of 8 cells that carry replicate seeds.*
 
 *Ranked by the 100k value. `⟲` marks a cell retrained with `--align-target teacher`; the other 20 carry no `L_align` term and are the earlier sweep's numbers, on the same seasonal-naive denominator. A dash means the cell was not extended. Values are head seed 20260722; `†` marks a cell with replicate seeds, given below the table.*
 
@@ -94,10 +94,6 @@ Against the largest range in that figure, 8 of the 20 cross-experiment teacher-m
 
 *The headline geometric mean split by dataset domain. The left radar puts cells measured at backbone 100k and at 200k on one chart, so it moves the backbone step as well as the cell. Per-config source: `results/eval_gm_mase/<cell>/all_results.csv`, same seasonal-naive denominator as the aggregate.*
 
-`Nature` and `Sales` are the only domains where cells fall below 1.0.
-
-*Configs per domain in brackets. Bold = below 1.0. Source: `results/eval_gm_mase/<cell>_bb200k_hd30000s/all_results.csv`.*
-
 | Cell (bb 200k) | Energy (32) | Web/CloudOps (20) | Transport (15) | Nature (15) | Econ/Fin (6) | Healthcare (5) | Sales (4) | all 97 |
 |---|---|---|---|---|---|---|---|---|
 | `arm6_v2 combab` ⟲ | 1.388 | 1.283 | 1.021 | **0.867** | 1.489 | 1.261 | **0.830** | 1.1850 |
@@ -109,6 +105,8 @@ Against the largest range in that figure, 8 of the 20 cross-experiment teacher-m
 | `arm1 combab` | 1.985 | 1.799 | 1.379 | 1.208 | 3.934 | 1.572 | 1.068 | 1.7107 |
 | `arm5 nse` ⟲ | 2.394 | 2.111 | 1.836 | 1.324 | 2.075 | 1.340 | **0.912** | 1.8887 |
 | *cells below 1.0, of 8* | 0/8 | 0/8 | 0/8 | 6/8 | 0/8 | 0/8 | 7/8 | 0/8 |
+
+*Configs per domain in brackets. Bold = below 1.0. Source: `results/eval_gm_mase/<cell>_bb200k_hd30000s/all_results.csv`.*
 
 ## 5. The retrained cells against the earlier sweep
 
@@ -145,7 +143,7 @@ Against the largest range in that figure, 8 of the 20 cross-experiment teacher-m
 
 Panel 3 gives Spearman ρ = −0.33 on n = 8 cells at p = 0.42, so late drift does not separate the improvers at this sample size.
 
-*For one loss recipe, a setting counts as* lower *when its mean `1 − cos` displacement over every adjacent-checkpoint pair of that run falls below the base setting's mean of the same recipe. The denominator is the six recipes `arm1`, `arm3`, `arm4`, `arm5`, `arm6_v2`, `bimoco`; p is a two-sided exact binomial test. Source: `results/latent_movement_pairs.csv`.*
+*A setting counts as* lower *when its mean `1 − cos` displacement over adjacent-checkpoint pairs falls below the base setting of the same recipe; denominator is the six recipes, p is a two-sided exact binomial test (`results/latent_movement_pairs.csv`).*
 
 | Setting | `h_t` drift lower than base / 6 | `h_t` p | `e_t` drift lower than base / 6 | `e_t` p |
 |---|---|---|---|---|
@@ -154,13 +152,13 @@ Panel 3 gives Spearman ρ = −0.33 on n = 8 cells at p = 0.42, so late drift do
 | `tr1` | 1/6 (arm5) | 0.219 | 2/6 | 0.688 |
 | `combab` | 1/6 (arm5) | 0.219 | 4/6 | 0.688 |
 
-## 7. Where the highest cell at each backbone step comes from
+## 7. Backbone loss and attention logit magnitude of the highest cell at each backbone step
 
 ![Backbone loss and attention logit magnitude of the highest cell at each backbone step](plots/per_run_loss.png)
 
-*The three cells below are selected by one rule: the highest GM-Relative MASE of the field at backbone 40k, at 100k and at 200k (`results/gm_relative_mase.csv`). The selected run in colour, the other four settings of the same recipe in grey (`results/training_curves/`, `results/attn_amplitude/`).*
+*The three cells below are selected by one rule: the highest GM-Relative MASE of the field at backbone 40k, at 100k and at 200k (`results/gm_relative_mase.csv`). The selected run in colour, the other four settings of the same recipe in grey (`results/training_curves/`, `results/attn_amplitude/`). Lower panels: `qk_logit_maxabs` averaged over layers and blocks; the table column is the maximum, not this mean.*
 
-*Each loss value is the mean over the first, or the last, 5% of the logged steps of that window, not the value at a single step (`results/anomaly_windows.csv`). **Rise-from-minimum** is the run's final loss minus the lowest loss it ever recorded. **Peak qk logit** is `qk_logit_maxabs`, the peak absolute pre-softmax attention logit, logged every 200 steps and averaged over the encoder layers. Rank 1 = lowest of the 40 backbones. No non-finite loss or gap appears in any of the 40 (`results/anomaly_inspection.csv`).*
+*Each loss value is the mean over the first, or the last, 5% of the logged steps of that window, not the value at a single step (`results/anomaly_windows.csv`). **Rise-from-minimum** is the run's final loss minus the lowest loss it ever recorded. **Peak qk logit** is `qk_logit_maxabs`, the peak absolute pre-softmax attention logit, logged every 200 steps; the value is the maximum over layers, over the `enc` and `fcst` blocks, and over the run. Rank 1 = lowest of the 40 backbones. No non-finite loss or gap appears in any of the 40 (`results/anomaly_inspection.csv`).*
 
 | Cell | GM-Rel MASE | loss, start of 0–40k | end of 0–40k | end of 40–100k | end of 100–200k | peak qk logit | rank of 40 | rise-from-min | rank of 40 |
 |---|---|---|---|---|---|---|---|---|---|

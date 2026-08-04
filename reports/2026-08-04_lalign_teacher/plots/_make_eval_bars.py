@@ -73,11 +73,17 @@ plt.rcParams.update({
     "xtick.color": INK, "ytick.color": INK,
 })
 fig, ax = plt.subplots(figsize=(14, 5.5))
+# Recipe colours sit in shared families with no room for a 6-way key on 30 bars,
+# so the bars carry one distinction only: retrained with --align-target teacher
+# or not. Two colours, two legend entries.
+RETRAINED, OTHER = "#8b1e8b", "#c9c7bf"
 rows = []
 for label, slug, colour in ARMS:
     v, n = read_agg(slug)
     if v is None: continue
-    rows.append((label, colour, v, n))
+    teacher = label.startswith("arm5 ") or label.startswith("arm6_v2 ")
+    rows.append((label + (" ⟲" if teacher else ""),
+                 RETRAINED if teacher else OTHER, v, n))
 rows.sort(key=lambda r: r[2])
 xs = list(range(len(rows)))
 labs = [r[0] for r in rows]
@@ -93,6 +99,9 @@ for bar, hatch in zip(bars, hatches):
     if hatch: bar.set_hatch(hatch)
 ax.axhline(1.0, color="#c04040", lw=1.2, linestyle="--",
            label="seasonal-naive reference (MASE=1)")
+from matplotlib.patches import Patch
+handles = [Patch(facecolor=RETRAINED, label="⟲ retrained, --align-target teacher"),
+           Patch(facecolor=OTHER, label="earlier sweep, no L_align")]
 # Bars start at zero, so every bar is drawn to scale and the tallest one fits.
 for x, v, n in zip(xs, ys, ns):
     tag = f"{v:.4f}" + (f"\n({n} cfg)" if n < 97 else "")
@@ -105,7 +114,7 @@ ax.set_title(
     f"({n_full}/{len(rows)} cells full-97)",
     fontsize=10)
 ax.grid(True, axis="y", color=GRID, alpha=0.6)
-ax.legend(loc="upper left", fontsize=9, frameon=False)
+ax.legend(handles=handles + [ax.lines[0]], loc="upper left", fontsize=9, frameon=False)
 if ys:
     ax.set_ylim(0.0, max(ys) * 1.10)
 fig.tight_layout()

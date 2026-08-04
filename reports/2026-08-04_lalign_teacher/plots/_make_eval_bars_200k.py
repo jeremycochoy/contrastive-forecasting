@@ -83,9 +83,7 @@ ax.legend(loc="upper left", fontsize=9, frameon=False)
 n_down = sum(1 for v, p, _a, _v in rows if v < p)
 ax.set_title(
     f"GM-Relative MASE at backbone step 200k, head 30k steps, GIFT-Eval B4\n"
-    f"{len(rows)} cells; filled = 200k, hollow = 100k; vertical range = measured "
-    f"head-seed range ({n_rep} of {len(rows)} cells have replicate seeds); "
-    f"dashed = seasonal-naive parity",
+    f"filled = backbone 200k, hollow = 100k; whisker = head-seed range",
     fontsize=10.5)
 fig.tight_layout()
 out = HERE / "eval_2L_gm_mase_bars_200k.png"
