@@ -83,16 +83,21 @@ done
 
 # --- checkpoint manifest ---------------------------------------------------
 {
-  echo "arm,run_name,checkpoint,step_k,bytes,mtime,sha256"
-  for arm in "${CF390_ARMS[@]}"; do
-    name="$(bb_name "$arm")" || continue
-    for ck in "$SRC/runs/${name}"*.pth; do
-      [ -e "$ck" ] || continue
-      b="$(basename "$ck")"
-      k="$(echo "$b" | grep -oE '_[0-9]+k\.pth$' | tr -dc '0-9')"
-      printf '%s,%s,%s,%s,%s,%s,%s\n' "$arm" "$name" "$b" "${k:-}" \
-        "$(stat -c%s "$ck")" "$(stat -c%y "$ck" | cut -d. -f1)" \
-        "$(sha256sum "$ck" | cut -c1-16)"
+  echo "arm,align_target,run_name,checkpoint,step_k,bytes,mtime,sha256"
+  # Both name suffixes: the ten teacher arms, and the student control the
+  # review asked for (arm5 only, so the other globs find nothing).
+  for suffix in alignteacher alignstudent; do
+    for arm in "${CF390_ARMS[@]}"; do
+      name="$(CF390_NAME_SUFFIX="$suffix" bb_name "$arm")" || continue
+      for ck in "$SRC/runs/${name}"*.pth; do
+        [ -e "$ck" ] || continue
+        b="$(basename "$ck")"
+        k="$(echo "$b" | grep -oE '_[0-9]+k\.pth$' | tr -dc '0-9')"
+        printf '%s,%s,%s,%s,%s,%s,%s,%s\n' "$arm" "${suffix#align}" \
+          "$name" "$b" "${k:-}" \
+          "$(stat -c%s "$ck")" "$(stat -c%y "$ck" | cut -d. -f1)" \
+          "$(sha256sum "$ck" | cut -c1-16)"
+      done
     done
   done
 } > "$DST/checkpoint_manifest.csv"
