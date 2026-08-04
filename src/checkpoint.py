@@ -221,10 +221,106 @@ def _detect_backbone_config(sd: dict, base_cfg: dict) -> dict:
     return cfg
 
 
+ENCODER_SOURCES = ("student", "teacher")
+
+# The teacher (#353) is an EMA copy of two student modules. `input_to_latent`
+# is registered twice on ConfigurableModel — once as `encoder`, once inside
+# the transformer — so promoting it means writing both, else which copy
+# survives load_state_dict depends on key order.
+_TEACHER_PROMOTIONS = {
+    "teacher_input_to_latent.": ("encoder.", "transformer.input_to_latent."),
+    "teacher_encoder_layers.": ("transformer.encoder_layers.",),
+}
+# Pretraining-only weights with no downstream role: `cpc_w1.*` from the
+# CPC-InfoNCE auxiliary (#344), `teacher_*` from the EMA teacher (#353).
+_PRETRAIN_ONLY_PREFIXES = ("cpc_w1", "teacher_")
+
+
+def has_teacher_weights(state_dict: dict) -> bool:
+    """True when the checkpoint carries EMA-teacher encoder weights."""
+    return any(k.startswith("teacher_") for k in state_dict)
+
+
+def prepare_backbone_state_dict(state_dict: dict,
+                                encoder_source: str = "student") -> dict:
+    """State dict for a downstream ``ConfigurableModel``, built without the
+    pretraining-only branches.
+
+    ``encoder_source='student'`` is the historical behaviour: drop
+    ``cpc_w1.*`` and ``teacher_*`` so a strict load succeeds.
+
+    ``encoder_source='teacher'`` (#393) first copies the EMA teacher's patch
+    embedding and encoder stack over the student's, so the ordinary
+    downstream pipeline — head training, latent rollout, every forecast
+    strategy — reads the teacher. The teacher covers those two modules only;
+    the forecaster, the norms and the embedding tables stay the student's,
+    matching :meth:`ConfigurableModel.teacher_forward`'s fallback. A
+    checkpoint whose teacher is partial (``--ema-embedding`` without
+    ``--ema-encoder``, or the reverse) promotes the half it has.
+
+    Raises ValueError when a teacher is asked of a checkpoint that has none.
+    """
+    if encoder_source not in ENCODER_SOURCES:
+        raise ValueError(f"encoder_source must be one of {ENCODER_SOURCES}; "
+                         f"got {encoder_source!r}")
+    out = dict(state_dict)
+    if encoder_source == "teacher":
+        if not has_teacher_weights(state_dict):
+            raise ValueError(
+                "encoder_source='teacher' needs a checkpoint trained with "
+                "--ema-embedding / --ema-encoder; this one carries no "
+                "teacher_* weights.")
+        for src, dests in _TEACHER_PROMOTIONS.items():
+            for key, value in state_dict.items():
+                if not key.startswith(src):
+                    continue
+                tail = key[len(src):]
+                for dest in dests:
+                    out[dest + tail] = value
+    return {k: v for k, v in out.items()
+            if not k.startswith(_PRETRAIN_ONLY_PREFIXES)}
+
+
+def encoder_source_marker_path(checkpoint_path: str) -> str:
+    """Path of the sidecar recording which encoder trained a head."""
+    root, _ = os.path.splitext(checkpoint_path)
+    return f"{root}_encoder_source.txt"
+
+
+def save_encoder_source(checkpoint_path: str, encoder_source: str) -> str:
+    """Record the encoder a head checkpoint was trained on.
+
+    A head decodes the latents of one encoder. Running a teacher head on the
+    student produces a plausible-looking number that means nothing, so the
+    source travels with the checkpoint and the eval refuses a mismatch.
+    """
+    if encoder_source not in ENCODER_SOURCES:
+        raise ValueError(f"encoder_source must be one of {ENCODER_SOURCES}; "
+                         f"got {encoder_source!r}")
+    path = encoder_source_marker_path(checkpoint_path)
+    with open(path, "w") as fh:
+        fh.write(encoder_source + "\n")
+    return path
+
+
+def load_encoder_source(checkpoint_path: str) -> str | None:
+    """Encoder a head was trained on, or None when unrecorded.
+
+    Heads trained before #393 have no marker; they are student heads, but we
+    return None rather than assert it so the caller can say so.
+    """
+    path = encoder_source_marker_path(checkpoint_path)
+    if not os.path.exists(path):
+        return None
+    with open(path) as fh:
+        return fh.read().strip() or None
+
+
 def load_backbone_from_checkpoint(
     checkpoint_path: str,
     device,
     *,
+    encoder_source: str = "student",
     C: int = 1,
     H: int = 384,
     W: int = 16,
@@ -257,6 +353,10 @@ def load_backbone_from_checkpoint(
     branches with no downstream role) are stripped so ``load_state_dict``
     with the default ``strict=True`` still succeeds.
 
+    ``encoder_source='teacher'`` returns the same architecture running the
+    EMA teacher's encoder weights — see
+    :func:`prepare_backbone_state_dict`.
+
     Returns:
         (backbone, cfg): ``backbone`` is a ``ConfigurableModel`` in eval
         mode, on ``device``, with ``requires_grad=False`` on every
@@ -277,10 +377,7 @@ def load_backbone_from_checkpoint(
     if verbose:
         print(f"  [load_backbone] {checkpoint_path}: cfg={cfg}")
     backbone = ConfigurableModel(**cfg)
-    sd = {k: v for k, v in sd.items()
-          if not k.startswith("cpc_w1")
-          and not k.startswith("teacher_")}
-    backbone.load_state_dict(sd)
+    backbone.load_state_dict(prepare_backbone_state_dict(sd, encoder_source))
     backbone = backbone.to(device).eval()
     for p in backbone.parameters():
         p.requires_grad = False

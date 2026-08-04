@@ -59,6 +59,7 @@ project_root = script_dir.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from src.models import ConfigurableModel
+from src.checkpoint import load_encoder_source, prepare_backbone_state_dict
 from src.forecasting_head import (
     ForecastingHead,
     FORECAST_LEN,
@@ -376,6 +377,15 @@ def parse_args():
     p.add_argument("--encoder-type", default=None,
                    choices=["mlp", "mlp_wide", "residual_silu", "gru", "conv"],
                    help="Override backbone encoder type (must match checkpoint)")
+    p.add_argument("--encoder-source", default="student",
+                   choices=["student", "teacher"],
+                   help="Which encoder to run (#393). 'student' (default) is "
+                        "every eval before #393. 'teacher' loads the backbone "
+                        "with the EMA teacher's patch embedding and encoder "
+                        "stack in place of the student's; the forecaster "
+                        "rollout stays the student's. MUST match the encoder "
+                        "the head was trained on — the head's own marker is "
+                        "checked and a mismatch aborts.")
     p.add_argument("--rev-norm-kind", default="ewma",
                    choices=["ewma", "revin", "none"],
                    help="Reversible norm variant — MUST match the backbone's "
@@ -557,19 +567,31 @@ def load_models(args, device):
         print(f"  [eval] auto-detected patch_stats={args.patch_stats}")
     BACKBONE_CONFIG["patch_stats_kind"] = args.patch_stats
     backbone = ConfigurableModel(**BACKBONE_CONFIG)
-    # CPC InfoNCE backbones (#344) carry a learnable `cpc_w1.*` used ONLY by
-    # the pretraining auxiliary loss; it has no role at eval. Drop it so the
-    # strict load matches the eval-time backbone (built without it).
-    # EMA-teacher backbones (#353) carry `teacher_*` keys — pretraining-only;
-    # strip them too.
-    sd = {k: v for k, v in sd.items()
-          if not k.startswith("cpc_w1")
-          and not k.startswith("teacher_")}
-    backbone.load_state_dict(sd)
+    # Drops the pretraining-only branches (CPC-InfoNCE `cpc_w1.*`, the EMA
+    # teacher's `teacher_*`) so the strict load matches the eval-time
+    # backbone, and — under --encoder-source teacher (#393) — promotes the
+    # teacher's encoder weights into the student's slots first.
+    backbone.load_state_dict(prepare_backbone_state_dict(sd, args.encoder_source))
     backbone = backbone.to(device)
     backbone.eval()
     for p in backbone.parameters():
         p.requires_grad = False
+    print(f"  [eval] encoder={args.encoder_source}")
+
+    # A head decodes the latents of one encoder. Running a teacher head on
+    # the student gives a number that looks fine and means nothing, so the
+    # head's recorded source has the last word. Heads trained before #393
+    # carry no marker; those are student heads by construction and are left
+    # to the caller.
+    head_source = load_encoder_source(args.head_path)
+    if head_source is not None and head_source != args.encoder_source:
+        raise SystemExit(
+            f"Head {args.head_path} was trained on the {head_source} encoder "
+            f"but --encoder-source is {args.encoder_source}. A head only "
+            f"reads the encoder it was trained on.")
+    if head_source is None and args.encoder_source != "student":
+        print(f"  [eval] WARNING: {args.head_path} has no encoder-source "
+              f"marker; trusting --encoder-source {args.encoder_source}")
 
     head_config = dict(HEAD_CONFIG)
     head_config['forecast_len'] = args.forecast_len
