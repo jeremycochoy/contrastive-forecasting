@@ -13,8 +13,13 @@ counterpart at a fixed backbone step, so both have to be rebuildable from
 this one file (review item 6). Cell names carry the disambiguating tags:
 
     arm6_v2_nse_bb100k_hd30000s                  teacher, seed 20260722
-    arm6_v2_nse_alignstudent_bb100k_hd30000s     student, copied from #379
+    arm6_v2_nse_alignstudent379_bb100k_hd30000s  student, copied from #379
+    arm5_alignstudent_bb40k_hd15000s             student, measured here
     arm5_nse_s20260723_bb200k_hd30000s           teacher, replicate seed
+
+The `379` matters: the student control of review item 3 is the same arm and
+the same target measured on THIS branch, so it has to be distinguishable
+from the copied #379 measurement it is compared against.
 
 ``align_target`` is ``none`` for the twenty arms that carry no L_align term
 at all — arm1, arm3, arm4 and bimoco — where the flag names nothing.
@@ -44,7 +49,7 @@ LAUNCHER_379 = (REPO / "experiments/2026-07-21_split_pred_rep_small"
 EVAL_390 = REPO / "experiments/2026-08-01_lalign_teacher/scripts/eval_arm.sh"
 
 SEED_TAG_RE = re.compile(r"_s(?P<seed>\d{6,})$")
-TARGET_TAG_RE = re.compile(r"_align(?P<target>student|teacher)$")
+TARGET_TAG_RE = re.compile(r"_align(?P<target>student|teacher)(?P<src>379)?$")
 
 
 def read_seeds() -> tuple[str, str]:
@@ -64,9 +69,10 @@ def read_seeds() -> tuple[str, str]:
     return seeds.pop(), m.group(1)
 
 
-def strip_tags(arm: str, default_head_seed: str) -> tuple[str, str | None, str]:
-    """(bare arm, explicit align target or None, head seed)."""
-    target, head_seed = None, default_head_seed
+def strip_tags(arm: str,
+               default_head_seed: str) -> tuple[str, str | None, bool, str]:
+    """(bare arm, explicit align target or None, copied-from-#379, head seed)."""
+    target, copied, head_seed = None, False, default_head_seed
     changed = True
     while changed:
         changed = False
@@ -79,9 +85,10 @@ def strip_tags(arm: str, default_head_seed: str) -> tuple[str, str | None, str]:
         m = TARGET_TAG_RE.search(arm)
         if m:
             target = m.group("target")
+            copied = m.group("src") == "379"
             arm = arm[: m.start()]
             changed = True
-    return arm, target, head_seed
+    return arm, target, copied, head_seed
 
 
 def split_arm(arm: str) -> tuple[str, str]:
@@ -111,17 +118,18 @@ def main() -> int:
         n_rows = sum(1 for _ in open(csv_path)) - 1 if csv_path.exists() else 0
         if n_rows != int(vm.group("n")):
             bad.append(f"{cell}: summary says {vm.group('n')}, CSV has {n_rows}")
-        arm, tag_target, head_seed = strip_tags(m.group("arm"),
-                                                default_head_seed)
+        arm, tag_target, copied, head_seed = strip_tags(m.group("arm"),
+                                                        default_head_seed)
         base, variant = split_arm(arm)
-        retrained = base in RETRAINED_PREFIX
-        if not retrained:
+        if base not in RETRAINED_PREFIX:
             # arm1 / arm3 / arm4 / bimoco carry no L_align term.
             align_target, source = "none", "#379"
-        elif tag_target == "student":
-            align_target, source = "student", "#379"
         else:
-            align_target, source = tag_target or "teacher", "#390"
+            # A bare cell is the wave's teacher measurement. `_alignstudent379`
+            # is #379's copy; a plain `_alignstudent` is the control measured
+            # here, and the whole point of it is that it is NOT #379's number.
+            align_target = tag_target or "teacher"
+            source = "#379" if copied else "#390"
         rows.append({
             "arm_slug": arm, "variant": variant,
             "align_target": align_target,

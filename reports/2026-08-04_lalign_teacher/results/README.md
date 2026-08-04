@@ -31,8 +31,13 @@ Cell naming is `<arm><variant><tags>_bb<backbone step>k_hd<head steps>s`, e.g.
 | Tag | Meaning |
 |-----|---------|
 | *(none)* | the wave measurement — teacher target, head seed 20260722 |
-| `_alignstudent` | the student counterpart, copied from #379 |
+| `_alignstudent379` | the student counterpart, copied from #379's sweep |
+| `_alignstudent` | the student control, same target measured on this branch |
 | `_s<seed>` | a head-seed replicate on the same frozen backbone |
+
+The `379` is load-bearing: `arm5_alignstudent379_bb40k_hd15000s` is #379's
+number and `arm5_alignstudent_bb40k_hd15000s` is this branch's re-run of it.
+They are the two sides of the code-boundary check and must not share a name.
 
 A run that was resumed writes a fresh `_r<N>` file rather than appending, so a
 full trajectory is the concatenation of the `_losses.csv` files sharing a run

@@ -49,17 +49,30 @@ def boot():
 
 # --- cell-tag parsing ----------------------------------------------------
 
-@pytest.mark.parametrize("arm,bare,target,seed", [
-    ("arm6_v2_nse", "arm6_v2_nse", None, "20260722"),
-    ("arm6_v2_nse_alignstudent", "arm6_v2_nse", "student", "20260722"),
-    ("arm5_alignteacher", "arm5", "teacher", "20260722"),
-    ("arm5_nse_s20260723", "arm5_nse", None, "20260723"),
-    ("arm5_nse_alignstudent_s20260724", "arm5_nse", "student", "20260724"),
+@pytest.mark.parametrize("arm,bare,target,copied,seed", [
+    ("arm6_v2_nse", "arm6_v2_nse", None, False, "20260722"),
+    # The control: student target, measured on this branch.
+    ("arm5_alignstudent", "arm5", "student", False, "20260722"),
+    # #379's copy of the same arm and target. These two must not collide.
+    ("arm5_alignstudent379", "arm5", "student", True, "20260722"),
+    ("arm5_alignteacher", "arm5", "teacher", False, "20260722"),
+    ("arm5_nse_s20260723", "arm5_nse", None, False, "20260723"),
+    ("arm5_nse_alignstudent379_s20260724", "arm5_nse", "student", True,
+     "20260724"),
     # A variant token that merely looks like a tag must survive.
-    ("arm1_combab", "arm1_combab", None, "20260722"),
+    ("arm1_combab", "arm1_combab", None, False, "20260722"),
 ])
-def test_strip_tags(gm, arm, bare, target, seed):
-    assert gm.strip_tags(arm, "20260722") == (bare, target, seed)
+def test_strip_tags(gm, arm, bare, target, copied, seed):
+    assert gm.strip_tags(arm, "20260722") == (bare, target, copied, seed)
+
+
+def test_the_control_and_the_379_copy_do_not_collide(gm):
+    """Same arm, same target, different code. If the tags collapsed, the
+    control's number would overwrite the number it is compared against."""
+    ctl = gm.strip_tags("arm5_alignstudent", "20260722")
+    cp = gm.strip_tags("arm5_alignstudent379", "20260722")
+    assert ctl[:2] == cp[:2]
+    assert ctl[2] is False and cp[2] is True
 
 
 def test_seeds_are_read_from_the_scripts_not_typed(gm):

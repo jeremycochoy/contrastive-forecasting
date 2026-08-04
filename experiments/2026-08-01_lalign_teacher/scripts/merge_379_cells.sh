@@ -8,12 +8,16 @@
 # verbatim; the seasonal-naive denominator is byte-identical between the two
 # reports, so the 30-cell comparison is on one scale.
 #
-# arm5 and arm6_v2 ARE copied too, under an `_alignstudent` cell tag. Those
-# ten arms are the ones #390 retrained, so their bare cell names belong to
-# the teacher measurement; the tag keeps both on one scale in one directory
-# without either overwriting the other. Without them the central comparison
-# of this report — teacher against student at a fixed backbone step — cannot
-# be rebuilt from `gm_relative_mase.csv` (review item 6).
+# arm5 and arm6_v2 ARE copied too, under an `_alignstudent379` cell tag.
+# Those ten arms are the ones #390 retrained, so their bare cell names belong
+# to the teacher measurement; the tag keeps both on one scale in one
+# directory without either overwriting the other. Without them the central
+# comparison of this report — teacher against student at a fixed backbone
+# step — cannot be rebuilt from `gm_relative_mase.csv` (review item 6).
+#
+# The `379` in the tag is load-bearing. The student control (review item 3)
+# is the same arm and the same target measured HERE, and lands under a plain
+# `_alignstudent`; the two must not share a name.
 #
 #   REPO=/tmp/contrastive-forecasting-390 bash merge_379_cells.sh
 set -uo pipefail
@@ -23,7 +27,7 @@ SRC="$REPO/reports/2026-07-21_split_pred_rep_small/results"
 DST="${DST:-$REPO/reports/2026-08-04_lalign_teacher/results}"
 KEEP='^(arm1|arm3|arm4|bimoco)_'          # cell names, copied as-is
 KEEP_STUDENT='^(arm5|arm6_v2)(_(tr1|nse|ncpc|combab))?_bb'  # copied tagged
-STUDENT_TAG='_alignstudent'
+STUDENT_TAG='_alignstudent379'
 KEEP_RUN='^bb_small_(arm1|arm3|arm4|bimoco)_'   # run names
 
 say(){ echo "[merge379] $*"; }
