@@ -40,6 +40,14 @@ BB_STEP_K="${BB_STEP_K:-40}"
 HEAD_STEPS="${HEAD_STEPS:-15000}"
 N_CONFIGS_EXPECTED=97
 MAX_EVAL_TRIES="${MAX_EVAL_TRIES:-3}"
+# Two knobs the review added, both defaulted to what every wave already ran:
+#   HEAD_SEED — the head's init/data seed. Review item 4 measures the spread
+#               over seeds; the waves all used 20260722, #379's value.
+#   CELL_TAG  — inserted into the cell name, so a replicate seed or the
+#               student control gets its own output directory instead of
+#               resuming the wave's head off disk.
+HEAD_SEED="${HEAD_SEED:-20260722}"
+CELL_TAG="${CELL_TAG:-}"
 
 EXP="$WT/experiments/2026-08-01_lalign_teacher"
 RUNS="$EXP/runs"
@@ -64,7 +72,7 @@ NAME="$(bb_name "$ARM")" || exit 2
 BB=$(ls -t "$RUNS/${NAME}"_${BB_STEP_K}k.pth "$RUNS/${NAME}"_r*_${BB_STEP_K}k.pth 2>/dev/null | head -1)
 [ -f "$BB" ] || { echo "ABORT: no ${BB_STEP_K}k backbone for arm '$ARM' (name=$NAME)" >&2; exit 3; }
 
-CELL="${ARM}_bb${BB_STEP_K}k_hd${HEAD_STEPS}s"
+CELL="${ARM}${CELL_TAG}_bb${BB_STEP_K}k_hd${HEAD_STEPS}s"
 OUT="$OUT_ROOT/$CELL"; mkdir -p "$OUT"
 HEAD_NAME="qhead_2L_${NAME}_bb${BB_STEP_K}k"
 HEAD_CKPT="$OUT/${HEAD_NAME}_final.pth"
@@ -99,7 +107,7 @@ if [ ! -f "$HEAD_CKPT" ]; then
     --quantile-head --grad-clip 1.0 \
     --forecast-len 16 --batch-size 256 --lr 1e-3 \
     --total-steps "$HEAD_STEPS" --save-every 5000 --log-every 500 \
-    --save-dir "$OUT" --run-name "$HEAD_NAME" --seed 20260722 \
+    --save-dir "$OUT" --run-name "$HEAD_NAME" --seed "$HEAD_SEED" \
     --hf-repo jeremycochoy/gift-pretrain-full-4096 --hf-path small_v1 \
     --head-arch transformer --head-num-layers 2 --head-nhead 8 \
     --head-ffn-mult 4.0 --head-causal true --head-train-input e_then_f \

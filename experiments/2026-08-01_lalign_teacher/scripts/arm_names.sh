@@ -24,6 +24,12 @@
 CF390_ARMS=(arm5 arm5_tr1 arm5_nse arm5_ncpc arm5_combab
             arm6_v2 arm6_v2_tr1 arm6_v2_nse arm6_v2_ncpc arm6_v2_combab)
 
+# The trailing name token. `alignteacher` is the experiment; the student
+# control (`run_arm_student.sh`, review item 3) writes its checkpoints under
+# `alignstudent` and reads them back by exporting this. Defaulted, so every
+# existing caller resolves the same names it always did.
+CF390_NAME_SUFFIX="${CF390_NAME_SUFFIX:-alignteacher}"
+
 bb_name() {  # arm -> backbone run name
   local arm="$1" family
   case "$arm" in
@@ -31,7 +37,7 @@ bb_name() {  # arm -> backbone run name
     arm5|arm5_*)       family="lrep" ;;
     *) echo "bb_name: unknown arm '$arm'" >&2; return 2 ;;
   esac
-  echo "bb_small_${arm}_lalign_${family}_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher"
+  echo "bb_small_${arm}_lalign_${family}_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_${CF390_NAME_SUFFIX}"
 }
 
 # The issue's three waves, in one place:
