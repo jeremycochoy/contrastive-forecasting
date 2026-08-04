@@ -1,0 +1,154 @@
+[08-04 18:16:57] [arm6_v2_s20260724_bb100k_hd30000s] start on GPU 1 (backbone=bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_r2_100k.pth)
+[08-04 18:16:57] [arm6_v2_s20260724_bb100k_hd30000s] head-train 30000 steps
+  [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+  [head-train] auto-detected qk_norm=True from backbone checkpoint
+  [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+  [head-train] auto-detected patch_stats=none
+Backbone loaded from /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/runs/bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_r2_100k.pth (0 params, frozen)
+/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/transformer.py:392: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  warnings.warn(
+Forecasting head [transformer-q (2L H64 nhead8 causal)]: 109,456 trainable params
+Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+Loss CSV: /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_s20260724_bb100k_hd30000s/qhead_2L_bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb100k_losses.csv
+Data: MIX 100% HF + 0% synth, hf_bs=256, synth_bs=0, synth_seed=20280724, emit_labels=True
+
+Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+Checkpoints: /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_s20260724_bb100k_hd30000s/qhead_2L_bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb100k_*.pth
+[    500] loss=0.223274  ema_loss=0.228313  6.5 sps  ETA 1.3h
+  -> New best: /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_s20260724_bb100k_hd30000s/qhead_2L_bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb100k_best.pth (ema_loss=0.228313)
+[   1000] loss=0.226140  ema_loss=0.221999  7.1 sps  ETA 1.1h
+  -> New best: /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_s20260724_bb100k_hd30000s/qhead_2L_bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb100k_best.pth (ema_loss=0.221999)
+[   1500] loss=0.229109  ema_loss=0.219220  7.0 sps  ETA 1.1h
+  -> New best: /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_s20260724_bb100k_hd30000s/qhead_2L_bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb100k_best.pth (ema_loss=0.219220)
+[   2000] loss=0.214335  ema_loss=0.218900  7.1 sps  ETA 1.1h
+  -> New best: /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_s20260724_bb100k_hd30000s/qhead_2L_bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb100k_best.pth (ema_loss=0.218900)
+[   2500] loss=0.225280  ema_loss=0.217751  6.9 sps  ETA 1.1h
+  -> New best: /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_s20260724_bb100k_hd30000s/qhead_2L_bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb100k_best.pth (ema_loss=0.217751)
+[   3000] loss=0.215113  ema_loss=0.217297  7.0 sps  ETA 1.1h
+  -> New best: /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_s20260724_bb100k_hd30000s/qhead_2L_bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb100k_best.pth (ema_loss=0.217297)
+[   3500] loss=0.206318  ema_loss=0.217446  7.0 sps  ETA 1.0h
+[   4000] loss=0.237016  ema_loss=0.217303  7.1 sps  ETA 1.0h
+[   4500] loss=0.231916  ema_loss=0.217801  7.1 sps  ETA 1.0h
+[   5000] loss=0.219802  ema_loss=0.217301  7.1 sps  ETA 1.0h
+  -> Saved /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_s20260724_bb100k_hd30000s/qhead_2L_bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb100k_5k.pth
+[   5500] loss=0.216326  ema_loss=0.217274  7.2 sps  ETA 0.9h
+  -> New best: /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_s20260724_bb100k_hd30000s/qhead_2L_bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb100k_best.pth (ema_loss=0.217274)
+[   6000] loss=0.208974  ema_loss=0.216523  7.2 sps  ETA 0.9h
+  -> New best: /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_s20260724_bb100k_hd30000s/qhead_2L_bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb100k_best.pth (ema_loss=0.216523)
+[   6500] loss=0.213588  ema_loss=0.215918  7.2 sps  ETA 0.9h
+  -> New best: /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_s20260724_bb100k_hd30000s/qhead_2L_bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb100k_best.pth (ema_loss=0.215918)
+[   7000] loss=0.206861  ema_loss=0.216489  7.2 sps  ETA 0.9h
+[   7500] loss=0.218363  ema_loss=0.216587  7.2 sps  ETA 0.9h
+[   8000] loss=0.213536  ema_loss=0.216295  7.2 sps  ETA 0.9h
+[   8500] loss=0.222259  ema_loss=0.215311  7.2 sps  ETA 0.8h
+  -> New best: /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_s20260724_bb100k_hd30000s/qhead_2L_bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb100k_best.pth (ema_loss=0.215311)
+[   9000] loss=0.204868  ema_loss=0.215149  7.2 sps  ETA 0.8h
+  -> New best: /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_s20260724_bb100k_hd30000s/qhead_2L_bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb100k_best.pth (ema_loss=0.215149)
+[   9500] loss=0.208041  ema_loss=0.215474  7.2 sps  ETA 0.8h
+[  10000] loss=0.215519  ema_loss=0.215739  7.2 sps  ETA 0.8h
+  -> Saved /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_s20260724_bb100k_hd30000s/qhead_2L_bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb100k_10k.pth
+[  10500] loss=0.221757  ema_loss=0.214036  7.2 sps  ETA 0.8h
+  -> New best: /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_s20260724_bb100k_hd30000s/qhead_2L_bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb100k_best.pth (ema_loss=0.214036)
+[  11000] loss=0.212418  ema_loss=0.216052  7.2 sps  ETA 0.7h
+[  11500] loss=0.219144  ema_loss=0.215929  7.1 sps  ETA 0.7h
+[  12000] loss=0.211611  ema_loss=0.215230  7.1 sps  ETA 0.7h
+[  12500] loss=0.220480  ema_loss=0.216136  7.0 sps  ETA 0.7h
+[  13000] loss=0.210131  ema_loss=0.214684  7.0 sps  ETA 0.7h
+[  13500] loss=0.221868  ema_loss=0.215339  7.0 sps  ETA 0.7h
+[  14000] loss=0.230366  ema_loss=0.216022  7.0 sps  ETA 0.6h
+[  14500] loss=0.198588  ema_loss=0.214539  6.9 sps  ETA 0.6h
+[  15000] loss=0.223241  ema_loss=0.215248  6.9 sps  ETA 0.6h
+  -> Saved /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_s20260724_bb100k_hd30000s/qhead_2L_bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb100k_15k.pth
+[  15500] loss=0.210540  ema_loss=0.214698  6.9 sps  ETA 0.6h
+[  16000] loss=0.224511  ema_loss=0.215397  6.8 sps  ETA 0.6h
+[  16500] loss=0.207091  ema_loss=0.215105  6.8 sps  ETA 0.6h
+[  17000] loss=0.199914  ema_loss=0.213890  6.8 sps  ETA 0.5h
+  -> New best: /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_s20260724_bb100k_hd30000s/qhead_2L_bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb100k_best.pth (ema_loss=0.213890)
+[  17500] loss=0.219438  ema_loss=0.215343  6.8 sps  ETA 0.5h
+[  18000] loss=0.223182  ema_loss=0.215001  6.8 sps  ETA 0.5h
+[  18500] loss=0.206580  ema_loss=0.214425  6.8 sps  ETA 0.5h
+'HTTPSConnectionPool(host='us.aws.cdn.hf.co', port=443): Read timed out.' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00121.parquet
+Retrying in 1s [Retry 1/5].
+[  19000] loss=0.224734  ema_loss=0.215263  6.7 sps  ETA 0.5h
+[  19500] loss=0.192433  ema_loss=0.215328  6.6 sps  ETA 0.4h
+[  20000] loss=0.213205  ema_loss=0.215058  6.6 sps  ETA 0.4h
+  -> Saved /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_s20260724_bb100k_hd30000s/qhead_2L_bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb100k_20k.pth
+[  20500] loss=0.216798  ema_loss=0.214263  6.6 sps  ETA 0.4h
+[  21000] loss=0.225576  ema_loss=0.215024  6.6 sps  ETA 0.4h
+[  21500] loss=0.218595  ema_loss=0.214252  6.6 sps  ETA 0.4h
+[  22000] loss=0.221399  ema_loss=0.214951  6.6 sps  ETA 0.3h
+[  22500] loss=0.214509  ema_loss=0.213586  6.6 sps  ETA 0.3h
+  -> New best: /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_s20260724_bb100k_hd30000s/qhead_2L_bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb100k_best.pth (ema_loss=0.213586)
+[  23000] loss=0.215313  ema_loss=0.214754  6.6 sps  ETA 0.3h
+[  23500] loss=0.215010  ema_loss=0.214616  6.6 sps  ETA 0.3h
+[  24000] loss=0.218061  ema_loss=0.214541  6.5 sps  ETA 0.3h
+[  24500] loss=0.224777  ema_loss=0.214331  6.5 sps  ETA 0.2h
+[  25000] loss=0.196730  ema_loss=0.214870  6.5 sps  ETA 0.2h
+  -> Saved /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_s20260724_bb100k_hd30000s/qhead_2L_bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb100k_25k.pth
+[  25500] loss=0.209810  ema_loss=0.215019  6.5 sps  ETA 0.2h
+[  26000] loss=0.212556  ema_loss=0.214296  6.5 sps  ETA 0.2h
+[  26500] loss=0.219357  ema_loss=0.215368  6.5 sps  ETA 0.1h
+[  27000] loss=0.223096  ema_loss=0.214888  6.5 sps  ETA 0.1h
+[  27500] loss=0.214202  ema_loss=0.214874  6.5 sps  ETA 0.1h
+[  28000] loss=0.220088  ema_loss=0.214469  6.5 sps  ETA 0.1h
+[  28500] loss=0.223254  ema_loss=0.214317  6.5 sps  ETA 0.1h
+[  29000] loss=0.206133  ema_loss=0.214965  6.5 sps  ETA 0.0h
+[  29500] loss=0.212201  ema_loss=0.215197  6.5 sps  ETA 0.0h
+[  30000] loss=0.202526  ema_loss=0.213349  6.5 sps  ETA 0.0h
+  -> New best: /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_s20260724_bb100k_hd30000s/qhead_2L_bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb100k_best.pth (ema_loss=0.213349)
+  -> Saved /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_s20260724_bb100k_hd30000s/qhead_2L_bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb100k_30k.pth
+
+Done in 1.3h. Best loss=0.213349 at step 30000
+[08-04 19:34:04] [arm6_v2_s20260724_bb100k_hd30000s] head-train rc=0
+[08-04 19:34:04] [arm6_v2_s20260724_bb100k_hd30000s] gift-eval try 1/3 (have 0/97 configs)
+Loading models...
+  [eval] auto-detected num_encoder_layers=3 from backbone checkpoint
+  [eval] auto-detected qk_norm=True from backbone checkpoint
+  [eval] auto-detected attn_out_norm=True from backbone checkpoint
+  [eval] auto-detected freq_emb_dim=3 from backbone checkpoint
+  [eval] auto-detected seasonality_emb_dim=3 from backbone checkpoint
+  [eval] auto-detected patch_stats=none
+/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/transformer.py:392: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  warnings.warn(
+  [eval] auto-detected transformer-q head (2L H=64 nhead=8 causal)
+  Backbone: /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/runs/bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_r2_100k.pth
+  Head: /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_s20260724_bb100k_hd30000s/qhead_2L_bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb100k_final.pth
+  Strategy: B4 (forecast_len=16)
+
+Total configs to evaluate: 97
+0it [00:00, ?it/s]512it [00:14, 34.52it/s]1024it [00:28, 36.38it/s]1024it [00:39, 36.38it/s]1536it [00:43, 34.94it/s]2048it [00:59, 34.30it/s]2048it [01:10, 34.30it/s]2560it [01:14, 34.02it/s]3072it [01:29, 34.01it/s]3072it [01:40, 34.01it/s]3584it [01:44, 33.66it/s]4096it [01:59, 34.11it/s]4096it [02:10, 34.11it/s]4608it [02:14, 34.38it/s]5120it [02:28, 34.60it/s]5120it [02:40, 34.60it/s]5632it [02:43, 34.78it/s]6144it [02:57, 35.16it/s]6460it [03:06, 35.54it/s]6460it [03:06, 34.73it/s]
+  [  1/97] loop_seattle/5T/short                         MASE=  0.9383  (186.0s)
+0it [00:00, ?it/s]512it [00:41, 12.43it/s]512it [00:53, 12.43it/s]1024it [01:23, 12.28it/s]1024it [01:33, 12.28it/s]1536it [02:04, 12.29it/s]1536it [02:23, 12.29it/s]2048it [02:46, 12.33it/s]2048it [03:03, 12.33it/s]2560it [03:28, 12.28it/s]2560it [03:43, 12.28it/s]3072it [04:10, 12.25it/s]3072it [04:24, 12.25it/s]3584it [04:51, 12.28it/s]3584it [05:04, 12.28it/s]4096it [05:33, 12.29it/s]4096it [05:44, 12.29it/s]4608it [06:15, 12.24it/s]4608it [06:34, 12.24it/s]5120it [06:57, 12.23it/s]5120it [07:14, 12.23it/s]5632it [07:35, 12.59it/s]5632it [07:54, 12.59it/s]6144it [08:15, 12.63it/s]6144it [08:34, 12.63it/s]6460it [08:41, 12.57it/s]6460it [08:41, 12.40it/s]
+  [  2/97] loop_seattle/5T/medium                        MASE=  3.1571  (521.2s)
+0it [00:00, ?it/s]512it [00:59,  8.54it/s]1024it [01:59,  8.53it/s]1536it [03:01,  8.43it/s]2048it [04:01,  8.48it/s]2560it [05:01,  8.51it/s]3072it [06:01,  8.48it/s]3584it [07:00,  8.57it/s]4096it [08:01,  8.53it/s]4608it [09:00,  8.56it/s]4845it [09:28,  8.54it/s]4845it [09:28,  8.52it/s]
+  [  3/97] loop_seattle/5T/long                          MASE=  2.8812  (568.6s)
+0it [00:00, ?it/s]512it [00:05, 97.14it/s]646it [00:06, 96.67it/s]646it [00:06, 96.78it/s]
+  [  4/97] loop_seattle/D/short                          MASE=  1.3926  (6.7s)
+0it [00:00, ?it/s]512it [00:07, 72.64it/s]1024it [00:14, 72.42it/s]1536it [00:21, 72.49it/s]2048it [00:28, 72.55it/s]2560it [00:35, 72.75it/s]3072it [00:42, 72.94it/s]3584it [00:49, 72.87it/s]4096it [00:56, 73.15it/s]4608it [01:03, 73.52it/s]5120it [01:10, 73.63it/s]5632it [01:17, 73.34it/s]6137it [01:23, 73.65it/s]6137it [01:23, 73.18it/s]
+  [  5/97] loop_seattle/H/short                          MASE=  1.9998  (83.9s)
+0it [00:00, ?it/s]512it [00:32, 15.81it/s]646it [00:41, 15.47it/s]646it [00:41, 15.55it/s]
+  [  6/97] loop_seattle/H/medium                         MASE=  4.3503  (41.5s)
+0it [00:00, ?it/s]512it [00:53,  9.63it/s]646it [01:07,  9.61it/s]646it [01:07,  9.62it/s]
+  [  7/97] loop_seattle/H/long                           MASE=  3.8828  (67.2s)
+0it [00:00, ?it/s]90it [00:00, 106.51it/s]90it [00:00, 106.49it/s]
+  [  8/97] m_dense/D/short                               MASE=  1.2776  (0.9s)
+0it [00:00, ?it/s]512it [00:07, 67.15it/s]600it [00:08, 67.20it/s]600it [00:08, 67.19it/s]
+  [  9/97] m_dense/H/short                               MASE=  2.4261  (8.9s)
+0it [00:00, ?it/s]120it [00:07, 15.19it/s]120it [00:07, 15.19it/s]
+  [ 10/97] m_dense/H/medium                              MASE=  4.3390  (7.9s)
+0it [00:00, ?it/s]90it [00:09,  9.39it/s]90it [00:09,  9.39it/s]
+  [ 11/97] m_dense/H/long                                MASE=  4.8975  (9.6s)
+0it [00:00, ?it/s]512it [00:06, 76.13it/s]1024it [00:13, 75.68it/s]1092it [00:14, 75.39it/s]1092it [00:14, 75.57it/s]
+  [ 12/97] sz_taxi/15T/short                             MASE=  0.6393  (14.5s)
+0it [00:00, ?it/s]156it [00:10, 15.49it/s]156it [00:10, 15.49it/s]
+  [ 13/97] sz_taxi/15T/medium                            MASE=  0.7183  (10.1s)
+0it [00:00, ?it/s]156it [00:15, 10.20it/s]156it [00:15, 10.20it/s]
+  [ 14/97] sz_taxi/15T/long                              MASE=  0.7923  (15.3s)
+0it [00:00, ?it/s]312it [00:04, 77.61it/s]312it [00:04, 77.60it/s]
+  [ 15/97] sz_taxi/H/short                               MASE=  0.7213  (4.0s)
+0it [00:00, ?it/s]512it [00:09, 54.10it/s]1024it [00:18, 54.40it/s]1536it [00:28, 53.99it/s]2048it [00:37, 53.97it/s]2560it [00:47, 54.32it/s]3072it [00:56, 54.14it/s]3584it [01:06, 54.04it/s]4096it [01:15, 54.73it/s]4608it [01:24, 54.48it/s]5120it [01:34, 54.24it/s]5632it [01:43, 54.56it/s]6144it [01:52, 54.69it/s]6656it [02:01, 55.74it/s]7168it [02:10, 56.37it/s]7680it [02:20, 55.64it/s]8192it [02:29, 54.99it/s]8704it [02:38, 55.01it/s]9216it [02:48, 55.31it/s]9728it [02:57, 55.25it/s]10240it [03:07, 54.42it/s]10752it [03:16, 54.26it/s]11264it [03:26, 54.05it/s]11776it [03:35, 53.70it/s]12288it [03:45, 53.49it/s]12800it [03:55, 53.35it/s]13312it [04:04, 53.18it/s]13824it [04:14, 53.31it/s]14336it [04:22, 55.12it/s]14848it [04:31, 56.38it/s]15360it [04:41, 55.45it/s]15872it [04:50, 54.76it/s]16384it [05:00, 54.65it/s]16896it [05:09, 54.85it/s]17408it [05:19, 54.31it/s]17920it [05:28, 53.92it/s]18432it [05:38, 53.66it/s]18944it [05:47, 53.93it/s]19456it [05:57, 53.91it/s]19968it [06:06, 53.58it/s]20480it [06:16, 54.18it/s]20992it [06:25, 54.16it/s]21504it [06:35, 54.12it/s]22016it [06:44, 53.99it/s]22528it [06:52, 56.59it/s]23040it [07:02, 55.70it/s]23552it [07:11, 54.84it/s]24064it [07:21, 54.70it/s]24576it [07:30, 55.21it/s]25088it [07:39, 54.89it/s]25600it [07:49, 54.84it/s]26112it [07:58, 54.27it/s]26624it [08:08, 54.00it/s]27136it [08:18, 53.75it/s]27648it [08:27, 54.35it/s]28160it [08:36, 54.20it/s]28672it [08:46, 53.77it/s]29184it [08:56, 53.53it/s]29696it [09:05, 53.70it/s]30208it [09:14, 55.48it/s]30720it [09:21, 59.40it/s]31232it [09:28, 62.45it/s]31744it [09:36, 61.96it/s]32256it [09:46, 59.69it/s]32768it [09:55, 57.72it/s]33280it [10:05, 56.25it/s]33792it [10:15, 55.10it/s]34304it [10:24, 54.85it/s]34816it [10:33, 54.76it/s]35328it [10:43, 54.89it/s]35840it [10:52, 54.28it/s]36352it [11:02, 54.23it/s]36864it [11:11, 54.13it/s]37376it [11:21, 53.75it/s]37888it [11:31, 53.76it/s]38400it [11:40, 54.06it/s]38912it [11:49, 54.21it/s]39424it [11:57, 56.48it/s]39936it [12:07, 55.64it/s]40448it [12:17, 54.91it/s]40960it [12:26, 54.41it/s]41472it [12:36, 54.39it/s]41984it [12:45, 53.93it/s]42496it [12:55, 54.00it/s]43008it [13:04, 54.19it/s]43520it [13:14, 54.28it/s]44032it [13:23, 54.44it/s]44544it [13:32, 54.09it/s]45000it [13:41, 54.22it/s]45000it [13:41, 54.79it/s]
+  [ 16/97] bitbrains_fast_storage/5T/short               MASE=  1.4390  (821.4s)
+0it [00:00, ?it/s]512it [00:36, 14.05it/s]512it [00:52, 14.05it/s]1024it [01:11, 14.26it/s]1024it [01:22, 14.26it/s]1536it [01:48, 14.08it/s]1536it [02:02, 14.08it/s]2048it [02:26, 13.94it/s]2048it [02:42, 13.94it/s]2560it [03:02, 13.94it/s]2560it [03:22, 13.94it/s]3072it [03:40, 13.88it/s]3072it [03:52, 13.88it/s]3584it [04:19, 13.58it/s]3584it [04:32, 13.58it/s]4096it [04:59, 13.29it/s]4096it [05:12, 13.29it/s]4608it [05:39, 13.14it/s]4608it [05:52, 13.14it/s]5000it [06:09, 13.17it/s]5000it [06:09, 13.54it/s]
+  [ 17/97] bitbrains_fast_storage/5T/medium              MASE=  2.9407  (369.3s)
+0it [00:00, ?it/s]512it [00:56,  9.02it/s]1024it [01:53,  9.02it/s]1536it [02:50,  9.02it/s]2048it [03:47,  8.97it/s]2560it [04:44,  8.99it/s]

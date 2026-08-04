@@ -198,3 +198,11 @@ The nine remaining student controls themselves come from
 `scripts/run_student_control_batch.sh` on elisa, which runs each cell's
 #379 command line with `--align-target student` at seed 20260520 to step
 40 000, then the 15 000-step head and the full 97-config GIFT-Eval.
+
+Then the report's tables and figures:
+
+```bash
+python3 experiments/2026-08-01_lalign_teacher/scripts/make_report_tables.py \
+  reports/2026-08-04_lalign_teacher/results /tmp/tables.md
+for f in reports/2026-08-04_lalign_teacher/plots/_make_*.py; do python3 "$f"; done
+```
