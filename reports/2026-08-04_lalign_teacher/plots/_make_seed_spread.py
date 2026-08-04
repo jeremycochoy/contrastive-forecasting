@@ -53,7 +53,7 @@ ax.set_xlabel("Aggregate GM-Relative MASE, 97 GIFT-Eval B4 configs, "
 ax.set_title("Same frozen backbone, same head budget, different head seed",
              fontsize=11)
 ax.grid(True, axis="x", color=GRID, alpha=0.6)
-ax.set_xlim(1.13, 2.75)
+ax.set_xlim(1.13, 2.42)
 fig.tight_layout()
 out = HERE / "head_seed_spread.png"
 fig.savefig(out)

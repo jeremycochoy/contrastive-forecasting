@@ -86,7 +86,6 @@ ys = [r[2] for r in rows]
 ns = [r[3] for r in rows]
 hatches = ["///" if n < 97 else None for n in ns]
 
-YMAX = 1.75  # truncate — outliers >YMAX are marked with an arrow + value
 bars = ax.bar(xs, ys, color=cs,
               edgecolor=[INK if n < 97 else c for n, c in zip(ns, cs)],
               linewidth=[1.6 if n < 97 else 0.8 for n in ns])
@@ -94,25 +93,21 @@ for bar, hatch in zip(bars, hatches):
     if hatch: bar.set_hatch(hatch)
 ax.axhline(1.0, color="#c04040", lw=1.2, linestyle="--",
            label="seasonal-naive reference (MASE=1)")
+# Bars start at zero, so every bar is drawn to scale and the tallest one fits.
 for x, v, n in zip(xs, ys, ns):
     tag = f"{v:.4f}" + (f"\n({n} cfg)" if n < 97 else "")
-    if v > YMAX:
-        ax.annotate(f"↑ {v:.2f}", xy=(x, YMAX - 0.02), ha="center", va="top",
-                    fontsize=9, color="#c04040", weight="bold")
-    else:
-        ax.text(x, v + 0.015, tag, ha="center", va="bottom", fontsize=8)
+    ax.text(x, v + 0.03, tag, ha="center", va="bottom", fontsize=8)
 ax.set_xticks(xs); ax.set_xticklabels(labs, rotation=45, ha="right")
 ax.set_ylabel("Aggregate GM-Relative MASE  (lower is better)")
 n_full = sum(1 for n in ns if n == 97)
 ax.set_title(
     f"GM-Relative MASE at backbone step 40k, head 15k steps, GIFT-Eval B4  "
-    f"({n_full}/{len(rows)} cells full-97, hatched = partial)",
+    f"({n_full}/{len(rows)} cells full-97)",
     fontsize=10)
 ax.grid(True, axis="y", color=GRID, alpha=0.6)
-ax.legend(loc="lower right", fontsize=9, frameon=False)
+ax.legend(loc="upper left", fontsize=9, frameon=False)
 if ys:
-    ymin = min(min(v for v in ys if v <= YMAX), 1.0) - 0.03
-    ax.set_ylim(ymin, YMAX)
+    ax.set_ylim(0.0, max(ys) * 1.10)
 fig.tight_layout()
 out = HERE / "eval_2L_gm_mase_bars.png"
 fig.savefig(out)

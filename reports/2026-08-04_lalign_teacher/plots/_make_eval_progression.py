@@ -102,15 +102,14 @@ setting_handles = [Line2D([], [], color=INK, ls=C.VAR_STYLE[v]["ls"],
 if band:
     setting_handles.append(Line2D(
         [], [], color=MUTED, lw=7, alpha=0.35,
-        label=f"measured head-seed range of the lowest cell "
-              f"({band[0]:.4f}–{band[1]:.4f}, 3 seeds)"))
+        label=f"head-seed range, lowest cell ({band[0]:.3f}–{band[1]:.3f})"))
 leg1 = fig.legend(handles=recipe_handles, loc="lower left", ncol=3, fontsize=8.5,
                   frameon=False, title="loss recipe (colour)",
                   bbox_to_anchor=(0.04, 0.004))
 leg1._legend_box.align = "left"
 leg2 = fig.legend(handles=setting_handles, loc="lower left", ncol=2, fontsize=8.5,
                   frameon=False, title="setting (line style)",
-                  bbox_to_anchor=(0.60, 0.004))
+                  bbox_to_anchor=(0.56, 0.004))
 leg2._legend_box.align = "left"
 
 n200 = sum(1 for _a, _v, vals in cells if vals[2] is not None)

@@ -56,7 +56,7 @@ ax.bar(xs, ys, color=colours, yerr=[err_lo, err_hi], capsize=6, width=0.62,
 ax.scatter(xs, prev, marker="_", s=420, color=INK, linewidths=1.8, zorder=4,
            label="value at backbone 100k")
 
-for x, v, p in zip(xs, ys, prev):
+for x, v, p, e_hi in zip(xs, ys, prev, err_hi):
     # Value inside the bar, change above whichever of the two marks is higher,
     # so neither collides with the bar fill or the 100k tick.
     # When the cell worsened the 100k tick sits inside the bar, so drop the
@@ -65,7 +65,9 @@ for x, v, p in zip(xs, ys, prev):
     ax.text(x, v_y, f"{v:.4f}", ha="center", va="top", fontsize=8.5,
             color="white", weight="bold")
     d = v - p
-    ax.text(x, max(v, p) + 0.012, f"{d:+.3f}", ha="center", va="bottom",
+    # Clear the error-bar cap as well as the bar top, else the cap strikes
+    # through the change label on cells that carry replicate seeds.
+    ax.text(x, max(v + e_hi, p) + 0.018, f"{d:+.3f}", ha="center", va="bottom",
             fontsize=8.5, color="#2e8b57" if d < 0 else "#c04040", weight="bold")
 
 ax.set_xticks(xs)

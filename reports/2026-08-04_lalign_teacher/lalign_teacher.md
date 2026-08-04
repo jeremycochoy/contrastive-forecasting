@@ -1,10 +1,12 @@
-# Pointing the alignment loss at the EMA teacher leaves the ten retrained cells above seasonal naive
+# The EMA-teacher alignment target lowers 2 of 5 measured cells and leaves 3 inside head-seed noise
 
-The earlier small-model sweep computed `L_align` against the student encoder under stop-gradient rather than against the EMA teacher it was meant to target; the ten `L_align` cells here are that retrain, with the teacher. In the comparison that changes only the flag, the teacher target lowers 2 of the 5 measured cells by more than both their bootstrap interval and the head-seed spread, moves the other 3 by less than that spread, and leaves all 30 cells above seasonal-naive parity.
+Pointing `L_align` at the EMA teacher lowers 2 of the 5 measured cells by more than both their bootstrap interval and the largest measured head-seed range. It moves the other 3 by less than that range.
 
 ![Teacher minus student GM-Relative MASE, backbone 40k, two comparisons](plots/controlled_vs_cross_delta.png)
 
-*Left: the controlled comparison, where only `--align-target` differs. Right: the cross-experiment comparison, where the flag and the code snapshot differ together. **GM-Relative MASE** = geometric mean over 97 GIFT-Eval configs of `MASE(model) / MASE(seasonal_naive)`; lower is better, 1.0 is parity.*
+*Left: the controlled comparison, where only `--align-target` differs. Right: the cross-experiment comparison, where the flag and the code snapshot differ together.*
+
+The earlier small-model sweep computed `L_align` against the student encoder under stop-gradient rather than against the EMA teacher it was meant to target, and the ten `L_align` cells here are that retrain, with the teacher. The metric is **GM-Relative MASE**, the geometric mean over 97 GIFT-Eval configs of `MASE(model) / MASE(seasonal_naive)`, where lower is better and 1.0 is parity.
 
 ![GM-Relative MASE of all 30 cells at backbone 40k, seasonal-naive parity dashed](plots/eval_2L_gm_mase_bars.png)
 
@@ -14,30 +16,30 @@ The earlier small-model sweep computed `L_align` against the student encoder und
 
 ## 1. What the flag does when nothing else changes
 
-| Cell | teacher | student control (this branch) | Δ = teacher − student | 95% CI | CI excludes 0 |
-|---|---|---|---|---|---|
-| `arm5 base` | 1.3515 | 1.4501 | **−0.0986** | [−0.1504, −0.0450] | yes |
-| `arm5 tr1` | 1.3396 | 1.3254 | +0.0142 | [−0.0241, +0.0471] | no |
-| `arm5 nse` | 1.4536 | 1.4682 | −0.0146 | [−0.1073, +0.0467] | no |
-| `arm5 ncpc` | 1.2923 | 1.5079 | **−0.2156** | [−0.2964, −0.1611] | yes |
-| `arm5 combab` | 1.2728 | 1.2868 | −0.0140 | [−0.0536, +0.0195] | no |
-| `arm6_v2 base` | 1.4322 | *pending* | *pending* | *pending* | *pending* |
-| `arm6_v2 tr1` | 1.5315 | *pending* | *pending* | *pending* | *pending* |
-| `arm6_v2 nse` | 1.3074 | *pending* | *pending* | *pending* | *pending* |
-| `arm6_v2 ncpc` | 1.3159 | *pending* | *pending* | *pending* | *pending* |
-| `arm6_v2 combab` | 1.2765 | *pending* | *pending* | *pending* | *pending* |
+| Cell | teacher | student control (this branch) |
+|---|---|---|
+| `arm5 base` | 1.3515 | 1.4501 |
+| `arm5 tr1` | 1.3396 | 1.3254 |
+| `arm5 nse` | 1.4536 | 1.4682 |
+| `arm5 ncpc` | 1.2923 | 1.5079 |
+| `arm5 combab` | 1.2728 | 1.2868 |
+| `arm6_v2 base` | 1.4322 | *pending* |
+| `arm6_v2 tr1` | 1.5315 | *pending* |
+| `arm6_v2 nse` | 1.3074 | *pending* |
+| `arm6_v2 ncpc` | 1.3159 | *pending* |
+| `arm6_v2 combab` | 1.2765 | *pending* |
 
-*Backbone 40 000 pretraining steps, quantile head 15 000 steps on the frozen backbone, 97 GIFT-Eval configs under the official **B4 strategy** (single-window in-context prediction), forecast horizon 16. Intervals are dataset-level paired cluster bootstraps over the 28 base datasets, 10 000 resamples (`results/controlled_delta_40k.csv`, `experiments/2026-08-01_lalign_teacher/scripts/controlled_delta.py`).*
+*The differences and their intervals are the left panel above. Backbone 40 000 pretraining steps, quantile head 15 000 steps on the frozen backbone, 97 GIFT-Eval configs under the official **B4 strategy** (single-window in-context prediction), forecast horizon 16. Intervals are dataset-level paired cluster bootstraps over the 28 base datasets, 10 000 resamples (`results/controlled_delta_40k.csv`, `experiments/2026-08-01_lalign_teacher/scripts/controlled_delta.py`).*
 
-Of the five finished controls, four reproduce the earlier sweep's number exactly and one, `arm5 base`, differs from it by 0.0977 (`code_snapshot_shift`).
+Of the five finished controls, four reproduce the earlier sweep's number exactly and one, `arm5 base`, differs from it by 0.0977.
 
-## 2. How far one cell moves under nothing but a head seed
+## 2. How far a cell moves under nothing but a head seed, on four frozen backbones
 
 ![Per-seed GM-Relative MASE on four frozen backbones](plots/head_seed_spread.png)
 
-*Four frozen backbones, the quantile head retrained under extra seeds — its init and its data order — and the full 97-config eval re-run each time (`results/seed_spread.csv`).*
+*Four frozen backbones, the quantile head retrained under extra seeds — its init and its data order — and the full 97-config eval re-run each time (`results/seed_spread.csv`). Only these four cells carry replicate head seeds.*
 
-The largest range is 0.0908 on `arm5 nse` at backbone 200k, 5.05% of that cell's lowest seed; 8 of the 20 cross-experiment teacher-minus-earlier differences exceed 0.0908 in absolute value and 11 of 20 exceed 5.05% in relative terms, and only these four cells carry replicate head seeds at all.
+Against the largest range in that figure, 8 of the 20 cross-experiment teacher-minus-earlier differences are larger in absolute terms and 11 of 20 are larger in relative terms.
 
 ## 3. Where the 30 cells sit across backbone horizons
 
@@ -49,7 +51,7 @@ The largest range is 0.0908 on `arm5 nse` at backbone 200k, 5.05% of that cell's
 
 *The 8 cells extended past 100k, with their backbone-100k value marked.*
 
-Ranked by the 100k value. `⟲` marks a cell retrained with `--align-target teacher`; the other 20 carry no `L_align` term and are the earlier sweep's numbers, on the same seasonal-naive denominator. A dash means the cell was not extended. Values are head seed 20260722; `†` marks a cell with replicate seeds, given below the table.
+*Ranked by the 100k value. `⟲` marks a cell retrained with `--align-target teacher`; the other 20 carry no `L_align` term and are the earlier sweep's numbers, on the same seasonal-naive denominator. A dash means the cell was not extended. Values are head seed 20260722; `†` marks a cell with replicate seeds, given below the table.*
 
 | Rank @100k | Cell | bb 40k (head 15k) | bb 100k (head 30k) | 40k→100k | bb 200k (head 30k) | 100k→200k |
 |---|---|---|---|---|---|---|
@@ -90,11 +92,11 @@ Ranked by the 100k value. `⟲` marks a cell retrained with `--align-target teac
 
 ![Two radars of per-domain relative MASE](plots/eval_domain_radar.png)
 
-*The headline geometric mean split by dataset domain. Per-config source: `results/eval_gm_mase/<cell>/all_results.csv`, same seasonal-naive denominator as the aggregate.*
+*The headline geometric mean split by dataset domain. The left radar puts cells measured at backbone 100k and at 200k on one chart, so it moves the backbone step as well as the cell. Per-config source: `results/eval_gm_mase/<cell>/all_results.csv`, same seasonal-naive denominator as the aggregate.*
 
-`Nature` and `Sales` are the only domains where cells fall below 1.0, and the left radar puts cells measured at backbone 100k and at 200k on one chart, so it moves the backbone step as well as the cell.
+`Nature` and `Sales` are the only domains where cells fall below 1.0.
 
-Configs per domain in brackets. Bold = below 1.0. Source: `results/eval_gm_mase/<cell>_bb200k_hd30000s/all_results.csv`.
+*Configs per domain in brackets. Bold = below 1.0. Source: `results/eval_gm_mase/<cell>_bb200k_hd30000s/all_results.csv`.*
 
 | Cell (bb 200k) | Energy (32) | Web/CloudOps (20) | Transport (15) | Nature (15) | Econ/Fin (6) | Healthcare (5) | Sales (4) | all 97 |
 |---|---|---|---|---|---|---|---|---|
@@ -109,8 +111,6 @@ Configs per domain in brackets. Bold = below 1.0. Source: `results/eval_gm_mase/
 | *cells below 1.0, of 8* | 0/8 | 0/8 | 0/8 | 6/8 | 0/8 | 0/8 | 7/8 | 0/8 |
 
 ## 5. The retrained cells against the earlier sweep
-
-This comparison moves the flag and the code snapshot together, so it does not attribute a difference to the flag; section 1 is the one that does. Ratio = teacher ÷ earlier sweep, below 1.0 means the teacher run scored lower. Intervals are dataset-level paired cluster bootstraps, 10 000 resamples (`results/eval_bootstrap_ci.csv`).
 
 | Cell | bb steps | teacher | earlier sweep | ratio | CI 95% lo | CI 95% hi | CI excludes 1 |
 |---|---|---|---|---|---|---|---|
@@ -135,7 +135,7 @@ This comparison moves the flag and the code snapshot together, so it does not at
 | `arm6_v2 ncpc` | 100k | 1.3012 | 1.2978 | 1.0027 | 0.9672 | 1.0452 | no |
 | `arm6_v2 combab` | 100k | 1.2514 | 1.1616 | 1.0773 | 1.0439 | 1.1254 | yes |
 
-Across the ten cells the direction is 6 lower at 40k and 4 lower at 100k, sign test p = 0.75 at both steps (`results/eval_paired_tests.csv`).
+*This comparison moves the flag and the code snapshot together, so it does not attribute a difference to the flag; section 1 is the one that does. Ratio = teacher ÷ earlier sweep, below 1.0 means the teacher run scored lower. Intervals are dataset-level paired cluster bootstraps, 10 000 resamples (`results/eval_bootstrap_ci.csv`). Across the ten cells the direction is 6 lower at 40k and 4 lower at 100k, sign test p = 0.75 at both steps (`results/eval_paired_tests.csv`).*
 
 ## 6. Does latent movement track the improvement
 
@@ -143,9 +143,9 @@ Across the ten cells the direction is 6 lower at 40k and 4 lower at 100k, sign t
 
 *Panel 1: `h_t` drift between adjacent checkpoints. Panel 2: GM-Relative MASE of the same cells on the same axis. Panel 3: mean late drift against the 100k→200k change, all 8 extended cells (`results/latent_movement_pairs.csv`, 250 pairs over the 30 arms).*
 
-Panel 3 gives Spearman ρ = −0.33 on n = 8 cells, p = 0.42.
+Panel 3 gives Spearman ρ = −0.33 on n = 8 cells at p = 0.42, so late drift does not separate the improvers at this sample size.
 
-For one loss recipe, a setting counts as *lower* when its mean `1 − cos` displacement over every adjacent-checkpoint pair of that run falls below the base setting's mean of the same recipe. The denominator is the six recipes `arm1`, `arm3`, `arm4`, `arm5`, `arm6_v2`, `bimoco`; p is a two-sided exact binomial test. Source: `results/latent_movement_pairs.csv`.
+*For one loss recipe, a setting counts as* lower *when its mean `1 − cos` displacement over every adjacent-checkpoint pair of that run falls below the base setting's mean of the same recipe. The denominator is the six recipes `arm1`, `arm3`, `arm4`, `arm5`, `arm6_v2`, `bimoco`; p is a two-sided exact binomial test. Source: `results/latent_movement_pairs.csv`.*
 
 | Setting | `h_t` drift lower than base / 6 | `h_t` p | `e_t` drift lower than base / 6 | `e_t` p |
 |---|---|---|---|---|
@@ -154,29 +154,21 @@ For one loss recipe, a setting counts as *lower* when its mean `1 − cos` displ
 | `tr1` | 1/6 (arm5) | 0.219 | 2/6 | 0.688 |
 | `combab` | 1/6 (arm5) | 0.219 | 4/6 | 0.688 |
 
-![1 − ff against training step, one panel per setting](plots/cos_error_per_arm.png)
-
-*`1 − ff`, the cosine distance between the forecaster's next-step output and the encoder's next-step latent, per training step (`results/training_curves/`).*
-
-![u_batchtime against training step, one panel per recipe](plots/dim_usage_per_arm.png)
-
-*`u_batchtime` on `h_t`, the dimension-usage measure defined in [Protocol](#8-protocol), per training step (`results/training_curves/`).*
-
 ## 7. Where the three unusual cells come from
 
 ![Backbone loss and attention logit magnitude of the three unusual cells](plots/per_run_loss.png)
 
 *The flagged run in colour, the other four settings of the same recipe in grey (`results/training_curves/`, `results/attn_amplitude/`).*
 
-**Rise-from-minimum** is the run's final loss minus the lowest loss it ever recorded. **Attention logit magnitude** is `qk_logit_maxabs`, the peak absolute pre-softmax attention logit, logged every 200 steps and averaged over the encoder layers. No non-finite loss or gap appears in any of the 40 backbones (`results/anomaly_inspection.csv`, `results/anomaly_windows.csv`).
+*Each loss value is the mean over the first, or the last, 5% of the logged steps of that window, not the value at a single step (`results/anomaly_windows.csv`). **Rise-from-minimum** is the run's final loss minus the lowest loss it ever recorded. **Peak qk logit** is `qk_logit_maxabs`, the peak absolute pre-softmax attention logit, logged every 200 steps and averaged over the encoder layers. Rank 1 = lowest of the 40 backbones. No non-finite loss or gap appears in any of the 40 (`results/anomaly_inspection.csv`).*
 
-| Cell | loss @0k | @40k | @100k | @200k | peak qk logit | rise-from-min |
-|---|---|---|---|---|---|---|
-| `arm1 combab` 3.1251 at 40k (copied) | 19.03 | 19.82 | 19.54 | 19.75 | 6.51 — lowest of the 40 runs | 4.4648 — largest of the 40 runs |
-| `arm5 nse` 1.8887 at 200k | 19.80 | 14.11 | 13.95 | 13.97 | 259.94 — largest of the 40 runs | 0.0688 — 7th lowest of the 40 runs |
-| `arm6_v2 base` 1.4322 → 1.9057 (40k → 100k) | 12.98 | 4.92 | 4.92 | — | 12.75 | 0.2342 |
+| Cell | GM-Rel MASE | loss, start of 0–40k | end of 0–40k | end of 40–100k | end of 100–200k | peak qk logit | rank of 40 | rise-from-min | rank of 40 |
+|---|---|---|---|---|---|---|---|---|---|
+| `arm1 combab` | 3.1251 @ 40k | 19.03 | 19.82 | 19.54 | 19.75 | 6.51 | 1 | 4.4648 | 40 |
+| `arm5 nse` ⟲ | 1.8887 @ 200k | 19.80 | 14.11 | 13.95 | 13.97 | 259.94 | 40 | 0.0688 | 7 |
+| `arm6_v2 base` ⟲ | 1.9057 @ 100k | 12.98 | 4.92 | 4.92 | — | 12.75 | 7 | 0.2342 | 16 |
 
-`arm1 combab` rises by +0.7939 over 0k–40k, against −3.10 to −7.09 for every other `arm1` setting over the same window.
+*Over 0k–40k the `arm1 combab` loss window mean rises by +0.7939, against −3.10 to −7.09 for every other `arm1` setting over the same window.*
 
 ## 8. Protocol
 
@@ -235,6 +227,16 @@ Quantile head, trained on the frozen backbone, `--grad-clip 1.0` at every horizo
 - The head budget changes with the backbone step (15k at 40k, 30k at 100k and 200k), so any within-arm statement across backbone steps moves two things at once.
 - The 200k row compares a teacher-selected subset against a differently selected subset of the earlier sweep, so no like-for-like 200k claim is available.
 - Section 5 changes the flag and the code snapshot together.
+
+### Training-curve diagnostics
+
+![1 − ff against training step, one panel per setting](plots/cos_error_per_arm.png)
+
+*`1 − ff`, the cosine distance between the forecaster's next-step output and the encoder's next-step latent, per training step (`results/training_curves/`). Per-panel y-scale.*
+
+![u_batchtime against training step, one panel per recipe](plots/dim_usage_per_arm.png)
+
+*`u_batchtime` on `h_t`, the dimension-usage measure defined above, per training step (`results/training_curves/`). Per-panel y-scale.*
 
 ## 9. Data
 
