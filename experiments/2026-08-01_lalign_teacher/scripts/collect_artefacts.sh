@@ -27,7 +27,9 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 source "$HERE/arm_names.sh"
 
 SRC="$WT/experiments/2026-08-01_lalign_teacher"
-DST="$REPO/reports/2026-08-01_lalign_teacher/results"
+# The report is dated by the day the artefacts were collected, not the day
+# the runs were launched. Override with DST= to collect somewhere else.
+DST="${DST:-$REPO/reports/2026-08-04_lalign_teacher/results}"
 mkdir -p "$DST"/{eval_gm_mase,training_curves,attn_amplitude,latent_drift,logs}
 
 say(){ echo "[collect] $*"; }

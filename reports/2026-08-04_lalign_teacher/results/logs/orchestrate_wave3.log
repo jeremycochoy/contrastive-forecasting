@@ -1,0 +1,25 @@
+[08-03 16:28:57] [orch-390-w3] orchestrator start — WT=/home/jupyter/wt-cf-390-train wave=3 target=200000 arms=3 slots/gpu=2
+[08-03 16:28:57] [orch-390-w3] arms: arm5_nse arm6_v2_ncpc arm6_v2_combab
+[08-03 16:28:57] [orch-390-w3] arm arm5_nse start: BB_GPU=0 target=200000
+[08-03 16:28:57] [elisa-arm5_nse] RESUME from bb_small_arm5_nse_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_r2_100k.pth
+[08-03 16:28:57] [elisa-arm5_nse] BB START (arm 5_nse: rep_only + align-loss-weight 1.0 + sigreg_embedding=0 + align-target teacher) gpu=0 target=200000 final=200000 bs=64 --resume /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/runs/bb_small_arm5_nse_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_r2_100k.pth
+[08-03 16:29:02] [orch-390-w3] arm arm6_v2_ncpc start: BB_GPU=0 target=200000
+[08-03 16:29:02] [elisa-arm6_v2_ncpc] RESUME from bb_small_arm6_v2_ncpc_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_r2_100k.pth
+[08-03 16:29:02] [elisa-arm6_v2_ncpc] BB START (arm 6 v2_ncpc: rep_only + align-loss-weight 1.0 + moco-rep-keys + cpc_infonce_weight=0 + align-target teacher) gpu=0 target=200000 final=200000 bs=64 --resume /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/runs/bb_small_arm6_v2_ncpc_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_r2_100k.pth
+[08-03 16:29:07] [orch-390-w3] arm arm6_v2_combab start: BB_GPU=1 target=200000
+[08-03 16:29:07] [elisa-arm6_v2_combab] RESUME from bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_r2_100k.pth
+[08-03 16:29:07] [elisa-arm6_v2_combab] BB START (arm 6 v2_combab: rep_only + align + moco-rep-keys + τ_rep=1.0 + cpc=0 + align-target teacher (nse SKIPPED: nse hurt arm6_v2)) gpu=1 target=200000 final=200000 bs=64 --resume /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/runs/bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_r2_100k.pth
+[08-04 00:13:12] [elisa-arm6_v2_combab] arm6_v2_combab complete: BB DONE -> bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_FINAL.pth (5.0M)
+[08-04 00:13:12] [orch-390-w3] arm arm6_v2_combab done rc=0
+[08-04 01:05:55] [elisa-arm6_v2_ncpc] arm6_v2_ncpc complete: BB DONE -> bb_small_arm6_v2_ncpc_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_FINAL.pth (5.0M)
+[08-04 01:05:55] [orch-390-w3] arm arm6_v2_ncpc done rc=0
+[08-04 01:23:53] [elisa-arm5_nse] arm5_nse complete: BB DONE -> bb_small_arm5_nse_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_FINAL.pth (5.0M)
+[08-04 01:23:53] [orch-390-w3] arm arm5_nse done rc=0
+[08-04 01:23:53] [orch-390-w3] rc[arm5_nse]=0
+[08-04 01:23:53] [orch-390-w3] rc[arm6_v2_ncpc]=0
+[08-04 01:23:53] [orch-390-w3] rc[arm6_v2_combab]=0
+[08-04 01:23:53] [orch-390-w3]   arm5_nse: newest checkpoint 200k FINAL=yes (target 200k)
+[08-04 01:23:53] [orch-390-w3]   arm6_v2_ncpc: newest checkpoint 200k FINAL=yes (target 200k)
+[08-04 01:23:54] [orch-390-w3]   arm6_v2_combab: newest checkpoint 200k FINAL=yes (target 200k)
+[08-04 01:23:54] [orch-390-w3] orchestrator done — arms at/past 200k: 3 / 3
+[08-04 01:23:54] [orch-390-w3] state written to /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/results/orchestrate_wave3_state.json

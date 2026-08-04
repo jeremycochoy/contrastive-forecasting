@@ -1,0 +1,5 @@
+[08-01 22:35:00] [elisa-arm5] BB START (arm 5: rep_only + align-loss-weight 1.0 + align-target teacher) gpu=0 target=40000 final=200000 bs=64 
+[08-02 01:47:06] [elisa-arm5] arm5 wave complete: target=40000 (< final 200000) — latest ck bb_small_arm5_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_40k.pth
+[08-02 17:33:38] [elisa-arm5] RESUME from bb_small_arm5_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_40k.pth
+[08-02 17:33:38] [elisa-arm5] BB START (arm 5: rep_only + align-loss-weight 1.0 + align-target teacher) gpu=0 target=100000 final=200000 bs=64 --resume /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/runs/bb_small_arm5_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_40k.pth
+[08-02 21:49:34] [elisa-arm5] arm5 wave complete: target=100000 (< final 200000) — latest ck bb_small_arm5_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_r2_100k.pth
