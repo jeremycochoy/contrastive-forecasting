@@ -564,6 +564,14 @@ def parse_args():
                         "so runs predating #388 are unchanged. 1.0 freezes the "
                         "teacher at the end of the budget. The live α is "
                         "written to <run>_losses.csv every step.")
+    p.add_argument("--ema-tau-ramp-steps", type=int, default=None,
+                   help="Anchor the --ema-tau-end ramp to a FIXED step count "
+                        "instead of --total-steps (#393). α reaches "
+                        "--ema-tau-end at this step and holds there. Runs that "
+                        "stop at different budgets then follow one α curve, "
+                        "which a budget-relative ramp cannot give them. Omit "
+                        "(default) ⇒ the #388 behaviour, ramp over "
+                        "--total-steps.")
     p.add_argument("--moco-negatives", action="store_true",
                    help="MoCo-style negatives (#374 arms 3+4): route the "
                         "cross-batch f↔h negatives through the EMA teacher "
@@ -1309,6 +1317,14 @@ def main():
         raise SystemExit("--ema-tau-end schedules the EMA teacher's momentum "
                          "but no teacher exists; pass --ema-embedding "
                          "and/or --ema-encoder.")
+    # #393: the anchor only means something for a schedule that ramps.
+    if args.ema_tau_ramp_steps is not None:
+        if args.ema_tau_ramp_steps <= 0:
+            raise SystemExit("--ema-tau-ramp-steps must be positive; got "
+                             f"{args.ema_tau_ramp_steps!r}.")
+        if args.ema_tau_end is None:
+            raise SystemExit("--ema-tau-ramp-steps anchors the α ramp but no "
+                             "ramp is configured; pass --ema-tau-end.")
     # #388: L_align's teacher target. Both preconditions are hard errors —
     # silently falling back to the student target is the #382 bug this flag
     # exists to fix.
@@ -1840,12 +1856,15 @@ def main():
                 model.clamp_log_inv_tau()
         # EMA-teacher update (#353): pull teacher params one fraction of the way
         # toward the just-stepped student, θ_T = α·θ_T + (1−α)·θ_S. α is
-        # constant unless --ema-tau-end sets a linear schedule (#388); the
-        # value used here is the one logged to the losses CSV below.
+        # constant unless --ema-tau-end sets a linear schedule (#388), which
+        # spans --total-steps unless --ema-tau-ramp-steps anchors it to a
+        # fixed step (#393). The value used here is the one logged to the
+        # losses CSV below.
         ema_tau_now = None
         if use_ema:
             ema_tau_now = ema_tau_at_step(
-                step, args.total_steps, args.ema_tau, args.ema_tau_end)
+                step, args.total_steps, args.ema_tau, args.ema_tau_end,
+                args.ema_tau_ramp_steps)
             model.update_teacher(ema_tau_now)
         t_bwd_end = time.perf_counter()
         t_step_end = time.perf_counter()
