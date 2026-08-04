@@ -39,7 +39,7 @@ Of the five finished controls, four reproduce the earlier sweep's number exactly
 
 *Four frozen backbones, the quantile head retrained under extra seeds — its init and its data order — and the full 97-config eval re-run each time (`results/seed_spread.csv`). Only these four cells carry replicate head seeds.*
 
-The largest head-seed range is 0.0908, or 5.1% of that cell's lowest seed. Of the 20 cross-experiment differences in section 5, 8 exceed it in absolute value and 11 exceed it in relative value.
+Of the 20 cross-experiment differences in section 5, 8 exceed the largest head-seed range in absolute value and 11 exceed it in relative value.
 
 ## 3. Where the 30 cells sit across backbone horizons
 

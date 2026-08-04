@@ -69,7 +69,11 @@ if TICKS[-1] < HI: TICKS.append(round(HI, 2))
 r = math.log2
 RMIN, RMAX = r(TICKS[0]) - 0.03, r(TICKS[-1]) + 0.03
 
-def draw(ax, rows, title):
+# Hues for repeated cells of one arm, when lightening alone would leave them in
+# the same colour family and unreadable where the series overlap.
+REPEAT_HUE = ["#cc2f92", "#3f3f3f", "#0f7d7d"]
+
+def draw(ax, rows, title, distinct_hues=False):
     ax.set_theta_offset(math.pi / 2)
     ax.set_theta_direction(-1)
     ax.set_ylim(RMIN, RMAX)
@@ -95,7 +99,12 @@ def draw(ax, rows, title):
         vals += vals[:1]
         style = C.VAR_STYLE[var]
         nth = seen.get(arm, 0); seen[arm] = nth + 1
-        colour = C.ARM_COLOR[arm] if nth == 0 else _lighten(C.ARM_COLOR[arm], min(0.22 + 0.26 * nth, 0.62))
+        if nth == 0:
+            colour = C.ARM_COLOR[arm]
+        elif distinct_hues:
+            colour = REPEAT_HUE[(nth - 1) % len(REPEAT_HUE)]
+        else:
+            colour = _lighten(C.ARM_COLOR[arm], min(0.22 + 0.26 * nth, 0.62))
         ln, = ax.plot(ANG, vals, color=colour, lw=2.0, ls=style["ls"],
                       marker=style["marker"], markersize=style["ms"],
                       markeredgewidth=0, zorder=4,
@@ -113,7 +122,8 @@ def draw(ax, rows, title):
 
 fig, axes = plt.subplots(1, 2, figsize=(14.5, 9.4),
                          subplot_kw={"projection": "polar"})
-draw(axes[0], topn, "5 lowest cells, each at its last evaluated backbone step")
+draw(axes[0], topn, "5 lowest cells, each at its last evaluated backbone step",
+     distinct_hues=True)
 draw(axes[1], improved, "Cells that improved from backbone 100k to 200k (shown at 200k)")
 fig.suptitle("GM-Relative MASE per dataset domain;  red ring = seasonal-naive "
              "parity;  radial axis is log2(ratio)", fontsize=11.5)
