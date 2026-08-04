@@ -88,9 +88,11 @@ Of the 20 cross-experiment differences in section 5, 8 exceed the largest head-s
 
 ## 4. Which domains the lowest cells win on
 
+The left radar puts cells measured at backbone 100k and at 200k on one chart, so it moves the backbone step as well as the cell.
+
 ![Two radars of per-domain relative MASE](plots/eval_domain_radar.png)
 
-*The headline geometric mean split by dataset domain. The left radar puts cells measured at backbone 100k and at 200k on one chart, so it moves the backbone step as well as the cell. Per-config source: `results/eval_gm_mase/<cell>/all_results.csv`, same seasonal-naive denominator as the aggregate.*
+*The headline geometric mean split by dataset domain. Per-config source: `results/eval_gm_mase/<cell>/all_results.csv`, same seasonal-naive denominator as the aggregate.*
 
 | Cell (bb 200k) | Energy (32) | Web/CloudOps (20) | Transport (15) | Nature (15) | Econ/Fin (6) | Healthcare (5) | Sales (4) | all 97 |
 |---|---|---|---|---|---|---|---|---|
@@ -234,7 +236,7 @@ Quantile head, trained on the frozen backbone, `--grad-clip 1.0` at every horizo
 
 ![u_batchtime against training step, one panel per cell](plots/dim_usage_per_arm.png)
 
-*`u_batchtime` on `h_t`, the dimension-usage measure defined above, per training step (`results/training_curves/`). Per-panel y-scale.*
+*`u_batchtime` on `h_t` and on `e_t`, per training step (`results/training_curves/`). Per-panel y-scale.*
 
 ## 9. Data
 
