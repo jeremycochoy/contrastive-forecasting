@@ -5,10 +5,8 @@ each step in `_losses.csv`. Directly comparable across arms (does not
 depend on loss shape, τ, or SIGReg weighting). Perfect alignment →
 ff = 1 → 1 − ff = 0.
 
-`1 − ff` is a form of *log perplexity* of the forecast under the
-future's von-Mises-Fisher on the unit sphere (small angle ⇔ small
-1 − cos). This is the deliverable of #379: how does the 1 − ff
-trajectory differ across the 6 loss recipes over 200k steps.
+`1 − ff` is a cosine distance in [0, 2]; smaller means the forecast
+sits closer to the future latent.
 
 x-axis on log scale (temporal log axis — early-training dynamics take
 one decade, mid takes one, late takes one, so log-x keeps all three
@@ -208,10 +206,8 @@ for (label, name, colour), slug in zip(RUNS, SLUGS):
 y_max = max((max(vals) for _, vals, _, _ in CURVES.values()), default=1.0)
 y_min = min((min(vals) for _, vals, _, _ in CURVES.values()), default=0.0)
 
-import math as _math
-ncols = 3
-nrows = _math.ceil(len(PANEL_SUFFIXES) / ncols)
-fig, axes = plt.subplots(nrows, ncols, figsize=(6.5 * ncols, 4.5 * nrows),
+ncols, nrows = len(PANEL_SUFFIXES), 1
+fig, axes = plt.subplots(nrows, ncols, figsize=(4.6 * ncols, 5.4),
                          sharex=True, sharey=True)
 axes = axes.flatten()
 
@@ -229,94 +225,18 @@ for ax, (panel_title, suffix) in zip(axes, PANEL_SUFFIXES):
     ax.set_xlim(100, 210_000)
     ax.set_ylim(y_min, y_max)
     ax.grid(True, color=GRID, alpha=0.6, which="both")
-    ax.legend(loc="upper right", fontsize=8, frameon=False)
-    ax.set_title(panel_title, fontsize=10)
+    # Legend under the axes: inside the panel it covers the curves.
+    ax.set_xlabel("training step (log)")
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.14), fontsize=7.5,
+              frameon=False)
+    ax.set_title(panel_title.split("  (")[0], fontsize=10)
 
-# Blank the unused panels.
-for extra in axes[len(PANEL_SUFFIXES):]:
-    extra.set_visible(False)
+axes[0].set_ylabel("1 − ff  (cosine distance)")
 
-for col in range(ncols):
-    axes[-ncols + col].set_xlabel("training step (log)")
-for row in range(nrows):
-    axes[row * ncols].set_ylabel("1 − ff  (log perplexity)")
-
-fig.suptitle(
-    "1 − ff per arm — grid by variant  (shared axes)",
-    fontsize=11)
-fig.tight_layout(rect=(0, 0, 1, 0.97))
+fig.suptitle("1 − ff against training step, one panel per setting  "
+             "(shared axes)", fontsize=11)
+fig.subplots_adjust(left=0.045, right=0.995, top=0.90, bottom=0.33,
+                    wspace=0.12)
 out = HERE / "cos_error_per_arm.png"
 fig.savefig(out)
 print(f"wrote {out}")
-
-
-# ---- #379 tau_rep=1.0 overlay ------------------------------------------------
-# Second axes: for each of the 5 L_rep-bearing arms (all but arm 4), pair
-# the base τ=0.10 curve with the `_tr1` rerun at all τ=1.0. Same colour per
-# arm, base solid, rerun dashed — one legend entry per arm pair. This is
-# the answer to Q3 in the issue: does raising τ_rep change the `1 − ff`
-# trajectory shape / u_batchtime(h_t) collapse / alignment plateau.
-#
-# Kept as an ADDITIONAL figure — the primary 6-arm chart above is
-# unchanged (a header plot the report already refers to by filename).
-TR1_PAIRS = [
-    # (label, base_name, rerun_name, colour) — same colour as the primary
-    # figure so viewers can cross-reference.
-    ("arm 1  (L_pred + L_rep)",
-     "bb_small_arm1_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
-     "bb_small_arm1_tr1_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
-     "#2a78d6"),
-    ("arm 3  (L_pred_moco + L_rep)",
-     "bb_small_arm3_split_pred_rep_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
-     "bb_small_arm3_tr1_split_pred_rep_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
-     "#eb6834"),
-    ("arm 5  (L_align + L_rep)",
-     "bb_small_arm5_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
-     "bb_small_arm5_tr1_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
-     "#8b1e8b"),
-    ("arm 6 v2  (L_align + L_rep_moco)",
-     "bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
-     "bb_small_arm6_v2_tr1_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
-     "#b8860b"),
-    ("bimoco  (L_pred_moco + L_rep_moco)",
-     "bb_small_bimoco_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
-     "bb_small_bimoco_tr1_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
-     "#00a3a3"),
-]
-
-fig_tr, ax_tr = plt.subplots(figsize=(9, 5.5))
-for label, base_name, rerun_name, colour in TR1_PAIRS:
-    try:
-        base_df = load(base_name)
-    except FileNotFoundError:
-        base_df = None
-    try:
-        rerun_df = load(rerun_name)
-    except FileNotFoundError:
-        rerun_df = None
-    if base_df is not None:
-        base_df = base_df[base_df["step"] >= 100]
-        if not base_df.empty:
-            ax_tr.plot(base_df["step"], 1.0 - base_df["ff"],
-                       color=colour, lw=1.4, linestyle="-",
-                       label=f"{label}  τ_rep=0.10")
-    if rerun_df is not None:
-        rerun_df = rerun_df[rerun_df["step"] >= 100]
-        if not rerun_df.empty:
-            ax_tr.plot(rerun_df["step"], 1.0 - rerun_df["ff"],
-                       color=colour, lw=1.4, linestyle="--",
-                       label=f"{label}  all τ=1.00")
-
-ax_tr.set_xscale("log")
-ax_tr.set_xlim(100, 210_000)
-ax_tr.set_xlabel("training step (log)")
-ax_tr.set_ylabel("1 − ff  (log perplexity of f̂ under future's vMF)")
-ax_tr.grid(True, color=GRID, alpha=0.6, which="both")
-ax_tr.legend(loc="upper right", fontsize=8, frameon=False, ncols=1)
-ax_tr.set_title(
-    "1 − ⟨cos(f̂, f_true)⟩ — τ_rep=0.10 (solid) vs all τ=1.00 (dashed)",
-    fontsize=11)
-fig_tr.tight_layout()
-out_tr = HERE / "cos_error_tau_rep_overlay.png"
-fig_tr.savefig(out_tr)
-print(f"wrote {out_tr}")

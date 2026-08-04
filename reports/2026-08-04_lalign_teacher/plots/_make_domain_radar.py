@@ -115,9 +115,8 @@ fig, axes = plt.subplots(1, 2, figsize=(14.5, 9.4),
                          subplot_kw={"projection": "polar"})
 draw(axes[0], topn, "5 lowest cells, each at its last evaluated backbone step")
 draw(axes[1], improved, "Cells that improved from backbone 100k to 200k (shown at 200k)")
-fig.suptitle("GM-Relative MASE per dataset domain — the headline geometric mean split by domain\n"
-             "inside the red ring = better than seasonal-naive;  radial axis is log2(ratio)",
-             fontsize=11.5)
+fig.suptitle("GM-Relative MASE per dataset domain;  red ring = seasonal-naive "
+             "parity;  radial axis is log2(ratio)", fontsize=11.5)
 fig.tight_layout(rect=[0, 0.10, 1, 0.94])
 out = HERE / "eval_domain_radar.png"
 fig.savefig(out)

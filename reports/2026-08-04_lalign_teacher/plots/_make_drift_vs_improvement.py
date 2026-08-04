@@ -129,9 +129,9 @@ for i, (x, y, lab) in enumerate(zip(xs, ys, labs)):
 rho = spearman(xs, ys)
 ax.set_xlabel("mean h_t drift over the 100k→200k checkpoints")
 ax.set_ylabel("GM-Relative MASE change, 100k → 200k")
-ax.set_title(f"3.  Does drift separate improvers from the rest?\n"
-             f"all {len(xs)} extended cells — Spearman ρ = {rho:+.2f}, "
-             f"green = improved, red = worsened", fontsize=10.5)
+ax.set_title(f"3.  Late h_t drift against the 100k→200k GM-MASE change\n"
+             f"all {len(xs)} extended cells;  green = improved, red = worsened",
+             fontsize=10.5)
 ax.grid(True, color=GRID, alpha=0.7)
 
 fig.suptitle("Latent movement against the GM-MASE improvement of the extended cells", fontsize=12)
@@ -140,6 +140,8 @@ out = HERE / "drift_vs_improvement.png"
 fig.savefig(out)
 print(f"wrote {out}")
 print(f"  focus cells: " + ", ".join(C.label(a, v) for _t, a, v, _vals in focus))
-print(f"  panel 3: n={len(xs)}  Spearman rho={rho:+.3f}")
+from scipy import stats as _st
+_res = _st.spearmanr(xs, ys)
+print(f"  panel 3: n={len(xs)}  Spearman rho={rho:+.3f}  p={_res.pvalue:.3f}")
 for x, y, lab in sorted(zip(xs, ys, labs), key=lambda r: r[1]):
     print(f"    {lab:<17} late_drift={x:.3f}  dMASE={y:+.4f}")

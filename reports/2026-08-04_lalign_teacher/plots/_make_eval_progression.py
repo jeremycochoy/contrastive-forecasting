@@ -23,7 +23,14 @@ plt.rcParams.update({
 
 X = [0, 1, 2]
 YMIN, YMAX = 1.13, 1.82
-SEED_NOISE = 0.01
+
+# Measured head-seed spread of the lowest cell, from results/seed_spread.csv.
+import csv as _csv
+SPREAD = {}
+with open(HERE.parent / "results" / "seed_spread.csv", newline="") as _fh:
+    for _r in _csv.DictReader(_fh):
+        _v = [float(x) for x in _r["values"].split()]
+        SPREAD[(_r["arm_slug"], int(_r["bb_steps"]))] = (min(_v), max(_v))
 LABEL_X = 2.04          # just outside the axes; the figure margin holds the text
 
 def spread(anchors, gap, lo, hi):
@@ -38,6 +45,10 @@ def spread(anchors, gap, lo, hi):
 
 cells = C.all_cells()
 best_val = min(v for _a, _v, vals in cells for v in vals if v is not None)
+best_slug, best_bb = min(
+    ((v, f"{a}{var}", bb) for a, var, vals in cells
+     for (bb, _hd), v in zip(C.HORIZONS, vals) if v is not None))[1:]
+band = SPREAD.get((best_slug, best_bb * 1000))
 
 fig, ax = plt.subplots(figsize=(15.5, 10))
 # Axes take the full left portion; labels live in the right margin.
@@ -69,8 +80,8 @@ for (arm, var, vals, (last_x, last_v)), y_lab in zip(drawn, ys):
     ax.text(LABEL_X, y_lab, f"{C.label(arm, var)}  {have[-1]:.3f}{delta}{tag}",
             color=colour, fontsize=8.5, va="center", ha="left", clip_on=False)
 
-ax.axhspan(best_val - SEED_NOISE, best_val + SEED_NOISE,
-           color=MUTED, alpha=0.13, zorder=0)
+if band:
+    ax.axhspan(band[0], band[1], color=MUTED, alpha=0.13, zorder=0)
 ax.set_xticks(X)
 ax.set_xticklabels(["backbone 40k\nhead 15k", "backbone 100k\nhead 30k",
                     "backbone 200k\nhead 30k"], fontsize=10)
@@ -88,8 +99,11 @@ setting_handles = [Line2D([], [], color=INK, ls=C.VAR_STYLE[v]["ls"],
                           lw=C.VAR_STYLE[v]["lw"],
                           label=f"{C.VAR_SHORT[v]}  ({C.variant_knobs('arm1', v)})")
                    for v in C.VARIANTS]
-setting_handles.append(Line2D([], [], color=MUTED, lw=7, alpha=0.35,
-                              label=f"±{SEED_NOISE} band around the best cell ({best_val:.3f})"))
+if band:
+    setting_handles.append(Line2D(
+        [], [], color=MUTED, lw=7, alpha=0.35,
+        label=f"measured head-seed range of the lowest cell "
+              f"({band[0]:.4f}–{band[1]:.4f}, 3 seeds)"))
 leg1 = fig.legend(handles=recipe_handles, loc="lower left", ncol=3, fontsize=8.5,
                   frameon=False, title="loss recipe (colour)",
                   bbox_to_anchor=(0.04, 0.004))
@@ -102,10 +116,8 @@ leg2._legend_box.align = "left"
 n200 = sum(1 for _a, _v, vals in cells if vals[2] is not None)
 down = sum(1 for _a, _v, vals in cells
            if vals[2] is not None and vals[1] is not None and vals[2] < vals[1])
-ax.set_title("GM-Relative MASE across backbone horizons — all 30 cells\n"
-             f"the {n200} that improved over 40k→100k were extended to 200k, of which "
-             f"{down} improved again;  seasonal-naive parity (1.0) is below the axis — "
-             "no cell reaches it", fontsize=11.5, pad=12)
+ax.set_title("GM-Relative MASE across backbone horizons — all 30 cells",
+             fontsize=11.5, pad=12)
 out = HERE / "eval_2L_gm_mase_progression.png"
 fig.savefig(out)
 print(f"wrote {out}  ({len(cells)} cells, {n200} at 200k, {down} improved again)")

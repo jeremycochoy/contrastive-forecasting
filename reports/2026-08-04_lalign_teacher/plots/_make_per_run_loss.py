@@ -1,147 +1,107 @@
-"""One training-loss subplot per arm run, #379.
+"""The three unusual cells against their recipe-mates.
 
-Reads each `runs/bb_*_losses.csv` and its `_r2_/_r3_` extensions where
-present.
+Top row: backbone training loss, log step axis. The flagged run is drawn in
+its recipe colour, every other setting of the same recipe in grey, so the
+flagged curve is read against the runs it should look like.
 
-Floors are the STRICT best lower bound of each recorded loss column.
-For a term of the shape `LSE(exp(pos/τ), exp(neg/τ)·N) − pos/τ` the
-strict min is `log1p(N·exp(−2/τ))` (attained at cos_pos = +1,
-cos_neg = −1). For a pure LSE with no positive (`L_rep`), the strict
-min is `log(N·exp(−1/τ)) = log(N) − 1/τ`. `L_align = 2 − 2·cos` has
-strict min 0. Sums decompose additively.
+Bottom row: mean attention logit magnitude over the encoder layers, same
+runs, same axis, from `results/attn_amplitude/`.
 
-For the small-model sweep, B = 64, T = 4096, C = 1, τ = 0.10:
-  N_pred = B·(C + (B - 1))              = 64 · 64             = 4,096
-  N_rep  = B·((C-1) + (T-1) + (B-1)·T)  = 64 · (0 + 4095 + 63·4096)
-                                                              = 16,777,152
-  L_pred (+moco) strict min = log1p(N_pred·e^-2)              ≈ 5.5e-4
-  L_rep          strict min = log(N_rep) - 10                   = 6.63
-  L_rep_moco     strict min = log1p(N_rep·e^-2)                 = 6.63 (dominates)
-
-Sums decompose additively; arm 4's pooled loss already subtracts a
-floor at train time and stays at 0.
+Curves come from `results/training_curves/`; a resumed run writes `_r2` /
+`_r3` files, so a full trajectory is the concatenation ordered by step.
 """
 from __future__ import annotations
 
-import math
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
 
 HERE = Path(__file__).parent
-ROOT = HERE.parent.parent.parent
-EXP = ROOT / "experiments" / "2026-08-01_lalign_teacher"
+CURVES = HERE.parent / "results" / "training_curves"
+ATTN = HERE.parent / "results" / "attn_amplitude"
 
-# --- #390 path resolution --------------------------------------------------
-# Curves live in this report's results/, not in an experiments/runs dir, and
-# the ten L_align runs carry the `_alignteacher` name suffix.
-CURVES = Path(__file__).resolve().parent.parent / "results" / "training_curves"
-
-
-def _curve(name: str, suffix: str = "") -> Path:
-    for stem in (f"{name}_alignteacher{suffix}", f"{name}{suffix}"):
-        p = CURVES / f"{stem}_losses.csv"
-        if p.exists():
-            return p
-    return CURVES / f"{name}{suffix}_losses.csv"
-# ---------------------------------------------------------------------------
-
-B, T, C, TAU = 64, 4096, 1, 0.10
-
-
-def infonce_floor(tau: float, n_negatives: int) -> float:
-    return math.log1p(float(n_negatives) * math.exp(-1.0 / float(tau)))
-
-
-N_PRED = B * (C + (B - 1))
-N_REP = B * ((C - 1) + (T - 1) + (B - 1) * T)
-
-F_INFONCE_PRED_STRICT = math.log1p(N_PRED * math.exp(-2.0 / TAU))
-F_INFONCE_REP_STRICT = math.log1p(N_REP * math.exp(-2.0 / TAU))
-F_REP_LSE_STRICT = math.log(N_REP) - 1.0 / TAU
-F_ALIGN_STRICT = 0.0
-
-F_ARM1_STRICT = F_INFONCE_PRED_STRICT + F_REP_LSE_STRICT
-F_ARM3_STRICT = F_INFONCE_PRED_STRICT + F_REP_LSE_STRICT
-F_ARM4_STRICT = 0.0  # pooled loss already subtracts its floor at train time
-F_ARM5_STRICT = F_ALIGN_STRICT + F_REP_LSE_STRICT
-F_ARM6_STRICT = F_ALIGN_STRICT + F_INFONCE_REP_STRICT
-F_BIMOCO_STRICT = F_INFONCE_PRED_STRICT + F_INFONCE_REP_STRICT
-
-RUNS = [
-    ("arm 1  (L_pred + L_rep)",
-     "bb_small_arm1_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
-     F_ARM1_STRICT, "#2a78d6"),
-    ("arm 3  (L_pred_moco + L_rep)",
-     "bb_small_arm3_split_pred_rep_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
-     F_ARM3_STRICT, "#eb6834"),
-    ("arm 4  (pooled + MoCo, floor pre-subtracted)",
-     "bb_small_arm4_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
-     F_ARM4_STRICT, "#008300"),
-    ("arm 5  (L_align + L_rep)",
-     "bb_small_arm5_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
-     F_ARM5_STRICT, "#8b1e8b"),
-    ("arm 6 v2  (L_align + L_rep_moco)",
-     "bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
-     F_ARM6_STRICT, "#b8860b"),
-    ("bimoco  (L_pred_moco + L_rep_moco)",
-     "bb_small_bimoco_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
-     F_BIMOCO_STRICT, "#00a3a3"),
-]
-
-INK, MUTED, GRID = "#0b0b0b", "#898781", "#e1e0d9"
+INK, MUTED, GRID, OTHER = "#0b0b0b", "#898781", "#e1e0d9", "#c9c7c0"
 plt.rcParams.update({
     "figure.dpi": 150, "savefig.dpi": 150, "font.size": 9,
     "axes.edgecolor": MUTED, "axes.labelcolor": INK,
     "xtick.color": INK, "ytick.color": INK,
 })
 
+# (recipe stem template, colour, flagged setting, panel label)
+GROUPS = [
+    ("bb_small_arm1{v}_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#2a78d6", "_combab", "arm1 combab  (copied)"),
+    ("bb_small_arm5{v}_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#8b1e8b", "_nse", "arm5 nse"),
+    ("bb_small_arm6_v2{v}_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
+     "#b8860b", "", "arm6_v2 base"),
+]
+SETTINGS = ["", "_tr1", "_nse", "_ncpc", "_combab"]
 
-def load(name: str) -> pd.DataFrame:
-    base = _curve(name)
-    df = pd.read_csv(base, usecols=["step", "loss"])
-    for suffix in ("_r2", "_r3"):
-        alt = _curve(name, suffix)
-        if alt.exists() and pd.read_csv(alt, usecols=["step"])["step"].max() > 10_000:
-            df = pd.concat([df, pd.read_csv(alt, usecols=["step", "loss"])], ignore_index=True)
-    return df.sort_values("step").reset_index(drop=True)
+
+def _stem(template: str, variant: str) -> str:
+    """Run stem for one cell, preferring this branch's teacher-target run."""
+    base = template.format(v=variant)
+    for cand in (f"{base}_alignteacher", base):
+        if (CURVES / f"{cand}_losses.csv").exists():
+            return cand
+    return base
 
 
-N = len(RUNS)
-COLS = 3
-ROWS = math.ceil(N / COLS)
-fig, axes = plt.subplots(ROWS, COLS, figsize=(4.6 * COLS, 3.4 * ROWS), sharex=False)
-axes = axes.flatten()
+def loss_curve(stem: str):
+    parts = []
+    for suffix in ("", "_r2", "_r3"):
+        p = CURVES / f"{stem}{suffix}_losses.csv"
+        if p.exists():
+            parts.append(pd.read_csv(p, usecols=["step", "loss"]))
+    if not parts:
+        return None
+    df = pd.concat(parts, ignore_index=True).sort_values("step")
+    return df[df["step"] >= 100].reset_index(drop=True)
 
-for ax, (label, name, floor, colour) in zip(axes, RUNS):
-    try:
-        df = load(name)
-    except FileNotFoundError:
-        ax.set_title(f"{label}\n(no losses.csv)")
-        continue
-    df = df[df["step"] >= 100]
-    y = df["loss"] - floor
-    y = y.clip(lower=1e-6)
-    ax.plot(df["step"], y, color=colour, lw=1.2)
-    ax.set_xscale("log")
-    ax.set_yscale("log")
-    ax.set_xlim(100, max(df["step"].max(), 200_000) * 1.05)
-    ax.set_title(
-        f"{label}\nstrict-min floor {floor:.3f}   final step {df['step'].max():,}",
-        fontsize=8.5)
-    ax.grid(True, color=GRID, alpha=0.6, which="both")
-    ax.set_xlabel("training step (log)")
-    ax.set_ylabel("loss − strict_min  (log)")
 
-for extra in axes[N:]:
-    extra.set_visible(False)
+def attn_curve(stem: str):
+    parts = []
+    for suffix in ("", "_r2", "_r3"):
+        p = ATTN / f"{stem}{suffix}_attn_amplitude.csv"
+        if p.exists():
+            parts.append(pd.read_csv(p, usecols=["step", "qk_logit_maxabs"]))
+    if not parts:
+        return None
+    df = pd.concat(parts, ignore_index=True)
+    return df.groupby("step", as_index=False)["qk_logit_maxabs"].mean()
 
-fig.suptitle(
-    "Per-arm training-loss deviation from the strict-min floor, log-log  "
-    f"(B = {B}, T = {T}, C = {C}, τ = {TAU}; y auto-scaled per arm)",
-    fontsize=10)
-fig.tight_layout(rect=(0, 0, 1, 0.97))
+
+fig, axes = plt.subplots(2, 3, figsize=(15, 7.4))
+
+for col, (template, colour, flagged, label) in enumerate(GROUPS):
+    ax_loss, ax_attn = axes[0][col], axes[1][col]
+    for variant in SETTINGS:
+        stem = _stem(template, variant)
+        hot = variant == flagged
+        style = dict(color=colour, lw=2.0, zorder=3) if hot else \
+            dict(color=OTHER, lw=1.0, zorder=1)
+        d = loss_curve(stem)
+        if d is not None and not d.empty:
+            ax_loss.plot(d["step"], d["loss"], **style)
+        a = attn_curve(stem)
+        if a is not None and not a.empty:
+            ax_attn.plot(a["step"], a["qk_logit_maxabs"], **style)
+    for ax in (ax_loss, ax_attn):
+        ax.set_xscale("log")
+        ax.grid(True, color=GRID, alpha=0.6, which="both")
+    ax_attn.set_yscale("log")
+    ax_loss.set_title(label, fontsize=10, color=colour)
+    ax_attn.set_xlabel("training step (log)")
+
+axes[0][0].set_ylabel("backbone training loss")
+axes[1][0].set_ylabel("mean qk logit magnitude (log)")
+
+fig.suptitle("Backbone loss and attention logit magnitude of the three "
+             "unusual cells (coloured), against the other settings of the "
+             "same recipe (grey)", fontsize=11)
+fig.tight_layout(rect=(0, 0, 1, 0.96))
 out = HERE / "per_run_loss.png"
 fig.savefig(out)
 print(f"wrote {out}")

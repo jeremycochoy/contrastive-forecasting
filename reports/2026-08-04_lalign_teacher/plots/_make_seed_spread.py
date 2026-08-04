@@ -31,7 +31,7 @@ with open(SRC, newline="") as fh:
     rows = list(csv.DictReader(fh))
 rows.sort(key=lambda r: -float(r["range"]))
 
-fig, ax = plt.subplots(figsize=(11, 3.6))
+fig, ax = plt.subplots(figsize=(13.5, 3.6))
 for y, r in enumerate(rows[::-1]):
     vals = [float(v) for v in r["values"].split()]
     ax.plot([min(vals), max(vals)], [y, y], color="#8b1e8b", lw=6, alpha=0.3,
@@ -40,9 +40,9 @@ for y, r in enumerate(rows[::-1]):
     n_want = next((p[2] for p in PENDING
                    if p[0] == r["arm_slug"]
                    and str(p[1]) == r["bb_steps"]), len(vals))
-    tag = "" if n_want == len(vals) else f"   ({len(vals)}/{n_want} seeds, 1 pending)"
+    tag = "" if n_want == len(vals) else f"  ({len(vals)}/{n_want} seeds)"
     ax.text(max(vals) + 0.012, y, f"range {float(r['range']):.4f}"
-            f"  ({float(r['range_rel']) * 100:.1f}%){tag}",
+            f"  ({float(r['range_rel']) * 100:.1f}% of the cell's lowest seed){tag}",
             va="center", fontsize=9)
 ax.set_yticks(range(len(rows)))
 ax.set_yticklabels([f"{r['arm_slug'].replace('_', ' ')}  "
@@ -53,7 +53,7 @@ ax.set_xlabel("Aggregate GM-Relative MASE, 97 GIFT-Eval B4 configs, "
 ax.set_title("Same frozen backbone, same head budget, different head seed",
              fontsize=11)
 ax.grid(True, axis="x", color=GRID, alpha=0.6)
-ax.set_xlim(1.13, 2.05)
+ax.set_xlim(1.13, 2.75)
 fig.tight_layout()
 out = HERE / "head_seed_spread.png"
 fig.savefig(out)

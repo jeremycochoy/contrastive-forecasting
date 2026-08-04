@@ -4,8 +4,8 @@ Includes the original 11 cells + the 12 new cells from the 2026-07-27 vast batch
 (plus arm3_ncpc/arm4_combab which finished only partial gift-eval on vast — those
 land under a red hatched bar to flag config coverage <97).
 
-Error bars: ±0.01 GM-Rel MASE = seed-noise band from the 2026-05-08 τ-sweep
-paired re-runs (LeJEPA sigreg-tau report annex F).
+No error bars: `results/seed_spread.csv` holds head-seed replicates for four
+cells, none of them at backbone 40k, so no measured spread exists at this step.
 
 Aggregate is read preferentially from the report-flat summary file
 `results/eval_gm_mase/<slug>_bb40k_hd15000s_summary.txt` (populated by the
@@ -51,7 +51,6 @@ ARMS = [
     ("bimoco ncpc",     "bimoco_ncpc",     "#00a3a3"),
     ("bimoco combab",   "bimoco_combab",   "#00a3a3"),
 ]
-SEED_NOISE = 0.01
 
 def read_agg(arm_slug):
     """Return (gm_rel_mase, n_configs) or (None, None) if missing.
@@ -88,10 +87,9 @@ ns = [r[3] for r in rows]
 hatches = ["///" if n < 97 else None for n in ns]
 
 YMAX = 1.75  # truncate — outliers >YMAX are marked with an arrow + value
-bars = ax.bar(xs, ys, color=cs, yerr=SEED_NOISE, capsize=6,
+bars = ax.bar(xs, ys, color=cs,
               edgecolor=[INK if n < 97 else c for n, c in zip(ns, cs)],
-              linewidth=[1.6 if n < 97 else 0.8 for n in ns],
-              error_kw={"ecolor": INK, "elinewidth": 1.2})
+              linewidth=[1.6 if n < 97 else 0.8 for n in ns])
 for bar, hatch in zip(bars, hatches):
     if hatch: bar.set_hatch(hatch)
 ax.axhline(1.0, color="#c04040", lw=1.2, linestyle="--",
@@ -107,15 +105,13 @@ ax.set_xticks(xs); ax.set_xticklabels(labs, rotation=45, ha="right")
 ax.set_ylabel("Aggregate GM-Relative MASE  (lower is better)")
 n_full = sum(1 for n in ns if n == 97)
 ax.set_title(
-    f"2L GM-Relative MASE at backbone step 40k, head 15k steps, GIFT-Eval B4  "
-    f"({n_full}/{len(rows)} cells full-97, hatched = partial)\n"
-    f"error bars: ±{SEED_NOISE} seed-noise band (from 2026-05-08 τ-sweep paired reruns)",
+    f"GM-Relative MASE at backbone step 40k, head 15k steps, GIFT-Eval B4  "
+    f"({n_full}/{len(rows)} cells full-97, hatched = partial)",
     fontsize=10)
 ax.grid(True, axis="y", color=GRID, alpha=0.6)
 ax.legend(loc="lower right", fontsize=9, frameon=False)
 if ys:
-    ymin = min(v for v in ys if v <= YMAX) - 3 * SEED_NOISE
-    ymin = min(ymin, 1.0 - 3 * SEED_NOISE)
+    ymin = min(min(v for v in ys if v <= YMAX), 1.0) - 0.03
     ax.set_ylim(ymin, YMAX)
 fig.tight_layout()
 out = HERE / "eval_2L_gm_mase_bars.png"

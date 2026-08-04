@@ -72,8 +72,7 @@ for y, arm in zip(ys, ARMS):
             f"{d:+.4f}", va="center",
             ha="right" if d < 0 else "left", fontsize=8)
 ax.axvline(0.0, color=INK, lw=1.0)
-ax.set_title("Controlled: teacher vs student, both trained on this branch\n"
-             "backbone 40k, head 15k, same seeds, same code",
+ax.set_title("Same branch, same seeds, same code — only the flag differs",
              fontsize=10)
 ax.set_xlabel("GM-Relative MASE(teacher) − GM-Relative MASE(student)\n"
               "negative = teacher target lower;  bars = 95% dataset-cluster "
@@ -93,9 +92,8 @@ for y, arm in zip(ys, ARMS):
     ax.text(d - 0.012 if d < 0 else d + 0.012, y, f"{d:+.4f}",
             va="center", ha="right" if d < 0 else "left", fontsize=8)
 ax.axvline(0.0, color=INK, lw=1.0)
-ax.set_title("Cross-experiment: teacher on this branch vs the earlier "
-             "sweep's student\nbackbone 40k, head 15k — flag and code "
-             "snapshot differ together", fontsize=10)
+ax.set_title("Against the earlier sweep — flag and code snapshot differ "
+             "together", fontsize=10)
 ax.set_xlabel("GM-Relative MASE(teacher) − GM-Relative MASE(earlier sweep)")
 ax.set_xlim(-0.36, 0.14)
 
@@ -105,9 +103,8 @@ for ax in axes:
     ax.grid(True, axis="x", color=GRID, alpha=0.6)
 axes[0].set_yticklabels([a.replace("_", " ") for a in ARMS])
 
-fig.suptitle("Every cell in both panels scores above 1.0 — every model here "
-             "is worse than seasonal naive; these bars are differences "
-             "between two losing models", fontsize=10, color=INK)
+fig.suptitle("Teacher − student GM-Relative MASE, backbone 40k",
+             fontsize=11, color=INK)
 fig.tight_layout(rect=(0, 0, 1, 0.94))
 out = HERE / "controlled_vs_cross_delta.png"
 fig.savefig(out)
