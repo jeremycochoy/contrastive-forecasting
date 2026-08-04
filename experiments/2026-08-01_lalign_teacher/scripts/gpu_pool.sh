@@ -29,10 +29,15 @@ set -uo pipefail
 
 declare -A POOL_RC=()
 
+# POOL_GPU_BASE shifts the pool onto a subset of the machine's GPUs, so a
+# second pool can run beside a job that already owns GPU 0
+# (POOL_GPU_BASE=1 POOL_N_GPUS=1 keeps everything on GPU 1). Default 0 —
+# every existing caller sees the GPUs it always did.
 pool_run() { # slots_per_gpu job_fn arm...
   local slots="$1" job="$2"; shift 2
   local arms=("$@")
   local n_gpus="${POOL_N_GPUS:-2}"
+  local gpu_base="${POOL_GPU_BASE:-0}"
   local rcdir="${POOL_RC_DIR:-$(mktemp -d)}"
   mkdir -p "$rcdir"
   local -A pid_arm=() pid_gpu=() gpu_used=()
@@ -65,7 +70,7 @@ pool_run() { # slots_per_gpu job_fn arm...
     while [ "$i" -lt "${#arms[@]}" ] && gpu="$(_pool_free_gpu)"; do
       arm="${arms[$i]}"
       rm -f "$rcdir/$arm.rc"
-      ( "$job" "$arm" "$gpu"; echo $? > "$rcdir/$arm.rc" ) & pid=$!
+      ( "$job" "$arm" "$(( gpu + gpu_base ))"; echo $? > "$rcdir/$arm.rc" ) & pid=$!
       pid_arm[$pid]="$arm"; pid_gpu[$pid]="$gpu"
       gpu_used[$gpu]=$(( gpu_used[$gpu] + 1 ))
       i=$(( i + 1 ))
