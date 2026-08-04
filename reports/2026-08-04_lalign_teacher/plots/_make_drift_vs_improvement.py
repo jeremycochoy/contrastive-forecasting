@@ -2,15 +2,16 @@
 
 Three panels, left to right:
 
-  1. `h_t` drift between adjacent checkpoints for the 5 cells that kept
-     improving to backbone 200k plus `arm6_v2 combab`, the lowest cell overall.
+  1. `h_t` drift between adjacent checkpoints for the cells whose
+     GM-Relative MASE fell from backbone 100k to 200k, plus `arm6_v2 combab`,
+     the lowest cell overall.
   2. The GM-Relative MASE of those same cells on the same log-step axis, so the
      two curves can be read against each other at a glance.
   3. The test the first two panels only suggest: mean `h_t` drift over the
      100k→200k stretch against the GM-MASE change over that same stretch, for
-     all 10 extended cells. Panels 1 and 2 show only cells selected for having
+     every extended cell. Panels 1 and 2 show only cells selected for having
      improved, which cannot answer whether drift separates improvers from the
-     rest; panel 3 includes the 5 that worsened, so it can.
+     rest; panel 3 includes the cells that worsened, so it can.
 
 Drift values come from `results/latent_movement_pairs.csv`.
 """
@@ -80,7 +81,9 @@ ax.axvspan(100_000, 200_000, color=MUTED, alpha=0.12, zorder=0)
 ax.set_xscale("log")
 ax.set_xlabel("training step of the later checkpoint (log)")
 ax.set_ylabel("1 − cos(h_prev, h_next)   (higher = more movement)")
-ax.set_title("1.  h_t drift between adjacent checkpoints\nshaded: the 100k→200k extension", fontsize=10.5)
+ax.set_title(f"1.  h_t drift between adjacent checkpoints\n"
+             f"the {len(focus)} of 8 extended cells that improved over 100k→200k;"
+             f"  shaded: the extension", fontsize=10.5)
 ax.grid(True, color=GRID, alpha=0.7)
 ax.legend(fontsize=8, frameon=False, loc="lower left")
 
@@ -97,8 +100,8 @@ ax.axvspan(100_000, 200_000, color=MUTED, alpha=0.12, zorder=0)
 ax.set_xscale("log")
 ax.set_xlabel("backbone step (log)")
 ax.set_ylabel("Aggregate GM-Relative MASE  (lower is better)")
-ax.set_title("2.  GM-Relative MASE, same cells, same axis\n"
-             "arm1 combab starts at 3.13, above the shown range", fontsize=10.5)
+ax.set_title(f"2.  GM-Relative MASE, the same {len(focus)} cells, same axis\n"
+             f"arm1 combab starts at 3.13, above the shown range", fontsize=10.5)
 ax.set_ylim(1.13, 1.85)
 ax.grid(True, color=GRID, alpha=0.7)
 

@@ -1,10 +1,10 @@
 # The EMA-teacher alignment target lowers 2 of 5 measured cells and leaves 3 inside head-seed noise
 
-Pointing `L_align` at the EMA teacher lowers 2 of the 5 measured cells by more than both their bootstrap interval and the largest measured head-seed range. It moves the other 3 by less than that range.
+Pointing `L_align` at the EMA teacher lowers 2 of the 5 measured cells, `arm5 base` and `arm5 ncpc`, by more than both their bootstrap interval and the largest measured head-seed range. It moves the other 3 by less than that range.
 
 ![Teacher minus student GM-Relative MASE, backbone 40k, two comparisons](plots/controlled_vs_cross_delta.png)
 
-*Left: the controlled comparison, where only `--align-target` differs. Right: the cross-experiment comparison, where the flag and the code snapshot differ together.*
+*Left: the controlled comparison, where only `--align-target` differs. Right: the cross-experiment comparison, where the flag and the code snapshot differ together. Whiskers on both panels are 95% dataset-cluster bootstrap intervals (`results/controlled_delta_40k.csv`, `results/eval_bootstrap_ci.csv`).*
 
 The earlier small-model sweep computed `L_align` against the student encoder under stop-gradient rather than against the EMA teacher it was meant to target, and the ten `L_align` cells here are that retrain, with the teacher. The metric is **GM-Relative MASE**, the geometric mean over 97 GIFT-Eval configs of `MASE(model) / MASE(seasonal_naive)`, where lower is better and 1.0 is parity.
 
@@ -49,7 +49,7 @@ Against the largest range in that figure, 8 of the 20 cross-experiment teacher-m
 
 ![GM-Relative MASE of the 8 cells extended to backbone 200k](plots/eval_2L_gm_mase_bars_200k.png)
 
-*The 8 cells extended past 100k, with their backbone-100k value marked.*
+*The 8 cells extended past 100k. Filled dot = backbone 200k, hollow = 100k, vertical whisker = measured head-seed range.*
 
 *Ranked by the 100k value. `⟲` marks a cell retrained with `--align-target teacher`; the other 20 carry no `L_align` term and are the earlier sweep's numbers, on the same seasonal-naive denominator. A dash means the cell was not extended. Values are head seed 20260722; `†` marks a cell with replicate seeds, given below the table.*
 
@@ -88,7 +88,7 @@ Against the largest range in that figure, 8 of the 20 cross-experiment teacher-m
 
 *† replicate head seeds (`results/seed_spread.csv`): `arm6_v2 base` @100k 1.8659 / 1.9057, mean 1.8858, range 0.0398 — the value shown is seed 20260722 of the two. `arm5 nse` @200k 1.7979 / 1.8655 / 1.8887, mean 1.8507, range 0.0908. `arm6_v2 combab` @200k mean 1.1851, range 0.0063. `arm6_v2 ncpc` @200k mean 1.3472, range 0.0252.*
 
-## 4. Which domains the lowest cells win
+## 4. Which domains the lowest cells win on
 
 ![Two radars of per-domain relative MASE](plots/eval_domain_radar.png)
 
@@ -141,7 +141,7 @@ Against the largest range in that figure, 8 of the 20 cross-experiment teacher-m
 
 ![Late h_t drift against the 100k to 200k change in GM-Relative MASE](plots/drift_vs_improvement.png)
 
-*Panel 1: `h_t` drift between adjacent checkpoints. Panel 2: GM-Relative MASE of the same cells on the same axis. Panel 3: mean late drift against the 100k→200k change, all 8 extended cells (`results/latent_movement_pairs.csv`, 250 pairs over the 30 arms).*
+*Panels 1 and 2: `h_t` drift between adjacent checkpoints, and GM-Relative MASE on the same axis, for the 5 of the 8 extended cells whose GM-Relative MASE fell from 100k to 200k (`arm6_v2 combab`, `arm1 nse`, `bimoco base`, `arm1 ncpc`, `arm1 combab`). Panel 3: mean late drift against the 100k→200k change, all 8 extended cells (`results/latent_movement_pairs.csv`, 250 pairs over the 30 arms).*
 
 Panel 3 gives Spearman ρ = −0.33 on n = 8 cells at p = 0.42, so late drift does not separate the improvers at this sample size.
 
@@ -154,11 +154,11 @@ Panel 3 gives Spearman ρ = −0.33 on n = 8 cells at p = 0.42, so late drift do
 | `tr1` | 1/6 (arm5) | 0.219 | 2/6 | 0.688 |
 | `combab` | 1/6 (arm5) | 0.219 | 4/6 | 0.688 |
 
-## 7. Where the three unusual cells come from
+## 7. Where the highest cell at each backbone step comes from
 
-![Backbone loss and attention logit magnitude of the three unusual cells](plots/per_run_loss.png)
+![Backbone loss and attention logit magnitude of the highest cell at each backbone step](plots/per_run_loss.png)
 
-*The flagged run in colour, the other four settings of the same recipe in grey (`results/training_curves/`, `results/attn_amplitude/`).*
+*The three cells below are selected by one rule: the highest GM-Relative MASE of the field at backbone 40k, at 100k and at 200k (`results/gm_relative_mase.csv`). The selected run in colour, the other four settings of the same recipe in grey (`results/training_curves/`, `results/attn_amplitude/`).*
 
 *Each loss value is the mean over the first, or the last, 5% of the logged steps of that window, not the value at a single step (`results/anomaly_windows.csv`). **Rise-from-minimum** is the run's final loss minus the lowest loss it ever recorded. **Peak qk logit** is `qk_logit_maxabs`, the peak absolute pre-softmax attention logit, logged every 200 steps and averaged over the encoder layers. Rank 1 = lowest of the 40 backbones. No non-finite loss or gap appears in any of the 40 (`results/anomaly_inspection.csv`).*
 

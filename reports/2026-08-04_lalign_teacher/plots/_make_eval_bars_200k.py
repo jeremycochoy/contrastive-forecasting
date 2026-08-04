@@ -50,38 +50,42 @@ for x, v, slug in zip(xs, ys, slugs):
     else:
         n_rep += 1
         err_lo.append(v - lo_hi[0]); err_hi.append(lo_hi[1] - v)
-ax.bar(xs, ys, color=colours, yerr=[err_lo, err_hi], capsize=6, width=0.62,
-       error_kw={"ecolor": INK, "elinewidth": 1.2})
-# Where the cell sat at 100k, so each bar shows what the extension did.
-ax.scatter(xs, prev, marker="_", s=420, color=INK, linewidths=1.8, zorder=4,
-           label="value at backbone 100k")
+# Dot and range, not bars: the values span 1.18-1.89 on a metric whose
+# reference is 1.0, so a bar drawn from zero would compress every difference.
+ax.vlines(xs, [min(v, p) for v, p in zip(ys, prev)],
+          [max(v, p) for v, p in zip(ys, prev)], color=GRID, lw=2.4, zorder=1)
+for x, v, lo, hi in zip(xs, ys, err_lo, err_hi):
+    if lo or hi:
+        ax.plot([x, x], [v - lo, v + hi], color=INK, lw=1.3, zorder=3,
+                solid_capstyle="butt")
+        for e in (v - lo, v + hi):
+            ax.plot([x - 0.12, x + 0.12], [e, e], color=INK, lw=1.3, zorder=3)
+ax.scatter(xs, prev, marker="o", s=52, facecolor="white", edgecolor=MUTED,
+           linewidths=1.4, zorder=4, label="backbone 100k")
+ax.scatter(xs, ys, marker="o", s=95, color=colours, zorder=5,
+           label="backbone 200k")
 
-for x, v, p, e_hi in zip(xs, ys, prev, err_hi):
-    # Value inside the bar, change above whichever of the two marks is higher,
-    # so neither collides with the bar fill or the 100k tick.
-    # When the cell worsened the 100k tick sits inside the bar, so drop the
-    # value label below it rather than printing the two on top of each other.
-    v_y = (min(v, p) - 0.012) if p < v else (v - 0.012)
-    ax.text(x, v_y, f"{v:.4f}", ha="center", va="top", fontsize=8.5,
-            color="white", weight="bold")
-    d = v - p
-    # Clear the error-bar cap as well as the bar top, else the cap strikes
-    # through the change label on cells that carry replicate seeds.
-    ax.text(x, max(v + e_hi, p) + 0.018, f"{d:+.3f}", ha="center", va="bottom",
-            fontsize=8.5, color="#2e8b57" if d < 0 else "#c04040", weight="bold")
+for x, v, p_, e_lo, e_hi in zip(xs, ys, prev, err_lo, err_hi):
+    ax.text(x + 0.16, v, f"{v:.4f}", ha="left", va="center", fontsize=8.5,
+            color=INK)
+    d = v - p_
+    ax.text(x, max(v + e_hi, p_) + 0.022, f"{d:+.3f}", ha="center",
+            va="bottom", fontsize=8.5,
+            color="#2e8b57" if d < 0 else "#c04040", weight="bold")
 
 ax.set_xticks(xs)
 ax.set_xticklabels(labels, rotation=45, ha="right")
 ax.set_ylabel("Aggregate GM-Relative MASE  (lower is better)")
 ax.grid(True, axis="y", color=GRID, alpha=0.6)
-ax.set_ylim(min(min(ys), min(prev)) - 0.06,
-            max(max(y + e for y, e in zip(ys, err_hi)), max(prev)) + 0.075)
+ax.axhline(1.0, color=MUTED, ls="--", lw=1.0, zorder=0)
+ax.set_ylim(0.96, max(max(y + e for y, e in zip(ys, err_hi)), max(prev)) + 0.09)
 ax.legend(loc="upper left", fontsize=9, frameon=False)
 n_down = sum(1 for v, p, _a, _v in rows if v < p)
 ax.set_title(
     f"GM-Relative MASE at backbone step 200k, head 30k steps, GIFT-Eval B4\n"
-    f"{len(rows)} cells; error bars = measured head-seed range "
-    f"({n_rep} of {len(rows)} cells have replicate seeds)",
+    f"{len(rows)} cells; filled = 200k, hollow = 100k; vertical range = measured "
+    f"head-seed range ({n_rep} of {len(rows)} cells have replicate seeds); "
+    f"dashed = seasonal-naive parity",
     fontsize=10.5)
 fig.tight_layout()
 out = HERE / "eval_2L_gm_mase_bars_200k.png"

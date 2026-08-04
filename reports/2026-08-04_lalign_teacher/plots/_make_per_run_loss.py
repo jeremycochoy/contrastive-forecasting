@@ -1,4 +1,5 @@
-"""The three unusual cells against their recipe-mates.
+"""The highest GM-Relative MASE cell at each backbone step, against its
+recipe-mates.
 
 Top row: backbone training loss, log step axis. The flagged run is drawn in
 its recipe colour, every other setting of the same recipe in grey, so the
@@ -31,11 +32,11 @@ plt.rcParams.update({
 # (recipe stem template, colour, flagged setting, panel label)
 GROUPS = [
     ("bb_small_arm1{v}_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
-     "#2a78d6", "_combab", "arm1 combab  (copied)"),
+     "#2a78d6", "_combab", "arm1 combab  (highest at bb 40k)"),
     ("bb_small_arm5{v}_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
-     "#8b1e8b", "_nse", "arm5 nse"),
+     "#8b1e8b", "_nse", "arm5 nse  (highest at bb 200k)"),
     ("bb_small_arm6_v2{v}_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090",
-     "#b8860b", "", "arm6_v2 base"),
+     "#b8860b", "", "arm6_v2 base  (highest at bb 100k)"),
 ]
 SETTINGS = ["", "_tr1", "_nse", "_ncpc", "_combab"]
 
@@ -57,8 +58,9 @@ def loss_curve(stem: str):
             parts.append(pd.read_csv(p, usecols=["step", "loss"]))
     if not parts:
         return None
-    df = pd.concat(parts, ignore_index=True).sort_values("step")
-    return df[df["step"] >= 100].reset_index(drop=True)
+    # No step floor: the report's window table reads the mean of the first 34
+    # logged steps, so the figure must start at the first logged step too.
+    return pd.concat(parts, ignore_index=True).sort_values("step").reset_index(drop=True)
 
 
 def attn_curve(stem: str):
@@ -98,9 +100,9 @@ for col, (template, colour, flagged, label) in enumerate(GROUPS):
 axes[0][0].set_ylabel("backbone training loss")
 axes[1][0].set_ylabel("mean qk logit magnitude (log)")
 
-fig.suptitle("Backbone loss and attention logit magnitude of the three "
-             "unusual cells (coloured), against the other settings of the "
-             "same recipe (grey)", fontsize=11)
+fig.suptitle("Backbone loss and attention logit magnitude of the highest "
+             "GM-Relative MASE cell at each backbone step (coloured), against "
+             "the other settings of the same recipe (grey)", fontsize=11)
 fig.tight_layout(rect=(0, 0, 1, 0.96))
 out = HERE / "per_run_loss.png"
 fig.savefig(out)
