@@ -51,8 +51,6 @@ Of the 20 cross-experiment differences in section 5, 8 exceed the largest head-s
 
 *The 8 cells extended past 100k. Filled dot = backbone 200k, hollow = 100k, vertical whisker = measured head-seed range, on the 3 of 8 cells that carry replicate seeds.*
 
-*Ranked by the 100k value. `⟲` marks a cell retrained with `--align-target teacher`; the other 20 carry no `L_align` term and are the earlier sweep's numbers, on the same seasonal-naive denominator. A dash means the cell was not extended. Values are head seed 20260722; `†` marks a cell with replicate seeds, given below the table.*
-
 | Rank @100k | Cell | bb 40k (head 15k) | bb 100k (head 30k) | 40k→100k | bb 200k (head 30k) | 100k→200k |
 |---|---|---|---|---|---|---|
 | 1 | `arm6_v2 combab` ⟲ | 1.2765 | 1.2514 | −0.0251 | 1.1850 † | −0.0664 |
@@ -86,7 +84,7 @@ Of the 20 cross-experiment differences in section 5, 8 exceed the largest head-s
 | 29 | `arm1 combab` | 3.1251 | 1.7595 | −1.3656 | 1.7107 | −0.0488 |
 | 30 | `arm6_v2 base` ⟲ | 1.4322 | 1.9057 † | +0.4735 | — | — |
 
-*† replicate head seeds (`results/seed_spread.csv`): `arm6_v2 base` @100k 1.8659 / 1.9057, mean 1.8858, range 0.0398 — the value shown is seed 20260722 of the two. `arm5 nse` @200k 1.7979 / 1.8655 / 1.8887, mean 1.8507, range 0.0908. `arm6_v2 combab` @200k mean 1.1851, range 0.0063. `arm6_v2 ncpc` @200k mean 1.3472, range 0.0252.*
+*Ranked by the 100k value. `⟲` marks a cell retrained with `--align-target teacher`; the other 20 carry no `L_align` term and are the earlier sweep's numbers, on the same seasonal-naive denominator. A dash means the cell was not extended. Values are head seed 20260722. † replicate head seeds (`results/seed_spread.csv`): `arm6_v2 base` @100k 1.8659 / 1.9057, mean 1.8858, range 0.0398 — the value shown is seed 20260722 of the two. `arm5 nse` @200k 1.7979 / 1.8655 / 1.8887, mean 1.8507, range 0.0908. `arm6_v2 combab` @200k mean 1.1851, range 0.0063. `arm6_v2 ncpc` @200k mean 1.3472, range 0.0252.*
 
 ## 4. Which domains the lowest cells win on
 
@@ -109,6 +107,8 @@ Of the 20 cross-experiment differences in section 5, 8 exceed the largest head-s
 *Configs per domain in brackets. Bold = below 1.0. Source: `results/eval_gm_mase/<cell>_bb200k_hd30000s/all_results.csv`.*
 
 ## 5. The retrained cells against the earlier sweep
+
+Across the ten cells the direction is 6 lower at 40k and 4 lower at 100k, sign test p = 0.75 at both steps (`results/eval_paired_tests.csv`).
 
 | Cell | bb steps | teacher | earlier sweep | ratio | CI 95% lo | CI 95% hi | CI excludes 1 |
 |---|---|---|---|---|---|---|---|
@@ -133,7 +133,7 @@ Of the 20 cross-experiment differences in section 5, 8 exceed the largest head-s
 | `arm6_v2 ncpc` | 100k | 1.3012 | 1.2978 | 1.0027 | 0.9672 | 1.0452 | no |
 | `arm6_v2 combab` | 100k | 1.2514 | 1.1616 | 1.0773 | 1.0439 | 1.1254 | yes |
 
-*This comparison moves the flag and the code snapshot together, so it does not attribute a difference to the flag; section 1 is the one that does. Ratio = teacher ÷ earlier sweep, below 1.0 means the teacher run scored lower. Intervals are dataset-level paired cluster bootstraps, 10 000 resamples (`results/eval_bootstrap_ci.csv`). Across the ten cells the direction is 6 lower at 40k and 4 lower at 100k, sign test p = 0.75 at both steps (`results/eval_paired_tests.csv`).*
+*This comparison moves the flag and the code snapshot together, so it does not attribute a difference to the flag; section 1 is the one that does. Ratio = teacher ÷ earlier sweep, below 1.0 means the teacher run scored lower. Intervals are dataset-level paired cluster bootstraps, 10 000 resamples (`results/eval_bootstrap_ci.csv`).*
 
 ## 6. Does latent movement track the improvement
 
@@ -230,9 +230,9 @@ Quantile head, trained on the frozen backbone, `--grad-clip 1.0` at every horizo
 
 ![1 − ff against training step, one panel per setting](plots/cos_error_per_arm.png)
 
-*`1 − ff`, the cosine distance between the forecaster's next-step output and the encoder's next-step latent, per training step (`results/training_curves/`). Per-panel y-scale.*
+*`1 − ff`, the cosine distance between the forecaster's next-step output and the encoder's next-step latent, per training step (`results/training_curves/`). Shared y-scale across panels.*
 
-![u_batchtime against training step, one panel per recipe](plots/dim_usage_per_arm.png)
+![u_batchtime against training step, one panel per cell](plots/dim_usage_per_arm.png)
 
 *`u_batchtime` on `h_t`, the dimension-usage measure defined above, per training step (`results/training_curves/`). Per-panel y-scale.*
 
