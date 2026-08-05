@@ -1,12 +1,12 @@
 # The EMA-teacher alignment target moves individual cells in both directions and does not move the set of 10 either way
 
-Over the ten cells the mean shift is not separable from zero: −0.0192 at head seed 20260722 (sign test p = 0.75, Wilcoxon p = 0.70), −0.0140 when the two replicated cells contribute their three-seed mean instead (p = 0.75 and 0.77). Individual cells move in both directions, seven past their eval-sampling interval. On `arm5 base`, three head seeds put the delta at −0.0986, −0.0482 and +0.0174: the sign changes.
+Over the ten cells the mean shift is not separable from zero: −0.0192 at head seed 20260722 (sign test p = 0.75, Wilcoxon p = 0.70), −0.0140 when the two replicated cells contribute their three-seed mean instead (p = 0.75 and 0.77). Two cells carry three head seeds, and they invert the single-seed reading: the large delta on `arm5 base` runs −0.0986 / −0.0482 / +0.0174 and changes sign, while the small one on `arm5 combab` runs −0.0140 / −0.0133 / −0.0230 and stays negative.
 
 ![Teacher minus student GM-Relative MASE at backbone 40k](plots/controlled_vs_cross_delta.png)
 
 *Teacher minus student GM-Relative MASE at backbone 40k: controlled (left), cross-experiment (right).*
 
-The right panel moves the flag and the code snapshot together, so only the left panel attributes a difference to the flag.
+The right panel moves the flag and the code snapshot together, so only the left panel attributes a difference to the flag. Seven of the ten left-panel intervals exclude zero; those intervals cover eval sampling alone, not the head retraining that section 2 measures.
 
 ![GM-Relative MASE of all 30 cells at backbone 40k, seasonal-naive parity dashed](plots/eval_2L_gm_mase_bars.png)
 
@@ -45,7 +45,7 @@ Nine rows share their backbone trace with the earlier sweep step for step (`resu
 
 *Eight frozen backbones, every cell in this report carrying replicate head seeds (`results/seed_spread.csv`). Teal = backbone 40k, both sides of the controlled comparison.*
 
-Each controlled delta is therefore judged against its own cell. `arm5 combab`'s difference stays negative across its three head seeds and exceeds the 0.0097 it moves across them; `arm5 base`'s moves 0.1160 and changes sign. The other eight controlled cells ran one head seed each, so they have no measured spread and get no bar.
+The four backbone-40k rows span 0.0018 to 0.0747, a factor of 42, so each controlled delta is judged against its own cell and no single number gates the set. `arm5 combab`'s difference stays negative across its three head seeds and exceeds the 0.0097 it moves across them; `arm5 base`'s moves 0.1160 and changes sign. The other eight controlled cells ran one head seed each, so they have no measured spread and get no bar.
 
 ## 3. Across backbone horizons
 
@@ -248,7 +248,7 @@ No non-finite loss or gap appears in any of the 40 backbones; `arm1 combab` neve
 
 - **GM-Relative MASE** — geometric mean over 97 GIFT-Eval configs of `MASE(model) / MASE(seasonal_naive)`, official GIFT-Eval **B4 strategy** (single-window in-context prediction, backbone context length matching the config's expected horizon), forecast horizon 16. Lower is better; above 1.0 means seasonal naive wins on that geometric average. All 30 cells share one seasonal-naive denominator file, byte-identical to the earlier sweep's, so all of them sit on one scale.
 - **95% dataset-cluster bootstrap** — the one interval used everywhere in this report: a dataset-level paired cluster bootstrap over the 28 base datasets, 10 000 resamples (`experiments/2026-08-01_lalign_teacher/scripts/controlled_delta.py`). It covers eval sampling only, conditional on the two trained models. The interval is computed on the ratio of the two GM-Relative MASE values; the whiskers in the delta figures are `(bound − 1) ×` the reference cell's GM-Relative MASE, which is what "rescaled" means in those figures.
-- **Head-seed range** — the spread of a cell's GM-Relative MASE when the quantile head is retrained on the frozen backbone under extra seeds, changing its init and its data order, with the full 97-config eval re-run each time. It covers head retraining, which the bootstrap interval does not. **It is a property of one cell.** The eight cells measured here range from 0.0018 to 0.0908, so a range read off one cell says nothing about another; `results/seed_spread.csv` therefore keys on arm, backbone step, align target and code snapshot, never merging a teacher cell with a student cell. Two of the ten controlled cells carry it; the other eight ran one head seed and have no measured spread.
+- **Head-seed range** — the spread of a cell's GM-Relative MASE when the quantile head is retrained on the frozen backbone under extra seeds, changing its init and its data order, with the full 97-config eval re-run each time. It covers head retraining, which the bootstrap interval does not. **It is a property of one cell.** The eight frozen backbones measured here range from 0.0018 to 0.0908, and the four measured at backbone 40k with a 15 000-step head, where every controlled delta sits, range from 0.0018 to 0.0747. A range read off one cell says nothing about another, and the 0.0908 comes from a backbone-200k cell with a 30 000-step head, so it does not gate a 40k delta; `results/seed_spread.csv` therefore keys on arm, backbone step, align target and code snapshot, never merging a teacher cell with a student cell. Two of the ten controlled cells carry it; the other eight ran one head seed and have no measured spread.
 - **`h_t`, `e_t`** — the encoder-output latent and the patch-embedding latent, shape `[B, T, C, H]`.
 - **`ff`** — mean `cos(f̂, h_{t+1})` between the forecaster's next-step prediction and the encoder's next-step latent, unit-normalised. `1 − ff` is a cosine distance in [0, 2]; smaller = closer forecast.
 - **Latent drift** at checkpoint pair `(step_i, step_j)` — `mean_{b,t,c} 1 − cos(h_t(model_j), h_t(model_i))` on a fixed held-out batch (`torch.manual_seed(20260722)`, `B=8`, `T=4096`, `C=1`, ARMA-synthetic), and the same for `e_t`. A setting counts as *lower* than base when its mean drift over adjacent-checkpoint pairs falls below the base setting of the same recipe; the section-6 denominator is the six recipes and the p is a two-sided exact binomial test.
