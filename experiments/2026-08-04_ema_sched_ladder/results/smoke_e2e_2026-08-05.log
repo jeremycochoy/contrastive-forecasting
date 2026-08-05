@@ -1,0 +1,22 @@
+=== #393 smoke — work dir /tmp/cf393_smoke.tftE5t ===
+[1/4] backbone: 6 steps, --ema-tau-ramp-steps 30
+  PASS  checkpoint saved (3.3M)
+  PASS  α follows the anchor: step 1 -> 0.903333, step 6 -> 0.920000 (budget-relative would be 1.000000)
+[2/4] resumed leg: 6 -> 12 steps, same ramp
+  PASS  resumed leg exited clean
+  PASS  optimizer state restored
+  PASS  steps 7..12 are global, α continuous across the seam: 0.920000 -> 0.923333
+  PASS  the stop's checkpoint kept its name under a fresh save dir
+[3/4] head: --encoder-source student
+  PASS  trained, log says encoder=student
+  PASS  marker next to the checkpoint reads 'student'
+[3/4] head: --encoder-source teacher
+  PASS  trained, log says encoder=teacher
+  PASS  marker next to the checkpoint reads 'teacher'
+  PASS  the heads differ — student 0.4205..0.3847, teacher 0.4189..0.3813
+[4/4] eval: teacher head through the STUDENT encoder (must refuse)
+  PASS  refused (rc=1): was trained on the teacher encoder but --encoder-source is student. A ...
+[4/4] eval: teacher head through the TEACHER encoder (must run)
+  PASS  ran on the teacher: Aggregate GM-Relative MASE (1 configs): 0.9228
+
+=== SMOKE PASSED — logs under /tmp/cf393_smoke.tftE5t ===
