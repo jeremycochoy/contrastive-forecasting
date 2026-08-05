@@ -28,3 +28,10 @@
 [18:33:53] arm6_v2_nse_alignS bb100k enc=teacher head=30000s
 [19:56:08] head-train rc=0
 [19:56:08] eval place=local_cpu
+[21:27:19] eval_local rc=0
+[21:27:19] DONE — Aggregate GM-Relative MASE (97 configs): 1.3770 -> 1.3770
+[ladder] arm6_v2_nse_alignS @100000: {'student': 1.3572, 'teacher': 1.377} -> {'extend': False, 'heads': ('student', 'teacher'), 'branch': 'none_down'}
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm4_combab 40000
+[08-05 21:27:19] [arm4_combab] FRESH start at step 0
+[08-05 21:27:19] [arm4_combab] CLAIM: arm4_combab belongs to 'vastF', this machine is 'elisa' — refusing
+[ladder] arm4_combab: run_leg.sh rc=10 at 40000
