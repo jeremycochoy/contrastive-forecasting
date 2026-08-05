@@ -14,3 +14,6 @@
 [06:49:06] DONE — Aggregate GM-Relative MASE (97 configs): 1.3334 -> 1.3334
 [ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm5_combab_alignT 40000 teacher 15000 /root/cf393_runs/arm5_combab_alignT/eval/score_bb40k_teacher.txt
 [06:49:06] arm5_combab_alignT bb40k enc=teacher head=15000s
+[07:24:48] head-train rc=0
+[07:24:48] eval place=broker
+[07:24:48] request written, waiting for the broker

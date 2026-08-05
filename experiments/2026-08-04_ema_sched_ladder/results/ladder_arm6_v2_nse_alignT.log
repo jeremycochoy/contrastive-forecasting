@@ -14,3 +14,6 @@
 [06:46:39] DONE — Aggregate GM-Relative MASE (97 configs): 1.4238 -> 1.4238
 [ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm6_v2_nse_alignT 40000 teacher 15000 /root/cf393_runs/arm6_v2_nse_alignT/eval/score_bb40k_teacher.txt
 [06:46:39] arm6_v2_nse_alignT bb40k enc=teacher head=15000s
+[07:21:49] head-train rc=0
+[07:21:49] eval place=broker
+[07:21:49] request written, waiting for the broker
