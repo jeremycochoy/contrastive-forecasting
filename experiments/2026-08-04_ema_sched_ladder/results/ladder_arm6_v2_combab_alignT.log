@@ -28,3 +28,6 @@
 [20:36:58] arm6_v2_combab_alignT bb100k enc=teacher head=30000s
 [21:44:25] head-train rc=0
 [21:44:25] eval place=local_cpu
+[23:11:20] eval_local rc=0
+[23:11:20] DONE — Aggregate GM-Relative MASE (97 configs): 1.1963 -> 1.1963
+[ladder] arm6_v2_combab_alignT @100000: {'student': 1.1921, 'teacher': 1.1963} -> {'extend': False, 'heads': ('student', 'teacher'), 'branch': 'none_down'}
