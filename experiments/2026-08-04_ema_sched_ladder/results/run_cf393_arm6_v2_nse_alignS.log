@@ -624,3 +624,12 @@ Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, 
 [  35400] loss=4.8670  ema_loss=5.0719  gap=0.6231  ema_gap=0.6066  mixup=58/200  5.0 sps  ETA 0.3h  cpc=0.0392
               R²_rand=0.6792  R²_naive=0.6717  U_t=0.3651  U_b=0.5017  AUC=1.0000  Top1=0.9970
   timing: data=3.4ms  fwd=111.2ms  bwd=66.1ms  total=181.4ms
+[  35600] loss=4.9093  ema_loss=5.0464  gap=0.6031  ema_gap=0.6073  mixup=63/200  5.0 sps  ETA 0.2h  cpc=0.0319
+              R²_rand=0.6737  R²_naive=0.6663  U_t=0.3716  U_b=0.4987  AUC=1.0000  Top1=0.9970
+  timing: data=3.7ms  fwd=112.7ms  bwd=65.1ms  total=182.1ms
+[  35800] loss=4.9833  ema_loss=5.0657  gap=0.6177  ema_gap=0.6066  mixup=61/200  5.0 sps  ETA 0.2h  cpc=0.0637
+              R²_rand=0.6792  R²_naive=0.6646  U_t=0.3500  U_b=0.4923  AUC=1.0000  Top1=0.9978
+  timing: data=18.2ms  fwd=112.1ms  bwd=68.2ms  total=199.2ms
+[  36000] loss=4.9877  ema_loss=5.0649  gap=0.6075  ema_gap=0.6056  mixup=51/200  5.0 sps  ETA 0.2h  cpc=0.0433
+              R²_rand=0.6809  R²_naive=0.6644  U_t=0.3535  U_b=0.5018  AUC=1.0000  Top1=0.9970
+  timing: data=3.2ms  fwd=111.8ms  bwd=68.6ms  total=184.3ms
