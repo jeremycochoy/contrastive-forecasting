@@ -56,11 +56,12 @@ same command line, all 97 configs:
 
 The first two rows differ only in the code they ran on, and they are 0.0977
 apart. The teacher-vs-earlier-sweep delta of -0.1963 is therefore not a measurement
-of the flag: inside one snapshot the flag is worth -0.0986 on this cell,
-about half of it.
+of the flag. On this one cell, inside one snapshot, the flag moves -0.0986;
+over the ten controlled cells the mean is -0.0192 with sign test p = 0.75, so
+the arm5 number is a cell, not a value of the flag.
 
 All ten cells now carry that check. Nine reproduce the earlier sweep within
-0.0002 — four of them bit-identical across all 97 configs, five agreeing to
+0.0002 — five of them bit-identical across all 97 configs, four agreeing to
 at worst 0.000157 in the aggregate. arm5 base is the only one that does not,
 and it moves 0.09773. `snapshot_reproduction_40k.csv` holds the ten rows.
 

@@ -78,6 +78,19 @@ for y, arm in zip(ys, ARMS):
             f"{d:+.4f}", va="center",
             ha="right" if d < 0 else "left", fontsize=8)
 ax.axvline(0.0, color=INK, lw=1.0)
+
+# Aggregate over the ten cells: mean delta, and the two paired tests on it.
+agg = next(r for r in load(RESULTS / "controlled_paired_tests_40k.csv")
+           if r["comparison"] == "controlled" and r["bb_steps"] == "40000")
+mean_d = float(agg["mean_delta"])
+ax.axvline(mean_d, color=INK, lw=1.2, ls="--")
+ax.text(-0.35, len(ARMS) - 0.35,
+        f"dashed line = mean over the 10 cells, {mean_d:+.4f}\n"
+        f"sign test p = {float(agg['sign_test_p']):.2f},  "
+        f"Wilcoxon p = {float(agg['wilcoxon_p']):.2f}",
+        ha="left", va="bottom", fontsize=8, color=INK)
+ax.set_ylim(-0.6, len(ARMS) + 0.9)
+
 ax.set_title("Same branch, same seeds, same code — only the flag differs",
              fontsize=10)
 ax.set_xlabel("GM-Relative MASE(teacher) − GM-Relative MASE(student)\n"
