@@ -1509,3 +1509,31 @@ Retrying in 1s [Retry 1/5].
 [  98400] loss=12.4318  ema_loss=12.5246  gap=0.2180  ema_gap=0.1050  mixup=58/200  3.5 sps  ETA 0.1h
               R²_rand=0.5831  R²_naive=0.4678  U_t=0.2166  U_b=0.4066  AUC=0.9693  Top1=0.3932
   timing: data=4.7ms  fwd=119.8ms  bwd=87.3ms  total=212.5ms
+[  98600] loss=12.5959  ema_loss=12.5336  gap=0.0861  ema_gap=0.1028  mixup=64/200  3.5 sps  ETA 0.1h
+              R²_rand=0.5049  R²_naive=0.3523  U_t=0.2655  U_b=0.4213  AUC=0.9558  Top1=0.2567
+  timing: data=4.4ms  fwd=119.3ms  bwd=85.7ms  total=210.2ms
+[  98800] loss=12.5662  ema_loss=12.5284  gap=0.0945  ema_gap=0.0988  mixup=63/200  3.5 sps  ETA 0.1h
+              R²_rand=0.5032  R²_naive=0.3729  U_t=0.2539  U_b=0.4209  AUC=0.9596  Top1=0.3156
+  timing: data=78.1ms  fwd=115.9ms  bwd=83.1ms  total=277.7ms
+[  99000] loss=12.6100  ema_loss=12.5209  gap=0.0644  ema_gap=0.1055  mixup=49/200  3.5 sps  ETA 0.1h
+              R²_rand=0.4873  R²_naive=0.3470  U_t=0.2715  U_b=0.3922  AUC=0.9521  Top1=0.2790
+  timing: data=4.1ms  fwd=123.6ms  bwd=86.4ms  total=214.9ms
+[  99200] loss=12.4819  ema_loss=12.5198  gap=0.1557  ema_gap=0.1057  mixup=60/200  3.5 sps  ETA 0.1h
+              R²_rand=0.5600  R²_naive=0.4262  U_t=0.2513  U_b=0.4125  AUC=0.9686  Top1=0.4155
+  timing: data=4.3ms  fwd=121.6ms  bwd=85.1ms  total=211.8ms
+[  99400] loss=12.6879  ema_loss=12.5277  gap=0.0782  ema_gap=0.1046  mixup=61/200  3.5 sps  ETA 0.0h
+              R²_rand=0.4473  R²_naive=0.3314  U_t=0.3076  U_b=0.3175  AUC=0.9332  Top1=0.2174
+  timing: data=90.9ms  fwd=120.0ms  bwd=83.1ms  total=294.8ms
+[  99600] loss=12.4933  ema_loss=12.5262  gap=0.0727  ema_gap=0.1016  mixup=65/200  3.5 sps  ETA 0.0h
+              R²_rand=0.5519  R²_naive=0.3498  U_t=0.2416  U_b=0.4150  AUC=0.9650  Top1=0.3096
+  timing: data=3.9ms  fwd=122.4ms  bwd=86.0ms  total=213.1ms
+[  99800] loss=12.5001  ema_loss=12.5273  gap=0.1568  ema_gap=0.1042  mixup=60/200  3.5 sps  ETA 0.0h
+              R²_rand=0.5512  R²_naive=0.4202  U_t=0.2432  U_b=0.3943  AUC=0.9586  Top1=0.3186
+  timing: data=3.9ms  fwd=119.0ms  bwd=83.8ms  total=207.5ms
+[ 100000] loss=12.5658  ema_loss=12.5257  gap=0.1497  ema_gap=0.1079  mixup=45/200  3.5 sps  ETA 0.0h
+              R²_rand=0.4902  R²_naive=0.4005  U_t=0.2805  U_b=0.4070  AUC=0.9578  Top1=0.3099
+  timing: data=100.4ms  fwd=118.3ms  bwd=84.3ms  total=303.8ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-393/arm6_v2_combab_alignS/leg_100k/cf393_arm6_v2_combab_alignS_100k.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-393/arm6_v2_combab_alignS/leg_100k/cf393_arm6_v2_combab_alignS_final.pth
+
+Done in 4.7h. Best gap=0.1391 at step 1400, Best loss=12.4372 at step 400

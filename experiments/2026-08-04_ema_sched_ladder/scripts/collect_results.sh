@@ -77,24 +77,9 @@ while [ $# -ge 3 ]; do
 done
 
 # --- the union -----------------------------------------------------------
-# Header from whichever file has one; rows from all of them, deduplicated.
-# Sorting is by cell then stop then head, so the file reads as the ladder
-# rather than as the order three machines happened to finish in.
-merge(){  # <basename>
-  local out="$RES/${1}_all.csv" hdr="" first=1
-  : > "$out.tmp"
-  for f in "$RES/per_machine/${1}_"*.csv; do
-    [ -f "$f" ] || continue
-    [ $first -eq 1 ] && { hdr=$(head -n 1 "$f"); first=0; }
-    [ "$(head -n 1 "$f")" = "$hdr" ] || {
-      echo "ABORT: $f has a different header than the others" >&2; return 4; }
-    tail -n +2 "$f" >> "$out.tmp"
-  done
-  [ -n "$hdr" ] || { rm -f "$out.tmp"; say "no ${1} rows yet"; return 0; }
-  { printf '%s\n' "$hdr"; sort -u -t, -k1,1 -k4,4n "$out.tmp"; } > "$out"
-  rm -f "$out.tmp"
-  say "$(basename "$out"): $(( $(wc -l < "$out") - 1 )) rows"
-}
-merge ladder
-merge decisions
+# Pooling lives in its own script so it can be tested without ssh in the way;
+# scripts/test_merge_pooled.sh is the guard. It pools on a key declared by
+# column name, and deduplicates on the whole line so no row is ever discarded
+# for a field the key does not mention.
+RES="$RES" bash "$EXP/scripts/merge_pooled.sh" ladder decisions
 say "done"
