@@ -76,7 +76,7 @@ POOL_RC_DIR="$RES/.pool_student_batch" pool_run "$SLOTS_PER_GPU" ctl_job "${ARM_
 fail=0
 for arm in "${ARM_LIST[@]}"; do
   rc="${POOL_RC[$arm]:-99}"
-  agg="$(cat "$EVAL_ROOT/${arm}_alignstudent_bb${BB_STEP_K}k_hd${HEAD_STEPS}s_summary.txt" 2>/dev/null || echo '<no summary>')"
+  agg="$(head -1 "$EVAL_ROOT/${arm}_alignstudent_bb${BB_STEP_K}k_hd${HEAD_STEPS}s_summary.txt" 2>/dev/null || echo '<no summary>')"
   say "RESULT $arm rc=$rc — $agg"
   [ "$rc" -eq 0 ] || fail=$(( fail + 1 ))
 done

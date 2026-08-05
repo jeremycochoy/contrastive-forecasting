@@ -21,11 +21,17 @@ case "$WT" in
   /tmp/*|/tmp) echo "ABORT: WT=$WT is under /tmp — refusing." >&2; exit 2 ;;
 esac
 
-HERE="$(cd "$(dirname "$0")" && pwd)"
+# `cd -P` for the same reason as eval_arm.sh: this file is reached through a
+# `scripts/` symlink inside $WT, and the shared libraries must come from this
+# checkout rather than from whatever commit $WT sits on.
+HERE="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd -P "$HERE/../../.." && pwd)"
 # shellcheck source=arm_names.sh
 source "$HERE/arm_names.sh"
 # shellcheck source=gpu_pool.sh
 source "$HERE/gpu_pool.sh"
+# shellcheck source=/dev/null
+source "$ROOT/scripts/eval_cell_identity.sh"
 
 SLOTS_PER_GPU="${SLOTS_PER_GPU:-2}"
 WAVE="${WAVE:-1}"
@@ -71,13 +77,19 @@ done
 
 # Summary straight off disk: a cell counts as measured only when its
 # `<cell>_summary.txt` exists AND says 97 configs. eval_arm.sh refuses to
-# write that file on a partial, so this is the honest count.
+# write that file on a partial, so this is the honest count. The cell name
+# carries the replicate its backbone came from, and the wave-2 and wave-3
+# backbones here are all resumes, so the lookup asks for either.
 ok=0
 for arm in "${ARM_LIST[@]}"; do
-  cell="${arm}_bb${BB_STEP_K}k_hd${HEAD_STEPS}s"
-  f="$EXP/eval_gm_mase/${cell}_summary.txt"
-  if [ -f "$f" ] && grep -q "(97 configs)" "$f"; then
-    ok=$((ok + 1)); log "  $cell: $(cat "$f")"
+  mapfile -t found < <(eval_cell_summaries "$EXP/eval_gm_mase" "$arm" \
+                         "$BB_STEP_K" "$HEAD_STEPS")
+  cell="${arm}_bb${BB_STEP_K}k*_hd${HEAD_STEPS}s"   # what was looked for
+  if [ "${#found[@]}" -gt 1 ]; then
+    log "  $cell: AMBIGUOUS — ${#found[@]} replicate cells measured, not counting one:"
+    for f in "${found[@]}"; do log "    $(basename "$f")"; done
+  elif [ "${#found[@]}" -eq 1 ] && grep -q "(97 configs)" "${found[0]}"; then
+    ok=$((ok + 1)); log "  $(basename "${found[0]}" _summary.txt): $(head -1 "${found[0]}")"
   else
     log "  $cell: MISSING or partial"
   fi

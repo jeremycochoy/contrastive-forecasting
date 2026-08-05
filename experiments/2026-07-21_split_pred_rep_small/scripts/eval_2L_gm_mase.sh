@@ -6,17 +6,28 @@
 # BB_CHECKPOINT names the backbone file directly. Needed only when a run was
 # resumed and both `<name>_<K>k.pth` and `<name>_r<N>_<K>k.pth` exist: the
 # resolver refuses to guess between them. It must be one of those two names —
-# the cell is named from (ARM, BB_STEP_K) whatever you pass, so a file from
-# another step or another run is refused rather than published under this
-# cell's name.
+# a file from another step or another run is refused rather than published
+# under this cell's name.
+#
+# The cell carries the replicate its backbone came from, so the two never
+# share a directory, a head or an aggregate:
+#
+#   arm5_bb40k_hd15000s        the base run's 40k backbone
+#   arm5_bb40k_r3_hd15000s     the same arm's third resume, at the same step
+#
+# The base run's token is empty, so every cell name already on disk is
+# unchanged.
 #
 # Trains a fresh 2L transformer quantile head (head_nhead=8 to divide
 # d_model=64) on the frozen backbone at step ${BB_STEP_K}k for ${HEAD_STEPS}
 # steps, then runs GIFT-Eval B4 (full 97 configs, forecast_len=16).
 # Aggregate GM-Relative MASE is on the first line of summary.txt.
+#
+# Exit codes 2-6 are `resolve_eval_checkpoint.sh`'s, propagated verbatim.
+# This script's own setup abort is 20, so no number means two things.
 set -uo pipefail
 
-WT=/home/jupyter/wt-cf-379-train
+WT="${WT:-/home/jupyter/wt-cf-379-train}"
 EXP="$WT/experiments/2026-07-21_split_pred_rep_small"
 RUNS="$EXP/runs"
 SCRIPTS="$EXP/scripts"
@@ -38,20 +49,34 @@ BB_CHECKPOINT="${BB_CHECKPOINT:-}"
 
 # Find the arm's backbone base run-name via run_arm.sh's NAME= assignment.
 NAME=$(awk -v pat="^[[:space:]]*${ARM})" 'BEGIN{on=0} $0 ~ pat {on=1; next} on && /NAME=/{print; on=0}' "$SCRIPTS/run_arm.sh" | grep -oE 'NAME="[^"]+"' | head -1 | sed 's/NAME="//;s/"$//')
-[ -n "$NAME" ] || { echo "ABORT: could not resolve NAME for arm '$ARM'" >&2; exit 2; }
+[ -n "$NAME" ] || { echo "ABORT: could not resolve NAME for arm '$ARM'" >&2; exit 20; }
 
 # Locate the ${BB_STEP_K}k.pth checkpoint. Each resume appends a fresh
 # `_r<N>` safe-run-name suffix, so several files can match one step; the
 # resolver aborts rather than pick between them, and prints what it chose.
 # It comes from this script's own checkout, not from $WT: a $WT that predates
 # the resolver would otherwise fall back to the mtime pick without saying so.
-CKPT_RESOLVER="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)/scripts/resolve_eval_checkpoint.sh"
-[ -f "$CKPT_RESOLVER" ] || { echo "ABORT: no checkpoint resolver at $CKPT_RESOLVER" >&2; exit 2; }
+# `cd -P`, because this file is reached through a `scripts/` symlink — the
+# logical path walks back up to $WT and lands on exactly that stale checkout.
+ROOT="$(cd -P "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+CKPT_RESOLVER="$ROOT/scripts/resolve_eval_checkpoint.sh"
+CELL_IDENTITY="$ROOT/scripts/eval_cell_identity.sh"
+[ -f "$CKPT_RESOLVER" ] || { echo "ABORT: no checkpoint resolver at $CKPT_RESOLVER" >&2; exit 20; }
+[ -f "$CELL_IDENTITY" ] || { echo "ABORT: no cell-identity library at $CELL_IDENTITY" >&2; exit 20; }
+# shellcheck source=/dev/null
+source "$CELL_IDENTITY"
 BB=$(bash "$CKPT_RESOLVER" "$RUNS" "$NAME" "$BB_STEP_K" "$BB_CHECKPOINT") || exit $?
 
-CELL="${ARM}_bb${BB_STEP_K}k_hd${HEAD_STEPS}s"
+# The cell is named after the backbone it cites, replicate included, or a
+# `_r<N>` backbone lands in the base run's directory and reuses its head and
+# its aggregate.
+REPL_TAG="$(replicate_tag "$NAME" "$BB_STEP_K" "$BB")" || {
+  echo "ABORT: resolved checkpoint is not '$NAME' at ${BB_STEP_K}k: $BB" >&2
+  exit 20; }
+
+CELL="$(eval_cell_name "$ARM" "$BB_STEP_K" "$REPL_TAG" "$HEAD_STEPS")"
 OUT="$OUT_ROOT/$CELL"; mkdir -p "$OUT"
-HEAD_NAME="qhead_2L_${NAME}_bb${BB_STEP_K}k"
+HEAD_NAME="qhead_2L_${NAME}_bb${BB_STEP_K}k${REPL_TAG}"
 HEAD_CKPT="$OUT/${HEAD_NAME}_final.pth"
 LOG="$OUT/eval.log"
 
@@ -107,8 +132,10 @@ echo "[$(date +%H:%M:%S)] $ARM gift-eval rc=$rc" | tee -a "$LOG"
 # Aggregate result: line beginning with "Aggregate" in the gift subdir.
 AGG=$(grep -h "Aggregate" "$OUT/gift"/*.txt "$OUT/gift"/**/*.txt 2>/dev/null | head -1)
 if [ -n "$AGG" ]; then
-  echo "$AGG" > "$OUT/summary.txt"
-  echo "[$(date +%H:%M:%S)] $ARM DONE — $AGG" | tee -a "$LOG"
+  # The number and the file it came from, together: `eval.log` is appended to
+  # and is not what the analysis reads. The aggregate stays the first line.
+  { echo "$AGG"; echo "backbone: $BB"; } > "$OUT/summary.txt"
+  echo "[$(date +%H:%M:%S)] $ARM DONE — $AGG (backbone=$BB)" | tee -a "$LOG"
 else
   echo "[$(date +%H:%M:%S)] $ARM WARN — no Aggregate line found" | tee -a "$LOG"
 fi

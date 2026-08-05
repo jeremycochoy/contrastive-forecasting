@@ -19,11 +19,27 @@
 # This is eval-time selection at a *named* step. Resume logic that wants the
 # newest checkpoint of a live run is a different question; don't use this.
 #
-# Exit codes: 2 usage, 3 no candidate, 4 named path missing, 5 ambiguous,
-#             6 named path is not this run's checkpoint at this step.
+# The caller names its output cell after the replicate this returns, using
+# `eval_cell_identity.sh` — the same file this reads the name grammar from.
+#
+# Exit codes: 2 usage or a missing eval_cell_identity.sh, 3 no candidate,
+#             4 named path missing, 5 ambiguous, 6 named path is not this
+#             run's checkpoint at this step.
 set -uo pipefail
 
 SELF="$(basename "$0")"
+
+# The snapshot-name grammar lives next door, because the output cell is named
+# from the same parse: a second copy of `(_r[0-9]+)?` here would drift from
+# the one the cell name is built with, and a drifted copy is how a checkpoint
+# this accepts gets filed under a cell name it does not belong to.
+# `cd -P`: this file is reached through a `scripts/` symlink too.
+IDENTITY="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)/eval_cell_identity.sh"
+[ -f "$IDENTITY" ] || {
+  echo "ABORT: $SELF cannot find eval_cell_identity.sh at $IDENTITY" >&2
+  exit 2; }
+# shellcheck source=eval_cell_identity.sh
+source "$IDENTITY"
 
 [ $# -ge 3 ] && [ $# -le 4 ] || {
   echo "usage: $SELF <runs-dir> <run-name> <step-k> [<path>]" >&2; exit 2; }
@@ -40,7 +56,7 @@ RUNS="$1"; NAME="$2"; STEP_K="$3"; EXPLICIT="${4-}"
 if [ -n "$EXPLICIT" ]; then
   [ -f "$EXPLICIT" ] || {
     echo "ABORT: named checkpoint does not exist: $EXPLICIT" >&2; exit 4; }
-  if ! [[ "$(basename "$EXPLICIT")" =~ ^"$NAME"(_r[0-9]+)?_"$STEP_K"k\.pth$ ]]
+  if ! ckpt_is_run_step "$NAME" "$STEP_K" "$EXPLICIT"
   then
     {
       echo "ABORT: named checkpoint is not '$NAME' at step ${STEP_K}k:"

@@ -13,8 +13,18 @@
 # BB_CHECKPOINT names the backbone file directly. Needed only when a run was
 # resumed and both `<name>_<K>k.pth` and `<name>_r<N>_<K>k.pth` exist: the
 # resolver refuses to guess between them. It must be one of those two names —
-# the cell is named from (ARM, BB_STEP_K) whatever you pass, so a file from
-# another step or another run is refused rather than published as this cell.
+# a file from another step or another run is refused rather than published
+# under this cell's name.
+#
+# The cell carries the replicate the backbone came from, so the two never
+# share a directory, a head or an aggregate:
+#
+#   arm5_bb40k_hd15000s        the base run's 40k backbone
+#   arm5_bb40k_r3_hd15000s     the same arm's third resume, at the same step
+#
+# The base run's token is empty, so every cell name the report cites is
+# unchanged. A cell already measured from one replicate is never reused for
+# another.
 #
 # The wave decides (BB_STEP_K, HEAD_STEPS):
 #   wave 1 |  40k backbone, 15 000-step head
@@ -29,14 +39,37 @@
 # partial all_results.csv, so a killed eval continues rather than restarting;
 # this script retries until the row count is 97 and exits non-zero if it
 # never gets there. It never reports a partial.
+#
+# Exit codes. 2-6 are `resolve_eval_checkpoint.sh`'s, propagated verbatim
+# (5 = ambiguous checkpoint, 6 = the override names another run or step —
+# both mean "name the replicate you mean"). This script's own start at 20, so
+# no number stands for two different operator actions:
+#
+#   20 the environment is wrong (checkout, trainer, token, resolver, library)
+#   21 the head trainer exited 0 and wrote no checkpoint
+#   22 GIFT-Eval never reached 97 configs — re-run it
+#   23 97 rows on disk and no Aggregate line in gift/summary.txt
+#   24 the aggregate is not over 97 configs
+#   25 the resolver returned a path this run cannot name a cell from
+#
+# Anything else is the head trainer's own status, and the `head-train rc=`
+# line right above it in the log says so.
 set -uo pipefail
+
+E_SETUP=20; E_NO_HEAD=21; E_PARTIAL=22; E_NO_AGGREGATE=23
+E_AGG_SCOPE=24; E_BAD_TAG=25
 
 WT="${WT:-$HOME/wt-cf-390-train}"
 case "$WT" in
-  /tmp/*|/tmp) echo "ABORT: WT=$WT is under /tmp — refusing." >&2; exit 2 ;;
+  /tmp/*|/tmp) echo "ABORT: WT=$WT is under /tmp — refusing." >&2; exit $E_SETUP ;;
 esac
 
-HERE="$(cd "$(dirname "$0")" && pwd)"
+# `cd -P`, because the orchestrators and the documented usage reach this file
+# through a `scripts/` symlink inside $WT: the logical path would walk back up
+# to $WT and load that checkout's resolver, which can sit on any commit. A
+# missing one aborts loudly; an older one answers, silently.
+HERE="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd -P "$HERE/../../.." && pwd)"
 # shellcheck source=arm_names.sh
 source "$HERE/arm_names.sh"
 
@@ -70,24 +103,37 @@ export HUGGING_FACE_HUB_TOKEN="$HF_TOKEN"
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 export GIFT_EVAL="${GIFT_EVAL:-$HOME/workspaces/gift-eval-data}"
 
-[ -f "$HEAD_TRAIN" ] || { echo "ABORT: head trainer not at $HEAD_TRAIN" >&2; exit 2; }
-[ -f "$GEVAL" ]      || { echo "ABORT: gift-eval not at $GEVAL" >&2; exit 2; }
-[ -n "$HF_TOKEN" ]   || { echo "ABORT: empty HF_TOKEN" >&2; exit 2; }
+[ -f "$HEAD_TRAIN" ] || { echo "ABORT: head trainer not at $HEAD_TRAIN" >&2; exit $E_SETUP; }
+[ -f "$GEVAL" ]      || { echo "ABORT: gift-eval not at $GEVAL" >&2; exit $E_SETUP; }
+[ -n "$HF_TOKEN" ]   || { echo "ABORT: empty HF_TOKEN" >&2; exit $E_SETUP; }
 
-NAME="$(bb_name "$ARM")" || exit 2
+NAME="$(bb_name "$ARM")" || exit $E_SETUP
 
 # The snapshot for this wave. A resumed run writes a fresh `_r<N>` safe run
 # name, so one (name, step) pair can leave several backbones on disk; the
 # resolver aborts rather than pick between them, and prints what it chose.
-# It comes from this script's own checkout ($HERE), not from $WT: a $WT that
-# predates the resolver would otherwise fall back to the mtime pick silently.
-CKPT_RESOLVER="$(cd "$HERE/../../.." && pwd)/scripts/resolve_eval_checkpoint.sh"
-[ -f "$CKPT_RESOLVER" ] || { echo "ABORT: no checkpoint resolver at $CKPT_RESOLVER" >&2; exit 2; }
+# It comes from this script's own checkout ($ROOT), never from $WT — see the
+# `cd -P` note above.
+CKPT_RESOLVER="$ROOT/scripts/resolve_eval_checkpoint.sh"
+CELL_IDENTITY="$ROOT/scripts/eval_cell_identity.sh"
+[ -f "$CKPT_RESOLVER" ] || { echo "ABORT: no checkpoint resolver at $CKPT_RESOLVER" >&2; exit $E_SETUP; }
+[ -f "$CELL_IDENTITY" ] || { echo "ABORT: no cell-identity library at $CELL_IDENTITY" >&2; exit $E_SETUP; }
+# shellcheck source=/dev/null
+source "$CELL_IDENTITY"
 BB=$(bash "$CKPT_RESOLVER" "$RUNS" "$NAME" "$BB_STEP_K" "$BB_CHECKPOINT") || exit $?
 
-CELL="${ARM}${CELL_TAG}_bb${BB_STEP_K}k_hd${HEAD_STEPS}s"
+# The cell is named after the backbone it cites, replicate included. Without
+# the token a `_r<N>` backbone lands in the base run's directory, where
+# head-train SKIPs on the base run's head and the 97-row check lifts the base
+# run's aggregate — the replicate then reports another backbone's number and
+# exits 0. Empty for the base run, so the committed cell names do not move.
+REPL_TAG="$(replicate_tag "$NAME" "$BB_STEP_K" "$BB")" || {
+  echo "ABORT: resolved checkpoint is not '$NAME' at ${BB_STEP_K}k: $BB" >&2
+  exit $E_BAD_TAG; }
+
+CELL="$(eval_cell_name "${ARM}${CELL_TAG}" "$BB_STEP_K" "$REPL_TAG" "$HEAD_STEPS")"
 OUT="$OUT_ROOT/$CELL"; mkdir -p "$OUT"
-HEAD_NAME="qhead_2L_${NAME}_bb${BB_STEP_K}k"
+HEAD_NAME="qhead_2L_${NAME}_bb${BB_STEP_K}k${REPL_TAG}"
 HEAD_CKPT="$OUT/${HEAD_NAME}_final.pth"
 LOG="$OUT/eval.log"
 CSV="$OUT/gift/all_results.csv"
@@ -129,7 +175,7 @@ if [ ! -f "$HEAD_CKPT" ]; then
   rc=$?
   say "head-train rc=$rc"
   [ $rc -eq 0 ] || exit $rc
-  [ -f "$HEAD_CKPT" ] || { say "ABORT: head trainer exited 0 but wrote no $HEAD_CKPT"; exit 4; }
+  [ -f "$HEAD_CKPT" ] || { say "ABORT: head trainer exited 0 but wrote no $HEAD_CKPT"; exit $E_NO_HEAD; }
 else
   say "head-train SKIP (final head already on disk)"
 fi
@@ -156,7 +202,7 @@ done
 have=$(n_rows)
 if [ "$have" -ne "$N_CONFIGS_EXPECTED" ]; then
   say "FAILED — $have/$N_CONFIGS_EXPECTED configs after $MAX_EVAL_TRIES tries. No partial reported."
-  exit 5
+  exit $E_PARTIAL
 fi
 
 # Aggregate: the eval script tees one `Aggregate GM-Relative MASE (N configs)`
@@ -165,12 +211,16 @@ fi
 AGG=$(grep -h "Aggregate GM-Relative MASE" "$OUT/gift/summary.txt" 2>/dev/null | tail -1)
 if [ -z "$AGG" ]; then
   say "FAILED — 97 rows on disk but no Aggregate line in gift/summary.txt"
-  exit 6
+  exit $E_NO_AGGREGATE
 fi
 case "$AGG" in
   *"($N_CONFIGS_EXPECTED configs)"*) : ;;
-  *) say "FAILED — aggregate is not over $N_CONFIGS_EXPECTED configs: $AGG"; exit 7 ;;
+  *) say "FAILED — aggregate is not over $N_CONFIGS_EXPECTED configs: $AGG"; exit $E_AGG_SCOPE ;;
 esac
-echo "$AGG" > "$OUT/summary.txt"
-echo "$AGG" > "$OUT_ROOT/${CELL}_summary.txt"
-say "DONE — $AGG"
+# The number and the file it came from, together. `eval.log` is appended to
+# across retries and is not what the analysis reads; these two are, and
+# `collect_artefacts.sh` copies them into the report directory. The aggregate
+# stays the first line, so every reader keeps working.
+{ echo "$AGG"; echo "backbone: $BB"; } > "$OUT/summary.txt"
+cp -f "$OUT/summary.txt" "$OUT_ROOT/${CELL}_summary.txt"
+say "DONE — $AGG (backbone=$BB)"

@@ -55,7 +55,9 @@ echo
 echo "--- measured cells (97 configs each) ---"
 for f in "$EVALS"/*_summary.txt; do
   [ -e "$f" ] || { echo "  none yet"; break; }
-  printf '  %-34s %s\n' "$(basename "$f" _summary.txt)" "$(cat "$f")"
+  # `head -1`: the summary's first line is the aggregate, the second
+  # names the backbone it was measured on.
+  printf '  %-34s %s\n' "$(basename "$f" _summary.txt)" "$(head -1 "$f")"
 done
 echo
 echo "--- eval cells in flight ---"

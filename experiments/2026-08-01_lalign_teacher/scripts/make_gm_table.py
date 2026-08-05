@@ -24,6 +24,12 @@ this one file (review item 6). Cell names carry the disambiguating tags:
     arm6_v2_nse_alignstudent379_bb100k_hd30000s  student, copied from #379
     arm5_alignstudent_bb40k_hd15000s             student, measured here
     arm5_nse_s20260723_bb200k_hd30000s           teacher, replicate seed
+    arm5_nse_bb200k_r3_hd30000s                  teacher, r3 backbone
+
+The `_r<N>` token beside the backbone step names the backbone *replicate* the
+cell was measured on: a resumed run keeps its own `_r<N>` run name, so one
+(arm, step) pair can leave several different backbones. It qualifies the
+backbone, not the arm, so the arm slug is read from the part before `_bb`.
 
 The `379` matters: the student control of review item 3 is the same arm and
 the same target measured on THIS branch, so it has to be distinguishable
@@ -45,7 +51,8 @@ import re
 import sys
 from pathlib import Path
 
-CELL_RE = re.compile(r"^(?P<arm>.+?)_bb(?P<bb>\d+)k_hd(?P<hd>\d+)s$")
+CELL_RE = re.compile(
+    r"^(?P<arm>.+?)_bb(?P<bb>\d+)k(?P<repl>_r\d+)?_hd(?P<hd>\d+)s$")
 VAL_RE = re.compile(r"\((?P<n>\d+) configs\):\s*(?P<v>[0-9.]+)")
 VARIANTS = ("tr1", "nse", "ncpc", "combab")
 RETRAINED_PREFIX = ("arm5", "arm6_v2")

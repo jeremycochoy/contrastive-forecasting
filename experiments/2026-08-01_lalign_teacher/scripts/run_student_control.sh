@@ -48,4 +48,4 @@ say "stage 2/2 rc=$rc"
 [ $rc -eq 0 ] || exit $rc
 
 SUM="$WT/experiments/2026-08-01_lalign_teacher/eval_gm_mase/${ARM}_alignstudent_bb${BB_STEP_K}k_hd${HEAD_STEPS}s_summary.txt"
-say "DONE — $(cat "$SUM" 2>/dev/null || echo 'no summary')"
+say "DONE — $(head -1 "$SUM" 2>/dev/null || echo 'no summary')"

@@ -44,7 +44,9 @@ for f in "$SRC/eval_gm_mase"/*_summary.txt; do
     dst_cell="$cell"
   elif echo "$cell" | grep -qE "$KEEP_STUDENT"; then
     # arm5_nse_bb40k_hd15000s -> arm5_nse_alignstudent_bb40k_hd15000s
-    dst_cell="$(echo "$cell" | sed -E "s/_bb([0-9]+k_hd[0-9]+s)$/${STUDENT_TAG}_bb\1/")"
+    # The `(_r[0-9]+)?` is the backbone-replicate token a cell carries
+    # when its backbone was a resume; without it such a cell is skipped.
+    dst_cell="$(echo "$cell" | sed -E "s/_bb([0-9]+k(_r[0-9]+)?_hd[0-9]+s)$/${STUDENT_TAG}_bb\1/")"
     [ "$dst_cell" != "$cell" ] || { say "SKIP $cell — could not tag"; continue; }
   else
     continue
