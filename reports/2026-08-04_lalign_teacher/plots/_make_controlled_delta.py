@@ -120,8 +120,7 @@ for y, arm in zip(ys, ARMS):
             f"{d:+.4f}", va="center",
             ha="right" if d < 0 else "left", fontsize=8)
 ax.axvline(0.0, color=INK, lw=1.0)
-ax.set_title("Against the earlier sweep — flag and code snapshot differ "
-             "together", fontsize=10)
+ax.set_title("Against the earlier sweep", fontsize=10)
 ax.set_xlabel("GM-Relative MASE(teacher) − GM-Relative MASE(earlier sweep)\n"
               "whiskers = 95% dataset-cluster bootstrap on the ratio, rescaled")
 ax.set_xlim(-0.36, 0.24)

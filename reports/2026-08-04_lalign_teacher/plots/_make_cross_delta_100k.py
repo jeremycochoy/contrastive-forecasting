@@ -76,8 +76,8 @@ ax.grid(True, axis="x", color=GRID, alpha=0.6)
 ax.set_xlim(-0.36, 0.78)
 ax.set_xlabel("GM-Relative MASE(teacher) − GM-Relative MASE(earlier sweep)\n"
               "whiskers = 95% dataset-cluster bootstrap on the ratio, rescaled")
-ax.set_title("Teacher − earlier sweep GM-Relative MASE, backbone 100k\n"
-             "flag and code snapshot differ together", fontsize=10.5)
+ax.set_title("Teacher − earlier sweep GM-Relative MASE, backbone 100k",
+             fontsize=10.5)
 fig.tight_layout()
 out = HERE / "cross_delta_100k.png"
 fig.savefig(out)
