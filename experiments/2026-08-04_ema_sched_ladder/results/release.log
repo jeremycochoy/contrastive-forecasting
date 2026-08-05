@@ -401,3 +401,11 @@
 [08-05 19:30:29] [release] f: busy — driver train
 [08-05 19:45:34] [release] f: busy — driver train
 [08-05 20:00:40] [release] f: busy — driver train
+[08-05 20:15:45] [release] f: DRAIN —  driver waiting:bb100k_teacher; every eval it waits on is running here
+[08-05 20:15:45] [release] f: reads idle — will confirm on the next pass before releasing
+[08-05 20:30:50] [release] f: DRAIN —  driver waiting:bb100k_teacher; every eval it waits on is running here
+[08-05 20:30:50] [release] f: idle twice, bundle complete, cells=arm4_combab 
+[08-05 20:30:50] [release] f: destroying 46848915 cf393-f ($0.3611/h, provisioned by dispatch-0400)
+[08-05 20:30:58] [release] f: RELEASED 46848915
+[08-05 20:30:58] [release] f: recorded arm4_combab bb100k as branch=budget_stop
+[08-05 20:30:58] [release] released 1 box(es); rerun scripts/status.sh
