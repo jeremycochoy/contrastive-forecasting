@@ -17,3 +17,6 @@
 [ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm6_v2_nse_alignS 100000
 [08-05 11:44:51] [arm6_v2_nse_alignS] RESUME from cf393_arm6_v2_nse_alignS_40k.pth (step 40k)
 [08-05 11:44:51] [arm6_v2_nse_alignS] START target=100000 gpu=0 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-393/arm6_v2_nse_alignS/leg_100k
+[08-05 15:39:10] [arm6_v2_nse_alignS] DONE target=100000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-393/arm6_v2_nse_alignS/leg_100k/cf393_arm6_v2_nse_alignS_100k.pth
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm6_v2_nse_alignS 100000 student 30000 /home/jupyter/checkpoints_backup/cf-393/arm6_v2_nse_alignS/eval/score_bb100k_student.txt
+[15:39:10] arm6_v2_nse_alignS bb100k enc=student head=30000s

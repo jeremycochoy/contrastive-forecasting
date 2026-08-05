@@ -34,3 +34,7 @@
 [ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm6_v2_ncpc_alignT 100000 teacher 30000 /root/cf393_runs/arm6_v2_ncpc_alignT/eval/score_bb100k_teacher.txt
 [08-05 13:16:48] [gpu-gate] GPU 0 (Exclusive_Process) held by another cell — waiting for the lock
 [13:16:48] arm6_v2_ncpc_alignT bb100k enc=student head=30000s
+[14:49:10] head-train rc=0
+[14:49:10] eval place=broker
+[14:49:10] request written, waiting for the broker
+[14:49:10] arm6_v2_ncpc_alignT bb100k enc=teacher head=30000s

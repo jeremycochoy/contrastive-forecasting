@@ -33,3 +33,8 @@
 [13:22:14] eval place=broker
 [13:22:14] request written, waiting for the broker
 [13:52:14] still waiting for the broker (1800s)
+[14:22:14] still waiting for the broker (3600s)
+[14:40:14] broker returned after 4680s
+[14:40:14] DONE — Aggregate GM-Relative MASE (97 configs): 1.2797 -> 1.2797
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm5_combab_alignT 100000 teacher 30000 /root/cf393_runs/arm5_combab_alignT/eval/score_bb100k_teacher.txt
+[14:40:14] arm5_combab_alignT bb100k enc=teacher head=30000s
