@@ -31,11 +31,19 @@ while read -r lbl host port root; do
   [ -n "$lbl" ] || continue
   case " $WANT " in *" $lbl "*) ;; *) continue ;; esac
 
-  # Match the local root with its slashes: box a's root `cf393_sync` is a
-  # prefix of every other box's, so a bare substring test would report a
-  # dead loop as alive the moment any other box's loop was running.
-  if pgrep -af "sync_loop.sh" 2>/dev/null | grep -q "/$root/"; then
-    echo "[$lbl] sync loop already running, leaving it"
+  # Identify a running loop by its working directory, not its argv. Every
+  # loop runs the same `bash .../sync_loop.sh` command line and takes its
+  # target from the environment, so argv cannot tell two of them apart —
+  # only the loops started via a wrapper shell happen to carry the path,
+  # and matching on that reports the others as dead and starts a second
+  # copy against the same local root. /proc/PID/cwd is what actually differs.
+  running=""
+  for p in $(pgrep -f "bash .*sync_loop.sh" 2>/dev/null); do
+    [ "$(readlink "/proc/$p/cwd" 2>/dev/null)" = "$HOME/$root/2026-08-04_ema_sched_ladder" ] \
+      && { running="$p"; break; }
+  done
+  if [ -n "$running" ]; then
+    echo "[$lbl] sync loop already running (pid $running), leaving it"
     continue
   fi
 
