@@ -1120,12 +1120,14 @@ def stage_stub(scratch: Path, body: str = PY_STAGE_STUB) -> Path:
 
 def run_eval_arm_staged(wt: Path, scratch: Path,
                         bb_checkpoint: str | None = None,
-                        stub_body: str = PY_STAGE_STUB):
+                        stub_body: str = PY_STAGE_STUB,
+                        env_extra: dict[str, str] | None = None):
     env = {**os.environ,
            "PATH": f"{stage_stub(scratch, stub_body)}:{os.environ['PATH']}",
            "ARGV_DIR": str(scratch / "argv"),
            "WT": str(wt), "ARM": ARM, "BB_GPU": "0",
-           "BB_STEP_K": STEP_K, "HEAD_STEPS": "15000"}
+           "BB_STEP_K": STEP_K, "HEAD_STEPS": "15000",
+           **(env_extra or {})}
     if bb_checkpoint is not None:
         env["BB_CHECKPOINT"] = bb_checkpoint
     return subprocess.run(["bash", str(EVAL_390)], env=env,
@@ -1230,6 +1232,119 @@ def test_390_eval_arm_replicate_trains_its_own_head(scratch: Path):
         f"the replicate's head is not named after it: {run_names[1]}")
     assert run_names[0] != run_names[1], (
         "base and replicate write the same head checkpoint name")
+
+
+# --- 15b. the head seed is part of the identity too ----------------------
+# `HEAD_SEED` is the head trainer's `--seed`, so it decides the number the
+# same way the backbone does. It was not in the cell name: running an
+# already-measured cell under a second seed resolved to the first seed's
+# directory, logged `head-train SKIP`, found 97 rows, skipped GIFT-Eval and
+# rewrote the summary with the first seed's aggregate — exit 0, and the
+# caller got a number for a seed that never ran.
+
+# The same staged stub, with the aggregate keyed on the head checkpoint the
+# eval was handed rather than on the backbone — which is the real dependency,
+# since the seed is the head's init and data order and the eval's number comes
+# out of the head it loads. A cell that lifts another seed's number then shows
+# up as a number.
+PY_SEED_STUB = PY_STAGE_STUB.replace(
+    """case "$(basename "$backbone")" in
+  *_r[0-9]*_*k.pth) agg="__AGG_REPL__" ;;
+  *)                agg="__AGG_BASE__" ;;
+esac""",
+    """head_path=""
+prev=""
+for a in "$@"; do
+  [ "$prev" = "--head-path" ] && head_path="$a"
+  prev="$a"
+done
+case "$head_path" in
+  *_s[0-9][0-9][0-9][0-9][0-9][0-9]*) agg="__AGG_REPL__" ;;
+  *)                                  agg="__AGG_BASE__" ;;
+esac""")
+
+OTHER_HEAD_SEED = "20260723"
+
+
+def test_390_eval_arm_head_seed_gets_its_own_cell(scratch: Path):
+    """A second seed is a second measurement, so it needs a second cell."""
+    wt = make_wt(scratch)
+    runs = wt / "experiments" / "2026-08-01_lalign_teacher" / "runs"
+    touch(runs, f"{bb_name_390(ARM)}_{STEP_K}k.pth", 1_000)
+
+    r = run_eval_arm_staged(wt, scratch, stub_body=PY_SEED_STUB,
+                            env_extra={"HEAD_SEED": OTHER_HEAD_SEED})
+    assert r.returncode == 0, f"{r.stdout}\n{r.stderr}"
+    cell = f"{ARM}_s{OTHER_HEAD_SEED}_bb{STEP_K}k_hd15000s"
+    assert (eval_root(wt) / cell).is_dir(), (
+        "the seed's cell directory does not carry the seed; eval_gm_mase "
+        f"holds {sorted(p.name for p in eval_root(wt).iterdir())}")
+    assert not (eval_root(wt) / f"{ARM}_bb{STEP_K}k_hd15000s").exists(), (
+        "the second seed landed in the wave seed's cell directory")
+
+
+def test_390_eval_arm_head_seed_does_not_lift_the_other_seeds_number(
+        scratch: Path):
+    """The failure end to end. The wave seed's cell is measured first. Then
+    the same cell is asked for under another seed: with one directory for
+    both, head-train SKIPs on the first seed's head, the 97-row check skips
+    GIFT-Eval and lifts its aggregate, and the second seed publishes the
+    first seed's number and exits 0."""
+    wt = make_wt(scratch)
+    runs = wt / "experiments" / "2026-08-01_lalign_teacher" / "runs"
+    touch(runs, f"{bb_name_390(ARM)}_{STEP_K}k.pth", 1_000)
+
+    first = run_eval_arm_staged(wt, scratch, stub_body=PY_SEED_STUB)
+    assert first.returncode == 0, f"{first.stdout}\n{first.stderr}"
+    wave_sum = eval_root(wt) / f"{ARM}_bb{STEP_K}k_hd15000s_summary.txt"
+    assert AGG_BASE in wave_sum.read_text()
+
+    second = run_eval_arm_staged(wt, scratch, stub_body=PY_SEED_STUB,
+                                 env_extra={"HEAD_SEED": OTHER_HEAD_SEED})
+    assert second.returncode == 0, f"{second.stdout}\n{second.stderr}"
+
+    seed_sums = list(eval_root(wt).glob(f"{ARM}_s{OTHER_HEAD_SEED}_*_summary.txt"))
+    assert len(seed_sums) == 1, (
+        "the second seed wrote no summary of its own; it reused the wave "
+        "seed's cell. eval_gm_mase holds "
+        f"{sorted(p.name for p in eval_root(wt).iterdir())}")
+    assert AGG_REPL in seed_sums[0].read_text(), (
+        "the second seed published the wave seed's number: "
+        f"{seed_sums[0].read_text()!r}")
+    assert AGG_BASE in wave_sum.read_text(), (
+        "the wave seed's own summary was overwritten by the second seed's run")
+
+
+def test_390_eval_arm_head_seed_trains_its_own_head(scratch: Path):
+    """Not just a second directory: a second head. The seed IS the head's
+    init and data order, so reusing the first seed's head measures the first
+    seed."""
+    wt = make_wt(scratch)
+    runs = wt / "experiments" / "2026-08-01_lalign_teacher" / "runs"
+    touch(runs, f"{bb_name_390(ARM)}_{STEP_K}k.pth", 1_000)
+    run_eval_arm_staged(wt, scratch, stub_body=PY_SEED_STUB)
+    run_eval_arm_staged(wt, scratch, stub_body=PY_SEED_STUB,
+                        env_extra={"HEAD_SEED": OTHER_HEAD_SEED})
+
+    heads = [a for a in recorded_argv(scratch) if "--quantile-head" in a]
+    assert len(heads) == 2, (
+        f"the second seed did not train its own head; {len(heads)} head-train "
+        "call(s) recorded")
+    seeds = [a[a.index("--seed") + 1] for a in heads]
+    assert seeds == ["20260722", OTHER_HEAD_SEED], seeds
+
+
+def test_390_eval_arm_wave_seed_keeps_the_committed_cell_name(scratch: Path):
+    """Non-regression, and the reason the wave seed's token is empty: asking
+    for the default seed explicitly must name the cell the report cites."""
+    wt = make_wt(scratch)
+    runs = wt / "experiments" / "2026-08-01_lalign_teacher" / "runs"
+    touch(runs, f"{bb_name_390(ARM)}_{STEP_K}k.pth", 1_000)
+
+    r = run_eval_arm_staged(wt, scratch, env_extra={"HEAD_SEED": "20260722"})
+    assert r.returncode == 0, f"{r.stdout}\n{r.stderr}"
+    assert [p.name for p in eval_root(wt).iterdir() if p.is_dir()] == \
+        [f"{ARM}_bb{STEP_K}k_hd15000s"]
 
 
 # --- 16. the summary files carry the checkpoint --------------------------

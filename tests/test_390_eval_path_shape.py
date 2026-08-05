@@ -319,10 +319,17 @@ def test_gift_eval_flag_value_matches_379(argv_390, argv_379, flag, expected):
 
 def test_head_seed_default_is_379s_literal():
     """#390 parameterised the seed for review item 4's replicates. The
-    default has to stay #379's literal, or all 30 measurements shift."""
-    src = EVAL_390.read_text()
-    assert 'HEAD_SEED="${HEAD_SEED:-20260722}"' in src
-    assert "--seed 20260722" in EVAL_379.read_text()
+    default has to stay #379's literal, or all 30 measurements shift.
+
+    It comes from `scripts/eval_cell_identity.sh`, because the same value
+    also decides whether the cell name carries a `_s<seed>` token: a default
+    here that disagreed with the one in the name would rename every cell."""
+    assert 'HEAD_SEED="${HEAD_SEED:-$EVAL_DEFAULT_HEAD_SEED}"' in \
+        EVAL_390.read_text()
+    assert 'HEAD_SEED="${HEAD_SEED:-$EVAL_DEFAULT_HEAD_SEED}"' in \
+        EVAL_379.read_text()
+    assert "EVAL_DEFAULT_HEAD_SEED=20260722" in (
+        REPO_ROOT / "scripts" / "eval_cell_identity.sh").read_text()
 
 
 def test_cell_tag_defaults_to_empty():

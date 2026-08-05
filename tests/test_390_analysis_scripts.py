@@ -160,6 +160,80 @@ def test_table_reproduces_from_the_committed_results(tmp_path, table_rows):
     assert out.read_text() == (RESULTS / "gm_relative_mase.csv").read_text()
 
 
+# --- the replicate the table's pairing is keyed on -----------------------
+# `<arm>_bb100k_r2_hd30000s` and `<arm>_bb100k_hd30000s` are two backbones,
+# so they are two measurements. Keyed on (arm slug, backbone steps) alone the
+# two collapse into one entry, and a teacher replicate with no student
+# counterpart reads as paired.
+
+def _write_cell(root: Path, cell: str, value: str) -> None:
+    """One measured cell: the flat summary and the per-config file behind it."""
+    evals = root / "eval_gm_mase"
+    (evals / cell).mkdir(parents=True, exist_ok=True)
+    (evals / f"{cell}_summary.txt").write_text(
+        f"Aggregate GM-Relative MASE (97 configs): {value}\n")
+    with open(evals / cell / "all_results.csv", "w") as fh:
+        fh.write("dataset\n")
+        fh.writelines(f"ds{i}\n" for i in range(97))
+
+
+def _run_gm_table(tmp_path: Path, cells: dict[str, str]):
+    res_dir = tmp_path / "results"
+    for cell, value in cells.items():
+        _write_cell(res_dir, cell, value)
+    out = tmp_path / "gm.csv"
+    res = subprocess.run([sys.executable, str(GM_TABLE), str(res_dir),
+                          str(out)], capture_output=True, text=True)
+    return res, out
+
+
+def test_gm_table_pairing_keys_on_the_replicate(tmp_path):
+    """Two teacher replicates at one step, one student cell. The base run is
+    paired; the `_r2` replicate is not, and has to be named as unpaired
+    rather than answered by the base run's student counterpart."""
+    res, _ = _run_gm_table(tmp_path, {
+        "arm5_bb40k_hd15000s": "1.3515",
+        "arm5_bb40k_r2_hd15000s": "1.3999",
+        "arm5_alignstudent_bb40k_hd15000s": "1.4501",
+    })
+    assert res.returncode == 0, res.stdout + res.stderr
+    assert "teacher cells at the default head seed: 2" in res.stdout, res.stdout
+    assert "paired with a student cell: 1" in res.stdout, res.stdout
+    assert "UNPAIRED" in res.stdout and "_r2" in res.stdout, (
+        "the unpaired teacher replicate was answered by the base run's "
+        f"student cell:\n{res.stdout}")
+
+
+def test_gm_table_pairs_a_replicate_with_its_own_replicate(tmp_path):
+    """The other side of the same key: a teacher `_r2` IS paired when the
+    student side was measured on `_r2` too."""
+    res, _ = _run_gm_table(tmp_path, {
+        "arm5_bb40k_r2_hd15000s": "1.3999",
+        "arm5_alignstudent_bb40k_r2_hd15000s": "1.4501",
+    })
+    assert res.returncode == 0, res.stdout + res.stderr
+    assert "paired with a student cell: 1" in res.stdout, res.stdout
+    assert "UNPAIRED" not in res.stdout, res.stdout
+
+
+def test_gm_table_keeps_a_row_per_replicate(tmp_path):
+    """Two replicates at one step are two models, so they are two rows. The
+    cell column is what tells them apart; collapsing them would publish one
+    backbone's number for both."""
+    _, out = _run_gm_table(tmp_path, {
+        "arm5_bb40k_hd15000s": "1.3515",
+        "arm5_bb40k_r2_hd15000s": "1.3999",
+        "arm5_bb40k_r10_hd15000s": "1.3777",
+    })
+    with open(out, newline="") as fh:
+        rows = list(csv.DictReader(fh))
+    assert [(r["cell"], r["gm_rel_mase"]) for r in rows] == [
+        ("arm5_bb40k_hd15000s", "1.3515"),
+        ("arm5_bb40k_r10_hd15000s", "1.3777"),
+        ("arm5_bb40k_r2_hd15000s", "1.3999"),
+    ], rows
+
+
 # --- the bootstrap -------------------------------------------------------
 
 def test_cluster_bootstrap_resamples_whole_groups(boot):
