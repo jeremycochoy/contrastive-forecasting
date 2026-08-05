@@ -163,6 +163,34 @@ stopped. `--max-stop` caps a session when splitting a cell across
 machines, and writes a `session_end` row to `decisions.csv` so the record
 distinguishes a paused cell from a finished one.
 
+`results/HOLD_ABOVE` is the same cap, read fresh at every stop instead of
+fixed when the driver starts, so a spend order decided after the cells are
+already climbing still reaches them. Both `ladder.py` and `run_leg.sh`
+read it; `run_leg.sh` is what reaches a driver already running, because it
+is a new process on every leg. Delete the file to lift the cap, then
+re-run `ladder.py` for the cell — it replays from step 0, skipping every
+stop already on disk.
+
+## One CUDA context per device
+
+A vast.ai box comes up in `Exclusive_Process` compute mode and the
+container cannot change it, so a second cell started on a busy GPU does
+not queue: it dies inside `.to(device)` with "CUDA-capable device(s) is/are
+busy or unavailable", one second after launch, having cost no GPU time.
+That is what makes it quiet, and it is how `arm5_combab_alignT` sat dead
+for three hours on 2026-08-05.
+
+`scripts/gpu_gate.sh` sits in front of every CUDA process in `run_leg.sh`
+and `eval_stop.sh`. It takes an exclusive `flock` on a per-GPU file, held
+on fd 9 for the life of the leg or the eval, then waits for any compute
+app it did not launch to leave the device. The lock orders the cells this
+experiment starts; the drain covers another agent session's processes and
+anything left over from an earlier attempt, which the lock cannot see.
+
+On a `Default`-mode GPU it returns immediately. That is the point, not a
+fallback: elisa runs two cells per 4090 deliberately, and gating there
+would halve the box's throughput.
+
 `RUNS` holds everything that cost GPU time — backbone checkpoints, the
 quantile heads, the GIFT-Eval outputs, the per-stop scores:
 
@@ -207,6 +235,7 @@ filenames. **Verify the first tick by `ls`, not by reading the log.**
 | `scripts/ladder.py` | the driver: stops, the extend rule, the step cap |
 | `scripts/run_leg.sh` | one backbone leg of one cell, up to a target step |
 | `scripts/eval_stop.sh` | one head + GIFT-Eval B4 at one stop, one encoder |
+| `scripts/gpu_gate.sh` | wait for a free device rather than die on a busy one |
 | `scripts/leg_paths.sh` | durable root, per-leg dirs, checkpoint-by-step, the score read |
 | `scripts/confirm_row_count.py` | reads the dataset manifest, derives the cap |
 | `scripts/alpha_schedule.py` | the α-vs-step record and its plot |
