@@ -641,3 +641,29 @@ Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, 
   -> Saved /root/cf393_runs/arm4_combab/leg_40k/cf393_arm4_combab_final.pth
 
 Done in 1.6h. Best gap=-0.1467 at step 4000, Best loss=4.4711 at step 3200
+  [checkpoint] Restored optimizer from /root/cf393_runs/arm4_combab/leg_40k/cf393_arm4_combab_40k_optimizer.pth (step=40000, best_ff=-0.1467)
+Resumed from /root/cf393_runs/arm4_combab/leg_40k/cf393_arm4_combab_40k.pth at step 40000
+Device: cuda | Params: 720,668
+Training for 100000 steps, bs=64, lr=0.001, T=4096, C=1, mix_ratio=0.0078125, freq_emb_dim=3, seasonality_emb_dim=3, mixup_p=0.3, rev_norm_kind=ewma(span=128), patch_stats=none, encoder_type=gru
+Checkpoints: /root/cf393_runs/arm4_combab/leg_100k/cf393_arm4_combab_*.pth
+Loss CSV: /root/cf393_runs/arm4_combab/leg_100k/cf393_arm4_combab_losses.csv
+Latent-drift CSV: /root/cf393_runs/arm4_combab/leg_100k/cf393_arm4_combab_latent_drift.csv (every 20000 steps, probe_bs=64, probe_seed=20260722)
+Attn-amplitude CSV: /root/cf393_runs/arm4_combab/leg_100k/cf393_arm4_combab_attn_amplitude.csv (every 200 steps)
+Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, hf_bs=64, synth_bs=0, cross_bs=0, total_bs=67
+  [dataloader] 4274 shards, 42740000 total rows, target skip 2560000
+  [dataloader] Fast-skip: starting at shard 256/4274, then skipping 0 rows within it
+[  40200] loss=5.1040  ema_loss=5.1898  gap=-0.3128  ema_gap=-0.3276  mixup=59/200  3.9 sps  ETA 4.3h
+              R²_rand=0.3094  R²_naive=0.1559  U_t=0.4041  U_b=0.9198  AUC=0.9215  Top1=0.3794
+  timing: data=124.6ms  fwd=76.6ms  bwd=52.8ms  total=254.4ms
+[  40400] loss=5.2459  ema_loss=5.2351  gap=-0.3442  ema_gap=-0.3348  mixup=58/200  5.2 sps  ETA 3.2h
+              R²_rand=0.2950  R²_naive=0.1346  U_t=0.4140  U_b=0.8291  AUC=0.9018  Top1=0.2567
+  timing: data=3.1ms  fwd=73.0ms  bwd=50.9ms  total=127.4ms
+[  40600] loss=5.3374  ema_loss=5.2351  gap=-0.3613  ema_gap=-0.3345  mixup=58/200  5.8 sps  ETA 2.8h
+              R²_rand=0.2882  R²_naive=0.1328  U_t=0.4311  U_b=0.8655  AUC=0.8967  Top1=0.2722
+  timing: data=3.0ms  fwd=73.3ms  bwd=50.5ms  total=127.3ms
+[  40800] loss=5.3802  ema_loss=5.1947  gap=-0.3386  ema_gap=-0.3301  mixup=56/200  5.5 sps  ETA 3.0h
+              R²_rand=0.2896  R²_naive=0.1402  U_t=0.4169  U_b=0.8896  AUC=0.9048  Top1=0.2877
+  timing: data=81.1ms  fwd=72.4ms  bwd=51.0ms  total=204.9ms
+[  41000] loss=4.7615  ema_loss=5.1652  gap=-0.2773  ema_gap=-0.3307  mixup=55/200  5.9 sps  ETA 2.8h
+              R²_rand=0.3246  R²_naive=0.1864  U_t=0.3762  U_b=0.8425  AUC=0.9219  Top1=0.3248
+  timing: data=3.0ms  fwd=71.3ms  bwd=50.9ms  total=125.6ms

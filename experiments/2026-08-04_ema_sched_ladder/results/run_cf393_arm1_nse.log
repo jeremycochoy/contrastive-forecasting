@@ -630,3 +630,23 @@ Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, 
   -> Saved /root/cf393_runs/arm1_nse/leg_40k/cf393_arm1_nse_final.pth
 
 Done in 1.6h. Best gap=0.5335 at step 3000, Best loss=18.0215 at step 1800
+  [checkpoint] Restored optimizer from /root/cf393_runs/arm1_nse/leg_40k/cf393_arm1_nse_40k_optimizer.pth (step=40000, best_ff=0.5335)
+Resumed from /root/cf393_runs/arm1_nse/leg_40k/cf393_arm1_nse_40k.pth at step 40000
+Device: cuda | Params: 724,764
+Training for 100000 steps, bs=64, lr=0.001, T=4096, C=1, mix_ratio=0.0078125, freq_emb_dim=3, seasonality_emb_dim=3, mixup_p=0.3, rev_norm_kind=ewma(span=128), patch_stats=none, encoder_type=gru
+Checkpoints: /root/cf393_runs/arm1_nse/leg_100k/cf393_arm1_nse_*.pth
+Loss CSV: /root/cf393_runs/arm1_nse/leg_100k/cf393_arm1_nse_losses.csv
+Latent-drift CSV: /root/cf393_runs/arm1_nse/leg_100k/cf393_arm1_nse_latent_drift.csv (every 20000 steps, probe_bs=64, probe_seed=20260722)
+Attn-amplitude CSV: /root/cf393_runs/arm1_nse/leg_100k/cf393_arm1_nse_attn_amplitude.csv (every 200 steps)
+Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, hf_bs=64, synth_bs=0, cross_bs=0, total_bs=67
+  [dataloader] 4274 shards, 42740000 total rows, target skip 2560000
+  [dataloader] Fast-skip: starting at shard 256/4274, then skipping 0 rows within it
+[  40200] loss=18.2459  ema_loss=18.3682  gap=0.4992  ema_gap=0.4696  mixup=49/200  4.8 sps  ETA 3.5h  cpc=0.0628
+              R²_rand=0.4240  R²_naive=0.4554  U_t=0.7636  U_b=0.7737  AUC=0.9999  Top1=0.9783
+  timing: data=76.8ms  fwd=75.4ms  bwd=53.7ms  total=206.4ms
+[  40400] loss=18.2771  ema_loss=18.4199  gap=0.4657  ema_gap=0.4597  mixup=68/200  5.8 sps  ETA 2.8h  cpc=0.0355
+              R²_rand=0.4075  R²_naive=0.4310  U_t=0.7393  U_b=0.7702  AUC=0.9998  Top1=0.9707
+  timing: data=3.2ms  fwd=75.6ms  bwd=52.0ms  total=131.2ms
+[  40600] loss=18.3810  ema_loss=18.3900  gap=0.4517  ema_gap=0.4640  mixup=60/200  6.3 sps  ETA 2.6h  cpc=0.0597
+              R²_rand=0.4037  R²_naive=0.4218  U_t=0.7672  U_b=0.7457  AUC=0.9998  Top1=0.9729
+  timing: data=3.1ms  fwd=73.8ms  bwd=51.9ms  total=129.1ms

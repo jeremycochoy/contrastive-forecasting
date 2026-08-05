@@ -11,3 +11,9 @@
 [07:10:19] arm6_v2_combab_alignT bb40k enc=teacher head=15000s
 [07:49:06] head-train rc=0
 [07:49:06] eval place=local_cpu
+[13:06:44] eval_local rc=0
+[13:06:44] DONE — Aggregate GM-Relative MASE (97 configs): 1.1793 -> 1.1793
+[ladder] arm6_v2_combab_alignT @40000: {'student': 1.1895, 'teacher': 1.1793} -> {'extend': True, 'heads': ('student', 'teacher'), 'branch': 'unconditional'}
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm6_v2_combab_alignT 100000
+[08-05 13:06:44] [arm6_v2_combab_alignT] RESUME from cf393_arm6_v2_combab_alignT_40k.pth (step 40k)
+[08-05 13:06:44] [arm6_v2_combab_alignT] START target=100000 gpu=1 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-393/arm6_v2_combab_alignT/leg_100k
