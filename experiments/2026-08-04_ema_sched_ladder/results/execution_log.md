@@ -97,3 +97,104 @@ machine-hours (~$31) on vast and moves ~208 core-hours to free compute.
 
 Not implemented in this dispatch: four evals were in flight and about to
 produce the study's first numbers. Recorded here and raised on the PR.
+
+## 2026-08-05 05:10 — the 5.2 h figure was wrong by about 3x
+
+**Superseding the section above.** 194 s/config was extrapolated from the
+first four of 97 configs, and config cost is not remotely uniform: it spans
+0.4 s to 1537 s, and twenty configs carry 89% of the work. The four that
+were measured are among the most expensive there are.
+
+A **completed** 97-config eval of this same B4 protocol totals **13,303 s =
+3.70 h** (2026-07-09, `sync_2026-07-03_b1024_traj_ckpts`, a wider backbone
+at forecast-len 128). Per-config times from that run are now committed as
+`results/config_costs.csv`.
+
+Measured against it on this study's `d_model=64` backbone, six configs at a
+time:
+
+| where | wall | projected 97 configs |
+|---|---|---|
+| elisa, one 4090 (contended) | 58.7 s | 1.73 h |
+| elisa, 4 CPU threads | 81.4 s | 2.39 h |
+| elisa, 1 CPU thread | 97.3 s | **2.86 core-h** |
+| vast 5090 (from live per-config times) | — | ~1.1 to 1.5 h |
+
+So phase 1 is 40 evals x 2.86 = **114 core-hours**, not 208, and had it
+stayed on vast it would have been ~52 machine-hours (~$23), not $98 to $119.
+The decision to move it still holds — it frees ~$23 of a $76.91 balance and
+takes the eval off the GPUs entirely — but it was never the difference
+between fitting the envelope and not.
+
+**Recorded because it changed a decision.** A four-point extrapolation over
+a distribution with an 89%-in-20-configs tail is not a measurement, and this
+one was quoted to a decision-maker as though it were.
+
+## 2026-08-05 05:05 — GIFT-Eval moved to elisa's CPUs
+
+Option 1 from the PR, implemented. Head training stays on the rented GPU;
+only the eval moves.
+
+`results/EVAL_PLACE` selects where, read fresh at every stop like
+`HOLD_ABOVE`, so it reaches drivers that started hours earlier: `inline`
+(this box's GPU, the old behaviour and the default), `local_cpu` (here,
+sharded across cores) and `broker` (on elisa). elisa is `local_cpu`, all six
+vast boxes are `broker`.
+
+`scripts/eval_local.sh` splits the 97 configs into four cost-balanced shards
+(`scripts/shard_configs.py`, LPT over `config_costs.csv`, exact partition
+within 0.1% of ideal) and runs them at one thread each on CPU. The shards'
+CSVs are merged and the aggregate comes from re-running the official script
+with `--resume`, which finds all 97 done and writes `summary.txt` through
+the same code an unsharded eval would have used.
+
+`scripts/eval_broker.sh` on elisa polls the six boxes. A vast container has
+no route back here, so the direction is always elisa -> vast: the box leaves
+an `EVAL_REQUEST` on its own disk and waits; the broker pulls the 5.2 MB
+backbone and 0.45 MB head with `safe_pull.sh`, evaluates, then pushes
+`summary.txt`, `all_results.csv` and last of all the score, whose appearance
+is what releases the waiter.
+
+The cap is **3 concurrent evals x 4 shards = 12 of elisa's 32 cores**
+(`scripts/eval_slot.sh`, a flock counting semaphore). That leaves 20 cores
+free against the eight the brief requires, and GPU headroom is total rather
+than partial: the shards run `--device cpu`, so both 4090s stay with the
+cells training on them.
+
+The five evals already in flight at 05:00 were left alone, on the GPUs, per
+the brief.
+
+## 2026-08-05 05:05 — two cells were about to become one cell twice
+
+`ladder.py` reaches `HOLD_ABOVE` by *returning* from `climb()`, deliberately,
+so the cells behind it in a `--cells a,b` invocation still run. The elisa
+driver was started as `--cells arm6_v2_nse_alignS,arm4_combab`, so at
+nse_alignS's 100k stop it would have begun `arm4_combab` on elisa — a cell
+vast F had been training since 03:11. The 04:10 layout note asserted the
+driver would exit instead; it would not have.
+
+Two copies of one cell write the same `<cell>/leg_<N>k/` filenames into two
+roots the sync loops merge, and the second copy's checkpoints are
+indistinguishable from the first's.
+
+`results/cell_claims.txt` now names the owning machine for each of the ten
+cells and `results/MACHINE` names each box. `run_leg.sh` checks both on
+every leg and exits non-zero on a mismatch, which stops the driver rather
+than letting it move on. The check lives in `run_leg.sh` and not in
+`ladder.py` because `run_leg.sh` is a new process on every leg: it reaches a
+driver that has been running for four hours, and `ladder.py` in memory does
+not.
+
+## 2026-08-05 05:05 — an interrupted eval could never be retried
+
+Killing the broker mid-eval left three shards with a zero-byte
+`all_results.csv`: `eval_gift_eval_official.py` reads that file for
+`--resume` and then reopens it `"w"`, so a kill in that window truncates it.
+Every subsequent `--resume` then died on `next(reader)` with
+`StopIteration` — permanently, on heads that had already cost 15,000 GPU
+steps each.
+
+`eval_local.sh` now removes an empty shard CSV and drops short rows before
+launching, so an interrupted eval resumes instead of failing forever. Found
+by killing a worker on purpose; the repair was verified on the four
+truncated files it produced.

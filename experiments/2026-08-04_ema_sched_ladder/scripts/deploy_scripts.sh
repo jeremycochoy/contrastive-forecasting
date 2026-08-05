@@ -26,8 +26,14 @@ HOST="${1:?usage: deploy_scripts.sh <host> <port> [file ...]}"
 PORT="${2:?usage: deploy_scripts.sh <host> <port> [file ...]}"
 shift 2
 
+# A name with a `results/` prefix lands in the experiment's results dir
+# instead of its scripts dir. The three files that steer a running driver —
+# HOLD_ABOVE, EVAL_PLACE, cell_claims.txt — live there and are read fresh
+# at every leg and every stop, so deploying them is how a decision taken
+# now reaches a driver that started four hours ago.
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REMOTE=/root/cf/experiments/2026-08-04_ema_sched_ladder/scripts
+REMOTE_EXP=/root/cf/experiments/2026-08-04_ema_sched_ladder
+REMOTE=$REMOTE_EXP/scripts
 SSH_OPTS=(-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
           -o ConnectTimeout=20)
 
@@ -35,11 +41,16 @@ FILES=("$@")
 [ ${#FILES[@]} -eq 0 ] && FILES=(gpu_gate.sh run_leg.sh eval_stop.sh ladder.py)
 
 for f in "${FILES[@]}"; do
-  [ -f "$HERE/$f" ] || { echo "ABORT: no $HERE/$f" >&2; exit 2; }
-  scp "${SSH_OPTS[@]}" -P "$PORT" "$HERE/$f" "root@$HOST:$REMOTE/.$f.incoming" \
+  case "$f" in
+    results/*) src="$(dirname "$HERE")/$f"; dstdir="$REMOTE_EXP/results" ;;
+    *)         src="$HERE/$f";             dstdir="$REMOTE" ;;
+  esac
+  base="$(basename "$f")"
+  [ -f "$src" ] || { echo "ABORT: no $src" >&2; exit 2; }
+  scp "${SSH_OPTS[@]}" -P "$PORT" "$src" "root@$HOST:$dstdir/.$base.incoming" \
     >/dev/null 2>&1 || { echo "ABORT: upload of $f failed" >&2; exit 3; }
   ssh "${SSH_OPTS[@]}" -p "$PORT" "root@$HOST" \
-    "mv -f '$REMOTE/.$f.incoming' '$REMOTE/$f' && chmod +x '$REMOTE/$f'" \
+    "mkdir -p '$dstdir' && mv -f '$dstdir/.$base.incoming' '$dstdir/$base' && chmod +x '$dstdir/$base'" \
     >/dev/null 2>&1 || { echo "ABORT: swap of $f failed" >&2; exit 4; }
   echo "  $f -> $HOST:$PORT"
 done

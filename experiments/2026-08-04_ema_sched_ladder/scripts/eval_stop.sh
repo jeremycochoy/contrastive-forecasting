@@ -20,6 +20,22 @@
 # horizon 16, B4, 97 configs, and --grad-clip 1.0 on the head. The project
 # bans grad clipping; the previous study kept it for comparability and so
 # does this one, which the report has to say.
+#
+# WHERE THE GIFT-EVAL RUNS is read from `results/EVAL_PLACE` at every stop,
+# not fixed when the driver starts — the same trick as HOLD_ABOVE, and for
+# the same reason: the placement was decided while ten cells were already
+# climbing, and a driver that has been running for four hours has to pick
+# it up. Three values:
+#
+#   inline     here, on this box's GPU. The original behaviour and the
+#              default when the file is absent.
+#   local_cpu  here, on this box's CPUs, sharded — elisa.
+#   broker     on elisa. Write a request and wait for the score — vast.
+#
+# Head training is on the GPU in all three. Only the eval moves, because
+# only the eval is CPU-bound: 100% of one core, a GPU 30% busy, 696 MiB of
+# VRAM. On a vast box that GPU is rented and Exclusive_Process, so the eval
+# holds the box's only CUDA context for hours while barely using it.
 set -uo pipefail
 
 CELL="${1:?usage: eval_stop.sh <cell> <stop> <student|teacher> <head_steps> <score_out>}"
@@ -58,6 +74,15 @@ BB="$(ckpt_at_step "$RUNS" "$NAME" "$STOP_K")"
 
 OUT="$RUNS/eval/bb${STOP_K}k_${ENC}"
 mkdir -p "$OUT" "$(dirname "$SCORE_OUT")"
+
+# A stop already scored costs nothing to re-enter. The ladder replays a
+# cell from step 0 on every restart, and a `broker` eval is retried from
+# the next tick when a push fails, so this path is walked more than once
+# per stop by design.
+if [ -s "$SCORE_OUT" ]; then
+  echo "[$(date +%H:%M:%S)] $CELL bb${STOP_K}k $ENC SKIP — score $(cat "$SCORE_OUT")"
+  exit 0
+fi
 HEAD_NAME="qhead_${NAME}_bb${STOP_K}k_${ENC}"
 HEAD_CKPT="$OUT/${HEAD_NAME}_final.pth"
 LOG="$OUT/eval.log"
@@ -101,24 +126,96 @@ else
   echo "[$(date +%H:%M:%S)] head-train SKIP (final exists)" | tee -a "$LOG"
 fi
 
-CUDA_VISIBLE_DEVICES="$BB_GPU" python3 -u "$GEVAL" \
-  --backbone-path "$BB" \
-  --head-path "$HEAD_CKPT" \
-  --encoder-source "$ENC" \
-  --output-dir "$OUT/gift" \
-  --strategy B4 --forecast-len 16 --resume \
-  "${ARCH_EVAL[@]}" \
-  --head-nhead 8 --head-causal true \
-  >>"$LOG" 2>&1
-rc=$?
-echo "[$(date +%H:%M:%S)] gift-eval rc=$rc" | tee -a "$LOG"
-[ $rc -eq 0 ] || exit $rc
+# The head is trained and the GPU's part of this stop is over. Drop the
+# device claim before the eval: on `inline` the eval reclaims it, but on
+# the other two placements the eval is elsewhere and holding the lock
+# through a multi-hour wait would idle a rented GPU with a cell queued
+# behind it.
+exec 9>&- 2>/dev/null || true
+
+PLACE_FILE="$WT/experiments/2026-08-04_ema_sched_ladder/results/EVAL_PLACE"
+PLACE="inline"
+[ -f "$PLACE_FILE" ] && PLACE="$(tr -dc 'a-z_' <"$PLACE_FILE")"
+echo "[$(date +%H:%M:%S)] eval place=$PLACE" | tee -a "$LOG"
+
+SUMMARY="$OUT/gift/summary.txt"
+
+case "$PLACE" in
+
+local_cpu)
+  # elisa. Sharded across cores, one thread each, no GPU. eval_local.sh
+  # writes SCORE_OUT itself, through the same score_from_summary as below.
+  bash "$(dirname "${BASH_SOURCE[0]}")/eval_local.sh" \
+    "$CELL" "$STOP_K" "$ENC" "$BB" "$HEAD_CKPT" "$OUT" "$SCORE_OUT" \
+    >>"$LOG" 2>&1
+  rc=$?
+  echo "[$(date +%H:%M:%S)] eval_local rc=$rc" | tee -a "$LOG"
+  [ $rc -eq 0 ] || exit $rc
+  ;;
+
+broker)
+  # A vast box. Leave a request on disk and wait; scripts/eval_broker.sh on
+  # elisa pulls the two checkpoints, evaluates, and pushes the score back.
+  # The request is written to a temporary name and moved, because the
+  # broker may read the directory at any moment.
+  REQ="$OUT/EVAL_REQUEST"
+  rm -f "$OUT/EVAL_TAKEN" "$OUT/EVAL_DONE"
+  {
+    echo "cell=$CELL"
+    echo "stop_k=$STOP_K"
+    echo "enc=$ENC"
+    echo "backbone=$BB"
+    echo "head=$HEAD_CKPT"
+    echo "out_dir=$OUT"
+    echo "score_out=$SCORE_OUT"
+    echo "created=$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+  } > "$REQ.tmp" && mv -f "$REQ.tmp" "$REQ"
+  mkdir -p "$OUT/gift"
+  echo "[$(date +%H:%M:%S)] request written, waiting for the broker" | tee -a "$LOG"
+
+  # 12 h. One eval is ~3 core-hours split over the shards, so this covers a
+  # deep queue on elisa. Failing instead of waiting would throw away a head
+  # that already cost 15,000 or 30,000 GPU steps.
+  BROKER_WAIT="${BROKER_WAIT:-43200}"
+  waited=0
+  while [ ! -s "$SCORE_OUT" ]; do
+    if [ "$waited" -ge "$BROKER_WAIT" ]; then
+      echo "[$(date +%H:%M:%S)] ABORT: no score after ${waited}s" | tee -a "$LOG"
+      exit 8
+    fi
+    [ $(( waited % 1800 )) -eq 0 ] && [ "$waited" -gt 0 ] && \
+      echo "[$(date +%H:%M:%S)] still waiting for the broker (${waited}s)" | tee -a "$LOG"
+    sleep 60
+    waited=$(( waited + 60 ))
+  done
+  echo "[$(date +%H:%M:%S)] broker returned after ${waited}s" | tee -a "$LOG"
+  ;;
+
+*)
+  # inline — this box's GPU, unsharded. Reclaim the device first.
+  gpu_gate "$BB_GPU" || { echo "ABORT: GPU $BB_GPU never came free" | tee -a "$LOG"; exit 1; }
+  CUDA_VISIBLE_DEVICES="$BB_GPU" python3 -u "$GEVAL" \
+    --backbone-path "$BB" \
+    --head-path "$HEAD_CKPT" \
+    --encoder-source "$ENC" \
+    --output-dir "$OUT/gift" \
+    --strategy B4 --forecast-len 16 --resume \
+    "${ARCH_EVAL[@]}" \
+    --head-nhead 8 --head-causal true \
+    >>"$LOG" 2>&1
+  rc=$?
+  echo "[$(date +%H:%M:%S)] gift-eval rc=$rc" | tee -a "$LOG"
+  [ $rc -eq 0 ] || exit $rc
+  ;;
+esac
 
 # The score, pinned to one file and one metric — see score_from_summary in
-# leg_paths.sh for why neither is left to a glob.
-SUMMARY="$OUT/gift/summary.txt"
-score_from_summary "$SUMMARY" > "$SCORE_OUT.tmp" \
-  || { rm -f "$SCORE_OUT.tmp"; exit 4; }
-mv "$SCORE_OUT.tmp" "$SCORE_OUT"
+# leg_paths.sh for why neither is left to a glob. `local_cpu` and `broker`
+# have already written it; `inline` has not.
+if [ ! -s "$SCORE_OUT" ]; then
+  score_from_summary "$SUMMARY" > "$SCORE_OUT.tmp" \
+    || { rm -f "$SCORE_OUT.tmp"; exit 4; }
+  mv "$SCORE_OUT.tmp" "$SCORE_OUT"
+fi
 echo "[$(date +%H:%M:%S)] DONE — $(grep -h 'Aggregate GM-Relative MASE' \
-  "$SUMMARY") -> $(cat "$SCORE_OUT")" | tee -a "$LOG"
+  "$SUMMARY" 2>/dev/null) -> $(cat "$SCORE_OUT")" | tee -a "$LOG"

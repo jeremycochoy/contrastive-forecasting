@@ -38,6 +38,7 @@ import csv
 import os
 import subprocess
 import sys
+from concurrent import futures
 
 SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
 EXP_DIR = os.path.dirname(SCRIPTS_DIR)
@@ -309,13 +310,30 @@ def stop_scores(cell: dict, stop: int, heads: tuple, recorded: dict,
 
     `recorded` is what ladder.csv already holds for this cell and stop, so
     a crashed cell does not re-train a 30k-step head it already has.
+
+    The two heads run CONCURRENTLY. Each is a GPU head-training followed by
+    a GIFT-Eval, and since PR #394 that eval runs on elisa while the box
+    holding the cell has nothing to do. Run in series, the student's eval
+    leaves the rented GPU idle for the hours before the teacher's head even
+    starts. gpu_gate.sh keeps the two head trainings off each other on an
+    Exclusive_Process box, so what actually overlaps is one head training
+    against the other head's eval — which is the whole point.
+
+    The rows are appended here, in `heads` order, rather than by the
+    threads: ladder.csv is read back by a restarting driver to decide what
+    to skip, and two writers appending to one file interleave.
     """
-    scores = {}
-    for head in heads:
-        if head in recorded:
-            scores[head] = recorded[head]
-            continue
-        scores[head] = evaluate(cell["slug"], stop, head, env)
+    scores = {h: recorded[h] for h in heads if h in recorded}
+    missing = [h for h in heads if h not in recorded]
+    if missing:
+        with futures.ThreadPoolExecutor(max_workers=len(missing)) as pool:
+            running = {h: pool.submit(evaluate, cell["slug"], stop, h, env)
+                       for h in missing}
+            # .result() re-raises the worker's SystemExit here, on the main
+            # thread, so a failed head still stops the cell.
+            for head in missing:
+                scores[head] = running[head].result()
+    for head in missing:
         append_row(ladder_csv, LADDER_COLUMNS,
                    [cell["slug"], cell["arm"], cell["align"] or "", stop,
                     head, head_steps_for(stop), f"{alpha_at(stop):.6f}",

@@ -1,0 +1,27 @@
+# #393 — which machine owns which cell. One line per cell: <cell> <machine>.
+#
+# `results/MACHINE` on each box holds that box's name in this table's
+# vocabulary. run_leg.sh reads both on every leg and refuses a cell whose
+# owner is someone else, exiting non-zero so ladder.py stops rather than
+# carrying on to the next cell in its list.
+#
+# The file this guards against: the elisa driver launched as
+# `--cells arm6_v2_nse_alignS,arm4_combab`. HOLD_ABOVE returns from
+# climb() instead of raising, so at nse_alignS's 100k stop that driver
+# would have started arm4_combab on elisa — the same cell vast F had been
+# training since 03:11. Two copies of one cell write the same
+# `<cell>/leg_<N>k/` filenames into two roots the sync loops merge.
+#
+# Change this file when a cell moves, and deploy it to every box:
+#   bash scripts/deploy_scripts.sh <host> <port>   (carries results files too)
+
+arm6_v2_combab_alignS   elisa
+arm6_v2_combab_alignT   elisa
+arm6_v2_nse_alignS      elisa
+arm5_combab_alignS      vastA
+arm6_v2_ncpc_alignS     vastB
+arm6_v2_ncpc_alignT     vastB
+arm5_combab_alignT      vastC
+arm6_v2_nse_alignT      vastD
+arm1_nse                vastE
+arm4_combab             vastF

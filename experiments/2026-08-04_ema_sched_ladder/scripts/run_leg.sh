@@ -152,6 +152,38 @@ else
   log "FRESH start at step 0"
 fi
 
+# Which machine owns this cell. Ten cells run on seven machines and a cell
+# must exist on exactly one of them: two copies write the same
+# `<cell>/leg_<N>k/` names into two roots that the sync loops then merge,
+# and the second copy's checkpoints are indistinguishable from the first's.
+#
+# This is not hypothetical. `ladder.py` reaches HOLD_ABOVE by RETURNING
+# from climb() — deliberately, so the cells behind it in a `--cells a,b`
+# invocation still run — so the elisa driver started as
+# `--cells arm6_v2_nse_alignS,arm4_combab` would begin arm4_combab the
+# moment nse_alignS stopped at 100k, while arm4_combab was already six
+# hours into the same cell on vast F.
+#
+# The check lives here rather than in ladder.py because run_leg.sh is a new
+# process on every leg, so it reaches a driver that has been running for
+# hours; ladder.py in memory is whatever was on disk when it started. A
+# non-zero exit is what stops the driver: ladder.py raises SystemExit on a
+# failed leg, so the duplicate cell takes the driver down with it instead
+# of moving on to the next cell in the list.
+# `results/MACHINE` names this box, because a vast container's `hostname`
+# is a per-boot ID that no committed file can be written against.
+CLAIMS="$RES/cell_claims.txt"
+if [ -f "$CLAIMS" ]; then
+  owner="$(awk -v c="$CELL" '$1==c {print $2}' "$CLAIMS" | head -1)"
+  me="$(cat "$RES/MACHINE" 2>/dev/null | tr -dc 'a-zA-Z0-9_-')"
+  [ -n "$me" ] || me="${CF393_MACHINE:-$(hostname)}"
+  if [ -n "$owner" ] && [ "$owner" != "$me" ]; then
+    log "CLAIM: $CELL belongs to '$owner', this machine is '$me' — refusing"
+    exit 10
+  fi
+  [ -n "$owner" ] || log "CLAIM: $CELL unlisted in $CLAIMS — proceeding"
+fi
+
 # A session-wide ceiling on how far any cell may climb, read fresh on every
 # leg so it reaches the ladder drivers that are already running. The spend
 # order is "all ten cells to bb100k first, extensions with what is left";
