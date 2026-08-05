@@ -6,3 +6,16 @@
 [08-05 05:05:27] [broker] a_arm5_combab_alignS_bb40k_student: checkpoints in, queueing for an eval slot
 [08-05 05:12:43] [broker] start boxes=/tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/results/broker_boxes.txt poll=120s runs=/home/jupyter/checkpoints_backup/cf-393 wt=/tmp/contrastive-forecasting-393
 [08-05 05:15:26] [broker] f: malformed request (cell='reachcheck' stop='1' enc='student') — skipping
+[08-05 06:16:55] [broker] take c/arm5_combab_alignT bb40k student
+[08-05 06:16:58] [broker] take d/arm6_v2_nse_alignT bb40k student
+[08-05 06:17:06] [broker] c_arm5_combab_alignT_bb40k_student: checkpoints in, queueing for an eval slot
+[08-05 06:17:06] [broker] take f/arm4_combab bb40k student
+[08-05 06:17:10] [broker] d_arm6_v2_nse_alignT_bb40k_student: checkpoints in, queueing for an eval slot
+[08-05 06:17:17] [broker] f_arm4_combab_bb40k_student: checkpoints in, queueing for an eval slot
+[08-05 06:19:25] [broker] take e/arm1_nse bb40k student
+[08-05 06:19:37] [broker] e_arm1_nse_bb40k_student: checkpoints in, queueing for an eval slot
+[08-05 06:21:10] [broker] a_arm5_combab_alignS_bb40k_student: DONE score=1.2596
+[08-05 06:24:14] [broker] take b/arm6_v2_ncpc_alignS bb40k teacher
+[08-05 06:24:26] [broker] b_arm6_v2_ncpc_alignS_bb40k_teacher: checkpoints in, queueing for an eval slot
+[08-05 06:26:33] [broker] take a/arm5_combab_alignS bb40k teacher
+[08-05 06:26:44] [broker] a_arm5_combab_alignS_bb40k_teacher: checkpoints in, queueing for an eval slot

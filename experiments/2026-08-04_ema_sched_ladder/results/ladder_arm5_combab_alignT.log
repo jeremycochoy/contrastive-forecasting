@@ -4,3 +4,6 @@
 [08-05 04:44:48] [arm5_combab_alignT] DONE target=40000 (5.0M) -> /root/cf393_runs/arm5_combab_alignT/leg_40k/cf393_arm5_combab_alignT_40k.pth
 [ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm5_combab_alignT 40000 student 15000 /root/cf393_runs/arm5_combab_alignT/eval/score_bb40k_student.txt
 [04:44:48] arm5_combab_alignT bb40k enc=student head=15000s
+[05:15:06] head-train rc=0
+[05:15:06] eval place=broker
+[05:15:06] request written, waiting for the broker
