@@ -123,5 +123,19 @@ RES="$R" bash "$MERGE" ladder >/dev/null 2>&1
 check "empty input exits clean"            "$?" "0"
 check "  and writes no pooled file"        "$([ -e "$R/ladder_all.csv" ] && echo yes || echo no)" "no"
 
+# --- 9. one row in two line endings is one row -----------------------------
+# ladder.py appends through csv.writer, which terminates lines with CRLF.
+# release_idle_boxes.sh appends its budget_stop row with printf, which does
+# not, and scripts/scores_from_evals.py pins LF. Without normalisation the
+# same row from two writers is two different strings: the pooled file would
+# carry it twice and the header check would abort on the mismatch alone.
+R=$(fixture crlf ladder elisa "$LH" \
+  'c1,a,student,40000,student,15000,0.940000,1.160300')
+printf 'cell,arm,align,stop,head,head_steps,ema_tau,gm_rel_mase\r\nc1,a,student,40000,student,15000,0.940000,1.160300\r\n' \
+  > "$R/per_machine/ladder_vastA.csv"
+RES="$R" bash "$MERGE" ladder >/dev/null
+check "CRLF and LF spellings of one row collapse" "$(rows "$R/ladder_all.csv" | wc -l)" "1"
+check "  and the pooled file carries no CR"       "$(grep -c $'\r' "$R/ladder_all.csv")" "0"
+
 printf '\n%d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

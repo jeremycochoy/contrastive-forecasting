@@ -141,10 +141,19 @@ record_budget_stop() {  # <label>
   local lbl="$1" cell stop dec="$EXP/results/decisions.csv"
   [ -f "$dec" ] || printf 'cell,stop,branch,extend,heads_next\n' > "$dec"
   for cell in $(awk -v m="vast${lbl^^}" '$2==m {print $1}' "$CLAIMS"); do
-    stop=$(awk -F, -v c="$cell" '$1==c {print $4+0}' \
+    # The stop the cell REACHED, not the last one already scored. A cell
+    # whose bb100k backbone is trained and whose second head is still
+    # evaluating stops at bb100k; recording bb40k there would read as a
+    # cell that never got past the first rung. Take the newest backbone
+    # sync_loop.sh pulled, and fall back to the scored stops only if no
+    # checkpoint came home.
+    stop=$(ls "$HOME"/cf393_sync*/2026-08-04_ema_sched_ladder/sync/"$cell"/leg_*k/cf393_"$cell"_[0-9]*k.pth 2>/dev/null \
+           | sed -E 's|.*_([0-9]+)k\.pth$|\1|' | sort -n | tail -1)
+    [ -n "$stop" ] && stop=$(( stop * 1000 ))
+    [ -n "$stop" ] || stop=$(awk -F, -v c="$cell" '$1==c {print $4+0}' \
              "$EXP/results/ladder_all.csv" 2>/dev/null | sort -n | tail -1)
     [ -n "$stop" ] && [ "$stop" != "0" ] || stop=""
-    [ -n "$stop" ] || { log "$lbl: $cell has no scored stop — no budget row written"; continue; }
+    [ -n "$stop" ] || { log "$lbl: $cell has no stop on disk — no budget row written"; continue; }
     if grep -q "^$cell,$stop,budget_stop," "$dec" 2>/dev/null; then continue; fi
     printf '%s,%s,budget_stop,0,\n' "$cell" "$stop" >> "$dec"
     log "$lbl: recorded $cell bb$((stop/1000))k as branch=budget_stop"

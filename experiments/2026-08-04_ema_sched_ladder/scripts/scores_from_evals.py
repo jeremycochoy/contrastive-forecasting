@@ -58,6 +58,18 @@ from ladder import (  # noqa: E402
 EXPECTED_CONFIGS = 97
 CELL_BY_SLUG = {c["slug"]: c for c in CELLS}
 
+# csv.writer's default line terminator is CRLF. Every other file in
+# results/per_machine/ is written by ladder.py or copied off a box and ends
+# in LF, and merge_pooled.sh compares headers as strings and deduplicates
+# rows as whole lines — so a CR would make this file's header disagree with
+# its neighbours and would make an identical row from a box look different
+# from the same row here. Pin it.
+LF = "\n"
+
+
+def writer(fh):
+    return csv.writer(fh, lineterminator=LF)
+
 # <cell>/eval/bb<K>k_<enc>/  — a cell that trains on elisa.
 # _broker/<box>/<cell>/bb<K>k_<enc>/  — a cell that trains on a rented box.
 STOP_DIR_RE = re.compile(r"^bb(\d+)k_(student|teacher)$")
@@ -164,7 +176,7 @@ def main() -> int:
         return 0
 
     if a.check:
-        w = csv.writer(sys.stdout)
+        w = writer(sys.stdout)
         w.writerow(LADDER_COLUMNS)
         w.writerows(rows)
         return 0
@@ -172,7 +184,7 @@ def main() -> int:
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
     tmp = a.out + ".tmp"
     with open(tmp, "w", newline="") as fh:
-        w = csv.writer(fh)
+        w = writer(fh)
         w.writerow(LADDER_COLUMNS)
         w.writerows(rows)
     os.replace(tmp, a.out)

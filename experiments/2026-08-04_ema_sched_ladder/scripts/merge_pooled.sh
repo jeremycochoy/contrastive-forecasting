@@ -57,14 +57,25 @@ merge(){  # <basename>
   local base="$1" out="$RES/${1}_all.csv" hdr="" first=1 spec
   spec=$(key_spec "$base") || { echo "ABORT: no key declared for '$base'" >&2; return 3; }
 
+  # CR is stripped from every source line before anything else looks at it.
+  # ladder.py appends through csv.writer, whose default line terminator is
+  # CRLF, so every machine's ladder.csv and decisions.csv ends its lines in
+  # \r\n — while a row written by a shell script (release_idle_boxes.sh's
+  # budget_stop row) or by a generator that pins LF ends in \n alone. Those
+  # two spellings of one row are different strings, so the whole-line
+  # deduplication below would keep both and the header check would abort on
+  # a file that differs from its neighbours only in an invisible byte.
+  # Normalising here rather than at each writer means the pooled file is
+  # clean no matter which of them produced a row, including the drivers
+  # that have been running since before any of this was written.
   : > "$out.tmp"
   for f in "$RES/per_machine/${base}_"*.csv; do
     [ -f "$f" ] || continue
-    [ $first -eq 1 ] && { hdr=$(head -n 1 "$f"); first=0; }
-    [ "$(head -n 1 "$f")" = "$hdr" ] || {
+    [ $first -eq 1 ] && { hdr=$(head -n 1 "$f" | tr -d '\r'); first=0; }
+    [ "$(head -n 1 "$f" | tr -d '\r')" = "$hdr" ] || {
       echo "ABORT: $f has a different header than the others" >&2
       rm -f "$out.tmp"; return 4; }
-    tail -n +2 "$f" >> "$out.tmp"
+    tail -n +2 "$f" | tr -d '\r' >> "$out.tmp"
   done
   [ -n "$hdr" ] || { rm -f "$out.tmp"; say "no ${base} rows yet"; return 0; }
 

@@ -552,3 +552,28 @@
 [08-05 19:12:33] [merge] ladder_all.csv: 30 rows
 [08-05 19:12:33] [merge] decisions_all.csv: 13 rows
 [08-05 19:12:33] [collect] done
+scripts/collect_results.sh: line 22: WT: WT must be the absolute path of the checkout
+[08-05 19:18:11] [collect] vastA (ssh2.vast.ai:11448)
+[08-05 19:18:11] [collect]   no vastA/ladder yet
+[08-05 19:18:11] [collect]   no vastA/decisions yet
+[08-05 19:18:12] [collect] vastB (ssh4.vast.ai:13146)
+[08-05 19:18:12] [collect]   no vastB/ladder yet
+[08-05 19:18:12] [collect]   no vastB/decisions yet
+[08-05 19:18:12] [collect] vastC (ssh6.vast.ai:18762)
+[08-05 19:18:13] [collect]   no vastC/ladder yet
+[08-05 19:18:13] [collect]   no vastC/decisions yet
+[08-05 19:18:13] [collect] vastD (ssh7.vast.ai:18862)
+[08-05 19:18:13] [collect]   no vastD/ladder yet
+[08-05 19:18:13] [collect]   no vastD/decisions yet
+[08-05 19:18:14] [collect] vastE (ssh5.vast.ai:18856)
+[08-05 19:18:14] [collect]   no vastE/ladder yet
+[08-05 19:18:14] [collect]   no vastE/decisions yet
+[08-05 19:18:14] [collect] vastF (ssh1.vast.ai:18914)
+[08-05 19:18:32] [collect]   evidence unpacked
+[08-05 19:18:39] [collect] vastG (ssh7.vast.ai:13258)
+[08-05 19:18:39] [collect]   no vastG/ladder yet
+[08-05 19:18:39] [collect]   no vastG/decisions yet
+  [scores] ladder_evaldirs.csv: 29 rows from eval output under /home/jupyter/checkpoints_backup/cf-393
+[08-05 19:18:43] [merge] ladder_all.csv: 30 rows
+[08-05 19:18:43] [merge] decisions_all.csv: 17 rows
+[08-05 19:18:43] [collect] done
