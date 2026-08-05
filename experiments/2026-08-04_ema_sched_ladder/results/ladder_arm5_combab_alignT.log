@@ -19,3 +19,10 @@
 [07:24:48] request written, waiting for the broker
 [07:54:48] still waiting for the broker (1800s)
 [08:24:48] still waiting for the broker (3600s)
+[08:54:48] still waiting for the broker (5400s)
+[09:23:48] broker returned after 7140s
+[09:23:48] DONE — Aggregate GM-Relative MASE (97 configs): 1.3190 -> 1.3190
+[ladder] arm5_combab_alignT @40000: {'student': 1.3334, 'teacher': 1.319} -> {'extend': True, 'heads': ('student', 'teacher'), 'branch': 'unconditional'}
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm5_combab_alignT 100000
+[08-05 09:23:48] [arm5_combab_alignT] RESUME from cf393_arm5_combab_alignT_40k.pth (step 40k)
+[08-05 09:23:48] [arm5_combab_alignT] START target=100000 gpu=0 save_every=20000 leg=/root/cf393_runs/arm5_combab_alignT/leg_100k

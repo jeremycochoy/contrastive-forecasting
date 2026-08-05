@@ -709,3 +709,14 @@ Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, 
   -> Saved /root/cf393_runs/arm6_v2_nse_alignT/leg_40k/cf393_arm6_v2_nse_alignT_final.pth
 
 Done in 1.5h. Best gap=0.5680 at step 32400, Best loss=4.9809 at step 31000
+  [checkpoint] Restored optimizer from /root/cf393_runs/arm6_v2_nse_alignT/leg_40k/cf393_arm6_v2_nse_alignT_40k_optimizer.pth (step=40000, best_ff=0.5680)
+Resumed from /root/cf393_runs/arm6_v2_nse_alignT/leg_40k/cf393_arm6_v2_nse_alignT_40k.pth at step 40000
+Device: cuda | Params: 724,764
+Training for 100000 steps, bs=64, lr=0.001, T=4096, C=1, mix_ratio=0.0078125, freq_emb_dim=3, seasonality_emb_dim=3, mixup_p=0.3, rev_norm_kind=ewma(span=128), patch_stats=none, encoder_type=gru
+Checkpoints: /root/cf393_runs/arm6_v2_nse_alignT/leg_100k/cf393_arm6_v2_nse_alignT_*.pth
+Loss CSV: /root/cf393_runs/arm6_v2_nse_alignT/leg_100k/cf393_arm6_v2_nse_alignT_losses.csv
+Latent-drift CSV: /root/cf393_runs/arm6_v2_nse_alignT/leg_100k/cf393_arm6_v2_nse_alignT_latent_drift.csv (every 20000 steps, probe_bs=64, probe_seed=20260722)
+Attn-amplitude CSV: /root/cf393_runs/arm6_v2_nse_alignT/leg_100k/cf393_arm6_v2_nse_alignT_attn_amplitude.csv (every 200 steps)
+Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, hf_bs=64, synth_bs=0, cross_bs=0, total_bs=67
+  [dataloader] 4274 shards, 42740000 total rows, target skip 2560000
+  [dataloader] Fast-skip: starting at shard 256/4274, then skipping 0 rows within it
