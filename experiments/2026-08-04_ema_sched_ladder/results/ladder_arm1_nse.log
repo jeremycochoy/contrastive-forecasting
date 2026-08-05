@@ -34,3 +34,6 @@
 [08-05 14:46:52] [arm1_nse] DONE target=100000 (5.0M) -> /root/cf393_runs/arm1_nse/leg_100k/cf393_arm1_nse_100k.pth
 [ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm1_nse 100000 student 30000 /root/cf393_runs/arm1_nse/eval/score_bb100k_student.txt
 [14:46:52] arm1_nse bb100k enc=student head=30000s
+[16:11:48] head-train rc=0
+[16:11:48] eval place=broker
+[16:11:48] request written, waiting for the broker

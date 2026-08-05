@@ -35,3 +35,6 @@
 [08-05 14:45:40] [arm4_combab] DONE target=100000 (5.0M) -> /root/cf393_runs/arm4_combab/leg_100k/cf393_arm4_combab_100k.pth
 [ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm4_combab 100000 student 30000 /root/cf393_runs/arm4_combab/eval/score_bb100k_student.txt
 [14:45:40] arm4_combab bb100k enc=student head=30000s
+[16:11:17] head-train rc=0
+[16:11:17] eval place=broker
+[16:11:17] request written, waiting for the broker
