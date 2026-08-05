@@ -421,23 +421,71 @@ SPREAD_COLS = ("arm_slug,variant,align_target,code_snapshot,bb_steps,"
                "head_steps,bb_seed,head_seed,cell,gm_rel_mase,n_configs,"
                "source")
 
+# The column GIFT-eval writes each config's MASE into, as it appears on disk
+# in every `all_results.csv` (`eval_bootstrap.MASE_COL` reads it).
+MASE_COL = "eval_metrics/MASE[0.5]"
+
+# A cell's per-config MASEs are `gm * factor * naive`, so the cell aggregates
+# back to exactly `gm`: GM-Relative MASE is exp(mean log(MASE / naive)) and
+# these factors are powers of two whose product is exactly 1. Varying the
+# seasonal-naive denominator across configs means a script that forgot to
+# divide by it would not land on `gm`.
+SPREAD_CONFIGS = ("ds0/1H/short", "ds1/1H/short", "ds2/1H/long",
+                  "ds3/15T/short")
+SPREAD_FACTORS = (0.5, 2.0, 0.25, 4.0)
+SPREAD_NAIVE = (0.7, 1.3, 2.1, 0.9)
+
+
+def _cell(arm, target, seed):
+    return f"{arm}_{target}_c{seed}"
+
+
+def _write_all_results(path, mase):
+    """One eval's per-config file. `mase`: {config: MASE}."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", newline="") as fh:
+        w = csv.writer(fh)
+        w.writerow(["dataset", "model", MASE_COL])
+        for config, value in mase.items():
+            w.writerow([config, "cf", repr(value)])
+
 
 def _spread_table(path, cells):
-    """cells: (arm, target, bb_steps, head_seed, value)"""
+    """cells: (arm, target, bb_steps, head_seed, gm).
+
+    `gm_rel_mase` carries the four-decimal value the report prints, which is
+    all the table ever holds."""
     with open(path, "w") as fh:
         fh.write(SPREAD_COLS + "\n")
-        for arm, target, bb, seed, val in cells:
+        for arm, target, bb, seed, gm in cells:
             fh.write(f"{arm},base,{target},#390-branch,{bb},15000,20260520,"
-                     f"{seed},{arm}_c{seed},{val},97,#390\n")
+                     f"{seed},{_cell(arm, target, seed)},{gm:.4f},97,#390\n")
 
 
-def _run_spread(tmp_path, cells, extra=()):
+def _spread_results(root, cells):
+    """The per-config files the script derives its means and ranges from."""
+    naive = dict(zip(SPREAD_CONFIGS, SPREAD_NAIVE))
+    _write_all_results(root / "seasonal_naive_all_results.csv", naive)
+    for arm, target, _bb, seed, gm in cells:
+        _write_all_results(
+            root / "eval_gm_mase" / _cell(arm, target, seed) / "all_results.csv",
+            {c: gm * f * naive[c]
+             for c, f in zip(SPREAD_CONFIGS, SPREAD_FACTORS)})
+
+
+def _run_spread(tmp_path, cells, extra=(), results_cells=None):
+    """Write the table and the per-config results, then run the script.
+
+    `results_cells` defaults to `cells`; pass a subset to leave a cell with a
+    table row but no per-config file."""
     table = tmp_path / "gm.csv"
+    results = tmp_path / "results"
     out = tmp_path / "spread.csv"
     _spread_table(table, cells)
+    _spread_results(results, cells if results_cells is None else results_cells)
     res = subprocess.run(
         [sys.executable, str(SPREAD), "--table", str(table),
-         "--out", str(out), *extra],
+         "--results", str(results), "--out", str(out), *extra],
         capture_output=True, text=True)
     return res, out
 
@@ -447,10 +495,10 @@ def test_seed_spread_keys_on_the_align_target(tmp_path):
     different backbones. Grouped on (arm, step) alone they would merge into
     one row and report a spread that is really a teacher-student gap."""
     res, out = _run_spread(tmp_path, [
-        ("arm5", "teacher", 40000, "20260722", "1.3515"),
-        ("arm5", "teacher", 40000, "20260723", "1.3550"),
-        ("arm5", "student", 40000, "20260722", "1.4501"),
-        ("arm5", "student", 40000, "20260723", "1.4530"),
+        ("arm5", "teacher", 40000, "20260722", 1.3515),
+        ("arm5", "teacher", 40000, "20260723", 1.3550),
+        ("arm5", "student", 40000, "20260722", 1.4501),
+        ("arm5", "student", 40000, "20260723", 1.4530),
     ])
     assert res.returncode == 0, res.stdout + res.stderr
     with open(out, newline="") as fh:
@@ -458,29 +506,72 @@ def test_seed_spread_keys_on_the_align_target(tmp_path):
     assert len(rows) == 2, rows
     assert {r["align_target"] for r in rows} == {"teacher", "student"}
     for r in rows:
+        # Merged, the one row would span the 0.1015 teacher-student gap.
         assert float(r["range"]) < 0.01, r
+
+
+def test_the_spread_is_read_at_full_precision_not_off_the_table(tmp_path):
+    """The two committed CSVs disagreed in the fourth decimal on the same
+    quantity while the ranges were differences of already-rounded values.
+    These two cells are a quarter of a last place apart from their printed
+    values, in opposite directions, so the table gives 0.0080 and the
+    per-config files give the true 0.0081."""
+    lo, hi = 1.351451, 1.359549
+    res, out = _run_spread(tmp_path, [
+        ("arm5", "teacher", 40000, "20260722", lo),
+        ("arm5", "teacher", 40000, "20260723", hi),
+    ])
+    assert res.returncode == 0, res.stdout + res.stderr
+    with open(out, newline="") as fh:
+        row, = list(csv.DictReader(fh))
+    off_table = round(hi, 4) - round(lo, 4)
+    assert f"{off_table:.4f}" == "0.0080", off_table
+    assert row["range"] == f"{hi - lo:.4f}" == "0.0081", row
+    assert row["range_rel"] == f"{(hi - lo) / lo:.4f}" == "0.0060", row
+    assert f"{off_table / round(lo, 4):.4f}" == "0.0059", "off the table"
+
+
+def test_a_cell_with_no_per_config_file_is_refused(tmp_path):
+    """Full precision is only worth claiming if the fallback is a refusal.
+    A cell the eval never wrote must stop the run, not quietly leave its
+    group to be measured over the seeds that did land."""
+    res, out = _run_spread(tmp_path, [
+        ("arm5", "teacher", 40000, "20260722", 1.3515),
+        ("arm5", "teacher", 40000, "20260723", 1.3550),
+        ("arm5", "teacher", 40000, "20260724", 1.3927),
+    ], results_cells=[
+        ("arm5", "teacher", 40000, "20260722", 1.3515),
+        ("arm5", "teacher", 40000, "20260723", 1.3550),
+    ])
+    assert res.returncode != 0
+    assert "no per-config all_results.csv" in res.stderr, res.stderr
+    assert not out.exists()
 
 
 def test_the_bar_is_read_off_40k_cells(tmp_path):
     """The whole point of measuring at 40k: a 200k cell's range must not
     become the bar for a 40k delta."""
     res, _ = _run_spread(tmp_path, [
-        ("arm5", "teacher", 40000, "20260722", "1.3515"),
-        ("arm5", "teacher", 40000, "20260723", "1.3560"),
-        ("arm5_nse", "teacher", 200000, "20260722", "1.7979"),
-        ("arm5_nse", "teacher", 200000, "20260723", "1.8887"),
+        ("arm5", "teacher", 40000, "20260722", 1.3515),
+        ("arm5", "teacher", 40000, "20260723", 1.3560),
+        ("arm5_nse", "teacher", 200000, "20260722", 1.7979),
+        ("arm5_nse", "teacher", 200000, "20260723", 1.8887),
     ])
     assert res.returncode == 0, res.stdout + res.stderr
-    assert "largest 40k head-seed range: 0.0045" in res.stdout, res.stdout
-    assert "0.0908" not in res.stdout.split("backbone 40000")[1]
+    above, at40 = res.stdout.split("backbone 40000")
+    # The 200k cell is measured and reported...
+    assert "range 0.0908" in above, above
+    # ...and kept out of the bar the 40k deltas are judged against.
+    assert "largest 0.0045" in at40, at40
+    assert "0.0908" not in at40, at40
 
 
 def test_missing_40k_replicate_is_said_out_loud(tmp_path):
     """A bar carried across from 100k/200k is the failure this guards. With
     no 40k replicate the script must refuse to imply one exists."""
     res, _ = _run_spread(tmp_path, [
-        ("arm5_nse", "teacher", 200000, "20260722", "1.7979"),
-        ("arm5_nse", "teacher", 200000, "20260723", "1.8887"),
+        ("arm5_nse", "teacher", 200000, "20260722", 1.7979),
+        ("arm5_nse", "teacher", 200000, "20260723", 1.8887),
     ])
     assert res.returncode == 0, res.stdout + res.stderr
     assert "NO 40k CELL CARRIES A REPLICATE HEAD SEED" in res.stdout
