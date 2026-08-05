@@ -58,12 +58,18 @@ CELLS=(arm6_v2_combab_alignS arm6_v2_combab_alignT
        arm6_v2_nse_alignS arm6_v2_nse_alignT
        arm4_combab arm1_nse)
 
-# Per-class floors, never one blanket number. This backbone is d_model=64,
-# 3+3 layers (~1-2M params): checkpoint ~5 MB, optimizer state ~10 MB. A
-# quantile head is ~2.4 MB, which a blanket 70 MB floor drops silently (PR
-# #45). CSVs, logs, markers and score files are a few bytes upward.
+# Per-class floors, never one blanket number, and every one of them below
+# the size this run actually produces. Measured on the first tick of the
+# 2026-08-05 vast.ai leg: backbone 5,192,927 B, optimizer 5,789,873 B,
+# quantile head ~2.4 MB. The optimizer floor started at 6 MB — ABOVE the
+# real 5.79 MB — and dropped every optimizer file for a whole tick while
+# logging only a `✗` line. That is PR #45's failure mode: a wrong-but-large
+# floor discards a good file silently. Without the optimizer companion a
+# resumed leg loses the step counter, the RNG state and AdamW's moments,
+# which is the whole ladder. CSVs, logs, markers and score files are a few
+# bytes upward.
 backbone_floor(){ echo 3000000; }
-optimizer_floor(){ echo 6000000; }
+optimizer_floor(){ echo 4000000; }
 head_floor(){ echo 1000000; }
 text_floor(){ echo 1; }
 
