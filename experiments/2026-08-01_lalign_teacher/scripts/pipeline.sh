@@ -25,14 +25,19 @@ case "$WT" in
   /tmp/*|/tmp) echo "ABORT: WT=$WT is under /tmp — refusing." >&2; exit 2 ;;
 esac
 
-HERE="$(cd "$(dirname "$0")" && pwd)"
+# `cd -P`, because this file is reached through a `scripts/` symlink inside
+# $WT: the logical path would walk back up to $WT and load that checkout's
+# resolver, which can sit on any commit. A missing one aborts loudly; an
+# older one — say, one predating the override check — answers, silently.
+HERE="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd -P "$HERE/../../.." && pwd)"
 # shellcheck source=arm_names.sh
 source "$HERE/arm_names.sh"
 
 # The presence check below asks the same question the eval stage asks, so it
-# asks it the same way. Taken from this script's own checkout ($HERE), not
-# from $WT, for the reason spelled out in eval_arm.sh.
-CKPT_RESOLVER="$(cd "$HERE/../../.." && pwd)/scripts/resolve_eval_checkpoint.sh"
+# asks it the same way. Taken from this script's own checkout ($ROOT), not
+# from $WT, for the reason above.
+CKPT_RESOLVER="$ROOT/scripts/resolve_eval_checkpoint.sh"
 [ -f "$CKPT_RESOLVER" ] || { echo "ABORT: no checkpoint resolver at $CKPT_RESOLVER" >&2; exit 2; }
 
 EXP="$WT/experiments/2026-08-01_lalign_teacher"
