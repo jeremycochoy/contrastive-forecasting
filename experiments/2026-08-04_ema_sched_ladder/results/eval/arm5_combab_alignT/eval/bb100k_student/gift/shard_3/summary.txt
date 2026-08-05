@@ -1,0 +1,42 @@
+==========================================================================================
+                                GIFT-Eval Official Results                                
+==========================================================================================
+Config                                            MASE  SN_MASE   Relative
+------------------------------------------------------------------------------------------
+bitbrains_rnd/5T/long                           4.1872   3.5013     1.1959
+bitbrains_rnd/5T/medium                         5.2303   4.5424     1.1514
+bitbrains_rnd/5T/short                          2.1926   1.9708     1.1126
+bizitobs_application/10S/medium                 8.9526   2.6914     3.3263
+bizitobs_l2c/5T/medium                          0.9205   1.2436     0.7402
+electricity/W/short                             2.2643   2.0897     1.0835
+ett1/D/short                                    1.7819   1.7784     1.0020
+ett1/H/short                                    1.2950   0.9773     1.3250
+ett2/15T/long                                   1.1247   1.0127     1.1106
+ett2/15T/short                                  1.0335   1.0673     0.9683
+ett2/W/short                                    1.2001   0.7785     1.5415
+hierarchical_sales/W/short                      0.8725   1.0250     0.8512
+jena_weather/10T/long                           0.8166   0.7615     1.0723
+jena_weather/H/short                            0.6414   0.7229     0.8872
+loop_seattle/5T/long                            1.3200   1.2507     1.0554
+loop_seattle/H/long                             1.7139   1.5460     1.1086
+loop_seattle/H/medium                           1.9664   1.4805     1.3282
+m_dense/H/medium                                2.4921   1.5699     1.5874
+m_dense/H/short                                 2.3491   1.4875     1.5792
+saugeen/W/short                                 1.5096   1.9907     0.7583
+solar/D/short                                   0.9775   1.1559     0.8457
+sz_taxi/15T/long                                0.5691   0.6909     0.8236
+sz_taxi/15T/medium                              0.6013   0.7135     0.8427
+temperature_rain/D/short                        1.5643   2.0115     0.7776
+------------------------------------------------------------------------------------------
+
+Aggregate GM-Relative MASE (24 configs): 1.0999
+
+Leaderboard comparison:
+  Sundial:    0.673
+  TimesFM:    0.680
+  PatchTST:   0.762
+  Chronos:    0.786
+  Moirai:     0.809
+  Naive:      1.000
+  ** Ours:    1.100 **
+==========================================================================================
