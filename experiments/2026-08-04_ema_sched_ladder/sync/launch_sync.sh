@@ -41,6 +41,15 @@ while read -r lbl host port root; do
 
   LOCAL="$HOME/$root/2026-08-04_ema_sched_ladder"
   mkdir -p "$LOCAL/sync" "$LOCAL/results"
+
+  # sync_loop.sh resolves safe_pull.sh as a sibling of LOCAL_DIR, and exits
+  # at once if it is not there. Every local root therefore needs its own
+  # copy — the loop aborts on the first tick otherwise, which looks exactly
+  # like a loop that is running and finding nothing.
+  SP="$(dirname "$LOCAL")/2026-04-27_periodic-synth-mix/scripts"
+  mkdir -p "$SP"
+  cp -f "$HERE/../../2026-04-27_periodic-synth-mix/scripts/safe_pull.sh" "$SP/" \
+    || { echo "[$lbl] ABORT: cannot stage safe_pull.sh"; continue; }
   ( cd "$LOCAL" && \
     REMOTE_HOST="$host" REMOTE_PORT="$port" SSH_USER=root \
     REMOTE_DIR=/root/cf/experiments/2026-08-04_ema_sched_ladder \
