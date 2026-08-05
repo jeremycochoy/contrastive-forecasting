@@ -1686,3 +1686,9 @@ Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, 
   timing: data=3.9ms  fwd=117.8ms  bwd=84.8ms  total=207.2ms
 'HTTPSConnectionPool(host='us.aws.cdn.hf.co', port=443): Read timed out.' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00644.parquet
 Retrying in 1s [Retry 1/5].
+[ 102600] loss=5.4669  ema_loss=4.9830  gap=0.5179  ema_gap=0.5567  mixup=59/200  4.4 sps  ETA 6.1h  cpc=0.1009
+              R²_rand=0.6166  R²_naive=0.5831  U_t=0.3322  U_b=0.5167  AUC=0.9988  Top1=0.9474
+  timing: data=237.2ms  fwd=115.5ms  bwd=83.2ms  total=436.5ms
+[ 102800] loss=4.8422  ema_loss=4.9762  gap=0.5735  ema_gap=0.5573  mixup=69/200  4.4 sps  ETA 6.1h  cpc=0.0635
+              R²_rand=0.6352  R²_naive=0.6400  U_t=0.3806  U_b=0.5733  AUC=1.0000  Top1=0.9986
+  timing: data=3.6ms  fwd=116.7ms  bwd=82.9ms  total=203.9ms
