@@ -1,6 +1,6 @@
 # The EMA-teacher alignment target does not move the ten-cell set at backbone 40k, within a bound of about 0.09 GM-Relative MASE
 
-Six of the ten controlled pairs favour the teacher and four the student, a split the paired tests do not separate from zero. Of the two cells re-headed under three head seeds, the larger effect changes sign and the smaller one, `arm5 combab`, does not, moving down by 0.017 on the seed mean.
+Six of the ten controlled pairs favour the teacher and four the student, a split the paired tests do not separate from zero. Of the two cells re-headed under three head seeds, the larger effect changes sign under re-heading and the smaller one, `arm5 combab`, does not.
 
 ![Teacher minus student GM-Relative MASE at backbone 40k](plots/controlled_vs_cross_delta.png)
 
@@ -10,21 +10,11 @@ Six of the ten controlled pairs favour the teacher and four the student, a split
 >
 > **`⟲`** — the cell was retrained with `--align-target teacher`.
 >
-> **EMA teacher** — an exponential-moving-average copy of the encoder weights.
->
-> **Student target** — `--align-target student`, which takes the alignment target from the student encoder under stop-gradient. It is the comparison side of every controlled delta here.
->
-> **Re-headed** — the quantile head was retrained on the same frozen backbone under a different `--seed`. The backbone is unchanged.
->
-> **Code snapshot** — which checkout produced a number: `#390-branch` is this branch, `#379-sweep` is the earlier sweep it is compared against. The column is `code_snapshot` in `results/gm_relative_mase.csv`.
->
 > **GM-Relative MASE** — the metric of every figure here; lower is better, 1.0 is parity with seasonal naive (full definition in [Protocol](#8-protocol)).
 
 ![Per-seed GM-Relative MASE on eight frozen backbones](plots/head_seed_spread.png)
 
 *Eight frozen backbones, every cell in this report carrying replicate head seeds (`results/seed_spread.csv`). Teal = backbone 40k, both sides of the controlled comparison.*
-
-Counting the ten pairs as ten, the bound is 6.6% of 1.3455, the median GM-Relative MASE of the twenty backbone-40k measurements the pairs are built from, and the two loss recipes, which are the units the design actually replicates, have means running in opposite directions ([Protocol](#8-protocol)).
 
 ## 1. Across backbone horizons
 
@@ -39,8 +29,6 @@ Counting the ten pairs as ten, the bound is 6.6% of 1.3455, the median GM-Relati
 ![GM-Relative MASE of the 8 cells extended to backbone 200k](plots/eval_2L_gm_mase_bars_200k.png)
 
 *The 8 cells extended to backbone 200k. Filled dot = 200k, hollow = 100k, whisker = measured head-seed range (3 of 8 cells).*
-
-Five of those eight score lower again at 200k.
 
 ## 2. Per-domain
 
@@ -76,7 +64,7 @@ No non-finite loss or gap appears in any of the 40 backbones, and `arm1 combab` 
 
 ## 6. Reproduction control
 
-Nine of the ten student controls reproduce the earlier sweep's number and share their backbone trace with it step for step, while `arm5 base` ⧗ differs by backbone replicate, not by code, the earlier sweep having published replicate r3 where this branch reproduces r1 at all 40 000 steps and r3 at none ([table](#student-control-against-the-earlier-sweep-backbone-40k), `results/replicate_provenance_40k.csv`, [`results/README.md`](results/README.md)).
+Nine of the ten student controls reproduce the earlier sweep's number and share their backbone trace with it step for step. `arm5 base` ⧗ differs by backbone replicate, not by code: the earlier sweep published r3, this branch reproduces r1 at all 40 000 steps and r3 at none ([table](#student-control-against-the-earlier-sweep-backbone-40k), `results/replicate_provenance_40k.csv`, [`results/README.md`](results/README.md)).
 
 ## 7. Tables
 
@@ -149,7 +137,7 @@ Nine of the ten student controls reproduce the earlier sweep's number and share 
 | `arm6_v2 ncpc` | 1.3012 | 1.2978 | 1.0027 | 0.9672 | 1.0452 | no |
 | `arm6_v2 combab` | 1.2514 | 1.1616 | 1.0773 | 1.0439 | 1.1254 | yes |
 
-*Backing data for section 3. Ratio = teacher ÷ earlier sweep, below 1.0 means the teacher run scored lower. Intervals are 95% dataset-cluster bootstraps (`results/eval_bootstrap_ci.csv`) and cover eval sampling only. All ten arms left more than one backbone replicate in the earlier sweep, but they are sequential continuations with disjoint step ranges, and on all ten exactly one replicate spans step 100 000 (`results/replicate_provenance_40k.csv`), so no row here had a replicate to pick wrong. ⧗ marks the one arm whose 40k row sits on a different replicate, where the mismatch is worth about 0.1.*
+*Backing data for section 3. Ratio = teacher ÷ earlier sweep, below 1.0 means the teacher run scored lower. Intervals are 95% dataset-cluster bootstraps (`results/eval_bootstrap_ci.csv`) and cover eval sampling only. All ten arms left more than one backbone replicate in the earlier sweep, but they are sequential continuations with disjoint step ranges, and on all ten exactly one replicate spans step 100 000 (`results/replicate_provenance_40k.csv`), so no row here had a replicate to pick wrong. ⧗ marks the one arm whose 40k row sits on a different replicate, where the mismatch is worth 0.0977.*
 
 ### The controlled comparison at backbone 40k
 
@@ -260,7 +248,9 @@ Nine of the ten student controls reproduce the earlier sweep's number and share 
 - **Latent drift** at checkpoint pair `(step_i, step_j)` — `mean_{b,t,c} 1 − cos(h_t(model_j), h_t(model_i))` on a fixed held-out batch (`torch.manual_seed(20260722)`, `B=8`, `T=4096`, `C=1`, ARMA-synthetic), and the same for `e_t`. A setting counts as *lower* than base when its mean drift over adjacent-checkpoint pairs falls below the base setting of the same recipe; the section-4 denominator is the six recipes and the p is a two-sided exact binomial test.
 - **Late drift** — the mean `h_t` drift over adjacent-checkpoint pairs beyond backbone step 100 000.
 - **`u_batchtime`** — `1/(d · off-diagonal Gram mean)` over `(B×T)` samples of the given latent, clamped to [0, 1]. 1 = every `H` dimension carries independent information.
-- **`L_align`** — `(2 − 2·cos(f_t, h_target_{t+1})).mean()`, pulling the forecaster output toward the next encoder latent, gradient through the forecaster only. `--align-target student` takes `h_target` from the student encoder under stop-gradient; `--align-target teacher` takes it from the EMA teacher. The ten `⟲` cells are the teacher setting.
+- **`L_align`** — `(2 − 2·cos(f_t, h_target_{t+1})).mean()`, pulling the forecaster output toward the next encoder latent, gradient through the forecaster only. `--align-target student` takes `h_target` from the student encoder under stop-gradient; `--align-target teacher` takes it from the EMA teacher, an exponential-moving-average copy of the encoder weights. The student target is the comparison side of every controlled delta here; the ten `⟲` cells are the teacher setting.
+- **Re-headed** — the quantile head was retrained on the same frozen backbone under a different `--seed`. The backbone is unchanged.
+- **Code snapshot** — which checkout produced a number: `#390-branch` is this branch, `#379-sweep` is the earlier sweep it is compared against. The column is `code_snapshot` in `results/gm_relative_mase.csv`.
 - **Loss window** — each loss value in section 5 is the mean over the first, or the last, 5% of the logged steps of that window, not the value at a single step. **Rise-from-minimum** is the run's final loss minus the lowest loss it ever recorded; rank 1 = lowest of the 40 backbones, the same direction as the peak qk logit rank.
 - **Peak qk logit** — `qk_logit_maxabs`, the peak absolute pre-softmax attention logit, logged every 200 steps; the table value is the maximum over layers, over the `enc` and `fcst` blocks, and over the run, while the lower panels of the section-5 figure plot it averaged over layers and blocks. Rank 1 = lowest of the 40 backbones.
 
@@ -290,11 +280,10 @@ Eight cells were additionally re-headed under seeds 20260723 and 20260724 on the
 
 - The head budget changes with the backbone step (15k at 40k, 30k at 100k and 200k), so any within-arm statement across backbone steps moves two things at once.
 - The left radar of section 2 mixes cells measured at backbone 100k and at 200k, so it moves the backbone step as well as the cell.
-- The `code_snapshot_shift` row of `results/controlled_paired_tests_40k.csv` has `min_delta` −0.0977, which is the `arm5 base` backbone-provenance case of section 6, not a code-snapshot difference.
 - The 200k row compares a teacher-selected subset against a differently selected subset of the earlier sweep, so no like-for-like 200k claim is available.
 - The ten per-cell intervals in the headline figure are 95% and uncorrected for the ten comparisons, so a per-cell reading is not a family-wise claim. The aggregate tests over the set of ten are the right frame (`results/controlled_paired_tests_40k.csv`).
 - Every backbone in this report, both targets, is seed 20260520. Nine of ten controls reproducing the earlier sweep therefore measures determinism given that seed, not the spread across backbone seeds. No cell here carries a second backbone seed.
-- One cell does carry a second backbone *trajectory*, and it is the largest replication datum in the run. `arm5 base`, student target, backbone 40k, same config and same seed 20260520 on all 97 configs, scores 1.4501 on replicate r1 and 1.5478 on r3: 0.0977 apart. That is larger than every 40k head-seed range measured here (0.0018 to 0.0747) and larger than the aggregate bound in the opening, and it sits within 0.001 of that same cell's own controlled delta, −0.0986: retraining this configuration from the same seed moves the cell about as much as switching the flag does. It is `n = 1` and it comes from a resume-induced divergence rather than a fresh backbone seed, so read it as a lower bound on backbone-trajectory spread, not as a seed-spread measurement. Everything else in this report's uncertainty budget is head seeds and eval sampling.
+- One cell does carry a second backbone *trajectory*, and it is the largest replication datum in the run: the `arm5 base` replicate mismatch of section 6. That 0.0977 is larger than every 40k head-seed range measured here (0.0018 to 0.0747) and larger than the aggregate bound in the opening, and it sits within 0.001 of that same cell's own controlled delta, −0.0986: retraining this configuration from the same seed moves the cell about as much as switching the flag does. It is `n = 1` and it comes from a resume-induced divergence rather than a fresh backbone seed, so read it as a lower bound on backbone-trajectory spread, not as a seed-spread measurement. Everything else in this report's uncertainty budget is head seeds and eval sampling.
 - The head-seed spread is measured on 2 of the 10 controlled cells, `arm5 base` and `arm5 combab`; the other eight are marked `not measured`, not given a borrowed spread. Those two were picked by hand after their single-seed deltas were known, with no selection rule fixed in advance, and `arm5 ncpc` carries the largest single-seed difference of the run, −0.2156, and was never re-headed. So the surviving cell is one of two tested, not one of ten, and its 3-of-3 sign observation is p = 0.25 on its own, over per-seed differences running −0.0133 to −0.0230.
 - The ten pairs are two loss recipes by five settings on one backbone seed, and every pair shares the student baseline of its recipe's design, so `n = 10` in the sign and Wilcoxon tests is a nominal ten, not ten independent pairs. The two recipe means are −0.0657 (`arm5`) and +0.0273 (`arm6_v2`); with two clusters the support of a cluster-resampled mean is exactly those two values, so that enumeration is degenerate and the interval quoted in the opening is the t over the ten pairs.
 - Backbone provenance was checked by span query at backbone 40k and at backbone 100k. At 40k exactly one arm, `arm5`, carries two replicates spanning the step, and that is the one mismatch section 6 finds; at 100 000 no arm does, because the extra replicates are sequential continuations with disjoint ranges. A replicate deleted before the manifest was built would not appear in either query.
@@ -311,6 +300,6 @@ Eight cells were additionally re-headed under seeds 20260723 and 20260724 on the
 
 *`u_batchtime` on `h_t` and on `e_t`, per training step (`results/training_curves/`). Per-panel y-scale.*
 
-## 9. Data
+### Data
 
 The pre-teacher measurements of the same ten cells are in [`reports/2026-07-21_split_pred_rep_small/small_long.md`](../2026-07-21_split_pred_rep_small/small_long.md).

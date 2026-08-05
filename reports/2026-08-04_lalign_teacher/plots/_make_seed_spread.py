@@ -60,8 +60,7 @@ for lab, r in zip(ax.get_yticklabels(), rows[::-1]):
     lab.set_color(C_40K if int(r["bb_steps"]) == CONTROLLED_BB else INK)
 ax.set_xlabel("Aggregate GM-Relative MASE, 97 GIFT-Eval B4 configs, "
               "horizon 16  (lower is better)")
-ax.set_title("Same frozen backbone, same head budget, different head seed"
-             "   —   teal = backbone 40k, where every controlled delta lives",
+ax.set_title("Same frozen backbone, same head budget, different head seed",
              fontsize=11)
 ax.grid(True, axis="x", color=GRID, alpha=0.6)
 lo = min(float(v) for r in rows for v in r["values"].split())
