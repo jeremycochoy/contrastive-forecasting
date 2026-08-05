@@ -111,7 +111,7 @@ serve() {  # <label> <host> <port> <cell> <stop_k> <enc> <rbb> <rhead> <rout> <r
   scp "${SSH_OPTS[@]}" -P "$port" "$score" "root@$host:$rscore.incoming" \
       >/dev/null 2>&1 \
     || { log "$key: score upload failed"; unclaim "$host" "$port" "$rout"; return 1; }
-  ssh "${SSH_OPTS[@]}" -p "$port" "root@$host" \
+  ssh -n "${SSH_OPTS[@]}" -p "$port" "root@$host" \
       "mv -f '$rscore.incoming' '$rscore' && touch '$rout/EVAL_DONE'" \
       >/dev/null 2>&1 \
     || { log "$key: score swap failed"; unclaim "$host" "$port" "$rout"; return 1; }
@@ -121,7 +121,7 @@ serve() {  # <label> <host> <port> <cell> <stop_k> <enc> <rbb> <rhead> <rout> <r
 }
 
 unclaim() {  # <host> <port> <remote eval dir>
-  ssh "${SSH_OPTS[@]}" -p "$2" "root@$1" "rm -f '$3/EVAL_TAKEN'" >/dev/null 2>&1
+  ssh -n "${SSH_OPTS[@]}" -p "$2" "root@$1" "rm -f '$3/EVAL_TAKEN'" >/dev/null 2>&1
 }
 
 pass() {
@@ -132,7 +132,7 @@ pass() {
 
     # One ssh per box: list every unclaimed request and claim it in the same
     # breath, so two passes overlapping cannot both take one.
-    raw="$(timeout 90 ssh "${SSH_OPTS[@]}" -p "$port" "root@$host" '
+    raw="$(timeout 90 ssh -n "${SSH_OPTS[@]}" -p "$port" "root@$host" '
       shopt -s nullglob
       for r in /root/cf393_runs/*/eval/*/EVAL_REQUEST; do
         d="$(dirname "$r")"

@@ -27,7 +27,7 @@ while true; do
   done
   while read -r lbl host port; do
     [ -n "$lbl" ] || continue
-    r=$(ssh $SSH_OPTS -p "$port" "root@$host" \
+    r=$(ssh -n $SSH_OPTS -p "$port" "root@$host" \
       'R=/root/cf/experiments/2026-08-04_ema_sched_ladder/results;
        for f in ladder decisions; do [ -f "$R/$f.csv" ] && sed "s/^/$f: /" "$R/$f.csv"; done;
        grep -hE "Traceback|CUDA error|out of memory|Killed|nan|NaN" "$R"/run_cf393_*.log 2>/dev/null | tail -n 2;

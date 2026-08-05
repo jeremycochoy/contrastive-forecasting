@@ -20,7 +20,7 @@ done
 while read -r lbl host port; do
   [ -n "$lbl" ] || continue
   echo "--- vast $lbl ($host:$port) ---"
-  ssh $SSH_OPTS -p "$port" "root@$host" 'R=/root/cf/experiments/2026-08-04_ema_sched_ladder/results;
+  ssh -n $SSH_OPTS -p "$port" "root@$host" 'R=/root/cf/experiments/2026-08-04_ema_sched_ladder/results;
     for f in "$R"/run_cf393_*.log; do [ -f "$f" ] || continue;
       n=$(basename "$f" .log); n=${n#run_cf393_};
       printf "%-24s %s\n" "$n" "$(grep -E "^\[ *[0-9]+\]" "$f" | tail -n 1 | cut -c1-90)"; done
