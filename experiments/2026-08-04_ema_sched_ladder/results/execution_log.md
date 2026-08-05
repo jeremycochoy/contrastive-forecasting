@@ -72,3 +72,28 @@ double-launch the two cells it was holding. `arm4_combab` moved off elisa
 because it was queued *inside* `--cells arm6_v2_nse_alignS,arm4_combab`,
 and that driver predates `HOLD_ABOVE`: it will be refused its 200k leg by
 `run_leg.sh` and exit, taking the queued cell with it.
+
+## 2026-08-05 04:50 — GIFT-Eval is the dominant cost, and it needs no GPU
+
+Measured on cf393-a: 4 of 97 configs in 777 s, so 194 s per config, or about
+5.2 h per GIFT-Eval by flat extrapolation and 4.9 h weighted by dataset
+bytes. cf393-b agrees independently. The first four configs are all
+`loop_seattle` and the rate improved from 5T to daily frequency, so the true
+figure is likely nearer 4 h; `electricity` is 42% of config bytes and had not
+been reached.
+
+Four evals per cell (two stops, two heads) puts a cell at 23 to 28 h, and ten
+cells at 234 to 282 machine-hours. That is more than double the ~110 the
+brief allowed, and $98 to $119 against a $80.26 envelope.
+
+While evaluating, the process holds 100% of one core, loadavg 1.00 on 8
+cores, GPU at 30%, 696 MiB of VRAM. It is single-core CPU bound. On a vast
+box that is expensive: `Exclusive_Process` means the eval owns the only CUDA
+context, so a 5090 is rented and left 30% busy for most of a cell's life.
+
+Elisa has 32 cores at loadavg 4 and costs nothing. Splitting `eval_stop.sh`
+so head training stays on the GPU and GIFT-Eval runs on elisa leaves 74
+machine-hours (~$31) on vast and moves ~208 core-hours to free compute.
+
+Not implemented in this dispatch: four evals were in flight and about to
+produce the study's first numbers. Recorded here and raised on the PR.
