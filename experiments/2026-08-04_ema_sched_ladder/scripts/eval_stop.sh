@@ -21,6 +21,17 @@
 # bans grad clipping; the previous study kept it for comparability and so
 # does this one, which the report has to say.
 #
+# HEAD_SEED overrides the head seed and nothing else. It exists for the
+# replicate seeds: the extend rule reads a bb40k-to-bb100k difference, and
+# for six of the ten cells that difference is smaller than the parent
+# study's head-seed range, so a single seed cannot say whether the branch
+# is a move or noise. A non-default seed files its head, its GIFT-Eval and
+# its marker under `bb<N>k_<enc>_s<seed>` instead of `bb<N>k_<enc>`, so the
+# seed-20260722 artefacts the ladder was decided from are never touched and
+# the three seeds sit side by side. Everything else is identical: same
+# backbone checkpoint, same encoder pairing, same head budget, same 97
+# configs, same denominator.
+#
 # WHERE THE GIFT-EVAL RUNS is read from `results/EVAL_PLACE` at every stop,
 # not fixed when the driver starts — the same trick as HOLD_ABOVE, and for
 # the same reason: the placement was decided while ten cells were already
@@ -45,6 +56,15 @@ HEAD_STEPS="${4:?head steps}"
 SCORE_OUT="${5:?score output path}"
 
 case "$ENC" in student|teacher) ;; *) echo "ABORT: bad encoder '$ENC'" >&2; exit 2;; esac
+
+# The protocol seed. A replicate passes HEAD_SEED and gets its own subtree.
+HEAD_SEED_DEFAULT=20260722
+HEAD_SEED="${HEAD_SEED:-$HEAD_SEED_DEFAULT}"
+case "$HEAD_SEED" in
+  ''|*[!0-9]*) echo "ABORT: HEAD_SEED='$HEAD_SEED' is not an integer" >&2; exit 2;;
+esac
+SEED_SUFFIX=""
+[ "$HEAD_SEED" != "$HEAD_SEED_DEFAULT" ] && SEED_SUFFIX="_s${HEAD_SEED}"
 
 WT="${WT:-$HOME/workspaces/contrastive-forecasting}"
 # A head is 15k-30k training steps and the GIFT-Eval outputs are its only
@@ -72,7 +92,7 @@ BB="$(ckpt_at_step "$RUNS" "$NAME" "$STOP_K")"
   echo "ABORT: no ${NAME}_${STOP_K}k.pth under $RUNS/leg_${STOP_K}k" >&2
   exit 3; }
 
-OUT="$RUNS/eval/bb${STOP_K}k_${ENC}"
+OUT="$RUNS/eval/bb${STOP_K}k_${ENC}${SEED_SUFFIX}"
 mkdir -p "$OUT" "$(dirname "$SCORE_OUT")"
 
 # A stop already scored costs nothing to re-enter. The ladder replays a
@@ -83,7 +103,7 @@ if [ -s "$SCORE_OUT" ]; then
   echo "[$(date +%H:%M:%S)] $CELL bb${STOP_K}k $ENC SKIP — score $(cat "$SCORE_OUT")"
   exit 0
 fi
-HEAD_NAME="qhead_${NAME}_bb${STOP_K}k_${ENC}"
+HEAD_NAME="qhead_${NAME}_bb${STOP_K}k_${ENC}${SEED_SUFFIX}"
 HEAD_CKPT="$OUT/${HEAD_NAME}_final.pth"
 LOG="$OUT/eval.log"
 
@@ -103,7 +123,7 @@ ARCH_EVAL=(--t-raw 4096 --n-channels 1 --d-model 64 --n-heads 8
 # reads its checkpoint are not separable by another cell.
 gpu_gate "$BB_GPU" || { echo "ABORT: GPU $BB_GPU never came free" | tee -a "$LOG"; exit 1; }
 
-echo "[$(date +%H:%M:%S)] $CELL bb${STOP_K}k enc=$ENC head=${HEAD_STEPS}s" | tee -a "$LOG"
+echo "[$(date +%H:%M:%S)] $CELL bb${STOP_K}k enc=$ENC head=${HEAD_STEPS}s seed=$HEAD_SEED" | tee -a "$LOG"
 
 if [ ! -f "$HEAD_CKPT" ]; then
   CUDA_VISIBLE_DEVICES="$BB_GPU" python3 -u "$HEAD_TRAIN" \
@@ -113,7 +133,7 @@ if [ ! -f "$HEAD_CKPT" ]; then
     --quantile-head --grad-clip 1.0 \
     --forecast-len 16 --batch-size 256 --lr 1e-3 \
     --total-steps "$HEAD_STEPS" --save-every 5000 --log-every 500 \
-    --save-dir "$OUT" --run-name "$HEAD_NAME" --seed 20260722 \
+    --save-dir "$OUT" --run-name "$HEAD_NAME" --seed "$HEAD_SEED" \
     --hf-repo jeremycochoy/gift-pretrain-full-4096 --hf-path small_v1 \
     --head-arch transformer --head-num-layers 2 --head-nhead 8 \
     --head-ffn-mult 4.0 --head-causal true --head-train-input e_then_f \

@@ -1,0 +1,45 @@
+[08-06 00:31:53] [seeds] pool of 4 over 24 job(s); claims in /tmp/cf393_seed_claims
+[08-06 00:31:53] [seeds] START arm6_v2_combab_alignS teacher s20260723 gpu=1
+[08-06 00:31:53] [seeds] START arm6_v2_combab_alignS student s20260723 gpu=0
+[08-06 00:31:53] [seeds] START arm6_v2_combab_alignS student s20260724 gpu=0
+[08-06 00:31:53] [seeds] START arm6_v2_combab_alignS teacher s20260724 gpu=1
+[08-06 00:34:14] [seeds] pool drained
+cell                     head     seed      score
+arm6_v2_combab_alignS    student  20260722  1.1945
+arm6_v2_combab_alignS    teacher  20260722  1.1837
+arm6_v2_combab_alignS    student  20260723  running
+arm6_v2_combab_alignS    teacher  20260723  running
+arm6_v2_combab_alignS    student  20260724  running
+arm6_v2_combab_alignS    teacher  20260724  running
+arm6_v2_combab_alignT    student  20260722  1.1921
+arm6_v2_combab_alignT    teacher  20260722  1.1963
+arm6_v2_combab_alignT    student  20260723  -
+arm6_v2_combab_alignT    teacher  20260723  -
+arm6_v2_combab_alignT    student  20260724  -
+arm6_v2_combab_alignT    teacher  20260724  -
+arm5_combab_alignS       student  20260722  1.2102
+arm5_combab_alignS       teacher  20260722  1.2407
+arm5_combab_alignS       student  20260723  -
+arm5_combab_alignS       teacher  20260723  -
+arm5_combab_alignS       student  20260724  -
+arm5_combab_alignS       teacher  20260724  -
+arm5_combab_alignT       student  20260722  1.2797
+arm5_combab_alignT       teacher  20260722  1.2772
+arm5_combab_alignT       student  20260723  -
+arm5_combab_alignT       teacher  20260723  -
+arm5_combab_alignT       student  20260724  -
+arm5_combab_alignT       teacher  20260724  -
+arm6_v2_nse_alignT       student  20260722  1.3913
+arm6_v2_nse_alignT       teacher  20260722  1.3746
+arm6_v2_nse_alignT       student  20260723  -
+arm6_v2_nse_alignT       teacher  20260723  -
+arm6_v2_nse_alignT       student  20260724  -
+arm6_v2_nse_alignT       teacher  20260724  -
+arm6_v2_nse_alignS       student  20260722  1.3572
+arm6_v2_nse_alignS       teacher  20260722  1.3770
+arm6_v2_nse_alignS       student  20260723  -
+arm6_v2_nse_alignS       teacher  20260723  -
+arm6_v2_nse_alignS       student  20260724  -
+arm6_v2_nse_alignS       teacher  20260724  -
+
+12/36 scored (36 = six cells x two heads x three seeds)
