@@ -23,3 +23,9 @@
 [09:18:32] still waiting for the broker (7200s)
 [09:48:33] still waiting for the broker (9000s)
 [10:18:33] still waiting for the broker (10800s)
+[10:46:33] broker returned after 12480s
+[10:46:33] DONE — Aggregate GM-Relative MASE (97 configs): 1.3266 -> 1.3266
+[ladder] arm6_v2_ncpc_alignT @40000: {'student': 1.2955, 'teacher': 1.3266} -> {'extend': True, 'heads': ('student', 'teacher'), 'branch': 'unconditional'}
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm6_v2_ncpc_alignT 100000
+[08-05 10:46:33] [arm6_v2_ncpc_alignT] RESUME from cf393_arm6_v2_ncpc_alignT_40k.pth (step 40k)
+[08-05 10:46:33] [arm6_v2_ncpc_alignT] START target=100000 gpu=0 save_every=20000 leg=/root/cf393_runs/arm6_v2_ncpc_alignT/leg_100k
