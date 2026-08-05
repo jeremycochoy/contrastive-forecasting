@@ -847,6 +847,31 @@ def test_a_non_replicate_r_suffix_does_not_create_an_ambiguity(runs: Path):
     assert r.stdout.strip() == str(ckpt)
 
 
+def test_a_replicate_like_suffix_is_not_a_candidate(runs: Path):
+    """`_r3x` is what sits between the glob and the grammar: `_r[0-9]*`
+    gathers it, `_r[0-9]+` refuses it. Offered as the sole candidate it is
+    accepted here and then refused by `replicate_tag` in the caller, so the
+    cell dies at the last stage on a file this should never have handed
+    back. The glob narrows; the grammar decides."""
+    touch(runs, f"{NAME}_r3x_40k.pth", 1_000)
+    r = resolve(runs, NAME, "40")
+    assert r.returncode == EXIT_NO_CANDIDATE, (
+        "a name the cell grammar cannot parse was resolved as a replicate; "
+        f"got rc={r.returncode}, stdout={r.stdout.strip()!r}")
+
+
+def test_a_replicate_like_suffix_does_not_create_an_ambiguity(runs: Path):
+    """And with the base run beside it there is one candidate, so the eval
+    runs rather than stopping to ask which of the two to name."""
+    ckpt = touch(runs, f"{NAME}_40k.pth", 1_000)
+    touch(runs, f"{NAME}_r3x_40k.pth", 9_000)
+    r = resolve(runs, NAME, "40")
+    assert r.returncode == 0, (
+        f"'{NAME}_r3x_40k.pth' made this pair look ambiguous; "
+        f"rc={r.returncode}\n{r.stderr}")
+    assert r.stdout.strip() == str(ckpt)
+
+
 # --- 12. pipeline.sh classifies the resolver's exit codes ----------------
 # `arms_at_step` maps an exit code to a log line an operator acts on. Calling
 # every non-0/non-3 code "ambiguous" hides a broken resolver behind the one

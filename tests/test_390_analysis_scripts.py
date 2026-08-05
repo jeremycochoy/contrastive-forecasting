@@ -32,10 +32,15 @@ import numpy as np
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO_ROOT / "scripts"))
+import eval_cell_identity as cid  # noqa: E402
+
 SCRIPTS = REPO_ROOT / "experiments" / "2026-08-01_lalign_teacher" / "scripts"
 GM_TABLE = SCRIPTS / "make_gm_table.py"
 BOOTSTRAP = SCRIPTS / "eval_bootstrap.py"
 CONTROLLED = SCRIPTS / "controlled_delta.py"
+SNAPSHOT = SCRIPTS / "snapshot_reproduction.py"
+VERIFY = SCRIPTS / "verify_head_seeds_40k.py"
 PROVENANCE = SCRIPTS / "replicate_provenance.py"
 SPREAD = SCRIPTS / "seed_spread.py"
 RESULTS = REPO_ROOT / "reports" / "2026-08-04_lalign_teacher" / "results"
@@ -210,6 +215,35 @@ def test_gm_table_pairs_a_replicate_with_its_own_replicate(tmp_path):
     res, _ = _run_gm_table(tmp_path, {
         "arm5_bb40k_r2_hd15000s": "1.3999",
         "arm5_alignstudent_bb40k_r2_hd15000s": "1.4501",
+    })
+    assert res.returncode == 0, res.stdout + res.stderr
+    assert "paired with a student cell: 1" in res.stdout, res.stdout
+    assert "UNPAIRED" not in res.stdout, res.stdout
+
+
+def test_gm_table_pairing_keys_on_the_head_seed(tmp_path):
+    """The other half of the same key. A student cell measured under another
+    head seed is another measurement: keyed without the seed it answers the
+    default-seed teacher cell's pairing, and an arm with no same-seed student
+    reads as controlled."""
+    res, _ = _run_gm_table(tmp_path, {
+        "arm5_bb40k_hd15000s": "1.3515",
+        "arm5_alignstudent_s20260723_bb40k_hd15000s": "1.4248",
+    })
+    assert res.returncode == 0, res.stdout + res.stderr
+    assert "teacher cells at the default head seed: 1" in res.stdout, res.stdout
+    assert "paired with a student cell: 0" in res.stdout, (
+        "a student cell measured at another head seed was counted as this "
+        f"teacher cell's counterpart:\n{res.stdout}")
+    assert "UNPAIRED" in res.stdout, res.stdout
+
+
+def test_gm_table_pairs_a_student_measured_at_the_same_head_seed(tmp_path):
+    """And it must still pair the cells that do match, or every row reads as
+    unpaired and the print says nothing."""
+    res, _ = _run_gm_table(tmp_path, {
+        "arm5_bb40k_hd15000s": "1.3515",
+        "arm5_alignstudent_bb40k_hd15000s": "1.4501",
     })
     assert res.returncode == 0, res.stdout + res.stderr
     assert "paired with a student cell: 1" in res.stdout, res.stdout
@@ -410,6 +444,152 @@ def test_only_40k_can_be_controlled(tmp_path):
         capture_output=True, text=True)
     assert res.returncode != 0
     assert "invalid choice" in res.stderr
+
+
+# --- the cells these three scripts resolve -------------------------------
+# `tests/test_eval_cell_identity.py` requires each of them to import the
+# shared grammar. These say what that buys: a cell measured on a resumed
+# backbone is `<slug>_bb40k_r<N>_hd15000s`, and each script asked for the
+# untagged name. The headline table then refuses to write (9/10 arms), the
+# reproduction claim refuses the same way, and the twelve-cell gate reports a
+# measured cell as absent. Nothing misfires at `--bb-steps-k 40` today only
+# because every 40k backbone is a base run.
+
+CONFIGS_97 = tuple(f"ds{i}/1H/short" for i in range(97))
+
+
+def _results_tree(root: Path, cells: dict[str, float]) -> Path:
+    """A results directory holding `cells`: {cell name: GM-Relative MASE}.
+
+    Each cell's per-config MASEs are `value * naive`, so its aggregate is
+    exactly `value` and a script that resolved the wrong cell shows it as a
+    number rather than as a missing row.
+    """
+    naive = {c: 1.0 + i / 100 for i, c in enumerate(CONFIGS_97)}
+    _write_all_results(root / "seasonal_naive_all_results.csv", naive)
+    for cell, value in cells.items():
+        _write_all_results(root / "eval_gm_mase" / cell / "all_results.csv",
+                           {c: value * naive[c] for c in CONFIGS_97})
+        (root / "eval_gm_mase" / f"{cell}_summary.txt").write_text(
+            f"Aggregate GM-Relative MASE (97 configs): {value:.4f}\n")
+    return root
+
+
+def _controlled_trees(tmp_path: Path, arms, *, teacher_tag="", student_tag=""):
+    """(this branch's results, #379's results) for all ten arms at 40k.
+
+    The tags go on the FIRST arm's cell only, so the other nine stay the
+    shape the committed run has and a script that dropped just the tagged one
+    fails on the row count rather than on everything at once.
+    """
+    cells = {}
+    for i, arm in enumerate(arms):
+        tag_t = teacher_tag if i == 0 else ""
+        tag_s = student_tag if i == 0 else ""
+        cells[f"{arm}_bb40k{tag_t}_hd15000s"] = 1.30 + i / 100
+        cells[f"{arm}_alignstudent_bb40k{tag_s}_hd15000s"] = 1.40 + i / 100
+    res = _results_tree(tmp_path / "results", cells)
+    res379 = _results_tree(tmp_path / "results379",
+                           {f"{arm}_bb40k_hd15000s": 1.50 + i / 100
+                            for i, arm in enumerate(arms)})
+    return res, res379
+
+
+def _run_controlled(tmp_path: Path, res: Path, res379: Path):
+    out = tmp_path / "delta.csv"
+    r = subprocess.run(
+        [sys.executable, str(CONTROLLED), "--results", str(res),
+         "--student-379-results", str(res379), "--out-delta", str(out),
+         "--out-tests", str(tmp_path / "tests.csv"), "--n-boot", "20"],
+        capture_output=True, text=True)
+    return r, out
+
+
+def test_the_controlled_delta_finds_a_replicate_backed_cell(tmp_path, ctl):
+    """The headline table. One teacher cell measured on a resume, read as
+    missing, is nine arms of ten — and the script then refuses to write at
+    all, which is the right refusal to the wrong question."""
+    res, res379 = _controlled_trees(tmp_path, ctl.ARMS, teacher_tag="_r2")
+    r, out = _run_controlled(tmp_path, res, res379)
+    assert r.returncode == 0, r.stdout + r.stderr
+    with open(out, newline="") as fh:
+        rows = list(csv.DictReader(fh))
+    assert len(rows) == 10, r.stdout
+    assert rows[0]["teacher_cell"] == f"{ctl.ARMS[0]}_bb40k_r2_hd15000s", rows[0]
+    assert rows[0]["gm_teacher_390"] == "1.3000", (
+        "the row was filed under the replicate but carries another cell's "
+        f"number: {rows[0]}")
+
+
+def test_the_controlled_delta_finds_a_replicate_backed_student_cell(tmp_path,
+                                                                    ctl):
+    """The same on the side the delta is subtracted from."""
+    res, res379 = _controlled_trees(tmp_path, ctl.ARMS, student_tag="_r3")
+    r, out = _run_controlled(tmp_path, res, res379)
+    assert r.returncode == 0, r.stdout + r.stderr
+    with open(out, newline="") as fh:
+        rows = list(csv.DictReader(fh))
+    assert rows[0]["student_cell_390"] == \
+        f"{ctl.ARMS[0]}_alignstudent_bb40k_r3_hd15000s", rows[0]
+    assert rows[0]["gm_student_390"] == "1.4000", rows[0]
+
+
+def test_the_controlled_delta_refuses_two_replicates_of_one_cell(tmp_path, ctl):
+    """Two measured replicates is the choice `resolve_eval_checkpoint.sh`
+    refuses to make; the delta must not make it by globbing."""
+    res, res379 = _controlled_trees(tmp_path, ctl.ARMS, teacher_tag="_r2")
+    _results_tree(res, {f"{ctl.ARMS[0]}_bb40k_hd15000s": 9.99})
+    r, out = _run_controlled(tmp_path, res, res379)
+    assert r.returncode != 0, r.stdout
+    assert "replicate cells measured" in r.stdout + r.stderr, r.stdout + r.stderr
+    assert not out.exists()
+
+
+def test_the_snapshot_check_finds_a_replicate_backed_cell(tmp_path, ctl):
+    """`snapshot_reproduction.py` answers how many of the ten reproduce
+    #379's number. An arm dropped for its cell's name is an arm missing from
+    that count, and the script refuses to publish a partial one."""
+    res, res379 = _controlled_trees(tmp_path, ctl.ARMS, student_tag="_r3")
+    out = tmp_path / "snapshot.csv"
+    r = subprocess.run(
+        [sys.executable, str(SNAPSHOT), "--results", str(res),
+         "--student-379-results", str(res379), "--out", str(out)],
+        capture_output=True, text=True)
+    assert r.returncode == 0, r.stdout + r.stderr
+    with open(out, newline="") as fh:
+        rows = list(csv.DictReader(fh))
+    assert len(rows) == 10, r.stdout
+    assert rows[0]["cell_390"] == \
+        f"{ctl.ARMS[0]}_alignstudent_bb40k_r3_hd15000s", rows[0]
+
+
+@pytest.fixture(scope="module")
+def verify():
+    return load(VERIFY, "cf390_verify_head_seeds")
+
+
+def test_the_head_seed_gate_finds_a_replicate_backed_cell(tmp_path, verify):
+    """The twelve 40k head-seed cells, one of them measured on a resume. The
+    gate reading it as absent is a PROBLEM line against a cell that is on
+    disk, and the mean and range are then taken over eleven."""
+    tagged = None
+    cells = {}
+    for (_arm, _target), (slug, expected) in sorted(verify.CELLS.items()):
+        for seed, value in zip(verify.SEEDS, expected):
+            replicate = "_r2" if tagged is None else ""
+            name = cid.cell_name(slug, verify.BB_STEPS_K, replicate,
+                                 verify.HEAD_STEPS, seed)
+            tagged = tagged or name
+            cells[name] = value
+    root = _results_tree(tmp_path / "results", cells)
+    r = subprocess.run(
+        [sys.executable, str(VERIFY), "--results", str(root / "eval_gm_mase"),
+         "--naive", str(root / "seasonal_naive_all_results.csv")],
+        capture_output=True, text=True)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "all twelve verified" in r.stdout, r.stdout
+    assert tagged in r.stdout, (
+        f"the replicate-backed cell {tagged} is not in the table:\n{r.stdout}")
 
 
 # --- which replicate #379 published -------------------------------------

@@ -332,6 +332,27 @@ def test_head_seed_default_is_379s_literal():
         REPO_ROOT / "scripts" / "eval_cell_identity.sh").read_text()
 
 
+@pytest.mark.parametrize("script", ["eval_wave.sh", "run_student_control.sh",
+                                    "run_student_control_batch.sh"])
+def test_the_head_seed_travels_with_the_stage_it_names(script: str):
+    """Every caller of the eval stage binds the seed once and hands it on.
+
+    `eval_arm.sh` reads `HEAD_SEED` from the environment, so an exported one
+    renamed every cell a wave wrote while these three counted cells at the
+    library's default: a wave where nothing failed logged ten missing cells.
+    Two paths for one value is what makes that possible, so there is one —
+    bound here, passed to the stage, and used for the lookup.
+    """
+    src = (EXP_390 / "scripts" / script).read_text()
+    assert 'HEAD_SEED="${HEAD_SEED:-$EVAL_DEFAULT_HEAD_SEED}"' in src, (
+        f"{script} does not bind HEAD_SEED to the library's default")
+    assert 'HEAD_SEED="$HEAD_SEED"' in src, (
+        f"{script} does not pass HEAD_SEED to the stage it launches")
+    assert "$EVAL_DEFAULT_HEAD_SEED\")" not in src, (
+        f"{script} still looks a cell up at the default seed rather than at "
+        "the seed it ran")
+
+
 def test_cell_tag_defaults_to_empty():
     """CELL_TAG gives a replicate its own directory. Non-empty by default
     would rename every wave cell and orphan the committed results."""

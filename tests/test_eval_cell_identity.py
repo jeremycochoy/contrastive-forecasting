@@ -158,6 +158,55 @@ def test_another_head_seed_carries_its_own_token():
     assert r.stdout == f"_s{OTHER_SEED}"
 
 
+# --- 2b. what a seed may be, in both bindings ----------------------------
+# The token has to be readable back, or the name says one thing and every
+# reader of it says another. Bash printed `_s` in front of whatever it was
+# handed while Python parsed `_s<six or more digits>`, so `HEAD_SEED=7` wrote
+# `arm5_s7_bb40k_hd15000s` and the readers called that the *wave* seed's cell
+# of an arm named `arm5_s7`: the wrong seed in the table, and a collision with
+# the real wave cell in `controlled_delta.py`. A seed is a run of digits on
+# both sides, and anything else is refused rather than named.
+
+BAD_SEEDS = ["", "abc", "20260722x", "2026 0722", "-1", "20260722.0"]
+
+
+@pytest.mark.parametrize("seed", BAD_SEEDS, ids=repr)
+def test_bash_refuses_a_seed_it_cannot_write_a_readable_token_for(seed: str):
+    r = call("head_seed_tag", seed)
+    assert r.returncode != 0, (
+        f"the token {r.stdout!r} was written for seed {seed!r}, and no reader "
+        "can parse that back into a seed")
+    assert r.stdout == ""
+
+
+@pytest.mark.parametrize("seed", BAD_SEEDS, ids=repr)
+def test_a_seed_bash_cannot_name_does_not_become_the_default_cell(seed: str):
+    """The refusal has to travel out of the `$( )` the token is built in. A
+    caller that gets an empty token gets the *default* cell's name back with
+    exit 0, which is the wave's own cell under another seed's number."""
+    r = call("eval_cell_name", "arm5", "40", "", "15000", seed)
+    assert r.returncode != 0, (
+        f"seed {seed!r} was answered with the cell name {r.stdout!r}")
+    assert r.stdout == ""
+
+
+@pytest.mark.parametrize("seed", BAD_SEEDS, ids=repr)
+def test_python_refuses_the_same_seeds_bash_refuses(cid, seed: str):
+    with pytest.raises(ValueError):
+        cid.head_seed_tag(seed)
+
+
+@pytest.mark.parametrize("seed", ["7", "42", "1234567", WAVE_SEED, OTHER_SEED])
+def test_a_seed_of_any_length_reads_back_as_itself(cid, seed: str):
+    """Both bindings write the token, and the Python one parses it back to
+    the seed it was written for — whatever its length."""
+    name = call("eval_cell_name", "arm5", "40", "", "15000", seed).stdout
+    assert cid.cell_name("arm5", "40", "", "15000", seed) == name
+    parsed = cid.parse_cell(name)
+    assert parsed is not None, name
+    assert cid.split_head_seed(parsed.slug) == ("arm5", seed)
+
+
 # --- 3. the cell name -----------------------------------------------------
 
 def test_cell_name_without_a_replicate_is_the_committed_shape():
@@ -292,6 +341,15 @@ def test_a_non_replicate_suffix_is_not_a_replicate_cell(tmp_path: Path):
     assert summaries(tmp_path, "arm5", "40", "15000", WAVE_SEED) == []
 
 
+def test_a_replicate_like_suffix_is_not_a_replicate_cell(tmp_path: Path):
+    """`_r3x` sits between the glob that gathers and the grammar that
+    decides: `_r[0-9]*` matches it, `_r[0-9]+` does not. Handed back it is a
+    cell name `parse_cell` refuses, so the two bindings disagree about what
+    this directory holds — the glob narrows, the grammar decides."""
+    (tmp_path / "arm5_bb40k_r3x_hd15000s_summary.txt").write_text("x\n")
+    assert summaries(tmp_path, "arm5", "40", "15000", WAVE_SEED) == []
+
+
 # --- 5. the resolver reads its grammar from here --------------------------
 
 def test_the_resolver_sources_this_library():
@@ -322,6 +380,11 @@ NAME_MATRIX = [
     ("arm5_nse", "200", "_r12", "30000", OTHER_SEED),
     ("arm5_combab_alignstudent", "100", "", "30000", WAVE_SEED),
     ("arm6_v2_ncpc", "100", "_r2", "30000", "20260724"),
+    # Not every seed is an eight-digit date. A matrix that only ever asks for
+    # one shape cannot see the two bindings disagree about the others.
+    ("arm5", "40", "", "15000", "7"),
+    ("arm5_combab", "100", "_r2", "30000", "42"),
+    ("arm6_v2_nse_alignstudent", "200", "", "30000", "1234567"),
 ]
 
 
@@ -354,10 +417,12 @@ def test_python_and_bash_agree_on_the_head_seed_token(cid, seed, tag):
 def test_python_and_bash_find_the_same_summaries(cid, tmp_path: Path, seed,
                                                  want):
     """The lookup, not just the name. Both must return this seed's base cell
-    and its replicate, and neither the other seed's, another step's, nor a
-    `_revin_` sibling."""
+    and its replicate, and none of: the other seed's, another step's, a
+    `_revin_` sibling, or `_r3x` — which the bash glob matches and the Python
+    pattern does not."""
     for n in ("arm5_bb40k_hd15000s", "arm5_bb40k_r3_hd15000s",
-              "arm5_bb40k_revin_hd15000s", f"arm5_s{OTHER_SEED}_bb40k_hd15000s",
+              "arm5_bb40k_revin_hd15000s", "arm5_bb40k_r3x_hd15000s",
+              f"arm5_s{OTHER_SEED}_bb40k_hd15000s",
               f"arm5_s{OTHER_SEED}_bb40k_r3_hd15000s", "arm5_bb100k_hd30000s"):
         (tmp_path / f"{n}_summary.txt").write_text("x\n")
     got_py = [str(p) for p in cid.cell_paths(tmp_path, "arm5", 40, 15000, seed,
@@ -390,6 +455,9 @@ PY_READERS = [
     EXP_390 / "scripts" / "select_wave3.py",
     EXP_390 / "scripts" / "make_gm_table.py",
     EXP_390 / "scripts" / "eval_bootstrap.py",
+    EXP_390 / "scripts" / "controlled_delta.py",
+    EXP_390 / "scripts" / "snapshot_reproduction.py",
+    EXP_390 / "scripts" / "verify_head_seeds_40k.py",
     REPORT_390 / "plots" / "_cells.py",
 ]
 
@@ -523,7 +591,8 @@ def batch_sandbox(root: Path) -> Path:
     return scripts / "run_student_control_batch.sh"
 
 
-def run_student_batch(root: Path, *, measured: str | None):
+def run_student_batch(root: Path, *, measured: str | None,
+                      env_extra: dict[str, str] | None = None):
     """Run the batch over arm5 with `measured` (a cell name) already on disk."""
     script = batch_sandbox(root)
     wt = root / "wt"
@@ -533,7 +602,8 @@ def run_student_batch(root: Path, *, measured: str | None):
         (evals / f"{measured}_summary.txt").write_text(AGG)
     return subprocess.run(
         ["bash", str(script)],
-        env={**os.environ, "WT": str(wt), "ARMS": "arm5", "SLOTS_PER_GPU": "1"},
+        env={**os.environ, "WT": str(wt), "ARMS": "arm5", "SLOTS_PER_GPU": "1",
+             **(env_extra or {})},
         capture_output=True, text=True, timeout=180)
 
 
@@ -555,3 +625,121 @@ def test_the_student_batch_does_not_skip_an_unmeasured_cell(scratch: Path):
     r = run_student_batch(scratch, measured=None)
     assert "SKIP arm5" not in r.stdout, r.stdout
     assert "DRIVER RAN arm5" in r.stdout, r.stdout
+
+
+# --- 10. a wave counts the cells it wrote, not another seed's -------------
+# `HEAD_SEED` reaches `eval_arm.sh` from the environment, so an exported one
+# renames every cell a wave writes. These scripts then looked the results up
+# at the library's default: a wave that measured all ten arms perfectly
+# reported ten missing cells, and the batch script's skip check answered a
+# seed's question with another seed's cell. The seed a wave runs and the seed
+# it counts are one variable, bound once and passed on.
+
+EVAL_ARM_RECORDER = """#!/bin/bash
+# Stand-in for eval_arm.sh: no head, no GIFT-Eval, just the cell those two
+# would have written — named by the shared identity out of the environment
+# this was handed, the way the real one names it.
+set -uo pipefail
+ROOT="$(cd -P "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+source "$ROOT/scripts/eval_cell_identity.sh"
+HEAD_SEED="${HEAD_SEED:-$EVAL_DEFAULT_HEAD_SEED}"
+CELL_TAG="${CELL_TAG:-}"
+CELL="$(eval_cell_name "${ARM}${CELL_TAG}" "$BB_STEP_K" "" "$HEAD_STEPS" \
+                       "$HEAD_SEED")"
+OUT="$WT/experiments/2026-08-01_lalign_teacher/eval_gm_mase"
+mkdir -p "$OUT"
+printf '%s\n' "__AGG__" > "$OUT/${CELL}_summary.txt"
+echo "EVAL RAN arm=$ARM seed=$HEAD_SEED cell=$CELL"
+"""
+
+
+def wave_sandbox(root: Path) -> Path:
+    """The wave and student-control scripts over a recorder, at the depth the
+    real tree has. Returns the sandbox repo, which is also its own `$WT`.
+
+    A copy rather than the checkout, for the same reason as `batch_sandbox`:
+    the real stages train a backbone and a head and run a 97-config eval.
+    What is under test is which cell each script writes and which cell it
+    then counts.
+    """
+    repo = root / "repo"
+    (repo / "scripts").mkdir(parents=True)
+    shutil.copy(REPO_ROOT / "scripts" / "eval_cell_identity.sh",
+                repo / "scripts")
+    scripts = repo / "experiments" / "2026-08-01_lalign_teacher" / "scripts"
+    scripts.mkdir(parents=True)
+    for name in ("eval_wave.sh", "run_student_control.sh", "arm_names.sh",
+                 "gpu_pool.sh"):
+        shutil.copy(EXP_390 / "scripts" / name, scripts / name)
+    (scripts / "eval_arm.sh").write_text(
+        EVAL_ARM_RECORDER.replace("__AGG__", AGG.strip()))
+    (scripts / "run_arm_student.sh").write_text(
+        '#!/bin/bash\necho "BACKBONE RAN $1"\n')
+    return repo
+
+
+def run_wave_script(repo: Path, name: str, **env_extra):
+    scripts = repo / "experiments" / "2026-08-01_lalign_teacher" / "scripts"
+    return subprocess.run(
+        ["bash", str(scripts / name)],
+        env={**os.environ, "WT": str(repo), "WAVE": "1", "ARMS": "arm5",
+             "ARM": "arm5", "BB_GPU": "0", "SLOTS_PER_GPU": "1", **env_extra},
+        capture_output=True, text=True, timeout=300)
+
+
+def test_a_wave_counts_the_cells_it_measured(scratch: Path):
+    """Non-regression at the wave's own seed: one arm measured, one counted."""
+    r = run_wave_script(wave_sandbox(scratch), "eval_wave.sh")
+    assert "arm5_bb40k_hd15000s: Aggregate" in r.stdout, r.stdout
+    assert "measurement: 1 / 1" in r.stdout, r.stdout
+
+
+def test_a_wave_under_another_head_seed_counts_its_own_cells(scratch: Path):
+    """The desync. Every cell the wave writes carries the seed; the tally
+    asked for the default, so a wave where nothing failed logged MISSING for
+    all ten arms and the operator re-ran a finished wave."""
+    r = run_wave_script(wave_sandbox(scratch), "eval_wave.sh",
+                        HEAD_SEED=OTHER_SEED)
+    assert f"cell=arm5_s{OTHER_SEED}_bb40k_hd15000s" in r.stdout, (
+        f"the eval stage did not run under the wave's seed:\n{r.stdout}")
+    assert "MISSING or partial" not in r.stdout, (
+        "the wave measured its cell and then counted at another seed:\n"
+        f"{r.stdout}")
+    assert "measurement: 1 / 1" in r.stdout, r.stdout
+
+
+def test_the_student_control_reports_the_cell_of_its_own_seed(scratch: Path):
+    """Same two halves in the single-cell driver: it hands `eval_arm.sh` a
+    seed and then reads the summary back by name."""
+    r = run_wave_script(wave_sandbox(scratch), "run_student_control.sh",
+                        HEAD_SEED=OTHER_SEED)
+    assert r.returncode == 0, f"{r.stdout}\n{r.stderr}"
+    assert f"cell=arm5_alignstudent_s{OTHER_SEED}_bb40k_hd15000s" in r.stdout, (
+        r.stdout)
+    assert "DONE — Aggregate" in r.stdout, (
+        f"the control read its own measurement as missing:\n{r.stdout}")
+
+
+def test_the_student_batch_skip_check_asks_for_the_seed_it_will_measure(
+        scratch: Path):
+    """The batch's skip check under an ambient seed. The default seed's cell
+    is on disk and the batch is about to measure another seed's, so this arm
+    has not been measured — skipping it drops a cell from the sweep and
+    reports the run as complete."""
+    r = run_student_batch(scratch, measured="arm5_alignstudent_bb40k_hd15000s",
+                          env_extra={"HEAD_SEED": OTHER_SEED})
+    assert "SKIP arm5" not in r.stdout, (
+        "another seed's cell answered this seed's skip check:\n"
+        f"{r.stdout}\n{r.stderr}")
+    assert "DRIVER RAN arm5" in r.stdout, r.stdout
+
+
+def test_the_student_batch_skips_the_cell_of_its_own_seed(scratch: Path):
+    """And the other half, or the skip check never fires under a seed and the
+    batch re-measures everything it already has."""
+    r = run_student_batch(
+        scratch, measured=f"arm5_alignstudent_s{OTHER_SEED}_bb40k_hd15000s",
+        env_extra={"HEAD_SEED": OTHER_SEED})
+    assert "SKIP arm5" in r.stdout, (
+        f"the batch re-runs a cell it has already measured:\n{r.stdout}")
+    assert "DRIVER RAN" not in r.stdout, r.stdout
