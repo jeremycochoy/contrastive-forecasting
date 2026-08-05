@@ -43,3 +43,7 @@
 [16:05:33] request written, waiting for the broker
 [16:35:33] still waiting for the broker (1800s)
 [17:05:33] still waiting for the broker (3600s)
+[17:35:33] broker returned after 5400s
+[17:35:33] DONE — Aggregate GM-Relative MASE (97 configs): 1.2772 -> 1.2772
+[ladder] arm5_combab_alignT @100000: {'student': 1.2797, 'teacher': 1.2772} -> {'extend': True, 'heads': ('student', 'teacher'), 'branch': 'both_down'}
+[ladder] arm5_combab_alignT: HOLD_ABOVE 100000 reached
