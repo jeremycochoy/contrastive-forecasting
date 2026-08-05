@@ -1,19 +1,11 @@
-"""Bar plot of 2L GM-Relative MASE at backbone step 40k, all evaluated arms, #379.
+"""Bar plot of GM-Relative MASE at backbone step 100k, head 30k steps, all 30 cells.
 
-Includes the original 11 cells + the 12 new cells from the 2026-07-27 vast batch
-(plus arm3_ncpc/arm4_combab which finished only partial gift-eval on vast — those
-land under a red hatched bar to flag config coverage <97).
-
-Error bars are the measured head-seed range from `results/seed_spread.csv`,
-teacher rows at this backbone step, min to max over that cell's replicate
-seeds. Two of the thirty cells carry one; the rest ran a single head seed and
-get no bar, because a spread borrowed from another cell would be wrong by up
-to a factor of 41.
-
-Aggregate is read preferentially from the report-flat summary file
-`results/eval_gm_mase/<slug>_bb40k_hd15000s_summary.txt` (populated by the
-vast sync loop), falling back to the experiments-side
-`<slug>_bb40k_hd15000s/summary.txt` for cells run locally on elisa."""
+Companion of `_make_eval_bars.py` (backbone 40k) and `_make_eval_bars_200k.py`.
+Same layout, same marks, same legend: bars start at zero, the seasonal-naive
+parity line is inside the drawn range, `‡` flags the backbone whose loss rose
+over the whole 0-40k window, and `†` carries the measured head-seed range where
+a cell was re-headed at this backbone step.
+"""
 from pathlib import Path
 import re
 import matplotlib.pyplot as plt
@@ -60,8 +52,8 @@ def read_agg(arm_slug):
 
     Prefers the report-flat file (holds full-97 aggregates from vast + local),
     falls back to the experiments-side summary."""
-    for p in (EVAL_ROOT_REP / f"{arm_slug}_bb40k_hd15000s_summary.txt",
-              EVAL_ROOT_EXP / f"{arm_slug}_bb40k_hd15000s" / "summary.txt"):
+    for p in (EVAL_ROOT_REP / f"{arm_slug}_bb100k_hd30000s_summary.txt",
+              EVAL_ROOT_EXP / f"{arm_slug}_bb100k_hd30000s" / "summary.txt"):
         if not p.exists(): continue
         text = p.read_text()
         m_agg = re.search(r"Aggregate\s+GM-Relative\s+MASE\s+\((\d+)\s+configs\):\s+([0-9]+\.[0-9]+)", text)
@@ -73,7 +65,7 @@ def rose_over_0_40k():
     """Slugs whose backbone loss ended the 0-40k window above where it started.
 
     Read from `results/anomaly_windows.csv`, the same file section 5 of the
-    report uses. A 40k bar drawn on such a backbone is not a peer of the rest,
+    report uses. A bar drawn on such a backbone is not a peer of the rest,
     so the figure marks it.
     """
     import csv
@@ -92,17 +84,17 @@ def rose_over_0_40k():
 
 
 def head_seed_spread():
-    """{slug: (min, max)} over the replicate head seeds, teacher side, 40k.
+    """{slug: (min, max)} over the replicate head seeds, teacher side, 100k.
 
-    Keyed on the arm alone, so the teacher row is the one to take: at 40k the
-    student side of an arm is a different backbone under the same key.
+    Keyed on the arm alone; every re-headed cell at this backbone step is on
+    the teacher side.
     """
     import csv
     path = HERE.parent / "results" / "seed_spread.csv"
     out = {}
     with open(path, newline="") as fh:
         for r in csv.DictReader(fh):
-            if r["align_target"] != "teacher" or int(r["bb_steps"]) != 40000:
+            if r["align_target"] != "teacher" or int(r["bb_steps"]) != 100000:
                 continue
             vals = [float(v) for v in r["values"].split()]
             out[r["arm_slug"]] = (min(vals), max(vals))
@@ -120,7 +112,7 @@ fig, ax = plt.subplots(figsize=(14, 5.5))
 # so the bars carry one distinction only: retrained with --align-target teacher
 # or not. Two colours, two legend entries.
 RETRAINED, OTHER = "#8b1e8b", "#c9c7bf"
-SEED_INK = "#0f6f6f"      # the head-seed figure's colour for 40k cells
+SEED_INK = "#0f6f6f"      # the head-seed figure's colour
 ROSE = rose_over_0_40k()
 SPREAD = head_seed_spread()
 rows = []
@@ -187,7 +179,7 @@ ax.set_xticks(xs); ax.set_xticklabels(labs, rotation=45, ha="right")
 ax.set_ylabel("Aggregate GM-Relative MASE  (lower is better)")
 n_full = sum(1 for n in ns if n == 97)
 ax.set_title(
-    f"GM-Relative MASE at backbone step 40k, head 15k steps, GIFT-Eval B4  "
+    f"GM-Relative MASE at backbone step 100k, head 30k steps, GIFT-Eval B4  "
     f"({n_full}/{len(rows)} cells full-97)",
     fontsize=10)
 ax.grid(True, axis="y", color=GRID, alpha=0.6)
@@ -195,6 +187,6 @@ ax.legend(handles=handles + [ax.lines[0]], loc="upper left", fontsize=9, frameon
 if ys:
     ax.set_ylim(0.0, max(ys) * 1.10)
 fig.tight_layout()
-out = HERE / "eval_2L_gm_mase_bars.png"
+out = HERE / "eval_2L_gm_mase_bars_100k.png"
 fig.savefig(out)
 print(f"wrote {out}  ({len(rows)} cells, {n_full} full-97, {len(rows)-n_full} partial)")
