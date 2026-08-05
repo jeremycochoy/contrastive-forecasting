@@ -176,6 +176,16 @@ DL_LOG="$RES/dl_${ARM}.log"
 log(){ echo "[$(date '+%m-%d %H:%M:%S')] [elisa-$ARM] $*" | tee -a "$DL_LOG"; }
 [ -f "$TRAIN" ]  || { log "ABORT: TRAIN not at $TRAIN"; exit 2; }
 [ -f "$HF_TOKEN_PATH" ] || { log "ABORT: HF token missing at $HF_TOKEN_PATH"; exit 2; }
+# The `_FINAL.pth` fallback at the end of this script picks a snapshot at a
+# named step, and a resumed run can leave two of those — so it goes through
+# the same resolver as the eval sites (#390). Taken from this script's own
+# checkout, never from $WT, which can sit on a commit that predates it.
+# Checked here, before the run: finding it missing after a 200k-step training
+# run costs the whole run. `cd -P`, because the orchestrators reach this file
+# through a `scripts/` symlink inside $WT — the logical path would walk back
+# up to $WT and land on exactly the stale-checkout resolver this avoids.
+CKPT_RESOLVER="$(cd -P "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)/scripts/resolve_eval_checkpoint.sh"
+[ -f "$CKPT_RESOLVER" ] || { log "ABORT: no checkpoint resolver at $CKPT_RESOLVER"; exit 2; }
 export HF_TOKEN="$(cat "$HF_TOKEN_PATH")"; export HUGGING_FACE_HUB_TOKEN="$HF_TOKEN"
 [ -n "$HF_TOKEN" ] || { log "ABORT: empty HF_TOKEN"; exit 2; }
 
@@ -187,18 +197,26 @@ if [ -f "$BB" ] && [ "${FORCE:-0}" != "1" ]; then
   exit 0
 fi
 
+# The highest step this run has a periodic snapshot for, over the base name
+# and every `_r<N>` resume; -1 when there is none. Optimizer sidecars and
+# non-numeric matches are not snapshots.
+latest_step_k(){
+  local f k best=-1
+  for f in "$RUNS/${NAME}"_*k.pth; do
+    [ -e "$f" ] || continue
+    case "$f" in *_optimizer.pth) continue;; esac
+    k=$(basename "$f" | sed -E 's/.*_([0-9]+)k\.pth$/\1/')
+    case "$k" in ''|*[!0-9]*) continue;; esac
+    (( k > best )) && best=$k
+  done
+  echo "$best"
+}
+
 # Wave idempotency: if an existing periodic checkpoint has already reached
 # (or exceeded) TARGET_STEPS and this is an intermediate wave
 # (TARGET_STEPS < FINAL_STEPS), skip re-running the trainer.
 target_k=$(( TARGET_STEPS / 1000 ))
-best_ck_k=-1
-for f in "$RUNS/${NAME}"_*k.pth; do
-  [ -e "$f" ] || continue
-  case "$f" in *_optimizer.pth) continue;; esac
-  k=$(basename "$f" | sed -E 's/.*_([0-9]+)k\.pth$/\1/')
-  case "$k" in ''|*[!0-9]*) continue;; esac
-  (( k > best_ck_k )) && best_ck_k=$k
-done
+best_ck_k=$(latest_step_k)
 if [ "$TARGET_STEPS" -lt "$FINAL_STEPS" ] && [ "$best_ck_k" -ge "$target_k" ] && [ "${FORCE:-0}" != "1" ]; then
   log "WAVE SKIP: existing _${best_ck_k}k.pth ≥ target ${target_k}k (final=$FINAL_STEPS not reached — set FORCE=1 to override)"
   exit 0
@@ -245,6 +263,26 @@ fi
 
 if   [ -f "$RUNS/${NAME}_best_loss.pth" ]; then cp -f "$RUNS/${NAME}_best_loss.pth" "$BB"
 elif [ -f "$RUNS/${NAME}_final.pth" ];     then cp -f "$RUNS/${NAME}_final.pth"     "$BB"
-else cp -f "$(ls -t "$RUNS/${NAME}"_*k.pth 2>/dev/null|head -1)" "$BB" 2>/dev/null; fi
+else
+  # Neither named checkpoint exists — fall back to the last periodic
+  # snapshot. A resumed run can leave two of those at that step; they are
+  # different models and mtime does not say which one `_FINAL.pth` should
+  # carry, so resolve instead of picking (#390). Recomputed rather than
+  # reusing the preflight scan: the training run just wrote snapshots that
+  # were not on disk when it ran.
+  last_k=$(latest_step_k)
+  [ "$last_k" -ge 0 ] || { log "BB FAILED no checkpoint"; exit 1; }
+  errf="$(mktemp)"
+  snap=$(bash "$CKPT_RESOLVER" "$RUNS" "$NAME" "$last_k" 2>"$errf"); rc=$?
+  if [ $rc -ne 0 ]; then
+    log "BB FAILED: no single ${last_k}k snapshot to name _FINAL.pth from (rc=$rc):"
+    while IFS= read -r line; do log "  $line"; done <"$errf"
+    log "  Copy the replicate you mean to ${NAME}_FINAL.pth."
+    rm -f "$errf"; exit $rc
+  fi
+  rm -f "$errf"
+  log "FINAL from $snap"
+  cp -f "$snap" "$BB"
+fi
 [ -f "$BB" ] || { log "BB FAILED no checkpoint"; exit 1; }
 log "$ARM complete: BB DONE -> ${NAME}_FINAL.pth ($(du -h "$BB"|cut -f1))"

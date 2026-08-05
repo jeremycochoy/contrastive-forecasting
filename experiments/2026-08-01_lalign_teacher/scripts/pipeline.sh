@@ -94,7 +94,12 @@ arms_at_step(){ # step_k arms...
     case "$rc" in
       0) log "  READY $arm — $hit" >&2; out+=("$arm") ;;
       3) log "  SKIP $arm — no ${k}k backbone on disk" >&2 ;;
-      *) log "  DROP $arm — ${k}k backbone is ambiguous, not choosing:" >&2
+      5) log "  DROP $arm — ${k}k backbone is ambiguous, not choosing:" >&2
+         while IFS= read -r line; do log "    $line" >&2; done <"$errf" ;;
+      # Any other code is the resolver itself failing. The arm is still
+      # dropped — nothing here guesses — but it must not be filed under the
+      # one message an operator reads as routine.
+      *) log "  DROP $arm — checkpoint resolver failed rc=$rc:" >&2
          while IFS= read -r line; do log "    $line" >&2; done <"$errf" ;;
     esac
   done

@@ -5,7 +5,10 @@
 #
 # BB_CHECKPOINT names the backbone file directly. Needed only when a run was
 # resumed and both `<name>_<K>k.pth` and `<name>_r<N>_<K>k.pth` exist: the
-# resolver refuses to guess between them.
+# resolver refuses to guess between them. It must be one of those two names —
+# the cell is named from (ARM, BB_STEP_K) whatever you pass, so a file from
+# another step or another run is refused rather than published under this
+# cell's name.
 #
 # Trains a fresh 2L transformer quantile head (head_nhead=8 to divide
 # d_model=64) on the frozen backbone at step ${BB_STEP_K}k for ${HEAD_STEPS}

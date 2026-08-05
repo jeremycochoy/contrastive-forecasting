@@ -1,7 +1,16 @@
 
-runs dir : /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/runs
-pairs    : 142
-agree    : 142
-differ   : 0
-aborted  : 0
-VERDICT  : PARITY — the resolver returns the file the old line returned, on every pair.
+runs dir              : /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/runs
+pairs                 : 142
+agree                 : 142
+differ                : 0
+aborted               : 0
+multi-candidate pairs : 0
+
+SCOPE   : every pair on disk has exactly one candidate, so this run does not
+          exercise the ambiguity path and is no evidence that an ambiguity
+          would be caught. It shows one thing: the resolver returns what the
+          old line returned, so no committed cell moves.
+          Detection is covered by tests/test_eval_checkpoint_resolution.py:
+          test_two_candidates_abort, test_390_eval_arm_aborts_on_two_candidates.
+
+VERDICT : PARITY — the resolver returns the file the old line returned, on every pair.
