@@ -460,13 +460,17 @@ def parse_args():
                         "Applies to ANY loss_shape.")
     p.add_argument("--align-target", choices=("student", "teacher"),
                    default="student",
-                   help="Target of the standalone L_align term (#388). "
+                   help="Target of the L_align term (#388, #390). "
                         "'student' (default) is the student's own "
-                        "sg(h_{t+1}) — what #382's `align` arm trained on. "
+                        "sg(h_{t+1}) — what #382 and #379 trained on. "
                         "'teacher' is the EMA teacher's h_{t+1}, the BYOL "
                         "form L_align was designed for; requires "
-                        "--ema-embedding / --ema-encoder and "
-                        "--no-main-contrastive-loss.")
+                        "--ema-embedding / --ema-encoder. Selects the target "
+                        "of the --align-loss-weight term on both of its "
+                        "paths: standalone under --no-main-contrastive-loss, "
+                        "and as the add-on inside the contrastive loss. "
+                        "--align-moco-loss-weight is a separate term with a "
+                        "teacher target of its own and is NOT affected.")
     p.add_argument("--align-moco-loss-weight", type=float, nargs="?",
                    const=1.0, default=0.0,
                    help="λ for a MoCo-style InfoNCE alignment (#374 arm 6): "
@@ -1327,18 +1331,18 @@ def main():
                              "ramp is configured; pass --ema-tau-end.")
     # #388: L_align's teacher target. Both preconditions are hard errors —
     # silently falling back to the student target is the #382 bug this flag
-    # exists to fix.
+    # exists to fix. The target applies to both L_align paths (#390): the
+    # standalone align_loss() under --no-main-contrastive-loss, and the
+    # --align-loss-weight add-on inside contrastive_latent_loss.
     if args.align_target == "teacher":
         if not (args.ema_embedding or args.ema_encoder):
             raise SystemExit(
                 "--align-target teacher needs an EMA teacher; pass "
                 "--ema-embedding and/or --ema-encoder.")
-        if not args.no_main_contrastive_loss:
+        if args.align_loss_weight <= 0:
             raise SystemExit(
-                "--align-target teacher only applies to the standalone "
-                "L_align term. With the main contrastive loss on, the align "
-                "add-on lives inside contrastive_latent_loss and targets the "
-                "student. Pass --no-main-contrastive-loss.")
+                "--align-target teacher picks the target of L_align, but "
+                "this run has no L_align term; pass --align-loss-weight.")
     # Parse --extra-save-steps at validation time (not deep in the training
     # loop) so a malformed value fails immediately instead of after model +
     # dataloader construction — the parser raises SystemExit on bad input.
@@ -1368,6 +1372,7 @@ def main():
     LOSS_SPEC.train_configuration["include_positive_in_denominator"] = args.pos_in_denominator
     LOSS_SPEC.train_configuration["stopgrad_positive_h"] = args.stopgrad_positive_h
     LOSS_SPEC.train_configuration["align_loss_weight"] = args.align_loss_weight
+    LOSS_SPEC.train_configuration["align_target"] = args.align_target
     LOSS_SPEC.train_configuration["subtract_contrastive_floor"] = args.subtract_contrastive_floor
     LOSS_SPEC.train_configuration["moco_negatives"] = args.moco_negatives
     LOSS_SPEC.train_configuration["moco_rep_keys"] = args.moco_rep_keys
@@ -1719,12 +1724,16 @@ def main():
                 if args.align_loss_weight > 0:
                     # #388: --align-target teacher swaps the target for the
                     # EMA teacher's h_{t+1} (the BYOL form). Argparse rejects
-                    # `teacher` without a teacher — assert it here too, where
-                    # the value is used: a None target silently falls back to
-                    # the student, which is the #382 bug this flag fixes.
-                    if args.align_target == "teacher":
-                        assert teacher_o_lat is not None, \
-                            "--align-target teacher but no teacher latents"
+                    # `teacher` without a teacher — re-check it here too,
+                    # where the value is used: a None target silently falls
+                    # back to the student, which is the #382 bug this flag
+                    # fixes. `raise`, not `assert`: `python -O` strips
+                    # asserts and would reinstate that exact fallback.
+                    if args.align_target == "teacher" and teacher_o_lat is None:
+                        raise SystemExit(
+                            "--align-target teacher but no teacher latents "
+                            "at the loss call. Falling back to the student "
+                            "target is the #382 defect this flag removes.")
                     align_target = (teacher_o_lat
                                     if args.align_target == "teacher" else None)
                     loss = loss + align_loss(f_lat, o_lat,
