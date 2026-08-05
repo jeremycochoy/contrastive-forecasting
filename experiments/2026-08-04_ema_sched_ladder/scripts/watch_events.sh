@@ -48,9 +48,21 @@ seen_new(){  # <tag> <file> <regex>  -> prints the new matching lines
 BROKER="$RES/eval_broker.log"
 RELEASE="$RES/release.log"
 LADDER="$RES/ladder.csv"
+EXTEND="$RES/extend.log"
+RUNS="${CF393_RUNS:-/home/jupyter/checkpoints_backup/cf-393}"
+
+# Score files on disk, counted directly. The two log sources above miss two
+# cases and both are now normal: a stop finished by adopt_cell.sh has no
+# driver to write elisa's ladder.csv, and a broker eval whose box was
+# released cannot log DONE because the push back fails. The number is still
+# measured and on disk, and scripts/scores_from_evals.py will pool it, so
+# the watch has to see it.
+score_files(){ ls "$RUNS"/*/eval/score_bb*.txt "$RUNS"/_broker/*/*/*/score.txt 2>/dev/null | wc -l; }
 
 seen_init broker  "$BROKER"  'DONE score='
 seen_init release "$RELEASE" 'RELEASED|destroying|vastrun-destroy failed'
+seen_init extend  "$EXTEND"  'HOLD_ABOVE|launched|ABORT'
+score_files > "$STATE/scorefiles"
 [ -f "$LADDER" ] && wc -l < "$LADDER" > "$STATE/ladder" || echo 0 > "$STATE/ladder"
 for f in "$RES"/run_cf393_*.log; do
   [ -f "$f" ] && cnt 'Traceback|CUDA error|AcceleratorError|out of memory' "$f" \
@@ -73,9 +85,25 @@ while :; do
     echo "$now_l" > "$STATE/ladder"
   fi
 
+  # --- score files, whether or not a log announced them --------------------
+  now_s=$(score_files)
+  had_s=$(cat "$STATE/scorefiles" 2>/dev/null || echo 0)
+  if [ "$now_s" -gt "$had_s" ]; then
+    ls -t "$RUNS"/*/eval/score_bb*.txt "$RUNS"/_broker/*/*/*/score.txt 2>/dev/null \
+      | head -n $(( now_s - had_s )) \
+      | while read -r p; do
+          ev "SCORE $(sed -E 's|.*cf-393/||; s|/eval/score_|  |; s|\.txt$||; s|/score\.txt$||' <<<"$p") = $(cat "$p" 2>/dev/null)"
+        done
+    echo "$now_s" > "$STATE/scorefiles"
+  fi
+
   # --- releases -----------------------------------------------------------
   while read -r l; do [ -n "$l" ] && ev "BOX ${l#*\] }"; done \
     < <(seen_new release "$RELEASE" 'RELEASED|destroying|vastrun-destroy failed')
+
+  # --- the extension supervisor -------------------------------------------
+  while read -r l; do [ -n "$l" ] && ev "EXTEND ${l#*\] }"; done \
+    < <(seen_new extend "$EXTEND" 'HOLD_ABOVE|launched|ABORT')
 
   # --- failures in any run log, elisa's own and every synced copy ----------
   for f in "$RES"/run_cf393_*.log; do
