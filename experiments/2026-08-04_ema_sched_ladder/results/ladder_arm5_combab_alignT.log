@@ -47,3 +47,12 @@
 [17:35:33] DONE — Aggregate GM-Relative MASE (97 configs): 1.2772 -> 1.2772
 [ladder] arm5_combab_alignT @100000: {'student': 1.2797, 'teacher': 1.2772} -> {'extend': True, 'heads': ('student', 'teacher'), 'branch': 'both_down'}
 [ladder] arm5_combab_alignT: HOLD_ABOVE 100000 reached
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm5_combab_alignT 40000
+[08-05 23:16:03] [arm5_combab_alignT] SKIP: cf393_arm5_combab_alignT_40k.pth already on disk
+[ladder] arm5_combab_alignT @40000: {'student': 1.3334, 'teacher': 1.319} -> {'extend': True, 'heads': ('student', 'teacher'), 'branch': 'unconditional'}
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm5_combab_alignT 100000
+[08-05 23:16:03] [arm5_combab_alignT] SKIP: cf393_arm5_combab_alignT_100k.pth already on disk
+[ladder] arm5_combab_alignT @100000: {'student': 1.2797, 'teacher': 1.2772} -> {'extend': True, 'heads': ('student', 'teacher'), 'branch': 'both_down'}
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm5_combab_alignT 200000
+[08-05 23:16:03] [arm5_combab_alignT] RESUME from cf393_arm5_combab_alignT_100k.pth (step 100k)
+[08-05 23:16:03] [arm5_combab_alignT] START target=200000 gpu=0 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-393/arm5_combab_alignT/leg_200k

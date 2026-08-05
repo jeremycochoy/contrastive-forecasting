@@ -31,3 +31,9 @@
 [20:06:36] eval_local rc=0
 [20:06:36] DONE — Aggregate GM-Relative MASE (97 configs): 1.1837 -> 1.1837
 [ladder] arm6_v2_combab_alignS @100000: {'student': 1.1945, 'teacher': 1.1837} -> {'extend': False, 'heads': ('student', 'teacher'), 'branch': 'none_down'}
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm6_v2_combab_alignS 40000
+[08-05 23:15:03] [arm6_v2_combab_alignS] SKIP: cf393_arm6_v2_combab_alignS_40k.pth already on disk
+[ladder] arm6_v2_combab_alignS @40000: {'student': 1.1603, 'teacher': 1.1544} -> {'extend': True, 'heads': ('student', 'teacher'), 'branch': 'unconditional'}
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm6_v2_combab_alignS 100000
+[08-05 23:15:03] [arm6_v2_combab_alignS] SKIP: cf393_arm6_v2_combab_alignS_100k.pth already on disk
+[ladder] arm6_v2_combab_alignS @100000: {'student': 1.1945, 'teacher': 1.1837} -> {'extend': False, 'heads': ('student', 'teacher'), 'branch': 'none_down'}
