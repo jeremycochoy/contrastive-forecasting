@@ -69,6 +69,11 @@ CELLS = (
 
 HEADS = ("student", "teacher")
 
+# Durable root for everything a run produces that cost GPU time. Kept
+# equal to `RUNS_DEFAULT` in scripts/leg_paths.sh, which the two launchers
+# read; tests/test_393_ladder.py pins the two together.
+RUNS_DEFAULT = "/home/jupyter/checkpoints_backup/cf-393"
+
 STOP_FIRST = 40_000
 STOP_SECOND = 100_000
 STOP_INCREMENT = 100_000
@@ -152,13 +157,6 @@ def batch_composition(batch_size: int, mix_ratio: float,
     }
 
 
-def hf_rows_per_step(batch_size: int, mix_ratio: float,
-                     crossfade_ratio: float, channels: int) -> int:
-    """Real dataset rows the trainer consumes per step."""
-    return batch_composition(batch_size, mix_ratio, crossfade_ratio, 0,
-                             channels)["hf_rows_per_step"]
-
-
 def step_cap(total_rows: int, rows_per_step: int) -> int:
     """Steps in one pass over the dataset — the point where a run has shown
     every sample once. Extending past it repeats data."""
@@ -234,6 +232,23 @@ def scores_at(rows: list[dict], cell: str, stop: int) -> dict:
 # --- shell boundary -------------------------------------------------------
 
 
+def runs_root() -> str:
+    """The durable root, refusing the two paths that lose work.
+
+    `git worktree remove --force` deletes every untracked file under the
+    checkout (CLAUDE.md checkpoint safety rule 4) and /tmp does not survive
+    a reboot. Mirrors `runs_root()` in scripts/leg_paths.sh.
+    """
+    root = os.environ.get("RUNS") or RUNS_DEFAULT
+    checkout = os.environ.get("WT")
+    inside = checkout and (root == checkout
+                           or root.startswith(checkout.rstrip("/") + "/"))
+    if root == "/tmp" or root.startswith("/tmp/") or inside:
+        raise SystemExit(f"RUNS={root} is under /tmp or inside the checkout. "
+                         f"Point it at a durable path, e.g. {RUNS_DEFAULT}.")
+    return root
+
+
 def run(cmd: list[str], env: dict) -> int:
     print(f"[ladder] $ {' '.join(cmd)}", flush=True)
     return subprocess.call(cmd, env=env)
@@ -251,10 +266,12 @@ def evaluate(cell: str, stop: int, head: str, env: dict) -> float:
     """Train one head on the stop's checkpoint and GIFT-Eval it.
 
     eval_stop.sh writes the aggregate GM-Relative MASE, and nothing else,
-    to its `--score-out` path.
+    to the score path. That path sits on the durable root next to the head
+    it came from, so the number survives a worktree teardown even if
+    `results/ladder.csv` does not.
     """
-    score_path = os.path.join(EXP_DIR, "results",
-                              f"score_{cell}_bb{stop // 1000}k_{head}.txt")
+    score_path = os.path.join(runs_root(), cell, "eval",
+                              f"score_bb{stop // 1000}k_{head}.txt")
     rc = run(["bash", os.path.join(SCRIPTS_DIR, "eval_stop.sh"), cell,
               str(stop), head, str(head_steps_for(stop)), score_path], env)
     if rc != 0:
@@ -274,9 +291,48 @@ def alpha_at(step: int) -> float:
                            EMA_TAU_END, EMA_TAU_RAMP_STEPS)
 
 
+def record_decision(path: str, slug: str, stop: int, branch: str,
+                    extend: bool, heads) -> None:
+    """One row per stop, including the two that end a session early.
+
+    `--max-stop` and the data cap both leave the cell mid-ladder, and a
+    reader of decisions.csv has to be able to tell either from a cell that
+    is still running.
+    """
+    append_row(path, DECISION_COLUMNS,
+               [slug, stop, branch, int(extend), " ".join(heads)])
+
+
+def stop_scores(cell: dict, stop: int, heads: tuple, recorded: dict,
+                env: dict, ladder_csv: str) -> dict:
+    """{head: GM-Relative MASE} at a stop, evaluating only what is missing.
+
+    `recorded` is what ladder.csv already holds for this cell and stop, so
+    a crashed cell does not re-train a 30k-step head it already has.
+    """
+    scores = {}
+    for head in heads:
+        if head in recorded:
+            scores[head] = recorded[head]
+            continue
+        scores[head] = evaluate(cell["slug"], stop, head, env)
+        append_row(ladder_csv, LADDER_COLUMNS,
+                   [cell["slug"], cell["arm"], cell["align"] or "", stop,
+                    head, head_steps_for(stop), f"{alpha_at(stop):.6f}",
+                    f"{scores[head]:.6f}"])
+    return scores
+
+
 def climb(cell: dict, env: dict, ladder_csv: str, decisions_csv: str,
           max_stop: int | None) -> None:
-    """Walk one cell up the ladder until the rule or the data stops it."""
+    """Walk one cell up the ladder until the rule or the data stops it.
+
+    Resumable: the walk replays from step 0 every time, and each stop whose
+    checkpoint and scores are already on disk costs nothing — run_leg.sh
+    skips a leg whose target checkpoint exists, and `stop_scores` skips a
+    head ladder.csv already holds. That replay is also what rebuilds
+    `previous` and `heads` after a crash.
+    """
     cap = experiment_step_cap()
     rows = read_rows(ladder_csv, LADDER_COLUMNS)
     slug = cell["slug"]
@@ -284,28 +340,21 @@ def climb(cell: dict, env: dict, ladder_csv: str, decisions_csv: str,
     while True:
         target = next_stop(stop)
         if target > cap:
-            append_row(decisions_csv, DECISION_COLUMNS,
-                       [slug, stop, "data_exhausted", 0, ""])
+            record_decision(decisions_csv, slug, stop, "data_exhausted",
+                            False, heads)
             print(f"[ladder] {slug}: step cap {cap} reached")
             return
         if max_stop is not None and target > max_stop:
+            record_decision(decisions_csv, slug, stop, "session_end",
+                            True, heads)
             print(f"[ladder] {slug}: --max-stop {max_stop} reached")
             return
         train_leg(slug, target, env)
-        current = scores_at(rows, slug, target)
-        for head in heads:
-            if head in current:
-                continue
-            current[head] = evaluate(slug, target, head, env)
-            append_row(ladder_csv, LADDER_COLUMNS,
-                       [slug, cell["arm"], cell["align"] or "", target, head,
-                        head_steps_for(target), f"{alpha_at(target):.6f}",
-                        f"{current[head]:.6f}"])
-        current = {h: current[h] for h in heads}
+        current = stop_scores(cell, target, heads,
+                             scores_at(rows, slug, target), env, ladder_csv)
         decision = ladder_decision(target, previous, current, step_cap=cap)
-        append_row(decisions_csv, DECISION_COLUMNS,
-                   [slug, target, decision["branch"], int(decision["extend"]),
-                    " ".join(decision["heads"])])
+        record_decision(decisions_csv, slug, target, decision["branch"],
+                        decision["extend"], decision["heads"])
         print(f"[ladder] {slug} @{target}: {current} -> {decision}")
         if not decision["extend"]:
             return

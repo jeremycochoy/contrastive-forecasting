@@ -17,6 +17,9 @@
 #
 # Usage:
 #   safe_pull.sh <ssh_host> <ssh_port> <remote_path> <local_dst> [min_bytes]
+#
+# Connects as $SSH_USER, default `root` — vast.ai instances, which this
+# was written for. Set SSH_USER=jupyter for elisa.
 
 set -u
 
@@ -25,11 +28,12 @@ SSH_PORT=${2:?missing port}
 REMOTE=${3:?missing remote_path}
 LOCAL=${4:?missing local_dst}
 MIN_BYTES=${5:-1048576}   # default: 1 MB
+SSH_USER=${SSH_USER:-root}
 
 mkdir -p "$(dirname "$LOCAL")"
 
 scp -q -o StrictHostKeyChecking=no -P "$SSH_PORT" \
-    "root@${SSH_HOST}:${REMOTE}" "${LOCAL}.tmp"
+    "${SSH_USER}@${SSH_HOST}:${REMOTE}" "${LOCAL}.tmp"
 
 if [[ ! -s "${LOCAL}.tmp" ]]; then
     rm -f "${LOCAL}.tmp"

@@ -81,21 +81,25 @@ def read_manifest(repo_id: str, path_in_repo: str) -> dict:
         return json.load(fh)
 
 
-def main():
-    p = argparse.ArgumentParser(description=__doc__.split("\n\n", 1)[0])
-    p.add_argument("--out", default=os.path.join(EXP_DIR, "results",
-                                                 "dataset_rows.json"))
-    args = p.parse_args()
+def cross_check(rows: int, ladder) -> dict:
+    """The issue's cross-check against the 2026-05-03 epoch figure."""
+    derived = ladder.step_cap(rows, PRIOR_BATCH_SIZE)
+    gap = (PRIOR_STEPS - derived) / PRIOR_STEPS
+    return {
+        "reported_steps": PRIOR_STEPS,
+        "batch_size": PRIOR_BATCH_SIZE,
+        "derived_steps": derived,
+        "relative_gap": round(gap, 6),
+        "agrees": abs(gap) < 0.01,
+        "note": PRIOR_NOTE,
+    }
 
-    ladder = load_ladder()
-    manifest = read_manifest(HF_REPO, HF_PATH)
+
+def build_record(manifest: dict, ladder) -> dict:
+    """Everything the report quotes, with the basis it rests on."""
     rows = int(manifest["total_rows"])
     comp = ladder.experiment_batch_composition()
-    per_step = comp["hf_rows_per_step"]
-    cap = ladder.step_cap(rows, per_step)
-    prior_steps = ladder.step_cap(rows, PRIOR_BATCH_SIZE)
-
-    record = {
+    return {
         "dataset": f"{HF_REPO} / {HF_PATH}",
         "total_rows": rows,
         "num_shards": manifest.get("num_shards"),
@@ -105,28 +109,35 @@ def main():
         "crossfade_triplets": ladder.CROSS_TRIPLETS,
         "n_channels": ladder.N_CHANNELS,
         "batch_composition": comp,
-        "hf_rows_per_step": per_step,
-        "step_cap": cap,
+        "hf_rows_per_step": comp["hf_rows_per_step"],
+        "step_cap": ladder.step_cap(rows, comp["hf_rows_per_step"]),
         "basis": BASIS,
-        "cross_check_2026_05_03": {
-            "reported_steps": PRIOR_STEPS,
-            "batch_size": PRIOR_BATCH_SIZE,
-            "derived_steps": prior_steps,
-            "relative_gap": round((PRIOR_STEPS - prior_steps) / PRIOR_STEPS, 6),
-            "agrees": abs(PRIOR_STEPS - prior_steps) / PRIOR_STEPS < 0.01,
-            "note": PRIOR_NOTE,
-        },
+        "cross_check_2026_05_03": cross_check(rows, ladder),
     }
-    os.makedirs(os.path.dirname(args.out), exist_ok=True)
-    with open(args.out, "w") as fh:
+
+
+def write_record(path: str, record: dict) -> None:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as fh:
         json.dump(record, fh, indent=2)
         fh.write("\n")
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__.split("\n\n", 1)[0])
+    p.add_argument("--out", default=os.path.join(EXP_DIR, "results",
+                                                 "dataset_rows.json"))
+    args = p.parse_args()
+
+    ladder = load_ladder()
+    record = build_record(read_manifest(HF_REPO, HF_PATH), ladder)
+    write_record(args.out, record)
     print(json.dumps(record, indent=2))
 
-    if rows != ladder.SMALL_V1_ROWS:
-        print(f"\nWARNING: manifest says {rows} rows, ladder.py carries "
-              f"{ladder.SMALL_V1_ROWS}. Update the constant and the report.",
-              file=sys.stderr)
+    if record["total_rows"] != ladder.SMALL_V1_ROWS:
+        print(f"\nWARNING: manifest says {record['total_rows']} rows, "
+              f"ladder.py carries {ladder.SMALL_V1_ROWS}. Update the "
+              f"constant and the report.", file=sys.stderr)
         return 1
     return 0
 

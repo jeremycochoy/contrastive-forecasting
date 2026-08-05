@@ -34,11 +34,6 @@ def load_ladder():
     return module
 
 
-def alpha_series(steps, ladder):
-    """[(step, α)] straight from the trainer's own schedule function."""
-    return [(s, ladder.alpha_at(s)) for s in steps]
-
-
 def write_csv(path, series):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", newline="") as fh:
@@ -84,8 +79,10 @@ def main():
     args = p.parse_args()
 
     ladder = load_ladder()
-    steps = list(range(0, args.max_step + 1, args.every))
-    series = alpha_series(steps, ladder)
+    # Straight from the trainer's own schedule function, so the record
+    # cannot drift from what ran.
+    series = [(s, ladder.alpha_at(s))
+              for s in range(0, args.max_step + 1, args.every)]
     write_csv(args.csv_out, series)
 
     stops, step = [], 0

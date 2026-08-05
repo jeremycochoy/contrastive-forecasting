@@ -26,17 +26,14 @@ TARGET_STEPS="${2:?usage: run_leg.sh <cell_slug> <target_steps>}"
 WT="${WT:-$HOME/workspaces/contrastive-forecasting}"
 OUT="$WT/experiments/2026-08-04_ema_sched_ladder"
 RES="$OUT/results"
-# Checkpoints live OUTSIDE the checkout: `git worktree remove --force`
-# deletes every untracked file under the worktree (CLAUDE.md checkpoint
-# safety rule 4, Apr-2026 incident), and /tmp does not survive a reboot.
-RUNS="${RUNS:-/home/jupyter/checkpoints_backup/cf-393}/$CELL"
-case "$RUNS" in
-  /tmp/*|/tmp|"$WT"/*)
-    echo "ABORT: RUNS=$RUNS is under /tmp or inside the checkout. Point it" >&2
-    echo "  at a durable path, e.g. /home/jupyter/checkpoints_backup/cf-393." >&2
-    exit 2 ;;
-esac
-mkdir -p "$RUNS" "$RES"
+# Durable root, per-leg save dirs and step-ordered checkpoint lookup all
+# come from one place — see the header of leg_paths.sh for why each of the
+# three is not the obvious thing.
+. "$(dirname "${BASH_SOURCE[0]}")/leg_paths.sh"
+ROOT="$(runs_root)" || exit 2
+RUNS="$ROOT/$CELL"
+LEG="$(leg_dir "$RUNS" "$TARGET_STEPS")"
+mkdir -p "$LEG" "$RES"
 
 # ---- Per-cell dispatch -------------------------------------------------------
 # LOSS_ARGS: the #379 arm's loss flags, verbatim.
@@ -135,21 +132,30 @@ export HF_TOKEN="$(cat "$HF_TOKEN_PATH")"; export HUGGING_FACE_HUB_TOKEN="$HF_TO
 # Idempotent: a leg whose target checkpoint already exists is a no-op, so a
 # re-fired stop after a crash costs nothing.
 target_k=$(( TARGET_STEPS / 1000 ))
-[ -f "$RUNS/${NAME}_${target_k}k.pth" ] && {
-  log "SKIP: ${NAME}_${target_k}k.pth already on disk"; exit 0; }
+done_ckpt="$(ckpt_at_step "$RUNS" "$NAME" "$target_k")"
+[ -n "$done_ckpt" ] && {
+  log "SKIP: $(basename "$done_ckpt") already on disk"; exit 0; }
 
+# Resume from the cell's FURTHEST checkpoint, chosen by the step in its
+# name. `ls -t` would pick by mtime, which a checkpoint set copied between
+# machines reorders.
 RESUME=()
-latest=$(ls -t "$RUNS/${NAME}"_*k.pth 2>/dev/null | grep -v optimizer | head -1)
-[ -n "$latest" ] && { RESUME=(--resume "$latest"); log "RESUME from $(basename "$latest")"; }
+latest="$(newest_ckpt "$RUNS" "$NAME")"
+if [ -n "$latest" ]; then
+  RESUME=(--resume "$latest")
+  log "RESUME from $(basename "$latest") (step $(ckpt_step_k "$latest")k)"
+else
+  log "FRESH start at step 0"
+fi
 
-log "START target=$TARGET_STEPS gpu=$BB_GPU save_every=$SAVE_EVERY"
+log "START target=$TARGET_STEPS gpu=$BB_GPU save_every=$SAVE_EVERY leg=$LEG"
 CUDA_VISIBLE_DEVICES="$BB_GPU" python3 -u "$TRAIN" "${RESUME[@]}" \
   --qk-norm --attn-out-norm \
   --batch-size 64 --device cuda --total-steps "$TARGET_STEPS" \
   --lr 1e-3 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 \
   --seed "$SEED" \
   --save-every "$SAVE_EVERY" --extra-save-steps "$EXTRA_SAVES" \
-  --save-dir "$RUNS" --run-name "$NAME" --log-every 200 \
+  --save-dir "$LEG" --run-name "$NAME" --log-every 200 \
   --hf-repo jeremycochoy/gift-pretrain-full-4096 --hf-path small_v1 \
   --t-raw 4096 --n-channels 1 --d-model 64 --n-heads 8 \
   --num-encoder-layers 3 --num-layers 3 \
@@ -175,6 +181,7 @@ if [ $rc -ne 0 ]; then
   exit 1
 fi
 
-[ -f "$RUNS/${NAME}_${target_k}k.pth" ] || {
-  log "FAIL: no ${NAME}_${target_k}k.pth after a clean exit"; exit 1; }
-log "DONE target=$TARGET_STEPS ($(du -h "$RUNS/${NAME}_${target_k}k.pth" | cut -f1))"
+produced="$(ckpt_at_step "$RUNS" "$NAME" "$target_k")"
+[ -n "$produced" ] || {
+  log "FAIL: no ${NAME}_${target_k}k.pth under $LEG after a clean exit"; exit 1; }
+log "DONE target=$TARGET_STEPS ($(du -h "$produced" | cut -f1)) -> $produced"

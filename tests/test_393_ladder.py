@@ -31,7 +31,9 @@ EXP_DIR = REPO_ROOT / "experiments" / "2026-08-04_ema_sched_ladder"
 LADDER_PY = EXP_DIR / "scripts" / "ladder.py"
 RUN_LEG = EXP_DIR / "scripts" / "run_leg.sh"
 EVAL_STOP = EXP_DIR / "scripts" / "eval_stop.sh"
+LEG_PATHS = EXP_DIR / "scripts" / "leg_paths.sh"
 SMOKE = EXP_DIR / "scripts" / "smoke_e2e.sh"
+SYNC_LOOP = EXP_DIR / "sync" / "sync_loop.sh"
 GIFT = REPO_ROOT / "experiments" / "2026-04-13_gift-eval" / "scripts"
 HEAD_TRAIN_PY = GIFT / "train_forecasting_head.py"
 EVAL_PY = GIFT / "eval_gift_eval_official.py"
@@ -292,14 +294,6 @@ class TestBatchComposition:
         assert (comp["synth_bs"], comp["hf_bs"]) == (32, 32)
         assert comp["hf_rows_per_step"] == 32
 
-    def test_composition_agrees_with_rows_per_step(self):
-        for bs, mix, cross, chan in [(64, 0.0078125, 0.0, 1), (64, 0.5, 0.0, 1),
-                                     (64, 0.25, 0.25, 1), (24, 0.0, 0.0, 4)]:
-            ladder = load_ladder()
-            comp = ladder.batch_composition(bs, mix, cross, 1, chan)
-            assert comp["hf_rows_per_step"] == ladder.hf_rows_per_step(
-                bs, mix, cross, chan)
-
     def test_the_experiment_batch_is_all_real(self):
         ladder = load_ladder()
         comp = ladder.experiment_batch_composition()
@@ -350,18 +344,19 @@ class TestStepCap:
     """One pass over the dataset. Rows per step mirrors train.py's
     ``hf_rows_per_step = (batch_size - synth_bs - cross_bs) * C``."""
 
+    def rows_per_step(self, bs, mix, cross, chan):
+        return load_ladder().batch_composition(
+            bs, mix, cross, 0, chan)["hf_rows_per_step"]
+
     def test_rows_per_step_matches_the_trainer(self):
-        ladder = load_ladder()
-        assert ladder.hf_rows_per_step(64, 0.0078125, 0.0, 1) == 64
+        assert self.rows_per_step(64, 0.0078125, 0.0, 1) == 64
 
     def test_mix_ratio_takes_rows_off_the_real_stream(self):
-        ladder = load_ladder()
-        assert ladder.hf_rows_per_step(64, 0.5, 0.0, 1) == 32
-        assert ladder.hf_rows_per_step(64, 0.25, 0.25, 1) == 32
+        assert self.rows_per_step(64, 0.5, 0.0, 1) == 32
+        assert self.rows_per_step(64, 0.25, 0.25, 1) == 32
 
     def test_channels_multiply_the_rows(self):
-        ladder = load_ladder()
-        assert ladder.hf_rows_per_step(64, 0.0, 0.0, 2) == 128
+        assert self.rows_per_step(64, 0.0, 0.0, 2) == 128
 
     def test_the_cap_is_a_whole_number_of_steps(self):
         ladder = load_ladder()
@@ -370,10 +365,10 @@ class TestStepCap:
     def test_the_experiment_cap(self):
         """Recorded so the report's number and the driver's cannot drift."""
         ladder = load_ladder()
-        rows_per_step = ladder.hf_rows_per_step(
-            ladder.BATCH_SIZE, ladder.MIX_RATIO, ladder.CROSSFADE_RATIO,
-            ladder.N_CHANNELS)
-        assert ladder.step_cap(SMALL_V1_ROWS, rows_per_step) == 665_182
+        assert ladder.experiment_step_cap() == 665_182
+        assert ladder.step_cap(
+            SMALL_V1_ROWS,
+            ladder.experiment_batch_composition()["hf_rows_per_step"]) == 665_182
 
     def test_the_row_count_is_the_confirmed_one(self):
         assert load_ladder().SMALL_V1_ROWS == SMALL_V1_ROWS
@@ -503,3 +498,420 @@ class TestEvalStop:
         known = argparse_flags(HEAD_TRAIN_PY) | argparse_flags(EVAL_PY)
         unknown = shell_flags(EVAL_STOP) - known
         assert not unknown, unknown
+
+    def test_the_score_comes_from_the_summary_file_only(self):
+        """An unpinned `grep Aggregate` over a glob returns whichever line
+        the glob ordered first. The day the eval prints a second aggregate
+        metric, the ladder would record it as GM-Relative MASE and the
+        extend rule would run on it."""
+        body = self.body()
+        assert 'SUMMARY="$OUT/gift/summary.txt"' in body
+        assert "score_from_summary" in body
+        assert '"$OUT/gift"/*.txt' not in body, "still globbing for the score"
+
+    def test_a_failed_read_does_not_blank_the_score_file(self):
+        """Written through a .tmp and moved, like every other artefact."""
+        body = self.body()
+        assert '"$SCORE_OUT.tmp"' in body
+        assert 'mv "$SCORE_OUT.tmp" "$SCORE_OUT"' in body
+
+    def test_the_eval_writes_outside_the_checkout(self):
+        """Each head is 15k-30k training steps. `git worktree remove
+        --force` deletes every untracked file under the checkout."""
+        body = self.body()
+        assert 'OUT="$RUNS/eval/' in body
+        assert 'OUT="$EXP/eval/' not in body, "eval output is back in the checkout"
+        assert "runs_root" in body, "no durable-root guard"
+
+
+def bash_run(snippet: str, cwd):
+    """Run a snippet with leg_paths.sh sourced."""
+    import subprocess
+    script = f'. "{LEG_PATHS}"\n{snippet}\n'
+    return subprocess.run(["bash", "-c", script], capture_output=True,
+                          text=True, cwd=str(cwd))
+
+
+def bash_eval(snippet: str, cwd) -> str:
+    return bash_run(snippet, cwd).stdout.strip()
+
+
+# A real summary.txt as eval_gift_eval_official.py writes it: the per-config
+# table, then the aggregate, then the leaderboard block.
+SUMMARY_BODY = """\
+{extra_header}==========================================================================================
+Config                                            MASE  SN_MASE   Relative
+------------------------------------------------------------------------------------------
+us_births/D                                     1.0512   1.1392     0.9228
+------------------------------------------------------------------------------------------
+
+Aggregate GM-Relative MASE (97 configs): 1.1556
+
+Leaderboard comparison:
+  Sundial:    0.673
+  Naive:      1.000
+  ** Ours:    1.156 **
+==========================================================================================
+"""
+
+
+class TestScoreFromSummary:
+    """The number the whole ladder turns on, read off a real summary."""
+
+    def write(self, tmp_path, body):
+        path = tmp_path / "summary.txt"
+        path.write_text(body)
+        return path
+
+    def test_it_reads_the_aggregate(self, tmp_path):
+        path = self.write(tmp_path, SUMMARY_BODY.format(extra_header=""))
+        assert bash_eval(f'score_from_summary "{path}"', tmp_path) == "1.1556"
+
+    def test_a_second_aggregate_metric_aborts(self, tmp_path):
+        """The failure the unpinned grep would have produced silently: a
+        GM-MAPE_SN line is not a GM-Relative MASE, and picking one by glob
+        order records the wrong number against the stop."""
+        path = self.write(tmp_path, SUMMARY_BODY.format(extra_header="")
+                          + "\nAggregate GM-MAPE_SN (97 configs): 0.8123\n")
+        assert bash_eval(f'score_from_summary "{path}"', tmp_path) == "1.1556"
+
+    def test_two_relative_mase_lines_abort(self, tmp_path):
+        path = self.write(tmp_path, SUMMARY_BODY.format(extra_header="")
+                          + "\nAggregate GM-Relative MASE (12 configs): 0.9\n")
+        proc = bash_run(f'score_from_summary "{path}"', tmp_path)
+        assert proc.returncode == 4
+        assert "want 1" in proc.stderr
+        assert proc.stdout.strip() == ""
+
+    def test_a_missing_summary_aborts(self, tmp_path):
+        proc = bash_run(f'score_from_summary "{tmp_path}/nope.txt"', tmp_path)
+        assert proc.returncode == 4
+
+    def test_no_aggregate_line_aborts(self, tmp_path):
+        path = self.write(tmp_path, "no configs matched the reference\n")
+        proc = bash_run(f'score_from_summary "{path}"', tmp_path)
+        assert proc.returncode == 4
+        assert proc.stdout.strip() == ""
+
+
+class TestLegPaths:
+    """`leg_paths.sh` decides where a leg writes and which checkpoint the
+    next one resumes. Both were wrong in ways that only show up on a
+    resumed leg, which is every leg past 40k."""
+
+    def seed(self, tmp_path, files):
+        for rel in files:
+            path = tmp_path / rel
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("x")
+        return tmp_path
+
+    def test_each_leg_gets_its_own_save_dir(self, tmp_path):
+        """train.py branches --run-name to `<name>_r2` when its save dir
+        already holds `<name>_*.pth`. A shared dir would rename every
+        checkpoint past the first leg out from under the ladder."""
+        got = bash_eval('leg_dir /runs/cell 100000', tmp_path)
+        assert got == "/runs/cell/leg_100k"
+
+    def test_the_stop_checkpoint_is_found_by_step(self, tmp_path):
+        self.seed(tmp_path, ["leg_40k/cf393_x_40k.pth",
+                             "leg_100k/cf393_x_60k.pth",
+                             "leg_100k/cf393_x_100k.pth"])
+        got = bash_eval(f'ckpt_at_step "{tmp_path}" cf393_x 100', tmp_path)
+        assert got == str(tmp_path / "leg_100k/cf393_x_100k.pth")
+
+    def test_a_refired_leg_keeps_its_checkpoint_findable(self, tmp_path):
+        """A leg re-fired after a crash writes into a dir that already has
+        checkpoints, so train.py adds an `_r2` infix. The stop's checkpoint
+        is still the stop's checkpoint."""
+        self.seed(tmp_path, ["leg_100k/cf393_x_80k.pth",
+                             "leg_100k/cf393_x_r2_100k.pth"])
+        got = bash_eval(f'ckpt_at_step "{tmp_path}" cf393_x 100', tmp_path)
+        assert got == str(tmp_path / "leg_100k/cf393_x_r2_100k.pth")
+
+    def test_a_missing_stop_returns_nothing(self, tmp_path):
+        self.seed(tmp_path, ["leg_40k/cf393_x_40k.pth"])
+        assert bash_eval(f'ckpt_at_step "{tmp_path}" cf393_x 100', tmp_path) == ""
+
+    def test_resume_picks_the_furthest_step_not_the_newest_file(self, tmp_path):
+        """`ls -t` was the bug: copying a checkpoint set between machines
+        (what --max-stop invites) stamps every file with a fresh mtime in
+        copy order, so the newest file is whichever was copied last."""
+        import os
+        import time
+        self.seed(tmp_path, ["leg_40k/cf393_x_40k.pth",
+                             "leg_100k/cf393_x_100k.pth",
+                             "leg_200k/cf393_x_200k.pth"])
+        now = time.time()
+        for rel, age in [("leg_200k/cf393_x_200k.pth", 3000),
+                         ("leg_100k/cf393_x_100k.pth", 2000),
+                         ("leg_40k/cf393_x_40k.pth", 0)]:
+            os.utime(tmp_path / rel, (now - age, now - age))
+        got = bash_eval(f'newest_ckpt "{tmp_path}" cf393_x', tmp_path)
+        assert got == str(tmp_path / "leg_200k/cf393_x_200k.pth")
+
+    def test_the_step_sort_is_numeric_not_lexicographic(self, tmp_path):
+        """A string sort puts `_100k` before `_40k`, which would resume a
+        cell 60k steps behind and silently repeat the work."""
+        self.seed(tmp_path, ["leg_40k/cf393_x_40k.pth",
+                             "leg_100k/cf393_x_100k.pth"])
+        got = bash_eval(f'newest_ckpt "{tmp_path}" cf393_x', tmp_path)
+        assert got.endswith("cf393_x_100k.pth")
+
+    def test_optimizer_companions_are_not_resume_candidates(self, tmp_path):
+        self.seed(tmp_path, ["leg_40k/cf393_x_40k.pth",
+                             "leg_40k/cf393_x_40k_optimizer.pth",
+                             "leg_40k/cf393_x_best_gap.pth"])
+        got = bash_eval(f'newest_ckpt "{tmp_path}" cf393_x', tmp_path)
+        assert got == str(tmp_path / "leg_40k/cf393_x_40k.pth")
+
+    def test_a_fresh_cell_has_nothing_to_resume(self, tmp_path):
+        assert bash_eval(f'newest_ckpt "{tmp_path}" cf393_x', tmp_path) == ""
+
+    def test_tmp_and_the_checkout_are_refused(self, tmp_path):
+        for root in ("/tmp", "/tmp/runs", "/wt/experiments"):
+            got = bash_eval(
+                f'WT=/wt RUNS={root} runs_root && echo UNGUARDED', tmp_path)
+            assert "UNGUARDED" not in got, f"{root} accepted as a durable root"
+
+    def test_a_durable_root_is_accepted(self, tmp_path):
+        got = bash_eval('WT=/wt RUNS=/home/jupyter/ckpt runs_root', tmp_path)
+        assert got == "/home/jupyter/ckpt"
+
+    def test_the_default_matches_the_drivers(self):
+        """ladder.py resolves the same root for its score files. Two
+        defaults that drift put half the record in a different place."""
+        shell = [ln for ln in LEG_PATHS.read_text().splitlines()
+                 if ln.startswith("RUNS_DEFAULT=")]
+        assert len(shell) == 1
+        assert shell[0].split("=", 1)[1] == load_ladder().RUNS_DEFAULT
+
+    def test_both_launchers_source_it(self):
+        for path in (RUN_LEG, EVAL_STOP):
+            assert "leg_paths.sh" in path.read_text(), path.name
+
+
+# --- 4. the driver's stateful half ----------------------------------------
+
+
+class LadderHarness:
+    """`climb` with the two shell calls replaced by recordings.
+
+    Everything the driver decides — which legs to train, which heads to
+    evaluate, what lands in the two CSVs — is observable here without a
+    GPU, and the rest of the module is untouched.
+    """
+
+    def __init__(self, ladder, tmp_path, scores):
+        self.ladder = ladder
+        self.scores = scores          # (stop, head) -> GM-Relative MASE
+        self.trained = []
+        self.evaluated = []
+        self.ladder_csv = str(tmp_path / "ladder.csv")
+        self.decisions_csv = str(tmp_path / "decisions.csv")
+        ladder.train_leg = lambda cell, target, env: self.trained.append(target)
+        ladder.evaluate = self._evaluate
+
+    def _evaluate(self, cell, stop, head, env):
+        self.evaluated.append((stop, head))
+        return self.scores[(stop, head)]
+
+    def seed(self, rows):
+        with open(self.ladder_csv, "w", newline="") as fh:
+            import csv as _csv
+            writer = _csv.writer(fh)
+            writer.writerow(self.ladder.LADDER_COLUMNS)
+            writer.writerows(rows)
+
+    def run(self, slug="arm1_nse", max_stop=None):
+        cell = {c["slug"]: c for c in self.ladder.CELLS}[slug]
+        self.ladder.climb(cell, {}, self.ladder_csv, self.decisions_csv,
+                          max_stop)
+        return self
+
+    def decisions(self):
+        return self.ladder.read_rows(self.decisions_csv,
+                                     self.ladder.DECISION_COLUMNS)
+
+    def recorded(self):
+        return self.ladder.read_rows(self.ladder_csv,
+                                     self.ladder.LADDER_COLUMNS)
+
+
+def ladder_row(stop, head, score, slug="arm1_nse"):
+    return [slug, "arm1_nse", "", stop, head,
+            15_000 if stop < 100_000 else 30_000, "1.000000", f"{score:.6f}"]
+
+
+class TestClimbResumes:
+    """A cell that crashed mid-ladder has to pick up where it stopped. The
+    walk replays from step 0 and rebuilds `previous` and `heads` from
+    ladder.csv; getting that wrong either re-runs a 30k-step head or
+    resurrects a head the rule already dropped."""
+
+    def harness(self, tmp_path, scores):
+        return LadderHarness(load_ladder(), tmp_path, scores)
+
+    def test_a_seeded_stop_is_not_re_evaluated(self, tmp_path):
+        """Both heads at 40k are already in the CSV; only 100k is new."""
+        h = self.harness(tmp_path, {(100_000, "student"): 1.20,
+                                    (100_000, "teacher"): 1.45})
+        h.seed([ladder_row(40_000, "student", 1.30),
+                ladder_row(40_000, "teacher", 1.40)])
+        h.run(max_stop=100_000)
+        assert h.evaluated == [(100_000, "student"), (100_000, "teacher")]
+
+    def test_the_walk_rebuilds_a_dropped_head(self, tmp_path):
+        """Seeded through 200k with the teacher dropped at 100k: the walk
+        must reach 300k carrying the student alone, and never ask for a
+        teacher head it already abandoned."""
+        h = self.harness(tmp_path, {(300_000, "student"): 1.10})
+        h.seed([ladder_row(40_000, "student", 1.30),
+                ladder_row(40_000, "teacher", 1.40),
+                ladder_row(100_000, "student", 1.25),
+                ladder_row(100_000, "teacher", 1.45),   # up -> dropped
+                ladder_row(200_000, "student", 1.15)])
+        h.run(max_stop=300_000)
+        assert h.evaluated == [(300_000, "student")]
+
+    def test_a_replayed_cell_re_trains_nothing_it_cannot_skip(self, tmp_path):
+        """`climb` re-fires every leg; run_leg.sh is the idempotent half.
+        The driver must still walk the whole ladder, or the resumed session
+        would start from the wrong stop."""
+        h = self.harness(tmp_path, {(300_000, "student"): 1.10})
+        h.seed([ladder_row(40_000, "student", 1.30),
+                ladder_row(40_000, "teacher", 1.40),
+                ladder_row(100_000, "student", 1.25),
+                ladder_row(100_000, "teacher", 1.45),
+                ladder_row(200_000, "student", 1.15)])
+        h.run(max_stop=300_000)
+        assert h.trained == [40_000, 100_000, 200_000, 300_000]
+
+    def test_only_the_new_score_is_appended(self, tmp_path):
+        h = self.harness(tmp_path, {(300_000, "student"): 1.10})
+        h.seed([ladder_row(40_000, "student", 1.30),
+                ladder_row(40_000, "teacher", 1.40),
+                ladder_row(100_000, "student", 1.25),
+                ladder_row(100_000, "teacher", 1.45),
+                ladder_row(200_000, "student", 1.15)])
+        h.run(max_stop=300_000)
+        rows = h.recorded()
+        assert len(rows) == 6
+        assert (rows[-1]["stop"], rows[-1]["head"]) == ("300000", "student")
+
+    def test_a_seeded_stop_that_stops_the_run_stops_it(self, tmp_path):
+        """Neither head down at 100k: the cell is finished, and nothing
+        past it gets trained even though the CSV was only seeded to 40k."""
+        h = self.harness(tmp_path, {(100_000, "student"): 1.31,
+                                    (100_000, "teacher"): 1.45})
+        h.seed([ladder_row(40_000, "student", 1.30),
+                ladder_row(40_000, "teacher", 1.40)])
+        h.run()
+        assert h.trained == [40_000, 100_000]
+        assert h.decisions()[-1]["branch"] == "none_down"
+
+    def test_alpha_is_recorded_at_the_stop_not_the_leg(self, tmp_path):
+        h = self.harness(tmp_path, {(40_000, "student"): 1.30,
+                                    (40_000, "teacher"): 1.40})
+        h.run(max_stop=40_000)
+        alphas = {r["ema_tau"] for r in h.recorded()}
+        assert alphas == {"0.940000"}, alphas
+
+
+class TestSessionEnd:
+    """`--max-stop` splits a cell across machines. Returning without a row
+    leaves decisions.csv unable to say whether the cell stopped or the
+    session did."""
+
+    def test_max_stop_records_a_session_end(self, tmp_path):
+        h = LadderHarness(load_ladder(), tmp_path,
+                          {(40_000, "student"): 1.30,
+                           (40_000, "teacher"): 1.40})
+        h.run(max_stop=40_000)
+        last = h.decisions()[-1]
+        assert last["branch"] == "session_end"
+        assert last["stop"] == "40000"
+
+    def test_the_session_end_row_carries_the_surviving_heads(self, tmp_path):
+        """What the next session has to pick up with."""
+        h = LadderHarness(load_ladder(), tmp_path,
+                          {(100_000, "student"): 1.20,
+                           (100_000, "teacher"): 1.45})
+        h.seed([ladder_row(40_000, "student", 1.30),
+                ladder_row(40_000, "teacher", 1.40)])
+        h.run(max_stop=100_000)
+        last = h.decisions()[-1]
+        assert last["branch"] == "session_end"
+        assert last["stop"] == "100000"
+        assert last["heads_next"] == "student", (
+            "the teacher went up at 100k; the next session must carry the "
+            "student alone")
+        assert last["extend"] == "1", "a paused cell is not a finished one"
+
+    def test_the_stop_branch_and_the_session_branch_are_distinguishable(
+            self, tmp_path):
+        h = LadderHarness(load_ladder(), tmp_path,
+                          {(100_000, "student"): 1.31,
+                           (100_000, "teacher"): 1.45})
+        h.seed([ladder_row(40_000, "student", 1.30),
+                ladder_row(40_000, "teacher", 1.40)])
+        h.run(max_stop=200_000)
+        assert h.decisions()[-1]["branch"] == "none_down"
+
+
+class TestRunsRoot:
+    """The driver writes its score files next to the head that produced
+    them, on the durable root — not into the checkout."""
+
+    def test_the_default_is_used_when_runs_is_unset(self, monkeypatch):
+        ladder = load_ladder()
+        monkeypatch.delenv("RUNS", raising=False)
+        assert ladder.runs_root() == ladder.RUNS_DEFAULT
+
+    def test_tmp_is_refused(self, monkeypatch):
+        ladder = load_ladder()
+        monkeypatch.setenv("RUNS", "/tmp/cf393")
+        with pytest.raises(SystemExit):
+            ladder.runs_root()
+
+    def test_the_checkout_is_refused(self, monkeypatch):
+        ladder = load_ladder()
+        monkeypatch.setenv("WT", "/home/u/checkout")
+        monkeypatch.setenv("RUNS", "/home/u/checkout/experiments/runs")
+        with pytest.raises(SystemExit):
+            ladder.runs_root()
+
+    def test_a_durable_root_is_accepted(self, monkeypatch):
+        ladder = load_ladder()
+        monkeypatch.setenv("WT", "/home/u/checkout")
+        monkeypatch.setenv("RUNS", "/home/u/checkpoints")
+        assert ladder.runs_root() == "/home/u/checkpoints"
+
+
+class TestSyncLoop:
+    """CLAUDE.md requires a sync loop for the full duration of every remote
+    run, and the README invites a vast.ai instance."""
+
+    def body(self):
+        return SYNC_LOOP.read_text()
+
+    def test_it_exists_and_ticks_every_fifteen_minutes(self):
+        assert 'INTERVAL="${INTERVAL:-900}"' in self.body()
+
+    def test_it_pulls_atomically(self):
+        assert "safe_pull.sh" in self.body()
+
+    def test_it_refuses_an_ephemeral_local_dir(self):
+        assert "/tmp/*" in self.body()
+
+    def test_the_floors_are_per_class(self):
+        """A blanket floor drops the 2.4 MB quantile head silently."""
+        body = self.body()
+        for fn in ("backbone_floor", "optimizer_floor", "head_floor",
+                   "text_floor"):
+            assert fn in body, fn
+
+    def test_it_covers_every_cell(self):
+        body = self.body()
+        for cell in load_ladder().CELLS:
+            assert cell["slug"] in body, cell["slug"]

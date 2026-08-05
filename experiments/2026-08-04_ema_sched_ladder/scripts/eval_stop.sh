@@ -31,8 +31,12 @@ SCORE_OUT="${5:?score output path}"
 case "$ENC" in student|teacher) ;; *) echo "ABORT: bad encoder '$ENC'" >&2; exit 2;; esac
 
 WT="${WT:-$HOME/workspaces/contrastive-forecasting}"
-EXP="$WT/experiments/2026-08-04_ema_sched_ladder"
-RUNS="${RUNS:-/home/jupyter/checkpoints_backup/cf-393}/$CELL"
+# A head is 15k-30k training steps and the GIFT-Eval outputs are its only
+# record, so both live on the same durable root as the backbones rather
+# than inside the checkout — see leg_paths.sh.
+. "$(dirname "${BASH_SOURCE[0]}")/leg_paths.sh"
+ROOT="$(runs_root)" || exit 2
+RUNS="$ROOT/$CELL"
 HEAD_TRAIN="$WT/experiments/2026-04-13_gift-eval/scripts/train_forecasting_head.py"
 GEVAL="$WT/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py"
 
@@ -46,10 +50,12 @@ export HUGGING_FACE_HUB_TOKEN="$HF_TOKEN"
 BB_GPU="${BB_GPU:-0}"
 STOP_K=$(( STOP / 1000 ))
 NAME="cf393_${CELL}"
-BB="$RUNS/${NAME}_${STOP_K}k.pth"
-[ -f "$BB" ] || { echo "ABORT: no backbone at $BB" >&2; exit 3; }
+BB="$(ckpt_at_step "$RUNS" "$NAME" "$STOP_K")"
+[ -n "$BB" ] || {
+  echo "ABORT: no ${NAME}_${STOP_K}k.pth under $RUNS/leg_${STOP_K}k" >&2
+  exit 3; }
 
-OUT="$EXP/eval/${CELL}_bb${STOP_K}k_${ENC}"
+OUT="$RUNS/eval/bb${STOP_K}k_${ENC}"
 mkdir -p "$OUT" "$(dirname "$SCORE_OUT")"
 HEAD_NAME="qhead_${NAME}_bb${STOP_K}k_${ENC}"
 HEAD_CKPT="$OUT/${HEAD_NAME}_final.pth"
@@ -102,11 +108,11 @@ rc=$?
 echo "[$(date +%H:%M:%S)] gift-eval rc=$rc" | tee -a "$LOG"
 [ $rc -eq 0 ] || exit $rc
 
-AGG=$(grep -h "Aggregate" "$OUT/gift"/*.txt "$OUT/gift"/**/*.txt 2>/dev/null | head -1)
-[ -n "$AGG" ] || { echo "ABORT: no Aggregate line under $OUT/gift" >&2; exit 4; }
-echo "$AGG" > "$OUT/summary.txt"
-# "Aggregate GM-Relative MASE (97 configs): 1.1556" -> "1.1556". A format
-# change leaves something unparseable here, which the driver turns into a
-# hard stop rather than a wrong number.
-echo "$AGG" | sed -E 's/.*\): *//' > "$SCORE_OUT"
-echo "[$(date +%H:%M:%S)] DONE — $AGG -> $(cat "$SCORE_OUT")" | tee -a "$LOG"
+# The score, pinned to one file and one metric — see score_from_summary in
+# leg_paths.sh for why neither is left to a glob.
+SUMMARY="$OUT/gift/summary.txt"
+score_from_summary "$SUMMARY" > "$SCORE_OUT.tmp" \
+  || { rm -f "$SCORE_OUT.tmp"; exit 4; }
+mv "$SCORE_OUT.tmp" "$SCORE_OUT"
+echo "[$(date +%H:%M:%S)] DONE — $(grep -h 'Aggregate GM-Relative MASE' \
+  "$SUMMARY") -> $(cat "$SCORE_OUT")" | tee -a "$LOG"

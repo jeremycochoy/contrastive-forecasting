@@ -65,6 +65,20 @@ Each cell is one continuous run. It trains to a stop, checkpoints,
 evaluates, then resumes from that checkpoint with its saved optimizer
 state. Stops are 40k and 100k unconditionally, then 100k at a time.
 
+A stop is a process boundary, so three things have to survive it, and
+[`tests/test_393_resume_leg.py`](../../tests/test_393_resume_leg.py) runs
+two real legs on CPU to show they do. The step counter is global
+(`start_step` comes from the checkpoint, and the loop runs
+`start_step+1 … total_steps`), so α keeps climbing across the seam instead
+of restarting at 0.9 each leg. `--total-steps` is an absolute step, not a
+number of extra steps. `--resume` restores AdamW's moments, the step
+counter and the RNG state from the optimizer companion file.
+
+Each leg writes into its own `leg_<target>k/` directory. That is not
+tidiness: train.py renames a run to `<name>_r2` when the save dir it is
+given already holds `<name>_*.pth`, so a shared directory would move every
+checkpoint past the first leg out from under the ladder and the eval.
+
 At every stop the checkpoint gets two quantile heads, trained separately:
 one on the student encoder, one on the teacher's. Each is evaluated
 through the encoder it was trained on. Head budget is 15,000 steps at
@@ -114,6 +128,18 @@ Were any part of the batch genuinely synthetic, `hf_bs` would drop below
 64 and the cap would go **up**. Re-run `confirm_row_count.py` if the batch
 size or the mix ratio ever changes.
 
+**The cap survives the resumes.** A cell is six or more `train.py`
+processes, so "one pass" only means one pass if each leg picks the stream
+up where the previous one left it. It does. train.py counts consumed rows
+into `hf_rows_consumed`, saves it in every checkpoint's optimizer
+companion, restores it on `--resume`, and hands it to the dataloader as
+`skip_rows`; the loader then opens the stream at that absolute row —
+seeking to the shard that contains it rather than replaying from the head.
+Past one pass it wraps modulo the dataset and starts repeating rows, which
+is the behaviour the cap exists to stay ahead of. Pinned by
+`TestOnePassSurvivesTheResume` and `TestTheStreamOpensAtTheRowOffset` in
+[`tests/test_393_resume_leg.py`](../../tests/test_393_resume_leg.py).
+
 **Cross-check.** The 2026-05-03 run called 167,000 steps at batch size 256
 one full epoch of the same `small_v1` at mix-ratio 0.0. The same row count
 gives `42,571,692 / 256 = 166,295`, so the two **agree** to 0.4% and that
@@ -134,12 +160,45 @@ python3 scripts/ladder.py --cells arm6_v2_combab_alignS,arm6_v2_combab_alignT
 `ladder.py` drives the whole loop and is resumable: it skips a stop whose
 checkpoint or score is already on disk, so a crashed run picks up where it
 stopped. `--max-stop` caps a session when splitting a cell across
-machines.
+machines, and writes a `session_end` row to `decisions.csv` so the record
+distinguishes a paused cell from a finished one.
+
+`RUNS` holds everything that cost GPU time — backbone checkpoints, the
+quantile heads, the GIFT-Eval outputs, the per-stop scores:
+
+```
+$RUNS/<cell>/leg_<N>k/         backbone + optimizer + losses CSV per leg
+$RUNS/<cell>/eval/bb<N>k_<enc>/  head, its encoder marker, gift/, eval.log
+$RUNS/<cell>/eval/score_bb<N>k_<enc>.txt
+```
+
+It must be outside the checkout and outside `/tmp`; both launchers refuse
+anything else. `git worktree remove --force` deletes every untracked file
+under the checkout, which is how an 80 MB backbone was lost in Apr 2026.
+Only `results/*.csv` and the plots live in the repo.
 
 Elisa carries two RTX 4090s; run one cell per GPU with `BB_GPU`. A vast.ai
 instance takes more cells on top — walk through
 [`REMOTE_LAUNCH_CHECKLIST.md`](../REMOTE_LAUNCH_CHECKLIST.md) first, and
 use `vastrun-kit` commands only.
+
+## Syncing a remote run
+
+Every remote run needs `sync/sync_loop.sh` running for its full duration,
+on the machine that owns the persistent checkout:
+
+```bash
+REMOTE_HOST=elisa SSH_USER=jupyter \
+REMOTE_DIR=~/workspaces/contrastive-forecasting/experiments/2026-08-04_ema_sched_ladder \
+REMOTE_RUNS=/home/jupyter/checkpoints_backup/cf-393 \
+LOCAL_DIR=/abs/path/experiments/2026-08-04_ema_sched_ladder \
+  nohup setsid bash sync/sync_loop.sh > sync/sync_loop.log 2>&1 &
+```
+
+15-minute ticks, atomic `.tmp` → `mv` pulls with per-class size floors,
+optimizer files alongside every backbone. A cell's stop list is not known
+in advance, so each tick asks the remote what exists rather than guessing
+filenames. **Verify the first tick by `ls`, not by reading the log.**
 
 ## Files
 
@@ -148,9 +207,11 @@ use `vastrun-kit` commands only.
 | `scripts/ladder.py` | the driver: stops, the extend rule, the step cap |
 | `scripts/run_leg.sh` | one backbone leg of one cell, up to a target step |
 | `scripts/eval_stop.sh` | one head + GIFT-Eval B4 at one stop, one encoder |
+| `scripts/leg_paths.sh` | durable root, per-leg dirs, checkpoint-by-step, the score read |
 | `scripts/confirm_row_count.py` | reads the dataset manifest, derives the cap |
 | `scripts/alpha_schedule.py` | the α-vs-step record and its plot |
-| `scripts/smoke_e2e.sh` | CPU end-to-end check of the ramp and both encoders |
+| `scripts/smoke_e2e.sh` | CPU end-to-end check: ramp, resumed leg, both encoders |
+| `sync/sync_loop.sh` | 15-min pull of every artefact from a remote host |
 | `results/ladder.csv` | GM-Relative MASE per cell, per stop, per head |
 | `results/decisions.csv` | which branch of the extend rule fired, per stop |
 
