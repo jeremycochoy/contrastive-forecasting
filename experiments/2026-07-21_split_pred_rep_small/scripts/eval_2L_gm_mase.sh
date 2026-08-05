@@ -1,7 +1,11 @@
 #!/bin/bash
 # 2L quantile-head + GIFT-Eval B4 on a #379 arm's 40k backbone.
 # Usage: ARM=<slug> BB_GPU=<0|1> [BB_STEP_K=40] [HEAD_STEPS=15000] \
-#          bash eval_2L_gm_mase.sh
+#          [BB_CHECKPOINT=<path>] bash eval_2L_gm_mase.sh
+#
+# BB_CHECKPOINT names the backbone file directly. Needed only when a run was
+# resumed and both `<name>_<K>k.pth` and `<name>_r<N>_<K>k.pth` exist: the
+# resolver refuses to guess between them.
 #
 # Trains a fresh 2L transformer quantile head (head_nhead=8 to divide
 # d_model=64) on the frozen backbone at step ${BB_STEP_K}k for ${HEAD_STEPS}
@@ -27,15 +31,20 @@ ARM="${ARM:?set ARM=<slug>}"
 BB_GPU="${BB_GPU:?set BB_GPU=0 or 1}"
 BB_STEP_K="${BB_STEP_K:-40}"
 HEAD_STEPS="${HEAD_STEPS:-15000}"
+BB_CHECKPOINT="${BB_CHECKPOINT:-}"
 
 # Find the arm's backbone base run-name via run_arm.sh's NAME= assignment.
 NAME=$(awk -v pat="^[[:space:]]*${ARM})" 'BEGIN{on=0} $0 ~ pat {on=1; next} on && /NAME=/{print; on=0}' "$SCRIPTS/run_arm.sh" | grep -oE 'NAME="[^"]+"' | head -1 | sed 's/NAME="//;s/"$//')
 [ -n "$NAME" ] || { echo "ABORT: could not resolve NAME for arm '$ARM'" >&2; exit 2; }
 
 # Locate the ${BB_STEP_K}k.pth checkpoint. Each resume appends a fresh
-# `_r<N>` safe-run-name suffix, so match any of them, newest first.
-BB=$(ls -t "$RUNS/${NAME}"_${BB_STEP_K}k.pth "$RUNS/${NAME}"_r*_${BB_STEP_K}k.pth 2>/dev/null | head -1)
-[ -f "$BB" ] || { echo "ABORT: no ${BB_STEP_K}k backbone for arm '$ARM' (name=$NAME)" >&2; exit 3; }
+# `_r<N>` safe-run-name suffix, so several files can match one step; the
+# resolver aborts rather than pick between them, and prints what it chose.
+# It comes from this script's own checkout, not from $WT: a $WT that predates
+# the resolver would otherwise fall back to the mtime pick without saying so.
+CKPT_RESOLVER="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)/scripts/resolve_eval_checkpoint.sh"
+[ -f "$CKPT_RESOLVER" ] || { echo "ABORT: no checkpoint resolver at $CKPT_RESOLVER" >&2; exit 2; }
+BB=$(bash "$CKPT_RESOLVER" "$RUNS" "$NAME" "$BB_STEP_K" "$BB_CHECKPOINT") || exit $?
 
 CELL="${ARM}_bb${BB_STEP_K}k_hd${HEAD_STEPS}s"
 OUT="$OUT_ROOT/$CELL"; mkdir -p "$OUT"
@@ -43,7 +52,7 @@ HEAD_NAME="qhead_2L_${NAME}_bb${BB_STEP_K}k"
 HEAD_CKPT="$OUT/${HEAD_NAME}_final.pth"
 LOG="$OUT/eval.log"
 
-echo "[$(date +%H:%M:%S)] $ARM cell=$CELL start on GPU $BB_GPU (backbone=$(basename $BB))" | tee -a "$LOG"
+echo "[$(date +%H:%M:%S)] $ARM cell=$CELL start on GPU $BB_GPU (backbone=$BB)" | tee -a "$LOG"
 
 # Backbone arch args accepted by train_forecasting_head.py (the head trainer
 # loads the extra backbone flags from the checkpoint automatically).
