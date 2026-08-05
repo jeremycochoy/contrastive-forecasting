@@ -4,8 +4,11 @@ Includes the original 11 cells + the 12 new cells from the 2026-07-27 vast batch
 (plus arm3_ncpc/arm4_combab which finished only partial gift-eval on vast — those
 land under a red hatched bar to flag config coverage <97).
 
-No error bars: `results/seed_spread.csv` holds head-seed replicates for four
-cells, none of them at backbone 40k, so no measured spread exists at this step.
+Error bars are the measured head-seed range from `results/seed_spread.csv`,
+teacher rows at this backbone step, min to max over that cell's replicate
+seeds. Two of the thirty cells carry one; the rest ran a single head seed and
+get no bar, because a spread borrowed from another cell would be wrong by up
+to a factor of forty.
 
 Aggregate is read preferentially from the report-flat summary file
 `results/eval_gm_mase/<slug>_bb40k_hd15000s_summary.txt` (populated by the
@@ -88,6 +91,24 @@ def rose_over_0_40k():
     return out
 
 
+def head_seed_spread():
+    """{slug: (min, max)} over the replicate head seeds, teacher side, 40k.
+
+    Keyed on the arm alone, so the teacher row is the one to take: at 40k the
+    student side of an arm is a different backbone under the same key.
+    """
+    import csv
+    path = HERE.parent / "results" / "seed_spread.csv"
+    out = {}
+    with open(path, newline="") as fh:
+        for r in csv.DictReader(fh):
+            if r["align_target"] != "teacher" or int(r["bb_steps"]) != 40000:
+                continue
+            vals = [float(v) for v in r["values"].split()]
+            out[r["arm_slug"]] = (min(vals), max(vals))
+    return out
+
+
 INK, MUTED, GRID = "#0b0b0b", "#898781", "#e1e0d9"
 plt.rcParams.update({
     "figure.dpi": 150, "savefig.dpi": 150, "font.size": 10,
@@ -99,14 +120,18 @@ fig, ax = plt.subplots(figsize=(14, 5.5))
 # so the bars carry one distinction only: retrained with --align-target teacher
 # or not. Two colours, two legend entries.
 RETRAINED, OTHER = "#8b1e8b", "#c9c7bf"
+SEED_INK = "#0f6f6f"      # the head-seed figure's colour for 40k cells
 ROSE = rose_over_0_40k()
+SPREAD = head_seed_spread()
 rows = []
 for label, slug, colour in ARMS:
     v, n = read_agg(slug)
     if v is None: continue
     teacher = label.startswith("arm5 ") or label.startswith("arm6_v2 ")
-    rows.append((label + (" ⟲" if teacher else "") + (" ‡" if slug in ROSE else ""),
-                 RETRAINED if teacher else OTHER, v, n, slug in ROSE))
+    rows.append((label + (" ⟲" if teacher else "") + (" ‡" if slug in ROSE else "")
+                 + (" †" if slug in SPREAD else ""),
+                 RETRAINED if teacher else OTHER, v, n, slug in ROSE,
+                 SPREAD.get(slug)))
 rows.sort(key=lambda r: r[2])
 xs = list(range(len(rows)))
 labs = [r[0] for r in rows]
@@ -114,6 +139,7 @@ cs = [r[1] for r in rows]
 ys = [r[2] for r in rows]
 ns = [r[3] for r in rows]
 rose = [r[4] for r in rows]
+spreads = [r[5] for r in rows]
 hatches = ["///" if n < 97 else ("xxx" if r else None)
            for n, r in zip(ns, rose)]
 
@@ -126,11 +152,26 @@ for bar, hatch in zip(bars, hatches):
     if hatch: bar.set_hatch(hatch)
 ax.axhline(1.0, color="#c04040", lw=1.2, linestyle="--",
            label="seasonal-naive reference (MASE=1)")
+# Where a cell was re-headed under extra seeds, the whisker spans what those
+# seeds measured. The other 28 ran one head seed and stay bare.
+for x, sp in zip(xs, spreads):
+    if sp is None:
+        continue
+    lo, hi = sp
+    ax.plot([x, x], [lo, hi], color=SEED_INK, lw=1.8, solid_capstyle="butt",
+            zorder=5)
+    for y in (lo, hi):
+        ax.plot([x - 0.24, x + 0.24], [y, y], color=SEED_INK, lw=1.8,
+                zorder=5)
 from matplotlib.patches import Patch
+from matplotlib.lines import Line2D
 handles = [Patch(facecolor=RETRAINED, label="⟲ retrained, --align-target teacher"),
            Patch(facecolor=OTHER, label="earlier sweep, no L_align"),
            Patch(facecolor="white", edgecolor=INK, hatch="xxx",
-                 label="‡ backbone loss rose over 0–40k")]
+                 label="‡ backbone loss rose over 0–40k"),
+           Line2D([0], [0], color=SEED_INK, lw=1.8,
+                  label="† measured range over 3 head seeds "
+                        f"({len(SPREAD)} of {len(rows)} cells)")]
 for x, v, r in zip(xs, ys, rose):
     if r:
         ax.annotate("loss rose over 0–40k", xy=(x - 0.62, v * 0.80),

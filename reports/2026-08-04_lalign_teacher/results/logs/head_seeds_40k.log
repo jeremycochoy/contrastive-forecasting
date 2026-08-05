@@ -1,0 +1,26 @@
+[08-05 05:32:19] [head-seeds] 8 jobs, 2 slot(s) per GPU: arm5@40@15000@teacher@20260723 arm5@40@15000@teacher@20260724 arm5@40@15000@student@20260723 arm5@40@15000@student@20260724 arm5_combab@40@15000@teacher@20260723 arm5_combab@40@15000@teacher@20260724 arm5_combab@40@15000@student@20260723 arm5_combab@40@15000@student@20260724
+[08-05 05:32:19] [head-seeds] START arm5 bb40k hd15000 teacher seed=20260723 on GPU 0
+[08-05 05:32:24] [head-seeds] START arm5 bb40k hd15000 teacher seed=20260724 on GPU 0
+[08-05 05:32:29] [head-seeds] START arm5 bb40k hd15000 student seed=20260723 on GPU 1
+[08-05 05:32:34] [head-seeds] START arm5 bb40k hd15000 student seed=20260724 on GPU 1
+[08-05 08:49:23] [head-seeds] END   arm5 bb40k teacher seed=20260723 rc=0
+[08-05 08:49:23] [head-seeds] START arm5_combab bb40k hd15000 teacher seed=20260723 on GPU 0
+[08-05 08:56:17] [head-seeds] END   arm5 bb40k student seed=20260723 rc=0
+[08-05 08:56:17] [head-seeds] START arm5_combab bb40k hd15000 teacher seed=20260724 on GPU 1
+[08-05 08:58:46] [head-seeds] END   arm5 bb40k teacher seed=20260724 rc=0
+[08-05 08:58:46] [head-seeds] START arm5_combab bb40k hd15000 student seed=20260723 on GPU 0
+[08-05 09:03:16] [head-seeds] END   arm5 bb40k student seed=20260724 rc=0
+[08-05 09:03:16] [head-seeds] START arm5_combab bb40k hd15000 student seed=20260724 on GPU 1
+[08-05 12:21:51] [head-seeds] END   arm5_combab bb40k teacher seed=20260723 rc=0
+[08-05 12:29:59] [head-seeds] END   arm5_combab bb40k student seed=20260723 rc=0
+[08-05 12:32:16] [head-seeds] END   arm5_combab bb40k teacher seed=20260724 rc=0
+[08-05 12:42:17] [head-seeds] END   arm5_combab bb40k student seed=20260724 rc=0
+[08-05 12:42:17] [head-seeds] RESULT arm5@40@15000@teacher@20260723 rc=0
+[08-05 12:42:17] [head-seeds] RESULT arm5@40@15000@teacher@20260724 rc=0
+[08-05 12:42:17] [head-seeds] RESULT arm5@40@15000@student@20260723 rc=0
+[08-05 12:42:17] [head-seeds] RESULT arm5@40@15000@student@20260724 rc=0
+[08-05 12:42:17] [head-seeds] RESULT arm5_combab@40@15000@teacher@20260723 rc=0
+[08-05 12:42:17] [head-seeds] RESULT arm5_combab@40@15000@teacher@20260724 rc=0
+[08-05 12:42:17] [head-seeds] RESULT arm5_combab@40@15000@student@20260723 rc=0
+[08-05 12:42:17] [head-seeds] RESULT arm5_combab@40@15000@student@20260724 rc=0
+[08-05 12:42:17] [head-seeds] DONE — 8 jobs, 0 failed

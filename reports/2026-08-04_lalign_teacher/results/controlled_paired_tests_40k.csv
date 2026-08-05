@@ -1,4 +1,5 @@
-comparison,bb_steps,n_arms,n_teacher_better,n_student_better,mean_delta,median_delta,min_delta,max_delta,sign_test_p,wilcoxon_stat,wilcoxon_p
-controlled,40000,10,6,4,-0.0192,-0.0143,-0.2156,+0.1173,0.7539,23.0,0.6953
-cross_experiment,40000,10,6,4,-0.0290,-0.0143,-0.2156,+0.1173,0.7539,22.0,0.6250
-code_snapshot_shift,40000,10,2,1,-0.0098,+0.0000,-0.0977,+0.0001,1.0000,,
+comparison,head_seed_basis,bb_steps,n_arms,n_arms_multi_seed,n_teacher_better,n_student_better,mean_delta,median_delta,min_delta,max_delta,sign_test_p,wilcoxon_stat,wilcoxon_p
+controlled,head seed 20260722 on all 10 arms,40000,10,2,6,4,-0.0192,-0.0143,-0.2156,+0.1173,0.7539,23.0,0.6953
+controlled_seed_mean,"3-seed mean on 2/10 arms, head seed 20260722 on the other 8",40000,10,2,6,4,-0.0140,-0.0157,-0.2156,+0.1173,0.7539,24.0,0.7695
+cross_experiment,"teacher #390-branch vs student #379-sweep, head seed 20260722",40000,10,0,6,4,-0.0290,-0.0143,-0.2156,+0.1173,0.7539,22.0,0.6250
+code_snapshot_shift,head seed 20260722,40000,10,0,2,1,-0.0098,+0.0000,-0.0977,+0.0001,1.0000,,

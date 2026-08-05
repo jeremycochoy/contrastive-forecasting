@@ -10,13 +10,13 @@ between the two reports, so all 30 arms sit on one scale.
 | Path | Contents |
 |------|----------|
 | `gm_relative_mase.csv` | one row per measured cell: `arm_slug`, `variant`, `align_target`, `code_snapshot`, `bb_steps`, `head_steps`, `bb_seed`, `head_seed`, `cell`, `gm_rel_mase`, `n_configs`, `source`. `align_target` is `teacher` / `student` / `none` (the twenty arms with no `L_align` term). **`code_snapshot` is `#379-sweep` (the earlier sweep's code) or `#390-branch` (this branch's code)** — which code produced the number, see below. `source` records the same split from the artefact's side. A cell with a same-branch student control keeps BOTH student rows; neither replaces the other. |
-| `controlled_delta_40k.csv` | **the headline table.** Per arm at backbone 40k: `gm_teacher_390`, `gm_student_390`, `gm_student_379`, the controlled delta `gm_teacher_390 - gm_student_390` with a dataset-level paired bootstrap interval, the cross-experiment delta the wave tables report, and `code_snapshot_shift` = `gm_student_390 - gm_student_379`. Both sides of the controlled delta ran on this branch under launchers that differ by `--align-target` and nothing else, so it is the only column in this directory attributable to the flag. |
-| `controlled_paired_tests_40k.csv` | the three comparisons across the ten arms at 40k — controlled, cross-experiment, and the snapshot shift on its own — with counts, mean and median delta, sign-test and Wilcoxon p. The gap between the first two rows is the size of the contamination. |
+| `controlled_delta_40k.csv` | **the headline table.** Per arm at backbone 40k: `gm_teacher_390`, `gm_student_390`, `gm_student_379`, the controlled delta `gm_teacher_390 - gm_student_390` with a dataset-level paired bootstrap interval, the cross-experiment delta the wave tables report, and `code_snapshot_shift` = `gm_student_390 - gm_student_379`. Both sides of the controlled delta ran on this branch under launchers that differ by `--align-target` and nothing else, so it is the only column in this directory attributable to the flag. **`delta_controlled` is head seed 20260722 on all ten arms**, so it is one comparable column. `n_head_seeds`, `head_seeds` and `head_seed_spread_measured` say how many head seeds that arm carries; `delta_per_seed`, `delta_seed_mean`, `delta_seed_min/max/range`, `delta_sign_stable`, `teacher_seed_range` and `student_seed_range` are filled on the two replicated arms and **left empty on the other eight**, which ran one head seed and have no measured spread. An empty spread column is not a spread of zero. |
+| `controlled_paired_tests_40k.csv` | the comparisons across the ten arms at 40k — controlled at head seed 20260722, the same controlled comparison with the three-seed mean substituted on the two replicated arms, cross-experiment, and the snapshot shift on its own — with counts, mean and median delta, sign-test and Wilcoxon p. `head_seed_basis` names which head seed each row is built on. The gap between the controlled and the cross-experiment row is the size of the contamination; the gap between the two controlled rows is what the head seed is worth to the aggregate. |
 | `snapshot_reproduction_40k.csv` | `code_snapshot_shift` at six decimals, because at four a difference of 0.000028 and an exact reproduction print the same thing. Per arm: the earlier sweep's student number, this branch's re-run, the difference, and `reproduces` (within 0.0002). `n_configs_identical` and `max_abs_rel_config_diff` go under the aggregate — an aggregate can agree while the configs behind it do not. |
 | `eval_bootstrap_ci.csv` | 95% intervals on the teacher/student ratio per arm per backbone step, from a **dataset-level** paired bootstrap over the per-config log differences, with the config-level interval beside it for contrast. `ci_excludes_1` is the per-cell verdict. **Cross-experiment**: the student side is the earlier sweep, so these intervals cover the flag and the snapshot together. |
 | `eval_paired_tests.csv` | the same comparison across the ten arms at a fixed backbone step: counts, median ratio, sign-test and Wilcoxon p. Cross-experiment, same caveat. |
 | `replicate_provenance_40k.csv` | which backbone replicate the earlier sweep's published 40k row was evaluated on, per arm, read off its `eval.log`; the step span of every replicate it left; and whether this branch's re-run repeats one of them step for step. Separates a code-snapshot shift from a replicate mismatch. |
-| `seed_spread.csv` | per cell with replicate head seeds: the seeds, min/max/mean, and the range the cell moves under nothing but the head seed. The bar every claimed gap has to clear. |
+| `seed_spread.csv` | per cell with replicate head seeds: the seeds, min/max/mean, and the range the cell moves under nothing but the head seed. **One row is one (arm, backbone step, align target, code snapshot)**, so a 40k teacher arm and a 40k student arm never merge into one row — at 40k they are two different backbones. The bar a claimed gap has to clear, and it is that cell's bar only: the eight rows span 0.0018 to 0.0908, and the four at 40k alone span a factor of 42. |
 | `anomaly_inspection.csv` | one row per backbone: non-finite count, rise from the run's own loss minimum, largest step-to-step jump in units of the run's IQR, peak attention logit magnitude and its trend. All 40 backbones, so "unusual" is measured against neighbours. |
 | `anomaly_windows.csv` | the same runs cut at the wave boundaries (0–40k, 40k–100k, 100k–200k). A whole-run summary hides a wave; the flagged cells' behaviour is inside one. |
 | `probe_inertness_ab.txt` | arm5's command line, 200 steps, latent-drift probe on vs off, same seed, back to back on one 4090. |
@@ -61,6 +61,14 @@ The first two rows are 0.0977 apart, so the teacher-vs-earlier-sweep delta of
 this branch, the flag moves -0.0986; over the ten controlled cells the mean is
 -0.0192 with sign test p = 0.75, so the arm5 number is a cell, not a value of
 the flag.
+
+Nor is -0.0986 a stable number for that cell. Re-heading both sides under
+seeds 20260723 and 20260724 puts the same difference at -0.0482 and +0.0174:
+mean -0.0431, range 0.1160, and the sign changes. `arm5 combab`, re-headed
+the same way, stays negative at -0.0140 / -0.0133 / -0.0230 with a range of
+0.0097. Substituting those two three-seed means into the aggregate moves it
+from -0.0192 to -0.0140 and leaves both tests where they were (sign p = 0.75,
+Wilcoxon 0.70 -> 0.77).
 
 All ten cells carry that check. Nine reproduce the earlier sweep within
 0.0002 — five of them bit-identical across all 97 configs, four agreeing to
@@ -223,19 +231,38 @@ python3 experiments/2026-08-01_lalign_teacher/scripts/replicate_provenance.py \
   --out reports/2026-08-04_lalign_teacher/results/replicate_provenance_40k.csv
 python3 experiments/2026-08-01_lalign_teacher/scripts/seed_spread.py \
   --table reports/2026-08-04_lalign_teacher/results/gm_relative_mase.csv \
-  --ci reports/2026-08-04_lalign_teacher/results/eval_bootstrap_ci.csv \
+  --controlled reports/2026-08-04_lalign_teacher/results/controlled_delta_40k.csv \
   --out reports/2026-08-04_lalign_teacher/results/seed_spread.csv
 ```
+
+The twelve 40k head-seed measurements are gated before they enter any of
+those tables:
+
+```bash
+python3 experiments/2026-08-01_lalign_teacher/scripts/verify_head_seeds_40k.py \
+  --results reports/2026-08-04_lalign_teacher/results/eval_gm_mase \
+  --naive reports/2026-08-04_lalign_teacher/results/seasonal_naive_all_results.csv
+```
+
+It re-reads each `all_results.csv`, checks the 97 config rows, checks that
+all twelve cover the same 97 configs and that every one is in the
+seasonal-naive denominator, and recomputes `exp(mean log(MASE / naive))`
+against the committed `_summary.txt`. Non-zero exit on any mismatch.
 
 The nine remaining student controls themselves come from
 `scripts/run_student_control_batch.sh` on elisa, which runs each cell's
 earlier-sweep command line with `--align-target student` at seed 20260520 to step
 40 000, then the 15 000-step head and the full 97-config GIFT-Eval.
 
-The head-seed replicates come from `scripts/run_head_seeds.sh`, four cells
+The head-seed replicates come from `scripts/run_head_seeds.sh`, eight cells
 under seeds 20260723 and 20260724 on the same frozen backbones. With the
-waves' own 20260722 that is three seeds each, and those four are every cell
-in this directory that has more than one.
+waves' own 20260722 that is three seeds each, and those eight are every cell
+in this directory that has more than one. Four of them are the 40k
+comparison itself — `arm5 base` and `arm5 combab`, teacher side and student
+side — run with `SIDES="teacher student"`, so the bar for the controlled
+delta is measured where the delta lives instead of carried in from 100k or
+200k. The other four are teacher-side only: `arm6_v2 base` at 100k, and
+`arm5 nse`, `arm6_v2 ncpc` and `arm6_v2 combab` at 200k.
 
 Then the report's tables and figures:
 

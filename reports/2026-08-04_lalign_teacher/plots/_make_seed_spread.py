@@ -3,12 +3,15 @@
 Each frozen backbone gets its quantile head retrained under two extra seeds
 and the full 97-config eval re-run each time. Each row is one cell; the dots
 are its per-seed GM-Relative MASE and the bar is the range they span. A
-difference smaller than this range is not separable from head-seed noise.
+difference smaller than that cell's own range is not separable from
+head-seed noise.
 
-The backbone-40k rows are the ones the controlled comparison is judged
-against, and they are measured on both sides of it, so they are drawn in
-their own colour. The 100k and 200k rows sit fourteen times apart in range,
-which is why the 40k bar had to be measured rather than carried across.
+**The range is a property of the cell, not of the report.** The four
+backbone-40k rows, drawn in their own colour, are where the controlled
+comparison lives and are measured on both sides of it. They span 0.0018 to
+0.0747 — a factor of forty — so a delta that clears the smallest of them
+sits inside the largest. Nothing here is a global bar, and the six
+un-replicated controlled cells get no bar at all.
 
 Reads `results/seed_spread.csv` (written by
 `experiments/2026-08-01_lalign_teacher/scripts/seed_spread.py`).
@@ -22,7 +25,6 @@ import matplotlib.pyplot as plt
 
 HERE = Path(__file__).parent
 SRC = HERE.parent / "results" / "seed_spread.csv"
-PENDING = [("arm6_v2", 100000, 3)]  # (arm, bb step, seeds planned)
 
 INK, MUTED, GRID = "#0b0b0b", "#898781", "#e1e0d9"
 plt.rcParams.update({
@@ -47,12 +49,8 @@ for y, r in enumerate(rows[::-1]):
     ax.plot([min(vals), max(vals)], [y, y], color=col, lw=6, alpha=0.3,
             solid_capstyle="butt")
     ax.plot(vals, [y] * len(vals), "o", color=col, ms=7)
-    n_want = next((p[2] for p in PENDING
-                   if p[0] == r["arm_slug"]
-                   and str(p[1]) == r["bb_steps"]), len(vals))
-    tag = "" if n_want == len(vals) else f"  ({len(vals)}/{n_want} seeds)"
     ax.text(max(vals) + 0.012, y, f"range {float(r['range']):.4f}"
-            f"  ({float(r['range_rel']) * 100:.1f}% of the cell's lowest seed){tag}",
+            f"  ({float(r['range_rel']) * 100:.1f}% of the cell's lowest seed)",
             va="center", fontsize=9)
 ax.set_yticks(range(len(rows)))
 ax.set_yticklabels([f"{r['arm_slug'].replace('_', ' ')}  "
@@ -62,9 +60,13 @@ for lab, r in zip(ax.get_yticklabels(), rows[::-1]):
     lab.set_color(C_40K if int(r["bb_steps"]) == CONTROLLED_BB else INK)
 ax.set_xlabel("Aggregate GM-Relative MASE, 97 GIFT-Eval B4 configs, "
               "horizon 16  (lower is better)")
+at40 = [float(r["range"]) for r in rows
+        if int(r["bb_steps"]) == CONTROLLED_BB]
 ax.set_title("Same frozen backbone, same head budget, different head seed"
-             "   —   teal = backbone 40k, where every controlled delta lives",
-             fontsize=11)
+             "   —   teal = backbone 40k, where every controlled delta lives"
+             f"\nthe four 40k ranges span {min(at40):.4f} to {max(at40):.4f}, "
+             f"a factor of {max(at40) / min(at40):.0f}: no one number is the "
+             "bar", fontsize=11)
 ax.grid(True, axis="x", color=GRID, alpha=0.6)
 lo = min(float(v) for r in rows for v in r["values"].split())
 hi = max(float(v) for r in rows for v in r["values"].split())

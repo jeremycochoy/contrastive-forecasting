@@ -22,11 +22,31 @@ is attributable to the flag. The cross-experiment delta and the snapshot
 shift are carried beside it, in their own columns, because the issue asks
 for #379's number and because the size of the shift is itself the finding.
 
+**The head seed is a second source of movement, and it is measured on two
+of the ten arms only.** Every cell is one q-head trained once. `arm5 base`
+and `arm5 combab` now carry three head seeds on both sides, so their delta
+comes with a mean over seeds and the range it moves across them. On arm5
+base that range is 0.1159 and the sign changes. The other eight arms have
+one head seed each: they get `n_head_seeds=1`,
+`head_seed_spread_measured=no`, and empty spread columns. Nothing is
+imputed onto them — an unmeasured spread is not a small one.
+
+`delta_controlled` stays the seed-20260722 delta on every arm, so it is one
+comparable column across all ten and the bootstrap interval beside it
+describes that pair. `delta_seed_mean` is the extra column, present only
+where more than one seed ran.
+
 Intervals are the dataset-level paired cluster bootstrap of
 `eval_bootstrap.py`, imported rather than re-implemented: resample the 28
 base datasets with replacement, take every config of each draw, recompute
 both aggregates on that draw. The paired difference and the paired ratio
-come out of the same resample, so they agree by construction.
+come out of the same resample, so they agree by construction. They cover
+eval sampling only; the head seed is a separate axis and lives in its own
+columns.
+
+The aggregate over the ten arms is reported on both bases — seed 20260722
+alone, and the three-seed mean where one exists — because the two answer
+different questions and neither subsumes the other.
 
 Only 40k is controlled. Nothing was re-run past step 40 000 with the student
 target, so the 100k and 200k rows have no same-branch student and stay
@@ -47,6 +67,7 @@ import csv
 import importlib.util
 import math
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -70,6 +91,7 @@ ARMS = eb.ARMS
 N_BOOT = eb.N_BOOT
 BOOT_SEED = 20260805   # not eval_bootstrap's, so the two tables are
                        # independent draws rather than accidentally coupled
+WAVE_HEAD_SEED = "20260722"   # the seed every wave cell was measured under
 
 
 def paired_cluster_boot(t: dict[str, float], s: dict[str, float],
@@ -100,6 +122,41 @@ def paired_cluster_boot(t: dict[str, float], s: dict[str, float],
 
 def cell_path(results: str, cell: str) -> str:
     return os.path.join(results, "eval_gm_mase", cell, "all_results.csv")
+
+
+def seed_cells(results: str, arm: str, bb_k: int, hd: int,
+               ) -> dict[str, tuple[str, str]]:
+    """{head seed: (teacher cell, student cell)} for the seeds that ran BOTH.
+
+    A per-seed difference needs both sides at that seed. A seed present on
+    one side only would otherwise pair a teacher head against a student head
+    trained from a different seed, which is not the comparison.
+    """
+    root = Path(results) / "eval_gm_mase"
+    suffix = f"_bb{bb_k}k_hd{hd}s"
+    found: dict[str, dict[str, str]] = {}
+    for side, pattern in (
+            ("teacher", re.compile(rf"^{re.escape(arm)}"
+                                   rf"(?:_s(?P<seed>\d{{6,}}))?"
+                                   rf"{re.escape(suffix)}$")),
+            ("student", re.compile(rf"^{re.escape(arm)}_alignstudent"
+                                   rf"(?:_s(?P<seed>\d{{6,}}))?"
+                                   rf"{re.escape(suffix)}$"))):
+        for p in sorted(root.glob(f"*{suffix}")):
+            if not p.is_dir():
+                continue
+            m = pattern.match(p.name)
+            if not m:
+                continue
+            seed = m.group("seed") or WAVE_HEAD_SEED
+            found.setdefault(seed, {})[side] = p.name
+    return {seed: (sides["teacher"], sides["student"])
+            for seed, sides in sorted(found.items())
+            if "teacher" in sides and "student" in sides}
+
+
+def fmt_list(vals: list[float]) -> str:
+    return " ".join(f"{v:+.4f}" for v in vals)
 
 
 def main() -> int:
@@ -169,6 +226,48 @@ def main() -> int:
                                    for c in configs]).mean())
         assert abs(ratio - gm_t / gm_s) < 1e-9, (arm, ratio, gm_t / gm_s)
 
+        # --- the head-seed axis, where it was measured ---------------------
+        # Only seeds that ran on BOTH sides form a paired per-seed delta.
+        pairs = seed_cells(args.results, arm, bb_k, hd)
+        seeds = sorted(pairs)
+        per_seed: list[tuple[str, float, float, float]] = []
+        for seed in seeds:
+            tc, sc = pairs[seed]
+            ts = eb.read_mase(cell_path(args.results, tc))
+            ss = eb.read_mase(cell_path(args.results, sc))
+            if set(ts) != set(configs) or set(ss) != set(configs):
+                raise SystemExit(
+                    f"{arm} seed {seed}: config set differs from the wave "
+                    "cell — a per-seed difference would compare eval sets.")
+            g_t = eb.gm_relative(ts, naive, configs)
+            g_s = eb.gm_relative(ss, naive, configs)
+            per_seed.append((seed, g_t, g_s, g_t - g_s))
+        if WAVE_HEAD_SEED not in seeds:
+            raise SystemExit(f"{arm}: the wave seed {WAVE_HEAD_SEED} is not "
+                             f"among the paired seeds {seeds}")
+        deltas = [d for _, _, _, d in per_seed]
+        multi = len(per_seed) > 1
+        # Eight of the ten arms ran one head seed. They get no spread, not a
+        # spread of zero: a range column filled in from a single measurement
+        # would read as "this cell barely moves".
+        spread = {
+            "gm_teacher_seed_mean": f"{np.mean([g for _, g, _, _ in per_seed]):.4f}",
+            "gm_student_seed_mean": f"{np.mean([g for _, _, g, _ in per_seed]):.4f}",
+            "teacher_seed_range": f"{max(g for _, g, _, _ in per_seed) - min(g for _, g, _, _ in per_seed):.4f}",
+            "student_seed_range": f"{max(g for _, _, g, _ in per_seed) - min(g for _, _, g, _ in per_seed):.4f}",
+            "delta_per_seed": fmt_list(deltas),
+            "delta_seed_mean": f"{float(np.mean(deltas)):+.4f}",
+            "delta_seed_min": f"{min(deltas):+.4f}",
+            "delta_seed_max": f"{max(deltas):+.4f}",
+            "delta_seed_range": f"{max(deltas) - min(deltas):.4f}",
+            "delta_sign_stable": "yes" if (min(deltas) > 0 or max(deltas) < 0)
+                                 else "no",
+        } if multi else {k: "" for k in (
+            "gm_teacher_seed_mean", "gm_student_seed_mean",
+            "teacher_seed_range", "student_seed_range", "delta_per_seed",
+            "delta_seed_mean", "delta_seed_min", "delta_seed_max",
+            "delta_seed_range", "delta_sign_stable")}
+
         # #379's student number for the same arm and step, for the two
         # columns the issue asks to see side by side.
         if os.path.isfile(s379_path):
@@ -199,6 +298,10 @@ def main() -> int:
             "ratio_ci95_hi": f"{r_hi:.4f}",
             "ratio_ci_excludes_1": "yes" if (r_hi < 1.0 or r_lo > 1.0)
                                    else "no",
+            "n_head_seeds": len(per_seed),
+            "head_seeds": " ".join(seeds),
+            "head_seed_spread_measured": "yes" if multi else "no",
+            **spread,
             "delta_cross_experiment": "" if cross is None else f"{cross:+.4f}",
             "code_snapshot_shift": "" if shift is None else f"{shift:+.4f}",
             "teacher_better_controlled": "yes" if gm_t < gm_s else "no",
@@ -225,14 +328,29 @@ def main() -> int:
         w.writerows(rows)
 
     # --- across the arms, at this one backbone step ------------------------
-    # Ten paired observations of the same intervention. Two directions are
-    # tested: the controlled delta (what the flag is worth) and the
-    # cross-experiment delta (what the wave tables reported), so the
-    # difference between the two conclusions is on the record.
+    # Ten paired observations of the same intervention. Four directions are
+    # tested: the controlled delta on the wave's own head seed, the same
+    # delta with the three-seed mean substituted where one exists, the
+    # cross-experiment delta the wave tables reported, and the snapshot
+    # shift on its own — so the difference between the conclusions is on the
+    # record rather than left to the reader.
+    n_multi = sum(r["head_seed_spread_measured"] == "yes" for r in rows)
+    seed_mean_vals = [float(r["delta_seed_mean"] or r["delta_controlled"])
+                      for r in rows]
+    test_specs = [
+        ("controlled", [float(r["delta_controlled"]) for r in rows],
+         f"head seed {WAVE_HEAD_SEED} on all 10 arms"),
+        ("controlled_seed_mean", seed_mean_vals,
+         f"3-seed mean on {n_multi}/10 arms, head seed {WAVE_HEAD_SEED} "
+         f"on the other {len(rows) - n_multi}"),
+        ("cross_experiment",
+         [float(r["delta_cross_experiment"]) for r in rows
+          if r["delta_cross_experiment"] != ""],
+         f"teacher #390-branch vs student #379-sweep, head seed "
+         f"{WAVE_HEAD_SEED}"),
+    ]
     test_rows = []
-    for label, key in (("controlled", "delta_controlled"),
-                       ("cross_experiment", "delta_cross_experiment")):
-        vals = [float(r[key]) for r in rows if r[key] != ""]
+    for label, vals, basis in test_specs:
         if not vals:
             continue
         a = np.array(vals)
@@ -240,8 +358,11 @@ def main() -> int:
         wil = stats.wilcoxon(a, alternative="two-sided", zero_method="zsplit")
         test_rows.append({
             "comparison": label,
+            "head_seed_basis": basis,
             "bb_steps": bb_k * 1000,
             "n_arms": len(vals),
+            "n_arms_multi_seed": n_multi if label.startswith("controlled")
+                                 else 0,
             "n_teacher_better": neg,
             "n_student_better": pos,
             "mean_delta": f"{a.mean():+.4f}",
@@ -259,8 +380,10 @@ def main() -> int:
         neg, pos, p_sign = eb.sign_test(a)
         test_rows.append({
             "comparison": "code_snapshot_shift",
+            "head_seed_basis": f"head seed {WAVE_HEAD_SEED}",
             "bb_steps": bb_k * 1000,
             "n_arms": len(shifts),
+            "n_arms_multi_seed": 0,
             "n_teacher_better": neg,   # here: n snapshots that moved down
             "n_student_better": pos,
             "mean_delta": f"{a.mean():+.4f}",
@@ -286,12 +409,26 @@ def main() -> int:
               f"[{r['delta_ci95_lo']}, {r['delta_ci95_hi']}] "
               f"{r['delta_cross_experiment']:>8s} "
               f"{r['code_snapshot_shift']:>8s}")
+
+    print(f"\nhead seeds, per arm ({n_multi}/{len(rows)} replicated):")
+    for r in rows:
+        if r["head_seed_spread_measured"] == "yes":
+            print(f"  {r['arm_slug']:16s} {r['n_head_seeds']} seeds "
+                  f"[{r['head_seeds']}]  delta {r['delta_per_seed']}  "
+                  f"mean {r['delta_seed_mean']}  range "
+                  f"{r['delta_seed_range']}  sign stable "
+                  f"{r['delta_sign_stable']}")
+        else:
+            print(f"  {r['arm_slug']:16s} 1 seed  [{r['head_seeds']}]  "
+                  f"delta {r['delta_controlled']}  "
+                  f"NO SPREAD MEASURED")
     print()
     for r in test_rows:
-        print(f"{r['comparison']:20s} n={r['n_arms']} "
+        print(f"{r['comparison']:22s} n={r['n_arms']} "
               f"mean={r['mean_delta']} median={r['median_delta']} "
               f"neg/pos={r['n_teacher_better']}/{r['n_student_better']} "
-              f"sign_p={r['sign_test_p']} wilcoxon_p={r['wilcoxon_p']}")
+              f"sign_p={r['sign_test_p']} wilcoxon_p={r['wilcoxon_p']}  "
+              f"({r['head_seed_basis']})")
     return 0
 
 

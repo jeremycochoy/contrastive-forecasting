@@ -1,0 +1,74 @@
+[08-05 05:32:19] [head-seeds] 8 jobs, 2 slot(s) per GPU: arm5@40@15000@teacher@20260723 arm5@40@15000@teacher@20260724 arm5@40@15000@student@20260723 arm5@40@15000@student@20260724 arm5_combab@40@15000@teacher@20260723 arm5_combab@40@15000@teacher@20260724 arm5_combab@40@15000@student@20260723 arm5_combab@40@15000@student@20260724
+[08-05 05:32:19] [head-seeds] START arm5 bb40k hd15000 teacher seed=20260723 on GPU 0
+[08-05 05:32:19] [arm5_s20260723_bb40k_hd15000s] start on GPU 0 (backbone=bb_small_arm5_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_40k.pth)
+[08-05 05:32:19] [arm5_s20260723_bb40k_hd15000s] head-train 15000 steps
+[08-05 05:32:24] [head-seeds] START arm5 bb40k hd15000 teacher seed=20260724 on GPU 0
+[08-05 05:32:24] [arm5_s20260724_bb40k_hd15000s] start on GPU 0 (backbone=bb_small_arm5_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_40k.pth)
+[08-05 05:32:24] [arm5_s20260724_bb40k_hd15000s] head-train 15000 steps
+[08-05 05:32:29] [head-seeds] START arm5 bb40k hd15000 student seed=20260723 on GPU 1
+[08-05 05:32:29] [arm5_alignstudent_s20260723_bb40k_hd15000s] start on GPU 1 (backbone=bb_small_arm5_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignstudent_40k.pth)
+[08-05 05:32:29] [arm5_alignstudent_s20260723_bb40k_hd15000s] head-train 15000 steps
+[08-05 05:32:34] [head-seeds] START arm5 bb40k hd15000 student seed=20260724 on GPU 1
+[08-05 05:32:34] [arm5_alignstudent_s20260724_bb40k_hd15000s] start on GPU 1 (backbone=bb_small_arm5_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignstudent_40k.pth)
+[08-05 05:32:34] [arm5_alignstudent_s20260724_bb40k_hd15000s] head-train 15000 steps
+[08-05 06:03:35] [arm5_s20260723_bb40k_hd15000s] head-train rc=0
+[08-05 06:03:35] [arm5_s20260723_bb40k_hd15000s] gift-eval try 1/3 (have 0/97 configs)
+[08-05 06:04:15] [arm5_s20260724_bb40k_hd15000s] head-train rc=0
+[08-05 06:04:15] [arm5_s20260724_bb40k_hd15000s] gift-eval try 1/3 (have 0/97 configs)
+[08-05 06:04:57] [arm5_alignstudent_s20260724_bb40k_hd15000s] head-train rc=0
+[08-05 06:04:57] [arm5_alignstudent_s20260724_bb40k_hd15000s] gift-eval try 1/3 (have 0/97 configs)
+[08-05 06:04:58] [arm5_alignstudent_s20260723_bb40k_hd15000s] head-train rc=0
+[08-05 06:04:58] [arm5_alignstudent_s20260723_bb40k_hd15000s] gift-eval try 1/3 (have 0/97 configs)
+[08-05 08:49:23] [arm5_s20260723_bb40k_hd15000s] gift-eval try 1 rc=0 rows=97
+[08-05 08:49:23] [arm5_s20260723_bb40k_hd15000s] DONE — Aggregate GM-Relative MASE (97 configs): 1.3765
+[08-05 08:49:23] [head-seeds] END   arm5 bb40k teacher seed=20260723 rc=0
+[08-05 08:49:23] [head-seeds] START arm5_combab bb40k hd15000 teacher seed=20260723 on GPU 0
+[08-05 08:49:23] [arm5_combab_s20260723_bb40k_hd15000s] start on GPU 0 (backbone=bb_small_arm5_combab_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_40k.pth)
+[08-05 08:49:23] [arm5_combab_s20260723_bb40k_hd15000s] head-train 15000 steps
+[08-05 08:56:17] [arm5_alignstudent_s20260723_bb40k_hd15000s] gift-eval try 1 rc=0 rows=97
+[08-05 08:56:17] [arm5_alignstudent_s20260723_bb40k_hd15000s] DONE — Aggregate GM-Relative MASE (97 configs): 1.4248
+[08-05 08:56:17] [head-seeds] END   arm5 bb40k student seed=20260723 rc=0
+[08-05 08:56:17] [head-seeds] START arm5_combab bb40k hd15000 teacher seed=20260724 on GPU 1
+[08-05 08:56:17] [arm5_combab_s20260724_bb40k_hd15000s] start on GPU 1 (backbone=bb_small_arm5_combab_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_40k.pth)
+[08-05 08:56:17] [arm5_combab_s20260724_bb40k_hd15000s] head-train 15000 steps
+[08-05 08:58:46] [arm5_s20260724_bb40k_hd15000s] gift-eval try 1 rc=0 rows=97
+[08-05 08:58:46] [arm5_s20260724_bb40k_hd15000s] DONE — Aggregate GM-Relative MASE (97 configs): 1.3927
+[08-05 08:58:46] [head-seeds] END   arm5 bb40k teacher seed=20260724 rc=0
+[08-05 08:58:46] [head-seeds] START arm5_combab bb40k hd15000 student seed=20260723 on GPU 0
+[08-05 08:58:46] [arm5_combab_alignstudent_s20260723_bb40k_hd15000s] start on GPU 0 (backbone=bb_small_arm5_combab_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignstudent_40k.pth)
+[08-05 08:58:46] [arm5_combab_alignstudent_s20260723_bb40k_hd15000s] head-train 15000 steps
+[08-05 09:03:16] [arm5_alignstudent_s20260724_bb40k_hd15000s] gift-eval try 1 rc=0 rows=97
+[08-05 09:03:16] [arm5_alignstudent_s20260724_bb40k_hd15000s] DONE — Aggregate GM-Relative MASE (97 configs): 1.3754
+[08-05 09:03:16] [head-seeds] END   arm5 bb40k student seed=20260724 rc=0
+[08-05 09:03:16] [head-seeds] START arm5_combab bb40k hd15000 student seed=20260724 on GPU 1
+[08-05 09:03:16] [arm5_combab_alignstudent_s20260724_bb40k_hd15000s] start on GPU 1 (backbone=bb_small_arm5_combab_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignstudent_40k.pth)
+[08-05 09:03:16] [arm5_combab_alignstudent_s20260724_bb40k_hd15000s] head-train 15000 steps
+[08-05 09:27:51] [arm5_combab_s20260723_bb40k_hd15000s] head-train rc=0
+[08-05 09:27:51] [arm5_combab_s20260723_bb40k_hd15000s] gift-eval try 1/3 (have 0/97 configs)
+[08-05 09:37:08] [arm5_combab_s20260724_bb40k_hd15000s] head-train rc=0
+[08-05 09:37:08] [arm5_combab_s20260724_bb40k_hd15000s] gift-eval try 1/3 (have 0/97 configs)
+[08-05 09:38:36] [arm5_combab_alignstudent_s20260723_bb40k_hd15000s] head-train rc=0
+[08-05 09:38:36] [arm5_combab_alignstudent_s20260723_bb40k_hd15000s] gift-eval try 1/3 (have 0/97 configs)
+[08-05 09:46:01] [arm5_combab_alignstudent_s20260724_bb40k_hd15000s] head-train rc=0
+[08-05 09:46:01] [arm5_combab_alignstudent_s20260724_bb40k_hd15000s] gift-eval try 1/3 (have 0/97 configs)
+[08-05 12:21:51] [arm5_combab_s20260723_bb40k_hd15000s] gift-eval try 1 rc=0 rows=97
+[08-05 12:21:51] [arm5_combab_s20260723_bb40k_hd15000s] DONE — Aggregate GM-Relative MASE (97 configs): 1.2739
+[08-05 12:21:51] [head-seeds] END   arm5_combab bb40k teacher seed=20260723 rc=0
+[08-05 12:29:59] [arm5_combab_alignstudent_s20260723_bb40k_hd15000s] gift-eval try 1 rc=0 rows=97
+[08-05 12:29:59] [arm5_combab_alignstudent_s20260723_bb40k_hd15000s] DONE — Aggregate GM-Relative MASE (97 configs): 1.2873
+[08-05 12:29:59] [head-seeds] END   arm5_combab bb40k student seed=20260723 rc=0
+[08-05 12:32:16] [arm5_combab_s20260724_bb40k_hd15000s] gift-eval try 1 rc=0 rows=97
+[08-05 12:32:16] [arm5_combab_s20260724_bb40k_hd15000s] DONE — Aggregate GM-Relative MASE (97 configs): 1.2746
+[08-05 12:32:16] [head-seeds] END   arm5_combab bb40k teacher seed=20260724 rc=0
+[08-05 12:42:17] [arm5_combab_alignstudent_s20260724_bb40k_hd15000s] gift-eval try 1 rc=0 rows=97
+[08-05 12:42:17] [arm5_combab_alignstudent_s20260724_bb40k_hd15000s] DONE — Aggregate GM-Relative MASE (97 configs): 1.2976
+[08-05 12:42:17] [head-seeds] END   arm5_combab bb40k student seed=20260724 rc=0
+[08-05 12:42:17] [head-seeds] RESULT arm5@40@15000@teacher@20260723 rc=0
+[08-05 12:42:17] [head-seeds] RESULT arm5@40@15000@teacher@20260724 rc=0
+[08-05 12:42:17] [head-seeds] RESULT arm5@40@15000@student@20260723 rc=0
+[08-05 12:42:17] [head-seeds] RESULT arm5@40@15000@student@20260724 rc=0
+[08-05 12:42:17] [head-seeds] RESULT arm5_combab@40@15000@teacher@20260723 rc=0
+[08-05 12:42:17] [head-seeds] RESULT arm5_combab@40@15000@teacher@20260724 rc=0
+[08-05 12:42:17] [head-seeds] RESULT arm5_combab@40@15000@student@20260723 rc=0
+[08-05 12:42:17] [head-seeds] RESULT arm5_combab@40@15000@student@20260724 rc=0
+[08-05 12:42:17] [head-seeds] DONE — 8 jobs, 0 failed

@@ -2,9 +2,16 @@
 
 Left panel — the controlled comparison. Teacher and student at backbone
 step 40k, both trained on this branch, same backbone seed, same head seed,
-same code. Bars are `GM_teacher - GM_student` with the dataset-level paired
-cluster-bootstrap 95% interval. Negative is the teacher target scoring
-lower.
+same code. Bars are `GM_teacher - GM_student` at head seed 20260722, with
+the dataset-level paired cluster-bootstrap 95% interval. Negative is the
+teacher target scoring lower.
+
+**Two of the ten cells carry three head seeds on both sides.** Their three
+per-seed deltas are drawn as open dots with the 3-seed mean as a diamond,
+so the reader sees how far the delta itself moves under nothing but the
+head seed. `arm5 base` changes sign across the three. The other eight ran
+one head seed each; they are labelled `1 seed` and get no spread, because
+an unmeasured spread is not a small one.
 
 Right panel — the same ten arms compared instead against the earlier
 sweep's student numbers. That comparison moves the flag and the code
@@ -36,6 +43,7 @@ LABEL = {"arm5": "arm5 base", "arm5_tr1": "arm5 tr1", "arm5_nse": "arm5 nse",
 ARM_COLOR = {"arm5": "#8b1e8b", "arm6_v2": "#b8860b"}
 INK, MUTED, GRID = "#0b0b0b", "#898781", "#e1e0d9"
 TEACHER_LOWER, STUDENT_LOWER = "#2a78d6", "#c04040"
+SEED_INK = "#0f6f6f"   # same teal the head-seed figure uses for 40k cells
 
 plt.rcParams.update({
     "figure.dpi": 150, "savefig.dpi": 150, "font.size": 10,
@@ -73,26 +81,52 @@ for y, arm in zip(ys, ARMS):
     ax.plot([lo, hi], [y, y], color=INK, lw=1.4)
     ax.plot([lo, lo], [y - 0.14, y + 0.14], color=INK, lw=1.4)
     ax.plot([hi, hi], [y - 0.14, y + 0.14], color=INK, lw=1.4)
-    off = -0.008 if d < 0 else 0.008
     ax.text(min(lo, d) - 0.012 if d < 0 else max(hi, d) + 0.012, y,
             f"{d:+.4f}", va="center",
             ha="right" if d < 0 else "left", fontsize=8)
+    # The head-seed axis, drawn only where it was measured. Eight cells ran
+    # one head seed; they say so rather than borrow arm5's spread.
+    if r["head_seed_spread_measured"] == "yes":
+        per_seed = [float(v) for v in r["delta_per_seed"].split()]
+        ax.plot(per_seed, [y + 0.3] * len(per_seed), "o", mfc="none",
+                mec=SEED_INK, mew=1.3, ms=6, zorder=4)
+        ax.plot([min(per_seed), max(per_seed)], [y + 0.3, y + 0.3],
+                color=SEED_INK, lw=1.0, zorder=3)
+        ax.plot([float(r["delta_seed_mean"])], [y + 0.3], "D",
+                color=SEED_INK, ms=5, zorder=5)
+    else:
+        ax.text(-0.355, y + 0.33, "1 head seed, no spread measured",
+                va="center", ha="left", fontsize=7, color=MUTED,
+                style="italic")
 ax.axvline(0.0, color=INK, lw=1.0)
 
-# Aggregate over the ten cells: mean delta, and the two paired tests on it.
-agg = next(r for r in load(RESULTS / "controlled_paired_tests_40k.csv")
+# Aggregate over the ten cells, on both head-seed bases. Neither subsumes
+# the other: the first is one seed everywhere, the second folds in the two
+# cells that were replicated.
+tests = load(RESULTS / "controlled_paired_tests_40k.csv")
+agg = next(r for r in tests
            if r["comparison"] == "controlled" and r["bb_steps"] == "40000")
+agg_sm = next((r for r in tests
+               if r["comparison"] == "controlled_seed_mean"
+               and r["bb_steps"] == "40000"), None)
 mean_d = float(agg["mean_delta"])
 ax.axvline(mean_d, color=INK, lw=1.2, ls="--")
-ax.text(-0.35, len(ARMS) - 0.35,
-        f"dashed line = mean over the 10 cells, {mean_d:+.4f}\n"
+note = (f"dashed line = mean over the 10 cells, {mean_d:+.4f}\n"
         f"sign test p = {float(agg['sign_test_p']):.2f},  "
-        f"Wilcoxon p = {float(agg['wilcoxon_p']):.2f}",
+        f"Wilcoxon p = {float(agg['wilcoxon_p']):.2f}")
+if agg_sm is not None:
+    ax.axvline(float(agg_sm["mean_delta"]), color=SEED_INK, lw=1.2, ls=":")
+    note += (f"\ndotted = same mean with the 3-seed mean on the 2 replicated "
+             f"cells, {float(agg_sm['mean_delta']):+.4f}\n"
+             f"sign test p = {float(agg_sm['sign_test_p']):.2f},  "
+             f"Wilcoxon p = {float(agg_sm['wilcoxon_p']):.2f}")
+ax.text(-0.35, len(ARMS) - 0.35, note,
         ha="left", va="bottom", fontsize=8, color=INK)
-ax.set_ylim(-0.6, len(ARMS) + 0.9)
+ax.set_ylim(-0.6, len(ARMS) + 1.5)
 
-ax.set_title("Same branch, same seeds, same code — only the flag differs",
-             fontsize=10)
+ax.set_title("Same branch, same seeds, same code — only the flag differs\n"
+             "teal open dots = the delta under each of 3 head seeds, diamond "
+             "= their mean", fontsize=10)
 ax.set_xlabel("GM-Relative MASE(teacher) − GM-Relative MASE(student)\n"
               "negative = teacher target lower;  whiskers = 95% dataset-cluster "
               "bootstrap")
