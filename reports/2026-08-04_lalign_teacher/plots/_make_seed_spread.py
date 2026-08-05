@@ -9,8 +9,8 @@ head-seed noise.
 **The range is a property of the cell, not of the report.** The four
 backbone-40k rows, drawn in their own colour, are where the controlled
 comparison lives and are measured on both sides of it. They span 0.0018 to
-0.0747 — a factor of forty — so a delta that clears the smallest of them
-sits inside the largest. Nothing here is a global bar, and the six
+0.0747 — a factor of 41 — so a delta that clears the smallest of them
+sits inside the largest. Nothing here is a global bar, and the eight
 un-replicated controlled cells get no bar at all.
 
 Reads `results/seed_spread.csv` (written by
@@ -60,13 +60,9 @@ for lab, r in zip(ax.get_yticklabels(), rows[::-1]):
     lab.set_color(C_40K if int(r["bb_steps"]) == CONTROLLED_BB else INK)
 ax.set_xlabel("Aggregate GM-Relative MASE, 97 GIFT-Eval B4 configs, "
               "horizon 16  (lower is better)")
-at40 = [float(r["range"]) for r in rows
-        if int(r["bb_steps"]) == CONTROLLED_BB]
 ax.set_title("Same frozen backbone, same head budget, different head seed"
-             "   —   teal = backbone 40k, where every controlled delta lives"
-             f"\nthe four 40k ranges span {min(at40):.4f} to {max(at40):.4f}, "
-             f"a factor of {max(at40) / min(at40):.0f}: no one number is the "
-             "bar", fontsize=11)
+             "   —   teal = backbone 40k, where every controlled delta lives",
+             fontsize=11)
 ax.grid(True, axis="x", color=GRID, alpha=0.6)
 lo = min(float(v) for r in rows for v in r["values"].split())
 hi = max(float(v) for r in rows for v in r["values"].split())

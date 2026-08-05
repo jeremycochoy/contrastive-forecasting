@@ -8,7 +8,7 @@ Error bars are the measured head-seed range from `results/seed_spread.csv`,
 teacher rows at this backbone step, min to max over that cell's replicate
 seeds. Two of the thirty cells carry one; the rest ran a single head seed and
 get no bar, because a spread borrowed from another cell would be wrong by up
-to a factor of forty.
+to a factor of 41.
 
 Aggregate is read preferentially from the report-flat summary file
 `results/eval_gm_mase/<slug>_bb40k_hd15000s_summary.txt` (populated by the

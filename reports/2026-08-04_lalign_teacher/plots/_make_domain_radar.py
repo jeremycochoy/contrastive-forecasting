@@ -6,7 +6,8 @@ weak domains are visible instead of averaged away.
 
 Two panels:
   left  — the 5 lowest cells by their last evaluated backbone step
-  right — every cell that improved from backbone 100k to 200k
+  right — the 8 cells evaluated at backbone 200k, the same set as the
+          per-domain table of the report
 
 The radial axis is log2(ratio): the plotted quantity is a ratio whose headline
 value is a geometric mean, so equal multiplicative steps are equal distances.
@@ -42,11 +43,11 @@ for arm, var, vals in cells:
 scored.sort(key=lambda r: r[0])
 topn = scored[:5]
 
-improved = []
+at200 = []
 for arm, var, vals in cells:
-    if vals[1] is not None and vals[2] is not None and vals[2] < vals[1]:
-        improved.append((vals[2], arm, var, 200, 30000))
-improved.sort(key=lambda r: r[0])
+    if vals[2] is not None:
+        at200.append((vals[2], arm, var, 200, 30000))
+at200.sort(key=lambda r: r[0])
 
 def series(arm, var, bb, hd):
     return C.per_domain_relative_mase(f"{arm}{var}", bb, hd)
@@ -57,7 +58,7 @@ N = len(DOMAINS)
 ANG = [n / N * 2 * math.pi for n in range(N)] + [0.0]
 
 allv = []
-for _v, arm, var, bb, hd in topn + improved:
+for _v, arm, var, bb, hd in topn + at200:
     d, _c = series(arm, var, bb, hd)
     if d: allv += [d[k] for k in DOMAINS if k in d]
 LO, HI = min(allv), max(allv)
@@ -124,7 +125,7 @@ fig, axes = plt.subplots(1, 2, figsize=(14.5, 9.4),
                          subplot_kw={"projection": "polar"})
 draw(axes[0], topn, "5 lowest cells, each at its last evaluated backbone step",
      distinct_hues=True)
-draw(axes[1], improved, "Cells that improved from backbone 100k to 200k (shown at 200k)")
+draw(axes[1], at200, "The 8 cells evaluated at backbone 200k")
 fig.suptitle("GM-Relative MASE per dataset domain;  red ring = seasonal-naive "
              "parity;  radial axis is log2(ratio)", fontsize=11.5)
 fig.tight_layout(rect=[0, 0.10, 1, 0.94])
@@ -132,5 +133,5 @@ out = HERE / "eval_domain_radar.png"
 fig.savefig(out)
 print(f"wrote {out}")
 print("  panel 1:", ", ".join(f"{C.label(a,v)}@bb{bb}k" for _, a, v, bb, _ in topn))
-print("  panel 2:", ", ".join(C.label(a, v) for _, a, v, _, _ in improved))
+print("  panel 2:", ", ".join(C.label(a, v) for _, a, v, _, _ in at200))
 print(f"  ratio range {LO:.3f}–{HI:.3f}, ticks {TICKS}")

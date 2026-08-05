@@ -61,15 +61,6 @@ for y, arm in zip(ys, ARMS):
             fontsize=8)
 ax.axvline(0.0, color=INK, lw=1.0)
 
-with open(RESULTS / "eval_paired_tests.csv", newline="") as fh:
-    tests = [r for r in csv.DictReader(fh) if r["bb_steps"] == "100000"]
-sign_p = float(tests[0]["sign_test_p"]) if tests else float("nan")
-ax.text(0.98, 0.03,
-        f"{n_lower} of {len(cross)} cells lower under the teacher target,\n"
-        f"sign test p = {sign_p:.2f}",
-        transform=ax.transAxes, ha="right", va="bottom", fontsize=8.5,
-        color=INK)
-
 ax.set_yticks(ys)
 ax.set_yticklabels([LABEL[a] for a in ARMS])
 ax.grid(True, axis="x", color=GRID, alpha=0.6)
@@ -81,4 +72,4 @@ ax.set_title("Teacher − earlier sweep GM-Relative MASE, backbone 100k",
 fig.tight_layout()
 out = HERE / "cross_delta_100k.png"
 fig.savefig(out)
-print(f"wrote {out}  ({len(cross)} cells, {n_lower} lower, sign p={sign_p:.2f})")
+print(f"wrote {out}  ({len(cross)} cells, {n_lower} lower)")

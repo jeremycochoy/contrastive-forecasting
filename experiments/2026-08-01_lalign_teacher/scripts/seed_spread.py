@@ -9,7 +9,7 @@ cell moves under nothing but a head seed is not a finding.
 **There is no single bar.** The first pass measured the range on four
 TEACHER backbones at 100k and 200k and got 0.0063 to 0.0908, a factor of
 fourteen. The 40k measurement — the four cells where the controlled
-comparison actually lives — spans 0.0018 to 0.0747, a factor of forty. A
+comparison actually lives — spans 0.0018 to 0.0747, a factor of 41. A
 number that clears the smallest of those is inside the largest. So this
 script reports the range **per cell** and judges each controlled delta
 against its own arm's measurement, and it refuses to reduce the four 40k
@@ -29,8 +29,15 @@ two different backbones, so a teacher arm and a student arm must never merge
 into one row; `code_snapshot` because a copied #379 cell was never re-run
 here.
 
+Means and ranges are computed from the per-config `all_results.csv` of each
+cell, the same full-precision source `controlled_delta.py` uses, and rounded
+once at print time. Deriving them from the four-decimal values of
+`gm_relative_mase.csv` instead made the two committed CSVs disagree in the
+fourth decimal on the same quantity.
+
 Usage:
     python3 seed_spread.py --table <gm_relative_mase.csv> \
+        --results <reports/.../results> \
         [--controlled <controlled_delta_40k.csv>] --out seed_spread.csv
 """
 
@@ -38,15 +45,47 @@ from __future__ import annotations
 
 import argparse
 import csv
+import importlib.util
 import statistics as st
+import sys
 from collections import defaultdict
+from pathlib import Path
 
 CONTROLLED_BB = 40000
+
+HERE = Path(__file__).resolve().parent
+
+
+def _load(path: Path, name: str):
+    spec = importlib.util.spec_from_file_location(name, path)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+eb = _load(HERE / "eval_bootstrap.py", "cf390_eval_bootstrap_for_spread")
+
+
+def full_precision_gm(results: Path, cell: str, naive: dict[str, float]):
+    """One cell's GM-Relative MASE from its per-config file, unrounded."""
+    path = results / "eval_gm_mase" / cell / "all_results.csv"
+    if not path.exists():
+        return None
+    mase = eb.read_mase(str(path))
+    configs = sorted(set(mase) & set(naive))
+    if len(configs) != len(mase):
+        raise SystemExit(f"{cell}: config set is not covered by "
+                         f"seasonal_naive_all_results.csv")
+    return eb.gm_relative(mase, naive, configs)
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--table", required=True)
+    ap.add_argument("--results", required=True,
+                    help="results dir holding eval_gm_mase/<cell>/"
+                         "all_results.csv and seasonal_naive_all_results.csv")
     ap.add_argument("--controlled", default=None,
                     help="controlled_delta_40k.csv, judged per arm against "
                          "that arm's own 40k spread")
@@ -67,12 +106,23 @@ def main() -> int:
         groups[(r["arm_slug"], r["bb_steps"], r["align_target"],
                 r["code_snapshot"])].append(r)
 
+    naive = eb.read_mase(str(Path(args.results)
+                             / "seasonal_naive_all_results.csv"))
+
     out_rows = []
     for (arm, bb, target, snap), members in sorted(
             groups.items(), key=lambda kv: (kv[0][0], int(kv[0][1]), kv[0][2])):
         if len(members) < 2:
             continue
-        vals = sorted(float(m["gm_rel_mase"]) for m in members)
+        vals = []
+        for m in members:
+            gm = full_precision_gm(Path(args.results), m["cell"], naive)
+            if gm is None:
+                raise SystemExit(f"{m['cell']}: no per-config all_results.csv, "
+                                 f"so its spread cannot be computed at full "
+                                 f"precision")
+            vals.append(gm)
+        vals.sort()
         seeds = sorted(m["head_seed"] for m in members)
         rel_range = (vals[-1] - vals[0]) / vals[0]
         out_rows.append({
@@ -127,7 +177,7 @@ def main() -> int:
                   f"({float(r['range_rel']) * 100:.1f}%)")
         print(f"  smallest {min(abs_ranges):.4f}, largest "
               f"{max(abs_ranges):.4f} — a factor of "
-              f"{max(abs_ranges) / min(abs_ranges):.0f}. No single number "
+              f"{max(abs_ranges) / min(abs_ranges):.1f}. No single number "
               f"stands for these four; each delta is judged by its own arm.")
 
     if args.controlled and bar_by_cell:

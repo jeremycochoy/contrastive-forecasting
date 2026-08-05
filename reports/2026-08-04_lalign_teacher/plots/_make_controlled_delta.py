@@ -124,7 +124,7 @@ ax.text(-0.35, len(ARMS) - 0.35, note,
         ha="left", va="bottom", fontsize=8, color=INK)
 ax.set_ylim(-0.6, len(ARMS) + 1.5)
 
-ax.set_title("Same branch, same seeds, same code — only the flag differs\n"
+ax.set_title("Controlled: only the align-target flag differs\n"
              "teal open dots = the delta under each of 3 head seeds, diamond "
              "= their mean", fontsize=10)
 ax.set_xlabel("GM-Relative MASE(teacher) − GM-Relative MASE(student)\n"
