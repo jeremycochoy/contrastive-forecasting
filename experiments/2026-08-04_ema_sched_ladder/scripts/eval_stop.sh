@@ -35,6 +35,7 @@ WT="${WT:-$HOME/workspaces/contrastive-forecasting}"
 # record, so both live on the same durable root as the backbones rather
 # than inside the checkout — see leg_paths.sh.
 . "$(dirname "${BASH_SOURCE[0]}")/leg_paths.sh"
+. "$(dirname "${BASH_SOURCE[0]}")/gpu_gate.sh"
 ROOT="$(runs_root)" || exit 2
 RUNS="$ROOT/$CELL"
 HEAD_TRAIN="$WT/experiments/2026-04-13_gift-eval/scripts/train_forecasting_head.py"
@@ -71,6 +72,11 @@ ARCH_HEAD=(--t-raw 4096 --n-channels 1 --d-model 64 --n-heads 8
 ARCH_EVAL=(--t-raw 4096 --n-channels 1 --d-model 64 --n-heads 8
            --num-layers 3 --encoder-type gru
            --rev-norm-kind ewma --rev-norm-span 128)
+
+# One claim covers both CUDA processes below: the gate holds the device on
+# fd 9 for the life of this shell, so the head train and the GIFT-Eval that
+# reads its checkpoint are not separable by another cell.
+gpu_gate "$BB_GPU" || { echo "ABORT: GPU $BB_GPU never came free" | tee -a "$LOG"; exit 1; }
 
 echo "[$(date +%H:%M:%S)] $CELL bb${STOP_K}k enc=$ENC head=${HEAD_STEPS}s" | tee -a "$LOG"
 

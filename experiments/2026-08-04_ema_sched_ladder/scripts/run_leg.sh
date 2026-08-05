@@ -30,6 +30,10 @@ RES="$OUT/results"
 # come from one place — see the header of leg_paths.sh for why each of the
 # three is not the obvious thing.
 . "$(dirname "${BASH_SOURCE[0]}")/leg_paths.sh"
+# Waits for a free device on an Exclusive_Process GPU instead of dying at
+# step 0 with "CUDA-capable device(s) is/are busy". No-op on elisa, which
+# shares each 4090 between two cells deliberately.
+. "$(dirname "${BASH_SOURCE[0]}")/gpu_gate.sh"
 ROOT="$(runs_root)" || exit 2
 RUNS="$ROOT/$CELL"
 LEG="$(leg_dir "$RUNS" "$TARGET_STEPS")"
@@ -147,6 +151,25 @@ if [ -n "$latest" ]; then
 else
   log "FRESH start at step 0"
 fi
+
+# A session-wide ceiling on how far any cell may climb, read fresh on every
+# leg so it reaches the ladder drivers that are already running. The spend
+# order is "all ten cells to bb100k first, extensions with what is left";
+# without this, one fast cell reaches bb300k while another has not reached
+# bb40k. Refusing (rather than blocking) frees the GPU and lets the queue
+# behind this cell start: the cell stops with both its stops recorded, and
+# `ladder.py` replays it from disk when the hold is lifted.
+HOLD_FILE="$RES/HOLD_ABOVE"
+if [ -f "$HOLD_FILE" ]; then
+  hold_at="$(tr -dc '0-9' <"$HOLD_FILE")"
+  if [ -n "$hold_at" ] && [ "$TARGET_STEPS" -gt "$hold_at" ]; then
+    log "HOLD: session capped at ${hold_at}; not starting the ${TARGET_STEPS} leg"
+    exit 9
+  fi
+fi
+
+# Blocks here, not inside torch, when another cell already owns the device.
+gpu_gate "$BB_GPU" || { log "ABORT: GPU $BB_GPU never came free"; exit 1; }
 
 log "START target=$TARGET_STEPS gpu=$BB_GPU save_every=$SAVE_EVERY leg=$LEG"
 CUDA_VISIBLE_DEVICES="$BB_GPU" python3 -u "$TRAIN" "${RESUME[@]}" \

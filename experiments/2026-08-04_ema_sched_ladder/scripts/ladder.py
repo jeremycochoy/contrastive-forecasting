@@ -323,6 +323,26 @@ def stop_scores(cell: dict, stop: int, heads: tuple, recorded: dict,
     return scores
 
 
+def session_hold(results_dir: str) -> int | None:
+    """A ceiling on how far any cell may climb this session, or None.
+
+    `--max-stop` does the same thing, but it is fixed when the driver
+    starts. This is read from `results/HOLD_ABOVE` on every stop, so the
+    spend order can be changed under drivers that are already running —
+    "all ten cells to bb100k first, extensions with what is left" was
+    decided after five cells were already climbing.
+
+    Stopping the cell here rather than raising keeps the driver alive for
+    the cells behind it in a `--cells a,b` invocation.
+    """
+    path = os.path.join(results_dir, "HOLD_ABOVE")
+    try:
+        with open(path) as fh:
+            return int("".join(c for c in fh.read() if c.isdigit()))
+    except (OSError, ValueError):
+        return None
+
+
 def climb(cell: dict, env: dict, ladder_csv: str, decisions_csv: str,
           max_stop: int | None) -> None:
     """Walk one cell up the ladder until the rule or the data stops it.
@@ -348,6 +368,12 @@ def climb(cell: dict, env: dict, ladder_csv: str, decisions_csv: str,
             record_decision(decisions_csv, slug, stop, "session_end",
                             True, heads)
             print(f"[ladder] {slug}: --max-stop {max_stop} reached")
+            return
+        hold = session_hold(os.path.dirname(ladder_csv))
+        if hold is not None and target > hold:
+            record_decision(decisions_csv, slug, stop, "session_end",
+                            True, heads)
+            print(f"[ladder] {slug}: HOLD_ABOVE {hold} reached")
             return
         train_leg(slug, target, env)
         current = stop_scores(cell, target, heads,
