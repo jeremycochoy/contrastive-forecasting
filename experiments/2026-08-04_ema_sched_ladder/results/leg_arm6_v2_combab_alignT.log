@@ -1,0 +1,5 @@
+[08-05 01:30:34] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-05 01:30:34] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-393/arm6_v2_combab_alignT/leg_40k
+[08-05 01:30:36] [arm6_v2_combab_alignT] train exited rc=1 — tail: --align-target teacher only applies to the standalone L_align term. With the main contrastive loss on, the align add-on lives inside contrastive_latent_loss and targets the student. Pass --no-main-contrastive-loss. 
+[08-05 01:34:34] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-05 01:34:34] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-393/arm6_v2_combab_alignT/leg_40k
