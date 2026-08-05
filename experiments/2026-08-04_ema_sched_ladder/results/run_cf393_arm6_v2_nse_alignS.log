@@ -1223,3 +1223,21 @@ Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, 
               R²_rand=0.6583  R²_naive=0.6488  U_t=0.3925  U_b=0.5021  AUC=1.0000  Top1=0.9973
   timing: data=3.4ms  fwd=113.9ms  bwd=78.8ms  total=196.8ms
   -> Saved /home/jupyter/checkpoints_backup/cf-393/arm6_v2_nse_alignS/leg_100k/cf393_arm6_v2_nse_alignS_best_loss.pth
+[  73600] loss=4.9230  ema_loss=4.9824  gap=0.6233  ema_gap=0.6086  mixup=46/200  4.1 sps  ETA 1.8h  cpc=0.0621
+              R²_rand=0.6709  R²_naive=0.6609  U_t=0.3996  U_b=0.4831  AUC=1.0000  Top1=0.9981
+  timing: data=3.5ms  fwd=116.5ms  bwd=78.5ms  total=199.3ms
+[  73800] loss=4.9772  ema_loss=5.0173  gap=0.6082  ema_gap=0.6102  mixup=60/200  4.1 sps  ETA 1.8h  cpc=0.0474
+              R²_rand=0.6729  R²_naive=0.6511  U_t=0.3701  U_b=0.4973  AUC=1.0000  Top1=0.9965
+  timing: data=55.5ms  fwd=114.3ms  bwd=78.4ms  total=249.0ms
+[  74000] loss=4.9739  ema_loss=5.0041  gap=0.5914  ema_gap=0.6113  mixup=52/200  4.1 sps  ETA 1.7h  cpc=0.0638
+              R²_rand=0.6728  R²_naive=0.6510  U_t=0.3672  U_b=0.4948  AUC=1.0000  Top1=0.9948
+  timing: data=3.5ms  fwd=114.9ms  bwd=79.0ms  total=198.1ms
+[  74200] loss=5.1480  ema_loss=4.9831  gap=0.5819  ema_gap=0.6105  mixup=57/200  4.1 sps  ETA 1.7h  cpc=0.0726
+              R²_rand=0.6743  R²_naive=0.6513  U_t=0.3541  U_b=0.4908  AUC=0.9999  Top1=0.9924
+  timing: data=3.4ms  fwd=113.8ms  bwd=78.8ms  total=196.7ms
+[  74400] loss=5.0529  ema_loss=4.9977  gap=0.6135  ema_gap=0.6117  mixup=60/200  4.1 sps  ETA 1.7h  cpc=0.1192
+              R²_rand=0.6819  R²_naive=0.6691  U_t=0.3742  U_b=0.4504  AUC=1.0000  Top1=0.9976
+  timing: data=49.2ms  fwd=113.2ms  bwd=77.5ms  total=240.6ms
+[  74600] loss=4.9026  ema_loss=5.0017  gap=0.5891  ema_gap=0.6089  mixup=64/200  4.1 sps  ETA 1.7h  cpc=0.0502
+              R²_rand=0.6730  R²_naive=0.6531  U_t=0.3602  U_b=0.4926  AUC=1.0000  Top1=0.9943
+  timing: data=3.5ms  fwd=113.8ms  bwd=77.7ms  total=195.8ms

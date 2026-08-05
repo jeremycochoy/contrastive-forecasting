@@ -44,6 +44,17 @@ fails=0
 ok(){   echo "  PASS  $*"; }
 bad(){  echo "  FAIL  $*"; fails=$((fails+1)); }
 
+# ---- 0. pooling ------------------------------------------------------------
+# A second before the five minutes: a pooling bug loses rows without failing,
+# and once cost the results table every teacher score it had. Cheap, so it
+# goes first.
+echo "[0/4] pooling: scripts/test_merge_pooled.sh"
+if bash "$HERE/test_merge_pooled.sh" >"$WORK/merge_test.log" 2>&1; then
+  ok "$(tail -1 "$WORK/merge_test.log")"
+else
+  bad "pooling guard failed:"; grep -A1 FAIL "$WORK/merge_test.log" | head -20
+fi
+
 # Tiny backbone geometry, shared by all three scripts.
 ARCH=(--t-raw 64 --n-channels 1 --d-model 32 --n-heads 2 --num-layers 1
       --encoder-type gru --rev-norm-kind ewma --rev-norm-span 8)
