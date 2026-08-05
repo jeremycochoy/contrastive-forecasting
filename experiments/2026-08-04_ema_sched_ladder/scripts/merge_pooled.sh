@@ -33,8 +33,15 @@ RES="${RES:?RES must be the absolute path of the results dir}"
 # 100000, 200000, 40000.
 key_spec(){
   case "$1" in
-    ladder)    echo "cell,stop:n,head" ;;   # one row per head per stop
-    decisions) echo "cell,stop:n" ;;        # one row per stop
+    ladder)    echo "cell,stop:n,head" ;;          # one row per head per stop
+    # Not (cell, stop). ladder.py records the extend-rule branch against the
+    # stop it just scored, and then records `session_end` or `data_exhausted`
+    # against that SAME stop when HOLD_ABOVE or the step cap ends the walk —
+    # two rows, one stop, and the second is how a reader tells a cell that
+    # stopped on the rule from one the spend order parked. A restart replays
+    # and re-records a branch it already has, but that row is identical and
+    # the whole-line deduplication below collapses it.
+    decisions) echo "cell,stop:n,branch" ;;
     *)         return 1 ;;
   esac
 }

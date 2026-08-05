@@ -48,6 +48,27 @@ R=$(fixture stops decisions elisa "$DH" \
 RES="$R" bash "$MERGE" decisions >/dev/null
 check "both stops kept for one cell"       "$(rows "$R/decisions_all.csv" | wc -l)" "2"
 
+# --- 2b. the branch row and the session_end row of one stop both survive ---
+# ladder.py records the extend-rule branch against the stop it scored, then
+# records session_end against that same stop when HOLD_ABOVE parks the cell.
+# Keying on (cell, stop) would keep one and drop the other, and which one
+# survived would decide whether the cell reads as parked or as stopped on the
+# rule.
+R=$(fixture parked decisions elisa "$DH" \
+  'c1,100000,both_down,1,student teacher' \
+  'c1,100000,session_end,1,student teacher')
+RES="$R" bash "$MERGE" decisions >/dev/null
+check "branch and session_end both kept"   "$(rows "$R/decisions_all.csv" | wc -l)" "2"
+
+# --- 2c. a replayed decision is not duplicated -----------------------------
+# A restarted driver re-records a branch it already has. Identical line, so
+# whole-line deduplication collapses it.
+R=$(fixture replay decisions elisa "$DH" \
+  'c1,40000,unconditional,1,student teacher' \
+  'c1,40000,unconditional,1,student teacher')
+RES="$R" bash "$MERGE" decisions >/dev/null
+check "replayed decision dedupes"          "$(rows "$R/decisions_all.csv" | wc -l)" "1"
+
 # --- 3. stops sort numerically, not as text -------------------------------
 R=$(fixture order ladder elisa "$LH" \
   'c1,a,student,100000,student,30000,1.000000,1.100000' \
