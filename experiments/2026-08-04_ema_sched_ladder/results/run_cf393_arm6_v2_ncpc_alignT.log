@@ -1573,3 +1573,10 @@ Retrying in 2s [Retry 2/5].
 [  99800] loss=5.3763  ema_loss=5.1512  gap=0.0823  ema_gap=0.0875  mixup=60/200  6.7 sps  ETA 0.0h
               R²_rand=0.3030  R²_naive=0.2137  U_t=0.5728  U_b=0.7979  AUC=0.9681  Top1=0.3346
   timing: data=3.8ms  fwd=74.3ms  bwd=47.0ms  total=125.6ms
+[ 100000] loss=5.0496  ema_loss=5.1643  gap=0.0942  ema_gap=0.0897  mixup=45/200  6.7 sps  ETA 0.0h
+              R²_rand=0.2672  R²_naive=0.2498  U_t=0.6511  U_b=0.8228  AUC=0.9625  Top1=0.3259
+  timing: data=60.8ms  fwd=71.7ms  bwd=47.0ms  total=180.0ms
+  -> Saved /root/cf393_runs/arm6_v2_ncpc_alignT/leg_100k/cf393_arm6_v2_ncpc_alignT_100k.pth
+  -> Saved /root/cf393_runs/arm6_v2_ncpc_alignT/leg_100k/cf393_arm6_v2_ncpc_alignT_final.pth
+
+Done in 2.5h. Best gap=0.3263 at step 2200, Best loss=5.0717 at step 34400
