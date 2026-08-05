@@ -620,3 +620,28 @@ Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, 
 [  38600] loss=11.9759  ema_loss=11.9843  gap=0.0404  ema_gap=0.0366  mixup=53/200  4.6 sps  ETA 0.1h
               R²_rand=0.8016  R²_naive=0.4638  U_t=0.0483  U_b=0.2249  AUC=0.9949  Top1=0.7598
   timing: data=3.8ms  fwd=115.7ms  bwd=64.4ms  total=184.5ms
+[  38800] loss=11.9937  ema_loss=11.9955  gap=0.0248  ema_gap=0.0333  mixup=53/200  4.6 sps  ETA 0.1h
+              R²_rand=0.7996  R²_naive=0.4535  U_t=0.0463  U_b=0.2361  AUC=0.9957  Top1=0.7322
+  timing: data=18.3ms  fwd=113.2ms  bwd=65.2ms  total=197.4ms
+[  39000] loss=11.9853  ema_loss=12.0013  gap=0.0664  ema_gap=0.0362  mixup=56/200  4.6 sps  ETA 0.1h
+              R²_rand=0.7971  R²_naive=0.5153  U_t=0.0483  U_b=0.2306  AUC=0.9968  Top1=0.7571
+  timing: data=3.7ms  fwd=117.3ms  bwd=67.1ms  total=188.7ms
+[  39200] loss=11.9936  ema_loss=11.9974  gap=0.0243  ema_gap=0.0364  mixup=65/200  4.6 sps  ETA 0.0h
+              R²_rand=0.7869  R²_naive=0.4427  U_t=0.0453  U_b=0.2167  AUC=0.9962  Top1=0.7398
+  timing: data=3.8ms  fwd=115.8ms  bwd=67.2ms  total=187.5ms
+[  39400] loss=12.0015  ema_loss=11.9813  gap=0.0312  ema_gap=0.0302  mixup=51/200  4.6 sps  ETA 0.0h
+              R²_rand=0.7940  R²_naive=0.4578  U_t=0.0455  U_b=0.2235  AUC=0.9949  Top1=0.7237
+  timing: data=32.7ms  fwd=117.9ms  bwd=67.1ms  total=218.4ms
+[  39600] loss=11.9934  ema_loss=11.9818  gap=0.0195  ema_gap=0.0287  mixup=63/200  4.6 sps  ETA 0.0h
+              R²_rand=0.7892  R²_naive=0.4447  U_t=0.0492  U_b=0.2317  AUC=0.9933  Top1=0.6488
+  timing: data=3.9ms  fwd=115.3ms  bwd=66.2ms  total=186.0ms
+[  39800] loss=12.0304  ema_loss=11.9856  gap=0.0096  ema_gap=0.0295  mixup=57/200  4.6 sps  ETA 0.0h
+              R²_rand=0.7874  R²_naive=0.4280  U_t=0.0462  U_b=0.2260  AUC=0.9944  Top1=0.7069
+  timing: data=3.8ms  fwd=119.1ms  bwd=67.5ms  total=191.0ms
+[  40000] loss=11.9624  ema_loss=11.9924  gap=0.0272  ema_gap=0.0291  mixup=66/200  4.6 sps  ETA 0.0h
+              R²_rand=0.8096  R²_naive=0.4557  U_t=0.0428  U_b=0.2521  AUC=0.9968  Top1=0.8114
+  timing: data=20.1ms  fwd=114.8ms  bwd=66.7ms  total=202.3ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-393/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_40k.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-393/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_final.pth
+
+Done in 2.4h. Best gap=0.1369 at step 20200, Best loss=11.9438 at step 36400

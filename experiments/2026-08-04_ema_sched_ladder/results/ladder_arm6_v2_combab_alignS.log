@@ -1,3 +1,6 @@
 [ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm6_v2_combab_alignS 40000
 [08-05 01:30:31] [arm6_v2_combab_alignS] FRESH start at step 0
 [08-05 01:30:31] [arm6_v2_combab_alignS] START target=40000 gpu=1 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-393/arm6_v2_combab_alignS/leg_40k
+[08-05 03:54:42] [arm6_v2_combab_alignS] DONE target=40000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-393/arm6_v2_combab_alignS/leg_40k/cf393_arm6_v2_combab_alignS_40k.pth
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm6_v2_combab_alignS 40000 student 15000 /home/jupyter/checkpoints_backup/cf-393/arm6_v2_combab_alignS/eval/score_bb40k_student.txt
+[03:54:42] arm6_v2_combab_alignS bb40k enc=student head=15000s

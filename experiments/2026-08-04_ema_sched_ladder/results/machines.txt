@@ -1,24 +1,44 @@
-# #393 — where each cell ran. Three machines, five concurrent streams.
-# Recorded 2026-08-05.
+# #393 — where each cell ran. Seven machines, ten concurrent streams.
+# Recorded 2026-08-05 04:10, superseding the 02:22 three-machine layout.
+#
+# The 02:22 layout put two cells on each vast.ai box and two more behind a
+# waiter on elisa GPU 0. That cost one cell (arm5_combab_alignT died at
+# step 0 on a GPU another cell held) and left two cells unstarted. The
+# spend order posted on the PR is "all ten cells to bb100k first", so every
+# cell now has a machine of its own or a queue that is actually running.
 
-elisa (owner's box, 2x RTX 4090, shared with other agent sessions)
-  GPU 1 slot 1   arm6_v2_combab_alignS
-  GPU 1 slot 2   arm6_v2_combab_alignT
-  GPU 0 slot 1   arm6_v2_nse_alignS, then arm4_combab
-  GPU 0 slot 2   arm6_v2_nse_alignT, then arm1_nse  (queued behind another
-                 session's GIFT-Eval; started by a waiter when GPU 0 freed)
-  RUNS           /home/jupyter/checkpoints_backup/cf-393
+elisa (owner's box, 2x RTX 4090, Default compute mode, shared with other
+       agent sessions)
+  GPU 1   arm6_v2_combab_alignS   \ two cells share the 4090 on purpose;
+  GPU 1   arm6_v2_combab_alignT   / gpu_gate.sh does not gate Default mode
+  GPU 0   arm6_v2_nse_alignS      (shares GPU 0 with the #390 session)
+  RUNS    /home/jupyter/checkpoints_backup/cf-393
 
-vastA  vast.ai contract 46841448, ssh2.vast.ai:11448
-  cells        arm5_combab_alignS,arm5_combab_alignT  (sequential: Exclusive_Process compute mode)
-  gpu          NVIDIA GeForce RTX 5090, 32607 MiB, 580.105.08, Exclusive_Process
-  torch        2.8.0+cu128
-  RUNS         /root/cf393_runs   (synced to elisa every 15 min)
+  arm4_combab was queued behind arm6_v2_nse_alignS in one driver
+  (`--cells arm6_v2_nse_alignS,arm4_combab`). It moved to vastF: that
+  driver started before HOLD_ABOVE existed, so it will exit when
+  arm6_v2_nse_alignS is refused its 200k leg, and the cell behind it in
+  the same invocation would never have run.
 
-vastB  vast.ai contract 46843146, ssh4.vast.ai:13146
-  cells        arm6_v2_ncpc_alignS,arm6_v2_ncpc_alignT  (sequential: Exclusive_Process compute mode)
-  gpu          NVIDIA GeForce RTX 5090, 32607 MiB, 580.95.05, Exclusive_Process
-  torch        2.8.0+cu128
-  RUNS         /root/cf393_runs   (synced to elisa every 15 min)
+vast.ai — all RTX 5090, 32607 MiB, Exclusive_Process compute mode,
+          torch 2.8.0+cu128, RUNS=/root/cf393_runs, synced to elisa
+          every 15 min. Exclusive_Process is why cells queue per box.
 
-Rate: $0.3356/h per vast.ai instance, on-demand, data-centre host.
+  label     contract   ssh                   $/h      cells
+  cf393-a   46841448   ssh2.vast.ai:11448    0.3611   arm5_combab_alignS
+  cf393-b   46843146   ssh4.vast.ai:13146    0.3611   arm6_v2_ncpc_alignS,
+                                                      arm6_v2_ncpc_alignT
+  cf393-c   46848763   ssh6.vast.ai:18762    0.4944   arm5_combab_alignT
+  cf393-d   46848863   ssh7.vast.ai:18862    0.4944   arm6_v2_nse_alignT
+  cf393-e   46848857   ssh5.vast.ai:18856    0.4278   arm1_nse
+  cf393-f   46848915   ssh1.vast.ai:18914    0.3611   arm4_combab
+
+  Combined rate $2.4933/h. a and b were provisioned by the 02:22 session;
+  c, d, e and f by the 04:00 one. Only those four contract IDs came back
+  from this session's own vastrun-provision, so they are the only ones it
+  may destroy.
+
+  arm5_combab_alignT went to a box of its own rather than back into the
+  queue behind arm5_combab_alignS on cf393-a. Queued there it would have
+  waited about eight hours for its first stop, and the arm5 head-to-head
+  needs both halves at the same stop to say anything.
