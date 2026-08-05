@@ -680,3 +680,198 @@ Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, 
 [  40600] loss=13.0801  ema_loss=13.0603  gap=-0.1411  ema_gap=-0.1183  mixup=58/200  6.6 sps  ETA 2.5h
               R²_rand=0.5352  R²_naive=0.1804  U_t=0.1152  U_b=0.5852  AUC=0.9567  Top1=0.4410
   timing: data=5.1ms  fwd=71.2ms  bwd=50.5ms  total=127.2ms
+[  40800] loss=13.0934  ema_loss=13.0642  gap=-0.1274  ema_gap=-0.1139  mixup=56/200  5.8 sps  ETA 2.8h
+              R²_rand=0.5188  R²_naive=0.1898  U_t=0.1183  U_b=0.6168  AUC=0.9606  Top1=0.4412
+  timing: data=105.8ms  fwd=71.7ms  bwd=50.5ms  total=228.4ms
+[  41000] loss=13.0118  ema_loss=13.0486  gap=-0.0442  ema_gap=-0.1099  mixup=55/200  6.1 sps  ETA 2.7h
+              R²_rand=0.5492  R²_naive=0.2807  U_t=0.1083  U_b=0.5015  AUC=0.9674  Top1=0.3837
+  timing: data=4.1ms  fwd=71.2ms  bwd=50.5ms  total=126.2ms
+[  41200] loss=13.0418  ema_loss=13.0519  gap=-0.0995  ema_gap=-0.1101  mixup=61/200  6.3 sps  ETA 2.6h
+              R²_rand=0.5091  R²_naive=0.2021  U_t=0.1300  U_b=0.6092  AUC=0.9458  Top1=0.4564
+  timing: data=4.1ms  fwd=72.5ms  bwd=50.5ms  total=127.6ms
+[  41400] loss=13.0275  ema_loss=13.0716  gap=-0.1226  ema_gap=-0.1177  mixup=59/200  6.3 sps  ETA 2.6h
+              R²_rand=0.5353  R²_naive=0.1913  U_t=0.1086  U_b=0.5052  AUC=0.9439  Top1=0.3707
+  timing: data=51.2ms  fwd=69.7ms  bwd=50.5ms  total=171.8ms
+[  41600] loss=13.0294  ema_loss=13.0616  gap=-0.1015  ema_gap=-0.1176  mixup=56/200  6.4 sps  ETA 2.5h
+              R²_rand=0.5651  R²_naive=0.2402  U_t=0.1105  U_b=0.5830  AUC=0.9533  Top1=0.4521
+  timing: data=4.0ms  fwd=70.3ms  bwd=50.5ms  total=125.1ms
+[  41800] loss=13.0440  ema_loss=13.0556  gap=-0.1238  ema_gap=-0.1195  mixup=52/200  6.5 sps  ETA 2.5h
+              R²_rand=0.5366  R²_naive=0.2114  U_t=0.1137  U_b=0.5840  AUC=0.9461  Top1=0.4980
+  timing: data=5.0ms  fwd=71.8ms  bwd=50.6ms  total=127.8ms
+[  42000] loss=13.0098  ema_loss=13.0579  gap=-0.1192  ema_gap=-0.1187  mixup=56/200  6.4 sps  ETA 2.5h
+              R²_rand=0.5302  R²_naive=0.2067  U_t=0.1043  U_b=0.6023  AUC=0.9464  Top1=0.4763
+  timing: data=67.5ms  fwd=69.9ms  bwd=50.5ms  total=188.3ms
+[  42200] loss=12.9928  ema_loss=13.0528  gap=-0.1141  ema_gap=-0.1188  mixup=50/200  6.5 sps  ETA 2.5h
+              R²_rand=0.5378  R²_naive=0.2111  U_t=0.1112  U_b=0.5824  AUC=0.9413  Top1=0.4361
+  timing: data=4.0ms  fwd=71.7ms  bwd=50.5ms  total=126.6ms
+[  42400] loss=13.1326  ema_loss=13.0659  gap=-0.1499  ema_gap=-0.1243  mixup=73/200  6.6 sps  ETA 2.4h
+              R²_rand=0.4783  R²_naive=0.1722  U_t=0.1435  U_b=0.6135  AUC=0.9429  Top1=0.4551
+  timing: data=5.1ms  fwd=72.3ms  bwd=50.5ms  total=128.4ms
+[  42600] loss=13.0252  ema_loss=13.0674  gap=-0.1162  ema_gap=-0.1278  mixup=57/200  6.4 sps  ETA 2.5h
+              R²_rand=0.5217  R²_naive=0.2119  U_t=0.1249  U_b=0.5600  AUC=0.9388  Top1=0.3824
+  timing: data=93.5ms  fwd=69.2ms  bwd=50.6ms  total=213.7ms
+[  42800] loss=13.0720  ema_loss=13.0570  gap=-0.1296  ema_gap=-0.1233  mixup=69/200  6.4 sps  ETA 2.5h
+              R²_rand=0.5076  R²_naive=0.1758  U_t=0.1312  U_b=0.6380  AUC=0.9469  Top1=0.4613
+  timing: data=4.2ms  fwd=72.5ms  bwd=50.5ms  total=127.7ms
+[  43000] loss=13.0469  ema_loss=13.0492  gap=-0.1109  ema_gap=-0.1176  mixup=62/200  6.5 sps  ETA 2.4h
+              R²_rand=0.5410  R²_naive=0.2167  U_t=0.1119  U_b=0.5599  AUC=0.9503  Top1=0.4038
+  timing: data=5.0ms  fwd=71.1ms  bwd=50.5ms  total=127.1ms
+[  43200] loss=13.0643  ema_loss=13.0365  gap=-0.1235  ema_gap=-0.1152  mixup=65/200  6.4 sps  ETA 2.5h
+              R²_rand=0.5103  R²_naive=0.2031  U_t=0.1251  U_b=0.5604  AUC=0.9347  Top1=0.3997
+  timing: data=62.0ms  fwd=69.6ms  bwd=50.6ms  total=182.5ms
+[  43400] loss=13.0429  ema_loss=13.0263  gap=-0.1239  ema_gap=-0.1131  mixup=56/200  6.5 sps  ETA 2.4h
+              R²_rand=0.5359  R²_naive=0.1904  U_t=0.1144  U_b=0.5824  AUC=0.9434  Top1=0.4038
+  timing: data=4.3ms  fwd=71.6ms  bwd=50.5ms  total=126.9ms
+[  43600] loss=12.9717  ema_loss=13.0162  gap=-0.1166  ema_gap=-0.1126  mixup=62/200  6.6 sps  ETA 2.4h
+              R²_rand=0.5489  R²_naive=0.1924  U_t=0.1094  U_b=0.5351  AUC=0.9455  Top1=0.4738
+  timing: data=7.0ms  fwd=69.9ms  bwd=50.5ms  total=127.8ms
+[  43800] loss=13.0046  ema_loss=13.0151  gap=-0.1173  ema_gap=-0.1124  mixup=58/200  6.5 sps  ETA 2.4h
+              R²_rand=0.5238  R²_naive=0.1863  U_t=0.1128  U_b=0.6015  AUC=0.9382  Top1=0.4453
+  timing: data=57.2ms  fwd=69.8ms  bwd=50.6ms  total=178.0ms
+[  44000] loss=13.0223  ema_loss=13.0047  gap=-0.1090  ema_gap=-0.1107  mixup=67/200  6.5 sps  ETA 2.4h
+              R²_rand=0.5610  R²_naive=0.2048  U_t=0.1005  U_b=0.6336  AUC=0.9501  Top1=0.4624
+  timing: data=4.2ms  fwd=70.1ms  bwd=50.5ms  total=125.3ms
+[  44200] loss=13.0373  ema_loss=13.0058  gap=-0.1093  ema_gap=-0.1086  mixup=62/200  6.6 sps  ETA 2.4h
+              R²_rand=0.5138  R²_naive=0.1922  U_t=0.1213  U_b=0.6523  AUC=0.9498  Top1=0.4768
+  timing: data=4.2ms  fwd=72.4ms  bwd=50.6ms  total=127.6ms
+[  44400] loss=12.9939  ema_loss=13.0157  gap=-0.1200  ema_gap=-0.1085  mixup=57/200  6.5 sps  ETA 2.4h
+              R²_rand=0.5494  R²_naive=0.2036  U_t=0.1092  U_b=0.6016  AUC=0.9507  Top1=0.4521
+  timing: data=60.7ms  fwd=70.1ms  bwd=50.6ms  total=181.8ms
+[  44600] loss=13.0346  ema_loss=13.0313  gap=-0.1209  ema_gap=-0.1112  mixup=62/200  6.6 sps  ETA 2.3h
+              R²_rand=0.5410  R²_naive=0.2026  U_t=0.1166  U_b=0.5621  AUC=0.9534  Top1=0.3989
+  timing: data=4.1ms  fwd=70.0ms  bwd=50.5ms  total=125.0ms
+[  44800] loss=13.0646  ema_loss=13.0356  gap=-0.1204  ema_gap=-0.1127  mixup=67/200  6.6 sps  ETA 2.3h
+              R²_rand=0.4967  R²_naive=0.1916  U_t=0.1147  U_b=0.5912  AUC=0.9371  Top1=0.3826
+  timing: data=5.1ms  fwd=71.5ms  bwd=50.5ms  total=127.6ms
+[  45000] loss=13.0415  ema_loss=13.0392  gap=-0.1174  ema_gap=-0.1146  mixup=65/200  6.6 sps  ETA 2.3h
+              R²_rand=0.5314  R²_naive=0.1943  U_t=0.1102  U_b=0.5901  AUC=0.9473  Top1=0.3737
+  timing: data=49.1ms  fwd=69.9ms  bwd=50.6ms  total=170.1ms
+[  45200] loss=13.0843  ema_loss=13.0327  gap=-0.1190  ema_gap=-0.1141  mixup=58/200  6.6 sps  ETA 2.3h
+              R²_rand=0.5001  R²_naive=0.1839  U_t=0.1170  U_b=0.6408  AUC=0.9374  Top1=0.4309
+  timing: data=4.1ms  fwd=71.5ms  bwd=50.6ms  total=126.6ms
+[  45400] loss=13.0349  ema_loss=13.0271  gap=-0.1188  ema_gap=-0.1146  mixup=56/200  6.7 sps  ETA 2.3h
+              R²_rand=0.5291  R²_naive=0.2074  U_t=0.1162  U_b=0.6432  AUC=0.9557  Top1=0.4817
+  timing: data=4.9ms  fwd=71.9ms  bwd=50.6ms  total=127.8ms
+[  45600] loss=13.0527  ema_loss=13.0284  gap=-0.1303  ema_gap=-0.1134  mixup=66/200  6.7 sps  ETA 2.3h
+              R²_rand=0.5241  R²_naive=0.1931  U_t=0.1322  U_b=0.5651  AUC=0.9366  Top1=0.4318
+  timing: data=4.3ms  fwd=70.4ms  bwd=50.6ms  total=125.6ms
+[  45800] loss=13.0354  ema_loss=13.0203  gap=-0.1024  ema_gap=-0.1122  mixup=57/200  6.6 sps  ETA 2.3h
+              R²_rand=0.5044  R²_naive=0.2139  U_t=0.1122  U_b=0.6226  AUC=0.9472  Top1=0.4624
+  timing: data=74.3ms  fwd=72.4ms  bwd=50.6ms  total=197.7ms
+[  46000] loss=13.0635  ema_loss=13.0475  gap=-0.1225  ema_gap=-0.1187  mixup=64/200  6.6 sps  ETA 2.3h
+              R²_rand=0.5113  R²_naive=0.1974  U_t=0.1290  U_b=0.6580  AUC=0.9493  Top1=0.4714
+  timing: data=4.0ms  fwd=69.7ms  bwd=50.5ms  total=124.7ms
+[  46200] loss=13.1096  ema_loss=13.0501  gap=-0.1200  ema_gap=-0.1194  mixup=59/200  6.7 sps  ETA 2.2h
+              R²_rand=0.5041  R²_naive=0.1878  U_t=0.1347  U_b=0.6133  AUC=0.9449  Top1=0.4057
+  timing: data=4.2ms  fwd=72.8ms  bwd=50.6ms  total=127.9ms
+[  46400] loss=12.9864  ema_loss=13.0406  gap=-0.1028  ema_gap=-0.1174  mixup=62/200  6.6 sps  ETA 2.3h
+              R²_rand=0.5183  R²_naive=0.2202  U_t=0.1099  U_b=0.6291  AUC=0.9560  Top1=0.4613
+  timing: data=80.2ms  fwd=70.0ms  bwd=50.7ms  total=201.3ms
+[  46600] loss=12.9811  ema_loss=13.0389  gap=-0.1009  ema_gap=-0.1132  mixup=74/200  6.6 sps  ETA 2.2h
+              R²_rand=0.5338  R²_naive=0.2219  U_t=0.1048  U_b=0.6012  AUC=0.9388  Top1=0.4353
+  timing: data=5.2ms  fwd=71.7ms  bwd=50.6ms  total=127.9ms
+[  46800] loss=13.1022  ema_loss=13.0525  gap=-0.1174  ema_gap=-0.1117  mixup=64/200  6.7 sps  ETA 2.2h
+              R²_rand=0.4845  R²_naive=0.1677  U_t=0.1302  U_b=0.6235  AUC=0.9302  Top1=0.4407
+  timing: data=5.0ms  fwd=70.1ms  bwd=50.5ms  total=126.0ms
+[  47000] loss=13.1327  ema_loss=13.0569  gap=-0.1223  ema_gap=-0.1114  mixup=64/200  6.6 sps  ETA 2.2h
+              R²_rand=0.4720  R²_naive=0.1608  U_t=0.1344  U_b=0.6142  AUC=0.9076  Top1=0.3938
+  timing: data=96.0ms  fwd=69.1ms  bwd=50.6ms  total=216.0ms
+[  47200] loss=13.0473  ema_loss=13.0655  gap=-0.1043  ema_gap=-0.1072  mixup=59/200  6.6 sps  ETA 2.2h
+              R²_rand=0.5077  R²_naive=0.2020  U_t=0.1094  U_b=0.6286  AUC=0.9253  Top1=0.4757
+  timing: data=5.1ms  fwd=70.8ms  bwd=50.5ms  total=126.9ms
+[  47400] loss=13.0799  ema_loss=13.0483  gap=-0.0803  ema_gap=-0.1040  mixup=58/200  6.6 sps  ETA 2.2h
+              R²_rand=0.4851  R²_naive=0.2211  U_t=0.1106  U_b=0.5721  AUC=0.9317  Top1=0.4738
+  timing: data=4.1ms  fwd=72.9ms  bwd=50.5ms  total=128.0ms
+[  47600] loss=13.0109  ema_loss=13.0266  gap=-0.0978  ema_gap=-0.0973  mixup=64/200  6.6 sps  ETA 2.2h
+              R²_rand=0.5255  R²_naive=0.2037  U_t=0.0954  U_b=0.5342  AUC=0.9111  Top1=0.3829
+  timing: data=51.5ms  fwd=70.7ms  bwd=50.5ms  total=173.1ms
+[  47800] loss=13.0585  ema_loss=13.0242  gap=-0.1003  ema_gap=-0.0993  mixup=40/200  6.6 sps  ETA 2.2h
+              R²_rand=0.5043  R²_naive=0.2085  U_t=0.1120  U_b=0.6087  AUC=0.9260  Top1=0.4567
+  timing: data=4.1ms  fwd=71.7ms  bwd=50.6ms  total=126.8ms
+[  48000] loss=13.0168  ema_loss=13.0215  gap=-0.1208  ema_gap=-0.1044  mixup=67/200  6.6 sps  ETA 2.2h
+              R²_rand=0.4916  R²_naive=0.1773  U_t=0.1177  U_b=0.6527  AUC=0.9318  Top1=0.5069
+  timing: data=4.9ms  fwd=70.4ms  bwd=50.5ms  total=126.2ms
+[  48200] loss=13.0435  ema_loss=13.0168  gap=-0.1245  ema_gap=-0.1042  mixup=55/200  6.5 sps  ETA 2.2h
+              R²_rand=0.4988  R²_naive=0.1890  U_t=0.1192  U_b=0.5785  AUC=0.9331  Top1=0.4228
+  timing: data=148.3ms  fwd=71.4ms  bwd=50.6ms  total=270.7ms
+[  48400] loss=13.0242  ema_loss=13.0058  gap=-0.1107  ema_gap=-0.1016  mixup=66/200  6.5 sps  ETA 2.2h
+              R²_rand=0.5159  R²_naive=0.2015  U_t=0.1091  U_b=0.5107  AUC=0.9266  Top1=0.3932
+  timing: data=4.2ms  fwd=72.9ms  bwd=50.6ms  total=128.2ms
+[  48600] loss=13.0866  ema_loss=13.0215  gap=-0.1029  ema_gap=-0.1030  mixup=60/200  6.6 sps  ETA 2.2h
+              R²_rand=0.5214  R²_naive=0.2173  U_t=0.1210  U_b=0.5762  AUC=0.9260  Top1=0.3978
+  timing: data=4.1ms  fwd=70.4ms  bwd=50.5ms  total=125.5ms
+[  48800] loss=13.0705  ema_loss=13.0266  gap=-0.1119  ema_gap=-0.1053  mixup=61/200  6.5 sps  ETA 2.2h
+              R²_rand=0.5273  R²_naive=0.2023  U_t=0.1111  U_b=0.6198  AUC=0.9448  Top1=0.4554
+  timing: data=51.3ms  fwd=71.3ms  bwd=50.6ms  total=173.6ms
+[  49000] loss=12.9938  ema_loss=13.0206  gap=-0.0932  ema_gap=-0.1018  mixup=62/200  6.6 sps  ETA 2.2h
+              R²_rand=0.5249  R²_naive=0.2250  U_t=0.1084  U_b=0.6139  AUC=0.9313  Top1=0.4374
+  timing: data=4.1ms  fwd=71.1ms  bwd=50.5ms  total=126.2ms
+[  49200] loss=13.0817  ema_loss=13.0089  gap=-0.1053  ema_gap=-0.0966  mixup=63/200  6.6 sps  ETA 2.1h
+              R²_rand=0.5114  R²_naive=0.1942  U_t=0.1116  U_b=0.5354  AUC=0.9190  Top1=0.3938
+  timing: data=5.9ms  fwd=70.6ms  bwd=50.5ms  total=127.4ms
+[  49400] loss=13.0960  ema_loss=13.0357  gap=-0.1028  ema_gap=-0.1022  mixup=57/200  6.5 sps  ETA 2.1h
+              R²_rand=0.5278  R²_naive=0.1978  U_t=0.1227  U_b=0.5926  AUC=0.9503  Top1=0.4554
+  timing: data=74.0ms  fwd=70.0ms  bwd=50.6ms  total=195.0ms
+[  49600] loss=13.1137  ema_loss=13.0611  gap=-0.1128  ema_gap=-0.1096  mixup=67/200  6.6 sps  ETA 2.1h
+              R²_rand=0.5036  R²_naive=0.1956  U_t=0.1303  U_b=0.5646  AUC=0.9424  Top1=0.4147
+  timing: data=4.2ms  fwd=70.9ms  bwd=50.5ms  total=126.1ms
+[  49800] loss=13.1016  ema_loss=13.0473  gap=-0.1105  ema_gap=-0.1101  mixup=57/200  6.6 sps  ETA 2.1h
+              R²_rand=0.5245  R²_naive=0.1933  U_t=0.1184  U_b=0.4827  AUC=0.9531  Top1=0.3294
+  timing: data=4.2ms  fwd=73.5ms  bwd=50.6ms  total=128.7ms
+[  50000] loss=13.0775  ema_loss=13.0330  gap=-0.1110  ema_gap=-0.1041  mixup=59/200  6.6 sps  ETA 2.1h
+              R²_rand=0.5025  R²_naive=0.1847  U_t=0.1235  U_b=0.6217  AUC=0.9458  Top1=0.4668
+  timing: data=5.0ms  fwd=69.4ms  bwd=50.5ms  total=125.3ms
+[  50200] loss=12.9643  ema_loss=13.0259  gap=-0.0841  ema_gap=-0.1052  mixup=55/200  6.6 sps  ETA 2.1h
+              R²_rand=0.5667  R²_naive=0.2399  U_t=0.1021  U_b=0.5391  AUC=0.9428  Top1=0.4727
+  timing: data=55.9ms  fwd=72.2ms  bwd=50.6ms  total=179.1ms
+[  50400] loss=13.0314  ema_loss=13.0228  gap=-0.1192  ema_gap=-0.1020  mixup=61/200  6.6 sps  ETA 2.1h
+              R²_rand=0.5255  R²_naive=0.2089  U_t=0.1173  U_b=0.5514  AUC=0.9413  Top1=0.4095
+  timing: data=4.1ms  fwd=71.8ms  bwd=50.6ms  total=126.9ms
+[  50600] loss=12.9752  ema_loss=13.0221  gap=-0.0892  ema_gap=-0.1027  mixup=50/200  6.6 sps  ETA 2.1h
+              R²_rand=0.5344  R²_naive=0.2208  U_t=0.1029  U_b=0.5966  AUC=0.9427  Top1=0.4513
+  timing: data=6.9ms  fwd=68.5ms  bwd=50.5ms  total=126.4ms
+[  50800] loss=13.0514  ema_loss=13.0310  gap=-0.1019  ema_gap=-0.1069  mixup=63/200  6.6 sps  ETA 2.1h
+              R²_rand=0.5397  R²_naive=0.2270  U_t=0.1225  U_b=0.6114  AUC=0.9599  Top1=0.4684
+  timing: data=81.9ms  fwd=71.7ms  bwd=50.6ms  total=204.7ms
+[  51000] loss=13.0690  ema_loss=13.0269  gap=-0.1177  ema_gap=-0.1095  mixup=70/200  6.6 sps  ETA 2.1h
+              R²_rand=0.4881  R²_naive=0.1954  U_t=0.1409  U_b=0.5642  AUC=0.9287  Top1=0.3609
+  timing: data=6.1ms  fwd=70.6ms  bwd=50.6ms  total=127.7ms
+[  51200] loss=13.0059  ema_loss=13.0391  gap=-0.1163  ema_gap=-0.1092  mixup=61/200  6.6 sps  ETA 2.1h
+              R²_rand=0.5256  R²_naive=0.1843  U_t=0.1282  U_b=0.5177  AUC=0.9477  Top1=0.3438
+  timing: data=5.0ms  fwd=71.1ms  bwd=50.6ms  total=127.1ms
+[  51400] loss=13.0413  ema_loss=13.0466  gap=-0.1116  ema_gap=-0.1099  mixup=66/200  6.6 sps  ETA 2.1h
+              R²_rand=0.4928  R²_naive=0.1903  U_t=0.1397  U_b=0.5762  AUC=0.9453  Top1=0.4206
+  timing: data=55.5ms  fwd=71.3ms  bwd=50.6ms  total=177.9ms
+[  51600] loss=13.0899  ema_loss=13.0544  gap=-0.1151  ema_gap=-0.1121  mixup=55/200  6.6 sps  ETA 2.0h
+              R²_rand=0.4981  R²_naive=0.1831  U_t=0.1380  U_b=0.6206  AUC=0.9556  Top1=0.4771
+  timing: data=4.3ms  fwd=70.9ms  bwd=50.6ms  total=126.1ms
+[  51800] loss=13.0514  ema_loss=13.0758  gap=-0.1161  ema_gap=-0.1190  mixup=54/200  6.6 sps  ETA 2.0h
+              R²_rand=0.4965  R²_naive=0.2001  U_t=0.1321  U_b=0.5755  AUC=0.9348  Top1=0.4366
+  timing: data=4.3ms  fwd=72.4ms  bwd=50.6ms  total=127.6ms
+[  52000] loss=13.0777  ema_loss=13.0636  gap=-0.1212  ema_gap=-0.1195  mixup=58/200  6.6 sps  ETA 2.0h
+              R²_rand=0.4704  R²_naive=0.1803  U_t=0.1422  U_b=0.6090  AUC=0.9271  Top1=0.4353
+  timing: data=63.6ms  fwd=69.4ms  bwd=50.5ms  total=184.0ms
+[  52200] loss=13.0364  ema_loss=13.0615  gap=-0.1027  ema_gap=-0.1215  mixup=53/200  6.6 sps  ETA 2.0h
+              R²_rand=0.5124  R²_naive=0.1929  U_t=0.1153  U_b=0.4174  AUC=0.9421  Top1=0.4046
+  timing: data=6.1ms  fwd=70.7ms  bwd=50.6ms  total=127.8ms
+[  52400] loss=13.1182  ema_loss=13.0519  gap=-0.1192  ema_gap=-0.1190  mixup=61/200  6.6 sps  ETA 2.0h
+              R²_rand=0.5114  R²_naive=0.1833  U_t=0.1291  U_b=0.5691  AUC=0.9397  Top1=0.4453
+  timing: data=4.1ms  fwd=70.4ms  bwd=50.6ms  total=125.5ms
+[  52600] loss=13.0484  ema_loss=13.0356  gap=-0.1176  ema_gap=-0.1133  mixup=58/200  6.6 sps  ETA 2.0h
+              R²_rand=0.4914  R²_naive=0.1565  U_t=0.1278  U_b=0.5585  AUC=0.9234  Top1=0.4214
+  timing: data=60.8ms  fwd=70.7ms  bwd=50.6ms  total=182.5ms
+[  52800] loss=12.9958  ema_loss=13.0322  gap=-0.1104  ema_gap=-0.1101  mixup=59/200  6.6 sps  ETA 2.0h
+              R²_rand=0.5091  R²_naive=0.1993  U_t=0.1229  U_b=0.5879  AUC=0.9243  Top1=0.4450
+  timing: data=5.9ms  fwd=69.0ms  bwd=50.5ms  total=125.8ms
+[  53000] loss=13.0189  ema_loss=13.0217  gap=-0.0936  ema_gap=-0.0983  mixup=63/200  6.6 sps  ETA 2.0h
+              R²_rand=0.5276  R²_naive=0.2140  U_t=0.1163  U_b=0.5860  AUC=0.9392  Top1=0.4353
+  timing: data=5.0ms  fwd=72.1ms  bwd=50.6ms  total=128.0ms
+[  53200] loss=13.0433  ema_loss=13.0298  gap=-0.0865  ema_gap=-0.0984  mixup=51/200  6.6 sps  ETA 2.0h
+              R²_rand=0.5335  R²_naive=0.2413  U_t=0.1231  U_b=0.5771  AUC=0.9577  Top1=0.4421
+  timing: data=84.1ms  fwd=69.7ms  bwd=50.6ms  total=204.8ms
+[  53400] loss=13.0466  ema_loss=13.0320  gap=-0.1049  ema_gap=-0.0992  mixup=50/200  6.6 sps  ETA 2.0h
+              R²_rand=0.5306  R²_naive=0.2215  U_t=0.1157  U_b=0.5705  AUC=0.9554  Top1=0.4980
+  timing: data=4.3ms  fwd=72.2ms  bwd=50.6ms  total=127.5ms
+[  53600] loss=13.0372  ema_loss=13.0334  gap=-0.0851  ema_gap=-0.1009  mixup=74/200  6.6 sps  ETA 1.9h
+              R²_rand=0.5482  R²_naive=0.2343  U_t=0.1062  U_b=0.5680  AUC=0.9575  Top1=0.5015
+  timing: data=4.3ms  fwd=71.5ms  bwd=50.6ms  total=126.8ms
