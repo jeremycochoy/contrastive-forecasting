@@ -1,6 +1,6 @@
 # The EMA-teacher alignment target does not move the ten-cell set at backbone 40k, within a bound of about 0.09 GM-Relative MASE
 
-The EMA-teacher alignment target does not move the ten cells as a set at backbone 40k, and the design bounds any aggregate shift at about 0.09 GM-Relative MASE. Of the two cells re-headed under three head seeds, the larger effect changes sign and the smaller one, `arm5 combab`, does not, moving down by 0.017 on the seed mean.
+Six of the ten controlled pairs favour the teacher and four the student, a split the paired tests do not separate from zero. Of the two cells re-headed under three head seeds, the larger effect changes sign and the smaller one, `arm5 combab`, does not, moving down by 0.017 on the seed mean.
 
 ![Teacher minus student GM-Relative MASE at backbone 40k](plots/controlled_vs_cross_delta.png)
 
@@ -24,9 +24,7 @@ The EMA-teacher alignment target does not move the ten cells as a set at backbon
 
 *Eight frozen backbones, every cell in this report carrying replicate head seeds (`results/seed_spread.csv`). Teal = backbone 40k, both sides of the controlled comparison.*
 
-Counting the ten pairs as ten, this design excludes an aggregate shift larger than about 0.09, which is 6.7% of 1.3455, the median GM-Relative MASE of the twenty backbone-40k measurements the ten pairs are built from. The two loss recipes are the units the design actually replicates, and their means run in opposite directions: −0.0657 for `arm5`, +0.0273 for `arm6_v2`.
-
-The per-cell whiskers cover eval sampling alone and re-heading widens them; the per-seed differences pair by seed index, but `arm5 combab`'s highest teacher seed sits below its lowest student seed, so its sign holds under every pairing.
+Counting the ten pairs as ten, the bound is 6.7% of 1.3455, the median GM-Relative MASE of the twenty backbone-40k measurements the pairs are built from, and the two loss recipes, which are the units the design actually replicates, have means running in opposite directions ([Protocol](#8-protocol)).
 
 ## 1. Across backbone horizons
 
@@ -42,7 +40,7 @@ The per-cell whiskers cover eval sampling alone and re-heading widens them; the 
 
 *The 8 cells extended to backbone 200k. Filled dot = 200k, hollow = 100k, whisker = measured head-seed range (3 of 8 cells).*
 
-Five of those eight score lower again at 200k, over a set selected for extension because it had already improved from 40k to 100k.
+Five of those eight score lower again at 200k.
 
 ## 2. Per-domain
 
@@ -74,11 +72,11 @@ In panel 2, `arm1 combab` starts at 3.13, above the shown range.
 
 *The three cells with the highest GM-Relative MASE of the field at backbone 40k, at 100k and at 200k (`results/gm_relative_mase.csv`, `results/training_curves/`, `results/attn_amplitude/`). Selected run in colour, the other four settings of the same recipe in grey.*
 
-No non-finite loss or gap appears in any of the 40 backbones. `arm1 combab` is the only backbone whose loss ends the 0–40k window above where it started ([table](#loss-and-attention-of-the-worst-cell)).
+No non-finite loss or gap appears in any of the 40 backbones, and `arm1 combab` is the only one whose loss ends the 0–40k window above where it started ([table](#loss-and-attention-of-the-worst-cell)).
 
 ## 6. Reproduction control
 
-Nine of the ten student controls reproduce the earlier sweep's number and share their backbone trace with it step for step ([table](#student-control-against-the-earlier-sweep-backbone-40k), `results/replicate_provenance_40k.csv`). `arm5 base` differs by backbone replicate, not by code: the earlier sweep published replicate r3, while this branch reproduces r1 at all 40 000 steps and r3 at none ([`results/README.md`](results/README.md)).
+Nine of the ten student controls reproduce the earlier sweep's number and share their backbone trace with it step for step, while `arm5 base` ⧗ differs by backbone replicate, not by code, the earlier sweep having published replicate r3 where this branch reproduces r1 at all 40 000 steps and r3 at none ([table](#student-control-against-the-earlier-sweep-backbone-40k), `results/replicate_provenance_40k.csv`, [`results/README.md`](results/README.md)).
 
 ## 7. Tables
 
@@ -151,7 +149,7 @@ Nine of the ten student controls reproduce the earlier sweep's number and share 
 | `arm6_v2 ncpc` | 1.3012 | 1.2978 | 1.0027 | 0.9672 | 1.0452 | no |
 | `arm6_v2 combab` | 1.2514 | 1.1616 | 1.0773 | 1.0439 | 1.1254 | yes |
 
-*Backing data for section 3. Ratio = teacher ÷ earlier sweep, below 1.0 means the teacher run scored lower. Intervals are 95% dataset-cluster bootstraps (`results/eval_bootstrap_ci.csv`) and cover eval sampling only. Backbone provenance was verified at backbone 40k only, and all ten arms left more than one backbone replicate in the earlier sweep (`results/replicate_provenance_40k.csv`), so no row here is verified: which replicate each earlier-sweep 100k number sits on was not checked. ⧗ marks the one row where the mismatch is already demonstrated at 40k, where it is worth about 0.1.*
+*Backing data for section 3. Ratio = teacher ÷ earlier sweep, below 1.0 means the teacher run scored lower. Intervals are 95% dataset-cluster bootstraps (`results/eval_bootstrap_ci.csv`) and cover eval sampling only. All ten arms left more than one backbone replicate in the earlier sweep, but they are sequential continuations with disjoint step ranges, and on all ten exactly one replicate spans step 100 000 (`results/replicate_provenance_40k.csv`), so no row here had a replicate to pick wrong. ⧗ marks the one arm whose 40k row sits on a different replicate, where the mismatch is worth about 0.1.*
 
 ### The controlled comparison at backbone 40k
 
@@ -296,10 +294,11 @@ Eight cells were additionally re-headed under seeds 20260723 and 20260724 on the
 - The 200k row compares a teacher-selected subset against a differently selected subset of the earlier sweep, so no like-for-like 200k claim is available.
 - The ten per-cell intervals in the headline figure are 95% and uncorrected for the ten comparisons, so a per-cell reading is not a family-wise claim. The aggregate tests over the set of ten are the right frame (`results/controlled_paired_tests_40k.csv`).
 - Every backbone in this report, both targets, is seed 20260520. Nine of ten controls reproducing the earlier sweep therefore measures determinism given that seed, not the spread across backbone seeds. No cell here carries a second backbone seed.
+- One cell does carry a second backbone *trajectory*, and it is the largest replication datum in the run. `arm5 base`, student target, backbone 40k, same config and same seed 20260520 on all 97 configs, scores 1.4501 on replicate r1 and 1.5478 on r3: 0.0977 apart. That is larger than every 40k head-seed range measured here (0.0018 to 0.0747), larger than nine of the ten controlled deltas, and larger than the aggregate bound in the opening. It is `n = 1` and it comes from a resume-induced divergence rather than a fresh backbone seed, so read it as a lower bound on backbone-trajectory spread, not as a seed-spread measurement. Everything else in this report's uncertainty budget is head seeds and eval sampling.
 - The head-seed spread is measured on 2 of the 10 controlled cells, `arm5 base` and `arm5 combab`; the other eight are marked `not measured`, not given a borrowed spread. Those two were picked by hand after their single-seed deltas were known, with no selection rule fixed in advance, and `arm5 ncpc` carries the largest single-seed difference of the run, −0.2156, and was never re-headed. So the surviving cell is one of two tested, not one of ten, and its 3-of-3 sign observation is p = 0.25 on its own, over per-seed differences running −0.0133 to −0.0230.
 - The ten pairs are two loss recipes by five settings on one backbone seed, and every pair shares the student baseline of its recipe's design, so `n = 10` in the sign and Wilcoxon tests is a nominal ten, not ten independent pairs. The two recipe means are −0.0657 (`arm5`) and +0.0273 (`arm6_v2`); with two clusters the support of a cluster-resampled mean is exactly those two values, so that enumeration is degenerate and the interval quoted in the opening is the t over the ten pairs.
-- Backbone provenance was verified at backbone 40k only (section 6). All ten arms left more than one backbone replicate in the earlier sweep, so the 100k table of section 3 inherits that risk on every row; `⧗` marks only the row where the mismatch is demonstrated at 40k.
-- The 30-cell table is one head seed per cell. Its 40k→100k changes run from −1.3656 to +0.4735 and the one 40k head-seed range measured against them is 0.0747, so rank order in that table is not separable from head-seed noise.
+- Backbone provenance was checked by span query at backbone 40k and at backbone 100k. At 40k exactly one arm, `arm5`, carries two replicates spanning the step, and that is the one mismatch section 6 finds; at 100 000 no arm does, because the extra replicates are sequential continuations with disjoint ranges. A replicate deleted before the manifest was built would not appear in either query.
+- The 30-cell table is one head seed per cell. Its 40k→100k changes run from −1.3656 to +0.4735 and the four 40k head-seed ranges measured against them span 0.0018 to 0.0747, so rank order in that table is not separable from head-seed noise.
 - The 6/4 direction split feeding the sign test is single-seed on 8 of the 10 cells, and one of the two tested splits flipped under re-heading. That widens the null rather than narrowing it, so it does not weaken the aggregate verdict.
 
 ### Training-curve diagnostics
