@@ -358,3 +358,42 @@
 [08-05 18:25:09] [release] e: busy — driver waiting:bb100k_student
 [08-05 18:25:13] [release] f: busy — driver waiting:bb100k_student
 [08-05 18:25:16] [release] g: busy — driver waiting:bb100k_teacher
+[08-05 18:40:21] [release] a: busy — driver waiting:bb100k_teacher
+[08-05 18:40:24] [release] c: reads idle — will confirm on the next pass before releasing
+[08-05 18:40:27] [release] d: busy — driver waiting:bb100k_teacher
+[08-05 18:40:30] [release] e: busy — driver waiting:bb100k_student
+[08-05 18:40:33] [release] f: busy — driver waiting:bb100k_student
+[08-05 18:40:37] [release] g: busy — driver waiting:bb100k_teacher
+[08-05 18:55:42] [release] a: busy — driver waiting:bb100k_teacher
+[08-05 18:55:45] [release] c: idle twice, bundle complete, cells=arm5_combab_alignT 
+[08-05 18:55:45] [release] c: destroying 46848763 cf393-c ($0.4944/h, provisioned by dispatch-0400)
+[08-05 18:55:54] [release] c: RELEASED 46848763
+[08-05 18:55:54] [release] released 1 box(es); rerun scripts/status.sh
+[08-05 19:10:59] [release] a: busy — driver waiting:bb100k_teacher
+[08-05 19:11:03] [release] d: busy — driver waiting:bb100k_teacher
+[08-05 19:11:07] [release] e: busy — driver waiting:bb100k_student
+[08-05 19:11:10] [release] f: busy — driver train
+[08-05 19:11:13] [release] g: busy — driver waiting:bb100k_teacher
+[08-05 19:11:20] [release] a: DRAIN —  driver waiting:bb100k_teacher; every eval it waits on is running here
+[08-05 19:11:20] [release] a: idle twice, bundle complete, cells=arm5_combab_alignS 
+[08-05 19:11:20] [release] a: destroying 46841448 cf393-a ($0.3611/h, provisioned by dispatch-0222)
+[08-05 19:11:30] [release] a: RELEASED 46841448
+[08-05 19:11:30] [release] a: recorded arm5_combab_alignS bb100k as branch=budget_stop
+[08-05 19:11:30] [release] released 1 box(es); rerun scripts/status.sh
+[08-05 19:11:53] [release] d: DRAIN —  driver waiting:bb100k_teacher; every eval it waits on is running here
+[08-05 19:11:53] [release] d: idle twice, bundle complete, cells=arm6_v2_nse_alignT 
+[08-05 19:11:53] [release] d: destroying 46848863 cf393-d ($0.4944/h, provisioned by dispatch-0400)
+[08-05 19:12:03] [release] d: RELEASED 46848863
+[08-05 19:12:03] [release] d: recorded arm6_v2_nse_alignT bb100k as branch=budget_stop
+[08-05 19:12:06] [release] e: DRAIN —  driver waiting:bb100k_student; every eval it waits on is running here
+[08-05 19:12:06] [release] e: idle twice, bundle complete, cells=arm1_nse 
+[08-05 19:12:06] [release] e: destroying 46848857 cf393-e ($0.4278/h, provisioned by dispatch-0400)
+[08-05 19:12:15] [release] e: RELEASED 46848857
+[08-05 19:12:15] [release] e: recorded arm1_nse bb40k as branch=budget_stop
+[08-05 19:12:19] [release] f: busy — driver train
+[08-05 19:12:23] [release] g: DRAIN —  driver waiting:bb100k_teacher; every eval it waits on is running here
+[08-05 19:12:23] [release] g: idle twice, bundle complete, cells=arm6_v2_ncpc_alignT 
+[08-05 19:12:23] [release] g: destroying 46853259 cf393-g ($0.3356/h, provisioned by dispatch-0505)
+[08-05 19:12:32] [release] g: RELEASED 46853259
+[08-05 19:12:32] [release] g: recorded arm6_v2_ncpc_alignT bb100k as branch=budget_stop
+[08-05 19:12:32] [release] released 3 box(es); rerun scripts/status.sh

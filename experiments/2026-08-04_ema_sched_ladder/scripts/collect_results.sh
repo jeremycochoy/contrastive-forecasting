@@ -106,6 +106,17 @@ while [ $# -ge 3 ]; do
       "root@$host:$REMOTE_EXP/results/*.log" "$RES/" 2>/dev/null
 done
 
+# --- the eval output itself ----------------------------------------------
+# A machine's ladder.csv is not the only record of a score, and it is the
+# slowest and the least durable one. ladder.py appends a stop's two rows
+# only once BOTH heads have returned, and the copy above needs the box to
+# still be rented. Every score is computed here, so read them off elisa's
+# own eval directories as one more per-machine source. merge_pooled.sh
+# unions the sources and collapses identical rows, so this adds the ones
+# no ladder.csv has yet and duplicates nothing.
+python3 "$EXP/scripts/scores_from_evals.py" \
+        --out "$RES/per_machine/ladder_evaldirs.csv" 2>&1 | sed 's/^/  /'
+
 # --- the union -----------------------------------------------------------
 # Pooling lives in its own script so it can be tested without ssh in the way;
 # scripts/test_merge_pooled.sh is the guard. It pools on a key declared by

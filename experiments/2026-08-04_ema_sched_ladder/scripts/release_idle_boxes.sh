@@ -20,6 +20,27 @@
 #   2. AGREEMENT. vastrun-status still reports that ID under that label.
 #   3. QUIET. No ladder.py, no train.py, no GIFT-Eval, and no unanswered
 #      EVAL_REQUEST on the box.
+#
+#      With DRAIN=1 the last of those relaxes, and only that one. An
+#      unanswered EVAL_REQUEST means the box's driver is blocked waiting
+#      for a score — but since the eval moved to elisa, the box is not
+#      producing that score and nothing on it will run until the score
+#      arrives. The GPU is rented and idle for the whole of it. The
+#      request is only tolerated when the eval no longer needs the box:
+#      the broker has already pulled that stop's backbone and head here,
+#      or has already written its score. Then destroying the box cannot
+#      cost a measurement, because the measurement is running on local
+#      files. A request whose checkpoints are NOT here still counts as
+#      busy under DRAIN — releasing there would strand a head that cost
+#      30,000 GPU steps.
+#
+#      The score itself no longer needs the box either. It used to: the
+#      broker pushed it back and the box's ladder.py wrote the row. Since
+#      scripts/scores_from_evals.py the pooled table is rebuilt from
+#      elisa's own eval directories, so a score survives the box that
+#      asked for it. What does NOT survive is the box's extend-rule
+#      decision row, which is why every DRAIN release is recorded as a
+#      budget stop in decisions.csv rather than an extend-rule branch.
 #   4. BUNDLE. Every cell the claims file gives this box has its resume
 #      bundle on elisa — newest backbone, its optimizer companion, the
 #      losses CSV and the run log. CLAUDE.md's rule after the May 3 loss:
@@ -34,6 +55,10 @@ EXP="$(dirname "$HERE")"
 CONTRACTS="$EXP/results/vast_contracts.txt"
 CLAIMS="$EXP/results/cell_claims.txt"
 STATE="${RELEASE_STATE:-/tmp/cf393_idle.state}"
+# Where the broker keeps the checkpoints it pulled for each eval, and where
+# scores_from_evals.py reads the scores back out. leg_paths.sh owns the
+# path; this only needs the root.
+RUNS_ROOT="${CF393_RUNS:-/home/jupyter/checkpoints_backup/cf-393}"
 SSH_OPTS=(-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
           -o ConnectTimeout=20 -o BatchMode=yes)
 
@@ -69,6 +94,61 @@ bundle_gaps() {  # <label>
     [ -s "$root/results/run_cf393_$cell.log" ] || gaps+="$cell:no-runlog "
   done
   printf '%s' "$gaps"
+}
+
+# DRAIN: is every reason this box reads busy an eval that elisa is already
+# holding the checkpoints for? Anything else — a driver, a training, a
+# GIFT-Eval on the box itself — is real work and answers no.
+#
+# `busy` is the probe's output: a count, then one word per reason, e.g.
+# "1 waiting:bb100k_teacher". Only `waiting:<stop dir>` can be drained, and
+# only when the broker's local working directory for that stop holds the
+# two checkpoints it evaluates, or the score is already written.
+drainable() {  # <label> <busy string>
+  local lbl="$1" reason wdir ok waits=0
+  set -- $2 ; shift            # drop the leading count, keep the reasons
+  [ $# -gt 0 ] || return 1
+  for reason in "$@"; do
+    case "$reason" in
+      waiting:*) waits=$(( waits + 1 )) ;;
+      # The driver process is what the waiting is done BY: eval_stop.sh
+      # blocks inside it in a sleep loop until the score file appears. So
+      # `driver` alongside a drainable `waiting:` is that same idleness
+      # counted twice, not separate work. `driver` on its own is a cell
+      # between legs and about to start training — never drainable.
+      driver) continue ;;
+      *) return 1 ;;               # train / gift-eval — real work
+    esac
+    ok=0
+    for wdir in "$RUNS_ROOT/_broker/$lbl"/*/"${reason#waiting:}"; do
+      [ -d "$wdir" ] || continue
+      if [ -s "$wdir/score.txt" ]; then ok=1; break; fi
+      if [ -s "$wdir/backbone.pth" ] && [ -s "$wdir/head.pth" ]; then ok=1; break; fi
+    done
+    [ "$ok" -eq 1 ] || { log "$lbl: $reason has no checkpoints here — not drainable"; return 1; }
+  done
+  [ "$waits" -gt 0 ]
+}
+
+# A released box takes its ladder driver with it, so no extend-rule branch
+# is ever recorded for the stop it was sitting on. Write the stop down as
+# what it actually was: the spend order ended the cell, not the rule. The
+# branch value is its own, never one of the rule's, so the report cannot
+# confuse "stopped because both heads got worse" with "stopped because the
+# credit ran out". merge_pooled.sh keys decisions on (cell, stop, branch),
+# so this row sits beside any rule branch the same stop already carries.
+record_budget_stop() {  # <label>
+  local lbl="$1" cell stop dec="$EXP/results/decisions.csv"
+  [ -f "$dec" ] || printf 'cell,stop,branch,extend,heads_next\n' > "$dec"
+  for cell in $(awk -v m="vast${lbl^^}" '$2==m {print $1}' "$CLAIMS"); do
+    stop=$(awk -F, -v c="$cell" '$1==c {print $4+0}' \
+             "$EXP/results/ladder_all.csv" 2>/dev/null | sort -n | tail -1)
+    [ -n "$stop" ] && [ "$stop" != "0" ] || stop=""
+    [ -n "$stop" ] || { log "$lbl: $cell has no scored stop — no budget row written"; continue; }
+    if grep -q "^$cell,$stop,budget_stop," "$dec" 2>/dev/null; then continue; fi
+    printf '%s,%s,budget_stop,0,\n' "$cell" "$stop" >> "$dec"
+    log "$lbl: recorded $cell bb$((stop/1000))k as branch=budget_stop"
+  done
 }
 
 released=0
@@ -111,9 +191,13 @@ while read -r lbl cid host port rate who; do
   fi
   # "0" alone is idle; anything else is a count followed by what was found.
   if [ "$busy" != "0" ]; then
-    log "$lbl: busy —${busy#[0-9]}"
-    sed -i "/^$lbl /d" "$STATE" 2>/dev/null
-    continue
+    if [ -n "${DRAIN:-}" ] && drainable "$lbl" "$busy"; then
+      log "$lbl: DRAIN — ${busy#[0-9]}; every eval it waits on is running here"
+    else
+      log "$lbl: busy —${busy#[0-9]}"
+      sed -i "/^$lbl /d" "$STATE" 2>/dev/null
+      continue
+    fi
   fi
 
   # 5. twice
@@ -136,8 +220,14 @@ while read -r lbl cid host port rate who; do
     continue
   fi
   log "$lbl: destroying $cid cf393-$lbl (\$$rate/h, provisioned by $who)"
-  if vastrun-destroy "$cid" "cf393-$lbl" >/dev/null 2>&1; then
+  # </dev/null, and it matters. The loop below reads the contracts file on
+  # STDIN, and vastrun-destroy reads stdin too — so without this it swallows
+  # the rest of the file and the pass ends after the first box it destroys.
+  # Silent: the log just stops, and every later box reads as "not visited"
+  # rather than "left running". Boxes B and C each cost a whole extra pass.
+  if vastrun-destroy "$cid" "cf393-$lbl" >/dev/null 2>&1 </dev/null; then
     log "$lbl: RELEASED $cid"
+    record_budget_stop "$lbl"
     sed -i "/^$lbl /d" "$STATE" 2>/dev/null
     released=$(( released + 1 ))
   else
