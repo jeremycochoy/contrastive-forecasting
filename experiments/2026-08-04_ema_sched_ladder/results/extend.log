@@ -14,3 +14,7 @@
 [08-05 23:15:32] [extend] launched arm6_v2_combab_alignT on GPU 1, log results/ladder_arm6_v2_combab_alignT.log
 [08-05 23:16:02] [extend] launched arm5_combab_alignT on GPU 0, log results/ladder_arm5_combab_alignT.log
 [08-05 23:16:32] [extend] queue dispatched; drivers now: arm5_combab_alignT 
+[08-06 00:05:45] [extend] queue: arm5_combab_alignS  (ceiling 200000, at most 2 drivers)
+[08-06 00:05:45] [extend] SKIP_WAIT: ceiling is already 200000, not draining
+[08-06 00:05:45] [extend] arm5_combab_alignS waits: 3 driver(s) up, cap 2
+[08-06 00:08:36] [extend] queue stopped by hand; launching arm5_combab_alignS on GPU 1 directly (elisa GPUs are compute_mode=Default, so gpu_gate does not serialise and a second leg on card 1 runs concurrently rather than queueing; card 1 carries one leg at 42% util, card 0 also carries another session's processes)

@@ -1,0 +1,11 @@
+cell,last_stop,rule_branch,extend,heads_next,ended_by,recorded,rule_matches_record
+arm6_v2_combab_alignS,100000,none_down,0,student teacher,rule,none_down,yes
+arm6_v2_combab_alignT,100000,none_down,0,student teacher,rule,none_down,yes
+arm5_combab_alignS,100000,one_down,1,student,running,budget_stop one_down,yes
+arm5_combab_alignT,100000,both_down,1,student teacher,running,both_down session_end,yes
+arm6_v2_ncpc_alignS,100000,none_down,0,student teacher,rule,none_down,yes
+arm6_v2_ncpc_alignT,100000,none_down,0,student teacher,rule,budget_stop none_down,yes
+arm6_v2_nse_alignS,100000,none_down,0,student teacher,rule,none_down,yes
+arm6_v2_nse_alignT,100000,both_down,1,student teacher,running,both_down budget_stop,yes
+arm4_combab,100000,none_down,0,student teacher,rule,budget_stop none_down,yes
+arm1_nse,100000,none_down,0,student teacher,rule,budget_stop none_down,yes

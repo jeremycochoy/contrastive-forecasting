@@ -40,3 +40,9 @@
 [16:41:48] still waiting for the broker (1800s)
 [17:11:48] still waiting for the broker (3600s)
 [17:41:48] still waiting for the broker (5400s)
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm1_nse 40000
+[08-06 00:06:28] [arm1_nse] SKIP: cf393_arm1_nse_40k.pth already on disk
+[ladder] arm1_nse @40000: {'student': 1.4347, 'teacher': 1.4512} -> {'extend': True, 'heads': ('student', 'teacher'), 'branch': 'unconditional'}
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm1_nse 100000
+[08-06 00:06:28] [arm1_nse] SKIP: cf393_arm1_nse_100k.pth already on disk
+[ladder] arm1_nse @100000: {'student': 1.5227, 'teacher': 1.5604} -> {'extend': False, 'heads': ('student', 'teacher'), 'branch': 'none_down'}

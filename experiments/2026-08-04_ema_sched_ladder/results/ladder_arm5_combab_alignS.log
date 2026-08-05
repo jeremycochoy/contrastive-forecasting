@@ -51,3 +51,12 @@
 [17:26:42] eval place=broker
 [17:26:42] request written, waiting for the broker
 [17:56:42] still waiting for the broker (1800s)
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm5_combab_alignS 40000
+[08-06 00:08:38] [arm5_combab_alignS] SKIP: cf393_arm5_combab_alignS_40k.pth already on disk
+[ladder] arm5_combab_alignS @40000: {'student': 1.2596, 'teacher': 1.2347} -> {'extend': True, 'heads': ('student', 'teacher'), 'branch': 'unconditional'}
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm5_combab_alignS 100000
+[08-06 00:08:38] [arm5_combab_alignS] SKIP: cf393_arm5_combab_alignS_100k.pth already on disk
+[ladder] arm5_combab_alignS @100000: {'student': 1.2102, 'teacher': 1.2407} -> {'extend': True, 'heads': ('student',), 'branch': 'one_down'}
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm5_combab_alignS 200000
+[08-06 00:08:38] [arm5_combab_alignS] RESUME from cf393_arm5_combab_alignS_100k.pth (step 100k)
+[08-06 00:08:38] [arm5_combab_alignS] START target=200000 gpu=1 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-393/arm5_combab_alignS/leg_200k

@@ -123,4 +123,16 @@ python3 "$EXP/scripts/scores_from_evals.py" \
 # column name, and deduplicates on the whole line so no row is ever discarded
 # for a field the key does not mention.
 RES="$RES" bash "$EXP/scripts/merge_pooled.sh" ladder decisions
+
+# --- which branch stopped which cell -------------------------------------
+# The pooled decisions file carries more than one row per (cell, stop) — a
+# park written by the spend order, and the rule re-derived once the stop's
+# second head landed — and merge_pooled.sh sorts it, so row order is no
+# guide to which came last. Resolve it here, every cycle, rather than
+# leaving the report to pick a row. scripts/test_stop_reason.sh is the
+# guard.
+python3 "$EXP/scripts/stop_reason.py" \
+        --decisions "$RES/decisions_all.csv" \
+        --ladder "$RES/ladder_all.csv" \
+        --out "$RES/stop_reason.csv" 2>&1 | sed 's/^/  /'
 say "done"

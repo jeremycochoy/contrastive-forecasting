@@ -48,3 +48,9 @@
 [16:43:24] still waiting for the broker (1800s)
 [17:13:24] still waiting for the broker (3600s)
 [17:43:24] still waiting for the broker (5400s)
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm6_v2_ncpc_alignT 40000
+[08-06 00:06:25] [arm6_v2_ncpc_alignT] SKIP: cf393_arm6_v2_ncpc_alignT_40k.pth already on disk
+[ladder] arm6_v2_ncpc_alignT @40000: {'student': 1.2955, 'teacher': 1.3266} -> {'extend': True, 'heads': ('student', 'teacher'), 'branch': 'unconditional'}
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm6_v2_ncpc_alignT 100000
+[08-06 00:06:25] [arm6_v2_ncpc_alignT] SKIP: cf393_arm6_v2_ncpc_alignT_100k.pth already on disk
+[ladder] arm6_v2_ncpc_alignT @100000: {'student': 1.3904, 'teacher': 1.3646} -> {'extend': False, 'heads': ('student', 'teacher'), 'branch': 'none_down'}

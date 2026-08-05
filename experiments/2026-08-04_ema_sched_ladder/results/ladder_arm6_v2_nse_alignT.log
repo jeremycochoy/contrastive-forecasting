@@ -46,3 +46,12 @@
 [17:05:04] still waiting for the broker (3600s)
 [17:35:04] still waiting for the broker (5400s)
 [18:05:04] still waiting for the broker (7200s)
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm6_v2_nse_alignT 40000
+[08-06 00:04:33] [arm6_v2_nse_alignT] SKIP: cf393_arm6_v2_nse_alignT_40k.pth already on disk
+[ladder] arm6_v2_nse_alignT @40000: {'student': 1.4238, 'teacher': 1.4177} -> {'extend': True, 'heads': ('student', 'teacher'), 'branch': 'unconditional'}
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm6_v2_nse_alignT 100000
+[08-06 00:04:33] [arm6_v2_nse_alignT] SKIP: cf393_arm6_v2_nse_alignT_100k.pth already on disk
+[ladder] arm6_v2_nse_alignT @100000: {'student': 1.3913, 'teacher': 1.3746} -> {'extend': True, 'heads': ('student', 'teacher'), 'branch': 'both_down'}
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm6_v2_nse_alignT 200000
+[08-06 00:04:33] [arm6_v2_nse_alignT] RESUME from cf393_arm6_v2_nse_alignT_100k.pth (step 100k)
+[08-06 00:04:33] [arm6_v2_nse_alignT] START target=200000 gpu=1 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-393/arm6_v2_nse_alignT/leg_200k

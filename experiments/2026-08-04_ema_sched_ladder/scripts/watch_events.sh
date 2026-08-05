@@ -59,6 +59,24 @@ RUNS="${CF393_RUNS:-/home/jupyter/checkpoints_backup/cf-393}"
 # the watch has to see it.
 score_files(){ ls "$RUNS"/*/eval/score_bb*.txt "$RUNS"/_broker/*/*/*/score.txt 2>/dev/null | wc -l; }
 
+# Steps and staleness per live leg, as `<cell>=<step>@<minutes since written>`.
+# Driver count alone cannot tell a leg that is training from one that is
+# alive and stuck: both read `drivers=3`. The losses CSV is appended every
+# 100 steps, so its last step and its mtime are the movement signal.
+leg_progress(){
+  local now f cell step age out=""
+  now=$(date +%s)
+  for f in $(ls -t "$RUNS"/*/leg_*/*_losses.csv 2>/dev/null); do
+    cell=$(basename "$(dirname "$(dirname "$f")")")
+    case " $out " in *" $cell="*) continue ;; esac
+    pgrep -f "[l]adder\.py --cells.*$cell" >/dev/null 2>&1 || continue
+    step=$(tail -1 "$f" 2>/dev/null | cut -d, -f1)
+    age=$(( (now - $(stat -c %Y "$f" 2>/dev/null || echo "$now")) / 60 ))
+    out+="$cell=${step}@${age}m "
+  done
+  printf '%s' "${out:-no live leg}"
+}
+
 seen_init broker  "$BROKER"  'DONE score='
 seen_init release "$RELEASE" 'RELEASED|destroying|vastrun-destroy failed'
 seen_init extend  "$EXTEND"  'HOLD_ABOVE|launched|ABORT'
@@ -134,6 +152,6 @@ while :; do
     box=$(vastrun-status 2>/dev/null | grep -c running)
     ev "HEARTBEAT scored=$(( $(wc -l < "$RES/ladder_all.csv" 2>/dev/null || echo 1) - 1 ))" \
        "credit=${bal:-?} boxes=${box:-?} drivers=$drivers_now" \
-       "evals=$(pcnt 'eval_gift_eval_official')"
+       "evals=$(pcnt 'eval_gift_eval_official') $(leg_progress)"
   fi
 done

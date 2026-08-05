@@ -55,22 +55,49 @@ drivers(){ local n; n=$(pgrep -fc '[l]adder\.py --cells' 2>/dev/null); echo "${n
 running(){ pgrep -f "[l]adder\.py --cells.*$1" >/dev/null 2>&1; }
 
 say "queue: $QUEUE  (ceiling $CEILING, at most $MAX_DRIVERS drivers)"
-say "waiting for the parked drivers to exit before raising HOLD_ABOVE"
-waited=0
-while [ "$(drivers)" -gt 0 ]; do
-  if [ "$waited" -ge $(( DEADLINE_H * 3600 )) ]; then
-    say "ABORT: drivers still alive after ${DEADLINE_H}h — $(pgrep -af '[l]adder\.py --cells' | sed 's/.*--cells //' | tr '\n' ' ')"
-    exit 1
-  fi
-  [ $(( waited % 1800 )) -eq 0 ] && [ "$waited" -gt 0 ] && \
-    say "still waiting (${waited}s): $(pgrep -af '[l]adder\.py --cells' | sed 's/.*--cells //' | tr '\n' ' ')"
-  sleep "$POLL"
-  waited=$(( waited + POLL ))
-done
-say "no driver left after ${waited}s"
+if [ -n "${SKIP_WAIT:-}" ]; then
+  # The drain exists only so the ceiling is not raised under a driver that
+  # would take the extension out of turn. A second queue behind the first
+  # reads a ceiling that is ALREADY $CEILING, so there is nothing to raise
+  # and nothing to take out of turn; waiting would just park the queue
+  # behind a 100k leg it is meant to run alongside.
+  say "SKIP_WAIT: ceiling is already $(cat results/HOLD_ABOVE 2>/dev/null), not draining"
+else
+  say "waiting for the parked drivers to exit before raising HOLD_ABOVE"
+  waited=0
+  while [ "$(drivers)" -gt 0 ]; do
+    if [ "$waited" -ge $(( DEADLINE_H * 3600 )) ]; then
+      say "ABORT: drivers still alive after ${DEADLINE_H}h — $(pgrep -af '[l]adder\.py --cells' | sed 's/.*--cells //' | tr '\n' ' ')"
+      exit 1
+    fi
+    [ $(( waited % 1800 )) -eq 0 ] && [ "$waited" -gt 0 ] && \
+      say "still waiting (${waited}s): $(pgrep -af '[l]adder\.py --cells' | sed 's/.*--cells //' | tr '\n' ' ')"
+    sleep "$POLL"
+    waited=$(( waited + POLL ))
+  done
+  say "no driver left after ${waited}s"
 
-echo "$CEILING" > results/HOLD_ABOVE.tmp && mv -f results/HOLD_ABOVE.tmp results/HOLD_ABOVE
-say "HOLD_ABOVE = $(cat results/HOLD_ABOVE)"
+  echo "$CEILING" > results/HOLD_ABOVE.tmp && mv -f results/HOLD_ABOVE.tmp results/HOLD_ABOVE
+  say "HOLD_ABOVE = $(cat results/HOLD_ABOVE)"
+fi
+
+# Which card to hand the next cell. Round-robin from 0 was right when the
+# queue started on an empty machine; a queue that starts while GPU 0 is
+# already carrying a leg would put its first cell there and leave the other
+# card idle. Ask the driver instead: the GPU with no CUDA process on it.
+free_gpu() {
+  local g busy
+  busy="$(nvidia-smi --query-compute-apps=gpu_uuid --format=csv,noheader 2>/dev/null \
+          | sort -u | wc -l)"
+  for g in 0 1; do
+    local uuid n
+    uuid="$(nvidia-smi -i "$g" --query-gpu=uuid --format=csv,noheader 2>/dev/null)"
+    n="$(nvidia-smi --query-compute-apps=gpu_uuid --format=csv,noheader 2>/dev/null \
+         | grep -cF "$uuid")"
+    [ "${n:-1}" -eq 0 ] && { printf '%s' "$g"; return 0; }
+  done
+  printf '%s' "${1:-0}"   # both busy: fall back to the caller's guess
+}
 
 gpu=0
 for cell in $QUEUE; do
@@ -89,6 +116,7 @@ for cell in $QUEUE; do
     sleep "$POLL"
   done
 
+  gpu="$(free_gpu "$gpu")"
   WT="$WT" RUNS="$RUNS" BB_GPU="$gpu" \
     nohup setsid python3 -u scripts/ladder.py --cells "$cell" \
     >> "results/ladder_${cell}.log" 2>&1 < /dev/null &

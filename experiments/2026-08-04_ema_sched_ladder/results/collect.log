@@ -800,3 +800,64 @@ scripts/collect_results.sh: line 22: WT: WT must be the absolute path of the che
 [08-05 23:45:02] [merge] ladder_all.csv: 39 rows
 [08-05 23:45:02] [merge] decisions_all.csv: 21 rows
 [08-05 23:45:02] [collect] done
+[08-06 00:10:05] [collect] vastA (ssh2.vast.ai:11448)
+[08-06 00:10:05] [collect]   no vastA/ladder yet
+[08-06 00:10:05] [collect]   no vastA/decisions yet
+[08-06 00:10:05] [collect] vastB (ssh4.vast.ai:13146)
+[08-06 00:10:06] [collect]   no vastB/ladder yet
+[08-06 00:10:06] [collect]   no vastB/decisions yet
+[08-06 00:10:06] [collect] vastC (ssh6.vast.ai:18762)
+[08-06 00:10:06] [collect]   no vastC/ladder yet
+[08-06 00:10:06] [collect]   no vastC/decisions yet
+[08-06 00:10:07] [collect] vastD (ssh7.vast.ai:18862)
+[08-06 00:10:07] [collect]   no vastD/ladder yet
+[08-06 00:10:07] [collect]   no vastD/decisions yet
+[08-06 00:10:07] [collect] vastE (ssh5.vast.ai:18856)
+[08-06 00:10:10] [collect]   no vastE/ladder yet
+[08-06 00:10:10] [collect]   no vastE/decisions yet
+[08-06 00:10:10] [collect] vastF (ssh1.vast.ai:18914)
+[08-06 00:10:10] [collect]   no vastF/ladder yet
+[08-06 00:10:11] [collect]   no vastF/decisions yet
+[08-06 00:10:11] [collect] vastG (ssh7.vast.ai:13258)
+[08-06 00:10:11] [collect]   no vastG/ladder yet
+[08-06 00:10:11] [collect]   no vastG/decisions yet
+  [scores] ladder_evaldirs.csv: 39 rows from eval output under /home/jupyter/checkpoints_backup/cf-393
+[08-06 00:10:13] [merge] ladder_all.csv: 40 rows
+[08-06 00:10:13] [merge] decisions_all.csv: 26 rows
+[08-06 00:10:13] [collect] done
+[08-06 00:13:46] [collect] vastA (ssh2.vast.ai:11448)
+[08-06 00:13:47] [collect]   no vastA/ladder yet
+[08-06 00:13:47] [collect]   no vastA/decisions yet
+[08-06 00:13:48] [collect] vastB (ssh4.vast.ai:13146)
+[08-06 00:13:49] [collect]   no vastB/ladder yet
+[08-06 00:13:49] [collect]   no vastB/decisions yet
+[08-06 00:14:00] [collect] vastC (ssh6.vast.ai:18762)
+[08-06 00:14:00] [collect]   no vastC/ladder yet
+[08-06 00:14:00] [collect]   no vastC/decisions yet
+[08-06 00:14:00] [collect] vastD (ssh7.vast.ai:18862)
+[08-06 00:14:01] [collect]   no vastD/ladder yet
+[08-06 00:14:01] [collect]   no vastD/decisions yet
+[08-06 00:14:01] [collect] vastE (ssh5.vast.ai:18856)
+[08-06 00:14:01] [collect]   no vastE/ladder yet
+[08-06 00:14:02] [collect]   no vastE/decisions yet
+[08-06 00:14:02] [collect] vastF (ssh1.vast.ai:18914)
+[08-06 00:14:02] [collect]   no vastF/ladder yet
+[08-06 00:14:02] [collect]   no vastF/decisions yet
+[08-06 00:14:03] [collect] vastG (ssh7.vast.ai:13258)
+[08-06 00:14:03] [collect]   no vastG/ladder yet
+[08-06 00:14:03] [collect]   no vastG/decisions yet
+  [scores] ladder_evaldirs.csv: 39 rows from eval output under /home/jupyter/checkpoints_backup/cf-393
+[08-06 00:14:05] [merge] ladder_all.csv: 40 rows
+[08-06 00:14:05] [merge] decisions_all.csv: 26 rows
+  arm6_v2_combab_alignS  @100000  none_down      ended_by=rule     recorded=[none_down]
+  arm6_v2_combab_alignT  @100000  none_down      ended_by=rule     recorded=[none_down]
+  arm5_combab_alignS     @100000  one_down       ended_by=running  recorded=[budget_stop one_down]
+  arm5_combab_alignT     @100000  both_down      ended_by=running  recorded=[both_down session_end]
+  arm6_v2_ncpc_alignS    @100000  none_down      ended_by=rule     recorded=[none_down]
+  arm6_v2_ncpc_alignT    @100000  none_down      ended_by=rule     recorded=[budget_stop none_down]
+  arm6_v2_nse_alignS     @100000  none_down      ended_by=rule     recorded=[none_down]
+  arm6_v2_nse_alignT     @100000  both_down      ended_by=running  recorded=[both_down budget_stop]
+  arm4_combab            @100000  none_down      ended_by=rule     recorded=[budget_stop none_down]
+  arm1_nse               @100000  none_down      ended_by=rule     recorded=[budget_stop none_down]
+    -> /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/results/stop_reason.csv (10 cells)
+[08-06 00:14:07] [collect] done

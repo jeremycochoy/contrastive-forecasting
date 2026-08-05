@@ -48,3 +48,9 @@
 [19:03:53] head-train rc=0
 [19:03:53] eval place=broker
 [19:03:53] request written, waiting for the broker
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm4_combab 40000
+[08-06 00:06:27] [arm4_combab] SKIP: cf393_arm4_combab_40k.pth already on disk
+[ladder] arm4_combab @40000: {'student': 1.2503, 'teacher': 1.287} -> {'extend': True, 'heads': ('student', 'teacher'), 'branch': 'unconditional'}
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm4_combab 100000
+[08-06 00:06:27] [arm4_combab] SKIP: cf393_arm4_combab_100k.pth already on disk
+[ladder] arm4_combab @100000: {'student': 1.3479, 'teacher': 1.3188} -> {'extend': False, 'heads': ('student', 'teacher'), 'branch': 'none_down'}

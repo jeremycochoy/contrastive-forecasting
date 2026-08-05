@@ -1,0 +1,43 @@
+==========================================================================================
+                                GIFT-Eval Official Results                                
+==========================================================================================
+Config                                            MASE  SN_MASE   Relative
+------------------------------------------------------------------------------------------
+bitbrains_fast_storage/5T/long                  1.9317   1.1366     1.6994
+bitbrains_rnd/H/short                           6.4129   6.0374     1.0622
+bizitobs_l2c/5T/short                           0.3460   0.9860     0.3509
+bizitobs_l2c/H/long                             1.4297   1.4261     1.0025
+bizitobs_l2c/H/short                            1.0132   1.2141     0.8345
+bizitobs_service/10S/long                       7.9631   1.3672     5.8244
+electricity/15T/medium                          3.7060   1.1508     3.2204
+electricity/15T/short                           2.5684   1.7171     1.4958
+electricity/D/short                             1.9235   1.9870     0.9680
+ett1/15T/long                                   2.3053   1.1909     1.9358
+ett1/15T/medium                                 2.0046   1.1883     1.6870
+ett1/H/medium                                   2.3695   1.5678     1.5114
+ett2/D/short                                    1.7880   1.3901     1.2862
+jena_weather/10T/short                          0.3959   0.7429     0.5330
+jena_weather/H/long                             1.6818   1.2677     1.3266
+jena_weather/H/medium                           1.2237   0.8886     1.3770
+kdd_cup_2018/H/long                             1.1854   1.3355     0.8876
+loop_seattle/5T/short                           0.8881   0.7623     1.1650
+m4_hourly/H/short                               8.0137   1.1932     6.7161
+m4_quarterly/Q/short                            2.3802   1.6022     1.4855
+solar/10T/medium                                3.4049   0.9270     3.6730
+solar/H/short                                   2.5789   0.9519     2.7091
+solar/W/short                                   0.9785   1.4704     0.6655
+us_births/D/short                               1.6221   1.8648     0.8698
+us_births/M/short                               1.6275   0.7605     2.1399
+------------------------------------------------------------------------------------------
+
+Aggregate GM-Relative MASE (25 configs): 1.4526
+
+Leaderboard comparison:
+  Sundial:    0.673
+  TimesFM:    0.680
+  PatchTST:   0.762
+  Chronos:    0.786
+  Moirai:     0.809
+  Naive:      1.000
+  ** Ours:    1.453 **
+==========================================================================================
