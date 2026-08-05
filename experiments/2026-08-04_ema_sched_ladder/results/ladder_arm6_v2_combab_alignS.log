@@ -9,3 +9,5 @@
 [07:03:36] DONE — Aggregate GM-Relative MASE (97 configs): 1.1603 -> 1.1603
 [ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm6_v2_combab_alignS 40000 teacher 15000 /home/jupyter/checkpoints_backup/cf-393/arm6_v2_combab_alignS/eval/score_bb40k_teacher.txt
 [07:03:36] arm6_v2_combab_alignS bb40k enc=teacher head=15000s
+[07:44:16] head-train rc=0
+[07:44:16] eval place=local_cpu

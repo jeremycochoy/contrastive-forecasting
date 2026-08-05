@@ -5,3 +5,7 @@
 [ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm6_v2_nse_alignS 40000 student 15000 /home/jupyter/checkpoints_backup/cf-393/arm6_v2_nse_alignS/eval/score_bb40k_student.txt
 [04:22:21] arm6_v2_nse_alignS bb40k enc=student head=15000s
 [04:51:59] head-train rc=0
+[07:44:39] gift-eval rc=0
+[07:44:39] DONE — Aggregate GM-Relative MASE (97 configs): 1.2690 -> 1.2690
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm6_v2_nse_alignS 40000 teacher 15000 /home/jupyter/checkpoints_backup/cf-393/arm6_v2_nse_alignS/eval/score_bb40k_teacher.txt
+[07:44:39] arm6_v2_nse_alignS bb40k enc=teacher head=15000s
