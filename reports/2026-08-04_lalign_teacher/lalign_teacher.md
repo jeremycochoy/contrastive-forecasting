@@ -1,10 +1,10 @@
-# The EMA-teacher alignment target does not move the ten-cell set at backbone 40k, within a bound of about 0.09 GM-Relative MASE
+# The EMA-teacher alignment target does not move the ten-cell set at backbone 40k, within a bound of 0.088 GM-Relative MASE
 
 Six of the ten controlled pairs favour the teacher and four the student, a split the paired tests do not separate from zero. Of the two cells re-headed under three head seeds, the larger effect changes sign under re-heading and the smaller one, `arm5 combab`, does not.
 
 ![Teacher minus student GM-Relative MASE at backbone 40k](plots/controlled_vs_cross_delta.png)
 
-*Teacher minus student GM-Relative MASE at backbone 40k. Left: controlled, only the flag differs. Right: against the earlier sweep, which moves the flag and the code snapshot together.*
+*Teacher minus student GM-Relative MASE at backbone 40k. Left: controlled, only the flag differs. Right: against the earlier sweep.*
 
 > **Cell** — one loss recipe plus one setting, e.g. `arm5 combab`. The CSVs name it `arm_slug`. A cell measured under several head seeds is still one cell. The recipes and the settings are tabulated in [Protocol](#8-protocol).
 >
@@ -28,7 +28,7 @@ Six of the ten controlled pairs favour the teacher and four the student, a split
 
 ![GM-Relative MASE of the 8 cells extended to backbone 200k](plots/eval_2L_gm_mase_bars_200k.png)
 
-*The 8 cells extended to backbone 200k. Filled dot = 200k, hollow = 100k, whisker = measured head-seed range (3 of 8 cells).*
+*The 8 cells extended to backbone 200k.*
 
 ## 2. Per-domain
 
@@ -36,7 +36,7 @@ Six of the ten controlled pairs favour the teacher and four the student, a split
 
 *Per-domain GM-Relative MASE. Right: the 8 cells at backbone 200k.*
 
-Those eight cells fall below parity on Nature (6 of 8 cells, 15 configs) and on Sales (7 of 8 cells, 4 configs), and on no other domain.
+Those eight cells fall below parity on Nature and on Sales, and on no other domain.
 
 ## 3. The retrained cells against the earlier sweep
 
