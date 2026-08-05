@@ -1,5 +1,9 @@
 # Claude Code Instructions
 
+## How to write
+
+Follow ASD-STE100. Keep sentences short. Don't start sentences with long modifying clauses. Get to the subject and verb early. Never use the passive where you can use the active. Never use a metaphor, simile, or other figure of speech which you are used to seeing in print. Rephrase for brevity.
+
 ## Project intent
 
 Contrastive-forecasting trains small transformer backbones on time series via contrastive prediction (forecast vs future cosine similarity, with cross-batch and cross-channel negatives). Goal: backbone that beats GIFT-Eval baselines on GM-MASE / GM-MAPE_SN / GM-CRPS_SN. Every experiment should maximise *useful information gained* per unit time / compute / $ — before any action, ask "does this increase the information we have?".
