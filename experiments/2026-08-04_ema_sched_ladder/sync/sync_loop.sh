@@ -58,30 +58,42 @@ CELLS=(arm6_v2_combab_alignS arm6_v2_combab_alignT
        arm6_v2_nse_alignS arm6_v2_nse_alignT
        arm4_combab arm1_nse)
 
-# Per-class floors, never one blanket number, and every one of them below
-# the size this run actually produces. Measured on the first tick of the
-# 2026-08-05 vast.ai leg: backbone 5,192,927 B, optimizer 5,789,873 B,
-# quantile head ~2.4 MB. The optimizer floor started at 6 MB — ABOVE the
-# real 5.79 MB — and dropped every optimizer file for a whole tick while
-# logging only a `✗` line. That is PR #45's failure mode: a wrong-but-large
-# floor discards a good file silently. Without the optimizer companion a
-# resumed leg loses the step counter, the RNG state and AdamW's moments,
-# which is the whole ladder. CSVs, logs, markers and score files are a few
-# bytes upward.
+# Per-class floors, never one blanket number, and every one of them MEASURED
+# against what this run produces rather than guessed:
+#
+#   backbone           5,192,927 B    floor 3 MB
+#   backbone optimizer 5,789,873 B    floor 4 MB
+#   quantile head        449,267 B    floor 200 kB
+#   head optimizer       902,143 B    floor 400 kB
+#
+# Both guessed floors were wrong, and wrong in the direction that loses
+# data. The optimizer floor was 6 MB against a real 5.79 MB and dropped
+# every backbone optimizer on the first tick; the head floor was 1 MB
+# against a real 449 kB. That is PR #45's failure mode — a wrong-but-large
+# floor discards a good file and logs one `✗` line. The cost is not
+# symmetric: a resumed leg without its optimizer companion loses the step
+# counter, the RNG state and AdamW's moments, and a stop without its head
+# has no number. Re-measure whenever the architecture or the head arch
+# changes. CSVs, logs, markers and score files are a few bytes upward.
 backbone_floor(){ echo 3000000; }
 optimizer_floor(){ echo 4000000; }
-head_floor(){ echo 1000000; }
+head_floor(){ echo 200000; }
+head_optimizer_floor(){ echo 400000; }
 text_floor(){ echo 1; }
 
-# The floor a remote path falls under, by name. Unknown names get the text
-# floor rather than a checkpoint floor: a wrong-but-large floor drops a
-# small file silently, which is the failure mode PR #45 hit.
+# The floor a remote path falls under, by name. Order matters: a head's
+# optimizer companion is named `qhead_..._optimizer.pth` and so matches
+# BOTH the head pattern and the optimizer pattern. It has to be tested
+# first, or a 902 kB file is measured against the 4 MB backbone-optimizer
+# floor and thrown away. Unknown names get the text floor rather than a
+# checkpoint floor, for the same reason.
 floor_for(){
   case "$1" in
-    *_optimizer.pth) optimizer_floor ;;
-    qhead_*.pth)     head_floor ;;
-    *.pth)           backbone_floor ;;
-    *)               text_floor ;;
+    qhead_*_optimizer.pth) head_optimizer_floor ;;
+    qhead_*.pth)           head_floor ;;
+    *_optimizer.pth)       optimizer_floor ;;
+    *.pth)                 backbone_floor ;;
+    *)                     text_floor ;;
   esac
 }
 
