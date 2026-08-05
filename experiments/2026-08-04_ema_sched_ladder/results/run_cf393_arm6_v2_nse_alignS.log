@@ -1289,3 +1289,6 @@ Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, 
 [  77800] loss=4.7766  ema_loss=4.9842  gap=0.6172  ema_gap=0.6122  mixup=56/200  4.2 sps  ETA 1.5h  cpc=0.0235
               R²_rand=0.6646  R²_naive=0.6594  U_t=0.3773  U_b=0.4996  AUC=1.0000  Top1=0.9976
   timing: data=3.3ms  fwd=112.6ms  bwd=77.4ms  total=194.0ms
+[  78000] loss=4.9010  ema_loss=5.0015  gap=0.6204  ema_gap=0.6130  mixup=63/200  4.2 sps  ETA 1.5h  cpc=0.0607
+              R²_rand=0.6671  R²_naive=0.6613  U_t=0.3813  U_b=0.4919  AUC=1.0000  Top1=0.9959
+  timing: data=3.5ms  fwd=115.8ms  bwd=78.8ms  total=198.8ms
