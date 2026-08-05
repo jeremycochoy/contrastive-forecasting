@@ -128,6 +128,9 @@ def main() -> None:
     L.append("| Setting | `h_t` drift lower than base / 6 | `h_t` p "
              "| `e_t` drift lower than base / 6 | `e_t` p |")
     L.append("|---|---|---|---|---|")
+    drift_csv = [("setting", "n_recipes", "h_lower_than_base",
+                  "h_lower_recipes", "h_binom_p",
+                  "e_lower_than_base", "e_binom_p")]
     for var in ("_ncpc", "_nse", "_tr1", "_combab"):
         wins_h, wins_e, names = 0, 0, []
         n = 0
@@ -145,7 +148,13 @@ def main() -> None:
         who = f" ({' / '.join(names)})" if 0 < wins_h < n else ""
         L.append(f"| `{VAR_SHORT[var]}` | {wins_h}/{n}{who} | {ph:.3f} "
                  f"| {wins_e}/{n} | {pe:.3f} |")
+        drift_csv.append((VAR_SHORT[var], n, wins_h, " ".join(names),
+                          f"{ph:.3f}", wins_e, f"{pe:.3f}"))
     L.append("")
+    # The report cites the counts and the p-values, so they are written to a
+    # CSV a reader can rebuild from `latent_movement_pairs.csv` with this file.
+    with open(res / "latent_drift_setting_vs_base.csv", "w", newline="") as fh:
+        csv.writer(fh).writerows(drift_csv)
 
     # --- table 4: comparison, earlier sweep vs teacher target -----------
     L.append("| Cell | 40k earlier | 40k teacher | 100k earlier "

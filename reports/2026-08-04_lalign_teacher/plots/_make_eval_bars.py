@@ -66,6 +66,28 @@ def read_agg(arm_slug):
             return float(m_agg.group(2)), int(m_agg.group(1))
     return None, None
 
+def rose_over_0_40k():
+    """Slugs whose backbone loss ended the 0-40k window above where it started.
+
+    Read from `results/anomaly_windows.csv`, the same file section 7 of the
+    report uses. A 40k bar drawn on such a backbone is not a peer of the rest,
+    so the figure marks it.
+    """
+    import csv
+    path = HERE.parent / "results" / "anomaly_windows.csv"
+    slugs = {slug for _l, slug, _c in ARMS}
+    out = set()
+    with open(path, newline="") as fh:
+        for r in csv.DictReader(fh):
+            if r["window"] != "0k-40k" or float(r["delta"]) <= 0:
+                continue
+            rest = r["run"].removeprefix("bb_small_")
+            hit = [g for g in slugs if rest.startswith(g + "_")]
+            if hit:
+                out.add(max(hit, key=len))
+    return out
+
+
 INK, MUTED, GRID = "#0b0b0b", "#898781", "#e1e0d9"
 plt.rcParams.update({
     "figure.dpi": 150, "savefig.dpi": 150, "font.size": 10,
@@ -77,31 +99,45 @@ fig, ax = plt.subplots(figsize=(14, 5.5))
 # so the bars carry one distinction only: retrained with --align-target teacher
 # or not. Two colours, two legend entries.
 RETRAINED, OTHER = "#8b1e8b", "#c9c7bf"
+ROSE = rose_over_0_40k()
 rows = []
 for label, slug, colour in ARMS:
     v, n = read_agg(slug)
     if v is None: continue
     teacher = label.startswith("arm5 ") or label.startswith("arm6_v2 ")
-    rows.append((label + (" ⟲" if teacher else ""),
-                 RETRAINED if teacher else OTHER, v, n))
+    rows.append((label + (" ⟲" if teacher else "") + (" ‡" if slug in ROSE else ""),
+                 RETRAINED if teacher else OTHER, v, n, slug in ROSE))
 rows.sort(key=lambda r: r[2])
 xs = list(range(len(rows)))
 labs = [r[0] for r in rows]
 cs = [r[1] for r in rows]
 ys = [r[2] for r in rows]
 ns = [r[3] for r in rows]
-hatches = ["///" if n < 97 else None for n in ns]
+rose = [r[4] for r in rows]
+hatches = ["///" if n < 97 else ("xxx" if r else None)
+           for n, r in zip(ns, rose)]
 
 bars = ax.bar(xs, ys, color=cs,
-              edgecolor=[INK if n < 97 else c for n, c in zip(ns, cs)],
-              linewidth=[1.6 if n < 97 else 0.8 for n in ns])
+              edgecolor=[INK if (n < 97 or r) else c
+                         for n, c, r in zip(ns, cs, rose)],
+              linewidth=[1.6 if (n < 97 or r) else 0.8
+                         for n, r in zip(ns, rose)])
 for bar, hatch in zip(bars, hatches):
     if hatch: bar.set_hatch(hatch)
 ax.axhline(1.0, color="#c04040", lw=1.2, linestyle="--",
            label="seasonal-naive reference (MASE=1)")
 from matplotlib.patches import Patch
 handles = [Patch(facecolor=RETRAINED, label="⟲ retrained, --align-target teacher"),
-           Patch(facecolor=OTHER, label="earlier sweep, no L_align")]
+           Patch(facecolor=OTHER, label="earlier sweep, no L_align"),
+           Patch(facecolor="white", edgecolor=INK, hatch="xxx",
+                 label="‡ backbone loss rose over 0–40k")]
+for x, v, r in zip(xs, ys, rose):
+    if r:
+        ax.annotate("loss rose over 0–40k", xy=(x - 0.62, v * 0.80),
+                    rotation=90, ha="right", va="center", fontsize=8,
+                    color=INK,
+                    bbox=dict(boxstyle="round,pad=0.2", fc="white",
+                              ec=INK, lw=0.6))
 # Bars start at zero, so every bar is drawn to scale and the tallest one fits.
 for x, v, n in zip(xs, ys, ns):
     tag = f"{v:.4f}" + (f"\n({n} cfg)" if n < 97 else "")

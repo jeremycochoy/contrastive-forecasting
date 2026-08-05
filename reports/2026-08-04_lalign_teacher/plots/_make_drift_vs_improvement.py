@@ -32,6 +32,17 @@ plt.rcParams.update({
     "xtick.color": INK, "ytick.color": INK,
 })
 
+# arm1 contributes three of the five focus cells; the shared recipe hue makes
+# those three lines one blur, so panels 1 and 2 key colour by cell, on a
+# lightness ladder wide enough to tell them apart.
+CELL_COLOR = {("arm1", "_nse"): "#9ecae1", ("arm1", "_ncpc"): "#2a78d6",
+              ("arm1", "_combab"): "#08306b"}
+
+
+def cell_color(arm, var):
+    return CELL_COLOR.get((arm, var), C.ARM_COLOR[arm])
+
+
 drift = {}
 with open(PAIRS) as fh:
     for row in csv.DictReader(fh):
@@ -74,7 +85,7 @@ ax = axes[0]
 for _t, arm, var, _vals in focus:
     pts = drift.get(f"{arm}{var}", [])
     if not pts: continue
-    ax.plot([p[0] for p in pts], [p[1] for p in pts], color=C.ARM_COLOR[arm],
+    ax.plot([p[0] for p in pts], [p[1] for p in pts], color=cell_color(arm, var),
             ls=C.VAR_STYLE[var]["ls"], lw=2.0, marker=C.VAR_STYLE[var]["marker"],
             markersize=5, markeredgewidth=0, label=C.label(arm, var))
 ax.axvspan(100_000, 200_000, color=MUTED, alpha=0.12, zorder=0)
@@ -93,7 +104,7 @@ STEPS = [40_000, 100_000, 200_000]
 for _t, arm, var, vals in focus:
     xs = [s for s, v in zip(STEPS, vals) if v is not None]
     ys = [v for v in vals if v is not None]
-    ax.plot(xs, ys, color=C.ARM_COLOR[arm], ls=C.VAR_STYLE[var]["ls"], lw=2.0,
+    ax.plot(xs, ys, color=cell_color(arm, var), ls=C.VAR_STYLE[var]["ls"], lw=2.0,
             marker=C.VAR_STYLE[var]["marker"], markersize=7, markeredgewidth=0,
             label=C.label(arm, var))
 ax.axvspan(100_000, 200_000, color=MUTED, alpha=0.12, zorder=0)
@@ -130,6 +141,10 @@ for i, (x, y, lab) in enumerate(zip(xs, ys, labs)):
     ax.annotate(lab, xy=(x, y), xytext=(dx, 4), textcoords="offset points",
                 fontsize=8, ha=ha)
 rho = spearman(xs, ys)
+from scipy import stats as _stats
+_p = _stats.spearmanr(xs, ys).pvalue
+ax.text(0.03, 0.05, f"Spearman rho = {rho:+.2f},  n = {len(xs)},  p = {_p:.2f}",
+        transform=ax.transAxes, ha="left", va="bottom", fontsize=9.5, color=INK)
 ax.set_xlabel("mean h_t drift over the 100k→200k checkpoints")
 ax.set_ylabel("GM-Relative MASE change, 100k → 200k")
 ax.set_title(f"3.  Late h_t drift against the 100k→200k GM-MASE change\n"
