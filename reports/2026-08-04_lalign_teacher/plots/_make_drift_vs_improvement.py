@@ -147,12 +147,12 @@ ax.text(0.03, 0.05, f"Spearman rho = {rho:+.2f},  n = {len(xs)},  p = {_p:.2f}",
         transform=ax.transAxes, ha="left", va="bottom", fontsize=9.5, color=INK)
 ax.set_xlabel("mean h_t drift over the 100k→200k checkpoints")
 ax.set_ylabel("GM-Relative MASE change, 100k → 200k")
-ax.set_title(f"3.  Late h_t drift against the 100k→200k GM-MASE change\n"
+ax.set_title(f"3.  Late h_t drift against the 100k→200k GM-Relative MASE change\n"
              f"all {len(xs)} extended cells;  green = improved, red = worsened",
              fontsize=10.5)
 ax.grid(True, color=GRID, alpha=0.7)
 
-fig.suptitle("Latent movement against the GM-MASE improvement of the extended cells", fontsize=12)
+fig.suptitle("Latent movement against the GM-Relative MASE improvement of the extended cells", fontsize=12)
 fig.tight_layout(rect=[0, 0, 1, 0.94])
 out = HERE / "drift_vs_improvement.png"
 fig.savefig(out)
