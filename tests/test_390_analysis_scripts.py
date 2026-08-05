@@ -11,8 +11,9 @@ too narrow and every gap would look real.
 
 `controlled_delta.py` is the headline table. Its whole reason to exist is
 that a teacher number from this branch minus a student number from #379's
-sweep is not a measurement of `--align-target`: arm5 moves 0.0977 between
-the two code snapshots under the identical command line. So the tests here
+sweep is not a measurement of `--align-target`: arm5's two sides sit 0.0977
+apart under the identical command line, because #379 published that row off a
+resumed backbone replicate (`replicate_provenance.py`). So the tests here
 insist that the controlled delta's two sides both come from this branch,
 that the snapshot shift is carried in its own column rather than folded
 away, and that a partial table cannot be written by accident.
@@ -35,6 +36,7 @@ SCRIPTS = REPO_ROOT / "experiments" / "2026-08-01_lalign_teacher" / "scripts"
 GM_TABLE = SCRIPTS / "make_gm_table.py"
 BOOTSTRAP = SCRIPTS / "eval_bootstrap.py"
 CONTROLLED = SCRIPTS / "controlled_delta.py"
+PROVENANCE = SCRIPTS / "replicate_provenance.py"
 RESULTS = REPO_ROOT / "reports" / "2026-08-04_lalign_teacher" / "results"
 RESULTS_379 = (REPO_ROOT / "reports" / "2026-07-21_split_pred_rep_small"
                / "results")
@@ -333,3 +335,80 @@ def test_only_40k_can_be_controlled(tmp_path):
         capture_output=True, text=True)
     assert res.returncode != 0
     assert "invalid choice" in res.stderr
+
+
+# --- which replicate #379 published -------------------------------------
+
+@pytest.fixture(scope="module")
+def prov():
+    return load(PROVENANCE, "cf390_replicate_provenance")
+
+
+@pytest.fixture(scope="module")
+def prov_rows():
+    path = RESULTS / "replicate_provenance_40k.csv"
+    if not path.is_file():
+        pytest.skip("replicate_provenance_40k.csv not built yet")
+    with open(path, newline="") as fh:
+        return list(csv.DictReader(fh))
+
+
+@pytest.mark.parametrize("filename,tag", [
+    ("bb_small_arm5_lalign_lrep_x_r3_40k.pth", "r3"),
+    ("bb_small_arm5_lalign_lrep_x_r12_40k.pth", "r12"),
+    ("bb_small_arm5_lalign_lrep_x_40k.pth", "r1"),
+    # `_r2` must be the run-name suffix, not any `r<N>` inside the arm token.
+    ("bb_small_arm5_r2rep_lalign_lrep_x_40k.pth", "r1"),
+])
+def test_replicate_tag(prov, filename, tag):
+    assert prov.replicate_tag(filename) == tag
+
+
+def test_agreement_counts_only_exact_steps(prov):
+    a = {s: {"loss": "1.0", "ff": "0.5"} for s in (1, 2, 3)}
+    b = {s: {"loss": "1.0", "ff": "0.5"} for s in (1, 2, 3)}
+    assert prov.agreement(a, b) == (3, 3, 0.0)
+    b[2] = {"loss": "1.25", "ff": "0.5"}
+    ident, shared, worst = prov.agreement(a, b)
+    assert (ident, shared) == (2, 3) and worst == pytest.approx(0.25)
+
+
+def test_agreement_ignores_steps_past_the_snapshot(prov):
+    """A replicate that ran past 40 000 must not be scored on steps the 40k
+    checkpoint never saw."""
+    a = {1: {"loss": "1.0"}, prov.BB_STEPS + 1: {"loss": "1.0"}}
+    b = {1: {"loss": "1.0"}, prov.BB_STEPS + 1: {"loss": "9.0"}}
+    assert prov.agreement(a, b) == (1, 1, 0.0)
+
+
+def test_every_arm_repeats_a_379_replicate(prov_rows):
+    """The whole provenance reading rests on this: the branch re-run is a
+    step-for-step repeat of one of #379's own runs. An arm matching none
+    would mean the training path itself moved."""
+    assert len(prov_rows) == 10
+    for r in prov_rows:
+        assert r["branch_matches_replicate"] != "none", r
+
+
+def test_the_one_arm_that_misses_is_the_one_published_off_a_resume(prov_rows):
+    """arm5's 0.0977 is a comparison of two different backbones, not a
+    re-run of one. If a future pass makes some other arm miss, or makes
+    arm5 miss while its published row came from the base run, this reading
+    is wrong and the report must not keep asserting it."""
+    missed = {r["arm_slug"] for r in prov_rows if r["reproduces"] == "no"}
+    resumed = {r["arm_slug"] for r in prov_rows
+               if r["replicate_used_379"] != "r1"}
+    assert missed == resumed, (
+        f"arms that miss #379's number: {missed}; arms published off a "
+        f"resumed replicate: {resumed}")
+
+
+def test_the_resumed_replicate_is_a_genuinely_different_run(prov_rows):
+    """Same flags and same backbone seed, but the branch repeats r1 exactly
+    while the published row used another replicate — so the two numbers
+    differ because they are two backbones, not because one path is noisy."""
+    for r in prov_rows:
+        if r["replicate_used_379"] == "r1":
+            continue
+        assert r["branch_matches_replicate"] == "r1", r
+        assert float(r["snapshot_diff"]) != 0.0, r

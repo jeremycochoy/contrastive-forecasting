@@ -15,6 +15,7 @@ between the two reports, so all 30 arms sit on one scale.
 | `snapshot_reproduction_40k.csv` | `code_snapshot_shift` at six decimals, because at four a difference of 0.000028 and an exact reproduction print the same thing. Per arm: the earlier sweep's student number, this branch's re-run, the difference, and `reproduces` (within 0.0002). `n_configs_identical` and `max_abs_rel_config_diff` go under the aggregate — an aggregate can agree while the configs behind it do not. |
 | `eval_bootstrap_ci.csv` | 95% intervals on the teacher/student ratio per arm per backbone step, from a **dataset-level** paired bootstrap over the per-config log differences, with the config-level interval beside it for contrast. `ci_excludes_1` is the per-cell verdict. **Cross-experiment**: the student side is the earlier sweep, so these intervals cover the flag and the snapshot together. |
 | `eval_paired_tests.csv` | the same comparison across the ten arms at a fixed backbone step: counts, median ratio, sign-test and Wilcoxon p. Cross-experiment, same caveat. |
+| `replicate_provenance_40k.csv` | which backbone replicate the earlier sweep's published 40k row was evaluated on, per arm, read off its `eval.log`; the step span of every replicate it left; and whether this branch's re-run repeats one of them step for step. Separates a code-snapshot shift from a replicate mismatch. |
 | `seed_spread.csv` | per cell with replicate head seeds: the seeds, min/max/mean, and the range the cell moves under nothing but the head seed. The bar every claimed gap has to clear. |
 | `anomaly_inspection.csv` | one row per backbone: non-finite count, rise from the run's own loss minimum, largest step-to-step jump in units of the run's IQR, peak attention logit magnitude and its trend. All 40 backbones, so "unusual" is measured against neighbours. |
 | `anomaly_windows.csv` | the same runs cut at the wave boundaries (0–40k, 40k–100k, 100k–200k). A whole-run summary hides a wave; the flagged cells' behaviour is inside one. |
@@ -43,27 +44,41 @@ The `379` suffix is load-bearing: `arm5_alignstudent379_bb40k_hd15000s` is the
 earlier sweep's number and `arm5_alignstudent_bb40k_hd15000s` is this branch's re-run of it.
 They are the two sides of the code-boundary check and must not share a name.
 
-## The code snapshot, and what it does to every delta
+## The earlier sweep's numbers, and what they do to every delta
 
 arm5, backbone step 40 000, `--align-target student`, seed 20260520, the
 same command line, all 97 configs:
 
 | | GM-Relative MASE |
 |---|---|
-| student target, the earlier sweep, older code | 1.5478 |
+| student target, the earlier sweep's published row | 1.5478 |
 | student target, this branch (the control) | 1.4501 |
 | teacher target, this branch | 1.3515 |
 
-The first two rows differ only in the code they ran on, and they are 0.0977
-apart. The teacher-vs-earlier-sweep delta of -0.1963 is therefore not a measurement
-of the flag. On this one cell, inside one snapshot, the flag moves -0.0986;
-over the ten controlled cells the mean is -0.0192 with sign test p = 0.75, so
-the arm5 number is a cell, not a value of the flag.
+The first two rows are 0.0977 apart, so the teacher-vs-earlier-sweep delta of
+-0.1963 is not a measurement of the flag. On this one cell, both sides from
+this branch, the flag moves -0.0986; over the ten controlled cells the mean is
+-0.0192 with sign test p = 0.75, so the arm5 number is a cell, not a value of
+the flag.
 
-All ten cells now carry that check. Nine reproduce the earlier sweep within
+All ten cells carry that check. Nine reproduce the earlier sweep within
 0.0002 — five of them bit-identical across all 97 configs, four agreeing to
 at worst 0.000157 in the aggregate. arm5 base is the only one that does not,
 and it moves 0.09773. `snapshot_reproduction_40k.csv` holds the ten rows.
+
+**That 0.0977 is two backbones, not one path run twice.**
+`replicate_provenance_40k.csv` settles it from artefacts already on disk.
+The earlier sweep's launcher resumes a crashed arm under a fresh `_r<N>` run
+name, so an arm can leave more than one `_40k.pth`, each written by a process
+that entered the HF stream at a different point; the eval takes the newest by
+mtime. arm5's published row was evaluated on `..._r3_40k.pth`, written by a
+run resumed at step 25 001. The other nine published rows used the base run.
+This branch's re-run repeats the base run of all ten arms step for step —
+40 000 of 40 000 steps identical on `loss`, `ff`, `gap` and
+`hf_rows_consumed` — so arm5's training path is reproducible, and the one row
+that misses is the one row published off a resumed backbone. Under the same
+flags and the same seed, the base run and the resumed run disagree on 14 999
+of their 15 000 shared steps.
 
 So a delta in this directory means one of two different things, and
 `code_snapshot` is how a reader tells them apart:
@@ -199,6 +214,12 @@ python3 experiments/2026-08-01_lalign_teacher/scripts/snapshot_reproduction.py \
   --results reports/2026-08-04_lalign_teacher/results \
   --student-379-results reports/2026-07-21_split_pred_rep_small/results \
   --out reports/2026-08-04_lalign_teacher/results/snapshot_reproduction_40k.csv
+python3 experiments/2026-08-01_lalign_teacher/scripts/replicate_provenance.py \
+  --runs-379 experiments/2026-07-21_split_pred_rep_small/runs \
+  --eval-379 experiments/2026-07-21_split_pred_rep_small/eval_gm_mase \
+  --runs-390 experiments/2026-08-01_lalign_teacher/runs \
+  --snapshot reports/2026-08-04_lalign_teacher/results/snapshot_reproduction_40k.csv \
+  --out reports/2026-08-04_lalign_teacher/results/replicate_provenance_40k.csv
 python3 experiments/2026-08-01_lalign_teacher/scripts/seed_spread.py \
   --table reports/2026-08-04_lalign_teacher/results/gm_relative_mase.csv \
   --ci reports/2026-08-04_lalign_teacher/results/eval_bootstrap_ci.csv \

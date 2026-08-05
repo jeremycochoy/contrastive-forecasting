@@ -44,7 +44,9 @@ The right panel moves the flag and the code snapshot together, so only the left 
 | `arm6_v2 ncpc` | 1.362271 | 1.362114 | −0.000157 | 0 |
 | `arm6_v2 combab` | 1.202512 | 1.202512 | +0.000000 | 97 |
 
-*The student control against the earlier sweep's number for the same cell: same flag, different code snapshot (`results/snapshot_reproduction_40k.csv`).*
+*The student control against the earlier sweep's number for the same cell: same flag, same backbone seed, same command line (`results/snapshot_reproduction_40k.csv`).*
+
+The one cell that misses is the one cell the earlier sweep published off a resumed backbone. Its launcher gives a resumed run a fresh `_r<N>` name, so an arm can leave more than one 40k snapshot and the eval takes the newest; `arm5 base` was evaluated on a run resumed at step 25 001, the other nine on the base run. This branch re-ran all ten and repeats the base run of each step for step — 40 000 of 40 000 steps identical on loss and on every logged diagnostic — so the 0.0977 is the distance between two backbones, not the spread of one training path run twice (`results/replicate_provenance_40k.csv`).
 
 ## 2. How far a cell moves under nothing but a head seed, on four frozen backbones
 
@@ -237,6 +239,7 @@ Quantile head, trained on the frozen backbone, `--grad-clip 1.0` at every horizo
 - The head budget changes with the backbone step (15k at 40k, 30k at 100k and 200k), so any within-arm statement across backbone steps moves two things at once.
 - The 200k row compares a teacher-selected subset against a differently selected subset of the earlier sweep, so no like-for-like 200k claim is available.
 - Section 5 changes the flag and the code snapshot together.
+- Every backbone in this report, both targets, is seed 20260520. Nine of ten controls reproducing the earlier sweep therefore measures determinism given that seed, not the spread across backbone seeds. No cell here carries a second backbone seed, so the controlled deltas in section 1 are ten one-seed differences.
 
 ### Training-curve diagnostics
 

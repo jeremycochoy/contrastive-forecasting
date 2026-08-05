@@ -1,0 +1,11 @@
+arm_slug,published_backbone_379,replicate_used_379,replicates_present,branch_matches_replicate,per_replicate_identical_steps,gm_student_379,gm_student_390,snapshot_diff,reproduces
+arm5,bb_small_arm5_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_r3_40k.pth,r3,r1:1-62500* r2:50001-100000 r3:25001-40000*,r1,r1:40000/40000 r3:0/15000,1.547783,1.450053,-0.097730,no
+arm5_tr1,bb_small_arm5_tr1_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth,r1,r1:1-40000* r2:40001-100000,r1,r1:40000/40000,1.325372,1.325372,+0.000000,yes
+arm5_nse,bb_small_arm5_nse_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth,r1,r1:1-40000* r2:40001-100000 r3:100001-200000,r1,r1:40000/40000,1.468179,1.468179,+0.000000,yes
+arm5_ncpc,bb_small_arm5_ncpc_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth,r1,r1:1-40000* r2:40001-100000 r3:100001-200000,r1,r1:40000/40000,1.507886,1.507886,+0.000000,yes
+arm5_combab,bb_small_arm5_combab_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth,r1,r1:1-40000* r2:40001-100000 r3:100001-200000,r1,r1:40000/40000,1.286777,1.286803,+0.000026,yes
+arm6_v2,bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth,r1,r1:1-40000* r2:40001-100000,r1,r1:40000/40000,1.314899,1.314870,-0.000028,yes
+arm6_v2_tr1,bb_small_arm6_v2_tr1_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth,r1,r1:1-40000* r2:40001-100000,r1,r1:40000/40000,1.468361,1.468361,+0.000000,yes
+arm6_v2_nse,bb_small_arm6_v2_nse_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth,r1,r1:1-40000* r2:40001-100000,r1,r1:40000/40000,1.379123,1.379195,+0.000072,yes
+arm6_v2_ncpc,bb_small_arm6_v2_ncpc_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth,r1,r1:1-40000* r2:40001-100000 r3:100001-200000,r1,r1:40000/40000,1.362271,1.362114,-0.000157,yes
+arm6_v2_combab,bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth,r1,r1:1-40000* r2:40001-100000 r3:100001-200000,r1,r1:40000/40000,1.202512,1.202512,+0.000000,yes
