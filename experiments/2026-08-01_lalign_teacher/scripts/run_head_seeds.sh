@@ -9,8 +9,10 @@
 # has to clear that spread.
 #
 # Nothing but `--seed` changes: same backbone checkpoint, same head steps,
-# same eval. `eval_arm.sh` takes the seed from HEAD_SEED and the output
-# directory from CELL_TAG, both defaulted to the waves' own values.
+# same eval. `eval_arm.sh` takes the seed from HEAD_SEED, and the seed is
+# part of the cell name, so each seed gets its own output directory without
+# this script naming one. CELL_TAG carries only what the seed does not: the
+# student side's own backbone.
 #
 # Usage:
 #   WT=/home/jupyter/wt-cf-390-train SEEDS="20260723 20260724" \
@@ -56,8 +58,8 @@ seed_job() {  # <arm>@<bb_k>@<head_steps>@<side>@<seed>  <gpu>
   local arm bbk hds side seed suffix tag
   IFS='@' read -r arm bbk hds side seed <<< "$spec"
   case "$side" in
-    teacher) suffix=alignteacher; tag="_s${seed}" ;;
-    student) suffix=alignstudent; tag="_alignstudent_s${seed}" ;;
+    teacher) suffix=alignteacher; tag="" ;;
+    student) suffix=alignstudent; tag="_alignstudent" ;;
     *) say "SKIP $spec — unknown side '$side'"; return 2 ;;
   esac
   say "START $arm bb${bbk}k hd${hds} $side seed=$seed on GPU $gpu"

@@ -46,12 +46,14 @@ def _load(path: Path, name: str):
 
 
 eb = _load(HERE / "eval_bootstrap.py", "cf390_eval_bootstrap_for_verify")
+cid = eb.cid
 
 N_CONFIGS = 97
-SEEDS = ("20260722", "20260723", "20260724")
+SEEDS = (cid.DEFAULT_HEAD_SEED, "20260723", "20260724")
 
-# (arm, align target) -> cell name template. The wave's own seed 20260722 has
-# no `_s<seed>` tag; the two replicates do.
+# (arm, align target) -> cell name template. The wave's own seed has no
+# `_s<seed>` tag; the two replicates do. Which is which comes from the
+# cell-identity library, not from a rule restated here.
 CELLS = {
     ("arm5", "teacher"): ("arm5{tag}_bb40k_hd15000s", (1.3515, 1.3765, 1.3927)),
     ("arm5", "student"): ("arm5_alignstudent{tag}_bb40k_hd15000s",
@@ -66,7 +68,7 @@ VAL_RE = re.compile(r"\((?P<n>\d+) configs\):\s*(?P<v>[0-9.]+)")
 
 
 def cell_name(template: str, seed: str) -> str:
-    return template.format(tag="" if seed == SEEDS[0] else f"_s{seed}")
+    return template.format(tag=cid.head_seed_tag(seed))
 
 
 def main() -> int:

@@ -16,7 +16,11 @@ vast sync loop), falling back to the experiments-side
 `<slug>_bb40k_hd15000s/summary.txt` for cells run locally on elisa."""
 from pathlib import Path
 import re
+import sys
 import matplotlib.pyplot as plt
+
+sys.path.insert(0, str(Path(__file__).parent))
+import _cells as C
 
 HERE = Path(__file__).parent
 EVAL_ROOT_EXP = HERE.parent.parent.parent / "experiments" / "2026-08-01_lalign_teacher" / "eval_gm_mase"
@@ -59,10 +63,13 @@ def read_agg(arm_slug):
     """Return (gm_rel_mase, n_configs) or (None, None) if missing.
 
     Prefers the report-flat file (holds full-97 aggregates from vast + local),
-    falls back to the experiments-side summary."""
-    for p in (EVAL_ROOT_REP / f"{arm_slug}_bb40k_hd15000s_summary.txt",
-              EVAL_ROOT_EXP / f"{arm_slug}_bb40k_hd15000s" / "summary.txt"):
-        if not p.exists(): continue
+    falls back to the experiments-side summary. The cell is looked up by
+    coordinate, so a cell measured on a resumed backbone is not read as
+    missing and silently dropped from the figure."""
+    flat = C.one_cell(EVAL_ROOT_REP, arm_slug, 40, 15000, suffix="_summary.txt")
+    nested = C.one_cell(EVAL_ROOT_EXP, arm_slug, 40, 15000)
+    for p in (flat, nested / "summary.txt" if nested else None):
+        if p is None or not p.exists(): continue
         text = p.read_text()
         m_agg = re.search(r"Aggregate\s+GM-Relative\s+MASE\s+\((\d+)\s+configs\):\s+([0-9]+\.[0-9]+)", text)
         if m_agg:

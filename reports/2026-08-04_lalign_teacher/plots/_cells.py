@@ -4,11 +4,22 @@ One place that knows how to find a cell's evaluation, so the progression
 figure and the per-domain radars cannot disagree about which value a cell has.
 Only full-97 aggregates are returned: a partial config count yields a value
 that is not comparable to the others.
+
+The cell name comes from `scripts/eval_cell_identity.py`, the grammar
+`eval_arm.sh` writes the names with. Spelled here instead, the lookup sees
+only the untagged form, so a cell measured on a resumed backbone
+(`<arm>_bb100k_r2_hd30000s` — the wave-2 and wave-3 backbones of this
+experiment are all resumes) reads as missing and drops out of every figure
+at once.
 """
 from pathlib import Path
 import csv
 import math
 import re
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts"))
+import eval_cell_identity as cid  # noqa: E402
 
 HERE = Path(__file__).parent
 RESULTS = HERE.parent / "results"
@@ -53,11 +64,28 @@ def variant_knobs(arm, var):
 def label(arm, var):
     return f"{arm} {VAR_SHORT[var]}"
 
+def one_cell(root, slug, bb, hd, suffix=""):
+    """The one `<root>/<cell><suffix>` of this coordinate, or None.
+
+    Two measured replicates is the choice `resolve_eval_checkpoint.sh`
+    refuses to make; a figure must not make it silently by taking whichever
+    it listed first.
+    """
+    hits = cid.cell_paths(root, slug, bb, hd, suffix=suffix)
+    if len(hits) > 1:
+        raise SystemExit(
+            f"{slug} at bb{bb}k/hd{hd}s: {len(hits)} replicate cells in "
+            f"{root} ({', '.join(p.name for p in hits)}) — name the one the "
+            "figures should cite.")
+    return hits[0] if hits else None
+
+
 def read_aggregate(slug, bb, hd):
     """Aggregate GM-Relative MASE for one cell, or None unless it covers 97 configs."""
-    for p in (REP / f"{slug}_bb{bb}k_hd{hd}s_summary.txt",
-              EXP / f"{slug}_bb{bb}k_hd{hd}s" / "summary.txt"):
-        if not p.exists(): continue
+    flat = one_cell(REP, slug, bb, hd, suffix="_summary.txt")
+    nested = one_cell(EXP, slug, bb, hd)
+    for p in (flat, nested / "summary.txt" if nested else None):
+        if p is None or not p.exists(): continue
         m = re.search(r"Aggregate.*\((\d+) configs\):\s+([0-9.]+)", p.read_text())
         if m and m.group(1) == "97": return float(m.group(2))
     return None
@@ -101,7 +129,10 @@ def per_domain_relative_mase(slug, bb, hd):
     Returns (mapping, n_configs_per_domain) or (None, None) if the cell has no
     complete per-config file.
     """
-    for base in (REP / f"{slug}_bb{bb}k_hd{hd}s", EXP / f"{slug}_bb{bb}k_hd{hd}s" / "gift"):
+    flat = one_cell(REP, slug, bb, hd)
+    nested = one_cell(EXP, slug, bb, hd)
+    for base in (flat, nested / "gift" if nested else None):
+        if base is None: continue
         csv_path = base / "all_results.csv"
         if csv_path.exists(): break
     else:

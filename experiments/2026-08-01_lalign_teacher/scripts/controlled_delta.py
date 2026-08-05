@@ -67,7 +67,6 @@ import csv
 import importlib.util
 import math
 import os
-import re
 import sys
 from pathlib import Path
 
@@ -86,12 +85,17 @@ def _load(path: Path, name: str):
 
 
 eb = _load(HERE / "eval_bootstrap.py", "cf390_eval_bootstrap_for_delta")
+cid = eb.cid
 
 ARMS = eb.ARMS
 N_BOOT = eb.N_BOOT
 BOOT_SEED = 20260805   # not eval_bootstrap's, so the two tables are
                        # independent draws rather than accidentally coupled
-WAVE_HEAD_SEED = "20260722"   # the seed every wave cell was measured under
+# The seed every wave cell was measured under, from the cell-identity
+# library: the same constant decides whether a cell name carries a
+# `_s<seed>` token, so a second copy here would read the wave's own cells as
+# a replicate seed's the moment the two drifted.
+WAVE_HEAD_SEED = cid.DEFAULT_HEAD_SEED
 
 
 def paired_cluster_boot(t: dict[str, float], s: dict[str, float],
@@ -131,28 +135,34 @@ def seed_cells(results: str, arm: str, bb_k: int, hd: int,
     A per-seed difference needs both sides at that seed. A seed present on
     one side only would otherwise pair a teacher head against a student head
     trained from a different seed, which is not the comparison.
+
+    Names are read with `scripts/eval_cell_identity.py`, so a cell measured
+    on a resumed backbone is seen rather than skipped — and two replicates of
+    one (side, seed) is the choice `resolve_eval_checkpoint.sh` refuses to
+    make, refused here the same way.
     """
     root = Path(results) / "eval_gm_mase"
-    suffix = f"_bb{bb_k}k_hd{hd}s"
-    found: dict[str, dict[str, str]] = {}
-    for side, pattern in (
-            ("teacher", re.compile(rf"^{re.escape(arm)}"
-                                   rf"(?:_s(?P<seed>\d{{6,}}))?"
-                                   rf"{re.escape(suffix)}$")),
-            ("student", re.compile(rf"^{re.escape(arm)}_alignstudent"
-                                   rf"(?:_s(?P<seed>\d{{6,}}))?"
-                                   rf"{re.escape(suffix)}$"))):
-        for p in sorted(root.glob(f"*{suffix}")):
-            if not p.is_dir():
-                continue
-            m = pattern.match(p.name)
-            if not m:
-                continue
-            seed = m.group("seed") or WAVE_HEAD_SEED
-            found.setdefault(seed, {})[side] = p.name
-    return {seed: (sides["teacher"], sides["student"])
-            for seed, sides in sorted(found.items())
-            if "teacher" in sides and "student" in sides}
+    sides = {arm: "teacher", f"{arm}_alignstudent": "student"}
+    found: dict[str, dict[str, list[str]]] = {}
+    for p in sorted(root.glob("*")):
+        parsed = cid.parse_cell(p.name)
+        if not p.is_dir() or parsed is None:
+            continue
+        if (parsed.bb_k, parsed.head_steps) != (bb_k, hd):
+            continue
+        slug, seed = cid.split_head_seed(parsed.slug)
+        if slug in sides:
+            found.setdefault(seed, {}).setdefault(sides[slug], []).append(p.name)
+    for seed, by_side in sorted(found.items()):
+        for side, cells in sorted(by_side.items()):
+            if len(cells) > 1:
+                raise SystemExit(
+                    f"{arm} {side} at seed {seed}: {len(cells)} replicate "
+                    f"cells measured ({', '.join(cells)}) — name the one the "
+                    "delta should be over.")
+    return {seed: (by_side["teacher"][0], by_side["student"][0])
+            for seed, by_side in sorted(found.items())
+            if "teacher" in by_side and "student" in by_side}
 
 
 def fmt_list(vals: list[float]) -> str:

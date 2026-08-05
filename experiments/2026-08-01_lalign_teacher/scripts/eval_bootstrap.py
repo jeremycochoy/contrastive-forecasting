@@ -39,10 +39,15 @@ import argparse
 import csv
 import math
 import os
+import sys
 from collections import defaultdict
 
 import numpy as np
 from scipy import stats
+
+sys.path.insert(0, os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "scripts"))
+import eval_cell_identity as cid  # noqa: E402
 
 MASE_COL = "eval_metrics/MASE[0.5]"
 
@@ -69,6 +74,27 @@ def read_mase(path: str) -> dict[str, float]:
     if len(out) != len(rows):
         raise SystemExit(f"{path}: duplicate config rows")
     return out
+
+
+def cell_results(results: str, arm: str, bb_k: int, hd: int):
+    """The one `all_results.csv` of this cell, or None if it was not measured.
+
+    Asked for by coordinate rather than by name: a cell measured on a resumed
+    backbone is `<arm>_bb<K>k_r<N>_hd<H>s`, and spelling the untagged name
+    here drops it from the CI table without saying so. Two measured
+    replicates is the choice `resolve_eval_checkpoint.sh` refuses to make,
+    and this refuses it too.
+    """
+    hits = [d / "all_results.csv"
+            for d in cid.cell_paths(os.path.join(results, "eval_gm_mase"),
+                                    arm, bb_k, hd)
+            if (d / "all_results.csv").is_file()]
+    if len(hits) > 1:
+        raise SystemExit(
+            f"{arm} at bb{bb_k}k/hd{hd}s: {len(hits)} replicate cells "
+            f"measured ({', '.join(p.parent.name for p in hits)}) — name the "
+            "one the interval should be over.")
+    return hits[0] if hits else None
 
 
 def dataset_of(config: str) -> str:
@@ -139,13 +165,14 @@ def main() -> None:
 
     for bb_k, hd in WAVES:
         for arm in ARMS:
-            cell = f"{arm}_bb{bb_k}k_hd{hd}s"
-            t_path = os.path.join(args.teacher_results, "eval_gm_mase", cell,
-                                  "all_results.csv")
-            s_path = os.path.join(args.student_results, "eval_gm_mase", cell,
-                                  "all_results.csv")
-            if not (os.path.isfile(t_path) and os.path.isfile(s_path)):
+            t_path = cell_results(args.teacher_results, arm, bb_k, hd)
+            s_path = cell_results(args.student_results, arm, bb_k, hd)
+            if t_path is None or s_path is None:
                 continue
+            # The cell the row is filed under is the teacher side's, which is
+            # the one this report measured; it carries the replicate when the
+            # backbone was a resume.
+            cell = t_path.parent.name
             t = read_mase(t_path)
             s = read_mase(s_path)
             configs = sorted(set(t) & set(s))

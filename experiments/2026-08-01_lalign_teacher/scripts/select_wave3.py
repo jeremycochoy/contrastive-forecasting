@@ -26,6 +26,10 @@ import os
 import re
 import sys
 
+sys.path.insert(0, os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "scripts"))
+import eval_cell_identity as cid  # noqa: E402
+
 AGG = re.compile(r"Aggregate GM-Relative MASE \((\d+) configs\):\s*([0-9.]+)")
 # Returned in place of a value when two replicates of one cell are measured.
 AMBIGUOUS = "ambiguous"
@@ -36,14 +40,13 @@ DEFAULT_ARMS = ["arm5", "arm5_tr1", "arm5_nse", "arm5_ncpc", "arm5_combab",
 
 def cell_summaries(root, arm, bb_k, head_steps):
     """Every summary for this (arm, backbone step, head steps), whichever
-    replicate measured it. More than one is an ambiguity, not a choice."""
-    pattern = re.compile(
-        rf"^{re.escape(arm)}_bb{bb_k}k(_r\d+)?_hd{head_steps}s_summary\.txt$")
-    try:
-        names = os.listdir(root)
-    except OSError:
-        return []
-    return sorted(os.path.join(root, n) for n in names if pattern.match(n))
+    replicate measured it. More than one is an ambiguity, not a choice.
+
+    The name grammar comes from `scripts/eval_cell_identity.py`, the same one
+    `eval_arm.sh` builds the cell from — a second copy of it here is how a
+    replicate-backed cell starts reading as missing again."""
+    return [str(p) for p in cid.cell_paths(root, arm, bb_k, head_steps,
+                                           suffix="_summary.txt")]
 
 
 def read_value(root, arm, bb_k, head_steps):

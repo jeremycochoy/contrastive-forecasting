@@ -83,7 +83,7 @@ done
 ok=0
 for arm in "${ARM_LIST[@]}"; do
   mapfile -t found < <(eval_cell_summaries "$EXP/eval_gm_mase" "$arm" \
-                         "$BB_STEP_K" "$HEAD_STEPS")
+                         "$BB_STEP_K" "$HEAD_STEPS" "$EVAL_DEFAULT_HEAD_SEED")
   cell="${arm}_bb${BB_STEP_K}k*_hd${HEAD_STEPS}s"   # what was looked for
   if [ "${#found[@]}" -gt 1 ]; then
     log "  $cell: AMBIGUOUS — ${#found[@]} replicate cells measured, not counting one:"

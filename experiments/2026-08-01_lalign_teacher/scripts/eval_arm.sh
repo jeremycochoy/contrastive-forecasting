@@ -16,15 +16,17 @@
 # a file from another step or another run is refused rather than published
 # under this cell's name.
 #
-# The cell carries the replicate the backbone came from, so the two never
-# share a directory, a head or an aggregate:
+# The cell carries what decides its number — the backbone replicate and the
+# head seed — so two measurements never share a directory, a head or an
+# aggregate:
 #
-#   arm5_bb40k_hd15000s        the base run's 40k backbone
-#   arm5_bb40k_r3_hd15000s     the same arm's third resume, at the same step
+#   arm5_bb40k_hd15000s            the base run's 40k backbone, wave seed
+#   arm5_bb40k_r3_hd15000s         the same arm's third resume, same step
+#   arm5_s20260723_bb40k_hd15000s  the same backbone, another head seed
 #
-# The base run's token is empty, so every cell name the report cites is
-# unchanged. A cell already measured from one replicate is never reused for
-# another.
+# The base run's token and the wave seed's token are both empty, so every
+# cell name the report cites is unchanged. A cell already measured from one
+# replicate, or under one seed, is never reused for another.
 #
 # The wave decides (BB_STEP_K, HEAD_STEPS):
 #   wave 1 |  40k backbone, 15 000-step head
@@ -51,13 +53,15 @@
 #   23 97 rows on disk and no Aggregate line in gift/summary.txt
 #   24 the aggregate is not over 97 configs
 #   25 the resolver returned a path this run cannot name a cell from
+#      (E_BAD_TAG, from the cell-identity library — #379's eval uses the
+#      same number for the same condition)
 #
 # Anything else is the head trainer's own status, and the `head-train rc=`
 # line right above it in the log says so.
 set -uo pipefail
 
 E_SETUP=20; E_NO_HEAD=21; E_PARTIAL=22; E_NO_AGGREGATE=23
-E_AGG_SCOPE=24; E_BAD_TAG=25
+E_AGG_SCOPE=24
 
 WT="${WT:-$HOME/wt-cf-390-train}"
 case "$WT" in
@@ -73,6 +77,15 @@ ROOT="$(cd -P "$HERE/../../.." && pwd)"
 # shellcheck source=arm_names.sh
 source "$HERE/arm_names.sh"
 
+# The cell-identity library, loaded before the knobs below because it holds
+# the head-seed default they take: the same value decides whether the cell
+# name carries a `_s<seed>` token, so a second copy of it here would rename
+# every cell the moment the two drifted. It also carries E_BAD_TAG.
+CELL_IDENTITY="$ROOT/scripts/eval_cell_identity.sh"
+[ -f "$CELL_IDENTITY" ] || { echo "ABORT: no cell-identity library at $CELL_IDENTITY" >&2; exit $E_SETUP; }
+# shellcheck source=/dev/null
+source "$CELL_IDENTITY"
+
 ARM="${ARM:?set ARM=<slug>}"
 BB_GPU="${BB_GPU:?set BB_GPU=0 or 1}"
 BB_STEP_K="${BB_STEP_K:-40}"
@@ -81,11 +94,12 @@ N_CONFIGS_EXPECTED=97
 MAX_EVAL_TRIES="${MAX_EVAL_TRIES:-3}"
 # Two knobs the review added, both defaulted to what every wave already ran:
 #   HEAD_SEED — the head's init/data seed. Review item 4 measures the spread
-#               over seeds; the waves all used 20260722, #379's value.
-#   CELL_TAG  — inserted into the cell name, so a replicate seed or the
-#               student control gets its own output directory instead of
-#               resuming the wave's head off disk.
-HEAD_SEED="${HEAD_SEED:-20260722}"
+#               over seeds; the waves all used the library's default,
+#               #379's value. It is part of the cell name, so a seed cannot
+#               land on another seed's directory, head or aggregate.
+#   CELL_TAG  — appended to the arm slug, for a variation the seed does not
+#               name: the student control's own backbone (`_alignstudent`).
+HEAD_SEED="${HEAD_SEED:-$EVAL_DEFAULT_HEAD_SEED}"
 CELL_TAG="${CELL_TAG:-}"
 # The replicate to evaluate, when a resumed run left more than one backbone at
 # this step. Empty means "resolve it", which only succeeds when there is one.
@@ -115,23 +129,21 @@ NAME="$(bb_name "$ARM")" || exit $E_SETUP
 # It comes from this script's own checkout ($ROOT), never from $WT — see the
 # `cd -P` note above.
 CKPT_RESOLVER="$ROOT/scripts/resolve_eval_checkpoint.sh"
-CELL_IDENTITY="$ROOT/scripts/eval_cell_identity.sh"
 [ -f "$CKPT_RESOLVER" ] || { echo "ABORT: no checkpoint resolver at $CKPT_RESOLVER" >&2; exit $E_SETUP; }
-[ -f "$CELL_IDENTITY" ] || { echo "ABORT: no cell-identity library at $CELL_IDENTITY" >&2; exit $E_SETUP; }
-# shellcheck source=/dev/null
-source "$CELL_IDENTITY"
 BB=$(bash "$CKPT_RESOLVER" "$RUNS" "$NAME" "$BB_STEP_K" "$BB_CHECKPOINT") || exit $?
 
-# The cell is named after the backbone it cites, replicate included. Without
-# the token a `_r<N>` backbone lands in the base run's directory, where
-# head-train SKIPs on the base run's head and the 97-row check lifts the base
-# run's aggregate — the replicate then reports another backbone's number and
-# exits 0. Empty for the base run, so the committed cell names do not move.
+# The cell is named after everything that decides its number: the backbone it
+# cites, replicate included, and the head seed. Without a token a second
+# replicate or a second seed lands in the first one's directory, where
+# head-train SKIPs on the first one's head and the 97-row check lifts its
+# aggregate — the run then reports a number it never measured and exits 0.
+# Both tokens are empty at the wave's own values, so the committed cell names
+# do not move.
 REPL_TAG="$(replicate_tag "$NAME" "$BB_STEP_K" "$BB")" || {
   echo "ABORT: resolved checkpoint is not '$NAME' at ${BB_STEP_K}k: $BB" >&2
   exit $E_BAD_TAG; }
 
-CELL="$(eval_cell_name "${ARM}${CELL_TAG}" "$BB_STEP_K" "$REPL_TAG" "$HEAD_STEPS")"
+CELL="$(eval_cell_name "${ARM}${CELL_TAG}" "$BB_STEP_K" "$REPL_TAG" "$HEAD_STEPS" "$HEAD_SEED")"
 OUT="$OUT_ROOT/$CELL"; mkdir -p "$OUT"
 HEAD_NAME="qhead_2L_${NAME}_bb${BB_STEP_K}k${REPL_TAG}"
 HEAD_CKPT="$OUT/${HEAD_NAME}_final.pth"

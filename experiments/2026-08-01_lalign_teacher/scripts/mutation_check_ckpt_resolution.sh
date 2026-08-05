@@ -17,17 +17,23 @@ cd "$ROOT" || exit 2
 
 RESOLVER="scripts/resolve_eval_checkpoint.sh"
 IDENTITY="scripts/eval_cell_identity.sh"
+IDENTITY_PY="scripts/eval_cell_identity.py"
 EVAL="experiments/2026-08-01_lalign_teacher/scripts/eval_arm.sh"
 EVAL379="experiments/2026-07-21_split_pred_rep_small/scripts/eval_2L_gm_mase.sh"
 PIPE="experiments/2026-08-01_lalign_teacher/scripts/pipeline.sh"
 WAVE="experiments/2026-08-01_lalign_teacher/scripts/eval_wave.sh"
 GATE="experiments/2026-08-01_lalign_teacher/scripts/select_wave3.py"
+BOOT="experiments/2026-08-01_lalign_teacher/scripts/eval_bootstrap.py"
+TABLE="experiments/2026-08-01_lalign_teacher/scripts/make_gm_table.py"
+BATCH="experiments/2026-08-01_lalign_teacher/scripts/run_student_control_batch.sh"
+CELLS="reports/2026-08-04_lalign_teacher/plots/_cells.py"
 RUNARM="experiments/2026-08-01_lalign_teacher/scripts/run_arm.sh"
 PARITY="experiments/2026-08-01_lalign_teacher/scripts/verify_ckpt_resolution_parity.sh"
-TESTS="tests/test_eval_checkpoint_resolution.py tests/test_eval_cell_identity.py"
+TESTS="tests/test_eval_checkpoint_resolution.py tests/test_eval_cell_identity.py
+       tests/test_390_analysis_scripts.py tests/test_390_eval_path_shape.py"
 
-FILES=("$RESOLVER" "$IDENTITY" "$EVAL" "$EVAL379" "$PIPE" "$WAVE" "$GATE"
-       "$RUNARM" "$PARITY")
+FILES=("$RESOLVER" "$IDENTITY" "$IDENTITY_PY" "$EVAL" "$EVAL379" "$PIPE"
+       "$WAVE" "$GATE" "$BOOT" "$TABLE" "$BATCH" "$CELLS" "$RUNARM" "$PARITY")
 SAFE="$(mktemp -d)"
 for f in "${FILES[@]}"; do mkdir -p "$SAFE/$(dirname "$f")"; cp "$f" "$SAFE/$f"; done
 restore(){ local f; for f in "${FILES[@]}"; do cp "$SAFE/$f" "$f"; done; }
@@ -229,31 +235,99 @@ mutate "parity: scope note dropped" "$PARITY" \
 
 # --- eval_cell_identity.sh: the output identity --------------------------
 mutate "identity: cell name drops the replicate token" "$IDENTITY" \
-"  printf '%s_bb%sk%s_hd%ss' \"\$1\" \"\$2\" \"\$3\" \"\$4\"${SEP}  printf '%s_bb%sk_hd%ss' \"\$1\" \"\$2\" \"\$4\"" \
+"  printf '%s%s_bb%sk%s_hd%ss' \"\$1\" \"\$(head_seed_tag \"\$seed\")\" \"\$2\" \"\$3\" \"\$4\"${SEP}  printf '%s%s_bb%sk_hd%ss' \"\$1\" \"\$(head_seed_tag \"\$seed\")\" \"\$2\" \"\$4\"" \
   test_cell_name_carries_the_replicate_beside_its_step \
   test_a_replicate_cell_is_not_the_base_cell \
   test_390_eval_arm_replicate_gets_its_own_cell \
   test_390_eval_arm_replicate_does_not_lift_the_base_runs_number
+
+mutate "identity: cell name drops the head-seed token" "$IDENTITY" \
+"  printf '%s%s_bb%sk%s_hd%ss' \"\$1\" \"\$(head_seed_tag \"\$seed\")\" \"\$2\" \"\$3\" \"\$4\"${SEP}  printf '%s_bb%sk%s_hd%ss' \"\$1\" \"\$2\" \"\$3\" \"\$4\"" \
+  test_cell_name_carries_the_head_seed_beside_the_slug \
+  test_a_second_head_seed_is_not_the_first_seeds_cell \
+  test_390_eval_arm_head_seed_gets_its_own_cell \
+  test_390_eval_arm_head_seed_does_not_lift_the_other_seeds_number
+
+mutate "identity: every head seed carries a token, so the base cells move" "$IDENTITY" \
+'  [ "$1" = "$EVAL_DEFAULT_HEAD_SEED" ] || printf '"'"'_s%s'"'"' "$1"'"$SEP"'  printf '"'"'_s%s'"'"' "$1"' \
+  test_the_wave_seed_has_no_token \
+  test_cell_name_without_a_replicate_is_the_committed_shape \
+  test_390_eval_arm_base_cell_keeps_its_committed_name
+
+mutate "identity: the head seed is read inside the substitution again" "$IDENTITY" \
+'  local seed="$5"
+  printf'"$SEP"'  local seed="${5:-$EVAL_DEFAULT_HEAD_SEED}"
+  printf' \
+  test_the_head_seed_is_not_optional
 
 mutate "identity: an unrecognised path reads as the base run" "$IDENTITY" \
 '  ckpt_is_run_step "$@" || return 1'"$SEP"'  ckpt_is_run_step "$@" || return 0' \
   test_a_path_of_another_pair_has_no_token
 
 mutate "identity: cell lookup misses the replicate cells" "$IDENTITY" \
-'  for f in "$1/$(eval_cell_name "$2" "$3" "" "$4")_summary.txt" \
-           "$1/$2_bb$3k"_r[0-9]*"_hd$4s_summary.txt"; do'"$SEP"'  for f in "$1/$(eval_cell_name "$2" "$3" "" "$4")_summary.txt"; do' \
+'  for f in "$1/$(eval_cell_name "$2" "$3" "" "$4" "$seed")_summary.txt" \
+           "$1/${slug}_bb$3k"_r[0-9]*"_hd$4s_summary.txt"; do'"$SEP"'  for f in "$1/$(eval_cell_name "$2" "$3" "" "$4" "$seed")_summary.txt"; do' \
   test_a_replicate_cell_summary_is_found \
   test_both_replicates_are_returned_not_one
 
+mutate "identity: the replicate half of the lookup ignores the head seed" "$IDENTITY" \
+'  slug="$2$(head_seed_tag "$seed")"'"$SEP"'  slug="$2"' \
+  test_a_replicate_cell_of_another_seed_is_not_this_cells_summary \
+  test_a_head_seed_cell_measured_on_a_replicate_is_found \
+  test_python_and_bash_find_the_same_summaries
+
 mutate "identity: loose _r*_ in the cell-summary glob" "$IDENTITY" \
-'"$1/$2_bb$3k"_r[0-9]*"_hd$4s_summary.txt"'"$SEP"'"$1/$2_bb$3k"_r*"_hd$4s_summary.txt"' \
+'"$1/${slug}_bb$3k"_r[0-9]*"_hd$4s_summary.txt"'"$SEP"'"$1/${slug}_bb$3k"_r*"_hd$4s_summary.txt"' \
   test_a_non_replicate_suffix_is_not_a_replicate_cell
+
+mutate "identity: the bad-tag code goes back to being per-script" "$IDENTITY" \
+'E_BAD_TAG=25'"$SEP"'E_BAD_TAG=20' \
+  test_the_bad_tag_code_is_the_librarys_and_both_evals_use_it
+
+# --- eval_cell_identity.py: the same grammar, the other binding ----------
+# The readers are Python. A drift between the two bindings is a reader that
+# looks for a name nothing writes.
+mutate "identity.py: the Python default head seed drifts" "$IDENTITY_PY" \
+'DEFAULT_HEAD_SEED = "20260722"'"$SEP"'DEFAULT_HEAD_SEED = "20260721"' \
+  test_python_and_bash_agree_on_the_default_head_seed \
+  test_python_and_bash_build_the_same_cell_name \
+  test_python_and_bash_agree_on_the_head_seed_token
+
+mutate "identity.py: the Python cell name drops the replicate" "$IDENTITY_PY" \
+'            f"_bb{int(bb_k)}k{replicate}_hd{int(head_steps)}s")'"$SEP"'            f"_bb{int(bb_k)}k_hd{int(head_steps)}s")' \
+  test_python_and_bash_build_the_same_cell_name \
+  test_python_parses_back_what_it_builds
+
+mutate "identity.py: the Python lookup misses the replicate cells" "$IDENTITY_PY" \
+'        + r"(?P<repl>_r\d+)?"'"$SEP"'        + r""' \
+  test_python_and_bash_find_the_same_summaries \
+  test_the_figures_find_a_replicate_backed_cell \
+  test_the_bootstrap_finds_a_replicate_backed_cell \
+  test_the_wave3_gate_finds_a_replicate_backed_cell
+
+mutate "identity.py: loose _r.* in the Python cell pattern" "$IDENTITY_PY" \
+'        + r"(?P<repl>_r\d+)?"'"$SEP"'        + r"(?P<repl>_r.*)?"' \
+  test_python_and_bash_find_the_same_summaries
+
+mutate "identity.py: the head-seed split stops splitting" "$IDENTITY_PY" \
+'    m = HEAD_SEED_RE.search(slug)'"$SEP"'    m = None' \
+  test_python_parses_back_what_it_builds test_strip_tags
 
 # --- eval_arm.sh: the cell the number is filed under ---------------------
 mutate "eval: cell name drops the replicate" "$EVAL" \
-'CELL="$(eval_cell_name "${ARM}${CELL_TAG}" "$BB_STEP_K" "$REPL_TAG" "$HEAD_STEPS")"'"$SEP"'CELL="$(eval_cell_name "${ARM}${CELL_TAG}" "$BB_STEP_K" "" "$HEAD_STEPS")"' \
+'CELL="$(eval_cell_name "${ARM}${CELL_TAG}" "$BB_STEP_K" "$REPL_TAG" "$HEAD_STEPS" "$HEAD_SEED")"'"$SEP"'CELL="$(eval_cell_name "${ARM}${CELL_TAG}" "$BB_STEP_K" "" "$HEAD_STEPS" "$HEAD_SEED")"' \
   test_390_eval_arm_replicate_gets_its_own_cell \
   test_390_eval_arm_replicate_does_not_lift_the_base_runs_number
+
+mutate "eval: cell name drops the head seed" "$EVAL" \
+'CELL="$(eval_cell_name "${ARM}${CELL_TAG}" "$BB_STEP_K" "$REPL_TAG" "$HEAD_STEPS" "$HEAD_SEED")"'"$SEP"'CELL="$(eval_cell_name "${ARM}${CELL_TAG}" "$BB_STEP_K" "$REPL_TAG" "$HEAD_STEPS" "$EVAL_DEFAULT_HEAD_SEED")"' \
+  test_390_eval_arm_head_seed_gets_its_own_cell \
+  test_390_eval_arm_head_seed_does_not_lift_the_other_seeds_number \
+  test_390_eval_arm_head_seed_trains_its_own_head
+
+mutate "eval: the head seed default is restated here" "$EVAL" \
+'HEAD_SEED="${HEAD_SEED:-$EVAL_DEFAULT_HEAD_SEED}"'"$SEP"'HEAD_SEED="${HEAD_SEED:-20260722}"' \
+  test_head_seed_default_is_379s_literal
 
 mutate "eval: head name drops the replicate" "$EVAL" \
 'HEAD_NAME="qhead_2L_${NAME}_bb${BB_STEP_K}k${REPL_TAG}"'"$SEP"'HEAD_NAME="qhead_2L_${NAME}_bb${BB_STEP_K}k"' \
@@ -284,8 +358,12 @@ mutate "eval: exit codes undocumented" "$EVAL" \
 
 # --- eval_2L_gm_mase.sh: #379's call site, same two defects --------------
 mutate "379 eval: cell name drops the replicate" "$EVAL379" \
-'CELL="$(eval_cell_name "$ARM" "$BB_STEP_K" "$REPL_TAG" "$HEAD_STEPS")"'"$SEP"'CELL="$(eval_cell_name "$ARM" "$BB_STEP_K" "" "$HEAD_STEPS")"' \
+'CELL="$(eval_cell_name "$ARM" "$BB_STEP_K" "$REPL_TAG" "$HEAD_STEPS" "$HEAD_SEED")"'"$SEP"'CELL="$(eval_cell_name "$ARM" "$BB_STEP_K" "" "$HEAD_STEPS" "$HEAD_SEED")"' \
   test_379_eval_names_its_cell_after_the_replicate
+
+mutate "379 eval: the bad-tag abort reuses the setup code" "$EVAL379" \
+'  exit $E_BAD_TAG; }'"$SEP"'  exit 20; }' \
+  test_the_bad_tag_code_is_the_librarys_and_both_evals_use_it
 
 mutate "379 eval: summary drops the backbone line" "$EVAL379" \
 '  { echo "$AGG"; echo "backbone: $BB"; } > "$OUT/summary.txt"'"$SEP"'  echo "$AGG" > "$OUT/summary.txt"' \
@@ -296,10 +374,60 @@ mutate "379 eval: script path resolved logically" "$EVAL379" \
   test_eval_script_takes_the_resolver_from_its_own_checkout \
   test_379_eval_finds_its_own_resolver_through_a_symlink
 
-# --- select_wave3.py: the gate reads the cells the waves wrote -----------
+# --- the readers: cells looked up by name rather than by coordinate ------
+# Each of these is the same defect in a different file: a replicate-backed
+# cell reads as missing, and the number quietly leaves the table, the figure
+# or the batch's skip check.
 mutate "gate: replicate cells read as missing" "$GATE" \
-'        rf"^{re.escape(arm)}_bb{bb_k}k(_r\d+)?_hd{head_steps}s_summary\.txt$")'"$SEP"'        rf"^{re.escape(arm)}_bb{bb_k}k_hd{head_steps}s_summary\.txt$")' \
+'    return [str(p) for p in cid.cell_paths(root, arm, bb_k, head_steps,
+                                           suffix="_summary.txt")]'"$SEP"'    import os, re
+    pattern = re.compile(
+        rf"^{re.escape(arm)}_bb{bb_k}k_hd{head_steps}s_summary\.txt$")
+    try:
+        names = os.listdir(root)
+    except OSError:
+        return []
+    return sorted(os.path.join(root, n) for n in names if pattern.match(n))' \
   test_the_wave3_gate_finds_a_replicate_backed_cell
+
+mutate "bootstrap: replicate cells read as missing" "$BOOT" \
+'    hits = [d / "all_results.csv"
+            for d in cid.cell_paths(os.path.join(results, "eval_gm_mase"),
+                                    arm, bb_k, hd)
+            if (d / "all_results.csv").is_file()]'"$SEP"'    from pathlib import Path as _P
+    _p = _P(results) / "eval_gm_mase" / f"{arm}_bb{bb_k}k_hd{hd}s" / "all_results.csv"
+    hits = [_p] if _p.is_file() else []' \
+  test_the_bootstrap_finds_a_replicate_backed_cell
+
+mutate "bootstrap: two replicate cells resolved by picking one" "$BOOT" \
+'    if len(hits) > 1:'"$SEP"'    if False:' \
+  test_the_bootstrap_refuses_two_replicates_of_one_cell
+
+mutate "figures: replicate cells read as missing" "$CELLS" \
+'    hits = cid.cell_paths(root, slug, bb, hd, suffix=suffix)'"$SEP"'    hits = [p for p in [root / f"{slug}_bb{bb}k_hd{hd}s{suffix}"] if p.exists()]' \
+  test_the_figures_find_a_replicate_backed_cell
+
+mutate "figures: two replicate cells resolved by picking one" "$CELLS" \
+'    if len(hits) > 1:'"$SEP"'    if False:' \
+  test_the_figures_refuse_two_replicates_of_one_cell
+
+mutate "student batch: replicate cells read as missing" "$BATCH" \
+'  mapfile -t done_cells < <(eval_cell_summaries "$EVAL_ROOT" \
+    "${arm}_alignstudent" "$BB_STEP_K" "$HEAD_STEPS" "$EVAL_DEFAULT_HEAD_SEED")
+  if [ "${#done_cells[@]}" -gt 0 ]; then'"$SEP"'  done_cells=("$EVAL_ROOT/${arm}_alignstudent_bb${BB_STEP_K}k_hd${HEAD_STEPS}s_summary.txt")
+  if [ -f "${done_cells[0]}" ]; then' \
+  test_the_student_batch_skips_a_replicate_backed_cell \
+  test_the_student_batch_does_not_skip_an_unmeasured_cell
+
+# --- make_gm_table.py: two replicates are two measurements ---------------
+mutate "table: the pairing throws the replicate away" "$TABLE" \
+'    return row["arm_slug"], row["bb_steps"], bb_replicate(row)'"$SEP"'    return row["arm_slug"], row["bb_steps"], ""' \
+  test_gm_table_pairing_keys_on_the_replicate
+
+mutate "table: the two replicates collapse into one row" "$TABLE" \
+'        rows.append({'"$SEP"'        rows = [r for r in rows if r["arm_slug"] != arm]
+        rows.append({' \
+  test_gm_table_keeps_a_row_per_replicate
 
 mutate "gate: two replicate cells resolved by picking one" "$GATE" \
 '    if len(paths) > 1:

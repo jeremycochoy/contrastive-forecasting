@@ -8,7 +8,11 @@ a cell was re-headed at this backbone step.
 """
 from pathlib import Path
 import re
+import sys
 import matplotlib.pyplot as plt
+
+sys.path.insert(0, str(Path(__file__).parent))
+import _cells as C
 
 HERE = Path(__file__).parent
 EVAL_ROOT_EXP = HERE.parent.parent.parent / "experiments" / "2026-08-01_lalign_teacher" / "eval_gm_mase"
@@ -51,10 +55,14 @@ def read_agg(arm_slug):
     """Return (gm_rel_mase, n_configs) or (None, None) if missing.
 
     Prefers the report-flat file (holds full-97 aggregates from vast + local),
-    falls back to the experiments-side summary."""
-    for p in (EVAL_ROOT_REP / f"{arm_slug}_bb100k_hd30000s_summary.txt",
-              EVAL_ROOT_EXP / f"{arm_slug}_bb100k_hd30000s" / "summary.txt"):
-        if not p.exists(): continue
+    falls back to the experiments-side summary. The cell is looked up by
+    coordinate, so a cell measured on a resumed backbone — every wave-2
+    backbone here is one — is not read as missing and dropped."""
+    flat = C.one_cell(EVAL_ROOT_REP, arm_slug, 100, 30000,
+                      suffix="_summary.txt")
+    nested = C.one_cell(EVAL_ROOT_EXP, arm_slug, 100, 30000)
+    for p in (flat, nested / "summary.txt" if nested else None):
+        if p is None or not p.exists(): continue
         text = p.read_text()
         m_agg = re.search(r"Aggregate\s+GM-Relative\s+MASE\s+\((\d+)\s+configs\):\s+([0-9]+\.[0-9]+)", text)
         if m_agg:

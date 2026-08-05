@@ -31,6 +31,11 @@ cell was measured on: a resumed run keeps its own `_r<N>` run name, so one
 (arm, step) pair can leave several different backbones. It qualifies the
 backbone, not the arm, so the arm slug is read from the part before `_bb`.
 
+Two replicates of one arm at one step are two measurements on two models, so
+the pairing below keys on the replicate as well as on (arm, backbone step).
+Keyed without it, a teacher `_r2` cell with no student counterpart is
+answered by the base run's student cell and reads as paired.
+
 The `379` matters: the student control of review item 3 is the same arm and
 the same target measured on THIS branch, so it has to be distinguishable
 from the copied #379 measurement it is compared against.
@@ -39,10 +44,15 @@ from the copied #379 measurement it is compared against.
 at all — arm1, arm3, arm4 and bimoco — where the flag names nothing.
 
 The two seeds are properties of the pipeline, not of a cell: the backbone
-seed is the ``SEED=`` line of both launchers and the head seed is
-``eval_arm.sh``'s ``HEAD_SEED`` default, which the argv test pins to #379's
-literal. Both are READ from those scripts here, so this table cannot drift
-from what actually ran. A ``_s<seed>`` cell tag overrides the head seed.
+seed is the ``SEED=`` line of both launchers, READ from them here so this
+table cannot drift from what actually ran. The head seed is the cell-identity
+library's ``DEFAULT_HEAD_SEED`` — the same constant that decides whether a
+cell name carries a ``_s<seed>`` token, so the column and the name cannot
+disagree. A ``_s<seed>`` cell tag overrides it.
+
+The cell-name grammar comes from ``scripts/eval_cell_identity.py``, which is
+what ``eval_arm.sh`` builds the names from. A second copy here is how the
+parse starts disagreeing with the thing it parses.
 
     make_gm_table.py <results-dir> <out.csv>
 """
@@ -51,8 +61,9 @@ import re
 import sys
 from pathlib import Path
 
-CELL_RE = re.compile(
-    r"^(?P<arm>.+?)_bb(?P<bb>\d+)k(?P<repl>_r\d+)?_hd(?P<hd>\d+)s$")
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts"))
+import eval_cell_identity as cid  # noqa: E402
+
 VAL_RE = re.compile(r"\((?P<n>\d+) configs\):\s*(?P<v>[0-9.]+)")
 VARIANTS = ("tr1", "nse", "ncpc", "combab")
 RETRAINED_PREFIX = ("arm5", "arm6_v2")
@@ -67,12 +78,11 @@ LAUNCHER_379 = (REPO / "experiments/2026-07-21_split_pred_rep_small"
                 / "scripts/run_arm.sh")
 EVAL_390 = REPO / "experiments/2026-08-01_lalign_teacher/scripts/eval_arm.sh"
 
-SEED_TAG_RE = re.compile(r"_s(?P<seed>\d{6,})$")
 TARGET_TAG_RE = re.compile(r"_align(?P<target>student|teacher)(?P<src>379)?$")
 
 
 def read_seeds() -> tuple[str, str]:
-    """(backbone seed, default head seed), read off the scripts that ran."""
+    """(backbone seed, default head seed), from the code that ran."""
     seeds = set()
     for p in (LAUNCHER_390, LAUNCHER_379):
         m = re.search(r"(?m)^SEED=(\d+)", p.read_text())
@@ -82,10 +92,7 @@ def read_seeds() -> tuple[str, str]:
     if len(seeds) != 1:
         sys.exit(f"#379 and #390 launchers disagree on the backbone seed: "
                  f"{sorted(seeds)}")
-    m = re.search(r'HEAD_SEED="\$\{HEAD_SEED:-(\d+)\}"', EVAL_390.read_text())
-    if not m:
-        sys.exit(f"no HEAD_SEED default in {EVAL_390}")
-    return seeds.pop(), m.group(1)
+    return seeds.pop(), cid.DEFAULT_HEAD_SEED
 
 
 def strip_tags(arm: str,
@@ -95,10 +102,9 @@ def strip_tags(arm: str,
     changed = True
     while changed:
         changed = False
-        m = SEED_TAG_RE.search(arm)
-        if m:
-            head_seed = m.group("seed")
-            arm = arm[: m.start()]
+        stripped, seed = cid.split_head_seed(arm)
+        if stripped != arm:
+            head_seed, arm = seed, stripped
             changed = True
             continue
         m = TARGET_TAG_RE.search(arm)
@@ -108,6 +114,22 @@ def strip_tags(arm: str,
             arm = arm[: m.start()]
             changed = True
     return arm, target, copied, head_seed
+
+
+def bb_replicate(row: dict) -> str:
+    """The backbone replicate a row's cell was measured on, read back out of
+    its name: `""` for the base run, `_r<N>` for a resume.
+
+    Two replicates of one arm at one step are two models, so every set keyed
+    on (arm, backbone step) has to carry this too — without it the two
+    collapse into one entry and an unpaired replicate reads as paired.
+    """
+    parsed = cid.parse_cell(row["cell"])
+    return parsed.replicate if parsed else ""
+
+
+def pair_key(row: dict) -> tuple[str, int, str]:
+    return row["arm_slug"], row["bb_steps"], bb_replicate(row)
 
 
 def split_arm(arm: str) -> tuple[str, str]:
@@ -125,8 +147,8 @@ def main() -> int:
     rows, bad = [], []
     for f in sorted((res / "eval_gm_mase").glob("*_summary.txt")):
         cell = f.name[: -len("_summary.txt")]
-        m = CELL_RE.match(cell)
-        if not m:
+        parsed = cid.parse_cell(cell)
+        if parsed is None:
             bad.append(f"{cell}: unparseable cell name")
             continue
         vm = VAL_RE.search(f.read_text())
@@ -137,7 +159,7 @@ def main() -> int:
         n_rows = sum(1 for _ in open(csv_path)) - 1 if csv_path.exists() else 0
         if n_rows != int(vm.group("n")):
             bad.append(f"{cell}: summary says {vm.group('n')}, CSV has {n_rows}")
-        arm, tag_target, copied, head_seed = strip_tags(m.group("arm"),
+        arm, tag_target, copied, head_seed = strip_tags(parsed.slug,
                                                         default_head_seed)
         base, variant = split_arm(arm)
         if base not in RETRAINED_PREFIX:
@@ -156,14 +178,17 @@ def main() -> int:
             "arm_slug": arm, "variant": variant,
             "align_target": align_target,
             "code_snapshot": code_snapshot,
-            "bb_steps": int(m.group("bb")) * 1000,
-            "head_steps": int(m.group("hd")),
+            "bb_steps": parsed.bb_k * 1000,
+            "head_steps": parsed.head_steps,
             "bb_seed": bb_seed, "head_seed": head_seed,
             "cell": cell,
             "gm_rel_mase": vm.group("v"), "n_configs": n_rows,
             "source": source,
         })
 
+    # Stable, over rows already in sorted-filename order, so two replicates
+    # of one arm at one step — identical on every key here — keep the cell
+    # order the glob gave them.
     rows.sort(key=lambda r: (r["arm_slug"], r["align_target"], r["bb_steps"],
                              r["head_seed"]))
     with open(out, "w", newline="") as fh:
@@ -177,23 +202,23 @@ def main() -> int:
           f"{n_student} are the student counterparts), "
           f"{len({r['arm_slug'] for r in rows})} arms")
     # The comparison the report is built on: every teacher cell needs a
-    # student cell at the same arm and backbone step, or a delta cannot be
-    # formed from this file.
-    teacher = {(r["arm_slug"], r["bb_steps"]) for r in rows
+    # student cell at the same arm, backbone step AND backbone replicate, or
+    # a delta cannot be formed from this file. Dropping the replicate from
+    # the key answers a teacher `_r2` cell with the base run's student cell.
+    teacher = {pair_key(r) for r in rows
                if r["align_target"] == "teacher"
                and r["head_seed"] == default_head_seed}
-    student = {(r["arm_slug"], r["bb_steps"]) for r in rows
-               if r["align_target"] == "student"}
+    student = {pair_key(r) for r in rows if r["align_target"] == "student"}
     unpaired = sorted(teacher - student)
     print(f"teacher cells at the default head seed: {len(teacher)}; "
           f"paired with a student cell: {len(teacher & student)}")
     if unpaired:
         print("UNPAIRED (no student counterpart): "
-              + " ".join(f"{a}@{s}" for a, s in unpaired))
+              + " ".join(f"{a}{rp}@{s}" for a, s, rp in unpaired))
     # The pairing that actually licenses a statement about the flag: both
     # sides measured on THIS branch. A teacher cell whose only student
     # counterpart is #379's carries the code-snapshot shift as well.
-    same_snap = {(r["arm_slug"], r["bb_steps"]) for r in rows
+    same_snap = {pair_key(r) for r in rows
                  if r["align_target"] == "student"
                  and r["code_snapshot"] == SNAP_390}
     print(f"of those, controlled (student measured on {SNAP_390} too): "
@@ -201,7 +226,7 @@ def main() -> int:
     cross_only = sorted((teacher & student) - same_snap)
     if cross_only:
         print("CROSS-EXPERIMENT ONLY (student is " + SNAP_379 + "): "
-              + " ".join(f"{a}@{s}" for a, s in cross_only))
+              + " ".join(f"{a}{rp}@{s}" for a, s, rp in cross_only))
     short = [r["cell"] for r in rows if r["n_configs"] != 97]
     if short:
         print("NOT 97 CONFIGS: " + " ".join(short))

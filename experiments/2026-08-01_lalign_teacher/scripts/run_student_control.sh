@@ -20,6 +20,14 @@ case "$WT" in
 esac
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
+# The cell-name grammar, from this file's own checkout — the DONE line below
+# looks the measured cell up by name, and a resumed backbone names it
+# `<slug>_bb40k_r<N>_hd15000s`.
+CELL_IDENTITY="$(cd -P "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)/scripts/eval_cell_identity.sh"
+[ -f "$CELL_IDENTITY" ] || { echo "ABORT: no cell-identity library at $CELL_IDENTITY" >&2; exit 2; }
+# shellcheck source=/dev/null
+source "$CELL_IDENTITY"
+
 ARM="${ARM:-arm5}"
 BB_GPU="${BB_GPU:?set BB_GPU=0 or 1}"
 BB_STEP_K="${BB_STEP_K:-40}"
@@ -47,5 +55,7 @@ rc=$?
 say "stage 2/2 rc=$rc"
 [ $rc -eq 0 ] || exit $rc
 
-SUM="$WT/experiments/2026-08-01_lalign_teacher/eval_gm_mase/${ARM}_alignstudent_bb${BB_STEP_K}k_hd${HEAD_STEPS}s_summary.txt"
-say "DONE — $(head -1 "$SUM" 2>/dev/null || echo 'no summary')"
+mapfile -t SUMS < <(eval_cell_summaries \
+  "$WT/experiments/2026-08-01_lalign_teacher/eval_gm_mase" \
+  "${ARM}_alignstudent" "$BB_STEP_K" "$HEAD_STEPS" "$EVAL_DEFAULT_HEAD_SEED")
+say "DONE — $(head -1 "${SUMS[0]:-/dev/null}" 2>/dev/null || echo 'no summary')"

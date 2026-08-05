@@ -36,6 +36,15 @@ esac
 HERE="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=gpu_pool.sh
 source "$HERE/gpu_pool.sh"
+# The cell-name grammar, from this file's own checkout (`cd -P`, because the
+# path here can run through a `scripts/` symlink inside $WT). The skip check
+# below looks a cell up by name, and a cell measured on a resumed backbone is
+# named `<slug>_bb40k_r<N>_hd15000s` — spelled by hand it reads as missing
+# and the batch re-runs a 40 000-step backbone that is already measured.
+CELL_IDENTITY="$(cd -P "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)/scripts/eval_cell_identity.sh"
+[ -f "$CELL_IDENTITY" ] || { echo "ABORT: no cell-identity library at $CELL_IDENTITY" >&2; exit 2; }
+# shellcheck source=/dev/null
+source "$CELL_IDENTITY"
 
 # arm5 already ran (results/student_control_arm5.log, 1.4501). The other nine.
 ARMS="${ARMS:-arm5_tr1 arm5_nse arm5_ncpc arm5_combab arm6_v2 arm6_v2_tr1 arm6_v2_nse arm6_v2_ncpc arm6_v2_combab}"
@@ -51,9 +60,11 @@ say(){ echo "[$(date '+%m-%d %H:%M:%S')] [student-batch] $*" | tee -a "$LOG"; }
 
 ctl_job() {  # <arm> <gpu>
   local arm="$1" gpu="$2"
-  local cell="${arm}_alignstudent_bb${BB_STEP_K}k_hd${HEAD_STEPS}s"
-  if [ -f "$EVAL_ROOT/${cell}_summary.txt" ]; then
-    say "SKIP $arm — $cell already has a 97-config summary"
+  local -a done_cells
+  mapfile -t done_cells < <(eval_cell_summaries "$EVAL_ROOT" \
+    "${arm}_alignstudent" "$BB_STEP_K" "$HEAD_STEPS" "$EVAL_DEFAULT_HEAD_SEED")
+  if [ "${#done_cells[@]}" -gt 0 ]; then
+    say "SKIP $arm — already measured: $(basename "${done_cells[0]}" _summary.txt)"
     return 0
   fi
   say "START $arm on GPU $gpu"
@@ -76,8 +87,10 @@ POOL_RC_DIR="$RES/.pool_student_batch" pool_run "$SLOTS_PER_GPU" ctl_job "${ARM_
 fail=0
 for arm in "${ARM_LIST[@]}"; do
   rc="${POOL_RC[$arm]:-99}"
-  agg="$(head -1 "$EVAL_ROOT/${arm}_alignstudent_bb${BB_STEP_K}k_hd${HEAD_STEPS}s_summary.txt" 2>/dev/null || echo '<no summary>')"
-  say "RESULT $arm rc=$rc — $agg"
+  mapfile -t found < <(eval_cell_summaries "$EVAL_ROOT" "${arm}_alignstudent" \
+    "$BB_STEP_K" "$HEAD_STEPS" "$EVAL_DEFAULT_HEAD_SEED")
+  agg="$(head -1 "${found[0]:-/dev/null}" 2>/dev/null || echo '<no summary>')"
+  say "RESULT $arm rc=$rc — ${agg:-<no summary>}"
   [ "$rc" -eq 0 ] || fail=$(( fail + 1 ))
 done
 say "DONE — ${#ARM_LIST[@]} cells, $fail failed"
