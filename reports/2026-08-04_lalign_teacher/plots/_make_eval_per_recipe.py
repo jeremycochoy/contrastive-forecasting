@@ -133,13 +133,9 @@ fig.legend(handles=handles, loc="lower center", ncol=4, fontsize=8.5,
 n200 = sum(1 for _a, _v, vals in cells if vals[2] is not None)
 down = sum(1 for _a, _v, vals in cells
            if vals[2] is not None and vals[1] is not None and vals[2] < vals[1])
-fig.suptitle("GM-Relative MASE across backbone horizons, one panel per loss recipe\n"
-             f"all 30 cells at 40k and 100k; the {n200} that improved were extended to 200k, "
-             f"of which {down} improved again\n"
-             "seasonal-naive parity (1.0) sits below the drawn range: no cell reaches it "
-             "(sigreg_e=0 also applies to arm1/3/4 combab)",
+fig.suptitle("GM-Relative MASE across backbone horizons, one panel per loss recipe",
              fontsize=11.5)
-fig.tight_layout(rect=[0, 0.075, 1, 0.905])
+fig.tight_layout(rect=[0, 0.075, 1, 0.96])
 out = HERE / "eval_2L_gm_mase_per_recipe.png"
 fig.savefig(out)
 print(f"wrote {out}  ({len(cells)} cells, {n200} at 200k, {down} improved again)")
