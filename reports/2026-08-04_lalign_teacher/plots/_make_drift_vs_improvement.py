@@ -111,8 +111,8 @@ ax.axvspan(100_000, 200_000, color=MUTED, alpha=0.12, zorder=0)
 ax.set_xscale("log")
 ax.set_xlabel("backbone step (log)")
 ax.set_ylabel("Aggregate GM-Relative MASE  (lower is better)")
-ax.set_title(f"2.  GM-Relative MASE, the same {len(focus)} cells, same axis\n"
-             f"arm1 combab starts at 3.13, above the shown range", fontsize=10.5)
+ax.set_title(f"2.  GM-Relative MASE, the same {len(focus)} cells, same axis",
+             fontsize=10.5)
 ax.set_ylim(1.13, 1.85)
 ax.grid(True, color=GRID, alpha=0.7)
 

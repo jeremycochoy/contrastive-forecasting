@@ -6,7 +6,7 @@ Seven of the ten measured cells move past their eval-sampling interval, and thre
 
 *Teacher minus student GM-Relative MASE at backbone 40k: controlled (left), cross-experiment (right).*
 
-The bootstrap interval covers eval sampling only, conditional on the two trained models; the head-seed range, 0.0908, covers retraining the head under a new seed on a frozen backbone. The right panel moves the flag and the code snapshot together, so only the left panel attributes a difference to the flag.
+The right panel moves the flag and the code snapshot together, so only the left panel attributes a difference to the flag.
 
 ![GM-Relative MASE of all 30 cells at backbone 40k, seasonal-naive parity dashed](plots/eval_2L_gm_mase_bars.png)
 
@@ -14,26 +14,13 @@ The bootstrap interval covers eval sampling only, conditional on the two trained
 
 > **Cell** — one loss recipe plus one setting, e.g. `arm5 combab`. The CSVs name it `arm_slug`. A cell measured under several head seeds is still one cell. The recipes and the settings are tabulated in [Protocol](#9-protocol).
 >
+> **`⟲`** — the cell was retrained with `--align-target teacher`.
+>
 > **EMA teacher** — an exponential-moving-average copy of the encoder weights.
 >
 > **GM-Relative MASE** — the metric of every figure here; lower is better, 1.0 is parity with seasonal naive (full definition in [Protocol](#9-protocol)).
 
 ## 1. What the flag does alone
-
-| Cell | teacher | student control (this branch) |
-|---|---|---|
-| `arm5 base` | 1.3515 | 1.4501 |
-| `arm5 tr1` | 1.3396 | 1.3254 |
-| `arm5 nse` | 1.4536 | 1.4682 |
-| `arm5 ncpc` | 1.2923 | 1.5079 |
-| `arm5 combab` | 1.2728 | 1.2868 |
-| `arm6_v2 base` | 1.4322 | 1.3149 |
-| `arm6_v2 tr1` | 1.5315 | 1.4684 |
-| `arm6_v2 nse` | 1.3074 | 1.3792 |
-| `arm6_v2 ncpc` | 1.3159 | 1.3621 |
-| `arm6_v2 combab` | 1.2765 | 1.2025 |
-
-*Controlled comparison at backbone 40k: GM-Relative MASE, teacher target against the same-branch student control (`results/controlled_delta_40k.csv`). The differences and their intervals are the left panel above.*
 
 | Cell | earlier sweep | this branch | difference | configs identical / 97 |
 |---|---|---|---|---|
@@ -50,13 +37,15 @@ The bootstrap interval covers eval sampling only, conditional on the two trained
 
 *Student control against the earlier sweep's number for the same cell (`results/snapshot_reproduction_40k.csv`). ⧗ marks the row measured on a different backbone.*
 
-`arm5 base` ⧗ is the only one of the ten whose earlier-sweep number was measured on a different backbone, a resumed run; the mechanism is in [`results/README.md`](results/README.md). The re-run on this branch reproduces the earlier base run bit-for-bit on every one of the ten arms (`results/replicate_provenance_40k.csv`).
+`arm5 base` ⧗ is the only one whose earlier-sweep number came from a different backbone, a resumed run ([`results/README.md`](results/README.md)); this branch still repeats every one of the ten backbones step for step (`results/replicate_provenance_40k.csv`), so the eval differences above are the code snapshot.
 
 ## 2. Head-seed spread
 
 ![Per-seed GM-Relative MASE on four frozen backbones](plots/head_seed_spread.png)
 
-*Four frozen backbones, the only four cells carrying replicate head seeds: the quantile head retrained under extra seeds — its init and its data order — and the full 97-config eval re-run each time (`results/seed_spread.csv`).*
+*Four frozen backbones, the only four cells carrying replicate head seeds (`results/seed_spread.csv`).*
+
+The head seed alone moves a cell, and that spread is the bar any claimed gap must clear.
 
 ## 3. Across backbone horizons
 
@@ -74,25 +63,11 @@ Most of the extended cells fell further from 100k to 200k.
 
 ## 4. Per-domain
 
-The left radar puts cells measured at backbone 100k and at 200k on one chart, so it moves the backbone step as well as the cell.
-
 ![Two radars of per-domain relative MASE](plots/eval_domain_radar.png)
 
-*The headline geometric mean split by dataset domain. Per-config source: `results/eval_gm_mase/<cell>_bb<step>k_hd30000s/all_results.csv`, same seasonal-naive denominator as the aggregate.*
+*The headline geometric mean split by dataset domain. Per-config source: `results/eval_gm_mase/<cell>_bb<step>k_hd30000s/all_results.csv`, same seasonal-naive denominator as the aggregate. The left radar mixes cells measured at backbone 100k and at 200k, so it moves the backbone step as well as the cell.*
 
-| Cell (bb 200k) | Energy (32) | Web/CloudOps (20) | Transport (15) | Nature (15) | Econ/Fin (6) | Healthcare (5) | Sales (4) | all 97 |
-|---|---|---|---|---|---|---|---|---|
-| `arm6_v2 combab` ⟲ | 1.388 | 1.283 | 1.021 | **0.867** | 1.489 | 1.261 | **0.830** | 1.1850 |
-| `arm1 nse` | 1.594 | 1.368 | 1.226 | **0.954** | 1.823 | 1.225 | **0.898** | 1.3308 |
-| `arm6_v2 ncpc` ⟲ | 1.553 | 1.470 | 1.133 | **0.943** | 2.070 | 1.230 | **0.917** | 1.3325 |
-| `bimoco base` | 1.668 | 1.554 | 1.195 | **0.978** | 2.192 | 1.234 | **0.840** | 1.3993 |
-| `arm1 ncpc` | 1.617 | 1.559 | 1.173 | **0.998** | 2.442 | 1.329 | **0.886** | 1.4041 |
-| `arm3 tr1` | 1.744 | 1.693 | 1.202 | **0.980** | 2.469 | 1.386 | **0.897** | 1.4706 |
-| `arm1 combab` | 1.985 | 1.799 | 1.379 | 1.208 | 3.934 | 1.572 | 1.068 | 1.7107 |
-| `arm5 nse` ⟲ | 2.394 | 2.111 | 1.836 | 1.324 | 2.075 | 1.340 | **0.912** | 1.8887 |
-| *cells below 1.0, of 8* | 0/8 | 0/8 | 0/8 | 6/8 | 0/8 | 0/8 | 7/8 | 0/8 |
-
-*Configs per domain in brackets. Bold = below 1.0. Source: `results/eval_gm_mase/<cell>_bb200k_hd30000s/all_results.csv`.*
+Cells fall below parity on Nature and Sales, and above it on every other domain.
 
 ## 5. The retrained cells against the earlier sweep
 
@@ -108,7 +83,7 @@ The direction splits both ways at 40k and at 100k, and 8 of the 20 differences e
 
 *`h_t` drift and GM-Relative MASE for the extended cells (`results/latent_movement_pairs.csv`, 250 pairs over the 30 arms).*
 
-Late drift does not separate the improvers at this sample size.
+Late drift does not separate the improvers at this sample size; in panel 2, `arm1 combab` starts at 3.13, above the shown range.
 
 | Setting | `h_t` drift lower than base / 6 | `h_t` p | `e_t` drift lower than base / 6 | `e_t` p |
 |---|---|---|---|---|
@@ -119,9 +94,9 @@ Late drift does not separate the improvers at this sample size.
 
 *Drift against the base setting of the same recipe, per latent. Counts and p-values: `results/latent_drift_setting_vs_base.csv`, built from `results/latent_movement_pairs.csv` by `experiments/2026-08-01_lalign_teacher/scripts/make_report_tables.py`.*
 
-## 7. The highest cell at each horizon
+## 7. The worst cell at each horizon
 
-![Backbone loss and attention logit magnitude of the highest cell at each backbone step](plots/per_run_loss.png)
+![Backbone loss and attention logit magnitude of the worst cell at each backbone step](plots/per_run_loss.png)
 
 *Selected run in colour, the other four settings of the same recipe in grey (`results/training_curves/`, `results/attn_amplitude/`).*
 
@@ -187,7 +162,40 @@ Late drift does not separate the improvers at this sample size.
 | `arm6_v2 ncpc` | 1.3012 | 1.2978 | 1.0027 | 0.9672 | 1.0452 | no |
 | `arm6_v2 combab` | 1.2514 | 1.1616 | 1.0773 | 1.0439 | 1.1254 | yes |
 
-*Backing data for section 5. Ratio = teacher ÷ earlier sweep, below 1.0 means the teacher run scored lower. Intervals are 95% dataset-cluster bootstraps (`results/eval_bootstrap_ci.csv`). The backbone-40k rows of the same file are the right panel of the headline figure, these rows are the section-5 figure.*
+*Backing data for section 5. Ratio = teacher ÷ earlier sweep, below 1.0 means the teacher run scored lower. Intervals are 95% dataset-cluster bootstraps (`results/eval_bootstrap_ci.csv`).*
+
+### The teacher target against the same-branch student control, backbone 40k
+
+| Cell | teacher | student control (this branch) |
+|---|---|---|
+| `arm5 base` | 1.3515 | 1.4501 |
+| `arm5 tr1` | 1.3396 | 1.3254 |
+| `arm5 nse` | 1.4536 | 1.4682 |
+| `arm5 ncpc` | 1.2923 | 1.5079 |
+| `arm5 combab` | 1.2728 | 1.2868 |
+| `arm6_v2 base` | 1.4322 | 1.3149 |
+| `arm6_v2 tr1` | 1.5315 | 1.4684 |
+| `arm6_v2 nse` | 1.3074 | 1.3792 |
+| `arm6_v2 ncpc` | 1.3159 | 1.3621 |
+| `arm6_v2 combab` | 1.2765 | 1.2025 |
+
+*Backing data for section 1. GM-Relative MASE at backbone 40k (`results/controlled_delta_40k.csv`). The differences and their intervals are the left panel of the headline figure.*
+
+### Per-domain GM-Relative MASE, backbone 200k
+
+| Cell (bb 200k) | Energy (32) | Web/CloudOps (20) | Transport (15) | Nature (15) | Econ/Fin (6) | Healthcare (5) | Sales (4) | all 97 |
+|---|---|---|---|---|---|---|---|---|
+| `arm6_v2 combab` ⟲ | 1.388 | 1.283 | 1.021 | **0.867** | 1.489 | 1.261 | **0.830** | 1.1850 |
+| `arm1 nse` | 1.594 | 1.368 | 1.226 | **0.954** | 1.823 | 1.225 | **0.898** | 1.3308 |
+| `arm6_v2 ncpc` ⟲ | 1.553 | 1.470 | 1.133 | **0.943** | 2.070 | 1.230 | **0.917** | 1.3325 |
+| `bimoco base` | 1.668 | 1.554 | 1.195 | **0.978** | 2.192 | 1.234 | **0.840** | 1.3993 |
+| `arm1 ncpc` | 1.617 | 1.559 | 1.173 | **0.998** | 2.442 | 1.329 | **0.886** | 1.4041 |
+| `arm3 tr1` | 1.744 | 1.693 | 1.202 | **0.980** | 2.469 | 1.386 | **0.897** | 1.4706 |
+| `arm1 combab` | 1.985 | 1.799 | 1.379 | 1.208 | 3.934 | 1.572 | 1.068 | 1.7107 |
+| `arm5 nse` ⟲ | 2.394 | 2.111 | 1.836 | 1.324 | 2.075 | 1.340 | **0.912** | 1.8887 |
+| *cells below 1.0, of 8* | 0/8 | 0/8 | 0/8 | 6/8 | 0/8 | 0/8 | 7/8 | 0/8 |
+
+*Backing data for section 4. Configs per domain in brackets. Bold = below 1.0. Source: `results/eval_gm_mase/<cell>_bb200k_hd30000s/all_results.csv`.*
 
 ## 9. Protocol
 
@@ -215,12 +223,12 @@ Late drift does not separate the improvers at this sample size.
 ### Metrics
 
 - **GM-Relative MASE** — geometric mean over 97 GIFT-Eval configs of `MASE(model) / MASE(seasonal_naive)`, official GIFT-Eval **B4 strategy** (single-window in-context prediction, backbone context length matching the config's expected horizon), forecast horizon 16. Lower is better; above 1.0 means seasonal naive wins on that geometric average. All 30 cells share one seasonal-naive denominator file, byte-identical to the earlier sweep's, so all of them sit on one scale.
-- **95% dataset-cluster bootstrap** — the one interval used everywhere in this report: a dataset-level paired cluster bootstrap over the 28 base datasets, 10 000 resamples (`experiments/2026-08-01_lalign_teacher/scripts/controlled_delta.py`).
+- **95% dataset-cluster bootstrap** — the one interval used everywhere in this report: a dataset-level paired cluster bootstrap over the 28 base datasets, 10 000 resamples (`experiments/2026-08-01_lalign_teacher/scripts/controlled_delta.py`). It covers eval sampling only, conditional on the two trained models.
+- **Head-seed range** — the spread of a cell's GM-Relative MASE when the quantile head is retrained on the frozen backbone under extra seeds, changing its init and its data order, with the full 97-config eval re-run each time. It covers head retraining, which the bootstrap interval does not.
 - **`h_t`, `e_t`** — the encoder-output latent and the patch-embedding latent, shape `[B, T, C, H]`.
 - **`ff`** — mean `cos(f̂, h_{t+1})` between the forecaster's next-step prediction and the encoder's next-step latent, unit-normalised. `1 − ff` is a cosine distance in [0, 2]; smaller = closer forecast.
 - **Latent drift** at checkpoint pair `(step_i, step_j)` — `mean_{b,t,c} 1 − cos(h_t(model_j), h_t(model_i))` on a fixed held-out batch (`torch.manual_seed(20260722)`, `B=8`, `T=4096`, `C=1`, ARMA-synthetic), and the same for `e_t`. A setting counts as *lower* than base when its mean drift over adjacent-checkpoint pairs falls below the base setting of the same recipe; the section-6 denominator is the six recipes and the p is a two-sided exact binomial test.
-- **Late drift** — the mean `h_t` drift over adjacent-checkpoint pairs beyond backbone step 100 000. Against the 100k→200k GM-Relative MASE change it gives Spearman ρ = −0.33 on n = 8 cells at p = 0.42.
-- **`u_batchtime`** — `1/(d · off-diagonal Gram mean)` over `(B×T)` samples of the given latent, clamped to [0, 1]. 1 = every `H` dimension carries independent information.
+- **Late drift** — the mean `h_t` drift over adjacent-checkpoint pairs beyond backbone step 100 000.- **`u_batchtime`** — `1/(d · off-diagonal Gram mean)` over `(B×T)` samples of the given latent, clamped to [0, 1]. 1 = every `H` dimension carries independent information.
 - **`L_align`** — `(2 − 2·cos(f_t, h_target_{t+1})).mean()`, pulling the forecaster output toward the next encoder latent, gradient through the forecaster only. `--align-target student` takes `h_target` from the student encoder under stop-gradient; `--align-target teacher` takes it from the EMA teacher. The ten `⟲` cells are the teacher setting.
 - **Loss window** — each loss value in section 7 is the mean over the first, or the last, 5% of the logged steps of that window, not the value at a single step. **Rise-from-minimum** is the run's final loss minus the lowest loss it ever recorded.
 - **Peak qk logit** — `qk_logit_maxabs`, the peak absolute pre-softmax attention logit, logged every 200 steps; the table value is the maximum over layers, over the `enc` and `fcst` blocks, and over the run, while the lower panels of the section-7 figure plot it averaged over layers and blocks. Rank 1 = lowest of the 40 backbones.
@@ -250,7 +258,7 @@ Quantile head, trained on the frozen backbone, `--grad-clip 1.0` at every horizo
 - The head budget changes with the backbone step (15k at 40k, 30k at 100k and 200k), so any within-arm statement across backbone steps moves two things at once.
 - The 200k row compares a teacher-selected subset against a differently selected subset of the earlier sweep, so no like-for-like 200k claim is available.
 - The ten per-cell intervals in section 1 are 95% and uncorrected for the ten comparisons, so a per-cell reading is not a family-wise claim. The aggregate tests over the set of ten are the right frame (`results/controlled_paired_tests_40k.csv`).
-- Every backbone in this report, both targets, is seed 20260520. Nine of ten controls reproducing the earlier sweep therefore measures determinism given that seed, not the spread across backbone seeds. No cell here carries a second backbone seed, so the controlled deltas in section 1 are ten one-seed differences.
+- Every backbone in this report, both targets, is seed 20260520. Nine of ten controls reproducing the earlier sweep therefore measures determinism given that seed, not the spread across backbone seeds. No cell here carries a second backbone seed.
 
 ### Training-curve diagnostics
 
