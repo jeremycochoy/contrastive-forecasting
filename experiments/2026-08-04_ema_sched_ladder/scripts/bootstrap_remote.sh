@@ -108,6 +108,17 @@ for _ in $(seq 1 120); do
 done
 rsh 'grep -q BOOTSTRAP_OK /root/bootstrap.log' || { say "TIMEOUT"; exit 5; }
 
+# The code tarball carries scripts/ and sync/, not results/, so the session
+# ceiling has to be pushed separately. Without it a fresh box climbs past
+# bb100k while another cell has not reached bb40k.
+HOLD="$WT/experiments/2026-08-04_ema_sched_ladder/results/HOLD_ABOVE"
+if [ -f "$HOLD" ]; then
+  say "pushing HOLD_ABOVE ($(tr -d '[:space:]' <"$HOLD"))"
+  rsh 'mkdir -p /root/cf/experiments/2026-08-04_ema_sched_ladder/results'
+  scp "${SSH_OPTS[@]}" -P "$PORT" "$HOLD" \
+      "root@$HOST:/root/cf/experiments/2026-08-04_ema_sched_ladder/results/" || exit 6
+fi
+
 if [ -n "$CELLS" ]; then
   say "queueing cells: $CELLS"
   scp "${SSH_OPTS[@]}" -P "$PORT" \

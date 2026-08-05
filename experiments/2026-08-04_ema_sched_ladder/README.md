@@ -262,3 +262,11 @@ report says so.
 - One head seed per cell. The 2026-08-04 report measured head-seed ranges
   up to 0.0908, so the extend rule will sometimes fire on noise. Report
   the raw per-stop changes.
+
+- `arm4_combab` carries `--tau 1.0` in its loss flags and does not run at
+  τ=1.0. The shared `--tau 0.10` is passed after the per-cell flags and
+  argparse keeps the last value, so the cell trains at τ=0.10. This is not
+  a defect introduced here: #379's `run_arm.sh` orders the two the same
+  way, so its `arm4_tr1` ran at τ=0.10 too. It is reproduced deliberately,
+  because a cell that differed from its parent would not be comparable to
+  the parent reports. Do not describe this cell as a τ=1.0 arm.
