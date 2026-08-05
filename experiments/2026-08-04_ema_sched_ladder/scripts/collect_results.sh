@@ -26,7 +26,9 @@ ELISA_RUNS="${RUNS:-/home/jupyter/checkpoints_backup/cf-393}"
 SSH_OPTS=(-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
           -o ConnectTimeout=15)
 # <name> <host> <port>, one per vast.ai box. Empty is fine: elisa alone.
-REMOTES=("${REMOTES[@]:-vastA ssh2.vast.ai 11448 vastB ssh4.vast.ai 13146}")
+# Names match the second column of results/cell_claims.txt, so a per-machine
+# file can be read against the cell it holds.
+REMOTES=("${REMOTES[@]:-vastA ssh2.vast.ai 11448 vastB ssh4.vast.ai 13146 vastC ssh6.vast.ai 18762 vastD ssh7.vast.ai 18862 vastE ssh5.vast.ai 18856 vastF ssh1.vast.ai 18914 vastG ssh7.vast.ai 13258}")
 REMOTE_EXP=/root/cf/experiments/2026-08-04_ema_sched_ladder
 REMOTE_RUNS=/root/cf393_runs
 

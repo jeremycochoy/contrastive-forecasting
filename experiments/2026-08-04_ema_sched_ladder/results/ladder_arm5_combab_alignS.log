@@ -4,3 +4,11 @@
 [08-05 02:34:52] [arm5_combab_alignS] DONE target=40000 (5.0M) -> /root/cf393_runs/arm5_combab_alignS/leg_40k/cf393_arm5_combab_alignS_40k.pth
 [ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm5_combab_alignS 40000 student 15000 /root/cf393_runs/arm5_combab_alignS/eval/score_bb40k_student.txt
 [02:34:52] arm5_combab_alignS bb40k enc=student head=15000s
+[03:12:58] head-train rc=0
+[03:12:58] head-train rc=127
+[ladder] arm5_combab_alignS: eval_stop.sh rc=127 at 40000 (student)
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm5_combab_alignS 40000
+[08-05 03:18:52] [arm5_combab_alignS] SKIP: cf393_arm5_combab_alignS_40k.pth already on disk
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm5_combab_alignS 40000 student 15000 /root/cf393_runs/arm5_combab_alignS/eval/score_bb40k_student.txt
+[03:18:52] arm5_combab_alignS bb40k enc=student head=15000s
+[03:18:52] head-train SKIP (final exists)

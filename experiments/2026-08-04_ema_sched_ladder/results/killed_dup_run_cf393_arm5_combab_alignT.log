@@ -1,0 +1,71 @@
+Traceback (most recent call last):
+  File "/root/cf/experiments/2026-04-27_freq-embedding/scripts/train.py", line 2043, in <module>
+    main()
+  File "/root/cf/experiments/2026-04-27_freq-embedding/scripts/train.py", line 1389, in main
+    model = ConfigurableModel(**model_config).to(device)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1369, in to
+    return self._apply(convert)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 928, in _apply
+    module._apply(fn)
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 928, in _apply
+    module._apply(fn)
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 955, in _apply
+    param_applied = fn(param)
+                    ^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py", line 1355, in convert
+    return t.to(
+           ^^^^^
+torch.AcceleratorError: CUDA error: CUDA-capable device(s) is/are busy or unavailable
+CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.
+For debugging consider passing CUDA_LAUNCH_BLOCKING=1
+Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
+
+Device: cuda | Params: 720,668
+Training for 40000 steps, bs=64, lr=0.001, T=4096, C=1, mix_ratio=0.0078125, freq_emb_dim=3, seasonality_emb_dim=3, mixup_p=0.3, rev_norm_kind=ewma(span=128), patch_stats=none, encoder_type=gru
+Checkpoints: /root/cf393_runs/arm5_combab_alignT/leg_40k/cf393_arm5_combab_alignT_*.pth
+Loss CSV: /root/cf393_runs/arm5_combab_alignT/leg_40k/cf393_arm5_combab_alignT_losses.csv
+Latent-drift CSV: /root/cf393_runs/arm5_combab_alignT/leg_40k/cf393_arm5_combab_alignT_latent_drift.csv (every 20000 steps, probe_bs=64, probe_seed=20260722)
+Attn-amplitude CSV: /root/cf393_runs/arm5_combab_alignT/leg_40k/cf393_arm5_combab_alignT_attn_amplitude.csv (every 200 steps)
+Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, hf_bs=64, synth_bs=0, cross_bs=0, total_bs=67
+[    200] loss=13.3356  ema_loss=13.4524  gap=-0.1893  ema_gap=-0.2243  mixup=61/200  5.5 sps  ETA 2.0h
+              R²_rand=0.4491  R²_naive=0.1677  U_t=0.2204  U_b=0.4873  AUC=0.9550  Top1=0.2890
+  timing: data=54.5ms  fwd=74.0ms  bwd=45.1ms  total=174.0ms
+  -> Saved /root/cf393_runs/arm5_combab_alignT/leg_40k/cf393_arm5_combab_alignT_best_gap.pth
+  -> Saved /root/cf393_runs/arm5_combab_alignT/leg_40k/cf393_arm5_combab_alignT_best_loss.pth
+[    400] loss=13.3231  ema_loss=13.3329  gap=-0.1772  ema_gap=-0.1823  mixup=58/200  6.5 sps  ETA 1.7h
+              R²_rand=0.4338  R²_naive=0.1663  U_t=0.2413  U_b=0.4956  AUC=0.9565  Top1=0.2944
+  timing: data=3.6ms  fwd=70.6ms  bwd=43.3ms  total=118.0ms
+  -> Saved /root/cf393_runs/arm5_combab_alignT/leg_40k/cf393_arm5_combab_alignT_best_gap.pth
+  -> Saved /root/cf393_runs/arm5_combab_alignT/leg_40k/cf393_arm5_combab_alignT_best_loss.pth
+[    600] loss=13.3216  ema_loss=13.2983  gap=-0.1540  ema_gap=-0.1642  mixup=65/200  6.9 sps  ETA 1.6h
+              R²_rand=0.4044  R²_naive=0.1860  U_t=0.2760  U_b=0.4842  AUC=0.9435  Top1=0.3061
+  timing: data=3.6ms  fwd=72.4ms  bwd=43.4ms  total=119.7ms
+  -> Saved /root/cf393_runs/arm5_combab_alignT/leg_40k/cf393_arm5_combab_alignT_best_gap.pth
+  -> Saved /root/cf393_runs/arm5_combab_alignT/leg_40k/cf393_arm5_combab_alignT_best_loss.pth
+[    800] loss=13.2486  ema_loss=13.2819  gap=-0.1539  ema_gap=-0.1550  mixup=65/200  6.6 sps  ETA 1.6h
+              R²_rand=0.4581  R²_naive=0.1945  U_t=0.2187  U_b=0.5654  AUC=0.9676  Top1=0.3810
+  timing: data=41.8ms  fwd=73.0ms  bwd=43.5ms  total=158.7ms
+  -> Saved /root/cf393_runs/arm5_combab_alignT/leg_40k/cf393_arm5_combab_alignT_best_gap.pth
+  -> Saved /root/cf393_runs/arm5_combab_alignT/leg_40k/cf393_arm5_combab_alignT_best_loss.pth
+[   1000] loss=13.2041  ema_loss=13.2520  gap=-0.1366  ema_gap=-0.1464  mixup=61/200  6.9 sps  ETA 1.6h
+              R²_rand=0.4378  R²_naive=0.1672  U_t=0.2221  U_b=0.5632  AUC=0.9518  Top1=0.3232
+  timing: data=3.6ms  fwd=69.9ms  bwd=43.4ms  total=117.2ms
+  -> Saved /root/cf393_runs/arm5_combab_alignT/leg_40k/cf393_arm5_combab_alignT_best_gap.pth
+  -> Saved /root/cf393_runs/arm5_combab_alignT/leg_40k/cf393_arm5_combab_alignT_best_loss.pth
+[   1200] loss=13.2193  ema_loss=13.2005  gap=-0.1454  ema_gap=-0.1363  mixup=59/200  7.0 sps  ETA 1.5h
+              R²_rand=0.4372  R²_naive=0.1998  U_t=0.2260  U_b=0.5701  AUC=0.9591  Top1=0.3824
+  timing: data=3.6ms  fwd=74.6ms  bwd=43.5ms  total=122.1ms
+  -> Saved /root/cf393_runs/arm5_combab_alignT/leg_40k/cf393_arm5_combab_alignT_best_gap.pth
+  -> Saved /root/cf393_runs/arm5_combab_alignT/leg_40k/cf393_arm5_combab_alignT_best_loss.pth
+[   1400] loss=13.1274  ema_loss=13.1604  gap=-0.1329  ema_gap=-0.1300  mixup=77/200  6.8 sps  ETA 1.6h
+              R²_rand=0.4791  R²_naive=0.1989  U_t=0.2003  U_b=0.5751  AUC=0.9516  Top1=0.3826
+  timing: data=44.8ms  fwd=70.5ms  bwd=43.5ms  total=159.2ms
+  -> Saved /root/cf393_runs/arm5_combab_alignT/leg_40k/cf393_arm5_combab_alignT_best_gap.pth
+  -> Saved /root/cf393_runs/arm5_combab_alignT/leg_40k/cf393_arm5_combab_alignT_best_loss.pth
+[   1600] loss=13.1466  ema_loss=13.1361  gap=-0.1274  ema_gap=-0.1236  mixup=65/200  6.9 sps  ETA 1.5h
+              R²_rand=0.4666  R²_naive=0.1856  U_t=0.1993  U_b=0.5696  AUC=0.9627  Top1=0.4299
+  timing: data=3.7ms  fwd=73.4ms  bwd=43.5ms  total=121.0ms
+  -> Saved /root/cf393_runs/arm5_combab_alignT/leg_40k/cf393_arm5_combab_alignT_best_gap.pth
+  -> Saved /root/cf393_runs/arm5_combab_alignT/leg_40k/cf393_arm5_combab_alignT_best_loss.pth
