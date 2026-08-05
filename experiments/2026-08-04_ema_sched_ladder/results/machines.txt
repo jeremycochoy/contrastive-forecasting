@@ -1,0 +1,24 @@
+# #393 — where each cell ran. Three machines, five concurrent streams.
+# Recorded 2026-08-05.
+
+elisa (owner's box, 2x RTX 4090, shared with other agent sessions)
+  GPU 1 slot 1   arm6_v2_combab_alignS
+  GPU 1 slot 2   arm6_v2_combab_alignT
+  GPU 0 slot 1   arm6_v2_nse_alignS, then arm4_combab
+  GPU 0 slot 2   arm6_v2_nse_alignT, then arm1_nse  (queued behind another
+                 session's GIFT-Eval; started by a waiter when GPU 0 freed)
+  RUNS           /home/jupyter/checkpoints_backup/cf-393
+
+vastA  vast.ai contract 46841448, ssh2.vast.ai:11448
+  cells        arm5_combab_alignS,arm5_combab_alignT  (sequential: Exclusive_Process compute mode)
+  gpu          NVIDIA GeForce RTX 5090, 32607 MiB, 580.105.08, Exclusive_Process
+  torch        2.8.0+cu128
+  RUNS         /root/cf393_runs   (synced to elisa every 15 min)
+
+vastB  vast.ai contract 46843146, ssh4.vast.ai:13146
+  cells        arm6_v2_ncpc_alignS,arm6_v2_ncpc_alignT  (sequential: Exclusive_Process compute mode)
+  gpu          NVIDIA GeForce RTX 5090, 32607 MiB, 580.95.05, Exclusive_Process
+  torch        2.8.0+cu128
+  RUNS         /root/cf393_runs   (synced to elisa every 15 min)
+
+Rate: $0.3356/h per vast.ai instance, on-demand, data-centre host.
