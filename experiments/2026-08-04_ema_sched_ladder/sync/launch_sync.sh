@@ -23,9 +23,10 @@ b ssh4.vast.ai 13146 cf393_sync_b
 c ssh6.vast.ai 18762 cf393_sync_c
 d ssh7.vast.ai 18862 cf393_sync_d
 e ssh5.vast.ai 18856 cf393_sync_e
-f ssh1.vast.ai 18914 cf393_sync_f"
+f ssh1.vast.ai 18914 cf393_sync_f
+g ssh7.vast.ai 13258 cf393_sync_g"
 
-WANT="${*:-a b c d e f}"
+WANT="${*:-a b c d e f g}"
 
 while read -r lbl host port root; do
   [ -n "$lbl" ] || continue

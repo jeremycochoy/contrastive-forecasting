@@ -14,13 +14,22 @@
 #
 # Change this file when a cell moves, and deploy it to every box:
 #   bash scripts/deploy_scripts.sh <host> <port>   (carries results files too)
+#
+# 2026-08-05 05:25 — arm6_v2_ncpc_alignT moved vastB -> vastG. Box B was
+# the only box carrying two cells, and queue_remote.sh runs them one after
+# the other. That cost nothing while the eval ran on the box, which is what
+# its header says; since the eval moved to elisa it costs the whole of the
+# second cell's ~7 h. Splitting them takes the phase-1 critical path from
+# ~12 h to ~7 h for about $2.50 of the envelope. Box B's queue_remote will
+# still try to start the cell when its alignS driver exits, and run_leg.sh
+# will refuse it on this line.
 
 arm6_v2_combab_alignS   elisa
 arm6_v2_combab_alignT   elisa
 arm6_v2_nse_alignS      elisa
 arm5_combab_alignS      vastA
 arm6_v2_ncpc_alignS     vastB
-arm6_v2_ncpc_alignT     vastB
+arm6_v2_ncpc_alignT     vastG
 arm5_combab_alignT      vastC
 arm6_v2_nse_alignT      vastD
 arm1_nse                vastE
