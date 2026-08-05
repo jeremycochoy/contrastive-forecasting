@@ -12,6 +12,7 @@ between the two reports, so all 30 arms sit on one scale.
 | `gm_relative_mase.csv` | one row per measured cell: `arm_slug`, `variant`, `align_target`, `code_snapshot`, `bb_steps`, `head_steps`, `bb_seed`, `head_seed`, `cell`, `gm_rel_mase`, `n_configs`, `source`. `align_target` is `teacher` / `student` / `none` (the twenty arms with no `L_align` term). **`code_snapshot` is `#379-sweep` (the earlier sweep's code) or `#390-branch` (this branch's code)** — which code produced the number, see below. `source` records the same split from the artefact's side. A cell with a same-branch student control keeps BOTH student rows; neither replaces the other. |
 | `controlled_delta_40k.csv` | **the headline table.** Per arm at backbone 40k: `gm_teacher_390`, `gm_student_390`, `gm_student_379`, the controlled delta `gm_teacher_390 - gm_student_390` with a dataset-level paired bootstrap interval, the cross-experiment delta the wave tables report, and `code_snapshot_shift` = `gm_student_390 - gm_student_379`. Both sides of the controlled delta ran on this branch under launchers that differ by `--align-target` and nothing else, so it is the only column in this directory attributable to the flag. |
 | `controlled_paired_tests_40k.csv` | the three comparisons across the ten arms at 40k — controlled, cross-experiment, and the snapshot shift on its own — with counts, mean and median delta, sign-test and Wilcoxon p. The gap between the first two rows is the size of the contamination. |
+| `snapshot_reproduction_40k.csv` | `code_snapshot_shift` at six decimals, because at four a difference of 0.000028 and an exact reproduction print the same thing. Per arm: the earlier sweep's student number, this branch's re-run, the difference, and `reproduces` (within 0.0002). `n_configs_identical` and `max_abs_rel_config_diff` go under the aggregate — an aggregate can agree while the configs behind it do not. |
 | `eval_bootstrap_ci.csv` | 95% intervals on the teacher/student ratio per arm per backbone step, from a **dataset-level** paired bootstrap over the per-config log differences, with the config-level interval beside it for contrast. `ci_excludes_1` is the per-cell verdict. **Cross-experiment**: the student side is the earlier sweep, so these intervals cover the flag and the snapshot together. |
 | `eval_paired_tests.csv` | the same comparison across the ten arms at a fixed backbone step: counts, median ratio, sign-test and Wilcoxon p. Cross-experiment, same caveat. |
 | `seed_spread.csv` | per cell with replicate head seeds: the seeds, min/max/mean, and the range the cell moves under nothing but the head seed. The bar every claimed gap has to clear. |
@@ -57,6 +58,11 @@ The first two rows differ only in the code they ran on, and they are 0.0977
 apart. The teacher-vs-earlier-sweep delta of -0.1963 is therefore not a measurement
 of the flag: inside one snapshot the flag is worth -0.0986 on this cell,
 about half of it.
+
+All ten cells now carry that check. Nine reproduce the earlier sweep within
+0.0002 — four of them bit-identical across all 97 configs, five agreeing to
+at worst 0.000157 in the aggregate. arm5 base is the only one that does not,
+and it moves 0.09773. `snapshot_reproduction_40k.csv` holds the ten rows.
 
 So a delta in this directory means one of two different things, and
 `code_snapshot` is how a reader tells them apart:
@@ -188,6 +194,10 @@ python3 experiments/2026-08-01_lalign_teacher/scripts/controlled_delta.py \
   --student-379-results reports/2026-07-21_split_pred_rep_small/results \
   --out-delta reports/2026-08-04_lalign_teacher/results/controlled_delta_40k.csv \
   --out-tests reports/2026-08-04_lalign_teacher/results/controlled_paired_tests_40k.csv
+python3 experiments/2026-08-01_lalign_teacher/scripts/snapshot_reproduction.py \
+  --results reports/2026-08-04_lalign_teacher/results \
+  --student-379-results reports/2026-07-21_split_pred_rep_small/results \
+  --out reports/2026-08-04_lalign_teacher/results/snapshot_reproduction_40k.csv
 python3 experiments/2026-08-01_lalign_teacher/scripts/seed_spread.py \
   --table reports/2026-08-04_lalign_teacher/results/gm_relative_mase.csv \
   --ci reports/2026-08-04_lalign_teacher/results/eval_bootstrap_ci.csv \
@@ -198,6 +208,11 @@ The nine remaining student controls themselves come from
 `scripts/run_student_control_batch.sh` on elisa, which runs each cell's
 earlier-sweep command line with `--align-target student` at seed 20260520 to step
 40 000, then the 15 000-step head and the full 97-config GIFT-Eval.
+
+The head-seed replicates come from `scripts/run_head_seeds.sh`, four cells
+under seeds 20260723 and 20260724 on the same frozen backbones. With the
+waves' own 20260722 that is three seeds each, and those four are every cell
+in this directory that has more than one.
 
 Then the report's tables and figures:
 

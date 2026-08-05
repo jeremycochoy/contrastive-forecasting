@@ -71,3 +71,76 @@
 [08-04 18:14:23] [student-batch] START arm6_v2_ncpc on GPU 1
 [08-04 18:14:23] [student-control/arm6_v2_ncpc] stage 1/2 — backbone 0 -> 40k, --align-target student, GPU 1
 [08-04 18:14:23] [elisa-arm6_v2_ncpc] BB START (arm 6 v2_ncpc: rep_only + align-loss-weight 1.0 + moco-rep-keys + cpc_infonce_weight=0 + align-target student) gpu=1 target=40000 final=200000 bs=64 
+[08-04 20:39:09] [elisa-arm6_v2] arm6_v2 wave complete: target=40000 (< final 200000) — latest ck bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignstudent_40k.pth
+[08-04 20:39:09] [student-control/arm6_v2] stage 1/2 rc=0
+[08-04 20:39:09] [student-control/arm6_v2] stage 2/2 — head 15000 steps + GIFT-Eval 97 configs
+[08-04 20:39:09] [arm6_v2_alignstudent_bb40k_hd15000s] start on GPU 0 (backbone=bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignstudent_40k.pth)
+[08-04 20:39:09] [arm6_v2_alignstudent_bb40k_hd15000s] head-train 15000 steps
+[08-04 20:40:20] [elisa-arm6_v2_tr1] arm6_v2_tr1 wave complete: target=40000 (< final 200000) — latest ck bb_small_arm6_v2_tr1_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignstudent_40k.pth
+[08-04 20:40:20] [student-control/arm6_v2_tr1] stage 1/2 rc=0
+[08-04 20:40:20] [student-control/arm6_v2_tr1] stage 2/2 — head 15000 steps + GIFT-Eval 97 configs
+[08-04 20:40:20] [arm6_v2_tr1_alignstudent_bb40k_hd15000s] start on GPU 0 (backbone=bb_small_arm6_v2_tr1_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignstudent_40k.pth)
+[08-04 20:40:20] [arm6_v2_tr1_alignstudent_bb40k_hd15000s] head-train 15000 steps
+[08-04 21:00:30] [elisa-arm6_v2_ncpc] arm6_v2_ncpc wave complete: target=40000 (< final 200000) — latest ck bb_small_arm6_v2_ncpc_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignstudent_40k.pth
+[08-04 21:00:30] [student-control/arm6_v2_ncpc] stage 1/2 rc=0
+[08-04 21:00:30] [student-control/arm6_v2_ncpc] stage 2/2 — head 15000 steps + GIFT-Eval 97 configs
+[08-04 21:00:30] [arm6_v2_ncpc_alignstudent_bb40k_hd15000s] start on GPU 1 (backbone=bb_small_arm6_v2_ncpc_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignstudent_40k.pth)
+[08-04 21:00:30] [arm6_v2_ncpc_alignstudent_bb40k_hd15000s] head-train 15000 steps
+[08-04 21:01:00] [elisa-arm6_v2_nse] arm6_v2_nse wave complete: target=40000 (< final 200000) — latest ck bb_small_arm6_v2_nse_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignstudent_40k.pth
+[08-04 21:01:00] [student-control/arm6_v2_nse] stage 1/2 rc=0
+[08-04 21:01:00] [student-control/arm6_v2_nse] stage 2/2 — head 15000 steps + GIFT-Eval 97 configs
+[08-04 21:01:00] [arm6_v2_nse_alignstudent_bb40k_hd15000s] start on GPU 1 (backbone=bb_small_arm6_v2_nse_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignstudent_40k.pth)
+[08-04 21:01:00] [arm6_v2_nse_alignstudent_bb40k_hd15000s] head-train 15000 steps
+[08-04 21:13:51] [arm6_v2_alignstudent_bb40k_hd15000s] head-train rc=0
+[08-04 21:13:51] [arm6_v2_alignstudent_bb40k_hd15000s] gift-eval try 1/3 (have 0/97 configs)
+[08-04 21:14:45] [arm6_v2_tr1_alignstudent_bb40k_hd15000s] head-train rc=0
+[08-04 21:14:45] [arm6_v2_tr1_alignstudent_bb40k_hd15000s] gift-eval try 1/3 (have 0/97 configs)
+[08-04 21:34:40] [arm6_v2_nse_alignstudent_bb40k_hd15000s] head-train rc=0
+[08-04 21:34:40] [arm6_v2_nse_alignstudent_bb40k_hd15000s] gift-eval try 1/3 (have 0/97 configs)
+[08-04 21:34:56] [arm6_v2_ncpc_alignstudent_bb40k_hd15000s] head-train rc=0
+[08-04 21:34:56] [arm6_v2_ncpc_alignstudent_bb40k_hd15000s] gift-eval try 1/3 (have 0/97 configs)
+[08-04 23:32:40] [arm6_v2_alignstudent_bb40k_hd15000s] gift-eval try 1 rc=0 rows=97
+[08-04 23:32:40] [arm6_v2_alignstudent_bb40k_hd15000s] DONE — Aggregate GM-Relative MASE (97 configs): 1.3149
+[08-04 23:32:40] [student-control/arm6_v2] stage 2/2 rc=0
+[08-04 23:32:40] [student-control/arm6_v2] DONE — Aggregate GM-Relative MASE (97 configs): 1.3149
+[08-04 23:32:40] [student-batch] END   arm6_v2 rc=0
+[08-04 23:32:40] [student-batch] START arm6_v2_combab on GPU 0
+[08-04 23:32:40] [student-control/arm6_v2_combab] stage 1/2 — backbone 0 -> 40k, --align-target student, GPU 0
+[08-04 23:32:40] [elisa-arm6_v2_combab] BB START (arm 6 v2_combab: rep_only + align + moco-rep-keys + τ_rep=1.0 + cpc=0 + align-target student (nse SKIPPED: nse hurt arm6_v2)) gpu=0 target=40000 final=200000 bs=64 
+[08-04 23:35:56] [arm6_v2_tr1_alignstudent_bb40k_hd15000s] gift-eval try 1 rc=0 rows=97
+[08-04 23:35:56] [arm6_v2_tr1_alignstudent_bb40k_hd15000s] DONE — Aggregate GM-Relative MASE (97 configs): 1.4684
+[08-04 23:35:56] [student-control/arm6_v2_tr1] stage 2/2 rc=0
+[08-04 23:35:56] [student-control/arm6_v2_tr1] DONE — Aggregate GM-Relative MASE (97 configs): 1.4684
+[08-04 23:35:56] [student-batch] END   arm6_v2_tr1 rc=0
+[08-04 23:54:02] [arm6_v2_ncpc_alignstudent_bb40k_hd15000s] gift-eval try 1 rc=0 rows=97
+[08-04 23:54:02] [arm6_v2_ncpc_alignstudent_bb40k_hd15000s] DONE — Aggregate GM-Relative MASE (97 configs): 1.3621
+[08-04 23:54:02] [student-control/arm6_v2_ncpc] stage 2/2 rc=0
+[08-04 23:54:02] [student-control/arm6_v2_ncpc] DONE — Aggregate GM-Relative MASE (97 configs): 1.3621
+[08-04 23:54:02] [student-batch] END   arm6_v2_ncpc rc=0
+[08-04 23:54:08] [arm6_v2_nse_alignstudent_bb40k_hd15000s] gift-eval try 1 rc=0 rows=97
+[08-04 23:54:08] [arm6_v2_nse_alignstudent_bb40k_hd15000s] DONE — Aggregate GM-Relative MASE (97 configs): 1.3792
+[08-04 23:54:08] [student-control/arm6_v2_nse] stage 2/2 rc=0
+[08-04 23:54:08] [student-control/arm6_v2_nse] DONE — Aggregate GM-Relative MASE (97 configs): 1.3792
+[08-04 23:54:08] [student-batch] END   arm6_v2_nse rc=0
+[08-05 01:38:44] [elisa-arm6_v2_combab] arm6_v2_combab wave complete: target=40000 (< final 200000) — latest ck bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignstudent_40k.pth
+[08-05 01:38:44] [student-control/arm6_v2_combab] stage 1/2 rc=0
+[08-05 01:38:44] [student-control/arm6_v2_combab] stage 2/2 — head 15000 steps + GIFT-Eval 97 configs
+[08-05 01:38:44] [arm6_v2_combab_alignstudent_bb40k_hd15000s] start on GPU 0 (backbone=bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignstudent_40k.pth)
+[08-05 01:38:44] [arm6_v2_combab_alignstudent_bb40k_hd15000s] head-train 15000 steps
+[08-05 02:05:28] [arm6_v2_combab_alignstudent_bb40k_hd15000s] head-train rc=0
+[08-05 02:05:28] [arm6_v2_combab_alignstudent_bb40k_hd15000s] gift-eval try 1/3 (have 0/97 configs)
+[08-05 04:35:53] [arm6_v2_combab_alignstudent_bb40k_hd15000s] gift-eval try 1 rc=0 rows=97
+[08-05 04:35:53] [arm6_v2_combab_alignstudent_bb40k_hd15000s] DONE — Aggregate GM-Relative MASE (97 configs): 1.2025
+[08-05 04:35:53] [student-control/arm6_v2_combab] stage 2/2 rc=0
+[08-05 04:35:53] [student-control/arm6_v2_combab] DONE — Aggregate GM-Relative MASE (97 configs): 1.2025
+[08-05 04:35:53] [student-batch] END   arm6_v2_combab rc=0
+[08-05 04:35:53] [student-batch] RESULT arm5_tr1 rc=0 — Aggregate GM-Relative MASE (97 configs): 1.3254
+[08-05 04:35:53] [student-batch] RESULT arm5_nse rc=0 — Aggregate GM-Relative MASE (97 configs): 1.4682
+[08-05 04:35:53] [student-batch] RESULT arm5_ncpc rc=0 — Aggregate GM-Relative MASE (97 configs): 1.5079
+[08-05 04:35:53] [student-batch] RESULT arm5_combab rc=0 — Aggregate GM-Relative MASE (97 configs): 1.2868
+[08-05 04:35:53] [student-batch] RESULT arm6_v2 rc=0 — Aggregate GM-Relative MASE (97 configs): 1.3149
+[08-05 04:35:53] [student-batch] RESULT arm6_v2_tr1 rc=0 — Aggregate GM-Relative MASE (97 configs): 1.4684
+[08-05 04:35:53] [student-batch] RESULT arm6_v2_nse rc=0 — Aggregate GM-Relative MASE (97 configs): 1.3792
+[08-05 04:35:53] [student-batch] RESULT arm6_v2_ncpc rc=0 — Aggregate GM-Relative MASE (97 configs): 1.3621
+[08-05 04:35:53] [student-batch] RESULT arm6_v2_combab rc=0 — Aggregate GM-Relative MASE (97 configs): 1.2025
+[08-05 04:35:53] [student-batch] DONE — 9 cells, 0 failed

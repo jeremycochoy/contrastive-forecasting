@@ -65,11 +65,14 @@ arm5_tr1,tr1,student,#379-sweep,100000,30000,20260520,20260722,arm5_tr1_alignstu
 arm5_tr1,tr1,teacher,#390-branch,40000,15000,20260520,20260722,arm5_tr1_bb40k_hd15000s,1.3396,97,#390
 arm5_tr1,tr1,teacher,#390-branch,100000,30000,20260520,20260722,arm5_tr1_bb100k_hd30000s,1.3710,97,#390
 arm6_v2,base,student,#379-sweep,40000,15000,20260520,20260722,arm6_v2_alignstudent379_bb40k_hd15000s,1.3149,97,#379
+arm6_v2,base,student,#390-branch,40000,15000,20260520,20260722,arm6_v2_alignstudent_bb40k_hd15000s,1.3149,97,#390
 arm6_v2,base,student,#379-sweep,100000,30000,20260520,20260722,arm6_v2_alignstudent379_bb100k_hd30000s,1.3449,97,#379
 arm6_v2,base,teacher,#390-branch,40000,15000,20260520,20260722,arm6_v2_bb40k_hd15000s,1.4322,97,#390
 arm6_v2,base,teacher,#390-branch,100000,30000,20260520,20260722,arm6_v2_bb100k_hd30000s,1.9057,97,#390
 arm6_v2,base,teacher,#390-branch,100000,30000,20260520,20260723,arm6_v2_s20260723_bb100k_hd30000s,1.8659,97,#390
+arm6_v2,base,teacher,#390-branch,100000,30000,20260520,20260724,arm6_v2_s20260724_bb100k_hd30000s,1.8541,97,#390
 arm6_v2_combab,combab,student,#379-sweep,40000,15000,20260520,20260722,arm6_v2_combab_alignstudent379_bb40k_hd15000s,1.2025,97,#379
+arm6_v2_combab,combab,student,#390-branch,40000,15000,20260520,20260722,arm6_v2_combab_alignstudent_bb40k_hd15000s,1.2025,97,#390
 arm6_v2_combab,combab,student,#379-sweep,100000,30000,20260520,20260722,arm6_v2_combab_alignstudent379_bb100k_hd30000s,1.1616,97,#379
 arm6_v2_combab,combab,student,#379-sweep,200000,30000,20260520,20260722,arm6_v2_combab_alignstudent379_bb200k_hd30000s,1.1652,97,#379
 arm6_v2_combab,combab,teacher,#390-branch,40000,15000,20260520,20260722,arm6_v2_combab_bb40k_hd15000s,1.2765,97,#390
@@ -78,6 +81,7 @@ arm6_v2_combab,combab,teacher,#390-branch,200000,30000,20260520,20260722,arm6_v2
 arm6_v2_combab,combab,teacher,#390-branch,200000,30000,20260520,20260723,arm6_v2_combab_s20260723_bb200k_hd30000s,1.1883,97,#390
 arm6_v2_combab,combab,teacher,#390-branch,200000,30000,20260520,20260724,arm6_v2_combab_s20260724_bb200k_hd30000s,1.1820,97,#390
 arm6_v2_ncpc,ncpc,student,#379-sweep,40000,15000,20260520,20260722,arm6_v2_ncpc_alignstudent379_bb40k_hd15000s,1.3623,97,#379
+arm6_v2_ncpc,ncpc,student,#390-branch,40000,15000,20260520,20260722,arm6_v2_ncpc_alignstudent_bb40k_hd15000s,1.3621,97,#390
 arm6_v2_ncpc,ncpc,student,#379-sweep,100000,30000,20260520,20260722,arm6_v2_ncpc_alignstudent379_bb100k_hd30000s,1.2978,97,#379
 arm6_v2_ncpc,ncpc,student,#379-sweep,200000,30000,20260520,20260722,arm6_v2_ncpc_alignstudent379_bb200k_hd30000s,1.3011,97,#379
 arm6_v2_ncpc,ncpc,teacher,#390-branch,40000,15000,20260520,20260722,arm6_v2_ncpc_bb40k_hd15000s,1.3159,97,#390
@@ -86,10 +90,12 @@ arm6_v2_ncpc,ncpc,teacher,#390-branch,200000,30000,20260520,20260722,arm6_v2_ncp
 arm6_v2_ncpc,ncpc,teacher,#390-branch,200000,30000,20260520,20260723,arm6_v2_ncpc_s20260723_bb200k_hd30000s,1.3577,97,#390
 arm6_v2_ncpc,ncpc,teacher,#390-branch,200000,30000,20260520,20260724,arm6_v2_ncpc_s20260724_bb200k_hd30000s,1.3515,97,#390
 arm6_v2_nse,nse,student,#379-sweep,40000,15000,20260520,20260722,arm6_v2_nse_alignstudent379_bb40k_hd15000s,1.3791,97,#379
+arm6_v2_nse,nse,student,#390-branch,40000,15000,20260520,20260722,arm6_v2_nse_alignstudent_bb40k_hd15000s,1.3792,97,#390
 arm6_v2_nse,nse,student,#379-sweep,100000,30000,20260520,20260722,arm6_v2_nse_alignstudent379_bb100k_hd30000s,1.3914,97,#379
 arm6_v2_nse,nse,teacher,#390-branch,40000,15000,20260520,20260722,arm6_v2_nse_bb40k_hd15000s,1.3074,97,#390
 arm6_v2_nse,nse,teacher,#390-branch,100000,30000,20260520,20260722,arm6_v2_nse_bb100k_hd30000s,1.3368,97,#390
 arm6_v2_tr1,tr1,student,#379-sweep,40000,15000,20260520,20260722,arm6_v2_tr1_alignstudent379_bb40k_hd15000s,1.4684,97,#379
+arm6_v2_tr1,tr1,student,#390-branch,40000,15000,20260520,20260722,arm6_v2_tr1_alignstudent_bb40k_hd15000s,1.4684,97,#390
 arm6_v2_tr1,tr1,student,#379-sweep,100000,30000,20260520,20260722,arm6_v2_tr1_alignstudent379_bb100k_hd30000s,1.5188,97,#379
 arm6_v2_tr1,tr1,teacher,#390-branch,40000,15000,20260520,20260722,arm6_v2_tr1_bb40k_hd15000s,1.5315,97,#390
 arm6_v2_tr1,tr1,teacher,#390-branch,100000,30000,20260520,20260722,arm6_v2_tr1_bb100k_hd30000s,1.7064,97,#390
