@@ -1,6 +1,8 @@
 # The EMA-teacher alignment target moves individual cells in both directions and does not move the set of 10 either way
 
-Pointing `L_align` at the EMA teacher moves 7 of the 10 measured cells past their bootstrap interval, in both directions. Over the set of ten the mean shift is not separable from zero.
+Pointing `L_align` at the EMA teacher moves 7 of the 10 measured cells past their eval-sampling bootstrap interval, and 3 of the 10 past the largest measured head-seed range, 0.0908, in both directions. Over the set of ten the mean shift is not separable from zero.
+
+The bootstrap interval covers eval sampling only, conditional on the two trained models; the head-seed range covers retraining the head under a new seed on a frozen backbone. The seed range is the wider bar, and only `arm5 base` (−0.0986), `arm5 ncpc` (−0.2156) and `arm6_v2 base` (+0.1173) clear it.
 
 ![Teacher minus student GM-Relative MASE at backbone 40k](plots/controlled_vs_cross_delta.png)
 
@@ -33,7 +35,7 @@ The right panel moves the flag and the code snapshot together, so only the left 
 
 | Cell | earlier sweep | this branch | difference | configs identical / 97 |
 |---|---|---|---|---|
-| `arm5 base` | 1.547783 | 1.450053 | −0.097730 | 0 |
+| `arm5 base` ⧗ | 1.547783 | 1.450053 | −0.097730 | 0 |
 | `arm5 tr1` | 1.325372 | 1.325372 | +0.000000 | 97 |
 | `arm5 nse` | 1.468179 | 1.468179 | +0.000000 | 97 |
 | `arm5 ncpc` | 1.507886 | 1.507886 | +0.000000 | 97 |
@@ -44,9 +46,9 @@ The right panel moves the flag and the code snapshot together, so only the left 
 | `arm6_v2 ncpc` | 1.362271 | 1.362114 | −0.000157 | 0 |
 | `arm6_v2 combab` | 1.202512 | 1.202512 | +0.000000 | 97 |
 
-*The student control against the earlier sweep's number for the same cell: same flag, same backbone seed, same command line (`results/snapshot_reproduction_40k.csv`).*
+*The student control against the earlier sweep's number for the same cell: same flag, same backbone seed, same command line (`results/snapshot_reproduction_40k.csv`). ⧗ marks the one row whose earlier-sweep number was measured on a resumed backbone, so that row compares two different backbones.*
 
-The one cell that misses is the one cell the earlier sweep published off a resumed backbone. Its launcher gives a resumed run a fresh `_r<N>` name, so an arm can leave more than one 40k snapshot and the eval takes the newest; `arm5 base` was evaluated on a run resumed at step 25 001, the other nine on the base run. This branch re-ran all ten and repeats the base run of each step for step — 40 000 of 40 000 steps identical on loss and on every logged diagnostic — so the 0.0977 is the distance between two backbones, not the spread of one training path run twice (`results/replicate_provenance_40k.csv`).
+Both eval scripts pick the newest file matching `*_40k.pth` by modification time, and the launcher renames a resumed run `_r<N>`, so a crashed-and-resumed arm leaves two matching snapshots and the resumed one wins. `arm5 base` is the only one of the ten the earlier sweep evaluated that way, on `_r3_40k.pth` resumed at step 25 001; the other nine used their base run. The re-run on this branch is bit-identical to the earlier base run on loss, `ff`, gap and `hf_rows_consumed` for all 40 000 steps on all ten arms, while the earlier sweep's own base and resumed `arm5` runs disagree on all 15 000 of their shared steps. The training path reproduces; the 0.0977 is the distance between two backbones (`results/replicate_provenance_40k.csv`).
 
 ## 2. How far a cell moves under nothing but a head seed, on four frozen backbones
 
@@ -157,10 +159,10 @@ Of the 20 cross-experiment differences, 8 exceed the largest head-seed range in 
 | 26 | `arm1 tr1` | 1.3725 | 1.6036 | +0.2311 | — | — |
 | 27 | `arm6_v2 tr1` ⟲ | 1.5315 | 1.7064 | +0.1749 | — | — |
 | 28 | `arm3 nse` | 1.4432 | 1.7372 | +0.2940 | — | — |
-| 29 | `arm1 combab` | 3.1251 | 1.7595 | −1.3656 | 1.7107 | −0.0488 |
+| 29 | `arm1 combab` | 3.1251 ‡ | 1.7595 | −1.3656 | 1.7107 | −0.0488 |
 | 30 | `arm6_v2 base` ⟲ | 1.4322 | 1.9057 † | +0.4735 | — | — |
 
-*Backing data for section 3, ranked by the 100k value. `⟲` marks a cell retrained with `--align-target teacher`; the other 20 carry no `L_align` term and are the earlier sweep's numbers, on the same seasonal-naive denominator. A dash means the cell was not extended. Values are head seed 20260722. † the cell carries replicate head seeds; their spreads are in section 2 (`results/seed_spread.csv`).*
+*Backing data for section 3, ranked by the 100k value. `⟲` marks a cell retrained with `--align-target teacher`; the other 20 carry no `L_align` term and are the earlier sweep's numbers, on the same seasonal-naive denominator. A dash means the cell was not extended. Values are head seed 20260722. † the cell carries replicate head seeds; their spreads are in section 2 (`results/seed_spread.csv`). ‡ this backbone's loss rose over the whole 0–40k window (section 7), so its 40k value sits on a backbone that never settled.*
 
 ### The retrained cells against the earlier sweep, backbone 100k
 
@@ -239,6 +241,7 @@ Quantile head, trained on the frozen backbone, `--grad-clip 1.0` at every horizo
 - The head budget changes with the backbone step (15k at 40k, 30k at 100k and 200k), so any within-arm statement across backbone steps moves two things at once.
 - The 200k row compares a teacher-selected subset against a differently selected subset of the earlier sweep, so no like-for-like 200k claim is available.
 - Section 5 changes the flag and the code snapshot together.
+- The ten per-cell intervals in section 1 are 95% and uncorrected for the ten comparisons, so a per-cell reading is not a family-wise claim. The aggregate tests over the set of ten are the right frame (`results/controlled_paired_tests_40k.csv`).
 - Every backbone in this report, both targets, is seed 20260520. Nine of ten controls reproducing the earlier sweep therefore measures determinism given that seed, not the spread across backbone seeds. No cell here carries a second backbone seed, so the controlled deltas in section 1 are ten one-seed differences.
 
 ### Training-curve diagnostics
