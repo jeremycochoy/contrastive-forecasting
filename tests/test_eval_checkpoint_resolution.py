@@ -249,13 +249,19 @@ def test_eval_script_takes_the_resolver_from_its_own_checkout(
     `$WT` is a training worktree that can sit on any commit. Loading the
     resolver from there would let a stale checkout fall back to the mtime
     pick, silently, which is the bug this file is about.
+
+    Behaviour is checked by `test_379_eval_finds_its_own_resolver_through_a_
+    symlink`; this only pins the two tokens that decide it.
     """
     assert re.search(
-        r'CKPT_RESOLVER="\$\(cd "\$\(dirname "\$\{BASH_SOURCE\[0\]\}"\)'
-        r'/\.\./\.\./\.\." && pwd\)/scripts/resolve_eval_checkpoint\.sh"',
-        eval_code_joined), (
-        "eval_2L_gm_mase.sh must load the resolver relative to its own path, "
-        "not from $WT")
+        r'ROOT="\$\(cd -P "\$\(dirname "\$\{BASH_SOURCE\[0\]\}"\)'
+        r'/\.\./\.\./\.\." && pwd\)"', eval_code_joined), (
+        "eval_2L_gm_mase.sh must resolve its own directory physically "
+        "(`cd -P`, from BASH_SOURCE): a logical `..` through the documented "
+        "`scripts/` symlink walks back up to $WT")
+    m = re.search(r"(?m)^CKPT_RESOLVER=.*$", eval_code_joined)
+    assert m and "$WT" not in m.group(0), (
+        f"the resolver must not be loaded from $WT; got: {m and m.group(0)}")
 
 
 def test_eval_script_guards_a_missing_resolver(eval_code_joined: str):
@@ -316,17 +322,25 @@ def test_390_eval_arm_calls_the_resolver(eval_390_code_joined: str):
 
 def test_390_eval_arm_takes_the_resolver_from_its_own_checkout(
         eval_390_code: str):
-    """From `$HERE`, the script's own directory, never from `$WT`.
+    """From the script's own directory, resolved physically, never `$WT`.
 
     `$WT` is a training worktree that can sit on any commit. Loading the
     resolver from there would let a stale checkout fall back to the mtime
-    pick, silently, which is the bug this file is about.
+    pick, silently, which is the bug this file is about. `cd -P` is the half
+    that is easy to lose: the orchestrators reach this file through a
+    `scripts/` symlink inside $WT, and a logical `..` lands back in $WT.
+    Behaviour is checked by
+    `test_390_eval_arm_finds_its_own_resolver_through_a_symlink`.
     """
+    m = re.search(r"(?m)^ROOT=.*$", eval_390_code)
+    assert m and "cd -P" in m.group(0), (
+        f"eval_arm.sh must resolve its checkout physically; got: "
+        f"{m and m.group(0)}")
     m = re.search(r"(?m)^CKPT_RESOLVER=.*$", eval_390_code)
     assert m, "eval_arm.sh does not define CKPT_RESOLVER"
-    assert "$HERE" in m.group(0), (
-        "the resolver path must be derived from $HERE (the script's own "
-        f"directory); got: {m.group(0)}")
+    assert "$ROOT" in m.group(0), (
+        "the resolver path must be derived from the script's own checkout; "
+        f"got: {m.group(0)}")
     assert "$WT" not in m.group(0), (
         f"the resolver must not be loaded from $WT; got: {m.group(0)}")
 
@@ -435,9 +449,12 @@ def run_eval_arm(wt: Path, scratch: Path, bb_checkpoint: str | None = None):
                           capture_output=True, text=True, timeout=180)
 
 
-def eval_log(wt: Path) -> str:
+def eval_log(wt: Path, repl_tag: str = "") -> str:
+    """The cell's log. `repl_tag` is the backbone replicate the cell cites —
+    it is part of the cell name, so a `_r3` backbone has its own log."""
+    cell = f"{ARM}_bb{STEP_K}k{repl_tag}_hd15000s"
     log = (wt / "experiments" / "2026-08-01_lalign_teacher" / "eval_gm_mase" /
-           CELL_DIR / "eval.log")
+           cell / "eval.log")
     return log.read_text() if log.is_file() else ""
 
 
@@ -472,9 +489,9 @@ def test_390_eval_arm_records_the_resolved_path_in_its_log(scratch: Path):
 
     r = run_eval_arm(wt, scratch)
     assert r.returncode != EXIT_AMBIGUOUS, r.stderr
-    assert f"backbone={ckpt}" in eval_log(wt), (
+    assert f"backbone={ckpt}" in eval_log(wt, "_r3"), (
         "the cell's own log must carry the full path of the checkpoint that "
-        f"produced its number; log was:\n{eval_log(wt)}")
+        f"produced its number; log was:\n{eval_log(wt, '_r3')}")
 
 
 def test_390_eval_arm_override_selects_the_named_replicate(scratch: Path):
@@ -487,9 +504,9 @@ def test_390_eval_arm_override_selects_the_named_replicate(scratch: Path):
 
     r = run_eval_arm(wt, scratch, bb_checkpoint=str(wanted))
     assert r.returncode != EXIT_AMBIGUOUS, r.stderr
-    assert f"backbone={wanted}" in eval_log(wt), (
+    assert f"backbone={wanted}" in eval_log(wt, "_r3"), (
         "the named replicate must be the one evaluated, and be logged; log "
-        f"was:\n{eval_log(wt)}")
+        f"was:\n{eval_log(wt, '_r3')}")
 
 
 def test_390_eval_arm_resolves_with_a_wt_that_has_no_resolver(scratch: Path):
@@ -534,10 +551,18 @@ def test_390_pipeline_calls_the_resolver(pipeline_code_joined: str):
 
 def test_390_pipeline_takes_the_resolver_from_its_own_checkout(
         pipeline_code: str):
+    """Behaviour is checked by
+    `test_390_pipeline_finds_its_own_resolver_through_a_symlink`; this pins
+    the two tokens that decide it."""
+    m = re.search(r"(?m)^ROOT=.*$", pipeline_code)
+    assert m and "cd -P" in m.group(0), (
+        f"pipeline.sh must resolve its checkout physically; got: "
+        f"{m and m.group(0)}")
     m = re.search(r"(?m)^CKPT_RESOLVER=.*$", pipeline_code)
     assert m, "pipeline.sh does not define CKPT_RESOLVER"
-    assert "$HERE" in m.group(0), (
-        f"the resolver path must be derived from $HERE; got: {m.group(0)}")
+    assert "$ROOT" in m.group(0), (
+        "the resolver path must be derived from the script's own checkout; "
+        f"got: {m.group(0)}")
     assert "$WT" not in m.group(0), (
         f"the resolver must not be loaded from $WT; got: {m.group(0)}")
 
@@ -1013,3 +1038,538 @@ def test_parity_states_what_it_does_not_show(runs: Path):
     assert re.search(r"does not exercise|not exercised", flowed), (
         f"the parity output must say the ambiguity path was not exercised by "
         f"this run; got:\n{r.stdout}")
+
+
+# --- 15. the output identity carries the replicate -----------------------
+# The resolver says which backbone. It cannot say what the cell is called,
+# and that is where the same defect came back: `eval_arm.sh` built CELL, OUT
+# and HEAD_NAME from (ARM, CELL_TAG, BB_STEP_K, HEAD_STEPS, run name), so a
+# replicate landed in the base run's directory. Both idempotency shortcuts
+# then fired on the other replicate's artefacts — head-train SKIP reused its
+# head, the 97-row check skipped GIFT-Eval and lifted its aggregate — and the
+# base backbone's number was published as the replicate's, exit 0.
+#
+# These run the script to completion under a `python3` stub that fabricates
+# what each stage writes, and that makes the aggregate depend on the backbone
+# it was given. A number lifted from the other replicate is then visible as a
+# number, not inferred from a log line.
+
+# The two aggregates the stub reports, by backbone. Different values, so a
+# replicate publishing the base run's number fails on the value.
+AGG_BASE = "1.2345"
+AGG_REPL = "9.8765"
+
+PY_STAGE_STUB = r"""#!/bin/bash
+n=$(ls "$ARGV_DIR" | wc -l)
+printf '%s\n' "$@" > "$ARGV_DIR/argv.$n"
+
+save_dir=""; run_name=""; out_dir=""; backbone=""; is_head=0; is_eval=0
+prev=""
+for a in "$@"; do
+  case "$prev" in
+    --save-dir)       save_dir="$a" ;;
+    --run-name)       run_name="$a" ;;
+    --output-dir)     out_dir="$a" ;;
+    --backbone-path)  backbone="$a" ;;
+  esac
+  case "$a" in
+    --quantile-head) is_head=1 ;;
+    --strategy)      is_eval=1 ;;
+  esac
+  prev="$a"
+done
+
+# The measurement depends on the backbone, the way a real one does.
+case "$(basename "$backbone")" in
+  *_r[0-9]*_*k.pth) agg="__AGG_REPL__" ;;
+  *)                agg="__AGG_BASE__" ;;
+esac
+
+if [ "$is_head" = 1 ] && [ -n "$save_dir" ] && [ -n "$run_name" ]; then
+  mkdir -p "$save_dir"; : > "$save_dir/${run_name}_final.pth"
+fi
+if [ "$is_eval" = 1 ] && [ -n "$out_dir" ]; then
+  mkdir -p "$out_dir"
+  { echo "dataset,config,MASE,seasonal_naive_MASE"
+    for i in $(seq 1 97); do echo "ds$i,cfg$i,1.0,1.0"; done
+  } > "$out_dir/all_results.csv"
+  echo "Aggregate GM-Relative MASE (97 configs): $agg" > "$out_dir/summary.txt"
+fi
+exit 0
+"""
+
+# `eval_arm.sh`'s own exit codes. They sit above the resolver's 2-6, whose
+# codes it propagates verbatim, so one number never means two things.
+EXIT_EVAL_SETUP = 20
+EXIT_EVAL_NO_HEAD = 21
+EXIT_EVAL_PARTIAL = 22
+EXIT_EVAL_NO_AGGREGATE = 23
+
+
+def stage_stub(scratch: Path, body: str = PY_STAGE_STUB) -> Path:
+    """A `python3` on PATH that fabricates each stage's output."""
+    d = scratch / "bin"
+    d.mkdir(parents=True, exist_ok=True)
+    stub = d / "python3"
+    stub.write_text(body.replace("__AGG_BASE__", AGG_BASE)
+                        .replace("__AGG_REPL__", AGG_REPL))
+    stub.chmod(0o755)
+    (scratch / "argv").mkdir(exist_ok=True)
+    return d
+
+
+def run_eval_arm_staged(wt: Path, scratch: Path,
+                        bb_checkpoint: str | None = None,
+                        stub_body: str = PY_STAGE_STUB):
+    env = {**os.environ,
+           "PATH": f"{stage_stub(scratch, stub_body)}:{os.environ['PATH']}",
+           "ARGV_DIR": str(scratch / "argv"),
+           "WT": str(wt), "ARM": ARM, "BB_GPU": "0",
+           "BB_STEP_K": STEP_K, "HEAD_STEPS": "15000"}
+    if bb_checkpoint is not None:
+        env["BB_CHECKPOINT"] = bb_checkpoint
+    return subprocess.run(["bash", str(EVAL_390)], env=env,
+                          capture_output=True, text=True, timeout=180)
+
+
+def recorded_argv(scratch: Path) -> list[list[str]]:
+    d = scratch / "argv"
+    files = sorted(d.glob("argv.*"), key=lambda p: int(p.suffix[1:]))
+    return [f.read_text().splitlines() for f in files]
+
+
+def eval_root(wt: Path) -> Path:
+    return wt / "experiments" / "2026-08-01_lalign_teacher" / "eval_gm_mase"
+
+
+def test_390_eval_arm_base_cell_keeps_its_committed_name(scratch: Path):
+    """Non-regression, and the reason the base run's token is empty: every
+    cell in the report is `<arm>_bb<K>k_hd<H>s`."""
+    wt = make_wt(scratch)
+    runs = wt / "experiments" / "2026-08-01_lalign_teacher" / "runs"
+    touch(runs, f"{bb_name_390(ARM)}_{STEP_K}k.pth", 1_000)
+
+    r = run_eval_arm_staged(wt, scratch)
+    assert r.returncode == 0, f"{r.stdout}\n{r.stderr}"
+    assert (eval_root(wt) / f"{ARM}_bb{STEP_K}k_hd15000s_summary.txt").is_file()
+    assert [p.name for p in eval_root(wt).iterdir() if p.is_dir()] == \
+        [f"{ARM}_bb{STEP_K}k_hd15000s"]
+
+
+def test_390_eval_arm_replicate_gets_its_own_cell(scratch: Path):
+    """The override names a replicate; the output has to say so."""
+    wt = make_wt(scratch)
+    runs = wt / "experiments" / "2026-08-01_lalign_teacher" / "runs"
+    name = bb_name_390(ARM)
+    touch(runs, f"{name}_{STEP_K}k.pth", 1_000)
+    wanted = touch(runs, f"{name}_r3_{STEP_K}k.pth", 9_000)
+
+    r = run_eval_arm_staged(wt, scratch, bb_checkpoint=str(wanted))
+    assert r.returncode == 0, f"{r.stdout}\n{r.stderr}"
+    assert (eval_root(wt) / f"{ARM}_bb{STEP_K}k_r3_hd15000s").is_dir(), (
+        "the replicate's cell directory does not carry the replicate; "
+        f"eval_gm_mase holds {sorted(p.name for p in eval_root(wt).iterdir())}")
+    assert not (eval_root(wt) / f"{ARM}_bb{STEP_K}k_hd15000s").exists(), (
+        "the replicate landed in the base run's cell directory")
+
+
+def test_390_eval_arm_replicate_does_not_lift_the_base_runs_number(
+        scratch: Path):
+    """The failure the review named, end to end.
+
+    The base run's cell is measured first. Then the replicate is evaluated on
+    the same (arm, step). With one output directory for both, head-train SKIPs
+    on the base run's head and the 97-row check skips GIFT-Eval and lifts its
+    aggregate, so the replicate reports the base backbone's number and exits
+    0. The two aggregates differ here, so that shows up as a value.
+    """
+    wt = make_wt(scratch)
+    runs = wt / "experiments" / "2026-08-01_lalign_teacher" / "runs"
+    name = bb_name_390(ARM)
+    touch(runs, f"{name}_{STEP_K}k.pth", 1_000)
+
+    first = run_eval_arm_staged(wt, scratch)
+    assert first.returncode == 0, f"{first.stdout}\n{first.stderr}"
+    base_sum = eval_root(wt) / f"{ARM}_bb{STEP_K}k_hd15000s_summary.txt"
+    assert AGG_BASE in base_sum.read_text()
+
+    wanted = touch(runs, f"{name}_r3_{STEP_K}k.pth", 9_000)
+    second = run_eval_arm_staged(wt, scratch, bb_checkpoint=str(wanted))
+    assert second.returncode == 0, f"{second.stdout}\n{second.stderr}"
+
+    repl_sums = list(eval_root(wt).glob(f"{ARM}_bb{STEP_K}k_r3_*_summary.txt"))
+    assert len(repl_sums) == 1, (
+        "the replicate wrote no summary of its own; it reused the base run's "
+        f"cell. eval_gm_mase holds "
+        f"{sorted(p.name for p in eval_root(wt).iterdir())}")
+    assert AGG_REPL in repl_sums[0].read_text(), (
+        "the replicate published the base backbone's number: "
+        f"{repl_sums[0].read_text()!r}")
+    assert AGG_BASE in base_sum.read_text(), (
+        "the base run's own summary was overwritten by the replicate's run")
+
+
+def test_390_eval_arm_replicate_trains_its_own_head(scratch: Path):
+    """Not just a second directory: a second head. The head is trained on the
+    backbone, so reusing the base run's head measures the base run."""
+    wt = make_wt(scratch)
+    runs = wt / "experiments" / "2026-08-01_lalign_teacher" / "runs"
+    name = bb_name_390(ARM)
+    touch(runs, f"{name}_{STEP_K}k.pth", 1_000)
+    run_eval_arm_staged(wt, scratch)
+
+    wanted = touch(runs, f"{name}_r3_{STEP_K}k.pth", 9_000)
+    run_eval_arm_staged(wt, scratch, bb_checkpoint=str(wanted))
+
+    heads = [a for a in recorded_argv(scratch) if "--quantile-head" in a]
+    assert len(heads) == 2, (
+        f"the replicate did not train its own head; {len(heads)} head-train "
+        "call(s) recorded")
+    run_names = [a[a.index("--run-name") + 1] for a in heads]
+    assert run_names[1].endswith("_r3"), (
+        f"the replicate's head is not named after it: {run_names[1]}")
+    assert run_names[0] != run_names[1], (
+        "base and replicate write the same head checkpoint name")
+
+
+# --- 16. the summary files carry the checkpoint --------------------------
+# `eval.log` is appended to and is not what the analysis reads. The two
+# summary files are, and they are what `collect_artefacts.sh` copies into the
+# report directory, so the provenance has to travel with the number.
+
+def test_390_eval_arm_writes_the_backbone_into_both_summaries(scratch: Path):
+    wt = make_wt(scratch)
+    runs = wt / "experiments" / "2026-08-01_lalign_teacher" / "runs"
+    ckpt = touch(runs, f"{bb_name_390(ARM)}_r3_{STEP_K}k.pth", 1_000)
+
+    r = run_eval_arm_staged(wt, scratch)
+    assert r.returncode == 0, f"{r.stdout}\n{r.stderr}"
+    cell = f"{ARM}_bb{STEP_K}k_r3_hd15000s"
+    for path in (eval_root(wt) / cell / "summary.txt",
+                 eval_root(wt) / f"{cell}_summary.txt"):
+        assert path.is_file(), f"{path} was not written"
+        assert str(ckpt) in path.read_text(), (
+            f"{path.name} does not name the checkpoint that produced it:\n"
+            f"{path.read_text()}")
+
+
+def test_390_eval_arm_summary_still_opens_with_the_aggregate(scratch: Path):
+    """Every reader of these files takes the aggregate line. It stays first,
+    so `head -1` and a regex over the file both keep working."""
+    wt = make_wt(scratch)
+    runs = wt / "experiments" / "2026-08-01_lalign_teacher" / "runs"
+    touch(runs, f"{bb_name_390(ARM)}_{STEP_K}k.pth", 1_000)
+
+    run_eval_arm_staged(wt, scratch)
+    text = (eval_root(wt) /
+            f"{ARM}_bb{STEP_K}k_hd15000s_summary.txt").read_text()
+    assert text.splitlines()[0].startswith("Aggregate GM-Relative MASE"), (
+        f"the aggregate is no longer the first line:\n{text}")
+
+
+def test_the_wave3_gate_reads_a_summary_that_names_its_backbone(tmp_path):
+    """The gate greps the aggregate out of the file. A second line must not
+    stop an arm from being promoted."""
+    root = tmp_path / "eval_gm_mase"
+    root.mkdir()
+    for step, head, value in (("40", "15000", "1.5"), ("100", "30000", "1.4")):
+        (root / f"{ARM}_bb{step}k_hd{head}s_summary.txt").write_text(
+            f"Aggregate GM-Relative MASE (97 configs): {value}\n"
+            f"backbone: /runs/{bb_name_390(ARM)}_{step}k.pth\n")
+    r = subprocess.run(
+        ["python3", str(EXP_390 / "scripts" / "select_wave3.py"),
+         str(root), ARM],
+        capture_output=True, text=True, timeout=60)
+    assert r.stdout.split() == [ARM], (
+        f"the gate did not promote a measured arm:\n{r.stdout}\n{r.stderr}")
+
+
+def test_the_wave3_gate_finds_a_replicate_backed_cell(tmp_path):
+    """A wave whose backbone is a resume writes `…_bb100k_r2_hd30000s`. The
+    gate looking only for the untagged name reads it as unmeasured and stops
+    the arm — the wave-2 cells of this experiment are all resumes."""
+    root = tmp_path / "eval_gm_mase"
+    root.mkdir()
+    (root / f"{ARM}_bb40k_hd15000s_summary.txt").write_text(
+        "Aggregate GM-Relative MASE (97 configs): 1.5\n")
+    (root / f"{ARM}_bb100k_r2_hd30000s_summary.txt").write_text(
+        "Aggregate GM-Relative MASE (97 configs): 1.4\n")
+    r = subprocess.run(
+        ["python3", str(EXP_390 / "scripts" / "select_wave3.py"),
+         str(root), ARM],
+        capture_output=True, text=True, timeout=60)
+    assert r.stdout.split() == [ARM], (
+        f"a replicate-backed wave-2 cell was read as missing:\n{r.stderr}")
+
+
+def test_the_wave3_gate_refuses_two_replicate_cells(tmp_path):
+    """Two measured replicates of one cell: the gate has the same choice the
+    resolver refuses to make, and refuses it the same way."""
+    root = tmp_path / "eval_gm_mase"
+    root.mkdir()
+    (root / f"{ARM}_bb40k_hd15000s_summary.txt").write_text(
+        "Aggregate GM-Relative MASE (97 configs): 1.5\n")
+    for tag, value in (("", "1.4"), ("_r2", "1.2")):
+        (root / f"{ARM}_bb100k{tag}_hd30000s_summary.txt").write_text(
+            f"Aggregate GM-Relative MASE (97 configs): {value}\n")
+    r = subprocess.run(
+        ["python3", str(EXP_390 / "scripts" / "select_wave3.py"),
+         str(root), ARM],
+        capture_output=True, text=True, timeout=60)
+    assert r.stdout.split() == [], (
+        "an arm with two replicate cells at 100k was promoted on one of them")
+    assert "ambiguous" in r.stderr.lower(), (
+        f"the gate did not say why the arm stopped:\n{r.stderr}")
+
+
+# --- 17. the three scripts resolve their own location physically ---------
+# `run_arm.sh` uses `cd -P`; the other three used a logical `cd`. The
+# orchestrators and the documented usage reach these files through a
+# `scripts/` symlink inside `$WT`, and a logical `..` walks back up to `$WT`
+# — the training checkout, which can sit on any commit. A missing resolver
+# there aborts loudly. A resolver that predates the override check does not:
+# it is sourced, it answers, and the run continues on its answer.
+#
+# So the stand-in `$WT` here holds a *stale* resolver: one that picks by
+# modification time and never aborts, i.e. the code these call sites were
+# changed to stop using. Reaching it is silent, which is why these are run
+# rather than read.
+
+STALE_RESOLVER = r"""#!/bin/bash
+# The pick these call sites replaced: newest by mtime, no ambiguity check.
+ls -t "$1/$2"_${3}k.pth "$1/$2"_r*_${3}k.pth 2>/dev/null | head -1
+exit 0
+"""
+
+
+def plant_stale_checkout(scratch: Path, exp_dir: Path) -> Path:
+    """A root whose `scripts/` holds the stale resolver, and whose
+    experiment `scripts/` is a symlink at the real one.
+
+    Logical path resolution from the symlinked script lands here; physical
+    resolution lands in the real checkout.
+    """
+    stale = scratch / "stale-checkout"
+    (stale / "scripts").mkdir(parents=True)
+    (stale / "scripts" / "resolve_eval_checkpoint.sh").write_text(
+        STALE_RESOLVER)
+    (stale / "scripts" / "eval_cell_identity.sh").write_text(
+        "#!/bin/bash\n: stale library\n")
+    link_parent = stale / "experiments" / exp_dir.name
+    link_parent.mkdir(parents=True)
+    (link_parent / "scripts").symlink_to(exp_dir / "scripts")
+    return stale
+
+
+def test_390_eval_arm_finds_its_own_resolver_through_a_symlink(scratch: Path):
+    """Two candidates: the real resolver aborts, the stale one answers."""
+    wt = make_wt(scratch)
+    runs = wt / "experiments" / "2026-08-01_lalign_teacher" / "runs"
+    name = bb_name_390(ARM)
+    touch(runs, f"{name}_{STEP_K}k.pth", 1_000)
+    touch(runs, f"{name}_r3_{STEP_K}k.pth", 9_000)
+    stale = plant_stale_checkout(scratch, EXP_390)
+
+    r = subprocess.run(
+        ["bash", str(stale / "experiments" / EXP_390.name / "scripts" /
+                     "eval_arm.sh")],
+        env={**os.environ,
+             "PATH": f"{stub_python3(scratch)}:{os.environ['PATH']}",
+             "WT": str(wt), "ARM": ARM, "BB_GPU": "0",
+             "BB_STEP_K": STEP_K, "HEAD_STEPS": "15000"},
+        capture_output=True, text=True, timeout=180)
+    assert r.returncode == EXIT_AMBIGUOUS, (
+        "eval_arm.sh reached the stale resolver one level up and took its "
+        f"mtime pick; rc={r.returncode}\n{r.stdout}\n{r.stderr}")
+
+
+def test_390_pipeline_finds_its_own_resolver_through_a_symlink(scratch: Path):
+    """The stale resolver answers for every arm, including the seven with no
+    checkpoint at all, so its footprint is the path it prints."""
+    wt, stub_out = make_pipeline_wt(scratch)
+    stale = plant_stale_checkout(scratch, EXP_390)
+
+    subprocess.run(
+        ["bash", str(stale / "experiments" / EXP_390.name / "scripts" /
+                     "pipeline.sh")],
+        env={**os.environ, "WT": str(wt), "STUB_OUT": str(stub_out)},
+        capture_output=True, text=True, timeout=180)
+    log = (wt / "experiments" / "2026-08-01_lalign_teacher" / "results" /
+           "pipeline.log").read_text()
+    name = bb_name_390(AMBIGUOUS_ARM)
+    assert re.search(rf"DROP {AMBIGUOUS_ARM} — 40k backbone is ambiguous",
+                     log), (
+        "pipeline.sh reached the stale resolver one level up: the ambiguous "
+        f"arm was not dropped.\n{log}")
+    assert str(wt / "experiments" / "2026-08-01_lalign_teacher" / "runs" /
+               f"{name}_r4_40k.pth") not in log.split("ambiguous")[0], (
+        "the stale resolver's mtime pick reached the log")
+
+
+EXP_379 = EVAL_SH.parent.parent
+
+
+def bb_name_379(arm: str) -> str:
+    """#379 resolves the name by awk over its own run_arm.sh case block."""
+    code = (EXP_379 / "scripts" / "run_arm.sh").read_text()
+    m = re.search(rf'(?m)^\s*{re.escape(arm)}\)\s*\n.*?NAME="([^"]+)"',
+                  code, re.DOTALL)
+    assert m is not None, f"no NAME for {arm} in #379's run_arm.sh"
+    return m.group(1)
+
+
+def make_wt_379(scratch: Path, name: str) -> Path:
+    """A stand-in #379 checkout: what the script stats, and a runs dir."""
+    wt = scratch / f"wt379-{name}"
+    (wt / "experiments").mkdir(parents=True)
+    (wt / "experiments" / "hf_token.txt").write_text("hf_stub_token\n")
+    gift = wt / "experiments" / "2026-04-13_gift-eval" / "scripts"
+    gift.mkdir(parents=True)
+    (gift / "train_forecasting_head.py").write_text("")
+    (gift / "eval_gift_eval_official.py").write_text("")
+    scripts = wt / "experiments" / EXP_379.name / "scripts"
+    scripts.mkdir(parents=True)
+    shutil.copy(EXP_379 / "scripts" / "run_arm.sh", scripts / "run_arm.sh")
+    (wt / "experiments" / EXP_379.name / "runs").mkdir()
+    return wt
+
+
+def run_eval_379(wt: Path, scratch: Path, script: Path,
+                 stub_body: str | None = None):
+    env = {**os.environ, "WT": str(wt), "ARM": ARM, "BB_GPU": "0",
+           "BB_STEP_K": STEP_K, "HEAD_STEPS": "15000",
+           "GIFT_EVAL": str(scratch / "gift-eval-data")}
+    if stub_body is None:
+        env["PATH"] = f"{stub_python3(scratch)}:{os.environ['PATH']}"
+    else:
+        env["PATH"] = f"{stage_stub(scratch, stub_body)}:{os.environ['PATH']}"
+        env["ARGV_DIR"] = str(scratch / "argv")
+    return subprocess.run(["bash", str(script)], env=env,
+                          capture_output=True, text=True, timeout=180)
+
+
+def test_379_eval_finds_its_own_resolver_through_a_symlink(scratch: Path):
+    """#379's script is reached the same way and had the same logical `cd`."""
+    name = bb_name_379(ARM)
+    wt = make_wt_379(scratch, "symlink")
+    runs = wt / "experiments" / EXP_379.name / "runs"
+    touch(runs, f"{name}_{STEP_K}k.pth", 1_000)
+    touch(runs, f"{name}_r3_{STEP_K}k.pth", 9_000)
+    stale = plant_stale_checkout(scratch, EXP_379)
+
+    r = run_eval_379(wt, scratch,
+                     stale / "experiments" / EXP_379.name / "scripts" /
+                     "eval_2L_gm_mase.sh")
+    assert r.returncode == EXIT_AMBIGUOUS, (
+        "eval_2L_gm_mase.sh reached the stale resolver one level up; "
+        f"rc={r.returncode}\n{r.stdout}\n{r.stderr}")
+
+
+def test_379_eval_names_its_cell_after_the_replicate(scratch: Path):
+    """#379's script had no cell tag of any kind. Its published arm5 row was
+    measured on a resumed replicate (`replicate_provenance.py`), under a cell
+    name that said nothing about it."""
+    name = bb_name_379(ARM)
+    wt = make_wt_379(scratch, "cell")
+    runs = wt / "experiments" / EXP_379.name / "runs"
+    touch(runs, f"{name}_r3_{STEP_K}k.pth", 1_000)
+
+    r = run_eval_379(wt, scratch, EVAL_SH, stub_body=PY_STAGE_STUB)
+    assert r.returncode == 0, f"{r.stdout}\n{r.stderr}"
+    out_root = wt / "experiments" / EXP_379.name / "eval_gm_mase"
+    assert (out_root / f"{ARM}_bb{STEP_K}k_r3_hd15000s").is_dir(), (
+        "the replicate's cell does not carry the replicate; eval_gm_mase "
+        f"holds {sorted(p.name for p in out_root.iterdir())}")
+
+
+def test_379_eval_writes_the_backbone_into_its_summary(scratch: Path):
+    name = bb_name_379(ARM)
+    wt = make_wt_379(scratch, "summary")
+    runs = wt / "experiments" / EXP_379.name / "runs"
+    ckpt = touch(runs, f"{name}_{STEP_K}k.pth", 1_000)
+
+    r = run_eval_379(wt, scratch, EVAL_SH, stub_body=PY_STAGE_STUB)
+    assert r.returncode == 0, f"{r.stdout}\n{r.stderr}"
+    summary = (wt / "experiments" / EXP_379.name / "eval_gm_mase" /
+               f"{ARM}_bb{STEP_K}k_hd15000s" / "summary.txt")
+    text = summary.read_text()
+    assert str(ckpt) in text, (
+        f"summary.txt does not name the checkpoint behind it:\n{text}")
+    assert text.splitlines()[0].startswith("Aggregate"), (
+        f"the aggregate is no longer the first line:\n{text}")
+
+
+# --- 18. one exit code, one operator action ------------------------------
+# `eval_arm.sh` propagates the resolver's exit code verbatim, and used to
+# reuse the same numbers for its own failures: 5 was "ambiguous checkpoint"
+# and "GIFT-Eval never reached 97 configs", 6 was "bad override" and "no
+# aggregate line". Naming the replicate and re-running the eval are opposite
+# actions, so they cannot share a number.
+
+PY_PARTIAL_STUB = PY_STAGE_STUB.replace("$(seq 1 97)", "$(seq 1 12)")
+PY_NO_AGG_STUB = PY_STAGE_STUB.replace(
+    'echo "Aggregate GM-Relative MASE (97 configs): $agg" > '
+    '"$out_dir/summary.txt"', ': no aggregate line')
+
+
+def test_390_eval_arm_partial_eval_is_not_the_ambiguity_code(scratch: Path):
+    wt = make_wt(scratch)
+    runs = wt / "experiments" / "2026-08-01_lalign_teacher" / "runs"
+    touch(runs, f"{bb_name_390(ARM)}_{STEP_K}k.pth", 1_000)
+
+    r = run_eval_arm_staged(wt, scratch, stub_body=PY_PARTIAL_STUB)
+    assert r.returncode == EXIT_EVAL_PARTIAL, (
+        f"a partial GIFT-Eval exits {r.returncode}; expected "
+        f"{EXIT_EVAL_PARTIAL}\n{r.stdout}\n{r.stderr}")
+    assert r.returncode != EXIT_AMBIGUOUS, (
+        "a partial GIFT-Eval and an ambiguous checkpoint share exit 5; one "
+        "is re-run the eval, the other is name the replicate")
+
+
+def test_390_eval_arm_missing_aggregate_is_not_the_override_code(
+        scratch: Path):
+    wt = make_wt(scratch)
+    runs = wt / "experiments" / "2026-08-01_lalign_teacher" / "runs"
+    touch(runs, f"{bb_name_390(ARM)}_{STEP_K}k.pth", 1_000)
+
+    r = run_eval_arm_staged(wt, scratch, stub_body=PY_NO_AGG_STUB)
+    assert r.returncode == EXIT_EVAL_NO_AGGREGATE, (
+        f"a missing aggregate line exits {r.returncode}; expected "
+        f"{EXIT_EVAL_NO_AGGREGATE}\n{r.stdout}\n{r.stderr}")
+    assert r.returncode != EXIT_OVERRIDE_MISMATCH, (
+        "a missing aggregate and a rejected override share exit 6")
+
+
+def test_390_eval_arm_setup_failure_is_not_a_resolver_code(scratch: Path):
+    """The environment check runs before resolution and used exit 2, the
+    resolver's usage error."""
+    wt = make_wt(scratch)
+    (wt / "experiments" / "hf_token.txt").write_text("")
+    runs = wt / "experiments" / "2026-08-01_lalign_teacher" / "runs"
+    touch(runs, f"{bb_name_390(ARM)}_{STEP_K}k.pth", 1_000)
+
+    r = run_eval_arm_staged(wt, scratch)
+    assert r.returncode == EXIT_EVAL_SETUP, (
+        f"a setup abort exits {r.returncode}; expected {EXIT_EVAL_SETUP}\n"
+        f"{r.stdout}\n{r.stderr}")
+
+
+def test_390_eval_arm_still_propagates_the_resolver_codes(scratch: Path):
+    """The separation is one-way: the resolver's codes stay exactly what the
+    resolver returned, so the operator reads one table."""
+    wt = make_wt(scratch)
+    runs = wt / "experiments" / "2026-08-01_lalign_teacher" / "runs"
+    name = bb_name_390(ARM)
+    touch(runs, f"{name}_{STEP_K}k.pth", 1_000)
+    touch(runs, f"{name}_r3_{STEP_K}k.pth", 9_000)
+    assert run_eval_arm(wt, scratch).returncode == EXIT_AMBIGUOUS
+
+
+def test_390_eval_arm_documents_its_own_exit_codes(eval_390_code: str):
+    """A number an operator has to act on is worth naming in the header."""
+    header = eval_390_code.split("set -uo pipefail")[0]
+    assert "Exit codes" in header, (
+        "eval_arm.sh must document its exit codes, next to the resolver's it "
+        "propagates")
+    for code in (EXIT_EVAL_SETUP, EXIT_EVAL_PARTIAL, EXIT_EVAL_NO_AGGREGATE):
+        assert str(code) in header, f"exit {code} is not documented"

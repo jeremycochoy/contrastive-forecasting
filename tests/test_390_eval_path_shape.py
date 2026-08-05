@@ -213,14 +213,15 @@ def run_379(scratch: Path) -> list[list[str]]:
     assert n_hits == 1, (
         f"expected exactly one hardcoded WT= line in {EVAL_379.name}, "
         f"found {n_hits}")
-    # The script loads `scripts/resolve_eval_checkpoint.sh` three levels above
-    # itself, so the scratch copy has to sit at the same depth under a root
-    # that carries the resolver. Dropping it anywhere else makes the run abort
-    # on a missing resolver rather than compare the two command lines.
+    # The script loads `scripts/resolve_eval_checkpoint.sh` and
+    # `scripts/eval_cell_identity.sh` three levels above itself, so the
+    # scratch copy has to sit at the same depth under a root that carries
+    # both. Dropping it anywhere else makes the run abort on a missing
+    # dependency rather than compare the two command lines.
     repo = scratch / "repo379"
     (repo / "scripts").mkdir(parents=True, exist_ok=True)
-    shutil.copy(REPO_ROOT / "scripts" / "resolve_eval_checkpoint.sh",
-                repo / "scripts" / "resolve_eval_checkpoint.sh")
+    for dep in ("resolve_eval_checkpoint.sh", "eval_cell_identity.sh"):
+        shutil.copy(REPO_ROOT / "scripts" / dep, repo / "scripts" / dep)
     script_dir = repo / "experiments" / "2026-07-21_split_pred_rep_small" / \
         "scripts"
     script_dir.mkdir(parents=True, exist_ok=True)
