@@ -21,9 +21,11 @@ process that saw a different slice of the HF stream. Both evals then pick
 
     BB=$(ls -t "$RUNS/${NAME}"_${K}k.pth "$RUNS/${NAME}"_r*_${K}k.pth | head -1)
 
-(#379 `scripts/eval_2L_gm_mase.sh:37`, this branch `scripts/eval_arm.sh:72`)
-— newest by mtime, base or resumed, whichever landed last. Two facts settle
-which reading holds:
+— newest by mtime, base or resumed, whichever landed last. That was the line
+in #379's `scripts/eval_2L_gm_mase.sh` and in this branch's
+`scripts/eval_arm.sh` when the numbers below were measured; both now call
+`scripts/resolve_eval_checkpoint.sh`, which aborts instead of picking. Two
+facts settle which reading holds:
 
   1. The backbone filename #379's eval consumed. Its `eval.log` opens with
      `start on GPU N (backbone=<file>)`, so the replicate is recorded, not

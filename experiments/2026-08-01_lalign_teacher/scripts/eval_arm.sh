@@ -8,7 +8,11 @@
 #
 # Usage:
 #   WT=/home/jupyter/wt-cf-390-train ARM=arm5 BB_GPU=0 \
-#     BB_STEP_K=40 HEAD_STEPS=15000 bash eval_arm.sh
+#     BB_STEP_K=40 HEAD_STEPS=15000 [BB_CHECKPOINT=<path>] bash eval_arm.sh
+#
+# BB_CHECKPOINT names the backbone file directly. Needed only when a run was
+# resumed and both `<name>_<K>k.pth` and `<name>_r<N>_<K>k.pth` exist: the
+# resolver refuses to guess between them.
 #
 # The wave decides (BB_STEP_K, HEAD_STEPS):
 #   wave 1 |  40k backbone, 15 000-step head
@@ -48,6 +52,9 @@ MAX_EVAL_TRIES="${MAX_EVAL_TRIES:-3}"
 #               resuming the wave's head off disk.
 HEAD_SEED="${HEAD_SEED:-20260722}"
 CELL_TAG="${CELL_TAG:-}"
+# The replicate to evaluate, when a resumed run left more than one backbone at
+# this step. Empty means "resolve it", which only succeeds when there is one.
+BB_CHECKPOINT="${BB_CHECKPOINT:-}"
 
 EXP="$WT/experiments/2026-08-01_lalign_teacher"
 RUNS="$EXP/runs"
@@ -68,9 +75,13 @@ export GIFT_EVAL="${GIFT_EVAL:-$HOME/workspaces/gift-eval-data}"
 NAME="$(bb_name "$ARM")" || exit 2
 
 # The snapshot for this wave. A resumed run writes a fresh `_r<N>` safe run
-# name, so match those too, newest first.
-BB=$(ls -t "$RUNS/${NAME}"_${BB_STEP_K}k.pth "$RUNS/${NAME}"_r*_${BB_STEP_K}k.pth 2>/dev/null | head -1)
-[ -f "$BB" ] || { echo "ABORT: no ${BB_STEP_K}k backbone for arm '$ARM' (name=$NAME)" >&2; exit 3; }
+# name, so one (name, step) pair can leave several backbones on disk; the
+# resolver aborts rather than pick between them, and prints what it chose.
+# It comes from this script's own checkout ($HERE), not from $WT: a $WT that
+# predates the resolver would otherwise fall back to the mtime pick silently.
+CKPT_RESOLVER="$(cd "$HERE/../../.." && pwd)/scripts/resolve_eval_checkpoint.sh"
+[ -f "$CKPT_RESOLVER" ] || { echo "ABORT: no checkpoint resolver at $CKPT_RESOLVER" >&2; exit 2; }
+BB=$(bash "$CKPT_RESOLVER" "$RUNS" "$NAME" "$BB_STEP_K" "$BB_CHECKPOINT") || exit $?
 
 CELL="${ARM}${CELL_TAG}_bb${BB_STEP_K}k_hd${HEAD_STEPS}s"
 OUT="$OUT_ROOT/$CELL"; mkdir -p "$OUT"
@@ -84,7 +95,7 @@ say(){ echo "[$(date '+%m-%d %H:%M:%S')] [$CELL] $*" | tee -a "$LOG"; }
 # Data rows in all_results.csv (header excluded); 0 when the file is absent.
 n_rows(){ [ -f "$CSV" ] && awk 'END{print (NR>0 ? NR-1 : 0)}' "$CSV" || echo 0; }
 
-say "start on GPU $BB_GPU (backbone=$(basename "$BB"))"
+say "start on GPU $BB_GPU (backbone=$BB)"
 
 # Backbone arch args accepted by train_forecasting_head.py (it reads the
 # remaining backbone flags out of the checkpoint config).

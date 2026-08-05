@@ -29,6 +29,12 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=arm_names.sh
 source "$HERE/arm_names.sh"
 
+# The presence check below asks the same question the eval stage asks, so it
+# asks it the same way. Taken from this script's own checkout ($HERE), not
+# from $WT, for the reason spelled out in eval_arm.sh.
+CKPT_RESOLVER="$(cd "$HERE/../../.." && pwd)/scripts/resolve_eval_checkpoint.sh"
+[ -f "$CKPT_RESOLVER" ] || { echo "ABORT: no checkpoint resolver at $CKPT_RESOLVER" >&2; exit 2; }
+
 EXP="$WT/experiments/2026-08-01_lalign_teacher"
 RES="$EXP/results"; mkdir -p "$RES"
 SCRIPTS="$EXP/scripts"
@@ -73,18 +79,26 @@ live_arms(){ # arms... -> the ones with no NaN evidence
 # only produce a confusing ABORT.
 arms_at_step(){ # step_k arms...
   local k="$1"; shift
-  local arm name hit out=()
+  local arm name hit rc errf out=()
+  errf="$(mktemp)"
   for arm in "$@"; do
     name="$(bb_name "$arm")" || continue
-    # `ls a b` exits non-zero when EITHER operand is missing, so test the
-    # output, not the status — the `_r<N>` twin normally does not exist.
-    hit=$(ls -t "$RUNS/${name}"_${k}k.pth "$RUNS/${name}"_r*_${k}k.pth 2>/dev/null | head -1)
-    if [ -n "$hit" ]; then
-      out+=("$arm")
-    else
-      log "  SKIP $arm — no ${k}k backbone on disk" >&2
-    fi
+    # A resume writes its own `_r<N>` run name, so this pair can match two
+    # backbones. They are different models and mtime does not say which one a
+    # cell should cite, so the resolver refuses — and so does this. The arm is
+    # dropped from the wave with both paths in the log rather than measured
+    # under an arbitrary replicate. Re-run it by hand once you know which:
+    #   BB_CHECKPOINT=<path> ARM=<arm> BB_STEP_K=<k> ... bash eval_arm.sh
+    hit=$(bash "$CKPT_RESOLVER" "$RUNS" "$name" "$k" 2>"$errf")
+    rc=$?
+    case "$rc" in
+      0) log "  READY $arm — $hit" >&2; out+=("$arm") ;;
+      3) log "  SKIP $arm — no ${k}k backbone on disk" >&2 ;;
+      *) log "  DROP $arm — ${k}k backbone is ambiguous, not choosing:" >&2
+         while IFS= read -r line; do log "    $line" >&2; done <"$errf" ;;
+    esac
   done
+  rm -f "$errf"
   echo "${out[*]-}"
 }
 
