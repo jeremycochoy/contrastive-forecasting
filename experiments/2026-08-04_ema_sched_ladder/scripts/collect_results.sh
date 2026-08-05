@@ -135,4 +135,11 @@ python3 "$EXP/scripts/stop_reason.py" \
         --decisions "$RES/decisions_all.csv" \
         --ladder "$RES/ladder_all.csv" \
         --out "$RES/stop_reason.csv" 2>&1 | sed 's/^/  /'
+
+# --- the result, as a picture --------------------------------------------
+# Redrawn every cycle from the pooled table, so the committed plot never
+# shows fewer stops than the CSV beside it.
+python3 "$EXP/scripts/plot_ladder.py" --ladder "$RES/ladder_all.csv" \
+        --out "$EXP/plots/ladder.png" 2>&1 \
+  | grep -vE 'UserWarning|warnings\.warn|Axes3D' | sed 's/^/  /'
 say "done"
