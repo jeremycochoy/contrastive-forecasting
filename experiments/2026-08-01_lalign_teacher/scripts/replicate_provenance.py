@@ -17,8 +17,13 @@ Both are testable from artefacts already on disk, at no GPU cost.
 #379's launcher resumes a crashed arm, and `train.py`'s `safe_run_name`
 (docs/restart_protocol.md) gives the resumed process a fresh `_r2`, `_r3`, …
 run name. So one arm can leave several `_40k.pth` snapshots, each written by a
-process that saw a different slice of the HF stream. Two facts settle which
-reading holds:
+process that saw a different slice of the HF stream. Both evals then pick
+
+    BB=$(ls -t "$RUNS/${NAME}"_${K}k.pth "$RUNS/${NAME}"_r*_${K}k.pth | head -1)
+
+(#379 `scripts/eval_2L_gm_mase.sh:37`, this branch `scripts/eval_arm.sh:72`)
+— newest by mtime, base or resumed, whichever landed last. Two facts settle
+which reading holds:
 
   1. The backbone filename #379's eval consumed. Its `eval.log` opens with
      `start on GPU N (backbone=<file>)`, so the replicate is recorded, not
