@@ -1,6 +1,6 @@
-# The EMA-teacher alignment target lowers 2 of 5 measured cells and leaves 3 inside head-seed noise
+# The EMA-teacher alignment target moves individual cells in both directions and does not move the set of 10 either way
 
-Pointing `L_align` at the EMA teacher lowers 2 of the 5 measured cells, `arm5 base` and `arm5 ncpc`, by more than both their bootstrap interval and the largest measured head-seed range. It moves the other 3 by less than that range.
+Pointing `L_align` at the EMA teacher moves 7 of the 10 measured cells by more than their bootstrap interval, 4 down and 3 up. Over the 10 cells the mean difference is −0.0192 and the median −0.0143, with 6 lower and 4 higher (sign test p = 0.75, Wilcoxon p = 0.70).
 
 ![Teacher minus student GM-Relative MASE, backbone 40k, two comparisons](plots/controlled_vs_cross_delta.png)
 
@@ -23,15 +23,15 @@ The earlier small-model sweep computed `L_align` against the student encoder und
 | `arm5 nse` | 1.4536 | 1.4682 |
 | `arm5 ncpc` | 1.2923 | 1.5079 |
 | `arm5 combab` | 1.2728 | 1.2868 |
-| `arm6_v2 base` | 1.4322 | *pending* |
-| `arm6_v2 tr1` | 1.5315 | *pending* |
-| `arm6_v2 nse` | 1.3074 | *pending* |
-| `arm6_v2 ncpc` | 1.3159 | *pending* |
-| `arm6_v2 combab` | 1.2765 | *pending* |
+| `arm6_v2 base` | 1.4322 | 1.3149 |
+| `arm6_v2 tr1` | 1.5315 | 1.4684 |
+| `arm6_v2 nse` | 1.3074 | 1.3792 |
+| `arm6_v2 ncpc` | 1.3159 | 1.3621 |
+| `arm6_v2 combab` | 1.2765 | 1.2025 |
 
 *The differences and their intervals are the left panel above. Backbone 40 000 pretraining steps, quantile head 15 000 steps on the frozen backbone, 97 GIFT-Eval configs under the official **B4 strategy** (single-window in-context prediction), forecast horizon 16. Intervals are dataset-level paired cluster bootstraps over the 28 base datasets, 10 000 resamples (`results/controlled_delta_40k.csv`, `experiments/2026-08-01_lalign_teacher/scripts/controlled_delta.py`).*
 
-Of the five finished controls, four reproduce the earlier sweep's number exactly and one, `arm5 base`, differs from it by 0.0977.
+Nine of the ten controls reproduce the earlier sweep to within 0.000157, four of them bit-identical across all 97 configs, and `arm5 base` is the one that does not, 1.547783 against 1.450053, a difference of −0.09773 with no config in common (`results/snapshot_reproduction_40k.csv`).
 
 ## 2. How far a cell moves under nothing but a head seed, on four frozen backbones
 
@@ -84,7 +84,7 @@ Of the 20 cross-experiment differences in section 5, 8 exceed the largest head-s
 | 29 | `arm1 combab` | 3.1251 | 1.7595 | −1.3656 | 1.7107 | −0.0488 |
 | 30 | `arm6_v2 base` ⟲ | 1.4322 | 1.9057 † | +0.4735 | — | — |
 
-*Ranked by the 100k value. `⟲` marks a cell retrained with `--align-target teacher`; the other 20 carry no `L_align` term and are the earlier sweep's numbers, on the same seasonal-naive denominator. A dash means the cell was not extended. Values are head seed 20260722. † replicate head seeds (`results/seed_spread.csv`): `arm6_v2 base` @100k 1.8659 / 1.9057, mean 1.8858, range 0.0398 — the value shown is seed 20260722 of the two. `arm5 nse` @200k 1.7979 / 1.8655 / 1.8887, mean 1.8507, range 0.0908. `arm6_v2 combab` @200k mean 1.1851, range 0.0063. `arm6_v2 ncpc` @200k mean 1.3472, range 0.0252.*
+*Ranked by the 100k value. `⟲` marks a cell retrained with `--align-target teacher`; the other 20 carry no `L_align` term and are the earlier sweep's numbers, on the same seasonal-naive denominator. A dash means the cell was not extended. Values are head seed 20260722. † replicate head seeds (`results/seed_spread.csv`): `arm6_v2 base` @100k 1.8541 / 1.8659 / 1.9057, mean 1.8752, range 0.0516 — the value shown is seed 20260722 of the three. `arm5 nse` @200k 1.7979 / 1.8655 / 1.8887, mean 1.8507, range 0.0908. `arm6_v2 combab` @200k mean 1.1851, range 0.0063. `arm6_v2 ncpc` @200k mean 1.3472, range 0.0252.*
 
 ## 4. Which domains the lowest cells win on
 
