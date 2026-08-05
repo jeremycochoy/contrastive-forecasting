@@ -36,7 +36,7 @@ Six of the ten controlled pairs favour the teacher and four the student, a split
 
 *Per-domain GM-Relative MASE. Right: the 8 cells at backbone 200k.*
 
-Those eight cells fall below parity on Nature and on Sales, and on no other domain.
+Those eight cells fall below parity on Nature (6 of 8) and on Sales (7 of 8), and on no other domain.
 
 ## 3. The retrained cells against the earlier sweep
 
