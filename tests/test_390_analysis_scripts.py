@@ -37,6 +37,7 @@ GM_TABLE = SCRIPTS / "make_gm_table.py"
 BOOTSTRAP = SCRIPTS / "eval_bootstrap.py"
 CONTROLLED = SCRIPTS / "controlled_delta.py"
 PROVENANCE = SCRIPTS / "replicate_provenance.py"
+SPREAD = SCRIPTS / "seed_spread.py"
 RESULTS = REPO_ROOT / "reports" / "2026-08-04_lalign_teacher" / "results"
 RESULTS_379 = (REPO_ROOT / "reports" / "2026-07-21_split_pred_rep_small"
                / "results")
@@ -412,3 +413,90 @@ def test_the_resumed_replicate_is_a_genuinely_different_run(prov_rows):
             continue
         assert r["branch_matches_replicate"] == "r1", r
         assert float(r["snapshot_diff"]) != 0.0, r
+
+
+# --- the head-seed bar ---------------------------------------------------
+
+SPREAD_COLS = ("arm_slug,variant,align_target,code_snapshot,bb_steps,"
+               "head_steps,bb_seed,head_seed,cell,gm_rel_mase,n_configs,"
+               "source")
+
+
+def _spread_table(path, cells):
+    """cells: (arm, target, bb_steps, head_seed, value)"""
+    with open(path, "w") as fh:
+        fh.write(SPREAD_COLS + "\n")
+        for arm, target, bb, seed, val in cells:
+            fh.write(f"{arm},base,{target},#390-branch,{bb},15000,20260520,"
+                     f"{seed},{arm}_c{seed},{val},97,#390\n")
+
+
+def _run_spread(tmp_path, cells, extra=()):
+    table = tmp_path / "gm.csv"
+    out = tmp_path / "spread.csv"
+    _spread_table(table, cells)
+    res = subprocess.run(
+        [sys.executable, str(SPREAD), "--table", str(table),
+         "--out", str(out), *extra],
+        capture_output=True, text=True)
+    return res, out
+
+
+def test_seed_spread_keys_on_the_align_target(tmp_path):
+    """At backbone 40k the teacher and the student side of one arm are two
+    different backbones. Grouped on (arm, step) alone they would merge into
+    one row and report a spread that is really a teacher-student gap."""
+    res, out = _run_spread(tmp_path, [
+        ("arm5", "teacher", 40000, "20260722", "1.3515"),
+        ("arm5", "teacher", 40000, "20260723", "1.3550"),
+        ("arm5", "student", 40000, "20260722", "1.4501"),
+        ("arm5", "student", 40000, "20260723", "1.4530"),
+    ])
+    assert res.returncode == 0, res.stdout + res.stderr
+    with open(out, newline="") as fh:
+        rows = list(csv.DictReader(fh))
+    assert len(rows) == 2, rows
+    assert {r["align_target"] for r in rows} == {"teacher", "student"}
+    for r in rows:
+        assert float(r["range"]) < 0.01, r
+
+
+def test_the_bar_is_read_off_40k_cells(tmp_path):
+    """The whole point of measuring at 40k: a 200k cell's range must not
+    become the bar for a 40k delta."""
+    res, _ = _run_spread(tmp_path, [
+        ("arm5", "teacher", 40000, "20260722", "1.3515"),
+        ("arm5", "teacher", 40000, "20260723", "1.3560"),
+        ("arm5_nse", "teacher", 200000, "20260722", "1.7979"),
+        ("arm5_nse", "teacher", 200000, "20260723", "1.8887"),
+    ])
+    assert res.returncode == 0, res.stdout + res.stderr
+    assert "largest 40k head-seed range: 0.0045" in res.stdout, res.stdout
+    assert "0.0908" not in res.stdout.split("backbone 40000")[1]
+
+
+def test_missing_40k_replicate_is_said_out_loud(tmp_path):
+    """A bar carried across from 100k/200k is the failure this guards. With
+    no 40k replicate the script must refuse to imply one exists."""
+    res, _ = _run_spread(tmp_path, [
+        ("arm5_nse", "teacher", 200000, "20260722", "1.7979"),
+        ("arm5_nse", "teacher", 200000, "20260723", "1.8887"),
+    ])
+    assert res.returncode == 0, res.stdout + res.stderr
+    assert "NO 40k CELL CARRIES A REPLICATE HEAD SEED" in res.stdout
+
+
+def test_committed_spread_measures_both_sides_at_40k():
+    """The controlled comparison is teacher against student at backbone 40k,
+    so the bar has to exist on both sides of it."""
+    path = RESULTS / "seed_spread.csv"
+    if not path.is_file():
+        pytest.skip("seed_spread.csv not built yet")
+    with open(path, newline="") as fh:
+        rows = list(csv.DictReader(fh))
+    at40 = [r for r in rows if int(r["bb_steps"]) == 40000]
+    if not at40:
+        pytest.skip("the 40k head-seed replicates have not landed yet")
+    assert {r["align_target"] for r in at40} == {"teacher", "student"}, at40
+    for r in at40:
+        assert int(r["n_seeds"]) >= 3, r

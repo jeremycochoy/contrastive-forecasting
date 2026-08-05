@@ -26,6 +26,11 @@ plt.rcParams.update({
 SPREAD = {}
 with open(Path(__file__).parent.parent / "results" / "seed_spread.csv", newline="") as fh:
     for r in csv.DictReader(fh):
+        # Teacher rows only: this chart plots the retrained cells, and at 40k
+        # the student side of an arm is a different backbone under the same
+        # (arm, step) key.
+        if r["align_target"] != "teacher":
+            continue
         vals = [float(v) for v in r["values"].split()]
         SPREAD[(r["arm_slug"], int(r["bb_steps"]))] = (min(vals), max(vals))
 

@@ -1,10 +1,14 @@
 """How far one cell moves under nothing but a head seed.
 
-Four frozen backbones, the quantile head retrained under two extra seeds,
-the full 97-config eval re-run each time. Each row is one cell; the dots are
-its per-seed GM-Relative MASE and the bar is the range they span. A
-teacher-vs-student difference smaller than this range is not separable from
-head-seed noise.
+Each frozen backbone gets its quantile head retrained under two extra seeds
+and the full 97-config eval re-run each time. Each row is one cell; the dots
+are its per-seed GM-Relative MASE and the bar is the range they span. A
+difference smaller than this range is not separable from head-seed noise.
+
+The backbone-40k rows are the ones the controlled comparison is judged
+against, and they are measured on both sides of it, so they are drawn in
+their own colour. The 100k and 200k rows sit fourteen times apart in range,
+which is why the 40k bar had to be measured rather than carried across.
 
 Reads `results/seed_spread.csv` (written by
 `experiments/2026-08-01_lalign_teacher/scripts/seed_spread.py`).
@@ -27,16 +31,22 @@ plt.rcParams.update({
     "xtick.color": INK, "ytick.color": INK,
 })
 
+CONTROLLED_BB = 40000
+C_40K, C_LONG = "#0f6f6f", "#8b1e8b"
+
 with open(SRC, newline="") as fh:
     rows = list(csv.DictReader(fh))
-rows.sort(key=lambda r: -float(r["range"]))
+# Backbone step first, so the 40k block the controlled deltas are judged
+# against reads as one group instead of interleaving with the long runs.
+rows.sort(key=lambda r: (int(r["bb_steps"]), -float(r["range"])))
 
-fig, ax = plt.subplots(figsize=(13.5, 3.6))
+fig, ax = plt.subplots(figsize=(13.5, 0.42 * len(rows) + 1.5))
 for y, r in enumerate(rows[::-1]):
     vals = [float(v) for v in r["values"].split()]
-    ax.plot([min(vals), max(vals)], [y, y], color="#8b1e8b", lw=6, alpha=0.3,
+    col = C_40K if int(r["bb_steps"]) == CONTROLLED_BB else C_LONG
+    ax.plot([min(vals), max(vals)], [y, y], color=col, lw=6, alpha=0.3,
             solid_capstyle="butt")
-    ax.plot(vals, [y] * len(vals), "o", color="#8b1e8b", ms=7)
+    ax.plot(vals, [y] * len(vals), "o", color=col, ms=7)
     n_want = next((p[2] for p in PENDING
                    if p[0] == r["arm_slug"]
                    and str(p[1]) == r["bb_steps"]), len(vals))
@@ -46,14 +56,19 @@ for y, r in enumerate(rows[::-1]):
             va="center", fontsize=9)
 ax.set_yticks(range(len(rows)))
 ax.set_yticklabels([f"{r['arm_slug'].replace('_', ' ')}  "
-                    f"bb {int(r['bb_steps']) // 1000}k"
+                    f"bb {int(r['bb_steps']) // 1000}k  {r['align_target']}"
                     for r in rows[::-1]])
+for lab, r in zip(ax.get_yticklabels(), rows[::-1]):
+    lab.set_color(C_40K if int(r["bb_steps"]) == CONTROLLED_BB else INK)
 ax.set_xlabel("Aggregate GM-Relative MASE, 97 GIFT-Eval B4 configs, "
               "horizon 16  (lower is better)")
-ax.set_title("Same frozen backbone, same head budget, different head seed",
+ax.set_title("Same frozen backbone, same head budget, different head seed"
+             "   —   teal = backbone 40k, where every controlled delta lives",
              fontsize=11)
 ax.grid(True, axis="x", color=GRID, alpha=0.6)
-ax.set_xlim(1.13, 2.42)
+lo = min(float(v) for r in rows for v in r["values"].split())
+hi = max(float(v) for r in rows for v in r["values"].split())
+ax.set_xlim(lo - 0.04, hi + 0.62)
 fig.tight_layout()
 out = HERE / "head_seed_spread.png"
 fig.savefig(out)

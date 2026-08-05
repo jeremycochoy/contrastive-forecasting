@@ -29,6 +29,10 @@ import csv as _csv
 SPREAD = {}
 with open(HERE.parent / "results" / "seed_spread.csv", newline="") as _fh:
     for _r in _csv.DictReader(_fh):
+        # Teacher rows only; at 40k the student side of an arm shares the
+        # (arm, step) key and is a different backbone.
+        if _r["align_target"] != "teacher":
+            continue
         _v = [float(x) for x in _r["values"].split()]
         SPREAD[(_r["arm_slug"], int(_r["bb_steps"]))] = (min(_v), max(_v))
 LABEL_X = 2.04          # just outside the axes; the figure margin holds the text
