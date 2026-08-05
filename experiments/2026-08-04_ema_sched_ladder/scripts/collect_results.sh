@@ -35,6 +35,38 @@ REMOTE_RUNS=/root/cf393_runs
 mkdir -p "$RES/per_machine" "$RES/eval"
 say(){ echo "[$(date '+%m-%d %H:%M:%S')] [collect] $*"; }
 
+# A per-machine CSV is the only record of that box's scores once the box is
+# released, and `ladder_all.csv` is rebuilt from these files every run — so a
+# row that vanishes here vanishes from the results table, silently. Raw scp
+# writes straight to the destination, so a drop mid-transfer leaves a
+# truncated file where the good copy was (CLAUDE.md, after the same thing
+# cost a checkpoint). Fetch to a temp path, and adopt it only if it is a
+# plausible successor: these files are append-only on the box, so a copy with
+# a different header or with fewer rows than the one it would replace is a
+# broken transfer, not progress.
+pull_csv(){  # <host> <port> <remote> <local> <label>
+  local host="$1" port="$2" remote="$3" local_="$4" label="$5"
+  local tmp="$local_.tmp" n_new n_old
+  rm -f "$tmp"
+  if ! scp -q "${SSH_OPTS[@]}" -P "$port" "root@$host:$remote" "$tmp" 2>/dev/null; then
+    rm -f "$tmp"; say "  no $label yet"; return 1
+  fi
+  n_new=$(wc -l < "$tmp" 2>/dev/null || echo 0)
+  if [ "$n_new" -lt 1 ] || ! head -n 1 "$tmp" | grep -q '^cell,'; then
+    rm -f "$tmp"; say "  REJECTED $label: no header — transfer broken, keeping the old copy"
+    return 1
+  fi
+  if [ -f "$local_" ]; then
+    n_old=$(wc -l < "$local_" 2>/dev/null || echo 0)
+    if [ "$n_new" -lt "$n_old" ]; then
+      rm -f "$tmp"
+      say "  REJECTED $label: $n_new lines against $n_old on disk — keeping the old copy"
+      return 1
+    fi
+  fi
+  mv -f "$tmp" "$local_"
+}
+
 # --- elisa ---------------------------------------------------------------
 for f in ladder decisions; do
   [ -f "$RES/$f.csv" ] && cp -a "$RES/$f.csv" "$RES/per_machine/${f}_elisa.csv"
@@ -53,10 +85,8 @@ while [ $# -ge 3 ]; do
   name="$1"; host="$2"; port="$3"; shift 3
   say "$name ($host:$port)"
   for f in ladder decisions; do
-    scp -q "${SSH_OPTS[@]}" -P "$port" \
-        "root@$host:$REMOTE_EXP/results/$f.csv" \
-        "$RES/per_machine/${f}_${name}.csv" 2>/dev/null \
-      || say "  no $f.csv yet on $name"
+    pull_csv "$host" "$port" "$REMOTE_EXP/results/$f.csv" \
+             "$RES/per_machine/${f}_${name}.csv" "$name/$f"
   done
   # One tarball rather than one scp per file: a stop produces a summary, a
   # marker and a score file, and by the end there are hundreds of them.
