@@ -74,6 +74,8 @@ import numpy as np
 from scipy import stats
 
 HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE.parents[2] / "scripts"))
+import eval_cell_identity as cid  # noqa: E402
 
 
 def _load(path: Path, name: str):
@@ -85,7 +87,6 @@ def _load(path: Path, name: str):
 
 
 eb = _load(HERE / "eval_bootstrap.py", "cf390_eval_bootstrap_for_delta")
-cid = eb.cid
 
 ARMS = eb.ARMS
 N_BOOT = eb.N_BOOT
@@ -125,6 +126,7 @@ def paired_cluster_boot(t: dict[str, float], s: dict[str, float],
 
 
 def cell_path(results: str, cell: str) -> str:
+    """The per-config file of an already-named cell — a join, not a name."""
     return os.path.join(results, "eval_gm_mase", cell, "all_results.csv")
 
 
@@ -201,18 +203,29 @@ def main() -> int:
     rows, missing = [], []
 
     for arm in ARMS:
-        t_cell = f"{arm}_bb{bb_k}k_hd{hd}s"
-        s_cell = f"{arm}_alignstudent_bb{bb_k}k_hd{hd}s"
-        s379_cell = f"{arm}_bb{bb_k}k_hd{hd}s"
-        t_path = cell_path(args.results, t_cell)
-        s_path = cell_path(args.results, s_cell)
-        s379_path = cell_path(args.student_379_results, s379_cell)
-        if not os.path.isfile(t_path):
-            missing.append(f"{arm}: no teacher cell {t_cell}")
+        # Each side asked for by coordinate, not by a name spelled here: a
+        # cell measured on a resumed backbone carries `_r<N>`, and this
+        # loop reading it as missing takes the arm out of a table that is
+        # then refused for having nine rows. `eval_bootstrap.cell_results`
+        # is the shared answer, and it refuses two replicates rather than
+        # picking one. The names below are what was looked for, for the
+        # MISSING lines.
+        t_name = cid.cell_name(arm, bb_k, "", hd, WAVE_HEAD_SEED)
+        s_name = cid.cell_name(f"{arm}_alignstudent", bb_k, "", hd,
+                               WAVE_HEAD_SEED)
+        t_path = eb.cell_results(args.results, arm, bb_k, hd, WAVE_HEAD_SEED)
+        s_path = eb.cell_results(args.results, f"{arm}_alignstudent", bb_k, hd,
+                                 WAVE_HEAD_SEED)
+        s379_path = eb.cell_results(args.student_379_results, arm, bb_k, hd,
+                                    WAVE_HEAD_SEED)
+        if t_path is None:
+            missing.append(f"{arm}: no teacher cell {t_name}")
             continue
-        if not os.path.isfile(s_path):
-            missing.append(f"{arm}: no same-branch student control {s_cell}")
+        if s_path is None:
+            missing.append(f"{arm}: no same-branch student control {s_name}")
             continue
+        t_cell, s_cell = t_path.parent.name, s_path.parent.name
+        s379_cell = s379_path.parent.name if s379_path else t_name
 
         t = eb.read_mase(t_path)
         s = eb.read_mase(s_path)
@@ -280,7 +293,7 @@ def main() -> int:
 
         # #379's student number for the same arm and step, for the two
         # columns the issue asks to see side by side.
-        if os.path.isfile(s379_path):
+        if s379_path is not None:
             s379 = eb.read_mase(s379_path)
             gm_s379 = eb.gm_relative(s379, naive, sorted(s379))
             cross = gm_t - gm_s379

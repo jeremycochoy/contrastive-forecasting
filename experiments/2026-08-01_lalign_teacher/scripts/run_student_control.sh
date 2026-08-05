@@ -32,6 +32,12 @@ ARM="${ARM:-arm5}"
 BB_GPU="${BB_GPU:?set BB_GPU=0 or 1}"
 BB_STEP_K="${BB_STEP_K:-40}"
 HEAD_STEPS="${HEAD_STEPS:-15000}"
+# The head seed this control runs, bound once: it is part of the cell name
+# `eval_arm.sh` writes, and the DONE line below looks that cell up. Left to
+# reach the stage on its own, an exported seed renamed the cell and the
+# lookup still asked for the default one — a finished control reporting
+# "no summary".
+HEAD_SEED="${HEAD_SEED:-$EVAL_DEFAULT_HEAD_SEED}"
 
 RES="$WT/experiments/2026-08-01_lalign_teacher/results"
 mkdir -p "$RES"
@@ -49,7 +55,7 @@ say "stage 1/2 rc=$rc"
 say "stage 2/2 — head ${HEAD_STEPS} steps + GIFT-Eval 97 configs"
 CF390_NAME_SUFFIX=alignstudent CELL_TAG=_alignstudent \
   WT="$WT" ARM="$ARM" BB_GPU="$BB_GPU" \
-  BB_STEP_K="$BB_STEP_K" HEAD_STEPS="$HEAD_STEPS" \
+  BB_STEP_K="$BB_STEP_K" HEAD_STEPS="$HEAD_STEPS" HEAD_SEED="$HEAD_SEED" \
   bash "$HERE/eval_arm.sh"
 rc=$?
 say "stage 2/2 rc=$rc"
@@ -57,5 +63,5 @@ say "stage 2/2 rc=$rc"
 
 mapfile -t SUMS < <(eval_cell_summaries \
   "$WT/experiments/2026-08-01_lalign_teacher/eval_gm_mase" \
-  "${ARM}_alignstudent" "$BB_STEP_K" "$HEAD_STEPS" "$EVAL_DEFAULT_HEAD_SEED")
+  "${ARM}_alignstudent" "$BB_STEP_K" "$HEAD_STEPS" "$HEAD_SEED")
 say "DONE — $(head -1 "${SUMS[0]:-/dev/null}" 2>/dev/null || echo 'no summary')"

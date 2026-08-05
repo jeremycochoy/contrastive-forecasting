@@ -74,13 +74,17 @@ if [ -n "$EXPLICIT" ]; then
 fi
 
 # --- Otherwise: the base run and every `_r<N>` resume at this step. --------
-# `_<STEP_K>k.pth` is anchored on both sides, so neither a different step
-# (`_400k.pth`) nor the optimizer sidecar (`_40k_optimizer.pth`) matches.
-# `_r[0-9]*_` and not `_r*_`: a resume suffix is `_r<N>`, and the loose glob
-# also swallowed any sibling run whose suffix starts with an `r`.
+# The glob narrows and `ckpt_is_run_step` — the same predicate the override
+# above is checked with — decides. `_r[0-9]*_` and not `_r*_` keeps a sibling
+# run whose suffix starts with an `r` (`_revin_`) out of the gather; the
+# predicate then drops what a glob cannot express, `_r3x`, which would
+# otherwise be returned as a replicate and refused one stage later by the
+# caller naming its cell from it.
 CANDIDATES=()
 for f in "$RUNS/${NAME}_${STEP_K}k.pth" "$RUNS/${NAME}"_r[0-9]*_${STEP_K}k.pth; do
-  [ -f "$f" ] && CANDIDATES+=("$f")
+  [ -f "$f" ] || continue
+  ckpt_is_run_step "$NAME" "$STEP_K" "$f" || continue
+  CANDIDATES+=("$f")
 done
 
 if [ ${#CANDIDATES[@]} -eq 0 ]; then

@@ -48,8 +48,15 @@ DEFAULT_HEAD_SEED = "20260722"
 CELL_RE = re.compile(
     r"^(?P<slug>.+?)_bb(?P<bb>\d+)k(?P<repl>_r\d+)?_hd(?P<hd>\d+)s$")
 
-# The head-seed token, as it appears at the end of a slug.
-HEAD_SEED_RE = re.compile(r"_s(?P<seed>\d{6,})$")
+# The head-seed token, as it appears at the end of a slug. `\d+`, because
+# that is what `head_seed_tag` in eval_cell_identity.sh writes one for: a
+# rule that only read six digits or more parsed `arm5_s7` as an arm called
+# `arm5_s7` measured at the *wave* seed, so the table carried the wrong seed
+# and the delta script collided that cell with the real wave cell.
+HEAD_SEED_RE = re.compile(r"_s(?P<seed>\d+)$")
+
+# What a seed may be, on both sides of the grammar.
+SEED_RE = re.compile(r"^\d+$")
 
 
 class Cell(NamedTuple):
@@ -61,7 +68,16 @@ class Cell(NamedTuple):
 
 
 def head_seed_tag(head_seed: str | int = DEFAULT_HEAD_SEED) -> str:
-    """`""` for the seed every wave ran, `_s<seed>` for any other."""
+    """`""` for the seed every wave ran, `_s<seed>` for any other.
+
+    A seed that is not a run of digits is refused rather than written into a
+    name, because `split_head_seed` could not read it back out of one: the
+    same refusal the bash binding makes, for the same reason.
+    """
+    if not SEED_RE.match(str(head_seed)):
+        raise ValueError(
+            f"head seed {head_seed!r} is not a run of digits; the cell name "
+            "would carry a token no reader can read back")
     return "" if str(head_seed) == DEFAULT_HEAD_SEED else f"_s{head_seed}"
 
 

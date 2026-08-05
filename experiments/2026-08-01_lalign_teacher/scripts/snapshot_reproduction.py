@@ -41,6 +41,8 @@ import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE.parents[2] / "scripts"))
+import eval_cell_identity as cid  # noqa: E402
 
 
 def _load(path: Path, name: str):
@@ -54,6 +56,9 @@ def _load(path: Path, name: str):
 eb = _load(HERE / "eval_bootstrap.py", "cf390_eval_bootstrap_for_snapshot")
 
 ARMS = eb.ARMS
+# The seed both sides were measured under, from the cell-identity library:
+# the same constant decides whether a cell name carries a `_s<seed>` token.
+HEAD_SEED = cid.DEFAULT_HEAD_SEED
 
 
 def main() -> int:
@@ -79,18 +84,25 @@ def main() -> int:
 
     rows, missing = [], []
     for arm in ARMS:
-        new_cell = f"{arm}_alignstudent_bb{bb_k}k_hd{hd}s"
-        old_cell = f"{arm}_bb{bb_k}k_hd{hd}s"
-        new_path = os.path.join(args.results, "eval_gm_mase", new_cell,
-                                "all_results.csv")
-        old_path = os.path.join(args.student_379_results, "eval_gm_mase",
-                                old_cell, "all_results.csv")
-        if not os.path.isfile(new_path):
-            missing.append(f"{arm}: no same-branch student control {new_cell}")
+        # By coordinate, not by a name spelled here: a cell measured on a
+        # resumed backbone carries `_r<N>`, and reading it as missing drops
+        # an arm from a claim the script then refuses to publish for having
+        # nine of ten. The names are what was looked for, for the MISSING
+        # lines.
+        new_name = cid.cell_name(f"{arm}_alignstudent", bb_k, "", hd,
+                                 HEAD_SEED)
+        old_name = cid.cell_name(arm, bb_k, "", hd, HEAD_SEED)
+        new_path = eb.cell_results(args.results, f"{arm}_alignstudent", bb_k,
+                                   hd, HEAD_SEED)
+        old_path = eb.cell_results(args.student_379_results, arm, bb_k, hd,
+                                   HEAD_SEED)
+        if new_path is None:
+            missing.append(f"{arm}: no same-branch student control {new_name}")
             continue
-        if not os.path.isfile(old_path):
-            missing.append(f"{arm}: no #379 student cell {old_cell}")
+        if old_path is None:
+            missing.append(f"{arm}: no #379 student cell {old_name}")
             continue
+        new_cell, old_cell = new_path.parent.name, old_path.parent.name
 
         new = eb.read_mase(new_path)
         old = eb.read_mase(old_path)

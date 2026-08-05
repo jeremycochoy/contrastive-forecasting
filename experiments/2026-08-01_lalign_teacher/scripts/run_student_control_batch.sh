@@ -51,6 +51,12 @@ ARMS="${ARMS:-arm5_tr1 arm5_nse arm5_ncpc arm5_combab arm6_v2 arm6_v2_tr1 arm6_v
 SLOTS_PER_GPU="${SLOTS_PER_GPU:-2}"
 BB_STEP_K="${BB_STEP_K:-40}"
 HEAD_STEPS="${HEAD_STEPS:-15000}"
+# The head seed every cell in this batch is measured under. It is part of the
+# cell name, so the skip check and the RESULT lines below have to ask for the
+# seed the batch actually runs: asking at the default answered one seed's
+# question with another seed's cell, and the arm was skipped without ever
+# being measured at the seed asked for.
+HEAD_SEED="${HEAD_SEED:-$EVAL_DEFAULT_HEAD_SEED}"
 
 RES="$WT/experiments/2026-08-01_lalign_teacher/results"
 EVAL_ROOT="$WT/experiments/2026-08-01_lalign_teacher/eval_gm_mase"
@@ -62,7 +68,7 @@ ctl_job() {  # <arm> <gpu>
   local arm="$1" gpu="$2"
   local -a done_cells
   mapfile -t done_cells < <(eval_cell_summaries "$EVAL_ROOT" \
-    "${arm}_alignstudent" "$BB_STEP_K" "$HEAD_STEPS" "$EVAL_DEFAULT_HEAD_SEED")
+    "${arm}_alignstudent" "$BB_STEP_K" "$HEAD_STEPS" "$HEAD_SEED")
   if [ "${#done_cells[@]}" -gt 0 ]; then
     say "SKIP $arm — already measured: $(basename "${done_cells[0]}" _summary.txt)"
     return 0
@@ -73,7 +79,7 @@ ctl_job() {  # <arm> <gpu>
   # race, and the loser would exec a half-written file.
   GEN="$HERE/.run_arm_student.${arm}.generated.sh" \
   WT="$WT" ARM="$arm" BB_GPU="$gpu" \
-  BB_STEP_K="$BB_STEP_K" HEAD_STEPS="$HEAD_STEPS" \
+  BB_STEP_K="$BB_STEP_K" HEAD_STEPS="$HEAD_STEPS" HEAD_SEED="$HEAD_SEED" \
     bash "$HERE/run_student_control.sh"
   local rc=$?
   say "END   $arm rc=$rc"
@@ -88,7 +94,7 @@ fail=0
 for arm in "${ARM_LIST[@]}"; do
   rc="${POOL_RC[$arm]:-99}"
   mapfile -t found < <(eval_cell_summaries "$EVAL_ROOT" "${arm}_alignstudent" \
-    "$BB_STEP_K" "$HEAD_STEPS" "$EVAL_DEFAULT_HEAD_SEED")
+    "$BB_STEP_K" "$HEAD_STEPS" "$HEAD_SEED")
   agg="$(head -1 "${found[0]:-/dev/null}" 2>/dev/null || echo '<no summary>')"
   say "RESULT $arm rc=$rc — ${agg:-<no summary>}"
   [ "$rc" -eq 0 ] || fail=$(( fail + 1 ))

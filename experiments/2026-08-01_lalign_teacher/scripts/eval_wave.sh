@@ -34,6 +34,12 @@ source "$HERE/gpu_pool.sh"
 source "$ROOT/scripts/eval_cell_identity.sh"
 
 SLOTS_PER_GPU="${SLOTS_PER_GPU:-2}"
+# The head seed the wave runs. `eval_arm.sh` reads it from the environment
+# and puts it in every cell name it writes, so a wave that did not bind it
+# here counted its results at the library's default while writing them under
+# whatever seed happened to be exported: ten measured cells, ten MISSING
+# lines. One variable, handed to the stage and used for the lookup.
+HEAD_SEED="${HEAD_SEED:-$EVAL_DEFAULT_HEAD_SEED}"
 WAVE="${WAVE:-1}"
 case "$WAVE" in
   1) BB_STEP_K=40;  HEAD_STEPS=15000 ;;
@@ -60,13 +66,14 @@ trap 'rm -f "$PIDFILE"' EXIT
 run_one(){ # arm gpu
   local arm="$1" gpu="$2" rc
   WT="$WT" ARM="$arm" BB_GPU="$gpu" BB_STEP_K="$BB_STEP_K" HEAD_STEPS="$HEAD_STEPS" \
+    HEAD_SEED="$HEAD_SEED" \
     bash "$SCRIPTS/eval_arm.sh" >>"$LOG" 2>&1
   rc=$?
   log "arm $arm eval rc=$rc"
   return $rc
 }
 
-log "eval wave start — WT=$WT bb=${BB_STEP_K}k head=${HEAD_STEPS} arms=${#ARM_LIST[@]} slots/gpu=$SLOTS_PER_GPU"
+log "eval wave start — WT=$WT bb=${BB_STEP_K}k head=${HEAD_STEPS} head_seed=${HEAD_SEED} arms=${#ARM_LIST[@]} slots/gpu=$SLOTS_PER_GPU"
 log "arms: ${ARM_LIST[*]}"
 : > "$STATUS"
 
@@ -78,13 +85,15 @@ done
 # Summary straight off disk: a cell counts as measured only when its
 # `<cell>_summary.txt` exists AND says 97 configs. eval_arm.sh refuses to
 # write that file on a partial, so this is the honest count. The cell name
-# carries the replicate its backbone came from, and the wave-2 and wave-3
-# backbones here are all resumes, so the lookup asks for either.
+# carries the replicate its backbone came from and the seed its head was
+# trained under; the wave-2 and wave-3 backbones here are all resumes, so
+# the lookup asks for either replicate — at the seed this wave just ran.
 ok=0
 for arm in "${ARM_LIST[@]}"; do
   mapfile -t found < <(eval_cell_summaries "$EXP/eval_gm_mase" "$arm" \
-                         "$BB_STEP_K" "$HEAD_STEPS" "$EVAL_DEFAULT_HEAD_SEED")
-  cell="${arm}_bb${BB_STEP_K}k*_hd${HEAD_STEPS}s"   # what was looked for
+                         "$BB_STEP_K" "$HEAD_STEPS" "$HEAD_SEED")
+  # What was looked for, named the way the cells are.
+  cell="$(eval_cell_name "$arm" "$BB_STEP_K" "[_r<N>]" "$HEAD_STEPS" "$HEAD_SEED")"
   if [ "${#found[@]}" -gt 1 ]; then
     log "  $cell: AMBIGUOUS — ${#found[@]} replicate cells measured, not counting one:"
     for f in "${found[@]}"; do log "    $(basename "$f")"; done

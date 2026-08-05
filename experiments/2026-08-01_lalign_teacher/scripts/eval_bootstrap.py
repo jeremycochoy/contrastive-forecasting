@@ -76,7 +76,8 @@ def read_mase(path: str) -> dict[str, float]:
     return out
 
 
-def cell_results(results: str, arm: str, bb_k: int, hd: int):
+def cell_results(results: str, arm: str, bb_k: int, hd: int,
+                 head_seed: str = cid.DEFAULT_HEAD_SEED):
     """The one `all_results.csv` of this cell, or None if it was not measured.
 
     Asked for by coordinate rather than by name: a cell measured on a resumed
@@ -84,10 +85,14 @@ def cell_results(results: str, arm: str, bb_k: int, hd: int):
     here drops it from the CI table without saying so. Two measured
     replicates is the choice `resolve_eval_checkpoint.sh` refuses to make,
     and this refuses it too.
+
+    The other analysis scripts of this experiment ask the same question of
+    the same directories, so they ask it here rather than each spelling the
+    name again.
     """
     hits = [d / "all_results.csv"
             for d in cid.cell_paths(os.path.join(results, "eval_gm_mase"),
-                                    arm, bb_k, hd)
+                                    arm, bb_k, hd, head_seed)
             if (d / "all_results.csv").is_file()]
     if len(hits) > 1:
         raise SystemExit(

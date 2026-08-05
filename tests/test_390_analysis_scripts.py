@@ -568,19 +568,41 @@ def verify():
     return load(VERIFY, "cf390_verify_head_seeds")
 
 
-def test_the_head_seed_gate_finds_a_replicate_backed_cell(tmp_path, verify):
-    """The twelve 40k head-seed cells, one of them measured on a resume. The
-    gate reading it as absent is a PROBLEM line against a cell that is on
-    disk, and the mean and range are then taken over eleven."""
-    tagged = None
-    cells = {}
-    for (_arm, _target), (slug, expected) in sorted(verify.CELLS.items()):
+def _head_seed_cells(verify, *, replicate_first="") -> dict[str, float]:
+    """The twelve 40k head-seed cells, the first of them optionally measured
+    on a resumed backbone."""
+    cells, tagged = {}, ""
+    for _key, (slug, expected) in sorted(verify.CELLS.items()):
         for seed, value in zip(verify.SEEDS, expected):
-            replicate = "_r2" if tagged is None else ""
+            replicate = replicate_first if not tagged else ""
             name = cid.cell_name(slug, verify.BB_STEPS_K, replicate,
                                  verify.HEAD_STEPS, seed)
             tagged = tagged or name
             cells[name] = value
+    return cells
+
+
+def test_the_head_seed_gate_refuses_two_replicates_of_one_cell(tmp_path,
+                                                               verify):
+    """Two measured replicates of one coordinate: the gate must say which,
+    not verify whichever it globbed first."""
+    cells = _head_seed_cells(verify, replicate_first="_r2")
+    cells.update(_head_seed_cells(verify))
+    root = _results_tree(tmp_path / "results", cells)
+    r = subprocess.run(
+        [sys.executable, str(VERIFY), "--results", str(root / "eval_gm_mase"),
+         "--naive", str(root / "seasonal_naive_all_results.csv")],
+        capture_output=True, text=True)
+    assert r.returncode != 0, r.stdout
+    assert "replicate cells measured" in r.stdout + r.stderr, r.stdout + r.stderr
+
+
+def test_the_head_seed_gate_finds_a_replicate_backed_cell(tmp_path, verify):
+    """The twelve 40k head-seed cells, one of them measured on a resume. The
+    gate reading it as absent is a PROBLEM line against a cell that is on
+    disk, and the mean and range are then taken over eleven."""
+    cells = _head_seed_cells(verify, replicate_first="_r2")
+    tagged = next(iter(cells))
     root = _results_tree(tmp_path / "results", cells)
     r = subprocess.run(
         [sys.executable, str(VERIFY), "--results", str(root / "eval_gm_mase"),

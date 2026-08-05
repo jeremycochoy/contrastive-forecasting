@@ -52,9 +52,11 @@
 #   22 GIFT-Eval never reached 97 configs — re-run it
 #   23 97 rows on disk and no Aggregate line in gift/summary.txt
 #   24 the aggregate is not over 97 configs
-#   25 the resolver returned a path this run cannot name a cell from
-#      (E_BAD_TAG, from the cell-identity library — #379's eval uses the
-#      same number for the same condition)
+#   25 a value this run cannot name a cell from — the resolver's path, or a
+#      HEAD_SEED that is not a run of digits (E_BAD_TAG, from the
+#      cell-identity library; #379's eval uses the same number for the same
+#      condition). One operator action either way: name it in the grammar
+#      the cells are named in.
 #
 # Anything else is the head trainer's own status, and the `head-train rc=`
 # line right above it in the log says so.
@@ -143,7 +145,7 @@ REPL_TAG="$(replicate_tag "$NAME" "$BB_STEP_K" "$BB")" || {
   echo "ABORT: resolved checkpoint is not '$NAME' at ${BB_STEP_K}k: $BB" >&2
   exit $E_BAD_TAG; }
 
-CELL="$(eval_cell_name "${ARM}${CELL_TAG}" "$BB_STEP_K" "$REPL_TAG" "$HEAD_STEPS" "$HEAD_SEED")"
+CELL="$(eval_cell_name "${ARM}${CELL_TAG}" "$BB_STEP_K" "$REPL_TAG" "$HEAD_STEPS" "$HEAD_SEED")" || exit $E_BAD_TAG
 OUT="$OUT_ROOT/$CELL"; mkdir -p "$OUT"
 HEAD_NAME="qhead_2L_${NAME}_bb${BB_STEP_K}k${REPL_TAG}"
 HEAD_CKPT="$OUT/${HEAD_NAME}_final.pth"

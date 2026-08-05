@@ -128,8 +128,16 @@ def bb_replicate(row: dict) -> str:
     return parsed.replicate if parsed else ""
 
 
-def pair_key(row: dict) -> tuple[str, int, str]:
-    return row["arm_slug"], row["bb_steps"], bb_replicate(row)
+def pair_key(row: dict) -> tuple[str, int, str, str]:
+    """What two rows have to share to be two sides of one comparison.
+
+    The head seed belongs here for the same reason the backbone replicate
+    does: it decides the number. Without it a student cell measured under
+    another seed answers a default-seed teacher cell's pairing, and an arm
+    whose only same-seed student was never run reads as controlled.
+    """
+    return (row["arm_slug"], row["bb_steps"], bb_replicate(row),
+            row["head_seed"])
 
 
 def split_arm(arm: str) -> tuple[str, str]:
@@ -202,9 +210,10 @@ def main() -> int:
           f"{n_student} are the student counterparts), "
           f"{len({r['arm_slug'] for r in rows})} arms")
     # The comparison the report is built on: every teacher cell needs a
-    # student cell at the same arm, backbone step AND backbone replicate, or
-    # a delta cannot be formed from this file. Dropping the replicate from
-    # the key answers a teacher `_r2` cell with the base run's student cell.
+    # student cell at the same arm, backbone step, backbone replicate AND
+    # head seed, or a delta cannot be formed from this file. Dropping the
+    # replicate from the key answers a teacher `_r2` cell with the base run's
+    # student cell; dropping the seed answers it with another seed's.
     teacher = {pair_key(r) for r in rows
                if r["align_target"] == "teacher"
                and r["head_seed"] == default_head_seed}
@@ -214,7 +223,8 @@ def main() -> int:
           f"paired with a student cell: {len(teacher & student)}")
     if unpaired:
         print("UNPAIRED (no student counterpart): "
-              + " ".join(f"{a}{rp}@{s}" for a, s, rp in unpaired))
+              + " ".join(f"{a}{rp}{cid.head_seed_tag(hs)}@{s}"
+                         for a, s, rp, hs in unpaired))
     # The pairing that actually licenses a statement about the flag: both
     # sides measured on THIS branch. A teacher cell whose only student
     # counterpart is #379's carries the code-snapshot shift as well.
@@ -226,7 +236,8 @@ def main() -> int:
     cross_only = sorted((teacher & student) - same_snap)
     if cross_only:
         print("CROSS-EXPERIMENT ONLY (student is " + SNAP_379 + "): "
-              + " ".join(f"{a}{rp}@{s}" for a, s, rp in cross_only))
+              + " ".join(f"{a}{rp}{cid.head_seed_tag(hs)}@{s}"
+                         for a, s, rp, hs in cross_only))
     short = [r["cell"] for r in rows if r["n_configs"] != 97]
     if short:
         print("NOT 97 CONFIGS: " + " ".join(short))

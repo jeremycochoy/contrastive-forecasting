@@ -491,16 +491,24 @@ def test_a_shell_reader_sources_the_shared_grammar(path: Path):
 # --- 8. one exit code, one operator action --------------------------------
 
 def test_the_bad_tag_code_is_the_librarys_and_both_evals_use_it():
-    """`replicate_tag` refusing is one operator action — name the replicate
-    you mean. It exited 25 in #390's eval and 20 in #379's, so the same
-    failure read as two different things depending on which script ran."""
+    """A value the cell cannot be named from is one operator action — name it
+    in the grammar the cells use. It exited 25 in #390's eval and 20 in
+    #379's, so the same failure read as two different things depending on
+    which script ran.
+
+    Both refusals, in both scripts: the replicate the resolver handed back,
+    and the head seed the cell name is built from. A second number for the
+    second one is the same split again, one refusal further along.
+    """
     assert shell_var("E_BAD_TAG") == "25"
     for path in (EXP_390 / "scripts" / "eval_arm.sh",
                  REPO_ROOT / "experiments" / "2026-07-21_split_pred_rep_small"
                  / "scripts" / "eval_2L_gm_mase.sh"):
         src = path.read_text()
-        assert "exit $E_BAD_TAG" in src, (
-            f"{path.name} does not use the library's bad-tag exit code")
+        assert src.count("exit $E_BAD_TAG") == 2, (
+            f"{path.name} spells the library's bad-tag exit code "
+            f"{src.count('exit $E_BAD_TAG')} times; both the replicate-tag "
+            "refusal and the cell-name refusal use it")
 
 
 # --- 9. the readers, run ---------------------------------------------------
@@ -698,10 +706,13 @@ def test_a_wave_under_another_head_seed_counts_its_own_cells(scratch: Path):
     """The desync. Every cell the wave writes carries the seed; the tally
     asked for the default, so a wave where nothing failed logged MISSING for
     all ten arms and the operator re-ran a finished wave."""
-    r = run_wave_script(wave_sandbox(scratch), "eval_wave.sh",
-                        HEAD_SEED=OTHER_SEED)
-    assert f"cell=arm5_s{OTHER_SEED}_bb40k_hd15000s" in r.stdout, (
-        f"the eval stage did not run under the wave's seed:\n{r.stdout}")
+    repo = wave_sandbox(scratch)
+    r = run_wave_script(repo, "eval_wave.sh", HEAD_SEED=OTHER_SEED)
+    # The stage's own output goes to the wave log; the tally goes to stdout.
+    stage = (repo / "experiments" / "2026-08-01_lalign_teacher" / "results"
+             / "eval_wave1.log").read_text()
+    assert f"cell=arm5_s{OTHER_SEED}_bb40k_hd15000s" in stage, (
+        f"the eval stage did not run under the wave's seed:\n{stage}")
     assert "MISSING or partial" not in r.stdout, (
         "the wave measured its cell and then counted at another seed:\n"
         f"{r.stdout}")

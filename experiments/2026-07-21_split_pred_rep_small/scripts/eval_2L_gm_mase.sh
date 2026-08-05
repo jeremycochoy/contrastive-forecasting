@@ -84,7 +84,7 @@ REPL_TAG="$(replicate_tag "$NAME" "$BB_STEP_K" "$BB")" || {
   echo "ABORT: resolved checkpoint is not '$NAME' at ${BB_STEP_K}k: $BB" >&2
   exit $E_BAD_TAG; }
 
-CELL="$(eval_cell_name "$ARM" "$BB_STEP_K" "$REPL_TAG" "$HEAD_STEPS" "$HEAD_SEED")"
+CELL="$(eval_cell_name "$ARM" "$BB_STEP_K" "$REPL_TAG" "$HEAD_STEPS" "$HEAD_SEED")" || exit $E_BAD_TAG
 OUT="$OUT_ROOT/$CELL"; mkdir -p "$OUT"
 HEAD_NAME="qhead_2L_${NAME}_bb${BB_STEP_K}k${REPL_TAG}"
 HEAD_CKPT="$OUT/${HEAD_NAME}_final.pth"

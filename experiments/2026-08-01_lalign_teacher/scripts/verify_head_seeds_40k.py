@@ -35,6 +35,8 @@ import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE.parents[2] / "scripts"))
+import eval_cell_identity as cid  # noqa: E402
 
 
 def _load(path: Path, name: str):
@@ -46,29 +48,42 @@ def _load(path: Path, name: str):
 
 
 eb = _load(HERE / "eval_bootstrap.py", "cf390_eval_bootstrap_for_verify")
-cid = eb.cid
 
 N_CONFIGS = 97
 SEEDS = (cid.DEFAULT_HEAD_SEED, "20260723", "20260724")
+BB_STEPS_K = 40
+HEAD_STEPS = 15000
 
-# (arm, align target) -> cell name template. The wave's own seed has no
-# `_s<seed>` tag; the two replicates do. Which is which comes from the
-# cell-identity library, not from a rule restated here.
+# (arm, align target) -> (cell slug, the aggregate each seed published). The
+# name is built from the slug by `scripts/eval_cell_identity.py`, which is
+# what `eval_arm.sh` built it with: the wave's own seed carries no `_s<seed>`
+# token and the two replicates do, and a cell measured on a resumed backbone
+# carries `_r<N>` — spelled here it would read as absent.
 CELLS = {
-    ("arm5", "teacher"): ("arm5{tag}_bb40k_hd15000s", (1.3515, 1.3765, 1.3927)),
-    ("arm5", "student"): ("arm5_alignstudent{tag}_bb40k_hd15000s",
-                          (1.4501, 1.4248, 1.3754)),
-    ("arm5_combab", "teacher"): ("arm5_combab{tag}_bb40k_hd15000s",
-                                 (1.2728, 1.2739, 1.2746)),
-    ("arm5_combab", "student"): ("arm5_combab_alignstudent{tag}_bb40k_hd15000s",
+    ("arm5", "teacher"): ("arm5", (1.3515, 1.3765, 1.3927)),
+    ("arm5", "student"): ("arm5_alignstudent", (1.4501, 1.4248, 1.3754)),
+    ("arm5_combab", "teacher"): ("arm5_combab", (1.2728, 1.2739, 1.2746)),
+    ("arm5_combab", "student"): ("arm5_combab_alignstudent",
                                  (1.2868, 1.2873, 1.2976)),
 }
 
 VAL_RE = re.compile(r"\((?P<n>\d+) configs\):\s*(?P<v>[0-9.]+)")
 
 
-def cell_name(template: str, seed: str) -> str:
-    return template.format(tag=cid.head_seed_tag(seed))
+def cell_dir(results: Path, slug: str, seed: str) -> Path | None:
+    """The one directory that measured (slug, 40k, 15 000 steps, seed).
+
+    Two replicates of one coordinate is the choice
+    `resolve_eval_checkpoint.sh` refuses to make, and a gate that picked one
+    of them would verify a number the report does not publish.
+    """
+    hits = cid.cell_paths(results, slug, BB_STEPS_K, HEAD_STEPS, seed)
+    if len(hits) > 1:
+        raise SystemExit(
+            f"{slug} at seed {seed}: {len(hits)} replicate cells measured "
+            f"({', '.join(p.name for p in hits)}) — name the one the report "
+            "publishes.")
+    return hits[0] if hits else None
 
 
 def main() -> int:
@@ -90,9 +105,11 @@ def main() -> int:
     print(f"{'cell':52s} {'n':>4s} {'summary':>8s} {'recomputed':>11s} "
           f"{'expected':>9s}")
 
-    for (arm, target), (template, expected) in sorted(CELLS.items()):
+    for (arm, target), (slug, expected) in sorted(CELLS.items()):
         for seed, want in zip(SEEDS, expected):
-            cell = cell_name(template, seed)
+            found = cell_dir(res, slug, seed)
+            cell = found.name if found else cid.cell_name(
+                slug, BB_STEPS_K, "", HEAD_STEPS, seed)
             csv_path = res / cell / args.gift_subdir / "all_results.csv"
             sum_path = res / f"{cell}_summary.txt"
             if not csv_path.is_file():
