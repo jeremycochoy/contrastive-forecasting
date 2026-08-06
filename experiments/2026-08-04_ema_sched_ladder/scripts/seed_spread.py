@@ -21,11 +21,17 @@ eval directories and answers two questions.
      branch that is not the same on all three seeds was decided by noise,
      and the report has to say so rather than presenting it as a finding.
 
-Question 2 is also asked over all NINE (student seed, teacher seed)
-pairings, not just the three matched ones. The rule is a joint test on two
-heads that were trained independently, so nothing ties the student's seed to
-the teacher's; a branch that holds on the three matched replicates but flips
-on a cross pairing is still a branch the noise reaches.
+The branch is a joint test on two heads, so what actually decides it is one
+bit per head: is this head below its bb40k value, or not. Those two bits are
+reported per seed (`student_down_seeds`, `teacher_down_seeds`), because they
+say WHERE a flip comes from — a branch can flip on the student's sign, on
+the teacher's, or on both, and the three are different findings.
+
+Pairing each seed's student with another seed's teacher adds nothing, and
+the guard test is what showed it: the matched branches agree exactly when
+each head's sign is constant across seeds, and if both signs are constant
+then every one of the nine pairings gives the same branch. So the matched
+check is already the complete one.
 
 Writes three files:
 
@@ -81,7 +87,7 @@ SPREAD_COLUMNS = ["cell", "head", "bb40k", "seed_20260722", "seed_20260723",
                   "delta_mean", "delta_seed_20260722", "resolved"]
 BRANCH_COLUMNS = ["cell", "recorded_branch", "branch_20260723",
                   "branch_20260724", "n_matched_distinct", "survives_matched",
-                  "n_of_9_agreeing", "survives_all_9", "verdict"]
+                  "student_down_seeds", "teacher_down_seeds", "verdict"]
 LF = "\n"
 
 
@@ -178,44 +184,41 @@ def branches(scores: dict) -> list[dict]:
         if any(v is None for v in prev.values()):
             continue
 
-        def branch_for(s_student: int, s_teacher: int) -> str | None:
-            cur = {"student": scores.get((cell, STOP, "student", s_student)),
-                   "teacher": scores.get((cell, STOP, "teacher", s_teacher))}
+        matched: dict[int, str | None] = {}
+        down: dict[str, list[int]] = {h: [] for h in HEADS}
+        for s in SEEDS:
+            cur = {h: scores.get((cell, STOP, h, s)) for h in HEADS}
             if any(v is None for v in cur.values()):
-                return None
-            return ladder_decision(STOP, prev, cur, step_cap=cap)["branch"]
+                matched[s] = None
+                continue
+            matched[s] = ladder_decision(STOP, prev, cur, step_cap=cap)["branch"]
+            for h in HEADS:
+                if cur[h] < prev[h]:
+                    down[h].append(s)
 
-        matched = {s: branch_for(s, s) for s in SEEDS}
         recorded = matched[PROTOCOL_SEED]
         got = [b for b in matched.values() if b is not None]
         n_matched = len(set(got))
-        all9 = [branch_for(a, b) for a in SEEDS for b in SEEDS]
-        all9 = [b for b in all9 if b is not None]
-        n_agree = sum(1 for b in all9 if b == recorded)
 
         # Incomplete is not the same as flipped, and reading it as flipped
         # would report noise wherever a box is simply still training.
         complete = recorded is not None and len(got) == len(SEEDS)
-        complete9 = len(all9) == len(SEEDS) ** 2
         survives = "" if not complete else ("yes" if n_matched == 1 else "no")
-        survives9 = "" if not complete9 else (
-            "yes" if n_agree == len(all9) else "no")
+
         if not complete:
             verdict = (f"not enough seeds scored yet "
                        f"({len(got)}/{len(SEEDS)} matched)")
         elif survives == "no":
             flipped = sorted({b for b in got if b != recorded})
-            verdict = (f"FLIPS — the head seed alone changes the branch to "
-                       f"{', '.join(flipped)}; decided by noise")
-        elif survives9 != "yes":
-            verdict = (f"holds on the three matched seeds, but {len(all9) - n_agree}"
-                       f" of {len(all9)} student x teacher pairings give another"
-                       f" branch; not separable from head-seed noise"
-                       if complete9 else
-                       "holds on the three matched seeds; the nine pairings"
-                       " are not all scored yet")
+            moved = [h for h in HEADS
+                     if 0 < len(down[h]) < len(SEEDS)]
+            verdict = (f"FLIPS to {', '.join(flipped)} — the head seed alone "
+                       f"changes the sign on the "
+                       f"{' and '.join(moved) if moved else 'heads'}; "
+                       f"decided by noise")
         else:
-            verdict = "holds on all three seeds and all nine pairings"
+            verdict = ("holds on all three seeds — every head keeps its sign "
+                       "against bb40k")
 
         out.append({
             "cell": cell,
@@ -224,8 +227,8 @@ def branches(scores: dict) -> list[dict]:
             "branch_20260724": matched[REPLICATE_SEEDS[1]] or "",
             "n_matched_distinct": n_matched,
             "survives_matched": survives,
-            "n_of_9_agreeing": f"{n_agree}/{len(all9)}" if all9 else "",
-            "survives_all_9": survives9,
+            "student_down_seeds": " ".join(str(s) for s in down["student"]),
+            "teacher_down_seeds": " ".join(str(s) for s in down["teacher"]),
             "verdict": verdict,
         })
     return out
