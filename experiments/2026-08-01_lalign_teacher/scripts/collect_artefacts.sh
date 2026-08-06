@@ -5,7 +5,7 @@
 #   eval_gm_mase/<cell>_summary.txt   one line: aggregate GM-Relative MASE + config count
 #   eval_gm_mase/<cell>/all_results.csv   per-config GIFT-Eval output, 97 rows
 #   training_curves/<run>_losses.csv  backbone dynamics, DOWNSAMPLED like #379
-#   attn_amplitude/<run>_attn_amplitude.csv
+#   attn_amplitude/<run>_attn_amplitude.csv   DOWNSAMPLED, own stride
 #   latent_drift/<run>_latent_drift.csv
 #   seasonal_naive_all_results.csv    the denominator of every relative MASE
 #   checkpoint_manifest.csv           every checkpoint the run left on elisa
@@ -16,6 +16,14 @@
 # then every 200th — which is 300 KB and loses nothing the plots read. Same
 # rule here, applied by scripts/downsample_curve.py.
 #
+# Attention amplitude goes through the same script. It used not to: the
+# trainer already writes it every 200 steps, so the old rule (`step % 200 ==
+# 0`) would have kept every row of it and said nothing, and this collector
+# copied it raw. That is 18.6 MiB of the 2026-08-04 report. The downsampler now
+# counts distinct steps, so its stride means the same thing whatever cadence
+# the writer used, and it prints a NO-OP line and exits non-zero when it
+# removes nothing.
+#
 #   WT=/home/jupyter/wt-cf-390-train REPO=/tmp/contrastive-forecasting-390 \
 #     bash collect_artefacts.sh
 set -uo pipefail
@@ -23,6 +31,9 @@ set -uo pipefail
 WT="${WT:-$HOME/wt-cf-390-train}"
 REPO="${REPO:-$(cd "$(dirname "$0")/../../.." && pwd)}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
+# The checkout this script lives in, which is where the shared utilities are.
+# Not $REPO: that one names where the report is written and is overridden.
+ROOT="$(cd "$HERE/../../.." && pwd)"
 # shellcheck source=arm_names.sh
 source "$HERE/arm_names.sh"
 
@@ -54,18 +65,43 @@ done
 say "measurements copied: $n_cells complete cells"
 
 # --- training dynamics -----------------------------------------------------
-n_curves=0
+# Amplitude carries nine rows per logged step against the curve's one, and is
+# logged every 200 steps rather than every step, so it takes its own stride:
+# every 5th logged step is one point per 1000 training steps, ~200 points over
+# a full 200k trajectory and 3.8 MiB across the 78 files of the 2026-08-04 run.
+DOWNSAMPLE="$ROOT/scripts/downsample_curve.py"
+ATTN_STRIDE="${ATTN_STRIDE:-5}"
+
+downsample(){  # <src.csv> <dst dir> [flags...]
+  local src="$1" dir="$2"; shift 2
+  python3 "$DOWNSAMPLE" "$src" "$dir/$(basename "$src")" "$@"
+}
+
+n_curves=0; n_flat=0
 for f in "$SRC/runs"/*_losses.csv; do
   [ -e "$f" ] || continue
-  python3 "$HERE/downsample_curve.py" "$f" "$DST/training_curves/$(basename "$f")" \
-    && n_curves=$((n_curves + 1))
+  if downsample "$f" "$DST/training_curves"; then
+    n_curves=$((n_curves + 1))
+  else
+    n_flat=$((n_flat + 1))
+  fi
 done
 say "training curves downsampled: $n_curves"
 
+n_attn=0
 for f in "$SRC/runs"/*_attn_amplitude.csv; do
   [ -e "$f" ] || continue
-  cp -f "$f" "$DST/attn_amplitude/$(basename "$f")"
+  if downsample "$f" "$DST/attn_amplitude" --stride "$ATTN_STRIDE"; then
+    n_attn=$((n_attn + 1))
+  else
+    n_flat=$((n_flat + 1))
+  fi
 done
+say "attention amplitude downsampled: $n_attn (every ${ATTN_STRIDE}th logged step)"
+if [ "$n_flat" -gt 0 ]; then
+  say "WARNING: $n_flat file(s) came out un-reduced — read the NO-OP lines above"
+fi
+
 for f in "$SRC/runs"/*_latent_drift.csv; do
   [ -e "$f" ] || continue
   cp -f "$f" "$DST/latent_drift/$(basename "$f")"
