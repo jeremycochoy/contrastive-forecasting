@@ -1,13 +1,16 @@
 # Every bb40k replicate, GPU-control and late-cell bb100k row
 # traced to its GIFT-Eval summary. Disjoint from
 # audit_scores_seeds.txt, which covers the six cells' bb100k.
-# 2026-08-06T13:49:44Z
+# 2026-08-06T14:20:27Z
 
+  ok  arm5_combab_alignS         40000 student  s20260723         1.2980  (1 summary)
   ok  arm6_v2_combab_alignS      40000 student  s20260723         1.1583  (1 summary)
   ok  arm6_v2_combab_alignS      40000 student  s20260724         1.1632  (1 summary)
   ok  arm6_v2_combab_alignS      40000 teacher  s20260723         1.1499  (1 summary)
   ok  arm6_v2_combab_alignS      40000 teacher  s20260724         1.1617  (1 summary)
   ok  arm6_v2_combab_alignT      40000 student  s20260723         1.1914  (1 summary)
+  ok  arm6_v2_combab_alignT      40000 student  s20260724         1.1919  (1 summary)
   ok  arm6_v2_combab_alignT      40000 teacher  s20260723         1.1936  (1 summary)
+  ok  arm6_v2_combab_alignT      40000 teacher  s20260724         1.1855  (1 summary)
 
-every published row backed: 6 summary check(s), all 97 configs, no crossed head/encoder pair
+every published row backed: 9 summary check(s), all 97 configs, no crossed head/encoder pair
