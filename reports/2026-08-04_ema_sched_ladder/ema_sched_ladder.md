@@ -32,9 +32,15 @@ Over the 22 stops that carry both heads the two encoders differ by at most 0.037
 
 Past step 100k the teacher latent moves by at most 0.019 per 20k steps, against 0.157 to 1.056 before it, while the student latent keeps moving in two of the three runs that reach 200k (means 0.829 and 0.184) and stops in the third (mean 0.013).
 
+## 6. Per-domain split
+
+![Per-domain GM-Relative MASE, this study's entries only: five lowest entries, and the entries that reached backbone 200k](plots/domain_radar.png)
+
+An entry is one run plus one head; every entry drawn beats seasonal naive on Sales and Nature and loses to it on the other five domains.
+
 ## Annex
 
-The card specifies one head seed. Replicate seeds and the per-domain split were run beyond it; this section holds them.
+The card specifies one head seed. Replicate seeds were run beyond it; this section holds them.
 
 ### Head-seed replicates
 
@@ -60,12 +66,6 @@ Source: `results/seed_spread.csv`. Head seeds 20260722, 20260723 and 20260724, f
 | `arm6_v2 nse` | student | teacher | 1.3721 | 0.0043 | 0.0082 |
 | `arm6_v2 nse` | teacher | student | 1.3955 | 0.0037 | 0.0064 |
 | `arm6_v2 nse` | teacher | teacher | 1.3815 | 0.0149 | 0.0272 |
-
-### Per-domain split
-
-![Per-domain GM-Relative MASE, five lowest entries and the entries that reached backbone 200k](plots/domain_radar.png)
-
-An entry is one run plus one head; every entry drawn beats seasonal naive on Sales and Nature and loses to it on the other five domains. The panel draws this study's entries only, so it carries no fixed-0.9 comparison.
 
 ## Tables
 

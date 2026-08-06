@@ -73,11 +73,11 @@ def main() -> int:
                     color=TARGET_COLOR[tgt], ls=styles[tgt], lw=1.8,
                     marker="o", ms=4, alpha=0.85, label=label(cell))
         ax.axvspan(RAMP_END / 1000, 200, color="#9a9a9a", alpha=0.14, zorder=0)
-        ax.set_yscale("log")
+        ax.set_ylim(0, 1.1)
         ax.set_xlabel("training step of the later checkpoint (thousands)")
         ax.set_title(f"{title}\nshaded: α = 1.0", fontsize=11)
         ax.grid(True, color="#e1e0d9", alpha=0.8)
-    axes[0].set_ylabel("1 − cos(h previous, h next)   (log)")
+    axes[0].set_ylabel("1 − cos(h previous, h next)")
     handles, labels = axes[0].get_legend_handles_labels()
     fig.legend(handles, labels, fontsize=8, frameon=False, ncol=4,
                loc="lower center", bbox_to_anchor=(0.5, 0.012))
