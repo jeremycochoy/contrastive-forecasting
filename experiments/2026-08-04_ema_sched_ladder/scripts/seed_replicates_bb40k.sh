@@ -24,31 +24,24 @@
 # 97 GIFT-Eval configs, B4, forecast horizon 16, --grad-clip 1.0, and the
 # same seasonal-naive denominator.
 #
-# THREE TIERS, in the order they run.
+# ONE TIER RUNS.
 #
 #   t1  Required. Six cells x two heads x two seeds at bb40k. These are the
 #       six cells that already have bb100k replicates, so completing t1
 #       gives every one of their twelve deltas an sd at both ends.
 #
-#   hw  The GPU control. Three of the six cells trained their seed-20260722
-#       bb40k head on a rented RTX 5090 (arm5_combab_alignS,
-#       arm5_combab_alignT, arm6_v2_nse_alignT — results/machines.txt and
-#       the `_broker/<box>/<cell>/` trees are the receipt); t1 runs their
-#       replicates on elisa's RTX 4090 because vast is empty. A spread over
-#       those three seeds would then measure seed AND hardware together.
-#       This tier retrains seed 20260722 itself on the 4090, so the
-#       hardware term is a measured number rather than an assumption:
-#       4090(s22) minus 5090(s22), same seed, same checkpoint, same
-#       everything else. HEAD_TAG=hw4090 gives it its own subtree so the
-#       5090 artefacts the ladder was decided from are untouched.
+# t2 and t3 are defined below but cancelled; see the CANCELLED note above
+# TIERS. They are reachable only by passing CF393_BB40K_TIERS explicitly.
 #
-#   t2  The two unreplicated cells the review flags as marginal:
-#       arm4_combab (teacher margin +0.0318) and arm6_v2_ncpc_alignT
-#       (teacher margin +0.0380). Both stops, both heads, both seeds, so
-#       each replicate seed gives a delta whose two ends were trained on
-#       the same GPU as each other. No hardware control is needed there:
-#       seed 20260722's pair is 5090-to-5090 and each replicate's pair is
-#       4090-to-4090, so every paired delta is internally matched.
+# A third tier, `hw`, once retrained seed 20260722's bb40k head on a 4090
+# for the three cells whose original head ran on a rented RTX 5090, to
+# measure a GPU-model term. It was cancelled before any of its jobs
+# started: a 4090 and a 5090 are both consumer NVIDIA cards running the
+# same PyTorch with a seeded head, so the term is negligible and does not
+# earn six head trainings or the eval slots they would hold. Where a cell's
+# bb40k seeds are split across GPU models, the results README says so in
+# one line and the study does not measure it. CELL_GPU below is kept as
+# the record of which cells are split.
 #
 # CONCURRENCY. Each job is a GPU phase (the head) then a CPU phase (the
 # eval), so N jobs destagger themselves rather than all wanting the same
@@ -97,10 +90,7 @@ declare -A CELL_GPU=(
 T2_CELLS=(arm4_combab arm6_v2_ncpc_alignT)
 # The last two cells with a single head seed. The review reads their margins
 # (+0.088 to +0.135) as safe under any plausible sd and does not ask for
-# them, so they are not in the default tier list. They are here because
-# "every cell in the study is replicated" is a stronger sentence than "the
-# ones we thought were close are", and elisa is free. Run with
-# CF393_BB40K_TIERS=t1,hw,t2,t3.
+# them. Cancelled with t2: elisa is shared, not free.
 T3_CELLS=(arm1_nse arm6_v2_ncpc_alignS)
 
 # Head budget by stop. These are the ladder's own numbers: the delta spans
@@ -108,7 +98,15 @@ T3_CELLS=(arm1_nse arm6_v2_ncpc_alignS)
 # either would not replicate the thing being measured.
 head_steps_for_stop(){ case "$1" in 40000) echo 15000;; *) echo 30000;; esac; }
 
-TIERS="${CF393_BB40K_TIERS:-t1,hw,t2}"
+# CANCELLED 2026-08-06. Only t1 runs. elisa is a shared machine and this
+# experiment had held both of its GPUs for hours; t1 is the tier that closes
+# the review blocker and no other tier does. `hw` was cancelled first (a 4090
+# and a 5090 run the same PyTorch with a seeded head, so the term is
+# negligible), then t2 and t3. arm4_combab, arm6_v2_ncpc_alignT, arm1_nse and
+# arm6_v2_ncpc_alignS therefore stay at one head seed; the report states their
+# deltas as measured once and makes no significance claim for them.
+# Re-enable by passing CF393_BB40K_TIERS explicitly.
+TIERS="${CF393_BB40K_TIERS:-t1}"
 JOBS="${CF393_BB40K_JOBS:-4}"
 CLAIMS="${CF393_BB40K_CLAIMS:-/tmp/cf393_bb40k_claims}"
 IFS=, read -r -a GPUCYCLE <<<"${CF393_BB40K_GPUCYCLE:-1,0,1}"

@@ -39,20 +39,24 @@ seeds at which this head went down with both ends at the same seed. A head
 that is down at 3/3 or 0/3 has a reproducible sign whatever the t says; one
 at 1/3 or 2/3 does not, and the branch it produced was decided by the seed.
 
-THE GPU TERM. Three of the six cells trained every head of theirs on rented
-RTX 5090s — arm5_combab_alignS, arm5_combab_alignT, arm6_v2_nse_alignT
-(`results/machines.txt`, `results/seed_boxes.txt`, and the
-`_broker/<box>/<cell>/` trees are the receipt). Vast was empty when the
-bb40k replicates were run, so their new bb40k heads are on elisa's RTX
-4090s and their bb100k heads are not. Rather than assume that does not
-matter, seed 20260722's bb40k head was retrained on the 4090 as well
-(`HEAD_TAG=hw4090`), which measures the term directly at a fixed seed:
+GPU MODELS ARE RECORDED, NOT CORRECTED. Three of the six cells trained
+every head of theirs on rented RTX 5090s — arm5_combab_alignS,
+arm5_combab_alignT, arm6_v2_nse_alignT (`results/machines.txt`,
+`results/seed_boxes.txt`, and the `_broker/<box>/<cell>/` trees are the
+receipt). Vast was empty when the bb40k replicates were run, so their new
+bb40k heads are on elisa's RTX 4090s and their bb100k heads are not.
 
-  hw_offset = bb40k_4090(20260722) - bb40k_5090(20260722)
+An earlier draft measured that term with a retrained control head
+(`HEAD_TAG=hw4090`) and shifted the 4090 values by it before pairing. That
+tier was cancelled before any of its jobs ran. A 4090 and a 5090 are both
+consumer NVIDIA cards running the same PyTorch with a seeded head, so the
+term is negligible and does not earn six head trainings or the eval slots
+they would hold. No score here is adjusted for the card that produced it,
+and this file reports no hardware term.
 
-and the 4090 bb40k values are shifted by `-hw_offset` before being paired
-with a 5090 bb100k value. The three 4090-native cells need no correction:
-every head of theirs, old and new, is a 4090 head.
+The `gpu_split` column marks the rows where a cell's bb40k and bb100k ends
+sit on different card models. It is provenance for one line in the results
+README, not a measurement and not a correction.
 
 Writes:
 
@@ -62,8 +66,6 @@ Writes:
   results/paired_branches.csv  per cell: the branch re-derived at each seed
                                with BOTH ends at that seed, and whether it
                                is the branch the ladder recorded
-  results/hw_control.csv       the measured 4090-minus-5090 term per
-                               (cell, head), and the seed it was measured at
 
 Usage:  python3 scripts/paired_delta.py [--runs DIR] [--results DIR] [--check]
 """
@@ -94,7 +96,6 @@ PROTOCOL_SEED = 20260722
 REPLICATE_SEEDS = [20260723, 20260724]
 SEEDS = [PROTOCOL_SEED] + REPLICATE_SEEDS
 HEADS = ["student", "teacher"]
-HW_TAG = "hw4090"
 
 # Two-sided 0.05 critical values of Student's t. Only these two df occur:
 # three paired deltas give df=2, and a cell with one replicate gives df=1.
@@ -113,9 +114,9 @@ CELLS = [
 SPREAD_CELLS = set(CELLS[:6])
 PREV_STOP, STOP = 40000, 100000
 
-# WHICH CARD TRAINED WHICH HEAD. A correction is owed exactly where the two
-# ends of one paired delta sit on different GPU models, so the map has to be
-# per (cell, stop, seed), not per cell.
+# WHICH CARD TRAINED WHICH HEAD. Kept per (cell, stop, seed) so the report
+# can name exactly which cells have a bb40k end and a bb100k end on
+# different card models. Nothing downstream corrects for it.
 #
 #   seed 20260722, both stops — the cell's own box (results/machines.txt):
 #   the five cells below on rented RTX 5090s, the rest on elisa's 4090s.
@@ -128,10 +129,9 @@ PREV_STOP, STOP = 40000, 100000
 #   seeds 20260723/24 at bb40k — every one of them in this pass, on elisa.
 #
 # So arm5_combab_alignS/alignT and arm6_v2_nse_alignT are the only cells
-# with a mismatched pair: 5090 bb100k against 4090 bb40k. They are the cells
-# the hw4090 control is run for. arm4_combab and arm6_v2_ncpc_alignT are
-# 5090 cells too, but both of their replicate ends are on elisa, so each of
-# their paired deltas is internally matched and needs no correction.
+# with a mismatched pair: 5090 bb100k against 4090 bb40k. arm4_combab and
+# arm6_v2_ncpc_alignT are 5090 cells too, but both of their replicate ends
+# are on elisa, so each of their paired deltas is internally matched.
 CELL_GPU_SEED22 = {
     "arm5_combab_alignS": "5090",
     "arm5_combab_alignT": "5090",
@@ -160,9 +160,9 @@ def gpu_of(cell: str, stop: int, seed: int) -> str:
     return NEW_GPU
 
 
-def needs_hw_control(cell: str) -> bool:
+def gpu_split(cell: str) -> bool:
     """True when some replicate seed pairs a bb40k head with a bb100k head
-    trained on the other card. That is the only case the control corrects."""
+    trained on the other card model. Recorded, never corrected for."""
     return any(gpu_of(cell, PREV_STOP, s) != gpu_of(cell, STOP, s)
                for s in REPLICATE_SEEDS)
 
@@ -174,23 +174,18 @@ DELTA_COLUMNS = [
     "delta_20260722", "delta_20260723", "delta_20260724",
     "delta_mean", "delta_sd", "se_paired", "se_unpaired", "t_paired", "df",
     "t_crit_05", "significant", "n_down", "sign_stable",
-    "hw_corrected", "verdict",
+    "gpu_split", "verdict",
 ]
 BRANCH_COLUMNS = [
     "cell", "recorded_branch", "branch_20260722", "branch_20260723",
     "branch_20260724", "n_distinct", "survives_paired",
     "student_down_seeds", "teacher_down_seeds", "verdict",
 ]
-HW_COLUMNS = ["cell", "head", "stop", "seed", "gpu_5090", "gpu_4090",
-              "hw_offset", "note"]
 LF = "\n"
 
 
-def score_path(runs: str, cell: str, stop: int, head: str, seed: int,
-               tag: str = "") -> str:
+def score_path(runs: str, cell: str, stop: int, head: str, seed: int) -> str:
     sfx = "" if seed == PROTOCOL_SEED else f"_s{seed}"
-    if tag:
-        sfx += f"_{tag}"
     return os.path.join(runs, cell, "eval",
                         f"score_bb{stop // 1000}k_{head}{sfx}.txt")
 
@@ -203,9 +198,9 @@ def read_score(path: str) -> float | None:
         return None
 
 
-def collect(runs: str) -> tuple[dict, dict]:
-    """({(cell, stop, head, seed): score}, {(cell, head): hw_offset})."""
-    scores, hw = {}, {}
+def collect(runs: str) -> dict:
+    """{(cell, stop, head, seed): score} — every score as it was measured."""
+    scores = {}
     for cell in CELLS:
         for head in HEADS:
             for stop in (PREV_STOP, STOP):
@@ -213,53 +208,23 @@ def collect(runs: str) -> tuple[dict, dict]:
                     v = read_score(score_path(runs, cell, stop, head, seed))
                     if v is not None:
                         scores[(cell, stop, head, seed)] = v
-            if not needs_hw_control(cell):
-                continue
-            # The control: the same seed, the same checkpoint, the other card.
-            ctl = read_score(score_path(runs, cell, PREV_STOP, head,
-                                        PROTOCOL_SEED, HW_TAG))
-            ref = scores.get((cell, PREV_STOP, head, PROTOCOL_SEED))
-            if ctl is not None and ref is not None:
-                hw[(cell, head)] = ctl - ref
-    return scores, hw
-
-
-def corrected_bb40k(scores: dict, hw: dict, cell: str, head: str,
-                    seed: int) -> tuple[float | None, bool]:
-    """The bb40k value on the same GPU model as this cell's bb100k heads.
-
-    Returns (value, was_corrected). A replicate seed of a 5090 cell was
-    trained on a 4090, so the measured hw term is subtracted from it. With
-    no control on disk yet the raw value is returned uncorrected and the
-    row says so, rather than silently mixing the two cards.
-    """
-    v = scores.get((cell, PREV_STOP, head, seed))
-    if v is None:
-        return None, False
-    if gpu_of(cell, PREV_STOP, seed) == gpu_of(cell, STOP, seed):
-        return v, False
-    off = hw.get((cell, head))
-    if off is None:
-        return v, False
-    # hw_offset is 4090 minus 5090, so subtracting it moves a 4090 value
-    # into the frame of the 5090 bb100k head it is paired with.
-    return v - off, True
+    return scores
 
 
 def fmt(v, spec="{:.6f}"):
     return "" if v is None else spec.format(v)
 
 
-def delta_rows(scores: dict, hw: dict) -> list[dict]:
+def delta_rows(scores: dict) -> list[dict]:
     rows = []
     for cell in CELLS:
+        split = "yes" if gpu_split(cell) else "no"
         for head in HEADS:
-            prev, cur, deltas, corrected = {}, {}, {}, False
+            prev, cur, deltas = {}, {}, {}
             for s in SEEDS:
-                p, was = corrected_bb40k(scores, hw, cell, head, s)
+                p = scores.get((cell, PREV_STOP, head, s))
                 c = scores.get((cell, STOP, head, s))
                 prev[s], cur[s] = p, c
-                corrected = corrected or was
                 if p is not None and c is not None:
                     deltas[s] = c - p
             if not deltas:
@@ -315,7 +280,7 @@ def delta_rows(scores: dict, hw: dict) -> list[dict]:
                 "t_paired": fmt(t, "{:+.3f}"), "df": df,
                 "t_crit_05": fmt(tcrit, "{:.3f}"), "significant": sig,
                 "n_down": f"{n_down}/{n}", "sign_stable": stable,
-                "hw_corrected": "yes" if corrected else "no",
+                "gpu_split": split,
                 "verdict": verdict,
             }
             for s in SEEDS:
@@ -326,7 +291,7 @@ def delta_rows(scores: dict, hw: dict) -> list[dict]:
     return rows
 
 
-def branch_rows(scores: dict, hw: dict, recorded: dict) -> list[dict]:
+def branch_rows(scores: dict, recorded: dict) -> list[dict]:
     """The branch re-derived per seed with BOTH ends at that seed.
 
     `results/seed_branches.csv` held bb40k fixed at seed 20260722 because
@@ -338,10 +303,7 @@ def branch_rows(scores: dict, hw: dict, recorded: dict) -> list[dict]:
     for cell in CELLS:
         got, down = {}, {h: [] for h in HEADS}
         for s in SEEDS:
-            p = {}
-            for h in HEADS:
-                v, _ = corrected_bb40k(scores, hw, cell, h, s)
-                p[h] = v
+            p = {h: scores.get((cell, PREV_STOP, h, s)) for h in HEADS}
             c = {h: scores.get((cell, STOP, h, s)) for h in HEADS}
             if any(v is None for v in p.values()) or \
                any(v is None for v in c.values()):

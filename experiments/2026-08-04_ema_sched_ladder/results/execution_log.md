@@ -243,3 +243,47 @@ within four minutes of the pool widening: `vram-gate waiting on gpu 1:
 Throughput at nine concurrent jobs: 6.3–6.5 steps/s per head against 8.9
 solo, so the two cards carry about 38 steps/s in aggregate. Evals are
 capped at six concurrent × four shards = 24 of elisa's 32 cores.
+
+## 2026-08-06 15:10Z — the job list is cut to tier 1
+
+elisa is shared. Other agent sessions and the owner need it, and this
+study had held both of its 4090s for hours. A 62-job list does not earn
+that. Tier 1 is the tier that closes the review blocker; no other tier
+does. So the list is 24 jobs, and nothing replaces them.
+
+| tier | jobs | state |
+|---|---|---|
+| t1 | 24 | runs to completion |
+| hw | 6 | cancelled, never started |
+| t2 | 16 | cancelled |
+| t3 | 16 | cancelled |
+
+`hw` went first: a 4090 and a 5090 are the same PyTorch on the same
+consumer architecture with a seeded head, so the term does not earn six
+head trainings and the eval slots they hold. t2 and t3 followed for the
+compute. `arm4_combab`, `arm6_v2_ncpc_alignT`, `arm1_nse` and
+`arm6_v2_ncpc_alignS` therefore stay at one bb40k head seed and the report
+states their deltas with no significance claim.
+
+What was actually done, not just intended:
+
+- `bb40k_supervisor.sh` (pid 1451697) was killed. It had been launched
+  with `CF393_BB40K_JOBS=9` and no `CF393_BB40K_TIERS`, so it held the old
+  `t1,hw,t2` default and would have queued the cancelled tiers on its next
+  pass. It was still in its wait loop, so nothing from them had started.
+- The default in `seed_replicates_bb40k.sh` and `bb40k_supervisor.sh` is
+  now `t1`. A launch that forgets the variable can no longer resurrect the
+  cancelled tiers; `--list` is 24 jobs over the six replicated cells.
+- A replacement supervisor runs `CF393_BB40K_TIERS=t1 CF393_BB40K_JOBS=6`,
+  so a tier-1 job whose eval dies is still retried. Retrying a required
+  job is not queueing a replacement.
+- No tier-2 or tier-3 job was running at the cut. Every live worker was a
+  t1 cell.
+- All rented boxes were already released: box f at 08-05 20:30Z, seed-h2
+  at 08-06 09:36Z. The remote-facing loops (`eval_broker.sh`,
+  `release_loop.sh`, `release_seed_boxes.sh`) had nothing left to poll and
+  were stopped.
+- `scripts/t1_watch.sh` emits one line per job scored or failed and exits
+  when all 24 are in, which is the signal to release the GPUs.
+
+Standing at the cut: 9/24 scored, 9 running.

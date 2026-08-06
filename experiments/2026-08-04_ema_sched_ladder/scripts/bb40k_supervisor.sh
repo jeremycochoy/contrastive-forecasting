@@ -25,7 +25,10 @@ LOG="$RES/bb40k_supervisor.log"
 
 export WT="${WT:-$(dirname "$(dirname "$EXP")")}"
 export RUNS="${RUNS:-/home/jupyter/checkpoints_backup/cf-393}"
-TIERS="${CF393_BB40K_TIERS:-t1,hw,t2}"
+# t1 only — see the CANCELLED note in seed_replicates_bb40k.sh. This default
+# used to be `t1,hw,t2`, which is how a supervisor launched without an explicit
+# tier list would have queued the cancelled tiers on its next pass.
+TIERS="${CF393_BB40K_TIERS:-t1}"
 JOBS="${CF393_BB40K_JOBS:-6}"
 MAX_PASSES="${CF393_BB40K_PASSES:-6}"
 

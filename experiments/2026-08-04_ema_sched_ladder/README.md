@@ -241,8 +241,9 @@ filenames. **Verify the first tick by `ls`, not by reading the log.**
 | `scripts/alpha_schedule.py` | the α-vs-step record and its plot |
 | `scripts/smoke_e2e.sh` | CPU end-to-end check: ramp, resumed leg, both encoders |
 | `scripts/seed_replicates.sh` | the bb100k heads again at two more seeds, for the six sub-noise cells |
-| `scripts/seed_replicates_bb40k.sh` | the same for the bb40k end, plus the GPU control and the two late cells |
-| `scripts/bb40k_supervisor.sh` | keeps that pool fed across passes until every tier is scored |
+| `scripts/seed_replicates_bb40k.sh` | the same for the bb40k end, for the six replicated cells |
+| `scripts/bb40k_supervisor.sh` | keeps that pool fed across passes until every job is scored |
+| `scripts/t1_watch.sh` | one event line per job scored or failed; exits when all 24 are in |
 | `scripts/deploy_seed_box.sh` | one rented box, bootstrapped and given its cell |
 | `scripts/seed_spread.py` | mean, sd and branch survival across the three seeds |
 | `scripts/paired_delta.py` | the delta with a standard error from **both** of its ends |
@@ -266,7 +267,7 @@ committed:
 | `results/seed_spread.csv` | the three-seed spread of the **bb100k** end, per cell per head |
 | `results/paired_delta.csv` | **the uncertainty table.** One row per (cell, head): three paired deltas, their mean, SE, t and sign count |
 | `results/paired_branches.csv` | the branch re-derived at each seed with both ends at that seed |
-| `results/hw_control.csv` | the measured 4090-minus-5090 term, one fixed seed, same checkpoint |
+| `results/hw_control.csv` | the GPU-model control, **cancelled** — the record of which cells split their bb40k seeds across cards, with no offset measured |
 | `results/audit_scores_paired.txt` | the bb40k replicates and the control, each traced to its summary |
 | `results/decisions_all.csv` | the pooled decision *log*, several rows per stop, each marked `rule` / `park` / `stale` |
 | `results/per_machine/*.csv` | what each machine contributed, verbatim |
@@ -346,16 +347,28 @@ report says so.
   at 1/3 or 2/3 does not, and the branch it produced was decided by the
   head seed.
 
-- Vast was empty when the bb40k end was replicated, so the three cells that
-  trained every head of theirs on a rented RTX 5090 got their new bb40k
-  heads on elisa's RTX 4090. That is a hardware difference inside a paired
-  delta, so it is measured rather than assumed: seed 20260722's bb40k head
-  was retrained on the 4090 too (`HEAD_TAG=hw4090`), giving
-  `hw_offset = 4090(s22) − 5090(s22)` at a fixed seed and a fixed
-  checkpoint, and the 4090 bb40k values are shifted by it before being
-  paired. See [`results/hw_control.csv`](results/hw_control.csv).
-  `arm4_combab` and `arm6_v2_ncpc_alignT` need no correction: both ends of
-  each of their replicate deltas ran on elisa.
+- **Which cells carry replicates.** Six do: `arm6_v2_combab_alignS`,
+  `arm6_v2_combab_alignT`, `arm5_combab_alignS`, `arm5_combab_alignT`,
+  `arm6_v2_nse_alignT`, `arm6_v2_nse_alignS`. Each has three head seeds at
+  **both** ends of its delta, so each of its twelve deltas gets an SE from
+  its own spread. Four do not: `arm4_combab`, `arm6_v2_ncpc_alignT`,
+  `arm1_nse`, `arm6_v2_ncpc_alignS`. Their bb40k end is one head seed, so
+  their deltas are stated as measured once, with **no significance claim**
+  and no σ. `paired_delta.csv` marks them `n_seeds=1` and its verdict column
+  says so on every such row. Replicating them was planned and cancelled:
+  elisa is a shared machine, this study had held both of its GPUs for hours,
+  and the six replicated cells are the ones the review blocked on.
+
+- **Three cells split their bb40k seeds across GPU models.**
+  `arm5_combab_alignS`, `arm5_combab_alignT` and `arm6_v2_nse_alignT` trained
+  seed 20260722 on a rented RTX 5090 and seeds 20260723/24 on elisa's RTX
+  4090, so at those two seeds a 4090 bb40k head is paired with a 5090 bb100k
+  head. The study does not measure that term: a 4090 and a 5090 are the same
+  PyTorch on the same consumer architecture with a seeded head. It is stated
+  rather than corrected, and `hw_corrected` reads `no` on every row. A GPU
+  term, were it real, would enter as a common shift on the two replicate
+  deltas and not on the third, which inflates the delta sd and the SE — the
+  resulting t is conservative, not optimistic.
 
 - `arm4_combab` carries `--tau 1.0` in its loss flags and does not run at
   τ=1.0. The shared `--tau 0.10` is passed after the per-cell flags and
