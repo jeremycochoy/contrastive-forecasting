@@ -349,40 +349,15 @@ def branch_rows(scores: dict, recorded: dict) -> list[dict]:
     return out
 
 
-def hw_rows(scores: dict, hw: dict) -> list[dict]:
-    out = []
-    for cell in CELLS:
-        if not needs_hw_control(cell):
-            continue
-        for head in HEADS:
-            ref = scores.get((cell, PREV_STOP, head, PROTOCOL_SEED))
-            off = hw.get((cell, head))
-            if off is None:
-                note = "control not scored yet"
-                ctl = None
-            else:
-                ctl = ref + off
-                note = ("4090 minus 5090 at one fixed seed, same backbone "
-                        "checkpoint and same 15,000-step head")
-            out.append({
-                "cell": cell, "head": head, "stop": PREV_STOP,
-                "seed": PROTOCOL_SEED,
-                "gpu_5090": fmt(ref), "gpu_4090": fmt(ctl),
-                "hw_offset": fmt(off, "{:+.6f}"), "note": note,
-            })
-    return out
-
-
 def audit_rows(runs: str) -> list[list]:
     """Every head this pass trained, in ladder_all.csv's schema.
 
     audit_scores.py walks a ladder-shaped CSV and traces each row to the
     GIFT-Eval summary that produced it. The bb100k replicates of the six
     cells already have such a table in seed_spread_rows.csv, so this one
-    holds exactly what that file does not: every bb40k replicate, the GPU
-    control, and the two late cells' bb100k replicates. Emitting the
-    overlap as well would put the same row under two audits and make the
-    check count meaningless.
+    holds exactly what that file does not: every bb40k replicate and the
+    two late cells' bb100k replicates. Emitting the overlap as well would
+    put the same row under two audits and make the check count meaningless.
     """
     rows = []
     for cell in CELLS:
@@ -398,15 +373,6 @@ def audit_rows(runs: str) -> list[list]:
                                      spec.get("align") or "", stop, head,
                                      head_steps_for(stop), f"{alpha_at(stop):.6f}",
                                      seed, "", f"{v:.6f}"])
-            if not needs_hw_control(cell):
-                continue
-            v = read_score(score_path(runs, cell, PREV_STOP, head,
-                                      PROTOCOL_SEED, HW_TAG))
-            if v is not None:
-                rows.append([cell, spec.get("arm", ""), spec.get("align") or "",
-                             PREV_STOP, head, head_steps_for(PREV_STOP),
-                             f"{alpha_at(PREV_STOP):.6f}", PROTOCOL_SEED,
-                             HW_TAG, f"{v:.6f}"])
     rows.sort(key=lambda r: (r[0], r[3], r[4], r[7], r[8]))
     return rows
 
@@ -446,15 +412,12 @@ def main() -> int:
     p.add_argument("--check", action="store_true", help="print, write nothing")
     a = p.parse_args()
 
-    scores, hw = collect(a.runs)
-    rows = delta_rows(scores, hw)
-    br = branch_rows(scores, hw, recorded_branches(a.results))
-    hwr = hw_rows(scores, hw)
+    scores = collect(a.runs)
+    rows = delta_rows(scores)
+    br = branch_rows(scores, recorded_branches(a.results))
 
     n40 = sum(1 for k in scores if k[1] == PREV_STOP and k[3] != PROTOCOL_SEED)
-    n_hw = len(hw)
-    print(f"[paired] {n40} bb40k replicate score(s) and {n_hw} GPU-control "
-          f"pair(s) on disk under {a.runs}")
+    print(f"[paired] {n40} bb40k replicate score(s) on disk under {a.runs}")
     width = max((len(r["cell"]) for r in rows), default=10)
     for r in rows:
         print(f"  {r['cell']:<{width}} {r['head']:<8} "
@@ -463,10 +426,11 @@ def main() -> int:
               f"  se_pair {r['se_paired'] or '-':>8}  t {r['t_paired'] or '-':>7}"
               f"  down {r['n_down']}  {r['verdict']}")
     print()
-    for r in hwr:
-        print(f"  [hw] {r['cell']:<{width}} {r['head']:<8} "
-              f"5090 {r['gpu_5090'] or '-':>8}  4090 {r['gpu_4090'] or '-':>8}"
-              f"  offset {r['hw_offset'] or '-':>9}")
+    split = [c for c in CELLS if gpu_split(c)]
+    if split:
+        print(f"  [gpu] bb40k and bb100k ends on different card models "
+              f"(4090 vs 5090), recorded and not corrected for: "
+              f"{', '.join(split)}")
     print()
     for r in br:
         print(f"  {r['cell']:<{width}} recorded {r['recorded_branch']:<14}"
@@ -478,14 +442,14 @@ def main() -> int:
         return 0
     write(os.path.join(a.results, "paired_delta.csv"), DELTA_COLUMNS, rows)
     write(os.path.join(a.results, "paired_branches.csv"), BRANCH_COLUMNS, br)
-    write(os.path.join(a.results, "hw_control.csv"), HW_COLUMNS, hwr)
     # ladder_all.csv's schema with head_seed and head_tag before the score,
     # so audit_scores.py reads it with the same DictReader and no special case.
+    # head_tag is now always empty: the only tagged heads were the cancelled
+    # GPU control's, and the column stays so the shared reader is unchanged.
     write(os.path.join(a.results, "paired_rows.csv"),
           LADDER_COLUMNS[:-1] + ["head_seed", "head_tag", LADDER_COLUMNS[-1]],
           audit_rows(a.runs))
-    print("\n  -> paired_delta.csv, paired_branches.csv, hw_control.csv, "
-          "paired_rows.csv")
+    print("\n  -> paired_delta.csv, paired_branches.csv, paired_rows.csv")
     return 0
 
 

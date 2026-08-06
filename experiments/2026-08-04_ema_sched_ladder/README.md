@@ -267,8 +267,7 @@ committed:
 | `results/seed_spread.csv` | the three-seed spread of the **bb100k** end, per cell per head |
 | `results/paired_delta.csv` | **the uncertainty table.** One row per (cell, head): three paired deltas, their mean, SE, t and sign count |
 | `results/paired_branches.csv` | the branch re-derived at each seed with both ends at that seed |
-| `results/hw_control.csv` | the GPU-model control, **cancelled** — the record of which cells split their bb40k seeds across cards, with no offset measured |
-| `results/audit_scores_paired.txt` | the bb40k replicates and the control, each traced to its summary |
+| `results/audit_scores_paired.txt` | the bb40k replicates, each traced to its summary |
 | `results/decisions_all.csv` | the pooled decision *log*, several rows per stop, each marked `rule` / `park` / `stale` |
 | `results/per_machine/*.csv` | what each machine contributed, verbatim |
 | `results/audit_scores_all.txt` | every published row traced to the GIFT-Eval summary that produced it |
@@ -365,10 +364,11 @@ report says so.
   4090, so at those two seeds a 4090 bb40k head is paired with a 5090 bb100k
   head. The study does not measure that term: a 4090 and a 5090 are the same
   PyTorch on the same consumer architecture with a seeded head. It is stated
-  rather than corrected, and `hw_corrected` reads `no` on every row. A GPU
-  term, were it real, would enter as a common shift on the two replicate
-  deltas and not on the third, which inflates the delta sd and the SE — the
-  resulting t is conservative, not optimistic.
+  rather than corrected — `gpu_split` in `paired_delta.csv` marks exactly
+  these three cells, and no score anywhere is adjusted for the card that
+  produced it. A GPU term, were it real, would enter as a common shift on the
+  two replicate deltas and not on the third, which inflates the delta sd and
+  the SE — the resulting t is conservative, not optimistic.
 
 - `arm4_combab` carries `--tau 1.0` in its loss flags and does not run at
   τ=1.0. The shared `--tau 0.10` is passed after the per-cell flags and

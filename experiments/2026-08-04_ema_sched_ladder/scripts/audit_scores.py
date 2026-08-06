@@ -15,12 +15,13 @@ A row with two independent summaries -- the cell's own tree and the broker's
 copy on elisa -- is checked against both. They must agree.
 
 A replicate head seed files its artefacts under `bb<N>k_<enc>_s<seed>`
-rather than `bb<N>k_<enc>`, and a rerun that changed something else — the
-GPU control — adds a further `_<tag>`. A ladder-shaped CSV naming a
-`head_seed` and an optional `head_tag` column is checked against those
-directories. The encoder is read as the second field of the directory name
-rather than the last, or every suffixed marker would be reported as crossed
-against a head called `s20260723` or `hw4090`.
+rather than `bb<N>k_<enc>`, and a rerun that changed something else adds a
+further `_<tag>`. A ladder-shaped CSV naming a `head_seed` and an optional
+`head_tag` column is checked against those directories. The encoder is read
+as the second field of the directory name rather than the last, or every
+suffixed marker would be reported as crossed against a head called
+`s20260723`. No tagged head is published: the only tier that produced one
+was the cancelled GPU control, and `head_tag` is empty on every row.
 
 Usage: python3 audit_scores.py [--results results] [--ladder FILE]
                                [--expect-configs 97]
@@ -80,8 +81,7 @@ def markers(eval_root):
             # The directory is bb<N>k_<enc>[_s<seed>][_<tag>], so the encoder
             # is the SECOND field, read from the front. Reading the last
             # field instead made every replicate marker look crossed against
-            # a head called `s20260723`, and would do the same to the GPU
-            # control's `hw4090`.
+            # a head called `s20260723`.
             parts = os.path.basename(dirpath).split("_")
             with open(p) as fh:
                 out.append((p, parts[1] if len(parts) > 1 else "",

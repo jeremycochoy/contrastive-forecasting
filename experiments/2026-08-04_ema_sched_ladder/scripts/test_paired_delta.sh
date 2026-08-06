@@ -9,8 +9,9 @@
 #
 #   * the denominator quietly reverting to the bb100k spread, which makes a
 #     delta with a noisy bb40k end look 10x more certain than it is;
-#   * a GPU correction applied to a pair that does not need one, or skipped
-#     on a pair that does;
+#   * a score adjusted for the card that produced it. The GPU control tier
+#     was cancelled and no hardware term is reported, so every value here
+#     must be the one that was measured;
 #   * a cell with one seed reporting a significance at all;
 #   * a sign that flips across seeds being reported as a mean with a t,
 #     when what the extend rule reads is the sign.
@@ -41,11 +42,11 @@ col(){  # <file> <cell> <head-or-empty> <column>
 }
 
 # paired_delta.py knows the real cells by name, and the GPU map is keyed on
-# those names, so the fixtures have to use them. A is 4090-native (no
-# correction is owed), C is one of the three 5090 cells (one is).
+# those names, so the fixtures have to use them. A is 4090-native, C is one
+# of the three cells whose two ends sit on different card models.
 A=arm6_v2_combab_alignS      # clean: both ends replicated, delta stable
 B=arm6_v2_combab_alignT      # tight bb100k, wide bb40k — the review's case
-C=arm5_combab_alignS         # 5090 cell: the GPU control has to be applied
+C=arm5_combab_alignS         # split across card models: recorded, not corrected
 D=arm5_combab_alignT         # bb40k end still training
 
 # --- A: both ends at three seeds, the delta holds its sign and its size ---
@@ -55,8 +56,9 @@ put $A 40  student 20260724 1.1610; put $A 40  teacher 20260724 1.1550
 put $A 100 student 20260722 1.1945; put $A 100 teacher 20260722 1.1837
 put $A 100 student 20260723 1.1898; put $A 100 teacher 20260723 1.1829
 put $A 100 student 20260724 1.1925; put $A 100 teacher 20260724 1.1909
-# A stray control on a cell whose two ends already share a card. It must be
-# ignored: correcting a matched pair would invent a shift that is not there.
+# A leftover score file from the cancelled GPU control. Nothing may read a
+# tagged head: a 1.9999 leaking into A's numbers is exactly the regression
+# that reinstating the hardware term would cause.
 put $A 40  student 20260722 1.9999 hw4090
 
 # --- B: the exact failure the review blocked on -------------------------
@@ -70,10 +72,10 @@ put $B 100 student 20260722 1.1921; put $B 100 teacher 20260722 1.1963
 put $B 100 student 20260723 1.1920; put $B 100 teacher 20260723 1.1962
 put $B 100 student 20260724 1.1922; put $B 100 teacher 20260724 1.1964
 
-# --- C: the GPU control ------------------------------------------------
-# bb40k seed 22 on the 5090 is 1.2596; the same seed on a 4090 is 1.2696, so
-# the measured term is +0.0100 and every 4090 bb40k value must come down by
-# it before being paired with a 5090 bb100k value.
+# --- C: two card models, and no correction between them -----------------
+# C's bb100k heads are 5090 and its bb40k replicates are 4090. The two
+# hw4090 files below are the cancelled control's; like A's they must be
+# ignored, and C's deltas must come out of the raw measured values.
 put $C 40  student 20260722 1.2596; put $C 40  teacher 20260722 1.2347
 put $C 40  student 20260722 1.2696 hw4090
 put $C 40  teacher 20260722 1.2397 hw4090
@@ -102,8 +104,11 @@ check "A student mean delta"   "+0.031833"  "$(col paired_delta.csv $A student d
 check "A student sign stable"  "yes"        "$(col paired_delta.csv $A student sign_stable)"
 check "A student n_down"       "0/3"        "$(col paired_delta.csv $A student n_down)"
 check "A student df"           "2"          "$(col paired_delta.csv $A student df)"
-check "A is not GPU-corrected" "no"         "$(col paired_delta.csv $A student hw_corrected)"
-check "A has no control row"   ""           "$(col hw_control.csv $A student hw_offset)"
+check "A is not GPU-split"     "no"         "$(col paired_delta.csv $A student gpu_split)"
+# The stray hw4090 file sits next to A's real one. If a tagged head were read
+# again, this bb40k value would be 1.999900 and every A check above would move.
+check "A ignores the leftover control file" "1.160300" \
+  "$(col paired_delta.csv $A student bb40k_20260722)"
 
 # The SE is the spread of the three DELTAS over sqrt(3), recomputed here from
 # the delta columns alone. A regression to the bb100k-only denominator fails
@@ -146,15 +151,13 @@ check "B branch at s23" "none_down" "$(col paired_branches.csv $B "" branch_2026
 check "B branch at s24" "one_down"  "$(col paired_branches.csv $B "" branch_20260724)"
 check "B does not survive" "no" "$(col paired_branches.csv $B "" survives_paired)"
 
-# --- 3. C: the GPU control is measured and applied ----------------------
-check "C student hw offset"  "+0.010000" "$(col hw_control.csv $C student hw_offset)"
-check "C teacher hw offset"  "+0.005000" "$(col hw_control.csv $C teacher hw_offset)"
-check "C student is corrected" "yes" "$(col paired_delta.csv $C student hw_corrected)"
-check "C s22 bb40k is untouched" "1.259600" \
+# --- 3. C: the split is recorded, the numbers are untouched -------------
+check "C is marked GPU-split" "yes" "$(col paired_delta.csv $C student gpu_split)"
+check "C s22 bb40k is as measured" "1.259600" \
   "$(col paired_delta.csv $C student bb40k_20260722)"
-check "C s23 bb40k is shifted onto the 5090" "1.260000" \
+check "C s23 bb40k is as measured, not shifted" "1.270000" \
   "$(col paired_delta.csv $C student bb40k_20260723)"
-check "C s23 delta uses the shifted value" "-0.059300" \
+check "C s23 delta uses the raw value" "-0.069300" \
   "$(col paired_delta.csv $C student delta_20260723)"
 check "C student holds its sign" "3/3" "$(col paired_delta.csv $C student n_down)"
 
@@ -172,9 +175,15 @@ check "D branch row withholds too" "" \
 
 # --- 5. file hygiene ----------------------------------------------------
 check "no CR in any output" "0" \
-  "$(cat "$OUTD"/paired_*.csv "$OUTD"/hw_control.csv | tr -cd '\r' | wc -c)"
-check "hw_control lists only the mismatched cells" "6" \
-  "$(( $(wc -l <"$OUTD/hw_control.csv") - 1 ))"
+  "$(cat "$OUTD"/paired_*.csv | tr -cd '\r' | wc -c)"
+# The cancelled tier's artefact. Its return would mean a hardware term is
+# being reported again.
+if [ -e "$OUTD/hw_control.csv" ]; then
+  bad "hw_control.csv was written"
+else ok "no hw_control.csv is written"; fi
+# No tagged head reaches the audit table either.
+check "paired_rows.csv carries no tagged head" "0" \
+  "$(grep -c hw4090 "$OUTD/paired_rows.csv")"
 
 echo
 echo "$pass passed, $fail failed"
