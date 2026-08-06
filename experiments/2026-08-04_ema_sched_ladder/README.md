@@ -256,9 +256,12 @@ filenames. **Verify the first tick by `ls`, not by reading the log.**
 Eight machines each ran their own `ladder.py`, and each kept its own
 `results/ladder.csv` and `results/decisions.csv` holding **only the cells
 that machine was given** — elisa's copy carries 41 of the 45 result rows.
-The per-machine decision logs keep every row a driver wrote, including rows a
-later replay superseded, so elisa's 40 do not sit inside the 31 pooled
-decisions; `merge_pooled.sh` keys those on (cell, stop, branch). Those two
+Replaying a finished cell re-appends the decision it already wrote, so elisa's
+40 decision rows carry 29 distinct (cell, stop, branch) decisions; every repeat
+agrees with the row it repeats, and `merge_pooled.sh` collapses them on that
+key. Elisa holds 29 of the 31 pooled decisions because it did not run every
+run, not because it holds anything the pool does not. The per-machine files
+keep the line endings of the machine that wrote them. Those two
 are gitignored: a per-machine file under a shorter name, at the same level as
 the pooled file, reads like the experiment and is not. What is
 committed:
@@ -271,7 +274,7 @@ committed:
 | `results/paired_delta.csv` | **the uncertainty table.** One row per (cell, head): three paired deltas, their mean, SE, t and sign count |
 | `results/paired_branches.csv` | the branch re-derived at each seed with both ends at that seed |
 | `results/audit_scores_paired.txt` | the bb40k replicates, each traced to its summary |
-| `results/decisions_all.csv` | the pooled decision *log*, several rows per stop, each marked `rule` / `park` / `stale` |
+| `results/decisions_all.csv` | the pooled decision *log*, several rows per stop, each marked `rule` or `park` (23 and 8) |
 | `results/per_machine/*.csv` | what each machine contributed, verbatim |
 | `results/audit_scores_all.txt` | every published row traced to the GIFT-Eval summary that produced it |
 | `results/align_target_port.txt` | the teacher-align port, diffed against PR #392 |
