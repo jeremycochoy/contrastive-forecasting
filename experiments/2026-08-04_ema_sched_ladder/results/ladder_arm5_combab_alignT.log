@@ -56,3 +56,8 @@
 [ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm5_combab_alignT 200000
 [08-05 23:16:03] [arm5_combab_alignT] RESUME from cf393_arm5_combab_alignT_100k.pth (step 100k)
 [08-05 23:16:03] [arm5_combab_alignT] START target=200000 gpu=0 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-393/arm5_combab_alignT/leg_200k
+[08-06 05:24:26] [arm5_combab_alignT] DONE target=200000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-393/arm5_combab_alignT/leg_200k/cf393_arm5_combab_alignT_200k.pth
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm5_combab_alignT 200000 student 30000 /home/jupyter/checkpoints_backup/cf-393/arm5_combab_alignT/eval/score_bb200k_student.txt
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm5_combab_alignT 200000 teacher 30000 /home/jupyter/checkpoints_backup/cf-393/arm5_combab_alignT/eval/score_bb200k_teacher.txt
+[05:24:26] arm5_combab_alignT bb200k enc=student head=30000s seed=20260722
+[05:24:26] arm5_combab_alignT bb200k enc=teacher head=30000s seed=20260722
