@@ -1,6 +1,6 @@
 # Scheduling the EMA momentum to 1.0 by step 100k: the teacher encoder does not beat the student
 
-Raising the EMA momentum to 1.0 by backbone step 100k does not make the teacher encoder better than the student: over 45 scored stops the two heads differ by at most 0.0377 GM-Relative MASE, the geometric mean over 97 GIFT-Eval configs of MASE against seasonal naive, where above 1.0 is worse than seasonal naive. Ten runs, each evaluated at every backbone stop through one head trained and evaluated on the student encoder and one head trained and evaluated on the teacher encoder.
+Raising the EMA momentum to 1.0 by backbone step 100k does not make the teacher encoder better than the student: over the 22 stops that carry both heads the two differ by at most 0.0377 GM-Relative MASE, the geometric mean over 97 GIFT-Eval configs of MASE against seasonal naive, where above 1.0 is worse than seasonal naive. Ten runs and 45 scored stops; a run named `alignS` puts its alignment loss `L_align` on the student encoder and one named `alignT` puts it on the teacher, and each stop is scored through a head trained and evaluated on the student encoder, on the teacher encoder, or on both.
 
 ## Teacher against student
 
@@ -30,7 +30,7 @@ Two of the twelve replicated changes are inside their own seed spread.
 
 ![Paired bb40k-to-bb100k change, both ends at the same head seed](plots/paired_delta.png)
 
-With both ends held at the same head seed, the student head of `arm6_v2_combab_alignT` changes sign at two of its three seeds, so the head seed alone moves where that run stopped.
+With both ends held at the same head seed, both heads of `arm6_v2_combab_alignT` change sign across its three seeds, so the head seed alone moves where that run stopped.
 
 ## The EMA schedule
 
@@ -57,11 +57,11 @@ Source: `results/ladder_all.csv`.
 | `arm6_v2 nse` | teacher | 1.4238 | 1.4177 | 1.3913 | 1.3746 | 1.3586 | **1.3459** |
 | `arm1 nse` | n/a | **1.4347** | 1.4512 | 1.5227 | 1.5604 | — | — |
 
-Bold = the row's lowest value. `arm5 combab / student` has no bb200k teacher value: the extend rule dropped its teacher head from the evaluation at bb100k.
+Bold = the row's lowest value. `align` is the encoder `L_align` targets; `n/a` marks the two runs that carry no `L_align` term. `arm5 combab / student` has no bb200k teacher value: the extend rule dropped its teacher head from the evaluation at bb100k.
 
 ### The union table, extended
 
-Parent columns from `results/union_parents.csv`: `prev` is the 30-cell sweep with `L_align` on the student, `new` is the retrain against the EMA teacher, each publishing one head. `top5` is that report's own five-lowest placement, which is a placement and not a score. `this study` columns are `student / teacher`, from `results/ladder_all.csv`.
+Parent columns from `results/union_parents.csv`: `prev` is the 30-cell sweep with the alignment loss `L_align` on the student, `new` is the retrain against the EMA teacher, each publishing one head. `top5` is that report's own five-lowest placement, which is a placement and not a score. `this study` columns are `student / teacher`, from `results/ladder_all.csv`.
 
 | Run | align | parent | parent bb40k | parent bb100k | parent bb200k | top5 | this bb40k S / T | this bb100k S / T | this bb200k S / T | this best |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -159,7 +159,7 @@ Two files record whether a branch survives a change of head seed, and they answe
 - Loss recipes, relative to the base recipe `τ = 0.10, cpc = 1, sigreg_e = 1`: `nse` disables SIGReg on `e_t`; `ncpc` disables the CPC auxiliary; `combab` sets `τ = 1.0` and `cpc = 0`, and additionally `sigreg_e = 0` on `arm1` / `arm3` / `arm4`.
 - Each run starts fresh at step 0 and trains as one continuous run, checkpointed at each stop and resumed with its optimizer state.
 - Step cap: `results/dataset_rows.json` records `total_rows = 42,571,692` and `hf_rows_per_step = 64`, so one pass over the dataset is `step_cap = 665,182` steps. That is far above the deepest run's 200k, so no run was limited by the data.
-- Stops: 40k and 100k unconditionally, then +100k per extension. Extend rule, per head against its own previous stop: both heads down → extend and keep both; one head down → extend and keep that head; neither down → stop.
+- Stops: 40k and 100k unconditionally, then +100k per extension up to a ladder ceiling of 200k. Extend rule, per head against its own previous stop: both heads down → extend and keep both; one head down → extend and keep that head; neither down → stop.
 - Two heads per checkpoint, trained separately, each evaluated on its own encoder: student head on the student encoder, teacher head on the teacher encoder. Head budget 15,000 steps at bb40k, 30,000 steps from bb100k.
 - 97 GIFT-Eval configs, official B4 strategy, forecast horizon 16. The seasonal-naive denominator file is byte-identical on every machine (`results/denominator_checksums.txt`), so every score is on one scale.
 - Head seed 20260722 for the ladder. Six runs carry two extra head seeds at bb100k; `arm4_combab`, `arm1_nse`, `arm6_v2_ncpc_alignS` and `arm6_v2_ncpc_alignT` carry one seed only, so no significance claim is made on their changes.
@@ -192,6 +192,6 @@ Artefacts: `experiments/2026-08-04_ema_sched_ladder/`. In the CSV files the colu
 | `results/denominator_checksums.txt` | seasonal-naive denominator hash per machine |
 | `results/eval/<run>/eval/bb<stop>_<head>/gift/all_results.csv` | per-config MASE behind every score |
 
-Pairing all twelve replicated rows at both extra seeds needs 24 bb40k replicate evaluations; 9 were run (`results/paired_rows.csv`). `results/paired_delta.csv` carries three seeds for four rows, two for one row and one for the other thirteen; rows below three seeds are measured, not tested.
+Pairing all twelve replicated rows at both extra seeds needs 24 bb40k replicate evaluations; 9 were run (`results/paired_rows.csv`). `results/paired_delta.csv` carries three seeds for four rows, two for one row and one for the other fifteen; rows below three seeds are measured, not tested.
 
 Plot sources: `plots/_make_domain_radar.py`, `plots/_make_teacher_vs_student.py`, and `scripts/plot_ladder.py`, `scripts/plot_seed_spread.py`, `scripts/plot_paired_delta.py`, `scripts/alpha_schedule.py`, `scripts/union_parents.py`.

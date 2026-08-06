@@ -96,7 +96,7 @@ def draw(scores: dict, path: str, band=None, replicated=frozenset()) -> None:
                 "data"), ha="right", va="bottom", fontsize=8, color="#333")
     ax.set_xlabel("backbone step (thousands)")
     ax.set_ylabel("GM-Relative MASE  (lower is better)")
-    ax.set_title("Every cell, both heads\nsolid = student encoder, "
+    ax.set_title("Every run, both heads\nsolid = student encoder, "
                  "dashed = teacher encoder", fontsize=10)
     ax.grid(alpha=0.25)
     ax.legend(fontsize=7.5, ncol=1, loc="upper left", framealpha=0.9)
