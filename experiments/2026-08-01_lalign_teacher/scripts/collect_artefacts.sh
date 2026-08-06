@@ -79,16 +79,21 @@ DOWNSAMPLE="${DOWNSAMPLE:-$ROOT/scripts/downsample_curve.py}"
 ATTN_STRIDE="${ATTN_STRIDE:-5}"
 
 n_flat=0     # written whole: the downsampler had nothing to remove (exit 3)
+n_thin=0     # written, but too few points left to plot (exit 4)
 n_lost=0     # not written at all: every other non-zero exit
 n_empty=0    # stages that collected nothing
 
 # Downsample every $SRC/runs/*<suffix> into $DST/<subdir>.
 #
-# Exit 3 means the file is on disk and came out un-reduced; every other
-# non-zero exit means no file was written. Those are two different failures
-# and this keeps them apart, because a stage that collected nothing is the
-# same silence the downsampler's NO-OP exists to remove, one layer up: a
-# missing DOWNSAMPLE used to write no curve, no amplitude, and exit 0.
+# Exits 3 and 4 mean the file is on disk — un-reduced, or cut below a curve;
+# every other non-zero exit means no file was written. Those are different
+# failures and this keeps them apart, because a stage that collected nothing
+# is the same silence the downsampler's NO-OP exists to remove, one layer up:
+# a missing DOWNSAMPLE used to write no curve, no amplitude, and exit 0.
+#
+# Each of the two warnings gets a counter and a line of its own on stdout. A
+# warning that only reaches stderr is that silence again: over 33 runs it sits
+# in the stderr of 33 runs while stdout says 33/33 and nothing else.
 collect_curves(){  # <suffix> <dst subdir> <label> [downsample flags...]
   local suffix="$1" sub="$2" label="$3"; shift 3
   local f rc n_src=0 n_ok=0
@@ -100,6 +105,7 @@ collect_curves(){  # <suffix> <dst subdir> <label> [downsample flags...]
     case "$rc" in
       0) n_ok=$((n_ok + 1)) ;;
       3) n_ok=$((n_ok + 1)); n_flat=$((n_flat + 1)) ;;
+      4) n_ok=$((n_ok + 1)); n_thin=$((n_thin + 1)) ;;
       *) n_lost=$((n_lost + 1))
          say "ERROR: $(basename "$f") not written — downsample_curve exit $rc" ;;
     esac
@@ -118,6 +124,9 @@ collect_curves _attn_amplitude.csv attn_amplitude \
 
 if [ "$n_flat" -gt 0 ]; then
   say "WARNING: $n_flat file(s) collected un-reduced — read the NO-OP lines above"
+fi
+if [ "$n_thin" -gt 0 ]; then
+  say "WARNING: $n_thin file(s) collected too thin to plot — read the THIN lines above"
 fi
 
 # Latent drift is copied, not downsampled, and that is a decision. The trainer

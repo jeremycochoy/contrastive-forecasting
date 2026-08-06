@@ -16,17 +16,22 @@ used. Rows are grouped by step, because one amplitude step is nine rows (three
 layers x encoder/forecaster blocks, plus the encoder logged twice) and a step
 cut in half is unreadable.
 
-These tests hold seven things:
+These tests hold ten things:
 
   * a source already logged at the stride's cadence is still reduced;
   * a kept step keeps every one of its rows;
   * a run that removes nothing says so on stderr and exits non-zero;
   * a run that removes nearly everything says so too, however short the
-    source is;
+    source is, and exits with its own code;
   * the highest step of the file survives, including when a resume re-logs an
     earlier one at the end;
-  * `collect_artefacts.sh` fails, out loud, when a stage collects no file —
-    the same silence one layer up;
+  * every way of not writing the file has its own exit code and a message;
+  * a source that changes between the two passes over it is refused, not
+    half-copied;
+  * a settings line never divides by a cadence the source does not have;
+  * `collect_artefacts.sh` fails, out loud, when a stage collects no file, and
+    counts the files it collected un-reduced and the files it collected too
+    thin — the same silence one layer up;
   * the training-curve output does not move — it is pinned against the
     committed artefacts the report's figures are drawn from.
 """
@@ -34,6 +39,7 @@ These tests hold seven things:
 from __future__ import annotations
 
 import csv
+import importlib.util
 import os
 import subprocess
 import sys
@@ -68,6 +74,16 @@ AMP_CADENCE = 200
 
 # Latent drift is written once every 10 000 steps, two rows each time.
 DRIFT_CADENCE = 10000
+
+# One exit code per outcome, restated here so a collision fails the suite.
+# The collector reads them: it collects 0, 3 and 4, and loses the rest.
+EXIT_OK = 0
+EXIT_NO_HEADER = 1
+EXIT_USAGE = 2          # argparse's own code for a bad argument
+EXIT_NO_OP = 3
+EXIT_THIN = 4
+EXIT_UNREADABLE = 5
+EXIT_SOURCE_MOVED = 6
 
 
 def old_rule(step: int) -> bool:
@@ -125,11 +141,33 @@ def write_latent_drift(path: Path, last: int = 70000,
     return path
 
 
+def write_steps(path: Path, steps: list[int]) -> Path:
+    """A curve whose steps are whatever the caller says, in the caller's
+    order. For the shapes a generator cannot make."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", newline="") as fh:
+        w = csv.writer(fh)
+        w.writerow(["step", "loss", "gap"])
+        for step in steps:
+            w.writerow([step, 1.0 / max(step, 1), 0.5])
+    return path
+
+
 # --- running it ----------------------------------------------------------
 
 def run(src: Path, dst: Path, *args: str) -> subprocess.CompletedProcess:
     return subprocess.run([sys.executable, str(SCRIPT), str(src), str(dst),
                            *args], capture_output=True, text=True)
+
+
+def load_script():
+    """The script as a module, for the one guard a subprocess cannot exercise:
+    a source that changes between the two passes over it."""
+    spec = importlib.util.spec_from_file_location("downsample_curve", SCRIPT)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["downsample_curve"] = mod
+    spec.loader.exec_module(mod)
+    return mod
 
 
 def rows_of(path: Path) -> list[list[str]]:
@@ -250,11 +288,16 @@ def test_an_over_reduced_source_is_reported_too(tmp_path):
     """The other side of the same silence, and one this change opens. The
     curve stride against a source logged every 200 steps keeps three points,
     which is not a curve. The old value rule could not produce that; the
-    distinct-step rule can, so it has to say so."""
+    distinct-step rule can, so it has to say so.
+
+    THIN exits 4, not 0. Warning only on stderr is the same silence NO-OP
+    exists to remove: on a 33-run collect that line sits in the stderr of 33
+    runs while stdout says 33/33 collected. The file is still written whole,
+    so the code costs nothing but attention."""
     src = write_amplitude(tmp_path / "a_attn_amplitude.csv", 200, 40000)
     res = run(src, tmp_path / "out.csv")     # the default curve stride
 
-    assert res.returncode == 0, res.stdout + res.stderr
+    assert res.returncode == EXIT_THIN, res.stdout + res.stderr
     assert "THIN" in res.stderr, res.stderr
     assert len(distinct_steps(tmp_path / "out.csv")) < 10
 
@@ -273,10 +316,23 @@ def test_a_short_source_cut_to_one_point_is_reported(tmp_path, n_steps):
     assert len(distinct_steps(src)) == n_steps < 40
 
     res = run(src, tmp_path / "out.csv")     # the default curve stride
-    assert res.returncode == 0, res.stdout + res.stderr
+    assert res.returncode == EXIT_THIN, res.stdout + res.stderr
     assert len(distinct_steps(tmp_path / "out.csv")) == 1
     assert "THIN" in res.stderr, (
         f"{n_steps} points cut to 1, and the run said nothing:\n{res.stderr}")
+
+
+def test_thin_and_no_op_do_not_share_an_exit_code(tmp_path):
+    """Two different failures. NO-OP means the file came out whole; THIN means
+    almost nothing came out of it. A caller that cannot tell them apart cannot
+    count them apart, and the file it should look at first is the thin one."""
+    src = write_amplitude(tmp_path / "a_attn_amplitude.csv", 200, 40000)
+    no_op = run(src, tmp_path / "flat.csv", "--stride", "1")
+    thin = run(src, tmp_path / "thin.csv", "--stride", "200")
+
+    assert no_op.returncode == EXIT_NO_OP, no_op.stderr
+    assert thin.returncode == EXIT_THIN, thin.stderr
+    assert no_op.returncode != thin.returncode
 
 
 def test_the_stride_the_collector_uses_is_not_thin(tmp_path):
@@ -432,6 +488,191 @@ def test_the_header_survives(tmp_path):
     assert not (tmp_path / "out.csv.tmp").exists(), "left a partial file behind"
 
 
+# --- one exit code per outcome -------------------------------------------
+
+def test_a_missing_source_says_which_file_and_does_not_traceback(tmp_path):
+    """A path that does not exist is a caller's mistake, and the caller reads
+    stderr. A traceback names the line that raised, not the file that is
+    missing, and its exit code is Python's, not this script's."""
+    res = run(tmp_path / "gone_losses.csv", tmp_path / "out.csv")
+
+    assert res.returncode == EXIT_UNREADABLE, res.stdout + res.stderr
+    assert "Traceback" not in res.stderr, res.stderr
+    assert "gone_losses.csv" in res.stderr, res.stderr
+    assert not (tmp_path / "out.csv").exists()
+
+
+def test_a_source_with_no_header_has_its_own_exit_code(tmp_path):
+    """An empty file is not an unreadable one, and neither is a bad flag."""
+    src = tmp_path / "empty_losses.csv"
+    src.write_text("")
+    res = run(src, tmp_path / "out.csv")
+
+    assert res.returncode == EXIT_NO_HEADER, res.stdout + res.stderr
+    assert "no header" in res.stderr, res.stderr
+    assert not (tmp_path / "out.csv").exists()
+
+
+def test_a_stride_below_one_is_a_usage_error(tmp_path):
+    """`--stride 0` exited 1, the same code as a source with no header. Two
+    different mistakes reported as one, and neither of them tested."""
+    src = write_curve(tmp_path / "a_losses.csv", 1, 40000)
+    res = run(src, tmp_path / "out.csv", "--stride", "0")
+
+    assert res.returncode == EXIT_USAGE, res.stdout + res.stderr
+    assert res.returncode != EXIT_NO_HEADER
+    assert "--stride" in res.stderr, res.stderr
+    assert not (tmp_path / "out.csv").exists(), (
+        "a run that refused its arguments still wrote a file")
+
+
+# --- the two passes over the source --------------------------------------
+
+def test_a_source_that_grows_between_the_two_passes_is_refused(tmp_path,
+                                                               monkeypatch,
+                                                               capsys):
+    """The script reads the source twice: once for the steps it will keep,
+    once to copy the rows of those steps. The two passes are not one atomic
+    read. On a file still being written the second pass sees rows the first
+    never saw, drops them because their steps are not in the keep set, and the
+    highest-step guarantee fails without a word.
+
+    Collect runs after the run today, so this is a precondition rather than a
+    live bug. The script checks it instead of trusting it.
+
+    The mtime is put back after the write, so what this pins is the size half
+    of the check: a filesystem whose mtime did not tick between the two passes
+    still has to catch a file that grew."""
+    mod = load_script()
+    src = write_curve(tmp_path / "growing_losses.csv", 1, 40000)
+    dst = tmp_path / "out.csv"
+
+    read_steps = mod.read_steps
+
+    def read_then_grow(reader, step_col):
+        """The trainer writes one more step while pass 1 is reading."""
+        steps = read_steps(reader, step_col)
+        was = os.stat(src)
+        with open(src, "a", newline="") as fh:
+            csv.writer(fh).writerow([40001, 0.1, 0.5])
+        os.utime(src, ns=(was.st_atime_ns, was.st_mtime_ns))
+        return steps
+
+    monkeypatch.setattr(mod, "read_steps", read_then_grow)
+    monkeypatch.setattr(sys, "argv",
+                        ["downsample_curve.py", str(src), str(dst)])
+
+    assert mod.main() == EXIT_SOURCE_MOVED
+    assert "changed while it was read" in capsys.readouterr().err
+    assert not dst.exists(), (
+        "wrote a curve computed from a source that is no longer that source")
+    assert not (tmp_path / "out.csv.tmp").exists(), "left a partial file behind"
+
+
+def test_a_source_rewritten_at_the_same_length_is_refused(tmp_path,
+                                                          monkeypatch,
+                                                          capsys):
+    """The mtime half. A file rewritten with rows of the same width comes back
+    the same length, and the size sees nothing. Here the rewrite moves the
+    highest step: the keep set holds 40000, the file on the second pass holds
+    49999, and the output would come out with no end to the wave at all."""
+    mod = load_script()
+    src = write_curve(tmp_path / "rewritten_losses.csv", 1, 40000)
+    dst = tmp_path / "out.csv"
+
+    read_steps = mod.read_steps
+
+    def read_then_rewrite(reader, step_col):
+        steps = read_steps(reader, step_col)
+        was = os.stat(src)
+        head, _, tail = src.read_bytes().rpartition(b"40000,")
+        src.write_bytes(head + b"49999," + tail)        # same byte count
+        os.utime(src, ns=(was.st_atime_ns, was.st_mtime_ns + 10 ** 9))
+        assert os.stat(src).st_size == was.st_size, "this rewrite changed size"
+        return steps
+
+    monkeypatch.setattr(mod, "read_steps", read_then_rewrite)
+    monkeypatch.setattr(sys, "argv",
+                        ["downsample_curve.py", str(src), str(dst)])
+
+    assert mod.main() == EXIT_SOURCE_MOVED
+    assert "changed while it was read" in capsys.readouterr().err
+    assert not dst.exists()
+
+
+def test_a_source_that_grows_during_the_copy_is_refused(tmp_path, monkeypatch,
+                                                        capsys):
+    """The second pass has a window of its own. Checking the source before the
+    copy starts says nothing about what it is when the copy ends, and the rows
+    already written came from whatever the file was while it was read. The
+    half-written output goes with it."""
+    mod = load_script()
+    src = write_curve(tmp_path / "growing_losses.csv", 1, 40000)
+    dst = tmp_path / "out.csv"
+
+    copy_kept_rows = mod.copy_kept_rows
+
+    def copy_then_grow(reader, writer, step_col, keep):
+        written = copy_kept_rows(reader, writer, step_col, keep)
+        with open(src, "a", newline="") as fh:
+            csv.writer(fh).writerow([40001, 0.1, 0.5])
+        return written
+
+    monkeypatch.setattr(mod, "copy_kept_rows", copy_then_grow)
+    monkeypatch.setattr(sys, "argv",
+                        ["downsample_curve.py", str(src), str(dst)])
+
+    assert mod.main() == EXIT_SOURCE_MOVED
+    assert "changed while it was read" in capsys.readouterr().err
+    assert not dst.exists()
+    assert not (tmp_path / "out.csv.tmp").exists(), "left a partial file behind"
+
+
+def test_a_source_that_goes_away_between_the_passes_says_so(tmp_path,
+                                                            monkeypatch,
+                                                            capsys):
+    """Gone is a kind of moved, and it lands in the window between the two
+    passes: the second one opens the file again. A message, not a traceback —
+    the same complaint as a source that was never there."""
+    mod = load_script()
+    src = write_curve(tmp_path / "vanishing_losses.csv", 1, 40000)
+    dst = tmp_path / "out.csv"
+
+    read_steps = mod.read_steps
+
+    def read_then_delete(reader, step_col):
+        steps = read_steps(reader, step_col)
+        src.unlink()
+        return steps
+
+    monkeypatch.setattr(mod, "read_steps", read_then_delete)
+    monkeypatch.setattr(sys, "argv",
+                        ["downsample_curve.py", str(src), str(dst)])
+
+    assert mod.main() == EXIT_SOURCE_MOVED
+    assert "changed while it was read" in capsys.readouterr().err
+    assert not dst.exists()
+    assert not (tmp_path / "out.csv.tmp").exists()
+
+
+# --- the settings line ---------------------------------------------------
+
+def test_a_source_whose_steps_only_go_down_has_no_cadence_to_divide_by(
+        tmp_path):
+    """The stderr block reads the cadence off the source and multiplies it by
+    the stride. `infer_cadence` counts the gaps that increase, so a file whose
+    steps only ever go down has no gap to count and the cadence is 0 — and the
+    block said "one point every 0 steps"."""
+    src = write_steps(tmp_path / "backwards_losses.csv",
+                      list(range(10000, 0, -1000)))
+    res = run(src, tmp_path / "out.csv")
+
+    assert res.returncode == EXIT_THIN, res.stdout + res.stderr
+    assert "every 0 steps" not in res.stderr, res.stderr
+    assert "cadence: none" in res.stderr, (
+        "the block hides that it could not read a cadence:\n" + res.stderr)
+
+
 # --- the collector -------------------------------------------------------
 
 RUN_NAME = "bb_small_arm5_lalign_lrep_enc3l3_b64_200k_x_alignteacher"
@@ -505,6 +746,27 @@ def test_an_un_reduced_file_is_collected_and_says_so(tmp_path):
         "written:\n" + res.stdout)
     assert "collected 0 files" not in res.stdout, res.stdout
     assert "NO-OP" in res.stderr, res.stderr
+
+
+def test_the_collector_counts_a_thin_file_and_says_so(tmp_path):
+    """THIN was the last silence the collector did not count. NO-OP has an
+    exit code, a counter and a summary line; THIN exited 0, landed in the ok
+    count, and printed on stderr only. Over 33 runs that line sits in the
+    stderr of 33 runs while stdout says 33/33 downsampled and nothing else.
+
+    The file is collected, like an un-reduced one: too few points is a warning
+    about the stride, not a lost artefact."""
+    res, dst = collect(tmp_path, ATTN_STRIDE="200")
+    assert res.returncode == 0, res.stdout + res.stderr
+
+    out = dst / "attn_amplitude" / f"{RUN_NAME}_attn_amplitude.csv"
+    assert len(distinct_steps(out)) < 10, "this stride does not make it thin"
+    assert "1/1 downsampled" in res.stdout, (
+        "a thin file was counted as one that was not written:\n" + res.stdout)
+    assert "too thin" in res.stdout, (
+        "a file cut below a curve was collected and the summary said "
+        "nothing:\n" + res.stdout)
+    assert "THIN" in res.stderr, res.stderr
 
 
 def test_the_collector_copies_latent_drift_whole(tmp_path):
