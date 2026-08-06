@@ -96,17 +96,37 @@ check "arm1_nse resolves at its furthest scored stop" "40000" "$(col arm1_nse la
 check "arm1_nse branch is unconditional" "unconditional" "$(col arm1_nse rule_branch)"
 check "arm1_nse has no park row, so it is open" "open" "$(col arm1_nse ended_by)"
 
-# 6. Every emitted branch is one a recorded row agrees with.
-n_no=$(awk -F, 'NR>1 && $NF=="no"' "$OUT" | wc -l)
+# 6. Every emitted branch is one a recorded row agrees with. Reading the
+#    LAST field would now read probed_at, so the column is resolved by name.
+n_no=$(awk -F, 'NR==1{for(i=1;i<=NF;i++)k[$i]=i;next} $k["rule_in_recorded"]=="no"' "$OUT" | wc -l)
 check "every row agrees with a recorded branch" "0" "$n_no"
+
+# 6b. `rule_in_recorded` says "some row agrees"; `stale_rows` says "and
+#     these do not". The five parks are exactly what the old single flag
+#     read `yes` through, so each has to be named here.
+check "alignS names its stale budget row"  "budget_stop" "$(col arm5_combab_alignS stale_rows)"
+check "alignT names its stale ceiling row" "session_end" "$(col arm5_combab_alignT stale_rows)"
+check "ncpc_alignT names its stale row"    "budget_stop" "$(col arm6_v2_ncpc_alignT stale_rows)"
+check "a clean cell names nothing stale"   ""            "$(col arm1_nse stale_rows)"
+
+# 6c. --no-probe leaves probed_at empty, which is what makes the file
+#     reproducible from the CSVs alone.
+check "no-probe leaves probed_at empty" "" "$(col arm1_nse probed_at)"
 
 # 7. A cell with no score at all is left out rather than guessed at.
 check "only scored cells are emitted" "4" "$(( $(wc -l <"$OUT") - 1 ))"
 
 # 8. Schema.
 check "header" \
-  "cell,last_stop,rule_branch,extend,heads_next,ended_by,recorded,rule_matches_record" \
+  "cell,last_stop,rule_branch,extend,heads_next,ended_by,ended_by_evidence,recorded,stale_rows,rule_in_recorded,probed_at" \
   "$(head -1 "$OUT")"
+
+# 9. `running` is the one value a live probe produces, so it has to leave a
+#    path behind that outlives the process it read.
+check "a budget park points at the file that records it" \
+  "decisions_all.csv branch=budget_stop" "$(col arm5_combab_alignS ended_by_evidence)"
+check "a rule stop needs no evidence beyond the scores" \
+  "" "$(col arm6_v2_ncpc_alignT ended_by_evidence)"
 check "no CR in the output" "0" "$(tr -cd '\r' <"$OUT" | wc -c)"
 
 echo

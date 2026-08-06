@@ -66,7 +66,11 @@ esac
 SEED_SUFFIX=""
 [ "$HEAD_SEED" != "$HEAD_SEED_DEFAULT" ] && SEED_SUFFIX="_s${HEAD_SEED}"
 
-WT="${WT:-$HOME/workspaces/contrastive-forecasting}"
+# Exported, not just set: eval_local.sh runs as a child and falls back to a
+# hard-coded elisa path when WT is absent from its environment, which on a
+# rented box is a directory that does not exist. It only ever ran on elisa
+# before, under eval_broker.sh, which passes WT explicitly.
+export WT="${WT:-$HOME/workspaces/contrastive-forecasting}"
 # A head is 15k-30k training steps and the GIFT-Eval outputs are its only
 # record, so both live on the same durable root as the backbones rather
 # than inside the checkout — see leg_paths.sh.

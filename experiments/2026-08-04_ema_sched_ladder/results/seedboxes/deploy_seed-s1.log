@@ -1,33 +1,29 @@
-[08-06 00:43:33] [bootstrap ssh1.vast.ai:16706] packing code
-[08-06 00:43:33] [bootstrap ssh1.vast.ai:16706] uploading 489M
-Warning: Permanently added '[ssh1.vast.ai]:16706' (ED25519) to the list of known hosts.
-Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
-Have fun!
-[08-06 00:45:41] [bootstrap ssh1.vast.ai:16706] installing
+[08-06 00:59:09] [deploy seed-s1] already bootstrapped
 Warning: Permanently added '[ssh1.vast.ai]:16706' (ED25519) to the list of known hosts.
 Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
 Have fun!
 Warning: Permanently added '[ssh1.vast.ai]:16706' (ED25519) to the list of known hosts.
 Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
 Have fun!
-started
-[08-06 00:49:13] [bootstrap ssh1.vast.ai:16706] waiting for BOOTSTRAP_OK (install is ~5 min)
-[08-06 00:49:16] [bootstrap ssh1.vast.ai:16706] OK
-Warning: Permanently added '[ssh1.vast.ai]:16706' (ED25519) to the list of known hosts.
-Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
-Have fun!
-+ nvidia-smi --query-gpu=compute_mode --format=csv,noheader
-Default
-+ echo BOOTSTRAP_OK
-BOOTSTRAP_OK
-Warning: Permanently added '[ssh1.vast.ai]:16706' (ED25519) to the list of known hosts.
-Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
-Have fun!
-[08-06 00:49:23] [bootstrap ssh1.vast.ai:16706] pushing HOLD_ABOVE (200000)
+[08-06 00:59:23] [deploy seed-s1] backbone arm5_combab_alignS: 5192347 B verified on the box
+[08-06 00:59:26] [deploy seed-s1] 16 cores -> 3 concurrent eval(s) x 4 shards
 Warning: Permanently added '[ssh1.vast.ai]:16706' (ED25519) to the list of known hosts.
 Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
 Have fun!
 Warning: Permanently added '[ssh1.vast.ai]:16706' (ED25519) to the list of known hosts.
 Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
 Have fun!
-[08-06 00:49:31] [bootstrap ssh1.vast.ai:16706] done
+Warning: Permanently added '[ssh1.vast.ai]:16706' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+Warning: Permanently added '[ssh1.vast.ai]:16706' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[08-06 00:59:47] [deploy seed-s1] sync loop started -> /home/jupyter/cf393_seedsync_seed-s1
+[08-06 00:59:47] [deploy seed-s1] waiting for the first sync tick to land the backbone it just pushed
+[08-06 01:00:17] [deploy seed-s1] sync verified by ls: 5192347 /home/jupyter/cf393_seedsync_seed-s1/2026-08-04_ema_sched_ladder/sync/arm5_combab_alignS/leg_100k/cf393_arm5_combab_alignS_100k.pth
+[08-06 01:00:17] [deploy seed-s1] launching seed_replicates for arm5_combab_alignS
+Warning: Permanently added '[ssh1.vast.ai]:16706' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+launched

@@ -1,0 +1,62 @@
+[08-06 01:03:35] [deploy seed-h1] bootstrapping (torch + repo + GIFT-Eval, ~8 min)
+[08-06 01:03:35] [bootstrap ssh6.vast.ai:18004] packing code
+[08-06 01:03:35] [bootstrap ssh6.vast.ai:18004] uploading 489M
+Warning: Permanently added '[ssh6.vast.ai]:18004' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[08-06 01:06:36] [bootstrap ssh6.vast.ai:18004] installing
+Warning: Permanently added '[ssh6.vast.ai]:18004' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+Warning: Permanently added '[ssh6.vast.ai]:18004' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+started
+[08-06 01:09:51] [bootstrap ssh6.vast.ai:18004] waiting for BOOTSTRAP_OK (install is ~5 min)
+[08-06 01:09:54] [bootstrap ssh6.vast.ai:18004] OK
+Warning: Permanently added '[ssh6.vast.ai]:18004' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
++ nvidia-smi --query-gpu=compute_mode --format=csv,noheader
+Default
++ echo BOOTSTRAP_OK
+BOOTSTRAP_OK
+Warning: Permanently added '[ssh6.vast.ai]:18004' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[08-06 01:09:59] [bootstrap ssh6.vast.ai:18004] pushing HOLD_ABOVE (200000)
+Warning: Permanently added '[ssh6.vast.ai]:18004' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+Warning: Permanently added '[ssh6.vast.ai]:18004' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[08-06 01:10:05] [bootstrap ssh6.vast.ai:18004] done
+Warning: Permanently added '[ssh6.vast.ai]:18004' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+Warning: Permanently added '[ssh6.vast.ai]:18004' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[08-06 01:10:16] [deploy seed-h1] backbone arm6_v2_nse_alignS: 5209071 B verified on the box
+[08-06 01:10:19] [deploy seed-h1] 128 cores -> 3 concurrent eval(s) x 4 shards
+Warning: Permanently added '[ssh6.vast.ai]:18004' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+Warning: Permanently added '[ssh6.vast.ai]:18004' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+Warning: Permanently added '[ssh6.vast.ai]:18004' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+Warning: Permanently added '[ssh6.vast.ai]:18004' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[08-06 01:10:35] [deploy seed-h1] sync loop started -> /home/jupyter/cf393_seedsync_seed-h1
+[08-06 01:10:35] [deploy seed-h1] waiting for the first sync tick to land the backbone it just pushed
+[08-06 01:11:05] [deploy seed-h1] sync verified by ls: 5209071 /home/jupyter/cf393_seedsync_seed-h1/2026-08-04_ema_sched_ladder/sync/arm6_v2_nse_alignS/leg_100k/cf393_arm6_v2_nse_alignS_100k.pth
+[08-06 01:11:05] [deploy seed-h1] launching seed_replicates for arm6_v2_nse_alignS
+Warning: Permanently added '[ssh6.vast.ai]:18004' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+launched

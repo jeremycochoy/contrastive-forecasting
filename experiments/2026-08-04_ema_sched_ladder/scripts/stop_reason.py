@@ -28,16 +28,24 @@ whatever order sorting leaves them, not the order they were decided in.
 So the branch is not read off a row at all. It is re-derived from the
 pooled scores with `ladder.ladder_decision`, the same pure function
 `climb()` calls, and the recorded rows are carried alongside as a
-cross-check. `rule_matches_record` is `no` when no recorded row at that
-stop agrees, which is a bug in this file or in the pooling, not a result.
+cross-check.
+
+Two columns carry that cross-check, and they answer different questions.
+`rule_in_recorded` is `no` when NO recorded row at that stop agrees, which
+is a bug in this file or in the pooling rather than a result. `stale_rows`
+names the recorded branches the rule contradicts — the parks written while
+a head was still evaluating. The first was once called
+`rule_matches_record` and read `yes` on all ten cells including the five
+carrying a stale `budget_stop`, because "some recorded row agrees" is not
+"the record is clean". Both are needed; one flag cannot mean both.
 
 Usage:  python3 scripts/stop_reason.py [--decisions FILE] [--ladder FILE]
                                        [--out FILE] [--no-probe]
 
 Writes `results/stop_reason.csv`:
 
-    cell,last_stop,rule_branch,extend,heads_next,ended_by,recorded,
-    rule_matches_record
+    cell,last_stop,rule_branch,extend,heads_next,ended_by,
+    ended_by_evidence,recorded,stale_rows,rule_in_recorded,probed_at
 
 `ended_by` is the answer to "why did this cell stop where it stopped":
 
@@ -47,6 +55,13 @@ Writes `results/stop_reason.csv`:
     session  the rule said extend; the session ceiling held it
     open     the rule said extend and nothing recorded why it did not
 
+`running` is the one value that comes from a live `pgrep` rather than from
+the CSVs, so it goes stale the moment the extension legs finish. Two things
+make it checkable afterwards: `probed_at` stamps when the probe ran, and
+`ended_by_evidence` names the committed per-cell driver log the claim can
+be read out of. Regenerate the file when the legs end — collect_results.sh
+does this every cycle.
+
 `--no-probe` skips the live-driver check, so the file is reproducible from
 the CSVs alone (`running` then reads as `open`).
 """
@@ -54,6 +69,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import datetime as dt
 import os
 import re
 import subprocess
@@ -72,7 +88,8 @@ from ladder import (  # noqa: E402
 )
 
 COLUMNS = ["cell", "last_stop", "rule_branch", "extend", "heads_next",
-           "ended_by", "recorded", "rule_matches_record"]
+           "ended_by", "ended_by_evidence", "recorded", "stale_rows",
+           "rule_in_recorded", "probed_at"]
 
 # Branches climb() writes for a reason other than the extend rule. They say
 # where the cell was parked, not what the rule decided.
@@ -129,7 +146,8 @@ def live_cells() -> set[str]:
 
 def resolve(decisions: list[dict], ladder: list[dict],
             live: set[str] | None = None,
-            cells: list[dict] | None = None) -> list[dict]:
+            cells: list[dict] | None = None,
+            probed_at: str = "") -> list[dict]:
     cells = cells if cells is not None else CELLS
     live = live if live is not None else set()
     cap = experiment_step_cap()
@@ -157,6 +175,23 @@ def resolve(decisions: list[dict], ladder: list[dict],
         else:
             ended = "open"
 
+        # Something a reader can open months later, in place of the live
+        # `pgrep` that produced `running`. The driver log is committed
+        # under results/ and carries the leg's own start and step lines.
+        evidence = {
+            "rule": "",
+            "running": f"results/ladder_{slug}.log",
+            "budget": "decisions_all.csv branch=budget_stop",
+            "session": "decisions_all.csv branch=session_end",
+            "open": "",
+        }[ended]
+
+        # Recorded branches the rule contradicts: the parks written while a
+        # head was still evaluating. Not the same question as whether the
+        # rule's own branch appears at all.
+        stale = [b for b in sorted(set(recorded))
+                 if b != d["branch"] and b != "unconditional"]
+
         rows.append({
             "cell": slug,
             "last_stop": last_stop,
@@ -164,8 +199,11 @@ def resolve(decisions: list[dict], ladder: list[dict],
             "extend": int(d["extend"]),
             "heads_next": " ".join(d["heads"]),
             "ended_by": ended,
+            "ended_by_evidence": evidence,
             "recorded": " ".join(sorted(set(recorded))),
-            "rule_matches_record": "yes" if d["branch"] in recorded else "no",
+            "stale_rows": " ".join(stale),
+            "rule_in_recorded": "yes" if d["branch"] in recorded else "no",
+            "probed_at": probed_at,
         })
     return rows
 
@@ -180,8 +218,11 @@ def main() -> int:
                    help="do not look for live drivers")
     a = p.parse_args()
 
+    probed_at = "" if a.no_probe else dt.datetime.now(
+        dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     rows = resolve(read(a.decisions), read(a.ladder),
-                   live=set() if a.no_probe else live_cells())
+                   live=set() if a.no_probe else live_cells(),
+                   probed_at=probed_at)
     if not rows:
         print(f"stop_reason: no scored cell in {a.ladder}", file=sys.stderr)
         return 1
@@ -195,10 +236,12 @@ def main() -> int:
 
     width = max(len(r["cell"]) for r in rows)
     for r in rows:
-        flag = "" if r["rule_matches_record"] == "yes" else "   NO RECORDED ROW"
+        flag = "" if r["rule_in_recorded"] == "yes" else "   NO RECORDED ROW"
         print(f"{r['cell']:<{width}}  @{r['last_stop']:<7}"
               f" {r['rule_branch']:<14} ended_by={r['ended_by']:<8}"
-              f" recorded=[{r['recorded']}]{flag}")
+              f" recorded=[{r['recorded']}]"
+              f"{'  stale=[' + r['stale_rows'] + ']' if r['stale_rows'] else ''}"
+              f"{flag}")
     print(f"  -> {a.out} ({len(rows)} cells)")
     return 0
 

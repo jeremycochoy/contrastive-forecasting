@@ -124,6 +124,16 @@ python3 "$EXP/scripts/scores_from_evals.py" \
 # for a field the key does not mention.
 RES="$RES" bash "$EXP/scripts/merge_pooled.sh" ladder decisions
 
+# --- mark the rows the rule has since overtaken --------------------------
+# The pooled decisions file is an append-only log: one (cell, stop) carries
+# a park written while a head was still evaluating AND the branch the rule
+# gave once that head landed, and sorting leaves no clue which came last.
+# Annotating in place means the file answers for itself instead of needing
+# stop_reason.csv beside it to be read safely.
+python3 "$EXP/scripts/annotate_decisions.py" \
+        --decisions "$RES/decisions_all.csv" \
+        --ladder "$RES/ladder_all.csv" 2>&1 | sed 's/^/  /'
+
 # --- which branch stopped which cell -------------------------------------
 # The pooled decisions file carries more than one row per (cell, stop) — a
 # park written by the spend order, and the rule re-derived once the stop's

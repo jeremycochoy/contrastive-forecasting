@@ -45,14 +45,23 @@ done
 
 mkdir -p "$STAGE"
 say "packing code"
-tar czf "$STAGE/cf393_code.tgz" -C "$WT" --exclude='__pycache__' \
-  src \
-  experiments/hf_token.txt \
-  experiments/2026-04-27_freq-embedding/scripts/train.py \
-  experiments/2026-04-13_gift-eval/scripts \
-  experiments/2026-08-04_ema_sched_ladder/scripts \
-  experiments/2026-08-04_ema_sched_ladder/sync \
-  experiments/2026-08-04_ema_sched_ladder/README.md || exit 3
+# Several boxes are bootstrapped at once, and they share $STAGE. Packing
+# straight onto the name another deploy is uploading hands that one a
+# truncated tarball. One writer at a time, and the name only ever changes
+# by an atomic rename, so a concurrent reader sees a whole file or the
+# previous whole file.
+(
+  flock 6
+  tar czf "$STAGE/cf393_code.tgz.$$" -C "$WT" --exclude='__pycache__' \
+    src \
+    experiments/hf_token.txt \
+    experiments/2026-04-27_freq-embedding/scripts/train.py \
+    experiments/2026-04-13_gift-eval/scripts \
+    experiments/2026-08-04_ema_sched_ladder/scripts \
+    experiments/2026-08-04_ema_sched_ladder/sync \
+    experiments/2026-08-04_ema_sched_ladder/README.md \
+    && mv -f "$STAGE/cf393_code.tgz.$$" "$STAGE/cf393_code.tgz"
+) 6>"$STAGE/.pack.lock" || exit 3
 # The GIFT-Eval package carries the seasonal-naive denominator the whole
 # study is normalised by; it ships with the code, not with the data.
 [ -f "$STAGE/gift_eval_pkg.tgz" ] || \

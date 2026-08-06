@@ -35,6 +35,20 @@
 # second time while the first is still running is safe and is how the pool
 # is widened: a job is claimed by `mkdir`, which is atomic, so no two
 # workers take the same one.
+#
+# WHERE EACH CELL RUNS, and why it is not free choice. A head is trained on
+# a GPU, and the six cells' seed-20260722 heads were not all trained on the
+# same one: `arm6_v2_combab_alignS`, `arm6_v2_combab_alignT` and
+# `arm6_v2_nse_alignS` on elisa's RTX 4090s, and `arm5_combab_alignS`,
+# `arm5_combab_alignT` and `arm6_v2_nse_alignT` on rented RTX 5090s
+# (results/machines.txt, and the `_broker/<box>/<cell>/` trees are the
+# receipt). A spread taken across three seeds on two different GPU models
+# measures seed AND hardware together. So each cell's replicates run on the
+# same GPU model its first seed did, and CF393_SEED_CELLS is how a box is
+# given only its own cells.
+#
+#   CF393_SEED_CELLS   comma-separated subset of the six; default all six
+#   CF393_SEED_GPUS    devices to spread over; 2 on elisa, 1 on a vast box
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -46,19 +60,45 @@ LOG="$RES/seed_replicates.log"
 
 # The two replicate seeds and the protocol seed they are compared against.
 PROTOCOL_SEED=20260722
-SEEDS=(20260723 20260724)
+ALL_SEEDS=(20260723 20260724)
+# CF393_SEED_SEEDS splits one cell across two boxes without either taking
+# the other's job: the claim directory is local to a machine, so the
+# partition has to be in the job list rather than in the claim.
+if [ -n "${CF393_SEED_SEEDS:-}" ]; then
+  IFS=, read -r -a SEEDS <<<"$CF393_SEED_SEEDS"
+else
+  SEEDS=("${ALL_SEEDS[@]}")
+fi
 
 # The six cells, in the order the card asks for. Only bb100k: that is the
 # stop the extend rule fires at, and the bb40k side of every delta is the
 # same number for all three seeds' comparison.
-CELLS=(arm6_v2_combab_alignS arm6_v2_combab_alignT
-       arm5_combab_alignS arm5_combab_alignT
-       arm6_v2_nse_alignT arm6_v2_nse_alignS)
+ALL_CELLS=(arm6_v2_combab_alignS arm6_v2_combab_alignT
+           arm5_combab_alignS arm5_combab_alignT
+           arm6_v2_nse_alignT arm6_v2_nse_alignS)
+# The GPU model each cell's seed-20260722 head was trained on, so a box can
+# be checked against the cells it was given rather than trusting the launch.
+declare -A CELL_GPU=(
+  [arm6_v2_combab_alignS]=4090 [arm6_v2_combab_alignT]=4090
+  [arm6_v2_nse_alignS]=4090
+  [arm5_combab_alignS]=5090 [arm5_combab_alignT]=5090
+  [arm6_v2_nse_alignT]=5090)
+
+if [ -n "${CF393_SEED_CELLS:-}" ]; then
+  IFS=, read -r -a CELLS <<<"$CF393_SEED_CELLS"
+  for c in "${CELLS[@]}"; do
+    [ -n "${CELL_GPU[$c]:-}" ] || {
+      echo "ABORT: '$c' is not one of the six replicate cells" >&2; exit 2; }
+  done
+else
+  CELLS=("${ALL_CELLS[@]}")
+fi
 STOP=100000
 HEAD_STEPS=30000
 
 CLAIMS="${CF393_SEED_CLAIMS:-/tmp/cf393_seed_claims}"
 JOBS="${CF393_SEED_JOBS:-4}"
+NGPU="${CF393_SEED_GPUS:-2}"
 
 say(){ echo "[$(date '+%m-%d %H:%M:%S')] [seeds] $*" | tee -a "$LOG"; }
 
@@ -70,7 +110,7 @@ job_list(){
   for cell in "${CELLS[@]}"; do
     for seed in "${SEEDS[@]}"; do
       for enc in student teacher; do
-        echo "$cell $enc $seed $(( i % 2 ))"
+        echo "$cell $enc $seed $(( i % NGPU ))"
         i=$(( i + 1 ))
       done
     done
@@ -123,7 +163,7 @@ status(){
   local cell enc seed out n=0 done_=0
   printf '%-24s %-8s %-9s %s\n' cell head seed score
   for cell in "${CELLS[@]}"; do
-    for seed in "$PROTOCOL_SEED" "${SEEDS[@]}"; do
+    for seed in "$PROTOCOL_SEED" "${ALL_SEEDS[@]}"; do
       for enc in student teacher; do
         out="$(score_path "$cell" "$enc" "$seed")"
         n=$(( n + 1 ))
