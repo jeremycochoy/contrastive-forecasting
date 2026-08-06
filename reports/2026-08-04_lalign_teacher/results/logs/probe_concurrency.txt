@@ -1,0 +1,10 @@
+# GPU slot-count probe, elisa, 2026-08-01 22:34 — arm6_v2, 400 backbone steps.
+# Both GPUs shared with unrelated jobs at the time; the two rows are measured minutes apart on the SAME GPU.
+=== phase A: 1 trainer on GPU 1 ===
+solo rc=0
+A wall=129s [smoke-390]   step time: 3.2 sps
+=== phase B: 2 trainers on GPU 1 ===
+dual_a rc=0
+dual_b rc=0
+B wall=146s a:[smoke-390]   step time: 2.9 sps b:[smoke-390]   step time: 2.8 sps
+PROBE DONE

@@ -59,7 +59,9 @@ Writes `results/stop_reason.csv`:
 the CSVs, so it goes stale the moment the extension legs finish. Two things
 make it checkable afterwards: `probed_at` stamps when the probe ran, and
 `ended_by_evidence` names the committed per-cell driver log the claim can
-be read out of. Regenerate the file when the legs end — collect_results.sh
+be read out of. `ended_by_evidence` also carries the reverse case: a cell
+resolved to `rule` whose recorded row still reads `budget_stop` names the
+pooled scores that superseded that park. Regenerate the file when the legs end — collect_results.sh
 does this every cycle.
 
 `--no-probe` skips the live-driver check, so the file is reproducible from
@@ -178,8 +180,12 @@ def resolve(decisions: list[dict], ladder: list[dict],
         # Something a reader can open months later, in place of the live
         # `pgrep` that produced `running`. The driver log is committed
         # under results/ and carries the leg's own start and step lines.
+        # A rule stop carries evidence only when it overrides a recorded
+        # park: then the reader needs the scores that superseded it.
         evidence = {
-            "rule": "",
+            "rule": (f"ladder_all.csv stop={last_stop} {d['branch']} "
+                     f"supersedes recorded {' '.join(sorted(set(parked)))}"
+                     if parked else ""),
             "running": f"results/ladder_{slug}.log",
             "budget": "decisions_all.csv branch=budget_stop",
             "session": "decisions_all.csv branch=session_end",

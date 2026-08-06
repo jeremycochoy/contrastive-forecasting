@@ -1,0 +1,185 @@
+[08-01 22:35:00] [pipeline-390] pipeline start — WT=/home/jupyter/wt-cf-390-train start_wave=1 arms=10
+[08-01 22:35:00] [pipeline-390] === WAVE 1: backbone → 40k — arms: arm5 arm5_tr1 arm5_nse arm5_ncpc arm5_combab arm6_v2 arm6_v2_tr1 arm6_v2_nse arm6_v2_ncpc arm6_v2_combab
+[08-01 22:35:00] [orch-390-w1] orchestrator start — WT=/home/jupyter/wt-cf-390-train wave=1 target=40000 arms=10 slots/gpu=2
+[08-01 22:35:00] [orch-390-w1] arms: arm5 arm5_tr1 arm5_nse arm5_ncpc arm5_combab arm6_v2 arm6_v2_tr1 arm6_v2_nse arm6_v2_ncpc arm6_v2_combab
+[08-01 22:35:00] [orch-390-w1] arm arm5 start: BB_GPU=0 target=40000
+[08-01 22:35:05] [orch-390-w1] arm arm5_tr1 start: BB_GPU=0 target=40000
+[08-01 22:35:10] [orch-390-w1] arm arm5_nse start: BB_GPU=1 target=40000
+[08-01 22:35:15] [orch-390-w1] arm arm5_ncpc start: BB_GPU=1 target=40000
+[08-02 01:47:04] [orch-390-w1] arm arm5_tr1 done rc=0
+[08-02 01:47:04] [orch-390-w1] arm arm5_combab start: BB_GPU=0 target=40000
+[08-02 01:47:06] [orch-390-w1] arm arm5 done rc=0
+[08-02 01:47:09] [orch-390-w1] arm arm6_v2 start: BB_GPU=0 target=40000
+[08-02 02:18:45] [orch-390-w1] arm arm5_ncpc done rc=0
+[08-02 02:18:45] [orch-390-w1] arm arm6_v2_tr1 start: BB_GPU=1 target=40000
+[08-02 02:22:54] [orch-390-w1] arm arm5_nse done rc=0
+[08-02 02:22:54] [orch-390-w1] arm arm6_v2_nse start: BB_GPU=1 target=40000
+[08-02 04:40:00] [orch-390-w1] arm arm6_v2 done rc=0
+[08-02 04:40:00] [orch-390-w1] arm arm6_v2_ncpc start: BB_GPU=0 target=40000
+[08-02 04:40:27] [orch-390-w1] arm arm5_combab done rc=0
+[08-02 04:40:27] [orch-390-w1] arm arm6_v2_combab start: BB_GPU=0 target=40000
+[08-02 05:38:20] [orch-390-w1] arm arm6_v2_tr1 done rc=0
+[08-02 05:39:45] [orch-390-w1] arm arm6_v2_nse done rc=0
+[08-02 07:28:19] [orch-390-w1] arm arm6_v2_ncpc done rc=0
+[08-02 07:29:26] [orch-390-w1] arm arm6_v2_combab done rc=0
+[08-02 07:29:26] [orch-390-w1] rc[arm5]=0
+[08-02 07:29:26] [orch-390-w1] rc[arm5_tr1]=0
+[08-02 07:29:26] [orch-390-w1] rc[arm5_nse]=0
+[08-02 07:29:26] [orch-390-w1] rc[arm5_ncpc]=0
+[08-02 07:29:26] [orch-390-w1] rc[arm5_combab]=0
+[08-02 07:29:26] [orch-390-w1] rc[arm6_v2]=0
+[08-02 07:29:26] [orch-390-w1] rc[arm6_v2_tr1]=0
+[08-02 07:29:26] [orch-390-w1] rc[arm6_v2_nse]=0
+[08-02 07:29:26] [orch-390-w1] rc[arm6_v2_ncpc]=0
+[08-02 07:29:26] [orch-390-w1] rc[arm6_v2_combab]=0
+[08-02 07:29:26] [orch-390-w1]   arm5: newest checkpoint 40k FINAL=no (target 40k)
+[08-02 07:29:26] [orch-390-w1]   arm5_tr1: newest checkpoint 40k FINAL=no (target 40k)
+[08-02 07:29:26] [orch-390-w1]   arm5_nse: newest checkpoint 40k FINAL=no (target 40k)
+[08-02 07:29:26] [orch-390-w1]   arm5_ncpc: newest checkpoint 40k FINAL=no (target 40k)
+[08-02 07:29:26] [orch-390-w1]   arm5_combab: newest checkpoint 40k FINAL=no (target 40k)
+[08-02 07:29:26] [orch-390-w1]   arm6_v2: newest checkpoint 40k FINAL=no (target 40k)
+[08-02 07:29:26] [orch-390-w1]   arm6_v2_tr1: newest checkpoint 40k FINAL=no (target 40k)
+[08-02 07:29:26] [orch-390-w1]   arm6_v2_nse: newest checkpoint 40k FINAL=no (target 40k)
+[08-02 07:29:26] [orch-390-w1]   arm6_v2_ncpc: newest checkpoint 40k FINAL=no (target 40k)
+[08-02 07:29:26] [orch-390-w1]   arm6_v2_combab: newest checkpoint 40k FINAL=no (target 40k)
+[08-02 07:29:26] [orch-390-w1] orchestrator done — arms at/past 40k: 10 / 10
+[08-02 07:29:26] [orch-390-w1] state written to /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/results/orchestrate_wave1_state.json
+[08-02 07:29:26] [pipeline-390] === WAVE 1 backbone stage rc=0
+[08-02 07:29:26] [pipeline-390] === WAVE 1: head + GIFT-Eval — arms: arm5 arm5_tr1 arm5_nse arm5_ncpc arm5_combab arm6_v2 arm6_v2_tr1 arm6_v2_nse arm6_v2_ncpc arm6_v2_combab
+[08-02 07:29:26] [eval-390-w1] eval wave start — WT=/home/jupyter/wt-cf-390-train bb=40k head=15000 arms=10 slots/gpu=2
+[08-02 07:29:26] [eval-390-w1] arms: arm5 arm5_tr1 arm5_nse arm5_ncpc arm5_combab arm6_v2 arm6_v2_tr1 arm6_v2_nse arm6_v2_ncpc arm6_v2_combab
+[08-02 10:55:56] [eval-390-w1] arm arm5_ncpc eval rc=0
+[08-02 10:57:06] [eval-390-w1] arm arm5_nse eval rc=0
+[08-02 10:57:44] [eval-390-w1] arm arm5 eval rc=0
+[08-02 10:58:17] [eval-390-w1] arm arm5_tr1 eval rc=0
+[08-02 14:25:52] [eval-390-w1] arm arm5_combab eval rc=0
+[08-02 14:27:54] [eval-390-w1] arm arm6_v2 eval rc=0
+[08-02 14:33:11] [eval-390-w1] arm arm6_v2_nse eval rc=0
+[08-02 14:34:41] [eval-390-w1] arm arm6_v2_tr1 eval rc=0
+[08-02 17:31:41] [eval-390-w1] arm arm6_v2_ncpc eval rc=0
+[08-02 17:33:38] [eval-390-w1] arm arm6_v2_combab eval rc=0
+[08-02 17:33:38] [eval-390-w1]   arm5_bb40k_hd15000s: Aggregate GM-Relative MASE (97 configs): 1.3515
+[08-02 17:33:38] [eval-390-w1]   arm5_tr1_bb40k_hd15000s: Aggregate GM-Relative MASE (97 configs): 1.3396
+[08-02 17:33:38] [eval-390-w1]   arm5_nse_bb40k_hd15000s: Aggregate GM-Relative MASE (97 configs): 1.4536
+[08-02 17:33:38] [eval-390-w1]   arm5_ncpc_bb40k_hd15000s: Aggregate GM-Relative MASE (97 configs): 1.2923
+[08-02 17:33:38] [eval-390-w1]   arm5_combab_bb40k_hd15000s: Aggregate GM-Relative MASE (97 configs): 1.2728
+[08-02 17:33:38] [eval-390-w1]   arm6_v2_bb40k_hd15000s: Aggregate GM-Relative MASE (97 configs): 1.4322
+[08-02 17:33:38] [eval-390-w1]   arm6_v2_tr1_bb40k_hd15000s: Aggregate GM-Relative MASE (97 configs): 1.5315
+[08-02 17:33:38] [eval-390-w1]   arm6_v2_nse_bb40k_hd15000s: Aggregate GM-Relative MASE (97 configs): 1.3074
+[08-02 17:33:38] [eval-390-w1]   arm6_v2_ncpc_bb40k_hd15000s: Aggregate GM-Relative MASE (97 configs): 1.3159
+[08-02 17:33:38] [eval-390-w1]   arm6_v2_combab_bb40k_hd15000s: Aggregate GM-Relative MASE (97 configs): 1.2765
+[08-02 17:33:38] [eval-390-w1] eval wave done — cells with a full 97-config measurement: 10 / 10
+[08-02 17:33:38] [pipeline-390] === WAVE 1 eval stage rc=0
+[08-02 17:33:38] [pipeline-390] === WAVE 2: backbone → 100k — arms: arm5 arm5_tr1 arm5_nse arm5_ncpc arm5_combab arm6_v2 arm6_v2_tr1 arm6_v2_nse arm6_v2_ncpc arm6_v2_combab
+[08-02 17:33:38] [orch-390-w2] orchestrator start — WT=/home/jupyter/wt-cf-390-train wave=2 target=100000 arms=10 slots/gpu=2
+[08-02 17:33:38] [orch-390-w2] arms: arm5 arm5_tr1 arm5_nse arm5_ncpc arm5_combab arm6_v2 arm6_v2_tr1 arm6_v2_nse arm6_v2_ncpc arm6_v2_combab
+[08-02 17:33:38] [orch-390-w2] arm arm5 start: BB_GPU=0 target=100000
+[08-02 17:33:43] [orch-390-w2] arm arm5_tr1 start: BB_GPU=0 target=100000
+[08-02 17:33:48] [orch-390-w2] arm arm5_nse start: BB_GPU=1 target=100000
+[08-02 17:33:53] [orch-390-w2] arm arm5_ncpc start: BB_GPU=1 target=100000
+[08-02 21:47:23] [orch-390-w2] arm arm5_ncpc done rc=0
+[08-02 21:47:23] [orch-390-w2] arm arm5_combab start: BB_GPU=1 target=100000
+[08-02 21:48:19] [orch-390-w2] arm arm5_nse done rc=0
+[08-02 21:48:19] [orch-390-w2] arm arm6_v2 start: BB_GPU=1 target=100000
+[08-02 21:49:34] [orch-390-w2] arm arm5 done rc=0
+[08-02 21:49:34] [orch-390-w2] arm arm6_v2_tr1 start: BB_GPU=0 target=100000
+[08-02 21:50:29] [orch-390-w2] arm arm5_tr1 done rc=0
+[08-02 21:50:29] [orch-390-w2] arm arm6_v2_nse start: BB_GPU=0 target=100000
+[08-03 01:46:53] [orch-390-w2] arm arm6_v2 done rc=0
+[08-03 01:46:53] [orch-390-w2] arm arm6_v2_ncpc start: BB_GPU=1 target=100000
+[08-03 01:47:36] [orch-390-w2] arm arm5_combab done rc=0
+[08-03 01:47:36] [orch-390-w2] arm arm6_v2_combab start: BB_GPU=1 target=100000
+[08-03 01:48:33] [orch-390-w2] arm arm6_v2_tr1 done rc=0
+[08-03 01:49:05] [orch-390-w2] arm arm6_v2_nse done rc=0
+[08-03 05:21:12] [orch-390-w2] arm arm6_v2_combab done rc=0
+[08-03 05:21:12] [orch-390-w2] arm arm6_v2_ncpc done rc=0
+[08-03 05:21:12] [orch-390-w2] rc[arm5]=0
+[08-03 05:21:12] [orch-390-w2] rc[arm5_tr1]=0
+[08-03 05:21:13] [orch-390-w2] rc[arm5_nse]=0
+[08-03 05:21:13] [orch-390-w2] rc[arm5_ncpc]=0
+[08-03 05:21:13] [orch-390-w2] rc[arm5_combab]=0
+[08-03 05:21:13] [orch-390-w2] rc[arm6_v2]=0
+[08-03 05:21:13] [orch-390-w2] rc[arm6_v2_tr1]=0
+[08-03 05:21:13] [orch-390-w2] rc[arm6_v2_nse]=0
+[08-03 05:21:13] [orch-390-w2] rc[arm6_v2_ncpc]=0
+[08-03 05:21:13] [orch-390-w2] rc[arm6_v2_combab]=0
+[08-03 05:21:13] [orch-390-w2]   arm5: newest checkpoint 100k FINAL=no (target 100k)
+[08-03 05:21:13] [orch-390-w2]   arm5_tr1: newest checkpoint 100k FINAL=no (target 100k)
+[08-03 05:21:13] [orch-390-w2]   arm5_nse: newest checkpoint 100k FINAL=no (target 100k)
+[08-03 05:21:13] [orch-390-w2]   arm5_ncpc: newest checkpoint 100k FINAL=no (target 100k)
+[08-03 05:21:13] [orch-390-w2]   arm5_combab: newest checkpoint 100k FINAL=no (target 100k)
+[08-03 05:21:13] [orch-390-w2]   arm6_v2: newest checkpoint 100k FINAL=no (target 100k)
+[08-03 05:21:13] [orch-390-w2]   arm6_v2_tr1: newest checkpoint 100k FINAL=no (target 100k)
+[08-03 05:21:13] [orch-390-w2]   arm6_v2_nse: newest checkpoint 100k FINAL=no (target 100k)
+[08-03 05:21:13] [orch-390-w2]   arm6_v2_ncpc: newest checkpoint 100k FINAL=no (target 100k)
+[08-03 05:21:13] [orch-390-w2]   arm6_v2_combab: newest checkpoint 100k FINAL=no (target 100k)
+[08-03 05:21:13] [orch-390-w2] orchestrator done — arms at/past 100k: 10 / 10
+[08-03 05:21:13] [orch-390-w2] state written to /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/results/orchestrate_wave2_state.json
+[08-03 05:21:13] [pipeline-390] === WAVE 2 backbone stage rc=0
+[08-03 05:21:13] [pipeline-390] === WAVE 2: head + GIFT-Eval — arms: arm5 arm5_tr1 arm5_nse arm5_ncpc arm5_combab arm6_v2 arm6_v2_tr1 arm6_v2_nse arm6_v2_ncpc arm6_v2_combab
+[08-03 05:21:13] [eval-390-w2] eval wave start — WT=/home/jupyter/wt-cf-390-train bb=100k head=30000 arms=10 slots/gpu=2
+[08-03 05:21:13] [eval-390-w2] arms: arm5 arm5_tr1 arm5_nse arm5_ncpc arm5_combab arm6_v2 arm6_v2_tr1 arm6_v2_nse arm6_v2_ncpc arm6_v2_combab
+[08-03 08:42:56] [eval-390-w2] arm arm5_tr1 eval rc=0
+[08-03 08:43:14] [eval-390-w2] arm arm5 eval rc=0
+[08-03 08:44:14] [eval-390-w2] arm arm5_nse eval rc=0
+[08-03 08:45:16] [eval-390-w2] arm arm5_ncpc eval rc=0
+[08-03 12:24:54] [eval-390-w2] arm arm5_combab eval rc=0
+[08-03 12:25:02] [eval-390-w2] arm arm6_v2 eval rc=0
+[08-03 12:25:32] [eval-390-w2] arm arm6_v2_nse eval rc=0
+[08-03 12:25:40] [eval-390-w2] arm arm6_v2_tr1 eval rc=0
+[08-03 16:27:56] [eval-390-w2] arm arm6_v2_combab eval rc=0
+[08-03 16:28:57] [eval-390-w2] arm arm6_v2_ncpc eval rc=0
+[08-03 16:28:57] [eval-390-w2]   arm5_bb100k_hd30000s: Aggregate GM-Relative MASE (97 configs): 1.4510
+[08-03 16:28:57] [eval-390-w2]   arm5_tr1_bb100k_hd30000s: Aggregate GM-Relative MASE (97 configs): 1.3710
+[08-03 16:28:57] [eval-390-w2]   arm5_nse_bb100k_hd30000s: Aggregate GM-Relative MASE (97 configs): 1.4017
+[08-03 16:28:57] [eval-390-w2]   arm5_ncpc_bb100k_hd30000s: Aggregate GM-Relative MASE (97 configs): 1.3419
+[08-03 16:28:57] [eval-390-w2]   arm5_combab_bb100k_hd30000s: Aggregate GM-Relative MASE (97 configs): 1.3678
+[08-03 16:28:57] [eval-390-w2]   arm6_v2_bb100k_hd30000s: Aggregate GM-Relative MASE (97 configs): 1.9057
+[08-03 16:28:57] [eval-390-w2]   arm6_v2_tr1_bb100k_hd30000s: Aggregate GM-Relative MASE (97 configs): 1.7064
+[08-03 16:28:57] [eval-390-w2]   arm6_v2_nse_bb100k_hd30000s: Aggregate GM-Relative MASE (97 configs): 1.3368
+[08-03 16:28:57] [eval-390-w2]   arm6_v2_ncpc_bb100k_hd30000s: Aggregate GM-Relative MASE (97 configs): 1.3012
+[08-03 16:28:57] [eval-390-w2]   arm6_v2_combab_bb100k_hd30000s: Aggregate GM-Relative MASE (97 configs): 1.2514
+[08-03 16:28:57] [eval-390-w2] eval wave done — cells with a full 97-config measurement: 10 / 10
+[08-03 16:28:57] [pipeline-390] === WAVE 2 eval stage rc=0
+arm                   bb40k   bb100k  verdict
+arm5                 1.3515   1.4510  STOP (did not fall)
+arm5_tr1             1.3396   1.3710  STOP (did not fall)
+arm5_nse             1.4536   1.4017  GO to 200k
+arm5_ncpc            1.2923   1.3419  STOP (did not fall)
+arm5_combab          1.2728   1.3678  STOP (did not fall)
+arm6_v2              1.4322   1.9057  STOP (did not fall)
+arm6_v2_tr1          1.5315   1.7064  STOP (did not fall)
+arm6_v2_nse          1.3074   1.3368  STOP (did not fall)
+arm6_v2_ncpc         1.3159   1.3012  GO to 200k
+arm6_v2_combab       1.2765   1.2514  GO to 200k
+[08-03 16:28:57] [pipeline-390] wave-3 gate: promoted arms = arm5_nse arm6_v2_ncpc arm6_v2_combab
+[08-03 16:28:57] [pipeline-390] === WAVE 3: backbone → 200k — arms: arm5_nse arm6_v2_ncpc arm6_v2_combab
+[08-03 16:28:57] [orch-390-w3] orchestrator start — WT=/home/jupyter/wt-cf-390-train wave=3 target=200000 arms=3 slots/gpu=2
+[08-03 16:28:57] [orch-390-w3] arms: arm5_nse arm6_v2_ncpc arm6_v2_combab
+[08-03 16:28:57] [orch-390-w3] arm arm5_nse start: BB_GPU=0 target=200000
+[08-03 16:29:02] [orch-390-w3] arm arm6_v2_ncpc start: BB_GPU=0 target=200000
+[08-03 16:29:07] [orch-390-w3] arm arm6_v2_combab start: BB_GPU=1 target=200000
+[08-04 00:13:12] [orch-390-w3] arm arm6_v2_combab done rc=0
+[08-04 01:05:55] [orch-390-w3] arm arm6_v2_ncpc done rc=0
+[08-04 01:23:53] [orch-390-w3] arm arm5_nse done rc=0
+[08-04 01:23:53] [orch-390-w3] rc[arm5_nse]=0
+[08-04 01:23:53] [orch-390-w3] rc[arm6_v2_ncpc]=0
+[08-04 01:23:53] [orch-390-w3] rc[arm6_v2_combab]=0
+[08-04 01:23:53] [orch-390-w3]   arm5_nse: newest checkpoint 200k FINAL=yes (target 200k)
+[08-04 01:23:53] [orch-390-w3]   arm6_v2_ncpc: newest checkpoint 200k FINAL=yes (target 200k)
+[08-04 01:23:54] [orch-390-w3]   arm6_v2_combab: newest checkpoint 200k FINAL=yes (target 200k)
+[08-04 01:23:54] [orch-390-w3] orchestrator done — arms at/past 200k: 3 / 3
+[08-04 01:23:54] [orch-390-w3] state written to /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/results/orchestrate_wave3_state.json
+[08-04 01:23:54] [pipeline-390] === WAVE 3 backbone stage rc=0
+[08-04 01:23:54] [pipeline-390] === WAVE 3: head + GIFT-Eval — arms: arm5_nse arm6_v2_ncpc arm6_v2_combab
+[08-04 01:23:54] [eval-390-w3] eval wave start — WT=/home/jupyter/wt-cf-390-train bb=200k head=30000 arms=3 slots/gpu=2
+[08-04 01:23:54] [eval-390-w3] arms: arm5_nse arm6_v2_ncpc arm6_v2_combab
+[08-04 05:24:39] [eval-390-w3] arm arm5_nse eval rc=0
+[08-04 05:25:46] [eval-390-w3] arm arm6_v2_ncpc eval rc=0
+[08-04 05:50:31] [eval-390-w3] arm arm6_v2_combab eval rc=0
+[08-04 05:50:31] [eval-390-w3]   arm5_nse_bb200k_hd30000s: Aggregate GM-Relative MASE (97 configs): 1.8887
+[08-04 05:50:31] [eval-390-w3]   arm6_v2_ncpc_bb200k_hd30000s: Aggregate GM-Relative MASE (97 configs): 1.3325
+[08-04 05:50:31] [eval-390-w3]   arm6_v2_combab_bb200k_hd30000s: Aggregate GM-Relative MASE (97 configs): 1.1850
+[08-04 05:50:31] [eval-390-w3] eval wave done — cells with a full 97-config measurement: 3 / 3
+[08-04 05:50:31] [pipeline-390] === WAVE 3 eval stage rc=0
+[08-04 05:50:31] [pipeline-390] PIPELINE DONE

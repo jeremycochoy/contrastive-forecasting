@@ -1310,6 +1310,10 @@ def main():
     if (args.ema_embedding or args.ema_encoder) and not (0.0 < args.ema_tau < 1.0):
         raise SystemExit("--ema-tau must be in (0, 1); got "
                          f"{args.ema_tau!r}.")
+    # Parse --extra-save-steps at validation time (not deep in the training
+    # loop) so a malformed value fails immediately instead of after model +
+    # dataloader construction — the parser raises SystemExit on bad input.
+    _extra_save_steps = parse_extra_save_steps(args.extra_save_steps)
     # α = 1.0 is a legal END value (a teacher frozen at the end of the
     # budget); it is not a legal start value, since a teacher that never
     # moves at all is a plain frozen init.
@@ -1343,10 +1347,6 @@ def main():
             raise SystemExit(
                 "--align-target teacher picks the target of L_align, but "
                 "this run has no L_align term; pass --align-loss-weight.")
-    # Parse --extra-save-steps at validation time (not deep in the training
-    # loop) so a malformed value fails immediately instead of after model +
-    # dataloader construction — the parser raises SystemExit on bad input.
-    _extra_save_steps = parse_extra_save_steps(args.extra_save_steps)
     model_config["ema_embedding"] = bool(args.ema_embedding)
     model_config["ema_encoder"] = bool(args.ema_encoder)
     # LeJEPA SIGReg (#355): the term contributes nothing to the model's

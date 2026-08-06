@@ -125,8 +125,11 @@ check "header" \
 #    path behind that outlives the process it read.
 check "a budget park points at the file that records it" \
   "decisions_all.csv branch=budget_stop" "$(col arm5_combab_alignS ended_by_evidence)"
-check "a rule stop needs no evidence beyond the scores" \
-  "" "$(col arm6_v2_ncpc_alignT ended_by_evidence)"
+check "a rule stop over a stale park names what superseded it" \
+  "ladder_all.csv stop=100000 none_down supersedes recorded budget_stop" \
+  "$(col arm6_v2_ncpc_alignT ended_by_evidence)"
+check "a clean rule stop needs no evidence beyond the scores" \
+  "" "$(col arm1_nse ended_by_evidence)"
 check "no CR in the output" "0" "$(tr -cd '\r' <"$OUT" | wc -c)"
 
 echo

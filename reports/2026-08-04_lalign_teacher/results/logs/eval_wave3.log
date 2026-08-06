@@ -1,0 +1,27 @@
+[08-04 01:23:54] [eval-390-w3] eval wave start — WT=/home/jupyter/wt-cf-390-train bb=200k head=30000 arms=3 slots/gpu=2
+[08-04 01:23:54] [eval-390-w3] arms: arm5_nse arm6_v2_ncpc arm6_v2_combab
+[08-04 01:23:54] [arm5_nse_bb200k_hd30000s] start on GPU 0 (backbone=bb_small_arm5_nse_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_r3_200k.pth)
+[08-04 01:23:54] [arm5_nse_bb200k_hd30000s] head-train 30000 steps
+[08-04 01:23:59] [arm6_v2_ncpc_bb200k_hd30000s] start on GPU 0 (backbone=bb_small_arm6_v2_ncpc_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_r3_200k.pth)
+[08-04 01:23:59] [arm6_v2_ncpc_bb200k_hd30000s] head-train 30000 steps
+[08-04 01:24:04] [arm6_v2_combab_bb200k_hd30000s] start on GPU 1 (backbone=bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_r3_200k.pth)
+[08-04 01:24:04] [arm6_v2_combab_bb200k_hd30000s] head-train 30000 steps
+[08-04 02:32:44] [arm6_v2_combab_bb200k_hd30000s] head-train rc=0
+[08-04 02:32:44] [arm6_v2_combab_bb200k_hd30000s] gift-eval try 1/3 (have 0/97 configs)
+[08-04 02:36:11] [arm6_v2_ncpc_bb200k_hd30000s] head-train rc=0
+[08-04 02:36:11] [arm6_v2_ncpc_bb200k_hd30000s] gift-eval try 1/3 (have 0/97 configs)
+[08-04 02:36:11] [arm5_nse_bb200k_hd30000s] head-train rc=0
+[08-04 02:36:11] [arm5_nse_bb200k_hd30000s] gift-eval try 1/3 (have 0/97 configs)
+[08-04 05:24:38] [arm5_nse_bb200k_hd30000s] gift-eval try 1 rc=0 rows=97
+[08-04 05:24:39] [arm5_nse_bb200k_hd30000s] DONE — Aggregate GM-Relative MASE (97 configs): 1.8887
+[08-04 05:24:39] [eval-390-w3] arm arm5_nse eval rc=0
+[08-04 05:25:46] [arm6_v2_ncpc_bb200k_hd30000s] gift-eval try 1 rc=0 rows=97
+[08-04 05:25:46] [arm6_v2_ncpc_bb200k_hd30000s] DONE — Aggregate GM-Relative MASE (97 configs): 1.3325
+[08-04 05:25:46] [eval-390-w3] arm arm6_v2_ncpc eval rc=0
+[08-04 05:50:31] [arm6_v2_combab_bb200k_hd30000s] gift-eval try 1 rc=0 rows=97
+[08-04 05:50:31] [arm6_v2_combab_bb200k_hd30000s] DONE — Aggregate GM-Relative MASE (97 configs): 1.1850
+[08-04 05:50:31] [eval-390-w3] arm arm6_v2_combab eval rc=0
+[08-04 05:50:31] [eval-390-w3]   arm5_nse_bb200k_hd30000s: Aggregate GM-Relative MASE (97 configs): 1.8887
+[08-04 05:50:31] [eval-390-w3]   arm6_v2_ncpc_bb200k_hd30000s: Aggregate GM-Relative MASE (97 configs): 1.3325
+[08-04 05:50:31] [eval-390-w3]   arm6_v2_combab_bb200k_hd30000s: Aggregate GM-Relative MASE (97 configs): 1.1850
+[08-04 05:50:31] [eval-390-w3] eval wave done — cells with a full 97-config measurement: 3 / 3

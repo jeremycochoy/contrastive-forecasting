@@ -140,23 +140,28 @@ def draw(rows: list[dict], path: str) -> None:
                label="change clear of the seed spread"),
         Line2D([], [], color=UNRESOLVED, marker="o", ms=7, lw=2, mec="white",
                label="seed spread covers the change"),
-        Line2D([], [], color=INK, marker="o", ms=7, lw=0, mfc="none",
-               label="student encoder (circle)"),
-        Line2D([], [], color=INK, marker="s", ms=7, lw=0, mfc="none",
-               label="teacher encoder (square)"),
+        # These keys carry the marker SHAPE, so they are drawn the way the
+        # mean marks are drawn: filled, white edge. A hollow key here reads
+        # as the hollow diamond, which is the bb40k mark and not a head.
+        Line2D([], [], color=INK, marker="o", ms=7, lw=0, mec="white",
+               mew=1.2, label="student encoder (filled circle)"),
+        Line2D([], [], color=INK, marker="s", ms=7, lw=0, mec="white",
+               mew=1.2, label="teacher encoder (filled square)"),
+        Line2D([], [], marker="D", ms=6, lw=0, mfc="white", mec=INK, mew=1.3,
+               label="bb40k value (hollow diamond, left panel)"),
         Line2D([], [], color=INK_SOFT, lw=7, alpha=0.35,
                label=f"\u00b1{band:.4f}, largest head-seed range measured here"),
     ]
     # Below the panels: with twelve rows there is no corner of either axes
     # that is reliably empty, and a legend over a data row hides the answer.
-    fig.legend(handles=handles, fontsize=8, ncol=5, loc="lower center",
+    fig.legend(handles=handles, fontsize=8, ncol=3, loc="lower center",
                frameon=False, bbox_to_anchor=(0.5, 0.0))
 
     head = "Head-seed spread at bb100k, three seeds per run per head"
     if not complete:
         head += "   [PARTIAL — not every seed has finished]"
     fig.suptitle(head, fontsize=11.5, y=0.985)
-    fig.tight_layout(rect=(0, 0.055, 1, 0.955))
+    fig.tight_layout(rect=(0, 0.095, 1, 0.955))
     fig.savefig(path, dpi=150)
     plt.close(fig)
 
