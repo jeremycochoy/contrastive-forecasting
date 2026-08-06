@@ -1,12 +1,12 @@
 # Scheduling the EMA momentum to 1.0 by step 100k: the teacher encoder does not beat the student
 
-Raising the EMA momentum to 1.0 by backbone step 100k does not make the teacher encoder better than the student: over the 22 stops that carry both heads the two differ by at most 0.0377 GM-Relative MASE, the geometric mean over 97 GIFT-Eval configs of MASE against seasonal naive, where above 1.0 is worse than seasonal naive. Ten runs and 45 scored stops; a run named `alignS` puts its alignment loss `L_align` on the student encoder and one named `alignT` puts it on the teacher, and each stop is scored through a head trained and evaluated on the student encoder, on the teacher encoder, or on both.
+Raising the EMA momentum to 1.0 by backbone step 100k does not make the teacher encoder better than the student: over the 22 stops that carry both heads the two differ by at most 0.0377 GM-Relative MASE, the geometric mean over 97 GIFT-Eval configs of MASE against seasonal naive, where above 1.0 is worse than seasonal naive. A run named `alignS` puts its alignment loss `L_align` on the student encoder and one named `alignT` puts it on the teacher.
 
 ## Teacher against student
 
 ![Teacher head minus student head at each backbone stop; bb40k, bb100k and bb200k are backbone steps](plots/teacher_vs_student.png)
 
-All 22 paired differences fall inside the ±0.0384 head-seed band, which pools every head-seed range this study measured at either head budget and whose largest term is a bb40k range (`scripts/noise_band.py`); the teacher head is the lower one in 11 of the 22.
+All 22 paired differences fall inside the head-seed band drawn in the figure, which pools every head-seed range this study measured (`scripts/noise_band.py`). The teacher head is the lower one in 11 of the 22.
 
 ## The ladder
 
@@ -26,11 +26,11 @@ An entry is one run plus one head; every entry drawn is better than seasonal nai
 
 ![Paired bb40k-to-bb100k change, both ends at the same head seed](plots/paired_delta.png)
 
-Five head-rows carry a paired test: both heads of `arm6_v2_combab_alignS` clear zero, and both heads of `arm6_v2_combab_alignT` change sign across its three seeds, so the head seed alone moves where that run stopped.
+Four head-rows carry three seeds at both ends. Both heads of `arm6_v2_combab_alignS` move up at every seed, both heads of `arm6_v2_combab_alignT` change sign on the head seed, and the one row at two seeds, `arm5_combab_alignS` student, does not resolve.
 
-![Superseded denominator: head-seed spread at the bb100k end only](plots/seed_spread.png)
+![Head-seed spread at bb100k, three seeds per run per head; right panel uses the bb100k spread alone](plots/seed_spread.png)
 
-The figure above and the last column of the seed-spread table divide a paired change by its bb100k spread alone, which is the superseded denominator; it puts two of the twelve replicated changes inside the spread.
+The right panel above and the last column of the seed-spread table use the bb100k spread alone as the denominator. That denominator puts two of the twelve replicated changes inside the spread.
 
 ## The EMA schedule
 
