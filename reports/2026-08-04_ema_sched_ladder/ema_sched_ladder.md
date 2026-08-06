@@ -2,15 +2,13 @@
 
 Ten loss recipes were retrained with the EMA momentum α raised linearly from 0.9 to 1.0 by backbone step 100k, and compared at matched stops against the same ten recipes trained with α held at 0.9. The scheduled teacher wins 8 of 10 cells at backbone 40k and 4 of 10 at backbone 100k, and the control that never reads the teacher moves further than either.
 
-The metric is GM-Relative MASE, the geometric mean over 97 GIFT-Eval configs of MASE against seasonal naive; above 1.0 is worse than seasonal naive. **Scheduled teacher** = the runs of this study. **Fixed teacher** = the runs of the two parent reports, α = 0.9 throughout.
+The metric is GM-Relative MASE, the geometric mean over 97 GIFT-Eval configs of MASE against seasonal naive; above 1.0 is worse than seasonal naive. **Scheduled teacher** = the runs of this study; **fixed teacher** = the runs of the two parent reports, α = 0.9 throughout.
 
 ## 1. The schedule against the fixed 0.9 reference
 
 ![Scheduled minus fixed 0.9, per cell, at backbone 40k and backbone 100k](plots/schedule_vs_fixed.png)
 
 Mean change is −0.0259 at backbone 40k, where α is 0.94, and +0.0251 at backbone 100k, where α has reached 1.0; both sit inside the ±0.0384 head-seed band. `arm1 nse`, whose loss never reads the teacher and which the schedule therefore cannot reach, changes by −0.1232 at backbone 40k, more than every other cell in that panel.
-
-The lowest score of this study, 1.1544, and the lowest of the parent reports, 1.1616, are best-of-N over different numbers of stops, so that pair is biased toward this study and is not read here.
 
 ## 2. Second question, same runs: which encoder to evaluate
 
@@ -24,21 +22,15 @@ Over the 22 stops that carry both heads, the student encoder and the teacher enc
 
 An entry is one run plus one head; every entry drawn beats seasonal naive on Sales and Nature and loses to it on the other five domains.
 
-## 4. Uncertainty
+## 4. The EMA schedule
 
-![Paired backbone 40k to 100k change, both ends at the same head seed](plots/paired_delta.png)
+![α against training step, rising from 0.9 to 1.0 at step 100k, with the three evaluated stops marked](plots/alpha_schedule.png)
 
-Four head-rows carry three head seeds at both ends: both heads of `arm6_v2 combab, L_align on student` move up at every seed, both heads of `arm6_v2 combab, L_align on teacher` change sign on the head seed, and `arm5 combab, L_align on student` student, at two seeds, does not resolve.
+## 5. Latent movement across the checkpoints
 
-![Head-seed spread at backbone 100k, three seeds per run per head; right panel uses the bb100k spread alone](plots/seed_spread.png)
+![Movement of the student and teacher latents between adjacent checkpoints, one line per run, coloured by the encoder L_align targets](plots/latent_movement.png)
 
-The right panel uses the backbone-100k spread alone as the denominator, which puts two of the twelve replicated changes inside the spread.
-
-## 5. The EMA schedule
-
-![α against training step, with the three evaluated stops marked](plots/alpha_schedule.png)
-
-α reaches 1.0 at step 100k in every run, and the teacher stops moving from there.
+Past step 100k the teacher latent moves by at most 0.019 per 20k steps, against 0.157 to 1.056 before it, while the student latent keeps moving: on the one cell run to 200k under both targets, `arm5 combab`, its mean movement past 100k is 0.829 with `L_align` on the student and 0.184 with `L_align` on the teacher.
 
 ## Tables
 
@@ -89,7 +81,7 @@ Source: `results/ladder_all.csv`.
 | `arm6_v2 nse` | teacher | 1.4238 | 1.4177 | 1.3913 | 1.3746 | 1.3586 | **1.3459** |
 | `arm1 nse` | none | **1.4347** | 1.4512 | 1.5227 | 1.5604 | — | — |
 
-The student and teacher columns name the encoder each head was trained and evaluated on. Bold = the row's lowest value. `arm5 combab, L_align on student` has no bb200k teacher value: the extend rule dropped its teacher head at bb100k.
+The student and teacher columns name the encoder each head was trained and evaluated on. Bold = the row's lowest value. The lowest score here, 1.1544, and the lowest of the parent reports, 1.1616, are best-of-N over different numbers of stops, so that pair is biased toward this study and is not read as a comparison. `arm5 combab, L_align on student` has no bb200k teacher value: the extend rule dropped its teacher head at bb100k.
 
 ### The raw change the extend rule read
 
@@ -179,9 +171,24 @@ Two files record whether a branch survives a change of head seed, and they answe
 - Two heads per checkpoint, trained separately, each evaluated on its own encoder: student head on the student encoder, teacher head on the teacher encoder. Head budget 15,000 steps at bb40k, 30,000 steps from bb100k.
 - 97 GIFT-Eval configs, official B4 strategy, forecast horizon 16. The seasonal-naive denominator file is byte-identical on every machine (`results/denominator_checksums.txt`), so every score is on one scale.
 - Head seed 20260722 for the ladder. Six runs carry two extra head seeds at bb100k, but only nine of the 24 bb40k replicates were run: four head-rows carry three seeds at both ends, one carries two, and the other fifteen carry one, so no significance claim is made on those fifteen.
+- Latent movement is `1 − cos(h(previous), h(next))`, averaged over batch, time and channel, between checkpoints 20k steps apart. The trainer's own probe measures it every 20k steps on one fixed ARMA batch, 64 series, probe seed 20260722, the same draw at every checkpoint of every run.
 - The head keeps `--grad-clip 1.0`. The project rule bans grad clipping; the parent reports kept it, and it is kept here for comparability with those numbers.
 
 ## Annex
+
+### Head-seed replicates
+
+The card specifies one head seed. Replicate seeds were run beyond it; this section holds them.
+
+![Paired backbone 40k to 100k change, both ends at the same head seed](plots/paired_delta.png)
+
+Four head-rows carry three head seeds at both ends: both heads of `arm6_v2 combab, L_align on student` move up at every seed, both heads of `arm6_v2 combab, L_align on teacher` change sign on the head seed, and `arm5 combab, L_align on student` student, at two seeds, does not resolve.
+
+![Head-seed spread at backbone 100k, three seeds per run per head; right panel uses the bb100k spread alone](plots/seed_spread.png)
+
+The right panel uses the backbone-100k spread alone as the denominator, which puts two of the twelve replicated changes inside the spread.
+
+### Files
 
 Artefacts: `experiments/2026-08-04_ema_sched_ladder/`. In the CSV files the column named `cell` holds the run's directory slug; the suffix `_alignS` or `_alignT` records which encoder `L_align` targets, and `scripts/cell_label.py` maps a slug to the name the report and the figures print.
 
@@ -203,6 +210,8 @@ Artefacts: `experiments/2026-08-04_ema_sched_ladder/`. In the CSV files the colu
 | `results/paired_branches.csv` | branch survival with both ends seed-matched |
 | `results/parent_seed_spread.csv` | the parent study's eight head-seed ranges, spanning 0.0018 to 0.0908 |
 | `results/alpha_schedule.csv` | α per 1,000 steps |
+| `results/latent_drift.csv` | latent movement between adjacent checkpoints, every run pooled |
+| `results/latent_drift/` | the per-run, per-leg drift files the trainer wrote, copied verbatim |
 | `results/dataset_rows.json` | row count, batch composition and derived step cap |
 | `results/config_costs.csv` | evaluation wall-clock per GIFT-Eval config |
 | `results/denominator_checksums.txt` | seasonal-naive denominator hash per machine |
@@ -210,4 +219,4 @@ Artefacts: `experiments/2026-08-04_ema_sched_ladder/`. In the CSV files the colu
 
 Pairing all twelve replicated rows at both extra seeds needs 24 bb40k replicate evaluations; 9 were run (`results/paired_rows.csv`). `results/paired_delta.csv` carries three seeds for four rows, two for one row and one for the other fifteen; rows below three seeds are measured, not tested.
 
-Plot sources, all under `experiments/2026-08-04_ema_sched_ladder/scripts/`: `schedule_vs_fixed.py`, `plot_ladder.py`, `plot_domain_radar.py`, `plot_paired_delta.py`, `plot_seed_spread.py`, `alpha_schedule.py`, and `union_parents.py` for the reference table. The ±0.0384 band comes from `noise_band.py`; run it to print each measured range and the pooled maximum. `schedule_vs_fixed.py`, `plot_ladder.py` and `plot_seed_spread.py` draw that band; `plot_paired_delta.py` draws no band, and shows each row's own interval instead.
+Plot sources, all under `experiments/2026-08-04_ema_sched_ladder/scripts/`: `schedule_vs_fixed.py`, `plot_ladder.py`, `plot_domain_radar.py`, `plot_paired_delta.py`, `plot_seed_spread.py`, `alpha_schedule.py`, `collect_latent_drift.py` and `plot_latent_movement.py`, and `union_parents.py` for the reference table. The ±0.0384 band comes from `noise_band.py`; run it to print each measured range and the pooled maximum. `schedule_vs_fixed.py`, `plot_ladder.py` and `plot_seed_spread.py` draw that band; `plot_paired_delta.py` draws no band, and shows each row's own interval instead.
