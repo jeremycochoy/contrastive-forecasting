@@ -95,6 +95,13 @@ declare -A CELL_GPU=(
   [arm6_v2_nse_alignT]=5090)
 # The two marginal unreplicated cells, and their stops.
 T2_CELLS=(arm4_combab arm6_v2_ncpc_alignT)
+# The last two cells with a single head seed. The review reads their margins
+# (+0.088 to +0.135) as safe under any plausible sd and does not ask for
+# them, so they are not in the default tier list. They are here because
+# "every cell in the study is replicated" is a stronger sentence than "the
+# ones we thought were close are", and elisa is free. Run with
+# CF393_BB40K_TIERS=t1,hw,t2,t3.
+T3_CELLS=(arm1_nse arm6_v2_ncpc_alignS)
 
 # Head budget by stop. These are the ladder's own numbers: the delta spans
 # a 15,000-step head and a 30,000-step head, and a replicate that changed
@@ -181,6 +188,15 @@ job_list(){
   fi
   if has_tier t2; then
     for cell in "${T2_CELLS[@]}"; do
+      for seed in "${REPLICATE_SEEDS[@]}"; do
+        for stop in 40000 100000; do
+          for enc in student teacher; do emit "$cell" "$stop" "$enc" "$seed" -; done
+        done
+      done
+    done
+  fi
+  if has_tier t3; then
+    for cell in "${T3_CELLS[@]}"; do
       for seed in "${REPLICATE_SEEDS[@]}"; do
         for stop in 40000 100000; do
           for enc in student teacher; do emit "$cell" "$stop" "$enc" "$seed" -; done

@@ -107,6 +107,7 @@ CELLS = [
     "arm5_combab_alignS", "arm5_combab_alignT",
     "arm6_v2_nse_alignT", "arm6_v2_nse_alignS",
     "arm4_combab", "arm6_v2_ncpc_alignT",
+    "arm1_nse", "arm6_v2_ncpc_alignS",
 ]
 # The six whose bb100k replicates seed_spread.py already audits.
 SPREAD_CELLS = set(CELLS[:6])
@@ -137,6 +138,8 @@ CELL_GPU_SEED22 = {
     "arm6_v2_nse_alignT": "5090",
     "arm4_combab": "5090",
     "arm6_v2_ncpc_alignT": "5090",
+    "arm1_nse": "5090",
+    "arm6_v2_ncpc_alignS": "5090",
 }
 BB100K_REPLICATE_GPU = {
     "arm6_v2_combab_alignS": "4090",   # elisa
@@ -487,7 +490,9 @@ def main() -> int:
     hwr = hw_rows(scores, hw)
 
     n40 = sum(1 for k in scores if k[1] == PREV_STOP and k[3] != PROTOCOL_SEED)
-    print(f"[paired] {n40}/16 bb40k replicate score(s) on disk under {a.runs}")
+    n_hw = len(hw)
+    print(f"[paired] {n40} bb40k replicate score(s) and {n_hw} GPU-control "
+          f"pair(s) on disk under {a.runs}")
     width = max((len(r["cell"]) for r in rows), default=10)
     for r in rows:
         print(f"  {r['cell']:<{width}} {r['head']:<8} "
