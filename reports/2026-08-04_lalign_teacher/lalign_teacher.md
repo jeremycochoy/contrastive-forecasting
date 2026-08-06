@@ -1,6 +1,6 @@
-# Retraining the alignment loss against the EMA teacher changes which run ranks best at backbone 40k, and at every backbone step its best cell does not beat the earlier sweep's best cell
+# Targeting the alignment loss at the EMA teacher changes which run is best, but does not beat the previous best score
 
-The earlier sweep computed `L_align` against the student encoder; these ten cells retrain it against the EMA teacher. The teacher target moves the top of the backbone-40k ranking from `arm6_v2 combab` at 1.2025 to `arm5 combab` at 1.2728, and at each backbone step the best teacher cell stays above the best earlier cell: 1.2728 against 1.2025 at 40k, 1.2514 against 1.1616 at 100k, 1.1850 against 1.1652 at 200k. Six of the ten controlled pairs favour the teacher and four the student, a split the paired tests do not separate from zero, within a bound of 0.088 GM-Relative MASE. The `arm5 base` delta flips sign across the three head seeds; `arm5 combab` holds its sign on all three.
+The earlier sweep computed `L_align` against the student encoder; these ten cells retrain it against the EMA teacher. The teacher target moves the top of the backbone-40k ranking from `arm6_v2 combab` at 1.2025 to `arm5 combab` at 1.2728, and at no backbone step does the best teacher cell beat the best earlier cell: 1.2728 against 1.2025 at 40k, 1.2514 against 1.1616 at 100k, 1.1850 against 1.1652 at 200k. Six of the ten controlled pairs favour the teacher and four the student, a split the paired tests do not separate from zero, within a bound of 0.088 GM-Relative MASE. The `arm5 base` delta flips sign across the three head seeds; `arm5 combab` holds its sign on all three.
 
 ![Teacher minus student GM-Relative MASE at backbone 40k](plots/controlled_vs_cross_delta.png)
 
@@ -26,7 +26,7 @@ The earlier sweep computed `L_align` against the student encoder; these ten cell
 
 *The same 30 cells, one panel per loss recipe.*
 
-In both retrained recipes `base` is the highest setting at backbone 100k, and in `arm6_v2` the `combab` setting is the lowest at all three backbone steps. At backbone 200k the best teacher cell, `arm6_v2 combab`, scores 1.1850 against the best earlier cell at that same step, 1.1652; the three head seeds of that teacher cell run 1.1820 to 1.1883, so its whole measured spread stays above.
+In both retrained recipes `base` is the highest setting at backbone 100k, and in `arm6_v2` the `combab` setting is the lowest at all three backbone steps. At backbone 200k the best teacher cell, `arm6_v2 combab`, scores 1.1850 against the best earlier cell at that same step, 1.1652. That gap of 0.0198 sits inside the measured head-seed ranges, which run to 0.0908, so the two are not separated by this run.
 
 ![GM-Relative MASE of all 30 cells at backbone 40k, seasonal-naive parity dashed](plots/eval_2L_gm_mase_bars.png)
 
