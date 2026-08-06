@@ -13,9 +13,12 @@ both:
   right  the change from one stop to the next, per head. Positive is worse.
          The extend rule is exactly the sign of these bars, so a reader can
          see which cells the rule kept and check the branch against the
-         picture.
+         picture. The grey band is the largest head-seed range measured in
+         this study (results/seed_spread.csv); bars from a cell that carries
+         no head-seed replicate are drawn hollow, measured but not tested.
 
-Usage:  python3 scripts/plot_ladder.py [--ladder FILE] [--out FILE]
+Usage:  python3 scripts/plot_ladder.py [--ladder FILE] [--spread FILE]
+                                       [--out FILE]
 """
 from __future__ import annotations
 
@@ -60,7 +63,19 @@ def order(scores: dict) -> list[str]:
         v for h in scores[c].values() for _, v in h))
 
 
-def draw(scores: dict, path: str) -> None:
+def read_band(path: str):
+    """(largest head-seed range, set of cells that carry replicates)."""
+    if not os.path.exists(path):
+        return None, set()
+    with open(path, newline="") as fh:
+        rows = [r for r in csv.DictReader(fh) if (r.get("range") or "").strip()]
+    if not rows:
+        return None, set()
+    return (max(float(r["range"]) for r in rows),
+            {r["cell"] for r in rows})
+
+
+def draw(scores: dict, path: str, band=None, replicated=frozenset()) -> None:
     cells = order(scores)
     colour = {c: PALETTE[i % len(PALETTE)] for i, c in enumerate(cells)}
 
@@ -87,27 +102,42 @@ def draw(scores: dict, path: str) -> None:
     ax.legend(fontsize=7.5, ncol=1, loc="upper left", framealpha=0.9)
 
     # --- right: the change the rule reads -----------------------------------
-    labels, values, colours, hatches = [], [], [], []
+    labels, values, colours, hatches, tested = [], [], [], [], []
     for cell in cells:
         for head in ("student", "teacher"):
             series = scores[cell].get(head, [])
             for (s0, v0), (s1, v1) in zip(series, series[1:]):
-                labels.append(f"{cell}  {head[0]}  {s0//1000}k→{s1//1000}k")
+                mark = "" if cell in replicated else "  *"
+                labels.append(
+                    f"{cell}  {head[0]}  {s0//1000}k→{s1//1000}k{mark}")
                 values.append(v1 - v0)
                 colours.append(colour[cell])
                 hatches.append("" if head == "student" else "///")
+                tested.append(cell in replicated)
     ypos = range(len(labels))
+    if band:
+        bx.axvspan(-band, band, color="#9a9a9a", alpha=0.16, zorder=0)
+        for edge in (-band, band):
+            bx.axvline(edge, color="#9a9a9a", lw=1.0, ls=(0, (4, 3)),
+                       zorder=1)
     bars = bx.barh(list(ypos), values, color=colours, alpha=0.9,
-                   edgecolor="white", linewidth=0.6)
-    for bar, h in zip(bars, hatches):
+                   edgecolor="white", linewidth=0.6, zorder=2)
+    for bar, h, ok, col in zip(bars, hatches, tested, colours):
         bar.set_hatch(h)
-    bx.axvline(0, color="#333", lw=1.2)
+        if not ok:                       # no replicate: measured, not tested
+            bar.set_facecolor("none")
+            bar.set_edgecolor(col)
+            bar.set_linewidth(1.3)
+            bar.set_linestyle((0, (3, 2)))
+    bx.axvline(0, color="#333", lw=1.2, zorder=3)
     bx.set_yticks(list(ypos))
     bx.set_yticklabels(labels, fontsize=7)
     bx.invert_yaxis()
     bx.set_xlabel("change in GM-Relative MASE  (left of 0 = improved)")
-    bx.set_title("Change from one stop to the next\n"
-                 "hatched = teacher encoder", fontsize=10)
+    sub = "hatched = teacher encoder;  hollow + * = no head-seed replicate"
+    if band:
+        sub += f"\ngrey band = ±{band:.4f}, largest head-seed range measured here"
+    bx.set_title("Change from one stop to the next\n" + sub, fontsize=9)
     bx.grid(alpha=0.25, axis="x")
 
     fig.tight_layout()
@@ -119,6 +149,7 @@ def main() -> int:
     res = os.path.join(EXP_DIR, "results")
     p = argparse.ArgumentParser(description=__doc__.split("\n\n", 1)[0])
     p.add_argument("--ladder", default=os.path.join(res, "ladder_all.csv"))
+    p.add_argument("--spread", default=os.path.join(res, "seed_spread.csv"))
     p.add_argument("--out", default=os.path.join(EXP_DIR, "plots",
                                                  "ladder.png"))
     a = p.parse_args()
@@ -131,7 +162,8 @@ def main() -> int:
         print(f"plot_ladder: no scored row in {a.ladder}", file=sys.stderr)
         return 1
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
-    draw(scores, a.out)
+    band, replicated = read_band(a.spread)
+    draw(scores, a.out, band, replicated)
     n = sum(len(s) for h in scores.values() for s in h.values())
     print(f"[out] {a.out}  ({len(scores)} cells, {n} scores)")
     return 0

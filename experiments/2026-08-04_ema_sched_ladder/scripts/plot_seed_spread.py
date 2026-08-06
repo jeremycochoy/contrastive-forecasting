@@ -11,8 +11,9 @@ when only the head seed changes.
          against. The distance between diamond and dot is the change the
          rule read; the bar is how much of it is seed.
   right  that change with the same spread as its error bar. The rule is a
-         strict `<`, so it is exactly the SIGN of this quantity. A bar
-         crossing zero is a branch the head seed alone can flip.
+         strict `<`, so it is exactly the SIGN of this quantity. The grey
+         band is this study's own largest head-seed range, taken from the
+         `range` column of the same file.
 
 Colour is the answer, not the identity: a move clear of its own spread is
 blue, a move the spread covers is orange. Head is carried by marker shape as
@@ -45,10 +46,6 @@ INK_SOFT = "#9a9a9a"
 HEAD_MARKER = {"student": "o", "teacher": "s"}
 SEEDS = ["seed_20260722", "seed_20260723", "seed_20260724"]
 
-# The bound this study borrowed before it measured its own: the largest
-# head-seed range in the #390 parent, results/parent_seed_spread.csv.
-PARENT_RANGE = 0.0908
-
 
 def read_spread(path: str) -> list[dict]:
     with open(path, newline="") as fh:
@@ -73,6 +70,8 @@ def draw(rows: list[dict], path: str) -> None:
                                  gridspec_kw={"width_ratios": [1, 1]})
 
     complete = all(int(r["n_seeds"]) == len(SEEDS) for r in rows)
+    # The noise band is measured on the rows plotted here, not imported.
+    band = max(float(r["range"]) for r in rows)
 
     # --- left: where the three seeds land ----------------------------------
     for y, r in zip(ys, rows):
@@ -103,9 +102,8 @@ def draw(rows: list[dict], path: str) -> None:
         ax.spines[s].set_visible(False)
 
     # --- right: the change, with the spread as its error bar ---------------
-    bx.axvspan(-PARENT_RANGE, PARENT_RANGE, color=INK_SOFT, alpha=0.13,
-               zorder=0)
-    for edge in (-PARENT_RANGE, PARENT_RANGE):
+    bx.axvspan(-band, band, color=INK_SOFT, alpha=0.13, zorder=0)
+    for edge in (-band, band):
         bx.axvline(edge, color=INK_SOFT, lw=1.0, ls=(0, (4, 3)), zorder=1)
     bx.axvline(0, color=INK, lw=1.2, zorder=1)
     for y, r in zip(ys, rows):
@@ -125,19 +123,18 @@ def draw(rows: list[dict], path: str) -> None:
     # a dash against each row that reads as a data mark in the gap.
     bx.tick_params(axis="y", left=False)
     bx.invert_yaxis()
-    # Room for the imported-bound band's edges to be visible as edges.
+    # Room for the band's edges to be visible as edges.
     lo_x, hi_x = bx.get_xlim()
-    bx.set_xlim(min(lo_x, -PARENT_RANGE * 1.18),
-                max(hi_x, PARENT_RANGE * 1.18))
+    bx.set_xlim(min(lo_x, -band * 1.25), max(hi_x, band * 1.25))
     bx.set_xlabel("change bb40k → bb100k  (left of 0 = improved)")
-    bx.set_title("The change the extend rule read, against its own noise\n"
-                 "a bar crossing 0 is a branch the head seed can flip",
+    bx.set_title("change bb40k \u2192 bb100k against its own seed spread",
                  fontsize=10)
     bx.grid(alpha=0.22, axis="x")
     for s in ("top", "right", "left"):
         bx.spines[s].set_visible(False)
 
     n_unres = sum(1 for r in rows if r["resolved"] != "yes")
+    print(f"  {n_unres} of {len(rows)} changes are inside their own spread")
     handles = [
         Line2D([], [], color=RESOLVED, marker="o", ms=7, lw=2, mec="white",
                label="change clear of the seed spread"),
@@ -148,16 +145,14 @@ def draw(rows: list[dict], path: str) -> None:
         Line2D([], [], color=INK, marker="s", ms=7, lw=0, mfc="none",
                label="teacher encoder (square)"),
         Line2D([], [], color=INK_SOFT, lw=7, alpha=0.35,
-               label=f"±{PARENT_RANGE:.4f}, the parent study's largest range"),
+               label=f"\u00b1{band:.4f}, largest head-seed range measured here"),
     ]
     # Below the panels: with twelve rows there is no corner of either axes
     # that is reliably empty, and a legend over a data row hides the answer.
     fig.legend(handles=handles, fontsize=8, ncol=5, loc="lower center",
                frameon=False, bbox_to_anchor=(0.5, 0.0))
 
-    head = ("Head-seed spread at bb100k: "
-            f"{n_unres} of {len(rows)} head-changes are inside their own "
-            "seed spread")
+    head = "Head-seed spread at bb100k, three seeds per run per head"
     if not complete:
         head += "   [PARTIAL — not every seed has finished]"
     fig.suptitle(head, fontsize=11.5, y=0.985)

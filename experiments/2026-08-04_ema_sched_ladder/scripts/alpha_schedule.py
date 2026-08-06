@@ -12,7 +12,7 @@ trainer calls every step, so the record cannot drift from what ran.
 
 Writes `results/alpha_schedule.csv` and `plots/alpha_schedule.png`.
 
-Usage: python3 alpha_schedule.py [--max-step 400000]
+Usage: python3 alpha_schedule.py [--max-step 200000]
 """
 
 from __future__ import annotations
@@ -70,7 +70,7 @@ def write_plot(path, series, ladder, stops):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__.split("\n\n", 1)[0])
-    p.add_argument("--max-step", type=int, default=400_000)
+    p.add_argument("--max-step", type=int, default=200_000)
     p.add_argument("--every", type=int, default=1_000)
     p.add_argument("--csv-out", default=os.path.join(EXP_DIR, "results",
                                                      "alpha_schedule.csv"))

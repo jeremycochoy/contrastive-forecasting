@@ -26,7 +26,7 @@ cells = sorted({c for c, _s, _h in vals}, reverse=True)
 STOPS = [(40000, "#2a78d6", "o", "bb40k"), (100000, "#eb6834", "s", "bb100k"),
          (200000, "#008300", "D", "bb200k")]
 
-fig, ax = plt.subplots(figsize=(9.5, 5.2))
+fig, ax = plt.subplots(figsize=(9.5, 5.6))
 ax.axvspan(-BAND, BAND, color=MUTED, alpha=0.18, zorder=0,
            label=f"±{BAND:.4f}, largest head-seed range measured here")
 ax.axvline(0, color=INK, lw=1.2, zorder=2)
@@ -45,8 +45,9 @@ ax.set_xlabel("teacher head − student head, GM-Relative MASE  (left of 0 = tea
 ax.grid(axis="x", color=GRID)
 ax.set_axisbelow(True)
 ax.set_title("Teacher encoder against student encoder, same stop, same backbone", fontsize=11)
-ax.legend(fontsize=8.5, frameon=False, loc="lower right")
-fig.tight_layout()
+ax.legend(fontsize=8.5, frameon=False, loc="upper center",
+          bbox_to_anchor=(0.5, -0.14), ncol=4)
+fig.tight_layout(rect=(0, 0.02, 1, 1))
 out = HERE / "teacher_vs_student.png"
 fig.savefig(out)
 print("wrote", out, "band", BAND)

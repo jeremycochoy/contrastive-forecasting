@@ -5,19 +5,26 @@ Reads `results/paired_delta.csv` (scripts/paired_delta.py) and
 `results/seed_spread.csv`, and draws the two things the extend rule could
 not see.
 
-  left   the paired delta per cell per head. Each dot is one head seed's
-         own `bb100k(s) - bb40k(s)`, the bar is the mean with a 95%
-         interval from the spread of those three deltas, and the rule is a
-         strict `<`, so what it reads is exactly the SIGN. A bar crossing
+Every row of the file that carries a delta is drawn. Rows with a single head
+seed carry no interval and no test: they are drawn hollow in grey and
+labelled `n=1`, measured but not tested. Rows with two or three seeds carry
+mean ± t(df, .05)·SE, with df printed per row, because df is 1 for the
+two-seed row and 2 for the three-seed rows.
+
+  left   the paired delta per run per head. Each small marker is one head
+         seed's own `bb100k(s) - bb40k(s)`; the interval is the mean ±
+         t(df, .05)·SE of that row's paired deltas. The rule is a strict
+         `<`, so what it reads is exactly the SIGN. An interval crossing
          zero is a branch the head seed alone can flip.
-  right  the same deltas divided by the two denominators. Grey is the
-         bb100k spread alone, which is what a single-ended σ used; colour
-         is the paired standard error, which carries both ends. The dashed
-         line is t(df=2, 0.05) = 4.303.
+  right  |t| against the two denominators. Grey is the bb100k spread alone,
+         which is what a single-ended σ used; colour is the paired standard
+         error, which carries both ends. The black caret on each row is that
+         row's own critical value t(df, .05).
 
 Colour is the answer, not the identity: a delta whose sign is the same at
-all three seeds is blue, one whose sign flips is orange. Head is carried by
-marker shape as well, so neither panel depends on colour alone.
+every seed is blue, one whose sign flips is orange, and a row with no
+replicate is grey. Head is carried by marker shape as well, so neither panel
+depends on colour alone.
 
 Usage:  python3 scripts/plot_paired_delta.py [--paired FILE] [--spread FILE]
                                              [--out FILE]
@@ -45,7 +52,7 @@ INK_SOFT = "#9a9a9a"
 ONE_ENDED = "#c9c9c9"
 HEAD_MARKER = {"student": "o", "teacher": "s"}
 SEEDS = ["20260722", "20260723", "20260724"]
-T_CRIT = 4.303          # two-sided 0.05, df = 2
+UNTESTED = "#9a9a9a"
 
 
 def num(row: dict, key: str):
@@ -80,46 +87,63 @@ def main() -> int:
                                                  "paired_delta.png"))
     a = p.parse_args()
 
-    rows = [r for r in read_csv(a.paired) if num(r, "se_paired") is not None]
+    rows = [r for r in read_csv(a.paired) if num(r, "delta_mean") is not None]
     if not rows:
-        print("no complete paired rows yet; nothing to plot")
+        print("no paired delta rows yet; nothing to plot")
         return 0
     old = one_ended_sigma(read_csv(a.spread)) if os.path.exists(a.spread) else {}
 
-    # Cells in the order paired_delta.csv lists them, most negative delta at
-    # the top so the rows that extended the ladder read first.
-    labels = [f"{r['cell']}  {r['head']}" for r in rows]
+    labels = []
+    for r in rows:
+        n = int(r["n_seeds"])
+        tag = "n=1" if n < 2 else f"df={int(num(r, 'df') or 0)}"
+        labels.append(f"{r['cell']}  {r['head']}   [{tag}]")
     y = list(range(len(rows)))[::-1]
 
     fig, (axL, axR) = plt.subplots(
-        1, 2, figsize=(13.5, 0.42 * len(rows) + 2.6),
+        1, 2, figsize=(13.5, 0.42 * len(rows) + 3.0),
         gridspec_kw={"width_ratios": [1.35, 1.0]})
 
     for yy, r in zip(y, rows):
-        col = STABLE if r["sign_stable"] == "yes" else FLIPS
+        n = int(r["n_seeds"])
+        tested = n >= 2 and num(r, "se_paired") is not None
+        col = (UNTESTED if not tested
+               else STABLE if r["sign_stable"] == "yes" else FLIPS)
         mk = HEAD_MARKER.get(r["head"], "o")
         mean = num(r, "delta_mean")
-        se = num(r, "se_paired")
-        axL.errorbar(mean, yy, xerr=T_CRIT * se, color=col, elinewidth=2.0,
-                     capsize=4, capthick=1.4, zorder=2)
-        for s in SEEDS:
-            v = num(r, f"delta_{s}")
+        if tested:
+            t_crit = num(r, "t_crit_05") or 0.0
+            axL.errorbar(mean, yy, xerr=t_crit * num(r, "se_paired"),
+                         color=col, elinewidth=2.0, capsize=4, capthick=1.4,
+                         zorder=2)
+        for s_ in SEEDS:
+            v = num(r, f"delta_{s_}")
             if v is not None:
                 axL.plot(v, yy, mk, ms=4.5, mfc="none", mec=col, mew=1.0,
                          alpha=0.85, zorder=3)
-        axL.plot(mean, yy, mk, ms=8, color=col, zorder=4)
+        axL.plot(mean, yy, mk, ms=8, color=col if tested else "none",
+                 mec=col, mew=1.4, zorder=4)
 
     axL.axvline(0.0, color=INK, lw=1.0, zorder=1)
     axL.set_yticks(y)
     axL.set_yticklabels(labels, fontsize=9)
-    axL.set_xlabel("paired  bb100k − bb40k   (GM-Relative MASE, lower is better)")
+    for tick, r in zip(axL.get_yticklabels(), rows):
+        if int(r["n_seeds"]) < 2:
+            tick.set_color(UNTESTED)
+    axL.set_xlabel("paired  bb100k \u2212 bb40k   (GM-Relative MASE, lower is better)")
     axL.set_title("The delta, both ends at the same head seed\n"
-                  "bar = mean ± t(2, .05)·SE of the three paired deltas",
+                  "interval = mean \u00b1 t(df, .05)\u00b7SE, df printed per row",
                   fontsize=10, color=INK)
     axL.grid(axis="x", color=INK_SOFT, alpha=0.35, lw=0.6)
     axL.set_axisbelow(True)
 
     for yy, r in zip(y, rows):
+        n = int(r["n_seeds"])
+        tested = n >= 2 and num(r, "t_paired") is not None
+        if not tested:
+            axR.text(0.02, yy, "no replicate \u2014 measured, not tested",
+                     fontsize=8.5, color=UNTESTED, va="center")
+            continue
         col = STABLE if r["sign_stable"] == "yes" else FLIPS
         t_new = abs(num(r, "t_paired") or 0.0)
         t_old = old.get((r["cell"], r["head"]))
@@ -128,10 +152,10 @@ def main() -> int:
                      edgecolor="none", zorder=2)
         axR.barh(yy - 0.19, t_new, height=0.34, color=col, edgecolor="none",
                  zorder=2)
+        t_crit = num(r, "t_crit_05")
+        if t_crit is not None:
+            axR.plot([t_crit], [yy], "|", color=INK, ms=22, mew=1.8, zorder=4)
 
-    axR.axvline(T_CRIT, color=INK, lw=1.1, ls="--", zorder=3)
-    axR.text(T_CRIT, len(rows) - 0.2, "  t(2, .05) = 4.3", fontsize=8.5,
-             color=INK, va="top")
     axR.set_yticks(y)
     axR.set_yticklabels([])
     axR.set_xlabel("|t|")
@@ -140,18 +164,24 @@ def main() -> int:
                   fontsize=10, color=INK)
     axR.grid(axis="x", color=INK_SOFT, alpha=0.35, lw=0.6)
     axR.set_axisbelow(True)
+    for ax in (axL, axR):
+        ax.set_ylim(-0.8, len(rows) - 0.2)
 
     handles = [
         Line2D([], [], color=STABLE, lw=3,
-               label="same sign at all three seeds"),
+               label="same sign at every seed"),
         Line2D([], [], color=FLIPS, lw=3, label="sign flips on the head seed"),
+        Line2D([], [], color=UNTESTED, lw=3,
+               label="one head seed only: measured, not tested"),
         Line2D([], [], color=ONE_ENDED, lw=3, label="|t| against bb100k spread only"),
+        Line2D([], [], color=INK, marker="|", lw=0, ms=12, mew=1.8,
+               label="that row's t(df, .05)"),
         Line2D([], [], color=INK, marker="o", lw=0, label="student head"),
         Line2D([], [], color=INK, marker="s", lw=0, label="teacher head"),
     ]
-    fig.legend(handles=handles, loc="lower center", ncol=5, frameon=False,
+    fig.legend(handles=handles, loc="lower center", ncol=4, frameon=False,
                fontsize=9, bbox_to_anchor=(0.5, -0.005))
-    fig.tight_layout(rect=(0, 0.055, 1, 1))
+    fig.tight_layout(rect=(0, 0.075, 1, 1))
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
     fig.savefig(a.out, dpi=150, bbox_inches="tight")
     print(f"  -> {a.out}  ({len(rows)} row(s))")

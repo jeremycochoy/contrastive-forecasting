@@ -9,6 +9,7 @@ Right — the entries that reached the highest backbone step (200k).
 from pathlib import Path
 import csv, math
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 
 HERE = Path(__file__).parent
 EXP = HERE.parent.parent.parent / "experiments" / "2026-08-04_ema_sched_ladder"
@@ -19,13 +20,10 @@ plt.rcParams.update({"figure.dpi": 150, "savefig.dpi": 150, "font.size": 10,
                      "axes.edgecolor": MUTED, "axes.labelcolor": INK,
                      "xtick.color": INK, "ytick.color": INK})
 
-CELL_COLOR = {
-    "arm6_v2_combab_alignS": "#2a78d6", "arm6_v2_combab_alignT": "#b8860b",
-    "arm5_combab_alignS": "#008300", "arm5_combab_alignT": "#8b1e8b",
-    "arm6_v2_nse_alignT": "#eb6834", "arm6_v2_nse_alignS": "#00a3a3",
-    "arm6_v2_ncpc_alignS": "#c04080", "arm6_v2_ncpc_alignT": "#7a5230",
-    "arm4_combab": "#555555", "arm1_nse": "#111111",
-}
+# Five entries per panel, and two entries of one run can both be drawn, so
+# colour is keyed to the ENTRY position, not to the run: keying it to the run
+# put two blues and two golds in the left panel.
+ENTRY_COLORS = ["#2a78d6", "#e06c00", "#007d4f", "#b5279b", "#6a4a2f"]
 HEAD_STYLE = {"student": {"ls": "-", "marker": "o", "ms": 7},
               "teacher": {"ls": "--", "marker": "s", "ms": 6}}
 
@@ -109,12 +107,12 @@ def draw(ax, entries, title):
     ax.fill(ANG, [r(1.0)] * (N + 1), color="#c04040", alpha=0.06, zorder=0)
 
     handles = []
-    for val, cell, stop, head in entries:
+    for idx, (val, cell, stop, head) in enumerate(entries):
         d, _ = per_domain(cell, stop, head)
         vals = [r(d[k]) for k in DOMAINS]
         vals += vals[:1]
         st = HEAD_STYLE[head]
-        colour = CELL_COLOR[cell]
+        colour = ENTRY_COLORS[idx % len(ENTRY_COLORS)]
         ln, = ax.plot(ANG, vals, color=colour, lw=2.0, ls=st["ls"], marker=st["marker"],
                       markersize=st["ms"], markeredgewidth=0, zorder=4,
                       label=f"{cell} {head} @ bb{stop // 1000}k — all-config {val:.3f}")
@@ -125,6 +123,8 @@ def draw(ax, entries, title):
                 ax.annotate(f"{d[k]:.2f}", xy=(ang, r(d[k])), fontsize=7.5, color=colour,
                             ha="left", va="bottom", zorder=5)
     ax.set_title(title, fontsize=10.5, pad=18)
+    handles.append(Line2D([], [], color="#c04040", lw=1.8, ls="--",
+                          label="parity ring: ratio 1.0, seasonal naive"))
     ax.legend(handles=handles, loc="upper center", bbox_to_anchor=(0.5, -0.10),
               fontsize=8.5, frameon=False, ncol=1)
 
@@ -132,10 +132,23 @@ def draw(ax, entries, title):
 fig, axes = plt.subplots(1, 2, figsize=(14.5, 9.4), subplot_kw={"projection": "polar"})
 draw(axes[0], lowest, "5 lowest entries, each at its last evaluated stop")
 draw(axes[1], deepest, f"Entries that reached the deepest backbone step (bb{top_stop // 1000}k)")
-fig.suptitle("GM-Relative MASE per dataset domain — the headline geometric mean split by domain\n"
-             "inside the red ring = better than seasonal-naive;  radial axis is log2(ratio)",
+fig.suptitle("GM-Relative MASE by dataset domain (radial axis: log2 ratio)",
              fontsize=11.5)
 fig.tight_layout(rect=[0, 0.10, 1, 0.94])
+# The numbers behind both panels, so every per-domain claim traces to a file.
+scores_out = EXP / "results" / "domain_scores.csv"
+with open(scores_out, "w", newline="") as fh:
+    w = csv.writer(fh)
+    w.writerow(["cell", "head", "stop", "panel", "domain", "n_configs",
+                "gm_rel_mase"])
+    for panel, entries in (("lowest5", lowest), ("deepest", deepest)):
+        for _v, c, s_, h in entries:
+            d, counts = per_domain(c, s_, h)
+            for dom in DOMAINS:
+                w.writerow([c, h, s_, panel, dom, counts[dom],
+                            f"{d[dom]:.4f}"])
+print("wrote", scores_out)
+
 out = HERE / "domain_radar.png"
 fig.savefig(out)
 print("wrote", out)
