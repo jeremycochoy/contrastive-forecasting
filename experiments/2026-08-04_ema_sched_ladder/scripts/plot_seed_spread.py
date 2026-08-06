@@ -148,7 +148,7 @@ def draw(rows: list[dict], path: str) -> None:
         Line2D([], [], color=INK, marker="s", ms=7, lw=0, mfc="none",
                label="teacher encoder (square)"),
         Line2D([], [], color=INK_SOFT, lw=7, alpha=0.35,
-               label=f"±{PARENT_RANGE:.4f}, the #390 parent's largest range"),
+               label=f"±{PARENT_RANGE:.4f}, the parent study's largest range"),
     ]
     # Below the panels: with twelve rows there is no corner of either axes
     # that is reliably empty, and a legend over a data row hides the answer.
