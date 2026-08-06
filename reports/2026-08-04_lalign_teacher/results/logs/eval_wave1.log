@@ -1,0 +1,83 @@
+[08-02 07:29:26] [eval-390-w1] eval wave start — WT=/home/jupyter/wt-cf-390-train bb=40k head=15000 arms=10 slots/gpu=2
+[08-02 07:29:26] [eval-390-w1] arms: arm5 arm5_tr1 arm5_nse arm5_ncpc arm5_combab arm6_v2 arm6_v2_tr1 arm6_v2_nse arm6_v2_ncpc arm6_v2_combab
+[08-02 07:29:26] [arm5_bb40k_hd15000s] start on GPU 0 (backbone=bb_small_arm5_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_40k.pth)
+[08-02 07:29:26] [arm5_bb40k_hd15000s] head-train 15000 steps
+[08-02 07:29:31] [arm5_tr1_bb40k_hd15000s] start on GPU 0 (backbone=bb_small_arm5_tr1_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_40k.pth)
+[08-02 07:29:31] [arm5_tr1_bb40k_hd15000s] head-train 15000 steps
+[08-02 07:29:36] [arm5_nse_bb40k_hd15000s] start on GPU 1 (backbone=bb_small_arm5_nse_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_40k.pth)
+[08-02 07:29:36] [arm5_nse_bb40k_hd15000s] head-train 15000 steps
+[08-02 07:29:41] [arm5_ncpc_bb40k_hd15000s] start on GPU 1 (backbone=bb_small_arm5_ncpc_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_40k.pth)
+[08-02 07:29:41] [arm5_ncpc_bb40k_hd15000s] head-train 15000 steps
+[08-02 08:06:01] [arm5_nse_bb40k_hd15000s] head-train rc=0
+[08-02 08:06:01] [arm5_nse_bb40k_hd15000s] gift-eval try 1/3 (have 0/97 configs)
+[08-02 08:06:02] [arm5_tr1_bb40k_hd15000s] head-train rc=0
+[08-02 08:06:02] [arm5_tr1_bb40k_hd15000s] gift-eval try 1/3 (have 0/97 configs)
+[08-02 08:06:06] [arm5_ncpc_bb40k_hd15000s] head-train rc=0
+[08-02 08:06:06] [arm5_ncpc_bb40k_hd15000s] gift-eval try 1/3 (have 0/97 configs)
+[08-02 08:06:13] [arm5_bb40k_hd15000s] head-train rc=0
+[08-02 08:06:13] [arm5_bb40k_hd15000s] gift-eval try 1/3 (have 0/97 configs)
+[08-02 10:55:56] [arm5_ncpc_bb40k_hd15000s] gift-eval try 1 rc=0 rows=97
+[08-02 10:55:56] [arm5_ncpc_bb40k_hd15000s] DONE — Aggregate GM-Relative MASE (97 configs): 1.2923
+[08-02 10:55:56] [eval-390-w1] arm arm5_ncpc eval rc=0
+[08-02 10:55:56] [arm5_combab_bb40k_hd15000s] start on GPU 1 (backbone=bb_small_arm5_combab_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_40k.pth)
+[08-02 10:55:56] [arm5_combab_bb40k_hd15000s] head-train 15000 steps
+[08-02 10:57:06] [arm5_nse_bb40k_hd15000s] gift-eval try 1 rc=0 rows=97
+[08-02 10:57:06] [arm5_nse_bb40k_hd15000s] DONE — Aggregate GM-Relative MASE (97 configs): 1.4536
+[08-02 10:57:06] [eval-390-w1] arm arm5_nse eval rc=0
+[08-02 10:57:06] [arm6_v2_bb40k_hd15000s] start on GPU 1 (backbone=bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_40k.pth)
+[08-02 10:57:06] [arm6_v2_bb40k_hd15000s] head-train 15000 steps
+[08-02 10:57:44] [arm5_bb40k_hd15000s] gift-eval try 1 rc=0 rows=97
+[08-02 10:57:44] [arm5_bb40k_hd15000s] DONE — Aggregate GM-Relative MASE (97 configs): 1.3515
+[08-02 10:57:44] [eval-390-w1] arm arm5 eval rc=0
+[08-02 10:57:44] [arm6_v2_tr1_bb40k_hd15000s] start on GPU 0 (backbone=bb_small_arm6_v2_tr1_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_40k.pth)
+[08-02 10:57:44] [arm6_v2_tr1_bb40k_hd15000s] head-train 15000 steps
+[08-02 10:58:17] [arm5_tr1_bb40k_hd15000s] gift-eval try 1 rc=0 rows=97
+[08-02 10:58:17] [arm5_tr1_bb40k_hd15000s] DONE — Aggregate GM-Relative MASE (97 configs): 1.3396
+[08-02 10:58:17] [eval-390-w1] arm arm5_tr1 eval rc=0
+[08-02 10:58:17] [arm6_v2_nse_bb40k_hd15000s] start on GPU 0 (backbone=bb_small_arm6_v2_nse_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_40k.pth)
+[08-02 10:58:17] [arm6_v2_nse_bb40k_hd15000s] head-train 15000 steps
+[08-02 11:41:33] [arm5_combab_bb40k_hd15000s] head-train rc=0
+[08-02 11:41:33] [arm5_combab_bb40k_hd15000s] gift-eval try 1/3 (have 0/97 configs)
+[08-02 11:41:45] [arm6_v2_bb40k_hd15000s] head-train rc=0
+[08-02 11:41:45] [arm6_v2_bb40k_hd15000s] gift-eval try 1/3 (have 0/97 configs)
+[08-02 11:43:58] [arm6_v2_nse_bb40k_hd15000s] head-train rc=0
+[08-02 11:43:58] [arm6_v2_nse_bb40k_hd15000s] gift-eval try 1/3 (have 0/97 configs)
+[08-02 11:44:34] [arm6_v2_tr1_bb40k_hd15000s] head-train rc=0
+[08-02 11:44:34] [arm6_v2_tr1_bb40k_hd15000s] gift-eval try 1/3 (have 0/97 configs)
+[08-02 14:25:52] [arm5_combab_bb40k_hd15000s] gift-eval try 1 rc=0 rows=97
+[08-02 14:25:52] [arm5_combab_bb40k_hd15000s] DONE — Aggregate GM-Relative MASE (97 configs): 1.2728
+[08-02 14:25:52] [eval-390-w1] arm arm5_combab eval rc=0
+[08-02 14:25:52] [arm6_v2_ncpc_bb40k_hd15000s] start on GPU 1 (backbone=bb_small_arm6_v2_ncpc_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_40k.pth)
+[08-02 14:25:52] [arm6_v2_ncpc_bb40k_hd15000s] head-train 15000 steps
+[08-02 14:27:54] [arm6_v2_bb40k_hd15000s] gift-eval try 1 rc=0 rows=97
+[08-02 14:27:54] [arm6_v2_bb40k_hd15000s] DONE — Aggregate GM-Relative MASE (97 configs): 1.4322
+[08-02 14:27:54] [eval-390-w1] arm arm6_v2 eval rc=0
+[08-02 14:27:54] [arm6_v2_combab_bb40k_hd15000s] start on GPU 1 (backbone=bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_40k.pth)
+[08-02 14:27:54] [arm6_v2_combab_bb40k_hd15000s] head-train 15000 steps
+[08-02 14:33:11] [arm6_v2_nse_bb40k_hd15000s] gift-eval try 1 rc=0 rows=97
+[08-02 14:33:11] [arm6_v2_nse_bb40k_hd15000s] DONE — Aggregate GM-Relative MASE (97 configs): 1.3074
+[08-02 14:33:11] [eval-390-w1] arm arm6_v2_nse eval rc=0
+[08-02 14:34:41] [arm6_v2_tr1_bb40k_hd15000s] gift-eval try 1 rc=0 rows=97
+[08-02 14:34:41] [arm6_v2_tr1_bb40k_hd15000s] DONE — Aggregate GM-Relative MASE (97 configs): 1.5315
+[08-02 14:34:41] [eval-390-w1] arm arm6_v2_tr1 eval rc=0
+[08-02 15:05:27] [arm6_v2_ncpc_bb40k_hd15000s] head-train rc=0
+[08-02 15:05:27] [arm6_v2_ncpc_bb40k_hd15000s] gift-eval try 1/3 (have 0/97 configs)
+[08-02 15:07:12] [arm6_v2_combab_bb40k_hd15000s] head-train rc=0
+[08-02 15:07:12] [arm6_v2_combab_bb40k_hd15000s] gift-eval try 1/3 (have 0/97 configs)
+[08-02 17:31:41] [arm6_v2_ncpc_bb40k_hd15000s] gift-eval try 1 rc=0 rows=97
+[08-02 17:31:41] [arm6_v2_ncpc_bb40k_hd15000s] DONE — Aggregate GM-Relative MASE (97 configs): 1.3159
+[08-02 17:31:41] [eval-390-w1] arm arm6_v2_ncpc eval rc=0
+[08-02 17:33:38] [arm6_v2_combab_bb40k_hd15000s] gift-eval try 1 rc=0 rows=97
+[08-02 17:33:38] [arm6_v2_combab_bb40k_hd15000s] DONE — Aggregate GM-Relative MASE (97 configs): 1.2765
+[08-02 17:33:38] [eval-390-w1] arm arm6_v2_combab eval rc=0
+[08-02 17:33:38] [eval-390-w1]   arm5_bb40k_hd15000s: Aggregate GM-Relative MASE (97 configs): 1.3515
+[08-02 17:33:38] [eval-390-w1]   arm5_tr1_bb40k_hd15000s: Aggregate GM-Relative MASE (97 configs): 1.3396
+[08-02 17:33:38] [eval-390-w1]   arm5_nse_bb40k_hd15000s: Aggregate GM-Relative MASE (97 configs): 1.4536
+[08-02 17:33:38] [eval-390-w1]   arm5_ncpc_bb40k_hd15000s: Aggregate GM-Relative MASE (97 configs): 1.2923
+[08-02 17:33:38] [eval-390-w1]   arm5_combab_bb40k_hd15000s: Aggregate GM-Relative MASE (97 configs): 1.2728
+[08-02 17:33:38] [eval-390-w1]   arm6_v2_bb40k_hd15000s: Aggregate GM-Relative MASE (97 configs): 1.4322
+[08-02 17:33:38] [eval-390-w1]   arm6_v2_tr1_bb40k_hd15000s: Aggregate GM-Relative MASE (97 configs): 1.5315
+[08-02 17:33:38] [eval-390-w1]   arm6_v2_nse_bb40k_hd15000s: Aggregate GM-Relative MASE (97 configs): 1.3074
+[08-02 17:33:38] [eval-390-w1]   arm6_v2_ncpc_bb40k_hd15000s: Aggregate GM-Relative MASE (97 configs): 1.3159
+[08-02 17:33:38] [eval-390-w1]   arm6_v2_combab_bb40k_hd15000s: Aggregate GM-Relative MASE (97 configs): 1.2765
+[08-02 17:33:38] [eval-390-w1] eval wave done — cells with a full 97-config measurement: 10 / 10

@@ -1,0 +1,394 @@
+[08-02 14:25:52] [arm6_v2_ncpc_bb40k_hd15000s] start on GPU 1 (backbone=bb_small_arm6_v2_ncpc_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_40k.pth)
+[08-02 14:25:52] [arm6_v2_ncpc_bb40k_hd15000s] head-train 15000 steps
+  [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+  [head-train] auto-detected qk_norm=True from backbone checkpoint
+  [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+  [head-train] auto-detected patch_stats=none
+Backbone loaded from /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/runs/bb_small_arm6_v2_ncpc_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_40k.pth (0 params, frozen)
+/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/transformer.py:392: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  warnings.warn(
+Forecasting head [transformer-q (2L H64 nhead8 causal)]: 109,456 trainable params
+Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+Schedule: constant warmup=0 decay_start=12000 final_ratio=0.1
+Loss CSV: /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_ncpc_bb40k_hd15000s/qhead_2L_bb_small_arm6_v2_ncpc_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb40k_losses.csv
+Data: MIX 100% HF + 0% synth, hf_bs=256, synth_bs=0, synth_seed=20280722, emit_labels=True
+
+Training for 15000 steps, bs=256, lr=0.001, forecast_len=16
+Checkpoints: /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_ncpc_bb40k_hd15000s/qhead_2L_bb_small_arm6_v2_ncpc_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb40k_*.pth
+[    500] loss=0.220212  ema_loss=0.224193  5.2 sps  ETA 0.8h
+  -> New best: /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_ncpc_bb40k_hd15000s/qhead_2L_bb_small_arm6_v2_ncpc_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb40k_best.pth (ema_loss=0.224193)
+[   1000] loss=0.223557  ema_loss=0.219232  5.9 sps  ETA 0.7h
+  -> New best: /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_ncpc_bb40k_hd15000s/qhead_2L_bb_small_arm6_v2_ncpc_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb40k_best.pth (ema_loss=0.219232)
+[   1500] loss=0.226929  ema_loss=0.216570  6.2 sps  ETA 0.6h
+  -> New best: /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_ncpc_bb40k_hd15000s/qhead_2L_bb_small_arm6_v2_ncpc_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb40k_best.pth (ema_loss=0.216570)
+[   2000] loss=0.212618  ema_loss=0.216343  6.1 sps  ETA 0.6h
+  -> New best: /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_ncpc_bb40k_hd15000s/qhead_2L_bb_small_arm6_v2_ncpc_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb40k_best.pth (ema_loss=0.216343)
+[   2500] loss=0.222174  ema_loss=0.215196  6.2 sps  ETA 0.6h
+  -> New best: /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_ncpc_bb40k_hd15000s/qhead_2L_bb_small_arm6_v2_ncpc_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb40k_best.pth (ema_loss=0.215196)
+[   3000] loss=0.212308  ema_loss=0.214828  6.2 sps  ETA 0.5h
+  -> New best: /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_ncpc_bb40k_hd15000s/qhead_2L_bb_small_arm6_v2_ncpc_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb40k_best.pth (ema_loss=0.214828)
+[   3500] loss=0.202972  ema_loss=0.214993  6.1 sps  ETA 0.5h
+[   4000] loss=0.234136  ema_loss=0.214866  6.0 sps  ETA 0.5h
+[   4500] loss=0.231172  ema_loss=0.215377  6.0 sps  ETA 0.5h
+[   5000] loss=0.217602  ema_loss=0.214892  6.0 sps  ETA 0.5h
+  -> Saved /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_ncpc_bb40k_hd15000s/qhead_2L_bb_small_arm6_v2_ncpc_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb40k_5k.pth
+[   5500] loss=0.214431  ema_loss=0.214863  6.0 sps  ETA 0.4h
+[   6000] loss=0.205976  ema_loss=0.214046  6.1 sps  ETA 0.4h
+  -> New best: /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_ncpc_bb40k_hd15000s/qhead_2L_bb_small_arm6_v2_ncpc_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb40k_best.pth (ema_loss=0.214046)
+[   6500] loss=0.210803  ema_loss=0.213544  6.1 sps  ETA 0.4h
+  -> New best: /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_ncpc_bb40k_hd15000s/qhead_2L_bb_small_arm6_v2_ncpc_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb40k_best.pth (ema_loss=0.213544)
+[   7000] loss=0.203865  ema_loss=0.214156  6.2 sps  ETA 0.4h
+[   7500] loss=0.216147  ema_loss=0.214156  6.1 sps  ETA 0.3h
+[   8000] loss=0.210672  ema_loss=0.213974  6.2 sps  ETA 0.3h
+[   8500] loss=0.220285  ema_loss=0.212946  6.2 sps  ETA 0.3h
+  -> New best: /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_ncpc_bb40k_hd15000s/qhead_2L_bb_small_arm6_v2_ncpc_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb40k_best.pth (ema_loss=0.212946)
+[   9000] loss=0.201327  ema_loss=0.212825  6.3 sps  ETA 0.3h
+  -> New best: /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_ncpc_bb40k_hd15000s/qhead_2L_bb_small_arm6_v2_ncpc_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb40k_best.pth (ema_loss=0.212825)
+[   9500] loss=0.205618  ema_loss=0.213119  6.3 sps  ETA 0.2h
+[  10000] loss=0.212747  ema_loss=0.213347  6.3 sps  ETA 0.2h
+  -> Saved /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_ncpc_bb40k_hd15000s/qhead_2L_bb_small_arm6_v2_ncpc_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb40k_10k.pth
+[  10500] loss=0.219832  ema_loss=0.211731  6.3 sps  ETA 0.2h
+  -> New best: /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_ncpc_bb40k_hd15000s/qhead_2L_bb_small_arm6_v2_ncpc_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb40k_best.pth (ema_loss=0.211731)
+[  11000] loss=0.210255  ema_loss=0.213676  6.3 sps  ETA 0.2h
+[  11500] loss=0.217702  ema_loss=0.213714  6.4 sps  ETA 0.2h
+[  12000] loss=0.209940  ema_loss=0.212932  6.4 sps  ETA 0.1h
+[  12500] loss=0.217722  ema_loss=0.213875  6.3 sps  ETA 0.1h
+[  13000] loss=0.207821  ema_loss=0.212454  6.4 sps  ETA 0.1h
+[  13500] loss=0.219744  ema_loss=0.213070  6.4 sps  ETA 0.1h
+[  14000] loss=0.228341  ema_loss=0.213836  6.3 sps  ETA 0.0h
+[  14500] loss=0.196519  ema_loss=0.212281  6.4 sps  ETA 0.0h
+[  15000] loss=0.220222  ema_loss=0.213011  6.3 sps  ETA 0.0h
+  -> Saved /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_ncpc_bb40k_hd15000s/qhead_2L_bb_small_arm6_v2_ncpc_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb40k_15k.pth
+
+Done in 0.7h. Best loss=0.211731 at step 10500
+[08-02 15:05:27] [arm6_v2_ncpc_bb40k_hd15000s] head-train rc=0
+[08-02 15:05:27] [arm6_v2_ncpc_bb40k_hd15000s] gift-eval try 1/3 (have 0/97 configs)
+Loading models...
+  [eval] auto-detected num_encoder_layers=3 from backbone checkpoint
+  [eval] auto-detected qk_norm=True from backbone checkpoint
+  [eval] auto-detected attn_out_norm=True from backbone checkpoint
+  [eval] auto-detected freq_emb_dim=3 from backbone checkpoint
+  [eval] auto-detected seasonality_emb_dim=3 from backbone checkpoint
+  [eval] auto-detected patch_stats=none
+/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/transformer.py:392: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  warnings.warn(
+  [eval] auto-detected transformer-q head (2L H=64 nhead=8 causal)
+  Backbone: /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/runs/bb_small_arm6_v2_ncpc_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_40k.pth
+  Head: /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_ncpc_bb40k_hd15000s/qhead_2L_bb_small_arm6_v2_ncpc_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_bb40k_final.pth
+  Strategy: B4 (forecast_len=16)
+
+Total configs to evaluate: 97
+0it [00:00, ?it/s]512it [00:14, 36.29it/s]1024it [00:28, 36.37it/s]1024it [00:39, 36.37it/s]1536it [00:42, 36.23it/s]2048it [00:55, 36.94it/s]2048it [01:10, 36.94it/s]2560it [01:10, 36.52it/s]3072it [01:23, 37.10it/s]3584it [01:37, 36.65it/s]3584it [01:50, 36.65it/s]4096it [01:51, 36.98it/s]4608it [02:04, 37.29it/s]5120it [02:18, 37.49it/s]5120it [02:30, 37.49it/s]5632it [02:31, 37.77it/s]6144it [02:44, 38.06it/s]6460it [02:53, 38.19it/s]6460it [02:53, 37.33it/s]
+  [  1/97] loop_seattle/5T/short                         MASE=  0.8723  (173.1s)
+0it [00:00, ?it/s]512it [00:37, 13.81it/s]512it [00:56, 13.81it/s]1024it [01:14, 13.64it/s]1024it [01:26, 13.64it/s]1536it [01:52, 13.55it/s]1536it [02:06, 13.55it/s]2048it [02:31, 13.52it/s]2048it [02:46, 13.52it/s]2560it [03:09, 13.50it/s]2560it [03:26, 13.50it/s]3072it [03:46, 13.53it/s]3072it [03:56, 13.53it/s]3584it [04:24, 13.50it/s]3584it [04:36, 13.50it/s]4096it [05:03, 13.44it/s]4096it [05:16, 13.44it/s]4608it [05:42, 13.36it/s]4608it [05:56, 13.36it/s]5120it [06:24, 12.88it/s]5120it [06:36, 12.88it/s]5632it [07:01, 13.17it/s]5632it [07:16, 13.17it/s]6144it [07:38, 13.40it/s]6144it [07:57, 13.40it/s]6460it [08:01, 13.50it/s]6460it [08:01, 13.42it/s]
+  [  2/97] loop_seattle/5T/medium                        MASE=  1.9006  (481.4s)
+0it [00:00, ?it/s]512it [00:49, 10.34it/s]512it [01:05, 10.34it/s]1024it [01:40, 10.16it/s]1024it [01:55, 10.16it/s]1536it [02:31, 10.10it/s]1536it [02:45, 10.10it/s]2048it [03:22, 10.08it/s]2048it [03:35, 10.08it/s]2560it [04:13, 10.05it/s]2560it [04:25, 10.05it/s]3072it [05:04, 10.06it/s]3072it [05:15, 10.06it/s]3584it [05:54, 10.09it/s]3584it [06:05, 10.09it/s]4096it [06:44, 10.17it/s]4096it [06:55, 10.17it/s]4608it [07:35, 10.14it/s]4608it [07:45, 10.14it/s]4845it [07:58, 10.17it/s]4845it [07:58, 10.13it/s]
+  [  3/97] loop_seattle/5T/long                          MASE=  1.5664  (478.3s)
+0it [00:00, ?it/s]512it [00:03, 134.34it/s]646it [00:04, 133.64it/s]646it [00:04, 133.80it/s]
+  [  4/97] loop_seattle/D/short                          MASE=  1.3700  (4.8s)
+0it [00:00, ?it/s]512it [00:05, 98.73it/s]1024it [00:10, 98.87it/s]1536it [00:15, 99.14it/s]2048it [00:20, 99.19it/s]2560it [00:25, 100.12it/s]3072it [00:30, 100.12it/s]3584it [00:35, 100.63it/s]4096it [00:40, 100.80it/s]4608it [00:45, 100.81it/s]5120it [00:51, 101.05it/s]5632it [00:56, 100.84it/s]6137it [01:01, 100.33it/s]6137it [01:01, 100.25it/s]
+  [  5/97] loop_seattle/H/short                          MASE=  1.6041  (61.2s)
+0it [00:00, ?it/s]512it [00:29, 17.25it/s]646it [00:37, 17.37it/s]646it [00:37, 17.34it/s]
+  [  6/97] loop_seattle/H/medium                         MASE=  1.8607  (37.3s)
+0it [00:00, ?it/s]512it [00:42, 11.95it/s]646it [00:54, 11.96it/s]646it [00:54, 11.95it/s]
+  [  7/97] loop_seattle/H/long                           MASE=  1.5960  (54.0s)
+0it [00:00, ?it/s]90it [00:00, 128.84it/s]90it [00:00, 128.82it/s]
+  [  8/97] m_dense/D/short                               MASE=  1.2257  (0.7s)
+0it [00:00, ?it/s]512it [00:05, 88.61it/s]600it [00:06, 88.31it/s]600it [00:06, 88.39it/s]
+  [  9/97] m_dense/H/short                               MASE=  2.0431  (6.8s)
+0it [00:00, ?it/s]120it [00:07, 17.11it/s]120it [00:07, 17.11it/s]
+  [ 10/97] m_dense/H/medium                              MASE=  2.4200  (7.0s)
+0it [00:00, ?it/s]90it [00:07, 11.79it/s]90it [00:07, 11.79it/s]
+  [ 11/97] m_dense/H/long                                MASE=  2.4224  (7.6s)
+0it [00:00, ?it/s]512it [00:04, 106.34it/s]1024it [00:09, 106.22it/s]1092it [00:10, 106.09it/s]1092it [00:10, 106.15it/s]
+  [ 12/97] sz_taxi/15T/short                             MASE=  0.6150  (10.3s)
+0it [00:00, ?it/s]156it [00:08, 17.43it/s]156it [00:08, 17.43it/s]
+  [ 13/97] sz_taxi/15T/medium                            MASE=  0.5899  (9.0s)
+0it [00:00, ?it/s]156it [00:13, 11.87it/s]156it [00:13, 11.87it/s]
+  [ 14/97] sz_taxi/15T/long                              MASE=  0.5613  (13.2s)
+0it [00:00, ?it/s]312it [00:02, 106.26it/s]312it [00:02, 106.25it/s]
+  [ 15/97] sz_taxi/H/short                               MASE=  0.7006  (2.9s)
+0it [00:00, ?it/s]512it [00:07, 66.56it/s]1024it [00:15, 67.65it/s]1536it [00:22, 67.16it/s]2048it [00:30, 66.94it/s]2560it [00:38, 66.88it/s]3072it [00:46, 66.42it/s]3584it [00:53, 66.61it/s]4096it [01:01, 67.59it/s]4608it [01:08, 67.44it/s]5120it [01:16, 67.34it/s]5632it [01:23, 67.74it/s]6144it [01:31, 68.25it/s]6656it [01:38, 68.09it/s]7168it [01:45, 68.71it/s]7680it [01:53, 68.86it/s]8192it [02:00, 69.05it/s]8704it [02:08, 69.25it/s]9216it [02:15, 69.66it/s]9728it [02:22, 69.91it/s]10240it [02:30, 68.99it/s]10752it [02:37, 68.92it/s]11264it [02:45, 68.38it/s]11776it [02:52, 68.37it/s]12288it [03:00, 68.87it/s]12800it [03:07, 68.32it/s]13312it [03:15, 68.46it/s]13824it [03:22, 68.83it/s]14336it [03:29, 69.42it/s]14848it [03:37, 69.50it/s]15360it [03:44, 69.15it/s]15872it [03:52, 68.79it/s]16384it [03:59, 68.76it/s]16896it [04:06, 68.93it/s]17408it [04:14, 68.65it/s]17920it [04:21, 68.54it/s]18432it [04:29, 68.44it/s]18944it [04:36, 68.98it/s]19456it [04:44, 69.49it/s]19968it [04:51, 69.32it/s]20480it [04:58, 70.14it/s]20992it [05:05, 70.20it/s]21504it [05:13, 70.37it/s]22016it [05:20, 70.52it/s]22528it [05:27, 70.75it/s]23040it [05:34, 70.42it/s]23552it [05:42, 69.94it/s]24064it [05:49, 70.29it/s]24576it [05:56, 71.56it/s]25088it [06:03, 71.46it/s]25600it [06:10, 71.96it/s]26112it [06:17, 71.26it/s]26624it [06:25, 70.74it/s]27136it [06:32, 70.88it/s]27648it [06:39, 71.47it/s]28160it [06:46, 71.37it/s]28672it [06:53, 71.37it/s]29184it [07:00, 71.34it/s]29696it [07:07, 71.83it/s]30208it [07:15, 71.71it/s]30720it [07:22, 72.11it/s]31232it [07:29, 72.35it/s]31744it [07:36, 71.53it/s]32256it [07:43, 71.99it/s]32768it [07:50, 71.90it/s]33280it [07:57, 71.26it/s]33792it [08:05, 70.81it/s]34304it [08:12, 71.26it/s]34816it [08:19, 71.39it/s]35328it [08:26, 71.85it/s]35840it [08:33, 71.23it/s]36352it [08:41, 71.12it/s]36864it [08:48, 70.81it/s]37376it [08:55, 70.49it/s]37888it [09:02, 70.76it/s]38400it [09:10, 70.97it/s]38912it [09:17, 71.15it/s]39424it [09:24, 70.66it/s]39936it [09:31, 70.87it/s]40448it [09:39, 70.73it/s]40960it [09:46, 70.96it/s]41472it [09:53, 71.14it/s]41984it [10:00, 70.73it/s]42496it [10:07, 70.88it/s]43008it [10:15, 70.99it/s]43520it [10:22, 71.10it/s]44032it [10:29, 71.23it/s]44544it [10:36, 70.61it/s]45000it [10:43, 70.94it/s]45000it [10:43, 69.96it/s]
+  [ 16/97] bitbrains_fast_storage/5T/short               MASE=  1.2101  (643.2s)
+0it [00:00, ?it/s]512it [00:29, 17.08it/s]512it [00:49, 17.08it/s]1024it [00:59, 17.09it/s]1024it [01:19, 17.09it/s]1536it [01:29, 17.11it/s]1536it [01:49, 17.11it/s]2048it [02:00, 17.03it/s]2048it [02:19, 17.03it/s]2560it [02:30, 16.96it/s]2560it [02:49, 16.96it/s]3072it [03:00, 16.93it/s]3072it [03:19, 16.93it/s]3584it [03:31, 16.92it/s]3584it [03:49, 16.92it/s]4096it [04:01, 16.90it/s]4096it [04:19, 16.90it/s]4608it [04:31, 16.88it/s]4608it [04:49, 16.88it/s]5000it [04:55, 16.87it/s]5000it [04:55, 16.94it/s]
+  [ 17/97] bitbrains_fast_storage/5T/medium              MASE=  1.3912  (295.3s)
+0it [00:00, ?it/s]512it [00:43, 11.88it/s]512it [00:54, 11.88it/s]1024it [01:26, 11.88it/s]1024it [01:44, 11.88it/s]1536it [02:09, 11.87it/s]1536it [02:24, 11.87it/s]2048it [02:52, 11.87it/s]2048it [03:04, 11.87it/s]2560it [03:35, 11.85it/s]2560it [03:54, 11.85it/s]3072it [04:19, 11.85it/s]3072it [04:34, 11.85it/s]3584it [05:02, 11.83it/s]3584it [05:14, 11.83it/s]4096it [05:45, 11.85it/s]4096it [06:04, 11.85it/s]4608it [06:28, 11.85it/s]4608it [06:44, 11.85it/s]5000it [07:01, 11.85it/s]5000it [07:01, 11.85it/s]
+  [ 18/97] bitbrains_fast_storage/5T/long                MASE=  1.2996  (421.9s)
+0it [00:00, ?it/s]512it [00:04, 110.17it/s]1024it [00:09, 111.45it/s]1536it [00:13, 111.80it/s]2048it [00:18, 111.95it/s]2560it [00:22, 111.94it/s]3072it [00:27, 111.96it/s]3584it [00:32, 111.96it/s]4096it [00:36, 111.75it/s]4608it [00:41, 111.78it/s]5000it [00:44, 111.75it/s]5000it [00:44, 111.76it/s]
+  [ 19/97] bitbrains_fast_storage/H/short                MASE=  1.5772  (44.8s)
+0it [00:00, ?it/s]512it [00:07, 70.29it/s]1024it [00:14, 70.18it/s]1536it [00:21, 70.20it/s]2048it [00:29, 70.22it/s]2560it [00:36, 70.47it/s]3072it [00:43, 70.17it/s]3584it [00:51, 69.96it/s]4096it [00:58, 70.31it/s]4608it [01:05, 69.93it/s]5120it [01:13, 69.20it/s]5632it [01:20, 68.36it/s]6144it [01:28, 68.27it/s]6656it [01:35, 69.15it/s]7168it [01:42, 69.61it/s]7680it [01:50, 69.50it/s]8192it [01:57, 69.34it/s]8704it [02:05, 68.97it/s]9216it [02:12, 68.46it/s]9728it [02:20, 68.41it/s]10240it [02:27, 68.51it/s]10752it [02:35, 68.87it/s]11264it [02:42, 69.01it/s]11776it [02:50, 68.67it/s]12288it [02:58, 66.51it/s]12800it [03:06, 66.54it/s]13312it [03:13, 66.33it/s]13824it [03:24, 59.65it/s]14336it [03:34, 57.24it/s]14848it [03:44, 55.16it/s]15360it [03:54, 53.92it/s]15872it [04:04, 53.21it/s]16384it [04:13, 53.71it/s]16896it [04:22, 53.90it/s]17408it [04:32, 53.55it/s]17920it [04:41, 54.74it/s]18000it [04:42, 55.30it/s]18000it [04:42, 63.66it/s]
+  [ 20/97] bitbrains_rnd/5T/short                        MASE=  2.2500  (282.8s)
+0it [00:00, ?it/s]512it [00:35, 14.38it/s]512it [00:54, 14.38it/s]1024it [01:13, 13.86it/s]1024it [01:24, 13.86it/s]1536it [01:48, 14.14it/s]1536it [02:04, 14.14it/s]2000it [02:23, 13.77it/s]2000it [02:23, 13.89it/s]
+  [ 21/97] bitbrains_rnd/5T/medium                       MASE=  4.9359  (144.0s)
+0it [00:00, ?it/s]512it [00:52,  9.84it/s]1024it [01:45,  9.67it/s]1536it [02:37,  9.74it/s]2000it [03:24,  9.80it/s]2000it [03:24,  9.77it/s]
+  [ 22/97] bitbrains_rnd/5T/long                         MASE=  4.0119  (204.7s)
+0it [00:00, ?it/s]512it [00:05, 99.83it/s]1024it [00:11, 90.51it/s]1536it [00:17, 86.72it/s]2000it [00:22, 87.34it/s]2000it [00:22, 88.49it/s]
+  [ 23/97] bitbrains_rnd/H/short                         MASE=  6.4549  (22.6s)
+0it [00:00, ?it/s]30it [00:00, 71.25it/s]30it [00:00, 71.23it/s]
+  [ 24/97] bizitobs_application/10S/short                MASE=  5.4112  (0.4s)
+0it [00:00, ?it/s]4it [00:00, 11.92it/s]4it [00:00, 11.92it/s]
+  [ 25/97] bizitobs_application/10S/medium               MASE=  9.9297  (0.3s)
+0it [00:00, ?it/s]2it [00:00,  7.86it/s]2it [00:00,  7.85it/s]
+  [ 26/97] bizitobs_application/10S/long                 MASE= 13.4696  (0.3s)
+0it [00:00, ?it/s]140it [00:02, 64.63it/s]140it [00:02, 64.63it/s]
+  [ 27/97] bizitobs_l2c/5T/short                         MASE=  0.3535  (2.2s)
+0it [00:00, ?it/s]49it [00:03, 13.34it/s]49it [00:03, 13.34it/s]
+  [ 28/97] bizitobs_l2c/5T/medium                        MASE=  0.8363  (3.7s)
+0it [00:00, ?it/s]35it [00:03,  9.42it/s]35it [00:03,  9.42it/s]
+  [ 29/97] bizitobs_l2c/5T/long                          MASE=  1.3033  (3.7s)
+0it [00:00, ?it/s]42it [00:00, 85.21it/s]42it [00:00, 85.19it/s]
+  [ 30/97] bizitobs_l2c/H/short                          MASE=  1.0287  (0.5s)
+0it [00:00, ?it/s]7it [00:00, 15.01it/s]7it [00:00, 15.00it/s]
+  [ 31/97] bizitobs_l2c/H/medium                         MASE=  1.4032  (0.5s)
+0it [00:00, ?it/s]7it [00:00, 10.56it/s]7it [00:00, 10.55it/s]
+  [ 32/97] bizitobs_l2c/H/long                           MASE=  1.4683  (0.7s)
+0it [00:00, ?it/s]512it [00:07, 71.51it/s]630it [00:08, 71.36it/s]630it [00:08, 71.39it/s]
+  [ 33/97] bizitobs_service/10S/short                    MASE=  3.1732  (8.8s)
+0it [00:00, ?it/s]84it [00:06, 12.06it/s]84it [00:06, 12.06it/s]
+  [ 34/97] bizitobs_service/10S/medium                   MASE=  5.8439  (7.0s)
+0it [00:00, ?it/s]42it [00:05,  7.66it/s]42it [00:05,  7.66it/s]
+  [ 35/97] bizitobs_service/10S/long                     MASE=  5.7584  (5.5s)
+0it [00:00, ?it/s]512it [00:03, 141.12it/s]1024it [00:07, 134.32it/s]1536it [00:10, 142.17it/s]2048it [00:14, 150.30it/s]2560it [00:17, 156.37it/s]2674it [00:17, 157.36it/s]2674it [00:17, 150.63it/s]
+  [ 36/97] car_parts/M/short                             MASE=  1.1174  (17.8s)
+0it [00:00, ?it/s]266it [00:02, 126.57it/s]266it [00:02, 126.57it/s]
+  [ 37/97] covid_deaths/D/short                          MASE= 69.8000  (2.1s)
+0it [00:00, ?it/s]512it [01:22,  6.20it/s]1024it [02:53,  5.85it/s]1536it [04:26,  5.69it/s]2048it [05:40,  6.13it/s]2560it [06:54,  6.39it/s]3072it [08:07,  6.60it/s]3584it [08:52,  7.65it/s]3584it [09:10,  7.65it/s]4096it [09:22,  9.26it/s]4096it [09:40,  9.26it/s]4608it [09:44, 11.38it/s]4608it [10:00, 11.38it/s]5120it [10:03, 13.90it/s]5120it [10:20, 13.90it/s]5632it [10:25, 15.84it/s]5632it [10:40, 15.84it/s]6144it [10:51, 16.84it/s]6144it [11:10, 16.84it/s]6656it [11:17, 17.65it/s]6656it [11:30, 17.65it/s]7168it [12:32, 11.88it/s]7400it [12:59, 11.25it/s]7400it [12:59,  9.50it/s]
+  [ 38/97] electricity/15T/short                         MASE=  2.4342  (779.0s)
+0it [00:00, ?it/s]512it [01:19,  6.44it/s]1024it [02:40,  6.36it/s]1536it [04:00,  6.40it/s]2048it [05:19,  6.42it/s]2560it [06:35,  6.52it/s]3072it [07:49,  6.65it/s]3584it [08:45,  7.33it/s]4096it [09:28,  8.31it/s]4096it [09:41,  8.31it/s]4608it [10:08,  9.37it/s]4608it [10:21,  9.37it/s]5120it [10:47, 10.23it/s]5120it [11:01, 10.23it/s]5632it [11:27, 10.92it/s]5632it [11:41, 10.92it/s]6144it [12:08, 11.34it/s]6144it [12:21, 11.34it/s]6656it [12:52, 11.48it/s]6656it [13:11, 11.48it/s]7168it [14:08,  9.44it/s]7400it [14:43,  8.85it/s]7400it [14:43,  8.38it/s]
+  [ 39/97] electricity/15T/medium                        MASE=  3.0405  (883.3s)
+0it [00:00, ?it/s]512it [01:27,  5.88it/s]1024it [02:56,  5.78it/s]1536it [04:25,  5.76it/s]2048it [05:55,  5.75it/s]2560it [07:22,  5.78it/s]3072it [08:49,  5.83it/s]3584it [09:57,  6.29it/s]4096it [10:54,  6.96it/s]4608it [11:47,  7.62it/s]5120it [12:40,  8.15it/s]5632it [13:33,  8.57it/s]6144it [14:28,  8.79it/s]6656it [15:25,  8.85it/s]7168it [16:55,  7.58it/s]7400it [17:35,  7.21it/s]7400it [17:35,  7.01it/s]
+  [ 40/97] electricity/15T/long                          MASE=  3.1380  (1055.3s)
+0it [00:00, ?it/s]512it [00:04, 124.74it/s]1024it [00:08, 127.73it/s]1536it [00:11, 132.28it/s]1850it [00:14, 131.02it/s]1850it [00:14, 130.23it/s]
+  [ 41/97] electricity/D/short                           MASE=  1.9756  (14.2s)
+0it [00:00, ?it/s]512it [00:16, 30.91it/s]512it [00:28, 30.91it/s]1024it [00:33, 31.00it/s]1024it [00:48, 31.00it/s]1536it [00:49, 31.12it/s]2048it [01:05, 31.13it/s]2048it [01:18, 31.13it/s]2560it [01:21, 31.43it/s]3072it [01:37, 31.86it/s]3584it [01:48, 35.60it/s]4096it [01:56, 41.45it/s]4608it [02:03, 48.10it/s]5120it [02:10, 53.98it/s]5632it [02:17, 58.97it/s]6144it [02:24, 61.94it/s]6656it [02:32, 62.87it/s]7168it [02:48, 48.03it/s]7400it [02:56, 44.14it/s]7400it [02:56, 42.01it/s]
+  [ 42/97] electricity/H/short                           MASE=  2.5354  (176.2s)
+0it [00:00, ?it/s]512it [00:38, 13.28it/s]512it [00:52, 13.28it/s]1024it [01:17, 13.21it/s]1024it [01:32, 13.21it/s]1536it [01:52, 13.77it/s]1536it [02:02, 13.77it/s]2048it [02:22, 14.90it/s]2048it [02:32, 14.90it/s]2560it [02:53, 15.56it/s]2560it [03:12, 15.56it/s]2960it [03:22, 14.98it/s]2960it [03:22, 14.63it/s]
+  [ 43/97] electricity/H/medium                          MASE=  3.2847  (202.3s)
+0it [00:00, ?it/s]512it [00:52,  9.74it/s]1024it [01:40, 10.22it/s]1024it [02:00, 10.22it/s]1536it [02:24, 10.86it/s]1536it [02:40, 10.86it/s]1850it [02:54, 10.76it/s]1850it [02:54, 10.61it/s]
+  [ 44/97] electricity/H/long                            MASE=  3.3106  (174.4s)
+0it [00:00, ?it/s]512it [00:02, 181.27it/s]1024it [00:05, 183.13it/s]1110it [00:06, 182.50it/s]1110it [00:06, 182.47it/s]
+  [ 45/97] electricity/W/short                           MASE=  2.4218  (6.1s)
+0it [00:00, ?it/s]140it [00:02, 59.18it/s]140it [00:02, 59.18it/s]
+  [ 46/97] ett1/15T/short                                MASE=  1.6103  (2.4s)
+0it [00:00, ?it/s]105it [00:06, 16.07it/s]105it [00:06, 16.07it/s]
+  [ 47/97] ett1/15T/medium                               MASE=  1.7489  (6.5s)
+0it [00:00, ?it/s]70it [00:06, 11.47it/s]70it [00:06, 11.47it/s]
+  [ 48/97] ett1/15T/long                                 MASE=  1.8966  (6.1s)
+0it [00:00, ?it/s]21it [00:00, 136.19it/s]21it [00:00, 136.10it/s]
+  [ 49/97] ett1/D/short                                  MASE=  1.6329  (0.2s)
+0it [00:00, ?it/s]140it [00:01, 94.76it/s]140it [00:01, 94.75it/s]
+  [ 50/97] ett1/H/short                                  MASE=  1.3219  (1.5s)
+0it [00:00, ?it/s]28it [00:01, 18.26it/s]28it [00:01, 18.26it/s]
+  [ 51/97] ett1/H/medium                                 MASE=  1.9165  (1.5s)
+0it [00:00, ?it/s]21it [00:01, 12.12it/s]21it [00:01, 12.12it/s]
+  [ 52/97] ett1/H/long                                   MASE=  2.0198  (1.7s)
+0it [00:00, ?it/s]14it [00:00, 175.62it/s]
+  [ 53/97] ett1/W/short                                  MASE=  1.7795  (0.1s)
+0it [00:00, ?it/s]140it [00:02, 59.04it/s]140it [00:02, 59.03it/s]
+  [ 54/97] ett2/15T/short                                MASE=  1.0870  (2.4s)
+0it [00:00, ?it/s]105it [00:06, 16.02it/s]105it [00:06, 16.02it/s]
+  [ 55/97] ett2/15T/medium                               MASE=  1.1669  (6.6s)
+0it [00:00, ?it/s]70it [00:06, 11.36it/s]70it [00:06, 11.36it/s]
+  [ 56/97] ett2/15T/long                                 MASE=  1.1626  (6.2s)
+0it [00:00, ?it/s]21it [00:00, 135.79it/s]21it [00:00, 135.71it/s]
+  [ 57/97] ett2/D/short                                  MASE=  1.7442  (0.2s)
+0it [00:00, ?it/s]140it [00:01, 93.07it/s]140it [00:01, 93.07it/s]
+  [ 58/97] ett2/H/short                                  MASE=  0.9475  (1.5s)
+0it [00:00, ?it/s]28it [00:01, 17.62it/s]28it [00:01, 17.62it/s]
+  [ 59/97] ett2/H/medium                                 MASE=  1.2500  (1.6s)
+0it [00:00, ?it/s]21it [00:01, 12.15it/s]21it [00:01, 12.15it/s]
+  [ 60/97] ett2/H/long                                   MASE=  1.2501  (1.7s)
+0it [00:00, ?it/s]14it [00:00, 175.59it/s]
+  [ 61/97] ett2/W/short                                  MASE=  2.0869  (0.1s)
+0it [00:00, ?it/s]512it [00:04, 121.56it/s]826it [00:06, 121.37it/s]826it [00:06, 121.41it/s]
+  [ 62/97] hierarchical_sales/D/short                    MASE=  0.8469  (6.8s)
+0it [00:00, ?it/s]472it [00:02, 185.14it/s]472it [00:02, 185.13it/s]
+  [ 63/97] hierarchical_sales/W/short                    MASE=  1.1674  (2.6s)
+0it [00:00, ?it/s]512it [00:02, 177.37it/s]767it [00:04, 177.45it/s]767it [00:04, 177.43it/s]
+  [ 64/97] hospital/M/short                              MASE=  0.9831  (4.3s)
+0it [00:00, ?it/s]420it [00:18, 22.73it/s]420it [00:18, 22.73it/s]
+  [ 65/97] jena_weather/10T/short                        MASE=  0.4014  (18.5s)
+0it [00:00, ?it/s]231it [00:20, 11.37it/s]231it [00:20, 11.37it/s]
+  [ 66/97] jena_weather/10T/medium                       MASE=  0.7819  (20.3s)
+0it [00:00, ?it/s]168it [00:18,  8.88it/s]168it [00:18,  8.88it/s]
+  [ 67/97] jena_weather/10T/long                         MASE=  0.7771  (18.9s)
+0it [00:00, ?it/s]42it [00:00, 139.26it/s]42it [00:00, 139.22it/s]
+  [ 68/97] jena_weather/D/short                          MASE=  2.1206  (0.3s)
+0it [00:00, ?it/s]399it [00:05, 69.64it/s]399it [00:05, 69.64it/s]
+  [ 69/97] jena_weather/H/short                          MASE=  0.6545  (5.7s)
+0it [00:00, ?it/s]42it [00:02, 16.96it/s]42it [00:02, 16.96it/s]
+  [ 70/97] jena_weather/H/medium                         MASE=  0.9124  (2.5s)
+0it [00:00, ?it/s]42it [00:03, 11.58it/s]42it [00:03, 11.58it/s]
+  [ 71/97] jena_weather/H/long                           MASE=  1.4034  (3.6s)
+0it [00:00, ?it/s]512it [00:03, 134.60it/s]540it [00:04, 134.33it/s]540it [00:04, 134.40it/s]
+  [ 72/97] kdd_cup_2018/D/short                          MASE=  1.1891  (4.0s)
+0it [00:00, ?it/s]512it [00:08, 62.98it/s]1024it [00:16, 62.77it/s]1536it [00:24, 62.83it/s]2048it [00:32, 62.72it/s]2560it [00:40, 62.94it/s]3072it [00:48, 62.93it/s]3584it [00:57, 62.61it/s]4096it [01:05, 62.73it/s]4608it [01:13, 62.59it/s]5120it [01:21, 62.61it/s]5400it [01:26, 62.74it/s]5400it [01:26, 62.74it/s]
+  [ 73/97] kdd_cup_2018/H/short                          MASE=  1.0813  (86.1s)
+0it [00:00, ?it/s]512it [00:30, 16.62it/s]540it [00:32, 16.63it/s]540it [00:32, 16.63it/s]
+  [ 74/97] kdd_cup_2018/H/medium                         MASE=  1.2131  (32.5s)
+0it [00:00, ?it/s]512it [00:43, 11.67it/s]540it [00:46, 11.67it/s]540it [00:46, 11.67it/s]
+  [ 75/97] kdd_cup_2018/H/long                           MASE=  1.0773  (46.3s)
+0it [00:00, ?it/s]512it [00:02, 173.90it/s]1024it [00:05, 170.24it/s]1536it [00:09, 168.36it/s]2048it [00:12, 170.65it/s]2560it [00:15, 170.58it/s]3072it [00:18, 169.24it/s]3584it [00:21, 167.82it/s]4096it [00:24, 170.39it/s]4227it [00:24, 170.86it/s]4227it [00:24, 170.11it/s]
+  [ 76/97] m4_daily/D/short                              MASE=  4.6353  (24.9s)
+0it [00:00, ?it/s]414it [00:03, 109.58it/s]414it [00:03, 109.58it/s]
+  [ 77/97] m4_hourly/H/short                             MASE=  7.1640  (3.8s)
+0it [00:00, ?it/s]512it [00:03, 136.36it/s]1024it [00:07, 134.78it/s]1536it [00:11, 135.42it/s]2048it [00:15, 135.75it/s]2560it [00:18, 135.88it/s]3072it [00:22, 136.43it/s]3584it [00:26, 136.25it/s]4096it [00:30, 136.13it/s]4608it [00:33, 136.09it/s]5120it [00:37, 136.06it/s]5632it [00:41, 135.97it/s]6144it [00:45, 135.75it/s]6656it [00:48, 135.66it/s]7168it [00:52, 135.21it/s]7680it [00:58, 116.26it/s]8192it [01:08, 86.48it/s] 8704it [01:14, 85.99it/s]9216it [01:20, 85.31it/s]9728it [01:32, 64.54it/s]10240it [01:45, 54.85it/s]10752it [01:55, 53.99it/s]11264it [02:00, 61.19it/s]11776it [02:06, 66.76it/s]12288it [02:10, 78.22it/s]12800it [02:14, 89.54it/s]13312it [02:18, 99.62it/s]13824it [02:22, 108.18it/s]14336it [02:25, 114.92it/s]14848it [02:29, 120.26it/s]15360it [02:33, 124.46it/s]15872it [02:37, 127.41it/s]16384it [02:41, 129.59it/s]16896it [02:44, 131.36it/s]17408it [02:48, 132.49it/s]17920it [02:52, 133.44it/s]18432it [02:56, 134.10it/s]18944it [03:00, 134.74it/s]19456it [03:03, 134.96it/s]19968it [03:07, 135.12it/s]20480it [03:11, 134.54it/s]20992it [03:15, 134.84it/s]21504it [03:18, 134.86it/s]22016it [03:22, 134.93it/s]22528it [03:26, 135.09it/s]23040it [03:30, 135.09it/s]23552it [03:34, 135.18it/s]24064it [03:37, 135.14it/s]24576it [03:41, 135.04it/s]25088it [03:45, 135.08it/s]25600it [03:49, 135.08it/s]26112it [03:53, 135.03it/s]26624it [03:56, 135.30it/s]27136it [04:00, 135.22it/s]27648it [04:04, 135.12it/s]28160it [04:08, 135.20it/s]28672it [04:12, 135.25it/s]29184it [04:15, 135.29it/s]29696it [04:19, 135.29it/s]30208it [04:23, 134.43it/s]30720it [04:27, 134.60it/s]31232it [04:31, 134.64it/s]31744it [04:34, 134.70it/s]32256it [04:38, 134.93it/s]32768it [04:42, 135.07it/s]33280it [04:46, 135.19it/s]33792it [04:49, 135.43it/s]34304it [04:53, 135.39it/s]34816it [04:57, 135.47it/s]35328it [05:01, 135.40it/s]35840it [05:05, 135.33it/s]36352it [05:08, 135.19it/s]36864it [05:12, 135.17it/s]37376it [05:16, 135.15it/s]37888it [05:20, 135.11it/s]38400it [05:24, 135.08it/s]38912it [05:27, 135.13it/s]39424it [05:31, 134.37it/s]39936it [05:35, 134.59it/s]40448it [05:39, 134.76it/s]40960it [05:43, 134.76it/s]41472it [05:46, 134.73it/s]41984it [05:50, 134.75it/s]42496it [05:54, 134.80it/s]43008it [05:58, 135.02it/s]43520it [06:02, 135.10it/s]44032it [06:05, 134.08it/s]44544it [06:09, 134.60it/s]45056it [06:13, 135.02it/s]45568it [06:17, 135.38it/s]46080it [06:20, 135.48it/s]46592it [06:24, 135.62it/s]47104it [06:28, 135.74it/s]47616it [06:32, 135.83it/s]48000it [06:35, 135.72it/s]48000it [06:35, 121.49it/s]
+  [ 78/97] m4_monthly/M/short                            MASE=  1.5549  (395.1s)
+0it [00:00, ?it/s]512it [00:02, 177.74it/s]1024it [00:05, 177.32it/s]1536it [00:08, 175.40it/s]2048it [00:11, 176.25it/s]2560it [00:14, 176.34it/s]3072it [00:17, 176.63it/s]3584it [00:20, 176.53it/s]4096it [00:23, 176.66it/s]4608it [00:26, 176.74it/s]5120it [00:29, 175.82it/s]5632it [00:31, 176.17it/s]6144it [00:34, 176.63it/s]6656it [00:37, 177.02it/s]7168it [00:40, 176.70it/s]7680it [00:43, 176.78it/s]8192it [00:46, 176.93it/s]8704it [00:49, 177.22it/s]9216it [00:52, 177.37it/s]9728it [00:55, 177.30it/s]10240it [00:57, 177.17it/s]10752it [01:00, 177.23it/s]11264it [01:03, 177.20it/s]11776it [01:06, 175.92it/s]12288it [01:09, 176.03it/s]12800it [01:12, 176.25it/s]13312it [01:15, 176.50it/s]13824it [01:18, 176.91it/s]14336it [01:21, 176.93it/s]14848it [01:24, 177.09it/s]15360it [01:26, 176.58it/s]15872it [01:29, 176.83it/s]16384it [01:32, 176.91it/s]16896it [01:35, 176.42it/s]17408it [01:38, 175.70it/s]17920it [01:41, 176.06it/s]18432it [01:44, 176.32it/s]18944it [01:47, 176.41it/s]19456it [01:50, 176.84it/s]19968it [01:53, 176.89it/s]20480it [01:55, 176.86it/s]20992it [01:58, 175.86it/s]21504it [02:01, 176.45it/s]22016it [02:04, 176.16it/s]22528it [02:07, 176.30it/s]23040it [02:10, 176.51it/s]23552it [02:13, 176.83it/s]24000it [02:15, 177.05it/s]24000it [02:15, 176.64it/s]
+  [ 79/97] m4_quarterly/Q/short                          MASE=  3.0806  (135.9s)
+0it [00:00, ?it/s]359it [00:02, 174.40it/s]359it [00:02, 174.40it/s]
+  [ 80/97] m4_weekly/W/short                             MASE=  4.6223  (2.1s)
+0it [00:00, ?it/s]512it [00:02, 176.39it/s]1024it [00:05, 177.27it/s]1536it [00:08, 177.55it/s]2048it [00:11, 177.57it/s]2560it [00:14, 177.78it/s]3072it [00:17, 177.33it/s]3584it [00:20, 177.64it/s]4096it [00:23, 177.05it/s]4608it [00:25, 176.98it/s]5120it [00:28, 177.23it/s]5632it [00:31, 177.52it/s]6144it [00:34, 177.55it/s]6656it [00:37, 176.39it/s]7168it [00:40, 176.73it/s]7680it [00:43, 176.90it/s]8192it [00:46, 177.07it/s]8704it [00:49, 174.25it/s]9216it [00:52, 172.23it/s]9728it [00:55, 172.51it/s]10240it [00:58, 173.14it/s]10752it [01:01, 173.82it/s]11264it [01:04, 174.73it/s]11776it [01:06, 174.65it/s]12288it [01:09, 174.33it/s]12800it [01:12, 174.78it/s]13312it [01:15, 175.42it/s]13824it [01:18, 174.72it/s]14336it [01:21, 172.83it/s]14848it [01:24, 172.56it/s]15360it [01:27, 172.49it/s]15872it [01:30, 170.70it/s]16384it [01:33, 171.07it/s]16896it [01:36, 171.16it/s]17408it [01:39, 171.84it/s]17920it [01:42, 172.91it/s]18432it [01:45, 173.88it/s]18944it [01:48, 174.06it/s]19456it [01:51, 174.19it/s]19968it [01:54, 174.18it/s]20480it [01:57, 174.27it/s]20992it [02:00, 173.99it/s]21504it [02:03, 174.93it/s]22016it [02:05, 174.99it/s]22528it [02:08, 174.32it/s]22974it [02:11, 173.64it/s]22974it [02:11, 174.64it/s]
+  [ 81/97] m4_yearly/A/short                             MASE=  8.9193  (131.6s)
+0it [00:00, ?it/s]512it [00:03, 130.18it/s]807it [00:06, 130.02it/s]807it [00:06, 130.05it/s]
+  [ 82/97] restaurant/D/short                            MASE=  0.9250  (6.2s)
+0it [00:00, ?it/s]20it [00:00, 98.45it/s]20it [00:00, 98.40it/s]
+  [ 83/97] saugeen/D/short                               MASE=  4.0742  (0.2s)
+0it [00:00, ?it/s]7it [00:00, 162.53it/s]
+  [ 84/97] saugeen/M/short                               MASE=  1.0504  (0.0s)
+0it [00:00, ?it/s]20it [00:00, 164.44it/s]20it [00:00, 164.29it/s]
+  [ 85/97] saugeen/W/short                               MASE=  1.7161  (0.1s)
+0it [00:00, ?it/s]512it [00:07, 66.97it/s]1024it [00:15, 64.47it/s]1536it [00:23, 65.56it/s]2048it [00:31, 64.07it/s]2560it [00:39, 64.47it/s]2740it [00:42, 64.75it/s]2740it [00:42, 64.80it/s]
+  [ 86/97] solar/10T/short                               MASE=  1.9846  (42.3s)
+0it [00:00, ?it/s]512it [00:31, 16.42it/s]512it [00:45, 16.42it/s]1024it [01:02, 16.41it/s]1024it [01:15, 16.41it/s]1507it [01:31, 16.55it/s]1507it [01:31, 16.51it/s]
+  [ 87/97] solar/10T/medium                              MASE=  2.9492  (91.3s)
+0it [00:00, ?it/s]512it [00:43, 11.81it/s]512it [00:54, 11.81it/s]1024it [01:27, 11.67it/s]1096it [01:33, 11.67it/s]1096it [01:33, 11.69it/s]
+  [ 88/97] solar/10T/long                                MASE=  2.6014  (93.8s)
+0it [00:00, ?it/s]274it [00:01, 138.13it/s]274it [00:01, 138.12it/s]
+  [ 89/97] solar/D/short                                 MASE=  1.1547  (2.0s)
+0it [00:00, ?it/s]512it [00:04, 102.66it/s]1024it [00:09, 102.70it/s]1536it [00:14, 102.73it/s]2048it [00:19, 103.63it/s]2560it [00:24, 103.28it/s]2603it [00:25, 103.19it/s]2603it [00:25, 103.13it/s]
+  [ 90/97] solar/H/short                                 MASE=  2.4312  (25.2s)
+0it [00:00, ?it/s]274it [00:15, 17.96it/s]274it [00:15, 17.96it/s]
+  [ 91/97] solar/H/medium                                MASE=  3.1653  (15.3s)
+0it [00:00, ?it/s]274it [00:22, 12.37it/s]274it [00:22, 12.37it/s]
+  [ 92/97] solar/H/long                                  MASE=  3.0949  (22.2s)
+0it [00:00, ?it/s]137it [00:00, 178.51it/s]137it [00:00, 178.48it/s]
+  [ 93/97] solar/W/short                                 MASE=  1.2480  (0.8s)
+0it [00:00, ?it/s]512it [00:03, 131.92it/s]1024it [00:07, 131.91it/s]1536it [00:11, 132.01it/s]2048it [00:15, 132.05it/s]2560it [00:19, 132.05it/s]3072it [00:23, 132.05it/s]3584it [00:27, 132.04it/s]4096it [00:31, 131.32it/s]4608it [00:34, 131.38it/s]5120it [00:38, 131.45it/s]5632it [00:42, 131.90it/s]6144it [00:46, 132.42it/s]6656it [00:50, 132.15it/s]7168it [00:54, 132.16it/s]7680it [00:58, 131.45it/s]8192it [01:02, 131.17it/s]8704it [01:06, 130.38it/s]9216it [01:10, 130.67it/s]9728it [01:13, 130.90it/s]10240it [01:17, 131.03it/s]10752it [01:21, 131.29it/s]11264it [01:25, 131.29it/s]11776it [01:29, 131.33it/s]12288it [01:33, 131.41it/s]12800it [01:37, 131.32it/s]13312it [01:41, 130.91it/s]13824it [01:45, 130.30it/s]14336it [01:49, 129.65it/s]14848it [01:53, 129.95it/s]15360it [01:57, 130.38it/s]15872it [02:00, 130.54it/s]16384it [02:04, 129.61it/s]16896it [02:08, 129.26it/s]17408it [02:12, 128.80it/s]17920it [02:16, 129.57it/s]18432it [02:20, 129.12it/s]18944it [02:24, 129.97it/s]19456it [02:28, 130.49it/s]19968it [02:32, 130.84it/s]20480it [02:36, 129.91it/s]20992it [02:40, 130.36it/s]21504it [02:44, 129.48it/s]22016it [02:48, 130.05it/s]22528it [02:52, 129.90it/s]23040it [02:56, 128.86it/s]23552it [03:00, 129.57it/s]24064it [03:04, 130.15it/s]24576it [03:08, 129.73it/s]25088it [03:11, 130.36it/s]25600it [03:15, 130.76it/s]26112it [03:19, 131.00it/s]26624it [03:23, 131.16it/s]27136it [03:27, 131.32it/s]27648it [03:31, 131.36it/s]28160it [03:35, 131.30it/s]28672it [03:39, 131.11it/s]29184it [03:43, 131.15it/s]29696it [03:47, 131.22it/s]30208it [03:50, 131.35it/s]30720it [03:54, 131.43it/s]31232it [03:58, 131.44it/s]31744it [04:02, 131.46it/s]32256it [04:06, 131.41it/s]32768it [04:10, 130.77it/s]33280it [04:14, 130.75it/s]33792it [04:18, 130.29it/s]34304it [04:22, 129.21it/s]34816it [04:26, 129.50it/s]35328it [04:30, 130.07it/s]35840it [04:34, 130.38it/s]36352it [04:38, 130.63it/s]36864it [04:41, 130.82it/s]37376it [04:45, 131.05it/s]37888it [04:49, 130.36it/s]38400it [04:53, 130.57it/s]38912it [04:57, 130.65it/s]39424it [05:01, 130.83it/s]39936it [05:05, 130.92it/s]40448it [05:09, 131.09it/s]40960it [05:13, 131.12it/s]41472it [05:17, 131.17it/s]41984it [05:21, 131.14it/s]42496it [05:24, 131.15it/s]43008it [05:28, 131.12it/s]43520it [05:32, 131.19it/s]44032it [05:36, 130.65it/s]44544it [05:40, 130.81it/s]45056it [05:44, 131.14it/s]45568it [05:48, 131.45it/s]46080it [05:52, 131.55it/s]46592it [05:56, 131.61it/s]47104it [06:00, 131.65it/s]47616it [06:03, 131.73it/s]48128it [06:07, 131.89it/s]48640it [06:11, 131.91it/s]49152it [06:15, 131.96it/s]49664it [06:19, 131.92it/s]50176it [06:23, 131.71it/s]50688it [06:27, 131.90it/s]51200it [06:31, 131.84it/s]51712it [06:34, 131.77it/s]52224it [06:38, 131.80it/s]52736it [06:42, 131.73it/s]53248it [06:46, 131.64it/s]53760it [06:50, 130.98it/s]54272it [06:54, 131.17it/s]54784it [06:58, 131.35it/s]55296it [07:02, 131.49it/s]55808it [07:06, 131.57it/s]56320it [07:10, 131.71it/s]56832it [07:13, 131.80it/s]57344it [07:17, 131.24it/s]57856it [07:21, 131.30it/s]58368it [07:25, 131.41it/s]58880it [07:29, 131.30it/s]59392it [07:33, 131.31it/s]59904it [07:37, 131.46it/s]60416it [07:41, 131.50it/s]60928it [07:45, 131.71it/s]61440it [07:48, 131.78it/s]61952it [07:52, 131.40it/s]62464it [07:56, 131.45it/s]62976it [08:00, 131.59it/s]63488it [08:04, 131.74it/s]64000it [08:08, 131.04it/s]64512it [08:12, 131.17it/s]65024it [08:16, 131.32it/s]65536it [08:20, 131.57it/s]66048it [08:24, 131.69it/s]66560it [08:27, 131.74it/s]67072it [08:31, 131.79it/s]67584it [08:35, 131.79it/s]68096it [08:39, 131.73it/s]68608it [08:43, 131.52it/s]69120it [08:47, 131.63it/s]69632it [08:51, 131.67it/s]70144it [08:55, 131.76it/s]70656it [08:59, 131.68it/s]71168it [09:02, 131.74it/s]71680it [09:06, 131.77it/s]72192it [09:10, 131.76it/s]72704it [09:14, 131.76it/s]73216it [09:18, 131.80it/s]73728it [09:22, 131.82it/s]74240it [09:26, 131.07it/s]74752it [09:30, 131.16it/s]75264it [09:34, 131.36it/s]75776it [09:37, 130.84it/s]76288it [09:42, 129.59it/s]76800it [09:45, 130.06it/s]77312it [09:49, 129.11it/s]77824it [09:53, 128.71it/s]78336it [09:57, 129.62it/s]78848it [10:01, 130.10it/s]79360it [10:05, 129.71it/s]79872it [10:09, 130.33it/s]80384it [10:13, 130.58it/s]80896it [10:17, 130.84it/s]81408it [10:21, 131.00it/s]81920it [10:25, 131.17it/s]82432it [10:29, 131.27it/s]82944it [10:32, 131.39it/s]83456it [10:36, 130.71it/s]83968it [10:40, 130.92it/s]84480it [10:44, 131.03it/s]84992it [10:48, 131.15it/s]85504it [10:52, 131.15it/s]86016it [10:56, 131.26it/s]86528it [11:00, 131.31it/s]87040it [11:04, 131.28it/s]87552it [11:08, 129.62it/s]88064it [11:12, 130.37it/s]88576it [11:16, 130.67it/s]89088it [11:19, 130.98it/s]89600it [11:23, 130.54it/s]90112it [11:27, 130.94it/s]90624it [11:31, 130.43it/s]91136it [11:35, 128.61it/s]91648it [11:40, 126.98it/s]92160it [11:43, 127.97it/s]92672it [11:47, 127.63it/s]93184it [11:51, 128.65it/s]93696it [11:55, 129.00it/s]94208it [11:59, 129.20it/s]94720it [12:03, 130.08it/s]95232it [12:07, 130.44it/s]95744it [12:11, 130.86it/s]96216it [12:15, 131.23it/s]96216it [12:15, 130.90it/s]
+  [ 94/97] temperature_rain/D/short                      MASE=  2.1505  (735.0s)
+0it [00:00, ?it/s]20it [00:00, 119.80it/s]20it [00:00, 119.73it/s]
+  [ 95/97] us_births/D/short                             MASE=  1.7907  (0.2s)
+0it [00:00, ?it/s]2it [00:00, 126.83it/s]
+  [ 96/97] us_births/M/short                             MASE=  1.4553  (0.0s)
+0it [00:00, ?it/s]14it [00:00, 165.64it/s]
+  [ 97/97] us_births/W/short                             MASE=  1.5305  (0.1s)
+
+Results saved to /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_ncpc_bb40k_hd15000s/gift/all_results.csv
+==========================================================================================
+                                GIFT-Eval Official Results                                
+==========================================================================================
+Config                                            MASE  SN_MASE   Relative
+------------------------------------------------------------------------------------------
+bitbrains_fast_storage/5T/long                  1.2996   1.1366     1.1434
+bitbrains_fast_storage/5T/medium                1.3912   1.2203     1.1401
+bitbrains_fast_storage/5T/short                 1.2101   1.1360     1.0652
+bitbrains_fast_storage/H/short                  1.5772   1.2985     1.2146
+bitbrains_rnd/5T/long                           4.0119   3.5013     1.1458
+bitbrains_rnd/5T/medium                         4.9359   4.5424     1.0866
+bitbrains_rnd/5T/short                          2.2500   1.9708     1.1417
+bitbrains_rnd/H/short                           6.4549   6.0374     1.0692
+bizitobs_application/10S/long                  13.4696   3.2063     4.2009
+bizitobs_application/10S/medium                 9.9297   2.6914     3.6894
+bizitobs_application/10S/short                  5.4112   2.2423     2.4132
+bizitobs_l2c/5T/long                            1.3033   1.4543     0.8962
+bizitobs_l2c/5T/medium                          0.8363   1.2436     0.6725
+bizitobs_l2c/5T/short                           0.3535   0.9860     0.3585
+bizitobs_l2c/H/long                             1.4683   1.4261     1.0296
+bizitobs_l2c/H/medium                           1.4032   1.5103     0.9291
+bizitobs_l2c/H/short                            1.0287   1.2141     0.8473
+bizitobs_service/10S/long                       5.7584   1.3672     4.2118
+bizitobs_service/10S/medium                     5.8439   1.3206     4.4253
+bizitobs_service/10S/short                      3.1732   1.2253     2.5897
+car_parts/M/short                               1.1174   1.2015     0.9301
+covid_deaths/D/short                           69.8000  46.9124     1.4879
+electricity/15T/long                            3.1380   1.1635     2.6970
+electricity/15T/medium                          3.0405   1.1508     2.6421
+electricity/15T/short                           2.4342   1.7171     1.4176
+electricity/D/short                             1.9756   1.9870     0.9943
+electricity/H/long                              3.3106   1.5241     2.1722
+electricity/H/medium                            3.2847   1.3925     2.3589
+electricity/H/short                             2.5354   1.3578     1.8673
+electricity/W/short                             2.4218   2.0897     1.1589
+ett1/15T/long                                   1.8966   1.1909     1.5926
+ett1/15T/medium                                 1.7489   1.1883     1.4718
+ett1/15T/short                                  1.6103   0.9342     1.7238
+ett1/D/short                                    1.6329   1.7784     0.9182
+ett1/H/long                                     2.0198   1.4787     1.3659
+ett1/H/medium                                   1.9165   1.5678     1.2224
+ett1/H/short                                    1.3219   0.9773     1.3526
+ett1/W/short                                    1.7795   1.7689     1.0060
+ett2/15T/long                                   1.1626   1.0127     1.1481
+ett2/15T/medium                                 1.1669   1.0512     1.1100
+ett2/15T/short                                  1.0870   1.0673     1.0184
+ett2/D/short                                    1.7442   1.3901     1.2547
+ett2/H/long                                     1.2501   1.1284     1.1079
+ett2/H/medium                                   1.2500   1.2384     1.0093
+ett2/H/short                                    0.9475   0.9232     1.0264
+ett2/W/short                                    2.0869   0.7785     2.6807
+hierarchical_sales/D/short                      0.8469   1.1348     0.7463
+hierarchical_sales/W/short                      1.1674   1.0250     1.1389
+hospital/M/short                                0.9831   0.9205     1.0679
+jena_weather/10T/long                           0.7771   0.7615     1.0206
+jena_weather/10T/medium                         0.7819   0.7160     1.0920
+jena_weather/10T/short                          0.4014   0.7429     0.5404
+jena_weather/D/short                            2.1206   1.5734     1.3478
+jena_weather/H/long                             1.4034   1.2677     1.1070
+jena_weather/H/medium                           0.9124   0.8886     1.0268
+jena_weather/H/short                            0.6545   0.7229     0.9054
+kdd_cup_2018/D/short                            1.1891   1.4970     0.7943
+kdd_cup_2018/H/long                             1.0773   1.3355     0.8067
+kdd_cup_2018/H/medium                           1.2131   1.4290     0.8489
+kdd_cup_2018/H/short                            1.0813   1.3404     0.8067
+loop_seattle/5T/long                            1.5664   1.2507     1.2524
+loop_seattle/5T/medium                          1.9006   1.1533     1.6480
+loop_seattle/5T/short                           0.8723   0.7623     1.1443
+loop_seattle/D/short                            1.3700   1.7324     0.7908
+loop_seattle/H/long                             1.5960   1.5460     1.0324
+loop_seattle/H/medium                           1.8607   1.4805     1.2568
+loop_seattle/H/short                            1.6041   1.2928     1.2407
+m4_daily/D/short                                4.6353   3.2784     1.4139
+m4_hourly/H/short                               7.1640   1.1932     6.0039
+m4_monthly/M/short                              1.5549   1.2597     1.2343
+m4_quarterly/Q/short                            3.0806   1.6022     1.9227
+m4_weekly/W/short                               4.6223   2.7773     1.6643
+m4_yearly/A/short                               8.9193   3.9660     2.2490
+m_dense/D/short                                 1.2257   1.6693     0.7342
+m_dense/H/long                                  2.4224   1.4779     1.6390
+m_dense/H/medium                                2.4200   1.5699     1.5414
+m_dense/H/short                                 2.0431   1.4875     1.3735
+restaurant/D/short                              0.9250   1.0061     0.9194
+saugeen/D/short                                 4.0742   3.4130     1.1937
+saugeen/M/short                                 1.0504   0.9764     1.0758
+saugeen/W/short                                 1.7161   1.9907     0.8621
+solar/10T/long                                  2.6014   0.8709     2.9869
+solar/10T/medium                                2.9492   0.9270     3.1815
+solar/10T/short                                 1.9846   1.1057     1.7948
+solar/D/short                                   1.1547   1.1559     0.9990
+solar/H/long                                    3.0949   1.0712     2.8892
+solar/H/medium                                  3.1653   0.9350     3.3855
+solar/H/short                                   2.4312   0.9519     2.5539
+solar/W/short                                   1.2480   1.4704     0.8488
+sz_taxi/15T/long                                0.5613   0.6909     0.8123
+sz_taxi/15T/medium                              0.5899   0.7135     0.8268
+sz_taxi/15T/short                               0.6150   0.7644     0.8045
+sz_taxi/H/short                                 0.7006   0.7382     0.9492
+temperature_rain/D/short                        2.1505   2.0115     1.0691
+us_births/D/short                               1.7907   1.8648     0.9602
+us_births/M/short                               1.4553   0.7605     1.9136
+us_births/W/short                               1.5305   1.5634     0.9790
+------------------------------------------------------------------------------------------
+
+Aggregate GM-Relative MASE (97 configs): 1.3159
+
+Leaderboard comparison:
+  Sundial:    0.673
+  TimesFM:    0.680
+  PatchTST:   0.762
+  Chronos:    0.786
+  Moirai:     0.809
+  Naive:      1.000
+  ** Ours:    1.316 **
+==========================================================================================
+Summary saved to /home/jupyter/wt-cf-390-train/experiments/2026-08-01_lalign_teacher/eval_gm_mase/arm6_v2_ncpc_bb40k_hd15000s/gift/summary.txt
+[08-02 17:31:41] [arm6_v2_ncpc_bb40k_hd15000s] gift-eval try 1 rc=0 rows=97
+[08-02 17:31:41] [arm6_v2_ncpc_bb40k_hd15000s] DONE — Aggregate GM-Relative MASE (97 configs): 1.3159

@@ -6,7 +6,7 @@ Going from 40k to 100k, 10 of 30 cells improve. Of those 10 taken on to 200k, 5 
 
 Definitions of each recipe and each setting are in [Architectures](#architectures); all numbers are in [Results](#results).
 
-## ⚠ `L_align` targets the student latent, not the EMA teacher latent.
+⚠ `L_align` targets the student latent, not the EMA teacher latent. The ten cells that carry `L_align` were retrained against the EMA teacher and re-measured in [`reports/2026-08-04_lalign_teacher/lalign_teacher.md`](../2026-08-04_lalign_teacher/lalign_teacher.md).
 
 ## Figures
 
@@ -87,7 +87,7 @@ Inherited verbatim from the split-pred/rep sweep (`reports/2026-07-10_split_pred
 | `arm6_v2` | `L_align + L_rep_moco` ⚠    |
 | `bimoco`  | `L_pred_moco + L_rep_moco` |
 
-⚠ `L_align` targets the student latent, not the EMA teacher latent.
+⚠ `L_align` targets the student latent, not the EMA teacher latent. The ten cells that carry `L_align` were retrained against the EMA teacher and re-measured in [`reports/2026-08-04_lalign_teacher/lalign_teacher.md`](../2026-08-04_lalign_teacher/lalign_teacher.md).
 
 ### Five settings applied to each recipe
 

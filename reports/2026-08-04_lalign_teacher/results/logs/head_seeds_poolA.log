@@ -1,0 +1,38 @@
+[08-04 06:48:50] [head-seeds] 4 jobs, 1 slot(s) per GPU: arm5_nse@200@30000@20260723 arm6_v2_combab@200@30000@20260723 arm6_v2_ncpc@200@30000@20260723 arm6_v2@100@30000@20260723
+[08-04 06:48:50] [head-seeds] START arm5_nse bb200k hd30000 seed=20260723 on GPU 0
+[08-04 06:48:50] [arm5_nse_s20260723_bb200k_hd30000s] start on GPU 0 (backbone=bb_small_arm5_nse_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_r3_200k.pth)
+[08-04 06:48:50] [arm5_nse_s20260723_bb200k_hd30000s] head-train 30000 steps
+[08-04 06:48:55] [head-seeds] START arm6_v2_combab bb200k hd30000 seed=20260723 on GPU 1
+[08-04 06:48:55] [arm6_v2_combab_s20260723_bb200k_hd30000s] start on GPU 1 (backbone=bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_r3_200k.pth)
+[08-04 06:48:55] [arm6_v2_combab_s20260723_bb200k_hd30000s] head-train 30000 steps
+[08-04 08:11:42] [arm6_v2_combab_s20260723_bb200k_hd30000s] head-train rc=0
+[08-04 08:11:42] [arm6_v2_combab_s20260723_bb200k_hd30000s] gift-eval try 1/3 (have 0/97 configs)
+[08-04 08:16:44] [arm5_nse_s20260723_bb200k_hd30000s] head-train rc=0
+[08-04 08:16:44] [arm5_nse_s20260723_bb200k_hd30000s] gift-eval try 1/3 (have 0/97 configs)
+[08-04 10:30:20] [arm6_v2_combab_s20260723_bb200k_hd30000s] gift-eval try 1 rc=0 rows=97
+[08-04 10:30:20] [arm6_v2_combab_s20260723_bb200k_hd30000s] DONE — Aggregate GM-Relative MASE (97 configs): 1.1883
+[08-04 10:30:20] [head-seeds] END   arm6_v2_combab bb200k seed=20260723 rc=0
+[08-04 10:30:20] [head-seeds] START arm6_v2_ncpc bb200k hd30000 seed=20260723 on GPU 1
+[08-04 10:30:20] [arm6_v2_ncpc_s20260723_bb200k_hd30000s] start on GPU 1 (backbone=bb_small_arm6_v2_ncpc_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_r3_200k.pth)
+[08-04 10:30:20] [arm6_v2_ncpc_s20260723_bb200k_hd30000s] head-train 30000 steps
+[08-04 10:39:53] [arm5_nse_s20260723_bb200k_hd30000s] gift-eval try 1 rc=0 rows=97
+[08-04 10:39:53] [arm5_nse_s20260723_bb200k_hd30000s] DONE — Aggregate GM-Relative MASE (97 configs): 1.7979
+[08-04 10:39:53] [head-seeds] END   arm5_nse bb200k seed=20260723 rc=0
+[08-04 10:39:53] [head-seeds] START arm6_v2 bb100k hd30000 seed=20260723 on GPU 0
+[08-04 10:39:53] [arm6_v2_s20260723_bb100k_hd30000s] start on GPU 0 (backbone=bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_r2_100k.pth)
+[08-04 10:39:53] [arm6_v2_s20260723_bb100k_hd30000s] head-train 30000 steps
+[08-04 11:37:43] [arm6_v2_ncpc_s20260723_bb200k_hd30000s] head-train rc=0
+[08-04 11:37:43] [arm6_v2_ncpc_s20260723_bb200k_hd30000s] gift-eval try 1/3 (have 0/97 configs)
+[08-04 11:46:06] [arm6_v2_s20260723_bb100k_hd30000s] head-train rc=0
+[08-04 11:46:06] [arm6_v2_s20260723_bb100k_hd30000s] gift-eval try 1/3 (have 0/97 configs)
+[08-04 14:22:37] [arm6_v2_ncpc_s20260723_bb200k_hd30000s] gift-eval try 1 rc=0 rows=97
+[08-04 14:22:37] [arm6_v2_ncpc_s20260723_bb200k_hd30000s] DONE — Aggregate GM-Relative MASE (97 configs): 1.3577
+[08-04 14:22:37] [head-seeds] END   arm6_v2_ncpc bb200k seed=20260723 rc=0
+[08-04 14:28:15] [arm6_v2_s20260723_bb100k_hd30000s] gift-eval try 1 rc=0 rows=97
+[08-04 14:28:15] [arm6_v2_s20260723_bb100k_hd30000s] DONE — Aggregate GM-Relative MASE (97 configs): 1.8659
+[08-04 14:28:15] [head-seeds] END   arm6_v2 bb100k seed=20260723 rc=0
+[08-04 14:28:15] [head-seeds] RESULT arm5_nse@200@30000@20260723 rc=0
+[08-04 14:28:15] [head-seeds] RESULT arm6_v2_combab@200@30000@20260723 rc=0
+[08-04 14:28:15] [head-seeds] RESULT arm6_v2_ncpc@200@30000@20260723 rc=0
+[08-04 14:28:15] [head-seeds] RESULT arm6_v2@100@30000@20260723 rc=0
+[08-04 14:28:15] [head-seeds] DONE — 4 jobs, 0 failed

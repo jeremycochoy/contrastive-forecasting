@@ -863,6 +863,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
                             get_history=False, tau_override=None,
                             include_positive_in_denominator=False,
                             align_loss_weight=None,
+                            align_target=None,
                             subtract_contrastive_floor=None,
                             moco_negatives=None,
                             moco_rep_keys=None,
@@ -926,6 +927,15 @@ def contrastive_latent_loss(predicted_position, validation, spec,
     of THAT objective). An explicit function arg overrides the config key
     (the `loss_tau_ref` diagnostic passes 0/False to stay a pure
     contrastive reference). See #309.
+
+    `align_target` (#390; default None → config key `align_target`, default
+    `'student'`) picks whose h_{t+1} the alignment term above pulls toward:
+    `'student'` is the encoder's own sg(h_{t+1}) — what #379 trained on —
+    and `'teacher'` is the EMA teacher's h_{t+1} from
+    `teacher_original_latent`, the BYOL form the term was designed for
+    (slowly-moving target the student cannot chase within a step).
+    `'teacher'` without a teacher latent raises: falling back to the
+    student silently is the defect this argument removes.
 
     Config key ``stopgrad_positive_h`` (default False; the
     ``--stopgrad-positive-h`` CLI flag): SimSiam/BYOL-style target
@@ -2566,6 +2576,25 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         else train_config.get('subtract_contrastive_floor', False))
 
     if align_w != 0.0:
+        # Whose h_{t+1} the term pulls toward (#390). Same arg-over-config-
+        # key precedence; default 'student' keeps #379's runs reproducible.
+        # Resolved inside this branch so a run with the term off (the
+        # `loss_tau_ref` diagnostic passes weight 0 and no teacher) is
+        # unaffected by the knob.
+        align_tgt = (
+            align_target if align_target is not None
+            else train_config.get('align_target', 'student'))
+        if align_tgt not in ('student', 'teacher'):
+            raise ValueError(
+                "align_target must be 'student' or 'teacher'; got "
+                f"{align_tgt!r}.")
+        if align_tgt == 'teacher' and hy_teacher_norm is None:
+            raise ValueError(
+                "align_target='teacher' requires an EMA teacher (pass "
+                "teacher_original_latent, i.e. --ema-embedding / "
+                "--ema-encoder at training time). Falling back to the "
+                "student target is the #382 defect this argument removes.")
+
         # BYOL/SimSiam alignment term: L_align = (2 − 2·cos(f_t,
         # sg(h_{t+1}))).mean(), added to the loss with weight λ. Applies to
         # ANY loss_shape — it needs only the positive pair (hy_hat_norm,
@@ -2584,8 +2613,11 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         # built-in constant, so L_align needs no extra offset to be ≥ 0 /
         # min-0. With --subtract-contrastive-floor on, the total loss
         # (L_c − floor) + λ·L_align then has theoretical minimum 0.
+        # With align_target='teacher' (#390) the target is the EMA
+        # teacher's h^T_{t+1} instead: same term, slowly-moving target.
+        align_ref = (hy_teacher_norm if align_tgt == 'teacher' else hy_norm)
         cos_align = cosine_similarity_from_normalized(
-            hy_hat_norm, hy_norm.detach())
+            hy_hat_norm, align_ref.detach())
         loss = loss + align_w * (2.0 - 2.0 * cos_align).mean()
 
     if sub_floor:

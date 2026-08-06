@@ -1,0 +1,41 @@
+run,flagged,n_rows,step_max,n_nonfinite,loss_final,loss_min,loss_max,rise_from_min,max_jump_iqr,qk_max,resid_max,qk_trend
+bb_small_arm1_combab_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090,arm1_combab (copied from #379) — 3.1251 at 40k,1498,200000,0,19.7654,15.3006,24.7605,4.4648,2.9088,6.5092,51.8184,0.5629
+bb_small_arm1_ncpc_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090,,1498,200000,0,18.1717,17.5293,25.6179,0.6424,1.8524,11.0455,14.6478,1.3395
+bb_small_arm1_nse_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090,,1498,200000,0,17.8654,17.1760,30.9050,0.6894,2.3263,22.9974,27.0788,1.1676
+bb_small_arm1_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090,,1573,200000,0,18.2253,17.8218,30.9622,0.4035,4.8062,22.4311,29.6418,1.0392
+bb_small_arm1_tr1_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090,,1037,100000,0,18.9070,14.8850,26.8960,4.0220,6.7747,15.8963,25.8987,1.4492
+bb_small_arm3_combab_split_pred_rep_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090,,998,100000,0,16.2742,15.8166,21.4108,0.4576,0.7284,12.0184,15.7160,1.9249
+bb_small_arm3_ncpc_split_pred_rep_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090,,998,100000,0,18.0509,17.4889,25.8306,0.5619,2.5852,11.3254,14.2396,1.4243
+bb_small_arm3_nse_split_pred_rep_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090,,998,100000,0,16.2498,15.7541,31.1447,0.4957,0.6666,20.3154,24.3644,1.1578
+bb_small_arm3_split_pred_rep_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090,,1573,200000,0,16.1665,15.5758,31.2019,0.5907,0.9249,19.9985,23.5514,1.1336
+bb_small_arm3_tr1_split_pred_rep_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090,,1529,200000,0,15.1496,14.5117,27.1357,0.6379,1.2561,28.0422,25.6747,1.0407
+bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090,,998,100000,0,4.7272,4.3543,10.4223,0.3729,2.2888,16.3950,16.4064,1.4062
+bb_small_arm4_ncpc_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090,,998,100000,0,4.9286,4.2404,10.4789,0.6882,2.0788,17.0157,17.6408,1.7345
+bb_small_arm4_nse_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090,,998,100000,0,3.6061,3.4315,16.2379,0.1745,1.1888,26.6883,24.4308,1.4600
+bb_small_arm4_tr1_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090,,998,100000,0,3.6035,3.4123,16.2951,0.1912,1.2741,23.6586,25.1487,1.2158
+bb_small_arm4_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090,,1187,100000,0,3.6540,3.4135,16.2951,0.2404,1.4524,23.6586,25.1487,1.1168
+bb_small_arm5_combab_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090,,1498,200000,0,13.3856,13.2314,14.4006,0.1542,0.5599,218.6327,19.5084,5.9932
+bb_small_arm5_combab_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher,,997,100000,0,13.1123,12.9196,14.2776,0.1927,0.7804,188.1824,23.0848,3.3433
+bb_small_arm5_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090,,1135,100000,0,13.9483,13.9260,24.3586,0.0222,1.5185,30.3878,31.0750,1.2725
+bb_small_arm5_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher,,997,100000,0,14.0847,14.0397,24.2060,0.0451,1.6916,18.4594,29.1715,1.1274
+bb_small_arm5_ncpc_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090,,1498,200000,0,14.2524,14.2020,18.7639,0.0503,1.8994,15.8957,18.0229,1.2653
+bb_small_arm5_ncpc_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher,,997,100000,0,14.3260,14.0767,18.6408,0.2493,7.5243,15.3739,17.8356,1.9469
+bb_small_arm5_nse_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090,,1498,200000,0,13.9459,13.9294,24.3014,0.0164,2.0676,31.9636,29.4342,1.2176
+bb_small_arm5_nse_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher,arm5_nse — 1.8887 at 200k,1497,200000,0,13.9812,13.9124,24.1488,0.0688,2.2092,259.9409,29.5940,4.8324
+bb_small_arm5_tr1_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090,,998,100000,0,13.0542,12.9542,20.2925,0.1000,2.0242,30.9660,30.7523,1.1315
+bb_small_arm5_tr1_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher,,997,100000,0,12.8128,12.7329,20.1399,0.0799,1.5374,234.7445,29.0675,2.6398
+bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090,,1498,200000,0,12.6145,12.2666,13.6439,0.3479,1.5355,77.3406,21.1074,3.1610
+bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher,,1497,200000,0,12.0028,11.6994,13.5209,0.3033,0.4593,172.2695,21.7305,4.3807
+bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090,,1098,100000,0,5.0702,4.8822,17.1350,0.1880,0.9008,12.7247,29.4049,1.3471
+bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher,"arm6_v2 base — 1.4322 at 40k, 1.9057 at 100k",997,100000,0,4.9326,4.6983,16.9824,0.2342,1.2400,12.7465,28.1721,1.3808
+bb_small_arm6_v2_ncpc_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090,,1498,200000,0,5.1224,4.8682,11.3370,0.2542,1.0891,256.7562,20.8952,4.2611
+bb_small_arm6_v2_ncpc_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher,,1497,200000,0,5.1608,4.8914,11.2140,0.2694,2.2245,38.6753,21.3771,0.8939
+bb_small_arm6_v2_nse_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090,,998,100000,0,4.9510,4.7428,17.0778,0.2082,1.2135,15.6656,29.5583,2.1568
+bb_small_arm6_v2_nse_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher,,997,100000,0,4.9788,4.7027,16.9252,0.2761,0.9365,215.6036,28.6051,6.1492
+bb_small_arm6_v2_tr1_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090,,998,100000,0,11.7549,11.7315,19.5564,0.0234,1.3311,25.6667,31.7744,1.9042
+bb_small_arm6_v2_tr1_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher,,997,100000,0,11.7998,11.7512,19.4038,0.0486,1.7942,38.3083,31.1385,1.6973
+bb_small_bimoco_combab_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090,,998,100000,0,15.2652,14.5423,20.7107,0.7229,0.6841,11.4213,15.1755,1.9058
+bb_small_bimoco_ncpc_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090,,998,100000,0,9.3101,8.4297,18.4038,0.8804,1.7531,21.6963,17.8889,2.1429
+bb_small_bimoco_nse_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090,,998,100000,0,7.4389,6.8324,23.9210,0.6065,1.0201,14.6685,23.9535,1.8288
+bb_small_bimoco_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090,,1698,200000,0,7.7394,7.0583,23.9782,0.6811,1.3723,18.4127,23.6047,1.3379
+bb_small_bimoco_tr1_split_pred_rep_moco_bothsides_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090,,998,100000,0,14.6731,14.0788,26.3997,0.5943,1.1465,187.9543,25.5439,4.8741

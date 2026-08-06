@@ -1,0 +1,43 @@
+# #390 pre-wave GPU evidence — raw trainer output behind the README's
+# "GPU evidence" table. elisa, RTX 4090, 2026-08-01. Both GPUs were shared
+# with unrelated jobs, so absolute sps is only comparable within a pair run
+# back to back on the same GPU.
+#
+# Config: the arm6_v2 / arm5 cell command lines from scripts/run_arm.sh,
+# 200 backbone steps, T=4096, d_model=64, 3 encoder + 3 layers, bs=64,
+# SIGReg on, CPC aux on, EMA teacher (tau=0.9), seed=20260520,
+# jeremycochoy/gift-pretrain-full-4096 / small_v1.
+
+## arm6_v2 target A/B — same GPU (0), back to back, seed 20260520
+#
+# student: run_arm.sh's arm6_v2 invocation with `--align-target student`
+#          appended (argparse keeps the LAST value on repeat).
+[    200] loss=8.0994  ema_loss=9.8252  gap=0.3047  ema_gap=0.0039  mixup=59/200  3.5 sps  ETA 0.0h  cpc=0.6986
+
+# teacher: the same invocation, `--align-target teacher` — what the waves run.
+[    200] loss=7.9426  ema_loss=9.7114  gap=0.2448  ema_gap=-0.0354  mixup=59/200  3.5 sps  ETA 0.0h  cpc=0.7338
+
+# Loss moves, step time does not.
+
+## #379's own arm6_v2 run, for the reproducibility check
+#
+# experiments/2026-07-21_split_pred_rep_small/scripts/run_arm.sh arm6_v2,
+# no --align-target flag (the #379 code had none). Every field matches the
+# `student` row above, so #390's default is byte-for-byte #379 on GPU.
+[    200] loss=8.0994  ema_loss=9.8252  gap=0.3047  ema_gap=0.0039  mixup=59/200  2.9 sps  ETA 0.0h  cpc=0.6986
+
+## scripts/smoke.sh, both families, teacher target
+#
+# ARM=arm6_v2 GPU=0 bash scripts/smoke.sh
+[smoke-390] SMOKE OK — arm=arm6_v2
+[smoke-390]   backbone: bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_FINAL.pth
+[smoke-390]   extra:    bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_0k.pth
+[smoke-390]   losses:   bb_small_arm6_v2_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_losses.csv  (final ff=0.7156597375869751  u_batchtime=0.2959076464176178  u_batchtime_e=0.0756697803735733)
+[smoke-390]   step time: 3.5 sps
+
+# ARM=arm5 GPU=1 bash scripts/smoke.sh
+[smoke-390] SMOKE OK — arm=arm5
+[smoke-390]   backbone: bb_small_arm5_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_FINAL.pth
+[smoke-390]   extra:    bb_small_arm5_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_0k.pth
+[smoke-390]   losses:   bb_small_arm5_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_losses.csv  (final ff=0.3206970691680908  u_batchtime=0.7855839729309082  u_batchtime_e=0.05854456499218941)
+[smoke-390]   step time: 2.9 sps
