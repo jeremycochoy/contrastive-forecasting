@@ -6,7 +6,7 @@
 #   eval_gm_mase/<cell>/all_results.csv   per-config GIFT-Eval output, 97 rows
 #   training_curves/<run>_losses.csv  backbone dynamics, DOWNSAMPLED like #379
 #   attn_amplitude/<run>_attn_amplitude.csv   DOWNSAMPLED, own stride
-#   latent_drift/<run>_latent_drift.csv
+#   latent_drift/<run>_latent_drift.csv       copied whole, 1 KB per run
 #   seasonal_naive_all_results.csv    the denominator of every relative MASE
 #   checkpoint_manifest.csv           every checkpoint the run left on elisa
 #   logs/                             trainer, eval, orchestrator and pipeline logs
@@ -23,6 +23,10 @@
 # counts distinct steps, so its stride means the same thing whatever cadence
 # the writer used, and it prints a NO-OP line and exits non-zero when it
 # removes nothing.
+#
+# This script exits non-zero when a downsample stage collected no file at all.
+# A collect that wrote nothing has to read as a failed collect, not as a clean
+# log with a zero in it.
 #
 #   WT=/home/jupyter/wt-cf-390-train REPO=/tmp/contrastive-forecasting-390 \
 #     bash collect_artefacts.sh
@@ -69,39 +73,58 @@ say "measurements copied: $n_cells complete cells"
 # logged every 200 steps rather than every step, so it takes its own stride:
 # every 5th logged step is one point per 1000 training steps, ~200 points over
 # a full 200k trajectory and 3.8 MiB across the 78 files of the 2026-08-04 run.
-DOWNSAMPLE="$ROOT/scripts/downsample_curve.py"
+# Overridable so a test can point it at nothing and check that this script
+# fails when a stage collects no file.
+DOWNSAMPLE="${DOWNSAMPLE:-$ROOT/scripts/downsample_curve.py}"
 ATTN_STRIDE="${ATTN_STRIDE:-5}"
 
-downsample(){  # <src.csv> <dst dir> [flags...]
-  local src="$1" dir="$2"; shift 2
-  python3 "$DOWNSAMPLE" "$src" "$dir/$(basename "$src")" "$@"
+n_flat=0     # written whole: the downsampler had nothing to remove (exit 3)
+n_lost=0     # not written at all: every other non-zero exit
+n_empty=0    # stages that collected nothing
+
+# Downsample every $SRC/runs/*<suffix> into $DST/<subdir>.
+#
+# Exit 3 means the file is on disk and came out un-reduced; every other
+# non-zero exit means no file was written. Those are two different failures
+# and this keeps them apart, because a stage that collected nothing is the
+# same silence the downsampler's NO-OP exists to remove, one layer up: a
+# missing DOWNSAMPLE used to write no curve, no amplitude, and exit 0.
+collect_curves(){  # <suffix> <dst subdir> <label> [downsample flags...]
+  local suffix="$1" sub="$2" label="$3"; shift 3
+  local f rc n_src=0 n_ok=0
+  for f in "$SRC/runs"/*"$suffix"; do
+    [ -e "$f" ] || continue
+    n_src=$((n_src + 1))
+    python3 "$DOWNSAMPLE" "$f" "$DST/$sub/$(basename "$f")" "$@"
+    rc=$?
+    case "$rc" in
+      0) n_ok=$((n_ok + 1)) ;;
+      3) n_ok=$((n_ok + 1)); n_flat=$((n_flat + 1)) ;;
+      *) n_lost=$((n_lost + 1))
+         say "ERROR: $(basename "$f") not written — downsample_curve exit $rc" ;;
+    esac
+  done
+  say "$label: $n_ok/$n_src downsampled"
+  if [ "$n_ok" -eq 0 ]; then
+    say "ERROR: $label collected 0 files into $DST/$sub"
+    n_empty=$((n_empty + 1))
+  fi
 }
 
-n_curves=0; n_flat=0
-for f in "$SRC/runs"/*_losses.csv; do
-  [ -e "$f" ] || continue
-  if downsample "$f" "$DST/training_curves"; then
-    n_curves=$((n_curves + 1))
-  else
-    n_flat=$((n_flat + 1))
-  fi
-done
-say "training curves downsampled: $n_curves"
+collect_curves _losses.csv training_curves "training curves"
+collect_curves _attn_amplitude.csv attn_amplitude \
+  "attention amplitude (every ${ATTN_STRIDE}th logged step)" \
+  --stride "$ATTN_STRIDE"
 
-n_attn=0
-for f in "$SRC/runs"/*_attn_amplitude.csv; do
-  [ -e "$f" ] || continue
-  if downsample "$f" "$DST/attn_amplitude" --stride "$ATTN_STRIDE"; then
-    n_attn=$((n_attn + 1))
-  else
-    n_flat=$((n_flat + 1))
-  fi
-done
-say "attention amplitude downsampled: $n_attn (every ${ATTN_STRIDE}th logged step)"
 if [ "$n_flat" -gt 0 ]; then
-  say "WARNING: $n_flat file(s) came out un-reduced — read the NO-OP lines above"
+  say "WARNING: $n_flat file(s) collected un-reduced — read the NO-OP lines above"
 fi
 
+# Latent drift is copied, not downsampled, and that is a decision. The trainer
+# writes it once every 10 000 steps, so a whole run is 14 rows and 1 KB — 136
+# KB across the 33 files of the 2026-08-04 report. There is nothing to reduce,
+# and the curve stride would cut those 14 points down to one; the downsampler
+# says THIN when asked to do it.
 for f in "$SRC/runs"/*_latent_drift.csv; do
   [ -e "$f" ] || continue
   cp -f "$f" "$DST/latent_drift/$(basename "$f")"
@@ -150,4 +173,17 @@ for d in "$SRC/eval_gm_mase"/*/; do
   [ -f "$d/eval.log" ] && cp -f "$d/eval.log" "$DST/logs/eval_$(basename "$d").log"
 done
 say "logs copied: $(ls "$DST/logs" | wc -l) files"
-say "done -> $DST"
+
+# --- verdict ---------------------------------------------------------------
+rc=0
+if [ "$n_lost" -gt 0 ]; then
+  say "ERROR: $n_lost file(s) were not written at all"
+  rc=1
+fi
+[ "$n_empty" -eq 0 ] || rc=1
+if [ "$rc" -eq 0 ]; then
+  say "done -> $DST"
+else
+  say "FAILED -> $DST"
+fi
+exit "$rc"

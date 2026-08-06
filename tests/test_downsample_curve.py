@@ -16,11 +16,17 @@ used. Rows are grouped by step, because one amplitude step is nine rows (three
 layers x encoder/forecaster blocks, plus the encoder logged twice) and a step
 cut in half is unreadable.
 
-These tests hold four things:
+These tests hold seven things:
 
   * a source already logged at the stride's cadence is still reduced;
   * a kept step keeps every one of its rows;
   * a run that removes nothing says so on stderr and exits non-zero;
+  * a run that removes nearly everything says so too, however short the
+    source is;
+  * the highest step of the file survives, including when a resume re-logs an
+    earlier one at the end;
+  * `collect_artefacts.sh` fails, out loud, when a stage collects no file —
+    the same silence one layer up;
   * the training-curve output does not move — it is pinned against the
     committed artefacts the report's figures are drawn from.
 """
@@ -39,8 +45,16 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = REPO_ROOT / "scripts" / "downsample_curve.py"
 COLLECT = (REPO_ROOT / "experiments" / "2026-08-01_lalign_teacher" / "scripts"
            / "collect_artefacts.sh")
-CURVES = (REPO_ROOT / "reports" / "2026-08-04_lalign_teacher" / "results"
-          / "training_curves")
+RESULTS = REPO_ROOT / "reports" / "2026-08-04_lalign_teacher" / "results"
+CURVES = RESULTS / "training_curves"
+AMPLITUDE = RESULTS / "attn_amplitude"
+
+# The one committed amplitude file whose steps are not monotone: a resume
+# re-logged steps 40200..47800 in the middle of it, so 39 of its steps carry
+# 18 rows instead of 9. It is the real shape the "last step" rule has to
+# survive.
+RE_LOGGED = ("bb_small_arm1_tr1_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk"
+             "_aon_cpc_tau090_r2_attn_amplitude.csv")
 
 # The defaults, restated here so a change to them fails the suite instead of
 # quietly rewriting what the next report commits.
@@ -52,6 +66,9 @@ STRIDE = 200
 AMP_ROWS_PER_STEP = 9
 AMP_CADENCE = 200
 
+# Latent drift is written once every 10 000 steps, two rows each time.
+DRIFT_CADENCE = 10000
+
 
 def old_rule(step: int) -> bool:
     """The value test this module used to apply. Kept here as the thing the
@@ -62,14 +79,15 @@ def old_rule(step: int) -> bool:
 
 # --- sources -------------------------------------------------------------
 
-def write_curve(path: Path, first: int, last: int) -> Path:
+def write_curve(path: Path, first: int, last: int, cadence: int = 1) -> Path:
     """A raw backbone `_losses.csv`: one row per step, as the trainer writes
-    it before any collection."""
+    it before any collection. `cadence` coarsens it, for the artefacts the
+    trainer writes less often than every step."""
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", newline="") as fh:
         w = csv.writer(fh)
         w.writerow(["step", "loss", "gap"])
-        for step in range(first, last + 1):
+        for step in range(first, last + 1, cadence):
             w.writerow([step, 1.0 / step, 0.5])
     return path
 
@@ -87,6 +105,23 @@ def write_amplitude(path: Path, first: int, last: int,
             for i in range(rows_per_step):
                 w.writerow([step, i % 3, "enc" if i < 3 else "fcst",
                             2.0 + i + step / 1e5])
+    return path
+
+
+def write_latent_drift(path: Path, last: int = 70000,
+                       cadence: int = DRIFT_CADENCE) -> Path:
+    """A raw `_latent_drift.csv`: two rows every 10 000 steps. A whole run is
+    14 rows and 1 KB, which is why the collector copies it rather than
+    downsampling it."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", newline="") as fh:
+        w = csv.writer(fh)
+        w.writerow(["step", "latent", "kind", "step_ref", "delta_step",
+                    "drift_cos", "drift_cos_aligned", "rot_gap", "cka"])
+        for step in range(cadence, last + 1, cadence):
+            for latent in ("student_h", "teacher_h"):
+                w.writerow([step, latent, "adjacent", step - cadence, cadence,
+                            0.96, 0.73, 0.23, 0.20])
     return path
 
 
@@ -224,6 +259,26 @@ def test_an_over_reduced_source_is_reported_too(tmp_path):
     assert len(distinct_steps(tmp_path / "out.csv")) < 10
 
 
+@pytest.mark.parametrize("n_steps", [
+    14,   # a whole latent-drift run, logged every 10 000 steps
+    30,   # and a source three times longer, still cut to one point
+])
+def test_a_short_source_cut_to_one_point_is_reported(tmp_path, n_steps):
+    """THIN has to fire on the sources it was written for. The first rule
+    asked the source for 40 distinct steps before it would warn, so a 14-point
+    latent-drift file cut to its last point alone stayed silent — the exact
+    shape the warning exists to catch."""
+    src = write_curve(tmp_path / "coarse_losses.csv", DRIFT_CADENCE,
+                      DRIFT_CADENCE * n_steps, cadence=DRIFT_CADENCE)
+    assert len(distinct_steps(src)) == n_steps < 40
+
+    res = run(src, tmp_path / "out.csv")     # the default curve stride
+    assert res.returncode == 0, res.stdout + res.stderr
+    assert len(distinct_steps(tmp_path / "out.csv")) == 1
+    assert "THIN" in res.stderr, (
+        f"{n_steps} points cut to 1, and the run said nothing:\n{res.stderr}")
+
+
 def test_the_stride_the_collector_uses_is_not_thin(tmp_path):
     """And the setting `collect_artefacts.sh` ships with must not trip it, or
     the warning is noise the next agent learns to skip."""
@@ -275,6 +330,88 @@ def test_the_last_step_is_never_cut_off(tmp_path):
     assert steps_of(tmp_path / "out.csv")[-1] == 40137
 
 
+# --- what "last" means when the steps are not monotone -------------------
+
+def test_the_highest_step_survives_a_re_log_at_the_end_of_the_file(tmp_path):
+    """"Last" is the highest step in the file, not the last row and not the
+    last step to first appear. Those three agree only while the steps
+    increase, and a resume re-logs earlier steps: two committed amplitude
+    files already carry that shape. Here the re-log lands at the end of the
+    file on a step the first wave never wrote, so the last step to first
+    appear is 39900 while the wave reached 40000."""
+    src = write_amplitude(tmp_path / "relog_attn_amplitude.csv", 200, 40000)
+    with open(src, "a", newline="") as fh:
+        w = csv.writer(fh)
+        for i in range(AMP_ROWS_PER_STEP):
+            w.writerow([39900, i % 3, "enc" if i < 3 else "fcst", 7.0 + i])
+
+    # Stride 7 puts 40000 off the stride, so only the guarantee can keep it.
+    res = run(src, tmp_path / "out.csv", "--stride", "7")
+    assert res.returncode == 0, res.stdout + res.stderr
+
+    kept = steps_of(tmp_path / "out.csv")
+    assert kept.count(40000) == AMP_ROWS_PER_STEP, (
+        "the wave reached 40000 and the output does not show it: "
+        f"kept {sorted(set(kept))[-3:]}")
+    assert 39900 not in kept, (
+        "39900 is the last step to first appear, not the end of the wave — "
+        "keeping it instead of 40000 is the bug this pins")
+
+
+def test_a_step_removed_at_the_end_of_the_file_is_not_a_no_op(tmp_path):
+    """NO-OP means the stride removed nothing it could have removed, and
+    "could have" has to read "last" the same way: every step at or above the
+    dense window except the highest one. Reading it as "except the last step
+    to first appear" hides exactly one removal, the re-logged step at the end
+    of the file, and calls a run that did reduce a clean NO-OP."""
+    src = write_amplitude(tmp_path / "relog_attn_amplitude.csv", 200, 40000)
+    with open(src, "a", newline="") as fh:      # a resume re-logs 39900, off
+        w = csv.writer(fh)                      # the 200-step grid because the
+        for i in range(AMP_ROWS_PER_STEP):      # checkpoint it came from was,
+            w.writerow([39900, i % 3, "enc", 7.0 + i])   # then dies
+
+    # The dense window takes every step up to 39800, so the only two above it
+    # are the re-logged 39900 and the final 40000. 40000 is the highest step
+    # and is kept; 39900 is the one step the stride has to remove.
+    res = run(src, tmp_path / "out.csv", "--dense-until", "39900")
+    assert res.returncode == 0, res.stdout + res.stderr
+    assert 39900 not in distinct_steps(tmp_path / "out.csv")
+    assert 40000 in distinct_steps(tmp_path / "out.csv")
+    assert "NO-OP" not in res.stderr, (
+        "the stride removed 39500 and the run reported removing nothing:\n"
+        + res.stderr)
+
+
+def test_the_committed_re_logged_amplitude_keeps_its_highest_step(tmp_path):
+    """The same guarantee against the artefact itself, re-log and all. The
+    file is read, never rewritten."""
+    src = AMPLITUDE / RE_LOGGED
+    res = run(src, tmp_path / "out.csv", "--stride", "5")
+    assert res.returncode == 0, res.stdout + res.stderr
+    assert res.stderr == "", res.stderr
+
+    src_by_step: dict[int, list[list[str]]] = {}
+    for row in rows_of(src):
+        src_by_step.setdefault(int(row[0]), []).append(row)
+    out_by_step: dict[int, list[list[str]]] = {}
+    for row in rows_of(tmp_path / "out.csv"):
+        out_by_step.setdefault(int(row[0]), []).append(row)
+
+    top = max(src_by_step)
+    assert top == 100000
+    assert out_by_step.get(top) == src_by_step[top]
+    # Every 5th of its 300 logged steps, counted from the first row: 41000,
+    # 42000, ... 100000. Spelled out, so a change to how ranks are counted
+    # fails here against the real file rather than only against a fixture.
+    assert sorted(out_by_step) == list(range(41000, 100001, 1000))
+    # And every kept step is whole, including the re-logged 18-row ones.
+    for step, kept in out_by_step.items():
+        assert kept == src_by_step[step]
+    assert any(len(rows) == 2 * AMP_ROWS_PER_STEP
+               for rows in out_by_step.values()), (
+        "no re-logged step survived, so this ran against the wrong file")
+
+
 def test_the_stride_counts_steps_not_rows(tmp_path):
     """Nine rows per step, stride 5: five distinct steps per kept step, not
     five rows. Counting rows would tie the output to the layer count."""
@@ -297,25 +434,89 @@ def test_the_header_survives(tmp_path):
 
 # --- the collector -------------------------------------------------------
 
-def test_collect_artefacts_routes_amplitude_through_the_downsampler(tmp_path):
-    """The other half of the defect: `collect_artefacts.sh` downsampled the
-    curves and copied the amplitude raw."""
+RUN_NAME = "bb_small_arm5_lalign_lrep_enc3l3_b64_200k_x_alignteacher"
+
+
+def collect(tmp_path: Path, **env_overrides: str):
+    """Lay out one run's raw artefacts the way the trainer leaves them on
+    elisa, then run `collect_artefacts.sh` over them into `tmp_path/results`.
+    Returns (completed process, destination directory)."""
     runs = tmp_path / "wt" / "experiments" / "2026-08-01_lalign_teacher" / "runs"
-    name = "bb_small_arm5_lalign_lrep_enc3l3_b64_200k_x_alignteacher"
-    src = write_amplitude(runs / f"{name}_attn_amplitude.csv", 200, 40000)
-    write_curve(runs / f"{name}_losses.csv", 1, 40000)
+    write_amplitude(runs / f"{RUN_NAME}_attn_amplitude.csv", 200, 40000)
+    write_curve(runs / f"{RUN_NAME}_losses.csv", 1, 40000)
+    write_latent_drift(runs / f"{RUN_NAME}_latent_drift.csv")
 
     dst = tmp_path / "results"
     env = {**os.environ, "HOME": str(tmp_path / "home"),
            "WT": str(tmp_path / "wt"), "REPO": str(tmp_path / "repo"),
-           "DST": str(dst)}
-    res = subprocess.run(["bash", str(COLLECT)], capture_output=True,
-                         text=True, env=env)
+           "DST": str(dst), **env_overrides}
+    return subprocess.run(["bash", str(COLLECT)], capture_output=True,
+                          text=True, env=env), dst
+
+
+def test_collect_artefacts_routes_amplitude_through_the_downsampler(tmp_path):
+    """The other half of the defect: `collect_artefacts.sh` downsampled the
+    curves and copied the amplitude raw."""
+    res, dst = collect(tmp_path)
     assert res.returncode == 0, res.stdout + res.stderr
 
-    out = dst / "attn_amplitude" / f"{name}_attn_amplitude.csv"
+    runs = tmp_path / "wt" / "experiments" / "2026-08-01_lalign_teacher" / "runs"
+    src = runs / f"{RUN_NAME}_attn_amplitude.csv"
+    out = dst / "attn_amplitude" / f"{RUN_NAME}_attn_amplitude.csv"
     assert out.is_file(), res.stdout + res.stderr
     assert len(rows_of(out)) < len(rows_of(src)) / 4, (
         f"the collector wrote {len(rows_of(out))} of {len(rows_of(src))} rows "
         "— it is still copying the amplitude raw")
-    assert len(rows_of(dst / "training_curves" / f"{name}_losses.csv")) == 697
+    assert len(rows_of(dst / "training_curves" / f"{RUN_NAME}_losses.csv")) == 697
+
+
+def test_the_collector_fails_when_a_stage_collects_no_file(tmp_path):
+    """The same silence, one layer up. The downsampler exiting non-zero says
+    nothing if the collector never ran it: point DOWNSAMPLE at nothing and the
+    old collector wrote no curve, no amplitude, and exited 0 — which reads as
+    a clean collection."""
+    res, dst = collect(tmp_path,
+                       DOWNSAMPLE=str(tmp_path / "gone" / "downsample_curve.py"))
+
+    assert res.returncode != 0, (
+        "collected nothing and reported success:\n" + res.stdout + res.stderr)
+    assert res.stdout.count("collected 0 files") == 2, (
+        "both stages collected nothing and the log does not say so:\n"
+        + res.stdout)
+    assert not (dst / "training_curves" / f"{RUN_NAME}_losses.csv").exists()
+    assert not (dst / "attn_amplitude"
+                / f"{RUN_NAME}_attn_amplitude.csv").exists()
+
+
+def test_an_un_reduced_file_is_collected_and_says_so(tmp_path):
+    """And the other side of that split: exit 3 means the file is on disk and
+    came out whole, which is a warning, not a lost artefact. The collector has
+    to tell that from a file it never wrote."""
+    res, dst = collect(tmp_path, ATTN_STRIDE="1")   # stride 1 removes nothing
+    assert res.returncode == 0, res.stdout + res.stderr
+
+    runs = tmp_path / "wt" / "experiments" / "2026-08-01_lalign_teacher" / "runs"
+    out = dst / "attn_amplitude" / f"{RUN_NAME}_attn_amplitude.csv"
+    assert rows_of(out) == rows_of(runs / f"{RUN_NAME}_attn_amplitude.csv"), (
+        "the artefact was not collected whole")
+    assert "un-reduced" in res.stdout, res.stdout
+    assert "1/1 downsampled" in res.stdout, (
+        "a file that was written whole was counted as one that was not "
+        "written:\n" + res.stdout)
+    assert "collected 0 files" not in res.stdout, res.stdout
+    assert "NO-OP" in res.stderr, res.stderr
+
+
+def test_the_collector_copies_latent_drift_whole(tmp_path):
+    """Latent drift is not downsampled, and that is the decision, not an
+    oversight. The trainer writes it once every 10 000 steps, so a whole run
+    is 14 rows and 1 KB — 136 KB across the 33 files of the 2026-08-04 report
+    — and the curve stride would cut those 14 points to one. The downsampler
+    calls that THIN; the collector avoids it by copying."""
+    res, dst = collect(tmp_path)
+    assert res.returncode == 0, res.stdout + res.stderr
+
+    runs = tmp_path / "wt" / "experiments" / "2026-08-01_lalign_teacher" / "runs"
+    src = runs / f"{RUN_NAME}_latent_drift.csv"
+    out = dst / "latent_drift" / f"{RUN_NAME}_latent_drift.csv"
+    assert out.read_bytes() == src.read_bytes()

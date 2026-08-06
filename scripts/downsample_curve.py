@@ -18,8 +18,15 @@ All rows of a kept step are kept. One amplitude step is nine rows, one per
 layer and block, and a step that arrives with some of them reads as a layer
 that stopped being logged.
 
-The last step is always kept, so the end of a wave is never cut off. The write
-is atomic (.tmp then rename), so a reader never sees a half file.
+The HIGHEST step is always kept, so the end of a wave is never cut off. That
+is what "last" means here, and it is not the same as the last row or the last
+step to first appear: a resume re-logs earlier steps, so the three agree only
+while the steps increase. Two committed amplitude files already carry the
+re-log. Row order is the source's, so the last row of the output is whichever
+kept step came last in the file — the guarantee is about the highest step
+being present, not about which row ends the file.
+
+The write is atomic (.tmp then rename), so a reader never sees a half file.
 
 A run worth a second look prints a block on stderr: NO-OP when the stride
 removed no step it could have removed, BARELY REDUCED when nearly every row
@@ -36,7 +43,8 @@ import sys
 DENSE_UNTIL = 500     # keep every distinct step below this
 STRIDE = 200          # then every 200th distinct step
 BARELY = 0.90         # kept-row fraction that counts as barely reduced
-MIN_POINTS = 10       # fewer kept steps than this is not a curve
+MIN_POINTS = 10       # fewer kept steps than this is not a curve, at any
+                      # source length: latent drift is 14 points for a run
 
 
 def step_column(header: list[str]) -> int:
@@ -66,21 +74,30 @@ def distinct_in_order(steps: list[int]) -> list[int]:
     return list(dict.fromkeys(steps))
 
 
+def final_step(distinct: list[int]) -> int | None:
+    """The step the guarantee protects: the highest one in the file, which is
+    how far the wave got. Not `distinct[-1]`, which is the last step to first
+    appear and drops below the highest as soon as a resume re-logs."""
+    return max(distinct) if distinct else None
+
+
 def kept_steps(distinct: list[int], dense_until: int, stride: int) -> set[int]:
     """Every distinct step below `dense_until`, then every `stride`-th of
-    them, counted from the first row of the file. The last step is always
+    them, counted from the first row of the file. The highest step is always
     kept."""
     keep = {step for rank, step in enumerate(distinct, 1)
             if step < dense_until or rank % stride == 0}
-    if distinct:
-        keep.add(distinct[-1])
+    last = final_step(distinct)
+    if last is not None:
+        keep.add(last)
     return keep
 
 
 def strideable(distinct: list[int], dense_until: int) -> list[int]:
     """The steps the stride could remove: at or above the dense window, and
-    not the final step, which is kept whatever the stride is."""
-    return [s for s in distinct[:-1] if s >= dense_until]
+    not the highest step, which is kept whatever the stride is."""
+    last = final_step(distinct)
+    return [s for s in distinct if s >= dense_until and s != last]
 
 
 def infer_cadence(distinct: list[int]) -> int:
@@ -137,7 +154,10 @@ def loudness(candidates: list[int], keep: set[int], distinct: list[int],
 
     THIN is the other side of NO-OP: a stride counted in distinct steps can
     cut a coarsely logged source down to three points as quietly as the old
-    value rule kept all of it.
+    value rule kept all of it. It fires whenever a source that HAD a curve
+    comes out without one. The only source it stays quiet on is one that
+    never had `MIN_POINTS` steps to begin with, because no stride can be
+    blamed for that.
     """
     if not candidates:
         return ""    # nothing above the dense window; there was nothing to cut
@@ -145,7 +165,7 @@ def loudness(candidates: list[int], keep: set[int], distinct: list[int],
         return "NO-OP"
     if rows_out >= BARELY * rows_in:
         return "BARELY REDUCED"
-    if len(keep) < MIN_POINTS <= len(distinct) / 4:
+    if len(keep) < MIN_POINTS <= len(distinct):
         return "THIN"
     return ""
 
