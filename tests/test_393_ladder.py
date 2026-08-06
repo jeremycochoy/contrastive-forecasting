@@ -490,9 +490,17 @@ class TestEvalStop:
 
     def test_the_protocol_constants(self):
         body = self.body()
-        for literal in ("--seed 20260722", "--forecast-len 16",
+        for literal in ("--forecast-len 16",
                         "--strategy B4", "--grad-clip 1.0"):
             assert literal in body, literal
+
+    def test_the_head_seed_defaults_to_the_protocol_seed(self):
+        """The card fixes one head seed, 20260722. HEAD_SEED exists only so a
+        replicate can file itself in its own subtree; the default a plain run
+        gets must stay the protocol seed."""
+        body = self.body()
+        assert "HEAD_SEED_DEFAULT=20260722" in body
+        assert '--seed "$HEAD_SEED"' in body
 
     def test_every_flag_is_one_of_the_two_scripts_accepts(self):
         known = argparse_flags(HEAD_TRAIN_PY) | argparse_flags(EVAL_PY)
