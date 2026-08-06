@@ -240,14 +240,53 @@ filenames. **Verify the first tick by `ls`, not by reading the log.**
 | `scripts/confirm_row_count.py` | reads the dataset manifest, derives the cap |
 | `scripts/alpha_schedule.py` | the α-vs-step record and its plot |
 | `scripts/smoke_e2e.sh` | CPU end-to-end check: ramp, resumed leg, both encoders |
+| `scripts/seed_replicates.sh` | the bb100k heads again at two more seeds, for the six sub-noise cells |
+| `scripts/deploy_seed_box.sh` | one rented box, bootstrapped and given its cell |
+| `scripts/seed_spread.py` | mean, sd and branch survival across the three seeds |
+| `scripts/verify_align_target_port.sh` | the four teacher cells run #392's objective, checked by diff |
 | `sync/sync_loop.sh` | 15-min pull of every artefact from a remote host |
-| `results/ladder.csv` | GM-Relative MASE per cell, per stop, per head |
-| `results/decisions.csv` | which branch of the extend rule fired, per stop |
+
+### Which file is the experiment
+
+Eight machines each ran their own `ladder.py`, and each kept its own
+`results/ladder.csv` and `results/decisions.csv` holding **only the cells
+that machine was given** — 37 of the 40 rows on elisa, 36 of the decision
+log's. Those two are gitignored: a subset under a shorter name, at the same
+level as the pooled file, reads like the experiment and is not. What is
+committed:
+
+| path | what |
+|---|---|
+| `results/ladder_all.csv` | **the results table.** 40 rows: ten cells × two stops × two heads |
+| `results/stop_reason.csv` | **the decision table.** One row per cell: the branch, and what actually ended it |
+| `results/seed_spread.csv` | the three-seed spread per cell per head, and whether each branch survives it |
+| `results/decisions_all.csv` | the pooled decision *log*, several rows per stop, each marked `rule` / `park` / `stale` |
+| `results/per_machine/*.csv` | what each machine contributed, verbatim |
+| `results/audit_scores_all.txt` | every published row traced to the GIFT-Eval summary that produced it |
+| `results/align_target_port.txt` | the teacher-align port, diffed against PR #392 |
+| `results/parent_seed_spread.csv` | where the imported 0.0908 noise figure comes from |
+
+## The teacher-align port
+
+The four `alignT` cells need `--align-target teacher` while the main
+contrastive loss is on. That combination is rejected on `experiments`; the
+capability sits in open PR #392, and #390's teacher runs — the parent this
+card compares against — were trained on it. All four cells died at step 0
+until the minimal piece was ported here in `adde0cc`.
+
+If the port differs from #392 anywhere that touches the objective, the four
+teacher cells are not comparable with the parent and the head-to-head this
+card exists to make is not one. So it is checked by diff rather than by
+reading: [`scripts/verify_align_target_port.sh`](scripts/verify_align_target_port.sh)
+asserts `src/loss.py` is byte-identical to #392's and that every `train.py`
+line naming `align_target` matches, and writes
+[`results/align_target_port.txt`](results/align_target_port.txt). It is
+re-runnable, so the claim can be checked again rather than believed.
 
 ## Protocol constants
 
 Unchanged from the 2026-08-04 protocol: 97 GIFT-Eval configs, official B4
-strategy, forecast horizon 16, one head seed (20260722), backbone
+strategy, forecast horizon 16, protocol head seed 20260722, backbone
 `d_model=64, n_heads=8, num_encoder_layers=3, num_layers=3, batch_size=64,
 seed=20260520`, dataset `gift-pretrain-full-4096 / small_v1`.
 
@@ -259,9 +298,23 @@ report says so.
 
 - The head budget changes at bb100k, 15k → 30k. Any statement across that
   boundary moves two things at once.
-- One head seed per cell. The 2026-08-04 report measured head-seed ranges
-  up to 0.0908, so the extend rule will sometimes fire on noise. Report
-  the raw per-stop changes.
+- The extend rule is a strict `<` on a difference whose noise it does not
+  know. The imported bound is **0.0908**, the largest head-seed range in the
+  #390 parent report — `arm5_nse`, backbone 200k, teacher, values 1.7979 /
+  1.8655 / 1.8887 across seeds 20260722 / 20260723 / 20260724. That row and
+  the seven beside it are copied verbatim into
+  [`results/parent_seed_spread.csv`](results/parent_seed_spread.csv) with
+  the commit they came from, so the number is not a figure in a comment.
+  Six of the ten cells moved less than it on **both** heads, so the run
+  measures its own spread rather than borrowing that one: the bb100k heads
+  are retrained at seeds 20260723 and 20260724 (the parent's two extra
+  seeds), giving three seeds per cell per head. See
+  [`scripts/seed_replicates.sh`](scripts/seed_replicates.sh) and
+  [`results/seed_boxes.txt`](results/seed_boxes.txt). Every other head
+  setting is held: same bb100k backbone, 30,000 steps, same encoder
+  pairing, same 97 configs, same denominator. A cell's replicates run on
+  the same GPU model its first seed did, so the spread measures the seed
+  and not the hardware.
 
 - `arm4_combab` carries `--tau 1.0` in its loss flags and does not run at
   τ=1.0. The shared `--tau 0.10` is passed after the per-cell flags and

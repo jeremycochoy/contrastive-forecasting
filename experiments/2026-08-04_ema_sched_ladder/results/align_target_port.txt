@@ -1,0 +1,28 @@
+#393 — the --align-target teacher port, against PR #392
+
+ran            2026-08-06T00:18:31Z
+this branch    a0934043cadea9ed68b44c5787ede2d99f9f6488  feature/contrastive-forecasting-393
+reference      3214dcf15a8d3c481492cade8e05118ec35af412  (PR #392 head, branch feature/contrastive-forecasting-390)
+port commit    adde0cc 2026-08-05 01:36:16 +0100 train: L_align targets the teacher inside the main contrastive loss
+
+1. src/loss.py, whole file
+   IDENTICAL — 2653 lines, sha256 5a02372dc0c0341326cb34ba350ee71e45a73e64d093581fd0920479eb7fc0a2
+
+2. train.py, every line naming align_target / align_ref / --align-target
+   IDENTICAL — 12 line(s):
+         p.add_argument("--align-target", choices=("student", "teacher"),
+         # feeds the auxiliary terms (--align-target teacher, #388) and any shape
+         if args.align_target == "teacher":
+                     "--align-target teacher needs an EMA teacher; pass "
+                     "--align-target teacher picks the target of L_align, but "
+         LOSS_SPEC.train_configuration["align_target"] = args.align_target
+                         # #388: --align-target teacher swaps the target for the
+                         if args.align_target == "teacher" and teacher_o_lat is None:
+                                 "--align-target teacher but no teacher latents "
+                         align_target = (teacher_o_lat
+                                         if args.align_target == "teacher" else None)
+                                                  target_latent=align_target)
+
+VERDICT: the objective this card trained is the objective #390 trained.
+The four alignT cells are comparable with the parent report, and the six
+student cells resolve to the expression they resolved to before the port.
