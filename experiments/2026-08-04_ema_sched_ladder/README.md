@@ -31,29 +31,45 @@ a budget-relative ramp would put each of them on a different α curve.
 
 At bb40k the teacher is still moving. Record the number anyway.
 
-## The ten cells
+## The ten runs
 
 `arm` is the #379 recipe
 ([`run_arm.sh`](../2026-07-21_split_pred_rep_small/scripts/run_arm.sh));
 `align` is L_align's target. The `arm6_v2 combab` pair runs first: that
 cell leads both parent reports, and the pair gives the head-to-head first.
 
-| # | cell | arm | align target |
-|---|---|---|---|
-| 1 | `arm6_v2_combab_alignS` | `arm6_v2_combab` | student |
-| 2 | `arm6_v2_combab_alignT` | `arm6_v2_combab` | teacher |
-| 3 | `arm5_combab_alignS` | `arm5_combab` | student |
-| 4 | `arm5_combab_alignT` | `arm5_combab` | teacher |
-| 5 | `arm6_v2_ncpc_alignS` | `arm6_v2_ncpc` | student |
-| 6 | `arm6_v2_ncpc_alignT` | `arm6_v2_ncpc` | teacher |
-| 7 | `arm6_v2_nse_alignS` | `arm6_v2_nse` | student |
-| 8 | `arm6_v2_nse_alignT` | `arm6_v2_nse` | teacher |
-| 9 | `arm4_combab` | `arm4_combab` | no `L_align` |
-| 10 | `arm1_nse` | `arm1_nse` | no `L_align` |
+Every cell trains with `--ema-embedding --ema-encoder` and the scheduled α
+(`run_leg.sh`, COMMON block). `L_align` is one of several paths from the
+teacher into the loss; the last column names every path each cell uses.
 
-`arm1_nse` never reads the teacher in its loss. It is the control: the
-schedule should not change it. Its teacher still exists and still updates,
-so it still gets a teacher head.
+| # | cell | arm | align target | teacher enters the loss through |
+|---|---|---|---|---|
+| 1 | `arm6_v2_combab_alignS` | `arm6_v2_combab` | student | `L_rep` keys and positive (`--moco-rep-keys`) |
+| 2 | `arm6_v2_combab_alignT` | `arm6_v2_combab` | teacher | `L_rep` keys and positive, `L_align` target |
+| 3 | `arm5_combab_alignS` | `arm5_combab` | student | nothing |
+| 4 | `arm5_combab_alignT` | `arm5_combab` | teacher | `L_align` target |
+| 5 | `arm6_v2_ncpc_alignS` | `arm6_v2_ncpc` | student | `L_rep` keys and positive (`--moco-rep-keys`) |
+| 6 | `arm6_v2_ncpc_alignT` | `arm6_v2_ncpc` | teacher | `L_rep` keys and positive, `L_align` target |
+| 7 | `arm6_v2_nse_alignS` | `arm6_v2_nse` | student | `L_rep` keys and positive (`--moco-rep-keys`) |
+| 8 | `arm6_v2_nse_alignT` | `arm6_v2_nse` | teacher | `L_rep` keys and positive, `L_align` target |
+| 9 | `arm4_combab` | `arm4_combab` | no `L_align` | `L_pred` positive and cross-batch negatives (`--moco-negatives`) |
+| 10 | `arm1_nse` | `arm1_nse` | no `L_align` | `L_pred` and `L_rep` positive |
+
+Where the last column comes from, in `src/loss.py`. The loss shapes in
+`_SG_POS_SHAPES` replace the student positive with the teacher latent
+whenever one is supplied (`if hy_teacher_norm is not None: hy_pos =
+hy_teacher_norm`), and `train.py` supplies it whenever the EMA teacher is
+on. `arm1_nse` runs `cosine_similarity_batch_split_pred_rep`, which is in
+that tuple, so both of its terms target the teacher latent. `arm4_combab`
+runs `cosine_similarity_batch_full_hh_negs_xshh_allt` with
+`--moco-negatives`, which routes the cross-batch negatives through the
+teacher as well. The six `--moco-rep-keys` cells take the `L_rep` keys and
+positive from the teacher. `arm5_combab` runs the same `rep_only` shape
+without `--moco-rep-keys`, whose branch reads no teacher latent, so its
+only path is `L_align` — and `arm5_combab_alignS` aligns to the student,
+which leaves it with no path at all.
+
+Every cell has a teacher and gets a teacher head, including cell 3.
 
 Every cell starts fresh at step 0, once. No cell resumes a #379 or #388
 checkpoint: α matches those runs at step 0 only, and rises from step 1, so
@@ -307,6 +323,63 @@ seed=20260520`, dataset `gift-pretrain-full-4096 / small_v1`.
 The head keeps `--grad-clip 1.0`. The project rule bans grad clipping; the
 previous study kept it for comparability, so this one does too, and the
 report says so.
+
+## The extend rule, audited
+
+Source: [`results/per_stop_changes.csv`](results/per_stop_changes.csv). Each
+row is the change one head made from its previous stop, which is the only
+quantity the rule compares. Negative is down. Bold marks a change smaller
+than 0.0384, the pooled head-seed band.
+
+| Run | `L_align` target | head | transition | from | to | change | rule read | branch |
+|---|---|---|---|---|---|---|---|---|
+| `arm1 nse` | none | student | 40k→100k | 1.4347 | 1.5227 | +0.0880 | not down | `none_down` |
+| `arm1 nse` | none | teacher | 40k→100k | 1.4512 | 1.5604 | +0.1092 | not down | `none_down` |
+| `arm4 combab` | none | student | 40k→100k | 1.2503 | 1.3479 | +0.0976 | not down | `none_down` |
+| `arm4 combab` | none | teacher | 40k→100k | 1.2870 | 1.3188 | **+0.0318** | not down | `none_down` |
+| `arm5 combab` | student | student | 40k→100k | 1.2596 | 1.2102 | −0.0494 | down | `one_down` |
+| `arm5 combab` | student | teacher | 40k→100k | 1.2347 | 1.2407 | **+0.0060** | not down | `one_down` |
+| `arm5 combab` | student | student | 100k→200k | 1.2102 | 1.1910 | **−0.0192** | down | `one_down` |
+| `arm5 combab` | teacher | student | 40k→100k | 1.3334 | 1.2797 | −0.0537 | down | `both_down` |
+| `arm5 combab` | teacher | teacher | 40k→100k | 1.3190 | 1.2772 | −0.0418 | down | `both_down` |
+| `arm5 combab` | teacher | student | 100k→200k | 1.2797 | 1.4141 | +0.1344 | not down | `none_down` |
+| `arm5 combab` | teacher | teacher | 100k→200k | 1.2772 | 1.4207 | +0.1435 | not down | `none_down` |
+| `arm6_v2 combab` | student | student | 40k→100k | 1.1603 | 1.1945 | **+0.0342** | not down | `none_down` |
+| `arm6_v2 combab` | student | teacher | 40k→100k | 1.1544 | 1.1837 | **+0.0293** | not down | `none_down` |
+| `arm6_v2 combab` | teacher | student | 40k→100k | 1.1895 | 1.1921 | **+0.0026** | not down | `none_down` |
+| `arm6_v2 combab` | teacher | teacher | 40k→100k | 1.1793 | 1.1963 | **+0.0170** | not down | `none_down` |
+| `arm6_v2 ncpc` | student | student | 40k→100k | 1.3611 | 1.4951 | +0.1340 | not down | `none_down` |
+| `arm6_v2 ncpc` | student | teacher | 40k→100k | 1.3656 | 1.5007 | +0.1351 | not down | `none_down` |
+| `arm6_v2 ncpc` | teacher | student | 40k→100k | 1.2955 | 1.3904 | +0.0949 | not down | `none_down` |
+| `arm6_v2 ncpc` | teacher | teacher | 40k→100k | 1.3266 | 1.3646 | **+0.0380** | not down | `none_down` |
+| `arm6_v2 nse` | student | student | 40k→100k | 1.2690 | 1.3572 | +0.0882 | not down | `none_down` |
+| `arm6_v2 nse` | student | teacher | 40k→100k | 1.2917 | 1.3770 | +0.0853 | not down | `none_down` |
+| `arm6_v2 nse` | teacher | student | 40k→100k | 1.4238 | 1.3913 | **−0.0325** | down | `both_down` |
+| `arm6_v2 nse` | teacher | teacher | 40k→100k | 1.4177 | 1.3746 | −0.0431 | down | `both_down` |
+| `arm6_v2 nse` | teacher | student | 100k→200k | 1.3913 | 1.3586 | **−0.0327** | down | `both_down` |
+| `arm6_v2 nse` | teacher | teacher | 100k→200k | 1.3746 | 1.3459 | **−0.0287** | down | `both_down` |
+
+Eleven of 25 changes are inside that band, including every 100k→200k change
+except `arm5 combab, L_align on teacher`'s. Two stops rest entirely on
+changes inside it: `arm6_v2 combab, L_align on teacher` at 100k, whose
+`none_down` ended the run on +0.0026 and +0.0170, and `arm5 combab, L_align
+on student` at 200k, whose `one_down` rests on −0.0192.
+
+`arm5 combab, L_align on teacher`'s +0.1344 and +0.1435 at bb200k are at
+least four times every other 100k→200k change, which all sit between −0.0327
+and −0.0192. Its 100k→200k leg trained clean:
+`results/run_cf393_arm5_combab_alignT.log` records no NaN and `ema_loss`
+falling from 13.1111 at step 100k to 13.0581 at step 200k.
+
+Two files record whether a branch survives a change of head seed, and they
+answer different questions. `results/seed_branches.csv` holds the bb40k end
+fixed at the ladder seed 20260722 and varies only bb100k;
+`results/paired_branches.csv` moves both ends to the same seed. The report
+uses the paired file. Both mark `arm6_v2 combab, L_align on teacher` as the
+one run whose branch flips, and only its destination differs: `one_down`
+under the unpaired comparison, `both_down` at seed 20260723 and `one_down`
+at seed 20260724 under the paired one. The other five replicated runs keep
+their recorded branch in both files.
 
 ## Caveats for the report
 

@@ -92,18 +92,13 @@ def pairs(sched: dict, fixed: dict) -> list[dict]:
     return rows
 
 
-# `arm1 nse` never reads the teacher in its loss, so the schedule cannot
-# reach its backbone. Its bar measures retraining alone.
-CONTROL = "arm1 nse"
-
 # α at each stop under the schedule; the parent runs hold 0.9 at every stop.
 ALPHA = {40000: 0.94, 100000: 1.00, 200000: 1.00}
 
 
 def label(row: dict) -> str:
     a = row["align_target"]
-    name = row["cell"] if a == "n/a" else f"{row['cell']}  (align {a})"
-    return f"{name}  [control]" if row["cell"] == CONTROL else name
+    return row["cell"] if a == "n/a" else f"{row['cell']}  (align {a})"
 
 
 def draw(rows: list[dict], out: str, band: float) -> None:
@@ -121,17 +116,13 @@ def draw(rows: list[dict], out: str, band: float) -> None:
         ax.axvline(0, color="0.3", lw=1, zorder=1)
         ax.barh(list(ys), vals, height=0.62, zorder=2,
                 color=[BETTER if v < 0 else WORSE for v in vals],
-                hatch=["//" if r["cell"] == CONTROL else "" for r in sub],
                 edgecolor="white", linewidth=0)
         ax.set_yticks(list(ys))
         ax.set_yticklabels([label(r) for r in sub], fontsize=8)
         ax.set_xlim(-lim, lim)
         ax.invert_yaxis()
-        lower = sum(1 for v in vals if v < 0)
-        ax.set_title(f"backbone {stop // 1000}k   "
-                     f"(α {ALPHA[stop]:.2f} against 0.90, "
-                     f"{lower}/{len(vals)} lower with the schedule)",
-                     fontsize=9)
+        ax.set_title(f"backbone {stop // 1000}k, "
+                     f"α {ALPHA[stop]:.2f} against 0.90", fontsize=9)
         ax.set_xlabel("GM-Relative MASE, scheduled minus fixed 0.9")
         ax.grid(axis="x", color="0.9", zorder=0)
         for s in ("top", "right"):
