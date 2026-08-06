@@ -15,10 +15,12 @@ A row with two independent summaries -- the cell's own tree and the broker's
 copy on elisa -- is checked against both. They must agree.
 
 A replicate head seed files its artefacts under `bb<N>k_<enc>_s<seed>`
-rather than `bb<N>k_<enc>`, and a ladder-shaped CSV naming a `head_seed`
-column is checked against those directories. The suffix is stripped before
-the encoder is read off the directory name, or every replicate marker would
-be reported as crossed against a head called `s20260723`.
+rather than `bb<N>k_<enc>`, and a rerun that changed something else — the
+GPU control — adds a further `_<tag>`. A ladder-shaped CSV naming a
+`head_seed` and an optional `head_tag` column is checked against those
+directories. The encoder is read as the second field of the directory name
+rather than the last, or every suffixed marker would be reported as crossed
+against a head called `s20260723` or `hw4090`.
 
 Usage: python3 audit_scores.py [--results results] [--ladder FILE]
                                [--expect-configs 97]
@@ -39,7 +41,6 @@ AGG = re.compile(r"Aggregate GM-Relative MASE \((\d+) configs\): ([0-9.]+)")
 # The protocol head seed. Only a replicate carries a suffix, so the
 # seed-20260722 paths are exactly what they were before replicates existed.
 PROTOCOL_SEED = "20260722"
-SEED_SUFFIX = re.compile(r"_s\d+$")
 
 
 def summaries(eval_root):
@@ -76,12 +77,15 @@ def markers(eval_root):
             if not fn.endswith("_encoder_source.txt"):
                 continue
             p = os.path.join(dirpath, fn)
-            # bb100k_teacher_s20260723 -> teacher. Without the strip the
-            # encoder reads as `s20260723` and every replicate marker is
-            # reported crossed.
-            stop_head = SEED_SUFFIX.sub("", os.path.basename(dirpath))
+            # The directory is bb<N>k_<enc>[_s<seed>][_<tag>], so the encoder
+            # is the SECOND field, read from the front. Reading the last
+            # field instead made every replicate marker look crossed against
+            # a head called `s20260723`, and would do the same to the GPU
+            # control's `hw4090`.
+            parts = os.path.basename(dirpath).split("_")
             with open(p) as fh:
-                out.append((p, stop_head.split("_")[-1], fh.read().strip()))
+                out.append((p, parts[1] if len(parts) > 1 else "",
+                            fh.read().strip()))
     return out
 
 
@@ -111,6 +115,13 @@ def main():
             published = float(row["gm_rel_mase"])
             seed = (row.get("head_seed") or PROTOCOL_SEED).strip()
             sfx = "" if seed == PROTOCOL_SEED else f"_s{seed}"
+            # `head_tag` is how a rerun that changed something other than the
+            # seed names its subtree — the GPU control is seed 20260722 on
+            # the other card, so it carries no seed suffix and would collide
+            # with the original row without this.
+            tag = (row.get("head_tag") or "").strip()
+            if tag:
+                sfx += f"_{tag}"
             key = (cell, f"bb{stop // 1000}k_{head}{sfx}")
             hits = found.get(key, [])
             if not hits:
@@ -129,8 +140,8 @@ def main():
                         f"MISMATCH  {cell} {stop} {head}: published {published}, "
                         f"summary {value} ({path})"
                     )
-            print(f"  ok  {cell:<24} {stop:>7} {head:<8} s{seed} "
-                  f"{published:.4f}  "
+            print(f"  ok  {cell:<24} {stop:>7} {head:<8} s{seed}"
+                  f"{'/' + tag if tag else '':<8} {published:.4f}  "
                   f"({len(hits)} {'summaries' if len(hits) != 1 else 'summary'})")
 
     print()

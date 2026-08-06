@@ -1,0 +1,35 @@
+[paired] 0/16 bb40k replicate score(s) on disk under /home/jupyter/checkpoints_backup/cf-393
+  arm6_v2_combab_alignS student  d=[+0.034200         -         -]  mean +0.034200  se_pair        -  t       -  down 0/1  measured at 1/3 seeds — no claim yet
+  arm6_v2_combab_alignS teacher  d=[+0.029300         -         -]  mean +0.029300  se_pair        -  t       -  down 0/1  measured at 1/3 seeds — no claim yet
+  arm6_v2_combab_alignT student  d=[+0.002600         -         -]  mean +0.002600  se_pair        -  t       -  down 0/1  measured at 1/3 seeds — no claim yet
+  arm6_v2_combab_alignT teacher  d=[+0.017000         -         -]  mean +0.017000  se_pair        -  t       -  down 0/1  measured at 1/3 seeds — no claim yet
+  arm5_combab_alignS    student  d=[-0.049400         -         -]  mean -0.049400  se_pair        -  t       -  down 1/1  measured at 1/3 seeds — no claim yet
+  arm5_combab_alignS    teacher  d=[+0.006000         -         -]  mean +0.006000  se_pair        -  t       -  down 0/1  measured at 1/3 seeds — no claim yet
+  arm5_combab_alignT    student  d=[-0.053700         -         -]  mean -0.053700  se_pair        -  t       -  down 1/1  measured at 1/3 seeds — no claim yet
+  arm5_combab_alignT    teacher  d=[-0.041800         -         -]  mean -0.041800  se_pair        -  t       -  down 1/1  measured at 1/3 seeds — no claim yet
+  arm6_v2_nse_alignT    student  d=[-0.032500         -         -]  mean -0.032500  se_pair        -  t       -  down 1/1  measured at 1/3 seeds — no claim yet
+  arm6_v2_nse_alignT    teacher  d=[-0.043100         -         -]  mean -0.043100  se_pair        -  t       -  down 1/1  measured at 1/3 seeds — no claim yet
+  arm6_v2_nse_alignS    student  d=[+0.088200         -         -]  mean +0.088200  se_pair        -  t       -  down 0/1  measured at 1/3 seeds — no claim yet
+  arm6_v2_nse_alignS    teacher  d=[+0.085300         -         -]  mean +0.085300  se_pair        -  t       -  down 0/1  measured at 1/3 seeds — no claim yet
+  arm4_combab           student  d=[+0.097600         -         -]  mean +0.097600  se_pair        -  t       -  down 0/1  measured at 1/3 seeds — no claim yet
+  arm4_combab           teacher  d=[+0.031800         -         -]  mean +0.031800  se_pair        -  t       -  down 0/1  measured at 1/3 seeds — no claim yet
+  arm6_v2_ncpc_alignT   student  d=[+0.094900         -         -]  mean +0.094900  se_pair        -  t       -  down 0/1  measured at 1/3 seeds — no claim yet
+  arm6_v2_ncpc_alignT   teacher  d=[+0.038000         -         -]  mean +0.038000  se_pair        -  t       -  down 0/1  measured at 1/3 seeds — no claim yet
+
+  [hw] arm5_combab_alignS    student  5090 1.259600  4090        -  offset         -
+  [hw] arm5_combab_alignS    teacher  5090 1.234700  4090        -  offset         -
+  [hw] arm5_combab_alignT    student  5090 1.333400  4090        -  offset         -
+  [hw] arm5_combab_alignT    teacher  5090 1.319000  4090        -  offset         -
+  [hw] arm6_v2_nse_alignT    student  5090 1.423800  4090        -  offset         -
+  [hw] arm6_v2_nse_alignT    teacher  5090 1.417700  4090        -  offset         -
+
+  arm6_v2_combab_alignS recorded none_down      paired [none_down, -, -]  1/3 seeds paired — no claim yet
+  arm6_v2_combab_alignT recorded none_down      paired [none_down, -, -]  1/3 seeds paired — no claim yet
+  arm5_combab_alignS    recorded one_down       paired [one_down, -, -]  1/3 seeds paired — no claim yet
+  arm5_combab_alignT    recorded both_down      paired [both_down, -, -]  1/3 seeds paired — no claim yet
+  arm6_v2_nse_alignT    recorded both_down      paired [both_down, -, -]  1/3 seeds paired — no claim yet
+  arm6_v2_nse_alignS    recorded none_down      paired [none_down, -, -]  1/3 seeds paired — no claim yet
+  arm4_combab           recorded none_down      paired [none_down, -, -]  1/3 seeds paired — no claim yet
+  arm6_v2_ncpc_alignT   recorded none_down      paired [none_down, -, -]  1/3 seeds paired — no claim yet
+
+  -> paired_delta.csv, paired_branches.csv, hw_control.csv

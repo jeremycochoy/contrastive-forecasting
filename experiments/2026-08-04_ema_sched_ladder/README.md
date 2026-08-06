@@ -241,8 +241,12 @@ filenames. **Verify the first tick by `ls`, not by reading the log.**
 | `scripts/alpha_schedule.py` | the α-vs-step record and its plot |
 | `scripts/smoke_e2e.sh` | CPU end-to-end check: ramp, resumed leg, both encoders |
 | `scripts/seed_replicates.sh` | the bb100k heads again at two more seeds, for the six sub-noise cells |
+| `scripts/seed_replicates_bb40k.sh` | the same for the bb40k end, plus the GPU control and the two late cells |
+| `scripts/bb40k_supervisor.sh` | keeps that pool fed across passes until every tier is scored |
 | `scripts/deploy_seed_box.sh` | one rented box, bootstrapped and given its cell |
 | `scripts/seed_spread.py` | mean, sd and branch survival across the three seeds |
+| `scripts/paired_delta.py` | the delta with a standard error from **both** of its ends |
+| `scripts/plot_paired_delta.py` | that delta as a forest plot, next to the denominator it replaces |
 | `scripts/verify_align_target_port.sh` | the four teacher cells run #392's objective, checked by diff |
 | `sync/sync_loop.sh` | 15-min pull of every artefact from a remote host |
 
@@ -259,7 +263,11 @@ committed:
 |---|---|
 | `results/ladder_all.csv` | **the results table.** 40 rows: ten cells × two stops × two heads |
 | `results/stop_reason.csv` | **the decision table.** One row per cell: the branch, and what actually ended it |
-| `results/seed_spread.csv` | the three-seed spread per cell per head, and whether each branch survives it |
+| `results/seed_spread.csv` | the three-seed spread of the **bb100k** end, per cell per head |
+| `results/paired_delta.csv` | **the uncertainty table.** One row per (cell, head): three paired deltas, their mean, SE, t and sign count |
+| `results/paired_branches.csv` | the branch re-derived at each seed with both ends at that seed |
+| `results/hw_control.csv` | the measured 4090-minus-5090 term, one fixed seed, same checkpoint |
+| `results/audit_scores_paired.txt` | the bb40k replicates and the control, each traced to its summary |
 | `results/decisions_all.csv` | the pooled decision *log*, several rows per stop, each marked `rule` / `park` / `stale` |
 | `results/per_machine/*.csv` | what each machine contributed, verbatim |
 | `results/audit_scores_all.txt` | every published row traced to the GIFT-Eval summary that produced it |
@@ -315,6 +323,39 @@ report says so.
   pairing, same 97 configs, same denominator. A cell's replicates run on
   the same GPU model its first seed did, so the spread measures the seed
   and not the hardware.
+
+- **Never divide a paired delta by the spread of one of its ends.** The
+  quantity the extend rule reads is `bb100k − bb40k`. Replicating the
+  bb100k end bounds that end only, and the two ends do not even measure the
+  same thing: every bb40k row is a 15,000-step head and every bb100k row is
+  30,000. The parent's own 15k-step bb40k heads reach sd 0.0380, which is
+  2× to 20× the in-study bb100k sds, so a σ taken against the bb100k spread
+  is a property of an unmeasured quantity rather than of the data. The
+  bb40k heads are therefore retrained at the same two seeds and the same
+  15,000-step budget — [`scripts/seed_replicates_bb40k.sh`](scripts/seed_replicates_bb40k.sh) —
+  and every delta is stated per seed, `bb100k(s) − bb40k(s)`, with the SE
+  taken from the spread of those three paired deltas
+  ([`scripts/paired_delta.py`](scripts/paired_delta.py)). Either both ends
+  carry a measured spread, or the report states the delta with no
+  significance claim.
+
+- The rule is a **sign test**, not a t-test: `ladder_decision` asks only
+  whether each head fell. So `n_down`, the number of seeds at which a head
+  went down with both ends at the same seed, is reported next to every t. A
+  head at 3/3 or 0/3 has a reproducible direction whatever the t says; one
+  at 1/3 or 2/3 does not, and the branch it produced was decided by the
+  head seed.
+
+- Vast was empty when the bb40k end was replicated, so the three cells that
+  trained every head of theirs on a rented RTX 5090 got their new bb40k
+  heads on elisa's RTX 4090. That is a hardware difference inside a paired
+  delta, so it is measured rather than assumed: seed 20260722's bb40k head
+  was retrained on the 4090 too (`HEAD_TAG=hw4090`), giving
+  `hw_offset = 4090(s22) − 5090(s22)` at a fixed seed and a fixed
+  checkpoint, and the 4090 bb40k values are shifted by it before being
+  paired. See [`results/hw_control.csv`](results/hw_control.csv).
+  `arm4_combab` and `arm6_v2_ncpc_alignT` need no correction: both ends of
+  each of their replicate deltas ran on elisa.
 
 - `arm4_combab` carries `--tau 1.0` in its loss flags and does not run at
   τ=1.0. The shared `--tau 0.10` is passed after the per-cell flags and

@@ -187,6 +187,14 @@ python3 "$EXP/scripts/stop_reason.py" \
 python3 "$EXP/scripts/seed_spread.py" --runs "$ELISA_RUNS" \
         --results "$RES" 2>&1 | tail -8 | sed 's/^/  /'
 
+# --- the same difference, with BOTH of its ends replicated ---------------
+# seed_spread.py measures the bb100k end. Dividing the delta by that alone
+# is the error this pass exists to fix, so paired_delta.py is rebuilt on the
+# same tick: it reads the bb40k replicates and the GPU control as they land
+# and re-derives every branch with both ends at one seed.
+python3 "$EXP/scripts/paired_delta.py" --runs "$ELISA_RUNS" \
+        --results "$RES" 2>&1 | tail -12 | sed 's/^/  /'
+
 # --- every published row traced to its evidence --------------------------
 # Was run by hand over the 20 bb40k rows only (audit_scores_bb40k.txt), which
 # left the 20 bb100k rows — the ones every extend-rule decision was made from
@@ -213,6 +221,19 @@ if [ "$(wc -l < "$RES/seed_spread_rows.csv" 2>/dev/null || echo 0)" -gt 1 ]; the
   tail -1 "$RES/audit_scores_seeds.txt" | sed 's/^/  audit-seeds: /'
 fi
 
+# --- and for the bb40k replicates and the GPU control --------------------
+if [ "$(wc -l < "$RES/paired_rows.csv" 2>/dev/null || echo 0)" -gt 1 ]; then
+  { echo "# Every bb40k replicate, GPU-control and late-cell bb100k row"
+    echo "# traced to its GIFT-Eval summary. Disjoint from"
+    echo "# audit_scores_seeds.txt, which covers the six cells' bb100k."
+    echo "# $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+    echo
+    python3 "$EXP/scripts/audit_scores.py" --results "$RES" \
+            --ladder "$RES/paired_rows.csv"
+  } > "$RES/audit_scores_paired.txt" 2>&1
+  tail -1 "$RES/audit_scores_paired.txt" | sed 's/^/  audit-paired: /'
+fi
+
 # --- the result, as a picture --------------------------------------------
 # Redrawn every cycle from the pooled table, so the committed plot never
 # shows fewer stops than the CSV beside it.
@@ -221,5 +242,9 @@ python3 "$EXP/scripts/plot_ladder.py" --ladder "$RES/ladder_all.csv" \
   | grep -vE 'UserWarning|warnings\.warn|Axes3D' | sed 's/^/  /'
 python3 "$EXP/scripts/plot_seed_spread.py" --spread "$RES/seed_spread.csv" \
         --out "$EXP/plots/seed_spread.png" 2>&1 \
+  | grep -vE 'UserWarning|warnings\.warn|Axes3D' | sed 's/^/  /'
+python3 "$EXP/scripts/plot_paired_delta.py" --paired "$RES/paired_delta.csv" \
+        --spread "$RES/seed_spread.csv" \
+        --out "$EXP/plots/paired_delta.png" 2>&1 \
   | grep -vE 'UserWarning|warnings\.warn|Axes3D' | sed 's/^/  /'
 say "done"

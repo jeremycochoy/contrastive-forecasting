@@ -198,3 +198,48 @@ steps each.
 launching, so an interrupted eval resumes instead of failing forever. Found
 by killing a worker on purpose; the repair was verified on the four
 truncated files it produced.
+
+## 2026-08-06 11:11 — the bb40k end goes back on the GPUs, on elisa
+
+The second experiment review blocked on a denominator: every σ circulated
+for this study divided `bb100k − bb40k` by the spread of the bb100k end
+alone. The bb40k end was one head seed with no replicate, and the two ends
+are not even the same measurement — bb40k heads get 15,000 steps and
+bb100k heads get 30,000.
+
+Vast is empty and both of elisa's 4090s were idle, so the missing end is
+measured here rather than rented. Three tiers, one job list,
+`scripts/seed_replicates_bb40k.sh`:
+
+| tier | jobs | what |
+|---|---|---|
+| t1 | 24 | six cells × two heads × seeds 20260723/24, bb40k, 15,000 steps |
+| hw | 6 | seed 20260722's bb40k head retrained on the 4090 for the three 5090 cells |
+| t2 | 16 | `arm4_combab` and `arm6_v2_ncpc_alignT`, both stops, both heads, both seeds |
+
+`hw` exists because vast being empty is itself a confound. Three cells
+trained every head of theirs on a rented RTX 5090; their new bb40k heads
+are on a 4090, and a spread taken across the three seeds would then be
+seed and hardware together. Retraining the *same* seed on the other card
+turns that into a measured number.
+
+Two mechanisms were needed that the bb100k pass did not need.
+
+`HEAD_TAG` in `eval_stop.sh`. The control is seed 20260722, so it carries
+no seed suffix and would have landed in the directory the 5090 head's
+GIFT-Eval already occupies — where `--resume` finds all 97 configs done
+and re-emits the 5090 score. The tag gives it its own subtree. Default
+empty, so every existing path is unchanged.
+
+`vram_admit` in the driver. `gpu_gate` returns immediately on a
+Default-mode GPU, deliberately, because elisa runs two cells per card. A
+pool of nine would therefore have put nine 5.5 GB heads on two cards at
+once. The gate holds a per-GPU lock, waits for 7 GB free, and releases the
+lock from a background subshell 150 s later so the next admission cannot
+read the same free figure before the new head has allocated. It fired
+within four minutes of the pool widening: `vram-gate waiting on gpu 1:
+2337 MiB free, need 7000`.
+
+Throughput at nine concurrent jobs: 6.3–6.5 steps/s per head against 8.9
+solo, so the two cards carry about 38 steps/s in aggregate. Evals are
+capped at six concurrent × four shards = 24 of elisa's 32 cores.
