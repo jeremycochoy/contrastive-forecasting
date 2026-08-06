@@ -55,3 +55,8 @@
 [ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm6_v2_nse_alignT 200000
 [08-06 00:04:33] [arm6_v2_nse_alignT] RESUME from cf393_arm6_v2_nse_alignT_100k.pth (step 100k)
 [08-06 00:04:33] [arm6_v2_nse_alignT] START target=200000 gpu=1 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-393/arm6_v2_nse_alignT/leg_200k
+[08-06 06:44:15] [arm6_v2_nse_alignT] DONE target=200000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-393/arm6_v2_nse_alignT/leg_200k/cf393_arm6_v2_nse_alignT_200k.pth
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm6_v2_nse_alignT 200000 student 30000 /home/jupyter/checkpoints_backup/cf-393/arm6_v2_nse_alignT/eval/score_bb200k_student.txt
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm6_v2_nse_alignT 200000 teacher 30000 /home/jupyter/checkpoints_backup/cf-393/arm6_v2_nse_alignT/eval/score_bb200k_teacher.txt
+[06:44:15] arm6_v2_nse_alignT bb200k enc=teacher head=30000s seed=20260722
+[06:44:15] arm6_v2_nse_alignT bb200k enc=student head=30000s seed=20260722
