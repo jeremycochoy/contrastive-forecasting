@@ -66,6 +66,24 @@ esac
 SEED_SUFFIX=""
 [ "$HEAD_SEED" != "$HEAD_SEED_DEFAULT" ] && SEED_SUFFIX="_s${HEAD_SEED}"
 
+# HEAD_TAG appends a further suffix to the eval subtree and the head name,
+# for a rerun that changes something other than the seed. It exists for the
+# GPU control: three cells' seed-20260722 bb40k heads were trained on a
+# rented RTX 5090 and their bb40k replicates run on elisa's RTX 4090, so
+# the spread over those three seeds would fold a hardware difference into a
+# seed spread. Retraining seed 20260722 on the 4090 measures that
+# difference directly, and it needs its own directory: the default-seed
+# subtree already holds the 5090 head's GIFT-Eval, and eval_gift_eval's
+# --resume would find all 97 configs done and re-emit the 5090 score.
+# Empty by default, so every existing path is unchanged.
+HEAD_TAG="${HEAD_TAG:-}"
+if [ -n "$HEAD_TAG" ]; then
+  case "$HEAD_TAG" in
+    *[!a-zA-Z0-9_]*) echo "ABORT: HEAD_TAG='$HEAD_TAG' must be [a-zA-Z0-9_]" >&2; exit 2;;
+  esac
+  SEED_SUFFIX="${SEED_SUFFIX}_${HEAD_TAG}"
+fi
+
 # Exported, not just set: eval_local.sh runs as a child and falls back to a
 # hard-coded elisa path when WT is absent from its environment, which on a
 # rented box is a directory that does not exist. It only ever ran on elisa
