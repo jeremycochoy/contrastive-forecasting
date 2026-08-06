@@ -2393,3 +2393,73 @@ scripts/collect_results.sh: line 22: WT: WT must be the absolute path of the che
   [out] /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/plots/seed_spread.png  (12 cell-head rows)
   no complete paired rows yet; nothing to plot
 [08-06 12:46:27] [collect] done
+[08-06 13:16:35] [collect] vastA (ssh2.vast.ai:11448)
+[08-06 13:16:35] [collect]   no vastA/ladder yet
+[08-06 13:16:35] [collect]   no vastA/decisions yet
+[08-06 13:16:36] [collect] vastB (ssh4.vast.ai:13146)
+[08-06 13:16:36] [collect]   no vastB/ladder yet
+[08-06 13:16:36] [collect]   no vastB/decisions yet
+[08-06 13:16:36] [collect] vastC (ssh6.vast.ai:18762)
+[08-06 13:16:36] [collect]   no vastC/ladder yet
+[08-06 13:16:37] [collect]   no vastC/decisions yet
+[08-06 13:16:37] [collect] vastD (ssh7.vast.ai:18862)
+[08-06 13:16:40] [collect]   no vastD/ladder yet
+[08-06 13:16:44] [collect]   no vastD/decisions yet
+[08-06 13:16:58] [collect] vastE (ssh5.vast.ai:18856)
+[08-06 13:17:03] [collect]   no vastE/ladder yet
+[08-06 13:17:04] [collect]   no vastE/decisions yet
+[08-06 13:17:04] [collect] vastF (ssh1.vast.ai:18914)
+[08-06 13:17:05] [collect]   no vastF/ladder yet
+[08-06 13:17:06] [collect]   no vastF/decisions yet
+[08-06 13:17:08] [collect] vastG (ssh7.vast.ai:13258)
+[08-06 13:17:08] [collect]   no vastG/ladder yet
+[08-06 13:17:08] [collect]   no vastG/decisions yet
+  [scores] ladder_evaldirs.csv: 44 rows from eval output under /home/jupyter/checkpoints_backup/cf-393
+[08-06 13:17:12] [merge] ladder_all.csv: 45 rows
+[08-06 13:17:12] [merge] decisions_all.csv: 31 rows
+    decisions_all.csv: 8 park, 23 rule (31 rows, written_at 2026-08-06T12:17:15Z)
+      park   arm1_nse                 @100000  budget_stop    rule says none_down
+      park   arm4_combab              @100000  budget_stop    rule says none_down
+      park   arm5_combab_alignS       @100000  budget_stop    rule says one_down
+      park   arm5_combab_alignS       @200000  session_end    rule says one_down
+      park   arm5_combab_alignT       @100000  session_end    rule says both_down
+      park   arm6_v2_ncpc_alignT      @100000  budget_stop    rule says none_down
+      park   arm6_v2_nse_alignT       @100000  budget_stop    rule says both_down
+      park   arm6_v2_nse_alignT       @200000  session_end    rule says both_down
+  arm6_v2_combab_alignS  @100000  none_down      ended_by=rule     recorded=[none_down]
+  arm6_v2_combab_alignT  @100000  none_down      ended_by=rule     recorded=[none_down]
+  arm5_combab_alignS     @200000  one_down       ended_by=session  recorded=[one_down session_end]  stale=[session_end]
+  arm5_combab_alignT     @200000  none_down      ended_by=rule     recorded=[none_down]
+  arm6_v2_ncpc_alignS    @100000  none_down      ended_by=rule     recorded=[none_down]
+  arm6_v2_ncpc_alignT    @100000  none_down      ended_by=rule     recorded=[budget_stop none_down]  stale=[budget_stop]
+  arm6_v2_nse_alignS     @100000  none_down      ended_by=rule     recorded=[none_down]
+  arm6_v2_nse_alignT     @200000  both_down      ended_by=session  recorded=[both_down session_end]  stale=[session_end]
+  arm4_combab            @100000  none_down      ended_by=rule     recorded=[budget_stop none_down]  stale=[budget_stop]
+  arm1_nse               @100000  none_down      ended_by=rule     recorded=[budget_stop none_down]  stale=[budget_stop]
+    -> /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/results/stop_reason.csv (10 cells)
+    arm6_v2_combab_alignS recorded none_down      seeds [none_down, none_down, none_down]  holds on all three seeds — every head keeps its sign against bb40k
+    arm6_v2_combab_alignT recorded none_down      seeds [none_down, one_down, one_down]  FLIPS to one_down — the head seed alone changes the sign on the student; decided by noise
+    arm5_combab_alignS    recorded one_down       seeds [one_down, one_down, one_down]  holds on all three seeds — every head keeps its sign against bb40k
+    arm5_combab_alignT    recorded both_down      seeds [both_down, both_down, both_down]  holds on all three seeds — every head keeps its sign against bb40k
+    arm6_v2_nse_alignT    recorded both_down      seeds [both_down, both_down, both_down]  holds on all three seeds — every head keeps its sign against bb40k
+    arm6_v2_nse_alignS    recorded none_down      seeds [none_down, none_down, none_down]  holds on all three seeds — every head keeps its sign against bb40k
+  
+    -> seed_spread_rows.csv, seed_spread.csv, seed_branches.csv
+  
+    arm6_v2_combab_alignS recorded none_down      paired [none_down, -, -]  1/3 seeds paired — no claim yet
+    arm6_v2_combab_alignT recorded none_down      paired [none_down, -, -]  1/3 seeds paired — no claim yet
+    arm5_combab_alignS    recorded one_down       paired [one_down, -, -]  1/3 seeds paired — no claim yet
+    arm5_combab_alignT    recorded both_down      paired [both_down, -, -]  1/3 seeds paired — no claim yet
+    arm6_v2_nse_alignT    recorded both_down      paired [both_down, -, -]  1/3 seeds paired — no claim yet
+    arm6_v2_nse_alignS    recorded none_down      paired [none_down, -, -]  1/3 seeds paired — no claim yet
+    arm4_combab           recorded none_down      paired [none_down, -, -]  1/3 seeds paired — no claim yet
+    arm6_v2_ncpc_alignT   recorded none_down      paired [none_down, -, -]  1/3 seeds paired — no claim yet
+    arm1_nse              recorded none_down      paired [none_down, -, -]  1/3 seeds paired — no claim yet
+  
+    -> paired_delta.csv, paired_branches.csv, hw_control.csv, paired_rows.csv
+  audit: every published row backed: 71 summary check(s), all 97 configs, no crossed head/encoder pair
+  audit-seeds: every published row backed: 24 summary check(s), all 97 configs, no crossed head/encoder pair
+  [out] /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/plots/ladder.png  (10 cells, 45 scores)
+  [out] /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/plots/seed_spread.png  (12 cell-head rows)
+  no complete paired rows yet; nothing to plot
+[08-06 13:17:28] [collect] done
