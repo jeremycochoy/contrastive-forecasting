@@ -255,14 +255,17 @@ filenames. **Verify the first tick by `ls`, not by reading the log.**
 
 Eight machines each ran their own `ladder.py`, and each kept its own
 `results/ladder.csv` and `results/decisions.csv` holding **only the cells
-that machine was given** — 37 of the 40 rows on elisa, 36 of the decision
-log's. Those two are gitignored: a subset under a shorter name, at the same
-level as the pooled file, reads like the experiment and is not. What is
+that machine was given** — elisa's copy carries 41 of the 45 result rows.
+The per-machine decision logs keep every row a driver wrote, including rows a
+later replay superseded, so elisa's 40 do not sit inside the 31 pooled
+decisions; `merge_pooled.sh` keys those on (cell, stop, branch). Those two
+are gitignored: a per-machine file under a shorter name, at the same level as
+the pooled file, reads like the experiment and is not. What is
 committed:
 
 | path | what |
 |---|---|
-| `results/ladder_all.csv` | **the results table.** 40 rows: ten cells × two stops × two heads |
+| `results/ladder_all.csv` | **the results table.** 45 rows: ten runs × two heads at bb40k and bb100k, plus the five bb200k rows |
 | `results/stop_reason.csv` | **the decision table.** One row per cell: the branch, and what actually ended it |
 | `results/seed_spread.csv` | the three-seed spread of the **bb100k** end, per cell per head |
 | `results/paired_delta.csv` | **the uncertainty table.** One row per (cell, head): three paired deltas, their mean, SE, t and sign count |
