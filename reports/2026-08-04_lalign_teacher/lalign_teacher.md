@@ -1,6 +1,6 @@
-# The EMA-teacher alignment target does not move the ten controlled pairs at backbone 40k, within a bound of 0.088 GM-Relative MASE
+# Retraining the alignment loss against the EMA teacher changes which run ranks best at backbone 40k, and does not reach the earlier best score
 
-The earlier sweep computed `L_align` against the student encoder; these ten cells retrain it against the EMA teacher. Six of the ten controlled pairs favour the teacher and four the student, a split the paired tests do not separate from zero. The `arm5 base` delta flips sign across the three head seeds; `arm5 combab` holds its sign on all three.
+The earlier sweep computed `L_align` against the student encoder; these ten cells retrain it against the EMA teacher. The teacher target moves the top of the backbone-40k ranking from `arm6_v2 combab` at 1.2025 to `arm5 combab` at 1.2728, and its lowest score at any horizon, 1.1850, stays above the earlier sweep's lowest, 1.1616. Six of the ten controlled pairs favour the teacher and four the student, a split the paired tests do not separate from zero, within a bound of 0.088 GM-Relative MASE. The `arm5 base` delta flips sign across the three head seeds; `arm5 combab` holds its sign on all three.
 
 ![Teacher minus student GM-Relative MASE at backbone 40k](plots/controlled_vs_cross_delta.png)
 
@@ -26,7 +26,7 @@ The earlier sweep computed `L_align` against the student encoder; these ten cell
 
 *The same 30 cells, one panel per loss recipe.*
 
-In both retrained recipes `base` is the highest setting at backbone 100k, and in `arm6_v2` the `combab` setting is the lowest at all three backbone steps.
+In both retrained recipes `base` is the highest setting at backbone 100k, and in `arm6_v2` the `combab` setting is the lowest at all three backbone steps. The lowest teacher cell of the report, `arm6_v2 combab` at backbone 200k, scores 1.1850, above the earlier sweep's lowest of 1.1616 at backbone 100k and its 1.1652 at 200k; the three head seeds of that teacher cell run 1.1820 to 1.1883, so its whole measured spread stays above both.
 
 ![GM-Relative MASE of all 30 cells at backbone 40k, seasonal-naive parity dashed](plots/eval_2L_gm_mase_bars.png)
 
@@ -35,8 +35,6 @@ In both retrained recipes `base` is the highest setting at backbone 100k, and in
 ![GM-Relative MASE of all 30 cells at backbone 100k](plots/eval_2L_gm_mase_bars_100k.png)
 
 *All 30 cells at backbone 100k, same marks and same scale convention as the 40k ranking.*
-
-Four of the five lowest cells at backbone 100k are retrained ones, and so is the highest.
 
 ![GM-Relative MASE of the 8 cells extended to backbone 200k](plots/eval_2L_gm_mase_bars_200k.png)
 
