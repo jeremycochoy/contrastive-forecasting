@@ -12,8 +12,9 @@ when only the head seed changes.
          rule read; the bar is how much of it is seed.
   right  that change with the same spread as its error bar. The rule is a
          strict `<`, so it is exactly the SIGN of this quantity. The grey
-         band is this study's own largest head-seed range, taken from the
-         `range` column of the same file.
+         band is this study's own largest head-seed range, pooled over both
+         head budgets (scripts/noise_band.py), because these changes have a
+         15,000-step head at one end and a 30,000-step head at the other.
 
 Colour is the answer, not the identity: a move clear of its own spread is
 blue, a move the spread covers is orange. Head is carried by marker shape as
@@ -35,6 +36,9 @@ from matplotlib.lines import Line2D  # noqa: E402
 
 SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
 EXP_DIR = os.path.dirname(SCRIPTS_DIR)
+sys.path.insert(0, SCRIPTS_DIR)
+
+import noise_band  # noqa: E402
 
 # Two categorical hues, validated together: ΔE 21.9 under protanopia and 27.9
 # under normal vision against the light surface, both inside the lightness
@@ -70,8 +74,9 @@ def draw(rows: list[dict], path: str) -> None:
                                  gridspec_kw={"width_ratios": [1, 1]})
 
     complete = all(int(r["n_seeds"]) == len(SEEDS) for r in rows)
-    # The noise band is measured on the rows plotted here, not imported.
-    band = max(float(r["range"]) for r in rows)
+    # Pooled over both head budgets: the rows plotted here are bb100k only,
+    # and the study's largest measured range is at bb40k.
+    band = noise_band.pooled_band()
 
     # --- left: where the three seeds land ----------------------------------
     for y, r in zip(ys, rows):
@@ -150,7 +155,7 @@ def draw(rows: list[dict], path: str) -> None:
         Line2D([], [], marker="D", ms=6, lw=0, mfc="white", mec=INK, mew=1.3,
                label="bb40k value (hollow diamond, left panel)"),
         Line2D([], [], color=INK_SOFT, lw=7, alpha=0.35,
-               label=f"\u00b1{band:.4f}, largest head-seed range measured here"),
+               label=f"\u00b1{band:.4f}, {noise_band.LABEL}"),
     ]
     # Below the panels: with twelve rows there is no corner of either axes
     # that is reliably empty, and a legend over a data row hides the answer.

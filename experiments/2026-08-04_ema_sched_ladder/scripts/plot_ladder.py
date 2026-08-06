@@ -14,8 +14,9 @@ both:
          The extend rule is exactly the sign of these bars, so a reader can
          see which cells the rule kept and check the branch against the
          picture. The grey band is the largest head-seed range measured in
-         this study (results/seed_spread.csv); bars from a cell that carries
-         no head-seed replicate are drawn hollow, measured but not tested.
+         this study, pooled over both head budgets (scripts/noise_band.py);
+         bars from a cell that carries no head-seed replicate are drawn
+         hollow, measured but not tested.
 
 Usage:  python3 scripts/plot_ladder.py [--ladder FILE] [--spread FILE]
                                        [--out FILE]
@@ -34,6 +35,8 @@ import matplotlib.pyplot as plt  # noqa: E402
 SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
 EXP_DIR = os.path.dirname(SCRIPTS_DIR)
 sys.path.insert(0, SCRIPTS_DIR)
+
+import noise_band  # noqa: E402
 
 # Distinct hues, and the head is carried by linestyle as well as colour so
 # the panel survives being read in greyscale.
@@ -64,15 +67,17 @@ def order(scores: dict) -> list[str]:
 
 
 def read_band(path: str):
-    """(largest head-seed range, set of cells that carry replicates)."""
+    """(pooled head-seed band, set of cells that carry replicates).
+
+    The band pools both head budgets (scripts/noise_band.py); `path` only
+    names the cells that carry a replicate at all.
+    """
+    band = noise_band.pooled_band()
     if not os.path.exists(path):
-        return None, set()
+        return band, set()
     with open(path, newline="") as fh:
         rows = [r for r in csv.DictReader(fh) if (r.get("range") or "").strip()]
-    if not rows:
-        return None, set()
-    return (max(float(r["range"]) for r in rows),
-            {r["cell"] for r in rows})
+    return band, {r["cell"] for r in rows}
 
 
 def draw(scores: dict, path: str, band=None, replicated=frozenset()) -> None:
@@ -136,7 +141,7 @@ def draw(scores: dict, path: str, band=None, replicated=frozenset()) -> None:
     bx.set_xlabel("change in GM-Relative MASE  (left of 0 = improved)")
     sub = "hatched = teacher encoder;  hollow + * = no head-seed replicate"
     if band:
-        sub += f"\ngrey band = ±{band:.4f}, largest head-seed range measured here"
+        sub += f"\ngrey band = ±{band:.4f}, {noise_band.LABEL}"
     bx.set_title("Change from one stop to the next\n" + sub, fontsize=9)
     bx.grid(alpha=0.25, axis="x")
 

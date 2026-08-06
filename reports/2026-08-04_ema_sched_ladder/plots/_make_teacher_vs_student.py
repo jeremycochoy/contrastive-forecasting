@@ -2,11 +2,14 @@
 
 Both heads of a stop are trained and evaluated on their own encoder, so the
 difference is the only paired teacher-vs-student comparison the ladder gives.
-The grey band is the largest head-seed range measured in this study
-(results/seed_spread.csv).
+The grey band is the largest head-seed range measured in this study, pooled
+over both head budgets (experiments/.../scripts/noise_band.py). Pooling
+matters: `results/seed_spread.csv` holds 30,000-step heads only, and these
+differences include stops whose heads ran 15,000 steps.
 """
 from pathlib import Path
 import csv
+import sys
 import matplotlib.pyplot as plt
 
 HERE = Path(__file__).parent
@@ -20,7 +23,10 @@ with open(EXP / "results" / "ladder_all.csv") as f:
     for r in csv.DictReader(f):
         vals[(r["cell"], int(r["stop"]), r["head"])] = float(r["gm_rel_mase"])
 
-BAND = max(float(r["range"]) for r in csv.DictReader(open(EXP / "results" / "seed_spread.csv")))
+sys.path.insert(0, str(EXP / "scripts"))
+import noise_band  # noqa: E402
+
+BAND = noise_band.pooled_band(str(EXP / "results" / "paired_delta.csv"))
 
 cells = sorted({c for c, _s, _h in vals}, reverse=True)
 STOPS = [(40000, "#2a78d6", "o", "bb40k"), (100000, "#eb6834", "s", "bb100k"),
@@ -28,7 +34,7 @@ STOPS = [(40000, "#2a78d6", "o", "bb40k"), (100000, "#eb6834", "s", "bb100k"),
 
 fig, ax = plt.subplots(figsize=(9.5, 5.6))
 ax.axvspan(-BAND, BAND, color=MUTED, alpha=0.18, zorder=0,
-           label=f"±{BAND:.4f}, largest head-seed range measured here")
+           label=f"±{BAND:.4f}, {noise_band.LABEL}")
 ax.axvline(0, color=INK, lw=1.2, zorder=2)
 for stop, colour, marker, lab in STOPS:
     xs, ys = [], []

@@ -6,7 +6,7 @@ Raising the EMA momentum to 1.0 by backbone step 100k does not make the teacher 
 
 ![Teacher head minus student head at each backbone stop; bb40k, bb100k and bb200k are backbone steps](plots/teacher_vs_student.png)
 
-Of the 22 paired differences, 17 fall inside the ±0.0272 head-seed band and 5 fall outside, and the teacher head is the lower one in 11 of them.
+All 22 paired differences fall inside the ±0.0384 head-seed band, which pools every head-seed range this study measured at either head budget and whose largest term is a bb40k range (`scripts/noise_band.py`); the teacher head is the lower one in 11 of the 22.
 
 ## The ladder
 
@@ -80,14 +80,14 @@ A `—` under `top5` means the row never placed in its parent report's five lowe
 
 ### The raw change the extend rule read
 
-Source: `results/per_stop_changes.csv`. Each row is the change one head made from the previous stop, which is the only quantity the rule compares. Negative is down. Bold marks a change smaller than 0.0272, the largest head-seed range measured here.
+Source: `results/per_stop_changes.csv`. Each row is the change one head made from the previous stop, which is the only quantity the rule compares. Negative is down. Bold marks a change smaller than 0.0384, the pooled head-seed band.
 
 | Run | head | transition | from | to | change | rule read | branch |
 |---|---|---|---|---|---|---|---|
 | `arm1_nse` | student | 40k→100k | 1.4347 | 1.5227 | +0.0880 | not down | `none_down` |
 | `arm1_nse` | teacher | 40k→100k | 1.4512 | 1.5604 | +0.1092 | not down | `none_down` |
 | `arm4_combab` | student | 40k→100k | 1.2503 | 1.3479 | +0.0976 | not down | `none_down` |
-| `arm4_combab` | teacher | 40k→100k | 1.2870 | 1.3188 | +0.0318 | not down | `none_down` |
+| `arm4_combab` | teacher | 40k→100k | 1.2870 | 1.3188 | **+0.0318** | not down | `none_down` |
 | `arm5_combab_alignS` | student | 40k→100k | 1.2596 | 1.2102 | -0.0494 | down | `one_down` |
 | `arm5_combab_alignS` | teacher | 40k→100k | 1.2347 | 1.2407 | **+0.0060** | not down | `one_down` |
 | `arm5_combab_alignS` | student | 100k→200k | 1.2102 | 1.1910 | **-0.0192** | down | `one_down` |
@@ -95,22 +95,24 @@ Source: `results/per_stop_changes.csv`. Each row is the change one head made fro
 | `arm5_combab_alignT` | teacher | 40k→100k | 1.3190 | 1.2772 | -0.0418 | down | `both_down` |
 | `arm5_combab_alignT` | student | 100k→200k | 1.2797 | 1.4141 | +0.1344 | not down | `none_down` |
 | `arm5_combab_alignT` | teacher | 100k→200k | 1.2772 | 1.4207 | +0.1435 | not down | `none_down` |
-| `arm6_v2_combab_alignS` | student | 40k→100k | 1.1603 | 1.1945 | +0.0342 | not down | `none_down` |
-| `arm6_v2_combab_alignS` | teacher | 40k→100k | 1.1544 | 1.1837 | +0.0293 | not down | `none_down` |
+| `arm6_v2_combab_alignS` | student | 40k→100k | 1.1603 | 1.1945 | **+0.0342** | not down | `none_down` |
+| `arm6_v2_combab_alignS` | teacher | 40k→100k | 1.1544 | 1.1837 | **+0.0293** | not down | `none_down` |
 | `arm6_v2_combab_alignT` | student | 40k→100k | 1.1895 | 1.1921 | **+0.0026** | not down | `none_down` |
 | `arm6_v2_combab_alignT` | teacher | 40k→100k | 1.1793 | 1.1963 | **+0.0170** | not down | `none_down` |
 | `arm6_v2_ncpc_alignS` | student | 40k→100k | 1.3611 | 1.4951 | +0.1340 | not down | `none_down` |
 | `arm6_v2_ncpc_alignS` | teacher | 40k→100k | 1.3656 | 1.5007 | +0.1351 | not down | `none_down` |
 | `arm6_v2_ncpc_alignT` | student | 40k→100k | 1.2955 | 1.3904 | +0.0949 | not down | `none_down` |
-| `arm6_v2_ncpc_alignT` | teacher | 40k→100k | 1.3266 | 1.3646 | +0.0380 | not down | `none_down` |
+| `arm6_v2_ncpc_alignT` | teacher | 40k→100k | 1.3266 | 1.3646 | **+0.0380** | not down | `none_down` |
 | `arm6_v2_nse_alignS` | student | 40k→100k | 1.2690 | 1.3572 | +0.0882 | not down | `none_down` |
 | `arm6_v2_nse_alignS` | teacher | 40k→100k | 1.2917 | 1.3770 | +0.0853 | not down | `none_down` |
-| `arm6_v2_nse_alignT` | student | 40k→100k | 1.4238 | 1.3913 | -0.0325 | down | `both_down` |
+| `arm6_v2_nse_alignT` | student | 40k→100k | 1.4238 | 1.3913 | **-0.0325** | down | `both_down` |
 | `arm6_v2_nse_alignT` | teacher | 40k→100k | 1.4177 | 1.3746 | -0.0431 | down | `both_down` |
-| `arm6_v2_nse_alignT` | student | 100k→200k | 1.3913 | 1.3586 | -0.0327 | down | `both_down` |
-| `arm6_v2_nse_alignT` | teacher | 100k→200k | 1.3746 | 1.3459 | -0.0287 | down | `both_down` |
+| `arm6_v2_nse_alignT` | student | 100k→200k | 1.3913 | 1.3586 | **-0.0327** | down | `both_down` |
+| `arm6_v2_nse_alignT` | teacher | 100k→200k | 1.3746 | 1.3459 | **-0.0287** | down | `both_down` |
 
-Four of 25 changes are inside that band. Two stops rest entirely on them: `arm6_v2_combab_alignT` at 100k, whose `none_down` ended the run on +0.0026 and +0.0170, and `arm5_combab_alignS` at 200k, whose `one_down` rests on -0.0192.
+Eleven of 25 changes are inside that band, including every 100k→200k change except `arm5_combab_alignT`'s. Two stops rest entirely on changes inside it: `arm6_v2_combab_alignT` at 100k, whose `none_down` ended the run on +0.0026 and +0.0170, and `arm5_combab_alignS` at 200k, whose `one_down` rests on -0.0192.
+
+`arm5_combab_alignT`'s +0.1344 and +0.1435 at bb200k are about four times every other 100k→200k change, which all sit between -0.0327 and -0.0192, and its 100k→200k leg trained clean: `results/run_cf393_arm5_combab_alignT.log` records no NaN and `ema_loss` falling from 13.1111 at step 100k to 13.0581 at step 200k.
 
 ### How each run ended
 
@@ -129,7 +131,7 @@ Source: `results/stop_reason.csv`.
 | `arm5_combab_alignS` | 200k | `one_down` | yes | student | ladder ceiling |
 | `arm6_v2_nse_alignT` | 200k | `both_down` | yes | student, teacher | ladder ceiling |
 
-No run was stopped by the compute budget. The two rows marked *ladder ceiling* were still improving at bb200k; the study stopped there, not the rule.
+No run was stopped by the compute budget. The two rows marked *ladder ceiling* were extended by the rule and then stopped by the study at the ceiling, not by the rule; every one of their 100k→200k changes falls inside the ±0.0384 band, so neither is measured as still improving.
 
 ### Head-seed replicates at bb100k
 
@@ -172,17 +174,16 @@ Artefacts: `experiments/2026-08-04_ema_sched_ladder/`. In the CSV files the colu
 | File | Contents |
 |---|---|
 | `results/ladder_all.csv` | 45 scored stops, every machine pooled |
-| `results/ladder.csv` | the same table before pooling |
-| `results/per_machine/` | per-machine decision tables the pooled table is built from |
+| `results/per_machine/` | the per-machine ladder and decision tables both pooled tables are built from |
 | `results/per_stop_changes.csv` | the change each head made per stop, and the branch it produced |
 | `results/stop_reason.csv` | last stop, branch and cause per run |
-| `results/decisions.csv`, `results/decisions_all.csv` | the extend-rule decision recorded at each stop |
+| `results/decisions_all.csv` | the extend-rule decision recorded at each stop, every machine pooled |
 | `results/union_parents.csv` | the two parent reports' per-stop values and five-lowest placements |
 | `results/domain_scores.csv` | per-domain GM-Relative MASE behind both radar panels |
 | `results/seed_spread.csv` | three head seeds per run per head at bb100k |
 | `results/seed_spread_rows.csv` | the individual replicate scores behind that table |
 | `results/seed_branches.csv` | branch survival with the bb40k end fixed at seed 20260722 |
-| `results/paired_delta.csv` | bb40k-to-bb100k change with both ends at the same head seed |
+| `results/paired_delta.csv` | bb40k-to-bb100k change with both ends at the same head seed, and the source of the pooled band |
 | `results/paired_rows.csv` | the individual replicate scores behind that table |
 | `results/paired_branches.csv` | branch survival with both ends seed-matched |
 | `results/parent_seed_spread.csv` | the parent study's eight head-seed ranges, spanning 0.0018 to 0.0908 |
@@ -194,4 +195,4 @@ Artefacts: `experiments/2026-08-04_ema_sched_ladder/`. In the CSV files the colu
 
 Pairing all twelve replicated rows at both extra seeds needs 24 bb40k replicate evaluations; 9 were run (`results/paired_rows.csv`). `results/paired_delta.csv` carries three seeds for four rows, two for one row and one for the other fifteen; rows below three seeds are measured, not tested.
 
-Plot sources: `plots/_make_domain_radar.py`, `plots/_make_teacher_vs_student.py`, and `scripts/plot_ladder.py`, `scripts/plot_seed_spread.py`, `scripts/plot_paired_delta.py`, `scripts/alpha_schedule.py`, `scripts/union_parents.py`.
+Plot sources: `plots/_make_domain_radar.py`, `plots/_make_teacher_vs_student.py`, and `scripts/plot_ladder.py`, `scripts/plot_seed_spread.py`, `scripts/plot_paired_delta.py`, `scripts/alpha_schedule.py`, `scripts/union_parents.py`. The band every plot draws comes from `scripts/noise_band.py`; run it to print each measured range and the pooled maximum.
