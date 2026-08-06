@@ -63,3 +63,5 @@
 [08-06 06:49:36] [arm5_combab_alignS] DONE target=200000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-393/arm5_combab_alignS/leg_200k/cf393_arm5_combab_alignS_200k.pth
 [ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm5_combab_alignS 200000 student 30000 /home/jupyter/checkpoints_backup/cf-393/arm5_combab_alignS/eval/score_bb200k_student.txt
 [06:49:36] arm5_combab_alignS bb200k enc=student head=30000s seed=20260722
+[08:02:10] head-train rc=0
+[08:02:10] eval place=local_cpu

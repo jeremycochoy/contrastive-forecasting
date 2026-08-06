@@ -60,3 +60,7 @@
 [ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm6_v2_nse_alignT 200000 teacher 30000 /home/jupyter/checkpoints_backup/cf-393/arm6_v2_nse_alignT/eval/score_bb200k_teacher.txt
 [06:44:15] arm6_v2_nse_alignT bb200k enc=teacher head=30000s seed=20260722
 [06:44:15] arm6_v2_nse_alignT bb200k enc=student head=30000s seed=20260722
+[07:57:19] head-train rc=0
+[07:57:19] eval place=local_cpu
+[07:57:20] head-train rc=0
+[07:57:20] eval place=local_cpu

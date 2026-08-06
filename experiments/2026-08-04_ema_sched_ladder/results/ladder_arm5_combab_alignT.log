@@ -67,3 +67,6 @@
 [06:24:50] eval place=local_cpu
 [07:38:29] eval_local rc=0
 [07:38:29] DONE — Aggregate GM-Relative MASE (97 configs): 1.4141 -> 1.4141
+[07:39:09] eval_local rc=0
+[07:39:09] DONE — Aggregate GM-Relative MASE (97 configs): 1.4207 -> 1.4207
+[ladder] arm5_combab_alignT @200000: {'student': 1.4141, 'teacher': 1.4207} -> {'extend': False, 'heads': ('student', 'teacher'), 'branch': 'none_down'}

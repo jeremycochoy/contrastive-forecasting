@@ -1780,3 +1780,60 @@ scripts/collect_results.sh: line 22: WT: WT must be the absolute path of the che
   [out] /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/plots/ladder.png  (10 cells, 41 scores)
   [out] /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/plots/seed_spread.png  (12 cell-head rows)
 [08-06 07:38:51] [collect] done
+[08-06 08:08:57] [collect] seed-h2 (ssh1.vast.ai:17540, arm6_v2_combab_alignT)
+[08-06 08:09:03] [collect]   seed evidence unpacked into the durable root
+[08-06 08:09:09] [collect] vastA (ssh2.vast.ai:11448)
+[08-06 08:09:09] [collect]   no vastA/ladder yet
+[08-06 08:09:09] [collect]   no vastA/decisions yet
+[08-06 08:09:10] [collect] vastB (ssh4.vast.ai:13146)
+[08-06 08:09:10] [collect]   no vastB/ladder yet
+[08-06 08:09:10] [collect]   no vastB/decisions yet
+[08-06 08:09:10] [collect] vastC (ssh6.vast.ai:18762)
+[08-06 08:09:10] [collect]   no vastC/ladder yet
+[08-06 08:09:11] [collect]   no vastC/decisions yet
+[08-06 08:09:11] [collect] vastD (ssh7.vast.ai:18862)
+[08-06 08:09:14] [collect]   no vastD/ladder yet
+[08-06 08:09:16] [collect]   no vastD/decisions yet
+[08-06 08:09:22] [collect] vastE (ssh5.vast.ai:18856)
+[08-06 08:09:22] [collect]   no vastE/ladder yet
+[08-06 08:09:23] [collect]   no vastE/decisions yet
+[08-06 08:09:23] [collect] vastF (ssh1.vast.ai:18914)
+[08-06 08:09:23] [collect]   no vastF/ladder yet
+[08-06 08:09:23] [collect]   no vastF/decisions yet
+[08-06 08:09:23] [collect] vastG (ssh7.vast.ai:13258)
+[08-06 08:09:24] [collect]   no vastG/ladder yet
+[08-06 08:09:24] [collect]   no vastG/decisions yet
+  [scores] ladder_evaldirs.csv: 41 rows from eval output under /home/jupyter/checkpoints_backup/cf-393
+[08-06 08:09:26] [merge] ladder_all.csv: 42 rows
+[08-06 08:09:26] [merge] decisions_all.csv: 27 rows
+    decisions_all.csv: 6 park, 21 rule (27 rows, written_at 2026-08-06T07:09:28Z)
+      park   arm1_nse                 @100000  budget_stop    rule says none_down
+      park   arm4_combab              @100000  budget_stop    rule says none_down
+      park   arm5_combab_alignS       @100000  budget_stop    rule says one_down
+      park   arm5_combab_alignT       @100000  session_end    rule says both_down
+      park   arm6_v2_ncpc_alignT      @100000  budget_stop    rule says none_down
+      park   arm6_v2_nse_alignT       @100000  budget_stop    rule says both_down
+  arm6_v2_combab_alignS  @100000  none_down      ended_by=rule     recorded=[none_down]
+  arm6_v2_combab_alignT  @100000  none_down      ended_by=rule     recorded=[none_down]
+  arm5_combab_alignS     @100000  one_down       ended_by=running  recorded=[budget_stop one_down]  stale=[budget_stop]
+  arm5_combab_alignT     @200000  none_down      ended_by=rule     recorded=[none_down]
+  arm6_v2_ncpc_alignS    @100000  none_down      ended_by=rule     recorded=[none_down]
+  arm6_v2_ncpc_alignT    @100000  none_down      ended_by=rule     recorded=[budget_stop none_down]  stale=[budget_stop]
+  arm6_v2_nse_alignS     @100000  none_down      ended_by=rule     recorded=[none_down]
+  arm6_v2_nse_alignT     @100000  both_down      ended_by=running  recorded=[both_down budget_stop]  stale=[budget_stop]
+  arm4_combab            @100000  none_down      ended_by=rule     recorded=[budget_stop none_down]  stale=[budget_stop]
+  arm1_nse               @100000  none_down      ended_by=rule     recorded=[budget_stop none_down]  stale=[budget_stop]
+    -> /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/results/stop_reason.csv (10 cells)
+    arm6_v2_combab_alignS recorded none_down      seeds [none_down, none_down, none_down]  holds on all three seeds — every head keeps its sign against bb40k
+    arm6_v2_combab_alignT recorded none_down      seeds [none_down, one_down, -]  not enough seeds scored yet (2/3 matched)
+    arm5_combab_alignS    recorded one_down       seeds [one_down, one_down, one_down]  holds on all three seeds — every head keeps its sign against bb40k
+    arm5_combab_alignT    recorded both_down      seeds [both_down, both_down, both_down]  holds on all three seeds — every head keeps its sign against bb40k
+    arm6_v2_nse_alignT    recorded both_down      seeds [both_down, both_down, both_down]  holds on all three seeds — every head keeps its sign against bb40k
+    arm6_v2_nse_alignS    recorded none_down      seeds [none_down, none_down, none_down]  holds on all three seeds — every head keeps its sign against bb40k
+  
+    -> seed_spread_rows.csv, seed_spread.csv, seed_branches.csv
+  audit: every published row backed: 68 summary check(s), all 97 configs, no crossed head/encoder pair
+  audit-seeds: every published row backed: 22 summary check(s), all 97 configs, no crossed head/encoder pair
+  [out] /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/plots/ladder.png  (10 cells, 42 scores)
+  [out] /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/plots/seed_spread.png  (12 cell-head rows)
+[08-06 08:09:34] [collect] done

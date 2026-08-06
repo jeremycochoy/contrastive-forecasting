@@ -79,10 +79,26 @@ pass(){
     fi
 
     # 4. nothing still running there.
+    #
+    # The bracketed first letters are not decoration, and release_idle_boxes.sh
+    # has carried the same note since the ladder boxes. `pgrep -f` scans every
+    # command line INCLUDING the shell running this probe, and that shell's
+    # argv contains these very patterns — so the plain form counts itself and
+    # reports one busy process on a box with an empty GPU. Every seed box read
+    # "n/n home but 1 process(es) still running" from the moment its queue
+    # emptied, and none was ever released: four idle boxes burned $1.58/h for
+    # ninety minutes before the probe was run by hand with the brackets in.
+    # `[t]rain` matches "train" but not the literal "[t]rain" in its own argv.
+    #
+    # `pgrep -c` also prints its count AND exits 1 when that count is zero, so
+    # a `|| echo 0` fallback fires on top of the "0" it already printed and
+    # `busy` comes back as two lines. That is not a number, `[ "$busy" -gt 0 ]`
+    # errors on it, and the box falls through to the destroy on a test that
+    # never evaluated. Take the count alone; empty still means unreachable.
     local busy
     busy="$(timeout 60 ssh -n "${SSH_OPTS[@]}" -p "$port" "root@$host" \
-      'pgrep -cf "train_forecasting_head|eval_gift_eval_official" 2>/dev/null || echo 0' \
-      2>/dev/null)"
+      'pgrep -cf "[t]rain_forecasting_head|[e]val_gift_eval_official" 2>/dev/null; true' \
+      2>/dev/null | head -1 | tr -cd '0-9')"
     if [ -z "$busy" ]; then
       log "$lbl: unreachable — keeping (a box that cannot be asked is not idle)"
       continue
