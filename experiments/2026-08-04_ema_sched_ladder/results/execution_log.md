@@ -287,3 +287,31 @@ What was actually done, not just intended:
   when all 24 are in, which is the signal to release the GPUs.
 
 Standing at the cut: 9/24 scored, 9 running.
+
+## 08-06 15:20Z — the hardware term is out of the analysis
+
+Cancelling the `hw` tier stopped it from running. It did not stop the
+analysis from expecting it, and that half was the one that could still
+have changed a published number.
+
+- Nothing to kill and nothing to delete on disk: `find` over the runs root
+  and over `results/` returns zero `hw4090` paths. The six control jobs
+  never started, so no measured value moves.
+- `paired_delta.py` had been shifting every 4090 bb40k value by
+  `hw_offset = 4090(s22) − 5090(s22)` before pairing it with a 5090 bb100k
+  value. With the control cancelled the offset was absent, and the code's
+  fallback was to pair the raw value and mark the row `hw_corrected=no`.
+  That was the correct fallback, but it left a live correction path and a
+  file the README pointed at. Both are removed.
+- `results/hw_control.csv` is deleted, not emptied. A stub with six
+  `control not scored yet` rows reads like a pending measurement.
+- `hw_corrected` is replaced by `gpu_split`, which marks the three cells
+  whose two ends sit on different card models. It is provenance for one
+  README line, not a measurement.
+- The regression guard is a leftover `hw4090` score file in the test
+  fixtures on two cells, with assertions that neither the delta table nor
+  the audit table reads it. A reinstated hardware term fails the suite.
+  35/35 paired_delta, 26/26 seed_spread, 24/24 stop_reason.
+- Only one supervisor is alive (pid 1561479, `CF393_BB40K_TIERS=t1`). A
+  second identical one launched at 15:16Z was killed rather than left to
+  double the pool against a VRAM gate sized for one.
