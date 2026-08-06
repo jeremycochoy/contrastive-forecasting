@@ -132,7 +132,8 @@ def draw(rows: list[dict], path: str) -> None:
     lo_x, hi_x = bx.get_xlim()
     bx.set_xlim(min(lo_x, -band * 1.25), max(hi_x, band * 1.25))
     bx.set_xlabel("change bb40k → bb100k  (left of 0 = improved)")
-    bx.set_title("change bb40k \u2192 bb100k against its own seed spread",
+    bx.set_title("superseded denominator: change bb40k \u2192 bb100k "
+                 "against its bb100k spread only",
                  fontsize=10)
     bx.grid(alpha=0.22, axis="x")
     for s in ("top", "right", "left"):

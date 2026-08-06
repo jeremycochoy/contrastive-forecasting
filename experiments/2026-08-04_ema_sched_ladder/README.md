@@ -346,17 +346,19 @@ report says so.
   at 1/3 or 2/3 does not, and the branch it produced was decided by the
   head seed.
 
-- **Which cells carry replicates.** Six do: `arm6_v2_combab_alignS`,
-  `arm6_v2_combab_alignT`, `arm5_combab_alignS`, `arm5_combab_alignT`,
-  `arm6_v2_nse_alignT`, `arm6_v2_nse_alignS`. Each has three head seeds at
-  **both** ends of its delta, so each of its twelve deltas gets an SE from
-  its own spread. Four do not: `arm4_combab`, `arm6_v2_ncpc_alignT`,
-  `arm1_nse`, `arm6_v2_ncpc_alignS`. Their bb40k end is one head seed, so
-  their deltas are stated as measured once, with **no significance claim**
-  and no σ. `paired_delta.csv` marks them `n_seeds=1` and its verdict column
-  says so on every such row. Replicating them was planned and cancelled:
-  elisa is a shared machine, this study had held both of its GPUs for hours,
-  and the six replicated cells are the ones the review blocked on.
+- **Which cells carry replicates.** Six cells were replicated at the
+  **bb100k** end: `arm6_v2_combab_alignS`, `arm6_v2_combab_alignT`,
+  `arm5_combab_alignS`, `arm5_combab_alignT`, `arm6_v2_nse_alignT`,
+  `arm6_v2_nse_alignS`. The bb40k end was planned at the same six cells,
+  which is 24 jobs; the card specifies one head seed, so the pool was
+  stopped at **9 of 24**. The measured census, from `paired_delta.csv`:
+  four head-rows carry three seeds at **both** ends
+  (`arm6_v2_combab_alignS` and `arm6_v2_combab_alignT`, both heads), one
+  carries two (`arm5_combab_alignS` student), and the other **fifteen**
+  carry a one-seed bb40k end. Only the first five get an SE from their own
+  spread. The fifteen are stated as measured once, with **no significance
+  claim** and no σ; `paired_delta.csv` marks them `n_seeds=1` and its
+  verdict column says so on every such row.
 
 - **Three cells split their bb40k seeds across GPU models.**
   `arm5_combab_alignS`, `arm5_combab_alignT` and `arm6_v2_nse_alignT` trained

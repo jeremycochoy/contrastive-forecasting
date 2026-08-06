@@ -14,7 +14,7 @@ All 22 paired differences fall inside the ±0.0384 head-seed band, which pools e
 
 The extend rule reads each head against its own previous stop and ends the run when neither head went down: three runs reached bb200k and seven ended at bb100k.
 
-Every 40k→100k change moves the head budget from 15,000 to 30,000 steps as well as the backbone, and `arm4_combab`, `arm1_nse`, `arm6_v2_ncpc_alignS` and `arm6_v2_ncpc_alignT` carry no head-seed replicate, so their changes are measured, not tested.
+Every 40k→100k change moves the head budget from 15,000 to 30,000 steps as well as the backbone, and only `arm6_v2_combab_alignS` and `arm6_v2_combab_alignT` carry three head seeds at both ends of that change, so eight of the ten runs' changes are measured, not tested (`results/paired_delta.csv`: four head-rows at three seeds, one at two, fifteen at one).
 
 ## Per-domain split
 
@@ -24,13 +24,13 @@ An entry is one run plus one head; every entry drawn is better than seasonal nai
 
 ## Uncertainty
 
-![Head-seed spread at bb100k, three head seeds per run per head](plots/seed_spread.png)
-
-Two of the twelve replicated changes are inside their own seed spread.
-
 ![Paired bb40k-to-bb100k change, both ends at the same head seed](plots/paired_delta.png)
 
-With both ends held at the same head seed, both heads of `arm6_v2_combab_alignT` change sign across its three seeds, so the head seed alone moves where that run stopped.
+Five head-rows carry a paired test: both heads of `arm6_v2_combab_alignS` clear zero, and both heads of `arm6_v2_combab_alignT` change sign across its three seeds, so the head seed alone moves where that run stopped.
+
+![Superseded denominator: head-seed spread at the bb100k end only](plots/seed_spread.png)
+
+The figure above and the last column of the seed-spread table divide a paired change by its bb100k spread alone, which is the superseded denominator; it puts two of the twelve replicated changes inside the spread.
 
 ## The EMA schedule
 
@@ -137,7 +137,7 @@ No run was stopped by the compute budget. The two rows marked *ladder ceiling* w
 
 Source: `results/seed_spread.csv`. Head seeds 20260722, 20260723 and 20260724, for six of the ten runs. The card specifies one head seed; these replicates go beyond that spec and are reported here, not in the body.
 
-| Run | head | mean | sd | range | bb40k-to-bb100k change clears the spread |
+| Run | head | mean | sd | range | change clears the bb100k spread (superseded denominator) |
 |---|---|---|---|---|---|
 | `arm6_v2_combab_alignS` | student | 1.1923 | 0.0024 | 0.0047 | yes |
 | `arm6_v2_combab_alignS` | teacher | 1.1858 | 0.0044 | 0.0080 | yes |
@@ -164,7 +164,7 @@ Two files record whether a branch survives a change of head seed, and they answe
 - Stops: 40k and 100k unconditionally, then +100k per extension up to a ladder ceiling of 200k. Extend rule, per head against its own previous stop: both heads down → extend and keep both; one head down → extend and keep that head; neither down → stop.
 - Two heads per checkpoint, trained separately, each evaluated on its own encoder: student head on the student encoder, teacher head on the teacher encoder. Head budget 15,000 steps at bb40k, 30,000 steps from bb100k.
 - 97 GIFT-Eval configs, official B4 strategy, forecast horizon 16. The seasonal-naive denominator file is byte-identical on every machine (`results/denominator_checksums.txt`), so every score is on one scale.
-- Head seed 20260722 for the ladder. Six runs carry two extra head seeds at bb100k; `arm4_combab`, `arm1_nse`, `arm6_v2_ncpc_alignS` and `arm6_v2_ncpc_alignT` carry one seed only, so no significance claim is made on their changes.
+- Head seed 20260722 for the ladder. Six runs carry two extra head seeds at bb100k, but only nine of the 24 bb40k replicates were run: four head-rows carry three seeds at both ends, one carries two, and the other fifteen carry one, so no significance claim is made on those fifteen.
 - The head keeps `--grad-clip 1.0`. The project rule bans grad clipping; the previous study kept it, and it is kept here for comparability with those numbers.
 
 ## Annex
@@ -195,4 +195,4 @@ Artefacts: `experiments/2026-08-04_ema_sched_ladder/`. In the CSV files the colu
 
 Pairing all twelve replicated rows at both extra seeds needs 24 bb40k replicate evaluations; 9 were run (`results/paired_rows.csv`). `results/paired_delta.csv` carries three seeds for four rows, two for one row and one for the other fifteen; rows below three seeds are measured, not tested.
 
-Plot sources: `plots/_make_domain_radar.py`, `plots/_make_teacher_vs_student.py`, and `scripts/plot_ladder.py`, `scripts/plot_seed_spread.py`, `scripts/plot_paired_delta.py`, `scripts/alpha_schedule.py`, `scripts/union_parents.py`. The band every plot draws comes from `scripts/noise_band.py`; run it to print each measured range and the pooled maximum.
+Plot sources: `plots/_make_domain_radar.py`, `plots/_make_teacher_vs_student.py`, and `scripts/plot_ladder.py`, `scripts/plot_seed_spread.py`, `scripts/plot_paired_delta.py`, `scripts/alpha_schedule.py`, `scripts/union_parents.py`. The ±0.0384 band comes from `scripts/noise_band.py`; run it to print each measured range and the pooled maximum. `plot_ladder.py`, `plot_seed_spread.py` and `_make_teacher_vs_student.py` draw that band; `plot_paired_delta.py` draws no band, and shows each row's own interval instead.
