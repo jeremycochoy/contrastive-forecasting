@@ -65,3 +65,7 @@
 [06:49:36] arm5_combab_alignS bb200k enc=student head=30000s seed=20260722
 [08:02:10] head-train rc=0
 [08:02:10] eval place=local_cpu
+[09:15:05] eval_local rc=0
+[09:15:05] DONE — Aggregate GM-Relative MASE (97 configs): 1.1910 -> 1.1910
+[ladder] arm5_combab_alignS @200000: {'student': 1.191} -> {'extend': True, 'heads': ('student',), 'branch': 'one_down'}
+[ladder] arm5_combab_alignS: HOLD_ABOVE 200000 reached
