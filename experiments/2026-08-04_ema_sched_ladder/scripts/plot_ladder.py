@@ -37,6 +37,7 @@ EXP_DIR = os.path.dirname(SCRIPTS_DIR)
 sys.path.insert(0, SCRIPTS_DIR)
 
 import noise_band  # noqa: E402
+from cell_label import label as cell_label  # noqa: E402
 
 # Distinct hues, and the head is carried by linestyle as well as colour so
 # the panel survives being read in greyscale.
@@ -95,7 +96,8 @@ def draw(scores: dict, path: str, band=None, replicated=frozenset()) -> None:
             ys = [v for _, v in series]
             ax.plot(xs, ys, ls, marker=mk, ms=4, lw=1.6,
                     color=colour[cell], alpha=0.9,
-                    label=cell if head == "student" else None)
+                    label=cell_label(cell, short=True)
+                    if head == "student" else None)
     ax.axhline(1.0, color="#333", lw=1.2)
     ax.annotate("seasonal naive", xy=(0.99, 1.0), xycoords=("axes fraction",
                 "data"), ha="right", va="bottom", fontsize=8, color="#333")
@@ -114,7 +116,8 @@ def draw(scores: dict, path: str, band=None, replicated=frozenset()) -> None:
             for (s0, v0), (s1, v1) in zip(series, series[1:]):
                 mark = "" if cell in replicated else "  *"
                 labels.append(
-                    f"{cell}  {head[0]}  {s0//1000}k→{s1//1000}k{mark}")
+                    f"{cell_label(cell, short=True)}  |  {head} enc  |  "
+                    f"{s0//1000}k→{s1//1000}k{mark}")
                 values.append(v1 - v0)
                 colours.append(colour[cell])
                 hatches.append("" if head == "student" else "///")

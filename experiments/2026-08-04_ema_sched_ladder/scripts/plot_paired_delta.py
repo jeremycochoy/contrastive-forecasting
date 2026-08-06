@@ -34,6 +34,7 @@ from __future__ import annotations
 import argparse
 import csv
 import os
+import sys
 
 import matplotlib
 matplotlib.use("Agg")
@@ -42,6 +43,9 @@ from matplotlib.lines import Line2D  # noqa: E402
 
 SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
 EXP_DIR = os.path.dirname(SCRIPTS_DIR)
+sys.path.insert(0, SCRIPTS_DIR)
+
+from cell_label import label as cell_label  # noqa: E402
 
 # The same two hues plot_seed_spread.py validated together: ΔE 21.9 under
 # protanopia and 27.9 under normal vision against the light surface.
@@ -97,7 +101,8 @@ def main() -> int:
     for r in rows:
         n = int(r["n_seeds"])
         tag = "n=1" if n < 2 else f"df={int(num(r, 'df') or 0)}"
-        labels.append(f"{r['cell']}  {r['head']}   [{tag}]")
+        labels.append(f"{cell_label(r['cell'], short=True)}  "
+                      f"{r['head']}   [{tag}]")
     y = list(range(len(rows)))[::-1]
 
     fig, (axL, axR) = plt.subplots(

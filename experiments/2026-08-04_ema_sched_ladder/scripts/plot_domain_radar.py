@@ -11,9 +11,15 @@ import csv, math
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 
-HERE = Path(__file__).parent
-EXP = HERE.parent.parent.parent / "experiments" / "2026-08-04_ema_sched_ladder"
-SN_REF = HERE.parent.parent / "2026-07-21_split_pred_rep_small" / "results" / "seasonal_naive_all_results.csv"
+import sys
+
+SCRIPTS_DIR = Path(__file__).resolve().parent
+EXP = SCRIPTS_DIR.parent
+REPO = EXP.parent.parent
+SN_REF = (REPO / "reports" / "2026-07-21_split_pred_rep_small" / "results"
+          / "seasonal_naive_all_results.csv")
+sys.path.insert(0, str(SCRIPTS_DIR))
+from cell_label import label as cell_label  # noqa: E402
 
 INK, MUTED, GRID = "#0b0b0b", "#898781", "#e1e0d9"
 plt.rcParams.update({"figure.dpi": 150, "savefig.dpi": 150, "font.size": 10,
@@ -115,7 +121,8 @@ def draw(ax, entries, title):
         colour = ENTRY_COLORS[idx % len(ENTRY_COLORS)]
         ln, = ax.plot(ANG, vals, color=colour, lw=2.0, ls=st["ls"], marker=st["marker"],
                       markersize=st["ms"], markeredgewidth=0, zorder=4,
-                      label=f"{cell} {head} @ bb{stop // 1000}k — all-config {val:.3f}")
+                      label=f"{cell_label(cell, short=True)}  |  {head} enc  |  "
+                            f"bb{stop // 1000}k — all-config {val:.3f}")
         handles.append(ln)
         ax.fill(ANG, vals, color=colour, alpha=0.05, zorder=1)
         for ang, k in zip(ANG[:-1], DOMAINS):
@@ -149,7 +156,7 @@ with open(scores_out, "w", newline="") as fh:
                             f"{d[dom]:.4f}"])
 print("wrote", scores_out)
 
-out = HERE / "domain_radar.png"
+out = EXP / "plots" / "domain_radar.png"
 fig.savefig(out)
 print("wrote", out)
 print("left :", [(c, s, h, round(v, 4)) for v, c, s, h in lowest])

@@ -39,6 +39,7 @@ EXP_DIR = os.path.dirname(SCRIPTS_DIR)
 sys.path.insert(0, SCRIPTS_DIR)
 
 import noise_band  # noqa: E402
+from cell_label import label as cell_label  # noqa: E402
 
 # Two categorical hues, validated together: ΔE 21.9 under protanopia and 27.9
 # under normal vision against the light surface, both inside the lightness
@@ -67,7 +68,7 @@ def draw(rows: list[dict], path: str) -> None:
     # names them; within a cell, student above teacher.
     labels, ys = [], []
     for i, r in enumerate(rows):
-        labels.append(f"{r['cell']}  {r['head']}")
+        labels.append(f"{cell_label(r['cell'], short=True)}  {r['head']}")
         ys.append(i)
 
     fig, (ax, bx) = plt.subplots(1, 2, figsize=(13.8, 6.6),
