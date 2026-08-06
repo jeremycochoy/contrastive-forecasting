@@ -1,3 +1,4 @@
 [00:31:53] arm6_v2_combab_alignS bb100k enc=teacher head=30000s seed=20260724
 /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh: line 147: 1136795 Killed                  CUDA_VISIBLE_DEVICES="$BB_GPU" python3 -u "$HEAD_TRAIN" --backbone-path "$BB" --encoder-source "$ENC" --device cuda --quantile-head --grad-clip 1.0 --forecast-len 16 --batch-size 256 --lr 1e-3 --total-steps "$HEAD_STEPS" --save-every 5000 --log-every 500 --save-dir "$OUT" --run-name "$HEAD_NAME" --seed "$HEAD_SEED" --hf-repo jeremycochoy/gift-pretrain-full-4096 --hf-path small_v1 --head-arch transformer --head-num-layers 2 --head-nhead 8 --head-ffn-mult 4.0 --head-causal true --head-train-input e_then_f --head-dropout 0.1 "${ARCH_HEAD[@]}" >> "$LOG" 2>&1
 [00:35:03] head-train rc=137
+[01:34:12] arm6_v2_combab_alignS bb100k enc=teacher head=30000s seed=20260724
