@@ -112,7 +112,7 @@ Source: `results/per_stop_changes.csv`. Each row is the change one head made fro
 
 Eleven of 25 changes are inside that band, including every 100k→200k change except `arm5_combab_alignT`'s. Two stops rest entirely on changes inside it: `arm6_v2_combab_alignT` at 100k, whose `none_down` ended the run on +0.0026 and +0.0170, and `arm5_combab_alignS` at 200k, whose `one_down` rests on -0.0192.
 
-`arm5_combab_alignT`'s +0.1344 and +0.1435 at bb200k are about four times every other 100k→200k change, which all sit between -0.0327 and -0.0192, and its 100k→200k leg trained clean: `results/run_cf393_arm5_combab_alignT.log` records no NaN and `ema_loss` falling from 13.1111 at step 100k to 13.0581 at step 200k.
+`arm5_combab_alignT`'s +0.1344 and +0.1435 at bb200k are at least four times every other 100k→200k change, which all sit between -0.0327 and -0.0192, and its 100k→200k leg trained clean: `results/run_cf393_arm5_combab_alignT.log` records no NaN and `ema_loss` falling from 13.1111 at step 100k to 13.0581 at step 200k.
 
 ### How each run ended
 
