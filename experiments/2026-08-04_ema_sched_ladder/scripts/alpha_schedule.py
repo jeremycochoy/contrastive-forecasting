@@ -22,8 +22,11 @@ import csv
 import importlib.util
 import os
 
+import sys
+
 SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
 EXP_DIR = os.path.dirname(SCRIPTS_DIR)
+sys.path.insert(0, SCRIPTS_DIR)
 
 
 def load_ladder():
@@ -52,12 +55,18 @@ def write_plot(path, series, ladder, stops):
     steps = [s / 1000 for s, _ in series]
     alphas = [a for _, a in series]
 
+    # One curve, shared by all ten runs, so it carries no run colour:
+    # `scripts/run_colours.py` reserves the ten hues for the runs.
+    import run_colours
+
     fig, ax = plt.subplots(figsize=(7, 3.4))
-    ax.plot(steps, alphas, color="#1f4e79", lw=2)
-    ax.axvline(ladder.EMA_TAU_RAMP_STEPS / 1000, color="#999", ls="--", lw=1)
+    ax.plot(steps, alphas, color=run_colours.INK, lw=2)
+    ax.axvline(ladder.EMA_TAU_RAMP_STEPS / 1000, color=run_colours.INK_SOFT,
+               ls="--", lw=1)
     for stop in stops:
         ax.plot([stop / 1000], [ladder.alpha_at(stop)],
-                "o", color="#c0504d", ms=5, zorder=3)
+                "o", color=run_colours.INK, mfc="white", mew=1.6, ms=6,
+                zorder=3)
     ax.set_xlabel("backbone step (thousands)")
     ax.set_ylabel("EMA momentum α")
     ax.set_title("EMA momentum against training step")

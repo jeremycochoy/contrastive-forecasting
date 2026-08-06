@@ -21,6 +21,10 @@ encoder, so the matched column here is this study's student-encoder head.
 Delta = scheduled - fixed. Negative means the schedule scores lower, which
 is better. The grey band is the pooled head-seed range (scripts/noise_band.py).
 
+Each bar carries its run's colour (`scripts/run_colours.py`), so the two
+panels can be read against each other: a run sits at a different height in
+each panel because each panel ranks by its own delta.
+
 Writes `results/schedule_vs_fixed.csv` and `plots/schedule_vs_fixed.png`.
 
 Usage:  python3 scripts/schedule_vs_fixed.py [--out-csv F] [--out-png F]
@@ -42,10 +46,10 @@ RES = os.path.join(EXP_DIR, "results")
 sys.path.insert(0, SCRIPTS_DIR)
 
 import noise_band  # noqa: E402
+import run_colours  # noqa: E402
+from cell_label import label as cell_label  # noqa: E402
 
 STOPS = [40000, 100000]
-BETTER = "#1f4e79"   # schedule lower
-WORSE = "#c0504d"    # schedule higher
 
 
 def cell_name(arm: str) -> str:
@@ -96,9 +100,19 @@ def pairs(sched: dict, fixed: dict) -> list[dict]:
 ALPHA = {40000: 0.94, 100000: 1.00, 200000: 1.00}
 
 
+SUFFIX = {"student": "_alignS", "teacher": "_alignT"}
+
+
+def slug(row: dict) -> str:
+    """`arm6_v2 combab` + align student -> `arm6_v2_combab_alignS`.
+
+    The run slug is the key of the report-wide colour map.
+    """
+    return row["cell"].replace(" ", "_") + SUFFIX.get(row["align_target"], "")
+
+
 def label(row: dict) -> str:
-    a = row["align_target"]
-    return row["cell"] if a == "n/a" else f"{row['cell']}  (align {a})"
+    return cell_label(slug(row), short=True)
 
 
 def draw(rows: list[dict], out: str, band: float) -> None:
@@ -112,29 +126,33 @@ def draw(rows: list[dict], out: str, band: float) -> None:
                      key=lambda r: float(r["delta"]))
         ys = range(len(sub))
         vals = [float(r["delta"]) for r in sub]
-        ax.axvspan(-band, band, color="0.85", zorder=0)
-        ax.axvline(0, color="0.3", lw=1, zorder=1)
+        ax.axvspan(-band, band, color=run_colours.BAND, zorder=0)
+        ax.axvline(0, color=run_colours.INK, lw=1, zorder=1)
         ax.barh(list(ys), vals, height=0.62, zorder=2,
-                color=[BETTER if v < 0 else WORSE for v in vals],
+                color=[run_colours.colour(slug(r)) for r in sub],
                 edgecolor="white", linewidth=0)
         ax.set_yticks(list(ys))
         ax.set_yticklabels([label(r) for r in sub], fontsize=8)
+        for tick, r in zip(ax.get_yticklabels(), sub):
+            tick.set_color(run_colours.colour(slug(r)))
         ax.set_xlim(-lim, lim)
         ax.invert_yaxis()
         ax.set_title(f"backbone {stop // 1000}k, "
                      f"α {ALPHA[stop]:.2f} against 0.90", fontsize=9)
         ax.set_xlabel("GM-Relative MASE, scheduled minus fixed 0.9")
-        ax.grid(axis="x", color="0.9", zorder=0)
+        ax.grid(axis="x", color=run_colours.GRID, zorder=0)
         for s in ("top", "right"):
             ax.spines[s].set_visible(False)
 
     axes[0].text(0.02, 0.02, "← schedule better", transform=axes[0].transAxes,
-                 fontsize=8, color=BETTER)
+                 fontsize=8, color=run_colours.INK)
     axes[-1].text(0.98, 0.02, "schedule worse →", transform=axes[-1].transAxes,
-                  fontsize=8, color=WORSE, ha="right")
+                  fontsize=8, color=run_colours.INK, ha="right")
     fig.suptitle("Scheduled EMA momentum against fixed 0.9, matched stop, "
-                 f"student encoder (grey = head-seed band ±{band:.4f})",
-                 fontsize=11)
+                 f"student encoder (grey = head-seed band ±{band:.4f})\n"
+                 "one colour per run, the report's colour code; "
+                 "each panel ranked by its own delta",
+                 fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.94))
     os.makedirs(os.path.dirname(out), exist_ok=True)
     fig.savefig(out, dpi=150)

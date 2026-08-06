@@ -4,9 +4,8 @@
 Same measure and same figure shape as the parent studies' latent-movement
 panel: `1 - cos(h(prev), h(next))` averaged over `(b, t, c)`, against the
 training step of the later checkpoint, one line per run. Left panel is the
-student encoder, right panel the teacher encoder. Colour records which
-encoder `L_align` targets, so the student-target and teacher-target runs can
-be read against each other.
+student encoder, right panel the teacher encoder. Colour is the run and line
+style is the `L_align` target, both from `scripts/run_colours.py`.
 
 Reads `results/latent_drift.csv` (written by `collect_latent_drift.py`).
 Writes `plots/latent_movement.png`.
@@ -26,21 +25,13 @@ import matplotlib.pyplot as plt  # noqa: E402
 HERE = Path(__file__).resolve().parent
 EXP = HERE.parent
 sys.path.insert(0, str(HERE))
+import run_colours  # noqa: E402
 from cell_label import label  # noqa: E402
 
 SRC = EXP / "results" / "latent_drift.csv"
 OUT = EXP / "plots" / "latent_movement.png"
 RAMP_END = 100_000
-TARGET_COLOR = {"student": "#1f4e79", "teacher": "#c0504d", "none": "#8a8a8a"}
 PANEL = [("student_h", "student encoder"), ("teacher_h", "teacher encoder")]
-
-
-def target_of(cell: str) -> str:
-    if cell.endswith("_alignS"):
-        return "student"
-    if cell.endswith("_alignT"):
-        return "teacher"
-    return "none"
 
 
 def read() -> dict[tuple[str, str], list[tuple[int, float]]]:
@@ -59,8 +50,7 @@ def read() -> dict[tuple[str, str], list[tuple[int, float]]]:
 
 def main() -> int:
     series = read()
-    cells = sorted({c for c, _ in series}, key=lambda c: (target_of(c), c))
-    styles = {"student": "-", "teacher": "--", "none": ":"}
+    cells = run_colours.in_order({c for c, _ in series})
 
     fig, axes = plt.subplots(1, 2, figsize=(13.5, 5.2), sharey=True)
     for ax, (latent, title) in zip(axes, PANEL):
@@ -68,19 +58,21 @@ def main() -> int:
             pts = series.get((cell, latent))
             if not pts:
                 continue
-            tgt = target_of(cell)
             ax.plot([p[0] / 1000 for p in pts], [p[1] for p in pts],
-                    color=TARGET_COLOR[tgt], ls=styles[tgt], lw=1.8,
-                    marker="o", ms=4, alpha=0.85, label=label(cell))
-        ax.axvspan(RAMP_END / 1000, 200, color="#9a9a9a", alpha=0.14, zorder=0)
+                    lw=1.8, marker="o", ms=4, alpha=0.9, label=label(cell),
+                    **run_colours.line_style(cell))
+        ax.axvspan(RAMP_END / 1000, 200, color=run_colours.INK_SOFT,
+                   alpha=0.14, zorder=0)
         ax.set_ylim(0, 1.1)
         ax.set_xlabel("training step of the later checkpoint (thousands)")
         ax.set_title(f"{title}\nshaded: α = 1.0", fontsize=11)
-        ax.grid(True, color="#e1e0d9", alpha=0.8)
+        ax.grid(True, color=run_colours.GRID, alpha=0.8)
     axes[0].set_ylabel("1 − cos(h previous, h next)")
     handles, labels = axes[0].get_legend_handles_labels()
-    fig.legend(handles, labels, fontsize=8, frameon=False, ncol=4,
-               loc="lower center", bbox_to_anchor=(0.5, 0.012))
+    leg = fig.legend(handles, labels, fontsize=8, frameon=False, ncol=4,
+                     loc="lower center", bbox_to_anchor=(0.5, 0.012),
+                     title=run_colours.LEGEND_KEY)
+    leg.get_title().set_fontsize(8)
     fig.suptitle("Latent movement between adjacent checkpoints, "
                  "20k steps apart", fontsize=12.5)
     fig.tight_layout(rect=[0, 0.155, 1, 0.95])

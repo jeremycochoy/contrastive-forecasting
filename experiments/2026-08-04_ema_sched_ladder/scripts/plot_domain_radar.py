@@ -3,6 +3,11 @@
 An entry is one run plus one head. The radial axis is log2(ratio), so equal
 multiplicative steps are equal distances.
 
+Colour is the run and line style is the `L_align` target, both from
+`scripts/run_colours.py`, so a run keeps its colour here and in every other
+figure. Two entries of one run therefore share a colour; the marker shape
+separates the heads.
+
 Left  — the 5 lowest entries, each at its last evaluated stop.
 Right — the entries that reached the highest backbone step (200k).
 """
@@ -19,19 +24,21 @@ REPO = EXP.parent.parent
 SN_REF = (REPO / "reports" / "2026-07-21_split_pred_rep_small" / "results"
           / "seasonal_naive_all_results.csv")
 sys.path.insert(0, str(SCRIPTS_DIR))
+import run_colours  # noqa: E402
 from cell_label import label as cell_label  # noqa: E402
 
-INK, MUTED, GRID = "#0b0b0b", "#898781", "#e1e0d9"
+INK, MUTED, GRID = run_colours.INK, run_colours.INK_SOFT, run_colours.GRID
 plt.rcParams.update({"figure.dpi": 150, "savefig.dpi": 150, "font.size": 10,
                      "axes.edgecolor": MUTED, "axes.labelcolor": INK,
                      "xtick.color": INK, "ytick.color": INK})
 
-# Five entries per panel, and two entries of one run can both be drawn, so
-# colour is keyed to the ENTRY position, not to the run: keying it to the run
-# put two blues and two golds in the left panel.
-ENTRY_COLORS = ["#2a78d6", "#e06c00", "#007d4f", "#b5279b", "#6a4a2f"]
-HEAD_STYLE = {"student": {"ls": "-", "marker": "o", "ms": 7},
-              "teacher": {"ls": "--", "marker": "s", "ms": 6}}
+# The head, and only the head, rides on the marker: colour is the run and
+# line style is the `L_align` target, report-wide.
+HEAD_MARKER = {"student": {"marker": "o", "ms": 7},
+               "teacher": {"marker": "s", "ms": 6}}
+# The parity ring is furniture. It is pale and solid so it cannot be read as
+# run 8 (grey) or as a teacher-align dashed line.
+PARITY = run_colours.PARITY
 
 
 def _mase(path):
@@ -109,17 +116,18 @@ def draw(ax, entries, title):
     ax.set_yticklabels([f"{t:g}" for t in TICKS], fontsize=7.5, color=MUTED)
     ax.grid(color=GRID, alpha=0.9)
     ax.set_rlabel_position(180 / N)
-    ax.plot(ANG, [r(1.0)] * (N + 1), color="#c04040", lw=1.8, ls="--", zorder=3)
-    ax.fill(ANG, [r(1.0)] * (N + 1), color="#c04040", alpha=0.06, zorder=0)
+    ax.plot(ANG, [r(1.0)] * (N + 1), color=PARITY, lw=4.0, zorder=2)
+    ax.fill(ANG, [r(1.0)] * (N + 1), color=PARITY, alpha=0.28, zorder=0)
 
     handles = []
-    for idx, (val, cell, stop, head) in enumerate(entries):
+    for _idx, (val, cell, stop, head) in enumerate(entries):
         d, _ = per_domain(cell, stop, head)
         vals = [r(d[k]) for k in DOMAINS]
         vals += vals[:1]
-        st = HEAD_STYLE[head]
-        colour = ENTRY_COLORS[idx % len(ENTRY_COLORS)]
-        ln, = ax.plot(ANG, vals, color=colour, lw=2.0, ls=st["ls"], marker=st["marker"],
+        st = HEAD_MARKER[head]
+        colour = run_colours.colour(cell)
+        ln, = ax.plot(ANG, vals, color=colour, lw=2.0,
+                      ls=run_colours.linestyle(cell), marker=st["marker"],
                       markersize=st["ms"], markeredgewidth=0, zorder=4,
                       label=f"{cell_label(cell, short=True)}  |  {head} enc  |  "
                             f"bb{stop // 1000}k — all-config {val:.3f}")
@@ -130,10 +138,13 @@ def draw(ax, entries, title):
                 ax.annotate(f"{d[k]:.2f}", xy=(ang, r(d[k])), fontsize=7.5, color=colour,
                             ha="left", va="bottom", zorder=5)
     ax.set_title(title, fontsize=10.5, pad=18)
-    handles.append(Line2D([], [], color="#c04040", lw=1.8, ls="--",
+    handles.append(Line2D([], [], color=PARITY, lw=4.0,
                           label="parity ring: ratio 1.0, seasonal naive"))
-    ax.legend(handles=handles, loc="upper center", bbox_to_anchor=(0.5, -0.10),
-              fontsize=8.5, frameon=False, ncol=1)
+    leg = ax.legend(handles=handles, loc="upper center",
+                    bbox_to_anchor=(0.5, -0.10), fontsize=8.5, frameon=False,
+                    ncol=1, title=run_colours.LEGEND_KEY.replace(
+                        "   |   ", "\n"))
+    leg.get_title().set_fontsize(8.5)
 
 
 fig, axes = plt.subplots(1, 2, figsize=(14.5, 9.4), subplot_kw={"projection": "polar"})

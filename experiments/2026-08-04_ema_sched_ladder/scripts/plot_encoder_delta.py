@@ -10,6 +10,9 @@ Left of 0 means the teacher encoder scores lower, which is better. The grey
 band is the pooled head-seed range (scripts/noise_band.py), so a dot inside
 it is a difference the head seed alone can produce.
 
+One row per run, in the report's run order, each in its run colour
+(`scripts/run_colours.py`). The marker shape is the backbone stop.
+
 Reads `results/ladder_all.csv`. Writes `plots/encoder_delta.png`.
 
 Usage:  python3 scripts/plot_encoder_delta.py [--ladder FILE] [--out FILE]
@@ -31,12 +34,11 @@ EXP_DIR = os.path.dirname(SCRIPTS_DIR)
 sys.path.insert(0, SCRIPTS_DIR)
 
 import noise_band  # noqa: E402
+import run_colours  # noqa: E402
 from cell_label import label as cell_label  # noqa: E402
 
-TEACHER_LOWER = "#2c6fb5"
-STUDENT_LOWER = "#c2571b"
-INK = "#3f3f3f"
-INK_SOFT = "#9a9a9a"
+INK = run_colours.INK
+INK_SOFT = run_colours.INK_SOFT
 STOP_MARKER = {40000: "o", 100000: "s", 200000: "^"}
 
 
@@ -58,7 +60,7 @@ def read_pairs(path: str) -> list[tuple[str, int, float]]:
 
 
 def draw(pairs: list[tuple[str, int, float]], path: str, band: float) -> None:
-    runs = sorted({c for c, _, _ in pairs})
+    runs = run_colours.in_order({c for c, _, _ in pairs})
     ypos = {c: i for i, c in enumerate(runs)}
 
     fig, ax = plt.subplots(figsize=(10.0, 5.6))
@@ -69,11 +71,13 @@ def draw(pairs: list[tuple[str, int, float]], path: str, band: float) -> None:
 
     for cell, stop, d in pairs:
         ax.plot([d], [ypos[cell]], STOP_MARKER.get(stop, "o"), ms=8,
-                color=TEACHER_LOWER if d < 0 else STUDENT_LOWER,
+                color=run_colours.colour(cell),
                 mec="white", mew=1.1, zorder=3)
 
     ax.set_yticks(list(ypos.values()))
     ax.set_yticklabels([cell_label(c) for c in runs], fontsize=8)
+    for tick, cell in zip(ax.get_yticklabels(), runs):
+        tick.set_color(run_colours.colour(cell))
     ax.invert_yaxis()
     lim = max(abs(d) for _, _, d in pairs) * 1.3
     ax.set_xlim(-lim, max(lim, band * 1.3))
@@ -84,9 +88,9 @@ def draw(pairs: list[tuple[str, int, float]], path: str, band: float) -> None:
     for s in ("top", "right", "left"):
         ax.spines[s].set_visible(False)
     ax.text(0.01, -0.16, "← teacher encoder lower", transform=ax.transAxes,
-            fontsize=8, color=TEACHER_LOWER)
+            fontsize=8, color=INK)
     ax.text(0.99, -0.16, "student encoder lower →", transform=ax.transAxes,
-            fontsize=8, color=STUDENT_LOWER, ha="right")
+            fontsize=8, color=INK, ha="right")
 
     handles = [Line2D([], [], marker=STOP_MARKER[s], lw=0, ms=7, color=INK,
                       mec="white", mew=1.1, label=f"backbone {s // 1000}k")

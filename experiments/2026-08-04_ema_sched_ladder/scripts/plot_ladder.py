@@ -4,10 +4,12 @@
 Reads `results/ladder_all.csv`, the pooled table, so it draws every machine's
 scores and redraws itself as later stops land.
 
-One panel: every cell, both heads, against the backbone step. Solid is the
-student encoder, dashed the teacher, one colour per cell. Seasonal naive sits
-at 1.0 and nothing in this study is below it. The legend sits outside the
-axes so it covers no data, and the y limit is padded so no trace is clipped.
+One panel: every run, both heads, against the backbone step. Colour is the
+run and line style is the `L_align` target (`scripts/run_colours.py`); the
+head is the marker, circle for the student encoder and square for the
+teacher. Seasonal naive sits at 1.0 and nothing in this study is below it.
+The legend sits outside the axes so it covers no data, and the y limit is
+padded so no trace is clipped.
 
 The per-stop change the extend rule reads is a table, not a panel here
 (`results/per_stop_changes.csv`).
@@ -31,13 +33,9 @@ EXP_DIR = os.path.dirname(SCRIPTS_DIR)
 sys.path.insert(0, SCRIPTS_DIR)
 
 import noise_band  # noqa: E402
+import run_colours  # noqa: E402
 from cell_label import label as cell_label  # noqa: E402
-
-# Distinct hues, and the head is carried by linestyle as well as colour so
-# the panel survives being read in greyscale.
-PALETTE = ["#1f4e79", "#c0504d", "#4f8a3d", "#7d5ba6", "#c9891b",
-           "#2b8a9e", "#a0522d", "#7f7f7f", "#d63384", "#111111"]
-HEAD_STYLE = {"student": ("-", "o"), "teacher": ("--", "s")}
+from matplotlib.lines import Line2D  # noqa: E402
 
 
 def read_scores(path: str) -> dict:
@@ -56,9 +54,8 @@ def read_scores(path: str) -> dict:
 
 
 def order(scores: dict) -> list[str]:
-    """Cells best-first, by the lowest score each one reached."""
-    return sorted(scores, key=lambda c: min(
-        v for h in scores[c].values() for _, v in h))
+    """Runs in the report's fixed run order, which is the legend order."""
+    return run_colours.in_order(scores)
 
 
 def read_band(path: str):
@@ -78,22 +75,20 @@ def read_band(path: str):
 def draw(scores: dict, path: str, band=None, replicated=frozenset()) -> None:
     del band, replicated  # the change panel moved out; kept for the CLI
     cells = order(scores)
-    colour = {c: PALETTE[i % len(PALETTE)] for i, c in enumerate(cells)}
 
     fig, ax = plt.subplots(figsize=(10.4, 6.0))
 
     lo = hi = None
     for cell in cells:
         for head, series in sorted(scores[cell].items()):
-            ls, mk = HEAD_STYLE.get(head, ("-", "o"))
             xs = [s / 1000 for s, _ in series]
             ys = [v for _, v in series]
             lo = min([lo] * bool(lo is not None) + ys)
             hi = max([hi] * bool(hi is not None) + ys)
-            ax.plot(xs, ys, ls, marker=mk, ms=4, lw=1.6,
-                    color=colour[cell], alpha=0.9,
+            ax.plot(xs, ys, ms=4, lw=1.6, alpha=0.9,
                     label=cell_label(cell, short=True)
-                    if head == "student" else None)
+                    if head == "student" else None,
+                    **run_colours.line_style(cell, head))
     if lo <= 1.0:
         ax.axhline(1.0, color="#333", lw=1.2)
         ax.annotate("seasonal naive", xy=(0.99, 1.0),
@@ -102,13 +97,22 @@ def draw(scores: dict, path: str, band=None, replicated=frozenset()) -> None:
     pad = (hi - lo) * 0.08
     ax.set_ylim(lo - pad, hi + pad)
     ax.set_xlabel("backbone step (thousands)")
-    ax.set_ylabel("GM-Relative MASE  (lower is better; 1.0 = "
-                  "seasonal naive, below every trace here)")
-    ax.set_title("Every run, both heads\nsolid = student encoder, "
-                 "dashed = teacher encoder", fontsize=10)
+    ax.set_ylabel("GM-Relative MASE  (lower is better; "
+                  "1.0 = seasonal naive)")
+    ax.set_title("Every run, both heads", fontsize=10)
     ax.grid(alpha=0.25)
-    ax.legend(fontsize=8, ncol=1, loc="upper left",
-              bbox_to_anchor=(1.01, 1.0), frameon=False)
+
+    handles, labels = ax.get_legend_handles_labels()
+    handles += [
+        Line2D([], [], color=run_colours.INK, marker="o", lw=0, ms=6,
+               label="circle = student encoder"),
+        Line2D([], [], color=run_colours.INK, marker="s", lw=0, ms=6,
+               label="square = teacher encoder"),
+    ]
+    leg = ax.legend(handles=handles, fontsize=8, ncol=1, loc="upper left",
+                    bbox_to_anchor=(1.01, 1.0), frameon=False,
+                    title=run_colours.LEGEND_KEY.replace("   |   ", "\n"))
+    leg.get_title().set_fontsize(8)
 
     fig.tight_layout()
     fig.savefig(path, dpi=150, bbox_inches="tight")

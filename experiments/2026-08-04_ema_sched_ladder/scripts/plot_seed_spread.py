@@ -11,7 +11,8 @@ the open diamond is the bb40k value the rule compared against. The distance
 between diamond and dot is the change the rule read; the bar is how much of
 it is seed.
 
-Head is carried by marker shape, so the panel does not depend on colour.
+Colour is the run, from `scripts/run_colours.py`, the same colour the run
+carries in every other figure of the report. Head is the marker shape.
 
 Usage:  python3 scripts/plot_seed_spread.py [--spread FILE] [--out FILE]
 """
@@ -31,13 +32,12 @@ SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
 EXP_DIR = os.path.dirname(SCRIPTS_DIR)
 sys.path.insert(0, SCRIPTS_DIR)
 
+import run_colours  # noqa: E402
 from cell_label import label as cell_label  # noqa: E402
 
-# One data hue against the light surface; ink is furniture, not a series.
-RESOLVED = "#2c6fb5"
-INK = "#3f3f3f"
-INK_SOFT = "#9a9a9a"
-HEAD_MARKER = {"student": "o", "teacher": "s"}
+INK = run_colours.INK
+INK_SOFT = run_colours.INK_SOFT
+HEAD_MARKER = run_colours.HEAD_MARKER
 SEEDS = ["seed_20260722", "seed_20260723", "seed_20260724"]
 
 
@@ -53,8 +53,9 @@ def f(row: dict, key: str):
 
 
 def draw(rows: list[dict], path: str) -> None:
-    # Cells keep the order seed_spread.py emits, which is the order the card
-    # names them; within a cell, student above teacher.
+    # The report's fixed run order; within a run, student above teacher.
+    rank = {c: i for i, c in enumerate(run_colours.ORDER)}
+    rows.sort(key=lambda r: (rank.get(r["cell"], len(rank)), r["head"]))
     labels, ys = [], []
     for i, r in enumerate(rows):
         labels.append(f"{cell_label(r['cell'], short=True)}  {r['head']}")
@@ -68,7 +69,7 @@ def draw(rows: list[dict], path: str) -> None:
     for y, r in zip(ys, rows):
         vals = [f(r, s) for s in SEEDS]
         have = [v for v in vals if v is not None]
-        colour = RESOLVED
+        colour = run_colours.colour(r["cell"])
         lo, hi = min(have), max(have)
         ax.plot([lo, hi], [y, y], "-", color=colour, lw=2, alpha=0.85,
                 solid_capstyle="round", zorder=2)
@@ -83,6 +84,8 @@ def draw(rows: list[dict], path: str) -> None:
 
     ax.set_yticks(ys)
     ax.set_yticklabels(labels, fontsize=8)
+    for tick, r in zip(ax.get_yticklabels(), rows):
+        tick.set_color(run_colours.colour(r["cell"]))
     ax.invert_yaxis()
     ax.set_xlabel("GM-Relative MASE  (lower is better)")
     ax.set_title("Head-seed spread at bb100k, three seeds per run per "
@@ -106,8 +109,10 @@ def draw(rows: list[dict], path: str) -> None:
     ]
     # Below the panels: with twelve rows there is no corner of either axes
     # that is reliably empty, and a legend over a data row hides the answer.
-    fig.legend(handles=handles, fontsize=8, ncol=3, loc="lower center",
-               frameon=False, bbox_to_anchor=(0.5, 0.0))
+    leg = fig.legend(handles=handles, fontsize=8, ncol=3, loc="lower center",
+                     frameon=False, bbox_to_anchor=(0.5, 0.0),
+                     title="one colour per run, the report's colour code")
+    leg.get_title().set_fontsize(8)
 
     if not complete:
         fig.suptitle("PARTIAL — not every seed has finished", fontsize=11,

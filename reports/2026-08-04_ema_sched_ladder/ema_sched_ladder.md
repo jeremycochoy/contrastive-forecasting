@@ -182,4 +182,6 @@ Artefacts: `experiments/2026-08-04_ema_sched_ladder/`. In the CSV files the colu
 | `results/denominator_checksums.txt` | seasonal-naive denominator hash per machine |
 | `results/eval/<run>/eval/bb<stop>_<head>/gift/all_results.csv` | per-config MASE behind every score |
 
+`scripts/run_colours.py` is the single source of the colour code that every figure uses: one colour per run, one line style per `L_align` target, imported by every plot script.
+
 Plot sources, all under `experiments/2026-08-04_ema_sched_ladder/scripts/`: `schedule_vs_fixed.py`, `plot_encoder_delta.py`, `plot_ladder.py`, `plot_domain_radar.py`, `plot_paired_delta.py`, `plot_seed_spread.py`, `alpha_schedule.py`, `collect_latent_drift.py` and `plot_latent_movement.py`, and `union_parents.py` for the reference table. The ±0.0384 band comes from `noise_band.py`; run it to print each measured range and the pooled maximum. `schedule_vs_fixed.py` and `plot_encoder_delta.py` draw that band; `plot_paired_delta.py` draws no band, and shows each row's own interval instead.

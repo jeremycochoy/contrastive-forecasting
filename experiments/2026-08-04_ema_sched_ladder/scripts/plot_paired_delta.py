@@ -14,9 +14,9 @@ Each small marker is one head seed's own `bb100k(s) - bb40k(s)`. The extend
 rule is a strict `<`, so what it reads is exactly the SIGN. An interval
 crossing zero is a branch the head seed alone can flip.
 
-Colour is the answer, not the identity: a delta whose sign is the same at
-every seed is blue, one whose sign flips is orange. Head is carried by
-marker shape as well, so the panel does not depend on colour alone.
+Colour is the run, from `scripts/run_colours.py`, the same colour the run
+carries in every other figure of the report. Head is the marker shape.
+Whether the sign holds at every seed is printed in the row label, next to df.
 
 Usage:  python3 scripts/plot_paired_delta.py [--paired FILE] [--out FILE]
 """
@@ -36,15 +36,12 @@ SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
 EXP_DIR = os.path.dirname(SCRIPTS_DIR)
 sys.path.insert(0, SCRIPTS_DIR)
 
+import run_colours  # noqa: E402
 from cell_label import label as cell_label  # noqa: E402
 
-# The same two hues plot_seed_spread.py validated together: ΔE 21.9 under
-# protanopia and 27.9 under normal vision against the light surface.
-STABLE = "#2c6fb5"
-FLIPS = "#c2571b"
-INK = "#3f3f3f"
-INK_SOFT = "#9a9a9a"
-HEAD_MARKER = {"student": "o", "teacher": "s"}
+INK = run_colours.INK
+INK_SOFT = run_colours.INK_SOFT
+HEAD_MARKER = run_colours.HEAD_MARKER
 SEEDS = ["20260722", "20260723", "20260724"]
 
 
@@ -74,17 +71,20 @@ def main() -> int:
     if not rows:
         print("no paired delta rows yet; nothing to plot")
         return 0
+    rank = {c: i for i, c in enumerate(run_colours.ORDER)}
+    rows.sort(key=lambda r: (rank.get(r["cell"], len(rank)), r["head"]))
     labels = []
     for r in rows:
-        tag = f"df={int(num(r, 'df') or 0)}"
+        sign = "same sign at every seed" if r["sign_stable"] == "yes" \
+            else "sign flips on the head seed"
         labels.append(f"{cell_label(r['cell'], short=True)}  "
-                      f"{r['head']}   [{tag}]")
+                      f"{r['head']}   [df={int(num(r, 'df') or 0)}, {sign}]")
     y = list(range(len(rows)))[::-1]
 
-    fig, axL = plt.subplots(figsize=(10.0, 0.55 * len(rows) + 3.0))
+    fig, axL = plt.subplots(figsize=(13.0, 0.55 * len(rows) + 3.0))
 
     for yy, r in zip(y, rows):
-        col = STABLE if r["sign_stable"] == "yes" else FLIPS
+        col = run_colours.colour(r["cell"])
         mk = HEAD_MARKER.get(r["head"], "o")
         mean = num(r, "delta_mean")
         t_crit = num(r, "t_crit_05") or 0.0
@@ -101,6 +101,8 @@ def main() -> int:
     axL.axvline(0.0, color=INK, lw=1.0, zorder=1)
     axL.set_yticks(y)
     axL.set_yticklabels(labels, fontsize=9)
+    for tick, r in zip(axL.get_yticklabels(), rows):
+        tick.set_color(run_colours.colour(r["cell"]))
     axL.set_xlabel("paired  bb100k \u2212 bb40k   (GM-Relative MASE, lower is better)")
     axL.set_title("The delta, both ends at the same head seed\n"
                   "interval = mean \u00b1 t(df, .05)\u00b7SE, df printed per row",
@@ -111,14 +113,15 @@ def main() -> int:
     axL.set_ylim(-0.8, len(rows) - 0.2)
 
     handles = [
-        Line2D([], [], color=STABLE, lw=3,
-               label="same sign at every seed"),
-        Line2D([], [], color=FLIPS, lw=3, label="sign flips on the head seed"),
         Line2D([], [], color=INK, marker="o", lw=0, label="student head"),
         Line2D([], [], color=INK, marker="s", lw=0, label="teacher head"),
+        Line2D([], [], color=INK, marker="o", lw=0, mfc="none",
+               label="one head seed's own delta (hollow)"),
     ]
-    fig.legend(handles=handles, loc="lower center", ncol=4, frameon=False,
-               fontsize=9, bbox_to_anchor=(0.5, -0.005))
+    leg = fig.legend(handles=handles, loc="lower center", ncol=3,
+                     frameon=False, fontsize=9, bbox_to_anchor=(0.5, -0.005),
+                     title="one colour per run, the report's colour code")
+    leg.get_title().set_fontsize(9)
     fig.tight_layout(rect=(0, 0.075, 1, 1))
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
     fig.savefig(a.out, dpi=150, bbox_inches="tight")
