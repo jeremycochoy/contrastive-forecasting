@@ -76,6 +76,42 @@ Bold = the row's lowest value. `arm5 combab / student` has no bb200k teacher val
 
 A `—` in a parent column means the cell never placed in that report's five lowest. Parent values are quoted from the two report tables; every `this study` value traces to `results/ladder_all.csv`.
 
+### The raw change the extend rule read
+
+Source: `experiments/2026-08-04_ema_sched_ladder/results/per_stop_changes.csv`. Each row is the change one head made from the previous stop, which is the only quantity the rule compares. Negative is down. Bold marks a change smaller than 0.0272, the largest head-seed range measured here.
+
+| Cell | head | transition | from | to | change | rule read | branch |
+|---|---|---|---|---|---|---|---|
+| `arm1_nse` | student | 40k→100k | 1.4347 | 1.5227 | +0.0880 | not down | `none_down` |
+| `arm1_nse` | teacher | 40k→100k | 1.4512 | 1.5604 | +0.1092 | not down | `none_down` |
+| `arm4_combab` | student | 40k→100k | 1.2503 | 1.3479 | +0.0976 | not down | `none_down` |
+| `arm4_combab` | teacher | 40k→100k | 1.2870 | 1.3188 | +0.0318 | not down | `none_down` |
+| `arm5_combab_alignS` | student | 40k→100k | 1.2596 | 1.2102 | -0.0494 | down | `one_down` |
+| `arm5_combab_alignS` | teacher | 40k→100k | 1.2347 | 1.2407 | **+0.0060** | not down | `one_down` |
+| `arm5_combab_alignS` | student | 100k→200k | 1.2102 | 1.1910 | **-0.0192** | down | `one_down` |
+| `arm5_combab_alignT` | student | 40k→100k | 1.3334 | 1.2797 | -0.0537 | down | `both_down` |
+| `arm5_combab_alignT` | teacher | 40k→100k | 1.3190 | 1.2772 | -0.0418 | down | `both_down` |
+| `arm5_combab_alignT` | student | 100k→200k | 1.2797 | 1.4141 | +0.1344 | not down | `none_down` |
+| `arm5_combab_alignT` | teacher | 100k→200k | 1.2772 | 1.4207 | +0.1435 | not down | `none_down` |
+| `arm6_v2_combab_alignS` | student | 40k→100k | 1.1603 | 1.1945 | +0.0342 | not down | `none_down` |
+| `arm6_v2_combab_alignS` | teacher | 40k→100k | 1.1544 | 1.1837 | +0.0293 | not down | `none_down` |
+| `arm6_v2_combab_alignT` | student | 40k→100k | 1.1895 | 1.1921 | **+0.0026** | not down | `none_down` |
+| `arm6_v2_combab_alignT` | teacher | 40k→100k | 1.1793 | 1.1963 | **+0.0170** | not down | `none_down` |
+| `arm6_v2_ncpc_alignS` | student | 40k→100k | 1.3611 | 1.4951 | +0.1340 | not down | `none_down` |
+| `arm6_v2_ncpc_alignS` | teacher | 40k→100k | 1.3656 | 1.5007 | +0.1351 | not down | `none_down` |
+| `arm6_v2_ncpc_alignT` | student | 40k→100k | 1.2955 | 1.3904 | +0.0949 | not down | `none_down` |
+| `arm6_v2_ncpc_alignT` | teacher | 40k→100k | 1.3266 | 1.3646 | +0.0380 | not down | `none_down` |
+| `arm6_v2_nse_alignS` | student | 40k→100k | 1.2690 | 1.3572 | +0.0882 | not down | `none_down` |
+| `arm6_v2_nse_alignS` | teacher | 40k→100k | 1.2917 | 1.3770 | +0.0853 | not down | `none_down` |
+| `arm6_v2_nse_alignT` | student | 40k→100k | 1.4238 | 1.3913 | -0.0325 | down | `both_down` |
+| `arm6_v2_nse_alignT` | teacher | 40k→100k | 1.4177 | 1.3746 | -0.0431 | down | `both_down` |
+| `arm6_v2_nse_alignT` | student | 100k→200k | 1.3913 | 1.3586 | -0.0327 | down | `both_down` |
+| `arm6_v2_nse_alignT` | teacher | 100k→200k | 1.3746 | 1.3459 | -0.0287 | down | `both_down` |
+
+Four of 25 changes are inside that band. Two stops rest entirely on them: `arm6_v2_combab_alignT` at 100k, whose `none_down` ended the run on +0.0026 and +0.0170, and `arm5_combab_alignS` at 200k, whose `one_down` rests on -0.0192. The first of those two is the branch that flips when the head seed changes.
+
+Every 40k→100k row moves the head budget from 15,000 to 30,000 steps as well as the backbone.
+
 ### How each run ended
 
 Source: `experiments/2026-08-04_ema_sched_ladder/results/stop_reason.csv`.
@@ -135,6 +171,7 @@ Artefacts: `experiments/2026-08-04_ema_sched_ladder/`.
 | File | Contents |
 |---|---|
 | `results/ladder_all.csv` | 45 scored stops, pooled across machines |
+| `results/per_stop_changes.csv` | the change each head made per stop, and the branch it produced |
 | `results/stop_reason.csv` | last stop, branch and cause per run |
 | `results/seed_spread.csv` | three head seeds per cell per head at bb100k |
 | `results/seed_branches.csv` | whether each recorded branch survives a change of head seed |

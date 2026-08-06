@@ -315,3 +315,54 @@ have changed a published number.
 - Only one supervisor is alive (pid 1561479, `CF393_BB40K_TIERS=t1`). A
   second identical one launched at 15:16Z was killed rather than left to
   double the pool against a VRAM gate sized for one.
+
+## 08-06 15:38Z — tier 1 stopped: the replicates were scope creep
+
+The card specifies one head seed, `20260722`, and prescribes its own remedy
+for the noise that follows: report the raw per-stop changes and let the
+reader judge. The bb40k replicate seeds were added on a reviewer's
+recommendation, not on the card, and they were spending shared GPU time.
+They are stopped.
+
+What was killed, in order, so nothing requeued behind the kill:
+
+- `bb40k_supervisor.sh` (pid 1561479) first. It restarts a drained pass, so
+  killing a driver before the supervisor would have started another.
+- Three `seed_replicates_bb40k.sh` drivers (pids 1438991, 1439725, 1451534)
+  and their whole process trees: 57 processes, including 9 `eval_stop.sh`,
+  3 `train_forecasting_head.py` on GPU and 24 sharded
+  `eval_gift_eval_official.py` workers on CPU. TERM was enough; no process
+  needed KILL.
+- `scripts/t1_watch.sh` was already dead at the cut. Its log ends at 15:19Z
+  with `t1 watch armed — 9/24 scored, 9 running`.
+- Seven `sync/sync_loop.sh` loops and `scripts/artefact_loop.sh`. Every
+  rented box was already released, so the sync loops were ticking against
+  hosts that no longer exist; `vastrun-status` reports no running
+  instances. The final artefact commit is made by hand instead.
+
+Data kept. Nothing measured was deleted:
+
+- 9 of 24 tier-1 bb40k replicate scores are measured and retained. Four
+  cells are complete at both extra seeds (`arm6_v2_combab_alignS`,
+  `arm6_v2_combab_alignT`), one has a single score
+  (`arm5_combab_alignS` student s20260723 = 1.2980).
+- `paired_delta.py` last refreshed at 15:20Z, after the last score landed
+  at 15:11Z, so `paired_delta.csv`, `paired_branches.csv`,
+  `seed_spread.csv` already reflect the full measured set. They were not
+  re-run.
+- Partial GIFT-Eval shard output from the 9 cancelled jobs stays on the
+  durable root under `<cell>/eval/bb40k_*_s2026072[34]/`. It is resumable,
+  not deleted.
+- The 9 claim directories with no score file were released, so
+  `--status` now reads `9/24 scored, 0 running` instead of showing dead
+  jobs as running. The 9 with scores keep their claims.
+
+GPUs. elisa GPU 0 and GPU 1 both hold zero cf-393 memory and sit at 0%
+utilization. The 7.5 GB left on GPU 0 belongs to other users' jupyter
+kernels and to `/tmp/rnd-426`, untouched.
+
+Carried into the report: the replicates are an annex, not the spine. The
+new `results/per_stop_changes.csv` is the card's prescribed remedy: the
+raw change each head made at each stop, next to the branch that change
+produced. Four of 25 changes are smaller than the largest measured
+head-seed range, and two stops rest entirely on them.
