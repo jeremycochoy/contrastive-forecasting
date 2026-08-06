@@ -64,3 +64,9 @@
 [07:57:19] eval place=local_cpu
 [07:57:20] head-train rc=0
 [07:57:20] eval place=local_cpu
+[09:10:48] eval_local rc=0
+[09:10:48] DONE — Aggregate GM-Relative MASE (97 configs): 1.3459 -> 1.3459
+[09:10:50] eval_local rc=0
+[09:10:50] DONE — Aggregate GM-Relative MASE (97 configs): 1.3586 -> 1.3586
+[ladder] arm6_v2_nse_alignT @200000: {'student': 1.3586, 'teacher': 1.3459} -> {'extend': True, 'heads': ('student', 'teacher'), 'branch': 'both_down'}
+[ladder] arm6_v2_nse_alignT: HOLD_ABOVE 200000 reached

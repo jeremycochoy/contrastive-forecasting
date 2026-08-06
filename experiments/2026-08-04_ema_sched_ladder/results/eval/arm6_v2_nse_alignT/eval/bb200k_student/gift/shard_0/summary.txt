@@ -1,0 +1,41 @@
+==========================================================================================
+                                GIFT-Eval Official Results                                
+==========================================================================================
+Config                                            MASE  SN_MASE   Relative
+------------------------------------------------------------------------------------------
+bitbrains_fast_storage/5T/medium                1.3551   1.2203     1.1105
+bizitobs_application/10S/long                  12.7414   3.2063     3.9738
+bizitobs_l2c/5T/long                            1.3028   1.4543     0.8958
+bizitobs_service/10S/medium                     5.4776   1.3206     4.1479
+covid_deaths/D/short                           66.7202  46.9124     1.4222
+electricity/15T/long                            3.5244   1.1635     3.0291
+electricity/H/long                              3.6157   1.5241     2.3724
+electricity/H/medium                            3.5339   1.3925     2.5379
+ett1/H/long                                     2.2731   1.4787     1.5372
+ett2/15T/medium                                 1.1987   1.0512     1.1403
+ett2/H/short                                    1.0092   0.9232     1.0932
+jena_weather/10T/medium                         0.8160   0.7160     1.1396
+jena_weather/D/short                            1.7926   1.5734     1.1393
+kdd_cup_2018/H/medium                           1.3152   1.4290     0.9204
+kdd_cup_2018/H/short                            1.1845   1.3404     0.8837
+m4_weekly/W/short                               4.0428   2.7773     1.4557
+m4_yearly/A/short                              13.4387   3.9660     3.3885
+m_dense/H/long                                  2.5589   1.4779     1.7314
+restaurant/D/short                              0.8367   1.0061     0.8316
+saugeen/M/short                                 0.9939   0.9764     1.0179
+solar/10T/short                                 1.5743   1.1057     1.4238
+sz_taxi/15T/short                               0.6085   0.7644     0.7961
+sz_taxi/H/short                                 0.6719   0.7382     0.9102
+------------------------------------------------------------------------------------------
+
+Aggregate GM-Relative MASE (23 configs): 1.4640
+
+Leaderboard comparison:
+  Sundial:    0.673
+  TimesFM:    0.680
+  PatchTST:   0.762
+  Chronos:    0.786
+  Moirai:     0.809
+  Naive:      1.000
+  ** Ours:    1.464 **
+==========================================================================================
