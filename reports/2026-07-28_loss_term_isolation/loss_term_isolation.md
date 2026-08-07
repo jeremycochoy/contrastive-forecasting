@@ -1,5 +1,16 @@
 # h_t drift trends down for six of eight single-term arms, flat for CPC, up for `L_pred` alone
 
+> **Note — the `align` arm targets the student latent, not a teacher.** The
+> name says BYOL/SimSiam, which use an EMA teacher. This arm does not. It pulls
+> `f_t` toward the student's own `h_{t+1}`, held under a stop-gradient. No
+> teacher takes part. Every `L_align` number and curve below therefore measures
+> the student target. Issue #388 added the `--align-target teacher` flag and
+> re-ran the arm: see
+> [the per-term drift map](../../experiments/2026-08-01_align_teacher_ema_schedule/align_teacher_ema_schedule.md)
+> for the teacher-target drift, and
+> [the L_align teacher report](../2026-08-04_lalign_teacher/lalign_teacher.md)
+> for its effect on GM-Relative MASE.
+
 Trained alone for 100k steps on the small backbone, `h_t` drift on a fixed held-out batch trends **down** for six of the eight single-term arms (`L_align`, `SIGReg on h_t`, `L_rep`, `SIGReg on e_t`, `L_rep_moco`, `L_pred_moco`), stays **flat** for the `CPC` arm, and trends **up** for `L_pred` alone. Among the six down-trending arms, `SIGReg on e_t` reaches the lowest late-training drift.
 
 ## Headline figure
@@ -31,7 +42,7 @@ Drift trend per arm, grouped by direction. Early drift is the mean over steps 5k
 - **Latent drift** at checkpoint pair `(step_i, step_j)` on a fixed held-out batch (`torch.manual_seed(20260722)`, `B=8` ARMA-synthetic): `mean_{b,t,c} 1 − cos(h_t(model_j), h_t(model_i))`. Range `[0, 2]`; low = the mapping learned by the model on this fixed input hasn't rotated between the two checkpoints. Referred to below as "drift".
 - **L_pred** — batch-pooled f-anchored InfoNCE from `cosine_similarity_batch_split_pred_rep`: numerator `cos(f_t, h_{t+1})/τ`, denominator LSE over the f-anchored families (adjacent `f_t↔f_{t+1}` + cross-batch `f_t↔h'_{t+1}`).
 - **L_rep** — h-anchored logsumexp from the split shape's `L_rep`: pooled LSE of the three h-anchored families (cross-channel `h↔h`, within-series all-time `h_t↔h_l`, cross-series all-time `h_t↔h_{b',l}`). No positive.
-- **L_align** — BYOL/SimSiam alignment: `2 − 2·cos(f_t, sg(h_{t+1}))` (stop-grad on the encoder side).
+- **L_align** — alignment term: `2 − 2·cos(f_t, sg(h_{t+1}))`. The target `h_{t+1}` is the student encoder output, held under a stop-gradient. Not a teacher (see the note at the top).
 
 ## Backbone
 
