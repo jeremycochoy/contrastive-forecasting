@@ -8,7 +8,7 @@ The metric is GM-Relative MASE, the geometric mean over 97 GIFT-Eval configs of 
 
 ![Scheduled minus fixed 0.9, per run, at backbone 40k and backbone 100k](plots/schedule_vs_fixed.png)
 
-Mean change is −0.0259 at backbone 40k, where α is 0.94, and +0.0251 at backbone 100k, where α has reached 1.0. `arm1 nse` moves −0.1232 at backbone 40k, the largest change in the study.
+Mean change is −0.0259 at backbone 40k, where α is 0.94, and +0.0251 at backbone 100k, where α has reached 1.0. `arm1 nse` moves −0.1232 at backbone 40k, the largest change at that stop; the largest change anywhere is `arm6_v2 ncpc` on the student head, +0.1973 at backbone 100k.
 
 Nine of the ten runs read the scheduled teacher inside their loss — through `L_align`, through the split `L_pred` / `L_rep` positive, through the MoCo rep keys, or through the MoCo negatives — and the per-run table names the path each one uses.
 
