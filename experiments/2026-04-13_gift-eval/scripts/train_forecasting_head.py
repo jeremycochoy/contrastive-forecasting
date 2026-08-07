@@ -30,6 +30,7 @@ import torch
 import torch.optim as optim
 
 from src.models import ConfigurableModel, count_parameters
+from src.checkpoint import prepare_backbone_state_dict, save_encoder_source
 from src.dataloader import create_hf_dataloader, create_mixed_periodic_dataloader
 from src.forecasting_head import (
     ForecastingHead,
@@ -157,6 +158,18 @@ def parse_args():
     p.add_argument("--encoder-type", default=None,
                    choices=["mlp", "mlp_wide", "residual_silu", "gru", "conv"],
                    help="Override backbone encoder type (must match checkpoint)")
+    p.add_argument("--encoder-source", default="student",
+                   choices=["student", "teacher"],
+                   help="Which encoder the head reads (#393). 'student' "
+                        "(default) is every run before #393. 'teacher' loads "
+                        "the backbone with the EMA teacher's patch embedding "
+                        "and encoder stack in place of the student's, so the "
+                        "head decodes teacher latents; the forecaster stays "
+                        "the student's (the teacher has none). Requires a "
+                        "backbone trained with --ema-embedding / "
+                        "--ema-encoder. The choice is written next to every "
+                        "head checkpoint and the official eval refuses to "
+                        "run a head on the other encoder.")
     p.add_argument("--freq-emb-dim", type=int, default=None,
                    help="Frequency embedding dim in the backbone. If the "
                         "backbone was trained with freq_emb_dim=D, set the same "
@@ -472,22 +485,19 @@ def main():
     BACKBONE_CONFIG["patch_stats_kind"] = args.patch_stats
 
     backbone = ConfigurableModel(**BACKBONE_CONFIG)
-    # CPC InfoNCE backbones (#344) carry a learnable `cpc_w1.*` used ONLY by
-    # the pretraining auxiliary loss; it has no role downstream. Drop it so
-    # the strict load matches the head-time backbone (built without it).
-    # EMA-teacher backbones (#353) carry `teacher_input_to_latent.*` and
-    # `teacher_encoder_layers.*` — non-trained EMA copies used only during
-    # pretraining; stripped here so the strict load succeeds.
-    sd = {k: v for k, v in sd.items()
-          if not k.startswith("cpc_w1")
-          and not k.startswith("teacher_")}
+    # Drops the pretraining-only branches (CPC-InfoNCE `cpc_w1.*`, the EMA
+    # teacher's `teacher_*`) so the strict load matches the head-time
+    # backbone, and — under --encoder-source teacher (#393) — promotes the
+    # teacher's encoder weights into the student's slots first.
+    sd = prepare_backbone_state_dict(sd, args.encoder_source)
     backbone.load_state_dict(sd)
     backbone = backbone.to(device)
     backbone.eval()
     for param in backbone.parameters():
         param.requires_grad = False
     print(f"Backbone loaded from {args.backbone_path} "
-          f"({count_parameters(backbone):,} params, frozen)")
+          f"({count_parameters(backbone):,} params, frozen, "
+          f"encoder={args.encoder_source})")
 
     # -- Forecasting head ------------------------------------------------------
     head_config = dict(HEAD_CONFIG)
@@ -845,27 +855,39 @@ def main():
             best_loss = ema_loss
             best_loss_step = step
             path = os.path.join(args.save_dir, f"{args.run_name}_best.pth")
-            torch.save(head.state_dict(), path)
-            _save_optim_meta(optimizer, path, step, best_loss, best_loss_step)
+            _save_head(head, optimizer, path, step, best_loss, best_loss_step,
+                       args.encoder_source)
             print(f"  -> New best: {path} (ema_loss={ema_loss:.6f})")
 
         # Periodic snapshot
         if step % args.save_every == 0:
             path = os.path.join(
                 args.save_dir, f"{args.run_name}_{step // 1000}k.pth")
-            torch.save(head.state_dict(), path)
-            _save_optim_meta(optimizer, path, step, best_loss, best_loss_step)
+            _save_head(head, optimizer, path, step, best_loss, best_loss_step,
+                       args.encoder_source)
             print(f"  -> Saved {path}")
 
     # -- Final save ------------------------------------------------------------
     path = os.path.join(args.save_dir, f"{args.run_name}_final.pth")
-    torch.save(head.state_dict(), path)
-    _save_optim_meta(optimizer, path, args.total_steps, best_loss, best_loss_step)
+    _save_head(head, optimizer, path, args.total_steps, best_loss,
+               best_loss_step, args.encoder_source)
     csv_logger.close()
 
     total = time.time() - t0
     print(f"\nDone in {total / 3600:.1f}h. "
           f"Best loss={best_loss:.6f} at step {best_loss_step}")
+
+
+def _save_head(head, optimizer, path, step, best_loss, best_loss_step,
+               encoder_source):
+    """Head weights, optimizer companion, and the encoder-source marker.
+
+    The marker (#393) travels with every checkpoint so a head trained on the
+    EMA teacher can never be evaluated through the student encoder.
+    """
+    torch.save(head.state_dict(), path)
+    _save_optim_meta(optimizer, path, step, best_loss, best_loss_step)
+    save_encoder_source(path, encoder_source)
 
 
 def _save_optim_meta(optimizer, model_path, step, best_loss, best_loss_step):

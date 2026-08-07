@@ -1,0 +1,40 @@
+# #393 — where each replicate head seed was trained. The allowlist and the
+# audit trail for scripts/release_idle_boxes.sh, in the same form as
+# results/vast_contracts.txt: nothing outside this file may be destroyed.
+#
+# WHY A BOX IS PAIRED WITH A CELL. The replicate measures how much
+# GM-Relative MASE moves when only the head seed changes. The six cells'
+# seed-20260722 heads were not all trained on one GPU model — three on
+# elisa's RTX 4090s and three on rented RTX 5090s (results/machines.txt,
+# and the `_broker/<box>/<cell>/` trees under the durable root are the
+# receipt) — so a replicate on the other model would fold a hardware
+# difference into the spread. Each cell's two replicate seeds run on the
+# same GPU model its first seed did.
+#
+# Every box evaluates its own heads on its own cores (EVAL_PLACE=local_cpu,
+# 4 shards, scripts/eval_slot.sh capping concurrency by core count). The
+# eval, not the head, is the binding resource for this run: 24 evals at
+# ~5.5 core-hours each would queue behind elisa's 32 cores for six hours if
+# they were brokered.
+#
+# Provisioned 2026-08-06 01:15–01:55Z from `vastrun-provision`, on-demand,
+# data-centre hosts only (REMOTE_LAUNCH_CHECKLIST.md).
+#
+# <label> <contract> <ssh host> <ssh port> <gpu> <cores> <$/h> <cell> <seeds>
+
+# released seed-s1  46926706  ssh1.vast.ai  16706  RTX_5090  16  0.3611  arm5_combab_alignS      20260723,20260724
+# released seed-s2  46926890  ssh2.vast.ai  16890  RTX_5090  16  0.3611  arm5_combab_alignT      20260723,20260724
+# released seed-s3  46927035  ssh7.vast.ai  17034  RTX_5090  16  0.4944  arm6_v2_nse_alignT      20260723
+# released seed-s4  46927175  ssh4.vast.ai  17174  RTX_5090   8  0.3611  arm6_v2_nse_alignT      20260724
+# released seed-h1  46928005  ssh6.vast.ai  18004  RTX_4090 128  0.5623  arm6_v2_nse_alignS      20260723,20260724
+# released seed-h2  46927541  ssh1.vast.ai  17540  RTX_4090  80  0.4681  arm6_v2_combab_alignT   20260723,20260724
+
+# elisa (2x RTX 4090, Default compute mode) carries the sixth cell:
+#   arm6_v2_combab_alignS  20260723,20260724
+# Two head trainings at a time, one per card, alongside the three extension
+# legs. A third would have left GPU 0 with 593 MiB free, and the legs share
+# the card with another agent session.
+#
+# 46927341 (RTX 4090, ssh1.vast.ai:17340) was provisioned at 01:52Z and never
+# accepted the ssh key. Destroyed at 02:07Z after 10 minutes, $0.11, nothing
+# on it. 46928005 replaced it.

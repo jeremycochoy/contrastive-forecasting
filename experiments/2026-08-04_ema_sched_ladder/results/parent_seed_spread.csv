@@ -1,0 +1,28 @@
+# The 0.0908 head-seed range this study is measured against comes from the
+# #390 parent report, and this is its file, verbatim:
+#
+#   reports/2026-08-04_lalign_teacher/results/seed_spread.csv
+#   commit c72eb6ad1f810352700230710912acf30169cef6, 2026-08-05 13:26 +0100,
+#   branch feature/contrastive-forecasting-390 (not yet on master).
+#
+# 0.0908 is the LARGEST `range` in it: arm5_nse, backbone 200k, teacher
+# align, 30,000-step head, seeds 20260722 / 20260723 / 20260724, values
+# 1.7979 / 1.8655 / 1.8887, sd 0.0472. Eight cells are measured here and
+# the ranges span 0.0018 to 0.0908; the study quotes the largest because it
+# is the only one that bounds a claim rather than assuming the cell in hand
+# behaves like the tightest one.
+#
+# What it does NOT settle: it is eight cells from another card, on backbones
+# this card did not train, and range over three points is a weak estimator.
+# That is why results/seed_spread.csv measures the same thing inside this
+# study, at the same two extra seeds, and why the report plots that instead.
+#
+arm_slug,bb_steps,align_target,code_snapshot,head_steps,n_seeds,seeds,gm_min,gm_max,gm_mean,gm_sd,range,range_rel,values
+arm5,40000,student,#390-branch,15000,3,20260722 20260723 20260724,1.3754,1.4501,1.4167,0.0380,0.0747,0.0543,1.3754 1.4248 1.4501
+arm5,40000,teacher,#390-branch,15000,3,20260722 20260723 20260724,1.3515,1.3927,1.3736,0.0208,0.0413,0.0305,1.3515 1.3765 1.3927
+arm5_combab,40000,student,#390-branch,15000,3,20260722 20260723 20260724,1.2868,1.2976,1.2906,0.0061,0.0108,0.0084,1.2868 1.2873 1.2976
+arm5_combab,40000,teacher,#390-branch,15000,3,20260722 20260723 20260724,1.2728,1.2746,1.2738,0.0009,0.0018,0.0014,1.2728 1.2739 1.2746
+arm5_nse,200000,teacher,#390-branch,30000,3,20260722 20260723 20260724,1.7979,1.8887,1.8507,0.0472,0.0908,0.0505,1.7979 1.8655 1.8887
+arm6_v2,100000,teacher,#390-branch,30000,3,20260722 20260723 20260724,1.8541,1.9057,1.8752,0.0270,0.0515,0.0278,1.8541 1.8659 1.9057
+arm6_v2_combab,200000,teacher,#390-branch,30000,3,20260722 20260723 20260724,1.1820,1.1883,1.1851,0.0031,0.0063,0.0053,1.1820 1.1850 1.1883
+arm6_v2_ncpc,200000,teacher,#390-branch,30000,3,20260722 20260723 20260724,1.3325,1.3577,1.3472,0.0131,0.0252,0.0189,1.3325 1.3515 1.3577

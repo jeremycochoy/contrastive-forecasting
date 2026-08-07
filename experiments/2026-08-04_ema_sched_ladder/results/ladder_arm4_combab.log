@@ -1,0 +1,56 @@
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm4_combab 40000
+[08-05 03:11:45] [arm4_combab] FRESH start at step 0
+[08-05 03:11:45] [arm4_combab] START target=40000 gpu=0 save_every=20000 leg=/root/cf393_runs/arm4_combab/leg_40k
+[08-05 04:45:34] [arm4_combab] DONE target=40000 (5.0M) -> /root/cf393_runs/arm4_combab/leg_40k/cf393_arm4_combab_40k.pth
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm4_combab 40000 student 15000 /root/cf393_runs/arm4_combab/eval/score_bb40k_student.txt
+[04:45:34] arm4_combab bb40k enc=student head=15000s
+[05:16:13] head-train rc=0
+[05:16:13] eval place=broker
+[05:16:13] request written, waiting for the broker
+[05:46:13] still waiting for the broker (1800s)
+[06:16:13] still waiting for the broker (3600s)
+[06:46:14] still waiting for the broker (5400s)
+[07:16:14] still waiting for the broker (7200s)
+[07:46:14] still waiting for the broker (9000s)
+[08:16:14] still waiting for the broker (10800s)
+[08:46:14] still waiting for the broker (12600s)
+[09:16:14] still waiting for the broker (14400s)
+[09:25:14] broker returned after 14940s
+[09:25:14] DONE — Aggregate GM-Relative MASE (97 configs): 1.2503 -> 1.2503
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm4_combab 40000 teacher 15000 /root/cf393_runs/arm4_combab/eval/score_bb40k_teacher.txt
+[09:25:14] arm4_combab bb40k enc=teacher head=15000s
+[10:06:17] head-train rc=0
+[10:06:17] eval place=broker
+[10:06:17] request written, waiting for the broker
+[10:36:17] still waiting for the broker (1800s)
+[11:06:17] still waiting for the broker (3600s)
+[11:36:17] still waiting for the broker (5400s)
+[12:06:17] still waiting for the broker (7200s)
+[12:07:17] broker returned after 7260s
+[12:07:17] DONE — Aggregate GM-Relative MASE (97 configs): 1.2870 -> 1.2870
+[ladder] arm4_combab @40000: {'student': 1.2503, 'teacher': 1.287} -> {'extend': True, 'heads': ('student', 'teacher'), 'branch': 'unconditional'}
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm4_combab 100000
+[08-05 12:07:17] [arm4_combab] RESUME from cf393_arm4_combab_40k.pth (step 40k)
+[08-05 12:07:17] [arm4_combab] START target=100000 gpu=0 save_every=20000 leg=/root/cf393_runs/arm4_combab/leg_100k
+[08-05 14:45:40] [arm4_combab] DONE target=100000 (5.0M) -> /root/cf393_runs/arm4_combab/leg_100k/cf393_arm4_combab_100k.pth
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm4_combab 100000 student 30000 /root/cf393_runs/arm4_combab/eval/score_bb100k_student.txt
+[14:45:40] arm4_combab bb100k enc=student head=30000s
+[16:11:17] head-train rc=0
+[16:11:17] eval place=broker
+[16:11:17] request written, waiting for the broker
+[16:41:17] still waiting for the broker (1800s)
+[17:11:17] still waiting for the broker (3600s)
+[17:41:17] still waiting for the broker (5400s)
+[18:07:17] broker returned after 6960s
+[18:07:17] DONE — Aggregate GM-Relative MASE (97 configs): 1.3479 -> 1.3479
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm4_combab 100000 teacher 30000 /root/cf393_runs/arm4_combab/eval/score_bb100k_teacher.txt
+[18:07:17] arm4_combab bb100k enc=teacher head=30000s
+[19:03:53] head-train rc=0
+[19:03:53] eval place=broker
+[19:03:53] request written, waiting for the broker
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm4_combab 40000
+[08-06 00:06:27] [arm4_combab] SKIP: cf393_arm4_combab_40k.pth already on disk
+[ladder] arm4_combab @40000: {'student': 1.2503, 'teacher': 1.287} -> {'extend': True, 'heads': ('student', 'teacher'), 'branch': 'unconditional'}
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm4_combab 100000
+[08-06 00:06:27] [arm4_combab] SKIP: cf393_arm4_combab_100k.pth already on disk
+[ladder] arm4_combab @100000: {'student': 1.3479, 'teacher': 1.3188} -> {'extend': False, 'heads': ('student', 'teacher'), 'branch': 'none_down'}

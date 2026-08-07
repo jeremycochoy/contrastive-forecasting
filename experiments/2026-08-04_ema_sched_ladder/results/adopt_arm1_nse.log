@@ -1,0 +1,9 @@
+[08-05 19:10:30] [adopt] size check ok against /home/jupyter/checkpoints_backup/cf-393/_broker/e/arm1_nse/bb100k_student/backbone.pth (5207837 bytes)
+[08-05 19:10:30] [adopt] staged cf393_arm1_nse_100k.pth -> /home/jupyter/checkpoints_backup/cf-393/arm1_nse/leg_100k
+[08-05 19:10:30] [adopt] staged the optimizer companion too
+[08-05 19:10:30] [adopt] arm1_nse bb100k teacher — head 30000 steps on GPU 1, then GIFT-Eval here
+[19:10:30] arm1_nse bb100k enc=teacher head=30000s
+[20:31:59] head-train rc=0
+[20:31:59] eval place=local_cpu
+[21:56:59] eval_local rc=0
+[21:56:59] DONE — Aggregate GM-Relative MASE (97 configs): 1.5604 -> 1.5604

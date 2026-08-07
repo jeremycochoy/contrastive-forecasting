@@ -1,0 +1,84 @@
+[08-05 05:03:03] [broker] start boxes=/tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/results/broker_boxes.txt poll=120s runs=/home/jupyter/checkpoints_backup/cf-393 wt=/tmp/contrastive-forecasting-393
+[08-05 05:03:06] [broker] take a/arm5_combab_alignS bb40k student
+[08-05 05:03:18] [broker] a_arm5_combab_alignS_bb40k_student: checkpoints in, queueing for an eval slot
+[08-05 05:04:44] [broker] a_arm5_combab_alignS_bb40k_student: eval_local.sh rc=5 — leaving the request for the next tick
+[08-05 05:05:09] [broker] take a/arm5_combab_alignS bb40k student
+[08-05 05:05:27] [broker] a_arm5_combab_alignS_bb40k_student: checkpoints in, queueing for an eval slot
+[08-05 05:12:43] [broker] start boxes=/tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/results/broker_boxes.txt poll=120s runs=/home/jupyter/checkpoints_backup/cf-393 wt=/tmp/contrastive-forecasting-393
+[08-05 05:15:26] [broker] f: malformed request (cell='reachcheck' stop='1' enc='student') — skipping
+[08-05 06:16:55] [broker] take c/arm5_combab_alignT bb40k student
+[08-05 06:16:58] [broker] take d/arm6_v2_nse_alignT bb40k student
+[08-05 06:17:06] [broker] c_arm5_combab_alignT_bb40k_student: checkpoints in, queueing for an eval slot
+[08-05 06:17:06] [broker] take f/arm4_combab bb40k student
+[08-05 06:17:10] [broker] d_arm6_v2_nse_alignT_bb40k_student: checkpoints in, queueing for an eval slot
+[08-05 06:17:17] [broker] f_arm4_combab_bb40k_student: checkpoints in, queueing for an eval slot
+[08-05 06:19:25] [broker] take e/arm1_nse bb40k student
+[08-05 06:19:37] [broker] e_arm1_nse_bb40k_student: checkpoints in, queueing for an eval slot
+[08-05 06:21:10] [broker] a_arm5_combab_alignS_bb40k_student: DONE score=1.2596
+[08-05 06:24:14] [broker] take b/arm6_v2_ncpc_alignS bb40k teacher
+[08-05 06:24:26] [broker] b_arm6_v2_ncpc_alignS_bb40k_teacher: checkpoints in, queueing for an eval slot
+[08-05 06:26:33] [broker] take a/arm5_combab_alignS bb40k teacher
+[08-05 06:26:44] [broker] a_arm5_combab_alignS_bb40k_teacher: checkpoints in, queueing for an eval slot
+[08-05 07:44:02] [broker] take g/arm6_v2_ncpc_alignT bb40k student
+[08-05 07:44:13] [broker] g_arm6_v2_ncpc_alignT_bb40k_student: checkpoints in, queueing for an eval slot
+[08-05 07:45:44] [broker] d_arm6_v2_nse_alignT_bb40k_student: DONE score=1.4238
+[08-05 07:47:42] [broker] e_arm1_nse_bb40k_student: DONE score=1.4347
+[08-05 07:48:07] [broker] c_arm5_combab_alignT_bb40k_student: DONE score=1.3334
+[08-05 08:19:32] [broker] take g/arm6_v2_ncpc_alignT bb40k teacher
+[08-05 08:19:43] [broker] g_arm6_v2_ncpc_alignT_bb40k_teacher: checkpoints in, queueing for an eval slot
+[08-05 08:24:08] [broker] take d/arm6_v2_nse_alignT bb40k teacher
+[08-05 08:24:12] [broker] take e/arm1_nse bb40k teacher
+[08-05 08:24:20] [broker] d_arm6_v2_nse_alignT_bb40k_teacher: checkpoints in, queueing for an eval slot
+[08-05 08:24:26] [broker] e_arm1_nse_bb40k_teacher: checkpoints in, queueing for an eval slot
+[08-05 08:26:28] [broker] take c/arm5_combab_alignT bb40k teacher
+[08-05 08:26:39] [broker] c_arm5_combab_alignT_bb40k_teacher: checkpoints in, queueing for an eval slot
+[08-05 09:03:30] [broker] g_arm6_v2_ncpc_alignT_bb40k_student: DONE score=1.2955
+[08-05 09:05:34] [broker] b_arm6_v2_ncpc_alignS_bb40k_teacher: DONE score=1.3656
+[08-05 10:23:19] [broker] c_arm5_combab_alignT_bb40k_teacher: DONE score=1.3190
+[08-05 10:25:12] [broker] f_arm4_combab_bb40k_student: DONE score=1.2503
+[08-05 10:25:47] [broker] d_arm6_v2_nse_alignT_bb40k_teacher: DONE score=1.4177
+[08-05 11:07:04] [broker] take f/arm4_combab bb40k teacher
+[08-05 11:07:15] [broker] f_arm4_combab_bb40k_teacher: checkpoints in, queueing for an eval slot
+[08-05 11:45:35] [broker] a_arm5_combab_alignS_bb40k_teacher: DONE score=1.2347
+[08-05 11:45:46] [broker] g_arm6_v2_ncpc_alignT_bb40k_teacher: DONE score=1.3266
+[08-05 13:07:06] [broker] f_arm4_combab_bb40k_teacher: DONE score=1.2870
+[08-05 13:07:47] [broker] e_arm1_nse_bb40k_teacher: DONE score=1.4512
+[08-05 13:29:39] [broker] take b/arm6_v2_ncpc_alignS bb100k student
+[08-05 13:29:58] [broker] b_arm6_v2_ncpc_alignS_bb100k_student: checkpoints in, queueing for an eval slot
+[08-05 14:22:20] [broker] take c/arm5_combab_alignT bb100k student
+[08-05 14:22:23] [broker] take d/arm6_v2_nse_alignT bb100k student
+[08-05 14:22:38] [broker] c_arm5_combab_alignT_bb100k_student: checkpoints in, queueing for an eval slot
+[08-05 14:22:41] [broker] d_arm6_v2_nse_alignT_bb100k_student: checkpoints in, queueing for an eval slot
+[08-05 14:43:44] [broker] b_arm6_v2_ncpc_alignS_bb100k_student: DONE score=1.4951
+[08-05 15:39:41] [broker] d_arm6_v2_nse_alignT_bb100k_student: DONE score=1.3913
+[08-05 15:39:55] [broker] c_arm5_combab_alignT_bb100k_student: DONE score=1.2797
+[08-05 15:50:34] [broker] take a/arm5_combab_alignS bb100k student
+[08-05 15:50:49] [broker] a_arm5_combab_alignS_bb100k_student: checkpoints in, queueing for an eval slot
+[08-05 15:50:54] [broker] take g/arm6_v2_ncpc_alignT bb100k student
+[08-05 15:51:24] [broker] g_arm6_v2_ncpc_alignT_bb100k_student: checkpoints in, queueing for an eval slot
+[08-05 16:14:33] [broker] take b/arm6_v2_ncpc_alignS bb100k teacher
+[08-05 16:14:55] [broker] b_arm6_v2_ncpc_alignS_bb100k_teacher: checkpoints in, queueing for an eval slot
+[08-05 17:07:13] [broker] take c/arm5_combab_alignT bb100k teacher
+[08-05 17:07:16] [broker] take d/arm6_v2_nse_alignT bb100k teacher
+[08-05 17:07:25] [broker] c_arm5_combab_alignT_bb100k_teacher: checkpoints in, queueing for an eval slot
+[08-05 17:07:28] [broker] d_arm6_v2_nse_alignT_bb100k_teacher: checkpoints in, queueing for an eval slot
+[08-05 17:10:49] [broker] a_arm5_combab_alignS_bb100k_student: DONE score=1.2102
+[08-05 17:11:56] [broker] g_arm6_v2_ncpc_alignT_bb100k_student: DONE score=1.3904
+[08-05 17:12:06] [broker] take e/arm1_nse bb100k student
+[08-05 17:12:10] [broker] take f/arm4_combab bb100k student
+[08-05 17:12:22] [broker] f_arm4_combab_bb100k_student: checkpoints in, queueing for an eval slot
+[08-05 17:12:35] [broker] e_arm1_nse_bb100k_student: checkpoints in, queueing for an eval slot
+[08-05 17:14:37] [broker] take g/arm6_v2_ncpc_alignT bb100k teacher
+[08-05 17:14:48] [broker] g_arm6_v2_ncpc_alignT_bb100k_teacher: checkpoints in, queueing for an eval slot
+[08-05 17:44:58] [broker] b_arm6_v2_ncpc_alignS_bb100k_teacher: DONE score=1.5007
+[08-05 18:28:34] [broker] take a/arm5_combab_alignS bb100k teacher
+[08-05 18:28:48] [broker] a_arm5_combab_alignS_bb100k_teacher: checkpoints in, queueing for an eval slot
+[08-05 18:35:09] [broker] c_arm5_combab_alignT_bb100k_teacher: DONE score=1.2772
+[08-05 19:07:07] [broker] f_arm4_combab_bb100k_student: DONE score=1.3479
+[08-05 20:04:17] [broker] take f/arm4_combab bb100k teacher
+[08-05 20:04:42] [broker] f_arm4_combab_bb100k_teacher: checkpoints in, queueing for an eval slot
+[08-05 20:06:06] [broker] e_arm1_nse_bb100k_student: score upload failed
+[08-05 21:27:57] [broker] f_arm4_combab_bb100k_teacher: score upload failed
+[08-05 22:44:40] [broker] a_arm5_combab_alignS_bb100k_teacher: score upload failed
+[08-05 22:45:10] [broker] d_arm6_v2_nse_alignT_bb100k_teacher: score upload failed
+[08-05 23:55:01] [broker] g_arm6_v2_ncpc_alignT_bb100k_teacher: score upload failed

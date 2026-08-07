@@ -1,0 +1,46 @@
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm6_v2_ncpc_alignS 40000
+[08-05 01:14:01] [arm6_v2_ncpc_alignS] FRESH start at step 0
+[08-05 01:14:01] [arm6_v2_ncpc_alignS] START target=40000 gpu=0 save_every=20000 leg=/root/cf393_runs/arm6_v2_ncpc_alignS/leg_40k
+[08-05 02:47:40] [arm6_v2_ncpc_alignS] DONE target=40000 (5.0M) -> /root/cf393_runs/arm6_v2_ncpc_alignS/leg_40k/cf393_arm6_v2_ncpc_alignS_40k.pth
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm6_v2_ncpc_alignS 40000 student 15000 /root/cf393_runs/arm6_v2_ncpc_alignS/eval/score_bb40k_student.txt
+[02:47:40] arm6_v2_ncpc_alignS bb40k enc=student head=15000s
+[03:18:35] head-train rc=0
+[04:53:19] gift-eval rc=0
+[04:53:19] DONE — Aggregate GM-Relative MASE (97 configs): 1.3611 -> 1.3611
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm6_v2_ncpc_alignS 40000 teacher 15000 /root/cf393_runs/arm6_v2_ncpc_alignS/eval/score_bb40k_teacher.txt
+[04:53:19] arm6_v2_ncpc_alignS bb40k enc=teacher head=15000s
+[05:23:59] head-train rc=0
+[05:23:59] eval place=broker
+[05:23:59] request written, waiting for the broker
+[05:53:59] still waiting for the broker (1800s)
+[06:23:59] still waiting for the broker (3600s)
+[06:53:59] still waiting for the broker (5400s)
+[07:23:59] still waiting for the broker (7200s)
+[07:53:59] still waiting for the broker (9000s)
+[08:05:59] broker returned after 9720s
+[08:05:59] DONE — Aggregate GM-Relative MASE (97 configs): 1.3656 -> 1.3656
+[ladder] arm6_v2_ncpc_alignS @40000: {'student': 1.3611, 'teacher': 1.3656} -> {'extend': True, 'heads': ('student', 'teacher'), 'branch': 'unconditional'}
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm6_v2_ncpc_alignS 100000
+[08-05 08:05:59] [arm6_v2_ncpc_alignS] RESUME from cf393_arm6_v2_ncpc_alignS_40k.pth (step 40k)
+[08-05 08:05:59] [arm6_v2_ncpc_alignS] START target=100000 gpu=0 save_every=20000 leg=/root/cf393_runs/arm6_v2_ncpc_alignS/leg_100k
+[08-05 10:54:08] [arm6_v2_ncpc_alignS] DONE target=100000 (5.0M) -> /root/cf393_runs/arm6_v2_ncpc_alignS/leg_100k/cf393_arm6_v2_ncpc_alignS_100k.pth
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm6_v2_ncpc_alignS 100000 student 30000 /root/cf393_runs/arm6_v2_ncpc_alignS/eval/score_bb100k_student.txt
+[10:54:08] arm6_v2_ncpc_alignS bb100k enc=student head=30000s
+[12:28:41] head-train rc=0
+[12:28:41] eval place=broker
+[12:28:41] request written, waiting for the broker
+[12:58:42] still waiting for the broker (1800s)
+[13:28:42] still waiting for the broker (3600s)
+[13:44:42] broker returned after 4560s
+[13:44:42] DONE — Aggregate GM-Relative MASE (97 configs): 1.4951 -> 1.4951
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm6_v2_ncpc_alignS 100000 teacher 30000 /root/cf393_runs/arm6_v2_ncpc_alignS/eval/score_bb100k_teacher.txt
+[13:44:42] arm6_v2_ncpc_alignS bb100k enc=teacher head=30000s
+[15:14:14] head-train rc=0
+[15:14:14] eval place=broker
+[15:14:14] request written, waiting for the broker
+[15:44:14] still waiting for the broker (1800s)
+[16:14:14] still waiting for the broker (3600s)
+[16:44:14] still waiting for the broker (5400s)
+[16:45:14] broker returned after 5460s
+[16:45:14] DONE — Aggregate GM-Relative MASE (97 configs): 1.5007 -> 1.5007
+[ladder] arm6_v2_ncpc_alignS @100000: {'student': 1.4951, 'teacher': 1.5007} -> {'extend': False, 'heads': ('student', 'teacher'), 'branch': 'none_down'}

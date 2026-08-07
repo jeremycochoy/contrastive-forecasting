@@ -1,0 +1,22 @@
+[seeds] 24/24 replicate score(s) on disk under /home/jupyter/checkpoints_backup/cf-393
+  arm6_v2_combab_alignS student   1.194500  1.189800  1.192500  mean 1.192267 sd 0.002359 range 0.004700  bb40k->bb100k  +0.031967  resolved=yes
+  arm6_v2_combab_alignS teacher   1.183700  1.182900  1.190900  mean 1.185833 sd 0.004406 range 0.008000  bb40k->bb100k  +0.031433  resolved=yes
+  arm6_v2_combab_alignT student   1.192100  1.188500  1.189400  mean 1.190000 sd 0.001873 range 0.003600  bb40k->bb100k  +0.000500  resolved=no
+  arm6_v2_combab_alignT teacher   1.196300  1.188600  1.191700  mean 1.192200 sd 0.003874 range 0.007700  bb40k->bb100k  +0.012900  resolved=yes
+  arm5_combab_alignS    student   1.210200  1.200700  1.201500  mean 1.204133 sd 0.005269 range 0.009500  bb40k->bb100k  -0.055467  resolved=yes
+  arm5_combab_alignS    teacher   1.240700  1.255500  1.234900  mean 1.243700 sd 0.010623 range 0.020600  bb40k->bb100k  +0.009000  resolved=no
+  arm5_combab_alignT    student   1.279700  1.295600  1.290800  mean 1.288700 sd 0.008155 range 0.015900  bb40k->bb100k  -0.044700  resolved=yes
+  arm5_combab_alignT    teacher   1.277200  1.290500  1.301000  mean 1.289567 sd 0.011927 range 0.023800  bb40k->bb100k  -0.029433  resolved=yes
+  arm6_v2_nse_alignT    student   1.391300  1.397600  1.397700  mean 1.395533 sd 0.003667 range 0.006400  bb40k->bb100k  -0.028267  resolved=yes
+  arm6_v2_nse_alignT    teacher   1.374600  1.371400  1.398600  mean 1.381533 sd 0.014867 range 0.027200  bb40k->bb100k  -0.036167  resolved=yes
+  arm6_v2_nse_alignS    student   1.357200  1.348700  1.368200  mean 1.358033 sd 0.009777 range 0.019500  bb40k->bb100k  +0.089033  resolved=yes
+  arm6_v2_nse_alignS    teacher   1.377000  1.370600  1.368800  mean 1.372133 sd 0.004310 range 0.008200  bb40k->bb100k  +0.080433  resolved=yes
+
+  arm6_v2_combab_alignS recorded none_down      seeds [none_down, none_down, none_down]  holds on all three seeds — every head keeps its sign against bb40k
+  arm6_v2_combab_alignT recorded none_down      seeds [none_down, one_down, one_down]  FLIPS to one_down — the head seed alone changes the sign on the student; decided by noise
+  arm5_combab_alignS    recorded one_down       seeds [one_down, one_down, one_down]  holds on all three seeds — every head keeps its sign against bb40k
+  arm5_combab_alignT    recorded both_down      seeds [both_down, both_down, both_down]  holds on all three seeds — every head keeps its sign against bb40k
+  arm6_v2_nse_alignT    recorded both_down      seeds [both_down, both_down, both_down]  holds on all three seeds — every head keeps its sign against bb40k
+  arm6_v2_nse_alignS    recorded none_down      seeds [none_down, none_down, none_down]  holds on all three seeds — every head keeps its sign against bb40k
+
+  -> seed_spread_rows.csv, seed_spread.csv, seed_branches.csv

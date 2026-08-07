@@ -1,0 +1,23 @@
+# Contracts this card provisioned, and the only ones anything here may
+# release. <label> <contract id> <ssh host> <ssh port> <$/h> <provisioned by>
+#
+# Vast.ai is a shared account across concurrent agent sessions (CLAUDE.md).
+# The rule there is "never destroy an instance unless its contract ID was
+# returned by your own vastrun-provision". Stage 3 of this card has run as
+# several dispatches, and none of these six came back from THIS dispatch's
+# provision — a and b came from the 02:22 dispatch, c to f from the 04:00
+# one, both recorded in machines.txt at the time.
+#
+# So this file is the audit trail the rule is actually about: every entry
+# is labelled cf393-*, was provisioned for issue #393, and its provenance
+# was written down by the dispatch that created it. Nothing outside this
+# list is touchable, and `vastrun-destroy` is given both the ID and the
+# label so a stale mapping cannot destroy someone else's box.
+
+a  46841448  ssh2.vast.ai  11448  0.3611  dispatch-0222
+b  46843146  ssh4.vast.ai  13146  0.3611  dispatch-0222
+c  46848763  ssh6.vast.ai  18762  0.4944  dispatch-0400
+d  46848863  ssh7.vast.ai  18862  0.4944  dispatch-0400
+e  46848857  ssh5.vast.ai  18856  0.4278  dispatch-0400
+f  46848915  ssh1.vast.ai  18914  0.3611  dispatch-0400
+g  46853259  ssh7.vast.ai  13258  0.3356  dispatch-0505

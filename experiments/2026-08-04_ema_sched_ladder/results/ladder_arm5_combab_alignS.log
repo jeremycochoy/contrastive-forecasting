@@ -1,0 +1,71 @@
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm5_combab_alignS 40000
+[08-05 00:48:58] [arm5_combab_alignS] FRESH start at step 0
+[08-05 00:48:58] [arm5_combab_alignS] START target=40000 gpu=0 save_every=20000 leg=/root/cf393_runs/arm5_combab_alignS/leg_40k
+[08-05 02:34:52] [arm5_combab_alignS] DONE target=40000 (5.0M) -> /root/cf393_runs/arm5_combab_alignS/leg_40k/cf393_arm5_combab_alignS_40k.pth
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm5_combab_alignS 40000 student 15000 /root/cf393_runs/arm5_combab_alignS/eval/score_bb40k_student.txt
+[02:34:52] arm5_combab_alignS bb40k enc=student head=15000s
+[03:12:58] head-train rc=0
+[03:12:58] head-train rc=127
+[ladder] arm5_combab_alignS: eval_stop.sh rc=127 at 40000 (student)
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm5_combab_alignS 40000
+[08-05 03:18:52] [arm5_combab_alignS] SKIP: cf393_arm5_combab_alignS_40k.pth already on disk
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm5_combab_alignS 40000 student 15000 /root/cf393_runs/arm5_combab_alignS/eval/score_bb40k_student.txt
+[03:18:52] arm5_combab_alignS bb40k enc=student head=15000s
+[03:18:52] head-train SKIP (final exists)
+[04:54:20] gift-eval rc=0
+[04:54:20] DONE — Aggregate GM-Relative MASE (97 configs): 1.2596 -> 1.2596
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm5_combab_alignS 40000 teacher 15000 /root/cf393_runs/arm5_combab_alignS/eval/score_bb40k_teacher.txt
+[04:54:20] arm5_combab_alignS bb40k enc=teacher head=15000s
+[05:25:43] head-train rc=0
+[05:25:43] eval place=broker
+[05:25:43] request written, waiting for the broker
+[05:55:43] still waiting for the broker (1800s)
+[06:25:43] still waiting for the broker (3600s)
+[06:55:44] still waiting for the broker (5400s)
+[07:25:44] still waiting for the broker (7200s)
+[07:55:44] still waiting for the broker (9000s)
+[08:25:44] still waiting for the broker (10800s)
+[08:55:44] still waiting for the broker (12600s)
+[09:25:44] still waiting for the broker (14400s)
+[09:55:44] still waiting for the broker (16200s)
+[10:25:44] still waiting for the broker (18000s)
+[10:45:44] broker returned after 19200s
+[10:45:44] DONE — Aggregate GM-Relative MASE (97 configs): 1.2347 -> 1.2347
+[ladder] arm5_combab_alignS @40000: {'student': 1.2596, 'teacher': 1.2347} -> {'extend': True, 'heads': ('student', 'teacher'), 'branch': 'unconditional'}
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm5_combab_alignS 100000
+[08-05 10:45:44] [arm5_combab_alignS] RESUME from cf393_arm5_combab_alignS_40k.pth (step 40k)
+[08-05 10:45:44] [arm5_combab_alignS] START target=100000 gpu=0 save_every=20000 leg=/root/cf393_runs/arm5_combab_alignS/leg_100k
+[08-05 13:16:36] [arm5_combab_alignS] DONE target=100000 (5.0M) -> /root/cf393_runs/arm5_combab_alignS/leg_100k/cf393_arm5_combab_alignS_100k.pth
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm5_combab_alignS 100000 student 30000 /root/cf393_runs/arm5_combab_alignS/eval/score_bb100k_student.txt
+[13:16:36] arm5_combab_alignS bb100k enc=student head=30000s
+[14:48:45] head-train rc=0
+[14:48:45] eval place=broker
+[14:48:45] request written, waiting for the broker
+[15:18:45] still waiting for the broker (1800s)
+[15:48:45] still waiting for the broker (3600s)
+[16:11:45] broker returned after 4980s
+[16:11:45] DONE — Aggregate GM-Relative MASE (97 configs): 1.2102 -> 1.2102
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm5_combab_alignS 100000 teacher 30000 /root/cf393_runs/arm5_combab_alignS/eval/score_bb100k_teacher.txt
+[16:11:45] arm5_combab_alignS bb100k enc=teacher head=30000s
+[17:26:42] head-train rc=0
+[17:26:42] eval place=broker
+[17:26:42] request written, waiting for the broker
+[17:56:42] still waiting for the broker (1800s)
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm5_combab_alignS 40000
+[08-06 00:08:38] [arm5_combab_alignS] SKIP: cf393_arm5_combab_alignS_40k.pth already on disk
+[ladder] arm5_combab_alignS @40000: {'student': 1.2596, 'teacher': 1.2347} -> {'extend': True, 'heads': ('student', 'teacher'), 'branch': 'unconditional'}
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm5_combab_alignS 100000
+[08-06 00:08:38] [arm5_combab_alignS] SKIP: cf393_arm5_combab_alignS_100k.pth already on disk
+[ladder] arm5_combab_alignS @100000: {'student': 1.2102, 'teacher': 1.2407} -> {'extend': True, 'heads': ('student',), 'branch': 'one_down'}
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm5_combab_alignS 200000
+[08-06 00:08:38] [arm5_combab_alignS] RESUME from cf393_arm5_combab_alignS_100k.pth (step 100k)
+[08-06 00:08:38] [arm5_combab_alignS] START target=200000 gpu=1 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-393/arm5_combab_alignS/leg_200k
+[08-06 06:49:36] [arm5_combab_alignS] DONE target=200000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-393/arm5_combab_alignS/leg_200k/cf393_arm5_combab_alignS_200k.pth
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm5_combab_alignS 200000 student 30000 /home/jupyter/checkpoints_backup/cf-393/arm5_combab_alignS/eval/score_bb200k_student.txt
+[06:49:36] arm5_combab_alignS bb200k enc=student head=30000s seed=20260722
+[08:02:10] head-train rc=0
+[08:02:10] eval place=local_cpu
+[09:15:05] eval_local rc=0
+[09:15:05] DONE — Aggregate GM-Relative MASE (97 configs): 1.1910 -> 1.1910
+[ladder] arm5_combab_alignS @200000: {'student': 1.191} -> {'extend': True, 'heads': ('student',), 'branch': 'one_down'}
+[ladder] arm5_combab_alignS: HOLD_ABOVE 200000 reached

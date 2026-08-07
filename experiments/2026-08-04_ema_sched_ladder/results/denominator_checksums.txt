@@ -1,0 +1,19 @@
+# #393 — the seasonal-naive denominator every GM-Relative MASE is divided by.
+# One scale across every machine means one file, byte for byte.
+# sha256  bytes  machine  path
+#
+# 2026-08-05 13:10Z — re-taken across all eight machines. The first pass
+# covered elisa, vastA and vastB, which were the whole fleet at the time.
+# Boxes c through g were provisioned later and ran their own bb40k student
+# evals on-box, before GIFT-Eval moved to elisa, so their denominator is
+# behind published numbers and had to be attested too. It matches.
+d89f8247cf455a953cdfb961b1ddd8fe452bfd8e3131b641fcc54234b710d949  24831  elisa  ~/workspaces/gift-eval/results/seasonal_naive/all_results.csv
+d89f8247cf455a953cdfb961b1ddd8fe452bfd8e3131b641fcc54234b710d949  24831  vastA  /root/workspaces/gift-eval/results/seasonal_naive/all_results.csv
+d89f8247cf455a953cdfb961b1ddd8fe452bfd8e3131b641fcc54234b710d949  24831  vastB  /root/workspaces/gift-eval/results/seasonal_naive/all_results.csv
+d89f8247cf455a953cdfb961b1ddd8fe452bfd8e3131b641fcc54234b710d949  24831  vastC  /root/workspaces/gift-eval/results/seasonal_naive/all_results.csv
+d89f8247cf455a953cdfb961b1ddd8fe452bfd8e3131b641fcc54234b710d949  24831  vastD  /root/workspaces/gift-eval/results/seasonal_naive/all_results.csv
+d89f8247cf455a953cdfb961b1ddd8fe452bfd8e3131b641fcc54234b710d949  24831  vastE  /root/workspaces/gift-eval/results/seasonal_naive/all_results.csv
+d89f8247cf455a953cdfb961b1ddd8fe452bfd8e3131b641fcc54234b710d949  24831  vastF  /root/workspaces/gift-eval/results/seasonal_naive/all_results.csv
+d89f8247cf455a953cdfb961b1ddd8fe452bfd8e3131b641fcc54234b710d949  24831  vastG  /root/workspaces/gift-eval/results/seasonal_naive/all_results.csv
+
+# 8 machines, 1 distinct checksum: one scale, confirmed

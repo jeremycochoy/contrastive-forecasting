@@ -1,0 +1,12 @@
+[08-05 00:48:58] [arm5_combab_alignS] FRESH start at step 0
+[08-05 00:48:58] [arm5_combab_alignS] START target=40000 gpu=0 save_every=20000 leg=/root/cf393_runs/arm5_combab_alignS/leg_40k
+[08-05 02:34:52] [arm5_combab_alignS] DONE target=40000 (5.0M) -> /root/cf393_runs/arm5_combab_alignS/leg_40k/cf393_arm5_combab_alignS_40k.pth
+[08-05 03:18:52] [arm5_combab_alignS] SKIP: cf393_arm5_combab_alignS_40k.pth already on disk
+[08-05 10:45:44] [arm5_combab_alignS] RESUME from cf393_arm5_combab_alignS_40k.pth (step 40k)
+[08-05 10:45:44] [arm5_combab_alignS] START target=100000 gpu=0 save_every=20000 leg=/root/cf393_runs/arm5_combab_alignS/leg_100k
+[08-05 13:16:36] [arm5_combab_alignS] DONE target=100000 (5.0M) -> /root/cf393_runs/arm5_combab_alignS/leg_100k/cf393_arm5_combab_alignS_100k.pth
+[08-06 00:08:38] [arm5_combab_alignS] SKIP: cf393_arm5_combab_alignS_40k.pth already on disk
+[08-06 00:08:38] [arm5_combab_alignS] SKIP: cf393_arm5_combab_alignS_100k.pth already on disk
+[08-06 00:08:38] [arm5_combab_alignS] RESUME from cf393_arm5_combab_alignS_100k.pth (step 100k)
+[08-06 00:08:38] [arm5_combab_alignS] START target=200000 gpu=1 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-393/arm5_combab_alignS/leg_200k
+[08-06 06:49:36] [arm5_combab_alignS] DONE target=200000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-393/arm5_combab_alignS/leg_200k/cf393_arm5_combab_alignS_200k.pth

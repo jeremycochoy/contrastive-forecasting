@@ -1,0 +1,33 @@
+[08-06 00:43:33] [bootstrap ssh1.vast.ai:16706] packing code
+[08-06 00:43:33] [bootstrap ssh1.vast.ai:16706] uploading 489M
+Warning: Permanently added '[ssh1.vast.ai]:16706' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[08-06 00:45:41] [bootstrap ssh1.vast.ai:16706] installing
+Warning: Permanently added '[ssh1.vast.ai]:16706' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+Warning: Permanently added '[ssh1.vast.ai]:16706' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+started
+[08-06 00:49:13] [bootstrap ssh1.vast.ai:16706] waiting for BOOTSTRAP_OK (install is ~5 min)
+[08-06 00:49:16] [bootstrap ssh1.vast.ai:16706] OK
+Warning: Permanently added '[ssh1.vast.ai]:16706' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
++ nvidia-smi --query-gpu=compute_mode --format=csv,noheader
+Default
++ echo BOOTSTRAP_OK
+BOOTSTRAP_OK
+Warning: Permanently added '[ssh1.vast.ai]:16706' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[08-06 00:49:23] [bootstrap ssh1.vast.ai:16706] pushing HOLD_ABOVE (200000)
+Warning: Permanently added '[ssh1.vast.ai]:16706' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+Warning: Permanently added '[ssh1.vast.ai]:16706' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[08-06 00:49:31] [bootstrap ssh1.vast.ai:16706] done

@@ -1,0 +1,37 @@
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm6_v2_nse_alignS 40000
+[08-05 02:09:20] [arm6_v2_nse_alignS] FRESH start at step 0
+[08-05 02:09:20] [arm6_v2_nse_alignS] START target=40000 gpu=0 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-393/arm6_v2_nse_alignS/leg_40k
+[08-05 04:22:21] [arm6_v2_nse_alignS] DONE target=40000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-393/arm6_v2_nse_alignS/leg_40k/cf393_arm6_v2_nse_alignS_40k.pth
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm6_v2_nse_alignS 40000 student 15000 /home/jupyter/checkpoints_backup/cf-393/arm6_v2_nse_alignS/eval/score_bb40k_student.txt
+[04:22:21] arm6_v2_nse_alignS bb40k enc=student head=15000s
+[04:51:59] head-train rc=0
+[07:44:39] gift-eval rc=0
+[07:44:39] DONE — Aggregate GM-Relative MASE (97 configs): 1.2690 -> 1.2690
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm6_v2_nse_alignS 40000 teacher 15000 /home/jupyter/checkpoints_backup/cf-393/arm6_v2_nse_alignS/eval/score_bb40k_teacher.txt
+[07:44:39] arm6_v2_nse_alignS bb40k enc=teacher head=15000s
+[08:35:22] head-train rc=0
+[08:35:22] eval place=local_cpu
+[11:44:51] eval_local rc=0
+[11:44:51] DONE — Aggregate GM-Relative MASE (97 configs): 1.2917 -> 1.2917
+[ladder] arm6_v2_nse_alignS @40000: {'student': 1.269, 'teacher': 1.2917} -> {'extend': True, 'heads': ('student', 'teacher'), 'branch': 'unconditional'}
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm6_v2_nse_alignS 100000
+[08-05 11:44:51] [arm6_v2_nse_alignS] RESUME from cf393_arm6_v2_nse_alignS_40k.pth (step 40k)
+[08-05 11:44:51] [arm6_v2_nse_alignS] START target=100000 gpu=0 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-393/arm6_v2_nse_alignS/leg_100k
+[08-05 15:39:10] [arm6_v2_nse_alignS] DONE target=100000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-393/arm6_v2_nse_alignS/leg_100k/cf393_arm6_v2_nse_alignS_100k.pth
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm6_v2_nse_alignS 100000 student 30000 /home/jupyter/checkpoints_backup/cf-393/arm6_v2_nse_alignS/eval/score_bb100k_student.txt
+[15:39:10] arm6_v2_nse_alignS bb100k enc=student head=30000s
+[16:49:15] head-train rc=0
+[16:49:15] eval place=local_cpu
+[18:33:53] eval_local rc=0
+[18:33:53] DONE — Aggregate GM-Relative MASE (97 configs): 1.3572 -> 1.3572
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm6_v2_nse_alignS 100000 teacher 30000 /home/jupyter/checkpoints_backup/cf-393/arm6_v2_nse_alignS/eval/score_bb100k_teacher.txt
+[18:33:53] arm6_v2_nse_alignS bb100k enc=teacher head=30000s
+[19:56:08] head-train rc=0
+[19:56:08] eval place=local_cpu
+[21:27:19] eval_local rc=0
+[21:27:19] DONE — Aggregate GM-Relative MASE (97 configs): 1.3770 -> 1.3770
+[ladder] arm6_v2_nse_alignS @100000: {'student': 1.3572, 'teacher': 1.377} -> {'extend': False, 'heads': ('student', 'teacher'), 'branch': 'none_down'}
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm4_combab 40000
+[08-05 21:27:19] [arm4_combab] FRESH start at step 0
+[08-05 21:27:19] [arm4_combab] CLAIM: arm4_combab belongs to 'vastF', this machine is 'elisa' — refusing
+[ladder] arm4_combab: run_leg.sh rc=10 at 40000

@@ -1,0 +1,72 @@
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm6_v2_nse_alignT 40000
+[08-05 03:11:29] [arm6_v2_nse_alignT] FRESH start at step 0
+[08-05 03:11:29] [arm6_v2_nse_alignT] START target=40000 gpu=0 save_every=20000 leg=/root/cf393_runs/arm6_v2_nse_alignT/leg_40k
+[08-05 04:43:56] [arm6_v2_nse_alignT] DONE target=40000 (5.0M) -> /root/cf393_runs/arm6_v2_nse_alignT/leg_40k/cf393_arm6_v2_nse_alignT_40k.pth
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm6_v2_nse_alignT 40000 student 15000 /root/cf393_runs/arm6_v2_nse_alignT/eval/score_bb40k_student.txt
+[04:43:56] arm6_v2_nse_alignT bb40k enc=student head=15000s
+[05:14:39] head-train rc=0
+[05:14:39] eval place=broker
+[05:14:39] request written, waiting for the broker
+[05:44:39] still waiting for the broker (1800s)
+[06:14:39] still waiting for the broker (3600s)
+[06:44:39] still waiting for the broker (5400s)
+[06:46:39] broker returned after 5520s
+[06:46:39] DONE — Aggregate GM-Relative MASE (97 configs): 1.4238 -> 1.4238
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm6_v2_nse_alignT 40000 teacher 15000 /root/cf393_runs/arm6_v2_nse_alignT/eval/score_bb40k_teacher.txt
+[06:46:39] arm6_v2_nse_alignT bb40k enc=teacher head=15000s
+[07:21:49] head-train rc=0
+[07:21:49] eval place=broker
+[07:21:49] request written, waiting for the broker
+[07:51:49] still waiting for the broker (1800s)
+[08:21:49] still waiting for the broker (3600s)
+[08:51:49] still waiting for the broker (5400s)
+[09:21:49] still waiting for the broker (7200s)
+[09:25:49] broker returned after 7440s
+[09:25:49] DONE — Aggregate GM-Relative MASE (97 configs): 1.4177 -> 1.4177
+[ladder] arm6_v2_nse_alignT @40000: {'student': 1.4238, 'teacher': 1.4177} -> {'extend': True, 'heads': ('student', 'teacher'), 'branch': 'unconditional'}
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm6_v2_nse_alignT 100000
+[08-05 09:25:49] [arm6_v2_nse_alignT] RESUME from cf393_arm6_v2_nse_alignT_40k.pth (step 40k)
+[08-05 09:25:49] [arm6_v2_nse_alignT] START target=100000 gpu=0 save_every=20000 leg=/root/cf393_runs/arm6_v2_nse_alignT/leg_100k
+[08-05 11:56:08] [arm6_v2_nse_alignT] DONE target=100000 (5.0M) -> /root/cf393_runs/arm6_v2_nse_alignT/leg_100k/cf393_arm6_v2_nse_alignT_100k.pth
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm6_v2_nse_alignT 100000 student 30000 /root/cf393_runs/arm6_v2_nse_alignT/eval/score_bb100k_student.txt
+[11:56:08] arm6_v2_nse_alignT bb100k enc=student head=30000s
+[13:20:30] head-train rc=0
+[13:20:30] eval place=broker
+[13:20:30] request written, waiting for the broker
+[13:50:30] still waiting for the broker (1800s)
+[14:20:30] still waiting for the broker (3600s)
+[14:40:31] broker returned after 4800s
+[14:40:31] DONE — Aggregate GM-Relative MASE (97 configs): 1.3913 -> 1.3913
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm6_v2_nse_alignT 100000 teacher 30000 /root/cf393_runs/arm6_v2_nse_alignT/eval/score_bb100k_teacher.txt
+[14:40:31] arm6_v2_nse_alignT bb100k enc=teacher head=30000s
+[16:05:04] head-train rc=0
+[16:05:04] eval place=broker
+[16:05:04] request written, waiting for the broker
+[16:35:04] still waiting for the broker (1800s)
+[17:05:04] still waiting for the broker (3600s)
+[17:35:04] still waiting for the broker (5400s)
+[18:05:04] still waiting for the broker (7200s)
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm6_v2_nse_alignT 40000
+[08-06 00:04:33] [arm6_v2_nse_alignT] SKIP: cf393_arm6_v2_nse_alignT_40k.pth already on disk
+[ladder] arm6_v2_nse_alignT @40000: {'student': 1.4238, 'teacher': 1.4177} -> {'extend': True, 'heads': ('student', 'teacher'), 'branch': 'unconditional'}
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm6_v2_nse_alignT 100000
+[08-06 00:04:33] [arm6_v2_nse_alignT] SKIP: cf393_arm6_v2_nse_alignT_100k.pth already on disk
+[ladder] arm6_v2_nse_alignT @100000: {'student': 1.3913, 'teacher': 1.3746} -> {'extend': True, 'heads': ('student', 'teacher'), 'branch': 'both_down'}
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm6_v2_nse_alignT 200000
+[08-06 00:04:33] [arm6_v2_nse_alignT] RESUME from cf393_arm6_v2_nse_alignT_100k.pth (step 100k)
+[08-06 00:04:33] [arm6_v2_nse_alignT] START target=200000 gpu=1 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-393/arm6_v2_nse_alignT/leg_200k
+[08-06 06:44:15] [arm6_v2_nse_alignT] DONE target=200000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-393/arm6_v2_nse_alignT/leg_200k/cf393_arm6_v2_nse_alignT_200k.pth
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm6_v2_nse_alignT 200000 student 30000 /home/jupyter/checkpoints_backup/cf-393/arm6_v2_nse_alignT/eval/score_bb200k_student.txt
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm6_v2_nse_alignT 200000 teacher 30000 /home/jupyter/checkpoints_backup/cf-393/arm6_v2_nse_alignT/eval/score_bb200k_teacher.txt
+[06:44:15] arm6_v2_nse_alignT bb200k enc=teacher head=30000s seed=20260722
+[06:44:15] arm6_v2_nse_alignT bb200k enc=student head=30000s seed=20260722
+[07:57:19] head-train rc=0
+[07:57:19] eval place=local_cpu
+[07:57:20] head-train rc=0
+[07:57:20] eval place=local_cpu
+[09:10:48] eval_local rc=0
+[09:10:48] DONE — Aggregate GM-Relative MASE (97 configs): 1.3459 -> 1.3459
+[09:10:50] eval_local rc=0
+[09:10:50] DONE — Aggregate GM-Relative MASE (97 configs): 1.3586 -> 1.3586
+[ladder] arm6_v2_nse_alignT @200000: {'student': 1.3586, 'teacher': 1.3459} -> {'extend': True, 'heads': ('student', 'teacher'), 'branch': 'both_down'}
+[ladder] arm6_v2_nse_alignT: HOLD_ABOVE 200000 reached

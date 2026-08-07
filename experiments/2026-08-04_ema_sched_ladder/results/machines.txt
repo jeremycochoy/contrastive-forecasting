@@ -1,0 +1,51 @@
+# #393 — where each cell runs. Eight machines, ten cells, one cell per box.
+# Recorded 2026-08-05 05:35, superseding the 04:10 seven-machine layout.
+#
+# Two things changed since 04:10.
+#
+# GIFT-Eval moved to elisa (PR #394, option 1). Head training still runs on
+# the box that owns the cell; only the eval moved, because only the eval is
+# CPU-bound. results/EVAL_PLACE on each machine says where: `local_cpu` on
+# elisa, `broker` on all seven vast boxes.
+#
+# Box B stopped carrying two cells. queue_remote.sh runs a box's cells one
+# after another, and its header argues that costs nothing because a cell is
+# already a strict sequence of GPU work. That stopped being true when the
+# eval left the box: the GPU now idles for hours at every stop, and
+# arm6_v2_ncpc_alignT sat behind about seven hours of it. cf393-g took the
+# cell. Phase-1 critical path: ~12 h -> ~7 h, for about $2.50.
+
+elisa (owner's box, 2x RTX 4090, Default compute mode, shared with other
+       agent sessions)
+  GPU 1   arm6_v2_combab_alignS   \ two cells share the 4090 on purpose;
+  GPU 1   arm6_v2_combab_alignT   / gpu_gate.sh does not gate Default mode
+  GPU 0   arm6_v2_nse_alignS      (shares GPU 0 with the #390 session)
+  RUNS    /home/jupyter/checkpoints_backup/cf-393
+  CPU     up to 12 of 32 cores serve GIFT-Evals for the whole fleet
+          (3 concurrent evals x 4 shards, scripts/eval_slot.sh)
+
+vast.ai — all RTX 5090, Exclusive_Process compute mode, torch 2.8.0+cu128,
+          RUNS=/root/cf393_runs, synced to elisa every 15 min.
+          Exclusive_Process is why a box takes one cell.
+
+  label     contract   ssh                   $/h      cell
+  cf393-a   46841448   ssh2.vast.ai:11448    0.3611   arm5_combab_alignS
+  cf393-b   46843146   ssh4.vast.ai:13146    0.3611   arm6_v2_ncpc_alignS
+  cf393-c   46848763   ssh6.vast.ai:18762    0.4944   arm5_combab_alignT
+  cf393-d   46848863   ssh7.vast.ai:18862    0.4944   arm6_v2_nse_alignT
+  cf393-e   46848857   ssh5.vast.ai:18856    0.4278   arm1_nse
+  cf393-f   46848915   ssh1.vast.ai:18914    0.3611   arm4_combab
+  cf393-g   46853259   ssh7.vast.ai:13258    0.3356   arm6_v2_ncpc_alignT
+
+  Combined rate $2.8355/h.
+
+  Provenance, which is what decides what may be destroyed: a and b came
+  from the 02:22 dispatch, c to f from the 04:00 one, g from the 05:05 one.
+  results/vast_contracts.txt is the allowlist and the audit trail;
+  scripts/release_idle_boxes.sh reads it, passes vastrun-destroy the
+  contract ID *and* the label, and will not touch anything outside it.
+
+  Box B's queue_remote.sh still holds `arm6_v2_ncpc_alignT` in its argument
+  list and will try to start it when its alignS driver exits. It cannot:
+  results/cell_claims.txt gives the cell to vastG, and run_leg.sh refuses a
+  cell another machine owns.

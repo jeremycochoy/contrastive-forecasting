@@ -1,0 +1,20 @@
+[08-05 19:14:53] [extend] waiting for the parked drivers to exit before raising HOLD_ABOVE to 200000
+[08-05 19:25:00] [extend] queue: arm6_v2_combab_alignS arm6_v2_combab_alignT arm5_combab_alignT  (ceiling 200000, at most 2 drivers)
+[08-05 19:25:00] [extend] waiting for the parked drivers to exit before raising HOLD_ABOVE
+[08-05 19:55:01] [extend] still waiting (1800s): arm6_v2_combab_alignS arm6_v2_combab_alignT arm6_v2_nse_alignS,arm4_combab 
+[08-05 20:25:01] [extend] still waiting (3600s): arm6_v2_combab_alignT arm6_v2_nse_alignS,arm4_combab 
+[08-05 20:55:01] [extend] still waiting (5400s): arm6_v2_combab_alignT arm6_v2_nse_alignS,arm4_combab 
+[08-05 21:25:01] [extend] still waiting (7200s): arm6_v2_combab_alignT arm6_v2_nse_alignS,arm4_combab 
+[08-05 21:55:01] [extend] still waiting (9000s): arm6_v2_combab_alignT 
+[08-05 22:25:02] [extend] still waiting (10800s): arm6_v2_combab_alignT 
+[08-05 22:55:02] [extend] still waiting (12600s): arm6_v2_combab_alignT 
+[08-05 23:15:02] [extend] no driver left after 13800s
+[08-05 23:15:02] [extend] HOLD_ABOVE = 200000
+[08-05 23:15:02] [extend] launched arm6_v2_combab_alignS on GPU 0, log results/ladder_arm6_v2_combab_alignS.log
+[08-05 23:15:32] [extend] launched arm6_v2_combab_alignT on GPU 1, log results/ladder_arm6_v2_combab_alignT.log
+[08-05 23:16:02] [extend] launched arm5_combab_alignT on GPU 0, log results/ladder_arm5_combab_alignT.log
+[08-05 23:16:32] [extend] queue dispatched; drivers now: arm5_combab_alignT 
+[08-06 00:05:45] [extend] queue: arm5_combab_alignS  (ceiling 200000, at most 2 drivers)
+[08-06 00:05:45] [extend] SKIP_WAIT: ceiling is already 200000, not draining
+[08-06 00:05:45] [extend] arm5_combab_alignS waits: 3 driver(s) up, cap 2
+[08-06 00:08:36] [extend] queue stopped by hand; launching arm5_combab_alignS on GPU 1 directly (elisa GPUs are compute_mode=Default, so gpu_gate does not serialise and a second leg on card 1 runs concurrently rather than queueing; card 1 carries one leg at 42% util, card 0 also carries another session's processes)

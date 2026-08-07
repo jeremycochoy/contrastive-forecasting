@@ -1,0 +1,56 @@
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm6_v2_ncpc_alignT 40000
+[08-05 04:37:51] [arm6_v2_ncpc_alignT] FRESH start at step 0
+[08-05 04:37:52] [arm6_v2_ncpc_alignT] START target=40000 gpu=0 save_every=20000 leg=/root/cf393_runs/arm6_v2_ncpc_alignT/leg_40k
+[08-05 06:11:04] [arm6_v2_ncpc_alignT] DONE target=40000 (5.0M) -> /root/cf393_runs/arm6_v2_ncpc_alignT/leg_40k/cf393_arm6_v2_ncpc_alignT_40k.pth
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm6_v2_ncpc_alignT 40000 student 15000 /root/cf393_runs/arm6_v2_ncpc_alignT/eval/score_bb40k_student.txt
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm6_v2_ncpc_alignT 40000 teacher 15000 /root/cf393_runs/arm6_v2_ncpc_alignT/eval/score_bb40k_teacher.txt
+[08-05 06:11:04] [gpu-gate] GPU 0 (Exclusive_Process) held by another cell — waiting for the lock
+[06:11:04] arm6_v2_ncpc_alignT bb40k enc=student head=15000s
+[06:43:51] head-train rc=0
+[06:43:51] eval place=broker
+[06:43:51] request written, waiting for the broker
+[06:43:51] arm6_v2_ncpc_alignT bb40k enc=teacher head=15000s
+[07:13:51] still waiting for the broker (1800s)
+[07:18:32] head-train rc=0
+[07:18:32] eval place=broker
+[07:18:32] request written, waiting for the broker
+[07:43:51] still waiting for the broker (3600s)
+[07:48:32] still waiting for the broker (1800s)
+[08:03:51] broker returned after 4800s
+[08:03:51] DONE — Aggregate GM-Relative MASE (97 configs): 1.2955 -> 1.2955
+[08:18:32] still waiting for the broker (3600s)
+[08:48:32] still waiting for the broker (5400s)
+[09:18:32] still waiting for the broker (7200s)
+[09:48:33] still waiting for the broker (9000s)
+[10:18:33] still waiting for the broker (10800s)
+[10:46:33] broker returned after 12480s
+[10:46:33] DONE — Aggregate GM-Relative MASE (97 configs): 1.3266 -> 1.3266
+[ladder] arm6_v2_ncpc_alignT @40000: {'student': 1.2955, 'teacher': 1.3266} -> {'extend': True, 'heads': ('student', 'teacher'), 'branch': 'unconditional'}
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm6_v2_ncpc_alignT 100000
+[08-05 10:46:33] [arm6_v2_ncpc_alignT] RESUME from cf393_arm6_v2_ncpc_alignT_40k.pth (step 40k)
+[08-05 10:46:33] [arm6_v2_ncpc_alignT] START target=100000 gpu=0 save_every=20000 leg=/root/cf393_runs/arm6_v2_ncpc_alignT/leg_100k
+[08-05 13:16:48] [arm6_v2_ncpc_alignT] DONE target=100000 (5.0M) -> /root/cf393_runs/arm6_v2_ncpc_alignT/leg_100k/cf393_arm6_v2_ncpc_alignT_100k.pth
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm6_v2_ncpc_alignT 100000 student 30000 /root/cf393_runs/arm6_v2_ncpc_alignT/eval/score_bb100k_student.txt
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm6_v2_ncpc_alignT 100000 teacher 30000 /root/cf393_runs/arm6_v2_ncpc_alignT/eval/score_bb100k_teacher.txt
+[08-05 13:16:48] [gpu-gate] GPU 0 (Exclusive_Process) held by another cell — waiting for the lock
+[13:16:48] arm6_v2_ncpc_alignT bb100k enc=student head=30000s
+[14:49:10] head-train rc=0
+[14:49:10] eval place=broker
+[14:49:10] request written, waiting for the broker
+[14:49:10] arm6_v2_ncpc_alignT bb100k enc=teacher head=30000s
+[15:19:10] still waiting for the broker (1800s)
+[15:49:10] still waiting for the broker (3600s)
+[16:12:10] broker returned after 4980s
+[16:12:10] DONE — Aggregate GM-Relative MASE (97 configs): 1.3904 -> 1.3904
+[16:13:24] head-train rc=0
+[16:13:24] eval place=broker
+[16:13:24] request written, waiting for the broker
+[16:43:24] still waiting for the broker (1800s)
+[17:13:24] still waiting for the broker (3600s)
+[17:43:24] still waiting for the broker (5400s)
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm6_v2_ncpc_alignT 40000
+[08-06 00:06:25] [arm6_v2_ncpc_alignT] SKIP: cf393_arm6_v2_ncpc_alignT_40k.pth already on disk
+[ladder] arm6_v2_ncpc_alignT @40000: {'student': 1.2955, 'teacher': 1.3266} -> {'extend': True, 'heads': ('student', 'teacher'), 'branch': 'unconditional'}
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm6_v2_ncpc_alignT 100000
+[08-06 00:06:25] [arm6_v2_ncpc_alignT] SKIP: cf393_arm6_v2_ncpc_alignT_100k.pth already on disk
+[ladder] arm6_v2_ncpc_alignT @100000: {'student': 1.3904, 'teacher': 1.3646} -> {'extend': False, 'heads': ('student', 'teacher'), 'branch': 'none_down'}

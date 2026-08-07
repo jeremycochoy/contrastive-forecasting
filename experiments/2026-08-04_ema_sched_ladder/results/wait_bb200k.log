@@ -1,0 +1,22 @@
+[08-06 07:09:37Z] [bb200k] 0/3 scored | arm5_combab_alignS/student=4/97 arm6_v2_nse_alignT/student=13/97 arm6_v2_nse_alignT/teacher=13/97 | drivers=2 evals=12 heads=0
+[08-06 07:14:37Z] [bb200k] 0/3 scored | arm5_combab_alignS/student=13/97 arm6_v2_nse_alignT/student=26/97 arm6_v2_nse_alignT/teacher=26/97 | drivers=2 evals=12 heads=0
+[08-06 07:19:37Z] [bb200k] 0/3 scored | arm5_combab_alignS/student=26/97 arm6_v2_nse_alignT/student=26/97 arm6_v2_nse_alignT/teacher=26/97 | drivers=2 evals=12 heads=0
+[08-06 07:24:37Z] [bb200k] 0/3 scored | arm5_combab_alignS/student=26/97 arm6_v2_nse_alignT/student=28/97 arm6_v2_nse_alignT/teacher=28/97 | drivers=2 evals=12 heads=0
+[08-06 07:29:37Z] [bb200k] 0/3 scored | arm5_combab_alignS/student=28/97 arm6_v2_nse_alignT/student=40/97 arm6_v2_nse_alignT/teacher=40/97 | drivers=2 evals=12 heads=0
+[08-06 07:34:37Z] [bb200k] 0/3 scored | arm5_combab_alignS/student=40/97 arm6_v2_nse_alignT/student=45/97 arm6_v2_nse_alignT/teacher=45/97 | drivers=2 evals=12 heads=0
+[08-06 07:39:37Z] [bb200k] 0/3 scored | arm5_combab_alignS/student=45/97 arm6_v2_nse_alignT/student=57/97 arm6_v2_nse_alignT/teacher=57/97 | drivers=2 evals=12 heads=0
+[08-06 07:44:37Z] [bb200k] 0/3 scored | arm5_combab_alignS/student=57/97 arm6_v2_nse_alignT/student=65/97 arm6_v2_nse_alignT/teacher=66/97 | drivers=2 evals=12 heads=0
+[08-06 07:49:37Z] [bb200k] 0/3 scored | arm5_combab_alignS/student=63/97 arm6_v2_nse_alignT/student=80/97 arm6_v2_nse_alignT/teacher=80/97 | drivers=2 evals=12 heads=0
+[08-06 07:54:37Z] [bb200k] 0/3 scored | arm5_combab_alignS/student=80/97 arm6_v2_nse_alignT/student=84/97 arm6_v2_nse_alignT/teacher=84/97 | drivers=2 evals=10 heads=0
+[08-06 07:59:37Z] [bb200k] 0/3 scored | arm5_combab_alignS/student=84/97 arm6_v2_nse_alignT/student=85/97 arm6_v2_nse_alignT/teacher=86/97 | drivers=2 evals=9 heads=0
+[08-06 08:04:37Z] [bb200k] 0/3 scored | arm5_combab_alignS/student=85/97 arm6_v2_nse_alignT/student=90/97 arm6_v2_nse_alignT/teacher=90/97 | drivers=2 evals=7 heads=0
+[08-06 08:09:37Z] [bb200k] 0/3 scored | arm5_combab_alignS/student=90/97 arm6_v2_nse_alignT/student=93/97 arm6_v2_nse_alignT/teacher=93/97 | drivers=2 evals=6 heads=0
+[08-06 08:14:37Z] [bb200k] 2/3 scored | arm5_combab_alignS/student=94/97 arm6_v2_nse_alignT/student=1.3586 arm6_v2_nse_alignT/teacher=1.3459 | drivers=1 evals=2 heads=0
+[08-06 08:19:37Z] [bb200k] 3/3 scored | arm5_combab_alignS/student=1.1910 arm6_v2_nse_alignT/student=1.3586 arm6_v2_nse_alignT/teacher=1.3459 | drivers=0 evals=0 heads=0
+[08-06 08:19:37Z] [bb200k] ALL bb200k STOPS SCORED, both drivers exited
+[ladder] arm5_combab_alignS @200000: {'student': 1.191} -> {'extend': True, 'heads': ('student',), 'branch': 'one_down'}
+[ladder] arm5_combab_alignS: HOLD_ABOVE 200000 reached
+[ladder] arm6_v2_nse_alignT @200000: {'student': 1.3586, 'teacher': 1.3459} -> {'extend': True, 'heads': ('student', 'teacher'), 'branch': 'both_down'}
+[ladder] arm6_v2_nse_alignT: HOLD_ABOVE 200000 reached
+[ladder] arm6_v2_nse_alignT @200000: {'student': 1.3586, 'teacher': 1.3459} -> {'extend': True, 'heads': ('student', 'teacher'), 'branch': 'both_down'}
+[ladder] arm6_v2_nse_alignT: HOLD_ABOVE 200000 reached

@@ -1,0 +1,31 @@
+{
+  "dataset": "jeremycochoy/gift-pretrain-full-4096 / small_v1",
+  "total_rows": 42571692,
+  "num_shards": 4274,
+  "batch_size": 64,
+  "mix_ratio": 0.0078125,
+  "crossfade_ratio": 0.0,
+  "crossfade_triplets": 1,
+  "n_channels": 1,
+  "batch_composition": {
+    "batch_size": 64,
+    "hf_bs": 64,
+    "synth_bs": 0,
+    "cross_bs": 0,
+    "triplet_rows": 3,
+    "total_batch_rows": 67,
+    "channels": 1,
+    "hf_rows_per_step": 64
+  },
+  "hf_rows_per_step": 64,
+  "step_cap": 665182,
+  "basis": "step_cap = total_rows // hf_rows_per_step, where hf_rows_per_step is the number of REAL dataset rows one training step consumes. It is the full batch of 64 here, not 64*(1-mix_ratio): train.py computes synth_bs = int(round(batch_size * mix_ratio)), and 64 * 0.0078125 is exactly 0.5, which Python rounds half-to-even to 0. The nominal 1/128 synthetic fraction rounds away at this batch size, so no part of the batch is synthetic and hf_bs = 64. The 3 crossfade-triplet rows (--crossfade-triplets 1) are blended from those same 64 real rows and appended on top, so the model sees 67 rows per step while the dataset gives up 64. A larger mix_ratio, or a batch size whose product with it does not round to 0, would put synth_bs > 0, cut hf_bs, and RAISE the cap; re-run this script if either changes.",
+  "cross_check_2026_05_03": {
+    "reported_steps": 167000,
+    "batch_size": 256,
+    "derived_steps": 166295,
+    "relative_gap": 0.004222,
+    "agrees": true,
+    "note": "experiments/2026-05-03_exp_realonly_full4096_moirai_hp_FINAL called 167,000 steps at batch size 256 one full epoch of small_v1, mix-ratio 0.0. The same row count gives 42,571,692 // 256 = 166,295, so that figure was the rounded-up form of this one and the two agree to 0.4%. It does not transfer to this experiment directly: batch 64 here means 4x the steps per epoch."
+  }
+}

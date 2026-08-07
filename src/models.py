@@ -482,7 +482,8 @@ def _ema_update(teacher: torch.nn.Module, student: torch.nn.Module, tau: float):
 
 
 def ema_tau_at_step(step: int, total_steps: int, tau_start: float,
-                    tau_end: float | None) -> float:
+                    tau_end: float | None,
+                    ramp_steps: int | None = None) -> float:
     """EMA momentum α for `step`, linear from `tau_start` to `tau_end`.
 
     α is the weight the teacher keeps on its own previous value in
@@ -490,8 +491,14 @@ def ema_tau_at_step(step: int, total_steps: int, tau_start: float,
     α = 1 freezes it. ``tau_end=None`` returns ``tau_start`` at every step,
     which is the constant-α behaviour every run before #388 had.
 
-    `step` is clamped into ``[0, total_steps]``, so a resume that overshoots
-    the budget stays at the end value instead of extrapolating past it.
+    The ramp spans ``ramp_steps`` when given, else ``total_steps`` (#388's
+    budget-relative form). A fixed anchor is what makes α comparable across
+    runs of different length (#393): runs that stop at 40k, 200k and 400k
+    all follow one curve when they share ``ramp_steps=100000``, and all
+    hold at ``tau_end`` past it.
+
+    `step` is clamped into ``[0, span]``, so a resume that overshoots stays
+    at the end value instead of extrapolating past it.
 
     The training loop is 1-indexed, so the start value is never applied
     exactly: a 0.9 → 1.0 schedule over 100k steps first updates the teacher
@@ -499,9 +506,10 @@ def ema_tau_at_step(step: int, total_steps: int, tau_start: float,
     """
     if tau_end is None:
         return float(tau_start)
-    if total_steps <= 0:
+    span = ramp_steps if ramp_steps else total_steps
+    if span <= 0:
         return float(tau_end)
-    frac = min(max(step / total_steps, 0.0), 1.0)
+    frac = min(max(step / span, 0.0), 1.0)
     return float(tau_start) + frac * (float(tau_end) - float(tau_start))
 
 

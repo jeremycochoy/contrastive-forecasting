@@ -1,0 +1,39 @@
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm6_v2_combab_alignS 40000
+[08-05 01:30:31] [arm6_v2_combab_alignS] FRESH start at step 0
+[08-05 01:30:31] [arm6_v2_combab_alignS] START target=40000 gpu=1 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-393/arm6_v2_combab_alignS/leg_40k
+[08-05 03:54:42] [arm6_v2_combab_alignS] DONE target=40000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-393/arm6_v2_combab_alignS/leg_40k/cf393_arm6_v2_combab_alignS_40k.pth
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm6_v2_combab_alignS 40000 student 15000 /home/jupyter/checkpoints_backup/cf-393/arm6_v2_combab_alignS/eval/score_bb40k_student.txt
+[03:54:42] arm6_v2_combab_alignS bb40k enc=student head=15000s
+[04:22:47] head-train rc=0
+[07:03:36] gift-eval rc=0
+[07:03:36] DONE — Aggregate GM-Relative MASE (97 configs): 1.1603 -> 1.1603
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm6_v2_combab_alignS 40000 teacher 15000 /home/jupyter/checkpoints_backup/cf-393/arm6_v2_combab_alignS/eval/score_bb40k_teacher.txt
+[07:03:36] arm6_v2_combab_alignS bb40k enc=teacher head=15000s
+[07:44:16] head-train rc=0
+[07:44:16] eval place=local_cpu
+[09:05:33] eval_local rc=0
+[09:05:33] DONE — Aggregate GM-Relative MASE (97 configs): 1.1544 -> 1.1544
+[ladder] arm6_v2_combab_alignS @40000: {'student': 1.1603, 'teacher': 1.1544} -> {'extend': True, 'heads': ('student', 'teacher'), 'branch': 'unconditional'}
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm6_v2_combab_alignS 100000
+[08-05 09:05:33] [arm6_v2_combab_alignS] RESUME from cf393_arm6_v2_combab_alignS_40k.pth (step 40k)
+[08-05 09:05:33] [arm6_v2_combab_alignS] START target=100000 gpu=1 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-393/arm6_v2_combab_alignS/leg_100k
+[08-05 13:49:27] [arm6_v2_combab_alignS] DONE target=100000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-393/arm6_v2_combab_alignS/leg_100k/cf393_arm6_v2_combab_alignS_100k.pth
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm6_v2_combab_alignS 100000 student 30000 /home/jupyter/checkpoints_backup/cf-393/arm6_v2_combab_alignS/eval/score_bb100k_student.txt
+[13:49:27] arm6_v2_combab_alignS bb100k enc=student head=30000s
+[15:03:44] head-train rc=0
+[15:03:44] eval place=local_cpu
+[16:19:36] eval_local rc=0
+[16:19:36] DONE — Aggregate GM-Relative MASE (97 configs): 1.1945 -> 1.1945
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm6_v2_combab_alignS 100000 teacher 30000 /home/jupyter/checkpoints_backup/cf-393/arm6_v2_combab_alignS/eval/score_bb100k_teacher.txt
+[16:19:36] arm6_v2_combab_alignS bb100k enc=teacher head=30000s
+[17:37:18] head-train rc=0
+[17:37:18] eval place=local_cpu
+[20:06:36] eval_local rc=0
+[20:06:36] DONE — Aggregate GM-Relative MASE (97 configs): 1.1837 -> 1.1837
+[ladder] arm6_v2_combab_alignS @100000: {'student': 1.1945, 'teacher': 1.1837} -> {'extend': False, 'heads': ('student', 'teacher'), 'branch': 'none_down'}
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm6_v2_combab_alignS 40000
+[08-05 23:15:03] [arm6_v2_combab_alignS] SKIP: cf393_arm6_v2_combab_alignS_40k.pth already on disk
+[ladder] arm6_v2_combab_alignS @40000: {'student': 1.1603, 'teacher': 1.1544} -> {'extend': True, 'heads': ('student', 'teacher'), 'branch': 'unconditional'}
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm6_v2_combab_alignS 100000
+[08-05 23:15:03] [arm6_v2_combab_alignS] SKIP: cf393_arm6_v2_combab_alignS_100k.pth already on disk
+[ladder] arm6_v2_combab_alignS @100000: {'student': 1.1945, 'teacher': 1.1837} -> {'extend': False, 'heads': ('student', 'teacher'), 'branch': 'none_down'}

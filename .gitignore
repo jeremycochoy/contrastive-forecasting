@@ -41,3 +41,13 @@ sync_*/
 # finished CSVs are committed under artifacts/ (full resolution) and results/
 # (reduced); checkpoints stay in /home/jupyter/checkpoints_backup/cf-388/.
 experiments/2026-08-01_align_teacher_ema_schedule/sync/
+
+# #393 — a live ladder.py appends to these two while a driver runs, and they
+# only ever hold the cells THIS machine was given: 37 of the ladder's 40 rows
+# on elisa, 36 of the decision log's. collect_results.sh copies each machine's
+# copy to results/per_machine/<base>_<machine>.csv and pools every machine into
+# results/{ladder,decisions}_all.csv, which are the committed artefacts. A
+# 37-row subset sitting at the same level under a shorter name reads like the
+# experiment and is not.
+experiments/2026-08-04_ema_sched_ladder/results/ladder.csv
+experiments/2026-08-04_ema_sched_ladder/results/decisions.csv

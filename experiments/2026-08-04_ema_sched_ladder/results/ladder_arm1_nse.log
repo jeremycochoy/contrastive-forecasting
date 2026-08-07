@@ -1,0 +1,48 @@
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm1_nse 40000
+[08-05 03:12:07] [arm1_nse] FRESH start at step 0
+[08-05 03:12:07] [arm1_nse] START target=40000 gpu=0 save_every=20000 leg=/root/cf393_runs/arm1_nse/leg_40k
+[08-05 04:48:06] [arm1_nse] DONE target=40000 (5.0M) -> /root/cf393_runs/arm1_nse/leg_40k/cf393_arm1_nse_40k.pth
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm1_nse 40000 student 15000 /root/cf393_runs/arm1_nse/eval/score_bb40k_student.txt
+[04:48:06] arm1_nse bb40k enc=student head=15000s
+[05:19:00] head-train rc=0
+[05:19:00] eval place=broker
+[05:19:00] request written, waiting for the broker
+[05:49:00] still waiting for the broker (1800s)
+[06:19:00] still waiting for the broker (3600s)
+[06:48:00] broker returned after 5340s
+[06:48:00] DONE — Aggregate GM-Relative MASE (97 configs): 1.4347 -> 1.4347
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm1_nse 40000 teacher 15000 /root/cf393_runs/arm1_nse/eval/score_bb40k_teacher.txt
+[06:48:00] arm1_nse bb40k enc=teacher head=15000s
+[07:23:58] head-train rc=0
+[07:23:58] eval place=broker
+[07:23:58] request written, waiting for the broker
+[07:53:58] still waiting for the broker (1800s)
+[08:23:58] still waiting for the broker (3600s)
+[08:53:58] still waiting for the broker (5400s)
+[09:23:58] still waiting for the broker (7200s)
+[09:53:58] still waiting for the broker (9000s)
+[10:23:58] still waiting for the broker (10800s)
+[10:53:58] still waiting for the broker (12600s)
+[11:23:59] still waiting for the broker (14400s)
+[11:53:59] still waiting for the broker (16200s)
+[12:07:59] broker returned after 17040s
+[12:07:59] DONE — Aggregate GM-Relative MASE (97 configs): 1.4512 -> 1.4512
+[ladder] arm1_nse @40000: {'student': 1.4347, 'teacher': 1.4512} -> {'extend': True, 'heads': ('student', 'teacher'), 'branch': 'unconditional'}
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm1_nse 100000
+[08-05 12:07:59] [arm1_nse] RESUME from cf393_arm1_nse_40k.pth (step 40k)
+[08-05 12:07:59] [arm1_nse] START target=100000 gpu=0 save_every=20000 leg=/root/cf393_runs/arm1_nse/leg_100k
+[08-05 14:46:52] [arm1_nse] DONE target=100000 (5.0M) -> /root/cf393_runs/arm1_nse/leg_100k/cf393_arm1_nse_100k.pth
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm1_nse 100000 student 30000 /root/cf393_runs/arm1_nse/eval/score_bb100k_student.txt
+[14:46:52] arm1_nse bb100k enc=student head=30000s
+[16:11:48] head-train rc=0
+[16:11:48] eval place=broker
+[16:11:48] request written, waiting for the broker
+[16:41:48] still waiting for the broker (1800s)
+[17:11:48] still waiting for the broker (3600s)
+[17:41:48] still waiting for the broker (5400s)
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm1_nse 40000
+[08-06 00:06:28] [arm1_nse] SKIP: cf393_arm1_nse_40k.pth already on disk
+[ladder] arm1_nse @40000: {'student': 1.4347, 'teacher': 1.4512} -> {'extend': True, 'heads': ('student', 'teacher'), 'branch': 'unconditional'}
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm1_nse 100000
+[08-06 00:06:28] [arm1_nse] SKIP: cf393_arm1_nse_100k.pth already on disk
+[ladder] arm1_nse @100000: {'student': 1.5227, 'teacher': 1.5604} -> {'extend': False, 'heads': ('student', 'teacher'), 'branch': 'none_down'}

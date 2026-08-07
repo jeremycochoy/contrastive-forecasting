@@ -1,0 +1,72 @@
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm5_combab_alignT 40000
+[08-05 03:11:37] [arm5_combab_alignT] FRESH start at step 0
+[08-05 03:11:37] [arm5_combab_alignT] START target=40000 gpu=0 save_every=20000 leg=/root/cf393_runs/arm5_combab_alignT/leg_40k
+[08-05 04:44:48] [arm5_combab_alignT] DONE target=40000 (5.0M) -> /root/cf393_runs/arm5_combab_alignT/leg_40k/cf393_arm5_combab_alignT_40k.pth
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm5_combab_alignT 40000 student 15000 /root/cf393_runs/arm5_combab_alignT/eval/score_bb40k_student.txt
+[04:44:48] arm5_combab_alignT bb40k enc=student head=15000s
+[05:15:06] head-train rc=0
+[05:15:06] eval place=broker
+[05:15:06] request written, waiting for the broker
+[05:45:06] still waiting for the broker (1800s)
+[06:15:06] still waiting for the broker (3600s)
+[06:45:06] still waiting for the broker (5400s)
+[06:49:06] broker returned after 5640s
+[06:49:06] DONE — Aggregate GM-Relative MASE (97 configs): 1.3334 -> 1.3334
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm5_combab_alignT 40000 teacher 15000 /root/cf393_runs/arm5_combab_alignT/eval/score_bb40k_teacher.txt
+[06:49:06] arm5_combab_alignT bb40k enc=teacher head=15000s
+[07:24:48] head-train rc=0
+[07:24:48] eval place=broker
+[07:24:48] request written, waiting for the broker
+[07:54:48] still waiting for the broker (1800s)
+[08:24:48] still waiting for the broker (3600s)
+[08:54:48] still waiting for the broker (5400s)
+[09:23:48] broker returned after 7140s
+[09:23:48] DONE — Aggregate GM-Relative MASE (97 configs): 1.3190 -> 1.3190
+[ladder] arm5_combab_alignT @40000: {'student': 1.3334, 'teacher': 1.319} -> {'extend': True, 'heads': ('student', 'teacher'), 'branch': 'unconditional'}
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm5_combab_alignT 100000
+[08-05 09:23:48] [arm5_combab_alignT] RESUME from cf393_arm5_combab_alignT_40k.pth (step 40k)
+[08-05 09:23:48] [arm5_combab_alignT] START target=100000 gpu=0 save_every=20000 leg=/root/cf393_runs/arm5_combab_alignT/leg_100k
+[08-05 11:56:39] [arm5_combab_alignT] DONE target=100000 (5.0M) -> /root/cf393_runs/arm5_combab_alignT/leg_100k/cf393_arm5_combab_alignT_100k.pth
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm5_combab_alignT 100000 student 30000 /root/cf393_runs/arm5_combab_alignT/eval/score_bb100k_student.txt
+[11:56:39] arm5_combab_alignT bb100k enc=student head=30000s
+[13:22:14] head-train rc=0
+[13:22:14] eval place=broker
+[13:22:14] request written, waiting for the broker
+[13:52:14] still waiting for the broker (1800s)
+[14:22:14] still waiting for the broker (3600s)
+[14:40:14] broker returned after 4680s
+[14:40:14] DONE — Aggregate GM-Relative MASE (97 configs): 1.2797 -> 1.2797
+[ladder] $ bash /root/cf/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm5_combab_alignT 100000 teacher 30000 /root/cf393_runs/arm5_combab_alignT/eval/score_bb100k_teacher.txt
+[14:40:14] arm5_combab_alignT bb100k enc=teacher head=30000s
+[16:05:33] head-train rc=0
+[16:05:33] eval place=broker
+[16:05:33] request written, waiting for the broker
+[16:35:33] still waiting for the broker (1800s)
+[17:05:33] still waiting for the broker (3600s)
+[17:35:33] broker returned after 5400s
+[17:35:33] DONE — Aggregate GM-Relative MASE (97 configs): 1.2772 -> 1.2772
+[ladder] arm5_combab_alignT @100000: {'student': 1.2797, 'teacher': 1.2772} -> {'extend': True, 'heads': ('student', 'teacher'), 'branch': 'both_down'}
+[ladder] arm5_combab_alignT: HOLD_ABOVE 100000 reached
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm5_combab_alignT 40000
+[08-05 23:16:03] [arm5_combab_alignT] SKIP: cf393_arm5_combab_alignT_40k.pth already on disk
+[ladder] arm5_combab_alignT @40000: {'student': 1.3334, 'teacher': 1.319} -> {'extend': True, 'heads': ('student', 'teacher'), 'branch': 'unconditional'}
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm5_combab_alignT 100000
+[08-05 23:16:03] [arm5_combab_alignT] SKIP: cf393_arm5_combab_alignT_100k.pth already on disk
+[ladder] arm5_combab_alignT @100000: {'student': 1.2797, 'teacher': 1.2772} -> {'extend': True, 'heads': ('student', 'teacher'), 'branch': 'both_down'}
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/run_leg.sh arm5_combab_alignT 200000
+[08-05 23:16:03] [arm5_combab_alignT] RESUME from cf393_arm5_combab_alignT_100k.pth (step 100k)
+[08-05 23:16:03] [arm5_combab_alignT] START target=200000 gpu=0 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-393/arm5_combab_alignT/leg_200k
+[08-06 05:24:26] [arm5_combab_alignT] DONE target=200000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-393/arm5_combab_alignT/leg_200k/cf393_arm5_combab_alignT_200k.pth
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm5_combab_alignT 200000 student 30000 /home/jupyter/checkpoints_backup/cf-393/arm5_combab_alignT/eval/score_bb200k_student.txt
+[ladder] $ bash /tmp/contrastive-forecasting-393/experiments/2026-08-04_ema_sched_ladder/scripts/eval_stop.sh arm5_combab_alignT 200000 teacher 30000 /home/jupyter/checkpoints_backup/cf-393/arm5_combab_alignT/eval/score_bb200k_teacher.txt
+[05:24:26] arm5_combab_alignT bb200k enc=student head=30000s seed=20260722
+[05:24:26] arm5_combab_alignT bb200k enc=teacher head=30000s seed=20260722
+[06:24:46] head-train rc=0
+[06:24:46] eval place=local_cpu
+[06:24:50] head-train rc=0
+[06:24:50] eval place=local_cpu
+[07:38:29] eval_local rc=0
+[07:38:29] DONE — Aggregate GM-Relative MASE (97 configs): 1.4141 -> 1.4141
+[07:39:09] eval_local rc=0
+[07:39:09] DONE — Aggregate GM-Relative MASE (97 configs): 1.4207 -> 1.4207
+[ladder] arm5_combab_alignT @200000: {'student': 1.4141, 'teacher': 1.4207} -> {'extend': False, 'heads': ('student', 'teacher'), 'branch': 'none_down'}
