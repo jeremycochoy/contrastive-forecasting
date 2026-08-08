@@ -177,8 +177,15 @@ def k0_cases():
             if shape in allowed[name]]
 
 
-def _call(shape, config_name, depth=0, latents=None, **extra):
-    """Run `contrastive_latent_loss` for one (shape, config) case at depth k."""
+def _call(shape, config_name, depth=0, latents=None, depth_index=0, **extra):
+    """Run `contrastive_latent_loss` for one (shape, config) case at depth k.
+
+    `depth_index=j` enters the function the way a depth copy does: the depth
+    loop re-enters with `train_rollout_depth=0, depth_index=j` on shifted
+    views, so this is the ONLY way a test reaches the copy's branches. A
+    `depth=k` call cannot: the depth-0 body runs first, so a shape that
+    raises there never reaches its own copies.
+    """
     case = K0_CONFIGS[config_name]
     f, o, teacher_o, rollouts = latents
     cfg = dict(case['cfg'])
@@ -188,7 +195,8 @@ def _call(shape, config_name, depth=0, latents=None, **extra):
     return contrastive_latent_loss(
         (f, o), validation=False, spec=_spec(shape, **cfg),
         teacher_original_latent=teacher_o if case['teacher'] else None,
-        rollout_latents=rollouts[:depth] if depth else None)
+        rollout_latents=rollouts[:depth] if depth else None,
+        depth_index=depth_index)
 
 
 # k = 0 values captured from the pre-#373 code with the latents above. The
@@ -606,14 +614,15 @@ class TestAuxiliaryFBearingTerms:
         assert float(total) == pytest.approx(float(want), rel=0, abs=1e-12)
 
 
-def _tiny_backbone(seed=0):
+def _tiny_backbone(seed=0, num_layers=2, num_encoder_layers=1):
     """fp32 throughout: the forecaster's last layer runs in fp32 by design."""
     torch.manual_seed(seed)
     model = ConfigurableModel(
         C=1, H=8, W=4, encoder_type='mlp', intermediate_dim=8,
-        num_layers=2, nhead=2, ffn_mult=1, dropout=0.0,
-        num_encoder_layers=1, rev_norm_span=None, rev_norm_kind='none',
-        freq_emb_dim=0, forecaster_d_model=4, forecaster_n_heads=2)
+        num_layers=num_layers, nhead=2, ffn_mult=1, dropout=0.0,
+        num_encoder_layers=num_encoder_layers, rev_norm_span=None,
+        rev_norm_kind='none', freq_emb_dim=0, forecaster_d_model=4,
+        forecaster_n_heads=2)
     return model.eval()
 
 
@@ -706,13 +715,21 @@ class TestEvalRolloutNumericsAreUnchanged:
         The eval rollout runs the stack at the ambient precision
         (`fp32_tail=False`); the training forward and the rollout depth force
         the fp32 tail, which is what the loss has always read.
+
+        The spy binds against the REAL signature, so a caller that passes
+        nothing records `forecaster_forward`'s own default. A spy that
+        hardcoded `True` would keep passing if the signature default flipped
+        to False, while the training path silently lost its fp32 tail.
         """
         seen = []
         original = TransformerBlock.forecaster_forward
+        signature = inspect.signature(original)
 
-        def spy(self, x, **kwargs):
-            seen.append(kwargs.get('fp32_tail', True))
-            return original(self, x, **kwargs)
+        def spy(self, x, *args, **kwargs):
+            bound = signature.bind(self, x, *args, **kwargs)
+            bound.apply_defaults()
+            seen.append(bound.arguments['fp32_tail'])
+            return original(self, x, *args, **kwargs)
 
         monkeypatch.setattr(TransformerBlock, 'forecaster_forward', spy)
         model = _tiny_backbone()
@@ -756,6 +773,115 @@ class TestCausalMaskFollowsTheInput:
         model.transformer.causal_mask = \
             model.transformer._generate_square_subsequent_mask(7).to('meta')
         assert torch.equal(rollout_latent(model, seq, 2), want)
+
+
+class TestTheEvalRolloutLeavesNoModuleState:
+    """The rollout grows the sequence one token at a time, so it never hits
+    the length-keyed cache. Writing it anyway would overwrite the backbone's
+    mask k times per rollout and leave it at T + n — churn on one thread, a
+    race on a backbone an eval harness shares between threads or streams.
+    The body this function ran before #373 built a local mask and touched
+    nothing, so `cache=False` restores that.
+    """
+
+    def test_a_rollout_leaves_the_cached_mask_alone(self):
+        model = _tiny_backbone()
+        model(torch.randn(3, 28, 1))                    # caches T = 7
+        before = model.transformer.causal_mask
+        assert before is not None and before.size(0) == 7
+        rollout_latent(model, torch.randn(3, 7, 8), 3)
+        assert model.transformer.causal_mask is before
+
+    def test_a_rollout_on_a_fresh_backbone_caches_nothing(self):
+        model = _tiny_backbone()
+        rollout_latent(model, torch.randn(3, 7, 8), 3)
+        assert model.transformer.causal_mask is None
+
+    def test_the_uncached_mask_equals_the_cached_one(self):
+        block = _tiny_backbone().transformer
+        x = torch.randn(2, 5, 8)
+        assert torch.equal(block.causal_mask_for(x, cache=False),
+                           block.causal_mask_for(x))
+
+    def test_the_rollout_output_is_unchanged(self):
+        """`cache=False` picks where the mask is stored, not what it is."""
+        model = _tiny_backbone()
+        seq = torch.randn(3, 7, 8)
+        want = rollout_latent(model, seq, 3)
+        model.transformer.causal_mask = None
+        assert torch.equal(rollout_latent(model, seq, 3), want)
+
+    def test_the_training_depth_still_caches(self):
+        """The rollout depth runs at the forward's fixed T, so the cache hits
+        every call and stays worth writing."""
+        model = _tiny_backbone()
+        rollout_forecaster_latents(model, torch.randn(3, 7, 1, 8), 2)
+        assert model.transformer.causal_mask is not None
+        assert model.transformer.causal_mask.size(0) == 7
+
+
+class TestBackboneCheckpointGateIsOneDefinition:
+    """#327's `BACKBONE_CKPT` gate — env-gated, training only, and blind to
+    `x.requires_grad` (unlike the neighbouring `FCST_GRAD_CKPT`).
+
+    Before #373 the encoder loop and the forecaster loop shared one local
+    inside `forward`. The forecaster loop moved to `forecaster_forward`, so
+    both now read `backbone_ckpt_enabled()` — one definition, and the two
+    stacks cannot drift apart.
+    """
+
+    def _count(self, monkeypatch, model, x, no_grad=False):
+        calls = []
+        real = torch.utils.checkpoint.checkpoint
+
+        def counting(*args, **kwargs):
+            calls.append(1)
+            return real(*args, **kwargs)
+
+        monkeypatch.setattr(torch.utils.checkpoint, 'checkpoint', counting)
+        if no_grad:
+            with torch.no_grad():
+                model(x)
+        else:
+            model(x)
+        return len(calls)
+
+    def test_both_stacks_checkpoint_their_non_last_layers(self, monkeypatch):
+        monkeypatch.setenv('BACKBONE_CKPT', '1')
+        monkeypatch.delenv('FCST_GRAD_CKPT', raising=False)
+        model = _tiny_backbone(num_layers=3, num_encoder_layers=2).train()
+        n = self._count(monkeypatch, model, torch.randn(3, 28, 1))
+        assert n == (2 - 1) + (3 - 1)
+
+    def test_the_forecaster_stack_does_not_gate_on_requires_grad(
+            self, monkeypatch):
+        """`FCST_GRAD_CKPT` gates on `x.requires_grad`; `BACKBONE_CKPT` never
+        did. Under `no_grad` the forecaster input carries no grad, so a gate
+        that copied its neighbour would drop the forecaster's 2 calls."""
+        monkeypatch.setenv('BACKBONE_CKPT', '1')
+        monkeypatch.delenv('FCST_GRAD_CKPT', raising=False)
+        model = _tiny_backbone(num_layers=3, num_encoder_layers=2).train()
+        n = self._count(monkeypatch, model, torch.randn(3, 28, 1),
+                        no_grad=True)
+        assert n == (2 - 1) + (3 - 1)
+
+    @pytest.mark.parametrize('training,env,want', [
+        (True, '1', True), (False, '1', False),
+        (True, '0', False), (True, None, False)])
+    def test_the_gate_reads_the_env_and_the_mode(self, monkeypatch, training,
+                                                 env, want):
+        block = _tiny_backbone().transformer
+        if env is None:
+            monkeypatch.delenv('BACKBONE_CKPT', raising=False)
+        else:
+            monkeypatch.setenv('BACKBONE_CKPT', env)
+        block.train(training)
+        assert block.backbone_ckpt_enabled() is want
+
+    def test_the_gate_is_off_by_default(self, monkeypatch):
+        monkeypatch.delenv('BACKBONE_CKPT', raising=False)
+        model = _tiny_backbone(num_layers=3, num_encoder_layers=2).train()
+        assert self._count(monkeypatch, model, torch.randn(3, 28, 1)) == 0
 
 
 class TestSecondPositiveOfAddPosHtftShifts:
@@ -826,33 +952,61 @@ class TestSecondPositiveOfAddPosHtftShifts:
 class TestFloorAtDepthOverEveryShape:
     """`--subtract-contrastive-floor` re-bases by a constant, so it must stay
     gradient-neutral at every k, and a shape that cannot re-base at k = 0
-    must not start re-basing at k > 0."""
+    must not start re-basing at k > 0.
+
+    `include_positive_in_denominator` follows the shape here. Its own guard
+    fires BEFORE the floor block, so a shape swept with the wrong value
+    raises on that guard and never reaches the floor at all — the raise
+    would look like cover and be none.
+    """
+
+    @staticmethod
+    def _floor_flags(shape):
+        """The floor needs the normalized form on the pooled shapes; the
+        split shape carries its own two-term floor and its own form."""
+        return dict(include_positive_in_denominator=shape in _NORMALIZED,
+                    subtract_contrastive_floor=True)
 
     @pytest.mark.parametrize('shape', FOUR_D_SHAPES)
     def test_the_floor_is_a_constant_offset_at_depth_three(self, shape):
         latents = _latents(shape, depth=3, requires_grad=True)
         f, _o, _teacher, rollouts = latents
-        floor_on = dict(include_positive_in_denominator=True,
-                        subtract_contrastive_floor=True)
+        floor_on = self._floor_flags(shape)
         try:
             with_floor = _call(shape, 'base', depth=3, latents=latents,
                                **floor_on)
         except NotImplementedError as first:
-            # A shape without a closed-form floor raises the SAME way at
-            # every depth — the depth loop must not turn that into a
-            # per-depth constant quietly added to the loss.
-            with pytest.raises(NotImplementedError) as later:
+            # A shape the floor cannot re-base raises the SAME way at every
+            # depth — the depth loop must not turn that into a per-depth
+            # constant quietly added to the loss. Three entries, and the
+            # third is the only one that reaches a copy: the depth-0 body
+            # runs before the loop, so `depth=3` raises there.
+            assert 'subtract_contrastive_floor' in str(first)
+            with pytest.raises(NotImplementedError) as at_zero:
                 _call(shape, 'base', latents=latents, **floor_on)
-            assert str(later.value) == str(first)
+            with pytest.raises(NotImplementedError) as in_copy:
+                _call(shape, 'base', latents=latents, depth_index=3,
+                      **floor_on)
+            assert str(at_zero.value) == str(first)
+            assert str(in_copy.value) == str(first)
             return
         no_floor = _call(shape, 'base', depth=3, latents=latents,
-                         include_positive_in_denominator=True,
-                         subtract_contrastive_floor=False)
+                         **dict(floor_on, subtract_contrastive_floor=False))
         g_with = torch.autograd.grad(with_floor, [f] + rollouts,
                                      retain_graph=True)
         g_without = torch.autograd.grad(no_floor, [f] + rollouts)
         for a, b in zip(g_with, g_without):
             assert torch.equal(a, b)
+
+    def test_the_sweep_reaches_the_floor_on_every_shape(self):
+        """Both arms above are floor arms — no shape drops out on the
+        `include_positive_in_denominator` guard, which sits earlier."""
+        for shape in FOUR_D_SHAPES:
+            try:
+                _call(shape, 'base', latents=_latents(shape, depth=3),
+                      **self._floor_flags(shape))
+            except NotImplementedError as exc:
+                assert 'subtract_contrastive_floor' in str(exc), shape
 
     def test_the_split_shape_re_bases_l_pred_once_per_depth(self):
         """L_pred's floor repeats with the depth; L_rep's does not."""
@@ -870,20 +1024,24 @@ class TestFloorAtDepthOverEveryShape:
                                            rel=0, abs=1e-12)
 
     def test_an_h_only_shape_refuses_the_floor_at_every_depth(self):
-        """`rep_only` has no positive and no closed-form floor. It raised at
+        """`rep_only` has no positive, so the floor refuses it. It raised at
         k = 0 and must keep raising — a depth copy of an h-only shape adds
-        exactly zero, so a floor there would be a constant with no term."""
+        exactly zero, so a floor there would be a constant with no term.
+
+        Three entries, and only the third reaches a copy: a `depth=3` call
+        raises in the depth-0 body before the loop starts, so `depth_index=3`
+        is what enters the copy's own floor branch.
+        """
         latents = _latents(_REP_ONLY, depth=3)
-        floor_on = dict(include_positive_in_denominator=True,
-                        subtract_contrastive_floor=True)
+        floor_on = self._floor_flags(_REP_ONLY)
         messages = []
-        for depth in (0, 3):
+        for depth, index in ((0, 0), (3, 0), (0, 3)):
             with pytest.raises(NotImplementedError) as excinfo:
                 _call(_REP_ONLY, 'base', depth=depth, latents=latents,
-                      **floor_on)
+                      depth_index=index, **floor_on)
             messages.append(str(excinfo.value))
-        assert _REP_ONLY in messages[0]
-        assert messages[0] == messages[1]
+        assert 'subtract_contrastive_floor' in messages[0]
+        assert messages[0] == messages[1] == messages[2]
 
 
 class TestRolloutCosError:
@@ -974,6 +1132,11 @@ class TestTrainerWiring:
         assert ast.literal_eval(defaults['--train-rollout-depth']) == 0
 
     def test_the_depths_are_built_from_the_forward_output(self):
+        """Which tensor feeds the re-entry. Static, on the parse tree, so it
+        survives a reflow; no run can show it, because a depth built from the
+        wrong tensor still trains and still logs. The runtime guard that the
+        depth reaches the objective at all is the 4-step run at the bottom of
+        this file."""
         calls = _calls_named(_train_tree(), 'rollout_forecaster_latents')
         assert len(calls) == 1
         args = [ast.unparse(a) for a in calls[0].args]
@@ -982,11 +1145,25 @@ class TestTrainerWiring:
     def test_every_depth_is_gathered_with_one_all_gather(self):
         """`gather_latents` takes a pair and issues TWO all-gathers. A depth
         is one tensor, so it goes through the single-tensor `gather_latent`
-        — one collective per depth, not two."""
-        src = TRAIN_PY.read_text()
-        assert 'rollout_lats = [gather_latent(f_j) for f_j in rollout_lats]' \
-            in src
-        assert 'gather_latents(f_j, f_j)' not in src
+        — one collective per depth, not two.
+
+        Static, on the parse tree. `gather_latent` counts its collectives at
+        runtime in `tests/test_dist_gather.py`, but only under DDP: off DDP
+        both forms are no-ops, so the 4-step single-process run cannot tell
+        them apart and no runtime check here can either.
+        """
+        tree = _train_tree()
+        depth_gathers = [c for c in _calls_named(tree, 'gather_latent')
+                         if len(c.args) == 1]
+        assert len(depth_gathers) == 1
+        comps = [n for n in ast.walk(tree) if isinstance(n, ast.ListComp)
+                 and n.elt is depth_gathers[0]]
+        assert len(comps) == 1, "the depth gather is not a per-depth loop"
+        assert ast.unparse(comps[0].generators[0].iter) == 'rollout_lats'
+        for call in _calls_named(tree, 'gather_latents'):
+            unparsed = [ast.unparse(a) for a in call.args]
+            assert unparsed != ['f_j', 'f_j'], \
+                "a depth must not go through the two-collective pair form"
 
     def test_loss_tau_ref_stays_at_depth_zero(self):
         """The τ-reference curve must be comparable across k, so the
@@ -1133,4 +1310,9 @@ def test_a_four_step_run_at_depth_two_trains_and_logs(tmp_path):
         assert float(row["loss"]) == float(row["loss"])          # not NaN
         for depth in range(3):
             assert 0.0 <= float(row[f"cos_err_d{depth}"]) <= 2.0
+        # Each depth re-enters the forecaster, so f^(1) and f^(2) are their
+        # own tensors read against their own shifted window. Equal values
+        # would mean the loop handed depth 0 back k times.
+        errs = [float(row[f"cos_err_d{d}"]) for d in range(3)]
+        assert len(set(errs)) == 3
     assert "cos_err_d3" not in rows[0]

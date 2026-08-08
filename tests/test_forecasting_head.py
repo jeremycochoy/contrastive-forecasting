@@ -96,7 +96,7 @@ class FakeTransformer(nn.Module):
         self.fcst_up_proj = nn.Identity()
         self._dummy = nn.Parameter(torch.zeros(1))
 
-    def forecaster_forward(self, x, fp32_tail=True):
+    def forecaster_forward(self, x, fp32_tail=True, cache_mask=True):
         """The forecaster operator, same contract as
         `TransformerBlock.forecaster_forward`: down proj -> causal layers ->
         up proj on a (B*C, T, H) latent sequence. `rollout_latent` and the
@@ -104,8 +104,10 @@ class FakeTransformer(nn.Module):
 
         `fp32_tail` picks the precision policy of the real block's last layer.
         This fake is fp32 throughout, where both policies are the same
-        arithmetic, so it accepts the argument and ignores it."""
-        del fp32_tail
+        arithmetic, so it accepts the argument and ignores it. `cache_mask`
+        picks where the real block stores the causal mask; this fake builds
+        one locally every call, so it ignores that argument too."""
+        del fp32_tail, cache_mask
         x = self.fcst_down_proj(x)
         causal_mask = torch.triu(
             torch.full((x.size(1), x.size(1)), float('-inf'),
@@ -1104,10 +1106,11 @@ def _make_mock_backbone():
             B, T, C, H = xr.shape
             return xr  # identity
 
-        def forecaster_forward(self, x, fp32_tail=True):
+        def forecaster_forward(self, x, fp32_tail=True, cache_mask=True):
             # No layers in this mock: down proj -> up proj is the identity,
-            # so the precision policy has nothing to act on.
-            del fp32_tail
+            # so neither the precision policy nor the mask has anything to
+            # act on.
+            del fp32_tail, cache_mask
             return self.fcst_up_proj(self.fcst_down_proj(x))
 
         def forward(self, xr):

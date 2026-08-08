@@ -30,9 +30,17 @@ anchors run `t = 0 .. T-2-j`.
 `F` is `TransformerBlock.forecaster_forward` — the operator the eval rollout
 composes. Gradient flows through the whole chain; no detach between passes.
 
+Two arguments let each caller keep the policy it always ran at:
+
+| argument | training forward and rollout depth | eval `rollout_latent` |
+|---|---|---|
+| `fp32_tail` | `True` — last layer and output in fp32, what the contrastive loss reads | `False` — every layer at the ambient precision, no cast |
+| `cache_mask` | `True` — fixed `T`, so the cache hits every call | `False` — the sequence grows per token, so the cache would never hit and the write would leave module state behind |
+
 ## What it does not change
 
-- **Eval.** `rollout_latent` and every eval strategy are untouched.
+- **Eval.** `rollout_latent` and every eval strategy are untouched. It reads
+  the same weights and writes nothing to the backbone.
 - **`k = 0` runs.** Published `k = 0` numbers stay a valid baseline.
 - **Terms that carry no `f`.** `L_rep`, `L_rep_moco`, `align_moco_loss`,
   SIGReg and the `− mse(h_t, h_{t+1})` half of `mse` enter the total once at

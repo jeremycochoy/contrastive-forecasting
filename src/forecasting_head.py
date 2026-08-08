@@ -737,6 +737,11 @@ def rollout_latent(backbone, encoder_latents, n_future_tokens):
     the eval precision policy this function has always run at: every layer at
     the ambient precision, no cast. #373 changes the training objective only.
 
+    `cache_mask=False` for the same reason: the sequence grows by one token
+    per step, so the length-keyed cache never hits, and the body this
+    function ran before #373 built its mask locally and left module state
+    alone. An eval rollout writes nothing to the backbone.
+
     Args:
         backbone: frozen ConfigurableModel (on correct device)
         encoder_latents: (B*C, T, H) encoder latents from context, in
@@ -756,7 +761,8 @@ def rollout_latent(backbone, encoder_latents, n_future_tokens):
         for _ in range(n_future_tokens):
             # Run the forecaster on the current sequence (bypass the encoder
             # — we already have latents). x[:, -1, :] is f[-1] ≈ e[next].
-            x = backbone.transformer.forecaster_forward(seq, fp32_tail=False)
+            x = backbone.transformer.forecaster_forward(
+                seq, fp32_tail=False, cache_mask=False)
             new_token = x[:, -1:, :]  # (B*C, 1, H)
             generated.append(new_token)
 

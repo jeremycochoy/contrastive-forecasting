@@ -704,21 +704,41 @@ class TransformerBlock(nn.Module):
 
         self.causal_mask = None
 
-    def causal_mask_for(self, x):
-        """The cached [T, T] causal mask for `x`'s sequence length and device.
+    def causal_mask_for(self, x, cache=True):
+        """The [T, T] causal mask for `x`'s sequence length and device.
 
-        Rebuilt when the length OR the device changes, so a caller that grows
-        the sequence (the eval rollout) pays for one mask per new length, and
-        a mask cached by a forward on another device is never handed on.
+        The cache is keyed on both: a mask cached by a forward on another
+        device is never handed on.
+
+        `cache=False` returns the mask without writing `self.causal_mask`.
+        The eval rollout grows the sequence one token at a time, so it never
+        hits the cache anyway, and writing would leave the backbone's mask at
+        T + n after every rollout — churn on one thread, a race on a backbone
+        an eval harness shares between threads or streams.
         """
-        if (self.causal_mask is None
-                or self.causal_mask.size(0) != x.size(1)
-                or self.causal_mask.device != x.device):
-            self.causal_mask = self._generate_square_subsequent_mask(
-                x.size(1)).to(x.device)
-        return self.causal_mask
+        if (self.causal_mask is not None
+                and self.causal_mask.size(0) == x.size(1)
+                and self.causal_mask.device == x.device):
+            return self.causal_mask
+        mask = self._generate_square_subsequent_mask(x.size(1)).to(x.device)
+        if cache:
+            self.causal_mask = mask
+        return mask
 
-    def forecaster_forward(self, x, fp32_tail=True):
+    def backbone_ckpt_enabled(self):
+        """Whether BACKBONE_CKPT=1 gradient-checkpointing (#327) is on.
+
+        ONE definition, read by both stacks — the encoder loop in
+        :meth:`forward` and the forecaster loop in :meth:`forecaster_forward`.
+        The two shared one local before the forecaster loop moved out (#373),
+        so a single method is what keeps them from drifting apart.
+
+        Env-gated and training-only. It does NOT gate on `x.requires_grad`,
+        unlike the neighbouring `FCST_GRAD_CKPT`.
+        """
+        return self.training and os.environ.get("BACKBONE_CKPT", "0") == "1"
+
+    def forecaster_forward(self, x, fp32_tail=True, cache_mask=True):
         """Run the forecaster stack on a [B*C, T, H] latent sequence.
 
         `fcst_down_proj` → causal decoder layers → `fcst_up_proj`, i.e. the
@@ -739,8 +759,12 @@ class TransformerBlock(nn.Module):
         * False is the eval policy: every layer at the ambient precision, no
           cast. `rollout_latent` has always run this way and #373 changes the
           training objective only, so it keeps it.
+
+        `cache_mask=False` keeps the causal mask off the module — see
+        :meth:`causal_mask_for`. The eval rollout takes it; the callers that
+        run at a fixed T keep the cache.
         """
-        causal_mask = self.causal_mask_for(x)
+        causal_mask = self.causal_mask_for(x, cache=cache_mask)
         # Forecaster bottleneck (#286 follow-up, v13). When configured
         # smaller than `dimension_e`, `fcst_down_proj` is a Linear that
         # shrinks per-token; otherwise it's nn.Identity (no-op). The
@@ -752,7 +776,7 @@ class TransformerBlock(nn.Module):
         # autocast, last layer in fp32 so the forecaster latent feeding the
         # loss is full precision.
         n_fcst = len(self.layers)
-        bb_ckpt = self.training and os.environ.get("BACKBONE_CKPT", "0") == "1"
+        bb_ckpt = self.backbone_ckpt_enabled()
         # Optional gradient-checkpointing of the (non-last) forecaster layers,
         # mirroring the encoder-layer checkpointing — env-gated and training-only,
         # so it is BYTE-IDENTICAL (exact recompute) and a no-op for every existing
@@ -834,7 +858,9 @@ class TransformerBlock(nn.Module):
         n_enc = len(self.encoder_layers)
         # #327: optionally gradient-checkpoint the non-last (non-fp32) layers so
         # a global batch of 2048 fits the backbone forward on one 24 GB card.
-        bb_ckpt = self.training and os.environ.get("BACKBONE_CKPT", "0") == "1"
+        # Same gate the forecaster loop reads (`backbone_ckpt_enabled`), so
+        # the two stacks checkpoint together as they always did.
+        bb_ckpt = self.backbone_ckpt_enabled()
         for i, layer in enumerate(self.encoder_layers):
             if i == n_enc - 1:
                 # fp32 region for the last encoder layer
