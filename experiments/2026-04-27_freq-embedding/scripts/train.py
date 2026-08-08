@@ -555,8 +555,10 @@ def parse_args():
                         "align term and the CPC InfoNCE auxiliary. Changes the "
                         "training objective only — eval rollout is unaffected. "
                         "Not defined for --forecaster-kind cpc/linear_cpc. "
-                        "Adds cos_err_d0..dk to the losses CSV. Full "
-                        "reference: docs/train_rollout_depth.md.")
+                        "Refused when NO term of the run ties f to h, since "
+                        "every depth would then add exactly zero. Adds "
+                        "cos_err_d0..dk to the losses CSV. Full reference: "
+                        "docs/train_rollout_depth.md.")
     p.add_argument("--ema-embedding", action="store_true",
                    help="BYOL/JEPA EMA-teacher copy of the patch-embedding "
                         "(--encoder-type's input_to_latent). Non-trained; "
@@ -884,6 +886,38 @@ def save_snapshot(model, optimizer, path, step, best_gap, best_gap_step,
 def _has_checkpoints(save_dir, run_name):
     import glob
     return len(glob.glob(os.path.join(save_dir, f"{run_name}_*.pth"))) > 0
+
+
+def main_term_depth_gap(args):
+    """Why the main contrastive term takes no rollout depth (#373), or None.
+
+    A depth (`--train-rollout-depth k`) rides on the terms that tie f to h.
+    Three settings leave the MAIN term with no such part, so every depth
+    copy of it adds exactly zero. Returns the reason, naming the flag or the
+    shape at fault; None means the term does take the depths.
+    """
+    if args.no_main_contrastive_loss:
+        return "--no-main-contrastive-loss drops the main term"
+    if args.loss_shape == "cosine_similarity_batch_rep_only":
+        return (f"--loss-shape {args.loss_shape} is h-anchored end to end "
+                "(L_rep only), so its depth copy is exactly zero")
+    if (args.loss_shape == "cosine_similarity_batch_split_pred_rep"
+            and args.pred_loss_weight == 0):
+        return ("--pred-loss-weight 0 zeroes L_pred, the f-bearing half of "
+                f"--loss-shape {args.loss_shape}")
+    return None
+
+
+def rollout_depth_has_no_consumer(args):
+    """Whether NO term of this run can consume a rollout depth (#373).
+
+    Three terms can: the main contrastive term (see
+    :func:`main_term_depth_gap`), L_align, and the CPC auxiliary. SIGReg,
+    L_rep and align_moco carry no f and enter once at any k.
+    """
+    return (main_term_depth_gap(args) is not None
+            and args.align_loss_weight <= 0
+            and args.cpc_infonce_weight <= 0)
 
 
 def safe_run_name(save_dir, run_name):
@@ -1420,21 +1454,20 @@ def main():
             f"--forecaster-kind {args.forecaster_kind}{why} composes no such "
             "operator. Use --forecaster-kind transformer, or drop "
             "--train-rollout-depth (#373).")
-    if (args.train_rollout_depth > 0 and args.no_main_contrastive_loss
-            and args.align_loss_weight <= 0 and args.cpc_infonce_weight <= 0):
-        # --no-main-contrastive-loss drops the main term, so the depths have
-        # to reach the objective through align_loss or the CPC auxiliary. On
-        # a SIGReg-only run neither is on: no term carries f, the depths add
-        # nothing, and the CSV still writes k + 1 plausible cos_err_dj
-        # curves — a run labelled k = 3 that trains at k = 0. Refuse it here
-        # rather than let the diagnostic pass for the objective.
+    if args.train_rollout_depth > 0 and rollout_depth_has_no_consumer(args):
+        # No term of this run ties f to h, so every depth copy adds exactly
+        # zero: the run trains at k = 0 and the CSV still writes k + 1
+        # plausible cos_err_dj curves, because the diagnostic reads the depth
+        # tensors and not the loss. Refuse it here rather than let the
+        # diagnostic pass for the objective.
         raise SystemExit(
-            f"--train-rollout-depth {args.train_rollout_depth} with "
-            "--no-main-contrastive-loss has no term to enter: the depths ride "
-            "on the terms that tie f to h, and this run keeps none of them "
-            "(--align-loss-weight and --cpc-infonce-weight are both 0, SIGReg "
-            "carries no f). Add one of those two, drop "
-            "--no-main-contrastive-loss, or drop --train-rollout-depth (#373).")
+            f"--train-rollout-depth {args.train_rollout_depth} has no term to "
+            "enter: the depths ride on the terms that tie f to h, and this "
+            f"run keeps none of them. {main_term_depth_gap(args)}; "
+            "--align-loss-weight and --cpc-infonce-weight are both 0; SIGReg, "
+            "L_rep and align_moco carry no f. Add --align-loss-weight or "
+            "--cpc-infonce-weight, change the main term, or drop "
+            "--train-rollout-depth (#373).")
     # Override the loss_shape from CLI (LOSS_SPEC is a module-level default).
     LOSS_SPEC.train_configuration["loss_shape"] = args.loss_shape
     LOSS_SPEC.train_configuration["include_positive_in_denominator"] = args.pos_in_denominator

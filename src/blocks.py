@@ -757,9 +757,9 @@ class TransformerBlock(nn.Module):
           the contrastive loss reads is full precision. :meth:`forward` and
           the rollout depth take it.
         * False is the eval policy: every layer at the ambient precision, no
-          cast, and no gradient-checkpointing. `rollout_latent` has always
-          run this way and #373 changes the training objective only, so it
-          keeps it.
+          cast, and no gradient-checkpointing — neither `BACKBONE_CKPT` nor
+          `FCST_GRAD_CKPT`. `rollout_latent` has always run this way and
+          #373 changes the training objective only, so it keeps it.
 
         `cache_mask=False` keeps the causal mask off the module — see
         :meth:`causal_mask_for`. The eval rollout takes it; the callers that
@@ -786,7 +786,11 @@ class TransformerBlock(nn.Module):
         # mirroring the encoder-layer checkpointing — env-gated and training-only,
         # so it is BYTE-IDENTICAL (exact recompute) and a no-op for every existing
         # run/checkpoint. Lets the full-width-forecaster arm fit a single 24 GB card.
-        fcst_ckpt = (os.environ.get("FCST_GRAD_CKPT", "0") == "1"
+        # Follows `fp32_tail` for the same reason `bb_ckpt` does: checkpointing
+        # is a training-memory knob, and the eval policy runs every layer flat.
+        # `rollout_latent` runs under `no_grad`, so `x.requires_grad` holds it
+        # off there already; the policy is what pins it, not the caller.
+        fcst_ckpt = (fp32_tail and os.environ.get("FCST_GRAD_CKPT", "0") == "1"
                      and self.training and x.requires_grad)
         for i, layer in enumerate(self.layers):
             if fp32_tail and i == n_fcst - 1:

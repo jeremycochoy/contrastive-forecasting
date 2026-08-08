@@ -59,19 +59,43 @@ One exception: `cpc_multistep` and `cpc_multistep_cpcnegs` raise
 heads, `f^(k)_t = W_k h_t`, so there is no single operator to apply to its own
 output. `--forecaster-kind cpc` / `linear_cpc` are refused up front for the
 same reason. No other shape raises. A shape that carries no `f`, such as
-`cosine_similarity_batch_rep_only`, adds exactly zero per depth.
+`cosine_similarity_batch_rep_only`, adds exactly zero per depth — the
+`L_align` add-on it pairs with still repeats, and a run that pairs it with
+nothing is refused (see Guards).
 
 ## Guards
 
-The trainer refuses three combinations up front. Each one would otherwise
-train at `k = 0` while the CSV still wrote `k + 1` plausible `cos_err_dj`
-curves, because the diagnostic reads the depth tensors, not the loss.
+The trainer refuses three combinations up front. The last two would
+otherwise train at `k = 0` while the CSV still wrote `k + 1` plausible
+`cos_err_dj` curves, because the diagnostic reads the depth tensors, not the
+loss.
 
 | combination | reason |
 |---|---|
 | `--train-rollout-depth` below 0 | not a depth |
 | `--forecaster-kind cpc` / `linear_cpc` | `K` parallel heads compose no operator to re-apply |
-| `--no-main-contrastive-loss` with `--align-loss-weight 0` and `--cpc-infonce-weight 0` | no term ties `f` to `h`, so the depths enter nothing |
+| a `k > 0` run with no term that ties `f` to `h` | the depths enter nothing |
+
+Three terms can take a depth: the main contrastive term, `L_align`
+(`--align-loss-weight`) and the CPC auxiliary (`--cpc-infonce-weight`).
+SIGReg, `L_rep` and `align_moco_loss` carry no `f`. So the third guard fires
+when both weights are 0 **and** the main term takes no depth either, which
+happens three ways:
+
+| route | why the main term adds zero per depth |
+|---|---|
+| `--no-main-contrastive-loss` | the term never runs |
+| `--loss-shape cosine_similarity_batch_rep_only` | h-anchored end to end, so the depth copy returns zeros |
+| `--loss-shape cosine_similarity_batch_split_pred_rep --pred-loss-weight 0` | `L_pred` is the f-bearing half; at weight 0 every depth copy is zero |
+
+`train.py` states the rule once, in `main_term_depth_gap()` and
+`rollout_depth_has_no_consumer()`, and the message names the route it
+refused.
+
+The guard refuses no cell of the study. Twelve of the 14 run `rep_only` on
+the main arm with `--align-loss-weight` on, so their whole depth contribution
+is the `L_align` add-on in the shared tail of `contrastive_latent_loss`. That
+is a consumer. The other two run f-bearing shapes.
 
 ## What it does with the other flags
 
@@ -82,6 +106,12 @@ one all-gather on the gathered path.
 
 `--no-main-contrastive-loss` routes the depths through the standalone
 `align_loss` and the CPC auxiliary instead of the main term.
+
+`--align-loss-weight` on the main arm is a third path, and the one 12 of the
+14 cells run: the shape body of a `rep_only` depth copy returns zeros, so the
+whole depth contribution is the `L_align` add-on in the shared tail of
+`contrastive_latent_loss`. All three paths have a run of the real trainer
+behind them.
 
 ## What it logs
 
