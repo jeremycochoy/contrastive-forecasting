@@ -1,0 +1,24 @@
+# #373 — the 14 cells, and how each one is launched.
+#
+# id   cell slug (as the card names it)      launcher              arm/cell arg
+# The launcher column names a file in this directory. The arg column is the
+# launcher's own first positional argument.
+#
+# Group A runs run_leg_k.sh, whose COMMON block carries the scheduled EMA
+# (--ema-tau 0.9 --ema-tau-end 1.0 --ema-tau-ramp-steps 100000). Group B
+# runs one of the two run_arm launchers, whose COMMON block holds α at 0.9.
+# That is the only difference between the groups, and it is the parents'.
+A1	arm5_combab_alignS_sched	run_leg_k.sh	arm5_combab_alignS
+A2	arm6_v2_nse_alignT_sched	run_leg_k.sh	arm6_v2_nse_alignT
+A3	arm6_v2_combab_alignT_sched	run_leg_k.sh	arm6_v2_combab_alignT
+A4	arm6_v2_combab_alignS_sched	run_leg_k.sh	arm6_v2_combab_alignS
+B1	arm6_v2_combab_alignS_fix09	run_arm_k.sh	arm6_v2_combab
+B2	arm6_v2_combab_alignT_fix09	run_arm_lalign_k.sh	arm6_v2_combab
+B3	arm5_combab_alignS_fix09	run_arm_k.sh	arm5_combab
+B4	arm5_combab_alignT_fix09	run_arm_lalign_k.sh	arm5_combab
+B5	arm4_combab_fix09	run_arm_k.sh	arm4_combab
+B6	arm6_v2_ncpc_alignS_fix09	run_arm_k.sh	arm6_v2_ncpc
+B7	arm6_v2_ncpc_alignT_fix09	run_arm_lalign_k.sh	arm6_v2_ncpc
+B8	arm6_v2_nse_alignT_fix09	run_arm_lalign_k.sh	arm6_v2_nse
+B9	arm1_nse_fix09	run_arm_k.sh	arm1_nse
+B10	arm6_v2_nse_alignS_fix09	run_arm_k.sh	arm6_v2_nse

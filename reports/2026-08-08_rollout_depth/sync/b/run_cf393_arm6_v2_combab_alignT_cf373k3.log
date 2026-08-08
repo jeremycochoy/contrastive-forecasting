@@ -1,0 +1,54 @@
+Device: cuda | Params: 720,668
+Training for 40000 steps, bs=64, lr=0.001, T=4096, C=1, mix_ratio=0.0078125, freq_emb_dim=3, seasonality_emb_dim=3, mixup_p=0.3, rev_norm_kind=ewma(span=128), patch_stats=none, encoder_type=gru
+Checkpoints: /root/cf373_runs/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_*.pth
+Loss CSV: /root/cf373_runs/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_losses.csv
+Latent-drift CSV: /root/cf373_runs/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_latent_drift.csv (every 20000 steps, probe_bs=64, probe_seed=20260722)
+Attn-amplitude CSV: /root/cf373_runs/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_attn_amplitude.csv (every 200 steps)
+Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, hf_bs=64, synth_bs=0, cross_bs=0, total_bs=67
+[    200] loss=13.9459  ema_loss=14.7269  gap=-0.1362  ema_gap=-0.1843  mixup=61/200  4.8 sps  ETA 2.3h
+              R²_rand=0.6716  R²_naive=0.2483  U_t=0.0820  U_b=0.2206  AUC=0.9796  Top1=0.4385
+  timing: data=64.2ms  fwd=81.2ms  bwd=53.6ms  total=199.4ms
+  -> Saved /root/cf373_runs/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_best_gap.pth
+  -> Saved /root/cf373_runs/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_best_loss.pth
+[    400] loss=13.9912  ema_loss=14.0647  gap=-0.1016  ema_gap=-0.1190  mixup=58/200  5.7 sps  ETA 1.9h
+              R²_rand=0.6626  R²_naive=0.2835  U_t=0.0794  U_b=0.1960  AUC=0.9692  Top1=0.3701
+  timing: data=5.4ms  fwd=78.6ms  bwd=52.0ms  total=136.4ms
+  -> Saved /root/cf373_runs/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_best_gap.pth
+  -> Saved /root/cf373_runs/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_best_loss.pth
+[    600] loss=13.5762  ema_loss=13.7002  gap=-0.0759  ema_gap=-0.0897  mixup=65/200  6.1 sps  ETA 1.8h
+              R²_rand=0.7081  R²_naive=0.2856  U_t=0.0630  U_b=0.1574  AUC=0.9799  Top1=0.4670
+  timing: data=4.3ms  fwd=78.5ms  bwd=52.0ms  total=135.3ms
+  -> Saved /root/cf373_runs/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_best_gap.pth
+  -> Saved /root/cf373_runs/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_best_loss.pth
+Device: cuda | Params: 720,668
+Training for 40000 steps, bs=64, lr=0.001, T=4096, C=1, mix_ratio=0.0078125, freq_emb_dim=3, seasonality_emb_dim=3, mixup_p=0.3, rev_norm_kind=ewma(span=128), patch_stats=none, encoder_type=gru
+Checkpoints: /root/cf373_runs/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_*.pth
+Loss CSV: /root/cf373_runs/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_losses.csv
+Latent-drift CSV: /root/cf373_runs/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_latent_drift.csv (every 20000 steps, probe_bs=64, probe_seed=20260722)
+Attn-amplitude CSV: /root/cf373_runs/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_attn_amplitude.csv (every 200 steps)
+Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, hf_bs=64, synth_bs=0, cross_bs=0, total_bs=67
+[    800] loss=13.2245  ema_loss=13.4077  gap=-0.0677  ema_gap=-0.0739  mixup=65/200  5.8 sps  ETA 1.9h
+              R²_rand=0.7369  R²_naive=0.2674  U_t=0.0548  U_b=0.1782  AUC=0.9815  Top1=0.4540
+  timing: data=42.4ms  fwd=84.5ms  bwd=53.3ms  total=180.6ms
+  -> Saved /root/cf373_runs/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_best_gap.pth
+  -> Saved /root/cf373_runs/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_best_loss.pth
+[    200] loss=13.9459  ema_loss=14.7269  gap=-0.1362  ema_gap=-0.1843  mixup=61/200  4.5 sps  ETA 2.4h
+              R²_rand=0.6716  R²_naive=0.2483  U_t=0.0820  U_b=0.2206  AUC=0.9796  Top1=0.4385
+  timing: data=58.3ms  fwd=88.8ms  bwd=55.9ms  total=203.4ms
+  -> Saved /root/cf373_runs/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_best_gap.pth
+  -> Saved /root/cf373_runs/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_best_loss.pth
+[   1000] loss=13.1682  ema_loss=13.2193  gap=-0.0636  ema_gap=-0.0660  mixup=61/200  5.8 sps  ETA 1.9h
+              R²_rand=0.7638  R²_naive=0.2372  U_t=0.0489  U_b=0.1560  AUC=0.9822  Top1=0.4706
+  timing: data=11.1ms  fwd=87.6ms  bwd=54.1ms  total=153.3ms
+  -> Saved /root/cf373_runs/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_best_gap.pth
+  -> Saved /root/cf373_runs/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_best_loss.pth
+[    400] loss=13.9912  ema_loss=14.0647  gap=-0.1016  ema_gap=-0.1190  mixup=58/200  5.1 sps  ETA 2.2h
+              R²_rand=0.6626  R²_naive=0.2835  U_t=0.0794  U_b=0.1960  AUC=0.9692  Top1=0.3701
+  timing: data=11.6ms  fwd=88.5ms  bwd=54.1ms  total=154.7ms
+  -> Saved /root/cf373_runs/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_best_gap.pth
+  -> Saved /root/cf373_runs/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_best_loss.pth
+[   1200] loss=13.0001  ema_loss=13.0571  gap=-0.0583  ema_gap=-0.0593  mixup=59/200  5.8 sps  ETA 1.9h
+              R²_rand=0.7749  R²_naive=0.2837  U_t=0.0442  U_b=0.1566  AUC=0.9864  Top1=0.4901
+  timing: data=11.1ms  fwd=88.7ms  bwd=53.8ms  total=154.0ms
+  -> Saved /root/cf373_runs/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_best_gap.pth
+  -> Saved /root/cf373_runs/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_best_loss.pth

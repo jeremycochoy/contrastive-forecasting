@@ -1,0 +1,10 @@
+[08-08 23:49:10] [verify A4] START slug=arm6_v2_combab_alignS_sched launcher=run_leg_k.sh arg=arm6_v2_combab_alignS gpu=1
+[08-08 23:49:10] [arm6_v2_combab_alignS] FRESH start at step 0
+[08-08 23:49:10] [arm6_v2_combab_alignS] START target=1 gpu=1 save_every=1000000 leg=/home/jupyter/checkpoints_backup/cf-373/verify/A4_k0/arm6_v2_combab_alignS/leg_0k
+[08-08 23:49:21] [arm6_v2_combab_alignS] DONE target=1 (5.0M) -> /home/jupyter/checkpoints_backup/cf-373/verify/A4_k0/arm6_v2_combab_alignS/leg_0k/cf393_arm6_v2_combab_alignS_cf373k0_0k.pth
+[08-08 23:49:21] [arm6_v2_combab_alignS] FRESH start at step 0
+[08-08 23:49:21] [arm6_v2_combab_alignS] START target=1 gpu=1 save_every=1000000 leg=/home/jupyter/checkpoints_backup/cf-373/verify/A4_k3/arm6_v2_combab_alignS/leg_0k
+[08-08 23:49:34] [arm6_v2_combab_alignS] DONE target=1 (5.0M) -> /home/jupyter/checkpoints_backup/cf-373/verify/A4_k3/arm6_v2_combab_alignS/leg_0k/cf393_arm6_v2_combab_alignS_cf373k3_0k.pth
+[08-08 23:49:34] [verify A4] launcher rc: k=0 -> 0, k=3 -> 0 (a 1-step run names no _0k.pth)
+A4	PASS	step=1	loss_k0=13.6439390182	loss_k3=18.3701267242	d_loss=+4.726188	loss_tau_ref=20.2213153839	cos_err=0.6219,0.7317,0.7911,0.8366
+[08-08 23:49:34] [verify A4] verdict rc=0

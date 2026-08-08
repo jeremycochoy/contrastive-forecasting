@@ -1,0 +1,8 @@
+[08-08 23:51:58] [verify B4] START slug=arm5_combab_alignT_fix09 launcher=run_arm_lalign_k.sh arg=arm5_combab gpu=1
+[08-08 23:51:58] [elisa-arm5_combab] BB START (arm 5_combab: rep_only + align + τ_rep=1.0 + cpc=0 + align-target teacher (nse SKIPPED: nse hurt arm5)) gpu=1 target=1 final=200000 bs=64 
+[08-08 23:52:14] [elisa-arm5_combab] arm5_combab wave complete: target=1 (< final 200000) — latest ck bb_small_arm5_combab_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_cf373k0_0k.pth
+[08-08 23:52:14] [elisa-arm5_combab] BB START (arm 5_combab: rep_only + align + τ_rep=1.0 + cpc=0 + align-target teacher (nse SKIPPED: nse hurt arm5)) gpu=1 target=1 final=200000 bs=64 
+[08-08 23:52:29] [elisa-arm5_combab] arm5_combab wave complete: target=1 (< final 200000) — latest ck bb_small_arm5_combab_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_cf373k3_0k.pth
+[08-08 23:52:29] [verify B4] launcher rc: k=0 -> 0, k=3 -> 0 (a 1-step run names no _0k.pth)
+B4	PASS	step=1	loss_k0=14.2775917053	loss_k3=18.8015918732	d_loss=+4.524000	loss_tau_ref=20.2213153839	cos_err=0.6219,0.7317,0.7911,0.8366
+[08-08 23:52:29] [verify B4] verdict rc=0

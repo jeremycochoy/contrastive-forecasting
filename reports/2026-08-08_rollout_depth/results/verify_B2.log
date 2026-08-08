@@ -1,0 +1,8 @@
+[08-08 23:50:57] [verify B2] START slug=arm6_v2_combab_alignT_fix09 launcher=run_arm_lalign_k.sh arg=arm6_v2_combab gpu=1
+[08-08 23:50:57] [elisa-arm6_v2_combab] BB START (arm 6 v2_combab: rep_only + align + moco-rep-keys + τ_rep=1.0 + cpc=0 + align-target teacher (nse SKIPPED: nse hurt arm6_v2)) gpu=1 target=1 final=200000 bs=64 
+[08-08 23:51:11] [elisa-arm6_v2_combab] arm6_v2_combab wave complete: target=1 (< final 200000) — latest ck bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_cf373k0_0k.pth
+[08-08 23:51:11] [elisa-arm6_v2_combab] BB START (arm 6 v2_combab: rep_only + align + moco-rep-keys + τ_rep=1.0 + cpc=0 + align-target teacher (nse SKIPPED: nse hurt arm6_v2)) gpu=1 target=1 final=200000 bs=64 
+[08-08 23:51:26] [elisa-arm6_v2_combab] arm6_v2_combab wave complete: target=1 (< final 200000) — latest ck bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_cf373k3_0k.pth
+[08-08 23:51:26] [verify B2] launcher rc: k=0 -> 0, k=3 -> 0 (a 1-step run names no _0k.pth)
+B2	PASS	step=1	loss_k0=13.5209026337	loss_k3=18.0449028015	d_loss=+4.524000	loss_tau_ref=20.2213153839	cos_err=0.6219,0.7317,0.7911,0.8366
+[08-08 23:51:26] [verify B2] verdict rc=0
