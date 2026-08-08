@@ -96,15 +96,26 @@ class FakeTransformer(nn.Module):
         self.fcst_up_proj = nn.Identity()
         self._dummy = nn.Parameter(torch.zeros(1))
 
+    def forecaster_forward(self, x):
+        """The forecaster operator, same contract as
+        `TransformerBlock.forecaster_forward`: down proj -> causal layers ->
+        up proj on a (B*C, T, H) latent sequence. `rollout_latent` and the
+        training rollout depth (#373) both compose this entry point."""
+        x = self.fcst_down_proj(x)
+        causal_mask = torch.triu(
+            torch.full((x.size(1), x.size(1)), float('-inf'),
+                       device=x.device), diagonal=1)
+        for layer in self.layers:
+            x = layer(x, tgt_mask=causal_mask, tgt_is_causal=True)
+        return self.fcst_up_proj(x)
+
     def forward(self, xr):
         # xr: (B, T, C, W) -> encode -> reshape -> transformer -> (f, e)
         x = self.input_to_latent(xr)  # (B, T, C, H)
         B, T, C, H = x.size()
         x = x.permute(0, 2, 1, 3).reshape(B * C, T, H)
         x_original = x.clone()
-        for layer in self.layers:
-            x = layer(x)
-        return x, x_original
+        return self.forecaster_forward(x), x_original
 
 
 class FakeBackbone(nn.Module):
@@ -1087,6 +1098,10 @@ def _make_mock_backbone():
         def input_to_latent(self, xr):
             B, T, C, H = xr.shape
             return xr  # identity
+
+        def forecaster_forward(self, x):
+            # No layers in this mock: down proj -> up proj is the identity.
+            return self.fcst_up_proj(self.fcst_down_proj(x))
 
         def forward(self, xr):
             B, T, C, H = xr.shape

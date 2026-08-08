@@ -209,6 +209,29 @@ def u_batchtime(z: Tensor) -> Tensor:
 
 
 @torch.no_grad()
+def rollout_cos_error(forecasted_latent: Tensor, original_latent: Tensor,
+                      rollout_latents=(), eps: float = 1e-8) -> list[float]:
+    """1 − cos(f^(j)_t, h_{t+1+j}) per rollout depth j = 0..k (#373).
+
+    Depth 0 is the one-step forecast error the ``ff`` column already reads;
+    the deeper entries say whether the composed forecaster improves, and
+    whether depth 0 pays for it. ``rollout_latents`` is f^(1)..f^(k) — the
+    same list the loss consumes.
+
+    Returns k+1 floats, depth 0 first.
+    """
+    from .loss import rollout_depth_views          # local: metrics ← loss only
+
+    errors = [float(_err(forecasted_latent[:, :-1],
+                         original_latent[:, 1:], eps).mean())]
+    for depth, f_depth in enumerate(rollout_latents, start=1):
+        f_view, h_view, _ = rollout_depth_views(
+            f_depth, original_latent, depth)
+        errors.append(float(_err(f_view[:, :-1], h_view[:, 1:], eps).mean()))
+    return errors
+
+
+@torch.no_grad()
 def drift_pair(A: Tensor, B: Tensor, eps: float = 1e-8) -> dict[str, Tensor]:
     """Latent-drift metric between two representations of the SAME probe
     batch at two training steps.
