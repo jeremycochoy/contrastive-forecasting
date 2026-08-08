@@ -30,7 +30,8 @@ import torch.multiprocessing as mp
 from types import SimpleNamespace
 
 from src.loss import contrastive_latent_loss
-from src.dist_utils import gather_latents, average_gradients
+from src.dist_utils import (gather_latent, gather_latents,
+                            average_gradients)
 
 WORLD = 2
 B_LOCAL, T, C, H = 3, 4, 1, 8
@@ -416,3 +417,61 @@ def test_allt_shard_ddp_param_grad_matches_single_process(also_fused):
     all-time grad full/identical, so DifferentiableAllGather's W× and DDP's
     1/W cancel). Verified with XSHH_ALLT_FUSED on and off (they compose)."""
     _spawn_args(_worker_allt_sharded_param_grad, also_fused)
+
+
+# ---------------------------------------------------------------------------
+# Rollout depth (#373): every f^(j) is gathered like f^(0), so each depth's
+# copy of the loss pools the SAME global batch. A depth is a lone tensor, so
+# it takes `gather_latent` — one collective per depth, not the two that
+# `gather_latents(f_j, f_j)` would issue for one result.
+# ---------------------------------------------------------------------------
+
+DEPTH = 3
+
+
+def _worker_depth_gather(rank, fstore):
+    _init(rank, fstore)
+    try:
+        f_all, o_all = _global_latents()
+        sl = slice(rank * B_LOCAL, (rank + 1) * B_LOCAL)
+        depths_local = [
+            (f_all[sl] * (j + 2)).clone().requires_grad_(True)
+            for j in range(DEPTH)
+        ]
+
+        calls = []
+        real_all_gather = dist.all_gather
+
+        def counting_all_gather(*args, **kwargs):
+            calls.append(1)
+            return real_all_gather(*args, **kwargs)
+
+        dist.all_gather = counting_all_gather
+        try:
+            gathered = [gather_latent(f_j) for f_j in depths_local]
+        finally:
+            dist.all_gather = real_all_gather
+
+        assert len(calls) == DEPTH, \
+            f"rank{rank}: {len(calls)} all-gathers for {DEPTH} depths"
+        for j, (g, local) in enumerate(zip(gathered, depths_local)):
+            assert g.shape[0] == B_GLOBAL, (j, g.shape)
+            assert torch.allclose(g.detach(), f_all * (j + 2)), \
+                f"rank{rank}: depth {j + 1} gather mangled values"
+            # Gradient reaches this rank's own slice, so the depth trains.
+            g.sum().backward()
+            assert local.grad is not None and local.grad.abs().sum() > 0
+
+        # The pair form is the two-tensor case of the same primitive.
+        pair = gather_latents(f_all[sl], o_all[sl])
+        assert torch.allclose(pair[0], gather_latent(f_all[sl]))
+        assert torch.allclose(pair[1], gather_latent(o_all[sl]))
+    finally:
+        dist.destroy_process_group()
+
+
+@pytest.mark.skipif(not dist.is_available(), reason="torch.distributed N/A")
+def test_every_rollout_depth_is_gathered_once():
+    """#373: each depth reaches the global batch through ONE all-gather, with
+    gradient flowing back to the rank that produced it."""
+    _spawn(_worker_depth_gather)

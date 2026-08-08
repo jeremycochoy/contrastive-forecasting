@@ -103,6 +103,12 @@ python scripts/train.py --device cuda --total-steps 500000 --save-path model.pth
 python scripts/recover.py --device cuda --model-path model.pth --epochs 20000
 ```
 
+### Objective flags
+
+- [`docs/train_rollout_depth.md`](docs/train_rollout_depth.md) —
+  `--train-rollout-depth K`, which trains the forecaster composed with itself
+  `K` more times instead of one step only.
+
 ## License
 
 This code is provided for research purposes. While the code can be used freely, **citation is required** when using this work in academic publications or research.

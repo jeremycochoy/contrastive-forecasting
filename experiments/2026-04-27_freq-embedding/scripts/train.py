@@ -51,6 +51,7 @@ from src.dist_utils import (
     setup_distributed,
     cleanup_distributed,
     is_main_process,
+    gather_latent,
     gather_latents,
     average_gradients,
     broadcast_module,
@@ -553,7 +554,9 @@ def parse_args():
                         "Applies to the main contrastive loss, the standalone "
                         "align term and the CPC InfoNCE auxiliary. Changes the "
                         "training objective only — eval rollout is unaffected. "
-                        "Not defined for --forecaster-kind cpc/linear_cpc.")
+                        "Not defined for --forecaster-kind cpc/linear_cpc. "
+                        "Adds cos_err_d0..dk to the losses CSV. Full "
+                        "reference: docs/train_rollout_depth.md.")
     p.add_argument("--ema-embedding", action="store_true",
                    help="BYOL/JEPA EMA-teacher copy of the patch-embedding "
                         "(--encoder-type's input_to_latent). Non-trained; "
@@ -1401,11 +1404,22 @@ def main():
         raise SystemExit("--train-rollout-depth must be ≥ 0; got "
                          f"{args.train_rollout_depth}.")
     if args.train_rollout_depth > 0 and args.forecaster_kind != "transformer":
+        # The depth applies the forecaster to its OWN output, so it needs one
+        # operator whose output lives in its own input space. Only
+        # --forecaster-kind transformer is that. The guard rejects every
+        # other kind rather than only today's two, so a kind added later
+        # cannot pick up the flag by default; the CPC families are named
+        # because they are the ones that exist and the reason they cannot
+        # compose is instructive.
+        why = (" (K parallel heads, f^(k)_t = W_k h_t, each predicting its "
+               "own horizon straight from h_t)"
+               if args.forecaster_kind in ("cpc", "linear_cpc") else "")
         raise SystemExit(
-            "--train-rollout-depth needs the transformer forecaster: "
-            f"--forecaster-kind {args.forecaster_kind} is K parallel heads "
-            "predicting their own horizon straight from h_t, so there is no "
-            "single operator to apply to its own output (#373).")
+            "--train-rollout-depth applies the forecaster to its own output, "
+            "so it needs the single transformer forecaster. "
+            f"--forecaster-kind {args.forecaster_kind}{why} composes no such "
+            "operator. Use --forecaster-kind transformer, or drop "
+            "--train-rollout-depth (#373).")
     # Override the loss_shape from CLI (LOSS_SPEC is a module-level default).
     LOSS_SPEC.train_configuration["loss_shape"] = args.loss_shape
     LOSS_SPEC.train_configuration["include_positive_in_denominator"] = args.pos_in_denominator
@@ -1721,6 +1735,13 @@ def main():
         # its own output. Built from the LOCAL f_lat — the operator runs per
         # sequence — then gathered like f_lat below so every depth pools the
         # same global batch. Gradient flows through the chain (no detach).
+        #
+        # Same numeric path as depth 0, on purpose: the call sits at the same
+        # scope as `forward_step` above (this trainer opens no outer autocast
+        # — mixed precision is per-layer, `_autocast_ctx(residual_dtype)`
+        # inside each decoder layer), it feeds an fp32 sequence the way the
+        # encoder boundary feeds the depth-0 pass, and it runs the same
+        # `forecaster_forward` under the same fp32-tail policy.
         rollout_lats = rollout_forecaster_latents(
             model, f_lat, args.train_rollout_depth)
         # DDP: gather latents across ranks so the contrastive loss pools
@@ -1738,8 +1759,9 @@ def main():
         if not args.shard_loss_on_batch:
             f_lat, o_lat = gather_latents(f_lat, o_lat)
             # Same global pooling for every rollout depth (#373); no-op
-            # single-GPU, one all-gather per depth under torchrun.
-            rollout_lats = [gather_latents(f_j, f_j)[0] for f_j in rollout_lats]
+            # single-GPU, ONE all-gather per depth under torchrun (a depth is
+            # a lone tensor, so it takes the single-tensor form).
+            rollout_lats = [gather_latent(f_j) for f_j in rollout_lats]
             if teacher_o_lat is not None:
                 # Same global pooling as o_lat; gather_latents is a no-op
                 # single-GPU. Teacher carries no grad either way.

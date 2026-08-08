@@ -733,7 +733,9 @@ def rollout_latent(backbone, encoder_latents, n_future_tokens):
 
     Each token runs `TransformerBlock.forecaster_forward` — the same
     forecaster operator the training forward and the training rollout depth
-    (#373) compose, bottleneck projections included.
+    (#373) compose, bottleneck projections included. `fp32_tail=False` keeps
+    the eval precision policy this function has always run at: every layer at
+    the ambient precision, no cast. #373 changes the training objective only.
 
     Args:
         backbone: frozen ConfigurableModel (on correct device)
@@ -754,7 +756,7 @@ def rollout_latent(backbone, encoder_latents, n_future_tokens):
         for _ in range(n_future_tokens):
             # Run the forecaster on the current sequence (bypass the encoder
             # — we already have latents). x[:, -1, :] is f[-1] ≈ e[next].
-            x = backbone.transformer.forecaster_forward(seq)
+            x = backbone.transformer.forecaster_forward(seq, fp32_tail=False)
             new_token = x[:, -1:, :]  # (B*C, 1, H)
             generated.append(new_token)
 
@@ -772,6 +774,11 @@ def rollout_forecaster_latents(backbone, forecasted_latent, depth):
     (`TransformerBlock.forecaster_forward`, the one :func:`rollout_latent`
     composes) over the WHOLE sequence at once, so copy j gives f^(j)_t, which
     the rollout-depth objective ties to h_{t+1+j}.
+
+    The pass runs the TRAINING precision policy (the default `fp32_tail`),
+    the one that produced f^(0), and the caller hands over an fp32 f^(j-1) —
+    the dtype the encoder boundary hands the depth-0 pass. So every depth
+    walks the same numeric path as depth 0.
 
     Feeding f^(j-1) back in place of the encoder prefix is the fixed-point
     approximation of the eval rollout: it costs one dropped key per depth at

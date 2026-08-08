@@ -705,26 +705,40 @@ class TransformerBlock(nn.Module):
         self.causal_mask = None
 
     def causal_mask_for(self, x):
-        """The cached [T, T] causal mask for `x`'s sequence length.
+        """The cached [T, T] causal mask for `x`'s sequence length and device.
 
-        Rebuilt only when the length changes, so a caller that grows the
-        sequence (the eval rollout) pays for one mask per new length.
+        Rebuilt when the length OR the device changes, so a caller that grows
+        the sequence (the eval rollout) pays for one mask per new length, and
+        a mask cached by a forward on another device is never handed on.
         """
-        if self.causal_mask is None or self.causal_mask.size(0) != x.size(1):
+        if (self.causal_mask is None
+                or self.causal_mask.size(0) != x.size(1)
+                or self.causal_mask.device != x.device):
             self.causal_mask = self._generate_square_subsequent_mask(
                 x.size(1)).to(x.device)
         return self.causal_mask
 
-    def forecaster_forward(self, x):
+    def forecaster_forward(self, x, fp32_tail=True):
         """Run the forecaster stack on a [B*C, T, H] latent sequence.
 
-        `fcst_down_proj` → causal decoder layers (the last in fp32) →
-        `fcst_up_proj`, i.e. the forecaster operator F on its own. Three
-        callers compose the SAME entry point, so they cannot drift apart:
-        :meth:`forward` applies it to the encoder output, the eval rollout
+        `fcst_down_proj` → causal decoder layers → `fcst_up_proj`, i.e. the
+        forecaster operator F on its own. Three callers compose the SAME
+        entry point, so they cannot drift apart: :meth:`forward` applies it
+        to the encoder output, the eval rollout
         (`src.forecasting_head.rollout_latent`) applies it to its own output
         one token at a time, and the training rollout depth (#373) re-enters
         it over the whole sequence. Returns [B*C, T, H] in `dimension_e`.
+
+        `fp32_tail` picks the precision policy, NOT the arithmetic — in fp32
+        the two are the same operator:
+
+        * True (default) is the training policy: all-but-last under the outer
+          autocast, last layer and output in fp32, so the forecaster latent
+          the contrastive loss reads is full precision. :meth:`forward` and
+          the rollout depth take it.
+        * False is the eval policy: every layer at the ambient precision, no
+          cast. `rollout_latent` has always run this way and #373 changes the
+          training objective only, so it keeps it.
         """
         causal_mask = self.causal_mask_for(x)
         # Forecaster bottleneck (#286 follow-up, v13). When configured
@@ -733,9 +747,10 @@ class TransformerBlock(nn.Module):
         # projection is per-token, so it commutes with the causal mask.
         x = self.fcst_down_proj(x)
 
-        # Forecaster (decoder) layers — always pure causal. Same hybrid as
-        # the encoder stack: all-but-last under outer autocast, last layer in
-        # fp32 so the forecaster latent feeding the loss is full precision.
+        # Forecaster (decoder) layers — always pure causal. Under `fp32_tail`
+        # the same hybrid as the encoder stack: all-but-last under outer
+        # autocast, last layer in fp32 so the forecaster latent feeding the
+        # loss is full precision.
         n_fcst = len(self.layers)
         bb_ckpt = self.training and os.environ.get("BACKBONE_CKPT", "0") == "1"
         # Optional gradient-checkpointing of the (non-last) forecaster layers,
@@ -745,7 +760,7 @@ class TransformerBlock(nn.Module):
         fcst_ckpt = (os.environ.get("FCST_GRAD_CKPT", "0") == "1"
                      and self.training and x.requires_grad)
         for i, layer in enumerate(self.layers):
-            if i == n_fcst - 1:
+            if fp32_tail and i == n_fcst - 1:
                 with torch.amp.autocast('cuda', enabled=False):
                     x = x.float()
                     x = layer(x, tgt_mask=causal_mask, tgt_is_causal=True)
@@ -756,7 +771,7 @@ class TransformerBlock(nn.Module):
                     x, use_reentrant=False)
             else:
                 x = self._run_layer(layer, x, causal_mask, True, bb_ckpt)
-        if n_fcst > 0:
+        if fp32_tail and n_fcst > 0:
             x = x.float()
 
         # Project the forecaster output back up to dimension_e so the

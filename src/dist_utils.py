@@ -47,6 +47,7 @@ __all__ = [
     "setup_distributed",
     "cleanup_distributed",
     "DifferentiableAllGather",
+    "gather_latent",
     "gather_latents",
     "broadcast_module",
     "average_gradients",
@@ -178,6 +179,20 @@ def average_gradients(module: torch.nn.Module) -> None:
             p.grad /= world
 
 
+def gather_latent(latent: torch.Tensor) -> torch.Tensor:
+    """Concatenate ONE latent tensor across ranks along the batch dim.
+
+    One collective per call. Use this for a lone tensor — each rollout depth
+    of #373, for instance. `gather_latents` is the pair form; calling it with
+    the same tensor twice would issue two all-gathers for one result.
+
+    No-op (returns the input unchanged) when not distributed.
+    """
+    if not is_distributed():
+        return latent
+    return DifferentiableAllGather.apply(latent)
+
+
 def gather_latents(
     forecasted_latent: torch.Tensor, original_latent: torch.Tensor
 ):
@@ -189,8 +204,4 @@ def gather_latents(
     `contrastive_latent_loss` pools negatives over the global batch — i.e.
     2-GPU @ B/2 each == single-GPU @ B.
     """
-    if not is_distributed():
-        return forecasted_latent, original_latent
-    f = DifferentiableAllGather.apply(forecasted_latent)
-    o = DifferentiableAllGather.apply(original_latent)
-    return f, o
+    return gather_latent(forecasted_latent), gather_latent(original_latent)

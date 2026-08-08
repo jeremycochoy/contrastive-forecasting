@@ -23,10 +23,32 @@ What this file pins:
   any k > 0; no other shape raises.
 * **The re-entry composes the operator the eval composes**: one depth equals
   one token of `rollout_latent` on the same input.
+* **The eval numerics do not change.** #373 changes the training objective
+  only, so `rollout_latent` keeps the ambient precision it ran at before the
+  forecaster stack moved into `TransformerBlock.forecaster_forward`, and the
+  cached causal mask still follows the input's device.
+* **The second positive of `add_pos_htft` shifts too** (#373 rule 3), against
+  an independent formula.
+* **`--subtract-contrastive-floor` at k > 0**, on the split shape (one floor
+  per depth on the f-bearing side only) and on the h-only `rep_only` shape.
+* **`rollout_cos_error`** — depth 0 reproduces the `ff` column, each deeper
+  entry reads its own shifted window.
+* **The trainer wiring**: the re-entry, the per-depth all-gather, the CSV
+  header/row alignment, the depth-0 `loss_tau_ref`, and a 4-step end-to-end
+  run at k = 2.
 """
 
+from __future__ import annotations
+
+import ast
+import csv
+import importlib.util
 import inspect
+import os
 import re
+import subprocess
+import sys
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -34,11 +56,17 @@ import torch
 import torch.nn.functional as F
 
 import src.loss as loss_module
+from src.blocks import TransformerBlock
 from src.forecasting_head import rollout_forecaster_latents, rollout_latent
 from src.loss import (align_loss, contrastive_latent_loss,
                       cpc_infonce_all_loss, cpc_infonce_aux_loss,
                       rollout_depth_views)
-from src.models import ConfigurableModel
+from src.metrics import rollout_cos_error
+from src.models import ConfigurableModel, compute_metrics
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+TRAIN_PY = (REPO_ROOT / "experiments" / "2026-04-27_freq-embedding"
+            / "scripts" / "train.py")
 
 CPC_SHAPES = ('cpc_multistep', 'cpc_multistep_cpcnegs')
 
@@ -121,6 +149,10 @@ K0_CONFIGS = {
     # arm6_v2: L_align (student target) + MoCo keys on L_rep.
     'align_moco_rep': dict(
         cfg={'align_loss_weight': 1.0, 'moco_rep_keys': True}, teacher=True),
+    # The floor on the SPLIT shape: two terms, two floors, and only the
+    # f-bearing one repeats per depth.
+    'split_floor': dict(cfg={'subtract_contrastive_floor': True},
+                        teacher=False),
     # #336 / #379 knobs that move where f and h sit.
     'stopgrad_pos': dict(cfg={'stopgrad_positive_h': True}, teacher=False),
     'tau_rep': dict(
@@ -137,6 +169,7 @@ def k0_cases():
         'arm4': (_XSHH_ALLT,),
         'align_teacher': (_SPLIT, _REP_ONLY, _XSHH_ALLT),
         'align_moco_rep': (_SPLIT, _REP_ONLY),
+        'split_floor': (_SPLIT,),
         'stopgrad_pos': (_SPLIT, _REP_ONLY, _XSHH_ALLT),
         'tau_rep': (_SPLIT, _REP_ONLY),
     }
@@ -201,6 +234,7 @@ K0_REFERENCE = {
     ('cosine_similarity_batch_split_pred_rep', 'base'): 15.73789835105975,
     ('cosine_similarity_batch_split_pred_rep', 'align_teacher'): 17.880922522184363,
     ('cosine_similarity_batch_split_pred_rep', 'align_moco_rep'): 16.83829488617452,
+    ('cosine_similarity_batch_split_pred_rep', 'split_floor'): 11.172642572978022,
     ('cosine_similarity_batch_split_pred_rep', 'stopgrad_pos'): 15.73789835105975,
     ('cosine_similarity_batch_split_pred_rep', 'tau_rep'): 6.183315256163423,
     ('cosine_similarity_batch_square', 'base'): 8.243637551311775,
@@ -276,9 +310,19 @@ def _expected_depth_term(shape, config_name, latents, depth):
     cfg = dict(case['cfg'])
     if shape == _SPLIT:
         cfg['rep_loss_weight'] = 0.0
-    return contrastive_latent_loss(
+    term = contrastive_latent_loss(
         (f_view, o_view), validation=False, spec=_spec(shape, **cfg),
         teacher_original_latent=teacher_view)
+    if shape == _SPLIT and case['cfg'].get('subtract_contrastive_floor'):
+        # The depth-0 call re-based L_rep by its own floor once. This
+        # rebuild is a plain depth-0 call, so it subtracted that constant a
+        # second time — add it back, because a depth copy carries L_pred
+        # only. (L_pred's floor has no T in it, so it is the same constant
+        # on the shorter depth-j window.)
+        _f_pred, f_rep = loss_module._split_pred_rep_floors(
+            0.1, B, o_view.shape[1], C)
+        term = term + float(f_rep)
+    return term
 
 
 class TestDepthSumsFBearingTermsOnly:
@@ -604,3 +648,489 @@ class TestReEntryIsTheEvalOperator:
         depths = rollout_forecaster_latents(model, f0, 2)
         grad, = torch.autograd.grad(depths[1].sum(), f0)
         assert torch.isfinite(grad).all() and grad.abs().sum() > 0
+
+
+def _forecaster_reference(model, seq):
+    """The forecaster stack written out, at the ambient precision.
+
+    The body `rollout_latent` ran before the stack moved into
+    `TransformerBlock.forecaster_forward`: down proj → causal layers → up
+    proj, with no cast and no fp32 tail. An independent reference for "the
+    eval numerics did not change".
+    """
+    block = model.transformer
+    n = seq.size(1)
+    mask = torch.triu(torch.ones(n, n, device=seq.device), diagonal=1).bool()
+    mask = mask.float().masked_fill(mask, float('-inf'))
+    x = block.fcst_down_proj(seq)
+    for layer in block.layers:
+        x = layer(x, tgt_mask=mask, tgt_is_causal=True)
+    return block.fcst_up_proj(x)
+
+
+class TestEvalRolloutNumericsAreUnchanged:
+    """#373 changes the TRAINING objective only.
+
+    The forecaster stack moved into `TransformerBlock.forecaster_forward`
+    so the training forward, the eval rollout and the rollout depth compose
+    one operator. The training forward's precision policy — last layer and
+    output forced to fp32 — must NOT travel to the eval rollout, which has
+    always run every layer at the ambient precision. In fp32 the two are the
+    same arithmetic, so a bf16 model is what tells them apart.
+    """
+
+    def test_rollout_latent_keeps_the_ambient_precision(self):
+        model = _tiny_backbone().to(torch.bfloat16)
+        seq = torch.randn(3, 7, 8, dtype=torch.bfloat16)
+        token = rollout_latent(model, seq, 1)
+        assert token.dtype == torch.bfloat16
+        with torch.no_grad():
+            want = _forecaster_reference(model, seq)[:, -1:]
+        assert torch.equal(token, want)
+
+    def test_a_multi_token_rollout_matches_the_reference(self):
+        model = _tiny_backbone().to(torch.bfloat16)
+        seq = torch.randn(3, 7, 8, dtype=torch.bfloat16)
+        got = rollout_latent(model, seq, 3)
+        with torch.no_grad():
+            cur, want = seq, []
+            for _ in range(3):
+                token = _forecaster_reference(model, cur)[:, -1:]
+                want.append(token)
+                cur = torch.cat([cur, token], dim=1)
+        assert torch.equal(got, torch.cat(want, dim=1))
+
+    def test_each_caller_composes_its_own_precision_policy(self, monkeypatch):
+        """One operator, two precision policies — pinned so they cannot swap.
+
+        The eval rollout runs the stack at the ambient precision
+        (`fp32_tail=False`); the training forward and the rollout depth force
+        the fp32 tail, which is what the loss has always read.
+        """
+        seen = []
+        original = TransformerBlock.forecaster_forward
+
+        def spy(self, x, **kwargs):
+            seen.append(kwargs.get('fp32_tail', True))
+            return original(self, x, **kwargs)
+
+        monkeypatch.setattr(TransformerBlock, 'forecaster_forward', spy)
+        model = _tiny_backbone()
+        rollout_latent(model, torch.randn(3, 7, 8), 2)
+        assert seen == [False, False]
+        seen.clear()
+        rollout_forecaster_latents(model, torch.randn(3, 7, 1, 8), 2)
+        assert seen == [True, True]
+        seen.clear()
+        model(torch.randn(3, 28, 1))
+        assert seen == [True]
+
+    def test_the_two_policies_agree_in_fp32(self):
+        """Same operator: the policies differ only in where a cast lands, so
+        an fp32 model gives one answer either way."""
+        model = _tiny_backbone()
+        x = torch.randn(3, 7, 8)
+        with torch.no_grad():
+            assert torch.equal(model.transformer.forecaster_forward(x),
+                               model.transformer.forecaster_forward(
+                                   x, fp32_tail=False))
+
+
+class TestCausalMaskFollowsTheInput:
+    """The cached mask is keyed on the sequence length. The eval rollout used
+    to build its own mask on the input's device every call, so the cache must
+    also rebuild when the device changes — otherwise a mask cached by a
+    forward on one device is handed to a rollout on another."""
+
+    def test_a_cached_mask_on_another_device_is_rebuilt(self):
+        model = _tiny_backbone()
+        block = model.transformer
+        x = torch.randn(2, 5, 8)
+        block.causal_mask = block._generate_square_subsequent_mask(5).to('meta')
+        assert block.causal_mask_for(x).device == x.device
+
+    def test_the_rollout_survives_a_mask_cached_elsewhere(self):
+        model = _tiny_backbone()
+        seq = torch.randn(3, 7, 8)
+        want = rollout_latent(model, seq, 2)
+        model.transformer.causal_mask = \
+            model.transformer._generate_square_subsequent_mask(7).to('meta')
+        assert torch.equal(rollout_latent(model, seq, 2), want)
+
+
+class TestSecondPositiveOfAddPosHtftShifts:
+    """#373 rule 3 on the one shape that names it: `add_pos_htft` carries a
+    second positive cos(h_t, f_t), which at depth j is cos(h_{t+j}, f^(j)_t).
+    Checked against the shape written out longhand, not against the loss."""
+
+    SHAPE = 'cosine_similarity_batch_add_pos_htft'
+
+    @staticmethod
+    def _reference(f_j, o, depth, tau=0.1, shift_second_positive=True):
+        """`cosine_similarity_batch_add_pos_htft` at depth `depth`.
+
+        `shift_second_positive=False` leaves the second positive's h index at
+        h_t — the depth-0 tensor rule 3 forbids — so the test can show the
+        two differ.
+        """
+        f_view, o_view, _ = rollout_depth_views(f_j, o, depth)
+        fore = F.normalize(f_view, p=2, dim=-1)
+        orig = F.normalize(o_view, p=2, dim=-1)
+        hy_hat, hy, hx = fore[:, :-1], orig[:, 1:], orig[:, :-1]
+        if not shift_second_positive:
+            hx = F.normalize(o, p=2, dim=-1)[:, :o_view.shape[1] - 1]
+        positives = (torch.exp((hy_hat * hy).sum(-1) / tau)
+                     + torch.exp((hy_hat * hx).sum(-1) / tau))
+        def _pair(a, b):
+            return torch.exp(
+                (a.unsqueeze(3) * b.unsqueeze(2)).sum(-1) / tau)
+        neg_xy = _pair(hx, hy).sum(dim=2)
+        neg_xy_hat = _pair(hx, hy_hat).sum(dim=2)
+        sims_xx = _pair(hx, hx)
+        eye_c = torch.eye(C, dtype=torch.bool).view(1, 1, C, C)
+        neg_xx = sims_xx.masked_fill(eye_c, 0).sum(dim=2)
+        neg_zy = _pair(fore[:, 1:], hy_hat).sum(dim=2)
+        sims_xb = (hy.unsqueeze(0) * hy_hat.unsqueeze(1)).sum(-1)
+        eye_b = torch.eye(B, dtype=torch.bool).view(B, B, 1, 1)
+        neg_xb = sims_xb.div(tau).exp().masked_fill(eye_b, 0).sum(dim=1)
+        negatives = neg_xy + neg_xx + neg_zy + neg_xy_hat + neg_xb
+        return -torch.log(
+            positives / negatives.sum(dim=0, keepdim=True)).mean()
+
+    def test_depth_zero_matches_the_longhand_shape(self):
+        """The reference is the shape itself — pin it at depth 0 first."""
+        f, o, _teacher, _roll = _latents(self.SHAPE)
+        assert float(self._reference(f, o, 0)) == pytest.approx(
+            K0_REFERENCE[(self.SHAPE, 'base')], rel=0, abs=1e-12)
+
+    def test_the_depth_term_shifts_both_positives(self):
+        latents = _latents(self.SHAPE, depth=1)
+        _f, o, _teacher, rollouts = latents
+        k0 = _call(self.SHAPE, 'base', latents=latents)
+        k1 = _call(self.SHAPE, 'base', depth=1, latents=latents)
+        want = self._reference(rollouts[0], o, 1)
+        assert float(k1 - k0) == pytest.approx(float(want), rel=0, abs=1e-12)
+
+    def test_leaving_the_second_positive_at_h_t_would_be_caught(self):
+        latents = _latents(self.SHAPE, depth=1)
+        _f, o, _teacher, rollouts = latents
+        stale = self._reference(rollouts[0], o, 1,
+                                shift_second_positive=False)
+        shifted = self._reference(rollouts[0], o, 1)
+        assert abs(float(stale) - float(shifted)) > 1e-6
+        k0 = _call(self.SHAPE, 'base', latents=latents)
+        k1 = _call(self.SHAPE, 'base', depth=1, latents=latents)
+        assert abs(float(k1 - k0) - float(stale)) > 1e-6
+
+
+class TestFloorAtDepthOverEveryShape:
+    """`--subtract-contrastive-floor` re-bases by a constant, so it must stay
+    gradient-neutral at every k, and a shape that cannot re-base at k = 0
+    must not start re-basing at k > 0."""
+
+    @pytest.mark.parametrize('shape', FOUR_D_SHAPES)
+    def test_the_floor_is_a_constant_offset_at_depth_three(self, shape):
+        latents = _latents(shape, depth=3, requires_grad=True)
+        f, _o, _teacher, rollouts = latents
+        floor_on = dict(include_positive_in_denominator=True,
+                        subtract_contrastive_floor=True)
+        try:
+            with_floor = _call(shape, 'base', depth=3, latents=latents,
+                               **floor_on)
+        except NotImplementedError as first:
+            # A shape without a closed-form floor raises the SAME way at
+            # every depth — the depth loop must not turn that into a
+            # per-depth constant quietly added to the loss.
+            with pytest.raises(NotImplementedError) as later:
+                _call(shape, 'base', latents=latents, **floor_on)
+            assert str(later.value) == str(first)
+            return
+        no_floor = _call(shape, 'base', depth=3, latents=latents,
+                         include_positive_in_denominator=True,
+                         subtract_contrastive_floor=False)
+        g_with = torch.autograd.grad(with_floor, [f] + rollouts,
+                                     retain_graph=True)
+        g_without = torch.autograd.grad(no_floor, [f] + rollouts)
+        for a, b in zip(g_with, g_without):
+            assert torch.equal(a, b)
+
+    def test_the_split_shape_re_bases_l_pred_once_per_depth(self):
+        """L_pred's floor repeats with the depth; L_rep's does not."""
+        latents = _latents(_SPLIT, depth=3)
+        f_pred, f_rep = loss_module._split_pred_rep_floors(0.1, B, T, C)
+        offsets = []
+        for depth in (0, 3):
+            on = _call(_SPLIT, 'split_floor', depth=depth, latents=latents)
+            off = _call(_SPLIT, 'split_floor', depth=depth, latents=latents,
+                        subtract_contrastive_floor=False)
+            offsets.append(float(off - on))
+        assert offsets[0] == pytest.approx(float(f_pred) + float(f_rep),
+                                           rel=0, abs=1e-12)
+        assert offsets[1] == pytest.approx(4 * float(f_pred) + float(f_rep),
+                                           rel=0, abs=1e-12)
+
+    def test_an_h_only_shape_refuses_the_floor_at_every_depth(self):
+        """`rep_only` has no positive and no closed-form floor. It raised at
+        k = 0 and must keep raising — a depth copy of an h-only shape adds
+        exactly zero, so a floor there would be a constant with no term."""
+        latents = _latents(_REP_ONLY, depth=3)
+        floor_on = dict(include_positive_in_denominator=True,
+                        subtract_contrastive_floor=True)
+        messages = []
+        for depth in (0, 3):
+            with pytest.raises(NotImplementedError) as excinfo:
+                _call(_REP_ONLY, 'base', depth=depth, latents=latents,
+                      **floor_on)
+            messages.append(str(excinfo.value))
+        assert _REP_ONLY in messages[0]
+        assert messages[0] == messages[1]
+
+
+class TestRolloutCosError:
+    """`cos_err_d0..dk` — the per-depth diagnostic #373 asks for."""
+
+    def test_depth_zero_reproduces_the_ff_column(self):
+        f, o, _teacher, _roll = _latents(_SPLIT)
+        f, o = f.float(), o.float()
+        ff, _fp, _tp, _cb = compute_metrics(f, o, 1)
+        assert rollout_cos_error(f, o)[0] == pytest.approx(1.0 - ff, abs=1e-6)
+
+    def test_one_entry_per_depth_plus_depth_zero(self):
+        f, o, _teacher, rollouts = _latents(_SPLIT, depth=3)
+        assert len(rollout_cos_error(f, o, rollouts)) == 4
+        assert len(rollout_cos_error(f, o)) == 1
+
+    def test_each_depth_reads_its_own_shifted_window(self):
+        f, o, _teacher, rollouts = _latents(_SPLIT, depth=3)
+        errors = rollout_cos_error(f, o, rollouts)
+        for depth, f_depth in enumerate(rollouts, start=1):
+            want = 1.0 - F.cosine_similarity(
+                f_depth[:, :T - 1 - depth], o[:, 1 + depth:],
+                dim=-1, eps=1e-8).mean()
+            assert errors[depth] == pytest.approx(float(want), rel=0,
+                                                  abs=1e-12)
+
+    def test_a_perturbed_depth_moves_only_its_own_entry(self):
+        f, o, _teacher, rollouts = _latents(_SPLIT, depth=3)
+        before = rollout_cos_error(f, o, rollouts)
+        bumped = list(rollouts)
+        bumped[1] = bumped[1] + 1.0
+        after = rollout_cos_error(f, o, bumped)
+        assert after[2] != before[2]
+        assert [after[j] for j in (0, 1, 3)] == [before[j] for j in (0, 1, 3)]
+
+    def test_the_metric_carries_no_gradient(self):
+        f, o, _teacher, rollouts = _latents(_SPLIT, depth=1,
+                                            requires_grad=True)
+        errors = rollout_cos_error(f, o, rollouts)
+        assert all(isinstance(e, float) for e in errors)
+
+
+def load_train_module():
+    """Import train.py as a module so its classes can be exercised."""
+    spec = importlib.util.spec_from_file_location("train_py_373", TRAIN_PY)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def _train_tree():
+    return ast.parse(TRAIN_PY.read_text())
+
+
+def _calls_named(tree, name):
+    """Every ast.Call in `tree` whose callee is `name`."""
+    out = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        called = (func.id if isinstance(func, ast.Name)
+                  else getattr(func, 'attr', None))
+        if called == name:
+            out.append(node)
+    return out
+
+
+def _keyword(call, name):
+    for kw in call.keywords:
+        if kw.arg == name:
+            return kw.value
+    return None
+
+
+class TestTrainerWiring:
+    """The trainer is where the depth is built, gathered, logged and kept out
+    of the reference diagnostics. None of that is reachable from the loss
+    tests, so it is pinned here."""
+
+    def test_the_flag_defaults_to_the_historical_objective(self):
+        defaults = {}
+        for call in _calls_named(_train_tree(), 'add_argument'):
+            if call.args and isinstance(call.args[0], ast.Constant):
+                defaults[call.args[0].value] = _keyword(call, 'default')
+        assert '--train-rollout-depth' in defaults
+        assert ast.literal_eval(defaults['--train-rollout-depth']) == 0
+
+    def test_the_depths_are_built_from_the_forward_output(self):
+        calls = _calls_named(_train_tree(), 'rollout_forecaster_latents')
+        assert len(calls) == 1
+        args = [ast.unparse(a) for a in calls[0].args]
+        assert args == ['model', 'f_lat', 'args.train_rollout_depth']
+
+    def test_every_depth_is_gathered_with_one_all_gather(self):
+        """`gather_latents` takes a pair and issues TWO all-gathers. A depth
+        is one tensor, so it goes through the single-tensor `gather_latent`
+        — one collective per depth, not two."""
+        src = TRAIN_PY.read_text()
+        assert 'rollout_lats = [gather_latent(f_j) for f_j in rollout_lats]' \
+            in src
+        assert 'gather_latents(f_j, f_j)' not in src
+
+    def test_loss_tau_ref_stays_at_depth_zero(self):
+        """The τ-reference curve must be comparable across k, so the
+        diagnostic call forces depth 0 and passes no rollout latents."""
+        tree = _train_tree()
+        ref = [c for c in _calls_named(tree, 'contrastive_latent_loss')
+               if _keyword(c, 'train_rollout_depth') is not None]
+        assert len(ref) == 1
+        assert ast.literal_eval(_keyword(ref[0], 'train_rollout_depth')) == 0
+        assert _keyword(ref[0], 'rollout_latents') is None
+
+    def test_the_kind_guard_names_the_kind_it_rejects(self):
+        """The guard rejects every non-transformer forecaster, so its message
+        must name the kind at hand, not only the CPC families."""
+        train = load_train_module()
+        src = inspect.getsource(train.main)
+        guard = src.split('args.train_rollout_depth > 0 and '
+                          'args.forecaster_kind != "transformer"')[1]
+        message = guard.split('SystemExit')[1].split(')')[0]
+        assert 'args.forecaster_kind' in message
+
+    @pytest.mark.parametrize('kind', ['cpc', 'linear_cpc'])
+    def test_a_non_transformer_forecaster_is_refused(self, kind, tmp_path):
+        out = subprocess.run(
+            [sys.executable, str(TRAIN_PY), '--train-rollout-depth', '3',
+             '--forecaster-kind', kind, '--hf-repo', 'none',
+             '--hf-path', 'none', '--save-dir', str(tmp_path)],
+            capture_output=True, text=True, timeout=300,
+            env={**os.environ, 'PYTHONPATH': str(REPO_ROOT)})
+        assert out.returncode != 0
+        assert kind in out.stderr
+        assert '--train-rollout-depth' in out.stderr
+
+    def test_a_negative_depth_is_refused(self, tmp_path):
+        out = subprocess.run(
+            [sys.executable, str(TRAIN_PY), '--train-rollout-depth', '-1',
+             '--hf-repo', 'none', '--hf-path', 'none',
+             '--save-dir', str(tmp_path)],
+            capture_output=True, text=True, timeout=300,
+            env={**os.environ, 'PYTHONPATH': str(REPO_ROOT)})
+        assert out.returncode != 0
+        assert '--train-rollout-depth' in out.stderr
+
+
+class TestLossesCsvCarriesThePerDepthColumns:
+
+    @staticmethod
+    def _row(logger, cos_err_depths):
+        logger.log(1, 0.5, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 7, 8, False,
+                   0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7,
+                   cos_err_depths=cos_err_depths)
+        logger.close()
+
+    @staticmethod
+    def _read(path):
+        with open(path) as fh:
+            return list(csv.DictReader(fh))
+
+    def test_a_k0_run_writes_no_cos_err_column(self, tmp_path):
+        train = load_train_module()
+        path = str(tmp_path / "k0_losses.csv")
+        logger = train.CSVLogger(path, rollout_depth=0)
+        self._row(logger, None)
+        assert not [c for c in self._read(path)[0] if c.startswith('cos_err')]
+
+    def test_a_k3_run_appends_one_column_per_depth(self, tmp_path):
+        train = load_train_module()
+        path = str(tmp_path / "k3_losses.csv")
+        logger = train.CSVLogger(path, rollout_depth=3)
+        self._row(logger, [0.11, 0.22, 0.33, 0.44])
+        row = self._read(path)[0]
+        assert [c for c in row if c.startswith('cos_err')] == \
+            ['cos_err_d0', 'cos_err_d1', 'cos_err_d2', 'cos_err_d3']
+        assert [row[f'cos_err_d{j}'] for j in range(4)] == \
+            ['0.11', '0.22', '0.33', '0.44']
+        assert row['ema_tau'] == ''
+        assert row['loss'] == '0.5'
+
+    def test_a_short_depth_list_leaves_blanks_not_a_shifted_row(self, tmp_path):
+        train = load_train_module()
+        path = str(tmp_path / "short_losses.csv")
+        logger = train.CSVLogger(path, rollout_depth=3)
+        self._row(logger, [0.11])
+        row = self._read(path)[0]
+        assert row['cos_err_d0'] == '0.11'
+        assert [row[f'cos_err_d{j}'] for j in (1, 2, 3)] == ['', '', '']
+
+    def test_resuming_a_k0_csv_at_k3_is_refused(self, tmp_path):
+        """The extra columns change the schema, so appending would shift
+        every value of every later row."""
+        train = load_train_module()
+        path = str(tmp_path / "resume_losses.csv")
+        logger = train.CSVLogger(path, rollout_depth=0)
+        self._row(logger, None)
+        with pytest.raises(SystemExit, match="schema mismatch"):
+            train.CSVLogger(path, rollout_depth=3)
+
+
+def _assert_train_deps_available():
+    for mod in ("torch", "numpy", "datasets"):
+        try:
+            __import__(mod)
+        except ImportError as exc:                       # pragma: no cover
+            pytest.fail(f"train.py dep {mod!r} not importable: {exc}. "
+                        "Do NOT skip — the depth wiring would go untested.")
+
+
+def test_a_four_step_run_at_depth_two_trains_and_logs(tmp_path):
+    """End-to-end: the flag reaches the loss, the forecaster re-enters, and
+    the CSV carries three finite `cos_err_dj` curves.
+
+    Everything above tests one piece. This is the only test that runs the
+    depth through the real trainer: forward → re-entry → gather → loss →
+    backward → CSV.
+    """
+    _assert_train_deps_available()
+    save_dir = tmp_path / "runs"
+    save_dir.mkdir()
+    env = {**os.environ,
+           "PYTHONPATH": str(REPO_ROOT) + os.pathsep + os.environ.get(
+               "PYTHONPATH", "")}
+    result = subprocess.run(
+        [sys.executable, "-u", str(TRAIN_PY),
+         "--device", "cpu", "--total-steps", "4", "--batch-size", "2",
+         "--lr", "1e-3", "--weight-decay", "0.1",
+         "--save-dir", str(save_dir), "--run-name", "depth2",
+         "--train-rollout-depth", "2",
+         "--mix-ratio", "1.0", "--synth-kind", "periodic",
+         "--t-raw", "64", "--n-channels", "1", "--d-model", "32",
+         "--n-heads", "2", "--num-layers", "1", "--num-encoder-layers", "1",
+         "--log-every", "1", "--seed", "42",
+         "--loss-shape", _XSHH_ALLT, "--tau", "0.10",
+         "--hf-repo", "none", "--hf-path", "none"],
+        env=env, capture_output=True, text=True, cwd=str(tmp_path),
+        timeout=900)
+    if result.returncode != 0:
+        pytest.fail(f"train.py rc={result.returncode}\n"
+                    f"stdout:\n{result.stdout[-3000:]}\n"
+                    f"stderr:\n{result.stderr[-3000:]}")
+    with open(save_dir / "depth2_losses.csv") as fh:
+        rows = list(csv.DictReader(fh))
+    assert rows, "no CSV rows — the step loop never ran"
+    for row in rows:
+        assert float(row["loss"]) == float(row["loss"])          # not NaN
+        for depth in range(3):
+            assert 0.0 <= float(row[f"cos_err_d{depth}"]) <= 2.0
+    assert "cos_err_d3" not in rows[0]
