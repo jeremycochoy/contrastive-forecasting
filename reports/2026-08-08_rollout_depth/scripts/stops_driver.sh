@@ -73,7 +73,11 @@ for job in "$@"; do
     sleep "$POLL"; waited=$(( waited + POLL ))
   done
 
-  for enc in student teacher; do
+  # ENCODERS restricts one driver to one head, so two drivers can share the
+  # card: the study needs 2 heads x 5 backbones x ~1 h, and elisa has one
+  # usable GPU. Measured at batch 256 the head fits twice over in what is
+  # free. Left unset, one driver does both in turn.
+  for enc in ${ENCODERS:-student teacher}; do
     log "START $cell k=$k bb$(( steps / 1000 ))k $enc"
     BB_GPU="${BB_GPU:-1}" bash "$HERE/stop_k.sh" "$cell" "$k" "$steps" "$enc"
     log "END   $cell k=$k bb$(( steps / 1000 ))k $enc rc=$?"
