@@ -36,6 +36,13 @@ What this file pins:
 * **The trainer wiring**: the re-entry, the per-depth all-gather, the CSV
   header/row alignment, the depth-0 `loss_tau_ref`, and a 4-step end-to-end
   run at k = 2.
+* **No branch of the loss block trains at k = 0.** Both branches that split
+  it — `--shard-loss-on-batch` and `--no-main-contrastive-loss` — reach the
+  depths, statically and through a run of the real trainer. A run that
+  trains at k = 0 still writes k + 1 plausible `cos_err_dj` curves, because
+  the diagnostic reads the depth tensors and not the loss.
+* **The guards**, each against its own message: a negative depth, a
+  non-transformer forecaster, and a depth no term can consume.
 """
 
 from __future__ import annotations
@@ -830,7 +837,9 @@ class TestBackboneCheckpointGateIsOneDefinition:
     stacks cannot drift apart.
     """
 
-    def _count(self, monkeypatch, model, x, no_grad=False):
+    @staticmethod
+    def _counter(monkeypatch):
+        """Count every `torch.utils.checkpoint.checkpoint` call from here on."""
         calls = []
         real = torch.utils.checkpoint.checkpoint
 
@@ -839,6 +848,10 @@ class TestBackboneCheckpointGateIsOneDefinition:
             return real(*args, **kwargs)
 
         monkeypatch.setattr(torch.utils.checkpoint, 'checkpoint', counting)
+        return calls
+
+    def _count(self, monkeypatch, model, x, no_grad=False):
+        calls = self._counter(monkeypatch)
         if no_grad:
             with torch.no_grad():
                 model(x)
@@ -882,6 +895,38 @@ class TestBackboneCheckpointGateIsOneDefinition:
         monkeypatch.delenv('BACKBONE_CKPT', raising=False)
         model = _tiny_backbone(num_layers=3, num_encoder_layers=2).train()
         assert self._count(monkeypatch, model, torch.randn(3, 28, 1)) == 0
+
+    def test_the_eval_rollout_never_checkpoints(self, monkeypatch):
+        """Checkpointing is a training-memory knob: it trades stored
+        activations for a backward recompute. The rollout runs under
+        `no_grad` and its pre-#373 body ran every layer flat, so a backbone
+        a caller left in `train()` must not start checkpointing an eval."""
+        monkeypatch.setenv('BACKBONE_CKPT', '1')
+        monkeypatch.delenv('FCST_GRAD_CKPT', raising=False)
+        model = _tiny_backbone(num_layers=3, num_encoder_layers=2).train()
+        calls = self._counter(monkeypatch)
+        rollout_latent(model, torch.randn(3, 7, 8), 2)
+        assert len(calls) == 0
+
+    def test_the_training_depth_still_checkpoints(self, monkeypatch):
+        """The other `forecaster_forward` caller keeps the knob: one call
+        per non-last forecaster layer, per depth."""
+        monkeypatch.setenv('BACKBONE_CKPT', '1')
+        monkeypatch.delenv('FCST_GRAD_CKPT', raising=False)
+        model = _tiny_backbone(num_layers=3, num_encoder_layers=2).train()
+        calls = self._counter(monkeypatch)
+        rollout_forecaster_latents(model, torch.randn(3, 7, 1, 8), 2)
+        assert len(calls) == 2 * (3 - 1)
+
+    def test_the_rollout_output_survives_the_gate(self, monkeypatch):
+        """The gate picks where activations are stored, not what comes
+        out."""
+        model = _tiny_backbone(num_layers=3, num_encoder_layers=2).train()
+        seq = torch.randn(3, 7, 8)
+        monkeypatch.delenv('BACKBONE_CKPT', raising=False)
+        want = rollout_latent(model, seq, 2)
+        monkeypatch.setenv('BACKBONE_CKPT', '1')
+        assert torch.equal(rollout_latent(model, seq, 2), want)
 
 
 class TestSecondPositiveOfAddPosHtftShifts:
@@ -1000,13 +1045,27 @@ class TestFloorAtDepthOverEveryShape:
 
     def test_the_sweep_reaches_the_floor_on_every_shape(self):
         """Both arms above are floor arms — no shape drops out on the
-        `include_positive_in_denominator` guard, which sits earlier."""
+        `include_positive_in_denominator` guard, which sits earlier.
+
+        Every shape asserts, including the ones that raise nothing: a shape
+        that neither refuses the floor by name nor moves the value reached
+        no floor branch at all, and raising nothing is not a pass.
+        """
+        reached = []
         for shape in FOUR_D_SHAPES:
+            latents = _latents(shape, depth=3)
+            floor_on = self._floor_flags(shape)
             try:
-                _call(shape, 'base', latents=_latents(shape, depth=3),
-                      **self._floor_flags(shape))
+                on = _call(shape, 'base', latents=latents, **floor_on)
             except NotImplementedError as exc:
                 assert 'subtract_contrastive_floor' in str(exc), shape
+                reached.append(shape)
+                continue
+            off = _call(shape, 'base', latents=latents,
+                        **dict(floor_on, subtract_contrastive_floor=False))
+            assert float(off - on) > 0.0, f'{shape}: the floor changed nothing'
+            reached.append(shape)
+        assert reached == FOUR_D_SHAPES
 
     def test_the_split_shape_re_bases_l_pred_once_per_depth(self):
         """L_pred's floor repeats with the depth; L_rep's does not."""
@@ -1118,6 +1177,75 @@ def _keyword(call, name):
     return None
 
 
+# Every loss in train.py that ties `f` to `h`. A call to one of these that
+# carries no depth trains its term at k = 0, whatever the flag says.
+F_BEARING_LOSSES = ('contrastive_latent_loss', 'align_loss',
+                    'cpc_infonce_aux_loss', 'cpc_infonce_all_loss')
+
+
+def f_bearing_calls_missing_depths(tree):
+    """The f-bearing loss calls in `tree` that carry no depth.
+
+    A call passes on either of two grounds: it takes `rollout_latents`, or
+    it pins `train_rollout_depth=0` — the depth-0 reference diagnostic,
+    which must stay comparable across k.
+    """
+    missing = []
+    for name in F_BEARING_LOSSES:
+        for call in _calls_named(tree, name):
+            if _keyword(call, 'rollout_latents') is not None:
+                continue
+            pin = _keyword(call, 'train_rollout_depth')
+            if pin is not None and ast.literal_eval(pin) == 0:
+                continue
+            missing.append(f'{name}:{call.lineno}')
+    return missing
+
+
+def unwire_one_call(tree, name):
+    """Strip `rollout_latents` off the first wired `name` call.
+
+    This is the unwired version the check above must catch. Raises when no
+    call of that name carries the depths — so every f-bearing loss in
+    train.py is reached by at least one wired call.
+    """
+    for call in _calls_named(tree, name):
+        if _keyword(call, 'rollout_latents') is not None:
+            call.keywords = [kw for kw in call.keywords
+                             if kw.arg != 'rollout_latents']
+            return tree
+    raise AssertionError(f'no {name} call in train.py carries rollout_latents')
+
+
+def refuse_run(tmp_path, *flags):
+    """Run train.py expecting one of its guards, and return its stderr.
+
+    `--weight-decay` is required, so a command without it dies inside
+    argparse with a usage dump that names every flag of the parser. A guard
+    test that asserts on a flag name alone passes on that dump and never
+    reaches the guard, so this helper supplies the required flag and refuses
+    the usage dump outright.
+    """
+    out = subprocess.run(
+        [sys.executable, str(TRAIN_PY), '--weight-decay', '0.1',
+         '--hf-repo', 'none', '--hf-path', 'none',
+         '--save-dir', str(tmp_path), *flags],
+        capture_output=True, text=True, timeout=300,
+        env={**os.environ, 'PYTHONPATH': str(REPO_ROOT)})
+    assert out.returncode != 0
+    assert 'usage:' not in out.stderr, \
+        f'died in argparse, never reached a guard:\n{out.stderr[-2000:]}'
+    return out.stderr
+
+
+def shard_branch(tree):
+    """The `if not args.shard_loss_on_batch:` statement of train.py."""
+    branches = [n for n in ast.walk(tree) if isinstance(n, ast.If)
+                and 'shard_loss_on_batch' in ast.unparse(n.test)]
+    assert len(branches) == 1, 'expected exactly one shard-loss branch'
+    return branches[0]
+
+
 class TestTrainerWiring:
     """The trainer is where the depth is built, gathered, logged and kept out
     of the reference diagnostics. None of that is reachable from the loss
@@ -1187,25 +1315,142 @@ class TestTrainerWiring:
 
     @pytest.mark.parametrize('kind', ['cpc', 'linear_cpc'])
     def test_a_non_transformer_forecaster_is_refused(self, kind, tmp_path):
-        out = subprocess.run(
-            [sys.executable, str(TRAIN_PY), '--train-rollout-depth', '3',
-             '--forecaster-kind', kind, '--hf-repo', 'none',
-             '--hf-path', 'none', '--save-dir', str(tmp_path)],
-            capture_output=True, text=True, timeout=300,
-            env={**os.environ, 'PYTHONPATH': str(REPO_ROOT)})
-        assert out.returncode != 0
-        assert kind in out.stderr
-        assert '--train-rollout-depth' in out.stderr
+        stderr = refuse_run(tmp_path, '--train-rollout-depth', '3',
+                            '--forecaster-kind', kind)
+        assert kind in stderr
+        assert 'applies the forecaster to its own output' in stderr
 
     def test_a_negative_depth_is_refused(self, tmp_path):
-        out = subprocess.run(
-            [sys.executable, str(TRAIN_PY), '--train-rollout-depth', '-1',
-             '--hf-repo', 'none', '--hf-path', 'none',
-             '--save-dir', str(tmp_path)],
-            capture_output=True, text=True, timeout=300,
-            env={**os.environ, 'PYTHONPATH': str(REPO_ROOT)})
-        assert out.returncode != 0
-        assert '--train-rollout-depth' in out.stderr
+        stderr = refuse_run(tmp_path, '--train-rollout-depth', '-1')
+        assert '--train-rollout-depth must be ≥ 0' in stderr
+
+    def test_a_depth_no_term_can_consume_is_refused(self, tmp_path):
+        """`--no-main-contrastive-loss` with SIGReg alone leaves no f-bearing
+        term. The depths would enter nothing, and the run would still write
+        k + 1 plausible `cos_err_dj` curves — a run labelled k = 3 training
+        at k = 0. Refuse the pair up front."""
+        stderr = refuse_run(tmp_path, '--train-rollout-depth', '3',
+                            '--no-main-contrastive-loss', '--sigreg-encoding')
+        assert '--train-rollout-depth' in stderr
+        assert 'no term to enter' in stderr
+
+    def test_the_same_pair_runs_once_a_term_can_consume_the_depths(
+            self, tmp_path):
+        """The guard fires on the missing consumer, not on the pair itself:
+        add `--align-loss-weight` and the same run is accepted."""
+        rows = run_short_training(
+            tmp_path, 'nomain_align_k2', '--no-main-contrastive-loss',
+            '--sigreg-encoding', '--align-loss-weight', '1.0',
+            '--train-rollout-depth', '2')
+        errs = [float(rows[0][f'cos_err_d{j}']) for j in range(3)]
+        assert len(set(errs)) == 3
+
+
+class TestNoBranchOfTheLossBlockTrainsAtDepthZero:
+    """A run labelled k must train at k on EVERY branch of the loss block.
+
+    Two branches split it. `--shard-loss-on-batch` picks whether the
+    latents are all-gathered; `--no-main-contrastive-loss` picks the main
+    contrastive term or the standalone `align_loss`. A branch that dropped
+    the depths would train its term at k = 0 while the CSV still wrote
+    k + 1 plausible `cos_err_dj` curves, because the diagnostic reads
+    `rollout_lats`, not the loss.
+    """
+
+    def test_every_f_bearing_loss_call_carries_the_depths(self):
+        assert f_bearing_calls_missing_depths(_train_tree()) == []
+
+    @pytest.mark.parametrize('name', F_BEARING_LOSSES)
+    def test_the_check_catches_an_unwired_call(self, name):
+        """Teeth: strip the keyword off one call and the check reports it."""
+        assert f_bearing_calls_missing_depths(
+            unwire_one_call(_train_tree(), name))
+
+    def test_the_depths_are_built_outside_the_shard_branch(self):
+        """`--shard-loss-on-batch` skips the GATHER and nothing else. A
+        depth built inside that branch would leave every sharded run at
+        k = 0."""
+        tree = _train_tree()
+        inside = {id(n) for n in ast.walk(shard_branch(tree))}
+        builds = _calls_named(tree, 'rollout_forecaster_latents')
+        assert builds
+        assert not [c for c in builds if id(c) in inside]
+
+    def test_no_f_bearing_loss_call_sits_inside_the_shard_branch(self):
+        """The loss runs on both sides of the branch, so a call inside it
+        would be a call the sharded path never makes."""
+        tree = _train_tree()
+        inside = {id(n) for n in ast.walk(shard_branch(tree))}
+        for name in F_BEARING_LOSSES:
+            assert not [c for c in _calls_named(tree, name)
+                        if id(c) in inside], name
+
+    def test_only_the_gather_sits_inside_the_shard_branch(self):
+        """What the branch may hold: gathers, and nothing else that reads
+        the depths."""
+        branch = shard_branch(_train_tree())
+        gathers = {id(c) for name in ('gather_latent', 'gather_latents')
+                   for c in _calls_named(branch, name)}
+        others = [ast.unparse(n.func) for n in ast.walk(branch)
+                  if isinstance(n, ast.Call) and id(n) not in gathers]
+        assert others == []
+
+
+def run_short_training(tmp_path, run_name, *extra, steps=2):
+    """A short CPU run of the real trainer. Returns its CSV rows."""
+    _assert_train_deps_available()
+    save_dir = tmp_path / "runs"
+    save_dir.mkdir(exist_ok=True)
+    env = {**os.environ,
+           "PYTHONPATH": str(REPO_ROOT) + os.pathsep + os.environ.get(
+               "PYTHONPATH", "")}
+    result = subprocess.run(
+        [sys.executable, "-u", str(TRAIN_PY),
+         "--device", "cpu", "--total-steps", str(steps), "--batch-size", "2",
+         "--lr", "1e-3", "--weight-decay", "0.1",
+         "--save-dir", str(save_dir), "--run-name", run_name,
+         "--mix-ratio", "1.0", "--synth-kind", "periodic",
+         "--t-raw", "64", "--n-channels", "1", "--d-model", "32",
+         "--n-heads", "2", "--num-layers", "1", "--num-encoder-layers", "1",
+         "--log-every", "1", "--seed", "42", "--tau", "0.10",
+         "--hf-repo", "none", "--hf-path", "none", *extra],
+        env=env, capture_output=True, text=True, cwd=str(tmp_path),
+        timeout=900)
+    if result.returncode != 0:
+        pytest.fail(f"train.py rc={result.returncode}\n"
+                    f"stdout:\n{result.stdout[-3000:]}\n"
+                    f"stderr:\n{result.stderr[-3000:]}")
+    with open(save_dir / f"{run_name}_losses.csv") as fh:
+        return list(csv.DictReader(fh))
+
+
+@pytest.mark.parametrize('arm', [
+    pytest.param(('--loss-shape', _XSHH_ALLT), id='main_contrastive'),
+    pytest.param(('--loss-shape', _XSHH_ALLT, '--no-main-contrastive-loss',
+                  '--align-loss-weight', '1.0'), id='align_standalone'),
+])
+def test_a_sharded_run_trains_at_the_depth_it_is_given(tmp_path, arm):
+    """`--shard-loss-on-batch` at k = 2, on both arms of the loss block.
+
+    Step 0 is the discriminating row. The depth pass runs AFTER the
+    forward, so the k = 0 and k = 2 runs reach their first loss on the same
+    weights and the same batch. `loss_tau_ref` is pinned to depth 0, so it
+    stays equal and proves the two runs saw the same inputs; `loss` moves
+    only if the depths entered the objective. Unwire the branch and the two
+    losses are the same number.
+    """
+    rows = {}
+    for depth in (0, 2):
+        rows[depth] = run_short_training(
+            tmp_path, f'shard_k{depth}', *arm, '--shard-loss-on-batch',
+            '--train-rollout-depth', str(depth))[0]
+    assert float(rows[0]['loss_tau_ref']) == pytest.approx(
+        float(rows[2]['loss_tau_ref']), rel=0, abs=1e-9), \
+        "the two runs did not see the same batch"
+    assert abs(float(rows[0]['loss']) - float(rows[2]['loss'])) > 1e-6, \
+        "the sharded path trains at k = 0"
+    errs = [float(rows[2][f'cos_err_d{j}']) for j in range(3)]
+    assert len(set(errs)) == 3
 
 
 class TestLossesCsvCarriesThePerDepthColumns:
@@ -1279,32 +1524,8 @@ def test_a_four_step_run_at_depth_two_trains_and_logs(tmp_path):
     depth through the real trainer: forward → re-entry → gather → loss →
     backward → CSV.
     """
-    _assert_train_deps_available()
-    save_dir = tmp_path / "runs"
-    save_dir.mkdir()
-    env = {**os.environ,
-           "PYTHONPATH": str(REPO_ROOT) + os.pathsep + os.environ.get(
-               "PYTHONPATH", "")}
-    result = subprocess.run(
-        [sys.executable, "-u", str(TRAIN_PY),
-         "--device", "cpu", "--total-steps", "4", "--batch-size", "2",
-         "--lr", "1e-3", "--weight-decay", "0.1",
-         "--save-dir", str(save_dir), "--run-name", "depth2",
-         "--train-rollout-depth", "2",
-         "--mix-ratio", "1.0", "--synth-kind", "periodic",
-         "--t-raw", "64", "--n-channels", "1", "--d-model", "32",
-         "--n-heads", "2", "--num-layers", "1", "--num-encoder-layers", "1",
-         "--log-every", "1", "--seed", "42",
-         "--loss-shape", _XSHH_ALLT, "--tau", "0.10",
-         "--hf-repo", "none", "--hf-path", "none"],
-        env=env, capture_output=True, text=True, cwd=str(tmp_path),
-        timeout=900)
-    if result.returncode != 0:
-        pytest.fail(f"train.py rc={result.returncode}\n"
-                    f"stdout:\n{result.stdout[-3000:]}\n"
-                    f"stderr:\n{result.stderr[-3000:]}")
-    with open(save_dir / "depth2_losses.csv") as fh:
-        rows = list(csv.DictReader(fh))
+    rows = run_short_training(tmp_path, "depth2", "--loss-shape", _XSHH_ALLT,
+                              "--train-rollout-depth", "2", steps=4)
     assert rows, "no CSV rows — the step loop never ran"
     for row in rows:
         assert float(row["loss"]) == float(row["loss"])          # not NaN

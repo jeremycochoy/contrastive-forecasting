@@ -1420,6 +1420,21 @@ def main():
             f"--forecaster-kind {args.forecaster_kind}{why} composes no such "
             "operator. Use --forecaster-kind transformer, or drop "
             "--train-rollout-depth (#373).")
+    if (args.train_rollout_depth > 0 and args.no_main_contrastive_loss
+            and args.align_loss_weight <= 0 and args.cpc_infonce_weight <= 0):
+        # --no-main-contrastive-loss drops the main term, so the depths have
+        # to reach the objective through align_loss or the CPC auxiliary. On
+        # a SIGReg-only run neither is on: no term carries f, the depths add
+        # nothing, and the CSV still writes k + 1 plausible cos_err_dj
+        # curves — a run labelled k = 3 that trains at k = 0. Refuse it here
+        # rather than let the diagnostic pass for the objective.
+        raise SystemExit(
+            f"--train-rollout-depth {args.train_rollout_depth} with "
+            "--no-main-contrastive-loss has no term to enter: the depths ride "
+            "on the terms that tie f to h, and this run keeps none of them "
+            "(--align-loss-weight and --cpc-infonce-weight are both 0, SIGReg "
+            "carries no f). Add one of those two, drop "
+            "--no-main-contrastive-loss, or drop --train-rollout-depth (#373).")
     # Override the loss_shape from CLI (LOSS_SPEC is a module-level default).
     LOSS_SPEC.train_configuration["loss_shape"] = args.loss_shape
     LOSS_SPEC.train_configuration["include_positive_in_denominator"] = args.pos_in_denominator
@@ -1756,6 +1771,10 @@ def main():
         # average_gradients() below still averages param grads across
         # ranks (standard DDP) so the sharded objective is the mean of
         # the per-rank local losses.
+        #
+        # The flag picks the GATHER and nothing else. The rollout depths are
+        # built above this branch and reach the loss on both paths (#373), so
+        # a sharded run trains at the k it was given, on its local shard.
         if not args.shard_loss_on_batch:
             f_lat, o_lat = gather_latents(f_lat, o_lat)
             # Same global pooling for every rollout depth (#373); no-op

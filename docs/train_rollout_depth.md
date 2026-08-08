@@ -34,7 +34,7 @@ Two arguments let each caller keep the policy it always ran at:
 
 | argument | training forward and rollout depth | eval `rollout_latent` |
 |---|---|---|
-| `fp32_tail` | `True` — last layer and output in fp32, what the contrastive loss reads | `False` — every layer at the ambient precision, no cast |
+| `fp32_tail` | `True` — last layer and output in fp32, what the contrastive loss reads; `BACKBONE_CKPT=1` still checkpoints the non-last layers | `False` — every layer at the ambient precision, no cast, no gradient-checkpointing |
 | `cache_mask` | `True` — fixed `T`, so the cache hits every call | `False` — the sequence grows per token, so the cache would never hit and the write would leave module state behind |
 
 ## What it does not change
@@ -60,6 +60,28 @@ heads, `f^(k)_t = W_k h_t`, so there is no single operator to apply to its own
 output. `--forecaster-kind cpc` / `linear_cpc` are refused up front for the
 same reason. No other shape raises. A shape that carries no `f`, such as
 `cosine_similarity_batch_rep_only`, adds exactly zero per depth.
+
+## Guards
+
+The trainer refuses three combinations up front. Each one would otherwise
+train at `k = 0` while the CSV still wrote `k + 1` plausible `cos_err_dj`
+curves, because the diagnostic reads the depth tensors, not the loss.
+
+| combination | reason |
+|---|---|
+| `--train-rollout-depth` below 0 | not a depth |
+| `--forecaster-kind cpc` / `linear_cpc` | `K` parallel heads compose no operator to re-apply |
+| `--no-main-contrastive-loss` with `--align-loss-weight 0` and `--cpc-infonce-weight 0` | no term ties `f` to `h`, so the depths enter nothing |
+
+## What it does with the other flags
+
+`--shard-loss-on-batch` picks the all-gather and nothing else. The depths are
+built before that branch and reach the loss on both paths, so a sharded run
+trains at the `k` it was given, over its own local shard. Each depth takes
+one all-gather on the gathered path.
+
+`--no-main-contrastive-loss` routes the depths through the standalone
+`align_loss` and the CPC auxiliary instead of the main term.
 
 ## What it logs
 

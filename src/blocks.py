@@ -757,8 +757,9 @@ class TransformerBlock(nn.Module):
           the contrastive loss reads is full precision. :meth:`forward` and
           the rollout depth take it.
         * False is the eval policy: every layer at the ambient precision, no
-          cast. `rollout_latent` has always run this way and #373 changes the
-          training objective only, so it keeps it.
+          cast, and no gradient-checkpointing. `rollout_latent` has always
+          run this way and #373 changes the training objective only, so it
+          keeps it.
 
         `cache_mask=False` keeps the causal mask off the module — see
         :meth:`causal_mask_for`. The eval rollout takes it; the callers that
@@ -776,7 +777,11 @@ class TransformerBlock(nn.Module):
         # autocast, last layer in fp32 so the forecaster latent feeding the
         # loss is full precision.
         n_fcst = len(self.layers)
-        bb_ckpt = self.backbone_ckpt_enabled()
+        # #327's gradient-checkpointing belongs to the training policy: it
+        # trades stored activations for a backward recompute. The eval
+        # rollout (`fp32_tail=False`) runs under `no_grad`, where that buys
+        # nothing, and the body it ran before #373 called every layer flat.
+        bb_ckpt = fp32_tail and self.backbone_ckpt_enabled()
         # Optional gradient-checkpointing of the (non-last) forecaster layers,
         # mirroring the encoder-layer checkpointing — env-gated and training-only,
         # so it is BYTE-IDENTICAL (exact recompute) and a no-op for every existing
