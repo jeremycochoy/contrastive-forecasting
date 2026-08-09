@@ -128,3 +128,24 @@ survivor kept its own step counter and its own weights.
 What it did leave: every step up to ~14,300 appears twice in that cell's
 losses CSV, because `CSVLogger` opens in append mode. `scripts/losses_csv.py`
 keeps the first row per step, and both curve figures read through it.
+
+## 2026-08-09 04:34 — three stops died on CUDA OOM, and the fix
+
+`torch.OutOfMemoryError: Tried to allocate 4.32 GiB. GPU 0 has 23.64 GiB of
+which 3.15 GiB is free` inside the GRU encoder's `_last_hidden`. Three head
+trainings died in 45 seconds: B5 k = 0 student, A3 k = 0 student, B5 k = 3
+student.
+
+Two causes at once. The neighbouring session's job grew from 9 GiB to
+14.3 GiB partway through the study, and this study ran two of its own heads
+at a time to halve the wall clock. Each head needs about 5.3 GiB.
+
+`gpu_gate` does not cover this: it returns immediately on a `Default`-mode
+card, and every card in this study — elisa's two and all four vast.ai boxes
+— reports `Default`.
+
+`stop_k.sh` now holds a `head_vram_gate`: an flock, so two of this study's
+own heads cannot both pass the check and then both allocate, and then a
+poll on `memory.free` until 6000 MiB is available. A head that would have
+died now waits. Nothing was lost — `stop_k.sh` is idempotent, so the three
+stops were simply re-queued.

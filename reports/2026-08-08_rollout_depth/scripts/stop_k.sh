@@ -68,9 +68,42 @@ ARCH_HEAD=(--t-raw 4096 --n-channels 1 --d-model 64 --n-heads 8
            --rev-norm-kind ewma --rev-norm-span 128
            --freq-emb-dim 3 --seasonality-emb-dim 3)
 
+# Wait for free VRAM before starting a head, and hold the wait on a lock so
+# two of this study's own heads cannot both pass the check and then both
+# allocate.
+#
+# `gpu_gate` does not cover this: it returns immediately on a `Default`-mode
+# card, which is what elisa and every box here run. The head trainer asks for
+# a 4.32 GiB block inside the GRU encoder, and elisa's GPU 1 is shared with
+# another session whose job grew from 9 to 14 GiB mid-study — three stops
+# died on `torch.OutOfMemoryError` inside `_last_hidden` before this existed.
+head_vram_gate(){ # <gpu index>
+  local gpu="$1" need="${HEAD_VRAM_MIB:-7000}" waited=0 free
+  local lock="${GPU_GATE_LOCKDIR:-/tmp}/cf373_head_gpu${gpu}.lock"
+  : >>"$lock" 2>/dev/null || true
+  exec 7>>"$lock" || return 0
+  flock -w 86400 7 || { log "timed out waiting for the head lock"; return 1; }
+  while :; do
+    free=$(nvidia-smi --id="$gpu" --query-gpu=memory.free \
+             --format=csv,noheader,nounits 2>/dev/null | tr -d ' ')
+    [ -n "$free" ] || return 0            # no nvidia-smi: proceed ungated
+    [ "$free" -ge "$need" ] && break
+    if [ "$waited" -ge "${HEAD_VRAM_TIMEOUT:-14400}" ]; then
+      log "TIMEOUT after ${waited}s: GPU $gpu has ${free} MiB free, need ${need}"
+      return 1
+    fi
+    [ $(( waited % 600 )) -eq 0 ] && \
+      log "waiting for VRAM on GPU $gpu: ${free} MiB free, need ${need}"
+    sleep 30; waited=$(( waited + 30 ))
+  done
+  [ "$waited" -gt 0 ] && log "GPU $gpu has ${free} MiB free after ${waited}s"
+  return 0
+}
+
 if [ ! -f "$HEAD_CKPT" ]; then
   BB_GPU="${BB_GPU:-1}"
   gpu_gate "$BB_GPU" || { log "ABORT: GPU $BB_GPU never came free"; exit 1; }
+  head_vram_gate "$BB_GPU" || { log "ABORT: not enough VRAM on GPU $BB_GPU"; exit 1; }
   log "head-train start enc=$ENC steps=$HEAD_STEPS seed=$HEAD_SEED gpu=$BB_GPU bb=$(basename "$BB")"
   CUDA_VISIBLE_DEVICES="$BB_GPU" python3 -u "$HEAD_TRAIN" \
     --backbone-path "$BB" \
