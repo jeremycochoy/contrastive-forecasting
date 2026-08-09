@@ -47,7 +47,7 @@ def main(argv):
 
     if 0 in by_k and 3 in by_k:
         a, b = by_k[0], by_k[3]
-        print(f"\nk=3 against k=0:")
+        print("\nk=3 against k=0:")
         for label, key in (("fwd+bwd", "compute_ms"), ("total", "total_ms")):
             d = b[key] / a[key] - 1.0
             print(f"  {label:<8} {a[key]:7.1f} -> {b[key]:7.1f} ms "

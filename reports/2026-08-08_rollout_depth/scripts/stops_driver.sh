@@ -84,9 +84,19 @@ for job in "$@"; do
   # usable GPU. Measured at batch 256 the head fits twice over in what is
   # free. Left unset, one driver does both in turn.
   for enc in ${ENCODERS:-student teacher}; do
-    log "START $cell k=$k bb$(( steps / 1000 ))k $enc"
-    BB_GPU="${BB_GPU:-1}" bash "$HERE/stop_k.sh" "$cell" "$k" "$steps" "$enc"
-    log "END   $cell k=$k bb$(( steps / 1000 ))k $enc rc=$?"
+    # Retried once. `stop_k.sh` is idempotent both halves: it skips head
+    # training when the head checkpoint is there, and the eval resumes
+    # per-shard from `all_results.csv`. So a retry costs only the configs
+    # that did not finish, and NOT retrying costs a head that already spent
+    # 15,000 GPU steps — for a shard that died of a transient.
+    for attempt in 1 2; do
+      log "START $cell k=$k bb$(( steps / 1000 ))k $enc (attempt $attempt)"
+      BB_GPU="${BB_GPU:-1}" bash "$HERE/stop_k.sh" "$cell" "$k" "$steps" "$enc"
+      rc=$?
+      log "END   $cell k=$k bb$(( steps / 1000 ))k $enc rc=$rc"
+      [ "$rc" -eq 0 ] && break
+      [ "$attempt" -eq 2 ] && log "GIVING UP on $cell k=$k $enc after 2 attempts"
+    done
   done
 done
 
