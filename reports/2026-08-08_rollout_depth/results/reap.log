@@ -17,3 +17,11 @@
     Spent:  $1.44
 [08-09 04:15:08] [reap] d drained, all 4 checkpoint file(s) verified local — destroying 47219263
   Instance 47219263 has no marker — it was provisioned outside vastrun-kit. Re-run with --force to destroy anyway.
+[08-09 05:46:00] [reap] c NOT YET: bb_small_arm1_nse_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_40k.pth is not here at 5223579 B
+[08-09 05:46:00] [reap] c NOT YET: bb_small_arm1_nse_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_40k_optimizer.pth is not here at 5853479 B
+[08-09 05:47:56] [reap] c drained, all 2 checkpoint file(s) verified local — destroying 47218817
+  Destroyed instance 47218817
+    Label:  cf373-rollout-a
+    GPU:    1× RTX 4090
+    Uptime: 5h 34m
+    Spent:  $2.70

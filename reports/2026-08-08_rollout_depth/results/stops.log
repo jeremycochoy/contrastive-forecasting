@@ -19,3 +19,21 @@
 [08-09 04:33:39] [B5_k0_bb40k_student] head-train start enc=student steps=15000 seed=20260722 gpu=1 bb=bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k0_40k.pth
 [08-09 04:33:49] [B5_k0_bb40k_student] head-train rc=1
 [08-09 04:33:49] [B5_k0_bb40k_student] head-train start enc=student steps=15000 seed=20260722 gpu=1 bb=bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k0_40k.pth
+[08-09 04:33:59] [B5_k0_bb40k_student] head-train rc=1
+[08-09 04:34:01] [A3_k0_bb40k_student] head-train start enc=student steps=15000 seed=20260722 gpu=1 bb=cf393_arm6_v2_combab_alignT_cf373k0_40k.pth
+[08-09 04:34:10] [A3_k0_bb40k_student] head-train rc=1
+[08-09 04:34:10] [A3_k0_bb40k_student] head-train start enc=student steps=15000 seed=20260722 gpu=1 bb=cf393_arm6_v2_combab_alignT_cf373k0_40k.pth
+[08-09 04:34:21] [A3_k0_bb40k_student] head-train rc=1
+[08-09 04:34:23] [B5_k3_bb40k_student] head-train start enc=student steps=15000 seed=20260722 gpu=1 bb=bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_40k.pth
+[08-09 04:34:34] [B5_k3_bb40k_student] head-train rc=1
+[08-09 04:34:34] [B5_k3_bb40k_student] head-train start enc=student steps=15000 seed=20260722 gpu=1 bb=bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_40k.pth
+[08-09 04:34:44] [B5_k3_bb40k_student] head-train rc=1
+[08-09 04:45:48] [B5_k0_bb40k_student] waiting for VRAM on GPU 1: 4132 MiB free, need 6000
+[08-09 04:55:48] [B5_k0_bb40k_student] waiting for VRAM on GPU 1: 4132 MiB free, need 6000
+[08-09 05:05:49] [B5_k0_bb40k_student] waiting for VRAM on GPU 1: 4132 MiB free, need 6000
+[08-09 05:07:13] [B5_k0_bb40k_teacher] head-train rc=0
+[08-09 05:07:13] [B5_k0_bb40k_teacher] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-09 05:07:19] [B5_k0_bb40k_student] GPU 1 has 9599 MiB free after 1290s
+[08-09 05:07:19] [B5_k0_bb40k_student] head-train start enc=student steps=15000 seed=20260722 gpu=1 bb=bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k0_40k.pth
+[08-09 05:42:37] [B5_k0_bb40k_student] head-train rc=0
+[08-09 05:42:37] [B5_k0_bb40k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)

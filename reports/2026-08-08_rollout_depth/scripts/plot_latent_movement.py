@@ -72,6 +72,13 @@ def main(argv=None):
 
     x = torch.load(args.batch, map_location="cpu", weights_only=False)
     kwargs = small_backbone_kwargs()
+    # Class 0 (unknown) for both conditioning tables, so every checkpoint of
+    # every cell sees identical conditioning. Both parents' latent-movement
+    # scripts pass exactly this; `compute_latents` has no default and raises
+    # without it.
+    B = x.shape[0]
+    freq_ids = torch.zeros(B, dtype=torch.long, device=args.device)
+    seasonality_ids = torch.zeros(B, dtype=torch.long, device=args.device)
     rows = []
 
     for spec in args.run:
@@ -93,7 +100,8 @@ def main(argv=None):
         prev = None
         for step, path in cks:
             model = load_backbone(str(path), kwargs, args.device)
-            h, e = compute_latents(model, x.to(args.device))
+            h, e = compute_latents(model, x.to(args.device),
+                                   freq_ids, seasonality_ids)
             if prev is not None:
                 rows.append({
                     "cell": cell, "k": k,

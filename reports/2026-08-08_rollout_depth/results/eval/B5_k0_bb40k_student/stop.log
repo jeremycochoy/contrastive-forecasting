@@ -87,3 +87,77 @@ Traceback (most recent call last):
   File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/rnn.py", line 1391, in forward
     result = _VF.gru(
 torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 4.32 GiB. GPU 0 has a total capacity of 23.64 GiB of which 3.15 GiB is free. Process 3756428 has 14.26 GiB memory in use. Process 3914346 has 5.34 GiB memory in use. Including non-PyTorch memory, this process has 900.00 MiB memory in use. Of the allocated memory 428.70 MiB is allocated by PyTorch, and 21.30 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+[08-09 04:33:59] [B5_k0_bb40k_student] head-train rc=1
+[08-09 04:45:48] [B5_k0_bb40k_student] waiting for VRAM on GPU 1: 4132 MiB free, need 6000
+[08-09 04:55:48] [B5_k0_bb40k_student] waiting for VRAM on GPU 1: 4132 MiB free, need 6000
+[08-09 05:05:49] [B5_k0_bb40k_student] waiting for VRAM on GPU 1: 4132 MiB free, need 6000
+[08-09 05:07:19] [B5_k0_bb40k_student] GPU 1 has 9599 MiB free after 1290s
+[08-09 05:07:19] [B5_k0_bb40k_student] head-train start enc=student steps=15000 seed=20260722 gpu=1 bb=bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k0_40k.pth
+  [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+  [head-train] auto-detected qk_norm=True from backbone checkpoint
+  [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+  [head-train] auto-detected patch_stats=none
+Backbone loaded from /home/jupyter/checkpoints_backup/cf-373/bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k0/bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k0_40k.pth (0 params, frozen, encoder=student)
+/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/transformer.py:392: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  warnings.warn(
+Forecasting head [transformer-q (2L H64 nhead8 causal)]: 109,456 trainable params
+Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+Schedule: constant warmup=0 decay_start=12000 final_ratio=0.1
+Loss CSV: /home/jupyter/checkpoints_backup/cf-373/eval/B5_k0_bb40k_student/qhead_B5_k0_bb40k_student_s20260722_losses.csv
+Data: MIX 100% HF + 0% synth, hf_bs=256, synth_bs=0, synth_seed=20280722, emit_labels=True
+
+Training for 15000 steps, bs=256, lr=0.001, forecast_len=16
+Checkpoints: /home/jupyter/checkpoints_backup/cf-373/eval/B5_k0_bb40k_student/qhead_B5_k0_bb40k_student_s20260722_*.pth
+[    500] loss=0.232479  ema_loss=0.238837  7.0 sps  ETA 0.6h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/B5_k0_bb40k_student/qhead_B5_k0_bb40k_student_s20260722_best.pth (ema_loss=0.238837)
+[   1000] loss=0.233898  ema_loss=0.230444  7.3 sps  ETA 0.5h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/B5_k0_bb40k_student/qhead_B5_k0_bb40k_student_s20260722_best.pth (ema_loss=0.230444)
+[   1500] loss=0.236047  ema_loss=0.226647  7.5 sps  ETA 0.5h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/B5_k0_bb40k_student/qhead_B5_k0_bb40k_student_s20260722_best.pth (ema_loss=0.226647)
+[   2000] loss=0.221188  ema_loss=0.225442  7.4 sps  ETA 0.5h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/B5_k0_bb40k_student/qhead_B5_k0_bb40k_student_s20260722_best.pth (ema_loss=0.225442)
+[   2500] loss=0.231646  ema_loss=0.223979  7.4 sps  ETA 0.5h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/B5_k0_bb40k_student/qhead_B5_k0_bb40k_student_s20260722_best.pth (ema_loss=0.223979)
+[   3000] loss=0.220605  ema_loss=0.223185  7.4 sps  ETA 0.4h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/B5_k0_bb40k_student/qhead_B5_k0_bb40k_student_s20260722_best.pth (ema_loss=0.223185)
+[   3500] loss=0.211420  ema_loss=0.223182  7.5 sps  ETA 0.4h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/B5_k0_bb40k_student/qhead_B5_k0_bb40k_student_s20260722_best.pth (ema_loss=0.223182)
+[   4000] loss=0.242279  ema_loss=0.222924  7.5 sps  ETA 0.4h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/B5_k0_bb40k_student/qhead_B5_k0_bb40k_student_s20260722_best.pth (ema_loss=0.222924)
+[   4500] loss=0.237908  ema_loss=0.223314  7.5 sps  ETA 0.4h
+[   5000] loss=0.224439  ema_loss=0.222689  7.5 sps  ETA 0.4h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/B5_k0_bb40k_student/qhead_B5_k0_bb40k_student_s20260722_best.pth (ema_loss=0.222689)
+  -> Saved /home/jupyter/checkpoints_backup/cf-373/eval/B5_k0_bb40k_student/qhead_B5_k0_bb40k_student_s20260722_5k.pth
+[   5500] loss=0.221119  ema_loss=0.222481  7.5 sps  ETA 0.4h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/B5_k0_bb40k_student/qhead_B5_k0_bb40k_student_s20260722_best.pth (ema_loss=0.222481)
+[   6000] loss=0.212992  ema_loss=0.221660  7.5 sps  ETA 0.3h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/B5_k0_bb40k_student/qhead_B5_k0_bb40k_student_s20260722_best.pth (ema_loss=0.221660)
+[   6500] loss=0.218580  ema_loss=0.221146  7.5 sps  ETA 0.3h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/B5_k0_bb40k_student/qhead_B5_k0_bb40k_student_s20260722_best.pth (ema_loss=0.221146)
+[   7000] loss=0.213075  ema_loss=0.221646  7.5 sps  ETA 0.3h
+[   7500] loss=0.224417  ema_loss=0.221560  7.5 sps  ETA 0.3h
+[   8000] loss=0.219603  ema_loss=0.221331  7.4 sps  ETA 0.3h
+[   8500] loss=0.226953  ema_loss=0.220300  7.2 sps  ETA 0.3h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/B5_k0_bb40k_student/qhead_B5_k0_bb40k_student_s20260722_best.pth (ema_loss=0.220300)
+[   9000] loss=0.209085  ema_loss=0.220197  7.2 sps  ETA 0.2h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/B5_k0_bb40k_student/qhead_B5_k0_bb40k_student_s20260722_best.pth (ema_loss=0.220197)
+[   9500] loss=0.212343  ema_loss=0.220415  7.2 sps  ETA 0.2h
+[  10000] loss=0.220572  ema_loss=0.220594  7.2 sps  ETA 0.2h
+  -> Saved /home/jupyter/checkpoints_backup/cf-373/eval/B5_k0_bb40k_student/qhead_B5_k0_bb40k_student_s20260722_10k.pth
+[  10500] loss=0.226959  ema_loss=0.218998  7.2 sps  ETA 0.2h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/B5_k0_bb40k_student/qhead_B5_k0_bb40k_student_s20260722_best.pth (ema_loss=0.218998)
+[  11000] loss=0.217310  ema_loss=0.220951  7.2 sps  ETA 0.2h
+[  11500] loss=0.224543  ema_loss=0.221015  7.3 sps  ETA 0.1h
+[  12000] loss=0.217534  ema_loss=0.220173  7.2 sps  ETA 0.1h
+[  12500] loss=0.225556  ema_loss=0.221080  7.2 sps  ETA 0.1h
+[  13000] loss=0.215849  ema_loss=0.219598  7.2 sps  ETA 0.1h
+[  13500] loss=0.226346  ema_loss=0.220233  7.2 sps  ETA 0.1h
+[  14000] loss=0.235664  ema_loss=0.220960  7.2 sps  ETA 0.0h
+[  14500] loss=0.204589  ema_loss=0.219427  7.1 sps  ETA 0.0h
+[  15000] loss=0.227689  ema_loss=0.220237  7.1 sps  ETA 0.0h
+  -> Saved /home/jupyter/checkpoints_backup/cf-373/eval/B5_k0_bb40k_student/qhead_B5_k0_bb40k_student_s20260722_15k.pth
+
+Done in 0.6h. Best loss=0.218998 at step 10500
+[08-09 05:42:37] [B5_k0_bb40k_student] head-train rc=0
+[08-09 05:42:37] [B5_k0_bb40k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-09 05:42:37] START B5_k0_bb40k_student bb40k enc=student shards=4 slot=1
