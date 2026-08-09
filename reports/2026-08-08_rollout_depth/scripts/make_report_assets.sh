@@ -157,6 +157,10 @@ else
   say "no trainer log synced yet — no per-run step-time table"
 fi
 
+# ---- 4d. where k = 3 at bb40k sits on the published k = 0 trajectory ------
+python3 "$HERE/plot_ladder.py" --results "$RES" --out "$PLOTS/ladder.png" 2>&1 \
+  | grep -v Warning | sed 's/^/  /'
+
 # ---- 5. the score table ----------------------------------------------------
 python3 "$HERE/score_table.py" --results "$RES" --out "$RES/scores.md" 2>&1 \
   | sed 's/^/  /'

@@ -10,9 +10,10 @@ Three tables:
   3. the horizon split: short and medium+long, k = 0 against k = 3, with
      the card's success criterion evaluated per cell.
 
-The published numbers are transcribed from the three parent reports and
-live in PUBLISHED below. Group A publishes two heads per stop; group B
-publishes one, trained on the student encoder.
+The published numbers come from `published.py`, transcribed from the three
+parent reports. Group A publishes two heads per stop; group B publishes
+one, trained on the student encoder, so group B has no published teacher
+number and its teacher rows carry a dash.
 
 Usage: score_table.py --results <results dir> --out <scores.md>
 """
@@ -21,30 +22,18 @@ from __future__ import annotations
 import argparse
 import csv
 import re
+import sys
 from pathlib import Path
 
-# bb40k, from the card's two tables.
-#   group A: ema_sched_ladder.md, per head.
-#   group B: the union of small_long.md and lalign_teacher.md, student head.
-PUBLISHED = {
-    ("A1", "student"): 1.2596, ("A1", "teacher"): 1.2347,
-    ("A2", "student"): 1.4238, ("A2", "teacher"): 1.4177,
-    ("A3", "student"): 1.1895, ("A3", "teacher"): 1.1793,
-    ("A4", "student"): 1.1603, ("A4", "teacher"): 1.1544,
-    ("B1", "student"): 1.2025,
-    ("B2", "student"): 1.2765,
-    ("B3", "student"): 1.2868,
-    ("B4", "student"): 1.2728,
-    ("B5", "student"): 1.2748,
-    ("B6", "student"): 1.3623,
-    ("B7", "student"): 1.3159,
-    ("B8", "student"): 1.3074,
-    ("B9", "student"): 1.5579,
-    ("B10", "student"): 1.3791,
-}
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+from published import PUBLISHED as PUB_ALL, GATE, NOISE_BAND   # noqa: E402
+
+# bb40k only, in the (cell, head) shape the tables below want.
+PUBLISHED = {(c, h): stops[40]
+             for c, heads in PUB_ALL.items()
+             for h, stops in heads.items() if 40 in stops}
 GROUP_OF = {c: ("A" if c.startswith("A") else "B") for c, _h in PUBLISHED}
-GATE = 0.0002          # the card's threshold, lalign_teacher.md section 7
-NOISE_BAND = 0.0384    # ema_sched_ladder.md's pooled head-seed band
 SCORE_RE = re.compile(r"^score_([AB]\d+)_k(\d+)_bb(\d+)k_(student|teacher)\.txt$")
 
 
