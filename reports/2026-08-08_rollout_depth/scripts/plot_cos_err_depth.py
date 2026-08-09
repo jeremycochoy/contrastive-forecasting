@@ -20,9 +20,7 @@ Usage: plot_cos_err_depth.py --out plots/cos_err_depth.png \\
 from __future__ import annotations
 
 import argparse
-import csv
 import sys
-from collections import defaultdict
 from pathlib import Path
 
 import matplotlib
@@ -33,6 +31,7 @@ from matplotlib.lines import Line2D                    # noqa: E402
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import cell_colours as cc                              # noqa: E402
+from losses_csv import read_by_step, series             # noqa: E402
 
 plt.rcParams.update(cc.rc())
 # Depth rides on the alpha within one colour: d0 solid and full, deeper
@@ -50,19 +49,8 @@ def smooth(xs, ys, window=25):
 
 
 def read(path):
-    """`{column: [values]}` plus `step`, for the columns this figure needs."""
-    want = ["step", "ff"] + [f"cos_err_d{j}" for j in range(8)]
-    cols = defaultdict(list)
-    with open(path) as fh:
-        for r in csv.DictReader(fh):
-            for c in want:
-                v = r.get(c)
-                if v not in (None, ""):
-                    try:
-                        cols[c].append(float(v))
-                    except ValueError:
-                        pass
-    return cols
+    """The columns this figure needs, one row per step."""
+    return read_by_step(path, ["ff"] + [f"cos_err_d{j}" for j in range(8)])
 
 
 def main(argv=None):
@@ -93,20 +81,18 @@ def main(argv=None):
         for c, k, d in runs:
             if c != cell:
                 continue
-            step = d.get("step", [])
             if k == 0:
-                ff = d.get("ff", [])
-                n = min(len(step), len(ff))
-                xs, ys = smooth(step[:n], [1.0 - v for v in ff[:n]])
+                xs, ys = series(d, "ff")
+                xs, ys = smooth(xs, [1.0 - v for v in ys])
                 ax.plot(xs, ys, color=cc.INK, linewidth=1.6,
                         linestyle=cc.style(0), label="k = 0, depth 0 (1 − ff)")
                 continue
             for j in range(8):
                 key = f"cos_err_d{j}"
-                if key not in d:
+                xs, ys = series(d, key)
+                if not xs:
                     continue
-                n = min(len(step), len(d[key]))
-                xs, ys = smooth(step[:n], d[key][:n])
+                xs, ys = smooth(xs, ys)
                 ax.plot(xs, ys, color=col, linewidth=1.7,
                         alpha=DEPTH_ALPHA[min(j, len(DEPTH_ALPHA) - 1)],
                         label=f"k = {k}, depth {j}")

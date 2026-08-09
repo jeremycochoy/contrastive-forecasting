@@ -21,9 +21,7 @@ Usage: plot_train_curves.py --out-dir plots \\
 from __future__ import annotations
 
 import argparse
-import csv
 import sys
-from collections import defaultdict
 from pathlib import Path
 
 import matplotlib
@@ -34,6 +32,7 @@ from matplotlib.lines import Line2D                    # noqa: E402
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import cell_colours as cc                              # noqa: E402
+from losses_csv import read_by_step, series             # noqa: E402
 
 plt.rcParams.update(cc.rc())
 PANELS = [
@@ -59,24 +58,6 @@ def smooth(ys, window=50):
     return out
 
 
-def read(path, cols):
-    got = defaultdict(list)
-    with open(path) as fh:
-        for r in csv.DictReader(fh):
-            try:
-                step = float(r["step"])
-            except (KeyError, ValueError):
-                continue
-            for c in cols:
-                v = r.get(c)
-                if v not in (None, ""):
-                    try:
-                        got[c].append((step, float(v)))
-                    except ValueError:
-                        pass
-    return got
-
-
 def main(argv=None):
     p = argparse.ArgumentParser()
     p.add_argument("--run", action="append", required=True,
@@ -99,19 +80,17 @@ def main(argv=None):
     out_dir.mkdir(parents=True, exist_ok=True)
     written = []
 
-    for name, series, title in PANELS:
-        cols = [c for c, _lab in series]
-        fig, axes = plt.subplots(1, len(series),
-                                 figsize=(6.2 * len(series), 4.2),
+    for name, panel, title in PANELS:
+        cols = [c for c, _lab in panel]
+        fig, axes = plt.subplots(1, len(panel),
+                                 figsize=(6.2 * len(panel), 4.2),
                                  squeeze=False)
         drew = False
-        for ax, (col, ylab) in zip(axes[0], series):
+        for ax, (col, ylab) in zip(axes[0], panel):
             for cell, k, path in runs:
-                pts = read(path, [col]).get(col, [])
-                if not pts:
+                xs, ys = series(read_by_step(path, [col]), col)
+                if not xs:
                     continue
-                xs = [s for s, _v in pts]
-                ys = [v for _s, v in pts]
                 if col == "ff":
                     ys = [1.0 - v for v in ys]
                 ax.plot(xs, smooth(ys), color=cc.colour(cell),

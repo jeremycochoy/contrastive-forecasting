@@ -101,3 +101,30 @@ Two bugs in the verifier itself, both found by running it:
   file grows every step, so the remote size is newer than any copy by
   construction. Checkpoints are written once and are compared exactly;
   growing files are checked for a non-empty copy.
+
+## 2026-08-09 01:25 — two identical A3 runs shared box b for 45 minutes
+
+`pgrep` on box b showed two `train.py` processes with byte-identical
+command lines, both writing `cf393_arm6_v2_combab_alignT_cf373k3` into
+`leg_40k`, both holding 5532 MiB of the same card.
+
+Cause: the ssh that started the first queue TIMED OUT and was reported as a
+failure, but the remote command had already run. ssh holds the session open
+until every descriptor on the channel closes, and a backgrounded remote job
+inherits them — so the caller hangs behind a job that is running fine. The
+second start then did not collide, because this box came up in `Default`
+compute mode rather than the `Exclusive_Process` a vast.ai box usually
+comes up in, and a second CUDA context was allowed.
+
+Killed the younger of the two (started 1m43s later). All four boxes now
+report exactly one CUDA process. `nvidia-smi --query-gpu=compute_mode`
+reads `Default` on all four, so `gpu_gate` is a no-op on every one of them
+and cannot be relied on here.
+
+Cost: 45 minutes at half speed on one 5090, about $0.14. No science lost —
+the two runs carried the same seed and the same data order, and the
+survivor kept its own step counter and its own weights.
+
+What it did leave: every step up to ~14,300 appears twice in that cell's
+losses CSV, because `CSVLogger` opens in append mode. `scripts/losses_csv.py`
+keeps the first row per step, and both curve figures read through it.
