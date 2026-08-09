@@ -20,14 +20,18 @@ against its `k = 3` at bb40k. The grey band is `ema_sched_ladder.md`'s
 pooled head-seed range, ±0.0384; every bar is wider than it. Both heads of
 a cell agree on the sign.
 
-| cell | f-bearing term | head | k = 0 | k = 3 | Δ | 95% CI | better in |
+| cell | f-bearing term | head | k = 0 | k = 3 | Δ | 95% CI | better in (% of dataset resamples) |
 |---|---|---|---|---|---|---|---|
 | B5 `arm4_combab_fix09` | pooled `xshh_allt`, f in numerator and every denominator family | student | 1.3917 | **1.3204** | −0.0713 | [−0.133, −0.027] | 100% |
 | B5 | | teacher | 1.3719 | **1.3216** | −0.0503 | [−0.097, −0.011] | 99.4% |
 | A3 `arm6_v2_combab_alignT_sched` | `L_align` only, no denominator | student | 1.2189 | 1.3618 | +0.1429 | [+0.089, +0.212] | 0% |
 | A3 | | teacher | 1.2184 | 1.3521 | +0.1337 | [+0.084, +0.200] | 0% |
 
-Intervals are a paired dataset-cluster bootstrap over the 97 configs.
+Intervals are a paired bootstrap that resamples DATASETS, one cluster per
+dataset, over the 97 configs. The last column is the share of those
+resamples in which `k = 3` came out lower. Both quantities move the config
+sample and nothing else: neither carries the head seed, and neither carries
+the spread between two backbone trainings.
 
 **B9** (`arm1_nse_fix09`, split `L_pred` + CPC, the other cell with `f` in
 both places) has no same-code `k = 0`, so it gets no row above. Its `k = 3`
