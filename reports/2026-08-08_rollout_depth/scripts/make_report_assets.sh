@@ -36,6 +36,22 @@ else
   say "no finished eval yet — no splits, no score figures"
 fi
 
+# ---- 1b. paired dataset-cluster bootstrap, per (cell, head) ----------------
+# The card asks for this on the horizon criterion. Both arms of a cell are
+# evaluated on the same 97 configs, so the delta is paired per config; the
+# resampling unit is the DATASET, because `<ds>/short`, `/medium` and `/long`
+# are three configs of one series and are not independent draws.
+rm -f "$RES/bootstrap.csv"
+for d0 in "$RES"/eval/*_k0_bb40k_*/; do
+  [ -f "$d0/all_results.csv" ] || continue
+  tag="$(basename "$d0")"
+  d3="$RES/eval/${tag/_k0_/_k3_}"
+  [ -f "$d3/all_results.csv" ] || continue
+  python3 "$HERE/paired_bootstrap.py" --k0 "$d0/all_results.csv" \
+    --k3 "$d3/all_results.csv" --label "${tag/_k0_bb40k_/_}" \
+    --out "$RES/bootstrap.csv" 2>&1 | sed 's/^/  /'
+done
+
 # ---- 2. score figures ------------------------------------------------------
 if [ -f "$RES/splits.csv" ]; then
   for head in student teacher; do
