@@ -97,6 +97,21 @@ log "card at start: $(nvidia-smi --id="${BB_GPU:-1}" \
 log "compute apps at start: $(nvidia-smi --id="${BB_GPU:-1}" \
   --query-compute-apps=pid,used_memory --format=csv,noheader 2>/dev/null | tr '\n' ';')"
 
+# elisa is shared, and a neighbour that arrives mid-probe changes the answer.
+# Sample the card for the whole probe so the report can say what the card was
+# doing rather than assert it was quiet.
+SAMPLE="$RES/steptime_${CELL_ID}${PROBE_TAG}_card.csv"
+( echo "ts,util_pct,mem_used_mib,mem_free_mib"
+  while :; do
+    printf '%s,%s\n' "$(date '+%H:%M:%S')" \
+      "$(nvidia-smi --id="${BB_GPU:-1}" \
+         --query-gpu=utilization.gpu,memory.used,memory.free \
+         --format=csv,noheader,nounits 2>/dev/null | tr -d ' ')"
+    sleep 10
+  done ) >"$SAMPLE" 2>/dev/null &
+sampler=$!
+trap 'kill "$sampler" 2>/dev/null' EXIT
+
 for rep in $(seq 1 "$REPS"); do
   # Unquoted on purpose: DEPTHS is a space-separated list, "0 3" by default.
   for k in ${DEPTHS:-0 3}; do
@@ -105,8 +120,12 @@ for rep in $(seq 1 "$REPS"); do
   done
 done
 
+kill "$sampler" 2>/dev/null; trap - EXIT
 log "card at end: $(nvidia-smi --id="${BB_GPU:-1}" \
   --query-gpu=memory.used,memory.free,utilization.gpu \
   --format=csv,noheader 2>/dev/null)"
+log "card during the probe: $(awk -F, 'NR>1 {u+=$2; m+=$3; n++}
+  END { if (n) printf "mean util %.0f%%, mean used %.0f MiB, %d samples", u/n, m/n, n }' \
+  "$SAMPLE" 2>/dev/null)"
 python3 "$HERE/steptime_summary.py" "$OUTCSV" \
   | tee -a "$RES/steptime_${CELL_ID}${PROBE_TAG}.log"
