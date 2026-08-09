@@ -1,59 +1,122 @@
 # Rollout depth k = 3
 
-Training the composed forecaster works, and it costs forecast accuracy.
+Whether training the composed forecaster helps depends on the loss shape it
+is added to. On the cell where `f` sits in the numerator **and** the
+denominator it wins by 5%. On the cell whose only f-bearing term has no
+denominator it loses by 12%.
 
 `--train-rollout-depth 3` duplicates every loss term that ties `f` to `h` at
-depths 1, 2 and 3, so the forecaster is trained on its own output. The
-composed operator gets measurably better at exactly that. GM-Relative MASE
-gets worse, by three to four times the head-seed band, and the damage lands
-hardest on the short horizons the model was already winning.
+depths 1, 2 and 3, so the forecaster is trained on its own output. Both
+cells with a same-code baseline confirm the depths reached the objective,
+and the composed operator got better on both. Only one of them turned that
+into forecast accuracy.
 
-## The objective did what it was designed to do
-
-![rollout fidelity](plots/rollout_fidelity.png)
-
-`cos(rollout_d, h_{T0+d})` on one fixed batch, for d = 1..16, using the
-eval's own `rollout_latent`. No head, no metric — this is the composed
-operator measured directly. `k = 3` is above `k = 0` at every depth on both
-cells, and never below.
-
-## And the metric moved the other way
+## The result
 
 ![k = 3 against k = 0](plots/k3_vs_k0.png)
 
 GM-Relative MASE over the 97 GIFT-Eval configs, this study's own `k = 0`
-against its `k = 3`. The grey band is `ema_sched_ladder.md`'s pooled
-head-seed range, ±0.0384. Every bar is several times wider than it.
+against its `k = 3` at bb40k. The grey band is `ema_sched_ladder.md`'s
+pooled head-seed range, ±0.0384; every bar is wider than it. Both heads of
+a cell agree on the sign.
 
-## Where the damage lands
+| cell | f-bearing term | head | k = 0 | k = 3 | Δ | 95% CI | better in |
+|---|---|---|---|---|---|---|---|
+| B5 `arm4_combab_fix09` | pooled `xshh_allt`, f in numerator and every denominator family | student | 1.3917 | **1.3204** | −0.0713 | [−0.133, −0.027] | 100% |
+| B5 | | teacher | 1.3719 | **1.3216** | −0.0503 | [−0.097, −0.011] | 99.4% |
+| A3 `arm6_v2_combab_alignT_sched` | `L_align` only, no denominator | student | 1.2189 | 1.3618 | +0.1429 | [+0.089, +0.212] | 0% |
+| A3 | | teacher | 1.2184 | 1.3521 | +0.1337 | [+0.084, +0.200] | 0% |
+
+Intervals are a paired dataset-cluster bootstrap over the 97 configs.
+
+The card itself drew this line. B5 and B9 are "the only two cells whose main
+contrastive term carries `f` in both places", and it asked for them first
+precisely because "if the flag is wrong there, the other nine will not show
+it". They are also the two cells where a depth is a **complete extra
+InfoNCE**, with its own positive and its own normalisation. On A3 the only
+f-bearing term is `L_align`, `2 − 2·cos(f^(j)_t, sg(h_{t+1+j}))`, which has
+no denominator — so `k = 3` there does not add a normalised rollout
+objective. It quadruples `L_align`'s weight against the f-free `L_rep` and
+SIGReg.
+
+## The objective did what it was designed to do, on both cells
+
+![rollout fidelity](plots/rollout_fidelity.png)
+
+`cos(rollout_d, h_{T0+d})` on one fixed batch for d = 1..16, through the
+eval's own `rollout_latent`. No head, no metric — the composed operator
+measured directly. `k = 3` is above `k = 0` at every depth on both cells and
+never below.
+
+| cell | d = 1 | d = 4 | d = 16 |
+|---|---|---|---|
+| B5 k = 0 → k = 3 | 0.788 → 0.891 | 0.784 → 0.872 | 0.772 → 0.832 |
+| A3 k = 0 → k = 3 | 0.932 → 0.982 | 0.929 → 0.958 | 0.904 → 0.907 |
+
+So the mechanism is not in doubt. The gap between the two cells is in what
+the head does with it.
+
+## The gain is not where the mechanism predicted
 
 ![horizon split](plots/horizon_split_student.png)
 
-Short is 55 configs, medium and long 21 each. The card's criterion is drawn
-on the right panel: medium+long at least 5% better, short losing less than
-2%. Neither is met on any cell. But the *shape* is the one the mechanism
-predicts — the loss is concentrated on short, and medium+long is hurt about
-a third as much in relative terms.
+The rollout deficit is a horizon effect — #327 reports short 0.976, medium
+1.41, long 1.37 — so a per-step gain that compounds should land on medium
+and long and leave short alone. It does not.
+
+| cell | short (55) | medium+long (42) |
+|---|---|---|
+| B5 | **−6.4%** | −3.4% |
+| A3 | +17.1% | +5.1% |
+
+B5 improves more on short than on long; A3 degrades more on short than on
+long. Both are the same shape: the depth moves short horizons about twice
+as far as long ones, in whichever direction the cell moves. The card's
+criterion — medium+long at least 5% better with short losing under 2% — is
+met by neither.
+
+That is evidence against the compounding story as the route by which the
+depth acts, on the two cells that ran.
 
 ![per-domain radar](plots/domain_radar_student.png)
 
-Per-domain, the same picture: the `k = 3` polygon is outside the `k = 0`
-one on every domain.
-
-## Why: depth 0 pays for the deeper depths
+## Why A3 loses: depth 0 pays
 
 ![per-depth forecast error](plots/cos_err_depth.png)
 
-`1 − cos(f^(j)_t, h_{t+1+j})` per training step. On B5 the `k = 3` run's
-own depth-0 curve sits ABOVE the `k = 0` run's `1 − ff` for the whole run.
-The depths are summed, so at `k = 3` the f-side carries four times its
-baseline weight, and three quarters of that weight is on predictions the
-head never reads. The one-step term is what the quantile head consumes, and
-it is the term that got worse.
+`1 − cos(f^(j)_t, h_{t+1+j})` per training step. On B5 the `k = 3` run's own
+depth-0 curve sits above the `k = 0` run's `1 − ff` for the whole run: the
+one-step prediction, which is the only one the quantile head reads, gets
+worse even where the composed operator gets better.
 
-That is the whole result in one sentence: the fixed-point approximation
-improved, the one-step prediction degraded, and the head reads the one-step
-prediction.
+The depths are summed, so at `k = 3` the f-side carries four times its
+baseline weight and three quarters of that is on predictions the head never
+sees. On B5 that cost is paid inside a normalised term and the cell still
+comes out ahead. On A3 there is no denominator to absorb it, and the
+re-weighting against `L_rep` and SIGReg is the dominant effect.
+
+## What it costs
+
+From the production runs' own timing lines, both depths of a cell on
+identical RTX 5090s:
+
+| | k = 0 | k = 3 | change |
+|---|---|---|---|
+| B5 forward + backward | 117.6 ms | 301.9 ms | **+157%** |
+| A3 forward + backward | 115.9 ms | 137.8 ms | **+19%** |
+| B5 GPU memory | 5375 MiB | 5585 MiB | +4% |
+
+The depth is expensive exactly where it works. B5's pooled shape rebuilds
+`log_pos`, `log_neg_zy` and `log_neg_cross_batch` at every depth; A3's
+`L_align` has nothing to rebuild.
+
+Memory is nearly free: `FCST_GRAD_CKPT=1`, which all 14 cells already set,
+checkpoints each depth's non-last forecaster layers. The depth costs time,
+not VRAM.
+
+A separate 600-step probe on elisa's shared 4090, alternating the two depths
+three times, read +139% on B5's fwd+bwd. PR #400's CPU-only estimate was
++40%; the GPU number is the one to plan with.
 
 ## The published k = 0 numbers are not a baseline for this code
 
@@ -65,45 +128,49 @@ The card puts a gate before the comparison: retrain one cell per group at
 | A | A3 | student | 1.1895 | 1.2189 | 0.0294 |
 | B | B5 | student | 1.2748 | 1.3917 | **0.1169** |
 
-Both fail the 0.0002 threshold. Group A's miss sits inside the pooled
-head-seed band of 0.0384 and is the size of ordinary run-to-run noise.
-Group B's does not: 0.1169 is three times that band and is **larger than
-the effect this study set out to measure**.
+Both miss. Group A's miss sits inside the pooled head-seed band of 0.0384
+and is the size of ordinary run-to-run noise. Group B's does not: 0.1169 is
+three times that band and **larger than the effect this study set out to
+measure**.
 
-So every number here is compared against this study's own `k = 0`, retrained
-on the same commit, the same protocol and the same hardware. The card
-prescribes exactly this. The consequence is that **B9 has no baseline**: its
-`k = 3` run has no same-code `k = 0`, and the published 1.5579 cannot stand
-in for one.
+So every delta above is against this study's own `k = 0`, retrained on the
+same commit, the same protocol and the same hardware — which is what the
+card prescribes when the gate fails. The consequence is that **B9 has no
+baseline**: it has no same-code `k = 0`, and the published 1.5579 cannot
+stand in for one. Its `k = 3` numbers are reported as levels only.
 
 What moved between the two snapshots is not identified here. It is not the
-loss — 48 frozen values and a digit-for-digit trainer reproduction pin
-`k = 0` to the pre-change objective (PR #400) — so it is somewhere else in
-the trainer, the head, the eval, or the hardware.
+loss: 48 frozen values and a digit-for-digit trainer reproduction pin
+`k = 0` to the pre-change objective (PR #400). It is somewhere else in the
+trainer, the head, the eval, or the hardware.
 
-## What it costs
+## The depth reached the loss, on every cell
 
-Cell B5, from the production runs' own timing lines, both depths on
-identical RTX 5090s:
+Twelve of the fourteen cells carry `L_align` as their only f-bearing term.
+Unwire the depth on that arm and the run completes, writes k+1 plausible
+`cos_err_dj` curves, and reproduces the `k = 0` loss to the last digit. So
+every cell was checked, not assumed — including the eleven that did not go
+on to train.
 
-| | k = 0 | k = 3 | change |
-|---|---|---|---|
-| B5 forward + backward | 117.6 ms | 301.9 ms | **+157%** |
-| A3 forward + backward | 115.9 ms | 137.8 ms | **+19%** |
-| B5 GPU memory | 5375 MiB | 5585 MiB | +4% |
+Each cell ran its own launcher twice for one step, at `k = 0` and at
+`k = 3`. Step 1 is the discriminating row: both runs start from the same
+weights and draw the same batch, so `loss_tau_ref` — pinned to depth 0 —
+must match, and `loss` must not. All fourteen pass
+(`results/verify_summary.tsv`).
 
-The depth is cheap when the f-bearing term has no denominator to rebuild —
-A3's only such term is `L_align` — and expensive when it has one: B5's
-pooled `xshh_allt` rebuilds `log_pos`, `log_neg_zy` and
-`log_neg_cross_batch` at every depth.
+## Collapse watch
 
-Memory is nearly free because `FCST_GRAD_CKPT=1`, which all 14 cells already
-set, checkpoints each depth's non-last forecaster layers. The depth costs
-time, not VRAM.
+![dimension usage](plots/dim_usage_per_arm.png)
 
-A separate 600-step probe on elisa's shared 4090, alternating the two depths
-three times, read +139% on B5's fwd+bwd. PR #400's CPU-only estimate was
-+40%.
+The card names `u_batchtime` on `h_t` and `e_t` as the thing to watch: a
+model can win the deeper terms by flattening `f`. Neither curve collapses on
+any cell.
+
+![latent movement](plots/latent_movement.png)
+
+Latent movement between the 20k and 40k checkpoints, on #379's committed
+fixed batch. `k = 3` moves the encoder-output latent slightly more and the
+patch-embedding latent less.
 
 ## Deviation from the card
 
@@ -113,10 +180,11 @@ implementation to state which one it does. PR #400 takes the alternative, so
 that a depth-`j` copy is a literal copy of the depth-0 objective under one
 rule: every `h` index shifts by `j`.
 
-It touches exactly one cell. B5 is the only cell whose f-bearing denominator
-holds h-anchored families. B9's `L_pred` denominator is f-anchored only, and
-the other twelve cells' f-bearing term is `L_align`, which has no
-denominator at all.
+It touches exactly one cell, and it is the cell that won. B5 is the only
+cell whose f-bearing denominator holds h-anchored families. B9's `L_pred`
+denominator is f-anchored only, and the other twelve cells' f-bearing term
+is `L_align`, which has no denominator at all. So B5's +5% is a result about
+the shifted variant, and the unshifted variant is untested.
 
 ## What ran, and what did not
 
@@ -133,47 +201,33 @@ front of the card's own run order and stopped.
 | stops | bb40k | bb100k, bb200k |
 | head-seed replicates | none | the card's annex figures |
 
-Three of the five cells the card names as its run-early set are missing, so
-rule 2 — `f` in the numerator and the denominator — is exercised by the
-pooled shape and the split shape but not by the CPC auxiliary. Nine of the
-ten cells whose only f-bearing term is `L_align` did not run.
+Two of the five cells the card names as its run-early set ran, so rule 2 is
+exercised by the pooled shape and the split shape but not by the CPC
+auxiliary. Nine of the ten cells whose only f-bearing term is `L_align` did
+not run — and A3, the one that did, is the cell that lost.
 
 Two consequences. There is no bb100k, so nothing here says whether a `k = 3`
-cell that starts behind catches up — and the parents show cells that move by
-0.05 between 40k and 100k. And there is no head-seed replicate in this
-study, so the noise band is the parents' pooled ±0.0384 rather than one
-measured here.
+cell that starts behind catches up; the parents show cells moving by 0.05
+between 40k and 100k. And there is no head-seed replicate here, so the noise
+band is the parents' pooled ±0.0384 rather than one measured in this study.
 
-## The depth reached the loss, on every cell
+## Uncertainty
 
-Twelve of the fourteen cells carry `L_align` as their only f-bearing term.
-Unwire the depth on that arm and the run completes, writes k+1 plausible
-`cos_err_dj` curves, and reproduces the `k = 0` loss to the last digit. So
-every cell was checked, not assumed — including the eleven that did not
-go on to train.
+Three sources, one of them measured here.
 
-Each cell ran its own launcher twice for one step, at `k = 0` and at
-`k = 3`. Step 1 is the discriminating row: both runs start from the same
-weights and draw the same batch, so `loss_tau_ref` — pinned to depth 0 —
-must match, and `loss` must not.
-
-All fourteen pass. `results/verify_summary.tsv` holds one row per cell, and
-`results/verify_<cell>_k{0,3}_losses.csv` the CSVs each was read from.
-
-## Collapse watch
-
-![dimension usage](plots/dim_usage_per_arm.png)
-
-The card names `u_batchtime` on `h_t` and `e_t` as the thing to watch: at
-`k = 3` the f-side carries four times its baseline weight against the f-free
-`L_rep` and SIGReg, and a model can win the deeper terms by flattening `f`.
-Neither curve collapses.
-
-![latent movement](plots/latent_movement.png)
-
-Latent movement between the 20k and 40k checkpoints, on #379's committed
-fixed batch. `k = 3` moves the encoder-output latent slightly more and the
-patch-embedding latent less.
+- **Config sampling.** A paired dataset-cluster bootstrap, resampling
+  datasets rather than configs because `<ds>/short`, `/medium` and `/long`
+  are three configs of one series. `results/bootstrap.csv`. Every full-97
+  interval excludes zero.
+- **Head seed.** Not measured here; the parents' pooled range is ±0.0384.
+  Both heads of both cells agree on the sign, which is the cheap check
+  available.
+- **Backbone training.** Not measured here, and not measured by the parents
+  either. The gate failure is the only handle on it, and it says the spread
+  across code snapshots reaches 0.1169 on one cell — the same size as the
+  effect. Read every delta with that in mind. **One cell's win and one
+  cell's loss, each from a single training pair, is not a result that should
+  change the objective on its own.**
 
 ## Method
 
@@ -194,13 +248,12 @@ GM-Relative MASE over a subset of the 97 is the geometric mean of
 `our MASE / seasonal-naive MASE` over that subset. Over all 97 the number is
 the eval's own, from `summary.txt`, not recomputed;
 `scripts/split_scores.py` reproduces one of those aggregates as 1.414099
-against a published 1.4141, which is what pins the subsets to the same
-definition.
+against a published 1.4141, which pins the subsets to the same definition.
 
 Head training ran on elisa's GPU, GIFT-Eval on elisa's 32 cores, backbones
-on rented RTX 5090s and one 4090. That split is what made five backbone
-runs affordable on $7.31: PR #394 measured the eval at 2.86 core-hours for
-the 97 configs, with no VRAM at all.
+on rented RTX 5090s and one 4090. That split is what made five backbone runs
+affordable on $7.31: PR #394 measured the eval at 2.86 core-hours for the 97
+configs, with no VRAM at all.
 
 **How a cell gets the flag.** Both published launchers ASSIGN `EXTRA_ARGS`
 inside their per-cell `case` block and never read the environment, so an
@@ -212,24 +265,14 @@ flag, `OUT` moved to this directory, checkpoints moved to the durable root,
 a `_cf373k<K>` run-name suffix, and `--log-every` made an env override with
 its default unchanged.
 
-## Uncertainty
-
-Three sources, only one of them measured here.
-
-- **Config sampling.** A paired dataset-cluster bootstrap, resampling
-  datasets rather than configs because `<ds>/short`, `/medium` and `/long`
-  are three configs of one series. `results/bootstrap.csv`. Every interval
-  excludes zero, on the wrong side.
-- **Head seed.** Not measured here. The parents' pooled range is ±0.0384.
-- **Backbone training.** Not measured here, and not measured by the parents
-  either. The gate failure above is the only handle on it, and it says the
-  spread across code snapshots reaches 0.1169 on one cell — the same size as
-  the effect. Read every delta in this report with that in mind.
-
 ## Tables
 
-See [`results/scores.md`](results/scores.md) for the per-cell per-head table,
-the gate table and the horizon split; [`results/bootstrap.csv`](results/bootstrap.csv)
-for the intervals; [`results/steptime_runs.csv`](results/steptime_runs.csv)
-for the per-run step times; and [`results/verify_summary.tsv`](results/verify_summary.tsv)
-for the per-cell depth check.
+[`results/scores.md`](results/scores.md) — per cell, per head, with the gate
+and the horizon split.
+[`results/bootstrap.csv`](results/bootstrap.csv) — the intervals.
+[`results/steptime_runs.csv`](results/steptime_runs.csv) — per-run step times.
+[`results/verify_summary.tsv`](results/verify_summary.tsv) — the per-cell depth check.
+[`results/rollout_fidelity.csv`](results/rollout_fidelity.csv),
+[`results/latent_movement.csv`](results/latent_movement.csv),
+[`results/splits.csv`](results/splits.csv) — the figure data.
+[`results/execution_log.md`](results/execution_log.md) — what happened while running it.

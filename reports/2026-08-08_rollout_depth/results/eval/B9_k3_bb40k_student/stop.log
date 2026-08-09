@@ -14,3 +14,50 @@ Data: MIX 100% HF + 0% synth, hf_bs=256, synth_bs=0, synth_seed=20280722, emit_l
 
 Training for 15000 steps, bs=256, lr=0.001, forecast_len=16
 Checkpoints: /home/jupyter/checkpoints_backup/cf-373/eval/B9_k3_bb40k_student/qhead_B9_k3_bb40k_student_s20260722_*.pth
+[    500] loss=0.233712  ema_loss=0.238792  5.8 sps  ETA 0.7h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/B9_k3_bb40k_student/qhead_B9_k3_bb40k_student_s20260722_best.pth (ema_loss=0.238792)
+[   1000] loss=0.234584  ema_loss=0.231983  6.3 sps  ETA 0.6h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/B9_k3_bb40k_student/qhead_B9_k3_bb40k_student_s20260722_best.pth (ema_loss=0.231983)
+[   1500] loss=0.238056  ema_loss=0.227937  6.4 sps  ETA 0.6h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/B9_k3_bb40k_student/qhead_B9_k3_bb40k_student_s20260722_best.pth (ema_loss=0.227937)
+[   2000] loss=0.222996  ema_loss=0.226633  6.4 sps  ETA 0.6h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/B9_k3_bb40k_student/qhead_B9_k3_bb40k_student_s20260722_best.pth (ema_loss=0.226633)
+'HTTPSConnectionPool(host='us.aws.cdn.hf.co', port=443): Read timed out.' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00016.parquet
+Retrying in 1s [Retry 1/5].
+[   2500] loss=0.231911  ema_loss=0.225084  5.9 sps  ETA 0.6h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/B9_k3_bb40k_student/qhead_B9_k3_bb40k_student_s20260722_best.pth (ema_loss=0.225084)
+[   3000] loss=0.220759  ema_loss=0.224254  6.0 sps  ETA 0.6h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/B9_k3_bb40k_student/qhead_B9_k3_bb40k_student_s20260722_best.pth (ema_loss=0.224254)
+[   3500] loss=0.210971  ema_loss=0.224020  5.9 sps  ETA 0.5h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/B9_k3_bb40k_student/qhead_B9_k3_bb40k_student_s20260722_best.pth (ema_loss=0.224020)
+[   4000] loss=0.241803  ema_loss=0.223664  5.9 sps  ETA 0.5h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/B9_k3_bb40k_student/qhead_B9_k3_bb40k_student_s20260722_best.pth (ema_loss=0.223664)
+[   4500] loss=0.236639  ema_loss=0.223942  6.0 sps  ETA 0.5h
+[   5000] loss=0.226535  ema_loss=0.223434  6.0 sps  ETA 0.5h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/B9_k3_bb40k_student/qhead_B9_k3_bb40k_student_s20260722_best.pth (ema_loss=0.223434)
+  -> Saved /home/jupyter/checkpoints_backup/cf-373/eval/B9_k3_bb40k_student/qhead_B9_k3_bb40k_student_s20260722_5k.pth
+[   5500] loss=0.221426  ema_loss=0.223130  6.0 sps  ETA 0.4h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/B9_k3_bb40k_student/qhead_B9_k3_bb40k_student_s20260722_best.pth (ema_loss=0.223130)
+[   6000] loss=0.212932  ema_loss=0.222307  6.0 sps  ETA 0.4h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/B9_k3_bb40k_student/qhead_B9_k3_bb40k_student_s20260722_best.pth (ema_loss=0.222307)
+[   6500] loss=0.218945  ema_loss=0.221646  6.0 sps  ETA 0.4h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/B9_k3_bb40k_student/qhead_B9_k3_bb40k_student_s20260722_best.pth (ema_loss=0.221646)
+[   7000] loss=0.213849  ema_loss=0.222015  6.1 sps  ETA 0.4h
+[   7500] loss=0.224137  ema_loss=0.222038  6.0 sps  ETA 0.3h
+[   8000] loss=0.220450  ema_loss=0.221571  6.1 sps  ETA 0.3h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/B9_k3_bb40k_student/qhead_B9_k3_bb40k_student_s20260722_best.pth (ema_loss=0.221571)
+[   8500] loss=0.226497  ema_loss=0.220419  6.1 sps  ETA 0.3h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/B9_k3_bb40k_student/qhead_B9_k3_bb40k_student_s20260722_best.pth (ema_loss=0.220419)
+[   9000] loss=0.209182  ema_loss=0.220296  6.1 sps  ETA 0.3h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/B9_k3_bb40k_student/qhead_B9_k3_bb40k_student_s20260722_best.pth (ema_loss=0.220296)
+[   9500] loss=0.213552  ema_loss=0.220551  6.1 sps  ETA 0.2h
+[  10000] loss=0.220126  ema_loss=0.220646  6.1 sps  ETA 0.2h
+  -> Saved /home/jupyter/checkpoints_backup/cf-373/eval/B9_k3_bb40k_student/qhead_B9_k3_bb40k_student_s20260722_10k.pth
+[  10500] loss=0.225576  ema_loss=0.218938  6.1 sps  ETA 0.2h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/B9_k3_bb40k_student/qhead_B9_k3_bb40k_student_s20260722_best.pth (ema_loss=0.218938)
+[  11000] loss=0.217620  ema_loss=0.220849  6.2 sps  ETA 0.2h
+[  11500] loss=0.223594  ema_loss=0.220641  6.1 sps  ETA 0.2h
+[  12000] loss=0.215728  ema_loss=0.219981  6.1 sps  ETA 0.1h
+[  12500] loss=0.225097  ema_loss=0.220770  6.1 sps  ETA 0.1h
+[  13000] loss=0.217392  ema_loss=0.219261  6.1 sps  ETA 0.1h
+[  13500] loss=0.226589  ema_loss=0.219885  6.1 sps  ETA 0.1h
