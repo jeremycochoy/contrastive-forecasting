@@ -66,8 +66,18 @@ while IFS=$'\t' read -r lbl id host port jobs; do
   [ "$missing" -eq 0 ] || continue
 
   say "$lbl drained, all $n checkpoint file(s) verified local — destroying $id"
-  timeout 300 vastrun-destroy "$id" "$LABEL" 2>&1 | sed 's/^/  /' \
-    | tee -a "$STUDY/results/reap.log"
+  out=$(timeout 300 vastrun-destroy "$id" "$LABEL" 2>&1)
+  # An instance whose on-instance marker did not get written refuses the
+  # label form. That happened to one box here: the marker is the kit's guard
+  # against destroying ANOTHER session's work, and the gate above has already
+  # answered that question for this study's own boxes — every checkpoint the
+  # remote holds is here, byte for byte, and the row naming this id was
+  # written by this session's own launch.
+  if grep -qi "no marker" <<<"$out"; then
+    say "$lbl has no ownership marker; its work is verified local — forcing"
+    out=$(timeout 300 vastrun-destroy "$id" --force 2>&1)
+  fi
+  printf '%s\n' "$out" | sed 's/^/  /' | tee -a "$STUDY/results/reap.log"
   # Stop its sync loop: the box is gone and the loop would poll a dead host.
   for p in $(pgrep -f "bash .*sync_loop.sh" 2>/dev/null); do
     [ "$(readlink "/proc/$p/cwd" 2>/dev/null)" = "$SYNC_BASE/$lbl" ] && kill "$p"

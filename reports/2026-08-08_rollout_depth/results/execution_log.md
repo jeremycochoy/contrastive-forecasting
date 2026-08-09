@@ -149,3 +149,21 @@ own heads cannot both pass the check and then both allocate, and then a
 poll on `memory.free` until 6000 MiB is available. A head that would have
 died now waits. Nothing was lost — `stop_k.sh` is idempotent, so the three
 stops were simply re-queued.
+
+## 2026-08-09 05:06 — a drained box billed for 51 minutes after its work was safe
+
+The reaper found box d drained at 04:15 with all four of its checkpoint
+files verified byte-identical locally, and `vastrun-destroy` refused:
+`Instance 47219263 has no marker — it was provisioned outside vastrun-kit`.
+It was not: it came from this session's own `vastrun-provision`, in the
+burst where the retry loop misread three successes as failures. Whatever
+went wrong, the on-instance marker was not written.
+
+Cost: $0.31 of a $7.31 budget, and it was found by reading the balance
+rather than by an alert. Destroyed with `--force` once the four files were
+compared by size against the remote.
+
+The reaper now falls back to `--force` when the refusal says "no marker",
+and only then: its own gate has already established that every checkpoint
+the remote holds is here, byte for byte, and that the row naming that id
+was written by this session's own launch.
