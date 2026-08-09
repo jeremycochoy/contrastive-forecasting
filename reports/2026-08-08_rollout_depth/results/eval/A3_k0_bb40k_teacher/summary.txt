@@ -1,24 +1,3 @@
-[08-09 07:12:29] START A3_k0_bb40k_teacher bb40k enc=teacher shards=4 slot=1
-[08-09 08:27:43] merged 97 configs -> /home/jupyter/checkpoints_backup/cf-373/eval/A3_k0_bb40k_teacher/gift/all_results.csv
-Loading models...
-  [eval] auto-detected num_encoder_layers=3 from backbone checkpoint
-  [eval] auto-detected qk_norm=True from backbone checkpoint
-  [eval] auto-detected attn_out_norm=True from backbone checkpoint
-  [eval] auto-detected freq_emb_dim=3 from backbone checkpoint
-  [eval] auto-detected seasonality_emb_dim=3 from backbone checkpoint
-  [eval] auto-detected patch_stats=none
-  [eval] encoder=teacher
-/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/transformer.py:392: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
-  warnings.warn(
-  [eval] auto-detected transformer-q head (2L H=64 nhead=8 causal)
-  Backbone: /home/jupyter/checkpoints_backup/cf-373/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k0_40k.pth
-  Head: /home/jupyter/checkpoints_backup/cf-373/eval/A3_k0_bb40k_teacher/qhead_A3_k0_bb40k_teacher_s20260722_final.pth
-  Strategy: B4 (forecast_len=16)
-
-Total configs to evaluate: 97
-  Resuming: 97 configs already done
-
-Results saved to /home/jupyter/checkpoints_backup/cf-373/eval/A3_k0_bb40k_teacher/gift/all_results.csv
 ==========================================================================================
                                 GIFT-Eval Official Results                                
 ==========================================================================================
@@ -134,5 +113,3 @@ Leaderboard comparison:
   Naive:      1.000
   ** Ours:    1.218 **
 ==========================================================================================
-Summary saved to /home/jupyter/checkpoints_backup/cf-373/eval/A3_k0_bb40k_teacher/gift/summary.txt
-[08-09 08:27:46] DONE A3_k0_bb40k_teacher bb40k teacher — Aggregate GM-Relative MASE (97 configs): 1.2184 -> 1.2184

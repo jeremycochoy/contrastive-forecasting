@@ -73,3 +73,7 @@ Done in 0.6h. Best loss=0.217061 at step 10500
 [08-09 07:12:29] [A3_k0_bb40k_teacher] head-train rc=0
 [08-09 07:12:29] [A3_k0_bb40k_teacher] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
 [08-09 07:12:29] START A3_k0_bb40k_teacher bb40k enc=teacher shards=4 slot=1
+[08-09 08:27:43] merged 97 configs -> /home/jupyter/checkpoints_backup/cf-373/eval/A3_k0_bb40k_teacher/gift/all_results.csv
+[08-09 08:27:46] DONE A3_k0_bb40k_teacher bb40k teacher — Aggregate GM-Relative MASE (97 configs): 1.2184 -> 1.2184
+[08-09 08:27:46] [A3_k0_bb40k_teacher] eval rc=0
+[08-09 08:27:46] [A3_k0_bb40k_teacher] DONE — GM-Relative MASE 1.2184
