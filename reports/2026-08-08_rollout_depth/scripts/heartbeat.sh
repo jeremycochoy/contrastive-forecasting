@@ -60,9 +60,13 @@ while IFS=$'\t' read -r lbl id host port jobs; do
 done < "$BOXES"
 
 # elisa's half: the two head/eval drivers, and what they have produced.
-drv=$(pgrep -fc "bash .*stops_driver.sh" 2>/dev/null || echo 0)
-heads=$(pgrep -fc "train_forecasting_head.py" 2>/dev/null || echo 0)
-evals=$(pgrep -fc "eval_gift_eval_official.py" 2>/dev/null || echo 0)
+# `pgrep -fc` prints 0 AND exits 1 when it matches nothing, so a `|| echo 0`
+# fallback appends a SECOND zero on its own line and the printf below eats
+# the rest of its arguments.
+count(){ pgrep -fc "$1" 2>/dev/null | head -1; }
+drv=$(count "bash .*stops_driver.sh")
+heads=$(count "train_forecasting_head.py")
+evals=$(count "eval_gift_eval_official.py")
 scores=$(ls "$STUDY/results"/score_*.txt 2>/dev/null | wc -l)
 printf '[elisa] drivers=%s heads=%s eval-shards=%s scores=%s/10\n' \
   "$drv" "$heads" "$evals" "$scores"
