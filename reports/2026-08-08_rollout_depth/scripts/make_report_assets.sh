@@ -48,6 +48,8 @@ if [ -f "$RES/splits.csv" ]; then
   done
   python3 "$HERE/plot_k3_vs_k0.py" --splits "$RES/splits.csv" \
     --out "$PLOTS/k3_vs_k0.png" 2>&1 | grep -v Warning | sed 's/^/  /'
+  python3 "$HERE/plot_encoder_delta.py" --splits "$RES/splits.csv" \
+    --out "$PLOTS/encoder_delta.png" 2>&1 | grep -v Warning | sed 's/^/  /'
 fi
 
 # ---- 3. training curves ----------------------------------------------------
@@ -90,6 +92,31 @@ if [ "${#fid[@]}" -gt 0 ] && [ -f "$BATCH" ]; then
       --out "$PLOTS/rollout_fidelity.png" 2>&1 | grep -v Warning | sed 's/^/  /'
 else
   say "no bb40k checkpoint on the durable root yet — no fidelity figure"
+fi
+
+# ---- 4b. latent movement, between this study's 20k and 40k checkpoints ----
+# Read from the SYNC tree, not the durable root: the stops driver adopts only
+# the 40k checkpoint (it is the only one a head is trained on), and this
+# measure needs the 20k one beside it.
+mvruns=()
+while IFS=$'\t' read -r id slug launcher arg; do
+  case "$id" in ''|'#'*) continue ;; esac
+  for k in 0 3; do
+    name="$(cf373_run_name "$id" "$k")" || continue
+    one="$(find "$SYNC_BASE" -type f -name "${name}*k.pth" \
+           ! -name '*_optimizer.pth' 2>/dev/null | head -1)"
+    [ -n "$one" ] || continue
+    dir="$(dirname "$one")"
+    n=$(find "$dir" -maxdepth 1 -name "${name}*k.pth" ! -name '*_optimizer.pth' | wc -l)
+    [ "$n" -ge 2 ] && mvruns+=(--run "$id:$k=$dir")
+  done
+done < "$HERE/cells.tsv"
+if [ "${#mvruns[@]}" -gt 0 ] && [ -f "$BATCH" ]; then
+  python3 "$HERE/plot_latent_movement.py" "${mvruns[@]}" --batch "$BATCH" \
+    --out-csv "$RES/latent_movement.csv" --out "$PLOTS/latent_movement.png" \
+    2>&1 | grep -v Warning | sed 's/^/  /'
+else
+  say "fewer than two periodic checkpoints per run — no latent-movement figure"
 fi
 
 # ---- 5. the score table ----------------------------------------------------
