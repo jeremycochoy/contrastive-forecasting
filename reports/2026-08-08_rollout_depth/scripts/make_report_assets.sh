@@ -135,6 +135,28 @@ else
   say "fewer than two periodic checkpoints per run — no latent-movement figure"
 fi
 
+# ---- 4c. step time of the real runs, from their own trainer logs ----------
+# The 600-step probe measured the overhead on a shared 4090; these are tens
+# of thousands of steps on a card each run had to itself.
+logs=()
+while IFS=$'\t' read -r id slug launcher arg; do
+  case "$id" in ''|'#'*) continue ;; esac
+  for k in 0 3; do
+    name="$(cf373_run_name "$id" "$k")" || continue
+    f="$(find "$SYNC_BASE" -type f -name "run_${name}.log" 2>/dev/null | head -1)"
+    [ -n "$f" ] || continue
+    box="$(sed -E "s|^$SYNC_BASE/([^/]+)/.*|\\1|" <<<"$f")"
+    gpu="$(awk -F'\t' -v b="$box" '$1==b {print $2; exit}' "$RES/box_gpu.tsv" 2>/dev/null)"
+    logs+=(--log "$id:$k:${gpu:-unknown}=$f")
+  done
+done < "$HERE/cells.tsv"
+if [ "${#logs[@]}" -gt 0 ]; then
+  python3 "$HERE/steptime_from_logs.py" "${logs[@]}" \
+    --out "$RES/steptime_runs.csv" 2>&1 | sed 's/^/  /'
+else
+  say "no trainer log synced yet — no per-run step-time table"
+fi
+
 # ---- 5. the score table ----------------------------------------------------
 python3 "$HERE/score_table.py" --results "$RES" --out "$RES/scores.md" 2>&1 \
   | sed 's/^/  /'
