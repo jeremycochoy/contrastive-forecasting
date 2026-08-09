@@ -100,3 +100,31 @@ PR #394 measured the eval at 2.86 core-hours for the 97 configs, against
 58.7 s on a 4090 and 97.3 s on one core for the same six configs, with no
 VRAM at all. That split is why a rented card in this study only ever trains
 backbones.
+
+## What ran, and what did not
+
+The card lists 14 cells, each to bb40k and bb100k and conditionally
+bb200k, two heads per stop, 97 GIFT-Eval configs per head. Measured on this
+hardware that is over 200 GPU-hours. The study had $7.31 of vast.ai credit,
+which buys 16 to 22 GPU-hours depending on the card, and two elisa 4090s
+that another session was already holding at over 90% utilisation.
+
+So the study ran the front of the card's own run order and stopped.
+
+| | ran | did not run |
+|---|---|---|
+| cells at k = 3 | B5, B9, A3, A4 | A1, A2, B1, B2, B3, B4, B6, B7, B8, B10 |
+| same-code k = 0 | B5, A3 (the two gates) | the other twelve |
+| stops | bb40k | bb100k, bb200k |
+| head-seed replicates | none | the card's annex figures |
+
+Four of the five cells the card names as its run-early set are missing:
+only B5 and B9 of {B5, B9, A2, B8, B10} ran, so rule 2 — `f` in the
+numerator and in the denominator — is exercised by the pooled and the split
+shape but not by the CPC auxiliary. Nine of the ten cells whose only
+f-bearing term is `L_align` did not run either.
+
+Two consequences for reading the numbers. There is no bb100k, so nothing
+here says whether a k = 3 cell that starts behind catches up. And there is
+no head-seed replicate in this study, so the noise band is the parents'
+pooled ±0.0384 rather than one measured here.
