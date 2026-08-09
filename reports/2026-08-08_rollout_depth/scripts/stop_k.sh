@@ -121,9 +121,12 @@ if [ ! -f "$HEAD_CKPT" ]; then
   rc=$?
   log "head-train rc=$rc"
   [ $rc -eq 0 ] || exit $rc
-  # Drop the device before the eval: it runs on the CPU, and holding the
-  # lock through a multi-hour CPU job idles a card with a cell queued.
+  # Drop the device before the eval: it runs on the CPU, and holding a lock
+  # through a multi-hour CPU job idles a card with a cell queued. BOTH
+  # descriptors, not just the gpu_gate one — fd 7 is the head VRAM lock, and
+  # leaving it open kept the next head waiting for a whole GIFT-Eval.
   exec 9>&- 2>/dev/null || true
+  exec 7>&- 2>/dev/null || true
 else
   log "head-train SKIP (final exists)"
 fi

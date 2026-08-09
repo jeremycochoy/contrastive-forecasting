@@ -167,3 +167,19 @@ The reaper now falls back to `--force` when the refusal says "no marker",
 and only then: its own gate has already established that every checkpoint
 the remote holds is here, byte for byte, and that the row naming that id
 was written by this session's own launch.
+
+## 2026-08-09 06:00 — the VRAM lock was held through the eval
+
+The `head_vram_gate` added an hour earlier holds its flock on fd 7 for the
+life of the calling shell — and that shell then runs a ~1 h CPU GIFT-Eval.
+So the next head waited for a card that had 9.6 GiB free the whole time.
+
+`stop_k.sh` already dropped the `gpu_gate` descriptor before the eval, for
+exactly this reason; the new one was not dropped beside it. It is now.
+
+Recovering it without losing the eval in flight: the stale holder was inside
+its eval and would not train another head, so the lock FILE was renamed.
+flock is held on the inode, so a new head takes a lock on a fresh one while
+the old holder keeps the old. Mutual exclusion between future heads is
+unaffected — they all open the new path, and the fixed script releases it as
+soon as its head finishes.
