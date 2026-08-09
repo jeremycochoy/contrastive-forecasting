@@ -110,11 +110,14 @@ case "$CELL" in
     exit 2 ;;
 esac
 
-SEED=20260520
+SEED="${SEED:-20260520}"
 # #373: rollout depth. Every cell of this study takes it from the SHARED
 # flag block below, never from EXTRA_ARGS.
 K="${K:-3}"
 LOG_EVERY="${LOG_EVERY:-200}"
+# #373 review gaps: extra trainer flags for the control runs. Empty for
+# every cell of the card.
+read -r -a GAP_ARGS_ARR <<<"${GAP_ARGS:-}"
 # Stops are 40k / 100k / 200k / 300k ..., all multiples of 20000, so the
 # periodic save always lands one. EXTRA_SAVES covers an off-cadence target.
 SAVE_EVERY="${SAVE_EVERY:-20000}"
@@ -128,7 +131,7 @@ export TEACHER_EMBED_CHUNK="${TEACHER_EMBED_CHUNK:-16}"
 
 TRAIN="$WT/experiments/2026-04-27_freq-embedding/scripts/train.py"
 HF_TOKEN_PATH="$WT/experiments/hf_token.txt"
-NAME="cf393_${CELL}_cf373k${K}"
+NAME="cf393_${CELL}_cf373k${K}${RUN_SUFFIX:-}"
 tlog="$RES/run_${NAME}.log"
 log(){ echo "[$(date '+%m-%d %H:%M:%S')] [$CELL] $*" | tee -a "$RES/leg_${CELL}.log"; }
 
@@ -234,6 +237,7 @@ CUDA_VISIBLE_DEVICES="$BB_GPU" python3 -u "$TRAIN" "${RESUME[@]}" \
   --patch-emb-dtype fp32 \
   --train-rollout-depth "$K" \
   "${EXTRA_ARGS[@]}" \
+  "${GAP_ARGS_ARR[@]}" \
   >>"$tlog" 2>&1
 rc=$?
 if [ $rc -ne 0 ]; then

@@ -135,16 +135,20 @@ case "$ARM" in
     ;;
 esac
 
-SEED=20260520
+SEED="${SEED:-20260520}"
 # #373: rollout depth. Every cell of this study takes it from the SHARED
 # flag block below, never from EXTRA_ARGS.
 K="${K:-3}"
 # Artefacts of this study never share a name with a published k = 0 one.
-NAME="${NAME}_cf373k${K}"
+# RUN_SUFFIX is empty for every cell of the card; a control run sets it.
+NAME="${NAME}_cf373k${K}${RUN_SUFFIX:-}"
 # Checkpoints live on the durable root, never inside the checkout.
 RUNS="${CF373_RUNS:-/home/jupyter/checkpoints_backup/cf-373}/$NAME"
 mkdir -p "$RUNS"
 LOG_EVERY="${LOG_EVERY:-200}"
+# #373 review gaps: extra trainer flags for the control runs. Empty for
+# every cell of the card.
+read -r -a GAP_ARGS_ARR <<<"${GAP_ARGS:-}"
 # Staged-wave support, copied from #379's launcher.
 #   TARGET_STEPS: per-launch training target (total_steps for this run).
 #   FINAL_STEPS:  the arm's true final step. `_FINAL.pth` is only written
@@ -255,6 +259,7 @@ CUDA_VISIBLE_DEVICES="$BB_GPU" python3 -u "$TRAIN" $RESUME --qk-norm --attn-out-
   --residual-dtype fp32 --attn-dtype fp16 --ffn-dtype fp16 --conv-dtype fp16 --patch-emb-dtype fp32 \
   --train-rollout-depth "$K" \
   "${EXTRA_ARGS[@]}" \
+  "${GAP_ARGS_ARR[@]}" \
   >>"$tlog" 2>&1
 rc=$?
 if [ $rc -ne 0 ]; then

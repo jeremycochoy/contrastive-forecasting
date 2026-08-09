@@ -53,11 +53,26 @@ patch_launcher(){ # <src> <dst> <out-old>
   want "$dst" 1 '"${EXTRA_ARGS[@]}" \'
   want "$dst" 1 "OUT=\"$out_old\""
 
-  # 1. K beside SEED.
-  sed -i 's|^SEED=20260520$|SEED=20260520\n# #373: rollout depth. Every cell of this study takes it from the SHARED\n# flag block below, never from EXTRA_ARGS.\nK="${K:-3}"|' "$dst"
+  # 1. K beside SEED. SEED itself becomes an env override, default
+  #    unchanged, so a second backbone seed of the same cell is one env var
+  #    rather than a second copy of the launcher.
+  sed -i 's|^SEED=20260520$|SEED="${SEED:-20260520}"\n# #373: rollout depth. Every cell of this study takes it from the SHARED\n# flag block below, never from EXTRA_ARGS.\nK="${K:-3}"|' "$dst"
 
   # 2. the flag, in the shared block.
   sed -i 's|^\(\s*\)"\${EXTRA_ARGS\[@\]}" \\$|\1--train-rollout-depth "$K" \\\n\1"${EXTRA_ARGS[@]}" \\|' "$dst"
+
+  # 5. GAP_ARGS, appended after EXTRA_ARGS, so a control run can override a
+  #    flag that a per-cell `case` arm sets inside LOSS_ARGS. Argparse keeps
+  #    the LAST value on repeat, and EXTRA_ARGS is itself assigned per cell,
+  #    so the environment has no other way in. It is EMPTY for all 14 cells
+  #    of the card: the k = 3 command lines are unchanged.
+  #
+  #    The one run that uses it is the reviewer's re-weighting control —
+  #    A3 at k = 0 with L_align at 4x, the weight k = 3 gives it by summing
+  #    four depths. Without it, "A3 lost because of the re-weighting" and
+  #    "A3 lost because of the depth" are the same measurement.
+  sed -i 's|^\(\s*\)"\${EXTRA_ARGS\[@\]}" \\$|\1"${EXTRA_ARGS[@]}" \\\n\1"${GAP_ARGS_ARR[@]}" \\|' "$dst"
+  sed -i 's|^K="\${K:-3}"$|K="${K:-3}"\n# #373 review gaps: extra trainer flags for the control runs. Empty for\n# every cell of the card.\nread -r -a GAP_ARGS_ARR <<<"${GAP_ARGS:-}"|' "$dst"
 
   # 3. this study's output tree.
   sed -i "s|^OUT=\"$out_old\"$|OUT=\"$STUDY\"|" "$dst"
@@ -76,6 +91,9 @@ patch_launcher(){ # <src> <dst> <out-old>
 
   want "$dst" 1 '--train-rollout-depth "$K" \'
   want "$dst" 1 'K="${K:-3}"'
+  want "$dst" 1 'SEED="${SEED:-20260520}"'
+  want "$dst" 1 'read -r -a GAP_ARGS_ARR <<<"${GAP_ARGS:-}"'
+  want "$dst" 1 '"${GAP_ARGS_ARR[@]}" \'
   want "$dst" 1 'LOG_EVERY="${LOG_EVERY:-200}"'
   want "$dst" 1 '--log-every "$LOG_EVERY"'
   want "$dst" 0 '--log-every 200'
@@ -88,9 +106,11 @@ patch_launcher(){ # <src> <dst> <out-old>
 LEG_SRC="$ROOT/experiments/2026-08-04_ema_sched_ladder/scripts"
 patch_launcher "$LEG_SRC/run_leg.sh" "$HERE/run_leg_k.sh" \
   '$WT/experiments/2026-08-04_ema_sched_ladder'
-# run_leg.sh names its runs cf393_<cell>. Edit 4.
-sed -i 's|^NAME="cf393_\${CELL}"$|NAME="cf393_${CELL}_cf373k${K}"|' "$HERE/run_leg_k.sh"
-want "$HERE/run_leg_k.sh" 1 'NAME="cf393_${CELL}_cf373k${K}"'
+# run_leg.sh names its runs cf393_<cell>. Edit 4. RUN_SUFFIX is empty for
+# every cell of the card; a control run sets it so its artefacts cannot
+# collide with the cell it is a control for.
+sed -i 's|^NAME="cf393_\${CELL}"$|NAME="cf393_${CELL}_cf373k${K}${RUN_SUFFIX:-}"|' "$HERE/run_leg_k.sh"
+want "$HERE/run_leg_k.sh" 1 'NAME="cf393_${CELL}_cf373k${K}${RUN_SUFFIX:-}"'
 # It sources two siblings, and resolves them from its own dirname.
 cp "$LEG_SRC/leg_paths.sh" "$LEG_SRC/gpu_gate.sh" "$HERE/"
 # Its durable root default is #393's. Give this study its own.
@@ -117,9 +137,9 @@ patch_launcher "$ROOT/experiments/2026-08-01_lalign_teacher/scripts/run_arm.sh" 
 # leave. RES stays under the study directory: logs are small and committed.
 for f in "$HERE/run_arm_k.sh" "$HERE/run_arm_lalign_k.sh"; do
   want "$f" 1 'RUNS="$OUT/runs"; RES="$OUT/results"; mkdir -p "$RUNS" "$RES"'
-  sed -i 's|^K="\${K:-3}"$|K="${K:-3}"\n# Artefacts of this study never share a name with a published k = 0 one.\nNAME="${NAME}_cf373k${K}"\n# Checkpoints live on the durable root, never inside the checkout.\nRUNS="${CF373_RUNS:-/home/jupyter/checkpoints_backup/cf-373}/$NAME"\nmkdir -p "$RUNS"|' "$f"
+  sed -i 's|^K="\${K:-3}"$|K="${K:-3}"\n# Artefacts of this study never share a name with a published k = 0 one.\n# RUN_SUFFIX is empty for every cell of the card; a control run sets it.\nNAME="${NAME}_cf373k${K}${RUN_SUFFIX:-}"\n# Checkpoints live on the durable root, never inside the checkout.\nRUNS="${CF373_RUNS:-/home/jupyter/checkpoints_backup/cf-373}/$NAME"\nmkdir -p "$RUNS"|' "$f"
   sed -i 's|^RUNS="\$OUT/runs"; RES="\$OUT/results"; mkdir -p "\$RUNS" "\$RES"$|RES="$OUT/results"; mkdir -p "$RES"|' "$f"
-  want "$f" 1 'NAME="${NAME}_cf373k${K}"'
+  want "$f" 1 'NAME="${NAME}_cf373k${K}${RUN_SUFFIX:-}"'
   want "$f" 1 'RUNS="${CF373_RUNS:-/home/jupyter/checkpoints_backup/cf-373}/$NAME"'
   want "$f" 0 'RUNS="$OUT/runs"'
 done

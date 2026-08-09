@@ -18,17 +18,22 @@
 # and is dropped.
 #
 # Usage: bash steptime.sh [cell id] [steps] [reps]
+#        PROBE_TAG=_solo BB_GPU=0 bash steptime.sh B5 600 3
+#
+# PROBE_TAG names the output files and the per-run trainer logs, so a second
+# probe of the same cell does not overwrite the first one's evidence.
 set -uo pipefail
 
 CELL_ID="${1:-B5}"
 STEPS="${2:-600}"
 REPS="${3:-3}"
 LOG_EVERY="${LOG_EVERY:-200}"
+PROBE_TAG="${PROBE_TAG:-}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WT="${WT:-/home/jupyter/wt-cf-373-train}"
 RES="$WT/reports/2026-08-08_rollout_depth/results"
 SCRATCH="${CF373_VERIFY_RUNS:-/home/jupyter/checkpoints_backup/cf-373/steptime}"
-OUTCSV="$RES/steptime_${CELL_ID}.csv"
+OUTCSV="$RES/steptime_${CELL_ID}${PROBE_TAG}.csv"
 mkdir -p "$RES" "$SCRATCH"
 
 row="$(awk -F'\t' -v c="$CELL_ID" '$1==c {print; exit}' "$HERE/cells.tsv")"
@@ -36,7 +41,7 @@ row="$(awk -F'\t' -v c="$CELL_ID" '$1==c {print; exit}' "$HERE/cells.tsv")"
 SLUG=$(cut -f2 <<<"$row"); LAUNCHER=$(cut -f3 <<<"$row"); ARG=$(cut -f4 <<<"$row")
 
 log(){ echo "[$(date '+%m-%d %H:%M:%S')] [steptime $CELL_ID] $*" \
-  | tee -a "$RES/steptime_${CELL_ID}.log"; }
+  | tee -a "$RES/steptime_${CELL_ID}${PROBE_TAG}.log"; }
 
 echo "cell,rep,k,window,data_ms,fwd_ms,bwd_ms,total_ms,sps,gpu_mem_mib,neighbour_mib" >"$OUTCSV"
 
@@ -46,17 +51,23 @@ run_one(){ # <k> <rep>
   rm -rf "$root"; mkdir -p "$root"
   local args=("$ARG")
   case "$LAUNCHER" in run_leg_k.sh) args+=("$STEPS") ;; esac
+  # A run name unique to this (probe, cell, rep), so the launcher opens a
+  # fresh `run_<name>.log` for it. The earlier version rotated EVERY
+  # `run_*.log` out of results/ before each repetition, which moved the
+  # production runs' own trainer logs — this study's committed evidence —
+  # into the scratch tree.
+  local suffix="${PROBE_TAG:-_st}_${CELL_ID}_r${rep}"
   local before after
   before=$(nvidia-smi --id="${BB_GPU:-1}" --query-gpu=memory.used \
              --format=csv,noheader,nounits 2>/dev/null | tr -d ' ')
   K="$k" LOG_EVERY="$LOG_EVERY" TARGET_STEPS="$STEPS" FINAL_STEPS=200000 \
-  EXTRA_SAVES="$STEPS" SAVE_EVERY=1000000 \
+  EXTRA_SAVES="$STEPS" SAVE_EVERY=1000000 RUN_SUFFIX="$suffix" \
   WT="$WT" BB_GPU="${BB_GPU:-1}" RUNS="$root" CF373_RUNS="$root" \
     bash "$WT/reports/2026-08-08_rollout_depth/scripts/$LAUNCHER" "${args[@]}" \
-    >>"$RES/steptime_${CELL_ID}.log" 2>&1
-  # The trainer log the launcher appended to, in this scratch tree's RES.
-  local tlog; tlog="$(ls -t "$RES"/run_*"$(basename "$root")"* 2>/dev/null | head -1)"
-  [ -n "$tlog" ] || tlog="$(ls -t "$RES"/run_*.log 2>/dev/null | head -1)"
+    >>"$RES/steptime_${CELL_ID}${PROBE_TAG}.log" 2>&1
+  # The launcher's own trainer log for this run, named by the suffix above.
+  local tlog; tlog="$(ls -t "$RES"/run_*"$suffix".log 2>/dev/null | head -1)"
+  [ -n "$tlog" ] || { log "no trainer log for rep=$rep k=$k"; return 1; }
   after=$(nvidia-smi --id="${BB_GPU:-1}" --query-gpu=memory.used \
             --format=csv,noheader,nounits 2>/dev/null | tr -d ' ')
   # Pair each `timing:` line with the `sps` on the step line above it.
@@ -77,13 +88,25 @@ run_one(){ # <k> <rep>
 }
 
 log "START slug=$SLUG steps=$STEPS reps=$REPS log_every=$LOG_EVERY gpu=${BB_GPU:-1}"
+# What else held the card. The point of the re-measurement is that the
+# production step times were read off runs with different neighbours, so the
+# neighbour is part of the measurement and goes in the log.
+log "card at start: $(nvidia-smi --id="${BB_GPU:-1}" \
+  --query-gpu=memory.used,memory.free,utilization.gpu \
+  --format=csv,noheader 2>/dev/null)"
+log "compute apps at start: $(nvidia-smi --id="${BB_GPU:-1}" \
+  --query-compute-apps=pid,used_memory --format=csv,noheader 2>/dev/null | tr '\n' ';')"
+
 for rep in $(seq 1 "$REPS"); do
-  # A fresh trainer log per (rep, k), so the awk above reads only this run.
-  for k in 0 3; do
-    mv -f "$RES"/run_*.log "$SCRATCH/" 2>/dev/null
+  # Unquoted on purpose: DEPTHS is a space-separated list, "0 3" by default.
+  for k in ${DEPTHS:-0 3}; do
     run_one "$k" "$rep"
     log "rep=$rep k=$k done"
   done
 done
 
-python3 "$HERE/steptime_summary.py" "$OUTCSV" | tee -a "$RES/steptime_${CELL_ID}.log"
+log "card at end: $(nvidia-smi --id="${BB_GPU:-1}" \
+  --query-gpu=memory.used,memory.free,utilization.gpu \
+  --format=csv,noheader 2>/dev/null)"
+python3 "$HERE/steptime_summary.py" "$OUTCSV" \
+  | tee -a "$RES/steptime_${CELL_ID}${PROBE_TAG}.log"
