@@ -41,10 +41,21 @@ for d in "$SYNC_BASE"/*; do
   [ -d "$d" ] || continue
   lbl="$(basename "$d")"
   mkdir -p "$DST/sync/$lbl"
-  find "$d" \( -name '*_losses.csv' -o -name '*.log' -o -name '*_latent_drift.csv' \
-               -o -name '*_attn_amplitude.csv' \) -type f 2>/dev/null \
+  # Logs and small CSVs go across whole. The per-step losses CSV does not:
+  # it is one row per step, ~11 MB per 40k run, and a report commits a curve
+  # rather than a log. scripts/downsample_curve.py is the house tool for it,
+  # and it counts DISTINCT STEPS rather than step values, so the reduction
+  # is the same whatever cadence the writer used.
+  find "$d" \( -name '*.log' -o -name '*_latent_drift.csv' \) -type f 2>/dev/null \
   | while read -r f; do
       cp -f "$f" "$DST/sync/$lbl/$(basename "$f")"
+    done
+  find "$d" \( -name '*_losses.csv' -o -name '*_attn_amplitude.csv' \) -type f 2>/dev/null \
+  | while read -r f; do
+      out="$DST/sync/$lbl/$(basename "$f")"
+      python3 "$GIT_ROOT/scripts/downsample_curve.py" "$f" "$out" \
+        --stride 20 --dense-until 1000 >/dev/null 2>&1 \
+        || cp -f "$f" "$out"
     done
   n=$(ls -1 "$DST/sync/$lbl" 2>/dev/null | wc -l)
   say "box $lbl: $n file(s)"
