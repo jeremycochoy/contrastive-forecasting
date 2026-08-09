@@ -1,0 +1,58 @@
+[08-09 06:35:35] [A3_k0_bb40k_teacher] head-train start enc=teacher steps=15000 seed=20260722 gpu=1 bb=cf393_arm6_v2_combab_alignT_cf373k0_40k.pth
+  [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+  [head-train] auto-detected qk_norm=True from backbone checkpoint
+  [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+  [head-train] auto-detected patch_stats=none
+Backbone loaded from /home/jupyter/checkpoints_backup/cf-373/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k0_40k.pth (0 params, frozen, encoder=teacher)
+/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/transformer.py:392: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  warnings.warn(
+Forecasting head [transformer-q (2L H64 nhead8 causal)]: 109,456 trainable params
+Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+Schedule: constant warmup=0 decay_start=12000 final_ratio=0.1
+Loss CSV: /home/jupyter/checkpoints_backup/cf-373/eval/A3_k0_bb40k_teacher/qhead_A3_k0_bb40k_teacher_s20260722_losses.csv
+Data: MIX 100% HF + 0% synth, hf_bs=256, synth_bs=0, synth_seed=20280722, emit_labels=True
+
+Training for 15000 steps, bs=256, lr=0.001, forecast_len=16
+Checkpoints: /home/jupyter/checkpoints_backup/cf-373/eval/A3_k0_bb40k_teacher/qhead_A3_k0_bb40k_teacher_s20260722_*.pth
+[    500] loss=0.234142  ema_loss=0.238468  6.7 sps  ETA 0.6h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/A3_k0_bb40k_teacher/qhead_A3_k0_bb40k_teacher_s20260722_best.pth (ema_loss=0.238468)
+[   1000] loss=0.232112  ema_loss=0.229759  7.0 sps  ETA 0.6h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/A3_k0_bb40k_teacher/qhead_A3_k0_bb40k_teacher_s20260722_best.pth (ema_loss=0.229759)
+[   1500] loss=0.234772  ema_loss=0.225437  7.1 sps  ETA 0.5h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/A3_k0_bb40k_teacher/qhead_A3_k0_bb40k_teacher_s20260722_best.pth (ema_loss=0.225437)
+[   2000] loss=0.220905  ema_loss=0.224274  7.0 sps  ETA 0.5h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/A3_k0_bb40k_teacher/qhead_A3_k0_bb40k_teacher_s20260722_best.pth (ema_loss=0.224274)
+'HTTPSConnectionPool(host='us.aws.cdn.hf.co', port=443): Read timed out.' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00015.parquet
+Retrying in 1s [Retry 1/5].
+'(MaxRetryError('HTTPSConnectionPool(host=\'huggingface.co\', port=443): Max retries exceeded with url: /datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00016.parquet (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x7de3cea57490>: Failed to resolve \'huggingface.co\' ([Errno -3] Temporary failure in name resolution)"))'), '(Request ID: 935da0c5-ca08-4451-8164-91829111ddf8)')' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00016.parquet
+Retrying in 1s [Retry 1/5].
+[   2500] loss=0.230238  ema_loss=0.222761  6.0 sps  ETA 0.6h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/A3_k0_bb40k_teacher/qhead_A3_k0_bb40k_teacher_s20260722_best.pth (ema_loss=0.222761)
+[   3000] loss=0.218755  ema_loss=0.221971  6.2 sps  ETA 0.5h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/A3_k0_bb40k_teacher/qhead_A3_k0_bb40k_teacher_s20260722_best.pth (ema_loss=0.221971)
+[   3500] loss=0.209261  ema_loss=0.221818  6.3 sps  ETA 0.5h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/A3_k0_bb40k_teacher/qhead_A3_k0_bb40k_teacher_s20260722_best.pth (ema_loss=0.221818)
+[   4000] loss=0.240541  ema_loss=0.221398  6.4 sps  ETA 0.5h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/A3_k0_bb40k_teacher/qhead_A3_k0_bb40k_teacher_s20260722_best.pth (ema_loss=0.221398)
+[   4500] loss=0.235438  ema_loss=0.221740  6.6 sps  ETA 0.4h
+[   5000] loss=0.224725  ema_loss=0.221178  6.6 sps  ETA 0.4h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/A3_k0_bb40k_teacher/qhead_A3_k0_bb40k_teacher_s20260722_best.pth (ema_loss=0.221178)
+  -> Saved /home/jupyter/checkpoints_backup/cf-373/eval/A3_k0_bb40k_teacher/qhead_A3_k0_bb40k_teacher_s20260722_5k.pth
+[   5500] loss=0.219883  ema_loss=0.220936  6.7 sps  ETA 0.4h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/A3_k0_bb40k_teacher/qhead_A3_k0_bb40k_teacher_s20260722_best.pth (ema_loss=0.220936)
+[   6000] loss=0.211008  ema_loss=0.220080  6.6 sps  ETA 0.4h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/A3_k0_bb40k_teacher/qhead_A3_k0_bb40k_teacher_s20260722_best.pth (ema_loss=0.220080)
+[   6500] loss=0.216628  ema_loss=0.219449  6.6 sps  ETA 0.4h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/A3_k0_bb40k_teacher/qhead_A3_k0_bb40k_teacher_s20260722_best.pth (ema_loss=0.219449)
+[   7000] loss=0.212167  ema_loss=0.219985  6.6 sps  ETA 0.3h
+'HTTPSConnectionPool(host='us.aws.cdn.hf.co', port=443): Read timed out.' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00045.parquet
+Retrying in 1s [Retry 1/5].
+[   7500] loss=0.222706  ema_loss=0.219876  6.4 sps  ETA 0.3h
+[   8000] loss=0.218087  ema_loss=0.219629  6.4 sps  ETA 0.3h
+[   8500] loss=0.225251  ema_loss=0.218553  6.5 sps  ETA 0.3h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/A3_k0_bb40k_teacher/qhead_A3_k0_bb40k_teacher_s20260722_best.pth (ema_loss=0.218553)
+[   9000] loss=0.207805  ema_loss=0.218323  6.5 sps  ETA 0.3h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/A3_k0_bb40k_teacher/qhead_A3_k0_bb40k_teacher_s20260722_best.pth (ema_loss=0.218323)
+[   9500] loss=0.210933  ema_loss=0.218630  6.6 sps  ETA 0.2h
+[  10000] loss=0.219077  ema_loss=0.218720  6.6 sps  ETA 0.2h
+  -> Saved /home/jupyter/checkpoints_backup/cf-373/eval/A3_k0_bb40k_teacher/qhead_A3_k0_bb40k_teacher_s20260722_10k.pth

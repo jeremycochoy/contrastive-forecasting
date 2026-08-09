@@ -183,3 +183,24 @@ flock is held on the inode, so a new head takes a lock on a fresh one while
 the old holder keeps the old. Mutual exclusion between future heads is
 unaffected — they all open the new path, and the fixed script releases it as
 soon as its head finishes.
+
+## 2026-08-09 07:01 — the group-B baseline validity gate FAILS
+
+B5 (`arm4_combab_fix09`) retrained at k = 0 on this code, bb40k, head seed
+20260722, full 97 configs: **1.3917**. `small_long.md` and
+`lalign_teacher.md` both publish **1.2748** for that cell and stop.
+
+|Δ| = 0.1169. The card's threshold is 0.0002. That is 585 times the gate,
+and three times the parents' pooled head-seed band of 0.0384.
+
+The card names the remedy: "If it does not match, retrain the k = 0 side of
+every group-B cell instead of reading it from the reports, and say so in
+the report." This study has same-code k = 0 for B5 and for A3, so those two
+cells have valid comparisons. B9 does not, and its k = 3 number therefore
+has no baseline this study can stand behind.
+
+The gate failing is not a side note. The shift between the published
+snapshot and this one is larger than the effect the study set out to
+measure, so every delta computed against a published number — including the
+A3 k = 3 numbers reported an hour ago — has to be recomputed against this
+study's own k = 0.
