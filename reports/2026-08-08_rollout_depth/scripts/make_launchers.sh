@@ -136,3 +136,10 @@ echo "OK — 3 launchers + 2 helpers under $HERE"
 cp -f "$LEG_SRC/eval_local.sh" "$LEG_SRC/eval_slot.sh" \
       "$LEG_SRC/shard_configs.py" "$HERE/"
 echo "staged eval_local.sh, eval_slot.sh, shard_configs.py"
+
+# shard_configs.py splits the 97 configs by MEASURED cost (they span 0.4 s to
+# 1537 s), and it reads that table from this study's own results/. Without
+# it every eval dies at shard 0 before the first config.
+mkdir -p "$HERE/../results"
+cp -f "$LEG_SRC/../results/config_costs.csv" "$HERE/../results/"
+echo "staged config_costs.csv"
