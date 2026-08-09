@@ -6,8 +6,10 @@
 | A3 | teacher | 1.1793 | 1.2184 | 1.3521 | +0.1337 |
 | B5 | student | 1.2748 | 1.3917 | 1.3204 | -0.0713 |
 | B5 | teacher | — | 1.3719 | 1.3216 | -0.0503 |
-| B9 | student | 1.5579 | — | 1.2791 | -0.2788 |
-| B9 | teacher | — | — | 1.2728 | — |
+| B9 | student | 1.5579 | — | 1.2791 | no same-code k = 0 |
+| B9 | teacher | — | — | 1.2728 | no same-code k = 0 |
+
+A delta is only shown where this study retrained the cell's own k = 0. The baseline validity gate below fails on both groups, so the published column is context, not a baseline.
 
 Head-seed band ±0.0384 (`ema_sched_ladder.md`, pooled). It bounds the head seed alone; the backbone-training spread is not measured.
 

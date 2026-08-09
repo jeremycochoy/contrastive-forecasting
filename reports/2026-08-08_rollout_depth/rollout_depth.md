@@ -82,7 +82,7 @@ and long and leave short alone. It does not.
 | B5 | student | **−6.4%** | −3.4% |
 | B5 | teacher | −4.4% | −2.6% |
 | A3 | student | +17.1% | +5.1% |
-| A3 | teacher | +15.9% | +4.9% |
+| A3 | teacher | +15.8% | +4.9% |
 
 B5 improves more on short than on long; A3 degrades more on short than on
 long. Both are the same shape: the depth moves short horizons about twice
@@ -291,3 +291,46 @@ and the horizon split.
 [`results/latent_movement.csv`](results/latent_movement.csv),
 [`results/splits.csv`](results/splits.csv) — the figure data.
 [`results/execution_log.md`](results/execution_log.md) — what happened while running it.
+
+## Annex: the parent report's figure set
+
+The card asks for every figure `ema_sched_ladder.md` and
+`lalign_teacher.md` publish, rebuilt on this study's cells. Five of them
+carry the result above; the rest are here.
+
+![ladder](plots/ladder.png)
+
+Each cell's published `k = 0` trajectory over the stops its parent report
+reached, with this study's bb40k points on it: a diamond for the retrained
+`k = 0`, a star for `k = 3`. B5's `k = 3` at 40k steps lands below its
+published `k = 0` at 100k, and B9's below its published `k = 0` at 200k.
+Read that as suggestive only — the gate above says those published curves
+are not on this code's scale.
+
+![encoder delta](plots/encoder_delta.png)
+
+Teacher head minus student head. The depth does not change which encoder
+the head is better trained on: the two heads land within 0.02 of each other
+on every cell at both depths.
+
+![training loss](plots/per_run_loss.png)
+
+The training loss. It is NOT comparable across the two depths — a `k = 3`
+loss is the `k = 0` objective plus three added terms — so this panel is
+here to show the shape and to catch a divergence. There is none.
+
+![depth-0 cosine error](plots/cos_error_per_arm.png)
+
+`1 − ff`, the depth-0 forecast error, which IS comparable across depths.
+This is the same quantity as the depth-0 curve of the per-depth figure
+above, drawn for every run in one axis.
+
+The teacher-head versions of the two result figures:
+[`plots/horizon_split_teacher.png`](plots/horizon_split_teacher.png) and
+[`plots/domain_radar_teacher.png`](plots/domain_radar_teacher.png). Both
+repeat the student-head picture.
+
+`alpha_schedule.png` is not rebuilt: group A's α is the parent's own
+schedule, 0.94 at bb40k, and group B holds α at 0.9. `paired_delta.png` and
+`seed_spread.png` are the parent's head-seed annex, and this study ran no
+head-seed replicate.

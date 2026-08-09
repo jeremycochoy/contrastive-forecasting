@@ -91,15 +91,22 @@ def main(argv=None):
             if k0 is None and k3 is None:
                 continue
             pub = PUBLISHED.get((cell, head))
-            base = k0 if k0 is not None else pub
-            delta = (f"{k3 - base:+.4f}"
-                     if k3 is not None and base is not None else "—")
+            # Only against THIS study's own k = 0. The baseline validity gate
+            # fails on both groups, so a delta against a published number is
+            # not a measurement of the depth — it is the depth plus whatever
+            # moved between the two code snapshots, which reaches 0.1169.
+            delta = (f"{k3 - k0:+.4f}"
+                     if k3 is not None and k0 is not None else "no same-code k = 0")
             lines.append(
                 f"| {cell} | {head} | "
                 f"{pub if pub is not None else '—'} | "
                 f"{f'{k0:.4f}' if k0 is not None else '—'} | "
                 f"{f'{k3:.4f}' if k3 is not None else '—'} | {delta} |")
-    lines += ["", f"Head-seed band ±{NOISE_BAND} "
+    lines += ["", "A delta is only shown where this study retrained the "
+              "cell's own k = 0. The baseline validity gate below fails on "
+              "both groups, so the published column is context, not a "
+              "baseline.", "",
+              f"Head-seed band ±{NOISE_BAND} "
               "(`ema_sched_ladder.md`, pooled). It bounds the head seed "
               "alone; the backbone-training spread is not measured.", ""]
 
