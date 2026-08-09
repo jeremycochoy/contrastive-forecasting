@@ -56,3 +56,20 @@ Retrying in 1s [Retry 1/5].
 [   9500] loss=0.210933  ema_loss=0.218630  6.6 sps  ETA 0.2h
 [  10000] loss=0.219077  ema_loss=0.218720  6.6 sps  ETA 0.2h
   -> Saved /home/jupyter/checkpoints_backup/cf-373/eval/A3_k0_bb40k_teacher/qhead_A3_k0_bb40k_teacher_s20260722_10k.pth
+[  10500] loss=0.224018  ema_loss=0.217061  6.6 sps  ETA 0.2h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/A3_k0_bb40k_teacher/qhead_A3_k0_bb40k_teacher_s20260722_best.pth (ema_loss=0.217061)
+[  11000] loss=0.215696  ema_loss=0.218976  6.7 sps  ETA 0.2h
+[  11500] loss=0.221452  ema_loss=0.218867  6.6 sps  ETA 0.1h
+[  12000] loss=0.214268  ema_loss=0.218126  6.7 sps  ETA 0.1h
+[  12500] loss=0.223213  ema_loss=0.218937  6.7 sps  ETA 0.1h
+[  13000] loss=0.212623  ema_loss=0.217392  6.7 sps  ETA 0.1h
+[  13500] loss=0.224189  ema_loss=0.218057  6.7 sps  ETA 0.1h
+[  14000] loss=0.233039  ema_loss=0.218764  6.8 sps  ETA 0.0h
+[  14500] loss=0.202059  ema_loss=0.217205  6.8 sps  ETA 0.0h
+[  15000] loss=0.225355  ema_loss=0.217922  6.8 sps  ETA 0.0h
+  -> Saved /home/jupyter/checkpoints_backup/cf-373/eval/A3_k0_bb40k_teacher/qhead_A3_k0_bb40k_teacher_s20260722_15k.pth
+
+Done in 0.6h. Best loss=0.217061 at step 10500
+[08-09 07:12:29] [A3_k0_bb40k_teacher] head-train rc=0
+[08-09 07:12:29] [A3_k0_bb40k_teacher] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-09 07:12:29] START A3_k0_bb40k_teacher bb40k enc=teacher shards=4 slot=1
