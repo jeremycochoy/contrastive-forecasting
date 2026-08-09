@@ -61,3 +61,16 @@ Retrying in 1s [Retry 1/5].
 [  12500] loss=0.225097  ema_loss=0.220770  6.1 sps  ETA 0.1h
 [  13000] loss=0.217392  ema_loss=0.219261  6.1 sps  ETA 0.1h
 [  13500] loss=0.226589  ema_loss=0.219885  6.1 sps  ETA 0.1h
+[  14000] loss=0.234754  ema_loss=0.220569  6.1 sps  ETA 0.0h
+[  14500] loss=0.204703  ema_loss=0.219066  6.1 sps  ETA 0.0h
+[  15000] loss=0.227687  ema_loss=0.219867  6.0 sps  ETA 0.0h
+  -> Saved /home/jupyter/checkpoints_backup/cf-373/eval/B9_k3_bb40k_student/qhead_B9_k3_bb40k_student_s20260722_15k.pth
+
+Done in 0.7h. Best loss=0.218938 at step 10500
+[08-09 10:26:33] [B9_k3_bb40k_student] head-train rc=0
+[08-09 10:26:33] [B9_k3_bb40k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-09 10:26:33] START B9_k3_bb40k_student bb40k enc=student shards=4 slot=0
+[08-09 11:40:42] merged 97 configs -> /home/jupyter/checkpoints_backup/cf-373/eval/B9_k3_bb40k_student/gift/all_results.csv
+[08-09 11:40:44] DONE B9_k3_bb40k_student bb40k student — Aggregate GM-Relative MASE (97 configs): 1.2791 -> 1.2791
+[08-09 11:40:44] [B9_k3_bb40k_student] eval rc=0
+[08-09 11:40:44] [B9_k3_bb40k_student] DONE — GM-Relative MASE 1.2791

@@ -29,6 +29,14 @@ a cell agree on the sign.
 
 Intervals are a paired dataset-cluster bootstrap over the 97 configs.
 
+**B9** (`arm1_nse_fix09`, split `L_pred` + CPC, the other cell with `f` in
+both places) has no same-code `k = 0`, so it gets no row above. Its `k = 3`
+levels are **1.2791** student and **1.2728** teacher, against a published
+`k = 0` of 1.5579. That is the direction B5 moved, and the gate's own bias
+runs the same way — this code scored B5's `k = 0` 0.117 *worse* than
+published, so a same-code B9 `k = 0` would most likely be above 1.5579, not
+below. It is still not a measurement, and it is not counted as one.
+
 The card itself drew this line. B5 and B9 are "the only two cells whose main
 contrastive term carries `f` in both places", and it asked for them first
 precisely because "if the flag is wrong there, the other nine will not show
@@ -52,6 +60,11 @@ never below.
 |---|---|---|---|
 | B5 k = 0 → k = 3 | 0.788 → 0.891 | 0.784 → 0.872 | 0.772 → 0.832 |
 | A3 k = 0 → k = 3 | 0.932 → 0.982 | 0.929 → 0.958 | 0.904 → 0.907 |
+| B9 k = 3 (no pair) | 0.489 | 0.280 | 0.107 |
+
+B9's rollout collapses by d = 4 even at `k = 3`. The split shape trains
+`L_pred` and `L_rep` on separate halves of the latent, and nothing in this
+study says what its `k = 0` rollout looks like.
 
 So the mechanism is not in doubt. The gap between the two cells is in what
 the head does with it.
@@ -64,10 +77,12 @@ The rollout deficit is a horizon effect — #327 reports short 0.976, medium
 1.41, long 1.37 — so a per-step gain that compounds should land on medium
 and long and leave short alone. It does not.
 
-| cell | short (55) | medium+long (42) |
-|---|---|---|
-| B5 | **−6.4%** | −3.4% |
-| A3 | +17.1% | +5.1% |
+| cell | head | short (55) | medium+long (42) |
+|---|---|---|---|
+| B5 | student | **−6.4%** | −3.4% |
+| B5 | teacher | −4.4% | −2.6% |
+| A3 | student | +17.1% | +5.1% |
+| A3 | teacher | +15.9% | +4.9% |
 
 B5 improves more on short than on long; A3 degrades more on short than on
 long. Both are the same shape: the depth moves short horizons about twice
@@ -196,7 +211,7 @@ front of the card's own run order and stopped.
 
 | | ran | did not run |
 |---|---|---|
-| cells at k = 3 | B5, B9, A3 | A1, A2, A4, B1, B2, B3, B4, B6, B7, B8, B10 |
+| cells at k = 3 | B5, B9, A3 (all 10 stops scored) | A1, A2, A4, B1, B2, B3, B4, B6, B7, B8, B10 |
 | same-code k = 0 | B5, A3 (the two gates) | the rest |
 | stops | bb40k | bb100k, bb200k |
 | head-seed replicates | none | the card's annex figures |
