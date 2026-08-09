@@ -49,7 +49,13 @@ adopt(){ # <cell> <k> <steps> -> 0 if the checkpoint is now on the durable root
   # .tmp and renames, so the name only appears whole — but a torch.load of
   # a truncated file is the one failure that costs a head's GPU time, so it
   # is checked rather than assumed.
-  python3 -c "import sys, torch; torch.load(sys.argv[1], map_location='cpu')" \
+  #
+  # weights_only=False, because that is how every consumer of this file
+  # loads it (`src/eval_latent_movement.load_backbone`, the head trainer).
+  # torch 2.8 defaults the flag to True, and a check stricter than the
+  # consumer would reject a good checkpoint forever, which reads exactly
+  # like a box that never finished.
+  python3 -c "import sys, torch; torch.load(sys.argv[1], map_location='cpu', weights_only=False)" \
     "$found" >/dev/null 2>&1 || { log "  $(basename "$found") does not load yet"; return 1; }
   mkdir -p "$dir"
   cp -f "$found" "$dir/" || return 1

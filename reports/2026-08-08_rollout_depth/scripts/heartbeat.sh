@@ -59,6 +59,16 @@ while IFS=$'\t' read -r lbl id host port jobs; do
   [ "$qdone" = "yes" ] && echo "[$lbl] QUEUE DRAINED — destroy the box once its checkpoints are synced"
 done < "$BOXES"
 
+# elisa's half: the two head/eval drivers, and what they have produced.
+drv=$(pgrep -fc "bash .*stops_driver.sh" 2>/dev/null || echo 0)
+heads=$(pgrep -fc "train_forecasting_head.py" 2>/dev/null || echo 0)
+evals=$(pgrep -fc "eval_gift_eval_official.py" 2>/dev/null || echo 0)
+scores=$(ls "$STUDY/results"/score_*.txt 2>/dev/null | wc -l)
+printf '[elisa] drivers=%s heads=%s eval-shards=%s scores=%s/10\n' \
+  "$drv" "$heads" "$evals" "$scores"
+[ "${drv:-0}" -lt 2 ] && echo "ALERT [elisa] fewer than 2 stops drivers running"
+tail -n 3 "$STUDY/results/stops_driver.log" 2>/dev/null | sed 's/^/        /'
+
 bal=$(timeout 90 vastrun-balance 2>/dev/null | awk '/Credit/ {print $2}')
 n_up=$(timeout 120 vastrun-status 2>/dev/null | grep -c 'cf373-rollout' || echo 0)
 echo "balance=${bal:-?} instances=${n_up}"
