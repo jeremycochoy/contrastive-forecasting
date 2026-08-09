@@ -68,6 +68,7 @@ def main(argv=None):
 
     fig, (axL, axR) = plt.subplots(1, 2, figsize=(11.5, 4.4))
     w = 0.8 / (2 * len(cells))
+    all_deltas = []
 
     for i, cell in enumerate(cells):
         col = cc.colour(cell)
@@ -82,6 +83,7 @@ def main(argv=None):
         deltas = [100.0 * (data[(cell, 3, args.head)][t]
                            / data[(cell, 0, args.head)][t] - 1.0)
                   for t in TERMS]
+        all_deltas += deltas
         axR.plot(range(len(TERMS)), deltas, marker="o", color=col,
                  linewidth=2.0, label=cc.label(cell))
 
@@ -96,7 +98,12 @@ def main(argv=None):
                loc="upper left", frameon=False, fontsize=9)
 
     axR.axhline(0.0, color=cc.INK_SOFT, linewidth=1.0)
-    axR.axhspan(-100, -5, color="#2ca02c", alpha=0.08, zorder=0)
+    # Clip the criterion band to the data, or the -5% half-plane sets the
+    # scale and every point lands on one line at the top.
+    lo = min(0.0, min(all_deltas)) - 3.0
+    hi = max(3.0, max(all_deltas)) + 3.0
+    axR.set_ylim(lo, hi)
+    axR.axhspan(lo, -5.0, color="#2ca02c", alpha=0.08, zorder=0)
     axR.axhline(-5.0, color="#2ca02c", linewidth=1.0, linestyle=(0, (4, 3)))
     axR.axhline(2.0, color="#d62728", linewidth=1.0, linestyle=(0, (4, 3)))
     axR.set_xticks(range(len(TERMS)))
