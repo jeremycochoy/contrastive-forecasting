@@ -68,7 +68,7 @@ drv=$(count "bash .*stops_driver.sh")
 heads=$(count "train_forecasting_head.py")
 evals=$(count "eval_gift_eval_official.py")
 scores=$(ls "$STUDY/results"/score_*.txt 2>/dev/null | wc -l)
-printf '[elisa] drivers=%s heads=%s eval-shards=%s scores=%s/10\n' \
+printf '[elisa] drivers=%s heads=%s eval-shards=%s scores=%s/12\n' \
   "$drv" "$heads" "$evals" "$scores"
 [ "${drv:-0}" -lt 2 ] && echo "ALERT [elisa] fewer than 2 stops drivers running"
 tail -n 3 "$STUDY/results/stops_driver.log" 2>/dev/null | sed 's/^/        /'

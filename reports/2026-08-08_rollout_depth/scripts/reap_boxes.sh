@@ -28,6 +28,15 @@ say(){ echo "[$(date '+%m-%d %H:%M:%S')] [reap] $*" | tee -a "$STUDY/results/rea
 while IFS=$'\t' read -r lbl id host port jobs; do
   case "$lbl" in ''|'#'*) continue ;; esac
 
+  # A hold marker means another job is being chained onto this box. Without
+  # it the reaper and the chain race: the chain waits for QUEUE_DONE, and so
+  # does the reaper, and whichever wins decides whether the next cell runs
+  # or the box is destroyed.
+  if [ -f "$STUDY/results/HOLD_$lbl" ]; then
+    say "$lbl held by results/HOLD_$lbl — not reaping"
+    continue
+  fi
+
   state=$(timeout 45 ssh "${SSH_OPTS[@]}" -p "$port" "root@$host" '
       test -f /root/cf/reports/2026-08-08_rollout_depth/results/QUEUE_DONE \
         && echo DONE || echo BUSY
