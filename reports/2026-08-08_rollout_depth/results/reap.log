@@ -1,1 +1,19 @@
 [08-09 01:28:33] [reap] b held by results/HOLD_b — not reaping
+[08-09 02:05:42] [reap] d unreachable — leaving it
+[08-09 02:31:34] [reap] b drained, all 2 checkpoint file(s) verified local — destroying 47219009
+  Destroyed instance 47219009
+    Label:  cf373-rollout-a
+    GPU:    1× RTX 5090
+    Uptime: 2h 15m
+    Spent:  $0.81
+[08-09 03:49:10] [reap] a unreachable — leaving it
+[08-09 04:04:50] [reap] d NOT YET: cf393_arm6_v2_combab_alignT_cf373k0_40k.pth is not here at 5194659 B
+[08-09 04:04:50] [reap] d NOT YET: cf393_arm6_v2_combab_alignT_cf373k0_40k_optimizer.pth is not here at 5791427 B
+[08-09 04:09:53] [reap] a drained, all 2 checkpoint file(s) verified local — destroying 47218666
+  Destroyed instance 47218666
+    Label:  cf373-rollout-a
+    GPU:    1× RTX 5090
+    Uptime: 3h 59m
+    Spent:  $1.44
+[08-09 04:15:08] [reap] d drained, all 4 checkpoint file(s) verified local — destroying 47219263
+  Instance 47219263 has no marker — it was provisioned outside vastrun-kit. Re-run with --force to destroy anyway.
