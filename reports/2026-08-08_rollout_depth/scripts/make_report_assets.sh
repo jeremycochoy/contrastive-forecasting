@@ -67,8 +67,8 @@ done < <(python3 "$HERE/find_artefacts.py" --what pairs --results "$RES")
 if [ -f "$RES/splits.csv" ]; then
   run "$HERE/plot_depth_response.py" --splits "$RES/splits.csv" \
       --out "$PLOTS/depth_response.png"
-  run "$HERE/plot_seed_spread.py" --splits "$RES/splits.csv" \
-      --out "$PLOTS/seed_spread.png"
+  run "$HERE/plot_b5_backbones.py" --splits "$RES/splits.csv" \
+      --out "$PLOTS/b5_backbones.png"
   run "$HERE/plot_a3_depth.py" --splits "$RES/splits.csv" \
       --out "$PLOTS/a3_depth.png"
   run "$HERE/plot_encoder_delta.py" --splits "$RES/splits.csv" \

@@ -94,7 +94,7 @@ and B9 on 5; B5·s2 pulls inward on 1 and A3 on none. Teacher head:
 
 ## 5. One cell, three backbones: the machine or the seed
 
-![seed spread](plots/seed_spread.png)
+![B5 backbones](plots/b5_backbones.png)
 
 B5 trained twice at first: same code, same recipe, same head seed, same
 eval. The two runs give opposite answers about the depth, and they land

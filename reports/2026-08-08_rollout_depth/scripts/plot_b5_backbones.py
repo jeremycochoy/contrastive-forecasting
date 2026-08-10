@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""#373 figure 3 — B5 trained three times, and what the three disagree about.
+"""#373 figure 3 — B5 trained three times: two seeds, two machines.
 
 One cell, one recipe, one head seed, one 97-config eval. Three backbones:
 
@@ -23,8 +23,8 @@ The dashed rule is #379's published value for this cell.
 
 Reads results/splits.csv (`all` rows) and the registry.
 
-Usage: plot_seed_spread.py --splits results/splits.csv \\
-           --out plots/seed_spread.png
+Usage: plot_b5_backbones.py --splits results/splits.csv \\
+           --out plots/b5_backbones.png
 """
 from __future__ import annotations
 
