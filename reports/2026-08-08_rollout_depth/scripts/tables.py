@@ -212,7 +212,7 @@ def main(argv=None):
               "band is a floor on what a seed can move and not a bound on "
               f"it. {', '.join(sorted(set(cross_seed)))} is the only row it "
               "gates; every other row here carries the parents' own seed.", ""]
-    L += ["`B5·pub` is not a training: it takes #379's own published B5 "
+    L += ["`B5·pub` is not a training: it takes the parent report's own published B5 "
           "checkpoint and puts this study's head and eval on it, so its "
           "row bounds the head and the eval rather than the trainer. "
           "`B5·s3` is a training, at the protocol seed, on elisa.", ""]

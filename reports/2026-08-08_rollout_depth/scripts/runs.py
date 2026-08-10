@@ -73,7 +73,7 @@ _ROWS = [
     # #379 published, so folding it into B5·s1 would put a box this study
     # never rented into B5·s1's machine list.
     ("G1_B5pub",          "B5", "B5·pub", 0, 20260520, "control",
-     "#379's published backbone, this study's head and eval", ""),
+     "the parent report's published backbone, this study's head and eval", ""),
     ("G7_B5_k0_e",        "B5", "B5·s3",  0, 20260520, "control",
      "the protocol seed on elisa",
      "bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k"
@@ -104,7 +104,7 @@ _MACHINE = {
     "G3_A3_k1":      ("elisa", "RTX 4090"),
     "A3_k3":         ("vast box b", "RTX 5090"),
     "G3_A3_k0_aw4":  ("elisa", "RTX 4090"),
-    "G1_B5pub":      ("#379's box", "—"),
+    "G1_B5pub":      ("the parent report's box", "—"),
     "G7_B5_k0_e":    ("elisa", "RTX 4090"),
 }
 

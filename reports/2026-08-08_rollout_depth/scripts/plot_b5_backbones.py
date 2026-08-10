@@ -124,7 +124,7 @@ def main(argv=None):
         raise SystemExit(f"ABORT: no B5 backbone in {args.splits}")
 
     axes[0].set_ylabel("GM-Relative MASE, 97 configs  (lower is better)")
-    axes[0].annotate(f"#379 publishes {PUB:.4f} for this cell",
+    axes[0].annotate(f"the parent report publishes {PUB:.4f} for this cell",
                      (3.45, PUB), fontsize=8, color=cc.INK_SOFT,
                      ha="right", va="bottom",
                      bbox=dict(fc="#ffffff", ec="none", pad=0.8))

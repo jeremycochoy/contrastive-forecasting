@@ -97,18 +97,9 @@ def main(argv=None):
                     ax.annotate("", xy=(x, kk), xytext=(x, k0),
                                 arrowprops=dict(arrowstyle="->", color=col,
                                                 linewidth=1.2))
-        # The lowest number the three parent reports publish for any of the
-        # 14 cells at any stop. A point below it is a new best for this
-        # protocol.
-        best = min(v for c in PUBLISHED.values() for h in c.values()
-                   for v in h.values())
-        ax.axhline(best, color=cc.PARITY, linewidth=1.1,
-                   linestyle=(0, (4, 3)), zorder=0)
-        ax.annotate(
-            f"best published number of the 14 cells, any stop ({best:.4f})",
-            (0.99, best), xycoords=("axes fraction", "data"), fontsize=7.5,
-            color=cc.INK_SOFT, ha="right", va="bottom",
-            bbox=dict(fc="#ffffff", ec="none", pad=0.8))
+        # No cross-cell rule is drawn. A cell this study never retrained has
+        # no machine-matched number here, and the machine alone is worth
+        # 0.1166, so a comparison against it would not be readable.
         ax.set_xlabel("backbone step")
         ax.set_title(f"{head} head", loc="left")
     axes[0].set_ylabel("GM-Relative MASE (97 configs)")
