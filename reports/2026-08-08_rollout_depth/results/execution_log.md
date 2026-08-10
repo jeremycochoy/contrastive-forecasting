@@ -322,3 +322,58 @@ run worktree carries its own fork of `execution_log.md`, branched before the
 review runs, and rsync copied the older file over the newer one: 82 lines
 gone. The log is written in the checkout, never by a run, so it is now
 excluded from that rsync. Restored from git.
+
+## 2026-08-10 18:22 — the rebuild did not run from committed artefacts
+
+`find_artefacts.py` searched two working trees, `~/cf373_sync` and
+`$CF373_ROOT`, and the checkout last. Both are local to elisa. Five of the
+study's eleven depth-ladder curves lived only in `$CF373_ROOT`, because
+elisa has no sync loop and wrote straight to the durable root, so a clone
+resolved ZERO curves and rebuilt no training-curve figure at all. **Both
+sides of B1 were among the five**, which put the study's one sound
+comparison outside the repository.
+
+`collect.sh` now downsamples every such curve into `curves/<machine>/`, at
+the same `--stride 20 --dense-until 1000` the box runs already used, and
+`find_artefacts.py` searches the committed tree FIRST. Eight elisa curves
+came across, 11 MB. `--what missingcurves` is the standing check: it lists
+every backbone whose losses CSV is in a working tree and not in git, and it
+now prints nothing.
+
+Verified by hiding both trees:
+`CF373_SYNC_BASE=/nonexistent CF373_ROOT=/nonexistent bash
+scripts/make_report_assets.sh` rebuilds all 14 non-checkpoint figures and
+every table. The two checkpoint figures skip with the line that says so; the
+Protocol names them.
+
+Two side effects worth recording. Every curve in a figure is now at one
+resolution. Before this, the box runs were downsampled and the elisa runs
+were not, so B9's two sides carried different smoothing spans in the same
+panel. And the four curve figures changed slightly, which is that fix.
+
+## 2026-08-10 18:26 — one rsync exclusion was not enough
+
+The Aug 10 17:54 fix excluded `execution_log.md` by name.
+`make_report_assets.sh` writes eight more files into the same directory and
+the same stale fork would have reverted every one. `collect.sh` now holds a
+`GENERATED` list of all ten, and a guard re-derives the list from
+`make_report_assets.sh` and refuses to run if the two disagree. Tested by
+dropping a name: the guard names the missing file and exits 1.
+
+## 2026-08-10 18:31 — the depth-0 diagnostic did not survive its own audit
+
+Committing the curves made section 9 auditable for the first time, so it was
+audited. `depth0_gap.py` writes the gap the section reads off
+`cos_err_depth.png` as a number, over four end-of-run windows.
+
+B9 and B1 hold their sign over every window, at 0.08 to 0.11. **A3 and B5·s2
+do not.** A3's `k = 3` gap runs -0.0469 over the last half of the run and
++0.0623 at the final step. B5·s2's runs +0.0121 and -0.0129. The section's
+sentence "the sign of that gap matches the sign of the eval result in all
+four cells" was true of two cells, and it is now stated as two.
+
+The gap for those two arms is smaller than the drift across the window it is
+measured over. Nothing here says the diagnostic is wrong; it says it is
+underpowered on the two arms whose eval result it appeared to explain.
+`results/depth0_gap.csv` carries the numbers and marks which arms hold a
+sign.

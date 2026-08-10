@@ -90,6 +90,9 @@ if [ "${#curves[@]}" -gt 0 ]; then
   run "$HERE/plot_cos_err_depth.py" "${curves[@]}" \
       --out "$PLOTS/cos_err_depth.png"
   run "$HERE/plot_train_curves.py" "${curves[@]}" --out-dir "$PLOTS"
+  # The sign the report reads off cos_err_depth.png, as a number, over four
+  # end-of-run windows. An arm whose sign depends on the window has none.
+  run "$HERE/depth0_gap.py" "${curves[@]}" --out "$RES/depth0_gap.csv"
 else
   say "no losses CSV found — no training-curve figures"
 fi
