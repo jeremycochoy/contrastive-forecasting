@@ -1,0 +1,18 @@
+[08-09 14:16:29] [w1] BB START G3_A3_k0_aw4 (gap 3) launcher=run_leg_k.sh arg=arm6_v2_combab_alignT k=0 seed=20260520 suffix='_aw4' gap_args='--align-loss-weight 4.0' gpu=0
+[08-09 14:16:29] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-09 14:16:29] [arm6_v2_combab_alignT] START target=40000 gpu=0 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-373/arm6_v2_combab_alignT/leg_40k
+[08-09 17:08:29] [arm6_v2_combab_alignT] DONE target=40000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-373/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k0_aw4_40k.pth
+[08-09 17:08:29] [w1] BB END   G3_A3_k0_aw4 rc=0
+[08-09 17:08:29] [w1] heads for G3_A3_k0_aw4 handed off
+[08-09 17:08:29] [w1] BB START G5_B5_s2_k3 (gap 5) launcher=run_arm_k.sh arg=arm4_combab k=3 seed=20260521 suffix='_s2' gap_args='none' gpu=0
+[08-09 17:08:29] [elisa-arm4_combab] BB START (arm 4_combab: xshh_allt + moco-negatives + τ=1.0 + cpc=0 + sigreg_e=0) gpu=0 target=40000 final=200000 bs=64 
+[08-09 23:12:12] [elisa-arm4_combab] arm4_combab wave complete: target=40000 (< final 200000) — latest ck bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_s2_40k.pth
+[08-09 23:12:12] [w1] BB END   G5_B5_s2_k3 rc=0
+[08-09 23:12:12] [w1] heads for G5_B5_s2_k3 handed off
+[08-09 23:12:12] [w1] BB START G3_A3_k1 (gap 3) launcher=run_leg_k.sh arg=arm6_v2_combab_alignT k=1 seed=20260520 suffix='none' gap_args='none' gpu=0
+[08-09 23:12:12] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-09 23:12:12] [arm6_v2_combab_alignT] START target=40000 gpu=0 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-373/arm6_v2_combab_alignT/leg_40k
+[08-10 02:04:39] [arm6_v2_combab_alignT] DONE target=40000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-373/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k1_40k.pth
+[08-10 02:04:39] [w1] BB END   G3_A3_k1 rc=0
+[08-10 02:04:39] [w1] heads for G3_A3_k1 handed off
+[08-10 02:04:39] [w1] worker 1 drained

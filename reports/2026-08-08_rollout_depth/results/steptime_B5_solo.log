@@ -1,0 +1,35 @@
+[08-09 13:51:17] [steptime B5] START slug=arm4_combab_fix09 steps=600 reps=3 log_every=200 gpu=0
+[08-09 13:51:17] [steptime B5] card at start: 8946 MiB, 15265 MiB, 24 %
+[08-09 13:51:17] [steptime B5] compute apps at start: 842078, 954 MiB;2178997, 452 MiB;1122131, 1108 MiB;3039489, 452 MiB;3039498, 452 MiB;3039500, 452 MiB;3039495, 452 MiB;3039494, 452 MiB;3039501, 452 MiB;3039492, 452 MiB;3039496, 452 MiB;3039493, 452 MiB;3039499, 452 MiB;3039497, 452 MiB;244655, 1400 MiB;
+[08-09 13:51:17] [elisa-arm4_combab] BB START (arm 4_combab: xshh_allt + moco-negatives + τ=1.0 + cpc=0 + sigreg_e=0) gpu=0 target=600 final=200000 bs=64 
+[08-09 13:53:39] [elisa-arm4_combab] arm4_combab wave complete: target=600 (< final 200000) — latest ck bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k0_solo_B5_r1_0k.pth
+[08-09 13:53:39] [steptime B5] rep=1 k=0 done
+[08-09 13:53:39] [elisa-arm4_combab] BB START (arm 4_combab: xshh_allt + moco-negatives + τ=1.0 + cpc=0 + sigreg_e=0) gpu=0 target=600 final=200000 bs=64 
+[08-09 13:59:13] [elisa-arm4_combab] arm4_combab wave complete: target=600 (< final 200000) — latest ck bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_solo_B5_r1_0k.pth
+[08-09 13:59:13] [steptime B5] rep=1 k=3 done
+[08-09 13:59:13] [elisa-arm4_combab] BB START (arm 4_combab: xshh_allt + moco-negatives + τ=1.0 + cpc=0 + sigreg_e=0) gpu=0 target=600 final=200000 bs=64 
+[08-09 14:01:43] [elisa-arm4_combab] arm4_combab wave complete: target=600 (< final 200000) — latest ck bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k0_solo_B5_r2_0k.pth
+[08-09 14:01:43] [steptime B5] rep=2 k=0 done
+[08-09 14:01:43] [elisa-arm4_combab] BB START (arm 4_combab: xshh_allt + moco-negatives + τ=1.0 + cpc=0 + sigreg_e=0) gpu=0 target=600 final=200000 bs=64 
+[08-09 14:07:19] [elisa-arm4_combab] arm4_combab wave complete: target=600 (< final 200000) — latest ck bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_solo_B5_r2_0k.pth
+[08-09 14:07:19] [steptime B5] rep=2 k=3 done
+[08-09 14:07:19] [elisa-arm4_combab] BB START (arm 4_combab: xshh_allt + moco-negatives + τ=1.0 + cpc=0 + sigreg_e=0) gpu=0 target=600 final=200000 bs=64 
+[08-09 14:09:45] [elisa-arm4_combab] arm4_combab wave complete: target=600 (< final 200000) — latest ck bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k0_solo_B5_r3_0k.pth
+[08-09 14:09:45] [steptime B5] rep=3 k=0 done
+[08-09 14:09:45] [elisa-arm4_combab] BB START (arm 4_combab: xshh_allt + moco-negatives + τ=1.0 + cpc=0 + sigreg_e=0) gpu=0 target=600 final=200000 bs=64 
+[08-09 14:16:09] [elisa-arm4_combab] arm4_combab wave complete: target=600 (< final 200000) — latest ck bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_solo_B5_r3_0k.pth
+[08-09 14:16:09] [steptime B5] rep=3 k=3 done
+[08-09 14:16:09] [steptime B5] card at end: 8946 MiB, 15265 MiB, 4 %
+[08-09 14:16:09] [steptime B5] card during the probe: mean util 44%, mean used 14306 MiB, 149 samples
+
+GPU step time, median over post-warm-up windows (ms/step)
+  k   n     data      fwd      bwd   fwd+bwd     total    sps
+-------------------------------------------------------------
+  0   6      3.7    117.6     72.6     190.2     194.4   4.15
+  3   6      4.0    266.8    243.2     509.9     514.5   1.80
+
+k=3 against k=0:
+  fwd+bwd    190.2 ->   509.9 ms (+168.2%)
+  total      194.4 ->   514.5 ms (+164.7%)
+  sps         4.15 ->    1.80 (-56.6% throughput, +130.6% wall clock per step)
+  GPU MiB     8946 ->    8946 (whole card, this run plus its neighbour)

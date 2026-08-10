@@ -1,0 +1,70 @@
+[08-10 02:29:00] [G6_B1_k3_bb40k_student] head-train start enc=student steps=15000 seed=20260722 gpu=0 bb=bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_40k.pth
+  [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+  [head-train] auto-detected qk_norm=True from backbone checkpoint
+  [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+  [head-train] auto-detected patch_stats=none
+Backbone loaded from /home/jupyter/checkpoints_backup/cf-373/bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3/bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_40k.pth (0 params, frozen, encoder=student)
+/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/transformer.py:392: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  warnings.warn(
+Forecasting head [transformer-q (2L H64 nhead8 causal)]: 109,456 trainable params
+Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+Schedule: constant warmup=0 decay_start=12000 final_ratio=0.1
+Loss CSV: /home/jupyter/checkpoints_backup/cf-373/eval/G6_B1_k3_bb40k_student/qhead_G6_B1_k3_bb40k_student_s20260722_losses.csv
+Data: MIX 100% HF + 0% synth, hf_bs=256, synth_bs=0, synth_seed=20280722, emit_labels=True
+
+Training for 15000 steps, bs=256, lr=0.001, forecast_len=16
+Checkpoints: /home/jupyter/checkpoints_backup/cf-373/eval/G6_B1_k3_bb40k_student/qhead_G6_B1_k3_bb40k_student_s20260722_*.pth
+[    500] loss=0.211329  ema_loss=0.215395  7.1 sps  ETA 0.6h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/G6_B1_k3_bb40k_student/qhead_G6_B1_k3_bb40k_student_s20260722_best.pth (ema_loss=0.215395)
+[   1000] loss=0.214790  ema_loss=0.210047  6.9 sps  ETA 0.6h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/G6_B1_k3_bb40k_student/qhead_G6_B1_k3_bb40k_student_s20260722_best.pth (ema_loss=0.210047)
+[   1500] loss=0.217920  ema_loss=0.207425  7.0 sps  ETA 0.5h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/G6_B1_k3_bb40k_student/qhead_G6_B1_k3_bb40k_student_s20260722_best.pth (ema_loss=0.207425)
+[   2000] loss=0.202652  ema_loss=0.207280  7.1 sps  ETA 0.5h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/G6_B1_k3_bb40k_student/qhead_G6_B1_k3_bb40k_student_s20260722_best.pth (ema_loss=0.207280)
+[   2500] loss=0.213293  ema_loss=0.206053  6.9 sps  ETA 0.5h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/G6_B1_k3_bb40k_student/qhead_G6_B1_k3_bb40k_student_s20260722_best.pth (ema_loss=0.206053)
+[   3000] loss=0.203484  ema_loss=0.205816  7.0 sps  ETA 0.5h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/G6_B1_k3_bb40k_student/qhead_G6_B1_k3_bb40k_student_s20260722_best.pth (ema_loss=0.205816)
+[   3500] loss=0.193286  ema_loss=0.205851  7.1 sps  ETA 0.5h
+[   4000] loss=0.225772  ema_loss=0.205642  7.2 sps  ETA 0.4h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/G6_B1_k3_bb40k_student/qhead_G6_B1_k3_bb40k_student_s20260722_best.pth (ema_loss=0.205642)
+[   4500] loss=0.220967  ema_loss=0.206220  7.2 sps  ETA 0.4h
+[   5000] loss=0.206603  ema_loss=0.205736  7.2 sps  ETA 0.4h
+  -> Saved /home/jupyter/checkpoints_backup/cf-373/eval/G6_B1_k3_bb40k_student/qhead_G6_B1_k3_bb40k_student_s20260722_5k.pth
+[   5500] loss=0.205610  ema_loss=0.205707  7.2 sps  ETA 0.4h
+[   6000] loss=0.197496  ema_loss=0.204829  7.3 sps  ETA 0.3h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/G6_B1_k3_bb40k_student/qhead_G6_B1_k3_bb40k_student_s20260722_best.pth (ema_loss=0.204829)
+[   6500] loss=0.201696  ema_loss=0.204458  7.2 sps  ETA 0.3h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/G6_B1_k3_bb40k_student/qhead_G6_B1_k3_bb40k_student_s20260722_best.pth (ema_loss=0.204458)
+[   7000] loss=0.193331  ema_loss=0.204944  7.1 sps  ETA 0.3h
+[   7500] loss=0.206968  ema_loss=0.205142  7.0 sps  ETA 0.3h
+[   8000] loss=0.200923  ema_loss=0.204774  6.9 sps  ETA 0.3h
+[   8500] loss=0.211919  ema_loss=0.203716  6.9 sps  ETA 0.3h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/G6_B1_k3_bb40k_student/qhead_G6_B1_k3_bb40k_student_s20260722_best.pth (ema_loss=0.203716)
+[   9000] loss=0.192802  ema_loss=0.203664  6.9 sps  ETA 0.2h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/G6_B1_k3_bb40k_student/qhead_G6_B1_k3_bb40k_student_s20260722_best.pth (ema_loss=0.203664)
+[   9500] loss=0.196986  ema_loss=0.204002  6.8 sps  ETA 0.2h
+[  10000] loss=0.202280  ema_loss=0.204182  6.8 sps  ETA 0.2h
+  -> Saved /home/jupyter/checkpoints_backup/cf-373/eval/G6_B1_k3_bb40k_student/qhead_G6_B1_k3_bb40k_student_s20260722_10k.pth
+[  10500] loss=0.209593  ema_loss=0.202481  6.7 sps  ETA 0.2h
+  -> New best: /home/jupyter/checkpoints_backup/cf-373/eval/G6_B1_k3_bb40k_student/qhead_G6_B1_k3_bb40k_student_s20260722_best.pth (ema_loss=0.202481)
+[  11000] loss=0.201295  ema_loss=0.204462  6.7 sps  ETA 0.2h
+[  11500] loss=0.209966  ema_loss=0.204459  6.7 sps  ETA 0.1h
+[  12000] loss=0.200531  ema_loss=0.203705  6.7 sps  ETA 0.1h
+[  12500] loss=0.208918  ema_loss=0.204732  6.7 sps  ETA 0.1h
+[  13000] loss=0.199387  ema_loss=0.203258  6.7 sps  ETA 0.1h
+[  13500] loss=0.210876  ema_loss=0.203894  6.7 sps  ETA 0.1h
+[  14000] loss=0.219028  ema_loss=0.204718  6.7 sps  ETA 0.0h
+[  14500] loss=0.186232  ema_loss=0.203104  6.7 sps  ETA 0.0h
+[  15000] loss=0.209885  ema_loss=0.203871  6.7 sps  ETA 0.0h
+  -> Saved /home/jupyter/checkpoints_backup/cf-373/eval/G6_B1_k3_bb40k_student/qhead_G6_B1_k3_bb40k_student_s20260722_15k.pth
+
+Done in 0.6h. Best loss=0.202481 at step 10500
+[08-10 03:06:37] [G6_B1_k3_bb40k_student] head-train rc=0
+[08-10 03:06:37] [G6_B1_k3_bb40k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-10 03:06:37] START G6_B1_k3_bb40k_student bb40k enc=student shards=6 slot=0
+[08-10 04:16:00] merged 97 configs -> /home/jupyter/checkpoints_backup/cf-373/eval/G6_B1_k3_bb40k_student/gift/all_results.csv
+[08-10 04:16:03] DONE G6_B1_k3_bb40k_student bb40k student — Aggregate GM-Relative MASE (97 configs): 1.0850 -> 1.0850
+[08-10 04:16:03] [G6_B1_k3_bb40k_student] eval rc=0
+[08-10 04:16:03] [G6_B1_k3_bb40k_student] DONE — GM-Relative MASE 1.0850

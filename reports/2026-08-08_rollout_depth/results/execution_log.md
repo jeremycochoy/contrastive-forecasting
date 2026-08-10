@@ -204,3 +204,52 @@ snapshot and this one is larger than the effect the study set out to
 measure, so every delta computed against a published number — including the
 A3 k = 3 numbers reported an hour ago — has to be recomputed against this
 study's own k = 0.
+
+## 2026-08-09 13:17 to 2026-08-10 06:29 — the review runs
+
+Seven more backbones and fourteen more heads, on elisa's two 4090s rather
+than rented cards. `gap_worker.sh` ran two backbones at a time on one card
+and handed each finished backbone's heads to a background subshell, because
+head training is ~35 GPU-minutes and the GIFT-Eval is ~1 CPU hour: serialising
+them behind the queue would have idled the cores for hours.
+
+The queue drained at 02:04 and the last head finished at 06:29. Every one of
+the 25 evals holds all 97 configs.
+
+One head died and was retried once (G2_B9_k0 teacher, 22:52). `head_eval_bb.sh`
+is idempotent in both halves, so the retry cost only what had not finished.
+
+## 2026-08-10 — collection and re-analysis
+
+`collect.sh` brought the 25 score files, the trainer logs and the per-config
+eval CSVs into the git checkout. `results/boxes.tsv.tmp.4009307`, a partial
+write left by an interrupted `reap_boxes.sh`, was already gone; nothing under
+the checkout or the run worktree matches `boxes.tsv.tmp.*`.
+
+Three things in the analysis code were wrong and are fixed:
+
+- **Tag parsing dropped the review runs.** Every table and figure resolved a
+  cell by splitting the eval tag on `_` and reading field 1. That works for
+  `A3_k3_bb40k_student` and silently drops `G6_B1_k0_bb40k_student`, so B1
+  and B9 had no same-code baseline in any figure even though both had been
+  trained. `scripts/runs.py` is now the one registry; no consumer parses a
+  tag.
+- **A prefix test folded a control into the cell it controls for.** Group A's
+  launcher writes every depth of a cell AND the `L_align x4` control into one
+  `leg_40k` directory, so `cf393_..._cf373k0` is a prefix of
+  `cf393_..._cf373k0_aw4_40k.pth`. The rollout-fidelity and latent-movement
+  figures picked their A3 `k = 0` checkpoint by `startswith`, so either file
+  could win. `runs.ckpt_step()` now matches `_<N>k.pth` exactly.
+- **`gap_analyse.sh` was a second pipeline.** It wrote `splits_all.csv`,
+  `bootstrap_gaps.csv` and `gap_scores.md` beside `make_report_assets.sh`'s
+  `splits.csv`, `bootstrap.csv` and `scores.md`, from the same inputs. Folded
+  into the one rebuild script and deleted.
+
+`make_report_assets.sh` is now the single entry point and holds no paths:
+`runs.py` says which runs exist and `find_artefacts.py` finds each one's
+artefacts across the sync tree, the durable root and the results directory.
+
+The two figures that load checkpoints hit `CUDA error: out of memory` on the
+final rebuild, because another session held both of elisa's cards. The script
+now retries them on the CPU. The CPU numbers match the GPU ones to four
+decimals on rollout fidelity and to five on latent movement.

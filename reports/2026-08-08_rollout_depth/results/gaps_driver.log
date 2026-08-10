@@ -1,0 +1,85 @@
+[08-09 13:17:17] [seq] waiting for gap 1's head (0s)
+[08-09 13:27:17] [seq] waiting for gap 1's head (600s)
+[08-09 13:37:17] [seq] waiting for gap 1's head (1200s)
+[08-09 13:47:17] [seq] waiting for gap 1's head (1800s)
+[08-09 13:50:17] [seq] gap 1 head done after 1980s
+[08-09 13:51:17] [seq] probe START (B5, 600 steps, 3 reps, alternating, GPU 0)
+[08-09 13:51:17] [steptime B5] START slug=arm4_combab_fix09 steps=600 reps=3 log_every=200 gpu=0
+[08-09 13:51:17] [steptime B5] card at start: 8946 MiB, 15265 MiB, 24 %
+[08-09 13:51:17] [steptime B5] compute apps at start: 842078, 954 MiB;2178997, 452 MiB;1122131, 1108 MiB;3039489, 452 MiB;3039498, 452 MiB;3039500, 452 MiB;3039495, 452 MiB;3039494, 452 MiB;3039501, 452 MiB;3039492, 452 MiB;3039496, 452 MiB;3039493, 452 MiB;3039499, 452 MiB;3039497, 452 MiB;244655, 1400 MiB;
+[08-09 13:53:39] [steptime B5] rep=1 k=0 done
+[08-09 13:59:13] [steptime B5] rep=1 k=3 done
+[08-09 14:01:43] [steptime B5] rep=2 k=0 done
+[08-09 14:07:19] [steptime B5] rep=2 k=3 done
+[08-09 14:09:45] [steptime B5] rep=3 k=0 done
+[08-09 14:16:09] [steptime B5] rep=3 k=3 done
+[08-09 14:16:09] [steptime B5] card at end: 8946 MiB, 15265 MiB, 4 %
+[08-09 14:16:09] [steptime B5] card during the probe: mean util 44%, mean used 14306 MiB, 149 samples
+
+GPU step time, median over post-warm-up windows (ms/step)
+  k   n     data      fwd      bwd   fwd+bwd     total    sps
+-------------------------------------------------------------
+  0   6      3.7    117.6     72.6     190.2     194.4   4.15
+  3   6      4.0    266.8    243.2     509.9     514.5   1.80
+
+k=3 against k=0:
+  fwd+bwd    190.2 ->   509.9 ms (+168.2%)
+  total      194.4 ->   514.5 ms (+164.7%)
+  sps         4.15 ->    1.80 (-56.6% throughput, +130.6% wall clock per step)
+  GPU MiB     8946 ->    8946 (whole card, this run plus its neighbour)
+[08-09 14:16:09] [seq] probe END rc=0
+[08-09 14:16:09] [seq] queue START (2 workers, GPU 0)
+[08-09 14:16:09] [w0] BB START G2_B9_k0 (gap 2) launcher=run_arm_k.sh arg=arm1_nse k=0 seed=20260520 suffix='none' gap_args='none' gpu=0
+[08-09 14:16:29] [w1] BB START G3_A3_k0_aw4 (gap 3) launcher=run_leg_k.sh arg=arm6_v2_combab_alignT k=0 seed=20260520 suffix='_aw4' gap_args='--align-loss-weight 4.0' gpu=0
+[08-09 17:08:29] [w1] BB END   G3_A3_k0_aw4 rc=0
+[08-09 17:08:29] [w1] heads for G3_A3_k0_aw4 handed off
+[08-09 17:08:29] [w1] BB START G5_B5_s2_k3 (gap 5) launcher=run_arm_k.sh arg=arm4_combab k=3 seed=20260521 suffix='_s2' gap_args='none' gpu=0
+[08-09 17:08:29] [w1] HEAD START G3_A3_k0_aw4 student (attempt 1, gpu 0)
+[08-09 17:15:03] [w0] BB END   G2_B9_k0 rc=0
+[08-09 17:15:03] [w0] heads for G2_B9_k0 handed off
+[08-09 17:15:03] [w0] BB START G5_B5_s2_k0 (gap 5) launcher=run_arm_k.sh arg=arm4_combab k=0 seed=20260521 suffix='_s2' gap_args='none' gpu=0
+[08-09 17:15:03] [w0] HEAD START G2_B9_k0 student (attempt 1, gpu 1)
+[08-09 18:49:01] [w1] HEAD END   G3_A3_k0_aw4 student rc=0
+[08-09 18:49:01] [w1] HEAD START G3_A3_k0_aw4 teacher (attempt 1, gpu 1)
+[08-09 18:52:22] [w0] HEAD END   G2_B9_k0 student rc=0
+[08-09 18:52:22] [w0] HEAD START G2_B9_k0 teacher (attempt 1, gpu 0)
+[08-09 19:52:24] [w0] BB END   G5_B5_s2_k0 rc=0
+[08-09 19:52:24] [w0] heads for G5_B5_s2_k0 handed off
+[08-09 19:52:24] [w0] BB START G6_B1_k0 (gap 6) launcher=run_arm_k.sh arg=arm6_v2_combab k=0 seed=20260520 suffix='none' gap_args='none' gpu=0
+[08-09 19:52:24] [w0] HEAD START G5_B5_s2_k0 student (attempt 1, gpu 0)
+[08-09 20:22:53] [w1] HEAD END   G3_A3_k0_aw4 teacher rc=0
+[08-09 22:13:18] [w0] BB END   G6_B1_k0 rc=0
+[08-09 22:13:18] [w0] heads for G6_B1_k0 handed off
+[08-09 22:13:18] [w0] BB START G6_B1_k3 (gap 6) launcher=run_arm_k.sh arg=arm6_v2_combab k=3 seed=20260520 suffix='none' gap_args='none' gpu=0
+[08-09 22:13:18] [w0] HEAD START G6_B1_k0 student (attempt 1, gpu 1)
+[08-09 22:52:31] [w0] HEAD END   G2_B9_k0 teacher rc=1
+[08-09 22:52:31] [w0] HEAD START G2_B9_k0 teacher (attempt 2, gpu 1)
+[08-09 23:12:12] [w1] BB END   G5_B5_s2_k3 rc=0
+[08-09 23:12:12] [w1] heads for G5_B5_s2_k3 handed off
+[08-09 23:12:12] [w1] BB START G3_A3_k1 (gap 3) launcher=run_leg_k.sh arg=arm6_v2_combab_alignT k=1 seed=20260520 suffix='none' gap_args='none' gpu=0
+[08-09 23:12:12] [w1] HEAD START G5_B5_s2_k3 student (attempt 1, gpu 0)
+[08-09 23:43:48] [w0] HEAD END   G6_B1_k0 student rc=0
+[08-09 23:43:48] [w0] HEAD START G6_B1_k0 teacher (attempt 1, gpu 1)
+[08-10 00:25:22] [w0] HEAD END   G2_B9_k0 teacher rc=0
+[08-10 01:16:13] [w0] BB END   G6_B1_k3 rc=0
+[08-10 01:16:13] [w0] heads for G6_B1_k3 handed off
+[08-10 01:16:13] [w0] worker 0 drained
+[08-10 01:16:13] [w0] HEAD START G6_B1_k3 student (attempt 1, gpu 0)
+[08-10 01:20:02] [w0] HEAD END   G6_B1_k0 teacher rc=0
+[08-10 02:04:39] [w1] BB END   G3_A3_k1 rc=0
+[08-10 02:04:39] [w1] heads for G3_A3_k1 handed off
+[08-10 02:04:39] [w1] worker 1 drained
+[08-10 02:04:39] [seq] queue drained
+[08-10 02:04:39] [w1] HEAD START G3_A3_k1 student (attempt 1, gpu 1)
+[08-10 02:55:11] [w0] HEAD END   G5_B5_s2_k0 student rc=0
+[08-10 02:55:12] [w0] HEAD START G5_B5_s2_k0 teacher (attempt 1, gpu 0)
+[08-10 03:39:50] [w1] HEAD END   G5_B5_s2_k3 student rc=0
+[08-10 03:39:50] [w1] HEAD START G5_B5_s2_k3 teacher (attempt 1, gpu 0)
+[08-10 03:55:19] [w1] HEAD END   G3_A3_k1 student rc=0
+[08-10 03:55:19] [w1] HEAD START G3_A3_k1 teacher (attempt 1, gpu 0)
+[08-10 04:16:03] [w0] HEAD END   G6_B1_k3 student rc=0
+[08-10 04:16:03] [w0] HEAD START G6_B1_k3 teacher (attempt 1, gpu 0)
+[08-10 04:50:40] [w0] HEAD END   G5_B5_s2_k0 teacher rc=0
+[08-10 05:24:41] [w1] HEAD END   G5_B5_s2_k3 teacher rc=0
+[08-10 05:58:04] [w1] HEAD END   G3_A3_k1 teacher rc=0
+[08-10 06:29:11] [w0] HEAD END   G6_B1_k3 teacher rc=0
