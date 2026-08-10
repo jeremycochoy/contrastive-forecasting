@@ -30,6 +30,7 @@ from matplotlib.lines import Line2D                    # noqa: E402
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import cell_colours as cc                              # noqa: E402
+import runs as R                                       # noqa: E402
 
 plt.rcParams.update(cc.rc())
 
@@ -40,10 +41,10 @@ def load(path):
         for r in csv.DictReader(fh):
             if r["split"] != "domain":
                 continue
-            parts = r["stop"].split("_")
-            if len(parts) < 4 or not parts[1].startswith("k"):
+            run = R.resolve(r["stop"])
+            if run is None or run.role != "depth":
                 continue
-            key = (parts[0], int(parts[1][1:]), parts[3])
+            key = (run.arm, run.k, run.head)
             out.setdefault(key, {})[r["name"]] = float(r["gm_rel_mase"])
             counts[r["name"]] = int(r["n"])
     return out, counts
@@ -57,18 +58,22 @@ def main(argv=None):
     args = p.parse_args(argv)
 
     data, counts = load(args.splits)
-    cells = [c for c in cc.ORDER
-             if (c, 3, args.head) in data and (c, 0, args.head) in data]
-    if not cells:
-        raise SystemExit("ABORT: no cell has both depths on the "
+    # One panel per (arm, deeper depth). The k = 0 polygon is drawn inside
+    # each panel against its own arm, never against another arm's.
+    panels = [(arm, k) for arm in R.ARM_ORDER
+              for k in sorted({kk for a, kk, h in data
+                               if a == arm and h == args.head and kk})
+              if (arm, 0, args.head) in data]
+    if not panels:
+        raise SystemExit("ABORT: no arm has two depths on the "
                          f"{args.head} head in {args.splits}")
 
     domains = sorted(counts, key=lambda d: -counts[d])
     n = len(domains)
     ang = [i / n * 2 * math.pi for i in range(n)] + [0.0]
 
-    allv = [v for c in cells for k in (0, 3)
-            for v in data[(c, k, args.head)].values()]
+    allv = [v for arm, k in panels for kk in (0, k)
+            for v in data[(arm, kk, args.head)].values()]
     lo, hi = min(allv), max(allv)
     ticks = [t for t in (0.7, 0.85, 1.0, 1.2, 1.5, 2.0, 2.8, 4.0)
              if lo / 1.1 <= t <= hi * 1.1] or [round(lo, 2), round(hi, 2)]
@@ -77,12 +82,12 @@ def main(argv=None):
     if ticks[-1] < hi:
         ticks.append(round(hi, 2))
 
-    ncol = min(len(cells), 3)
-    nrow = (len(cells) + ncol - 1) // ncol
-    fig, axes = plt.subplots(nrow, ncol, figsize=(4.8 * ncol, 4.9 * nrow),
+    ncol = min(len(panels), 3)
+    nrow = (len(panels) + ncol - 1) // ncol
+    fig, axes = plt.subplots(nrow, ncol, figsize=(4.8 * ncol, 5.5 * nrow),
                              subplot_kw={"projection": "polar"}, squeeze=False)
 
-    for idx, cell in enumerate(cells):
+    for idx, (arm, deep) in enumerate(panels):
         ax = axes[idx // ncol][idx % ncol]
         ax.set_theta_offset(math.pi / 2)
         ax.set_theta_direction(-1)
@@ -93,30 +98,31 @@ def main(argv=None):
         ax.set_yticklabels([str(t) for t in ticks], fontsize=7)
         ax.plot(ang, [0.0] * len(ang), color=cc.PARITY, linewidth=1.2, zorder=0)
 
-        for k in (0, 3):
-            v = [math.log2(data[(cell, k, args.head)].get(d, 1.0))
+        for k in (0, deep):
+            v = [math.log2(data[(arm, k, args.head)].get(d, 1.0))
                  for d in domains]
             v += v[:1]
-            ax.plot(ang, v, color=cc.colour(cell), linewidth=1.9,
-                    linestyle=cc.style(k), alpha=1.0 if k == 3 else 0.7)
-        ax.set_title(cc.label(cell), fontsize=9, pad=16)
+            ax.plot(ang, v, color=cc.colour(arm), linewidth=1.9,
+                    linestyle=cc.style(k), alpha=1.0 if k else 0.7)
+        ax.set_title(f"{cc.label(arm)}\nk = 0 against k = {deep}",
+                     fontsize=9, pad=16)
 
-    for idx in range(len(cells), nrow * ncol):
+    for idx in range(len(panels), nrow * ncol):
         axes[idx // ncol][idx % ncol].axis("off")
 
     fig.legend(handles=[Line2D([], [], color=cc.INK_SOFT, linestyle=cc.style(0),
                                label="k = 0"),
                         Line2D([], [], color=cc.INK_SOFT, linestyle=cc.style(3),
-                               label="k = 3"),
+                               label="k > 0"),
                         Line2D([], [], color=cc.PARITY,
                                label="seasonal-naive parity")],
                loc="lower center", ncol=3, frameon=False, fontsize=9)
     fig.suptitle(f"Per-domain GM-Relative MASE, {args.head} head "
                  "(radial axis log2, lower is better)", fontsize=10)
-    fig.tight_layout(rect=(0, 0.05, 1, 0.97))
+    fig.tight_layout(rect=(0, 0.04, 1, 0.96), h_pad=4.0)
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(args.out, bbox_inches="tight")
-    print(f"wrote {args.out} ({len(cells)} cell(s))")
+    print(f"wrote {args.out} ({len(panels)} panel(s))")
     return 0
 
 

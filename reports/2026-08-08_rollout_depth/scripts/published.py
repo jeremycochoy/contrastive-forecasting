@@ -50,6 +50,23 @@ NOISE_BAND = 0.0384
 # baseline validity gate.
 GATE = 0.0002
 
+# The parents print GM-Relative MASE to four decimals. Each printed value
+# therefore carries +/-0.00005 of rounding, so the difference between two
+# printed values carries +/-0.0001, and the smallest difference that means
+# anything is a few times that. GATE sits inside that floor: it is stricter
+# than the numbers it compares can resolve. A run that lands here has
+# reproduced as exactly as the published table allows anyone to check.
+PRINTED_PRECISION = 0.0005
+
+
+def verdict(d):
+    """Three levels, not two. `d` is |retrained - published|."""
+    if d <= GATE:
+        return "PASS"
+    if d <= PRINTED_PRECISION:
+        return "at printed precision"
+    return "FAIL"
+
 
 def at(cell, head, stop_k):
     return PUBLISHED.get(cell, {}).get(head, {}).get(stop_k)

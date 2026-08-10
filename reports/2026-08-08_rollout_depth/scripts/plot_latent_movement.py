@@ -17,7 +17,7 @@ starts moving faster, that ratio shift is the first place it shows.
 Usage: plot_latent_movement.py --batch <_latent_movement_batch.pt> \\
            --out-csv results/latent_movement.csv \\
            --out plots/latent_movement.png \\
-           --run <cell>:<k>=<checkpoint dir> [--run ...]
+           --run <arm>:<k>:<run name>=<checkpoint dir> [--run ...]
 """
 from __future__ import annotations
 
@@ -38,7 +38,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt                        # noqa: E402
 from matplotlib.lines import Line2D                    # noqa: E402
 
-import cell_colours as cc                              # noqa: E402
+import cell_colours as cc                     # noqa: E402
+import runs as R                              # noqa: E402                              # noqa: E402
 from src.eval_latent_movement import (                 # noqa: E402
     compute_latents, load_backbone, mean_one_minus_cos, small_backbone_kwargs,
 )
@@ -50,19 +51,16 @@ def periodic(dirpath, name):
     """`[(step, path)]` for `<name>[_rN]_<k>k.pth`, sorted, no companions."""
     out = []
     for p in Path(dirpath).rglob(f"{name}*k.pth"):
-        stem = p.stem
-        if stem.endswith("_optimizer"):
-            continue
-        tail = stem.rsplit("_", 1)[-1]
-        if tail.endswith("k") and tail[:-1].isdigit():
-            out.append((int(tail[:-1]) * 1000, p))
+        step = R.ckpt_step(name, p.name)
+        if step is not None:
+            out.append((step, p))
     return sorted(set(out))
 
 
 def main(argv=None):
     p = argparse.ArgumentParser()
     p.add_argument("--run", action="append", required=True,
-                   metavar="CELL:K=DIR")
+                   metavar="ARM:K:NAME=DIR")
     p.add_argument("--batch", required=True)
     p.add_argument("--out-csv", required=True)
     p.add_argument("--out", required=True)
@@ -83,15 +81,13 @@ def main(argv=None):
 
     for spec in args.run:
         head, dirpath = spec.split("=", 1)
-        cell, ktxt = head.split(":")
+        cell, ktxt, name = head.split(":")
         k = int(ktxt)
-        # The run name is the checkpoint prefix; take it from the directory.
-        names = {p.stem.rsplit("_", 1)[0] for p in Path(dirpath).rglob("*k.pth")
-                 if not p.stem.endswith("_optimizer")}
-        cks = []
-        for nm in names:
-            cks += periodic(dirpath, nm)
-        cks = sorted(set(cks))
+        # The run name comes in with the argument. Globbing the directory
+        # for it does not work: group A's launcher puts every depth of a
+        # cell, and its re-weighting control, into one `leg_40k` directory,
+        # so a glob mixes four runs into one movement curve.
+        cks = sorted(set(periodic(dirpath, name)))
         if len(cks) < 2:
             print(f"  skip {spec}: {len(cks)} periodic checkpoint(s), need 2",
                   file=sys.stderr)
@@ -137,12 +133,11 @@ def main(argv=None):
     axE.set_title("Patch-embedding latent")
     cells = sorted({r["cell"] for r in rows},
                    key=lambda c: cc.ORDER.index(c) if c in cc.ORDER else 99)
-    axE.legend(handles=[Line2D([], [], color=cc.colour(c), label=cc.label(c))
-                        for c in cells]
-                       + [Line2D([], [], color=cc.INK_SOFT,
-                                 linestyle=cc.style(kk), label=f"k = {kk}")
-                          for kk in (0, 3)],
-               frameon=False, fontsize=8)
+    handles = [Line2D([], [], color=cc.colour(c), label=cc.label(c))
+               for c in cells]
+    handles += [Line2D([], [], color=cc.INK_SOFT, linestyle=cc.style(kk),
+                       label=f"k = {kk}") for kk in (0, 3)]
+    axE.legend(handles=handles, frameon=False, fontsize=8)
     fig.suptitle("Latent movement between adjacent checkpoints", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)

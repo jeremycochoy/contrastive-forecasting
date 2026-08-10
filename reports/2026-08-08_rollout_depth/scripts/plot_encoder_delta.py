@@ -29,6 +29,7 @@ from matplotlib.lines import Line2D                    # noqa: E402
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import cell_colours as cc                              # noqa: E402
+import runs as R                                       # noqa: E402
 
 plt.rcParams.update(cc.rc())
 
@@ -44,40 +45,40 @@ def main(argv=None):
         for r in csv.DictReader(fh):
             if r["split"] != "all":
                 continue
-            parts = r["stop"].split("_")
-            if len(parts) < 4 or not parts[1].startswith("k"):
+            run = R.resolve(r["stop"])
+            if run is None or run.role != "depth":
                 continue
-            data[(parts[0], int(parts[1][1:]), parts[3])] = float(r["gm_rel_mase"])
+            data[(run.arm, run.k, run.head)] = float(r["gm_rel_mase"])
 
     pts = []
-    for cell in cc.ORDER:
-        for k in (0, 3):
-            s, t = data.get((cell, k, "student")), data.get((cell, k, "teacher"))
+    for arm in R.ARM_ORDER:
+        for k in sorted({kk for a, kk, _h in data if a == arm}):
+            s, t = data.get((arm, k, "student")), data.get((arm, k, "teacher"))
             if s is not None and t is not None:
-                pts.append((cell, k, t - s))
+                pts.append((arm, k, t - s))
     if not pts:
-        raise SystemExit("ABORT: no (cell, depth) has both heads in "
+        raise SystemExit("ABORT: no (arm, depth) has both heads in "
                          f"{args.splits}")
 
     fig, ax = plt.subplots(figsize=(7.4, 0.55 * len(pts) + 2.0))
     ax.axvline(0.0, color=cc.INK_SOFT, linewidth=1.0)
-    for y, (cell, k, d) in enumerate(pts):
-        ax.barh(y, d, height=0.55, color=cc.colour(cell),
-                alpha=1.0 if k == 3 else 0.45, edgecolor=cc.colour(cell))
+    for y, (arm, k, d) in enumerate(pts):
+        ax.barh(y, d, height=0.55, color=cc.face(arm),
+                alpha=1.0 if k else 0.45, edgecolor=cc.colour(arm),
+                linewidth=1.4, hatch="///" if cc.hollow(arm) else None)
         ax.text(d + (0.003 if d >= 0 else -0.003), y, f"{d:+.4f}",
                 va="center", ha="left" if d >= 0 else "right", fontsize=8)
     ax.set_yticks(range(len(pts)))
-    ax.set_yticklabels([f"{cc.label(c)}  k = {k}" for c, k, _d in pts],
-                       fontsize=8)
+    ax.set_yticklabels([f"{arm}  k = {k}" for arm, k, _d in pts], fontsize=8.5)
     ax.invert_yaxis()
-    lim = max(abs(d) for _c, _k, d in pts) * 2.2 or 0.01
+    lim = max(abs(d) for _a, _k, d in pts) * 2.2 or 0.01
     ax.set_xlim(-lim, lim)
     ax.set_xlabel("teacher head minus student head, GM-Relative MASE "
                   "(negative = teacher encoder wins)")
     ax.legend(handles=[Line2D([], [], color=cc.INK_SOFT, linewidth=8,
                               alpha=0.45, label="k = 0"),
                        Line2D([], [], color=cc.INK_SOFT, linewidth=8,
-                              label="k = 3")],
+                              label="k > 0")],
               loc="best", frameon=False, fontsize=8)
     ax.set_title("Which encoder the head is trained on, at bb40k")
     fig.tight_layout()
