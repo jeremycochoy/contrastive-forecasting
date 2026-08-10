@@ -23,11 +23,12 @@ Every trained stop is bb40k. No cell reached bb100k or bb200k, so the card's ext
 
 ### Reproduction of the published k = 0
 
-Same cell, same recipe, same head seed 20260722, same 97-config B4 eval, student head. The rows are sorted by the machine, because that is what the check separates on.
+Same cell, same recipe, same head seed 20260722, same 97-config B4 eval, student head. The rows are sorted by the machine, because that is what the check separates on: every retrain on elisa lands on its published value and neither retrain on a rented box does.
 
 | backbone | seed | machine | published k = 0 | retrained k = 0 | \|Δ\| | verdict (threshold 0.0002) |
 |---|---|---|---|---|---|---|
 | B1 | 20260520 | elisa | 1.2025 | 1.2025 | 0.0000 | PASS |
+| B5·s3 | 20260520 | elisa | 1.2748 | 1.2751 | 0.0003 | at printed precision |
 | B9 | 20260520 | elisa | 1.5579 | 1.5583 | 0.0004 | at printed precision |
 | B5·s2 | 20260521 | elisa | 1.2748 | 1.2716 | 0.0032 | FAIL |
 | A3 | 20260520 | vast box d | 1.1895 | 1.2189 | 0.0294 | FAIL |
@@ -57,11 +58,11 @@ The parents print four decimals, so a difference below 0.0005 is the smallest th
 
 Criterion, from the card: medium+long (42 configs) at least 5% better, short (55 configs) losing less than 2%.
 
-`machine held` = did the two sides train on the same box. A `no` row carries a machine change as well as a depth change, and the reproduction table separates on the machine at up to 0.1169.
+`machine held` = did the two sides train on the same box. A `no` row carries a machine change as well as a depth change. The B5 table below measures the machine alone, at one seed, at 0.1166, so a `no` row carries a term larger than most of the deltas in this table. Only the `yes` rows report the depth and nothing else.
 
-✗ marks a retracted row: B5·s1's `k = 0` misses its published value by 0.1169 and trained on a rented box; its depth delta is retracted.
+✗ marks a retracted row: B5·s1's `k = 0` trained on a rented box and misses its published value by 0.1169; `B5·s3` retrains it at the same seed on elisa and lands 0.0003 away, so the baseline the -5.1% rests on is a rented-box artefact and the delta is retracted.
 
-Head-seed band ±0.0384 (`ema_sched_ladder.md`, pooled). It bounds the head seed alone. It does not bound a retraining, which the B5 table below measures at 0.1200.
+Head-seed band ±0.0384 (`ema_sched_ladder.md`, pooled). It bounds the head seed alone. It does not bound the machine.
 
 ### Paired dataset-cluster bootstrap, per horizon subset
 
@@ -108,28 +109,31 @@ The resampling unit is the dataset: `<ds>/short`, `/medium` and `/long` are thre
 
 ### One cell, three backbones
 
-B5 (`arm4_combab_fix09`) trained three times on one recipe, one code snapshot, one head seed and one eval. They differ by backbone seed and by machine, and each contrast below names which of the two it changes.
+B5 (`arm4_combab_fix09`) trained three times on one recipe, one code snapshot, one head seed and one eval. They differ by backbone seed and by machine, and each contrast below names which of the two it changes. The machine moves the score and the seed does not.
 
 | backbone | seed | machine | k = 0 | k = 3 | k = 3 − k = 0 |
 |---|---|---|---|---|---|
 | B5·s1 ✗ | 20260520 | a rented box | 1.3917 | 1.3204 | -0.0713 |
 | B5·s2 | 20260521 | elisa | 1.2716 | 1.3292 | +0.0575 |
+| B5·s3 | 20260520 | elisa | 1.2751 | — | — |
 
 | contrast | what changes | k | Δ | 95% CI |
 |---|---|---|---|---|
+| B5·s1 against B5·s3 | the machine, at one seed | 0 | -0.1166 | [-0.1885, -0.0645] |
+| B5·s2 against B5·s3 | the seed, on one machine | 0 | +0.0035 | [-0.0183, +0.0230] |
 | B5·s1 against B5·s2 | the seed AND the machine | 0 | -0.1200 | [-0.1825, -0.0742] |
 | B5·s1 against B5·s2 | the seed AND the machine | 3 | +0.0088 | [-0.0306, +0.0520] |
 
-Student head, 97 configs. `B5·s3` is this study's answer to the third row: it holds `B5·s1`'s seed and `B5·s2`'s machine.
+Student head, 97 configs. `B5·s3` holds `B5·s1`'s seed and `B5·s2`'s machine, so the first two rows separate what the third confounds: the machine moves `k = 0` by 0.1166 and the seed by 0.0035.
 
-A retrain at a fixed seed is a machine test only if the seed pins the data order. It does. `mixup` counts the examples the mixer touched in the 200-step window, so two runs that see the same batches print the same count, and the loss beside it says how far apart those same batches took them.
+A retrain at a fixed seed is a machine test only if the seed pins the data order. It does. `mixup` counts the examples the mixer touched in the 200-step window, so two runs that see the same batches print the same count. `B5·s1` and `B5·s3` carry one seed and print one count at every step: they saw the same batches in the same order, on two machines, and the losses beside the counts still part.
 
-| step | B5·s1<br>seed 20260520, a rented box | B5·s2<br>seed 20260521, elisa |
-|---|---|---|
-| 200 | 5.5767  `61/200` | 5.6595  `53/200` |
-| 400 | 5.1220  `58/200` | 5.3568  `62/200` |
-| 600 | 4.9019  `65/200` | 5.0143  `51/200` |
-| 800 | 4.9475  `65/200` | 5.1256  `65/200` |
+| step | B5·s1<br>seed 20260520, a rented box | B5·s2<br>seed 20260521, elisa | B5·s3<br>seed 20260520, elisa |
+|---|---|---|---|
+| 200 | 5.5767  `61/200` | 5.6595  `53/200` | 5.5610  `61/200` |
+| 400 | 5.1220  `58/200` | 5.3568  `62/200` | 5.2078  `58/200` |
+| 600 | 4.9019  `65/200` | 5.0143  `51/200` | 4.9412  `65/200` |
+| 800 | 4.9475  `65/200` | 5.1256  `65/200` | 5.1249  `65/200` |
 
 ### One loss shape, two EMA regimes
 
@@ -151,7 +155,7 @@ Summing the depths multiplies `L_align`'s weight against the f-free terms by k +
 | student | 1.2189 | 1.2590 | 1.1995 | 1.3618 | 28% |
 | teacher | 1.2184 | 1.2558 | 1.2063 | 1.3521 | 28% |
 
-Every column trained on a different box from at least one other. A3_k0: vast box d · G3_A3_k0_aw4: elisa · G3_A3_k1: elisa · A3_k3: vast box b.
+Every column trained on a different box from at least one other. A3_k0: vast box d · G3_A3_k0_aw4: elisa · G3_A3_k1: elisa · A3_k3: vast box b. The machine alone is worth 0.1166 on this study's one controlled measurement of it, which is more than either control's own size, so read the two controls as direction and not as magnitude.
 
 ### What the depth costs
 

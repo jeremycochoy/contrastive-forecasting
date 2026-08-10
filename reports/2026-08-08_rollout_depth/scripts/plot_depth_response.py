@@ -9,17 +9,15 @@ thing:
 
   head-seed band     ±0.0384, `ema_sched_ladder.md`'s pooled range. It
                      bounds the HEAD seed alone.
-  retraining range   the widest disagreement this study measured between two
-                     trainings of ONE cell at ONE depth. It is not a seed
-                     band: the B5 backbones behind it differ by seed and by
-                     machine, and every bar here is the difference of two
-                     independent backbone trainings.
+  machine span       what the box alone moved one cell's score: B5·s1
+                     against B5·s3, same seed, same code, two machines.
 
-A hatched bar is a delta whose two sides trained on different machines. The
-study's reproduction table separates on the machine and not on the seed —
-every rented-box `k = 0` missed its published value and every elisa one hit
-it — so a hatched bar carries a term the study cannot bound. Two bars per
-head are not hatched, and they are the ones a reader can lean on.
+A hatched bar is a delta whose two sides trained on different machines. Every
+rented-box `k = 0` in this study missed its published value and every elisa
+one hit it, and the machine span says the box alone is worth more than most
+of these bars. So a hatched bar carries a term larger than the effect it
+reports. Two bars per head are not hatched, and they are the ones a reader
+can lean on.
 
 Reads results/splits.csv (`all` rows) and resolves tags through runs.py.
 
@@ -71,9 +69,11 @@ def main(argv=None):
         raise SystemExit(f"ABORT: no arm has two depths in {args.splits}")
     rows.sort(key=lambda r: (R.ARM_ORDER.index(r[0]), r[1], r[2]))
 
-    # The widest disagreement between two trainings of one cell at one
-    # depth. Read over every pair of B5 backbones, so a third backbone
-    # widens or narrows it without an edit here.
+    # The machine span: one cell, one seed, one code, two machines. B5·s1
+    # against B5·s3 measures it directly, so the band behind the bars is a
+    # measured quantity rather than a mixed seed-and-machine gap. Read over
+    # every pair of B5 backbones that holds the seed and changes the box, so
+    # a fourth backbone enters it without an edit here.
     retrain_gap, retrain_why = 0.0, ""
     b5 = [a for a in R.ARM_ORDER if a.startswith("B5·")]
     for k in (0, 3):
@@ -85,7 +85,9 @@ def main(argv=None):
                 seen.append((arm, v))
         for i, (a1, v1) in enumerate(seen):
             for a2, v2 in seen[i + 1:]:
-                if abs(v2 - v1) > retrain_gap:
+                same_seed = R.arm_seed(a1) == R.arm_seed(a2)
+                same_box = R.arm_where(a1) == R.arm_where(a2)
+                if same_seed and not same_box and abs(v2 - v1) > retrain_gap:
                     retrain_gap = abs(v2 - v1)
                     retrain_why = f"{a1} against {a2} at k = {k}"
 
@@ -141,8 +143,9 @@ def main(argv=None):
                          label=f"head-seed band ±{NOISE_BAND}"))
     if retrain_gap:
         handles.append(Patch(facecolor=cc.BAND, alpha=0.45,
-                             label="two trainings of one cell disagreed by "
-                                   f"±{retrain_gap:.4f} ({retrain_why})"))
+                             label="the machine moved one cell by "
+                                   f"±{retrain_gap:.4f} at one seed "
+                                   f"({retrain_why})"))
     ax.legend(handles=handles, fontsize=8, ncol=2, loc="upper left",
               bbox_to_anchor=(0.0, -0.09), borderaxespad=0.0)
 

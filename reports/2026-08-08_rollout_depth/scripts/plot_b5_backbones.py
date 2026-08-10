@@ -7,12 +7,13 @@ One cell, one recipe, one head seed, one 97-config eval. Three backbones:
     B5·s2   seed 20260521, elisa
     B5·s3   seed 20260520, elisa
 
-The first two disagree about the depth, and the first two differ by SEED and
-by MACHINE at once, so neither of them can say which it was. B5·s3 is the
-third corner: it holds the seed of s1 and the machine of s2.
+The first two disagree about the depth, and they differ by SEED and by
+MACHINE at once, so neither of them can say which it was. B5·s3 is the third
+corner: it holds the seed of s1 and the machine of s2. It answers the
+question.
 
-    s1 against s3   same seed, two machines   -> the machine
-    s2 against s3   same machine, two seeds   -> the seed
+    s1 against s3   same seed, two machines   -> the machine, -0.1166
+    s2 against s3   same machine, two seeds   -> the seed, +0.0035
 
 The figure carries the two channels the study confounded, one each:
 
@@ -138,7 +139,8 @@ def main(argv=None):
                               markeredgecolor=col, markeredgewidth=2.0,
                               label=f"{arm}  seed {seed}, {R.arm_where(arm)}"))
     axes[1].legend(handles=handles, loc="upper right", fontsize=8.5)
-    fig.suptitle("B5 arm4_combab_fix09 — one seed change, one machine change",
+    fig.suptitle("B5 arm4_combab_fix09 — the machine moved k = 0 by 0.1166, "
+                 "the seed by 0.0035",
                  x=0.005, ha="left", fontsize=12)
     fig.tight_layout()
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)

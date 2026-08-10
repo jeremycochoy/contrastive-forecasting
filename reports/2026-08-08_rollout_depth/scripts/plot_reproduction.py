@@ -88,6 +88,17 @@ def main(argv=None):
         if group(rows[y][0]) != group(rows[y - 1][0]):
             ax.axhline(y - 0.5, color=cc.INK_SOFT, linewidth=0.9,
                        linestyle=(0, (3, 3)), zorder=1)
+    # Name each band. The split is the figure's finding, so it is written on
+    # the figure rather than left to the reader to infer from the tick labels.
+    BANDS = {0: "trained on elisa — every one reproduces",
+             1: "trained on a rented box — neither does",
+             2: "not a training"}
+    for g, txt in BANDS.items():
+        ys_g = [y for y, (r, _p, _o) in zip(ys, rows) if group(r) == g]
+        if ys_g:
+            ax.annotate(txt, (0.006, min(ys_g) - 0.44),
+                        xycoords=("axes fraction", "data"), fontsize=9.5,
+                        color=cc.INK, fontweight="bold", va="top")
 
     ax.set_yticks(ys)
     ax.set_yticklabels(
@@ -100,7 +111,7 @@ def main(argv=None):
     ax.set_xlim(lo - pad, hi + pad * 6.5)
     ax.set_xlabel("GM-Relative MASE at bb40k, student head, 97 configs")
     ax.set_title("Published k = 0 against this study's own k = 0   "
-                 f"(gate: |Δ| ≤ {GATE})", loc="left", fontsize=12)
+                 f"(gate: |Δ| ≤ {GATE})", loc="left", fontsize=12, pad=15)
     handles = [
         Line2D([], [], marker="o", linestyle="none", markersize=10,
                markerfacecolor="#ffffff", markeredgecolor=cc.INK_SOFT,

@@ -31,6 +31,7 @@ from matplotlib.lines import Line2D                    # noqa: E402
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import cell_colours as cc                              # noqa: E402
+import runs as R                                       # noqa: E402
 
 # (depth, weight multiplier, tag template)
 LADDER = [(0, 1, "A3_k0_bb40k_{h}"),
@@ -119,7 +120,18 @@ def main(argv=None):
                   "(k + 1, since the depths are summed)")
     ax.set_ylabel("GM-Relative MASE, 97 configs  (lower is better)")
     ax.set_title("A3 arm6_v2_combab_alignT_sched — depth against weight, at bb40k",
-                 loc="left", fontsize=12)
+                 loc="left", fontsize=12, pad=17)
+    # Every point here trained on a different box from at least one other, and
+    # the machine alone is worth more than either control. The figure has to
+    # say so where the numbers are, not four sections later.
+    where = " · ".join(f"{c}: {R.resolve(f'{t}_bb40k_student').machine}"
+                       for c, t in (("k = 0", "A3_k0"), ("k = 1", "G3_A3_k1"),
+                                    ("x4", "G3_A3_k0_aw4"), ("k = 3", "A3_k3"))
+                       if R.resolve(f"{t}_bb40k_student"))
+    ax.annotate("Every point crosses a machine boundary — read direction, not "
+                f"magnitude.   {where}",
+                (0.0, 1.005), xycoords="axes fraction", fontsize=8.5,
+                color=cc.INK_SOFT, va="bottom")
     handles = [
         Line2D([], [], color=col, linewidth=2.2, marker="o", markersize=9,
                label="depth ladder, student head"),

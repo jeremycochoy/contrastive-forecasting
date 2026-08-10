@@ -154,7 +154,9 @@ def main(argv=None):
     L += ["### Reproduction of the published k = 0", "",
           "Same cell, same recipe, same head seed 20260722, same 97-config "
           "B4 eval, student head. The rows are sorted by the machine, "
-          "because that is what the check separates on.", "",
+          "because that is what the check separates on: every retrain on "
+          "elisa lands on its published value and neither retrain on a "
+          "rented box does.", "",
           "| backbone | seed | machine | published k = 0 | retrained k = 0 | "
           f"\\|Δ\\| | verdict (threshold {GATE}) |",
           "|---|---|---|---|---|---|---|"]
@@ -206,12 +208,14 @@ def main(argv=None):
     L += ["", "Criterion, from the card: medium+long (42 configs) at least "
           "5% better, short (55 configs) losing less than 2%.", "",
           "`machine held` = did the two sides train on the same box. A `no` "
-          "row carries a machine change as well as a depth change, and the "
-          "reproduction table separates on the machine at up to 0.1169.", "",
+          "row carries a machine change as well as a depth change. The B5 "
+          "table below measures the machine alone, at one seed, at 0.1166, "
+          "so a `no` row carries a term larger than most of the deltas in "
+          "this table. Only the `yes` rows report the depth and nothing "
+          "else.", "",
           "✗ marks a retracted row: " + R.RETRACTED_WHY + ".", "",
           f"Head-seed band ±{NOISE_BAND} (`ema_sched_ladder.md`, pooled). It "
-          "bounds the head seed alone. It does not bound a retraining, "
-          "which the B5 table below measures at 0.1200.", ""]
+          "bounds the head seed alone. It does not bound the machine.", ""]
 
     # ---- 4. the interval behind every one of those deltas ------------------
     L += ["### Paired dataset-cluster bootstrap, per horizon subset", "",
@@ -236,7 +240,8 @@ def main(argv=None):
           "B5 (`arm4_combab_fix09`) trained three times on one recipe, one "
           "code snapshot, one head seed and one eval. They differ by backbone "
           "seed and by machine, and each contrast below names which of the "
-          "two it changes.", "",
+          "two it changes. The machine moves the score and the seed does "
+          "not.", "",
           "| backbone | seed | machine | k = 0 | k = 3 | k = 3 − k = 0 |",
           "|---|---|---|---|---|---|"]
     b5_arms = [a for a in R.arms_of("B5") if a != "B5·pub"]
@@ -269,8 +274,10 @@ def main(argv=None):
                      f"{b5[(a2, k)] - b5[(a1, k)]:+.4f} | "
                      + (f"[{float(ci['ci_lo']):+.4f}, "
                         f"{float(ci['ci_hi']):+.4f}] |" if ci else "— |"))
-    L += ["", "Student head, 97 configs. `B5·s3` is this study's answer to "
-          "the third row: it holds `B5·s1`'s seed and `B5·s2`'s machine.", ""]
+    L += ["", "Student head, 97 configs. `B5·s3` holds `B5·s1`'s seed and "
+          "`B5·s2`'s machine, so the first two rows separate what the third "
+          "confounds: the machine moves `k = 0` by 0.1166 and the seed by "
+          "0.0035.", ""]
 
     early = list(csv.DictReader(open(Path(args.results) / "early_loss.csv"))) \
         if (Path(args.results) / "early_loss.csv").is_file() else []
@@ -281,8 +288,10 @@ def main(argv=None):
         L += ["A retrain at a fixed seed is a machine test only if the seed "
               "pins the data order. It does. `mixup` counts the examples the "
               "mixer touched in the 200-step window, so two runs that see the "
-              "same batches print the same count, and the loss beside it says "
-              "how far apart those same batches took them.", "",
+              "same batches print the same count. `B5·s1` and `B5·s3` carry "
+              "one seed and print one count at every step: they saw the same "
+              "batches in the same order, on two machines, and the losses "
+              "beside the counts still part.", "",
               "| step | " + " | ".join(
                   f"{a}<br>seed {R.arm_seed(a)}, {R.arm_where(a)}"
                   for a in cols) + " |",
@@ -339,7 +348,10 @@ def main(argv=None):
         f"{c}: {r.machine}" for c, r in
         ((c, R.resolve(f"{c}_bb40k_student")) for c in A3_COLS) if r)
     L += ["", "Every column trained on a different box from at least one "
-          f"other. {machines}.", ""]
+          f"other. {machines}. The machine alone is worth 0.1166 on this "
+          "study's one controlled measurement of it, which is more than "
+          "either control's own size, so read the two controls as direction "
+          "and not as magnitude.", ""]
 
     # ---- 8. what the depth costs -------------------------------------------
     L += ["### What the depth costs", "",
