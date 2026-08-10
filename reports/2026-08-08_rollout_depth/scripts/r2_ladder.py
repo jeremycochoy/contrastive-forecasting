@@ -111,6 +111,33 @@ def baseline(cell, stop_k, head):
     return published.at(cell, head, stop_k)
 
 
+# The horizon and per-domain figures need PER-CONFIG k = 0 numbers, and the
+# three parent reports publish only the 97-config aggregate. Round 1 ran a
+# same-code k = 0 for four cells, at the protocol seed, so those four carry
+# a k = 0 overlay and the other ten do not.
+#
+# B5 has two such runs. The overlay stands in for the published baseline, so
+# the rule is "the one that reproduces it": at bb40k the elisa run reads
+# 1.2751 against a published 1.2748, and the rented-box run reads 1.3917.
+# Reproduction against published, all at bb40k on the student head:
+#   B1  1.2025 / 1.2025   0.0000
+#   B9  1.5583 / 1.5579   0.0004
+#   B5  1.2751 / 1.2748   0.0003   (G7_B5_k0_e)
+#   A3  1.2189 / 1.1895   0.0294
+K0_TAG = {
+    "A3": "A3_k0",
+    "B1": "G6_B1_k0",
+    "B5": "G7_B5_k0_e",
+    "B9": "G2_B9_k0",
+}
+
+
+def k0_tag(cell, stop_k, head):
+    """The eval tag of this study's own k = 0 run for a cell, or None."""
+    stem = K0_TAG.get(cell)
+    return None if stem is None else f"{stem}_bb{stop_k}k_{head}"
+
+
 def rows(results=RESULTS):
     """Every measured (cell, stop, head), with its baseline and delta."""
     out = []
