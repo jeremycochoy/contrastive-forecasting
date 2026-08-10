@@ -122,6 +122,15 @@ B5 (`arm4_combab_fix09`) trained three times on one recipe, one code snapshot, o
 
 Student head, 97 configs. `B5·s3` is this study's answer to the third row: it holds `B5·s1`'s seed and `B5·s2`'s machine.
 
+The seed pins the data order, so a retrain at a fixed seed is a machine test and not a second draw of the batches. `mixup=n/200` counts the examples the mixer touched in the window, and two runs that see the same batches print the same count.
+
+| backbone | seed | machine | step | loss | mixup |
+|---|---|---|---|---|---|
+| B5·s1 | 20260520 | vast box d | 200 | 5.5767 | `61/200` |
+| B5·s1 | 20260520 | vast box d | 400 | 5.1220 | `58/200` |
+| B5·s2 | 20260521 | elisa | 200 | 5.6595 | `53/200` |
+| B5·s2 | 20260521 | elisa | 400 | 5.3568 | `62/200` |
+
 ### One loss shape, two EMA regimes
 
 B1 and A3 train the same f-bearing term, `rep_only` + `L_align`, on the same `arm6_v2 combab` arm. They differ in the EMA schedule — and, since A3's two depths trained on two boxes, in the machine as well.

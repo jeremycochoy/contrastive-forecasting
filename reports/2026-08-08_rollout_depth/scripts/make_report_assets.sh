@@ -147,6 +147,18 @@ else
   say "no trainer log found — no per-run step-time table"
 fi
 
+# ---- 7b. what the backbone seed pins, on the cells trained twice ----------
+# The B5 retrain at a fixed seed is only a machine test if the seed really
+# does pin the data order. The mixer's per-window count says whether it does.
+mapfile -t retrains < <(python3 "$HERE/find_artefacts.py" --what retrainlogs \
+                          --results "$RES")
+if [ "${#retrains[@]}" -gt 0 ]; then
+  run "$HERE/early_loss.py" "${retrains[@]}" --steps 2 \
+      --out "$RES/early_loss.csv"
+else
+  say "no cell trained twice — no early-loss table"
+fi
+
 # ---- 8. where each k = 3 lands on the published k = 0 trajectory -----------
 run "$HERE/plot_ladder.py" --results "$RES" --out "$PLOTS/ladder.png"
 

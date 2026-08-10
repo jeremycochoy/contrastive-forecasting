@@ -252,6 +252,21 @@ def reproductions(tags):
     return out
 
 
+def retrainings(k=0):
+    """`[(arm, k, role, run name)]` for every backbone that retrains a cell
+    this study already trained once at this depth.
+
+    B5 is the only such cell today: three backbones, two seeds, two
+    machines. A control belongs here when it re-runs the cell's own recipe;
+    one that changes the objective does not.
+    """
+    out = [(arm, kk, role, run)
+           for stem, cell, arm, kk, _seed, role, _note, run in _ROWS
+           if kk == k and run and len(arms_of(cell)) > 1
+           and (role == "depth" or stem in REPRO_CONTROLS)]
+    return sorted(out, key=lambda r: ARM_ORDER.index(r[0]))
+
+
 def arm_seed(arm):
     """The backbone seed an arm trained at, or None."""
     for row in _ROWS:

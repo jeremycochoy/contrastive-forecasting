@@ -15,6 +15,8 @@ arguments the plot scripts take, so the rebuild script holds no paths.
 Usage:
   find_artefacts.py --what curves      # --run <arm>:<k>=<losses.csv>
   find_artefacts.py --what logs        # --log <arm>:<k>=<run.log>
+  find_artefacts.py --what retrainlogs # --run <arm>:0=<run.log>, one per
+                                       #   backbone of a cell trained twice
   find_artefacts.py --what ckpt        # --run <arm>:<k>=<bb40k .pth>
   find_artefacts.py --what ckptdir     # --run <arm>:<k>:<name>=<dir>
   find_artefacts.py --what pairs       # <label>\t<baseline tag>\t<compared tag>
@@ -61,6 +63,27 @@ def find(name_to_runs, suffix):
             n = want.get(f)
             if n is not None and n not in out:
                 out[n] = dirpath / f
+    return out
+
+
+def find_logs(names):
+    """`{run name: trainer log}`.
+
+    The launchers write `run_<run name>.log`, so the plain `<run name>.log`
+    lookup `find()` does never hits; both spellings are tried because a run
+    pulled off a rented box keeps whichever name its sync loop gave it.
+    """
+    got = find(names, ".log")
+    out = {}
+    for run in names:
+        path = got.get(run)
+        if path is None:
+            for dirpath, filenames in walk(ROOTS):
+                if f"run_{run}.log" in filenames:
+                    path = dirpath / f"run_{run}.log"
+                    break
+        if path is not None:
+            out[run] = path
     return out
 
 
@@ -121,7 +144,7 @@ def main(argv=None):
     p = argparse.ArgumentParser()
     p.add_argument("--what", required=True,
                    choices=("curves", "logs", "ckpt", "ckptdir",
-                            "pairs"))
+                            "pairs", "retrainlogs"))
     p.add_argument("--results", default=str(HERE.parent / "results"))
     p.add_argument("--min-rows", type=int, default=10)
     args = p.parse_args(argv)
@@ -135,6 +158,14 @@ def main(argv=None):
     # curve and checkpoint figures, which are all depth comparisons.
     depth = {n: v for n, v in names.items() if v[2] == "depth"}
 
+    if args.what == "retrainlogs":
+        want = {run: (arm, k, role) for arm, k, role, run in R.retrainings()}
+        got = find_logs(want)
+        for run, (arm, k, _r) in want.items():
+            if run in got:
+                print(f"--run\n{arm}:{k}={got[run]}")
+        return 0
+
     if args.what == "curves":
         got = find(depth, "_losses.csv")
         for run, (arm, k, _r) in depth.items():
@@ -147,17 +178,10 @@ def main(argv=None):
         # No card in the spec: `runs.py` carries the machine and the card of
         # every run, and a path that happens to sit under a box directory is
         # a weaker source than the registry.
-        got = find(depth, ".log")
+        got = find_logs(depth)
         for run, (arm, k, _r) in depth.items():
-            path = got.get(f"run_{run}") or got.get(run)
-            if path is None:
-                for dirpath, filenames in walk(ROOTS):
-                    if f"run_{run}.log" in filenames:
-                        path = dirpath / f"run_{run}.log"
-                        break
-            if path is None:
-                continue
-            print(f"--log\n{arm}:{k}={path}")
+            if run in got:
+                print(f"--log\n{arm}:{k}={got[run]}")
         return 0
 
     # Both checkpoint modes want this run's own periodic checkpoints.

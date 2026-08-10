@@ -272,6 +272,21 @@ def main(argv=None):
     L += ["", "Student head, 97 configs. `B5·s3` is this study's answer to "
           "the third row: it holds `B5·s1`'s seed and `B5·s2`'s machine.", ""]
 
+    early = list(csv.DictReader(open(Path(args.results) / "early_loss.csv"))) \
+        if (Path(args.results) / "early_loss.csv").is_file() else []
+    if early:
+        L += ["The seed pins the data order, so a retrain at a fixed seed is "
+              "a machine test and not a second draw of the batches. "
+              "`mixup=n/200` counts the examples the mixer touched in the "
+              "window, and two runs that see the same batches print the same "
+              "count.", "",
+              "| backbone | seed | machine | step | loss | mixup |",
+              "|---|---|---|---|---|---|"]
+        for r in early:
+            L.append(f"| {r['arm']} | {r['seed']} | {r['machine']} | "
+                     f"{r['step']} | {r['loss']} | `{r['mixup']}` |")
+        L.append("")
+
     # ---- 6. EMA regime at one loss shape -----------------------------------
     L += ["### One loss shape, two EMA regimes", "",
           "B1 and A3 train the same f-bearing term, `rep_only` + `L_align`, "
