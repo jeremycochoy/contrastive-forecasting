@@ -7,11 +7,17 @@ own, so a reader who learns a colour in one figure keeps it in all of them.
     colour       the CELL
     line style   the DEPTH:  dashed = k 0,  solid = k > 0
     fill         the BACKBONE SEED: solid = 20260520, hollow = 20260521
+    hatch        the comparison CROSSES A MACHINE
     panel        the HEAD: one figure per head, named in its title
 
-Four channels, four questions, no channel carrying two. The study's whole
+Five channels, five questions, no channel carrying two. The study's whole
 question is one comparison, so a cell's k = 0 curve and its k = 3 curve are
 the same colour on purpose: they are the pair being compared.
+
+The hatch is the newest channel and it is not decoration. This study's
+reproduction table separates on the machine and not on the seed, so a delta
+whose two sides trained on two boxes carries a term the study cannot bound.
+A reader has to see that on the bar, not in a footnote four sections later.
 
 The palette is four hues, not fourteen. This study trained 4 of the card's
 14 cells, and a categorical palette is validated on the pairs that actually
@@ -32,6 +38,10 @@ Usage:  python3 cell_colours.py     # prints the mapping
 from __future__ import annotations
 
 import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import runs as R                                          # noqa: E402
 
 # The card's run order. Colours ride on position, so a cell keeps its colour
 # whatever subset a figure draws.
@@ -53,10 +63,14 @@ COLOUR = dict(zip(ORDER, PALETTE))
 # Line style is the depth, everywhere.
 STYLE = {0: (0, (5, 2)), 1: (0, (1, 1.6)), 3: "solid"}
 
-# Fill is the backbone seed. The protocol's seed is filled; a second
-# training of the same recipe is hollow.
+# Fill is the backbone seed. The protocol's seed is filled; a training at
+# any other seed is hollow.
 PROTOCOL_SEED = 20260520
-SEED_MARKER = {20260520: "o", 20260521: "o"}
+
+# Hatch is the machine. A delta whose two sides trained on two boxes is
+# hatched, because the study measured up to 0.117 GM-Relative MASE on the
+# box and cannot separate that from the depth.
+CROSSED_HATCH = "///"
 
 INK = "#0b0b0b"
 INK_SOFT = "#52514e"
@@ -84,7 +98,7 @@ SLUG = {
 
 
 def cell_of(arm):
-    """`B5·s2` -> `B5`. An arm is a (cell, backbone seed) pair."""
+    """`B5·s2` -> `B5`. An arm is a (cell, seed, machine) triple."""
     return arm.split("·")[0]
 
 
@@ -93,8 +107,14 @@ def colour(arm):
 
 
 def hollow(arm):
-    """True where the arm is a second training of the cell's recipe."""
-    return "·s2" in arm
+    """True where the arm trained at something other than the protocol seed.
+
+    Read off the registry, not off the arm's name. `B5·s3` is the study's
+    third B5 backbone and carries the PROTOCOL seed, so it is filled; what
+    makes it a third arm is the machine, and the machine rides the hatch.
+    """
+    seed = R.arm_seed(arm)
+    return seed is not None and seed != PROTOCOL_SEED
 
 
 def face(arm):
@@ -102,14 +122,28 @@ def face(arm):
     return "#ffffff" if hollow(arm) else colour(arm)
 
 
+def hatch(machine_held):
+    """Bar hatch for a delta: none when both sides trained on one box."""
+    return None if machine_held else CROSSED_HATCH
+
+
 def style(k):
     return STYLE.get(int(k), "dotted")
 
 
 def label(arm):
+    """The cell, and — where the cell trained more than one backbone — which
+    of them this is. B5 has three, and two of them carry the same seed, so
+    the seed alone does not name a B5 arm.
+
+    A bare cell id is also accepted, for a legend entry that stands for the
+    colour rather than for one backbone.
+    """
     cell = cell_of(arm)
     base = f"{cell} {SLUG.get(cell, '?')}"
-    return f"{base}  seed 20260521" if hollow(arm) else base
+    if arm == cell or len(R.arms_of(cell)) < 2:
+        return base
+    return f"{base}  seed {R.arm_seed(arm)}, {R.arm_where(arm)}"
 
 
 def rc():

@@ -104,7 +104,16 @@ def main(argv=None):
             v += v[:1]
             ax.plot(ang, v, color=cc.colour(arm), linewidth=1.9,
                     linestyle=cc.style(k), alpha=1.0 if k else 0.7)
-        ax.set_title(f"{cc.label(arm)}\nk = 0 against k = {deep}",
+        # The panel says what the pair holds fixed. A pair whose two sides
+        # trained on two boxes carries a machine change worth up to 0.1169
+        # here, and a reader comparing polygons has to know which those are.
+        r0, rk = R.find_run(arm, 0), R.find_run(arm, deep)
+        held = r0 is not None and rk is not None and R.machine_held(r0, rk)
+        note = ("one machine" if held else
+                "TWO MACHINES" if r0 and rk else "")
+        mark = "  ✗ retracted" if arm in R.RETRACTED else ""
+        ax.set_title(f"{cc.label(arm)}{mark}\n"
+                     f"k = 0 against k = {deep}   ({note})",
                      fontsize=9, pad=16)
 
     for idx in range(len(panels), nrow * ncol):

@@ -120,7 +120,9 @@ def main(argv=None):
                linestyle="none", label="this study, retrained k = 0"),
         Line2D([], [], color=cc.INK_SOFT, marker="*", markersize=12,
                linestyle="none", label="this study, k > 0")]
-        + [Line2D([], [], color=cc.colour(a), label=cc.label(a))
+        + [Line2D([], [], color=cc.colour(a),
+                   label=cc.label(a) + ("  ✗ retracted" if a in R.RETRACTED
+                                        else ""))
            for a in arms],
         loc="best", frameon=False, fontsize=8)
 

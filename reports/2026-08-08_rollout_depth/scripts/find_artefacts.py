@@ -14,8 +14,8 @@ arguments the plot scripts take, so the rebuild script holds no paths.
 
 Usage:
   find_artefacts.py --what curves      # --run <arm>:<k>=<losses.csv>
-  find_artefacts.py --what logs        # --log <arm>:<k>:<gpu>=<run.log>
-  find_artefacts.py --what ckpt        # --run <arm>_k<k>=<bb40k .pth>
+  find_artefacts.py --what logs        # --log <arm>:<k>=<run.log>
+  find_artefacts.py --what ckpt        # --run <arm>:<k>=<bb40k .pth>
   find_artefacts.py --what ckptdir     # --run <arm>:<k>:<name>=<dir>
   find_artefacts.py --what pairs       # <label>\t<baseline tag>\t<compared tag>
 """
@@ -61,18 +61,6 @@ def find(name_to_runs, suffix):
             n = want.get(f)
             if n is not None and n not in out:
                 out[n] = dirpath / f
-    return out
-
-
-def box_gpu(results):
-    """`{box label: gpu}` from results/box_gpu.tsv, for the step-time table."""
-    path = Path(results) / "box_gpu.tsv"
-    if not path.is_file():
-        return {}
-    out = {}
-    for row in csv.reader(open(path), delimiter="\t"):
-        if len(row) >= 2 and not row[0].startswith("#"):
-            out[row[0]] = row[1]
     return out
 
 
@@ -130,8 +118,10 @@ def main(argv=None):
         return 0
 
     if args.what == "logs":
+        # No card in the spec: `runs.py` carries the machine and the card of
+        # every run, and a path that happens to sit under a box directory is
+        # a weaker source than the registry.
         got = find(depth, ".log")
-        gpus = box_gpu(args.results)
         for run, (arm, k, _r) in depth.items():
             path = got.get(f"run_{run}") or got.get(run)
             if path is None:
@@ -141,8 +131,7 @@ def main(argv=None):
                         break
             if path is None:
                 continue
-            box = next((part for part in path.parts if part in gpus), None)
-            print(f"--log\n{arm}:{k}:{gpus.get(box, 'RTX 4090 (elisa)')}={path}")
+            print(f"--log\n{arm}:{k}={path}")
         return 0
 
     # Both checkpoint modes want this run's own periodic checkpoints.
@@ -158,7 +147,10 @@ def main(argv=None):
         if args.what == "ckpt":
             forty = [h for st, h in hits if st == 40000]
             if forty:
-                print(f"--run\n{arm}_k{k}={forty[0]}")
+                # `<arm>:<k>`, the same shape every other mode emits, so a
+                # consumer resolves the label through the registry instead
+                # of splitting a string on `_k`.
+                print(f"--run\n{arm}:{k}={forty[0]}")
         else:
             by_dir = {}
             for _st, h in hits:

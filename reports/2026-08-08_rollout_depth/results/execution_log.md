@@ -253,3 +253,36 @@ The two figures that load checkpoints hit `CUDA error: out of memory` on the
 final rebuild, because another session held both of elisa's cards. The script
 now retries them on the CPU. The CPU numbers match the GPU ones to four
 decimals on rollout fidelity and to five on latent movement.
+
+## 2026-08-10 09:08 — the round-2 run waits for a card
+
+The round-2 review's blocking item is one run: B5 at `k = 0`, seed 20260520,
+on elisa. It separates the machine from the seed, and no other artefact can.
+
+Both of elisa's 4090s were full when it was queued. Three other sessions were
+training: `/tmp/rnd-434` held 12.6 GB of GPU 0, `/tmp/rnd-446` held 4.0 GB of
+GPU 0 and 3.2 GB of GPU 1, `/tmp/rnd-454` held 16.0 GB of GPU 1. That left
+22 MiB free on GPU 0 and 5062 MiB on GPU 1, against the 5375 MiB
+`results/gpu_mem_B5.csv` measures for this run.
+
+`scripts/gap_r2_launch.sh` therefore polls for 6200 MiB on either card and
+starts `gap_worker.sh` on whichever frees first. Starting 313 MiB short would
+not have produced a slower run, it would have produced a dead one.
+
+Eleven orphaned CUDA worker processes (PPID 1, 7 days old, ~4.9 GB of GPU 0
+between them) were left alone. Reclaiming them would still have left GPU 0
+about 400 MiB short of the run, so the risk bought nothing.
+
+## 2026-08-10 — one step-time pipeline, and the machine in the registry
+
+`steptime_from_logs.py` and `results/steptime_runs.csv` are deleted.
+`steptime_provenance.py` produces the same medians plus the contention
+split, so keeping both was the same "second pipeline" the last round removed
+from `gap_analyse.sh`. `make_report_assets.sh` now runs
+`run_provenance.py` then `steptime_provenance.py`.
+
+`run_provenance.py` is new. It reads the driver logs and the box queue logs
+and writes, per run, which other runs shared its card and for how much of
+its life. That is what the cost table was missing: every elisa backbone in
+this study was contended for 43% to 100% of its life, so only the four
+rented-box runs and the solo tail of a fifth can carry a step time.

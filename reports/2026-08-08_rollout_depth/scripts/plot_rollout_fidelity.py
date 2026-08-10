@@ -5,6 +5,12 @@
 k = 0. This measures the composed operator directly, with no quantile head
 in the way — the thing the training objective was changed to improve.
 
+The batch is #379's committed `_latent_movement_batch.pt`, the same one the
+parent reports' latent-movement figures use. It is a fixed diagnostic batch,
+not a held-out one: nothing establishes it is disjoint from
+`gift-pretrain-full-4096 / small_v1`, which is what these backbones trained
+on. It holds every curve on one scale, and that is what it is for.
+
 Reads results/rollout_fidelity.csv, written by rollout_fidelity.py.
 
 Usage: plot_rollout_fidelity.py --csv results/rollout_fidelity.csv \\
@@ -26,6 +32,7 @@ from matplotlib.lines import Line2D                    # noqa: E402
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import cell_colours as cc                              # noqa: E402
+import runs as R                                       # noqa: E402
 
 plt.rcParams.update(cc.rc())
 
@@ -46,22 +53,28 @@ def main(argv=None):
     fig, (axL, axR) = plt.subplots(1, 2, figsize=(11.0, 4.3))
     pairs = defaultdict(dict)
     for run, pts in curves.items():
-        # run labels are `<cell>_k<k>`
-        cell, _, ktxt = run.rpartition("_k")
-        k = int(ktxt) if ktxt.isdigit() else 0
+        # `find_artefacts.py --what ckpt` labels a curve `<arm>:<k>`, and
+        # the registry turns that into the arm's colour and legend text. No
+        # consumer of this study parses a run name itself.
+        arm, _, ktxt = run.rpartition(":")
+        if not arm or not ktxt.isdigit():
+            raise SystemExit(f"ABORT: {run!r} is not an <arm>:<k> label")
+        k = int(ktxt)
         pts.sort()
         xs = [d for d, _v in pts]
         ys = [v for _d, v in pts]
-        axL.plot(xs, ys, color=cc.colour(cell), linestyle=cc.style(k),
+        axL.plot(xs, ys, color=cc.colour(arm), linestyle=cc.style(k),
                  linewidth=1.9, marker="o", markersize=3)
-        pairs[cell][k] = (xs, ys)
+        pairs[arm][k] = (xs, ys)
 
-    for cell, byk in pairs.items():
+    for arm in [a for a in R.ARM_ORDER if a in pairs]:
+        byk = pairs[arm]
         if 0 in byk and 3 in byk:
             xs = byk[3][0]
+            mark = "  ✗ retracted" if arm in R.RETRACTED else ""
             axR.plot(xs, [b - a for a, b in zip(byk[0][1], byk[3][1])],
-                     color=cc.colour(cell), linewidth=1.9, marker="o",
-                     markersize=3, label=cc.label(cell))
+                     color=cc.colour(arm), linewidth=1.9, marker="o",
+                     markersize=3, label=cc.label(arm) + mark)
 
     axL.set_xlabel("rollout depth d (tokens)")
     axL.set_ylabel("cos(rollout$_d$, h$_{T_0+d}$)")

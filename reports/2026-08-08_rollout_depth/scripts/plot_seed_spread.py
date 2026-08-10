@@ -1,16 +1,27 @@
 #!/usr/bin/env python3
-"""#373 figure 3 — B5 trained twice, and what the two seeds disagree about.
+"""#373 figure 3 — B5 trained three times, and what the three disagree about.
 
-Same cell, same code, same recipe, same head seed, same 97-config eval. The
-backbone seed is the only difference between the two lines.
+One cell, one recipe, one head seed, one 97-config eval. Three backbones:
 
-The figure exists because the two seeds give opposite answers about the
-depth, and the reason is visible in one look: they land on top of each other
-at k = 3 and far apart at k = 0. The disagreement is a k = 0 disagreement.
-The dashed rule is #379's published value for this cell, which one k = 0
-sits on and the other does not.
+    B5·s1   seed 20260520, a rented RTX 5090
+    B5·s2   seed 20260521, elisa
+    B5·s3   seed 20260520, elisa
 
-Reads results/splits.csv (`all` rows).
+The first two disagree about the depth, and the first two differ by SEED and
+by MACHINE at once, so neither of them can say which it was. B5·s3 is the
+third corner: it holds the seed of s1 and the machine of s2.
+
+    s1 against s3   same seed, two machines   -> the machine
+    s2 against s3   same machine, two seeds   -> the seed
+
+The figure carries the two channels the study confounded, one each:
+
+    marker shape   the backbone seed
+    marker fill    the machine — filled is elisa, hollow is a rented box
+
+The dashed rule is #379's published value for this cell.
+
+Reads results/splits.csv (`all` rows) and the registry.
 
 Usage: plot_seed_spread.py --splits results/splits.csv \\
            --out plots/seed_spread.png
@@ -30,18 +41,31 @@ from matplotlib.lines import Line2D                    # noqa: E402
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import cell_colours as cc                              # noqa: E402
+import runs as R                                       # noqa: E402
 from published import PUBLISHED                        # noqa: E402
 
 PUB = PUBLISHED["B5"]["student"][40]
-SEEDS = [("seed 20260520", "B5_k{k}_bb40k_{h}", False),
-         ("seed 20260521", "G5_B5_s2_k{k}_bb40k_{h}", True)]
 KS = [0, 3]
+SHAPE = {20260520: "o", 20260521: "s"}
 plt.rcParams.update(cc.rc())
 
 
 def load(path):
     return {r["stop"]: float(r["gm_rel_mase"])
             for r in csv.DictReader(open(path)) if r["split"] == "all"}
+
+
+def arm_points(data, arm, head):
+    """[(k, value)] for one backbone, over the depths it has a score at."""
+    out = []
+    for k in KS:
+        run = R.find_run(arm, k, "depth") or R.find_run(arm, k, "control")
+        if run is None:
+            continue
+        v = data.get(f"{run.stem}_bb40k_{head}")
+        if v is not None:
+            out.append((k, v))
+    return out
 
 
 def main(argv=None):
@@ -52,7 +76,16 @@ def main(argv=None):
     data = load(args.splits)
     col = cc.COLOUR["B5"]
 
-    fig, axes = plt.subplots(1, 2, figsize=(10.2, 4.3), sharey=True)
+    # Every B5 backbone the registry knows, minus the control that swaps in
+    # a published checkpoint: that one measures the head and the eval, not a
+    # training of this cell.
+    arms = [a for a in R.arms_of("B5") if a != "B5·pub"]
+
+    fig, axes = plt.subplots(1, 2, figsize=(10.6, 4.6), sharey=True)
+    drawn, have = 0, []
+    # Alternate the value labels above and below the line, one offset per
+    # backbone, so three lines that meet at k = 3 do not stack their text.
+    offsets = [-20, 13, 24, -31]
     for ax, head in zip(axes, ("student", "teacher")):
         # The published rule belongs on the student panel only: group B's
         # parent reports publish one head, trained on the student encoder,
@@ -60,44 +93,57 @@ def main(argv=None):
         if head == "student":
             ax.axhline(PUB, color=cc.PARITY, linewidth=1.2,
                        linestyle=(0, (4, 3)))
-        for name, tpl, hollow in SEEDS:
-            ys = [data.get(tpl.format(k=k, h=head)) for k in KS]
-            if any(v is None for v in ys):
+        for i, arm in enumerate(arms):
+            pts = arm_points(data, arm, head)
+            if not pts:
                 continue
-            ax.plot(KS, ys, color=col, linewidth=2.2,
-                    linestyle=(0, (5, 2)) if hollow else "solid",
-                    marker="o", markersize=10,
-                    markerfacecolor="#ffffff" if hollow else col,
-                    markeredgecolor=col, markeredgewidth=2.0,
-                    label=name, zorder=3)
-            for k, y in zip(KS, ys):
+            drawn += 1
+            if arm not in have:
+                have.append(arm)
+            seed = R.arm_seed(arm)
+            elisa = R.arm_where(arm) == "elisa"
+            xs = [k for k, _v in pts]
+            ys = [v for _k, v in pts]
+            ax.plot(xs, ys, color=col, linewidth=2.2,
+                    linestyle="solid" if elisa else (0, (5, 2)),
+                    marker=SHAPE.get(seed, "^"), markersize=10,
+                    markerfacecolor=col if elisa else "#ffffff",
+                    markeredgecolor=col, markeredgewidth=2.0, zorder=3)
+            off = offsets[i % len(offsets)]
+            for k, y in pts:
                 ax.annotate(f"{y:.4f}", (k, y), textcoords="offset points",
-                            xytext=(0, 13 if hollow else -20), ha="center",
-                            fontsize=8.5, color=cc.INK)
+                            xytext=(0, off), ha="center", fontsize=8.5,
+                            color=cc.INK)
         ax.set_xticks(KS)
         ax.set_xticklabels([f"k = {k}" for k in KS])
         ax.set_xlim(-0.55, 3.55)
         ax.set_title(f"{head} head", loc="left")
         ax.set_xlabel("training rollout depth")
+    if not drawn:
+        raise SystemExit(f"ABORT: no B5 backbone in {args.splits}")
+
     axes[0].set_ylabel("GM-Relative MASE, 97 configs  (lower is better)")
     axes[0].annotate(f"#379 publishes {PUB:.4f} for this cell",
                      (3.45, PUB), fontsize=8, color=cc.INK_SOFT,
                      ha="right", va="bottom",
                      bbox=dict(fc="#ffffff", ec="none", pad=0.8))
-    axes[1].legend(loc="upper right", fontsize=9,
-                   handles=[Line2D([], [], color=col, linewidth=2.2,
-                                   marker="o", markersize=9,
-                                   markerfacecolor=col, label=SEEDS[0][0]),
-                            Line2D([], [], color=col, linewidth=2.2,
-                                   linestyle=(0, (5, 2)), marker="o",
-                                   markersize=9, markerfacecolor="#ffffff",
-                                   markeredgewidth=2.0, label=SEEDS[1][0])])
-    fig.suptitle("B5 arm4_combab_fix09, two backbone seeds", x=0.005,
-                 ha="left", fontsize=12)
+
+    handles = []
+    for arm in have:
+        seed, elisa = R.arm_seed(arm), R.arm_where(arm) == "elisa"
+        handles.append(Line2D([], [], color=col, linewidth=2.2,
+                              linestyle="solid" if elisa else (0, (5, 2)),
+                              marker=SHAPE.get(seed, "^"), markersize=9,
+                              markerfacecolor=col if elisa else "#ffffff",
+                              markeredgecolor=col, markeredgewidth=2.0,
+                              label=f"{arm}  seed {seed}, {R.arm_where(arm)}"))
+    axes[1].legend(handles=handles, loc="upper right", fontsize=8.5)
+    fig.suptitle("B5 arm4_combab_fix09 — one seed change, one machine change",
+                 x=0.005, ha="left", fontsize=12)
     fig.tight_layout()
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(args.out, bbox_inches="tight")
-    print(f"wrote {args.out}")
+    print(f"wrote {args.out} ({drawn} line(s))")
     return 0
 
 

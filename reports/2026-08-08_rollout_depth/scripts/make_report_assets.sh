@@ -114,7 +114,7 @@ if [ "${#ckpts[@]}" -gt 0 ] && [ -f "$BATCH" ]; then
     run "$HERE/plot_rollout_fidelity.py" --csv "$RES/rollout_fidelity.csv" \
         --out "$PLOTS/rollout_fidelity.png"
 else
-  say "no bb40k checkpoint or no held-out batch — no fidelity figure"
+  say "no bb40k checkpoint or no diagnostic batch — no fidelity figure"
 fi
 
 # ---- 6. latent movement, between each run's 20k and 40k checkpoints --------
@@ -127,12 +127,22 @@ else
   say "fewer than two periodic checkpoints per run — no latent-movement figure"
 fi
 
-# ---- 7. step time of the real runs, from their own trainer logs ------------
-# The 600-step probe measured the overhead on a shared card; these are tens
-# of thousands of steps on a card each run had to itself.
+# ---- 7. step time of the real runs, and who else held the card -------------
+# A median over a run's timing windows is a cost of the depth only if the
+# card was that run's alone. elisa ran two of this study's backbones at a
+# time and trained heads beside them, so most runs fail that test. The
+# driver logs say which; the step-time table then publishes a number only
+# where the run passes.
+queues=()
+for q in "$DST"/sync/*/queue.log; do
+  [ -f "$q" ] && queues+=(--queue "$(basename "$(dirname "$q")")=$q")
+done
+run "$HERE/run_provenance.py" --driver "$RES/gaps_driver.log" \
+    "${queues[@]}" --out "$RES/run_provenance.csv"
 mapfile -t logs < <(python3 "$HERE/find_artefacts.py" --what logs --results "$RES")
 if [ "${#logs[@]}" -gt 0 ]; then
-  run "$HERE/steptime_from_logs.py" "${logs[@]}" --out "$RES/steptime_runs.csv"
+  run "$HERE/steptime_provenance.py" "${logs[@]}" \
+      --provenance "$RES/run_provenance.csv" --out "$RES/steptime_solo.csv"
 else
   say "no trainer log found — no per-run step-time table"
 fi

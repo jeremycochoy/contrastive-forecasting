@@ -1,0 +1,15 @@
+# #373 — round-2 review. One row, one question.
+#
+# The reproduction table separates on the MACHINE, not on the backbone seed:
+# every rented-box k = 0 missed its published value and every elisa k = 0 hit
+# it, and three runs at seed 20260520 land 0.1169 apart. This row retrains
+# B5 at k = 0 on the protocol seed 20260520, on elisa, so the machine is the
+# only thing that differs from B5·s1.
+#
+# Near 1.2748 -> the machine moved the score and the seed spread is unmeasured.
+# Near 1.3917 -> the seed moved it and B5·s1 stands as an anomalous run.
+#
+# Columns are gap_jobs.tsv's.
+#
+# id	gap	launcher	arg	k	suffix	seed	gap_args	steps
+G7_B5_k0_e	1	run_arm_k.sh	arm4_combab	0	_e	20260520	-	40000
