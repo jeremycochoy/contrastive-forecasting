@@ -83,11 +83,26 @@ declare -A RESUME_DST=(
   [B9]="/root/cf373_runs/bb_small_arm1_nse_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3"
   [B1]="/root/cf373_runs/bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3"
 )
-if [ -n "${RESUME_SRC[$CELL]:-}" ]; then
-  src="${RESUME_SRC[$CELL]}"; dst="${RESUME_DST[$CELL]}"
-  bb="$(ls "$src"/*_40k.pth 2>/dev/null | grep -v optimizer | head -1)"
-  opt="$(ls "$src"/*_40k_optimizer.pth 2>/dev/null | head -1)"
-  [ -f "$bb" ] && [ -f "$opt" ] || { say "ABORT: no 40k pair under $src"; (cd "$VASTRUN_DIR" && vastrun-destroy "$ID" --force) >/dev/null 2>&1; exit 5; }
+# A cell that already ran on a box this round has its own, further,
+# checkpoint in the local sync tree. Prefer it: a re-launch after a box dies
+# must not throw away the steps the sync loop saved. The path inside the
+# tree mirrors the box's, so the destination is the same relative path.
+src=""; dst=""
+newest="$(find "$SYNC_BASE/$CELL/sync" -name "*_[0-9]*k.pth" ! -name "*optimizer*" 2>/dev/null \
+          | sed -E 's|.*_([0-9]+)k\.pth$|\1 &|' | sort -k1,1n | tail -1 | cut -d' ' -f2-)"
+if [ -n "$newest" ]; then
+  src="$(dirname "$newest")"
+  dst="/root/cf373_runs/${src#$SYNC_BASE/$CELL/sync/}"
+  step_k="$(sed -E 's|.*_([0-9]+)k\.pth$|\1|' <<<"$newest")"
+  say "resuming from this round's own sync tree at ${step_k}k"
+elif [ -n "${RESUME_SRC[$CELL]:-}" ]; then
+  src="${RESUME_SRC[$CELL]}"; dst="${RESUME_DST[$CELL]}"; step_k=40
+fi
+
+if [ -n "$src" ]; then
+  bb="$(ls "$src"/*_${step_k}k.pth 2>/dev/null | grep -v optimizer | head -1)"
+  opt="$(ls "$src"/*_${step_k}k_optimizer.pth 2>/dev/null | head -1)"
+  [ -f "$bb" ] && [ -f "$opt" ] || { say "ABORT: no ${step_k}k checkpoint+optimizer pair under $src"; (cd "$VASTRUN_DIR" && vastrun-destroy "$ID" --force) >/dev/null 2>&1; exit 5; }
   say "staging resume: $(basename "$bb") + optimizer -> $dst"
   rsh "mkdir -p '$dst'" || { say "ABORT: mkdir on box"; exit 5; }
   scp "${SSH_OPTS[@]}" -P "$PORT" "$bb" "$opt" "root@$HOST:$dst/" >/dev/null || {
@@ -122,5 +137,10 @@ REMOTE_DIR=/root/cf/reports/2026-08-08_rollout_depth \
 REMOTE_RUNS=/root/cf373_runs \
 LOCAL_DIR="$LOCAL" SAFE_PULL="$SAFE_PULL" INTERVAL="${SYNC_INTERVAL:-900}" \
   nohup setsid bash "$STUDY/sync/sync_loop.sh" > "$LOCAL/sync_loop.log" 2>&1 &
-say "sync loop started -> $LOCAL"
+# The pid, so a relaunch can stop THIS cell's loop and not every cell's.
+# Its command line is `bash sync_loop.sh` on all fourteen — the host it
+# polls is in the environment, not in the arguments — so a pattern kill
+# would take the whole fleet's syncing with it.
+echo $! > "$RES/r2_syncpid_$CELL"
+say "sync loop started -> $LOCAL (pid $!)"
 say "LAUNCHED instance=$ID host=$HOST port=$PORT stops=$STOPS"
