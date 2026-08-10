@@ -57,7 +57,7 @@ The parents print four decimals, so a difference below 0.0005 is the smallest th
 
 Criterion, from the card: medium+long (42 configs) at least 5% better, short (55 configs) losing less than 2%.
 
-`machine held` = did the two sides train on the same box. A `no` row carries a machine change as well as a depth change, and the reproduction table puts up to 0.1169 on the machine.
+`machine held` = did the two sides train on the same box. A `no` row carries a machine change as well as a depth change, and the reproduction table separates on the machine at up to 0.1169.
 
 ✗ marks a retracted row: B5·s1's `k = 0` misses its published value by 0.1169 and trained on a rented box; its depth delta is retracted.
 
@@ -154,8 +154,8 @@ Median `fwd + bwd` per step, from each run's own trainer log. A median is a cost
 | B9 | split L_pred | 3 | vast box c | RTX 4090 | 425.2 ms | yes |
 | B1 | rep_only + L_align | 0 | elisa | RTX 4090 | 178.6 ms, shared | no — another backbone for 100% of the run; head training for 100% of it |
 | B1 | rep_only + L_align | 3 | elisa | RTX 4090 | 235.1 ms, shared | no — another backbone for 68% of the run; head training for 100% of it |
-| B5·s1 ✗ | pooled xshh_allt | 0 | vast box d | RTX 5090 | 117.6 ms | yes |
-| B5·s1 ✗ | pooled xshh_allt | 3 | vast box a | RTX 5090 | 301.9 ms | yes |
+| B5·s1 | pooled xshh_allt | 0 | vast box d | RTX 5090 | 117.6 ms | yes |
+| B5·s1 | pooled xshh_allt | 3 | vast box a | RTX 5090 | 301.9 ms | yes |
 | B5·s2 | pooled xshh_allt | 0 | elisa | RTX 4090 | 201.1 ms, shared | no — another backbone for 100% of the run; head training for 98% of it |
 | B5·s2 | pooled xshh_allt | 3 | elisa | RTX 4090 | 500.9 ms, shared | no — another backbone for 43% of the run; head training for 100% of it |
 | A3 | rep_only + L_align | 0 | vast box d | RTX 5090 | 115.9 ms | yes |
@@ -166,6 +166,8 @@ The ratios that survive that test:
 
 | arm | f-bearing term | k = 0 | k = 3 | change | both sides |
 |---|---|---|---|---|---|
-| B5·s1 ✗ | pooled xshh_allt | 117.6 ms | 301.9 ms | +157% | vast box d → vast box a |
+| B5·s1 | pooled xshh_allt | 117.6 ms | 301.9 ms | +157% | vast box d → vast box a |
 | A3 | rep_only + L_align | 115.9 ms | 131.5 ms | +13% | vast box d → vast box b |
+
+No ✗ in this table. The retraction is of B5·s1's depth delta, which rests on a `k = 0` the parents do not recognise; its wall clock is unaffected.
 

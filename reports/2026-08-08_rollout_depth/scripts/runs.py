@@ -311,9 +311,10 @@ def machine_held(a, b):
     """Did these two runs train on the same box?
 
     A `k = 3` against a `k = 0` on two boxes measures the depth AND the box.
-    The reproduction table puts up to 0.117 GM-Relative MASE on the box, so
-    a comparison that does not hold it fixed carries a term this study
-    cannot bound. Every table that prints a delta prints this beside it.
+    The reproduction check separates on the box at up to 0.1169 GM-Relative
+    MASE, so a comparison that does not hold it fixed carries a term this
+    study cannot bound. Every table that prints a delta prints this beside
+    it.
     """
     return a.machine == b.machine
 

@@ -16,9 +16,10 @@ thing:
                      independent backbone trainings.
 
 A hatched bar is a delta whose two sides trained on different machines. The
-study's reproduction table separates on the machine and not on the seed, so
-a hatched bar carries a term the study cannot bound. Two bars per head are
-not hatched, and they are the ones a reader can lean on.
+study's reproduction table separates on the machine and not on the seed —
+every rented-box `k = 0` missed its published value and every elisa one hit
+it — so a hatched bar carries a term the study cannot bound. Two bars per
+head are not hatched, and they are the ones a reader can lean on.
 
 Reads results/splits.csv (`all` rows) and resolves tags through runs.py.
 

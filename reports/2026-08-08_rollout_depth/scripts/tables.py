@@ -207,7 +207,7 @@ def main(argv=None):
           "5% better, short (55 configs) losing less than 2%.", "",
           "`machine held` = did the two sides train on the same box. A `no` "
           "row carries a machine change as well as a depth change, and the "
-          "reproduction table puts up to 0.1169 on the machine.", "",
+          "reproduction table separates on the machine at up to 0.1169.", "",
           "✗ marks a retracted row: " + R.RETRACTED_WHY + ".", "",
           f"Head-seed band ±{NOISE_BAND} (`ema_sched_ladder.md`, pooled). It "
           "bounds the head seed alone. It does not bound a retraining, "
@@ -329,7 +329,10 @@ def main(argv=None):
         ms = (f"{float(r['compute_ms']):.1f} ms" if r["compute_ms"] else
               f"{float(r['compute_ms_contended']):.1f} ms, shared"
               if r["compute_ms_contended"] else "—")
-        L.append(f"| {arm}{mark(arm)} | {run.term if run else '?'} | {k} | "
+        # No ✗ here. The retraction is of B5·s1's depth DELTA, which rests on
+        # a k = 0 the parents do not recognise. Its step time is a wall clock
+        # and nothing about the score touches it.
+        L.append(f"| {arm} | {run.term if run else '?'} | {k} | "
                  f"{r['machine']} | {r['card']} | {ms} | "
                  f"{'yes' if r['solo'] == 'yes' else 'no — ' + r['why_not_solo']} |")
     L += ["", "The ratios that survive that test:", "",
@@ -344,9 +347,11 @@ def main(argv=None):
         same = ("one box" if a["machine"] == b["machine"] else
                 f"{a['machine']} → {b['machine']}"
                 + ("" if a["card"] == b["card"] else ", DIFFERENT CARDS"))
-        L.append(f"| {arm}{mark(arm)} | {run.term if run else '?'} | "
+        L.append(f"| {arm} | {run.term if run else '?'} | "
                  f"{c0:.1f} ms | {c3:.1f} ms | {c3 / c0 - 1:+.0%} | {same} |")
-    L.append("")
+    L += ["", "No ✗ in this table. The retraction is of B5·s1's depth "
+          "delta, which rests on a `k = 0` the parents do not recognise; "
+          "its wall clock is unaffected.", ""]
 
     body = "\n".join(L) + "\n"
     Path(args.out).write_text(body)
