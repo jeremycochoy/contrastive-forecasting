@@ -1,0 +1,11 @@
+[08-10 09:08:10] waiting: GPU 1 has 5062 MiB free, need 6200
+[08-10 09:23:10] waiting: GPU 1 has 5062 MiB free, need 6200
+[08-10 09:38:11] waiting: GPU 1 has 5062 MiB free, need 6200
+[08-10 09:42:11] GPU 0 has 12617 MiB free after 2040s — starting the worker
+[08-10 09:42:11] [wr2] BB START G7_B5_k0_e (gap 1) launcher=run_arm_k.sh arg=arm4_combab k=0 seed=20260520 suffix='_e' gap_args='none' gpu=0
+[08-10 09:42:11] [elisa-arm4_combab] BB START (arm 4_combab: xshh_allt + moco-negatives + τ=1.0 + cpc=0 + sigreg_e=0) gpu=0 target=40000 final=200000 bs=64 
+[08-10 12:17:03] [elisa-arm4_combab] arm4_combab wave complete: target=40000 (< final 200000) — latest ck bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k0_e_40k.pth
+[08-10 12:17:03] [wr2] BB END   G7_B5_k0_e rc=0
+[08-10 12:17:03] [wr2] heads for G7_B5_k0_e handed off
+[08-10 12:17:03] [wr2] worker r2 drained
+[08-10 12:17:03] worker exited rc=0

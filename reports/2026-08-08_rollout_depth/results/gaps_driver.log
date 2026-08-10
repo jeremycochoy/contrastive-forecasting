@@ -83,3 +83,12 @@ k=3 against k=0:
 [08-10 05:24:41] [w1] HEAD END   G5_B5_s2_k3 teacher rc=0
 [08-10 05:58:04] [w1] HEAD END   G3_A3_k1 teacher rc=0
 [08-10 06:29:11] [w0] HEAD END   G6_B1_k3 teacher rc=0
+[08-10 09:42:11] [wr2] BB START G7_B5_k0_e (gap 1) launcher=run_arm_k.sh arg=arm4_combab k=0 seed=20260520 suffix='_e' gap_args='none' gpu=0
+[08-10 12:17:03] [wr2] BB END   G7_B5_k0_e rc=0
+[08-10 12:17:03] [wr2] heads for G7_B5_k0_e handed off
+[08-10 12:17:03] [wr2] worker r2 drained
+[08-10 12:17:03] [wr2] HEAD START G7_B5_k0_e student (attempt 1, gpu 0)
+[08-10 13:51:29] [wr2] HEAD END   G7_B5_k0_e student rc=0
+[08-10 13:51:29] [wr2] HEAD START G7_B5_k0_e teacher (attempt 1, gpu 1)
+[08-10 17:51:38] [wr2] HEAD END   G7_B5_k0_e teacher rc=1
+[08-10 17:51:38] [wr2] HEAD START G7_B5_k0_e teacher (attempt 2, gpu 1)
