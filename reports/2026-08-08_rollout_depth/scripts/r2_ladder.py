@@ -81,14 +81,29 @@ def tag(cell, stop_k, head, k=K):
     return f"{cell}_k{k}_bb{stop_k}k_{head}"
 
 
+# Round 1's four k = 3 runs at 40k, where its launcher's own tag differs
+# from `<cell>_k3_bb40k_<head>`. B1 trained in round 1's review batch and
+# carries that batch's `G6_` prefix. Round 2 resumes those checkpoints
+# rather than repeating the 40k stop, so the score has to be found under
+# the name round 1 gave it.
+TAG_ALIAS = {
+    ("B1", 40, 3): "G6_B1_k3_bb40k",
+}
+
+
 def score(cell, stop_k, head, results=RESULTS, k=K):
     """This study's GM-Relative MASE for one (cell, stop, head), or None."""
-    p = os.path.join(results, f"score_{tag(cell, stop_k, head, k)}.txt")
-    try:
-        with open(p) as fh:
-            return float(fh.read().strip())
-    except (OSError, ValueError):
-        return None
+    names = [tag(cell, stop_k, head, k)]
+    alias = TAG_ALIAS.get((cell, stop_k, k))
+    if alias:
+        names.append(f"{alias}_{head}")
+    for name in names:
+        try:
+            with open(os.path.join(results, f"score_{name}.txt")) as fh:
+                return float(fh.read().strip())
+        except (OSError, ValueError):
+            continue
+    return None
 
 
 def baseline(cell, stop_k, head):

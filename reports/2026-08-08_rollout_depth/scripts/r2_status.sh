@@ -15,7 +15,7 @@ SYNC_BASE="${CF373_R2_SYNC:-/home/jupyter/cf373_r2}"
 BOXES="$RES/r2_boxes.tsv"
 CELLS="A1 A2 A3 A4 B1 B2 B3 B4 B5 B6 B7 B8 B9 B10"
 
-printf '%-4s %-11s %-9s %-24s %-11s %s\n' CELL BOX STATE "BB CKPTS (local)" HEADS SCORES
+printf '%-4s %-11s %-8s %-8s %-14s %-11s %s\n' CELL BOX STATE STEP "BB CKPTS" HEADS SCORES
 for c in $CELLS; do
   row="$(grep -P "^$c\t" "$BOXES" 2>/dev/null | head -1)"
   id=$(cut -f2 <<<"$row"); host=$(cut -f3 <<<"$row")
@@ -29,10 +29,17 @@ for c in $CELLS; do
   heads=$(ls -d "$SYNC_BASE/$c"/sync/eval/*/ 2>/dev/null | while read -r d; do
             ls "$d"/qhead_*_final.pth >/dev/null 2>&1 && basename "$d"; done \
           | sed -E "s/^${c}_k[0-9]+_bb//;s/k_student/S/;s/k_teacher/T/" | tr '\n' ',' | sed 's/,$//')
-  scores=$(ls "$RES"/score_${c}_k*_bb*.txt 2>/dev/null \
-           | sed -E "s|.*/score_${c}_k[0-9]+_bb||;s/k_student\.txt/S/;s/k_teacher\.txt/T/" \
+  scores=$(ls "$RES"/score_${c}_k3_bb*.txt 2>/dev/null \
+           | sed -E "s|.*/score_${c}_k3_bb||;s/k_student\.txt/S/;s/k_teacher\.txt/T/" \
            | tr '\n' ',' | sed 's/,$//')
-  printf '%-4s %-11s %-9s %-24s %-11s %s\n' "$c" "$box" "$state" "${steps:--}" "${heads:--}" "${scores:--}"
+  # The last step in the synced losses CSV. That is the step this machine
+  # can still resume from; the box's own counter is ahead of it by up to one
+  # sync tick and is not what a crash would leave behind.
+  step=$(find "$SYNC_BASE/$c/sync" -name "*losses*.csv" 2>/dev/null \
+         | while read -r f; do tail -1 "$f" | cut -d, -f1; done \
+         | grep -E '^[0-9]+$' | sort -n | tail -1)
+  printf '%-4s %-11s %-8s %-8s %-14s %-11s %s\n' \
+    "$c" "$box" "$state" "${step:--}" "${steps:--}" "${heads:--}" "${scores:--}"
 done
 
 echo
