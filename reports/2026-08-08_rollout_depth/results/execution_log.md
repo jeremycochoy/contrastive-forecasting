@@ -286,3 +286,39 @@ and writes, per run, which other runs shared its card and for how much of
 its life. That is what the cost table was missing: every elisa backbone in
 this study was contended for 43% to 100% of its life, so only the four
 rented-box runs and the solo tail of a fifth can carry a step time.
+
+## 2026-08-10 09:07 to 13:51 — the round-2 machine test
+
+`gap_jobs_r2.tsv` carries one row. It retrains B5 at `k = 0` on the protocol
+seed 20260520, on elisa, so the only thing that differs from B5·s1 is the
+box. The reproduction table sorted perfectly on the machine and the study
+could not say whether the seed or the box did it.
+
+Backbone 40k steps, then the student head and the 97-config eval:
+`score_G7_B5_k0_e_bb40k_student` = **1.2751**. The published value is 1.2748
+and B5·s1, same seed, same code, on a rented RTX 5090, is 1.3917.
+
+The machine moved it by 0.1166 and the seed by 0.0035. `early_loss.csv`
+shows B5·s1 and B5·s3 printing the same mixer counts step for step, so the
+two runs saw the same batches in the same order.
+
+## 2026-08-10 13:51 to 17:51 — the teacher head of that control did not run
+
+`head_eval_bb.sh G7_B5_k0_e_bb40k_teacher` waited 4 h for VRAM and aborted:
+other projects held both of elisa's cards, GPU 1 had 4916 MiB free and the
+head needs 6000. `stops.log` carries the TIMEOUT line and the ABORT beside
+it.
+
+It was not retried. The group-B parent reports publish the student-encoder
+head only, so the student number is the one the reproduction check compares
+against, and the encoder-delta figure bounds the choice at under half the
+head-seed band. The worker and its retry loop were stopped rather than left
+to spin on a card another project owns.
+
+## 2026-08-10 17:54 — collect.sh was overwriting the execution log
+
+`collect.sh` rsyncs the run worktree's `results/` over the checkout's. The
+run worktree carries its own fork of `execution_log.md`, branched before the
+review runs, and rsync copied the older file over the newer one: 82 lines
+gone. The log is written in the checkout, never by a run, so it is now
+excluded from that rsync. Restored from git.

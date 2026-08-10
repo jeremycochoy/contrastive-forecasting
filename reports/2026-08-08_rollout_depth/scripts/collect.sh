@@ -29,8 +29,13 @@ mkdir -p "$DST/results" "$DST/plots"
 say(){ echo "[collect] $*"; }
 
 # 1. The run worktree's results.
+#
+# `execution_log.md` is EXCLUDED. It is written in the git checkout, not by
+# the runs, and the run worktree carries a stale fork of it; rsync happily
+# copies the older file over the newer one and drops whatever was appended
+# since the worktree was branched. Aug 10 2026: 82 lines lost that way.
 if [ -d "$RUN_WT/reports/2026-08-08_rollout_depth/results" ]; then
-  rsync -a --exclude='*.pth' \
+  rsync -a --exclude='*.pth' --exclude='execution_log.md' \
     "$RUN_WT/reports/2026-08-08_rollout_depth/results/" "$DST/results/"
   say "run worktree results"
 fi
