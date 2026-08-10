@@ -183,7 +183,7 @@ magnitude.
 On #379's fixed diagnostic batch, `cos` between the rolled latent and the
 true `h_{t+d}` for `d = 1..16`, with no head in the way. **Every arm improves
 at `k = 3` at every one of the 16 depths, including the two that score
-worse.**
+worse.** The smallest gain is A3's +0.003 and the largest is B5·s2's +0.545.
 
 So the fixed-point approximation is not what failed. The flag does what it
 says: it makes the model better at consuming its own output. On A3 and B5 a

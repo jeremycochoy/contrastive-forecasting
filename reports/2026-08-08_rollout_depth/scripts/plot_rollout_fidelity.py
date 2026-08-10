@@ -63,8 +63,12 @@ def main(argv=None):
         pts.sort()
         xs = [d for d, _v in pts]
         ys = [v for _d, v in pts]
+        # Fill is the backbone seed, as everywhere: B5 draws three curves in
+        # one hue and only the marker tells its second seed from its first.
         axL.plot(xs, ys, color=cc.colour(arm), linestyle=cc.style(k),
-                 linewidth=1.9, marker="o", markersize=3)
+                 linewidth=1.9, marker="o", markersize=4,
+                 markerfacecolor=cc.face(arm),
+                 markeredgecolor=cc.colour(arm))
         pairs[arm][k] = (xs, ys)
 
     for arm in [a for a in R.ARM_ORDER if a in pairs]:
@@ -74,7 +78,9 @@ def main(argv=None):
             mark = "  ✗ retracted" if arm in R.RETRACTED else ""
             axR.plot(xs, [b - a for a, b in zip(byk[0][1], byk[3][1])],
                      color=cc.colour(arm), linewidth=1.9, marker="o",
-                     markersize=3, label=cc.label(arm) + mark)
+                     markersize=5, markerfacecolor=cc.face(arm),
+                     markeredgecolor=cc.colour(arm),
+                     label=cc.label(arm) + mark)
 
     axL.set_xlabel("rollout depth d (tokens)")
     axL.set_ylabel("cos(rollout$_d$, h$_{T_0+d}$)")
