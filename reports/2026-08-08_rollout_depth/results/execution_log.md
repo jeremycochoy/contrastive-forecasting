@@ -456,3 +456,27 @@ B5, B9 and A3 skip their 40k wave (the checkpoint is staged) and the worker
 went straight to training that stop's two heads — an hour of a rented card
 per cell to reproduce a score round 1 already holds. Killed on the three
 boxes already up; `SKIP_HEAD_STOPS` in `r2_cell_worker.sh` covers the rest.
+
+## 2026-08-10 22:05 — the fleet verifier counted itself
+
+`r2_verify.sh` asks every box how many `train.py` processes it holds,
+because round 1 lost 45 minutes of a 5090 to two identical runs on one card.
+Its first version reported 3 on every box, including boxes that held one.
+
+`pgrep -f <pattern>` and `ps | grep <pattern>` both match the shell running
+the ssh command, whose command line contains the pattern. `[f]req-embedding`
+fixes it: the regex still matches the target and no longer matches the text
+of itself. `pgrep -c` also prints `0` AND exits 1 on no match, so a
+`|| echo 0` guard appended a second line and shifted every field after it;
+the counters now go through `ps | grep -c`.
+
+With that fixed: 7 boxes, one backbone each, `--train-rollout-depth 3` on
+all of them, run names matching their cells.
+
+## 2026-08-10 22:06 — the head skip belongs on the box
+
+B1 and A3 were training 40k heads the study already holds. The fleet loop
+was started before `skip_heads` existed and kept running its old text, so
+the launcher's environment never carried the flag. The default now lives in
+`r2_cell_worker.sh`, keyed on the cell: the box is the only place that knows
+which cell it is, so it decides.

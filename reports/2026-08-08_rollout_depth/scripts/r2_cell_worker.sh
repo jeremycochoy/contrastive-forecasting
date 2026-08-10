@@ -27,7 +27,14 @@ K="${K:-3}"
 # and B9 carry a k = 3 checkpoint at 40k AND both of its heads' scores, so
 # re-training those heads here would spend an hour of the card to reproduce
 # a number the study already has.
-SKIP_HEAD_STOPS="${SKIP_HEAD_STOPS:-}"
+#
+# The default lives here rather than in the launcher: the fleet loop passes
+# it, and a fleet already running when the launcher changed did not. The box
+# is the only place that knows which cell it is, so it decides.
+case " A3 B1 B5 B9 " in
+  *" $CELL "*) SKIP_HEAD_STOPS="${SKIP_HEAD_STOPS:-40000}" ;;
+  *)           SKIP_HEAD_STOPS="${SKIP_HEAD_STOPS:-}" ;;
+esac
 WT=/root/cf
 HERE="$WT/reports/2026-08-08_rollout_depth/scripts"
 RES="$WT/reports/2026-08-08_rollout_depth/results"
