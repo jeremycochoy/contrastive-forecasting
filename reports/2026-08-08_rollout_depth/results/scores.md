@@ -128,7 +128,7 @@ B5 (`arm4_combab_fix09`) trained three times on one recipe, one code snapshot, o
 | B5·s1 against B5·s2 | the seed AND the machine | 0 | -0.1200 | [-0.1825, -0.0742] |
 | B5·s1 against B5·s2 | the seed AND the machine | 3 | +0.0088 | [-0.0306, +0.0520] |
 
-Student head, 97 configs. `B5·s3` holds `B5·s1`'s seed and `B5·s2`'s machine, so the first two rows separate what the third confounds: the machine moves `k = 0` by 0.1166 and the seed by 0.0035.
+Student head, 97 configs. `B5·s3` holds `B5·s1`'s seed and `B5·s2`'s machine.
 
 Every interval here is a paired dataset-cluster bootstrap over the 97 eval configs of ONE run pair. It bounds the eval sample: how far the difference between these two runs could move if the datasets had been drawn again. It does not bound run-to-run variance, and neither contrast has a replicate to bound it with. No two of B5's three backbones share both a seed and a machine.
 
@@ -156,7 +156,7 @@ Every column trained on a different box from at least one other. A3_k0: vast box
 
 ### What the depth costs
 
-Median `fwd + bwd` per step, from each run's own trainer log. A median is a cost of the depth only where the run had the card to itself, so the table says which did. `run_provenance.py` reads that off the driver logs and [`results/steptime_solo.csv`](results/steptime_solo.csv) carries it per run.
+Median `fwd + bwd` per step, from each run's own trainer log. A median is a cost of the depth only where the run had the card to itself, so the table says which did. `run_provenance.py` reads that off the driver logs and [`results/steptime_solo.csv`](results/steptime_solo.csv) carries it per run. A3's `k = 3` shared vast box b with a clone of itself up to step 14,800, and its 131.5 ms is the median over the 127 windows after that.
 
 | arm | f-bearing term | k | machine | card | fwd+bwd | alone? |
 |---|---|---|---|---|---|---|
@@ -208,6 +208,8 @@ The ratios that survive that test:
 | `L_align` | the term that aligns `f`'s output with the future latent |
 | `L_pred` | the predictive contrastive term, split from the representation term |
 | `xshh_allt` | negatives pooled across the batch and across channels, taken over every time index |
+| `u_batchtime` | dimension usage of a latent over the pooled (batch × time) sample axis: `1 / (H · mean off-diagonal squared cosine)`, capped at 1. 1.0 is all `H` dimensions in use and a value near `1/H` is one direction. `h_t` is the encoder latent, `e_t` the embedding it reads |
+| collapse | the latent falling onto few directions, so `u_batchtime` runs toward zero. The card watches for it because a model can win the deeper f-bearing terms by flattening `f` |
 | `arm4`, `arm6_v2 combab` | the launcher recipes the cells run; the Coverage table gives each cell's |
 | head-seed band ±0.0384 | how far the head seed alone moved a score in `ema_sched_ladder.md`, pooled. It bounds the head seed and nothing else |
 | `mixup` | the count of examples the batch mixer touched in a 200-step window. Two runs on one data order print one count |

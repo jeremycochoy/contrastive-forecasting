@@ -320,9 +320,7 @@ def main(argv=None):
                      + (f"[{float(ci['ci_lo']):+.4f}, "
                         f"{float(ci['ci_hi']):+.4f}] |" if ci else "— |"))
     L += ["", "Student head, 97 configs. `B5·s3` holds `B5·s1`'s seed and "
-          "`B5·s2`'s machine, so the first two rows separate what the third "
-          "confounds: the machine moves `k = 0` by 0.1166 and the seed by "
-          "0.0035.", "",
+          "`B5·s2`'s machine.", "",
           INTERVAL_SCOPE, ""]
 
     early = list(csv.DictReader(open(Path(args.results) / "early_loss.csv"))) \
@@ -384,13 +382,27 @@ def main(argv=None):
           "column by another.", ""]
 
     # ---- 8. what the depth costs -------------------------------------------
+    # A solo row does not have to be solo for its whole run: a clone of the
+    # run itself can hold the card for a stretch, and then the median is over
+    # the windows after it. The `alone?` column cannot carry that, so the
+    # paragraph above the table names each such row and what it was measured
+    # over.
+    clones = " ".join(
+        f"{arm}'s `k = {k}` shared {st[(arm, k)]['machine']} with a clone of "
+        f"itself up to step {int(st[(arm, k)]['first_solo_step']):,}, and its "
+        f"{float(st[(arm, k)]['compute_ms']):.1f} ms is the median over the "
+        f"{st[(arm, k)]['windows_solo']} windows after that."
+        for arm in R.ARM_ORDER for k in sorted(k for a, k in st if a == arm)
+        if st[(arm, k)]["solo"] == "yes"
+        and "clone" in st[(arm, k)]["neighbours"]
+        and st[(arm, k)]["first_solo_step"])
     L += ["### What the depth costs", "",
           "Median `fwd + bwd` per step, from each run's own trainer log. A "
           "median is a cost of the depth only where the run had the card to "
           "itself, so the table says which did. `run_provenance.py` reads "
           "that off the driver logs and "
           "[`results/steptime_solo.csv`](results/steptime_solo.csv) carries "
-          "it per run.", "",
+          "it per run." + (f" {clones}" if clones else ""), "",
           "| arm | f-bearing term | k | machine | card | fwd+bwd | alone? |",
           "|---|---|---|---|---|---|---|"]
     order = {a: i for i, a in enumerate(R.ARM_ORDER)}
@@ -474,6 +486,14 @@ def main(argv=None):
           "representation term |",
           "| `xshh_allt` | negatives pooled across the batch and across "
           "channels, taken over every time index |",
+          "| `u_batchtime` | dimension usage of a latent over the pooled "
+          "(batch × time) sample axis: `1 / (H · mean off-diagonal squared "
+          "cosine)`, capped at 1. 1.0 is all `H` dimensions in use and a "
+          "value near `1/H` is one direction. `h_t` is the encoder latent, "
+          "`e_t` the embedding it reads |",
+          "| collapse | the latent falling onto few directions, so "
+          "`u_batchtime` runs toward zero. The card watches for it because a "
+          "model can win the deeper f-bearing terms by flattening `f` |",
           "| `arm4`, `arm6_v2 combab` | the launcher recipes the cells run; "
           "the Coverage table gives each cell's |",
           "| head-seed band ±0.0384 | how far the head seed alone moved a "

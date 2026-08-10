@@ -94,13 +94,9 @@ def main(argv=None):
                         textcoords="offset points", xytext=(-16, 0),
                         ha="right", va="center", fontsize=9, color=cc.INK,
                         bbox=dict(fc="#ffffff", ec="none", pad=0.6))
-        if head == "student":
-            k3 = data[LADDER[-1][2].format(h=head)]
-            # The arrow only. Its two ends trained on two boxes, so the
-            # figure marks the gap and leaves its size to the body.
-            ax.annotate("", xy=(cw + 0.22, k3), xytext=(cw + 0.22, cv),
-                        arrowprops=dict(arrowstyle="<->", color=cc.INK,
-                                        linewidth=1.4))
+        # No arrow between the k = 3 point and the control. Both carry their
+        # own number, and an arrow with no label marks a distance the figure
+        # does not name.
 
     ax.axhline(data["A3_k0_bb40k_student"], color=cc.PARITY, linewidth=1.1,
                linestyle=(0, (4, 3)), zorder=0)
