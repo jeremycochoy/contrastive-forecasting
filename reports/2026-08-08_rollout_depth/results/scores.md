@@ -25,17 +25,21 @@ Every trained stop is bb40k. No cell reached bb100k or bb200k, so the card's ext
 
 Same cell, same recipe, same head seed 20260722, same 97-config B4 eval, student head. The rows are sorted by the machine, because that is what the check separates on: every retrain on elisa lands on its published value and neither retrain on a rented box does.
 
-| backbone | seed | machine | published k = 0 | retrained k = 0 | \|Δ\| | verdict (threshold 0.0002) |
-|---|---|---|---|---|---|---|
-| B1 | 20260520 | elisa | 1.2025 | 1.2025 | 0.0000 | PASS |
-| B5·s3 | 20260520 | elisa | 1.2748 | 1.2751 | 0.0003 | at printed precision |
-| B9 | 20260520 | elisa | 1.5579 | 1.5583 | 0.0004 | at printed precision |
-| B5·s2 | 20260521 | elisa | 1.2748 | 1.2716 | 0.0032 | FAIL |
-| A3 | 20260520 | vast box d | 1.1895 | 1.2189 | 0.0294 | FAIL |
-| B5·s1 ✗ | 20260520 | vast box d | 1.2748 | 1.3917 | 0.1169 | FAIL |
-| B5·pub | 20260520 | #379's box | 1.2748 | 1.2751 | 0.0003 | at printed precision |
+Two gates, because the rows ask two questions. A retrain at the parents' own backbone seed 20260520 is repeating the published run, and takes the card's 0.0002. A retrain at another seed is drawing a new run, and takes the seed band.
+
+| backbone | seed | machine | published k = 0 | retrained k = 0 | \|Δ\| | gate | verdict |
+|---|---|---|---|---|---|---|---|
+| B1 | 20260520 | elisa | 1.2025 | 1.2025 | 0.0000 | 0.0002, the card | PASS |
+| B5·s3 | 20260520 | elisa | 1.2748 | 1.2751 | 0.0003 | 0.0002, the card | at printed precision |
+| B9 | 20260520 | elisa | 1.5579 | 1.5583 | 0.0004 | 0.0002, the card | at printed precision |
+| B5·s2 | 20260521 | elisa | 1.2748 | 1.2716 | 0.0032 | 0.0230, the seed band | inside the seed band |
+| A3 | 20260520 | vast box d | 1.1895 | 1.2189 | 0.0294 | 0.0002, the card | FAIL |
+| B5·s1 ✗ | 20260520 | vast box d | 1.2748 | 1.3917 | 0.1169 | 0.0002, the card | FAIL |
+| B5·pub | 20260520 | #379's box | 1.2748 | 1.2751 | 0.0003 | 0.0002, the card | at printed precision |
 
 The parents print four decimals, so a difference below 0.0005 is the smallest the published table can resolve. The card's gate of 0.0002 is stricter than that.
+
+The seed band is 0.0230, the far end of the 95% interval on this study's one measurement of a seed change: `B5·s2` against `B5·s3`, one machine, one recipe, +0.0035 [-0.0183, +0.0230]. It is one run pair, and the interval is over that pair's eval sample rather than over seeds, so the band is a floor on what a seed can move and not a bound on it. B5·s2 is the only row it gates; every other row here carries the parents' own seed.
 
 `B5·pub` is not a training: it takes #379's own published B5 checkpoint and puts this study's head and eval on it, so its row bounds the head and the eval rather than the trainer. `B5·s3` is a training, at the protocol seed, on elisa.
 
@@ -66,7 +70,7 @@ Head-seed band ±0.0384 (`ema_sched_ladder.md`, pooled). It bounds the head seed
 
 ### Paired dataset-cluster bootstrap, per horizon subset
 
-The resampling unit is the dataset: `<ds>/short`, `/medium` and `/long` are three configs of one series and are not independent draws. 95% percentile interval over 10,000 resamples.
+The resampling unit is the dataset: `<ds>/short`, `/medium` and `/long` are three configs of one series and are not independent draws. 95% percentile interval over 10,000 resamples. Each interval is over one run pair's 97 configs, so it bounds the eval sample and not run-to-run variance.
 
 | arm | head | k | subset | n | Δ | 95% CI | resamples improved |
 |---|---|---|---|---|---|---|---|
@@ -125,6 +129,8 @@ B5 (`arm4_combab_fix09`) trained three times on one recipe, one code snapshot, o
 | B5·s1 against B5·s2 | the seed AND the machine | 3 | +0.0088 | [-0.0306, +0.0520] |
 
 Student head, 97 configs. `B5·s3` holds `B5·s1`'s seed and `B5·s2`'s machine, so the first two rows separate what the third confounds: the machine moves `k = 0` by 0.1166 and the seed by 0.0035.
+
+Every interval here is a paired dataset-cluster bootstrap over the 97 eval configs of ONE run pair. It bounds the eval sample: how far the difference between these two runs could move if the datasets had been drawn again. It does not bound run-to-run variance, and neither contrast has a replicate to bound it with. No two of B5's three backbones share both a seed and a machine.
 
 A retrain at a fixed seed is a machine test only if the seed pins the data order. It does. `mixup` counts the examples the mixer touched in the 200-step window, so two runs that see the same batches print the same count. `B5·s1` and `B5·s3` carry one seed and print one count at every step: they saw the same batches in the same order, on two machines, and the losses beside the counts still part.
 

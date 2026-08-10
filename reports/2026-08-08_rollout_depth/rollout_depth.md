@@ -63,10 +63,17 @@ snapshot, one head seed, one eval:
 | B5·s1 against B5·s3 | **the machine**, at one seed | **−0.1166** | [−0.1885, −0.0645] |
 | B5·s2 against B5·s3 | the seed, on one machine | +0.0035 | [−0.0183, +0.0230] |
 
-The seed is worth 0.0035 and its interval covers zero. The machine is worth
-0.1166 and its interval does not. B5·s1 and B5·s3 also print the same
-mixer counts at every logged step, so the two runs saw the same batches in
-the same order and still parted (section 13).
+**Both intervals are over one run pair each.** Each is a paired
+dataset-cluster bootstrap over the 97 eval configs of two runs, so it bounds
+the eval sample: how far the difference between those two runs could move if
+the datasets had been drawn again. Neither bounds run-to-run variance. No two
+of B5's three backbones share both a seed and a machine, so this study has no
+replicate to bound it with.
+
+Read that way: the seed is worth 0.0035 and its interval covers zero. The
+machine is worth 0.1166 and its interval does not. B5·s1 and B5·s3 also print
+the same mixer counts at every logged step, so the two runs saw the same
+batches in the same order and still parted (section 13).
 
 The `B5·pub` row of the reproduction figure is the control that changes the
 backbone instead of the code. It takes #379's own published B5 checkpoint,
@@ -87,8 +94,13 @@ Three things have to hold before a delta here means the depth.
 | | B9 | **B1** | B5·s2 | A3 |
 |---|---|---|---|---|
 | same machine on both sides | no | **yes** | yes | no |
-| its own `k = 0` reproduces the published value | 0.0004 | **0.0000** | 0.0032 | 0.0294 |
+| its own `k = 0` reproduces the published value | 0.0004 | **0.0000** | 0.0032 * | 0.0294 |
 | meets the card's primary criterion | yes | **yes** | no | no |
+
+\* B5·s2 is the one row here at another backbone seed, 20260521 against the
+parents' 20260520, so it is drawing a new run rather than repeating the
+published one. Its gate is the seed band and not the card's 0.0002, and
+0.0032 is inside it. Section 13's reproduction table carries both gates.
 
 B1 is the only column with all three. B9's −17.9% is the study's largest
 number, but its `k = 0` trained on elisa and its `k = 3` on a rented box. A3
@@ -206,9 +218,15 @@ on. It holds every curve on one scale, and that is what it is for.
 every run, as expected.
 
 The `k = 3` run's own depth-0 curve is the diagnostic. On B9 and B1 it sits
-**below** the `k = 0` run's: depth 0 got better, not worse. On A3 and B5 it
-sits above. The sign of that gap matches the sign of the eval result in all
-four cells.
+**below** the `k = 0` run's by 0.08 to 0.11: depth 0 got better, not worse.
+Both hold that sign over every end-of-run window.
+
+On A3 and B5·s2 the gap is smaller than the drift across the window it is
+measured over, and it changes sign between the last half of the run and the
+last tenth. The diagnostic gives those two arms no sign, so the match to the
+eval result is B9's and B1's and not all four cells'.
+[`results/depth0_gap.csv`](results/depth0_gap.csv) carries the gap per arm
+over four windows, and marks which arms hold a sign.
 
 No run destabilised. Training loss is flat on every depth run
 ([`per_run_loss.png`](plots/per_run_loss.png)), and the latent-movement and
@@ -306,17 +324,21 @@ Every trained stop is bb40k. No cell reached bb100k or bb200k, so the card's ext
 
 Same cell, same recipe, same head seed 20260722, same 97-config B4 eval, student head. The rows are sorted by the machine, because that is what the check separates on: every retrain on elisa lands on its published value and neither retrain on a rented box does.
 
-| backbone | seed | machine | published k = 0 | retrained k = 0 | \|Δ\| | verdict (threshold 0.0002) |
-|---|---|---|---|---|---|---|
-| B1 | 20260520 | elisa | 1.2025 | 1.2025 | 0.0000 | PASS |
-| B5·s3 | 20260520 | elisa | 1.2748 | 1.2751 | 0.0003 | at printed precision |
-| B9 | 20260520 | elisa | 1.5579 | 1.5583 | 0.0004 | at printed precision |
-| B5·s2 | 20260521 | elisa | 1.2748 | 1.2716 | 0.0032 | FAIL |
-| A3 | 20260520 | vast box d | 1.1895 | 1.2189 | 0.0294 | FAIL |
-| B5·s1 ✗ | 20260520 | vast box d | 1.2748 | 1.3917 | 0.1169 | FAIL |
-| B5·pub | 20260520 | #379's box | 1.2748 | 1.2751 | 0.0003 | at printed precision |
+Two gates, because the rows ask two questions. A retrain at the parents' own backbone seed 20260520 is repeating the published run, and takes the card's 0.0002. A retrain at another seed is drawing a new run, and takes the seed band.
+
+| backbone | seed | machine | published k = 0 | retrained k = 0 | \|Δ\| | gate | verdict |
+|---|---|---|---|---|---|---|---|
+| B1 | 20260520 | elisa | 1.2025 | 1.2025 | 0.0000 | 0.0002, the card | PASS |
+| B5·s3 | 20260520 | elisa | 1.2748 | 1.2751 | 0.0003 | 0.0002, the card | at printed precision |
+| B9 | 20260520 | elisa | 1.5579 | 1.5583 | 0.0004 | 0.0002, the card | at printed precision |
+| B5·s2 | 20260521 | elisa | 1.2748 | 1.2716 | 0.0032 | 0.0230, the seed band | inside the seed band |
+| A3 | 20260520 | vast box d | 1.1895 | 1.2189 | 0.0294 | 0.0002, the card | FAIL |
+| B5·s1 ✗ | 20260520 | vast box d | 1.2748 | 1.3917 | 0.1169 | 0.0002, the card | FAIL |
+| B5·pub | 20260520 | #379's box | 1.2748 | 1.2751 | 0.0003 | 0.0002, the card | at printed precision |
 
 The parents print four decimals, so a difference below 0.0005 is the smallest the published table can resolve. The card's gate of 0.0002 is stricter than that.
+
+The seed band is 0.0230, the far end of the 95% interval on this study's one measurement of a seed change: `B5·s2` against `B5·s3`, one machine, one recipe, +0.0035 [-0.0183, +0.0230]. It is one run pair, and the interval is over that pair's eval sample rather than over seeds, so the band is a floor on what a seed can move and not a bound on it. B5·s2 is the only row it gates; every other row here carries the parents' own seed.
 
 `B5·pub` is not a training: it takes #379's own published B5 checkpoint and puts this study's head and eval on it, so its row bounds the head and the eval rather than the trainer. `B5·s3` is a training, at the protocol seed, on elisa.
 
@@ -347,7 +369,7 @@ Head-seed band ±0.0384 (`ema_sched_ladder.md`, pooled). It bounds the head seed
 
 ### Paired dataset-cluster bootstrap, per horizon subset
 
-The resampling unit is the dataset: `<ds>/short`, `/medium` and `/long` are three configs of one series and are not independent draws. 95% percentile interval over 10,000 resamples.
+The resampling unit is the dataset: `<ds>/short`, `/medium` and `/long` are three configs of one series and are not independent draws. 95% percentile interval over 10,000 resamples. Each interval is over one run pair's 97 configs, so it bounds the eval sample and not run-to-run variance.
 
 | arm | head | k | subset | n | Δ | 95% CI | resamples improved |
 |---|---|---|---|---|---|---|---|
@@ -406,6 +428,8 @@ B5 (`arm4_combab_fix09`) trained three times on one recipe, one code snapshot, o
 | B5·s1 against B5·s2 | the seed AND the machine | 3 | +0.0088 | [-0.0306, +0.0520] |
 
 Student head, 97 configs. `B5·s3` holds `B5·s1`'s seed and `B5·s2`'s machine, so the first two rows separate what the third confounds: the machine moves `k = 0` by 0.1166 and the seed by 0.0035.
+
+Every interval here is a paired dataset-cluster bootstrap over the 97 eval configs of ONE run pair. It bounds the eval sample: how far the difference between these two runs could move if the datasets had been drawn again. It does not bound run-to-run variance, and neither contrast has a replicate to bound it with. No two of B5's three backbones share both a seed and a machine.
 
 A retrain at a fixed seed is a machine test only if the seed pins the data order. It does. `mixup` counts the examples the mixer touched in the 200-step window, so two runs that see the same batches print the same count. `B5·s1` and `B5·s3` carry one seed and print one count at every step: they saw the same batches in the same order, on two machines, and the losses beside the counts still part.
 
@@ -513,7 +537,17 @@ f-anchored only, and the other twelve cells' f-bearing term is `L_align`,
 which has no denominator.
 
 `bash scripts/make_report_assets.sh` rebuilds every figure and table in this
-report from the artefacts under `results/`. Operational events are in
+report. It reads the committed tree: the eval outputs and trainer logs under
+[`results/`](results/), and every backbone's losses CSV under
+[`sync/<box>/`](sync/) for the runs pulled off a rented box and
+[`curves/elisa/`](curves/) for the runs that trained on elisa. The curves are
+downsampled to every step below 1000 and every 20th after it.
+
+**Two figures need more than the repository holds.** `rollout_fidelity.png`
+and `latent_movement.png` load backbone checkpoints, which are 80 MB each and
+stay out of git; their `results/*.csv` are committed, so the numbers are
+auditable and only the re-derivation needs the checkpoint store. Everything
+else rebuilds from a fresh clone. Operational events are in
 [`results/execution_log.md`](results/execution_log.md).
 
 ## Annex
@@ -534,7 +568,7 @@ reads each run's contention off the driver logs, and
 **The fidelity batch is not held out.** Section 8 says so where the figure
 is.
 
-Every figure and table in this report is rebuilt by one command, from
-committed artefacts, through one run registry
-([`scripts/runs.py`](scripts/runs.py)). No consumer parses a run tag or a
-checkpoint name by hand.
+Every figure and table in this report is rebuilt by one command, through one
+run registry ([`scripts/runs.py`](scripts/runs.py)). No consumer parses a run
+tag or a checkpoint name by hand. All of it rebuilds from committed artefacts
+except the two figures that load checkpoints, which the Protocol names.

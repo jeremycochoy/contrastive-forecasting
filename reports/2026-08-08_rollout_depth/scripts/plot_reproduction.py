@@ -29,6 +29,7 @@ Usage: plot_reproduction.py --results results --out plots/reproduction.png
 from __future__ import annotations
 
 import argparse
+import csv
 import sys
 from pathlib import Path
 
@@ -41,9 +42,25 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import cell_colours as cc                              # noqa: E402
 import runs as R                                       # noqa: E402
-from published import PUBLISHED, GATE, verdict         # noqa: E402
+from published import (PUBLISHED, GATE, PUBLISHED_SEED,   # noqa: E402
+                       SEED_BAND, verdict)
 
 plt.rcParams.update(cc.rc())
+
+
+def seed_band(results):
+    """The seed band, from the bootstrap that measured it.
+
+    The table and the figure have to gate a row the same way, and the table
+    reads this number out of `bootstrap.csv`. Reading it here too keeps the
+    two from drifting; `SEED_BAND` is the fallback.
+    """
+    path = Path(results) / "bootstrap.csv"
+    if path.is_file():
+        for r in csv.DictReader(open(path)):
+            if r["label"] == "B5_seed_k0_student" and r["subset"] == "all":
+                return max(abs(float(r["ci_lo"])), abs(float(r["ci_hi"])))
+    return SEED_BAND
 
 
 def main(argv=None):
@@ -52,6 +69,7 @@ def main(argv=None):
     p.add_argument("--out", required=True)
     args = p.parse_args(argv)
     res = Path(args.results)
+    band = seed_band(res)
 
     have = {f.name[len("score_"):-len(".txt")]: f
             for f in res.glob("score_*.txt")}
@@ -81,7 +99,11 @@ def main(argv=None):
         ax.plot(got, y, marker="o", markersize=11, markerfacecolor=col,
                 markeredgecolor=col, zorder=3)
         d = abs(got - pub)
-        ax.annotate(f"|Δ| {d:.4f}   {verdict(d)}",
+        # Two gates. A retrain at the parents' own seed is repeating the
+        # published run; one at another seed is drawing a new one, and the
+        # card's threshold does not describe it.
+        same = run.seed == PUBLISHED_SEED
+        ax.annotate(f"|Δ| {d:.4f}   {verdict(d, same, band)}",
                     (max(pub, got), y), textcoords="offset points",
                     xytext=(14, -3), fontsize=8.5, color=cc.INK)
     for y in range(1, len(rows)):
@@ -111,7 +133,9 @@ def main(argv=None):
     ax.set_xlim(lo - pad, hi + pad * 6.5)
     ax.set_xlabel("GM-Relative MASE at bb40k, student head, 97 configs")
     ax.set_title("Published k = 0 against this study's own k = 0   "
-                 f"(gate: |Δ| ≤ {GATE})", loc="left", fontsize=12, pad=15)
+                 f"(gate: |Δ| ≤ {GATE} at seed {PUBLISHED_SEED}, "
+                 f"≤ {band:.4f} at any other)",
+                 loc="left", fontsize=12, pad=15)
     handles = [
         Line2D([], [], marker="o", linestyle="none", markersize=10,
                markerfacecolor="#ffffff", markeredgecolor=cc.INK_SOFT,

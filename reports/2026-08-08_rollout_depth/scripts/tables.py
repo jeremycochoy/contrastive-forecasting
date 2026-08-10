@@ -50,7 +50,18 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import runs as R                                          # noqa: E402
 from published import (PUBLISHED as PUB_ALL, GATE,             # noqa: E402
-                       NOISE_BAND, PRINTED_PRECISION, verdict)
+                       NOISE_BAND, PRINTED_PRECISION, PUBLISHED_SEED,
+                       SEED_BAND, verdict)
+
+# What every bootstrap interval in this file is over, said where the
+# intervals are. Both B5 contrasts are ONE run pair each.
+INTERVAL_SCOPE = (
+    "Every interval here is a paired dataset-cluster bootstrap over the 97 "
+    "eval configs of ONE run pair. It bounds the eval sample: how far the "
+    "difference between these two runs could move if the datasets had been "
+    "drawn again. It does not bound run-to-run variance, and neither "
+    "contrast has a replicate to bound it with. No two of B5's three "
+    "backbones share both a seed and a machine.")
 
 CARD_CELLS = ["A1", "A2", "A3", "A4"] + [f"B{i}" for i in range(1, 11)]
 
@@ -151,33 +162,57 @@ def main(argv=None):
           "publishes one stop.", ""]
 
     # ---- 2. reproduction ---------------------------------------------------
+    # The seed band, live from the bootstrap that measured it, so re-running
+    # the bootstrap moves the gate with it.
+    seed_ci = bs.get(("B5_seed_k0_student", "all"))
+    seed_band = (max(abs(float(seed_ci["ci_lo"])), abs(float(seed_ci["ci_hi"])))
+                 if seed_ci else SEED_BAND)
     L += ["### Reproduction of the published k = 0", "",
           "Same cell, same recipe, same head seed 20260722, same 97-config "
           "B4 eval, student head. The rows are sorted by the machine, "
           "because that is what the check separates on: every retrain on "
           "elisa lands on its published value and neither retrain on a "
           "rented box does.", "",
+          "Two gates, because the rows ask two questions. A retrain at the "
+          f"parents' own backbone seed {PUBLISHED_SEED} is repeating the "
+          f"published run, and takes the card's {GATE}. A retrain at another "
+          "seed is drawing a new run, and takes the seed band.", "",
           "| backbone | seed | machine | published k = 0 | retrained k = 0 | "
-          f"\\|Δ\\| | verdict (threshold {GATE}) |",
-          "|---|---|---|---|---|---|---|"]
+          "\\|Δ\\| | gate | verdict |",
+          "|---|---|---|---|---|---|---|---|"]
     repro = [r for r in R.reproductions(tags) if r.head == "student"]
     repro.sort(key=lambda r: (0 if r.machine == "elisa" else
                               1 if r.run else 2,
                               abs((val(r.tag) or 0)
                                   - (PUB_ALL.get(r.cell, {})
                                      .get("student", {}).get(40) or 0))))
+    cross_seed = []
     for r in repro:
         pub = PUB_ALL.get(r.cell, {}).get("student", {}).get(40)
         got = val(r.tag)
         if pub is None or got is None:
             continue
+        same = r.seed == PUBLISHED_SEED
+        if not same:
+            cross_seed.append(r.arm)
+        gate = (f"{GATE}, the card" if same
+                else f"{seed_band:.4f}, the seed band")
         L.append(f"| {r.arm}{mark(r.arm)} | {r.seed} | {r.machine} | "
-                 f"{pub:.4f} | {got:.4f} | {abs(got - pub):.4f} | "
-                 f"{verdict(abs(got - pub))} |")
+                 f"{pub:.4f} | {got:.4f} | {abs(got - pub):.4f} | {gate} | "
+                 f"{verdict(abs(got - pub), same, seed_band)} |")
     L += ["", "The parents print four decimals, so a difference below "
           f"{PRINTED_PRECISION} is the smallest the published table can "
-          f"resolve. The card's gate of {GATE} is stricter than that.", "",
-          "`B5·pub` is not a training: it takes #379's own published B5 "
+          f"resolve. The card's gate of {GATE} is stricter than that.", ""]
+    if cross_seed:
+        L += [f"The seed band is {seed_band:.4f}, the far end of the 95% "
+              "interval on this study's one measurement of a seed change: "
+              "`B5·s2` against `B5·s3`, one machine, one recipe, +0.0035 "
+              "[-0.0183, +0.0230]. It is one run pair, and the interval is "
+              "over that pair's eval sample rather than over seeds, so the "
+              "band is a floor on what a seed can move and not a bound on "
+              f"it. {', '.join(sorted(set(cross_seed)))} is the only row it "
+              "gates; every other row here carries the parents' own seed.", ""]
+    L += ["`B5·pub` is not a training: it takes #379's own published B5 "
           "checkpoint and puts this study's head and eval on it, so its "
           "row bounds the head and the eval rather than the trainer. "
           "`B5·s3` is a training, at the protocol seed, on elisa.", ""]
@@ -221,7 +256,9 @@ def main(argv=None):
     L += ["### Paired dataset-cluster bootstrap, per horizon subset", "",
           "The resampling unit is the dataset: `<ds>/short`, `/medium` and "
           "`/long` are three configs of one series and are not independent "
-          "draws. 95% percentile interval over 10,000 resamples.", "",
+          "draws. 95% percentile interval over 10,000 resamples. Each "
+          "interval is over one run pair's 97 configs, so it bounds the "
+          "eval sample and not run-to-run variance.", "",
           "| arm | head | k | subset | n | Δ | 95% CI | resamples improved |",
           "|---|---|---|---|---|---|---|---|"]
     for arm, head, k, _base, _deep in R.pairs(tags):
@@ -277,7 +314,8 @@ def main(argv=None):
     L += ["", "Student head, 97 configs. `B5·s3` holds `B5·s1`'s seed and "
           "`B5·s2`'s machine, so the first two rows separate what the third "
           "confounds: the machine moves `k = 0` by 0.1166 and the seed by "
-          "0.0035.", ""]
+          "0.0035.", "",
+          INTERVAL_SCOPE, ""]
 
     early = list(csv.DictReader(open(Path(args.results) / "early_loss.csv"))) \
         if (Path(args.results) / "early_loss.csv").is_file() else []

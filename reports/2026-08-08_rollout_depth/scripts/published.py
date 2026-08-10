@@ -47,8 +47,26 @@ PUBLISHED = {
 NOISE_BAND = 0.0384
 
 # lalign_teacher.md section 7's threshold, which the card reuses for the
-# baseline validity gate.
+# baseline validity gate. It gates a retrain that holds the BACKBONE SEED:
+# same recipe, same seed, so the only thing left to reproduce is the run.
 GATE = 0.0002
+
+# The backbone seed the three parents trained at.
+PUBLISHED_SEED = 20260520
+
+# A retrain that CHANGES the seed cannot take that gate. It is not repeating
+# the published run; it is drawing a second one, and the difference it should
+# be held to is what a seed draw is worth.
+#
+# This study measures that once: `B5·s2` against `B5·s3`, one machine, one
+# recipe, one code snapshot, +0.0035 with a 95% interval of
+# [-0.0183, +0.0230]. The gate is the far end of that interval.
+#
+# It is ONE pair of runs, and the interval is a bootstrap over their 97 eval
+# configs, so it bounds that pair's eval sample and not the spread of seeds.
+# `tables.py` reads the live number out of `bootstrap.csv`, so a re-run of
+# the bootstrap moves the gate with it; this constant is the fallback.
+SEED_BAND = 0.0230
 
 # The parents print GM-Relative MASE to four decimals. Each printed value
 # therefore carries +/-0.00005 of rounding, so the difference between two
@@ -59,8 +77,18 @@ GATE = 0.0002
 PRINTED_PRECISION = 0.0005
 
 
-def verdict(d):
-    """Three levels, not two. `d` is |retrained - published|."""
+def verdict(d, same_seed=True, seed_band=SEED_BAND):
+    """The verdict on `d`, which is |retrained - published|.
+
+    TWO GATES, because the rows ask two questions. A same-seed retrain is
+    repeating the published run and takes the card's 0.0002. A cross-seed
+    retrain is drawing a new one and takes the seed band: calling a
+    cross-seed 0.0032 a FAIL against 0.0002 would name as a failure the same
+    quantity this report's own B5 table calls the seed and puts inside the
+    noise.
+    """
+    if not same_seed:
+        return "inside the seed band" if d <= seed_band else "FAIL"
     if d <= GATE:
         return "PASS"
     if d <= PRINTED_PRECISION:
