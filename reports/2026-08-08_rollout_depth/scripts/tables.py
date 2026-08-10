@@ -275,16 +275,24 @@ def main(argv=None):
     early = list(csv.DictReader(open(Path(args.results) / "early_loss.csv"))) \
         if (Path(args.results) / "early_loss.csv").is_file() else []
     if early:
-        L += ["The seed pins the data order, so a retrain at a fixed seed is "
-              "a machine test and not a second draw of the batches. "
-              "`mixup=n/200` counts the examples the mixer touched in the "
-              "window, and two runs that see the same batches print the same "
-              "count.", "",
-              "| backbone | seed | machine | step | loss | mixup |",
-              "|---|---|---|---|---|---|"]
-        for r in early:
-            L.append(f"| {r['arm']} | {r['seed']} | {r['machine']} | "
-                     f"{r['step']} | {r['loss']} | `{r['mixup']}` |")
+        cols = [a for a in R.ARM_ORDER if any(r["arm"] == a for r in early)]
+        steps = sorted({int(r["step"]) for r in early})
+        cell_of = {(r["arm"], int(r["step"])): r for r in early}
+        L += ["A retrain at a fixed seed is a machine test only if the seed "
+              "pins the data order. It does. `mixup` counts the examples the "
+              "mixer touched in the 200-step window, so two runs that see the "
+              "same batches print the same count, and the loss beside it says "
+              "how far apart those same batches took them.", "",
+              "| step | " + " | ".join(
+                  f"{a}<br>seed {R.arm_seed(a)}, {R.arm_where(a)}"
+                  for a in cols) + " |",
+              "|---" * (len(cols) + 1) + "|"]
+        for s in steps:
+            row = []
+            for a in cols:
+                r = cell_of.get((a, s))
+                row.append(f"{r['loss']}  `{r['mixup']}`" if r else "—")
+            L.append(f"| {s} | " + " | ".join(row) + " |")
         L.append("")
 
     # ---- 6. EMA regime at one loss shape -----------------------------------

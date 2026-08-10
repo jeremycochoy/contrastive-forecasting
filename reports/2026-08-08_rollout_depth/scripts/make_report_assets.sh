@@ -48,9 +48,10 @@ fi
 # `<ds>/short`, `/medium` and `/long` are three configs of one series and are
 # not independent draws.
 #
-# `runs.py` emits every depth pair. The three rows after it are not depth
-# pairs and are listed here on purpose: two measure the backbone seed at a
-# fixed depth, one measures the re-weighting control.
+# `find_artefacts.py --what pairs` names every comparison: the depth pairs
+# from the registry, the retraining pairs of any cell trained more than
+# once — each labelled by what it changes, the seed or the machine or both —
+# and the re-weighting control.
 rm -f "$RES/bootstrap.csv"
 boot(){ # <label> <baseline tag> <compared tag>
   local a="$RES/eval/$2/all_results.csv" b="$RES/eval/$3/all_results.csv"
@@ -153,7 +154,7 @@ fi
 mapfile -t retrains < <(python3 "$HERE/find_artefacts.py" --what retrainlogs \
                           --results "$RES")
 if [ "${#retrains[@]}" -gt 0 ]; then
-  run "$HERE/early_loss.py" "${retrains[@]}" --steps 2 \
+  run "$HERE/early_loss.py" "${retrains[@]}" --steps 4 \
       --out "$RES/early_loss.csv"
 else
   say "no cell trained twice — no early-loss table"
