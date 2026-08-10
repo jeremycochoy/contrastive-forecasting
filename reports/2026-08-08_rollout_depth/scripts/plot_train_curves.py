@@ -93,8 +93,8 @@ def main(argv=None):
                     continue
                 if col == "ff":
                     ys = [1.0 - v for v in ys]
-                ax.plot(xs, smooth(ys), color=cc.colour(cell),
-                        linestyle=cc.style(k), linewidth=1.7)
+                ax.plot(xs, smooth(ys), color=cc.arm_colour(cell),
+                        linestyle=cc.style(k), linewidth=cc.width(cell, 1.7))
                 drew = True
             ax.set_xlabel("backbone step")
             ax.set_ylabel(ylab)
@@ -102,8 +102,10 @@ def main(argv=None):
             plt.close(fig)
             print(f"  skip {name}: no run carries {cols}")
             continue
-        handles = [Line2D([], [], color=cc.colour(c), linestyle=cc.style(k),
-                          label=f"{cc.label(c)}  k = {k}")
+        handles = [Line2D([], [], color=cc.arm_colour(c), linestyle=cc.style(k),
+                          linewidth=cc.width(c, 1.7),
+                          label=f"{cc.label(c)}  k = {k}"
+                                + ("  ✗ retracted" if cc.retracted(c) else ""))
                    for c, k, _p in runs]
         axes[0][-1].legend(handles=handles, frameon=False, fontsize=8)
         fig.suptitle(title, fontsize=10)

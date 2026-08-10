@@ -72,7 +72,7 @@ def main(argv=None):
             top = max(v for _w, v, _k in pts)
             for w, v, k in pts:
                 # The highest point's label would run into the title.
-                below = v == top
+                below = v == top or k == 1
                 ax.annotate(
                     f"k = {k}\n{v:.4f}", (w, v),
                     textcoords="offset points",
@@ -96,21 +96,16 @@ def main(argv=None):
                         bbox=dict(fc="#ffffff", ec="none", pad=0.6))
         if head == "student":
             k3 = data[LADDER[-1][2].format(h=head)]
-            k0 = data[LADDER[0][2].format(h=head)]
+            # The arrow only. Its two ends trained on two boxes, so the
+            # figure marks the gap and leaves its size to the body.
             ax.annotate("", xy=(cw + 0.22, k3), xytext=(cw + 0.22, cv),
                         arrowprops=dict(arrowstyle="<->", color=cc.INK,
                                         linewidth=1.4))
-            share = 100.0 * (cv - k0) / (k3 - k0)
-            ax.annotate(
-                f"the depth's own cost\n{k3 - cv:+.4f}\n"
-                f"(re-weighting explains {share:.0f}% of the total)",
-                (cw + 0.30, (k3 + cv) / 2), fontsize=8.5, color=cc.INK,
-                ha="left", va="center")
 
     ax.axhline(data["A3_k0_bb40k_student"], color=cc.PARITY, linewidth=1.1,
                linestyle=(0, (4, 3)), zorder=0)
     ax.annotate("A3's own k = 0, student head",
-                (0.75, data["A3_k0_bb40k_student"]),
+                (2.55, data["A3_k0_bb40k_student"]),
                 fontsize=8, color=cc.INK_SOFT, ha="left", va="bottom",
                 bbox=dict(fc="#ffffff", ec="none", pad=0.8))
     ax.set_xticks([1, 2, 4])
@@ -119,18 +114,16 @@ def main(argv=None):
     ax.set_xlabel("weight the f-bearing term carries against the f-free terms "
                   "(k + 1, since the depths are summed)")
     ax.set_ylabel("GM-Relative MASE, 97 configs  (lower is better)")
-    ax.set_title("A3 arm6_v2_combab_alignT_sched — depth against weight, at bb40k",
+    ax.set_title("A3 depth ladder against the L_align x4 control, bb40k",
                  loc="left", fontsize=12, pad=17)
-    # Every point here trained on a different box from at least one other, and
-    # the machine alone is worth more than either control. The figure has to
-    # say so where the numbers are, not four sections later.
+    # Which box each point trained on, above the panel. Every point here
+    # trained on a different box from at least one other; what that costs the
+    # reading is a body sentence, not a caption.
     where = " · ".join(f"{c}: {R.resolve(f'{t}_bb40k_student').machine}"
                        for c, t in (("k = 0", "A3_k0"), ("k = 1", "G3_A3_k1"),
                                     ("x4", "G3_A3_k0_aw4"), ("k = 3", "A3_k3"))
                        if R.resolve(f"{t}_bb40k_student"))
-    ax.annotate("Every point crosses a machine boundary — read direction, not "
-                f"magnitude.   {where}",
-                (0.0, 1.005), xycoords="axes fraction", fontsize=8.5,
+    ax.annotate(where, (0.0, 1.005), xycoords="axes fraction", fontsize=8.5,
                 color=cc.INK_SOFT, va="bottom")
     handles = [
         Line2D([], [], color=col, linewidth=2.2, marker="o", markersize=9,

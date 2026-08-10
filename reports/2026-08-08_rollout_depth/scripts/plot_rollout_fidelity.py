@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """#373 figure 4 — rollout fidelity against depth.
 
-`cos(rollout_d, h_{T0+d})` for d = 1..16 on one fixed batch, k = 3 against
-k = 0. This measures the composed operator directly, with no quantile head
+`cos(rollout_d, h_{T0+d})` for d = 1..16 on one fixed batch, every trained
+depth against its own k = 0. This measures the composed operator directly, with no quantile head
 in the way — the thing the training objective was changed to improve.
 
 The batch is #379's committed `_latent_movement_batch.pt`, the same one the
@@ -63,41 +63,55 @@ def main(argv=None):
         pts.sort()
         xs = [d for d, _v in pts]
         ys = [v for _d, v in pts]
-        # Fill is the backbone seed, as everywhere: B5 draws three curves in
-        # one hue and only the marker tells its second seed from its first.
-        axL.plot(xs, ys, color=cc.colour(arm), linestyle=cc.style(k),
-                 linewidth=1.9, marker="o", markersize=4,
-                 markerfacecolor=cc.face(arm),
-                 markeredgecolor=cc.colour(arm))
+        # Hue is the cell and the shade is the backbone, so B5's three
+        # backbones stay apart where their curves cross.
+        axL.plot(xs, ys, color=cc.arm_colour(arm), linestyle=cc.style(k),
+                 linewidth=cc.width(arm), marker="o", markersize=4,
+                 markerfacecolor=(cc.arm_colour(arm) if not cc.hollow(arm)
+                                  else "#ffffff"),
+                 markeredgecolor=cc.arm_colour(arm))
         pairs[arm][k] = (xs, ys)
 
+    # Every depth the arm trained, not k = 3 alone: A3's k = 1 moves the
+    # other way at all sixteen depths, and a panel that drew only k = 3
+    # would leave the one series that disagrees off the figure.
     for arm in [a for a in R.ARM_ORDER if a in pairs]:
         byk = pairs[arm]
-        if 0 in byk and 3 in byk:
-            xs = byk[3][0]
+        if 0 not in byk:
+            continue
+        for k in sorted(k for k in byk if k > 0):
+            xs = byk[k][0]
             mark = "  ✗ retracted" if arm in R.RETRACTED else ""
-            axR.plot(xs, [b - a for a, b in zip(byk[0][1], byk[3][1])],
-                     color=cc.colour(arm), linewidth=1.9, marker="o",
-                     markersize=5, markerfacecolor=cc.face(arm),
-                     markeredgecolor=cc.colour(arm),
-                     label=cc.label(arm) + mark)
+            axR.plot(xs, [b - a for a, b in zip(byk[0][1], byk[k][1])],
+                     color=cc.arm_colour(arm), linewidth=cc.width(arm),
+                     linestyle=cc.style(k), marker="o",
+                     markersize=5,
+                     markerfacecolor=(cc.arm_colour(arm) if not cc.hollow(arm)
+                                      else "#ffffff"),
+                     markeredgecolor=cc.arm_colour(arm),
+                     label=f"{cc.label(arm)}  k = {k}{mark}")
 
     axL.set_xlabel("rollout depth d (tokens)")
     axL.set_ylabel("cos(rollout$_d$, h$_{T_0+d}$)")
     axL.set_title("Fidelity of the composed forecaster")
-    axL.legend(handles=[Line2D([], [], color=cc.INK_SOFT, linestyle=cc.style(0),
-                               label="k = 0"),
-                        Line2D([], [], color=cc.INK_SOFT, linestyle=cc.style(3),
-                               label="k = 3")],
+    ks = sorted({k for byk in pairs.values() for k in byk})
+    axL.legend(handles=[Line2D([], [], color=cc.INK_SOFT, linestyle=cc.style(k),
+                               label=f"k = {k}") for k in ks],
                frameon=False, fontsize=9)
 
     axR.axhline(0.0, color=cc.INK_SOFT, linewidth=1.0)
     axR.set_xlabel("rollout depth d (tokens)")
-    axR.set_ylabel("k = 3 minus k = 0  (positive is better)")
+    axR.set_ylabel("depth k minus k = 0  (positive is better)")
     axR.set_title("Change")
-    axR.legend(frameon=False, fontsize=8)
 
-    fig.tight_layout()
+    # One legend for both panels, under the figure: six entries with the
+    # cell's full recipe name do not fit inside a panel without landing on
+    # the curves they name.
+    handles, labels = axR.get_legend_handles_labels()
+    fig.legend(handles, labels, frameon=False, fontsize=8.5, ncol=2,
+               loc="upper left", bbox_to_anchor=(0.02, 0.12))
+
+    fig.tight_layout(rect=(0, 0.14, 1, 1))
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(args.out, bbox_inches="tight")
     print(f"wrote {args.out} ({len(curves)} curve(s))")

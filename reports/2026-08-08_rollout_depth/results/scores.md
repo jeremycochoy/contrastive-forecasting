@@ -23,25 +23,25 @@ Every trained stop is bb40k. No cell reached bb100k or bb200k, so the card's ext
 
 ### Reproduction of the published k = 0
 
-Same cell, same recipe, same head seed 20260722, same 97-config B4 eval, student head. The rows are sorted by the machine, because that is what the check separates on: every retrain on elisa lands on its published value and neither retrain on a rented box does.
+Same cell, same recipe, same head seed 20260722, same 97-config B4 eval, student head. Rows are grouped by machine.
 
-Two gates, because the rows ask two questions. A retrain at the parents' own backbone seed 20260520 is repeating the published run, and takes the card's 0.0002. A retrain at another seed is drawing a new run, and takes the seed band.
+A row at the parents' own backbone seed 20260520 takes the card's 0.0002; a row at any other seed takes the seed band.
 
 | backbone | seed | machine | published k = 0 | retrained k = 0 | \|Δ\| | gate | verdict |
 |---|---|---|---|---|---|---|---|
 | B1 | 20260520 | elisa | 1.2025 | 1.2025 | 0.0000 | 0.0002, the card | PASS |
-| B5·s3 | 20260520 | elisa | 1.2748 | 1.2751 | 0.0003 | 0.0002, the card | at printed precision |
-| B9 | 20260520 | elisa | 1.5579 | 1.5583 | 0.0004 | 0.0002, the card | at printed precision |
+| B5·s3 | 20260520 | elisa | 1.2748 | 1.2751 | 0.0003 | 0.0002, the card | at the re-run floor |
+| B9 | 20260520 | elisa | 1.5579 | 1.5583 | 0.0004 | 0.0002, the card | at the re-run floor |
 | B5·s2 | 20260521 | elisa | 1.2748 | 1.2716 | 0.0032 | 0.0230, the seed band | inside the seed band |
 | A3 | 20260520 | vast box d | 1.1895 | 1.2189 | 0.0294 | 0.0002, the card | FAIL |
 | B5·s1 ✗ | 20260520 | vast box d | 1.2748 | 1.3917 | 0.1169 | 0.0002, the card | FAIL |
-| B5·pub | 20260520 | the parent report's box | 1.2748 | 1.2751 | 0.0003 | 0.0002, the card | at printed precision |
+| B5·pub | 20260520 | the parent report's box | 1.2748 | 1.2751 | 0.0003 | 0.0002, the card | at the re-run floor |
 
-The parents print four decimals, so a difference below 0.0005 is the smallest the published table can resolve. The card's gate of 0.0002 is stricter than that.
+Two things this comparison cannot resolve, added: 0.0003 for the head and the eval, which is what `B5·pub` moves the score by while training nothing, and 0.0001 for the parents' four printed decimals. A |Δ| at or below 0.0004 is a run this pipeline cannot separate from the published one. The card's gate of 0.0002 is stricter than that.
 
 The seed band is 0.0230, the far end of the 95% interval on this study's one measurement of a seed change: `B5·s2` against `B5·s3`, one machine, one recipe, +0.0035 [-0.0183, +0.0230]. It is one run pair, and the interval is over that pair's eval sample rather than over seeds, so the band is a floor on what a seed can move and not a bound on it. B5·s2 is the only row it gates; every other row here carries the parents' own seed.
 
-`B5·pub` is not a training: it takes the parent report's own published B5 checkpoint and puts this study's head and eval on it, so its row bounds the head and the eval rather than the trainer. `B5·s3` is a training, at the protocol seed, on elisa.
+`B5·pub` is not a training: it takes the parent report's own published B5 checkpoint and puts this study's head and eval on it, so its row bounds the head and the eval rather than the trainer. `B5·s3` is a training, at the protocol seed, on elisa, and its 97-config eval output is byte-identical to `B5·pub`'s (`results/eval/G7_B5_k0_e_bb40k_student/all_results.csv` against `results/eval/G1_B5pub_bb40k_student/all_results.csv`): the elisa retrain reproduced the parent's backbone exactly, and the 0.0003 both rows carry is the head and the eval.
 
 ### Depth response, against each arm's own k = 0
 
@@ -132,7 +132,7 @@ Student head, 97 configs. `B5·s3` holds `B5·s1`'s seed and `B5·s2`'s machine,
 
 Every interval here is a paired dataset-cluster bootstrap over the 97 eval configs of ONE run pair. It bounds the eval sample: how far the difference between these two runs could move if the datasets had been drawn again. It does not bound run-to-run variance, and neither contrast has a replicate to bound it with. No two of B5's three backbones share both a seed and a machine.
 
-A retrain at a fixed seed is a machine test only if the seed pins the data order. It does. `mixup` counts the examples the mixer touched in the 200-step window, so two runs that see the same batches print the same count. `B5·s1` and `B5·s3` carry one seed and print one count at every step: they saw the same batches in the same order, on two machines, and the losses beside the counts still part.
+`mixup` counts the examples the mixer touched in the 200-step window, so one count at every step is one data order. `B5·s1` and `B5·s3` carry one seed, print one count at every step, and their losses still part.
 
 | step | B5·s1<br>seed 20260520, a rented box | B5·s2<br>seed 20260521, elisa | B5·s3<br>seed 20260520, elisa |
 |---|---|---|---|
@@ -141,27 +141,18 @@ A retrain at a fixed seed is a machine test only if the seed pins the data order
 | 600 | 4.9019  `65/200` | 5.0143  `51/200` | 4.9412  `65/200` |
 | 800 | 4.9475  `65/200` | 5.1256  `65/200` | 5.1249  `65/200` |
 
-### One loss shape, two EMA regimes
-
-B1 and A3 train the same f-bearing term, `rep_only` + `L_align`, on the same `arm6_v2 combab` arm. They differ in the EMA schedule — and, since A3's two depths trained on two boxes, in the machine as well.
-
-| arm | EMA α | machine held | head | k = 0 | k = 3 | Δ | Δ% |
-|---|---|---|---|---|---|---|---|
-| B1 | fixed 0.9 | yes, elisa | student | 1.2025 | 1.0850 | -0.1175 | -9.8% |
-| B1 | fixed 0.9 | yes, elisa | teacher | 1.2001 | 1.0948 | -0.1053 | -8.8% |
-| A3 | scheduled 0.9 -> 1.0 | no | student | 1.2189 | 1.3618 | +0.1429 | +11.7% |
-| A3 | scheduled 0.9 -> 1.0 | no | teacher | 1.2184 | 1.3521 | +0.1337 | +11.0% |
-
 ### A3: is the damage the depth, or the weight?
 
 Summing the depths multiplies `L_align`'s weight against the f-free terms by k + 1. The `L_align x4` row applies that re-weighting at k = 0, with no depth at all.
 
-| head | k = 0 | k = 0, `L_align` x4 | k = 1 | k = 3 | share of the k = 3 damage the re-weighting explains |
-|---|---|---|---|---|---|
-| student | 1.2189 | 1.2590 | 1.1995 | 1.3618 | 28% |
-| teacher | 1.2184 | 1.2558 | 1.2063 | 1.3521 | 28% |
+| head | k = 0 | k = 0, `L_align` x4 | k = 1 | k = 3 |
+|---|---|---|---|---|
+| student | 1.2189 | 1.2590<br>+0.0401 [+0.0116, +0.0767] | 1.1995<br>-0.0195 [-0.0537, +0.0148] | 1.3618<br>+0.1429 [+0.0893, +0.2122] |
+| teacher | 1.2184 | 1.2558<br>+0.0374 [+0.0058, +0.0756] | 1.2063<br>-0.0121 [-0.0479, +0.0261] | 1.3521<br>+0.1337 [+0.0839, +0.2004] |
 
-Every column trained on a different box from at least one other. A3_k0: vast box d · G3_A3_k0_aw4: elisa · G3_A3_k1: elisa · A3_k3: vast box b. The machine alone is worth 0.1166 on this study's one controlled measurement of it, which is more than either control's own size, so read the two controls as direction and not as magnitude.
+Second line of each cell: the difference against `k = 0` and its 95% paired dataset-cluster interval.
+
+Every column trained on a different box from at least one other. A3_k0: vast box d · G3_A3_k0_aw4: elisa · G3_A3_k1: elisa · A3_k3: vast box b. The machine alone is worth 0.1166 on this study's one controlled measurement of it, which is more than either control's own size, so read the two controls as direction and not as magnitude. This table therefore does not divide one column by another.
 
 ### What the depth costs
 
@@ -188,5 +179,36 @@ The ratios that survive that test:
 | B5·s1 | pooled xshh_allt | 117.6 ms | 301.9 ms | +157% | vast box d → vast box a |
 | A3 | rep_only + L_align | 115.9 ms | 131.5 ms | +13% | vast box d → vast box b |
 
-No ✗ in this table. The retraction is of B5·s1's depth delta, which rests on a `k = 0` the parents do not recognise; its wall clock is unaffected.
+### The depth-0 forecast error, deeper run minus its own k = 0
+
+`1 - cos(f_t, h_{t+1})` during training: the same quantity on both runs, unlike the loss. Negative means the deeper run forecasts one step ahead better. Four end-of-run windows, because a gap that changes sign between them is not a result.
+
+| arm | k | last 50% | last 25% | last 10% | final step | one sign over all four |
+|---|---|---|---|---|---|---|
+| B9 | 3 | -0.0707 | -0.0893 | -0.0938 | -0.0817 | yes |
+| B1 | 3 | -0.0968 | -0.0915 | -0.1122 | -0.0807 | yes |
+| B5·s1 ✗ | 3 | +0.0157 | +0.0102 | +0.0121 | +0.0150 | yes |
+| B5·s2 | 3 | +0.0121 | +0.0061 | +0.0023 | -0.0129 | **no** |
+| A3 | 1 | +0.0871 | +0.0902 | +0.1159 | +0.0401 | yes |
+| A3 | 3 | -0.0469 | -0.0004 | +0.0489 | +0.0623 | **no** |
+
+### Glossary
+
+| term | what it means here |
+|---|---|
+| the card | the issue this study answers, and the 14 cells, stops and criteria it names |
+| cell | one of those 14 recipes, `A1`..`A4` and `B1`..`B10` |
+| arm | a (cell, backbone seed, machine) triple. B5 trained three, so the cell is not the unit a delta lives in |
+| bb40k | backbone step 40,000, the one stop every run here reached |
+| GM-Relative MASE | geometric mean over the 97 GIFT-Eval configs of each config's MASE divided by the seasonal-naive MASE. Lower is better; 1.0 is seasonal-naive parity |
+| B4 eval strategy | GIFT-Eval's official evaluation strategy, the one the parent reports use |
+| student / teacher head | the quantile head is trained twice per backbone, once on the student encoder and once on its EMA copy, the teacher. The two are separate measurements of one backbone |
+| f-bearing term | the loss term that the forecast operator `f` enters. `--train-rollout-depth K` duplicates it at depth 1..K |
+| `rep_only` | the representation loss with no forecast term |
+| `L_align` | the term that aligns `f`'s output with the future latent |
+| `L_pred` | the predictive contrastive term, split from the representation term |
+| `xshh_allt` | negatives pooled across the batch and across channels, taken over every time index |
+| `arm4`, `arm6_v2 combab` | the launcher recipes the cells run; the Coverage table gives each cell's |
+| head-seed band ±0.0384 | how far the head seed alone moved a score in `ema_sched_ladder.md`, pooled. It bounds the head seed and nothing else |
+| `mixup` | the count of examples the batch mixer touched in a 200-step window. Two runs on one data order print one count |
 

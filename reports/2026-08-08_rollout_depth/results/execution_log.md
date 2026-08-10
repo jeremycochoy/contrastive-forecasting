@@ -377,3 +377,25 @@ measured over. Nothing here says the diagnostic is wrong; it says it is
 underpowered on the two arms whose eval result it appeared to explain.
 `results/depth0_gap.csv` carries the numbers and marks which arms hold a
 sign.
+
+## Operational detail moved out of the report
+
+**`B5·s3`'s teacher head.** The head waited four hours for VRAM on elisa and
+then aborted. Other projects held both cards for the whole window; GPU 1 had
+4916 MiB free and the head needs 6000. Logs: `results/stops.log`,
+`results/eval/G7_B5_k0_e_bb40k_teacher/stop.log`.
+
+**The step-time probe's card.** The controlled `k = 0` against `k = 3` probe
+ran on elisa's GPU 1 while another session's job held 8946 MiB at the start
+and drew 44% mean utilisation throughout
+(`results/steptime_B5_solo_card.csv`). The probe therefore alternates on a
+shared card rather than owning one.
+
+**Training-curve diagnostics the report does not read.** The rebuild writes
+`plots/per_run_loss.png`, `plots/cos_error_per_arm.png` and
+`plots/latent_movement.png` beside the figures the report carries. The loss
+panel is not comparable across depths, because `k = 3` optimises the `k = 0`
+objective plus three added terms, so no ranking is read off it.
+`plots/ladder.png` draws this study's bb40k points on the published `k = 0`
+trajectories; every point this study contributes sits at one x value, so the
+report carries `depth_response.png` and `reproduction.png` instead.

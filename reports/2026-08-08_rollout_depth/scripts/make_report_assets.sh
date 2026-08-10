@@ -13,7 +13,16 @@
 #
 # It holds no paths of its own. `runs.py` says which runs exist and
 # `find_artefacts.py` says where each one's artefacts landed, because the
-# study trained on two kinds of machine and the two wrote to two trees.
+# study trained on two kinds of machine and the two wrote to two trees. It
+# reads the eval outputs and trainer logs under `results/`, and every
+# backbone's losses CSV under `sync/<box>/` for the runs pulled off a rented
+# box and `curves/elisa/` for the runs that trained on elisa. The curves are
+# downsampled to every step below 1000 and every 20th after it.
+#
+# Two figures need more than the repository holds. `rollout_fidelity.png`
+# and `latent_movement.png` load backbone checkpoints, which are 80 MB each
+# and stay out of git. Their `results/*.csv` are committed, so the numbers
+# are auditable and only the re-derivation needs the checkpoint store.
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -67,7 +76,7 @@ done < <(python3 "$HERE/find_artefacts.py" --what pairs --results "$RES")
 # ---- 3. score figures ------------------------------------------------------
 if [ -f "$RES/splits.csv" ]; then
   run "$HERE/plot_depth_response.py" --splits "$RES/splits.csv" \
-      --out "$PLOTS/depth_response.png"
+      --bootstrap "$RES/bootstrap.csv" --out "$PLOTS/depth_response.png"
   run "$HERE/plot_b5_backbones.py" --splits "$RES/splits.csv" \
       --out "$PLOTS/b5_backbones.png"
   run "$HERE/plot_a3_depth.py" --splits "$RES/splits.csv" \

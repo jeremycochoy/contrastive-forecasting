@@ -11,9 +11,12 @@ Eight tables, in the order the report asks its questions:
   4. bootstrap       the paired dataset-cluster interval behind every one of
                      those deltas, per horizon subset.
   5. B5's backbones  one cell trained three times: two seeds, two machines.
-  6. EMA regime      one loss shape, two EMA regimes.
-  7. A3 controls     the depth ladder beside the re-weighting control.
-  8. cost            step time, and which runs had a card to themselves.
+  6. A3 controls     the depth ladder beside the re-weighting control.
+  7. cost            step time, and which runs had a card to themselves.
+  8. depth-0 gap     the depth-0 forecast error of each deeper run against
+                     its own k = 0, over four end-of-run windows.
+  9. glossary        every term this report uses that is not standard in
+                     the field.
 
 Every delta is against the SAME arm's own k = 0. No delta in this file is
 computed against a published number or against another backbone.
@@ -50,8 +53,8 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import runs as R                                          # noqa: E402
 from published import (PUBLISHED as PUB_ALL, GATE,             # noqa: E402
-                       NOISE_BAND, PRINTED_PRECISION, PUBLISHED_SEED,
-                       SEED_BAND, verdict)
+                       NOISE_BAND, PRINT_QUANT, PUBLISHED_SEED,
+                       REEVAL_FLOOR, RESOLUTION, SEED_BAND, verdict)
 
 # What every bootstrap interval in this file is over, said where the
 # intervals are. Both B5 contrasts are ONE run pair each.
@@ -169,14 +172,10 @@ def main(argv=None):
                  if seed_ci else SEED_BAND)
     L += ["### Reproduction of the published k = 0", "",
           "Same cell, same recipe, same head seed 20260722, same 97-config "
-          "B4 eval, student head. The rows are sorted by the machine, "
-          "because that is what the check separates on: every retrain on "
-          "elisa lands on its published value and neither retrain on a "
-          "rented box does.", "",
-          "Two gates, because the rows ask two questions. A retrain at the "
-          f"parents' own backbone seed {PUBLISHED_SEED} is repeating the "
-          f"published run, and takes the card's {GATE}. A retrain at another "
-          "seed is drawing a new run, and takes the seed band.", "",
+          "B4 eval, student head. Rows are grouped by machine.", "",
+          f"A row at the parents' own backbone seed {PUBLISHED_SEED} takes "
+          f"the card's {GATE}; a row at any other seed takes the seed "
+          "band.", "",
           "| backbone | seed | machine | published k = 0 | retrained k = 0 | "
           "\\|Δ\\| | gate | verdict |",
           "|---|---|---|---|---|---|---|---|"]
@@ -200,9 +199,13 @@ def main(argv=None):
         L.append(f"| {r.arm}{mark(r.arm)} | {r.seed} | {r.machine} | "
                  f"{pub:.4f} | {got:.4f} | {abs(got - pub):.4f} | {gate} | "
                  f"{verdict(abs(got - pub), same, seed_band)} |")
-    L += ["", "The parents print four decimals, so a difference below "
-          f"{PRINTED_PRECISION} is the smallest the published table can "
-          f"resolve. The card's gate of {GATE} is stricter than that.", ""]
+    L += ["", f"Two things this comparison cannot resolve, added: {REEVAL_FLOOR} "
+          "for the head and the eval, which is what `B5·pub` moves the "
+          "score by while training nothing, and "
+          f"{PRINT_QUANT} for the parents' four printed decimals. A |Δ| at "
+          f"or below {RESOLUTION:.4f} is a run this pipeline cannot separate "
+          f"from the published one. The card's gate of {GATE} is stricter "
+          "than that.", ""]
     if cross_seed:
         L += [f"The seed band is {seed_band:.4f}, the far end of the 95% "
               "interval on this study's one measurement of a seed change: "
@@ -212,10 +215,15 @@ def main(argv=None):
               "band is a floor on what a seed can move and not a bound on "
               f"it. {', '.join(sorted(set(cross_seed)))} is the only row it "
               "gates; every other row here carries the parents' own seed.", ""]
-    L += ["`B5·pub` is not a training: it takes the parent report's own published B5 "
-          "checkpoint and puts this study's head and eval on it, so its "
-          "row bounds the head and the eval rather than the trainer. "
-          "`B5·s3` is a training, at the protocol seed, on elisa.", ""]
+    L += ["`B5·pub` is not a training: it takes the parent report's own "
+          "published B5 checkpoint and puts this study's head and eval on "
+          "it, so its row bounds the head and the eval rather than the "
+          "trainer. `B5·s3` is a training, at the protocol seed, on elisa, "
+          "and its 97-config eval output is byte-identical to `B5·pub`'s "
+          "(`results/eval/G7_B5_k0_e_bb40k_student/all_results.csv` against "
+          "`results/eval/G1_B5pub_bb40k_student/all_results.csv`): the "
+          "elisa retrain reproduced the parent's backbone exactly, and the "
+          f"{REEVAL_FLOOR} both rows carry is the head and the eval.", ""]
 
     # ---- 3. depth response -------------------------------------------------
     L += ["### Depth response, against each arm's own k = 0", "",
@@ -323,13 +331,10 @@ def main(argv=None):
         cols = [a for a in R.ARM_ORDER if any(r["arm"] == a for r in early)]
         steps = sorted({int(r["step"]) for r in early})
         cell_of = {(r["arm"], int(r["step"])): r for r in early}
-        L += ["A retrain at a fixed seed is a machine test only if the seed "
-              "pins the data order. It does. `mixup` counts the examples the "
-              "mixer touched in the 200-step window, so two runs that see the "
-              "same batches print the same count. `B5·s1` and `B5·s3` carry "
-              "one seed and print one count at every step: they saw the same "
-              "batches in the same order, on two machines, and the losses "
-              "beside the counts still part.", "",
+        L += ["`mixup` counts the examples the mixer touched in the "
+              "200-step window, so one count at every step is one data "
+              "order. `B5·s1` and `B5·s3` carry one seed, print one count "
+              "at every step, and their losses still part.", "",
               "| step | " + " | ".join(
                   f"{a}<br>seed {R.arm_seed(a)}, {R.arm_where(a)}"
                   for a in cols) + " |",
@@ -342,54 +347,41 @@ def main(argv=None):
             L.append(f"| {s} | " + " | ".join(row) + " |")
         L.append("")
 
-    # ---- 6. EMA regime at one loss shape -----------------------------------
-    L += ["### One loss shape, two EMA regimes", "",
-          "B1 and A3 train the same f-bearing term, `rep_only` + `L_align`, "
-          "on the same `arm6_v2 combab` arm. They differ in the EMA "
-          "schedule — and, since A3's two depths trained on two boxes, in "
-          "the machine as well.", "",
-          "| arm | EMA α | machine held | head | k = 0 | k = 3 | Δ | Δ% |",
-          "|---|---|---|---|---|---|---|---|"]
-    for arm, t0, t3 in (("B1", "G6_B1_k0", "G6_B1_k3"),
-                        ("A3", "A3_k0", "A3_k3")):
-        for head in ("student", "teacher"):
-            r0, r3 = (R.resolve(f"{t0}_bb40k_{head}"),
-                      R.resolve(f"{t3}_bb40k_{head}"))
-            a, b = val(f"{t0}_bb40k_{head}"), val(f"{t3}_bb40k_{head}")
-            if a is None or b is None:
-                continue
-            held = R.machine_held(r0, r3)
-            L.append(f"| {arm} | {R.CELL_EMA[arm]} | "
-                     f"{'yes, ' + r0.machine if held else 'no'} | {head} | "
-                     f"{a:.4f} | "
-                     f"{b:.4f} | {b - a:+.4f} | {100 * (b / a - 1):+.1f}% |")
-    L.append("")
-
     # ---- 7. A3 controls ----------------------------------------------------
     L += ["### A3: is the damage the depth, or the weight?", "",
           "Summing the depths multiplies `L_align`'s weight against the "
           "f-free terms by k + 1. The `L_align x4` row applies that "
           "re-weighting at k = 0, with no depth at all.", "",
-          "| head | k = 0 | k = 0, `L_align` x4 | k = 1 | k = 3 | "
-          "share of the k = 3 damage the re-weighting explains |",
-          "|---|---|---|---|---|---|"]
+          "| head | k = 0 | k = 0, `L_align` x4 | k = 1 | k = 3 |",
+          "|---|---|---|---|---|"]
     A3_COLS = ("A3_k0", "G3_A3_k0_aw4", "G3_A3_k1", "A3_k3")
+    A3_BOOT = (None, "A3_alignx4_{h}", "A3_k1_{h}", "A3_k3_{h}")
     for head in ("student", "teacher"):
         v = [val(f"{t}_bb40k_{head}") for t in A3_COLS]
         if v[0] is None or v[3] is None:
             continue
-        share = ("—" if v[1] is None or v[3] == v[0]
-                 else f"{100.0 * (v[1] - v[0]) / (v[3] - v[0]):.0f}%")
-        L.append("| " + head + " | " + " | ".join(fmt(x) for x in v)
-                 + f" | {share} |")
+        cells = []
+        for value, lab in zip(v, A3_BOOT):
+            if value is None:
+                cells.append("—")
+                continue
+            r = bs.get((lab.format(h=head), "all")) if lab else None
+            cells.append(f"{value:.4f}" + (
+                f"<br>{float(r['delta']):+.4f} "
+                f"[{float(r['ci_lo']):+.4f}, {float(r['ci_hi']):+.4f}]"
+                if r else ""))
+        L.append("| " + head + " | " + " | ".join(cells) + " |")
     machines = " · ".join(
         f"{c}: {r.machine}" for c, r in
         ((c, R.resolve(f"{c}_bb40k_student")) for c in A3_COLS) if r)
-    L += ["", "Every column trained on a different box from at least one "
+    L += ["", "Second line of each cell: the difference against `k = 0` "
+          "and its 95% paired dataset-cluster interval.", "",
+          "Every column trained on a different box from at least one "
           f"other. {machines}. The machine alone is worth 0.1166 on this "
           "study's one controlled measurement of it, which is more than "
           "either control's own size, so read the two controls as direction "
-          "and not as magnitude.", ""]
+          "and not as magnitude. This table therefore does not divide one "
+          "column by another.", ""]
 
     # ---- 8. what the depth costs -------------------------------------------
     L += ["### What the depth costs", "",
@@ -428,9 +420,68 @@ def main(argv=None):
                 + ("" if a["card"] == b["card"] else ", DIFFERENT CARDS"))
         L.append(f"| {arm} | {run.term if run else '?'} | "
                  f"{c0:.1f} ms | {c3:.1f} ms | {c3 / c0 - 1:+.0%} | {same} |")
-    L += ["", "No ✗ in this table. The retraction is of B5·s1's depth "
-          "delta, which rests on a `k = 0` the parents do not recognise; "
-          "its wall clock is unaffected.", ""]
+    L.append("")
+
+    # ---- 8. the depth-0 forecast-error gap ---------------------------------
+    gap_path = Path(args.results) / "depth0_gap.csv"
+    if gap_path.is_file():
+        gap = list(csv.DictReader(open(gap_path)))
+        L += ["### The depth-0 forecast error, deeper run minus its own k = 0",
+              "",
+              "`1 - cos(f_t, h_{t+1})` during training: the same quantity on "
+              "both runs, unlike the loss. Negative means the deeper run "
+              "forecasts one step ahead better. Four end-of-run windows, "
+              "because a gap that changes sign between them is not a "
+              "result.", "",
+              "| arm | k | last 50% | last 25% | last 10% | final step | "
+              "one sign over all four |",
+              "|---|---|---|---|---|---|---|"]
+        for r in sorted(gap, key=lambda r: (order.get(r["arm"], 99),
+                                            int(r["k"]))):
+            stable = r["sign_stable_across_windows"].strip().lower() == "yes"
+            L.append(f"| {r['arm']}{mark(r['arm'])} | {r['k']} | "
+                     f"{r['last_50pct']} | {r['last_25pct']} | "
+                     f"{r['last_10pct']} | {r['final_step']} | "
+                     f"{'yes' if stable else '**no**'} |")
+        L.append("")
+
+    # ---- 9. glossary -------------------------------------------------------
+    L += ["### Glossary", "",
+          "| term | what it means here |",
+          "|---|---|",
+          "| the card | the issue this study answers, and the 14 cells, "
+          "stops and criteria it names |",
+          "| cell | one of those 14 recipes, `A1`..`A4` and `B1`..`B10` |",
+          "| arm | a (cell, backbone seed, machine) triple. B5 trained "
+          "three, so the cell is not the unit a delta lives in |",
+          "| bb40k | backbone step 40,000, the one stop every run here "
+          "reached |",
+          "| GM-Relative MASE | geometric mean over the 97 GIFT-Eval "
+          "configs of each config's MASE divided by the seasonal-naive "
+          "MASE. Lower is better; 1.0 is seasonal-naive parity |",
+          "| B4 eval strategy | GIFT-Eval's official evaluation strategy, "
+          "the one the parent reports use |",
+          "| student / teacher head | the quantile head is trained twice "
+          "per backbone, once on the student encoder and once on its EMA "
+          "copy, the teacher. The two are separate measurements of one "
+          "backbone |",
+          "| f-bearing term | the loss term that the forecast operator `f` "
+          "enters. `--train-rollout-depth K` duplicates it at depth 1..K |",
+          "| `rep_only` | the representation loss with no forecast term |",
+          "| `L_align` | the term that aligns `f`'s output with the future "
+          "latent |",
+          "| `L_pred` | the predictive contrastive term, split from the "
+          "representation term |",
+          "| `xshh_allt` | negatives pooled across the batch and across "
+          "channels, taken over every time index |",
+          "| `arm4`, `arm6_v2 combab` | the launcher recipes the cells run; "
+          "the Coverage table gives each cell's |",
+          "| head-seed band ±0.0384 | how far the head seed alone moved a "
+          "score in `ema_sched_ladder.md`, pooled. It bounds the head seed "
+          "and nothing else |",
+          "| `mixup` | the count of examples the batch mixer touched in a "
+          "200-step window. Two runs on one data order print one count |",
+          ""]
 
     body = "\n".join(L) + "\n"
     Path(args.out).write_text(body)

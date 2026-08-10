@@ -30,6 +30,7 @@ import matplotlib.pyplot as plt                        # noqa: E402
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import cell_colours as cc                              # noqa: E402
+import runs as R                                       # noqa: E402
 from losses_csv import read_by_step, series             # noqa: E402
 
 plt.rcParams.update(cc.rc())
@@ -70,8 +71,12 @@ def main(argv=None):
     if not runs:
         raise SystemExit("ABORT: no run had a losses CSV")
 
-    cells = sorted({c for c, _k, _d in runs}, key=lambda c: cc.ORDER.index(c)
-                   if c in cc.ORDER else 99)
+    # Panel order comes from the registry's arm order, not from the cell
+    # order: `cc.ORDER` holds cells, so B5's three arms all tied on it and
+    # the panels came out in whatever order the set iterated that run.
+    cells = sorted({c for c, _k, _d in runs},
+                   key=lambda c: (R.ARM_ORDER.index(c)
+                                  if c in R.ARM_ORDER else 99, c))
     fig, axes = plt.subplots(1, len(cells), figsize=(5.4 * len(cells), 4.2),
                              squeeze=False)
 

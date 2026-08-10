@@ -68,13 +68,23 @@ PUBLISHED_SEED = 20260520
 # the bootstrap moves the gate with it; this constant is the fallback.
 SEED_BAND = 0.0230
 
-# The parents print GM-Relative MASE to four decimals. Each printed value
-# therefore carries +/-0.00005 of rounding, so the difference between two
-# printed values carries +/-0.0001, and the smallest difference that means
-# anything is a few times that. GATE sits inside that floor: it is stricter
-# than the numbers it compares can resolve. A run that lands here has
-# reproduced as exactly as the published table allows anyone to check.
-PRINTED_PRECISION = 0.0005
+# What a retrain can be resolved to, and where the two parts of it come
+# from. Neither part is a guess.
+#
+#   re-eval    `B5·pub` trains nothing: it takes the parent report's own
+#              published B5 checkpoint, puts this study's head seed and
+#              97-config eval on it, and lands 0.0003 away. Everything
+#              downstream of the backbone is worth that much on its own.
+#   rounding   the parents print four decimals, so each published value
+#              carries +/-0.00005 and a difference against one carries
+#              +/-0.0001.
+#
+# A |Δ| at or below their sum is a run this pipeline cannot separate from
+# the published one. GATE sits below it: the card asks for more than the
+# comparison can resolve.
+REEVAL_FLOOR = 0.0003
+PRINT_QUANT = 0.0001
+RESOLUTION = REEVAL_FLOOR + PRINT_QUANT
 
 
 def verdict(d, same_seed=True, seed_band=SEED_BAND):
@@ -91,8 +101,8 @@ def verdict(d, same_seed=True, seed_band=SEED_BAND):
         return "inside the seed band" if d <= seed_band else "FAIL"
     if d <= GATE:
         return "PASS"
-    if d <= PRINTED_PRECISION:
-        return "at printed precision"
+    if d <= RESOLUTION:
+        return "at the re-run floor"
     return "FAIL"
 
 

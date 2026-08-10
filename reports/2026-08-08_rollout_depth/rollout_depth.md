@@ -1,84 +1,60 @@
-# Training the forecaster on its own output: the one clean cell improves 9.8%, and the training machine moves scores by more
+# Training the forecaster on its own output: one clean cell gains 9.8%, and the training machine moves the baseline by more
+
+Every backbone retrained on elisa reproduces its published `k = 0`, neither
+retrained on a rented box does, and the box alone moved one cell's `k = 0` by
+0.1166 GM-Relative MASE at a fixed seed. On the study's one comparison with
+both sides on one machine, depth 3 improves B1 by 9.8%, 1.2025 → 1.0850, 95%
+CI [-0.1801, -0.0615], at one seed, one stop, unreplicated.
+
+![reproduction](plots/reproduction.png)
+
+*Each retrained `k = 0` against the value its parent report published.
+GM-Relative MASE at bb40k, student head, 97 GIFT-Eval configs.*
+
+![depth response](plots/depth_response.png)
+
+*Every trained depth against the same arm's own retrained `k = 0`. Whiskers
+are 95% paired dataset-cluster bootstrap intervals over the pair's 97
+configs.*
 
 `--train-rollout-depth K` duplicates every f-bearing loss term at depth
 1..K, so training composes the operator that eval composes.
 
-B1 at `k = 3` scores 1.0850 against its own `k = 0` at 1.2025, which is 9.8%
-better on the student head and 8.8% on the teacher, and it is unreplicated at
-one seed and one stop. It is the study's only comparison with both sides
-trained on one machine and with a `k = 0` that reproduces its published value
-exactly.
-
-![depth response](plots/depth_response.png)
-
-*Every trained depth against the same arm's own retrained `k = 0`, bb40k,
-97 GIFT-Eval configs.*
-
-## What ran
-
-| | |
-|---|---|
-| trained | A3, B1, B5, B9 — 4 of the card's 14 cells |
-| never ran | A1, A2, A4, B2, B3, B4, B6, B7, B8, B10 |
-| stops reached | bb40k only; no bb100k, no bb200k, so the card's extend rule never fired |
-| card's primary criterion (med+long ≥ 5% better, short losing < 2%) | met by B1, both sides on elisa; met by B9, whose two sides trained on two machines |
-| card's secondary criterion (full 97 beats `k = 0` by more than the head-seed band ±0.0384) | same two cells, same caveat on B9; its bb100k and bb200k half is out of reach |
-| heads missing | `B5·s3`'s teacher head (annex) |
-
-## The machine moved the baselines; the seed did not
-
-![reproduction](plots/reproduction.png)
-
-*Each retrained `k = 0` against the value its parent report published, student
-head, bb40k.*
-
-Backbone runs on the rented vast.ai boxes do not reproduce the published
-numbers, and runs on elisa do.
+## The machine, and the seed
 
 ![B5 backbones](plots/b5_backbones.png)
 
 *B5 trained three times on one recipe, one code snapshot, one head seed and
 one eval.*
 
-| contrast | what changes | Δ at `k = 0` | 95% CI |
-|---|---|---|---|
-| B5·s1 against B5·s3 | **the machine**, at one seed | **−0.1166** | [−0.1885, −0.0645] |
-| B5·s2 against B5·s3 | the seed, on one machine | +0.0035 | [−0.0183, +0.0230] |
-| *what both intervals bound* | *paired dataset-cluster bootstrap over one run pair each: the eval sample, not run-to-run variance* | | |
-
-B9's −17.9%, A3's `k = 1` ladder and A3's ×4 re-weighting control each cross
-a machine boundary, so read them as direction and not as magnitude.
+`B5·s3` holds `B5·s1`'s seed and `B5·s2`'s machine, so the pair separates
+them: the machine moves `k = 0` by 0.1166 and the seed by 0.0035.
 
 ## Where the change lands
 
 ![horizon split, student head](plots/horizon_split_student.png)
 
-*GM-Relative MASE by horizon term, depth against the same arm's `k = 0`,
-student head. Teacher head:
-[`horizon_split_teacher.png`](plots/horizon_split_teacher.png).*
+![horizon split, teacher head](plots/horizon_split_teacher.png)
 
-![ladder](plots/ladder.png)
-
-*This study's bb40k points on each cell's own published `k = 0` trajectory.*
+*GM-Relative MASE by horizon term, each depth against the same arm's
+`k = 0`, bb40k.*
 
 ![domain radar, student head](plots/domain_radar_student.png)
 
-*Per-domain GM-Relative MASE, each arm against its own `k = 0`, student head.
-Teacher head: [`domain_radar_teacher.png`](plots/domain_radar_teacher.png).*
+![domain radar, teacher head](plots/domain_radar_teacher.png)
 
-## A3: the depth, or the weight it carries?
+*Per-domain GM-Relative MASE, each arm against its own `k = 0`, bb40k.*
+
+## A3: the depth, or the weight it carries
 
 ![A3 depth against weight](plots/a3_depth.png)
 
-*A3's depth ladder against the re-weighting control, both heads, bb40k.*
+*A3's depth ladder against the `L_align` ×4 re-weighting control, both
+heads, bb40k.*
 
-The ×4 re-weighting costs 0.0401 of A3's 0.1429, so the depth carries the
-other 72%.
-
-| A3, student head | `k = 0` | `k = 1` | `k = 0`, `L_align` ×4 | `k = 3` |
-|---|---|---|---|---|
-| GM-Relative MASE | 1.2189 | 1.1995 | 1.2590 | 1.3618 |
-| Δ against `k = 0` | — | −1.6%, CI [−0.0537, +0.0148] | +3.3% | +11.7%, CI [+0.0893, +0.2122] |
+Each of A3's four points trained on a different box from at least one other,
+and the machine is worth more than either control, so the ladder gives a
+direction and not a magnitude.
 
 ## The composed operator does get more faithful
 
@@ -87,29 +63,22 @@ other 72%.
 *`cos` between the rolled latent and the true `h_{t+d}` for `d = 1..16`, no
 head in the way, on a fixed diagnostic batch.*
 
-Every arm improves at `k = 3` at all 16 rollout depths, by +0.002 to +0.545,
-including the two arms that score worse.
+Every `k = 3` run is more faithful than its own `k = 0` at all 16 rollout
+depths, by +0.002 to +0.545, including the two that score worse, while A3's
+`k = 1` is worse at all 16, by -0.031 to -0.165.
 
 ![per-depth forecast error](plots/cos_err_depth.png)
 
 *`1 − cos(f^(j)_t, h_{t+1+j})` during training, one line per depth, against
 the `k = 0` run's single line.*
 
-| depth-0 error, `k = 3` run minus `k = 0` run | last 50% | last 25% | last 10% | final step | one sign over all four windows |
-|---|---|---|---|---|---|
-| B9 | −0.0707 | −0.0893 | −0.0938 | −0.0817 | yes |
-| B1 | −0.0968 | −0.0915 | −0.1122 | −0.0807 | yes |
-| A3 | −0.0469 | −0.0004 | +0.0489 | +0.0623 | **no** |
-| B5·s2 | +0.0121 | +0.0061 | +0.0023 | −0.0129 | **no** |
+Of the four `k = 3` arms the report stands behind, B9 and B1 hold one sign
+over all four end-of-run windows and B5·s2 and A3 do not.
 
-Training loss is flat on every depth run.
+![dimension usage](plots/dim_usage_per_arm.png)
 
-*Per-arm windows and diagnostics:
-[`results/depth0_gap.csv`](results/depth0_gap.csv),
-[`per_run_loss.png`](plots/per_run_loss.png),
-[`latent_movement.png`](plots/latent_movement.png),
-[`dim_usage_per_arm.png`](plots/dim_usage_per_arm.png),
-[`cos_error_per_arm.png`](plots/cos_error_per_arm.png).*
+*`u_batchtime` on `h_t` and on `e_t` during training, the card's collapse
+watch. No run reaches zero at any depth.*
 
 ![encoder delta](plots/encoder_delta.png)
 
@@ -145,25 +114,25 @@ Every trained stop is bb40k. No cell reached bb100k or bb200k, so the card's ext
 
 ### Reproduction of the published k = 0
 
-Same cell, same recipe, same head seed 20260722, same 97-config B4 eval, student head. The rows are sorted by the machine, because that is what the check separates on: every retrain on elisa lands on its published value and neither retrain on a rented box does.
+Same cell, same recipe, same head seed 20260722, same 97-config B4 eval, student head. Rows are grouped by machine.
 
-Two gates, because the rows ask two questions. A retrain at the parents' own backbone seed 20260520 is repeating the published run, and takes the card's 0.0002. A retrain at another seed is drawing a new run, and takes the seed band.
+A row at the parents' own backbone seed 20260520 takes the card's 0.0002; a row at any other seed takes the seed band.
 
 | backbone | seed | machine | published k = 0 | retrained k = 0 | \|Δ\| | gate | verdict |
 |---|---|---|---|---|---|---|---|
 | B1 | 20260520 | elisa | 1.2025 | 1.2025 | 0.0000 | 0.0002, the card | PASS |
-| B5·s3 | 20260520 | elisa | 1.2748 | 1.2751 | 0.0003 | 0.0002, the card | at printed precision |
-| B9 | 20260520 | elisa | 1.5579 | 1.5583 | 0.0004 | 0.0002, the card | at printed precision |
+| B5·s3 | 20260520 | elisa | 1.2748 | 1.2751 | 0.0003 | 0.0002, the card | at the re-run floor |
+| B9 | 20260520 | elisa | 1.5579 | 1.5583 | 0.0004 | 0.0002, the card | at the re-run floor |
 | B5·s2 | 20260521 | elisa | 1.2748 | 1.2716 | 0.0032 | 0.0230, the seed band | inside the seed band |
 | A3 | 20260520 | vast box d | 1.1895 | 1.2189 | 0.0294 | 0.0002, the card | FAIL |
 | B5·s1 ✗ | 20260520 | vast box d | 1.2748 | 1.3917 | 0.1169 | 0.0002, the card | FAIL |
-| B5·pub | 20260520 | the parent report's box | 1.2748 | 1.2751 | 0.0003 | 0.0002, the card | at printed precision |
+| B5·pub | 20260520 | the parent report's box | 1.2748 | 1.2751 | 0.0003 | 0.0002, the card | at the re-run floor |
 
-The parents print four decimals, so a difference below 0.0005 is the smallest the published table can resolve. The card's gate of 0.0002 is stricter than that.
+Two things this comparison cannot resolve, added: 0.0003 for the head and the eval, which is what `B5·pub` moves the score by while training nothing, and 0.0001 for the parents' four printed decimals. A |Δ| at or below 0.0004 is a run this pipeline cannot separate from the published one. The card's gate of 0.0002 is stricter than that.
 
 The seed band is 0.0230, the far end of the 95% interval on this study's one measurement of a seed change: `B5·s2` against `B5·s3`, one machine, one recipe, +0.0035 [-0.0183, +0.0230]. It is one run pair, and the interval is over that pair's eval sample rather than over seeds, so the band is a floor on what a seed can move and not a bound on it. B5·s2 is the only row it gates; every other row here carries the parents' own seed.
 
-`B5·pub` is not a training: it takes the parent report's own published B5 checkpoint and puts this study's head and eval on it, so its row bounds the head and the eval rather than the trainer. `B5·s3` is a training, at the protocol seed, on elisa.
+`B5·pub` is not a training: it takes the parent report's own published B5 checkpoint and puts this study's head and eval on it, so its row bounds the head and the eval rather than the trainer. `B5·s3` is a training, at the protocol seed, on elisa, and its 97-config eval output is byte-identical to `B5·pub`'s (`results/eval/G7_B5_k0_e_bb40k_student/all_results.csv` against `results/eval/G1_B5pub_bb40k_student/all_results.csv`): the elisa retrain reproduced the parent's backbone exactly, and the 0.0003 both rows carry is the head and the eval.
 
 ### Depth response, against each arm's own k = 0
 
@@ -254,7 +223,7 @@ Student head, 97 configs. `B5·s3` holds `B5·s1`'s seed and `B5·s2`'s machine,
 
 Every interval here is a paired dataset-cluster bootstrap over the 97 eval configs of ONE run pair. It bounds the eval sample: how far the difference between these two runs could move if the datasets had been drawn again. It does not bound run-to-run variance, and neither contrast has a replicate to bound it with. No two of B5's three backbones share both a seed and a machine.
 
-A retrain at a fixed seed is a machine test only if the seed pins the data order. It does. `mixup` counts the examples the mixer touched in the 200-step window, so two runs that see the same batches print the same count. `B5·s1` and `B5·s3` carry one seed and print one count at every step: they saw the same batches in the same order, on two machines, and the losses beside the counts still part.
+`mixup` counts the examples the mixer touched in the 200-step window, so one count at every step is one data order. `B5·s1` and `B5·s3` carry one seed, print one count at every step, and their losses still part.
 
 | step | B5·s1<br>seed 20260520, a rented box | B5·s2<br>seed 20260521, elisa | B5·s3<br>seed 20260520, elisa |
 |---|---|---|---|
@@ -263,27 +232,18 @@ A retrain at a fixed seed is a machine test only if the seed pins the data order
 | 600 | 4.9019  `65/200` | 5.0143  `51/200` | 4.9412  `65/200` |
 | 800 | 4.9475  `65/200` | 5.1256  `65/200` | 5.1249  `65/200` |
 
-### One loss shape, two EMA regimes
-
-B1 and A3 train the same f-bearing term, `rep_only` + `L_align`, on the same `arm6_v2 combab` arm. They differ in the EMA schedule — and, since A3's two depths trained on two boxes, in the machine as well.
-
-| arm | EMA α | machine held | head | k = 0 | k = 3 | Δ | Δ% |
-|---|---|---|---|---|---|---|---|
-| B1 | fixed 0.9 | yes, elisa | student | 1.2025 | 1.0850 | -0.1175 | -9.8% |
-| B1 | fixed 0.9 | yes, elisa | teacher | 1.2001 | 1.0948 | -0.1053 | -8.8% |
-| A3 | scheduled 0.9 -> 1.0 | no | student | 1.2189 | 1.3618 | +0.1429 | +11.7% |
-| A3 | scheduled 0.9 -> 1.0 | no | teacher | 1.2184 | 1.3521 | +0.1337 | +11.0% |
-
 ### A3: is the damage the depth, or the weight?
 
 Summing the depths multiplies `L_align`'s weight against the f-free terms by k + 1. The `L_align x4` row applies that re-weighting at k = 0, with no depth at all.
 
-| head | k = 0 | k = 0, `L_align` x4 | k = 1 | k = 3 | share of the k = 3 damage the re-weighting explains |
-|---|---|---|---|---|---|
-| student | 1.2189 | 1.2590 | 1.1995 | 1.3618 | 28% |
-| teacher | 1.2184 | 1.2558 | 1.2063 | 1.3521 | 28% |
+| head | k = 0 | k = 0, `L_align` x4 | k = 1 | k = 3 |
+|---|---|---|---|---|
+| student | 1.2189 | 1.2590<br>+0.0401 [+0.0116, +0.0767] | 1.1995<br>-0.0195 [-0.0537, +0.0148] | 1.3618<br>+0.1429 [+0.0893, +0.2122] |
+| teacher | 1.2184 | 1.2558<br>+0.0374 [+0.0058, +0.0756] | 1.2063<br>-0.0121 [-0.0479, +0.0261] | 1.3521<br>+0.1337 [+0.0839, +0.2004] |
 
-Every column trained on a different box from at least one other. A3_k0: vast box d · G3_A3_k0_aw4: elisa · G3_A3_k1: elisa · A3_k3: vast box b. The machine alone is worth 0.1166 on this study's one controlled measurement of it, which is more than either control's own size, so read the two controls as direction and not as magnitude.
+Second line of each cell: the difference against `k = 0` and its 95% paired dataset-cluster interval.
+
+Every column trained on a different box from at least one other. A3_k0: vast box d · G3_A3_k0_aw4: elisa · G3_A3_k1: elisa · A3_k3: vast box b. The machine alone is worth 0.1166 on this study's one controlled measurement of it, which is more than either control's own size, so read the two controls as direction and not as magnitude. This table therefore does not divide one column by another.
 
 ### What the depth costs
 
@@ -310,7 +270,38 @@ The ratios that survive that test:
 | B5·s1 | pooled xshh_allt | 117.6 ms | 301.9 ms | +157% | vast box d → vast box a |
 | A3 | rep_only + L_align | 115.9 ms | 131.5 ms | +13% | vast box d → vast box b |
 
-No ✗ in this table. The retraction is of B5·s1's depth delta, which rests on a `k = 0` the parents do not recognise; its wall clock is unaffected.
+### The depth-0 forecast error, deeper run minus its own k = 0
+
+`1 - cos(f_t, h_{t+1})` during training: the same quantity on both runs, unlike the loss. Negative means the deeper run forecasts one step ahead better. Four end-of-run windows, because a gap that changes sign between them is not a result.
+
+| arm | k | last 50% | last 25% | last 10% | final step | one sign over all four |
+|---|---|---|---|---|---|---|
+| B9 | 3 | -0.0707 | -0.0893 | -0.0938 | -0.0817 | yes |
+| B1 | 3 | -0.0968 | -0.0915 | -0.1122 | -0.0807 | yes |
+| B5·s1 ✗ | 3 | +0.0157 | +0.0102 | +0.0121 | +0.0150 | yes |
+| B5·s2 | 3 | +0.0121 | +0.0061 | +0.0023 | -0.0129 | **no** |
+| A3 | 1 | +0.0871 | +0.0902 | +0.1159 | +0.0401 | yes |
+| A3 | 3 | -0.0469 | -0.0004 | +0.0489 | +0.0623 | **no** |
+
+### Glossary
+
+| term | what it means here |
+|---|---|
+| the card | the issue this study answers, and the 14 cells, stops and criteria it names |
+| cell | one of those 14 recipes, `A1`..`A4` and `B1`..`B10` |
+| arm | a (cell, backbone seed, machine) triple. B5 trained three, so the cell is not the unit a delta lives in |
+| bb40k | backbone step 40,000, the one stop every run here reached |
+| GM-Relative MASE | geometric mean over the 97 GIFT-Eval configs of each config's MASE divided by the seasonal-naive MASE. Lower is better; 1.0 is seasonal-naive parity |
+| B4 eval strategy | GIFT-Eval's official evaluation strategy, the one the parent reports use |
+| student / teacher head | the quantile head is trained twice per backbone, once on the student encoder and once on its EMA copy, the teacher. The two are separate measurements of one backbone |
+| f-bearing term | the loss term that the forecast operator `f` enters. `--train-rollout-depth K` duplicates it at depth 1..K |
+| `rep_only` | the representation loss with no forecast term |
+| `L_align` | the term that aligns `f`'s output with the future latent |
+| `L_pred` | the predictive contrastive term, split from the representation term |
+| `xshh_allt` | negatives pooled across the batch and across channels, taken over every time index |
+| `arm4`, `arm6_v2 combab` | the launcher recipes the cells run; the Coverage table gives each cell's |
+| head-seed band ±0.0384 | how far the head seed alone moved a score in `ema_sched_ladder.md`, pooled. It bounds the head seed and nothing else |
+| `mixup` | the count of examples the batch mixer touched in a 200-step window. Two runs on one data order print one count |
 
 
 <!-- TABLES:END -->
@@ -318,7 +309,9 @@ No ✗ in this table. The retraction is of B5·s1's depth delta, which rests on 
 *Full paired dataset-cluster bootstraps, including the per-domain splits:
 [`results/bootstrap.csv`](results/bootstrap.csv). Every table above comes
 from `scripts/tables.py`, which writes
-[`results/scores.md`](results/scores.md) in the same pass.*
+[`results/scores.md`](results/scores.md) in the same pass. `bash
+scripts/make_report_assets.sh` rebuilds every figure and table here from the
+committed tree.*
 
 ## Protocol
 
@@ -345,31 +338,13 @@ denominator holds h-anchored families; B9's `L_pred` denominator is
 f-anchored only, and the other twelve cells' f-bearing term is `L_align`,
 which has no denominator.
 
-**Rebuild.** `bash scripts/make_report_assets.sh` rebuilds every figure and
-table here from the committed tree: the eval outputs and trainer logs under
-[`results/`](results/), and every backbone's losses CSV under
-[`sync/<box>/`](sync/) for the runs pulled off a rented box and
-[`curves/elisa/`](curves/) for the runs that trained on elisa. The curves are
-downsampled to every step below 1000 and every 20th after it. Every figure
-and table reads one run registry ([`scripts/runs.py`](scripts/runs.py)); no
-consumer parses a run tag or a checkpoint name by hand.
-
-**Two figures need more than the repository holds.** `rollout_fidelity.png`
-and `latent_movement.png` load backbone checkpoints, which are 80 MB each and
-stay out of git; their `results/*.csv` are committed, so the numbers are
-auditable and only the re-derivation needs the checkpoint store.
-
 ## Annex
 
-**`B5·s3` has no teacher-head number.** Its teacher head waited 4 hours for
-VRAM on elisa and aborted: other projects held both cards, GPU 1 had
-4916 MiB free and the head needs 6000
-([`results/stops.log`](results/stops.log),
+**`B5·s3` has no teacher-head number.** Its teacher head aborted for want of
+VRAM on elisa ([`results/stops.log`](results/stops.log),
 [`results/eval/G7_B5_k0_e_bb40k_teacher/stop.log`](results/eval/G7_B5_k0_e_bb40k_teacher/stop.log)).
 The group-B parent reports publish the student-encoder head only, so the
-student number is the comparison the reproduction check needs, and the
-encoder-delta figure measures the encoder choice at 0.52 of the head-seed
-band.
+student number is the comparison the reproduction check needs.
 
 **The fidelity batch is not held out.** It is the parent report's committed
 `_latent_movement_batch.pt`, the same batch the two parent reports'
@@ -381,12 +356,14 @@ on. It holds every curve on one scale, and that is what it is for.
 windows is a cost of the depth only where the run had the card to itself.
 `steptime_provenance.py` reads each run's contention off the driver logs and
 [`results/steptime_solo.csv`](results/steptime_solo.csv) carries it per run.
-Only 2 of the 11 depth-ladder runs pass that test. The one measurement that
-holds the card fixed is a controlled probe: B5 alternating `k = 0` and
-`k = 3` on elisa's GPU 1, 3 reps of 600 steps, 190.2 ms against 509.9 ms,
-+168%. That card carried another session's job throughout (8946 MiB at the
-start, 44% mean utilisation), so the probe alternates on a shared card rather
-than owning one.
+Five of the 11 depth-ladder runs had the card to themselves, and two arms
+have both of their sides in that five. The one measurement that holds the
+card fixed is a controlled probe: B5 alternating `k = 0` and `k = 3` on
+elisa's GPU 1, 3 reps of 600 steps, 190.2 ms against 509.9 ms, +168%. That
+card carried another session's job throughout, so the probe alternates on a
+shared card rather than owning one
+([`results/steptime_B5_solo_card.csv`](results/steptime_B5_solo_card.csv)).
 
-**Operational events** are in
+**Operational events**, and the training-curve diagnostics this report does
+not read, are in
 [`results/execution_log.md`](results/execution_log.md).

@@ -110,10 +110,10 @@ def main(argv=None):
         if group(rows[y][0]) != group(rows[y - 1][0]):
             ax.axhline(y - 0.5, color=cc.INK_SOFT, linewidth=0.9,
                        linestyle=(0, (3, 3)), zorder=1)
-    # Name each band. The split is the figure's finding, so it is written on
-    # the figure rather than left to the reader to infer from the tick labels.
-    BANDS = {0: "trained on elisa — every one reproduces",
-             1: "trained on a rented box — neither does",
+    # Name each band. The band is a label for the rows under it; what the
+    # split means is the report's opening sentence, not a caption.
+    BANDS = {0: "trained on elisa",
+             1: "trained on a rented box",
              2: "not a training"}
     for g, txt in BANDS.items():
         ys_g = [y for y, (r, _p, _o) in zip(ys, rows) if group(r) == g]

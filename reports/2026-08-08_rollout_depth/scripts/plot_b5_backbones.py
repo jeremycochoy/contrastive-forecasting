@@ -128,6 +128,15 @@ def main(argv=None):
                      (3.45, PUB), fontsize=8, color=cc.INK_SOFT,
                      ha="right", va="bottom",
                      bbox=dict(fc="#ffffff", ec="none", pad=0.8))
+    # A reader who counts three lines on the left panel and two on the right
+    # has to be told why, on the panel where the line is missing.
+    missing = [a for a in have
+               if arm_points(data, a, "teacher") == []]
+    if missing:
+        axes[1].annotate(f"{', '.join(missing)}: no teacher head "
+                         "(see the annex)",
+                         (0.03, 0.97), xycoords="axes fraction", fontsize=8.5,
+                         color=cc.INK_SOFT, va="top")
 
     handles = []
     for arm in have:
@@ -138,9 +147,8 @@ def main(argv=None):
                               markerfacecolor=col if elisa else "#ffffff",
                               markeredgecolor=col, markeredgewidth=2.0,
                               label=f"{arm}  seed {seed}, {R.arm_where(arm)}"))
-    axes[1].legend(handles=handles, loc="upper right", fontsize=8.5)
-    fig.suptitle("B5 arm4_combab_fix09 — the machine moved k = 0 by 0.1166, "
-                 "the seed by 0.0035",
+    axes[1].legend(handles=handles, loc="lower right", fontsize=8.5)
+    fig.suptitle("B5 arm4_combab_fix09, three backbones, bb40k",
                  x=0.005, ha="left", fontsize=12)
     fig.tight_layout()
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)

@@ -5,14 +5,24 @@ Every figure in this report imports from here and defines no colour of its
 own, so a reader who learns a colour in one figure keeps it in all of them.
 
     colour       the CELL
+    shade        the BACKBONE, inside a cell that trained more than one
     line style   the DEPTH:  dashed = k 0,  solid = k > 0
     fill         the BACKBONE SEED: solid = 20260520, hollow = 20260521
     hatch        the comparison CROSSES A MACHINE
+    width        a thin line is a RETRACTED arm
     panel        the HEAD: one figure per head, named in its title
 
-Five channels, five questions, no channel carrying two. The study's whole
+Seven channels, seven questions, no channel carrying two. The study's whole
 question is one comparison, so a cell's k = 0 curve and its k = 3 curve are
 the same colour on purpose: they are the pair being compared.
+
+The shade channel exists because B5 trained three backbones and the curve
+figures draw them together. One hue at one lightness for all three put two
+dashed green `k = 0` curves at two levels with nothing to tell them apart.
+`arm_colour()` keeps the hue, which names the cell, and steps the lightness,
+which names the backbone. A bar chart compares a bar against a rule and
+takes `colour()`; a line chart asks the reader to follow one curve through
+a crossing and takes `arm_colour()`.
 
 The hatch is the newest channel and it is not decoration. This study's
 reproduction table separates on the machine and not on the seed, so a delta
@@ -104,6 +114,45 @@ def cell_of(arm):
 
 def colour(arm):
     return COLOUR.get(cell_of(arm), INK)
+
+
+# How far each backbone of one cell steps off the cell's hue, in the order
+# the registry lists them. 0 is the hue itself; a negative step darkens
+# towards black and a positive one lightens towards white.
+SHADE = [0.0, -0.42, 0.42, -0.70]
+
+
+def _step(hexcol, amount):
+    r, g, b = (int(hexcol[i:i + 2], 16) / 255.0 for i in (1, 3, 5))
+    t = 0.0 if amount < 0 else 1.0
+    w = abs(amount)
+    return "#" + "".join(f"{round(255 * (c * (1 - w) + t * w)):02x}"
+                         for c in (r, g, b))
+
+
+def arm_colour(arm):
+    """The hue of the arm's cell, shaded by which backbone of it this is.
+
+    A cell that trained one backbone gets its hue unchanged, so every figure
+    that draws one backbone per cell is untouched.
+    """
+    base = colour(arm)
+    siblings = R.arms_of(cell_of(arm))
+    if arm not in siblings or len(siblings) < 2:
+        return base
+    return _step(base, SHADE[siblings.index(arm) % len(SHADE)])
+
+
+def retracted(arm):
+    """True where the report has withdrawn this arm's depth delta."""
+    return arm in R.RETRACTED
+
+
+def width(arm, base=1.9):
+    """Line width. A retracted arm draws thin, so a reader meets the arms
+    the report stands behind first. Opacity would do the same job, but a
+    faded curve of one hue lands on the shade of its sibling backbone."""
+    return base * 0.62 if retracted(arm) else base
 
 
 def hollow(arm):

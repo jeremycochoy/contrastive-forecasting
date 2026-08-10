@@ -69,7 +69,7 @@ def main(argv=None):
 
     for ax, head in zip(axes, heads):
         for arm in arms:
-            col = cc.colour(arm)
+            col = cc.arm_colour(arm)
             # The published trajectory belongs to the CELL. Both of B5's
             # backbone seeds are the same cell, so it is drawn once.
             pub = ({} if cc.hollow(arm)
@@ -111,7 +111,7 @@ def main(argv=None):
                linestyle="none", label="this study, retrained k = 0"),
         Line2D([], [], color=cc.INK_SOFT, marker="*", markersize=12,
                linestyle="none", label="this study, k > 0")]
-        + [Line2D([], [], color=cc.colour(a),
+        + [Line2D([], [], color=cc.arm_colour(a),
                    label=cc.label(a) + ("  ✗ retracted" if a in R.RETRACTED
                                         else ""))
            for a in arms],
