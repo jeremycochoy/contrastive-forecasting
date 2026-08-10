@@ -1,16 +1,27 @@
 #!/usr/bin/env python3
 """#373 — locate each backbone run's losses CSV, trainer log and checkpoints.
 
-The study's backbones were trained in two places, so their artefacts sit in
-two trees:
+The study's backbones were trained in two places, so their artefacts landed
+in two working trees. **The report does not read either.** Every curve, log
+and eval output a figure or a table needs has a copy in the committed tree,
+and this resolves the committed copy first, so a fresh clone rebuilds.
 
-  ~/cf373_sync/<box>/sync   the five runs that ran on rented vast.ai boxes,
-                            pulled down by the sync loops.
-  $CF373_ROOT/...           the seven runs the review asked for, which ran on
-                            elisa and wrote straight to the durable root.
+Committed, and searched in this order:
 
-A figure should not care which. This walks both and prints the `--run`
-arguments the plot scripts take, so the rebuild script holds no paths.
+  ../sync/<box>/     what the sync loops pulled off each rented box.
+  ../curves/<box>/   the losses CSV of a run whose box kept no sync
+                     directory. Every elisa run is one: elisa wrote straight
+                     to the durable root. `collect.sh` fills this.
+  ../results/        the trainer logs, and the GIFT-Eval outputs.
+
+Not committed, and searched after:
+
+  ~/cf373_sync/<box>/sync   the sync loops' own copies.
+  $CF373_ROOT/...           the durable root.
+
+They hold the CHECKPOINTS, which are 80 MB each and do not belong in git, so
+`--what ckpt` and `--what ckptdir` need them. Every other mode resolves
+without them; `--what missingcurves` is what keeps that true.
 
 Usage:
   find_artefacts.py --what curves      # --run <arm>:<k>=<losses.csv>
@@ -18,8 +29,14 @@ Usage:
   find_artefacts.py --what retrainlogs # --run <arm>:0=<run.log>, one per
                                        #   backbone of a cell trained twice
   find_artefacts.py --what ckpt        # --run <arm>:<k>=<bb40k .pth>
+                                       #   NEEDS the working trees
   find_artefacts.py --what ckptdir     # --run <arm>:<k>:<name>=<dir>
+                                       #   NEEDS the working trees
   find_artefacts.py --what pairs       # <label>\t<baseline tag>\t<compared tag>
+  find_artefacts.py --what missingcurves
+                                       # <run>\t<machine>\t<path> for every
+                                       #   backbone whose losses CSV is in a
+                                       #   working tree and not yet committed
 """
 from __future__ import annotations
 
@@ -33,16 +50,28 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import runs as R                                       # noqa: E402
 
-ROOTS = [Path(os.environ.get("CF373_SYNC_BASE",
-                             Path.home() / "cf373_sync")),
-         Path(os.environ.get("CF373_ROOT",
-                             "/home/jupyter/checkpoints_backup/cf-373")),
-         # The runs that trained on elisa wrote their trainer log straight
-         # into the study's results directory, beside the score files.
-         HERE.parent / "results"]
+# The committed tree. It comes first, so the answer a figure gets is the
+# answer a fresh clone gets, and a machine that still has the working trees
+# does not quietly rebuild from a file nobody else can read.
+COMMITTED = [HERE.parent / "sync",
+             HERE.parent / "curves",
+             HERE.parent / "results"]
+
+# The working trees, for the checkpoints only.
+EXTERNAL = [Path(os.environ.get("CF373_SYNC_BASE",
+                                Path.home() / "cf373_sync")),
+            Path(os.environ.get("CF373_ROOT",
+                                "/home/jupyter/checkpoints_backup/cf-373"))]
+
+ROOTS = COMMITTED + EXTERNAL
 # The durable root also holds one directory per HEAD, each with its own
 # `qhead_*_losses.csv`. A head is not a backbone; skip that whole subtree.
 SKIP = {"eval", "verify", "gap_claims", "mem", "steptime"}
+
+
+def slug(machine):
+    """A directory name for a machine: `vast box d` -> `vast_box_d`."""
+    return "_".join(machine.split())
 
 
 def walk(roots):
@@ -54,16 +83,37 @@ def walk(roots):
             yield Path(dirpath), filenames
 
 
-def find(name_to_runs, suffix):
+def find(name_to_runs, suffix, roots=None):
     """`{run name: path}` for the first file matching `<run name><suffix>`."""
     want = {f"{n}{suffix}": n for n in name_to_runs}
     out = {}
-    for dirpath, filenames in walk(ROOTS):
+    for dirpath, filenames in walk(roots or ROOTS):
         for f in filenames:
             n = want.get(f)
             if n is not None and n not in out:
                 out[n] = dirpath / f
     return out
+
+
+def emit_missing_curves():
+    """Every backbone whose losses CSV is in a working tree and not in git.
+
+    `collect.sh` reads this and downsamples each one into `../curves/`. An
+    empty output is the property the rebuild rests on: the committed tree
+    answers `--what curves` on its own.
+
+    Controls are here as well as depth runs. A control's curve is evidence
+    even where no figure draws it.
+    """
+    names = {run: (arm, k, role) for arm, k, role, run in R.backbones()}
+    have = find(names, "_losses.csv", COMMITTED)
+    got = find(names, "_losses.csv", EXTERNAL)
+    for run, (arm, k, role) in names.items():
+        if run in have or run not in got:
+            continue
+        r = R.find_run(arm, k, role)
+        print(f"{run}\t{slug(r.machine) if r else 'unknown'}\t{got[run]}")
+    return 0
 
 
 def find_logs(names):
@@ -144,13 +194,15 @@ def main(argv=None):
     p = argparse.ArgumentParser()
     p.add_argument("--what", required=True,
                    choices=("curves", "logs", "ckpt", "ckptdir",
-                            "pairs", "retrainlogs"))
+                            "pairs", "retrainlogs", "missingcurves"))
     p.add_argument("--results", default=str(HERE.parent / "results"))
     p.add_argument("--min-rows", type=int, default=10)
     args = p.parse_args(argv)
 
     if args.what == "pairs":
         return emit_pairs(Path(args.results) / "eval")
+    if args.what == "missingcurves":
+        return emit_missing_curves()
 
     bb = R.backbones()
     names = {run: (arm, k, role) for arm, k, role, run in bb}
