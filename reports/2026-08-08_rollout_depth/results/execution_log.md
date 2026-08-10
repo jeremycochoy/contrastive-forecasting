@@ -399,3 +399,60 @@ objective plus three added terms, so no ranking is read off it.
 `plots/ladder.png` draws this study's bb40k points on the published `k = 0`
 trajectories; every point this study contributes sits at one x value, so the
 report carries `depth_response.png` and `reproduction.png` instead.
+
+## 2026-08-10 21:20 — round 2 starts: the card's 14 cells, all of them
+
+The user's correction: round 1 ran 4 of 14 cells and stopped at bb40k, and
+spent much of the budget on a machine-versus-seed investigation. That line of
+work is closed. A box change is a nuisance variable, like a seed change, and
+this study does not measure it. The credit was topped up to $100.42.
+
+The job is the card's: all 14 cells at k = 3, 40k and 100k unconditionally,
+then the extend rule up to 200k. Baselines are the card's published k = 0
+tables, not retrained. The gate outcome from round 1 goes in the report in
+one line.
+
+**What round 2 changes operationally.** Round 1 trained backbones on rented
+cards and ran heads and GIFT-Eval on elisa. Elisa's two 4090s now hold 23.1
+and 22.7 GB of 24.5 for other sessions, and one head needs ~7 GB, so the
+heads follow the backbone onto the rented card. The GIFT-Eval stays on
+elisa's cores: one machine produces every GM-Relative MASE in this study.
+
+One box per cell, and every stop of a cell on its own box. The extend rule
+compares a cell's 100k against its own 40k, so those two must not straddle
+two machines.
+
+A3, B1, B5 and B9 resume from their round-1 k = 3 checkpoint at 40k, with
+its optimizer companion, verified by size on the box before the worker
+starts. Their 40k heads are not retrained; round 1 scored them.
+
+## 2026-08-10 21:28 — vastrun-kit prints two SSH formats and this study read one
+
+Every successful provision was logged as "unreadable provision output" and
+the retry loop kept going. Three RTX 5090s were billing before the log was
+read.
+
+`provision_box.sh` matched `ssh8.vast.ai:13680`, which is the form the kit's
+FAILURE messages use. Its success banner says `SSH: ssh -p 13680
+root@ssh8.vast.ai`. `endpoint_of()` now reads both, and an unreadable output
+that still carries an instance id destroys that instance instead of leaking
+it.
+
+Two more provisioning facts, both costed in instance-minutes:
+
+- The kit gives sshd `SSH_READY_RETRIES × SSH_READY_DELAY_SECONDS` = 30 s
+  after boot. These containers routinely take longer, and "SSH unreachable"
+  threw away two usable 5090s in ten seconds. `provision_box.sh` now probes
+  the endpoint itself for up to 600 s before destroying. An adopted box
+  carries no vastrun marker, because the kit writes it after that check, so
+  `r2_reap.sh` falls back to `--force` on the "no marker" refusal.
+- One box failed the bootstrap gate with CUDA error 804, "forward
+  compatibility was attempted on non supported HW". The gate found it before
+  any training ran on it, and the box was destroyed.
+
+## 2026-08-10 21:57 — the resumed cells were re-training heads they already have
+
+B5, B9 and A3 skip their 40k wave (the checkpoint is staged) and the worker
+went straight to training that stop's two heads — an hour of a rented card
+per cell to reproduce a score round 1 already holds. Killed on the three
+boxes already up; `SKIP_HEAD_STOPS` in `r2_cell_worker.sh` covers the rest.

@@ -3,12 +3,12 @@
 #
 # Usage: WT=<local checkout> bash bootstrap_remote.sh <ssh_host> <ssh_port>
 #
-# Lighter than #393's bootstrap, because these boxes only train backbones.
-# Head training and GIFT-Eval both stay on elisa: the eval is CPU-bound and
-# elisa's 32 cores cost nothing, and the study's whole GPU budget is $7.31
-# of vast.ai credit. So no gift-eval package, no gift-eval data, no
-# seasonal-naive denominator on the box — nothing on a rented card produces
-# a GM-Relative MASE, so nothing there can put one on a different scale.
+# Lighter than #393's bootstrap. The box trains the backbone AND its heads;
+# the GIFT-Eval stays on elisa. So no gift-eval package, no gift-eval data,
+# no seasonal-naive denominator on the box — nothing on a rented card
+# produces a GM-Relative MASE, so nothing there can put one on a different
+# scale. Round 1 kept the heads on elisa too, and round 2 moved them here
+# because other sessions hold both of elisa's cards.
 #
 # The repo is private, so the code is pushed rather than cloned. Versions
 # are pinned to elisa's: a run's numbers must not depend on which machine
@@ -38,6 +38,7 @@ say "packing code"
     src \
     experiments/hf_token.txt \
     experiments/2026-04-27_freq-embedding/scripts/train.py \
+    experiments/2026-04-13_gift-eval/scripts/train_forecasting_head.py \
     reports/2026-08-08_rollout_depth/scripts \
     && mv -f "$STAGE/cf373_code.tgz.$$" "$STAGE/cf373_code.tgz"
 ) 6>"$STAGE/.pack.lock" || exit 3
@@ -72,6 +73,9 @@ PY
 # wheel set. An ImportError found at step 0 of a rented run costs the run.
 cd /root/cf && PYTHONPATH=/root/cf python3 \
   experiments/2026-04-27_freq-embedding/scripts/train.py --help >/dev/null || exit 14
+# The head trainer is on the box in round 2, so it gets the same gate.
+cd /root/cf && PYTHONPATH=/root/cf python3 \
+  experiments/2026-04-13_gift-eval/scripts/train_forecasting_head.py --help >/dev/null || exit 15
 nvidia-smi --query-gpu=compute_mode,name --format=csv,noheader
 echo BOOTSTRAP_OK
 BOOT
@@ -82,7 +86,7 @@ for _ in $(seq 1 80); do
   if rsh 'grep -q BOOTSTRAP_OK /root/bootstrap.log' 2>/dev/null; then
     say "OK"; rsh 'tail -n 3 /root/bootstrap.log'; exit 0
   fi
-  if rsh 'grep -qE "^\+ exit (9|1[0-4])$" /root/bootstrap.log' 2>/dev/null; then
+  if rsh 'grep -qE "^\+ exit (9|1[0-5])$" /root/bootstrap.log' 2>/dev/null; then
     say "FAILED"; rsh 'tail -n 25 /root/bootstrap.log'; exit 5
   fi
   sleep 15
