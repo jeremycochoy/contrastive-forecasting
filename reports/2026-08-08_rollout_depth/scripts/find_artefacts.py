@@ -67,10 +67,17 @@ def find(name_to_runs, suffix):
 def emit_pairs(eval_dir):
     """The comparisons the paired bootstrap runs, one per line.
 
-    Every depth pair comes from the registry, so a new depth cannot be left
-    out by hand. The rows after them are not depth pairs and are named here
-    on purpose: two hold the depth fixed and vary the backbone seed, one is
-    the re-weighting control.
+    Three families.
+
+    Depth pairs come from the registry, so a new depth cannot be left out by
+    hand. Each is one arm's own `k = 0` against one of its deeper runs.
+
+    Retraining pairs hold the cell and the depth fixed and change the
+    backbone. B5 has three, and each pair is named by what it changes: the
+    seed, the machine, or both. They are built by walking the cell's arms,
+    so a fourth backbone needs no edit here.
+
+    One control changes the objective: `L_align` x4 at k = 0.
     """
     tags = sorted(p.name for p in eval_dir.iterdir()) if eval_dir.is_dir() else []
     have = set(tags)
@@ -78,15 +85,34 @@ def emit_pairs(eval_dir):
     for arm, head, k, base, deep in R.pairs(tags):
         out.append((f"{arm.replace(chr(183), '_')}_k{k}_{head}",
                     base.tag, deep.tag))
+
+    def what_changes(a1, a2):
+        seed = R.arm_seed(a1) != R.arm_seed(a2)
+        machine = R.arm_where(a1) != R.arm_where(a2)
+        return ("seed_and_machine" if seed and machine else
+                "seed" if seed else "machine" if machine else "nothing")
+
+    for cell in sorted({R.resolve(t).cell for t in tags if R.resolve(t)}):
+        arms = [a for a in R.arms_of(cell) if a != "B5·pub"]
+        for i, a1 in enumerate(arms):
+            for a2 in arms[i + 1:]:
+                for k in (0, 1, 3):
+                    r1 = R.find_run(a1, k, "depth") or R.find_run(a1, k, "control")
+                    r2 = R.find_run(a2, k, "depth") or R.find_run(a2, k, "control")
+                    if r1 is None or r2 is None:
+                        continue
+                    for head in ("student", "teacher"):
+                        out.append((f"{cell}_{what_changes(a1, a2)}_k{k}_{head}",
+                                    f"{r1.stem}_bb40k_{head}",
+                                    f"{r2.stem}_bb40k_{head}"))
     for head in ("student", "teacher"):
-        for k in (0, 3):
-            out.append((f"B5_backboneseed_k{k}_{head}",
-                        f"B5_k{k}_bb40k_{head}",
-                        f"G5_B5_s2_k{k}_bb40k_{head}"))
         out.append((f"A3_alignx4_{head}", f"A3_k0_bb40k_{head}",
                     f"G3_A3_k0_aw4_bb40k_{head}"))
+
+    seen = set()
     for label, a, b in out:
-        if a in have and b in have:
+        if a in have and b in have and label not in seen:
+            seen.add(label)
             print(f"{label}\t{a}\t{b}")
     return 0
 

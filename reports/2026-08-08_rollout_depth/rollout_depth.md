@@ -45,10 +45,10 @@ Three things have to hold before a delta here means the depth.
 | its own `k = 0` reproduces the published value | 0.0004 | **0.0000** | 0.0032 | 0.0294 |
 | meets the card's primary criterion | yes | **yes** | no | no |
 
-B1 is the only row with all three. B9's −17.9% is the larger number and it
-is the study's largest, but its `k = 0` trained on elisa and its `k = 3` on a
-rented box, so it carries a machine change as well as a depth change. B5·s2
-holds the machine fixed and does not improve. A3 fails both tests.
+B1 is the only column with all three. B9's −17.9% is the study's largest
+number, but its `k = 0` trained on elisa and its `k = 3` on a rented box, so
+it carries a machine change as well as a depth change. B5·s2 holds the
+machine fixed and does not improve. A3 fails all three.
 
 So the study's strongest claim is B1's, and it is one training at one seed at
 one stop with no `k = 3` replicate.
@@ -383,17 +383,17 @@ The resampling unit is the dataset: `<ds>/short`, `/medium` and `/long` are thre
 
 ### One cell, three backbones
 
-B5 (`arm4_combab_fix09`) trained three times on one recipe, one code snapshot, one head seed and one eval. The three differ by backbone seed and by machine, and the two contrasts below take one factor each.
+B5 (`arm4_combab_fix09`) trained three times on one recipe, one code snapshot, one head seed and one eval. They differ by backbone seed and by machine, and each contrast below names which of the two it changes.
 
 | backbone | seed | machine | k = 0 | k = 3 | k = 3 − k = 0 |
 |---|---|---|---|---|---|
 | B5·s1 ✗ | 20260520 | a rented box | 1.3917 | 1.3204 | -0.0713 |
 | B5·s2 | 20260521 | elisa | 1.2716 | 1.3292 | +0.0575 |
 
-| contrast | what changes | k | Δ |
-|---|---|---|---|
-| B5·s1 against B5·s2 | the seed AND the machine | 0 | -0.1200 |
-| B5·s1 against B5·s2 | the seed AND the machine | 3 | +0.0088 |
+| contrast | what changes | k | Δ | 95% CI |
+|---|---|---|---|---|
+| B5·s1 against B5·s2 | the seed AND the machine | 0 | -0.1200 | [-0.1825, -0.0742] |
+| B5·s1 against B5·s2 | the seed AND the machine | 3 | +0.0088 | [-0.0306, +0.0520] |
 
 Student head, 97 configs. `B5·s3` is this study's answer to the third row: it holds `B5·s1`'s seed and `B5·s2`'s machine.
 

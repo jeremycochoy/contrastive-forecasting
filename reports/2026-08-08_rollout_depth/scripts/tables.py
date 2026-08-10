@@ -234,9 +234,9 @@ def main(argv=None):
     # ---- 5. B5's three backbones -------------------------------------------
     L += ["### One cell, three backbones", "",
           "B5 (`arm4_combab_fix09`) trained three times on one recipe, one "
-          "code snapshot, one head seed and one eval. The three differ by "
-          "backbone seed and by machine, and the two contrasts below take "
-          "one factor each.", "",
+          "code snapshot, one head seed and one eval. They differ by backbone "
+          "seed and by machine, and each contrast below names which of the "
+          "two it changes.", "",
           "| backbone | seed | machine | k = 0 | k = 3 | k = 3 − k = 0 |",
           "|---|---|---|---|---|---|"]
     b5_arms = [a for a in R.arms_of("B5") if a != "B5·pub"]
@@ -255,14 +255,20 @@ def main(argv=None):
         L.append(f"| {arm}{mark(arm)} | {R.arm_seed(arm)} | "
                  f"{R.arm_where(arm)} | {fmt(row[0])} | {fmt(row[1])} | {d} |")
 
-    L += ["", "| contrast | what changes | k | Δ |", "|---|---|---|---|"]
-    for a1, a2, what in (("B5·s1", "B5·s3", "the machine, at one seed"),
-                         ("B5·s2", "B5·s3", "the seed, on one machine"),
-                         ("B5·s1", "B5·s2", "the seed AND the machine")):
+    L += ["", "| contrast | what changes | k | Δ | 95% CI |",
+          "|---|---|---|---|---|"]
+    for a1, a2, what, lab in (
+            ("B5·s1", "B5·s3", "the machine, at one seed", "machine"),
+            ("B5·s2", "B5·s3", "the seed, on one machine", "seed"),
+            ("B5·s1", "B5·s2", "the seed AND the machine", "seed_and_machine")):
         for k in (0, 3):
-            if (a1, k) in b5 and (a2, k) in b5:
-                L.append(f"| {a1} against {a2} | {what} | {k} | "
-                         f"{b5[(a2, k)] - b5[(a1, k)]:+.4f} |")
+            if (a1, k) not in b5 or (a2, k) not in b5:
+                continue
+            ci = bs.get((f"B5_{lab}_k{k}_student", "all"))
+            L.append(f"| {a1} against {a2} | {what} | {k} | "
+                     f"{b5[(a2, k)] - b5[(a1, k)]:+.4f} | "
+                     + (f"[{float(ci['ci_lo']):+.4f}, "
+                        f"{float(ci['ci_hi']):+.4f}] |" if ci else "— |"))
     L += ["", "Student head, 97 configs. `B5·s3` is this study's answer to "
           "the third row: it holds `B5·s1`'s seed and `B5·s2`'s machine.", ""]
 

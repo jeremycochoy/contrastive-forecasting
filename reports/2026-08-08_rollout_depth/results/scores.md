@@ -108,17 +108,17 @@ The resampling unit is the dataset: `<ds>/short`, `/medium` and `/long` are thre
 
 ### One cell, three backbones
 
-B5 (`arm4_combab_fix09`) trained three times on one recipe, one code snapshot, one head seed and one eval. The three differ by backbone seed and by machine, and the two contrasts below take one factor each.
+B5 (`arm4_combab_fix09`) trained three times on one recipe, one code snapshot, one head seed and one eval. They differ by backbone seed and by machine, and each contrast below names which of the two it changes.
 
 | backbone | seed | machine | k = 0 | k = 3 | k = 3 − k = 0 |
 |---|---|---|---|---|---|
 | B5·s1 ✗ | 20260520 | a rented box | 1.3917 | 1.3204 | -0.0713 |
 | B5·s2 | 20260521 | elisa | 1.2716 | 1.3292 | +0.0575 |
 
-| contrast | what changes | k | Δ |
-|---|---|---|---|
-| B5·s1 against B5·s2 | the seed AND the machine | 0 | -0.1200 |
-| B5·s1 against B5·s2 | the seed AND the machine | 3 | +0.0088 |
+| contrast | what changes | k | Δ | 95% CI |
+|---|---|---|---|---|
+| B5·s1 against B5·s2 | the seed AND the machine | 0 | -0.1200 | [-0.1825, -0.0742] |
+| B5·s1 against B5·s2 | the seed AND the machine | 3 | +0.0088 | [-0.0306, +0.0520] |
 
 Student head, 97 configs. `B5·s3` is this study's answer to the third row: it holds `B5·s1`'s seed and `B5·s2`'s machine.
 
