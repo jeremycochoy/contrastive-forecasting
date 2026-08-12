@@ -736,3 +736,62 @@ paragraph and its figures describe round 1: four cells at bb40k. The tables
 below them now describe thirteen at two stops. The prose is the writer
 stage's job and the 200k numbers are not in yet, so nothing above the
 `TABLES` block was touched.
+
+## 2026-08-12 19:30 BST — the head path, tested before it was needed
+
+The session resumed onto a queue that was still doing its job: one
+dispatcher, one supervisor, one budget guard, one 15-minute sync loop, one
+publisher on a 20-minute timer, and five backbones. Nothing was restarted
+for its own sake. Credit $25.55, box spend $2.48 over 3 h 2 m at $0.8144/h.
+`torch.cuda.device_count()` prints 2 on box 47557391.
+
+Round 3 had trained nine backbones and run no head and no eval. That half
+of the queue was therefore untested, and it holds 19 heads and 19 evals —
+every number this round produces. Three faults were in it.
+
+**A head on the rented box could not read a backbone trained on elisa.**
+`r2_head_box.sh` resolves its checkpoint under `CF373_ROOT` on the machine
+that runs it, and four of this round's nine backbones train on elisa. B6 is
+one of them. Its head would have found nothing, exited 3, and been marked
+`failed` — a state the dispatcher never retries. `q_run.sh` now stages it:
+ask the box first, because a backbone it trained is already there and the
+ask costs one ssh, and mirror from elisa only when it is not. No optimizer;
+a head reads weights, it does not resume. A checkpoint that is on neither
+machine yet returns non-zero, which leaves the job QUEUED rather than
+failed, so the next sync tick and the next dispatch place it.
+
+**19 heads behind 9 backbones on four slots.** The queue puts every extend
+ahead of every head, correctly — the extends are what the card asked for.
+But four slots meant no head could start until the last extend had a card,
+and that put about six hours of head time at the end of a bill paid by the
+hour. Each rented card now carries a THIRD slot, and it takes heads only:
+5.4 GB + 5.4 GB + 7 GB against 24.5 GB, on cards reading 77% and 89%. A
+head there takes no slot from a backbone; it fills what the two backbones
+leave. Backbones are barred from it, or a third backbone would slow the two
+on the critical path to buy one that is not. `r2_head_box.sh` still gates on
+8.5 GB free before it allocates, so a card that is genuinely full makes the
+head wait instead of dying on an OOM.
+
+**A head could lose its provenance marker, and the guard would pass.** The
+eval refuses a head whose `backbone.txt` names a checkpoint other than the
+one the cell resolves to. That file is written AFTER training. The smoke
+test below was killed by an ssh drop in exactly that window and left
+`final.pth`, its optimizer and the encoder-source marker with no
+`backbone.txt` — and the re-run then hit the SKIP guard and exited before
+the line that writes it. A missing marker makes the pair check pass by
+being absent, which is the one way it must never pass. It is now written on
+the skip path too. Reproduced on the box, fixed, re-run, verified.
+
+**The smoke test.** A 200-step head on B10's bb100k checkpoint, into
+`/root/cf373_smoke`, a scratch root outside the synced tree: rc=0, a
+449,943-byte head, its optimizer, the encoder-source marker, the losses CSV.
+The eval half is under test now — the full 97 configs over 8 shards on
+elisa's cores against that same throwaway head, into
+`/home/jupyter/cf373_smoke_eval`. Its number is meaningless and is not a
+score; what it proves is the shard split, the merge, the 97/97 check, the
+aggregate pass and the score extraction, in round 3's flat layout.
+
+**Scripts now reach git.** The queue runs out of `wt-cf-373-run2`, so a fix
+made while it is live is made there, and the publisher copied results only.
+Three scripts were edited today and only a hand copy would have committed
+them. `r3_publish.sh` now copies `scripts/` on every tick.

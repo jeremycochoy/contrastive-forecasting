@@ -53,6 +53,13 @@ while :; do
   cp -f "$RES"/queue/*.state "$RES"/queue/*.machine "$DST/results/queue/" 2>/dev/null
   cp -f "$RES"/r3_*.log "$DST/results/" 2>/dev/null
 
+  # The scripts, too. The queue runs out of THIS tree, so a fix made while
+  # the queue is live is made here, and until now nothing carried it into
+  # git: three of them were edited on 2026-08-12 and only a hand copy would
+  # have committed them. A run that cannot be reproduced from the branch is
+  # not a reported run.
+  cp -f "$HERE"/*.sh "$HERE"/*.py "$HERE"/*.tsv "$DST/scripts/" 2>/dev/null
+
   # The coverage table, every round, on disk. `--md` is what the PR comment
   # and the report both take. It is written to the RUN checkout first: the
   # budget guard reads it from there when it posts its blocking comment, and

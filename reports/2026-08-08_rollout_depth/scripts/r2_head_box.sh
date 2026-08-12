@@ -46,12 +46,25 @@ mkdir -p "$OUT"
 
 log(){ echo "[$(date '+%m-%d %H:%M:%S')] [head $TAG] $*" | tee -a "$LOG" "$RES/heads.log"; }
 
-if [ -f "$HEAD_CKPT" ]; then log "SKIP — $(basename "$HEAD_CKPT") exists"; exit 0; fi
-
 BB="$(cf373_bb_ckpt "$CELL" "$K" "$STOP")"
 [ -n "$BB" ] && [ -f "$BB" ] || {
   log "ABORT: no bb${STOP_K}k checkpoint under $(cf373_runs_dir "$CELL" "$K" "$STOP")"
   exit 3; }
+
+# `backbone.txt` is the eval's provenance guard: it refuses a head whose
+# recorded checkpoint is not the one the cell resolves to, so no run's
+# number can be attributed to another cell. It is written AFTER training,
+# so a job killed between the checkpoint and that line leaves a head with
+# no marker — and the re-run below then skips straight past the line that
+# would have written it. Measured on the box: a head interrupted by an ssh
+# drop left final.pth, its optimizer and the encoder-source marker, and no
+# backbone.txt. The guard then passes by being absent, which is the one
+# way it must never pass. So write it on the skip path too.
+if [ -f "$HEAD_CKPT" ]; then
+  [ -s "$OUT/backbone.txt" ] || printf '%s\n' "$(basename "$BB")" > "$OUT/backbone.txt"
+  log "SKIP — $(basename "$HEAD_CKPT") exists (bb $(cat "$OUT/backbone.txt"))"
+  exit 0
+fi
 
 HEAD_TRAIN="$WT/experiments/2026-04-13_gift-eval/scripts/train_forecasting_head.py"
 [ -f "$HEAD_TRAIN" ] || { log "ABORT: no head trainer at $HEAD_TRAIN"; exit 2; }

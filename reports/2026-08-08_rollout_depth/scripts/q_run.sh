@@ -91,11 +91,25 @@ rlaunch(){ # <id> <body on stdin>
 # NO quotes inside the default: `${QSLOTS:-"a b"}` is ONE word, so the array
 # would hold a single element and every job would be placed on it. That put
 # two backbones on card 1 and left card 0 idle on the first launch.
-SLOTS=( ${QSLOTS:-rem:0 rem:0 rem:1 rem:1 loc:0 loc:1} )
+#
+# The last two entries are HEAD-ONLY, one per rented card. The rental ends
+# when the LAST job ends, and 19 heads behind 9 backbones on four slots put
+# every head after every extend — six hours of head time added to the end of
+# a bill that is already paid by the hour. A third process fits: 5.4 GB +
+# 5.4 GB + 7 GB against 24.5 GB, and the cards read 77% and 89%, not 100%.
+# A head here takes no slot from a backbone; it fills what the two backbones
+# leave. `r2_head_box.sh` still gates on 8.5 GB free before it allocates, so
+# a card that is genuinely full makes the head wait rather than OOM.
+#
+# Backbones must NOT use them: three backbones on one card would slow the
+# two that are on the critical path to buy a third that is not.
+SLOTS=( ${QSLOTS:-rem:0 rem:0 rem:1 rem:1 loc:0 loc:1 rem:0 rem:1} )
+HEAD_ONLY=" ${HEAD_ONLY_SLOTS:-6 7} "
+head_only(){ case "$HEAD_ONLY" in *" $1 "*) return 0;; *) return 1;; esac; }
 declare -A slot_job=()
 for i in "${!SLOTS[@]}"; do slot_job[$i]=""; done
 [ "${#SLOTS[@]}" -ge 2 ] || { echo "ABORT: slot table has ${#SLOTS[@]} entry" >&2; exit 2; }
-echo "slots ${#SLOTS[@]}: ${SLOTS[*]}"
+echo "slots ${#SLOTS[@]}: ${SLOTS[*]} (head-only:$HEAD_ONLY)"
 
 st(){ cat "$STATE/$1.state" 2>/dev/null || echo queued; }
 setst(){ echo "$2" > "$STATE/$1.state"; }
@@ -156,6 +170,7 @@ EOF
 launch_head(){ # <id> <cell> <stop> <enc> <machine> <gpu>
   local id="$1" cell="$2" stop="$3" enc="$4" mach="$5" gpu="$6"
   if [ "$mach" = rem ]; then
+    stage_head_remote "$cell" "$stop" || return 1
     rlaunch "$id" <<EOF || return 1
 export PYTHONPATH=/root/cf CF373_ROOT=/root/cf373_runs WT=/root/cf
 HEAD_GPU=$gpu HEAD_SEED=$HEAD_SEED HEAD_VRAM_MIB=$HEAD_VRAM \
@@ -209,6 +224,43 @@ launch_eval(){ # <id> <cell> <stop> <enc>
 resume_ckpt(){ # <cell> <stop> -> local path, or nothing
   CF373_ROOT="$CF373_R3" bash -c \
     ". '$HERE/cell_paths.sh'; cf373_bb_below '$1' '$K' '$2'"
+}
+
+# ------------------------------------- stage a head's backbone on the box
+# A head reads its backbone from the tree on the machine that runs it. Four
+# of the nine backbones this round train on elisa, and elisa's two cards
+# carry other projects, so a head for one of them can land on the rented box
+# with nothing to read: `r2_head_box.sh` exits 3 and the queue marks the job
+# failed for good.
+#
+# So ask the box first — a backbone it trained is already there, and asking
+# costs one ssh — and mirror from elisa only when it is not. No optimizer:
+# a head reads weights, it does not resume.
+#
+# A missing local copy returns non-zero, which leaves the job queued rather
+# than failed. The sync loop brings it in and the next tick places it.
+stage_head_remote(){ # <cell> <stop>
+  local cell="$1" stop="$2" bb rdir rname a b dst
+  rdir="$(CF373_ROOT=/root/cf373_runs bash -c \
+          ". '$HERE/cell_paths.sh'; cf373_runs_dir '$cell' '$K' '$stop'")"
+  rname="$(bash -c ". '$HERE/cell_paths.sh'; cf373_run_name '$cell' '$K'")"
+  a="$(rsh "ls $rdir/${rname}*_$(( stop / 1000 ))k.pth 2>/dev/null \
+            | grep -v optimizer | head -1" 2>/dev/null | tr -d ' \r')"
+  [ -n "$a" ] && return 0                       # the box trained it
+  bb="$(CF373_ROOT="$CF373_R3" bash -c \
+        ". '$HERE/cell_paths.sh'; cf373_bb_ckpt '$cell' '$K' '$stop'")"
+  [ -n "$bb" ] && [ -f "$bb" ] || {
+    log "STAGE-HEAD $cell bb$(( stop / 1000 ))k: not on the box, not on elisa yet"
+    return 1; }
+  dst="/root/cf373_runs/${bb#$CF373_R3/}"; dst="$(dirname "$dst")"
+  log "STAGE-HEAD $cell -> $dst/$(basename "$bb")"
+  rsh "mkdir -p '$dst'" >/dev/null 2>&1 || return 1
+  scp "${SSH_OPTS[@]}" -P "$BOX_PORT" "$bb" "root@$BOX_HOST:$dst/" \
+    >/dev/null 2>&1 || { log "STAGE-HEAD $cell: scp failed"; return 1; }
+  a="$(rsh "stat -c%s '$dst/$(basename "$bb")'" 2>/dev/null | tr -d ' ')"
+  b="$(stat -c%s "$bb")"
+  [ "$a" = "$b" ] || { log "STAGE-HEAD $cell: size $a != $b"; return 1; }
+  return 0
 }
 
 stage_bb_remote(){ # <cell> <stop>
@@ -319,15 +371,23 @@ while :; do
     # end of the rental out by its own runtime. So a head asks elisa's free
     # cards first and takes a rented one only when elisa has no room — never
     # leaving a card idle, and never paying for a job elisa could have run.
+    #
+    # Three tiers for a head, in this order: elisa's cards, which cost
+    # nothing; the rented cards' head-only slots, which cost nothing extra
+    # because the card is already rented and already holds its two
+    # backbones; and last a rented slot a backbone could have used.
     order=("${!SLOTS[@]}")
     if [ "$type" = head ]; then
       order=(); for i in "${!SLOTS[@]}"; do
         [ "${SLOTS[$i]%%:*}" = loc ] && order+=("$i"); done
       for i in "${!SLOTS[@]}"; do
-        [ "${SLOTS[$i]%%:*}" = loc ] || order+=("$i"); done
+        [ "${SLOTS[$i]%%:*}" = loc ] || ! head_only "$i" || order+=("$i"); done
+      for i in "${!SLOTS[@]}"; do
+        [ "${SLOTS[$i]%%:*}" = loc ] || head_only "$i" || order+=("$i"); done
     fi
     for i in "${order[@]}"; do
       [ -z "${slot_job[$i]}" ] || continue
+      [ "$type" = head ] || ! head_only "$i" || continue
       mach="${SLOTS[$i]%%:*}"; gpu="${SLOTS[$i]##*:}"
       if [ "$mach" = loc ]; then
         need="$BB_VRAM"; [ "$type" = head ] && need="$HEAD_VRAM"
