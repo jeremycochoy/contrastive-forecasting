@@ -683,3 +683,56 @@ an orphan reads as a live dispatcher. The dispatcher now writes
 `results/queue/dispatcher.pid` with its own `$$`, and `q_super.sh` checks that
 pid is alive and still running `q_run.sh`. Verified: one loop, pid 186853,
 five jobs adopted, `sleep 60` on its poll.
+
+## 2026-08-12 18:55 BST — the session resumed; nothing was restarted
+
+The queue survived two dead sessions. On resume it held one dispatcher
+(pid 186853), one supervisor, one budget guard, one 15-minute sync loop and
+five backbones, and every one of them was still doing its job. Nothing was
+relaunched. `torch.cuda.device_count()` prints 2 on box 47557391, and both
+its cards read 77% and 89%.
+
+Steps at 18:37, off the losses CSVs:
+
+    B8   0    -> 100k    21,900   fresh
+    B10  100k -> 200k   121,700
+    A2   100k -> 200k   121,800
+    B4   100k -> 200k   122,300
+    B6   100k -> 200k   115,400   elisa, GPU 1
+
+2.9 steps/s per remote slot, 3.7 on elisa. elisa's GPU 0 holds 2.0 GB free
+against the 7 GB a backbone needs, so the dispatcher leaves it out.
+
+The four queued extends resolve the checkpoint the plan asked for:
+
+    B2 -> ..._alignteacher_cf373k3_r3_140k.pth
+    B1 -> ..._cf373k3_r3_140k.pth
+    A3 -> cf393_arm6_v2_combab_alignT_cf373k3_100k.pth
+    A4 -> cf393_arm6_v2_combab_alignS_cf373k3_100k.pth
+
+## 2026-08-12 19:05 BST — two faults between the numbers and the report
+
+**Round 3's numbers could not have reached a figure.** Every split and plot
+script reads `results/eval/*/all_results.csv` in the git checkout. Round 2
+had `r2_collect.sh` to put them there, which reads one directory per cell
+under `~/cf373_r2`. Round 3 writes ONE flat root, `~/cf373_r3`, and nothing
+read it. A 200k eval would have finished, written its 97 configs, and never
+appeared in a plot.
+
+`scripts/r3_collect.sh` reads the flat layout: the 97-config CSV, the
+summary, the head's `backbone.txt` and `head.log`, the trainer logs, and the
+losses CSVs at every 200th row. It skips a CSV holding fewer than 97
+configs, so no figure can average over a partial eval. First run: 0 evals
+(round 3 has scored nothing yet), 7 logs, 19 curves.
+
+**The coverage table called ten scored cells `never ran`.** It was built
+from the run registry, which knows round 1's 32 runs and stops there. It
+now counts the score files, which are the thing that says a number exists,
+and gains a `stops scored` column. It reads 13 of 14 cells scored, B8 the
+one hole, stops bb40k and bb100k. bb200k appears in it as those land.
+
+**Still stale, for the report stage.** The report's title, its opening
+paragraph and its figures describe round 1: four cells at bb40k. The tables
+below them now describe thirteen at two stops. The prose is the writer
+stage's job and the 200k numbers are not in yet, so nothing above the
+`TABLES` block was touched.
