@@ -645,3 +645,41 @@ It identifies the dispatcher by `ppid == 1`, because the dispatcher forks a
 subshell per local job that carries the same argv — counting by argv alone
 reads a running local head as a live dispatcher. It stands down when the
 guard writes `BLOCKED_BUDGET` or when the queue drains.
+
+## 2026-08-12 18:20 BST — three faults in the queue's own machinery
+
+The five running backbones were untouched. Every fault below sat ahead of a
+job that had not started yet, so fixing them cost nothing already spent.
+
+**An extend resumed the wrong checkpoint for B1 and B2.**
+`stage_bb_remote` staged `stop - 100000`, which names the 100k for every
+cell. B1 and B2 hold a 140k, written 2026-08-12 14:17, optimizer beside it.
+Both would have retrained 40,000 steps that are already on disk: 80,000
+steps, 8.4 slot-hours at the 2.63 steps/s the box measures.
+
+`cell_paths.sh` gains `cf373_bb_below <cell> <k> <stop>`: the furthest
+checkpoint strictly below the stop, chosen by the step in its name, and only
+if its optimizer sidecar is there. Group B keeps one directory per run;
+group A keeps one per leg, so the search walks the arm's sibling legs. It
+resolves 140k for B1 and B2 and 100k for B4, B6, B10, A2, A3, A4.
+
+The 140k pairs were copied from the round-2 roots into the round-3 root,
+size-checked, `.tmp` then `mv`. The round-2 copies stay.
+
+**The group B launchers pick their resume by mtime.** `run_arm_k.sh:364` and
+`run_arm_lalign_k.sh:238` read `ls -t`, and staging a checkpoint onto the box
+gives it the newest mtime there. A staged 100k would therefore win over a
+140k that arrived earlier. `launch_bb` now passes `RESUME_FROM` and names the
+file. `run_leg_k.sh` already chooses by step and is left alone.
+
+**Two dispatchers ran at once, for about two minutes.** `setsid nohup bash
+q_run.sh &` leaves two processes: a wrapper and the loop. Killing the wrapper
+left the loop running, and the replacement made two. Round 2 lost a run to
+exactly this, two processes writing one run name.
+
+The supervisor could not have caught it. Its test was `argv matches` plus
+`ppid == 1`, and a restart orphans every local job's subshell onto init, so
+an orphan reads as a live dispatcher. The dispatcher now writes
+`results/queue/dispatcher.pid` with its own `$$`, and `q_super.sh` checks that
+pid is alive and still running `q_run.sh`. Verified: one loop, pid 186853,
+five jobs adopted, `sleep 60` on its poll.

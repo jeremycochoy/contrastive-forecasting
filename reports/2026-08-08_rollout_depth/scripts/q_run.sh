@@ -117,11 +117,21 @@ free_mib(){ nvidia-smi --id="$1" --query-gpu=memory.free \
 # ssh drop mid-job costs a tick, not the job.
 launch_bb(){ # <id> <cell> <stop> <machine> <gpu>
   local id="$1" cell="$2" stop="$3" mach="$4" gpu="$5"
-  local L A args env
+  local L A args env bb rf=""
   L="$(cell_launcher "$cell")"; A="$(cell_arg "$cell")"
   args="$A"; case "$L" in run_leg_k.sh) args="$A $stop" ;; esac
   env="K=$K TARGET_STEPS=$stop FINAL_STEPS=200000 SAVE_EVERY=20000"
   env="$env EXTRA_SAVES=$stop HEAD_SEED=$HEAD_SEED"
+  # The group B launchers pick their resume with `ls -t`, so mtime decides,
+  # and staging a checkpoint onto the box gives it the newest mtime there.
+  # Name the checkpoint instead. run_leg_k.sh already chooses by step.
+  if [ "$stop" -gt 100000 ] && [ "$L" != run_leg_k.sh ]; then
+    bb="$(resume_ckpt "$cell" "$stop")"
+    [ -n "$bb" ] || { log "START $cell: no checkpoint below $stop"; return 1; }
+    if [ "$mach" = rem ]; then rf="/root/cf373_runs/${bb#$CF373_R3/}"; else rf="$bb"; fi
+    env="$env RESUME_FROM=$rf"
+    log "RESUME $cell from $(basename "$bb")"
+  fi
   if [ "$mach" = rem ]; then
     stage_bb_remote "$cell" "$stop" || return 1
     rlaunch "$id" <<EOF || return 1
@@ -189,17 +199,23 @@ launch_eval(){ # <id> <cell> <stop> <enc>
 }
 
 # ------------------------------------------------- stage a resume on the box
-# An extend resumes the 100k checkpoint the round-2 fleet produced. It has to
-# be on the box, under the path the launcher resumes from, with its optimizer
-# beside it: without the optimizer a resume loses the step counter, the RNG
-# state and AdamW's moments.
+# An extend resumes the furthest checkpoint the fleet already produced below
+# its stop. It has to be on the box, under the path the launcher resumes
+# from, with its optimizer beside it: without the optimizer a resume loses
+# the step counter, the RNG state and AdamW's moments.
+#
+# `stop - 100000` would name the 100k for every cell, and B1 and B2 hold a
+# 140k. Resuming their 100k retrains 40k steps each that are already on disk.
+resume_ckpt(){ # <cell> <stop> -> local path, or nothing
+  CF373_ROOT="$CF373_R3" bash -c \
+    ". '$HERE/cell_paths.sh'; cf373_bb_below '$1' '$K' '$2'"
+}
+
 stage_bb_remote(){ # <cell> <stop>
-  local cell="$1" stop="$2" prev bb opt dst
+  local cell="$1" stop="$2" bb opt dst
   [ "$stop" -le 100000 ] && return 0          # B8 starts at step 0
-  prev=$(( stop - 100000 ))
-  bb="$(CF373_ROOT="$CF373_R3" bash -c \
-        ". '$HERE/cell_paths.sh'; cf373_bb_ckpt '$cell' '$K' '$prev'")"
-  [ -n "$bb" ] && [ -f "$bb" ] || { log "STAGE $cell: no local bb$(( prev/1000 ))k"; return 1; }
+  bb="$(resume_ckpt "$cell" "$stop")"
+  [ -n "$bb" ] && [ -f "$bb" ] || { log "STAGE $cell: no local checkpoint below $stop"; return 1; }
   opt="${bb%.pth}_optimizer.pth"
   [ -f "$opt" ] || { log "STAGE $cell: no optimizer beside $(basename "$bb")"; return 1; }
   dst="/root/cf373_runs/${bb#$CF373_R3/}"; dst="$(dirname "$dst")"
@@ -222,7 +238,12 @@ stage_bb_remote(){ # <cell> <stop>
 dep_ok(){ local d="$1"; [ "$d" = "-" ] && return 0; [ "$(st "$d")" = done ]; }
 
 # ---------------------------------------------------------------- the loop
-log "start box=$BOX_ID $BOX_HOST:$BOX_PORT slots='${SLOTS[*]}' root=$CF373_R3"
+# Say which process is the dispatcher, in writing. Every local job runs in a
+# subshell that carries this same argv, and a dispatcher restart orphans
+# those subshells onto init, so neither the argv nor `ppid == 1` tells the
+# supervisor whether a dispatcher is alive.
+echo $$ > "$STATE/dispatcher.pid"
+log "start box=$BOX_ID $BOX_HOST:$BOX_PORT slots='${SLOTS[*]}' root=$CF373_R3 pid=$$"
 
 # Adopt what is already running. A dispatcher restart must not place a second
 # copy of a job onto a second card: round 2 did exactly that once, and two

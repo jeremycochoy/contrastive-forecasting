@@ -31,14 +31,19 @@ BOX_PORT="${BOX_PORT:?BOX_PORT}"
 log(){ echo "[$(date -u '+%Y-%m-%dT%H:%M:%SZ')] [super] $*" | tee -a "$RES/q_super.log"; }
 
 # The dispatcher forks a subshell per local job, and that child carries the
-# same argv. Counting by argv alone would read a running local head as a
-# live dispatcher. The parent is the process whose own parent is init.
+# same argv. `ppid == 1` does not separate them either: a dispatcher restart
+# orphans every one of those subshells onto init, and then an orphan reads
+# as a live dispatcher and this loop never restarts anything.
+#
+# So the dispatcher names itself in a pid file, and this checks that the pid
+# is alive and still running q_run.sh.
 dispatcher_pid(){
   local p
-  for p in $(pgrep -f 'bash scripts/q_run.sh' 2>/dev/null); do
-    [ "$(awk '{print $4}' "/proc/$p/stat" 2>/dev/null)" = 1 ] && { echo "$p"; return 0; }
-  done
-  return 1
+  p="$(cat "$STATE/dispatcher.pid" 2>/dev/null | tr -d ' ')"
+  case "$p" in ''|*[!0-9]*) return 1 ;; esac
+  [ -r "/proc/$p/cmdline" ] || return 1
+  tr '\0' ' ' < "/proc/$p/cmdline" | grep -q 'q_run\.sh' || return 1
+  echo "$p"
 }
 
 queue_left(){ local n=0 id s
