@@ -18,9 +18,16 @@ The student head reads the student side only. So if the student side is
 identical tensor for tensor, one score for both cells is the right answer
 and not a collision, and the teacher side is where the regime shows.
 
+It then compares the trained heads themselves, one row per head, which
+closes the chain: same backbone side in, same head weights out, same 97
+numbers out. A head's FILE md5 differs between two cells even when every
+weight agrees — the archive carries bytes that are not weights — so the
+comparison is tensor by tensor, never by md5.
+
 Usage:  python3 pair_identity.py [--out results/pair_identity.tsv]
 """
 import argparse
+import glob
 import os
 import subprocess
 import sys
@@ -80,6 +87,43 @@ def ckpt(cell, stop):
     return ckpt_r3(cell, stop)
 
 
+def head_ckpt(cell, stop, enc):
+    """The cell's trained head at that stop, from either round's tree.
+
+    One directory per (cell, k, stop, encoder side), named for the cell, in
+    both rounds. Round 2 keeps it under the cell's own tree, round 3 under
+    the flat root.
+    """
+    name = f"{cell}_k3_bb{stop}k_{enc}"
+    for base in (os.path.join(R2, cell, "sync", "eval", name),
+                 os.path.join(R3, "eval", name)):
+        hits = sorted(glob.glob(os.path.join(base, "qhead_*_final.pth")))
+        if hits:
+            return hits[0]
+    return None
+
+
+def compare_head(pa, pb):
+    """(n, identical, max abs diff) over a head's weights."""
+    A = torch.load(pa, map_location="cpu", weights_only=False)
+    B = torch.load(pb, map_location="cpu", weights_only=False)
+    A = A.get("model_state_dict", A) if isinstance(A, dict) else A
+    B = B.get("model_state_dict", B) if isinstance(B, dict) else B
+    n = eq = 0
+    mx = 0.0
+    for k in sorted(set(A) & set(B)):
+        ta, tb = A[k], B[k]
+        if not torch.is_tensor(ta) or not torch.is_tensor(tb):
+            continue
+        n += 1
+        if ta.shape == tb.shape:
+            if torch.equal(ta, tb):
+                eq += 1
+            if ta.is_floating_point():
+                mx = max(mx, (ta.float() - tb.float()).abs().max().item())
+    return n, eq, mx
+
+
 def side(key):
     return "teacher" if key.startswith("teacher_") else "student"
 
@@ -113,18 +157,31 @@ def main():
     for ca, cb, arm in PAIRS:
         for stop in STOPS:
             pa, pb = ckpt(ca, stop), ckpt(cb, stop)
-            if not pa or not pb:
-                continue
-            res = compare(pa, pb)
-            for sd in ("student", "teacher"):
-                n, eq, d = res[sd]
+            if pa and pb:
+                res = compare(pa, pb)
+                for sd in ("student", "teacher"):
+                    n, eq, d = res[sd]
+                    if n == 0:
+                        continue
+                    v = "IDENTICAL" if eq == n else "differs"
+                    rows.append((f"{ca}/{cb}", arm, str(stop), sd, str(n),
+                                 str(eq), f"{d:.3e}", v))
+                    print(f"{ca}/{cb} {arm} bb{stop}k {sd:8s} "
+                          f"{eq}/{n} identical  max|diff|={d:.3e}  {v}",
+                          flush=True)
+            for enc in ("student", "teacher"):
+                ha, hb = head_ckpt(ca, stop, enc), head_ckpt(cb, stop, enc)
+                if not ha or not hb:
+                    continue
+                n, eq, d = compare_head(ha, hb)
                 if n == 0:
                     continue
                 v = "IDENTICAL" if eq == n else "differs"
-                rows.append((f"{ca}/{cb}", arm, str(stop), sd, str(n),
-                             str(eq), f"{d:.3e}", v))
-                print(f"{ca}/{cb} {arm} bb{stop}k {sd:8s} "
-                      f"{eq}/{n} identical  max|diff|={d:.3e}  {v}", flush=True)
+                rows.append((f"{ca}/{cb}", arm, str(stop), f"head_{enc}",
+                             str(n), str(eq), f"{d:.3e}", v))
+                print(f"{ca}/{cb} {arm} bb{stop}k head_{enc:8s} "
+                      f"{eq}/{n} identical  max|diff|={d:.3e}  {v}",
+                      flush=True)
     with open(a.out, "w") as fh:
         for r in rows:
             fh.write("\t".join(r) + "\n")

@@ -81,6 +81,15 @@ while :; do
       >>"$RES/pair_identity.log" 2>&1
   cp -f "$RES/pair_identity.tsv" "$DST/results/" 2>/dev/null
 
+  # ...and the FILES behind those pairs. `pair_identity.py` says whether two
+  # cells hold the same weights; it cannot say whether they hold the same
+  # FILE. Only the second question is the path bug the card blocked on, so
+  # both tables ship, and both refresh when B8's checkpoints land.
+  CF373_R3="${CF373_R3:-/home/jupyter/cf373_r3/sync}" \
+    timeout 900 python3 "$HERE/pair_head_files.py" --out "$RES/pair_head_files.tsv" \
+      >>"$RES/pair_head_files.log" 2>&1
+  cp -f "$RES/pair_head_files.tsv" "$RES/pair_head_files.log" "$DST/results/" 2>/dev/null
+
   # The report's tables read the score files, so a new score moves them.
   timeout 600 python3 "$HERE/tables.py" --results "$DST/results" \
     --out "$DST/results/scores.md" --inject "$DST/rollout_depth.md" \
