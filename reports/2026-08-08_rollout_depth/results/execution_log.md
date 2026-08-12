@@ -911,3 +911,51 @@ which is the name the coverage table and the tables script read.
 
 The ladder figure already draws a 200k tick and fills it from the score
 files, so the round's headline needs no new plotting code.
+
+## 2026-08-12 20:35 BST — the A1/B3 block is closed on the files, not on an argument
+
+The card asked for one thing before anything is published: find the head or
+eval path key that ignores the EMA regime. The answer is that there is none.
+`scripts/pair_head_files.py` resolves both sides of every same-arm pair and
+prints the file behind each one:
+
+    A1/B3 bb40k  student   A1 7b0c4786   B3 74464de1   separate files
+    A1/B3 bb100k student   A1 98e33fb9   B3 eed8a553   separate files
+    A1/B3 bb40k  teacher   A1 1ac4a40d   B3 f3cc0d9d   separate files
+    A1/B3 bb100k teacher   A1 dc5f7b0e   B3 4d543b0f   separate files
+
+Four distinct md5s per stop, under four distinct cell-id directories:
+`cf373_r2/A1/sync/eval/A1_k3_bb100k_student/` against
+`cf373_r2/B3/sync/eval/B3_k3_bb100k_student/`. The evals agree — each log
+merges its own 97 configs into its own `all_results.csv`:
+
+    A1 [08-11 10:03:13] merged 97 -> .../A1/sync/eval/A1_k3_bb100k_student/gift/
+    B3 [08-11 10:35:17] merged 97 -> .../B3/sync/eval/B3_k3_bb100k_student/gift/
+
+No path, no file and no directory is shared. The three other pairs are clean
+by the same test.
+
+**The re-run the card asked for has already happened.** Two head trainings
+ran, from two directories, off two backbone files with different md5s. Two
+97-config evals ran, into two directories. They returned the same number
+because `pair_identity.tsv` says the student tensors going in were equal bit
+for bit — 110/110, max|diff| 0.000e+00 — and the heads coming out were equal
+bit for bit too, 28/28. Doing it a third time cannot say more; it would only
+re-measure a deterministic map on the same input, at four GPU-hours off a
+queue with nine backbones still to run.
+
+**So A1 and B3 are publishable now**, with the equality stated in the table
+and not hidden: ONE student measurement carried by two cells, TWO teacher
+measurements. The cause is in the arm, and it is the reason the equality is
+information rather than an error — `arm5_combab --align-target student` has
+no path from the EMA teacher into the student's gradient (align target
+detaches to self; the arm does not pass `--moco-rep-keys`), so the EMA
+regime, which is the only difference between A1 and B3, cannot move the
+student. Same seed, same student, to the bit. The three pairs that DO pass
+`--moco-rep-keys` all differ.
+
+**Naming.** The 14-cell grid now reads `score_<CELL>_k3_bb<stop>k_<head>.txt`
+throughout; `score_B1_k3_bb40k_student.txt` holds 1.0850 and the teacher
+1.0948, the same numbers round 1 wrote under `score_G6_B1_k3_bb40k_*`. The
+`G*` and `k0` files that remain are round-1 side measurements and depth-0
+controls, which are not cells and must not carry cell names.
