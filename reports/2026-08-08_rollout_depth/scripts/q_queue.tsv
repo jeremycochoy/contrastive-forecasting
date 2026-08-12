@@ -10,8 +10,10 @@
 #
 # Order: B8 first (the one cell with no bb100k), then the eight extends
 # biggest bb100k winner first. A4 extends the student head only — the extend
-# rule gave one head down for it. B1 carries no bb40k number of its own, so
-# the rule could not be tested on it; it extends anyway, by the card's call.
+# rule gave one head down for it. B1 extends by the card's call. Its bb40k
+# pair IS its own — round 1 wrote it as score_G6_B1_k3_bb40k_*, off checkpoint
+# md5 23ba3d9d..., the file round 2 resumed, at the same 15,000-step head —
+# and it reads 1.0850 -> 1.0881 student, 1.0948 -> 1.0897 teacher.
 #
 # The five cells the rule stopped at 100k are absent on purpose:
 # A1, B3, B5, B7, B9.
