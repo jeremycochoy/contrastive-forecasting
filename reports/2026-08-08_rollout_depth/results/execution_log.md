@@ -959,3 +959,67 @@ throughout; `score_B1_k3_bb40k_student.txt` holds 1.0850 and the teacher
 1.0948, the same numbers round 1 wrote under `score_G6_B1_k3_bb40k_*`. The
 `G*` and `k0` files that remain are round-1 side measurements and depth-0
 controls, which are not cells and must not carry cell names.
+
+## 2026-08-12 21:05 BST — round 3 picked up on a fresh session, nothing restarted
+
+The previous two dispatches died on a session limit within minutes of
+launching. This one found the round already running and left it running.
+
+**What was alive.** One dispatcher (`q_run.sh`, pid 267027, eight slots), one
+sync loop at 15 min, one credit guard at the $5.50 floor, one reaper, one
+hourly heartbeat, one publisher on a 20-minute timer. Five backbones training:
+
+    job            cell  from   to     step at 20:50Z   where
+    bb_B8_100k     B8    0      100k   42,800          box gpu0
+    bb_B10_200k    B10   100k   200k   142,700         box gpu0
+    bb_A2_200k     A2    100k   200k   142,600         box gpu1
+    bb_B4_200k     B4    100k   200k   143,200         box gpu1
+    bb_B6_200k     B6    100k   200k   141,800         elisa gpu1
+
+**One process looked like a second dispatcher and is not.** Pid 52775 carries
+the argv `bash scripts/q_run.sh` and holds B6's process tree, so `ps` reads it
+as a duplicate. Its file descriptors say otherwise: fd 1 is
+`results/q_bb_B6_200k.log` and fd 0 is the queue file the dispatch loop reads.
+It is the `( ... ) &` subshell `launch_bb` forks for a local job, orphaned onto
+init when the dispatcher it came from was replaced. It is in `do_wait` on the
+training, and it will write `queue/bb_B6_200k.rc` when the training ends, which
+is the only thing the live dispatcher polls. Killing it would have dropped B6's
+completion signal on the floor. It stays.
+
+**The resume restores the step counter.** The backbone `.pth` is a bare
+state_dict with no step in it, so the counter has to come from the optimizer
+sidecar. The four running extends prove it does: B10 resumed
+`..._r2_100k.pth` at 16:31 and read 142,700 at 20:50, which is 100,000 plus
+the 42,700 steps 4.3 h at 2.76 sps buys. B1 and B2 will resume their 140k the
+same way. `cf373_bb_below` resolves every one of the nine:
+
+    B8   40k   (fresh run, saves 40k on the way to 100k)
+    B10  _r3_140k        A3  leg_100k/..._100k
+    A2   leg_200k/..._140k   A4  leg_100k/..._100k
+    B4   _r3_140k        B1  _r3_140k
+    B6   _r3_140k        B2  _r3_140k
+
+**The box passes the gate the card set.** `47557391`, label `cf373-dual`,
+2x RTX 4090, $0.8144/h, on-demand. `python3 -c "import torch;
+print(torch.cuda.device_count())"` prints 2. Both cards read 92% and 70% with
+four `train.py` processes on them.
+
+**One real fault, fixed.** The publisher running since 18:59 was started before
+the commit that added the `pair_head_files.py` block, and bash had already
+parsed its loop body, so the new script and its table never crossed into the
+git checkout. `results/pair_head_files.tsv`, `results/pair_identity.tsv` and
+`scripts/pair_head_files.py` were missing from the branch while the report
+argued from them. Copied by hand, publisher restarted on the current file,
+committed as `b831261c`. A stray `scripts/execution_log.md`, a duplicate of
+this file in the wrong directory, went with it.
+
+**A headline count was wrong in the first PR comment and is corrected in the
+second.** 40k -> 100k splits 7 down and 6 up on both heads, not 9 and 3. The
+seven that improve are the seven the queue extends; the six that worsen are the
+five the rule stopped at 100k, plus B1 at +0.0031.
+
+**Budget at 21:05Z.** Credit $24.31, box spent $3.71 over 4h 33m. The four
+remote backbones need about 5.7 h more, then B2/A3/A4/B1 extend — B1 and B2
+from 140k, so 60k steps each — and the heads fill the two head-only slots
+behind them. About 18 h of box time, about $14.7, leaving about $9.6 over the
+$5.50 floor.

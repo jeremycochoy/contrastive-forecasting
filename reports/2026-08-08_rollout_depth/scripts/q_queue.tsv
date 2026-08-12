@@ -65,7 +65,14 @@ ev_B1_200k_teacher	eval	B1	200000	teacher	hd_B1_200k_teacher
 # pair costs one 15,000-step head each and two CPU evals. Last in the queue:
 # it must never delay a stop the plan asked for. Head steps follow the other
 # thirteen cells' bb40k heads, 15,000, or the column is not comparable.
-hd_B8_40k_student	head	B8	40000	student	bb_B8_100k
-hd_B8_40k_teacher	head	B8	40000	teacher	bb_B8_100k
+#
+# 2026-08-12 21:10 — the dependency on bb_B8_100k is released. B8's backbone
+# writes its 40k checkpoint on the way to 100k and already has, so these two
+# heads read a file that exists. They stay LAST in the file, so they take a
+# slot only after every stop the plan asked for has one, and the only slots
+# they can take are the two head-only ones, which no backbone may use. Those
+# two sat idle for four hours behind a dependency that was already satisfied.
+hd_B8_40k_student	head	B8	40000	student	-
+hd_B8_40k_teacher	head	B8	40000	teacher	-
 ev_B8_40k_student	eval	B8	40000	student	hd_B8_40k_student
 ev_B8_40k_teacher	eval	B8	40000	teacher	hd_B8_40k_teacher
