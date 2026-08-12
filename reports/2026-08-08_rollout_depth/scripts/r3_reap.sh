@@ -43,9 +43,15 @@ SSH_OPTS=(-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
 
 log(){ echo "[$(date '+%m-%d %H:%M:%S')] [reap] $*" | tee -a "$RES/r3_reap.log"; }
 
+# Jobs that still need the BOX. An eval does not: it runs `--device cpu` on
+# elisa's cores, off elisa's own copies of the backbone and the head. Counting
+# evals here keeps a card rented through the eval tail — 19 evals at three
+# concurrent slots, the last of them hours after the last head — at $0.8144/h
+# for a machine no job can use. Gate 2 still holds every byte back before the
+# destroy, so the artefacts are safe whatever this counts.
 queue_left(){
   local n=0 id
-  for id in $(awk -F'\t' '$1 !~ /^#/ && NF {print $1}' "$Q"); do
+  for id in $(awk -F'\t' '$1 !~ /^#/ && NF && $2 != "eval" {print $1}' "$Q"); do
     case "$(cat "$STATE/$id.state" 2>/dev/null || echo queued)" in
       queued|running) n=$(( n + 1 ));;
     esac

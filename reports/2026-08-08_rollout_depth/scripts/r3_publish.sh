@@ -70,6 +70,17 @@ while :; do
     timeout 300 python3 "$HERE/r2_coverage.py" --md >"$RES/coverage.md" 2>&1
   cp -f "$RES/coverage.txt" "$RES/coverage.md" "$DST/results/" 2>/dev/null
 
+  # The same-arm pairs, again, on every tick. The card blocked publication
+  # until each pair was shown to hold two models or one, and the fourth pair,
+  # A2/B8, could not be tested: B8 had no checkpoint. It gains one at 40k and
+  # another at 100k while this loop runs. `pair_identity.py` skips a stop
+  # whose checkpoints are absent, so re-running it costs seconds and fills
+  # the row the moment the file lands.
+  CF373_R3="${CF373_R3:-/home/jupyter/cf373_r3/sync}" \
+    timeout 900 python3 "$HERE/pair_identity.py" --out "$RES/pair_identity.tsv" \
+      >>"$RES/pair_identity.log" 2>&1
+  cp -f "$RES/pair_identity.tsv" "$DST/results/" 2>/dev/null
+
   # The report's tables read the score files, so a new score moves them.
   timeout 600 python3 "$HERE/tables.py" --results "$DST/results" \
     --out "$DST/results/scores.md" --inject "$DST/rollout_depth.md" \

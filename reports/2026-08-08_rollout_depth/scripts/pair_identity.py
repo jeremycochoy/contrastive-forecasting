@@ -22,6 +22,7 @@ Usage:  python3 pair_identity.py [--out results/pair_identity.tsv]
 """
 import argparse
 import os
+import subprocess
 import sys
 
 import torch
@@ -40,19 +41,43 @@ PAIRS = [("A1", "B3", "arm5_combab_alignS"),
 STOPS = [40, 100, 200]
 
 
-def ckpt(cell, stop):
-    """The cell's backbone at that stop, under the round-2 sync root."""
-    base = os.path.join(R2, cell, "sync")
-    if not os.path.isdir(base):
+R3 = os.environ.get("CF373_R3", "/home/jupyter/cf373_r3/sync")
+
+
+def ckpt_r3(cell, stop):
+    """The cell's backbone at that stop, under round 3's flat root.
+
+    Round 3 keeps ONE root for every cell rather than one tree per cell, and
+    it is the only place two of these checkpoints exist: B8 never trained in
+    round 2 — it is the hole this round fills — and no cell's 200k is in the
+    round-2 tree. Resolving it here would be a second implementation of the
+    layout, so this asks `cell_paths.sh`, which is the one that decides it.
+    """
+    sh = os.path.join(HERE, "cell_paths.sh")
+    cmd = f'. "{sh}"; cf373_bb_ckpt "{cell}" 3 {stop * 1000}'
+    env = dict(os.environ, CF373_ROOT=R3)
+    try:
+        out = subprocess.run(["bash", "-c", cmd], capture_output=True,
+                             text=True, timeout=120, env=env).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
         return None
+    return out if out and os.path.isfile(out) else None
+
+
+def ckpt(cell, stop):
+    """The cell's backbone at that stop, from either round's tree."""
+    base = os.path.join(R2, cell, "sync")
     hits = []
-    for root, _dirs, files in os.walk(base):
-        if os.sep + "eval" + os.sep in root + os.sep:
-            continue
-        for f in files:
-            if f.endswith(f"_{stop}k.pth") and "optimizer" not in f:
-                hits.append(os.path.join(root, f))
-    return sorted(hits)[0] if hits else None
+    if os.path.isdir(base):
+        for root, _dirs, files in os.walk(base):
+            if os.sep + "eval" + os.sep in root + os.sep:
+                continue
+            for f in files:
+                if f.endswith(f"_{stop}k.pth") and "optimizer" not in f:
+                    hits.append(os.path.join(root, f))
+    if hits:
+        return sorted(hits)[0]
+    return ckpt_r3(cell, stop)
 
 
 def side(key):
