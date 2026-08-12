@@ -829,3 +829,85 @@ slightly worse, the teacher slightly better.
 
 `scripts/q_queue.tsv` said "B1 carries no bb40k number of its own, so the
 rule could not be tested on it". That sentence is now corrected in place.
+
+## 2026-08-12 20:05 BST — A1 and B3 hold one student, not two
+
+The card blocked publication of A1 and B3 until one of their two equal
+student scores was shown to be wrong. Neither is wrong. The two cells train
+one and the same student, bit for bit, and the shared number is what that
+must produce.
+
+The chain, tested end to end by `scripts/pair_identity.py`:
+
+    backbone   student side 110/110 tensors identical, max|diff| 0, at
+               bb40k and at bb100k. Teacher side 0/52, max|diff| 6.4e-3 at
+               bb40k and 1.99e-1 at bb100k — the regime shows there.
+    head       the student head trained off each: 28/28 tensors identical,
+               max|diff| 0, at both stops. The teacher heads differ,
+               max|diff| 1.65 and 4.16.
+    eval       identical head, identical 97 configs, identical aggregate:
+               1.1305 at bb40k, 1.1676 at bb100k.
+
+Nothing shared a path. A1 evaluates out of `A1/sync/eval/A1_k3_bb*_*`, B3
+out of `B3/sync/eval/B3_k3_bb*_*`, and each head's `backbone.txt` names its
+own cell's checkpoint. The two backbone FILES differ by md5 — f99fa42c
+against b3a51f06 at 40k — because the teacher tensors differ inside them.
+File md5 was the wrong instrument: it reads a difference the student head
+never loads. Head md5 differs too, on bytes that are not weights.
+
+**Why the EMA regime cannot reach this student.** A1 and B3 run
+`arm5_combab` with `--align-target student`. Two things could carry the EMA
+teacher into the student's gradient, and this arm has neither:
+
+    L_align    `align_ref = hy_teacher_norm if align_tgt == 'teacher' else
+               hy_norm`, then `.detach()` (src/loss.py). With the student as
+               its own target the term is the student against a detached
+               copy of itself. The teacher is not read.
+    MoCo keys  `--moco-rep-keys` gives the contrastive loss teacher-encoded
+               keys. `arm5_combab` does not pass it; `arm6_v2_combab` does.
+
+So in this arm the teacher is a by-product: updated every step, read by
+nothing. The trainer logs agree from the first stop — both runs print
+`loss=17.3118 ema_loss=17.3034 gap=-0.1967 AUC=0.8438` at step 200 — which
+is the same statement one step into training.
+
+The other three pairs all carry `--moco-rep-keys`, and their students
+differ: A4/B1 4/110 identical, A3/B2 4/110. A2/B8 fills in when B8's
+checkpoints land; the publisher re-runs the check every 20 minutes.
+
+**No re-run.** Re-training the two student heads and re-running the two
+97-config evals costs four GPU-hours and about half a dollar of a $25
+budget, and the inputs are equal bit for bit, so it can only reproduce
+1.1305 and 1.1676. The pair is published as ONE student measurement carried
+by two cells, and as two teacher measurements.
+
+## 2026-08-12 20:10 BST — the queue was found running, and left running
+
+The session resumed onto live work and restarted nothing. One dispatcher
+(pid 267027), one supervisor, one budget guard, one 15-minute sync loop, one
+20-minute publisher, five backbones.
+
+Two things read like faults and are not:
+
+    two `bash scripts/q_run.sh`   pid 52775 is B6's job wrapper, orphaned
+                                  onto init when the dispatcher restarted. A
+                                  local job's subshell inherits the
+                                  dispatcher's argv. It has one child,
+                                  run_arm_k.sh; the real dispatcher has one
+                                  child, `sleep 60`. Killing the wrapper
+                                  would drop B6's return code.
+    A1 = B3 on the student        one model, two cells. See the entry above.
+
+Checked before leaving it alone: `HF_TOKEN` and `HUGGING_FACE_HUB_TOKEN` are
+in the environment of the box's training processes, and step timing reads
+`data=5.0ms` against `fwd=168ms bwd=136ms`, so the stream is not throttling
+the cards; 52 GB free on the box; both cards 85–88% util; B1 and B2 resolve
+their resume to their own `_r3_140k.pth`, so those two extends cost 60k
+steps, not 100k; the extend re-fires the cell's own launcher with the same
+arm argument, so a 200k leg cannot differ from its 100k leg by a flag; head
+protocol is 15,000 steps at bb40k and 30,000 above it, seed 20260722,
+`--grad-clip 1.0`; the eval writes `score_<CELL>_k3_bb<stop>k_<enc>.txt`,
+which is the name the coverage table and the tables script read.
+
+The ladder figure already draws a 200k tick and fills it from the score
+files, so the round's headline needs no new plotting code.
