@@ -54,3 +54,13 @@
 [08-12 21:27:41] [q] START bb_B2_200k bb B2 stop=200000  on rem:0
 [08-12 21:28:46] [q] STAGE A3 -> /root/cf373_runs/arm6_v2_combab_alignT/leg_100k
 [08-12 21:29:09] [q] START bb_A3_200k bb A3 stop=200000  on rem:1
+[08-12 21:37:35] [q] start box=47557391 ssh6.vast.ai:37390 slots='rem:0 rem:0 rem:1 rem:1 loc:0 loc:1 rem:0 rem:1' root=/home/jupyter/cf373_r3/sync pid=452409
+[08-12 21:37:35] [q] ADOPT bb_B8_100k on rem:0
+[08-12 21:37:35] [q] ADOPT bb_B10_200k on rem:0
+[08-12 21:37:35] [q] ADOPT bb_A2_200k on rem:1
+[08-12 21:37:35] [q] ADOPT bb_B4_200k on rem:1
+[08-12 21:37:35] [q] ADOPT bb_B6_200k on loc:1
+[08-12 21:37:35] [q] ADOPT bb_B2_200k on rem:0
+[08-12 21:37:35] [q] ADOPT bb_A3_200k on rem:1
+[08-12 21:37:35] [q] ADOPT ev_B8_40k_student (elisa cores)
+[08-12 21:37:38] [q] START ev_B8_40k_teacher eval on elisa cores

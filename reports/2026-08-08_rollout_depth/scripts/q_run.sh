@@ -378,9 +378,17 @@ while :; do
 
     if [ "$type" = eval ]; then
       [ "$(evals_running)" -lt "$MAX_EVALS" ] || continue
-      why="$(launch_eval "$id" "$cell" "$stop" "$enc")" && {
+      # NOT `$(launch_eval ...)`. Command substitution reads the child's
+      # stdout to end-of-file, and the eval `( ... ) &` inherits that pipe,
+      # so the read only returns when the eval ENDS. The dispatcher then
+      # blocks for the whole 97-config eval and reaps and places nothing:
+      # it stalled 21:29 -> 21:36 on B8's first one, with seven backbones
+      # running and forty jobs queued. Call it directly and read its status.
+      if launch_eval "$id" "$cell" "$stop" "$enc" >/dev/null 2>&1; then
         setst "$id" running; echo elisa-cpu > "$STATE/$id.machine"
-        log "START $id eval on elisa cores"; }
+        date -u '+%Y-%m-%dT%H:%M:%SZ' > "$STATE/$id.started"
+        log "START $id eval on elisa cores"
+      fi
       continue
     fi
 

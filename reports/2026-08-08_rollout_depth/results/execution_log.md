@@ -1071,3 +1071,46 @@ bb40k pair reads the same under the new name and the round-1 alias. The
 
 **Budget at 21:28.** Credit $23.76, box spent $4.26 over 5 h 13 m at
 $0.8144/h.
+
+## 2026-08-12 21:36 — the dispatcher stalled on its first eval
+
+B8's bb40k student eval started at 21:30 and the dispatcher stopped placing
+and reaping at that moment. It sat in `pipe_read` for six minutes with seven
+backbones running and forty jobs queued.
+
+`q_run.sh` called the eval launcher as `why="$(launch_eval ...)"`. Command
+substitution reads the child's stdout to end-of-file, and `launch_eval`
+backgrounds the eval with `( ... ) &`, which inherits that same pipe. The
+read therefore returns when the EVAL ends, not when the launcher does. One
+97-config eval takes about 43 minutes on four shards, and nineteen of them
+run this round, so the queue would have lost about thirteen hours to a
+dispatcher that was waiting on work it had already started.
+
+Round 2 ran its evals from `r2_eval_driver.sh`, so no eval had ever gone
+through this path before B8's.
+
+Fixed: call `launch_eval` directly and read its exit status. The eval that
+was already running keeps its process; its state file was written by hand as
+`running` on `elisa-cpu` so the restarted dispatcher adopts it rather than
+starting a second copy of the same tag.
+
+## 2026-08-12 21:42 — what the third backbone per card costs
+
+Per-process step rate on the rented box, 602-second window, three backbones
+per card:
+
+    B4   2.824 sps      A3   2.990 sps
+    B2   2.990 sps      A2   2.658 sps
+
+Two backbones and a head on the same card, measured 20 minutes earlier, ran
+at 2.980 sps each. So the third backbone takes almost nothing from the other
+two: a d_model=64 model at batch 64 is launch-bound, and the card reads 98-99%
+without being compute-bound. Card throughput goes from about 5.96 sps to
+about 8.7 sps.
+
+That is what the head-only slot rule was costing while it held two slots
+empty for heads that could not start.
+
+Remaining box work at this rate: about 508k backbone steps and about 510k
+head steps, 8.1 h each over the box's two cards, about 16 h and $13 of
+rental. B6 runs on elisa at 3.42 sps and costs nothing.
