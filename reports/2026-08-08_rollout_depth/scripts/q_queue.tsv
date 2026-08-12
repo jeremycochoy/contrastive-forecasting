@@ -1,0 +1,60 @@
+# #373 round 3 — the single work queue, in priority order.
+#
+# One queue, four GPUs: 2 on the rented box, 2 on elisa. q_run.sh reads this
+# file top to bottom and slides the first ready job onto the first free slot.
+#
+# Columns: id  type  cell  stop  enc  depends_on
+#   type bb    train the backbone to <stop> steps
+#   type head  train one quantile head off that stop's checkpoint
+#   type eval  the 97-config GIFT-Eval of that head (CPU, elisa)
+#
+# Order: B8 first (the one cell with no bb100k), then the eight extends
+# biggest bb100k winner first. A4 extends the student head only — the extend
+# rule gave one head down for it. B1 carries no bb40k number of its own, so
+# the rule could not be tested on it; it extends anyway, by the card's call.
+#
+# The five cells the rule stopped at 100k are absent on purpose:
+# A1, B3, B5, B7, B9.
+bb_B8_100k	bb	B8	100000	-	-
+bb_B10_200k	bb	B10	200000	-	-
+bb_A2_200k	bb	A2	200000	-	-
+bb_B4_200k	bb	B4	200000	-	-
+bb_B6_200k	bb	B6	200000	-	-
+bb_B2_200k	bb	B2	200000	-	-
+bb_A3_200k	bb	A3	200000	-	-
+bb_A4_200k	bb	A4	200000	-	-
+bb_B1_200k	bb	B1	200000	-	-
+hd_B8_100k_student	head	B8	100000	student	bb_B8_100k
+hd_B8_100k_teacher	head	B8	100000	teacher	bb_B8_100k
+hd_B10_200k_student	head	B10	200000	student	bb_B10_200k
+hd_B10_200k_teacher	head	B10	200000	teacher	bb_B10_200k
+hd_A2_200k_student	head	A2	200000	student	bb_A2_200k
+hd_A2_200k_teacher	head	A2	200000	teacher	bb_A2_200k
+hd_B4_200k_student	head	B4	200000	student	bb_B4_200k
+hd_B4_200k_teacher	head	B4	200000	teacher	bb_B4_200k
+hd_B6_200k_student	head	B6	200000	student	bb_B6_200k
+hd_B6_200k_teacher	head	B6	200000	teacher	bb_B6_200k
+hd_B2_200k_student	head	B2	200000	student	bb_B2_200k
+hd_B2_200k_teacher	head	B2	200000	teacher	bb_B2_200k
+hd_A3_200k_student	head	A3	200000	student	bb_A3_200k
+hd_A3_200k_teacher	head	A3	200000	teacher	bb_A3_200k
+hd_A4_200k_student	head	A4	200000	student	bb_A4_200k
+hd_B1_200k_student	head	B1	200000	student	bb_B1_200k
+hd_B1_200k_teacher	head	B1	200000	teacher	bb_B1_200k
+ev_B8_100k_student	eval	B8	100000	student	hd_B8_100k_student
+ev_B8_100k_teacher	eval	B8	100000	teacher	hd_B8_100k_teacher
+ev_B10_200k_student	eval	B10	200000	student	hd_B10_200k_student
+ev_B10_200k_teacher	eval	B10	200000	teacher	hd_B10_200k_teacher
+ev_A2_200k_student	eval	A2	200000	student	hd_A2_200k_student
+ev_A2_200k_teacher	eval	A2	200000	teacher	hd_A2_200k_teacher
+ev_B4_200k_student	eval	B4	200000	student	hd_B4_200k_student
+ev_B4_200k_teacher	eval	B4	200000	teacher	hd_B4_200k_teacher
+ev_B6_200k_student	eval	B6	200000	student	hd_B6_200k_student
+ev_B6_200k_teacher	eval	B6	200000	teacher	hd_B6_200k_teacher
+ev_B2_200k_student	eval	B2	200000	student	hd_B2_200k_student
+ev_B2_200k_teacher	eval	B2	200000	teacher	hd_B2_200k_teacher
+ev_A3_200k_student	eval	A3	200000	student	hd_A3_200k_student
+ev_A3_200k_teacher	eval	A3	200000	teacher	hd_A3_200k_teacher
+ev_A4_200k_student	eval	A4	200000	student	hd_A4_200k_student
+ev_B1_200k_student	eval	B1	200000	student	hd_B1_200k_student
+ev_B1_200k_teacher	eval	B1	200000	teacher	hd_B1_200k_teacher

@@ -71,12 +71,16 @@ ARCH_HEAD=(--t-raw 4096 --n-channels 1 --d-model 64 --n-heads 8
 # Three processes fit — 5.4 GB for the backbone and ~7 GB per head against
 # 32 GB — but only if they do not all allocate in the same instant. Wait for
 # the room, under a lock, exactly as stop_k.sh does on elisa.
+# Round 3 runs one queue over four cards, so the head is told which card to
+# take. The lock is per card: two heads on DIFFERENT cards must not wait on
+# each other, and two on the same card must.
+HEAD_GPU="${HEAD_GPU:-0}"
 need="${HEAD_VRAM_MIB:-8000}"; waited=0
-lock=/tmp/cf373_r2_head.lock
+lock="/tmp/cf373_r2_head.gpu$HEAD_GPU.lock"
 : >>"$lock" 2>/dev/null || true
 exec 7>>"$lock" && flock -w 86400 7
 while :; do
-  free=$(nvidia-smi --id=0 --query-gpu=memory.free --format=csv,noheader,nounits 2>/dev/null | tr -d ' ')
+  free=$(nvidia-smi --id="$HEAD_GPU" --query-gpu=memory.free --format=csv,noheader,nounits 2>/dev/null | tr -d ' ')
   [ -n "$free" ] || break
   [ "$free" -ge "$need" ] && break
   if [ "$waited" -ge "${HEAD_VRAM_TIMEOUT:-21600}" ]; then
@@ -86,8 +90,8 @@ while :; do
 done
 [ "$waited" -gt 0 ] && log "got VRAM after ${waited}s"
 
-log "start enc=$ENC steps=$HEAD_STEPS seed=$HEAD_SEED bb=$(basename "$BB")"
-CUDA_VISIBLE_DEVICES=0 python3 -u "$HEAD_TRAIN" \
+log "start enc=$ENC steps=$HEAD_STEPS seed=$HEAD_SEED gpu=$HEAD_GPU bb=$(basename "$BB")"
+CUDA_VISIBLE_DEVICES="$HEAD_GPU" python3 -u "$HEAD_TRAIN" \
   --backbone-path "$BB" \
   --encoder-source "$ENC" \
   --device cuda \

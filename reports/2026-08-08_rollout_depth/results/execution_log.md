@@ -400,132 +400,71 @@ objective plus three added terms, so no ranking is read off it.
 trajectories; every point this study contributes sits at one x value, so the
 report carries `depth_response.png` and `reproduction.png` instead.
 
-## 2026-08-10 21:20 — round 2 starts: the card's 14 cells, all of them
+## 2026-08-12 16:05 to 16:35 — round 3 replaces the fleet with one box
 
-The user's correction: round 1 ran 4 of 14 cells and stopped at bb40k, and
-spent much of the budget on a machine-versus-seed investigation. That line of
-work is closed. A box change is a nuisance variable, like a seed change, and
-this study does not measure it. The credit was topped up to $100.42.
+Round 2 rented one single-GPU box per cell. Every operational failure in
+this study came out of that shape: 15 failed bootstraps on B8, a box idle
+37.6 h at 0%, two more idle 4 h, and a duplicated run on one card. Round 3
+rents ONE box with two cards and pairs it with elisa's two.
 
-The job is the card's: all 14 cells at k = 3, 40k and 100k unconditionally,
-then the extend rule up to 200k. Baselines are the card's published k = 0
-tables, not retrained. The gate outcome from round 1 goes in the report in
-one line.
+Instance 47557391, 2x RTX 4090, Hungary, $0.789/h on-demand, reliability
+0.993, driver 570.211.01. The gate the card sets is hard and it ran before
+any training: `python3 -c "import torch; print(torch.cuda.device_count())"`
+inside the container printed **2**.
 
-**What round 2 changes operationally.** Round 1 trained backbones on rented
-cards and ran heads and GIFT-Eval on elisa. Elisa's two 4090s now hold 23.1
-and 22.7 GB of 24.5 for other sessions, and one head needs ~7 GB, so the
-heads follow the backbone onto the rented card. The GIFT-Eval stays on
-elisa's cores: one machine produces every GM-Relative MASE in this study.
+Two single-GPU boxes were up when round 3 started, 47555858 (cf373r2-b10,
+8 min old) and 47556474 (cf373r2-b8, 1 min old). Neither held a checkpoint;
+both were destroyed. A 2x RTX 5090 offer was taken and did not reach
+`running` inside the kit's timeout, so it was destroyed too, $0.11.
 
-One box per cell, and every stop of a cell on its own box. The extend rule
-compares a cell's 100k against its own 40k, so those two must not straddle
-two machines.
+The many-box drivers were stopped first, because they were still
+provisioning: `reap_boxes.sh`, two `r2_launch_cell.sh`, two
+`provision_box.sh`, one `vastrun-provision` mid-flight, `r2_eval_driver.sh`
+and sixteen `sync_loop.sh` instances, one per dead box.
 
-A3, B1, B5 and B9 resume from their round-1 k = 3 checkpoint at 40k, with
-its optimizer companion, verified by size on the box before the worker
-starts. Their 40k heads are not retrained; round 1 scored them.
+`q_run.sh` is the replacement and it is the only thing that starts work.
+One queue, `q_queue.tsv`, 43 jobs in the card's order, over six slots: two
+per rented card and one per elisa card. Two backbones share a card — 5.4 GB
++ 5.4 GB against 24 GB, and measured 2.7 to 3.0 sps each against 4.1 solo,
+so the second process buys 40% more per card. An elisa slot only takes a job
+when that card has the VRAM free at that moment; other projects held 32 GB
+of elisa's 49 GB through the whole launch.
 
-## 2026-08-10 21:28 — vastrun-kit prints two SSH formats and this study read one
+One sync loop, not one per cell, into one flat durable root
+`/home/jupyter/cf373_r3/sync` that mirrors the box's `/root/cf373_runs`.
 
-Every successful provision was logged as "unreadable provision output" and
-the retry loop kept going. Three RTX 5090s were billing before the log was
-read.
+### Two bugs the launch found
 
-`provision_box.sh` matched `ssh8.vast.ai:13680`, which is the form the kit's
-FAILURE messages use. Its success banner says `SSH: ssh -p 13680
-root@ssh8.vast.ai`. `endpoint_of()` now reads both, and an unreadable output
-that still carries an instance id destroys that instance instead of leaking
-it.
+**The remote launch never returned.** `ssh host "cmd &"` holds the channel
+open while the backgrounded child lives, even with the child's three
+descriptors redirected and `setsid` in front. The first dispatcher placed
+B8, blocked inside that ssh, and never came back to place a second job. The
+job body now goes over as a file and the start is a separate `ssh -n` under
+a 40 s timeout; the body writes a `.started` marker and the dispatcher reads
+that, never ssh's exit status.
 
-Two more provisioning facts, both costed in instance-minutes:
+**Every job landed on one card.** `SLOTS=(${QSLOTS:-"rem:0 rem:0 ..."})`
+holds ONE element: the quotes inside the default make it a single word, so
+no splitting happens. `${SLOTS[$i]}` then returned the whole string for
+every index, `%%:*` read `rem` and `##*:` read the LAST field, so B10 was
+placed beside B8 on card 1 and card 0 sat idle — the same duplicated-run
+failure round 2 had. The default is now unquoted and the script refuses to
+start with fewer than two slots. Cost: 13 minutes of one card.
 
-- The kit gives sshd `SSH_READY_RETRIES × SSH_READY_DELAY_SECONDS` = 30 s
-  after boot. These containers routinely take longer, and "SSH unreachable"
-  threw away two usable 5090s in ten seconds. `provision_box.sh` now probes
-  the endpoint itself for up to 600 s before destroying. An adopted box
-  carries no vastrun marker, because the kit writes it after that check, so
-  `r2_reap.sh` falls back to `--force` on the "no marker" refusal.
-- One box failed the bootstrap gate with CUDA error 804, "forward
-  compatibility was attempted on non supported HW". The gate found it before
-  any training ran on it, and the box was destroyed.
+### What the queue holds
 
-## 2026-08-10 21:57 — the resumed cells were re-training heads they already have
+Nine backbones: B8 from step 0 to 100k, then eight extends from 100k to
+200k, biggest bb100k winner first — B10, A2, B4, B6, B2, A3, A4, B1.
+Seventeen heads at 30,000 steps, seed 20260722, `--grad-clip 1.0`.
+Seventeen 97-config GIFT-Evals, B4 strategy, horizon 16, on elisa's cores.
 
-B5, B9 and A3 skip their 40k wave (the checkpoint is staged) and the worker
-went straight to training that stop's two heads — an hour of a rented card
-per cell to reproduce a score round 1 already holds. Killed on the three
-boxes already up; `SKIP_HEAD_STOPS` in `r2_cell_worker.sh` covers the rest.
+A4 extends the student head only. The rule read its teacher up at bb100k.
 
-## 2026-08-10 22:05 — the fleet verifier counted itself
+B1 extends both heads. The rule stopped B1's student — 1.0850 at bb40k
+against 1.0881 at bb100k — and the card extends the cell whole, because
+B1's bb40k pair is round 1's, written under `G6_B1_k3_bb40k` before round 2
+renamed the cells, so the rule tested B1 against a number this round did not
+produce. `results/r3_extend_override.tsv` records that, and both of B1's
+heads are reported with the rule's verdict beside them.
 
-`r2_verify.sh` asks every box how many `train.py` processes it holds,
-because round 1 lost 45 minutes of a 5090 to two identical runs on one card.
-Its first version reported 3 on every box, including boxes that held one.
-
-`pgrep -f <pattern>` and `ps | grep <pattern>` both match the shell running
-the ssh command, whose command line contains the pattern. `[f]req-embedding`
-fixes it: the regex still matches the target and no longer matches the text
-of itself. `pgrep -c` also prints `0` AND exits 1 on no match, so a
-`|| echo 0` guard appended a second line and shifted every field after it;
-the counters now go through `ps | grep -c`.
-
-With that fixed: 7 boxes, one backbone each, `--train-rollout-depth 3` on
-all of them, run names matching their cells.
-
-## 2026-08-10 22:06 — the head skip belongs on the box
-
-B1 and A3 were training 40k heads the study already holds. The fleet loop
-was started before `skip_heads` existed and kept running its old text, so
-the launcher's environment never carried the flag. The default now lives in
-`r2_cell_worker.sh`, keyed on the cell: the box is the only place that knows
-which cell it is, so it decides.
-
-## 2026-08-12 11:48 — round 2's evals were computed and never written down
-
-Round 2 trained 13 of the 14 cells to 40k and to 100k on 2026-08-11, and
-trained both heads at both stops. The eval driver then ran on elisa and
-computed all 97 configs for most of those heads. It died before it wrote
-their score files, so the study held 44 finished evals and 4 numbers.
-
-The pipeline is idempotent at the config level, so restarting the driver
-cost nothing: `--resume` finds every config on disk, computes none of them
-again, and the aggregate pass writes the score. 40 of the 44 numbers landed
-in 25 seconds. The 4 that had not finished ran to completion here.
-
-`r2_coverage.py` now prints the deliverable against what is done, one row
-per cell, three stops, two heads. A number is `done` only when its score
-file holds a value; everything else names the stage that blocks it. It runs
-at the end of every round.
-
-## 2026-08-12 11:52 — A1 and B3 share a student, by construction
-
-A1 and B3 scored the same to four decimals at both stops on the student
-head, and differently on the teacher head. The two backbone files differ in
-bytes. Comparing them tensor by tensor: 110 of 162 are bit-identical and all
-52 that differ are `teacher_*`.
-
-The two cells are `arm5 combab` with `L_align` on the student, and their
-only difference is the EMA schedule. That schedule moves the teacher. For
-this arm the teacher enters no term of the student's gradient — `combab`
-sets `--cpc-infonce-weight 0.0` and the align target is the student — so
-the student trains identically under both regimes.
-
-So A1 and B3 are one measurement on the student head and two on the teacher
-head. This is a property of the objective, not a launcher fault: the
-schedule flag is present in `run_leg_k.sh` and absent from `run_arm_k.sh`,
-and the teacher weights show it took effect.
-
-## 2026-08-12 11:55 — the 200k round, and the head each cell keeps
-
-The extend rule, applied per head against that head's own bb40k, keeps 8 of
-the 13 decided cells: A2, A3, B2, B4, B6 and B10 on both heads, A4 on the
-student and B1 on the teacher. A1, B3, B5, B7 and B9 stop at 100k.
-
-`r2_cell_worker.sh` now reads `HEAD_ENCS`. On A4 and B1 the 200k box trains
-one head, not two: the rule ended the other, so its 200k number is not a
-deliverable and training it would spend half an hour of a rented card.
-
-`r2_watchdog.sh` relaunches a dead box with the stops from that box's own
-row rather than the session default. A 200k box recovered with
-"40000 100000" would pay to re-run two stops the study already holds.
+Five cells stop at 100k and are absent from the queue: A1, B3, B5, B7, B9.

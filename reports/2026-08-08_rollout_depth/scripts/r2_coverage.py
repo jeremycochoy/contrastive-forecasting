@@ -89,34 +89,68 @@ def score(cell, stop, enc):
         return None
 
 
+# Round 3 replaced the per-cell fleet with ONE box and ONE flat durable root
+# on elisa. Both trees are searched: round 2's per-cell trees hold every 40k
+# and 100k artefact, round 3's flat tree holds everything from 200k on.
+R3 = os.environ.get("CF373_R3", "/home/jupyter/cf373_r3/sync")
+
+
+def _r3_bb(cell, stop):
+    """The round-3 tree's checkpoint for this stop, or None.
+
+    Resolved by `cell_paths.sh`, the one place that knows how each of the
+    three launchers lays a run out. Re-deriving it here would be a second
+    implementation that can drift from the launchers.
+    """
+    cmd = (f'. "{HERE}/cell_paths.sh"; '
+           f'cf373_bb_ckpt "{cell}" "{K}" "{stop * 1000}"')
+    env = dict(os.environ, CF373_ROOT=R3)
+    try:
+        out = subprocess.run(["bash", "-c", cmd], env=env, timeout=30,
+                             capture_output=True, text=True).stdout.strip()
+    except (subprocess.SubprocessError, OSError):
+        return None
+    return out if out and os.path.exists(out) else None
+
+
 def head_exists(cell, stop, enc):
-    d = os.path.join(SYNC, cell, "sync", "eval", tag(cell, stop, enc))
-    return bool(glob.glob(os.path.join(d, "qhead_*_final.pth")))
+    t = tag(cell, stop, enc)
+    for d in (os.path.join(SYNC, cell, "sync", "eval", t),
+              os.path.join(R3, "eval", t)):
+        if glob.glob(os.path.join(d, "qhead_*_final.pth")):
+            return True
+    return False
 
 
 def bb_exists(cell, stop):
     hits = glob.glob(os.path.join(SYNC, cell, "sync", "**", f"*_{stop}k.pth"),
                      recursive=True)
-    return any("optimizer" not in h for h in hits)
+    if any("optimizer" not in h for h in hits):
+        return True
+    return _r3_bb(cell, stop) is not None
 
 
 def running():
-    """Tags with an eval or a cell with training running on this machine."""
-    try:
-        ps = subprocess.run(["ps", "-eo", "args"], capture_output=True,
-                            text=True, timeout=20).stdout
-    except (subprocess.SubprocessError, OSError):
-        return set(), set()
+    """What the round-3 queue has in flight, as (eval tags, training cells).
+
+    The queue's own state files are the source. Round 2 read `ps`, which
+    could not see a job on the rented box at all, so a cell training there
+    read as `not started`.
+    """
     evals, trains = set(), set()
-    for line in ps.splitlines():
-        if "eval_local.sh " in line and "grep" not in line:
-            parts = line.split("eval_local.sh ", 1)[1].split()
-            if parts:
-                evals.add(parts[0])
-        if "r2_launch_cell.sh" in line or "r2_cell_worker.sh" in line:
-            for c in CELLS:
-                if f" {c} " in line or line.rstrip().endswith(f" {c}"):
-                    trains.add(c)
+    qdir = os.path.join(RES, "queue")
+    for p in glob.glob(os.path.join(qdir, "*.state")):
+        if open(p).read().strip() != "running":
+            continue
+        jid = os.path.basename(p)[:-len(".state")]
+        parts = jid.split("_")
+        if len(parts) < 3:
+            continue
+        kind, cell, stopk = parts[0], parts[1], parts[2].rstrip("k")
+        if kind == "bb":
+            trains.add(cell)
+        elif kind in ("hd", "ev") and len(parts) >= 4:
+            evals.add(f"{cell}_k{K}_bb{stopk}k_{parts[3]}")
     return evals, trains
 
 
@@ -138,7 +172,11 @@ def state(cell, stop, enc, evals, trains, stopped):
 
 
 def read_stopped():
-    """Heads the extend rule ended, from results/r2_extend.tsv if it exists."""
+    """Heads the extend rule ended, from results/r2_extend.tsv if it exists.
+
+    The file records the stop the rule *read*. The verdict governs the stop
+    after it, so a `stop` read at bb100k marks bb200k as not a deliverable.
+    """
     out = set()
     p = os.path.join(RES, "r2_extend.tsv")
     if not os.path.exists(p):
@@ -146,7 +184,17 @@ def read_stopped():
     for line in open(p):
         f = line.split()
         if len(f) >= 4 and f[3] == "stop":
-            out.add((f[0], int(f[1]), f[2]))
+            out.add((f[0], int(f[1]) + 100, f[2]))
+    # A head the card extends anyway is a deliverable again, so it must not
+    # read as ended. results/r3_extend_override.tsv carries the reason.
+    o = os.path.join(RES, "r3_extend_override.tsv")
+    if os.path.exists(o):
+        for line in open(o):
+            if line.startswith("#"):
+                continue
+            f = line.split("\t")
+            if len(f) >= 3:
+                out.discard((f[0].strip(), int(f[1]) + 100, f[2].strip()))
     return out
 
 
