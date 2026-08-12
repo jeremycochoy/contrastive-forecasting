@@ -1,8 +1,8 @@
-[08-12 11:52:52] [B8] provisioning
-[08-12 11:52:55] [provision cf373r2-b8] attempt 1: 5 offer(s)
-[08-12 11:53:01] [provision cf373r2-b8]   offer 43982815 went away
-[08-12 11:53:06] [provision cf373r2-b8]   offer 45668913 went away
-[08-12 11:58:02] [provision cf373r2-b8]   offer 42071465: instance 47540110 never reached running — destroying it
-[08-12 11:58:09] [provision cf373r2-b8]   offer 45668943 went away
-[08-12 12:00:07] [provision cf373r2-b8] READY instance 47540372 at ssh6.vast.ai:20372
-[08-12 12:00:07] [B8] instance 47540372 at ssh6.vast.ai:20372
+[08-10 22:08:17] [B8] provisioning
+[08-10 22:08:35] [provision cf373r2-b8] attempt 1: 6 offer(s)
+[08-10 22:08:48] [provision cf373r2-b8]   offer 45669535 went away
+[08-10 22:11:05] [provision cf373r2-b8] READY instance 47405690 at ssh9.vast.ai:15690
+[08-10 22:11:05] [B8] instance 47405690 at ssh9.vast.ai:15690
+[08-10 22:15:07] [B8] bootstrapped
+[08-10 22:15:10] [B8] sync loop started -> /home/jupyter/cf373_r2/B8
+[08-10 22:15:10] [B8] LAUNCHED instance=47405690 host=ssh9.vast.ai port=15690 stops=40000 100000

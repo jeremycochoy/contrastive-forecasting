@@ -1,13 +1,64 @@
-[08-12 12:00:07] [bootstrap ssh6.vast.ai:20372] packing code
-[08-12 12:00:07] [bootstrap ssh6.vast.ai:20372] uploading 336K
-Warning: Permanently added '[ssh6.vast.ai]:20372' (ED25519) to the list of known hosts.
+[08-10 22:11:05] [bootstrap ssh9.vast.ai:15690] packing code
+[08-10 22:11:05] [bootstrap ssh9.vast.ai:15690] uploading 308K
+Warning: Permanently added '[ssh9.vast.ai]:15690' (ED25519) to the list of known hosts.
 Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
 Have fun!
-[08-12 12:00:10] [bootstrap ssh6.vast.ai:20372] installing
-Warning: Permanently added '[ssh6.vast.ai]:20372' (ED25519) to the list of known hosts.
+[08-10 22:11:14] [bootstrap ssh9.vast.ai:15690] installing
+Warning: Permanently added '[ssh9.vast.ai]:15690' (ED25519) to the list of known hosts.
 Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
 Have fun!
-Warning: Permanently added '[ssh6.vast.ai]:20372' (ED25519) to the list of known hosts.
+Warning: Permanently added '[ssh9.vast.ai]:15690' (ED25519) to the list of known hosts.
 Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
 Have fun!
 started
+[08-10 22:15:01] [bootstrap ssh9.vast.ai:15690] waiting for BOOTSTRAP_OK (install is ~4 min)
+[08-10 22:15:04] [bootstrap ssh9.vast.ai:15690] OK
+Warning: Permanently added '[ssh9.vast.ai]:15690' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+Default, NVIDIA GeForce RTX 5090
++ echo BOOTSTRAP_OK
+BOOTSTRAP_OK
+[08-12 12:12:51] [bootstrap ssh2.vast.ai:21144] packing code
+[08-12 12:12:51] [bootstrap ssh2.vast.ai:21144] uploading 336K
+Warning: Permanently added '[ssh2.vast.ai]:21144' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[08-12 12:12:54] [bootstrap ssh2.vast.ai:21144] installing
+Warning: Permanently added '[ssh2.vast.ai]:21144' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+Warning: Permanently added '[ssh2.vast.ai]:21144' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+started
+[08-12 12:15:06] [bootstrap ssh2.vast.ai:21144] waiting for BOOTSTRAP_OK (install is ~4 min)
+[08-12 12:15:10] [bootstrap ssh2.vast.ai:21144] FAILED
+Warning: Permanently added '[ssh2.vast.ai]:21144' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+Setting up libgd3:amd64 (2.3.3-9ubuntu5) ...
+Setting up libc-devtools (2.39-0ubuntu8.8) ...
+Processing triggers for libc-bin (2.39-0ubuntu8.8) ...
++ PIP='python3 -m pip install --break-system-packages'
++ python3 -m pip install --break-system-packages -q torch==2.8.0 --index-url https://download.pytorch.org/whl/cu128
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv
++ python3 -m pip install --break-system-packages -q numpy==1.26.4 pandas==2.2.2 datasets==2.17.1 scipy==1.11.4 statsmodels==0.14.2 pyarrow einops orjson toolz huggingface_hub
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv
++ mkdir -p /root/cf /root/cf373_runs
++ tar xzf /root/cf373_code.tgz -C /root/cf
++ python3 -
+/usr/local/lib/python3.12/dist-packages/torch/cuda/__init__.py:182: UserWarning: CUDA initialization: Unexpected error from cudaGetDeviceCount(). Did you run some cuda functions before calling NumCudaDevices() that might have already set an error? Error 804: forward compatibility was attempted on non supported HW (Triggered internally at /pytorch/c10/cuda/CUDAFunctions.cpp:109.)
+  return torch._C._cuda_getDeviceCount() > 0
+Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+  File "/usr/local/lib/python3.12/dist-packages/torch/cuda/__init__.py", line 584, in get_device_name
+    return get_device_properties(device).name
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/cuda/__init__.py", line 616, in get_device_properties
+    _lazy_init()  # will define _get_device_properties
+    ^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/cuda/__init__.py", line 412, in _lazy_init
+    torch._C._cuda_init()
+RuntimeError: Unexpected error from cudaGetDeviceCount(). Did you run some cuda functions before calling NumCudaDevices() that might have already set an error? Error 804: forward compatibility was attempted on non supported HW
++ exit 13

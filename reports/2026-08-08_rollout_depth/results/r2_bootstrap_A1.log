@@ -1,0 +1,64 @@
+[08-10 21:50:01] [bootstrap ssh7.vast.ai:14316] packing code
+[08-10 21:50:01] [bootstrap ssh7.vast.ai:14316] uploading 296K
+Warning: Permanently added '[ssh7.vast.ai]:14316' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[08-10 21:50:08] [bootstrap ssh7.vast.ai:14316] installing
+Warning: Permanently added '[ssh7.vast.ai]:14316' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+Warning: Permanently added '[ssh7.vast.ai]:14316' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+started
+[08-10 21:52:20] [bootstrap ssh7.vast.ai:14316] waiting for BOOTSTRAP_OK (install is ~4 min)
+[08-10 21:52:23] [bootstrap ssh7.vast.ai:14316] FAILED
+Warning: Permanently added '[ssh7.vast.ai]:14316' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+Setting up libgd3:amd64 (2.3.3-9ubuntu5) ...
+Setting up libc-devtools (2.39-0ubuntu8.8) ...
+Processing triggers for libc-bin (2.39-0ubuntu8.8) ...
++ PIP='python3 -m pip install --break-system-packages'
++ python3 -m pip install --break-system-packages -q torch==2.8.0 --index-url https://download.pytorch.org/whl/cu128
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv
++ python3 -m pip install --break-system-packages -q numpy==1.26.4 pandas==2.2.2 datasets==2.17.1 scipy==1.11.4 statsmodels==0.14.2 pyarrow einops orjson toolz huggingface_hub
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv
++ mkdir -p /root/cf /root/cf373_runs
++ tar xzf /root/cf373_code.tgz -C /root/cf
++ python3 -
+/usr/local/lib/python3.12/dist-packages/torch/cuda/__init__.py:182: UserWarning: CUDA initialization: Unexpected error from cudaGetDeviceCount(). Did you run some cuda functions before calling NumCudaDevices() that might have already set an error? Error 804: forward compatibility was attempted on non supported HW (Triggered internally at /pytorch/c10/cuda/CUDAFunctions.cpp:109.)
+  return torch._C._cuda_getDeviceCount() > 0
+Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+  File "/usr/local/lib/python3.12/dist-packages/torch/cuda/__init__.py", line 584, in get_device_name
+    return get_device_properties(device).name
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/cuda/__init__.py", line 616, in get_device_properties
+    _lazy_init()  # will define _get_device_properties
+    ^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/cuda/__init__.py", line 412, in _lazy_init
+    torch._C._cuda_init()
+RuntimeError: Unexpected error from cudaGetDeviceCount(). Did you run some cuda functions before calling NumCudaDevices() that might have already set an error? Error 804: forward compatibility was attempted on non supported HW
++ exit 13
+[08-10 21:55:09] [bootstrap ssh2.vast.ai:14614] packing code
+[08-10 21:55:09] [bootstrap ssh2.vast.ai:14614] uploading 300K
+Warning: Permanently added '[ssh2.vast.ai]:14614' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[08-10 21:55:15] [bootstrap ssh2.vast.ai:14614] installing
+Warning: Permanently added '[ssh2.vast.ai]:14614' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+Warning: Permanently added '[ssh2.vast.ai]:14614' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+started
+[08-10 22:00:33] [bootstrap ssh2.vast.ai:14614] waiting for BOOTSTRAP_OK (install is ~4 min)
+[08-10 22:00:37] [bootstrap ssh2.vast.ai:14614] OK
+Warning: Permanently added '[ssh2.vast.ai]:14614' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+Default, NVIDIA GeForce RTX 5090
++ echo BOOTSTRAP_OK
+BOOTSTRAP_OK

@@ -43,6 +43,18 @@ export CF373_ROOT=/root/cf373_runs
 
 log(){ echo "[$(date '+%m-%d %H:%M:%S')] [cell $CELL] $*" | tee -a "$RES/worker_$CELL.log"; }
 
+# The deepest step a checkpoint on this box reaches, in thousands. One box
+# carries one cell, so the maximum over the whole run tree is that cell's.
+# `0` when the box holds none.
+latest_ck_k(){
+  find "$CF373_ROOT" -name "*_[0-9]*k.pth" ! -name "*optimizer*" 2>/dev/null \
+    | sed -E 's|.*_([0-9]+)k\.pth$|\1|' | sort -n | tail -1 | grep . || echo 0
+}
+
+# The HuggingFace stream is the failure this study keeps meeting. Give its
+# reads room before the retry loop has to earn its keep.
+export HF_HUB_DOWNLOAD_TIMEOUT="${HF_HUB_DOWNLOAD_TIMEOUT:-120}"
+
 row="$(awk -F'\t' -v c="$CELL" '$1==c {print; exit}' "$HERE/cells.tsv")"
 [ -n "$row" ] || { log "ABORT: no cell '$CELL' in cells.tsv"; exit 2; }
 launcher=$(cut -f3 <<<"$row"); arg=$(cut -f4 <<<"$row")
@@ -55,14 +67,39 @@ for steps in "$@"; do
   case "$launcher" in run_leg_k.sh) args+=("$steps") ;; esac
 
   log "WAVE start -> $steps steps"
-  K="$K" TARGET_STEPS="$steps" FINAL_STEPS=200000 \
-  SAVE_EVERY=20000 EXTRA_SAVES="$steps" \
-  WT="$WT" BB_GPU=0 RUNS="$CF373_ROOT" CF373_RUNS="$CF373_ROOT" \
-    bash "$HERE/$launcher" "${args[@]}"
-  rc=$?
-  log "WAVE end -> $steps rc=$rc"
+  # The stream, not the model, is what ends a wave early. Both round-3 boxes
+  # died on `httpx.ReadTimeout` from the HuggingFace stream, 3 hours into a
+  # 5-hour leg, and each left a good 140k checkpoint behind. The launcher
+  # resumes from the newest `_<N>k.pth` on the box, so a retry costs one
+  # save interval, not the leg.
+  #
+  # The guard is progress, not a retry count: an attempt that ends with the
+  # newest checkpoint no further than the one before it has stopped for a
+  # reason a retry cannot fix, and the wave gives up on the second such.
+  attempt=0; rc=1; stalls=0
+  while [ "$attempt" -lt "${WAVE_TRIES:-6}" ]; do
+    attempt=$(( attempt + 1 ))
+    before="$(latest_ck_k)"
+    K="$K" TARGET_STEPS="$steps" FINAL_STEPS=200000 \
+    SAVE_EVERY=20000 EXTRA_SAVES="$steps" \
+    WT="$WT" BB_GPU=0 RUNS="$CF373_ROOT" CF373_RUNS="$CF373_ROOT" \
+      bash "$HERE/$launcher" "${args[@]}"
+    rc=$?
+    [ "$rc" -eq 0 ] && break
+    after="$(latest_ck_k)"
+    log "WAVE attempt $attempt rc=$rc, checkpoint ${before}k -> ${after}k"
+    if [ "$after" -le "$before" ]; then
+      stalls=$(( stalls + 1 ))
+      [ "$stalls" -ge 2 ] && { log "two attempts with no new checkpoint; wave gives up"; break; }
+    else
+      stalls=0
+    fi
+    sleep 60
+  done
+  log "WAVE end -> $steps rc=$rc after $attempt attempt(s)"
   if [ "$rc" -ne 0 ]; then
     log "wave failed; not queueing its heads, and not attempting deeper stops"
+    wave_failed=1
     break
   fi
 
@@ -91,5 +128,15 @@ log "waiting on ${#head_pids[@]} head(s)"
 fail=0
 for p in "${head_pids[@]}"; do wait "$p" || fail=1; done
 log "heads done (fail=$fail)"
+
+# The DONE marker is the reaper's only gate: it destroys the box once every
+# artefact this marker claims is final has landed locally. A cell that broke
+# out of its wave loop has not delivered its stops, and marking it done sent
+# the reaper after a box the study still needs. Write the marker only when
+# every wave and every head succeeded.
+if [ "${wave_failed:-0}" -ne 0 ] || [ "$fail" -ne 0 ]; then
+  log "CELL INCOMPLETE (wave_failed=${wave_failed:-0} head_fail=$fail) — no DONE marker"
+  exit 1
+fi
 touch "$RES/CELL_${CELL}_DONE"
 log "CELL DONE"

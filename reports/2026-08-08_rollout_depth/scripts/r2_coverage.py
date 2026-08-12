@@ -130,44 +130,64 @@ def bb_exists(cell, stop):
     return _r3_bb(cell, stop) is not None
 
 
-def running():
-    """What the round-3 queue has in flight, as (eval tags, training cells).
+def _job(jid):
+    """(kind, cell, stop_k, enc) for a queue job id, or None.
 
-    The queue's own state files are the source. Round 2 read `ps`, which
-    could not see a job on the rented box at all, so a cell training there
-    read as `not started`.
+    Ids are `bb_B8_100k`, `hd_B8_100k_student`, `ev_B8_100k_student`.
     """
-    evals, trains = set(), set()
-    qdir = os.path.join(RES, "queue")
-    for p in glob.glob(os.path.join(qdir, "*.state")):
+    p = jid.split("_")
+    if len(p) < 3 or not p[2].endswith("k"):
+        return None
+    try:
+        stopk = int(p[2][:-1])
+    except ValueError:
+        return None
+    return p[0], p[1], stopk, (p[3] if len(p) >= 4 else None)
+
+
+def planned():
+    """Every deliverable the round-3 queue covers, and what is in flight.
+
+    Returns (running, queued) as sets of (cell, stop_k, enc).
+
+    A cell whose backbone runs now does NOT make its every stop `running`.
+    Round 2's version read only the training cell, so B8 — queued to 100k
+    and no further — reported 40k and 200k as running, and a stop nobody
+    was going to produce read like one in progress. Coverage is read off
+    the job that produces the number: the head and the eval.
+    """
+    run, plan = set(), set()
+    q = os.path.join(HERE, "q_queue.tsv")
+    if os.path.exists(q):
+        for line in open(q):
+            if line.startswith("#") or not line.strip():
+                continue
+            j = _job(line.split("\t")[0].strip())
+            if j and j[0] in ("hd", "ev") and j[3]:
+                plan.add((j[1], j[2], j[3]))
+    for p in glob.glob(os.path.join(RES, "queue", "*.state")):
         if open(p).read().strip() != "running":
             continue
-        jid = os.path.basename(p)[:-len(".state")]
-        parts = jid.split("_")
-        if len(parts) < 3:
-            continue
-        kind, cell, stopk = parts[0], parts[1], parts[2].rstrip("k")
-        if kind == "bb":
-            trains.add(cell)
-        elif kind in ("hd", "ev") and len(parts) >= 4:
-            evals.add(f"{cell}_k{K}_bb{stopk}k_{parts[3]}")
-    return evals, trains
+        j = _job(os.path.basename(p)[:-len(".state")])
+        if j and j[0] in ("hd", "ev") and j[3]:
+            run.add((j[1], j[2], j[3]))
+    return run, plan
 
 
-def state(cell, stop, enc, evals, trains, stopped):
+def state(cell, stop, enc, run, plan, stopped):
+    key = (cell, stop, enc)
     if score(cell, stop, enc) is not None:
         return "done"
-    t = tag(cell, stop, enc)
-    if t in evals or ALIAS.get((cell, stop, enc)) in evals:
-        return "run"
-    if (cell, stop, enc) in stopped:
+    if key in stopped:
         return "stop"
+    if key in run:
+        return "run"
+    if key in plan:
+        return "plan"
     if head_exists(cell, stop, enc):
         return "MISS-e"
     if bb_exists(cell, stop):
         return "MISS-h"
-    if cell in trains:
-        return "run"
     return "MISS-t"
 
 
@@ -195,6 +215,17 @@ def read_stopped():
             f = line.split("\t")
             if len(f) >= 3:
                 out.discard((f[0].strip(), int(f[1]) + 100, f[2].strip()))
+    # Cells the round leaves at a stop for a reason the extend rule cannot
+    # express — B8 had no bb100k number when the round was planned, so the
+    # rule had nothing to read. results/r3_no_extend.tsv carries each one.
+    n = os.path.join(RES, "r3_no_extend.tsv")
+    if os.path.exists(n):
+        for line in open(n):
+            if line.startswith("#") or not line.strip():
+                continue
+            f = line.split("\t")
+            if len(f) >= 3:
+                out.add((f[0].strip(), int(f[1]), f[2].strip()))
     return out
 
 
@@ -203,14 +234,14 @@ def main():
     ap.add_argument("--md", action="store_true", help="Markdown table")
     args = ap.parse_args()
 
-    evals, trains = running()
+    run, plan = planned()
     stopped = read_stopped()
     rows, miss = [], 0
     for c in CELLS:
         cells = []
         for s in STOPS:
             for e in ENCS:
-                st = state(c, s, e, evals, trains, stopped)
+                st = state(c, s, e, run, plan, stopped)
                 v = score(c, s, e)
                 cells.append(f"{v:.4f}" if v is not None else st)
                 if st not in ("done", "stop"):
@@ -229,10 +260,13 @@ def main():
             print("  ".join([f"{c:<8}"] + [f"{x:<8}" for x in cs]))
     print()
     total = len(CELLS) * len(STOPS) * len(ENCS)
-    print(f"deliverables {total}   done {total - miss}   MISSING {miss}")
-    print("done=number in hand  run=running  MISS-e=eval not run  "
-          "MISS-h=head not trained  MISS-t=backbone not trained  "
-          "stop=extend rule ended this head")
+    n_run = sum(1 for _c, cs in rows for x in cs if x == "run")
+    n_plan = sum(1 for _c, cs in rows for x in cs if x == "plan")
+    print(f"deliverables {total}   done {total - miss}   "
+          f"running {n_run}   queued {n_plan}   NOT STARTED {miss - n_run - n_plan}")
+    print("done=number in hand  run=running now  plan=queued, not started  "
+          "MISS-e=eval not run  MISS-h=head not trained  "
+          "MISS-t=backbone not trained  stop=not a deliverable this round")
     return 0
 
 

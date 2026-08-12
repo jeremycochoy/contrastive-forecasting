@@ -58,3 +58,12 @@ ev_A3_200k_teacher	eval	A3	200000	teacher	hd_A3_200k_teacher
 ev_A4_200k_student	eval	A4	200000	student	hd_A4_200k_student
 ev_B1_200k_student	eval	B1	200000	student	hd_B1_200k_student
 ev_B1_200k_teacher	eval	B1	200000	teacher	hd_B1_200k_teacher
+# B8's bb40k pair. Every other cell carries a 40k number; B8 is the only
+# hole in that column, and its backbone saves 40k on the way to 100k, so the
+# pair costs one 15,000-step head each and two CPU evals. Last in the queue:
+# it must never delay a stop the plan asked for. Head steps follow the other
+# thirteen cells' bb40k heads, 15,000, or the column is not comparable.
+hd_B8_40k_student	head	B8	40000	student	bb_B8_100k
+hd_B8_40k_teacher	head	B8	40000	teacher	bb_B8_100k
+ev_B8_40k_student	eval	B8	40000	student	hd_B8_40k_student
+ev_B8_40k_teacher	eval	B8	40000	teacher	hd_B8_40k_teacher

@@ -1,0 +1,19 @@
+[08-10 21:46:02] [A3] provisioning
+[08-10 21:46:03] [provision cf373r2-a3] attempt 1: 6 offer(s)
+[08-10 21:46:07] [provision cf373r2-a3]   offer 45669560 went away
+[08-10 21:48:04] [provision cf373r2-a3] READY instance 47404157 at ssh2.vast.ai:14156
+[08-10 21:48:04] [A3] instance 47404157 at ssh2.vast.ai:14156
+[08-10 21:51:59] [A3] bootstrapped
+[08-10 21:51:59] [A3] staging resume: cf393_arm6_v2_combab_alignT_cf373k3_40k.pth + optimizer -> /root/cf373_runs/arm6_v2_combab_alignT/leg_40k
+Warning: Permanently added '[ssh2.vast.ai]:14156' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+Warning: Permanently added '[ssh2.vast.ai]:14156' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+Warning: Permanently added '[ssh2.vast.ai]:14156' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[08-10 21:52:35] [A3] resume state verified on the box (10986086 B)
+[08-10 21:52:39] [A3] sync loop started -> /home/jupyter/cf373_r2/A3
+[08-10 21:52:39] [A3] LAUNCHED instance=47404157 host=ssh2.vast.ai port=14156 stops=40000 100000

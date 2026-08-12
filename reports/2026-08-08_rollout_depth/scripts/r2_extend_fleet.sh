@@ -11,10 +11,9 @@
 # cell where one head went up, that head is not a deliverable at 200k, and
 # half an hour of a rented card is the price of training it anyway.
 #
-# The card's order, and the reason for it: B5 and B9 answer rule 2 first,
-# then the arm6_v2 combab pair leads the ladder, then A1 and A2, then the
-# rest of group B. B5, B9 and A1 stop at 100k under the rule, so the order
-# that survives is A3, A4, A2, then group B.
+# The order is the bb100k standing, best first. A box can be lost at any
+# hour, and the credit is finite, so the cells whose 200k number carries the
+# most weight go out first: B10, A2, A4, then the rest of the extend list.
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -30,7 +29,7 @@ export CF373_R2_SYNC="${CF373_R2_SYNC:-/home/jupyter/cf373_r2}"
 
 log(){ echo "[$(date '+%m-%d %H:%M:%S')] [extfleet] $*" | tee -a "$RES/r2_boxes.log"; }
 
-ORDER="B5 B9 A3 A4 A1 A2 B1 B2 B3 B4 B6 B7 B10"
+ORDER="B10 A2 A4 A3 B6 B4 B2 B1 A1 B3 B5 B7 B9"
 
 if [ $# -gt 0 ]; then
   CELLS=("$@")
@@ -64,7 +63,9 @@ for c in "${CELLS[@]}"; do
   fi
 
   log "$c: launching 200k leg, heads: $encs"
-  HEAD_ENCS="$encs" nohup bash "$HERE/r2_launch_cell.sh" "$c" 200000 \
+  # Through the retry wrapper, not the launcher: a box that fails to
+  # bootstrap must cost one offer, not the cell.
+  HEAD_ENCS="$encs" nohup bash "$HERE/r2_box_retry.sh" "$c" 200000 \
     >"$RES/r2_launch_${c}_200k.out" 2>&1 &
   sleep "$STAGGER"
 done

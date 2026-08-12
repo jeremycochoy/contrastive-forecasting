@@ -1,0 +1,43 @@
+[08-12 12:10:43] [bootstrap ssh6.vast.ai:20882] packing code
+[08-12 12:10:43] [bootstrap ssh6.vast.ai:20882] uploading 336K
+Warning: Permanently added '[ssh6.vast.ai]:20882' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[08-12 12:10:52] [bootstrap ssh6.vast.ai:20882] installing
+Warning: Permanently added '[ssh6.vast.ai]:20882' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+Warning: Permanently added '[ssh6.vast.ai]:20882' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+started
+[08-12 12:25:02] [bootstrap ssh6.vast.ai:20882] waiting for BOOTSTRAP_OK (install is ~4 min)
+[08-12 12:25:13] [bootstrap ssh6.vast.ai:20882] FAILED
+Warning: Permanently added '[ssh6.vast.ai]:20882' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3/dist-packages/pip/_internal/commands/install.py", line 377, in run
+    requirement_set = resolver.resolve(
+                      ^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3/dist-packages/pip/_internal/resolution/resolvelib/resolver.py", line 179, in resolve
+    self.factory.preparer.prepare_linked_requirements_more(reqs)
+  File "/usr/lib/python3/dist-packages/pip/_internal/operations/prepare.py", line 552, in prepare_linked_requirements_more
+    self._complete_partial_requirements(
+  File "/usr/lib/python3/dist-packages/pip/_internal/operations/prepare.py", line 467, in _complete_partial_requirements
+    for link, (filepath, _) in batch_download:
+  File "/usr/lib/python3/dist-packages/pip/_internal/network/download.py", line 183, in __call__
+    for chunk in chunks:
+  File "/usr/lib/python3/dist-packages/pip/_internal/network/utils.py", line 63, in response_chunks
+    for chunk in response.raw.stream(
+  File "/usr/lib/python3/dist-packages/pip/_vendor/urllib3/response.py", line 622, in stream
+    data = self.read(amt=amt, decode_content=decode_content)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3/dist-packages/pip/_vendor/urllib3/response.py", line 560, in read
+    with self._error_catcher():
+  File "/usr/lib/python3.12/contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "/usr/lib/python3/dist-packages/pip/_vendor/urllib3/response.py", line 443, in _error_catcher
+    raise ReadTimeoutError(self._pool, None, "Read timed out.")
+pip._vendor.urllib3.exceptions.ReadTimeoutError: HTTPSConnectionPool(host='files.pythonhosted.org', port=443): Read timed out.
++ exit 11

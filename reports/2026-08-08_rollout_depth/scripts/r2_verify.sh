@@ -21,7 +21,9 @@ SSH_OPTS=(-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o Connect
 
 printf '%-4s %-6s %-4s %-6s %-9s %s\n' CELL TRAIN k HEADS STEP RUN
 bad=0
+seen=0
 while IFS=$'\t' read -r cell id host port label stops; do
+  seen=$(( seen + 1 ))
   [ -n "${cell:-}" ] || continue
   case "$cell" in \#*) continue;; esac
   # Everything through `ps | grep -c`, and the bracket in `[f]req` keeps the
@@ -44,5 +46,13 @@ while IFS=$'\t' read -r cell id host port label stops; do
   [ "$n" = "1" ] || { echo "    ^ WARNING: $n train.py on $cell's box"; bad=1; }
   [ "$k" = "3" ] || { echo "    ^ WARNING: depth reads '$k', want 3"; bad=1; }
 done < "$BOXES"
-[ "$bad" -eq 0 ] && echo "all boxes: exactly one backbone, at k = 3"
+# An empty table is not a clean fleet. Saying "all boxes are fine" over zero
+# boxes reads as an all-clear, and the launchers write their row only after
+# the worker starts, so the empty case is the normal one for the first ten
+# minutes of a round.
+if [ "$seen" -eq 0 ]; then
+  echo "no box has reported in yet ($BOXES is empty or absent)"
+  exit 0
+fi
+[ "$bad" -eq 0 ] && echo "all $seen box(es): exactly one backbone, at k = 3"
 exit "$bad"

@@ -1,3 +1,8 @@
 [08-12 11:55:53] [A3] provisioning
 [08-12 11:55:56] [provision cf373r2-a3] attempt 1: 4 offer(s)
 [08-12 11:56:00] [provision cf373r2-a3]   offer 44188476 went away
+[08-12 12:02:48] [provision cf373r2-a3]   offer 43982826: instance 47540277 never reached running — destroying it
+[08-12 12:02:55] [provision cf373r2-a3]   offer 45668943 went away
+[08-12 12:07:41] [provision cf373r2-a3] READY instance 47540648 at ssh3.vast.ai:20648
+[08-12 12:07:41] [A3] instance 47540648 at ssh3.vast.ai:20648
+[08-12 12:14:51] [A3] ABORT: bootstrap failed — destroying 47540648 (see r2_bootstrap_A3.log)

@@ -291,8 +291,21 @@ while :; do
       continue
     fi
 
-    # A GPU job: first free slot that will take it.
-    for i in "${!SLOTS[@]}"; do
+    # A GPU job: first free slot that will take it, in the order that costs
+    # least. The box is paid by the hour, so what costs money is how long the
+    # rental lasts, and the rental lasts as long as the backbones do. A head
+    # that takes a rented card holds it away from a backbone and pushes the
+    # end of the rental out by its own runtime. So a head asks elisa's free
+    # cards first and takes a rented one only when elisa has no room — never
+    # leaving a card idle, and never paying for a job elisa could have run.
+    order=("${!SLOTS[@]}")
+    if [ "$type" = head ]; then
+      order=(); for i in "${!SLOTS[@]}"; do
+        [ "${SLOTS[$i]%%:*}" = loc ] && order+=("$i"); done
+      for i in "${!SLOTS[@]}"; do
+        [ "${SLOTS[$i]%%:*}" = loc ] || order+=("$i"); done
+    fi
+    for i in "${order[@]}"; do
       [ -z "${slot_job[$i]}" ] || continue
       mach="${SLOTS[$i]%%:*}"; gpu="${SLOTS[$i]##*:}"
       if [ "$mach" = loc ]; then

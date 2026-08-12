@@ -468,3 +468,75 @@ produce. `results/r3_extend_override.tsv` records that, and both of B1's
 heads are reported with the rule's verdict beside them.
 
 Five cells stop at 100k and are absent from the queue: A1, B3, B5, B7, B9.
+
+## 2026-08-12 17:00 — A1 and B3 hold one student model, not two
+
+A1 and B3 scored the same number on the student head at both stops, 1.1305
+at bb40k and 1.1676 at bb100k, while their teacher heads scored apart. Two
+cells, one number, reads like a path key that drops the cell.
+
+It is not a path key. `scripts/pair_identity.py` loads both backbones and
+compares every tensor, split into the student side (encoder, transformer,
+channel mixing, embeddings) and the teacher side (`teacher_*`).
+
+    A1/B3  bb40k   student  110/110 identical   max|diff| 0
+    A1/B3  bb40k   teacher    0/52  identical   max|diff| 6.400e-03
+    A1/B3  bb100k  student  110/110 identical   max|diff| 0
+    A1/B3  bb100k  teacher    0/52  identical   max|diff| 1.986e-01
+
+The two cells train the same student, bit for bit, at both stops. Their
+student heads follow: 28 of 28 head tensors are identical at both stops,
+and the 97-row eval CSVs are byte-identical. The teacher side differs at
+every level. One number for both cells is the right answer.
+
+The arm says why. A1 and B3 both run `arm5_combab_alignS`, whose alignment
+target is the student and whose representation loss is `lrep`, not
+`lrepmoco`. Nothing in that arm's gradient path reads the teacher, so the
+EMA regime — group A's schedule against group B's fixed 0.9 — cannot move
+the student. The teacher is a passive copy and it is the only thing the
+regime changes.
+
+The other same-arm pairs are not in that position, and the same test says
+so. `arm6_v2_*` carries `lrepmoco`, whose keys come from the momentum
+encoder, so the regime enters the student's loss:
+
+    A4/B1  arm6_v2_combab_alignS  student differs at both stops
+    A3/B2  arm6_v2_combab_alignT  student differs at both stops
+
+A2/B8 waits for B8's first checkpoint. `results/pair_identity.tsv` holds
+every row.
+
+The consequence for the report: A1 and B3's student column is ONE
+measurement. Publishing it twice would claim a replication that does not
+exist. The teacher column is two.
+
+## 2026-08-12 17:05 — three fixes to what the round reads and pays
+
+**B1's bb40k score had a name no script could find.** Round 1 wrote it as
+`score_G6_B1_k3_bb40k_*`, and the coverage table needed a hand-written
+alias to see 1.0850 and 1.0948. The round-1 eval read B1's own checkpoint —
+its log names `..._cf373k3_40k.pth`, md5 `23ba3d9d...`, the same file round
+2 resumed — so `scripts/normalise_scores.sh` writes the canonical name
+beside the old one and copies the eval artefacts under the cell's name. It
+removes nothing.
+
+**The coverage table called unscheduled work `running`.** It marked every
+stop of a cell whose backbone was training, so B8 — queued to 100k and no
+further — reported bb40k and bb200k as in flight. Coverage now reads the
+job that produces the number, the head and the eval, off `q_queue.tsv` and
+the queue's state files: `run` is in flight, `plan` is queued, and anything
+with no job reads as the gap it is. `results/r3_no_extend.tsv` records the
+stops this round decides not to produce, so a decision cannot read as an
+omission.
+
+**B8 had no bb40k pair, and the other thirteen cells do.** Its backbone
+saves 40k on the way to 100k, so the pair costs two 15,000-step heads and
+two CPU evals. Four jobs at the tail of the queue, behind everything the
+plan asked for. Head steps match the other thirteen cells' bb40k heads.
+
+**A head no longer takes a rented card while elisa has room.** The box is
+paid by the hour, and the rental lasts as long as the backbones do, so a
+head on a rented card pushes the end of the rental out by its own runtime.
+The dispatcher now offers elisa's cards to a head first and a rented card
+only when elisa has no VRAM. Backbones keep the rented-card-first order,
+and no card is ever left idle with the queue not empty.
