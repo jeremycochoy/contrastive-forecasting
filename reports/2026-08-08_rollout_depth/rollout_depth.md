@@ -93,26 +93,26 @@ Every value is inside ±0.0198, and the head-seed band is ±0.0384.
 
 ### Coverage
 
-The card names 14 cells. This study trained **4 of them**: A3, B1, B5, B9. It never ran **10**: A1, A2, A4, B2, B3, B4, B6, B7, B8, B10.
+The card names 14 cells. This study scored **13 of them**: A1, A2, A3, A4, B1, B2, B3, B4, B5, B6, B7, B9, B10. It never ran **1**: B8.
 
-| cell | f-bearing term | EMA α | depths trained |
-|---|---|---|---|
-| A1 | — | — | **never ran** |
-| A2 | — | — | **never ran** |
-| A3 | rep_only + L_align | scheduled 0.9 -> 1.0 | k = 0, k = 1, k = 3 |
-| A4 | — | — | **never ran** |
-| B1 | rep_only + L_align | fixed 0.9 | k = 0, k = 3 |
-| B2 | — | — | **never ran** |
-| B3 | — | — | **never ran** |
-| B4 | — | — | **never ran** |
-| B5 | pooled xshh_allt | fixed 0.9 | k = 0, k = 3 |
-| B6 | — | — | **never ran** |
-| B7 | — | — | **never ran** |
-| B8 | — | — | **never ran** |
-| B9 | split L_pred | fixed 0.9 | k = 0, k = 3 |
-| B10 | — | — | **never ran** |
+| cell | f-bearing term | EMA α | depths trained | stops scored |
+|---|---|---|---|---|
+| A1 | L_align only | scheduled | k = 3 | bb40k, bb100k |
+| A2 | L_align + CPC auxiliary | scheduled | k = 3 | bb40k, bb100k |
+| A3 | L_align only | scheduled | k = 0, k = 1, k = 3 | bb40k, bb100k |
+| A4 | L_align only | scheduled | k = 3 | bb40k, bb100k |
+| B1 | L_align only | fixed 0.9 | k = 0, k = 3 | bb40k, bb100k |
+| B2 | L_align only | fixed 0.9 | k = 3 | bb40k, bb100k |
+| B3 | L_align only | fixed 0.9 | k = 3 | bb40k, bb100k |
+| B4 | L_align only | fixed 0.9 | k = 3 | bb40k, bb100k |
+| B5 | pooled xshh_allt, floor subtracted | fixed 0.9 | k = 0, k = 3 | bb40k, bb100k |
+| B6 | L_align only | fixed 0.9 | k = 3 | bb40k, bb100k |
+| B7 | L_align only | fixed 0.9 | k = 3 | bb40k, bb100k |
+| B8 | L_align + CPC auxiliary | fixed 0.9 | **never ran** | — |
+| B9 | split L_pred + CPC auxiliary | fixed 0.9 | k = 0, k = 3 | bb40k, bb100k |
+| B10 | L_align + CPC auxiliary | fixed 0.9 | k = 3 | bb40k, bb100k |
 
-Every trained stop is bb40k. No cell reached bb100k or bb200k, so the card's extend rule never fired and this study publishes one stop.
+Stops scored: bb40k, bb100k. The card's extend rule reads a cell's bb40k number against its bb100k number, so it fires only where both are in hand.
 
 ### Reproduction of the published k = 0
 

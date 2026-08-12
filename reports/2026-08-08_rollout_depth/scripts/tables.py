@@ -46,11 +46,13 @@ from __future__ import annotations
 
 import argparse
 import csv
+import re
 import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import r2_ladder as L2                                    # noqa: E402
 import runs as R                                          # noqa: E402
 from published import (PUBLISHED as PUB_ALL, GATE,             # noqa: E402
                        NOISE_BAND, PRINT_QUANT, PUBLISHED_SEED,
@@ -67,6 +69,34 @@ INTERVAL_SCOPE = (
     "backbones share both a seed and a machine.")
 
 CARD_CELLS = ["A1", "A2", "A3", "A4"] + [f"B{i}" for i in range(1, 11)]
+
+# Coverage is read off the score files, not off the run registry.
+#
+# The registry knows round 1's 32 runs and nothing after them, so a coverage
+# section built from it printed `never ran` for ten cells that carry numbers,
+# and kept printing it however many rounds ran. A score file is the thing
+# that says a number exists, so it is what the section counts.
+#
+# Three tag shapes reach the results directory. Round 2 and 3 write the
+# canonical `<CELL>_k<K>_bb<S>k_<enc>`. Round 1 wrote a `G<n>_` prefix and
+# sometimes a suffix for a control or a repeat, `G5_B5_s2_k3_bb40k_student`.
+# `G1_B5pub_bb40k_student` carries no `k`: it puts this study's head on the
+# parent's own published checkpoint and trains no backbone, so it is not
+# coverage of a cell and the regex leaves it out.
+CELL_RE = re.compile(
+    r"(?:^|_)(A[1-4]|B(?:[1-9]|10))_(?:[a-z0-9]+_)*k(\d+)_(?:[a-z0-9]+_)*"
+    r"bb(\d+)k_(student|teacher)$")
+
+
+def cell_stops(scores):
+    """`{cell: {(k, stop_k)}}` over every tag that holds a number."""
+    out = {}
+    for tag in scores:
+        m = CELL_RE.search(tag)
+        if m:
+            out.setdefault(m.group(1), set()).add((int(m.group(2)),
+                                                   int(m.group(3))))
+    return out
 
 
 def read_scores(results):
@@ -146,23 +176,27 @@ def main(argv=None):
         return v if v is not None else (sc.get(tag) if name == "all" else None)
 
     # ---- 1. coverage -------------------------------------------------------
-    trained = sorted({r.cell for r in reg.values()})
-    missing = [c for c in CARD_CELLS if c not in trained]
+    cov = cell_stops(sc)
+    trained = sorted(cov, key=CARD_CELLS.index)
+    missing = [c for c in CARD_CELLS if c not in cov]
+    stops = sorted({s for v in cov.values() for _, s in v})
     L += ["### Coverage", "",
-          f"The card names 14 cells. This study trained **{len(trained)} of "
-          f"them**: {', '.join(sorted(trained))}. It never ran "
-          f"**{len(missing)}**: {', '.join(missing)}.", "",
-          "| cell | f-bearing term | EMA α | depths trained |",
-          "|---|---|---|---|"]
+          f"The card names 14 cells. This study scored **{len(trained)} of "
+          f"them**: {', '.join(trained)}." +
+          (f" It never ran **{len(missing)}**: {', '.join(missing)}."
+           if missing else " Every cell carries a number."), "",
+          "| cell | f-bearing term | EMA α | depths trained | stops scored |",
+          "|---|---|---|---|---|"]
     for cell in CARD_CELLS:
-        ks = sorted({r.k for r in reg.values()
-                     if r.cell == cell and r.role == "depth"})
-        L.append(f"| {cell} | {R.CELL_TERM.get(cell, '—')} | "
-                 f"{R.CELL_EMA.get(cell, '—')} | "
-                 f"{', '.join(f'k = {k}' for k in ks) if ks else '**never ran**'} |")
-    L += ["", "Every trained stop is bb40k. No cell reached bb100k or "
-          "bb200k, so the card's extend rule never fired and this study "
-          "publishes one stop.", ""]
+        v = cov.get(cell, set())
+        ks = sorted({k for k, _ in v})
+        ss = sorted({s for _, s in v})
+        L.append(f"| {cell} | {L2.term(cell)} | {L2.CELL_ARM[cell][2]} | "
+                 f"{', '.join(f'k = {k}' for k in ks) if ks else '**never ran**'} | "
+                 f"{', '.join(f'bb{s}k' for s in ss) if ss else '—'} |")
+    L += ["", "Stops scored: " + ", ".join(f"bb{s}k" for s in stops) +
+          ". The card's extend rule reads a cell's bb40k number against its "
+          "bb100k number, so it fires only where both are in hand.", ""]
 
     # ---- 2. reproduction ---------------------------------------------------
     # The seed band, live from the bootstrap that measured it, so re-running
