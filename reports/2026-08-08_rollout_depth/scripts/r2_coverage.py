@@ -287,11 +287,18 @@ def main():
         for c, cs in rows:
             print("  ".join([f"{c:<8}"] + [f"{x:<8}" for x in cs]))
     print()
-    total = len(CELLS) * len(STOPS) * len(ENCS)
+    # A `stop` is not a deliverable, so it belongs in neither the numerator
+    # nor the denominator. Counting the 13 stops as done read 65/84 when the
+    # round holds 52 numbers against 71 asked for.
+    grid = len(CELLS) * len(STOPS) * len(ENCS)
+    n_stop = sum(1 for _c, cs in rows for x in cs if x == "stop")
     n_run = sum(1 for _c, cs in rows for x in cs if x in ("run", "bb-run"))
     n_plan = sum(1 for _c, cs in rows for x in cs if x == "plan")
-    print(f"deliverables {total}   done {total - miss}   "
-          f"running {n_run}   queued {n_plan}   NOT STARTED {miss - n_run - n_plan}")
+    total = grid - n_stop
+    n_done = total - miss
+    print(f"deliverables {total}   done {n_done}   "
+          f"running {n_run}   queued {n_plan}   NOT STARTED {miss - n_run - n_plan}"
+          f"   (+{n_stop} stops, not deliverables)")
     print("done=number in hand  run=own head/eval running  "
           "bb-run=backbone training now  plan=queued, not started  "
           "MISS-e=eval not run  MISS-h=head not trained  "

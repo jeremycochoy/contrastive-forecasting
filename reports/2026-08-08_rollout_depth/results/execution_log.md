@@ -582,3 +582,66 @@ is not the same as a head nobody has started. It now walks each head's
 dependency chain and marks `bb-run` when a running backbone job sits above
 it. B8's bb40k pair reads `bb-run` correctly: it hangs off `bb_B8_100k`,
 which writes the 40k checkpoint on the way past it.
+
+## 2026-08-12 17:40 BST — the A1/B3 student number is right
+
+The card blocked publication on this: A1 and B3 scored the same student
+number at both stops, 1.1305 at bb40k and 1.1676 at bb100k, while their
+teacher numbers differed. Two different backbones, one number, so one of
+them had to be wrong.
+
+The head and the eval paths are not the cause. Each cell has its own head
+directory, its own head checkpoint, and its own `backbone.txt`, and each
+records the checkpoint it read:
+
+    A1_k3_bb40k_student   cf393_arm5_combab_alignS_cf373k3_40k.pth
+    B3_k3_bb40k_student   bb_small_arm5_combab_lalign_lrep_..._cf373k3_40k.pth
+
+Their 97-config eval outputs are byte-identical (md5 eb5e4e21 for both
+`all_results.csv`). So the two models predict the same thing.
+
+`scripts/pair_identity.py` compares the checkpoints tensor by tensor,
+splitting student from teacher. It reports (`results/pair_identity.tsv`):
+
+    A1/B3   arm5_combab_alignS     bb40k    student  110/110 identical
+    A1/B3   arm5_combab_alignS     bb40k    teacher    0/52  differ, max 6.4e-03
+    A1/B3   arm5_combab_alignS     bb100k   student  110/110 identical
+    A1/B3   arm5_combab_alignS     bb100k   teacher    0/52  differ, max 1.99e-01
+    A4/B1   arm6_v2_combab_alignS  bb40k    student    4/110 identical
+    A3/B2   arm6_v2_combab_alignT  bb40k    student    4/110 identical
+
+A1 and B3 hold the SAME student weights, bit for bit, at both stops. The
+student head reads the student side only, so one number for both cells is
+the correct answer.
+
+The reason is in the arm. `arm5_combab` carries `--loss-shape
+cosine_similarity_batch_rep_only --align-loss-weight 1.0 --tau-rep 1.0
+--cpc-infonce-weight 0.0` and aligns to the student. It has no
+`--moco-rep-keys`. So no loss term reads the EMA encoder, the EMA regime
+sends no gradient into the student, and the two regimes train one student
+from one seed. The EMA regime shows in the teacher tensors only, and the
+teacher numbers do differ: 1.1318 against 1.1343, 1.1565 against 1.1618.
+
+The other three same-arm pairs run `arm6_v2`, which does carry
+`--moco-rep-keys`. There the EMA encoder produces the keys, so the regime
+reaches the student, and A4/B1 and A3/B2 differ on 106 of 110 student
+tensors. A2/B8 waits on B8's first checkpoint.
+
+Nothing is re-run. A1 and B3 report one student number because they trained
+one student.
+
+## 2026-08-12 17:45 BST — two fixes to the round's own instruments
+
+**The coverage denominator counted the stops.** `deliverables 84 done 65`
+put the 13 heads the extend rule ended into both the numerator and the
+denominator. A stop is not a deliverable. The line now reads
+`deliverables 71 done 52 ... (+13 stops, not deliverables)`.
+
+**Nothing restarted the dispatcher.** `q_run.sh` runs detached, so a dead
+session does not kill it, but nothing brought it back if it died on its
+own, and the cards would then drain their jobs and idle against a full
+queue. `scripts/q_super.sh` checks every 5 minutes and restarts it once.
+It identifies the dispatcher by `ppid == 1`, because the dispatcher forks a
+subshell per local job that carries the same argv — counting by argv alone
+reads a running local head as a live dispatcher. It stands down when the
+guard writes `BLOCKED_BUDGET` or when the queue drains.
