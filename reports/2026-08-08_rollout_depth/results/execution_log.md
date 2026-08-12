@@ -1023,3 +1023,51 @@ remote backbones need about 5.7 h more, then B2/A3/A4/B1 extend — B1 and B2
 from 140k, so 60k steps each — and the heads fill the two head-only slots
 behind them. About 18 h of box time, about $14.7, leaving about $9.6 over the
 $5.50 floor.
+
+## 2026-08-12 21:16 — session four: the head-only slots, and the A1/B3 block
+
+This session found the round running: one dispatcher, one supervisor, one
+sync loop, one credit guard, one hourly heartbeat, one publisher, five
+backbones and two heads. It changed one thing and closed one block.
+
+**The two head-only slots were idle, and would have stayed idle four more
+hours.** Every queued head waits on a backbone that is still running, so
+between the last head ending and the first extend finishing there is no head
+to place, and the old rule reserved those two slots for heads alone. Four
+backbones sat queued against two empty slots on a card that is paid for by
+the hour.
+
+`q_run.sh` now lets a backbone take a head-only slot while no head can use
+one. `heads_ready()` walks the queue for a head that is `queued` with its
+dependency `done`; a backbone takes the slot only when that returns false.
+When a backbone ends, its own slot frees, so a head can never be buried
+behind a six-hour extend. B2 took the first slot at 21:27 and A3 the second
+at 21:29.
+
+The card already carried three training processes — two backbones and a
+head — so the third backbone replaces a process rather than adding one. Per
+backbone rate measured at 2.980 sps under two backbones and a head.
+
+**The A1/B3 block: no number is wrong.** The card blocked publication until
+one of the two equal student scores was shown wrong. Neither is. The two
+cells hold the same student weights, so the student column holds one
+measurement printed twice.
+
+    evidence                                    file
+    two runs, two backbone files                each cell's eval/backbone.txt
+    four head files, four md5 sums              results/pair_head_files.tsv
+    110/110 student tensors equal, 0.000e+00    results/pair_identity.tsv
+    head loss curves equal step for step        each cell's head losses.csv
+
+`arm5_combab` passes no `--moco-rep-keys`. The loss reads no teacher output,
+so the EMA copy has no gradient path into the student and the EMA schedule
+moves the teacher alone. The teacher scores do differ, 1.1318 against
+1.1343 at bb40k. The three other same-arm pairs run `arm6_v2_*`, which does
+pass `--moco-rep-keys`, and their students differ by 2.377, 3.103 and 5.025.
+
+**Naming.** Every cell score is `score_<CELL>_k3_<stop>_<head>.txt`. B1's
+bb40k pair reads the same under the new name and the round-1 alias. The
+`score_G*` files that remain are round-1 controls, not cells.
+
+**Budget at 21:28.** Credit $23.76, box spent $4.26 over 5 h 13 m at
+$0.8144/h.

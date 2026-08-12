@@ -41,3 +41,16 @@
 [08-12 19:21:08] [q] ADOPT bb_B6_200k on loc:1
 [08-12 20:59:22] [q] START hd_B8_40k_student head B8 stop=40000 student on rem:0
 [08-12 21:00:43] [q] START hd_B8_40k_teacher head B8 stop=40000 teacher on rem:1
+[08-12 21:26:05] [q] DONE hd_B8_40k_student (rem:0)
+[08-12 21:26:05] [q] DONE hd_B8_40k_teacher (rem:1)
+[08-12 21:27:05] [q] start box=47557391 ssh6.vast.ai:37390 slots='rem:0 rem:0 rem:1 rem:1 loc:0 loc:1 rem:0 rem:1' root=/home/jupyter/cf373_r3/sync pid=438954
+[08-12 21:27:05] [q] ADOPT bb_B8_100k on rem:0
+[08-12 21:27:05] [q] ADOPT bb_B10_200k on rem:0
+[08-12 21:27:05] [q] ADOPT bb_A2_200k on rem:1
+[08-12 21:27:05] [q] ADOPT bb_B4_200k on rem:1
+[08-12 21:27:05] [q] ADOPT bb_B6_200k on loc:1
+[08-12 21:27:08] [q] RESUME B2 from bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_cf373k3_r3_140k.pth
+[08-12 21:27:11] [q] STAGE B2 -> /root/cf373_runs/bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_cf373k3
+[08-12 21:27:41] [q] START bb_B2_200k bb B2 stop=200000  on rem:0
+[08-12 21:28:46] [q] STAGE A3 -> /root/cf373_runs/arm6_v2_combab_alignT/leg_100k
+[08-12 21:29:09] [q] START bb_A3_200k bb A3 stop=200000  on rem:1

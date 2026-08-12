@@ -3,3 +3,7 @@
 [08-12 18:26:10] [head B10_k3_bb100k_student] SKIP — qhead_B10_k3_bb100k_student_s20260722_final.pth exists (bb bb_small_arm6_v2_nse_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_r2_100k.pth)
 [08-12 19:59:19] [head B8_k3_bb40k_student] start enc=student steps=15000 seed=20260722 gpu=0 bb=bb_small_arm6_v2_nse_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_cf373k3_40k.pth
 [08-12 20:00:40] [head B8_k3_bb40k_teacher] start enc=teacher steps=15000 seed=20260722 gpu=1 bb=bb_small_arm6_v2_nse_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_cf373k3_40k.pth
+[08-12 20:25:08] [head B8_k3_bb40k_teacher] rc=0
+[08-12 20:25:08] [head B8_k3_bb40k_teacher] DONE 440K
+[08-12 20:25:09] [head B8_k3_bb40k_student] rc=0
+[08-12 20:25:09] [head B8_k3_bb40k_student] DONE 440K

@@ -289,6 +289,26 @@ stage_bb_remote(){ # <cell> <stop>
 # ------------------------------------------------------------------ readiness
 dep_ok(){ local d="$1"; [ "$d" = "-" ] && return 0; [ "$(st "$d")" = done ]; }
 
+# Is there a head this tick could start? Every head waits on the backbone it
+# reads, so for four hours after the last head ended there was none, and the
+# two head-only slots sat empty with four backbones still queued. A card that
+# already carries three training processes carries a third backbone as
+# cheaply as it carried the head it replaces.
+#
+# So a backbone may take a head-only slot, but only while no head can use it.
+# The moment a backbone finishes, its own slot frees and the heads behind it
+# go there, so this cannot bury a head behind a six-hour extend.
+heads_ready(){
+  local hid ht hc hs he hd
+  while IFS=$'\t' read -r hid ht hc hs he hd; do
+    case "$hid" in ''|\#*) continue;; esac
+    [ "$ht" = head ] || continue
+    [ "$(st "$hid")" = queued ] || continue
+    dep_ok "$hd" && return 0
+  done < "$Q"
+  return 1
+}
+
 # ---------------------------------------------------------------- the loop
 # Say which process is the dispatcher, in writing. Every local job runs in a
 # subshell that carries this same argv, and a dispatcher restart orphans
@@ -387,7 +407,7 @@ while :; do
     fi
     for i in "${order[@]}"; do
       [ -z "${slot_job[$i]}" ] || continue
-      [ "$type" = head ] || ! head_only "$i" || continue
+      if [ "$type" != head ] && head_only "$i" && heads_ready; then continue; fi
       mach="${SLOTS[$i]%%:*}"; gpu="${SLOTS[$i]##*:}"
       if [ "$mach" = loc ]; then
         need="$BB_VRAM"; [ "$type" = head ] && need="$HEAD_VRAM"

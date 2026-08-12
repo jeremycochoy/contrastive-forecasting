@@ -30,6 +30,33 @@ one eval.*
 `B5·s3` holds `B5·s1`'s seed and `B5·s2`'s machine, so the pair separates
 them: the machine moves `k = 0` by 0.1166 and the seed by 0.0035.
 
+## A1 and B3 hold one student, so the student column holds one number
+
+A1 and B3 run `arm5_combab`, align to the student, and differ only in the
+EMA schedule. Their student scores agree exactly: 1.1305 at bb40k and 1.1676
+at bb100k. Their teacher scores do not: 1.1318 against 1.1343 at bb40k.
+
+The two cells are two runs. They read two different backbone files,
+`cf393_arm5_combab_alignS_cf373k3_40k.pth` and
+`bb_small_arm5_combab_lalign_lrep_..._cf373k3_40k.pth`, and they wrote four
+head files at four cell-id paths with four different md5 sums
+(`results/pair_head_files.tsv`).
+
+The weights inside those files are equal. All 110 student tensors match at
+both stops, to a maximum absolute difference of 0.000e+00
+(`results/pair_identity.tsv`). The two head trainings then match step for
+step: both curves start at 0.4780377745628357 and end at 0.21291811764240265.
+
+`arm5_combab` passes no `--moco-rep-keys`, so the loss reads no teacher
+output and the EMA copy has no gradient path into the student. The EMA
+schedule moves the teacher alone. The three other same-arm pairs run
+`arm6_v2_*`, which does pass `--moco-rep-keys`, and their students differ:
+2.377 for A4/B1, 3.103 for A3/B2, 5.025 for A2/B8, maximum absolute
+difference at bb40k.
+
+Read A1 and B3's student column as one model measured once and printed
+twice. The teacher column holds two models.
+
 ## Where the change lands
 
 ![horizon split, student head](plots/horizon_split_student.png)
