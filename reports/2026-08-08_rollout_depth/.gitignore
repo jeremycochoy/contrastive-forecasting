@@ -1,0 +1,4 @@
+# The dispatcher writes its own pid here. A pid is true for one process on
+# one machine, so committing it would record a number that is wrong the
+# moment the loop restarts.
+results/queue/dispatcher.pid
