@@ -54,11 +54,14 @@ while :; do
   cp -f "$RES"/r3_*.log "$DST/results/" 2>/dev/null
 
   # The coverage table, every round, on disk. `--md` is what the PR comment
-  # and the report both take.
+  # and the report both take. It is written to the RUN checkout first: the
+  # budget guard reads it from there when it posts its blocking comment, and
+  # the guard runs whether or not a checkout is in sync.
   CF373_R3="${CF373_R3:-/home/jupyter/cf373_r3/sync}" \
-    timeout 300 python3 "$HERE/r2_coverage.py" >"$DST/results/coverage.txt" 2>&1
+    timeout 300 python3 "$HERE/r2_coverage.py" >"$RES/coverage.txt" 2>&1
   CF373_R3="${CF373_R3:-/home/jupyter/cf373_r3/sync}" \
-    timeout 300 python3 "$HERE/r2_coverage.py" --md >"$DST/results/coverage.md" 2>&1
+    timeout 300 python3 "$HERE/r2_coverage.py" --md >"$RES/coverage.md" 2>&1
+  cp -f "$RES/coverage.txt" "$RES/coverage.md" "$DST/results/" 2>/dev/null
 
   # The report's tables read the score files, so a new score moves them.
   timeout 600 python3 "$HERE/tables.py" --results "$DST/results" \
