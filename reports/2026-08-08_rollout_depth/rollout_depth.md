@@ -120,7 +120,7 @@ Every value is inside ±0.0198, and the head-seed band is ±0.0384.
 
 ### Coverage
 
-The card names 14 cells. This study scored **13 of them**: A1, A2, A3, A4, B1, B2, B3, B4, B5, B6, B7, B9, B10. It never ran **1**: B8.
+The card names 14 cells. This study scored **14 of them**: A1, A2, A3, A4, B1, B2, B3, B4, B5, B6, B7, B8, B9, B10. Every cell carries a number.
 
 | cell | f-bearing term | EMA α | depths trained | stops scored |
 |---|---|---|---|---|
@@ -135,7 +135,7 @@ The card names 14 cells. This study scored **13 of them**: A1, A2, A3, A4, B1, B
 | B5 | pooled xshh_allt, floor subtracted | fixed 0.9 | k = 0, k = 3 | bb40k, bb100k |
 | B6 | L_align only | fixed 0.9 | k = 3 | bb40k, bb100k |
 | B7 | L_align only | fixed 0.9 | k = 3 | bb40k, bb100k |
-| B8 | L_align + CPC auxiliary | fixed 0.9 | **never ran** | — |
+| B8 | L_align + CPC auxiliary | fixed 0.9 | k = 3 | bb40k |
 | B9 | split L_pred + CPC auxiliary | fixed 0.9 | k = 0, k = 3 | bb40k, bb100k |
 | B10 | L_align + CPC auxiliary | fixed 0.9 | k = 3 | bb40k, bb100k |
 

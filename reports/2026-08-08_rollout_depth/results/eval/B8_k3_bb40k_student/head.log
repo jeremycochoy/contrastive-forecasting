@@ -1,0 +1,70 @@
+[08-12 19:59:19] [head B8_k3_bb40k_student] start enc=student steps=15000 seed=20260722 gpu=0 bb=bb_small_arm6_v2_nse_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_cf373k3_40k.pth
+  [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+  [head-train] auto-detected qk_norm=True from backbone checkpoint
+  [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+  [head-train] auto-detected patch_stats=none
+Backbone loaded from /root/cf373_runs/bb_small_arm6_v2_nse_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_cf373k3/bb_small_arm6_v2_nse_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_cf373k3_40k.pth (0 params, frozen, encoder=student)
+/usr/local/lib/python3.12/dist-packages/torch/nn/modules/transformer.py:392: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  warnings.warn(
+Forecasting head [transformer-q (2L H64 nhead8 causal)]: 109,456 trainable params
+Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+Schedule: constant warmup=0 decay_start=12000 final_ratio=0.1
+Loss CSV: /root/cf373_runs/eval/B8_k3_bb40k_student/qhead_B8_k3_bb40k_student_s20260722_losses.csv
+Data: MIX 100% HF + 0% synth, hf_bs=256, synth_bs=0, synth_seed=20280722, emit_labels=True
+
+Training for 15000 steps, bs=256, lr=0.001, forecast_len=16
+Checkpoints: /root/cf373_runs/eval/B8_k3_bb40k_student/qhead_B8_k3_bb40k_student_s20260722_*.pth
+[    500] loss=0.249455  ema_loss=0.251649  8.4 sps  ETA 0.5h
+  -> New best: /root/cf373_runs/eval/B8_k3_bb40k_student/qhead_B8_k3_bb40k_student_s20260722_best.pth (ema_loss=0.251649)
+[   1000] loss=0.249347  ema_loss=0.243935  9.6 sps  ETA 0.4h
+  -> New best: /root/cf373_runs/eval/B8_k3_bb40k_student/qhead_B8_k3_bb40k_student_s20260722_best.pth (ema_loss=0.243935)
+[   1500] loss=0.247465  ema_loss=0.239880  9.5 sps  ETA 0.4h
+  -> New best: /root/cf373_runs/eval/B8_k3_bb40k_student/qhead_B8_k3_bb40k_student_s20260722_best.pth (ema_loss=0.239880)
+[   2000] loss=0.235039  ema_loss=0.239060  9.5 sps  ETA 0.4h
+  -> New best: /root/cf373_runs/eval/B8_k3_bb40k_student/qhead_B8_k3_bb40k_student_s20260722_best.pth (ema_loss=0.239060)
+[   2500] loss=0.245428  ema_loss=0.237844  9.5 sps  ETA 0.4h
+  -> New best: /root/cf373_runs/eval/B8_k3_bb40k_student/qhead_B8_k3_bb40k_student_s20260722_best.pth (ema_loss=0.237844)
+[   3000] loss=0.231608  ema_loss=0.236277  9.6 sps  ETA 0.3h
+  -> New best: /root/cf373_runs/eval/B8_k3_bb40k_student/qhead_B8_k3_bb40k_student_s20260722_best.pth (ema_loss=0.236277)
+[   3500] loss=0.220913  ema_loss=0.235780  9.7 sps  ETA 0.3h
+  -> New best: /root/cf373_runs/eval/B8_k3_bb40k_student/qhead_B8_k3_bb40k_student_s20260722_best.pth (ema_loss=0.235780)
+[   4000] loss=0.250477  ema_loss=0.234848  9.8 sps  ETA 0.3h
+  -> New best: /root/cf373_runs/eval/B8_k3_bb40k_student/qhead_B8_k3_bb40k_student_s20260722_best.pth (ema_loss=0.234848)
+[   4500] loss=0.246555  ema_loss=0.234836  9.8 sps  ETA 0.3h
+  -> New best: /root/cf373_runs/eval/B8_k3_bb40k_student/qhead_B8_k3_bb40k_student_s20260722_best.pth (ema_loss=0.234836)
+[   5000] loss=0.239223  ema_loss=0.234144  9.8 sps  ETA 0.3h
+  -> New best: /root/cf373_runs/eval/B8_k3_bb40k_student/qhead_B8_k3_bb40k_student_s20260722_best.pth (ema_loss=0.234144)
+  -> Saved /root/cf373_runs/eval/B8_k3_bb40k_student/qhead_B8_k3_bb40k_student_s20260722_5k.pth
+[   5500] loss=0.232017  ema_loss=0.233688  9.9 sps  ETA 0.3h
+  -> New best: /root/cf373_runs/eval/B8_k3_bb40k_student/qhead_B8_k3_bb40k_student_s20260722_best.pth (ema_loss=0.233688)
+[   6000] loss=0.221288  ema_loss=0.232695  9.9 sps  ETA 0.3h
+  -> New best: /root/cf373_runs/eval/B8_k3_bb40k_student/qhead_B8_k3_bb40k_student_s20260722_best.pth (ema_loss=0.232695)
+[   6500] loss=0.229551  ema_loss=0.231957  10.0 sps  ETA 0.2h
+  -> New best: /root/cf373_runs/eval/B8_k3_bb40k_student/qhead_B8_k3_bb40k_student_s20260722_best.pth (ema_loss=0.231957)
+[   7000] loss=0.226936  ema_loss=0.232228  9.9 sps  ETA 0.2h
+[   7500] loss=0.234187  ema_loss=0.232318  9.8 sps  ETA 0.2h
+[   8000] loss=0.232772  ema_loss=0.232062  9.9 sps  ETA 0.2h
+[   8500] loss=0.236797  ema_loss=0.230837  9.9 sps  ETA 0.2h
+  -> New best: /root/cf373_runs/eval/B8_k3_bb40k_student/qhead_B8_k3_bb40k_student_s20260722_best.pth (ema_loss=0.230837)
+[   9000] loss=0.220086  ema_loss=0.230531  9.9 sps  ETA 0.2h
+  -> New best: /root/cf373_runs/eval/B8_k3_bb40k_student/qhead_B8_k3_bb40k_student_s20260722_best.pth (ema_loss=0.230531)
+[   9500] loss=0.223517  ema_loss=0.230985  9.9 sps  ETA 0.2h
+[  10000] loss=0.230656  ema_loss=0.230924  9.9 sps  ETA 0.1h
+  -> Saved /root/cf373_runs/eval/B8_k3_bb40k_student/qhead_B8_k3_bb40k_student_s20260722_10k.pth
+[  10500] loss=0.237618  ema_loss=0.229310  9.9 sps  ETA 0.1h
+  -> New best: /root/cf373_runs/eval/B8_k3_bb40k_student/qhead_B8_k3_bb40k_student_s20260722_best.pth (ema_loss=0.229310)
+[  11000] loss=0.226387  ema_loss=0.231146  10.0 sps  ETA 0.1h
+[  11500] loss=0.233726  ema_loss=0.231073  10.0 sps  ETA 0.1h
+[  12000] loss=0.226085  ema_loss=0.230209  10.0 sps  ETA 0.1h
+[  12500] loss=0.234920  ema_loss=0.230931  10.0 sps  ETA 0.1h
+[  13000] loss=0.227128  ema_loss=0.229416  10.0 sps  ETA 0.1h
+[  13500] loss=0.235855  ema_loss=0.230022  9.9 sps  ETA 0.0h
+[  14000] loss=0.244484  ema_loss=0.230759  9.8 sps  ETA 0.0h
+[  14500] loss=0.215761  ema_loss=0.229246  9.8 sps  ETA 0.0h
+  -> New best: /root/cf373_runs/eval/B8_k3_bb40k_student/qhead_B8_k3_bb40k_student_s20260722_best.pth (ema_loss=0.229246)
+[  15000] loss=0.237605  ema_loss=0.229836  9.7 sps  ETA 0.0h
+  -> Saved /root/cf373_runs/eval/B8_k3_bb40k_student/qhead_B8_k3_bb40k_student_s20260722_15k.pth
+
+Done in 0.4h. Best loss=0.229246 at step 14500
+[08-12 20:25:09] [head B8_k3_bb40k_student] rc=0
+[08-12 20:25:09] [head B8_k3_bb40k_student] DONE 440K
