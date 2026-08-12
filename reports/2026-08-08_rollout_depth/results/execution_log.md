@@ -540,3 +540,45 @@ head on a rented card pushes the end of the rental out by its own runtime.
 The dispatcher now offers elisa's cards to a head first and a rented card
 only when elisa has no VRAM. Backbones keep the rented-card-first order,
 and no card is ever left idle with the queue not empty.
+
+## 2026-08-12 16:30Z — the round-3 queue, checked end to end after a session drop
+
+Two dispatches before this one died within minutes of starting. The queue
+they left behind kept running, so this session adopted it rather than
+restarting it. Every part was found alive and was verified by its own
+output, not by the fact that a process exists:
+
+    q_run.sh        pid 22515   4 jobs placed, ADOPT after its own restart
+    sync_loop.sh    pid 4164566 tick 17:11, 12 files, sizes in the log
+    q_guard.sh      pid 4188854 floor $5.50, box 47557391
+    q_heartbeat.sh  pid 23744   hourly, last 16:08:54Z
+
+The box passes the gate the card set before any training:
+
+    device_count 2   torch 2.8.0+cu128   cuda 12.8
+
+Both cards carry two backbones each, 86% and 90% util, 10.8 GB of 24 GB per
+card. Four runs are on them:
+
+    B8   arm6_v2_nse_alignT_fix09      0 -> 100k    step   9,300
+    B10  arm6_v2_nse_alignS_fix09    100k -> 200k   step 109,000
+    A2   arm6_v2_nse_alignT_sched    100k -> 200k   step 108,700
+    B4   arm5_combab_alignT_fix09    100k -> 200k   step 108,700
+
+2.7 steps/s per run, so a 100k leg takes 10.3 h. Nine backbone jobs remain
+in the queue and four cards can hold four of them, so the backbone column
+finishes about 22 h from now: $17.8 at $0.8144/h. Credit is $27.12.
+
+**elisa's two cards cannot take a job right now.** 1,639 MiB and 5,530 MiB
+free against the 7,000 MiB a backbone needs and the 8,500 MiB a head needs.
+Other projects hold the rest. The dispatcher is right to leave them out, and
+it will place work on them the moment the VRAM appears. No card of ours is
+idle: the four rented slots are full and the queue's remaining GPU jobs are
+either waiting for a slot or waiting for the backbone they read.
+
+**The coverage table said `plan` for work that is on a card.** It reads the
+head and the eval, which is right, but a head whose backbone is training now
+is not the same as a head nobody has started. It now walks each head's
+dependency chain and marks `bb-run` when a running backbone job sits above
+it. B8's bb40k pair reads `bb-run` correctly: it hangs off `bb_B8_100k`,
+which writes the 40k checkpoint on the way past it.

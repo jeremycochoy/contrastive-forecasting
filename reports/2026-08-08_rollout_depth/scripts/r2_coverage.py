@@ -10,7 +10,8 @@ else is missing, and the table names the stage that blocks it, so a missing
 number can never read as a covered one:
 
     done    the number is in hand
-    run     training or eval is running now
+    run     this number's own head or eval is running now
+    bb-run  the backbone this number waits on is training now
     MISS-e  head trained, GIFT-Eval not run
     MISS-h  backbone at that stop exists, head not trained
     MISS-t  backbone not trained to that stop
@@ -148,33 +149,58 @@ def _job(jid):
 def planned():
     """Every deliverable the round-3 queue covers, and what is in flight.
 
-    Returns (running, queued) as sets of (cell, stop_k, enc).
+    Returns (running, backbone_running, queued) as sets of (cell, stop_k, enc).
 
     A cell whose backbone runs now does NOT make its every stop `running`.
     Round 2's version read only the training cell, so B8 — queued to 100k
     and no further — reported 40k and 200k as running, and a stop nobody
     was going to produce read like one in progress. Coverage is read off
     the job that produces the number: the head and the eval.
+
+    A number whose head has not started, but whose backbone is on a card
+    right now, is still work in flight, and reading it as `plan` hides four
+    busy GPUs. So the dependency chain of each head is walked: if a running
+    backbone job sits anywhere above it, the number is `bb-run`. The chain
+    is what decides, not the cell — B8's 40k head hangs off `bb_B8_100k`,
+    which does produce that stop's checkpoint on its way past it.
     """
-    run, plan = set(), set()
+    run, bb_run, plan = set(), set(), set()
+    dep, kind = {}, {}
     q = os.path.join(HERE, "q_queue.tsv")
     if os.path.exists(q):
         for line in open(q):
             if line.startswith("#") or not line.strip():
                 continue
-            j = _job(line.split("\t")[0].strip())
+            f = [x.strip() for x in line.split("\t")]
+            if len(f) < 6:
+                continue
+            dep[f[0]], kind[f[0]] = f[5], f[1]
+            j = _job(f[0])
             if j and j[0] in ("hd", "ev") and j[3]:
                 plan.add((j[1], j[2], j[3]))
+    live = set()
     for p in glob.glob(os.path.join(RES, "queue", "*.state")):
-        if open(p).read().strip() != "running":
-            continue
-        j = _job(os.path.basename(p)[:-len(".state")])
+        if open(p).read().strip() == "running":
+            live.add(os.path.basename(p)[: -len(".state")])
+    for jid in live:
+        j = _job(jid)
         if j and j[0] in ("hd", "ev") and j[3]:
             run.add((j[1], j[2], j[3]))
-    return run, plan
+    for jid in dep:
+        j = _job(jid)
+        if not (j and j[0] == "hd" and j[3]) or jid in live:
+            continue
+        seen, cur = set(), dep.get(jid, "-")
+        while cur and cur != "-" and cur not in seen:
+            seen.add(cur)
+            if cur in live and kind.get(cur) == "bb":
+                bb_run.add((j[1], j[2], j[3]))
+                break
+            cur = dep.get(cur, "-")
+    return run, bb_run, plan
 
 
-def state(cell, stop, enc, run, plan, stopped):
+def state(cell, stop, enc, run, bb_run, plan, stopped):
     key = (cell, stop, enc)
     if score(cell, stop, enc) is not None:
         return "done"
@@ -182,6 +208,8 @@ def state(cell, stop, enc, run, plan, stopped):
         return "stop"
     if key in run:
         return "run"
+    if key in bb_run:
+        return "bb-run"
     if key in plan:
         return "plan"
     if head_exists(cell, stop, enc):
@@ -234,14 +262,14 @@ def main():
     ap.add_argument("--md", action="store_true", help="Markdown table")
     args = ap.parse_args()
 
-    run, plan = planned()
+    run, bb_run, plan = planned()
     stopped = read_stopped()
     rows, miss = [], 0
     for c in CELLS:
         cells = []
         for s in STOPS:
             for e in ENCS:
-                st = state(c, s, e, run, plan, stopped)
+                st = state(c, s, e, run, bb_run, plan, stopped)
                 v = score(c, s, e)
                 cells.append(f"{v:.4f}" if v is not None else st)
                 if st not in ("done", "stop"):
@@ -260,11 +288,12 @@ def main():
             print("  ".join([f"{c:<8}"] + [f"{x:<8}" for x in cs]))
     print()
     total = len(CELLS) * len(STOPS) * len(ENCS)
-    n_run = sum(1 for _c, cs in rows for x in cs if x == "run")
+    n_run = sum(1 for _c, cs in rows for x in cs if x in ("run", "bb-run"))
     n_plan = sum(1 for _c, cs in rows for x in cs if x == "plan")
     print(f"deliverables {total}   done {total - miss}   "
           f"running {n_run}   queued {n_plan}   NOT STARTED {miss - n_run - n_plan}")
-    print("done=number in hand  run=running now  plan=queued, not started  "
+    print("done=number in hand  run=own head/eval running  "
+          "bb-run=backbone training now  plan=queued, not started  "
           "MISS-e=eval not run  MISS-h=head not trained  "
           "MISS-t=backbone not trained  stop=not a deliverable this round")
     return 0
