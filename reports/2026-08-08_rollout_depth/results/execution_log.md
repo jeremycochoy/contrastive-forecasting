@@ -480,3 +480,52 @@ was started before `skip_heads` existed and kept running its old text, so
 the launcher's environment never carried the flag. The default now lives in
 `r2_cell_worker.sh`, keyed on the cell: the box is the only place that knows
 which cell it is, so it decides.
+
+## 2026-08-12 11:48 — round 2's evals were computed and never written down
+
+Round 2 trained 13 of the 14 cells to 40k and to 100k on 2026-08-11, and
+trained both heads at both stops. The eval driver then ran on elisa and
+computed all 97 configs for most of those heads. It died before it wrote
+their score files, so the study held 44 finished evals and 4 numbers.
+
+The pipeline is idempotent at the config level, so restarting the driver
+cost nothing: `--resume` finds every config on disk, computes none of them
+again, and the aggregate pass writes the score. 40 of the 44 numbers landed
+in 25 seconds. The 4 that had not finished ran to completion here.
+
+`r2_coverage.py` now prints the deliverable against what is done, one row
+per cell, three stops, two heads. A number is `done` only when its score
+file holds a value; everything else names the stage that blocks it. It runs
+at the end of every round.
+
+## 2026-08-12 11:52 — A1 and B3 share a student, by construction
+
+A1 and B3 scored the same to four decimals at both stops on the student
+head, and differently on the teacher head. The two backbone files differ in
+bytes. Comparing them tensor by tensor: 110 of 162 are bit-identical and all
+52 that differ are `teacher_*`.
+
+The two cells are `arm5 combab` with `L_align` on the student, and their
+only difference is the EMA schedule. That schedule moves the teacher. For
+this arm the teacher enters no term of the student's gradient — `combab`
+sets `--cpc-infonce-weight 0.0` and the align target is the student — so
+the student trains identically under both regimes.
+
+So A1 and B3 are one measurement on the student head and two on the teacher
+head. This is a property of the objective, not a launcher fault: the
+schedule flag is present in `run_leg_k.sh` and absent from `run_arm_k.sh`,
+and the teacher weights show it took effect.
+
+## 2026-08-12 11:55 — the 200k round, and the head each cell keeps
+
+The extend rule, applied per head against that head's own bb40k, keeps 8 of
+the 13 decided cells: A2, A3, B2, B4, B6 and B10 on both heads, A4 on the
+student and B1 on the teacher. A1, B3, B5, B7 and B9 stop at 100k.
+
+`r2_cell_worker.sh` now reads `HEAD_ENCS`. On A4 and B1 the 200k box trains
+one head, not two: the rule ended the other, so its 200k number is not a
+deliverable and training it would spend half an hour of a rented card.
+
+`r2_watchdog.sh` relaunches a dead box with the stops from that box's own
+row rather than the session default. A 200k box recovered with
+"40000 100000" would pay to re-run two stops the study already holds.

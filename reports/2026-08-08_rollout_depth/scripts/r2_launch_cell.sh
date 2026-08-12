@@ -119,6 +119,7 @@ fi
 # bearing: ssh holds the session open until every descriptor closes, so a
 # backgrounded remote job that inherits one hangs the caller forever.
 rsh "(setsid env K=$K SKIP_HEAD_STOPS='${SKIP_HEAD_STOPS:-}' \
+      HEAD_ENCS='${HEAD_ENCS:-}' \
       bash /root/cf/reports/2026-08-08_rollout_depth/scripts/r2_cell_worker.sh \
       $CELL $STOPS </dev/null >/root/worker.log 2>&1 &) ; exit 0" >/dev/null 2>&1 || {
   say "ABORT: could not start the worker"; exit 6; }

@@ -40,6 +40,7 @@ say "packing code"
     experiments/2026-04-27_freq-embedding/scripts/train.py \
     experiments/2026-04-13_gift-eval/scripts/train_forecasting_head.py \
     reports/2026-08-08_rollout_depth/scripts \
+    scripts \
     && mv -f "$STAGE/cf373_code.tgz.$$" "$STAGE/cf373_code.tgz"
 ) 6>"$STAGE/.pack.lock" || exit 3
 
@@ -76,6 +77,10 @@ cd /root/cf && PYTHONPATH=/root/cf python3 \
 # The head trainer is on the box in round 2, so it gets the same gate.
 cd /root/cf && PYTHONPATH=/root/cf python3 \
   experiments/2026-04-13_gift-eval/scripts/train_forecasting_head.py --help >/dev/null || exit 15
+# `run_arm_lalign_k.sh` — the launcher four teacher-align cells run — sources
+# the repo's shared checkpoint resolver and aborts without it. B2 and B4 got
+# as far as `ABORT: no checkpoint resolver` before the tarball carried it.
+test -f /root/cf/scripts/resolve_eval_checkpoint.sh || exit 16
 nvidia-smi --query-gpu=compute_mode,name --format=csv,noheader
 echo BOOTSTRAP_OK
 BOOT
@@ -86,7 +91,7 @@ for _ in $(seq 1 80); do
   if rsh 'grep -q BOOTSTRAP_OK /root/bootstrap.log' 2>/dev/null; then
     say "OK"; rsh 'tail -n 3 /root/bootstrap.log'; exit 0
   fi
-  if rsh 'grep -qE "^\+ exit (9|1[0-5])$" /root/bootstrap.log' 2>/dev/null; then
+  if rsh 'grep -qE "^\+ exit (9|1[0-6])$" /root/bootstrap.log' 2>/dev/null; then
     say "FAILED"; rsh 'tail -n 25 /root/bootstrap.log'; exit 5
   fi
   sleep 15

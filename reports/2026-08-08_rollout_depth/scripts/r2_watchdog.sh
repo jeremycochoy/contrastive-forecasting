@@ -70,7 +70,17 @@ while :; do
     tmp="$BOXES.tmp.$$"
     grep -v -P "^$cell\t" "$BOXES" > "$tmp" && mv -f "$tmp" "$BOXES"
     strike[$cell]=0
-    nohup bash "$HERE/r2_launch_cell.sh" "$cell" $STOPS \
+    # The stops THIS box was given, from its own row, not the session
+    # default. A cell on its 200k leg relaunched with "40000 100000" would
+    # re-run two stops it has already delivered and pay a rented card for
+    # both. Same for the heads: the extend rule keeps one head on some
+    # cells, and the relaunch must keep the same one.
+    relaunch_stops="${stops:-$STOPS}"
+    relaunch_encs="$(awk -F'\t' -v c="$cell" '$1==c && $4=="extend" {print $3}' \
+                     "$RES/r2_extend.tsv" 2>/dev/null | sort | tr '\n' ' ' | sed 's/ $//')"
+    case "$relaunch_stops" in *200000*) : ;; *) relaunch_encs="" ;; esac
+    HEAD_ENCS="$relaunch_encs" \
+      nohup bash "$HERE/r2_launch_cell.sh" "$cell" $relaunch_stops \
       > "$RES/r2_relaunch_$cell.out" 2>&1 &
     log "$cell relaunch started (pid $!)"
   done < "$BOXES"

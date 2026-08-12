@@ -130,12 +130,22 @@ for (( a = 1; a <= TRIES; a++ )); do
   # Every offer of one search, not just the first. The listing churns in
   # seconds, so re-searching per offer spends the whole budget of attempts
   # racing the same disappearing row.
-  # Round 2 pins the GPU class. The cells run 60k to 100k steps each and the
-  # 5090 measured 136 ms/step against the 4090's 443 ms on this study's own
-  # runs, so a class filter is worth more than the price spread.
+  # Round 2 pins the GPU class AND the CPU. The backbone is d_model = 64 at
+  # batch 64: the kernels are tiny and the step rate is set by how fast one
+  # CPU core can launch them, not by the card. Measured on identical RTX
+  # 5090s, same arm, same code:
+  #
+  #   AMD Ryzen 7 7800X3D   5.6 - 6.7 steps/s
+  #   AMD EPYC 7B13         3.3 steps/s
+  #   AMD EPYC 7452         1.1 steps/s
+  #
+  # Six times, on the cell whose pooled `xshh_allt` term chunks its way
+  # through the biggest loop. `vastrun-search` has no CPU filter, so the
+  # hardware columns are filtered here.
   read -r -a search_args <<<"${VAST_SEARCH_ARGS:---max-bid 0.60}"
-  mapfile -t offers < <(timeout 200 vastrun-search "${search_args[@]}" --limit "${VAST_SEARCH_LIMIT:-20}" 2>/dev/null \
-        | awk 'NR>1 && $1 ~ /^[0-9]+$/ {print $1}')
+  mapfile -t offers < <(timeout 200 vastrun-search "${search_args[@]}" --hardware \
+          --limit "${VAST_SEARCH_LIMIT:-20}" 2>/dev/null \
+        | awk -v re="${VAST_CPU_RE:-.}" 'NR>1 && $1 ~ /^[0-9]+$/ && $0 ~ re {print $1}')
   [ "${#offers[@]}" -gt 0 ] || { say "attempt $a: no offer matched"; sleep 20; continue; }
   say "attempt $a: ${#offers[@]} offer(s)"
   for off in "${offers[@]}"; do

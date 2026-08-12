@@ -72,8 +72,14 @@ for steps in "$@"; do
       continue ;;
   esac
 
-  # Both heads of this stop, in the background, beside the next wave.
-  for enc in student teacher; do
+  # The heads of this stop, in the background, beside the next wave.
+  #
+  # HEAD_ENCS is normally both. It narrows on an extension the card's rule
+  # ran with one head down: "extend and keep that head". The head the rule
+  # stopped is not a deliverable at the deeper stop, and training it would
+  # spend half an hour of the card producing a number the rule already
+  # ended.
+  for enc in ${HEAD_ENCS:-student teacher}; do
     ( bash "$HERE/r2_head_box.sh" "$CELL" "$K" "$steps" "$enc" ) &
     head_pids+=($!)
     sleep 20   # stagger the two allocation ramps
