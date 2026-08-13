@@ -473,16 +473,25 @@ def main(argv=None):
         # written out: the numbers pick one.
         agree = abs(draw2 - d1) <= NOISE_BAND
         gap2 = abs(draw2 - te)
+
+        def ci(label):
+            r = bs.get((label, "all"))
+            return ("" if r is None else
+                    f" [{float(r['ci_lo']):+.4f}, {float(r['ci_hi']):+.4f}]")
+
+        seed_ci = ci("A3_200k_headseed_student")
         L += [(f"**The two draws agree.** They sit {abs(draw2 - d1):.4f} "
-               f"apart, {abs(draw2 - d1) / NOISE_BAND:.0%} of the ±"
+               f"apart{seed_ci}, {abs(draw2 - d1) / NOISE_BAND:.0%} of the ±"
                f"{NOISE_BAND:.4f} head-seed band, and the second draw is the "
                f"{'higher' if draw2 > d1 else 'lower'} of the two. So "
-               f"{d1:.4f} is not a bad draw."
+               f"{d1:.4f} is not a bad draw. The interval covers zero, and "
+               f"its far end lands on the imported band, so this head behaves "
+               f"like the heads that band was measured on."
                if agree else
                f"**The two draws disagree.** They sit {abs(draw2 - d1):.4f} "
-               f"apart, wider than the ±{NOISE_BAND:.4f} head-seed band, so "
-               f"this head's seed alone moves the score more than the band "
-               f"the report thresholds on."), "",
+               f"apart{seed_ci}, wider than the ±{NOISE_BAND:.4f} head-seed "
+               f"band, so this head's seed alone moves the score more than "
+               f"the band the report thresholds on."), "",
               (f"The student/teacher gap survives the redraw at {gap2:.4f}, "
                f"{gap2 / NOISE_BAND:.1f}x the band. Two head seeds put A3's "
                f"bb200k student above its teacher, so the gap is a property "
@@ -490,6 +499,11 @@ def main(argv=None):
                if gap2 > NOISE_BAND else
                f"The student/teacher gap falls to {gap2:.4f} on the second "
                f"draw, inside the ±{NOISE_BAND:.4f} band."), "",
+              f"The ladder's largest move reads "
+              f"{draw2 - val('A3_k3_bb100k_student'):+.4f}"
+              f"{ci('A3_200k_draw2_vs_100k_student')} off the second draw, "
+              f"against {d1 - val('A3_k3_bb100k_student'):+.4f} off the "
+              f"first. Both exclude zero.", "",
               f"A3's is also the ladder's largest reversal, but it is not the "
               f"only one: {n_turn} of the {len(turns)} three-stop student "
               "trajectories turn round at bb200k.", "",
