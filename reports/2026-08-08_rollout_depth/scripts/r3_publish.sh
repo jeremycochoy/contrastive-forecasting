@@ -52,6 +52,27 @@ while :; do
   cp -f "$RES"/q_*.log "$RES"/execution_log.md "$DST/results/" 2>/dev/null
   cp -f "$RES"/queue/*.state "$RES"/queue/*.machine "$DST/results/queue/" 2>/dev/null
   cp -f "$RES"/r3_*.log "$DST/results/" 2>/dev/null
+  cp -f "$RES"/repro_eval_*.log "$DST/results/" 2>/dev/null
+
+  # The A1/B3 reproductions do NOT go through the round-3 tree: each one runs
+  # out of THIS results directory and writes its 97 rows here, so
+  # `r3_collect.sh`, which reads `$CF373_R3/eval/`, never sees them. Without
+  # this the branch would carry the four reproduction SCORES and none of the
+  # per-config numbers behind them. Copy only a complete eval: 97 rows plus
+  # the header.
+  for d in "$RES"/eval/*rep*/; do
+    [ -d "$d" ] || continue
+    csv="$d/gift/all_results.csv"
+    [ -f "$csv" ] || csv="$d/all_results.csv"
+    [ -f "$csv" ] || continue
+    [ "$(wc -l <"$csv")" -eq 98 ] || continue
+    tag="$(basename "$d")"
+    mkdir -p "$DST/results/eval/$tag"
+    cp -f "$csv" "$DST/results/eval/$tag/all_results.csv" 2>/dev/null
+    for f in gift/summary.txt summary.txt eval_local.log head.log backbone.txt; do
+      [ -f "$d/$f" ] && cp -f "$d/$f" "$DST/results/eval/$tag/$(basename "$f")"
+    done
+  done
 
   # The scripts, too. The queue runs out of THIS tree, so a fix made while
   # the queue is live is made here, and until now nothing carried it into
