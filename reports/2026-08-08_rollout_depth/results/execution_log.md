@@ -1477,3 +1477,52 @@ holds a job for it. It does not.
 $11.0 at $0.8144/h. The box is needed until B1's head pair lands, about
 2.6 h and about $2.1, which leaves about $14.7. A4 trains on elisa and every
 eval runs on elisa's cores, so both cost nothing.
+
+## 2026-08-13 05:40Z — session nine, round 1: A4 moves to the card that read 0%
+
+**The idle card had exactly one job it could take, and it was the tail.**
+The box's card 0 read 1 MiB and 0% util. Card 1 carried A3 and B1. A4 ran
+on elisa's card 1, beside a 16 GB job from issue #454 that has held that
+card for nine hours. Measured over 302 s:
+
+    A3  box card 1   197,000   2.98 sps   left  3,000
+    B1  box card 1   185,700   3.31 sps   left 14,300
+    A4  elisa card 1 151,200   2.32 sps   left 48,800   ETA 5.85 h
+
+A4 was the round's tail by three hours, and it was the slowest process on
+the slowest card. Every other queued job waits on a backbone that is still
+training, so A4 was the only work the idle card could take.
+
+**The move used the dispatcher, not a hand launch.** Kill the trainer, let
+the dispatcher reap rc=1 and free the slot, clear the markers, set the state
+to `queued`. The dispatcher then staged the 140k checkpoint and its
+optimizer to the box and started A4 on card 0 at 05:39:50Z. It resumed from
+`cf393_arm6_v2_combab_alignS_cf373k3_140k.pth` and writes an `_r2` infix,
+which `cf373_bb_ckpt`'s glob already tolerates. The restart repeats 11,600
+steps. The sync loop walks the whole `/root/cf373_runs` root in one find, so
+the new path needed no change.
+
+**The gain is 43%, not the 160% the card-0 idle suggested.** Measured over
+422 s after the move:
+
+    A4  box card 0   141,600   3.32 sps   left 58,400   ETA 4.89 h
+
+Card 0 reads 26-36% util at that rate, so A4 is data-bound, not
+compute-bound. Its trainer carries both HF token variables, so this is not
+the anonymous-stream throttle. Card 1's 6.4 sps is two data-bound processes
+interleaved, not one saturated card, so no box card can give a single run
+more than about 3.3 sps. A4 lands about 50 minutes earlier than it would
+have on elisa, on a card that was otherwise earning nothing.
+
+**Where that puts the round.** A3 ~05:52Z, B1 ~06:50Z, A4 ~10:35Z. Heads
+follow at ~50 min. Evals measure 1.26-2.12 h, four at a time. Last number,
+A4 student, about 13:00Z.
+
+**The eval cap is not on the critical path.** `q_run.sh` holds MAX_EVALS=4
+against `eval_slot.sh`'s 5. A4's eval is gated by its head at ~11:25Z, and a
+slot frees at ~09:00Z. Raising the cap would need a dispatcher restart and
+would move nothing, so the dispatcher was left alone.
+
+**Spend.** Credit $16.4, box $0.8144/h, box spent $11.79 over 14.5 h. The
+box is needed until A4's head lands, about 5.7 h and about $4.6, which
+leaves about $11.8 against the $5.50 floor.

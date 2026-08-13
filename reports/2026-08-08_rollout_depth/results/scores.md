@@ -11,7 +11,7 @@ The card names 14 cells. This study scored **14 of them**: A1, A2, A3, A4, B1, B
 | B1 | L_align only | fixed 0.9 | k = 0, k = 3 | bb40k, bb100k |
 | B2 | L_align only | fixed 0.9 | k = 3 | bb40k, bb100k |
 | B3 | L_align only | fixed 0.9 | k = 3 | bb40k, bb100k |
-| B4 | L_align only | fixed 0.9 | k = 3 | bb40k, bb100k |
+| B4 | L_align only | fixed 0.9 | k = 3 | bb40k, bb100k, bb200k |
 | B5 | pooled xshh_allt, floor subtracted | fixed 0.9 | k = 0, k = 3 | bb40k, bb100k |
 | B6 | L_align only | fixed 0.9 | k = 3 | bb40k, bb100k |
 | B7 | L_align only | fixed 0.9 | k = 3 | bb40k, bb100k |
@@ -23,7 +23,7 @@ Stops scored: bb40k, bb100k, bb200k. The card's extend rule reads a cell's bb40k
 
 ### The stop ladder: what the second 100,000 steps buys
 
-Δ is bb200k minus bb100k, so a negative number is an improvement: GM-Relative MASE is a ratio against seasonal-naive and lower is better. Of the 3 extended measurements in hand, **1 improved** at bb200k and 2 got worse. The largest gain is A2 teacher, -0.0014.
+Δ is bb200k minus bb100k, so a negative number is an improvement: GM-Relative MASE is a ratio against seasonal-naive and lower is better. Of the 5 extended measurements in hand, **2 improved** at bb200k and 3 got worse. The largest gain is B10 teacher, -0.0059.
 
 | cell | head | bb40k | bb100k | bb200k | Δ | % | note |
 |---|---|---|---|---|---|---|---|
@@ -41,7 +41,7 @@ Stops scored: bb40k, bb100k, bb200k. The card's extend rule reads a cell's bb40k
 | B2 | teacher | 1.4041 | 1.3117 | — | — | — |  |
 | B3 | student | 1.1305 | 1.1676 | — | — | — | the extend rule held this cell at 100k |
 | B3 | teacher | 1.1343 | 1.1618 | — | — | — | the extend rule held this cell at 100k |
-| B4 | student | 1.3334 | 1.2804 | — | — | — |  |
+| B4 | student | 1.3334 | 1.2804 | 1.3182 | +0.0378 | +3.0% |  |
 | B4 | teacher | 1.3339 | 1.2748 | — | — | — |  |
 | B5 | student | 1.3204 | 1.3383 | — | — | — | the extend rule held this cell at 100k |
 | B5 | teacher | 1.3216 | 1.3428 | — | — | — | the extend rule held this cell at 100k |
@@ -54,7 +54,7 @@ Stops scored: bb40k, bb100k, bb200k. The card's extend rule reads a cell's bb40k
 | B9 | student | 1.2791 | 1.3299 | — | — | — | the extend rule held this cell at 100k |
 | B9 | teacher | 1.2728 | 1.3094 | — | — | — | the extend rule held this cell at 100k |
 | B10 | student | 1.2669 | 1.2403 | 1.2624 | +0.0221 | +1.8% |  |
-| B10 | teacher | 1.2730 | 1.2499 | — | — | — |  |
+| B10 | teacher | 1.2730 | 1.2499 | 1.2440 | -0.0059 | -0.5% |  |
 
 ### Reproduction of the published k = 0
 

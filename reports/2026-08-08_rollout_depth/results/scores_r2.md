@@ -19,6 +19,7 @@
 | B3 | 100k | 1.1676 | 1.2456 | -0.0780 | 1.1618 | — | — |
 | B4 | 40k | 1.3334 | 1.2728 | +0.0606 | 1.3339 | — | — |
 | B4 | 100k | 1.2804 | 1.3678 | -0.0874 | 1.2748 | — | — |
+| B4 | 200k | 1.3182 | — | — | — | — | — |
 | B5 | 40k | 1.3204 | 1.2748 | +0.0456 | 1.3216 | — | — |
 | B5 | 100k | 1.3383 | 1.3219 | +0.0164 | 1.3428 | — | — |
 | B6 | 40k | 1.2297 | 1.3623 | -0.1326 | 1.2184 | — | — |
@@ -31,9 +32,9 @@
 | B9 | 100k | 1.3299 | 1.4548 | -0.1249 | 1.3094 | — | — |
 | B10 | 40k | 1.2669 | 1.3791 | -0.1122 | 1.2730 | — | — |
 | B10 | 100k | 1.2403 | 1.3914 | -0.1511 | 1.2499 | — | — |
-| B10 | 200k | 1.2624 | — | — | — | — | — |
+| B10 | 200k | 1.2624 | — | — | 1.2440 | — | — |
 
-30 of 42 (cell, stop) pairs measured. `S` is the student-encoder head, `T` the teacher-encoder head. A `—` in a `k = 0` column means the parent report published no such number: group B's two parents publish the student head only, so a group-B teacher row carries a value and no delta.
+31 of 42 (cell, stop) pairs measured. `S` is the student-encoder head, `T` the teacher-encoder head. A `—` in a `k = 0` column means the parent report published no such number: group B's two parents publish the student head only, so a group-B teacher row carries a value and no delta.
 
 ### Stop reasons
 
@@ -56,6 +57,7 @@
 | B3 | 100k | no | — | neither head down (S +0.0371, T +0.0275) — stop |
 | B4 | 40k | yes | student, teacher | 40k and 100k are unconditional |
 | B4 | 100k | yes | student, teacher | both heads down (S -0.0530, T -0.0591) — extend, keep both |
+| B4 | 200k | no | — | ceiling: 200k is the card's last stop (S +0.0378) |
 | B5 | 40k | yes | student, teacher | 40k and 100k are unconditional |
 | B5 | 100k | no | — | neither head down (S +0.0179, T +0.0212) — stop |
 | B6 | 40k | yes | student, teacher | 40k and 100k are unconditional |
@@ -68,7 +70,7 @@
 | B9 | 100k | no | — | neither head down (S +0.0508, T +0.0366) — stop |
 | B10 | 40k | yes | student, teacher | 40k and 100k are unconditional |
 | B10 | 100k | yes | student, teacher | both heads down (S -0.0266, T -0.0231) — extend, keep both |
-| B10 | 200k | no | — | ceiling: 200k is the card's last stop (S +0.0221) |
+| B10 | 200k | no | teacher | ceiling: 200k is the card's last stop (S +0.0221, T -0.0059) |
 
 The rule is the card's: per head against its own previous stop, both heads down extends and keeps both, one head down extends and keeps that head, neither down stops. 40k and 100k run unconditionally, so 40k decides nothing. Down means lower GM-Relative MASE.
 

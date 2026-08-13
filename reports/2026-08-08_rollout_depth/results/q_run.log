@@ -119,3 +119,10 @@
 [08-13 06:37:57] [q] FAIL bb_A4_200k rc=1 (loc:1)
 [08-13 06:39:08] [q] STAGE A4 -> /root/cf373_runs/arm6_v2_combab_alignS/leg_200k
 [08-13 06:39:52] [q] START bb_A4_200k bb A4 stop=200000  on rem:0
+[08-13 06:44:04] [q] DONE ev_B10_200k_teacher (elisa cpu)
+[08-13 06:44:04] [q] START ev_B6_200k_teacher eval on elisa cores
+[08-13 06:45:07] [q] DONE ev_B4_200k_student (elisa cpu)
+[08-13 06:45:07] [q] START ev_B2_200k_student eval on elisa cores
+[08-13 06:50:36] [q] DONE bb_A3_200k (rem:1)
+[08-13 06:50:49] [q] START hd_A3_200k_student head A3 stop=200000 student on rem:0
+[08-13 06:52:12] [q] START hd_A3_200k_teacher head A3 stop=200000 teacher on rem:1
