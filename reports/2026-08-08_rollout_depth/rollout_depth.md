@@ -57,6 +57,13 @@ does not rest on the box.
 Each 100,000-step extend cost about 9.5 h of one RTX 4090 at about 2.9
 steps/s.
 
+![stop ladder](plots/stop_ladder.png)
+
+*The same numbers as levels, one panel per cell, with the 40k → 100k leg the
+figure above leaves out. The dashed line is the parent report's published
+`k = 0`. That baseline trained on another machine for most cells, so read
+the solid curves against each other and not against the dashes.*
+
 ## A1 and B3 hold one student, so the student column holds one number
 
 A1 and B3 run `arm5_combab`, align to the student, and differ only in the
