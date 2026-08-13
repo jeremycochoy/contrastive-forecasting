@@ -1526,3 +1526,51 @@ would move nothing, so the dispatcher was left alone.
 **Spend.** Credit $16.4, box $0.8144/h, box spent $11.79 over 14.5 h. The
 box is needed until A4's head lands, about 5.7 h and about $4.6, which
 leaves about $11.8 against the $5.50 floor.
+
+## 2026-08-13 06:10Z — session ten, round 1: the round runs, nothing moved by hand
+
+**Every process the round needs is alive.** Dispatcher `q_run.sh` pid 452409,
+9.5 h up. Supervisor, watchdog, budget guard at floor $5.50, heartbeat, sync
+loop, publisher `r3_publish.sh` on a 20 min tick, last commit 64b0ff4c at
+07:01 local. Four GPU jobs hold the box's two cards, four evals hold elisa's
+cores.
+
+    A4  bb 200k   box card 0   143,000/200,000   3.2 sps   ETA ~10:45Z
+    B1  bb 200k   box card 1   189,600/200,000   2.9 sps   ETA ~06:55Z
+    A3  head pair box card 0+1 started 05:50Z, 05:52Z
+    evals B2·S B4·T B6·S B6·T on elisa cores
+
+**No card is idle and no queued job can start.** Every remaining head waits
+on a backbone that is still training. Elisa's two cards are full: card 0 at
+22.5 GB, card 1 at 16 GB under issue #454. The rule against an idle GPU binds
+when the queue holds a job for that GPU. It does not.
+
+**Sync verified by `ls`, not by the log.** Every file class lands: backbone
+5,086 MB and its optimizer 5,689 MB at 06:21Z, A3's 200k backbone 5,073 MB
+and optimizer 5,657 MB at 06:54Z, head 439 MB and optimizer 882 MB at 06:53Z,
+losses CSV, run logs at 06:55Z.
+
+**Naming audited again, file by file.** All 56 cell-stop-head triples at 40k
+and 100k exist as `score_<CELL>_k3_bb<stop>k_<head>.txt`. Zero missing. Every
+remaining non-standard name is a k0, k1, aw4 or seed-2 control, or the round-1
+alias `score_G6_B1_k3_bb40k_*`, whose two numbers are already under B1's own
+standard name.
+
+**A1/B3 re-checked against the launchers, not the memo.** `run_leg_k.sh`
+`arm5_combab_alignS` and `run_arm_k.sh` `arm5_combab` carry the same loss:
+`cosine_similarity_batch_rep_only`, `--align-loss-weight 1.0`, `--tau-rep 1.0`,
+`--cpc-infonce-weight 0.0`, no `--moco-rep-keys`, align target student. The
+two differ only in EMA: A1 ramps τ 0.9 → 1.0 over 100k, B3 holds 0.9. The
+teacher never enters that loss, so the EMA regime cannot move the student.
+Equal student scores are the correct result of the recipe, not a path bug.
+The bytes agree: four head files at four cell-id paths, four md5 sums, student
+weights equal at 110/110 tensors and max abs diff 0, teachers differing.
+
+**All four same-arm pairs now have a verdict.** A2/B8 was the last one open,
+because B8 had no checkpoint until this round. It differs on every side:
+student, teacher and both heads, max abs diff 1.8 to 9.5. A4/B1 and A3/B2
+differ. A1/B3 is the one pair that shares a student, and the report says so.
+
+**Spend.** Credit $15.92, box $0.8144/h, box spent $12.14 over 14.9 h. The box
+is needed until A4's head lands, about 5.4 h and about $4.4, which leaves
+about $11.5 against the $5.50 floor.
