@@ -2313,3 +2313,37 @@ the comment was the number itself.
 1.2001 and k = 3's 1.0948. The re-weighting carries -0.0519
 [-0.0987, -0.0066] and the extra horizons carry -0.0534 [-0.0874, -0.0237].
 Both intervals exclude zero.
+
+## 2026-08-13 22:10Z — session twenty-four: the close is checked, and nothing is started
+
+**Both gap runs are on disk and the comment on the PR matches the branch.**
+This session trained nothing, evaluated nothing and rented nothing. It read
+the close and checked it.
+
+What it checked, and what it read:
+
+    score_G_B1_k0_aw4_bb40k_student.txt   1.1513   eval 98 lines
+    score_G_B1_k0_aw4_bb40k_teacher.txt   1.1482   eval 98 lines
+    score_A3_k3_bb200k_student_s20260723  1.4098   eval 98 lines
+    99 score files tracked, 97 configs in each eval
+
+The B1 control's preflight records the flags it ran under: `K=0
+SEED=20260520 GAP_ARGS='--align-loss-weight 4.0' TARGET_STEPS=40000`. So
+the control moves the weight and leaves the depth at zero, which is the
+contrast it was built for. All six heads of the three B1 columns read
+`steps=15000 seed=20260722` in their own logs, so the three columns are
+head-budget matched and one may be divided by another.
+
+Each interval printed in the item-3 table has its own row in
+`results/bootstrap.csv`: `B1_alignx4_student` -0.0512 [-0.1001, -0.0023],
+`B1_alignx4_vs_k3_student` -0.0663 [-0.1070, -0.0331], and the two teacher
+rows beside them.
+
+**The posted comment does not drift from the branch.** The comment on PR
+#400 at 21:46:27Z and `results/gap_close_comment.md` at commit `1ad254fd`
+differ by one trailing blank line and nothing else.
+
+**No card is idle on a full queue, because the queue is empty.**
+`vastrun-status` returns "No running instances found." No `#373` process
+holds a GPU. Credit stands where session twenty-two left it, $11.45 against
+the $5.50 floor, and this session spent $0.00.
