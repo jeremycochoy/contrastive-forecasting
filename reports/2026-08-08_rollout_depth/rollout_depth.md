@@ -86,10 +86,10 @@ steps/s.
 figure above leaves out. The dashed line is the parent report's published
 `k = 0`. That baseline trained on another machine for most cells, and the
 machine alone is worth 0.1166 here, so a solid-against-dashed read carries
-the machine term as well as the depth. This report reads the dashes in one
-place, the `k = 3` against published table, and calls that table a screen for
-the same reason. Every verdict on the depth reads the solid curves against
-each other.*
+the machine term as well as the depth. One table scores `k = 3` against these
+dashes, and it is labelled a screen for this reason. The reproduction table
+reads them too, to measure that machine term itself. Every verdict on the
+depth reads the solid curves against each other.*
 
 ## A1 and B3 hold one student, so the student column holds one number
 
