@@ -27,7 +27,9 @@ GM-Relative MASE over the same 97 GIFT-Eval configs, strategy B4, horizon 16. Δ
 
 A dash is a number no parent published. Group B's two parents print one head per row, the student, so group B has no published teacher to meet.
 
-At bb100k, the stop every one of the 14 cells reached. Student head: 14 cells, **9 better, 3 flat, 2 worse**. Teacher head, group A only: 4 cells, **3 better, 0 flat, 1 worse**.
+At bb100k, the stop every one of the 14 cells reached. The count is over distinct MODELS. ‡ marks the one student two cells share, so 14 cells hold 13 student models and the shared one counts once. Student head: 13 distinct models, **8 better, 3 flat, 2 worse**. Teacher head, group A only: 4 distinct models, **3 better, 0 flat, 1 worse**.
+
+Read the verdict column as a screen and not as a test. It has no interval on any delta, it compares against a baseline this study did not retrain on its own machine, and the ±0.0384 band it thresholds on bounds the HEAD seed alone. The card's own criterion is the per-horizon one, and the depth-response table below is where it is applied.
 
 | cell | head | 40k k=3 | 40k pub | Δ | | 100k k=3 | 100k pub | Δ | | 200k k=3 | 200k pub | Δ | |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -43,7 +45,7 @@ At bb100k, the stop every one of the 14 cells reached. Student head: 14 cells, *
 | B1 | teacher | 1.0948 | — | — | — | 1.0897 | — | — | — | 1.1001 | — | — | — |
 | B2 | student | 1.3976 | 1.2765 | +0.1211 | worse | 1.3443 | 1.2514 | +0.0929 | worse | 1.2904 | 1.1850 | +0.1054 | worse |
 | B2 | teacher | 1.4041 | — | — | — | 1.3117 | — | — | — | 1.2825 | — | — | — |
-| B3 | student | 1.1305 | 1.2868 | -0.1563 | better | 1.1676 | 1.2456 | -0.0780 | better | — | 1.2034 | — | — |
+| B3 | student ‡ | 1.1305 | 1.2868 | -0.1563 | better | 1.1676 | 1.2456 | -0.0780 | better | — | 1.2034 | — | — |
 | B3 | teacher | 1.1343 | — | — | — | 1.1618 | — | — | — | — | — | — | — |
 | B4 | student | 1.3334 | 1.2728 | +0.0606 | worse | 1.2804 | 1.3678 | -0.0874 | better | 1.3182 | — | — | — |
 | B4 | teacher | 1.3339 | — | — | — | 1.2748 | — | — | — | 1.3202 | — | — | — |
@@ -62,7 +64,7 @@ At bb100k, the stop every one of the 14 cells reached. Student head: 14 cells, *
 
 ### The stop ladder: what the second 100,000 steps buys
 
-Δ is bb200k minus bb100k, so a negative number is an improvement: GM-Relative MASE is a ratio against seasonal-naive and lower is better. Of the 16 extended measurements in hand, **7 improved** at bb200k and 9 got worse. The largest gain is B2 student, -0.0539.
+Δ is bb200k minus bb100k, so a negative number is an improvement: GM-Relative MASE is a ratio against seasonal-naive and lower is better. Of the 16 extended measurements in hand, **7 improved** at bb200k and 9 got worse. The largest gain is B2 student, -0.0539. Over all 16: mean +0.0079, median +0.0042. The ±0.0384 head-seed band covers 13 of them.
 
 The interval is a 95% paired dataset-cluster bootstrap over the pair's 97 configs. It bounds the eval sample, not run-to-run variance. The head-seed band is ±0.0384.
 
@@ -117,6 +119,14 @@ The rule reads one cell's bb40k number against its bb100k number, per head. A he
 | B8 | +0.0300 | +0.0374 | **stop at 100k** | both heads moved up |
 | B9 | +0.0508 | +0.0365 | **stop at 100k** | both heads moved up |
 | B10 | -0.0266 | -0.0231 | **extend both heads** | both heads moved down |
+
+**The rule selects the panel, and it selects it on an improving first leg.** Three properties of that, stated plainly:
+
+1. It reads the one contrast this study calls not head-matched. A bb40k head trains 15,000 steps and a bb100k head 30,000, so part of every move in the two columns above is the head's own extra 15,000 steps. The Protocol section says so for the depth verdict. It is equally true of the rule.
+2. It fires inside its own noise band. 4 of the 6 stopped cells (A1, B3, B5, B8) moved less than ±0.0384 on BOTH heads. The verdict table above calls a move of that size `flat`.
+3. The manual overrides go one way. A4 and B1 were extended by hand because the rule decides nothing inside the band. That reasoning applies with the same force to the cells in point 2, and none of them was extended.
+
+So the 8 extended cells are enriched for cells that happened to improve from bb40k to bb100k, and regression to the mean is the expected null at bb200k. This study runs no control for it. **Read the 200k verdict as conditional on a panel selected for having improved.**
 
 ### The four same-arm pairs: two models, or one
 
@@ -197,11 +207,15 @@ The seed band is 0.0230, the far end of the 95% interval on this study's one mea
 
 Criterion, from the card: medium+long (42 configs) at least 5% better, short (55 configs) losing less than 2%.
 
+**This table is the only place the card's criterion is applied, and it is answered for 2 machine-held arms (B1, B5·s2) at one stop, bb40k.** The 14-cell verdict above answers a different question with a different rule.
+
 `machine held` = did the two sides train on the same box. A `no` row carries a machine change as well as a depth change. The B5 table below measures the machine alone, at one seed, at 0.1166, so a `no` row carries a term larger than most of the deltas in this table. Only the `yes` rows report the depth and nothing else.
 
 ✗ marks a retracted row: B5·s1's `k = 0` trained on a rented box and misses its published value by 0.1169; `B5·s3` retrains it at the same seed on elisa and lands 0.0003 away, so the baseline the -5.1% rests on is a rented-box artefact and the delta is retracted.
 
-Head-seed band ±0.0384 (`ema_sched_ladder.md`, pooled). It bounds the head seed alone. It does not bound the machine.
+Head-seed band ±0.0384 (`ema_sched_ladder.md`, pooled). It bounds the head seed alone. It does not bound the machine, and it does not bound the BACKBONE seed: this study holds one backbone seed in 14 cells and one replicate of it (B5·s2 against B5·s3, at k = 0, at bb40k), so backbone-seed variance is unmeasured. Every better / flat / worse verdict in this report rests on a band that bounds one of the two seeds in play.
+
+The depths trained are k = 1, k = 3, and only k = 3 ran on the 14 cells. The one ladder that holds more than a single depth is A3's, the cell where k = 3 does the most damage, and its k = 1 row is machine-crossed and covers zero. So this study supports **depth 3 moves the score**. It does NOT support *depth 3 is the right depth*: no cell measures a second depth against a machine-held k = 0.
 
 ### Paired dataset-cluster bootstrap, per horizon subset
 
@@ -307,12 +321,14 @@ Median `fwd + bwd` per step, from each run's own trainer log. A median is a cost
 | A3 | rep_only + L_align | 1 | elisa | RTX 4090 | 214.7 ms, shared | no — another backbone for 72% of the run; head training for 100% of it |
 | A3 | rep_only + L_align | 3 | vast box b | RTX 5090 | 131.5 ms | yes |
 
-The ratios that survive that test:
+The ratios both of whose sides are solo:
 
-| arm | f-bearing term | k = 0 | k = 3 | change | both sides |
-|---|---|---|---|---|---|
-| B5·s1 | pooled xshh_allt | 117.6 ms | 301.9 ms | +157% | vast box d → vast box a |
-| A3 | rep_only + L_align | 115.9 ms | 131.5 ms | +13% | vast box d → vast box b |
+| arm | f-bearing term | k = 0 | k = 3 | change | both sides | read as |
+|---|---|---|---|---|---|---|
+| B5·s1 | pooled xshh_allt | 117.6 ms | 301.9 ms | +157% | vast box d → vast box a | the depth, plus the box |
+| A3 | rep_only + L_align | 115.9 ms | 131.5 ms | +13% | vast box d → vast box b | **not comparable** — its `k = 3` median covers 127 of 273 windows |
+
+Two probes of the same quantity agree and one does not. B5·s1 reads +157% with both sides solo throughout, and the controlled alternating probe on one elisa card reads +168% (190.2 ms against 509.9 ms, 3 reps of 600 steps, [`results/steptime_B5_solo_card.csv`](results/steptime_B5_solo_card.csv)). A3 reads +13%, an order of magnitude below both, off a median over the tail of its run and across a box change. This study does not know why. **Carry +157% to +168%, the two probes that agree, and do not carry the low row.** No cell of the 14 has a same-card k = 0 / k = 3 pair, which is what would settle it.
 
 ### The depth-0 forecast error, deeper run minus its own k = 0
 
