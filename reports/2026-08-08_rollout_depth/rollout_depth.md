@@ -14,9 +14,9 @@ cells, so this study says depth 3 MOVES the score and not that depth 3 is the
 right depth. Twelve of the 14 cells carry `L_align` as their only f-bearing
 term, and summing the depths multiplies its weight by k + 1, so for those
 twelve `k = 3` changes two things at once and only A3 carries the control
-that separates them. The extend rule chose the eight 200k cells for having
-improved over the first leg, so the 200k verdict is conditional on a panel
-selected that way.
+that separates them. The 200k panel is not a random eight: the extend rule
+took the cells that improved over the first leg, and the two hand overrides
+went the same way, so read the 200k verdict as conditional on that panel.
 
 ![reproduction](plots/reproduction.png)
 
