@@ -1167,3 +1167,54 @@ either way.
 at $0.8144/h. Backbone ETAs off their own logs: A3 3.5 h, B1 4.8 h, A4 6.4 h
 on elisa. The box carries A3 and B1, so it has about 5 h of GPU work left,
 about $4.1. Evals need no GPU and run on elisa's cores.
+
+## 2026-08-13 02:45Z — session six: the round's two blocking items, checked against the files
+
+This session found the round running and healthy: one dispatcher, one
+supervisor, one sync loop, one credit guard, one hourly heartbeat, one
+publisher, one reaper, three backbones, four heads and two evals. It started
+nothing new. It re-armed the watchdog, which had died after its first probe,
+and it checked the two items the card blocked on.
+
+**A1/B3 is not a path-key fault.** The card asked which head or eval path key
+ignores the EMA regime. None does. `results/pair_head_files.tsv` gives four
+head files at four cell-id paths with four different md5 sums. The weights
+inside them are equal: `results/pair_identity.tsv` reads 110/110 student
+tensors and 28/28 student head tensors at max abs diff 0.000e+00.
+
+The cause is in the arm, not the path. Neither A1's nor B3's run passes
+`--moco-rep-keys`, checked against both run logs. The loss reads no teacher
+output, so the EMA copy has no gradient path into the student.
+`scripts/cells.tsv` gives A1 as `arm5_combab_alignS_sched` and B3 as
+`arm5_combab_alignS_fix09`, so the EMA regime is their only difference, and
+it moves the teacher alone. Two runs, one student trajectory, one student
+score printed twice. The teachers do differ, 1.1318 against 1.1343 at bb40k.
+
+**Naming holds.** 54 of 54 scored cell-stop-head triples read
+`score_<CELL>_k3_bb<stop>k_<head>.txt`. All 14 cells carry a 40k pair and a
+100k pair, except B8's 100k pair, which is in flight. B1's bb40k reads 1.0850
+student and 1.0948 teacher under the standard name and under the round-1
+alias `score_G6_B1_k3_bb40k_*`. The remaining `score_G*` and `score_*_k0_*`
+files are round-1 and depth-0 controls, not cells.
+
+**Spec, checked against the running processes, not the launcher.** Heads on
+the box run `--total-steps 30000 --seed 20260722 --grad-clip 1.0`. Evals run
+`--strategy B4 --forecast-len 16` over 97 configs, counted from
+`scripts/shard_configs.py` as 23+25+25+24.
+
+**No GPU is idle.** Seven of the eight slots carry a job. The eighth is
+elisa card 0, which holds 22.5 GB of other projects' work and has 2 GB free,
+so the VRAM gate holds it back. That is the gate working, not the queue
+stalling.
+
+**`scripts/q_await_round.sh`.** One round's wait for the watching session. It
+moves no work. It blocks until the queue empties, a job fails, the dispatcher
+dies, credit falls under the floor, or an hour passes, then prints the reason
+and the coverage table and exits. The hourly arm exists because a session
+that waits only on notifications learns nothing when the thing that should
+notify it is the thing that died.
+
+**Budget at 02:45Z.** Credit $18.66. Box 47557391 spent $9.33 over 12.1 h at
+$0.8144/h. Backbone ETAs off their own logs: A3 3.1 h, B1 4.5 h, A4 6.1 h on
+elisa. The box carries A3 and B1 and their head pairs, so about 5.3 h and
+$4.3 remain on it. A4 finishes on elisa and costs nothing.
