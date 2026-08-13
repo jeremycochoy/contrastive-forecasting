@@ -426,6 +426,59 @@ def main(argv=None):
           "| cell | head | bb40k | bb100k | bb200k | Δ | 95% CI | % | note |",
           "|---|---|---|---|---|---|---|---|---|"] + rows + [""]
 
+    # ---- 1b''. the one row of that ladder that is not like the others -------
+    # A3's bb200k student carries the ladder's largest move, and it is the
+    # only place in the grid where two heads of ONE backbone disagree by more
+    # than 0.05. Either the head-seed band is far too narrow or that head is a
+    # bad draw, and one more draw of the same head tells them apart.
+    RESEED = "A3_k3_bb200k_student_s20260723"
+    draw2 = sc.get(RESEED)
+    hgaps = sorted(
+        ((abs(a - b), cell, stop)
+         for cell in CARD_CELLS for stop in (40, 100, 200)
+         for a, b in [(val(f"{cell}_k3_bb{stop}k_student"),
+                       val(f"{cell}_k3_bb{stop}k_teacher"))]
+         if a is not None and b is not None), reverse=True)
+    if draw2 is not None and hgaps:
+        d1 = val("A3_k3_bb200k_student")
+        te = val("A3_k3_bb200k_teacher")
+        top = hgaps[0][0]
+        nxt = max(g for g, _c, _s in hgaps[1:])
+        nxt_a = max(g for g, c, _s in hgaps[1:] if c.startswith("A"))
+        turns = []
+        for cell in CARD_CELLS:
+            v = [val(f"{cell}_k3_bb{s}k_student") for s in (40, 100, 200)]
+            if any(x is None for x in v):
+                continue
+            mono = v[0] >= v[1] >= v[2] or v[0] <= v[1] <= v[2]
+            turns.append((cell, v, mono))
+        n_turn = sum(1 for _c, _v, m in turns if not m)
+        L += ["### A3's bb200k student, drawn twice", "",
+              f"A3 at bb200k reads {d1:.4f} on the student and {te:.4f} on "
+              f"the teacher, off one backbone file. That {top:.4f} gap is "
+              f"{top / nxt_a:.1f}x the next-largest in group A ({nxt_a:.4f}) "
+              f"and {top / nxt:.1f}x the largest anywhere ({nxt:.4f}). Every "
+              "gap in the grid is in "
+              "[`results/head_gap.tsv`](results/head_gap.tsv).", "",
+              "The second draw changes the head seed and nothing else: same "
+              "backbone file, same 30,000 steps, same recipe, same 97-config "
+              "eval.", "",
+              "| draw | head seed | GM-Relative MASE | against draw 1 |",
+              "|---|---|---|---|",
+              f"| 1, student | 20260722 | {d1:.4f} | — |",
+              f"| 2, student | 20260723 | {draw2:.4f} | {draw2 - d1:+.4f} |",
+              f"| teacher | 20260722 | {te:.4f} | {te - d1:+.4f} |", "",
+              f"A3's is also the ladder's largest reversal, but it is not the "
+              f"only one: {n_turn} of the {len(turns)} three-stop student "
+              "trajectories turn round at bb200k.", "",
+              "| cell | bb40k | bb100k | bb200k | bb200k − bb100k | shape |",
+              "|---|---|---|---|---|---|"]
+        for cell, v, mono in turns:
+            L.append(f"| {cell} | {v[0]:.4f} | {v[1]:.4f} | {v[2]:.4f} | "
+                     f"{v[2] - v[1]:+.4f} | "
+                     f"{'monotone' if mono else 'turns round'} |")
+        L.append("")
+
     # ---- 1b'. why each cell stopped where it stopped -------------------------
     # The ladder above says what the extra steps bought. It does not say why
     # six cells never took them. That decision is the extend rule, and the
@@ -813,6 +866,57 @@ def main(argv=None):
                 r = cell_of.get((a, s))
                 row.append(f"{r['loss']}  `{r['mixup']}`" if r else "—")
             L.append(f"| {s} | " + " | ".join(row) + " |")
+        L.append("")
+
+    # ---- 6b. B1 control, on the cell where k = 3 WINS ------------------------
+    # A3's control answers the same question on the cell where k = 3 does the
+    # most damage, and every column of that table crosses a machine. B1 holds
+    # the machine, the seed and the head budget, so this table may divide one
+    # column by another and A3's may not.
+    B1_COLS = ("G6_B1_k0", "G_B1_k0_aw4", "G6_B1_k3")
+    B1_BOOT = (None, "B1_alignx4_{h}", "B1_k3_{h}")
+    b1_rows, b1_split = [], []
+    for head in ("student", "teacher"):
+        v = [val(f"{t}_bb40k_{head}") for t in B1_COLS]
+        if any(x is None for x in v):
+            continue
+        cells = []
+        for value, lab in zip(v, B1_BOOT):
+            r = bs.get((lab.format(h=head), "all")) if lab else None
+            cells.append(f"{value:.4f}" + (
+                f"<br>{float(r['delta']):+.4f} "
+                f"[{float(r['ci_lo']):+.4f}, {float(r['ci_hi']):+.4f}]"
+                if r else ""))
+        b1_rows.append("| " + head + " | " + " | ".join(cells) + " |")
+        b1_split.append((head, v[1] - v[0], v[2] - v[1], v[2] - v[0]))
+    if b1_rows:
+        machines = sorted({R.resolve(f"{c}_bb40k_student").machine
+                           for c in B1_COLS
+                           if R.resolve(f"{c}_bb40k_student")})
+        held = len(machines) == 1
+        L += ["### B1: is the win the depth, or the weight?", "",
+              "B1 carries `L_align` as its only f-bearing term, so its "
+              "`k = 3` run multiplies that term's weight against the f-free "
+              "terms by 4 as well as adding depth. The `L_align x4` row "
+              "applies the re-weighting at k = 0, with no depth at all.", "",
+              "| head | k = 0 | k = 0, `L_align` x4 | k = 3 |",
+              "|---|---|---|---|"] + b1_rows
+        L += ["", "Second line of each cell: the difference against `k = 0` "
+              "and its 95% paired dataset-cluster interval.", ""]
+        L.append(
+            ("Every column trained on " + machines[0] + " at backbone seed "
+             "20260520, on the same head budget. This is the study's one such "
+             "table, so it may divide one column by another."
+             if held else
+             "The columns do not share a machine (" + ", ".join(machines) +
+             "), so read them as direction and not as magnitude.") + "")
+        L += ["", "| head | the re-weighting<br>k = 0 → x4 | the depth<br>x4 "
+              "→ k = 3 | total<br>k = 0 → k = 3 | the re-weighting's share |",
+              "|---|---|---|---|---|"]
+        for head, rw, dp, tot in b1_split:
+            L.append(f"| {head} | {rw:+.4f} | {dp:+.4f} | {tot:+.4f} | "
+                     f"{100 * rw / tot:.0f}% |" if tot else
+                     f"| {head} | {rw:+.4f} | {dp:+.4f} | {tot:+.4f} | — |")
         L.append("")
 
     # ---- 7. A3 controls ----------------------------------------------------

@@ -69,6 +69,15 @@ _ROWS = [
      "cf393_arm6_v2_combab_alignT_cf373k3"),
     ("G3_A3_k0_aw4",      "A3", "A3",     0, 20260520, "control",
      "L_align x4, no depth", "cf393_arm6_v2_combab_alignT_cf373k0_aw4"),
+    # The same control on the cell where k = 3 WINS. A3's control sits on the
+    # cell where k = 3 does the most damage, and every column of that table
+    # crosses a machine. B1 is the study's one machine-held, seed-held,
+    # head-budget-matched pair, so this row splits a delta the study measured
+    # rather than one it screened.
+    ("G_B1_k0_aw4",       "B1", "B1",     0, 20260520, "control",
+     "L_align x4, no depth",
+     "bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k"
+     "_sigreg_ema_qk_aon_cpc_tau090_cf373k0_aw4"),
     # Its own arm, not B5·s1's: this control swaps the BACKBONE for the one
     # #379 published, so folding it into B5·s1 would put a box this study
     # never rented into B5·s1's machine list.
@@ -104,6 +113,7 @@ _MACHINE = {
     "G3_A3_k1":      ("elisa", "RTX 4090"),
     "A3_k3":         ("vast box b", "RTX 5090"),
     "G3_A3_k0_aw4":  ("elisa", "RTX 4090"),
+    "G_B1_k0_aw4":   ("elisa", "RTX 4090"),
     "G1_B5pub":      ("the parent report's box", "—"),
     "G7_B5_k0_e":    ("elisa", "RTX 4090"),
 }

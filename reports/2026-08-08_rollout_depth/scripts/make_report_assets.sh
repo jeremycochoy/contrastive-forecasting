@@ -81,6 +81,10 @@ if [ -f "$RES/splits.csv" ]; then
       --out "$PLOTS/b5_backbones.png"
   run "$HERE/plot_a3_depth.py" --splits "$RES/splits.csv" \
       --out "$PLOTS/a3_depth.png"
+  # The two review-gap controls. Each needs three finished evals, so each
+  # exits with a message of its own until they are all in hand.
+  run "$HERE/plot_b1_alignx4.py" --splits "$RES/splits.csv" \
+      --out "$PLOTS/b1_alignx4.png"
   run "$HERE/plot_encoder_delta.py" --splits "$RES/splits.csv" \
       --out "$PLOTS/encoder_delta.png"
   for head in student teacher; do
@@ -92,6 +96,8 @@ if [ -f "$RES/splits.csv" ]; then
 fi
 run "$HERE/plot_reproduction.py" --results "$RES" \
     --out "$PLOTS/reproduction.png"
+run "$HERE/plot_a3_reseed.py" --results "$RES" \
+    --out "$PLOTS/a3_reseed.png"
 
 # ---- 4. training curves ----------------------------------------------------
 mapfile -t curves < <(python3 "$HERE/find_artefacts.py" --what curves)

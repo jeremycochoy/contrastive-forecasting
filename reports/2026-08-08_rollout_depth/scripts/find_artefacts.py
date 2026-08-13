@@ -178,9 +178,16 @@ def emit_pairs(eval_dir):
                         out.append((f"{cell}_{what_changes(a1, a2)}_k{k}_{head}",
                                     f"{r1.stem}_bb40k_{head}",
                                     f"{r2.stem}_bb40k_{head}"))
+    # Each control against its own cell's k = 0, and against that cell's
+    # k = 3. The first says what the re-weighting alone moves; the second
+    # says what is left for the depth once the re-weighting is paid for.
     for head in ("student", "teacher"):
         out.append((f"A3_alignx4_{head}", f"A3_k0_bb40k_{head}",
                     f"G3_A3_k0_aw4_bb40k_{head}"))
+        out.append((f"B1_alignx4_{head}", f"G6_B1_k0_bb40k_{head}",
+                    f"G_B1_k0_aw4_bb40k_{head}"))
+        out.append((f"B1_alignx4_vs_k3_{head}", f"G_B1_k0_aw4_bb40k_{head}",
+                    f"G6_B1_k3_bb40k_{head}"))
 
     seen = set()
     for label, a, b in out:
