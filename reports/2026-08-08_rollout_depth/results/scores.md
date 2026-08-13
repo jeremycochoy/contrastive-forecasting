@@ -89,8 +89,9 @@ Each row trains a fresh student head from the checkpoint its own cell names, see
 | cell | stop | backbone md5 | first pass | re-run | Δ |
 |---|---|---|---|---|---|
 | A1 | bb40k | `f99fa42c` | 1.1305 | 1.1447 | +0.0142 |
+| B3 | bb40k | `b3a51f06` | 1.1305 | 1.1447 | +0.0142 |
 
-The largest re-run move is 0.0142. The remaining re-runs are still on the queue.
+The largest re-run move is 0.0142. The two cells carry different backbone md5s and reproduce their own first-pass numbers, so the head and the eval read the file each cell names. The duplicate is the student weights, not the path.
 
 ### Reproduction of the published k = 0
 
