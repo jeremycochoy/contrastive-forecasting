@@ -1755,3 +1755,37 @@ evals running on elisa cores. Queue 42 of 47 done, 3 running, 2 queued,
 **Spend.** Credit $13.84, box $0.8144/h, box spent $14.21 over 17.4 h. The box
 is needed until A4's student head lands, about 3 h and about $2.4, which
 leaves about $11.4 against the $5.50 floor.
+
+## 2026-08-13 10:30 BST — session fifteen: the stop contrast had no interval
+
+**The round's own question shipped without one.** `r2_bootstrap_<cell>_r200k.log`
+is the box's pip bootstrap, not a statistical one, so the name hid the gap:
+every bb200k number sat in a back table with a bare Δ beside it and nothing
+to read that Δ against. A reader could not separate A3's +0.0988 from B6's
++0.0056.
+
+`stop_bootstrap.sh` runs `paired_bootstrap.py` on bb200k against the same
+cell's own bb100k. The pairing is the study's: same 97 configs, dataset as
+the resampling unit, 10,000 resamples. It reads the eval CSV from the git
+checkout or, for an eval that finished since the last collect tick, from
+`<sync>/eval/<tag>/gift/all_results.csv`, so a fresh number never waits 20
+minutes for its interval.
+
+**The contrast is the cleanest in the study.** bb200k RESUMES bb100k, so the
+two arms share the first 100,000 steps, the head recipe, head seed 20260722,
+the 30,000-step head budget and the eval. Only the second 100,000 steps
+differ. Nothing crosses a machine inside the shared prefix.
+
+**14 contrasts: 5 improved, 9 got worse.** Mean +0.0103, median +0.0080. The
+head-seed band ±0.0384 covers 11 of the 14. Three sit outside it: A3 student
++0.0988, B4 teacher +0.0454, B2 student -0.0539. B6 ran its extend on elisa
+and moves the same way as the seven box cells, so the verdict does not rest
+on the box.
+
+`plots/stop_delta.png` draws it and `rollout_depth.md` leads with it. The
+stop-ladder table gained a 95% CI column. `r3_publish.sh` runs both on the
+tick, so A4's row fills itself when its eval lands.
+
+**Spend.** Credit $13.36 at 10:28Z, box $0.8144/h, box spent $14.68 over
+18.0 h. A4's backbone is at 178,600 of 200,000; the box is needed for about
+2 h more, about $1.7, which leaves about $11.6 against the $5.50 floor.
