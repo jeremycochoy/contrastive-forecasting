@@ -253,15 +253,27 @@ def main(argv=None):
         return PUB_ALL.get(cell, {}).get(head, {}).get(stop)
 
     # Two tallies, because the two head columns do not cover the same cells.
-    # Every one of the 14 cells has a published STUDENT number at bb100k, so
-    # the student tally is the card's own 14-cell verdict. Only group A
-    # published a teacher, so a pooled count would silently weight group A
-    # twice and change the verdict.
+    # Every one of the 14 cells has a published STUDENT number at bb100k, and
+    # only group A published a teacher, so a pooled count would silently
+    # weight group A twice and change the verdict.
+    #
+    # The student tally counts MODELS, not cells. A1 and B3 hold one student
+    # between them: `arm5_combab` aligns to the student and passes no
+    # `--moco-rep-keys`, so the EMA regime that separates the two cells
+    # reaches the teacher and nothing else, and all 110 student tensors agree
+    # exactly at both stops (`results/pair_identity.tsv`). The two cells meet
+    # two different published baselines, so the TABLE keeps both rows. The
+    # COUNT must not, or one model lands in the `better` bucket twice.
+    DUP_STUDENT = {"B3": "A1"}
     rows = []
     tally = {h: {"better": 0, "flat": 0, "worse": 0}
              for h in ("student", "teacher")}
+    dup_rows = []
     for cell in CARD_CELLS:
         for head in ("student", "teacher"):
+            dup = head == "student" and cell in DUP_STUDENT
+            if dup:
+                dup_rows.append(f"{cell}/{DUP_STUDENT[cell]}")
             cs = []
             for stop in (40, 100, 200):
                 mine, base = sv(cell, stop, head), pub(cell, head, stop)
@@ -271,16 +283,17 @@ def main(argv=None):
                 d = mine - base
                 v = ("better" if d <= -NOISE_BAND else
                      "worse" if d >= NOISE_BAND else "flat")
-                if stop == 100:
+                if stop == 100 and not dup:
                     tally[head][v] += 1
                 cs += [fmt(mine), fmt(base), f"{d:+.4f}", v]
-            rows.append(f"| {cell} | {head} | " + " | ".join(cs) + " |")
+            rows.append(f"| {cell} | {head}{' ‡' if dup else ''} | "
+                        + " | ".join(cs) + " |")
 
     def tally_line(head):
         t = tally[head]
         n = sum(t.values())
-        return (f"{n} cells, **{t['better']} better, {t['flat']} flat, "
-                f"{t['worse']} worse**")
+        return (f"{n} distinct models, **{t['better']} better, "
+                f"{t['flat']} flat, {t['worse']} worse**")
 
     L += ["### This study's k = 3 against the published k = 0", "",
           "GM-Relative MASE over the same 97 GIFT-Eval configs, strategy B4, "
@@ -290,9 +303,18 @@ def main(argv=None):
           "A dash is a number no parent published. Group B's two parents "
           "print one head per row, the student, so group B has no published "
           "teacher to meet.", "",
-          "At bb100k, the stop every one of the 14 cells reached. Student "
-          f"head: {tally_line('student')}. Teacher head, group A only: "
+          "At bb100k, the stop every one of the 14 cells reached. The count "
+          "is over distinct MODELS. ‡ marks the one student two cells share, "
+          f"so 14 cells hold {sum(tally['student'].values())} student models "
+          f"and the shared one counts once. Student head: "
+          f"{tally_line('student')}. Teacher head, group A only: "
           f"{tally_line('teacher')}.", "",
+          "Read the verdict column as a screen and not as a test. It has no "
+          "interval on any delta, it compares against a baseline this study "
+          "did not retrain on its own machine, and the ±"
+          f"{NOISE_BAND:.4f} band it thresholds on bounds the HEAD seed "
+          "alone. The card's own criterion is the per-horizon one, and the "
+          "depth-response table below is where it is applied.", "",
           "| cell | head | 40k k=3 | 40k pub | Δ | | 100k k=3 | 100k pub | Δ "
           "| | 200k k=3 | 200k pub | Δ | |",
           "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"] \
@@ -345,9 +367,24 @@ def main(argv=None):
                 if better else
                 f"None gained; the smallest loss is {best[1]} {best[2]}, "
                 f"{best[0]:+.4f}.")
+        # Every row in hand, and the summary statistics over exactly those
+        # rows. Round 3 published a mean and a median over 14 of these 16,
+        # with no line saying which two it left out — the A4 pair, the best
+        # cell at every stop and one of the two that gain on both heads.
+        # Dropping it moved the mean from +0.0079 to +0.0103. The count and
+        # the statistics now come from one list, so a subset cannot reach
+        # the prose again without the count moving with it.
+        vals = sorted(t[0] for t in deltas)
+        mean = sum(vals) / n
+        mid = (vals[n // 2] if n % 2
+               else 0.5 * (vals[n // 2 - 1] + vals[n // 2]))
+        inband = sum(1 for v in vals if abs(v) <= NOISE_BAND)
         lead = (f"Of the {n} extended measurement{plural} in hand, "
                 f"**{len(better)} improved** at bb200k and "
-                f"{n - len(better)} got worse. " + edge)
+                f"{n - len(better)} got worse. " + edge +
+                f" Over all {n}: mean {mean:+.4f}, median {mid:+.4f}. The "
+                f"±{NOISE_BAND:.4f} head-seed band covers {inband} of "
+                f"them.")
     L += ["### The stop ladder: what the second 100,000 steps buys", "",
           "Δ is bb200k minus bb100k, so a negative number is an improvement: "
           "GM-Relative MASE is a ratio against seasonal-naive and lower is "
@@ -365,7 +402,7 @@ def main(argv=None):
     # 200k when its bb100k score sits BELOW its bb40k score, and stops when it
     # sits above. Printing the two moves beside the decision makes the rule
     # checkable against the score files rather than taken on trust.
-    rows = []
+    rows, stopped_inband, extended = [], [], []
     for cell in CARD_CELLS:
         mv = {h: (None if (sv(cell, 40, h) is None or sv(cell, 100, h) is None)
                   else sv(cell, 100, h) - sv(cell, 40, h))
@@ -386,6 +423,10 @@ def main(argv=None):
                         f"split: the {down[0]} head moved down, the {up} "
                         f"head moved up")
         rows.append(f"| {cell} | {s:+.4f} | {t:+.4f} | **{dec}** | {why} |")
+        if dec.startswith("stop") and max(abs(s), abs(t)) <= NOISE_BAND:
+            stopped_inband.append(cell)
+        if dec.startswith("extend"):
+            extended.append(cell)
 
     nstop = sum(1 for r in rows if "stop at 100k" in r)
     L += ["### Stop reasons: what the extend rule read at each cell", "",
@@ -395,6 +436,29 @@ def main(argv=None):
           f"so negative is an improvement. It held {nstop} cells at 100k.", "",
           "| cell | 40k→100k student | 40k→100k teacher | decision | why |",
           "|---|---|---|---|---|"] + rows + [""]
+    # What the rule selects for. The 200k verdict is measured on the panel
+    # this rule chose, so the reader needs the rule's three defects at the
+    # point the panel is defined, not inferred from the table.
+    L += ["**The rule selects the panel, and it selects it on an improving "
+          "first leg.** Three properties of that, stated plainly:", "",
+          "1. It reads the one contrast this study calls not head-matched. "
+          "A bb40k head trains 15,000 steps and a bb100k head 30,000, so "
+          "part of every move in the two columns above is the head's own "
+          "extra 15,000 steps. The Protocol section says so for the depth "
+          "verdict. It is equally true of the rule.",
+          f"2. It fires inside its own noise band. {len(stopped_inband)} of "
+          f"the {nstop} stopped cells ({', '.join(stopped_inband)}) moved "
+          f"less than ±{NOISE_BAND:.4f} on BOTH heads. The verdict table "
+          "above calls a move of that size `flat`.",
+          "3. The manual overrides go one way. A4 and B1 were extended by "
+          "hand because the rule decides nothing inside the band. That "
+          "reasoning applies with the same force to the cells in point 2, "
+          "and none of them was extended.", "",
+          f"So the {len(extended)} extended cells are enriched for cells "
+          "that happened to improve from bb40k to bb100k, and regression to "
+          "the mean is the expected null at bb200k. This study runs no "
+          "control for it. **Read the 200k verdict as conditional on a panel "
+          "selected for having improved.**", ""]
 
     # ---- 1c. the same-arm pairs --------------------------------------------
     # A1 and B3 print one student number at both stops. A reader who meets
@@ -564,9 +628,13 @@ def main(argv=None):
           "| arm | seed | machine held | head | k | k = 0 | this k | Δ | "
           "all | short | med+long | criterion |",
           "|---|---|---|---|---|---|---|---|---|---|---|---|"]
+    held_arms, depths = set(), set()
     for arm, head, k, base, deep in R.pairs(tags):
         a, b = val(base.tag), val(deep.tag)
         A, B = sp.get(base.tag, {}), sp.get(deep.tag, {})
+        depths.add(k)
+        if R.machine_held(base, deep):
+            held_arms.add(arm)
         ok = "—"
         if A and B:
             dm = 100.0 * (B["medium_long"] / A["medium_long"] - 1.0)
@@ -584,6 +652,11 @@ def main(argv=None):
             f"{pct(A.get('medium_long'), B.get('medium_long'))} | {ok} |")
     L += ["", "Criterion, from the card: medium+long (42 configs) at least "
           "5% better, short (55 configs) losing less than 2%.", "",
+          "**This table is the only place the card's criterion is applied, "
+          f"and it is answered for {len(held_arms)} machine-held arms "
+          f"({', '.join(sorted(held_arms))}) at one stop, bb40k.** The "
+          "14-cell verdict above answers a different question with a "
+          "different rule.", "",
           "`machine held` = did the two sides train on the same box. A `no` "
           "row carries a machine change as well as a depth change. The B5 "
           "table below measures the machine alone, at one seed, at 0.1166, "
@@ -592,7 +665,20 @@ def main(argv=None):
           "else.", "",
           "✗ marks a retracted row: " + R.RETRACTED_WHY + ".", "",
           f"Head-seed band ±{NOISE_BAND} (`ema_sched_ladder.md`, pooled). It "
-          "bounds the head seed alone. It does not bound the machine.", ""]
+          "bounds the head seed alone. It does not bound the machine, and it "
+          "does not bound the BACKBONE seed: this study holds one backbone "
+          "seed in 14 cells and one replicate of it (B5·s2 against B5·s3, at "
+          "k = 0, at bb40k), so backbone-seed variance is unmeasured. Every "
+          "better / flat / worse verdict in this report rests on a band that "
+          "bounds one of the two seeds in play.", "",
+          "The depths trained are " +
+          ", ".join(f"k = {d}" for d in sorted(depths)) +
+          ", and only k = 3 ran on the 14 cells. The one ladder that holds "
+          "more than a single depth is A3's, the cell where k = 3 does the "
+          "most damage, and its k = 1 row is machine-crossed and covers "
+          "zero. So this study supports **depth 3 moves the score**. It does "
+          "NOT support *depth 3 is the right depth*: no cell measures a "
+          "second depth against a machine-held k = 0.", ""]
 
     # ---- 4. the interval behind every one of those deltas ------------------
     L += ["### Paired dataset-cluster bootstrap, per horizon subset", "",
@@ -752,9 +838,22 @@ def main(argv=None):
         L.append(f"| {arm} | {run.term if run else '?'} | {k} | "
                  f"{r['machine']} | {r['card']} | {ms} | "
                  f"{'yes' if r['solo'] == 'yes' else 'no — ' + r['why_not_solo']} |")
-    L += ["", "The ratios that survive that test:", "",
-          "| arm | f-bearing term | k = 0 | k = 3 | change | both sides |",
-          "|---|---|---|---|---|---|"]
+    # Solo is necessary and it is not sufficient. A median over the tail of a
+    # run is a median over whatever the tail held, so a row whose solo
+    # windows are a fraction of its own run is not the same measurement as a
+    # row solo throughout. A3's k = 3 is that row, and it is also the row
+    # that disagrees with both other probes by an order of magnitude. It
+    # stays in the table, marked, rather than leaving without a line.
+    def full_run(r):
+        try:
+            return int(r["windows_solo"]) >= int(r["windows_total"]) - 1
+        except (ValueError, KeyError, TypeError):
+            return False
+
+    L += ["", "The ratios both of whose sides are solo:", "",
+          "| arm | f-bearing term | k = 0 | k = 3 | change | both sides | "
+          "read as |", "|---|---|---|---|---|---|---|"]
+    partial = []
     for arm in R.ARM_ORDER:
         a, b = st.get((arm, 0)), st.get((arm, 3))
         if not a or not b or not a["compute_ms"] or not b["compute_ms"]:
@@ -764,9 +863,32 @@ def main(argv=None):
         same = ("one box" if a["machine"] == b["machine"] else
                 f"{a['machine']} → {b['machine']}"
                 + ("" if a["card"] == b["card"] else ", DIFFERENT CARDS"))
+        if full_run(a) and full_run(b):
+            how = "the depth, plus the box"
+        else:
+            side = "k = 0" if not full_run(a) else "k = 3"
+            r = a if not full_run(a) else b
+            how = (f"**not comparable** — its `{side}` median covers "
+                   f"{r['windows_solo']} of {r['windows_total']} windows")
+            partial.append((arm, c3 / c0 - 1))
         L.append(f"| {arm} | {run.term if run else '?'} | "
-                 f"{c0:.1f} ms | {c3:.1f} ms | {c3 / c0 - 1:+.0%} | {same} |")
+                 f"{c0:.1f} ms | {c3:.1f} ms | {c3 / c0 - 1:+.0%} | {same} | "
+                 f"{how} |")
     L.append("")
+    if partial:
+        L += ["Two probes of the same quantity agree and one does not. "
+              "B5·s1 reads +157% with both sides solo throughout, and the "
+              "controlled alternating probe on one elisa card reads +168% "
+              "(190.2 ms against 509.9 ms, 3 reps of 600 steps, "
+              "[`results/steptime_B5_solo_card.csv`]"
+              "(results/steptime_B5_solo_card.csv)). " +
+              "; ".join(f"{a} reads {d:+.0%}" for a, d in partial) +
+              ", an order of magnitude below both, off a median over the "
+              "tail of its run and across a box change. This study does not "
+              "know why. **Carry +157% to +168%, the two probes that agree, "
+              "and do not carry the low row.** No cell of the 14 has a "
+              "same-card k = 0 / k = 3 pair, which is what would settle "
+              "it.", ""]
 
     # ---- 8. the depth-0 forecast-error gap ---------------------------------
     gap_path = Path(args.results) / "depth0_gap.csv"

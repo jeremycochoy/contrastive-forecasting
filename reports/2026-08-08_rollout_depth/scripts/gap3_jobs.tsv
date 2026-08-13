@@ -1,0 +1,52 @@
+# #373 review gap 3 — the `L_align` x4 control on a WINNING cell.
+#
+# Summing the depths multiplies the f-bearing term's weight against the
+# f-free terms by k + 1. Twelve of the 14 cells carry `L_align` as their
+# only f-bearing term, so for those twelve `k = 3` is a depth change AND a
+# 4x re-weight of `L_align`. The study's one control for that runs on A3,
+# the cell where k = 3 does the most damage, and every column of the A3
+# control table trained on a different box.
+#
+# No x4 control exists on a cell where k = 3 HELPS. This row is that
+# control.
+#
+# WHY B1 AND NOT B10. B1 is the study's only machine-held, seed-held,
+# head-budget-matched pair: k = 0 and k = 3 both trained on elisa at seed
+# 20260520, and the pair reads -0.1175 [-0.1801, -0.0615] at bb40k. It is
+# the one win the study reports as a measurement of the depth rather than
+# as a screen against a published number. Decomposing THAT number is worth
+# more than decomposing B10's larger gain, which is read against a baseline
+# trained on another machine.
+#
+# WHERE IT MUST RUN. On elisa. B1's k = 0 and its k = 3 both trained here,
+# and the machine alone is worth 0.1166 on this study's one controlled
+# measurement of it — larger than the effect this control is trying to
+# split. A rented box would put the machine term back into the one cell
+# that does not have it. This row therefore costs GPU-hours and no money.
+#
+# HOW TO RUN IT (nothing here starts it):
+#
+#   cd <repo>/reports/2026-08-08_rollout_depth
+#   JOBS=scripts/gap3_jobs.tsv BB_GPU=<0|1> \
+#     nohup bash scripts/gap_worker.sh 0 1 > results/gap3_worker.out 2>&1 &
+#
+# The worker trains the backbone, then hands both heads and both 97-config
+# evals off itself. Watch `results/gaps_driver.log`.
+#
+# COST, from the A3 x4 control's own measured wall clock on elisa
+# (`results/gaps_driver.log`, 08-09 14:16 -> 20:22):
+#
+#   backbone   2.9 h of one RTX 4090, 40,000 steps at k = 0, card shared
+#              with one other job, as measured
+#   heads      2 x ~0.6 GPU-h (15,000 steps each, student and teacher)
+#   evals      2 x ~1.5 h on elisa's cores, no GPU
+#   total      ~4.1 GPU-hours, ~6 h wall clock, $0
+#
+# WHAT IT DECIDES. Read the result against B1's own k = 0 (1.2025) and its
+# k = 3 (1.0850), both bb40k, both elisa. If the x4 control lands near
+# 1.0850, the win is the re-weighting and not the depth. If it lands near
+# 1.2025, the win is the depth. Anything between splits the -0.1175 into
+# the two terms.
+#
+# id	gap	launcher	arg	k	suffix	seed	gap_args	steps
+G_B1_k0_aw4	3	run_arm_k.sh	arm6_v2_combab	0	_aw4	20260520	--align-loss-weight 4.0	40000
