@@ -84,3 +84,6 @@
 [08-13 03:02:26] [q] DONE bb_B2_200k (rem:0)
 [08-13 03:02:39] [q] START hd_B10_200k_teacher head B10 stop=200000 teacher on rem:0
 [08-13 03:03:56] [q] START hd_A2_200k_teacher head A2 stop=200000 teacher on rem:1
+[08-13 03:16:30] [q] START ev_A2_200k_student eval on elisa cores
+[2026-08-13T02:16:54Z] [session5] killed orphan q_super 268303 (second supervisor, race on dispatcher restart); patched r2_head_box.sh 7>&- on both machines; released B10 student+teacher from the gpu0 flock
+[08-13 03:17:34] [q] START ev_B8_100k_student eval on elisa cores

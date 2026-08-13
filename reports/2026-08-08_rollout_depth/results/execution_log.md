@@ -1114,3 +1114,56 @@ empty for heads that could not start.
 Remaining box work at this rate: about 508k backbone steps and about 510k
 head steps, 8.1 h each over the box's two cards, about 16 h and $13 of
 rental. B6 runs on elisa at 3.42 sps and costs nothing.
+
+## 2026-08-13 02:10Z — session five: the head lock never released
+
+This session found the round running: one dispatcher, one supervisor, one
+sync loop, one credit guard, one hourly heartbeat, one publisher, one
+reaper, three backbones and four heads. It fixed one fault, removed one
+race, and armed one watchdog.
+
+**The per-card head lock held for the whole run, not 180 seconds.**
+`r2_head_box.sh` takes a per-card lock, starts the head, sleeps 180 s and
+closes its own descriptor, so a second head can share the card. The close
+did nothing. A lock lives until EVERY descriptor on it closes, and the
+backgrounded python inherits the parent's fd 7. So each head kept its card
+locked for its whole 30,000 steps and the next head on that card waited.
+
+Measured on the box at 02:11Z:
+
+    /proc/26742/fd/7 -> /tmp/cf373_r2_head.gpu0.lock    B8 teacher, training
+    /proc/27082/fd/7 -> /tmp/cf373_r2_head.gpu0.lock    B10 student, in flock
+    /proc/27231/fd/7 -> /tmp/cf373_r2_head.gpu0.lock    B10 teacher, in flock
+
+Card 0 held 19,090 MiB free while two heads waited on it. The same lock had
+already serialised B8's two bb100k heads: the student ran 01:17 to 02:01,
+and the teacher's start line reads 02:01.
+
+Fixed by closing the descriptor in the child: `... >>"$LOG" 2>&1 7>&- &`.
+Deployed to both copies, worktree and box, by `mv` over the path, so the
+three wrappers already running keep the old inode and are not corrupted
+mid-read. B10's two waiters were released by killing their `flock`
+processes; `set -uo pipefail` carries no `-e`, so each wrapper fell through
+to the VRAM gate, which passed, and both heads started. Four heads then ran
+at once, three on card 0 and one on card 1, with 7,680 MiB still free.
+
+Fifteen heads remain. The fix roughly halves their wall-clock.
+
+**A second supervisor was watching the same dispatcher.** `q_super.sh` 268303
+was orphaned when its dispatcher died at 21:37 on 08-12, and 452407 started
+a new pair. Neither holds a lock. Both poll every 300 s and both restart a
+dispatcher they find dead, which is the duplicate-process failure the script
+was written to prevent. Killed 268303. One supervisor, one dispatcher, 452407
+and 452409.
+
+**The watchdog.** `scripts/q_watchdog.sh` says one line per job state change,
+one line per hour, and one STALL line when the summed step counter of every
+training log does not move between hourly probes. It starts nothing and
+moves nothing. It exists because a process that is alive, a log that tails
+clean and a card at 0% look identical to a working run, and the meter runs
+either way.
+
+**Budget at 02:17Z.** Credit $19.14. Box 47557391 spent $8.90 over 10 h 55 m
+at $0.8144/h. Backbone ETAs off their own logs: A3 3.5 h, B1 4.8 h, A4 6.4 h
+on elisa. The box carries A3 and B1, so it has about 5 h of GPU work left,
+about $4.1. Evals need no GPU and run on elisa's cores.
