@@ -155,7 +155,7 @@ The card names 14 cells. This study scored **14 of them**: A1, A2, A3, A4, B1, B
 | A2 | L_align + CPC auxiliary | scheduled | k = 3 | bb40k, bb100k, bb200k |
 | A3 | L_align only | scheduled | k = 0, k = 1, k = 3 | bb40k, bb100k, bb200k |
 | A4 | L_align only | scheduled | k = 3 | bb40k, bb100k |
-| B1 | L_align only | fixed 0.9 | k = 0, k = 3 | bb40k, bb100k |
+| B1 | L_align only | fixed 0.9 | k = 0, k = 3 | bb40k, bb100k, bb200k |
 | B2 | L_align only | fixed 0.9 | k = 3 | bb40k, bb100k, bb200k |
 | B3 | L_align only | fixed 0.9 | k = 3 | bb40k, bb100k |
 | B4 | L_align only | fixed 0.9 | k = 3 | bb40k, bb100k, bb200k |
@@ -170,7 +170,7 @@ Stops scored: bb40k, bb100k, bb200k. The card's extend rule reads a cell's bb40k
 
 ### The stop ladder: what the second 100,000 steps buys
 
-Δ is bb200k minus bb100k, so a negative number is an improvement: GM-Relative MASE is a ratio against seasonal-naive and lower is better. Of the 12 extended measurements in hand, **5 improved** at bb200k and 7 got worse. The largest gain is B2 student, -0.0539.
+Δ is bb200k minus bb100k, so a negative number is an improvement: GM-Relative MASE is a ratio against seasonal-naive and lower is better. Of the 13 extended measurements in hand, **5 improved** at bb200k and 8 got worse. The largest gain is B2 student, -0.0539.
 
 | cell | head | bb40k | bb100k | bb200k | Δ | % | note |
 |---|---|---|---|---|---|---|---|
@@ -182,7 +182,7 @@ Stops scored: bb40k, bb100k, bb200k. The card's extend rule reads a cell's bb40k
 | A3 | teacher | 1.3521 | 1.3151 | 1.2913 | -0.0238 | -1.8% |  |
 | A4 | student | 1.0862 | 1.0801 | — | — | — |  |
 | A4 | teacher | 1.0855 | 1.0874 | — | — | — | student head only, by the extend rule |
-| B1 | student | 1.0850 | 1.0881 | — | — | — | bb40k written by round 1 as `G6_B1_…`; same checkpoint, same head budget |
+| B1 | student | 1.0850 | 1.0881 | 1.1009 | +0.0128 | +1.2% | bb40k written by round 1 as `G6_B1_…`; same checkpoint, same head budget |
 | B1 | teacher | 1.0948 | 1.0897 | — | — | — | bb40k written by round 1 as `G6_B1_…`; same checkpoint, same head budget |
 | B2 | student | 1.3976 | 1.3443 | 1.2904 | -0.0539 | -4.0% |  |
 | B2 | teacher | 1.4041 | 1.3117 | 1.2825 | -0.0292 | -2.2% |  |
