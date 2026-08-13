@@ -113,13 +113,13 @@ the most damage, and this study has no second backbone seed on it.
 
 | cell | 40k S | 40k T | 100k S | 100k T | 200k S | 200k T |
 |---|---|---|---|---|---|---|
-| A1 | 1.1305 | 1.1318 | 1.1676 | 1.1565 | stop | stop |
+| A1 | 1.1305‡ | 1.1318 | 1.1676‡ | 1.1565 | stop | stop |
 | A2 | 1.2735 | 1.2753 | 1.2479 | 1.2514 | 1.2507 | 1.2500 |
 | A3 | 1.3618 | 1.3521 | 1.3010 | 1.3151 | 1.3998 | 1.2913 |
 | A4 | 1.0862 | 1.0855 | 1.0801 | 1.0874 | 1.0660 | 1.0828 |
 | B1 | 1.0850 | 1.0948 | 1.0881 | 1.0897 | 1.1009 | 1.1001 |
 | B2 | 1.3976 | 1.4041 | 1.3443 | 1.3117 | 1.2904 | 1.2825 |
-| B3 | 1.1305 | 1.1343 | 1.1676 | 1.1618 | stop | stop |
+| B3 | 1.1305‡ | 1.1343 | 1.1676‡ | 1.1618 | stop | stop |
 | B4 | 1.3334 | 1.3339 | 1.2804 | 1.2748 | 1.3182 | 1.3202 |
 | B5 | 1.3204 | 1.3216 | 1.3383 | 1.3428 | stop | stop |
 | B6 | 1.2297 | 1.2184 | 1.2151 | 1.2110 | 1.2207 | 1.2339 |
@@ -130,52 +130,8 @@ the most damage, and this study has no second backbone seed on it.
 
 deliverables 72   done 72   running 0   queued 0   NOT STARTED 0   (+12 stops, not deliverables)
 done=number in hand  run=own head/eval running  bb-run=backbone training now  plan=queued, not started  MISS-e=eval not run  MISS-h=head not trained  MISS-t=backbone not trained  stop=not a deliverable this round
+‡ A1 and B3 hold one student model, printed twice per stop. The 72 deliverables therefore hold 70 distinct measurements. Their teacher columns are two models and are counted twice.
 
-## What the study can and cannot support
-
-The review's own list, re-read against the closed items and the two runs.
-
-**Can support.**
-
-- Training the forecaster on its own output at depth 3 moves GM-Relative MASE
-  by more than the head seed does, in most cells, in both directions.
-- One machine-held, seed-held, head-budget-matched pair exists in the grid:
-  B1 at bb40k, -0.1175, CI [-0.1801, -0.0615].
-- @@ITEM3_CAN@@
-- The composed operator's rollout fidelity rises with depth on the four arms
-  measured, including two whose score falls. Depth changes the operator and
-  the score does not follow it.
-- Coverage: all 14 recipes train and score at k = 3, at every stop they were
-  meant to reach, on both heads. 72 of 72 deliverables, no cell failed.
-- Every delta against a published k = 0 now carries a 95% paired
-  dataset-cluster interval. All 41 of them, each parent CSV admitted only
-  after it reproduced its parent's printed number to four decimals.
-- A3's bb200k student is not one bad head draw. Two seeds, 1.3998 and 1.4098.
-
-**Cannot support.**
-
-- @@ITEM3_CANNOT@@
-- Any per-cell verdict. Every cell is n = 1 in the backbone seed, and the
-  ±0.0384 band used to judge it bounds the HEAD seed. Backbone-seed variance
-  is unmeasured everywhere in this study.
-- "9 of 14 better" as a rate. It is 8 of 13 distinct student models, judged
-  against baselines this study did not retrain on its own machine, at a
-  threshold whose band bounds a different seed. The report labels it a
-  screen.
-- Whether depth 3 helps at bb100k or bb200k. No cell holds a same-machine,
-  same-seed `k = 0` at either stop. The one clean pair is at bb40k, and that
-  cell then gets worse with more backbone steps: B1 student 1.0850 → 1.0881
-  → 1.1009.
-- "The second 100,000 steps buy nothing" as a general claim. The panel is
-  selected on an improving first leg and the two hand overrides went the same
-  way. Read it as conditional on that panel. Within it: 7 of 16 improved,
-  mean +0.0079, median +0.0042, band covers 13 of 16.
-- Any ranking of the 14 recipes. The better/worse split tracks each cell's
-  published baseline as much as its own `k = 3` number.
-- That depth 3 is the right depth. Only `k = 3` ran on the 14 cells. `k = 1`
-  ran on A3 alone.
-- What the depth costs, to better than +157% to +168%. Two probes agree
-  there; A3's +13% row crosses a box change and is dropped.
 
 ### Spend
 

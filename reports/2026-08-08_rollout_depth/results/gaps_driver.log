@@ -93,3 +93,7 @@ k=3 against k=0:
 [08-10 17:51:38] [wr2] HEAD END   G7_B5_k0_e teacher rc=1
 [08-10 17:51:38] [wr2] HEAD START G7_B5_k0_e teacher (attempt 2, gpu 1)
 [08-13 17:53:50] [w0] BB START G_B1_k0_aw4 (gap 3) launcher=run_arm_k.sh arg=arm6_v2_combab k=0 seed=20260520 suffix='_aw4' gap_args='--align-loss-weight 4.0' gpu=1
+[08-13 20:14:54] [gap3] waiting for the backbone, 7200s so far
+[08-13 20:32:54] [gap3] backbone in hand: bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k0_aw4_40k.pth 5208007 bytes
+[08-13 20:32:54] [gap3] HEAD START G_B1_k0_aw4 student (attempt 1, gpu 1)
+[08-13 20:32:54] [gap3] HEAD START G_B1_k0_aw4 teacher (attempt 1, gpu 1)
