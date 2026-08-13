@@ -1400,3 +1400,37 @@ generated table block, so the injector cannot drop it.
 
 **A4 extends the student head only**, as the card asked. The queue holds
 `hd_A4_200k_student` and `ev_A4_200k_student` and no teacher job for A4.
+
+## 2026-08-13 05:20 UTC — session six, round 1: the eval cap goes 3 -> 5
+
+The card's two blocking items were already closed on disk when this session
+opened. It changed one thing and started no new job.
+
+**The eval cap.** Elisa held three eval slots of four shards each, 12 of 32
+cores, and a fourth eval sat blocked in `eval_slot`. Measured load was 16.
+The round owes 15 evals and every backbone but one now trains on the rented
+box, so elisa's cores are the queue's slowest resource. `eval_slot.sh`
+default goes 3 -> 5: 20 cores for evals, 12 left, above the eight the brief
+requires. Five rounds of 1 h 20 become three. No process restarted; each new
+eval sources the file when it starts.
+
+**The tail is A4, and it does not move.** Live rates:
+
+    A4  loc:1 elisa   139,200/200,000   3.3 sps   ETA 5.1 h
+    A3  rem:1 box     182,200/200,000   2.9 sps   ETA 1.7 h
+    B1  rem:1 box     170,800/200,000   2.8 sps   ETA 2.9 h
+
+Three jobs sit on the box's GPU 1 and one head on GPU 0, so GPU 0 frees at
+about 05:35 and has nothing to take: every remaining head waits on a
+backbone that is still training. Moving A4 to it was costed and refused.
+A4's last periodic save is 120k, so a restart discards 19,200 steps, 1.6 h,
+and the box's own step is slower than elisa's, 179 ms forward against 161.
+Staying is 5.1 h; moving is about 4.9 h plus the staging. The card's rule
+against an idle GPU binds when the queue has a job for it. This one does not.
+
+**Where that puts the round.** A3 lands ~07:10, B1 ~08:30, A4 ~10:25. Heads
+follow at ~50 min, evals at ~1 h 20. Last number: A4 student, about 12:40.
+
+**Spend.** credit $17.51 at 04:10, box $0.82/h, box spent $10.54. The tail
+needs about 5 h of box time for A3 and B1 and their four heads, so about $4.
+Floor is $5.50 and the guard holds it.

@@ -154,6 +154,41 @@ The card names 14 cells. This study scored **14 of them**: A1, A2, A3, A4, B1, B
 
 Stops scored: bb40k, bb100k, bb200k. The card's extend rule reads a cell's bb40k number against its bb100k number, so it fires only where both are in hand.
 
+### The stop ladder: what the second 100,000 steps buys
+
+Δ is bb200k minus bb100k, so a negative number is an improvement: GM-Relative MASE is a ratio against seasonal-naive and lower is better. Of the 1 extended measurement in hand, **0 improved** at bb200k and 1 got worse. None gained; the smallest loss is A2 student, +0.0028.
+
+| cell | head | bb40k | bb100k | bb200k | Δ | % | note |
+|---|---|---|---|---|---|---|---|
+| A1 | student | 1.1305 | 1.1676 | — | — | — | the extend rule held this cell at 100k |
+| A1 | teacher | 1.1318 | 1.1565 | — | — | — | the extend rule held this cell at 100k |
+| A2 | student | 1.2735 | 1.2479 | 1.2507 | +0.0028 | +0.2% |  |
+| A2 | teacher | 1.2753 | 1.2514 | — | — | — |  |
+| A3 | student | 1.3618 | 1.3010 | — | — | — |  |
+| A3 | teacher | 1.3521 | 1.3151 | — | — | — |  |
+| A4 | student | 1.0862 | 1.0801 | — | — | — |  |
+| A4 | teacher | 1.0855 | 1.0874 | — | — | — | student head only, by the extend rule |
+| B1 | student | 1.0850 | 1.0881 | — | — | — |  |
+| B1 | teacher | 1.0948 | 1.0897 | — | — | — |  |
+| B2 | student | 1.3976 | 1.3443 | — | — | — |  |
+| B2 | teacher | 1.4041 | 1.3117 | — | — | — |  |
+| B3 | student | 1.1305 | 1.1676 | — | — | — | the extend rule held this cell at 100k |
+| B3 | teacher | 1.1343 | 1.1618 | — | — | — | the extend rule held this cell at 100k |
+| B4 | student | 1.3334 | 1.2804 | — | — | — |  |
+| B4 | teacher | 1.3339 | 1.2748 | — | — | — |  |
+| B5 | student | 1.3204 | 1.3383 | — | — | — | the extend rule held this cell at 100k |
+| B5 | teacher | 1.3216 | 1.3428 | — | — | — | the extend rule held this cell at 100k |
+| B6 | student | 1.2297 | 1.2151 | — | — | — |  |
+| B6 | teacher | 1.2184 | 1.2110 | — | — | — |  |
+| B7 | student | 1.2617 | 1.3205 | — | — | — | the extend rule held this cell at 100k |
+| B7 | teacher | 1.2444 | 1.2780 | — | — | — | the extend rule held this cell at 100k |
+| B8 | student | 1.2857 | 1.3157 | — | — | — | trained from 0 this round; queued to 100k only |
+| B8 | teacher | 1.2865 | 1.3239 | — | — | — | trained from 0 this round; queued to 100k only |
+| B9 | student | 1.2791 | 1.3299 | — | — | — | the extend rule held this cell at 100k |
+| B9 | teacher | 1.2728 | 1.3094 | — | — | — | the extend rule held this cell at 100k |
+| B10 | student | 1.2669 | 1.2403 | — | — | — |  |
+| B10 | teacher | 1.2730 | 1.2499 | — | — | — |  |
+
 ### Reproduction of the published k = 0
 
 Same cell, same recipe, same head seed 20260722, same 97-config B4 eval, student head. Rows are grouped by machine.

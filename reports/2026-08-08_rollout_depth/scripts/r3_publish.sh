@@ -90,6 +90,19 @@ while :; do
       >>"$RES/pair_head_files.log" 2>&1
   cp -f "$RES/pair_head_files.tsv" "$RES/pair_head_files.log" "$DST/results/" 2>/dev/null
 
+  # The stop ladder, the round's own figure. It reads the same score files
+  # the tables do, so leaving it out of the tick would let the report show a
+  # figure that disagrees with the table beside it. It draws in seconds and
+  # needs no checkpoint, unlike rollout_fidelity and latent_movement, which
+  # is why those two stay in make_report_assets.sh and this one does not.
+  mkdir -p "$STUDY/plots" "$DST/plots"
+  if timeout 300 python3 "$HERE/r2_plot_ladder.py" --results "$RES" \
+       --out "$STUDY/plots/stop_ladder.png" >>"$RES/r3_publish.log" 2>&1; then
+    cp -f "$STUDY/plots/stop_ladder.png" "$DST/plots/" 2>/dev/null
+  else
+    log "ladder plot failed; keeping the previous one"
+  fi
+
   # The report's tables read the score files, so a new score moves them.
   timeout 600 python3 "$HERE/tables.py" --results "$DST/results" \
     --out "$DST/results/scores.md" --inject "$DST/rollout_depth.md" \

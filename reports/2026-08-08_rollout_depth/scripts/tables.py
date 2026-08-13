@@ -70,6 +70,19 @@ INTERVAL_SCOPE = (
 
 CARD_CELLS = ["A1", "A2", "A3", "A4"] + [f"B{i}" for i in range(1, 11)]
 
+# Why a cell has no bb200k. Round 3's extend rule sent eight cells on and held
+# five, and gave A4 one head rather than two. Without this the stop-ladder
+# table reads a blank the same way for a cell that was never asked to run and
+# for one whose eval is still going.
+STOPPED_AT_100K = ["A1", "B3", "B5", "B7", "B9"]
+EXTEND_NOTE = {(c, h): "the extend rule held this cell at 100k"
+               for c in STOPPED_AT_100K for h in ("student", "teacher")}
+EXTEND_NOTE[("A4", "teacher")] = "student head only, by the extend rule"
+# B8 is the round's new cell: it started from step 0 and the queue took it to
+# 100k, the stop every other cell already held. It was never queued past it.
+for _h in ("student", "teacher"):
+    EXTEND_NOTE[("B8", _h)] = "trained from 0 this round; queued to 100k only"
+
 # Coverage is read off the score files, not off the run registry.
 #
 # The registry knows round 1's 32 runs and nothing after them, so a coverage
@@ -197,6 +210,50 @@ def main(argv=None):
     L += ["", "Stops scored: " + ", ".join(f"bb{s}k" for s in stops) +
           ". The card's extend rule reads a cell's bb40k number against its "
           "bb100k number, so it fires only where both are in hand.", ""]
+
+    # ---- 1b. the stop ladder -----------------------------------------------
+    # Round 3's own question. The extend rule sent eight cells from 100k to
+    # 200k and held five at 100k, so this is the column that says whether the
+    # extra 100,000 steps bought anything. It reads the score files, so a row
+    # fills the moment its eval lands and stays `—` until then.
+    def sv(cell, stop, head):
+        return val(f"{cell}_k3_bb{stop}k_{head}")
+
+    rows, deltas = [], []
+    for cell in CARD_CELLS:
+        for head in ("student", "teacher"):
+            a, b, c = (sv(cell, 40, head), sv(cell, 100, head),
+                       sv(cell, 200, head))
+            if b is None:
+                continue
+            d = None if c is None else c - b
+            if d is not None:
+                deltas.append((d, cell, head))
+            rows.append(f"| {cell} | {head} | {fmt(a)} | {fmt(b)} | "
+                        f"{fmt(c)} | {'—' if d is None else f'{d:+.4f}'} | "
+                        f"{pct(b, c)} | {EXTEND_NOTE.get((cell, head), '')} |")
+
+    better = [t for t in deltas if t[0] < 0]
+    if not deltas:
+        lead = "No bb200k number has landed yet."
+    else:
+        n, plural = len(deltas), "" if len(deltas) == 1 else "s"
+        best = min(deltas)
+        # With no negative delta there is no gain to name, and calling the
+        # least-bad row one would invert the finding.
+        edge = (f"The largest gain is {best[1]} {best[2]}, {best[0]:+.4f}."
+                if better else
+                f"None gained; the smallest loss is {best[1]} {best[2]}, "
+                f"{best[0]:+.4f}.")
+        lead = (f"Of the {n} extended measurement{plural} in hand, "
+                f"**{len(better)} improved** at bb200k and "
+                f"{n - len(better)} got worse. " + edge)
+    L += ["### The stop ladder: what the second 100,000 steps buys", "",
+          "Δ is bb200k minus bb100k, so a negative number is an improvement: "
+          "GM-Relative MASE is a ratio against seasonal-naive and lower is "
+          "better. " + lead, "",
+          "| cell | head | bb40k | bb100k | bb200k | Δ | % | note |",
+          "|---|---|---|---|---|---|---|---|"] + rows + [""]
 
     # ---- 2. reproduction ---------------------------------------------------
     # The seed band, live from the bootstrap that measured it, so re-running
