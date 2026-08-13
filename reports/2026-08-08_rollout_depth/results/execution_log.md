@@ -1789,3 +1789,37 @@ tick, so A4's row fills itself when its eval lands.
 **Spend.** Credit $13.36 at 10:28Z, box $0.8144/h, box spent $14.68 over
 18.0 h. A4's backbone is at 178,600 of 200,000; the box is needed for about
 2 h more, about $1.7, which leaves about $11.6 against the $5.50 floor.
+
+## 2026-08-13 11:30 BST — session sixteen: the round's last three numbers
+
+**State at hand-over.** 70 of 71 deliverables in. The queue holds
+`bb_A4_200k` (195,400 of 200,000 at 3.2 sps), then `hd_A4_200k_student` and
+`ev_A4_200k_student`. Outside the queue, the two bb100k A1/B3 student
+reproductions run on elisa cores.
+
+**Every gate the card set is already met and was re-checked, not assumed.**
+
+- *Names.* 14 cells x 2 stops x 2 heads carry `score_<CELL>_k3_bb<stop>k_<head>.txt`
+  with no hole; the eight bb200k cells carry the third stop, A4 excepted.
+- *Evals.* Every `all_results.csv` in the branch holds 97 rows and a header.
+  The one exception is `G7_B5_k0_e_bb40k_teacher`, a G-series control the
+  report does not cite.
+- *Plots.* All 14 figures the report embeds exist in `plots/`, and `plots/`
+  holds no orphan.
+- *Box.* `box_device_count.txt` reads `cuda_device_count 2`, torch 2.8.0+cu128,
+  CUDA 12.8 — the card's gate, passed before the first training step.
+
+**The A1/B3 block is answered by an independent re-run, not by argument.**
+The two reproductions read the two backbone md5s the card itself named,
+`f99fa42c...` for A1 and `b3a51f06...` for B3. Each trained its own student
+head (15,000 steps, seed 20260722, `--grad-clip 1.0`) and ran its own
+97-config eval into its own `<cell>rep` directory. Both return **1.1447**.
+Two files, two heads, two evals, one number. The duplicate is the student
+weights and not a path.
+
+**Spend.** Credit $12.34 at 10:30Z, box $0.8144/h. The box is needed until
+A4's student head lands, about 1.5 h and about $1.2, which leaves about
+$11.1 against the $5.00 floor.
+
+`q_await_s18.sh` blocks until all five outstanding numbers are in AND the
+queue holds no job that is neither done nor failed.
