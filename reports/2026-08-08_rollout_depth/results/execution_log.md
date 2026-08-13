@@ -2148,3 +2148,35 @@ should do: the file it reads is the state, not its own memory.
 **Nothing else was scheduled.** The queue holds item 3 alone. Card 1 runs its
 backbone and card 0 carries 22,572 MiB of another session's work, so no
 deliverable waits on an idle card.
+
+## 2026-08-13 19:30Z — session twenty-six: the supervisor, and the mark on the shared student
+
+**Both runs were in flight at the open and neither was touched.** The
+`G_B1_k0_aw4` backbone (1996340) held elisa's card 1 at step 24,200 of
+40,000, 4.2 sps, ETA 1.0 h. `gap3_heads.sh` (2016740) waited on the 40k
+checkpoint. Item 6's score was on disk at 1.4098. Nothing was relaunched,
+nothing was retrained, no instance was provisioned.
+
+**The control was verified against its own baseline's command line.** Both
+runs print `Params: 720,668` and the same architecture header, and
+`run_arm_k.sh` appends `GAP_ARGS` after the arm's own flags, so
+`--align-loss-weight 4.0` is the last of the two the trainer reads. The
+control differs from `G6_B1_k0` in that one flag.
+
+**`gap_watch.sh` reports and does not repair, so a supervisor was added.**
+`scripts/gap3_supervise.sh` emits one line per event and restarts
+`gap3_heads.sh` if that driver exits before both scores land. The restart is
+safe by construction: `head_eval_bb.sh` skips a head whose score file exists,
+reuses a final head checkpoint, and resumes an eval per shard, so a restart
+costs only what did not finish. It gives up after three restarts and says so.
+
+**The coverage grid printed one student model four times with nothing to say
+so.** A1 and B3 hold one student: 110 tensors equal to 0.000e+00 at both
+stops (`results/pair_identity.tsv`). `r2_coverage.py` now marks both
+printings `‡` and states the count under the table — 72 deliverables, 70
+distinct measurements. The teacher columns are two models and stay counted
+twice.
+
+**Nothing waited on an idle card.** The queue holds item 3 alone. Card 1
+carries its backbone; card 0 reports 1,639 MiB free under another session's
+15 GB notebook, which is below the 6,000 MiB a head needs.
