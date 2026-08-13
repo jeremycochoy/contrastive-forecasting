@@ -115,6 +115,18 @@ No run reaches zero at any depth.
 
 Every value is inside ±0.0198, and the head-seed band is ±0.0384.
 
+### B1's bb40k number is B1's own
+
+Round 1 wrote it under a non-standard name, `score_G6_B1_k3_bb40k_student`.
+The head behind it trained off
+`bb_small_arm6_v2_combab_lalign_lrepmoco_..._cf373k3_40k.pth`, B1's own 40k
+checkpoint and the file round 2 resumed, for 15,000 steps at seed 20260722.
+That is the same head every other cell's bb40k carries. The head, its
+optimizer and the full 97-config eval sit in
+`checkpoints_backup/cf-373/eval/G6_B1_k3_bb40k_student/`. Round 3 normalised
+the score to `score_B1_k3_bb40k_student`, and it reads the same 1.0850. The
+name was non-standard. The measurement was not.
+
 ## Tables
 
 <!-- TABLES:BEGIN -->
