@@ -68,7 +68,13 @@ while :; do
     timeout 300 python3 "$HERE/r2_coverage.py" >"$RES/coverage.txt" 2>&1
   CF373_R3="${CF373_R3:-/home/jupyter/cf373_r3/sync}" \
     timeout 300 python3 "$HERE/r2_coverage.py" --md >"$RES/coverage.md" 2>&1
-  cp -f "$RES/coverage.txt" "$RES/coverage.md" "$DST/results/" 2>/dev/null
+  # The same grid by STAGE rather than by value. A table of numbers cannot
+  # say what is still moving: a cell reads the same whether its number
+  # landed this hour or last night. This is the one the round reprints.
+  CF373_R3="${CF373_R3:-/home/jupyter/cf373_r3/sync}" \
+    timeout 300 python3 "$HERE/r2_coverage.py" --state >"$RES/coverage_state.txt" 2>&1
+  cp -f "$RES/coverage.txt" "$RES/coverage.md" "$RES/coverage_state.txt" \
+     "$DST/results/" 2>/dev/null
 
   # The same-arm pairs, again, on every tick. The card blocked publication
   # until each pair was shown to hold two models or one, and the fourth pair,

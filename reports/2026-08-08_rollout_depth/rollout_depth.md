@@ -161,7 +161,7 @@ Stops scored: bb40k, bb100k, bb200k. The card's extend rule reads a cell's bb40k
 
 ### The stop ladder: what the second 100,000 steps buys
 
-Δ is bb200k minus bb100k, so a negative number is an improvement: GM-Relative MASE is a ratio against seasonal-naive and lower is better. Of the 9 extended measurements in hand, **3 improved** at bb200k and 6 got worse. The largest gain is B2 student, -0.0539.
+Δ is bb200k minus bb100k, so a negative number is an improvement: GM-Relative MASE is a ratio against seasonal-naive and lower is better. Of the 10 extended measurements in hand, **4 improved** at bb200k and 6 got worse. The largest gain is B2 student, -0.0539.
 
 | cell | head | bb40k | bb100k | bb200k | Δ | % | note |
 |---|---|---|---|---|---|---|---|
@@ -173,10 +173,10 @@ Stops scored: bb40k, bb100k, bb200k. The card's extend rule reads a cell's bb40k
 | A3 | teacher | 1.3521 | 1.3151 | — | — | — |  |
 | A4 | student | 1.0862 | 1.0801 | — | — | — |  |
 | A4 | teacher | 1.0855 | 1.0874 | — | — | — | student head only, by the extend rule |
-| B1 | student | 1.0850 | 1.0881 | — | — | — |  |
-| B1 | teacher | 1.0948 | 1.0897 | — | — | — |  |
+| B1 | student | 1.0850 | 1.0881 | — | — | — | bb40k written by round 1 as `G6_B1_…`; same checkpoint, same head budget |
+| B1 | teacher | 1.0948 | 1.0897 | — | — | — | bb40k written by round 1 as `G6_B1_…`; same checkpoint, same head budget |
 | B2 | student | 1.3976 | 1.3443 | 1.2904 | -0.0539 | -4.0% |  |
-| B2 | teacher | 1.4041 | 1.3117 | — | — | — |  |
+| B2 | teacher | 1.4041 | 1.3117 | 1.2825 | -0.0292 | -2.2% |  |
 | B3 | student | 1.1305 | 1.1676 | — | — | — | the extend rule held this cell at 100k |
 | B3 | teacher | 1.1343 | 1.1618 | — | — | — | the extend rule held this cell at 100k |
 | B4 | student | 1.3334 | 1.2804 | 1.3182 | +0.0378 | +3.0% |  |
@@ -193,6 +193,30 @@ Stops scored: bb40k, bb100k, bb200k. The card's extend rule reads a cell's bb40k
 | B9 | teacher | 1.2728 | 1.3094 | — | — | — | the extend rule held this cell at 100k |
 | B10 | student | 1.2669 | 1.2403 | 1.2624 | +0.0221 | +1.8% |  |
 | B10 | teacher | 1.2730 | 1.2499 | 1.2440 | -0.0059 | -0.5% |  |
+
+### The four same-arm pairs: two models, or one
+
+Each pair runs ONE arm under the two EMA regimes, group A's schedule against group B's fixed 0.9. Every tensor of both backbones is compared, split into the student side the student head reads and the `teacher_*` side the teacher head reads.
+
+Each entry is the count of tensors that agree exactly, out of the count compared. A head's file md5 differs between two cells even when every weight agrees, so the comparison is tensor by tensor and never by md5.
+
+| pair | arm | stop | student | teacher | student head | teacher head |
+|---|---|---|---|---|---|---|
+| A1/B3 | `arm5_combab_alignS` | bb40k | 110/110 | 0/52 | 28/28 | 0/28 |
+| A1/B3 | `arm5_combab_alignS` | bb100k | 110/110 | 0/52 | 28/28 | 0/28 |
+| A4/B1 | `arm6_v2_combab_alignS` | bb40k | 4/110 | 0/52 | — | — |
+| A4/B1 | `arm6_v2_combab_alignS` | bb100k | 4/110 | 0/52 | 0/28 | 0/28 |
+| A3/B2 | `arm6_v2_combab_alignT` | bb40k | 4/110 | 0/52 | — | — |
+| A3/B2 | `arm6_v2_combab_alignT` | bb100k | 4/110 | 0/52 | 0/28 | 0/28 |
+| A3/B2 | `arm6_v2_combab_alignT` | bb200k | 4/110 | 0/52 | 0/28 | 0/28 |
+| A2/B8 | `arm6_v2_nse_alignT` | bb40k | 4/111 | 0/52 | 0/28 | 0/28 |
+| A2/B8 | `arm6_v2_nse_alignT` | bb100k | 4/111 | 0/52 | 0/28 | 0/28 |
+
+Full table, with the largest absolute difference on each side: [`results/pair_identity.tsv`](results/pair_identity.tsv).
+
+**A1/B3 hold one student, not two.** `arm5_combab` aligns to the student and carries no `--moco-rep-keys`, so no loss term reads the EMA encoder and the regime sends no gradient into the student. One student number for both cells is the right answer, and it is ONE measurement: the student row of one of them is not a replication of the other. The teacher side differs at every stop, and the teacher numbers do too.
+
+**A2/B8, A3/B2, A4/B1 hold two students.** Their arms carry `--moco-rep-keys`, whose keys come from the EMA encoder, or align to the teacher. Either path reaches the student's gradient, so the regime moves it.
 
 ### Reproduction of the published k = 0
 

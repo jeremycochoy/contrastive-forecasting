@@ -1,0 +1,18 @@
+cell      40k S     40k T     100k S    100k T    200k S    200k T  
+A1        done      done      done      done      stop      stop    
+A2        done      done      done      done      done      done    
+A3        done      done      done      done      run       run     
+A4        done      done      done      done      bb-run    stop    
+B1        done      done      done      done      run       plan    
+B2        done      done      done      done      done      run     
+B3        done      done      done      done      stop      stop    
+B4        done      done      done      done      done      done    
+B5        done      done      done      done      stop      stop    
+B6        done      done      done      done      done      done    
+B7        done      done      done      done      stop      stop    
+B8        done      done      done      done      stop      stop    
+B9        done      done      done      done      stop      stop    
+B10       done      done      done      done      done      done    
+
+deliverables 71   done 65   running 5   queued 1   NOT STARTED 0   (+13 stops, not deliverables)
+done=number in hand  run=own head/eval running  bb-run=backbone training now  plan=queued, not started  MISS-e=eval not run  MISS-h=head not trained  MISS-t=backbone not trained  stop=not a deliverable this round

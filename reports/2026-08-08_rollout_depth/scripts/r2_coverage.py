@@ -260,6 +260,11 @@ def read_stopped():
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--md", action="store_true", help="Markdown table")
+    # The round's status table asks for the STAGE of each deliverable, not
+    # its value. A number reads as covered whether it landed this hour or
+    # last night, so a table of numbers cannot say what is still moving.
+    ap.add_argument("--state", action="store_true",
+                    help="print the stage of each deliverable, never its value")
     args = ap.parse_args()
 
     run, bb_run, plan = planned()
@@ -271,7 +276,10 @@ def main():
             for e in ENCS:
                 st = state(c, s, e, run, bb_run, plan, stopped)
                 v = score(c, s, e)
-                cells.append(f"{v:.4f}" if v is not None else st)
+                if args.state:
+                    cells.append(st)
+                else:
+                    cells.append(f"{v:.4f}" if v is not None else st)
                 if st not in ("done", "stop"):
                     miss += 1
         rows.append((c, cells))

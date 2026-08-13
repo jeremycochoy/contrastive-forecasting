@@ -1691,3 +1691,43 @@ heads verified, `bad=0`. Detached, pid 1309662.
 **Spend.** Credit $15.00 at 07:15Z, box $0.8144/h, box spent $13.04 over 16.0 h.
 The box is needed until A4's student head lands, about 6 h and about $4.9,
 which leaves about $10 against the $5.50 floor.
+
+## 2026-08-13 09:00 BST — the round against the card, item by item
+
+Every deliverable produced this round was checked against the card's own
+protocol before any of it was reported.
+
+**The extends resumed the 140k checkpoints the card named.** `q_run.log`:
+
+    RESUME B2 from ..._alignteacher_cf373k3_r3_140k.pth
+    RESUME B1 from ..._cf373k3_r3_140k.pth
+
+The other six extends resumed their own 100k. `cf373_bb_below` picks the
+furthest checkpoint below the stop by the step in its NAME and requires the
+optimizer sidecar beside it, so no extend retrained a step already on disk
+and none resumed without AdamW's moments.
+
+**Heads.** 30,000 steps at bb100k and bb200k, 15,000 at bb40k, head seed
+20260722, `--grad-clip 1.0`, forecast-len 16, batch 256, lr 1e-3
+(`r2_head_box.sh`, and each head's own `head.log` start line).
+
+**Evals.** 97 distinct configs each, official B4 strategy, horizon 16, over
+four shards merged (`eval_local.sh` asserts the 97 and refuses a short
+merge). Every bb200k and every B8 `all_results.csv` holds 97 rows.
+
+**Names.** Every cell deliverable is `score_<CELL>_k3_bb<stop>k_<head>.txt`,
+14 cells x 2 stops x 2 heads with no hole. B1's round-1 file survives beside
+its canonical name and both read 1.0850 / 1.0948. The remaining
+non-canonical score files are the k = 0 baselines and the G-series controls,
+which are not cell deliverables.
+
+**The A1/B3 block is cleared, and nothing was re-run.** `pair_identity.tsv`
+shows A1 and B3 hold one student, bit for bit, at both stops: 110 of 110
+tensors, max |diff| 0, and their student heads follow at 28 of 28. The arm
+says why — `arm5_combab` aligns to the student and carries no
+`--moco-rep-keys`, so no loss term reads the EMA encoder and the regime
+cannot move the student. The other three pairs carry `--moco-rep-keys` or
+align to the teacher, and all three differ. The finding now ships in the
+report itself, as `The four same-arm pairs: two models, or one`, because a
+reader who meets the duplicate in the coverage table has to find the reason
+beside it.

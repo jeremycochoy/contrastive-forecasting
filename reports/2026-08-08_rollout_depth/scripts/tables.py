@@ -82,6 +82,13 @@ EXTEND_NOTE[("A4", "teacher")] = "student head only, by the extend rule"
 # 100k, the stop every other cell already held. It was never queued past it.
 for _h in ("student", "teacher"):
     EXTEND_NOTE[("B8", _h)] = "trained from 0 this round; queued to 100k only"
+# The card doubted B1's bb40k number, because round 1 wrote it under a
+# `G6_` name no later script could find. The number itself is B1's: that
+# eval read `..._cf373k3_40k.pth`, md5 23ba3d9d, the same file round 2
+# resumed, under the same 15,000-step head every other cell's bb40k
+# carries. It is now written under the canonical name as well.
+for _h in ("student", "teacher"):
+    EXTEND_NOTE[("B1", _h)] = "bb40k written by round 1 as `G6_B1_…`; same checkpoint, same head budget"
 
 # Coverage is read off the score files, not off the run registry.
 #
@@ -254,6 +261,62 @@ def main(argv=None):
           "better. " + lead, "",
           "| cell | head | bb40k | bb100k | bb200k | Δ | % | note |",
           "|---|---|---|---|---|---|---|---|"] + rows + [""]
+
+    # ---- 1c. the same-arm pairs --------------------------------------------
+    # A1 and B3 print one student number at both stops. A reader who meets
+    # that in the coverage table above and finds no explanation reads it as
+    # a broken path. It is not one: the two cells train ONE student, bit for
+    # bit, so the table has to say so where the duplicate appears.
+    pid = Path(args.results) / "pair_identity.tsv"
+    if pid.is_file():
+        rows = [r for r in csv.DictReader(open(pid), delimiter="\t")]
+        same = sorted({r["pair"] for r in rows
+                       if r["side"] == "student" and r["verdict"] == "IDENTICAL"})
+        diff = sorted({r["pair"] for r in rows
+                       if r["side"] == "student" and r["verdict"] != "IDENTICAL"})
+        if rows:
+            L += ["### The four same-arm pairs: two models, or one", "",
+                  "Each pair runs ONE arm under the two EMA regimes, group "
+                  "A's schedule against group B's fixed 0.9. Every tensor of "
+                  "both backbones is compared, split into the student side "
+                  "the student head reads and the `teacher_*` side the "
+                  "teacher head reads.", "",
+                  "Each entry is the count of tensors that agree exactly, "
+                  "out of the count compared. A head's file md5 differs "
+                  "between two cells even when every weight agrees, so the "
+                  "comparison is tensor by tensor and never by md5.", "",
+                  "| pair | arm | stop | student | teacher | student head | teacher head |",
+                  "|---|---|---|---|---|---|---|"]
+            by_key, order = {}, []
+            for r in rows:
+                k = (r["pair"], r["arm"], int(r["stop_k"]))
+                if k not in by_key:
+                    by_key[k] = {}
+                    order.append(k)
+                by_key[k][r["side"]] = f"{r['identical']}/{r['tensors']}"
+            for k in order:
+                v = by_key[k]
+                L.append(f"| {k[0]} | `{k[1]}` | bb{k[2]}k | " + " | ".join(
+                    v.get(s, "—") for s in ("student", "teacher",
+                                            "head_student", "head_teacher")) + " |")
+            L += ["", "Full table, with the largest absolute difference on "
+                  "each side: [`results/pair_identity.tsv`]"
+                  "(results/pair_identity.tsv).", ""]
+            if same:
+                L += [f"**{', '.join(same)} hold one student, not two.** "
+                      "`arm5_combab` aligns to the student and carries no "
+                      "`--moco-rep-keys`, so no loss term reads the EMA "
+                      "encoder and the regime sends no gradient into the "
+                      "student. One student number for both cells is the "
+                      "right answer, and it is ONE measurement: the student "
+                      "row of one of them is not a replication of the other. "
+                      "The teacher side differs at every stop, and the "
+                      "teacher numbers do too.", ""]
+            if diff:
+                L += [f"**{', '.join(diff)} hold two students.** Their arms "
+                      "carry `--moco-rep-keys`, whose keys come from the EMA "
+                      "encoder, or align to the teacher. Either path reaches "
+                      "the student's gradient, so the regime moves it.", ""]
 
     # ---- 2. reproduction ---------------------------------------------------
     # The seed band, live from the bootstrap that measured it, so re-running
