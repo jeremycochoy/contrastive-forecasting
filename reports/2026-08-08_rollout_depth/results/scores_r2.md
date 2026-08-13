@@ -26,7 +26,7 @@
 | B7 | 40k | 1.2617 | 1.3159 | -0.0542 | 1.2444 | — | — |
 | B7 | 100k | 1.3205 | 1.3012 | +0.0193 | 1.2780 | — | — |
 | B8 | 40k | 1.2857 | 1.3074 | -0.0217 | 1.2865 | — | — |
-| B8 | 100k | 1.3157 | 1.3368 | -0.0211 | — | — | — |
+| B8 | 100k | 1.3157 | 1.3368 | -0.0211 | 1.3239 | — | — |
 | B9 | 40k | 1.2791 | 1.5579 | -0.2788 | 1.2728 | — | — |
 | B9 | 100k | 1.3299 | 1.4548 | -0.1249 | 1.3094 | — | — |
 | B10 | 40k | 1.2669 | 1.3791 | -0.1122 | 1.2730 | — | — |
@@ -62,7 +62,7 @@
 | B7 | 40k | yes | student, teacher | 40k and 100k are unconditional |
 | B7 | 100k | no | — | neither head down (S +0.0588, T +0.0336) — stop |
 | B8 | 40k | yes | student, teacher | 40k and 100k are unconditional |
-| B8 | 100k | no | — | neither head down (S +0.0300) — stop |
+| B8 | 100k | no | — | neither head down (S +0.0300, T +0.0374) — stop |
 | B9 | 40k | yes | student, teacher | 40k and 100k are unconditional |
 | B9 | 100k | no | — | neither head down (S +0.0508, T +0.0366) — stop |
 | B10 | 40k | yes | student, teacher | 40k and 100k are unconditional |

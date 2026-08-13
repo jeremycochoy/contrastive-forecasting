@@ -11,18 +11,22 @@
 #
 # The cap is on CONCURRENT EVALS, not on worker processes. Each eval runs
 # EVAL_SHARDS shard processes, so the core count is
-# CF393_EVAL_SLOTS * EVAL_SHARDS. The default 3 x 4 = 12 of elisa's 32
-# cores, leaving 20 free against the eight the brief requires. GPU
-# headroom is total rather than partial: eval_local.sh runs `--device cpu`,
-# so the evals take no VRAM and no SM time, and both 4090s stay with the
-# cells that need them.
+# CF393_EVAL_SLOTS * EVAL_SHARDS. GPU headroom is total rather than
+# partial: eval_local.sh runs `--device cpu`, so the evals take no VRAM and
+# no SM time, and both 4090s stay with the cells that need them.
+#
+# 2026-08-13 05:15 — the default goes 3 -> 5. Round 3 owes 15 evals and the
+# backbones are done training on elisa's cores; measured load was 16 of 32
+# with three slots held and a fourth eval blocked. 5 x 4 = 20 cores leaves
+# 12, still above the eight the brief requires, and it takes the eval
+# backlog from five rounds of 1 h 20 to three.
 #
 # A counting semaphore, not one lock: N lock files, and a caller takes the
 # first it can `flock -n`. flock is held by a file descriptor, so a slot is
 # released when its holder exits however it exits — including kill -9,
 # which a counter file would not survive.
 
-CF393_EVAL_SLOTS="${CF393_EVAL_SLOTS:-3}"
+CF393_EVAL_SLOTS="${CF393_EVAL_SLOTS:-5}"
 CF393_EVAL_SLOTDIR="${CF393_EVAL_SLOTDIR:-/tmp/cf393_evalslots}"
 CF393_EVAL_SLOT_POLL="${CF393_EVAL_SLOT_POLL:-20}"
 # A 97-config eval is ~3 core-hours split over the shards. The wait can be
