@@ -66,3 +66,11 @@
 [08-12 21:37:38] [q] START ev_B8_40k_teacher eval on elisa cores
 [08-12 22:50:37] [q] DONE ev_B8_40k_student (elisa cpu)
 [08-12 22:57:01] [q] DONE ev_B8_40k_teacher (elisa cpu)
+[08-13 01:56:57] [q] DONE bb_B6_200k (loc:1)
+[08-13 01:56:57] [q] START bb_A4_200k bb A4 stop=200000  on loc:1
+[08-13 02:08:35] [q] DONE bb_B4_200k (rem:1)
+[08-13 02:08:35] [q] RESUME B1 from bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_r3_140k.pth
+[08-13 02:08:38] [q] STAGE B1 -> /root/cf373_runs/bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3
+[08-13 02:09:04] [q] START bb_B1_200k bb B1 stop=200000  on rem:1
+[08-13 02:12:12] [q] DONE bb_A2_200k (rem:1)
+[08-13 02:12:25] [q] START hd_A2_200k_student head A2 stop=200000 student on rem:1
