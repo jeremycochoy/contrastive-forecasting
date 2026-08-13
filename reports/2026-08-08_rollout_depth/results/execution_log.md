@@ -1434,3 +1434,46 @@ follow at ~50 min, evals at ~1 h 20. Last number: A4 student, about 12:40.
 **Spend.** credit $17.51 at 04:10, box $0.82/h, box spent $10.54. The tail
 needs about 5 h of box time for A3 and B1 and their four heads, so about $4.
 Floor is $5.50 and the guard holds it.
+
+## 2026-08-13 05:10Z — session eight, round 1: the queue runs, nothing is idle that can work
+
+This session opened on a live round. Every daemon is up: one dispatcher
+(`q_run.sh`, 8 h 26 m), one supervisor, one credit guard at the $5.50 floor,
+one watchdog, one hourly heartbeat, one publisher on 1200 s, one sync loop
+that ticked at 05:04:45Z and pulled both box legs. It started no new job and
+moved none.
+
+**Queue item 1 is closed.** B8 carries all four numbers: bb40k 1.2857
+student, 1.2865 teacher; bb100k 1.3157 student, 1.3239 teacher. The one cell
+that had no bb100k pair now has one, so all 14 cells hold both stops.
+
+**Naming is clean, audited file by file.** All 56 cell-stop-head triples at
+40k and 100k exist as `score_<CELL>_k3_bb<stop>k_<head>.txt`. Zero missing.
+The 23 remaining score files are k0, k1, aw4 and seed-2 controls, plus the
+round-1 alias `score_G6_B1_k3_bb40k_*`, which carries B1's own two numbers.
+
+**A1/B3 stays closed.** Sessions six and seven settled it on the bytes:
+four head files at four cell-id paths, four different md5 sums, and equal
+student weights inside, 110/110 tensors at max abs diff 0. The arm explains
+it. `arm5_combab_alignS` aligns on the student and passes no `--moco-rep-keys`,
+so the loss reads no teacher output and the EMA regime moves the teacher
+alone. The teachers do differ, 1.1318 against 1.1343 at 40k. The report may
+not read A1 against B3 on the student column, and says so.
+
+**Live, off the training logs.**
+
+    A3  bb 200k   box card 1    191,300/200,000   2.94 sps   ETA 05:54Z
+    B1  bb 200k   box card 1    179,900/200,000   2.91 sps   ETA ~06:45Z
+    A4  bb 200k   elisa card 1  146,700/200,000   2.88 sps   ETA ~10:15Z
+
+A3 and B1 share the box's card 1 and each run at half rate. Card 0 is empty.
+Moving B1 to it was costed and refused: B1's last periodic save is 160k, so
+a restart discards 19,900 steps, and A3 frees card 1 in 49 minutes anyway.
+No queued job can take card 0 — every remaining head waits on a backbone
+that is still training. The rule against an idle GPU binds when the queue
+holds a job for it. It does not.
+
+**Spend.** Credit $16.77 at 05:05Z. Box 47557391 has run 13.5 h and spent
+$11.0 at $0.8144/h. The box is needed until B1's head pair lands, about
+2.6 h and about $2.1, which leaves about $14.7. A4 trains on elisa and every
+eval runs on elisa's cores, so both cost nothing.
