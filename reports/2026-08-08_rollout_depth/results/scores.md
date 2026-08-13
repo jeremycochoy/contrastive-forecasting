@@ -6,7 +6,7 @@ The card names 14 cells. This study scored **14 of them**: A1, A2, A3, A4, B1, B
 |---|---|---|---|---|
 | A1 | L_align only | scheduled | k = 3 | bb40k, bb100k |
 | A2 | L_align + CPC auxiliary | scheduled | k = 3 | bb40k, bb100k, bb200k |
-| A3 | L_align only | scheduled | k = 0, k = 1, k = 3 | bb40k, bb100k |
+| A3 | L_align only | scheduled | k = 0, k = 1, k = 3 | bb40k, bb100k, bb200k |
 | A4 | L_align only | scheduled | k = 3 | bb40k, bb100k |
 | B1 | L_align only | fixed 0.9 | k = 0, k = 3 | bb40k, bb100k |
 | B2 | L_align only | fixed 0.9 | k = 3 | bb40k, bb100k, bb200k |
@@ -23,7 +23,7 @@ Stops scored: bb40k, bb100k, bb200k. The card's extend rule reads a cell's bb40k
 
 ### The stop ladder: what the second 100,000 steps buys
 
-Δ is bb200k minus bb100k, so a negative number is an improvement: GM-Relative MASE is a ratio against seasonal-naive and lower is better. Of the 10 extended measurements in hand, **4 improved** at bb200k and 6 got worse. The largest gain is B2 student, -0.0539.
+Δ is bb200k minus bb100k, so a negative number is an improvement: GM-Relative MASE is a ratio against seasonal-naive and lower is better. Of the 11 extended measurements in hand, **4 improved** at bb200k and 7 got worse. The largest gain is B2 student, -0.0539.
 
 | cell | head | bb40k | bb100k | bb200k | Δ | % | note |
 |---|---|---|---|---|---|---|---|
@@ -31,7 +31,7 @@ Stops scored: bb40k, bb100k, bb200k. The card's extend rule reads a cell's bb40k
 | A1 | teacher | 1.1318 | 1.1565 | — | — | — | the extend rule held this cell at 100k |
 | A2 | student | 1.2735 | 1.2479 | 1.2507 | +0.0028 | +0.2% |  |
 | A2 | teacher | 1.2753 | 1.2514 | 1.2500 | -0.0014 | -0.1% |  |
-| A3 | student | 1.3618 | 1.3010 | — | — | — |  |
+| A3 | student | 1.3618 | 1.3010 | 1.3998 | +0.0988 | +7.6% |  |
 | A3 | teacher | 1.3521 | 1.3151 | — | — | — |  |
 | A4 | student | 1.0862 | 1.0801 | — | — | — |  |
 | A4 | teacher | 1.0855 | 1.0874 | — | — | — | student head only, by the extend rule |
