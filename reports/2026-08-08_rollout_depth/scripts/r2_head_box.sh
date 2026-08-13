@@ -116,11 +116,18 @@ CUDA_VISIBLE_DEVICES="$HEAD_GPU" python3 -u "$HEAD_TRAIN" \
   --head-arch transformer --head-num-layers 2 --head-nhead 8 \
   --head-ffn-mult 4.0 --head-causal true --head-train-input e_then_f \
   --head-dropout 0.1 \
-  "${ARCH_HEAD[@]}" >>"$LOG" 2>&1 &
+  "${ARCH_HEAD[@]}" >>"$LOG" 2>&1 7>&- &
 train_pid=$!
 # Release the lock once the process is past its allocation ramp, so the
 # second head can start while this one trains. Holding it for the whole
 # 15,000 steps would serialise the two heads for no reason.
+#
+# `7>&-` on the python line is what makes that release real. A lock lives
+# until EVERY descriptor on it closes, and a backgrounded child inherits
+# the parent's fd 7. So `exec 7>&-` below closed the wrapper's copy and
+# the head kept the card locked for its whole run. Measured on the box
+# 2026-08-13: B8/bb100k/teacher held gpu0 from 02:01, and B10's two heads
+# sat in `flock -w 86400 7` behind it with 19 GB free on the card.
 sleep 180; exec 7>&- 2>/dev/null || true
 wait "$train_pid"; rc=$?
 log "rc=$rc"
