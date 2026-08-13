@@ -1295,3 +1295,40 @@ eval column forms no backlog and the round ends on A4's eval.
 **Budget at 03:10Z.** Credit about $18.4. Box 47557391 spent about $9.7 over
 12.6 h at $0.8144/h. Projected spend to the end of the round: $4.0, leaving
 about $14.4.
+
+## 2026-08-13 03:35Z — session eight: the queue holds, no job moved by hand
+
+State at entry. Seven daemons alive: dispatcher, supervisor, sync loop,
+credit guard, hourly heartbeat, publisher, watchdog. Sixteen jobs done,
+eleven running, twenty left, zero failed. This session started no work and
+moved no job.
+
+Three backbones run.
+
+    A3  box card 1    173000/200000   ETA 2.5 h
+    B1  box card 1    161600/200000   ETA 3.8 h
+    A4  elisa card 1  130600/200000   ETA 5.8 h
+
+Four heads run on the box (B4 student, B4 teacher, B6 student, B6 teacher).
+Four evals run on elisa's cores (A2 200k student and teacher, B8 100k
+student and teacher).
+
+The card's two blocking items stay closed, re-audited on the bytes.
+`pair_identity.tsv` holds all four same-arm pairs at both stops. A1/B3 is
+identical on the student side, 110 of 110 tensors at 0.000e+00, and differs
+on the teacher side. The other three pairs differ on both sides. The cause
+is the arm: A1 and B3 run arm5 with `--align-target student` and no
+`--moco-rep-keys`, so the loss reads no teacher output and the EMA regime
+cannot move the student. A4/B1, A3/B2 and A2/B8 run arm6_v2, which carries
+MoCo rep keys, so the teacher enters the loss and both sides separate.
+
+Naming holds. 54 of 54 scored cell deliverables sit under
+`score_<CELL>_k3_bb<stop>k_<head>.txt`. The 20 files outside that pattern
+are k0, k1, aw4 and seed-2 controls, plus the round-1 alias
+`score_G6_B1_k3_bb40k_*`, which reads 1.0850 and 1.0948, the same two
+numbers as B1's standard pair.
+
+Budget at 03:26Z. Credit $18.10. Box 47557391 has run 12 h 12 m and spent
+$9.95 at $0.8144/h. The box is needed until B1's head pair lands, about
+4.8 h and about $3.9, which leaves about $14. A4 finishes on elisa and the
+evals run on elisa's cores, so both cost nothing.

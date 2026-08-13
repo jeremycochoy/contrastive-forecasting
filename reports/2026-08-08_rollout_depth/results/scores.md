@@ -5,7 +5,7 @@ The card names 14 cells. This study scored **14 of them**: A1, A2, A3, A4, B1, B
 | cell | f-bearing term | EMA α | depths trained | stops scored |
 |---|---|---|---|---|
 | A1 | L_align only | scheduled | k = 3 | bb40k, bb100k |
-| A2 | L_align + CPC auxiliary | scheduled | k = 3 | bb40k, bb100k |
+| A2 | L_align + CPC auxiliary | scheduled | k = 3 | bb40k, bb100k, bb200k |
 | A3 | L_align only | scheduled | k = 0, k = 1, k = 3 | bb40k, bb100k |
 | A4 | L_align only | scheduled | k = 3 | bb40k, bb100k |
 | B1 | L_align only | fixed 0.9 | k = 0, k = 3 | bb40k, bb100k |
@@ -19,7 +19,7 @@ The card names 14 cells. This study scored **14 of them**: A1, A2, A3, A4, B1, B
 | B9 | split L_pred + CPC auxiliary | fixed 0.9 | k = 0, k = 3 | bb40k, bb100k |
 | B10 | L_align + CPC auxiliary | fixed 0.9 | k = 3 | bb40k, bb100k |
 
-Stops scored: bb40k, bb100k. The card's extend rule reads a cell's bb40k number against its bb100k number, so it fires only where both are in hand.
+Stops scored: bb40k, bb100k, bb200k. The card's extend rule reads a cell's bb40k number against its bb100k number, so it fires only where both are in hand.
 
 ### Reproduction of the published k = 0
 
