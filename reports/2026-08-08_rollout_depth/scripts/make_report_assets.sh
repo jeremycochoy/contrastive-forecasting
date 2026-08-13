@@ -98,6 +98,9 @@ run "$HERE/plot_reproduction.py" --results "$RES" \
     --out "$PLOTS/reproduction.png"
 run "$HERE/plot_a3_reseed.py" --results "$RES" \
     --out "$PLOTS/a3_reseed.png"
+# Every student/teacher gap in the grid, largest first. The reseed section
+# reads its top three rows, so the table it reads is rebuilt beside it.
+run "$HERE/gap6_head_gap.py" --results "$RES" --out "$RES/head_gap.tsv"
 
 # ---- 4. training curves ----------------------------------------------------
 mapfile -t curves < <(python3 "$HERE/find_artefacts.py" --what curves)

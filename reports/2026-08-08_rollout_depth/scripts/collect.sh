@@ -47,6 +47,7 @@ GENERATED=(
   bootstrap.csv        # 2. paired dataset-cluster bootstrap
   depth0_gap.csv       # 4. the depth-0 diagnostic, as a number
   early_loss.csv       # 7b. what the backbone seed pins
+  head_gap.tsv         # 3. every student/teacher gap, largest first
   latent_movement.csv  # 6. movement between the 20k and 40k checkpoints
   rollout_fidelity.csv # 5. cos against the true h, per depth
   run_provenance.csv   # 7. who else held the card
@@ -60,9 +61,9 @@ GENERATED=(
 # `$RES/<name>`, so the set is greppable. Read-only references resolve to the
 # same names, and a new one is a mismatch a person should look at rather than
 # something to guess about.
-derived="$(grep -oE '\$RES/[A-Za-z0-9_]+\.(csv|md)' "$HERE/make_report_assets.sh" \
+derived="$(grep -oE '\$RES/[A-Za-z0-9_]+\.(csv|md|tsv)' "$HERE/make_report_assets.sh" \
            | sed 's|\$RES/||' | sort -u)"
-[ -n "$derived" ] || die "the rebuild script named no \$RES/<file>.csv|md. \
+[ -n "$derived" ] || die "the rebuild script named no \$RES/<file>.csv|md|tsv. \
 the grep in this guard no longer matches it. Fix the guard, do not delete it."
 listed="$(printf '%s\n' "${GENERATED[@]}" | grep -v '^execution_log.md$' | sort -u)"
 if [ "$derived" != "$listed" ]; then
