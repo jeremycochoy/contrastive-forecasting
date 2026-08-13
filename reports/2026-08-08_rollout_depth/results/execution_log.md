@@ -1989,3 +1989,39 @@ fire. Six cells still stop at 100k: A1, B3, B5, B7, B8, B9.
 
 **Spend this session: $0.00.** Credit $11.45, unchanged, floor $5.50. Every
 job left in the queue runs on hardware this study does not pay for.
+
+## 2026-08-13 15:30Z — session twenty-two: the last number landed, and the round closed
+
+**72 of 72.** `A4_k3_bb200k_teacher` scored 1.0828 at 15:18Z. Every cell of
+the card now carries a number at every stop it was meant to reach, on both
+heads. Coverage reads `done 72   running 0   queued 0   NOT STARTED 0`.
+
+The two numbers this session waited on:
+
+    A4 bb200k student   1.0660   eval finished 13:44Z
+    A4 bb200k teacher   1.0828   head 30,000 steps 14:05Z, eval 15:18Z
+
+1.0660 is the lowest score in the study. Both ran the round's protocol:
+30,000 head steps, seed 20260722, `--grad-clip 1.0`, batch 256, lr 1e-3,
+forecast-len 16, then 97 GIFT-Eval configs at strategy B4. Both were checked
+by hand against `all_results.csv` (98 lines, so 97 configs), `backbone.txt`
+and `head.log` before the round closed.
+
+**The idle-card item stayed closed.** `vastrun-status` returned "No running
+instances found." at the open of this session and again at its close. Burn
+$0.00/h. Credit $11.45 at both ends, against the $5.50 floor: this session
+spent nothing, because both jobs ran on elisa.
+
+**What ran the wait.** `scripts/q_await_s22.sh` replaces a plain wait on the
+score file. A plain wait cannot tell a slow job from a dead one, so it also
+exits when the dispatcher marks either job `failed`, and when neither job
+holds a process and no score exists. It ticked every five minutes and both
+jobs finished clean.
+
+**The queue drained and the daemons stood down.** `q_run.sh` placed its last
+eval on elisa cores and exited; `r3_publish.sh` collected the last eval,
+rebuilt the tables and the coverage grid, committed `3e6eda76`, then found
+zero jobs left and stood down. 96 score files and 96 complete evals are on
+the branch, each with 97 configs.
+
+`scripts/r3_final_comment.sh` posted the round's closing comment on PR #400.
