@@ -2180,3 +2180,40 @@ twice.
 **Nothing waited on an idle card.** The queue holds item 3 alone. Card 1
 carries its backbone; card 0 reports 1,639 MiB free under another session's
 15 GB notebook, which is below the 6,000 MiB a head needs.
+
+## Round 4 — the two review-gap runs
+
+**Item 6 landed first.** A3's bb200k student head, drawn a second time at
+seed 20260723, scored 1.4098 at 18:20. The eval ran on the cores while item
+3's backbone held card 1, so the two runs never competed for the GPU.
+
+**Item 3's rule was fixed before item 3's numbers existed.** The control
+splits B1's -0.1175 into a re-weighting part and a depth part, and which of
+the two the study reports must not depend on what the split turns out to be.
+`scripts/gap3_item3.py` states the rule and was committed at backbone step
+~31,000 of 40,000, with neither score on disk. The generator writes the
+prose and both verdict bullets from the score files, so no number reaches
+the PR by hand.
+
+**Why B1 and not another cell.** `align_loss` adds one complete copy of the
+term per rollout depth at the same weight (`src/loss.py`), and B1's main
+term is `rep_only`, which holds no `f` and is added once at any depth. Its
+CPC term is off. So `k = 3` multiplies L_align's weight by 4 and changes
+nothing else, and B1 is the only cell where the k = 0 and k = 3 columns
+share a machine, a backbone seed and a head budget: elisa, seed 20260520,
+15,000 head steps at seed 20260722. Confirmed against the four existing B1
+head logs and `results/run_provenance.csv`.
+
+**The control's own limit, stated up front.** At `k = 3` the four copies of
+L_align sit on four horizons; at `k = 0` x4 all four sit on t+1. The control
+holds the total weight and drops the horizons, so its depth column is the
+extra HORIZONS and not depth net of everything else.
+
+**Two watchers, because a log tail is not a liveness probe.**
+`gap3_await.sh` is the machine gate: each probe demands that a counter moved
+since the last one — the backbone's step, then the finished eval configs —
+and it ends the wait on a stall rather than running out the clock. A hung
+trainer keeps both its log file and its process, and neither says so.
+
+**Nothing was rented.** Credit held at $11.45 for the whole round. The
+backbone, the three heads and the three evals all ran on elisa.
