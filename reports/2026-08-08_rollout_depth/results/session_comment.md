@@ -115,6 +115,28 @@ prints the config with both values. The unmodified copy passes.
 `scripts/verify_close.sh` now runs five checks. All five pass, and the four
 older logs reproduced byte-identically, so no artefact moved since the close.
 
+## The full rebuild, and the one artefact that disagreed
+
+`bash scripts/make_report_assets.sh` re-derived every table and every figure
+from the eval CSVs, the losses CSVs and the checkpoints
+(`results/rebuild.log`). `rollout_depth.md`, `results/scores.md` and all 20
+figures came back byte-identical, so the report is what its generators produce.
+
+One file did not. `results/head_gap.tsv` read **0.1085** for A3's bb200k
+student/teacher gap where the report reads **0.1084**.
+
+**The report is the correct one.** `tables.py` reads `results/splits.csv`,
+which keeps 6 decimals: 1.399771 − 1.291332 = 0.108439. `gap6_head_gap.py` read
+the 4-decimal score files and differenced two already-rounded numbers,
+1.3998 − 1.2913 = 0.1085. The rounding, not the measurement.
+
+`gap6_head_gap.py` now reads `splits.csv` as well. Eight of its 36 rows move by
+0.0001 and the ordering does not change: A3 bb200k stays the largest gap, the
+next largest anywhere stays 0.0425 and the next in group A stays 0.0168, so the
+report's "6.5x" and "2.6x" hold. `plots/a3_reseed.png` re-rendered
+pixel-identical, 0 of 1,008,000 pixels differing. **No number in the report
+changed.**
+
 | check | what it reads | result |
 |---|---|---|
 | `verify_scores` | every score against its own 97-config eval, two ways | **99 of 99 reproduce**, worst deviation 5.13e-05 against a 1.07e-04 derived allowance |
