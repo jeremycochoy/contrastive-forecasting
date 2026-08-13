@@ -1332,3 +1332,71 @@ Budget at 03:26Z. Credit $18.10. Box 47557391 has run 12 h 12 m and spent
 $9.95 at $0.8144/h. The box is needed until B1's head pair lands, about
 4.8 h and about $3.9, which leaves about $14. A4 finishes on elisa and the
 evals run on elisa's cores, so both cost nothing.
+
+## 2026-08-13 03:50Z — session nine: the round runs, nothing moved by hand
+
+State at entry. Seven daemons alive: dispatcher (pid 452409), supervisor,
+sync loop, credit guard, hourly heartbeat, publisher, watchdog. 47 jobs:
+20 done, 11 running, 16 queued, 0 failed. This session started no work and
+moved no job.
+
+Three backbones run, off their own losses CSVs.
+
+    A3  bb 200k   box card 1    175900/200000   ETA 2.1 h
+    B1  bb 200k   box card 1    164500/200000   ETA 3.1 h
+    A4  bb 200k   elisa card 1  134300/200000   ETA 4.4 h
+
+Four heads run on the box (B2 student and teacher, B6 student and teacher).
+Four evals run on elisa's cores (A2 200k teacher, B10 200k student and
+teacher, B8 100k teacher).
+
+No GPU is idle. The box holds six processes over two cards at 100% and 97%.
+Elisa card 1 carries A4. Elisa card 0 holds 22.5 GB of another project's
+work, so the VRAM gate keeps the queue off it, and the four evals take
+elisa's cores instead.
+
+**B8 closes its 100k student.** 1.3157. The cell that failed 15 times on
+CUDA 13 hosts now holds three of its four numbers.
+
+**Both blocking items re-audited on the bytes, and both hold.**
+
+A1/B3 is one trajectory, not two. `pair_identity.tsv` reads 110 of 110
+student tensors equal at max abs diff 0.000e+00 at 40k and at 100k, and the
+student heads equal at 28 of 28. The teachers differ, 6.400e-03 at 40k and
+1.986e-01 at 100k. The head files are four distinct files with four distinct
+md5s, so the pipeline ran twice and agreed. The cause is the arm: arm5 with
+`--align-target student` and no `--moco-rep-keys` reads no teacher output,
+so the EMA regime moves the teacher and cannot move the student.
+
+The fourth pair now has its rows. B8 gained the checkpoints the test needed.
+
+    A2/B8  arm6_v2_nse_alignT  40   student  111  4  5.025e+00  differs
+    A2/B8  arm6_v2_nse_alignT  100  student  111  4  9.518e+00  differs
+
+All four same-arm pairs are tested. Three separate on both sides. Only A1/B3
+shares its student column, and the report must not read A1 against B3 there.
+
+Naming holds. 56 score files sit under `score_<CELL>_k3_bb<stop>k_<head>`.
+B1's 40k reads 1.0850 student and 1.0948 teacher under the standard name,
+the same two numbers as the round-1 alias `score_G6_B1_k3_bb40k_student`.
+Every file outside the pattern is a k0, k1, aw4 or seed-2 control.
+
+**Budget at 03:46Z.** Credit $17.83. Box 47557391 has run 12 h 32 m and
+spent $10.22 at $0.8144/h. The box is needed until B1's head pair lands,
+about 4.1 h and about $3.3, which leaves about $14.5. A4 finishes on elisa
+and the evals run on elisa's cores, so both cost nothing.
+
+**B1's bb40k: the card's premise does not hold, and the artefacts say why.**
+The card reads "B1 has no valid 40k comparison; extend and say so". B1 is
+extended, and this is what the files say. The head behind 1.0850 trained off
+`bb_small_arm6_v2_combab_lalign_lrepmoco_..._cf373k3_40k.pth` — B1's own 40k
+checkpoint, the file round 2 resumed — for 15,000 steps at seed 20260722,
+which is the head every other cell's bb40k carries. `stop.log` in
+`checkpoints_backup/cf-373/eval/G6_B1_k3_bb40k_student/` names that backbone
+on the head-train start line. The head, its optimizer and a 97-row
+`gift/all_results.csv` are all on disk. Only the NAME was non-standard, and
+round 3 normalised it. The report now carries this paragraph outside the
+generated table block, so the injector cannot drop it.
+
+**A4 extends the student head only**, as the card asked. The queue holds
+`hd_A4_200k_student` and `ev_A4_200k_student` and no teacher job for A4.

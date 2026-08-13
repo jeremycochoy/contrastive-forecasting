@@ -148,7 +148,7 @@ The card names 14 cells. This study scored **14 of them**: A1, A2, A3, A4, B1, B
 | B5 | pooled xshh_allt, floor subtracted | fixed 0.9 | k = 0, k = 3 | bb40k, bb100k |
 | B6 | L_align only | fixed 0.9 | k = 3 | bb40k, bb100k |
 | B7 | L_align only | fixed 0.9 | k = 3 | bb40k, bb100k |
-| B8 | L_align + CPC auxiliary | fixed 0.9 | k = 3 | bb40k |
+| B8 | L_align + CPC auxiliary | fixed 0.9 | k = 3 | bb40k, bb100k |
 | B9 | split L_pred + CPC auxiliary | fixed 0.9 | k = 0, k = 3 | bb40k, bb100k |
 | B10 | L_align + CPC auxiliary | fixed 0.9 | k = 3 | bb40k, bb100k |
 
