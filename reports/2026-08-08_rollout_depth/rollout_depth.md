@@ -263,6 +263,16 @@ Full table, with the largest absolute difference on each side: [`results/pair_id
 
 **A2/B8, A3/B2, A4/B1 hold two students.** Their arms carry `--moco-rep-keys`, whose keys come from the EMA encoder, or align to the teacher. Either path reaches the student's gradient, so the regime moves it.
 
+### The A1/B3 duplicate, re-run end to end
+
+Each row trains a fresh student head from the checkpoint its own cell names, seed 20260722, and runs the 97 configs into `results/eval/<cell>rep_…`, a directory no other cell writes. A path that ignored the cell would land the re-run on the other cell's number.
+
+| cell | stop | backbone md5 | first pass | re-run | Δ |
+|---|---|---|---|---|---|
+| A1 | bb40k | `f99fa42c` | 1.1305 | 1.1447 | +0.0142 |
+
+The largest re-run move is 0.0142. The remaining re-runs are still on the queue.
+
 ### Reproduction of the published k = 0
 
 Same cell, same recipe, same head seed 20260722, same 97-config B4 eval, student head. Rows are grouped by machine.
