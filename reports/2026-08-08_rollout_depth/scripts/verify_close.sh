@@ -6,10 +6,11 @@
 # CSVs and the head logs, so a claim that drifted from its own artefact fails
 # here rather than in review.
 #
-#   verify_scores      99 score files, each recomputed from its own 97-config eval
-#   verify_coverage    the 14 x 3 x 2 grid, rebuilt from the score files alone
-#   verify_alignx4     item 3's x4 weight and depth 0, read off the loss CSVs
-#   verify_provenance  the training machine of every head, read off its own log
+#   verify_scores       99 score files, each recomputed from its own 97-config eval
+#   verify_coverage     the 14 x 3 x 2 grid, rebuilt from the score files alone
+#   verify_alignx4      item 3's x4 weight and depth 0, read off the loss CSVs
+#   verify_provenance   the training machine of every head, read off its own log
+#   verify_denominator  the seasonal-naive column, across evals rather than within one
 #
 # Each check writes its own log under results/ and returns non-zero on failure.
 # The script runs all four before it exits, so one failure does not hide three.
@@ -36,6 +37,7 @@ run verify_scores     --results "$RES"
 run verify_coverage   --results "$RES"
 run verify_alignx4
 run verify_provenance --results "$RES" --tsv "$RES/provenance.tsv"
+run verify_denominator --results "$RES"
 
 if [ "$rc_all" -eq 0 ]; then
   echo "ALL CHECKS PASS"

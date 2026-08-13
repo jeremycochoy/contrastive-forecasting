@@ -2415,3 +2415,49 @@ so the figure carries the caveat on its own. `results/scores.md` and
 `results/gap_close_comment.md` were regenerated from the corrected generator.
 `results/eval/A3_k3_bb200k_student_s20260723/` gains `backbone_md5.txt` and a
 `provenance.txt` that names both draws' backbone paths.
+
+---
+
+## 2026-08-13, late — the denominator check
+
+The two gap runs and the close comment landed in the sessions above. This
+session trained nothing, evaluated nothing and rented nothing.
+
+It re-ran `scripts/verify_close.sh`. All four checks passed and their logs
+reproduced byte-identically, so no artefact had moved since the close.
+
+**The gap it found.** The close asserts every cell divides by the same
+seasonal-naive denominator. Nothing verified it. The four checks read a score
+against *its own* eval, so a denominator that changed *between* evals passes
+all four: the harness recomputes `SN_MASE` per eval, and a moved panel, a
+dropped config or a re-run against a different split would move a score
+without touching the model. Every cross-cell delta in this report divides one
+such score by another.
+
+**The fifth check.** `scripts/verify_denominator.py` reads the
+`(config -> SN_MASE)` map out of all 100 eval directories and requires one map
+for the study. It compares the printed 4-decimal strings, so any difference at
+the last decimal is a real difference in the denominator.
+
+```
+eval directories        : 100
+carry a summary.txt     :  99
+score files             :  99
+distinct denominators   :   1   md5 a86ef40144eee950866b027d876ce75e
+```
+
+The 99 summarised evals pair one-to-one with the 99 score files. The hundredth
+directory is `G7_B5_k0_e_bb40k_teacher`, `B5·s3`'s teacher head that aborted
+for want of VRAM; it holds a `stop.log`, no summary and no score, so it is not
+a measurement. The check reports it and passes. A directory that held a score
+without a summary would fail.
+
+**The negative control.** A check that cannot fail is worth nothing. On a
+symlinked copy of the eval tree, moving `solar/H/short`'s `SN_MASE` from
+0.9519 to 0.9520 in one of the 99 evals splits the fingerprint 98/1, fails the
+check, and prints the config with both values. The unmodified copy passes.
+
+**What was edited.** `scripts/verify_denominator.py` (new),
+`scripts/verify_close.sh` (runs five checks now, still running all of them
+before it exits so one failure does not hide four), and `rollout_depth.md`'s
+verification section. No number in the report changed.

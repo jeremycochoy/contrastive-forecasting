@@ -727,7 +727,7 @@ f-anchored only, and the other twelve cells' f-bearing term is `L_align`,
 which has no denominator.
 
 **Every number here re-derives from its own artefacts.**
-`scripts/verify_close.sh` runs four checks and each writes its own log.
+`scripts/verify_close.sh` runs five checks and each writes its own log.
 
 - **The scores.** All 99 score files recomputed from their own 97-config eval,
   two ways: the geometric mean of the per-config `Relative` column, and the
@@ -749,6 +749,15 @@ which has no denominator.
   draws do not ([`results/verify_provenance.log`](results/verify_provenance.log),
   [`results/provenance.tsv`](results/provenance.tsv)). The eval directories of
   rounds 1 and 2 hold no head log, so 49 of 100 do not carry the machine.
+- **The denominator.** Every score divides by a seasonal-naive column the
+  harness recomputes per eval, so the checks above, which read a score against
+  its own eval, cannot see a panel that moved between cells. This one reads
+  across evals: the 99 summarised evals share one `SN_MASE` column on one set
+  of 97 configs, md5 `a86ef401…`, and pair one-to-one with the 99 score files.
+  The hundredth directory is `B5·s3`'s aborted teacher head, which carries no
+  score. A negative control that moves one config's denominator by 0.0001
+  fails the check and names the config
+  ([`results/verify_denominator.log`](results/verify_denominator.log)).
 
 ## Annex
 
