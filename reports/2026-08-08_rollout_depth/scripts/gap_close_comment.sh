@@ -91,6 +91,9 @@ boxes="$(timeout 90 vastrun-status 2>/dev/null | head -1)"
 
 echo "wrote $OUT ($(wc -l <"$OUT") lines)"
 grep -n 'MISSING' "$OUT" && { echo "ABORT: a score file is missing" >&2; exit 3; }
+# The verdict file carries @@...@@ markers for the two bullets that only the
+# item-3 result can write. An unfilled marker must never reach the PR.
+grep -n '@@' "$OUT" && { echo "ABORT: an unfilled marker is still in the text" >&2; exit 4; }
 [ "$DRY" -eq 1 ] && exit 0
 
 if (cd "$GIT_ROOT" && timeout 180 gh pr comment "$PR" --body-file "$OUT"); then

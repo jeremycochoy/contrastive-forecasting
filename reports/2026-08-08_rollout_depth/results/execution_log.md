@@ -2131,3 +2131,20 @@ off the second draw.
 
 **Spend this session: $0.00.** No instance was provisioned and none is
 running.
+
+## 2026-08-13 18:10Z — session twenty-five: the watcher died with its session, the runs did not
+
+**The two runs survived the session change.** `run_arm_k.sh` (1996329) and
+its trainer (1996340) held card 1 at step 18,800 of 40,000, and
+`gap3_heads.sh` (2016740) was still waiting on the 40k checkpoint. Neither
+was relaunched. Item 6's score was on disk at 1.4098.
+
+**`gap_watch.sh` was not.** Its last line reads 18:46 local and the previous
+session ended after it. The event stream is the only thing that says a head
+died, so it was restarted at 19:10 local against the same log. It picked up
+the backbone at 19,000 and reprinted item 6's score, which is what a restart
+should do: the file it reads is the state, not its own memory.
+
+**Nothing else was scheduled.** The queue holds item 3 alone. Card 1 runs its
+backbone and card 0 carries 22,572 MiB of another session's work, so no
+deliverable waits on an idle card.
