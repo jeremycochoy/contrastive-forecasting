@@ -50,9 +50,10 @@ step: both curves start at 0.4780377745628357 and end at 0.21291811764240265.
 `arm5_combab` passes no `--moco-rep-keys`, so the loss reads no teacher
 output and the EMA copy has no gradient path into the student. The EMA
 schedule moves the teacher alone. The three other same-arm pairs run
-`arm6_v2_*`, which does pass `--moco-rep-keys`, and their students differ:
-2.377 for A4/B1, 3.103 for A3/B2, 5.025 for A2/B8, maximum absolute
-difference at bb40k.
+`arm6_v2_*`, which does pass `--moco-rep-keys`, and their students differ at
+every stop measured: 2.377 and 2.086 for A4/B1, 3.103 and 3.550 for A3/B2,
+5.025 and 9.518 for A2/B8, maximum absolute difference at bb40k and bb100k.
+A1/B3 is the only pair that holds one student.
 
 Read A1 and B3's student column as one model measured once and printed
 twice. The teacher column holds two models.
