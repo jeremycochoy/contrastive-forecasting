@@ -90,6 +90,15 @@ for _h in ("student", "teacher"):
 for _h in ("student", "teacher"):
     EXTEND_NOTE[("B1", _h)] = "bb40k written by round 1 as `G6_B1_…`; same checkpoint, same head budget"
 
+# One cell the extend rule could not decide. B1's two heads move in opposite
+# directions and both moves are far inside the ±0.0384 head-seed band, so the
+# arithmetic returns a split the numbers do not support. The card extended it
+# by hand. The stop-reason table says so rather than printing a rule that did
+# not fire.
+STOP_CALL = {"B1": ("extend both heads",
+                    "the card's call: both moves sit inside the ±0.0384 "
+                    "head-seed band, so the rule decides nothing")}
+
 # Coverage is read off the score files, not off the run registry.
 #
 # The registry knows round 1's 32 runs and nothing after them, so a coverage
@@ -218,14 +227,71 @@ def main(argv=None):
           ". The card's extend rule reads a cell's bb40k number against its "
           "bb100k number, so it fires only where both are in hand.", ""]
 
+    # ---- 1a'. k = 3 against the published k = 0 -----------------------------
+    # The card's own question, on one grid: does training the forecaster on
+    # its own output beat the parents' published number for the SAME cell, at
+    # the SAME stop, on the SAME head? Every other table here contrasts runs
+    # this study made. This one is the only place the study meets the numbers
+    # it set out to beat. Group B's parents published the student head alone,
+    # so its teacher rows carry no baseline and form no delta.
+    def sv(cell, stop, head):
+        return val(f"{cell}_k3_bb{stop}k_{head}")
+
+    def pub(cell, head, stop):
+        return PUB_ALL.get(cell, {}).get(head, {}).get(stop)
+
+    # Two tallies, because the two head columns do not cover the same cells.
+    # Every one of the 14 cells has a published STUDENT number at bb100k, so
+    # the student tally is the card's own 14-cell verdict. Only group A
+    # published a teacher, so a pooled count would silently weight group A
+    # twice and change the verdict.
+    rows = []
+    tally = {h: {"better": 0, "flat": 0, "worse": 0}
+             for h in ("student", "teacher")}
+    for cell in CARD_CELLS:
+        for head in ("student", "teacher"):
+            cs = []
+            for stop in (40, 100, 200):
+                mine, base = sv(cell, stop, head), pub(cell, head, stop)
+                if mine is None or base is None:
+                    cs += [fmt(mine), fmt(base), "—", "—"]
+                    continue
+                d = mine - base
+                v = ("better" if d <= -NOISE_BAND else
+                     "worse" if d >= NOISE_BAND else "flat")
+                if stop == 100:
+                    tally[head][v] += 1
+                cs += [fmt(mine), fmt(base), f"{d:+.4f}", v]
+            rows.append(f"| {cell} | {head} | " + " | ".join(cs) + " |")
+
+    def tally_line(head):
+        t = tally[head]
+        n = sum(t.values())
+        return (f"{n} cells, **{t['better']} better, {t['flat']} flat, "
+                f"{t['worse']} worse**")
+
+    L += ["### This study's k = 3 against the published k = 0", "",
+          "GM-Relative MASE over the same 97 GIFT-Eval configs, strategy B4, "
+          "horizon 16. Δ is this study minus the published number, so "
+          "negative is a gain. A verdict reads Δ against the ±"
+          f"{NOISE_BAND:.4f} head-seed band: closer than that is `flat`.", "",
+          "A dash is a number no parent published. Group B's two parents "
+          "print one head per row, the student, so group B has no published "
+          "teacher to meet.", "",
+          "At bb100k, the stop every one of the 14 cells reached. Student "
+          f"head: {tally_line('student')}. Teacher head, group A only: "
+          f"{tally_line('teacher')}.", "",
+          "| cell | head | 40k k=3 | 40k pub | Δ | | 100k k=3 | 100k pub | Δ "
+          "| | 200k k=3 | 200k pub | Δ | |",
+          "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"] \
+         + rows + [""]
+
     # ---- 1b. the stop ladder -----------------------------------------------
     # Round 3's own question. The extend rule sent eight cells from 100k to
     # 200k and held five at 100k, so this is the column that says whether the
     # extra 100,000 steps bought anything. It reads the score files, so a row
     # fills the moment its eval lands and stays `—` until then.
-    def sv(cell, stop, head):
-        return val(f"{cell}_k3_bb{stop}k_{head}")
-
+    #
     # The interval on each Δ, from the same paired dataset-cluster bootstrap
     # the depth contrasts use. A Δ with no interval beside it cannot be read
     # against the head-seed band, so the column ships with the numbers.
@@ -279,6 +345,44 @@ def main(argv=None):
           "variance. The head-seed band is ±0.0384.", "",
           "| cell | head | bb40k | bb100k | bb200k | Δ | 95% CI | % | note |",
           "|---|---|---|---|---|---|---|---|---|"] + rows + [""]
+
+    # ---- 1b'. why each cell stopped where it stopped -------------------------
+    # The ladder above says what the extra steps bought. It does not say why
+    # six cells never took them. That decision is the extend rule, and the
+    # rule is arithmetic on two numbers the table already holds: a head earns
+    # 200k when its bb100k score sits BELOW its bb40k score, and stops when it
+    # sits above. Printing the two moves beside the decision makes the rule
+    # checkable against the score files rather than taken on trust.
+    rows = []
+    for cell in CARD_CELLS:
+        mv = {h: (None if (sv(cell, 40, h) is None or sv(cell, 100, h) is None)
+                  else sv(cell, 100, h) - sv(cell, 40, h))
+              for h in ("student", "teacher")}
+        s, t = mv["student"], mv["teacher"]
+        if s is None or t is None:
+            continue
+        down = [h for h in ("student", "teacher") if mv[h] < 0]
+        if cell in STOP_CALL:
+            dec, why = STOP_CALL[cell]
+        elif len(down) == 2:
+            dec, why = ("extend both heads", "both heads moved down")
+        elif not down:
+            dec, why = ("stop at 100k", "both heads moved up")
+        else:
+            up = "teacher" if down[0] == "student" else "student"
+            dec, why = (f"extend the {down[0]} head",
+                        f"split: the {down[0]} head moved down, the {up} "
+                        f"head moved up")
+        rows.append(f"| {cell} | {s:+.4f} | {t:+.4f} | **{dec}** | {why} |")
+
+    nstop = sum(1 for r in rows if "stop at 100k" in r)
+    L += ["### Stop reasons: what the extend rule read at each cell", "",
+          "The rule reads one cell's bb40k number against its bb100k number, "
+          "per head. A head that moved down earns the second 100,000 steps; "
+          "a head that moved up stops. Both columns are bb100k minus bb40k, "
+          f"so negative is an improvement. It held {nstop} cells at 100k.", "",
+          "| cell | 40k→100k student | 40k→100k teacher | decision | why |",
+          "|---|---|---|---|---|"] + rows + [""]
 
     # ---- 1c. the same-arm pairs --------------------------------------------
     # A1 and B3 print one student number at both stops. A reader who meets

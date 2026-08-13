@@ -1862,3 +1862,77 @@ disk. Every PNG in `plots/` is embedded; no orphan.
 A4's student head lands, about 45 min and about $0.6. The eval then runs on
 elisa cores and `q_finish.sh` destroys the box behind a per-class artefact
 check.
+
+## 2026-08-13 11:40Z — session twenty: the meter stops, one number left
+
+**The idle-card question is answered by option (b): release the box.** There
+was nothing to place on GPU 1. `bb_A4_200k` reached 200,000 steps at 10:50Z
+and was the last backbone; `hd_A4_200k_student` finished at 11:26Z and was
+the last head. From 11:26Z the box held no work of any kind, because the
+97-config GIFT-Eval runs on elisa cores.
+
+**The box went at about 11:36:57Z.** `vastrun-status` reads
+`No running instances found`. `q_finish.sh` did not do it: the script was
+still inside its one-sync-tick grace, which it entered at 11:27:24Z and
+would have left at 11:44:04Z. The budget guard did not do it either — the
+floor is $5.50, credit was $11.5, and `results/BLOCKED_BUDGET` does not
+exist. Vast.ai is a shared account across concurrent agent sessions, so the
+contract ended outside this session.
+
+**Nothing was lost with it, and this was checked rather than assumed.**
+`VERIFY_ONLY=1 bash scripts/q_finish.sh` re-ran the per-class artefact gate
+at 11:37:43Z over all 46 terminal jobs: every backbone over 4 MB with its
+optimizer sidecar, every head final over 300 KB, each one named and sized on
+this disk. It returned `VERIFY ok — done=46 running=1 queued=0 failed=0`.
+That includes `hd_A4_200k_student`, whose final is 449,909 B, written at
+11:26Z and pulled before the contract ended.
+
+**`ev_A4_200k_student` is unaffected.** It started at 11:32Z on elisa cores,
+four CPU shards over the 97 configs, and it reads two files that are already
+local: A4's 200k backbone and A4's student head. It is the round's last
+number.
+
+**Two closing tables were added to `tables.py`,** so both regenerate on every
+publish tick rather than being typed once:
+
+- *This study's k = 3 against the published k = 0*, per cell, per stop, per
+  head, with Δ and a verdict at the ±0.0384 head-seed band. The two head
+  columns are tallied separately: all 14 cells have a published student
+  number, only group A's four have a published teacher, so one pooled count
+  would weight group A twice. Student at bb100k reads 9 better, 3 flat,
+  2 worse.
+- *Stop reasons*, which prints what the extend rule read at each cell —
+  bb100k minus bb40k on both heads — beside what it decided. It held six
+  cells at 100k: A1, B3, B5, B7, B8, B9. A4 extends the student head alone.
+  B1 is marked as the card's call, because both of its moves sit inside the
+  band and the rule decides nothing there.
+
+**Spend.** Credit $11.45 at 11:37Z against the $5.50 floor. The box billed
+$16.53 over 20h 18m. The meter is stopped for good: no instance is running,
+and the one job left costs nothing.
+
+### Correction: the A1/B3 reproductions ran 30,000 head steps, not 15,000
+
+Session sixteen recorded them at 15,000. The disk says otherwise, and the
+disk is right: all four reproduction heads carry checkpoints at 5k, 10k,
+15k, 20k, 25k and 30k, and both losses CSVs end on step 30,000. The number
+in that entry was wrong; the runs were not.
+
+The reproduction is now complete on both stops, and it answers the question
+it was built for:
+
+| stop | A1rep student | B3rep student | canonical A1 | canonical B3 |
+|---|---|---|---|---|
+| bb40k | 1.1447 | 1.1447 | 1.1305 | 1.1305 |
+| bb100k | 1.1610 | 1.1610 | 1.1676 | 1.1676 |
+
+Four heads trained apart, four 97-config evals run apart, two numbers. Both
+reproduction heads also end on the identical training loss,
+0.19657018780708313 at step 30,000. A1 and B3 hold ONE student backbone,
+bit for bit. The duplicate in the student column is two cells sharing a
+model, not two paths pointing at one file.
+
+The reproduction column sits at 30,000 head steps and the canonical column
+at 15,000, so the two columns are not comparable to each other. They are not
+meant to be: each column is internally matched, and the question is whether
+the two cells agree WITHIN a column. They do, at both stops.
