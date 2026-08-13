@@ -204,14 +204,20 @@ def state(cell, stop, enc, run, bb_run, plan, stopped):
     key = (cell, stop, enc)
     if score(cell, stop, enc) is not None:
         return "done"
-    if key in stopped:
-        return "stop"
+    # The queue beats the rule. `stopped` is what `r2_extend.tsv` recorded
+    # when the rule last ran; a job that is running NOW is running, whatever
+    # the rule said before. A4's teacher head at bb200k is the case: the rule
+    # read +0.0019 — 5% of the head-seed band — and returned `stop`, and the
+    # card extended the head by hand. Reading `stopped` first printed `stop`
+    # for a head that was training at that moment.
     if key in run:
         return "run"
     if key in bb_run:
         return "bb-run"
     if key in plan:
         return "plan"
+    if key in stopped:
+        return "stop"
     if head_exists(cell, stop, enc):
         return "MISS-e"
     if bb_exists(cell, stop):

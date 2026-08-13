@@ -1936,3 +1936,56 @@ The reproduction column sits at 30,000 head steps and the canonical column
 at 15,000, so the two columns are not comparable to each other. They are not
 meant to be: each column is internally matched, and the question is whether
 the two cells agree WITHIN a column. They do, at both stops.
+
+## 2026-08-13 12:05Z — session twenty-one: the idle-GPU item was already closed, and A4's teacher head is not a stop
+
+**The rented box is gone, and no card is idle on this study's bill.**
+`vastrun-status` returns "No running instances found." `bb_A4_200k` reached
+200,000 steps at 11:50Z, its student head trained on that same card and
+finished at 12:26Z, and the contract ended after it. Burn rate is $0.00/h.
+Credit reads $11.45 against the $5.50 floor. The feedback offered two ways
+to stop paying for a card at 0%; the box took the second one before this
+session opened.
+
+**One number was running, and now there are two.** `ev_A4_200k_student`
+started at 11:32Z on four elisa CPU shards and holds 44 of 97 configs. The
+second is new.
+
+### A4's teacher head at bb200k: the rule read noise and called it a stop
+
+The extend rule compares two raw numbers with no band:
+
+    A4 teacher   bb40k 1.0855 -> bb100k 1.0874   +0.0019   -> "up" -> stop
+
++0.0019 is 5% of the ±0.0384 head-seed band. The rule cannot see that,
+because it has no band in it. B1 met the same wall in session sixteen and
+the card extended it by hand for exactly this reason. A4 is this study's
+strongest cell — its student head is -0.114 against the published k = 0 at
+bb100k, second best of the 14 — and its 200k backbone was already on disk.
+
+So the head runs. It costs nothing to run it: no instance is rented, the
+head takes one elisa card and the eval takes elisa cores.
+
+**Launched by hand, outside the queue, for one measured reason.** `q_run.sh`
+gates a head on 8500 MiB free. elisa's card 1 had 8426 MiB — 74 MiB under
+the gate — and the dispatcher's next choice after both local cards is a
+`rem:` slot whose box no longer exists, which would have marked the job
+failed rather than waited. The head was started with a 7800 MiB gate and its
+queue state pre-set to `running` so no second copy could be placed. It
+allocated 5.5 GB and runs at 7.8 sps, ETA 1.0 h for 30,000 steps.
+`scripts/q_adopt_head.sh` watches for the final checkpoint and flips that
+state to `done`, at which point the dispatcher owns `ev_A4_200k_teacher` and
+runs it on cores like every other eval this round.
+
+Protocol is unchanged from the other thirteen cells' bb200k heads: 30,000
+steps, seed 20260722, `--grad-clip 1.0`, batch 256, lr 1e-3, forecast-len
+16, then 97 GIFT-Eval configs at strategy B4.
+
+**`results/r2_extend.tsv` is not edited.** It records what the rule read,
+which is `stop`, and that is the honest record of the arithmetic. The
+override lives in `tables.py`'s `STOP_CALL`, beside B1's, so the stop-reason
+table prints the hand call and its reason instead of a rule that did not
+fire. Six cells still stop at 100k: A1, B3, B5, B7, B8, B9.
+
+**Spend this session: $0.00.** Credit $11.45, unchanged, floor $5.50. Every
+job left in the queue runs on hardware this study does not pay for.

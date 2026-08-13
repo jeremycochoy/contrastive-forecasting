@@ -75,7 +75,7 @@ The interval is a 95% paired dataset-cluster bootstrap over the pair's 97 config
 | A3 | student | 1.3618 | 1.3010 | 1.3998 | +0.0988 | [+0.0602, +0.1509] | +7.6% |  |
 | A3 | teacher | 1.3521 | 1.3151 | 1.2913 | -0.0238 | [-0.0646, +0.0067] | -1.8% |  |
 | A4 | student | 1.0862 | 1.0801 | — | — | — | — |  |
-| A4 | teacher | 1.0855 | 1.0874 | — | — | — | — | student head only, by the extend rule |
+| A4 | teacher | 1.0855 | 1.0874 | — | — | — | — | extended by hand; the rule's move is inside the band |
 | B1 | student | 1.0850 | 1.0881 | 1.1009 | +0.0128 | [+0.0001, +0.0284] | +1.2% | bb40k written by round 1 as `G6_B1_…`; same checkpoint, same head budget |
 | B1 | teacher | 1.0948 | 1.0897 | 1.1001 | +0.0104 | [-0.0037, +0.0280] | +1.0% | bb40k written by round 1 as `G6_B1_…`; same checkpoint, same head budget |
 | B2 | student | 1.3976 | 1.3443 | 1.2904 | -0.0539 | [-0.0935, -0.0197] | -4.0% |  |
@@ -106,7 +106,7 @@ The rule reads one cell's bb40k number against its bb100k number, per head. A he
 | A1 | +0.0371 | +0.0248 | **stop at 100k** | both heads moved up |
 | A2 | -0.0256 | -0.0239 | **extend both heads** | both heads moved down |
 | A3 | -0.0608 | -0.0370 | **extend both heads** | both heads moved down |
-| A4 | -0.0061 | +0.0019 | **extend the student head** | split: the student head moved down, the teacher head moved up |
+| A4 | -0.0061 | +0.0019 | **extend both heads** | the student head moved down; the teacher head moved +0.0019, 5% of the ±0.0384 head-seed band, so the rule decides nothing there. Extended by hand, on free hardware |
 | B1 | +0.0031 | -0.0051 | **extend both heads** | the card's call: both moves sit inside the ±0.0384 head-seed band, so the rule decides nothing |
 | B2 | -0.0533 | -0.0924 | **extend both heads** | both heads moved down |
 | B3 | +0.0371 | +0.0276 | **stop at 100k** | both heads moved up |

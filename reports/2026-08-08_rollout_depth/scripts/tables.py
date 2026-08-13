@@ -77,7 +77,7 @@ CARD_CELLS = ["A1", "A2", "A3", "A4"] + [f"B{i}" for i in range(1, 11)]
 STOPPED_AT_100K = ["A1", "B3", "B5", "B7", "B9"]
 EXTEND_NOTE = {(c, h): "the extend rule held this cell at 100k"
                for c in STOPPED_AT_100K for h in ("student", "teacher")}
-EXTEND_NOTE[("A4", "teacher")] = "student head only, by the extend rule"
+EXTEND_NOTE[("A4", "teacher")] = "extended by hand; the rule's move is inside the band"
 # B8 is the round's new cell: it started from step 0 and the queue took it to
 # 100k, the stop every other cell already held. It was never queued past it.
 for _h in ("student", "teacher"):
@@ -95,9 +95,21 @@ for _h in ("student", "teacher"):
 # arithmetic returns a split the numbers do not support. The card extended it
 # by hand. The stop-reason table says so rather than printing a rule that did
 # not fire.
+#
+# A4 is the second. Its student head moved down and earns 200k on the rule.
+# Its teacher head moved +0.0019, which the rule reads as `up` and stops.
+# +0.0019 is 5% of the head-seed band, so that reading is noise, not a
+# result. A4 is this study's strongest cell and its 200k backbone was
+# already on disk, so the head cost one free elisa card and the eval cost
+# cores. Extended by hand for the same reason B1 was.
 STOP_CALL = {"B1": ("extend both heads",
                     "the card's call: both moves sit inside the ±0.0384 "
-                    "head-seed band, so the rule decides nothing")}
+                    "head-seed band, so the rule decides nothing"),
+             "A4": ("extend both heads",
+                    "the student head moved down; the teacher head moved "
+                    "+0.0019, 5% of the ±0.0384 head-seed band, so the rule "
+                    "decides nothing there. Extended by hand, on free "
+                    "hardware")}
 
 # Coverage is read off the score files, not off the run registry.
 #

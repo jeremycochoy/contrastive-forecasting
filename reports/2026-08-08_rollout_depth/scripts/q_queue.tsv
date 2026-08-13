@@ -76,3 +76,15 @@ hd_B8_40k_student	head	B8	40000	student	-
 hd_B8_40k_teacher	head	B8	40000	teacher	-
 ev_B8_40k_student	eval	B8	40000	student	hd_B8_40k_student
 ev_B8_40k_teacher	eval	B8	40000	teacher	hd_B8_40k_teacher
+#
+# 2026-08-13 13:02 — A4's teacher head at bb200k. The extend rule read
+# +0.0019 from bb40k to bb100k on this head and returned `stop`, but the
+# rule compares raw numbers with no band, and +0.0019 is far inside the
+# ±0.0384 head-seed band. That is B1's situation, which the card extended
+# by hand. A4 is the study's strongest cell and its 200k backbone already
+# exists, so the head costs one elisa card and the eval costs cores. No
+# rented hardware is involved. The head is already running outside the
+# queue (state pre-set to `running`); this row exists so the eval behind
+# it dispatches and the publisher carries both.
+hd_A4_200k_teacher	head	A4	200000	teacher	-
+ev_A4_200k_teacher	eval	A4	200000	teacher	hd_A4_200k_teacher
