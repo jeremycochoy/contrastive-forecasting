@@ -74,6 +74,20 @@ def read_boot(res):
     return out
 
 
+def missing_boot(bs):
+    """The interval labels the rule reads. A missing one is not 'covers 0'.
+
+    ``verdict_for`` treats an absent interval as one that covers zero, and
+    the depth branch fires on exactly that. So a bootstrap that never ran
+    would hand back `depth` and read like a measurement. Demand the labels
+    instead, the same way a missing score file stops the run.
+    """
+    want = [f"B1_alignx4_{h}" for h in HEADS]
+    want += [f"B1_alignx4_vs_k3_{h}" for h in HEADS]
+    want += [f"B1_k3_{h}" for h in HEADS]
+    return [w for w in want if w not in bs]
+
+
 def verdict_for(share, ci_x4, ci_k3):
     excl = lambda ci: ci is not None and (ci[1] > 0 or ci[2] < 0)
     if share >= SHARE_REWEIGHT and excl(ci_x4):
@@ -98,10 +112,16 @@ def main():
     if err:
         print(f"gap3_item3: {err} — nothing written", file=sys.stderr)
         return 1
+    bs = read_boot(res)
+    gone = missing_boot(bs)
+    if gone:
+        print(f"gap3_item3: bootstrap.csv has no {', '.join(gone)} — "
+              f"run make_report_assets.sh first. Nothing written.",
+              file=sys.stderr)
+        return 3
     if a.check:
         print("gap3_item3: every input in hand")
         return 0
-    bs = read_boot(res)
 
     rows, verdicts = [], {}
     for head in HEADS:
