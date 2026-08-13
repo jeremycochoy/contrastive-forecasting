@@ -703,8 +703,10 @@ def main(argv=None):
           "5% better, short (55 configs) losing less than 2%.", "",
           "**This table is the only place the card's criterion is applied as "
           f"a test, and it is answered for {len(held_arms)} machine-held "
-          f"arms ({', '.join(sorted(held_arms))}) at one stop, bb40k.**" +
-          scr_line, "",
+          f"arms ({', '.join(sorted(held_arms))}) at one stop, bb40k.** The "
+          "card also asks about bb100k and bb200k. No cell holds a "
+          "machine-matched `k = 0` at either stop, so at those two the "
+          "report has the screen and nothing else." + scr_line, "",
           "`machine held` = did the two sides train on the same box. A `no` "
           "row carries a machine change as well as a depth change. The B5 "
           "table below measures the machine alone, at one seed, at 0.1166, "
