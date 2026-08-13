@@ -47,6 +47,15 @@ both stops, to a maximum absolute difference of 0.000e+00
 (`results/pair_identity.tsv`). The two head trainings then match step for
 step: both curves start at 0.4780377745628357 and end at 0.21291811764240265.
 
+Equal weights alone would also follow from one file overwriting the other.
+The two training logs rule that out. Over all 100,000 steps, one column of
+the losses CSV differs and no other does: `ema_tau`. Loss, gap, `ff`, `fp`,
+`tp`, `cross_batch`, both R², AUC and all four `cos_err` depths agree digit
+for digit at every step. A4/B1 runs the same comparison over its shared
+60,000 steps and 26 columns differ (`results/pair_losses_diff.tsv`). The two
+A1/B3 runs took one trajectory; the regime moved the EMA copy and nothing
+else.
+
 The two evals also ran apart. Each wrote its own 97-config CSV under its own
 cell-id directory. On the student, 0 of 97 rows differ; on the teacher, all
 97 differ (`results/pair_A1B3_gift_rows.tsv`). The eval path keys on the
