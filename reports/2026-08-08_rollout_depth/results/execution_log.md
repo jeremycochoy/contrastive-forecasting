@@ -2461,3 +2461,29 @@ check, and prints the config with both values. The unmodified copy passes.
 `scripts/verify_close.sh` (runs five checks now, still running all of them
 before it exits so one failure does not hide four), and `rollout_depth.md`'s
 verification section. No number in the report changed.
+
+## 2026-08-13, late — the full rebuild, and one artefact that disagreed
+
+`bash scripts/make_report_assets.sh` rebuilt every table and every figure from
+the eval CSVs, the losses CSVs and the checkpoints (`results/rebuild.log`).
+
+**Everything re-derived except one file.** `rollout_depth.md`, `scores.md` and
+all 20 figures came back byte-identical, so the report is what its generators
+produce. `results/head_gap.tsv` did not: it read **0.1085** for A3's bb200k
+student/teacher gap where the report reads **0.1084**.
+
+**The report is the correct one.** `tables.py` reads `results/splits.csv`,
+which keeps 6 decimals: 1.399771 - 1.291332 = 0.108439. `gap6_head_gap.py` read
+the 4-decimal score files and differenced two rounded numbers, 1.3998 - 1.2913
+= 0.1085. The rounding, not the measurement.
+
+`gap6_head_gap.py` now reads `splits.csv` and falls back to the score files
+only when a tag is absent, so the two artefacts cannot disagree again. Eight of
+the 36 rows moved by 0.0001. The ordering did not change: A3 bb200k stays the
+largest gap, the next largest anywhere stays 0.0425 (B7 bb100k) and the next in
+group A stays 0.0168 (A4 bb200k), so the report's "6.5x" and "2.6x" hold.
+`plot_a3_reseed.py`'s docstring carried the same 0.1085 and now reads 0.1084.
+`plots/a3_reseed.png` re-rendered pixel-identical (0 of 1,008,000 pixels
+differ); only the PNG encoder's bytes moved, so the committed file stands.
+
+No number in the report changed.

@@ -16,16 +16,34 @@ Usage: gap6_head_gap.py --results <results dir> [--out <tsv>]
 from __future__ import annotations
 
 import argparse
+import csv
 from pathlib import Path
 
 CELLS = ["A1", "A2", "A3", "A4"] + [f"B{i}" for i in range(1, 11)]
 STOPS = (40, 100, 200)
 
 
-def score(res: Path, cell: str, stop: int, head: str):
-    p = res / f"score_{cell}_k3_bb{stop}k_{head}.txt"
+def full_precision(res: Path):
+    """{tag: score} from splits.csv, which keeps 6 decimals.
+
+    The score files print 4. Differencing two of them rounds twice, which moves
+    A3's bb200k gap to 0.1085 where the true difference is 0.108439. tables.py
+    reads splits.csv for exactly this reason, so read the same source here and
+    the two artefacts cannot disagree.
+    """
+    p = res / "splits.csv"
+    if not p.is_file():
+        return {}
+    return {r["stop"]: float(r["gm_rel_mase"])
+            for r in csv.DictReader(open(p)) if r["split"] == "all"}
+
+
+def score(res: Path, cell: str, stop: int, head: str, sp: dict):
+    tag = f"{cell}_k3_bb{stop}k_{head}"
+    if tag in sp:
+        return sp[tag]
     try:
-        return float(p.read_text().strip())
+        return float((res / f"score_{tag}.txt").read_text().strip())
     except (OSError, ValueError):
         return None
 
@@ -36,12 +54,13 @@ def main():
     ap.add_argument("--out")
     a = ap.parse_args()
     res = Path(a.results)
+    sp = full_precision(res)
 
     gaps = []
     for cell in CELLS:
         for stop in STOPS:
-            s, t = score(res, cell, stop, "student"), score(res, cell, stop,
-                                                            "teacher")
+            s, t = (score(res, cell, stop, "student", sp),
+                    score(res, cell, stop, "teacher", sp))
             if s is not None and t is not None:
                 gaps.append((abs(s - t), cell, stop, s, t))
     gaps.sort(reverse=True)
@@ -64,7 +83,7 @@ def main():
     print("\nthree-stop trajectories, student head:")
     worst = (0.0, "")
     for cell in CELLS:
-        v = [score(res, cell, s, "student") for s in STOPS]
+        v = [score(res, cell, s, "student", sp) for s in STOPS]
         if any(x is None for x in v):
             continue
         rev = v[2] - v[1]

@@ -4,7 +4,7 @@
 A3 at bb200k reads 1.3998 on the student and 1.2913 on the teacher. Both
 heads read ONE backbone file. Everywhere else in this grid the two heads of
 one backbone agree to 0.0425 or better, and inside group A to 0.0168, so a
-gap of 0.1085 is either a real property of that backbone or one bad head
+gap of 0.1084 is either a real property of that backbone or one bad head
 draw.
 
 The figure puts a second draw of the same head on the same axis. The band is
