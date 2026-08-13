@@ -759,6 +759,17 @@ which has no denominator.
   fails the check and names the config
   ([`results/verify_denominator.log`](results/verify_denominator.log)).
 
+A check suite can agree with itself. So the two results the review put at risk
+were re-derived a second time by separate code: numpy in place of the `random`
+module, vectorised cluster resampling, and bootstrap seed 7919373 in place of
+20260809. It reads `all_results.csv` and the seasonal-naive reference only, and
+touches no score file until it compares. All nine scores reproduce, worst
+deviation 3.97e-05. All nine observed deltas match to four decimals, to the
+last digit. The intervals agree to Monte-Carlo noise: no bound moves by more
+than 0.0039, and no interval changes which side of zero it sits on
+([`scripts/independent_recheck.py`](scripts/independent_recheck.py),
+[`results/independent_recheck.log`](results/independent_recheck.log)).
+
 ## Annex
 
 **`B5·s3` has no teacher-head number.** Its teacher head aborted for want of

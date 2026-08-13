@@ -1,0 +1,56 @@
+=== re-derived scores  (GM of MASE / seasonal-naive MASE) ===
+configs shared by every arm and the reference : 97
+
+cell                              re-derived  score file      diff
+B1 k=0 student                        1.2025      1.2025   1.9e-05
+B1 k=0 teacher                        1.2001      1.2001   4.0e-05
+B1 k=0 L_align x4 student             1.1513      1.1513   1.0e-05
+B1 k=0 L_align x4 teacher             1.1482      1.1482   1.8e-05
+B1 k=3 student                        1.0850      1.0850   2.4e-05
+B1 k=3 teacher                        1.0948      1.0948   7.7e-06
+A3 bb200k student draw 1              1.3998      1.3998   2.9e-05
+A3 bb200k student draw 2              1.4098      1.4098   1.6e-05
+A3 bb200k teacher                     1.2913      1.2913   3.2e-05
+
+worst |re-derived - score file| : 3.97e-05  (4-decimal print, allowance 5.0e-05)
+SCORES REPRODUCE
+
+=== paired dataset-cluster bootstrap  (55 datasets, 10000 resamples, seed 7919373) ===
+
+contrast                      subset          n     delta          95% interval   p_impr
+item 3 re-weighting student   all            97   -0.0512   [ -0.1011,  -0.0017]    97.8%
+item 3 re-weighting student   short          55   -0.0009   [ -0.0501,  +0.0459]    51.8%
+item 3 re-weighting student   medium_long    42   -0.1400   [ -0.2276,  -0.0623]   100.0%
+item 3 depth       student    all            97   -0.0663   [ -0.1070,  -0.0341]   100.0%
+item 3 depth       student    short          55   -0.0547   [ -0.0839,  -0.0314]   100.0%
+item 3 depth       student    medium_long    42   -0.0845   [ -0.1810,  -0.0148]    99.3%
+item 3 total       student    all            97   -0.1175   [ -0.1808,  -0.0606]   100.0%
+item 3 total       student    short          55   -0.0556   [ -0.1022,  -0.0187]    99.9%
+item 3 total       student    medium_long    42   -0.2244   [ -0.3493,  -0.1241]   100.0%
+item 3 re-weighting teacher   all            97   -0.0519   [ -0.0993,  -0.0055]    98.6%
+item 3 re-weighting teacher   short          55   -0.0055   [ -0.0508,  +0.0376]    60.0%
+item 3 re-weighting teacher   medium_long    42   -0.1329   [ -0.2174,  -0.0583]   100.0%
+item 3 depth       teacher    all            97   -0.0534   [ -0.0880,  -0.0240]   100.0%
+item 3 depth       teacher    short          55   -0.0468   [ -0.0704,  -0.0265]   100.0%
+item 3 depth       teacher    medium_long    42   -0.0634   [ -0.1427,  -0.0020]    97.8%
+item 3 total       teacher    all            97   -0.1053   [ -0.1667,  -0.0508]   100.0%
+item 3 total       teacher    short          55   -0.0523   [ -0.0985,  -0.0150]    99.7%
+item 3 total       teacher    medium_long    42   -0.1963   [ -0.3134,  -0.1030]   100.0%
+item 6 draw 2 vs draw 1       all            97   +0.0100   [ -0.0160,  +0.0378]    21.4%
+item 6 draw 2 vs draw 1       short          55   +0.0022   [ -0.0351,  +0.0385]    42.2%
+item 6 draw 2 vs draw 1       medium_long    42   +0.0207   [ -0.0004,  +0.0554]     2.9%
+item 6 draw 1 vs teacher      all            97   +0.1084   [ +0.0661,  +0.1632]     0.0%
+item 6 draw 1 vs teacher      short          55   +0.1573   [ +0.0917,  +0.2354]     0.0%
+item 6 draw 1 vs teacher      medium_long    42   +0.0385   [ +0.0206,  +0.0594]     0.0%
+item 6 draw 2 vs teacher      all            97   +0.1185   [ +0.0720,  +0.1812]     0.0%
+item 6 draw 2 vs teacher      short          55   +0.1595   [ +0.0930,  +0.2443]     0.0%
+item 6 draw 2 vs teacher      medium_long    42   +0.0592   [ +0.0286,  +0.1052]     0.0%
+
+wrote /tmp/contrastive-forecasting-373/reports/2026-08-08_rollout_depth/results/independent_recheck.csv
+
+=== item 3 — the split the review asked for ===
+
+student   k=0 1.2025  ->  x4 1.1513  ->  k=3 1.0850
+          total -0.1175   re-weighting -0.0512 (44%)   depth -0.0663 (56%)
+teacher   k=0 1.2001  ->  x4 1.1482  ->  k=3 1.0948
+          total -0.1053   re-weighting -0.0519 (49%)   depth -0.0534 (51%)
