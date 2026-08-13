@@ -38,7 +38,7 @@ At bb100k, the stop every one of the 14 cells reached. Student head: 14 cells, *
 | A3 | student | 1.3618 | 1.1895 | +0.1723 | worse | 1.3010 | 1.1921 | +0.1089 | worse | 1.3998 | — | — | — |
 | A3 | teacher | 1.3521 | 1.1793 | +0.1728 | worse | 1.3151 | 1.1963 | +0.1188 | worse | 1.2913 | — | — | — |
 | A4 | student | 1.0862 | 1.1603 | -0.0741 | better | 1.0801 | 1.1945 | -0.1144 | better | 1.0660 | — | — | — |
-| A4 | teacher | 1.0855 | 1.1544 | -0.0689 | better | 1.0874 | 1.1837 | -0.0963 | better | — | — | — | — |
+| A4 | teacher | 1.0855 | 1.1544 | -0.0689 | better | 1.0874 | 1.1837 | -0.0963 | better | 1.0828 | — | — | — |
 | B1 | student | 1.0850 | 1.2025 | -0.1175 | better | 1.0881 | 1.1616 | -0.0735 | better | 1.1009 | 1.1652 | -0.0643 | better |
 | B1 | teacher | 1.0948 | — | — | — | 1.0897 | — | — | — | 1.1001 | — | — | — |
 | B2 | student | 1.3976 | 1.2765 | +0.1211 | worse | 1.3443 | 1.2514 | +0.0929 | worse | 1.2904 | 1.1850 | +0.1054 | worse |
@@ -62,7 +62,7 @@ At bb100k, the stop every one of the 14 cells reached. Student head: 14 cells, *
 
 ### The stop ladder: what the second 100,000 steps buys
 
-Δ is bb200k minus bb100k, so a negative number is an improvement: GM-Relative MASE is a ratio against seasonal-naive and lower is better. Of the 15 extended measurements in hand, **6 improved** at bb200k and 9 got worse. The largest gain is B2 student, -0.0539.
+Δ is bb200k minus bb100k, so a negative number is an improvement: GM-Relative MASE is a ratio against seasonal-naive and lower is better. Of the 16 extended measurements in hand, **7 improved** at bb200k and 9 got worse. The largest gain is B2 student, -0.0539.
 
 The interval is a 95% paired dataset-cluster bootstrap over the pair's 97 configs. It bounds the eval sample, not run-to-run variance. The head-seed band is ±0.0384.
 
@@ -75,7 +75,7 @@ The interval is a 95% paired dataset-cluster bootstrap over the pair's 97 config
 | A3 | student | 1.3618 | 1.3010 | 1.3998 | +0.0988 | [+0.0602, +0.1509] | +7.6% |  |
 | A3 | teacher | 1.3521 | 1.3151 | 1.2913 | -0.0238 | [-0.0646, +0.0067] | -1.8% |  |
 | A4 | student | 1.0862 | 1.0801 | 1.0660 | -0.0141 | [-0.0265, -0.0024] | -1.3% |  |
-| A4 | teacher | 1.0855 | 1.0874 | — | — | — | — | extended by hand; the rule's move is inside the band |
+| A4 | teacher | 1.0855 | 1.0874 | 1.0828 | -0.0046 | [-0.0199, +0.0123] | -0.4% | extended by hand; the rule's move is inside the band |
 | B1 | student | 1.0850 | 1.0881 | 1.1009 | +0.0128 | [+0.0001, +0.0284] | +1.2% | bb40k written by round 1 as `G6_B1_…`; same checkpoint, same head budget |
 | B1 | teacher | 1.0948 | 1.0897 | 1.1001 | +0.0104 | [-0.0037, +0.0280] | +1.0% | bb40k written by round 1 as `G6_B1_…`; same checkpoint, same head budget |
 | B2 | student | 1.3976 | 1.3443 | 1.2904 | -0.0539 | [-0.0935, -0.0197] | -4.0% |  |
