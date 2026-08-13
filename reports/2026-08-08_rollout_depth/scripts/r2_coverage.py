@@ -290,6 +290,25 @@ def main():
                     miss += 1
         rows.append((c, cells))
 
+    # A1 and B3 hold ONE student model. Their 110 student tensors match to
+    # 0.000e+00 at both stops and their two head trainings run step for step
+    # (`results/pair_identity.tsv`). The grid prints that model twice per
+    # stop, so the table marks both printings and the count below says how
+    # many distinct models the 72 deliverables hold.
+    SHARED = ("A1", "B3")
+    shared_dupes = 0
+    if not args.state:
+        for c, cs in rows:
+            if c not in SHARED:
+                continue
+            for i, h in enumerate(("40k S", "40k T", "100k S", "100k T",
+                                   "200k S", "200k T")):
+                if h.endswith(" S") and cs[i] not in ("stop",) and \
+                        not cs[i].startswith("MISS"):
+                    cs[i] = cs[i] + "‡"
+                    if c == SHARED[1]:
+                        shared_dupes += 1
+
     hdr = ["cell", "40k S", "40k T", "100k S", "100k T", "200k S", "200k T"]
     if args.md:
         print("| " + " | ".join(hdr) + " |")
@@ -317,6 +336,11 @@ def main():
           "bb-run=backbone training now  plan=queued, not started  "
           "MISS-e=eval not run  MISS-h=head not trained  "
           "MISS-t=backbone not trained  stop=not a deliverable this round")
+    if shared_dupes:
+        print(f"‡ A1 and B3 hold one student model, printed twice per stop. "
+              f"The {total} deliverables therefore hold "
+              f"{total - shared_dupes} distinct measurements. Their teacher "
+              f"columns are two models and are counted twice.")
     return 0
 
 
