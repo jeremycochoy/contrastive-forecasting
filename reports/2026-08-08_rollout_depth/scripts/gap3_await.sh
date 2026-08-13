@@ -39,10 +39,14 @@ STALL_S="${STALL_S:-5400}"     # 90 min. One eval shard takes well under that.
 log(){ echo "[$(date '+%m-%d %H:%M:%S')] [await] $*" | tee -a "$RES/gap3_await.log"; }
 
 evald(){ # <tag> -> finished configs
-  local g="$CF373_ROOT/eval/$1/gift" n=0 d
+  # `grep -c` PRINTS 0 and returns 1 on no match, so a `|| echo 0` fallback
+  # appends a SECOND 0 and the arithmetic below sees "0\n0". Take grep's own
+  # count and default only when grep printed nothing at all (missing file).
+  local g="$CF373_ROOT/eval/$1/gift" n=0 d c
   for d in "$g"/shard_*; do
     [ -d "$d" ] || continue
-    n=$(( n + $(grep -ac 'MASE=' "$d/shard.log" 2>/dev/null || echo 0) ))
+    c=$(grep -ac 'MASE=' "$d/shard.log" 2>/dev/null)
+    n=$(( n + ${c:-0} ))
   done
   echo "$n"
 }
@@ -75,7 +79,7 @@ while :; do
   else
     # ---- phase B: two heads, two evals ----------------------------------
     s=$(evald G_B1_k0_aw4_bb40k_student); t=$(evald G_B1_k0_aw4_bb40k_teacher)
-    heads=$(pgrep -fc 'head_eval_bb.sh' 2>/dev/null || echo 0)
+    heads=$(pgrep -fc 'head_eval_bb.sh' 2>/dev/null); heads=${heads:-0}
     counter="ev:$s/$t heads:$heads"
     # The driver owns the retries. It exiting with a score missing is terminal.
     if ! pgrep -f 'gap3_heads.sh' >/dev/null 2>&1; then

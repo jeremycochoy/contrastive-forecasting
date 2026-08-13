@@ -27,10 +27,13 @@ S3T="$WRES/score_G_B1_k0_aw4_bb40k_teacher.txt"
 say(){ echo "[$(date '+%m-%d %H:%M')] $*"; }
 
 evald(){ # <tag> -> configs finished
-  local g="$CF373_ROOT/eval/$1/gift" n=0 d
+  # `grep -c` prints 0 AND returns 1 on no match. A `|| echo 0` fallback then
+  # emits a second 0 and the arithmetic sees "0\n0". Use grep's own count.
+  local g="$CF373_ROOT/eval/$1/gift" n=0 d c
   for d in "$g"/shard_*; do
     [ -d "$d" ] || continue
-    n=$(( n + $(grep -c 'MASE=' "$d/shard.log" 2>/dev/null || echo 0) ))
+    c=$(grep -ac 'MASE=' "$d/shard.log" 2>/dev/null)
+    n=$(( n + ${c:-0} ))
   done
   echo "$n"
 }

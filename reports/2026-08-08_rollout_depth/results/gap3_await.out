@@ -10,3 +10,11 @@
 [08-13 20:36:19] [await] ev:0/0 heads:2
 [08-13 20:46:19] [await] ev:0/0 heads:3
 [08-13 20:51:19] [await] ev:0/0 heads:2
+scripts/gap3_await.sh: line 45: n + 0
+0 : syntax error in expression (error token is "0 ")
+[08-13 21:11:19] [await] ev:0/ heads:2
+scripts/gap3_await.sh: line 45: n + 0
+0 : syntax error in expression (error token is "0 ")
+[08-13 21:21:19] [await] ev:0/26 heads:2
+[08-13 21:26:22] [await] waiting on /home/jupyter/wt-cf-373-train/reports/2026-08-08_rollout_depth/results/score_G_B1_k0_aw4_bb40k_student.txt and /home/jupyter/wt-cf-373-train/reports/2026-08-08_rollout_depth/results/score_G_B1_k0_aw4_bb40k_teacher.txt (probe 300s, stall 5400s)
+[08-13 21:26:22] [await] ev:0/38 heads:2
