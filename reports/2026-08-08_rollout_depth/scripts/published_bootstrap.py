@@ -30,6 +30,7 @@ Usage: published_bootstrap.py [--results <dir>] [--out <csv>] [--iters N]
 from __future__ import annotations
 
 import argparse
+import csv
 import hashlib
 import subprocess
 import sys
@@ -105,15 +106,32 @@ def parent_csv(cell, stop_k, head, res, do_import=True):
     return local
 
 
-def aggregate(csv_path, sn):
+def aggregate(csv_path, sn, subset="all"):
     """That CSV's own GM-Relative MASE over every config it shares with the
-    seasonal-naive reference."""
+    seasonal-naive reference, on one horizon subset."""
     import math
     m = PB.read_mase(csv_path)
     common = sorted(set(m) & set(sn))
+    if subset != "all":
+        common = PB.subsets(common)[subset]
     if not common:
         return None, 0
     return PB.gm([math.log(m[d] / sn[d]) for d in common]), len(common)
+
+
+def criterion(pcsv, mine, sn):
+    """The card's own per-horizon criterion on one pair: medium+long at least
+    5% better and short losing less than 2%. Returns the two percentages and
+    the verdict, or None if a subset is empty."""
+    out = {}
+    for sub in ("short", "medium_long"):
+        a, _ = aggregate(pcsv, sn, sub)
+        b, _ = aggregate(mine, sn, sub)
+        if a is None or b is None:
+            return None
+        out[sub] = 100.0 * (b / a - 1.0)
+    out["met"] = out["medium_long"] <= -5.0 and out["short"] < 2.0
+    return out
 
 
 def main():
@@ -130,6 +148,7 @@ def main():
 
     sn = PB.read_mase(PB.SN_REF)
     ok = dropped = 0
+    screen = []
     for cell in sorted(set(PARENT) | set(LADDER)):
       for head in ("student", "teacher"):
         for stop_k in (40, 100, 200):
@@ -164,7 +183,28 @@ def main():
                 dropped += 1
                 continue
             ok += 1
+            c = criterion(pcsv, mine, sn)
+            if c is not None:
+                screen.append((cell, stop_k, head, c["short"],
+                               c["medium_long"], c["met"]))
     print(f"\n{ok} interval(s) -> {out}; {dropped} row(s) dropped")
+
+    # The card's per-horizon criterion, on every one of these pairs. It is a
+    # SCREEN here and not a test: the two sides of each pair trained on
+    # different machines. The depth-response table applies the same criterion
+    # to the pairs that hold the machine.
+    scr = out.parent / "criterion_screen.csv"
+    with open(scr, "w", newline="") as fh:
+        w = csv.writer(fh)
+        w.writerow(["cell", "stop_k", "head", "pct_short", "pct_medium_long",
+                    "criterion_met"])
+        for row in screen:
+            w.writerow([row[0], row[1], row[2], f"{row[3]:.2f}",
+                        f"{row[4]:.2f}", "yes" if row[5] else "no"])
+    met = sum(1 for r in screen if r[5])
+    at100 = [r for r in screen if r[1] == 100]
+    print(f"criterion screen -> {scr}: {met} of {len(screen)} pairs meet it; "
+          f"at bb100k, {sum(1 for r in at100 if r[5])} of {len(at100)}")
 
 
 if __name__ == "__main__":

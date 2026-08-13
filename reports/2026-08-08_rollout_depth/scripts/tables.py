@@ -681,13 +681,30 @@ def main(argv=None):
             f"{pct(A.get('all'), B.get('all'))} | "
             f"{pct(A.get('short'), B.get('short'))} | "
             f"{pct(A.get('medium_long'), B.get('medium_long'))} | {ok} |")
+    # The same criterion on the published-baseline pairs. Those pairs cross a
+    # machine, so it is a screen there and a test only here.
+    screen = []
+    scrp = Path(args.results) / "criterion_screen.csv"
+    if scrp.is_file():
+        screen = list(csv.DictReader(open(scrp)))
+    scr_line = ""
+    if screen:
+        met = sum(1 for r in screen if r["criterion_met"] == "yes")
+        s100 = [r for r in screen if r["stop_k"] == "100"]
+        m100 = sum(1 for r in s100 if r["criterion_met"] == "yes")
+        scr_line = (
+            " The same criterion runs over every pair of the "
+            "published-baseline table as well, where it is a screen because "
+            f"the two sides cross a machine: {met} of {len(screen)} pairs "
+            f"meet it, and {m100} of {len(s100)} at bb100k "
+            "([`results/criterion_screen.csv`](results/criterion_screen.csv)).")
+
     L += ["", "Criterion, from the card: medium+long (42 configs) at least "
           "5% better, short (55 configs) losing less than 2%.", "",
-          "**This table is the only place the card's criterion is applied, "
-          f"and it is answered for {len(held_arms)} machine-held arms "
-          f"({', '.join(sorted(held_arms))}) at one stop, bb40k.** The "
-          "14-cell verdict above answers a different question with a "
-          "different rule.", "",
+          "**This table is the only place the card's criterion is applied as "
+          f"a test, and it is answered for {len(held_arms)} machine-held "
+          f"arms ({', '.join(sorted(held_arms))}) at one stop, bb40k.**" +
+          scr_line, "",
           "`machine held` = did the two sides train on the same box. A `no` "
           "row carries a machine change as well as a depth change. The B5 "
           "table below measures the machine alone, at one seed, at 0.1166, "

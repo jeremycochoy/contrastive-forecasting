@@ -428,7 +428,7 @@ The seed band is 0.0230, the far end of the 95% interval on this study's one mea
 
 Criterion, from the card: medium+long (42 configs) at least 5% better, short (55 configs) losing less than 2%.
 
-**This table is the only place the card's criterion is applied, and it is answered for 2 machine-held arms (B1, B5·s2) at one stop, bb40k.** The 14-cell verdict above answers a different question with a different rule.
+**This table is the only place the card's criterion is applied as a test, and it is answered for 2 machine-held arms (B1, B5·s2) at one stop, bb40k.** The same criterion runs over every pair of the published-baseline table as well, where it is a screen because the two sides cross a machine: 25 of 41 pairs meet it, and 10 of 18 at bb100k ([`results/criterion_screen.csv`](results/criterion_screen.csv)).
 
 `machine held` = did the two sides train on the same box. A `no` row carries a machine change as well as a depth change. The B5 table below measures the machine alone, at one seed, at 0.1166, so a `no` row carries a term larger than most of the deltas in this table. Only the `yes` rows report the depth and nothing else.
 

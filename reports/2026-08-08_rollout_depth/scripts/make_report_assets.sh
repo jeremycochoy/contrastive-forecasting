@@ -176,6 +176,7 @@ fi
 run "$HERE/plot_ladder.py" --results "$RES" --out "$PLOTS/ladder.png"
 
 # ---- 9. the tables ---------------------------------------------------------
+run "$HERE/published_bootstrap.py" --results "$RES"
 run "$HERE/tables.py" --results "$RES" --out "$RES/scores.md" \
     --inject "$DST/rollout_depth.md"
 
