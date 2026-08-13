@@ -38,8 +38,14 @@ CF373_ROOT="${CF373_ROOT:-/home/jupyter/checkpoints_backup/cf-373}"
 OUT="$CF373_ROOT/eval/$TAG"
 mkdir -p "$OUT"
 
-# The first draw read this file. Record which one this draw read, so the two
-# rows are known to differ by the head seed and by nothing else.
+# Record which backbone copy this draw read.
+#
+# The first draw did NOT read this file. It ran on the rented box and read the
+# box's own copy at /root/cf373_runs/arm6_v2_combab_alignT/leg_200k/, which is
+# where A3's 200k leg trained. This draw runs on elisa and reads elisa's synced
+# copy. So the md5 below pins draw 2's input only; the box was released before
+# its original could be checksummed, and the two draws differ by the head seed
+# AND by the machine that trained the head.
 md5sum "$BB" | tee "$OUT/backbone_md5.txt"
 
 exec bash "$HERE/head_eval_bb.sh" "$TAG" "$BB" student 30000

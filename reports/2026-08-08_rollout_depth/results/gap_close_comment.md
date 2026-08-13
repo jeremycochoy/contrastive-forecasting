@@ -81,7 +81,7 @@ What it cannot separate: `k = 3` puts its four copies of `L_align` on four horiz
 
 A3 at bb200k reads 1.3998 on the student and 1.2913 on the teacher, off one backbone file. That 0.1084 gap is 6.5x the next-largest in group A (0.0168) and 2.6x the largest anywhere (0.0425). Every gap in the grid is in [`results/head_gap.tsv`](results/head_gap.tsv).
 
-The second draw changes the head seed and nothing else: same backbone file, same 30,000 steps, same recipe, same 97-config eval.
+The second draw changes two things: the head seed, and the machine that trained the head. Draw 1 trained on the rented box, draw 2 on elisa. Both read the same 200,000-step backbone checkpoint, the box's original and elisa's synced copy of it. Held across the two draws: 30,000 head steps, the recipe, and the 97-config eval, which ran on elisa's cores for both. Only elisa's copy carries a recorded md5 (`9f0e8da71ff595523d2bf0dabdf80445`, [`results/eval/A3_k3_bb200k_student_s20260723/backbone_md5.txt`](results/eval/A3_k3_bb200k_student_s20260723/backbone_md5.txt)); the box was released before its original could be checksummed.
 
 | draw | head seed | GM-Relative MASE | against draw 1 |
 |---|---|---|---|
@@ -89,9 +89,9 @@ The second draw changes the head seed and nothing else: same backbone file, same
 | 2, student | 20260723 | 1.4098 | +0.0100 |
 | teacher | 20260722 | 1.2913 | -0.1084 |
 
-**The two draws agree.** They sit 0.0100 apart [-0.0163, +0.0378], 26% of the ±0.0384 head-seed band, and the second draw is the higher of the two. So 1.3998 is not a bad draw. The interval covers zero, and its far end lands on the imported band, so this head behaves like the heads that band was measured on.
+**The two draws agree.** They sit 0.0100 apart [-0.0163, +0.0378], 26% of the ±0.0384 head-seed band, and the second draw is the higher of the two. So 1.3998 is not a bad draw. The interval covers zero, and its far end lands on the imported band, so this head behaves like the heads that band was measured on. The two draws also sit on two machines, so this agreement bounds the head seed and the machine together, not the seed alone.
 
-The student/teacher gap survives the redraw at 0.1185, 3.1x the band. Two head seeds put A3's bb200k student above its teacher, so the gap is a property of that student encoder and not of the draw.
+The student/teacher gap survives the redraw at 0.1185, 3.1x the band. Two head seeds put A3's bb200k student above its teacher, so the gap is a property of that student encoder and not of the draw. Draw 1 and the teacher trained on the same box, so their 0.1084 gap holds the machine; the redraw's 0.1185 crosses machines.
 
 The ladder's largest move reads +0.1088 [+0.0656, +0.1667] off the second draw, against +0.0988 off the first. Both exclude zero.
 
@@ -122,6 +122,18 @@ toward it. So the two lines the review put at risk both stand:
 What this closes, and what it does not. It removes "one bad draw" as the
 explanation. It does not explain the gap: A3 is the cell where `k = 3` does
 the most damage, and this study has no second backbone seed on it.
+
+**What the redraw held, and what it did not.** Draw 1 trained its head on the
+rented box; draw 2 trained on elisa. Both read the same 200,000-step backbone
+checkpoint, the box's original and elisa's synced copy of it, and both evals
+ran on elisa's cores over the same 97 configs. So the 0.0100 between the two
+draws bounds the head seed and the machine together, not the seed alone. That
+makes the agreement a stronger result, not a weaker one. The 0.1084
+student/teacher gap holds the machine, because draw 1 and the teacher both
+trained on the box; the redraw's 0.1185 crosses machines. Only elisa's copy of
+the backbone carries a recorded md5
+(`9f0e8da71ff595523d2bf0dabdf80445`); the box was released before its original
+could be checksummed.
 
 ## Coverage — 14 cells x 3 stops x 2 heads
 

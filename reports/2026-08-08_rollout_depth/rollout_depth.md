@@ -65,16 +65,18 @@ and B2's student gains 0.0539. Two cells gain on both heads, B2 and A4. All
 
 ![A3's bb200k student, drawn twice](plots/a3_reseed.png)
 
-*A3's bb200k student head, trained twice off one backbone file, at two head
-seeds. The band is the ±0.0384 this report thresholds on, drawn around the
-first draw.*
+*A3's bb200k student head, trained twice off one backbone checkpoint, at two
+head seeds and on two machines. The band is the ±0.0384 this report
+thresholds on, drawn around the first draw.*
 
 The largest of the three is A3's student, and it is the one row drawn twice.
 The second draw reads 1.4098 against the first's 1.3998. The two sit 0.0100
-apart, 26% of the band, so the reversal is not a bad head draw. The teacher
-reads 1.2913 off the same backbone file, 0.1185 below the second draw. Two
-head seeds put A3's bb200k student that far above its teacher, so the gap
-belongs to the student encoder and not to the draw.
+apart, 26% of the band, so the reversal is not a bad head draw. The second
+draw trained on elisa and the first on the rented box, so that 0.0100 bounds
+the head seed and the machine together. The teacher reads 1.2913 off the same
+backbone, on the same box as the first draw, 0.1084 below it. Two head seeds
+put A3's bb200k student that far above its teacher, so the gap belongs to the
+student encoder and not to the draw.
 
 **The panel is selected.** The extend rule sent a cell to 200k when its score
 moved down from bb40k to bb100k, so the eight cells here are the cells that
@@ -365,7 +367,7 @@ The interval is a 95% paired dataset-cluster bootstrap over the pair's 97 config
 
 A3 at bb200k reads 1.3998 on the student and 1.2913 on the teacher, off one backbone file. That 0.1084 gap is 6.5x the next-largest in group A (0.0168) and 2.6x the largest anywhere (0.0425). Every gap in the grid is in [`results/head_gap.tsv`](results/head_gap.tsv).
 
-The second draw changes the head seed and nothing else: same backbone file, same 30,000 steps, same recipe, same 97-config eval.
+The second draw changes two things: the head seed, and the machine that trained the head. Draw 1 trained on the rented box, draw 2 on elisa. Both read the same 200,000-step backbone checkpoint, the box's original and elisa's synced copy of it. Held across the two draws: 30,000 head steps, the recipe, and the 97-config eval, which ran on elisa's cores for both. Only elisa's copy carries a recorded md5 (`9f0e8da71ff595523d2bf0dabdf80445`, [`results/eval/A3_k3_bb200k_student_s20260723/backbone_md5.txt`](results/eval/A3_k3_bb200k_student_s20260723/backbone_md5.txt)); the box was released before its original could be checksummed.
 
 | draw | head seed | GM-Relative MASE | against draw 1 |
 |---|---|---|---|
@@ -373,9 +375,9 @@ The second draw changes the head seed and nothing else: same backbone file, same
 | 2, student | 20260723 | 1.4098 | +0.0100 |
 | teacher | 20260722 | 1.2913 | -0.1084 |
 
-**The two draws agree.** They sit 0.0100 apart [-0.0163, +0.0378], 26% of the ±0.0384 head-seed band, and the second draw is the higher of the two. So 1.3998 is not a bad draw. The interval covers zero, and its far end lands on the imported band, so this head behaves like the heads that band was measured on.
+**The two draws agree.** They sit 0.0100 apart [-0.0163, +0.0378], 26% of the ±0.0384 head-seed band, and the second draw is the higher of the two. So 1.3998 is not a bad draw. The interval covers zero, and its far end lands on the imported band, so this head behaves like the heads that band was measured on. The two draws also sit on two machines, so this agreement bounds the head seed and the machine together, not the seed alone.
 
-The student/teacher gap survives the redraw at 0.1185, 3.1x the band. Two head seeds put A3's bb200k student above its teacher, so the gap is a property of that student encoder and not of the draw.
+The student/teacher gap survives the redraw at 0.1185, 3.1x the band. Two head seeds put A3's bb200k student above its teacher, so the gap is a property of that student encoder and not of the draw. Draw 1 and the teacher trained on the same box, so their 0.1084 gap holds the machine; the redraw's 0.1185 crosses machines.
 
 The ladder's largest move reads +0.1088 [+0.0656, +0.1667] off the second draw, against +0.0988 off the first. Both exclude zero.
 
@@ -723,6 +725,30 @@ cells. B5 (`arm4`, pooled `xshh_allt`) is the only cell whose f-bearing
 denominator holds h-anchored families; B9's `L_pred` denominator is
 f-anchored only, and the other twelve cells' f-bearing term is `L_align`,
 which has no denominator.
+
+**Every number here re-derives from its own artefacts.**
+`scripts/verify_close.sh` runs four checks and each writes its own log.
+
+- **The scores.** All 99 score files recomputed from their own 97-config eval,
+  two ways: the geometric mean of the per-config `Relative` column, and the
+  per-config `MASE` column against the harness CSV. 99 of 99 reproduce. The
+  worst deviation is 5.13e-05 against a rounding allowance of 1.07e-04, which
+  the check derives from the 4-decimal print rather than fixing by hand
+  ([`results/verify_scores.log`](results/verify_scores.log)).
+- **The grid.** The 14 x 3 x 2 coverage table rebuilt from the score files
+  alone, so it does not read the queue's state files that wrote
+  `results/coverage.md`. 72 of 72, none missing, none scored that this round
+  did not owe ([`results/verify_coverage.log`](results/verify_coverage.log)).
+- **Item 3's control.** The x4 weight read off the loss curve, not the
+  launcher. On a shared seed and batch order the control sits +3.73 above its
+  own `k = 0` baseline at step 1, and it writes no `cos_err_d*` column. So the
+  weight moved and the depth did not
+  ([`results/verify_alignx4.log`](results/verify_alignx4.log)).
+- **The machines.** The training machine of every head, read from the backbone
+  path in its own log. Item 3's six columns all sit on elisa. Item 6's two
+  draws do not ([`results/verify_provenance.log`](results/verify_provenance.log),
+  [`results/provenance.tsv`](results/provenance.tsv)). The eval directories of
+  rounds 1 and 2 hold no head log, so 49 of 100 do not carry the machine.
 
 ## Annex
 

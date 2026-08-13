@@ -460,9 +460,18 @@ def main(argv=None):
               f"and {top / nxt:.1f}x the largest anywhere ({nxt:.4f}). Every "
               "gap in the grid is in "
               "[`results/head_gap.tsv`](results/head_gap.tsv).", "",
-              "The second draw changes the head seed and nothing else: same "
-              "backbone file, same 30,000 steps, same recipe, same 97-config "
-              "eval.", "",
+              "The second draw changes two things: the head seed, and the "
+              "machine that trained the head. Draw 1 trained on the rented "
+              "box, draw 2 on elisa. Both read the same 200,000-step backbone "
+              "checkpoint, the box's original and elisa's synced copy of it. "
+              "Held across the two draws: 30,000 head steps, the recipe, and "
+              "the 97-config eval, which ran on elisa's cores for both. Only "
+              "elisa's copy carries a recorded md5 "
+              "(`9f0e8da71ff595523d2bf0dabdf80445`, "
+              "[`results/eval/A3_k3_bb200k_student_s20260723/backbone_md5.txt`]"
+              "(results/eval/A3_k3_bb200k_student_s20260723/backbone_md5.txt))"
+              "; the box was released before its original could be "
+              "checksummed.", "",
               "| draw | head seed | GM-Relative MASE | against draw 1 |",
               "|---|---|---|---|",
               f"| 1, student | 20260722 | {d1:.4f} | — |",
@@ -486,7 +495,9 @@ def main(argv=None):
                f"{'higher' if draw2 > d1 else 'lower'} of the two. So "
                f"{d1:.4f} is not a bad draw. The interval covers zero, and "
                f"its far end lands on the imported band, so this head behaves "
-               f"like the heads that band was measured on."
+               f"like the heads that band was measured on. The two draws also "
+               f"sit on two machines, so this agreement bounds the head seed "
+               f"and the machine together, not the seed alone."
                if agree else
                f"**The two draws disagree.** They sit {abs(draw2 - d1):.4f} "
                f"apart{seed_ci}, wider than the ±{NOISE_BAND:.4f} head-seed "
@@ -495,7 +506,9 @@ def main(argv=None):
               (f"The student/teacher gap survives the redraw at {gap2:.4f}, "
                f"{gap2 / NOISE_BAND:.1f}x the band. Two head seeds put A3's "
                f"bb200k student above its teacher, so the gap is a property "
-               f"of that student encoder and not of the draw."
+               f"of that student encoder and not of the draw. Draw 1 and the "
+               f"teacher trained on the same box, so their {top:.4f} gap holds "
+               f"the machine; the redraw's {gap2:.4f} crosses machines."
                if gap2 > NOISE_BAND else
                f"The student/teacher gap falls to {gap2:.4f} on the second "
                f"draw, inside the ±{NOISE_BAND:.4f} band."), "",

@@ -57,7 +57,7 @@ def main(argv=None):
         raise SystemExit(f"ABORT: no score for {RESEED_TAG}")
 
     x = list(range(len(STOPS)))
-    fig, ax = plt.subplots(figsize=(8.0, 5.0))
+    fig, ax = plt.subplots(figsize=(8.0, 5.6))
 
     # The band the report thresholds on, around the first draw's bb200k.
     ax.fill_between([x[-1] - 0.42, x[-1] + 0.42],
@@ -65,13 +65,16 @@ def main(argv=None):
                     color=col, alpha=0.12, linewidth=0, zorder=1,
                     label=f"±{NOISE_BAND} head-seed band, around draw 1")
 
+    # The bb200k draws sit on two machines, so the legend names each one.
+    # A reader who takes the figure on its own must not read the 0.0100 as a
+    # seed effect alone.
     ax.plot(x, st, "-o", color=col, markersize=7, zorder=3,
-            label="student head, seed 20260722")
+            label="student head, seed 20260722 (bb200k on the box)")
     ax.plot(x, te, "--s", color=col, markerfacecolor="white", markersize=7,
-            zorder=3, label="teacher head, seed 20260722")
+            zorder=3, label="teacher head, seed 20260722 (bb200k on the box)")
     ax.plot([x[-1]], [draw2], "D", color=col, markersize=9,
             markeredgecolor="black", markeredgewidth=1.1, zorder=4,
-            label="student head, seed 20260723 (second draw)")
+            label="student head, seed 20260723, on elisa (second draw)")
     ax.plot([x[-1], x[-1]], [st[-1], draw2], color="black", linewidth=1.1,
             zorder=2)
 
@@ -103,8 +106,11 @@ def main(argv=None):
     ax.set_ylabel("GM-Relative MASE, 97 configs")
     ax.set_title("A3, k = 3: two heads on one backbone, and a second draw "
                  "of one of them")
-    ax.legend(loc="best", frameon=False, fontsize=9)
-    fig.tight_layout()
+    # The labels name the machine, so they are too wide to sit inside the
+    # axes without covering the teacher line. The legend goes under it.
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.09),
+              frameon=False, fontsize=9, ncol=1)
+    fig.tight_layout(rect=(0, 0.02, 1, 1))
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(a.out, dpi=150)
     print(f"wrote {a.out}")

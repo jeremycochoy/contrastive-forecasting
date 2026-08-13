@@ -2347,3 +2347,71 @@ differ by one trailing blank line and nothing else.
 `vastrun-status` returns "No running instances found." No `#373` process
 holds a GPU. Credit stands where session twenty-two left it, $11.45 against
 the $5.50 floor, and this session spent $0.00.
+
+## 2026-08-13 22:30Z — session twenty-five: the numbers re-derived from the artefacts, and one sentence corrected
+
+**Nothing trained, nothing evaluated, nothing rented.** The queue drained at
+15:19Z and stayed drained. `vastrun-status` returns "No running instances
+found." Credit $11.45 against the $5.50 floor, unchanged. No card sits idle on
+unfinished work, because there is no unfinished work.
+
+**What this session did.** The two gap sessions checked the new runs against
+the branch. This session went under that and re-derived the numbers from the
+raw artefacts. `scripts/verify_close.sh` runs four checks, each with its own
+log:
+
+    verify_scores      99 of 99 score files reproduce from their own eval
+    verify_coverage    72 of 72 deliverables, grid rebuilt from score files
+    verify_alignx4     item 3's x4 weight and depth 0, read off the loss CSVs
+    verify_provenance  the training machine of every head, from its own log
+
+`verify_scores` recomputes each score two ways: the geometric mean of the
+per-config `Relative` column in `summary.txt`, and that file's `MASE` column
+against `eval_metrics/MASE[0.5]` in the harness CSV. The tolerance is derived
+from the 4-decimal print, not chosen: `bound = GM * mean(5e-5 / r_i) + 5e-5`.
+A first pass with a flat 5e-5 failed two files at 5.1e-05, which is the
+rounding and not a drift. The derived bound reads 1.07e-04 at its worst and
+all 99 pass.
+
+`verify_alignx4` answers a question the preflight file could not.
+`results/gap3_preflight.txt` records the flags the launcher meant to pass, and
+the backbone log does not echo them, so the preflight proved intent and not
+effect. The loss curve proves effect: the control shares seed 20260520 and
+batch order with its own `k = 0` baseline, and at step 1 it sits +3.73116
+above it, so `L_align(1) ~= 1.244` and the 4x reached the objective. The
+control writes no `cos_err_d*` column and `k = 3` writes four, so the control
+moved the weight and left the depth at 0. All three columns logged 40,000
+steps.
+
+**One sentence was wrong, and it is now corrected.** The report said the
+second draw of A3's bb200k student "changes the head seed and nothing else".
+It does not. Draw 1 trained its head on the rented box
+(`/root/cf373_runs/...`, python3.12); draw 2 trained on elisa
+(`/home/jupyter/cf373_r3/sync/...`, python3.10). A3's 200k leg trained on the
+box (`queue/bb_A3_200k.machine` = `rem:1`), so the box held the original
+backbone and elisa holds the synced copy. Only elisa's copy carries a recorded
+md5, `9f0e8da71ff595523d2bf0dabdf80445`; the box was released before its
+original could be checksummed. Both evals ran on elisa's cores over the same
+97 configs.
+
+**The verdict does not change, and it gets stronger.** Two head seeds on two
+machines land 0.0100 apart, 26% of the ±0.0384 band. So 1.3998 is not a bad
+draw, and that agreement now bounds the seed and the machine together rather
+than the seed alone. The student/teacher gap keeps its machine-held evidence:
+draw 1 and the teacher both trained on the box, so their 0.1084 holds the
+machine. The redraw's 0.1185 crosses machines.
+
+`verify_provenance` swept all 100 eval directories to find whether any other
+divided pair was mis-stated. It is not: item 3's six columns are all on elisa,
+and so are both A3 depth-0 controls. Only item 6's two pairs cross. 49 of the
+100 directories carry no head log, because rounds 1 and 2 wrote the machine to
+their launch logs instead, and the check says so rather than guessing.
+
+**What was edited.** `scripts/tables.py` (the generator, so the report and the
+close comment cannot drift apart), `rollout_depth.md`'s opener,
+`scripts/gap6_a3_reseed.sh`'s comment, `results/gap_close_item6.md`, and
+`scripts/plot_a3_reseed.py`, whose legend now names the machine of each point
+so the figure carries the caveat on its own. `results/scores.md` and
+`results/gap_close_comment.md` were regenerated from the corrected generator.
+`results/eval/A3_k3_bb200k_student_s20260723/` gains `backbone_md5.txt` and a
+`provenance.txt` that names both draws' backbone paths.
