@@ -31,8 +31,9 @@
 | B9 | 100k | 1.3299 | 1.4548 | -0.1249 | 1.3094 | — | — |
 | B10 | 40k | 1.2669 | 1.3791 | -0.1122 | 1.2730 | — | — |
 | B10 | 100k | 1.2403 | 1.3914 | -0.1511 | 1.2499 | — | — |
+| B10 | 200k | 1.2624 | — | — | — | — | — |
 
-29 of 42 (cell, stop) pairs measured. `S` is the student-encoder head, `T` the teacher-encoder head. A `—` in a `k = 0` column means the parent report published no such number: group B's two parents publish the student head only, so a group-B teacher row carries a value and no delta.
+30 of 42 (cell, stop) pairs measured. `S` is the student-encoder head, `T` the teacher-encoder head. A `—` in a `k = 0` column means the parent report published no such number: group B's two parents publish the student head only, so a group-B teacher row carries a value and no delta.
 
 ### Stop reasons
 
@@ -67,6 +68,7 @@
 | B9 | 100k | no | — | neither head down (S +0.0508, T +0.0366) — stop |
 | B10 | 40k | yes | student, teacher | 40k and 100k are unconditional |
 | B10 | 100k | yes | student, teacher | both heads down (S -0.0266, T -0.0231) — extend, keep both |
+| B10 | 200k | no | — | ceiling: 200k is the card's last stop (S +0.0221) |
 
 The rule is the card's: per head against its own previous stop, both heads down extends and keeps both, one head down extends and keeps that head, neither down stops. 40k and 100k run unconditionally, so 40k decides nothing. Down means lower GM-Relative MASE.
 

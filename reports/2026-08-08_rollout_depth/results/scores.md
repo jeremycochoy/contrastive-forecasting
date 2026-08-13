@@ -17,13 +17,13 @@ The card names 14 cells. This study scored **14 of them**: A1, A2, A3, A4, B1, B
 | B7 | L_align only | fixed 0.9 | k = 3 | bb40k, bb100k |
 | B8 | L_align + CPC auxiliary | fixed 0.9 | k = 3 | bb40k, bb100k |
 | B9 | split L_pred + CPC auxiliary | fixed 0.9 | k = 0, k = 3 | bb40k, bb100k |
-| B10 | L_align + CPC auxiliary | fixed 0.9 | k = 3 | bb40k, bb100k |
+| B10 | L_align + CPC auxiliary | fixed 0.9 | k = 3 | bb40k, bb100k, bb200k |
 
 Stops scored: bb40k, bb100k, bb200k. The card's extend rule reads a cell's bb40k number against its bb100k number, so it fires only where both are in hand.
 
 ### The stop ladder: what the second 100,000 steps buys
 
-Δ is bb200k minus bb100k, so a negative number is an improvement: GM-Relative MASE is a ratio against seasonal-naive and lower is better. Of the 1 extended measurement in hand, **0 improved** at bb200k and 1 got worse. None gained; the smallest loss is A2 student, +0.0028.
+Δ is bb200k minus bb100k, so a negative number is an improvement: GM-Relative MASE is a ratio against seasonal-naive and lower is better. Of the 2 extended measurements in hand, **0 improved** at bb200k and 2 got worse. None gained; the smallest loss is A2 student, +0.0028.
 
 | cell | head | bb40k | bb100k | bb200k | Δ | % | note |
 |---|---|---|---|---|---|---|---|
@@ -53,7 +53,7 @@ Stops scored: bb40k, bb100k, bb200k. The card's extend rule reads a cell's bb40k
 | B8 | teacher | 1.2865 | 1.3239 | — | — | — | trained from 0 this round; queued to 100k only |
 | B9 | student | 1.2791 | 1.3299 | — | — | — | the extend rule held this cell at 100k |
 | B9 | teacher | 1.2728 | 1.3094 | — | — | — | the extend rule held this cell at 100k |
-| B10 | student | 1.2669 | 1.2403 | — | — | — |  |
+| B10 | student | 1.2669 | 1.2403 | 1.2624 | +0.0221 | +1.8% |  |
 | B10 | teacher | 1.2730 | 1.2499 | — | — | — |  |
 
 ### Reproduction of the published k = 0
