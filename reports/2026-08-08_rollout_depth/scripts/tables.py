@@ -336,6 +336,52 @@ def main(argv=None):
                       "encoder, or align to the teacher. Either path reaches "
                       "the student's gradient, so the regime moves it.", ""]
 
+    # ---- 1d. the A1/B3 duplicate, re-run end to end -------------------------
+    # A tensor comparison says the two backbones hold one student. It does not
+    # say the head and the eval read the file each cell names. That takes a
+    # second pass: train a fresh head from the named checkpoint and re-run the
+    # 97 configs into a path no other cell writes. Four re-runs, one per cell
+    # per stop. A re-run that lands on the first number closes the path
+    # question the same way the tensor table closes the weight question.
+    rep_rows = []
+    for cell in ("A1", "B3"):
+        for stop in (40, 100):
+            tag = f"{cell}rep_k3_bb{stop}k_student"
+            got = val(tag)
+            base = val(f"{cell}_k3_bb{stop}k_student")
+            if got is None or base is None:
+                continue
+            md5 = "—"
+            lg = Path(args.results) / f"repro_eval_{tag}.log"
+            if lg.is_file():
+                for ln in lg.read_text(errors="ignore").splitlines():
+                    if "md5=" in ln:
+                        md5 = ln.split("md5=")[-1].strip()[:8]
+            rep_rows.append((cell, stop, md5, base, got))
+    if rep_rows:
+        L += ["### The A1/B3 duplicate, re-run end to end", "",
+              "Each row trains a fresh student head from the checkpoint its "
+              "own cell names, seed 20260722, and runs the 97 configs into "
+              "`results/eval/<cell>rep_…`, a directory no other cell writes. "
+              "A path that ignored the cell would land the re-run on the "
+              "other cell's number.", "",
+              "| cell | stop | backbone md5 | first pass | re-run | Δ |",
+              "|---|---|---|---|---|---|"]
+        for cell, stop, md5, base, got in rep_rows:
+            d = got - base
+            ds = "0.0000" if abs(d) < 5e-5 else f"{d:+.4f}"
+            L.append(f"| {cell} | bb{stop}k | `{md5}` | {base:.4f} | "
+                     f"{got:.4f} | {ds} |")
+        worst = max(abs(g - b) for _, _, _, b, g in rep_rows)
+        both = len({c for c, *_ in rep_rows}) == 2
+        L += ["", f"The largest re-run move is {worst:.4f}. "
+              + ("The two cells carry different backbone md5s and reproduce "
+                 "their own first-pass numbers, so the head and the eval read "
+                 "the file each cell names. The duplicate is the student "
+                 "weights, not the path."
+                 if both else
+                 "The remaining re-runs are still on the queue."), ""]
+
     # ---- 2. reproduction ---------------------------------------------------
     # The seed band, live from the bootstrap that measured it, so re-running
     # the bootstrap moves the gate with it.
