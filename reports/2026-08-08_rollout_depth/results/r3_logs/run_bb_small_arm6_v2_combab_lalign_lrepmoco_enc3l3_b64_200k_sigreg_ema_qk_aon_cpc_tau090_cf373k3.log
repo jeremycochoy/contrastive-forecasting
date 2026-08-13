@@ -913,3 +913,10 @@ Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, 
 [ 199800] loss=14.8888  ema_loss=14.7173  gap=0.1883  ema_gap=0.2020  mixup=43/200  2.9 sps  ETA 0.0h
               R²_rand=0.6705  R²_naive=0.5205  U_t=0.0835  U_b=0.1335  AUC=0.9617  Top1=0.2155
   timing: data=5.5ms  fwd=149.7ms  bwd=126.2ms  total=282.2ms
+[ 200000] loss=14.4682  ema_loss=14.7638  gap=0.2428  ema_gap=0.2055  mixup=66/200  2.9 sps  ETA 0.0h
+              R²_rand=0.6981  R²_naive=0.5772  U_t=0.0776  U_b=0.1349  AUC=0.9682  Top1=0.2841
+  timing: data=4.9ms  fwd=147.2ms  bwd=124.0ms  total=276.9ms
+  -> Saved /root/cf373_runs/bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3/bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_r2_200k.pth
+  -> Saved /root/cf373_runs/bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3/bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_r2_final.pth
+
+Done in 5.7h. Best gap=0.2340 at step 61000, Best loss=14.5818 at step 193600

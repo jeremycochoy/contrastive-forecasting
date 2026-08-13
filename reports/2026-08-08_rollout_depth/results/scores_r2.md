@@ -15,6 +15,7 @@
 | B1 | 100k | 1.0881 | 1.1616 | -0.0735 | 1.0897 | — | — |
 | B2 | 40k | 1.3976 | 1.2765 | +0.1211 | 1.4041 | — | — |
 | B2 | 100k | 1.3443 | 1.2514 | +0.0929 | 1.3117 | — | — |
+| B2 | 200k | 1.2904 | 1.1850 | +0.1054 | — | — | — |
 | B3 | 40k | 1.1305 | 1.2868 | -0.1563 | 1.1343 | — | — |
 | B3 | 100k | 1.1676 | 1.2456 | -0.0780 | 1.1618 | — | — |
 | B4 | 40k | 1.3334 | 1.2728 | +0.0606 | 1.3339 | — | — |
@@ -24,7 +25,7 @@
 | B5 | 100k | 1.3383 | 1.3219 | +0.0164 | 1.3428 | — | — |
 | B6 | 40k | 1.2297 | 1.3623 | -0.1326 | 1.2184 | — | — |
 | B6 | 100k | 1.2151 | 1.2978 | -0.0827 | 1.2110 | — | — |
-| B6 | 200k | 1.2207 | 1.3011 | -0.0804 | — | — | — |
+| B6 | 200k | 1.2207 | 1.3011 | -0.0804 | 1.2339 | — | — |
 | B7 | 40k | 1.2617 | 1.3159 | -0.0542 | 1.2444 | — | — |
 | B7 | 100k | 1.3205 | 1.3012 | +0.0193 | 1.2780 | — | — |
 | B8 | 40k | 1.2857 | 1.3074 | -0.0217 | 1.2865 | — | — |
@@ -35,7 +36,7 @@
 | B10 | 100k | 1.2403 | 1.3914 | -0.1511 | 1.2499 | — | — |
 | B10 | 200k | 1.2624 | — | — | 1.2440 | — | — |
 
-32 of 42 (cell, stop) pairs measured. `S` is the student-encoder head, `T` the teacher-encoder head. A `—` in a `k = 0` column means the parent report published no such number: group B's two parents publish the student head only, so a group-B teacher row carries a value and no delta.
+33 of 42 (cell, stop) pairs measured. `S` is the student-encoder head, `T` the teacher-encoder head. A `—` in a `k = 0` column means the parent report published no such number: group B's two parents publish the student head only, so a group-B teacher row carries a value and no delta.
 
 ### Stop reasons
 
@@ -54,6 +55,7 @@
 | B1 | 100k | yes | teacher | teacher down (S +0.0031, T -0.0051) — extend, keep teacher |
 | B2 | 40k | yes | student, teacher | 40k and 100k are unconditional |
 | B2 | 100k | yes | student, teacher | both heads down (S -0.0533, T -0.0924) — extend, keep both |
+| B2 | 200k | no | student | ceiling: 200k is the card's last stop (S -0.0539) |
 | B3 | 40k | yes | student, teacher | 40k and 100k are unconditional |
 | B3 | 100k | no | — | neither head down (S +0.0371, T +0.0275) — stop |
 | B4 | 40k | yes | student, teacher | 40k and 100k are unconditional |
@@ -63,7 +65,7 @@
 | B5 | 100k | no | — | neither head down (S +0.0179, T +0.0212) — stop |
 | B6 | 40k | yes | student, teacher | 40k and 100k are unconditional |
 | B6 | 100k | yes | student, teacher | both heads down (S -0.0146, T -0.0074) — extend, keep both |
-| B6 | 200k | no | — | ceiling: 200k is the card's last stop (S +0.0056) |
+| B6 | 200k | no | — | ceiling: 200k is the card's last stop (S +0.0056, T +0.0229) |
 | B7 | 40k | yes | student, teacher | 40k and 100k are unconditional |
 | B7 | 100k | no | — | neither head down (S +0.0588, T +0.0336) — stop |
 | B8 | 40k | yes | student, teacher | 40k and 100k are unconditional |

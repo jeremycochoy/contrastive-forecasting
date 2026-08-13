@@ -1647,3 +1647,47 @@ jobs run, seven queued, none failed.
 **Spend.** Credit $15.44 at 06:42Z, box $0.8144/h, box spent $12.60. The box
 is needed until A4's student head lands, about 4.9 h and about $4.0, which
 leaves about $11.4 against the $5.50 floor.
+
+## 2026-08-13 07:20Z — session thirteen, round 1: the tail, and the head budget
+
+**The round runs itself and needs no hand.** Dispatcher `q_run.sh` pid 452409,
+16.9 h up. Supervisor, watchdog, budget guard at floor $5.50, heartbeat, sync
+loop and the 20 min publisher all alive. 37 of 47 queue jobs done, 6 running,
+4 queued, 0 failed. Coverage 65 of 71 deliverables in hand, 0 not started.
+
+**Live, off the losses CSVs on the box.**
+
+    A4  bb 200k   box card 0    157,400/200,000   3.05 sps   ETA ~11:15Z
+    B1  head pair box card 0+1  16,500 and 19,000 of 30,000   ETA ~08:20Z
+    evals A3·S A3·T B2·T on elisa cores
+
+**The head budget differs by column, and the report did not say so.** Every
+bb40k head trains 15,000 steps, the round-1 standard; every bb100k and bb200k
+head trains 30,000. Read off the head losses CSVs: `A3_k3_bb40k_student`,
+`B5_k3_bb40k_student`, `B9_k3_bb40k_student`, `G6_B1_k3_bb40k_student` all end
+at 15,000; `B10_k3_bb100k_student`, `B4_k3_bb100k_student`,
+`B5_k3_bb100k_student`, `A2_k3_bb200k_student`, `A3_k3_bb200k_student`,
+`B10_k3_bb200k_student` all end at 30,000. So a comparison DOWN a column is
+head-matched and a comparison ACROSS columns is not. The Protocol section said
+15,000 for every head. Corrected in `rollout_depth.md`.
+
+This also settles the card's note on B1's 40k. B1's 15,000-step head is the
+same budget every other cell's 40k head carries, so B1 is not the exception —
+no cell's 40k number is head-matched to its own 100k number.
+
+**q_finish.sh added: the success tail had no owner.** `q_super.sh` covers a
+dead dispatcher and `q_guard.sh` covers the credit floor. Nothing covered the
+round simply finishing. The box holds backbones and heads; the 97-config eval
+runs on elisa cores, so the box is dead weight from the last head to the last
+eval, about 1.5 h at $0.81/h. `q_finish.sh` waits for every `bb_*` and `hd_*`
+job to go terminal, waits one full sync tick, then verifies EVERY artefact a
+done job produced on this disk by name and size — backbone and optimizer
+sidecar over 4 MB, head final over 300 KB — and destroys the box only if the
+check passes. One miss and the box lives and `results/FINISH_BLOCKED` says so.
+Then it waits for the queue to drain, takes the last publish tick and posts
+the completion comment on PR #400. Gate dry-run at 07:18Z: 8 backbones and 16
+heads verified, `bad=0`. Detached, pid 1309662.
+
+**Spend.** Credit $15.00 at 07:15Z, box $0.8144/h, box spent $13.04 over 16.0 h.
+The box is needed until A4's student head lands, about 6 h and about $4.9,
+which leaves about $10 against the $5.50 floor.
