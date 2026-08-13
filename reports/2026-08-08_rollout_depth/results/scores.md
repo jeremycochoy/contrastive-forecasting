@@ -29,7 +29,9 @@ A dash is a number no parent published. Group B's two parents print one head per
 
 At bb100k, the stop every one of the 14 cells reached. The count is over distinct MODELS. ‡ marks the one student two cells share, so 14 cells hold 13 student models and the shared one counts once. Student head: 13 distinct models, **8 better, 3 flat, 2 worse**. Teacher head, group A only: 4 distinct models, **3 better, 0 flat, 1 worse**.
 
-Read the verdict column as a screen and not as a test. It has no interval on any delta, it compares against a baseline this study did not retrain on its own machine, and the ±0.0384 band it thresholds on bounds the HEAD seed alone. The card's own criterion is the per-horizon one, and the depth-response table below is where it is applied.
+Read the verdict column as a screen and not as a test. It compares against a baseline this study did not retrain on its own machine, and the ±0.0384 band it thresholds on bounds the HEAD seed alone. The card's own criterion is the per-horizon one, and the depth-response table below is where it is applied.
+
+The second line of a verdict cell is its 95% paired dataset-cluster interval, on 23 of the deltas. Two of the three parents committed their per-config CSVs, so the pairing against them is recoverable: same 97 configs, same seasonal-naive denominator, same resampling unit as every other interval here. `published_bootstrap.py` takes a parent CSV only after it reproduces that parent's own printed aggregate, and all 23 did. Group A's parent committed no per-config CSV, so its rows carry no interval. The interval bounds the eval sample. It does not bound the machine, which separates the two sides of every one of these deltas.
 
 | cell | head | 40k k=3 | 40k pub | Δ | | 100k k=3 | 100k pub | Δ | | 200k k=3 | 200k pub | Δ | |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -41,25 +43,25 @@ Read the verdict column as a screen and not as a test. It has no interval on any
 | A3 | teacher | 1.3521 | 1.1793 | +0.1728 | worse | 1.3151 | 1.1963 | +0.1188 | worse | 1.2913 | — | — | — |
 | A4 | student | 1.0862 | 1.1603 | -0.0741 | better | 1.0801 | 1.1945 | -0.1144 | better | 1.0660 | — | — | — |
 | A4 | teacher | 1.0855 | 1.1544 | -0.0689 | better | 1.0874 | 1.1837 | -0.0963 | better | 1.0828 | — | — | — |
-| B1 | student | 1.0850 | 1.2025 | -0.1175 | better | 1.0881 | 1.1616 | -0.0735 | better | 1.1009 | 1.1652 | -0.0643 | better |
+| B1 | student | 1.0850 | 1.2025 | -0.1175 | better<br>[-0.1801, -0.0615] | 1.0881 | 1.1616 | -0.0735 | better<br>[-0.1287, -0.0255] | 1.1009 | 1.1652 | -0.0643 | better<br>[-0.1230, -0.0130] |
 | B1 | teacher | 1.0948 | — | — | — | 1.0897 | — | — | — | 1.1001 | — | — | — |
-| B2 | student | 1.3976 | 1.2765 | +0.1211 | worse | 1.3443 | 1.2514 | +0.0929 | worse | 1.2904 | 1.1850 | +0.1054 | worse |
+| B2 | student | 1.3976 | 1.2765 | +0.1211 | worse<br>[+0.0690, +0.1889] | 1.3443 | 1.2514 | +0.0929 | worse<br>[+0.0541, +0.1415] | 1.2904 | 1.1850 | +0.1054 | worse<br>[+0.0609, +0.1621] |
 | B2 | teacher | 1.4041 | — | — | — | 1.3117 | — | — | — | 1.2825 | — | — | — |
-| B3 | student ‡ | 1.1305 | 1.2868 | -0.1563 | better | 1.1676 | 1.2456 | -0.0780 | better | — | 1.2034 | — | — |
+| B3 | student ‡ | 1.1305 | 1.2868 | -0.1563 | better<br>[-0.2263, -0.0966] | 1.1676 | 1.2456 | -0.0780 | better<br>[-0.1265, -0.0365] | — | 1.2034 | — | — |
 | B3 | teacher | 1.1343 | — | — | — | 1.1618 | — | — | — | — | — | — | — |
-| B4 | student | 1.3334 | 1.2728 | +0.0606 | worse | 1.2804 | 1.3678 | -0.0874 | better | 1.3182 | — | — | — |
+| B4 | student | 1.3334 | 1.2728 | +0.0606 | worse<br>[+0.0166, +0.1147] | 1.2804 | 1.3678 | -0.0874 | better<br>[-0.1607, -0.0155] | 1.3182 | — | — | — |
 | B4 | teacher | 1.3339 | — | — | — | 1.2748 | — | — | — | 1.3202 | — | — | — |
-| B5 | student | 1.3204 | 1.2748 | +0.0456 | worse | 1.3383 | 1.3219 | +0.0164 | flat | — | — | — | — |
+| B5 | student | 1.3204 | 1.2748 | +0.0456 | worse<br>[+0.0145, +0.0846] | 1.3383 | 1.3219 | +0.0164 | flat<br>[-0.0256, +0.0634] | — | — | — | — |
 | B5 | teacher | 1.3216 | — | — | — | 1.3428 | — | — | — | — | — | — | — |
-| B6 | student | 1.2297 | 1.3623 | -0.1326 | better | 1.2151 | 1.2978 | -0.0827 | better | 1.2207 | 1.3011 | -0.0804 | better |
+| B6 | student | 1.2297 | 1.3623 | -0.1326 | better<br>[-0.1998, -0.0742] | 1.2151 | 1.2978 | -0.0827 | better<br>[-0.1356, -0.0321] | 1.2207 | 1.3011 | -0.0804 | better<br>[-0.1287, -0.0340] |
 | B6 | teacher | 1.2184 | — | — | — | 1.2110 | — | — | — | 1.2339 | — | — | — |
-| B7 | student | 1.2617 | 1.3159 | -0.0542 | better | 1.3205 | 1.3012 | +0.0193 | flat | — | 1.3325 | — | — |
+| B7 | student | 1.2617 | 1.3159 | -0.0542 | better<br>[-0.1016, -0.0147] | 1.3205 | 1.3012 | +0.0193 | flat<br>[-0.0166, +0.0601] | — | 1.3325 | — | — |
 | B7 | teacher | 1.2444 | — | — | — | 1.2780 | — | — | — | — | — | — | — |
-| B8 | student | 1.2857 | 1.3074 | -0.0217 | flat | 1.3157 | 1.3368 | -0.0211 | flat | — | — | — | — |
+| B8 | student | 1.2857 | 1.3074 | -0.0217 | flat<br>[-0.0565, +0.0140] | 1.3157 | 1.3368 | -0.0211 | flat<br>[-0.0674, +0.0292] | — | — | — | — |
 | B8 | teacher | 1.2865 | — | — | — | 1.3239 | — | — | — | — | — | — | — |
-| B9 | student | 1.2791 | 1.5579 | -0.2788 | better | 1.3299 | 1.4548 | -0.1249 | better | — | 1.3308 | — | — |
+| B9 | student | 1.2791 | 1.5579 | -0.2788 | better<br>[-0.3543, -0.1978] | 1.3299 | 1.4548 | -0.1249 | better<br>[-0.1982, -0.0383] | — | 1.3308 | — | — |
 | B9 | teacher | 1.2728 | — | — | — | 1.3094 | — | — | — | — | — | — | — |
-| B10 | student | 1.2669 | 1.3791 | -0.1122 | better | 1.2403 | 1.3914 | -0.1511 | better | 1.2624 | — | — | — |
+| B10 | student | 1.2669 | 1.3791 | -0.1122 | better<br>[-0.1996, -0.0340] | 1.2403 | 1.3914 | -0.1511 | better<br>[-0.2239, -0.0908] | 1.2624 | — | — | — |
 | B10 | teacher | 1.2730 | — | — | — | 1.2499 | — | — | — | 1.2440 | — | — | — |
 
 ### The stop ladder: what the second 100,000 steps buys

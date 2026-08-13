@@ -252,6 +252,23 @@ def main(argv=None):
     def pub(cell, head, stop):
         return PUB_ALL.get(cell, {}).get(head, {}).get(stop)
 
+    # An interval on the delta against the published number, where the parent
+    # committed the per-config CSV that makes the pairing recoverable.
+    # `published_bootstrap.py` accepts a parent CSV only after it reproduces
+    # that parent's own printed aggregate, so a row here is matched and not
+    # assumed. Group A's parent committed none, so its rows carry no interval.
+    pub_ci = {}
+    pbp = Path(args.results) / "published_bootstrap.csv"
+    if pbp.is_file():
+        for r in csv.DictReader(open(pbp)):
+            if r["subset"] != "all":
+                continue
+            m = re.match(r"^(A[1-4]|B(?:[1-9]|10))_vs_pub_bb(\d+)k_(\w+)$",
+                         r["label"])
+            if m:
+                pub_ci[(m.group(1), int(m.group(2)), m.group(3))] = (
+                    float(r["ci_lo"]), float(r["ci_hi"]))
+
     # Two tallies, because the two head columns do not cover the same cells.
     # Every one of the 14 cells has a published STUDENT number at bb100k, and
     # only group A published a teacher, so a pooled count would silently
@@ -285,6 +302,9 @@ def main(argv=None):
                      "worse" if d >= NOISE_BAND else "flat")
                 if stop == 100 and not dup:
                     tally[head][v] += 1
+                ci = pub_ci.get((cell, stop, head))
+                if ci is not None:
+                    v += f"<br>[{ci[0]:+.4f}, {ci[1]:+.4f}]"
                 cs += [fmt(mine), fmt(base), f"{d:+.4f}", v]
             rows.append(f"| {cell} | {head}{' ‡' if dup else ''} | "
                         + " | ".join(cs) + " |")
@@ -309,12 +329,23 @@ def main(argv=None):
           f"and the shared one counts once. Student head: "
           f"{tally_line('student')}. Teacher head, group A only: "
           f"{tally_line('teacher')}.", "",
-          "Read the verdict column as a screen and not as a test. It has no "
-          "interval on any delta, it compares against a baseline this study "
-          "did not retrain on its own machine, and the ±"
-          f"{NOISE_BAND:.4f} band it thresholds on bounds the HEAD seed "
-          "alone. The card's own criterion is the per-horizon one, and the "
-          "depth-response table below is where it is applied.", "",
+          "Read the verdict column as a screen and not as a test. It "
+          "compares against a baseline this study did not retrain on its own "
+          f"machine, and the ±{NOISE_BAND:.4f} band it thresholds on bounds "
+          "the HEAD seed alone. The card's own criterion is the per-horizon "
+          "one, and the depth-response table below is where it is applied.",
+          "",
+          f"The second line of a verdict cell is its 95% paired "
+          f"dataset-cluster interval, on {len(pub_ci)} of the deltas. Two of "
+          "the three parents committed their per-config CSVs, so the pairing "
+          "against them is recoverable: same 97 configs, same seasonal-naive "
+          "denominator, same resampling unit as every other interval here. "
+          "`published_bootstrap.py` takes a parent CSV only after it "
+          "reproduces that parent's own printed aggregate, and all "
+          f"{len(pub_ci)} did. Group A's parent committed no per-config CSV, "
+          "so its rows carry no interval. The interval bounds the eval "
+          "sample. It does not bound the machine, which separates the two "
+          "sides of every one of these deltas.", "",
           "| cell | head | 40k k=3 | 40k pub | Δ | | 100k k=3 | 100k pub | Δ "
           "| | 200k k=3 | 200k pub | Δ | |",
           "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"] \
