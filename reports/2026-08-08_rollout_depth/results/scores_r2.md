@@ -9,7 +9,7 @@
 | A2 | 200k | 1.2507 | 1.3586 | -0.1079 | 1.2500 | 1.3459 | -0.0959 |
 | A3 | 40k | 1.3618 | 1.1895 | +0.1723 | 1.3521 | 1.1793 | +0.1728 |
 | A3 | 100k | 1.3010 | 1.1921 | +0.1089 | 1.3151 | 1.1963 | +0.1188 |
-| A3 | 200k | 1.3998 | — | — | — | — | — |
+| A3 | 200k | 1.3998 | — | — | 1.2913 | — | — |
 | A4 | 40k | 1.0862 | 1.1603 | -0.0741 | 1.0855 | 1.1544 | -0.0689 |
 | A4 | 100k | 1.0801 | 1.1945 | -0.1144 | 1.0874 | 1.1837 | -0.0963 |
 | B1 | 40k | 1.0850 | 1.2025 | -0.1175 | 1.0948 | — | — |
@@ -50,7 +50,7 @@
 | A2 | 200k | no | teacher | ceiling: 200k is the card's last stop (S +0.0028, T -0.0014) |
 | A3 | 40k | yes | student, teacher | 40k and 100k are unconditional |
 | A3 | 100k | yes | student, teacher | both heads down (S -0.0608, T -0.0370) — extend, keep both |
-| A3 | 200k | no | — | ceiling: 200k is the card's last stop (S +0.0988) |
+| A3 | 200k | no | teacher | ceiling: 200k is the card's last stop (S +0.0988, T -0.0238) |
 | A4 | 40k | yes | student, teacher | 40k and 100k are unconditional |
 | A4 | 100k | yes | student | student down (S -0.0061, T +0.0019) — extend, keep student |
 | B1 | 40k | yes | student, teacher | 40k and 100k are unconditional |

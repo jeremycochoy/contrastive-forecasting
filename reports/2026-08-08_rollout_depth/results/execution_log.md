@@ -1731,3 +1731,27 @@ align to the teacher, and all three differ. The finding now ships in the
 report itself, as `The four same-arm pairs: two models, or one`, because a
 reader who meets the duplicate in the coverage table has to find the reason
 beside it.
+
+## 2026-08-13 09:45 BST — session fourteen, round 1: the repro eval could never pull its head
+
+**`repro_pair_eval.sh` gated the pull at 1,000,000 bytes and a quantile head
+final is 440 KB.** The driver started 09:15, found the A1 repro head on the
+box at 09:33, and skipped it every 120 s because `stat -c %s` returned
+449,977. Left alone it would have waited 12 h and aborted all four. This is
+the size-floor failure the project already carries a rule against: one floor
+for every file class drops the smallest class silently.
+
+`repro_eval_one.sh` replaces it. Gate 300,000 bytes, the floor `q_finish.sh`
+already uses for a head. One process per tag, so the four reproductions
+overlap instead of queueing: serial they cost about 5.6 h of elisa cores,
+overlapped about 3 h. `repro_eval_all.sh` starts the four.
+
+**Live at 09:45.** A1rep bb40k eval running, 4 shards. B3rep bb40k head at
+step 2,000 of 15,000 on box card 1; A1rep and B3rep bb100k heads behind it.
+A4 backbone 173,300 of 200,000 at 3.05 sps, ETA ~11:03 UTC. B1's two bb200k
+evals running on elisa cores. Queue 42 of 47 done, 3 running, 2 queued,
+0 failed.
+
+**Spend.** Credit $13.84, box $0.8144/h, box spent $14.21 over 17.4 h. The box
+is needed until A4's student head lands, about 3 h and about $2.4, which
+leaves about $11.4 against the $5.50 floor.

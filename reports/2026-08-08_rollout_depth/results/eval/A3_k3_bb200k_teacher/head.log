@@ -1,0 +1,106 @@
+[08-13 05:52:09] [head A3_k3_bb200k_teacher] start enc=teacher steps=30000 seed=20260722 gpu=1 bb=cf393_arm6_v2_combab_alignT_cf373k3_200k.pth
+  [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+  [head-train] auto-detected qk_norm=True from backbone checkpoint
+  [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+  [head-train] auto-detected patch_stats=none
+Backbone loaded from /root/cf373_runs/arm6_v2_combab_alignT/leg_200k/cf393_arm6_v2_combab_alignT_cf373k3_200k.pth (0 params, frozen, encoder=teacher)
+/usr/local/lib/python3.12/dist-packages/torch/nn/modules/transformer.py:392: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  warnings.warn(
+Forecasting head [transformer-q (2L H64 nhead8 causal)]: 109,456 trainable params
+Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+Loss CSV: /root/cf373_runs/eval/A3_k3_bb200k_teacher/qhead_A3_k3_bb200k_teacher_s20260722_losses.csv
+Data: MIX 100% HF + 0% synth, hf_bs=256, synth_bs=0, synth_seed=20280722, emit_labels=True
+
+Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+Checkpoints: /root/cf373_runs/eval/A3_k3_bb200k_teacher/qhead_A3_k3_bb200k_teacher_s20260722_*.pth
+[    500] loss=0.249559  ema_loss=0.252146  11.0 sps  ETA 0.7h
+  -> New best: /root/cf373_runs/eval/A3_k3_bb200k_teacher/qhead_A3_k3_bb200k_teacher_s20260722_best.pth (ema_loss=0.252146)
+[   1000] loss=0.247737  ema_loss=0.243887  11.9 sps  ETA 0.7h
+  -> New best: /root/cf373_runs/eval/A3_k3_bb200k_teacher/qhead_A3_k3_bb200k_teacher_s20260722_best.pth (ema_loss=0.243887)
+[   1500] loss=0.247082  ema_loss=0.237902  12.2 sps  ETA 0.6h
+  -> New best: /root/cf373_runs/eval/A3_k3_bb200k_teacher/qhead_A3_k3_bb200k_teacher_s20260722_best.pth (ema_loss=0.237902)
+[   2000] loss=0.231387  ema_loss=0.235408  12.4 sps  ETA 0.6h
+  -> New best: /root/cf373_runs/eval/A3_k3_bb200k_teacher/qhead_A3_k3_bb200k_teacher_s20260722_best.pth (ema_loss=0.235408)
+[   2500] loss=0.239947  ema_loss=0.232937  12.3 sps  ETA 0.6h
+  -> New best: /root/cf373_runs/eval/A3_k3_bb200k_teacher/qhead_A3_k3_bb200k_teacher_s20260722_best.pth (ema_loss=0.232937)
+[   3000] loss=0.226990  ema_loss=0.231200  12.4 sps  ETA 0.6h
+  -> New best: /root/cf373_runs/eval/A3_k3_bb200k_teacher/qhead_A3_k3_bb200k_teacher_s20260722_best.pth (ema_loss=0.231200)
+[   3500] loss=0.217136  ema_loss=0.230366  12.4 sps  ETA 0.6h
+  -> New best: /root/cf373_runs/eval/A3_k3_bb200k_teacher/qhead_A3_k3_bb200k_teacher_s20260722_best.pth (ema_loss=0.230366)
+[   4000] loss=0.248123  ema_loss=0.229328  12.5 sps  ETA 0.6h
+  -> New best: /root/cf373_runs/eval/A3_k3_bb200k_teacher/qhead_A3_k3_bb200k_teacher_s20260722_best.pth (ema_loss=0.229328)
+[   4500] loss=0.241951  ema_loss=0.229430  12.5 sps  ETA 0.6h
+[   5000] loss=0.233136  ema_loss=0.228373  12.5 sps  ETA 0.6h
+  -> New best: /root/cf373_runs/eval/A3_k3_bb200k_teacher/qhead_A3_k3_bb200k_teacher_s20260722_best.pth (ema_loss=0.228373)
+  -> Saved /root/cf373_runs/eval/A3_k3_bb200k_teacher/qhead_A3_k3_bb200k_teacher_s20260722_5k.pth
+[   5500] loss=0.226380  ema_loss=0.227912  12.5 sps  ETA 0.5h
+  -> New best: /root/cf373_runs/eval/A3_k3_bb200k_teacher/qhead_A3_k3_bb200k_teacher_s20260722_best.pth (ema_loss=0.227912)
+[   6000] loss=0.216671  ema_loss=0.226875  12.5 sps  ETA 0.5h
+  -> New best: /root/cf373_runs/eval/A3_k3_bb200k_teacher/qhead_A3_k3_bb200k_teacher_s20260722_best.pth (ema_loss=0.226875)
+[   6500] loss=0.223990  ema_loss=0.226018  12.6 sps  ETA 0.5h
+  -> New best: /root/cf373_runs/eval/A3_k3_bb200k_teacher/qhead_A3_k3_bb200k_teacher_s20260722_best.pth (ema_loss=0.226018)
+[   7000] loss=0.219081  ema_loss=0.226282  12.6 sps  ETA 0.5h
+[   7500] loss=0.229280  ema_loss=0.226195  12.6 sps  ETA 0.5h
+[   8000] loss=0.222961  ema_loss=0.225772  12.6 sps  ETA 0.5h
+  -> New best: /root/cf373_runs/eval/A3_k3_bb200k_teacher/qhead_A3_k3_bb200k_teacher_s20260722_best.pth (ema_loss=0.225772)
+[   8500] loss=0.231015  ema_loss=0.224625  12.6 sps  ETA 0.5h
+  -> New best: /root/cf373_runs/eval/A3_k3_bb200k_teacher/qhead_A3_k3_bb200k_teacher_s20260722_best.pth (ema_loss=0.224625)
+[   9000] loss=0.213518  ema_loss=0.224278  12.6 sps  ETA 0.5h
+  -> New best: /root/cf373_runs/eval/A3_k3_bb200k_teacher/qhead_A3_k3_bb200k_teacher_s20260722_best.pth (ema_loss=0.224278)
+[   9500] loss=0.217797  ema_loss=0.224480  12.6 sps  ETA 0.5h
+[  10000] loss=0.224781  ema_loss=0.224487  12.5 sps  ETA 0.4h
+  -> Saved /root/cf373_runs/eval/A3_k3_bb200k_teacher/qhead_A3_k3_bb200k_teacher_s20260722_10k.pth
+[  10500] loss=0.230953  ema_loss=0.222823  12.6 sps  ETA 0.4h
+  -> New best: /root/cf373_runs/eval/A3_k3_bb200k_teacher/qhead_A3_k3_bb200k_teacher_s20260722_best.pth (ema_loss=0.222823)
+[  11000] loss=0.221333  ema_loss=0.224599  12.6 sps  ETA 0.4h
+[  11500] loss=0.227785  ema_loss=0.224588  12.6 sps  ETA 0.4h
+[  12000] loss=0.220300  ema_loss=0.223855  12.6 sps  ETA 0.4h
+[  12500] loss=0.228297  ema_loss=0.224508  12.6 sps  ETA 0.4h
+[  13000] loss=0.219445  ema_loss=0.223065  12.6 sps  ETA 0.4h
+[  13500] loss=0.229658  ema_loss=0.223615  12.6 sps  ETA 0.4h
+[  14000] loss=0.239017  ema_loss=0.224343  12.6 sps  ETA 0.4h
+[  14500] loss=0.207540  ema_loss=0.222683  12.6 sps  ETA 0.3h
+  -> New best: /root/cf373_runs/eval/A3_k3_bb200k_teacher/qhead_A3_k3_bb200k_teacher_s20260722_best.pth (ema_loss=0.222683)
+[  15000] loss=0.229587  ema_loss=0.223253  12.6 sps  ETA 0.3h
+  -> Saved /root/cf373_runs/eval/A3_k3_bb200k_teacher/qhead_A3_k3_bb200k_teacher_s20260722_15k.pth
+[  15500] loss=0.217073  ema_loss=0.222754  12.6 sps  ETA 0.3h
+[  16000] loss=0.232462  ema_loss=0.223338  12.6 sps  ETA 0.3h
+[  16500] loss=0.216077  ema_loss=0.223016  12.6 sps  ETA 0.3h
+[  17000] loss=0.209044  ema_loss=0.221819  12.6 sps  ETA 0.3h
+  -> New best: /root/cf373_runs/eval/A3_k3_bb200k_teacher/qhead_A3_k3_bb200k_teacher_s20260722_best.pth (ema_loss=0.221819)
+[  17500] loss=0.226057  ema_loss=0.223209  12.6 sps  ETA 0.3h
+[  18000] loss=0.230821  ema_loss=0.222818  12.6 sps  ETA 0.3h
+[  18500] loss=0.212632  ema_loss=0.222266  12.6 sps  ETA 0.3h
+[  19000] loss=0.233033  ema_loss=0.223146  12.6 sps  ETA 0.2h
+[  19500] loss=0.201019  ema_loss=0.223137  12.6 sps  ETA 0.2h
+[  20000] loss=0.222851  ema_loss=0.222685  12.6 sps  ETA 0.2h
+  -> Saved /root/cf373_runs/eval/A3_k3_bb200k_teacher/qhead_A3_k3_bb200k_teacher_s20260722_20k.pth
+[  20500] loss=0.225411  ema_loss=0.222009  12.6 sps  ETA 0.2h
+[  21000] loss=0.233917  ema_loss=0.222639  12.6 sps  ETA 0.2h
+[  21500] loss=0.226428  ema_loss=0.221820  12.6 sps  ETA 0.2h
+[  22000] loss=0.228181  ema_loss=0.222533  12.6 sps  ETA 0.2h
+[  22500] loss=0.221603  ema_loss=0.221107  12.6 sps  ETA 0.2h
+  -> New best: /root/cf373_runs/eval/A3_k3_bb200k_teacher/qhead_A3_k3_bb200k_teacher_s20260722_best.pth (ema_loss=0.221107)
+[  23000] loss=0.223951  ema_loss=0.222371  12.6 sps  ETA 0.2h
+[  23500] loss=0.222347  ema_loss=0.222082  12.6 sps  ETA 0.1h
+[  24000] loss=0.225106  ema_loss=0.221941  12.6 sps  ETA 0.1h
+[  24500] loss=0.230855  ema_loss=0.221672  12.6 sps  ETA 0.1h
+[  25000] loss=0.205155  ema_loss=0.222415  12.6 sps  ETA 0.1h
+  -> Saved /root/cf373_runs/eval/A3_k3_bb200k_teacher/qhead_A3_k3_bb200k_teacher_s20260722_25k.pth
+[  25500] loss=0.215918  ema_loss=0.222379  12.5 sps  ETA 0.1h
+[  26000] loss=0.220053  ema_loss=0.221693  12.5 sps  ETA 0.1h
+[  26500] loss=0.228000  ema_loss=0.222731  12.6 sps  ETA 0.1h
+[  27000] loss=0.229965  ema_loss=0.222270  12.6 sps  ETA 0.1h
+[  27500] loss=0.223497  ema_loss=0.222238  12.6 sps  ETA 0.1h
+[  28000] loss=0.227697  ema_loss=0.221690  12.6 sps  ETA 0.0h
+[  28500] loss=0.230888  ema_loss=0.221493  12.6 sps  ETA 0.0h
+[  29000] loss=0.214661  ema_loss=0.222196  12.6 sps  ETA 0.0h
+[  29500] loss=0.219401  ema_loss=0.222512  12.5 sps  ETA 0.0h
+[  30000] loss=0.209783  ema_loss=0.220638  12.5 sps  ETA 0.0h
+  -> New best: /root/cf373_runs/eval/A3_k3_bb200k_teacher/qhead_A3_k3_bb200k_teacher_s20260722_best.pth (ema_loss=0.220638)
+  -> Saved /root/cf373_runs/eval/A3_k3_bb200k_teacher/qhead_A3_k3_bb200k_teacher_s20260722_30k.pth
+
+Done in 0.7h. Best loss=0.220638 at step 30000
+[08-13 06:32:10] [head A3_k3_bb200k_teacher] rc=0
+[08-13 06:32:10] [head A3_k3_bb200k_teacher] DONE 440K

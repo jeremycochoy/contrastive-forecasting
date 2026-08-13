@@ -170,7 +170,7 @@ Stops scored: bb40k, bb100k, bb200k. The card's extend rule reads a cell's bb40k
 
 ### The stop ladder: what the second 100,000 steps buys
 
-Δ is bb200k minus bb100k, so a negative number is an improvement: GM-Relative MASE is a ratio against seasonal-naive and lower is better. Of the 11 extended measurements in hand, **4 improved** at bb200k and 7 got worse. The largest gain is B2 student, -0.0539.
+Δ is bb200k minus bb100k, so a negative number is an improvement: GM-Relative MASE is a ratio against seasonal-naive and lower is better. Of the 12 extended measurements in hand, **5 improved** at bb200k and 7 got worse. The largest gain is B2 student, -0.0539.
 
 | cell | head | bb40k | bb100k | bb200k | Δ | % | note |
 |---|---|---|---|---|---|---|---|
@@ -179,7 +179,7 @@ Stops scored: bb40k, bb100k, bb200k. The card's extend rule reads a cell's bb40k
 | A2 | student | 1.2735 | 1.2479 | 1.2507 | +0.0028 | +0.2% |  |
 | A2 | teacher | 1.2753 | 1.2514 | 1.2500 | -0.0014 | -0.1% |  |
 | A3 | student | 1.3618 | 1.3010 | 1.3998 | +0.0988 | +7.6% |  |
-| A3 | teacher | 1.3521 | 1.3151 | — | — | — |  |
+| A3 | teacher | 1.3521 | 1.3151 | 1.2913 | -0.0238 | -1.8% |  |
 | A4 | student | 1.0862 | 1.0801 | — | — | — |  |
 | A4 | teacher | 1.0855 | 1.0874 | — | — | — | student head only, by the extend rule |
 | B1 | student | 1.0850 | 1.0881 | — | — | — | bb40k written by round 1 as `G6_B1_…`; same checkpoint, same head budget |

@@ -113,9 +113,30 @@ fi
 
 log "start. box $BOX_ID ($BOX_LABEL), PR #$PR, poll ${POLL}s. $(counts)"
 
+# The A1/B3 reproduction trains four heads on box card 1. They are not queue
+# jobs, so `open_matching` cannot see them, and a queue that goes terminal
+# early — one failed backbone is enough — would take the box out from under a
+# repro head still training. The box may not go until all four finals are on
+# this disk, or until the deadline says they never will be.
+REPRO_TAGS="A1rep_k3_bb40k_student B3rep_k3_bb40k_student
+            A1rep_k3_bb100k_student B3rep_k3_bb100k_student"
+REPRO_DEADLINE="${REPRO_DEADLINE:-21600}"
+repro_open(){ local n=0 t
+  for t in $REPRO_TAGS; do
+    big_enough "$RES/eval/$t/qhead_${t}_s${HEAD_SEED}_final.pth" "$HD_MIN" \
+      || n=$((n+1))
+  done; echo "$n"; }
+
 # ---------------------------------------------------------------- the meter
-while [ "$(open_matching '^(bb|hd)_')" -gt 0 ]; do sleep "$POLL"; done
-log "every backbone and head terminal. $(counts)"
+waited=0
+while [ "$(open_matching '^(bb|hd)_')" -gt 0 ] || [ "$(repro_open)" -gt 0 ]; do
+  if [ "$(open_matching '^(bb|hd)_')" -eq 0 ] && [ "$waited" -ge "$REPRO_DEADLINE" ]; then
+    log "the queue is terminal and $(repro_open) repro head(s) never landed after ${waited}s — going on"
+    break
+  fi
+  sleep "$POLL"; waited=$(( waited + POLL ))
+done
+log "every backbone and head terminal, repro heads open: $(repro_open). $(counts)"
 
 if [ -f "$RES/BLOCKED_BUDGET" ]; then
   log "the guard already stopped the box; nothing to tear down"
