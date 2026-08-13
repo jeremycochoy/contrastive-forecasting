@@ -226,6 +226,18 @@ def main(argv=None):
     def sv(cell, stop, head):
         return val(f"{cell}_k3_bb{stop}k_{head}")
 
+    # The interval on each Δ, from the same paired dataset-cluster bootstrap
+    # the depth contrasts use. A Δ with no interval beside it cannot be read
+    # against the head-seed band, so the column ships with the numbers.
+    stop_ci = {}
+    sbp = Path(args.results) / "stop_bootstrap.csv"
+    if sbp.is_file():
+        for r in csv.DictReader(open(sbp)):
+            if r["subset"] != "all":
+                continue
+            cell, _, head = r["label"].partition("_stop200v100_")
+            stop_ci[(cell, head)] = (float(r["ci_lo"]), float(r["ci_hi"]))
+
     rows, deltas = [], []
     for cell in CARD_CELLS:
         for head in ("student", "teacher"):
@@ -236,8 +248,11 @@ def main(argv=None):
             d = None if c is None else c - b
             if d is not None:
                 deltas.append((d, cell, head))
+            ci = stop_ci.get((cell, head))
+            ci_s = "—" if ci is None else f"[{ci[0]:+.4f}, {ci[1]:+.4f}]"
             rows.append(f"| {cell} | {head} | {fmt(a)} | {fmt(b)} | "
                         f"{fmt(c)} | {'—' if d is None else f'{d:+.4f}'} | "
+                        f"{ci_s} | "
                         f"{pct(b, c)} | {EXTEND_NOTE.get((cell, head), '')} |")
 
     better = [t for t in deltas if t[0] < 0]
@@ -259,8 +274,11 @@ def main(argv=None):
           "Δ is bb200k minus bb100k, so a negative number is an improvement: "
           "GM-Relative MASE is a ratio against seasonal-naive and lower is "
           "better. " + lead, "",
-          "| cell | head | bb40k | bb100k | bb200k | Δ | % | note |",
-          "|---|---|---|---|---|---|---|---|"] + rows + [""]
+          "The interval is a 95% paired dataset-cluster bootstrap over the "
+          "pair's 97 configs. It bounds the eval sample, not run-to-run "
+          "variance. The head-seed band is ±0.0384.", "",
+          "| cell | head | bb40k | bb100k | bb200k | Δ | 95% CI | % | note |",
+          "|---|---|---|---|---|---|---|---|---|"] + rows + [""]
 
     # ---- 1c. the same-arm pairs --------------------------------------------
     # A1 and B3 print one student number at both stops. A reader who meets

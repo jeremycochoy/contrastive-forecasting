@@ -1,10 +1,12 @@
-# Training the forecaster on its own output: one clean cell gains 9.8%, and the training machine moves the baseline by 9.1%
+# Training the forecaster on its own output: one clean cell gains 9.8%, the training machine moves the baseline by 9.1%, and the second 100,000 backbone steps buy nothing
 
 Every backbone retrained on elisa reproduces its published `k = 0`, neither
 retrained on a rented box does, and the box alone moved one cell's `k = 0` by
 0.1166 GM-Relative MASE at a fixed seed. On the study's one comparison with
 both sides on one machine, depth 3 improves B1 by 9.8%, 1.2025 → 1.0850, at
-one seed, one stop, unreplicated.
+one seed, one stop, unreplicated. Doubling the backbone budget from 100,000
+steps to 200,000 does not pay: of 14 such extends, 5 improved and 9 got
+worse.
 
 ![reproduction](plots/reproduction.png)
 
@@ -29,6 +31,31 @@ one eval.*
 
 `B5·s3` holds `B5·s1`'s seed and `B5·s2`'s machine, so the pair separates
 them: the machine moves `k = 0` by 0.1166 and the seed by 0.0035.
+
+## The second 100,000 backbone steps do not buy score
+
+![stop delta](plots/stop_delta.png)
+
+*Every cell that reached bb200k, against its own bb100k. Whiskers are 95%
+paired dataset-cluster bootstrap intervals over the pair's 97 configs.*
+
+The bb200k backbone resumes the bb100k checkpoint. So the two arms share the
+first 100,000 steps, the head recipe, the head seed 20260722, the
+30,000-step head budget and the 97-config eval. Only the second 100,000
+steps differ, which makes this the cleanest contrast in the study.
+
+Five of the 14 measurements improved and 9 got worse. The mean is +0.0103
+and the median +0.0080, both on the losing side. The head-seed band ±0.0384
+covers 11 of the 14. Three sit outside it: A3's student loses 0.0988, B4's
+teacher loses 0.0454, and B2's student gains 0.0539. B2 is the only cell
+that gains on both heads.
+
+B6 ran its extend on elisa and the other seven ran on the rented box. B6
+moves the same way as the box cells, +0.0056 and +0.0229, so the verdict
+does not rest on the box.
+
+Each 100,000-step extend cost about 9.5 h of one RTX 4090 at about 2.9
+steps/s.
 
 ## A1 and B3 hold one student, so the student column holds one number
 
@@ -170,38 +197,40 @@ Stops scored: bb40k, bb100k, bb200k. The card's extend rule reads a cell's bb40k
 
 ### The stop ladder: what the second 100,000 steps buys
 
-Δ is bb200k minus bb100k, so a negative number is an improvement: GM-Relative MASE is a ratio against seasonal-naive and lower is better. Of the 13 extended measurements in hand, **5 improved** at bb200k and 8 got worse. The largest gain is B2 student, -0.0539.
+Δ is bb200k minus bb100k, so a negative number is an improvement: GM-Relative MASE is a ratio against seasonal-naive and lower is better. Of the 14 extended measurements in hand, **5 improved** at bb200k and 9 got worse. The largest gain is B2 student, -0.0539.
 
-| cell | head | bb40k | bb100k | bb200k | Δ | % | note |
-|---|---|---|---|---|---|---|---|
-| A1 | student | 1.1305 | 1.1676 | — | — | — | the extend rule held this cell at 100k |
-| A1 | teacher | 1.1318 | 1.1565 | — | — | — | the extend rule held this cell at 100k |
-| A2 | student | 1.2735 | 1.2479 | 1.2507 | +0.0028 | +0.2% |  |
-| A2 | teacher | 1.2753 | 1.2514 | 1.2500 | -0.0014 | -0.1% |  |
-| A3 | student | 1.3618 | 1.3010 | 1.3998 | +0.0988 | +7.6% |  |
-| A3 | teacher | 1.3521 | 1.3151 | 1.2913 | -0.0238 | -1.8% |  |
-| A4 | student | 1.0862 | 1.0801 | — | — | — |  |
-| A4 | teacher | 1.0855 | 1.0874 | — | — | — | student head only, by the extend rule |
-| B1 | student | 1.0850 | 1.0881 | 1.1009 | +0.0128 | +1.2% | bb40k written by round 1 as `G6_B1_…`; same checkpoint, same head budget |
-| B1 | teacher | 1.0948 | 1.0897 | — | — | — | bb40k written by round 1 as `G6_B1_…`; same checkpoint, same head budget |
-| B2 | student | 1.3976 | 1.3443 | 1.2904 | -0.0539 | -4.0% |  |
-| B2 | teacher | 1.4041 | 1.3117 | 1.2825 | -0.0292 | -2.2% |  |
-| B3 | student | 1.1305 | 1.1676 | — | — | — | the extend rule held this cell at 100k |
-| B3 | teacher | 1.1343 | 1.1618 | — | — | — | the extend rule held this cell at 100k |
-| B4 | student | 1.3334 | 1.2804 | 1.3182 | +0.0378 | +3.0% |  |
-| B4 | teacher | 1.3339 | 1.2748 | 1.3202 | +0.0454 | +3.6% |  |
-| B5 | student | 1.3204 | 1.3383 | — | — | — | the extend rule held this cell at 100k |
-| B5 | teacher | 1.3216 | 1.3428 | — | — | — | the extend rule held this cell at 100k |
-| B6 | student | 1.2297 | 1.2151 | 1.2207 | +0.0056 | +0.5% |  |
-| B6 | teacher | 1.2184 | 1.2110 | 1.2339 | +0.0229 | +1.9% |  |
-| B7 | student | 1.2617 | 1.3205 | — | — | — | the extend rule held this cell at 100k |
-| B7 | teacher | 1.2444 | 1.2780 | — | — | — | the extend rule held this cell at 100k |
-| B8 | student | 1.2857 | 1.3157 | — | — | — | trained from 0 this round; queued to 100k only |
-| B8 | teacher | 1.2865 | 1.3239 | — | — | — | trained from 0 this round; queued to 100k only |
-| B9 | student | 1.2791 | 1.3299 | — | — | — | the extend rule held this cell at 100k |
-| B9 | teacher | 1.2728 | 1.3094 | — | — | — | the extend rule held this cell at 100k |
-| B10 | student | 1.2669 | 1.2403 | 1.2624 | +0.0221 | +1.8% |  |
-| B10 | teacher | 1.2730 | 1.2499 | 1.2440 | -0.0059 | -0.5% |  |
+The interval is a 95% paired dataset-cluster bootstrap over the pair's 97 configs. It bounds the eval sample, not run-to-run variance. The head-seed band is ±0.0384.
+
+| cell | head | bb40k | bb100k | bb200k | Δ | 95% CI | % | note |
+|---|---|---|---|---|---|---|---|---|
+| A1 | student | 1.1305 | 1.1676 | — | — | — | — | the extend rule held this cell at 100k |
+| A1 | teacher | 1.1318 | 1.1565 | — | — | — | — | the extend rule held this cell at 100k |
+| A2 | student | 1.2735 | 1.2479 | 1.2507 | +0.0028 | [-0.0103, +0.0190] | +0.2% |  |
+| A2 | teacher | 1.2753 | 1.2514 | 1.2500 | -0.0014 | [-0.0145, +0.0122] | -0.1% |  |
+| A3 | student | 1.3618 | 1.3010 | 1.3998 | +0.0988 | [+0.0602, +0.1509] | +7.6% |  |
+| A3 | teacher | 1.3521 | 1.3151 | 1.2913 | -0.0238 | [-0.0646, +0.0067] | -1.8% |  |
+| A4 | student | 1.0862 | 1.0801 | — | — | — | — |  |
+| A4 | teacher | 1.0855 | 1.0874 | — | — | — | — | student head only, by the extend rule |
+| B1 | student | 1.0850 | 1.0881 | 1.1009 | +0.0128 | [+0.0001, +0.0284] | +1.2% | bb40k written by round 1 as `G6_B1_…`; same checkpoint, same head budget |
+| B1 | teacher | 1.0948 | 1.0897 | 1.1001 | +0.0104 | [-0.0037, +0.0280] | +1.0% | bb40k written by round 1 as `G6_B1_…`; same checkpoint, same head budget |
+| B2 | student | 1.3976 | 1.3443 | 1.2904 | -0.0539 | [-0.0935, -0.0197] | -4.0% |  |
+| B2 | teacher | 1.4041 | 1.3117 | 1.2825 | -0.0292 | [-0.0604, -0.0016] | -2.2% |  |
+| B3 | student | 1.1305 | 1.1676 | — | — | — | — | the extend rule held this cell at 100k |
+| B3 | teacher | 1.1343 | 1.1618 | — | — | — | — | the extend rule held this cell at 100k |
+| B4 | student | 1.3334 | 1.2804 | 1.3182 | +0.0378 | [+0.0089, +0.0742] | +3.0% |  |
+| B4 | teacher | 1.3339 | 1.2748 | 1.3202 | +0.0454 | [+0.0181, +0.0807] | +3.6% |  |
+| B5 | student | 1.3204 | 1.3383 | — | — | — | — | the extend rule held this cell at 100k |
+| B5 | teacher | 1.3216 | 1.3428 | — | — | — | — | the extend rule held this cell at 100k |
+| B6 | student | 1.2297 | 1.2151 | 1.2207 | +0.0056 | [-0.0101, +0.0212] | +0.5% |  |
+| B6 | teacher | 1.2184 | 1.2110 | 1.2339 | +0.0229 | [+0.0032, +0.0440] | +1.9% |  |
+| B7 | student | 1.2617 | 1.3205 | — | — | — | — | the extend rule held this cell at 100k |
+| B7 | teacher | 1.2444 | 1.2780 | — | — | — | — | the extend rule held this cell at 100k |
+| B8 | student | 1.2857 | 1.3157 | — | — | — | — | trained from 0 this round; queued to 100k only |
+| B8 | teacher | 1.2865 | 1.3239 | — | — | — | — | trained from 0 this round; queued to 100k only |
+| B9 | student | 1.2791 | 1.3299 | — | — | — | — | the extend rule held this cell at 100k |
+| B9 | teacher | 1.2728 | 1.3094 | — | — | — | — | the extend rule held this cell at 100k |
+| B10 | student | 1.2669 | 1.2403 | 1.2624 | +0.0221 | [+0.0032, +0.0481] | +1.8% |  |
+| B10 | teacher | 1.2730 | 1.2499 | 1.2440 | -0.0059 | [-0.0220, +0.0105] | -0.5% |  |
 
 ### The four same-arm pairs: two models, or one
 

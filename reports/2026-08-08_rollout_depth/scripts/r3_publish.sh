@@ -109,6 +109,22 @@ while :; do
     log "ladder plot failed; keeping the previous one"
   fi
 
+  # The stop contrast with its interval. The ladder figure draws the levels;
+  # this one draws bb200k minus bb100k and the bootstrap around it, which is
+  # what the round's verdict rests on. The bootstrap is CPU-only and takes
+  # about a minute for the whole set, so it re-runs on the tick and picks up
+  # a cell the moment its second stop lands.
+  timeout 1800 bash "$HERE/stop_bootstrap.sh" "$RES/stop_bootstrap.csv" \
+    >>"$RES/stop_bootstrap.log" 2>&1
+  cp -f "$RES/stop_bootstrap.csv" "$RES/stop_bootstrap.log" \
+     "$DST/results/" 2>/dev/null
+  if timeout 300 python3 "$HERE/plot_stop_delta.py" --results "$RES" \
+       --out "$STUDY/plots/stop_delta.png" >>"$RES/r3_publish.log" 2>&1; then
+    cp -f "$STUDY/plots/stop_delta.png" "$DST/plots/" 2>/dev/null
+  else
+    log "stop-delta plot failed; keeping the previous one"
+  fi
+
   # The report's tables read the score files, so a new score moves them.
   timeout 600 python3 "$HERE/tables.py" --results "$DST/results" \
     --out "$DST/results/scores.md" --inject "$DST/rollout_depth.md" \
