@@ -1823,3 +1823,42 @@ $11.1 against the $5.00 floor.
 
 `q_await_s18.sh` blocks until all five outstanding numbers are in AND the
 queue holds no job that is neither done nor failed.
+
+## 2026-08-13 11:55 BST — session nineteen: every gate re-checked against the
+## disk, not against this log
+
+**State.** `bb_A4_200k` finished at 10:50Z, 200,000 steps. `hd_A4_200k_student`
+took the box card at 10:50Z. `ev_A4_200k_student` is behind it. Off the queue,
+`A1rep_k3_bb100k_student` returned **1.1610** at 10:50Z and
+`B3rep_k3_bb100k_student` still runs on elisa cores. 70 of 71 deliverables in.
+
+**Names.** 14 cells x 2 stops x 2 heads carry
+`score_<CELL>_k3_bb<stop>k_<head>.txt`, checked one file at a time: 56 of 56,
+no hole. The seven full extend cells carry the third stop on both heads; A4
+carries the student only, by the card. Every remaining non-canonical score
+file is a `k = 0` baseline, a G-series control or an A1/B3 reproduction, and
+none of the three is a cell deliverable.
+
+**Evals.** 92 eval directories on the branch, 91 hold 98 lines: 97 configs and
+a header. The one exception is `G7_B5_k0_e_bb40k_teacher`, which holds a
+`stop.log` and no CSV. Its head aborted for want of VRAM, and the report's
+annex says so and cites that log.
+
+**B1's bb40k number was verified at its source, not accepted from a name.**
+The card said B1 has no valid 40k comparison. The head behind
+`score_G6_B1_k3_bb40k_student` sits in
+`checkpoints_backup/cf-373/eval/G6_B1_k3_bb40k_student/`. Its eval log names
+one backbone, `bb_small_arm6_v2_combab_lalign_lrepmoco_..._cf373k3_40k.pth`,
+which is B1's own arm at its own stop. The head is student-encoder, seed
+20260722, and its 15k and final checkpoints are both on disk beside a
+98-line `all_results.csv`. Same checkpoint, same head recipe, same eval as
+every other cell's bb40k. The name was non-standard; the measurement is
+B1's, and the report says so in its own section.
+
+**Report.** Every relative link in `rollout_depth.md` resolves to a file on
+disk. Every PNG in `plots/` is embedded; no orphan.
+
+**Spend.** Credit $12.07 at 10:52Z, box $0.8144/h. The box is needed until
+A4's student head lands, about 45 min and about $0.6. The eval then runs on
+elisa cores and `q_finish.sh` destroys the box behind a per-class artefact
+check.

@@ -70,6 +70,7 @@ Each entry is the count of tensors that agree exactly, out of the count compared
 | A1/B3 | `arm5_combab_alignS` | bb100k | 110/110 | 0/52 | 28/28 | 0/28 |
 | A4/B1 | `arm6_v2_combab_alignS` | bb40k | 4/110 | 0/52 | — | — |
 | A4/B1 | `arm6_v2_combab_alignS` | bb100k | 4/110 | 0/52 | 0/28 | 0/28 |
+| A4/B1 | `arm6_v2_combab_alignS` | bb200k | 4/110 | 0/52 | — | — |
 | A3/B2 | `arm6_v2_combab_alignT` | bb40k | 4/110 | 0/52 | — | — |
 | A3/B2 | `arm6_v2_combab_alignT` | bb100k | 4/110 | 0/52 | 0/28 | 0/28 |
 | A3/B2 | `arm6_v2_combab_alignT` | bb200k | 4/110 | 0/52 | 0/28 | 0/28 |
@@ -89,6 +90,7 @@ Each row trains a fresh student head from the checkpoint its own cell names, see
 | cell | stop | backbone md5 | first pass | re-run | Δ |
 |---|---|---|---|---|---|
 | A1 | bb40k | `f99fa42c` | 1.1305 | 1.1447 | +0.0142 |
+| A1 | bb100k | `dbd23cbe` | 1.1676 | 1.1610 | -0.0066 |
 | B3 | bb40k | `b3a51f06` | 1.1305 | 1.1447 | +0.0142 |
 
 The largest re-run move is 0.0142. The two cells carry different backbone md5s and reproduce their own first-pass numbers, so the head and the eval read the file each cell names. The duplicate is the student weights, not the path.
