@@ -188,6 +188,16 @@ def emit_pairs(eval_dir):
                     f"G_B1_k0_aw4_bb40k_{head}"))
         out.append((f"B1_alignx4_vs_k3_{head}", f"G_B1_k0_aw4_bb40k_{head}",
                     f"G6_B1_k3_bb40k_{head}"))
+    # A3's bb200k student head, drawn a second time. The first pair bounds
+    # the head seed on this one measurement, which is the quantity the
+    # imported +-0.0384 band stands in for everywhere else in this report.
+    # The second re-runs the ladder's largest move off the second draw, so
+    # the +0.0988 that carries "A3's student degrades at 200k" is read twice
+    # rather than once.
+    out.append(("A3_200k_headseed_student", "A3_k3_bb200k_student",
+                "A3_k3_bb200k_student_s20260723"))
+    out.append(("A3_200k_draw2_vs_100k_student", "A3_k3_bb100k_student",
+                "A3_k3_bb200k_student_s20260723"))
 
     seen = set()
     for label, a, b in out:

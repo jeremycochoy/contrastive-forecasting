@@ -101,6 +101,35 @@ The interval is a 95% paired dataset-cluster bootstrap over the pair's 97 config
 | B10 | student | 1.2669 | 1.2403 | 1.2624 | +0.0221 | [+0.0032, +0.0481] | +1.8% |  |
 | B10 | teacher | 1.2730 | 1.2499 | 1.2440 | -0.0059 | [-0.0220, +0.0105] | -0.5% |  |
 
+### A3's bb200k student, drawn twice
+
+A3 at bb200k reads 1.3998 on the student and 1.2913 on the teacher, off one backbone file. That 0.1084 gap is 6.5x the next-largest in group A (0.0168) and 2.6x the largest anywhere (0.0425). Every gap in the grid is in [`results/head_gap.tsv`](results/head_gap.tsv).
+
+The second draw changes the head seed and nothing else: same backbone file, same 30,000 steps, same recipe, same 97-config eval.
+
+| draw | head seed | GM-Relative MASE | against draw 1 |
+|---|---|---|---|
+| 1, student | 20260722 | 1.3998 | — |
+| 2, student | 20260723 | 1.4098 | +0.0100 |
+| teacher | 20260722 | 1.2913 | -0.1084 |
+
+**The two draws agree.** They sit 0.0100 apart, 26% of the ±0.0384 head-seed band, and the second draw is the higher of the two. So 1.3998 is not a bad draw.
+
+The student/teacher gap survives the redraw at 0.1185, 3.1x the band. Two head seeds put A3's bb200k student above its teacher, so the gap is a property of that student encoder and not of the draw.
+
+A3's is also the ladder's largest reversal, but it is not the only one: 5 of the 8 three-stop student trajectories turn round at bb200k.
+
+| cell | bb40k | bb100k | bb200k | bb200k − bb100k | shape |
+|---|---|---|---|---|---|
+| A2 | 1.2735 | 1.2479 | 1.2507 | +0.0028 | turns round |
+| A3 | 1.3618 | 1.3010 | 1.3998 | +0.0988 | turns round |
+| A4 | 1.0862 | 1.0801 | 1.0660 | -0.0141 | monotone |
+| B1 | 1.0850 | 1.0881 | 1.1009 | +0.0128 | monotone |
+| B2 | 1.3976 | 1.3443 | 1.2904 | -0.0539 | monotone |
+| B4 | 1.3334 | 1.2804 | 1.3182 | +0.0378 | turns round |
+| B6 | 1.2297 | 1.2151 | 1.2207 | +0.0056 | turns round |
+| B10 | 1.2669 | 1.2403 | 1.2624 | +0.0221 | turns round |
+
 ### Stop reasons: what the extend rule read at each cell
 
 The rule reads one cell's bb40k number against its bb100k number, per head. A head that moved down earns the second 100,000 steps; a head that moved up stops. Both columns are bb100k minus bb40k, so negative is an improvement. It held 6 cells at 100k.

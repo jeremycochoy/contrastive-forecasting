@@ -467,7 +467,29 @@ def main(argv=None):
               "|---|---|---|---|",
               f"| 1, student | 20260722 | {d1:.4f} | — |",
               f"| 2, student | 20260723 | {draw2:.4f} | {draw2 - d1:+.4f} |",
-              f"| teacher | 20260722 | {te:.4f} | {te - d1:+.4f} |", "",
+              f"| teacher | 20260722 | {te:.4f} | {te - d1:+.4f} |", ""]
+        # The redraw is the test, so the section states what it decided
+        # rather than leaving the reader to subtract. Both branches are
+        # written out: the numbers pick one.
+        agree = abs(draw2 - d1) <= NOISE_BAND
+        gap2 = abs(draw2 - te)
+        L += [(f"**The two draws agree.** They sit {abs(draw2 - d1):.4f} "
+               f"apart, {abs(draw2 - d1) / NOISE_BAND:.0%} of the ±"
+               f"{NOISE_BAND:.4f} head-seed band, and the second draw is the "
+               f"{'higher' if draw2 > d1 else 'lower'} of the two. So "
+               f"{d1:.4f} is not a bad draw."
+               if agree else
+               f"**The two draws disagree.** They sit {abs(draw2 - d1):.4f} "
+               f"apart, wider than the ±{NOISE_BAND:.4f} head-seed band, so "
+               f"this head's seed alone moves the score more than the band "
+               f"the report thresholds on."), "",
+              (f"The student/teacher gap survives the redraw at {gap2:.4f}, "
+               f"{gap2 / NOISE_BAND:.1f}x the band. Two head seeds put A3's "
+               f"bb200k student above its teacher, so the gap is a property "
+               f"of that student encoder and not of the draw."
+               if gap2 > NOISE_BAND else
+               f"The student/teacher gap falls to {gap2:.4f} on the second "
+               f"draw, inside the ±{NOISE_BAND:.4f} band."), "",
               f"A3's is also the ladder's largest reversal, but it is not the "
               f"only one: {n_turn} of the {len(turns)} three-stop student "
               "trajectories turn round at bb200k.", "",

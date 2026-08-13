@@ -75,18 +75,31 @@ def main(argv=None):
     ax.plot([x[-1], x[-1]], [st[-1], draw2], color="black", linewidth=1.1,
             zorder=2)
 
-    for xi, v in zip(x, st):
-        ax.annotate(f"{v:.4f}", (xi, v), textcoords="offset points",
-                    xytext=(0, 9), ha="center", fontsize=9)
-    for xi, v in zip(x, te):
-        ax.annotate(f"{v:.4f}", (xi, v), textcoords="offset points",
-                    xytext=(0, -16), ha="center", fontsize=9)
+    # Put each label on the side its own curve leaves free. At bb100k the
+    # two curves nearly touch, so a fixed offset prints one label over the
+    # other: there the higher point takes the space above and the lower
+    # takes the space below.
+    for xi, (sv, tv) in enumerate(zip(st, te)):
+        # The second draw sits on the student's own x, so at that stop the
+        # student's neighbour is the diamond and not the teacher.
+        above = sv >= tv and not (xi == x[-1] and draw2 > sv)
+        ax.annotate(f"{sv:.4f}", (xi, sv), textcoords="offset points",
+                    xytext=(0, 9 if above else -17), ha="center",
+                    fontsize=9)
+        ax.annotate(f"{tv:.4f}", (xi, tv), textcoords="offset points",
+                    xytext=(0, 9 if tv > sv else -17), ha="center",
+                    fontsize=9)
     ax.annotate(f"{draw2:.4f}", (x[-1], draw2), textcoords="offset points",
                 xytext=(14, -4), ha="left", fontsize=9, fontweight="bold")
 
     ax.set_xticks(x)
     ax.set_xticklabels([f"bb{s}k" for s in STOPS])
     ax.set_xlim(-0.35, len(STOPS) - 0.35 + 0.5)
+    # Room for the labels themselves, and for the band, which reaches
+    # further than any point does.
+    lo = min(list(st) + list(te) + [draw2, st[-1] - NOISE_BAND])
+    hi = max(list(st) + list(te) + [draw2, st[-1] + NOISE_BAND])
+    ax.set_ylim(lo - 0.10 * (hi - lo), hi + 0.14 * (hi - lo))
     ax.set_ylabel("GM-Relative MASE, 97 configs")
     ax.set_title("A3, k = 3: two heads on one backbone, and a second draw "
                  "of one of them")

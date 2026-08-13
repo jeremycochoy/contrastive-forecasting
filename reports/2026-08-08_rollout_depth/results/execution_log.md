@@ -2076,3 +2076,58 @@ GPU-h for the two heads, ~3 h on the cores for the two evals, $0.
 
 **Spend this session: $0.00.** No instance was provisioned and none is
 running. `vastrun-status`: no running instances.
+
+## 2026-08-13 18:30Z — session twenty-four: the two gap runs, and one scheduling fix
+
+**Both runs were already in flight at the open.** `gap6_a3_reseed.sh` had its
+head trained and its eval on the cores; `gap_worker.sh` had the
+`G_B1_k0_aw4` backbone at step 3,000 of 40,000 on elisa's card 1. Nothing was
+relaunched and nothing was retrained.
+
+**The `--align-loss-weight 4.0` was verified on the live process, not on the
+launcher.** `run_arm_k.sh` writes the arm's own `--align-loss-weight 1.0`
+first and appends `GAP_ARGS` after it, so the command line carries the flag
+twice. `argparse` takes the last, and `/proc/<pid>/cmdline` shows `4.0` at
+position 115 against `1.0` at 58. The control trains what it says it does.
+
+**The worker's own head schedule idled a card for 1.5 h, so it was replaced.**
+`gap_worker.sh` runs a row's two heads one after the other and each head
+carries its own 97-config eval on the cores:
+
+    student head (GPU) -> student eval (CPU) -> teacher head (GPU) -> teacher eval (CPU)
+
+The card is free for the whole of the first eval and the teacher head that
+wants it waits. `scripts/gap3_heads.sh` starts both `head_eval_bb.sh` calls
+at once instead. It needs no sequencing logic of its own: `head_eval_bb.sh`
+already takes an exclusive `flock` on a per-card file for the head-training
+half and drops it before the eval, so the two heads train one at a time and
+the first eval overlaps the second head. One eval of wall clock, about 1.5 h.
+
+**Both heads share one card, and that is measured rather than chosen.**
+elisa's card 0 holds another session's 15,180 MiB notebook and reports 1,639
+MiB free, under the 6,000 MiB a head needs. Card 1 carries the backbone and
+frees about 8 GB when it exits: one head, not two.
+
+**`gap_worker.sh` was stopped, its children were not.** The worker had done
+its one job, which was to launch the backbone. `kill 1996312` reaches the
+worker shell alone; `run_arm_k.sh` (1996329) and the trainer (1996340) have
+their own PIDs and no trap forwards the signal. Both were confirmed alive
+after the kill, and the trainer's step counter kept moving. Had the worker
+lived it would have handed its own sequential `heads_for` to the same two
+tags and raced `gap3_heads.sh` inside one eval directory.
+
+**Item 6 landed at 18:22Z: 1.4098.** The redraw reproduces the first draw at
+0.0100, 26% of the head-seed band, and it moves AWAY from the teacher rather
+than toward it. `1.3998` is not a bad draw, so "A3's student degrades at
+bb200k" and the 0.1084 student/teacher gap both stand. `tables.py` now prints
+that verdict from the two numbers rather than leaving the reader to subtract,
+and `plots/a3_reseed.png` carries it in the body of the report.
+
+**Two bootstrap pairs were added for it**, in `find_artefacts.py`:
+`A3_200k_headseed_student` bounds the head seed on this one measurement,
+which is the quantity the imported ±0.0384 band stands in for everywhere
+else, and `A3_200k_draw2_vs_100k_student` re-runs the ladder's largest move
+off the second draw.
+
+**Spend this session: $0.00.** No instance was provisioned and none is
+running.
