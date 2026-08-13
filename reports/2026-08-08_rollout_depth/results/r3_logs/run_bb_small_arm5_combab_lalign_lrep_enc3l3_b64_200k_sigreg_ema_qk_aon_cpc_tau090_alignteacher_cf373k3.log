@@ -1508,3 +1508,13 @@ Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, 
 [ 199600] loss=14.2289  ema_loss=14.3540  gap=-0.1572  ema_gap=-0.1692  mixup=61/200  2.9 sps  ETA 0.0h
               R²_rand=0.5685  R²_naive=0.2080  U_t=0.1017  U_b=0.4689  AUC=0.9836  Top1=0.5376
   timing: data=22.5ms  fwd=169.3ms  bwd=155.9ms  total=348.5ms
+[ 199800] loss=14.2869  ema_loss=14.3530  gap=-0.1674  ema_gap=-0.1704  mixup=43/200  2.9 sps  ETA 0.0h
+              R²_rand=0.5707  R²_naive=0.2093  U_t=0.0976  U_b=0.5025  AUC=0.9859  Top1=0.6423
+  timing: data=5.6ms  fwd=169.9ms  bwd=154.7ms  total=331.0ms
+[ 200000] loss=14.3130  ema_loss=14.3486  gap=-0.1708  ema_gap=-0.1700  mixup=66/200  2.9 sps  ETA 0.0h
+              R²_rand=0.5610  R²_naive=0.1890  U_t=0.1049  U_b=0.4752  AUC=0.9845  Top1=0.5691
+  timing: data=5.9ms  fwd=169.3ms  bwd=156.0ms  total=332.1ms
+  -> Saved /root/cf373_runs/bb_small_arm5_combab_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_cf373k3/bb_small_arm5_combab_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_cf373k3_r3_200k.pth
+  -> Saved /root/cf373_runs/bb_small_arm5_combab_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_cf373k3/bb_small_arm5_combab_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_cf373k3_r3_final.pth
+
+Done in 9.5h. Best gap=-0.1176 at step 2200, Best loss=13.8524 at step 21400
