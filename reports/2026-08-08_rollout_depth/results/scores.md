@@ -329,6 +329,7 @@ B1 carries `L_align` as its only f-bearing term, so its `k = 3` run multiplies t
 
 | head | k = 0 | k = 0, `L_align` x4 | k = 3 |
 |---|---|---|---|
+| student | 1.2025 | 1.1513<br>-0.0512 [-0.1001, -0.0023] | 1.0850<br>-0.1175 [-0.1801, -0.0615] |
 | teacher | 1.2001 | 1.1482<br>-0.0519 [-0.0987, -0.0066] | 1.0948<br>-0.1053 [-0.1661, -0.0515] |
 
 Second line of each cell: the difference against `k = 0` and its 95% paired dataset-cluster interval.
@@ -337,6 +338,7 @@ Every column trained on elisa at backbone seed 20260520, on the same head budget
 
 | head | the re-weighting<br>k = 0 → x4 | the depth<br>x4 → k = 3 | total<br>k = 0 → k = 3 | the re-weighting's share |
 |---|---|---|---|---|
+| student | -0.0512 | -0.0663 | -0.1175 | 44% |
 | teacher | -0.0519 | -0.0534 | -0.1053 | 49% |
 
 ### A3: is the damage the depth, or the weight?

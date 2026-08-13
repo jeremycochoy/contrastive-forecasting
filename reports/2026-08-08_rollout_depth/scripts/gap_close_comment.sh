@@ -29,6 +29,12 @@ section(){ awk -v h="$1" '
   index($0, "### ") == 1 { keep = (index($0, h) == 5) }
   keep' "$SCORES"; }
 
+# The prose files below carry their own copy of the table the section holds,
+# and a reader who meets the same six numbers twice reads neither. Take the
+# section's framing paragraphs, stop at its first table row, and let the
+# prose file carry the numbers.
+section_head(){ section "$1" | awk '/^\|/{exit} {print}'; }
+
 sc(){ cat "$DST/results/score_$1.txt" 2>/dev/null || echo "MISSING"; }
 
 [ -f "$SCORES" ] || { echo "no $SCORES — run make_report_assets.sh first" >&2; exit 2; }
@@ -65,8 +71,7 @@ boxes="$(timeout 90 vastrun-status 2>/dev/null | head -1)"
   printf '\n'
 
   printf '## Item 3 — the decisive control\n\n'
-  section "B1: is the win the depth, or the weight?"
-  printf '\n'
+  section_head "B1: is the win the depth, or the weight?"
   cat "$RES/gap_close_item3.md" 2>/dev/null
   printf '\n'
 

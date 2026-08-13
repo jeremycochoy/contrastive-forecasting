@@ -13,10 +13,12 @@ Three limits, at the front and not in a footnote. Only `k = 3` ran on the 14
 cells, so this study says depth 3 MOVES the score and not that depth 3 is the
 right depth. Twelve of the 14 cells carry `L_align` as their only f-bearing
 term, and summing the depths multiplies its weight by k + 1, so for those
-twelve `k = 3` changes two things at once and only A3 carries the control
-that separates them. The 200k panel is not a random eight: the extend rule
-took the cells that improved over the first leg, and the two hand overrides
-went the same way, so read the 200k verdict as conditional on that panel.
+twelve `k = 3` changes two things at once; the control that separates them
+ran on two cells, and on B1 it splits the 9.8% about half and half between
+the re-weighting and the extra horizons. The 200k panel is not a random
+eight: the extend rule took the cells that improved over the first leg, and
+the two hand overrides went the same way, so read the 200k verdict as
+conditional on that panel.
 
 ![reproduction](plots/reproduction.png)
 
@@ -165,16 +167,42 @@ row's printings sit in the `better` bucket.
 
 *Per-domain GM-Relative MASE, each arm against its own `k = 0`, bb40k.*
 
-## A3: the depth, or the weight it carries
+## The depth, or the weight it carries
+
+Summing the depths adds one copy of every f-bearing term per depth at the
+same weight. For the twelve cells whose only f-bearing term is `L_align`,
+`k = 3` therefore multiplies that term's weight by 4 as well as adding
+depth. Two cells carry the control that separates them: the same ×4 weight
+applied at `k = 0`, with no depth at all.
+
+![B1's L_align x4 control](plots/b1_alignx4.png)
+
+*B1's depth ladder against the `L_align` ×4 re-weighting control, both
+heads, bb40k. Every point trained on elisa at backbone seed 20260520 on the
+same head budget.*
+
+**Both pay, and by about half each.** The re-weighting alone carries -0.0512
+[-0.1001, -0.0023] of the student's -0.1175, and the extra horizons carry
+the remaining -0.0663 [-0.1070, -0.0331]. The teacher splits 49/51 the same
+way. Both segments exclude zero on both heads. So B1's win is neither the
+depth alone nor the weight alone.
+
+The control holds the total weight and drops the horizons. `k = 3` puts its
+four copies of `L_align` on t+1..t+4 and the control puts all four on t+1,
+so the depth segment is the extra HORIZONS and not depth net of everything
+else. The re-weighting's own effect is entirely at the longer horizons:
+-0.1400 [-0.2267, -0.0662] on medium and long, and -0.0009 [-0.0483,
++0.0460] on short.
 
 ![A3 depth against weight](plots/a3_depth.png)
 
-*A3's depth ladder against the `L_align` ×4 re-weighting control, both
-heads, bb40k.*
+*A3's depth ladder against the same control, both heads, bb40k.*
 
-Each of A3's four points trained on a different box from at least one other,
-and the machine is worth more than either control, so the ladder gives a
-direction and not a magnitude.
+A3 is the cell where `k = 3` does the most damage, and there the
+re-weighting also moves the score the wrong way, +0.0401 [+0.0116,
++0.0767]. But each of A3's four points trained on a different box from at
+least one other, and the machine is worth more than either control, so
+A3's ladder gives a direction and not a magnitude. B1's gives sizes.
 
 ## The composed operator does get more faithful, on the four cells measured
 
@@ -561,6 +589,7 @@ B1 carries `L_align` as its only f-bearing term, so its `k = 3` run multiplies t
 
 | head | k = 0 | k = 0, `L_align` x4 | k = 3 |
 |---|---|---|---|
+| student | 1.2025 | 1.1513<br>-0.0512 [-0.1001, -0.0023] | 1.0850<br>-0.1175 [-0.1801, -0.0615] |
 | teacher | 1.2001 | 1.1482<br>-0.0519 [-0.0987, -0.0066] | 1.0948<br>-0.1053 [-0.1661, -0.0515] |
 
 Second line of each cell: the difference against `k = 0` and its 95% paired dataset-cluster interval.
@@ -569,6 +598,7 @@ Every column trained on elisa at backbone seed 20260520, on the same head budget
 
 | head | the re-weighting<br>k = 0 → x4 | the depth<br>x4 → k = 3 | total<br>k = 0 → k = 3 | the re-weighting's share |
 |---|---|---|---|---|
+| student | -0.0512 | -0.0663 | -0.1175 | 44% |
 | teacher | -0.0519 | -0.0534 | -0.1053 | 49% |
 
 ### A3: is the damage the depth, or the weight?

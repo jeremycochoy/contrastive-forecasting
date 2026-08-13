@@ -1,0 +1,69 @@
+
+=== 1/5 collect ===
+[collect] run worktree results (11 generated file(s) held back)
+[collect] box a: 7 file(s)
+[collect] box b: 7 file(s)
+[collect] box c: 7 file(s)
+[collect] box d: 12 file(s)
+[collect] eval outputs: 100 stop(s)
+[collect] -> /tmp/contrastive-forecasting-373/reports/2026-08-08_rollout_depth
+
+=== 2/5 rebuild ===
+  ok   B2 bb200k student: arm6_v2_combab_bb200k_hd30000s reproduces 1.1850 over 97 configs
+  ok   B3 bb40k student: arm5_combab_bb40k_hd15000s reproduces 1.2868 over 97 configs
+  ok   B3 bb100k student: arm5_combab_bb100k_hd30000s reproduces 1.2456 over 97 configs
+  skip B3 bb200k student: this study's CSV is not in the checkout
+  ok   B4 bb40k student: arm5_combab_bb40k_hd15000s reproduces 1.2728 over 97 configs
+  ok   B4 bb100k student: arm5_combab_bb100k_hd30000s reproduces 1.3678 over 97 configs
+  ok   B5 bb40k student: arm4_combab_bb40k_hd15000s reproduces 1.2748 over 97 configs
+  ok   B5 bb100k student: arm4_combab_bb100k_hd30000s reproduces 1.3219 over 97 configs
+  ok   B6 bb40k student: arm6_v2_ncpc_bb40k_hd15000s reproduces 1.3623 over 97 configs
+  ok   B6 bb100k student: arm6_v2_ncpc_bb100k_hd30000s reproduces 1.2978 over 97 configs
+  ok   B6 bb200k student: arm6_v2_ncpc_bb200k_hd30000s reproduces 1.3011 over 97 configs
+  ok   B7 bb40k student: arm6_v2_ncpc_bb40k_hd15000s reproduces 1.3159 over 97 configs
+  ok   B7 bb100k student: arm6_v2_ncpc_bb100k_hd30000s reproduces 1.3012 over 97 configs
+  skip B7 bb200k student: this study's CSV is not in the checkout
+  ok   B8 bb40k student: arm6_v2_nse_bb40k_hd15000s reproduces 1.3074 over 97 configs
+  ok   B8 bb100k student: arm6_v2_nse_bb100k_hd30000s reproduces 1.3368 over 97 configs
+  ok   B9 bb40k student: arm1_nse_bb40k_hd15000s reproduces 1.5579 over 97 configs
+  ok   B9 bb100k student: arm1_nse_bb100k_hd30000s reproduces 1.4548 over 97 configs
+  skip B9 bb200k student: this study's CSV is not in the checkout
+  
+  41 interval(s) -> /tmp/contrastive-forecasting-373/reports/2026-08-08_rollout_depth/results/published_bootstrap.csv; 0 row(s) dropped
+  criterion screen -> /tmp/contrastive-forecasting-373/reports/2026-08-08_rollout_depth/results/criterion_screen.csv: 25 of 41 pairs meet it; at bb100k, 10 of 18
+  wrote /tmp/contrastive-forecasting-373/reports/2026-08-08_rollout_depth/results/scores.md (36 run(s), 14 cell(s))
+  injected the tables into /tmp/contrastive-forecasting-373/reports/2026-08-08_rollout_depth/rollout_depth.md
+[assets] -> /tmp/contrastive-forecasting-373/reports/2026-08-08_rollout_depth/plots
+  a3_depth.png
+  a3_reseed.png
+  b1_alignx4.png
+  b5_backbones.png
+  cos_err_depth.png
+  cos_error_per_arm.png
+  depth_response.png
+  dim_usage_per_arm.png
+  domain_radar_student.png
+  domain_radar_teacher.png
+  encoder_delta.png
+  horizon_split_student.png
+  horizon_split_teacher.png
+  ladder.png
+  latent_movement.png
+  per_run_loss.png
+  reproduction.png
+  rollout_fidelity.png
+  stop_delta.png
+  stop_ladder.png
+
+=== 3/5 item-3 verdict ===
+gap3_item3: verdict=split share student=44% teacher=49%
+  wrote /tmp/contrastive-forecasting-373/reports/2026-08-08_rollout_depth/results/gap_close_item3.md
+  wrote /tmp/contrastive-forecasting-373/reports/2026-08-08_rollout_depth/results/gap_close_verdict.md
+
+=== 4/5 coverage ===
+deliverables 72   done 72   running 0   queued 0   NOT STARTED 0   (+12 stops, not deliverables)
+
+=== 5/5 comment, not posted ===
+wrote /tmp/contrastive-forecasting-373/reports/2026-08-08_rollout_depth/results/gap_close_comment.md (198 lines)
+
+gap3_close: fail=0

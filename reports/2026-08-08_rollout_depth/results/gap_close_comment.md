@@ -4,7 +4,7 @@
 
 **Experiment directory:** `reports/2026-08-08_rollout_depth/`
 - results `results/`, plots `plots/`, scripts `scripts/`
-- 98 score files on the branch, each with its own 97-config eval
+- 99 score files on the branch, each with its own 97-config eval
 - run tree `/home/jupyter/cf373_r3`, controls under `checkpoints_backup/cf-373/`
 
 ### Runs completed this session
@@ -22,7 +22,7 @@ rented     nothing
 
 ```
 item 3  B1 k = 0            1.2025 student   1.2001 teacher
-item 3  B1 k = 0, L_align x4  MISSING student   1.1482 teacher
+item 3  B1 k = 0, L_align x4  1.1513 student   1.1482 teacher
 item 3  B1 k = 3            1.0850 student   1.0948 teacher
 item 6  A3 bb200k student, draw 1 seed 20260722   1.3998
 item 6  A3 bb200k student, draw 2 seed 20260723   1.4098
@@ -59,19 +59,21 @@ disclosed in the annex, no action.
 
 B1 carries `L_align` as its only f-bearing term, so its `k = 3` run multiplies that term's weight against the f-free terms by 4 as well as adding depth. The `L_align x4` row applies the re-weighting at k = 0, with no depth at all.
 
-| head | k = 0 | k = 0, `L_align` x4 | k = 3 |
-|---|---|---|---|
-| teacher | 1.2001 | 1.1482<br>-0.0519 [-0.0987, -0.0066] | 1.0948<br>-0.1053 [-0.1661, -0.0515] |
+| head | k = 0 | k = 0, `L_align` x4 | k = 3 | the re-weighting<br>k = 0 → x4 | the depth<br>x4 → k = 3 | share |
+|---|---|---|---|---|---|---|
+| student | 1.2025 | 1.1513 | 1.0850 | -0.0512 | -0.0663 | 44% |
+| teacher | 1.2001 | 1.1482 | 1.0948 | -0.0519 | -0.0534 | 49% |
 
-Second line of each cell: the difference against `k = 0` and its 95% paired dataset-cluster interval.
+Intervals, 95% paired dataset-cluster over the 97 eval configs:
 
-Every column trained on elisa at backbone seed 20260520, on the same head budget. This is the study's one such table, so it may divide one column by another.
+- student: re-weighting [-0.1001, -0.0023], depth [-0.1070, -0.0331], total [-0.1801, -0.0615]
+- teacher: re-weighting [-0.0987, -0.0066], depth [-0.0874, -0.0237], total [-0.1661, -0.0515]
 
-| head | the re-weighting<br>k = 0 → x4 | the depth<br>x4 → k = 3 | total<br>k = 0 → k = 3 | the re-weighting's share |
-|---|---|---|---|---|
-| teacher | -0.0519 | -0.0534 | -0.1053 | 49% |
+**Both pay.** The re-weighting carries 44% of the student's -0.1175 and the extra horizons carry the rest. Neither alone accounts for the win.
 
+Every column trained on elisa at backbone seed 20260520 on the same head budget: 15,000 head steps at seed 20260722, then 97 GIFT-Eval configs. This is the study's one machine-held, seed-held, head-budget-matched set, so it may divide one column by another. The two cards are both RTX 4090s of the one box.
 
+What it cannot separate: `k = 3` puts its four copies of `L_align` on four horizons and `k = 0` x4 puts all four on t+1. So the depth column is the extra HORIZONS at a held total weight, not depth net of everything else.
 
 ## Item 6 — the redrawn head
 
@@ -107,12 +109,8 @@ A3's is also the ladder's largest reversal, but it is not the only one: 5 of the
 | B10 | 1.2669 | 1.2403 | 1.2624 | +0.0221 | turns round |
 
 
-**The redraw reproduces the outlier.** The second draw reads **1.4098**
-against the first's 1.3998. They sit 0.0100 apart, 26% of the ±0.0384
-head-seed band, and the second draw is the higher of the two. It does not
-land near the teacher's 1.2913 and it does not move toward it.
-
-So the two lines the review put at risk both stand:
+The redraw does not land near the teacher's 1.2913 and it does not move
+toward it. So the two lines the review put at risk both stand:
 
 - **A3's student degrades at bb200k.** 1.3618 → 1.3010 → 1.3998, and →
   1.4098 on the second draw. The ladder's +0.0988 is +0.1088 read off draw 2.
@@ -148,6 +146,51 @@ deliverables 72   done 72   running 0   queued 0   NOT STARTED 0   (+12 stops, n
 done=number in hand  run=own head/eval running  bb-run=backbone training now  plan=queued, not started  MISS-e=eval not run  MISS-h=head not trained  MISS-t=backbone not trained  stop=not a deliverable this round
 ‡ A1 and B3 hold one student model, printed twice per stop. The 72 deliverables therefore hold 70 distinct measurements. Their teacher columns are two models and are counted twice.
 
+## What the study can and cannot support
+
+The review's own list, re-read against the closed items and the two runs.
+
+**Can support.**
+
+- Training the forecaster on its own output at depth 3 moves GM-Relative MASE
+  by more than the head seed does, in most cells, in both directions.
+- One machine-held, seed-held, head-budget-matched pair exists in the grid:
+  B1 at bb40k, -0.1175, CI [-0.1801, -0.0615].
+- On B1, the one cell where the depth wins, the re-weighting that comes with it carries 44% of the student's -0.1175. Holding `L_align`'s total weight at 4 and dropping the depth to 0 reads 1.1513 against 1.2025.
+- The composed operator's rollout fidelity rises with depth on the four arms
+  measured, including two whose score falls. Depth changes the operator and
+  the score does not follow it.
+- Coverage: all 14 recipes train and score at k = 3, at every stop they were
+  meant to reach, on both heads. 72 of 72 deliverables, no cell failed.
+- Every delta against a published k = 0 now carries a 95% paired
+  dataset-cluster interval. All 41 of them, each parent CSV admitted only
+  after it reproduced its parent's printed number to four decimals.
+- A3's bb200k student is not one bad head draw. Two seeds, 1.3998 and 1.4098.
+
+**Cannot support.**
+
+- That either the depth or the re-weighting alone wins on B1. The control splits the move between them and one cell cannot say which generalises.
+- Any per-cell verdict. Every cell is n = 1 in the backbone seed, and the
+  ±0.0384 band used to judge it bounds the HEAD seed. Backbone-seed variance
+  is unmeasured everywhere in this study.
+- "9 of 14 better" as a rate. It is 8 of 13 distinct student models, judged
+  against baselines this study did not retrain on its own machine, at a
+  threshold whose band bounds a different seed. The report labels it a
+  screen.
+- Whether depth 3 helps at bb100k or bb200k. No cell holds a same-machine,
+  same-seed `k = 0` at either stop. The one clean pair is at bb40k, and that
+  cell then gets worse with more backbone steps: B1 student 1.0850 → 1.0881
+  → 1.1009.
+- "The second 100,000 steps buy nothing" as a general claim. The panel is
+  selected on an improving first leg and the two hand overrides went the same
+  way. Read it as conditional on that panel. Within it: 7 of 16 improved,
+  mean +0.0079, median +0.0042, band covers 13 of 16.
+- Any ranking of the 14 recipes. The better/worse split tracks each cell's
+  published baseline as much as its own `k = 3` number.
+- That depth 3 is the right depth. Only `k = 3` ran on the 14 cells. `k = 1`
+  ran on A3 alone.
+- What the depth costs, to better than +157% to +168%. Two probes agree
+  there; A3's +13% row crosses a box change and is dropped.
 
 ### Spend
 

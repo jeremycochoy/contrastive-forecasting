@@ -86,10 +86,14 @@ def main(argv=None):
         # and say nothing the table does not.
         if head != "student":
             continue
-        for w, v, k in pts:
+        # Both ladder points sit at a corner of the axes: k = 0 top left,
+        # k = 3 bottom right. A label above either one climbs into the title
+        # or off the axes, so both hang inward and below their marker.
+        for (w, v, k), off in zip(pts, ((14, -10), (-14, -10))):
             ax.annotate(f"k = {k}\n{v:.4f}", (w, v),
-                        textcoords="offset points", xytext=(0, 13),
-                        ha="center", va="bottom", fontsize=9, color=cc.INK,
+                        textcoords="offset points", xytext=off,
+                        ha="left" if off[0] > 0 else "right", va="top",
+                        fontsize=9, color=cc.INK,
                         bbox=dict(fc="#ffffff", ec="none", pad=0.6))
         ax.annotate(f"L_align x4, no depth\n{cv:.4f}", (cw, cv),
                     textcoords="offset points", xytext=(-16, 0), ha="right",
@@ -121,7 +125,11 @@ def main(argv=None):
                 bbox=dict(fc="#ffffff", ec="none", pad=0.8))
     ax.set_xticks([1, 4])
     ax.set_xticklabels(["x1", "x4"])
-    ax.set_xlim(0.70, 6.6)
+    ax.set_xlim(0.70, 6.4)
+    # Room under the k = 3 marker for the label that hangs below it, and for
+    # the legend beside it.
+    lo, hi = ax.get_ylim()
+    ax.set_ylim(lo - 0.22 * (hi - lo), hi)
     ax.set_xlabel("weight the f-bearing term carries against the f-free terms "
                   "(k + 1, since the depths are summed)")
     ax.set_ylabel("GM-Relative MASE, 97 configs  (lower is better)")
@@ -143,7 +151,11 @@ def main(argv=None):
         Line2D([], [], color=col, linestyle="none", marker="D", markersize=10,
                markerfacecolor="#ffffff", markeredgewidth=2.2,
                label="re-weighting control, no depth")]
-    ax.legend(handles=handles, loc="upper right", fontsize=9)
+    # Lower left. The ladder falls from the top-left corner to the bottom
+    # right and the k = 0 rule runs along the top, so upper right is the one
+    # place the legend cannot go.
+    ax.legend(handles=handles, loc="lower left", fontsize=9,
+              framealpha=0.95, borderpad=0.7)
 
     fig.tight_layout()
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)

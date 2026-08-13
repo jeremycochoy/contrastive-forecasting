@@ -1,9 +1,5 @@
-**The redraw reproduces the outlier.** The second draw reads **1.4098**
-against the first's 1.3998. They sit 0.0100 apart, 26% of the ±0.0384
-head-seed band, and the second draw is the higher of the two. It does not
-land near the teacher's 1.2913 and it does not move toward it.
-
-So the two lines the review put at risk both stand:
+The redraw does not land near the teacher's 1.2913 and it does not move
+toward it. So the two lines the review put at risk both stand:
 
 - **A3's student degrades at bb200k.** 1.3618 → 1.3010 → 1.3998, and →
   1.4098 on the second draw. The ladder's +0.0988 is +0.1088 read off draw 2.
