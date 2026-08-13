@@ -2025,3 +2025,54 @@ zero jobs left and stood down. 96 score files and 96 complete evals are on
 the branch, each with 97 configs.
 
 `scripts/r3_final_comment.sh` posted the round's closing comment on PR #400.
+
+## 2026-08-13 16:30Z — session twenty-three: the review's no-compute gaps, and one head redrawn
+
+The full-study review returned ten items. This session closed the ones that
+cost no GPU time, and started the one that costs no BACKBONE time.
+
+**Item 1 was a real error, and it was ours.** The opener published "of 14
+such extends, 5 improved and 9 got worse", mean +0.0103, median +0.0080. The
+ladder table in the same report held 16 rows and printed "7 improved". The
+14-row subset is the 16 rows minus the A4 pair. Nothing said so. Recomputed
+straight from the score files: 7 of 16, mean +0.0079, median +0.0042, 13 of
+16 inside the head-seed band. The count, the mean, the median and the band
+coverage now come out of `tables.py` from one list, so a subset cannot reach
+the prose again without the count moving with it.
+
+**Item 6 is running.** `scripts/gap6_a3_reseed.sh` draws A3's bb200k student
+head a second time at head seed 20260723, the second of the three seeds
+`ema_sched_ladder` used to measure the band this report quotes. Same
+backbone file (md5 `9f0e8da7`), same 30,000-step budget, same 97-config eval,
+`--seed` the only flag that moves. It runs on elisa's GPU 1 beside another
+session's job and costs nothing.
+
+**Two things the review got slightly wrong, checked against the numbers.**
+A3's student is not the only non-monotone trajectory: five of the eight
+three-stop trajectories turn round. A3's reversal is the largest, +0.0988
+against +0.0378 for the next. And the largest other group-A student/teacher
+gap is 0.0168, not "under 0.0141". Both checks are in
+`scripts/gap6_head_gap.py` and `results/head_gap.tsv`. The item stands: A3's
+0.1085 gap is 6.5x the next in group A and 2.6x the largest anywhere.
+
+**Item 2 got more than wording.** The review called the published-baseline
+table the one table in the report with no uncertainty column. Two parents
+committed their per-config CSVs and the third's are in its run tree on
+elisa, so the pairing is recoverable and the interval is a CPU-second job.
+`published_bootstrap.py` computes all 41, and it accepts a parent CSV for a
+cell only after that CSV reproduces the number the parent printed to four
+decimals. All 41 reproduced theirs. The 18 imported from #393's tree are
+committed under `results/parent_eval/` with their source path and md5, so
+the rebuild still needs the repo alone.
+
+**Item 3 is prepared and NOT started.** `scripts/gap3_jobs.tsv` holds the
+`L_align` x4 control at k = 0 on B1, `scripts/gap3_preflight.sh` prints what
+it would do and checks the target path is free, and
+`results/gap3_preflight.txt` is that check's output. B1 rather than B10
+because B1 is the study's one machine-held, seed-held, head-budget-matched
+pair, and the control must run on elisa for the same reason. Cost, from the
+A3 x4 control's own measured wall clock: 2.9 GPU-h for the backbone, ~1.2
+GPU-h for the two heads, ~3 h on the cores for the two evals, $0.
+
+**Spend this session: $0.00.** No instance was provisioned and none is
+running. `vastrun-status`: no running instances.
