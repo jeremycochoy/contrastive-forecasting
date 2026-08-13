@@ -2181,6 +2181,39 @@ twice.
 carries its backbone; card 0 reports 1,639 MiB free under another session's
 15 GB notebook, which is below the 6,000 MiB a head needs.
 
+## 2026-08-13 21:30Z — session twenty-seven: the counter that counted twice
+
+**Item 3's backbone finished and both heads started, all before the open.**
+The 40k checkpoint landed at 20:32 (5,208,007 bytes). `gap3_heads.sh` took
+it and started both heads at once. The teacher head trained in 34 min
+(21:06:58, rc=0) and handed the card to the student head, exactly as the
+`flock` in `head_eval_bb.sh` intends. The teacher's eval ran on the cores
+from the same minute. Nothing was relaunched and nothing was retrained.
+
+**Both watchers had lost the eval count for 30 min, and neither said so in a
+way that stopped anything.** `grep -c` PRINTS `0` and RETURNS 1 when it
+matches nothing, so the `|| echo 0` fallback in `evald()` appended a second
+`0` and `$(( n + "0\n0" ))` is a syntax error. The counter printed `ev:0/`
+with the number missing. The fix takes grep's own count and defaults only
+when grep printed nothing at all, which is the missing-file case:
+
+    c=$(grep -ac 'MASE=' "$d/shard.log" 2>/dev/null); n=$(( n + ${c:-0} ))
+
+The same line was wrong in `gap3_await.sh` and in `gap_watch.sh`, and
+`pgrep -fc` had it too. All three are fixed and the fix was tested against a
+live directory, an empty one and a missing one before either watcher was
+restarted: 0, 43, 0.
+
+**This mattered more than a cosmetic log.** `gap3_await.sh` is the machine
+gate and it ends the wait when its counter stops moving. A counter that
+throws a syntax error and prints nothing is a counter that never moves, so
+the gate was 90 min from calling a healthy eval a stall. Only the two
+watchers were restarted; `gap3_heads.sh` (2016740), both `head_eval_bb.sh`
+children and `gap3_supervise.sh` were confirmed alive across it.
+
+**Spend this session: $0.00.** `vastrun-balance` reads $11.45 and
+`vastrun-status` reports no running instances.
+
 ## Round 4 — the two review-gap runs
 
 **Item 6 landed first.** A3's bb200k student head, drawn a second time at
