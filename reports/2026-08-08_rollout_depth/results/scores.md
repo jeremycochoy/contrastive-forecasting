@@ -92,6 +92,7 @@ Each row trains a fresh student head from the checkpoint its own cell names, see
 | A1 | bb40k | `f99fa42c` | 1.1305 | 1.1447 | +0.0142 |
 | A1 | bb100k | `dbd23cbe` | 1.1676 | 1.1610 | -0.0066 |
 | B3 | bb40k | `b3a51f06` | 1.1305 | 1.1447 | +0.0142 |
+| B3 | bb100k | `0efbb813` | 1.1676 | 1.1610 | -0.0066 |
 
 The largest re-run move is 0.0142. The two cells carry different backbone md5s and reproduce their own first-pass numbers, so the head and the eval read the file each cell names. The duplicate is the student weights, not the path.
 
