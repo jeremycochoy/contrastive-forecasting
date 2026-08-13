@@ -1574,3 +1574,40 @@ differ. A1/B3 is the one pair that shares a student, and the report says so.
 **Spend.** Credit $15.92, box $0.8144/h, box spent $12.14 over 14.9 h. The box
 is needed until A4's head lands, about 5.4 h and about $4.4, which leaves
 about $11.5 against the $5.50 floor.
+
+## 2026-08-13 06:35Z — session eleven, round 1: the queue holds, the tail is A4
+
+**The round runs itself.** Dispatcher `q_run.sh` pid 452409, 9.9 h up.
+Supervisor, watchdog, budget guard at floor $5.50, heartbeat, sync loop and
+the 20 min publisher all alive. 32 of 47 queue jobs done, 7 running, 8 queued,
+0 failed. Nothing was moved by hand this round.
+
+**Live, off the losses CSVs on the box.**
+
+    A4  bb 200k   box card 0    149,200/200,000   3.00 sps   ETA ~11:15Z
+    B1  bb 200k   box card 1    196,100/200,000   2.9  sps   ETA ~06:55Z
+    A3  head pair box card 0+1   28,800 / 29,300 of 30,000   ETA ~06:40Z
+    evals B2·S B2·T B6·T on elisa cores
+
+**No card is idle.** Box card 0 reads 81%, card 1 95%, two processes each.
+Elisa card 0 holds 22.5 GB and card 1 16 GB under issue #454. All eight queued
+jobs wait on a backbone or a head that is still training.
+
+**Sync verified by `ls`.** Six 200k backbones at 5.19-5.22 MB, six matching
+optimizers at 5.79-5.86 MB, fourteen head finals at 450 KB, fourteen head
+optimizers, 38 losses CSVs. Every class lands.
+
+**Naming audited by pattern, not by memory.** 63 files match
+`score_<CELL>_k3_bb<stop>k_<head>.txt`, which is every number the coverage
+table reports. The 20 remaining `score_*` files are k0, k1, aw4 and seed-2
+controls plus the round-1 alias `score_G6_B1_k3_bb40k_*`; that alias reads
+1.0850 student and 1.0948 teacher, the same two numbers already under B1's
+own standard names.
+
+**A1/B3 stays closed.** `pair_identity.tsv` holds the bytes: student weights
+equal at 110/110 tensors and max abs diff 0 at both stops, teachers differing
+at 6.4e-3 and 1.99e-1. The other three same-arm pairs differ on every side.
+
+**Spend.** Credit $15.87 at 06:10Z, box $0.8144/h, box spent $12.43 over
+15.3 h. The box is needed until A4's student head lands, about 5.5 h and about
+$4.5, which leaves about $11.3 against the $5.50 floor.

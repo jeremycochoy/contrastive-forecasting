@@ -146,7 +146,7 @@ The card names 14 cells. This study scored **14 of them**: A1, A2, A3, A4, B1, B
 | B3 | L_align only | fixed 0.9 | k = 3 | bb40k, bb100k |
 | B4 | L_align only | fixed 0.9 | k = 3 | bb40k, bb100k, bb200k |
 | B5 | pooled xshh_allt, floor subtracted | fixed 0.9 | k = 0, k = 3 | bb40k, bb100k |
-| B6 | L_align only | fixed 0.9 | k = 3 | bb40k, bb100k |
+| B6 | L_align only | fixed 0.9 | k = 3 | bb40k, bb100k, bb200k |
 | B7 | L_align only | fixed 0.9 | k = 3 | bb40k, bb100k |
 | B8 | L_align + CPC auxiliary | fixed 0.9 | k = 3 | bb40k, bb100k |
 | B9 | split L_pred + CPC auxiliary | fixed 0.9 | k = 0, k = 3 | bb40k, bb100k |
@@ -156,7 +156,7 @@ Stops scored: bb40k, bb100k, bb200k. The card's extend rule reads a cell's bb40k
 
 ### The stop ladder: what the second 100,000 steps buys
 
-Δ is bb200k minus bb100k, so a negative number is an improvement: GM-Relative MASE is a ratio against seasonal-naive and lower is better. Of the 5 extended measurements in hand, **2 improved** at bb200k and 3 got worse. The largest gain is B10 teacher, -0.0059.
+Δ is bb200k minus bb100k, so a negative number is an improvement: GM-Relative MASE is a ratio against seasonal-naive and lower is better. Of the 7 extended measurements in hand, **2 improved** at bb200k and 5 got worse. The largest gain is B10 teacher, -0.0059.
 
 | cell | head | bb40k | bb100k | bb200k | Δ | % | note |
 |---|---|---|---|---|---|---|---|
@@ -175,10 +175,10 @@ Stops scored: bb40k, bb100k, bb200k. The card's extend rule reads a cell's bb40k
 | B3 | student | 1.1305 | 1.1676 | — | — | — | the extend rule held this cell at 100k |
 | B3 | teacher | 1.1343 | 1.1618 | — | — | — | the extend rule held this cell at 100k |
 | B4 | student | 1.3334 | 1.2804 | 1.3182 | +0.0378 | +3.0% |  |
-| B4 | teacher | 1.3339 | 1.2748 | — | — | — |  |
+| B4 | teacher | 1.3339 | 1.2748 | 1.3202 | +0.0454 | +3.6% |  |
 | B5 | student | 1.3204 | 1.3383 | — | — | — | the extend rule held this cell at 100k |
 | B5 | teacher | 1.3216 | 1.3428 | — | — | — | the extend rule held this cell at 100k |
-| B6 | student | 1.2297 | 1.2151 | — | — | — |  |
+| B6 | student | 1.2297 | 1.2151 | 1.2207 | +0.0056 | +0.5% |  |
 | B6 | teacher | 1.2184 | 1.2110 | — | — | — |  |
 | B7 | student | 1.2617 | 1.3205 | — | — | — | the extend rule held this cell at 100k |
 | B7 | teacher | 1.2444 | 1.2780 | — | — | — | the extend rule held this cell at 100k |
