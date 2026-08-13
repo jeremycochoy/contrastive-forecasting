@@ -91,7 +91,7 @@ The interval is a 95% paired dataset-cluster bootstrap over the pair's 97 config
 | B5 | student | 1.3204 | 1.3383 | — | — | — | — | the extend rule held this cell at 100k |
 | B5 | teacher | 1.3216 | 1.3428 | — | — | — | — | the extend rule held this cell at 100k |
 | B6 | student | 1.2297 | 1.2151 | 1.2207 | +0.0056 | [-0.0101, +0.0212] | +0.5% |  |
-| B6 | teacher | 1.2184 | 1.2110 | 1.2339 | +0.0229 | [+0.0032, +0.0440] | +1.9% |  |
+| B6 | teacher | 1.2184 | 1.2110 | 1.2339 | +0.0230 | [+0.0032, +0.0440] | +1.9% |  |
 | B7 | student | 1.2617 | 1.3205 | — | — | — | — | the extend rule held this cell at 100k |
 | B7 | teacher | 1.2444 | 1.2780 | — | — | — | — | the extend rule held this cell at 100k |
 | B8 | student | 1.2857 | 1.3157 | — | — | — | — | trained from 0 this round; queued to 100k only |
@@ -111,7 +111,7 @@ The rule reads one cell's bb40k number against its bb100k number, per head. A he
 | A2 | -0.0256 | -0.0239 | **extend both heads** | both heads moved down |
 | A3 | -0.0608 | -0.0370 | **extend both heads** | both heads moved down |
 | A4 | -0.0061 | +0.0019 | **extend both heads** | the student head moved down; the teacher head moved +0.0019, 5% of the ±0.0384 head-seed band, so the rule decides nothing there. Extended by hand, on free hardware |
-| B1 | +0.0031 | -0.0051 | **extend both heads** | the card's call: both moves sit inside the ±0.0384 head-seed band, so the rule decides nothing |
+| B1 | +0.0030 | -0.0051 | **extend both heads** | the card's call: both moves sit inside the ±0.0384 head-seed band, so the rule decides nothing |
 | B2 | -0.0533 | -0.0924 | **extend both heads** | both heads moved down |
 | B3 | +0.0371 | +0.0276 | **stop at 100k** | both heads moved up |
 | B4 | -0.0530 | -0.0591 | **extend both heads** | both heads moved down |
@@ -161,12 +161,12 @@ Each row trains a fresh student head from the checkpoint its own cell names, see
 
 | cell | stop | backbone md5 | first pass | re-run | Δ |
 |---|---|---|---|---|---|
-| A1 | bb40k | `f99fa42c` | 1.1305 | 1.1447 | +0.0142 |
+| A1 | bb40k | `f99fa42c` | 1.1305 | 1.1447 | +0.0141 |
 | A1 | bb100k | `dbd23cbe` | 1.1676 | 1.1610 | -0.0066 |
-| B3 | bb40k | `b3a51f06` | 1.1305 | 1.1447 | +0.0142 |
+| B3 | bb40k | `b3a51f06` | 1.1305 | 1.1447 | +0.0141 |
 | B3 | bb100k | `0efbb813` | 1.1676 | 1.1610 | -0.0066 |
 
-The largest re-run move is 0.0142. The two cells carry different backbone md5s and reproduce their own first-pass numbers, so the head and the eval read the file each cell names. The duplicate is the student weights, not the path.
+The largest re-run move is 0.0141. The two cells carry different backbone md5s and reproduce their own first-pass numbers, so the head and the eval read the file each cell names. The duplicate is the student weights, not the path.
 
 ### Reproduction of the published k = 0
 
