@@ -1218,3 +1218,80 @@ notify it is the thing that died.
 $0.8144/h. Backbone ETAs off their own logs: A3 3.1 h, B1 4.5 h, A4 6.1 h on
 elisa. The box carries A3 and B1 and their head pairs, so about 5.3 h and
 $4.3 remain on it. A4 finishes on elisa and costs nothing.
+
+## 2026-08-13 03:10Z — session seven: the two blocked items close on the bytes
+
+This session found the round running with every daemon alive: one
+dispatcher, one supervisor, one sync loop, one credit guard, one hourly
+heartbeat, one publisher, one watchdog. Two backbones and three heads run on
+the box, one backbone on elisa, four evals on elisa's cores. It started no
+new work and moved no job. It closed the card's two blocking items and
+measured the round's remaining cost.
+
+**A1/B3: the pipeline ran twice and agreed to the byte.** The card asked for
+a re-run of the student head and the 97-config eval for both cells into
+cell-id paths. That re-run is already on disk, and it is what produced the
+shared number. Each cell holds its own head file and its own eval tree:
+
+    A1/sync/eval/A1_k3_bb40k_student/gift/all_results.csv   eb5e4e21...
+    B3/sync/eval/B3_k3_bb40k_student/gift/all_results.csv   eb5e4e21...
+
+Every one of the four shard CSVs matches, and so does each head's own
+`_losses.csv`. Two head trainings, two eval runs, separate directories,
+identical bytes.
+
+The cause is in the arm. `run_leg_k.sh` gives A1 `--loss-shape
+cosine_similarity_batch_rep_only --align-loss-weight 1.0 --tau-rep 1.0` with
+`--align-target student`. `run_arm_k.sh` gives B3 the same three loss args
+and the same default target. Neither passes `--moco-rep-keys`. The two
+launchers differ in one line: A1 ramps the EMA (`--ema-tau 0.9 --ema-tau-end
+1.0 --ema-tau-ramp-steps 100000`), B3 holds it at 0.9.
+
+With the align target on the student and no MoCo keys, the loss reads no
+teacher output. `tests/test_390_align_target_main_loss.py` fixes that
+contract: with no `align_target` the added term is L_align(f, o), the
+student's own encoder output, for `moco_rep=False` and `moco_rep=True`
+alike. So the EMA regime moves the teacher and nothing else, and the student
+trajectory is the same run twice. `results/pair_identity.tsv` measures it:
+110 of 110 student tensors equal at max abs diff 0.000e+00, at 40k and at
+100k. The teachers differ, 6.4e-3 at 40k and 1.986e-1 at 100k, and the
+teacher scores differ, 1.1318 against 1.1343.
+
+The number 1.1305/1.1676 is right for both cells. What the report cannot do
+is read A1 against B3 on the student column: that column holds one
+trajectory, not two. The teacher column separates the regimes. The other
+three pairs differ on both sides, so the comparison holds for them.
+
+**Naming holds, audited cell by cell.** All 56 cell-stop-head triples were
+checked for `score_<CELL>_k3_bb<stop>k_<head>.txt`. 54 exist, which is every
+scored deliverable; the two absent are B8's bb100k pair, in flight. B1's
+bb40k reads 1.0850 student and 1.0948 teacher under the standard name. The
+20 score files outside the pattern are all `k0`, `k1`, `aw4` or seed-2
+controls, plus the round-1 alias `score_G6_B1_k3_bb40k_*`, which carries the
+same two numbers as B1's standard pair. No cell score hides under a
+non-standard name.
+
+**The head lock fix works.** Checked on the live box: B4's two wrappers hold
+no fd 7, so their cards are free; B6's student, 167 s old, still holds
+`/tmp/cf373_r2_head.gpu0.lock` and releases at 180 s. Three heads and two
+backbones share two cards at 16.4 GB of 24.5 GB each.
+
+**No GPU is idle.** Six of the eight slots carry a job, one box slot fills
+on the next tick, and elisa card 0 holds 22.5 GB of another project's work
+with 2 GB free, so the VRAM gate holds it back.
+
+**Remaining work, off the training logs.**
+
+    A3  bb 200k   box card 1   171000/200000   2.7 h
+    B1  bb 200k   box card 1   159800/200000   4.0 h
+    A4  bb 200k   elisa card 1 126800/200000   5.9 h
+
+Nine heads and thirteen evals follow them. The box is needed until B1's head
+pair finishes, about 4.9 h, about $4.0. A4 finishes on elisa and costs
+nothing, and every eval runs on elisa's cores. Four concurrent evals clear
+twelve queued evals in the four hours before the last box head lands, so the
+eval column forms no backlog and the round ends on A4's eval.
+
+**Budget at 03:10Z.** Credit about $18.4. Box 47557391 spent about $9.7 over
+12.6 h at $0.8144/h. Projected spend to the end of the round: $4.0, leaving
+about $14.4.
