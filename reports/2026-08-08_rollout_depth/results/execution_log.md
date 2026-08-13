@@ -2214,6 +2214,37 @@ children and `gap3_supervise.sh` were confirmed alive across it.
 **Spend this session: $0.00.** `vastrun-balance` reads $11.45 and
 `vastrun-status` reports no running instances.
 
+## 2026-08-13 22:05Z — session twenty-eight: the teacher column lands, the session gets its own gate
+
+**Both heads were trained and both evals were running at the open.** Item 3's
+teacher eval read 97 of 97 configs and its student eval 44. Item 6's score
+was on disk at 1.4098. `gap3_heads.sh` (2016740), its two `head_eval_bb.sh`
+children, `gap3_supervise.sh` (2136677), `gap3_await.sh` (2168411) and
+`gap_watch.sh` (2168444) were all alive. Nothing was relaunched, nothing was
+retrained, no instance was provisioned.
+
+**The teacher's number landed at 22:07: 1.1482.** B1's teacher column now
+reads 1.2001 at `k = 0`, 1.1482 at `k = 0` with `L_align` x4, 1.0948 at
+`k = 3`.
+
+**The session got a gate of its own, and it starts nothing.**
+`gap3_await.sh` and `gap_watch.sh` are detached and outlive a session, so
+neither wakes this one. `scripts/gap3_finish_wait.sh` is a child of the
+session: it blocks on the two score files and its exit IS the wake-up. It
+repairs nothing — `gap3_supervise.sh` still owns the restart — and it ends
+on a stalled eval counter (rc=2) or on driver, supervisor and eval process
+all gone with a score missing (rc=3), rather than running out a clock. It
+was smoke-tested against the live directories before launch: student 47/97,
+teacher 97/97.
+
+**No card was idle with work waiting.** Item 3's queue holds two CPU evals
+and no GPU work: both heads finished at 21:06 and 21:40. `nvidia-smi` shows
+card 1 under `/tmp/rnd-454/.../train_one_run.py` at 16,130 MiB and card 0
+under a 15 GB notebook, both other sessions'. No process of this study holds
+either card.
+
+**Spend this session: $0.00.** Nothing rented; credit holds at $11.45.
+
 ## Round 4 — the two review-gap runs
 
 **Item 6 landed first.** A3's bb200k student head, drawn a second time at
