@@ -250,18 +250,18 @@ At bb100k, the stop every one of the 14 cells reached. The count is over distinc
 
 Read the verdict column as a screen and not as a test. It compares against a baseline this study did not retrain on its own machine, and the ±0.0384 band it thresholds on bounds the HEAD seed alone. The card's own criterion is the per-horizon one, and the depth-response table below is where it is applied.
 
-The second line of a verdict cell is its 95% paired dataset-cluster interval, on 23 of the deltas. Two of the three parents committed their per-config CSVs, so the pairing against them is recoverable: same 97 configs, same seasonal-naive denominator, same resampling unit as every other interval here. `published_bootstrap.py` takes a parent CSV only after it reproduces that parent's own printed aggregate, and all 23 did. Group A's parent committed no per-config CSV, so its rows carry no interval. The interval bounds the eval sample. It does not bound the machine, which separates the two sides of every one of these deltas.
+The second line of a verdict cell is its 95% paired dataset-cluster interval. Every one of the 41 deltas in this table carries one. The three parents' per-config CSVs are all in reach, so the pairing against them is recoverable: same 97 configs, same seasonal-naive denominator file, same resampling unit as every other interval in this report. `published_bootstrap.py` accepts a parent CSV for a cell only after that CSV reproduces the number the parent printed, to four decimals. All 41 did, and none was dropped. The interval bounds the eval sample. It does not bound the machine, which separates the two sides of every one of these deltas.
 
 | cell | head | 40k k=3 | 40k pub | Δ | | 100k k=3 | 100k pub | Δ | | 200k k=3 | 200k pub | Δ | |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| A1 | student | 1.1305 | 1.2596 | -0.1291 | better | 1.1676 | 1.2102 | -0.0426 | better | — | 1.1910 | — | — |
-| A1 | teacher | 1.1318 | 1.2347 | -0.1029 | better | 1.1565 | 1.2407 | -0.0842 | better | — | — | — | — |
-| A2 | student | 1.2735 | 1.4238 | -0.1503 | better | 1.2479 | 1.3913 | -0.1434 | better | 1.2507 | 1.3586 | -0.1079 | better |
-| A2 | teacher | 1.2753 | 1.4177 | -0.1424 | better | 1.2514 | 1.3746 | -0.1232 | better | 1.2500 | 1.3459 | -0.0959 | better |
-| A3 | student | 1.3618 | 1.1895 | +0.1723 | worse | 1.3010 | 1.1921 | +0.1089 | worse | 1.3998 | — | — | — |
-| A3 | teacher | 1.3521 | 1.1793 | +0.1728 | worse | 1.3151 | 1.1963 | +0.1188 | worse | 1.2913 | — | — | — |
-| A4 | student | 1.0862 | 1.1603 | -0.0741 | better | 1.0801 | 1.1945 | -0.1144 | better | 1.0660 | — | — | — |
-| A4 | teacher | 1.0855 | 1.1544 | -0.0689 | better | 1.0874 | 1.1837 | -0.0963 | better | 1.0828 | — | — | — |
+| A1 | student | 1.1305 | 1.2596 | -0.1291 | better<br>[-0.1966, -0.0758] | 1.1676 | 1.2102 | -0.0426 | better<br>[-0.0835, -0.0069] | — | 1.1910 | — | — |
+| A1 | teacher | 1.1318 | 1.2347 | -0.1029 | better<br>[-0.1590, -0.0560] | 1.1565 | 1.2407 | -0.0842 | better<br>[-0.1396, -0.0314] | — | — | — | — |
+| A2 | student | 1.2735 | 1.4238 | -0.1503 | better<br>[-0.2357, -0.0762] | 1.2479 | 1.3913 | -0.1434 | better<br>[-0.2112, -0.0820] | 1.2507 | 1.3586 | -0.1079 | better<br>[-0.1653, -0.0546] |
+| A2 | teacher | 1.2753 | 1.4177 | -0.1424 | better<br>[-0.2301, -0.0659] | 1.2514 | 1.3746 | -0.1232 | better<br>[-0.1841, -0.0660] | 1.2500 | 1.3459 | -0.0959 | better<br>[-0.1472, -0.0462] |
+| A3 | student | 1.3618 | 1.1895 | +0.1723 | worse<br>[+0.1159, +0.2454] | 1.3010 | 1.1921 | +0.1089 | worse<br>[+0.0627, +0.1672] | 1.3998 | — | — | — |
+| A3 | teacher | 1.3521 | 1.1793 | +0.1728 | worse<br>[+0.1161, +0.2480] | 1.3151 | 1.1963 | +0.1188 | worse<br>[+0.0672, +0.1857] | 1.2913 | — | — | — |
+| A4 | student | 1.0862 | 1.1603 | -0.0741 | better<br>[-0.1305, -0.0268] | 1.0801 | 1.1945 | -0.1144 | better<br>[-0.1763, -0.0648] | 1.0660 | — | — | — |
+| A4 | teacher | 1.0855 | 1.1544 | -0.0689 | better<br>[-0.1223, -0.0249] | 1.0874 | 1.1837 | -0.0963 | better<br>[-0.1505, -0.0506] | 1.0828 | — | — | — |
 | B1 | student | 1.0850 | 1.2025 | -0.1175 | better<br>[-0.1801, -0.0615] | 1.0881 | 1.1616 | -0.0735 | better<br>[-0.1287, -0.0255] | 1.1009 | 1.1652 | -0.0643 | better<br>[-0.1230, -0.0130] |
 | B1 | teacher | 1.0948 | — | — | — | 1.0897 | — | — | — | 1.1001 | — | — | — |
 | B2 | student | 1.3976 | 1.2765 | +0.1211 | worse<br>[+0.0690, +0.1889] | 1.3443 | 1.2514 | +0.0929 | worse<br>[+0.0541, +0.1415] | 1.2904 | 1.1850 | +0.1054 | worse<br>[+0.0609, +0.1621] |

@@ -335,17 +335,17 @@ def main(argv=None):
           "the HEAD seed alone. The card's own criterion is the per-horizon "
           "one, and the depth-response table below is where it is applied.",
           "",
-          f"The second line of a verdict cell is its 95% paired "
-          f"dataset-cluster interval, on {len(pub_ci)} of the deltas. Two of "
-          "the three parents committed their per-config CSVs, so the pairing "
-          "against them is recoverable: same 97 configs, same seasonal-naive "
-          "denominator, same resampling unit as every other interval here. "
-          "`published_bootstrap.py` takes a parent CSV only after it "
-          "reproduces that parent's own printed aggregate, and all "
-          f"{len(pub_ci)} did. Group A's parent committed no per-config CSV, "
-          "so its rows carry no interval. The interval bounds the eval "
-          "sample. It does not bound the machine, which separates the two "
-          "sides of every one of these deltas.", "",
+          "The second line of a verdict cell is its 95% paired "
+          f"dataset-cluster interval. Every one of the {len(pub_ci)} deltas "
+          "in this table carries one. The three parents' per-config CSVs are "
+          "all in reach, so the pairing against them is recoverable: same 97 "
+          "configs, same seasonal-naive denominator file, same resampling "
+          "unit as every other interval in this report. "
+          "`published_bootstrap.py` accepts a parent CSV for a cell only "
+          "after that CSV reproduces the number the parent printed, to four "
+          f"decimals. All {len(pub_ci)} did, and none was dropped. The "
+          "interval bounds the eval sample. It does not bound the machine, "
+          "which separates the two sides of every one of these deltas.", "",
           "| cell | head | 40k k=3 | 40k pub | Δ | | 100k k=3 | 100k pub | Δ "
           "| | 200k k=3 | 200k pub | Δ | |",
           "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"] \
