@@ -1611,3 +1611,39 @@ at 6.4e-3 and 1.99e-1. The other three same-arm pairs differ on every side.
 **Spend.** Credit $15.87 at 06:10Z, box $0.8144/h, box spent $12.43 over
 15.3 h. The box is needed until A4's student head lands, about 5.5 h and about
 $4.5, which leaves about $11.3 against the $5.50 floor.
+
+## 2026-08-13 06:55Z — session twelve, round 1: the A1/B3 gate closes on the eval
+
+**A1/B3 is not a path bug, and the eval now says so directly.** The two
+earlier tables compared weights and files. Neither read the eval, which is
+where the card's hypothesis lived. `pair_gift_rows.sh` diffs the two cells'
+97-config CSVs row by row, sorted. Student: 0 of 97 rows differ at bb40k and
+at bb100k. Teacher: all 97 differ at both. The eval keys on the cell and
+separates the pair whenever the weights do
+(`results/pair_A1B3_gift_rows.tsv`).
+
+The two evals also ran hours apart into two directories:
+`.../A1/sync/eval/A1_k3_bb100k_student/gift/` finished 10:03, 
+`.../B3/sync/eval/B3_k3_bb100k_student/gift/` finished 10:35, both 1.1676.
+
+`train.py:1861` is the reason. `--align-target student` sets the L_align
+target to `None`, so teacher latents never enter the loss. `arm5_combab`
+passes no `--moco-rep-keys` and no `--moco-negatives`, so nothing else reads
+the teacher either. For this recipe the EMA copy is write-only, and A1's τ
+ramp cannot move A1's student. The equal student numbers are the recipe's
+result.
+
+**A4 moved machines, and that is why it lost 11.6k steps.** It ran on elisa
+card 1 (`loc:1`), took a SIGTERM at 05:37Z at step 151,600, and the
+dispatcher restaged its 140k checkpoint to the rented box and restarted it
+there at 05:39Z. The box shows 14 days uptime, no OOM, 838 GB free, so the
+kill came from elisa's shared side, not from ours. A4 now holds a card the
+study owns alone.
+
+**Live.** A4 bb 153,000/200,000 at 3.05 sps, ETA ~11:05Z. B1 bb reached
+200,000 at 06:50Z; its student head started on the box the same minute. Six
+jobs run, seven queued, none failed.
+
+**Spend.** Credit $15.44 at 06:42Z, box $0.8144/h, box spent $12.60. The box
+is needed until A4's student head lands, about 4.9 h and about $4.0, which
+leaves about $11.4 against the $5.50 floor.

@@ -47,6 +47,11 @@ both stops, to a maximum absolute difference of 0.000e+00
 (`results/pair_identity.tsv`). The two head trainings then match step for
 step: both curves start at 0.4780377745628357 and end at 0.21291811764240265.
 
+The two evals also ran apart. Each wrote its own 97-config CSV under its own
+cell-id directory. On the student, 0 of 97 rows differ; on the teacher, all
+97 differ (`results/pair_A1B3_gift_rows.tsv`). The eval path keys on the
+cell, and it separates the pair whenever the weights do.
+
 `arm5_combab` passes no `--moco-rep-keys`, so the loss reads no teacher
 output and the EMA copy has no gradient path into the student. The EMA
 schedule moves the teacher alone. The three other same-arm pairs run
