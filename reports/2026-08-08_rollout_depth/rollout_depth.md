@@ -555,6 +555,22 @@ Every interval here is a paired dataset-cluster bootstrap over the 97 eval confi
 | 600 | 4.9019  `65/200` | 5.0143  `51/200` | 4.9412  `65/200` |
 | 800 | 4.9475  `65/200` | 5.1256  `65/200` | 5.1249  `65/200` |
 
+### B1: is the win the depth, or the weight?
+
+B1 carries `L_align` as its only f-bearing term, so its `k = 3` run multiplies that term's weight against the f-free terms by 4 as well as adding depth. The `L_align x4` row applies the re-weighting at k = 0, with no depth at all.
+
+| head | k = 0 | k = 0, `L_align` x4 | k = 3 |
+|---|---|---|---|
+| teacher | 1.2001 | 1.1482<br>-0.0519 [-0.0987, -0.0066] | 1.0948<br>-0.1053 [-0.1661, -0.0515] |
+
+Second line of each cell: the difference against `k = 0` and its 95% paired dataset-cluster interval.
+
+Every column trained on elisa at backbone seed 20260520, on the same head budget. This is the study's one such table, so it may divide one column by another.
+
+| head | the re-weighting<br>k = 0 → x4 | the depth<br>x4 → k = 3 | total<br>k = 0 → k = 3 | the re-weighting's share |
+|---|---|---|---|---|
+| teacher | -0.0519 | -0.0534 | -0.1053 | 49% |
+
 ### A3: is the damage the depth, or the weight?
 
 Summing the depths multiplies `L_align`'s weight against the f-free terms by k + 1. The `L_align x4` row applies that re-weighting at k = 0, with no depth at all.

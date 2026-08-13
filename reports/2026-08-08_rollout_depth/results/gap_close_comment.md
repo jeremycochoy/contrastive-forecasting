@@ -4,7 +4,7 @@
 
 **Experiment directory:** `reports/2026-08-08_rollout_depth/`
 - results `results/`, plots `plots/`, scripts `scripts/`
-- 97 score files on the branch, each with its own 97-config eval
+- 98 score files on the branch, each with its own 97-config eval
 - run tree `/home/jupyter/cf373_r3`, controls under `checkpoints_backup/cf-373/`
 
 ### Runs completed this session
@@ -22,7 +22,7 @@ rented     nothing
 
 ```
 item 3  B1 k = 0            1.2025 student   1.2001 teacher
-item 3  B1 k = 0, L_align x4  MISSING student   MISSING teacher
+item 3  B1 k = 0, L_align x4  MISSING student   1.1482 teacher
 item 3  B1 k = 3            1.0850 student   1.0948 teacher
 item 6  A3 bb200k student, draw 1 seed 20260722   1.3998
 item 6  A3 bb200k student, draw 2 seed 20260723   1.4098
@@ -54,6 +54,22 @@ loses by more than any of the three gains. B5·s3's missing teacher head stays
 disclosed in the annex, no action.
 
 ## Item 3 — the decisive control
+
+### B1: is the win the depth, or the weight?
+
+B1 carries `L_align` as its only f-bearing term, so its `k = 3` run multiplies that term's weight against the f-free terms by 4 as well as adding depth. The `L_align x4` row applies the re-weighting at k = 0, with no depth at all.
+
+| head | k = 0 | k = 0, `L_align` x4 | k = 3 |
+|---|---|---|---|
+| teacher | 1.2001 | 1.1482<br>-0.0519 [-0.0987, -0.0066] | 1.0948<br>-0.1053 [-0.1661, -0.0515] |
+
+Second line of each cell: the difference against `k = 0` and its 95% paired dataset-cluster interval.
+
+Every column trained on elisa at backbone seed 20260520, on the same head budget. This is the study's one such table, so it may divide one column by another.
+
+| head | the re-weighting<br>k = 0 → x4 | the depth<br>x4 → k = 3 | total<br>k = 0 → k = 3 | the re-weighting's share |
+|---|---|---|---|---|
+| teacher | -0.0519 | -0.0534 | -0.1053 | 49% |
 
 
 

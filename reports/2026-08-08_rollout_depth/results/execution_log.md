@@ -2243,6 +2243,24 @@ card 1 under `/tmp/rnd-454/.../train_one_run.py` at 16,130 MiB and card 0
 under a 15 GB notebook, both other sessions'. No process of this study holds
 either card.
 
+**The committed `published_bootstrap.csv` held 16 of its 41 intervals.**
+Item 2 claims an interval on every published-baseline delta, and the file on
+the branch carried group A alone. The cause is not the mapping: rerun whole,
+the script prints `41 interval(s) ... 0 row(s) dropped` and every one of the
+41 parent CSVs reproduces its parent's printed number to four decimals. It
+appends one label at a time, so the rebuild that wrote it was cut short at
+A4's last row, which is where session twenty-six ended. The three `skip`
+lines it prints are B3, B7 and B9 at bb200k, cells the extend rule stopped
+at 100k, so they are not among the 41.
+
+**Nothing published moves.** `scores.md` carries an interval on all 41 rows,
+so the table was built from a complete run and the truncated CSV replaced it
+afterwards. The bootstrap seed is fixed, and the regenerated numbers match
+the table to four decimals on every row checked: B1 bb40k [-0.1801,
+-0.0615], B6 bb40k [-0.1998, -0.0742], B9 bb40k [-0.3543, -0.1978], B1
+bb200k [-0.1230, -0.0130]. The file on the branch now says what the table
+says.
+
 **Spend this session: $0.00.** Nothing rented; credit holds at $11.45.
 
 ## Round 4 — the two review-gap runs
@@ -2281,3 +2299,17 @@ trainer keeps both its log file and its process, and neither says so.
 
 **Nothing was rented.** Credit held at $11.45 for the whole round. The
 backbone, the three heads and the three evals all ran on elisa.
+
+**The close pipeline was proved before the last number landed.**
+`scripts/gap3_close.sh` ran at 22:41 with the teacher score in hand and the
+student score still eight configs out. Steps 1, 2 and 4 passed: collect,
+the rebuild with the two new B1 interval labels, and the coverage grid at
+72 of 72. Step 3 refused to write the verdict without the student score,
+and step 5 aborted on `MISSING` before it could reach `gh`. The log is
+`results/gap3_close_preflight.log`. So the only thing between the run and
+the comment was the number itself.
+
+**Item 3, the teacher column, read at 22:07.** 1.1482 against k = 0's
+1.2001 and k = 3's 1.0948. The re-weighting carries -0.0519
+[-0.0987, -0.0066] and the extra horizons carry -0.0534 [-0.0874, -0.0237].
+Both intervals exclude zero.
