@@ -83,7 +83,64 @@ of every bar trained on different machines.*
 At bb100k, the stop every cell reached, 10 of the 14 cells beat their
 published `k = 0` on the student head and 4 get worse.
 
-## 7. Per-family GM-Relative MASE, `k = 3` against `k = 0`
+## 7. The EMA schedule each group trained under
+
+![EMA momentum against training step](plots/alpha_schedule.png)
+
+*The `ema_tau` column every backbone leg logged. Group A raises α from 0.9
+to 1.0 by step 100k; group B holds α at 0.9.*
+
+Group A's α reaches 1.0 at step 100,000, where the EMA teacher stops
+updating, and group B holds 0.9 for the whole run.
+
+## 8. Which encoder the head reads
+
+![encoder delta](plots/encoder_delta.png)
+
+*Teacher head minus student head. Left: the whole grid at `k = 3`. Right:
+the five arms that trained both depths, bb40k.*
+
+The two heads sit inside the ±0.0384 head-seed band on 34 of the 36
+cell-stops, and -0.1084 apart on A3 at bb200k.
+
+## 9. Latent movement across the checkpoints
+
+![latent movement between adjacent checkpoints](plots/latent_movement.png)
+
+*`1 − cos` on `h_t` and on `e_t` between two adjacent checkpoints of one run,
+on the fixed diagnostic batch. One bar per measured interval.*
+
+The deeper run moves the encoder-output latent further than its own `k = 0`
+on 5 of the 6 matched intervals, B1 furthest at +0.368 over steps 25,000 to
+40,000.
+
+## 10. Training curves
+
+![depth-0 forecast error per arm](plots/cos_error_per_arm.png)
+
+*`1 − ff`, the depth-0 forecast error, during training. The same quantity on
+both depths, unlike the loss.*
+
+At `k = 3`, A3 ends at the lowest depth-0 error of the five arms, 0.1210, and
+B5·s1 at the highest, 0.7176, yet A3 scores worse than B5·s1 at bb40k.
+
+![dimension usage](plots/dim_usage_per_arm.png)
+
+*`u_batchtime` on `h_t` and on `e_t` during training. 1.0 is every dimension
+in use.*
+
+No run's dimension usage reaches zero, and the lowest value on `h_t` over a
+run's second half is 0.0800, A3 at `k = 3`.
+
+![training loss per run](plots/per_run_loss.png)
+
+*Training loss. A `k = 3` loss is the `k = 0` objective plus three added
+terms, so the two levels are not comparable.*
+
+Every run's loss falls and none diverges, and every `k = 3` run sits above
+its own `k = 0` because it sums three more terms.
+
+## 11. Per-family GM-Relative MASE, `k = 3` against `k = 0`
 
 <!-- DOMAIN:BEGIN -->
 
@@ -130,7 +187,7 @@ published `k = 0` on the student head and 4 get worse.
 
 <!-- DOMAIN:END -->
 
-## 8. Collapse watch
+## 12. Collapse watch
 
 <!-- COLLAPSE:BEGIN -->
 
@@ -161,7 +218,7 @@ On `h_t`, 1 of the 5 arms that trained both depths ends the deeper run below hal
 
 <!-- COLLAPSE:END -->
 
-## 9. The card's success criteria, cell by cell
+## 13. The card's success criteria, cell by cell
 
 <!-- CRITERIA:BEGIN -->
 
@@ -193,7 +250,7 @@ The count is over CELLS. A1 and B3 hold one student model between them, so the s
 
 <!-- CRITERIA:END -->
 
-## 10. Tables
+## 14. Tables
 
 <!-- TABLES:BEGIN -->
 
@@ -315,7 +372,7 @@ The rule reads one cell's bb40k number against its bb100k number, per head. A he
 
 <!-- TABLES:END -->
 
-## 11. What this study cannot support
+## 15. What this study cannot support
 
 <!-- LIMITS:BEGIN -->
 
@@ -353,11 +410,6 @@ coverage grid is 36 cell-stops × 2 heads = 72 deliverables, and A1 and B3
 hold one student model between them, so those 72 deliverables hold 70
 distinct measurements.
 
-![EMA momentum against training step](plots/alpha_schedule.png)
-
-*The `ema_tau` column every backbone leg logged. Group A raises α from 0.9
-to 1.0 by step 100k; group B holds α at 0.9.*
-
 **The grey baseline of the two lead figures** is the lowest GM-Relative MASE the
 three parent reports printed: 1.1544, cell A4, teacher-encoder head, bb40k,
 from [`ema_sched_ladder`](../2026-08-04_ema_sched_ladder/ema_sched_ladder.md).
@@ -394,9 +446,8 @@ denominator, and each check writes its own log under `results/`.
 
 ## Annex
 
-Each figure here says why it exists. The first nine answer a question a
-review of this study put. The last three sections rebuild the parent
-report's figures, which the card asks for.
+Each figure here says why it exists. Every one answers a question a review of
+this study put, and none is a deliverable the card names.
 
 ### Every trained depth against its own retrained `k = 0`
 
@@ -478,53 +529,6 @@ Where a cell's `k = 3` at 40,000 steps lands on the `k = 0` trajectory says
 how many `k = 0` steps the depth is worth. This figure marks the five
 retrained arms on those trajectories. It shows B1's `k = 3` at bb40k below
 every published B1 point, including bb200k.
-
-### Which encoder the head reads
-
-![encoder delta](plots/encoder_delta.png)
-
-*Teacher head minus student head. Left: the whole grid at `k = 3`. Right:
-the five arms that trained both depths, bb40k.*
-
-The depth shifts every `h` index of a duplicated term, so the teacher enters
-the loss `k + 1` times per step. This figure asks whether that changes which
-encoder the head should read. It shows the gap inside the ±0.0384 head-seed
-band on 34 of the 36 cell-stops, and -0.1084 on A3 at bb200k.
-
-### Latent movement across the checkpoints
-
-![latent movement between adjacent checkpoints](plots/latent_movement.png)
-
-*`1 − cos` on `h_t` and on `e_t` between two adjacent checkpoints of one run,
-on the fixed diagnostic batch. One bar per measured interval.*
-
-At `k = 3` the f-bearing terms carry four times their baseline weight against
-the f-free terms, and a faster-moving encoder is where that shift would show
-first. This figure measures the movement per interval. It shows the deeper
-run moving the encoder-output latent further than its own `k = 0` on 5 of
-the 6 matched intervals, B1 furthest at +0.368 over steps 25,000 to 40,000.
-
-### Training curves
-
-![depth-0 forecast error per arm](plots/cos_error_per_arm.png)
-
-*`1 − ff`, the depth-0 forecast error, during training. The same quantity on
-both depths, unlike the loss.*
-
-![dimension usage](plots/dim_usage_per_arm.png)
-
-*`u_batchtime` on `h_t` and on `e_t` during training. 1.0 is every dimension
-in use.*
-
-![training loss per run](plots/per_run_loss.png)
-
-*Training loss. A `k = 3` loss is the `k = 0` objective plus three added
-terms, so the two levels are not comparable.*
-
-The card asks for the three training-curve diagnostics of the parent report,
-so this study rebuilds them on its own runs. They carry the collapse watch's
-two logged quantities as curves. They show no run reaching zero dimension
-usage at any depth.
 
 ### Annex tables
 
