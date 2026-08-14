@@ -27,11 +27,11 @@ The count is over CELLS. A1 and B3 hold one student model between them, so the s
 
 ## Collapse watch
 
-The card names three quantities to watch while the f side of the loss carries four times its baseline weight. Every one of them, on every arm that logged it. First line of a cell is the mean over the last 10% of the run; second line is the lowest value over the run's second half.
+First line of a cell is the mean over the last 10% of the run; second line is the lowest value over the run's second half.
 
 `ff` is `cos(f_t, h_{t+1})` and `cos_err_dj` is `1 − cos(f^(j)_t, h_{t+1+j})`, so `cos_err_d0` is `1 − ff` and `cos_err_dj` is the card's per-depth `ff`. A collapsed latent points one way, so `u_batchtime` runs toward zero WHILE `ff` runs toward 1. It is that pair, not `ff` alone, that separates collapse from a good forecast.
 
-**Not logged: `qk_logit_maxabs`.** No run in this study writes that column at any depth, so this study does not watch it. Nothing here rules out what it would have shown.
+**Not logged: `qk_logit_maxabs`.** No run in this study writes that column at any depth, so this study does not watch it.
 
 | arm | k | `ff` | `cos_err_d0` | `cos_err_d1` | `cos_err_d2` | `cos_err_d3` | `u_batchtime` on `h_t` | `u_batchtime` on `e_t` |
 |---|---|---|---|---|---|---|---|---|
@@ -55,16 +55,16 @@ On `h_t`, 1 of the 5 arms that trained both depths ends the deeper run below hal
 
 | the claim | what stops it |
 |---|---|
-| That the frontier drop of 0.0884 measures the depth | Its two ends cross a head, a stop and a machine: 1.1544 is A4 on the teacher head at bb40k, and 1.0660 is A4 on the student head at bb200k. The machine alone is 0.1166, `results/bootstrap.csv`. A4's own matched-stop delta is -0.1144 at bb100k. |
+| That the frontier drop of 0.0884 measures the depth | Its two ends cross a head, a stop and a machine: A4 on the teacher head at bb40k against A4 on the student head at bb200k. A4's own matched-stop delta is -0.1144 at bb100k. |
 | Any group-A delta against a published `k = 0` | The card's baseline validity gate fails on group A: A3 misses its published number by 0.0294 against a gate of 0.0002. The card then asks for the `k = 0` side of every group-A cell to be retrained, and this study reads those baselines from the parent report. |
-| That `k = 3` helps, or that it hurts | The two machine-held `k = 0` / `k = 3` pairs disagree in sign and both intervals exclude zero: B1 -0.1175 [-0.1801, -0.0615], B5·s2 +0.0575 [+0.0173, +0.1094]. They differ in the cell, the backbone seed and the f-bearing term, so nothing here says which of the three flips the sign. |
+| That `k = 3` helps, or that it hurts | The two machine-held `k = 0` / `k = 3` pairs, B1 and B5·s2, disagree in sign and both intervals exclude zero (`depth_response.png`). They differ in the cell, the backbone seed and the f-bearing term, so nothing here says which of the three flips the sign. |
 | That the gain is the depth alone | B1 is the one cell that carries the `L_align` ×4 re-weighting control on one machine, and the re-weighting moves the score on its own. The annex's B1 table and its figure print the share of the move, per head. |
 | That one of the two pays more than the other | The re-weighting's move and the depth's move sit inside each other's 95% intervals, in the same B1 table in the annex. That cell measures both and ranks neither. |
 | Any per-cell verdict | Every cell is n = 1 in the backbone seed. The ±0.0384 band bounds the HEAD seed alone, and backbone-seed variance is unmeasured. |
 | That depth 3 is the right depth | Only `k = 3` ran on the 14 cells. One ladder holds a second depth, on A3, and its `k = 1` delta covers zero: -0.0195 [-0.0537, +0.0148] on the student. |
-| The per-horizon criterion of the card, the issue this study answers, at scale | It is applied as a test on the 2 machine-held arms, B1, B5·s2, at one stop, bb40k. Every other pair crosses a machine, and the machine is worth 0.1166. |
+| The per-horizon criterion of the card, the issue this study answers, at scale | Only 2 arms hold the machine, and only at bb40k. Every other pair crosses a machine, and the machine is worth more than most of the deltas in this report. |
 | That `k = 3` leads at 200k | 4 cells hold a published `k = 0` at 200k. A2 by -0.1079, B6 by -0.0804, B1 by -0.0643 lead it. B2 by +0.1054 loses it, against a largest gain of -0.1079, so the 4 cells do not point one way. |
-| The cost of the depth | Two probes agree at +157% and +168% step time. A3's +13% covers 127 of its 273 timing windows and crosses a box, so it is not comparable to them. |
+| The cost of the depth | Two solo probes agree; the annex step-time tables carry them. A3's reading covers 127 of its 273 timing windows and crosses a box, so it is not comparable to them. |
 | That the 200k reading is unconditional | The extend rule reads the bb40k-to-bb100k contrast, which the Protocol calls not head-matched. It fired inside its own ±0.0384 band on 4 stopped cells, and both manual overrides extended. |
 
 ## Tables
@@ -94,15 +94,9 @@ Stops scored: bb40k, bb100k, bb200k. The card's extend rule reads a cell's bb40k
 
 ### This study's k = 3 against the published k = 0
 
-GM-Relative MASE over the same 97 GIFT-Eval configs, strategy B4, horizon 16. Δ is this study minus the published number, so negative is a gain. A verdict reads Δ against the ±0.0384 head-seed band: closer than that is `flat`.
+GM-Relative MASE over the same 97 GIFT-Eval configs, strategy B4, horizon 16. Δ is this study minus the published number, so negative is a gain. A verdict reads Δ against the ±0.0384 head-seed band: closer than that is `flat`. A dash is a number no parent published, ‡ marks the two cells that share one student model, and the second line of a verdict cell is its 95% paired dataset-cluster interval.
 
-A dash is a number no parent published. Group B's two parents print one head per row, the student, so group B has no published teacher to meet.
-
-At bb100k, the stop every one of the 14 cells reached. The count is over distinct MODELS. ‡ marks the two cells that share one student, so 14 cells hold 13 student models and the shared one counts once. Student head: 13 distinct models, **8 better, 3 flat, 2 worse**. Teacher head, group A only: 4 distinct models, **3 better, 0 flat, 1 worse**.
-
-Read the verdict column as a screen and not as a test. It compares against a baseline this study did not retrain on its own machine, and the ±0.0384 band it thresholds on bounds the HEAD seed alone. The card's own criterion is the per-horizon one, and the depth-response table in the annex is where it is applied.
-
-The second line of a verdict cell is its 95% paired dataset-cluster interval. Every one of the 41 deltas in this table carries one. The three parents' per-config CSVs are all in reach, so the pairing against them is recoverable: same 97 configs, same seasonal-naive denominator file, same resampling unit as every other interval in this report. `published_bootstrap.py` accepts a parent CSV for a cell only after that CSV reproduces the number the parent printed, to four decimals. All 41 did, and none was dropped. The interval bounds the eval sample. It does not bound the machine, which separates the two sides of every one of these deltas.
+At bb100k, the stop every one of the 14 cells reached, counted over distinct models. Student head: 13 distinct models, **8 better, 3 flat, 2 worse**. Teacher head, group A only: 4 distinct models, **3 better, 0 flat, 1 worse**.
 
 | cell | head | 40k k=3 | 40k pub | Δ | | 100k k=3 | 100k pub | Δ | | 200k k=3 | 200k pub | Δ | |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -156,7 +150,7 @@ The rule reads one cell's bb40k number against its bb100k number, per head. A he
 | B9 | +0.0508 | +0.0365 | **stop at 100k** | bb100k | extend rule | both heads moved up |
 | B10 | -0.0266 | -0.0231 | **extend both heads** | bb200k | ladder ceiling | both heads moved down |
 
-**The rule selects the panel.** It sent 8 cells to bb200k on an improving first leg, fired inside its own ±0.0384 band on 4 of the 6 cells it stopped (A1, B3, B5, B8), and both manual overrides extended.
+**The rule selects the panel.** It sent 8 cells to bb200k, fired inside its own ±0.0384 band on 4 of the 6 cells it stopped (A1, B3, B5, B8), and both manual overrides extended.
 
 ### Glossary
 
@@ -238,18 +232,7 @@ The second draw changes two things: the head seed, and the machine that trained 
 
 **The two draws agree.** They sit 0.0100 apart [-0.0163, +0.0378], so 1.3998 is not a bad draw. The student/teacher gap survives the redraw at -0.1185 [-0.1819, -0.0718], teacher minus student. The two draws cross a machine, so this agreement bounds the head seed and the machine together, not the seed alone.
 
-A3's is the ladder's largest reversal, but it is not the only one: 5 of the 8 three-stop student trajectories turn round at bb200k.
-
-| cell | bb40k | bb100k | bb200k | bb200k − bb100k | shape |
-|---|---|---|---|---|---|
-| A2 | 1.2735 | 1.2479 | 1.2507 | +0.0028 | turns round |
-| A3 | 1.3618 | 1.3010 | 1.3998 | +0.0988 | turns round |
-| A4 | 1.0862 | 1.0801 | 1.0660 | -0.0141 | monotone |
-| B1 | 1.0850 | 1.0881 | 1.1009 | +0.0128 | monotone |
-| B2 | 1.3976 | 1.3443 | 1.2904 | -0.0539 | monotone |
-| B4 | 1.3334 | 1.2804 | 1.3182 | +0.0379 | turns round |
-| B6 | 1.2297 | 1.2151 | 1.2207 | +0.0056 | turns round |
-| B10 | 1.2669 | 1.2403 | 1.2624 | +0.0221 | turns round |
+A3's is the ladder's largest reversal, but it is not the only one: 5 of the 8 three-stop student trajectories turn round at bb200k, in the stop-ladder table above.
 
 ### The four same-arm pairs: two models, or one
 

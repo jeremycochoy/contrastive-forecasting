@@ -117,11 +117,15 @@ def draw(rows, out):
                      label=cc.label(c) + ("  ✗ retracted"
                                           if cc.retracted(c) else ""))
                for c in cells]
-    handles += [Patch(facecolor=cc.INK_SOFT, alpha=DEPTH_ALPHA[kk],
-                      label=f"k = {kk}, the rollout depth trained")
-                for kk in sorted({r["k"] for r in rows})]
+    # The depth rides the bar's lightness. It is named in words and not with
+    # its own grey swatches: a retracted arm draws grey, so grey swatches in
+    # the key read as that arm's bars.
+    ks = sorted({r["k"] for r in rows})
     fig.legend(handles=handles, frameon=False, fontsize=8, ncol=2,
-               loc="upper center", bbox_to_anchor=(0.5, 0.03))
+               loc="upper center", bbox_to_anchor=(0.5, 0.03),
+               title="within each arm, the bar goes lighter to darker with "
+                     "the rollout depth: " + ", ".join(f"k = {k}" for k in ks),
+               title_fontsize=8)
     fig.suptitle("Latent movement between adjacent checkpoints", fontsize=10)
     fig.tight_layout(rect=(0, 0.04, 1, 0.95))
     Path(out).parent.mkdir(parents=True, exist_ok=True)

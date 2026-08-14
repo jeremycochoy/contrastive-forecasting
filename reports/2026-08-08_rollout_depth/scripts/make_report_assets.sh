@@ -85,9 +85,9 @@ if [ -f "$RES/splits.csv" ]; then
   run "$HERE/plot_depth_response.py" --splits "$RES/splits.csv" \
       --bootstrap "$RES/bootstrap.csv" --out "$PLOTS/depth_response.png"
   run "$HERE/plot_b5_backbones.py" --splits "$RES/splits.csv" \
-      --out "$PLOTS/b5_backbones.png"
+      --bootstrap "$RES/bootstrap.csv" --out "$PLOTS/b5_backbones.png"
   run "$HERE/plot_a3_depth.py" --splits "$RES/splits.csv" \
-      --out "$PLOTS/a3_depth.png"
+      --bootstrap "$RES/bootstrap.csv" --out "$PLOTS/a3_depth.png"
   # The two review-gap controls. Each needs three finished evals, so each
   # exits with a message of its own until they are all in hand.
   run "$HERE/plot_b1_alignx4.py" --splits "$RES/splits.csv" \

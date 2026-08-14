@@ -45,6 +45,13 @@ PANELS = [
      "Dimension usage over (batch × time)"),
 ]
 
+# The collapse floor. `u_batchtime` is capped at 1 and a latent that points
+# one way reads `1 / H`. Every backbone here is d_model = 64, so the floor is
+# the same number on both latents. This is the collapse-watch figure, so it
+# carries the collapse threshold.
+D_MODEL = 64
+FLOOR = 1.0 / D_MODEL
+
 
 def smooth(ys, window=50):
     out, run, n = [], 0.0, 0
@@ -100,6 +107,17 @@ def main(argv=None):
                 ax.plot(xs, smooth(ys), color=cc.arm_colour(cell),
                         linestyle=cc.style(k), linewidth=cc.width(cell, 1.7))
                 drew = True
+            if name == "dim_usage_per_arm":
+                ax.axhline(FLOOR, color=cc.PARITY, linewidth=1.2,
+                           linestyle=(0, (4, 3)), zorder=0)
+                ax.annotate(f"1/H = {FLOOR:.4f}, one direction",
+                            (0.99, FLOOR), xycoords=("axes fraction", "data"),
+                            ha="right", va="bottom", fontsize=8.5,
+                            color=cc.INK_SOFT,
+                            bbox=dict(fc="#ffffff", ec="none", pad=0.8))
+                # Room under the rule for its own label.
+                lo, hi = ax.get_ylim()
+                ax.set_ylim(min(lo, FLOOR - 0.06 * (hi - lo)), hi)
             ax.set_xlabel("backbone step")
             ax.set_ylabel(ylab)
         if not drew:

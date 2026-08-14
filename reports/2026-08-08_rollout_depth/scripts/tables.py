@@ -337,34 +337,13 @@ def main(argv=None):
           "GM-Relative MASE over the same 97 GIFT-Eval configs, strategy B4, "
           "horizon 16. Δ is this study minus the published number, so "
           "negative is a gain. A verdict reads Δ against the ±"
-          f"{NOISE_BAND:.4f} head-seed band: closer than that is `flat`.", "",
-          "A dash is a number no parent published. Group B's two parents "
-          "print one head per row, the student, so group B has no published "
-          "teacher to meet.", "",
-          "At bb100k, the stop every one of the 14 cells reached. The count "
-          "is over distinct MODELS. ‡ marks the two cells that share one "
-          "student, "
-          f"so 14 cells hold {sum(tally['student'].values())} student models "
-          f"and the shared one counts once. Student head: "
-          f"{tally_line('student')}. Teacher head, group A only: "
-          f"{tally_line('teacher')}.", "",
-          "Read the verdict column as a screen and not as a test. It "
-          "compares against a baseline this study did not retrain on its own "
-          f"machine, and the ±{NOISE_BAND:.4f} band it thresholds on bounds "
-          "the HEAD seed alone. The card's own criterion is the per-horizon "
-          "one, and the depth-response table in the annex is where it is applied.",
-          "",
-          "The second line of a verdict cell is its 95% paired "
-          f"dataset-cluster interval. Every one of the {len(pub_ci)} deltas "
-          "in this table carries one. The three parents' per-config CSVs are "
-          "all in reach, so the pairing against them is recoverable: same 97 "
-          "configs, same seasonal-naive denominator file, same resampling "
-          "unit as every other interval in this report. "
-          "`published_bootstrap.py` accepts a parent CSV for a cell only "
-          "after that CSV reproduces the number the parent printed, to four "
-          f"decimals. All {len(pub_ci)} did, and none was dropped. The "
-          "interval bounds the eval sample. It does not bound the machine, "
-          "which separates the two sides of every one of these deltas.", "",
+          f"{NOISE_BAND:.4f} head-seed band: closer than that is `flat`. "
+          "A dash is a number no parent published, ‡ marks the two cells "
+          "that share one student model, and the second line of a verdict "
+          "cell is its 95% paired dataset-cluster interval.", "",
+          "At bb100k, the stop every one of the 14 cells reached, counted "
+          f"over distinct models. Student head: {tally_line('student')}. "
+          f"Teacher head, group A only: {tally_line('teacher')}.", "",
           "| cell | head | 40k k=3 | 40k pub | Δ | | 100k k=3 | 100k pub | Δ "
           "| | 200k k=3 | 200k pub | Δ | |",
           "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"] \
@@ -509,8 +488,10 @@ def main(argv=None):
     # What the rule selects for, once. The limits table carries the same
     # point as a row, and the annex figure carried it a third time. One
     # sentence here, at the point the panel is defined.
+    # No "on an improving first leg": two of the eight extended on a move the
+    # rule's own `why` column says decides nothing.
     L += [f"**The rule selects the panel.** It sent {len(extended)} cells to "
-          f"bb200k on an improving first leg, fired inside its own "
+          f"bb200k, fired inside its own "
           f"±{NOISE_BAND:.4f} band on {len(stopped_inband)} of the {nstop} "
           f"cells it stopped ({', '.join(stopped_inband)}), and both manual "
           "overrides extended.", ""]
@@ -689,18 +670,13 @@ def main(argv=None):
                f"apart{seed_ci}, wider than the ±{NOISE_BAND:.4f} head-seed "
                f"band, so this head's seed alone moves the score more than "
                f"the band the report thresholds on."), "",
+              # No second table of the same eight rows. The stop-ladder
+              # table above already prints every cell, every stop and the
+              # same Δ, so this sentence points at it.
               f"A3's is the ladder's largest reversal, but it is not the "
               f"only one: {n_turn} of the {len(turns)} three-stop student "
-              "trajectories turn round at bb200k.", "",
-              "| cell | bb40k | bb100k | bb200k | bb200k − bb100k | shape |",
-              "|---|---|---|---|---|---|"]
-        for cell, v, mono in turns:
-            # Same delta, same source as the stop ladder above it.
-            d = stop_d.get((cell, "student"), v[2] - v[1])
-            L.append(f"| {cell} | {v[0]:.4f} | {v[1]:.4f} | {v[2]:.4f} | "
-                     f"{d:+.4f} | "
-                     f"{'monotone' if mono else 'turns round'} |")
-        L.append("")
+              "trajectories turn round at bb200k, in the stop-ladder table "
+              "above.", ""]
 
     # ---- 1c. the same-arm pairs --------------------------------------------
     # A1 and B3 print one student number at both stops. A reader who meets
@@ -1327,11 +1303,9 @@ def main(argv=None):
                        for a, v in pair.items()
                        if 0 in v and max(v) > 0 and v[max(v)] < 0.5 * v[0])
         CW += [
-              "The card names three quantities to watch while the f side of "
-              "the loss carries four times its baseline weight. Every one of "
-              "them, on every arm that logged it. First line of a cell is "
-              "the mean over the last 10% of the run; second line is the "
-              "lowest value over the run's second half.", "",
+              "First line of a cell is the mean over the last 10% of the "
+              "run; second line is the lowest value over the run's second "
+              "half.", "",
               "`ff` is `cos(f_t, h_{t+1})` and `cos_err_dj` is "
               "`1 − cos(f^(j)_t, h_{t+1+j})`, so `cos_err_d0` is `1 − ff` "
               "and `cos_err_dj` is the card's per-depth `ff`. A collapsed "
@@ -1341,8 +1315,7 @@ def main(argv=None):
         if missing:
             CW += [f"**Not logged: `{'`, `'.join(missing)}`.** No run in this "
                   "study writes that column at any depth, so this study "
-                  "does not watch it. Nothing here rules out what it would "
-                  "have shown.", ""]
+                  "does not watch it.", ""]
         CW += ["| arm | k | `ff` | `cos_err_d0` | `cos_err_d1` | "
               "`cos_err_d2` | `cos_err_d3` | `u_batchtime` on `h_t` | "
               "`u_batchtime` on `e_t` |",
@@ -1450,9 +1423,8 @@ def main(argv=None):
         ns_rows.append(
             f"| That the frontier drop of {fbase - fv:.4f} measures the "
             f"depth | Its two ends cross a head, a stop and a machine: "
-            f"{fbase:.4f} is {fcell} on the {fhead} head at bb{fstop}k, and "
-            f"{fv:.4f} is {fc} on the {fh} head at bb{fs}k. The machine "
-            f"alone is {abs(mach0[0]):.4f}, `results/bootstrap.csv`. "
+            f"{fcell} on the {fhead} head at bb{fstop}k against {fc} on the "
+            f"{fh} head at bb{fs}k. "
             + (f"{fc}'s own matched-stop delta is "
                f"{mine100 - pub100:+.4f} at bb100k."
                if mine100 is not None and pub100 is not None else "") + " |")
@@ -1471,11 +1443,10 @@ def main(argv=None):
             held_student, key=lambda t: t[1])
         ns_rows.append(
             "| That `k = 3` helps, or that it hurts | The two machine-held "
-            "`k = 0` / `k = 3` pairs disagree in sign and both intervals "
-            f"exclude zero: {a1} {d1:+.4f} [{lo1:+.4f}, {hi1:+.4f}], "
-            f"{a2} {d2:+.4f} [{lo2:+.4f}, {hi2:+.4f}]. They differ in the "
-            "cell, the backbone seed and the f-bearing term, so nothing here "
-            "says which of the three flips the sign. |")
+            f"`k = 0` / `k = 3` pairs, {a1} and {a2}, disagree in sign and "
+            "both intervals exclude zero (`depth_response.png`). They differ "
+            "in the cell, the backbone seed and the f-bearing term, so "
+            "nothing here says which of the three flips the sign. |")
     ns_rows += [
         "| That the gain is the depth alone | B1 is the one cell that carries "
         "the `L_align` ×4 re-weighting control on one machine, and the "
@@ -1498,11 +1469,10 @@ def main(argv=None):
     if mach and held_arms:
         ns_rows.append(
             "| The per-horizon criterion of the card, the issue this study "
-            "answers, at scale | It is applied as a test on the "
-            f"{len(held_arms)} machine-held arms, "
-            f"{', '.join(sorted(held_arms))}, at one stop, bb40k. Every other "
-            f"pair crosses a machine, and the machine is worth "
-            f"{abs(mach[0]):.4f}. |")
+            "answers, at scale | Only "
+            f"{len(held_arms)} arms hold the machine, and only at bb40k. "
+            "Every other pair crosses a machine, and the machine is worth "
+            "more than most of the deltas in this report. |")
     if pub200:
         won = sorted((d, c) for c, d in pub200 if d < 0)
         lost = sorted(((d, c) for c, d in pub200 if d > 0), reverse=True)
@@ -1518,12 +1488,11 @@ def main(argv=None):
                  f"{len(pub200)} cells do not point one way. |"
                if lost and won else "|"))
     if agree_pct:
-        cost = (f"Two probes agree at {min(agree_pct):+.0%} and "
-                f"{max(agree_pct):+.0%} step time.")
-        for arm, c0, c3, _side, ws, wt in partial:
-            cost += (f" {arm}'s {c3 / c0 - 1:+.0%} covers {ws} of its {wt} "
-                     "timing windows and crosses a box, so it is not "
-                     "comparable to them.")
+        cost = "Two solo probes agree; the annex step-time tables carry them."
+        for arm, _c0, _c3, _side, ws, wt in partial:
+            cost += (f" {arm}'s reading covers {ws} of its {wt} timing "
+                     "windows and crosses a box, so it is not comparable to "
+                     "them.")
         ns_rows.append(f"| The cost of the depth | {cost} |")
     ns_rows.append(
         "| That the 200k reading is unconditional | The extend rule reads the "

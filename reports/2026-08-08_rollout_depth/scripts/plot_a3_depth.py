@@ -12,9 +12,13 @@ what the depth costs once the weight is accounted for.
 
 The ladder is not monotonic: k = 1 is below k = 0 and k = 3 is far above it.
 
-Reads results/splits.csv (`all` rows).
+Every point but the reference carries its own 95% paired dataset-cluster
+interval, anchored to A3's own k = 0 on the same head.
 
-Usage: plot_a3_depth.py --splits results/splits.csv --out plots/a3_depth.png
+Reads results/splits.csv (`all` rows) and results/bootstrap.csv.
+
+Usage: plot_a3_depth.py --splits results/splits.csv \\
+           --bootstrap results/bootstrap.csv --out plots/a3_depth.png
 """
 from __future__ import annotations
 
@@ -39,6 +43,12 @@ LADDER = [(0, 1, "A3_k0_bb40k_{h}"),
           (3, 4, "A3_k3_bb40k_{h}")]
 CONTROL = (4, "G3_A3_k0_aw4_bb40k_{h}")
 HEADS = ("student", "teacher")
+# The bootstrap row that bounds each point, against A3's own k = 0.
+CI_OF = {1: "A3_k1_{h}", 3: "A3_k3_{h}"}
+CONTROL_CI = "A3_alignx4_{h}"
+# Where each head's interval band is drawn, offset off the marker's own x so
+# the two heads do not overprint.
+DX = {"student": 0.0, "teacher": 0.20}
 plt.rcParams.update(cc.rc())
 
 
@@ -47,13 +57,38 @@ def load(path):
             for r in csv.DictReader(open(path)) if r["split"] == "all"}
 
 
+def load_ci(path):
+    """(delta, lo, hi) per bootstrap label, `all` rows only."""
+    out = {}
+    with open(path) as fh:
+        for r in csv.reader(fh):
+            if len(r) >= 6 and r[1] == "all":
+                try:
+                    out[r[0]] = (float(r[3]), float(r[4]), float(r[5]))
+                except ValueError:
+                    pass
+    return out
+
+
 def main(argv=None):
     p = argparse.ArgumentParser()
     p.add_argument("--splits", required=True)
+    p.add_argument("--bootstrap", required=True)
     p.add_argument("--out", required=True)
     args = p.parse_args(argv)
     data = load(args.splits)
+    ci = load_ci(args.bootstrap)
     col = cc.COLOUR["A3"]
+
+    def band(ax, x, anchor, label, head):
+        """The 95% interval on one point, anchored to its own k = 0."""
+        got = ci.get(label.format(h=head))
+        if got is None or anchor is None:
+            return
+        _d, lo, hi = got
+        ax.plot([x + DX[head]] * 2, [anchor + lo, anchor + hi], color=col,
+                linewidth=11.0, alpha=0.22 if head == "student" else 0.13,
+                solid_capstyle="butt", zorder=1)
 
     fig, ax = plt.subplots(figsize=(8.6, 5.0))
     for head in HEADS:
@@ -61,6 +96,10 @@ def main(argv=None):
         if any(v is None for _w, v, _k in pts):
             continue
         alpha = 1.0 if head == "student" else 0.45
+        anchor = data.get(LADDER[0][2].format(h=head))
+        for w, _v, k in pts:
+            if k in CI_OF:
+                band(ax, w, anchor, CI_OF[k], head)
         ax.plot([w for w, _v, _k in pts], [v for _w, v, _k in pts],
                 color=col, linewidth=2.2, alpha=alpha, marker="o",
                 markersize=10, markerfacecolor=col, markeredgecolor=col,
@@ -86,6 +125,7 @@ def main(argv=None):
         cv = data.get(ctag.format(h=head))
         if cv is None:
             continue
+        band(ax, cw, anchor, CONTROL_CI, head)
         ax.plot(cw, cv, marker="D", markersize=11, markerfacecolor="#ffffff",
                 markeredgecolor=col, markeredgewidth=2.2, alpha=alpha,
                 zorder=4)
@@ -128,7 +168,9 @@ def main(argv=None):
                markersize=9, label="depth ladder, teacher head"),
         Line2D([], [], color=col, linestyle="none", marker="D", markersize=10,
                markerfacecolor="#ffffff", markeredgewidth=2.2,
-               label="re-weighting control, no depth")]
+               label="re-weighting control, no depth"),
+        Line2D([], [], color=col, linewidth=6.0, alpha=0.30,
+               label="95% interval on the change against A3's own k = 0")]
     ax.legend(handles=handles, loc="lower right", fontsize=9)
 
     fig.tight_layout()

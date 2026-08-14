@@ -65,7 +65,14 @@ def main(argv=None):
         raise SystemExit("no score file yet — no ladder")
 
     heads = ["student", "teacher"]
-    fig, axes = plt.subplots(1, 2, figsize=(11.6, 4.6), sharey=True)
+    # Cells whose published trajectory is anchored on a retracted arm. The
+    # trajectory keeps the cell's hue, so it needs its own legend entry.
+    pub_only = []
+    # One x range for both panels. The published trajectories run to 200,000
+    # steps on the student head and to 100,000 on the teacher head, so two
+    # free x axes drew the same trajectory at two slopes side by side.
+    fig, axes = plt.subplots(1, 2, figsize=(11.6, 4.6), sharey=True,
+                             sharex=True)
 
     for ax, head in zip(axes, heads):
         for arm in arms:
@@ -75,10 +82,16 @@ def main(argv=None):
             pub = ({} if cc.hollow(arm)
                    else PUBLISHED.get(cc.cell_of(arm), {}).get(head, {}))
             if pub:
+                # The published trajectory belongs to the CELL, so it keeps
+                # the cell's hue even where the arm that anchors it is
+                # retracted. Only this study's own markers go grey.
                 xs = sorted(pub)
                 ax.plot([x * 1000 for x in xs], [pub[x] for x in xs],
-                        color=col, linestyle=cc.style(0), linewidth=1.6,
-                        marker="o", markersize=4, markerfacecolor="white")
+                        color=cc.colour(arm), linestyle=cc.style(0),
+                        linewidth=1.6, marker="o", markersize=4,
+                        markerfacecolor="white")
+                if cc.retracted(arm) and arm not in pub_only:
+                    pub_only.append(arm)
             # Two seeds of one cell would land on top of each other at
             # x = 40000, so nudge the second one along the step axis. It is
             # not a different budget; the offset is legibility only.
@@ -114,7 +127,11 @@ def main(argv=None):
         + [Line2D([], [], color=cc.arm_colour(a),
                    label=cc.label(a) + ("  ✗ retracted" if a in R.RETRACTED
                                         else ""))
-           for a in arms],
+           for a in arms]
+        + [Line2D([], [], color=cc.colour(a), linestyle=cc.style(0),
+                  marker="o", markerfacecolor="white",
+                  label=f"{cc.label(cc.cell_of(a))}  published k = 0")
+           for a in pub_only],
         loc="best", frameon=False, fontsize=8)
 
     fig.suptitle("The retrained arms on the published k = 0 trajectories",

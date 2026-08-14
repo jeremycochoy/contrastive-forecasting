@@ -20,12 +20,17 @@ The figure carries the two channels the study confounded, one each:
     marker shape   the backbone seed
     marker fill    the machine — filled is elisa, hollow is a rented box
 
-The dashed rule is #379's published value for this cell.
+The dashed rule is the parent report's published value for this cell.
 
-Reads results/splits.csv (`all` rows) and the registry.
+The third panel draws those two contrasts on one zero axis with their 95%
+paired dataset-cluster intervals. The 0.1166 gates every cross-machine delta
+in the report, so it is drawn with its interval and not as a point.
+
+Reads results/splits.csv (`all` rows), results/bootstrap.csv and the
+registry.
 
 Usage: plot_b5_backbones.py --splits results/splits.csv \\
-           --out plots/b5_backbones.png
+           --bootstrap results/bootstrap.csv --out plots/b5_backbones.png
 """
 from __future__ import annotations
 
@@ -48,12 +53,30 @@ from published import PUBLISHED                        # noqa: E402
 PUB = PUBLISHED["B5"]["student"][40]
 KS = [0, 3]
 SHAPE = {20260520: "o", 20260521: "s"}
+# The two contrasts the third corner separates, and the bootstrap row that
+# bounds each. Both are k = 0, student head: that is where all three
+# backbones carry a score.
+CONTRASTS = [("the machine\ns1 against s3", "B5_machine_k0_student"),
+             ("the backbone seed\ns2 against s3", "B5_seed_k0_student")]
 plt.rcParams.update(cc.rc())
 
 
 def load(path):
     return {r["stop"]: float(r["gm_rel_mase"])
             for r in csv.DictReader(open(path)) if r["split"] == "all"}
+
+
+def load_ci(path):
+    """(delta, lo, hi) per bootstrap label, `all` rows only."""
+    out = {}
+    with open(path) as fh:
+        for r in csv.reader(fh):
+            if len(r) >= 6 and r[1] == "all":
+                try:
+                    out[r[0]] = (float(r[3]), float(r[4]), float(r[5]))
+                except ValueError:
+                    pass
+    return out
 
 
 def arm_points(data, arm, head):
@@ -72,9 +95,11 @@ def arm_points(data, arm, head):
 def main(argv=None):
     p = argparse.ArgumentParser()
     p.add_argument("--splits", required=True)
+    p.add_argument("--bootstrap", required=True)
     p.add_argument("--out", required=True)
     args = p.parse_args(argv)
     data = load(args.splits)
+    ci = load_ci(args.bootstrap)
     col = cc.COLOUR["B5"]
 
     # Every B5 backbone the registry knows, minus the control that swaps in
@@ -82,7 +107,12 @@ def main(argv=None):
     # training of this cell.
     arms = [a for a in R.arms_of("B5") if a != "B5·pub"]
 
-    fig, axes = plt.subplots(1, 2, figsize=(10.6, 4.9), sharey=True)
+    fig, (ax_s, ax_t, dax) = plt.subplots(
+        1, 3, figsize=(15.4, 4.9),
+        gridspec_kw=dict(width_ratios=[1.0, 1.0, 0.62], wspace=0.28))
+    ax_s.sharey(ax_t)
+    ax_t.tick_params(labelleft=False)
+    axes = (ax_s, ax_t)
     drawn, have = 0, []
     # Where each value label goes. A fixed offset per backbone stacks two
     # labels on top of each other wherever two backbones land close at the
@@ -155,6 +185,33 @@ def main(argv=None):
                          "(see the annex)",
                          (0.03, 0.97), xycoords="axes fraction", fontsize=8.5,
                          color=cc.INK_SOFT, va="top")
+
+    # ---- the third panel: the two contrasts, with their intervals ---------
+    # The two score panels draw levels. What the report carries out of this
+    # figure is a difference, so the difference gets its own zero axis and
+    # its own 95% interval. The machine term gates every cross-machine delta
+    # in the report and it is one run pair, so its width belongs on the page.
+    rows = [(lab, ci[key]) for lab, key in CONTRASTS if key in ci]
+    ys = list(range(len(rows)))[::-1]
+    for yi, (lab, (d, lo, hi)) in zip(ys, rows):
+        dax.plot([lo, hi], [yi, yi], color=col, linewidth=9.0, alpha=0.25,
+                 solid_capstyle="butt", zorder=1)
+        dax.errorbar(d, yi, xerr=[[d - lo], [hi - d]], fmt="o", markersize=8,
+                     color=col, ecolor=col, elinewidth=1.6, capsize=5,
+                     zorder=3)
+        dax.annotate(f"{d:+.4f}\n[{lo:+.4f}, {hi:+.4f}]", (d, yi),
+                     textcoords="offset points", xytext=(0, 12), ha="center",
+                     fontsize=8.5, color=cc.INK)
+    dax.axvline(0, color=cc.INK, linewidth=1.1, zorder=2)
+    dax.set_yticks(ys)
+    dax.set_yticklabels([lab for lab, _ in rows], fontsize=9)
+    dax.set_ylim(-0.7, len(rows) - 0.2)
+    dax.set_xlabel("change against B5·s3, 97 configs\nbars are 95% intervals")
+    dax.set_title("k = 0, student head", loc="left")
+    ends = [v for _lab, (_d, lo, hi) in rows for v in (lo, hi)] + [0.0]
+    pad = 0.18 * (max(ends) - min(ends))
+    dax.set_xlim(min(ends) - pad, max(ends) + pad)
+    dax.grid(axis="y", visible=False)
 
     handles = []
     for arm in have:

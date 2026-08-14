@@ -9,7 +9,7 @@ own, so a reader who learns a colour in one figure keeps it in all of them.
     line style   the DEPTH:  dashed = k 0,  solid = k > 0
     fill         the BACKBONE SEED: solid = 20260520, hollow = 20260521
     hatch        the comparison CROSSES A MACHINE
-    width        a thin line is a RETRACTED arm
+    grey + thin  a RETRACTED arm, whatever cell it belongs to
     panel        the HEAD: one figure per head, named in its title
 
 Seven channels, seven questions, no channel carrying two. The study's whole
@@ -82,6 +82,14 @@ PROTOCOL_SEED = 20260520
 # box and cannot separate that from the depth.
 CROSSED_HATCH = "///"
 
+# A retracted arm takes neutral grey and not a second shade of its cell's
+# hue. B5 trained two of the curve figures' backbones, one of them retracted,
+# and two shades of one green put the pair a reader most needs to tell apart
+# into one blur. Grey is also what the report says about the arm: the delta
+# is withdrawn. No fifth hue clears the CVD gates against blue, orange, aqua
+# and violet; grey does, at every CVD type.
+RETRACTED_INK = "#6f6f6f"
+
 INK = "#0b0b0b"
 INK_SOFT = "#52514e"
 GRID = "#e6e5e1"
@@ -134,8 +142,11 @@ def arm_colour(arm):
     """The hue of the arm's cell, shaded by which backbone of it this is.
 
     A cell that trained one backbone gets its hue unchanged, so every figure
-    that draws one backbone per cell is untouched.
+    that draws one backbone per cell is untouched. A retracted arm takes grey
+    instead of a shade of its cell's hue.
     """
+    if retracted(arm):
+        return RETRACTED_INK
     base = colour(arm)
     siblings = R.arms_of(cell_of(arm))
     if arm not in siblings or len(siblings) < 2:
