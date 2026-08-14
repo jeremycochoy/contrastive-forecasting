@@ -388,6 +388,7 @@
   
   41 interval(s) -> /tmp/contrastive-forecasting-373/reports/2026-08-08_rollout_depth/results/published_bootstrap.csv; 0 row(s) dropped
   criterion screen -> /tmp/contrastive-forecasting-373/reports/2026-08-08_rollout_depth/results/criterion_screen.csv: 25 of 41 pairs meet it; at bb100k, 10 of 18
+    /tmp/contrastive-forecasting-373/reports/2026-08-08_rollout_depth/plots/screen_bb100k.png  (14 cell(s), 13 distinct model(s))
   wrote /tmp/contrastive-forecasting-373/reports/2026-08-08_rollout_depth/results/scores.md (36 run(s), 14 cell(s))
   injected the tables into /tmp/contrastive-forecasting-373/reports/2026-08-08_rollout_depth/rollout_depth.md
 [assets] -> /tmp/contrastive-forecasting-373/reports/2026-08-08_rollout_depth/plots
@@ -409,5 +410,6 @@
   per_run_loss.png
   reproduction.png
   rollout_fidelity.png
+  screen_bb100k.png
   stop_delta.png
   stop_ladder.png

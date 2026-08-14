@@ -184,8 +184,11 @@ fi
 # ---- 8. where each k = 3 lands on the published k = 0 trajectory -----------
 run "$HERE/plot_ladder.py" --results "$RES" --out "$PLOTS/ladder.png"
 
-# ---- 9. the tables ---------------------------------------------------------
+# ---- 9. the tables, and the screen figure the intervals feed ---------------
 run "$HERE/published_bootstrap.py" --results "$RES"
+# After published_bootstrap.py, because the screen draws its intervals.
+run "$HERE/plot_screen_bb100k.py" --results "$RES" \
+    --out "$PLOTS/screen_bb100k.png"
 run "$HERE/tables.py" --results "$RES" --out "$RES/scores.md" \
     --inject "$DST/rollout_depth.md"
 
