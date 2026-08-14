@@ -4,7 +4,7 @@
 
 **Experiment directory:** `reports/2026-08-08_rollout_depth/`
 (`results/`, `plots/`, `scripts/`, `sync/`)
-**Commit:** `ec3700ac`
+**Commit:** `4f4c14f9`
 
 ### The brief's premise
 
