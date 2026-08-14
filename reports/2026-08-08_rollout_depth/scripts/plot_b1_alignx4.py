@@ -19,9 +19,14 @@ weight. The drop from x = 1 to the control is the re-weighting alone. The
 drop from the control to `k = 3` is what the depth adds once the re-weighting
 is paid for.
 
-Reads results/splits.csv (`all` rows).
+Each segment carries its own 95% paired dataset-cluster interval, drawn as a
+band on the segment's far end. The two bands overlap, which is the reason the
+report ranks neither share above the other.
 
-Usage: plot_b1_alignx4.py --splits results/splits.csv --out plots/b1_alignx4.png
+Reads results/splits.csv (`all` rows) and results/bootstrap.csv.
+
+Usage: plot_b1_alignx4.py --splits results/splits.csv \\
+           --bootstrap results/bootstrap.csv --out plots/b1_alignx4.png
 """
 from __future__ import annotations
 
@@ -45,6 +50,9 @@ LADDER = [(0, 1, "G6_B1_k0_bb40k_{h}"),
           (3, 4, "G6_B1_k3_bb40k_{h}")]
 CONTROL = (4, "G_B1_k0_aw4_bb40k_{h}")
 HEADS = ("student", "teacher")
+# The two segments, and the bootstrap row that bounds each.
+SEG_CI = {"re-weighting": "B1_alignx4_{h}",
+          "depth": "B1_alignx4_vs_k3_{h}"}
 plt.rcParams.update(cc.rc())
 
 
@@ -53,15 +61,30 @@ def load(path):
             for r in csv.DictReader(open(path)) if r["split"] == "all"}
 
 
+def load_ci(path):
+    """(delta, lo, hi) per bootstrap label, `all` rows only."""
+    out = {}
+    with open(path) as fh:
+        for r in csv.reader(fh):
+            if len(r) >= 6 and r[1] == "all":
+                try:
+                    out[r[0]] = (float(r[3]), float(r[4]), float(r[5]))
+                except ValueError:
+                    pass
+    return out
+
+
 def main(argv=None):
     p = argparse.ArgumentParser()
     p.add_argument("--splits", required=True)
+    p.add_argument("--bootstrap", required=True)
     p.add_argument("--out", required=True)
     args = p.parse_args(argv)
     data = load(args.splits)
+    ci = load_ci(args.bootstrap)
     col = cc.COLOUR["B1"]
 
-    fig, ax = plt.subplots(figsize=(8.6, 5.2))
+    fig, ax = plt.subplots(figsize=(9.4, 5.4))
     share = {}
     for head in HEADS:
         pts = [(w, data.get(t.format(h=head)), k) for k, w, t in LADDER]
@@ -100,18 +123,26 @@ def main(argv=None):
                     va="center", fontsize=9, color=cc.INK,
                     bbox=dict(fc="#ffffff", ec="none", pad=0.6))
 
-        # The two segments, named. Every point here trained on elisa at seed
-        # 20260520, so the segments are sizes and not directions.
-        xs = 4.95
-        ax.annotate("", (xs, k0), (xs, cv), arrowprops=dict(
-            arrowstyle="<->", color=cc.INK_SOFT, linewidth=1.2))
-        ax.annotate(f"the re-weighting\n{cv - k0:+.4f}", (xs + 0.08,
-                    (k0 + cv) / 2), fontsize=9, color=cc.INK_SOFT,
-                    ha="left", va="center")
-        ax.annotate("", (xs, cv), (xs, k3), arrowprops=dict(
-            arrowstyle="<->", color=cc.INK_SOFT, linewidth=1.2))
-        ax.annotate(f"the depth\n{k3 - cv:+.4f}", (xs + 0.08, (cv + k3) / 2),
-                    fontsize=9, color=cc.INK_SOFT, ha="left", va="center")
+        # The two segments, named, each with its own 95% interval. Every
+        # point here trained on elisa at seed 20260520, so the segments are
+        # sizes and not directions.
+        #
+        # Each segment gets its own x, with the interval band behind the
+        # arrow that owns it. The band hangs off the segment's far end: the
+        # far end could sit anywhere in `near end + [lo, hi]`. Two x
+        # positions, so where the bands cover the same y the reader sees the
+        # overlap side by side.
+        for name, near, far, xs in (("re-weighting", k0, cv, 4.85),
+                                    ("depth", cv, k3, 5.35)):
+            _d, lo, hi = ci[SEG_CI[name].format(h=head)]
+            ax.plot([xs] * 2, [near + lo, near + hi], color=col,
+                    linewidth=13.0, alpha=0.22, solid_capstyle="butt",
+                    zorder=1)
+            ax.annotate("", (xs, near), (xs, far), arrowprops=dict(
+                arrowstyle="<->", color=cc.INK, linewidth=1.3), zorder=3)
+            ax.annotate(f"the {name}\n{far - near:+.4f}\n[{lo:+.4f}, "
+                        f"{hi:+.4f}]", (5.62, (near + far) / 2),
+                        fontsize=9, color=cc.INK_SOFT, ha="left", va="center")
 
     if not share:
         raise SystemExit("ABORT: B1's k = 0, k = 3 and x4 control are not all "
@@ -125,11 +156,12 @@ def main(argv=None):
                 bbox=dict(fc="#ffffff", ec="none", pad=0.8))
     ax.set_xticks([1, 4])
     ax.set_xticklabels(["x1", "x4"])
-    ax.set_xlim(0.70, 6.4)
+    ax.set_xlim(0.70, 6.9)
     # Room under the k = 3 marker for the label that hangs below it, and for
-    # the legend beside it.
+    # the legend beside it. The interval bands already reach well below the
+    # ladder, so the pad is small.
     lo, hi = ax.get_ylim()
-    ax.set_ylim(lo - 0.22 * (hi - lo), hi)
+    ax.set_ylim(lo - 0.10 * (hi - lo), hi)
     ax.set_xlabel("weight the f-bearing term carries against the f-free terms "
                   "(k + 1, since the depths are summed)")
     ax.set_ylabel("GM-Relative MASE, 97 configs  (lower is better)")
@@ -150,7 +182,9 @@ def main(argv=None):
                markersize=9, label="depth ladder, teacher head"),
         Line2D([], [], color=col, linestyle="none", marker="D", markersize=10,
                markerfacecolor="#ffffff", markeredgewidth=2.2,
-               label="re-weighting control, no depth")]
+               label="re-weighting control, no depth"),
+        Line2D([], [], color=col, linewidth=6.0, alpha=0.30,
+               label="95% paired dataset-cluster interval on the segment")]
     # Lower left. The ladder falls from the top-left corner to the bottom
     # right and the k = 0 rule runs along the top, so upper right is the one
     # place the legend cannot go.

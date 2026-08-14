@@ -84,7 +84,7 @@ if [ -f "$RES/splits.csv" ]; then
   # The two review-gap controls. Each needs three finished evals, so each
   # exits with a message of its own until they are all in hand.
   run "$HERE/plot_b1_alignx4.py" --splits "$RES/splits.csv" \
-      --out "$PLOTS/b1_alignx4.png"
+      --bootstrap "$RES/bootstrap.csv" --out "$PLOTS/b1_alignx4.png"
   run "$HERE/plot_encoder_delta.py" --splits "$RES/splits.csv" \
       --out "$PLOTS/encoder_delta.png"
   for head in student teacher; do

@@ -77,10 +77,17 @@ def main(argv=None):
     cells = sorted({c for c, _k, _d in runs},
                    key=lambda c: (R.ARM_ORDER.index(c)
                                   if c in R.ARM_ORDER else 99, c))
-    fig, axes = plt.subplots(1, len(cells), figsize=(5.4 * len(cells), 4.2),
+    # Three panels per row. One row of five renders ~200 px per panel at a
+    # report column width, which is below what the axis labels need.
+    ncol = min(3, len(cells))
+    nrow = -(-len(cells) // ncol)
+    fig, axes = plt.subplots(nrow, ncol, figsize=(4.9 * ncol, 3.9 * nrow),
                              squeeze=False)
+    flat = [a for row in axes for a in row]
+    for ax in flat[len(cells):]:
+        ax.set_axis_off()
 
-    for ax, cell in zip(axes[0], cells):
+    for ax, cell in zip(flat, cells):
         col = cc.colour(cell)
         for c, k, d in runs:
             if c != cell:

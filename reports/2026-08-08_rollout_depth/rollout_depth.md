@@ -1,22 +1,30 @@
-# Training on deeper rollouts also multiplies the forecast loss weight, and on the one cell that separates them each pays about half
+# Rollout depth 3 also quadruples the forecast-loss weight, and one cell measures both
 
-`--train-rollout-depth 3` adds a copy of every f-bearing loss term at depths
-1, 2 and 3 to the depth-0 term, so it also multiplies that term's weight by 4.
 B1 is the study's only `k = 0` / `k = 3` pair that holds the machine, the
-backbone seed and the head budget, so it is the one cell that separates the
-depth from the weight.
-
-## The depth, and the weight it carries
+backbone seed and the head budget. On it the depth and the re-weighting each
+move the score, both intervals exclude zero, and this cell ranks neither above
+the other.
 
 ![B1: the L_align x4 control against the depth ladder](plots/b1_alignx4.png)
 
 *B1 at bb40k, both heads: `k = 0`, the `L_align` ×4 re-weighting applied at
 `k = 0`, and `k = 3`. Backbone seed 20260520, head seed 20260722, 15,000 head
-steps, elisa throughout, 97 GIFT-Eval configs. Interval bounds in the tables
-below.*
+steps, elisa throughout, 97 GIFT-Eval configs.*
 
-On the student head the re-weighting alone carries -0.0512 of the -0.1175
-total, and the extra horizons carry -0.0663.
+| term | what it means here |
+|---|---|
+| cell | one of the 14 recipes this study scores, `A1`..`A4` and `B1`..`B10` |
+| f-bearing term | the loss term the forecast operator `f` enters. `--train-rollout-depth k` copies it at depths 1..k and sums, so it also multiplies that term's weight against the f-free terms by k + 1 |
+| `L_align` | the f-bearing term that aligns `f`'s output with the future latent. It is the only one 12 of the 14 cells carry |
+| bb40k, bb100k, bb200k | backbone step 40,000, 100,000 and 200,000: the three stops scored |
+| student head, teacher head | the quantile head, trained twice per backbone, once on the student encoder and once on its EMA copy. Two measurements of one backbone |
+| head-seed band ±0.0384 | how far the head seed alone moved a score in the parent reports, pooled. It bounds the head seed and nothing else |
+
+![rollout depth against the arm's own k = 0](plots/depth_response.png)
+
+*Every trained depth against the same arm's own retrained `k = 0`, bb40k, 97
+configs. Whiskers are 95% paired dataset-cluster bootstrap intervals. A hatched
+bar crosses a machine, which this study sizes at ±0.1166.*
 
 ## The 14 cells, screened against the published k = 0
 
@@ -61,10 +69,8 @@ configs. The bb200k backbone resumes the bb100k checkpoint, so only the second
 100,000 steps differ.*
 
 Of the 16 extended measurements, 7 improved and 9 got worse, with mean +0.0079
-and median +0.0042. A4 improves on both heads and holds the study's best
-score, 1.0660 on the student. The extend rule sent a cell to 200k when its
-first leg improved, so this panel is selected and the 200k reading is
-conditional on it.
+and median +0.0042. The extend rule sent a cell to 200k when its first leg
+improved, so this panel is selected and the 200k reading is conditional on it.
 
 ![A3's bb200k student head, drawn twice](plots/a3_reseed.png)
 
@@ -72,25 +78,7 @@ conditional on it.
 head seeds and on two machines. The band is ±0.0384, drawn around the first
 draw.*
 
-## What this study cannot support
-
-| the claim | what stops it |
-|---|---|
-| That the gain is the depth alone | On B1, the one cell that carries the control, the ×4 re-weighting takes 44% of the student's move and 49% of the teacher's. No other cell holds that control on one machine. |
-| That one of the two pays more than the other | The two shares sit inside each other's 95% intervals: -0.0512 [-0.1001, -0.0023] against -0.0663 [-0.1070, -0.0331]. This cell measures both and ranks neither. |
-| Any per-cell verdict | Every cell is n = 1 in the backbone seed. The ±0.0384 band bounds the HEAD seed alone, and backbone-seed variance is unmeasured. |
-| That depth 3 is the right depth | Only `k = 3` ran on the 14 cells. One ladder holds a second depth, on A3, and its `k = 1` delta covers zero: -0.0195 [-0.0537, +0.0148] on the student. |
-| The card's per-horizon criterion at scale | It is applied as a test on 2 machine-held arms, B1 and B5·s2, at one stop, bb40k. Every other pair crosses a machine, and the machine is worth 0.1166. |
-| That `k = 3` leads at 200k | Four cells hold a published `k = 0` at 200k. A2 by -0.1079, B6 by -0.0804 and B1 by -0.0643 lead it. B2 loses by +0.1054, more than any of the three gains. |
-| The cost of the depth | Two probes agree at +157% and +168% step time. A3's +13% covers 127 of its 273 timing windows and crosses a box, so it is not comparable to them. |
-| That the 200k reading is unconditional | The extend rule reads the bb40k-to-bb100k contrast, which the Protocol calls not head-matched. It fired inside its own ±0.0384 band on four stopped cells, and both manual overrides extended. |
-
 ## Depth against the arm's own k = 0, on the 4 cells that hold one
-
-![rollout depth against the arm's own k = 0](plots/depth_response.png)
-
-*Every trained depth against the same arm's own retrained `k = 0`, bb40k, 97
-configs. Whiskers are 95% paired dataset-cluster bootstrap intervals.*
 
 ![horizon split, student head](plots/horizon_split_student.png)
 
@@ -114,13 +102,13 @@ column trained on a different box from at least one other.*
 
 ![rollout fidelity](plots/rollout_fidelity.png)
 
-*`cos` between the rolled latent and the true `h_{t+d}` for `d = 1..16`, no
-head in the way, on the parent reports' fixed diagnostic batch. B9, B1, B5·s2
-and A3.*
+*`cos` between the rolled latent and the true `h_{t+d}`, `d = 1..16`, no head
+in the way.*
 
-Every `k = 3` run is more faithful than its own `k = 0` at all 16 depths, and
-the diagnostic batch is not held out against the pre-training data, so the
-rise may be memorisation.
+Every `k = 3` run is more faithful than its own `k = 0` at all 16 depths, on
+B9, B1, B5·s1, B5·s2 and A3. The batch is the parent reports' fixed diagnostic
+batch and is not held out against the pre-training data, so the rise may be
+memorisation.
 
 ![per-depth forecast error](plots/cos_err_depth.png)
 
@@ -134,8 +122,20 @@ any depth.*
 
 ![encoder delta](plots/encoder_delta.png)
 
-*Teacher-encoder head minus student-encoder head, per arm per depth, bb40k.
-Every value is inside ±0.0198, against a head-seed band of ±0.0384.*
+*Teacher-encoder head minus student-encoder head, per arm per depth, bb40k.*
+
+## What this study cannot support
+
+| the claim | what stops it |
+|---|---|
+| That the gain is the depth alone | On B1, the one cell that carries the control, the ×4 re-weighting takes 44% of the student's move and 49% of the teacher's. No other cell holds that control on one machine. |
+| That one of the two pays more than the other | The two shares sit inside each other's 95% intervals: -0.0512 [-0.1001, -0.0023] against -0.0663 [-0.1070, -0.0331]. This cell measures both and ranks neither. |
+| Any per-cell verdict | Every cell is n = 1 in the backbone seed. The ±0.0384 band bounds the HEAD seed alone, and backbone-seed variance is unmeasured. |
+| That depth 3 is the right depth | Only `k = 3` ran on the 14 cells. One ladder holds a second depth, on A3, and its `k = 1` delta covers zero: -0.0195 [-0.0537, +0.0148] on the student. |
+| The card's per-horizon criterion at scale | It is applied as a test on 2 machine-held arms, B1 and B5·s2, at one stop, bb40k. Every other pair crosses a machine, and the machine is worth 0.1166. |
+| That `k = 3` leads at 200k | Four cells hold a published `k = 0` at 200k. A2 by -0.1079, B6 by -0.0804 and B1 by -0.0643 lead it. B2 loses by +0.1054, about the size of A2's -0.1079 gain, so the four cells do not point one way. |
+| The cost of the depth | Two probes agree at +157% and +168% step time. A3's +13% covers 127 of its 273 timing windows and crosses a box, so it is not comparable to them. |
+| That the 200k reading is unconditional | The extend rule reads the bb40k-to-bb100k contrast, which the Protocol calls not head-matched. It fired inside its own ±0.0384 band on four stopped cells, and both manual overrides extended. |
 
 ## Tables
 
@@ -170,7 +170,7 @@ GM-Relative MASE over the same 97 GIFT-Eval configs, strategy B4, horizon 16. Δ
 
 A dash is a number no parent published. Group B's two parents print one head per row, the student, so group B has no published teacher to meet.
 
-At bb100k, the stop every one of the 14 cells reached. The count is over distinct MODELS. ‡ marks the one student two cells share, so 14 cells hold 13 student models and the shared one counts once. Student head: 13 distinct models, **8 better, 3 flat, 2 worse**. Teacher head, group A only: 4 distinct models, **3 better, 0 flat, 1 worse**.
+At bb100k, the stop every one of the 14 cells reached. The count is over distinct MODELS. ‡ marks the two cells that share one student, so 14 cells hold 13 student models and the shared one counts once. Student head: 13 distinct models, **8 better, 3 flat, 2 worse**. Teacher head, group A only: 4 distinct models, **3 better, 0 flat, 1 worse**.
 
 Read the verdict column as a screen and not as a test. It compares against a baseline this study did not retrain on its own machine, and the ±0.0384 band it thresholds on bounds the HEAD seed alone. The card's own criterion is the per-horizon one, and the depth-response table below is where it is applied.
 
@@ -178,7 +178,7 @@ The second line of a verdict cell is its 95% paired dataset-cluster interval. Ev
 
 | cell | head | 40k k=3 | 40k pub | Δ | | 100k k=3 | 100k pub | Δ | | 200k k=3 | 200k pub | Δ | |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| A1 | student | 1.1305 | 1.2596 | -0.1291 | better<br>[-0.1966, -0.0758] | 1.1676 | 1.2102 | -0.0426 | better<br>[-0.0835, -0.0069] | — | 1.1910 | — | — |
+| A1 | student ‡ | 1.1305 | 1.2596 | -0.1291 | better<br>[-0.1966, -0.0758] | 1.1676 | 1.2102 | -0.0426 | better<br>[-0.0835, -0.0069] | — | 1.1910 | — | — |
 | A1 | teacher | 1.1318 | 1.2347 | -0.1029 | better<br>[-0.1590, -0.0560] | 1.1565 | 1.2407 | -0.0842 | better<br>[-0.1396, -0.0314] | — | — | — | — |
 | A2 | student | 1.2735 | 1.4238 | -0.1503 | better<br>[-0.2357, -0.0762] | 1.2479 | 1.3913 | -0.1434 | better<br>[-0.2112, -0.0820] | 1.2507 | 1.3586 | -0.1079 | better<br>[-0.1653, -0.0546] |
 | A2 | teacher | 1.2753 | 1.4177 | -0.1424 | better<br>[-0.2301, -0.0659] | 1.2514 | 1.3746 | -0.1232 | better<br>[-0.1841, -0.0660] | 1.2500 | 1.3459 | -0.0959 | better<br>[-0.1472, -0.0462] |
@@ -246,7 +246,7 @@ The interval is a 95% paired dataset-cluster bootstrap over the pair's 97 config
 
 ### A3's bb200k student, drawn twice
 
-A3 at bb200k reads 1.3998 on the student and 1.2913 on the teacher, off one backbone file. That 0.1084 gap is 6.5x the next-largest in group A (0.0168) and 2.6x the largest anywhere (0.0425). Every gap in the grid is in [`results/head_gap.tsv`](results/head_gap.tsv).
+A3 at bb200k reads 1.3998 on the student and 1.2913 on the teacher, off one backbone file. That 0.1084 gap is the largest in the grid: 6.5x the next-largest in group A (0.0168) and 2.6x the largest of the other 35 gaps (0.0425). Every gap in the grid is in [`results/head_gap.tsv`](results/head_gap.tsv).
 
 The second draw changes two things: the head seed, and the machine that trained the head. Draw 1 trained on the rented box, draw 2 on elisa. Both read the same 200,000-step backbone checkpoint, the box's original and elisa's synced copy of it. Held across the two draws: 30,000 head steps, the recipe, and the 97-config eval, which ran on elisa's cores for both. Only elisa's copy carries a recorded md5 (`9f0e8da71ff595523d2bf0dabdf80445`, [`results/eval/A3_k3_bb200k_student_s20260723/backbone_md5.txt`](results/eval/A3_k3_bb200k_student_s20260723/backbone_md5.txt)); the box was released before its original could be checksummed.
 
@@ -256,13 +256,9 @@ The second draw changes two things: the head seed, and the machine that trained 
 | 2, student | 20260723 | 1.4098 | +0.0100 |
 | teacher | 20260722 | 1.2913 | -0.1084 |
 
-**The two draws agree.** They sit 0.0100 apart [-0.0163, +0.0378], 26% of the ±0.0384 head-seed band, and the second draw is the higher of the two. So 1.3998 is not a bad draw. The interval covers zero, and its far end lands on the imported band, so this head behaves like the heads that band was measured on. The two draws also sit on two machines, so this agreement bounds the head seed and the machine together, not the seed alone.
+**The two draws agree.** They sit 0.0100 apart [-0.0163, +0.0378], so 1.3998 is not a bad draw. The student/teacher gap survives the redraw at -0.1185 [-0.1819, -0.0718], teacher minus student. The two draws cross a machine, so this agreement bounds the head seed and the machine together, not the seed alone.
 
-The student/teacher gap survives the redraw at 0.1185, 3.1x the band. Two head seeds put A3's bb200k student above its teacher, so the gap is a property of that student encoder and not of the draw. Draw 1 and the teacher trained on the same box, so their 0.1084 gap holds the machine; the redraw's 0.1185 crosses machines.
-
-The ladder's largest move reads +0.1088 [+0.0656, +0.1667] off the second draw, against +0.0988 off the first. Both exclude zero.
-
-A3's is also the ladder's largest reversal, but it is not the only one: 5 of the 8 three-stop student trajectories turn round at bb200k.
+A3's is the ladder's largest reversal, but it is not the only one: 5 of the 8 three-stop student trajectories turn round at bb200k.
 
 | cell | bb40k | bb100k | bb200k | bb200k − bb100k | shape |
 |---|---|---|---|---|---|
@@ -515,14 +511,14 @@ Median `fwd + bwd` per step, from each run's own trainer log. A median is a cost
 | A3 | rep_only + L_align | 1 | elisa | RTX 4090 | 214.7 ms, shared | no — another backbone for 72% of the run; head training for 100% of it |
 | A3 | rep_only + L_align | 3 | vast box b | RTX 5090 | 131.5 ms | yes |
 
-The ratios both of whose sides are solo:
+The two probes that agree:
 
-| arm | f-bearing term | k = 0 | k = 3 | change | both sides | read as |
-|---|---|---|---|---|---|---|
-| B5·s1 | pooled xshh_allt | 117.6 ms | 301.9 ms | +157% | vast box d → vast box a | the depth, plus the box |
-| A3 | rep_only + L_align | 115.9 ms | 131.5 ms | +13% | vast box d → vast box b | **not comparable** — its `k = 3` median covers 127 of 273 windows |
+| probe | k = 0 | k = 3 | change | what the two sides hold | source |
+|---|---|---|---|---|---|
+| B5·s1, over its own run | 117.6 ms | 301.9 ms | +157% | each side solo on its own box, vast box d → vast box a | [`results/steptime_solo.csv`](results/steptime_solo.csv) |
+| B5, alternating on one elisa card | 190.2 ms | 509.9 ms | +168% | one card, 3 reps of 600 steps | [`results/steptime_B5_solo.log`](results/steptime_B5_solo.log) |
 
-Two probes of the same quantity agree and one does not. B5·s1 reads +157% with both sides solo throughout, and the controlled alternating probe on one elisa card reads +168% (190.2 ms against 509.9 ms, 3 reps of 600 steps, [`results/steptime_B5_solo_card.csv`](results/steptime_B5_solo_card.csv)). A3 reads +13%, an order of magnitude below both, off a median over the tail of its run and across a box change. This study does not know why. **Carry +157% to +168%, the two probes that agree, and do not carry the low row.** No cell of the 14 has a same-card k = 0 / k = 3 pair, which is what would settle it.
+A3 reads +13% (115.9 ms against 131.5 ms) and is not comparable to those two: its `k = 3` median covers 127 of its 273 windows and its two sides cross a box. **Carry +157% to +168% and do not carry the low row.** No cell of the 14 has a same-card `k = 0` / `k = 3` pair, which is what would settle it.
 
 ### The depth-0 forecast error, deeper run minus its own k = 0
 
@@ -656,7 +652,11 @@ than 0.0039, and no interval changes which side of zero it sits on
 
 `bash scripts/make_report_assets.sh` rebuilds this report's tables and figures
 from the committed tree. A second full rebuild injects the same tables and
-reproduces all 17 embedded figures byte-identically.
+re-draws every embedded figure
+([`results/rebuild.log`](results/rebuild.log)). One of them was then compared
+pixel by pixel after an edit to its script's docstring: `plots/a3_reseed.png`
+re-rendered with 0 of 1,008,000 pixels different, and only the PNG encoder's
+bytes moved ([`results/execution_log.md`](results/execution_log.md)).
 
 ## Annex
 
@@ -680,8 +680,12 @@ name to `score_B1_k3_bb40k_student`, and it reads the same 1.0850.
 
 **One step-time measurement holds the card fixed**, and it is a controlled
 probe: B5 alternating `k = 0` and `k = 3` on elisa's GPU 1, 3 reps of 600
-steps, 190.2 ms against 509.9 ms, +168%. That card carried another session's
-job throughout, so the probe alternates on a shared card rather than owning
+steps, 190.2 ms against 509.9 ms, +168%
+([`results/steptime_B5_solo.log`](results/steptime_B5_solo.log), computed by
+`scripts/steptime_summary.py` over
+[`results/steptime_B5_solo.csv`](results/steptime_B5_solo.csv)). That card
+carried another session's job throughout — mean 14306 MiB used against the
+probe's own 8946 — so the probe alternates on a shared card rather than owning
 one
 ([`results/steptime_B5_solo_card.csv`](results/steptime_B5_solo_card.csv)).
 

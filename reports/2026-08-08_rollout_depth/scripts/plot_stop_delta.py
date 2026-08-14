@@ -109,8 +109,10 @@ def main(argv=None):
     ax.set_yticklabels([f"{c}  [{h}]" for c, h, *_ in rows])
     ax.set_xlabel("GM-Relative MASE, bb200k minus the same cell's bb100k   "
                   f"(97 configs, negative is better)")
-    ax.set_title("The second 100,000 backbone steps, against the first: "
-                 f"{better} of {len(rows)} improved")
+    # A label, not a finding. The improved count sits in the report body and
+    # in its stop-ladder table; a third copy here would be one to keep in
+    # step with the other two.
+    ax.set_title("bb200k against bb100k, both heads, 97 configs")
     # Each bar's value label sits outside its whisker, so the axis needs a
     # label's width of room past the extreme interval on BOTH sides.
     ends = [v for r in rows for v in (r[4], r[5], r[6]) if v == v]

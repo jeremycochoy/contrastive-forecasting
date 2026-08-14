@@ -25,11 +25,13 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt                        # noqa: E402
 from matplotlib.lines import Line2D                    # noqa: E402
+from matplotlib.patches import Patch                   # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import cell_colours as cc                              # noqa: E402
 import runs as R                                       # noqa: E402
+from published import NOISE_BAND                       # noqa: E402
 
 plt.rcParams.update(cc.rc())
 
@@ -61,6 +63,9 @@ def main(argv=None):
                          f"{args.splits}")
 
     fig, ax = plt.subplots(figsize=(7.4, 0.55 * len(pts) + 2.0))
+    # The band the report reads every bar against, shaded here with the same
+    # colour screen_bb100k.png and stop_delta.png give it.
+    ax.axvspan(-NOISE_BAND, NOISE_BAND, color=cc.BAND, zorder=0)
     ax.axvline(0.0, color=cc.INK_SOFT, linewidth=1.0)
     for y, (arm, k, d) in enumerate(pts):
         ax.barh(y, d, height=0.55, color=cc.face(arm),
@@ -71,15 +76,18 @@ def main(argv=None):
     ax.set_yticks(range(len(pts)))
     ax.set_yticklabels([f"{arm}  k = {k}" for arm, k, _d in pts], fontsize=8.5)
     ax.invert_yaxis()
-    lim = max(abs(d) for _a, _k, d in pts) * 2.2 or 0.01
+    lim = max(max(abs(d) for _a, _k, d in pts) * 2.2, NOISE_BAND * 1.28)
     ax.set_xlim(-lim, lim)
     ax.set_xlabel("teacher head minus student head, GM-Relative MASE "
                   "(negative = teacher encoder wins)")
     ax.legend(handles=[Line2D([], [], color=cc.INK_SOFT, linewidth=8,
                               alpha=0.45, label="k = 0"),
                        Line2D([], [], color=cc.INK_SOFT, linewidth=8,
-                              label="k > 0")],
-              loc="best", frameon=False, fontsize=8)
+                              label="k > 0"),
+                       Patch(facecolor=cc.BAND,
+                             label=f"head-seed band ±{NOISE_BAND}")],
+              loc="lower right", fontsize=8, facecolor="#ffffff",
+              edgecolor="none", framealpha=0.95)
     ax.set_title("Which encoder the head is trained on, at bb40k")
     fig.tight_layout()
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
