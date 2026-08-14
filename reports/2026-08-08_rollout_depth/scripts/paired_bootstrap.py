@@ -14,7 +14,7 @@ Reported per subset: the observed delta in GM-Relative MASE, the 95%
 percentile interval, and the share of resamples on the improving side.
 
 This measures the CONFIG sampling only. It does not measure the head seed
-(the parents' pooled band is ±0.0384) and it does not measure the spread
+(`ema_sched_ladder.md`'s pooled band is ±0.0384) and it does not measure the spread
 between two independent backbone trainings, which no run in this study or
 its parents has replicated.
 

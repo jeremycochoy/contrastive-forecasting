@@ -27,7 +27,7 @@ GM-Relative MASE over the same 97 GIFT-Eval configs, strategy B4, horizon 16. Δ
 
 A dash is a number no parent published. Group B's two parents print one head per row, the student, so group B has no published teacher to meet.
 
-At bb100k, the stop every one of the 14 cells reached. The count is over distinct MODELS. ‡ marks the one student two cells share, so 14 cells hold 13 student models and the shared one counts once. Student head: 13 distinct models, **8 better, 3 flat, 2 worse**. Teacher head, group A only: 4 distinct models, **3 better, 0 flat, 1 worse**.
+At bb100k, the stop every one of the 14 cells reached. The count is over distinct MODELS. ‡ marks the two cells that share one student, so 14 cells hold 13 student models and the shared one counts once. Student head: 13 distinct models, **8 better, 3 flat, 2 worse**. Teacher head, group A only: 4 distinct models, **3 better, 0 flat, 1 worse**.
 
 Read the verdict column as a screen and not as a test. It compares against a baseline this study did not retrain on its own machine, and the ±0.0384 band it thresholds on bounds the HEAD seed alone. The card's own criterion is the per-horizon one, and the depth-response table below is where it is applied.
 
@@ -35,7 +35,7 @@ The second line of a verdict cell is its 95% paired dataset-cluster interval. Ev
 
 | cell | head | 40k k=3 | 40k pub | Δ | | 100k k=3 | 100k pub | Δ | | 200k k=3 | 200k pub | Δ | |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| A1 | student | 1.1305 | 1.2596 | -0.1291 | better<br>[-0.1966, -0.0758] | 1.1676 | 1.2102 | -0.0426 | better<br>[-0.0835, -0.0069] | — | 1.1910 | — | — |
+| A1 | student ‡ | 1.1305 | 1.2596 | -0.1291 | better<br>[-0.1966, -0.0758] | 1.1676 | 1.2102 | -0.0426 | better<br>[-0.0835, -0.0069] | — | 1.1910 | — | — |
 | A1 | teacher | 1.1318 | 1.2347 | -0.1029 | better<br>[-0.1590, -0.0560] | 1.1565 | 1.2407 | -0.0842 | better<br>[-0.1396, -0.0314] | — | — | — | — |
 | A2 | student | 1.2735 | 1.4238 | -0.1503 | better<br>[-0.2357, -0.0762] | 1.2479 | 1.3913 | -0.1434 | better<br>[-0.2112, -0.0820] | 1.2507 | 1.3586 | -0.1079 | better<br>[-0.1653, -0.0546] |
 | A2 | teacher | 1.2753 | 1.4177 | -0.1424 | better<br>[-0.2301, -0.0659] | 1.2514 | 1.3746 | -0.1232 | better<br>[-0.1841, -0.0660] | 1.2500 | 1.3459 | -0.0959 | better<br>[-0.1472, -0.0462] |
@@ -80,8 +80,8 @@ The interval is a 95% paired dataset-cluster bootstrap over the pair's 97 config
 | A3 | teacher | 1.3521 | 1.3151 | 1.2913 | -0.0238 | [-0.0646, +0.0067] | -1.8% |  |
 | A4 | student | 1.0862 | 1.0801 | 1.0660 | -0.0141 | [-0.0265, -0.0024] | -1.3% |  |
 | A4 | teacher | 1.0855 | 1.0874 | 1.0828 | -0.0046 | [-0.0199, +0.0123] | -0.4% | extended by hand; the rule's move is inside the band |
-| B1 | student | 1.0850 | 1.0881 | 1.1009 | +0.0128 | [+0.0001, +0.0284] | +1.2% | bb40k written by round 1 as `G6_B1_…`; same checkpoint, same head budget |
-| B1 | teacher | 1.0948 | 1.0897 | 1.1001 | +0.0104 | [-0.0037, +0.0280] | +1.0% | bb40k written by round 1 as `G6_B1_…`; same checkpoint, same head budget |
+| B1 | student | 1.0850 | 1.0881 | 1.1009 | +0.0128 | [+0.0001, +0.0284] | +1.2% |  |
+| B1 | teacher | 1.0948 | 1.0897 | 1.1001 | +0.0104 | [-0.0037, +0.0280] | +1.0% |  |
 | B2 | student | 1.3976 | 1.3443 | 1.2904 | -0.0539 | [-0.0935, -0.0197] | -4.0% |  |
 | B2 | teacher | 1.4041 | 1.3117 | 1.2825 | -0.0292 | [-0.0604, -0.0016] | -2.2% |  |
 | B3 | student | 1.1305 | 1.1676 | — | — | — | — | the extend rule held this cell at 100k |
@@ -103,7 +103,7 @@ The interval is a 95% paired dataset-cluster bootstrap over the pair's 97 config
 
 ### A3's bb200k student, drawn twice
 
-A3 at bb200k reads 1.3998 on the student and 1.2913 on the teacher, off one backbone file. That 0.1084 gap is 6.5x the next-largest in group A (0.0168) and 2.6x the largest anywhere (0.0425). Every gap in the grid is in [`results/head_gap.tsv`](results/head_gap.tsv).
+A3 at bb200k reads 1.3998 on the student and 1.2913 on the teacher, off one backbone file. That 0.1084 gap is the largest in the grid: 6.5x the next-largest in group A (0.0168) and 2.6x the largest of the other 35 gaps (0.0425). Every gap in the grid is in [`results/head_gap.tsv`](results/head_gap.tsv).
 
 The second draw changes two things: the head seed, and the machine that trained the head. Draw 1 trained on the rented box, draw 2 on elisa. Both read the same 200,000-step backbone checkpoint, the box's original and elisa's synced copy of it. Held across the two draws: 30,000 head steps, the recipe, and the 97-config eval, which ran on elisa's cores for both. Only elisa's copy carries a recorded md5 (`9f0e8da71ff595523d2bf0dabdf80445`, [`results/eval/A3_k3_bb200k_student_s20260723/backbone_md5.txt`](results/eval/A3_k3_bb200k_student_s20260723/backbone_md5.txt)); the box was released before its original could be checksummed.
 
@@ -113,13 +113,9 @@ The second draw changes two things: the head seed, and the machine that trained 
 | 2, student | 20260723 | 1.4098 | +0.0100 |
 | teacher | 20260722 | 1.2913 | -0.1084 |
 
-**The two draws agree.** They sit 0.0100 apart [-0.0163, +0.0378], 26% of the ±0.0384 head-seed band, and the second draw is the higher of the two. So 1.3998 is not a bad draw. The interval covers zero, and its far end lands on the imported band, so this head behaves like the heads that band was measured on. The two draws also sit on two machines, so this agreement bounds the head seed and the machine together, not the seed alone.
+**The two draws agree.** They sit 0.0100 apart [-0.0163, +0.0378], so 1.3998 is not a bad draw. The student/teacher gap survives the redraw at -0.1185 [-0.1819, -0.0718], teacher minus student. The two draws cross a machine, so this agreement bounds the head seed and the machine together, not the seed alone.
 
-The student/teacher gap survives the redraw at 0.1185, 3.1x the band. Two head seeds put A3's bb200k student above its teacher, so the gap is a property of that student encoder and not of the draw. Draw 1 and the teacher trained on the same box, so their 0.1084 gap holds the machine; the redraw's 0.1185 crosses machines.
-
-The ladder's largest move reads +0.1088 [+0.0656, +0.1667] off the second draw, against +0.0988 off the first. Both exclude zero.
-
-A3's is also the ladder's largest reversal, but it is not the only one: 5 of the 8 three-stop student trajectories turn round at bb200k.
+A3's is the ladder's largest reversal, but it is not the only one: 5 of the 8 three-stop student trajectories turn round at bb200k.
 
 | cell | bb40k | bb100k | bb200k | bb200k − bb100k | shape |
 |---|---|---|---|---|---|
@@ -372,14 +368,14 @@ Median `fwd + bwd` per step, from each run's own trainer log. A median is a cost
 | A3 | rep_only + L_align | 1 | elisa | RTX 4090 | 214.7 ms, shared | no — another backbone for 72% of the run; head training for 100% of it |
 | A3 | rep_only + L_align | 3 | vast box b | RTX 5090 | 131.5 ms | yes |
 
-The ratios both of whose sides are solo:
+The two probes that agree:
 
-| arm | f-bearing term | k = 0 | k = 3 | change | both sides | read as |
-|---|---|---|---|---|---|---|
-| B5·s1 | pooled xshh_allt | 117.6 ms | 301.9 ms | +157% | vast box d → vast box a | the depth, plus the box |
-| A3 | rep_only + L_align | 115.9 ms | 131.5 ms | +13% | vast box d → vast box b | **not comparable** — its `k = 3` median covers 127 of 273 windows |
+| probe | k = 0 | k = 3 | change | what the two sides hold | source |
+|---|---|---|---|---|---|
+| B5·s1, over its own run | 117.6 ms | 301.9 ms | +157% | each side solo on its own box, vast box d → vast box a | [`results/steptime_solo.csv`](results/steptime_solo.csv) |
+| B5, alternating on one elisa card | 190.2 ms | 509.9 ms | +168% | one card, 3 reps of 600 steps | [`results/steptime_B5_solo.log`](results/steptime_B5_solo.log) |
 
-Two probes of the same quantity agree and one does not. B5·s1 reads +157% with both sides solo throughout, and the controlled alternating probe on one elisa card reads +168% (190.2 ms against 509.9 ms, 3 reps of 600 steps, [`results/steptime_B5_solo_card.csv`](results/steptime_B5_solo_card.csv)). A3 reads +13%, an order of magnitude below both, off a median over the tail of its run and across a box change. This study does not know why. **Carry +157% to +168%, the two probes that agree, and do not carry the low row.** No cell of the 14 has a same-card k = 0 / k = 3 pair, which is what would settle it.
+A3 reads +13% (115.9 ms against 131.5 ms) and is not comparable to those two: its `k = 3` median covers 127 of its 273 windows and its two sides cross a box. **Carry +157% to +168% and do not carry the low row.** No cell of the 14 has a same-card `k = 0` / `k = 3` pair, which is what would settle it.
 
 ### The depth-0 forecast error, deeper run minus its own k = 0
 

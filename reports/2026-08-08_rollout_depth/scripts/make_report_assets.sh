@@ -184,6 +184,17 @@ fi
 # ---- 8. where each k = 3 lands on the published k = 0 trajectory -----------
 run "$HERE/plot_ladder.py" --results "$RES" --out "$PLOTS/ladder.png"
 
+# ---- 8b. the stop contrast: what the second 100,000 steps buys -------------
+# `stop_bootstrap.sh` pairs each cell's bb200k eval against its OWN bb100k
+# eval — same head recipe, same 97 configs — under the same dataset-cluster
+# bootstrap section 2 uses. The two figures the report embeds for this
+# contrast draw off it, so both are rebuilt here rather than only on the
+# round's publish tick. They need no checkpoint, so the rebuild redraws
+# every figure the report embeds.
+bash "$HERE/stop_bootstrap.sh" "$RES/stop_bootstrap.csv" 2>&1 | sed 's/^/  /'
+run "$HERE/plot_stop_delta.py" --results "$RES" --out "$PLOTS/stop_delta.png"
+run "$HERE/r2_plot_ladder.py" --results "$RES" --out "$PLOTS/stop_ladder.png"
+
 # ---- 9. the tables, and the screen figure the intervals feed ---------------
 run "$HERE/published_bootstrap.py" --results "$RES"
 # After published_bootstrap.py, because the screen draws its intervals.

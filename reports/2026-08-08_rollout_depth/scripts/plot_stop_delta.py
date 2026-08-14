@@ -18,7 +18,9 @@ Colour carries nothing in this figure. The report's palette names a cell by
 hue and holds four hues on purpose; this figure draws eight cells, so the
 cell rides the axis label and every bar takes one neutral ink.
 
-Reads results/stop_bootstrap.csv (`all` rows) and the score files.
+Reads results/stop_bootstrap.csv (`all` rows) for the interval and
+results/splits.csv for the levels, which is the source the report's stop-ladder
+table reads, so the figure and the table cannot print one number two ways.
 
 Usage: plot_stop_delta.py --results results --out plots/stop_delta.png
 """
@@ -45,8 +47,28 @@ plt.rcParams.update(cc.rc())
 BAR = "#4c5766"          # one neutral ink; hue names no cell in this figure
 
 
-def score(res, cell, stop, head):
-    p = Path(res) / f"score_{cell}_k3_bb{stop}k_{head}.txt"
+def splits(res):
+    """Full-precision GM-Relative MASE per tag, from `results/splits.csv`.
+
+    The score files hold four decimals. Differencing two of them puts B6's
+    teacher row at +0.0229 where the report's table, which differences the
+    full-precision values, prints +0.0230. The figure and the table read one
+    source so they cannot print one number two ways.
+    """
+    out = {}
+    p = Path(res) / "splits.csv"
+    if p.is_file():
+        for r in csv.DictReader(open(p)):
+            if r["split"] == "all" and r["name"] == "all":
+                out[r["stop"]] = float(r["gm_rel_mase"])
+    return out
+
+
+def score(res, sp, cell, stop, head):
+    tag = f"{cell}_k3_bb{stop}k_{head}"
+    if tag in sp:
+        return sp[tag]
+    p = Path(res) / f"score_{tag}.txt"
     try:
         return float(p.read_text().strip())
     except (OSError, ValueError):
@@ -65,10 +87,12 @@ def load(res):
             cell, _, head = r["label"].partition("_stop200v100_")
             ci[(cell, head)] = (float(r["ci_lo"]), float(r["ci_hi"]))
 
+    sp = splits(res)
     rows = []
     for cell in ("A2", "A3", "A4", "B1", "B2", "B4", "B6", "B10"):
         for head in ("student", "teacher"):
-            a, b = score(res, cell, 100, head), score(res, cell, 200, head)
+            a = score(res, sp, cell, 100, head)
+            b = score(res, sp, cell, 200, head)
             if a is None or b is None:
                 continue
             lo, hi = ci.get((cell, head), (float("nan"), float("nan")))

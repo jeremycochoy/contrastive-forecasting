@@ -7,7 +7,7 @@ stop. Negative is better. bb100k is the stop all 14 cells reached.
 
 This is a SCREEN and not a test. The two sides of every bar trained on
 different machines, and this study's one controlled measurement of the
-machine is worth 0.1166. The grey band is the parents' pooled head-seed
+machine is worth 0.1166. The grey band is `ema_sched_ladder.md`'s pooled head-seed
 band; it bounds the HEAD seed alone, and the backbone seed is unreplicated.
 
 A1 and B3 run one arm that aligns to the student and passes no

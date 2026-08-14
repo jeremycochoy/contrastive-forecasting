@@ -20,8 +20,14 @@ drop from the control to `k = 3` is what the depth adds once the re-weighting
 is paid for.
 
 Each segment carries its own 95% paired dataset-cluster interval, drawn as a
-band on the segment's far end. The two bands overlap, which is the reason the
-report ranks neither share above the other.
+band on the segment's far end.
+
+The left panel anchors each band to its own segment's start level, so on the
+level axis the two bands sit at two heights and read as two nearly disjoint
+ranges. That is an artefact of the anchoring, not a finding. The right panel
+draws the same two intervals as deltas on ONE shared zero axis, where they
+overlap over most of their length. The report ranks neither share above the
+other, and the right panel is where a reader sees why.
 
 Reads results/splits.csv (`all` rows) and results/bootstrap.csv.
 
@@ -84,8 +90,10 @@ def main(argv=None):
     ci = load_ci(args.bootstrap)
     col = cc.COLOUR["B1"]
 
-    fig, ax = plt.subplots(figsize=(9.4, 5.4))
-    share = {}
+    fig, (ax, dax) = plt.subplots(
+        1, 2, figsize=(13.6, 5.4),
+        gridspec_kw=dict(width_ratios=[1.0, 0.46], wspace=0.30))
+    share, deltas = {}, []
     for head in HEADS:
         pts = [(w, data.get(t.format(h=head)), k) for k, w, t in LADDER]
         cw, ctag = CONTROL
@@ -103,6 +111,13 @@ def main(argv=None):
 
         k0, k3 = pts[0][1], pts[1][1]
         share[head] = (cv - k0, k3 - cv, k3 - k0)
+
+        # The right panel takes BOTH heads. The two heads are two
+        # measurements of one backbone, and the report's claim — that this
+        # cell ranks neither move above the other — has to hold on each.
+        for name in ("re-weighting", "depth"):
+            d, lo, hi = ci[SEG_CI[name].format(h=head)]
+            deltas.append((head, name, d, lo, hi))
 
         # Label the student head only. The two heads sit within 0.01 of each
         # other at every point, so a second set of numbers would overprint
@@ -190,6 +205,38 @@ def main(argv=None):
     # place the legend cannot go.
     ax.legend(handles=handles, loc="lower left", fontsize=9,
               framealpha=0.95, borderpad=0.7)
+
+    # ---- the companion: the same two moves, on one shared zero axis -------
+    # On the level axis a band is anchored to its own segment's start, so the
+    # two bands sit at two heights and the eye reads them as disjoint. Here
+    # both are deltas against their own start, so one x = 0 serves both and
+    # the overlap is what the reader sees.
+    ys = list(range(len(deltas)))[::-1]
+    for yi, (head, name, d, lo, hi) in zip(ys, deltas):
+        alpha = 1.0 if head == "student" else 0.45
+        dax.plot([lo, hi], [yi, yi], color=col, linewidth=9.0, alpha=0.25 * (
+            1.0 if head == "student" else 0.62), solid_capstyle="butt",
+            zorder=1)
+        dax.errorbar(d, yi, xerr=[[d - lo], [hi - d]], fmt="o", markersize=8,
+                     color=col, alpha=alpha, ecolor=col, elinewidth=1.6,
+                     capsize=5, zorder=3)
+        dax.annotate(f"{d:+.4f}", (d, yi), textcoords="offset points",
+                     xytext=(0, 11), ha="center", fontsize=9, color=cc.INK)
+    dax.axvline(0, color=cc.INK, linewidth=1.1, zorder=2)
+    dax.set_yticks(ys)
+    dax.set_yticklabels([f"{n}\n[{h}]" for h, n, *_ in deltas], fontsize=9)
+    dax.set_ylim(-0.75, len(deltas) - 0.25)
+    dax.set_xlabel("change against the move's own start, 97 configs\n"
+                   "(negative is better)")
+    dax.set_title("the same two moves, on one zero axis", loc="left",
+                  fontsize=12, pad=17)
+    dax.annotate("bars are 95% paired dataset-cluster intervals",
+                 (0.0, 1.005), xycoords="axes fraction", fontsize=8.5,
+                 color=cc.INK_SOFT, va="bottom")
+    ends = [v for _h, _n, _d, lo, hi in deltas for v in (lo, hi)] + [0.0]
+    pad = 0.16 * (max(ends) - min(ends))
+    dax.set_xlim(min(ends) - pad, max(ends) + pad)
+    dax.grid(axis="y", visible=False)
 
     fig.tight_layout()
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)

@@ -82,13 +82,10 @@ EXTEND_NOTE[("A4", "teacher")] = "extended by hand; the rule's move is inside th
 # 100k, the stop every other cell already held. It was never queued past it.
 for _h in ("student", "teacher"):
     EXTEND_NOTE[("B8", _h)] = "trained from 0 this round; queued to 100k only"
-# The card doubted B1's bb40k number, because round 1 wrote it under a
-# `G6_` name no later script could find. The number itself is B1's: that
-# eval read `..._cf373k3_40k.pth`, md5 23ba3d9d, the same file round 2
-# resumed, under the same 15,000-step head every other cell's bb40k
-# carries. It is now written under the canonical name as well.
-for _h in ("student", "teacher"):
-    EXTEND_NOTE[("B1", _h)] = "bb40k written by round 1 as `G6_B1_…`; same checkpoint, same head budget"
+# B1's bb40k number carries no note here. Round 1 wrote it under a `G6_`
+# name no later script could find, and the report's annex says so once, in
+# full. Two copies of one operational fact drift; the annex keeps the copy,
+# because this column is for the extend rule's reason and that is not one.
 
 # One cell the extend rule could not decide. B1's two heads move in opposite
 # directions and both moves are far inside the ±0.0384 head-seed band, so the
@@ -282,6 +279,11 @@ def main(argv=None):
     # two different published baselines, so the TABLE keeps both rows. The
     # COUNT must not, or one model lands in the `better` bucket twice.
     DUP_STUDENT = {"B3": "A1"}
+    # The ‡ mark and the count exclusion are two different jobs. BOTH cells
+    # of the pair carry the shared student, so both rows are marked; only one
+    # of them may be counted. Marking one row alone reads as if that cell
+    # were the odd one out.
+    SHARED_STUDENT = set(DUP_STUDENT) | set(DUP_STUDENT.values())
     rows = []
     tally = {h: {"better": 0, "flat": 0, "worse": 0}
              for h in ("student", "teacher")}
@@ -306,7 +308,8 @@ def main(argv=None):
                 if ci is not None:
                     v += f"<br>[{ci[0]:+.4f}, {ci[1]:+.4f}]"
                 cs += [fmt(mine), fmt(base), f"{d:+.4f}", v]
-            rows.append(f"| {cell} | {head}{' ‡' if dup else ''} | "
+            shared = head == "student" and cell in SHARED_STUDENT
+            rows.append(f"| {cell} | {head}{' ‡' if shared else ''} | "
                         + " | ".join(cs) + " |")
 
     def tally_line(head):
@@ -324,7 +327,8 @@ def main(argv=None):
           "print one head per row, the student, so group B has no published "
           "teacher to meet.", "",
           "At bb100k, the stop every one of the 14 cells reached. The count "
-          "is over distinct MODELS. ‡ marks the one student two cells share, "
+          "is over distinct MODELS. ‡ marks the two cells that share one "
+          "student, "
           f"so 14 cells hold {sum(tally['student'].values())} student models "
           f"and the shared one counts once. Student head: "
           f"{tally_line('student')}. Teacher head, group A only: "
@@ -456,8 +460,9 @@ def main(argv=None):
         L += ["### A3's bb200k student, drawn twice", "",
               f"A3 at bb200k reads {d1:.4f} on the student and {te:.4f} on "
               f"the teacher, off one backbone file. That {top:.4f} gap is "
-              f"{top / nxt_a:.1f}x the next-largest in group A ({nxt_a:.4f}) "
-              f"and {top / nxt:.1f}x the largest anywhere ({nxt:.4f}). Every "
+              f"the largest in the grid: {top / nxt_a:.1f}x the next-largest "
+              f"in group A ({nxt_a:.4f}) and {top / nxt:.1f}x the largest of "
+              f"the other {len(hgaps) - 1} gaps ({nxt:.4f}). Every "
               "gap in the grid is in "
               "[`results/head_gap.tsv`](results/head_gap.tsv).", "",
               "The second draw changes two things: the head seed, and the "
@@ -489,35 +494,31 @@ def main(argv=None):
                     f" [{float(r['ci_lo']):+.4f}, {float(r['ci_hi']):+.4f}]")
 
         seed_ci = ci("A3_200k_headseed_student")
+        # The redraw's teacher-minus-student gap, from the close pipeline's
+        # own check file rather than from this study's pair registry: the
+        # redraw is not one of the registry's pairs.
+        gap2_ci, gap2_d = "", -gap2
+        for r in csv.DictReader(open(Path(args.results) / "final_check.csv")):
+            if r["label"] == "item6 teacher_vs_draw2" and r["subset"] == "all":
+                gap2_d = float(r["delta"])
+                gap2_ci = (f" [{float(r['ci_lo']):+.4f}, "
+                           f"{float(r['ci_hi']):+.4f}]")
+        # One paragraph, three facts: the two draws agree, the gap outlives
+        # the redraw, and what the agreement does and does not bound. The
+        # arithmetic behind each is in the table above it and in
+        # `results/head_gap.tsv`, so restating it here would only add prose.
         L += [(f"**The two draws agree.** They sit {abs(draw2 - d1):.4f} "
-               f"apart{seed_ci}, {abs(draw2 - d1) / NOISE_BAND:.0%} of the ±"
-               f"{NOISE_BAND:.4f} head-seed band, and the second draw is the "
-               f"{'higher' if draw2 > d1 else 'lower'} of the two. So "
-               f"{d1:.4f} is not a bad draw. The interval covers zero, and "
-               f"its far end lands on the imported band, so this head behaves "
-               f"like the heads that band was measured on. The two draws also "
-               f"sit on two machines, so this agreement bounds the head seed "
-               f"and the machine together, not the seed alone."
+               f"apart{seed_ci}, so {d1:.4f} is not a bad draw. The "
+               f"student/teacher gap survives the redraw at {gap2_d:+.4f}"
+               f"{gap2_ci}, teacher minus student. The two draws cross a "
+               f"machine, so this agreement bounds the head seed and the "
+               f"machine together, not the seed alone."
                if agree else
                f"**The two draws disagree.** They sit {abs(draw2 - d1):.4f} "
                f"apart{seed_ci}, wider than the ±{NOISE_BAND:.4f} head-seed "
                f"band, so this head's seed alone moves the score more than "
                f"the band the report thresholds on."), "",
-              (f"The student/teacher gap survives the redraw at {gap2:.4f}, "
-               f"{gap2 / NOISE_BAND:.1f}x the band. Two head seeds put A3's "
-               f"bb200k student above its teacher, so the gap is a property "
-               f"of that student encoder and not of the draw. Draw 1 and the "
-               f"teacher trained on the same box, so their {top:.4f} gap holds "
-               f"the machine; the redraw's {gap2:.4f} crosses machines."
-               if gap2 > NOISE_BAND else
-               f"The student/teacher gap falls to {gap2:.4f} on the second "
-               f"draw, inside the ±{NOISE_BAND:.4f} band."), "",
-              f"The ladder's largest move reads "
-              f"{draw2 - val('A3_k3_bb100k_student'):+.4f}"
-              f"{ci('A3_200k_draw2_vs_100k_student')} off the second draw, "
-              f"against {d1 - val('A3_k3_bb100k_student'):+.4f} off the "
-              f"first. Both exclude zero.", "",
-              f"A3's is also the ladder's largest reversal, but it is not the "
+              f"A3's is the ladder's largest reversal, but it is not the "
               f"only one: {n_turn} of the {len(turns)} three-stop student "
               "trajectories turn round at bb200k.", "",
               "| cell | bb40k | bb100k | bb200k | bb200k − bb100k | shape |",
@@ -1053,45 +1054,51 @@ def main(argv=None):
         except (ValueError, KeyError, TypeError):
             return False
 
-    L += ["", "The ratios both of whose sides are solo:", "",
-          "| arm | f-bearing term | k = 0 | k = 3 | change | both sides | "
-          "read as |", "|---|---|---|---|---|---|---|"]
-    partial = []
+    # The two probes the report carries, and only those. A probe qualifies
+    # when neither side shares its card: B5·s1's run, whose two sides are
+    # solo throughout, and the alternating probe that holds one card fixed.
+    # The rows that fail the test go to the paragraph under the table, with
+    # the reason they fail, rather than into a column a reader has to
+    # discount while reading.
+    agree_rows, partial = [], []
     for arm in R.ARM_ORDER:
         a, b = st.get((arm, 0)), st.get((arm, 3))
         if not a or not b or not a["compute_ms"] or not b["compute_ms"]:
             continue
         c0, c3 = float(a["compute_ms"]), float(b["compute_ms"])
-        run = R.find_run(arm, 3)
-        same = ("one box" if a["machine"] == b["machine"] else
-                f"{a['machine']} → {b['machine']}"
-                + ("" if a["card"] == b["card"] else ", DIFFERENT CARDS"))
         if full_run(a) and full_run(b):
-            how = "the depth, plus the box"
+            where = ("each side solo on one box, " + a["machine"]
+                     if a["machine"] == b["machine"] else
+                     "each side solo on its own box, "
+                     f"{a['machine']} → {b['machine']}")
+            agree_rows.append(
+                f"| {arm}, over its own run | {c0:.1f} ms | {c3:.1f} ms | "
+                f"{c3 / c0 - 1:+.0%} | {where} | "
+                "[`results/steptime_solo.csv`](results/steptime_solo.csv) |")
         else:
             side = "k = 0" if not full_run(a) else "k = 3"
             r = a if not full_run(a) else b
-            how = (f"**not comparable** — its `{side}` median covers "
-                   f"{r['windows_solo']} of {r['windows_total']} windows")
-            partial.append((arm, c3 / c0 - 1))
-        L.append(f"| {arm} | {run.term if run else '?'} | "
-                 f"{c0:.1f} ms | {c3:.1f} ms | {c3 / c0 - 1:+.0%} | {same} | "
-                 f"{how} |")
-    L.append("")
+            partial.append((arm, c0, c3, side, r["windows_solo"],
+                            r["windows_total"]))
+    # The alternating probe is not a training run, so `steptime_solo.csv`
+    # does not hold it. Its own log carries the two medians and the rep
+    # count, and the annex says which card it ran on.
+    agree_rows.append(
+        "| B5, alternating on one elisa card | 190.2 ms | 509.9 ms | +168% | "
+        "one card, 3 reps of 600 steps | "
+        "[`results/steptime_B5_solo.log`](results/steptime_B5_solo.log) |")
+    L += ["", "The two probes that agree:", "",
+          "| probe | k = 0 | k = 3 | change | what the two sides hold | "
+          "source |", "|---|---|---|---|---|---|"] + agree_rows + [""]
     if partial:
-        L += ["Two probes of the same quantity agree and one does not. "
-              "B5·s1 reads +157% with both sides solo throughout, and the "
-              "controlled alternating probe on one elisa card reads +168% "
-              "(190.2 ms against 509.9 ms, 3 reps of 600 steps, "
-              "[`results/steptime_B5_solo_card.csv`]"
-              "(results/steptime_B5_solo_card.csv)). " +
-              "; ".join(f"{a} reads {d:+.0%}" for a, d in partial) +
-              ", an order of magnitude below both, off a median over the "
-              "tail of its run and across a box change. This study does not "
-              "know why. **Carry +157% to +168%, the two probes that agree, "
-              "and do not carry the low row.** No cell of the 14 has a "
-              "same-card k = 0 / k = 3 pair, which is what would settle "
-              "it.", ""]
+        L += ["; ".join(
+            f"{a} reads {c3 / c0 - 1:+.0%} ({c0:.1f} ms against {c3:.1f} ms) "
+            f"and is not comparable to those two: its `{side}` median covers "
+            f"{ws} of its {wt} windows and its two sides cross a box"
+            for a, c0, c3, side, ws, wt in partial) +
+            ". **Carry +157% to +168% and do not carry the low row.** No "
+            "cell of the 14 has a same-card `k = 0` / `k = 3` pair, which is "
+            "what would settle it.", ""]
 
     # ---- 8. the depth-0 forecast-error gap ---------------------------------
     gap_path = Path(args.results) / "depth0_gap.csv"

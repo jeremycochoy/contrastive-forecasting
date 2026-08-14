@@ -82,11 +82,17 @@ def main(argv=None):
     # training of this cell.
     arms = [a for a in R.arms_of("B5") if a != "B5·pub"]
 
-    fig, axes = plt.subplots(1, 2, figsize=(10.6, 4.6), sharey=True)
+    fig, axes = plt.subplots(1, 2, figsize=(10.6, 4.9), sharey=True)
     drawn, have = 0, []
-    # Alternate the value labels above and below the line, one offset per
-    # backbone, so three lines that meet at k = 3 do not stack their text.
-    offsets = [-20, 13, 24, -31]
+    # Where each value label goes. A fixed offset per backbone stacks two
+    # labels on top of each other wherever two backbones land close at the
+    # same depth, and B5's three backbones do exactly that: s2 and s3 sit
+    # 0.0035 apart at k = 0. So the side is decided per COLUMN, from the
+    # values: a label hangs below its marker unless another marker sits just
+    # under it, and then it goes above.
+    allv = [y for a in arms for h in ("student", "teacher")
+            for _k, y in arm_points(data, a, h)]
+    span = (max(allv) - min(allv)) if allv else 1.0
     for ax, head in zip(axes, ("student", "teacher")):
         # The published rule belongs on the student panel only: group B's
         # parent reports publish one head, trained on the student encoder,
@@ -94,7 +100,7 @@ def main(argv=None):
         if head == "student":
             ax.axhline(PUB, color=cc.PARITY, linewidth=1.2,
                        linestyle=(0, (4, 3)))
-        for i, arm in enumerate(arms):
+        for arm in arms:
             pts = arm_points(data, arm, head)
             if not pts:
                 continue
@@ -110,11 +116,19 @@ def main(argv=None):
                     marker=SHAPE.get(seed, "^"), markersize=10,
                     markerfacecolor=col if elisa else "#ffffff",
                     markeredgecolor=col, markeredgewidth=2.0, zorder=3)
-            off = offsets[i % len(offsets)]
-            for k, y in pts:
+        column = {}
+        for arm in arms:
+            for k, y in arm_points(data, arm, head):
+                column.setdefault(k, []).append(y)
+        near = 0.085 * span
+        for k, ys_k in column.items():
+            for y in ys_k:
+                below = [o for o in ys_k if 0 < y - o < near]
                 ax.annotate(f"{y:.4f}", (k, y), textcoords="offset points",
-                            xytext=(0, off), ha="center", fontsize=8.5,
-                            color=cc.INK)
+                            xytext=(0, 15 if below else -19), ha="center",
+                            va="bottom" if below else "top", fontsize=8.5,
+                            color=cc.INK,
+                            bbox=dict(fc="#ffffff", ec="none", pad=0.5))
         ax.set_xticks(KS)
         ax.set_xticklabels([f"k = {k}" for k in KS])
         ax.set_xlim(-0.55, 3.55)
@@ -124,6 +138,10 @@ def main(argv=None):
         raise SystemExit(f"ABORT: no B5 backbone in {args.splits}")
 
     axes[0].set_ylabel("GM-Relative MASE, 97 configs  (lower is better)")
+    # Room inside the axes for the labels that hang below the lowest marker.
+    # Without it they land on the depth tick labels and hide one of them.
+    lo, hi = axes[0].get_ylim()
+    axes[0].set_ylim(lo - 0.11 * (hi - lo), hi + 0.03 * (hi - lo))
     axes[0].annotate(f"the parent report publishes {PUB:.4f} for this cell",
                      (3.45, PUB), fontsize=8, color=cc.INK_SOFT,
                      ha="right", va="bottom",
@@ -147,7 +165,12 @@ def main(argv=None):
                               markerfacecolor=col if elisa else "#ffffff",
                               markeredgecolor=col, markeredgewidth=2.0,
                               label=f"{arm}  seed {seed}, {R.arm_where(arm)}"))
-    axes[1].legend(handles=handles, loc="lower right", fontsize=8.5)
+    # Under both panels, in one row. Inside the teacher panel the legend sat
+    # on the s2/s3 line, which crosses the lower right corner on its way to
+    # k = 3, so the text and the curve it names were drawn on top of each
+    # other.
+    fig.legend(handles=handles, loc="lower center", fontsize=8.5, ncol=3,
+               bbox_to_anchor=(0.5, -0.055))
     fig.suptitle("B5 arm4_combab_fix09, three backbones, bb40k",
                  x=0.005, ha="left", fontsize=12)
     fig.tight_layout()
