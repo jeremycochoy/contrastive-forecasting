@@ -2487,3 +2487,20 @@ group A stays 0.0168 (A4 bb200k), so the report's "6.5x" and "2.6x" hold.
 differ); only the PNG encoder's bytes moved, so the committed file stands.
 
 No number in the report changed.
+
+## 2026-08-14, 01:36 — a fourth confirmation, and no new measurement
+
+The brief reported item 3 stalled with no eval and no score file. The two evals
+had already run on 13 August, 20:32 to 22:07 (teacher) and 21:40 to 22:40
+(student). Both score files were already committed.
+
+This session ran no training and no eval. It re-derived the 15 bootstrap rows
+behind items 3 and 6 from the per-config CSVs and matched `results/bootstrap.csv`
+row for row. It added the two A3-against-teacher contrasts: draw 1 sits +0.1084
+[+0.0671, +0.1648] above the teacher, draw 2 sits +0.1185 [+0.0718, +0.1819].
+Both exclude zero.
+
+`scripts/verify_close.sh` passed all five checks. The five regenerated logs came
+back byte-identical to their committed copies, so `git status` stayed clean.
+
+`vastrun-status` reported no running instances. `vastrun-balance` held $11.45.
