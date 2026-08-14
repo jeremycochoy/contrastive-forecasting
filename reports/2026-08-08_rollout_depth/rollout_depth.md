@@ -10,7 +10,7 @@ config's MASE divided by the seasonal-naive MASE; lower is better and 1.0 is
 seasonal-naive parity. **Cell** one of the 14 recipes the card names, `A1`..`A4`
 and `B1`..`B10`. **bb100k** backbone step 100,000. **The card** the issue this
 study answers, and the 14 cells, stops and criteria it names. Every other
-term is in the glossary of §15.
+term is in the glossary of §14.
 
 ## 1. The frontier
 
@@ -39,6 +39,55 @@ under each family name.*
 On A4 at bb100k all four hard families move toward 1.0 and none reaches it;
 on B2 at bb200k all four move away.
 
+### The numbers behind the radar
+
+<!-- DOMAIN:BEGIN -->
+
+**A4  arm6_v2 combab · L_align on the student, bb100k, student-encoder head.** The cell that sets this study's frontier, at the deepest stop its parent published. Published `k = 0`.
+
+| family | configs | rollout steps | k = 0 | k = 3 | difference | where k = 3 leaves it |
+|---|---:|---:|---:|---:|---:|---|
+| Energy ⚑ | 32 | 16.5 (1–45) | 1.481 | 1.279 | -0.201 | toward 1.0 |
+| Web/CloudOps ⚑ | 20 | 30 (3–57) | 1.257 | 1.199 | -0.057 | toward 1.0 |
+| Nature | 15 | 3 (1–45) | 0.866 | 0.822 | -0.044 | stays below 1.0, lower |
+| Transport | 15 | 30 (2–45) | 1.021 | 0.901 | -0.120 | **past 1.0** |
+| Econ/Fin ⚑ | 6 | 1 (1–3) | 1.414 | 1.150 | -0.263 | toward 1.0 |
+| Healthcare ⚑ | 5 | 1 (1–2) | 1.171 | 1.113 | -0.058 | toward 1.0 |
+| Sales | 4 | 1.5 (1–2) | 0.800 | 0.797 | -0.003 | stays below 1.0, lower |
+
+
+**B1  arm6_v2 combab · L_align on the student, bb40k, student-encoder head.** The pair whose `k = 0` side this study trained, so the depth is the only change.
+
+| family | configs | rollout steps | k = 0 | k = 3 | difference | where k = 3 leaves it |
+|---|---:|---:|---:|---:|---:|---|
+| Energy ⚑ | 32 | 16.5 (1–45) | 1.471 | 1.270 | -0.200 | toward 1.0 |
+| Web/CloudOps ⚑ | 20 | 30 (3–57) | 1.288 | 1.211 | -0.077 | toward 1.0 |
+| Nature | 15 | 3 (1–45) | 0.884 | 0.840 | -0.044 | stays below 1.0, lower |
+| Transport | 15 | 30 (2–45) | 1.040 | 0.907 | -0.133 | **past 1.0** |
+| Econ/Fin ⚑ | 6 | 1 (1–3) | 1.466 | 1.212 | -0.254 | toward 1.0 |
+| Healthcare ⚑ | 5 | 1 (1–2) | 1.103 | 1.077 | -0.026 | toward 1.0 |
+| Sales | 4 | 1.5 (1–2) | 0.772 | 0.775 | +0.004 | stays below 1.0, higher |
+
+
+**B2  arm6_v2 combab · L_align on the teacher, bb200k, student-encoder head.** The arm and stop the card quotes its own per-family numbers from. Published `k = 0`.
+
+| family | configs | rollout steps | k = 0 | k = 3 | difference | where k = 3 leaves it |
+|---|---:|---:|---:|---:|---:|---|
+| Energy ⚑ | 32 | 16.5 (1–45) | 1.388 | 1.587 | +0.198 | away from 1.0 |
+| Web/CloudOps ⚑ | 20 | 30 (3–57) | 1.283 | 1.347 | +0.064 | away from 1.0 |
+| Nature | 15 | 3 (1–45) | 0.867 | 0.914 | +0.047 | stays below 1.0, higher |
+| Transport | 15 | 30 (2–45) | 1.021 | 1.077 | +0.056 | away from 1.0 |
+| Econ/Fin ⚑ | 6 | 1 (1–3) | 1.489 | 1.869 | +0.380 | away from 1.0 |
+| Healthcare ⚑ | 5 | 1 (1–2) | 1.261 | 1.283 | +0.022 | away from 1.0 |
+| Sales | 4 | 1.5 (1–2) | 0.830 | 0.824 | -0.006 | stays below 1.0, lower |
+
+
+⚑ marks the four families the card names as the ones seasonal naive wins by the largest margin: Energy, Econ/Fin, Web/CloudOps, Healthcare.
+
+`rollout steps` is how many times the eval runs `rollout_latent` on a config of that family, median and range. It is the same column for every table here, because it depends on the config and not on the run.
+
+<!-- DOMAIN:END -->
+
 ## 3. How far the eval rolls out, and what the depth does there
 
 ![rollout steps per config, and the k = 3 minus k = 0 change against them](plots/rollout_count.png)
@@ -50,7 +99,7 @@ formula and the source of every horizon.*
 Inside a pair the two move together: Spearman ρ is -0.63 on B9, -0.40 on B1,
 -0.34 on A4, -0.16 on B5·s2 and -0.15 on A3. Across families they do not:
 Econ/Fin rolls out a median of 1 step and gains the most on A4, at -0.263,
-and the per-family table of §12 carries both columns.
+and the per-family table under the radar carries both columns.
 
 ## 4. Where the change lands, by horizon
 
@@ -148,138 +197,7 @@ run's second half is A3 at `k = 3`.
 Every run's loss falls and none diverges; a `k = 3` loss sums three more terms
 than a `k = 0` loss, so the two levels are not comparable.
 
-## Annex figures
-
-Each figure here says why it exists. Every one answers a question a review of
-this study put, and none is a deliverable the card names.
-
-### Every trained depth against its own retrained `k = 0`
-
-![rollout depth against the arm's own k = 0](plots/depth_response.png)
-
-The card's criterion is a test against the same recipe at `k = 0`, and only
-five arms trained both depths. This figure asks what the depth is worth on
-those five. The four it does not retract read B9 −0.2791, B1 −0.1175,
-B5·s2 +0.0575 and A3 +0.1429, so they do not point one way, and each is one
-draw in the backbone seed.
-
-### B1: the `L_align` ×4 control against the depth
-
-![B1: the L_align x4 control against the depth ladder](plots/b1_alignx4.png)
-
-Summing the depths also multiplies the f-bearing term's weight by four, so a
-win at `k = 3` could be either. This figure separates them on B1, the cell
-whose retrained `k = 0` reproduces its published number exactly. It shows the
-re-weighting alone taking 44% of the student's move and 49% of the teacher's.
-
-### A3: the same control on the cell the depth damages most
-
-![A3: depth against weight](plots/a3_depth.png)
-
-A3 is where `k = 3` costs the most, so the same question runs there. Its
-columns are separate draws, so it reads as direction only. It shows the ×4
-re-weighting hurting A3 on its own, +0.0401 on the student.
-
-### Does this study's trainer reproduce the published `k = 0`?
-
-![published k = 0 against this study's own k = 0](plots/reproduction.png)
-
-This runs the card's validity gate on every retrained `k = 0`: two rows miss
-it, A3 by 0.0294 and B5·s1 by 0.1169.
-
-### What the box and the backbone seed are worth
-
-![B5, three backbones](plots/b5_backbones.png)
-
-B5 trained three backbones on one recipe: this measures the box at 0.1166 and
-the backbone seed at 0.0035, two nuisance draws the frontier does not carry.
-
-### A3's bb200k student head, drawn twice
-
-![A3's bb200k student head, drawn twice](plots/a3_reseed.png)
-
-A3's bb200k student number is the largest student/teacher gap in the grid,
-so it could be a bad head draw. This figure trains a second head off the
-same backbone at a second seed. It shows the two draws 0.0100 apart, so the
-first draw stands.
-
-### What the second 100,000 backbone steps buys
-
-![the second 100,000 backbone steps, against the first](plots/stop_delta.png)
-
-The 200k column decides part of the frontier, so it needs its own contrast
-against 100k on the same backbone. It shows more of the extended
-measurements getting worse at bb200k than better.
-
-### Each cell's ladder against its own published `k = 0`
-
-![each cell's ladder against its own published k = 0](plots/stop_ladder.png)
-
-The ladder figure draws all 14 cells against one rule, which hides each
-cell's own baseline. This small-multiple draws every cell against the number its parent
-published, with seasonal-naive parity marked. It shows nine cells below
-their own baseline at every stop, three above it at every stop, and two
-changing sign.
-
-### The retrained arms on the published trajectories
-
-![the retrained arms on the published k = 0 trajectories](plots/k0_overlay.png)
-
-Where a cell's `k = 3` at 40,000 steps lands on the `k = 0` trajectory says
-how many `k = 0` steps the depth is worth. This figure marks the five
-retrained arms on those trajectories. It shows B1's `k = 3` at bb40k below
-every published B1 point, including bb200k.
-
-## 12. Per-family GM-Relative MASE, `k = 3` against `k = 0`
-
-<!-- DOMAIN:BEGIN -->
-
-**A4  arm6_v2 combab · L_align on the student, bb100k, student-encoder head.** The cell that sets this study's frontier, at the deepest stop its parent published. Published `k = 0`.
-
-| family | configs | rollout steps | k = 0 | k = 3 | difference | where k = 3 leaves it |
-|---|---:|---:|---:|---:|---:|---|
-| Energy ⚑ | 32 | 16.5 (1–45) | 1.481 | 1.279 | -0.201 | toward 1.0 |
-| Web/CloudOps ⚑ | 20 | 30 (3–57) | 1.257 | 1.199 | -0.057 | toward 1.0 |
-| Nature | 15 | 3 (1–45) | 0.866 | 0.822 | -0.044 | stays below 1.0, lower |
-| Transport | 15 | 30 (2–45) | 1.021 | 0.901 | -0.120 | **past 1.0** |
-| Econ/Fin ⚑ | 6 | 1 (1–3) | 1.414 | 1.150 | -0.263 | toward 1.0 |
-| Healthcare ⚑ | 5 | 1 (1–2) | 1.171 | 1.113 | -0.058 | toward 1.0 |
-| Sales | 4 | 1.5 (1–2) | 0.800 | 0.797 | -0.003 | stays below 1.0, lower |
-
-
-**B1  arm6_v2 combab · L_align on the student, bb40k, student-encoder head.** The pair whose `k = 0` side this study trained, so the depth is the only change.
-
-| family | configs | rollout steps | k = 0 | k = 3 | difference | where k = 3 leaves it |
-|---|---:|---:|---:|---:|---:|---|
-| Energy ⚑ | 32 | 16.5 (1–45) | 1.471 | 1.270 | -0.200 | toward 1.0 |
-| Web/CloudOps ⚑ | 20 | 30 (3–57) | 1.288 | 1.211 | -0.077 | toward 1.0 |
-| Nature | 15 | 3 (1–45) | 0.884 | 0.840 | -0.044 | stays below 1.0, lower |
-| Transport | 15 | 30 (2–45) | 1.040 | 0.907 | -0.133 | **past 1.0** |
-| Econ/Fin ⚑ | 6 | 1 (1–3) | 1.466 | 1.212 | -0.254 | toward 1.0 |
-| Healthcare ⚑ | 5 | 1 (1–2) | 1.103 | 1.077 | -0.026 | toward 1.0 |
-| Sales | 4 | 1.5 (1–2) | 0.772 | 0.775 | +0.004 | stays below 1.0, higher |
-
-
-**B2  arm6_v2 combab · L_align on the teacher, bb200k, student-encoder head.** The arm and stop the card quotes its own per-family numbers from. Published `k = 0`.
-
-| family | configs | rollout steps | k = 0 | k = 3 | difference | where k = 3 leaves it |
-|---|---:|---:|---:|---:|---:|---|
-| Energy ⚑ | 32 | 16.5 (1–45) | 1.388 | 1.587 | +0.198 | away from 1.0 |
-| Web/CloudOps ⚑ | 20 | 30 (3–57) | 1.283 | 1.347 | +0.064 | away from 1.0 |
-| Nature | 15 | 3 (1–45) | 0.867 | 0.914 | +0.047 | stays below 1.0, higher |
-| Transport | 15 | 30 (2–45) | 1.021 | 1.077 | +0.056 | away from 1.0 |
-| Econ/Fin ⚑ | 6 | 1 (1–3) | 1.489 | 1.869 | +0.380 | away from 1.0 |
-| Healthcare ⚑ | 5 | 1 (1–2) | 1.261 | 1.283 | +0.022 | away from 1.0 |
-| Sales | 4 | 1.5 (1–2) | 0.830 | 0.824 | -0.006 | stays below 1.0, lower |
-
-
-⚑ marks the four families the card names as the ones seasonal naive wins by the largest margin: Energy, Econ/Fin, Web/CloudOps, Healthcare.
-
-`rollout steps` is how many times the eval runs `rollout_latent` on a config of that family, median and range. It is the same column for every table here, because it depends on the config and not on the run.
-
-<!-- DOMAIN:END -->
-
-## 13. Collapse watch
+## 12. Collapse watch
 
 <!-- COLLAPSE:BEGIN -->
 
@@ -310,7 +228,7 @@ On `h_t`, 1 of the 5 arms that trained both depths ends the deeper run below hal
 
 <!-- COLLAPSE:END -->
 
-## 14. The card's success criteria, cell by cell
+## 13. The card's success criteria, cell by cell
 
 <!-- CRITERIA:BEGIN -->
 
@@ -342,7 +260,7 @@ The count is over CELLS. A1 and B3 share one student model, so the 14 cells hold
 
 <!-- CRITERIA:END -->
 
-## 15. Tables
+## 14. Tables
 
 <!-- TABLES:BEGIN -->
 
@@ -459,7 +377,7 @@ The rule reads one cell's bb40k number against its bb100k number, per head. A he
 
 <!-- TABLES:END -->
 
-## 16. What this study cannot support
+## 15. What this study cannot support
 
 <!-- LIMITS:BEGIN -->
 
@@ -478,7 +396,87 @@ The rule reads one cell's bb40k number against its bb100k number, per head. A he
 
 <!-- LIMITS:END -->
 
-## Annex tables
+## Annex
+
+Each item here says why it exists. Every one answers a question a review of
+this study put, and none is a deliverable the card names.
+
+### Every trained depth against its own retrained `k = 0`
+
+![rollout depth against the arm's own k = 0](plots/depth_response.png)
+
+The card's criterion is a test against the same recipe at `k = 0`, and only
+five arms trained both depths. This figure asks what the depth is worth on
+those five. The four it does not retract read B9 −0.2791, B1 −0.1175,
+B5·s2 +0.0575 and A3 +0.1429, so they do not point one way, and each is one
+draw in the backbone seed.
+
+### B1: the `L_align` ×4 control against the depth
+
+![B1: the L_align x4 control against the depth ladder](plots/b1_alignx4.png)
+
+Summing the depths also multiplies the f-bearing term's weight by four, so a
+win at `k = 3` could be either. This figure separates them on B1, the cell
+whose retrained `k = 0` reproduces its published number exactly. It shows the
+re-weighting alone taking 44% of the student's move and 49% of the teacher's.
+
+### A3: the same control on the cell the depth damages most
+
+![A3: depth against weight](plots/a3_depth.png)
+
+A3 is where `k = 3` costs the most, so the same question runs there. Its
+columns are separate draws, so it reads as direction only. It shows the ×4
+re-weighting hurting A3 on its own, +0.0401 on the student.
+
+### Does this study's trainer reproduce the published `k = 0`?
+
+![published k = 0 against this study's own k = 0](plots/reproduction.png)
+
+This runs the card's validity gate on every retrained `k = 0`: two rows miss
+it, A3 by 0.0294 and B5·s1 by 0.1169.
+
+### What the box and the backbone seed are worth
+
+![B5, three backbones](plots/b5_backbones.png)
+
+B5 trained three backbones on one recipe: this measures the box at 0.1166 and
+the backbone seed at 0.0035, two nuisance draws the frontier does not carry.
+
+### A3's bb200k student head, drawn twice
+
+![A3's bb200k student head, drawn twice](plots/a3_reseed.png)
+
+A3's bb200k student number is the largest student/teacher gap in the grid,
+so it could be a bad head draw. This figure trains a second head off the
+same backbone at a second seed. It shows the two draws 0.0100 apart, so the
+first draw stands.
+
+### What the second 100,000 backbone steps buys
+
+![the second 100,000 backbone steps, against the first](plots/stop_delta.png)
+
+The 200k column decides part of the frontier, so it needs its own contrast
+against 100k on the same backbone. It shows more of the extended
+measurements getting worse at bb200k than better.
+
+### Each cell's ladder against its own published `k = 0`
+
+![each cell's ladder against its own published k = 0](plots/stop_ladder.png)
+
+The ladder figure draws all 14 cells against one rule, which hides each
+cell's own baseline. This small-multiple draws every cell against the number its parent
+published, with seasonal-naive parity marked. It shows nine cells below
+their own baseline at every stop, three above it at every stop, and two
+changing sign.
+
+### The retrained arms on the published trajectories
+
+![the retrained arms on the published k = 0 trajectories](plots/k0_overlay.png)
+
+Where a cell's `k = 3` at 40,000 steps lands on the `k = 0` trajectory says
+how many `k = 0` steps the depth is worth. This figure marks the five
+retrained arms on those trajectories. It shows B1's `k = 3` at bb40k below
+every published B1 point, including bb200k.
 
 <!-- TABLES_ANNEX:BEGIN -->
 
