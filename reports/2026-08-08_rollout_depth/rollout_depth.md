@@ -1,34 +1,41 @@
-# Rollout depth 3 also quadruples the forecast-loss weight, and the two depth pairs trained on one machine disagree
+# Rollout depth 3 has no settled sign, and it quadruples the forecast-loss weight
 
-B1 is the study's only cell whose `L_align` ×4 re-weighting control holds every
-column on one machine, and on B1 the re-weighting and the depth each move the
-score by an amount the cell cannot rank: -0.0512 [-0.1001, -0.0023] against
--0.0663 [-0.1070, -0.0331]. The two machine-held `k = 0` / `k = 3` pairs then
-disagree in sign, B1's depth gaining -0.1175 [-0.1801, -0.0615] and B5·s2's
-losing +0.0575 [+0.0173, +0.1094].
+The study's only two machine-held `k = 0` / `k = 3` pairs move opposite ways,
+B1 by -0.1175 and B5·s2 by +0.0575, and both 95% intervals exclude zero. On
+B1, the one cell that also carries a weight control, about half of that move
+belongs to the ×4 re-weighting depth 3 drags along.
+
+![rollout depth against the arm's own k = 0](plots/depth_response.png)
+
+*Every trained depth against the same arm's own retrained `k = 0`, at bb40k
+(backbone step 40,000), 97 GIFT-Eval configs. A cell is one of the 14 recipes
+this study scores; an arm is one (cell, backbone seed, machine) training. The
+score is GM-Relative MASE: each config's MASE over its seasonal-naive MASE,
+geometric mean, lower is better. Whiskers are 95% paired bootstrap intervals
+that resample the eval datasets, so they bound the eval sample and not
+run-to-run variance.*
+
+Depth `k` copies the loss term the forecast operator `f` enters, the f-bearing
+term, at depths 1 to `k` and sums the copies, so `k = 3` also multiplies that
+term's weight against the f-free terms by 4. B1's f-bearing term is `L_align`,
+the term that aligns `f`'s output with the future latent. B1 is the study's
+only cell whose ×4 re-weighting control holds every column on one machine; A3
+carries the same control, and its columns cross boxes.
 
 ![B1: the L_align x4 control against the depth ladder](plots/b1_alignx4.png)
 
 *B1 at bb40k, both heads: `k = 0`, the `L_align` ×4 re-weighting applied at
 `k = 0`, and `k = 3`. Backbone seed 20260520, head seed 20260722, 15,000 head
-steps, 97 GIFT-Eval configs. The score is GM-Relative MASE: each config's MASE
-over its seasonal-naive MASE, geometric mean, lower is better. Every column
-trained on elisa, this project's own workstation; `vast box a`..`d` are rented
-machines. A3 carries the same ×4 control, and its columns cross boxes.*
+steps, 97 configs. Every column trained on elisa, this project's own
+workstation; `vast box a`..`d` are rented machines.*
 
-A cell is one of the 14 recipes this study scores. Depth `k` copies the loss
-term the forecast operator `f` enters, the f-bearing term, at depths 1 to `k`
-and sums the copies, so `k = 3` also multiplies that term's weight against the
-f-free terms by 4.
+![B5, three backbones](plots/b5_backbones.png)
 
-![rollout depth against the arm's own k = 0](plots/depth_response.png)
+*B5 trained three times on one recipe, one code snapshot, one head seed and
+one eval. `B5·s3` holds `B5·s1`'s seed and `B5·s2`'s machine.*
 
-*Every trained depth against the same arm's own retrained `k = 0`, bb40k, 97
-configs. An arm is one (cell, backbone seed, machine) training. Whiskers are
-95% paired bootstrap intervals that resample the eval datasets, so they bound
-the eval sample and not run-to-run variance. A hatched bar crosses a machine,
-which this study sizes at ±0.1166. The two unhatched pairs, B1 and B5·s2, are
-the study's only machine-held depth pairs, and they run opposite ways.*
+The three backbones size the machine at 0.1166 and the backbone seed at
+0.0035.
 
 ## The 14 cells, screened against the published k = 0
 
@@ -37,12 +44,9 @@ the study's only machine-held depth pairs, and they run opposite ways.*
 *Each cell's `k = 3` at bb100k minus the `k = 0` its parent report published,
 student head, 97 configs. bb100k is the stop all 14 cells reached. The two
 sides of every bar trained on different machines. The grey band is ±0.0384,
-the head-seed band the `ema_sched_ladder` parent report pools. A1 and B3 hold
-one student model against two published baselines: their arm aligns to the
-student and passes no `--moco-rep-keys`, the flag that draws a loss term's
-negative keys from the EMA encoder, so the EMA regime that separates the two
-cells cannot reach the student encoder. 14 cells therefore carry 13 student
-models.*
+the head-seed band the `ema_sched_ladder` parent report pools. ‡ marks the two
+cells that hold one student model between them; the same-arm pair table below
+says why.*
 
 Of the 13 distinct student models, 8 beat their published `k = 0` by more
 than the head-seed band, 3 sit inside it and 2 lose.
@@ -50,7 +54,9 @@ than the head-seed band, 3 sit inside it and 2 lose.
 ![each cell's ladder against its own published k = 0](plots/stop_ladder.png)
 
 *All 14 cells, both heads, every stop scored. The dashed line is the parent
-report's published `k = 0`, which trained on another machine for most cells.*
+report's published `k = 0`.*
+
+That dashed baseline trained on another machine for most cells.
 
 ## The baseline the screen reads against
 
@@ -59,12 +65,6 @@ report's published `k = 0`, which trained on another machine for most cells.*
 *Each retrained `k = 0` against the value its parent report published.
 GM-Relative MASE at bb40k, student head, 97 configs, grouped by training
 machine.*
-
-![B5, three backbones](plots/b5_backbones.png)
-
-*B5 trained three times on one recipe, one code snapshot, one head seed and
-one eval. `B5·s3` holds `B5·s1`'s seed and `B5·s2`'s machine, so the pair
-separates the machine, 0.1166, from the seed, 0.0035.*
 
 ## The second 100,000 backbone steps
 
@@ -107,7 +107,7 @@ column trained on a different box from at least one other.*
 
 ![rollout fidelity](plots/rollout_fidelity.png)
 
-*`cos` between the rolled latent and the true `h_{t+d}`, `d = 1..16`, no head
+*`cos` between the rolled latent and the true `h_{T_0+d}`, `d = 1..16`, no head
 in the way.*
 
 The batch is the parent reports' fixed diagnostic batch and is not held out
@@ -117,34 +117,35 @@ memorisation.
 ![per-depth forecast error](plots/cos_err_depth.png)
 
 *`1 − cos(f^(j)_t, h_{t+1+j})` during training, one line per depth, against
-the `k = 0` run's single line. Signs per window in the tables below.*
+the `k = 0` run's single line.*
 
 ![dimension usage](plots/dim_usage_per_arm.png)
 
-*`u_batchtime` on `h_t` and on `e_t` during training. No run reaches zero at
-any depth.*
+*`u_batchtime`, the dimension usage of a latent over the pooled (batch × time)
+sample axis, on `h_t` and on `e_t` during training. 1.0 is every dimension in
+use. No run reaches zero at any depth.*
 
 ![encoder delta](plots/encoder_delta.png)
 
 *Teacher-encoder head minus student-encoder head, per arm per depth, bb40k.*
+
+<!-- TABLES:BEGIN -->
 
 ## What this study cannot support
 
 | the claim | what stops it |
 |---|---|
 | That `k = 3` helps, or that it hurts | The two machine-held `k = 0` / `k = 3` pairs disagree in sign and both intervals exclude zero: B1 -0.1175 [-0.1801, -0.0615], B5·s2 +0.0575 [+0.0173, +0.1094]. They differ in the cell, the backbone seed and the f-bearing term, so nothing here says which of the three flips the sign. |
-| That the gain is the depth alone | On B1, the one cell that carries the control on one machine, the ×4 re-weighting takes 44% of the student's move and 49% of the teacher's. |
-| That one of the two pays more than the other | The two shares sit inside each other's 95% intervals: -0.0512 [-0.1001, -0.0023] against -0.0663 [-0.1070, -0.0331]. This cell measures both and ranks neither. |
+| That the gain is the depth alone | B1 is the one cell that carries the `L_align` ×4 re-weighting control on one machine, and the re-weighting moves the score on its own. The B1 table below prints its share of the move, per head. |
+| That one of the two pays more than the other | The re-weighting's move and the depth's move sit inside each other's 95% intervals, in the same B1 table. That cell measures both and ranks neither. |
 | Any per-cell verdict | Every cell is n = 1 in the backbone seed. The ±0.0384 band bounds the HEAD seed alone, and backbone-seed variance is unmeasured. |
 | That depth 3 is the right depth | Only `k = 3` ran on the 14 cells. One ladder holds a second depth, on A3, and its `k = 1` delta covers zero: -0.0195 [-0.0537, +0.0148] on the student. |
-| The per-horizon criterion of the card, the issue this study answers, at scale | It is applied as a test on the 2 machine-held arms, B1 and B5·s2, at one stop, bb40k. Every other pair crosses a machine, and the machine is worth 0.1166. |
-| That `k = 3` leads at 200k | Four cells hold a published `k = 0` at 200k. A2 by -0.1079, B6 by -0.0804 and B1 by -0.0643 lead it. B2 loses by +0.1054, about the size of A2's -0.1079 gain, so the four cells do not point one way. |
+| The per-horizon criterion of the card, the issue this study answers, at scale | It is applied as a test on the 2 machine-held arms, B1, B5·s2, at one stop, bb40k. Every other pair crosses a machine, and the machine is worth 0.1166. |
+| That `k = 3` leads at 200k | 4 cells hold a published `k = 0` at 200k. A2 by -0.1079, B6 by -0.0804, B1 by -0.0643 lead it. B2 by +0.1054 loses it, against a largest gain of -0.1079, so the 4 cells do not point one way. |
 | The cost of the depth | Two probes agree at +157% and +168% step time. A3's +13% covers 127 of its 273 timing windows and crosses a box, so it is not comparable to them. |
-| That the 200k reading is unconditional | The extend rule reads the bb40k-to-bb100k contrast, which the Protocol calls not head-matched. It fired inside its own ±0.0384 band on four stopped cells, and both manual overrides extended. |
+| That the 200k reading is unconditional | The extend rule reads the bb40k-to-bb100k contrast, which the Protocol calls not head-matched. It fired inside its own ±0.0384 band on 4 stopped cells, and both manual overrides extended. |
 
 ## Tables
-
-<!-- TABLES:BEGIN -->
 
 ### Coverage
 
@@ -234,7 +235,7 @@ The interval is a 95% paired dataset-cluster bootstrap over the pair's 97 config
 | B2 | teacher | 1.4041 | 1.3117 | 1.2825 | -0.0292 | [-0.0604, -0.0016] | -2.2% |  |
 | B3 | student | 1.1305 | 1.1676 | — | — | — | — | the extend rule held this cell at 100k |
 | B3 | teacher | 1.1343 | 1.1618 | — | — | — | — | the extend rule held this cell at 100k |
-| B4 | student | 1.3334 | 1.2804 | 1.3182 | +0.0378 | [+0.0089, +0.0742] | +3.0% |  |
+| B4 | student | 1.3334 | 1.2804 | 1.3182 | +0.0379 | [+0.0089, +0.0742] | +3.0% |  |
 | B4 | teacher | 1.3339 | 1.2748 | 1.3202 | +0.0454 | [+0.0181, +0.0807] | +3.6% |  |
 | B5 | student | 1.3204 | 1.3383 | — | — | — | — | the extend rule held this cell at 100k |
 | B5 | teacher | 1.3216 | 1.3428 | — | — | — | — | the extend rule held this cell at 100k |
@@ -242,8 +243,8 @@ The interval is a 95% paired dataset-cluster bootstrap over the pair's 97 config
 | B6 | teacher | 1.2184 | 1.2110 | 1.2339 | +0.0230 | [+0.0032, +0.0440] | +1.9% |  |
 | B7 | student | 1.2617 | 1.3205 | — | — | — | — | the extend rule held this cell at 100k |
 | B7 | teacher | 1.2444 | 1.2780 | — | — | — | — | the extend rule held this cell at 100k |
-| B8 | student | 1.2857 | 1.3157 | — | — | — | — | trained from 0 this round; queued to 100k only |
-| B8 | teacher | 1.2865 | 1.3239 | — | — | — | — | trained from 0 this round; queued to 100k only |
+| B8 | student | 1.2857 | 1.3157 | — | — | — | — | trained from step 0; scored at bb100k only |
+| B8 | teacher | 1.2865 | 1.3239 | — | — | — | — | trained from step 0; scored at bb100k only |
 | B9 | student | 1.2791 | 1.3299 | — | — | — | — | the extend rule held this cell at 100k |
 | B9 | teacher | 1.2728 | 1.3094 | — | — | — | — | the extend rule held this cell at 100k |
 | B10 | student | 1.2669 | 1.2403 | 1.2624 | +0.0221 | [+0.0032, +0.0481] | +1.8% |  |
@@ -272,7 +273,7 @@ A3's is the ladder's largest reversal, but it is not the only one: 5 of the 8 th
 | A4 | 1.0862 | 1.0801 | 1.0660 | -0.0141 | monotone |
 | B1 | 1.0850 | 1.0881 | 1.1009 | +0.0128 | monotone |
 | B2 | 1.3976 | 1.3443 | 1.2904 | -0.0539 | monotone |
-| B4 | 1.3334 | 1.2804 | 1.3182 | +0.0378 | turns round |
+| B4 | 1.3334 | 1.2804 | 1.3182 | +0.0379 | turns round |
 | B6 | 1.2297 | 1.2151 | 1.2207 | +0.0056 | turns round |
 | B10 | 1.2669 | 1.2403 | 1.2624 | +0.0221 | turns round |
 
@@ -621,8 +622,8 @@ denominator.
   ([`results/verify_scores.log`](results/verify_scores.log)).
 - **The grid.** The 14 × 3 × 2 coverage table rebuilt from the score files
   alone, so it does not read the queue's state files that wrote
-  `results/coverage.md`. 72 of 72, none missing, none scored that this round
-  did not owe ([`results/verify_coverage.log`](results/verify_coverage.log)).
+  `results/coverage.md`. 72 of 72, none missing, none scored outside the
+  coverage grid ([`results/verify_coverage.log`](results/verify_coverage.log)).
 - **The re-weighting control.** The ×4 weight read off the loss curve, not the
   launcher. On a shared seed and batch order the control sits +3.73 above its
   own `k = 0` baseline at step 1, and it writes no `cos_err_d*` column. So the

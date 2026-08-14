@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """#373 — every table the report carries, from the score files and the splits.
 
-Eight tables, in the order the report asks its questions:
+Ten tables, in the order the report asks its questions:
 
+  0. limits          what the study cannot support, one row per claim, with
+                     every number read from the same variable the table that
+                     prints it reads.
   1. coverage        which of the card's 14 cells this study trained.
   2. reproduction    this study's retrained k = 0 against the published one,
                      grouped by the machine it trained on.
@@ -81,7 +84,7 @@ EXTEND_NOTE[("A4", "teacher")] = "extended by hand; the rule's move is inside th
 # B8 is the round's new cell: it started from step 0 and the queue took it to
 # 100k, the stop every other cell already held. It was never queued past it.
 for _h in ("student", "teacher"):
-    EXTEND_NOTE[("B8", _h)] = "trained from 0 this round; queued to 100k only"
+    EXTEND_NOTE[("B8", _h)] = "trained from step 0; scored at bb100k only"
 # B1's bb40k number carries no note here. Round 1 wrote it under a `G6_`
 # name no later script could find, and the report's annex says so once, in
 # full. Two copies of one operational fact drift; the annex keeps the copy,
@@ -288,6 +291,8 @@ def main(argv=None):
     tally = {h: {"better": 0, "flat": 0, "worse": 0}
              for h in ("student", "teacher")}
     dup_rows = []
+    # The bb200k column of this table, which the limits table reads back.
+    pub200 = []
     for cell in CARD_CELLS:
         for head in ("student", "teacher"):
             dup = head == "student" and cell in DUP_STUDENT
@@ -304,6 +309,8 @@ def main(argv=None):
                      "worse" if d >= NOISE_BAND else "flat")
                 if stop == 100 and not dup:
                     tally[head][v] += 1
+                if stop == 200 and head == "student":
+                    pub200.append((cell, d))
                 ci = pub_ci.get((cell, stop, head))
                 if ci is not None:
                     v += f"<br>[{ci[0]:+.4f}, {ci[1]:+.4f}]"
@@ -364,7 +371,11 @@ def main(argv=None):
     # The interval on each Δ, from the same paired dataset-cluster bootstrap
     # the depth contrasts use. A Δ with no interval beside it cannot be read
     # against the head-seed band, so the column ships with the numbers.
-    stop_ci = {}
+    # The point estimate comes from the same file as the interval beside it.
+    # Subtracting the two score files again lands on the other side of a
+    # rounding boundary on B4 student (1.318241 - 1.280391 = 0.037850), so the
+    # report printed +0.0378 next to an interval computed around +0.0379.
+    stop_ci, stop_d = {}, {}
     sbp = Path(args.results) / "stop_bootstrap.csv"
     if sbp.is_file():
         for r in csv.DictReader(open(sbp)):
@@ -372,6 +383,7 @@ def main(argv=None):
                 continue
             cell, _, head = r["label"].partition("_stop200v100_")
             stop_ci[(cell, head)] = (float(r["ci_lo"]), float(r["ci_hi"]))
+            stop_d[(cell, head)] = float(r["delta"])
 
     rows, deltas = [], []
     for cell in CARD_CELLS:
@@ -380,7 +392,7 @@ def main(argv=None):
                        sv(cell, 200, head))
             if b is None:
                 continue
-            d = None if c is None else c - b
+            d = None if c is None else stop_d.get((cell, head), c - b)
             if d is not None:
                 deltas.append((d, cell, head))
             ci = stop_ci.get((cell, head))
@@ -524,8 +536,10 @@ def main(argv=None):
               "| cell | bb40k | bb100k | bb200k | bb200k − bb100k | shape |",
               "|---|---|---|---|---|---|"]
         for cell, v, mono in turns:
+            # Same delta, same source as the stop ladder above it.
+            d = stop_d.get((cell, "student"), v[2] - v[1])
             L.append(f"| {cell} | {v[0]:.4f} | {v[1]:.4f} | {v[2]:.4f} | "
-                     f"{v[2] - v[1]:+.4f} | "
+                     f"{d:+.4f} | "
                      f"{'monotone' if mono else 'turns round'} |")
         L.append("")
 
@@ -763,12 +777,19 @@ def main(argv=None):
           "all | short | med+long | criterion |",
           "|---|---|---|---|---|---|---|---|---|---|---|---|"]
     held_arms, depths = set(), set()
+    # The machine-held k = 0 / k = 3 pairs on the student head: the two the
+    # report leads on, and the row the limits table reads them back into.
+    held_student = []
     for arm, head, k, base, deep in R.pairs(tags):
         a, b = val(base.tag), val(deep.tag)
         A, B = sp.get(base.tag, {}), sp.get(deep.tag, {})
         depths.add(k)
         if R.machine_held(base, deep):
             held_arms.add(arm)
+            r = bs.get((boot_label(arm, k, head), "all"))
+            if head == "student" and k == 3 and r is not None:
+                held_student.append((arm, float(r["delta"]),
+                                     float(r["ci_lo"]), float(r["ci_hi"])))
         ok = "—"
         if A and B:
             dm = 100.0 * (B["medium_long"] / A["medium_long"] - 1.0)
@@ -1060,7 +1081,7 @@ def main(argv=None):
     # The rows that fail the test go to the paragraph under the table, with
     # the reason they fail, rather than into a column a reader has to
     # discount while reading.
-    agree_rows, partial = [], []
+    agree_rows, partial, agree_pct = [], [], []
     for arm in R.ARM_ORDER:
         a, b = st.get((arm, 0)), st.get((arm, 3))
         if not a or not b or not a["compute_ms"] or not b["compute_ms"]:
@@ -1075,6 +1096,7 @@ def main(argv=None):
                 f"| {arm}, over its own run | {c0:.1f} ms | {c3:.1f} ms | "
                 f"{c3 / c0 - 1:+.0%} | {where} | "
                 "[`results/steptime_solo.csv`](results/steptime_solo.csv) |")
+            agree_pct.append(c3 / c0 - 1)
         else:
             side = "k = 0" if not full_run(a) else "k = 3"
             r = a if not full_run(a) else b
@@ -1087,6 +1109,7 @@ def main(argv=None):
         "| B5, alternating on one elisa card | 190.2 ms | 509.9 ms | +168% | "
         "one card, 3 reps of 600 steps | "
         "[`results/steptime_B5_solo.log`](results/steptime_B5_solo.log) |")
+    agree_pct.append(509.9 / 190.2 - 1)
     L += ["", "The two probes that agree:", "",
           "| probe | k = 0 | k = 3 | change | what the two sides hold | "
           "source |", "|---|---|---|---|---|---|"] + agree_rows + [""]
@@ -1169,7 +1192,89 @@ def main(argv=None):
           "200-step window. Two runs on one data order print one count |",
           ""]
 
-    body = "\n".join(L) + "\n"
+    # ---- 0. what the study cannot support ----------------------------------
+    # The report's limits, one row per claim. This table used to be written by
+    # hand above the TABLES markers, and it re-printed four headline numbers
+    # the generated tables already carried. Four copies of one value drift, so
+    # every number here now comes from the same variable the table that prints
+    # it comes from, and a row with no number of its own points at the table
+    # that holds it.
+    def boot_ci(label):
+        r = bs.get((label, "all"))
+        return None if r is None else (float(r["delta"]), float(r["ci_lo"]),
+                                       float(r["ci_hi"]))
+
+    ns_rows = []
+    if len(held_student) == 2:
+        (a1, d1, lo1, hi1), (a2, d2, lo2, hi2) = sorted(
+            held_student, key=lambda t: t[1])
+        ns_rows.append(
+            "| That `k = 3` helps, or that it hurts | The two machine-held "
+            "`k = 0` / `k = 3` pairs disagree in sign and both intervals "
+            f"exclude zero: {a1} {d1:+.4f} [{lo1:+.4f}, {hi1:+.4f}], "
+            f"{a2} {d2:+.4f} [{lo2:+.4f}, {hi2:+.4f}]. They differ in the "
+            "cell, the backbone seed and the f-bearing term, so nothing here "
+            "says which of the three flips the sign. |")
+    ns_rows += [
+        "| That the gain is the depth alone | B1 is the one cell that carries "
+        "the `L_align` ×4 re-weighting control on one machine, and the "
+        "re-weighting moves the score on its own. The B1 table below prints "
+        "its share of the move, per head. |",
+        "| That one of the two pays more than the other | The re-weighting's "
+        "move and the depth's move sit inside each other's 95% intervals, in "
+        "the same B1 table. That cell measures both and ranks neither. |",
+        "| Any per-cell verdict | Every cell is n = 1 in the backbone seed. "
+        f"The ±{NOISE_BAND:.4f} band bounds the HEAD seed alone, and "
+        "backbone-seed variance is unmeasured. |"]
+    k1 = boot_ci("A3_k1_student")
+    if k1:
+        ns_rows.append(
+            "| That depth 3 is the right depth | Only `k = 3` ran on the 14 "
+            "cells. One ladder holds a second depth, on A3, and its `k = 1` "
+            f"delta covers zero: {k1[0]:+.4f} [{k1[1]:+.4f}, {k1[2]:+.4f}] on "
+            "the student. |")
+    mach = boot_ci("B5_machine_k0_student")
+    if mach and held_arms:
+        ns_rows.append(
+            "| The per-horizon criterion of the card, the issue this study "
+            "answers, at scale | It is applied as a test on the "
+            f"{len(held_arms)} machine-held arms, "
+            f"{', '.join(sorted(held_arms))}, at one stop, bb40k. Every other "
+            f"pair crosses a machine, and the machine is worth "
+            f"{abs(mach[0]):.4f}. |")
+    if pub200:
+        won = sorted((d, c) for c, d in pub200 if d < 0)
+        lost = sorted(((d, c) for c, d in pub200 if d > 0), reverse=True)
+        ns_rows.append(
+            f"| That `k = 3` leads at 200k | {len(pub200)} cells hold a "
+            "published `k = 0` at 200k. "
+            + (", ".join(f"{c} by {d:+.4f}" for d, c in won)
+               + (" lead it. " if len(won) != 1 else " leads it. ")
+               if won else "")
+            + (", ".join(f"{c} by {d:+.4f}" for d, c in lost)
+               + (" lose it" if len(lost) != 1 else " loses it")
+               + f", against a largest gain of {won[0][0]:+.4f}, so the "
+                 f"{len(pub200)} cells do not point one way. |"
+               if lost and won else "|"))
+    if agree_pct:
+        cost = (f"Two probes agree at {min(agree_pct):+.0%} and "
+                f"{max(agree_pct):+.0%} step time.")
+        for arm, c0, c3, _side, ws, wt in partial:
+            cost += (f" {arm}'s {c3 / c0 - 1:+.0%} covers {ws} of its {wt} "
+                     "timing windows and crosses a box, so it is not "
+                     "comparable to them.")
+        ns_rows.append(f"| The cost of the depth | {cost} |")
+    ns_rows.append(
+        "| That the 200k reading is unconditional | The extend rule reads the "
+        "bb40k-to-bb100k contrast, which the Protocol calls not head-matched. "
+        f"It fired inside its own ±{NOISE_BAND:.4f} band on "
+        f"{len(stopped_inband)} stopped cells, and both manual overrides "
+        "extended. |")
+    NS = ["## What this study cannot support", "",
+          "| the claim | what stops it |", "|---|---|"] + ns_rows + \
+         ["", "## Tables", ""]
+
+    body = "\n".join(NS + L) + "\n"
     Path(args.out).write_text(body)
     print(f"wrote {args.out} ({len(reg)} run(s), {len(trained)} cell(s))")
 

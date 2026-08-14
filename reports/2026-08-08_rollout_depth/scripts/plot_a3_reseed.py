@@ -104,8 +104,7 @@ def main(argv=None):
     hi = max(list(st) + list(te) + [draw2, st[-1] + NOISE_BAND])
     ax.set_ylim(lo - 0.10 * (hi - lo), hi + 0.14 * (hi - lo))
     ax.set_ylabel("GM-Relative MASE, 97 configs")
-    ax.set_title("A3, k = 3: two heads on one backbone, and a second draw "
-                 "of one of them")
+    ax.set_title("A3, k = 3: two heads on one backbone")
     # The labels name the machine, so they are too wide to sit inside the
     # axes without covering the teacher line. The legend goes under it.
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.09),

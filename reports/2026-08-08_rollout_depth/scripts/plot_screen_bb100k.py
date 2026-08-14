@@ -114,8 +114,10 @@ def main(argv=None):
     ax.set_yticklabels([f"{c} ‡" if c in SHARED else c for c, *_ in rows])
     ax.set_xlabel("GM-Relative MASE, this study's k = 3 minus the published "
                   "k = 0   (97 configs, negative is better)")
+    # The title names what the figure shows and stops there. The shared-model
+    # count is a finding, and the ‡ legend entry already carries it.
     ax.set_title(f"k = 3 against each cell's published k = 0, bb{STOP}k, "
-                 f"{HEAD} head   ({models} distinct models in {len(rows)} cells)")
+                 f"{HEAD} head")
     ends = [v for r in rows for v in (r[3], r[4], r[5]) if v == v]
     lo_end, hi_end = min(ends + [0.0]), max(ends + [0.0])
     pad = 0.62 * (hi_end - lo_end)

@@ -42,7 +42,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import cell_colours as cc                              # noqa: E402
 import runs as R                                       # noqa: E402
-from published import (PUBLISHED, GATE, PUBLISHED_SEED,   # noqa: E402
+from published import (PUBLISHED, PUBLISHED_SEED,         # noqa: E402
                        SEED_BAND, verdict)
 
 plt.rcParams.update(cc.rc())
@@ -132,9 +132,9 @@ def main(argv=None):
     pad = (hi - lo) * 0.12 + 0.01
     ax.set_xlim(lo - pad, hi + pad * 6.5)
     ax.set_xlabel("GM-Relative MASE at bb40k, student head, 97 configs")
-    ax.set_title("Published k = 0 against this study's own k = 0   "
-                 f"(gate: |Δ| ≤ {GATE} at seed {PUBLISHED_SEED}, "
-                 f"≤ {band:.4f} at any other)",
+    # The gate is a protocol caveat, not a label. The reproduction table
+    # states it per row; the title says what the figure shows.
+    ax.set_title("Published k = 0 against this study's own k = 0",
                  loc="left", fontsize=12, pad=15)
     handles = [
         Line2D([], [], marker="o", linestyle="none", markersize=10,

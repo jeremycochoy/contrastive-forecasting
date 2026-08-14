@@ -96,7 +96,7 @@ def main(argv=None):
                 xs, ys = series(d, "ff")
                 xs, ys = smooth(xs, [1.0 - v for v in ys])
                 ax.plot(xs, ys, color=cc.INK, linewidth=1.6,
-                        linestyle=cc.style(0), label="k = 0, depth 0 (1 − ff)")
+                        linestyle=cc.style(0), label="k = 0, depth 0")
                 continue
             for j in range(8):
                 key = f"cos_err_d{j}"

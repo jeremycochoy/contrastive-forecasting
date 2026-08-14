@@ -1,3 +1,19 @@
+## What this study cannot support
+
+| the claim | what stops it |
+|---|---|
+| That `k = 3` helps, or that it hurts | The two machine-held `k = 0` / `k = 3` pairs disagree in sign and both intervals exclude zero: B1 -0.1175 [-0.1801, -0.0615], B5·s2 +0.0575 [+0.0173, +0.1094]. They differ in the cell, the backbone seed and the f-bearing term, so nothing here says which of the three flips the sign. |
+| That the gain is the depth alone | B1 is the one cell that carries the `L_align` ×4 re-weighting control on one machine, and the re-weighting moves the score on its own. The B1 table below prints its share of the move, per head. |
+| That one of the two pays more than the other | The re-weighting's move and the depth's move sit inside each other's 95% intervals, in the same B1 table. That cell measures both and ranks neither. |
+| Any per-cell verdict | Every cell is n = 1 in the backbone seed. The ±0.0384 band bounds the HEAD seed alone, and backbone-seed variance is unmeasured. |
+| That depth 3 is the right depth | Only `k = 3` ran on the 14 cells. One ladder holds a second depth, on A3, and its `k = 1` delta covers zero: -0.0195 [-0.0537, +0.0148] on the student. |
+| The per-horizon criterion of the card, the issue this study answers, at scale | It is applied as a test on the 2 machine-held arms, B1, B5·s2, at one stop, bb40k. Every other pair crosses a machine, and the machine is worth 0.1166. |
+| That `k = 3` leads at 200k | 4 cells hold a published `k = 0` at 200k. A2 by -0.1079, B6 by -0.0804, B1 by -0.0643 lead it. B2 by +0.1054 loses it, against a largest gain of -0.1079, so the 4 cells do not point one way. |
+| The cost of the depth | Two probes agree at +157% and +168% step time. A3's +13% covers 127 of its 273 timing windows and crosses a box, so it is not comparable to them. |
+| That the 200k reading is unconditional | The extend rule reads the bb40k-to-bb100k contrast, which the Protocol calls not head-matched. It fired inside its own ±0.0384 band on 4 stopped cells, and both manual overrides extended. |
+
+## Tables
+
 ### Coverage
 
 The card names 14 cells. This study scored **14 of them**: A1, A2, A3, A4, B1, B2, B3, B4, B5, B6, B7, B8, B9, B10. Every cell carries a number.
@@ -86,7 +102,7 @@ The interval is a 95% paired dataset-cluster bootstrap over the pair's 97 config
 | B2 | teacher | 1.4041 | 1.3117 | 1.2825 | -0.0292 | [-0.0604, -0.0016] | -2.2% |  |
 | B3 | student | 1.1305 | 1.1676 | — | — | — | — | the extend rule held this cell at 100k |
 | B3 | teacher | 1.1343 | 1.1618 | — | — | — | — | the extend rule held this cell at 100k |
-| B4 | student | 1.3334 | 1.2804 | 1.3182 | +0.0378 | [+0.0089, +0.0742] | +3.0% |  |
+| B4 | student | 1.3334 | 1.2804 | 1.3182 | +0.0379 | [+0.0089, +0.0742] | +3.0% |  |
 | B4 | teacher | 1.3339 | 1.2748 | 1.3202 | +0.0454 | [+0.0181, +0.0807] | +3.6% |  |
 | B5 | student | 1.3204 | 1.3383 | — | — | — | — | the extend rule held this cell at 100k |
 | B5 | teacher | 1.3216 | 1.3428 | — | — | — | — | the extend rule held this cell at 100k |
@@ -94,8 +110,8 @@ The interval is a 95% paired dataset-cluster bootstrap over the pair's 97 config
 | B6 | teacher | 1.2184 | 1.2110 | 1.2339 | +0.0230 | [+0.0032, +0.0440] | +1.9% |  |
 | B7 | student | 1.2617 | 1.3205 | — | — | — | — | the extend rule held this cell at 100k |
 | B7 | teacher | 1.2444 | 1.2780 | — | — | — | — | the extend rule held this cell at 100k |
-| B8 | student | 1.2857 | 1.3157 | — | — | — | — | trained from 0 this round; queued to 100k only |
-| B8 | teacher | 1.2865 | 1.3239 | — | — | — | — | trained from 0 this round; queued to 100k only |
+| B8 | student | 1.2857 | 1.3157 | — | — | — | — | trained from step 0; scored at bb100k only |
+| B8 | teacher | 1.2865 | 1.3239 | — | — | — | — | trained from step 0; scored at bb100k only |
 | B9 | student | 1.2791 | 1.3299 | — | — | — | — | the extend rule held this cell at 100k |
 | B9 | teacher | 1.2728 | 1.3094 | — | — | — | — | the extend rule held this cell at 100k |
 | B10 | student | 1.2669 | 1.2403 | 1.2624 | +0.0221 | [+0.0032, +0.0481] | +1.8% |  |
@@ -124,7 +140,7 @@ A3's is the ladder's largest reversal, but it is not the only one: 5 of the 8 th
 | A4 | 1.0862 | 1.0801 | 1.0660 | -0.0141 | monotone |
 | B1 | 1.0850 | 1.0881 | 1.1009 | +0.0128 | monotone |
 | B2 | 1.3976 | 1.3443 | 1.2904 | -0.0539 | monotone |
-| B4 | 1.3334 | 1.2804 | 1.3182 | +0.0378 | turns round |
+| B4 | 1.3334 | 1.2804 | 1.3182 | +0.0379 | turns round |
 | B6 | 1.2297 | 1.2151 | 1.2207 | +0.0056 | turns round |
 | B10 | 1.2669 | 1.2403 | 1.2624 | +0.0221 | turns round |
 
