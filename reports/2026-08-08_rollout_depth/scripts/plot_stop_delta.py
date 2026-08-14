@@ -18,9 +18,9 @@ Colour carries nothing in this figure. The report's palette names a cell by
 hue and holds four hues on purpose; this figure draws eight cells, so the
 cell rides the axis label and every bar takes one neutral ink.
 
-Reads results/stop_bootstrap.csv (`all` rows) for the interval and
-results/splits.csv for the levels, which is the source the report's stop-ladder
-table reads, so the figure and the table cannot print one number two ways.
+Reads results/stop_bootstrap.csv (`all` rows) for the Δ and its interval, and
+results/splits.csv for the levels. The report's stop-ladder table reads the
+same two sources, so the figure and the table cannot print one number two ways.
 
 Usage: plot_stop_delta.py --results results --out plots/stop_delta.png
 """
@@ -76,8 +76,14 @@ def score(res, sp, cell, stop, head):
 
 
 def load(res):
-    """`[(cell, head, v100, v200, delta, lo, hi), ...]`, worst delta last."""
-    ci = {}
+    """`[(cell, head, v100, v200, delta, lo, hi), ...]`, worst delta last.
+
+    The Δ comes from the same file as the interval beside it. Subtracting the
+    two score files again lands on the other side of a rounding boundary on B4
+    student (1.318241 - 1.280391 = 0.037850), so the figure would print
+    +0.0378 where the report's stop-ladder table prints +0.0379.
+    """
+    ci, delta = {}, {}
     p = Path(res) / "stop_bootstrap.csv"
     if p.is_file():
         for r in csv.DictReader(open(p)):
@@ -86,6 +92,7 @@ def load(res):
             # label is `<cell>_stop200v100_<head>`
             cell, _, head = r["label"].partition("_stop200v100_")
             ci[(cell, head)] = (float(r["ci_lo"]), float(r["ci_hi"]))
+            delta[(cell, head)] = float(r["delta"])
 
     sp = splits(res)
     rows = []
@@ -96,7 +103,8 @@ def load(res):
             if a is None or b is None:
                 continue
             lo, hi = ci.get((cell, head), (float("nan"), float("nan")))
-            rows.append((cell, head, a, b, b - a, lo, hi))
+            d = delta.get((cell, head), b - a)
+            rows.append((cell, head, a, b, d, lo, hi))
     rows.sort(key=lambda r: r[4])
     return rows
 
