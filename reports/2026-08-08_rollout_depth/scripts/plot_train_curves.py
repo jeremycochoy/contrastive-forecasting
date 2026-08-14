@@ -82,8 +82,12 @@ def main(argv=None):
 
     for name, panel, title in PANELS:
         cols = [c for c, _lab in panel]
+        # The legend goes in a reserved band under the panels, so the figure
+        # grows by the band rather than the band covering the curves.
+        ncol = 2 if len(panel) > 1 else 1
+        band = 0.21 * -(-len(runs) // ncol) + 0.15
         fig, axes = plt.subplots(1, len(panel),
-                                 figsize=(6.2 * len(panel), 4.2),
+                                 figsize=(6.2 * len(panel), 4.2 + band),
                                  squeeze=False)
         drew = False
         for ax, (col, ylab) in zip(axes[0], panel):
@@ -107,9 +111,13 @@ def main(argv=None):
                           label=f"{cc.label(c)}  k = {k}"
                                 + ("  ✗ retracted" if cc.retracted(c) else ""))
                    for c, k, _p in runs]
-        axes[0][-1].legend(handles=handles, frameon=False, fontsize=8)
+        # The legend sits in that band, not inside a panel: eleven entries
+        # drawn over a single panel covered the curves they name.
+        frac = band / (4.2 + band)
+        fig.legend(handles=handles, frameon=False, fontsize=8, ncol=ncol,
+                   loc="upper center", bbox_to_anchor=(0.5, frac))
         fig.suptitle(title, fontsize=10)
-        fig.tight_layout(rect=(0, 0, 1, 0.95))
+        fig.tight_layout(rect=(0, frac, 1, 0.96))
         path = out_dir / f"{name}.png"
         fig.savefig(path, bbox_inches="tight")
         plt.close(fig)

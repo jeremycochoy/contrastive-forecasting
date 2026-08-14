@@ -1,9 +1,62 @@
+## Did the card's criteria pass?
+
+| cell | med+long, 42 configs | short, 55 configs | PRIMARY | full-97 Δ | SECONDARY |
+|---|---|---|---|---|---|
+| A1 | -5.9% | -1.7% | **PASS** | -0.0426 | **PASS** |
+| A2 | -17.6% | -4.3% | **PASS** | -0.1434 | **PASS** |
+| A3 | -3.2% | +19.6% | fail | +0.1089 | fail |
+| A4 | -13.5% | -6.5% | **PASS** | -0.1144 | **PASS** |
+| B1 | -9.4% | -3.9% | **PASS** | -0.0735 | **PASS** |
+| B2 | +1.0% | +12.6% | fail | +0.0929 | fail |
+| B3 | -7.9% | -5.0% | **PASS** | -0.0780 | **PASS** |
+| B4 | -19.5% | +5.0% | fail | -0.0874 | **PASS** |
+| B5 | -3.6% | +5.1% | fail | +0.0164 | fail |
+| B6 | -10.7% | -2.9% | **PASS** | -0.0827 | **PASS** |
+| B7 | -2.9% | +4.9% | fail | +0.0193 | fail |
+| B8 | -10.8% | +6.1% | fail | -0.0211 | fail |
+| B9 | -21.4% | +2.6% | fail | -0.1249 | **PASS** |
+| B10 | -15.4% | -7.2% | **PASS** | -0.1511 | **PASS** |
+
+**7 of 14 cells meet the primary criterion at bb100k, and 9 of 14 meet the secondary one.** At bb40k it is 8 and 9 of 14; at bb200k, 3 and 3 of 4; on the teacher head at bb100k, where only group A publishes a baseline, 3 and 3 of 4.
+
+Primary: medium+long at least 5% better AND short losing less than 2%. Secondary: full-97 Δ at or below −0.0384, the head-seed band. Δ is `k = 3` minus the cell's published `k = 0`, so negative is a gain. Student head at bb100k, the stop every one of the 14 cells reached.
+
+The count is over CELLS. A1 and B3 hold one student model between them, so the same 14 cells hold 13 student models and the model count of the secondary criterion is one lower than the cell count.
+
+**Both sides of every row trained on a different machine.** This study's one controlled measurement of the machine is worth 0.1166, which is larger than either threshold, so this table is a screen. The two rows that hold the machine are in the depth-response table, and they disagree in sign.
+
+## Collapse watch
+
+The card names three quantities to watch while the f side of the loss carries four times its baseline weight. Every one of them, on every arm that logged it. First line of a cell is the mean over the last 10% of the run; second line is the lowest value over the run's second half.
+
+`ff` is `cos(f_t, h_{t+1})` and `cos_err_dj` is `1 − cos(f^(j)_t, h_{t+1+j})`, so `cos_err_d0` is `1 − ff` and `cos_err_dj` is the card's per-depth `ff`. A collapsed latent points one way, so `u_batchtime` runs toward zero WHILE `ff` runs toward 1. It is that pair, not `ff` alone, that separates collapse from a good forecast.
+
+**Not logged: `qk_logit_maxabs`.** No run in this study writes that column at any depth, so this study does not watch it. Nothing here rules out what it would have shown.
+
+| arm | k | `ff` | `cos_err_d0` | `cos_err_d1` | `cos_err_d2` | `cos_err_d3` | `u_batchtime` on `h_t` | `u_batchtime` on `e_t` |
+|---|---|---|---|---|---|---|---|---|
+| B9 | 0 | 0.3838<br>0.3594 | — | — | — | — | 0.7782<br>0.7561 | 0.3174<br>0.2039 |
+| B9 | 3 | 0.4776<br>0.4250 | 0.5224<br>0.5000 | 0.6384<br>0.6042 | 0.7043<br>0.6706 | 0.7451<br>0.7132 | 0.3892<br>0.2808 | 0.1184<br>0.0950 |
+| B1 | 0 | 0.5226<br>0.4204 | — | — | — | — | 0.3904<br>0.2118 | 0.3696<br>0.1992 |
+| B1 | 3 | 0.6347<br>0.4832 | 0.3653<br>0.2469 | 0.4471<br>0.3029 | 0.4734<br>0.3109 | 0.4857<br>0.3166 | 0.1526<br>0.1231 | 0.1125<br>0.0968 |
+| B5·s1 ✗ | 0 | 0.2946<br>0.2679 | — | — | — | — | 0.9312<br>0.8393 | 0.0423<br>0.0301 |
+| B5·s1 ✗ | 3 | 0.2824<br>0.2578 | 0.7176<br>0.6555 | 0.7354<br>0.6785 | 0.7516<br>0.6901 | 0.7611<br>0.7047 | 0.9354<br>0.8693 | 0.0624<br>0.0525 |
+| B5·s2 | 0 | 0.3060<br>0.2674 | — | — | — | — | 0.9296<br>0.8405 | 0.0443<br>0.0381 |
+| B5·s2 | 3 | 0.3037<br>0.2717 | 0.6963<br>0.6270 | 0.7138<br>0.6555 | 0.7289<br>0.6750 | 0.7403<br>0.6886 | 0.9250<br>0.8409 | 0.0515<br>0.0328 |
+| A3 | 0 | 0.9279<br>0.6831 | — | — | — | — | 0.1445<br>0.1127 | 0.0370<br>0.0284 |
+| A3 | 1 | 0.8120<br>0.6187 | 0.1880<br>0.0800 | 0.2272<br>0.1008 | — | — | 0.1791<br>0.1166 | 0.0697<br>0.0374 |
+| A3 | 3 | 0.8790<br>0.8505 | 0.1210<br>0.0676 | 0.1352<br>0.0725 | 0.1508<br>0.0788 | 0.1592<br>0.0820 | 0.1730<br>0.0800 | 0.0561<br>0.0372 |
+
+The lowest `u_batchtime` any arm reaches over its second half is 0.0284, on `u_batchtime_e`, A3 at k = 0. One direction would give `1/H` = 0.0156 at `d_model = 64`, so that arm sits 1.8× above it. No arm reaches zero at any depth.
+
+On `h_t`, 1 of the 5 arms that trained both depths ends the deeper run below half its own `k = 0` usage: B1 0.3904 → 0.1526. That is a reading and not a verdict. No arm reaches zero, and this study runs no control that separates a lower usage from a worse score.
+
 ## What this study cannot support
 
 | the claim | what stops it |
 |---|---|
 | That `k = 3` helps, or that it hurts | The two machine-held `k = 0` / `k = 3` pairs disagree in sign and both intervals exclude zero: B1 -0.1175 [-0.1801, -0.0615], B5·s2 +0.0575 [+0.0173, +0.1094]. They differ in the cell, the backbone seed and the f-bearing term, so nothing here says which of the three flips the sign. |
-| That the gain is the depth alone | B1 is the one cell that carries the `L_align` ×4 re-weighting control on one machine, and the re-weighting moves the score on its own. The B1 table below prints its share of the move, per head. |
+| That the gain is the depth alone | B1 is the one cell that carries the `L_align` ×4 re-weighting control on one machine, and the re-weighting moves the score on its own. The B1 table in the Tables section prints its share of the move, per head. |
 | That one of the two pays more than the other | The re-weighting's move and the depth's move sit inside each other's 95% intervals, in the same B1 table. That cell measures both and ranks neither. |
 | Any per-cell verdict | Every cell is n = 1 in the backbone seed. The ±0.0384 band bounds the HEAD seed alone, and backbone-seed variance is unmeasured. |
 | That depth 3 is the right depth | Only `k = 3` ran on the 14 cells. One ladder holds a second depth, on A3, and its `k = 1` delta covers zero: -0.0195 [-0.0537, +0.0148] on the student. |
@@ -36,6 +89,54 @@ The card names 14 cells. This study scored **14 of them**: A1, A2, A3, A4, B1, B
 | B10 | L_align + CPC auxiliary | fixed 0.9 | k = 3 | bb40k, bb100k, bb200k |
 
 Stops scored: bb40k, bb100k, bb200k. The card's extend rule reads a cell's bb40k number against its bb100k number, so it fires only where both are in hand.
+
+### Matched-stop comparison: k = 3 against the published k = 0
+
+One row per measurement that holds both sides at the same stop, ranked by Δ inside its stop. Δ is `k = 3` minus the published `k = 0`, so negative is a gain. Bold clears the ±0.0384 head-seed band. `L_align` names the term's target, or `none` where the cell carries no `L_align`.
+
+| cell | arm | `L_align` | head | stop | published k = 0 | k = 3 | Δ |
+|---|---|---|---|---|---|---|---|
+| B9 | `arm1 nse` | none | student | bb40k | 1.5579 | 1.2791 | **-0.2788** |
+| B3 | `arm5 combab` | student | student | bb40k | 1.2868 | 1.1305 | **-0.1563** |
+| A2 | `arm6_v2 nse` | teacher | student | bb40k | 1.4238 | 1.2735 | **-0.1503** |
+| A2 | `arm6_v2 nse` | teacher | teacher | bb40k | 1.4177 | 1.2753 | **-0.1424** |
+| B6 | `arm6_v2 ncpc` | student | student | bb40k | 1.3623 | 1.2297 | **-0.1326** |
+| A1 | `arm5 combab` | student | student | bb40k | 1.2596 | 1.1305 | **-0.1291** |
+| B1 | `arm6_v2 combab` | student | student | bb40k | 1.2025 | 1.0850 | **-0.1175** |
+| B10 | `arm6_v2 nse` | student | student | bb40k | 1.3791 | 1.2669 | **-0.1122** |
+| A1 | `arm5 combab` | student | teacher | bb40k | 1.2347 | 1.1318 | **-0.1029** |
+| A4 | `arm6_v2 combab` | student | student | bb40k | 1.1603 | 1.0862 | **-0.0741** |
+| A4 | `arm6_v2 combab` | student | teacher | bb40k | 1.1544 | 1.0855 | **-0.0689** |
+| B7 | `arm6_v2 ncpc` | teacher | student | bb40k | 1.3159 | 1.2617 | **-0.0542** |
+| B8 | `arm6_v2 nse` | teacher | student | bb40k | 1.3074 | 1.2857 | -0.0217 |
+| B5 | `arm4 combab` | none | student | bb40k | 1.2748 | 1.3204 | **+0.0456** |
+| B4 | `arm5 combab` | teacher | student | bb40k | 1.2728 | 1.3334 | **+0.0606** |
+| B2 | `arm6_v2 combab` | teacher | student | bb40k | 1.2765 | 1.3976 | **+0.1211** |
+| A3 | `arm6_v2 combab` | teacher | student | bb40k | 1.1895 | 1.3618 | **+0.1723** |
+| A3 | `arm6_v2 combab` | teacher | teacher | bb40k | 1.1793 | 1.3521 | **+0.1728** |
+| B10 | `arm6_v2 nse` | student | student | bb100k | 1.3914 | 1.2403 | **-0.1511** |
+| A2 | `arm6_v2 nse` | teacher | student | bb100k | 1.3913 | 1.2479 | **-0.1434** |
+| B9 | `arm1 nse` | none | student | bb100k | 1.4548 | 1.3299 | **-0.1249** |
+| A2 | `arm6_v2 nse` | teacher | teacher | bb100k | 1.3746 | 1.2514 | **-0.1232** |
+| A4 | `arm6_v2 combab` | student | student | bb100k | 1.1945 | 1.0801 | **-0.1144** |
+| A4 | `arm6_v2 combab` | student | teacher | bb100k | 1.1837 | 1.0874 | **-0.0963** |
+| B4 | `arm5 combab` | teacher | student | bb100k | 1.3678 | 1.2804 | **-0.0874** |
+| A1 | `arm5 combab` | student | teacher | bb100k | 1.2407 | 1.1565 | **-0.0842** |
+| B6 | `arm6_v2 ncpc` | student | student | bb100k | 1.2978 | 1.2151 | **-0.0827** |
+| B3 | `arm5 combab` | student | student | bb100k | 1.2456 | 1.1676 | **-0.0780** |
+| B1 | `arm6_v2 combab` | student | student | bb100k | 1.1616 | 1.0881 | **-0.0735** |
+| A1 | `arm5 combab` | student | student | bb100k | 1.2102 | 1.1676 | **-0.0426** |
+| B8 | `arm6_v2 nse` | teacher | student | bb100k | 1.3368 | 1.3157 | -0.0211 |
+| B5 | `arm4 combab` | none | student | bb100k | 1.3219 | 1.3383 | +0.0164 |
+| B7 | `arm6_v2 ncpc` | teacher | student | bb100k | 1.3012 | 1.3205 | +0.0193 |
+| B2 | `arm6_v2 combab` | teacher | student | bb100k | 1.2514 | 1.3443 | **+0.0929** |
+| A3 | `arm6_v2 combab` | teacher | student | bb100k | 1.1921 | 1.3010 | **+0.1089** |
+| A3 | `arm6_v2 combab` | teacher | teacher | bb100k | 1.1963 | 1.3151 | **+0.1188** |
+| A2 | `arm6_v2 nse` | teacher | student | bb200k | 1.3586 | 1.2507 | **-0.1079** |
+| A2 | `arm6_v2 nse` | teacher | teacher | bb200k | 1.3459 | 1.2500 | **-0.0959** |
+| B6 | `arm6_v2 ncpc` | student | student | bb200k | 1.3011 | 1.2207 | **-0.0804** |
+| B1 | `arm6_v2 combab` | student | student | bb200k | 1.1652 | 1.1009 | **-0.0643** |
+| B2 | `arm6_v2 combab` | teacher | student | bb200k | 1.1850 | 1.2904 | **+0.1054** |
 
 ### This study's k = 3 against the published k = 0
 
@@ -79,6 +180,35 @@ The second line of a verdict cell is its 95% paired dataset-cluster interval. Ev
 | B9 | teacher | 1.2728 | — | — | — | 1.3094 | — | — | — | — | — | — | — |
 | B10 | student | 1.2669 | 1.3791 | -0.1122 | better<br>[-0.1996, -0.0340] | 1.2403 | 1.3914 | -0.1511 | better<br>[-0.2239, -0.0908] | 1.2624 | — | — | — |
 | B10 | teacher | 1.2730 | — | — | — | 1.2499 | — | — | — | 1.2440 | — | — | — |
+
+### Stop reasons: what the extend rule read at each cell
+
+The rule reads one cell's bb40k number against its bb100k number, per head. A head that moved down earns the second 100,000 steps; a head that moved up stops. Both columns are bb100k minus bb40k, so negative is an improvement. It held 6 cells at 100k. `last stop` and `ended by` are the parent report's two columns: where each cell finished, and what finished it.
+
+| cell | 40k→100k student | 40k→100k teacher | decision | last stop | ended by | why |
+|---|---|---|---|---|---|---|
+| A1 | +0.0371 | +0.0248 | **stop at 100k** | bb100k | extend rule | both heads moved up |
+| A2 | -0.0256 | -0.0239 | **extend both heads** | bb200k | ladder ceiling | both heads moved down |
+| A3 | -0.0608 | -0.0370 | **extend both heads** | bb200k | ladder ceiling | both heads moved down |
+| A4 | -0.0061 | +0.0019 | **extend both heads** | bb200k | ladder ceiling | the student head moved down; the teacher head moved +0.0019, 5% of the ±0.0384 head-seed band, so the rule decides nothing there. Extended by hand, on free hardware |
+| B1 | +0.0030 | -0.0051 | **extend both heads** | bb200k | ladder ceiling | the card's call: both moves sit inside the ±0.0384 head-seed band, so the rule decides nothing |
+| B2 | -0.0533 | -0.0924 | **extend both heads** | bb200k | ladder ceiling | both heads moved down |
+| B3 | +0.0371 | +0.0276 | **stop at 100k** | bb100k | extend rule | both heads moved up |
+| B4 | -0.0530 | -0.0591 | **extend both heads** | bb200k | ladder ceiling | both heads moved down |
+| B5 | +0.0179 | +0.0212 | **stop at 100k** | bb100k | extend rule | both heads moved up |
+| B6 | -0.0146 | -0.0074 | **extend both heads** | bb200k | ladder ceiling | both heads moved down |
+| B7 | +0.0587 | +0.0336 | **stop at 100k** | bb100k | extend rule | both heads moved up |
+| B8 | +0.0300 | +0.0374 | **stop at 100k** | bb100k | extend rule | both heads moved up |
+| B9 | +0.0508 | +0.0365 | **stop at 100k** | bb100k | extend rule | both heads moved up |
+| B10 | -0.0266 | -0.0231 | **extend both heads** | bb200k | ladder ceiling | both heads moved down |
+
+**The rule selects the panel, and it selects it on an improving first leg.** Three properties of that, stated plainly:
+
+1. It reads the one contrast this study calls not head-matched. A bb40k head trains 15,000 steps and a bb100k head 30,000, so part of every move in the two columns above is the head's own extra 15,000 steps. The Protocol section says so for the depth verdict. It is equally true of the rule.
+2. It fires inside its own noise band. 4 of the 6 stopped cells (A1, B3, B5, B8) moved less than ±0.0384 on BOTH heads. The verdict table above calls a move of that size `flat`.
+3. The manual overrides go one way. A4 and B1 were extended by hand because the rule decides nothing inside the band. That reasoning applies with the same force to the cells in point 2, and none of them was extended.
+
+So the 8 extended cells are enriched for cells that happened to improve from bb40k to bb100k, and regression to the mean is the expected null at bb200k. This study runs no control for it. **Read the 200k verdict as conditional on a panel selected for having improved.**
 
 ### The stop ladder: what the second 100,000 steps buys
 
@@ -143,35 +273,6 @@ A3's is the ladder's largest reversal, but it is not the only one: 5 of the 8 th
 | B4 | 1.3334 | 1.2804 | 1.3182 | +0.0379 | turns round |
 | B6 | 1.2297 | 1.2151 | 1.2207 | +0.0056 | turns round |
 | B10 | 1.2669 | 1.2403 | 1.2624 | +0.0221 | turns round |
-
-### Stop reasons: what the extend rule read at each cell
-
-The rule reads one cell's bb40k number against its bb100k number, per head. A head that moved down earns the second 100,000 steps; a head that moved up stops. Both columns are bb100k minus bb40k, so negative is an improvement. It held 6 cells at 100k.
-
-| cell | 40k→100k student | 40k→100k teacher | decision | why |
-|---|---|---|---|---|
-| A1 | +0.0371 | +0.0248 | **stop at 100k** | both heads moved up |
-| A2 | -0.0256 | -0.0239 | **extend both heads** | both heads moved down |
-| A3 | -0.0608 | -0.0370 | **extend both heads** | both heads moved down |
-| A4 | -0.0061 | +0.0019 | **extend both heads** | the student head moved down; the teacher head moved +0.0019, 5% of the ±0.0384 head-seed band, so the rule decides nothing there. Extended by hand, on free hardware |
-| B1 | +0.0030 | -0.0051 | **extend both heads** | the card's call: both moves sit inside the ±0.0384 head-seed band, so the rule decides nothing |
-| B2 | -0.0533 | -0.0924 | **extend both heads** | both heads moved down |
-| B3 | +0.0371 | +0.0276 | **stop at 100k** | both heads moved up |
-| B4 | -0.0530 | -0.0591 | **extend both heads** | both heads moved down |
-| B5 | +0.0179 | +0.0212 | **stop at 100k** | both heads moved up |
-| B6 | -0.0146 | -0.0074 | **extend both heads** | both heads moved down |
-| B7 | +0.0587 | +0.0336 | **stop at 100k** | both heads moved up |
-| B8 | +0.0300 | +0.0374 | **stop at 100k** | both heads moved up |
-| B9 | +0.0508 | +0.0365 | **stop at 100k** | both heads moved up |
-| B10 | -0.0266 | -0.0231 | **extend both heads** | both heads moved down |
-
-**The rule selects the panel, and it selects it on an improving first leg.** Three properties of that, stated plainly:
-
-1. It reads the one contrast this study calls not head-matched. A bb40k head trains 15,000 steps and a bb100k head 30,000, so part of every move in the two columns above is the head's own extra 15,000 steps. The Protocol section says so for the depth verdict. It is equally true of the rule.
-2. It fires inside its own noise band. 4 of the 6 stopped cells (A1, B3, B5, B8) moved less than ±0.0384 on BOTH heads. The verdict table above calls a move of that size `flat`.
-3. The manual overrides go one way. A4 and B1 were extended by hand because the rule decides nothing inside the band. That reasoning applies with the same force to the cells in point 2, and none of them was extended.
-
-So the 8 extended cells are enriched for cells that happened to improve from bb40k to bb100k, and regression to the mean is the expected null at bb200k. This study runs no control for it. **Read the 200k verdict as conditional on a panel selected for having improved.**
 
 ### The four same-arm pairs: two models, or one
 

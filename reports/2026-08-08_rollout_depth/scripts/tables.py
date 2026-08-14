@@ -269,6 +269,38 @@ def main(argv=None):
                 pub_ci[(m.group(1), int(m.group(2)), m.group(3))] = (
                     float(r["ci_lo"]), float(r["ci_hi"]))
 
+    # ---- 1a''. the matched-stop comparison ---------------------------------
+    # The parent report's `Matched-stop comparison` table, rebuilt. Same
+    # shape: one row per measurement, ranked by delta inside its own stop,
+    # bold where the delta clears the head-seed band. Where the parent
+    # subtracted `fixed 0.9` from `scheduled`, this subtracts each cell's
+    # published `k = 0` from its `k = 3`.
+    ms = []
+    for stop in (40, 100, 200):
+        block = []
+        for cell in CARD_CELLS:
+            for head in ("student", "teacher"):
+                mine, base = sv(cell, stop, head), pub(cell, head, stop)
+                if mine is None or base is None:
+                    continue
+                block.append((mine - base, cell, head, base, mine))
+        block.sort()
+        for d, cell, head, base, mine in block:
+            arm, target, _ema = L2.CELL_ARM[cell]
+            big = abs(d) >= NOISE_BAND
+            ms.append(f"| {cell} | `{arm}` | {target} | {head} | bb{stop}k | "
+                      f"{base:.4f} | {mine:.4f} | "
+                      + (f"**{d:+.4f}**" if big else f"{d:+.4f}") + " |")
+    L += ["### Matched-stop comparison: k = 3 against the published k = 0",
+          "",
+          "One row per measurement that holds both sides at the same stop, "
+          "ranked by Δ inside its stop. Δ is `k = 3` minus the published "
+          f"`k = 0`, so negative is a gain. Bold clears the ±{NOISE_BAND:.4f} "
+          "head-seed band. `L_align` names the term's target, or `none` "
+          "where the cell carries no `L_align`.", "",
+          "| cell | arm | `L_align` | head | stop | published k = 0 | k = 3 | "
+          "Δ |", "|---|---|---|---|---|---|---|---|"] + ms + [""]
+
     # Two tallies, because the two head columns do not cover the same cells.
     # Every one of the 14 cells has a published STUDENT number at bb100k, and
     # only group A published a teacher, so a pooled count would silently
@@ -361,6 +393,166 @@ def main(argv=None):
           "| | 200k k=3 | 200k pub | Δ | |",
           "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"] \
          + rows + [""]
+
+    # ---- 0a. the card's two success criteria, per cell ----------------------
+    # The card sets a PRIMARY criterion on the horizon split and a SECONDARY
+    # one on the full 97. Both are per-cell, both take a pass or a fail, and
+    # both are answered here rather than left for the reader to derive from
+    # the delta tables.
+    #
+    #   primary    medium+long (42 configs) at least 5% better, AND short
+    #              (55 configs) losing less than 2%. `published_bootstrap.py`
+    #              computes both percentages per cell, per stop, per head
+    #              into `criterion_screen.csv`.
+    #   secondary  full-97 GM-Relative MASE lower than the k = 0 cell by
+    #              more than the head-seed band, so Δ <= -NOISE_BAND. That
+    #              is the same threshold the delta table's `better` verdict
+    #              uses, applied as the card's own test.
+    #
+    # Both sides of every row cross a machine, which this study measures at
+    # 0.1166. That is larger than the criterion's own threshold, so the
+    # table is a SCREEN. The depth-response table holds the machine and is
+    # where the primary criterion runs as a test.
+    CRIT = []
+    scr = {}
+    scrp = Path(args.results) / "criterion_screen.csv"
+    if scrp.is_file():
+        for r in csv.DictReader(open(scrp)):
+            scr[(r["cell"], int(r["stop_k"]), r["head"])] = r
+
+    def crit_counts(stop, head):
+        """`(primary met, secondary met, rows)` for one stop and head."""
+        p = s = n = 0
+        for cell in CARD_CELLS:
+            row = scr.get((cell, stop, head))
+            mine, base = sv(cell, stop, head), pub(cell, head, stop)
+            if row is None or mine is None or base is None:
+                continue
+            n += 1
+            p += row["criterion_met"] == "yes"
+            s += (mine - base) <= -NOISE_BAND
+        return p, s, n
+
+    if scr:
+        crows = []
+        for cell in CARD_CELLS:
+            row = scr.get((cell, 100, "student"))
+            mine, base = sv(cell, 100, "student"), pub(cell, "student", 100)
+            if row is None or mine is None or base is None:
+                continue
+            ml, sh = float(row["pct_medium_long"]), float(row["pct_short"])
+            ok1 = row["criterion_met"] == "yes"
+            d = mine - base
+            ok2 = d <= -NOISE_BAND
+            crows.append(
+                f"| {cell} | {ml:+.1f}% | {sh:+.1f}% | "
+                f"{'**PASS**' if ok1 else 'fail'} | {d:+.4f} | "
+                f"{'**PASS**' if ok2 else 'fail'} |")
+        p100, s100, n100 = crit_counts(100, "student")
+        p40, s40, n40 = crit_counts(40, "student")
+        p200, s200, n200 = crit_counts(200, "student")
+        pT, sT, nT = crit_counts(100, "teacher")
+        CRIT += [
+            "| cell | med+long, 42 configs | short, 55 configs | PRIMARY | "
+            "full-97 Δ | SECONDARY |", "|---|---|---|---|---|---|"] + crows + [
+            "",
+            f"**{p100} of {n100} cells meet the primary criterion at bb100k, "
+            f"and {s100} of {n100} meet the secondary one.** At bb40k it is "
+            f"{p40} and {s40} of {n40}; at bb200k, {p200} and {s200} of "
+            f"{n200}; on the teacher head at bb100k, where only group A "
+            f"publishes a baseline, {pT} and {sT} of {nT}.", "",
+            "Primary: medium+long at least 5% better AND short losing less "
+            f"than 2%. Secondary: full-97 Δ at or below −{NOISE_BAND:.4f}, "
+            "the head-seed band. Δ is `k = 3` minus the cell's published "
+            "`k = 0`, so negative is a gain. Student head at bb100k, the "
+            "stop every one of the 14 cells reached.", "",
+            "The count is over CELLS. A1 and B3 hold one student model "
+            "between them, so the same 14 cells hold 13 student models and "
+            "the model count of the secondary criterion is one lower than "
+            "the cell count.", "",
+            "**Both sides of every row trained on a different machine.** "
+            "This study's one controlled measurement of the machine is worth "
+            "0.1166, which is larger than either threshold, so this table is "
+            "a screen. The two rows that hold the machine are in the "
+            "depth-response table, and they disagree in sign.", ""]
+
+    # ---- 1b'. why each cell stopped where it stopped -------------------------
+    # The ladder above says what the extra steps bought. It does not say why
+    # six cells never took them. That decision is the extend rule, and the
+    # rule is arithmetic on two numbers the table already holds: a head earns
+    # 200k when its bb100k score sits BELOW its bb40k score, and stops when it
+    # sits above. Printing the two moves beside the decision makes the rule
+    # checkable against the score files rather than taken on trust.
+    rows, stopped_inband, extended = [], [], []
+    for cell in CARD_CELLS:
+        mv = {h: (None if (sv(cell, 40, h) is None or sv(cell, 100, h) is None)
+                  else sv(cell, 100, h) - sv(cell, 40, h))
+              for h in ("student", "teacher")}
+        s, t = mv["student"], mv["teacher"]
+        if s is None or t is None:
+            continue
+        down = [h for h in ("student", "teacher") if mv[h] < 0]
+        if cell in STOP_CALL:
+            dec, why = STOP_CALL[cell]
+        elif len(down) == 2:
+            dec, why = ("extend both heads", "both heads moved down")
+        elif not down:
+            dec, why = ("stop at 100k", "both heads moved up")
+        else:
+            up = "teacher" if down[0] == "student" else "student"
+            dec, why = (f"extend the {down[0]} head",
+                        f"split: the {down[0]} head moved down, the {up} "
+                        f"head moved up")
+        # The parent report's two columns: where the cell ended, and what
+        # ended it. 200k is the card's ceiling, so a cell that reached it was
+        # stopped by the ceiling and not by the rule.
+        last = max([st for st in (40, 100, 200)
+                    for h in ("student", "teacher")
+                    if sv(cell, st, h) is not None] or [0])
+        ended = ("ladder ceiling" if last == 200 else
+                 "the card's call" if cell in STOP_CALL else
+                 "extend rule")
+        rows.append(f"| {cell} | {s:+.4f} | {t:+.4f} | **{dec}** | "
+                    f"bb{last}k | {ended} | {why} |")
+        if dec.startswith("stop") and max(abs(s), abs(t)) <= NOISE_BAND:
+            stopped_inband.append(cell)
+        if dec.startswith("extend"):
+            extended.append(cell)
+
+    nstop = sum(1 for r in rows if "stop at 100k" in r)
+    L += ["### Stop reasons: what the extend rule read at each cell", "",
+          "The rule reads one cell's bb40k number against its bb100k number, "
+          "per head. A head that moved down earns the second 100,000 steps; "
+          "a head that moved up stops. Both columns are bb100k minus bb40k, "
+          f"so negative is an improvement. It held {nstop} cells at 100k. "
+          "`last stop` and `ended by` are the parent report's two columns: "
+          "where each cell finished, and what finished it.", "",
+          "| cell | 40k→100k student | 40k→100k teacher | decision | "
+          "last stop | ended by | why |",
+          "|---|---|---|---|---|---|---|"] + rows + [""]
+    # What the rule selects for. The 200k verdict is measured on the panel
+    # this rule chose, so the reader needs the rule's three defects at the
+    # point the panel is defined, not inferred from the table.
+    L += ["**The rule selects the panel, and it selects it on an improving "
+          "first leg.** Three properties of that, stated plainly:", "",
+          "1. It reads the one contrast this study calls not head-matched. "
+          "A bb40k head trains 15,000 steps and a bb100k head 30,000, so "
+          "part of every move in the two columns above is the head's own "
+          "extra 15,000 steps. The Protocol section says so for the depth "
+          "verdict. It is equally true of the rule.",
+          f"2. It fires inside its own noise band. {len(stopped_inband)} of "
+          f"the {nstop} stopped cells ({', '.join(stopped_inband)}) moved "
+          f"less than ±{NOISE_BAND:.4f} on BOTH heads. The verdict table "
+          "above calls a move of that size `flat`.",
+          "3. The manual overrides go one way. A4 and B1 were extended by "
+          "hand because the rule decides nothing inside the band. That "
+          "reasoning applies with the same force to the cells in point 2, "
+          "and none of them was extended.", "",
+          f"So the {len(extended)} extended cells are enriched for cells "
+          "that happened to improve from bb40k to bb100k, and regression to "
+          "the mean is the expected null at bb200k. This study runs no "
+          "control for it. **Read the 200k verdict as conditional on a panel "
+          "selected for having improved.**", ""]
 
     # ---- 1b. the stop ladder -----------------------------------------------
     # Round 3's own question. The extend rule sent eight cells from 100k to
@@ -542,71 +734,6 @@ def main(argv=None):
                      f"{d:+.4f} | "
                      f"{'monotone' if mono else 'turns round'} |")
         L.append("")
-
-    # ---- 1b'. why each cell stopped where it stopped -------------------------
-    # The ladder above says what the extra steps bought. It does not say why
-    # six cells never took them. That decision is the extend rule, and the
-    # rule is arithmetic on two numbers the table already holds: a head earns
-    # 200k when its bb100k score sits BELOW its bb40k score, and stops when it
-    # sits above. Printing the two moves beside the decision makes the rule
-    # checkable against the score files rather than taken on trust.
-    rows, stopped_inband, extended = [], [], []
-    for cell in CARD_CELLS:
-        mv = {h: (None if (sv(cell, 40, h) is None or sv(cell, 100, h) is None)
-                  else sv(cell, 100, h) - sv(cell, 40, h))
-              for h in ("student", "teacher")}
-        s, t = mv["student"], mv["teacher"]
-        if s is None or t is None:
-            continue
-        down = [h for h in ("student", "teacher") if mv[h] < 0]
-        if cell in STOP_CALL:
-            dec, why = STOP_CALL[cell]
-        elif len(down) == 2:
-            dec, why = ("extend both heads", "both heads moved down")
-        elif not down:
-            dec, why = ("stop at 100k", "both heads moved up")
-        else:
-            up = "teacher" if down[0] == "student" else "student"
-            dec, why = (f"extend the {down[0]} head",
-                        f"split: the {down[0]} head moved down, the {up} "
-                        f"head moved up")
-        rows.append(f"| {cell} | {s:+.4f} | {t:+.4f} | **{dec}** | {why} |")
-        if dec.startswith("stop") and max(abs(s), abs(t)) <= NOISE_BAND:
-            stopped_inband.append(cell)
-        if dec.startswith("extend"):
-            extended.append(cell)
-
-    nstop = sum(1 for r in rows if "stop at 100k" in r)
-    L += ["### Stop reasons: what the extend rule read at each cell", "",
-          "The rule reads one cell's bb40k number against its bb100k number, "
-          "per head. A head that moved down earns the second 100,000 steps; "
-          "a head that moved up stops. Both columns are bb100k minus bb40k, "
-          f"so negative is an improvement. It held {nstop} cells at 100k.", "",
-          "| cell | 40k→100k student | 40k→100k teacher | decision | why |",
-          "|---|---|---|---|---|"] + rows + [""]
-    # What the rule selects for. The 200k verdict is measured on the panel
-    # this rule chose, so the reader needs the rule's three defects at the
-    # point the panel is defined, not inferred from the table.
-    L += ["**The rule selects the panel, and it selects it on an improving "
-          "first leg.** Three properties of that, stated plainly:", "",
-          "1. It reads the one contrast this study calls not head-matched. "
-          "A bb40k head trains 15,000 steps and a bb100k head 30,000, so "
-          "part of every move in the two columns above is the head's own "
-          "extra 15,000 steps. The Protocol section says so for the depth "
-          "verdict. It is equally true of the rule.",
-          f"2. It fires inside its own noise band. {len(stopped_inband)} of "
-          f"the {nstop} stopped cells ({', '.join(stopped_inband)}) moved "
-          f"less than ±{NOISE_BAND:.4f} on BOTH heads. The verdict table "
-          "above calls a move of that size `flat`.",
-          "3. The manual overrides go one way. A4 and B1 were extended by "
-          "hand because the rule decides nothing inside the band. That "
-          "reasoning applies with the same force to the cells in point 2, "
-          "and none of them was extended.", "",
-          f"So the {len(extended)} extended cells are enriched for cells "
-          "that happened to improve from bb40k to bb100k, and regression to "
-          "the mean is the expected null at bb200k. This study runs no "
-          "control for it. **Read the 200k verdict as conditional on a panel "
-          "selected for having improved.**", ""]
 
     # ---- 1c. the same-arm pairs --------------------------------------------
     # A1 and B3 print one student number at both stops. A reader who meets
@@ -1146,6 +1273,85 @@ def main(argv=None):
                      f"{'yes' if stable else '**no**'} |")
         L.append("")
 
+    CW = []
+    # ---- 8b. the collapse watch the card names ------------------------------
+    # `collapse_watch.py` looks for every quantity the card lists, in every
+    # run, and reports the ones no run logged. A watch the report never
+    # prints reads as a watch that passed.
+    WATCHED = ["ff", "cos_err_d0", "cos_err_d1", "cos_err_d2", "cos_err_d3",
+               "u_batchtime", "u_batchtime_e", "qk_logit_maxabs"]
+    cwp = Path(args.results) / "collapse_watch.csv"
+    if cwp.is_file():
+        cw = list(csv.DictReader(open(cwp)))
+        seen = {r["metric"] for r in cw}
+        missing = [m for m in WATCHED if m not in seen]
+        by = {}
+        for r in cw:
+            by.setdefault((r["arm"], int(r["k"])), {})[r["metric"]] = r
+        crows = []
+        for (arm, k) in sorted(by, key=lambda a: (order.get(a[0], 99), a[1])):
+            g = by[(arm, k)]
+
+            def cell_of(metric):
+                r = g.get(metric)
+                return ("—" if r is None else
+                        f"{r['end_of_run']}<br>{r['min_last_half']}")
+            crows.append(
+                f"| {arm}{mark(arm)} | {k} | "
+                + " | ".join(cell_of(m) for m in
+                             ("ff", "cos_err_d0", "cos_err_d1", "cos_err_d2",
+                              "cos_err_d3", "u_batchtime", "u_batchtime_e"))
+                + " |")
+        us = [r for r in cw if r["metric"].startswith("u_batchtime")]
+        lowest = min(us, key=lambda r: float(r["min_last_half"]))
+        umin = float(lowest["min_last_half"])
+        INV_H = 1.0 / 64                 # d_model = 64, one direction
+        # Does the deeper run use fewer directions than its own k = 0? One
+        # ratio per arm that trained both, on the encoder latent the card
+        # names first.
+        pair = {}
+        for r in cw:
+            if r["metric"] == "u_batchtime":
+                pair.setdefault(r["arm"], {})[int(r["k"])] = \
+                    float(r["end_of_run"])
+        drops = sorted(f"{a} {v[0]:.4f} → {v[max(v)]:.4f}"
+                       for a, v in pair.items()
+                       if 0 in v and max(v) > 0 and v[max(v)] < 0.5 * v[0])
+        CW += [
+              "The card names three quantities to watch while the f side of "
+              "the loss carries four times its baseline weight. Every one of "
+              "them, on every arm that logged it. First line of a cell is "
+              "the mean over the last 10% of the run; second line is the "
+              "lowest value over the run's second half.", "",
+              "`ff` is `cos(f_t, h_{t+1})` and `cos_err_dj` is "
+              "`1 − cos(f^(j)_t, h_{t+1+j})`, so `cos_err_d0` is `1 − ff` "
+              "and `cos_err_dj` is the card's per-depth `ff`. A collapsed "
+              "latent points one way, so `u_batchtime` runs toward zero "
+              "WHILE `ff` runs toward 1. It is that pair, not `ff` alone, "
+              "that separates collapse from a good forecast.", ""]
+        if missing:
+            CW += [f"**Not logged: `{'`, `'.join(missing)}`.** No run in this "
+                  "study writes that column at any depth, so this study "
+                  "does not watch it. Nothing here rules out what it would "
+                  "have shown.", ""]
+        CW += ["| arm | k | `ff` | `cos_err_d0` | `cos_err_d1` | "
+              "`cos_err_d2` | `cos_err_d3` | `u_batchtime` on `h_t` | "
+              "`u_batchtime` on `e_t` |",
+              "|---|---|---|---|---|---|---|---|---|"] + crows + \
+             ["",
+              f"The lowest `u_batchtime` any arm reaches over its second "
+              f"half is {umin:.4f}, on `{lowest['metric']}`, "
+              f"{lowest['arm']} at k = {lowest['k']}. One direction would "
+              f"give `1/H` = {INV_H:.4f} at `d_model = 64`, so that arm sits "
+              f"{umin / INV_H:.1f}× above it. No arm reaches zero at any "
+              "depth.", ""] + \
+             ([f"On `h_t`, {len(drops)} of the {len(pair)} arms that trained "
+               f"both depths ends the deeper run below half its own `k = 0` "
+               f"usage: {'; '.join(drops)}. That is a reading and not a "
+               "verdict. No arm reaches zero, and this study runs no control "
+               "that separates a lower usage from a worse score.", ""]
+              if drops else [])
+
     # ---- 9. glossary -------------------------------------------------------
     L += ["### Glossary", "",
           "| term | what it means here |",
@@ -1218,8 +1424,8 @@ def main(argv=None):
     ns_rows += [
         "| That the gain is the depth alone | B1 is the one cell that carries "
         "the `L_align` ×4 re-weighting control on one machine, and the "
-        "re-weighting moves the score on its own. The B1 table below prints "
-        "its share of the move, per head. |",
+        "re-weighting moves the score on its own. The B1 table in the Tables "
+        "section prints its share of the move, per head. |",
         "| That one of the two pays more than the other | The re-weighting's "
         "move and the depth's move sit inside each other's 95% intervals, in "
         "the same B1 table. That cell measures both and ranks neither. |",
@@ -1270,25 +1476,33 @@ def main(argv=None):
         f"It fired inside its own ±{NOISE_BAND:.4f} band on "
         f"{len(stopped_inband)} stopped cells, and both manual overrides "
         "extended. |")
-    NS = ["## What this study cannot support", "",
-          "| the claim | what stops it |", "|---|---|"] + ns_rows + \
-         ["", "## Tables", ""]
+    NS = ["| the claim | what stops it |", "|---|---|"] + ns_rows
 
-    body = "\n".join(NS + L) + "\n"
-    Path(args.out).write_text(body)
+    # Three blocks, three places in the report. The card's success criteria
+    # answer its own question, so they lead; the limits qualify every number
+    # above them, so they close the body; the tables sit between.
+    blocks = {"CRITERIA": CRIT, "COLLAPSE": CW, "TABLES": L,
+              "LIMITS": NS}
+    Path(args.out).write_text(
+        "\n".join(["## Did the card's criteria pass?", ""] + CRIT +
+                  ["## Collapse watch", ""] + CW +
+                  ["## What this study cannot support", ""] + NS +
+                  ["", "## Tables", ""] + L) + "\n")
     print(f"wrote {args.out} ({len(reg)} run(s), {len(trained)} cell(s))")
 
     if args.inject:
         md = Path(args.inject)
         text = md.read_text()
-        a, b = "<!-- TABLES:BEGIN -->", "<!-- TABLES:END -->"
-        if a not in text or b not in text:
-            print(f"NOTE: {md} carries no TABLES markers; not injecting")
-            return 0
-        head, rest = text.split(a, 1)
-        _old, tail = rest.split(b, 1)
-        md.write_text(f"{head}{a}\n\n{body}\n{b}{tail}")
-        print(f"injected the tables into {md}")
+        for name, lines in blocks.items():
+            a, b = f"<!-- {name}:BEGIN -->", f"<!-- {name}:END -->"
+            if a not in text or b not in text:
+                print(f"NOTE: {md} carries no {name} markers; not injecting")
+                continue
+            head, rest = text.split(a, 1)
+            _old, tail = rest.split(b, 1)
+            text = f"{head}{a}\n\n" + "\n".join(lines) + f"\n\n{b}{tail}"
+            print(f"injected {name} into {md}")
+        md.write_text(text)
     return 0
 
 

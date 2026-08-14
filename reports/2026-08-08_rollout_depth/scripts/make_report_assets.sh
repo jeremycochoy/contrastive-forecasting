@@ -111,9 +111,20 @@ if [ "${#curves[@]}" -gt 0 ]; then
   # The sign the report reads off cos_err_depth.png, as a number, over four
   # end-of-run windows. An arm whose sign depends on the window has none.
   run "$HERE/depth0_gap.py" "${curves[@]}" --out "$RES/depth0_gap.csv"
+  # The card's collapse watch, as numbers. It also reports which of the
+  # quantities the card names no run logged.
+  run "$HERE/collapse_watch.py" "${curves[@]}" \
+      --out "$RES/collapse_watch.csv"
 else
   say "no losses CSV found — no training-curve figures"
 fi
+
+# ---- 4b. the EMA schedule, as each group logged it -------------------------
+# This one walks the committed curve trees itself rather than taking the
+# five diagnostic arms `find_artefacts.py` resolves: the figure is about the
+# regime all 14 cells trained under, so it draws every backbone leg.
+run "$HERE/plot_alpha_schedule.py" --curves "$DST/curves" --curves "$DST/sync" \
+    --out "$PLOTS/alpha_schedule.png"
 
 # ---- 5. rollout fidelity ---------------------------------------------------
 # Both of the next two steps load checkpoints onto a GPU. elisa's two cards
@@ -198,8 +209,10 @@ run "$HERE/r2_plot_ladder.py" --results "$RES" --out "$PLOTS/stop_ladder.png"
 # ---- 9. the tables, and the screen figure the intervals feed ---------------
 run "$HERE/published_bootstrap.py" --results "$RES"
 # After published_bootstrap.py, because the screen draws its intervals.
-run "$HERE/plot_screen_bb100k.py" --results "$RES" \
-    --out "$PLOTS/screen_bb100k.png"
+# The card's `schedule_vs_fixed` equivalent: k = 3 minus k = 0, per cell, at
+# every stop, on both heads.
+run "$HERE/plot_k3_minus_k0.py" --results "$RES" \
+    --out "$PLOTS/k3_minus_k0.png"
 run "$HERE/tables.py" --results "$RES" --out "$RES/scores.md" \
     --inject "$DST/rollout_depth.md"
 
