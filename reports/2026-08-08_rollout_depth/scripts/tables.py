@@ -376,7 +376,7 @@ def main(argv=None):
           "compares against a baseline this study did not retrain on its own "
           f"machine, and the ±{NOISE_BAND:.4f} band it thresholds on bounds "
           "the HEAD seed alone. The card's own criterion is the per-horizon "
-          "one, and the depth-response table below is where it is applied.",
+          "one, and the depth-response table in the annex is where it is applied.",
           "",
           "The second line of a verdict cell is its 95% paired "
           f"dataset-cluster interval. Every one of the {len(pub_ci)} deltas "
@@ -474,7 +474,7 @@ def main(argv=None):
             "This study's one controlled measurement of the machine is worth "
             "0.1166, which is larger than either threshold, so this table is "
             "a screen. The two rows that hold the machine are in the "
-            "depth-response table, and they disagree in sign.", ""]
+            "depth-response table in the annex, and they disagree in sign.", ""]
 
     # ---- 1b'. why each cell stopped where it stopped -------------------------
     # The ladder above says what the extra steps bought. It does not say why
@@ -624,6 +624,12 @@ def main(argv=None):
                 f" Over all {n}: mean {mean:+.4f}, median {mid:+.4f}. The "
                 f"±{NOISE_BAND:.4f} head-seed band covers {inband} of "
                 f"them.")
+    # Everything from here on is the machine, the seed and the control
+    # material a review asked for. The body carries the card's own tables;
+    # these go to the annex, under the TABLES_ANNEX markers. Nothing is
+    # dropped, only moved.
+    BODY_TABLES = len(L)
+
     L += ["### The stop ladder: what the second 100,000 steps buys", "",
           "Δ is bb200k minus bb100k, so a negative number is an improvement: "
           "GM-Relative MASE is a ratio against seasonal-naive and lower is "
@@ -1353,7 +1359,7 @@ def main(argv=None):
               if drops else [])
 
     # ---- 9. glossary -------------------------------------------------------
-    L += ["### Glossary", "",
+    GLOSS = ["### Glossary", "",
           "| term | what it means here |",
           "|---|---|",
           "| the card | the issue this study answers, and the 14 cells, "
@@ -1424,11 +1430,11 @@ def main(argv=None):
     ns_rows += [
         "| That the gain is the depth alone | B1 is the one cell that carries "
         "the `L_align` ×4 re-weighting control on one machine, and the "
-        "re-weighting moves the score on its own. The B1 table in the Tables "
-        "section prints its share of the move, per head. |",
+        "re-weighting moves the score on its own. The annex's B1 table and "
+        "its figure print the share of the move, per head. |",
         "| That one of the two pays more than the other | The re-weighting's "
         "move and the depth's move sit inside each other's 95% intervals, in "
-        "the same B1 table. That cell measures both and ranks neither. |",
+        "the same B1 table in the annex. That cell measures both and ranks neither. |",
         "| Any per-cell verdict | Every cell is n = 1 in the backbone seed. "
         f"The ±{NOISE_BAND:.4f} band bounds the HEAD seed alone, and "
         "backbone-seed variance is unmeasured. |"]
@@ -1481,13 +1487,15 @@ def main(argv=None):
     # Three blocks, three places in the report. The card's success criteria
     # answer its own question, so they lead; the limits qualify every number
     # above them, so they close the body; the tables sit between.
-    blocks = {"CRITERIA": CRIT, "COLLAPSE": CW, "TABLES": L,
-              "LIMITS": NS}
+    BODY, ANNEX = L[:BODY_TABLES] + GLOSS, L[BODY_TABLES:]
+    blocks = {"CRITERIA": CRIT, "COLLAPSE": CW, "TABLES": BODY,
+              "TABLES_ANNEX": ANNEX, "LIMITS": NS}
     Path(args.out).write_text(
         "\n".join(["## Did the card's criteria pass?", ""] + CRIT +
                   ["## Collapse watch", ""] + CW +
                   ["## What this study cannot support", ""] + NS +
-                  ["", "## Tables", ""] + L) + "\n")
+                  ["", "## Tables", ""] + BODY +
+                  ["", "## Annex tables", ""] + ANNEX) + "\n")
     print(f"wrote {args.out} ({len(reg)} run(s), {len(trained)} cell(s))")
 
     if args.inject:

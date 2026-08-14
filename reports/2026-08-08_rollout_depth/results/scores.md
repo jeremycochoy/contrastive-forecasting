@@ -23,7 +23,7 @@ Primary: medium+long at least 5% better AND short losing less than 2%. Secondary
 
 The count is over CELLS. A1 and B3 hold one student model between them, so the same 14 cells hold 13 student models and the model count of the secondary criterion is one lower than the cell count.
 
-**Both sides of every row trained on a different machine.** This study's one controlled measurement of the machine is worth 0.1166, which is larger than either threshold, so this table is a screen. The two rows that hold the machine are in the depth-response table, and they disagree in sign.
+**Both sides of every row trained on a different machine.** This study's one controlled measurement of the machine is worth 0.1166, which is larger than either threshold, so this table is a screen. The two rows that hold the machine are in the depth-response table in the annex, and they disagree in sign.
 
 ## Collapse watch
 
@@ -56,8 +56,8 @@ On `h_t`, 1 of the 5 arms that trained both depths ends the deeper run below hal
 | the claim | what stops it |
 |---|---|
 | That `k = 3` helps, or that it hurts | The two machine-held `k = 0` / `k = 3` pairs disagree in sign and both intervals exclude zero: B1 -0.1175 [-0.1801, -0.0615], B5·s2 +0.0575 [+0.0173, +0.1094]. They differ in the cell, the backbone seed and the f-bearing term, so nothing here says which of the three flips the sign. |
-| That the gain is the depth alone | B1 is the one cell that carries the `L_align` ×4 re-weighting control on one machine, and the re-weighting moves the score on its own. The B1 table in the Tables section prints its share of the move, per head. |
-| That one of the two pays more than the other | The re-weighting's move and the depth's move sit inside each other's 95% intervals, in the same B1 table. That cell measures both and ranks neither. |
+| That the gain is the depth alone | B1 is the one cell that carries the `L_align` ×4 re-weighting control on one machine, and the re-weighting moves the score on its own. The annex's B1 table and its figure print the share of the move, per head. |
+| That one of the two pays more than the other | The re-weighting's move and the depth's move sit inside each other's 95% intervals, in the same B1 table in the annex. That cell measures both and ranks neither. |
 | Any per-cell verdict | Every cell is n = 1 in the backbone seed. The ±0.0384 band bounds the HEAD seed alone, and backbone-seed variance is unmeasured. |
 | That depth 3 is the right depth | Only `k = 3` ran on the 14 cells. One ladder holds a second depth, on A3, and its `k = 1` delta covers zero: -0.0195 [-0.0537, +0.0148] on the student. |
 | The per-horizon criterion of the card, the issue this study answers, at scale | It is applied as a test on the 2 machine-held arms, B1, B5·s2, at one stop, bb40k. Every other pair crosses a machine, and the machine is worth 0.1166. |
@@ -146,7 +146,7 @@ A dash is a number no parent published. Group B's two parents print one head per
 
 At bb100k, the stop every one of the 14 cells reached. The count is over distinct MODELS. ‡ marks the two cells that share one student, so 14 cells hold 13 student models and the shared one counts once. Student head: 13 distinct models, **8 better, 3 flat, 2 worse**. Teacher head, group A only: 4 distinct models, **3 better, 0 flat, 1 worse**.
 
-Read the verdict column as a screen and not as a test. It compares against a baseline this study did not retrain on its own machine, and the ±0.0384 band it thresholds on bounds the HEAD seed alone. The card's own criterion is the per-horizon one, and the depth-response table below is where it is applied.
+Read the verdict column as a screen and not as a test. It compares against a baseline this study did not retrain on its own machine, and the ±0.0384 band it thresholds on bounds the HEAD seed alone. The card's own criterion is the per-horizon one, and the depth-response table in the annex is where it is applied.
 
 The second line of a verdict cell is its 95% paired dataset-cluster interval. Every one of the 41 deltas in this table carries one. The three parents' per-config CSVs are all in reach, so the pairing against them is recoverable: same 97 configs, same seasonal-naive denominator file, same resampling unit as every other interval in this report. `published_bootstrap.py` accepts a parent CSV for a cell only after that CSV reproduces the number the parent printed, to four decimals. All 41 did, and none was dropped. The interval bounds the eval sample. It does not bound the machine, which separates the two sides of every one of these deltas.
 
@@ -209,6 +209,31 @@ The rule reads one cell's bb40k number against its bb100k number, per head. A he
 3. The manual overrides go one way. A4 and B1 were extended by hand because the rule decides nothing inside the band. That reasoning applies with the same force to the cells in point 2, and none of them was extended.
 
 So the 8 extended cells are enriched for cells that happened to improve from bb40k to bb100k, and regression to the mean is the expected null at bb200k. This study runs no control for it. **Read the 200k verdict as conditional on a panel selected for having improved.**
+
+### Glossary
+
+| term | what it means here |
+|---|---|
+| the card | the issue this study answers, and the 14 cells, stops and criteria it names |
+| cell | one of those 14 recipes, `A1`..`A4` and `B1`..`B10` |
+| arm | a (cell, backbone seed, machine) triple. B5 trained three, so the cell is not the unit a delta lives in |
+| bb40k | backbone step 40,000, the one stop every run here reached |
+| GM-Relative MASE | geometric mean over the 97 GIFT-Eval configs of each config's MASE divided by the seasonal-naive MASE. Lower is better; 1.0 is seasonal-naive parity |
+| B4 eval strategy | GIFT-Eval's official evaluation strategy, the one the parent reports use |
+| student / teacher head | the quantile head is trained twice per backbone, once on the student encoder and once on its EMA copy, the teacher. The two are separate measurements of one backbone |
+| f-bearing term | the loss term that the forecast operator `f` enters. `--train-rollout-depth K` duplicates it at depth 1..K |
+| `rep_only` | the representation loss with no forecast term |
+| `L_align` | the term that aligns `f`'s output with the future latent |
+| `L_pred` | the predictive contrastive term, split from the representation term |
+| `xshh_allt` | negatives pooled across the batch and across channels, taken over every time index |
+| `u_batchtime` | dimension usage of a latent over the pooled (batch × time) sample axis: `1 / (H · mean off-diagonal squared cosine)`, capped at 1. 1.0 is all `H` dimensions in use and a value near `1/H` is one direction. `h_t` is the encoder latent, `e_t` the embedding it reads |
+| collapse | the latent falling onto few directions, so `u_batchtime` runs toward zero. The card watches for it because a model can win the deeper f-bearing terms by flattening `f` |
+| `arm4`, `arm6_v2 combab` | the launcher recipes the cells run; the Coverage table gives each cell's |
+| head-seed band ±0.0384 | how far the head seed alone moved a score in `ema_sched_ladder.md`, pooled. It bounds the head seed and nothing else |
+| `mixup` | the count of examples the batch mixer touched in a 200-step window. Two runs on one data order print one count |
+
+
+## Annex tables
 
 ### The stop ladder: what the second 100,000 steps buys
 
@@ -506,26 +531,4 @@ A3 reads +13% (115.9 ms against 131.5 ms) and is not comparable to those two: it
 | B5·s2 | 3 | +0.0121 | +0.0061 | +0.0023 | -0.0129 | **no** |
 | A3 | 1 | +0.0871 | +0.0902 | +0.1159 | +0.0401 | yes |
 | A3 | 3 | -0.0469 | -0.0004 | +0.0489 | +0.0623 | **no** |
-
-### Glossary
-
-| term | what it means here |
-|---|---|
-| the card | the issue this study answers, and the 14 cells, stops and criteria it names |
-| cell | one of those 14 recipes, `A1`..`A4` and `B1`..`B10` |
-| arm | a (cell, backbone seed, machine) triple. B5 trained three, so the cell is not the unit a delta lives in |
-| bb40k | backbone step 40,000, the one stop every run here reached |
-| GM-Relative MASE | geometric mean over the 97 GIFT-Eval configs of each config's MASE divided by the seasonal-naive MASE. Lower is better; 1.0 is seasonal-naive parity |
-| B4 eval strategy | GIFT-Eval's official evaluation strategy, the one the parent reports use |
-| student / teacher head | the quantile head is trained twice per backbone, once on the student encoder and once on its EMA copy, the teacher. The two are separate measurements of one backbone |
-| f-bearing term | the loss term that the forecast operator `f` enters. `--train-rollout-depth K` duplicates it at depth 1..K |
-| `rep_only` | the representation loss with no forecast term |
-| `L_align` | the term that aligns `f`'s output with the future latent |
-| `L_pred` | the predictive contrastive term, split from the representation term |
-| `xshh_allt` | negatives pooled across the batch and across channels, taken over every time index |
-| `u_batchtime` | dimension usage of a latent over the pooled (batch × time) sample axis: `1 / (H · mean off-diagonal squared cosine)`, capped at 1. 1.0 is all `H` dimensions in use and a value near `1/H` is one direction. `h_t` is the encoder latent, `e_t` the embedding it reads |
-| collapse | the latent falling onto few directions, so `u_batchtime` runs toward zero. The card watches for it because a model can win the deeper f-bearing terms by flattening `f` |
-| `arm4`, `arm6_v2 combab` | the launcher recipes the cells run; the Coverage table gives each cell's |
-| head-seed band ±0.0384 | how far the head seed alone moved a score in `ema_sched_ladder.md`, pooled. It bounds the head seed and nothing else |
-| `mixup` | the count of examples the batch mixer touched in a 200-step window. Two runs on one data order print one count |
 

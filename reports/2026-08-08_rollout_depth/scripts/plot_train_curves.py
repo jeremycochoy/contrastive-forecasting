@@ -37,7 +37,7 @@ from losses_csv import read_by_step, series             # noqa: E402
 plt.rcParams.update(cc.rc())
 PANELS = [
     ("per_run_loss", [("loss", "training loss")],
-     "Training loss (k = 3 is the k = 0 objective plus three added terms)"),
+     "Training loss"),
     ("cos_error_per_arm", [("ff", "1 − ff")],
      "Depth-0 forecast error, 1 − cos(f_t, h_{t+1})"),
     ("dim_usage_per_arm", [("u_batchtime", "u_batchtime on h_t"),

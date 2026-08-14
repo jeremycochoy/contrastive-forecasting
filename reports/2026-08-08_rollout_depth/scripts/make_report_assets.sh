@@ -51,6 +51,13 @@ else
   say "no finished eval yet — no splits, no score figures"
 fi
 
+# ---- 1b. the same splits on the PUBLISHED k = 0 side -----------------------
+# The per-domain and per-horizon questions need a k = 0 polygon, and the three
+# parent reports print only the 97-config aggregate. `parent_splits.py` splits
+# their own per-config CSVs the same way, and accepts one only after it
+# reproduces the number that parent printed.
+run "$HERE/parent_splits.py" --results "$RES"
+
 # ---- 2. paired dataset-cluster bootstrap -----------------------------------
 # Both arms of a pair are evaluated on the same 97 configs, so the delta is
 # paired per config; the resampling unit is the DATASET, because
@@ -86,13 +93,17 @@ if [ -f "$RES/splits.csv" ]; then
   run "$HERE/plot_b1_alignx4.py" --splits "$RES/splits.csv" \
       --bootstrap "$RES/bootstrap.csv" --out "$PLOTS/b1_alignx4.png"
   run "$HERE/plot_encoder_delta.py" --splits "$RES/splits.csv" \
-      --out "$PLOTS/encoder_delta.png"
+      --results "$RES" --out "$PLOTS/encoder_delta.png"
   for head in student teacher; do
     run "$HERE/plot_horizon_split.py" --splits "$RES/splits.csv" \
         --head "$head" --out "$PLOTS/horizon_split_${head}.png"
     run "$HERE/plot_domain_radar.py" --splits "$RES/splits.csv" \
+        --splits-k0 "$RES/splits_k0.csv" \
         --head "$head" --out "$PLOTS/domain_radar_${head}.png"
   done
+  # The per-family table the radar's numbers come from, and the report's
+  # DOMAIN block.
+  run "$HERE/domain_table.py" --results "$RES" --inject "$DST/rollout_depth.md"
 fi
 run "$HERE/plot_reproduction.py" --results "$RES" \
     --out "$PLOTS/reproduction.png"
@@ -156,6 +167,11 @@ if [ "${#mv[@]}" -gt 0 ] && [ -f "$BATCH" ]; then
   gpu_or_cpu "$HERE/plot_latent_movement.py" "${mv[@]}" --batch "$BATCH" \
       --out-csv "$RES/latent_movement.csv" \
       --out "$PLOTS/latent_movement.png"
+elif [ -s "$RES/latent_movement.csv" ]; then
+  say "no checkpoint store — redrawing latent movement from its committed CSV"
+  run "$HERE/plot_latent_movement.py" --from-csv \
+      --out-csv "$RES/latent_movement.csv" \
+      --out "$PLOTS/latent_movement.png"
 else
   say "fewer than two periodic checkpoints per run — no latent-movement figure"
 fi
@@ -192,8 +208,15 @@ else
   say "no cell trained twice — no early-loss table"
 fi
 
-# ---- 8. where each k = 3 lands on the published k = 0 trajectory -----------
+# ---- 8. the two lead figures ----------------------------------------------
+# Figure 1: every cell's best score against the frontier the project held
+# before this study. Figure 2: the card's `ladder.png`, GM-Relative MASE
+# against backbone train step, all 14 cells, both heads. Both draw the same
+# grey rule, from `published.best_published()`.
+run "$HERE/plot_frontier.py" --results "$RES" --out "$PLOTS/frontier.png"
 run "$HERE/plot_ladder.py" --results "$RES" --out "$PLOTS/ladder.png"
+# Annex: the five retrained arms on the trajectories their parents published.
+run "$HERE/plot_k0_overlay.py" --results "$RES" --out "$PLOTS/k0_overlay.png"
 
 # ---- 8b. the stop contrast: what the second 100,000 steps buys -------------
 # `stop_bootstrap.sh` pairs each cell's bb200k eval against its OWN bb100k

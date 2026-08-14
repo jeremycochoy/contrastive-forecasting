@@ -195,6 +195,27 @@ def label(arm):
     return f"{base}  seed {R.arm_seed(arm)}, {R.arm_where(arm)}"
 
 
+# ---------------------------------------------------------------------------
+# The full-grid figures: all 14 cells in one axes.
+#
+# The four-hue theme above is validated on the four cells that trained a
+# k = 0 pair and appear together in the diagnostic figures. The ladder and
+# the frontier draw all 14, and no categorical palette separates 14 series
+# by hue alone. So on those figures IDENTITY IS THE END LABEL AND THE KEY,
+# and the hue only helps the eye follow one line through a crossing. Grey is
+# reserved: it is the baseline rule, and no cell may take it.
+LADDER_PALETTE = {
+    "A1": "#1f77b4", "A2": "#ff7f0e", "A3": "#2ca02c", "A4": "#d62728",
+    "B1": "#9467bd", "B2": "#8c564b", "B3": "#e377c2", "B4": "#17becf",
+    "B5": "#bcbd22", "B6": "#393b79", "B7": "#637939", "B8": "#a55194",
+    "B9": "#843c39", "B10": "#5254a3",
+}
+
+
+def ladder_colour(cell):
+    return LADDER_PALETTE.get(cell, INK_SOFT)
+
+
 def rc():
     """The report's matplotlib defaults. The white figure face is
     deliberate: the PNG carries its own surface, so it reads the same

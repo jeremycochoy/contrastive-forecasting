@@ -1,128 +1,145 @@
 #!/usr/bin/env python3
-"""#373 — where k = 3 at bb40k sits on the k = 0 trajectory.
+"""#373 figure 2 — the card's `ladder.png`: GM-Relative MASE against backbone
+train step, all 14 cells at k = 3, both heads.
 
-The parent's `ladder.png` is GM-Relative MASE against backbone step. This
-study has one stop, so a ladder of its own would be a scatter. What it can
-draw instead is the question that one stop answers: the published k = 0
-trajectory of each cell, over every stop its parent report reached, with
-this study's two bb40k points marked on it.
+Horizontal axis: the backbone train step, 40k / 100k / 200k. Vertical axis:
+GM-Relative MASE over the 97 GIFT-Eval configs. One line per cell per head,
+labelled at its end, so no line is identified by colour alone. The key on the
+right prints every cell's recipe, so the figure needs nothing outside itself.
 
-Read it as: does three depths at 40k steps buy what the k = 0 cell needed
-100k or 200k steps to reach?
+The grey rule is the frontier before this study: the lowest GM-Relative MASE
+any of the three parent reports printed, from `published.best_published()`.
+The band is the head-seed band of `ema_sched_ladder.md`. `plot_frontier.py`
+draws the same rule from the same call.
 
-The k = 0 marker at bb40k is this study's own retrained gate where one
-exists, and the published number otherwise; the two are distinguished in
-the legend.
-
-Usage: plot_ladder.py --results <results dir> --out plots/ladder.png
+Usage: plot_ladder.py [--results DIR] --out plots/ladder.png
 """
 from __future__ import annotations
 
 import argparse
-import re
 import sys
 from pathlib import Path
 
 import matplotlib
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt                        # noqa: E402
-from matplotlib.lines import Line2D                    # noqa: E402
+import matplotlib.pyplot as plt                           # noqa: E402
+from matplotlib.lines import Line2D                       # noqa: E402
 
-HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE))
-import cell_colours as cc                     # noqa: E402
-import runs as R                              # noqa: E402                              # noqa: E402
-from published import PUBLISHED                        # noqa: E402
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import cell_colours as C                                  # noqa: E402
+import published                                          # noqa: E402
+import r2_ladder as L                                     # noqa: E402
 
-SCORE_RE = re.compile(r"^score_([AB]\d+)_k(\d+)_bb(\d+)k_(student|teacher)\.txt$")
-plt.rcParams.update(cc.rc())
+GREY, PARITY, INK, SOFT, GRID = "#8f8e8a", "#6f6e6a", "#0b0b0b", "#52514e", "#e6e5e1"
 
 
-def read_scores(results):
-    """`{(arm, k, stop, head): value}` over the depth runs."""
-    out = {}
-    for p in Path(results).glob("score_*.txt"):
-        run = R.resolve(p.name[len("score_"):-len(".txt")])
-        if run is None or run.role != "depth":
-            continue
-        try:
-            out[(run.arm, run.k, run.stop, run.head)] = \
-                float(p.read_text().strip())
-        except ValueError:
-            continue
+def recipe(cell):
+    arm, align, ema = L.CELL_ARM[cell]
+    tgt = "no L_align" if align == "none" else f"L_align→{align}"
+    ema = "EMA 0.9→1.0" if ema == "scheduled" else "EMA 0.9"
+    return f"{arm} · {tgt} · {ema}"
+
+
+def spread(ys, gap):
+    """Push overlapping end labels apart, keeping their order."""
+    order = sorted(range(len(ys)), key=lambda i: ys[i])
+    out = list(ys)
+    for n, i in enumerate(order[1:], start=1):
+        prev = out[order[n - 1]]
+        if out[i] - prev < gap:
+            out[i] = prev + gap
     return out
 
 
-def main(argv=None):
-    p = argparse.ArgumentParser()
-    p.add_argument("--results", required=True)
-    p.add_argument("--out", required=True)
-    args = p.parse_args(argv)
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--results", default=L.RESULTS)
+    ap.add_argument("--out", required=True)
+    a = ap.parse_args()
 
-    sc = read_scores(args.results)
-    arms = [a for a in R.ARM_ORDER if any(x == a for x, _k, _s, _h in sc)]
-    if not arms:
-        raise SystemExit("no score file yet — no ladder")
+    base, bcell, bhead, bstop = published.best_published()
+    band = published.NOISE_BAND
+    xs = {40: 0, 100: 1, 200: 2}
 
-    heads = ["student", "teacher"]
-    fig, axes = plt.subplots(1, 2, figsize=(11.6, 4.6), sharey=True)
+    fig = plt.figure(figsize=(13.6, 6.2))
+    gs = fig.add_gridspec(1, 3, width_ratios=[1.0, 1.0, 0.72], wspace=0.30)
+    axes = [fig.add_subplot(gs[0, 0]), fig.add_subplot(gs[0, 1])]
+    key_ax = fig.add_subplot(gs[0, 2])
+    key_ax.axis("off")
 
-    for ax, head in zip(axes, heads):
-        for arm in arms:
-            col = cc.arm_colour(arm)
-            # The published trajectory belongs to the CELL. Both of B5's
-            # backbone seeds are the same cell, so it is drawn once.
-            pub = ({} if cc.hollow(arm)
-                   else PUBLISHED.get(cc.cell_of(arm), {}).get(head, {}))
-            if pub:
-                xs = sorted(pub)
-                ax.plot([x * 1000 for x in xs], [pub[x] for x in xs],
-                        color=col, linestyle=cc.style(0), linewidth=1.6,
-                        marker="o", markersize=4, markerfacecolor="white")
-            # Two seeds of one cell would land on top of each other at
-            # x = 40000, so nudge the second one along the step axis. It is
-            # not a different budget; the offset is legibility only.
-            x = 40000 + (1600 if cc.hollow(arm) else 0)
-            k0 = sc.get((arm, 0, 40, head))
-            if k0 is not None:
-                ax.plot(x, k0, color=col, marker="D", markersize=7,
-                        markerfacecolor="white", linestyle="none")
-            for k in sorted({kk for a, kk, _s, h in sc
-                             if a == arm and h == head and kk}):
-                kk = sc[(arm, k, 40, head)]
-                ax.plot(x, kk, color=col, marker="*", markersize=14,
-                        linestyle="none",
-                        markerfacecolor="white" if k == 1 else col)
-                if k0 is not None:
-                    ax.annotate("", xy=(x, kk), xytext=(x, k0),
-                                arrowprops=dict(arrowstyle="->", color=col,
-                                                linewidth=1.2))
-        # No cross-cell rule is drawn. A cell this study never retrained has
-        # no machine-matched number here, and the machine alone is worth
-        # 0.1166, so a comparison against it would not be readable.
-        ax.set_xlabel("backbone step")
-        ax.set_title(f"{head} head", loc="left")
-    axes[0].set_ylabel("GM-Relative MASE (97 configs)")
+    lo, hi = 9.9, 0.0
+    drawn = 0
+    for ax, head in zip(axes, L.HEADS):
+        ends = []
+        for cell in L.CELLS:
+            pts = {s: L.score(cell, s, head, a.results) for s in L.STOPS}
+            pts = {s: v for s, v in pts.items() if v is not None}
+            if not pts:
+                continue
+            drawn += 1
+            ss = sorted(pts)
+            col = C.ladder_colour(cell)
+            ax.plot([xs[s] for s in ss], [pts[s] for s in ss], color=col,
+                    lw=1.9, marker="o", ms=4.5, mec="white", mew=0.8, zorder=3)
+            lo, hi = min(lo, *pts.values()), max(hi, *pts.values())
+            ends.append((xs[ss[-1]], pts[ss[-1]], cell, col))
 
-    axes[1].legend(handles=[
-        Line2D([], [], color=cc.INK_SOFT, linestyle=cc.style(0), marker="o",
-               markerfacecolor="white", label="published k = 0 trajectory"),
-        Line2D([], [], color=cc.INK_SOFT, marker="D", markerfacecolor="white",
-               linestyle="none", label="this study, retrained k = 0"),
-        Line2D([], [], color=cc.INK_SOFT, marker="*", markersize=12,
-               linestyle="none", label="this study, k > 0")]
-        + [Line2D([], [], color=cc.arm_colour(a),
-                   label=cc.label(a) + ("  ✗ retracted" if a in R.RETRACTED
-                                        else ""))
-           for a in arms],
-        loc="best", frameon=False, fontsize=8)
+        ax.axhspan(base - band, base + band, color=GREY, alpha=0.20, zorder=0)
+        ax.axhline(base, color=GREY, lw=2.0, zorder=1)
+        ax.set_title(f"{head}-encoder head", loc="left", fontsize=11, color=INK)
+        ax.set_xticks([0, 1, 2])
+        ax.set_xticklabels(["40k", "100k", "200k"])
+        ax.set_xlim(-0.14, 2.62)
+        ax.set_xlabel("backbone train step")
+        ax.grid(axis="y", color=GRID, lw=0.8)
+        ax.set_axisbelow(True)
+        for s in ("top", "right"):
+            ax.spines[s].set_visible(False)
+        ax._ends = ends
 
-    fig.suptitle("This study's bb40k runs against the published k = 0 "
-                 "trajectories", fontsize=11)
-    fig.tight_layout(rect=(0, 0, 1, 0.95))
-    Path(args.out).parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(args.out, bbox_inches="tight")
-    print(f"wrote {args.out} ({len(arms)} arm(s))")
+    top = hi + 0.035
+    bot = min(lo, base - band) - 0.02
+    for ax in axes:
+        ax.set_ylim(bot, top)
+        gap = (top - bot) * 0.031
+        ends = ax._ends
+        ys = spread([e[1] for e in ends], gap)
+        for (x, y, cell, col), yy in zip(ends, ys):
+            ax.annotate(cell, (x, y), xytext=(x + 0.12, yy),
+                        textcoords="data", fontsize=8.5, color=col,
+                        va="center", ha="left", fontweight="bold",
+                        arrowprops=dict(arrowstyle="-", color=col, lw=0.7,
+                                        shrinkA=1, shrinkB=1))
+    axes[0].set_ylabel("GM-Relative MASE, 97 GIFT-Eval configs (lower is better)")
+
+    axes[0].annotate(f"frontier before this study {base:.4f}", (0.0, base),
+                     xytext=(2, -11), textcoords="offset points", fontsize=8,
+                     color=SOFT)
+
+    key_ax.text(0, 1.0, "the 14 cells", fontsize=9.5, color=INK, va="top",
+                fontweight="bold", transform=key_ax.transAxes)
+    for i, cell in enumerate(L.CELLS):
+        y = 0.945 - i * 0.058
+        key_ax.plot([0.0, 0.055], [y, y], color=C.ladder_colour(cell), lw=2.6,
+                    transform=key_ax.transAxes, clip_on=False)
+        key_ax.text(0.075, y, f"{cell}", fontsize=8.5, color=INK, va="center",
+                    fontweight="bold", transform=key_ax.transAxes)
+        key_ax.text(0.205, y, recipe(cell), fontsize=8, color=SOFT,
+                    va="center", transform=key_ax.transAxes)
+    key_ax.text(0, 0.10,
+                f"grey rule: the best GM-Relative MASE published before this\n"
+                f"study: {base:.4f}, cell {bcell} {L.CELL_ARM[bcell][0]}, "
+                f"{bhead}-encoder head,\nbb{bstop}k, from the EMA-schedule "
+                f"ladder report.\nband: the ±{band:.4f} head-seed band of that "
+                f"same report.",
+                fontsize=7.6, color=SOFT, va="top",
+                transform=key_ax.transAxes)
+
+    fig.suptitle("GM-Relative MASE against backbone train step, 14 cells at "
+                 "rollout depth k = 3", fontsize=12.5, color=INK)
+    fig.tight_layout(rect=(0, 0, 1, 0.94))
+    fig.savefig(a.out, dpi=140)
+    print(f"wrote {a.out}  ({drawn} lines, baseline {base:.4f})")
     return 0
 
 

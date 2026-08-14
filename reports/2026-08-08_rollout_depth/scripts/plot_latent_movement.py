@@ -57,17 +57,73 @@ def periodic(dirpath, name):
     return sorted(set(out))
 
 
+def draw(rows, out):
+    """The figure, from the rows the CSV carries.
+
+    Colour is the ARM, not the cell: B5 trained two backbones and one hue at
+    one lightness put two dashed curves on the panel with nothing to tell
+    them apart. `arm_colour` keeps the hue and steps the lightness, and the
+    retracted arm draws thin and says so in the key. The key sits under the
+    figure, so it covers no curve.
+    """
+    fig, (axH, axE) = plt.subplots(1, 2, figsize=(10.6, 4.2))
+    for ax, key, ylab in ((axH, "movement_h", "1 − cos on h$_t$"),
+                          (axE, "movement_e", "1 − cos on e$_t$")):
+        for r in rows:
+            ax.plot([r["from"], r["to"]], [float(r[key])] * 2,
+                    color=cc.arm_colour(r["cell"]),
+                    linestyle=cc.style(r["k"]),
+                    linewidth=cc.width(r["cell"], base=2.6))
+        ax.set_xlabel("backbone step interval")
+        ax.set_ylabel(ylab)
+    axH.set_title("Encoder-output latent")
+    axE.set_title("Patch-embedding latent")
+    cells = sorted({r["cell"] for r in rows},
+                   key=lambda c: cc.ORDER.index(cc.cell_of(c))
+                   if cc.cell_of(c) in cc.ORDER else 99)
+    handles = [Line2D([], [], color=cc.arm_colour(c),
+                      linewidth=cc.width(c, base=2.6),
+                      label=cc.label(c) + ("  ✗ retracted"
+                                           if cc.retracted(c) else ""))
+               for c in cells]
+    handles += [Line2D([], [], color=cc.INK_SOFT, linestyle=cc.style(kk),
+                       label=f"k = {kk}, the rollout depth trained")
+                for kk in (0, 3)]
+    fig.legend(handles=handles, frameon=False, fontsize=8, ncol=2,
+               loc="upper center", bbox_to_anchor=(0.5, 0.03))
+    fig.suptitle("Latent movement between adjacent checkpoints", fontsize=10)
+    fig.tight_layout(rect=(0, 0.04, 1, 0.95))
+    Path(out).parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, bbox_inches="tight")
+    print(f"wrote {out} ({len(rows)} interval(s))")
+    return 0
+
+
 def main(argv=None):
     p = argparse.ArgumentParser()
-    p.add_argument("--run", action="append", required=True,
+    p.add_argument("--run", action="append", default=[],
                    metavar="ARM:K:NAME=DIR")
-    p.add_argument("--batch", required=True)
+    p.add_argument("--batch")
+    p.add_argument("--from-csv", action="store_true",
+                   help="redraw from --out-csv and load no checkpoint. The "
+                        "numbers are committed; only re-deriving them needs "
+                        "the checkpoint store.")
     p.add_argument("--out-csv", required=True)
     p.add_argument("--out", required=True)
     p.add_argument("--device",
                    default="cuda" if torch.cuda.is_available() else "cpu")
     args = p.parse_args(argv)
 
+    if args.from_csv:
+        with open(args.out_csv) as fh:
+            rows = [dict(r, k=int(r["k"]), **{"from": int(r["from"]),
+                                              "to": int(r["to"])})
+                    for r in csv.DictReader(fh)]
+        return draw(rows, args.out)
+
+    if not args.run or not args.batch:
+        raise SystemExit("ABORT: --run and --batch are required without "
+                         "--from-csv")
     x = torch.load(args.batch, map_location="cpu", weights_only=False)
     kwargs = small_backbone_kwargs()
     # Class 0 (unknown) for both conditioning tables, so every checkpoint of
@@ -120,30 +176,8 @@ def main(argv=None):
         w.writeheader()
         w.writerows(rows)
 
-    fig, (axH, axE) = plt.subplots(1, 2, figsize=(10.6, 4.2))
-    for ax, key, ylab in ((axH, "movement_h", "1 − cos on h$_t$"),
-                          (axE, "movement_e", "1 − cos on e$_t$")):
-        for r in rows:
-            ax.plot([r["from"], r["to"]], [float(r[key])] * 2,
-                    color=cc.colour(r["cell"]), linestyle=cc.style(r["k"]),
-                    linewidth=2.4)
-        ax.set_xlabel("backbone step interval")
-        ax.set_ylabel(ylab)
-    axH.set_title("Encoder-output latent")
-    axE.set_title("Patch-embedding latent")
-    cells = sorted({r["cell"] for r in rows},
-                   key=lambda c: cc.ORDER.index(c) if c in cc.ORDER else 99)
-    handles = [Line2D([], [], color=cc.colour(c), label=cc.label(c))
-               for c in cells]
-    handles += [Line2D([], [], color=cc.INK_SOFT, linestyle=cc.style(kk),
-                       label=f"k = {kk}") for kk in (0, 3)]
-    axE.legend(handles=handles, frameon=False, fontsize=8)
-    fig.suptitle("Latent movement between adjacent checkpoints", fontsize=10)
-    fig.tight_layout(rect=(0, 0, 1, 0.95))
-    Path(args.out).parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(args.out, bbox_inches="tight")
-    print(f"wrote {args.out} and {args.out_csv} ({len(rows)} interval(s))")
-    return 0
+    print(f"wrote {args.out_csv}")
+    return draw(rows, args.out)
 
 
 if __name__ == "__main__":

@@ -87,6 +87,25 @@ PRINT_QUANT = 0.0001
 RESOLUTION = REEVAL_FLOOR + PRINT_QUANT
 
 
+def best_published():
+    """The lowest GM-Relative MASE any of the three parents printed, and where.
+
+    This is the frontier before this study: the best score the project had
+    reached on the 97 GIFT-Eval configs with `k = 0` training. Every figure
+    that draws a grey baseline draws THIS number, so the two lead figures
+    cannot drift apart.
+
+    Returns `(value, cell, head, stop_k)`.
+    """
+    best = None
+    for cell, heads in PUBLISHED.items():
+        for head, stops in heads.items():
+            for stop_k, v in stops.items():
+                if best is None or v < best[0]:
+                    best = (v, cell, head, stop_k)
+    return best
+
+
 def verdict(d, same_seed=True, seed_band=SEED_BAND):
     """The verdict on `d`, which is |retrained - published|.
 
