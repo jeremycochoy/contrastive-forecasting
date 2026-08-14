@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import statistics
 import sys
 from pathlib import Path
 
@@ -55,6 +56,19 @@ def load(path):
     return out, counts
 
 
+def rollouts(res):
+    """`{family: "median (low–high)"}` — how far the eval rolls out there."""
+    path = res / "rollout_count.csv"
+    if not path.is_file():
+        return {}
+    by = {}
+    with path.open() as fh:
+        for r in csv.DictReader(fh):
+            by.setdefault(r["domain"], []).append(int(r["rollout_steps"]))
+    return {d: f"{statistics.median(v):g} ({min(v)}–{max(v)})"
+            for d, v in by.items()}
+
+
 def lands(k0, k3):
     """Where k = 3 left the family, against seasonal-naive parity at 1.0."""
     if k0 > 1.0 and k3 <= 1.0:
@@ -79,6 +93,8 @@ def main(argv=None):
     counts.update(c2)
     src = {"study": study, "k0": pub}
 
+    roll = rollouts(res)
+
     out = []
     for cell, stop, head, f0, k0key, k3key, why in PAIRS:
         d0 = src[f0].get(k0key)
@@ -90,17 +106,22 @@ def main(argv=None):
         tgt = "no L_align" if align == "none" else f"L_align on the {align}"
         out += [f"**{cell}  {arm} · {tgt}, bb{stop}k, {head}-encoder head.** "
                 f"{why}", "",
-                "| family | configs | k = 0 | k = 3 | difference | "
-                "where k = 3 leaves it |",
-                "|---|---:|---:|---:|---:|---|"]
+                "| family | configs | rollout steps | k = 0 | k = 3 | "
+                "difference | where k = 3 leaves it |",
+                "|---|---:|---:|---:|---:|---:|---|"]
         for d in sorted(d0, key=lambda d: -counts[d]):
             v0, v3 = d0[d], d3[d]
             flag = " ⚑" if d in HARD else ""
-            out.append(f"| {d}{flag} | {counts[d]} | {v0:.3f} | {v3:.3f} | "
+            out.append(f"| {d}{flag} | {counts[d]} | {roll.get(d, '—')} | "
+                       f"{v0:.3f} | {v3:.3f} | "
                        f"{v3 - v0:+.3f} | {lands(v0, v3)} |")
         out += ["", ""]
     out += ["⚑ marks the four families the card names as the ones seasonal "
-            "naive wins by the largest margin: " + ", ".join(HARD) + ".", ""]
+            "naive wins by the largest margin: " + ", ".join(HARD) + ".", "",
+            "`rollout steps` is how many times the eval runs "
+            "`rollout_latent` on a config of that family, median and range. "
+            "It is the same column for every table here, because it depends "
+            "on the config and not on the run.", ""]
 
     dst = Path(a.out) if a.out else res / "domain_table.md"
     dst.write_text("\n".join(out) + "\n")

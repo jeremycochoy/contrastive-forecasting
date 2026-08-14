@@ -152,15 +152,9 @@ def main(argv=None):
     ax.set_ylabel("GM-Relative MASE, 97 configs  (lower is better)")
     ax.set_title("A3 depth ladder against the L_align x4 control, bb40k",
                  loc="left", fontsize=12, pad=17)
-    # Which box each point trained on, above the panel. Every point here
-    # trained on a different box from at least one other; what that costs the
-    # reading is a body sentence, not a caption.
-    where = " · ".join(f"{c}: {R.resolve(f'{t}_bb40k_student').machine}"
-                       for c, t in (("k = 0", "A3_k0"), ("k = 1", "G3_A3_k1"),
-                                    ("x4", "G3_A3_k0_aw4"), ("k = 3", "A3_k3"))
-                       if R.resolve(f"{t}_bb40k_student"))
-    ax.annotate(where, (0.0, 1.005), xycoords="axes fraction", fontsize=8.5,
-                color=cc.INK_SOFT, va="bottom")
+    # No machine note above the panel. A box change is a nuisance draw, like
+    # a seed; which box each column trained on is in the annex table beside
+    # this figure.
     handles = [
         Line2D([], [], color=col, linewidth=2.2, marker="o", markersize=9,
                label="depth ladder, student head"),

@@ -1381,6 +1381,11 @@ def main(argv=None):
           "MASE. Lower is better; 1.0 is seasonal-naive parity |",
           "| B4 eval strategy | GIFT-Eval's official evaluation strategy, "
           "the one the parent reports use |",
+          "| rollout steps at eval | how many times the eval calls "
+          "`rollout_latent` on one config: `ceil(prediction_length / 16)`, "
+          "since B4 asks for one token per patch of the horizon and the "
+          "function takes one autoregressive step per token. It is a "
+          "property of the config, not of the run |",
           "| student / teacher head | the quantile head is trained twice "
           "per backbone, once on the student encoder and once on its EMA "
           "copy, the teacher. The two are separate measurements of one "

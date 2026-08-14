@@ -11,6 +11,12 @@ the 97 configs, so its spoke carries a third of the aggregate.
 The 1.0 parity ring is drawn on every panel, in black, and labelled. A
 polygon inside it beats seasonal naive on that family.
 
+A grey polygon carries the frontier the project held before this study, per
+family: the lowest value any published run reached on that family, over
+every (cell, stop, head) `parent_splits.py` accepted. It is the per-domain
+form of the grey rule the two lead figures draw, and it is the same polygon
+on every panel.
+
 The radial axis is log2(ratio), so equal multiplicative steps are equal
 distances.
 
@@ -59,23 +65,23 @@ import r2_ladder as L                                  # noqa: E402
 plt.rcParams.update(cc.rc())
 
 PARITY_INK = "#0b0b0b"
+PRIOR_INK = "#9a9a96"
 
 # (cell, stop, k0 file, k0 key, k3 file, k3 key, what the pair holds)
 # `S` is the head, filled in per figure.
 PANELS = [
     ("A4", 100, "k0", "A4_k0_bb100k_{S}", "study", "A4_k3_bb100k_{S}",
-     "published k = 0", ""),
+     "published k = 0"),
     ("B1", 40, "study", "G6_B1_k0_bb40k_{S}", "study", "G6_B1_k3_bb40k_{S}",
-     "this study's k = 0", ""),
+     "this study's k = 0"),
     ("B5", 40, "study", "G5_B5_s2_k0_bb40k_{S}", "study",
-     "G5_B5_s2_k3_bb40k_{S}", "this study's k = 0",
-     "backbone seed 20260521"),
+     "G5_B5_s2_k3_bb40k_{S}", "this study's k = 0"),
     ("B2", 200, "k0", "B2_k0_bb200k_{S}", "study", "B2_k3_bb200k_{S}",
-     "published k = 0", "the arm and stop the card quotes"),
+     "published k = 0"),
     ("B9", 40, "study", "G2_B9_k0_bb40k_{S}", "study", "B9_k3_bb40k_{S}",
-     "this study's k = 0", ""),
+     "this study's k = 0"),
     ("A3", 40, "study", "A3_k0_bb40k_{S}", "study", "A3_k3_bb40k_{S}",
-     "this study's k = 0", ""),
+     "this study's k = 0"),
 ]
 
 
@@ -103,12 +109,20 @@ def main(argv=None):
     counts.update(c2)
     src = {"study": study, "k0": pub}
 
+    # The best per-domain score the project held BEFORE this study: the lowest
+    # value any published run reached on that family, over every (cell, stop,
+    # head) `parent_splits.py` accepted. One polygon, drawn on every panel.
+    prior = {}
+    for vals in pub.values():
+        for d, v in vals.items():
+            prior[d] = min(v, prior.get(d, v))
+
     panels = []
-    for cell, stop, f0, k0, f3, k3, note, why in PANELS:
+    for cell, stop, f0, k0, f3, k3, note in PANELS:
         a = src[f0].get(k0.format(S=args.head))
         b = src[f3].get(k3.format(S=args.head))
         if a and b:
-            panels.append((cell, stop, a, b, note, why))
+            panels.append((cell, stop, a, b, note))
     if not panels:
         raise SystemExit(f"ABORT: no panel has both sides on the {args.head} head")
 
@@ -116,7 +130,8 @@ def main(argv=None):
     n = len(domains)
     ang = [i / n * 2 * math.pi for i in range(n)] + [0.0]
 
-    allv = [v for _, _, a, b, _, _ in panels for d in (a, b) for v in d.values()]
+    allv = [v for _, _, a, b, _ in panels for d in (a, b) for v in d.values()]
+    allv += [prior[d] for d in domains if d in prior]
     lo, hi = min(allv), max(allv)
     ticks = [t for t in (0.7, 0.85, 1.0, 1.2, 1.5, 2.0, 2.8, 4.0)
              if lo / 1.1 <= t <= hi * 1.1] or [round(lo, 2), round(hi, 2)]
@@ -130,7 +145,7 @@ def main(argv=None):
     fig, axes = plt.subplots(nrow, ncol, figsize=(4.9 * ncol, 5.7 * nrow),
                              subplot_kw={"projection": "polar"}, squeeze=False)
 
-    for idx, (cell, stop, k0v, k3v, note, why) in enumerate(panels):
+    for idx, (cell, stop, k0v, k3v, note) in enumerate(panels):
         ax = axes[idx // ncol][idx % ncol]
         ax.set_theta_offset(math.pi / 2)
         ax.set_theta_direction(-1)
@@ -142,6 +157,11 @@ def main(argv=None):
         ax.plot(ang, [0.0] * len(ang), color=PARITY_INK, linewidth=1.7,
                 zorder=5)
 
+        pv = [math.log2(prior[d]) for d in domains if d in prior]
+        if len(pv) == n:
+            ax.plot(ang, pv + pv[:1], color=PRIOR_INK, linewidth=3.4,
+                    solid_capstyle="round", zorder=2)
+
         col = cc.ladder_colour(cell)
         for vals, ls, alpha in ((k0v, (0, (5, 2)), 0.75), (k3v, "solid", 1.0)):
             v = [math.log2(vals.get(d, 1.0)) for d in domains]
@@ -150,25 +170,27 @@ def main(argv=None):
 
         arm, align, ema = L.CELL_ARM[cell]
         tgt = "no L_align" if align == "none" else f"L_align→{align}"
-        # Identity and k = 0 source only. A subtitle that also ranked the
-        # panel ("the study's largest gain") was prose on a figure, and the
-        # ranking is already in the report's tables.
+        # Cell, recipe, stop, and which file the k = 0 side comes from. A
+        # subtitle that ranked the panel ("the study's largest gain") was
+        # prose on a figure, and the machine and the backbone seed are
+        # nuisance draws the annex carries.
         ax.set_title(f"{cell}  {arm} · {tgt}\n"
-                     f"k = 0 against k = 3 at bb{stop}k   ({note})"
-                     + (f"\n{why}" if why else ""),
+                     f"k = 0 against k = 3 at bb{stop}k   ({note})",
                      fontsize=9, pad=18)
 
     for idx in range(len(panels), nrow * ncol):
         axes[idx // ncol][idx % ncol].axis("off")
 
     fig.legend(handles=[
+        Line2D([], [], color=PRIOR_INK, linewidth=3.4,
+               label="grey: best per-domain result before this study"),
         Line2D([], [], color=cc.INK_SOFT, linestyle=(0, (5, 2)),
                label="k = 0, no rollout depth in training"),
         Line2D([], [], color=cc.INK_SOFT, linestyle="solid",
                label="k = 3, the depth this study trains"),
         Line2D([], [], color=PARITY_INK, linewidth=1.7,
                label="seasonal-naive parity, 1.0. Inside it the model wins")],
-        loc="lower center", ncol=3, frameon=False, fontsize=9)
+        loc="lower center", ncol=4, frameon=False, fontsize=9)
     fig.suptitle(f"Per-domain GM-Relative MASE, {args.head}-encoder head "
                  "(radial axis log2, lower is better)", fontsize=10.5)
     fig.tight_layout(rect=(0, 0.045, 1, 0.96), h_pad=4.5)

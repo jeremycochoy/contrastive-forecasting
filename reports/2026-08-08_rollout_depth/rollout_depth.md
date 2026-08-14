@@ -1,16 +1,16 @@
-# Rollout depth 3 sets the project's best GM-Relative MASE, and the depth is not shown to be the cause
+# Rollout depth 3 sets the project's best GM-Relative MASE
 
-Rollout depth 3 lowers the best GM-Relative MASE the project has reached,
-from 1.1544 to 1.0660, on A4 at 200,000 backbone steps, student head: a drop
-of 0.0884. Every cell ran once, on one backbone seed, so this study measures
-a frontier and a direction and not a per-recipe ranking.
+The best GM-Relative MASE before this study was 1.1544, and the best now is
+1.0660, on A4 at 200,000 backbone steps, student head: 0.0884 lower. Every
+cell ran once, on one backbone seed, so this study measures a frontier and a
+direction, not a per-recipe ranking.
 
 **GM-Relative MASE** geometric mean over the 97 GIFT-Eval configs of each
 config's MASE divided by the seasonal-naive MASE; lower is better and 1.0 is
 seasonal-naive parity. **Cell** one of the 14 recipes the card names, `A1`..`A4`
 and `B1`..`B10`. **bb100k** backbone step 100,000. **The card** the issue this
 study answers, and the 14 cells, stops and criteria it names. Every other
-term is in the glossary of §14.
+term is in the glossary of §15.
 
 ## 1. The frontier
 
@@ -28,8 +28,9 @@ A4 beats its own published `k = 0` by -0.1144 at bb100k, on the student head.
 
 ![per-domain GM-Relative MASE, k = 3 against k = 0, student head](plots/domain_radar_student.png)
 
-*Per-domain, student-encoder head. The black ring is seasonal-naive parity at
-1.0. Config count under each family name.*
+*Per-domain, student-encoder head. Grey is the best per-domain result before
+this study. The black ring is seasonal-naive parity at 1.0. Config count
+under each family name.*
 
 ![per-domain GM-Relative MASE, k = 3 against k = 0, teacher head](plots/domain_radar_teacher.png)
 
@@ -38,7 +39,20 @@ A4 beats its own published `k = 0` by -0.1144 at bb100k, on the student head.
 On A4 at bb100k all four hard families move toward 1.0 and none reaches it;
 on B2 at bb200k all four move away.
 
-## 3. Where the change lands, by horizon
+## 3. How far the eval rolls out, and what the depth does there
+
+![rollout steps per config, and the k = 3 minus k = 0 change against them](plots/rollout_count.png)
+
+*Left: rollout steps per config, by family. Right: the same count against
+`k = 3` minus `k = 0` per config, student head. The Protocol gives the
+formula and the source of every horizon.*
+
+Inside a pair the two move together: Spearman ρ is -0.63 on B9, -0.40 on B1,
+-0.34 on A4, -0.16 on B5·s2 and -0.15 on A3. Across families they do not:
+Econ/Fin rolls out a median of 1 step and gains the most on A4, at -0.263,
+and the per-family table of §12 carries both columns.
+
+## 4. Where the change lands, by horizon
 
 ![horizon split, student head](plots/horizon_split_student.png)
 
@@ -51,7 +65,7 @@ on B2 at bb200k all four move away.
 
 B9 and B1 gain most on medium and long, and B5·s2 and A3 lose most on short.
 
-## 4. Per-depth forecast error during training
+## 5. Per-depth forecast error during training
 
 ![per-depth forecast error](plots/cos_err_depth.png)
 
@@ -66,7 +80,7 @@ depth-0 error than their own `k = 0` over every end-of-run window.
 *The depth-0 line of every run, on one axis. `1 − ff` is the same quantity on
 both depths, unlike the loss.*
 
-## 5. Rollout fidelity against depth
+## 6. Rollout fidelity against depth
 
 ![rollout fidelity](plots/rollout_fidelity.png)
 
@@ -80,7 +94,7 @@ Every one of the 5 arms that trained `k = 3` rolls out more faithfully than its 
 
 <!-- FIDELITY:END -->
 
-## 6. `k = 3` minus `k = 0`, per cell, at every stop
+## 7. `k = 3` minus `k = 0`, per cell, at every stop
 
 ![k = 3 minus the published k = 0, per cell, per stop](plots/k3_minus_k0.png)
 
@@ -90,14 +104,14 @@ At bb100k, the stop every cell reached, 10 of the 14 cells beat their
 published `k = 0` on the student head and 4 move the wrong way, 2 of them past
 the ±0.0384 band.
 
-## 7. The EMA schedule each group trained under
+## 8. The EMA schedule each group trained under
 
 ![EMA momentum against training step](plots/alpha_schedule.png)
 
 *The `ema_tau` column every backbone leg logged. Group A raises α from 0.9 to
 1.0 by step 100k; group B holds α at 0.9.*
 
-## 8. Which encoder the head reads
+## 9. Which encoder the head reads
 
 ![encoder delta](plots/encoder_delta.png)
 
@@ -106,7 +120,7 @@ the ±0.0384 band.
 The two heads sit inside the ±0.0384 head-seed band on 34 of the 36
 cell-stops, and A3 at bb200k is the widest gap in the grid.
 
-## 9. Latent movement across the checkpoints
+## 10. Latent movement across the checkpoints
 
 ![latent movement between adjacent checkpoints](plots/latent_movement.png)
 
@@ -116,7 +130,7 @@ on the fixed diagnostic batch.*
 The deeper run moves the encoder-output latent further than its own `k = 0` on
 5 of the 6 matched intervals, B1 furthest over steps 25,000 to 40,000.
 
-## 10. Training curves
+## 11. Training curves
 
 ![dimension usage](plots/dim_usage_per_arm.png)
 
@@ -215,54 +229,56 @@ how many `k = 0` steps the depth is worth. This figure marks the five
 retrained arms on those trajectories. It shows B1's `k = 3` at bb40k below
 every published B1 point, including bb200k.
 
-## 11. Per-family GM-Relative MASE, `k = 3` against `k = 0`
+## 12. Per-family GM-Relative MASE, `k = 3` against `k = 0`
 
 <!-- DOMAIN:BEGIN -->
 
 **A4  arm6_v2 combab · L_align on the student, bb100k, student-encoder head.** The cell that sets this study's frontier, at the deepest stop its parent published. Published `k = 0`.
 
-| family | configs | k = 0 | k = 3 | difference | where k = 3 leaves it |
-|---|---:|---:|---:|---:|---|
-| Energy ⚑ | 32 | 1.481 | 1.279 | -0.201 | toward 1.0 |
-| Web/CloudOps ⚑ | 20 | 1.257 | 1.199 | -0.057 | toward 1.0 |
-| Nature | 15 | 0.866 | 0.822 | -0.044 | stays below 1.0, lower |
-| Transport | 15 | 1.021 | 0.901 | -0.120 | **past 1.0** |
-| Econ/Fin ⚑ | 6 | 1.414 | 1.150 | -0.263 | toward 1.0 |
-| Healthcare ⚑ | 5 | 1.171 | 1.113 | -0.058 | toward 1.0 |
-| Sales | 4 | 0.800 | 0.797 | -0.003 | stays below 1.0, lower |
+| family | configs | rollout steps | k = 0 | k = 3 | difference | where k = 3 leaves it |
+|---|---:|---:|---:|---:|---:|---|
+| Energy ⚑ | 32 | 16.5 (1–45) | 1.481 | 1.279 | -0.201 | toward 1.0 |
+| Web/CloudOps ⚑ | 20 | 30 (3–57) | 1.257 | 1.199 | -0.057 | toward 1.0 |
+| Nature | 15 | 3 (1–45) | 0.866 | 0.822 | -0.044 | stays below 1.0, lower |
+| Transport | 15 | 30 (2–45) | 1.021 | 0.901 | -0.120 | **past 1.0** |
+| Econ/Fin ⚑ | 6 | 1 (1–3) | 1.414 | 1.150 | -0.263 | toward 1.0 |
+| Healthcare ⚑ | 5 | 1 (1–2) | 1.171 | 1.113 | -0.058 | toward 1.0 |
+| Sales | 4 | 1.5 (1–2) | 0.800 | 0.797 | -0.003 | stays below 1.0, lower |
 
 
 **B1  arm6_v2 combab · L_align on the student, bb40k, student-encoder head.** The pair whose `k = 0` side this study trained, so the depth is the only change.
 
-| family | configs | k = 0 | k = 3 | difference | where k = 3 leaves it |
-|---|---:|---:|---:|---:|---|
-| Energy ⚑ | 32 | 1.471 | 1.270 | -0.200 | toward 1.0 |
-| Web/CloudOps ⚑ | 20 | 1.288 | 1.211 | -0.077 | toward 1.0 |
-| Nature | 15 | 0.884 | 0.840 | -0.044 | stays below 1.0, lower |
-| Transport | 15 | 1.040 | 0.907 | -0.133 | **past 1.0** |
-| Econ/Fin ⚑ | 6 | 1.466 | 1.212 | -0.254 | toward 1.0 |
-| Healthcare ⚑ | 5 | 1.103 | 1.077 | -0.026 | toward 1.0 |
-| Sales | 4 | 0.772 | 0.775 | +0.004 | stays below 1.0, higher |
+| family | configs | rollout steps | k = 0 | k = 3 | difference | where k = 3 leaves it |
+|---|---:|---:|---:|---:|---:|---|
+| Energy ⚑ | 32 | 16.5 (1–45) | 1.471 | 1.270 | -0.200 | toward 1.0 |
+| Web/CloudOps ⚑ | 20 | 30 (3–57) | 1.288 | 1.211 | -0.077 | toward 1.0 |
+| Nature | 15 | 3 (1–45) | 0.884 | 0.840 | -0.044 | stays below 1.0, lower |
+| Transport | 15 | 30 (2–45) | 1.040 | 0.907 | -0.133 | **past 1.0** |
+| Econ/Fin ⚑ | 6 | 1 (1–3) | 1.466 | 1.212 | -0.254 | toward 1.0 |
+| Healthcare ⚑ | 5 | 1 (1–2) | 1.103 | 1.077 | -0.026 | toward 1.0 |
+| Sales | 4 | 1.5 (1–2) | 0.772 | 0.775 | +0.004 | stays below 1.0, higher |
 
 
 **B2  arm6_v2 combab · L_align on the teacher, bb200k, student-encoder head.** The arm and stop the card quotes its own per-family numbers from. Published `k = 0`.
 
-| family | configs | k = 0 | k = 3 | difference | where k = 3 leaves it |
-|---|---:|---:|---:|---:|---|
-| Energy ⚑ | 32 | 1.388 | 1.587 | +0.198 | away from 1.0 |
-| Web/CloudOps ⚑ | 20 | 1.283 | 1.347 | +0.064 | away from 1.0 |
-| Nature | 15 | 0.867 | 0.914 | +0.047 | stays below 1.0, higher |
-| Transport | 15 | 1.021 | 1.077 | +0.056 | away from 1.0 |
-| Econ/Fin ⚑ | 6 | 1.489 | 1.869 | +0.380 | away from 1.0 |
-| Healthcare ⚑ | 5 | 1.261 | 1.283 | +0.022 | away from 1.0 |
-| Sales | 4 | 0.830 | 0.824 | -0.006 | stays below 1.0, lower |
+| family | configs | rollout steps | k = 0 | k = 3 | difference | where k = 3 leaves it |
+|---|---:|---:|---:|---:|---:|---|
+| Energy ⚑ | 32 | 16.5 (1–45) | 1.388 | 1.587 | +0.198 | away from 1.0 |
+| Web/CloudOps ⚑ | 20 | 30 (3–57) | 1.283 | 1.347 | +0.064 | away from 1.0 |
+| Nature | 15 | 3 (1–45) | 0.867 | 0.914 | +0.047 | stays below 1.0, higher |
+| Transport | 15 | 30 (2–45) | 1.021 | 1.077 | +0.056 | away from 1.0 |
+| Econ/Fin ⚑ | 6 | 1 (1–3) | 1.489 | 1.869 | +0.380 | away from 1.0 |
+| Healthcare ⚑ | 5 | 1 (1–2) | 1.261 | 1.283 | +0.022 | away from 1.0 |
+| Sales | 4 | 1.5 (1–2) | 0.830 | 0.824 | -0.006 | stays below 1.0, lower |
 
 
 ⚑ marks the four families the card names as the ones seasonal naive wins by the largest margin: Energy, Econ/Fin, Web/CloudOps, Healthcare.
 
+`rollout steps` is how many times the eval runs `rollout_latent` on a config of that family, median and range. It is the same column for every table here, because it depends on the config and not on the run.
+
 <!-- DOMAIN:END -->
 
-## 12. Collapse watch
+## 13. Collapse watch
 
 <!-- COLLAPSE:BEGIN -->
 
@@ -293,7 +309,7 @@ On `h_t`, 1 of the 5 arms that trained both depths ends the deeper run below hal
 
 <!-- COLLAPSE:END -->
 
-## 13. The card's success criteria, cell by cell
+## 14. The card's success criteria, cell by cell
 
 <!-- CRITERIA:BEGIN -->
 
@@ -325,7 +341,7 @@ The count is over CELLS. A1 and B3 share one student model, so the 14 cells hold
 
 <!-- CRITERIA:END -->
 
-## 14. Tables
+## 15. Tables
 
 <!-- TABLES:BEGIN -->
 
@@ -424,6 +440,7 @@ The rule reads one cell's bb40k number against its bb100k number, per head. A he
 | bb40k, bb100k, bb200k | backbone step 40,000 / 100,000 / 200,000. bb40k is the one stop every run here reached |
 | GM-Relative MASE | geometric mean over the 97 GIFT-Eval configs of each config's MASE divided by the seasonal-naive MASE. Lower is better; 1.0 is seasonal-naive parity |
 | B4 eval strategy | GIFT-Eval's official evaluation strategy, the one the parent reports use |
+| rollout steps at eval | how many times the eval calls `rollout_latent` on one config: `ceil(prediction_length / 16)`, since B4 asks for one token per patch of the horizon and the function takes one autoregressive step per token. It is a property of the config, not of the run |
 | student / teacher head | the quantile head is trained twice per backbone, once on the student encoder and once on its EMA copy, the teacher. The two are separate measurements of one backbone |
 | f-bearing term | the loss term that the forecast operator `f` enters. `--train-rollout-depth K` duplicates it at depth 1..K |
 | `rep_only` | the representation loss with no forecast term |
@@ -441,7 +458,7 @@ The rule reads one cell's bb40k number against its bb100k number, per head. A he
 
 <!-- TABLES:END -->
 
-## 15. What this study cannot support
+## 16. What this study cannot support
 
 <!-- LIMITS:BEGIN -->
 
@@ -781,6 +798,19 @@ from [`ema_sched_ladder`](../2026-08-04_ema_sched_ladder/ema_sched_ladder.md).
 The band is that report's pooled head-seed band, ±0.0384, which bounds the
 head seed alone. `published.best_published()` is the one place the value is
 computed, and both figures call it.
+
+**The grey polygon of the two radars** is the per-family form of that
+baseline: per family, the lowest value any published run reached, over every
+(cell, stop, head) whose own CSV reproduces the number its parent printed.
+`parent_splits.py` accepts those CSVs and the radar reads its file.
+
+**The rollout count at eval** is `ceil(prediction_length / W)`, with `W = 16`,
+the backbone patch width the eval runs at. Strategy B4 asks
+`rollout_latent` for one token per patch of the horizon and that function
+takes one autoregressive step per token. Every `prediction_length` comes
+from the GIFT-Eval library itself, per config, so no count here is read off
+a config name. [`results/rollout_count.csv`](results/rollout_count.csv)
+carries all 97, and re-deriving it needs the benchmark data on disk.
 
 **The head budget differs by column.** Every bb40k head trains 15,000 steps
 and every bb100k and bb200k head trains 30,000. A comparison down one column

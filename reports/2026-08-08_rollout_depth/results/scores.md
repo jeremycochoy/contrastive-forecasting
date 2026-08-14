@@ -163,6 +163,7 @@ The rule reads one cell's bb40k number against its bb100k number, per head. A he
 | bb40k, bb100k, bb200k | backbone step 40,000 / 100,000 / 200,000. bb40k is the one stop every run here reached |
 | GM-Relative MASE | geometric mean over the 97 GIFT-Eval configs of each config's MASE divided by the seasonal-naive MASE. Lower is better; 1.0 is seasonal-naive parity |
 | B4 eval strategy | GIFT-Eval's official evaluation strategy, the one the parent reports use |
+| rollout steps at eval | how many times the eval calls `rollout_latent` on one config: `ceil(prediction_length / 16)`, since B4 asks for one token per patch of the horizon and the function takes one autoregressive step per token. It is a property of the config, not of the run |
 | student / teacher head | the quantile head is trained twice per backbone, once on the student encoder and once on its EMA copy, the teacher. The two are separate measurements of one backbone |
 | f-bearing term | the loss term that the forecast operator `f` enters. `--train-rollout-depth K` duplicates it at depth 1..K |
 | `rep_only` | the representation loss with no forecast term |

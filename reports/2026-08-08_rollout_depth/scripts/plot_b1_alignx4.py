@@ -182,14 +182,9 @@ def main(argv=None):
     ax.set_ylabel("GM-Relative MASE, 97 configs  (lower is better)")
     ax.set_title("B1: the L_align x4 control against the depth ladder, bb40k",
                  loc="left", fontsize=12, pad=17)
-    where = " · ".join(
-        f"{c}: {R.resolve(f'{t}_bb40k_student').machine}"
-        for c, t in (("k = 0", "G6_B1_k0"), ("x4", "G_B1_k0_aw4"),
-                     ("k = 3", "G6_B1_k3"))
-        if R.resolve(f"{t}_bb40k_student"))
-    ax.annotate(where + " · seed 20260520 throughout", (0.0, 1.005),
-                xycoords="axes fraction", fontsize=8.5, color=cc.INK_SOFT,
-                va="bottom")
+    # No machine note above the panel. A box change is a nuisance draw, like
+    # a seed; every column here trained on one box anyway, and the annex
+    # table beside this figure says which.
     handles = [
         Line2D([], [], color=col, linewidth=2.2, marker="o", markersize=9,
                label="depth ladder, student head"),

@@ -58,6 +58,15 @@ fi
 # reproduces the number that parent printed.
 run "$HERE/parent_splits.py" --results "$RES"
 
+# ---- 1c. how far the eval rolls out, per config ---------------------------
+# Strategy B4 calls `rollout_latent` once per config with
+# `ceil(prediction_length / W)` tokens, and that function takes one
+# autoregressive step per token. `rollout_count.py` reads every horizon from
+# the GIFT-Eval library, so no count here is inferred from a name. The
+# library needs the benchmark data on disk; without it the committed CSV
+# stands and the script says so.
+run "$HERE/rollout_count.py" --results "$RES"
+
 # ---- 2. paired dataset-cluster bootstrap -----------------------------------
 # Both arms of a pair are evaluated on the same 97 configs, so the delta is
 # paired per config; the resampling unit is the DATASET, because
@@ -101,6 +110,9 @@ if [ -f "$RES/splits.csv" ]; then
         --splits-k0 "$RES/splits_k0.csv" \
         --head "$head" --out "$PLOTS/domain_radar_${head}.png"
   done
+  # The eval's own rollout depth, and the score change against it.
+  run "$HERE/plot_rollout_count.py" --results "$RES" \
+      --out "$PLOTS/rollout_count.png"
   # The per-family table the radar's numbers come from, and the report's
   # DOMAIN block.
   run "$HERE/domain_table.py" --results "$RES" --inject "$DST/rollout_depth.md"

@@ -192,9 +192,12 @@ def style(k):
 
 
 def label(arm):
-    """The cell, and — where the cell trained more than one backbone — which
-    of them this is. B5 has three, and two of them carry the same seed, so
-    the seed alone does not name a B5 arm.
+    """The cell and its recipe, and — where the cell trained more than one
+    backbone — the arm name that tells them apart. B5 has three.
+
+    The arm name carries the distinction and the machine does not: a box
+    change is a nuisance draw, like a seed, and the one figure that measures
+    it names it itself.
 
     A bare cell id is also accepted, for a legend entry that stands for the
     colour rather than for one backbone.
@@ -203,7 +206,7 @@ def label(arm):
     base = f"{cell} {SLUG.get(cell, '?')}"
     if arm == cell or len(R.arms_of(cell)) < 2:
         return base
-    return f"{base}  seed {R.arm_seed(arm)}, {R.arm_where(arm)}"
+    return f"{arm} {SLUG.get(cell, '?')}"
 
 
 # ---------------------------------------------------------------------------
