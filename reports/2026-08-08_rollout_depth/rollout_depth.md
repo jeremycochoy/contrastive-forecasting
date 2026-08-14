@@ -377,7 +377,7 @@ The second draw changes two things: the head seed, and the machine that trained 
 
 **The two draws agree.** They sit 0.0100 apart [-0.0163, +0.0378], 26% of the ±0.0384 head-seed band, and the second draw is the higher of the two. So 1.3998 is not a bad draw. The interval covers zero, and its far end lands on the imported band, so this head behaves like the heads that band was measured on. The two draws also sit on two machines, so this agreement bounds the head seed and the machine together, not the seed alone.
 
-The student/teacher gap survives the redraw at 0.1185, 3.1x the band. Two head seeds put A3's bb200k student above its teacher, so the gap is a property of that student encoder and not of the draw. Draw 1 and the teacher trained on the same box, so their 0.1084 gap holds the machine; the redraw's 0.1185 crosses machines.
+The student/teacher gap survives the redraw at 0.1185, 3.1x the band. Both gaps exclude zero: the teacher beats draw 1 by -0.1084 [-0.1648, -0.0671] and draw 2 by -0.1185 [-0.1819, -0.0718], each on 100% of resamples ([`results/final_check.csv`](results/final_check.csv)). Two head seeds put A3's bb200k student above its teacher, so the gap is a property of that student encoder and not of the draw. Draw 1 and the teacher trained on the same box, so their 0.1084 gap holds the machine; the redraw's 0.1185 crosses machines.
 
 The ladder's largest move reads +0.1088 [+0.0656, +0.1667] off the second draw, against +0.0988 off the first. Both exclude zero.
 
