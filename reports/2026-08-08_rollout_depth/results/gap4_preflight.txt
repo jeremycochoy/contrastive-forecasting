@@ -1,0 +1,13 @@
+id         G_B1_k3_aw025  (review gap 3)
+launcher   run_arm_k.sh arm6_v2_combab
+flags      K=3 SEED=20260520 RUN_SUFFIX='_aw025' GAP_ARGS='--align-loss-weight 0.25' TARGET_STEPS=40000
+run name   bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_aw025
+directory  /home/jupyter/checkpoints_backup/cf-373/bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_aw025
+checkpoint /home/jupyter/checkpoints_backup/cf-373/bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_aw025/bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_aw025_40k.pth
+collision  none: /home/jupyter/checkpoints_backup/cf-373/bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_aw025 is free
+heads      G_B1_k3_aw025_bb40k_student and G_B1_k3_aw025_bb40k_teacher, 15,000 steps, seed 20260722
+scores     results/score_G_B1_k3_aw025_bb40k_student.txt, results/score_G_B1_k3_aw025_bb40k_teacher.txt
+launch     JOBS=scripts/gap3_jobs.tsv BB_GPU=<0|1> \
+             nohup bash scripts/gap_worker.sh 0 1 > results/gap3_worker.out 2>&1 &
+
+Nothing was started. This script trains nothing and rents nothing.
