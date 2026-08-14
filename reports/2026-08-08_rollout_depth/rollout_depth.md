@@ -66,21 +66,22 @@ depth-0 error than their own `k = 0` over every end-of-run window.
 
 ![depth-0 forecast error per arm](plots/cos_error_per_arm.png)
 
-*The depth-0 line of every run, on one axis.*
-
-`1 − ff` is the same quantity on both depths, unlike the loss: at `k = 3`, A3
-ends at the lowest depth-0 error of the five arms and B5·s1 at the highest,
-yet A3 scores worse than B5·s1 at bb40k.
+*The depth-0 line of every run, on one axis. `1 − ff` is the same quantity on
+both depths, unlike the loss.*
 
 ## 5. Rollout fidelity against depth
 
 ![rollout fidelity](plots/rollout_fidelity.png)
 
 *`cos` between the rolled latent and the true `h_{T_0+d}`, `d = 1..16`,
-bb40k checkpoints, on the parent reports' fixed diagnostic batch.*
+bb40k checkpoints, on the parent reports' fixed diagnostic batch, which is
+not held out against the pre-training data.*
 
-Every one of the 5 arms that trained `k = 3` rolls out more faithfully than
-its own `k = 0` at all 16 depths, and the scores do not follow.
+<!-- FIDELITY:BEGIN -->
+
+Every one of the 5 arms that trained `k = 3` rolls out more faithfully than its own `k = 0` at all 16 depths, and the scores do not follow. The fixed-point approximation does what it was built to do, so where a score did not improve, the approximation is not the part that failed.
+
+<!-- FIDELITY:END -->
 
 ## 6. `k = 3` minus `k = 0`, per cell, at every stop
 
@@ -426,6 +427,7 @@ The rule reads one cell's bb40k number against its bb100k number, per head. A he
 | cell | one of those 14 recipes, `A1`..`A4` and `B1`..`B10` |
 | arm | a (cell, backbone seed, machine) triple. B5 trained three, so the cell is not the unit a delta lives in |
 | `k`, rollout depth | the value of `--train-rollout-depth`. It copies every loss term the forecast operator `f` enters at depths 1..`k` and sums the copies. `k = 0` is today's training |
+| the fixed-point approximation | how training rolls the forecast out: the depth-`j` input is the model's own depth-`j-1` predictions, not the true prefix. It buys one parallel pass over every `t`, and it is the card's alternative suspect to the objective |
 | bb40k, bb100k, bb200k | backbone step 40,000 / 100,000 / 200,000. bb40k is the one stop every run here reached |
 | GM-Relative MASE | geometric mean over the 97 GIFT-Eval configs of each config's MASE divided by the seasonal-naive MASE. Lower is better; 1.0 is seasonal-naive parity |
 | B4 eval strategy | GIFT-Eval's official evaluation strategy, the one the parent reports use |

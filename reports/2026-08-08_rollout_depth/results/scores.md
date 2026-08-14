@@ -160,6 +160,7 @@ The rule reads one cell's bb40k number against its bb100k number, per head. A he
 | cell | one of those 14 recipes, `A1`..`A4` and `B1`..`B10` |
 | arm | a (cell, backbone seed, machine) triple. B5 trained three, so the cell is not the unit a delta lives in |
 | `k`, rollout depth | the value of `--train-rollout-depth`. It copies every loss term the forecast operator `f` enters at depths 1..`k` and sums the copies. `k = 0` is today's training |
+| the fixed-point approximation | how training rolls the forecast out: the depth-`j` input is the model's own depth-`j-1` predictions, not the true prefix. It buys one parallel pass over every `t`, and it is the card's alternative suspect to the objective |
 | bb40k, bb100k, bb200k | backbone step 40,000 / 100,000 / 200,000. bb40k is the one stop every run here reached |
 | GM-Relative MASE | geometric mean over the 97 GIFT-Eval configs of each config's MASE divided by the seasonal-naive MASE. Lower is better; 1.0 is seasonal-naive parity |
 | B4 eval strategy | GIFT-Eval's official evaluation strategy, the one the parent reports use |

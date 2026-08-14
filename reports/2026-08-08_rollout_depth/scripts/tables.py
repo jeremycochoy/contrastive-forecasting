@@ -196,6 +196,41 @@ def mark(arm):
     return " ✗" if arm in R.RETRACTED else ""
 
 
+def fidelity_lines(results):
+    """The card's flat branch, from `results/rollout_fidelity.csv`.
+
+    The card asks the study to name the part that failed. This reads the
+    diagnostic that answers it: for every arm that trained both depths, the
+    cosine between the rolled latent and the true `h` at each depth, k = 3
+    against that SAME arm's k = 0. It is a within-arm reading, repeated once
+    per arm, so it does not rank one arm against another.
+    """
+    cos = {}
+    p = Path(results) / "rollout_fidelity.csv"
+    if not p.exists():
+        return ["*(no `rollout_fidelity.csv` in the results directory)*"]
+    for r in csv.DictReader(p.open()):
+        arm, _, k = r["run"].rpartition(":")
+        cos.setdefault((arm, k), {})[int(r["d"])] = float(r["cos"])
+    arms = sorted({a for a, k in cos if k == "3" and (a, "0") in cos})
+    every, depths = [], set()
+    for a in arms:
+        d0, d3 = cos[(a, "0")], cos[(a, "3")]
+        ds = sorted(set(d0) & set(d3))
+        depths.add(len(ds))
+        if ds and all(d3[d] > d0[d] for d in ds):
+            every.append(a)
+    n, nd = len(every), (depths.pop() if len(depths) == 1 else 0)
+    if n != len(arms) or not nd:                  # the sentence below is false
+        return [f"Of the {len(arms)} arms that trained both depths, {n} roll "
+                f"out more faithfully than their own `k = 0` at every depth."]
+    return [f"Every one of the {n} arms that trained `k = 3` rolls out more "
+            f"faithfully than its own `k = 0` at all {nd} depths, and the "
+            "scores do not follow. The fixed-point approximation does what "
+            "it was built to do, so where a score did not improve, the "
+            "approximation is not the part that failed."]
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--results", required=True)
@@ -1352,6 +1387,11 @@ def main(argv=None):
           "| `k`, rollout depth | the value of `--train-rollout-depth`. It "
           "copies every loss term the forecast operator `f` enters at "
           "depths 1..`k` and sums the copies. `k = 0` is today's training |",
+          "| the fixed-point approximation | how training rolls the forecast "
+          "out: the depth-`j` input is the model's own depth-`j-1` "
+          "predictions, not the true prefix. It buys one parallel pass over "
+          "every `t`, and it is the card's alternative suspect to the "
+          "objective |",
           "| bb40k, bb100k, bb200k | backbone step 40,000 / 100,000 / "
           "200,000. bb40k is the one stop every run here reached |",
           "| GM-Relative MASE | geometric mean over the 97 GIFT-Eval "
@@ -1504,12 +1544,14 @@ def main(argv=None):
         "extended. |")
     NS = ["| the claim | what stops it |", "|---|---|"] + ns_rows
 
+    FID = fidelity_lines(args.results)
+
     # Three blocks, three places in the report. The card's success criteria
     # answer its own question, so they lead; the limits qualify every number
     # above them, so they close the body; the tables sit between.
     BODY, ANNEX = L[:BODY_TABLES] + GLOSS, L[BODY_TABLES:]
     blocks = {"CRITERIA": CRIT, "COLLAPSE": CW, "TABLES": BODY,
-              "TABLES_ANNEX": ANNEX, "LIMITS": NS}
+              "TABLES_ANNEX": ANNEX, "LIMITS": NS, "FIDELITY": FID}
     Path(args.out).write_text(
         "\n".join(["## Did the card's criteria pass?", ""] + CRIT +
                   ["## Collapse watch", ""] + CW +
