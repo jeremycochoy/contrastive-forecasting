@@ -48,11 +48,17 @@ def main(argv=None):
     p.add_argument("--out", required=True)
     args = p.parse_args(argv)
 
-    data = {}
+    data, full = {}, {}
     with open(args.splits) as fh:
         for r in csv.DictReader(fh):
             if r["split"] != "all":
                 continue
+            # splits.csv keeps six decimals; the score files print four.
+            # Differencing two four-decimal numbers rounds twice and moves
+            # A3's bb200k gap to 0.1085 where the difference is 0.108439.
+            # `head_gap.tsv` reads splits.csv for that reason, so this figure
+            # reads it too and the two artefacts cannot disagree.
+            full[r["stop"]] = float(r["gm_rel_mase"])
             run = R.resolve(r["stop"])
             if run is None or run.role != "depth":
                 continue
@@ -71,11 +77,18 @@ def main(argv=None):
     # The whole grid: every cell, every stop, at k = 3. The panel above it
     # covers the arms that also trained a k = 0, which is five of them; this
     # one covers all 14 cells, which is what the card's figure asks for.
+    def at(cell, stop, head):
+        """splits.csv first, at six decimals; the score file otherwise."""
+        v = full.get(L2.tag(cell, stop, head))
+        alias = L2.TAG_ALIAS.get((cell, stop, L2.K))
+        if v is None and alias:
+            v = full.get(f"{alias}_{head}")
+        return v if v is not None else L2.score(cell, stop, head, args.results)
+
     grid = []
     for cell in L2.CELLS:
         for stop in L2.STOPS:
-            s = L2.score(cell, stop, "student", args.results)
-            t = L2.score(cell, stop, "teacher", args.results)
+            s, t = at(cell, stop, "student"), at(cell, stop, "teacher")
             if s is not None and t is not None:
                 grid.append((cell, stop, t - s))
 

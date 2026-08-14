@@ -36,7 +36,7 @@ sys.path.insert(0, str(HERE))
 import matplotlib                                      # noqa: E402
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt                        # noqa: E402
-from matplotlib.lines import Line2D                    # noqa: E402
+from matplotlib.patches import Patch                   # noqa: E402
 
 import cell_colours as cc                     # noqa: E402
 import runs as R                              # noqa: E402                              # noqa: E402
@@ -57,38 +57,69 @@ def periodic(dirpath, name):
     return sorted(set(out))
 
 
+# Depth rides on the bar's opacity here. A bar has no line style, and the
+# report's depth channel is the line style, so the nearest thing a bar can
+# carry is the fill weight: pale is k = 0, full is the deepest depth drawn.
+DEPTH_ALPHA = {0: 0.40, 1: 0.70, 3: 1.0}
+
+
 def draw(rows, out):
     """The figure, from the rows the CSV carries.
 
+    Grouped bars, not lines. Each number is ONE interval between two
+    checkpoints, and a line drawn across that interval reads as a trajectory
+    through it, which the study never measured. The x axis is therefore the
+    interval as a category and every bar is one measurement.
+
     Colour is the ARM, not the cell: B5 trained two backbones and one hue at
-    one lightness put two dashed curves on the panel with nothing to tell
-    them apart. `arm_colour` keeps the hue and steps the lightness, and the
-    retracted arm draws thin and says so in the key. The key sits under the
-    figure, so it covers no curve.
+    one lightness put two bars of one colour side by side with nothing to
+    tell them apart. `arm_colour` keeps the hue and steps the lightness. The
+    key sits under the figure and names every depth drawn, A3's `k = 1`
+    included.
     """
-    fig, (axH, axE) = plt.subplots(1, 2, figsize=(10.6, 4.2))
+    spans = sorted({(r["from"], r["to"]) for r in rows})
+    series = sorted({(r["cell"], r["k"]) for r in rows},
+                    key=lambda t: (cc.ORDER.index(cc.cell_of(t[0]))
+                                   if cc.cell_of(t[0]) in cc.ORDER else 99,
+                                   t[0], t[1]))
+    by = {(r["cell"], r["k"], (r["from"], r["to"])): r for r in rows}
+
+    fig, (axH, axE) = plt.subplots(1, 2, figsize=(11.4, 4.4))
+    width = 0.86 / len(series)
     for ax, key, ylab in ((axH, "movement_h", "1 − cos on h$_t$"),
                           (axE, "movement_e", "1 − cos on e$_t$")):
-        for r in rows:
-            ax.plot([r["from"], r["to"]], [float(r[key])] * 2,
-                    color=cc.arm_colour(r["cell"]),
-                    linestyle=cc.style(r["k"]),
-                    linewidth=cc.width(r["cell"], base=2.6))
+        for i, (cell, k) in enumerate(series):
+            for x, span in enumerate(spans):
+                r = by.get((cell, k, span))
+                if r is None:
+                    continue
+                v = float(r[key])
+                pos = x - 0.43 + (i + 0.5) * width
+                ax.bar(pos, v, width=width * 0.92,
+                       color=cc.arm_colour(cell),
+                       alpha=DEPTH_ALPHA.get(k, 1.0),
+                       edgecolor=cc.arm_colour(cell), linewidth=0.8)
+                ax.text(pos, v + 0.012, f"{v:.2f}", ha="center", va="bottom",
+                        fontsize=6.2, rotation=90, color=cc.INK_SOFT)
+        ax.set_xticks(range(len(spans)))
+        ax.set_xticklabels([f"{a:,}\n→ {b:,}" for a, b in spans], fontsize=8.5)
         ax.set_xlabel("backbone step interval")
         ax.set_ylabel(ylab)
+        ax.set_ylim(0, max(float(r[key]) for r in rows) * 1.22)
+        ax.grid(axis="x", visible=False)
     axH.set_title("Encoder-output latent")
     axE.set_title("Patch-embedding latent")
+
     cells = sorted({r["cell"] for r in rows},
                    key=lambda c: cc.ORDER.index(cc.cell_of(c))
                    if cc.cell_of(c) in cc.ORDER else 99)
-    handles = [Line2D([], [], color=cc.arm_colour(c),
-                      linewidth=cc.width(c, base=2.6),
-                      label=cc.label(c) + ("  ✗ retracted"
-                                           if cc.retracted(c) else ""))
+    handles = [Patch(facecolor=cc.arm_colour(c), edgecolor=cc.arm_colour(c),
+                     label=cc.label(c) + ("  ✗ retracted"
+                                          if cc.retracted(c) else ""))
                for c in cells]
-    handles += [Line2D([], [], color=cc.INK_SOFT, linestyle=cc.style(kk),
-                       label=f"k = {kk}, the rollout depth trained")
-                for kk in (0, 3)]
+    handles += [Patch(facecolor=cc.INK_SOFT, alpha=DEPTH_ALPHA[kk],
+                      label=f"k = {kk}, the rollout depth trained")
+                for kk in sorted({r["k"] for r in rows})]
     fig.legend(handles=handles, frameon=False, fontsize=8, ncol=2,
                loc="upper center", bbox_to_anchor=(0.5, 0.03))
     fig.suptitle("Latent movement between adjacent checkpoints", fontsize=10)

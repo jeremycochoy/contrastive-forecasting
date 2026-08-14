@@ -59,7 +59,8 @@ import r2_ladder as L2                                    # noqa: E402
 import runs as R                                          # noqa: E402
 from published import (PUBLISHED as PUB_ALL, GATE,             # noqa: E402
                        NOISE_BAND, PRINT_QUANT, PUBLISHED_SEED,
-                       REEVAL_FLOOR, RESOLUTION, SEED_BAND, verdict)
+                       REEVAL_FLOOR, RESOLUTION, SEED_BAND,
+                       best_published, verdict)
 
 # What every bootstrap interval in this file is over, said where the
 # intervals are. Both B5 contrasts are ONE run pair each.
@@ -269,37 +270,12 @@ def main(argv=None):
                 pub_ci[(m.group(1), int(m.group(2)), m.group(3))] = (
                     float(r["ci_lo"]), float(r["ci_hi"]))
 
-    # ---- 1a''. the matched-stop comparison ---------------------------------
-    # The parent report's `Matched-stop comparison` table, rebuilt. Same
-    # shape: one row per measurement, ranked by delta inside its own stop,
-    # bold where the delta clears the head-seed band. Where the parent
-    # subtracted `fixed 0.9` from `scheduled`, this subtracts each cell's
-    # published `k = 0` from its `k = 3`.
-    ms = []
-    for stop in (40, 100, 200):
-        block = []
-        for cell in CARD_CELLS:
-            for head in ("student", "teacher"):
-                mine, base = sv(cell, stop, head), pub(cell, head, stop)
-                if mine is None or base is None:
-                    continue
-                block.append((mine - base, cell, head, base, mine))
-        block.sort()
-        for d, cell, head, base, mine in block:
-            arm, target, _ema = L2.CELL_ARM[cell]
-            big = abs(d) >= NOISE_BAND
-            ms.append(f"| {cell} | `{arm}` | {target} | {head} | bb{stop}k | "
-                      f"{base:.4f} | {mine:.4f} | "
-                      + (f"**{d:+.4f}**" if big else f"{d:+.4f}") + " |")
-    L += ["### Matched-stop comparison: k = 3 against the published k = 0",
-          "",
-          "One row per measurement that holds both sides at the same stop, "
-          "ranked by Δ inside its stop. Δ is `k = 3` minus the published "
-          f"`k = 0`, so negative is a gain. Bold clears the ±{NOISE_BAND:.4f} "
-          "head-seed band. `L_align` names the term's target, or `none` "
-          "where the cell carries no `L_align`.", "",
-          "| cell | arm | `L_align` | head | stop | published k = 0 | k = 3 | "
-          "Δ |", "|---|---|---|---|---|---|---|---|"] + ms + [""]
+    # ---- 1a''. the matched-stop comparison, NOT published -------------------
+    # The parent report prints a `Matched-stop comparison` table. This study
+    # does not rebuild it. Every one of its rows is a Δ column of the wide
+    # table below, and `k3_minus_k0.png` already draws those Δ values ranked
+    # inside their own stop, with an interval on each. A third copy of one
+    # set of numbers is only a place for them to drift.
 
     # Two tallies, because the two head columns do not cover the same cells.
     # Every one of the 14 cells has a published STUDENT number at bb100k, and
@@ -530,29 +506,14 @@ def main(argv=None):
           "| cell | 40k→100k student | 40k→100k teacher | decision | "
           "last stop | ended by | why |",
           "|---|---|---|---|---|---|---|"] + rows + [""]
-    # What the rule selects for. The 200k verdict is measured on the panel
-    # this rule chose, so the reader needs the rule's three defects at the
-    # point the panel is defined, not inferred from the table.
-    L += ["**The rule selects the panel, and it selects it on an improving "
-          "first leg.** Three properties of that, stated plainly:", "",
-          "1. It reads the one contrast this study calls not head-matched. "
-          "A bb40k head trains 15,000 steps and a bb100k head 30,000, so "
-          "part of every move in the two columns above is the head's own "
-          "extra 15,000 steps. The Protocol section says so for the depth "
-          "verdict. It is equally true of the rule.",
-          f"2. It fires inside its own noise band. {len(stopped_inband)} of "
-          f"the {nstop} stopped cells ({', '.join(stopped_inband)}) moved "
-          f"less than ±{NOISE_BAND:.4f} on BOTH heads. The verdict table "
-          "above calls a move of that size `flat`.",
-          "3. The manual overrides go one way. A4 and B1 were extended by "
-          "hand because the rule decides nothing inside the band. That "
-          "reasoning applies with the same force to the cells in point 2, "
-          "and none of them was extended.", "",
-          f"So the {len(extended)} extended cells are enriched for cells "
-          "that happened to improve from bb40k to bb100k, and regression to "
-          "the mean is the expected null at bb200k. This study runs no "
-          "control for it. **Read the 200k verdict as conditional on a panel "
-          "selected for having improved.**", ""]
+    # What the rule selects for, once. The limits table carries the same
+    # point as a row, and the annex figure carried it a third time. One
+    # sentence here, at the point the panel is defined.
+    L += [f"**The rule selects the panel.** It sent {len(extended)} cells to "
+          f"bb200k on an improving first leg, fired inside its own "
+          f"±{NOISE_BAND:.4f} band on {len(stopped_inband)} of the {nstop} "
+          f"cells it stopped ({', '.join(stopped_inband)}), and both manual "
+          "overrides extended.", ""]
 
     # ---- 1b. the stop ladder -----------------------------------------------
     # Round 3's own question. The extend rule sent eight cells from 100k to
@@ -865,19 +826,28 @@ def main(argv=None):
                                   - (PUB_ALL.get(r.cell, {})
                                      .get("student", {}).get(40) or 0))))
     cross_seed = []
+    # The card's gate is per GROUP: retrain one cell of the group at k = 0
+    # and meet its published number. Group A and group B each get a verdict
+    # below, because the card's instruction on failure is per group too.
+    gate_by_group = {}
     for r in repro:
-        pub = PUB_ALL.get(r.cell, {}).get("student", {}).get(40)
+        # Not `pub`: that name is the published-baseline lookup this
+        # function's later tables call.
+        base = PUB_ALL.get(r.cell, {}).get("student", {}).get(40)
         got = val(r.tag)
-        if pub is None or got is None:
+        if base is None or got is None:
             continue
         same = r.seed == PUBLISHED_SEED
         if not same:
             cross_seed.append(r.arm)
         gate = (f"{GATE}, the card" if same
                 else f"{seed_band:.4f}, the seed band")
+        if same and r.run:
+            gate_by_group.setdefault(r.cell[0], []).append(
+                (abs(got - base), r.arm, r.machine))
         L.append(f"| {r.arm}{mark(r.arm)} | {r.seed} | {r.machine} | "
-                 f"{pub:.4f} | {got:.4f} | {abs(got - pub):.4f} | {gate} | "
-                 f"{verdict(abs(got - pub), same, seed_band)} |")
+                 f"{base:.4f} | {got:.4f} | {abs(got - base):.4f} | {gate} | "
+                 f"{verdict(abs(got - base), same, seed_band)} |")
     L += ["", f"Two things this comparison cannot resolve, added: {REEVAL_FLOOR} "
           "for the head and the eval, which is what `B5·pub` moves the "
           "score by while training nothing, and "
@@ -903,6 +873,39 @@ def main(argv=None):
           "`results/eval/G1_B5pub_bb40k_student/all_results.csv`): the "
           "elisa retrain reproduced the parent's backbone exactly, and the "
           f"{REEVAL_FLOOR} both rows carry is the head and the eval.", ""]
+
+    # ---- 2b. the card's gate, per group ------------------------------------
+    # The card runs this gate once per group and gives an instruction for a
+    # failure. Group B passes and group A does not, and the report has to
+    # say both, and say what the card asked for on the failure.
+    if gate_by_group:
+        verdicts = []
+        for g in sorted(gate_by_group):
+            d, arm, machine = min(gate_by_group[g])
+            verdicts.append(
+                f"Group {g}: {arm} at `k = 0`, on {machine}, misses its "
+                f"published number by {d:.4f}"
+                + (" — **PASS**" if d <= GATE else " — **FAIL**"))
+        L += ["**The card's baseline validity gate, group by group.** It "
+              "retrains one cell of the group at `k = 0` on this study's "
+              f"code and asks for the published number to within {GATE}. "
+              + " ".join(v + "." for v in verdicts), ""]
+        failed = [g for g in sorted(gate_by_group)
+                  if min(gate_by_group[g])[0] > GATE]
+        mrow = bs.get(("B5_machine_k0_student", "all"))
+        if failed:
+            gs = ", ".join(failed)
+            L += [f"The card's instruction on a failure is to retrain the "
+                  f"`k = 0` side of every cell of that group rather than "
+                  f"read it from the parent report. This study did not do "
+                  f"that for group {gs}. So every group-{gs} delta against a "
+                  f"published `k = 0` is a screen and not a test, on top of "
+                  f"the machine it already crosses. The gate's own row "
+                  f"crosses that machine as well: it is this study's only "
+                  f"group-{gs} retrain and it trained on a rented box"
+                  + (f", and the machine is worth "
+                     f"{abs(float(mrow['delta'])):.4f}." if mrow else "."),
+                  ""]
 
     # ---- 3. depth response -------------------------------------------------
     L += ["### Depth response, against each arm's own k = 0", "",
@@ -1359,6 +1362,10 @@ def main(argv=None):
               if drops else [])
 
     # ---- 9. glossary -------------------------------------------------------
+    # The report's ONE glossary. It used to have a second, hand-written
+    # `Definitions` section, and `u_batchtime` and the six launcher recipes
+    # were defined in both. Two definitions of one term drift; this is the
+    # only place either is defined now.
     GLOSS = ["### Glossary", "",
           "| term | what it means here |",
           "|---|---|",
@@ -1367,8 +1374,11 @@ def main(argv=None):
           "| cell | one of those 14 recipes, `A1`..`A4` and `B1`..`B10` |",
           "| arm | a (cell, backbone seed, machine) triple. B5 trained "
           "three, so the cell is not the unit a delta lives in |",
-          "| bb40k | backbone step 40,000, the one stop every run here "
-          "reached |",
+          "| `k`, rollout depth | the value of `--train-rollout-depth`. It "
+          "copies every loss term the forecast operator `f` enters at "
+          "depths 1..`k` and sums the copies. `k = 0` is today's training |",
+          "| bb40k, bb100k, bb200k | backbone step 40,000 / 100,000 / "
+          "200,000. bb40k is the one stop every run here reached |",
           "| GM-Relative MASE | geometric mean over the 97 GIFT-Eval "
           "configs of each config's MASE divided by the seasonal-naive "
           "MASE. Lower is better; 1.0 is seasonal-naive parity |",
@@ -1395,13 +1405,24 @@ def main(argv=None):
           "| collapse | the latent falling onto few directions, so "
           "`u_batchtime` runs toward zero. The card watches for it because a "
           "model can win the deeper f-bearing terms by flattening `f` |",
-          "| `arm4`, `arm6_v2 combab` | the launcher recipes the cells run; "
-          "the Coverage table gives each cell's |",
+          "| `arm4 combab`, `arm5 combab`, `arm6_v2 combab`, "
+          "`arm6_v2 ncpc`, `arm6_v2 nse`, `arm1 nse` | the six launcher "
+          "recipes the 14 cells run. `combab` pools negatives across the "
+          "batch and the channels; `ncpc` drops the CPC auxiliary; `nse` "
+          "keeps it. The Coverage table gives each cell's |",
           "| head-seed band ±0.0384 | how far the head seed alone moved a "
           "score in `ema_sched_ladder.md`, pooled. It bounds the head seed "
           "and nothing else |",
+          "| dataset-cluster | the resampling unit of every interval here. "
+          "`<ds>/short`, `/medium` and `/long` are three configs of one "
+          "series, so the bootstrap resamples the dataset, not the config |",
+          "| machine-held | both sides of a comparison trained on the same "
+          "physical box. A pair that is not machine-held carries a machine "
+          "change as well as a depth change |",
           "| `mixup` | the count of examples the batch mixer touched in a "
           "200-step window. Two runs on one data order print one count |",
+          "| ✗ | a retracted arm: its `k = 0` baseline is a rented-box "
+          "artefact, so its depth delta is withdrawn |",
           ""]
 
     # ---- 0. what the study cannot support ----------------------------------
@@ -1417,6 +1438,34 @@ def main(argv=None):
                                        float(r["ci_hi"]))
 
     ns_rows = []
+    # The headline's own limit, first. The frontier drop is the report's
+    # lead number, and its two ends do not hold one thing constant.
+    fbase, fcell, fhead, fstop = best_published()
+    fv, fc, fh, fs = min((v, c, h, s) for c in L2.CELLS for s in L2.STOPS
+                         for h in ("student", "teacher")
+                         for v in [sv(c, s, h)] if v is not None)
+    mach0 = boot_ci("B5_machine_k0_student")
+    if mach0:
+        mine100, pub100 = sv(fc, 100, fh), pub(fc, fh, 100)
+        ns_rows.append(
+            f"| That the frontier drop of {fbase - fv:.4f} measures the "
+            f"depth | Its two ends cross a head, a stop and a machine: "
+            f"{fbase:.4f} is {fcell} on the {fhead} head at bb{fstop}k, and "
+            f"{fv:.4f} is {fc} on the {fh} head at bb{fs}k. The machine "
+            f"alone is {abs(mach0[0]):.4f}, `results/bootstrap.csv`. "
+            + (f"{fc}'s own matched-stop delta is "
+               f"{mine100 - pub100:+.4f} at bb100k."
+               if mine100 is not None and pub100 is not None else "") + " |")
+    for g in sorted(gate_by_group):
+        d, arm, _machine = min(gate_by_group[g])
+        if d > GATE:
+            ns_rows.append(
+                f"| Any group-{g} delta against a published `k = 0` | The "
+                f"card's baseline validity gate fails on group {g}: {arm} "
+                f"misses its published number by {d:.4f} against a gate of "
+                f"{GATE}. The card then asks for the `k = 0` side of every "
+                f"group-{g} cell to be retrained, and this study reads those "
+                "baselines from the parent report. |")
     if len(held_student) == 2:
         (a1, d1, lo1, hi1), (a2, d2, lo2, hi2) = sorted(
             held_student, key=lambda t: t[1])

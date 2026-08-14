@@ -71,43 +71,45 @@ def main(argv=None):
     if not runs:
         raise SystemExit("ABORT: no run had a losses CSV")
 
+    # One panel per TRAINED RUN, not per cell. A3 trained k = 1 and k = 3,
+    # and drawing both in one panel put seven lines of one hue at four
+    # opacities on one axes, where the two runs cannot be read apart. Each
+    # panel now holds one deeper run and the cell's own k = 0 line.
+    #
     # Panel order comes from the registry's arm order, not from the cell
     # order: `cc.ORDER` holds cells, so B5's three arms all tied on it and
     # the panels came out in whatever order the set iterated that run.
-    cells = sorted({c for c, _k, _d in runs},
-                   key=lambda c: (R.ARM_ORDER.index(c)
-                                  if c in R.ARM_ORDER else 99, c))
+    k0 = {c: d for c, k, d in runs if k == 0}
+    panels = sorted(((c, k) for c, k, _d in runs if k > 0),
+                    key=lambda t: (R.ARM_ORDER.index(t[0])
+                                   if t[0] in R.ARM_ORDER else 99, t[0], t[1]))
     # Three panels per row. One row of five renders ~200 px per panel at a
     # report column width, which is below what the axis labels need.
-    ncol = min(3, len(cells))
-    nrow = -(-len(cells) // ncol)
+    ncol = min(3, len(panels))
+    nrow = -(-len(panels) // ncol)
     fig, axes = plt.subplots(nrow, ncol, figsize=(4.9 * ncol, 3.9 * nrow),
                              squeeze=False)
     flat = [a for row in axes for a in row]
-    for ax in flat[len(cells):]:
+    for ax in flat[len(panels):]:
         ax.set_axis_off()
 
-    for ax, cell in zip(flat, cells):
+    for ax, (cell, k) in zip(flat, panels):
         col = cc.colour(cell)
-        for c, k, d in runs:
-            if c != cell:
+        if cell in k0:
+            xs, ys = series(k0[cell], "ff")
+            xs, ys = smooth(xs, [1.0 - v for v in ys])
+            ax.plot(xs, ys, color=cc.INK, linewidth=1.6,
+                    linestyle=cc.style(0), label="k = 0, depth 0")
+        d = next(dd for c, kk, dd in runs if c == cell and kk == k)
+        for j in range(8):
+            xs, ys = series(d, f"cos_err_d{j}")
+            if not xs:
                 continue
-            if k == 0:
-                xs, ys = series(d, "ff")
-                xs, ys = smooth(xs, [1.0 - v for v in ys])
-                ax.plot(xs, ys, color=cc.INK, linewidth=1.6,
-                        linestyle=cc.style(0), label="k = 0, depth 0")
-                continue
-            for j in range(8):
-                key = f"cos_err_d{j}"
-                xs, ys = series(d, key)
-                if not xs:
-                    continue
-                xs, ys = smooth(xs, ys)
-                ax.plot(xs, ys, color=col, linewidth=1.7,
-                        alpha=DEPTH_ALPHA[min(j, len(DEPTH_ALPHA) - 1)],
-                        label=f"k = {k}, depth {j}")
-        ax.set_title(cc.label(cell), fontsize=9)
+            xs, ys = smooth(xs, ys)
+            ax.plot(xs, ys, color=col, linewidth=1.7,
+                    alpha=DEPTH_ALPHA[min(j, len(DEPTH_ALPHA) - 1)],
+                    label=f"k = {k}, depth {j}")
+        ax.set_title(f"{cc.label(cell)}   k = {k}", fontsize=9)
         ax.set_xlabel("backbone step")
         ax.set_ylabel("1 − cos(f$^{(j)}_t$, h$_{t+1+j}$)")
         ax.legend(frameon=False, fontsize=8)
@@ -115,7 +117,7 @@ def main(argv=None):
     fig.tight_layout()
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(args.out, bbox_inches="tight")
-    print(f"wrote {args.out} ({len(cells)} cell(s))")
+    print(f"wrote {args.out} ({len(panels)} run(s))")
     return 0
 
 

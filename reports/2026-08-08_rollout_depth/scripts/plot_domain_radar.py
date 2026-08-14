@@ -65,7 +65,7 @@ PARITY_INK = "#0b0b0b"
 # `S` is the head, filled in per figure.
 PANELS = [
     ("A4", 100, "k0", "A4_k0_bb100k_{S}", "study", "A4_k3_bb100k_{S}",
-     "two machines", "the study's frontier cell"),
+     "two machines", ""),
     ("B1", 40, "study", "G6_B1_k0_bb40k_{S}", "study", "G6_B1_k3_bb40k_{S}",
      "ONE machine", "machine held"),
     ("B5", 40, "study", "G5_B5_s2_k0_bb40k_{S}", "study",
@@ -74,9 +74,9 @@ PANELS = [
     ("B2", 200, "k0", "B2_k0_bb200k_{S}", "study", "B2_k3_bb200k_{S}",
      "two machines", "the arm and stop the card quotes"),
     ("B9", 40, "study", "G2_B9_k0_bb40k_{S}", "study", "B9_k3_bb40k_{S}",
-     "two machines", "the study's largest gain"),
+     "two machines", ""),
     ("A3", 40, "study", "A3_k0_bb40k_{S}", "study", "A3_k3_bb40k_{S}",
-     "two machines", "the study's largest loss"),
+     "two machines", ""),
 ]
 
 
@@ -151,8 +151,12 @@ def main(argv=None):
 
         arm, align, ema = L.CELL_ARM[cell]
         tgt = "no L_align" if align == "none" else f"L_align→{align}"
+        # Identity and machine count only. A subtitle that also ranked the
+        # panel ("the study's largest gain") was prose on a figure, and the
+        # ranking is already in the report's tables.
         ax.set_title(f"{cell}  {arm} · {tgt}\n"
-                     f"k = 0 against k = 3 at bb{stop}k   ({note})\n{why}",
+                     f"k = 0 against k = 3 at bb{stop}k   ({note})"
+                     + (f"\n{why}" if why else ""),
                      fontsize=9, pad=18)
 
     for idx in range(len(panels), nrow * ncol):
