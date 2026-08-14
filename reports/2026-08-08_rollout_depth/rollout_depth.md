@@ -596,7 +596,7 @@ B1 carries `L_align` as its only f-bearing term, so its `k = 3` run multiplies t
 
 Second line of each cell: the difference against `k = 0` and its 95% paired dataset-cluster interval.
 
-Every column trained on elisa at backbone seed 20260520, on the same head budget. This is the study's one such table, so it may divide one column by another.
+The three columns differ in the objective and in nothing else. [`b1_triangle.py`](scripts/b1_triangle.py) reads each of the six points from its own artefacts and finds every other factor held: backbone seed 20260520, backbone stop 40k, head seed 20260722, head budget 15,000 steps, strategy B4, forecast length 16, the same 97 configs, the same seasonal-naive column to 6.2e-05, and elisa. It re-derives all six scores from the raw per-config CSVs, and all six match. [`results/b1_triangle.tsv`](results/b1_triangle.tsv) carries the table. This is the study's one such table, so it may divide one column by another.
 
 | head | the re-weighting<br>k = 0 → x4 | the depth<br>x4 → k = 3 | total<br>k = 0 → k = 3 | the re-weighting's share |
 |---|---|---|---|---|
