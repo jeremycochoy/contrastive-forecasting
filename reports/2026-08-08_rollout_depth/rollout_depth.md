@@ -84,9 +84,10 @@ both depths, unlike the loss.*
 
 ![rollout fidelity](plots/rollout_fidelity.png)
 
-*`cos` between the rolled latent and the true `h_{T_0+d}`, `d = 1..16`,
-bb40k checkpoints, on the parent reports' fixed diagnostic batch, which is
-not held out against the pre-training data.*
+*`cos` between the rolled latent and the true `h_{T_0+d}`, `d = 1..16`, bb40k
+checkpoints. Top: one panel per cell, all 14. Bottom: the change against the
+same arm's own `k = 0`. One fixed diagnostic batch carries every curve, and
+it is not held out against the pre-training data.*
 
 <!-- FIDELITY:BEGIN -->
 

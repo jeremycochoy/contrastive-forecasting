@@ -95,6 +95,10 @@ INK_SOFT = "#52514e"
 GRID = "#e6e5e1"
 PARITY = "#8f8e8a"      # the seasonal-naive parity line, furniture
 BAND = "#d8d7d2"        # the head-seed noise band, furniture
+# The other cells' curves, repeated behind each panel of a small multiple so
+# every panel carries the same backdrop. It is furniture, like the band and
+# the parity rule: it is never the subject of a panel and it is never keyed.
+CONTEXT = "#dedcd6"
 
 # Cell id -> the slug the card names it by.
 SLUG = {

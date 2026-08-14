@@ -22,7 +22,10 @@
 # Two figures need more than the repository holds. `rollout_fidelity.png`
 # and `latent_movement.png` load backbone checkpoints, which are 80 MB each
 # and stay out of git. Their `results/*.csv` are committed, so the numbers
-# are auditable and only the re-derivation needs the checkpoint store.
+# are auditable and only the re-derivation needs the checkpoint stores. The
+# fidelity figure draws all 14 cells and so reads the two later rounds'
+# stores as well; `find_artefacts.py --what gridckpt` is the one place their
+# paths live, and `CF373_R2` / `CF373_R3` override them.
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -162,10 +165,17 @@ gpu_or_cpu(){ # <script> <args...>
   fi
   grep -Ev "UserWarning|warnings.warn" <<<"$out" | sed "s/^/  /"
 }
+# Two populations, one batch. `--what ckpt` gives the depth ladders, which
+# are the only runs a change against `k = 0` can be computed from.
+# `--what gridckpt` gives the `k = 3` checkpoint of every remaining card
+# cell, which is what the absolute panels draw. Both go into one
+# `rollout_fidelity.py` call, so every curve reads the same diagnostic batch.
 mapfile -t ckpts < <(python3 "$HERE/find_artefacts.py" --what ckpt)
+mapfile -t gckpts < <(python3 "$HERE/find_artefacts.py" --what gridckpt \
+                        --results "$RES")
 if [ "${#ckpts[@]}" -gt 0 ] && [ -f "$BATCH" ]; then
-  gpu_or_cpu "$HERE/rollout_fidelity.py" "${ckpts[@]}" --batch "$BATCH" \
-      --out "$RES/rollout_fidelity.csv"
+  gpu_or_cpu "$HERE/rollout_fidelity.py" "${ckpts[@]}" "${gckpts[@]}" \
+      --batch "$BATCH" --out "$RES/rollout_fidelity.csv"
   [ -f "$RES/rollout_fidelity.csv" ] && \
     run "$HERE/plot_rollout_fidelity.py" --csv "$RES/rollout_fidelity.csv" \
         --out "$PLOTS/rollout_fidelity.png"

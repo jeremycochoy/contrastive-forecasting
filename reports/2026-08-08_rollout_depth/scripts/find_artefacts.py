@@ -30,6 +30,9 @@ Usage:
                                        #   backbone of a cell trained twice
   find_artefacts.py --what ckpt        # --run <arm>:<k>=<bb40k .pth>
                                        #   NEEDS the working trees
+  find_artefacts.py --what gridckpt    # --run <cell>:3=<bb40k .pth>, for the
+                                       #   card's cells the registry holds no
+                                       #   depth ladder for. NEEDS the trees
   find_artefacts.py --what ckptdir     # --run <arm>:<k>:<name>=<dir>
                                        #   NEEDS the working trees
   find_artefacts.py --what pairs       # <label>\t<baseline tag>\t<compared tag>
@@ -64,6 +67,13 @@ EXTERNAL = [Path(os.environ.get("CF373_SYNC_BASE",
                                 "/home/jupyter/checkpoints_backup/cf-373"))]
 
 ROOTS = COMMITTED + EXTERNAL
+
+# The two later rounds' checkpoint stores. They hold the ten cells that never
+# retrained a `k = 0`, and only `--what gridckpt` reads them: every other mode
+# resolves against ROOTS, so adding a store here cannot move a path any
+# existing figure already resolved.
+GRID_EXTERNAL = [Path(os.environ.get("CF373_R2", "/home/jupyter/cf373_r2")),
+                 Path(os.environ.get("CF373_R3", "/home/jupyter/cf373_r3"))]
 # The durable root also holds one directory per HEAD, each with its own
 # `qhead_*_losses.csv`. A head is not a backbone; skip that whole subtree.
 SKIP = {"eval", "verify", "gap_claims", "mem", "steptime"}
@@ -113,6 +123,44 @@ def emit_missing_curves():
             continue
         r = R.find_run(arm, k, role)
         print(f"{run}\t{slug(r.machine) if r else 'unknown'}\t{got[run]}")
+    return 0
+
+
+def emit_gridckpt(results):
+    """The bb40k `k = 3` checkpoint of every card cell the registry misses.
+
+    The registry holds a depth ladder for four cells only, because only those
+    four retrained a `k = 0` side. The other ten trained `k = 3` and read
+    their `k = 0` from a parent report, so they carry a checkpoint and no
+    ladder. The absolute-fidelity panels want all fourteen.
+
+    The run name is not typed here. Each cell's eval directory carries a
+    `backbone.txt` naming the file that eval loaded, so the curve and the
+    score come from one checkpoint by construction. `cells.tsv` is the card's
+    own list of the fourteen.
+    """
+    cells = [ln.split("\t")[0] for ln in
+             (HERE / "cells.tsv").read_text().splitlines()
+             if ln and not ln.startswith("#")]
+    want = {}
+    for cell in cells:
+        if R.arms_of(cell):        # the registry has this cell's ladder
+            continue
+        prov = Path(results) / "eval" / f"{cell}_k3_bb40k_student" / "backbone.txt"
+        name = prov.read_text().strip() if prov.is_file() else ""
+        if not name.endswith("_40k.pth"):
+            print(f"  skip {cell}: no bb40k backbone recorded in "
+                  f"{prov}", file=sys.stderr)
+            continue
+        want[name[:-len("_40k.pth")]] = cell
+
+    got = find(want, "_40k.pth", ROOTS + GRID_EXTERNAL)
+    for run, cell in want.items():
+        if run in got:
+            print(f"--run\n{cell}:3={got[run]}")
+        else:
+            print(f"  skip {cell}: {run}_40k.pth is in no checkpoint store",
+                  file=sys.stderr)
     return 0
 
 
@@ -210,7 +258,7 @@ def emit_pairs(eval_dir):
 def main(argv=None):
     p = argparse.ArgumentParser()
     p.add_argument("--what", required=True,
-                   choices=("curves", "logs", "ckpt", "ckptdir",
+                   choices=("curves", "logs", "ckpt", "ckptdir", "gridckpt",
                             "pairs", "retrainlogs", "missingcurves"))
     p.add_argument("--results", default=str(HERE.parent / "results"))
     p.add_argument("--min-rows", type=int, default=10)
@@ -220,6 +268,8 @@ def main(argv=None):
         return emit_pairs(Path(args.results) / "eval")
     if args.what == "missingcurves":
         return emit_missing_curves()
+    if args.what == "gridckpt":
+        return emit_gridckpt(args.results)
 
     bb = R.backbones()
     names = {run: (arm, k, role) for arm, k, role, run in bb}
