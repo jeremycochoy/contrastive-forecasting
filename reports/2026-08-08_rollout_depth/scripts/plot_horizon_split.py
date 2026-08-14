@@ -81,22 +81,17 @@ def main(argv=None):
         col = cc.colour(arm)
         vals = [data[run.tag][t] for t in TERMS]
         xs = [t_i + i * w - 0.42 + w / 2 for t_i in range(len(TERMS))]
-        # Hatch is the machine here as it is everywhere else in the report.
-        # These bars are levels rather than deltas, so it marks the run that
-        # trained on a rented box rather than a pair that crosses one.
         axL.bar(xs, vals, width=w * 0.9,
-                color=col if k else "#ffffff", edgecolor=col, linewidth=1.1,
-                hatch=None if run.machine == "elisa" else cc.CROSSED_HATCH)
+                color=col if k else "#ffffff", edgecolor=col, linewidth=1.1)
 
     # Right: the change, one line per (arm, depth).
     for arm, k, base, deep in pairs:
         d = [100.0 * (data[deep.tag][t] / data[base.tag][t] - 1.0)
              for t in TERMS]
         all_d += d
-        # The legend says what the pair holds fixed and whether the report
-        # stands behind it, because this panel is where the card's criterion
-        # is read and two of these five pairs cross a machine.
-        note = "" if R.machine_held(base, deep) else "  (two machines)"
+        # The legend says whether the report stands behind the pair, because
+        # this panel is where the card's criterion is read.
+        note = ""
         if arm in R.RETRACTED:
             note += "  ✗"
         axR.plot(range(len(TERMS)), d, marker="o", markersize=7,
@@ -124,10 +119,7 @@ def main(argv=None):
     axL.set_title(f"Level, {args.head} head", loc="left")
     axL.legend(handles=[Patch(facecolor="#ffffff", edgecolor=cc.INK_SOFT,
                               label="k = 0"),
-                        Patch(facecolor=cc.INK_SOFT, label="k > 0"),
-                        Patch(facecolor="#ffffff", edgecolor=cc.INK,
-                              hatch=cc.CROSSED_HATCH, linewidth=0.6,
-                              label="trained on a rented box")]
+                        Patch(facecolor=cc.INK_SOFT, label="k > 0")]
                + [Patch(facecolor=cc.COLOUR[c], label=c)
                   for c in ("B9", "B1", "B5", "A3")],
                loc="upper left", fontsize=8, ncol=2)

@@ -1,4 +1,4 @@
-**A4  arm6_v2 combab · L_align on the student, bb100k, student-encoder head.** The cell that sets this study's frontier, at the deepest stop its parent published. Two machines.
+**A4  arm6_v2 combab · L_align on the student, bb100k, student-encoder head.** The cell that sets this study's frontier, at the deepest stop its parent published. Published `k = 0`.
 
 | family | configs | k = 0 | k = 3 | difference | where k = 3 leaves it |
 |---|---:|---:|---:|---:|---|
@@ -11,7 +11,7 @@
 | Sales | 4 | 0.800 | 0.797 | -0.003 | stays below 1.0, lower |
 
 
-**B1  arm6_v2 combab · L_align on the student, bb40k, student-encoder head.** The pair whose two sides trained on ONE machine, so the depth is the only change.
+**B1  arm6_v2 combab · L_align on the student, bb40k, student-encoder head.** The pair whose `k = 0` side this study trained, so the depth is the only change.
 
 | family | configs | k = 0 | k = 3 | difference | where k = 3 leaves it |
 |---|---:|---:|---:|---:|---|
@@ -24,7 +24,7 @@
 | Sales | 4 | 0.772 | 0.775 | +0.004 | stays below 1.0, higher |
 
 
-**B2  arm6_v2 combab · L_align on the teacher, bb200k, student-encoder head.** The arm and stop the card quotes its own per-family numbers from. Two machines.
+**B2  arm6_v2 combab · L_align on the teacher, bb200k, student-encoder head.** The arm and stop the card quotes its own per-family numbers from. Published `k = 0`.
 
 | family | configs | k = 0 | k = 3 | difference | where k = 3 leaves it |
 |---|---:|---:|---:|---:|---|

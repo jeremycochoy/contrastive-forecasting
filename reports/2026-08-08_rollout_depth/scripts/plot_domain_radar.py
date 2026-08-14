@@ -18,16 +18,15 @@ Six panels, chosen so the reader sees every kind of pair this study holds:
 
   A4 bb100k   the cell that sets the study's frontier, against the k = 0
               its parent published at the same stop.
-  B1 bb40k    a pair whose two sides trained on ONE machine.
-  B5·s2 bb40k the other machine-held pair, which moves the other way.
+  B1 bb40k    a pair whose k = 0 side this study trained.
+  B5·s2 bb40k the other such pair, which moves the other way.
   B2 bb200k   the exact (arm, stop) the card quotes its per-family numbers
               from: `arm6_v2 combab` with L_align on the teacher, bb200k.
-  B9 bb40k    the largest gain in the study. Two machines.
-  A3 bb40k    the largest loss in the study. Two machines.
+  B9 bb40k    the largest gain in the study.
+  A3 bb40k    the largest loss in the study.
 
-A pair whose two sides trained on two boxes carries a machine change worth
-0.1166 on this study's one controlled measurement of it, so every panel says
-which it is.
+Every panel says where its k = 0 side comes from: this study's own retrain,
+or the number the parent report published.
 
 Reads `results/splits.csv` (this study's evals, written by
 `split_scores.py`) and `results/splits_k0.csv` (the parents' own evals,
@@ -65,18 +64,18 @@ PARITY_INK = "#0b0b0b"
 # `S` is the head, filled in per figure.
 PANELS = [
     ("A4", 100, "k0", "A4_k0_bb100k_{S}", "study", "A4_k3_bb100k_{S}",
-     "two machines", ""),
+     "published k = 0", ""),
     ("B1", 40, "study", "G6_B1_k0_bb40k_{S}", "study", "G6_B1_k3_bb40k_{S}",
-     "ONE machine", "machine held"),
+     "this study's k = 0", ""),
     ("B5", 40, "study", "G5_B5_s2_k0_bb40k_{S}", "study",
-     "G5_B5_s2_k3_bb40k_{S}", "ONE machine",
-     "machine held, backbone seed 20260521"),
+     "G5_B5_s2_k3_bb40k_{S}", "this study's k = 0",
+     "backbone seed 20260521"),
     ("B2", 200, "k0", "B2_k0_bb200k_{S}", "study", "B2_k3_bb200k_{S}",
-     "two machines", "the arm and stop the card quotes"),
+     "published k = 0", "the arm and stop the card quotes"),
     ("B9", 40, "study", "G2_B9_k0_bb40k_{S}", "study", "B9_k3_bb40k_{S}",
-     "two machines", ""),
+     "this study's k = 0", ""),
     ("A3", 40, "study", "A3_k0_bb40k_{S}", "study", "A3_k3_bb40k_{S}",
-     "two machines", ""),
+     "this study's k = 0", ""),
 ]
 
 
@@ -151,7 +150,7 @@ def main(argv=None):
 
         arm, align, ema = L.CELL_ARM[cell]
         tgt = "no L_align" if align == "none" else f"L_align→{align}"
-        # Identity and machine count only. A subtitle that also ranked the
+        # Identity and k = 0 source only. A subtitle that also ranked the
         # panel ("the study's largest gain") was prose on a figure, and the
         # ranking is already in the report's tables.
         ax.set_title(f"{cell}  {arm} · {tgt}\n"

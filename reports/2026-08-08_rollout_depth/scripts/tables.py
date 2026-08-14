@@ -59,8 +59,7 @@ import r2_ladder as L2                                    # noqa: E402
 import runs as R                                          # noqa: E402
 from published import (PUBLISHED as PUB_ALL, GATE,             # noqa: E402
                        NOISE_BAND, PRINT_QUANT, PUBLISHED_SEED,
-                       REEVAL_FLOOR, RESOLUTION, SEED_BAND,
-                       best_published, verdict)
+                       REEVAL_FLOOR, RESOLUTION, SEED_BAND, verdict)
 
 # What every bootstrap interval in this file is over, said where the
 # intervals are. Both B5 contrasts are ONE run pair each.
@@ -262,7 +261,8 @@ def main(argv=None):
           f"them**: {', '.join(trained)}." +
           (f" It never ran **{len(missing)}**: {', '.join(missing)}."
            if missing else " Every cell carries a number."), "",
-          "| cell | f-bearing term | EMA α | depths trained | stops scored |",
+          "| cell | loss terms that use `f` | EMA α | depths trained | "
+          "stops scored |",
           "|---|---|---|---|---|"]
     for cell in CARD_CELLS:
         v = cov.get(cell, set())
@@ -273,7 +273,7 @@ def main(argv=None):
                  f"{', '.join(f'bb{s}k' for s in ss) if ss else '—'} |")
     L += ["", "Stops scored: " + ", ".join(f"bb{s}k" for s in stops) +
           ". The card's extend rule reads a cell's bb40k number against its "
-          "bb100k number, so it fires only where both are in hand.", ""]
+          "bb100k number, so it fires only where this study has both.", ""]
 
     # ---- 1a'. k = 3 against the published k = 0 -----------------------------
     # The card's own question, on one grid: does training the forecaster on
@@ -399,10 +399,9 @@ def main(argv=None):
     #              is the same threshold the delta table's `better` verdict
     #              uses, applied as the card's own test.
     #
-    # Both sides of every row cross a machine, which this study measures at
-    # 0.1166. That is larger than the criterion's own threshold, so the
-    # table is a SCREEN. The depth-response table holds the machine and is
-    # where the primary criterion runs as a test.
+    # Every row reads its k = 0 from a parent report, so this table is a
+    # SCREEN. The depth-response table trains both sides and is where the
+    # primary criterion runs as a test.
     CRIT = []
     scr = {}
     scrp = Path(args.results) / "criterion_screen.csv"
@@ -456,17 +455,11 @@ def main(argv=None):
             "the head-seed band. Δ is `k = 3` minus the cell's published "
             "`k = 0`, so negative is a gain. Student head at bb100k, the "
             "stop every one of the 14 cells reached.", "",
-            "The count is over CELLS. A1 and B3 hold one student model "
-            "between them, so the same 14 cells hold 13 student models and "
-            "the model count of the secondary criterion is one lower than "
-            "the cell count.", "",
-            "**Both sides of every row trained on a different machine.** "
-            "This study's one controlled measurement of the machine is worth "
-            "0.1166, which is larger than either threshold, so this table is "
-            "a screen. The two rows that hold the machine are in the "
-            "depth-response table in the annex. Every cell here ran once, on "
-            "one backbone seed, so the spread over the rows does not rank the "
-            "recipes.", ""]
+            "The count is over CELLS. A1 and B3 share one student model, so "
+            "the 14 cells hold 13 student models. The secondary criterion "
+            "therefore counts one model fewer than it counts cells.", "",
+            "**Every cell here ran once, on one backbone seed.** The spread "
+            "over the rows does not rank the recipes.", ""]
 
     # ---- 1b'. why each cell stopped where it stopped -------------------------
     # The ladder above says what the extra steps bought. It does not say why
@@ -527,11 +520,11 @@ def main(argv=None):
     # sentence here, at the point the panel is defined.
     # No "on an improving first leg": two of the eight extended on a move the
     # rule's own `why` column says decides nothing.
-    L += [f"**The rule selects the panel.** It sent {len(extended)} cells to "
-          f"bb200k, fired inside its own "
-          f"±{NOISE_BAND:.4f} band on {len(stopped_inband)} of the {nstop} "
-          f"cells it stopped ({', '.join(stopped_inband)}), and both manual "
-          "overrides extended.", ""]
+    L += [f"**The rule chooses which cells reach bb200k.** It sent "
+          f"{len(extended)} cells there. On {len(stopped_inband)} of the "
+          f"{nstop} cells it stopped ({', '.join(stopped_inband)}) the move "
+          f"it read was smaller than the ±{NOISE_BAND:.4f} band. Both hand "
+          "overrides extended a cell.", ""]
 
     # ---- 1b. the stop ladder -----------------------------------------------
     # Round 3's own question. The extend rule sent eight cells from 100k to
@@ -655,17 +648,18 @@ def main(argv=None):
               "gap in the grid is in "
               "[`results/head_gap.tsv`](results/head_gap.tsv).", "",
               "The second draw changes two things: the head seed, and the "
-              "machine that trained the head. Draw 1 trained on the rented "
-              "box, draw 2 on elisa. Both read the same 200,000-step backbone "
-              "checkpoint, the box's original and elisa's synced copy of it. "
+              "computer that trained the head. Draw 1 trained on the rented "
+              "computer, draw 2 on elisa. Both read the same 200,000-step "
+              "backbone checkpoint, the rented computer's original and "
+              "elisa's synced copy of it. "
               "Held across the two draws: 30,000 head steps, the recipe, and "
               "the 97-config eval, which ran on elisa's cores for both. Only "
               "elisa's copy carries a recorded md5 "
               "(`9f0e8da71ff595523d2bf0dabdf80445`, "
               "[`results/eval/A3_k3_bb200k_student_s20260723/backbone_md5.txt`]"
               "(results/eval/A3_k3_bb200k_student_s20260723/backbone_md5.txt))"
-              "; the box was released before its original could be "
-              "checksummed.", "",
+              ". The rented computer was released before anyone could "
+              "checksum its original.", "",
               "| draw | head seed | GM-Relative MASE | against draw 1 |",
               "|---|---|---|---|",
               f"| 1, student | 20260722 | {d1:.4f} | — |",
@@ -699,9 +693,9 @@ def main(argv=None):
         L += [(f"**The two draws agree.** They sit {abs(draw2 - d1):.4f} "
                f"apart{seed_ci}, so {d1:.4f} is not a bad draw. The "
                f"student/teacher gap survives the redraw at {gap2_d:+.4f}"
-               f"{gap2_ci}, teacher minus student. The two draws cross a "
-               f"machine, so this agreement bounds the head seed and the "
-               f"machine together, not the seed alone."
+               f"{gap2_ci}, teacher minus student. The two draws used "
+               f"different computers, so this agreement bounds the head seed "
+               f"and the computer together, not the seed alone."
                if agree else
                f"**The two draws disagree.** They sit {abs(draw2 - d1):.4f} "
                f"apart{seed_ci}, wider than the ±{NOISE_BAND:.4f} head-seed "
@@ -761,10 +755,10 @@ def main(argv=None):
                       "`--moco-rep-keys`, so no loss term reads the EMA "
                       "encoder and the regime sends no gradient into the "
                       "student. One student number for both cells is the "
-                      "right answer, and it is ONE measurement: the student "
-                      "row of one of them is not a replication of the other. "
-                      "The teacher side differs at every stop, and the "
-                      "teacher numbers do too.", ""]
+                      "right answer. It is ONE measurement: one cell's "
+                      "student row does not replicate the other's. The "
+                      "teacher side differs at every stop, and the teacher "
+                      "numbers do too.", ""]
             if diff:
                 L += [f"**{', '.join(diff)} hold two students.** Their arms "
                       "carry `--moco-rep-keys`, whose keys come from the EMA "
@@ -825,11 +819,11 @@ def main(argv=None):
                  if seed_ci else SEED_BAND)
     L += ["### Reproduction of the published k = 0", "",
           "Same cell, same recipe, same head seed 20260722, same 97-config "
-          "B4 eval, student head. Rows are grouped by machine.", "",
-          f"A row at the parents' own backbone seed {PUBLISHED_SEED} takes "
-          f"the card's {GATE}; a row at any other seed takes the seed "
-          "band.", "",
-          "| backbone | seed | machine | published k = 0 | retrained k = 0 | "
+          "B4 eval, student head. Rows are grouped by computer.", "",
+          f"A row at the parents' own backbone seed {PUBLISHED_SEED} must "
+          f"meet the card's {GATE}. A row at any other seed must meet the "
+          "seed band.", "",
+          "| backbone | seed | computer | published k = 0 | retrained k = 0 | "
           "\\|Δ\\| | gate | verdict |",
           "|---|---|---|---|---|---|---|---|"]
     repro = [r for r in R.reproductions(tags) if r.head == "student"]
@@ -861,17 +855,17 @@ def main(argv=None):
         L.append(f"| {r.arm}{mark(r.arm)} | {r.seed} | {r.machine} | "
                  f"{base:.4f} | {got:.4f} | {abs(got - base):.4f} | {gate} | "
                  f"{verdict(abs(got - base), same, seed_band)} |")
-    L += ["", f"Two things this comparison cannot resolve, added: {REEVAL_FLOOR} "
-          "for the head and the eval, which is what `B5·pub` moves the "
-          "score by while training nothing, and "
-          f"{PRINT_QUANT} for the parents' four printed decimals. A |Δ| at "
-          f"or below {RESOLUTION:.4f} is a run this pipeline cannot separate "
-          f"from the published one. The card's gate of {GATE} is stricter "
-          "than that.", ""]
+    L += ["", "This comparison cannot resolve two things. The head and the "
+          f"eval move the score by {REEVAL_FLOOR}, which is what `B5·pub` "
+          "moves it while training nothing. The parents' four printed "
+          f"decimals add {PRINT_QUANT}. Together they give "
+          f"{RESOLUTION:.4f}: a |Δ| at or below that is a run this pipeline "
+          f"cannot separate from the published one. The card's gate of "
+          f"{GATE} is stricter than that.", ""]
     if cross_seed:
         L += [f"The seed band is {seed_band:.4f}, the far end of the 95% "
               "interval on this study's one measurement of a seed change: "
-              "`B5·s2` against `B5·s3`, one machine, one recipe, +0.0035 "
+              "`B5·s2` against `B5·s3`, one computer, one recipe, +0.0035 "
               "[-0.0183, +0.0230]. It is one run pair, and the interval is "
               "over that pair's eval sample rather than over seeds, so the "
               "band is a floor on what a seed can move and not a bound on "
@@ -905,40 +899,33 @@ def main(argv=None):
               + " ".join(v + "." for v in verdicts), ""]
         failed = [g for g in sorted(gate_by_group)
                   if min(gate_by_group[g])[0] > GATE]
-        mrow = bs.get(("B5_machine_k0_student", "all"))
         if failed:
             gs = ", ".join(failed)
-            L += [f"The card's instruction on a failure is to retrain the "
-                  f"`k = 0` side of every cell of that group rather than "
+            L += [f"On a failure the card asks the study to retrain the "
+                  f"`k = 0` side of every cell of that group, and not to "
                   f"read it from the parent report. This study did not do "
                   f"that for group {gs}. So every group-{gs} delta against a "
-                  f"published `k = 0` is a screen and not a test, on top of "
-                  f"the machine it already crosses. The gate's own row "
-                  f"crosses that machine as well: it is this study's only "
-                  f"group-{gs} retrain and it trained on a rented box"
-                  + (f", and the machine is worth "
-                     f"{abs(float(mrow['delta'])):.4f}." if mrow else "."),
-                  ""]
+                  f"published `k = 0` is a screen and not a test.", ""]
 
     # ---- 3. depth response -------------------------------------------------
     L += ["### Depth response, against each arm's own k = 0", "",
-          "| arm | seed | machine held | head | k | k = 0 | this k | Δ | "
+          "| arm | seed | same computer? | head | k | k = 0 | this k | Δ | "
           "all | short | med+long | criterion |",
           "|---|---|---|---|---|---|---|---|---|---|---|---|"]
-    held_arms, depths = set(), set()
-    # The machine-held k = 0 / k = 3 pairs on the student head: the two the
-    # report leads on, and the row the limits table reads them back into.
-    held_student = []
+    depths = set()
+    # Every k = 3 pair this study trained both sides of, student head, minus
+    # the retracted one. The limits table reads them back as the set that
+    # answers "does the depth help", and their signs do not agree.
+    trained_student = []
     for arm, head, k, base, deep in R.pairs(tags):
         a, b = val(base.tag), val(deep.tag)
         A, B = sp.get(base.tag, {}), sp.get(deep.tag, {})
         depths.add(k)
-        if R.machine_held(base, deep):
-            held_arms.add(arm)
-            r = bs.get((boot_label(arm, k, head), "all"))
-            if head == "student" and k == 3 and r is not None:
-                held_student.append((arm, float(r["delta"]),
-                                     float(r["ci_lo"]), float(r["ci_hi"])))
+        r = bs.get((boot_label(arm, k, head), "all"))
+        if (head == "student" and k == 3 and r is not None
+                and arm not in R.RETRACTED):
+            trained_student.append((arm, float(r["delta"]),
+                                    float(r["ci_lo"]), float(r["ci_hi"])))
         ok = "—"
         if A and B:
             dm = 100.0 * (B["medium_long"] / A["medium_long"] - 1.0)
@@ -954,8 +941,9 @@ def main(argv=None):
             f"{pct(A.get('all'), B.get('all'))} | "
             f"{pct(A.get('short'), B.get('short'))} | "
             f"{pct(A.get('medium_long'), B.get('medium_long'))} | {ok} |")
-    # The same criterion on the published-baseline pairs. Those pairs cross a
-    # machine, so it is a screen there and a test only here.
+    # The same criterion on the published-baseline pairs. Those pairs read
+    # their k = 0 from a parent report, so it is a screen there and a test
+    # only here.
     screen = []
     scrp = Path(args.results) / "criterion_screen.csv"
     if scrp.is_file():
@@ -968,40 +956,37 @@ def main(argv=None):
         scr_line = (
             " The same criterion runs over every pair of the "
             "published-baseline table as well, where it is a screen because "
-            f"the two sides cross a machine: {met} of {len(screen)} pairs "
+            "the `k = 0` side comes from a parent report: "
+            f"{met} of {len(screen)} pairs "
             f"meet it, and {m100} of {len(s100)} at bb100k "
             "([`results/criterion_screen.csv`](results/criterion_screen.csv)).")
 
     L += ["", "Criterion, from the card: medium+long (42 configs) at least "
           "5% better, short (55 configs) losing less than 2%.", "",
-          "**This table is the only place the card's criterion is applied as "
-          f"a test, and it is answered for {len(held_arms)} machine-held "
-          f"arms ({', '.join(sorted(held_arms))}) at one stop, bb40k.** The "
-          "card also asks about bb100k and bb200k. No cell holds a "
-          "machine-matched `k = 0` at either stop, so at those two the "
-          "report has the screen and nothing else." + scr_line, "",
-          "`machine held` = did the two sides train on the same box. A `no` "
-          "row carries a machine change as well as a depth change. The B5 "
-          "table below measures the machine alone, at one seed, at 0.1166, "
-          "so a `no` row carries a term larger than most of the deltas in "
-          "this table. Only the `yes` rows report the depth and nothing "
-          "else.", "",
+          "**This table is the only place the card's criterion runs as a "
+          "test.** Every row here trains its own `k = 0`, and every row is at "
+          "one stop, bb40k. The card also asks about bb100k and bb200k. This "
+          "study trained no `k = 0` at either stop, so there the report has "
+          "the screen and nothing else." + scr_line, "",
+          "`same computer?` records where the two runs trained. The B5 table "
+          "below measures that change alone, at one seed, at 0.1166, and the "
+          "backbone seed at 0.0035. Both are nuisance draws.", "",
           "✗ marks a retracted row: " + R.RETRACTED_WHY + ".", "",
           f"Head-seed band ±{NOISE_BAND} (`ema_sched_ladder.md`, pooled). It "
-          "bounds the head seed alone. It does not bound the machine, and it "
-          "does not bound the BACKBONE seed: this study holds one backbone "
+          "bounds the head seed alone. It does not bound the computer, and "
+          "it does not bound the BACKBONE seed: this study holds one backbone "
           "seed in 14 cells and one replicate of it (B5·s2 against B5·s3, at "
           "k = 0, at bb40k), so backbone-seed variance is unmeasured. Every "
           "better / flat / worse verdict in this report rests on a band that "
           "bounds one of the two seeds in play.", "",
           "The depths trained are " +
           ", ".join(f"k = {d}" for d in sorted(depths)) +
-          ", and only k = 3 ran on the 14 cells. The one ladder that holds "
-          "more than a single depth is A3's, the cell where k = 3 does the "
-          "most damage, and its k = 1 row is machine-crossed and covers "
-          "zero. So this study supports **depth 3 moves the score**. It does "
-          "NOT support *depth 3 is the right depth*: no cell measures a "
-          "second depth against a machine-held k = 0.", ""]
+          ", and only k = 3 ran on the 14 cells. One ladder holds more than "
+          "a single depth: A3's, the cell where k = 3 does the most damage, "
+          "and its k = 1 interval covers zero. So this study supports "
+          "**depth 3 moves the score**. It does NOT support *depth 3 is the "
+          "right depth*: one cell measures a second depth, and no cell "
+          "measures a third.", ""]
 
     # ---- 4. the interval behind every one of those deltas ------------------
     L += ["### Paired dataset-cluster bootstrap, per horizon subset", "",
@@ -1090,8 +1075,8 @@ def main(argv=None):
 
     # ---- 6b. B1 control, on the cell where k = 3 WINS ------------------------
     # A3's control answers the same question on the cell where k = 3 does the
-    # most damage, and every column of that table crosses a machine. B1 holds
-    # the machine, the seed and the head budget, so this table may divide one
+    # most damage, and its columns are separate draws. B1's three columns hold
+    # the seed, the head budget and the box, so this table may divide one
     # column by another and A3's may not.
     B1_COLS = ("G6_B1_k0", "G_B1_k0_aw4", "G6_B1_k3")
     B1_BOOT = (None, "B1_alignx4_{h}", "B1_k3_{h}")
@@ -1168,12 +1153,9 @@ def main(argv=None):
         ((c, R.resolve(f"{c}_bb40k_student")) for c in A3_COLS) if r)
     L += ["", "Second line of each cell: the difference against `k = 0` "
           "and its 95% paired dataset-cluster interval.", "",
-          "Every column trained on a different box from at least one "
-          f"other. {machines}. The machine alone is worth 0.1166 on this "
-          "study's one controlled measurement of it, which is more than "
-          "either control's own size, so read the two controls as direction "
-          "and not as magnitude. This table therefore does not divide one "
-          "column by another.", ""]
+          f"Where each column trained: {machines}. The columns are separate "
+          "draws, so read the two controls as direction and not as "
+          "magnitude. This table does not divide one column by another.", ""]
 
     # ---- 8. what the depth costs -------------------------------------------
     # A solo row does not have to be solo for its whole run: a clone of the
@@ -1266,7 +1248,7 @@ def main(argv=None):
         L += ["; ".join(
             f"{a} reads {c3 / c0 - 1:+.0%} ({c0:.1f} ms against {c3:.1f} ms) "
             f"and is not comparable to those two: its `{side}` median covers "
-            f"{ws} of its {wt} windows and its two sides cross a box"
+            f"{ws} of its {wt} windows"
             for a, c0, c3, side, ws, wt in partial) +
             ". **Carry +157% to +168% and do not carry the low row.** No "
             "cell of the 14 has a same-card `k = 0` / `k = 3` pair, which is "
@@ -1431,9 +1413,6 @@ def main(argv=None):
           "| dataset-cluster | the resampling unit of every interval here. "
           "`<ds>/short`, `/medium` and `/long` are three configs of one "
           "series, so the bootstrap resamples the dataset, not the config |",
-          "| machine-held | both sides of a comparison trained on the same "
-          "physical box. A pair that is not machine-held carries a machine "
-          "change as well as a depth change |",
           "| `mixup` | the count of examples the batch mixer touched in a "
           "200-step window. Two runs on one data order print one count |",
           "| ✗ | a retracted arm: its `k = 0` baseline is a rented-box "
@@ -1453,23 +1432,6 @@ def main(argv=None):
                                        float(r["ci_hi"]))
 
     ns_rows = []
-    # The headline's own limit, first. The frontier drop is the report's
-    # lead number, and its two ends do not hold one thing constant.
-    fbase, fcell, fhead, fstop = best_published()
-    fv, fc, fh, fs = min((v, c, h, s) for c in L2.CELLS for s in L2.STOPS
-                         for h in ("student", "teacher")
-                         for v in [sv(c, s, h)] if v is not None)
-    mach0 = boot_ci("B5_machine_k0_student")
-    if mach0:
-        mine100, pub100 = sv(fc, 100, fh), pub(fc, fh, 100)
-        ns_rows.append(
-            f"| That the frontier drop of {fbase - fv:.4f} measures the "
-            f"depth | Its two ends cross a head, a stop and a machine: "
-            f"{fcell} on the {fhead} head at bb{fstop}k against {fc} on the "
-            f"{fh} head at bb{fs}k. "
-            + (f"{fc}'s own matched-stop delta is "
-               f"{mine100 - pub100:+.4f} at bb100k."
-               if mine100 is not None and pub100 is not None else "") + " |")
     for g in sorted(gate_by_group):
         d, arm, _machine = min(gate_by_group[g])
         if d > GATE:
@@ -1480,20 +1442,22 @@ def main(argv=None):
                 f"{GATE}. The card then asks for the `k = 0` side of every "
                 f"group-{g} cell to be retrained, and this study reads those "
                 "baselines from the parent report. |")
-    if len(held_student) == 2:
-        (a1, d1, lo1, hi1), (a2, d2, lo2, hi2) = sorted(
-            held_student, key=lambda t: t[1])
+    if trained_student:
+        ts = sorted(trained_student, key=lambda t: t[1])
+        each = ", ".join(f"{a} {d:+.4f}" for a, d, _lo, _hi in ts)
+        signs = len({d > 0 for _a, d, _lo, _hi in ts}) > 1
         ns_rows.append(
-            "| That `k = 3` helps, or that it hurts | The two machine-held "
-            f"`k = 0` / `k = 3` pairs read {a1} {d1:+.4f} and {a2} {d2:+.4f}, "
-            "both 95% intervals excluding zero (`depth_response.png`). Each "
-            "is one draw in the backbone seed, so this study reads a "
-            "direction and not a per-recipe ranking. |")
+            f"| That `k = 3` helps, or that it hurts | This study trained "
+            f"both depths on {len(ts)} arms, and they "
+            + ("do not point one way" if signs else "point one way") +
+            f": {each} (`depth_response.png`). Each is one draw in the "
+            "backbone seed, so this study reads a direction and not a "
+            "per-recipe ranking. |")
     ns_rows += [
-        "| That the gain is the depth alone | B1 is the one cell that carries "
-        "the `L_align` ×4 re-weighting control on one machine, and the "
-        "re-weighting moves the score on its own. The annex's B1 table and "
-        "its figure print the share of the move, per head. |",
+        "| That the gain is the depth alone | B1 carries the `L_align` ×4 "
+        "re-weighting control, and the re-weighting moves the score on its "
+        "own. The annex's B1 table and its figure print the share of the "
+        "move, per head. |",
         "| That one of the two pays more than the other | The re-weighting's "
         "move and the depth's move sit inside each other's 95% intervals, in "
         "the same B1 table in the annex. That cell measures both and ranks neither. |",
@@ -1507,14 +1471,13 @@ def main(argv=None):
             "cells. One ladder holds a second depth, on A3, and its `k = 1` "
             f"delta covers zero: {k1[0]:+.4f} [{k1[1]:+.4f}, {k1[2]:+.4f}] on "
             "the student. |")
-    mach = boot_ci("B5_machine_k0_student")
-    if mach and held_arms:
+    if trained_student:
         ns_rows.append(
             "| The per-horizon criterion of the card, the issue this study "
-            "answers, at scale | Only "
-            f"{len(held_arms)} arms hold the machine, and only at bb40k. "
-            "Every other pair crosses a machine, and the machine is worth "
-            "more than most of the deltas in this report. |")
+            "answers, at scale | This study trained the `k = 0` side on "
+            f"{len(trained_student)} arms, and only at bb40k. Every other "
+            "pair reads its baseline from a parent report, so it is a screen "
+            "and not a test. |")
     if pub200:
         won = sorted((d, c) for c, d in pub200 if d < 0)
         lost = sorted(((d, c) for c, d in pub200 if d > 0), reverse=True)
@@ -1533,8 +1496,7 @@ def main(argv=None):
         cost = "Two solo probes agree; the annex step-time tables carry them."
         for arm, _c0, _c3, _side, ws, wt in partial:
             cost += (f" {arm}'s reading covers {ws} of its {wt} timing "
-                     "windows and crosses a box, so it is not comparable to "
-                     "them.")
+                     "windows, so it is not comparable to them.")
         ns_rows.append(f"| The cost of the depth | {cost} |")
     ns_rows.append(
         "| That the 200k reading is unconditional | The extend rule reads the "

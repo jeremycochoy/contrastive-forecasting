@@ -21,9 +21,9 @@
 
 Primary: medium+long at least 5% better AND short losing less than 2%. Secondary: full-97 Δ at or below −0.0384, the head-seed band. Δ is `k = 3` minus the cell's published `k = 0`, so negative is a gain. Student head at bb100k, the stop every one of the 14 cells reached.
 
-The count is over CELLS. A1 and B3 hold one student model between them, so the same 14 cells hold 13 student models and the model count of the secondary criterion is one lower than the cell count.
+The count is over CELLS. A1 and B3 share one student model, so the 14 cells hold 13 student models. The secondary criterion therefore counts one model fewer than it counts cells.
 
-**Both sides of every row trained on a different machine.** This study's one controlled measurement of the machine is worth 0.1166, which is larger than either threshold, so this table is a screen. The two rows that hold the machine are in the depth-response table in the annex. Every cell here ran once, on one backbone seed, so the spread over the rows does not rank the recipes.
+**Every cell here ran once, on one backbone seed.** The spread over the rows does not rank the recipes.
 
 ## Collapse watch
 
@@ -55,16 +55,15 @@ On `h_t`, 1 of the 5 arms that trained both depths ends the deeper run below hal
 
 | the claim | what stops it |
 |---|---|
-| That the frontier drop of 0.0884 measures the depth | Its two ends cross a head, a stop and a machine: A4 on the teacher head at bb40k against A4 on the student head at bb200k. A4's own matched-stop delta is -0.1144 at bb100k. |
 | Any group-A delta against a published `k = 0` | The card's baseline validity gate fails on group A: A3 misses its published number by 0.0294 against a gate of 0.0002. The card then asks for the `k = 0` side of every group-A cell to be retrained, and this study reads those baselines from the parent report. |
-| That `k = 3` helps, or that it hurts | The two machine-held `k = 0` / `k = 3` pairs read B1 -0.1175 and B5·s2 +0.0575, both 95% intervals excluding zero (`depth_response.png`). Each is one draw in the backbone seed, so this study reads a direction and not a per-recipe ranking. |
-| That the gain is the depth alone | B1 is the one cell that carries the `L_align` ×4 re-weighting control on one machine, and the re-weighting moves the score on its own. The annex's B1 table and its figure print the share of the move, per head. |
+| That `k = 3` helps, or that it hurts | This study trained both depths on 4 arms, and they do not point one way: B9 -0.2791, B1 -0.1175, B5·s2 +0.0575, A3 +0.1429 (`depth_response.png`). Each is one draw in the backbone seed, so this study reads a direction and not a per-recipe ranking. |
+| That the gain is the depth alone | B1 carries the `L_align` ×4 re-weighting control, and the re-weighting moves the score on its own. The annex's B1 table and its figure print the share of the move, per head. |
 | That one of the two pays more than the other | The re-weighting's move and the depth's move sit inside each other's 95% intervals, in the same B1 table in the annex. That cell measures both and ranks neither. |
 | Any per-cell verdict | Every cell is n = 1 in the backbone seed. The ±0.0384 band bounds the HEAD seed alone, and backbone-seed variance is unmeasured. |
 | That depth 3 is the right depth | Only `k = 3` ran on the 14 cells. One ladder holds a second depth, on A3, and its `k = 1` delta covers zero: -0.0195 [-0.0537, +0.0148] on the student. |
-| The per-horizon criterion of the card, the issue this study answers, at scale | Only 2 arms hold the machine, and only at bb40k. Every other pair crosses a machine, and the machine is worth more than most of the deltas in this report. |
+| The per-horizon criterion of the card, the issue this study answers, at scale | This study trained the `k = 0` side on 4 arms, and only at bb40k. Every other pair reads its baseline from a parent report, so it is a screen and not a test. |
 | That `k = 3` leads at 200k | 4 cells hold a published `k = 0` at 200k. A2 by -0.1079, B6 by -0.0804, B1 by -0.0643 lead it. B2 by +0.1054 loses it, against a largest gain of -0.1079, so the 4 cells do not point one way. |
-| The cost of the depth | Two solo probes agree; the annex step-time tables carry them. A3's reading covers 127 of its 273 timing windows and crosses a box, so it is not comparable to them. |
+| The cost of the depth | Two solo probes agree; the annex step-time tables carry them. A3's reading covers 127 of its 273 timing windows, so it is not comparable to them. |
 | That the 200k reading is unconditional | The extend rule reads the bb40k-to-bb100k contrast, which the Protocol calls not head-matched. It fired inside its own ±0.0384 band on 4 stopped cells, and both manual overrides extended. |
 
 ## Tables
@@ -73,7 +72,7 @@ On `h_t`, 1 of the 5 arms that trained both depths ends the deeper run below hal
 
 The card names 14 cells. This study scored **14 of them**: A1, A2, A3, A4, B1, B2, B3, B4, B5, B6, B7, B8, B9, B10. Every cell carries a number.
 
-| cell | f-bearing term | EMA α | depths trained | stops scored |
+| cell | loss terms that use `f` | EMA α | depths trained | stops scored |
 |---|---|---|---|---|
 | A1 | L_align only | scheduled | k = 3 | bb40k, bb100k |
 | A2 | L_align + CPC auxiliary | scheduled | k = 3 | bb40k, bb100k, bb200k |
@@ -90,7 +89,7 @@ The card names 14 cells. This study scored **14 of them**: A1, A2, A3, A4, B1, B
 | B9 | split L_pred + CPC auxiliary | fixed 0.9 | k = 0, k = 3 | bb40k, bb100k |
 | B10 | L_align + CPC auxiliary | fixed 0.9 | k = 3 | bb40k, bb100k, bb200k |
 
-Stops scored: bb40k, bb100k, bb200k. The card's extend rule reads a cell's bb40k number against its bb100k number, so it fires only where both are in hand.
+Stops scored: bb40k, bb100k, bb200k. The card's extend rule reads a cell's bb40k number against its bb100k number, so it fires only where this study has both.
 
 ### This study's k = 3 against the published k = 0
 
@@ -150,7 +149,7 @@ The rule reads one cell's bb40k number against its bb100k number, per head. A he
 | B9 | +0.0508 | +0.0365 | **stop at 100k** | bb100k | extend rule | both heads moved up |
 | B10 | -0.0266 | -0.0231 | **extend both heads** | bb200k | ladder ceiling | both heads moved down |
 
-**The rule selects the panel.** It sent 8 cells to bb200k, fired inside its own ±0.0384 band on 4 of the 6 cells it stopped (A1, B3, B5, B8), and both manual overrides extended.
+**The rule chooses which cells reach bb200k.** It sent 8 cells there. On 4 of the 6 cells it stopped (A1, B3, B5, B8) the move it read was smaller than the ±0.0384 band. Both hand overrides extended a cell.
 
 ### Glossary
 
@@ -175,7 +174,6 @@ The rule reads one cell's bb40k number against its bb100k number, per head. A he
 | `arm4 combab`, `arm5 combab`, `arm6_v2 combab`, `arm6_v2 ncpc`, `arm6_v2 nse`, `arm1 nse` | the six launcher recipes the 14 cells run. `combab` pools negatives across the batch and the channels; `ncpc` drops the CPC auxiliary; `nse` keeps it. The Coverage table gives each cell's |
 | head-seed band ±0.0384 | how far the head seed alone moved a score in `ema_sched_ladder.md`, pooled. It bounds the head seed and nothing else |
 | dataset-cluster | the resampling unit of every interval here. `<ds>/short`, `/medium` and `/long` are three configs of one series, so the bootstrap resamples the dataset, not the config |
-| machine-held | both sides of a comparison trained on the same physical box. A pair that is not machine-held carries a machine change as well as a depth change |
 | `mixup` | the count of examples the batch mixer touched in a 200-step window. Two runs on one data order print one count |
 | ✗ | a retracted arm: its `k = 0` baseline is a rented-box artefact, so its depth delta is withdrawn |
 
@@ -223,7 +221,7 @@ The interval is a 95% paired dataset-cluster bootstrap over the pair's 97 config
 
 A3 at bb200k reads 1.3998 on the student and 1.2913 on the teacher, off one backbone file. That 0.1084 gap is the largest in the grid: 6.5x the next-largest in group A (0.0168) and 2.6x the largest of the other 35 gaps (0.0425). Every gap in the grid is in [`results/head_gap.tsv`](results/head_gap.tsv).
 
-The second draw changes two things: the head seed, and the machine that trained the head. Draw 1 trained on the rented box, draw 2 on elisa. Both read the same 200,000-step backbone checkpoint, the box's original and elisa's synced copy of it. Held across the two draws: 30,000 head steps, the recipe, and the 97-config eval, which ran on elisa's cores for both. Only elisa's copy carries a recorded md5 (`9f0e8da71ff595523d2bf0dabdf80445`, [`results/eval/A3_k3_bb200k_student_s20260723/backbone_md5.txt`](results/eval/A3_k3_bb200k_student_s20260723/backbone_md5.txt)); the box was released before its original could be checksummed.
+The second draw changes two things: the head seed, and the computer that trained the head. Draw 1 trained on the rented computer, draw 2 on elisa. Both read the same 200,000-step backbone checkpoint, the rented computer's original and elisa's synced copy of it. Held across the two draws: 30,000 head steps, the recipe, and the 97-config eval, which ran on elisa's cores for both. Only elisa's copy carries a recorded md5 (`9f0e8da71ff595523d2bf0dabdf80445`, [`results/eval/A3_k3_bb200k_student_s20260723/backbone_md5.txt`](results/eval/A3_k3_bb200k_student_s20260723/backbone_md5.txt)). The rented computer was released before anyone could checksum its original.
 
 | draw | head seed | GM-Relative MASE | against draw 1 |
 |---|---|---|---|
@@ -231,7 +229,7 @@ The second draw changes two things: the head seed, and the machine that trained 
 | 2, student | 20260723 | 1.4098 | +0.0100 |
 | teacher | 20260722 | 1.2913 | -0.1084 |
 
-**The two draws agree.** They sit 0.0100 apart [-0.0163, +0.0378], so 1.3998 is not a bad draw. The student/teacher gap survives the redraw at -0.1185 [-0.1819, -0.0718], teacher minus student. The two draws cross a machine, so this agreement bounds the head seed and the machine together, not the seed alone.
+**The two draws agree.** They sit 0.0100 apart [-0.0163, +0.0378], so 1.3998 is not a bad draw. The student/teacher gap survives the redraw at -0.1185 [-0.1819, -0.0718], teacher minus student. The two draws used different computers, so this agreement bounds the head seed and the computer together, not the seed alone.
 
 A3's is the ladder's largest reversal, but it is not the only one: 5 of the 8 three-stop student trajectories turn round at bb200k, in the stop-ladder table above.
 
@@ -256,7 +254,7 @@ Each entry is the count of tensors that agree exactly, out of the count compared
 
 Full table, with the largest absolute difference on each side: [`results/pair_identity.tsv`](results/pair_identity.tsv).
 
-**A1/B3 hold one student, not two.** `arm5_combab` aligns to the student and carries no `--moco-rep-keys`, so no loss term reads the EMA encoder and the regime sends no gradient into the student. One student number for both cells is the right answer, and it is ONE measurement: the student row of one of them is not a replication of the other. The teacher side differs at every stop, and the teacher numbers do too.
+**A1/B3 hold one student, not two.** `arm5_combab` aligns to the student and carries no `--moco-rep-keys`, so no loss term reads the EMA encoder and the regime sends no gradient into the student. One student number for both cells is the right answer. It is ONE measurement: one cell's student row does not replicate the other's. The teacher side differs at every stop, and the teacher numbers do too.
 
 **A2/B8, A3/B2, A4/B1 hold two students.** Their arms carry `--moco-rep-keys`, whose keys come from the EMA encoder, or align to the teacher. Either path reaches the student's gradient, so the regime moves it.
 
@@ -275,11 +273,11 @@ The largest re-run move is 0.0141. The two cells carry different backbone md5s a
 
 ### Reproduction of the published k = 0
 
-Same cell, same recipe, same head seed 20260722, same 97-config B4 eval, student head. Rows are grouped by machine.
+Same cell, same recipe, same head seed 20260722, same 97-config B4 eval, student head. Rows are grouped by computer.
 
-A row at the parents' own backbone seed 20260520 takes the card's 0.0002; a row at any other seed takes the seed band.
+A row at the parents' own backbone seed 20260520 must meet the card's 0.0002. A row at any other seed must meet the seed band.
 
-| backbone | seed | machine | published k = 0 | retrained k = 0 | \|Δ\| | gate | verdict |
+| backbone | seed | computer | published k = 0 | retrained k = 0 | \|Δ\| | gate | verdict |
 |---|---|---|---|---|---|---|---|
 | B1 | 20260520 | elisa | 1.2025 | 1.2025 | 0.0000 | 0.0002, the card | PASS |
 | B5·s3 | 20260520 | elisa | 1.2748 | 1.2751 | 0.0003 | 0.0002, the card | at the re-run floor |
@@ -289,19 +287,19 @@ A row at the parents' own backbone seed 20260520 takes the card's 0.0002; a row 
 | B5·s1 ✗ | 20260520 | vast box d | 1.2748 | 1.3917 | 0.1169 | 0.0002, the card | FAIL |
 | B5·pub | 20260520 | the parent report's box | 1.2748 | 1.2751 | 0.0003 | 0.0002, the card | at the re-run floor |
 
-Two things this comparison cannot resolve, added: 0.0003 for the head and the eval, which is what `B5·pub` moves the score by while training nothing, and 0.0001 for the parents' four printed decimals. A |Δ| at or below 0.0004 is a run this pipeline cannot separate from the published one. The card's gate of 0.0002 is stricter than that.
+This comparison cannot resolve two things. The head and the eval move the score by 0.0003, which is what `B5·pub` moves it while training nothing. The parents' four printed decimals add 0.0001. Together they give 0.0004: a |Δ| at or below that is a run this pipeline cannot separate from the published one. The card's gate of 0.0002 is stricter than that.
 
-The seed band is 0.0230, the far end of the 95% interval on this study's one measurement of a seed change: `B5·s2` against `B5·s3`, one machine, one recipe, +0.0035 [-0.0183, +0.0230]. It is one run pair, and the interval is over that pair's eval sample rather than over seeds, so the band is a floor on what a seed can move and not a bound on it. B5·s2 is the only row it gates; every other row here carries the parents' own seed.
+The seed band is 0.0230, the far end of the 95% interval on this study's one measurement of a seed change: `B5·s2` against `B5·s3`, one computer, one recipe, +0.0035 [-0.0183, +0.0230]. It is one run pair, and the interval is over that pair's eval sample rather than over seeds, so the band is a floor on what a seed can move and not a bound on it. B5·s2 is the only row it gates; every other row here carries the parents' own seed.
 
 `B5·pub` is not a training: it takes the parent report's own published B5 checkpoint and puts this study's head and eval on it, so its row bounds the head and the eval rather than the trainer. `B5·s3` is a training, at the protocol seed, on elisa, and its 97-config eval output is byte-identical to `B5·pub`'s (`results/eval/G7_B5_k0_e_bb40k_student/all_results.csv` against `results/eval/G1_B5pub_bb40k_student/all_results.csv`): the elisa retrain reproduced the parent's backbone exactly, and the 0.0003 both rows carry is the head and the eval.
 
 **The card's baseline validity gate, group by group.** It retrains one cell of the group at `k = 0` on this study's code and asks for the published number to within 0.0002. Group A: A3 at `k = 0`, on vast box d, misses its published number by 0.0294 — **FAIL**. Group B: B1 at `k = 0`, on elisa, misses its published number by 0.0000 — **PASS**.
 
-The card's instruction on a failure is to retrain the `k = 0` side of every cell of that group rather than read it from the parent report. This study did not do that for group A. So every group-A delta against a published `k = 0` is a screen and not a test, on top of the machine it already crosses. The gate's own row crosses that machine as well: it is this study's only group-A retrain and it trained on a rented box, and the machine is worth 0.1166.
+On a failure the card asks the study to retrain the `k = 0` side of every cell of that group, and not to read it from the parent report. This study did not do that for group A. So every group-A delta against a published `k = 0` is a screen and not a test.
 
 ### Depth response, against each arm's own k = 0
 
-| arm | seed | machine held | head | k | k = 0 | this k | Δ | all | short | med+long | criterion |
+| arm | seed | same computer? | head | k | k = 0 | this k | Δ | all | short | med+long | criterion |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | B9 | 20260520 | no, elisa → vast box c | student | 3 | 1.5583 | 1.2791 | -0.2791 | -17.9% | -12.6% | -24.4% | **MET** |
 | B9 | 20260520 | no, elisa → vast box c | teacher | 3 | 1.5599 | 1.2728 | -0.2871 | -18.4% | -12.8% | -25.2% | **MET** |
@@ -318,15 +316,15 @@ The card's instruction on a failure is to retrain the `k = 0` side of every cell
 
 Criterion, from the card: medium+long (42 configs) at least 5% better, short (55 configs) losing less than 2%.
 
-**This table is the only place the card's criterion is applied as a test, and it is answered for 2 machine-held arms (B1, B5·s2) at one stop, bb40k.** The card also asks about bb100k and bb200k. No cell holds a machine-matched `k = 0` at either stop, so at those two the report has the screen and nothing else. The same criterion runs over every pair of the published-baseline table as well, where it is a screen because the two sides cross a machine: 25 of 41 pairs meet it, and 10 of 18 at bb100k ([`results/criterion_screen.csv`](results/criterion_screen.csv)).
+**This table is the only place the card's criterion runs as a test.** Every row here trains its own `k = 0`, and every row is at one stop, bb40k. The card also asks about bb100k and bb200k. This study trained no `k = 0` at either stop, so there the report has the screen and nothing else. The same criterion runs over every pair of the published-baseline table as well, where it is a screen because the `k = 0` side comes from a parent report: 25 of 41 pairs meet it, and 10 of 18 at bb100k ([`results/criterion_screen.csv`](results/criterion_screen.csv)).
 
-`machine held` = did the two sides train on the same box. A `no` row carries a machine change as well as a depth change. The B5 table below measures the machine alone, at one seed, at 0.1166, so a `no` row carries a term larger than most of the deltas in this table. Only the `yes` rows report the depth and nothing else.
+`same computer?` records where the two runs trained. The B5 table below measures that change alone, at one seed, at 0.1166, and the backbone seed at 0.0035. Both are nuisance draws.
 
 ✗ marks a retracted row: B5·s1's `k = 0` trained on a rented box and misses its published value by 0.1169; `B5·s3` retrains it at the same seed on elisa and lands 0.0003 away, so the baseline the -5.1% rests on is a rented-box artefact and the delta is retracted.
 
-Head-seed band ±0.0384 (`ema_sched_ladder.md`, pooled). It bounds the head seed alone. It does not bound the machine, and it does not bound the BACKBONE seed: this study holds one backbone seed in 14 cells and one replicate of it (B5·s2 against B5·s3, at k = 0, at bb40k), so backbone-seed variance is unmeasured. Every better / flat / worse verdict in this report rests on a band that bounds one of the two seeds in play.
+Head-seed band ±0.0384 (`ema_sched_ladder.md`, pooled). It bounds the head seed alone. It does not bound the computer, and it does not bound the BACKBONE seed: this study holds one backbone seed in 14 cells and one replicate of it (B5·s2 against B5·s3, at k = 0, at bb40k), so backbone-seed variance is unmeasured. Every better / flat / worse verdict in this report rests on a band that bounds one of the two seeds in play.
 
-The depths trained are k = 1, k = 3, and only k = 3 ran on the 14 cells. The one ladder that holds more than a single depth is A3's, the cell where k = 3 does the most damage, and its k = 1 row is machine-crossed and covers zero. So this study supports **depth 3 moves the score**. It does NOT support *depth 3 is the right depth*: no cell measures a second depth against a machine-held k = 0.
+The depths trained are k = 1, k = 3, and only k = 3 ran on the 14 cells. One ladder holds more than a single depth: A3's, the cell where k = 3 does the most damage, and its k = 1 interval covers zero. So this study supports **depth 3 moves the score**. It does NOT support *depth 3 is the right depth*: one cell measures a second depth, and no cell measures a third.
 
 ### Paired dataset-cluster bootstrap, per horizon subset
 
@@ -430,7 +428,7 @@ Summing the depths multiplies `L_align`'s weight against the f-free terms by k +
 
 Second line of each cell: the difference against `k = 0` and its 95% paired dataset-cluster interval.
 
-Every column trained on a different box from at least one other. A3_k0: vast box d · G3_A3_k0_aw4: elisa · G3_A3_k1: elisa · A3_k3: vast box b. The machine alone is worth 0.1166 on this study's one controlled measurement of it, which is more than either control's own size, so read the two controls as direction and not as magnitude. This table therefore does not divide one column by another.
+Where each column trained: A3_k0: vast box d · G3_A3_k0_aw4: elisa · G3_A3_k1: elisa · A3_k3: vast box b. The columns are separate draws, so read the two controls as direction and not as magnitude. This table does not divide one column by another.
 
 ### What the depth costs
 
@@ -457,7 +455,7 @@ The two probes that agree:
 | B5·s1, over its own run | 117.6 ms | 301.9 ms | +157% | each side solo on its own box, vast box d → vast box a | [`results/steptime_solo.csv`](results/steptime_solo.csv) |
 | B5, alternating on one elisa card | 190.2 ms | 509.9 ms | +168% | one card, 3 reps of 600 steps | [`results/steptime_B5_solo.log`](results/steptime_B5_solo.log) |
 
-A3 reads +13% (115.9 ms against 131.5 ms) and is not comparable to those two: its `k = 3` median covers 127 of its 273 windows and its two sides cross a box. **Carry +157% to +168% and do not carry the low row.** No cell of the 14 has a same-card `k = 0` / `k = 3` pair, which is what would settle it.
+A3 reads +13% (115.9 ms against 131.5 ms) and is not comparable to those two: its `k = 3` median covers 127 of its 273 windows. **Carry +157% to +168% and do not carry the low row.** No cell of the 14 has a same-card `k = 0` / `k = 3` pair, which is what would settle it.
 
 ### The depth-0 forecast error, deeper run minus its own k = 0
 

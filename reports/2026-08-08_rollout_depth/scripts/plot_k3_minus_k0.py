@@ -9,11 +9,9 @@ at every stop the pair holds, on both heads.
 One bar per cell per panel, ranked inside the panel, so a panel reads the
 same way the parent's two panels read. Negative is better.
 
-This is a SCREEN and not a test. The two sides of every bar trained on
-different machines, and this study's one controlled measurement of the
-machine is worth 0.1166. The grey band is `ema_sched_ladder.md`'s pooled
-head-seed band; it bounds the HEAD seed alone, and the backbone seed is
-unreplicated.
+This is a SCREEN and not a test. Every bar reads its `k = 0` side from a
+parent report. The grey band is `ema_sched_ladder.md`'s pooled head-seed
+band; it bounds the HEAD seed alone, and the backbone seed is unreplicated.
 
 Group B's two parents publish the student-encoder head only, so the teacher
 row draws group A alone.

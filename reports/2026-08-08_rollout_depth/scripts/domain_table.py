@@ -30,15 +30,15 @@ PAIRS = [
     ("A4", 100, "student", "k0", "A4_k0_bb100k_student",
      "A4_k3_bb100k_student",
      "The cell that sets this study's frontier, at the deepest stop its "
-     "parent published. Two machines."),
+     "parent published. Published `k = 0`."),
     ("B1", 40, "student", "study", "G6_B1_k0_bb40k_student",
      "G6_B1_k3_bb40k_student",
-     "The pair whose two sides trained on ONE machine, so the depth is the "
+     "The pair whose `k = 0` side this study trained, so the depth is the "
      "only change."),
     ("B2", 200, "student", "k0", "B2_k0_bb200k_student",
      "B2_k3_bb200k_student",
-     "The arm and stop the card quotes its own per-family numbers from. Two "
-     "machines."),
+     "The arm and stop the card quotes its own per-family numbers from. "
+     "Published `k = 0`."),
 ]
 
 HARD = ["Energy", "Econ/Fin", "Web/CloudOps", "Healthcare"]
