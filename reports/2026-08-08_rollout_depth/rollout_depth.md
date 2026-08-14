@@ -3,8 +3,8 @@
 Rollout depth 3 lowers the best GM-Relative MASE the project has reached,
 from 1.1544 to 1.0660. The depth is not shown to be the cause: this study's
 one controlled measurement of the machine, 0.1166, is larger than that move,
-and the only two pairs that hold the machine disagree in sign
-(`depth_response.png`, in the annex figures).
+and every cell ran once on one backbone seed, so this study measures a
+frontier and a direction and not a per-recipe ranking.
 
 **GM-Relative MASE** geometric mean over the 97 GIFT-Eval configs of each
 config's MASE divided by the seasonal-naive MASE; lower is better and 1.0 is
@@ -38,9 +38,8 @@ at bb100k.
 
 *The same pairs on the teacher-encoder head, without B2.*
 
-The direction follows the recipe and not the family: on A4 at bb100k all four
-hard families move toward 1.0 and none reaches it, and on B2 at bb200k all
-four move away.
+On A4 at bb100k all four hard families move toward 1.0 and none reaches it;
+on B2 at bb200k all four move away.
 
 ## 3. Where the change lands, by horizon
 
@@ -81,8 +80,7 @@ yet A3 scores worse than B5·s1 at bb40k.
 bb40k checkpoints, on the parent reports' fixed diagnostic batch.*
 
 Every one of the 5 arms that trained `k = 3` rolls out more faithfully than
-its own `k = 0` at all 16 depths, so the fixed-point approximation is not what
-fails; the scores do not follow it.
+its own `k = 0` at all 16 depths, and the scores do not follow.
 
 ## 6. `k = 3` minus `k = 0`, per cell, at every stop
 
@@ -148,9 +146,9 @@ this study put, and none is a deliverable the card names.
 
 The card's criterion is a test against the same recipe at `k = 0`, and only
 five arms trained both depths. This figure asks what the depth is worth on
-those five, with the machine marked. It shows the study's two machine-held
-pairs moving opposite ways: B1 by −0.1175 and B5·s2 by +0.0575, both 95%
-intervals excluding zero.
+those five, with the machine marked. Its two machine-held pairs read B1
+−0.1175 and B5·s2 +0.0575, both 95% intervals excluding zero, and each is one
+draw in the backbone seed.
 
 ### B1: the `L_align` ×4 control against the depth
 
@@ -328,7 +326,7 @@ Primary: medium+long at least 5% better AND short losing less than 2%. Secondary
 
 The count is over CELLS. A1 and B3 hold one student model between them, so the same 14 cells hold 13 student models and the model count of the secondary criterion is one lower than the cell count.
 
-**Both sides of every row trained on a different machine.** This study's one controlled measurement of the machine is worth 0.1166, which is larger than either threshold, so this table is a screen. The two rows that hold the machine are in the depth-response table in the annex, and they disagree in sign.
+**Both sides of every row trained on a different machine.** This study's one controlled measurement of the machine is worth 0.1166, which is larger than either threshold, so this table is a screen. The two rows that hold the machine are in the depth-response table in the annex. Every cell here ran once, on one backbone seed, so the spread over the rows does not rank the recipes.
 
 
 <!-- CRITERIA:END -->
@@ -457,7 +455,7 @@ The rule reads one cell's bb40k number against its bb100k number, per head. A he
 |---|---|
 | That the frontier drop of 0.0884 measures the depth | Its two ends cross a head, a stop and a machine: A4 on the teacher head at bb40k against A4 on the student head at bb200k. A4's own matched-stop delta is -0.1144 at bb100k. |
 | Any group-A delta against a published `k = 0` | The card's baseline validity gate fails on group A: A3 misses its published number by 0.0294 against a gate of 0.0002. The card then asks for the `k = 0` side of every group-A cell to be retrained, and this study reads those baselines from the parent report. |
-| That `k = 3` helps, or that it hurts | The two machine-held `k = 0` / `k = 3` pairs, B1 and B5·s2, disagree in sign and both intervals exclude zero (`depth_response.png`). They differ in the cell, the backbone seed and the f-bearing term, so nothing here says which of the three flips the sign. |
+| That `k = 3` helps, or that it hurts | The two machine-held `k = 0` / `k = 3` pairs read B1 -0.1175 and B5·s2 +0.0575, both 95% intervals excluding zero (`depth_response.png`). Each is one draw in the backbone seed, so this study reads a direction and not a per-recipe ranking. |
 | That the gain is the depth alone | B1 is the one cell that carries the `L_align` ×4 re-weighting control on one machine, and the re-weighting moves the score on its own. The annex's B1 table and its figure print the share of the move, per head. |
 | That one of the two pays more than the other | The re-weighting's move and the depth's move sit inside each other's 95% intervals, in the same B1 table in the annex. That cell measures both and ranks neither. |
 | Any per-cell verdict | Every cell is n = 1 in the backbone seed. The ±0.0384 band bounds the HEAD seed alone, and backbone-seed variance is unmeasured. |
@@ -664,7 +662,7 @@ The resampling unit is the dataset: `<ds>/short`, `/medium` and `/long` are thre
 
 ### One cell, three backbones
 
-B5 (`arm4_combab_fix09`) trained three times on one recipe, one code snapshot, one head seed and one eval. They differ by backbone seed and by machine, and each contrast below names which of the two it changes. The machine moves the score and the seed does not.
+B5 (`arm4_combab_fix09`) trained three times on one recipe, one code snapshot, one head seed and one eval. They differ by backbone seed and by machine, and each contrast below names which of the two it changes. The machine contrast is the larger of the two, and each contrast is one run pair.
 
 | backbone | seed | machine | k = 0 | k = 3 | k = 3 − k = 0 |
 |---|---|---|---|---|---|

@@ -429,7 +429,9 @@ def main(argv=None):
             "This study's one controlled measurement of the machine is worth "
             "0.1166, which is larger than either threshold, so this table is "
             "a screen. The two rows that hold the machine are in the "
-            "depth-response table in the annex, and they disagree in sign.", ""]
+            "depth-response table in the annex. Every cell here ran once, on "
+            "one backbone seed, so the spread over the rows does not rank the "
+            "recipes.", ""]
 
     # ---- 1b'. why each cell stopped where it stopped -------------------------
     # The ladder above says what the extra steps bought. It does not say why
@@ -991,8 +993,8 @@ def main(argv=None):
           "B5 (`arm4_combab_fix09`) trained three times on one recipe, one "
           "code snapshot, one head seed and one eval. They differ by backbone "
           "seed and by machine, and each contrast below names which of the "
-          "two it changes. The machine moves the score and the seed does "
-          "not.", "",
+          "two it changes. The machine contrast is the larger of the two, and "
+          "each contrast is one run pair.", "",
           "| backbone | seed | machine | k = 0 | k = 3 | k = 3 − k = 0 |",
           "|---|---|---|---|---|---|"]
     b5_arms = [a for a in R.arms_of("B5") if a != "B5·pub"]
@@ -1443,10 +1445,10 @@ def main(argv=None):
             held_student, key=lambda t: t[1])
         ns_rows.append(
             "| That `k = 3` helps, or that it hurts | The two machine-held "
-            f"`k = 0` / `k = 3` pairs, {a1} and {a2}, disagree in sign and "
-            "both intervals exclude zero (`depth_response.png`). They differ "
-            "in the cell, the backbone seed and the f-bearing term, so "
-            "nothing here says which of the three flips the sign. |")
+            f"`k = 0` / `k = 3` pairs read {a1} {d1:+.4f} and {a2} {d2:+.4f}, "
+            "both 95% intervals excluding zero (`depth_response.png`). Each "
+            "is one draw in the backbone seed, so this study reads a "
+            "direction and not a per-recipe ranking. |")
     ns_rows += [
         "| That the gain is the depth alone | B1 is the one cell that carries "
         "the `L_align` ×4 re-weighting control on one machine, and the "
