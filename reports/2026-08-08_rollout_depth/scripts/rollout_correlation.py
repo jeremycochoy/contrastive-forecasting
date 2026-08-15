@@ -101,20 +101,20 @@ def block(rs):
     pos = [r for r in rs if float(r["rho_delta"]) > 0]
     out += ["",
             "Spearman rank correlation over the 97 configs, on relative MASE, "
-            "student head, n = 97 on every row. The right column reads: the "
-            "further the eval rolls out on a config, the more `k = 3` "
-            "improves that config.", "",
-            f"Left column: every pair is positive, {k0[0]:+.3f} to "
-            f"{k0[-1]:+.3f}, so a config the eval rolls out further is a "
-            "harder config at `k = 0` as well.", "",
-            "† this pair reads a published `k = 0`; every other row trained "
-            "both sides here. ✗ a retracted backbone.", ""]
+            "student head. Every row has n = 97.", "",
+            f"**Left column.** Every pair is positive, {k0[0]:+.3f} to "
+            f"{k0[-1]:+.3f}. A config the eval rolls out further is a "
+            "harder config at `k = 0` as well.", ""]
     if pos and all(r["retracted"] == "yes" for r in pos):
         names = ", ".join(r["arm"] for r in pos)
-        out += [f"Right column: the one positive value is {names}, the "
-                "backbone this report retracts. The pairs it carries all "
-                f"run one way, {max(float(r['rho_delta']) for r in live):+.3f} "
-                f"to {min(float(r['rho_delta']) for r in live):+.3f}.", ""]
+        out += ["**Right column.** It reads: the further the eval rolls out "
+                "on a config, the more `k = 3` improves that config. The one "
+                f"positive value is {names}, the backbone this report "
+                "retracts. The pairs it carries all run one way, "
+                f"{max(float(r['rho_delta']) for r in live):+.3f} to "
+                f"{min(float(r['rho_delta']) for r in live):+.3f}.", ""]
+    out += ["† this pair reads a published `k = 0`. Every other row trained "
+            "both sides here. ✗ a retracted backbone.", ""]
     return out
 
 

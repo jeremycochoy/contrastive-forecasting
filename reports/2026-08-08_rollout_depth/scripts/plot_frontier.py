@@ -94,7 +94,7 @@ def main():
 
     top = ax.get_xlim()[1]
     ax.annotate(f"frontier before this study {base:.4f}\n"
-                f"{bcell}, {bhead} head, bb{bstop}k — its row above",
+                f"{bcell}, {bhead} head, bb{bstop}k, its row above",
                 (base, len(rows) - 0.35), xytext=(-4, 2),
                 textcoords="offset points", fontsize=7.6, color=SOFT,
                 ha="right", va="bottom")

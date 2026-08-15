@@ -184,7 +184,7 @@ def main(argv=None):
                           label="95% CI, paired dataset-cluster bootstrap"))
     if any(a in R.RETRACTED for a, *_ in rows):
         handles.append(Patch(facecolor="#ffffff", edgecolor="#ffffff",
-                             label="✗ retracted — see the reproduction table"))
+                             label="✗ retracted, see the reproduction table"))
     handles.append(Patch(facecolor=cc.PARITY, alpha=0.30,
                          label=f"head-seed band ±{NOISE_BAND}"))
     if retrain_gap:

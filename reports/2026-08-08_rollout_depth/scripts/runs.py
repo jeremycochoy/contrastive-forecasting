@@ -137,10 +137,10 @@ ARM_ORDER = ["B9", "B1", "B5·s1", "B5·s2", "B5·s3", "B5·pub", "A3"]
 # not four sections later.
 RETRACTED = {"B5·s1"}
 RETRACTED_WHY = ("B5·s1's `k = 0` trained on a rented box and misses its "
-                 "published value by 0.1169; `B5·s3` retrains it at the same "
-                 "seed on elisa and lands 0.0003 away, so the baseline the "
-                 "-5.1% rests on is a rented-box artefact and the delta is "
-                 "retracted")
+                 "published value by 0.1169. `B5·s3` retrains it at the same "
+                 "seed on elisa and lands 0.0003 away. The baseline the "
+                 "-5.1% rests on is therefore a rented-box artifact, and the "
+                 "delta is retracted")
 
 _TAG_RE = re.compile(r"^(?P<stem>.+)_bb(?P<stop>\d+)k_(?P<head>student|teacher)$")
 _BY_STEM = {r[0]: r for r in _ROWS}

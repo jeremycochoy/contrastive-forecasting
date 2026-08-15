@@ -158,7 +158,7 @@ def main(argv=None):
             "machine": run.machine if run else "?",
             "card": run.card if run else "?",
             "solo": "yes" if solo else "no",
-            "why_not_solo": "" if solo else "; ".join(shared),
+            "why_not_solo": "" if solo else " and ".join(shared),
             "windows_total": len(rows),
             "windows_solo": len(solo_rows) if solo else 0,
             "windows_contended": len(during) if during else
@@ -176,7 +176,7 @@ def main(argv=None):
             "neighbours": pv["backbone_neighbours"] if pv else "",
         })
         tail = ("alone" if solo and not during else
-                "alone after a clone" if solo else "; ".join(shared))
+                "alone after a clone" if solo else " and ".join(shared))
         got = (f"{m_solo[1] + m_solo[2]:6.1f}" if m_solo else "     —")
         print(f"{arm:<6} k={k} {out_rows[-1]['machine']:<11} "
               f"{out_rows[-1]['card']:<9} solo n={out_rows[-1]['windows_solo']:4d}"

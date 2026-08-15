@@ -81,11 +81,11 @@ CARD_CELLS = ["A1", "A2", "A3", "A4"] + [f"B{i}" for i in range(1, 11)]
 STOPPED_AT_100K = ["A1", "B3", "B5", "B7", "B9"]
 EXTEND_NOTE = {(c, h): "the extend rule held this cell at 100k"
                for c in STOPPED_AT_100K for h in ("student", "teacher")}
-EXTEND_NOTE[("A4", "teacher")] = "extended by hand; the rule's move is inside the band"
+EXTEND_NOTE[("A4", "teacher")] = "extended by hand. The rule's move is inside the band"
 # B8 is the round's new cell: it started from step 0 and the queue took it to
 # 100k, the stop every other cell already held. It was never queued past it.
 for _h in ("student", "teacher"):
-    EXTEND_NOTE[("B8", _h)] = "trained from step 0; scored at bb100k only"
+    EXTEND_NOTE[("B8", _h)] = "trained from step 0, scored at bb100k only"
 # B1's bb40k number carries no note here. Round 1 wrote it under a `G6_`
 # name no later script could find, and the report's annex says so once, in
 # full. Two copies of one operational fact drift; the annex keeps the copy,
@@ -107,7 +107,7 @@ STOP_CALL = {"B1": ("extend both heads",
                     "the card's call: both moves sit inside the ±0.0384 "
                     "head-seed band, so the rule decides nothing"),
              "A4": ("extend both heads",
-                    "the student head moved down; the teacher head moved "
+                    "the student head moved down. The teacher head moved "
                     "+0.0019, 5% of the ±0.0384 head-seed band, so the rule "
                     "decides nothing there. Extended by hand, on free "
                     "hardware")}
@@ -249,9 +249,9 @@ def fidelity_lines(results):
         return [f"Of the {len(arms)} arms that trained both depths, {n} roll "
                 f"out more faithfully than their own `k = 0` at every depth."]
     return [f"Every one of the {n} arms that trained `k = 3` rolls out more "
-            f"faithfully than its own `k = 0` at all {nd} depths, and the "
+            f"faithfully than its own `k = 0`, at all {nd} depths. The "
             "scores do not follow. The fixed-point approximation does what "
-            "it was built to do, so where a score did not improve, the "
+            "it was built to do. So where a score did not improve, the "
             "approximation is not the part that failed."]
 
 
@@ -398,8 +398,8 @@ def main(argv=None):
           "horizon 16. Δ is this study minus the published number, so "
           "negative is a gain. A verdict reads Δ against the ±"
           f"{NOISE_BAND:.4f} head-seed band: closer than that is `flat`. "
-          "A dash is a number no parent published, ‡ marks the two cells "
-          "that share one student model, and the second line of a verdict "
+          "A dash is a number no parent published. ‡ marks the two cells "
+          "that share one student model. The second line of a verdict "
           "cell is its 95% paired dataset-cluster interval.", "",
           "At bb100k, the stop every one of the 14 cells reached, counted "
           f"over distinct models. Student head: {tally_line('student')}. "
@@ -472,9 +472,9 @@ def main(argv=None):
             "",
             f"**{p100} of {n100} cells meet the primary criterion at bb100k, "
             f"and {s100} of {n100} meet the secondary one.** At bb40k it is "
-            f"{p40} and {s40} of {n40}; at bb200k, {p200} and {s200} of "
-            f"{n200}; on the teacher head at bb100k, where only group A "
-            f"publishes a baseline, {pT} and {sT} of {nT}.", "",
+            f"{p40} and {s40} of {n40}. At bb200k it is {p200} and {s200} of "
+            f"{n200}. On the teacher head at bb100k, where only group A "
+            f"publishes a baseline, it is {pT} and {sT} of {nT}.", "",
             "Primary: medium+long at least 5% better AND short losing less "
             f"than 2%. Secondary: full-97 Δ at or below −{NOISE_BAND:.4f}, "
             "the head-seed band. Δ is `k = 3` minus the cell's published "
@@ -532,8 +532,8 @@ def main(argv=None):
     nstop = sum(1 for r in rows if "stop at 100k" in r)
     L += ["### Stop reasons: what the extend rule read at each cell", "",
           "The rule reads one cell's bb40k number against its bb100k number, "
-          "per head. A head that moved down earns the second 100,000 steps; "
-          "a head that moved up stops. Both columns are bb100k minus bb40k, "
+          "per head. A head that moved down earns the second 100,000 steps. "
+          "A head that moved up stops. Both columns are bb100k minus bb40k, "
           f"so negative is an improvement. It held {nstop} cells at 100k. "
           "`last stop` and `ended by` are the parent report's two columns: "
           "where each cell finished, and what finished it.", "",
@@ -627,7 +627,7 @@ def main(argv=None):
     # dropped, only moved.
     BODY_TABLES = len(L)
 
-    L += ["### The stop ladder: what the second 100,000 steps buys", "",
+    L += ["### The stop ladder, cell by cell", "",
           "Δ is bb200k minus bb100k, so a negative number is an improvement: "
           "GM-Relative MASE is a ratio against seasonal-naive and lower is "
           "better. " + lead, "",
@@ -664,12 +664,13 @@ def main(argv=None):
             mono = v[0] >= v[1] >= v[2] or v[0] <= v[1] <= v[2]
             turns.append((cell, v, mono))
         n_turn = sum(1 for _c, _v, m in turns if not m)
-        L += ["### A3's bb200k student, drawn twice", "",
+        L += ["### A3's two draws, the numbers", "",
               f"A3 at bb200k reads {d1:.4f} on the student and {te:.4f} on "
               f"the teacher, off one backbone file. That {top:.4f} gap is "
-              f"the largest in the grid: {top / nxt_a:.1f}x the next-largest "
-              f"in group A ({nxt_a:.4f}) and {top / nxt:.1f}x the largest of "
-              f"the other {len(hgaps) - 1} gaps ({nxt:.4f}). Every "
+              f"the largest in the grid. It is {top / nxt_a:.1f}x the "
+              f"next-largest in group A ({nxt_a:.4f}), and {top / nxt:.1f}x "
+              f"the largest of the other {len(hgaps) - 1} gaps "
+              f"({nxt:.4f}). Every "
               "gap in the grid is in "
               "[`results/head_gap.tsv`](results/head_gap.tsv).", "",
               "The second draw changes two things: the head seed, and the "
@@ -729,9 +730,9 @@ def main(argv=None):
               # No second table of the same eight rows. The stop-ladder
               # table above already prints every cell, every stop and the
               # same Δ, so this sentence points at it.
-              f"A3's is the ladder's largest reversal, but it is not the "
-              f"only one: {n_turn} of the {len(turns)} three-stop student "
-              "trajectories turn round at bb200k, in the stop-ladder table "
+              f"A3's is the ladder's largest reversal. It is not the only "
+              f"one. {n_turn} of the {len(turns)} three-stop student "
+              "trajectories reverse at bb200k, in the stop-ladder table "
               "above.", ""]
 
     # ---- 1c. the same-arm pairs --------------------------------------------
@@ -815,10 +816,10 @@ def main(argv=None):
     if rep_rows:
         L += ["### The A1/B3 duplicate, re-run end to end", "",
               "Each row trains a fresh student head from the checkpoint its "
-              "own cell names, seed 20260722, and runs the 97 configs into "
-              "`results/eval/<cell>rep_…`, a directory no other cell writes. "
-              "A path that ignored the cell would land the re-run on the "
-              "other cell's number.", "",
+              "own cell names, at seed 20260722. It then runs the 97 configs "
+              "into `results/eval/<cell>rep_…`, a directory no other cell "
+              "writes. A path that ignored the cell would land the re-run on "
+              "the other cell's number.", "",
               "| cell | stop | backbone md5 | first pass | re-run | Δ |",
               "|---|---|---|---|---|---|"]
         for cell, stop, md5, base, got in rep_rows:
@@ -888,21 +889,22 @@ def main(argv=None):
           f"cannot separate from the published one. The card's gate of "
           f"{GATE} is stricter than that.", ""]
     if cross_seed:
-        L += [f"The seed band is {seed_band:.4f}, the far end of the 95% "
-              "interval on this study's one measurement of a seed change: "
-              "`B5·s2` against `B5·s3`, one computer, one recipe, +0.0035 "
-              "[-0.0183, +0.0230]. It is one run pair, and the interval is "
-              "over that pair's eval sample rather than over seeds, so the "
-              "band is a floor on what a seed can move and not a bound on "
-              f"it. {', '.join(sorted(set(cross_seed)))} is the only row it "
-              "gates; every other row here carries the parents' own seed.", ""]
-    L += ["`B5·pub` is not a training: it takes the parent report's own "
-          "published B5 checkpoint and puts this study's head and eval on "
-          "it, so its row bounds the head and the eval rather than the "
-          "trainer. `B5·s3` is a training, at the protocol seed, on elisa, "
-          "and its 97-config eval output is byte-identical to `B5·pub`'s "
+        L += [f"The seed band is {seed_band:.4f}. This study measured a seed "
+              "change once: `B5·s2` against `B5·s3`, one computer, one "
+              "recipe, +0.0035 [-0.0183, +0.0230]. The band is the far end "
+              "of that interval. The interval covers the pair's eval sample "
+              "and not the seeds. So the band is a floor on what a seed can "
+              "move, not a bound on it. "
+              f"{', '.join(sorted(set(cross_seed)))} is the only row it "
+              "gates, because every other row carries the parents' own "
+              "seed.", ""]
+    L += ["`B5·pub` is not a training. It puts this study's head and eval on "
+          "the parent report's own published B5 checkpoint. Its row "
+          "therefore bounds the head and the eval, not the "
+          "trainer. `B5·s3` is a training, at the protocol seed, on elisa. "
+          "Its 97-config eval output is byte-identical to `B5·pub`'s "
           "(`results/eval/G7_B5_k0_e_bb40k_student/all_results.csv` against "
-          "`results/eval/G1_B5pub_bb40k_student/all_results.csv`): the "
+          "`results/eval/G1_B5pub_bb40k_student/all_results.csv`). So the "
           "elisa retrain reproduced the parent's backbone exactly, and the "
           f"{REEVAL_FLOOR} both rows carry is the head and the eval.", ""]
 
@@ -917,7 +919,7 @@ def main(argv=None):
             verdicts.append(
                 f"Group {g}: {arm} at `k = 0`, on {machine}, misses its "
                 f"published number by {d:.4f}"
-                + (" — **PASS**" if d <= GATE else " — **FAIL**"))
+                + (". **PASS**" if d <= GATE else ". **FAIL**"))
         L += ["**The card's baseline validity gate, group by group.** It "
               "retrains one cell of the group at `k = 0` on this study's "
               f"code and asks for the published number to within {GATE}. "
@@ -926,11 +928,11 @@ def main(argv=None):
                   if min(gate_by_group[g])[0] > GATE]
         if failed:
             gs = ", ".join(failed)
-            L += [f"On a failure the card asks the study to retrain the "
-                  f"`k = 0` side of every cell of that group, and not to "
-                  f"read it from the parent report. This study did not do "
-                  f"that for group {gs}. So every group-{gs} delta against a "
-                  f"published `k = 0` is a screen and not a test.", ""]
+            L += [f"On a failure the card asks for a retrain of the `k = 0` "
+                  f"side of every cell of that group. It must not come from "
+                  f"the parent report. This study did not do that for group "
+                  f"{gs}. So every group-{gs} delta against a published "
+                  f"`k = 0` is a screen and not a test.", ""]
 
     # ---- 3. depth response -------------------------------------------------
     L += ["### Depth response, against each arm's own k = 0", "",
@@ -998,26 +1000,27 @@ def main(argv=None):
           "backbone seed at 0.0035. Both are nuisance draws.", "",
           "✗ marks a retracted row: " + R.RETRACTED_WHY + ".", "",
           f"Head-seed band ±{NOISE_BAND} (`ema_sched_ladder.md`, pooled). It "
-          "bounds the head seed alone. It does not bound the computer, and "
-          "it does not bound the BACKBONE seed: this study holds one backbone "
-          "seed in 14 cells and one replicate of it (B5·s2 against B5·s3, at "
-          "k = 0, at bb40k), so backbone-seed variance is unmeasured. Every "
-          "better / flat / worse verdict in this report rests on a band that "
-          "bounds one of the two seeds in play.", "",
+          "bounds the head seed alone. It does not bound the computer. It "
+          "does not bound the BACKBONE seed either: this study holds one "
+          "backbone seed in 14 cells and one replicate of it (B5·s2 against "
+          "B5·s3, at k = 0, at bb40k). Backbone-seed variance is therefore "
+          "unmeasured. Every better / flat / worse verdict in this report "
+          "rests on a band that bounds one of the two seeds in play.", "",
           "The depths trained are " +
           ", ".join(f"k = {d}" for d in sorted(depths)) +
           ", and only k = 3 ran on the 14 cells. One ladder holds more than "
-          "a single depth: A3's, the cell where k = 3 does the most damage, "
-          "and its k = 1 interval covers zero. So this study supports "
+          "a single depth: A3's, the cell where k = 3 does the most damage. "
+          "Its k = 1 interval covers zero. So this study supports "
           "**depth 3 moves the score**. It does NOT support *depth 3 is the "
           "right depth*: one cell measures a second depth, and no cell "
           "measures a third.", ""]
 
     # ---- 4. the interval behind every one of those deltas ------------------
     L += ["### Paired dataset-cluster bootstrap, per horizon subset", "",
-          "The resampling unit is the dataset: `<ds>/short`, `/medium` and "
-          "`/long` are three configs of one series and are not independent "
-          "draws. 95% percentile interval over 10,000 resamples. Each "
+          "The resampling unit is the dataset. `<ds>/short`, `/medium` and "
+          "`/long` are three configs of one series, so they are not "
+          "independent draws. 95% percentile interval over 10,000 "
+          "resamples. Each "
           "interval is over one run pair's 97 configs, so it bounds the "
           "eval sample and not run-to-run variance.", "",
           "| arm | head | k | subset | n | Δ | 95% CI | resamples improved |",
@@ -1125,9 +1128,10 @@ def main(argv=None):
                            if R.resolve(f"{c}_bb40k_student")})
         held = len(machines) == 1
         L += ["### B1: is the win the depth, or the weight?", "",
-              "B1 carries `L_align` as its only f-bearing term, so its "
-              "`k = 3` run multiplies that term's weight against the f-free "
-              "terms by 4 as well as adding depth. The `L_align x4` row "
+              "B1 carries `L_align` as its only f-bearing term. Its `k = 3` "
+              "run therefore multiplies that term's weight against the "
+              "f-free terms by 4, as well as adding depth. The `L_align x4` "
+              "row "
               "applies the re-weighting at k = 0, with no depth at all.", "",
               "| head | k = 0 | k = 0, `L_align` x4 | k = 3 |",
               "|---|---|---|---|"] + b1_rows
@@ -1190,7 +1194,7 @@ def main(argv=None):
     # over.
     clones = " ".join(
         f"{arm}'s `k = {k}` shared {st[(arm, k)]['machine']} with a clone of "
-        f"itself up to step {int(st[(arm, k)]['first_solo_step']):,}, and its "
+        f"itself up to step {int(st[(arm, k)]['first_solo_step']):,}. Its "
         f"{float(st[(arm, k)]['compute_ms']):.1f} ms is the median over the "
         f"{st[(arm, k)]['windows_solo']} windows after that."
         for arm in R.ARM_ORDER for k in sorted(k for a, k in st if a == arm)
@@ -1218,7 +1222,7 @@ def main(argv=None):
         # and nothing about the score touches it.
         L.append(f"| {arm} | {run.term if run else '?'} | {k} | "
                  f"{r['machine']} | {r['card']} | {ms} | "
-                 f"{'yes' if r['solo'] == 'yes' else 'no — ' + r['why_not_solo']} |")
+                 f"{'yes' if r['solo'] == 'yes' else 'no, ' + r['why_not_solo']} |")
     # Solo is necessary and it is not sufficient. A median over the tail of a
     # run is a median over whatever the tail held, so a row whose solo
     # windows are a fraction of its own run is not the same measurement as a
@@ -1270,14 +1274,14 @@ def main(argv=None):
           "| probe | k = 0 | k = 3 | change | what the two sides hold | "
           "source |", "|---|---|---|---|---|---|"] + agree_rows + [""]
     if partial:
-        L += ["; ".join(
+        L += [". ".join(
             f"{a} reads {c3 / c0 - 1:+.0%} ({c0:.1f} ms against {c3:.1f} ms) "
             f"and is not comparable to those two: its `{side}` median covers "
             f"{ws} of its {wt} windows"
             for a, c0, c3, side, ws, wt in partial) +
             ". **Carry +157% to +168% and do not carry the low row.** No "
-            "cell of the 14 has a same-card `k = 0` / `k = 3` pair, which is "
-            "what would settle it.", ""]
+            "cell of the 14 has a same-card `k = 0` / `k = 3` pair. Such a "
+            "pair is what would settle it.", ""]
 
     # ---- 8. the depth-0 forecast-error gap ---------------------------------
     gap_path = Path(args.results) / "depth0_gap.csv"
@@ -1347,9 +1351,9 @@ def main(argv=None):
                        for a, v in pair.items()
                        if 0 in v and max(v) > 0 and v[max(v)] < 0.5 * v[0])
         CW += [
-              "First line of a cell is the mean over the last 10% of the "
-              "run; second line is the lowest value over the run's second "
-              "half.", "",
+              "The first line of a cell is the mean over the last 10% of the "
+              "run. The second line is the lowest value over the run's "
+              "second half.", "",
               "`ff` is `cos(f_t, h_{t+1})` and `cos_err_dj` is "
               "`1 − cos(f^(j)_t, h_{t+1+j})`, so `cos_err_d0` is `1 − ff` "
               "and `cos_err_dj` is the card's per-depth `ff`. A collapsed "
@@ -1373,7 +1377,7 @@ def main(argv=None):
               "depth.", ""] + \
              ([f"On `h_t`, {len(drops)} of the {len(pair)} arms that trained "
                f"both depths ends the deeper run below half its own `k = 0` "
-               f"usage: {'; '.join(drops)}. That is a reading and not a "
+               f"usage: {', '.join(drops)}. That is a reading and not a "
                "verdict. No arm reaches zero, and this study runs no control "
                "that separates a lower usage from a worse score.", ""]
               if drops else [])
@@ -1405,7 +1409,7 @@ def main(argv=None):
           "200,000. bb40k is the one stop every run here reached |",
           "| GM-Relative MASE | geometric mean over the 97 GIFT-Eval "
           "configs of each config's MASE divided by the seasonal-naive "
-          "MASE. Lower is better; 1.0 is seasonal-naive parity |",
+          "MASE. Lower is better. 1.0 is seasonal-naive parity |",
           "| B4 eval strategy | GIFT-Eval's official evaluation strategy, "
           "the one the parent reports use |",
           "| rollout steps at eval | how many times the eval calls "
@@ -1444,7 +1448,7 @@ def main(argv=None):
           "| `mixup` | the count of examples the batch mixer touched in a "
           "200-step window. Two runs on one data order print one count |",
           "| ✗ | a retracted arm: its `k = 0` baseline is a rented-box "
-          "artefact, so its depth delta is withdrawn |",
+          "artifact, so its depth delta is withdrawn |",
           ""]
 
     # ---- 0. what the study cannot support ----------------------------------
@@ -1521,7 +1525,7 @@ def main(argv=None):
                  f"{len(pub200)} cells do not point one way. |"
                if lost and won else "|"))
     if agree_pct:
-        cost = "Two solo probes agree; the annex step-time tables carry them."
+        cost = "Two solo probes agree. The annex step-time tables carry them."
         for arm, _c0, _c3, _side, ws, wt in partial:
             cost += (f" {arm}'s reading covers {ws} of its {wt} timing "
                      "windows, so it is not comparable to them.")
