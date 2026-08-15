@@ -38,7 +38,7 @@ for k in $arms; do cf401_require_depth "$k" || exit $?; done
 
 [ -n "${CF401_DRY_RUN:-}" ] || log "arms: $arms"
 
-heads=()
+heads=(); head_names=(); inline_failed=0
 for k in $arms; do
   for stop in $CF401_STOPS; do
     # The card's rule: head steps = backbone steps.
@@ -52,22 +52,35 @@ for k in $arms; do
       # `nohup`, not `nohup setsid` — see phase1.sh: setsid can fork, and the
       # `wait` below would then return on a PID that is already gone.
       BB_GPU="$BB_GPU" nohup bash "$HERE/head_eval.sh" "$k" "$stop" "$steps" \
-        >>"$CF401_RESULTS/head_k${k}_bb$(( stop / 1000 ))k_h$(( steps / 1000 ))k.out" 2>&1 &
-      heads+=($!)
+        >>"$CF401_RESULTS/head_k${k}_bb$(cf401_steps_label "$stop")_h$(cf401_steps_label "$steps").out" 2>&1 &
+      heads+=($!); head_names+=("k=$k stop=$stop steps=$steps")
     else
       log "head k=$k stop=$stop steps=$steps"
       BB_GPU="$BB_GPU" bash "$HERE/head_eval.sh" "$k" "$stop" "$steps"
-      log "head k=$k stop=$stop steps=$steps rc=$?"
+      rc=$?
+      log "head k=$k stop=$stop steps=$steps rc=$rc"
+      [ $rc -eq 0 ] || inline_failed=$(( inline_failed + 1 ))
     fi
   done
 done
 
 [ -n "${CF401_DRY_RUN:-}" ] && exit 0
 
+# Every rc is logged, named by its (k, stop, head budget) — see phase1.sh.
+failed="$inline_failed"
 if [ "${#heads[@]}" -gt 0 ]; then
   log "waiting for ${#heads[@]} head+eval job(s)"
-  for pid in "${heads[@]}"; do wait "$pid"; done
+  for i in "${!heads[@]}"; do
+    wait "${heads[$i]}"; rc=$?
+    if [ $rc -eq 0 ]; then
+      log "head ${head_names[$i]} rc=0"
+    else
+      failed=$(( failed + 1 ))
+      log "head ${head_names[$i]} rc=$rc — see head_k*.out in $CF401_RESULTS"
+    fi
+  done
 fi
 
 bash "$HERE/collect.sh"
-log "phase 2 drained"
+log "phase 2 drained — $failed head(s) failed"
+[ "$failed" -eq 0 ] || exit 1

@@ -29,7 +29,7 @@ mkdir -p "$CF401_RESULTS"
 log(){ echo "[$(date '+%m-%d %H:%M:%S')] [#401 phase1] $*" \
   | tee -a "$CF401_RESULTS/phase1.log"; }
 
-heads=()
+heads=(); head_names=(); inline_failed=0
 for k in $DEPTHS; do
   cf401_require_depth "$k" || exit $?
   for stop in $CF401_STOPS; do
@@ -56,12 +56,14 @@ for k in $DEPTHS; do
       # exits at once — so the `wait` below would return before the head had
       # started. nohup execs in place, so `$!` is the head.
       BB_GPU="$HEAD_GPU" nohup bash "$HERE/head_eval.sh" "$k" "$stop" \
-        >>"$CF401_RESULTS/head_k${k}_bb$(( stop / 1000 ))k.out" 2>&1 &
-      heads+=($!)
+        >>"$CF401_RESULTS/head_k${k}_bb$(cf401_steps_label "$stop").out" 2>&1 &
+      heads+=($!); head_names+=("k=$k stop=$stop")
     else
       log "head k=$k stop=$stop (inline)"
       BB_GPU="$HEAD_GPU" bash "$HERE/head_eval.sh" "$k" "$stop"
-      log "head k=$k stop=$stop rc=$?"
+      rc=$?
+      log "head k=$k stop=$stop rc=$rc"
+      [ $rc -eq 0 ] || inline_failed=$(( inline_failed + 1 ))
     fi
   done
 done
@@ -71,10 +73,24 @@ done
 # A head that is still running when the last backbone finishes is the normal
 # case, and its GIFT-Eval is hours of CPU. Waiting here is what makes
 # `collect.sh` afterwards see every score.
+#
+# Every rc is logged, named by its (k, stop). A discarded `wait` left a dead
+# head with no line in phase1.log, and the failure then surfaced hours later
+# as an "incomplete phase 1" abort from the picker.
+failed="$inline_failed"
 if [ "${#heads[@]}" -gt 0 ]; then
   log "waiting for ${#heads[@]} head+eval job(s)"
-  for pid in "${heads[@]}"; do wait "$pid"; done
+  for i in "${!heads[@]}"; do
+    wait "${heads[$i]}"; rc=$?
+    if [ $rc -eq 0 ]; then
+      log "head ${head_names[$i]} rc=0"
+    else
+      failed=$(( failed + 1 ))
+      log "head ${head_names[$i]} rc=$rc — see head_k*.out in $CF401_RESULTS"
+    fi
+  done
 fi
 
 bash "$HERE/collect.sh"
-log "phase 1 drained — $(wc -l <"$CF401_RESULTS/scores.csv") row(s) in scores.csv"
+log "phase 1 drained — $(wc -l <"$CF401_RESULTS/scores.csv") row(s) in scores.csv, $failed head(s) failed"
+[ "$failed" -eq 0 ] || exit 1

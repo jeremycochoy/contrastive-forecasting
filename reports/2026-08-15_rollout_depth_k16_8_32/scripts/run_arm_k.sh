@@ -39,7 +39,7 @@ ARM_ROOT="$(cf401_arm_root "$K")"
 if [ -n "${CF401_DRY_RUN:-}" ]; then
   echo "arm cell=$CF401_CELL K=$K steps=$STOP gpu=$BB_GPU"
   echo "  runner=$RUNNER"
-  echo "  RUNS=$ARM_ROOT CF_STUDY_DIR=$CF401_STUDY"
+  echo "  RUNS=$ARM_ROOT CF_STUDY_DIR=$CF401_STUDY CF_RESULTS=$CF401_RESULTS"
   echo "  ckpt=$(cf401_leg_dir "$K" "$STOP")/$(cf401_run_name "$K")_$(( STOP / 1000 ))k.pth"
   exit 0
 fi
@@ -47,6 +47,7 @@ fi
 echo "[$(date '+%m-%d %H:%M:%S')] [#401] arm k=$K -> ${STOP} steps on gpu $BB_GPU" \
   | tee -a "$CF401_RESULTS/arms.log"
 K="$K" RUNS="$ARM_ROOT" CF_STUDY_DIR="$CF401_STUDY" WT="$CF401_WT" \
+  CF_RESULTS="$CF401_RESULTS" \
   BB_GPU="$BB_GPU" \
   bash "$RUNNER" "$CF401_CELL" "$STOP"
 rc=$?

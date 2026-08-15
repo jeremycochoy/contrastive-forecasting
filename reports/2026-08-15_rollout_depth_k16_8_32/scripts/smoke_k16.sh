@@ -55,24 +55,27 @@ LOG="$CF401_RESULTS/smoke_k16.log"
 
 [ -f "$PROBE" ]  || { echo "ABORT: no probe at $PROBE" >&2; exit 2; }
 [ -f "$RUNNER" ] || { echo "ABORT: no runner at $RUNNER" >&2; exit 2; }
+
+# `run_one` does `rm -rf "$SCRATCH/k<k>"` twice per depth. An empty or a
+# one-level override makes that `rm -rf /k16`, so the value is checked once,
+# here, before anything runs. Ten characters is longer than every path that
+# could be reached by accident and shorter than every real checkpoint root.
+case "$SCRATCH" in
+  /) echo "ABORT: CF401_SMOKE_ROOT=/ — this script removes its own subdirs" >&2
+     exit 2 ;;
+  /*) [ "${#SCRATCH}" -ge 10 ] || {
+        echo "ABORT: CF401_SMOKE_ROOT='$SCRATCH' is too short to remove from" >&2
+        exit 2; } ;;
+  *) echo "ABORT: CF401_SMOKE_ROOT='$SCRATCH' is empty or not absolute" >&2
+     exit 2 ;;
+esac
 mkdir -p "$CF401_RESULTS" "$SCRATCH"
 
 log(){ echo "[$(date '+%m-%d %H:%M:%S')] [#401 smoke] $*" | tee -a "$LOG"; }
 
-echo "cell,k,steps,windows,data_ms,fwd_ms,bwd_ms,total_ms,sps,peak_mib,depth_cols,card_free_mib,rc" >"$OUT"
+log "scratch root: $SCRATCH"
 
-# How many `cos_err_dj` columns a run wrote. k + 1 at depth k, 0 at k = 0.
-#
-# `tr -d '\r'` is not defensive: the trainer's CSV writer ends every line
-# CRLF, so the LAST field of the header carries a trailing \r and an anchored
-# match misses it. Without this the count reads k, which is off by one and
-# still plausible.
-depth_cols(){  # <scratch root>
-  local csv
-  csv="$(ls "$1"/*/leg_*k/*_losses.csv 2>/dev/null | head -1)"
-  [ -n "$csv" ] || { echo ""; return; }
-  head -1 "$csv" | tr -d '\r' | tr ',' '\n' | grep -c '^cos_err_d[0-9]*$'
-}
+echo "cell,k,steps,windows,data_ms,fwd_ms,bwd_ms,total_ms,sps,peak_mib,depth_cols,card_free_mib,rc" >"$OUT"
 
 log "card at start: $(nvidia-smi --id="$BB_GPU" \
   --query-gpu=memory.used,memory.free,utilization.gpu --format=csv,noheader)"
@@ -97,17 +100,29 @@ run_one(){  # <k>
   # The launcher, backgrounded, so the probe can follow its process tree.
   # A fresh scratch root per depth means the leg starts at step 0 and its
   # `leg_0k` skip check finds nothing.
-  K="$k" RUNS="$root" CF_STUDY_DIR="$CF401_STUDY" WT="$CF401_WT" \
+  K="$k" RUNS="$root" CF_STUDY_DIR="$CF401_STUDY" CF_RESULTS="$CF401_RESULTS" \
+  WT="$CF401_WT" \
   BB_GPU="$BB_GPU" LOG_EVERY="$LOG_EVERY" SAVE_EVERY=1000000 \
   EXTRA_SAVES="$STEPS" RUN_SUFFIX="$suffix" \
     bash "$RUNNER" "$CF401_CELL" "$STEPS" >>"$LOG" 2>&1 &
   local pid=$!
-  peak=$(python3 "$PROBE" --root-pid "$pid" --gpu "$BB_GPU" --interval 2 \
-           --out "$CF401_RESULTS/smoke_k${k}_peak.json" 2>/dev/null \
-         | python3 -c 'import json,sys; print(json.load(sys.stdin)["peak_mib"])' \
-         2>/dev/null)
+  # The probe and the reader run as two steps, and both send their errors to
+  # this run's log. One pipeline with `2>/dev/null` on each half discarded
+  # every cause, so a broken probe left an empty peak column, a `peak=?` line
+  # and nothing to read. Now each half's rc is kept and named.
+  local probe_json="$CF401_RESULTS/smoke_k${k}_peak.json"
+  local probe_out probe_rc read_rc
+  probe_out="$(python3 "$PROBE" --root-pid "$pid" --gpu "$BB_GPU" --interval 2 \
+                 --out "$probe_json" 2>>"$LOG")"
+  probe_rc=$?
+  peak="$(printf '%s' "$probe_out" \
+          | python3 -c 'import json,sys; print(json.load(sys.stdin)["peak_mib"])' \
+            2>>"$LOG")"
+  read_rc=$?
+  [ -n "$peak" ] || log "k=$k: the peak probe wrote no number" \
+    "(probe rc=$probe_rc, read rc=$read_rc) — cause in $LOG"
   wait "$pid"; rc=$?
-  local cols; cols="$(depth_cols "$root")"
+  local cols; cols="$(cf401_depth_cols "$root")"
 
   [ -f "$tlog" ] || { log "k=$k: no trainer log at $tlog (rc=$rc)"
                       echo "$CF401_CELL,$k,$STEPS,0,,,,,,${peak:-},${cols},${free},$rc" >>"$OUT"

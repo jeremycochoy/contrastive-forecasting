@@ -11,6 +11,15 @@
 # artefacts need, measured against this exact backbone and this exact head
 # arch. A copy here would be a second set of floors to keep in step.
 #
+# REMOTE_RUNS is this study's root, and this study saves ONE LEVEL DEEPER
+# than #373: `$CF401_ROOT/k<K>/<cell>/leg_<N>k/`, because `cf401_arm_root`
+# adds the depth. A loop that walked a fixed depth would pull nothing, and
+# the first-tick check below would say so only after 10 minutes. It does not:
+# `remote_listing` runs `find <dir> -type f` with no `-maxdepth`, and
+# `pull_tree` rebuilds the relative path, so any depth comes back. Verified
+# against a tree with this study's exact layout — run
+# `bash sync/verify_glob_depth.sh` to repeat it.
+#
 # When this is NOT needed: a leg that trains on elisa writes straight to
 # /home/jupyter/checkpoints_backup/cf-401, which is durable local disk on the
 # same machine. There is nothing to pull. Run this only for a rented box.

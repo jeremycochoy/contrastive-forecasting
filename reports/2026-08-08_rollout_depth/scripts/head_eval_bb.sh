@@ -28,7 +28,12 @@ export WT="${WT:-/home/jupyter/wt-cf-373-train}"
 # Which study's directory takes the head log and the score file. #401 reuses
 # this head and this eval on its own backbones and points it at its own
 # directory. Unset, this is #373's own directory, unchanged.
-RES="${CF_STUDY_DIR:-$WT/reports/2026-08-08_rollout_depth}/results"
+#
+# CF_RESULTS names that results directory OUTRIGHT, for a caller whose
+# results do not sit at `<study>/results` — #401's trial runs write to
+# `<study>/results/trial`, and a score file that landed one level up would be
+# collected as a real one.
+RES="${CF_RESULTS:-${CF_STUDY_DIR:-$WT/reports/2026-08-08_rollout_depth}/results}"
 mkdir -p "$RES"
 . "$HERE/cell_paths.sh"
 . "$HERE/gpu_gate.sh"
