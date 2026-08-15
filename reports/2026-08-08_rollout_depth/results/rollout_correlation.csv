@@ -1,0 +1,7 @@
+cell,arm,configuration,short,stop,k0_side,n,rho_k0,rho_delta,retracted
+B9,B9,"arm1 (split L_pred + L_rep, tau 0.1, CPC, no SIGReg on e, EMA 0.9)","arm1 (split L_pred + L_rep, tau 0.1, CPC, no SIGReg on e, EMA 0.9)",bb40k,this study,97,+0.407,-0.629,no
+B1,B1,"arm6_v2 (L_rep MoCo keys, tau_rep 1 + L_align on the student, no CPC, EMA 0.9)","arm6_v2 (L_rep MoCo keys, tau_rep 1 + L_align on the student, no CPC, EMA 0.9)",bb40k,this study,97,+0.415,-0.399,no
+B5,B5·s2,"arm4 (pooled contrastive over batch and channels, MoCo negatives, floor subtracted, tau 0.1, no CPC, no SIGReg on e, EMA 0.9)","arm4 (pooled contrastive, MoCo negatives, floor subtracted, tau 0.1, no CPC, no SIGReg on e, EMA 0.9)",bb40k,this study,97,+0.201,-0.160,no
+A3,A3,"arm6_v2 (L_rep MoCo keys, tau_rep 1 + L_align on the teacher, no CPC, EMA 0.9 to 1.0)","arm6_v2 (L_rep MoCo keys, tau_rep 1 + L_align on the teacher, no CPC, EMA 0.9 to 1.0)",bb40k,this study,97,+0.237,-0.152,no
+A4,A4,"arm6_v2 (L_rep MoCo keys, tau_rep 1 + L_align on the student, no CPC, EMA 0.9 to 1.0)","arm6_v2 (L_rep MoCo keys, tau_rep 1 + L_align on the student, no CPC, EMA 0.9 to 1.0)",bb100k,published,97,+0.350,-0.345,no
+B5,B5·s1 ✗,"arm4 (pooled contrastive over batch and channels, MoCo negatives, floor subtracted, tau 0.1, no CPC, no SIGReg on e, EMA 0.9)","arm4 (pooled contrastive, MoCo negatives, floor subtracted, tau 0.1, no CPC, no SIGReg on e, EMA 0.9)",bb40k,this study,97,+0.051,+0.211,yes

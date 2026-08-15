@@ -51,6 +51,7 @@ from src.dist_utils import (
     setup_distributed,
     cleanup_distributed,
     is_main_process,
+    gather_latent,
     gather_latents,
     average_gradients,
     broadcast_module,
@@ -60,11 +61,13 @@ from src.metrics import (
     q_naive_latent,
     dim_usage,
     drift_pair,
+    rollout_cos_error,
     u_batchtime,
     retrieval_auc_topk,
 )
 from src.forecasting_head import (extract_encoder_latents,
-                                  extract_teacher_encoder_latents)
+                                  extract_teacher_encoder_latents,
+                                  rollout_forecaster_latents)
 
 # -- Tiny architecture (identical to v3c) -----------------------------------
 # C and T_raw can be overridden at runtime via --n-channels / --t-raw to
@@ -538,6 +541,24 @@ def parse_args():
                         "Default 1.0 = historical objective. Set to 0.0 to "
                         "isolate L_pred (e.g. the 'pred' and 'pred_moco' arms); a "
                         "no-op for every other loss_shape.")
+    p.add_argument("--train-rollout-depth", type=int, default=0,
+                   help="k — train the COMPOSED forecaster, not just one step "
+                        "(#373). Every loss term that ties f to h is duplicated "
+                        "at depth j = 1..k, copy j tying f^(j)_t to h_{t+1+j}, "
+                        "where f^(j) is the forecaster re-applied to its own "
+                        "output j more times (the operator the eval rollout "
+                        "composes). The depths are SUMMED on top of the k = 0 "
+                        "objective, so 0 (default) is byte-for-byte today's "
+                        "loss. Terms that carry no f (L_rep, L_rep_moco, "
+                        "align_moco, SIGReg) enter the total once at any k. "
+                        "Applies to the main contrastive loss, the standalone "
+                        "align term and the CPC InfoNCE auxiliary. Changes the "
+                        "training objective only — eval rollout is unaffected. "
+                        "Not defined for --forecaster-kind cpc/linear_cpc. "
+                        "Refused when NO term of the run ties f to h, since "
+                        "every depth would then add exactly zero. Adds "
+                        "cos_err_d0..dk to the losses CSV. Full reference: "
+                        "docs/train_rollout_depth.md.")
     p.add_argument("--ema-embedding", action="store_true",
                    help="BYOL/JEPA EMA-teacher copy of the patch-embedding "
                         "(--encoder-type's input_to_latent). Non-trained; "
@@ -867,6 +888,38 @@ def _has_checkpoints(save_dir, run_name):
     return len(glob.glob(os.path.join(save_dir, f"{run_name}_*.pth"))) > 0
 
 
+def main_term_depth_gap(args):
+    """Why the main contrastive term takes no rollout depth (#373), or None.
+
+    A depth (`--train-rollout-depth k`) rides on the terms that tie f to h.
+    Three settings leave the MAIN term with no such part, so every depth
+    copy of it adds exactly zero. Returns the reason, naming the flag or the
+    shape at fault; None means the term does take the depths.
+    """
+    if args.no_main_contrastive_loss:
+        return "--no-main-contrastive-loss drops the main term"
+    if args.loss_shape == "cosine_similarity_batch_rep_only":
+        return (f"--loss-shape {args.loss_shape} is h-anchored end to end "
+                "(L_rep only), so its depth copy is exactly zero")
+    if (args.loss_shape == "cosine_similarity_batch_split_pred_rep"
+            and args.pred_loss_weight == 0):
+        return ("--pred-loss-weight 0 zeroes L_pred, the f-bearing half of "
+                f"--loss-shape {args.loss_shape}")
+    return None
+
+
+def rollout_depth_has_no_consumer(args):
+    """Whether NO term of this run can consume a rollout depth (#373).
+
+    Three terms can: the main contrastive term (see
+    :func:`main_term_depth_gap`), L_align, and the CPC auxiliary. SIGReg,
+    L_rep and align_moco carry no f and enter once at any k.
+    """
+    return (main_term_depth_gap(args) is not None
+            and args.align_loss_weight <= 0
+            and args.cpc_infonce_weight <= 0)
+
+
 def safe_run_name(save_dir, run_name):
     if not _has_checkpoints(save_dir, run_name):
         return run_name
@@ -880,9 +933,14 @@ def safe_run_name(save_dir, run_name):
 
 
 class CSVLogger:
-    def __init__(self, path, flush_every=100, tau_ref_column=True):
+    def __init__(self, path, flush_every=100, tau_ref_column=True,
+                 rollout_depth=0):
         self.path = path
         self.flush_every = flush_every
+        # rollout_depth (#373): k > 0 adds one `cos_err_dj` column per depth
+        # j = 0..k, the per-depth forecast error 1 − cos(f^(j)_t, h_{t+1+j}).
+        # A k = 0 run writes no such column — its depth-0 curve is 1 − ff.
+        self.rollout_depth = int(rollout_depth)
         # tau_ref_column: when True, the CSV gains a `loss_tau_ref` column
         # (positioned right after `loss`) carrying the τ=0.07 reference loss
         # — same loss recomputed under torch.no_grad() with a fixed canonical
@@ -930,6 +988,10 @@ class CSVLogger:
         # runs without --ema-tau-end, blank for runs without a teacher.
         # Trailing so name-keyed readers of older CSVs are unaffected.
         header += ["ema_tau"]
+        # Per-depth forecast error (#373), only on --train-rollout-depth runs.
+        if self.rollout_depth:
+            header += [f"cos_err_d{j}"
+                       for j in range(self.rollout_depth + 1)]
         if os.path.getsize(path) == 0:
             self._writer.writerow(header)
             self._file.flush()
@@ -962,7 +1024,8 @@ class CSVLogger:
             loss_tau_ref=None, cpc_aux=None,
             sigreg_e=None, sigreg_h=None,
             u_temporal_e=None, u_batch_e=None,
-            u_batchtime=None, u_batchtime_e=None, ema_tau=None):
+            u_batchtime=None, u_batchtime_e=None, ema_tau=None,
+            cos_err_depths=None):
         if not self._enabled:
             return
         row = [step, loss]
@@ -978,6 +1041,10 @@ class CSVLogger:
         for extra in (sigreg_e, sigreg_h, u_temporal_e, u_batch_e,
                       u_batchtime, u_batchtime_e, ema_tau):
             row.append('' if extra is None else extra)
+        if self.rollout_depth:
+            depths = cos_err_depths or []
+            row += [depths[j] if j < len(depths) else ''
+                    for j in range(self.rollout_depth + 1)]
         self._buffer.append(row)
         if len(self._buffer) >= self.flush_every:
             self.flush()
@@ -1367,6 +1434,40 @@ def main():
     if args.sigreg_t_knots < 3:
         raise SystemExit("--sigreg-t-knots must be ≥ 3 (trapezoidal rule "
                          f"needs at least 3 knots); got {args.sigreg_t_knots}.")
+    if args.train_rollout_depth < 0:
+        raise SystemExit("--train-rollout-depth must be ≥ 0; got "
+                         f"{args.train_rollout_depth}.")
+    if args.train_rollout_depth > 0 and args.forecaster_kind != "transformer":
+        # The depth applies the forecaster to its OWN output, so it needs one
+        # operator whose output lives in its own input space. Only
+        # --forecaster-kind transformer is that. The guard rejects every
+        # other kind rather than only today's two, so a kind added later
+        # cannot pick up the flag by default; the CPC families are named
+        # because they are the ones that exist and the reason they cannot
+        # compose is instructive.
+        why = (" (K parallel heads, f^(k)_t = W_k h_t, each predicting its "
+               "own horizon straight from h_t)"
+               if args.forecaster_kind in ("cpc", "linear_cpc") else "")
+        raise SystemExit(
+            "--train-rollout-depth applies the forecaster to its own output, "
+            "so it needs the single transformer forecaster. "
+            f"--forecaster-kind {args.forecaster_kind}{why} composes no such "
+            "operator. Use --forecaster-kind transformer, or drop "
+            "--train-rollout-depth (#373).")
+    if args.train_rollout_depth > 0 and rollout_depth_has_no_consumer(args):
+        # No term of this run ties f to h, so every depth copy adds exactly
+        # zero: the run trains at k = 0 and the CSV still writes k + 1
+        # plausible cos_err_dj curves, because the diagnostic reads the depth
+        # tensors and not the loss. Refuse it here rather than let the
+        # diagnostic pass for the objective.
+        raise SystemExit(
+            f"--train-rollout-depth {args.train_rollout_depth} has no term to "
+            "enter: the depths ride on the terms that tie f to h, and this "
+            f"run keeps none of them. {main_term_depth_gap(args)}; "
+            "--align-loss-weight and --cpc-infonce-weight are both 0; SIGReg, "
+            "L_rep and align_moco carry no f. Add --align-loss-weight or "
+            "--cpc-infonce-weight, change the main term, or drop "
+            "--train-rollout-depth (#373).")
     # Override the loss_shape from CLI (LOSS_SPEC is a module-level default).
     LOSS_SPEC.train_configuration["loss_shape"] = args.loss_shape
     LOSS_SPEC.train_configuration["include_positive_in_denominator"] = args.pos_in_denominator
@@ -1378,6 +1479,7 @@ def main():
     LOSS_SPEC.train_configuration["moco_rep_keys"] = args.moco_rep_keys
     LOSS_SPEC.train_configuration["pred_loss_weight"] = args.pred_loss_weight
     LOSS_SPEC.train_configuration["rep_loss_weight"] = args.rep_loss_weight
+    LOSS_SPEC.train_configuration["train_rollout_depth"] = args.train_rollout_depth
     if args.tau is not None:
         LOSS_SPEC.train_configuration["contrastive_divergence_temperature"] = args.tau
     if args.tau_rep is not None:
@@ -1458,7 +1560,8 @@ def main():
     print(f"Checkpoints: {args.save_dir}/{args.run_name}_*.pth")
 
     csv_path = os.path.join(args.save_dir, f"{args.run_name}_losses.csv")
-    csv_logger = CSVLogger(csv_path, flush_every=100)
+    csv_logger = CSVLogger(csv_path, flush_every=100,
+                           rollout_depth=args.train_rollout_depth)
     print(f"Loss CSV: {csv_path}")
 
     # Latent-drift probe (rank-0 only). Fixed ARMA batch drawn once and
@@ -1676,6 +1779,19 @@ def main():
             teacher_o_lat = teacher_o_lat.float()
         if e_lat is not None:
             e_lat = e_lat.float()
+        # Rollout depth (#373): f^(1)..f^(k), the forecaster re-applied to
+        # its own output. Built from the LOCAL f_lat — the operator runs per
+        # sequence — then gathered like f_lat below so every depth pools the
+        # same global batch. Gradient flows through the chain (no detach).
+        #
+        # Same numeric path as depth 0, on purpose: the call sits at the same
+        # scope as `forward_step` above (this trainer opens no outer autocast
+        # — mixed precision is per-layer, `_autocast_ctx(residual_dtype)`
+        # inside each decoder layer), it feeds an fp32 sequence the way the
+        # encoder boundary feeds the depth-0 pass, and it runs the same
+        # `forecaster_forward` under the same fp32-tail policy.
+        rollout_lats = rollout_forecaster_latents(
+            model, f_lat, args.train_rollout_depth)
         # DDP: gather latents across ranks so the contrastive loss pools
         # negatives over the GLOBAL (W*B) batch — 2-GPU @ B/2 == 1-GPU @ B.
         # Strict no-op single-GPU. Done on the fp32 latents so loss,
@@ -1688,8 +1804,16 @@ def main():
         # average_gradients() below still averages param grads across
         # ranks (standard DDP) so the sharded objective is the mean of
         # the per-rank local losses.
+        #
+        # The flag picks the GATHER and nothing else. The rollout depths are
+        # built above this branch and reach the loss on both paths (#373), so
+        # a sharded run trains at the k it was given, on its local shard.
         if not args.shard_loss_on_batch:
             f_lat, o_lat = gather_latents(f_lat, o_lat)
+            # Same global pooling for every rollout depth (#373); no-op
+            # single-GPU, ONE all-gather per depth under torchrun (a depth is
+            # a lone tensor, so it takes the single-tensor form).
+            rollout_lats = [gather_latent(f_j) for f_j in rollout_lats]
             if teacher_o_lat is not None:
                 # Same global pooling as o_lat; gather_latents is a no-op
                 # single-GPU. Teacher carries no grad either way.
@@ -1738,12 +1862,14 @@ def main():
                                     if args.align_target == "teacher" else None)
                     loss = loss + align_loss(f_lat, o_lat,
                                              args.align_loss_weight,
-                                             target_latent=align_target)
+                                             target_latent=align_target,
+                                             rollout_latents=rollout_lats)
             else:
                 loss = contrastive_latent_loss(
                     (f_lat, o_lat), validation=False,
                     spec=LOSS_SPEC, tau_override=tau_tensor_loss,
-                    teacher_original_latent=teacher_o_lat)
+                    teacher_original_latent=teacher_o_lat,
+                    rollout_latents=rollout_lats)
             # #374 arm 6: MoCo-style alignment on the encoder side (student
             # query, teacher key). Requires teacher_o_lat.
             align_moco_val = float('nan')
@@ -1766,11 +1892,14 @@ def main():
             cpc_aux_val = float('nan')
             if args.cpc_infonce_weight > 0:
                 if args.cpc_infonce_negs == "matched":
-                    cpc_aux = cpc_infonce_aux_loss(f_lat, o_lat, model.cpc_w1)
+                    cpc_aux = cpc_infonce_aux_loss(
+                        f_lat, o_lat, model.cpc_w1,
+                        rollout_latents=rollout_lats)
                 else:  # "cross" (strict marginal) or "all" (full batch×time grid)
                     cpc_aux = cpc_infonce_all_loss(
                         f_lat, o_lat, model.cpc_w1,
-                        marginal_only=(args.cpc_infonce_negs == "cross"))
+                        marginal_only=(args.cpc_infonce_negs == "cross"),
+                        rollout_latents=rollout_lats)
                 loss = loss + args.cpc_infonce_weight * cpc_aux
                 cpc_aux_val = cpc_aux.item()
             # LeJEPA SIGReg (#355): regularise the pooled marginal of e_t
@@ -1829,6 +1958,10 @@ def main():
                 subtract_contrastive_floor=False,
                 moco_negatives=False,
                 moco_rep_keys=False,
+                # Depth-0 reference on a --train-rollout-depth run too (#373):
+                # one curve comparable across k, and the extra depths are the
+                # thing the run varies.
+                train_rollout_depth=0,
             )
         loss_tau_ref_val = loss_tau_ref.item()
         t_fwd_end = time.perf_counter()
@@ -1916,6 +2049,13 @@ def main():
                 u_b_e = None
                 u_bt_e = None
             ret = retrieval_auc_topk(f_det[:, :T_lat - 1], o_det)
+            # Per-depth forecast error (#373): does the composed forecaster
+            # improve with training, and does depth 0 pay for it? Blank
+            # (None) on a k = 0 run, whose depth-0 curve is 1 − ff.
+            cos_err_depths = (
+                rollout_cos_error(f_det, o_det,
+                                  [f_j.detach() for f_j in rollout_lats])
+                if args.train_rollout_depth else None)
             r2_random_val = 1.0 - q_r
             r2_naive_val = 1.0 - q_n
             auc_val = ret["auc"].item()
@@ -1949,7 +2089,8 @@ def main():
                                  if args.sigreg_encoding else None),
                        u_temporal_e=u_t_e, u_batch_e=u_b_e,
                        u_batchtime=u_bt, u_batchtime_e=u_bt_e,
-                       ema_tau=ema_tau_now)
+                       ema_tau=ema_tau_now,
+                       cos_err_depths=cos_err_depths)
 
         if step % args.log_every == 0 and is_main_process():
             elapsed = time.time() - t0

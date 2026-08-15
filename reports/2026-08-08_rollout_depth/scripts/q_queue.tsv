@@ -1,0 +1,90 @@
+# #373 round 3 — the single work queue, in priority order.
+#
+# One queue, four GPUs: 2 on the rented box, 2 on elisa. q_run.sh reads this
+# file top to bottom and slides the first ready job onto the first free slot.
+#
+# Columns: id  type  cell  stop  enc  depends_on
+#   type bb    train the backbone to <stop> steps
+#   type head  train one quantile head off that stop's checkpoint
+#   type eval  the 97-config GIFT-Eval of that head (CPU, elisa)
+#
+# Order: B8 first (the one cell with no bb100k), then the eight extends
+# biggest bb100k winner first. A4 extends the student head only — the extend
+# rule gave one head down for it. B1 extends by the card's call. Its bb40k
+# pair IS its own — round 1 wrote it as score_G6_B1_k3_bb40k_*, off checkpoint
+# md5 23ba3d9d..., the file round 2 resumed, at the same 15,000-step head —
+# and it reads 1.0850 -> 1.0881 student, 1.0948 -> 1.0897 teacher.
+#
+# The five cells the rule stopped at 100k are absent on purpose:
+# A1, B3, B5, B7, B9.
+bb_B8_100k	bb	B8	100000	-	-
+bb_B10_200k	bb	B10	200000	-	-
+bb_A2_200k	bb	A2	200000	-	-
+bb_B4_200k	bb	B4	200000	-	-
+bb_B6_200k	bb	B6	200000	-	-
+bb_B2_200k	bb	B2	200000	-	-
+bb_A3_200k	bb	A3	200000	-	-
+bb_A4_200k	bb	A4	200000	-	-
+bb_B1_200k	bb	B1	200000	-	-
+hd_B8_100k_student	head	B8	100000	student	bb_B8_100k
+hd_B8_100k_teacher	head	B8	100000	teacher	bb_B8_100k
+hd_B10_200k_student	head	B10	200000	student	bb_B10_200k
+hd_B10_200k_teacher	head	B10	200000	teacher	bb_B10_200k
+hd_A2_200k_student	head	A2	200000	student	bb_A2_200k
+hd_A2_200k_teacher	head	A2	200000	teacher	bb_A2_200k
+hd_B4_200k_student	head	B4	200000	student	bb_B4_200k
+hd_B4_200k_teacher	head	B4	200000	teacher	bb_B4_200k
+hd_B6_200k_student	head	B6	200000	student	bb_B6_200k
+hd_B6_200k_teacher	head	B6	200000	teacher	bb_B6_200k
+hd_B2_200k_student	head	B2	200000	student	bb_B2_200k
+hd_B2_200k_teacher	head	B2	200000	teacher	bb_B2_200k
+hd_A3_200k_student	head	A3	200000	student	bb_A3_200k
+hd_A3_200k_teacher	head	A3	200000	teacher	bb_A3_200k
+hd_A4_200k_student	head	A4	200000	student	bb_A4_200k
+hd_B1_200k_student	head	B1	200000	student	bb_B1_200k
+hd_B1_200k_teacher	head	B1	200000	teacher	bb_B1_200k
+ev_B8_100k_student	eval	B8	100000	student	hd_B8_100k_student
+ev_B8_100k_teacher	eval	B8	100000	teacher	hd_B8_100k_teacher
+ev_B10_200k_student	eval	B10	200000	student	hd_B10_200k_student
+ev_B10_200k_teacher	eval	B10	200000	teacher	hd_B10_200k_teacher
+ev_A2_200k_student	eval	A2	200000	student	hd_A2_200k_student
+ev_A2_200k_teacher	eval	A2	200000	teacher	hd_A2_200k_teacher
+ev_B4_200k_student	eval	B4	200000	student	hd_B4_200k_student
+ev_B4_200k_teacher	eval	B4	200000	teacher	hd_B4_200k_teacher
+ev_B6_200k_student	eval	B6	200000	student	hd_B6_200k_student
+ev_B6_200k_teacher	eval	B6	200000	teacher	hd_B6_200k_teacher
+ev_B2_200k_student	eval	B2	200000	student	hd_B2_200k_student
+ev_B2_200k_teacher	eval	B2	200000	teacher	hd_B2_200k_teacher
+ev_A3_200k_student	eval	A3	200000	student	hd_A3_200k_student
+ev_A3_200k_teacher	eval	A3	200000	teacher	hd_A3_200k_teacher
+ev_A4_200k_student	eval	A4	200000	student	hd_A4_200k_student
+ev_B1_200k_student	eval	B1	200000	student	hd_B1_200k_student
+ev_B1_200k_teacher	eval	B1	200000	teacher	hd_B1_200k_teacher
+# B8's bb40k pair. Every other cell carries a 40k number; B8 is the only
+# hole in that column, and its backbone saves 40k on the way to 100k, so the
+# pair costs one 15,000-step head each and two CPU evals. Last in the queue:
+# it must never delay a stop the plan asked for. Head steps follow the other
+# thirteen cells' bb40k heads, 15,000, or the column is not comparable.
+#
+# 2026-08-12 21:10 — the dependency on bb_B8_100k is released. B8's backbone
+# writes its 40k checkpoint on the way to 100k and already has, so these two
+# heads read a file that exists. They stay LAST in the file, so they take a
+# slot only after every stop the plan asked for has one, and the only slots
+# they can take are the two head-only ones, which no backbone may use. Those
+# two sat idle for four hours behind a dependency that was already satisfied.
+hd_B8_40k_student	head	B8	40000	student	-
+hd_B8_40k_teacher	head	B8	40000	teacher	-
+ev_B8_40k_student	eval	B8	40000	student	hd_B8_40k_student
+ev_B8_40k_teacher	eval	B8	40000	teacher	hd_B8_40k_teacher
+#
+# 2026-08-13 13:02 — A4's teacher head at bb200k. The extend rule read
+# +0.0019 from bb40k to bb100k on this head and returned `stop`, but the
+# rule compares raw numbers with no band, and +0.0019 is far inside the
+# ±0.0384 head-seed band. That is B1's situation, which the card extended
+# by hand. A4 is the study's strongest cell and its 200k backbone already
+# exists, so the head costs one elisa card and the eval costs cores. No
+# rented hardware is involved. The head is already running outside the
+# queue (state pre-set to `running`); this row exists so the eval behind
+# it dispatches and the publisher carries both.
+hd_A4_200k_teacher	head	A4	200000	teacher	-
+ev_A4_200k_teacher	eval	A4	200000	teacher	hd_A4_200k_teacher

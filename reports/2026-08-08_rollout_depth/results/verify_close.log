@@ -1,0 +1,88 @@
+=== verify_scores
+score files on the branch : 99
+reproduced from raw evals : 99
+failed                    : 0
+worst |GM recomputed - printed| : 5.13e-05   (worst allowance 1.07e-04)
+worst |summary MASE - csv MASE| : 5.00e-05   (4-decimal print, allowance 5.0e-05)
+config counts seen              : [97]
+
+=== verify_coverage
+deliverables expected : 72
+score files found     : 72
+missing               : none
+scored but not a deliverable this round : none
+
+| cell | 40k S | 40k T | 100k S | 100k T | 200k S | 200k T |
+|---|---|---|---|---|---|---|
+| A1 | 1.1305‡ | 1.1318 | 1.1676‡ | 1.1565 | stop | stop |
+| A2 | 1.2735 | 1.2753 | 1.2479 | 1.2514 | 1.2507 | 1.2500 |
+| A3 | 1.3618 | 1.3521 | 1.3010 | 1.3151 | 1.3998 | 1.2913 |
+| A4 | 1.0862 | 1.0855 | 1.0801 | 1.0874 | 1.0660 | 1.0828 |
+| B1 | 1.0850 | 1.0948 | 1.0881 | 1.0897 | 1.1009 | 1.1001 |
+| B2 | 1.3976 | 1.4041 | 1.3443 | 1.3117 | 1.2904 | 1.2825 |
+| B3 | 1.1305‡ | 1.1343 | 1.1676‡ | 1.1618 | stop | stop |
+| B4 | 1.3334 | 1.3339 | 1.2804 | 1.2748 | 1.3182 | 1.3202 |
+| B5 | 1.3204 | 1.3216 | 1.3383 | 1.3428 | stop | stop |
+| B6 | 1.2297 | 1.2184 | 1.2151 | 1.2110 | 1.2207 | 1.2339 |
+| B7 | 1.2617 | 1.2444 | 1.3205 | 1.2780 | stop | stop |
+| B8 | 1.2857 | 1.2865 | 1.3157 | 1.3239 | stop | stop |
+| B9 | 1.2791 | 1.2728 | 1.3299 | 1.3094 | stop | stop |
+| B10 | 1.2669 | 1.2730 | 1.2403 | 1.2499 | 1.2624 | 1.2440 |
+
+A1/B3 bb40k student: 1.1305 vs 1.1305 -> ONE measurement
+A1/B3 bb100k student: 1.1676 vs 1.1676 -> ONE measurement
+
+deliverables 72, distinct measurements 70  (2 shared student row(s) counted once; the two teachers are two models and stay counted twice)
+
+=== verify_alignx4
+step       k = 0       k = 0 x4     diff        k = 3
+1          13.64394    17.37510     +3.73116    18.37013
+2          13.60069    16.04346     +2.44278    16.89116
+5          13.36115    15.20510     +1.84395    15.76229
+10         13.09635    15.01062     +1.91427    15.68382
+100        12.46784    14.70345     +2.23561    14.78172
+1000       12.51070    14.93023     +2.41953    16.94983
+10000      12.61702    14.27686     +1.65985    15.25448
+39999      12.57477    12.54890     -0.02587    15.11909
+
+step 1 gap, x4 over k = 0 : +3.73116   -> L_align(1) ~= 1.24372
+the x4 weight reached the trainer : YES
+
+rollout columns (written only when the rollout is trained):
+  k = 0              none — depth 0
+  k = 0, L_align x4  none — depth 0
+  k = 3              ['cos_err_d0', 'cos_err_d1', 'cos_err_d2', 'cos_err_d3']
+the control carries no depth      : YES
+
+  k = 0              40000 steps logged
+  k = 0, L_align x4  40000 steps logged
+  k = 3              40000 steps logged
+all three columns ran the same length : YES
+
+=== verify_provenance
+eval directories : 100
+head trained on the box   : 19
+head trained on elisa     : 32
+machine not readable      : 49
+  (those directories hold `backbone.txt` and the eval log but no
+   head log, so the head's machine is not in the eval directory.
+   Rounds 1 and 2 wrote it to their launch logs instead.)
+
+| pair | left | right | machine |
+|---|---|---|---|
+| item 3, re-weighting, student | elisa | elisa | HELD |
+| item 3, depth, student | elisa | elisa | HELD |
+| item 3, total, student | elisa | elisa | HELD |
+| item 3, re-weighting, teacher | elisa | elisa | HELD |
+| item 3, depth, teacher | elisa | elisa | HELD |
+| item 3, total, teacher | elisa | elisa | HELD |
+| item 6, head seed, student | box | elisa | CROSSES |
+| item 6, student vs teacher, draw 1 | box | box | HELD |
+| item 6, student vs teacher, draw 2 | elisa | box | CROSSES |
+| A3 depth control, student | elisa | elisa | HELD |
+| A3 re-weighting control, student | elisa | elisa | HELD |
+
+pairs that cross machines: ['item 6, head seed, student', 'item 6, student vs teacher, draw 2']
+wrote /tmp/contrastive-forecasting-373/reports/2026-08-08_rollout_depth/results/provenance.tsv
+
+ALL CHECKS PASS

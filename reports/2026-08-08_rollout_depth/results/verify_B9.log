@@ -1,0 +1,8 @@
+[08-08 23:48:16] [verify B9] START slug=arm1_nse_fix09 launcher=run_arm_k.sh arg=arm1_nse gpu=1
+[08-08 23:48:16] [elisa-arm1_nse] BB START (arm 1_nse: split_pred_rep + sigreg_embedding=0) gpu=1 target=1 final=200000 bs=64 
+[08-08 23:48:30] [elisa-arm1_nse] arm1_nse wave complete: target=1 (< final 200000) — latest ck bb_small_arm1_nse_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k0_0k.pth
+[08-08 23:48:30] [elisa-arm1_nse] BB START (arm 1_nse: split_pred_rep + sigreg_embedding=0) gpu=1 target=1 final=200000 bs=64 
+[08-08 23:48:44] [elisa-arm1_nse] arm1_nse wave complete: target=1 (< final 200000) — latest ck bb_small_arm1_nse_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_0k.pth
+[08-08 23:48:44] [verify B9] launcher rc: k=0 -> 0, k=3 -> 0 (a 1-step run names no _0k.pth)
+B9	PASS	step=1	loss_k0=30.9049949646	loss_k3=86.2778167725	d_loss=+55.372822	loss_tau_ref=29.8279380798	cos_err=0.6682,0.7963,0.8618,0.9081
+[08-08 23:48:44] [verify B9] verdict rc=0

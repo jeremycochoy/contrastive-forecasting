@@ -1,0 +1,26 @@
+Device: cuda | Params: 720,668
+Training for 600 steps, bs=64, lr=0.001, T=4096, C=1, mix_ratio=0.0078125, freq_emb_dim=3, seasonality_emb_dim=3, mixup_p=0.3, rev_norm_kind=ewma(span=128), patch_stats=none, encoder_type=gru
+Checkpoints: /home/jupyter/checkpoints_backup/cf-373/steptime/B5_k3_r2/bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_solo_B5_r2/bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_solo_B5_r2_*.pth
+Loss CSV: /home/jupyter/checkpoints_backup/cf-373/steptime/B5_k3_r2/bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_solo_B5_r2/bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_solo_B5_r2_losses.csv
+Latent-drift CSV: /home/jupyter/checkpoints_backup/cf-373/steptime/B5_k3_r2/bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_solo_B5_r2/bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_solo_B5_r2_latent_drift.csv (every 1000000 steps, probe_bs=64, probe_seed=20260722)
+Attn-amplitude CSV: /home/jupyter/checkpoints_backup/cf-373/steptime/B5_k3_r2/bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_solo_B5_r2/bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_solo_B5_r2_attn_amplitude.csv (every 200 steps)
+Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, hf_bs=64, synth_bs=0, cross_bs=0, total_bs=67
+[    200] loss=22.9726  ema_loss=27.2213  gap=-0.3572  ema_gap=-0.3696  mixup=61/200  1.6 sps  ETA 0.1h
+              R²_rand=0.3003  R²_naive=0.1459  U_t=0.3726  U_b=0.8169  AUC=0.9496  Top1=0.3232
+  timing: data=80.9ms  fwd=272.9ms  bwd=246.9ms  total=601.5ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-373/steptime/B5_k3_r2/bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_solo_B5_r2/bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_solo_B5_r2_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-373/steptime/B5_k3_r2/bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_solo_B5_r2/bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_solo_B5_r2_best_loss.pth
+[    400] loss=22.2103  ema_loss=22.9764  gap=-0.3509  ema_gap=-0.3553  mixup=58/200  1.8 sps  ETA 0.0h
+              R²_rand=0.3110  R²_naive=0.1650  U_t=0.3945  U_b=0.8581  AUC=0.9561  Top1=0.3832
+  timing: data=3.9ms  fwd=268.7ms  bwd=244.4ms  total=517.8ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-373/steptime/B5_k3_r2/bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_solo_B5_r2/bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_solo_B5_r2_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-373/steptime/B5_k3_r2/bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_solo_B5_r2/bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_solo_B5_r2_best_loss.pth
+[    600] loss=21.5475  ema_loss=21.9031  gap=-0.3475  ema_gap=-0.3518  mixup=65/200  1.8 sps  ETA 0.0h
+              R²_rand=0.2949  R²_naive=0.1700  U_t=0.3890  U_b=0.8417  AUC=0.9428  Top1=0.3332
+  timing: data=3.5ms  fwd=264.8ms  bwd=241.9ms  total=511.0ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-373/steptime/B5_k3_r2/bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_solo_B5_r2/bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_solo_B5_r2_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-373/steptime/B5_k3_r2/bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_solo_B5_r2/bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_solo_B5_r2_best_loss.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-373/steptime/B5_k3_r2/bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_solo_B5_r2/bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_solo_B5_r2_0k.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-373/steptime/B5_k3_r2/bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_solo_B5_r2/bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_solo_B5_r2_final.pth
+
+Done in 0.1h. Best gap=-0.3518 at step 600, Best loss=21.9031 at step 600

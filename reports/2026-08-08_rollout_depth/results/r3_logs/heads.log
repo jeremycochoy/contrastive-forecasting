@@ -1,0 +1,60 @@
+[08-12 18:22:49] [head B10_k3_bb100k_student] start enc=student steps=200 seed=20260722 gpu=0 bb=bb_small_arm6_v2_nse_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_r2_100k.pth
+[08-12 18:25:02] [head B10_k3_bb100k_student] SKIP — qhead_B10_k3_bb100k_student_s20260722_final.pth exists
+[08-12 18:26:10] [head B10_k3_bb100k_student] SKIP — qhead_B10_k3_bb100k_student_s20260722_final.pth exists (bb bb_small_arm6_v2_nse_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_r2_100k.pth)
+[08-12 19:59:19] [head B8_k3_bb40k_student] start enc=student steps=15000 seed=20260722 gpu=0 bb=bb_small_arm6_v2_nse_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_cf373k3_40k.pth
+[08-12 20:00:40] [head B8_k3_bb40k_teacher] start enc=teacher steps=15000 seed=20260722 gpu=1 bb=bb_small_arm6_v2_nse_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_cf373k3_40k.pth
+[08-12 20:25:08] [head B8_k3_bb40k_teacher] rc=0
+[08-12 20:25:08] [head B8_k3_bb40k_teacher] DONE 440K
+[08-12 20:25:09] [head B8_k3_bb40k_student] rc=0
+[08-12 20:25:09] [head B8_k3_bb40k_student] DONE 440K
+[08-13 01:12:22] [head A2_k3_bb200k_student] start enc=student steps=30000 seed=20260722 gpu=1 bb=cf393_arm6_v2_nse_alignT_cf373k3_200k.pth
+[08-13 01:17:57] [head B8_k3_bb100k_student] start enc=student steps=30000 seed=20260722 gpu=0 bb=bb_small_arm6_v2_nse_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_cf373k3_100k.pth
+[08-13 02:01:07] [head B8_k3_bb100k_student] rc=0
+[08-13 02:01:07] [head B8_k3_bb100k_student] DONE 440K
+[08-13 02:01:07] [head B8_k3_bb100k_teacher] start enc=teacher steps=30000 seed=20260722 gpu=0 bb=bb_small_arm6_v2_nse_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_cf373k3_100k.pth
+[08-13 02:01:09] [head A2_k3_bb200k_student] rc=0
+[08-13 02:01:09] [head A2_k3_bb200k_student] DONE 440K
+[08-13 02:03:53] [head A2_k3_bb200k_teacher] start enc=teacher steps=30000 seed=20260722 gpu=1 bb=cf393_arm6_v2_nse_alignT_cf373k3_200k.pth
+[08-13 02:12:46] [head B10_k3_bb200k_student] start enc=student steps=30000 seed=20260722 gpu=0 bb=bb_small_arm6_v2_nse_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_r3_200k.pth
+[08-13 02:15:23] [head B10_k3_bb200k_teacher] start enc=teacher steps=30000 seed=20260722 gpu=0 bb=bb_small_arm6_v2_nse_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_r3_200k.pth
+[08-13 02:47:33] [head B8_k3_bb100k_teacher] rc=0
+[08-13 02:47:33] [head B8_k3_bb100k_teacher] DONE 440K
+[08-13 02:48:11] [head B4_k3_bb200k_student] start enc=student steps=30000 seed=20260722 gpu=0 bb=bb_small_arm5_combab_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_cf373k3_r3_200k.pth
+[08-13 02:51:13] [head A2_k3_bb200k_teacher] rc=0
+[08-13 02:51:13] [head A2_k3_bb200k_teacher] DONE 440K
+[08-13 02:51:32] [head B4_k3_bb200k_teacher] start enc=teacher steps=30000 seed=20260722 gpu=1 bb=bb_small_arm5_combab_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_cf373k3_r3_200k.pth
+[08-13 03:04:05] [head B10_k3_bb200k_student] rc=0
+[08-13 03:04:05] [head B10_k3_bb200k_student] DONE 440K
+[08-13 03:04:44] [head B6_k3_bb200k_student] start enc=student steps=30000 seed=20260722 gpu=0 bb=bb_small_arm6_v2_ncpc_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_r3_200k.pth
+[08-13 03:07:17] [head B10_k3_bb200k_teacher] rc=0
+[08-13 03:07:17] [head B10_k3_bb200k_teacher] DONE 440K
+[08-13 03:08:06] [head B6_k3_bb200k_teacher] start enc=teacher steps=30000 seed=20260722 gpu=0 bb=bb_small_arm6_v2_ncpc_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_r3_200k.pth
+[08-13 03:39:18] [head B4_k3_bb200k_teacher] rc=0
+[08-13 03:39:18] [head B4_k3_bb200k_teacher] DONE 440K
+[08-13 03:39:56] [head B2_k3_bb200k_student] start enc=student steps=30000 seed=20260722 gpu=1 bb=bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_cf373k3_r2_200k.pth
+[08-13 03:40:15] [head B4_k3_bb200k_student] rc=0
+[08-13 03:40:15] [head B4_k3_bb200k_student] DONE 440K
+[08-13 03:41:12] [head B2_k3_bb200k_teacher] start enc=teacher steps=30000 seed=20260722 gpu=0 bb=bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_cf373k3_r2_200k.pth
+[08-13 03:57:35] [head B6_k3_bb200k_student] rc=0
+[08-13 03:57:35] [head B6_k3_bb200k_student] DONE 440K
+[08-13 04:00:47] [head B6_k3_bb200k_teacher] rc=0
+[08-13 04:00:47] [head B6_k3_bb200k_teacher] DONE 440K
+[08-13 04:23:03] [head B2_k3_bb200k_teacher] rc=0
+[08-13 04:23:03] [head B2_k3_bb200k_teacher] DONE 440K
+[08-13 04:30:25] [head B2_k3_bb200k_student] rc=0
+[08-13 04:30:25] [head B2_k3_bb200k_student] DONE 440K
+[08-13 05:50:47] [head A3_k3_bb200k_student] start enc=student steps=30000 seed=20260722 gpu=0 bb=cf393_arm6_v2_combab_alignT_cf373k3_200k.pth
+[08-13 05:52:09] [head A3_k3_bb200k_teacher] start enc=teacher steps=30000 seed=20260722 gpu=1 bb=cf393_arm6_v2_combab_alignT_cf373k3_200k.pth
+[08-13 06:32:10] [head A3_k3_bb200k_teacher] rc=0
+[08-13 06:32:10] [head A3_k3_bb200k_teacher] DONE 440K
+[08-13 06:33:08] [head A3_k3_bb200k_student] rc=0
+[08-13 06:33:08] [head A3_k3_bb200k_student] DONE 440K
+[08-13 06:50:30] [head B1_k3_bb200k_student] start enc=student steps=30000 seed=20260722 gpu=0 bb=bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_r2_200k.pth
+[08-13 06:51:47] [head B1_k3_bb200k_teacher] start enc=teacher steps=30000 seed=20260722 gpu=1 bb=bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_r2_200k.pth
+[08-13 07:28:21] [head B1_k3_bb200k_teacher] rc=0
+[08-13 07:28:21] [head B1_k3_bb200k_teacher] DONE 440K
+[08-13 07:34:45] [head B1_k3_bb200k_student] rc=0
+[08-13 07:34:45] [head B1_k3_bb200k_student] DONE 440K
+[08-13 10:50:19] [head A4_k3_bb200k_student] start enc=student steps=30000 seed=20260722 gpu=0 bb=cf393_arm6_v2_combab_alignS_cf373k3_r2_200k.pth
+[08-13 11:25:21] [head A4_k3_bb200k_student] rc=0
+[08-13 11:25:21] [head A4_k3_bb200k_student] DONE 440K

@@ -1,0 +1,46 @@
+== 1. config coverage ==
+  G6_B1_k0_bb40k_student             n=97
+  G6_B1_k0_bb40k_teacher             n=97
+  B1_k3_bb40k_student                n=97
+  B1_k3_bb40k_teacher                n=97
+  G_B1_k0_aw4_bb40k_student          n=97
+  G_B1_k0_aw4_bb40k_teacher          n=97
+  A3_k3_bb200k_student               n=97
+  A3_k3_bb200k_student_s20260723     n=97
+  A3_k3_bb200k_teacher               n=97
+  all cells share one config set: True
+  SN reference covers all of them: True
+
+== 2. seasonal-naive denominator ==
+  worst relative gap, per-cell SN_MASE vs shared reference: 6.24e-05
+
+== 3. GM-Relative MASE, re-derived ==
+  G6_B1_k0_bb40k_student             1.2025  published 1.2025  score file 1.2025  ok
+  G6_B1_k0_bb40k_teacher             1.2001  published 1.2001  score file 1.2001  ok
+  B1_k3_bb40k_student                1.0850  published 1.0850  score file 1.0850  ok
+  B1_k3_bb40k_teacher                1.0948  published 1.0948  score file 1.0948  ok
+  G_B1_k0_aw4_bb40k_student          1.1513  published 1.1513  score file 1.1513  ok
+  G_B1_k0_aw4_bb40k_teacher          1.1482  published 1.1482  score file 1.1482  ok
+  A3_k3_bb200k_student               1.3998  published 1.3998  score file 1.3998  ok
+  A3_k3_bb200k_student_s20260723     1.4098  published 1.4098  score file 1.4098  ok
+  A3_k3_bb200k_teacher               1.2913  published 1.2913  score file 1.2913  ok
+
+== 4. paired dataset-cluster bootstrap, 10000 resamples x 8 seeds ==
+  aw4 vs k=0, student              n=97  d=-0.0512 [-0.1002+-0.0007, -0.0015+-0.0009]  improved in  97.8%  published -0.0512 [-0.1001, -0.0023]  ok
+  aw4 vs k=0, teacher              n=97  d=-0.0519 [-0.0986+-0.0007, -0.0058+-0.0009]  improved in  98.6%  published -0.0519 [-0.0987, -0.0066]  ok
+  k=3 vs k=0, student              n=97  d=-0.1175 [-0.1806+-0.0008, -0.0615+-0.0008]  improved in 100.0%  published -0.1175 [-0.1801, -0.0615]  ok
+  k=3 vs k=0, teacher              n=97  d=-0.1053 [-0.1656+-0.0010, -0.0513+-0.0007]  improved in 100.0%  published -0.1053 [-0.1661, -0.0515]  ok
+  A3 draw 2 vs draw 1              n=97  d=+0.0100 [-0.0162+-0.0005, +0.0382+-0.0004]  improved in  22.1%  published +0.0100 [-0.0163, +0.0378]  ok
+  A3 teacher vs draw 1             n=97  d=-0.1084 [-0.1645+-0.0012, -0.0666+-0.0005]  improved in 100.0%  published -0.1084 [-0.1648, -0.0671]  ok
+  A3 teacher vs draw 2             n=97  d=-0.1185 [-0.1820+-0.0009, -0.0716+-0.0004]  improved in 100.0%  published -0.1185 [-0.1819, -0.0718]  ok
+  k=3 vs aw4, student              n=97  d=-0.0663 [-0.1074+-0.0008, -0.0339+-0.0004]  improved in 100.0%  published -0.0663 [-0.1070, -0.0331]  ok
+  k=3 vs aw4, teacher              n=97  d=-0.0534 [-0.0883+-0.0006, -0.0240+-0.0002]  improved in 100.0%  published -0.0534 (no CI)  ok
+
+== 5. the re-weighting split by forecast term ==
+  aw4 vs k=0, student, medium+long n=42  d=-0.1400 [-0.2264+-0.0021, -0.0639+-0.0011]  improved in 100.0%  published -0.1400 [-0.2267, -0.0662]  ok
+  aw4 vs k=0, student, short       n=55  d=-0.0009 [-0.0483+-0.0007, +0.0465+-0.0007]  improved in  51.9%  published -0.0009 [-0.0483, +0.0460]  ok
+
+wrote reports/2026-08-08_rollout_depth/results/runner_verify_20260814.csv
+
+== verdict ==
+  every re-derived number matches what the report publishes.

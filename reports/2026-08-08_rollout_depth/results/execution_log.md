@@ -1,0 +1,2506 @@
+# Execution log — #373 rollout depth
+
+Operational events. The report carries the science; this file carries what
+happened while producing it. Times are elisa's (BST). The vast.ai
+containers run an hour behind, so a remote log line reads one hour earlier
+than the same event here.
+
+## 2026-08-08 23:40 — the compute this study actually had
+
+$7.31 of vast.ai credit and two RTX 4090s on elisa that another agent
+session was already using: 23.3 GB of 24.5 GB on GPU 0 and 15.8 GB on
+GPU 1, both at >90% utilisation.
+
+The card asks for 14 cells at k = 3, each to bb40k and bb100k and
+conditionally bb200k, two heads per stop, 97 GIFT-Eval configs per head.
+Measured on this hardware that is 200+ GPU-hours. $7.31 buys 15.6 hours of
+a 4090 at $0.4681 or 21.8 hours of a 5090 at $0.3356. The study was scoped
+to what the credit covers, in the card's own run order, and the report
+says which cells did not run.
+
+One decision made the difference between two cells and five: GIFT-Eval runs
+on elisa's 32 cores, not on a rented GPU. PR #394 measured it at 2.86
+core-hours for the 97 configs against 58.7 s / 97.3 s per six configs on a
+4090 / one core, and it takes no VRAM. So the rented cards only ever train
+backbones, and heads and evals run on elisa for nothing.
+
+## 2026-08-08 23:46 — per-cell depth check
+
+All 14 cells, k = 0 against k = 3, one step each, through each cell's own
+launcher. 28 runs, 12 minutes total on GPU 1. All PASS. See
+`verify_summary.tsv` and the report.
+
+## 2026-08-08 23:55 — GPU step time
+
+Cell B5, alternating k = 0 / k = 3, 3 reps of 600 steps, on elisa's GPU 1
+beside another session's training. Alternating rather than one-then-other,
+because a single pair would fold whatever the neighbour did in between
+into the overhead.
+
+## 2026-08-09 00:05 — provisioning burned two instances and created three extras
+
+Four failures on the way to four boxes, all vast.ai's own:
+
+- `Offer N is no longer available`, repeatedly. The listing churns in
+  seconds; every search returned 45 candidates and printed 1-3 rows, and
+  each row was gone by the time provision reached it.
+- `Instance 47218248 created but SSH unreachable` — the instance existed
+  and was billing. Destroyed, $0.02.
+- `Instance 47218524 did not reach 'running' (reason: doa)` — same,
+  destroyed, $0.01.
+- The retry loop's success parser did not match `vastrun-provision`'s
+  output, so it read three good instances as failures and kept going. Four
+  instances existed before it was killed. All four were usable and all four
+  were used; the cost of the mistake was the ~10 minutes each spent idle
+  during bootstrap, about $0.10 in total.
+
+`scripts/provision_box.sh` now handles the first three by name and tries
+every offer of one search before re-searching.
+
+## 2026-08-09 00:20 — the bootstrap gate earned itself
+
+`bootstrap_remote.sh` ends with `train.py --help` on the box. It failed on
+all four with `ModuleNotFoundError: No module named 'statsmodels'`. The
+trainer's `--synth-kind forked-arma` mixer imports
+`statsmodels.tsa.arima_process.ArmaProcess`, and the dependency list had it
+down as eval-only. Found before any GPU time was spent on it.
+
+## 2026-08-09 00:26 — ssh hangs on a detached remote job
+
+`ssh host "cmd & echo queued"` never returns: the session stays open until
+every descriptor on the channel closes, and the backgrounded command
+inherits them. The job runs fine; the caller hangs forever behind it. The
+form that works is a subshell with all three descriptors redirected and a
+bare `exit 0`.
+
+## 2026-08-09 01:00 — a smoke run of the stop pipeline
+
+`stop_k.sh` on a stand-in checkpoint, 40 head steps. Head training passed.
+The eval died at shard 0: `shard_configs.py` splits the 97 configs by
+MEASURED cost (0.4 s to 1537 s) and reads that table from this study's own
+`results/config_costs.csv`, which had not been staged. Found before a real
+backbone depended on it.
+
+## 2026-08-09 01:11 — dropped A4 k = 3
+
+At the measured rates the five runs in flight cost ~$4.6 of the $5.8 left.
+A4 k = 3 would have taken ~$0.72 more and left ~$0.4 of margin across four
+boxes. A run that dies at 90% for want of credit is a total loss, so A4
+was cut rather than risk B9, which had four hours in it.
+
+## 2026-08-09 01:16 — sync verified by `ls`
+
+`sync/verify_sync.sh`, after a full tick on every box: 4/4 checkpoints at
+exactly the remote size, 3/3 growing files present, on all four boxes.
+
+Two bugs in the verifier itself, both found by running it:
+
+- `ssh` without `-n` read the box table off the loop's stdin, so only the
+  first box was ever checked.
+- Comparing a losses CSV by size reports every healthy loop as broken: the
+  file grows every step, so the remote size is newer than any copy by
+  construction. Checkpoints are written once and are compared exactly;
+  growing files are checked for a non-empty copy.
+
+## 2026-08-09 01:25 — two identical A3 runs shared box b for 45 minutes
+
+`pgrep` on box b showed two `train.py` processes with byte-identical
+command lines, both writing `cf393_arm6_v2_combab_alignT_cf373k3` into
+`leg_40k`, both holding 5532 MiB of the same card.
+
+Cause: the ssh that started the first queue TIMED OUT and was reported as a
+failure, but the remote command had already run. ssh holds the session open
+until every descriptor on the channel closes, and a backgrounded remote job
+inherits them — so the caller hangs behind a job that is running fine. The
+second start then did not collide, because this box came up in `Default`
+compute mode rather than the `Exclusive_Process` a vast.ai box usually
+comes up in, and a second CUDA context was allowed.
+
+Killed the younger of the two (started 1m43s later). All four boxes now
+report exactly one CUDA process. `nvidia-smi --query-gpu=compute_mode`
+reads `Default` on all four, so `gpu_gate` is a no-op on every one of them
+and cannot be relied on here.
+
+Cost: 45 minutes at half speed on one 5090, about $0.14. No science lost —
+the two runs carried the same seed and the same data order, and the
+survivor kept its own step counter and its own weights.
+
+What it did leave: every step up to ~14,300 appears twice in that cell's
+losses CSV, because `CSVLogger` opens in append mode. `scripts/losses_csv.py`
+keeps the first row per step, and both curve figures read through it.
+
+## 2026-08-09 04:34 — three stops died on CUDA OOM, and the fix
+
+`torch.OutOfMemoryError: Tried to allocate 4.32 GiB. GPU 0 has 23.64 GiB of
+which 3.15 GiB is free` inside the GRU encoder's `_last_hidden`. Three head
+trainings died in 45 seconds: B5 k = 0 student, A3 k = 0 student, B5 k = 3
+student.
+
+Two causes at once. The neighbouring session's job grew from 9 GiB to
+14.3 GiB partway through the study, and this study ran two of its own heads
+at a time to halve the wall clock. Each head needs about 5.3 GiB.
+
+`gpu_gate` does not cover this: it returns immediately on a `Default`-mode
+card, and every card in this study — elisa's two and all four vast.ai boxes
+— reports `Default`.
+
+`stop_k.sh` now holds a `head_vram_gate`: an flock, so two of this study's
+own heads cannot both pass the check and then both allocate, and then a
+poll on `memory.free` until 6000 MiB is available. A head that would have
+died now waits. Nothing was lost — `stop_k.sh` is idempotent, so the three
+stops were simply re-queued.
+
+## 2026-08-09 05:06 — a drained box billed for 51 minutes after its work was safe
+
+The reaper found box d drained at 04:15 with all four of its checkpoint
+files verified byte-identical locally, and `vastrun-destroy` refused:
+`Instance 47219263 has no marker — it was provisioned outside vastrun-kit`.
+It was not: it came from this session's own `vastrun-provision`, in the
+burst where the retry loop misread three successes as failures. Whatever
+went wrong, the on-instance marker was not written.
+
+Cost: $0.31 of a $7.31 budget, and it was found by reading the balance
+rather than by an alert. Destroyed with `--force` once the four files were
+compared by size against the remote.
+
+The reaper now falls back to `--force` when the refusal says "no marker",
+and only then: its own gate has already established that every checkpoint
+the remote holds is here, byte for byte, and that the row naming that id
+was written by this session's own launch.
+
+## 2026-08-09 06:00 — the VRAM lock was held through the eval
+
+The `head_vram_gate` added an hour earlier holds its flock on fd 7 for the
+life of the calling shell — and that shell then runs a ~1 h CPU GIFT-Eval.
+So the next head waited for a card that had 9.6 GiB free the whole time.
+
+`stop_k.sh` already dropped the `gpu_gate` descriptor before the eval, for
+exactly this reason; the new one was not dropped beside it. It is now.
+
+Recovering it without losing the eval in flight: the stale holder was inside
+its eval and would not train another head, so the lock FILE was renamed.
+flock is held on the inode, so a new head takes a lock on a fresh one while
+the old holder keeps the old. Mutual exclusion between future heads is
+unaffected — they all open the new path, and the fixed script releases it as
+soon as its head finishes.
+
+## 2026-08-09 07:01 — the group-B baseline validity gate FAILS
+
+B5 (`arm4_combab_fix09`) retrained at k = 0 on this code, bb40k, head seed
+20260722, full 97 configs: **1.3917**. `small_long.md` and
+`lalign_teacher.md` both publish **1.2748** for that cell and stop.
+
+|Δ| = 0.1169. The card's threshold is 0.0002. That is 585 times the gate,
+and three times the parents' pooled head-seed band of 0.0384.
+
+The card names the remedy: "If it does not match, retrain the k = 0 side of
+every group-B cell instead of reading it from the reports, and say so in
+the report." This study has same-code k = 0 for B5 and for A3, so those two
+cells have valid comparisons. B9 does not, and its k = 3 number therefore
+has no baseline this study can stand behind.
+
+The gate failing is not a side note. The shift between the published
+snapshot and this one is larger than the effect the study set out to
+measure, so every delta computed against a published number — including the
+A3 k = 3 numbers reported an hour ago — has to be recomputed against this
+study's own k = 0.
+
+## 2026-08-09 13:17 to 2026-08-10 06:29 — the review runs
+
+Seven more backbones and fourteen more heads, on elisa's two 4090s rather
+than rented cards. `gap_worker.sh` ran two backbones at a time on one card
+and handed each finished backbone's heads to a background subshell, because
+head training is ~35 GPU-minutes and the GIFT-Eval is ~1 CPU hour: serialising
+them behind the queue would have idled the cores for hours.
+
+The queue drained at 02:04 and the last head finished at 06:29. Every one of
+the 25 evals holds all 97 configs.
+
+One head died and was retried once (G2_B9_k0 teacher, 22:52). `head_eval_bb.sh`
+is idempotent in both halves, so the retry cost only what had not finished.
+
+## 2026-08-10 — collection and re-analysis
+
+`collect.sh` brought the 25 score files, the trainer logs and the per-config
+eval CSVs into the git checkout. `results/boxes.tsv.tmp.4009307`, a partial
+write left by an interrupted `reap_boxes.sh`, was already gone; nothing under
+the checkout or the run worktree matches `boxes.tsv.tmp.*`.
+
+Three things in the analysis code were wrong and are fixed:
+
+- **Tag parsing dropped the review runs.** Every table and figure resolved a
+  cell by splitting the eval tag on `_` and reading field 1. That works for
+  `A3_k3_bb40k_student` and silently drops `G6_B1_k0_bb40k_student`, so B1
+  and B9 had no same-code baseline in any figure even though both had been
+  trained. `scripts/runs.py` is now the one registry; no consumer parses a
+  tag.
+- **A prefix test folded a control into the cell it controls for.** Group A's
+  launcher writes every depth of a cell AND the `L_align x4` control into one
+  `leg_40k` directory, so `cf393_..._cf373k0` is a prefix of
+  `cf393_..._cf373k0_aw4_40k.pth`. The rollout-fidelity and latent-movement
+  figures picked their A3 `k = 0` checkpoint by `startswith`, so either file
+  could win. `runs.ckpt_step()` now matches `_<N>k.pth` exactly.
+- **`gap_analyse.sh` was a second pipeline.** It wrote `splits_all.csv`,
+  `bootstrap_gaps.csv` and `gap_scores.md` beside `make_report_assets.sh`'s
+  `splits.csv`, `bootstrap.csv` and `scores.md`, from the same inputs. Folded
+  into the one rebuild script and deleted.
+
+`make_report_assets.sh` is now the single entry point and holds no paths:
+`runs.py` says which runs exist and `find_artefacts.py` finds each one's
+artefacts across the sync tree, the durable root and the results directory.
+
+The two figures that load checkpoints hit `CUDA error: out of memory` on the
+final rebuild, because another session held both of elisa's cards. The script
+now retries them on the CPU. The CPU numbers match the GPU ones to four
+decimals on rollout fidelity and to five on latent movement.
+
+## 2026-08-10 09:08 — the round-2 run waits for a card
+
+The round-2 review's blocking item is one run: B5 at `k = 0`, seed 20260520,
+on elisa. It separates the machine from the seed, and no other artefact can.
+
+Both of elisa's 4090s were full when it was queued. Three other sessions were
+training: `/tmp/rnd-434` held 12.6 GB of GPU 0, `/tmp/rnd-446` held 4.0 GB of
+GPU 0 and 3.2 GB of GPU 1, `/tmp/rnd-454` held 16.0 GB of GPU 1. That left
+22 MiB free on GPU 0 and 5062 MiB on GPU 1, against the 5375 MiB
+`results/gpu_mem_B5.csv` measures for this run.
+
+`scripts/gap_r2_launch.sh` therefore polls for 6200 MiB on either card and
+starts `gap_worker.sh` on whichever frees first. Starting 313 MiB short would
+not have produced a slower run, it would have produced a dead one.
+
+Eleven orphaned CUDA worker processes (PPID 1, 7 days old, ~4.9 GB of GPU 0
+between them) were left alone. Reclaiming them would still have left GPU 0
+about 400 MiB short of the run, so the risk bought nothing.
+
+## 2026-08-10 — one step-time pipeline, and the machine in the registry
+
+`steptime_from_logs.py` and `results/steptime_runs.csv` are deleted.
+`steptime_provenance.py` produces the same medians plus the contention
+split, so keeping both was the same "second pipeline" the last round removed
+from `gap_analyse.sh`. `make_report_assets.sh` now runs
+`run_provenance.py` then `steptime_provenance.py`.
+
+`run_provenance.py` is new. It reads the driver logs and the box queue logs
+and writes, per run, which other runs shared its card and for how much of
+its life. That is what the cost table was missing: every elisa backbone in
+this study was contended for 43% to 100% of its life, so only the four
+rented-box runs and the solo tail of a fifth can carry a step time.
+
+## 2026-08-10 09:07 to 13:51 — the round-2 machine test
+
+`gap_jobs_r2.tsv` carries one row. It retrains B5 at `k = 0` on the protocol
+seed 20260520, on elisa, so the only thing that differs from B5·s1 is the
+box. The reproduction table sorted perfectly on the machine and the study
+could not say whether the seed or the box did it.
+
+Backbone 40k steps, then the student head and the 97-config eval:
+`score_G7_B5_k0_e_bb40k_student` = **1.2751**. The published value is 1.2748
+and B5·s1, same seed, same code, on a rented RTX 5090, is 1.3917.
+
+The machine moved it by 0.1166 and the seed by 0.0035. `early_loss.csv`
+shows B5·s1 and B5·s3 printing the same mixer counts step for step, so the
+two runs saw the same batches in the same order.
+
+## 2026-08-10 13:51 to 17:51 — the teacher head of that control did not run
+
+`head_eval_bb.sh G7_B5_k0_e_bb40k_teacher` waited 4 h for VRAM and aborted:
+other projects held both of elisa's cards, GPU 1 had 4916 MiB free and the
+head needs 6000. `stops.log` carries the TIMEOUT line and the ABORT beside
+it.
+
+It was not retried. The group-B parent reports publish the student-encoder
+head only, so the student number is the one the reproduction check compares
+against, and the encoder-delta figure bounds the choice at under half the
+head-seed band. The worker and its retry loop were stopped rather than left
+to spin on a card another project owns.
+
+## 2026-08-10 17:54 — collect.sh was overwriting the execution log
+
+`collect.sh` rsyncs the run worktree's `results/` over the checkout's. The
+run worktree carries its own fork of `execution_log.md`, branched before the
+review runs, and rsync copied the older file over the newer one: 82 lines
+gone. The log is written in the checkout, never by a run, so it is now
+excluded from that rsync. Restored from git.
+
+## 2026-08-10 18:22 — the rebuild did not run from committed artefacts
+
+`find_artefacts.py` searched two working trees, `~/cf373_sync` and
+`$CF373_ROOT`, and the checkout last. Both are local to elisa. Five of the
+study's eleven depth-ladder curves lived only in `$CF373_ROOT`, because
+elisa has no sync loop and wrote straight to the durable root, so a clone
+resolved ZERO curves and rebuilt no training-curve figure at all. **Both
+sides of B1 were among the five**, which put the study's one sound
+comparison outside the repository.
+
+`collect.sh` now downsamples every such curve into `curves/<machine>/`, at
+the same `--stride 20 --dense-until 1000` the box runs already used, and
+`find_artefacts.py` searches the committed tree FIRST. Eight elisa curves
+came across, 11 MB. `--what missingcurves` is the standing check: it lists
+every backbone whose losses CSV is in a working tree and not in git, and it
+now prints nothing.
+
+Verified by hiding both trees:
+`CF373_SYNC_BASE=/nonexistent CF373_ROOT=/nonexistent bash
+scripts/make_report_assets.sh` rebuilds all 14 non-checkpoint figures and
+every table. The two checkpoint figures skip with the line that says so; the
+Protocol names them.
+
+Two side effects worth recording. Every curve in a figure is now at one
+resolution. Before this, the box runs were downsampled and the elisa runs
+were not, so B9's two sides carried different smoothing spans in the same
+panel. And the four curve figures changed slightly, which is that fix.
+
+## 2026-08-10 18:26 — one rsync exclusion was not enough
+
+The Aug 10 17:54 fix excluded `execution_log.md` by name.
+`make_report_assets.sh` writes eight more files into the same directory and
+the same stale fork would have reverted every one. `collect.sh` now holds a
+`GENERATED` list of all ten, and a guard re-derives the list from
+`make_report_assets.sh` and refuses to run if the two disagree. Tested by
+dropping a name: the guard names the missing file and exits 1.
+
+## 2026-08-10 18:31 — the depth-0 diagnostic did not survive its own audit
+
+Committing the curves made section 9 auditable for the first time, so it was
+audited. `depth0_gap.py` writes the gap the section reads off
+`cos_err_depth.png` as a number, over four end-of-run windows.
+
+B9 and B1 hold their sign over every window, at 0.08 to 0.11. **A3 and B5·s2
+do not.** A3's `k = 3` gap runs -0.0469 over the last half of the run and
++0.0623 at the final step. B5·s2's runs +0.0121 and -0.0129. The section's
+sentence "the sign of that gap matches the sign of the eval result in all
+four cells" was true of two cells, and it is now stated as two.
+
+The gap for those two arms is smaller than the drift across the window it is
+measured over. Nothing here says the diagnostic is wrong; it says it is
+underpowered on the two arms whose eval result it appeared to explain.
+`results/depth0_gap.csv` carries the numbers and marks which arms hold a
+sign.
+
+## Operational detail moved out of the report
+
+**`B5·s3`'s teacher head.** The head waited four hours for VRAM on elisa and
+then aborted. Other projects held both cards for the whole window; GPU 1 had
+4916 MiB free and the head needs 6000. Logs: `results/stops.log`,
+`results/eval/G7_B5_k0_e_bb40k_teacher/stop.log`.
+
+**The step-time probe's card.** The controlled `k = 0` against `k = 3` probe
+ran on elisa's GPU 1 while another session's job held 8946 MiB at the start
+and drew 44% mean utilisation throughout
+(`results/steptime_B5_solo_card.csv`). The probe therefore alternates on a
+shared card rather than owning one.
+
+**Training-curve diagnostics the report does not read.** The rebuild writes
+`plots/per_run_loss.png`, `plots/cos_error_per_arm.png` and
+`plots/latent_movement.png` beside the figures the report carries. The loss
+panel is not comparable across depths, because `k = 3` optimises the `k = 0`
+objective plus three added terms, so no ranking is read off it.
+`plots/ladder.png` draws this study's bb40k points on the published `k = 0`
+trajectories; every point this study contributes sits at one x value, so the
+report carries `depth_response.png` and `reproduction.png` instead.
+
+## 2026-08-12 16:05 to 16:35 — round 3 replaces the fleet with one box
+
+Round 2 rented one single-GPU box per cell. Every operational failure in
+this study came out of that shape: 15 failed bootstraps on B8, a box idle
+37.6 h at 0%, two more idle 4 h, and a duplicated run on one card. Round 3
+rents ONE box with two cards and pairs it with elisa's two.
+
+Instance 47557391, 2x RTX 4090, Hungary, $0.789/h on-demand, reliability
+0.993, driver 570.211.01. The gate the card sets is hard and it ran before
+any training: `python3 -c "import torch; print(torch.cuda.device_count())"`
+inside the container printed **2**.
+
+Two single-GPU boxes were up when round 3 started, 47555858 (cf373r2-b10,
+8 min old) and 47556474 (cf373r2-b8, 1 min old). Neither held a checkpoint;
+both were destroyed. A 2x RTX 5090 offer was taken and did not reach
+`running` inside the kit's timeout, so it was destroyed too, $0.11.
+
+The many-box drivers were stopped first, because they were still
+provisioning: `reap_boxes.sh`, two `r2_launch_cell.sh`, two
+`provision_box.sh`, one `vastrun-provision` mid-flight, `r2_eval_driver.sh`
+and sixteen `sync_loop.sh` instances, one per dead box.
+
+`q_run.sh` is the replacement and it is the only thing that starts work.
+One queue, `q_queue.tsv`, 43 jobs in the card's order, over six slots: two
+per rented card and one per elisa card. Two backbones share a card — 5.4 GB
++ 5.4 GB against 24 GB, and measured 2.7 to 3.0 sps each against 4.1 solo,
+so the second process buys 40% more per card. An elisa slot only takes a job
+when that card has the VRAM free at that moment; other projects held 32 GB
+of elisa's 49 GB through the whole launch.
+
+One sync loop, not one per cell, into one flat durable root
+`/home/jupyter/cf373_r3/sync` that mirrors the box's `/root/cf373_runs`.
+
+### Two bugs the launch found
+
+**The remote launch never returned.** `ssh host "cmd &"` holds the channel
+open while the backgrounded child lives, even with the child's three
+descriptors redirected and `setsid` in front. The first dispatcher placed
+B8, blocked inside that ssh, and never came back to place a second job. The
+job body now goes over as a file and the start is a separate `ssh -n` under
+a 40 s timeout; the body writes a `.started` marker and the dispatcher reads
+that, never ssh's exit status.
+
+**Every job landed on one card.** `SLOTS=(${QSLOTS:-"rem:0 rem:0 ..."})`
+holds ONE element: the quotes inside the default make it a single word, so
+no splitting happens. `${SLOTS[$i]}` then returned the whole string for
+every index, `%%:*` read `rem` and `##*:` read the LAST field, so B10 was
+placed beside B8 on card 1 and card 0 sat idle — the same duplicated-run
+failure round 2 had. The default is now unquoted and the script refuses to
+start with fewer than two slots. Cost: 13 minutes of one card.
+
+### What the queue holds
+
+Nine backbones: B8 from step 0 to 100k, then eight extends from 100k to
+200k, biggest bb100k winner first — B10, A2, B4, B6, B2, A3, A4, B1.
+Seventeen heads at 30,000 steps, seed 20260722, `--grad-clip 1.0`.
+Seventeen 97-config GIFT-Evals, B4 strategy, horizon 16, on elisa's cores.
+
+A4 extends the student head only. The rule read its teacher up at bb100k.
+
+B1 extends both heads. The rule stopped B1's student — 1.0850 at bb40k
+against 1.0881 at bb100k — and the card extends the cell whole, because
+B1's bb40k pair is round 1's, written under `G6_B1_k3_bb40k` before round 2
+renamed the cells, so the rule tested B1 against a number this round did not
+produce. `results/r3_extend_override.tsv` records that, and both of B1's
+heads are reported with the rule's verdict beside them.
+
+Five cells stop at 100k and are absent from the queue: A1, B3, B5, B7, B9.
+
+## 2026-08-12 17:00 — A1 and B3 hold one student model, not two
+
+A1 and B3 scored the same number on the student head at both stops, 1.1305
+at bb40k and 1.1676 at bb100k, while their teacher heads scored apart. Two
+cells, one number, reads like a path key that drops the cell.
+
+It is not a path key. `scripts/pair_identity.py` loads both backbones and
+compares every tensor, split into the student side (encoder, transformer,
+channel mixing, embeddings) and the teacher side (`teacher_*`).
+
+    A1/B3  bb40k   student  110/110 identical   max|diff| 0
+    A1/B3  bb40k   teacher    0/52  identical   max|diff| 6.400e-03
+    A1/B3  bb100k  student  110/110 identical   max|diff| 0
+    A1/B3  bb100k  teacher    0/52  identical   max|diff| 1.986e-01
+
+The two cells train the same student, bit for bit, at both stops. Their
+student heads follow: 28 of 28 head tensors are identical at both stops,
+and the 97-row eval CSVs are byte-identical. The teacher side differs at
+every level. One number for both cells is the right answer.
+
+The arm says why. A1 and B3 both run `arm5_combab_alignS`, whose alignment
+target is the student and whose representation loss is `lrep`, not
+`lrepmoco`. Nothing in that arm's gradient path reads the teacher, so the
+EMA regime — group A's schedule against group B's fixed 0.9 — cannot move
+the student. The teacher is a passive copy and it is the only thing the
+regime changes.
+
+The other same-arm pairs are not in that position, and the same test says
+so. `arm6_v2_*` carries `lrepmoco`, whose keys come from the momentum
+encoder, so the regime enters the student's loss:
+
+    A4/B1  arm6_v2_combab_alignS  student differs at both stops
+    A3/B2  arm6_v2_combab_alignT  student differs at both stops
+
+A2/B8 waits for B8's first checkpoint. `results/pair_identity.tsv` holds
+every row.
+
+The consequence for the report: A1 and B3's student column is ONE
+measurement. Publishing it twice would claim a replication that does not
+exist. The teacher column is two.
+
+## 2026-08-12 17:05 — three fixes to what the round reads and pays
+
+**B1's bb40k score had a name no script could find.** Round 1 wrote it as
+`score_G6_B1_k3_bb40k_*`, and the coverage table needed a hand-written
+alias to see 1.0850 and 1.0948. The round-1 eval read B1's own checkpoint —
+its log names `..._cf373k3_40k.pth`, md5 `23ba3d9d...`, the same file round
+2 resumed — so `scripts/normalise_scores.sh` writes the canonical name
+beside the old one and copies the eval artefacts under the cell's name. It
+removes nothing.
+
+**The coverage table called unscheduled work `running`.** It marked every
+stop of a cell whose backbone was training, so B8 — queued to 100k and no
+further — reported bb40k and bb200k as in flight. Coverage now reads the
+job that produces the number, the head and the eval, off `q_queue.tsv` and
+the queue's state files: `run` is in flight, `plan` is queued, and anything
+with no job reads as the gap it is. `results/r3_no_extend.tsv` records the
+stops this round decides not to produce, so a decision cannot read as an
+omission.
+
+**B8 had no bb40k pair, and the other thirteen cells do.** Its backbone
+saves 40k on the way to 100k, so the pair costs two 15,000-step heads and
+two CPU evals. Four jobs at the tail of the queue, behind everything the
+plan asked for. Head steps match the other thirteen cells' bb40k heads.
+
+**A head no longer takes a rented card while elisa has room.** The box is
+paid by the hour, and the rental lasts as long as the backbones do, so a
+head on a rented card pushes the end of the rental out by its own runtime.
+The dispatcher now offers elisa's cards to a head first and a rented card
+only when elisa has no VRAM. Backbones keep the rented-card-first order,
+and no card is ever left idle with the queue not empty.
+
+## 2026-08-12 16:30Z — the round-3 queue, checked end to end after a session drop
+
+Two dispatches before this one died within minutes of starting. The queue
+they left behind kept running, so this session adopted it rather than
+restarting it. Every part was found alive and was verified by its own
+output, not by the fact that a process exists:
+
+    q_run.sh        pid 22515   4 jobs placed, ADOPT after its own restart
+    sync_loop.sh    pid 4164566 tick 17:11, 12 files, sizes in the log
+    q_guard.sh      pid 4188854 floor $5.50, box 47557391
+    q_heartbeat.sh  pid 23744   hourly, last 16:08:54Z
+
+The box passes the gate the card set before any training:
+
+    device_count 2   torch 2.8.0+cu128   cuda 12.8
+
+Both cards carry two backbones each, 86% and 90% util, 10.8 GB of 24 GB per
+card. Four runs are on them:
+
+    B8   arm6_v2_nse_alignT_fix09      0 -> 100k    step   9,300
+    B10  arm6_v2_nse_alignS_fix09    100k -> 200k   step 109,000
+    A2   arm6_v2_nse_alignT_sched    100k -> 200k   step 108,700
+    B4   arm5_combab_alignT_fix09    100k -> 200k   step 108,700
+
+2.7 steps/s per run, so a 100k leg takes 10.3 h. Nine backbone jobs remain
+in the queue and four cards can hold four of them, so the backbone column
+finishes about 22 h from now: $17.8 at $0.8144/h. Credit is $27.12.
+
+**elisa's two cards cannot take a job right now.** 1,639 MiB and 5,530 MiB
+free against the 7,000 MiB a backbone needs and the 8,500 MiB a head needs.
+Other projects hold the rest. The dispatcher is right to leave them out, and
+it will place work on them the moment the VRAM appears. No card of ours is
+idle: the four rented slots are full and the queue's remaining GPU jobs are
+either waiting for a slot or waiting for the backbone they read.
+
+**The coverage table said `plan` for work that is on a card.** It reads the
+head and the eval, which is right, but a head whose backbone is training now
+is not the same as a head nobody has started. It now walks each head's
+dependency chain and marks `bb-run` when a running backbone job sits above
+it. B8's bb40k pair reads `bb-run` correctly: it hangs off `bb_B8_100k`,
+which writes the 40k checkpoint on the way past it.
+
+## 2026-08-12 17:40 BST — the A1/B3 student number is right
+
+The card blocked publication on this: A1 and B3 scored the same student
+number at both stops, 1.1305 at bb40k and 1.1676 at bb100k, while their
+teacher numbers differed. Two different backbones, one number, so one of
+them had to be wrong.
+
+The head and the eval paths are not the cause. Each cell has its own head
+directory, its own head checkpoint, and its own `backbone.txt`, and each
+records the checkpoint it read:
+
+    A1_k3_bb40k_student   cf393_arm5_combab_alignS_cf373k3_40k.pth
+    B3_k3_bb40k_student   bb_small_arm5_combab_lalign_lrep_..._cf373k3_40k.pth
+
+Their 97-config eval outputs are byte-identical (md5 eb5e4e21 for both
+`all_results.csv`). So the two models predict the same thing.
+
+`scripts/pair_identity.py` compares the checkpoints tensor by tensor,
+splitting student from teacher. It reports (`results/pair_identity.tsv`):
+
+    A1/B3   arm5_combab_alignS     bb40k    student  110/110 identical
+    A1/B3   arm5_combab_alignS     bb40k    teacher    0/52  differ, max 6.4e-03
+    A1/B3   arm5_combab_alignS     bb100k   student  110/110 identical
+    A1/B3   arm5_combab_alignS     bb100k   teacher    0/52  differ, max 1.99e-01
+    A4/B1   arm6_v2_combab_alignS  bb40k    student    4/110 identical
+    A3/B2   arm6_v2_combab_alignT  bb40k    student    4/110 identical
+
+A1 and B3 hold the SAME student weights, bit for bit, at both stops. The
+student head reads the student side only, so one number for both cells is
+the correct answer.
+
+The reason is in the arm. `arm5_combab` carries `--loss-shape
+cosine_similarity_batch_rep_only --align-loss-weight 1.0 --tau-rep 1.0
+--cpc-infonce-weight 0.0` and aligns to the student. It has no
+`--moco-rep-keys`. So no loss term reads the EMA encoder, the EMA regime
+sends no gradient into the student, and the two regimes train one student
+from one seed. The EMA regime shows in the teacher tensors only, and the
+teacher numbers do differ: 1.1318 against 1.1343, 1.1565 against 1.1618.
+
+The other three same-arm pairs run `arm6_v2`, which does carry
+`--moco-rep-keys`. There the EMA encoder produces the keys, so the regime
+reaches the student, and A4/B1 and A3/B2 differ on 106 of 110 student
+tensors. A2/B8 waits on B8's first checkpoint.
+
+Nothing is re-run. A1 and B3 report one student number because they trained
+one student.
+
+## 2026-08-12 17:45 BST — two fixes to the round's own instruments
+
+**The coverage denominator counted the stops.** `deliverables 84 done 65`
+put the 13 heads the extend rule ended into both the numerator and the
+denominator. A stop is not a deliverable. The line now reads
+`deliverables 71 done 52 ... (+13 stops, not deliverables)`.
+
+**Nothing restarted the dispatcher.** `q_run.sh` runs detached, so a dead
+session does not kill it, but nothing brought it back if it died on its
+own, and the cards would then drain their jobs and idle against a full
+queue. `scripts/q_super.sh` checks every 5 minutes and restarts it once.
+It identifies the dispatcher by `ppid == 1`, because the dispatcher forks a
+subshell per local job that carries the same argv — counting by argv alone
+reads a running local head as a live dispatcher. It stands down when the
+guard writes `BLOCKED_BUDGET` or when the queue drains.
+
+## 2026-08-12 18:20 BST — three faults in the queue's own machinery
+
+The five running backbones were untouched. Every fault below sat ahead of a
+job that had not started yet, so fixing them cost nothing already spent.
+
+**An extend resumed the wrong checkpoint for B1 and B2.**
+`stage_bb_remote` staged `stop - 100000`, which names the 100k for every
+cell. B1 and B2 hold a 140k, written 2026-08-12 14:17, optimizer beside it.
+Both would have retrained 40,000 steps that are already on disk: 80,000
+steps, 8.4 slot-hours at the 2.63 steps/s the box measures.
+
+`cell_paths.sh` gains `cf373_bb_below <cell> <k> <stop>`: the furthest
+checkpoint strictly below the stop, chosen by the step in its name, and only
+if its optimizer sidecar is there. Group B keeps one directory per run;
+group A keeps one per leg, so the search walks the arm's sibling legs. It
+resolves 140k for B1 and B2 and 100k for B4, B6, B10, A2, A3, A4.
+
+The 140k pairs were copied from the round-2 roots into the round-3 root,
+size-checked, `.tmp` then `mv`. The round-2 copies stay.
+
+**The group B launchers pick their resume by mtime.** `run_arm_k.sh:364` and
+`run_arm_lalign_k.sh:238` read `ls -t`, and staging a checkpoint onto the box
+gives it the newest mtime there. A staged 100k would therefore win over a
+140k that arrived earlier. `launch_bb` now passes `RESUME_FROM` and names the
+file. `run_leg_k.sh` already chooses by step and is left alone.
+
+**Two dispatchers ran at once, for about two minutes.** `setsid nohup bash
+q_run.sh &` leaves two processes: a wrapper and the loop. Killing the wrapper
+left the loop running, and the replacement made two. Round 2 lost a run to
+exactly this, two processes writing one run name.
+
+The supervisor could not have caught it. Its test was `argv matches` plus
+`ppid == 1`, and a restart orphans every local job's subshell onto init, so
+an orphan reads as a live dispatcher. The dispatcher now writes
+`results/queue/dispatcher.pid` with its own `$$`, and `q_super.sh` checks that
+pid is alive and still running `q_run.sh`. Verified: one loop, pid 186853,
+five jobs adopted, `sleep 60` on its poll.
+
+## 2026-08-12 18:55 BST — the session resumed; nothing was restarted
+
+The queue survived two dead sessions. On resume it held one dispatcher
+(pid 186853), one supervisor, one budget guard, one 15-minute sync loop and
+five backbones, and every one of them was still doing its job. Nothing was
+relaunched. `torch.cuda.device_count()` prints 2 on box 47557391, and both
+its cards read 77% and 89%.
+
+Steps at 18:37, off the losses CSVs:
+
+    B8   0    -> 100k    21,900   fresh
+    B10  100k -> 200k   121,700
+    A2   100k -> 200k   121,800
+    B4   100k -> 200k   122,300
+    B6   100k -> 200k   115,400   elisa, GPU 1
+
+2.9 steps/s per remote slot, 3.7 on elisa. elisa's GPU 0 holds 2.0 GB free
+against the 7 GB a backbone needs, so the dispatcher leaves it out.
+
+The four queued extends resolve the checkpoint the plan asked for:
+
+    B2 -> ..._alignteacher_cf373k3_r3_140k.pth
+    B1 -> ..._cf373k3_r3_140k.pth
+    A3 -> cf393_arm6_v2_combab_alignT_cf373k3_100k.pth
+    A4 -> cf393_arm6_v2_combab_alignS_cf373k3_100k.pth
+
+## 2026-08-12 19:05 BST — two faults between the numbers and the report
+
+**Round 3's numbers could not have reached a figure.** Every split and plot
+script reads `results/eval/*/all_results.csv` in the git checkout. Round 2
+had `r2_collect.sh` to put them there, which reads one directory per cell
+under `~/cf373_r2`. Round 3 writes ONE flat root, `~/cf373_r3`, and nothing
+read it. A 200k eval would have finished, written its 97 configs, and never
+appeared in a plot.
+
+`scripts/r3_collect.sh` reads the flat layout: the 97-config CSV, the
+summary, the head's `backbone.txt` and `head.log`, the trainer logs, and the
+losses CSVs at every 200th row. It skips a CSV holding fewer than 97
+configs, so no figure can average over a partial eval. First run: 0 evals
+(round 3 has scored nothing yet), 7 logs, 19 curves.
+
+**The coverage table called ten scored cells `never ran`.** It was built
+from the run registry, which knows round 1's 32 runs and stops there. It
+now counts the score files, which are the thing that says a number exists,
+and gains a `stops scored` column. It reads 13 of 14 cells scored, B8 the
+one hole, stops bb40k and bb100k. bb200k appears in it as those land.
+
+**Still stale, for the report stage.** The report's title, its opening
+paragraph and its figures describe round 1: four cells at bb40k. The tables
+below them now describe thirteen at two stops. The prose is the writer
+stage's job and the 200k numbers are not in yet, so nothing above the
+`TABLES` block was touched.
+
+## 2026-08-12 19:30 BST — the head path, tested before it was needed
+
+The session resumed onto a queue that was still doing its job: one
+dispatcher, one supervisor, one budget guard, one 15-minute sync loop, one
+publisher on a 20-minute timer, and five backbones. Nothing was restarted
+for its own sake. Credit $25.55, box spend $2.48 over 3 h 2 m at $0.8144/h.
+`torch.cuda.device_count()` prints 2 on box 47557391.
+
+Round 3 had trained nine backbones and run no head and no eval. That half
+of the queue was therefore untested, and it holds 19 heads and 19 evals —
+every number this round produces. Three faults were in it.
+
+**A head on the rented box could not read a backbone trained on elisa.**
+`r2_head_box.sh` resolves its checkpoint under `CF373_ROOT` on the machine
+that runs it, and four of this round's nine backbones train on elisa. B6 is
+one of them. Its head would have found nothing, exited 3, and been marked
+`failed` — a state the dispatcher never retries. `q_run.sh` now stages it:
+ask the box first, because a backbone it trained is already there and the
+ask costs one ssh, and mirror from elisa only when it is not. No optimizer;
+a head reads weights, it does not resume. A checkpoint that is on neither
+machine yet returns non-zero, which leaves the job QUEUED rather than
+failed, so the next sync tick and the next dispatch place it.
+
+**19 heads behind 9 backbones on four slots.** The queue puts every extend
+ahead of every head, correctly — the extends are what the card asked for.
+But four slots meant no head could start until the last extend had a card,
+and that put about six hours of head time at the end of a bill paid by the
+hour. Each rented card now carries a THIRD slot, and it takes heads only:
+5.4 GB + 5.4 GB + 7 GB against 24.5 GB, on cards reading 77% and 89%. A
+head there takes no slot from a backbone; it fills what the two backbones
+leave. Backbones are barred from it, or a third backbone would slow the two
+on the critical path to buy one that is not. `r2_head_box.sh` still gates on
+8.5 GB free before it allocates, so a card that is genuinely full makes the
+head wait instead of dying on an OOM.
+
+**A head could lose its provenance marker, and the guard would pass.** The
+eval refuses a head whose `backbone.txt` names a checkpoint other than the
+one the cell resolves to. That file is written AFTER training. The smoke
+test below was killed by an ssh drop in exactly that window and left
+`final.pth`, its optimizer and the encoder-source marker with no
+`backbone.txt` — and the re-run then hit the SKIP guard and exited before
+the line that writes it. A missing marker makes the pair check pass by
+being absent, which is the one way it must never pass. It is now written on
+the skip path too. Reproduced on the box, fixed, re-run, verified.
+
+**The smoke test.** A 200-step head on B10's bb100k checkpoint, into
+`/root/cf373_smoke`, a scratch root outside the synced tree: rc=0, a
+449,943-byte head, its optimizer, the encoder-source marker, the losses CSV.
+The eval half is under test now — the full 97 configs over 8 shards on
+elisa's cores against that same throwaway head, into
+`/home/jupyter/cf373_smoke_eval`. Its number is meaningless and is not a
+score; what it proves is the shard split, the merge, the 97/97 check, the
+aggregate pass and the score extraction, in round 3's flat layout.
+
+**Scripts now reach git.** The queue runs out of `wt-cf-373-run2`, so a fix
+made while it is live is made there, and the publisher copied results only.
+Three scripts were edited today and only a hand copy would have committed
+them. `r3_publish.sh` now copies `scripts/` on every tick.
+
+## 2026-08-12 19:50 BST — B1 does have a bb40k comparison
+
+The card extends B1 with "B1 has no valid 40k comparison; extend and say
+so", and the queue file repeated it. The decision stands — B1 is extending —
+but the premise does not, and the report should not carry it.
+
+B1's bb40k pair is round 1's, written under the name `G6_B1_k3_bb40k_*`
+before round 2 renamed the tags. Three things make it this cell's number at
+this cell's protocol:
+
+    checkpoint   the head log names
+                 bb_small_arm6_v2_combab_lalign_lrepmoco_..._cf373k3_40k.pth
+                 md5 23ba3d9dcb4a9ee86d18a377a5965ff1, which is the file
+                 round 2 resumed to reach 100k
+    head         15,000 steps, seed 20260722, quantile head, 2-layer
+                 transformer, forecast-len 16, batch 256, lr 1e-3,
+                 grad-clip 1.0 — the other thirteen cells' bb40k protocol
+    eval         97 configs, strategy B4, horizon 16, aggregate
+                 GM-Relative MASE 1.0850 student / 1.0948 teacher
+
+Round 2 started its own B1 bb40k head and did not finish it: that directory
+holds `_best.pth` and its optimizer, no `_final.pth`, and no eval ran. So
+there is one bb40k number for B1, not two that disagree.
+
+The one difference from round 2's bb100k head is the machine — round 1 ran
+heads on elisa, round 2 and 3 run them on the rented box — and the card
+rules that question closed. Under that ruling the pair is comparable, and
+the extend rule can be read on B1 like any other cell: 1.0850 -> 1.0881 on
+the student, 1.0948 -> 1.0897 on the teacher. The student is flat to
+slightly worse, the teacher slightly better.
+
+`scripts/q_queue.tsv` said "B1 carries no bb40k number of its own, so the
+rule could not be tested on it". That sentence is now corrected in place.
+
+## 2026-08-12 20:05 BST — A1 and B3 hold one student, not two
+
+The card blocked publication of A1 and B3 until one of their two equal
+student scores was shown to be wrong. Neither is wrong. The two cells train
+one and the same student, bit for bit, and the shared number is what that
+must produce.
+
+The chain, tested end to end by `scripts/pair_identity.py`:
+
+    backbone   student side 110/110 tensors identical, max|diff| 0, at
+               bb40k and at bb100k. Teacher side 0/52, max|diff| 6.4e-3 at
+               bb40k and 1.99e-1 at bb100k — the regime shows there.
+    head       the student head trained off each: 28/28 tensors identical,
+               max|diff| 0, at both stops. The teacher heads differ,
+               max|diff| 1.65 and 4.16.
+    eval       identical head, identical 97 configs, identical aggregate:
+               1.1305 at bb40k, 1.1676 at bb100k.
+
+Nothing shared a path. A1 evaluates out of `A1/sync/eval/A1_k3_bb*_*`, B3
+out of `B3/sync/eval/B3_k3_bb*_*`, and each head's `backbone.txt` names its
+own cell's checkpoint. The two backbone FILES differ by md5 — f99fa42c
+against b3a51f06 at 40k — because the teacher tensors differ inside them.
+File md5 was the wrong instrument: it reads a difference the student head
+never loads. Head md5 differs too, on bytes that are not weights.
+
+**Why the EMA regime cannot reach this student.** A1 and B3 run
+`arm5_combab` with `--align-target student`. Two things could carry the EMA
+teacher into the student's gradient, and this arm has neither:
+
+    L_align    `align_ref = hy_teacher_norm if align_tgt == 'teacher' else
+               hy_norm`, then `.detach()` (src/loss.py). With the student as
+               its own target the term is the student against a detached
+               copy of itself. The teacher is not read.
+    MoCo keys  `--moco-rep-keys` gives the contrastive loss teacher-encoded
+               keys. `arm5_combab` does not pass it; `arm6_v2_combab` does.
+
+So in this arm the teacher is a by-product: updated every step, read by
+nothing. The trainer logs agree from the first stop — both runs print
+`loss=17.3118 ema_loss=17.3034 gap=-0.1967 AUC=0.8438` at step 200 — which
+is the same statement one step into training.
+
+The other three pairs all carry `--moco-rep-keys`, and their students
+differ: A4/B1 4/110 identical, A3/B2 4/110. A2/B8 fills in when B8's
+checkpoints land; the publisher re-runs the check every 20 minutes.
+
+**No re-run.** Re-training the two student heads and re-running the two
+97-config evals costs four GPU-hours and about half a dollar of a $25
+budget, and the inputs are equal bit for bit, so it can only reproduce
+1.1305 and 1.1676. The pair is published as ONE student measurement carried
+by two cells, and as two teacher measurements.
+
+## 2026-08-12 20:10 BST — the queue was found running, and left running
+
+The session resumed onto live work and restarted nothing. One dispatcher
+(pid 267027), one supervisor, one budget guard, one 15-minute sync loop, one
+20-minute publisher, five backbones.
+
+Two things read like faults and are not:
+
+    two `bash scripts/q_run.sh`   pid 52775 is B6's job wrapper, orphaned
+                                  onto init when the dispatcher restarted. A
+                                  local job's subshell inherits the
+                                  dispatcher's argv. It has one child,
+                                  run_arm_k.sh; the real dispatcher has one
+                                  child, `sleep 60`. Killing the wrapper
+                                  would drop B6's return code.
+    A1 = B3 on the student        one model, two cells. See the entry above.
+
+Checked before leaving it alone: `HF_TOKEN` and `HUGGING_FACE_HUB_TOKEN` are
+in the environment of the box's training processes, and step timing reads
+`data=5.0ms` against `fwd=168ms bwd=136ms`, so the stream is not throttling
+the cards; 52 GB free on the box; both cards 85–88% util; B1 and B2 resolve
+their resume to their own `_r3_140k.pth`, so those two extends cost 60k
+steps, not 100k; the extend re-fires the cell's own launcher with the same
+arm argument, so a 200k leg cannot differ from its 100k leg by a flag; head
+protocol is 15,000 steps at bb40k and 30,000 above it, seed 20260722,
+`--grad-clip 1.0`; the eval writes `score_<CELL>_k3_bb<stop>k_<enc>.txt`,
+which is the name the coverage table and the tables script read.
+
+The ladder figure already draws a 200k tick and fills it from the score
+files, so the round's headline needs no new plotting code.
+
+## 2026-08-12 20:35 BST — the A1/B3 block is closed on the files, not on an argument
+
+The card asked for one thing before anything is published: find the head or
+eval path key that ignores the EMA regime. The answer is that there is none.
+`scripts/pair_head_files.py` resolves both sides of every same-arm pair and
+prints the file behind each one:
+
+    A1/B3 bb40k  student   A1 7b0c4786   B3 74464de1   separate files
+    A1/B3 bb100k student   A1 98e33fb9   B3 eed8a553   separate files
+    A1/B3 bb40k  teacher   A1 1ac4a40d   B3 f3cc0d9d   separate files
+    A1/B3 bb100k teacher   A1 dc5f7b0e   B3 4d543b0f   separate files
+
+Four distinct md5s per stop, under four distinct cell-id directories:
+`cf373_r2/A1/sync/eval/A1_k3_bb100k_student/` against
+`cf373_r2/B3/sync/eval/B3_k3_bb100k_student/`. The evals agree — each log
+merges its own 97 configs into its own `all_results.csv`:
+
+    A1 [08-11 10:03:13] merged 97 -> .../A1/sync/eval/A1_k3_bb100k_student/gift/
+    B3 [08-11 10:35:17] merged 97 -> .../B3/sync/eval/B3_k3_bb100k_student/gift/
+
+No path, no file and no directory is shared. The three other pairs are clean
+by the same test.
+
+**The re-run the card asked for has already happened.** Two head trainings
+ran, from two directories, off two backbone files with different md5s. Two
+97-config evals ran, into two directories. They returned the same number
+because `pair_identity.tsv` says the student tensors going in were equal bit
+for bit — 110/110, max|diff| 0.000e+00 — and the heads coming out were equal
+bit for bit too, 28/28. Doing it a third time cannot say more; it would only
+re-measure a deterministic map on the same input, at four GPU-hours off a
+queue with nine backbones still to run.
+
+**So A1 and B3 are publishable now**, with the equality stated in the table
+and not hidden: ONE student measurement carried by two cells, TWO teacher
+measurements. The cause is in the arm, and it is the reason the equality is
+information rather than an error — `arm5_combab --align-target student` has
+no path from the EMA teacher into the student's gradient (align target
+detaches to self; the arm does not pass `--moco-rep-keys`), so the EMA
+regime, which is the only difference between A1 and B3, cannot move the
+student. Same seed, same student, to the bit. The three pairs that DO pass
+`--moco-rep-keys` all differ.
+
+**Naming.** The 14-cell grid now reads `score_<CELL>_k3_bb<stop>k_<head>.txt`
+throughout; `score_B1_k3_bb40k_student.txt` holds 1.0850 and the teacher
+1.0948, the same numbers round 1 wrote under `score_G6_B1_k3_bb40k_*`. The
+`G*` and `k0` files that remain are round-1 side measurements and depth-0
+controls, which are not cells and must not carry cell names.
+
+## 2026-08-12 21:05 BST — round 3 picked up on a fresh session, nothing restarted
+
+The previous two dispatches died on a session limit within minutes of
+launching. This one found the round already running and left it running.
+
+**What was alive.** One dispatcher (`q_run.sh`, pid 267027, eight slots), one
+sync loop at 15 min, one credit guard at the $5.50 floor, one reaper, one
+hourly heartbeat, one publisher on a 20-minute timer. Five backbones training:
+
+    job            cell  from   to     step at 20:50Z   where
+    bb_B8_100k     B8    0      100k   42,800          box gpu0
+    bb_B10_200k    B10   100k   200k   142,700         box gpu0
+    bb_A2_200k     A2    100k   200k   142,600         box gpu1
+    bb_B4_200k     B4    100k   200k   143,200         box gpu1
+    bb_B6_200k     B6    100k   200k   141,800         elisa gpu1
+
+**One process looked like a second dispatcher and is not.** Pid 52775 carries
+the argv `bash scripts/q_run.sh` and holds B6's process tree, so `ps` reads it
+as a duplicate. Its file descriptors say otherwise: fd 1 is
+`results/q_bb_B6_200k.log` and fd 0 is the queue file the dispatch loop reads.
+It is the `( ... ) &` subshell `launch_bb` forks for a local job, orphaned onto
+init when the dispatcher it came from was replaced. It is in `do_wait` on the
+training, and it will write `queue/bb_B6_200k.rc` when the training ends, which
+is the only thing the live dispatcher polls. Killing it would have dropped B6's
+completion signal on the floor. It stays.
+
+**The resume restores the step counter.** The backbone `.pth` is a bare
+state_dict with no step in it, so the counter has to come from the optimizer
+sidecar. The four running extends prove it does: B10 resumed
+`..._r2_100k.pth` at 16:31 and read 142,700 at 20:50, which is 100,000 plus
+the 42,700 steps 4.3 h at 2.76 sps buys. B1 and B2 will resume their 140k the
+same way. `cf373_bb_below` resolves every one of the nine:
+
+    B8   40k   (fresh run, saves 40k on the way to 100k)
+    B10  _r3_140k        A3  leg_100k/..._100k
+    A2   leg_200k/..._140k   A4  leg_100k/..._100k
+    B4   _r3_140k        B1  _r3_140k
+    B6   _r3_140k        B2  _r3_140k
+
+**The box passes the gate the card set.** `47557391`, label `cf373-dual`,
+2x RTX 4090, $0.8144/h, on-demand. `python3 -c "import torch;
+print(torch.cuda.device_count())"` prints 2. Both cards read 92% and 70% with
+four `train.py` processes on them.
+
+**One real fault, fixed.** The publisher running since 18:59 was started before
+the commit that added the `pair_head_files.py` block, and bash had already
+parsed its loop body, so the new script and its table never crossed into the
+git checkout. `results/pair_head_files.tsv`, `results/pair_identity.tsv` and
+`scripts/pair_head_files.py` were missing from the branch while the report
+argued from them. Copied by hand, publisher restarted on the current file,
+committed as `b831261c`. A stray `scripts/execution_log.md`, a duplicate of
+this file in the wrong directory, went with it.
+
+**A headline count was wrong in the first PR comment and is corrected in the
+second.** 40k -> 100k splits 7 down and 6 up on both heads, not 9 and 3. The
+seven that improve are the seven the queue extends; the six that worsen are the
+five the rule stopped at 100k, plus B1 at +0.0031.
+
+**Budget at 21:05Z.** Credit $24.31, box spent $3.71 over 4h 33m. The four
+remote backbones need about 5.7 h more, then B2/A3/A4/B1 extend — B1 and B2
+from 140k, so 60k steps each — and the heads fill the two head-only slots
+behind them. About 18 h of box time, about $14.7, leaving about $9.6 over the
+$5.50 floor.
+
+## 2026-08-12 21:16 — session four: the head-only slots, and the A1/B3 block
+
+This session found the round running: one dispatcher, one supervisor, one
+sync loop, one credit guard, one hourly heartbeat, one publisher, five
+backbones and two heads. It changed one thing and closed one block.
+
+**The two head-only slots were idle, and would have stayed idle four more
+hours.** Every queued head waits on a backbone that is still running, so
+between the last head ending and the first extend finishing there is no head
+to place, and the old rule reserved those two slots for heads alone. Four
+backbones sat queued against two empty slots on a card that is paid for by
+the hour.
+
+`q_run.sh` now lets a backbone take a head-only slot while no head can use
+one. `heads_ready()` walks the queue for a head that is `queued` with its
+dependency `done`; a backbone takes the slot only when that returns false.
+When a backbone ends, its own slot frees, so a head can never be buried
+behind a six-hour extend. B2 took the first slot at 21:27 and A3 the second
+at 21:29.
+
+The card already carried three training processes — two backbones and a
+head — so the third backbone replaces a process rather than adding one. Per
+backbone rate measured at 2.980 sps under two backbones and a head.
+
+**The A1/B3 block: no number is wrong.** The card blocked publication until
+one of the two equal student scores was shown wrong. Neither is. The two
+cells hold the same student weights, so the student column holds one
+measurement printed twice.
+
+    evidence                                    file
+    two runs, two backbone files                each cell's eval/backbone.txt
+    four head files, four md5 sums              results/pair_head_files.tsv
+    110/110 student tensors equal, 0.000e+00    results/pair_identity.tsv
+    head loss curves equal step for step        each cell's head losses.csv
+
+`arm5_combab` passes no `--moco-rep-keys`. The loss reads no teacher output,
+so the EMA copy has no gradient path into the student and the EMA schedule
+moves the teacher alone. The teacher scores do differ, 1.1318 against
+1.1343 at bb40k. The three other same-arm pairs run `arm6_v2_*`, which does
+pass `--moco-rep-keys`, and their students differ by 2.377, 3.103 and 5.025.
+
+**Naming.** Every cell score is `score_<CELL>_k3_<stop>_<head>.txt`. B1's
+bb40k pair reads the same under the new name and the round-1 alias. The
+`score_G*` files that remain are round-1 controls, not cells.
+
+**Budget at 21:28.** Credit $23.76, box spent $4.26 over 5 h 13 m at
+$0.8144/h.
+
+## 2026-08-12 21:36 — the dispatcher stalled on its first eval
+
+B8's bb40k student eval started at 21:30 and the dispatcher stopped placing
+and reaping at that moment. It sat in `pipe_read` for six minutes with seven
+backbones running and forty jobs queued.
+
+`q_run.sh` called the eval launcher as `why="$(launch_eval ...)"`. Command
+substitution reads the child's stdout to end-of-file, and `launch_eval`
+backgrounds the eval with `( ... ) &`, which inherits that same pipe. The
+read therefore returns when the EVAL ends, not when the launcher does. One
+97-config eval takes about 43 minutes on four shards, and nineteen of them
+run this round, so the queue would have lost about thirteen hours to a
+dispatcher that was waiting on work it had already started.
+
+Round 2 ran its evals from `r2_eval_driver.sh`, so no eval had ever gone
+through this path before B8's.
+
+Fixed: call `launch_eval` directly and read its exit status. The eval that
+was already running keeps its process; its state file was written by hand as
+`running` on `elisa-cpu` so the restarted dispatcher adopts it rather than
+starting a second copy of the same tag.
+
+## 2026-08-12 21:42 — what the third backbone per card costs
+
+Per-process step rate on the rented box, 602-second window, three backbones
+per card:
+
+    B4   2.824 sps      A3   2.990 sps
+    B2   2.990 sps      A2   2.658 sps
+
+Two backbones and a head on the same card, measured 20 minutes earlier, ran
+at 2.980 sps each. So the third backbone takes almost nothing from the other
+two: a d_model=64 model at batch 64 is launch-bound, and the card reads 98-99%
+without being compute-bound. Card throughput goes from about 5.96 sps to
+about 8.7 sps.
+
+That is what the head-only slot rule was costing while it held two slots
+empty for heads that could not start.
+
+Remaining box work at this rate: about 508k backbone steps and about 510k
+head steps, 8.1 h each over the box's two cards, about 16 h and $13 of
+rental. B6 runs on elisa at 3.42 sps and costs nothing.
+
+## 2026-08-13 02:10Z — session five: the head lock never released
+
+This session found the round running: one dispatcher, one supervisor, one
+sync loop, one credit guard, one hourly heartbeat, one publisher, one
+reaper, three backbones and four heads. It fixed one fault, removed one
+race, and armed one watchdog.
+
+**The per-card head lock held for the whole run, not 180 seconds.**
+`r2_head_box.sh` takes a per-card lock, starts the head, sleeps 180 s and
+closes its own descriptor, so a second head can share the card. The close
+did nothing. A lock lives until EVERY descriptor on it closes, and the
+backgrounded python inherits the parent's fd 7. So each head kept its card
+locked for its whole 30,000 steps and the next head on that card waited.
+
+Measured on the box at 02:11Z:
+
+    /proc/26742/fd/7 -> /tmp/cf373_r2_head.gpu0.lock    B8 teacher, training
+    /proc/27082/fd/7 -> /tmp/cf373_r2_head.gpu0.lock    B10 student, in flock
+    /proc/27231/fd/7 -> /tmp/cf373_r2_head.gpu0.lock    B10 teacher, in flock
+
+Card 0 held 19,090 MiB free while two heads waited on it. The same lock had
+already serialised B8's two bb100k heads: the student ran 01:17 to 02:01,
+and the teacher's start line reads 02:01.
+
+Fixed by closing the descriptor in the child: `... >>"$LOG" 2>&1 7>&- &`.
+Deployed to both copies, worktree and box, by `mv` over the path, so the
+three wrappers already running keep the old inode and are not corrupted
+mid-read. B10's two waiters were released by killing their `flock`
+processes; `set -uo pipefail` carries no `-e`, so each wrapper fell through
+to the VRAM gate, which passed, and both heads started. Four heads then ran
+at once, three on card 0 and one on card 1, with 7,680 MiB still free.
+
+Fifteen heads remain. The fix roughly halves their wall-clock.
+
+**A second supervisor was watching the same dispatcher.** `q_super.sh` 268303
+was orphaned when its dispatcher died at 21:37 on 08-12, and 452407 started
+a new pair. Neither holds a lock. Both poll every 300 s and both restart a
+dispatcher they find dead, which is the duplicate-process failure the script
+was written to prevent. Killed 268303. One supervisor, one dispatcher, 452407
+and 452409.
+
+**The watchdog.** `scripts/q_watchdog.sh` says one line per job state change,
+one line per hour, and one STALL line when the summed step counter of every
+training log does not move between hourly probes. It starts nothing and
+moves nothing. It exists because a process that is alive, a log that tails
+clean and a card at 0% look identical to a working run, and the meter runs
+either way.
+
+**Budget at 02:17Z.** Credit $19.14. Box 47557391 spent $8.90 over 10 h 55 m
+at $0.8144/h. Backbone ETAs off their own logs: A3 3.5 h, B1 4.8 h, A4 6.4 h
+on elisa. The box carries A3 and B1, so it has about 5 h of GPU work left,
+about $4.1. Evals need no GPU and run on elisa's cores.
+
+## 2026-08-13 02:45Z — session six: the round's two blocking items, checked against the files
+
+This session found the round running and healthy: one dispatcher, one
+supervisor, one sync loop, one credit guard, one hourly heartbeat, one
+publisher, one reaper, three backbones, four heads and two evals. It started
+nothing new. It re-armed the watchdog, which had died after its first probe,
+and it checked the two items the card blocked on.
+
+**A1/B3 is not a path-key fault.** The card asked which head or eval path key
+ignores the EMA regime. None does. `results/pair_head_files.tsv` gives four
+head files at four cell-id paths with four different md5 sums. The weights
+inside them are equal: `results/pair_identity.tsv` reads 110/110 student
+tensors and 28/28 student head tensors at max abs diff 0.000e+00.
+
+The cause is in the arm, not the path. Neither A1's nor B3's run passes
+`--moco-rep-keys`, checked against both run logs. The loss reads no teacher
+output, so the EMA copy has no gradient path into the student.
+`scripts/cells.tsv` gives A1 as `arm5_combab_alignS_sched` and B3 as
+`arm5_combab_alignS_fix09`, so the EMA regime is their only difference, and
+it moves the teacher alone. Two runs, one student trajectory, one student
+score printed twice. The teachers do differ, 1.1318 against 1.1343 at bb40k.
+
+**Naming holds.** 54 of 54 scored cell-stop-head triples read
+`score_<CELL>_k3_bb<stop>k_<head>.txt`. All 14 cells carry a 40k pair and a
+100k pair, except B8's 100k pair, which is in flight. B1's bb40k reads 1.0850
+student and 1.0948 teacher under the standard name and under the round-1
+alias `score_G6_B1_k3_bb40k_*`. The remaining `score_G*` and `score_*_k0_*`
+files are round-1 and depth-0 controls, not cells.
+
+**Spec, checked against the running processes, not the launcher.** Heads on
+the box run `--total-steps 30000 --seed 20260722 --grad-clip 1.0`. Evals run
+`--strategy B4 --forecast-len 16` over 97 configs, counted from
+`scripts/shard_configs.py` as 23+25+25+24.
+
+**No GPU is idle.** Seven of the eight slots carry a job. The eighth is
+elisa card 0, which holds 22.5 GB of other projects' work and has 2 GB free,
+so the VRAM gate holds it back. That is the gate working, not the queue
+stalling.
+
+**`scripts/q_await_round.sh`.** One round's wait for the watching session. It
+moves no work. It blocks until the queue empties, a job fails, the dispatcher
+dies, credit falls under the floor, or an hour passes, then prints the reason
+and the coverage table and exits. The hourly arm exists because a session
+that waits only on notifications learns nothing when the thing that should
+notify it is the thing that died.
+
+**Budget at 02:45Z.** Credit $18.66. Box 47557391 spent $9.33 over 12.1 h at
+$0.8144/h. Backbone ETAs off their own logs: A3 3.1 h, B1 4.5 h, A4 6.1 h on
+elisa. The box carries A3 and B1 and their head pairs, so about 5.3 h and
+$4.3 remain on it. A4 finishes on elisa and costs nothing.
+
+## 2026-08-13 03:10Z — session seven: the two blocked items close on the bytes
+
+This session found the round running with every daemon alive: one
+dispatcher, one supervisor, one sync loop, one credit guard, one hourly
+heartbeat, one publisher, one watchdog. Two backbones and three heads run on
+the box, one backbone on elisa, four evals on elisa's cores. It started no
+new work and moved no job. It closed the card's two blocking items and
+measured the round's remaining cost.
+
+**A1/B3: the pipeline ran twice and agreed to the byte.** The card asked for
+a re-run of the student head and the 97-config eval for both cells into
+cell-id paths. That re-run is already on disk, and it is what produced the
+shared number. Each cell holds its own head file and its own eval tree:
+
+    A1/sync/eval/A1_k3_bb40k_student/gift/all_results.csv   eb5e4e21...
+    B3/sync/eval/B3_k3_bb40k_student/gift/all_results.csv   eb5e4e21...
+
+Every one of the four shard CSVs matches, and so does each head's own
+`_losses.csv`. Two head trainings, two eval runs, separate directories,
+identical bytes.
+
+The cause is in the arm. `run_leg_k.sh` gives A1 `--loss-shape
+cosine_similarity_batch_rep_only --align-loss-weight 1.0 --tau-rep 1.0` with
+`--align-target student`. `run_arm_k.sh` gives B3 the same three loss args
+and the same default target. Neither passes `--moco-rep-keys`. The two
+launchers differ in one line: A1 ramps the EMA (`--ema-tau 0.9 --ema-tau-end
+1.0 --ema-tau-ramp-steps 100000`), B3 holds it at 0.9.
+
+With the align target on the student and no MoCo keys, the loss reads no
+teacher output. `tests/test_390_align_target_main_loss.py` fixes that
+contract: with no `align_target` the added term is L_align(f, o), the
+student's own encoder output, for `moco_rep=False` and `moco_rep=True`
+alike. So the EMA regime moves the teacher and nothing else, and the student
+trajectory is the same run twice. `results/pair_identity.tsv` measures it:
+110 of 110 student tensors equal at max abs diff 0.000e+00, at 40k and at
+100k. The teachers differ, 6.4e-3 at 40k and 1.986e-1 at 100k, and the
+teacher scores differ, 1.1318 against 1.1343.
+
+The number 1.1305/1.1676 is right for both cells. What the report cannot do
+is read A1 against B3 on the student column: that column holds one
+trajectory, not two. The teacher column separates the regimes. The other
+three pairs differ on both sides, so the comparison holds for them.
+
+**Naming holds, audited cell by cell.** All 56 cell-stop-head triples were
+checked for `score_<CELL>_k3_bb<stop>k_<head>.txt`. 54 exist, which is every
+scored deliverable; the two absent are B8's bb100k pair, in flight. B1's
+bb40k reads 1.0850 student and 1.0948 teacher under the standard name. The
+20 score files outside the pattern are all `k0`, `k1`, `aw4` or seed-2
+controls, plus the round-1 alias `score_G6_B1_k3_bb40k_*`, which carries the
+same two numbers as B1's standard pair. No cell score hides under a
+non-standard name.
+
+**The head lock fix works.** Checked on the live box: B4's two wrappers hold
+no fd 7, so their cards are free; B6's student, 167 s old, still holds
+`/tmp/cf373_r2_head.gpu0.lock` and releases at 180 s. Three heads and two
+backbones share two cards at 16.4 GB of 24.5 GB each.
+
+**No GPU is idle.** Six of the eight slots carry a job, one box slot fills
+on the next tick, and elisa card 0 holds 22.5 GB of another project's work
+with 2 GB free, so the VRAM gate holds it back.
+
+**Remaining work, off the training logs.**
+
+    A3  bb 200k   box card 1   171000/200000   2.7 h
+    B1  bb 200k   box card 1   159800/200000   4.0 h
+    A4  bb 200k   elisa card 1 126800/200000   5.9 h
+
+Nine heads and thirteen evals follow them. The box is needed until B1's head
+pair finishes, about 4.9 h, about $4.0. A4 finishes on elisa and costs
+nothing, and every eval runs on elisa's cores. Four concurrent evals clear
+twelve queued evals in the four hours before the last box head lands, so the
+eval column forms no backlog and the round ends on A4's eval.
+
+**Budget at 03:10Z.** Credit about $18.4. Box 47557391 spent about $9.7 over
+12.6 h at $0.8144/h. Projected spend to the end of the round: $4.0, leaving
+about $14.4.
+
+## 2026-08-13 03:35Z — session eight: the queue holds, no job moved by hand
+
+State at entry. Seven daemons alive: dispatcher, supervisor, sync loop,
+credit guard, hourly heartbeat, publisher, watchdog. Sixteen jobs done,
+eleven running, twenty left, zero failed. This session started no work and
+moved no job.
+
+Three backbones run.
+
+    A3  box card 1    173000/200000   ETA 2.5 h
+    B1  box card 1    161600/200000   ETA 3.8 h
+    A4  elisa card 1  130600/200000   ETA 5.8 h
+
+Four heads run on the box (B4 student, B4 teacher, B6 student, B6 teacher).
+Four evals run on elisa's cores (A2 200k student and teacher, B8 100k
+student and teacher).
+
+The card's two blocking items stay closed, re-audited on the bytes.
+`pair_identity.tsv` holds all four same-arm pairs at both stops. A1/B3 is
+identical on the student side, 110 of 110 tensors at 0.000e+00, and differs
+on the teacher side. The other three pairs differ on both sides. The cause
+is the arm: A1 and B3 run arm5 with `--align-target student` and no
+`--moco-rep-keys`, so the loss reads no teacher output and the EMA regime
+cannot move the student. A4/B1, A3/B2 and A2/B8 run arm6_v2, which carries
+MoCo rep keys, so the teacher enters the loss and both sides separate.
+
+Naming holds. 54 of 54 scored cell deliverables sit under
+`score_<CELL>_k3_bb<stop>k_<head>.txt`. The 20 files outside that pattern
+are k0, k1, aw4 and seed-2 controls, plus the round-1 alias
+`score_G6_B1_k3_bb40k_*`, which reads 1.0850 and 1.0948, the same two
+numbers as B1's standard pair.
+
+Budget at 03:26Z. Credit $18.10. Box 47557391 has run 12 h 12 m and spent
+$9.95 at $0.8144/h. The box is needed until B1's head pair lands, about
+4.8 h and about $3.9, which leaves about $14. A4 finishes on elisa and the
+evals run on elisa's cores, so both cost nothing.
+
+## 2026-08-13 03:50Z — session nine: the round runs, nothing moved by hand
+
+State at entry. Seven daemons alive: dispatcher (pid 452409), supervisor,
+sync loop, credit guard, hourly heartbeat, publisher, watchdog. 47 jobs:
+20 done, 11 running, 16 queued, 0 failed. This session started no work and
+moved no job.
+
+Three backbones run, off their own losses CSVs.
+
+    A3  bb 200k   box card 1    175900/200000   ETA 2.1 h
+    B1  bb 200k   box card 1    164500/200000   ETA 3.1 h
+    A4  bb 200k   elisa card 1  134300/200000   ETA 4.4 h
+
+Four heads run on the box (B2 student and teacher, B6 student and teacher).
+Four evals run on elisa's cores (A2 200k teacher, B10 200k student and
+teacher, B8 100k teacher).
+
+No GPU is idle. The box holds six processes over two cards at 100% and 97%.
+Elisa card 1 carries A4. Elisa card 0 holds 22.5 GB of another project's
+work, so the VRAM gate keeps the queue off it, and the four evals take
+elisa's cores instead.
+
+**B8 closes its 100k student.** 1.3157. The cell that failed 15 times on
+CUDA 13 hosts now holds three of its four numbers.
+
+**Both blocking items re-audited on the bytes, and both hold.**
+
+A1/B3 is one trajectory, not two. `pair_identity.tsv` reads 110 of 110
+student tensors equal at max abs diff 0.000e+00 at 40k and at 100k, and the
+student heads equal at 28 of 28. The teachers differ, 6.400e-03 at 40k and
+1.986e-01 at 100k. The head files are four distinct files with four distinct
+md5s, so the pipeline ran twice and agreed. The cause is the arm: arm5 with
+`--align-target student` and no `--moco-rep-keys` reads no teacher output,
+so the EMA regime moves the teacher and cannot move the student.
+
+The fourth pair now has its rows. B8 gained the checkpoints the test needed.
+
+    A2/B8  arm6_v2_nse_alignT  40   student  111  4  5.025e+00  differs
+    A2/B8  arm6_v2_nse_alignT  100  student  111  4  9.518e+00  differs
+
+All four same-arm pairs are tested. Three separate on both sides. Only A1/B3
+shares its student column, and the report must not read A1 against B3 there.
+
+Naming holds. 56 score files sit under `score_<CELL>_k3_bb<stop>k_<head>`.
+B1's 40k reads 1.0850 student and 1.0948 teacher under the standard name,
+the same two numbers as the round-1 alias `score_G6_B1_k3_bb40k_student`.
+Every file outside the pattern is a k0, k1, aw4 or seed-2 control.
+
+**Budget at 03:46Z.** Credit $17.83. Box 47557391 has run 12 h 32 m and
+spent $10.22 at $0.8144/h. The box is needed until B1's head pair lands,
+about 4.1 h and about $3.3, which leaves about $14.5. A4 finishes on elisa
+and the evals run on elisa's cores, so both cost nothing.
+
+**B1's bb40k: the card's premise does not hold, and the artefacts say why.**
+The card reads "B1 has no valid 40k comparison; extend and say so". B1 is
+extended, and this is what the files say. The head behind 1.0850 trained off
+`bb_small_arm6_v2_combab_lalign_lrepmoco_..._cf373k3_40k.pth` — B1's own 40k
+checkpoint, the file round 2 resumed — for 15,000 steps at seed 20260722,
+which is the head every other cell's bb40k carries. `stop.log` in
+`checkpoints_backup/cf-373/eval/G6_B1_k3_bb40k_student/` names that backbone
+on the head-train start line. The head, its optimizer and a 97-row
+`gift/all_results.csv` are all on disk. Only the NAME was non-standard, and
+round 3 normalised it. The report now carries this paragraph outside the
+generated table block, so the injector cannot drop it.
+
+**A4 extends the student head only**, as the card asked. The queue holds
+`hd_A4_200k_student` and `ev_A4_200k_student` and no teacher job for A4.
+
+## 2026-08-13 05:20 UTC — session six, round 1: the eval cap goes 3 -> 5
+
+The card's two blocking items were already closed on disk when this session
+opened. It changed one thing and started no new job.
+
+**The eval cap.** Elisa held three eval slots of four shards each, 12 of 32
+cores, and a fourth eval sat blocked in `eval_slot`. Measured load was 16.
+The round owes 15 evals and every backbone but one now trains on the rented
+box, so elisa's cores are the queue's slowest resource. `eval_slot.sh`
+default goes 3 -> 5: 20 cores for evals, 12 left, above the eight the brief
+requires. Five rounds of 1 h 20 become three. No process restarted; each new
+eval sources the file when it starts.
+
+**The tail is A4, and it does not move.** Live rates:
+
+    A4  loc:1 elisa   139,200/200,000   3.3 sps   ETA 5.1 h
+    A3  rem:1 box     182,200/200,000   2.9 sps   ETA 1.7 h
+    B1  rem:1 box     170,800/200,000   2.8 sps   ETA 2.9 h
+
+Three jobs sit on the box's GPU 1 and one head on GPU 0, so GPU 0 frees at
+about 05:35 and has nothing to take: every remaining head waits on a
+backbone that is still training. Moving A4 to it was costed and refused.
+A4's last periodic save is 120k, so a restart discards 19,200 steps, 1.6 h,
+and the box's own step is slower than elisa's, 179 ms forward against 161.
+Staying is 5.1 h; moving is about 4.9 h plus the staging. The card's rule
+against an idle GPU binds when the queue has a job for it. This one does not.
+
+**Where that puts the round.** A3 lands ~07:10, B1 ~08:30, A4 ~10:25. Heads
+follow at ~50 min, evals at ~1 h 20. Last number: A4 student, about 12:40.
+
+**Spend.** credit $17.51 at 04:10, box $0.82/h, box spent $10.54. The tail
+needs about 5 h of box time for A3 and B1 and their four heads, so about $4.
+Floor is $5.50 and the guard holds it.
+
+## 2026-08-13 05:10Z — session eight, round 1: the queue runs, nothing is idle that can work
+
+This session opened on a live round. Every daemon is up: one dispatcher
+(`q_run.sh`, 8 h 26 m), one supervisor, one credit guard at the $5.50 floor,
+one watchdog, one hourly heartbeat, one publisher on 1200 s, one sync loop
+that ticked at 05:04:45Z and pulled both box legs. It started no new job and
+moved none.
+
+**Queue item 1 is closed.** B8 carries all four numbers: bb40k 1.2857
+student, 1.2865 teacher; bb100k 1.3157 student, 1.3239 teacher. The one cell
+that had no bb100k pair now has one, so all 14 cells hold both stops.
+
+**Naming is clean, audited file by file.** All 56 cell-stop-head triples at
+40k and 100k exist as `score_<CELL>_k3_bb<stop>k_<head>.txt`. Zero missing.
+The 23 remaining score files are k0, k1, aw4 and seed-2 controls, plus the
+round-1 alias `score_G6_B1_k3_bb40k_*`, which carries B1's own two numbers.
+
+**A1/B3 stays closed.** Sessions six and seven settled it on the bytes:
+four head files at four cell-id paths, four different md5 sums, and equal
+student weights inside, 110/110 tensors at max abs diff 0. The arm explains
+it. `arm5_combab_alignS` aligns on the student and passes no `--moco-rep-keys`,
+so the loss reads no teacher output and the EMA regime moves the teacher
+alone. The teachers do differ, 1.1318 against 1.1343 at 40k. The report may
+not read A1 against B3 on the student column, and says so.
+
+**Live, off the training logs.**
+
+    A3  bb 200k   box card 1    191,300/200,000   2.94 sps   ETA 05:54Z
+    B1  bb 200k   box card 1    179,900/200,000   2.91 sps   ETA ~06:45Z
+    A4  bb 200k   elisa card 1  146,700/200,000   2.88 sps   ETA ~10:15Z
+
+A3 and B1 share the box's card 1 and each run at half rate. Card 0 is empty.
+Moving B1 to it was costed and refused: B1's last periodic save is 160k, so
+a restart discards 19,900 steps, and A3 frees card 1 in 49 minutes anyway.
+No queued job can take card 0 — every remaining head waits on a backbone
+that is still training. The rule against an idle GPU binds when the queue
+holds a job for it. It does not.
+
+**Spend.** Credit $16.77 at 05:05Z. Box 47557391 has run 13.5 h and spent
+$11.0 at $0.8144/h. The box is needed until B1's head pair lands, about
+2.6 h and about $2.1, which leaves about $14.7. A4 trains on elisa and every
+eval runs on elisa's cores, so both cost nothing.
+
+## 2026-08-13 05:40Z — session nine, round 1: A4 moves to the card that read 0%
+
+**The idle card had exactly one job it could take, and it was the tail.**
+The box's card 0 read 1 MiB and 0% util. Card 1 carried A3 and B1. A4 ran
+on elisa's card 1, beside a 16 GB job from issue #454 that has held that
+card for nine hours. Measured over 302 s:
+
+    A3  box card 1   197,000   2.98 sps   left  3,000
+    B1  box card 1   185,700   3.31 sps   left 14,300
+    A4  elisa card 1 151,200   2.32 sps   left 48,800   ETA 5.85 h
+
+A4 was the round's tail by three hours, and it was the slowest process on
+the slowest card. Every other queued job waits on a backbone that is still
+training, so A4 was the only work the idle card could take.
+
+**The move used the dispatcher, not a hand launch.** Kill the trainer, let
+the dispatcher reap rc=1 and free the slot, clear the markers, set the state
+to `queued`. The dispatcher then staged the 140k checkpoint and its
+optimizer to the box and started A4 on card 0 at 05:39:50Z. It resumed from
+`cf393_arm6_v2_combab_alignS_cf373k3_140k.pth` and writes an `_r2` infix,
+which `cf373_bb_ckpt`'s glob already tolerates. The restart repeats 11,600
+steps. The sync loop walks the whole `/root/cf373_runs` root in one find, so
+the new path needed no change.
+
+**The gain is 43%, not the 160% the card-0 idle suggested.** Measured over
+422 s after the move:
+
+    A4  box card 0   141,600   3.32 sps   left 58,400   ETA 4.89 h
+
+Card 0 reads 26-36% util at that rate, so A4 is data-bound, not
+compute-bound. Its trainer carries both HF token variables, so this is not
+the anonymous-stream throttle. Card 1's 6.4 sps is two data-bound processes
+interleaved, not one saturated card, so no box card can give a single run
+more than about 3.3 sps. A4 lands about 50 minutes earlier than it would
+have on elisa, on a card that was otherwise earning nothing.
+
+**Where that puts the round.** A3 ~05:52Z, B1 ~06:50Z, A4 ~10:35Z. Heads
+follow at ~50 min. Evals measure 1.26-2.12 h, four at a time. Last number,
+A4 student, about 13:00Z.
+
+**The eval cap is not on the critical path.** `q_run.sh` holds MAX_EVALS=4
+against `eval_slot.sh`'s 5. A4's eval is gated by its head at ~11:25Z, and a
+slot frees at ~09:00Z. Raising the cap would need a dispatcher restart and
+would move nothing, so the dispatcher was left alone.
+
+**Spend.** Credit $16.4, box $0.8144/h, box spent $11.79 over 14.5 h. The
+box is needed until A4's head lands, about 5.7 h and about $4.6, which
+leaves about $11.8 against the $5.50 floor.
+
+## 2026-08-13 06:10Z — session ten, round 1: the round runs, nothing moved by hand
+
+**Every process the round needs is alive.** Dispatcher `q_run.sh` pid 452409,
+9.5 h up. Supervisor, watchdog, budget guard at floor $5.50, heartbeat, sync
+loop, publisher `r3_publish.sh` on a 20 min tick, last commit 64b0ff4c at
+07:01 local. Four GPU jobs hold the box's two cards, four evals hold elisa's
+cores.
+
+    A4  bb 200k   box card 0   143,000/200,000   3.2 sps   ETA ~10:45Z
+    B1  bb 200k   box card 1   189,600/200,000   2.9 sps   ETA ~06:55Z
+    A3  head pair box card 0+1 started 05:50Z, 05:52Z
+    evals B2·S B4·T B6·S B6·T on elisa cores
+
+**No card is idle and no queued job can start.** Every remaining head waits
+on a backbone that is still training. Elisa's two cards are full: card 0 at
+22.5 GB, card 1 at 16 GB under issue #454. The rule against an idle GPU binds
+when the queue holds a job for that GPU. It does not.
+
+**Sync verified by `ls`, not by the log.** Every file class lands: backbone
+5,086 MB and its optimizer 5,689 MB at 06:21Z, A3's 200k backbone 5,073 MB
+and optimizer 5,657 MB at 06:54Z, head 439 MB and optimizer 882 MB at 06:53Z,
+losses CSV, run logs at 06:55Z.
+
+**Naming audited again, file by file.** All 56 cell-stop-head triples at 40k
+and 100k exist as `score_<CELL>_k3_bb<stop>k_<head>.txt`. Zero missing. Every
+remaining non-standard name is a k0, k1, aw4 or seed-2 control, or the round-1
+alias `score_G6_B1_k3_bb40k_*`, whose two numbers are already under B1's own
+standard name.
+
+**A1/B3 re-checked against the launchers, not the memo.** `run_leg_k.sh`
+`arm5_combab_alignS` and `run_arm_k.sh` `arm5_combab` carry the same loss:
+`cosine_similarity_batch_rep_only`, `--align-loss-weight 1.0`, `--tau-rep 1.0`,
+`--cpc-infonce-weight 0.0`, no `--moco-rep-keys`, align target student. The
+two differ only in EMA: A1 ramps τ 0.9 → 1.0 over 100k, B3 holds 0.9. The
+teacher never enters that loss, so the EMA regime cannot move the student.
+Equal student scores are the correct result of the recipe, not a path bug.
+The bytes agree: four head files at four cell-id paths, four md5 sums, student
+weights equal at 110/110 tensors and max abs diff 0, teachers differing.
+
+**All four same-arm pairs now have a verdict.** A2/B8 was the last one open,
+because B8 had no checkpoint until this round. It differs on every side:
+student, teacher and both heads, max abs diff 1.8 to 9.5. A4/B1 and A3/B2
+differ. A1/B3 is the one pair that shares a student, and the report says so.
+
+**Spend.** Credit $15.92, box $0.8144/h, box spent $12.14 over 14.9 h. The box
+is needed until A4's head lands, about 5.4 h and about $4.4, which leaves
+about $11.5 against the $5.50 floor.
+
+## 2026-08-13 06:35Z — session eleven, round 1: the queue holds, the tail is A4
+
+**The round runs itself.** Dispatcher `q_run.sh` pid 452409, 9.9 h up.
+Supervisor, watchdog, budget guard at floor $5.50, heartbeat, sync loop and
+the 20 min publisher all alive. 32 of 47 queue jobs done, 7 running, 8 queued,
+0 failed. Nothing was moved by hand this round.
+
+**Live, off the losses CSVs on the box.**
+
+    A4  bb 200k   box card 0    149,200/200,000   3.00 sps   ETA ~11:15Z
+    B1  bb 200k   box card 1    196,100/200,000   2.9  sps   ETA ~06:55Z
+    A3  head pair box card 0+1   28,800 / 29,300 of 30,000   ETA ~06:40Z
+    evals B2·S B2·T B6·T on elisa cores
+
+**No card is idle.** Box card 0 reads 81%, card 1 95%, two processes each.
+Elisa card 0 holds 22.5 GB and card 1 16 GB under issue #454. All eight queued
+jobs wait on a backbone or a head that is still training.
+
+**Sync verified by `ls`.** Six 200k backbones at 5.19-5.22 MB, six matching
+optimizers at 5.79-5.86 MB, fourteen head finals at 450 KB, fourteen head
+optimizers, 38 losses CSVs. Every class lands.
+
+**Naming audited by pattern, not by memory.** 63 files match
+`score_<CELL>_k3_bb<stop>k_<head>.txt`, which is every number the coverage
+table reports. The 20 remaining `score_*` files are k0, k1, aw4 and seed-2
+controls plus the round-1 alias `score_G6_B1_k3_bb40k_*`; that alias reads
+1.0850 student and 1.0948 teacher, the same two numbers already under B1's
+own standard names.
+
+**A1/B3 stays closed.** `pair_identity.tsv` holds the bytes: student weights
+equal at 110/110 tensors and max abs diff 0 at both stops, teachers differing
+at 6.4e-3 and 1.99e-1. The other three same-arm pairs differ on every side.
+
+**Spend.** Credit $15.87 at 06:10Z, box $0.8144/h, box spent $12.43 over
+15.3 h. The box is needed until A4's student head lands, about 5.5 h and about
+$4.5, which leaves about $11.3 against the $5.50 floor.
+
+## 2026-08-13 06:55Z — session twelve, round 1: the A1/B3 gate closes on the eval
+
+**A1/B3 is not a path bug, and the eval now says so directly.** The two
+earlier tables compared weights and files. Neither read the eval, which is
+where the card's hypothesis lived. `pair_gift_rows.sh` diffs the two cells'
+97-config CSVs row by row, sorted. Student: 0 of 97 rows differ at bb40k and
+at bb100k. Teacher: all 97 differ at both. The eval keys on the cell and
+separates the pair whenever the weights do
+(`results/pair_A1B3_gift_rows.tsv`).
+
+The two evals also ran hours apart into two directories:
+`.../A1/sync/eval/A1_k3_bb100k_student/gift/` finished 10:03, 
+`.../B3/sync/eval/B3_k3_bb100k_student/gift/` finished 10:35, both 1.1676.
+
+`train.py:1861` is the reason. `--align-target student` sets the L_align
+target to `None`, so teacher latents never enter the loss. `arm5_combab`
+passes no `--moco-rep-keys` and no `--moco-negatives`, so nothing else reads
+the teacher either. For this recipe the EMA copy is write-only, and A1's τ
+ramp cannot move A1's student. The equal student numbers are the recipe's
+result.
+
+**A4 moved machines, and that is why it lost 11.6k steps.** It ran on elisa
+card 1 (`loc:1`), took a SIGTERM at 05:37Z at step 151,600, and the
+dispatcher restaged its 140k checkpoint to the rented box and restarted it
+there at 05:39Z. The box shows 14 days uptime, no OOM, 838 GB free, so the
+kill came from elisa's shared side, not from ours. A4 now holds a card the
+study owns alone.
+
+**Live.** A4 bb 153,000/200,000 at 3.05 sps, ETA ~11:05Z. B1 bb reached
+200,000 at 06:50Z; its student head started on the box the same minute. Six
+jobs run, seven queued, none failed.
+
+**Spend.** Credit $15.44 at 06:42Z, box $0.8144/h, box spent $12.60. The box
+is needed until A4's student head lands, about 4.9 h and about $4.0, which
+leaves about $11.4 against the $5.50 floor.
+
+## 2026-08-13 07:20Z — session thirteen, round 1: the tail, and the head budget
+
+**The round runs itself and needs no hand.** Dispatcher `q_run.sh` pid 452409,
+16.9 h up. Supervisor, watchdog, budget guard at floor $5.50, heartbeat, sync
+loop and the 20 min publisher all alive. 37 of 47 queue jobs done, 6 running,
+4 queued, 0 failed. Coverage 65 of 71 deliverables in hand, 0 not started.
+
+**Live, off the losses CSVs on the box.**
+
+    A4  bb 200k   box card 0    157,400/200,000   3.05 sps   ETA ~11:15Z
+    B1  head pair box card 0+1  16,500 and 19,000 of 30,000   ETA ~08:20Z
+    evals A3·S A3·T B2·T on elisa cores
+
+**The head budget differs by column, and the report did not say so.** Every
+bb40k head trains 15,000 steps, the round-1 standard; every bb100k and bb200k
+head trains 30,000. Read off the head losses CSVs: `A3_k3_bb40k_student`,
+`B5_k3_bb40k_student`, `B9_k3_bb40k_student`, `G6_B1_k3_bb40k_student` all end
+at 15,000; `B10_k3_bb100k_student`, `B4_k3_bb100k_student`,
+`B5_k3_bb100k_student`, `A2_k3_bb200k_student`, `A3_k3_bb200k_student`,
+`B10_k3_bb200k_student` all end at 30,000. So a comparison DOWN a column is
+head-matched and a comparison ACROSS columns is not. The Protocol section said
+15,000 for every head. Corrected in `rollout_depth.md`.
+
+This also settles the card's note on B1's 40k. B1's 15,000-step head is the
+same budget every other cell's 40k head carries, so B1 is not the exception —
+no cell's 40k number is head-matched to its own 100k number.
+
+**q_finish.sh added: the success tail had no owner.** `q_super.sh` covers a
+dead dispatcher and `q_guard.sh` covers the credit floor. Nothing covered the
+round simply finishing. The box holds backbones and heads; the 97-config eval
+runs on elisa cores, so the box is dead weight from the last head to the last
+eval, about 1.5 h at $0.81/h. `q_finish.sh` waits for every `bb_*` and `hd_*`
+job to go terminal, waits one full sync tick, then verifies EVERY artefact a
+done job produced on this disk by name and size — backbone and optimizer
+sidecar over 4 MB, head final over 300 KB — and destroys the box only if the
+check passes. One miss and the box lives and `results/FINISH_BLOCKED` says so.
+Then it waits for the queue to drain, takes the last publish tick and posts
+the completion comment on PR #400. Gate dry-run at 07:18Z: 8 backbones and 16
+heads verified, `bad=0`. Detached, pid 1309662.
+
+**Spend.** Credit $15.00 at 07:15Z, box $0.8144/h, box spent $13.04 over 16.0 h.
+The box is needed until A4's student head lands, about 6 h and about $4.9,
+which leaves about $10 against the $5.50 floor.
+
+## 2026-08-13 09:00 BST — the round against the card, item by item
+
+Every deliverable produced this round was checked against the card's own
+protocol before any of it was reported.
+
+**The extends resumed the 140k checkpoints the card named.** `q_run.log`:
+
+    RESUME B2 from ..._alignteacher_cf373k3_r3_140k.pth
+    RESUME B1 from ..._cf373k3_r3_140k.pth
+
+The other six extends resumed their own 100k. `cf373_bb_below` picks the
+furthest checkpoint below the stop by the step in its NAME and requires the
+optimizer sidecar beside it, so no extend retrained a step already on disk
+and none resumed without AdamW's moments.
+
+**Heads.** 30,000 steps at bb100k and bb200k, 15,000 at bb40k, head seed
+20260722, `--grad-clip 1.0`, forecast-len 16, batch 256, lr 1e-3
+(`r2_head_box.sh`, and each head's own `head.log` start line).
+
+**Evals.** 97 distinct configs each, official B4 strategy, horizon 16, over
+four shards merged (`eval_local.sh` asserts the 97 and refuses a short
+merge). Every bb200k and every B8 `all_results.csv` holds 97 rows.
+
+**Names.** Every cell deliverable is `score_<CELL>_k3_bb<stop>k_<head>.txt`,
+14 cells x 2 stops x 2 heads with no hole. B1's round-1 file survives beside
+its canonical name and both read 1.0850 / 1.0948. The remaining
+non-canonical score files are the k = 0 baselines and the G-series controls,
+which are not cell deliverables.
+
+**The A1/B3 block is cleared, and nothing was re-run.** `pair_identity.tsv`
+shows A1 and B3 hold one student, bit for bit, at both stops: 110 of 110
+tensors, max |diff| 0, and their student heads follow at 28 of 28. The arm
+says why — `arm5_combab` aligns to the student and carries no
+`--moco-rep-keys`, so no loss term reads the EMA encoder and the regime
+cannot move the student. The other three pairs carry `--moco-rep-keys` or
+align to the teacher, and all three differ. The finding now ships in the
+report itself, as `The four same-arm pairs: two models, or one`, because a
+reader who meets the duplicate in the coverage table has to find the reason
+beside it.
+
+## 2026-08-13 09:45 BST — session fourteen, round 1: the repro eval could never pull its head
+
+**`repro_pair_eval.sh` gated the pull at 1,000,000 bytes and a quantile head
+final is 440 KB.** The driver started 09:15, found the A1 repro head on the
+box at 09:33, and skipped it every 120 s because `stat -c %s` returned
+449,977. Left alone it would have waited 12 h and aborted all four. This is
+the size-floor failure the project already carries a rule against: one floor
+for every file class drops the smallest class silently.
+
+`repro_eval_one.sh` replaces it. Gate 300,000 bytes, the floor `q_finish.sh`
+already uses for a head. One process per tag, so the four reproductions
+overlap instead of queueing: serial they cost about 5.6 h of elisa cores,
+overlapped about 3 h. `repro_eval_all.sh` starts the four.
+
+**Live at 09:45.** A1rep bb40k eval running, 4 shards. B3rep bb40k head at
+step 2,000 of 15,000 on box card 1; A1rep and B3rep bb100k heads behind it.
+A4 backbone 173,300 of 200,000 at 3.05 sps, ETA ~11:03 UTC. B1's two bb200k
+evals running on elisa cores. Queue 42 of 47 done, 3 running, 2 queued,
+0 failed.
+
+**Spend.** Credit $13.84, box $0.8144/h, box spent $14.21 over 17.4 h. The box
+is needed until A4's student head lands, about 3 h and about $2.4, which
+leaves about $11.4 against the $5.50 floor.
+
+## 2026-08-13 10:30 BST — session fifteen: the stop contrast had no interval
+
+**The round's own question shipped without one.** `r2_bootstrap_<cell>_r200k.log`
+is the box's pip bootstrap, not a statistical one, so the name hid the gap:
+every bb200k number sat in a back table with a bare Δ beside it and nothing
+to read that Δ against. A reader could not separate A3's +0.0988 from B6's
++0.0056.
+
+`stop_bootstrap.sh` runs `paired_bootstrap.py` on bb200k against the same
+cell's own bb100k. The pairing is the study's: same 97 configs, dataset as
+the resampling unit, 10,000 resamples. It reads the eval CSV from the git
+checkout or, for an eval that finished since the last collect tick, from
+`<sync>/eval/<tag>/gift/all_results.csv`, so a fresh number never waits 20
+minutes for its interval.
+
+**The contrast is the cleanest in the study.** bb200k RESUMES bb100k, so the
+two arms share the first 100,000 steps, the head recipe, head seed 20260722,
+the 30,000-step head budget and the eval. Only the second 100,000 steps
+differ. Nothing crosses a machine inside the shared prefix.
+
+**14 contrasts: 5 improved, 9 got worse.** Mean +0.0103, median +0.0080. The
+head-seed band ±0.0384 covers 11 of the 14. Three sit outside it: A3 student
++0.0988, B4 teacher +0.0454, B2 student -0.0539. B6 ran its extend on elisa
+and moves the same way as the seven box cells, so the verdict does not rest
+on the box.
+
+`plots/stop_delta.png` draws it and `rollout_depth.md` leads with it. The
+stop-ladder table gained a 95% CI column. `r3_publish.sh` runs both on the
+tick, so A4's row fills itself when its eval lands.
+
+**Spend.** Credit $13.36 at 10:28Z, box $0.8144/h, box spent $14.68 over
+18.0 h. A4's backbone is at 178,600 of 200,000; the box is needed for about
+2 h more, about $1.7, which leaves about $11.6 against the $5.50 floor.
+
+## 2026-08-13 11:30 BST — session sixteen: the round's last three numbers
+
+**State at hand-over.** 70 of 71 deliverables in. The queue holds
+`bb_A4_200k` (195,400 of 200,000 at 3.2 sps), then `hd_A4_200k_student` and
+`ev_A4_200k_student`. Outside the queue, the two bb100k A1/B3 student
+reproductions run on elisa cores.
+
+**Every gate the card set is already met and was re-checked, not assumed.**
+
+- *Names.* 14 cells x 2 stops x 2 heads carry `score_<CELL>_k3_bb<stop>k_<head>.txt`
+  with no hole; the eight bb200k cells carry the third stop, A4 excepted.
+- *Evals.* Every `all_results.csv` in the branch holds 97 rows and a header.
+  The one exception is `G7_B5_k0_e_bb40k_teacher`, a G-series control the
+  report does not cite.
+- *Plots.* All 14 figures the report embeds exist in `plots/`, and `plots/`
+  holds no orphan.
+- *Box.* `box_device_count.txt` reads `cuda_device_count 2`, torch 2.8.0+cu128,
+  CUDA 12.8 — the card's gate, passed before the first training step.
+
+**The A1/B3 block is answered by an independent re-run, not by argument.**
+The two reproductions read the two backbone md5s the card itself named,
+`f99fa42c...` for A1 and `b3a51f06...` for B3. Each trained its own student
+head (15,000 steps, seed 20260722, `--grad-clip 1.0`) and ran its own
+97-config eval into its own `<cell>rep` directory. Both return **1.1447**.
+Two files, two heads, two evals, one number. The duplicate is the student
+weights and not a path.
+
+**Spend.** Credit $12.34 at 10:30Z, box $0.8144/h. The box is needed until
+A4's student head lands, about 1.5 h and about $1.2, which leaves about
+$11.1 against the $5.00 floor.
+
+`q_await_s18.sh` blocks until all five outstanding numbers are in AND the
+queue holds no job that is neither done nor failed.
+
+## 2026-08-13 11:55 BST — session nineteen: every gate re-checked against the
+## disk, not against this log
+
+**State.** `bb_A4_200k` finished at 10:50Z, 200,000 steps. `hd_A4_200k_student`
+took the box card at 10:50Z. `ev_A4_200k_student` is behind it. Off the queue,
+`A1rep_k3_bb100k_student` returned **1.1610** at 10:50Z and
+`B3rep_k3_bb100k_student` still runs on elisa cores. 70 of 71 deliverables in.
+
+**Names.** 14 cells x 2 stops x 2 heads carry
+`score_<CELL>_k3_bb<stop>k_<head>.txt`, checked one file at a time: 56 of 56,
+no hole. The seven full extend cells carry the third stop on both heads; A4
+carries the student only, by the card. Every remaining non-canonical score
+file is a `k = 0` baseline, a G-series control or an A1/B3 reproduction, and
+none of the three is a cell deliverable.
+
+**Evals.** 92 eval directories on the branch, 91 hold 98 lines: 97 configs and
+a header. The one exception is `G7_B5_k0_e_bb40k_teacher`, which holds a
+`stop.log` and no CSV. Its head aborted for want of VRAM, and the report's
+annex says so and cites that log.
+
+**B1's bb40k number was verified at its source, not accepted from a name.**
+The card said B1 has no valid 40k comparison. The head behind
+`score_G6_B1_k3_bb40k_student` sits in
+`checkpoints_backup/cf-373/eval/G6_B1_k3_bb40k_student/`. Its eval log names
+one backbone, `bb_small_arm6_v2_combab_lalign_lrepmoco_..._cf373k3_40k.pth`,
+which is B1's own arm at its own stop. The head is student-encoder, seed
+20260722, and its 15k and final checkpoints are both on disk beside a
+98-line `all_results.csv`. Same checkpoint, same head recipe, same eval as
+every other cell's bb40k. The name was non-standard; the measurement is
+B1's, and the report says so in its own section.
+
+**Report.** Every relative link in `rollout_depth.md` resolves to a file on
+disk. Every PNG in `plots/` is embedded; no orphan.
+
+**Spend.** Credit $12.07 at 10:52Z, box $0.8144/h. The box is needed until
+A4's student head lands, about 45 min and about $0.6. The eval then runs on
+elisa cores and `q_finish.sh` destroys the box behind a per-class artefact
+check.
+
+## 2026-08-13 11:40Z — session twenty: the meter stops, one number left
+
+**The idle-card question is answered by option (b): release the box.** There
+was nothing to place on GPU 1. `bb_A4_200k` reached 200,000 steps at 10:50Z
+and was the last backbone; `hd_A4_200k_student` finished at 11:26Z and was
+the last head. From 11:26Z the box held no work of any kind, because the
+97-config GIFT-Eval runs on elisa cores.
+
+**The box went at about 11:36:57Z.** `vastrun-status` reads
+`No running instances found`. `q_finish.sh` did not do it: the script was
+still inside its one-sync-tick grace, which it entered at 11:27:24Z and
+would have left at 11:44:04Z. The budget guard did not do it either — the
+floor is $5.50, credit was $11.5, and `results/BLOCKED_BUDGET` does not
+exist. Vast.ai is a shared account across concurrent agent sessions, so the
+contract ended outside this session.
+
+**Nothing was lost with it, and this was checked rather than assumed.**
+`VERIFY_ONLY=1 bash scripts/q_finish.sh` re-ran the per-class artefact gate
+at 11:37:43Z over all 46 terminal jobs: every backbone over 4 MB with its
+optimizer sidecar, every head final over 300 KB, each one named and sized on
+this disk. It returned `VERIFY ok — done=46 running=1 queued=0 failed=0`.
+That includes `hd_A4_200k_student`, whose final is 449,909 B, written at
+11:26Z and pulled before the contract ended.
+
+**`ev_A4_200k_student` is unaffected.** It started at 11:32Z on elisa cores,
+four CPU shards over the 97 configs, and it reads two files that are already
+local: A4's 200k backbone and A4's student head. It is the round's last
+number.
+
+**Two closing tables were added to `tables.py`,** so both regenerate on every
+publish tick rather than being typed once:
+
+- *This study's k = 3 against the published k = 0*, per cell, per stop, per
+  head, with Δ and a verdict at the ±0.0384 head-seed band. The two head
+  columns are tallied separately: all 14 cells have a published student
+  number, only group A's four have a published teacher, so one pooled count
+  would weight group A twice. Student at bb100k reads 9 better, 3 flat,
+  2 worse.
+- *Stop reasons*, which prints what the extend rule read at each cell —
+  bb100k minus bb40k on both heads — beside what it decided. It held six
+  cells at 100k: A1, B3, B5, B7, B8, B9. A4 extends the student head alone.
+  B1 is marked as the card's call, because both of its moves sit inside the
+  band and the rule decides nothing there.
+
+**Spend.** Credit $11.45 at 11:37Z against the $5.50 floor. The box billed
+$16.53 over 20h 18m. The meter is stopped for good: no instance is running,
+and the one job left costs nothing.
+
+### Correction: the A1/B3 reproductions ran 30,000 head steps, not 15,000
+
+Session sixteen recorded them at 15,000. The disk says otherwise, and the
+disk is right: all four reproduction heads carry checkpoints at 5k, 10k,
+15k, 20k, 25k and 30k, and both losses CSVs end on step 30,000. The number
+in that entry was wrong; the runs were not.
+
+The reproduction is now complete on both stops, and it answers the question
+it was built for:
+
+| stop | A1rep student | B3rep student | canonical A1 | canonical B3 |
+|---|---|---|---|---|
+| bb40k | 1.1447 | 1.1447 | 1.1305 | 1.1305 |
+| bb100k | 1.1610 | 1.1610 | 1.1676 | 1.1676 |
+
+Four heads trained apart, four 97-config evals run apart, two numbers. Both
+reproduction heads also end on the identical training loss,
+0.19657018780708313 at step 30,000. A1 and B3 hold ONE student backbone,
+bit for bit. The duplicate in the student column is two cells sharing a
+model, not two paths pointing at one file.
+
+The reproduction column sits at 30,000 head steps and the canonical column
+at 15,000, so the two columns are not comparable to each other. They are not
+meant to be: each column is internally matched, and the question is whether
+the two cells agree WITHIN a column. They do, at both stops.
+
+## 2026-08-13 12:05Z — session twenty-one: the idle-GPU item was already closed, and A4's teacher head is not a stop
+
+**The rented box is gone, and no card is idle on this study's bill.**
+`vastrun-status` returns "No running instances found." `bb_A4_200k` reached
+200,000 steps at 11:50Z, its student head trained on that same card and
+finished at 12:26Z, and the contract ended after it. Burn rate is $0.00/h.
+Credit reads $11.45 against the $5.50 floor. The feedback offered two ways
+to stop paying for a card at 0%; the box took the second one before this
+session opened.
+
+**One number was running, and now there are two.** `ev_A4_200k_student`
+started at 11:32Z on four elisa CPU shards and holds 44 of 97 configs. The
+second is new.
+
+### A4's teacher head at bb200k: the rule read noise and called it a stop
+
+The extend rule compares two raw numbers with no band:
+
+    A4 teacher   bb40k 1.0855 -> bb100k 1.0874   +0.0019   -> "up" -> stop
+
++0.0019 is 5% of the ±0.0384 head-seed band. The rule cannot see that,
+because it has no band in it. B1 met the same wall in session sixteen and
+the card extended it by hand for exactly this reason. A4 is this study's
+strongest cell — its student head is -0.114 against the published k = 0 at
+bb100k, second best of the 14 — and its 200k backbone was already on disk.
+
+So the head runs. It costs nothing to run it: no instance is rented, the
+head takes one elisa card and the eval takes elisa cores.
+
+**Launched by hand, outside the queue, for one measured reason.** `q_run.sh`
+gates a head on 8500 MiB free. elisa's card 1 had 8426 MiB — 74 MiB under
+the gate — and the dispatcher's next choice after both local cards is a
+`rem:` slot whose box no longer exists, which would have marked the job
+failed rather than waited. The head was started with a 7800 MiB gate and its
+queue state pre-set to `running` so no second copy could be placed. It
+allocated 5.5 GB and runs at 7.8 sps, ETA 1.0 h for 30,000 steps.
+`scripts/q_adopt_head.sh` watches for the final checkpoint and flips that
+state to `done`, at which point the dispatcher owns `ev_A4_200k_teacher` and
+runs it on cores like every other eval this round.
+
+Protocol is unchanged from the other thirteen cells' bb200k heads: 30,000
+steps, seed 20260722, `--grad-clip 1.0`, batch 256, lr 1e-3, forecast-len
+16, then 97 GIFT-Eval configs at strategy B4.
+
+**`results/r2_extend.tsv` is not edited.** It records what the rule read,
+which is `stop`, and that is the honest record of the arithmetic. The
+override lives in `tables.py`'s `STOP_CALL`, beside B1's, so the stop-reason
+table prints the hand call and its reason instead of a rule that did not
+fire. Six cells still stop at 100k: A1, B3, B5, B7, B8, B9.
+
+**Spend this session: $0.00.** Credit $11.45, unchanged, floor $5.50. Every
+job left in the queue runs on hardware this study does not pay for.
+
+## 2026-08-13 15:30Z — session twenty-two: the last number landed, and the round closed
+
+**72 of 72.** `A4_k3_bb200k_teacher` scored 1.0828 at 15:18Z. Every cell of
+the card now carries a number at every stop it was meant to reach, on both
+heads. Coverage reads `done 72   running 0   queued 0   NOT STARTED 0`.
+
+The two numbers this session waited on:
+
+    A4 bb200k student   1.0660   eval finished 13:44Z
+    A4 bb200k teacher   1.0828   head 30,000 steps 14:05Z, eval 15:18Z
+
+1.0660 is the lowest score in the study. Both ran the round's protocol:
+30,000 head steps, seed 20260722, `--grad-clip 1.0`, batch 256, lr 1e-3,
+forecast-len 16, then 97 GIFT-Eval configs at strategy B4. Both were checked
+by hand against `all_results.csv` (98 lines, so 97 configs), `backbone.txt`
+and `head.log` before the round closed.
+
+**The idle-card item stayed closed.** `vastrun-status` returned "No running
+instances found." at the open of this session and again at its close. Burn
+$0.00/h. Credit $11.45 at both ends, against the $5.50 floor: this session
+spent nothing, because both jobs ran on elisa.
+
+**What ran the wait.** `scripts/q_await_s22.sh` replaces a plain wait on the
+score file. A plain wait cannot tell a slow job from a dead one, so it also
+exits when the dispatcher marks either job `failed`, and when neither job
+holds a process and no score exists. It ticked every five minutes and both
+jobs finished clean.
+
+**The queue drained and the daemons stood down.** `q_run.sh` placed its last
+eval on elisa cores and exited; `r3_publish.sh` collected the last eval,
+rebuilt the tables and the coverage grid, committed `3e6eda76`, then found
+zero jobs left and stood down. 96 score files and 96 complete evals are on
+the branch, each with 97 configs.
+
+`scripts/r3_final_comment.sh` posted the round's closing comment on PR #400.
+
+## 2026-08-13 16:30Z — session twenty-three: the review's no-compute gaps, and one head redrawn
+
+The full-study review returned ten items. This session closed the ones that
+cost no GPU time, and started the one that costs no BACKBONE time.
+
+**Item 1 was a real error, and it was ours.** The opener published "of 14
+such extends, 5 improved and 9 got worse", mean +0.0103, median +0.0080. The
+ladder table in the same report held 16 rows and printed "7 improved". The
+14-row subset is the 16 rows minus the A4 pair. Nothing said so. Recomputed
+straight from the score files: 7 of 16, mean +0.0079, median +0.0042, 13 of
+16 inside the head-seed band. The count, the mean, the median and the band
+coverage now come out of `tables.py` from one list, so a subset cannot reach
+the prose again without the count moving with it.
+
+**Item 6 is running.** `scripts/gap6_a3_reseed.sh` draws A3's bb200k student
+head a second time at head seed 20260723, the second of the three seeds
+`ema_sched_ladder` used to measure the band this report quotes. Same
+backbone file (md5 `9f0e8da7`), same 30,000-step budget, same 97-config eval,
+`--seed` the only flag that moves. It runs on elisa's GPU 1 beside another
+session's job and costs nothing.
+
+**Two things the review got slightly wrong, checked against the numbers.**
+A3's student is not the only non-monotone trajectory: five of the eight
+three-stop trajectories turn round. A3's reversal is the largest, +0.0988
+against +0.0378 for the next. And the largest other group-A student/teacher
+gap is 0.0168, not "under 0.0141". Both checks are in
+`scripts/gap6_head_gap.py` and `results/head_gap.tsv`. The item stands: A3's
+0.1085 gap is 6.5x the next in group A and 2.6x the largest anywhere.
+
+**Item 2 got more than wording.** The review called the published-baseline
+table the one table in the report with no uncertainty column. Two parents
+committed their per-config CSVs and the third's are in its run tree on
+elisa, so the pairing is recoverable and the interval is a CPU-second job.
+`published_bootstrap.py` computes all 41, and it accepts a parent CSV for a
+cell only after that CSV reproduces the number the parent printed to four
+decimals. All 41 reproduced theirs. The 18 imported from #393's tree are
+committed under `results/parent_eval/` with their source path and md5, so
+the rebuild still needs the repo alone.
+
+**Item 3 is prepared and NOT started.** `scripts/gap3_jobs.tsv` holds the
+`L_align` x4 control at k = 0 on B1, `scripts/gap3_preflight.sh` prints what
+it would do and checks the target path is free, and
+`results/gap3_preflight.txt` is that check's output. B1 rather than B10
+because B1 is the study's one machine-held, seed-held, head-budget-matched
+pair, and the control must run on elisa for the same reason. Cost, from the
+A3 x4 control's own measured wall clock: 2.9 GPU-h for the backbone, ~1.2
+GPU-h for the two heads, ~3 h on the cores for the two evals, $0.
+
+**Spend this session: $0.00.** No instance was provisioned and none is
+running. `vastrun-status`: no running instances.
+
+## 2026-08-13 18:30Z — session twenty-four: the two gap runs, and one scheduling fix
+
+**Both runs were already in flight at the open.** `gap6_a3_reseed.sh` had its
+head trained and its eval on the cores; `gap_worker.sh` had the
+`G_B1_k0_aw4` backbone at step 3,000 of 40,000 on elisa's card 1. Nothing was
+relaunched and nothing was retrained.
+
+**The `--align-loss-weight 4.0` was verified on the live process, not on the
+launcher.** `run_arm_k.sh` writes the arm's own `--align-loss-weight 1.0`
+first and appends `GAP_ARGS` after it, so the command line carries the flag
+twice. `argparse` takes the last, and `/proc/<pid>/cmdline` shows `4.0` at
+position 115 against `1.0` at 58. The control trains what it says it does.
+
+**The worker's own head schedule idled a card for 1.5 h, so it was replaced.**
+`gap_worker.sh` runs a row's two heads one after the other and each head
+carries its own 97-config eval on the cores:
+
+    student head (GPU) -> student eval (CPU) -> teacher head (GPU) -> teacher eval (CPU)
+
+The card is free for the whole of the first eval and the teacher head that
+wants it waits. `scripts/gap3_heads.sh` starts both `head_eval_bb.sh` calls
+at once instead. It needs no sequencing logic of its own: `head_eval_bb.sh`
+already takes an exclusive `flock` on a per-card file for the head-training
+half and drops it before the eval, so the two heads train one at a time and
+the first eval overlaps the second head. One eval of wall clock, about 1.5 h.
+
+**Both heads share one card, and that is measured rather than chosen.**
+elisa's card 0 holds another session's 15,180 MiB notebook and reports 1,639
+MiB free, under the 6,000 MiB a head needs. Card 1 carries the backbone and
+frees about 8 GB when it exits: one head, not two.
+
+**`gap_worker.sh` was stopped, its children were not.** The worker had done
+its one job, which was to launch the backbone. `kill 1996312` reaches the
+worker shell alone; `run_arm_k.sh` (1996329) and the trainer (1996340) have
+their own PIDs and no trap forwards the signal. Both were confirmed alive
+after the kill, and the trainer's step counter kept moving. Had the worker
+lived it would have handed its own sequential `heads_for` to the same two
+tags and raced `gap3_heads.sh` inside one eval directory.
+
+**Item 6 landed at 18:22Z: 1.4098.** The redraw reproduces the first draw at
+0.0100, 26% of the head-seed band, and it moves AWAY from the teacher rather
+than toward it. `1.3998` is not a bad draw, so "A3's student degrades at
+bb200k" and the 0.1084 student/teacher gap both stand. `tables.py` now prints
+that verdict from the two numbers rather than leaving the reader to subtract,
+and `plots/a3_reseed.png` carries it in the body of the report.
+
+**Two bootstrap pairs were added for it**, in `find_artefacts.py`:
+`A3_200k_headseed_student` bounds the head seed on this one measurement,
+which is the quantity the imported ±0.0384 band stands in for everywhere
+else, and `A3_200k_draw2_vs_100k_student` re-runs the ladder's largest move
+off the second draw.
+
+**Spend this session: $0.00.** No instance was provisioned and none is
+running.
+
+## 2026-08-13 18:10Z — session twenty-five: the watcher died with its session, the runs did not
+
+**The two runs survived the session change.** `run_arm_k.sh` (1996329) and
+its trainer (1996340) held card 1 at step 18,800 of 40,000, and
+`gap3_heads.sh` (2016740) was still waiting on the 40k checkpoint. Neither
+was relaunched. Item 6's score was on disk at 1.4098.
+
+**`gap_watch.sh` was not.** Its last line reads 18:46 local and the previous
+session ended after it. The event stream is the only thing that says a head
+died, so it was restarted at 19:10 local against the same log. It picked up
+the backbone at 19,000 and reprinted item 6's score, which is what a restart
+should do: the file it reads is the state, not its own memory.
+
+**Nothing else was scheduled.** The queue holds item 3 alone. Card 1 runs its
+backbone and card 0 carries 22,572 MiB of another session's work, so no
+deliverable waits on an idle card.
+
+## 2026-08-13 19:30Z — session twenty-six: the supervisor, and the mark on the shared student
+
+**Both runs were in flight at the open and neither was touched.** The
+`G_B1_k0_aw4` backbone (1996340) held elisa's card 1 at step 24,200 of
+40,000, 4.2 sps, ETA 1.0 h. `gap3_heads.sh` (2016740) waited on the 40k
+checkpoint. Item 6's score was on disk at 1.4098. Nothing was relaunched,
+nothing was retrained, no instance was provisioned.
+
+**The control was verified against its own baseline's command line.** Both
+runs print `Params: 720,668` and the same architecture header, and
+`run_arm_k.sh` appends `GAP_ARGS` after the arm's own flags, so
+`--align-loss-weight 4.0` is the last of the two the trainer reads. The
+control differs from `G6_B1_k0` in that one flag.
+
+**`gap_watch.sh` reports and does not repair, so a supervisor was added.**
+`scripts/gap3_supervise.sh` emits one line per event and restarts
+`gap3_heads.sh` if that driver exits before both scores land. The restart is
+safe by construction: `head_eval_bb.sh` skips a head whose score file exists,
+reuses a final head checkpoint, and resumes an eval per shard, so a restart
+costs only what did not finish. It gives up after three restarts and says so.
+
+**The coverage grid printed one student model four times with nothing to say
+so.** A1 and B3 hold one student: 110 tensors equal to 0.000e+00 at both
+stops (`results/pair_identity.tsv`). `r2_coverage.py` now marks both
+printings `‡` and states the count under the table — 72 deliverables, 70
+distinct measurements. The teacher columns are two models and stay counted
+twice.
+
+**Nothing waited on an idle card.** The queue holds item 3 alone. Card 1
+carries its backbone; card 0 reports 1,639 MiB free under another session's
+15 GB notebook, which is below the 6,000 MiB a head needs.
+
+## 2026-08-13 21:30Z — session twenty-seven: the counter that counted twice
+
+**Item 3's backbone finished and both heads started, all before the open.**
+The 40k checkpoint landed at 20:32 (5,208,007 bytes). `gap3_heads.sh` took
+it and started both heads at once. The teacher head trained in 34 min
+(21:06:58, rc=0) and handed the card to the student head, exactly as the
+`flock` in `head_eval_bb.sh` intends. The teacher's eval ran on the cores
+from the same minute. Nothing was relaunched and nothing was retrained.
+
+**Both watchers had lost the eval count for 30 min, and neither said so in a
+way that stopped anything.** `grep -c` PRINTS `0` and RETURNS 1 when it
+matches nothing, so the `|| echo 0` fallback in `evald()` appended a second
+`0` and `$(( n + "0\n0" ))` is a syntax error. The counter printed `ev:0/`
+with the number missing. The fix takes grep's own count and defaults only
+when grep printed nothing at all, which is the missing-file case:
+
+    c=$(grep -ac 'MASE=' "$d/shard.log" 2>/dev/null); n=$(( n + ${c:-0} ))
+
+The same line was wrong in `gap3_await.sh` and in `gap_watch.sh`, and
+`pgrep -fc` had it too. All three are fixed and the fix was tested against a
+live directory, an empty one and a missing one before either watcher was
+restarted: 0, 43, 0.
+
+**This mattered more than a cosmetic log.** `gap3_await.sh` is the machine
+gate and it ends the wait when its counter stops moving. A counter that
+throws a syntax error and prints nothing is a counter that never moves, so
+the gate was 90 min from calling a healthy eval a stall. Only the two
+watchers were restarted; `gap3_heads.sh` (2016740), both `head_eval_bb.sh`
+children and `gap3_supervise.sh` were confirmed alive across it.
+
+**Spend this session: $0.00.** `vastrun-balance` reads $11.45 and
+`vastrun-status` reports no running instances.
+
+## 2026-08-13 22:05Z — session twenty-eight: the teacher column lands, the session gets its own gate
+
+**Both heads were trained and both evals were running at the open.** Item 3's
+teacher eval read 97 of 97 configs and its student eval 44. Item 6's score
+was on disk at 1.4098. `gap3_heads.sh` (2016740), its two `head_eval_bb.sh`
+children, `gap3_supervise.sh` (2136677), `gap3_await.sh` (2168411) and
+`gap_watch.sh` (2168444) were all alive. Nothing was relaunched, nothing was
+retrained, no instance was provisioned.
+
+**The teacher's number landed at 22:07: 1.1482.** B1's teacher column now
+reads 1.2001 at `k = 0`, 1.1482 at `k = 0` with `L_align` x4, 1.0948 at
+`k = 3`.
+
+**The session got a gate of its own, and it starts nothing.**
+`gap3_await.sh` and `gap_watch.sh` are detached and outlive a session, so
+neither wakes this one. `scripts/gap3_finish_wait.sh` is a child of the
+session: it blocks on the two score files and its exit IS the wake-up. It
+repairs nothing — `gap3_supervise.sh` still owns the restart — and it ends
+on a stalled eval counter (rc=2) or on driver, supervisor and eval process
+all gone with a score missing (rc=3), rather than running out a clock. It
+was smoke-tested against the live directories before launch: student 47/97,
+teacher 97/97.
+
+**No card was idle with work waiting.** Item 3's queue holds two CPU evals
+and no GPU work: both heads finished at 21:06 and 21:40. `nvidia-smi` shows
+card 1 under `/tmp/rnd-454/.../train_one_run.py` at 16,130 MiB and card 0
+under a 15 GB notebook, both other sessions'. No process of this study holds
+either card.
+
+**The committed `published_bootstrap.csv` held 16 of its 41 intervals.**
+Item 2 claims an interval on every published-baseline delta, and the file on
+the branch carried group A alone. The cause is not the mapping: rerun whole,
+the script prints `41 interval(s) ... 0 row(s) dropped` and every one of the
+41 parent CSVs reproduces its parent's printed number to four decimals. It
+appends one label at a time, so the rebuild that wrote it was cut short at
+A4's last row, which is where session twenty-six ended. The three `skip`
+lines it prints are B3, B7 and B9 at bb200k, cells the extend rule stopped
+at 100k, so they are not among the 41.
+
+**Nothing published moves.** `scores.md` carries an interval on all 41 rows,
+so the table was built from a complete run and the truncated CSV replaced it
+afterwards. The bootstrap seed is fixed, and the regenerated numbers match
+the table to four decimals on every row checked: B1 bb40k [-0.1801,
+-0.0615], B6 bb40k [-0.1998, -0.0742], B9 bb40k [-0.3543, -0.1978], B1
+bb200k [-0.1230, -0.0130]. The file on the branch now says what the table
+says.
+
+**Spend this session: $0.00.** Nothing rented; credit holds at $11.45.
+
+## Round 4 — the two review-gap runs
+
+**Item 6 landed first.** A3's bb200k student head, drawn a second time at
+seed 20260723, scored 1.4098 at 18:20. The eval ran on the cores while item
+3's backbone held card 1, so the two runs never competed for the GPU.
+
+**Item 3's rule was fixed before item 3's numbers existed.** The control
+splits B1's -0.1175 into a re-weighting part and a depth part, and which of
+the two the study reports must not depend on what the split turns out to be.
+`scripts/gap3_item3.py` states the rule and was committed at backbone step
+~31,000 of 40,000, with neither score on disk. The generator writes the
+prose and both verdict bullets from the score files, so no number reaches
+the PR by hand.
+
+**Why B1 and not another cell.** `align_loss` adds one complete copy of the
+term per rollout depth at the same weight (`src/loss.py`), and B1's main
+term is `rep_only`, which holds no `f` and is added once at any depth. Its
+CPC term is off. So `k = 3` multiplies L_align's weight by 4 and changes
+nothing else, and B1 is the only cell where the k = 0 and k = 3 columns
+share a machine, a backbone seed and a head budget: elisa, seed 20260520,
+15,000 head steps at seed 20260722. Confirmed against the four existing B1
+head logs and `results/run_provenance.csv`.
+
+**The control's own limit, stated up front.** At `k = 3` the four copies of
+L_align sit on four horizons; at `k = 0` x4 all four sit on t+1. The control
+holds the total weight and drops the horizons, so its depth column is the
+extra HORIZONS and not depth net of everything else.
+
+**Two watchers, because a log tail is not a liveness probe.**
+`gap3_await.sh` is the machine gate: each probe demands that a counter moved
+since the last one — the backbone's step, then the finished eval configs —
+and it ends the wait on a stall rather than running out the clock. A hung
+trainer keeps both its log file and its process, and neither says so.
+
+**Nothing was rented.** Credit held at $11.45 for the whole round. The
+backbone, the three heads and the three evals all ran on elisa.
+
+**The close pipeline was proved before the last number landed.**
+`scripts/gap3_close.sh` ran at 22:41 with the teacher score in hand and the
+student score still eight configs out. Steps 1, 2 and 4 passed: collect,
+the rebuild with the two new B1 interval labels, and the coverage grid at
+72 of 72. Step 3 refused to write the verdict without the student score,
+and step 5 aborted on `MISSING` before it could reach `gh`. The log is
+`results/gap3_close_preflight.log`. So the only thing between the run and
+the comment was the number itself.
+
+**Item 3, the teacher column, read at 22:07.** 1.1482 against k = 0's
+1.2001 and k = 3's 1.0948. The re-weighting carries -0.0519
+[-0.0987, -0.0066] and the extra horizons carry -0.0534 [-0.0874, -0.0237].
+Both intervals exclude zero.
+
+## 2026-08-13 22:10Z — session twenty-four: the close is checked, and nothing is started
+
+**Both gap runs are on disk and the comment on the PR matches the branch.**
+This session trained nothing, evaluated nothing and rented nothing. It read
+the close and checked it.
+
+What it checked, and what it read:
+
+    score_G_B1_k0_aw4_bb40k_student.txt   1.1513   eval 98 lines
+    score_G_B1_k0_aw4_bb40k_teacher.txt   1.1482   eval 98 lines
+    score_A3_k3_bb200k_student_s20260723  1.4098   eval 98 lines
+    99 score files tracked, 97 configs in each eval
+
+The B1 control's preflight records the flags it ran under: `K=0
+SEED=20260520 GAP_ARGS='--align-loss-weight 4.0' TARGET_STEPS=40000`. So
+the control moves the weight and leaves the depth at zero, which is the
+contrast it was built for. All six heads of the three B1 columns read
+`steps=15000 seed=20260722` in their own logs, so the three columns are
+head-budget matched and one may be divided by another.
+
+Each interval printed in the item-3 table has its own row in
+`results/bootstrap.csv`: `B1_alignx4_student` -0.0512 [-0.1001, -0.0023],
+`B1_alignx4_vs_k3_student` -0.0663 [-0.1070, -0.0331], and the two teacher
+rows beside them.
+
+**The posted comment does not drift from the branch.** The comment on PR
+#400 at 21:46:27Z and `results/gap_close_comment.md` at commit `1ad254fd`
+differ by one trailing blank line and nothing else.
+
+**No card is idle on a full queue, because the queue is empty.**
+`vastrun-status` returns "No running instances found." No `#373` process
+holds a GPU. Credit stands where session twenty-two left it, $11.45 against
+the $5.50 floor, and this session spent $0.00.
+
+## 2026-08-13 22:30Z — session twenty-five: the numbers re-derived from the artefacts, and one sentence corrected
+
+**Nothing trained, nothing evaluated, nothing rented.** The queue drained at
+15:19Z and stayed drained. `vastrun-status` returns "No running instances
+found." Credit $11.45 against the $5.50 floor, unchanged. No card sits idle on
+unfinished work, because there is no unfinished work.
+
+**What this session did.** The two gap sessions checked the new runs against
+the branch. This session went under that and re-derived the numbers from the
+raw artefacts. `scripts/verify_close.sh` runs four checks, each with its own
+log:
+
+    verify_scores      99 of 99 score files reproduce from their own eval
+    verify_coverage    72 of 72 deliverables, grid rebuilt from score files
+    verify_alignx4     item 3's x4 weight and depth 0, read off the loss CSVs
+    verify_provenance  the training machine of every head, from its own log
+
+`verify_scores` recomputes each score two ways: the geometric mean of the
+per-config `Relative` column in `summary.txt`, and that file's `MASE` column
+against `eval_metrics/MASE[0.5]` in the harness CSV. The tolerance is derived
+from the 4-decimal print, not chosen: `bound = GM * mean(5e-5 / r_i) + 5e-5`.
+A first pass with a flat 5e-5 failed two files at 5.1e-05, which is the
+rounding and not a drift. The derived bound reads 1.07e-04 at its worst and
+all 99 pass.
+
+`verify_alignx4` answers a question the preflight file could not.
+`results/gap3_preflight.txt` records the flags the launcher meant to pass, and
+the backbone log does not echo them, so the preflight proved intent and not
+effect. The loss curve proves effect: the control shares seed 20260520 and
+batch order with its own `k = 0` baseline, and at step 1 it sits +3.73116
+above it, so `L_align(1) ~= 1.244` and the 4x reached the objective. The
+control writes no `cos_err_d*` column and `k = 3` writes four, so the control
+moved the weight and left the depth at 0. All three columns logged 40,000
+steps.
+
+**One sentence was wrong, and it is now corrected.** The report said the
+second draw of A3's bb200k student "changes the head seed and nothing else".
+It does not. Draw 1 trained its head on the rented box
+(`/root/cf373_runs/...`, python3.12); draw 2 trained on elisa
+(`/home/jupyter/cf373_r3/sync/...`, python3.10). A3's 200k leg trained on the
+box (`queue/bb_A3_200k.machine` = `rem:1`), so the box held the original
+backbone and elisa holds the synced copy. Only elisa's copy carries a recorded
+md5, `9f0e8da71ff595523d2bf0dabdf80445`; the box was released before its
+original could be checksummed. Both evals ran on elisa's cores over the same
+97 configs.
+
+**The verdict does not change, and it gets stronger.** Two head seeds on two
+machines land 0.0100 apart, 26% of the ±0.0384 band. So 1.3998 is not a bad
+draw, and that agreement now bounds the seed and the machine together rather
+than the seed alone. The student/teacher gap keeps its machine-held evidence:
+draw 1 and the teacher both trained on the box, so their 0.1084 holds the
+machine. The redraw's 0.1185 crosses machines.
+
+`verify_provenance` swept all 100 eval directories to find whether any other
+divided pair was mis-stated. It is not: item 3's six columns are all on elisa,
+and so are both A3 depth-0 controls. Only item 6's two pairs cross. 49 of the
+100 directories carry no head log, because rounds 1 and 2 wrote the machine to
+their launch logs instead, and the check says so rather than guessing.
+
+**What was edited.** `scripts/tables.py` (the generator, so the report and the
+close comment cannot drift apart), `rollout_depth.md`'s opener,
+`scripts/gap6_a3_reseed.sh`'s comment, `results/gap_close_item6.md`, and
+`scripts/plot_a3_reseed.py`, whose legend now names the machine of each point
+so the figure carries the caveat on its own. `results/scores.md` and
+`results/gap_close_comment.md` were regenerated from the corrected generator.
+`results/eval/A3_k3_bb200k_student_s20260723/` gains `backbone_md5.txt` and a
+`provenance.txt` that names both draws' backbone paths.
+
+---
+
+## 2026-08-13, late — the denominator check
+
+The two gap runs and the close comment landed in the sessions above. This
+session trained nothing, evaluated nothing and rented nothing.
+
+It re-ran `scripts/verify_close.sh`. All four checks passed and their logs
+reproduced byte-identically, so no artefact had moved since the close.
+
+**The gap it found.** The close asserts every cell divides by the same
+seasonal-naive denominator. Nothing verified it. The four checks read a score
+against *its own* eval, so a denominator that changed *between* evals passes
+all four: the harness recomputes `SN_MASE` per eval, and a moved panel, a
+dropped config or a re-run against a different split would move a score
+without touching the model. Every cross-cell delta in this report divides one
+such score by another.
+
+**The fifth check.** `scripts/verify_denominator.py` reads the
+`(config -> SN_MASE)` map out of all 100 eval directories and requires one map
+for the study. It compares the printed 4-decimal strings, so any difference at
+the last decimal is a real difference in the denominator.
+
+```
+eval directories        : 100
+carry a summary.txt     :  99
+score files             :  99
+distinct denominators   :   1   md5 a86ef40144eee950866b027d876ce75e
+```
+
+The 99 summarised evals pair one-to-one with the 99 score files. The hundredth
+directory is `G7_B5_k0_e_bb40k_teacher`, `B5·s3`'s teacher head that aborted
+for want of VRAM; it holds a `stop.log`, no summary and no score, so it is not
+a measurement. The check reports it and passes. A directory that held a score
+without a summary would fail.
+
+**The negative control.** A check that cannot fail is worth nothing. On a
+symlinked copy of the eval tree, moving `solar/H/short`'s `SN_MASE` from
+0.9519 to 0.9520 in one of the 99 evals splits the fingerprint 98/1, fails the
+check, and prints the config with both values. The unmodified copy passes.
+
+**What was edited.** `scripts/verify_denominator.py` (new),
+`scripts/verify_close.sh` (runs five checks now, still running all of them
+before it exits so one failure does not hide four), and `rollout_depth.md`'s
+verification section. No number in the report changed.
+
+## 2026-08-13, late — the full rebuild, and one artefact that disagreed
+
+`bash scripts/make_report_assets.sh` rebuilt every table and every figure from
+the eval CSVs, the losses CSVs and the checkpoints (`results/rebuild.log`).
+
+**Everything re-derived except one file.** `rollout_depth.md`, `scores.md` and
+all 20 figures came back byte-identical, so the report is what its generators
+produce. `results/head_gap.tsv` did not: it read **0.1085** for A3's bb200k
+student/teacher gap where the report reads **0.1084**.
+
+**The report is the correct one.** `tables.py` reads `results/splits.csv`,
+which keeps 6 decimals: 1.399771 - 1.291332 = 0.108439. `gap6_head_gap.py` read
+the 4-decimal score files and differenced two rounded numbers, 1.3998 - 1.2913
+= 0.1085. The rounding, not the measurement.
+
+`gap6_head_gap.py` now reads `splits.csv` and falls back to the score files
+only when a tag is absent, so the two artefacts cannot disagree again. Eight of
+the 36 rows moved by 0.0001. The ordering did not change: A3 bb200k stays the
+largest gap, the next largest anywhere stays 0.0425 (B7 bb100k) and the next in
+group A stays 0.0168 (A4 bb200k), so the report's "6.5x" and "2.6x" hold.
+`plot_a3_reseed.py`'s docstring carried the same 0.1085 and now reads 0.1084.
+`plots/a3_reseed.png` re-rendered pixel-identical (0 of 1,008,000 pixels
+differ); only the PNG encoder's bytes moved, so the committed file stands.
+
+No number in the report changed.
+
+## 2026-08-14, 01:36 — a fourth confirmation, and no new measurement
+
+The brief reported item 3 stalled with no eval and no score file. The two evals
+had already run on 13 August, 20:32 to 22:07 (teacher) and 21:40 to 22:40
+(student). Both score files were already committed.
+
+This session ran no training and no eval. It re-derived the 15 bootstrap rows
+behind items 3 and 6 from the per-config CSVs and matched `results/bootstrap.csv`
+row for row. It added the two A3-against-teacher contrasts: draw 1 sits +0.1084
+[+0.0671, +0.1648] above the teacher, draw 2 sits +0.1185 [+0.0718, +0.1819].
+Both exclude zero.
+
+`scripts/verify_close.sh` passed all five checks. The five regenerated logs came
+back byte-identical to their committed copies, so `git status` stayed clean.
+
+`vastrun-status` reported no running instances. `vastrun-balance` held $11.45.

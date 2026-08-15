@@ -1,0 +1,8 @@
+[08-08 23:47:50] [verify B5] START slug=arm4_combab_fix09 launcher=run_arm_k.sh arg=arm4_combab gpu=1
+[08-08 23:47:50] [elisa-arm4_combab] BB START (arm 4_combab: xshh_allt + moco-negatives + τ=1.0 + cpc=0 + sigreg_e=0) gpu=1 target=1 final=200000 bs=64 
+[08-08 23:48:02] [elisa-arm4_combab] arm4_combab wave complete: target=1 (< final 200000) — latest ck bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k0_0k.pth
+[08-08 23:48:02] [elisa-arm4_combab] BB START (arm 4_combab: xshh_allt + moco-negatives + τ=1.0 + cpc=0 + sigreg_e=0) gpu=1 target=1 final=200000 bs=64 
+[08-08 23:48:16] [elisa-arm4_combab] arm4_combab wave complete: target=1 (< final 200000) — latest ck bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_0k.pth
+[08-08 23:48:16] [verify B5] launcher rc: k=0 -> 0, k=3 -> 0 (a 1-step run names no _0k.pth)
+B5	PASS	step=1	loss_k0=10.4223079681	loss_k3=46.8154563904	d_loss=+36.393148	loss_tau_ref=14.8282833099	cos_err=0.6219,0.7317,0.7911,0.8366
+[08-08 23:48:16] [verify B5] verdict rc=0

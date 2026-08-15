@@ -1,0 +1,4 @@
+[08-10 20:49:21] [elisa-arm4_combab] WAVE SKIP: existing _40k.pth ≥ target 40k (final=200000 not reached — set FORCE=1 to override)
+[08-10 20:50:01] [elisa-arm4_combab] RESUME from bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_40k.pth
+[08-10 20:50:01] [elisa-arm4_combab] BB START (arm 4_combab: xshh_allt + moco-negatives + τ=1.0 + cpc=0 + sigreg_e=0) gpu=0 target=100000 final=200000 bs=64 --resume /root/cf373_runs/bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3/bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_40k.pth
+[08-11 10:28:50] [elisa-arm4_combab] arm4_combab wave complete: target=100000 (< final 200000) — latest ck bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_r2_100k.pth

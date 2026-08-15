@@ -731,12 +731,16 @@ def rollout_latent(backbone, encoder_latents, n_future_tokens):
     Uses the backbone's causal transformer: since contrastive training
     makes f[t] ≈ e[t+1], we feed f[-1] back as the next encoder latent.
 
-    The forecaster bottleneck (#286 follow-up, v13) lives between the
-    encoder-dim residual stream and the forecaster transformer layers:
-    `fcst_down_proj` shrinks from `dimension_e` into `forecaster_d_model`,
-    the layers run at `forecaster_d_model`, then `fcst_up_proj` widens
-    back to `dimension_e`. When no bottleneck is configured both projs
-    are `nn.Identity` so this path is bit-identical for legacy backbones.
+    Each token runs `TransformerBlock.forecaster_forward` — the same
+    forecaster operator the training forward and the training rollout depth
+    (#373) compose, bottleneck projections included. `fp32_tail=False` keeps
+    the eval precision policy this function has always run at: every layer at
+    the ambient precision, no cast. #373 changes the training objective only.
+
+    `cache_mask=False` for the same reason: the sequence grows by one token
+    per step, so the length-keyed cache never hits, and the body this
+    function ran before #373 built its mask locally and left module state
+    alone. An eval rollout writes nothing to the backbone.
 
     Args:
         backbone: frozen ConfigurableModel (on correct device)
@@ -750,32 +754,15 @@ def rollout_latent(backbone, encoder_latents, n_future_tokens):
             residual-stream dim with `encoder_latents` and can feed the
             decoding head unchanged.
     """
-    device = encoder_latents.device
     seq = encoder_latents  # (B*C, T, H) in dimension_e
     generated = []
 
-    fcst_down_proj = backbone.transformer.fcst_down_proj
-    fcst_up_proj = backbone.transformer.fcst_up_proj
-
     with torch.no_grad():
         for _ in range(n_future_tokens):
-            # Build causal mask for current sequence length
-            T_cur = seq.size(1)
-            causal_mask = torch.triu(
-                torch.ones(T_cur, T_cur, device=device), diagonal=1
-            ).bool()
-            causal_mask = causal_mask.float().masked_fill(causal_mask, float('-inf'))
-
-            # Run forecaster layers (bypass encoder — we already have latents).
-            # Apply the bottleneck projections so the layers see input at
-            # `forecaster_d_model`, not `dimension_e`. nn.Identity when no
-            # bottleneck is configured (legacy bit-identical).
-            x = fcst_down_proj(seq)
-            for layer in backbone.transformer.layers:
-                x = layer(x, tgt_mask=causal_mask, tgt_is_causal=True)
-            x = fcst_up_proj(x)  # back to dimension_e
-
-            # x[:, -1, :] is f[-1] ≈ e[next]
+            # Run the forecaster on the current sequence (bypass the encoder
+            # — we already have latents). x[:, -1, :] is f[-1] ≈ e[next].
+            x = backbone.transformer.forecaster_forward(
+                seq, fp32_tail=False, cache_mask=False)
             new_token = x[:, -1:, :]  # (B*C, 1, H)
             generated.append(new_token)
 
@@ -783,6 +770,44 @@ def rollout_latent(backbone, encoder_latents, n_future_tokens):
             seq = torch.cat([seq, new_token], dim=1)
 
     return torch.cat(generated, dim=1)  # (B*C, n_future_tokens, H)
+
+
+def rollout_forecaster_latents(backbone, forecasted_latent, depth):
+    """f^(1) .. f^(k) — re-apply the forecaster to its own output (#373).
+
+    The training loss ties f^(0)_t to h_{t+1} only, while the eval rolls the
+    forecaster out on its own output. This composes the same operator
+    (`TransformerBlock.forecaster_forward`, the one :func:`rollout_latent`
+    composes) over the WHOLE sequence at once, so copy j gives f^(j)_t, which
+    the rollout-depth objective ties to h_{t+1+j}.
+
+    The pass runs the TRAINING precision policy (the default `fp32_tail`),
+    the one that produced f^(0), and the caller hands over an fp32 f^(j-1) —
+    the dtype the encoder boundary hands the depth-0 pass. So every depth
+    walks the same numeric path as depth 0.
+
+    Feeding f^(j-1) back in place of the encoder prefix is the fixed-point
+    approximation of the eval rollout: it costs one dropped key per depth at
+    the front of the attention context and buys a fully parallel pass over
+    all t. Gradient flows through the chain — no detach between passes.
+
+    Args:
+        backbone: ConfigurableModel whose `transformer` holds the forecaster.
+        forecasted_latent: (B, T, C, H) f^(0), the training forward's output.
+        depth: k, how many further applications to compose.
+
+    Returns:
+        list of k tensors (B, T, C, H); entry j−1 is f^(j).
+    """
+    if depth <= 0:
+        return []
+    B, T, C, H = forecasted_latent.shape
+    seq = forecasted_latent.permute(0, 2, 1, 3).reshape(B * C, T, H)
+    depths = []
+    for _ in range(depth):
+        seq = backbone.transformer.forecaster_forward(seq)
+        depths.append(seq.reshape(B, C, T, H).permute(0, 2, 1, 3))
+    return depths
 
 
 def _get_denorm_stats(backbone, C):

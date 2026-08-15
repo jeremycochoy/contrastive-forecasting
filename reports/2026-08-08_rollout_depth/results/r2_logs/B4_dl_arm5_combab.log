@@ -1,0 +1,6 @@
+[08-10 21:07:36] [elisa-arm5_combab] ABORT: no checkpoint resolver at /root/cf/scripts/resolve_eval_checkpoint.sh
+[08-10 21:17:54] [elisa-arm5_combab] BB START (arm 5_combab: rep_only + align + τ_rep=1.0 + cpc=0 + align-target teacher (nse SKIPPED: nse hurt arm5)) gpu=0 target=40000 final=200000 bs=64 
+[08-10 22:58:42] [elisa-arm5_combab] arm5_combab wave complete: target=40000 (< final 200000) — latest ck bb_small_arm5_combab_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_cf373k3_40k.pth
+[08-10 22:59:22] [elisa-arm5_combab] RESUME from bb_small_arm5_combab_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_cf373k3_40k.pth
+[08-10 22:59:22] [elisa-arm5_combab] BB START (arm 5_combab: rep_only + align + τ_rep=1.0 + cpc=0 + align-target teacher (nse SKIPPED: nse hurt arm5)) gpu=0 target=100000 final=200000 bs=64 --resume /root/cf373_runs/bb_small_arm5_combab_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_cf373k3/bb_small_arm5_combab_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_cf373k3_40k.pth
+[08-11 01:47:29] [elisa-arm5_combab] arm5_combab wave complete: target=100000 (< final 200000) — latest ck bb_small_arm5_combab_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_cf373k3_r2_100k.pth

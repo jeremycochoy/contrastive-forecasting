@@ -1,0 +1,21 @@
+[08-09 14:16:09] [w0] BB START G2_B9_k0 (gap 2) launcher=run_arm_k.sh arg=arm1_nse k=0 seed=20260520 suffix='none' gap_args='none' gpu=0
+[08-09 14:16:09] [elisa-arm1_nse] BB START (arm 1_nse: split_pred_rep + sigreg_embedding=0) gpu=0 target=40000 final=200000 bs=64 
+[08-09 17:15:03] [elisa-arm1_nse] arm1_nse wave complete: target=40000 (< final 200000) — latest ck bb_small_arm1_nse_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k0_40k.pth
+[08-09 17:15:03] [w0] BB END   G2_B9_k0 rc=0
+[08-09 17:15:03] [w0] heads for G2_B9_k0 handed off
+[08-09 17:15:03] [w0] BB START G5_B5_s2_k0 (gap 5) launcher=run_arm_k.sh arg=arm4_combab k=0 seed=20260521 suffix='_s2' gap_args='none' gpu=0
+[08-09 17:15:03] [elisa-arm4_combab] BB START (arm 4_combab: xshh_allt + moco-negatives + τ=1.0 + cpc=0 + sigreg_e=0) gpu=0 target=40000 final=200000 bs=64 
+[08-09 19:52:24] [elisa-arm4_combab] arm4_combab wave complete: target=40000 (< final 200000) — latest ck bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k0_s2_40k.pth
+[08-09 19:52:24] [w0] BB END   G5_B5_s2_k0 rc=0
+[08-09 19:52:24] [w0] heads for G5_B5_s2_k0 handed off
+[08-09 19:52:24] [w0] BB START G6_B1_k0 (gap 6) launcher=run_arm_k.sh arg=arm6_v2_combab k=0 seed=20260520 suffix='none' gap_args='none' gpu=0
+[08-09 19:52:24] [elisa-arm6_v2_combab] BB START (arm 6 v2_combab: rep_only + align + moco-rep-keys + τ_rep=1.0 + cpc=0 (nse SKIPPED: nse hurt arm6_v2)) gpu=0 target=40000 final=200000 bs=64 
+[08-09 22:13:18] [elisa-arm6_v2_combab] arm6_v2_combab wave complete: target=40000 (< final 200000) — latest ck bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k0_40k.pth
+[08-09 22:13:18] [w0] BB END   G6_B1_k0 rc=0
+[08-09 22:13:18] [w0] heads for G6_B1_k0 handed off
+[08-09 22:13:18] [w0] BB START G6_B1_k3 (gap 6) launcher=run_arm_k.sh arg=arm6_v2_combab k=3 seed=20260520 suffix='none' gap_args='none' gpu=0
+[08-09 22:13:18] [elisa-arm6_v2_combab] BB START (arm 6 v2_combab: rep_only + align + moco-rep-keys + τ_rep=1.0 + cpc=0 (nse SKIPPED: nse hurt arm6_v2)) gpu=0 target=40000 final=200000 bs=64 
+[08-10 01:16:13] [elisa-arm6_v2_combab] arm6_v2_combab wave complete: target=40000 (< final 200000) — latest ck bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_40k.pth
+[08-10 01:16:13] [w0] BB END   G6_B1_k3 rc=0
+[08-10 01:16:13] [w0] heads for G6_B1_k3 handed off
+[08-10 01:16:13] [w0] worker 0 drained

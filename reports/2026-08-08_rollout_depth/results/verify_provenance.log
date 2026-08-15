@@ -1,0 +1,24 @@
+eval directories : 100
+head trained on the box   : 19
+head trained on elisa     : 32
+machine not readable      : 49
+  (those directories hold `backbone.txt` and the eval log but no
+   head log, so the head's machine is not in the eval directory.
+   Rounds 1 and 2 wrote it to their launch logs instead.)
+
+| pair | left | right | machine |
+|---|---|---|---|
+| item 3, re-weighting, student | elisa | elisa | HELD |
+| item 3, depth, student | elisa | elisa | HELD |
+| item 3, total, student | elisa | elisa | HELD |
+| item 3, re-weighting, teacher | elisa | elisa | HELD |
+| item 3, depth, teacher | elisa | elisa | HELD |
+| item 3, total, teacher | elisa | elisa | HELD |
+| item 6, head seed, student | box | elisa | CROSSES |
+| item 6, student vs teacher, draw 1 | box | box | HELD |
+| item 6, student vs teacher, draw 2 | elisa | box | CROSSES |
+| A3 depth control, student | elisa | elisa | HELD |
+| A3 re-weighting control, student | elisa | elisa | HELD |
+
+pairs that cross machines: ['item 6, head seed, student', 'item 6, student vs teacher, draw 2']
+wrote /tmp/contrastive-forecasting-373/reports/2026-08-08_rollout_depth/results/provenance.tsv

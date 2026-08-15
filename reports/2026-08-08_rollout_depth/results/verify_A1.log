@@ -1,0 +1,10 @@
+[08-08 23:49:34] [verify A1] START slug=arm5_combab_alignS_sched launcher=run_leg_k.sh arg=arm5_combab_alignS gpu=1
+[08-08 23:49:34] [arm5_combab_alignS] FRESH start at step 0
+[08-08 23:49:34] [arm5_combab_alignS] START target=1 gpu=1 save_every=1000000 leg=/home/jupyter/checkpoints_backup/cf-373/verify/A1_k0/arm5_combab_alignS/leg_0k
+[08-08 23:49:46] [arm5_combab_alignS] DONE target=1 (5.0M) -> /home/jupyter/checkpoints_backup/cf-373/verify/A1_k0/arm5_combab_alignS/leg_0k/cf393_arm5_combab_alignS_cf373k0_0k.pth
+[08-08 23:49:46] [arm5_combab_alignS] FRESH start at step 0
+[08-08 23:49:46] [arm5_combab_alignS] START target=1 gpu=1 save_every=1000000 leg=/home/jupyter/checkpoints_backup/cf-373/verify/A1_k3/arm5_combab_alignS/leg_0k
+[08-08 23:49:57] [arm5_combab_alignS] DONE target=1 (5.0M) -> /home/jupyter/checkpoints_backup/cf-373/verify/A1_k3/arm5_combab_alignS/leg_0k/cf393_arm5_combab_alignS_cf373k3_0k.pth
+[08-08 23:49:57] [verify A1] launcher rc: k=0 -> 0, k=3 -> 0 (a 1-step run names no _0k.pth)
+A1	PASS	step=1	loss_k0=14.4006280899	loss_k3=19.1268157959	d_loss=+4.726188	loss_tau_ref=20.2213153839	cos_err=0.6219,0.7317,0.7911,0.8366
+[08-08 23:49:57] [verify A1] verdict rc=0

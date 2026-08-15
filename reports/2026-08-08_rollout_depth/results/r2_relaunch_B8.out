@@ -1,0 +1,9 @@
+[08-12 12:08:52] [B8] provisioning
+[08-12 12:08:53] [provision cf373r2-b8] attempt 1: 5 offer(s)
+[08-12 12:08:57] [provision cf373r2-b8]   offer 40203178 went away
+[08-12 12:09:01] [provision cf373r2-b8]   offer 43995362 went away
+[08-12 12:09:04] [provision cf373r2-b8]   offer 44293447 went away
+[08-12 12:11:16] [provision cf373r2-b8]   offer 45669177: instance 47540965 never reached running — destroying it
+[08-12 12:12:51] [provision cf373r2-b8] READY instance 47541145 at ssh2.vast.ai:21144
+[08-12 12:12:51] [B8] instance 47541145 at ssh2.vast.ai:21144
+[08-12 12:15:12] [B8] ABORT: bootstrap failed — destroying 47541145 (see r2_bootstrap_B8.log)

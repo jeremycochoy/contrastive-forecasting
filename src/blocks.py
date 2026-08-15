@@ -704,6 +704,114 @@ class TransformerBlock(nn.Module):
 
         self.causal_mask = None
 
+    def causal_mask_for(self, x, cache=True):
+        """The [T, T] causal mask for `x`'s sequence length and device.
+
+        The cache is keyed on both: a mask cached by a forward on another
+        device is never handed on.
+
+        `cache=False` returns the mask without writing `self.causal_mask`.
+        The eval rollout grows the sequence one token at a time, so it never
+        hits the cache anyway, and writing would leave the backbone's mask at
+        T + n after every rollout — churn on one thread, a race on a backbone
+        an eval harness shares between threads or streams.
+        """
+        if (self.causal_mask is not None
+                and self.causal_mask.size(0) == x.size(1)
+                and self.causal_mask.device == x.device):
+            return self.causal_mask
+        mask = self._generate_square_subsequent_mask(x.size(1)).to(x.device)
+        if cache:
+            self.causal_mask = mask
+        return mask
+
+    def backbone_ckpt_enabled(self):
+        """Whether BACKBONE_CKPT=1 gradient-checkpointing (#327) is on.
+
+        ONE definition, read by both stacks — the encoder loop in
+        :meth:`forward` and the forecaster loop in :meth:`forecaster_forward`.
+        The two shared one local before the forecaster loop moved out (#373),
+        so a single method is what keeps them from drifting apart.
+
+        Env-gated and training-only. It does NOT gate on `x.requires_grad`,
+        unlike the neighbouring `FCST_GRAD_CKPT`.
+        """
+        return self.training and os.environ.get("BACKBONE_CKPT", "0") == "1"
+
+    def forecaster_forward(self, x, fp32_tail=True, cache_mask=True):
+        """Run the forecaster stack on a [B*C, T, H] latent sequence.
+
+        `fcst_down_proj` → causal decoder layers → `fcst_up_proj`, i.e. the
+        forecaster operator F on its own. Three callers compose the SAME
+        entry point, so they cannot drift apart: :meth:`forward` applies it
+        to the encoder output, the eval rollout
+        (`src.forecasting_head.rollout_latent`) applies it to its own output
+        one token at a time, and the training rollout depth (#373) re-enters
+        it over the whole sequence. Returns [B*C, T, H] in `dimension_e`.
+
+        `fp32_tail` picks the precision policy, NOT the arithmetic — in fp32
+        the two are the same operator:
+
+        * True (default) is the training policy: all-but-last under the outer
+          autocast, last layer and output in fp32, so the forecaster latent
+          the contrastive loss reads is full precision. :meth:`forward` and
+          the rollout depth take it.
+        * False is the eval policy: every layer at the ambient precision, no
+          cast, and no gradient-checkpointing — neither `BACKBONE_CKPT` nor
+          `FCST_GRAD_CKPT`. `rollout_latent` has always run this way and
+          #373 changes the training objective only, so it keeps it.
+
+        `cache_mask=False` keeps the causal mask off the module — see
+        :meth:`causal_mask_for`. The eval rollout takes it; the callers that
+        run at a fixed T keep the cache.
+        """
+        causal_mask = self.causal_mask_for(x, cache=cache_mask)
+        # Forecaster bottleneck (#286 follow-up, v13). When configured
+        # smaller than `dimension_e`, `fcst_down_proj` is a Linear that
+        # shrinks per-token; otherwise it's nn.Identity (no-op). The
+        # projection is per-token, so it commutes with the causal mask.
+        x = self.fcst_down_proj(x)
+
+        # Forecaster (decoder) layers — always pure causal. Under `fp32_tail`
+        # the same hybrid as the encoder stack: all-but-last under outer
+        # autocast, last layer in fp32 so the forecaster latent feeding the
+        # loss is full precision.
+        n_fcst = len(self.layers)
+        # #327's gradient-checkpointing belongs to the training policy: it
+        # trades stored activations for a backward recompute. The eval
+        # rollout (`fp32_tail=False`) runs under `no_grad`, where that buys
+        # nothing, and the body it ran before #373 called every layer flat.
+        bb_ckpt = fp32_tail and self.backbone_ckpt_enabled()
+        # Optional gradient-checkpointing of the (non-last) forecaster layers,
+        # mirroring the encoder-layer checkpointing — env-gated and training-only,
+        # so it is BYTE-IDENTICAL (exact recompute) and a no-op for every existing
+        # run/checkpoint. Lets the full-width-forecaster arm fit a single 24 GB card.
+        # Follows `fp32_tail` for the same reason `bb_ckpt` does: checkpointing
+        # is a training-memory knob, and the eval policy runs every layer flat.
+        # `rollout_latent` runs under `no_grad`, so `x.requires_grad` holds it
+        # off there already; the policy is what pins it, not the caller.
+        fcst_ckpt = (fp32_tail and os.environ.get("FCST_GRAD_CKPT", "0") == "1"
+                     and self.training and x.requires_grad)
+        for i, layer in enumerate(self.layers):
+            if fp32_tail and i == n_fcst - 1:
+                with torch.amp.autocast('cuda', enabled=False):
+                    x = x.float()
+                    x = layer(x, tgt_mask=causal_mask, tgt_is_causal=True)
+            elif fcst_ckpt:
+                x = torch.utils.checkpoint.checkpoint(
+                    lambda inp, lyr=layer: lyr(inp, tgt_mask=causal_mask,
+                                               tgt_is_causal=True),
+                    x, use_reentrant=False)
+            else:
+                x = self._run_layer(layer, x, causal_mask, True, bb_ckpt)
+        if fp32_tail and n_fcst > 0:
+            x = x.float()
+
+        # Project the forecaster output back up to dimension_e so the
+        # downstream contrastive loss / channel-mixing operates in the
+        # same H-dim space as `x_original` (the encoder-side latent).
+        return self.fcst_up_proj(x)
+
     def _run_layer(self, layer, x, mask, is_causal, ckpt):
         """Run one decoder layer, optionally gradient-checkpointed (#327).
 
@@ -735,8 +843,7 @@ class TransformerBlock(nn.Module):
         x = x.reshape(B*C, T, H)
 
         # x shape after potential reshaping: (batch_size, sequence_length, dimension_e)
-        if self.causal_mask is None or self.causal_mask.size(0) != x.size(1):
-            self.causal_mask = self._generate_square_subsequent_mask(x.size(1)).to(x.device)
+        self.causal_mask_for(x)
 
         # Encoder layers run BEFORE x_original is captured: the contrastive
         # loss normalises x_original on the unit sphere, so encoder vs
@@ -760,7 +867,9 @@ class TransformerBlock(nn.Module):
         n_enc = len(self.encoder_layers)
         # #327: optionally gradient-checkpoint the non-last (non-fp32) layers so
         # a global batch of 2048 fits the backbone forward on one 24 GB card.
-        bb_ckpt = self.training and os.environ.get("BACKBONE_CKPT", "0") == "1"
+        # Same gate the forecaster loop reads (`backbone_ckpt_enabled`), so
+        # the two stacks checkpoint together as they always did.
+        bb_ckpt = self.backbone_ckpt_enabled()
         for i, layer in enumerate(self.encoder_layers):
             if i == n_enc - 1:
                 # fp32 region for the last encoder layer
@@ -829,41 +938,7 @@ class TransformerBlock(nn.Module):
                 return f_out, x_original, embed
             return f_out, x_original
 
-        # Forecaster bottleneck (#286 follow-up, v13). When configured
-        # smaller than `dimension_e`, `fcst_down_proj` is a Linear that
-        # shrinks per-token; otherwise it's nn.Identity (no-op). The
-        # projection is per-token, so it commutes with the causal mask.
-        x = self.fcst_down_proj(x)
-
-        # Forecaster (decoder) layers — always pure causal. Same hybrid:
-        # all-but-last under outer autocast, last layer in fp32 so the
-        # forecaster latent feeding the loss is full precision.
-        n_fcst = len(self.layers)
-        # Optional gradient-checkpointing of the (non-last) forecaster layers,
-        # mirroring the encoder-layer checkpointing — env-gated and training-only,
-        # so it is BYTE-IDENTICAL (exact recompute) and a no-op for every existing
-        # run/checkpoint. Lets the full-width-forecaster arm fit a single 24 GB card.
-        fcst_ckpt = (os.environ.get("FCST_GRAD_CKPT", "0") == "1"
-                     and self.training and x.requires_grad)
-        for i, layer in enumerate(self.layers):
-            if i == n_fcst - 1:
-                with torch.amp.autocast('cuda', enabled=False):
-                    x = x.float()
-                    x = layer(x, tgt_mask=self.causal_mask, tgt_is_causal=True)
-            elif fcst_ckpt:
-                x = torch.utils.checkpoint.checkpoint(
-                    lambda inp, lyr=layer: lyr(inp, tgt_mask=self.causal_mask,
-                                               tgt_is_causal=True),
-                    x, use_reentrant=False)
-            else:
-                x = self._run_layer(layer, x, self.causal_mask, True, bb_ckpt)
-        if n_fcst > 0:
-            x = x.float()
-
-        # Project the forecaster output back up to dimension_e so the
-        # downstream contrastive loss / channel-mixing operates in the
-        # same H-dim space as `x_original` (the encoder-side latent).
-        x = self.fcst_up_proj(x)
+        x = self.forecaster_forward(x)
 
         if return_embed:
             return x, x_original, embed

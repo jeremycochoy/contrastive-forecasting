@@ -1,0 +1,12 @@
+arm,k,machine,card,solo,why_not_solo,windows_total,windows_solo,windows_contended,first_solo_step,data_ms,fwd_ms,bwd_ms,compute_ms,total_ms,compute_ms_contended,backbone_overlap,head_overlap,neighbours
+B9,0,elisa,RTX 4090,no,another backbone for 96% of the run and head training for 4% of it,200,0,200,,,,,,,212.6,0.96,0.04,G3_A3_k0_aw4(96%) G5_B5_s2_k3(4%)
+B9,3,vast box c,RTX 4090,yes,,200,199,0,400,11.6,244.3,180.9,425.2,442.6,,0.00,0.00,none
+B1,0,elisa,RTX 4090,no,another backbone for 100% of the run and head training for 100% of it,200,0,200,,,,,,,178.6,1.00,1.00,G5_B5_s2_k3(100%)
+B1,3,elisa,RTX 4090,no,another backbone for 68% of the run and head training for 100% of it,200,0,200,,,,,,,235.1,0.68,1.00,G3_A3_k1(68%) G5_B5_s2_k3(32%)
+B5·s1,0,vast box d,RTX 5090,yes,,200,199,0,400,3.1,73.4,44.2,117.6,121.9,,0.00,0.00,none
+B5·s1,3,vast box a,RTX 5090,yes,,200,199,0,400,5.5,157.2,144.7,301.9,307.7,,0.00,0.00,none
+B5·s2,0,elisa,RTX 4090,no,another backbone for 100% of the run and head training for 98% of it,200,0,200,,,,,,,201.1,1.00,0.98,G5_B5_s2_k3(100%)
+B5·s2,3,elisa,RTX 4090,no,another backbone for 43% of the run and head training for 100% of it,200,0,200,,,,,,,500.9,0.43,1.00,G2_B9_k0(2%) G5_B5_s2_k0(43%) G6_B1_k0(39%) G6_B1_k3(16%)
+A3,0,vast box d,RTX 5090,yes,,200,199,0,400,3.1,75.3,40.6,115.9,120.2,,0.00,0.00,none
+A3,1,elisa,RTX 4090,no,another backbone for 72% of the run and head training for 100% of it,200,0,200,,,,,,,214.7,0.72,1.00,G6_B1_k3(72%)
+A3,3,vast box b,RTX 5090,yes,,273,127,146,14800,4.4,79.3,52.2,131.5,136.5,142.1,0.00,0.00,1 clone(s) of itself

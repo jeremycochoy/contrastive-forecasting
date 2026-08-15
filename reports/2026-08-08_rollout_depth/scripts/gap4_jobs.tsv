@@ -1,0 +1,57 @@
+# #373 review gap 3, second half — the fourth corner of the 2x2.
+#
+# WHAT IS MISSING. B1 carries `L_align` as its only f-bearing term. A `k = 3`
+# run adds one whole copy of that term per depth, so it changes TWO things at
+# once: the total weight on `L_align` against the f-free terms goes from 1 to
+# 4, and the term spreads from horizon t+1 alone to t+1..t+4. The study has
+# three of the four corners:
+#
+#   total align weight   horizons        cell                 student
+#   1x                   t+1             B1 k = 0             1.2025
+#   4x                   t+1             B1 k = 0, aw4        1.1513
+#   4x                   t+1..t+4        B1 k = 3             1.0850
+#   1x                   t+1..t+4        THIS ROW             ?
+#
+# The report currently reads the horizon segment by subtraction: -0.0663 is
+# `k = 3` minus the x4 control, which assumes the two changes add. This row
+# MEASURES that segment instead. `--align-loss-weight 0.25` at `k = 3` puts
+# 0.25 on each of the four copies, so the total weight returns to 1.0 and the
+# horizons are the only thing that moved against B1's k = 0 baseline.
+#
+# WHY 0.25 IS THE RIGHT NUMBER. `contrastive_latent_loss` adds the add-on once
+# at depth 0 and once per depth copy j = 1..k, each at `align_loss_weight`
+# (src/loss.py, the rollout-depth loop). k = 3 therefore sums four copies.
+# 4 x 0.25 = 1.0, which is what B1's k = 0 baseline carries.
+#
+# WHERE IT MUST RUN. On elisa, at seed 20260520, at the 40k stop, with a
+# 15,000-step head at seed 20260722. `b1_triangle.py` shows the other three
+# corners hold every one of those. A rented box would put the machine term,
+# worth 0.1166 on this study's one controlled measurement of it, into the one
+# comparison that does not have it. This row costs GPU-hours and no money.
+#
+# HOW TO RUN IT (nothing here starts it):
+#
+#   cd <run worktree>/reports/2026-08-08_rollout_depth
+#   JOBS=scripts/gap4_jobs.tsv BB_GPU=<0|1> \
+#     nohup bash scripts/gap_worker.sh 0 1 > results/gap4_worker.out 2>&1 &
+#
+# The worker trains the backbone, then hands both heads and both 97-config
+# evals off itself. Watch `results/gaps_driver.log`.
+#
+# COST, from the x4 control's own measured wall clock on elisa
+# (`results/gap3_worker.out`, 08-13 17:53 -> 20:32):
+#
+#   backbone   2.7 h of one RTX 4090, 40,000 steps at k = 3, card shared
+#   heads      2 x ~0.6 GPU-h (15,000 steps each, student and teacher)
+#   evals      2 x ~1.0 h on elisa's cores, no GPU
+#   total      ~3.9 GPU-hours, ~5 h wall clock, $0
+#
+# WHAT IT DECIDES. Read the result against B1's k = 0 (1.2025 student /
+# 1.2001 teacher). That difference IS the horizon segment, measured. Compare
+# it with the -0.0663 / -0.0534 the report now infers by subtraction. If the
+# two agree, the two changes add and the published split stands. If the
+# measured segment is larger, the x4 control understates the horizons. If it
+# is smaller, part of what the report calls the horizons is the interaction.
+#
+# id	gap	launcher	arg	k	suffix	seed	gap_args	steps
+G_B1_k3_aw025	3	run_arm_k.sh	arm6_v2_combab	3	_aw025	20260520	--align-loss-weight 0.25	40000

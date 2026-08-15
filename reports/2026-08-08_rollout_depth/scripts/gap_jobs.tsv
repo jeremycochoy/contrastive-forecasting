@@ -1,0 +1,25 @@
+# #373 — the backbone runs the experiment review asked for, in the
+# reviewer's own priority order. One row per backbone.
+#
+# id       an identifier; every artefact of the run carries it.
+# gap      which review gap the row answers.
+# launcher a file in this directory.
+# arg      the launcher's first positional argument (its cell / arm).
+# k        --train-rollout-depth.
+# suffix   RUN_SUFFIX: appended to the run name after the _cf373k<K> part,
+#          so a control cannot collide with the cell it controls for.
+#          `-` means empty.
+# seed     backbone seed. 20260520 is the protocol's; anything else is a
+#          second training of the same recipe.
+# gap_args extra trainer flags, appended after EXTRA_ARGS so they override a
+#          per-cell `case` arm. `-` means none.
+# steps    the stop to train to.
+#
+# id	gap	launcher	arg	k	suffix	seed	gap_args	steps
+G2_B9_k0	2	run_arm_k.sh	arm1_nse	0	-	20260520	-	40000
+G3_A3_k0_aw4	3	run_leg_k.sh	arm6_v2_combab_alignT	0	_aw4	20260520	--align-loss-weight 4.0	40000
+G5_B5_s2_k3	5	run_arm_k.sh	arm4_combab	3	_s2	20260521	-	40000
+G5_B5_s2_k0	5	run_arm_k.sh	arm4_combab	0	_s2	20260521	-	40000
+G6_B1_k0	6	run_arm_k.sh	arm6_v2_combab	0	-	20260520	-	40000
+G6_B1_k3	6	run_arm_k.sh	arm6_v2_combab	3	-	20260520	-	40000
+G3_A3_k1	3	run_leg_k.sh	arm6_v2_combab_alignT	1	-	20260520	-	40000

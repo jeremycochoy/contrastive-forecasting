@@ -1,0 +1,147 @@
+#!/usr/bin/env python3
+"""#373 annex — where the retrained k = 0 arms sit on the published k = 0
+trajectory.
+
+Annex figure. The body's `ladder.png` draws all 14 cells at k = 3 against
+the frontier. This one asks a narrower question: of the five arms that also
+carry a retrained k = 0 on this study's own code, where does each one land
+on the trajectory its parent report published?
+
+Read it as: does three depths at 40k steps buy what the k = 0 cell needed
+100k or 200k steps to reach?
+
+The k = 0 marker at bb40k is this study's own retrained gate where one
+exists, and the published number otherwise; the two are distinguished in
+the legend.
+
+Usage: plot_k0_overlay.py --results <results dir> --out plots/k0_overlay.png
+"""
+from __future__ import annotations
+
+import argparse
+import re
+import sys
+from pathlib import Path
+
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt                        # noqa: E402
+from matplotlib.lines import Line2D                    # noqa: E402
+
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+import cell_colours as cc                     # noqa: E402
+import runs as R                              # noqa: E402                              # noqa: E402
+from published import PUBLISHED                        # noqa: E402
+
+SCORE_RE = re.compile(r"^score_([AB]\d+)_k(\d+)_bb(\d+)k_(student|teacher)\.txt$")
+plt.rcParams.update(cc.rc())
+
+
+def read_scores(results):
+    """`{(arm, k, stop, head): value}` over the depth runs."""
+    out = {}
+    for p in Path(results).glob("score_*.txt"):
+        run = R.resolve(p.name[len("score_"):-len(".txt")])
+        if run is None or run.role != "depth":
+            continue
+        try:
+            out[(run.arm, run.k, run.stop, run.head)] = \
+                float(p.read_text().strip())
+        except ValueError:
+            continue
+    return out
+
+
+def main(argv=None):
+    p = argparse.ArgumentParser()
+    p.add_argument("--results", required=True)
+    p.add_argument("--out", required=True)
+    args = p.parse_args(argv)
+
+    sc = read_scores(args.results)
+    arms = [a for a in R.ARM_ORDER if any(x == a for x, _k, _s, _h in sc)]
+    if not arms:
+        raise SystemExit("no score file yet — no ladder")
+
+    heads = ["student", "teacher"]
+    # Cells whose published trajectory is anchored on a retracted arm. The
+    # trajectory keeps the cell's hue, so it needs its own legend entry.
+    pub_only = []
+    # One x range for both panels. The published trajectories run to 200,000
+    # steps on the student head and to 100,000 on the teacher head, so two
+    # free x axes drew the same trajectory at two slopes side by side.
+    fig, axes = plt.subplots(1, 2, figsize=(11.6, 4.6), sharey=True,
+                             sharex=True)
+
+    for ax, head in zip(axes, heads):
+        for arm in arms:
+            col = cc.arm_colour(arm)
+            # The published trajectory belongs to the CELL. Both of B5's
+            # backbone seeds are the same cell, so it is drawn once.
+            pub = ({} if cc.hollow(arm)
+                   else PUBLISHED.get(cc.cell_of(arm), {}).get(head, {}))
+            if pub:
+                # The published trajectory belongs to the CELL, so it keeps
+                # the cell's hue even where the arm that anchors it is
+                # retracted. Only this study's own markers go grey.
+                xs = sorted(pub)
+                ax.plot([x * 1000 for x in xs], [pub[x] for x in xs],
+                        color=cc.colour(arm), linestyle=cc.style(0),
+                        linewidth=1.6, marker="o", markersize=4,
+                        markerfacecolor="white")
+                if cc.retracted(arm) and arm not in pub_only:
+                    pub_only.append(arm)
+            # Two seeds of one cell would land on top of each other at
+            # x = 40000, so nudge the second one along the step axis. It is
+            # not a different budget; the offset is legibility only.
+            x = 40000 + (1600 if cc.hollow(arm) else 0)
+            k0 = sc.get((arm, 0, 40, head))
+            if k0 is not None:
+                ax.plot(x, k0, color=col, marker="D", markersize=7,
+                        markerfacecolor="white", linestyle="none")
+            for k in sorted({kk for a, kk, _s, h in sc
+                             if a == arm and h == head and kk}):
+                kk = sc[(arm, k, 40, head)]
+                ax.plot(x, kk, color=col, marker="*", markersize=14,
+                        linestyle="none",
+                        markerfacecolor="white" if k == 1 else col)
+                if k0 is not None:
+                    ax.annotate("", xy=(x, kk), xytext=(x, k0),
+                                arrowprops=dict(arrowstyle="->", color=col,
+                                                linewidth=1.2))
+        # No cross-cell rule is drawn. A cell this study never retrained has
+        # no machine-matched number here, and the machine alone is worth
+        # 0.1166, so a comparison against it would not be readable.
+        ax.set_xlabel("backbone step")
+        ax.set_title(f"{head} head", loc="left")
+    axes[0].set_ylabel("GM-Relative MASE (97 configs)")
+
+    axes[1].legend(handles=[
+        Line2D([], [], color=cc.INK_SOFT, linestyle=cc.style(0), marker="o",
+               markerfacecolor="white", label="published k = 0 trajectory"),
+        Line2D([], [], color=cc.INK_SOFT, marker="D", markerfacecolor="white",
+               linestyle="none", label="this study, retrained k = 0"),
+        Line2D([], [], color=cc.INK_SOFT, marker="*", markersize=12,
+               linestyle="none", label="this study, k > 0")]
+        + [Line2D([], [], color=cc.arm_colour(a),
+                   label=cc.label(a) + ("  ✗ retracted" if a in R.RETRACTED
+                                        else ""))
+           for a in arms]
+        + [Line2D([], [], color=cc.colour(a), linestyle=cc.style(0),
+                  marker="o", markerfacecolor="white",
+                  label=f"{cc.label(cc.cell_of(a))}  published k = 0")
+           for a in pub_only],
+        loc="best", frameon=False, fontsize=8)
+
+    fig.suptitle("The retrained arms on the published k = 0 trajectories",
+                 fontsize=11)
+    fig.tight_layout(rect=(0, 0, 1, 0.95))
+    Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(args.out, bbox_inches="tight")
+    print(f"wrote {args.out} ({len(arms)} arm(s))")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

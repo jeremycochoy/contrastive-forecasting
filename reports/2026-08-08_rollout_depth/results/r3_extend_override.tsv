@@ -1,0 +1,15 @@
+# #373 round 3 — heads the card extends against the rule's own verdict.
+#
+# Columns: cell  stop_the_rule_read  head  verdict_overridden  reason
+#
+# The extend rule at bb100k gave eight cells: A2, A3, A4 (student only), B1
+# (teacher only), B2, B4, B6, B10. That is the card's list, head for head,
+# with one exception recorded here.
+#
+# B1's student head: the rule read 1.0850 at bb40k against 1.0881 at bb100k,
+# which is up, so it stopped that head. The card extends B1 whole. B1's bb40k
+# pair is round 1's, written under the tag G6_B1_k3_bb40k before round 2
+# renamed the cells, so the rule tested B1 against a number the round did not
+# produce itself. Both of B1's heads are trained at bb200k and both are
+# reported, and the rule's verdict is reported beside them.
+B1	100	student	stop	bb40k comes from round 1 under an alias tag

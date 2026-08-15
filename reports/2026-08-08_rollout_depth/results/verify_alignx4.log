@@ -1,0 +1,23 @@
+step       k = 0       k = 0 x4     diff        k = 3
+1          13.64394    17.37510     +3.73116    18.37013
+2          13.60069    16.04346     +2.44278    16.89116
+5          13.36115    15.20510     +1.84395    15.76229
+10         13.09635    15.01062     +1.91427    15.68382
+100        12.46784    14.70345     +2.23561    14.78172
+1000       12.51070    14.93023     +2.41953    16.94983
+10000      12.61702    14.27686     +1.65985    15.25448
+39999      12.57477    12.54890     -0.02587    15.11909
+
+step 1 gap, x4 over k = 0 : +3.73116   -> L_align(1) ~= 1.24372
+the x4 weight reached the trainer : YES
+
+rollout columns (written only when the rollout is trained):
+  k = 0              none — depth 0
+  k = 0, L_align x4  none — depth 0
+  k = 3              ['cos_err_d0', 'cos_err_d1', 'cos_err_d2', 'cos_err_d3']
+the control carries no depth      : YES
+
+  k = 0              40000 steps logged
+  k = 0, L_align x4  40000 steps logged
+  k = 3              40000 steps logged
+all three columns ran the same length : YES

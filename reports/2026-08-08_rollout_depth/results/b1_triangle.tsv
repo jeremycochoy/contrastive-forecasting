@@ -1,0 +1,7 @@
+cell	arm	enc	objective	bb_seed	bb_stop	head_seed	head_steps	strategy	forecast_len	configs	machine	score	published	match
+G6_B1_k0_bb40k_student	k=0	student	depth 0, align x1	20260520	40k	20260722	15000	B4	16	97	elisa	1.2025	1.2025	yes
+G6_B1_k0_bb40k_teacher	k=0	teacher	depth 0, align x1	20260520	40k	20260722	15000	B4	16	97	elisa	1.2001	1.2001	yes
+G_B1_k0_aw4_bb40k_student	k=0 x4	student	depth 0, align x4	20260520	40k	20260722	15000	B4	16	97	elisa	1.1513	1.1513	yes
+G_B1_k0_aw4_bb40k_teacher	k=0 x4	teacher	depth 0, align x4	20260520	40k	20260722	15000	B4	16	97	elisa	1.1482	1.1482	yes
+B1_k3_bb40k_student	k=3	student	depth 3, align x1 per copy (x4 total)	20260520	40k	20260722	15000	B4	16	97	elisa	1.0850	1.0850	yes
+B1_k3_bb40k_teacher	k=3	teacher	depth 3, align x1 per copy (x4 total)	20260520	40k	20260722	15000	B4	16	97	elisa	1.0948	1.0948	yes

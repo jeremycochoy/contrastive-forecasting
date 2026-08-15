@@ -1,0 +1,6 @@
+[08-08 23:37:21] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-08 23:37:21] [arm6_v2_combab_alignT] START target=40000 gpu=0 save_every=20000 leg=/root/cf373_runs/arm6_v2_combab_alignT/leg_40k
+[08-08 23:39:04] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-08 23:39:04] [arm6_v2_combab_alignT] START target=40000 gpu=0 save_every=20000 leg=/root/cf373_runs/arm6_v2_combab_alignT/leg_40k
+[08-09 00:23:11] [arm6_v2_combab_alignT] train exited rc=143 — tail: [  14600] loss=12.6115  ema_loss=12.6119  gap=-0.0395  ema_gap=-0.0387  mixup=69/200  5.5 sps  ETA 1.3h               R²_rand=0.8829  R²_naive=0.3090  U_t=0.0269  U_b=0.1180  AUC=0.9930  Top1=0.6065   timing: data=11.3ms  fwd=87.4ms  bwd=54.6ms  total=153.8ms 
+[08-09 01:28:04] [arm6_v2_combab_alignT] DONE target=40000 (5.0M) -> /root/cf373_runs/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_40k.pth

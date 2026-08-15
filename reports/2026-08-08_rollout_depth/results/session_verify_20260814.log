@@ -1,0 +1,55 @@
+#373 — independent re-verification, session of 2026-08-14
+Machine: elisa. No rental. vastrun-balance: Credit:  $11.45
+Branch head: bc145ca9
+
+== 1. Aggregate scores re-derived from per-config CSVs ==
+   (geometric mean of MASE/SN_MASE over the shared seasonal-naive reference)
+   G_B1_k0_aw4_bb40k_student          n=97  re-derived 1.1513  score file 1.1513  OK
+   G_B1_k0_aw4_bb40k_teacher          n=97  re-derived 1.1482  score file 1.1482  OK
+   A3_k3_bb200k_student_s20260723     n=97  re-derived 1.4098  score file 1.4098  OK
+   G6_B1_k0_bb40k_student             n=97  re-derived 1.2025  score file 1.2025  OK
+   G6_B1_k3_bb40k_student             n=97  re-derived 1.0850  score file 1.0850  OK
+
+== 2. Paired dataset-cluster bootstrap, re-run from the raw CSVs ==
+item3 k0->x4 student all          n= 97  Δ=-0.0512  95% CI [-0.1001, -0.0023]  improved in 98.0% of resamples
+item3 k0->x4 student short        n= 55  Δ=-0.0009  95% CI [-0.0483, +0.0460]  improved in 51.3% of resamples
+item3 k0->x4 student medium_long  n= 42  Δ=-0.1400  95% CI [-0.2267, -0.0662]  improved in 100.0% of resamples
+item3 x4->k3 student all          n= 97  Δ=-0.0663  95% CI [-0.1070, -0.0331]  improved in 100.0% of resamples
+item3 k0->k3 student all          n= 97  Δ=-0.1175  95% CI [-0.1801, -0.0615]  improved in 100.0% of resamples
+item3 k0->x4 teacher all          n= 97  Δ=-0.0519  95% CI [-0.0987, -0.0066]  improved in 98.8% of resamples
+item3 k0->x4 teacher short        n= 55  Δ=-0.0055  95% CI [-0.0502, +0.0375]  improved in 59.4% of resamples
+item3 k0->x4 teacher medium_long  n= 42  Δ=-0.1329  95% CI [-0.2188, -0.0620]  improved in 100.0% of resamples
+item3 x4->k3 teacher all          n= 97  Δ=-0.0534  95% CI [-0.0874, -0.0237]  improved in 100.0% of resamples
+item3 k0->k3 teacher all          n= 97  Δ=-0.1053  95% CI [-0.1661, -0.0515]  improved in 100.0% of resamples
+item6 draw1->draw2   all          n= 97  Δ=+0.0100  95% CI [-0.0163, +0.0378]  improved in 22.7% of resamples
+item6 teach->draw1   all          n= 97  Δ=+0.1084  95% CI [+0.0671, +0.1648]  improved in 0.0% of resamples
+item6 teach->draw2   all          n= 97  Δ=+0.1185  95% CI [+0.0718, +0.1819]  improved in 0.0% of resamples
+
+== 3. The x4 weight reached the trainer, and the control has no depth ==
+the x4 weight reached the trainer : YES
+
+rollout columns (written only when the rollout is trained):
+  k = 0              none — depth 0
+  k = 0, L_align x4  none — depth 0
+  k = 3              ['cos_err_d0', 'cos_err_d1', 'cos_err_d2', 'cos_err_d3']
+the control carries no depth      : YES
+
+  k = 0              40000 steps logged
+  k = 0, L_align x4  40000 steps logged
+  k = 3              40000 steps logged
+all three columns ran the same length : YES
+
+== 4. One seasonal-naive denominator over every eval ==
+  G7_B5_k0_e_bb40k_teacher: no score either — not a measurement
+
+One denominator over 99 evals, md5 a86ef40144eee950866b027d876ce75e.
+Every cell divides by the same seasonal-naive column.
+
+ALL EVALS SHARE ONE DENOMINATOR
+
+== 5. Standing checks ==
+
+ALL CHECKS PASS
+
+== 6. Coverage ==
+deliverables 72, distinct measurements 70  (2 shared student row(s) counted once; the two teachers are two models and stay counted twice)

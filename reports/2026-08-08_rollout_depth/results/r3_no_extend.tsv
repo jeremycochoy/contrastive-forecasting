@@ -1,0 +1,11 @@
+# #373 round 3 — deliverables this round does not produce, and why.
+#
+# The extend rule reads a cell's bb40k number against its bb100k number and
+# ends the head that got worse. It cannot speak for a cell with no bb100k
+# number, so those stops are recorded here instead. Without this file the
+# coverage table calls them `not started`, which reads like a gap the round
+# forgot rather than one it decided.
+#
+# cell	stop_k	head	reason
+B8	200	student	no bb100k number when the round was planned; B8 trains 0 -> 100k this round
+B8	200	teacher	no bb100k number when the round was planned; B8 trains 0 -> 100k this round

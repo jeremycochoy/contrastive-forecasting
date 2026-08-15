@@ -1,0 +1,157 @@
+[08-12 16:22:22] [q] start box=47557391 ssh6.vast.ai:37390 slots='rem:0 rem:0 rem:1 rem:1 loc:0 loc:1' root=/home/jupyter/cf373_r3/sync
+[08-12 16:22:35] [q] start box=47557391 ssh6.vast.ai:37390 slots='rem:0 rem:0 rem:1 rem:1 loc:0 loc:1' root=/home/jupyter/cf373_r3/sync
+[08-12 16:26:17] [q] start box=47557391 ssh6.vast.ai:37390 slots='rem:0 rem:0 rem:1 rem:1 loc:0 loc:1' root=/home/jupyter/cf373_r3/sync
+[08-12 16:26:22] [q] STAGE B10 -> /root/cf373_runs/bb_small_arm6_v2_nse_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3
+[08-12 16:27:01] [q] START bb_B10_200k bb B10 stop=200000  on rem:0 rem:0 rem:1 rem:1 loc:0 loc:1
+[08-12 16:30:32] [q] start box=47557391 ssh6.vast.ai:37390 slots='rem:0 rem:0 rem:1 rem:1 loc:0 loc:1' root=/home/jupyter/cf373_r3/sync
+[08-12 16:30:47] [q] START bb_B8_100k bb B8 stop=100000  on rem:0
+[08-12 16:31:10] [q] START bb_B10_200k bb B10 stop=200000  on rem:0
+[08-12 16:32:36] [q] STAGE A2 -> /root/cf373_runs/arm6_v2_nse_alignT/leg_100k
+[08-12 16:33:33] [q] START bb_A2_200k bb A2 stop=200000  on rem:1
+[08-12 16:34:39] [q] STAGE B4 -> /root/cf373_runs/bb_small_arm5_combab_lalign_lrep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_cf373k3
+[08-12 16:35:01] [q] START bb_B4_200k bb B4 stop=200000  on rem:1
+[08-12 17:07:48] [q] start box=47557391 ssh6.vast.ai:37390 slots='rem:0 rem:0 rem:1 rem:1 loc:0 loc:1' root=/home/jupyter/cf373_r3/sync
+[08-12 17:07:48] [q] ADOPT bb_B8_100k on rem:0
+[08-12 17:07:48] [q] ADOPT bb_B10_200k on rem:0
+[08-12 17:07:48] [q] ADOPT bb_A2_200k on rem:1
+[08-12 17:07:48] [q] ADOPT bb_B4_200k on rem:1
+[08-12 17:07:57] [q] start box=47557391 ssh6.vast.ai:37390 slots='rem:0 rem:0 rem:1 rem:1 loc:0 loc:1' root=/home/jupyter/cf373_r3/sync
+[08-12 17:07:57] [q] ADOPT bb_B8_100k on rem:0
+[08-12 17:07:57] [q] ADOPT bb_B10_200k on rem:0
+[08-12 17:07:57] [q] ADOPT bb_A2_200k on rem:1
+[08-12 17:07:57] [q] ADOPT bb_B4_200k on rem:1
+[08-12 17:29:10] [q] START bb_B6_200k bb B6 stop=200000  on loc:1
+[08-12 18:14:41] [q] start box=47557391 ssh6.vast.ai:37390 slots='rem:0 rem:0 rem:1 rem:1 loc:0 loc:1' root=/home/jupyter/cf373_r3/sync
+[08-12 18:14:41] [q] ADOPT bb_B8_100k on rem:0
+[08-12 18:14:41] [q] ADOPT bb_B10_200k on rem:0
+[08-12 18:14:41] [q] ADOPT bb_A2_200k on rem:1
+[08-12 18:14:41] [q] ADOPT bb_B4_200k on rem:1
+[08-12 18:14:41] [q] ADOPT bb_B6_200k on loc:1
+[08-12 18:16:08] [q] start box=47557391 ssh6.vast.ai:37390 slots='rem:0 rem:0 rem:1 rem:1 loc:0 loc:1' root=/home/jupyter/cf373_r3/sync pid=186853
+[08-12 18:16:08] [q] ADOPT bb_B8_100k on rem:0
+[08-12 18:16:08] [q] ADOPT bb_B10_200k on rem:0
+[08-12 18:16:08] [q] ADOPT bb_A2_200k on rem:1
+[08-12 18:16:08] [q] ADOPT bb_B4_200k on rem:1
+[08-12 18:16:08] [q] ADOPT bb_B6_200k on loc:1
+[08-12 19:21:08] [q] start box=47557391 ssh6.vast.ai:37390 slots='rem:0 rem:0 rem:1 rem:1 loc:0 loc:1 rem:0 rem:1' root=/home/jupyter/cf373_r3/sync pid=267027
+[08-12 19:21:08] [q] ADOPT bb_B8_100k on rem:0
+[08-12 19:21:08] [q] ADOPT bb_B10_200k on rem:0
+[08-12 19:21:08] [q] ADOPT bb_A2_200k on rem:1
+[08-12 19:21:08] [q] ADOPT bb_B4_200k on rem:1
+[08-12 19:21:08] [q] ADOPT bb_B6_200k on loc:1
+[08-12 20:59:22] [q] START hd_B8_40k_student head B8 stop=40000 student on rem:0
+[08-12 21:00:43] [q] START hd_B8_40k_teacher head B8 stop=40000 teacher on rem:1
+[08-12 21:26:05] [q] DONE hd_B8_40k_student (rem:0)
+[08-12 21:26:05] [q] DONE hd_B8_40k_teacher (rem:1)
+[08-12 21:27:05] [q] start box=47557391 ssh6.vast.ai:37390 slots='rem:0 rem:0 rem:1 rem:1 loc:0 loc:1 rem:0 rem:1' root=/home/jupyter/cf373_r3/sync pid=438954
+[08-12 21:27:05] [q] ADOPT bb_B8_100k on rem:0
+[08-12 21:27:05] [q] ADOPT bb_B10_200k on rem:0
+[08-12 21:27:05] [q] ADOPT bb_A2_200k on rem:1
+[08-12 21:27:05] [q] ADOPT bb_B4_200k on rem:1
+[08-12 21:27:05] [q] ADOPT bb_B6_200k on loc:1
+[08-12 21:27:08] [q] RESUME B2 from bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_cf373k3_r3_140k.pth
+[08-12 21:27:11] [q] STAGE B2 -> /root/cf373_runs/bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_alignteacher_cf373k3
+[08-12 21:27:41] [q] START bb_B2_200k bb B2 stop=200000  on rem:0
+[08-12 21:28:46] [q] STAGE A3 -> /root/cf373_runs/arm6_v2_combab_alignT/leg_100k
+[08-12 21:29:09] [q] START bb_A3_200k bb A3 stop=200000  on rem:1
+[08-12 21:37:35] [q] start box=47557391 ssh6.vast.ai:37390 slots='rem:0 rem:0 rem:1 rem:1 loc:0 loc:1 rem:0 rem:1' root=/home/jupyter/cf373_r3/sync pid=452409
+[08-12 21:37:35] [q] ADOPT bb_B8_100k on rem:0
+[08-12 21:37:35] [q] ADOPT bb_B10_200k on rem:0
+[08-12 21:37:35] [q] ADOPT bb_A2_200k on rem:1
+[08-12 21:37:35] [q] ADOPT bb_B4_200k on rem:1
+[08-12 21:37:35] [q] ADOPT bb_B6_200k on loc:1
+[08-12 21:37:35] [q] ADOPT bb_B2_200k on rem:0
+[08-12 21:37:35] [q] ADOPT bb_A3_200k on rem:1
+[08-12 21:37:35] [q] ADOPT ev_B8_40k_student (elisa cores)
+[08-12 21:37:38] [q] START ev_B8_40k_teacher eval on elisa cores
+[08-12 22:50:37] [q] DONE ev_B8_40k_student (elisa cpu)
+[08-12 22:57:01] [q] DONE ev_B8_40k_teacher (elisa cpu)
+[08-13 01:56:57] [q] DONE bb_B6_200k (loc:1)
+[08-13 01:56:57] [q] START bb_A4_200k bb A4 stop=200000  on loc:1
+[08-13 02:08:35] [q] DONE bb_B4_200k (rem:1)
+[08-13 02:08:35] [q] RESUME B1 from bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_r3_140k.pth
+[08-13 02:08:38] [q] STAGE B1 -> /root/cf373_runs/bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3
+[08-13 02:09:04] [q] START bb_B1_200k bb B1 stop=200000  on rem:1
+[08-13 02:12:12] [q] DONE bb_A2_200k (rem:1)
+[08-13 02:12:25] [q] START hd_A2_200k_student head A2 stop=200000 student on rem:1
+[08-13 02:17:46] [q] DONE bb_B8_100k (rem:0)
+[08-13 02:17:59] [q] START hd_B8_100k_student head B8 stop=100000 student on rem:0
+[08-13 02:21:07] [q] DONE bb_B10_200k (rem:0)
+[08-13 02:21:20] [q] START hd_B8_100k_teacher head B8 stop=100000 teacher on rem:0
+[08-13 03:01:10] [q] DONE hd_B8_100k_student (rem:0)
+[08-13 03:01:10] [q] DONE hd_A2_200k_student (rem:1)
+[08-13 03:01:23] [q] START hd_B10_200k_student head B10 stop=200000 student on rem:0
+[08-13 03:02:26] [q] DONE bb_B2_200k (rem:0)
+[08-13 03:02:39] [q] START hd_B10_200k_teacher head B10 stop=200000 teacher on rem:0
+[08-13 03:03:56] [q] START hd_A2_200k_teacher head A2 stop=200000 teacher on rem:1
+[08-13 03:16:30] [q] START ev_A2_200k_student eval on elisa cores
+[2026-08-13T02:16:54Z] [session5] killed orphan q_super 268303 (second supervisor, race on dispatcher restart); patched r2_head_box.sh 7>&- on both machines; released B10 student+teacher from the gpu0 flock
+[08-13 03:17:34] [q] START ev_B8_100k_student eval on elisa cores
+[08-13 03:48:00] [q] DONE hd_B8_100k_teacher (rem:0)
+[08-13 03:48:13] [q] START hd_B4_200k_student head B4 stop=200000 student on rem:0
+[08-13 03:51:21] [q] DONE hd_A2_200k_teacher (rem:1)
+[08-13 03:51:35] [q] START hd_B4_200k_teacher head B4 stop=200000 teacher on rem:1
+[08-13 03:54:43] [q] START ev_B8_100k_teacher eval on elisa cores
+[08-13 03:56:52] [q] START ev_A2_200k_teacher eval on elisa cores
+[08-13 04:04:12] [q] DONE hd_B10_200k_student (rem:0)
+[08-13 04:04:14] [q] STAGE-HEAD B6 -> /root/cf373_runs/bb_small_arm6_v2_ncpc_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3/bb_small_arm6_v2_ncpc_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_r3_200k.pth
+[08-13 04:04:47] [q] START hd_B6_200k_student head B6 stop=200000 student on rem:0
+[08-13 04:07:55] [q] DONE hd_B10_200k_teacher (rem:0)
+[08-13 04:08:08] [q] START hd_B6_200k_teacher head B6 stop=200000 teacher on rem:0
+[08-13 04:34:31] [q] DONE ev_A2_200k_student (elisa cpu)
+[08-13 04:34:31] [q] START ev_B10_200k_student eval on elisa cores
+[08-13 04:36:37] [q] DONE ev_B8_100k_student (elisa cpu)
+[08-13 04:36:37] [q] START ev_B10_200k_teacher eval on elisa cores
+[08-13 04:39:45] [q] DONE hd_B4_200k_teacher (rem:1)
+[08-13 04:39:58] [q] START hd_B2_200k_student head B2 stop=200000 student on rem:1
+[08-13 04:41:01] [q] DONE hd_B4_200k_student (rem:0)
+[08-13 04:41:14] [q] START hd_B2_200k_teacher head B2 stop=200000 teacher on rem:0
+[08-13 04:58:03] [q] DONE hd_B6_200k_student (rem:0)
+[08-13 05:01:11] [q] DONE hd_B6_200k_teacher (rem:0)
+[08-13 05:15:51] [q] DONE ev_B8_100k_teacher (elisa cpu)
+[08-13 05:15:51] [q] START ev_B4_200k_student eval on elisa cores
+[08-13 05:23:11] [q] DONE hd_B2_200k_teacher (rem:0)
+[08-13 05:30:32] [q] DONE hd_B2_200k_student (rem:1)
+[08-13 05:58:56] [q] DONE ev_B10_200k_student (elisa cpu)
+[08-13 05:58:56] [q] START ev_B4_200k_teacher eval on elisa cores
+[08-13 06:01:02] [q] DONE ev_A2_200k_teacher (elisa cpu)
+[08-13 06:01:02] [q] START ev_B6_200k_student eval on elisa cores
+[08-13 06:37:57] [q] FAIL bb_A4_200k rc=1 (loc:1)
+[08-13 06:39:08] [q] STAGE A4 -> /root/cf373_runs/arm6_v2_combab_alignS/leg_200k
+[08-13 06:39:52] [q] START bb_A4_200k bb A4 stop=200000  on rem:0
+[08-13 06:44:04] [q] DONE ev_B10_200k_teacher (elisa cpu)
+[08-13 06:44:04] [q] START ev_B6_200k_teacher eval on elisa cores
+[08-13 06:45:07] [q] DONE ev_B4_200k_student (elisa cpu)
+[08-13 06:45:07] [q] START ev_B2_200k_student eval on elisa cores
+[08-13 06:50:36] [q] DONE bb_A3_200k (rem:1)
+[08-13 06:50:49] [q] START hd_A3_200k_student head A3 stop=200000 student on rem:0
+[08-13 06:52:12] [q] START hd_A3_200k_teacher head A3 stop=200000 teacher on rem:1
+[08-13 07:26:03] [q] DONE ev_B4_200k_teacher (elisa cpu)
+[08-13 07:26:03] [q] START ev_B2_200k_teacher eval on elisa cores
+[08-13 07:29:12] [q] DONE ev_B6_200k_student (elisa cpu)
+[08-13 07:32:23] [q] DONE hd_A3_200k_teacher (rem:1)
+[08-13 07:33:25] [q] DONE hd_A3_200k_student (rem:0)
+[08-13 07:46:06] [q] START ev_A3_200k_student eval on elisa cores
+[08-13 07:50:19] [q] DONE bb_B1_200k (rem:1)
+[08-13 07:50:33] [q] START hd_B1_200k_student head B1 stop=200000 student on rem:0
+[08-13 07:51:49] [q] START hd_B1_200k_teacher head B1 stop=200000 teacher on rem:1
+[08-13 08:07:32] [q] DONE ev_B6_200k_teacher (elisa cpu)
+[08-13 08:07:32] [q] START ev_A3_200k_teacher eval on elisa cores
+[08-13 08:09:38] [q] DONE ev_B2_200k_student (elisa cpu)
+[08-13 08:28:34] [q] DONE hd_B1_200k_teacher (rem:1)
+[08-13 08:34:58] [q] DONE hd_B1_200k_student (rem:0)
+[08-13 08:41:25] [q] START ev_B1_200k_student eval on elisa cores
+[08-13 08:46:52] [q] DONE ev_B2_200k_teacher (elisa cpu)
+[08-13 08:46:52] [q] START ev_B1_200k_teacher eval on elisa cores
+[08-13 09:08:02] [q] DONE ev_A3_200k_student (elisa cpu)
+[08-13 09:28:27] [q] DONE ev_A3_200k_teacher (elisa cpu)
+[08-13 10:02:08] [q] DONE ev_B1_200k_student (elisa cpu)
+[08-13 10:07:22] [q] DONE ev_B1_200k_teacher (elisa cpu)
+[08-13 11:50:08] [q] DONE bb_A4_200k (rem:0)
+[08-13 11:50:22] [q] START hd_A4_200k_student head A4 stop=200000 student on rem:0
+[08-13 12:26:00] [q] DONE hd_A4_200k_student (rem:0)
+[08-13 12:32:16] [q] START ev_A4_200k_student eval on elisa cores
+[08-13 13:44:51] [q] DONE ev_A4_200k_student (elisa cpu)
+[08-13 14:07:09] [q] START ev_A4_200k_teacher eval on elisa cores
+[08-13 15:19:09] [q] DONE ev_A4_200k_teacher (elisa cpu)
+[08-13 15:19:10] [q] queue drained

@@ -1,0 +1,33 @@
+seasonal-naive reference: /tmp/contrastive-forecasting-373/reports/2026-07-21_split_pred_rep_small/results/seasonal_naive_all_results.csv
+  97 configs
+
+== the six B1 points, each read from its own artefacts ==
+  cell          arm           enc           bb_seed       bb_stop       head_seed     head_steps    strategy      forecast_len  configs       machine       score         published     match       
+  G6_B1_k0_bb40k_student  k=0           student       20260520      40k           20260722      15000         B4            16            97            elisa         1.2025        1.2025        yes         
+  G6_B1_k0_bb40k_teacher  k=0           teacher       20260520      40k           20260722      15000         B4            16            97            elisa         1.2001        1.2001        yes         
+  G_B1_k0_aw4_bb40k_student  k=0 x4        student       20260520      40k           20260722      15000         B4            16            97            elisa         1.1513        1.1513        yes         
+  G_B1_k0_aw4_bb40k_teacher  k=0 x4        teacher       20260520      40k           20260722      15000         B4            16            97            elisa         1.1482        1.1482        yes         
+  B1_k3_bb40k_student  k=3           student       20260520      40k           20260722      15000         B4            16            97            elisa         1.0850        1.0850        yes         
+  B1_k3_bb40k_teacher  k=3           teacher       20260520      40k           20260722      15000         B4            16            97            elisa         1.0948        1.0948        yes         
+
+== held factors ==
+  bb_seed        HELD   20260520
+  bb_stop        HELD   40k
+  head_seed      HELD   20260722
+  head_steps     HELD   15000
+  strategy       HELD   B4
+  forecast_len   HELD   16
+  configs        HELD   97
+  machine        HELD   elisa
+
+== the factor that is meant to move ==
+  k=0      depth 0, align x1
+  k=0 x4   depth 0, align x4
+  k=3      depth 3, align x1 per copy (x4 total)
+
+== every point divides by the shared seasonal-naive column ==
+  worst relative gap against the shared reference: 6.24e-05
+
+wrote /tmp/contrastive-forecasting-373/reports/2026-08-08_rollout_depth/results/b1_triangle.tsv
+
+PASS: the B1 triangle holds every factor but the objective.

@@ -1,0 +1,27 @@
+[08-13 18:46] ITEM6 SCORE A3 bb200k student reseed s20260723 = 1.4098
+[08-13 18:46] ITEM3 backbone 13200/40000  4.2 sps  ETA 1.8h
+[08-13 18:46] tick: bb 13200/40000  ev6 97/97  ev3s 0/97  ev3t 0/97  load 4.87
+[08-13 19:10] ITEM6 SCORE A3 bb200k student reseed s20260723 = 1.4098
+[08-13 19:10] ITEM3 backbone 19000/40000  4.2 sps  ETA 1.4h
+[08-13 19:10] tick: bb 19000/40000  ev6 97/97  ev3s 0/97  ev3t 0/97  load 4.84
+[08-13 19:40] tick: bb 26600/40000  ev6 97/97  ev3s 0/97  ev3t 0/97  load 4.69
+[08-13 19:50] ITEM3 backbone 29200/40000  4.2 sps  ETA 0.7h
+[08-13 20:10] tick: bb 34200/40000  ev6 97/97  ev3s 0/97  ev3t 0/97  load 4.82
+[08-13 20:30] ITEM3 backbone 39400/40000  4.2 sps  ETA 0.0h
+[08-13 20:34] ITEM3 backbone 40k checkpoint on disk (5208007 bytes)
+[08-13 20:34] [08-13 20:32:54] [gap3] backbone in hand: bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k0_aw4_40k.pth 5208007 bytes
+[08-13 20:34] [08-13 20:32:54] [gap3] HEAD START G_B1_k0_aw4 student (attempt 1, gpu 1)
+[08-13 20:34] [08-13 20:32:54] [gap3] HEAD START G_B1_k0_aw4 teacher (attempt 1, gpu 1)
+[08-13 20:40] tick: bb 40000/40000  ev6 97/97  ev3s 0/97  ev3t 0/97  load 3.81
+scripts/gap_watch.sh: line 33: n + 0
+0 : syntax error in expression (error token is "0 ")
+[08-13 21:10] tick: bb 40000/40000  ev6 97/97  ev3s 0/97  ev3t /97  load 9.52
+[08-13 21:26] ITEM6 SCORE A3 bb200k student reseed s20260723 = 1.4098
+[08-13 21:26] ITEM3 backbone 40k checkpoint on disk (5208007 bytes)
+[08-13 21:26] tick: bb 40000/40000  ev6 97/97  ev3s 0/97  ev3t 38/97  load 10.08
+[08-13 21:56] tick: bb 40000/40000  ev6 97/97  ev3s 29/97  ev3t 91/97  load 12.16
+[08-13 22:08] ITEM3 SCORE B1 k=0 L_align x4 bb40k teacher = 1.1482
+[08-13 22:08] [08-13 22:07:27] [gap3] HEAD END   G_B1_k0_aw4 teacher rc=0
+[08-13 22:26] tick: bb 40000/40000  ev6 97/97  ev3s 89/97  ev3t 97/97  load 7.97
+[08-13 22:40] ITEM3 SCORE B1 k=0 L_align x4 bb40k student = 1.1513
+[08-13 22:40] ALL THREE SCORES IN — item6 1.4098  item3 student 1.1513  teacher 1.1482

@@ -1,0 +1,4 @@
+pair	arm	leg	steps_compared	cols_differing	differing_columns
+A1/B3	arm5_combab_alignS	steps 1..40k	40000	1	ema_tau:40000
+A1/B3	arm5_combab_alignS	steps 40k..100k	60000	1	ema_tau:60000
+A4/B1	arm6_v2_combab_alignS	steps 40k..100k	60000	26	loss:60000,gap:60000,gap_ratio:60000,fp:60000,tp:60000,cross_batch:60000,r2_random:60000,r2_naive:60000,u_temporal:60000,u_batch:60000,sigreg_e:60000,sigreg_h:60000,u_temporal_e:60000,u_batch_e:60000,u_batchtime:60000,u_batchtime_e:60000,ema_tau:60000,cos_err_d0:60000,cos_err_d1:60000,cos_err_d3:60000,loss_tau_ref:59999,ff:59999,cos_err_d2:59999,auc:59997,top3:59826,top1:59708

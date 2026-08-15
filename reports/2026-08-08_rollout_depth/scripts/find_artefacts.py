@@ -1,0 +1,335 @@
+#!/usr/bin/env python3
+"""#373 — locate each backbone run's losses CSV, trainer log and checkpoints.
+
+The study's backbones were trained in two places, so their artefacts landed
+in two working trees. **The report does not read either.** Every curve, log
+and eval output a figure or a table needs has a copy in the committed tree,
+and this resolves the committed copy first, so a fresh clone rebuilds.
+
+Committed, and searched in this order:
+
+  ../sync/<box>/     what the sync loops pulled off each rented box.
+  ../curves/<box>/   the losses CSV of a run whose box kept no sync
+                     directory. Every elisa run is one: elisa wrote straight
+                     to the durable root. `collect.sh` fills this.
+  ../results/        the trainer logs, and the GIFT-Eval outputs.
+
+Not committed, and searched after:
+
+  ~/cf373_sync/<box>/sync   the sync loops' own copies.
+  $CF373_ROOT/...           the durable root.
+
+They hold the CHECKPOINTS, which are 80 MB each and do not belong in git, so
+`--what ckpt` and `--what ckptdir` need them. Every other mode resolves
+without them; `--what missingcurves` is what keeps that true.
+
+Usage:
+  find_artefacts.py --what curves      # --run <arm>:<k>=<losses.csv>
+  find_artefacts.py --what logs        # --log <arm>:<k>=<run.log>
+  find_artefacts.py --what retrainlogs # --run <arm>:0=<run.log>, one per
+                                       #   backbone of a cell trained twice
+  find_artefacts.py --what ckpt        # --run <arm>:<k>=<bb40k .pth>
+                                       #   NEEDS the working trees
+  find_artefacts.py --what gridckpt    # --run <cell>:3=<bb40k .pth>, for the
+                                       #   card's cells the registry holds no
+                                       #   depth ladder for. NEEDS the trees
+  find_artefacts.py --what ckptdir     # --run <arm>:<k>:<name>=<dir>
+                                       #   NEEDS the working trees
+  find_artefacts.py --what pairs       # <label>\t<baseline tag>\t<compared tag>
+  find_artefacts.py --what missingcurves
+                                       # <run>\t<machine>\t<path> for every
+                                       #   backbone whose losses CSV is in a
+                                       #   working tree and not yet committed
+"""
+from __future__ import annotations
+
+import argparse
+import csv
+import os
+import sys
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+import runs as R                                       # noqa: E402
+
+# The committed tree. It comes first, so the answer a figure gets is the
+# answer a fresh clone gets, and a machine that still has the working trees
+# does not quietly rebuild from a file nobody else can read.
+COMMITTED = [HERE.parent / "sync",
+             HERE.parent / "curves",
+             HERE.parent / "results"]
+
+# The working trees, for the checkpoints only.
+EXTERNAL = [Path(os.environ.get("CF373_SYNC_BASE",
+                                Path.home() / "cf373_sync")),
+            Path(os.environ.get("CF373_ROOT",
+                                "/home/jupyter/checkpoints_backup/cf-373"))]
+
+ROOTS = COMMITTED + EXTERNAL
+
+# The two later rounds' checkpoint stores. They hold the ten cells that never
+# retrained a `k = 0`, and only `--what gridckpt` reads them: every other mode
+# resolves against ROOTS, so adding a store here cannot move a path any
+# existing figure already resolved.
+GRID_EXTERNAL = [Path(os.environ.get("CF373_R2", "/home/jupyter/cf373_r2")),
+                 Path(os.environ.get("CF373_R3", "/home/jupyter/cf373_r3"))]
+# The durable root also holds one directory per HEAD, each with its own
+# `qhead_*_losses.csv`. A head is not a backbone; skip that whole subtree.
+SKIP = {"eval", "verify", "gap_claims", "mem", "steptime"}
+
+
+def slug(machine):
+    """A directory name for a machine: `vast box d` -> `vast_box_d`."""
+    return "_".join(machine.split())
+
+
+def walk(roots):
+    for root in roots:
+        if not root.is_dir():
+            continue
+        for dirpath, dirnames, filenames in os.walk(root):
+            dirnames[:] = [d for d in dirnames if d not in SKIP]
+            yield Path(dirpath), filenames
+
+
+def find(name_to_runs, suffix, roots=None):
+    """`{run name: path}` for the first file matching `<run name><suffix>`."""
+    want = {f"{n}{suffix}": n for n in name_to_runs}
+    out = {}
+    for dirpath, filenames in walk(roots or ROOTS):
+        for f in filenames:
+            n = want.get(f)
+            if n is not None and n not in out:
+                out[n] = dirpath / f
+    return out
+
+
+def emit_missing_curves():
+    """Every backbone whose losses CSV is in a working tree and not in git.
+
+    `collect.sh` reads this and downsamples each one into `../curves/`. An
+    empty output is the property the rebuild rests on: the committed tree
+    answers `--what curves` on its own.
+
+    Controls are here as well as depth runs. A control's curve is evidence
+    even where no figure draws it.
+    """
+    names = {run: (arm, k, role) for arm, k, role, run in R.backbones()}
+    have = find(names, "_losses.csv", COMMITTED)
+    got = find(names, "_losses.csv", EXTERNAL)
+    for run, (arm, k, role) in names.items():
+        if run in have or run not in got:
+            continue
+        r = R.find_run(arm, k, role)
+        print(f"{run}\t{slug(r.machine) if r else 'unknown'}\t{got[run]}")
+    return 0
+
+
+def emit_gridckpt(results):
+    """The bb40k `k = 3` checkpoint of every card cell the registry misses.
+
+    The registry holds a depth ladder for four cells only, because only those
+    four retrained a `k = 0` side. The other ten trained `k = 3` and read
+    their `k = 0` from a parent report, so they carry a checkpoint and no
+    ladder. The absolute-fidelity panels want all fourteen.
+
+    The run name is not typed here. Each cell's eval directory carries a
+    `backbone.txt` naming the file that eval loaded, so the curve and the
+    score come from one checkpoint by construction. `cells.tsv` is the card's
+    own list of the fourteen.
+    """
+    cells = [ln.split("\t")[0] for ln in
+             (HERE / "cells.tsv").read_text().splitlines()
+             if ln and not ln.startswith("#")]
+    want = {}
+    for cell in cells:
+        if R.arms_of(cell):        # the registry has this cell's ladder
+            continue
+        prov = Path(results) / "eval" / f"{cell}_k3_bb40k_student" / "backbone.txt"
+        name = prov.read_text().strip() if prov.is_file() else ""
+        if not name.endswith("_40k.pth"):
+            print(f"  skip {cell}: no bb40k backbone recorded in "
+                  f"{prov}", file=sys.stderr)
+            continue
+        want[name[:-len("_40k.pth")]] = cell
+
+    got = find(want, "_40k.pth", ROOTS + GRID_EXTERNAL)
+    for run, cell in want.items():
+        if run in got:
+            print(f"--run\n{cell}:3={got[run]}")
+        else:
+            print(f"  skip {cell}: {run}_40k.pth is in no checkpoint store",
+                  file=sys.stderr)
+    return 0
+
+
+def find_logs(names):
+    """`{run name: trainer log}`.
+
+    The launchers write `run_<run name>.log`, so the plain `<run name>.log`
+    lookup `find()` does never hits; both spellings are tried because a run
+    pulled off a rented box keeps whichever name its sync loop gave it.
+    """
+    got = find(names, ".log")
+    out = {}
+    for run in names:
+        path = got.get(run)
+        if path is None:
+            for dirpath, filenames in walk(ROOTS):
+                if f"run_{run}.log" in filenames:
+                    path = dirpath / f"run_{run}.log"
+                    break
+        if path is not None:
+            out[run] = path
+    return out
+
+
+def emit_pairs(eval_dir):
+    """The comparisons the paired bootstrap runs, one per line.
+
+    Three families.
+
+    Depth pairs come from the registry, so a new depth cannot be left out by
+    hand. Each is one arm's own `k = 0` against one of its deeper runs.
+
+    Retraining pairs hold the cell and the depth fixed and change the
+    backbone. B5 has three, and each pair is named by what it changes: the
+    seed, the machine, or both. They are built by walking the cell's arms,
+    so a fourth backbone needs no edit here.
+
+    One control changes the objective: `L_align` x4 at k = 0.
+    """
+    tags = sorted(p.name for p in eval_dir.iterdir()) if eval_dir.is_dir() else []
+    have = set(tags)
+    out = []
+    for arm, head, k, base, deep in R.pairs(tags):
+        out.append((f"{arm.replace(chr(183), '_')}_k{k}_{head}",
+                    base.tag, deep.tag))
+
+    def what_changes(a1, a2):
+        seed = R.arm_seed(a1) != R.arm_seed(a2)
+        machine = R.arm_where(a1) != R.arm_where(a2)
+        return ("seed_and_machine" if seed and machine else
+                "seed" if seed else "machine" if machine else "nothing")
+
+    for cell in sorted({R.resolve(t).cell for t in tags if R.resolve(t)}):
+        arms = [a for a in R.arms_of(cell) if a != "B5·pub"]
+        for i, a1 in enumerate(arms):
+            for a2 in arms[i + 1:]:
+                for k in (0, 1, 3):
+                    r1 = R.find_run(a1, k, "depth") or R.find_run(a1, k, "control")
+                    r2 = R.find_run(a2, k, "depth") or R.find_run(a2, k, "control")
+                    if r1 is None or r2 is None:
+                        continue
+                    for head in ("student", "teacher"):
+                        out.append((f"{cell}_{what_changes(a1, a2)}_k{k}_{head}",
+                                    f"{r1.stem}_bb40k_{head}",
+                                    f"{r2.stem}_bb40k_{head}"))
+    # Each control against its own cell's k = 0, and against that cell's
+    # k = 3. The first says what the re-weighting alone moves; the second
+    # says what is left for the depth once the re-weighting is paid for.
+    for head in ("student", "teacher"):
+        out.append((f"A3_alignx4_{head}", f"A3_k0_bb40k_{head}",
+                    f"G3_A3_k0_aw4_bb40k_{head}"))
+        out.append((f"B1_alignx4_{head}", f"G6_B1_k0_bb40k_{head}",
+                    f"G_B1_k0_aw4_bb40k_{head}"))
+        out.append((f"B1_alignx4_vs_k3_{head}", f"G_B1_k0_aw4_bb40k_{head}",
+                    f"G6_B1_k3_bb40k_{head}"))
+    # A3's bb200k student head, drawn a second time. The first pair bounds
+    # the head seed on this one measurement, which is the quantity the
+    # imported +-0.0384 band stands in for everywhere else in this report.
+    # The second re-runs the ladder's largest move off the second draw, so
+    # the +0.0988 that carries "A3's student degrades at 200k" is read twice
+    # rather than once.
+    out.append(("A3_200k_headseed_student", "A3_k3_bb200k_student",
+                "A3_k3_bb200k_student_s20260723"))
+    out.append(("A3_200k_draw2_vs_100k_student", "A3_k3_bb100k_student",
+                "A3_k3_bb200k_student_s20260723"))
+
+    seen = set()
+    for label, a, b in out:
+        if a in have and b in have and label not in seen:
+            seen.add(label)
+            print(f"{label}\t{a}\t{b}")
+    return 0
+
+
+def main(argv=None):
+    p = argparse.ArgumentParser()
+    p.add_argument("--what", required=True,
+                   choices=("curves", "logs", "ckpt", "ckptdir", "gridckpt",
+                            "pairs", "retrainlogs", "missingcurves"))
+    p.add_argument("--results", default=str(HERE.parent / "results"))
+    p.add_argument("--min-rows", type=int, default=10)
+    args = p.parse_args(argv)
+
+    if args.what == "pairs":
+        return emit_pairs(Path(args.results) / "eval")
+    if args.what == "missingcurves":
+        return emit_missing_curves()
+    if args.what == "gridckpt":
+        return emit_gridckpt(args.results)
+
+    bb = R.backbones()
+    names = {run: (arm, k, role) for arm, k, role, run in bb}
+    # A control is not a point on a depth ladder, so it stays out of the
+    # curve and checkpoint figures, which are all depth comparisons.
+    depth = {n: v for n, v in names.items() if v[2] == "depth"}
+
+    if args.what == "retrainlogs":
+        want = {run: (arm, k, role) for arm, k, role, run in R.retrainings()}
+        got = find_logs(want)
+        for run, (arm, k, _r) in want.items():
+            if run in got:
+                print(f"--run\n{arm}:{k}={got[run]}")
+        return 0
+
+    if args.what == "curves":
+        got = find(depth, "_losses.csv")
+        for run, (arm, k, _r) in depth.items():
+            path = got.get(run)
+            if path and sum(1 for _ in open(path)) > args.min_rows:
+                print(f"--run\n{arm}:{k}={path}")
+        return 0
+
+    if args.what == "logs":
+        # No card in the spec: `runs.py` carries the machine and the card of
+        # every run, and a path that happens to sit under a box directory is
+        # a weaker source than the registry.
+        got = find_logs(depth)
+        for run, (arm, k, _r) in depth.items():
+            if run in got:
+                print(f"--log\n{arm}:{k}={got[run]}")
+        return 0
+
+    # Both checkpoint modes want this run's own periodic checkpoints.
+    # R.ckpt_step does the matching, because a prefix test would fold group
+    # A's re-weighting control into the cell it controls for.
+    for run, (arm, k, _r) in depth.items():
+        hits = []
+        for dirpath, filenames in walk(ROOTS):
+            hits += [(R.ckpt_step(run, f), dirpath / f) for f in filenames
+                     if R.ckpt_step(run, f) is not None]
+        if not hits:
+            continue
+        if args.what == "ckpt":
+            forty = [h for st, h in hits if st == 40000]
+            if forty:
+                # `<arm>:<k>`, the same shape every other mode emits, so a
+                # consumer resolves the label through the registry instead
+                # of splitting a string on `_k`.
+                print(f"--run\n{arm}:{k}={forty[0]}")
+        else:
+            by_dir = {}
+            for _st, h in hits:
+                by_dir.setdefault(h.parent, []).append(h)
+            for d, hs in by_dir.items():
+                if len(hs) >= 2:
+                    print(f"--run\n{arm}:{k}:{run}={d}")
+                    break
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

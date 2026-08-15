@@ -1,0 +1,18 @@
+[08-10 21:53:19] [B1] provisioning
+[08-10 21:53:20] [provision cf373r2-b1] attempt 1: 7 offer(s)
+[08-10 21:55:21] [provision cf373r2-b1] READY instance 47404661 at ssh8.vast.ai:14660
+[08-10 21:55:21] [B1] instance 47404661 at ssh8.vast.ai:14660
+[08-10 22:00:42] [B1] bootstrapped
+[08-10 22:00:42] [B1] staging resume: bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_40k.pth + optimizer -> /root/cf373_runs/bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3
+Warning: Permanently added '[ssh8.vast.ai]:14660' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+Warning: Permanently added '[ssh8.vast.ai]:14660' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+Warning: Permanently added '[ssh8.vast.ai]:14660' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[08-10 22:01:26] [B1] resume state verified on the box (11030309 B)
+[08-10 22:01:29] [B1] sync loop started -> /home/jupyter/cf373_r2/B1
+[08-10 22:01:29] [B1] LAUNCHED instance=47404661 host=ssh8.vast.ai port=14660 stops=40000 100000

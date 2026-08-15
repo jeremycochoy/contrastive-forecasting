@@ -1,0 +1,237 @@
+[08-09 01:00:02] [B5_k0_bb40k_student] head-train start enc=student steps=40 seed=20260722 gpu=1 bb=bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k0_40k.pth
+[08-09 01:00:17] [B5_k0_bb40k_student] head-train rc=0
+[08-09 01:00:17] [B5_k0_bb40k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-09 01:00:17] [B5_k0_bb40k_student] eval rc=4
+[08-09 01:00:33] [B5_k0_bb40k_student] head-train start enc=student steps=40 seed=20260722 gpu=1 bb=bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k0_40k.pth
+[08-09 01:00:47] [B5_k0_bb40k_student] head-train rc=0
+[08-09 01:00:47] [B5_k0_bb40k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-09 02:30:24] [A3_k3_bb40k_teacher] head-train start enc=teacher steps=15000 seed=20260722 gpu=1 bb=cf393_arm6_v2_combab_alignT_cf373k3_40k.pth
+[08-09 02:30:24] [A3_k3_bb40k_student] head-train start enc=student steps=15000 seed=20260722 gpu=1 bb=cf393_arm6_v2_combab_alignT_cf373k3_40k.pth
+[08-09 03:08:58] [A3_k3_bb40k_teacher] head-train rc=0
+[08-09 03:08:58] [A3_k3_bb40k_teacher] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-09 03:08:59] [A3_k3_bb40k_student] head-train rc=0
+[08-09 03:08:59] [A3_k3_bb40k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-09 04:33:29] [A3_k3_bb40k_teacher] eval rc=0
+[08-09 04:33:29] [A3_k3_bb40k_teacher] DONE — GM-Relative MASE 1.3521
+[08-09 04:33:30] [B5_k0_bb40k_teacher] head-train start enc=teacher steps=15000 seed=20260722 gpu=1 bb=bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k0_40k.pth
+[08-09 04:33:39] [A3_k3_bb40k_student] eval rc=0
+[08-09 04:33:39] [A3_k3_bb40k_student] DONE — GM-Relative MASE 1.3618
+[08-09 04:33:39] [B5_k0_bb40k_student] head-train start enc=student steps=15000 seed=20260722 gpu=1 bb=bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k0_40k.pth
+[08-09 04:33:49] [B5_k0_bb40k_student] head-train rc=1
+[08-09 04:33:49] [B5_k0_bb40k_student] head-train start enc=student steps=15000 seed=20260722 gpu=1 bb=bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k0_40k.pth
+[08-09 04:33:59] [B5_k0_bb40k_student] head-train rc=1
+[08-09 04:34:01] [A3_k0_bb40k_student] head-train start enc=student steps=15000 seed=20260722 gpu=1 bb=cf393_arm6_v2_combab_alignT_cf373k0_40k.pth
+[08-09 04:34:10] [A3_k0_bb40k_student] head-train rc=1
+[08-09 04:34:10] [A3_k0_bb40k_student] head-train start enc=student steps=15000 seed=20260722 gpu=1 bb=cf393_arm6_v2_combab_alignT_cf373k0_40k.pth
+[08-09 04:34:21] [A3_k0_bb40k_student] head-train rc=1
+[08-09 04:34:23] [B5_k3_bb40k_student] head-train start enc=student steps=15000 seed=20260722 gpu=1 bb=bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_40k.pth
+[08-09 04:34:34] [B5_k3_bb40k_student] head-train rc=1
+[08-09 04:34:34] [B5_k3_bb40k_student] head-train start enc=student steps=15000 seed=20260722 gpu=1 bb=bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_40k.pth
+[08-09 04:34:44] [B5_k3_bb40k_student] head-train rc=1
+[08-09 04:45:48] [B5_k0_bb40k_student] waiting for VRAM on GPU 1: 4132 MiB free, need 6000
+[08-09 04:55:48] [B5_k0_bb40k_student] waiting for VRAM on GPU 1: 4132 MiB free, need 6000
+[08-09 05:05:49] [B5_k0_bb40k_student] waiting for VRAM on GPU 1: 4132 MiB free, need 6000
+[08-09 05:07:13] [B5_k0_bb40k_teacher] head-train rc=0
+[08-09 05:07:13] [B5_k0_bb40k_teacher] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-09 05:07:19] [B5_k0_bb40k_student] GPU 1 has 9599 MiB free after 1290s
+[08-09 05:07:19] [B5_k0_bb40k_student] head-train start enc=student steps=15000 seed=20260722 gpu=1 bb=bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k0_40k.pth
+[08-09 05:42:37] [B5_k0_bb40k_student] head-train rc=0
+[08-09 05:42:37] [B5_k0_bb40k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-09 06:01:38] [A3_k0_bb40k_student] head-train start enc=student steps=15000 seed=20260722 gpu=1 bb=cf393_arm6_v2_combab_alignT_cf373k0_40k.pth
+[08-09 06:25:53] [B5_k0_bb40k_teacher] eval rc=0
+[08-09 06:25:53] [B5_k0_bb40k_teacher] DONE — GM-Relative MASE 1.3719
+[08-09 06:35:35] [A3_k0_bb40k_student] head-train rc=0
+[08-09 06:35:35] [A3_k0_bb40k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-09 06:35:35] [A3_k0_bb40k_teacher] head-train start enc=teacher steps=15000 seed=20260722 gpu=1 bb=cf393_arm6_v2_combab_alignT_cf373k0_40k.pth
+[08-09 07:00:42] [B5_k0_bb40k_student] eval rc=0
+[08-09 07:00:42] [B5_k0_bb40k_student] DONE — GM-Relative MASE 1.3917
+[08-09 07:12:29] [A3_k0_bb40k_teacher] head-train rc=0
+[08-09 07:12:29] [A3_k0_bb40k_teacher] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-09 07:52:14] [A3_k0_bb40k_student] eval rc=0
+[08-09 07:52:14] [A3_k0_bb40k_student] DONE — GM-Relative MASE 1.2189
+[08-09 07:52:14] [B5_k3_bb40k_student] head-train start enc=student steps=15000 seed=20260722 gpu=1 bb=bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_40k.pth
+[08-09 08:27:46] [A3_k0_bb40k_teacher] eval rc=0
+[08-09 08:27:46] [A3_k0_bb40k_teacher] DONE — GM-Relative MASE 1.2184
+[08-09 08:29:16] [B5_k3_bb40k_student] head-train rc=0
+[08-09 08:29:16] [B5_k3_bb40k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-09 08:29:16] [B5_k3_bb40k_teacher] head-train start enc=teacher steps=15000 seed=20260722 gpu=1 bb=bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_40k.pth
+[08-09 09:06:58] [B5_k3_bb40k_teacher] head-train rc=0
+[08-09 09:06:58] [B5_k3_bb40k_teacher] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-09 09:45:01] [B5_k3_bb40k_student] eval rc=0
+[08-09 09:45:01] [B5_k3_bb40k_student] DONE — GM-Relative MASE 1.3204
+[08-09 09:45:02] [B9_k3_bb40k_student] head-train start enc=student steps=15000 seed=20260722 gpu=1 bb=bb_small_arm1_nse_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_40k.pth
+[08-09 10:22:03] [B5_k3_bb40k_teacher] eval rc=0
+[08-09 10:22:03] [B5_k3_bb40k_teacher] DONE — GM-Relative MASE 1.3216
+[08-09 10:26:33] [B9_k3_bb40k_student] head-train rc=0
+[08-09 10:26:33] [B9_k3_bb40k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-09 10:26:33] [B9_k3_bb40k_teacher] head-train start enc=teacher steps=15000 seed=20260722 gpu=1 bb=bb_small_arm1_nse_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_40k.pth
+[08-09 11:16:25] [B9_k3_bb40k_teacher] head-train rc=0
+[08-09 11:16:25] [B9_k3_bb40k_teacher] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-09 11:40:44] [B9_k3_bb40k_student] eval rc=0
+[08-09 11:40:44] [B9_k3_bb40k_student] DONE — GM-Relative MASE 1.2791
+[08-09 12:47:12] [B9_k3_bb40k_teacher] eval rc=0
+[08-09 12:47:12] [B9_k3_bb40k_teacher] DONE — GM-Relative MASE 1.2728
+[08-09 13:04:45] [G1_B5pub_bb40k_student] head-train start enc=student steps=15000 seed=20260722 gpu=0 bb=bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth
+[08-09 13:50:15] [G1_B5pub_bb40k_student] head-train rc=0
+[08-09 13:50:15] [G1_B5pub_bb40k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-09 14:51:50] [G1_B5pub_bb40k_student] eval rc=0
+[08-09 14:51:50] [G1_B5pub_bb40k_student] DONE — GM-Relative MASE 1.2751
+[08-09 17:08:29] [G3_A3_k0_aw4_bb40k_student] head-train start enc=student steps=15000 seed=20260722 gpu=0 bb=cf393_arm6_v2_combab_alignT_cf373k0_aw4_40k.pth
+[08-09 17:15:03] [G2_B9_k0_bb40k_student] head-train start enc=student steps=15000 seed=20260722 gpu=1 bb=bb_small_arm1_nse_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k0_40k.pth
+[08-09 17:47:06] [G3_A3_k0_aw4_bb40k_student] head-train rc=0
+[08-09 17:47:06] [G3_A3_k0_aw4_bb40k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-09 17:50:33] [G2_B9_k0_bb40k_student] head-train rc=0
+[08-09 17:50:33] [G2_B9_k0_bb40k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-09 18:49:01] [G3_A3_k0_aw4_bb40k_student] eval rc=0
+[08-09 18:49:01] [G3_A3_k0_aw4_bb40k_student] DONE — GM-Relative MASE 1.2590
+[08-09 18:49:01] [G3_A3_k0_aw4_bb40k_teacher] head-train start enc=teacher steps=15000 seed=20260722 gpu=1 bb=cf393_arm6_v2_combab_alignT_cf373k0_aw4_40k.pth
+[08-09 18:52:22] [G2_B9_k0_bb40k_student] eval rc=0
+[08-09 18:52:22] [G2_B9_k0_bb40k_student] DONE — GM-Relative MASE 1.5583
+[08-09 18:52:22] [G2_B9_k0_bb40k_teacher] waiting for VRAM on GPU 0: 5880 MiB free, need 6000
+[08-09 19:02:22] [G2_B9_k0_bb40k_teacher] waiting for VRAM on GPU 0: 5724 MiB free, need 6000
+[08-09 19:12:22] [G2_B9_k0_bb40k_teacher] waiting for VRAM on GPU 0: 5724 MiB free, need 6000
+[08-09 19:22:23] [G2_B9_k0_bb40k_teacher] waiting for VRAM on GPU 0: 5724 MiB free, need 6000
+[08-09 19:23:49] [G3_A3_k0_aw4_bb40k_teacher] head-train rc=0
+[08-09 19:23:49] [G3_A3_k0_aw4_bb40k_teacher] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-09 19:32:23] [G2_B9_k0_bb40k_teacher] waiting for VRAM on GPU 0: 5724 MiB free, need 6000
+[08-09 19:42:24] [G2_B9_k0_bb40k_teacher] waiting for VRAM on GPU 0: 5134 MiB free, need 6000
+[08-09 19:52:24] [G2_B9_k0_bb40k_teacher] waiting for VRAM on GPU 0: 5724 MiB free, need 6000
+[08-09 20:02:24] [G2_B9_k0_bb40k_teacher] waiting for VRAM on GPU 0: 5882 MiB free, need 6000
+[08-09 20:12:25] [G2_B9_k0_bb40k_teacher] waiting for VRAM on GPU 0: 5882 MiB free, need 6000
+[08-09 20:22:25] [G2_B9_k0_bb40k_teacher] waiting for VRAM on GPU 0: 5882 MiB free, need 6000
+[08-09 20:22:53] [G3_A3_k0_aw4_bb40k_teacher] eval rc=0
+[08-09 20:22:53] [G3_A3_k0_aw4_bb40k_teacher] DONE — GM-Relative MASE 1.2558
+[08-09 20:32:25] [G2_B9_k0_bb40k_teacher] waiting for VRAM on GPU 0: 5882 MiB free, need 6000
+[08-09 20:42:26] [G2_B9_k0_bb40k_teacher] waiting for VRAM on GPU 0: 5882 MiB free, need 6000
+[08-09 20:52:26] [G2_B9_k0_bb40k_teacher] waiting for VRAM on GPU 0: 5882 MiB free, need 6000
+[08-09 21:02:27] [G2_B9_k0_bb40k_teacher] waiting for VRAM on GPU 0: 5726 MiB free, need 6000
+[08-09 21:12:27] [G2_B9_k0_bb40k_teacher] waiting for VRAM on GPU 0: 5726 MiB free, need 6000
+[08-09 21:22:27] [G2_B9_k0_bb40k_teacher] waiting for VRAM on GPU 0: 5570 MiB free, need 6000
+[08-09 21:32:28] [G2_B9_k0_bb40k_teacher] waiting for VRAM on GPU 0: 5570 MiB free, need 6000
+[08-09 21:42:28] [G2_B9_k0_bb40k_teacher] waiting for VRAM on GPU 0: 5570 MiB free, need 6000
+[08-09 21:52:28] [G2_B9_k0_bb40k_teacher] waiting for VRAM on GPU 0: 5570 MiB free, need 6000
+[08-09 22:02:29] [G2_B9_k0_bb40k_teacher] waiting for VRAM on GPU 0: 5570 MiB free, need 6000
+[08-09 22:12:29] [G2_B9_k0_bb40k_teacher] waiting for VRAM on GPU 0: 5570 MiB free, need 6000
+[08-09 22:13:18] [G6_B1_k0_bb40k_student] head-train start enc=student steps=15000 seed=20260722 gpu=1 bb=bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k0_40k.pth
+[08-09 22:22:29] [G2_B9_k0_bb40k_teacher] waiting for VRAM on GPU 0: 5710 MiB free, need 6000
+[08-09 22:32:30] [G2_B9_k0_bb40k_teacher] waiting for VRAM on GPU 0: 5710 MiB free, need 6000
+[08-09 22:42:30] [G2_B9_k0_bb40k_teacher] waiting for VRAM on GPU 0: 5710 MiB free, need 6000
+[08-09 22:43:42] [G6_B1_k0_bb40k_student] head-train rc=0
+[08-09 22:43:42] [G6_B1_k0_bb40k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-09 22:52:31] [G2_B9_k0_bb40k_teacher] TIMEOUT after 14400s: GPU 0 has 5710 MiB free, need 6000
+[08-09 22:52:31] [G2_B9_k0_bb40k_teacher] ABORT: not enough VRAM on GPU 0
+[08-09 22:52:31] [G5_B5_s2_k0_bb40k_student] waiting for VRAM on GPU 0: 5710 MiB free, need 6000
+[08-09 22:52:31] [G2_B9_k0_bb40k_teacher] head-train start enc=teacher steps=15000 seed=20260722 gpu=1 bb=bb_small_arm1_nse_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k0_40k.pth
+[08-09 23:02:31] [G5_B5_s2_k0_bb40k_student] waiting for VRAM on GPU 0: 5710 MiB free, need 6000
+[08-09 23:12:31] [G5_B5_s2_k0_bb40k_student] waiting for VRAM on GPU 0: 5898 MiB free, need 6000
+[08-09 23:22:32] [G5_B5_s2_k0_bb40k_student] waiting for VRAM on GPU 0: 5898 MiB free, need 6000
+[08-09 23:24:13] [G2_B9_k0_bb40k_teacher] head-train rc=0
+[08-09 23:24:13] [G2_B9_k0_bb40k_teacher] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-09 23:32:32] [G5_B5_s2_k0_bb40k_student] waiting for VRAM on GPU 0: 5898 MiB free, need 6000
+[08-09 23:42:33] [G5_B5_s2_k0_bb40k_student] waiting for VRAM on GPU 0: 5898 MiB free, need 6000
+[08-09 23:43:48] [G6_B1_k0_bb40k_student] eval rc=0
+[08-09 23:43:48] [G6_B1_k0_bb40k_student] DONE — GM-Relative MASE 1.2025
+[08-09 23:43:48] [G6_B1_k0_bb40k_teacher] head-train start enc=teacher steps=15000 seed=20260722 gpu=1 bb=bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k0_40k.pth
+[08-09 23:52:33] [G5_B5_s2_k0_bb40k_student] waiting for VRAM on GPU 0: 5898 MiB free, need 6000
+[08-10 00:02:33] [G5_B5_s2_k0_bb40k_student] waiting for VRAM on GPU 0: 5702 MiB free, need 6000
+[08-10 00:12:34] [G5_B5_s2_k0_bb40k_student] waiting for VRAM on GPU 0: 5702 MiB free, need 6000
+[08-10 00:17:39] [G6_B1_k0_bb40k_teacher] head-train rc=0
+[08-10 00:17:39] [G6_B1_k0_bb40k_teacher] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-10 00:22:34] [G5_B5_s2_k0_bb40k_student] waiting for VRAM on GPU 0: 5702 MiB free, need 6000
+[08-10 00:25:22] [G2_B9_k0_bb40k_teacher] eval rc=0
+[08-10 00:25:22] [G2_B9_k0_bb40k_teacher] DONE — GM-Relative MASE 1.5599
+[08-10 00:32:35] [G5_B5_s2_k0_bb40k_student] waiting for VRAM on GPU 0: 1650 MiB free, need 6000
+[08-10 00:42:35] [G5_B5_s2_k0_bb40k_student] waiting for VRAM on GPU 0: 1532 MiB free, need 6000
+[08-10 00:52:35] [G5_B5_s2_k0_bb40k_student] waiting for VRAM on GPU 0: 1532 MiB free, need 6000
+[08-10 01:02:36] [G5_B5_s2_k0_bb40k_student] waiting for VRAM on GPU 0: 1532 MiB free, need 6000
+[08-10 01:12:36] [G5_B5_s2_k0_bb40k_student] waiting for VRAM on GPU 0: 1532 MiB free, need 6000
+[08-10 01:16:36] [G5_B5_s2_k0_bb40k_student] GPU 0 has 7120 MiB free after 8640s
+[08-10 01:16:36] [G5_B5_s2_k0_bb40k_student] head-train start enc=student steps=15000 seed=20260722 gpu=0 bb=bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k0_s2_40k.pth
+[08-10 01:20:02] [G6_B1_k0_bb40k_teacher] eval rc=0
+[08-10 01:20:02] [G6_B1_k0_bb40k_teacher] DONE — GM-Relative MASE 1.2001
+[08-10 01:52:03] [G5_B5_s2_k0_bb40k_student] head-train rc=0
+[08-10 01:52:03] [G5_B5_s2_k0_bb40k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-10 01:52:03] [G5_B5_s2_k3_bb40k_student] head-train start enc=student steps=15000 seed=20260722 gpu=0 bb=bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_s2_40k.pth
+[08-10 02:04:39] [G3_A3_k1_bb40k_student] head-train start enc=student steps=15000 seed=20260722 gpu=1 bb=cf393_arm6_v2_combab_alignT_cf373k1_40k.pth
+[08-10 02:29:00] [G5_B5_s2_k3_bb40k_student] head-train rc=0
+[08-10 02:29:00] [G5_B5_s2_k3_bb40k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-10 02:29:00] [G6_B1_k3_bb40k_student] head-train start enc=student steps=15000 seed=20260722 gpu=0 bb=bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_40k.pth
+[08-10 02:43:49] [G3_A3_k1_bb40k_student] head-train rc=0
+[08-10 02:43:49] [G3_A3_k1_bb40k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-10 02:55:11] [G5_B5_s2_k0_bb40k_student] eval rc=0
+[08-10 02:55:11] [G5_B5_s2_k0_bb40k_student] DONE — GM-Relative MASE 1.2716
+[08-10 03:06:37] [G6_B1_k3_bb40k_student] head-train rc=0
+[08-10 03:06:37] [G6_B1_k3_bb40k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-10 03:06:37] [G5_B5_s2_k0_bb40k_teacher] head-train start enc=teacher steps=15000 seed=20260722 gpu=0 bb=bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k0_s2_40k.pth
+[08-10 03:39:50] [G5_B5_s2_k3_bb40k_student] eval rc=0
+[08-10 03:39:50] [G5_B5_s2_k3_bb40k_student] DONE — GM-Relative MASE 1.3292
+[08-10 03:46:03] [G5_B5_s2_k0_bb40k_teacher] head-train rc=0
+[08-10 03:46:03] [G5_B5_s2_k0_bb40k_teacher] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-10 03:46:03] [G5_B5_s2_k3_bb40k_teacher] head-train start enc=teacher steps=15000 seed=20260722 gpu=0 bb=bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_s2_40k.pth
+[08-10 03:55:19] [G3_A3_k1_bb40k_student] eval rc=0
+[08-10 03:55:19] [G3_A3_k1_bb40k_student] DONE — GM-Relative MASE 1.1995
+[08-10 04:16:03] [G6_B1_k3_bb40k_student] eval rc=0
+[08-10 04:16:03] [G6_B1_k3_bb40k_student] DONE — GM-Relative MASE 1.0850
+[08-10 04:20:31] [G5_B5_s2_k3_bb40k_teacher] head-train rc=0
+[08-10 04:20:31] [G5_B5_s2_k3_bb40k_teacher] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-10 04:20:31] [G3_A3_k1_bb40k_teacher] head-train start enc=teacher steps=15000 seed=20260722 gpu=0 bb=cf393_arm6_v2_combab_alignT_cf373k1_40k.pth
+[08-10 04:50:40] [G5_B5_s2_k0_bb40k_teacher] eval rc=0
+[08-10 04:50:40] [G5_B5_s2_k0_bb40k_teacher] DONE — GM-Relative MASE 1.2661
+[08-10 04:54:28] [G3_A3_k1_bb40k_teacher] head-train rc=0
+[08-10 04:54:28] [G3_A3_k1_bb40k_teacher] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-10 04:54:28] [G6_B1_k3_bb40k_teacher] head-train start enc=teacher steps=15000 seed=20260722 gpu=0 bb=bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_40k.pth
+[08-10 05:24:41] [G5_B5_s2_k3_bb40k_teacher] eval rc=0
+[08-10 05:24:41] [G5_B5_s2_k3_bb40k_teacher] DONE — GM-Relative MASE 1.3260
+[08-10 05:28:07] [G6_B1_k3_bb40k_teacher] head-train rc=0
+[08-10 05:28:07] [G6_B1_k3_bb40k_teacher] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-10 05:58:04] [G3_A3_k1_bb40k_teacher] eval rc=0
+[08-10 05:58:04] [G3_A3_k1_bb40k_teacher] DONE — GM-Relative MASE 1.2063
+[08-10 06:29:11] [G6_B1_k3_bb40k_teacher] eval rc=0
+[08-10 06:29:11] [G6_B1_k3_bb40k_teacher] DONE — GM-Relative MASE 1.0948
+[08-10 12:17:03] [G7_B5_k0_e_bb40k_student] head-train start enc=student steps=15000 seed=20260722 gpu=0 bb=bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k0_e_40k.pth
+[08-10 12:52:18] [G7_B5_k0_e_bb40k_student] head-train rc=0
+[08-10 12:52:18] [G7_B5_k0_e_bb40k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-10 13:51:29] [G7_B5_k0_e_bb40k_student] eval rc=0
+[08-10 13:51:29] [G7_B5_k0_e_bb40k_student] DONE — GM-Relative MASE 1.2751
+[08-10 13:51:29] [G7_B5_k0_e_bb40k_teacher] waiting for VRAM on GPU 1: 4916 MiB free, need 6000
+[08-10 14:01:29] [G7_B5_k0_e_bb40k_teacher] waiting for VRAM on GPU 1: 4916 MiB free, need 6000
+[08-10 14:11:29] [G7_B5_k0_e_bb40k_teacher] waiting for VRAM on GPU 1: 4916 MiB free, need 6000
+[08-10 14:21:30] [G7_B5_k0_e_bb40k_teacher] waiting for VRAM on GPU 1: 4916 MiB free, need 6000
+[08-10 14:31:30] [G7_B5_k0_e_bb40k_teacher] waiting for VRAM on GPU 1: 4916 MiB free, need 6000
+[08-10 14:41:31] [G7_B5_k0_e_bb40k_teacher] waiting for VRAM on GPU 1: 4916 MiB free, need 6000
+[08-10 14:51:31] [G7_B5_k0_e_bb40k_teacher] waiting for VRAM on GPU 1: 4916 MiB free, need 6000
+[08-10 15:01:31] [G7_B5_k0_e_bb40k_teacher] waiting for VRAM on GPU 1: 4916 MiB free, need 6000
+[08-10 15:11:32] [G7_B5_k0_e_bb40k_teacher] waiting for VRAM on GPU 1: 4916 MiB free, need 6000
+[08-10 15:21:32] [G7_B5_k0_e_bb40k_teacher] waiting for VRAM on GPU 1: 4916 MiB free, need 6000
+[08-10 15:31:32] [G7_B5_k0_e_bb40k_teacher] waiting for VRAM on GPU 1: 4916 MiB free, need 6000
+[08-10 15:41:33] [G7_B5_k0_e_bb40k_teacher] waiting for VRAM on GPU 1: 4916 MiB free, need 6000
+[08-10 15:51:33] [G7_B5_k0_e_bb40k_teacher] waiting for VRAM on GPU 1: 4916 MiB free, need 6000
+[08-10 16:01:34] [G7_B5_k0_e_bb40k_teacher] waiting for VRAM on GPU 1: 4916 MiB free, need 6000
+[08-10 16:11:34] [G7_B5_k0_e_bb40k_teacher] waiting for VRAM on GPU 1: 4916 MiB free, need 6000
+[08-10 16:21:34] [G7_B5_k0_e_bb40k_teacher] waiting for VRAM on GPU 1: 4916 MiB free, need 6000
+[08-10 16:31:35] [G7_B5_k0_e_bb40k_teacher] waiting for VRAM on GPU 1: 4916 MiB free, need 6000
+[08-10 16:41:35] [G7_B5_k0_e_bb40k_teacher] waiting for VRAM on GPU 1: 4916 MiB free, need 6000
+[08-10 16:51:35] [G7_B5_k0_e_bb40k_teacher] waiting for VRAM on GPU 1: 4916 MiB free, need 6000
+[08-10 17:01:36] [G7_B5_k0_e_bb40k_teacher] waiting for VRAM on GPU 1: 4916 MiB free, need 6000
+[08-10 17:11:36] [G7_B5_k0_e_bb40k_teacher] waiting for VRAM on GPU 1: 4916 MiB free, need 6000
+[08-10 17:21:36] [G7_B5_k0_e_bb40k_teacher] waiting for VRAM on GPU 1: 4916 MiB free, need 6000
+[08-10 17:31:37] [G7_B5_k0_e_bb40k_teacher] waiting for VRAM on GPU 1: 4916 MiB free, need 6000
+[08-10 17:41:37] [G7_B5_k0_e_bb40k_teacher] waiting for VRAM on GPU 1: 4916 MiB free, need 6000
+[08-10 17:51:38] [G7_B5_k0_e_bb40k_teacher] TIMEOUT after 14400s: GPU 1 has 4916 MiB free, need 6000
+[08-10 17:51:38] [G7_B5_k0_e_bb40k_teacher] ABORT: not enough VRAM on GPU 1
+[08-10 17:51:38] [G7_B5_k0_e_bb40k_teacher] waiting for VRAM on GPU 1: 4916 MiB free, need 6000
+[08-13 16:02:54] [A3_k3_bb200k_student_s20260723] head-train start enc=student steps=30000 seed=20260723 gpu=1 bb=cf393_arm6_v2_combab_alignT_cf373k3_200k.pth
+[08-13 17:08:52] [A3_k3_bb200k_student_s20260723] head-train rc=0
+[08-13 17:08:52] [A3_k3_bb200k_student_s20260723] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-13 18:20:31] [A3_k3_bb200k_student_s20260723] eval rc=0
+[08-13 18:20:31] [A3_k3_bb200k_student_s20260723] DONE — GM-Relative MASE 1.4098
+[08-13 20:32:54] [G_B1_k0_aw4_bb40k_teacher] head-train start enc=teacher steps=15000 seed=20260722 gpu=1 bb=bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k0_aw4_40k.pth
+[08-13 21:06:58] [G_B1_k0_aw4_bb40k_teacher] head-train rc=0
+[08-13 21:06:58] [G_B1_k0_aw4_bb40k_teacher] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-13 21:06:58] [G_B1_k0_aw4_bb40k_student] head-train start enc=student steps=15000 seed=20260722 gpu=1 bb=bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k0_aw4_40k.pth
+[08-13 21:40:54] [G_B1_k0_aw4_bb40k_student] head-train rc=0
+[08-13 21:40:54] [G_B1_k0_aw4_bb40k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-13 22:07:27] [G_B1_k0_aw4_bb40k_teacher] eval rc=0
+[08-13 22:07:27] [G_B1_k0_aw4_bb40k_teacher] DONE — GM-Relative MASE 1.1482
+[08-13 22:40:00] [G_B1_k0_aw4_bb40k_student] eval rc=0
+[08-13 22:40:00] [G_B1_k0_aw4_bb40k_student] DONE — GM-Relative MASE 1.1513

@@ -1,0 +1,11 @@
+draw 2 (this directory) — head trained on elisa, gpu 1
+  backbone read: /home/jupyter/cf373_r3/sync/arm6_v2_combab_alignT/leg_200k/cf393_arm6_v2_combab_alignT_cf373k3_200k.pth
+  md5: 9f0e8da71ff595523d2bf0dabdf80445  (see backbone_md5.txt)
+
+draw 1 (../A3_k3_bb200k_student) — head trained on the rented box, gpu 0
+  backbone read: /root/cf373_runs/arm6_v2_combab_alignT/leg_200k/cf393_arm6_v2_combab_alignT_cf373k3_200k.pth
+  md5: not recorded; the box was released before it could be checksummed
+
+A3's 200k leg trained on the box (queue/bb_A3_200k.machine = rem:1), so the
+box held the original and elisa holds the synced copy. Both evals ran on
+elisa's cores over the same 97 configs.

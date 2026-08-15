@@ -1,0 +1,129 @@
+[08-10 21:28:09] [B5] provisioning
+[08-10 21:30:15] [B5] provisioning
+[08-10 21:38:49] [B5] provisioning
+[08-10 21:44:38] [B5] adopting instance 47403680 at ssh8.vast.ai:13680
+[08-10 21:45:03] [B9] adopting instance 47403823 at ssh3.vast.ai:13822
+[08-10 21:46:02] [fleet] fleet target: A3 A4 A1 A2 B1 B2 B3 B4 B6 B7 B8 B10 (stops: 40000 100000)
+[08-10 21:46:02] [fleet] round 1: 12 cell(s) still without a box: A3 A4 A1 A2 B1 B2 B3 B4 B6 B7 B8 B10
+[08-10 21:46:02] [fleet]   launcher for A3 (pid 1592530)
+[08-10 21:46:02] [A3] provisioning
+[08-10 21:46:22] [fleet]   launcher for A4 (pid 1592807)
+[08-10 21:46:22] [A4] provisioning
+[08-10 21:46:42] [fleet]   launcher for A1 (pid 1593023)
+[08-10 21:46:42] [A1] provisioning
+[08-10 21:47:37] [B9] bootstrapped
+[08-10 21:47:37] [B9] staging resume: bb_small_arm1_nse_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_40k.pth + optimizer -> /root/cf373_runs/bb_small_arm1_nse_split_pred_rep_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3
+[08-10 21:47:46] [B9] resume state verified on the box (11077058 B)
+[08-10 21:47:48] [B9] sync loop started -> /home/jupyter/cf373_r2/B9
+[08-10 21:47:48] [B9] LAUNCHED instance=47403823 host=ssh3.vast.ai port=13822 stops=40000 100000
+[08-10 21:48:04] [A3] instance 47404157 at ssh2.vast.ai:14156
+[08-10 21:48:37] [A4] instance 47404183 at ssh7.vast.ai:14182
+[08-10 21:48:40] [B5] bootstrapped
+[08-10 21:48:40] [B5] staging resume: bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_40k.pth + optimizer -> /root/cf373_runs/bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3
+[08-10 21:49:18] [B5] resume state verified on the box (11028553 B)
+[08-10 21:49:21] [B5] sync loop started -> /home/jupyter/cf373_r2/B5
+[08-10 21:49:21] [B5] LAUNCHED instance=47403680 host=ssh8.vast.ai port=13680 stops=40000 100000
+[08-10 21:50:01] [A1] instance 47404317 at ssh7.vast.ai:14316
+[08-10 21:51:59] [A3] bootstrapped
+[08-10 21:51:59] [A3] staging resume: cf393_arm6_v2_combab_alignT_cf373k3_40k.pth + optimizer -> /root/cf373_runs/arm6_v2_combab_alignT/leg_40k
+[08-10 21:52:01] [A4] bootstrapped
+[08-10 21:52:04] [A4] sync loop started -> /home/jupyter/cf373_r2/A4
+[08-10 21:52:04] [A4] LAUNCHED instance=47404183 host=ssh7.vast.ai port=14182 stops=40000 100000
+[08-10 21:52:25] [A1] ABORT: bootstrap failed — destroying 47404317 (see r2_bootstrap_A1.log)
+[08-10 21:52:35] [A3] resume state verified on the box (10986086 B)
+[08-10 21:52:39] [A3] sync loop started -> /home/jupyter/cf373_r2/A3
+[08-10 21:52:39] [A3] LAUNCHED instance=47404157 host=ssh2.vast.ai port=14156 stops=40000 100000
+[08-10 21:52:39] [fleet]   A3 PLACED
+[08-10 21:52:39] [fleet]   A4 PLACED
+[08-10 21:52:39] [fleet]   A1 not placed this round
+[08-10 21:52:39] [fleet] round 2: 10 cell(s) still without a box: A1 A2 B1 B2 B3 B4 B6 B7 B8 B10
+[08-10 21:52:39] [fleet]   launcher for A1 (pid 1610094)
+[08-10 21:52:39] [A1] provisioning
+[08-10 21:52:59] [fleet]   launcher for A2 (pid 1610519)
+[08-10 21:52:59] [A2] provisioning
+[08-10 21:53:19] [fleet]   launcher for B1 (pid 1611863)
+[08-10 21:53:19] [B1] provisioning
+[08-10 21:55:09] [A1] instance 47404615 at ssh2.vast.ai:14614
+[08-10 21:55:16] [A2] instance 47404632 at ssh2.vast.ai:14632
+[08-10 21:55:21] [B1] instance 47404661 at ssh8.vast.ai:14660
+[08-10 22:00:40] [A1] bootstrapped
+[08-10 22:00:42] [B1] bootstrapped
+[08-10 22:00:42] [B1] staging resume: bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3_40k.pth + optimizer -> /root/cf373_runs/bb_small_arm6_v2_combab_lalign_lrepmoco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_cf373k3
+[08-10 22:00:42] [A2] bootstrapped
+[08-10 22:00:44] [A1] sync loop started -> /home/jupyter/cf373_r2/A1
+[08-10 22:00:44] [A1] LAUNCHED instance=47404615 host=ssh2.vast.ai port=14614 stops=40000 100000
+[08-10 22:00:46] [A2] sync loop started -> /home/jupyter/cf373_r2/A2
+[08-10 22:00:46] [A2] LAUNCHED instance=47404632 host=ssh2.vast.ai port=14632 stops=40000 100000
+[08-10 22:01:26] [B1] resume state verified on the box (11030309 B)
+[08-10 22:01:29] [B1] sync loop started -> /home/jupyter/cf373_r2/B1
+[08-10 22:01:29] [B1] LAUNCHED instance=47404661 host=ssh8.vast.ai port=14660 stops=40000 100000
+[08-10 22:01:29] [fleet]   A1 PLACED
+[08-10 22:01:29] [fleet]   A2 PLACED
+[08-10 22:01:29] [fleet]   B1 PLACED
+[08-10 22:01:29] [fleet] round 3: 7 cell(s) still without a box: B2 B3 B4 B6 B7 B8 B10
+[08-10 22:01:29] [fleet]   launcher for B2 (pid 1638395)
+[08-10 22:01:29] [B2] provisioning
+[08-10 22:01:49] [fleet]   launcher for B3 (pid 1639148)
+[08-10 22:01:49] [B3] provisioning
+[08-10 22:02:09] [fleet]   launcher for B4 (pid 1641256)
+[08-10 22:02:09] [B4] provisioning
+[08-10 22:02:46] [B2] instance 47405187 at ssh8.vast.ai:15186
+[08-10 22:04:12] [B3] instance 47405232 at ssh3.vast.ai:15232
+[08-10 22:04:37] [B4] instance 47405221 at ssh8.vast.ai:15220
+[08-10 22:07:05] [B2] bootstrapped
+[08-10 22:07:09] [B2] sync loop started -> /home/jupyter/cf373_r2/B2
+[08-10 22:07:09] [B2] LAUNCHED instance=47405187 host=ssh8.vast.ai port=15186 stops=40000 100000
+[08-10 22:07:12] [B3] bootstrapped
+[08-10 22:07:19] [B3] sync loop started -> /home/jupyter/cf373_r2/B3
+[08-10 22:07:19] [B3] LAUNCHED instance=47405232 host=ssh3.vast.ai port=15232 stops=40000 100000
+[08-10 22:07:26] [B4] bootstrapped
+[08-10 22:07:37] [B4] sync loop started -> /home/jupyter/cf373_r2/B4
+[08-10 22:07:37] [B4] LAUNCHED instance=47405221 host=ssh8.vast.ai port=15220 stops=40000 100000
+[08-10 22:07:37] [fleet]   B2 PLACED
+[08-10 22:07:37] [fleet]   B3 PLACED
+[08-10 22:07:37] [fleet]   B4 PLACED
+[08-10 22:07:37] [fleet] round 4: 4 cell(s) still without a box: B6 B7 B8 B10
+[08-10 22:07:37] [fleet]   launcher for B6 (pid 1650389)
+[08-10 22:07:37] [B6] provisioning
+[08-10 22:07:57] [fleet]   launcher for B7 (pid 1651162)
+[08-10 22:07:57] [B7] provisioning
+[08-10 22:08:17] [fleet]   launcher for B8 (pid 1651389)
+[08-10 22:08:17] [B8] provisioning
+[08-10 22:11:05] [B8] instance 47405690 at ssh9.vast.ai:15690
+[08-10 22:15:07] [B8] bootstrapped
+[08-10 22:15:10] [B8] sync loop started -> /home/jupyter/cf373_r2/B8
+[08-10 22:15:10] [B8] LAUNCHED instance=47405690 host=ssh9.vast.ai port=15690 stops=40000 100000
+[08-10 22:17:08] [B6] instance 47406054 at ssh8.vast.ai:16054
+[08-10 22:20:21] [B6] bootstrapped
+[08-10 22:20:24] [B6] sync loop started -> /home/jupyter/cf373_r2/B6
+[08-10 22:20:24] [B6] LAUNCHED instance=47406054 host=ssh8.vast.ai port=16054 stops=40000 100000
+[08-10 22:24:40] [B7] instance 47406627 at ssh3.vast.ai:16626
+[08-10 22:27:05] [B7] ABORT: bootstrap failed — destroying 47406627 (see r2_bootstrap_B7.log)
+[08-10 22:27:09] [fleet]   B6 PLACED
+[08-10 22:27:09] [fleet]   B7 not placed this round
+[08-10 22:27:09] [fleet]   B8 PLACED
+[08-10 22:27:09] [fleet] round 5: 2 cell(s) still without a box: B7 B10
+[08-10 22:27:09] [fleet]   launcher for B7 (pid 1678008)
+[08-10 22:27:09] [B7] provisioning
+[08-10 22:27:29] [fleet]   launcher for B10 (pid 1678194)
+[08-10 22:27:29] [B10] provisioning
+[08-10 22:28:02] [B7] instance 47406829 at ssh4.vast.ai:16828
+[08-10 22:29:29] [B10] instance 47406847 at ssh3.vast.ai:16846
+[08-10 22:31:22] [B7] bootstrapped
+[08-10 22:31:25] [B7] sync loop started -> /home/jupyter/cf373_r2/B7 (pid 1682033)
+[08-10 22:31:25] [B7] LAUNCHED instance=47406829 host=ssh4.vast.ai port=16828 stops=40000 100000
+[08-10 22:32:40] [B10] bootstrapped
+[08-10 22:32:44] [B10] sync loop started -> /home/jupyter/cf373_r2/B10 (pid 1682977)
+[08-10 22:32:44] [B10] LAUNCHED instance=47406847 host=ssh3.vast.ai port=16846 stops=40000 100000
+[08-10 22:32:44] [fleet]   B7 PLACED
+[08-10 22:32:44] [fleet]   B10 PLACED
+[08-10 22:32:44] [fleet] every cell has a box; fleet complete after 6 round(s)
+[08-10 22:32:44] [fleet] fleet loop done
+[08-12 12:08:52] [B8] provisioning
+[08-12 12:12:51] [B8] instance 47541145 at ssh2.vast.ai:21144
+[08-12 12:15:12] [B8] ABORT: bootstrap failed — destroying 47541145 (see r2_bootstrap_B8.log)
+[08-12 15:52:15] [B8] provisioning
+[08-12 15:52:29] [extfleet] 200k round: B10 A2 A4 B1 B2 B4 B6 A3
+[08-12 15:52:29] [extfleet] B10: launching 200k leg, heads: student teacher
+[08-12 15:52:29] [B10] provisioning
+[08-12 15:57:22] [B10] adopting instance 47555858 at ssh7.vast.ai:35858
