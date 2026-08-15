@@ -25,7 +25,10 @@ HEAD_SEED="${HEAD_SEED:-20260722}"
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export WT="${WT:-/home/jupyter/wt-cf-373-train}"
-RES="$WT/reports/2026-08-08_rollout_depth/results"
+# Which study's directory takes the head log and the score file. #401 reuses
+# this head and this eval on its own backbones and points it at its own
+# directory. Unset, this is #373's own directory, unchanged.
+RES="${CF_STUDY_DIR:-$WT/reports/2026-08-08_rollout_depth}/results"
 mkdir -p "$RES"
 . "$HERE/cell_paths.sh"
 . "$HERE/gpu_gate.sh"
