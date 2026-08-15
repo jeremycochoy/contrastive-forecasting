@@ -1,8 +1,8 @@
 # #401 run state
 
-- updated: 2026-08-16 00:26:46
+- updated: 2026-08-16 00:31:46
 - stage: phase 1
-- note: arms started: k=16 k=8
+- note: k=32 waits for an arm slot
 - launcher pid: 542935
 - gpu: 0, arm slots: 2 (edit `results/SLOTS`)
 - root: `/home/jupyter/checkpoints_backup/cf-401`
