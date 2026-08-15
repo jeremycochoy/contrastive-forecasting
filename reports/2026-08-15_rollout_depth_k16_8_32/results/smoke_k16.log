@@ -1,0 +1,23 @@
+[08-15 23:06:40] [#401 smoke] card at start: 5473 MiB, 18738 MiB, 0 %
+[08-15 23:06:41] [#401 smoke] neighbours at start: 2178997, 452 MiB;3039489, 452 MiB;3039498, 452 MiB;3039500, 452 MiB;3039495, 452 MiB;3039494, 452 MiB;3039501, 452 MiB;3039492, 452 MiB;3039496, 452 MiB;3039493, 452 MiB;3039499, 452 MiB;3039497, 452 MiB;
+[08-15 23:06:41] [#401 smoke] START k=0 steps=300 gpu=0 log_every=50
+[08-15 23:06:41] [arm6_v2_combab_alignS] FRESH start at step 0
+[08-15 23:06:41] [arm6_v2_combab_alignS] START target=300 gpu=0 save_every=1000000 leg=/home/jupyter/checkpoints_backup/cf-401-smoke/k0/arm6_v2_combab_alignS/leg_0k
+[08-15 23:07:49] [arm6_v2_combab_alignS] DONE target=300 (5.0M) -> /home/jupyter/checkpoints_backup/cf-401-smoke/k0/arm6_v2_combab_alignS/leg_0k/cf393_arm6_v2_combab_alignS_cf373k0_smoke401_k0_0k.pth
+[08-15 23:07:50] [#401 smoke] k=0 rc=0 peak=5372 MiB cols=0 — arm6_v2_combab_alignS,0,300,5,3.1,106.4,60.2,169.7,4.3,5372,0,18738,0
+[08-15 23:07:50] [#401 smoke] START k=16 steps=300 gpu=0 log_every=50
+[08-15 23:07:50] [arm6_v2_combab_alignS] FRESH start at step 0
+[08-15 23:07:50] [arm6_v2_combab_alignS] START target=300 gpu=0 save_every=1000000 leg=/home/jupyter/checkpoints_backup/cf-401-smoke/k16/arm6_v2_combab_alignS/leg_0k
+[08-15 23:09:50] [arm6_v2_combab_alignS] DONE target=300 (5.0M) -> /home/jupyter/checkpoints_backup/cf-401-smoke/k16/arm6_v2_combab_alignS/leg_0k/cf393_arm6_v2_combab_alignS_cf373k16_smoke401_k16_0k.pth
+[08-15 23:09:52] [#401 smoke] k=16 rc=0 peak=5850 MiB cols=17 — arm6_v2_combab_alignS,16,300,5,3.2,177.4,165.7,347.6,2.5,5850,17,18738,0
+[08-15 23:09:52] [#401 smoke] START k=8 steps=300 gpu=0 log_every=50
+[08-15 23:09:52] [arm6_v2_combab_alignS] FRESH start at step 0
+[08-15 23:09:52] [arm6_v2_combab_alignS] START target=300 gpu=0 save_every=1000000 leg=/home/jupyter/checkpoints_backup/cf-401-smoke/k8/arm6_v2_combab_alignS/leg_0k
+[08-15 23:11:23] [arm6_v2_combab_alignS] DONE target=300 (5.0M) -> /home/jupyter/checkpoints_backup/cf-401-smoke/k8/arm6_v2_combab_alignS/leg_0k/cf393_arm6_v2_combab_alignS_cf373k8_smoke401_k8_0k.pth
+[08-15 23:11:23] [#401 smoke] k=8 rc=0 peak=5414 MiB cols=9 — arm6_v2_combab_alignS,8,300,5,3.4,141,111.3,257.1,3.3,5414,9,18738,0
+[08-15 23:11:23] [#401 smoke] START k=32 steps=300 gpu=0 log_every=50
+[08-15 23:11:24] [arm6_v2_combab_alignS] FRESH start at step 0
+[08-15 23:11:24] [arm6_v2_combab_alignS] START target=300 gpu=0 save_every=1000000 leg=/home/jupyter/checkpoints_backup/cf-401-smoke/k32/arm6_v2_combab_alignS/leg_0k
+[08-15 23:14:18] [arm6_v2_combab_alignS] DONE target=300 (5.0M) -> /home/jupyter/checkpoints_backup/cf-401-smoke/k32/arm6_v2_combab_alignS/leg_0k/cf393_arm6_v2_combab_alignS_cf373k32_smoke401_k32_0k.pth
+[08-15 23:14:19] [#401 smoke] k=32 rc=0 peak=5532 MiB cols=33 — arm6_v2_combab_alignS,32,300,5,3.3,249.5,276.9,530.5,1.7,5532,33,18738,0
+[08-15 23:14:19] [#401 smoke] card at end: 5473 MiB, 18738 MiB, 0 %
