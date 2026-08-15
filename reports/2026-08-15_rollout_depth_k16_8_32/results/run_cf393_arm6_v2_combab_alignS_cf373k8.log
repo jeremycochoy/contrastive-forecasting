@@ -1,0 +1,12 @@
+Device: cuda | Params: 720,668
+Training for 40000 steps, bs=64, lr=0.001, T=4096, C=1, mix_ratio=0.0078125, freq_emb_dim=3, seasonality_emb_dim=3, mixup_p=0.3, rev_norm_kind=ewma(span=128), patch_stats=none, encoder_type=gru
+Checkpoints: /home/jupyter/checkpoints_backup/cf-401/k8/arm6_v2_combab_alignS/leg_40k/cf393_arm6_v2_combab_alignS_cf373k8_*.pth
+Loss CSV: /home/jupyter/checkpoints_backup/cf-401/k8/arm6_v2_combab_alignS/leg_40k/cf393_arm6_v2_combab_alignS_cf373k8_losses.csv
+Latent-drift CSV: /home/jupyter/checkpoints_backup/cf-401/k8/arm6_v2_combab_alignS/leg_40k/cf393_arm6_v2_combab_alignS_cf373k8_latent_drift.csv (every 20000 steps, probe_bs=64, probe_seed=20260722)
+Attn-amplitude CSV: /home/jupyter/checkpoints_backup/cf-401/k8/arm6_v2_combab_alignS/leg_40k/cf393_arm6_v2_combab_alignS_cf373k8_attn_amplitude.csv (every 200 steps)
+Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, hf_bs=64, synth_bs=0, cross_bs=0, total_bs=67
+[    200] loss=17.4407  ema_loss=20.5150  gap=-0.0595  ema_gap=-0.1447  mixup=61/200  3.0 sps  ETA 3.7h
+              R²_rand=0.1933  R²_naive=-0.2881  U_t=0.0205  U_b=0.0208  AUC=0.6280  Top1=0.0176
+  timing: data=36.7ms  fwd=154.2ms  bwd=124.1ms  total=315.8ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-401/k8/arm6_v2_combab_alignS/leg_40k/cf393_arm6_v2_combab_alignS_cf373k8_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-401/k8/arm6_v2_combab_alignS/leg_40k/cf393_arm6_v2_combab_alignS_cf373k8_best_loss.pth
