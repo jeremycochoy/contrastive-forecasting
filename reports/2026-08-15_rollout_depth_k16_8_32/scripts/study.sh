@@ -20,7 +20,9 @@ CF401_ENC="student"
 
 # Phase 1 trains one head per backbone stop, at a fixed budget. Phase 2
 # repeats the head with its budget matched to the backbone stop, which is
-# the second half of the card's question.
+# the second half of the card's question. Phase 2 therefore has no constant:
+# its budget IS the stop, and phase2.sh and cf401_require_head_steps both
+# read it off the stop they are given.
 CF401_HEAD_STEPS_P1=30000
 
 # ---- Trial mode --------------------------------------------------------------
@@ -43,7 +45,6 @@ if [ -n "${CF401_TRIAL:-}" ]; then
   CF401_STOPS="$CF401_TRIAL"
   CF401_HEAD_STEPS_P1=$(( CF401_TRIAL / 2 ))
 fi
-CF401_HEAD_STEPS_P2="$CF401_STOPS"
 
 # The durable root. Never /tmp, never inside the checkout (CLAUDE.md
 # checkpoint safety rule 4), and never #373's root — one root for two studies

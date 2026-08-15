@@ -56,7 +56,8 @@ log(){ echo "[$(date '+%m-%d %H:%M:%S')] [#401 trial] $*" | tee -a "$LOG"; }
 
 log "steps=$TRIAL_STEPS k=$TRIAL_K gpu=$BB_GPU config=$TRIAL_CONFIG"
 log "root=$CF401_ROOT results=$CF401_RESULTS"
-log "head budgets: phase 1 $CF401_HEAD_STEPS_P1, phase 2 $CF401_HEAD_STEPS_P2"
+# The trial has one stop, and the card's phase-2 budget is the stop.
+log "head budgets: phase 1 $CF401_HEAD_STEPS_P1, phase 2 $TRIAL_STEPS"
 
 # Refuse to run against the study's own artefacts. The suffix comes from
 # study.sh, and a trial that wrote into cf-401 would leave a 400-step

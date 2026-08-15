@@ -28,8 +28,10 @@ from __future__ import annotations
 
 import csv
 import importlib.util
+import math
 import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -157,6 +159,23 @@ class TestLayout:
         assert "sync_loop.sh" in code
         assert "safe_pull.sh" in code, "raw scp corrupts the prior good copy"
 
+    def test_a_file_with_a_shebang_is_executable(self):
+        """One rule for the whole study: a `#!` line means mode 755.
+
+        Half the scripts were 755 and the newer half 644, so `./scripts/x.sh`
+        worked for some and not for others.
+        """
+        listed = subprocess.run(
+            ["git", "ls-files", "-s", str(EXP.relative_to(REPO_ROOT))],
+            capture_output=True, text=True, cwd=str(REPO_ROOT)).stdout
+        wrong = []
+        for line in listed.splitlines():
+            mode = line.split()[0]
+            path = line.split("\t", 1)[1]
+            if (REPO_ROOT / path).read_bytes()[:2] == b"#!" and mode != "100755":
+                wrong.append(f"{path} is {mode}")
+        assert not wrong, wrong
+
 
 # --- 2. The study's constants ------------------------------------------------
 
@@ -189,6 +208,18 @@ class TestStudyConstants:
         root = study_value("CF401_ROOT")
         assert not root.startswith("/tmp")
         assert not root.startswith(str(REPO_ROOT))
+
+    def test_no_constant_holds_the_phase_2_head_budgets(self):
+        """The phase-2 budget is the stop, and it is read from the stop.
+
+        `CF401_HEAD_STEPS_P2` held the three stops outside a trial, and one
+        log line was the only reader. A second place to keep the rule can
+        drift from phase2.sh and from cf401_require_head_steps, which both
+        take the budget from the stop they are given.
+        """
+        assert study_value("CF401_HEAD_STEPS_P2") == ""
+        for path in (STUDY_SH, PHASE2, EXP / "scripts" / "trial_head.sh"):
+            assert "CF401_HEAD_STEPS_P2" not in path.read_text(), path.name
 
 
 # --- 3. The configuration is #373's A4 cell ----------------------------------
@@ -335,8 +366,34 @@ class TestHeadAndEval:
         """Each shard would run the same regex and the merge would double."""
         eval_local = strip_comments(
             (PARENT / "scripts" / "eval_local.sh").read_text())
-        assert re.search(r'EVAL_CONFIG_FILTER"?\s*\]\s*&&\s*EVAL_SHARDS=1',
-                         eval_local), "a filtered eval still shards"
+        assert re.search(r'if \[ -n "\$EVAL_CONFIG_FILTER" \]; then\s*\n\s*'
+                         r'EVAL_SHARDS=1\s*\nfi', eval_local), (
+            "a filtered eval still shards")
+
+    def test_the_eval_does_not_run_under_set_e(self):
+        """The subset lines are tests, and a test on an unset value returns 1.
+
+        `set -e` would stop every 97-config eval of both studies at the first
+        of them. The trial ran with the filter SET, so only the other branch
+        is exercised by a run.
+        """
+        for line in (PARENT / "scripts" / "eval_local.sh").read_text().splitlines():
+            if line.strip().startswith("set "):
+                flags = line.split()[1].lstrip("-")
+                assert "e" not in flags, line
+                assert "errexit" not in line, line
+
+    def test_no_subset_line_decides_the_scripts_exit_status(self):
+        """A bare `[ -n "$F" ] && ...` returns 1 when F is unset.
+
+        The `if` form returns 0 on both branches, so the guard holds whatever
+        shell options a later edit of this script turns on.
+        """
+        code = strip_comments(
+            (PARENT / "scripts" / "eval_local.sh").read_text())
+        bare = re.findall(r'^\s*\[[^]]*\$EVAL_CONFIG_FILTER[^]]*\]\s*&&.*$',
+                          code, re.M)
+        assert not bare, bare
 
     def test_the_filter_reaches_the_aggregate_pass(self):
         """Without it a one-config run evaluates the other 96 at the end."""
@@ -441,6 +498,74 @@ class TestPhase1Plan:
         assert "wait " in code, f"{script.name} never waits for its heads"
         assert "setsid" not in code, (
             f"{script.name} backgrounds a head through setsid and waits on it")
+
+
+def stub_script(path: Path, body: str):
+    path.write_text("#!/bin/bash\n" + body + "\n")
+    path.chmod(0o755)
+
+
+@pytest.fixture
+def stub_study(tmp_path):
+    """A copy of the study's scripts, where the costly two can be replaced.
+
+    phase1.sh runs `$HERE/run_arm_k.sh` and `$HERE/head_eval.sh` out of its
+    own directory, so a copy is the only way to make a leg fail without a
+    GPU. Every other line, study.sh included, is the study's own code. The
+    empty sibling directory is #373's, which study.sh resolves relative to
+    itself.
+    """
+    study = tmp_path / "reports" / EXP.name
+    shutil.copytree(EXP / "scripts", study / "scripts")
+    (tmp_path / "reports" / PARENT.name / "scripts").mkdir(parents=True)
+    return study
+
+
+class TestPhase1LegFailure:
+    """A failed leg is a failed phase.
+
+    The next stop resumes the one below it, so a dead leg makes every stop
+    above it meaningless. Phase 1 exited 0 anyway, and the failure then
+    surfaced hours later as the picker's "incomplete phase 1" abort.
+    """
+
+    def run_phase1(self, study, tmp_path, leg_body):
+        stub_script(study / "scripts" / "run_arm_k.sh", leg_body)
+        stub_script(study / "scripts" / "head_eval.sh", "exit 0")
+        out = run_sh(study / "scripts" / "phase1.sh",
+                     env={"CF401_RESULTS": str(tmp_path / "res"),
+                          "CF401_ROOT": str(tmp_path / "runs"),
+                          "HEAD_BG": "0"})
+        return out, (tmp_path / "res" / "phase1.log").read_text()
+
+    def test_a_dead_leg_makes_the_phase_fail(self, stub_study, tmp_path):
+        out, log = self.run_phase1(stub_study, tmp_path, "exit 9")
+        assert out.returncode != 0, "phase 1 reported success after a dead leg"
+        assert "rc=9" in log, log
+
+    def test_the_drained_line_counts_the_dead_legs(self, stub_study, tmp_path):
+        """The count is what a reader of the log looks at."""
+        _, log = self.run_phase1(stub_study, tmp_path, "exit 9")
+        drained = [ln for ln in log.splitlines() if "drained" in ln]
+        assert drained, log
+        assert re.search(r"3 leg\(s\)", drained[-1]), drained[-1]
+
+    def test_a_dead_leg_stops_its_own_arm_only(self, stub_study, tmp_path):
+        """k = 8 and k = 32 still run. The card wants every arm it can get."""
+        out, log = self.run_phase1(
+            stub_study, tmp_path, '[ "$1" = 16 ] && exit 9\nexit 0')
+        assert out.returncode != 0, log
+        started = re.findall(r"arm k=(\d+) -> (\d+)", log)
+        assert started.count(("16", "40000")) == 1
+        assert ("16", "100000") not in started, "it resumed a dead leg"
+        for k in (8, 32):
+            assert len([s for s in started if s[0] == str(k)]) == len(STOPS)
+        assert re.search(r"1 leg\(s\)", log), log
+
+    def test_every_leg_alive_still_exits_zero(self, stub_study, tmp_path):
+        out, log = self.run_phase1(stub_study, tmp_path, "exit 0")
+        assert out.returncode == 0, out.stdout + out.stderr
+        assert re.search(r"0 leg\(s\)", log), log
 
 
 class TestPhase2Plan:
@@ -683,7 +808,7 @@ class TestSmokeK16:
         assert "timing:" in SMOKE.read_text()
 
     def test_it_writes_every_number_to_results(self, smoke_code):
-        header = re.search(r'echo "(cell,[^"]*)"', smoke_code)
+        header = re.search(r'"(cell,k,[^"]*)"', smoke_code)
         assert header, "no CSV header in the smoke script"
         cols = header.group(1).split(",")
         for col in ("k", "total_ms", "peak_mib", "depth_cols", "rc"):
@@ -728,6 +853,60 @@ class TestSmokeK16:
             assert int(row["depth_cols"]) == want, (
                 f"k = {k} wrote {row['depth_cols']} cos_err_dj column(s), "
                 f"want {want}")
+
+    def test_all_four_depths_are_in_the_committed_table(self, measured):
+        """The run plan reads the ratio, so it needs the k = 0 reference."""
+        assert sorted(measured) == [0, 8, 16, 32], sorted(measured)
+
+
+class TestSmokeTableIsKept:
+    """The committed table is the study's four-depth measurement.
+
+    `bash run.sh` runs the smoke stage again, and its default list is two
+    depths. A truncating write would replace four measured rows with two.
+    """
+
+    def smoke(self, results, tmp_path, env=None):
+        full = {"CF401_RESULTS": str(results),
+                "CF401_SMOKE_ROOT": str(tmp_path / "cf-401-smoke-scratch")}
+        full.update(env or {})
+        return run_sh(SMOKE, 10, env=full)
+
+    def test_a_second_run_keeps_the_measured_rows(self, tmp_path):
+        results = tmp_path / "results"
+        results.mkdir()
+        table = results / "smoke_k16.csv"
+        shutil.copy(EXP / "results" / "smoke_k16.csv", table)
+        before = table.read_text()
+        out = self.smoke(results, tmp_path)
+        assert out.returncode == 0, out.stdout + out.stderr
+        assert table.read_text() == before, "the second run replaced the table"
+
+    def test_a_measured_depth_is_skipped_and_says_so(self, tmp_path):
+        results = tmp_path / "results"
+        results.mkdir()
+        shutil.copy(EXP / "results" / "smoke_k16.csv", results / "smoke_k16.csv")
+        out = self.smoke(results, tmp_path)
+        log = (results / "smoke_k16.log").read_text()
+        for k in (0, 16):
+            assert re.search(rf"SKIP k={k}\b", log), log
+        assert "CF401_SMOKE_FORCE" in log, "the log does not say how to redo it"
+
+    def test_a_fresh_directory_gets_the_header(self, tmp_path):
+        results = tmp_path / "results"
+        out = self.smoke(results, tmp_path, env={"DEPTHS": " "})
+        assert out.returncode == 0, out.stdout + out.stderr
+        header = (results / "smoke_k16.csv").read_text().splitlines()
+        assert header and header[0].startswith("cell,k,steps"), header
+
+    def test_a_table_from_another_header_is_refused(self, tmp_path):
+        """Appending to it would put two formats in one file."""
+        results = tmp_path / "results"
+        results.mkdir()
+        (results / "smoke_k16.csv").write_text("cell,k,rc\nx,16,0\n")
+        out = self.smoke(results, tmp_path)
+        assert out.returncode != 0
+        assert "header" in out.stderr, out.stderr
 
 
 # --- 10. The per-process GPU peak probe --------------------------------------
@@ -827,11 +1006,30 @@ DOMAINS = ["Econ/Fin", "Energy", "Healthcare", "Nature", "Sales",
            "Transport", "Web/CloudOps"]
 
 
-def write_splits(path: Path, rows):
-    """A `split_scores.py` table: (label, domain, n, value) tuples."""
+def weighted_gm(pairs):
+    """The `all,all` value split_scores.py writes: one geometric mean."""
+    total = sum(n for n, _ in pairs)
+    return math.exp(sum(n * math.log(v) for n, v in pairs) / total)
+
+
+def write_splits(path: Path, rows, aggregates=None):
+    """A `split_scores.py` table: (label, domain, n, value) tuples.
+
+    Every label also carries the `all,all` row the real table carries, which
+    is the aggregate the radar picks a panel's stop by. `aggregates` sets
+    that row for a label, so a table can hold a stop whose best FAMILY and
+    whose best AGGREGATE are two different stops.
+    """
+    per_label = {}
+    for label, _, n, value in rows:
+        per_label.setdefault(label, []).append((n, value))
     with open(path, "w", newline="") as fh:
         w = csv.writer(fh)
         w.writerow(["stop", "split", "name", "n", "gm_rel_mase"])
+        for label, pairs in per_label.items():
+            value = (aggregates or {}).get(label, weighted_gm(pairs))
+            w.writerow([label, "all", "all", sum(n for n, _ in pairs),
+                        f"{value:.6f}"])
         for label, domain, n, value in rows:
             w.writerow([label, "domain", domain, n, f"{value:.6f}"])
 
@@ -947,6 +1145,18 @@ class TestDeliverables:
         for stop in STOPS:
             assert f"A4_k3_bb{stop // 1000}k_student" in keys, stop
 
+    def test_the_radar_names_the_stop_each_panel_drew(self, tmp_path):
+        """The two deliverables must name one stop per depth, so it is read."""
+        splits = tmp_path / "splits.csv"
+        study_splits(splits, phase=1)
+        r = subprocess.run([sys.executable, str(PLOT_RADAR),
+                            "--splits", str(splits), "--phase", "1",
+                            "--out", str(tmp_path / "named.png")],
+                           capture_output=True, text=True, timeout=300)
+        assert r.returncode == 0, r.stderr
+        for k in DEPTHS:
+            assert f"k{k}@bb" in r.stdout, r.stdout
+
     def test_make_plots_draws_what_it_can_and_skips_the_rest(self, tmp_path):
         """It runs at any point in the study, including before phase 2."""
         res = tmp_path / "results"
@@ -963,6 +1173,83 @@ class TestDeliverables:
         assert (plots / "depth_ladder.png").is_file(), out.stdout
         # No eval CSV, so no per-domain table and no radar. It says so.
         assert "SKIP domain_radar_phase1" in out.stdout, out.stdout
+
+
+class TestRadarPanelPick:
+    """Which stop a depth's panel draws.
+
+    `--stop best` gives each depth its own best stop. The two deliverables
+    read one table, so "best" has to be the aggregate deliverable 2 draws. By
+    the best single FAMILY, a depth whose aggregate is best at 200k draws its
+    40k panel, and the two figures then disagree about one depth.
+    """
+
+    @pytest.fixture(scope="class")
+    def radar(self):
+        return load_module(PLOT_RADAR, "plot_domain_radar_401")
+
+    def panels(self, radar, path, phase=1, stop="best"):
+        vals, aggs, _ = radar.load_domains(path)
+        return radar.pick_panels(vals, aggs, phase, stop)
+
+    def two_stops(self, path, aggregates):
+        """k = 16 at 40k and at 200k. 40k holds the one low family."""
+        rows = []
+        for j, d in enumerate(DOMAINS):
+            rows.append(("k16_bb40k_h30k_student", d, 5 + j,
+                         0.50 if j == 0 else 1.60))
+            rows.append(("k16_bb200k_h30k_student", d, 5 + j, 1.05))
+        write_splits(path, rows, aggregates=aggregates)
+
+    def test_the_panel_is_the_best_aggregate_not_the_best_family(
+            self, radar, tmp_path):
+        splits = tmp_path / "splits.csv"
+        self.two_stops(splits, {"k16_bb40k_h30k_student": 1.30,
+                                "k16_bb200k_h30k_student": 1.05})
+        assert self.panels(radar, splits) == [
+            (16, 200_000, "k16_bb200k_h30k_student")]
+
+    def test_the_worse_aggregate_loses_even_with_six_better_families(
+            self, radar, tmp_path):
+        """The same table, with the aggregates the other way around."""
+        splits = tmp_path / "splits.csv"
+        self.two_stops(splits, {"k16_bb40k_h30k_student": 1.02,
+                                "k16_bb200k_h30k_student": 1.05})
+        assert self.panels(radar, splits) == [
+            (16, 40_000, "k16_bb40k_h30k_student")]
+
+    def test_a_tie_goes_to_the_earlier_stop(self, radar, tmp_path):
+        splits = tmp_path / "splits.csv"
+        self.two_stops(splits, {"k16_bb40k_h30k_student": 1.05,
+                                "k16_bb200k_h30k_student": 1.05})
+        assert self.panels(radar, splits)[0][1] == 40_000
+
+    def test_a_table_with_no_aggregate_row_is_refused(self, radar, tmp_path):
+        """Without the row there is no rule, and no figure is better than the
+        wrong stop under a title that names it."""
+        splits = tmp_path / "splits.csv"
+        splits.write_text(
+            "stop,split,name,n,gm_rel_mase\n"
+            + "".join(f"k16_bb40k_h30k_student,domain,{d},7,1.05\n"
+                      for d in DOMAINS))
+        with pytest.raises(SystemExit) as err:
+            self.panels(radar, splits)
+        assert "ABORT" in str(err.value), err.value
+
+    def test_a_pinned_stop_reads_no_aggregate(self, radar, tmp_path):
+        """`--stop 200000` names the stop itself, so nothing is picked."""
+        splits = tmp_path / "splits.csv"
+        splits.write_text(
+            "stop,split,name,n,gm_rel_mase\n"
+            + "".join(f"k16_bb200k_h30k_student,domain,{d},7,1.05\n"
+                      for d in DOMAINS))
+        assert self.panels(radar, splits, stop="200000") == [
+            (16, 200_000, "k16_bb200k_h30k_student")]
+
+    def test_the_panels_are_in_the_studys_run_order(self, radar, tmp_path):
+        splits = tmp_path / "splits.csv"
+        study_splits(splits, phase=1)
+        assert [k for k, _, _ in self.panels(radar, splits)] == list(DEPTHS)
 
 
 # --- 13. The trial: the head half of the pipeline, before phase 1 -------------
@@ -1024,6 +1311,12 @@ class TestTrialMode:
         code = strip_comments(TRIAL.read_text())
         assert "EVAL_CONFIG_FILTER" in code
         assert "EVAL_EXPECT_CONFIGS=1" in code
+
+    def test_the_log_names_the_trials_phase_2_budget(self):
+        """The trial has one stop, and the phase-2 budget is that stop."""
+        code = strip_comments(TRIAL.read_text())
+        assert re.search(r'phase 2 \$TRIAL_STEPS', code), (
+            "the log line does not name the budget phase 2 runs at")
 
 
 def study_value_env(name: str, env: dict) -> str:

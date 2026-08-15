@@ -20,9 +20,10 @@ One panel per depth this study trained. Each panel draws:
 The radial axis is log2(ratio), so equal multiplicative steps are equal
 distances.
 
-Which stop a panel draws: `--stop best` (the default) takes each depth's own
-best stop, so every panel shows that depth at its strongest. `--stop 100000`
-pins one stop for all of them.
+Which stop a panel draws: `--stop best` (the default) takes the stop with
+that depth's best AGGREGATE, which is the number deliverable 2 draws, so the
+two deliverables name one stop per depth. `--stop 100000` pins one stop for
+all of them.
 
 Reads `results/splits.csv` (this study, written by `collect.sh` through
 #373's `split_scores.py`) and #373's own `results/splits.csv`.
@@ -55,15 +56,22 @@ HEAD = "student"
 
 
 def load_domains(path):
-    """`{row label: {domain: value}}` and `{domain: config count}`."""
-    vals, counts = {}, {}
+    """`{label: {domain: value}}`, `{label: aggregate}`, `{domain: count}`.
+
+    The aggregate is the table's own `all,all` row, over all 97 configs. It
+    is the quantity the ladder figure draws, and it is what a panel's stop is
+    picked by — see pick_panels.
+    """
+    vals, aggs, counts = {}, {}, {}
     with open(path) as fh:
         for r in csv.DictReader(fh):
-            if r["split"] != "domain":
-                continue
-            vals.setdefault(r["stop"], {})[r["name"]] = float(r["gm_rel_mase"])
-            counts[r["name"]] = int(r["n"])
-    return vals, counts
+            if r["split"] == "all":
+                aggs[r["stop"]] = float(r["gm_rel_mase"])
+            elif r["split"] == "domain":
+                vals.setdefault(r["stop"], {})[r["name"]] = \
+                    float(r["gm_rel_mase"])
+                counts[r["name"]] = int(r["n"])
+    return vals, aggs, counts
 
 
 def steps_label(n):
@@ -103,8 +111,14 @@ def unlabel(text):
     return int(text[:-1]) * 1000 if text.endswith("k") else int(text)
 
 
-def pick_panels(vals, phase, stop_arg):
-    """One (k, stop, label) per depth, in the study's run order."""
+def pick_panels(vals, aggs, phase, stop_arg):
+    """One (k, stop, label) per depth, in the study's run order.
+
+    `best` is the best AGGREGATE, which is the number deliverable 2 draws.
+    By the best single family, a depth whose aggregate is best at 200k draws
+    its 40k panel, and the two deliverables then name two stops for one
+    depth. A tie goes to the earlier stop.
+    """
     rows = study_rows(vals, phase)
     panels = []
     for k in D.DEPTHS:
@@ -112,7 +126,11 @@ def pick_panels(vals, phase, stop_arg):
         if not mine:
             continue
         if stop_arg == "best":
-            stop = min(mine, key=lambda s: min(vals[mine[s]].values()))
+            missing = sorted(lab for lab in mine.values() if lab not in aggs)
+            if missing:
+                raise SystemExit(f"ABORT: no `all,all` row for {missing} — "
+                                 f"a panel's stop has no aggregate to pick by")
+            stop = min(mine, key=lambda s: (aggs[mine[s]], s))
         else:
             stop = int(stop_arg)
             if stop not in mine:
@@ -159,11 +177,11 @@ def main(argv=None):
     ap.add_argument("--out", required=True)
     a = ap.parse_args(argv)
 
-    vals, counts = load_domains(a.splits)
-    pvals, pcounts = load_domains(a.splits_parent)
+    vals, aggs, counts = load_domains(a.splits)
+    pvals, _, pcounts = load_domains(a.splits_parent)
     counts.update({d: n for d, n in pcounts.items() if d not in counts})
 
-    panels = pick_panels(vals, a.phase, a.stop)
+    panels = pick_panels(vals, aggs, a.phase, a.stop)
     if not panels:
         raise SystemExit(f"ABORT: {a.splits} holds no phase-{a.phase} "
                          f"{HEAD}-head row at stop={a.stop}")
@@ -250,7 +268,10 @@ def main(argv=None):
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     fig.tight_layout(rect=(0, 0.075, 1, 0.95), h_pad=4.5)
     fig.savefig(a.out, bbox_inches="tight")
-    print(f"wrote {a.out} ({len(panels)} panel(s))")
+    # The stop of each panel, so a reader of make_plots.sh's output can check
+    # it against the ladder without opening the figure.
+    drawn = ", ".join(f"k{k}@bb{steps_label(s)}" for k, s, _ in panels)
+    print(f"wrote {a.out} ({len(panels)} panel(s): {drawn})")
     return 0
 
 

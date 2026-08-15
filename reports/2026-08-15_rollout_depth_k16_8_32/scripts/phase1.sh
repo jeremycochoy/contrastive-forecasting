@@ -29,7 +29,7 @@ mkdir -p "$CF401_RESULTS"
 log(){ echo "[$(date '+%m-%d %H:%M:%S')] [#401 phase1] $*" \
   | tee -a "$CF401_RESULTS/phase1.log"; }
 
-heads=(); head_names=(); inline_failed=0
+heads=(); head_names=(); inline_failed=0; legs_failed=0
 for k in $DEPTHS; do
   cf401_require_depth "$k" || exit $?
   for stop in $CF401_STOPS; do
@@ -45,6 +45,11 @@ for k in $DEPTHS; do
     if [ $rc -ne 0 ]; then
       # The next stop resumes this one, so a failed leg makes every stop
       # above it meaningless. Stop this arm and start the next.
+      #
+      # The count is carried to the exit status. A phase that reported
+      # success here left the picker to abort on an incomplete phase 1,
+      # hours later — the same late failure a discarded head status gave.
+      legs_failed=$(( legs_failed + 1 ))
       log "arm k=$k stop=$stop rc=$rc — skipping the rest of this arm"
       break
     fi
@@ -92,5 +97,7 @@ if [ "${#heads[@]}" -gt 0 ]; then
 fi
 
 bash "$HERE/collect.sh"
-log "phase 1 drained — $(wc -l <"$CF401_RESULTS/scores.csv") row(s) in scores.csv, $failed head(s) failed"
+log "phase 1 drained — $(wc -l <"$CF401_RESULTS/scores.csv") row(s) in scores.csv, $legs_failed leg(s) and $failed head(s) failed"
+# A dead leg is a failed phase, the same as a dead head.
+failed=$(( failed + legs_failed ))
 [ "$failed" -eq 0 ] || exit 1

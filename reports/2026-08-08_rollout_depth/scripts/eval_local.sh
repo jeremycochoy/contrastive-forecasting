@@ -62,7 +62,14 @@ EVAL_EXPECT_CONFIGS="${EVAL_EXPECT_CONFIGS:-97}"
 # One filter cannot be split across shards: each shard would run the same
 # regex and the merge would count every config as many times as there are
 # shards.
-[ -n "$EVAL_CONFIG_FILTER" ] && EVAL_SHARDS=1
+#
+# `if`, not `[ -n ... ] && ...`. The test form returns 1 when the filter is
+# unset, which is the 97-config protocol — every published number of both
+# studies. That status is the script's own if a later edit turns on `set -e`,
+# and the protocol would then stop at this line.
+if [ -n "$EVAL_CONFIG_FILTER" ]; then
+  EVAL_SHARDS=1
+fi
 GIFT="$OUT/gift"
 LOG="$OUT/eval_local.log"
 mkdir -p "$GIFT" "$(dirname "$SCORE_OUT")" || exit 2
@@ -188,7 +195,9 @@ log "merged $n_rows configs -> $MERGED"
 # own configs done and then evaluate the other 96 here, which is the whole
 # cost the subset exists to avoid.
 AGG_FILTER=()
-[ -n "$EVAL_CONFIG_FILTER" ] && AGG_FILTER=(--config-filter "$EVAL_CONFIG_FILTER")
+if [ -n "$EVAL_CONFIG_FILTER" ]; then
+  AGG_FILTER=(--config-filter "$EVAL_CONFIG_FILTER")
+fi
 python3 -u "$GEVAL" \
   --backbone-path "$BB" --head-path "$HEAD_CKPT" \
   --encoder-source "$ENC" --output-dir "$GIFT" \

@@ -34,8 +34,15 @@
 # rc != 0 and the peak the probe saw, because "k = 32 does not fit in 24 GiB"
 # is what the run plan needs to know.
 #
+# The table is the study's committed measurement of four depths, and `bash
+# run.sh` runs this stage again. So a depth already in the table is a no-op,
+# the same rule the other stages follow, and the table is appended to, never
+# truncated. `CF401_SMOKE_FORCE=1` measures a depth again and replaces its
+# row.
+#
 # Usage:  bash smoke_k16.sh [steps]
 #         BB_GPU=0 DEPTHS="0 16" bash smoke_k16.sh 400
+#         CF401_SMOKE_FORCE=1 DEPTHS=16 bash smoke_k16.sh 400
 set -uo pipefail
 
 STEPS="${1:-400}"
@@ -75,7 +82,27 @@ log(){ echo "[$(date '+%m-%d %H:%M:%S')] [#401 smoke] $*" | tee -a "$LOG"; }
 
 log "scratch root: $SCRATCH"
 
-echo "cell,k,steps,windows,data_ms,fwd_ms,bwd_ms,total_ms,sps,peak_mib,depth_cols,card_free_mib,rc" >"$OUT"
+HEADER="cell,k,steps,windows,data_ms,fwd_ms,bwd_ms,total_ms,sps,peak_mib,depth_cols,card_free_mib,rc"
+if [ -s "$OUT" ]; then
+  # Two formats in one file is a table nothing can read. It is cheaper to
+  # refuse it here than to find it in a plot.
+  [ "$(head -1 "$OUT")" = "$HEADER" ] || {
+    echo "ABORT: $OUT has another header — move it away first" >&2; exit 2; }
+else
+  echo "$HEADER" >"$OUT"
+fi
+
+# Is this depth in the table already?
+measured(){  # <k>
+  awk -F, -v k="$1" 'NR > 1 && $2 == k { hit = 1 } END { exit !hit }' "$OUT"
+}
+
+# Drop one depth's row, for a forced re-measure. The new row is appended by
+# run_one, so the depth keeps ONE row and the other depths keep theirs.
+drop_row(){  # <k>
+  awk -F, -v k="$1" 'NR == 1 || $2 != k' "$OUT" >"$OUT.tmp" \
+    && mv -f "$OUT.tmp" "$OUT"
+}
 
 log "card at start: $(nvidia-smi --id="$BB_GPU" \
   --query-gpu=memory.used,memory.free,utilization.gpu --format=csv,noheader)"
@@ -173,6 +200,14 @@ run_one(){  # <k>
 }
 
 for k in $DEPTHS; do
+  if measured "$k"; then
+    if [ -z "${CF401_SMOKE_FORCE:-}" ]; then
+      log "SKIP k=$k — $OUT holds it (CF401_SMOKE_FORCE=1 to measure again)"
+      continue
+    fi
+    log "k=$k is in $OUT and CF401_SMOKE_FORCE is set — replacing its row"
+    drop_row "$k"
+  fi
   log "START k=$k steps=$STEPS gpu=$BB_GPU log_every=$LOG_EVERY"
   run_one "$k"
 done
