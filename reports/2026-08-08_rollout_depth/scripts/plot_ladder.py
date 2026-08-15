@@ -28,16 +28,14 @@ from matplotlib.lines import Line2D                       # noqa: E402
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import cell_colours as C                                  # noqa: E402
 import published                                          # noqa: E402
+import cell_config as CC                                   # noqa: E402
 import r2_ladder as L                                     # noqa: E402
 
 GREY, PARITY, INK, SOFT, GRID = "#8f8e8a", "#6f6e6a", "#0b0b0b", "#52514e", "#e6e5e1"
 
 
 def recipe(cell):
-    arm, align, ema = L.CELL_ARM[cell]
-    tgt = "no L_align" if align == "none" else f"L_align→{align}"
-    ema = "EMA 0.9→1.0" if ema == "scheduled" else "EMA 0.9"
-    return f"{arm} · {tgt} · {ema}"
+    return CC.recipe(cell, with_cell=False)
 
 
 def spread(ys, gap):
@@ -61,8 +59,8 @@ def main():
     band = published.NOISE_BAND
     xs = {40: 0, 100: 1, 200: 2}
 
-    fig = plt.figure(figsize=(13.6, 6.2))
-    gs = fig.add_gridspec(1, 3, width_ratios=[1.0, 1.0, 0.72], wspace=0.30)
+    fig = plt.figure(figsize=(17.4, 6.2))
+    gs = fig.add_gridspec(1, 3, width_ratios=[1.0, 1.0, 1.55], wspace=0.30)
     axes = [fig.add_subplot(gs[0, 0]), fig.add_subplot(gs[0, 1])]
     key_ax = fig.add_subplot(gs[0, 2])
     key_ax.axis("off")
@@ -122,13 +120,14 @@ def main():
         y = 0.945 - i * 0.058
         key_ax.plot([0.0, 0.055], [y, y], color=C.ladder_colour(cell), lw=2.6,
                     transform=key_ax.transAxes, clip_on=False)
-        key_ax.text(0.075, y, f"{cell}", fontsize=8.5, color=INK, va="center",
+        key_ax.text(0.068, y, f"{cell}", fontsize=8.0, color=INK, va="center",
                     fontweight="bold", transform=key_ax.transAxes)
-        key_ax.text(0.205, y, recipe(cell), fontsize=8, color=SOFT,
+        key_ax.text(0.135, y, recipe(cell), fontsize=7.4, color=SOFT,
                     va="center", transform=key_ax.transAxes)
     key_ax.text(0, 0.10,
                 f"grey rule: the best GM-Relative MASE published before this\n"
-                f"study: {base:.4f}, cell {bcell} {L.CELL_ARM[bcell][0]}, "
+                f"study: {base:.4f}, cell {bcell} {CC.base_arm(bcell)} "
+                f"{CC.bracket(bcell)}, "
                 f"{bhead}-encoder head,\nbb{bstop}k, from the EMA-schedule "
                 f"ladder report.\nband: the ±{band:.4f} head-seed band of that "
                 f"same report.",

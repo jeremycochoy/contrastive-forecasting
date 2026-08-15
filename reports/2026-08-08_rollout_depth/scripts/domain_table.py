@@ -24,6 +24,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import cell_config as CC                                   # noqa: E402
 import r2_ladder as L                                     # noqa: E402
 
 # (cell, stop, head, k0 file, k0 key, k3 key, one line saying what it is)
@@ -102,10 +103,8 @@ def main(argv=None):
         if not d0 or not d3:
             print(f"skip {cell} bb{stop}k: one side missing")
             continue
-        arm, align, ema = L.CELL_ARM[cell]
-        tgt = "no L_align" if align == "none" else f"L_align on the {align}"
-        out += [f"**{cell}  {arm} · {tgt}, bb{stop}k, {head}-encoder head.** "
-                f"{why}", "",
+        out += [f"**{CC.name(cell)}, at bb{stop}k on the {head}-encoder "
+                f"head [{cell}].** {why}", "",
                 "| family | configs | rollout steps | k = 0 | k = 3 | "
                 "difference | where k = 3 leaves it |",
                 "|---|---:|---:|---:|---:|---:|---|"]

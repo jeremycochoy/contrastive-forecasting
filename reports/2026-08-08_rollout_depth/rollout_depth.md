@@ -1,16 +1,21 @@
 # Rollout depth 3 sets the project's best GM-Relative MASE
 
 The best GM-Relative MASE before this study was 1.1544, and the best now is
-1.0660, on A4 at 200,000 backbone steps, student head: 0.0884 lower. Every
-cell ran once, on one backbone seed, so this study measures a frontier and a
-direction, not a per-recipe ranking.
+1.0660: 0.0884 lower, on arm6_v2 (L_rep MoCo keys, tau_rep 1 + L_align on the
+student, no CPC, EMA 0.9 to 1.0) at 200,000 backbone steps, student head
+[cell A4]. Every cell ran once, on one backbone seed, so this study measures a
+frontier and a direction, not a per-recipe ranking.
 
 **GM-Relative MASE** geometric mean over the 97 GIFT-Eval configs of each
 config's MASE divided by the seasonal-naive MASE; lower is better and 1.0 is
-seasonal-naive parity. **Cell** one of the 14 recipes the card names, `A1`..`A4`
-and `B1`..`B10`. **bb100k** backbone step 100,000. **The card** the issue this
-study answers, and the 14 cells, stops and criteria it names. Every other
-term is in the glossary of §14.
+seasonal-naive parity. **Configuration** an arm, its loss terms, `L_align`'s
+target and the EMA regime; the four together name one of the card's 14 recipes,
+and three of the four alone do not. **Cell** the card's short id for a
+configuration, `A1`..`A4` and `B1`..`B10`; a figure or a table uses it after the
+configuration appears in its legend or header. **bb100k** backbone step 100,000.
+**The card** the issue this study answers, and the 14 cells, stops and criteria
+it names. `scripts/cell_config.py` builds every configuration name in this
+report from the launcher sources. Every other term is in the glossary of §14.
 
 ## 1. The frontier
 
@@ -22,7 +27,8 @@ term is in the glossary of §14.
 
 *GM-Relative MASE against backbone train step, all 14 cells, both heads.*
 
-A4 beats its own published `k = 0` by -0.1144 at bb100k, on the student head.
+arm6_v2, L_align on the student, EMA 0.9 to 1.0 [A4] beats its own published
+`k = 0` by -0.1144 at bb100k, on the student head.
 
 ## 2. The hardest families
 
@@ -36,14 +42,15 @@ under each family name.*
 
 *The same pairs on the teacher-encoder head, without B2.*
 
-On A4 at bb100k all four hard families move toward 1.0 and none reaches it;
-on B2 at bb200k all four move away.
+On arm6_v2, L_align on the student, EMA 0.9 to 1.0 [A4] at bb100k all four hard
+families move toward 1.0 and none reaches it; on arm6_v2, L_align on the
+teacher, EMA 0.9 [B2] at bb200k all four move away.
 
 ### The numbers behind the radar
 
 <!-- DOMAIN:BEGIN -->
 
-**A4  arm6_v2 combab · L_align on the student, bb100k, student-encoder head.** The cell that sets this study's frontier, at the deepest stop its parent published. Published `k = 0`.
+**arm6_v2 (L_rep MoCo keys, tau_rep 1 + L_align on the student, no CPC, EMA 0.9 to 1.0), at bb100k on the student-encoder head [A4].** The cell that sets this study's frontier, at the deepest stop its parent published. Published `k = 0`.
 
 | family | configs | rollout steps | k = 0 | k = 3 | difference | where k = 3 leaves it |
 |---|---:|---:|---:|---:|---:|---|
@@ -56,7 +63,7 @@ on B2 at bb200k all four move away.
 | Sales | 4 | 1.5 (1–2) | 0.800 | 0.797 | -0.003 | stays below 1.0, lower |
 
 
-**B1  arm6_v2 combab · L_align on the student, bb40k, student-encoder head.** The pair whose `k = 0` side this study trained, so the depth is the only change.
+**arm6_v2 (L_rep MoCo keys, tau_rep 1 + L_align on the student, no CPC, EMA 0.9), at bb40k on the student-encoder head [B1].** The pair whose `k = 0` side this study trained, so the depth is the only change.
 
 | family | configs | rollout steps | k = 0 | k = 3 | difference | where k = 3 leaves it |
 |---|---:|---:|---:|---:|---:|---|
@@ -69,7 +76,7 @@ on B2 at bb200k all four move away.
 | Sales | 4 | 1.5 (1–2) | 0.772 | 0.775 | +0.004 | stays below 1.0, higher |
 
 
-**B2  arm6_v2 combab · L_align on the teacher, bb200k, student-encoder head.** The arm and stop the card quotes its own per-family numbers from. Published `k = 0`.
+**arm6_v2 (L_rep MoCo keys, tau_rep 1 + L_align on the teacher, no CPC, EMA 0.9), at bb200k on the student-encoder head [B2].** The arm and stop the card quotes its own per-family numbers from. Published `k = 0`.
 
 | family | configs | rollout steps | k = 0 | k = 3 | difference | where k = 3 leaves it |
 |---|---:|---:|---:|---:|---:|---|
@@ -96,10 +103,31 @@ on B2 at bb200k all four move away.
 `k = 3` minus `k = 0` per config, student head. The Protocol gives the
 formula and the source of every horizon.*
 
-Inside a pair the two move together: Spearman ρ is -0.63 on B9, -0.40 on B1,
--0.34 on A4, -0.16 on B5·s2 and -0.15 on A3. Across families they do not:
-Econ/Fin rolls out a median of 1 step and gains the most on A4, at -0.263,
-and the per-family table under the radar carries both columns.
+<!-- ROLLOUTCORR:BEGIN -->
+
+| configuration | cell, stop | rho(rollout steps, `k = 0`) | rho(rollout steps, `k = 3` minus `k = 0`) |
+|---|---|---:|---:|
+| arm1 (split L_pred + L_rep, tau 0.1, CPC, no SIGReg on e, EMA 0.9) | B9, bb40k | +0.407 | -0.629 |
+| arm6_v2 (L_rep MoCo keys, tau_rep 1 + L_align on the student, no CPC, EMA 0.9) | B1, bb40k | +0.415 | -0.399 |
+| arm4 (pooled contrastive, MoCo negatives, floor subtracted, tau 0.1, no CPC, no SIGReg on e, EMA 0.9) | B5·s2, bb40k | +0.201 | -0.160 |
+| arm6_v2 (L_rep MoCo keys, tau_rep 1 + L_align on the teacher, no CPC, EMA 0.9 to 1.0) | A3, bb40k | +0.237 | -0.152 |
+| arm6_v2 (L_rep MoCo keys, tau_rep 1 + L_align on the student, no CPC, EMA 0.9 to 1.0) | A4 †, bb100k | +0.350 | -0.345 |
+| arm4 (pooled contrastive, MoCo negatives, floor subtracted, tau 0.1, no CPC, no SIGReg on e, EMA 0.9) | B5·s1 ✗, bb40k | +0.051 | +0.211 |
+
+Spearman rank correlation over the 97 configs, on relative MASE, student head, n = 97 on every row. The right column reads: the further the eval rolls out on a config, the more `k = 3` improves that config.
+
+Left column: every pair is positive, +0.051 to +0.415, so a config the eval rolls out further is a harder config at `k = 0` as well.
+
+† this pair reads a published `k = 0`; every other row trained both sides here. ✗ a retracted backbone.
+
+Right column: the one positive value is B5·s1 ✗, the backbone this report retracts. The pairs it carries all run one way, -0.152 to -0.629.
+
+<!-- ROLLOUTCORR:END -->
+
+Per config the two move together; across families they do not, and this
+report gives both: Econ/Fin rolls out a median of 1 step and gains the most on
+arm6_v2, L_align on the student, EMA 0.9 to 1.0 [A4], at -0.263, in the
+per-family table under the radar.
 
 ## 4. Where the change lands, by horizon
 
@@ -268,22 +296,22 @@ The count is over CELLS. A1 and B3 share one student model, so the 14 cells hold
 
 The card names 14 cells. This study scored **14 of them**: A1, A2, A3, A4, B1, B2, B3, B4, B5, B6, B7, B8, B9, B10. Every cell carries a number.
 
-| cell | loss terms that use `f` | EMA α | depths trained | stops scored |
+| configuration | cell | loss terms that use `f` | depths trained | stops scored |
 |---|---|---|---|---|
-| A1 | L_align only | scheduled | k = 3 | bb40k, bb100k |
-| A2 | L_align + CPC auxiliary | scheduled | k = 3 | bb40k, bb100k, bb200k |
-| A3 | L_align only | scheduled | k = 0, k = 1, k = 3 | bb40k, bb100k, bb200k |
-| A4 | L_align only | scheduled | k = 3 | bb40k, bb100k, bb200k |
-| B1 | L_align only | fixed 0.9 | k = 0, k = 3 | bb40k, bb100k, bb200k |
-| B2 | L_align only | fixed 0.9 | k = 3 | bb40k, bb100k, bb200k |
-| B3 | L_align only | fixed 0.9 | k = 3 | bb40k, bb100k |
-| B4 | L_align only | fixed 0.9 | k = 3 | bb40k, bb100k, bb200k |
-| B5 | pooled xshh_allt, floor subtracted | fixed 0.9 | k = 0, k = 3 | bb40k, bb100k |
-| B6 | L_align only | fixed 0.9 | k = 3 | bb40k, bb100k, bb200k |
-| B7 | L_align only | fixed 0.9 | k = 3 | bb40k, bb100k |
-| B8 | L_align + CPC auxiliary | fixed 0.9 | k = 3 | bb40k, bb100k |
-| B9 | split L_pred + CPC auxiliary | fixed 0.9 | k = 0, k = 3 | bb40k, bb100k |
-| B10 | L_align + CPC auxiliary | fixed 0.9 | k = 3 | bb40k, bb100k, bb200k |
+| arm5 (L_rep, tau_rep 1 + L_align on the student, no CPC, EMA 0.9 to 1.0) | A1 | L_align only | k = 3 | bb40k, bb100k |
+| arm6_v2 (L_rep MoCo keys, tau_rep 0.1 + L_align on the teacher, CPC, no SIGReg on e, EMA 0.9 to 1.0) | A2 | L_align + CPC auxiliary | k = 3 | bb40k, bb100k, bb200k |
+| arm6_v2 (L_rep MoCo keys, tau_rep 1 + L_align on the teacher, no CPC, EMA 0.9 to 1.0) | A3 | L_align only | k = 0, k = 1, k = 3 | bb40k, bb100k, bb200k |
+| arm6_v2 (L_rep MoCo keys, tau_rep 1 + L_align on the student, no CPC, EMA 0.9 to 1.0) | A4 | L_align only | k = 3 | bb40k, bb100k, bb200k |
+| arm6_v2 (L_rep MoCo keys, tau_rep 1 + L_align on the student, no CPC, EMA 0.9) | B1 | L_align only | k = 0, k = 3 | bb40k, bb100k, bb200k |
+| arm6_v2 (L_rep MoCo keys, tau_rep 1 + L_align on the teacher, no CPC, EMA 0.9) | B2 | L_align only | k = 3 | bb40k, bb100k, bb200k |
+| arm5 (L_rep, tau_rep 1 + L_align on the student, no CPC, EMA 0.9) | B3 | L_align only | k = 3 | bb40k, bb100k |
+| arm5 (L_rep, tau_rep 1 + L_align on the teacher, no CPC, EMA 0.9) | B4 | L_align only | k = 3 | bb40k, bb100k, bb200k |
+| arm4 (pooled contrastive over batch and channels, MoCo negatives, floor subtracted, tau 0.1, no CPC, no SIGReg on e, EMA 0.9) | B5 | pooled xshh_allt, floor subtracted | k = 0, k = 3 | bb40k, bb100k |
+| arm6_v2 (L_rep MoCo keys, tau_rep 0.1 + L_align on the student, no CPC, EMA 0.9) | B6 | L_align only | k = 3 | bb40k, bb100k, bb200k |
+| arm6_v2 (L_rep MoCo keys, tau_rep 0.1 + L_align on the teacher, no CPC, EMA 0.9) | B7 | L_align only | k = 3 | bb40k, bb100k |
+| arm6_v2 (L_rep MoCo keys, tau_rep 0.1 + L_align on the teacher, CPC, no SIGReg on e, EMA 0.9) | B8 | L_align + CPC auxiliary | k = 3 | bb40k, bb100k |
+| arm1 (split L_pred + L_rep, tau 0.1, CPC, no SIGReg on e, EMA 0.9) | B9 | split L_pred + CPC auxiliary | k = 0, k = 3 | bb40k, bb100k |
+| arm6_v2 (L_rep MoCo keys, tau_rep 0.1 + L_align on the student, CPC, no SIGReg on e, EMA 0.9) | B10 | L_align + CPC auxiliary | k = 3 | bb40k, bb100k, bb200k |
 
 Stops scored: bb40k, bb100k, bb200k. The card's extend rule reads a cell's bb40k number against its bb100k number, so it fires only where this study has both.
 
@@ -352,7 +380,7 @@ The rule reads one cell's bb40k number against its bb100k number, per head. A he
 | term | what it means here |
 |---|---|
 | the card | the issue this study answers, and the 14 cells, stops and criteria it names |
-| cell | one of those 14 recipes, `A1`..`A4` and `B1`..`B10` |
+| cell | the card's short id for one of those 14 configurations, `A1`..`A4` and `B1`..`B10`. A figure or a table uses it after the configuration appears in its legend or header |
 | arm | a (cell, backbone seed, machine) triple. B5 trained three, so the cell is not the unit a delta lives in |
 | `k`, rollout depth | the value of `--train-rollout-depth`. It copies every loss term the forecast operator `f` enters at depths 1..`k` and sums the copies. `k = 0` is today's training |
 | the fixed-point approximation | how training rolls the forecast out: the depth-`j` input is the model's own depth-`j-1` predictions, not the true prefix. It buys one parallel pass over every `t`, and it is the card's alternative suspect to the objective |
@@ -368,7 +396,13 @@ The rule reads one cell's bb40k number against its bb100k number, per head. A he
 | `xshh_allt` | negatives pooled across the batch and across channels, taken over every time index |
 | `u_batchtime` | dimension usage of a latent over the pooled (batch × time) sample axis: `1 / (H · mean off-diagonal squared cosine)`, capped at 1. 1.0 is all `H` dimensions in use and a value near `1/H` is one direction. `h_t` is the encoder latent, `e_t` the embedding it reads |
 | collapse | the latent falling onto few directions, so `u_batchtime` runs toward zero. The card watches for it because a model can win the deeper f-bearing terms by flattening `f` |
-| `arm4 combab`, `arm5 combab`, `arm6_v2 combab`, `arm6_v2 ncpc`, `arm6_v2 nse`, `arm1 nse` | the six launcher recipes the 14 cells run. `combab` pools negatives across the batch and the channels; `ncpc` drops the CPC auxiliary; `nse` keeps it. The Coverage table gives each cell's |
+| `arm1 nse` | split L_pred + L_rep, tau 0.1, CPC, no SIGReg on e. Cell B9 |
+| `arm4 combab` | pooled contrastive over batch and channels, MoCo negatives, floor subtracted, tau 0.1, no CPC, no SIGReg on e. Cell B5. Note: its launcher's own label says tau 1.0, and its `--tau 1.0` sits before the shared `--tau 0.10`, so argparse kept 0.10 |
+| `arm5 combab` | L_rep, tau_rep 1 + L_align, no CPC. Cells A1, B3, B4 |
+| `arm6_v2 combab` | L_rep MoCo keys, tau_rep 1 + L_align, no CPC. Cells A3, A4, B1, B2 |
+| `arm6_v2 ncpc` | L_rep MoCo keys, tau_rep 0.1 + L_align, no CPC. Cells B6, B7 |
+| `arm6_v2 nse` | L_rep MoCo keys, tau_rep 0.1 + L_align, CPC, no SIGReg on e. Cells A2, B8, B10 |
+| the align target | `L_align` compares `f`'s output against the student encoder's future latent or against the EMA teacher's. Two cells that share an arm and differ only here are two configurations |
 | head-seed band ±0.0384 | how far the head seed alone moved a score in `ema_sched_ladder.md`, pooled. It bounds the head seed and nothing else |
 | dataset-cluster | the resampling unit of every interval here. `<ds>/short`, `/medium` and `/long` are three configs of one series, so the bootstrap resamples the dataset, not the config |
 | `mixup` | the count of examples the batch mixer touched in a 200-step window. Two runs on one data order print one count |
@@ -554,7 +588,7 @@ Each entry is the count of tensors that agree exactly, out of the count compared
 
 Full table, with the largest absolute difference on each side: [`results/pair_identity.tsv`](results/pair_identity.tsv).
 
-**A1/B3 hold one student, not two.** `arm5_combab` aligns to the student and carries no `--moco-rep-keys`, so no loss term reads the EMA encoder and the regime sends no gradient into the student. One student number for both cells is the right answer. It is ONE measurement: one cell's student row does not replicate the other's. The teacher side differs at every stop, and the teacher numbers do too.
+**A1/B3 hold one student, not two.** arm5 combab (L_rep, tau_rep 1 + L_align, no CPC) aligns to the student and carries no MoCo keys, so no loss term reads the EMA encoder and the regime sends no gradient into the student. One student number for both cells is the right answer. It is ONE measurement: one cell's student row does not replicate the other's. The teacher side differs at every stop, and the teacher numbers do too.
 
 **A2/B8, A3/B2, A4/B1 hold two students.** Their arms carry `--moco-rep-keys`, whose keys come from the EMA encoder, or align to the teacher. Either path reaches the student's gradient, so the regime moves it.
 
@@ -671,7 +705,7 @@ The resampling unit is the dataset: `<ds>/short`, `/medium` and `/long` are thre
 
 ### One cell, three backbones
 
-B5 (`arm4_combab_fix09`) trained three times on one recipe, one code snapshot, one head seed and one eval. They differ by backbone seed and by machine, and each contrast below names which of the two it changes. The machine contrast is the larger of the two, and each contrast is one run pair.
+arm4 (pooled contrastive over batch and channels, MoCo negatives, floor subtracted, tau 0.1, no CPC, no SIGReg on e, EMA 0.9) [B5] trained three times on one recipe, one code snapshot, one head seed and one eval. They differ by backbone seed and by machine, and each contrast below names which of the two it changes. The machine contrast is the larger of the two, and each contrast is one run pair.
 
 | backbone | seed | machine | k = 0 | k = 3 | k = 3 − k = 0 |
 |---|---|---|---|---|---|
@@ -736,17 +770,17 @@ Median `fwd + bwd` per step, from each run's own trainer log. A median is a cost
 
 | arm | f-bearing term | k | machine | card | fwd+bwd | alone? |
 |---|---|---|---|---|---|---|
-| B9 | split L_pred | 0 | elisa | RTX 4090 | 212.6 ms, shared | no — another backbone for 96% of the run; head training for 4% of it |
-| B9 | split L_pred | 3 | vast box c | RTX 4090 | 425.2 ms | yes |
-| B1 | rep_only + L_align | 0 | elisa | RTX 4090 | 178.6 ms, shared | no — another backbone for 100% of the run; head training for 100% of it |
-| B1 | rep_only + L_align | 3 | elisa | RTX 4090 | 235.1 ms, shared | no — another backbone for 68% of the run; head training for 100% of it |
-| B5·s1 | pooled xshh_allt | 0 | vast box d | RTX 5090 | 117.6 ms | yes |
-| B5·s1 | pooled xshh_allt | 3 | vast box a | RTX 5090 | 301.9 ms | yes |
-| B5·s2 | pooled xshh_allt | 0 | elisa | RTX 4090 | 201.1 ms, shared | no — another backbone for 100% of the run; head training for 98% of it |
-| B5·s2 | pooled xshh_allt | 3 | elisa | RTX 4090 | 500.9 ms, shared | no — another backbone for 43% of the run; head training for 100% of it |
-| A3 | rep_only + L_align | 0 | vast box d | RTX 5090 | 115.9 ms | yes |
-| A3 | rep_only + L_align | 1 | elisa | RTX 4090 | 214.7 ms, shared | no — another backbone for 72% of the run; head training for 100% of it |
-| A3 | rep_only + L_align | 3 | vast box b | RTX 5090 | 131.5 ms | yes |
+| B9 | split L_pred + L_rep, tau 0.1, CPC, no SIGReg on e | 0 | elisa | RTX 4090 | 212.6 ms, shared | no — another backbone for 96% of the run; head training for 4% of it |
+| B9 | split L_pred + L_rep, tau 0.1, CPC, no SIGReg on e | 3 | vast box c | RTX 4090 | 425.2 ms | yes |
+| B1 | L_rep MoCo keys, tau_rep 1 + L_align, no CPC | 0 | elisa | RTX 4090 | 178.6 ms, shared | no — another backbone for 100% of the run; head training for 100% of it |
+| B1 | L_rep MoCo keys, tau_rep 1 + L_align, no CPC | 3 | elisa | RTX 4090 | 235.1 ms, shared | no — another backbone for 68% of the run; head training for 100% of it |
+| B5·s1 | pooled contrastive, MoCo negatives, floor subtracted, tau 0.1, no CPC, no SIGReg on e | 0 | vast box d | RTX 5090 | 117.6 ms | yes |
+| B5·s1 | pooled contrastive, MoCo negatives, floor subtracted, tau 0.1, no CPC, no SIGReg on e | 3 | vast box a | RTX 5090 | 301.9 ms | yes |
+| B5·s2 | pooled contrastive, MoCo negatives, floor subtracted, tau 0.1, no CPC, no SIGReg on e | 0 | elisa | RTX 4090 | 201.1 ms, shared | no — another backbone for 100% of the run; head training for 98% of it |
+| B5·s2 | pooled contrastive, MoCo negatives, floor subtracted, tau 0.1, no CPC, no SIGReg on e | 3 | elisa | RTX 4090 | 500.9 ms, shared | no — another backbone for 43% of the run; head training for 100% of it |
+| A3 | L_rep MoCo keys, tau_rep 1 + L_align, no CPC | 0 | vast box d | RTX 5090 | 115.9 ms | yes |
+| A3 | L_rep MoCo keys, tau_rep 1 + L_align, no CPC | 1 | elisa | RTX 4090 | 214.7 ms, shared | no — another backbone for 72% of the run; head training for 100% of it |
+| A3 | L_rep MoCo keys, tau_rep 1 + L_align, no CPC | 3 | vast box b | RTX 5090 | 131.5 ms | yes |
 
 The two probes that agree:
 

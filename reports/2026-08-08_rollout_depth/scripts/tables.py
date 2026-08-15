@@ -55,6 +55,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import cell_config as CC                                   # noqa: E402
 import r2_ladder as L2                                    # noqa: E402
 import runs as R                                          # noqa: E402
 from published import (PUBLISHED as PUB_ALL, GATE,             # noqa: E402
@@ -195,6 +196,30 @@ def mark(arm):
     return " ✗" if arm in R.RETRACTED else ""
 
 
+def _recipe_rows():
+    """One glossary row per launcher recipe, with the terms it trains on.
+
+    Generated from `cell_config`, which reads the launchers, so a reader who
+    meets `arm6_v2 combab` in a run name can look up what it optimises and
+    the answer cannot drift from the flags the trainer received.
+    """
+    by = {}
+    for cell in CARD_CELLS:
+        by.setdefault(CC.arm(cell), []).append(cell)
+    out = []
+    for recipe, cells in sorted(by.items()):
+        note = CC.TAU_NOTE.get(recipe)
+        out.append(f"| `{recipe}` | {CC.terms(cells[0], target=False)}. "
+                   f"{'Cells' if len(cells) > 1 else 'Cell'} "
+                   f"{', '.join(cells)}"
+                   + (f". Note: {note}" if note else "") + " |")
+    out.append("| the align target | `L_align` compares `f`'s output against "
+               "the student encoder's future latent or against the EMA "
+               "teacher's. Two cells that share an arm and differ only here "
+               "are two configurations |")
+    return out
+
+
 def fidelity_lines(results):
     """The card's flat branch, from `results/rollout_fidelity.csv`.
 
@@ -261,14 +286,14 @@ def main(argv=None):
           f"them**: {', '.join(trained)}." +
           (f" It never ran **{len(missing)}**: {', '.join(missing)}."
            if missing else " Every cell carries a number."), "",
-          "| cell | loss terms that use `f` | EMA α | depths trained | "
-          "stops scored |",
+          "| configuration | cell | loss terms that use `f` | "
+          "depths trained | stops scored |",
           "|---|---|---|---|---|"]
     for cell in CARD_CELLS:
         v = cov.get(cell, set())
         ks = sorted({k for k, _ in v})
         ss = sorted({s for _, s in v})
-        L.append(f"| {cell} | {L2.term(cell)} | {L2.CELL_ARM[cell][2]} | "
+        L.append(f"| {CC.name(cell)} | {cell} | {L2.term(cell)} | "
                  f"{', '.join(f'k = {k}' for k in ks) if ks else '**never ran**'} | "
                  f"{', '.join(f'bb{s}k' for s in ss) if ss else '—'} |")
     L += ["", "Stops scored: " + ", ".join(f"bb{s}k" for s in stops) +
@@ -751,8 +776,8 @@ def main(argv=None):
                   "(results/pair_identity.tsv).", ""]
             if same:
                 L += [f"**{', '.join(same)} hold one student, not two.** "
-                      "`arm5_combab` aligns to the student and carries no "
-                      "`--moco-rep-keys`, so no loss term reads the EMA "
+                      f"{CC.arm_bracket('A1')} aligns to the student and "
+                      "carries no MoCo keys, so no loss term reads the EMA "
                       "encoder and the regime sends no gradient into the "
                       "student. One student number for both cells is the "
                       "right answer. It is ONE measurement: one cell's "
@@ -1010,7 +1035,7 @@ def main(argv=None):
 
     # ---- 5. B5's three backbones -------------------------------------------
     L += ["### One cell, three backbones", "",
-          "B5 (`arm4_combab_fix09`) trained three times on one recipe, one "
+          f"{CC.name('B5')} [B5] trained three times on one recipe, one "
           "code snapshot, one head seed and one eval. They differ by backbone "
           "seed and by machine, and each contrast below names which of the "
           "two it changes. The machine contrast is the larger of the two, and "
@@ -1363,7 +1388,9 @@ def main(argv=None):
           "|---|---|",
           "| the card | the issue this study answers, and the 14 cells, "
           "stops and criteria it names |",
-          "| cell | one of those 14 recipes, `A1`..`A4` and `B1`..`B10` |",
+          "| cell | the card's short id for one of those 14 "
+          "configurations, `A1`..`A4` and `B1`..`B10`. A figure or a table "
+          "uses it after the configuration appears in its legend or header |",
           "| arm | a (cell, backbone seed, machine) triple. B5 trained "
           "three, so the cell is not the unit a delta lives in |",
           "| `k`, rollout depth | the value of `--train-rollout-depth`. It "
@@ -1407,11 +1434,7 @@ def main(argv=None):
           "| collapse | the latent falling onto few directions, so "
           "`u_batchtime` runs toward zero. The card watches for it because a "
           "model can win the deeper f-bearing terms by flattening `f` |",
-          "| `arm4 combab`, `arm5 combab`, `arm6_v2 combab`, "
-          "`arm6_v2 ncpc`, `arm6_v2 nse`, `arm1 nse` | the six launcher "
-          "recipes the 14 cells run. `combab` pools negatives across the "
-          "batch and the channels; `ncpc` drops the CPC auxiliary; `nse` "
-          "keeps it. The Coverage table gives each cell's |",
+          ] + _recipe_rows() + [
           "| head-seed band ±0.0384 | how far the head seed alone moved a "
           "score in `ema_sched_ladder.md`, pooled. It bounds the head seed "
           "and nothing else |",

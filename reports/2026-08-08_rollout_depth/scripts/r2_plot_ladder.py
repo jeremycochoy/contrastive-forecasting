@@ -30,6 +30,7 @@ from matplotlib.lines import Line2D                       # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import published                                          # noqa: E402
+import cell_config as CC                                   # noqa: E402
 import r2_ladder as L                                     # noqa: E402
 
 HEAD_COLOUR = {"student": "#2a78d6", "teacher": "#eb6834"}
@@ -43,7 +44,7 @@ def main():
     ap.add_argument("--out", required=True)
     a = ap.parse_args()
 
-    fig, axes = plt.subplots(2, 7, figsize=(16.5, 5.8), sharex=True, sharey=True)
+    fig, axes = plt.subplots(2, 7, figsize=(16.5, 6.9), sharex=True, sharey=True)
     flat = axes.flatten()
 
     lo, hi = 10.0, 0.0
@@ -65,10 +66,11 @@ def main():
                     color=HEAD_COLOUR[head], marker="o", ms=5, zorder=3)
             lo, hi = min(lo, *pts.values()), max(hi, *pts.values())
 
-        arm, align, ema = L.CELL_ARM[cell]
         ax.axhline(1.0, color=PARITY, lw=0.9, zorder=1)
-        ax.set_title(f"{cell}  {arm}", fontsize=8.5, color=INK)
-        ax.text(0.5, 0.02, f"L_align {align} · {ema}", transform=ax.transAxes,
+        ax.set_title(f"{cell}  {CC.base_arm(cell)}", fontsize=8.5, color=INK)
+        ax.text(0.5, 0.02,
+                f"L_align {CC.align_target(cell)} · {CC.ema_words(cell)}",
+                transform=ax.transAxes,
                 ha="center", va="bottom", fontsize=6.5, color=INK_SOFT)
         ax.grid(color=GRID, lw=0.5, zorder=0)
         ax.set_axisbelow(True)
@@ -96,10 +98,20 @@ def main():
         Line2D([], [], color=PARITY, lw=0.9, label="seasonal-naive parity"),
     ]
     fig.legend(handles=handles, loc="lower center", ncol=4, frameon=False,
-               fontsize=8, bbox_to_anchor=(0.5, 0.0))
+               fontsize=8, bbox_to_anchor=(0.5, 0.135))
+    # Panel width has room for the arm and no more, so the loss terms each
+    # arm trains on go once, under the legend.
+    seen = {}
+    for cell in L.CELLS:
+        seen.setdefault(CC.arm(cell), []).append(cell)
+    fig.text(0.012, 0.004, "\n".join(
+        f"{a}  ({', '.join(cs)}):  "
+        f"{CC.terms(cs[0], target=False, short=True)}"
+        for a, cs in sorted(seen.items())),
+        ha="left", va="bottom", fontsize=6.6, color=INK_SOFT)
     fig.suptitle("each cell's ladder: k = 3 against its own published k = 0",
                  fontsize=12, color=INK)
-    fig.tight_layout(rect=(0, 0.055, 1, 0.955))
+    fig.tight_layout(rect=(0, 0.165, 1, 0.955))
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(a.out, dpi=165)
     print(f"  {a.out}")

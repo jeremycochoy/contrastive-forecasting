@@ -118,20 +118,14 @@ _MACHINE = {
     "G7_B5_k0_e":    ("elisa", "RTX 4090"),
 }
 
-# The f-bearing term each cell trains, and its EMA regime. Both are read off
-# the launcher the cell runs (`cells.tsv` names it), not off the card's prose.
-CELL_TERM = {
-    "A3": "rep_only + L_align",
-    "B1": "rep_only + L_align",
-    "B5": "pooled xshh_allt",
-    "B9": "split L_pred",
-}
-CELL_EMA = {
-    "A3": "scheduled 0.9 -> 1.0",
-    "B1": "fixed 0.9",
-    "B5": "fixed 0.9",
-    "B9": "fixed 0.9",
-}
+# The f-bearing term each cell trains, and its EMA regime. Both come from
+# `cell_config`, which reads the launcher the cell runs (`cells.tsv` names
+# it) rather than the card's prose, so neither can drift from the flags the
+# trainer received.
+import cell_config as _CC                                   # noqa: E402
+
+CELL_TERM = {c: _CC.terms(c, target=False, short=True) for c in _CC.CELLS}
+CELL_EMA = {c: _CC.ema_words(c) for c in _CC.CELLS}
 
 # Draw order: the two arms that improve, then the three B5 backbones that
 # disagree, then the arm that degrades. Figures read it so a reader meets

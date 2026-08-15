@@ -38,6 +38,9 @@ run verify_coverage   --results "$RES"
 run verify_alignx4
 run verify_provenance --results "$RES" --tsv "$RES/provenance.tsv"
 run verify_denominator --results "$RES"
+# The configuration names: they must agree with the launchers, separate the
+# 14 cells, and match the way the report's own prose spells them.
+run cell_config       --check
 
 if [ "$rc_all" -eq 0 ]; then
   echo "ALL CHECKS PASS"

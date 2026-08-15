@@ -36,7 +36,8 @@ from matplotlib.lines import Line2D                        # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-import cell_colours as cc                                  # noqa: E402
+import cell_colours as cc                              # noqa: E402
+import cell_config as CC                                  # noqa: E402
 import paired_bootstrap as PB                              # noqa: E402
 import published_bootstrap as PBOOT                        # noqa: E402
 import r2_ladder as L                                      # noqa: E402
@@ -181,7 +182,8 @@ def main(argv=None):
         rho = spearman(xs, ys)
         legend.append(Line2D([], [], color=col, linewidth=2.4,
                              marker="o" if own else "^", markersize=7,
-                             label=f"{label}   ρ = {rho:+.2f}"))
+                             label=f"{label}   ρ = {rho:+.2f}\n"
+                                   f"{CC.recipe(cell, with_cell=False)}"))
     axR.set_xscale("log", base=2)
     axR.set_xticks([1, 2, 4, 8, 16, 32, 64])
     axR.set_xticklabels(["1", "2", "4", "8", "16", "32", "64"])
@@ -200,7 +202,7 @@ def main(argv=None):
     legend.append(Line2D([], [], color=cc.INK_SOFT, linewidth=0,
                          marker="^", markersize=7,
                          label="triangle: reads a published k = 0"))
-    axR.legend(handles=legend, loc="lower left", fontsize=9)
+    axR.legend(handles=legend, loc="lower left", fontsize=7.6)
 
     fig.suptitle("Rollout steps at eval, and the change against them "
                  "(student head, 97 configs)", fontsize=11.5)

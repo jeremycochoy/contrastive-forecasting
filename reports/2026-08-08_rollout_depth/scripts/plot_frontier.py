@@ -27,6 +27,7 @@ from matplotlib.lines import Line2D                       # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import published                                          # noqa: E402
+import cell_config as CC                                   # noqa: E402
 import r2_ladder as L                                     # noqa: E402
 
 STUDENT, TEACHER = "#2a78d6", "#eb6834"
@@ -35,11 +36,8 @@ GREY, PARITY = "#8f8e8a", "#6f6e6a"
 
 
 def recipe(cell):
-    """The cell's recipe in words, so no row is a bare code."""
-    arm, align, ema = L.CELL_ARM[cell]
-    tgt = "no L_align" if align == "none" else f"L_align→{align}"
-    ema = "EMA 0.9→1.0" if ema == "scheduled" else "EMA 0.9"
-    return f"{cell}  {arm} · {tgt} · {ema}"
+    """The cell's configuration in words, so no row is a bare code."""
+    return CC.recipe(cell)
 
 
 def main():
@@ -64,7 +62,7 @@ def main():
             rows.append((cell, best))
     rows.sort(key=lambda r: min(v for v, _ in r[1].values()), reverse=True)
 
-    fig, ax = plt.subplots(figsize=(11.0, 6.8))
+    fig, ax = plt.subplots(figsize=(15.0, 7.0))
     ax.axvspan(base - band, base + band, color=GREY, alpha=0.20, zorder=0)
     ax.axvline(base, color=GREY, lw=2.0, zorder=1)
     ax.axvline(1.0, color=PARITY, lw=1.0, ls=(0, (4, 3)), zorder=1)
@@ -83,7 +81,7 @@ def main():
                     ha="right", va="center", fontsize=8, color=INK)
 
     ax.set_yticks(range(len(rows)))
-    ax.set_yticklabels([recipe(c) for c, _ in rows], fontsize=8.5)
+    ax.set_yticklabels([recipe(c) for c, _ in rows], fontsize=7.6)
     ax.set_ylim(-0.7, len(rows) - 0.3)
     ax.set_xlabel("best GM-Relative MASE over the cell's stops, 97 GIFT-Eval "
                   "configs (lower is better)")
@@ -96,10 +94,10 @@ def main():
 
     top = ax.get_xlim()[1]
     ax.annotate(f"frontier before this study {base:.4f}\n"
-                f"({bcell} {L.CELL_ARM[bcell][0]}, {bhead} head, bb{bstop}k)",
-                (base, len(rows) - 0.35), xytext=(4, 2),
-                textcoords="offset points", fontsize=8, color=SOFT,
-                va="bottom")
+                f"{bcell}, {bhead} head, bb{bstop}k — its row above",
+                (base, len(rows) - 0.35), xytext=(-4, 2),
+                textcoords="offset points", fontsize=7.6, color=SOFT,
+                ha="right", va="bottom")
     ax.annotate("seasonal-naive parity 1.0", (1.0, len(rows) - 0.35),
                 xytext=(4, 2), textcoords="offset points", fontsize=8,
                 color=PARITY, va="bottom")

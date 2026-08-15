@@ -60,6 +60,7 @@ from matplotlib.lines import Line2D                    # noqa: E402
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import cell_colours as cc                              # noqa: E402
+import cell_config as CC                                   # noqa: E402
 import r2_ladder as L                                  # noqa: E402
 
 plt.rcParams.update(cc.rc())
@@ -168,15 +169,14 @@ def main(argv=None):
             ax.plot(ang, v + v[:1], color=col, linewidth=2.0, linestyle=ls,
                     alpha=alpha, zorder=4)
 
-        arm, align, ema = L.CELL_ARM[cell]
-        tgt = "no L_align" if align == "none" else f"L_align→{align}"
+        recipe = CC.recipe(cell)
         # Cell, recipe, stop, and which file the k = 0 side comes from. A
         # subtitle that ranked the panel ("the study's largest gain") was
         # prose on a figure, and the machine and the backbone seed are
         # nuisance draws the annex carries.
-        ax.set_title(f"{cell}  {arm} · {tgt}\n"
+        ax.set_title(f"{recipe}\n"
                      f"k = 0 against k = 3 at bb{stop}k   ({note})",
-                     fontsize=9, pad=18)
+                     fontsize=8, pad=18)
 
     for idx in range(len(panels), nrow * ncol):
         axes[idx // ncol][idx % ncol].axis("off")

@@ -116,6 +116,10 @@ if [ -f "$RES/splits.csv" ]; then
   # The eval's own rollout depth, and the score change against it.
   run "$HERE/plot_rollout_count.py" --results "$RES" \
       --out "$PLOTS/rollout_count.png"
+  # The same two quantities as rank correlations, per pair. It imports the
+  # figure's own pair list, so the legend and the table cannot disagree.
+  run "$HERE/rollout_correlation.py" --results "$RES" \
+      --inject "$DST/rollout_depth.md"
   # The per-family table the radar's numbers come from, and the report's
   # DOMAIN block.
   run "$HERE/domain_table.py" --results "$RES" --inject "$DST/rollout_depth.md"
