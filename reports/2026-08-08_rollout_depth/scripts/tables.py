@@ -88,7 +88,7 @@ for _h in ("student", "teacher"):
     EXTEND_NOTE[("B8", _h)] = "trained from step 0, scored at bb100k only"
 # B1's bb40k number carries no note here. Round 1 wrote it under a `G6_`
 # name no later script could find, and the report's annex says so once, in
-# full. Two copies of one operational fact drift; the annex keeps the copy,
+# full. Two copies of one operational fact drift. The annex keeps the copy,
 # because this column is for the extend rule's reason and that is not one.
 
 # One cell the extend rule could not decide. B1's two heads move in opposite
@@ -351,7 +351,7 @@ def main(argv=None):
     # COUNT must not, or one model lands in the `better` bucket twice.
     DUP_STUDENT = {"B3": "A1"}
     # The ‡ mark and the count exclusion are two different jobs. BOTH cells
-    # of the pair carry the shared student, so both rows are marked; only one
+    # of the pair carry the shared student, so both rows are marked. Only one
     # of them may be counted. Marking one row alone reads as if that cell
     # were the odd one out.
     SHARED_STUDENT = set(DUP_STUDENT) | set(DUP_STUDENT.values())
@@ -622,9 +622,9 @@ def main(argv=None):
                 f"±{NOISE_BAND:.4f} head-seed band covers {inband} of "
                 f"them.")
     # Everything from here on is the machine, the seed and the control
-    # material a review asked for. The body carries the card's own tables;
-    # these go to the annex, under the TABLES_ANNEX markers. Nothing is
-    # dropped, only moved.
+    # material a review asked for. The body carries the card's own tables.
+    # These others go to the annex, under the TABLES_ANNEX markers. Nothing
+    # is dropped, only moved.
     BODY_TABLES = len(L)
 
     L += ["### The stop ladder, cell by cell", "",
@@ -749,11 +749,12 @@ def main(argv=None):
                        if r["side"] == "student" and r["verdict"] != "IDENTICAL"})
         if rows:
             L += ["### The four same-arm pairs: two models, or one", "",
-                  "Each pair runs ONE arm under the two EMA regimes, group "
-                  "A's schedule against group B's fixed 0.9. Every tensor of "
-                  "both backbones is compared, split into the student side "
-                  "the student head reads and the `teacher_*` side the "
-                  "teacher head reads.", "",
+                  "Each pair runs ONE arm under the two EMA regimes: group "
+                  "A's schedule, against the fixed 0.9 of group B. Every "
+                  "tensor "
+                  "of both backbones is compared. The comparison splits the "
+                  "student side from the `teacher_*` side, one per head.",
+                  "",
                   "Each entry is the count of tensors that agree exactly, "
                   "out of the count compared. A head's file md5 differs "
                   "between two cells even when every weight agrees, so the "
@@ -778,8 +779,8 @@ def main(argv=None):
             if same:
                 L += [f"**{', '.join(same)} hold one student, not two.** "
                       f"{CC.arm_bracket('A1')} aligns to the student and "
-                      "carries no MoCo keys, so no loss term reads the EMA "
-                      "encoder and the regime sends no gradient into the "
+                      "carries no MoCo keys. No loss term reads the EMA "
+                      "encoder, so the regime sends no gradient into the "
                       "student. One student number for both cells is the "
                       "right answer. It is ONE measurement: one cell's "
                       "student row does not replicate the other's. The "
@@ -829,13 +830,14 @@ def main(argv=None):
                      f"{got:.4f} | {ds} |")
         worst = max(abs(g - b) for _, _, _, b, g in rep_rows)
         both = len({c for c, *_ in rep_rows}) == 2
-        L += ["", f"The largest re-run move is {worst:.4f}. "
-              + ("The two cells carry different backbone md5s and reproduce "
-                 "their own first-pass numbers, so the head and the eval read "
-                 "the file each cell names. The duplicate is the student "
-                 "weights, not the path."
-                 if both else
-                 "The remaining re-runs are still on the queue."), ""]
+        L += ["", ("The two cells carry different backbone md5s and "
+                    "reproduce their own first-pass numbers. So the head "
+                    "and the eval read the file each cell names. The "
+                    "duplicate "
+                    "is the student weights, not the path."
+                    if both else
+                    "The remaining re-runs are still on the queue.")
+              + f" The largest re-run move is {worst:.4f}.", ""]
 
     # ---- 2. reproduction ---------------------------------------------------
     # The seed band, live from the bootstrap that measured it, so re-running
@@ -846,9 +848,9 @@ def main(argv=None):
     L += ["### Reproduction of the published k = 0", "",
           "Same cell, same recipe, same head seed 20260722, same 97-config "
           "B4 eval, student head. Rows are grouped by computer.", "",
-          f"A row at the parents' own backbone seed {PUBLISHED_SEED} must "
-          f"meet the card's {GATE}. A row at any other seed must meet the "
-          "seed band.", "",
+          "A row at any other seed must meet the seed band. A row at the "
+          f"parents' own backbone seed {PUBLISHED_SEED} must meet the card's "
+          f"gate of {GATE}.", "",
           "| backbone | seed | computer | published k = 0 | retrained k = 0 | "
           "\\|Δ\\| | gate | verdict |",
           "|---|---|---|---|---|---|---|---|"]
@@ -917,13 +919,13 @@ def main(argv=None):
         for g in sorted(gate_by_group):
             d, arm, machine = min(gate_by_group[g])
             verdicts.append(
-                f"Group {g}: {arm} at `k = 0`, on {machine}, misses its "
-                f"published number by {d:.4f}"
-                + (". **PASS**" if d <= GATE else ". **FAIL**"))
+                ("**PASS**" if d <= GATE else "**FAIL**")
+                + f" Group {g}: {arm} at `k = 0`, on {machine}, misses its "
+                f"published number by {d:.4f}.")
         L += ["**The card's baseline validity gate, group by group.** It "
-              "retrains one cell of the group at `k = 0` on this study's "
-              f"code and asks for the published number to within {GATE}. "
-              + " ".join(v + "." for v in verdicts), ""]
+              "retrains one cell of the group at `k = 0`, on this study's "
+              f"code. It then asks for the published number to within the "
+              f"{GATE} gate. " + " ".join(verdicts), ""]
         failed = [g for g in sorted(gate_by_group)
                   if min(gate_by_group[g])[0] > GATE]
         if failed:
@@ -982,8 +984,8 @@ def main(argv=None):
         m100 = sum(1 for r in s100 if r["criterion_met"] == "yes")
         scr_line = (
             " The same criterion runs over every pair of the "
-            "published-baseline table as well, where it is a screen because "
-            "the `k = 0` side comes from a parent report: "
+            "published-baseline table as well. There it is a screen, because "
+            "the `k = 0` side comes from a parent report. "
             f"{met} of {len(screen)} pairs "
             f"meet it, and {m100} of {len(s100)} at bb100k "
             "([`results/criterion_screen.csv`](results/criterion_screen.csv)).")
@@ -991,7 +993,7 @@ def main(argv=None):
     L += ["", "Criterion, from the card: medium+long (42 configs) at least "
           "5% better, short (55 configs) losing less than 2%.", "",
           "**This table is the only place the card's criterion runs as a "
-          "test.** Every row here trains its own `k = 0`, and every row is at "
+          "test.** Every row here trains its own `k = 0`. Every row is at "
           "one stop, bb40k. The card also asks about bb100k and bb200k. This "
           "study trained no `k = 0` at either stop, so there the report has "
           "the screen and nothing else." + scr_line, "",
@@ -1001,9 +1003,9 @@ def main(argv=None):
           "✗ marks a retracted row: " + R.RETRACTED_WHY + ".", "",
           f"Head-seed band ±{NOISE_BAND} (`ema_sched_ladder.md`, pooled). It "
           "bounds the head seed alone. It does not bound the computer. It "
-          "does not bound the BACKBONE seed either: this study holds one "
-          "backbone seed in 14 cells and one replicate of it (B5·s2 against "
-          "B5·s3, at k = 0, at bb40k). Backbone-seed variance is therefore "
+          "does not bound the BACKBONE seed either. This study holds one "
+          "backbone seed in 14 cells, and one replicate of it: B5·s2 against "
+          "B5·s3, at k = 0, at bb40k. Backbone-seed variance is therefore "
           "unmeasured. Every better / flat / worse verdict in this report "
           "rests on a band that bounds one of the two seeds in play.", "",
           "The depths trained are " +
@@ -1038,11 +1040,12 @@ def main(argv=None):
 
     # ---- 5. B5's three backbones -------------------------------------------
     L += ["### One cell, three backbones", "",
-          f"{CC.name('B5')} [B5] trained three times on one recipe, one "
-          "code snapshot, one head seed and one eval. They differ by backbone "
-          "seed and by machine, and each contrast below names which of the "
-          "two it changes. The machine contrast is the larger of the two, and "
-          "each contrast is one run pair.", "",
+          "Cell B5 trained three times. Its configuration is "
+          f"{CC.name('B5')} [B5]. The three share one "
+          "recipe, one code snapshot, one head seed and one eval. They "
+          "differ by backbone seed and by machine. Each contrast below names "
+          "which of the two it changes. The machine contrast is the larger "
+          "of the two, and each contrast is one run pair.", "",
           "| backbone | seed | machine | k = 0 | k = 3 | k = 3 − k = 0 |",
           "|---|---|---|---|---|---|"]
     b5_arms = [a for a in R.arms_of("B5") if a != "B5·pub"]
@@ -1377,15 +1380,16 @@ def main(argv=None):
               "depth.", ""] + \
              ([f"On `h_t`, {len(drops)} of the {len(pair)} arms that trained "
                f"both depths ends the deeper run below half its own `k = 0` "
-               f"usage: {', '.join(drops)}. That is a reading and not a "
-               "verdict. No arm reaches zero, and this study runs no control "
-               "that separates a lower usage from a worse score.", ""]
+               f"usage. The drop is {', '.join(drops)}. That is a reading "
+               "and not a verdict. No arm reaches zero, and this study runs "
+               "no control that separates a lower usage from a worse score.",
+               ""]
               if drops else [])
 
     # ---- 9. glossary -------------------------------------------------------
     # The report's ONE glossary. It used to have a second, hand-written
     # `Definitions` section, and `u_batchtime` and the six launcher recipes
-    # were defined in both. Two definitions of one term drift; this is the
+    # were defined in both. Two definitions of one term drift. This is the
     # only place either is defined now.
     GLOSS = ["### Glossary", "",
           "| term | what it means here |",
@@ -1541,8 +1545,8 @@ def main(argv=None):
     FID = fidelity_lines(args.results)
 
     # Three blocks, three places in the report. The card's success criteria
-    # answer its own question, so they lead; the limits qualify every number
-    # above them, so they close the body; the tables sit between.
+    # answer its own question, so they lead. The limits qualify every number
+    # above them, so they close the body. The tables sit between.
     BODY, ANNEX = L[:BODY_TABLES] + GLOSS, L[BODY_TABLES:]
     blocks = {"CRITERIA": CRIT, "COLLAPSE": CW, "TABLES": BODY,
               "TABLES_ANNEX": ANNEX, "LIMITS": NS, "FIDELITY": FID}

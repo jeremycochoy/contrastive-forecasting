@@ -1,10 +1,11 @@
 # Rollout depth 3 sets the project's best GM-Relative MASE
 
 The best GM-Relative MASE before this study was 1.1544. The best now is 1.0660,
-which is 0.0884 lower. It comes from arm6_v2 (L_rep MoCo keys, tau_rep 1 +
-L_align on the student, no CPC, EMA 0.9 to 1.0), at 200,000 backbone steps, on
-the student head [cell A4]. Every cell ran once, on one backbone seed. This
-study measures a frontier and a direction, not a per-recipe ranking.
+which is 0.0884 lower. The configuration is arm6_v2 (L_rep MoCo keys, tau_rep 1
++ L_align on the student, no CPC, EMA 0.9 to 1.0). It reached that number at
+200,000 backbone steps, on the student head [cell A4]. Every cell ran once, on
+one backbone seed. This study measures a frontier and a direction, not a
+per-recipe ranking.
 
 Five terms come first. Section 14 has the glossary for every other term.
 
@@ -34,8 +35,8 @@ launcher sources.
 
 *GM-Relative MASE against backbone train step, all 14 cells, both heads.*
 
-arm6_v2, L_align on the student, EMA 0.9 to 1.0 [A4] is 0.1144 better than its
-own published `k = 0` at bb100k, on the student head.
+At bb100k, arm6_v2, L_align on the student, EMA 0.9 to 1.0 [A4] improves on its
+own published `k = 0`. The gain is 0.1144 on the student head.
 
 ## 2. The hardest families
 
@@ -57,7 +58,7 @@ EMA 0.9 to 1.0 [A4] at bb100k. None of them reaches it. All four move away from
 
 <!-- DOMAIN:BEGIN -->
 
-**arm6_v2 (L_rep MoCo keys, tau_rep 1 + L_align on the student, no CPC, EMA 0.9 to 1.0), at bb100k on the student-encoder head [A4].** The cell that sets this study's frontier, at the deepest stop its parent published. Published `k = 0`.
+**arm6_v2 (L_rep MoCo keys, tau_rep 1 + L_align on the student, no CPC, EMA 0.9 to 1.0).** At bb100k, on the student-encoder head [A4]. The cell that sets this study's frontier, at the deepest stop its parent published. Published `k = 0`.
 
 | family | configs | rollout steps | k = 0 | k = 3 | difference | where k = 3 leaves it |
 |---|---:|---:|---:|---:|---:|---|
@@ -70,7 +71,7 @@ EMA 0.9 to 1.0 [A4] at bb100k. None of them reaches it. All four move away from
 | Sales | 4 | 1.5 (1–2) | 0.800 | 0.797 | -0.003 | stays below 1.0, lower |
 
 
-**arm6_v2 (L_rep MoCo keys, tau_rep 1 + L_align on the student, no CPC, EMA 0.9), at bb40k on the student-encoder head [B1].** The pair whose `k = 0` side this study trained, so the depth is the only change.
+**arm6_v2 (L_rep MoCo keys, tau_rep 1 + L_align on the student, no CPC, EMA 0.9).** At bb40k, on the student-encoder head [B1]. The pair whose `k = 0` side this study trained, so the depth is the only change.
 
 | family | configs | rollout steps | k = 0 | k = 3 | difference | where k = 3 leaves it |
 |---|---:|---:|---:|---:|---:|---|
@@ -83,7 +84,7 @@ EMA 0.9 to 1.0 [A4] at bb100k. None of them reaches it. All four move away from
 | Sales | 4 | 1.5 (1–2) | 0.772 | 0.775 | +0.004 | stays below 1.0, higher |
 
 
-**arm6_v2 (L_rep MoCo keys, tau_rep 1 + L_align on the teacher, no CPC, EMA 0.9), at bb200k on the student-encoder head [B2].** The arm and stop the card quotes its own per-family numbers from. Published `k = 0`.
+**arm6_v2 (L_rep MoCo keys, tau_rep 1 + L_align on the teacher, no CPC, EMA 0.9).** At bb200k, on the student-encoder head [B2]. The arm and stop the card quotes its own per-family numbers from. Published `k = 0`.
 
 | family | configs | rollout steps | k = 0 | k = 3 | difference | where k = 3 leaves it |
 |---|---:|---:|---:|---:|---:|---|
@@ -258,7 +259,7 @@ The first line of a cell is the mean over the last 10% of the run. The second li
 
 The lowest `u_batchtime` any arm reaches over its second half is 0.0284, on `u_batchtime_e`, A3 at k = 0. One direction would give `1/H` = 0.0156 at `d_model = 64`, so that arm sits 1.8× above it. No arm reaches zero at any depth.
 
-On `h_t`, 1 of the 5 arms that trained both depths ends the deeper run below half its own `k = 0` usage: B1 0.3904 → 0.1526. That is a reading and not a verdict. No arm reaches zero, and this study runs no control that separates a lower usage from a worse score.
+On `h_t`, 1 of the 5 arms that trained both depths ends the deeper run below half its own `k = 0` usage. The drop is B1 0.3904 → 0.1526. That is a reading and not a verdict. No arm reaches zero, and this study runs no control that separates a lower usage from a worse score.
 
 
 <!-- COLLAPSE:END -->
@@ -515,9 +516,9 @@ change sign.
 
 ![the retrained arms on the published k = 0 trajectories](plots/k0_overlay.png)
 
-Where a cell's `k = 3` at 40,000 steps lands on the `k = 0` trajectory says
-how many `k = 0` steps the depth is worth. This figure marks the five
-retrained arms on those trajectories. It shows B1's `k = 3` at bb40k below
+A cell's `k = 3` at 40,000 steps lands somewhere on the `k = 0` trajectory.
+That place says how many `k = 0` steps the depth is worth. This figure marks
+the five retrained arms on those trajectories. It shows B1's `k = 3` at bb40k below
 every published B1 point, including bb200k.
 
 <!-- TABLES_ANNEX:BEGIN -->
@@ -577,7 +578,7 @@ A3's is the ladder's largest reversal. It is not the only one. 5 of the 8 three-
 
 ### The four same-arm pairs: two models, or one
 
-Each pair runs ONE arm under the two EMA regimes, group A's schedule against group B's fixed 0.9. Every tensor of both backbones is compared, split into the student side the student head reads and the `teacher_*` side the teacher head reads.
+Each pair runs ONE arm under the two EMA regimes: group A's schedule, against the fixed 0.9 of group B. Every tensor of both backbones is compared. The comparison splits the student side from the `teacher_*` side, one per head.
 
 Each entry is the count of tensors that agree exactly, out of the count compared. A head's file md5 differs between two cells even when every weight agrees, so the comparison is tensor by tensor and never by md5.
 
@@ -596,7 +597,7 @@ Each entry is the count of tensors that agree exactly, out of the count compared
 
 Full table, with the largest absolute difference on each side: [`results/pair_identity.tsv`](results/pair_identity.tsv).
 
-**A1/B3 hold one student, not two.** arm5 combab (L_rep, tau_rep 1 + L_align, no CPC) aligns to the student and carries no MoCo keys, so no loss term reads the EMA encoder and the regime sends no gradient into the student. One student number for both cells is the right answer. It is ONE measurement: one cell's student row does not replicate the other's. The teacher side differs at every stop, and the teacher numbers do too.
+**A1/B3 hold one student, not two.** arm5 combab (L_rep, tau_rep 1 + L_align, no CPC) aligns to the student and carries no MoCo keys. No loss term reads the EMA encoder, so the regime sends no gradient into the student. One student number for both cells is the right answer. It is ONE measurement: one cell's student row does not replicate the other's. The teacher side differs at every stop, and the teacher numbers do too.
 
 **A2/B8, A3/B2, A4/B1 hold two students.** Their arms carry `--moco-rep-keys`, whose keys come from the EMA encoder, or align to the teacher. Either path reaches the student's gradient, so the regime moves it.
 
@@ -611,13 +612,13 @@ Each row trains a fresh student head from the checkpoint its own cell names, at 
 | B3 | bb40k | `b3a51f06` | 1.1305 | 1.1447 | +0.0141 |
 | B3 | bb100k | `0efbb813` | 1.1676 | 1.1610 | -0.0066 |
 
-The largest re-run move is 0.0141. The two cells carry different backbone md5s and reproduce their own first-pass numbers, so the head and the eval read the file each cell names. The duplicate is the student weights, not the path.
+The two cells carry different backbone md5s and reproduce their own first-pass numbers. So the head and the eval read the file each cell names. The duplicate is the student weights, not the path. The largest re-run move is 0.0141.
 
 ### Reproduction of the published k = 0
 
 Same cell, same recipe, same head seed 20260722, same 97-config B4 eval, student head. Rows are grouped by computer.
 
-A row at the parents' own backbone seed 20260520 must meet the card's 0.0002. A row at any other seed must meet the seed band.
+A row at any other seed must meet the seed band. A row at the parents' own backbone seed 20260520 must meet the card's gate of 0.0002.
 
 | backbone | seed | computer | published k = 0 | retrained k = 0 | \|Δ\| | gate | verdict |
 |---|---|---|---|---|---|---|---|
@@ -635,7 +636,7 @@ The seed band is 0.0230. This study measured a seed change once: `B5·s2` agains
 
 `B5·pub` is not a training. It puts this study's head and eval on the parent report's own published B5 checkpoint. Its row therefore bounds the head and the eval, not the trainer. `B5·s3` is a training, at the protocol seed, on elisa. Its 97-config eval output is byte-identical to `B5·pub`'s (`results/eval/G7_B5_k0_e_bb40k_student/all_results.csv` against `results/eval/G1_B5pub_bb40k_student/all_results.csv`). So the elisa retrain reproduced the parent's backbone exactly, and the 0.0003 both rows carry is the head and the eval.
 
-**The card's baseline validity gate, group by group.** It retrains one cell of the group at `k = 0` on this study's code and asks for the published number to within 0.0002. Group A: A3 at `k = 0`, on vast box d, misses its published number by 0.0294. **FAIL**. Group B: B1 at `k = 0`, on elisa, misses its published number by 0.0000. **PASS**.
+**The card's baseline validity gate, group by group.** It retrains one cell of the group at `k = 0`, on this study's code. It then asks for the published number to within the 0.0002 gate. **FAIL** Group A: A3 at `k = 0`, on vast box d, misses its published number by 0.0294. **PASS** Group B: B1 at `k = 0`, on elisa, misses its published number by 0.0000.
 
 On a failure the card asks for a retrain of the `k = 0` side of every cell of that group. It must not come from the parent report. This study did not do that for group A. So every group-A delta against a published `k = 0` is a screen and not a test.
 
@@ -658,13 +659,13 @@ On a failure the card asks for a retrain of the `k = 0` side of every cell of th
 
 Criterion, from the card: medium+long (42 configs) at least 5% better, short (55 configs) losing less than 2%.
 
-**This table is the only place the card's criterion runs as a test.** Every row here trains its own `k = 0`, and every row is at one stop, bb40k. The card also asks about bb100k and bb200k. This study trained no `k = 0` at either stop, so there the report has the screen and nothing else. The same criterion runs over every pair of the published-baseline table as well, where it is a screen because the `k = 0` side comes from a parent report: 25 of 41 pairs meet it, and 10 of 18 at bb100k ([`results/criterion_screen.csv`](results/criterion_screen.csv)).
+**This table is the only place the card's criterion runs as a test.** Every row here trains its own `k = 0`. Every row is at one stop, bb40k. The card also asks about bb100k and bb200k. This study trained no `k = 0` at either stop, so there the report has the screen and nothing else. The same criterion runs over every pair of the published-baseline table as well. There it is a screen, because the `k = 0` side comes from a parent report. 25 of 41 pairs meet it, and 10 of 18 at bb100k ([`results/criterion_screen.csv`](results/criterion_screen.csv)).
 
 `same computer?` records where the two runs trained. The B5 table below measures that change alone, at one seed, at 0.1166, and the backbone seed at 0.0035. Both are nuisance draws.
 
-✗ marks a retracted row: B5·s1's `k = 0` trained on a rented box and misses its published value by 0.1169. `B5·s3` retrains it at the same seed on elisa and lands 0.0003 away. The baseline the -5.1% rests on is therefore a rented-box artifact, and the delta is retracted.
+✗ marks a retracted row: B5·s1's `k = 0` trained on a rented box. It misses its published value by 0.1169 on the student head. `B5·s3` retrains it at the same seed on elisa and lands 0.0003 away. The baseline the -5.1% rests on is therefore a rented-box artifact, and the delta is retracted.
 
-Head-seed band ±0.0384 (`ema_sched_ladder.md`, pooled). It bounds the head seed alone. It does not bound the computer. It does not bound the BACKBONE seed either: this study holds one backbone seed in 14 cells and one replicate of it (B5·s2 against B5·s3, at k = 0, at bb40k). Backbone-seed variance is therefore unmeasured. Every better / flat / worse verdict in this report rests on a band that bounds one of the two seeds in play.
+Head-seed band ±0.0384 (`ema_sched_ladder.md`, pooled). It bounds the head seed alone. It does not bound the computer. It does not bound the BACKBONE seed either. This study holds one backbone seed in 14 cells, and one replicate of it: B5·s2 against B5·s3, at k = 0, at bb40k. Backbone-seed variance is therefore unmeasured. Every better / flat / worse verdict in this report rests on a band that bounds one of the two seeds in play.
 
 The depths trained are k = 1, k = 3, and only k = 3 ran on the 14 cells. One ladder holds more than a single depth: A3's, the cell where k = 3 does the most damage. Its k = 1 interval covers zero. So this study supports **depth 3 moves the score**. It does NOT support *depth 3 is the right depth*: one cell measures a second depth, and no cell measures a third.
 
@@ -713,7 +714,7 @@ The resampling unit is the dataset. `<ds>/short`, `/medium` and `/long` are thre
 
 ### One cell, three backbones
 
-arm4 (pooled contrastive over batch and channels, MoCo negatives, floor subtracted, tau 0.1, no CPC, no SIGReg on e, EMA 0.9) [B5] trained three times on one recipe, one code snapshot, one head seed and one eval. They differ by backbone seed and by machine, and each contrast below names which of the two it changes. The machine contrast is the larger of the two, and each contrast is one run pair.
+Cell B5 trained three times. Its configuration is arm4 (pooled contrastive over batch and channels, MoCo negatives, floor subtracted, tau 0.1, no CPC, no SIGReg on e, EMA 0.9) [B5]. The three share one recipe, one code snapshot, one head seed and one eval. They differ by backbone seed and by machine. Each contrast below names which of the two it changes. The machine contrast is the larger of the two, and each contrast is one run pair.
 
 | backbone | seed | machine | k = 0 | k = 3 | k = 3 − k = 0 |
 |---|---|---|---|---|---|
@@ -836,15 +837,16 @@ student model between them, so those 72 deliverables hold 70 distinct
 measurements.
 
 **The grey baseline of the two lead figures** is the lowest GM-Relative MASE the
-three parent reports printed: 1.1544, cell A4, teacher-encoder head, bb40k,
-from [`ema_sched_ladder`](../2026-08-04_ema_sched_ladder/ema_sched_ladder.md).
+three parent reports printed. That is 1.1544, on cell A4, teacher-encoder head,
+bb40k, from
+[`ema_sched_ladder`](../2026-08-04_ema_sched_ladder/ema_sched_ladder.md).
 The band is that report's pooled head-seed band, ±0.0384, which bounds the
 head seed alone. `published.best_published()` is the one place the value is
 computed, and both figures call it.
 
-**The grey polygon of the two radars** is the per-family form of that
-baseline: per family, the lowest value any published run reached, over every
-(cell, stop, head) whose own CSV reproduces the number its parent printed.
+**The grey polygon of the two radars** is the per-family form of that baseline.
+Per family, it is the lowest value any published run reached. The search covers
+every (cell, stop, head) whose own CSV reproduces the number its parent printed.
 `parent_splits.py` accepts those CSVs and the radar reads its file.
 
 **The rollout count at eval** is `ceil(prediction_length / W)`, with `W = 16`,
