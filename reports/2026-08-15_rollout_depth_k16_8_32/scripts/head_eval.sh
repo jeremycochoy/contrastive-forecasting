@@ -62,6 +62,7 @@ echo "[$(date '+%m-%d %H:%M:%S')] [#401] head $TAG on $(basename "$BB")" \
 # study's results/.
 CF373_ROOT="$ARM_ROOT" CF_STUDY_DIR="$CF401_STUDY" WT="$CF401_WT" \
   CF_RESULTS="$CF401_RESULTS" \
+  CF_STOP_K="$(( STOP / 1000 ))" \
   BB_GPU="$BB_GPU" \
   bash "$RUNNER" "$TAG" "$BB" "$CF401_ENC" "$HEAD_STEPS"
 rc=$?

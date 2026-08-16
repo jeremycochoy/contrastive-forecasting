@@ -23,6 +23,12 @@ case "$ENC" in student|teacher) ;; *) echo "ABORT: bad encoder '$ENC'" >&2; exit
 
 HEAD_SEED="${HEAD_SEED:-20260722}"
 
+# The backbone stop, in thousands, for the eval's log lines only. #373 runs
+# every head of this script on a bb40k backbone, so 40 keeps its logs
+# unchanged. #401 puts heads on 40k, 100k and 200k stops, and a wrong label
+# in `results/stops.log` misnames the number a report reads.
+CF_STOP_K="${CF_STOP_K:-40}"
+
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export WT="${WT:-/home/jupyter/wt-cf-373-train}"
 # Which study's directory takes the head log and the score file. #401 reuses
@@ -117,7 +123,7 @@ else
 fi
 
 log "eval start (97 configs, B4, forecast-len 16, elisa CPUs)"
-bash "$HERE/eval_local.sh" "$TAG" 40 "$ENC" "$BB" "$HEAD_CKPT" \
+bash "$HERE/eval_local.sh" "$TAG" "$CF_STOP_K" "$ENC" "$BB" "$HEAD_CKPT" \
   "$OUT" "$SCORE_OUT" >>"$LOG" 2>&1
 rc=$?
 log "eval rc=$rc"
