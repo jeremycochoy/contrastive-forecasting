@@ -121,7 +121,7 @@ def pick_panels(vals, aggs, phase, stop_arg):
     """
     rows = study_rows(vals, phase)
     panels = []
-    for k in D.DEPTHS:
+    for k in D.DEPTHS_DRAWN:
         mine = {s: lab for (kk, s), lab in rows.items() if kk == k}
         if not mine:
             continue

@@ -7,7 +7,9 @@ Everything else comes from #373's `cell_colours`: the same rcParams, the same
 inks, the same greys, so a reader who learns this report's furniture keeps it
 across both.
 
-    colour       the DEPTH this study trains, k = 8 / 16 / 32
+    colour       the DEPTH, k = 8 / 16 / 32. This protocol trains k = 8 and
+                 k = 32; k = 16 keeps its hue because the summed comparison
+                 arm drew it, and one depth must read the same in both.
     line style   solid for a depth this study trained, dashed for #373's
                  k = 3, dotted for the published k = 0
     grey         a frontier the study has to beat, never a subject
@@ -39,9 +41,13 @@ PARENT_SCRIPTS = HERE.parent.parent / "2026-08-08_rollout_depth" / "scripts"
 sys.path.insert(0, str(PARENT_SCRIPTS))
 import cell_colours as cc                                 # noqa: E402
 
-# The study's run order. Colour rides on the depth, so an arm keeps its
-# colour whatever subset a figure draws.
-DEPTHS = [16, 8, 32]
+# The arms this protocol trains, in run order. Colour rides on the depth, so
+# an arm keeps its colour whatever subset a figure draws.
+DEPTHS = [8, 32]
+
+# Every depth any figure of this card draws. The summed comparison arm ran
+# k = 16, so its hue stays here even though no arm trains it now.
+DEPTHS_DRAWN = [8, 16, 32]
 
 # Slots 1, 3 and 4 of #373's validated theme: blue, aqua, violet.
 COLOUR = {
@@ -81,6 +87,6 @@ def label(k) -> str:
 
 
 if __name__ == "__main__":
-    for k in DEPTHS:
+    for k in DEPTHS_DRAWN:
         print(f"k = {k:<3} {COLOUR[k]}")
     sys.exit(0)

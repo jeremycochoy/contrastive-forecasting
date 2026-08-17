@@ -2,7 +2,7 @@
 """#401 deliverable 2 — GM-Relative MASE against backbone train step.
 
 #373's `ladder.png`, on this study's entity. #373 drew 14 cells at one depth.
-This study draws one cell at three depths, and it draws the two phases side
+This study draws one cell at two depths, and it draws the two phases side
 by side, because the card's second question is exactly the difference between
 the two panels.
 
@@ -116,7 +116,7 @@ def draw_reference(ax, xs, pts, ink, style, width=1.7):
 def draw_panel(ax, phase, arms, k3, k0, xs, frontier, stops_k):
     values = []
     ends = []
-    for k in D.DEPTHS:
+    for k in D.DEPTHS_DRAWN:
         pts = {s: v for s, v in arms.get(k, {}).items() if s in xs}
         if not pts:
             continue
@@ -209,7 +209,7 @@ def main(argv=None):
                      f"{frontier:.4f}")],
         loc="lower center", ncol=3, frameon=False, fontsize=9)
     fig.suptitle("GM-Relative MASE against backbone train step, "
-                 "rollout depth k = 16, 8 and 32", fontsize=12.5, color=D.INK)
+                 "rollout depth k = 8 and 32", fontsize=12.5, color=D.INK)
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     fig.tight_layout(rect=(0, 0.07, 1, 0.94))
     fig.savefig(a.out)

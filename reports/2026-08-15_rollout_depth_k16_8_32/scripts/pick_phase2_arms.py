@@ -1,26 +1,24 @@
 #!/usr/bin/env python3
-"""#401 — which two arms phase 2 retrains heads on.
+"""#401 — which arms phase 2 retrains heads on.
 
 The card: *wait until phase 1 has the GM-Relative MASE of every backbone stop
-at every k, then take the 2 arms with the best results.*
+at every k, then take the 2 arms with the best results.* This protocol runs
+two arms, so the pair is both of them. The picker stays, because its other
+job is the one that matters here.
 
 Two decisions are made here, once, so the driver and the report cannot
 disagree:
 
-  best of an arm   the LOWEST GM-Relative MASE the arm reached at any of its
-                   stops. An arm whose 200k stop is its best is still that
-                   arm's result, and phase 2 retrains all three of its stops
-                   anyway.
-  a tie            broken by the study's run order, 16 then 8 then 32. Two
-                   arms that score the same to four decimals are not
-                   separated by this study, and a stable order is what makes
-                   a re-run of the picker return the same pair.
+  complete        phase 1 must hold every stop of every arm. A missing stop
+                  makes an arm look better than it is, because its best is
+                  taken over fewer stops. This is what the picker refuses.
+  best of an arm  the LOWEST GM-Relative MASE the arm reached at any of its
+                  stops. An arm whose 200k stop is its best is still that
+                  arm's result, and phase 2 retrains all three of its stops
+                  anyway. Ties break on the study's run order, 8 then 32.
 
-Refuses an incomplete phase 1: a missing stop makes an arm look better than
-it is, because its best is taken over fewer stops.
-
-Usage:  pick_phase2_arms.py --scores results/scores.csv
-        -> "16 8" on stdout, one line, space separated
+Usage:  pick_phase2_arms.py --scores results/mean/scores.csv
+        -> "8 32" on stdout, one line, space separated
 """
 
 from __future__ import annotations
@@ -30,7 +28,7 @@ import csv
 import sys
 
 # The card's depths, in the order it runs them. Ties break on this.
-RUN_ORDER = (16, 8, 32)
+RUN_ORDER = (8, 32)
 STOPS = (40_000, 100_000, 200_000)
 N_ARMS = 2
 

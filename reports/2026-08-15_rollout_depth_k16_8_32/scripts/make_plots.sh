@@ -17,7 +17,7 @@ set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$HERE/study.sh"
 
-PLOTS="${CF401_PLOTS:-$CF401_STUDY/plots}"
+PLOTS="$CF401_PLOTS"
 mkdir -p "$PLOTS"
 
 bash "$HERE/collect.sh" || exit $?

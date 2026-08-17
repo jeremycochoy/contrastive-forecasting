@@ -1,10 +1,11 @@
 #!/bin/bash
-# #401 — what k = 16 costs, before nine legs are launched against it.
+# #401 — what a depth costs under THIS objective, before six legs run.
 #
-# The card's run plan assumes k = 16 and k = 32 run at all. #373 measured
-# 230 ms/step at k = 0 and 537 ms/step at k = 3 on one 4090, with a 15.8 GiB
-# peak. A linear extrapolation from those two points puts k = 16 near
-# 1.9 s/step and k = 32 near 3.5 s/step, and puts the peak above 24 GiB. An
+# The run plan needs the step time and the peak memory of the objective the
+# study trains. The summed objective was measured on one 4090 at 169.7 ms
+# (k = 0), 257.1 ms (k = 8) and 530.5 ms (k = 32), at a 5.4 to 5.9 GiB peak.
+# The MEAN objective adds one more pass over the f-bearing terms at depth 0
+# (docs/train_rollout_depth.md), so its step time is its own number. An
 # extrapolation is not a measurement, and a 200,000-step leg launched against
 # a wrong one costs days. So this measures it.
 #
@@ -28,7 +29,9 @@
 #
 # k = 0 runs first, on the same card, in the same session. It is the
 # reference the #373 numbers are quoted against, so the depth's cost is a
-# ratio measured here rather than a difference across two machines.
+# ratio measured here rather than a difference across two machines. At k = 0
+# there is one depth copy, so the two reductions agree and the row is the
+# same reference for both.
 #
 # An out-of-memory failure is a result, not an error. It is recorded with
 # rc != 0 and the peak the probe saw, because "k = 32 does not fit in 24 GiB"
@@ -40,16 +43,16 @@
 # truncated. `CF401_SMOKE_FORCE=1` measures a depth again and replaces its
 # row.
 #
-# Usage:  bash smoke_k16.sh [steps]
-#         BB_GPU=0 DEPTHS="0 16" bash smoke_k16.sh 400
-#         CF401_SMOKE_FORCE=1 DEPTHS=16 bash smoke_k16.sh 400
+# Usage:  bash smoke_depth.sh [steps]
+#         BB_GPU=0 DEPTHS="0 8 32" bash smoke_depth.sh 400
+#         CF401_SMOKE_FORCE=1 DEPTHS=32 bash smoke_depth.sh 400
 set -uo pipefail
 
 STEPS="${1:-400}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$HERE/study.sh"
 
-DEPTHS="${DEPTHS:-0 16}"
+DEPTHS="${DEPTHS:-0 8 32}"
 LOG_EVERY="${LOG_EVERY:-100}"
 BB_GPU="${BB_GPU:-0}"
 PROBE="$CF401_REPO/scripts/gpu_peak_probe.py"
@@ -57,8 +60,8 @@ RUNNER="$CF401_PARENT/scripts/run_leg_k.sh"
 # Durable, and NOT this study's own root: these checkpoints are throwaway and
 # a leg dir named leg_0k under the study root would be read as a real stop.
 SCRATCH="${CF401_SMOKE_ROOT:-/home/jupyter/checkpoints_backup/cf-401-smoke}"
-OUT="$CF401_RESULTS/smoke_k16.csv"
-LOG="$CF401_RESULTS/smoke_k16.log"
+OUT="$CF401_RESULTS/smoke_depth.csv"
+LOG="$CF401_RESULTS/smoke_depth.log"
 
 [ -f "$PROBE" ]  || { echo "ABORT: no probe at $PROBE" >&2; exit 2; }
 [ -f "$RUNNER" ] || { echo "ABORT: no runner at $RUNNER" >&2; exit 2; }
@@ -82,7 +85,7 @@ log(){ echo "[$(date '+%m-%d %H:%M:%S')] [#401 smoke] $*" | tee -a "$LOG"; }
 
 log "scratch root: $SCRATCH"
 
-HEADER="cell,k,steps,windows,data_ms,fwd_ms,bwd_ms,total_ms,sps,peak_mib,depth_cols,card_free_mib,rc"
+HEADER="cell,reduce,k,steps,windows,data_ms,fwd_ms,bwd_ms,total_ms,sps,peak_mib,depth_cols,card_free_mib,rc"
 if [ -s "$OUT" ]; then
   # Two formats in one file is a table nothing can read. It is cheaper to
   # refuse it here than to find it in a plot.
@@ -94,13 +97,13 @@ fi
 
 # Is this depth in the table already?
 measured(){  # <k>
-  awk -F, -v k="$1" 'NR > 1 && $2 == k { hit = 1 } END { exit !hit }' "$OUT"
+  awk -F, -v k="$1" 'NR > 1 && $3 == k { hit = 1 } END { exit !hit }' "$OUT"
 }
 
 # Drop one depth's row, for a forced re-measure. The new row is appended by
 # run_one, so the depth keeps ONE row and the other depths keep theirs.
 drop_row(){  # <k>
-  awk -F, -v k="$1" 'NR == 1 || $2 != k' "$OUT" >"$OUT.tmp" \
+  awk -F, -v k="$1" 'NR == 1 || $3 != k' "$OUT" >"$OUT.tmp" \
     && mv -f "$OUT.tmp" "$OUT"
 }
 
@@ -131,6 +134,7 @@ run_one(){  # <k>
   WT="$CF401_WT" \
   BB_GPU="$BB_GPU" LOG_EVERY="$LOG_EVERY" SAVE_EVERY=1000000 \
   EXTRA_SAVES="$STEPS" RUN_SUFFIX="$suffix" \
+  GAP_ARGS="--train-rollout-reduce $CF401_REDUCE" \
     bash "$RUNNER" "$CF401_CELL" "$STEPS" >>"$LOG" 2>&1 &
   local pid=$!
   # The probe and the reader run as two steps, and both send their errors to
@@ -152,12 +156,13 @@ run_one(){  # <k>
   local cols; cols="$(cf401_depth_cols "$root")"
 
   [ -f "$tlog" ] || { log "k=$k: no trainer log at $tlog (rc=$rc)"
-                      echo "$CF401_CELL,$k,$STEPS,0,,,,,,${peak:-},${cols},${free},$rc" >>"$OUT"
+                      echo "$CF401_CELL,$CF401_REDUCE,$k,$STEPS,0,,,,,,${peak:-},${cols},${free},$rc" >>"$OUT"
                       return 0; }
   # Every `timing:` window after the first, and the `sps` on the step line
   # above it. The median over the windows, so one slow window from a
   # neighbour's burst does not carry the number.
-  awk -v cell="$CF401_CELL" -v k="$k" -v steps="$STEPS" -v peak="${peak:-}" \
+  awk -v cell="$CF401_CELL" -v red="$CF401_REDUCE" -v k="$k" \
+      -v steps="$STEPS" -v peak="${peak:-}" \
       -v cols="$cols" -v free="$free" -v rc="$rc" '
     /sps  ETA/ { for (i = 1; i <= NF; i++) if ($i == "sps") sps = $(i-1) }
     /^  timing:/ {
@@ -185,7 +190,7 @@ run_one(){  # <k>
       return (n % 2) ? c[(n + 1) / 2] : (c[n / 2] + c[n / 2 + 1]) / 2
     }
     END {
-      printf "%s,%s,%s,%d,%s,%s,%s,%s,%s,%s,%s,%s,%s\n", cell, k, steps, nt,
+      printf "%s,%s,%s,%s,%d,%s,%s,%s,%s,%s,%s,%s,%s,%s\n", cell, red, k, steps, nt,
         med(d, nd), med(f, nf), med(b, nb), med(t, nt), med(s, ns),
         peak, cols, free, rc
     }' "$tlog" >>"$OUT"
@@ -208,7 +213,7 @@ for k in $DEPTHS; do
     log "k=$k is in $OUT and CF401_SMOKE_FORCE is set — replacing its row"
     drop_row "$k"
   fi
-  log "START k=$k steps=$STEPS gpu=$BB_GPU log_every=$LOG_EVERY"
+  log "START k=$k reduce=$CF401_REDUCE steps=$STEPS gpu=$BB_GPU log_every=$LOG_EVERY"
   run_one "$k"
 done
 

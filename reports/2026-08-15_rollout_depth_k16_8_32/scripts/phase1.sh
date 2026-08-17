@@ -1,10 +1,8 @@
 #!/bin/bash
-# #401 phase 1 — the three arms, their stops, their heads and their evals.
+# #401 phase 1 — the two arms, their stops, their heads and their evals.
 #
-# Order, and why it is this order. The card runs k = 16 first, then k = 8,
-# then k = 32: k = 16 answers the question, and the other two bracket it, so
-# a session that runs out of GPU time still holds an answer. Within an arm
-# the stops climb, because a leg resumes the one below it.
+# Order, and why it is this order. k = 8 and k = 32 bracket the range. Within
+# an arm the stops climb, because a leg resumes the one below it.
 #
 # Each stop's head starts as soon as its checkpoint lands, while the backbone
 # climbs to the next stop. Head training and backbone training both want the
@@ -12,8 +10,15 @@
 # the GIFT-Eval that follows runs on the CPU. Set HEAD_BG=0 to run each head
 # inline instead, which is slower and easier to read.
 #
-# Usage:  bash phase1.sh                       # all three arms
-#         DEPTHS=16 bash phase1.sh             # one arm
+# CF401_HEADS=0 trains the backbones and nothing else. That is what a rented
+# box runs: no GIFT-Eval data and no gift_eval package live there, so a head
+# trained on the box would still wait for elisa to score it. elisa runs
+# `heads_watch.sh` instead, which fires each head as its checkpoint lands
+# through the sync loop.
+#
+# Usage:  bash phase1.sh                       # both arms, heads included
+#         DEPTHS=8 bash phase1.sh              # one arm
+#         CF401_HEADS=0 DEPTHS=32 bash phase1.sh   # backbone only, on a box
 #         CF401_DRY_RUN=1 bash phase1.sh       # print the plan, run nothing
 set -uo pipefail
 
@@ -22,6 +27,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 DEPTHS="${DEPTHS:-$CF401_DEPTHS}"
 HEAD_BG="${HEAD_BG:-1}"
+HEADS="${CF401_HEADS:-1}"
 BB_GPU="${BB_GPU:-0}"
 HEAD_GPU="${HEAD_GPU:-$BB_GPU}"
 mkdir -p "$CF401_RESULTS"
@@ -35,7 +41,8 @@ for k in $DEPTHS; do
   for stop in $CF401_STOPS; do
     if [ -n "${CF401_DRY_RUN:-}" ]; then
       echo "arm  k=$k steps=$stop"
-      echo "head k=$k stop=$stop steps=$CF401_HEAD_STEPS_P1 enc=$CF401_ENC"
+      [ "$HEADS" = "1" ] && \
+        echo "head k=$k stop=$stop steps=$CF401_HEAD_STEPS_P1 enc=$CF401_ENC"
       continue
     fi
 
@@ -54,7 +61,9 @@ for k in $DEPTHS; do
       break
     fi
 
-    if [ "$HEAD_BG" = "1" ]; then
+    if [ "$HEADS" != "1" ]; then
+      log "head k=$k stop=$stop SKIPPED (CF401_HEADS=0, this box trains backbones)"
+    elif [ "$HEAD_BG" = "1" ]; then
       log "head k=$k stop=$stop (background)"
       # `nohup`, not `nohup setsid`. setsid forks when the caller already
       # leads its process group, and then `$!` is the PID of a process that
@@ -96,8 +105,15 @@ if [ "${#heads[@]}" -gt 0 ]; then
   done
 fi
 
-bash "$HERE/collect.sh"
-log "phase 1 drained — $(wc -l <"$CF401_RESULTS/scores.csv") row(s) in scores.csv, $legs_failed leg(s) and $failed head(s) failed"
+# A backbone-only run scores nothing, so there is nothing to collect. Running
+# collect.sh there would write an empty scores.csv over the one the machine
+# that DOES score keeps.
+if [ "$HEADS" = "1" ]; then
+  bash "$HERE/collect.sh"
+  log "phase 1 drained — $(wc -l <"$CF401_RESULTS/scores.csv") row(s) in scores.csv, $legs_failed leg(s) and $failed head(s) failed"
+else
+  log "phase 1 backbones drained — $legs_failed leg(s) failed, heads run elsewhere"
+fi
 # A dead leg is a failed phase, the same as a dead head.
 failed=$(( failed + legs_failed ))
 [ "$failed" -eq 0 ] || exit 1

@@ -14,8 +14,8 @@
 # Both write their own tag, so phase 2 never reads phase 1's score file.
 #
 # Usage:  head_eval.sh <k> <stop steps> [head steps]
-#         BB_GPU=0 bash head_eval.sh 16 40000            # phase 1
-#         BB_GPU=0 bash head_eval.sh 16 40000 40000      # phase 2
+#         BB_GPU=0 bash head_eval.sh 8 40000             # phase 1
+#         BB_GPU=0 bash head_eval.sh 8 40000 40000       # phase 2
 set -uo pipefail
 
 K="${1:?usage: head_eval.sh <k> <stop steps> [head steps]}"
@@ -36,7 +36,7 @@ BB_GPU="${BB_GPU:-0}"
 # The head's own root, one per depth. The backbones already take one root
 # per depth (see cf401_arm_root), and the argument is the same for the
 # heads: a later glob that forgets the depth would otherwise resolve to
-# another arm's head, and three arms in one eval/ tree cannot be told apart
+# another arm's head, and two arms in one eval/ tree cannot be told apart
 # by directory.
 ARM_ROOT="$(cf401_arm_root "$K")"
 mkdir -p "$CF401_RESULTS"

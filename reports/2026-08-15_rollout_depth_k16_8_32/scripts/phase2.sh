@@ -13,7 +13,7 @@
 # Set ARMS to override it, for a card that changes after the fact.
 #
 # Usage:  bash phase2.sh
-#         ARMS="16 8" bash phase2.sh
+#         ARMS="8 32" bash phase2.sh
 #         CF401_DRY_RUN=1 bash phase2.sh
 set -uo pipefail
 

@@ -9,7 +9,7 @@
 #
 # What runs, in order:
 #
-#   1. one backbone leg   k = 16, TRIAL_STEPS steps, through run_arm_k.sh
+#   1. one backbone leg   k = 8, TRIAL_STEPS steps, through run_arm_k.sh
 #                         and #373's run_leg_k.sh
 #   2. phase 1            phase1.sh -> head_eval.sh -> #373's head_eval_bb.sh
 #                         -> the head trainer -> eval_local.sh
@@ -31,11 +31,11 @@
 # it can be collected as a study one.
 #
 # Usage:  BB_GPU=0 bash scripts/trial_head.sh
-#         TRIAL_STEPS=400 TRIAL_K=16 bash scripts/trial_head.sh
+#         TRIAL_STEPS=400 TRIAL_K=32 bash scripts/trial_head.sh
 set -uo pipefail
 
 TRIAL_STEPS="${TRIAL_STEPS:-400}"
-TRIAL_K="${TRIAL_K:-16}"
+TRIAL_K="${TRIAL_K:-8}"
 # `us_births/M/short` is the cheapest of the 97, at 0.0 s of the measured
 # table. The regex is anchored, the same way shard_configs.py anchors its
 # shards, so it matches one config and not a superstring of it.
@@ -104,7 +104,7 @@ P1_TAG="$(cf401_tag "$TRIAL_K" "$TRIAL_STEPS" "$CF401_HEAD_STEPS_P1")"
 stage "collect" bash "$HERE/collect.sh"
 
 # 4. Phase 2 on the same arm, head budget matched to the stop. ARMS skips
-# the picker, which needs all three depths and has its own unit tests.
+# the picker, which needs every depth and has its own unit tests.
 stage "phase 2" env ARMS="$TRIAL_K" BB_GPU="$BB_GPU" bash "$HERE/phase2.sh"
 
 P2_TAG="$(cf401_tag "$TRIAL_K" "$TRIAL_STEPS" "$TRIAL_STEPS")"
