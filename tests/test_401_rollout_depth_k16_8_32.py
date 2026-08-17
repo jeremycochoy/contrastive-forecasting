@@ -1824,6 +1824,14 @@ class TestTwoMachines:
         assert "make_plots.sh" in code
         assert "sync_loop.sh" in code, "nothing checks that the pull runs"
 
+    def test_the_sync_check_reads_the_argument_list(self):
+        """`pgrep -f` also matches a process that only NAMES the file, the
+        check itself among them, and `pgrep -c` prints 0 AND exits 1 when it
+        matches nothing. Both would report a loop that is not there."""
+        code = strip_comments(LAUNCH_ELISA.read_text())
+        assert "/proc/$p/cmdline" in code, "the check trusts the pattern alone"
+        assert "pgrep -fc" not in code and "pgrep -c" not in code
+
     # ---- the box, before it trains ----
 
     def test_provisioning_reuses_373s_provisioner(self):

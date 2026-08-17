@@ -77,11 +77,25 @@ state(){  # <note>
 }
 
 # The sync loop is the only thing that puts the box's checkpoints here, so a
-# missing loop is a study that never scores a cell. Verified by `ls` on the
-# root, not by reading the loop's log (CLAUDE.md).
+# missing loop is a study that never scores a cell.
+#
+# A loop runs `sync_loop.sh` as a script argument. `pgrep -f` also matches any
+# process that merely names the file on its command line, this check among
+# them, so the argument list decides and not the pattern. `wc -l` counts,
+# because `pgrep -c` prints 0 AND exits 1 when it matches nothing.
+sync_loops(){
+  local p n=0
+  for p in $(pgrep -f 'sync_loop\.sh' 2>/dev/null); do
+    [ "$p" = "$$" ] && continue
+    tr '\0' '\n' <"/proc/$p/cmdline" 2>/dev/null \
+      | grep -qx '.*/sync_loop\.sh' && n=$(( n + 1 ))
+  done
+  echo "$n"
+}
+
 sync_check(){
   local n
-  n="$(pgrep -fc "bash .*sync_loop.sh" 2>/dev/null || echo 0)"
+  n="$(sync_loops)"
   if [ "$n" -ge 1 ]; then
     log "sync: $n loop(s) running"
   else
