@@ -25,6 +25,9 @@ What this file pins:
   once at their configured weight under both reductions.
 * **The reduction identity holds on every shape**, against the f-side the
   depth copies carry, which `f_terms_only` reads at depth 0.
+* **Every h-only term enters once**, one case per term, each with an h-side
+  defined WITHOUT the probe: `L_rep`, `L_rep_moco`, the `f_rep` floor
+  constant, `mse`'s h-only half, `align_moco` and SIGReg.
 * **The auxiliary f-bearing terms reduce too**: the standalone `align_loss`
   and the two CPC InfoNCE terms.
 * **The guards**: a reduction that is not `sum` or `mean` raises and names
@@ -37,6 +40,7 @@ What this file pins:
 from __future__ import annotations
 
 import ast
+import inspect
 import os
 import subprocess
 import sys
@@ -45,9 +49,10 @@ import pytest
 import torch
 
 import src.loss as loss_module
-from src.loss import (align_loss, contrastive_latent_loss,
-                      cpc_infonce_all_loss, cpc_infonce_aux_loss,
-                      resolve_rollout_reduce)
+from src.loss import (_split_pred_rep_floors, align_loss, align_moco_loss,
+                      contrastive_latent_loss, cpc_infonce_all_loss,
+                      cpc_infonce_aux_loss, resolve_rollout_reduce,
+                      sigreg_loss)
 
 from tests.test_373_train_rollout_depth import (B, C, CPC_SHAPES, H, K0_CONFIGS,
                                                 K0_REFERENCE, REPO_ROOT,
@@ -204,6 +209,139 @@ class TestTheHSideStaysOutOfTheDivision:
             call(_SPLIT, 'base', lat, depth=0, rep_loss_weight=0.0),
             rel=0, abs=1e-12)
         assert abs(full - f_side) > 1e-6
+
+
+def reduction_identity(h_side, summed, meaned, k):
+    """`mean` divides the f-side of the total, and nothing else.
+
+    `summed - h_side` is the f-side at depth k, k + 1 copies of it. The mean
+    holds the same h-side and divides that part by k + 1.
+    """
+    assert meaned == pytest.approx(h_side + (summed - h_side) / (k + 1),
+                                   rel=1e-11, abs=1e-12)
+
+
+class TestEveryHOnlyTermEntersOnce:
+    """One case per term that carries no `f`.
+
+    `test_the_reduction_identity_holds_on_every_shape` reads its h-side out of
+    `f_terms_only`, so it holds whatever the probe returns: a probe that
+    dropped a term it should keep would move both sides of that equality by
+    the same amount. Every case here defines the h-side another way — a weight
+    set to zero, a constant taken from the floor helper, a term computed here
+    with torch, or a term the trainer adds outside the reduced total.
+    """
+
+    @pytest.mark.parametrize('k', [1, 3])
+    def test_l_rep_enters_once(self, k):
+        """`--pred-loss-weight 0` leaves `w_rep · L_rep` — the h-side of the
+        split shape, by a weight and not by the probe."""
+        lat = _latents(_SPLIT, seed=31, depth=k)
+        reduction_identity(
+            call(_SPLIT, 'base', lat, depth=0, pred_loss_weight=0.0),
+            call(_SPLIT, 'base', lat, depth=k, reduce='sum'),
+            call(_SPLIT, 'base', lat, depth=k, reduce='mean'), k)
+
+    @pytest.mark.parametrize('shape', [_SPLIT, _REP_ONLY])
+    @pytest.mark.parametrize('k', [1, 3])
+    def test_l_rep_moco_enters_once(self, shape, k):
+        """The teacher-keyed form of the same term, on both shapes that carry
+        it. `align_moco_rep` is this study's own cell: L_align on the student
+        plus MoCo keys on L_rep. L_align is the f-side, so the h-side drops it
+        and, on the split shape, L_pred with it."""
+        lat = _latents(shape, seed=33, depth=k)
+        off = {'align_loss_weight': 0.0}
+        if shape == _SPLIT:
+            off['pred_loss_weight'] = 0.0
+        reduction_identity(
+            call(shape, 'align_moco_rep', lat, depth=0, **off),
+            call(shape, 'align_moco_rep', lat, depth=k, reduce='sum'),
+            call(shape, 'align_moco_rep', lat, depth=k, reduce='mean'), k)
+
+    @pytest.mark.parametrize('k', [1, 3])
+    def test_the_f_rep_floor_constant_enters_once(self, k):
+        """`subtract_contrastive_floor` on the split shape subtracts two
+        constants. `f_pred` re-bases the f-side, so it repeats per depth;
+        `f_rep` re-bases L_rep, so it enters once. The h-side here takes
+        `f_pred` back from the floor helper, which is where the loss reads
+        it too — a decomposition by weights alone cannot separate the two."""
+        lat = _latents(_SPLIT, seed=35, depth=k)
+        f, o = lat[0], lat[1]
+        B, T, C = o.shape[0], o.shape[1], o.shape[2]
+        f_pred, _ = _split_pred_rep_floors(0.1, B, T, C)
+        h_side = call(_SPLIT, 'split_floor', lat, depth=0,
+                      pred_loss_weight=0.0) + float(f_pred)
+        reduction_identity(
+            h_side,
+            call(_SPLIT, 'split_floor', lat, depth=k, reduce='sum'),
+            call(_SPLIT, 'split_floor', lat, depth=k, reduce='mean'), k)
+
+    @pytest.mark.parametrize('k', [1, 3])
+    def test_the_mse_h_only_half_enters_once(self, k):
+        """`mse` is `mse(h_{t+1}, f_t) − mse(h_t, h_{t+1})`. The second half
+        carries no f. It is computed here with torch, so nothing in the loss
+        defines the h-side of this case."""
+        lat = _latents('mse', seed=37, depth=k)
+        o = lat[1]
+        h_side = -float(torch.nn.functional.mse_loss(o[:, :-1], o[:, 1:]))
+        reduction_identity(
+            h_side,
+            call('mse', 'base', lat, depth=k, reduce='sum'),
+            call('mse', 'base', lat, depth=k, reduce='mean'), k)
+
+    # ---- the two h-only terms the trainer adds outside the reduced total ----
+
+    @pytest.mark.parametrize('fn', [align_moco_loss, sigreg_loss])
+    def test_a_standalone_h_only_term_takes_no_depth(self, fn):
+        """`align_loss` and the two CPC terms carry `rollout_latents` and
+        `depth_reduce`, because they hold f. These two hold h alone, so a
+        depth copy of either would be the h-side counted k + 1 times."""
+        params = inspect.signature(fn).parameters
+        for name in ('rollout_latents', 'depth_reduce'):
+            assert name not in params, f'{fn.__name__} takes {name}'
+
+    @pytest.mark.parametrize('name', ['align_moco_loss', 'sigreg_loss'])
+    def test_the_trainer_passes_no_depth_to_it(self, name):
+        calls = _calls_named(_train_tree(), name)
+        assert calls, f'no {name} call in the trainer'
+        for c in calls:
+            for kw in c.keywords:
+                assert kw.arg not in ('rollout_latents', 'depth_reduce'), \
+                    f'{name} is given the depths'
+
+    @pytest.mark.parametrize('k', [1, 3])
+    def test_align_moco_enters_once(self, k):
+        """The total the trainer builds: the reduced contrastive term plus
+        `align_moco`. The reduction reaches the first and not the second."""
+        lat = _latents(_REP_ONLY, seed=39, depth=k)
+        moco = float(align_moco_loss(lat[1], lat[2], tau=0.1, weight=1.0))
+        assert abs(moco) > 1e-6, 'the case carries no align_moco to hold out'
+        cfg = {'align_loss_weight': 1.0}
+        reduction_identity(
+            call(_REP_ONLY, 'base', lat, depth=0, align_loss_weight=0.0)
+            + moco,
+            call(_REP_ONLY, 'base', lat, depth=k, reduce='sum', **cfg) + moco,
+            call(_REP_ONLY, 'base', lat, depth=k, reduce='mean', **cfg) + moco,
+            k)
+
+    @pytest.mark.parametrize('k', [1, 3])
+    def test_sigreg_enters_once(self, k):
+        """SIGReg reads the encoder latent alone. Its projections are drawn
+        fresh on every call, so this one passes a fixed set: a term that
+        changed between the three calls would hide what they measure."""
+        lat = _latents(_REP_ONLY, seed=41, depth=k)
+        o = lat[1]
+        g = torch.Generator().manual_seed(43)
+        proj = torch.randn(o.shape[-1], 8, generator=g, dtype=o.dtype)
+        proj = proj / proj.norm(dim=0, keepdim=True)
+        sig = float(sigreg_loss(o, projections=proj))
+        assert abs(sig) > 1e-9, 'the case carries no SIGReg to hold out'
+        cfg = {'align_loss_weight': 1.0}
+        reduction_identity(
+            call(_REP_ONLY, 'base', lat, depth=0, align_loss_weight=0.0) + sig,
+            call(_REP_ONLY, 'base', lat, depth=k, reduce='sum', **cfg) + sig,
+            call(_REP_ONLY, 'base', lat, depth=k, reduce='mean', **cfg) + sig,
+            k)
 
 
 class TestAuxiliaryFBearingTerms:
