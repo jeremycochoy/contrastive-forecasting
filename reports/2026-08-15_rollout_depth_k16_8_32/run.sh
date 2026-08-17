@@ -7,9 +7,9 @@
 #                on both, so it runs first and the numbers land in
 #                results/<reduce>/smoke_depth.csv.
 #   2. trial     the whole pipeline at a few hundred steps and one GIFT-Eval
-#                config, on a trial root. The head half of this study costs
-#                14 hours of backbone time before it runs for the first time,
-#                so it runs here first, in minutes.
+#                config, on a trial root. The head half of this study waits
+#                3.2 hours for the k = 8 arm's first stop, so it runs here
+#                first, in minutes.
 #   3. phase 1   two arms, k = 8 and k = 32, each to 40k / 100k / 200k
 #                backbone steps. One student head at 30,000 steps per stop,
 #                then that head's 97-config GIFT-Eval.

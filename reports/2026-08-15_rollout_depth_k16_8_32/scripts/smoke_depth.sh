@@ -95,15 +95,19 @@ else
   echo "$HEADER" >"$OUT"
 fi
 
-# Is this depth in the table already?
+# Is this (reduction, depth) in the table already? The reduction is half the
+# key: one depth costs two different numbers under the two objectives, and a
+# skip on the depth alone reported the mean's row as the sum's measurement.
 measured(){  # <k>
-  awk -F, -v k="$1" 'NR > 1 && $3 == k { hit = 1 } END { exit !hit }' "$OUT"
+  awk -F, -v red="$CF401_REDUCE" -v k="$1" \
+    'NR > 1 && $2 == red && $3 == k { hit = 1 } END { exit !hit }' "$OUT"
 }
 
-# Drop one depth's row, for a forced re-measure. The new row is appended by
-# run_one, so the depth keeps ONE row and the other depths keep theirs.
+# Drop one (reduction, depth) row, for a forced re-measure. The new row is
+# appended by run_one, so that cell keeps ONE row and every other row stays.
 drop_row(){  # <k>
-  awk -F, -v k="$1" 'NR == 1 || $3 != k' "$OUT" >"$OUT.tmp" \
+  awk -F, -v red="$CF401_REDUCE" -v k="$1" \
+    'NR == 1 || $2 != red || $3 != k' "$OUT" >"$OUT.tmp" \
     && mv -f "$OUT.tmp" "$OUT"
 }
 
@@ -115,7 +119,13 @@ log "neighbours at start: $(nvidia-smi --id="$BB_GPU" \
 run_one(){  # <k>
   local k="$1"
   local root="$SCRATCH/k${k}"
-  local suffix="_smoke401_k${k}"
+  # The runner builds its run name as `cf393_<cell>_cf373k<k>$RUN_SUFFIX`, so
+  # RUN_SUFFIX carries the whole tail — the reduction included. Passing the
+  # probe tag alone dropped `_mean` from the trainer's name while the reader
+  # below still looked for it through `cf401_run_name`, so every mean row
+  # landed with an empty step time and a `no trainer log` line. Under `sum`
+  # CF401_RUN_SUFFIX is empty and the name is what it always was.
+  local suffix="${CF401_RUN_SUFFIX}_smoke401_k${k}"
   local free tlog peak rc
   rm -rf "$root"; mkdir -p "$root"
   # The runner APPENDS to its trainer log. A second probe of the same depth
@@ -207,10 +217,10 @@ run_one(){  # <k>
 for k in $DEPTHS; do
   if measured "$k"; then
     if [ -z "${CF401_SMOKE_FORCE:-}" ]; then
-      log "SKIP k=$k — $OUT holds it (CF401_SMOKE_FORCE=1 to measure again)"
+      log "SKIP k=$k reduce=$CF401_REDUCE — $OUT holds it (CF401_SMOKE_FORCE=1 to measure again)"
       continue
     fi
-    log "k=$k is in $OUT and CF401_SMOKE_FORCE is set — replacing its row"
+    log "k=$k reduce=$CF401_REDUCE is in $OUT and CF401_SMOKE_FORCE is set — replacing its row"
     drop_row "$k"
   fi
   log "START k=$k reduce=$CF401_REDUCE steps=$STEPS gpu=$BB_GPU log_every=$LOG_EVERY"

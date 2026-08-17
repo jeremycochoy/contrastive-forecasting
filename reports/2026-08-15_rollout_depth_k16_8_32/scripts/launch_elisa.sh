@@ -1,17 +1,19 @@
 #!/bin/bash
 # #401 — elisa's role: every head, every 97-config GIFT-Eval, every figure.
 #
-# The study runs on four GPUs across two machines.
+# The study runs on four GPUs across two machines. This is the layout, and it
+# is not a choice left to the reader of a launch command.
 #
-#   rented box, 2 GPUs   the two backbone arms, one per card
+#   rented box, 2 GPUs   the two backbone arms, k = 8 and k = 32, one per card
 #                        (`scripts/launch_box.sh`). Backbones only: the eval
 #                        reads gift-eval-data and the gift_eval package, and
-#                        both live here.
+#                        both live here. The box's root is the SINGLE source
+#                        for backbones.
 #   elisa, GPU 0         this script. It trains one head per backbone stop as
 #                        the stop arrives through the sync loop, runs that
 #                        head's 97 GIFT-Eval configs on the CPU, and redraws
-#                        the figures. GPU 1 belongs to another session; add
-#                        it with HEAD_GPUS="0 1" once it frees.
+#                        the figures. GPU 1 belongs to another session and
+#                        this study does not take it.
 #
 # The three parts and their order:
 #
@@ -24,22 +26,27 @@
 #                        seconds, so a session that picks this up reads one
 #                        file and sees the current table.
 #
-# CF401_ROOT must be where the sync loop LANDS the box's checkpoints. The
-# loop pulls the remote runs root into `<LOCAL_DIR>/sync`, keeping the
-# relative tree, so that directory IS the root on this side.
+# The root is CF401_SYNC_ROOT, where the sync loop LANDS the box's tree. The
+# loop pulls the remote runs root into `<CF401_SYNC_DIR>/sync` keeping the
+# relative paths, so that directory IS the root on this side. It is never a
+# local checkpoints directory: a backbone under one root and a watcher on
+# another is an arm that climbs for 33 h and is never scored, which
+# `heads_watch.sh` refuses out loud.
 #
 # Everything is idempotent. Re-run this script after a reboot and every
 # scored cell is a no-op.
 #
 # Usage:
-#   CF401_ROOT=$HOME/cf401_sync/box_a/sync HEAD_GPUS="0" \
-#     nohup setsid bash scripts/launch_elisa.sh &
+#   HEAD_GPUS="0" nohup setsid bash scripts/launch_elisa.sh &
 #
-#   CF401_DRY_RUN=1 bash scripts/launch_elisa.sh   # print the plan
+#   CF401_ROOT=<other tree> bash scripts/launch_elisa.sh   # read another tree
+#   CF401_DRY_RUN=1 bash scripts/launch_elisa.sh           # print the plan
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CF401_ROOT_GIVEN="${CF401_ROOT:-}"
 . "$HERE/study.sh"
+cf401_use_root "$CF401_SYNC_ROOT"
 
 HEAD_GPUS="${HEAD_GPUS:-0}"
 FIGURE_EVERY="${FIGURE_EVERY:-1800}"
@@ -79,31 +86,23 @@ state(){  # <note>
 # The sync loop is the only thing that puts the box's checkpoints here, so a
 # missing loop is a study that never scores a cell.
 #
-# A loop runs `sync_loop.sh` as a script argument. `pgrep -f` also matches any
-# process that merely names the file on its command line, this check among
-# them, so the argument list decides and not the pattern. `wc -l` counts,
-# because `pgrep -c` prints 0 AND exits 1 when it matches nothing.
-sync_loops(){
-  local p n=0
-  for p in $(pgrep -f 'sync_loop\.sh' 2>/dev/null); do
-    [ "$p" = "$$" ] && continue
-    tr '\0' '\n' <"/proc/$p/cmdline" 2>/dev/null \
-      | grep -qx '.*/sync_loop\.sh' && n=$(( n + 1 ))
-  done
-  echo "$n"
-}
+# The loop this study needs is the one whose LOCAL ROOT is this study's, and
+# `cf401_sync_loops` identifies a loop by its working directory. elisa is
+# shared: a count over every `sync_loop.sh` on the machine reported another
+# study's pull as this one's.
+SYNC_LOCAL="${SYNC_LOCAL:-$CF401_SYNC_DIR}"
 
 sync_check(){
   local n
-  n="$(sync_loops)"
+  n="$(cf401_sync_loops "$SYNC_LOCAL")"
   if [ "$n" -ge 1 ]; then
-    log "sync: $n loop(s) running"
+    log "sync: $n loop(s) running for $SYNC_LOCAL"
   else
-    log "sync: NO sync_loop.sh runs. Start one before the box climbs:"
+    log "sync: NO sync_loop.sh runs for $SYNC_LOCAL. Start one before the box climbs:"
     log "  REMOTE_HOST=<ssh host> REMOTE_PORT=<port> \\"
     log "  REMOTE_DIR=/root/cf/reports/2026-08-15_rollout_depth_k16_8_32 \\"
-    log "  REMOTE_RUNS=/root/cf401_runs LOCAL_DIR=$(dirname "$CF401_ROOT") \\"
-    log "    bash sync/launch_sync.sh box_a"
+    log "  LOCAL_DIR=$SYNC_LOCAL \\"
+    log "    bash sync/launch_sync.sh $CF401_BOX_LABEL"
   fi
 }
 

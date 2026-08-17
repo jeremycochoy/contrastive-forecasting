@@ -18,24 +18,31 @@
 # phase 2 costs up to seven times as much per head. Phase 2 starts by itself
 # once every phase-1 cell of the pass holds a score.
 #
+# The root. Unset, it is the box's tree where the sync loop lands it
+# (CF401_SYNC_ROOT). The box owns both backbone arms, so on elisa the root is
+# never a local checkpoints directory — see study.sh, "Which machine owns which
+# arm".
+#
 # Concurrency. One head per GPU, through `head_eval_bb.sh`'s own VRAM gate and
-# its per-GPU lock. HEAD_GPUS is the card list: `0` while another session
-# holds GPU 1, `0 1` once it frees. The GIFT-Eval that follows each head runs
-# on the CPU, so several evals overlap without touching a card.
+# its per-GPU lock. HEAD_GPUS is the card list, and it is `0`: elisa GPU 1
+# belongs to another session and this study does not take it. The GIFT-Eval
+# that follows each head runs on the CPU, so several evals overlap without
+# touching a card.
 #
 # Everything is idempotent. A scored tag is a no-op, a trained head skips
 # straight to its eval, and an eval resumes per shard.
 #
 # Usage:
-#   CF401_ROOT=/home/jupyter/checkpoints_backup/cf-401-mean-box/sync \
-#     HEAD_GPUS="0" nohup setsid bash scripts/heads_watch.sh &
+#   HEAD_GPUS="0" nohup setsid bash scripts/heads_watch.sh &
 #
 #   ONCE=1 bash scripts/heads_watch.sh          # one pass, then exit
 #   CF401_DRY_RUN=1 bash scripts/heads_watch.sh # print the plan, run nothing
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CF401_ROOT_GIVEN="${CF401_ROOT:-}"
 . "$HERE/study.sh"
+cf401_use_root "$CF401_SYNC_ROOT"
 
 HEAD_GPUS="${HEAD_GPUS:-0}"
 POLL="${POLL:-300}"
@@ -47,6 +54,34 @@ log(){ echo "[$(date '+%m-%d %H:%M:%S')] [#401 heads] $*" | tee -a "$LOG"; }
 
 read -r -a gpu_list <<<"$HEAD_GPUS"
 [ "${#gpu_list[@]}" -ge 1 ] || { echo "ABORT: HEAD_GPUS is empty" >&2; exit 2; }
+
+# This watcher reads ONE root. A backbone arm of the same reduction that runs
+# on this machine under ANOTHER root is therefore an arm nothing here will ever
+# score, and a leg that climbs for 33 h unread is the most expensive failure
+# this card has. The layout has one tree for the backbones — the box's — so
+# this case is a mistake, not a configuration.
+#
+# It also takes the card. The heads run on elisa GPU 0, and a local backbone
+# arm holds that card, so every head of phase 1 would wait on
+# `head_eval_bb.sh`'s VRAM gate and time out.
+#
+# CF401_ALLOW_LOCAL_ARMS=1 waives it, for a session that means to score one
+# root while another climbs.
+guard_local_arms(){
+  local hit
+  [ -z "${CF401_ALLOW_LOCAL_ARMS:-}" ] || return 0
+  hit="$(cf401_running_legs | cf401_foreign_arm "$CF401_REDUCE" "$CF401_ROOT")" \
+    || return 0
+  echo "ABORT: a $CF401_REDUCE backbone arm runs on this machine under" >&2
+  echo "  another root. pid, reduction, root:" >&2
+  printf '  %s\n' "$hit" >&2
+  echo "  This watcher reads $CF401_ROOT, so those arms are never scored," >&2
+  echo "  and they hold the card the heads need." >&2
+  echo "  Stop them, point CF401_ROOT at their root, or set" >&2
+  echo "  CF401_ALLOW_LOCAL_ARMS=1 to score this root alone." >&2
+  return 3
+}
+guard_local_arms || exit $?
 
 # The score file one (depth, stop, head budget) writes, through the same tag
 # builder head_eval.sh and collect.sh use.

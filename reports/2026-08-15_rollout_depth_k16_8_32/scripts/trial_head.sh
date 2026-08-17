@@ -1,7 +1,8 @@
 #!/bin/bash
 # #401 — the whole pipeline, end to end, at a budget that finishes in minutes.
 #
-# Phase 1 spends 19 hours of backbone time before its first head runs. Every
+# Phase 1 spends 3.2 hours of backbone time before its first head runs — the
+# k = 8 arm's 40,000-step leg, at 288.4 ms (results/mean/leg_cost.csv). Every
 # defect in the head half — a wrong `CF373_ROOT`, a score file written where
 # collect.sh does not read, a phase-2 rule that refuses its own budget —
 # would appear after that. This runs the same scripts on the same machine

@@ -13,11 +13,17 @@
 # card's every CUDA call into error 804, and a `--help` gate on both trainers
 # so an ImportError shows up now and not at step 0 of a rented run.
 #
-# This wrapper adds ONE gate of its own, after that one passes: the box's
-# train.py must carry `--train-rollout-reduce`. That flag is this study's
-# whole protocol. A box bootstrapped from a checkout without it would train
-# the SUMMED objective, log nothing unusual, and produce 30 hours of the arm
-# this card already ran.
+# This wrapper adds TWO gates of its own, after that one passes.
+#
+#   `--train-rollout-reduce` on the box's train.py. That flag is this study's
+#   whole protocol. A box bootstrapped from a checkout without it would train
+#   the SUMMED objective, log nothing unusual, and produce 30 hours of the arm
+#   this card already ran.
+#
+#   The trainer writes its own command line. `run_arm_k.sh` reads the
+#   reduction off that line after a leg starts, and it is the only run-time
+#   proof that the flag arrived. A trainer that writes no command line leaves
+#   the check with nothing to read, on the machine where 33 hours are rented.
 #
 # Usage:
 #   WT=/tmp/contrastive-forecasting-401 bash scripts/bootstrap_box.sh <host> <port>
@@ -43,6 +49,7 @@ if [ -n "${CF401_DRY_RUN:-}" ]; then
   echo "  bootstrap=$BOOTSTRAP"
   echo "  EXTRA_PACK=$STUDY_REL/scripts"
   echo "  gate: train.py --help names --train-rollout-reduce"
+  echo "  gate: train.py writes 'Command line:'"
   exit 0
 fi
 
@@ -64,6 +71,15 @@ rsh "cd /root/cf && PYTHONPATH=/root/cf python3 \
   echo "  carries #401 and bootstrap again." >&2
   exit 6; }
 
+# The run-time proof. `run_arm_k.sh` reads the reduction out of this line.
+echo "[#401] gate: the box's train.py writes its own command line"
+rsh "grep -q 'Command line: ' \
+  /root/cf/experiments/2026-04-27_freq-embedding/scripts/train.py" || {
+  echo "ABORT: the box's train.py writes no command line, so no check" >&2
+  echo "  there can read which reduction a leg trains. Push the branch" >&2
+  echo "  that carries #401 and bootstrap again." >&2
+  exit 6; }
+
 # The study's own scripts, and #373's runner they call.
 rsh "test -f /root/cf/$STUDY_REL/scripts/study.sh" || {
   echo "ABORT: $STUDY_REL/scripts did not land on the box." >&2; exit 7; }
@@ -71,4 +87,4 @@ rsh "test -f /root/cf/$STUDY_REL/scripts/study.sh" || {
 echo "[#401] OK — $HOST:$PORT carries the trainer, the flag and the scripts"
 echo "  next: ssh -p $PORT root@$HOST"
 echo "        cd /root/cf/$STUDY_REL"
-echo "        CF401_ROOT=/root/cf401_runs nohup setsid bash scripts/launch_box.sh &"
+echo "        nohup setsid bash scripts/launch_box.sh &   # root: $CF401_BOX_RUNS"

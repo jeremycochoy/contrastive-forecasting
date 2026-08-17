@@ -7,30 +7,52 @@
 # head trained here would still wait for elisa to score it, so the heads run
 # on elisa, on the checkpoints the sync loop pulls (`scripts/heads_watch.sh`).
 #
-# One GPU per arm, both at once. k = 8 costs about 14 h to 200k steps and
-# k = 32 about 30 h, at the step times measured on an RTX 4090
-# (results/smoke_k16.csv). So the box finishes phase 1 in the time the
-# k = 32 arm takes, and the k = 8 card frees for anything queued after it.
+# The box owns BOTH backbone arms, k = 8 and k = 32, one GPU each. Its root is
+# the single source for backbones, and elisa reads that root through the sync
+# loop. No arm of this study trains anywhere else.
 #
-# Peak memory is 5.9 GiB per leg, measured, and it does not grow with the
-# depth. Two legs therefore fit one 24 GiB card, but they do not share one
-# here: two cards are free and one leg per card is faster.
+# One GPU per arm, both at once. k = 8 costs 16.0 h to 200k steps and k = 32
+# costs 32.0 h, at the step times THIS objective measured on an RTX 4090
+# (results/mean/leg_cost.csv: 288.4 ms and 575.9 ms). So the box finishes
+# phase 1 in the time the k = 32 arm takes, and the k = 8 card frees for
+# anything queued after it.
+#
+# Those two numbers are an upper bound: the two legs that measured them shared
+# one card (`concurrent_legs` = 2 in that table), and two legs on one card cost
+# about 8 percent each (results/concurrency.md). Here each arm has its own
+# card, so the box is faster than the plan, never slower.
+#
+# The summed arm's table (results/smoke_k16.csv) is NOT the one to size this
+# from. It measures the other objective — 257.1 ms and 530.5 ms, 14 h and 30 h
+# — and the mean adds one pass over the f-bearing terms at depth 0
+# (docs/train_rollout_depth.md).
+#
+# Card memory is 5.4 GiB at k = 8 and 5.5 GiB at k = 32, measured per process
+# under this objective, so it does not grow with the depth. Two legs therefore
+# fit one 24 GiB card, but they do not share one here: two cards are free and
+# one leg per card is faster.
 #
 # Everything is idempotent. A box that reboots loses the legs in flight and
 # nothing else: re-run this script and every finished stop is a no-op,
 # because a leg resumes the cell's furthest checkpoint with its optimizer
 # state.
 #
+# The root is CF401_BOX_RUNS, on the box's own disk. It is not a knob to
+# remember: the sync loop pulls THAT path, so a box that saved anywhere else
+# would climb for 33 h and never reach elisa.
+#
 # Usage, on the box, after bootstrap_box.sh:
 #   cd /root/cf/reports/2026-08-15_rollout_depth_k16_8_32
-#   CF401_ROOT=/root/cf401_runs nohup setsid bash scripts/launch_box.sh &
+#   nohup setsid bash scripts/launch_box.sh &
 #
 #   GPUS="0 1" bash scripts/launch_box.sh        # which cards to use
 #   CF401_DRY_RUN=1 bash scripts/launch_box.sh   # print the plan, run nothing
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CF401_ROOT_GIVEN="${CF401_ROOT:-}"
 . "$HERE/study.sh"
+cf401_use_root "$CF401_BOX_RUNS"
 
 # One card per arm, paired by position: the first depth takes the first GPU.
 # Both cards are free at once, so the order does not decide the wall clock.

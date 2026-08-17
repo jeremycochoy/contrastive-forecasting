@@ -62,9 +62,10 @@ CF401_HEAD_STEPS_P1=30000
 # head_eval.sh, the same #373 runner, head trainer and eval, and the same
 # refusals over the replaced lists.
 #
-# It exists because phase 1 spends 19 hours of backbone time before the head
-# half of this pipeline runs for the first time. A trial puts the first defect
-# minutes from the start instead of hours.
+# It exists because phase 1 trains the k = 8 arm to its first stop before the
+# head half of this pipeline runs at all: 40,000 steps at 288.4 ms is 3.2 hours
+# (results/mean/leg_cost.csv). A trial puts the first defect minutes from the
+# start instead of hours.
 #
 #   CF401_TRIAL=400 bash scripts/trial_head.sh
 #
@@ -83,6 +84,26 @@ CF401_STUDY="$(dirname "$CF401_SCRIPTS")"
 # checkpoint safety rule 4), and never #373's root — one root for two studies
 # is a sync loop that cannot tell their checkpoints apart.
 CF401_ROOT_DEFAULT="/home/jupyter/checkpoints_backup/cf-401"
+
+# ---- Which machine owns which arm --------------------------------------------
+#
+# The BOX owns both backbone arms, k = 8 and k = 32, one GPU each. Its root is
+# the single source for backbones. elisa owns every head and every 97-config
+# GIFT-Eval, on GPU 0. elisa GPU 1 belongs to another session.
+#
+# So the two machines read two different roots, and the two are ONE tree: the
+# box saves to CF401_BOX_RUNS on its own disk, the sync loop pulls that tree
+# into CF401_SYNC_DIR keeping the relative paths, and CF401_SYNC_ROOT is what
+# elisa reads. Each launcher takes its own role's root through
+# `cf401_use_root`.
+#
+# Two roots that are NOT one tree is the failure this layout removes: a
+# `heads_watch.sh` reads one CF401_ROOT, so a second arm elsewhere climbs for
+# 33 h and is never scored. `cf401_foreign_arm` refuses that case out loud.
+CF401_BOX_LABEL="${CF401_BOX_LABEL:-box_a}"
+CF401_BOX_RUNS="${CF401_BOX_RUNS:-/root/cf401_runs}"
+CF401_SYNC_DIR="${CF401_SYNC_DIR:-$HOME/cf401_sync/$CF401_BOX_LABEL}"
+CF401_SYNC_ROOT="${CF401_SYNC_ROOT:-$CF401_SYNC_DIR/sync}"
 
 # The mean arm writes nowhere the summed arm wrote. Four names carry the
 # reduction: the checkpoint root, the results directory, the plots directory
@@ -165,13 +186,19 @@ cf401_leg_dir(){  # <k> <stop steps>
     "$(( ${2:?stop} / 1000 ))"
 }
 
-# The checkpoint a stop produced, or nothing. The `*` tolerates train.py's
-# `_rN` infix on a re-fired leg.
+# The checkpoint a stop produced, or nothing.
+#
+# Two names, not one glob. `<name>_<N>k.pth` is the leg's own, and
+# `<name>_r<N>_<N>k.pth` is train.py's `_rN` infix on a re-fired leg
+# (`safe_run_name`). A trailing `*` would take BOTH names, and one more: the
+# summed arm's name is a prefix of the mean arm's, so `sum`'s glob would
+# resolve to `..._mean_40k.pth` and score the other objective's backbone.
 cf401_bb_ckpt(){  # <k> <stop steps>
-  local dir name
+  local dir name kk
   dir="$(cf401_leg_dir "${1:?k}" "${2:?stop}")"
   name="$(cf401_run_name "$1")"
-  ls "$dir/$name"*_"$(( $2 / 1000 ))"k.pth 2>/dev/null \
+  kk=$(( $2 / 1000 ))
+  ls "$dir/$name"_"$kk"k.pth "$dir/$name"_r[0-9]*_"$kk"k.pth 2>/dev/null \
     | grep -v optimizer | head -1
 }
 
@@ -231,6 +258,153 @@ cf401_depth_cols(){  # <runs root>
   # `grep -c` prints 0 and exits 1 when it matches nothing, which is the
   # normal k = 0 case. The count is the answer, so the status is dropped.
   head -1 "$csv" | tr -d '\r' | tr ',' '\n' | grep -c '^cos_err_d[0-9]*$' || true
+}
+
+# ---- What the trainer of a leg actually runs ----------------------------------
+#
+# The depth has a proof in the artefacts: `cf401_depth_cols` counts the
+# `cos_err_dj` columns. The REDUCTION has none. A mean leg that trained the sum
+# writes the same file names, the same columns and the same log lines.
+#
+# The trainer's own command line is the one place that names it. Nothing else
+# does: the reduction rides in through `GAP_ARGS` and the root through
+# `--save-dir`, so neither is in a wrapper's argv. train.py writes that command
+# line as the first line of every run's log, and the functions below read it
+# from the log (this leg, and every earlier one) or from /proc (a leg that runs
+# now, whoever started it).
+
+# The reduction a trainer command line names. `sum` when it carries no flag,
+# because `sum` is train.py's own default — so a line with no flag trains it.
+# Reads the command line on stdin, NUL-separated (a /proc cmdline) or
+# space-separated (a log line). Both `--flag value` and `--flag=value` forms.
+cf401_reduce_of_cmdline(){
+  tr '\0 ' '\n\n' | awk -F= '
+    $1 == "--train-rollout-reduce" {
+      if (NF > 1) { print $2 } else { getline; print }
+      found = 1; exit }
+    END { if (!found) print "sum" }'
+}
+
+# The runs root a leg's `--save-dir` implies, or nothing when the path is not
+# THIS study's layout. `run_leg_k.sh` saves to <root>/k<K>/<cell>/leg_<N>k, so
+# three levels come off. #373's own legs save one level shallower and do not
+# match, which is what keeps the guards below off another study's runs.
+cf401_root_of_save_dir(){  # <save dir>
+  local d="${1:-}" leg cell arm
+  d="${d%/}"
+  leg="${d##*/}";  d="${d%/*}"
+  cell="${d##*/}"; d="${d%/*}"
+  arm="${d##*/}";  d="${d%/*}"
+  case "$leg" in leg_[0-9]*k) ;; *) return 1 ;; esac
+  [ "$cell" = "$CF401_CELL" ] || return 1
+  case "$arm" in k[0-9]*) ;; *) return 1 ;; esac
+  [ -n "$d" ] || return 1
+  printf '%s\n' "$d"
+}
+
+# Every leg of this study's layout that runs on THIS machine, as
+# `<pid> <reduction> <runs root>`.
+cf401_running_legs(){
+  local pid cmd save red root
+  for pid in $(pgrep -f 'train\.py' 2>/dev/null); do
+    [ -r "/proc/$pid/cmdline" ] || continue
+    cmd="$(tr '\0' '\n' <"/proc/$pid/cmdline" 2>/dev/null)"
+    save="$(printf '%s\n' "$cmd" | awk -F= '
+      $1 == "--save-dir" { if (NF > 1) { print $2 } else { getline; print }
+                           exit }')"
+    [ -n "$save" ] || continue
+    root="$(cf401_root_of_save_dir "$save")" || continue
+    red="$(printf '%s\n' "$cmd" | cf401_reduce_of_cmdline)"
+    printf '%s %s %s\n' "$pid" "$red" "$root"
+  done
+}
+
+# Every leg that trains THIS reduction under ANOTHER root. Prints one line per
+# leg and returns 0 when it found any, so a caller can both refuse and name
+# what it refused. Reads `<pid> <reduction> <root>` lines on stdin, so the
+# caller decides where the list comes from.
+#
+# A leg of the other reduction is not this arm's business: the two arms share
+# no file. A leg under the same root is the normal case — on the box the arms
+# and the root are one tree, and on elisa the root is that tree as the sync
+# loop lands it.
+cf401_foreign_arm(){  # <reduction> <root>
+  local want="${1:?reduction}" mine="${2:?root}" list pid red root hits=0
+  mine="${mine%/}"
+  # The list is read whole first. `read` needs a final newline, and a caller
+  # that pipes one line without one would otherwise look like an empty list —
+  # which is the answer "nothing is running", the opposite of what it holds.
+  list="$(cat)"
+  [ -n "$list" ] || return 1
+  while read -r pid red root; do
+    [ -n "$pid" ] || continue
+    [ "$red" = "$want" ] || continue
+    [ "${root%/}" = "$mine" ] && continue
+    printf '%s %s %s\n' "$pid" "$red" "$root"
+    hits=$(( hits + 1 ))
+  done <<<"$list"
+  [ "$hits" -gt 0 ]
+}
+
+# The root a machine's ROLE implies: CF401_BOX_RUNS on the box, which owns both
+# backbone arms, and CF401_SYNC_ROOT on elisa, which reads that tree.
+#
+# Called by a launcher that captured `CF401_ROOT_GIVEN` BEFORE it sourced this
+# file, so an operator's own root still wins and this default is not mistaken
+# for one. Exported, because the launcher's children source this file again.
+cf401_use_root(){  # <root>
+  CF401_ROOT="${CF401_ROOT_GIVEN:-${1:?root}}"
+  export CF401_ROOT
+}
+
+# The log #373's runner writes a leg's trainer output to.
+cf401_leg_log(){  # <k>
+  printf '%s/run_%s.log\n' "$CF401_RESULTS" "$(cf401_run_name "${1:?k}")"
+}
+
+# How many command lines a leg log holds. The runner APPENDS, so a resumed
+# cell's log carries one per leg. A caller that counts before it starts a leg
+# knows when THIS leg's line has landed.
+cf401_cmdlines(){  # <trainer log>
+  grep -c '^Command line:' "${1:?log}" 2>/dev/null || true
+}
+
+# The reduction the trainer of this leg runs, out of the LAST command line in
+# its log. Prints nothing, and returns non-zero, when the log holds none.
+cf401_leg_reduce(){  # <trainer log>
+  local line
+  line="$(grep '^Command line:' "${1:?log}" 2>/dev/null | tail -1)"
+  [ -n "$line" ] || return 1
+  printf '%s' "${line#Command line: }" | cf401_reduce_of_cmdline
+}
+
+# Every process under a tree, leaves first, so a signal reaches the trainer
+# before the wrapper that would otherwise report its death first.
+cf401_kill_tree(){  # <pid>
+  local kid
+  for kid in $(pgrep -P "${1:?pid}" 2>/dev/null); do cf401_kill_tree "$kid"; done
+  kill -TERM "$1" 2>/dev/null
+}
+
+# How many sync loops run for ONE local root, identified by their working
+# directory. elisa is shared: another study's loop is not this study's, and a
+# count over every `sync_loop.sh` on the machine reports a pull that is not
+# happening.
+#
+# `pgrep -f` also matches a process that merely NAMES the file on its command
+# line, this check among them, so the argument list decides and not the
+# pattern. `wc -l`, because `pgrep -c` prints 0 AND exits 1 on no match.
+cf401_sync_loops(){  # <local dir>
+  local want="${1:?local dir}" p n=0
+  want="${want%/}"
+  for p in $(pgrep -f 'sync_loop\.sh' 2>/dev/null); do
+    [ "$p" = "$$" ] && continue
+    tr '\0' '\n' <"/proc/$p/cmdline" 2>/dev/null \
+      | grep -qx '.*/sync_loop\.sh' || continue
+    [ "$(readlink "/proc/$p/cwd" 2>/dev/null)" = "$want" ] || continue
+    n=$(( n + 1 ))
+  done
+  echo "$n"
 }
 
 # Every guard prints what it refused. A depth or a stop that is not the

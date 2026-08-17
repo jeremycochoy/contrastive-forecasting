@@ -11,8 +11,8 @@
 # artefacts need, measured against this exact backbone and this exact head
 # arch. A copy here would be a second set of floors to keep in step.
 #
-# REMOTE_RUNS is this study's root, and this study saves ONE LEVEL DEEPER
-# than #373: `$CF401_ROOT/k<K>/<cell>/leg_<N>k/`, because `cf401_arm_root`
+# REMOTE_RUNS is the BOX's root, `CF401_BOX_RUNS`, and this study saves ONE
+# LEVEL DEEPER than #373: `<root>/k<K>/<cell>/leg_<N>k/`, because `cf401_arm_root`
 # adds the depth. A loop that walked a fixed depth would pull nothing, and
 # the first-tick check below would say so only after 10 minutes. It does not:
 # `remote_listing` runs `find <dir> -type f` with no `-maxdepth`, and
@@ -41,6 +41,16 @@ LOOP="$CF401_PARENT/sync/sync_loop.sh"
 SAFE_PULL="${SAFE_PULL:-$CF401_REPO/experiments/2026-04-27_periodic-synth-mix/scripts/safe_pull.sh}"
 LOCAL_DIR="${LOCAL_DIR:-$HOME/cf401_sync/$LABEL}"
 INTERVAL="${INTERVAL:-900}"
+# REMOTE_RUNS is a directory on the BOX. `CF401_ROOT` is the LOCAL one — on
+# elisa it is where this loop lands the tree — so a default taken from it made
+# the loop ask the box for elisa's own path and pull nothing.
+REMOTE_RUNS="${REMOTE_RUNS:-$CF401_BOX_RUNS}"
+case "$REMOTE_RUNS" in
+  /root/*) ;;
+  *) echo "ABORT: REMOTE_RUNS=$REMOTE_RUNS is not a path on the box." >&2
+     echo "  The box saves under $CF401_BOX_RUNS." >&2
+     exit 2 ;;
+esac
 
 [ -f "$LOOP" ] || { echo "ABORT: no sync loop at $LOOP" >&2; exit 2; }
 [ -f "$SAFE_PULL" ] || { echo "ABORT: no safe_pull.sh at $SAFE_PULL" >&2; exit 2; }
@@ -64,7 +74,7 @@ done
 mkdir -p "$LOCAL_DIR"
 cd "$LOCAL_DIR" || exit 2
 REMOTE_HOST="$REMOTE_HOST" REMOTE_PORT="${REMOTE_PORT:-22}" \
-REMOTE_DIR="$REMOTE_DIR" REMOTE_RUNS="${REMOTE_RUNS:-$CF401_ROOT}" \
+REMOTE_DIR="$REMOTE_DIR" REMOTE_RUNS="$REMOTE_RUNS" \
 LOCAL_DIR="$LOCAL_DIR" SSH_USER="${SSH_USER:-root}" \
 SAFE_PULL="$SAFE_PULL" INTERVAL="$INTERVAL" \
   nohup setsid bash "$LOOP" >"$LOCAL_DIR/sync_loop.log" 2>&1 &

@@ -923,13 +923,17 @@ class TestSmokeTableIsKept:
     HEADER = ("cell,reduce,k,steps,windows,data_ms,fwd_ms,bwd_ms,total_ms,"
               "sps,peak_mib,depth_cols,card_free_mib,rc")
 
-    def table(self, results, depths=(0, 8)):
-        """A measured table in this stage's own schema."""
+    def table(self, results, depths=(0, 8), reduce="sum"):
+        """A measured table in this stage's own schema.
+
+        The reduction is the run's own: it is half the key of a row, because
+        one depth costs two different numbers under the two objectives.
+        """
         results.mkdir(parents=True, exist_ok=True)
         path = results / "smoke_depth.csv"
         rows = [self.HEADER]
         for k in depths:
-            rows.append(f"{CELL},mean,{k},300,2,1,2,3,{100 + k},5,5400,"
+            rows.append(f"{CELL},{reduce},{k},300,2,1,2,3,{100 + k},5,5400,"
                         f"{k + 1 if k else 0},19000,0")
         path.write_text("\n".join(rows) + "\n")
         return path
@@ -1339,7 +1343,7 @@ TRIAL = EXP / "scripts" / "trial_head.sh"
 class TestTrialMode:
     """The pre-merge checklist wants an end-to-end run on representative input.
 
-    Phase 1 spends 19 hours of backbone time before its first head runs, so
+    Phase 1 spends 3.2 hours of backbone time before its first head runs, so
     the study carries a documented budget override and a script that drives
     the whole pipeline through it.
     """
@@ -1761,8 +1765,13 @@ class TestTwoMachines:
 
     # ---- elisa ----
 
-    def stops_on_disk(self, root, pairs, run_suffix=f"_{REDUCE}"):
-        """Backbone checkpoints where `cf401_bb_ckpt` looks for them."""
+    def stops_on_disk(self, root, pairs, run_suffix=""):
+        """Backbone checkpoints where `cf401_bb_ckpt` looks for them.
+
+        The suffix is the reduction's, and it is not decoration: `sum`'s run
+        name is a PREFIX of `mean`'s, so a summed arm must not find a `_mean`
+        checkpoint here either.
+        """
         for k, stop in pairs:
             leg = (root / f"k{k}" / CELL / f"leg_{stop // 1000}k")
             leg.mkdir(parents=True, exist_ok=True)
@@ -1777,6 +1786,7 @@ class TestTwoMachines:
         for tag in scored:
             (res / f"score_{tag}.txt").write_text("1.0700\n")
         full = {"CF401_DRY_RUN": "1", "CF401_REDUCE": "sum",
+                "CF401_ALLOW_LOCAL_ARMS": "1",
                 "CF401_ROOT": str(root), "CF401_RESULTS": str(res)}
         full.update(env or {})
         out = run_sh(HEADS_WATCH, env=full)
@@ -1828,9 +1838,11 @@ class TestTwoMachines:
         """`pgrep -f` also matches a process that only NAMES the file, the
         check itself among them, and `pgrep -c` prints 0 AND exits 1 when it
         matches nothing. Both would report a loop that is not there."""
-        code = strip_comments(LAUNCH_ELISA.read_text())
+        code = strip_comments(STUDY_SH.read_text())
         assert "/proc/$p/cmdline" in code, "the check trusts the pattern alone"
-        assert "pgrep -fc" not in code and "pgrep -c" not in code
+        for path in (STUDY_SH, LAUNCH_ELISA):
+            body = strip_comments(path.read_text())
+            assert "pgrep -fc" not in body and "pgrep -c" not in body
 
     # ---- the box, before it trains ----
 
@@ -1876,3 +1888,671 @@ class TestTwoMachines:
         """CLAUDE.md: vastrun-kit only. The account is shared."""
         code = strip_comments(script.read_text())
         assert not re.search(r"(^|[\s;|&(])vastai\b", code), script.name
+
+
+# --- 17. Which machine owns which arm ----------------------------------------
+
+
+COST_TABLE = EXP / "results" / REDUCE / "leg_cost.csv"
+COST_FROM_LOG = EXP / "scripts" / "cost_from_log.py"
+COMPARE_PY = EXP / "scripts" / "compare_arms.py"
+PLOT_COMPARE = EXP / "scripts" / "plot_arm_compare.py"
+
+# A trainer command line, as `/proc` and the leg log both hold it.
+TRAINER_ARGS = ["python3", "-u", "train.py", "--batch-size", "64",
+                "--save-dir", "", "--run-name", "x",
+                "--train-rollout-depth", "8"]
+
+
+def trainer_cmdline(save_dir, reduce=REDUCE, equals=False):
+    """The argv of one leg, with or without the reduction flag."""
+    args = list(TRAINER_ARGS)
+    args[args.index("--save-dir") + 1] = str(save_dir)
+    if reduce is None:
+        return args
+    if equals:
+        return args + [f"--train-rollout-reduce={reduce}"]
+    return args + ["--train-rollout-reduce", reduce]
+
+
+def save_dir_of(root, k=8, stop=40_000, cell=CELL):
+    return f"{root}/k{k}/{cell}/leg_{stop // 1000}k"
+
+
+class TestTheLayoutIsWrittenIn:
+    """The box owns both backbone arms. elisa owns every head and every eval.
+
+    Both machines source study.sh, so the decision cannot be one default.
+    What it can be: elisa's root is where the sync loop LANDS the box's tree,
+    and elisa refuses to score one root while a backbone arm of the same
+    reduction climbs under another one.
+    """
+
+    def test_the_box_runs_root_is_a_remote_path(self):
+        """The box saves to its own disk. A local path here would make the
+        sync loop pull elisa's own directory onto elisa."""
+        root = study_value("CF401_BOX_RUNS")
+        assert root.startswith("/root/"), root
+
+    def test_the_box_saves_where_the_sync_loop_pulls_from(self):
+        """The loop pulls CF401_BOX_RUNS. A box launched without the variable
+        used to save under elisa's own default, which nothing pulls."""
+        out = run_sh(LAUNCH_BOX, env={"CF401_DRY_RUN": "1"})
+        assert out.returncode == 0, out.stderr
+        root = re.search(r"root=(\S+)", out.stdout).group(1)
+        assert root == study_value("CF401_BOX_RUNS"), out.stdout
+
+    def test_elisa_reads_the_boxs_tree_and_not_a_local_root(self):
+        """The sync loop keeps the relative tree under `<LOCAL_DIR>/sync`, so
+        that directory IS the root on elisa's side."""
+        sync_root = study_value("CF401_SYNC_ROOT")
+        assert sync_root.endswith("/sync"), sync_root
+        out = run_sh(LAUNCH_ELISA, env={"CF401_DRY_RUN": "1"})
+        assert out.returncode == 0, out.stderr
+        root = re.search(r"root=(\S+)", out.stdout).group(1)
+        assert root == sync_root, out.stdout
+        assert "checkpoints_backup" not in root, (
+            "elisa would read a local checkpoints root, not the box's tree")
+
+    def test_a_root_given_on_the_command_line_still_wins(self, tmp_path):
+        out = run_sh(LAUNCH_ELISA, env={"CF401_DRY_RUN": "1",
+                                       "CF401_ROOT": str(tmp_path / "given")})
+        assert out.returncode == 0, out.stderr
+        assert f"root={tmp_path / 'given'}" in out.stdout, out.stdout
+
+    def test_the_watcher_reads_the_boxs_tree_too(self):
+        """`heads_watch.sh` run on its own has to land on the same root as
+        `launch_elisa.sh`, or a session that starts the watcher directly
+        scores a different tree."""
+        out = run_sh(HEADS_WATCH, env={"CF401_DRY_RUN": "1",
+                                      "CF401_ALLOW_LOCAL_ARMS": "1"})
+        assert out.returncode == 0, out.stderr
+        root = re.search(r"root=(\S+)", out.stdout).group(1)
+        assert root == study_value("CF401_SYNC_ROOT"), out.stdout
+
+    def test_the_heads_take_gpu_0_only(self):
+        """elisa GPU 1 belongs to another session."""
+        code = HEADS_WATCH.read_text()
+        assert re.search(r'HEAD_GPUS="\$\{HEAD_GPUS:-0\}"', code)
+        for path in (LAUNCH_ELISA, HEADS_WATCH):
+            assert "another session" in path.read_text(), path.name
+
+    def test_the_box_launcher_names_the_arms_it_owns(self):
+        """The header is where the next reader learns the layout."""
+        head = LAUNCH_BOX.read_text()
+        assert "k = 8" in head and "k = 32" in head
+
+
+class TestWhatTheTrainerOfALegRuns:
+    """The reduction and the root, read off the trainer's own command line.
+
+    Neither is in the wrapper's argv: the reduction rides in through
+    `GAP_ARGS` and the root through `--save-dir`. The command line is the one
+    place that names both.
+    """
+
+    def reduce_of(self, args):
+        joined = " ".join(args)
+        out = study_call(f'printf "%s" {joined!r} | cf401_reduce_of_cmdline')
+        assert out.returncode == 0, out.stderr
+        return out.stdout.strip()
+
+    @pytest.mark.parametrize("reduce", ["sum", "mean"])
+    @pytest.mark.parametrize("equals", [False, True])
+    def test_it_reads_the_reduction_the_line_names(self, reduce, equals):
+        assert self.reduce_of(
+            trainer_cmdline("/x/k8/c/leg_40k", reduce, equals)) == reduce
+
+    def test_a_line_without_the_flag_reads_as_the_sum(self):
+        """`sum` is train.py's own default, so a leg with no flag trains it."""
+        assert self.reduce_of(trainer_cmdline("/x", reduce=None)) == "sum"
+
+    def test_the_root_comes_off_the_save_dir(self):
+        out = study_call(
+            f'cf401_root_of_save_dir {save_dir_of("/runs/cf-401-mean")!r}')
+        assert out.returncode == 0, out.stderr
+        assert out.stdout.strip() == "/runs/cf-401-mean"
+
+    @pytest.mark.parametrize("path", [
+        "/runs/cf-373/arm6_v2_combab_alignS/leg_40k",     # #373's own layout
+        "/runs/cf-401-mean/k8/other_cell/leg_40k",        # another cell
+        "/runs/cf-401-mean/k8/arm6_v2_combab_alignS/eval",
+        "/runs",
+    ])
+    def test_a_path_that_is_not_this_studys_layout_is_refused(self, path):
+        """The guard must not fire on another study's legs."""
+        out = study_call(f'cf401_root_of_save_dir {path!r}')
+        assert out.returncode != 0, out.stdout
+
+    def test_a_live_leg_is_listed_with_its_reduction_and_its_root(self, tmp_path):
+        """The /proc walk, against a real process."""
+        fake = tmp_path / "train.py"
+        fake.write_text("import sys, time\ntime.sleep(120)\n")
+        save = save_dir_of(str(tmp_path / "runs"))
+        proc = subprocess.Popen(
+            [sys.executable, str(fake), *trainer_cmdline(save)[3:]],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        try:
+            out = study_call('cf401_running_legs')
+            assert out.returncode == 0, out.stderr
+            rows = [ln.split() for ln in out.stdout.splitlines()]
+            mine = [r for r in rows if r[0] == str(proc.pid)]
+            assert mine, out.stdout
+            assert mine[0][1:] == [REDUCE, str(tmp_path / "runs")], mine
+        finally:
+            proc.kill()
+            proc.wait(timeout=30)
+
+    def test_a_leg_of_another_study_is_not_listed(self, tmp_path):
+        fake = tmp_path / "train.py"
+        fake.write_text("import sys, time\ntime.sleep(120)\n")
+        save = f"{tmp_path}/runs/{CELL}/leg_40k"          # #373's layout
+        proc = subprocess.Popen(
+            [sys.executable, str(fake), *trainer_cmdline(save)[3:]],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        try:
+            out = study_call('cf401_running_legs')
+            assert str(proc.pid) not in out.stdout, out.stdout
+        finally:
+            proc.kill()
+            proc.wait(timeout=30)
+
+
+class TestTheHeadWatcherRefusesASecondRoot:
+    """A box that climbs for 33 h and is then not read is the most expensive
+    failure this card has. The watcher reads ONE root, so a backbone arm of
+    the same reduction under another root on this machine is refused."""
+
+    def foreign(self, lines, reduce=REDUCE, root="/runs/cf-401-mean"):
+        joined = "\n".join(lines)
+        return study_call(
+            f'printf "%s" {joined!r} | cf401_foreign_arm {reduce} {root}')
+
+    def test_an_arm_under_another_root_is_named(self):
+        out = self.foreign(["4242 mean /runs/other"])
+        assert out.returncode == 0, out.stdout
+        assert "4242" in out.stdout and "/runs/other" in out.stdout
+
+    def test_an_arm_under_this_root_is_not(self):
+        """The box's own arms arrive here through the sync loop. On the box
+        itself the arms and the root are the same tree."""
+        assert self.foreign(["4242 mean /runs/cf-401-mean"]).returncode != 0
+
+    def test_a_trailing_slash_is_the_same_root(self):
+        assert self.foreign(["4242 mean /runs/cf-401-mean/"]).returncode != 0
+
+    def test_an_arm_of_the_other_reduction_is_not_refused(self):
+        """The summed arm is stopped, and a run of it writes nowhere this
+        protocol writes. It is not this watcher's business."""
+        assert self.foreign(["4242 sum /runs/cf-401"]).returncode != 0
+
+    def test_nothing_running_is_not_refused(self):
+        assert self.foreign([]).returncode != 0
+
+    def test_the_watcher_calls_the_guard(self):
+        code = strip_comments(HEADS_WATCH.read_text())
+        assert "cf401_foreign_arm" in code, "nothing checks for a second root"
+        assert "CF401_ALLOW_LOCAL_ARMS" in code, "the guard cannot be waived"
+
+    def test_the_watcher_refuses_while_a_local_arm_runs(self, tmp_path):
+        """End to end: a live leg of this reduction under another root."""
+        fake = tmp_path / "train.py"
+        fake.write_text("import sys, time\ntime.sleep(120)\n")
+        save = save_dir_of(str(tmp_path / "other_runs"))
+        proc = subprocess.Popen(
+            [sys.executable, str(fake), *trainer_cmdline(save)[3:]],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        try:
+            env = {"CF401_DRY_RUN": "1", "CF401_ROOT": str(tmp_path / "runs"),
+                   "CF401_RESULTS": str(tmp_path / "res")}
+            out = run_sh(HEADS_WATCH, env=env)
+            assert out.returncode != 0, out.stdout
+            assert str(tmp_path / "other_runs") in out.stderr, out.stderr
+            waived = run_sh(HEADS_WATCH,
+                            env={**env, "CF401_ALLOW_LOCAL_ARMS": "1"})
+            assert waived.returncode == 0, waived.stderr
+        finally:
+            proc.kill()
+            proc.wait(timeout=30)
+
+
+class TestTheLegProvesItsReduction:
+    """A mean leg that trained the sum writes the same file names, the same
+    columns and the same log lines. The depth has `cf401_depth_cols`; this is
+    the reduction's proof, read off the trainer's own command line."""
+
+    def test_the_trainer_writes_its_command_line(self, tmp_path):
+        """One line, at startup, so the check reads it in the first minute
+        of a 33-hour leg instead of at the end."""
+        out = subprocess.run(
+            [sys.executable, "-u",
+             str(REPO_ROOT / "experiments" / "2026-04-27_freq-embedding"
+                 / "scripts" / "train.py"),
+             "--device", "cpu", "--total-steps", "1", "--batch-size", "2",
+             "--lr", "1e-3", "--weight-decay", "0.1",
+             "--save-dir", str(tmp_path), "--run-name", "cmdline_probe",
+             "--mix-ratio", "1.0", "--synth-kind", "periodic",
+             "--t-raw", "64", "--n-channels", "1", "--d-model", "32",
+             "--n-heads", "2", "--num-layers", "1", "--num-encoder-layers", "1",
+             "--log-every", "1", "--seed", "42",
+             "--hf-repo", "none", "--hf-path", "none",
+             "--train-rollout-reduce", "mean"],
+            capture_output=True, text=True, cwd=str(tmp_path), timeout=900,
+            env={**os.environ, "PYTHONPATH": str(REPO_ROOT)})
+        assert out.returncode == 0, out.stdout[-3000:] + out.stderr[-3000:]
+        lines = [ln for ln in out.stdout.splitlines()
+                 if ln.startswith("Command line:")]
+        assert len(lines) == 1, out.stdout[:2000]
+        assert "--train-rollout-reduce mean" in lines[0], lines[0]
+
+    def log_with(self, results, k, reduce):
+        """A leg log as the runner leaves it, with its command line."""
+        results.mkdir(parents=True, exist_ok=True)
+        name = study_call(f'cf401_run_name {k}').stdout.strip()
+        log = results / f"run_{name}.log"
+        args = trainer_cmdline(save_dir_of("/runs", k), reduce)
+        log.write_text("Command line: " + " ".join(args) + "\n")
+        return log
+
+    @pytest.mark.parametrize("reduce", ["sum", "mean"])
+    def test_it_reads_the_reduction_out_of_the_leg_log(self, tmp_path, reduce):
+        log = self.log_with(tmp_path / "res", 8, reduce)
+        out = study_call(f'cf401_leg_reduce {str(log)!r}')
+        assert out.returncode == 0, out.stderr
+        assert out.stdout.strip() == reduce
+
+    def test_the_last_command_line_is_the_one_read(self, tmp_path):
+        """The runner APPENDS to the log, so a resumed cell's log holds every
+        leg's line. This leg's is the last."""
+        log = self.log_with(tmp_path / "res", 8, "sum")
+        args = trainer_cmdline(save_dir_of("/runs", 8), "mean")
+        with open(log, "a") as fh:
+            fh.write("  timing: data=1ms  fwd=2ms  bwd=3ms  total=6ms\n")
+            fh.write("Command line: " + " ".join(args) + "\n")
+        out = study_call(f'cf401_leg_reduce {str(log)!r}')
+        assert out.stdout.strip() == "mean", out.stdout
+
+    def test_a_log_with_no_command_line_says_nothing(self, tmp_path):
+        (tmp_path / "run.log").write_text("Device: cpu | Params: 1\n")
+        out = study_call(f'cf401_leg_reduce {str(tmp_path / "run.log")!r}')
+        assert out.returncode != 0, out.stdout
+        assert out.stdout.strip() == ""
+
+    # ---- the guard in run_arm_k.sh ----
+
+    def arm(self, study, tmp_path, runner_body, k=8, env=None):
+        """`run_arm_k.sh` against a stub of #373's runner."""
+        parent = (tmp_path / "reports" / PARENT.name / "scripts")
+        stub_script(parent / "run_leg_k.sh", runner_body)
+        full = {"CF401_RESULTS": str(tmp_path / "res"),
+                "CF401_ROOT": str(tmp_path / "runs"),
+                "CF401_REDUCE_CHECK_TIMEOUT": "60"}
+        full.update(env or {})
+        out = run_sh(study / "scripts" / "run_arm_k.sh", k, 40_000, env=full)
+        return out, (tmp_path / "res" / "arms.log").read_text()
+
+    # The stub writes the command line the way run_leg_k.sh's trainer does,
+    # into the log this study's own helper names, then holds the leg open.
+    STUB = """
+log="$CF_RESULTS/run_cf393_${1}_cf373k${K}${RUN_SUFFIX}.log"
+mkdir -p "$CF_RESULTS"
+echo "Command line: python3 train.py --save-dir $RUNS/$1/leg_40k REDUCE" >>"$log"
+sleep 30
+"""
+
+    def test_a_leg_that_carries_the_flag_runs(self, stub_study, tmp_path):
+        body = self.STUB.replace(
+            "REDUCE", f"--train-rollout-reduce {REDUCE}").replace(
+            "sleep 30", "exit 0")
+        out, log = self.arm(stub_study, tmp_path, body)
+        assert out.returncode == 0, out.stdout + out.stderr
+        assert f"reduce={REDUCE} OK" in log, log
+
+    def test_a_leg_that_lost_the_flag_is_stopped(self, stub_study, tmp_path):
+        out, log = self.arm(stub_study, tmp_path,
+                            self.STUB.replace(" REDUCE", ""))
+        assert out.returncode != 0, out.stdout
+        assert "train-rollout-reduce" in out.stderr, out.stderr
+        assert "sum" in out.stderr, "the abort does not name what it read"
+        assert "STOPPED" in log, log
+
+    def test_a_leg_that_trains_the_other_reduction_is_stopped(
+            self, stub_study, tmp_path):
+        out, _ = self.arm(stub_study, tmp_path,
+                          self.STUB.replace("REDUCE",
+                                            "--train-rollout-reduce sum"))
+        assert out.returncode != 0, out.stdout
+
+    def test_a_runner_that_skips_the_leg_is_not_stopped(self, stub_study,
+                                                       tmp_path):
+        """`run_leg_k.sh` exits 0 without a trainer when the stop is on disk,
+        and 9 or 10 on a HOLD or a claim. None of those is a wrong objective."""
+        for rc in (0, 9, 10):
+            out, _ = self.arm(stub_study, tmp_path, f"exit {rc}")
+            assert out.returncode == rc, (rc, out.stdout, out.stderr)
+
+    def test_the_check_reaches_the_summed_arm_too(self, stub_study, tmp_path):
+        """`sum` is stated on every leg, so the check holds under both words."""
+        out, _ = self.arm(stub_study, tmp_path,
+                          self.STUB.replace("REDUCE",
+                                            "--train-rollout-reduce mean"),
+                          env=SUM)
+        assert out.returncode != 0, out.stdout
+
+    def test_the_bootstrap_gates_the_line_on_the_box(self):
+        """The box's train.py has to write the command line, or the check
+        cannot read it there."""
+        code = strip_comments(BOOTSTRAP_BOX.read_text())
+        assert "Command line" in code, (
+            "a box whose trainer writes no command line cannot be checked")
+
+
+class TestTheMeanCostTable:
+    """The run plan is sized from a step time. `results/smoke_k16.csv` is the
+    SUMMED arm's, and the mean adds one pass over the f-bearing terms."""
+
+    @pytest.fixture(scope="class")
+    def cost(self) -> dict:
+        assert COST_TABLE.is_file(), f"no {COST_TABLE.relative_to(EXP)}"
+        rows = list(csv.DictReader(open(COST_TABLE)))
+        assert rows, "the cost table holds no measurement"
+        return {int(r["k"]): r for r in rows}
+
+    def test_both_arms_are_measured_under_the_mean(self, cost):
+        for k in DEPTHS:
+            assert k in cost, f"k = {k} was not measured"
+            assert cost[k]["reduce"] == REDUCE, cost[k]
+            assert float(cost[k]["total_ms"]) > 0, cost[k]
+
+    def test_every_row_names_where_it_came_from(self, cost):
+        """A step time measured beside another leg is not the same number as
+        one measured alone. The row says which it is."""
+        for k, row in cost.items():
+            assert row["source"], f"k = {k} names no source"
+            assert int(row["concurrent_legs"]) >= 1, row
+
+    def test_the_mean_costs_more_than_the_sum(self, cost):
+        """The extra pass over the f-bearing terms is not free. This is the
+        fact that makes the summed arm's table the wrong one to plan from."""
+        summed = {int(r["k"]): r
+                  for r in csv.DictReader(open(EXP / "results"
+                                               / "smoke_k16.csv"))}
+        for k in DEPTHS:
+            assert float(cost[k]["total_ms"]) > float(summed[k]["total_ms"]), k
+
+    def test_the_box_plan_is_sized_from_this_table(self, cost):
+        """The hours in `launch_box.sh`'s header are this table's hours."""
+        head = LAUNCH_BOX.read_text()
+        assert "leg_cost.csv" in head, "the header quotes another table"
+        for k in DEPTHS:
+            hours = float(cost[k]["hours_200k"])
+            assert re.search(rf"{hours:.1f} h", head), (
+                f"k = {k} costs {hours:.1f} h, not what the header says")
+
+    def test_the_peak_is_recorded_for_both_arms(self, cost):
+        """Two legs on one 24 GiB card is a memory question, and the box
+        plan answers it from this column."""
+        for k in DEPTHS:
+            assert int(cost[k]["used_mib"]) > 0, cost[k]
+
+
+class TestCostFromLog:
+    """The parser behind the cost table. The smoke script's own rule: drop the
+    first window, take the median of the rest."""
+
+    def log(self, path, totals, reduce=REDUCE, k=8):
+        args = trainer_cmdline(save_dir_of("/runs", k), reduce)
+        lines = ["Command line: " + " ".join(args)]
+        for i, total in enumerate(totals):
+            lines.append(f"[  {200 * (i + 1)}] loss=1.0  {1000 / total:.1f} "
+                         f"sps  ETA 1.0h")
+            lines.append(f"  timing: data=1.0ms  fwd=2.0ms  bwd=3.0ms  "
+                         f"total={total}ms")
+        path.write_text("\n".join(lines) + "\n")
+        return path
+
+    def run(self, *args):
+        return subprocess.run([sys.executable, str(COST_FROM_LOG), *args],
+                              capture_output=True, text=True, timeout=120)
+
+    def test_it_drops_the_warm_up_window_and_takes_the_median(self, tmp_path):
+        log = self.log(tmp_path / "a.log", [900.0, 300.0, 200.0, 400.0])
+        out = self.run(f"--leg=8={log}", "--concurrent-legs", "1")
+        assert out.returncode == 0, out.stderr
+        row = list(csv.DictReader(out.stdout.splitlines()))[0]
+        assert float(row["total_ms"]) == pytest.approx(300.0)
+        assert int(row["windows"]) == 3
+
+    def test_it_reports_the_hours_a_200k_leg_costs(self, tmp_path):
+        log = self.log(tmp_path / "a.log", [900.0, 360.0, 360.0])
+        out = self.run(f"--leg=8={log}", "--concurrent-legs", "1")
+        row = list(csv.DictReader(out.stdout.splitlines()))[0]
+        assert float(row["hours_200k"]) == pytest.approx(20.0, abs=0.05)
+
+    def test_it_refuses_a_log_that_names_another_reduction(self, tmp_path):
+        log = self.log(tmp_path / "a.log", [900.0, 300.0], reduce="sum")
+        out = self.run(f"--leg=8={log}", "--reduce", "mean")
+        assert out.returncode != 0
+        assert "sum" in out.stderr, out.stderr
+
+    def test_it_refuses_a_log_with_no_window_to_measure(self, tmp_path):
+        log = self.log(tmp_path / "a.log", [900.0])
+        out = self.run(f"--leg=8={log}")
+        assert out.returncode != 0
+        assert "window" in out.stderr, out.stderr
+
+    def test_one_row_per_log(self, tmp_path):
+        a = self.log(tmp_path / "a.log", [900.0, 300.0, 300.0], k=8)
+        b = self.log(tmp_path / "b.log", [900.0, 600.0, 600.0], k=32)
+        out = self.run("--concurrent-legs", "2", f"--leg=8={a}",
+                       f"--leg=32={b}", "--used-mib=32=5532")
+        assert out.returncode == 0, out.stderr
+        rows = {int(r["k"]): r for r in csv.DictReader(out.stdout.splitlines())}
+        assert sorted(rows) == [8, 32]
+        assert float(rows[32]["total_ms"]) == pytest.approx(600.0)
+        assert rows[32]["used_mib"] == "5532", rows[32]
+        assert rows[8]["source"] == "a.log", rows[8]
+
+
+class TestTheTwoArmsAreJoined:
+    """The summed arm is the comparison. A table and a figure hold the pair.
+
+    Both read whatever cells exist: the summed arm has 8 scored cells and the
+    mean arm has fewer for a while.
+    """
+
+    def scores(self, path, rows):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w", newline="") as fh:
+            w = csv.writer(fh)
+            w.writerow(["phase", "k", "stop", "head_steps", "encoder", "score"])
+            for k, stop, score in rows:
+                w.writerow([1, k, stop, HEAD_STEPS_PHASE1, "student", score])
+        return path
+
+    def compare(self, tmp_path, sum_rows, mean_rows, *extra):
+        out_csv = tmp_path / "arm_compare.csv"
+        args = [sys.executable, str(COMPARE_PY),
+                "--sum", str(self.scores(tmp_path / "sum.csv", sum_rows)),
+                "--mean", str(self.scores(tmp_path / "mean.csv", mean_rows)),
+                "--out", str(out_csv), *extra]
+        proc = subprocess.run(args, capture_output=True, text=True, timeout=120)
+        return proc, out_csv
+
+    def rows_of(self, path):
+        return list(csv.DictReader(open(path)))
+
+    def test_a_cell_both_arms_scored_carries_the_pair(self, tmp_path):
+        proc, out = self.compare(tmp_path, [(8, 40_000, 2.0357)],
+                                 [(8, 40_000, 1.9000)])
+        assert proc.returncode == 0, proc.stderr
+        row = self.rows_of(out)[0]
+        assert float(row["sum"]) == pytest.approx(2.0357)
+        assert float(row["mean"]) == pytest.approx(1.9000)
+        assert float(row["delta"]) == pytest.approx(1.9000 - 2.0357, abs=1e-6)
+        assert row["better"] == REDUCE
+
+    def test_a_cell_only_the_summed_arm_scored_is_kept(self, tmp_path):
+        """k = 16 is the summed arm's alone, and the mean arm has not reached
+        most of its own stops yet. A join that dropped those rows would show
+        an empty table for days."""
+        proc, out = self.compare(tmp_path,
+                                 [(8, 40_000, 2.0), (16, 40_000, 4.5)], [])
+        assert proc.returncode == 0, proc.stderr
+        rows = {int(r["k"]): r for r in self.rows_of(out)}
+        assert sorted(rows) == [8, 16], rows
+        for row in rows.values():
+            assert row["mean"] == "", row
+            assert row["delta"] == "" and row["better"] == "", row
+
+    def test_a_cell_only_the_mean_arm_scored_is_kept(self, tmp_path):
+        proc, out = self.compare(tmp_path, [], [(32, 200_000, 1.5)])
+        assert proc.returncode == 0, proc.stderr
+        row = self.rows_of(out)[0]
+        assert row["sum"] == "" and float(row["mean"]) == pytest.approx(1.5)
+
+    def test_the_rows_are_in_the_studys_order(self, tmp_path):
+        proc, out = self.compare(
+            tmp_path, [(32, 40_000, 1.0), (8, 200_000, 1.0), (8, 40_000, 1.0)],
+            [])
+        seen = [(int(r["k"]), int(r["stop"])) for r in self.rows_of(out)]
+        assert seen == [(8, 40_000), (8, 200_000), (32, 40_000)], seen
+
+    def test_it_writes_a_markdown_table_beside_the_csv(self, tmp_path):
+        proc, out = self.compare(tmp_path, [(8, 40_000, 2.0)],
+                                 [(8, 40_000, 1.9)])
+        md = out.with_suffix(".md")
+        assert md.is_file(), "no markdown table for the report"
+        text = md.read_text()
+        assert "1.9" in text and "2.0" in text, text
+
+    def test_two_empty_tables_are_refused(self, tmp_path):
+        proc, _ = self.compare(tmp_path, [], [])
+        assert proc.returncode != 0
+        assert "no" in proc.stderr.lower(), proc.stderr
+
+    def test_a_missing_arm_table_is_not_an_error(self, tmp_path):
+        """The mean arm's `scores.csv` does not exist until its first head."""
+        out_csv = tmp_path / "arm_compare.csv"
+        proc = subprocess.run(
+            [sys.executable, str(COMPARE_PY),
+             "--sum", str(self.scores(tmp_path / "sum.csv",
+                                      [(8, 40_000, 2.0)])),
+             "--mean", str(tmp_path / "absent.csv"), "--out", str(out_csv)],
+            capture_output=True, text=True, timeout=120)
+        assert proc.returncode == 0, proc.stderr
+        assert self.rows_of(out_csv)[0]["mean"] == ""
+
+    # ---- the figure ----
+
+    def draw(self, tmp_path, sum_rows, mean_rows):
+        out = tmp_path / "arm_compare.png"
+        proc = subprocess.run(
+            [sys.executable, str(PLOT_COMPARE),
+             "--sum", str(self.scores(tmp_path / "sum.csv", sum_rows)),
+             "--mean", str(self.scores(tmp_path / "mean.csv", mean_rows)),
+             "--out", str(out)],
+            capture_output=True, text=True, timeout=300)
+        return proc, out
+
+    def test_the_figure_draws_the_pair(self, tmp_path):
+        proc, out = self.draw(
+            tmp_path,
+            [(k, s, 2.0) for k in DEPTHS for s in STOPS],
+            [(k, s, 1.8) for k in DEPTHS for s in STOPS])
+        assert proc.returncode == 0, proc.stderr
+        assert out.is_file() and out.stat().st_size > 5000
+
+    def test_the_figure_draws_the_summed_arm_alone(self, tmp_path):
+        """Day one of the mean arm: nothing of it is scored yet."""
+        proc, out = self.draw(tmp_path, [(8, 40_000, 2.0)], [])
+        assert proc.returncode == 0, proc.stderr
+        assert out.is_file()
+
+    def test_the_figure_refuses_two_empty_tables(self, tmp_path):
+        proc, out = self.draw(tmp_path, [], [])
+        assert proc.returncode != 0
+        assert not out.exists()
+
+    def test_make_plots_draws_the_comparison(self):
+        code = strip_comments(MAKE_PLOTS.read_text())
+        assert "plot_arm_compare.py" in code
+        assert "compare_arms.py" in code
+
+
+class TestTheMinorGaps:
+
+    def test_the_sync_check_counts_this_studys_loop_only(self, tmp_path):
+        """elisa is shared. Another study's sync loop is not this study's."""
+        loop = tmp_path / "sync_loop.sh"
+        stub_script(loop, "sleep 120")
+        mine = tmp_path / "mine"
+        theirs = tmp_path / "theirs"
+        for d in (mine, theirs):
+            d.mkdir()
+        proc = subprocess.Popen(["bash", str(loop)], cwd=str(theirs),
+                               stdout=subprocess.DEVNULL,
+                               stderr=subprocess.DEVNULL)
+        try:
+            assert study_call(
+                f'cf401_sync_loops {str(theirs)!r}').stdout.strip() == "1"
+            assert study_call(
+                f'cf401_sync_loops {str(mine)!r}').stdout.strip() == "0"
+        finally:
+            proc.kill()
+            proc.wait(timeout=30)
+
+    def test_elisa_checks_the_loop_of_its_own_local_root(self):
+        code = strip_comments(LAUNCH_ELISA.read_text())
+        assert "cf401_sync_loops" in code
+        assert "CF401_SYNC_DIR" in code, (
+            "the check does not say which local root it wants a loop for")
+
+    def test_the_remote_runs_root_defaults_to_the_boxs_own(self):
+        """`REMOTE_RUNS` names a directory on the BOX. A local default would
+        make the loop pull elisa's own tree."""
+        code = strip_comments(LAUNCH_SYNC.read_text())
+        assert 'REMOTE_RUNS="${REMOTE_RUNS:-$CF401_BOX_RUNS}"' in code, code
+
+    @pytest.mark.parametrize("reduce,other", [("sum", "mean"), ("mean", "sum")])
+    def test_a_checkpoint_of_the_other_reduction_is_not_matched(
+            self, tmp_path, reduce, other):
+        """`cf401_bb_ckpt`'s `*` tolerates train.py's `_rN` infix on a
+        re-fired leg. It must not tolerate the other arm's suffix."""
+        env = {"CF401_ROOT": str(tmp_path), "CF401_REDUCE": other}
+        leg = study_call('cf401_leg_dir 8 40000', env=env).stdout.strip()
+        name = study_call('cf401_run_name 8', env=env).stdout.strip()
+        Path(leg).mkdir(parents=True)
+        (Path(leg) / f"{name}_40k.pth").write_text("x")
+        got = study_call('cf401_bb_ckpt 8 40000',
+                         env={"CF401_ROOT": str(tmp_path),
+                              "CF401_REDUCE": reduce})
+        assert got.stdout.strip() == "", got.stdout
+
+    def test_a_re_fired_leg_is_still_matched(self, tmp_path):
+        """train.py branches the run name to `<name>_r2` when the save dir
+        already holds a checkpoint. That one IS this arm's."""
+        env = {"CF401_ROOT": str(tmp_path)}
+        leg = study_call('cf401_leg_dir 8 40000', env=env).stdout.strip()
+        name = study_call('cf401_run_name 8', env=env).stdout.strip()
+        Path(leg).mkdir(parents=True)
+        (Path(leg) / f"{name}_r2_40k.pth").write_text("x")
+        got = study_call('cf401_bb_ckpt 8 40000', env=env)
+        assert got.stdout.strip().endswith("_r2_40k.pth"), got.stdout
+
+    def test_the_smoke_skip_reads_the_reduction_too(self, tmp_path):
+        """One table can hold both reductions, and the same depth costs two
+        different numbers. A skip on `k` alone would report the mean's row as
+        the sum's measurement."""
+        results = tmp_path / "results"
+        results.mkdir()
+        header = ("cell,reduce,k,steps,windows,data_ms,fwd_ms,bwd_ms,total_ms,"
+                  "sps,peak_mib,depth_cols,card_free_mib,rc")
+        (results / "smoke_depth.csv").write_text(
+            f"{header}\n{CELL},mean,8,300,2,1,2,3,300,5,5400,9,19000,0\n")
+        out = run_sh(SMOKE, 10, env={
+            "CF401_RESULTS": str(results), "CF401_REDUCE": "sum",
+            "DEPTHS": "8",
+            "CF401_SMOKE_ROOT": str(tmp_path / "cf-401-smoke-scratch")})
+        log = (results / "smoke_depth.log").read_text()
+        assert "SKIP k=8" not in log, log
