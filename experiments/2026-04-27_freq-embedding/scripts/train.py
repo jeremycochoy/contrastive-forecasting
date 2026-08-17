@@ -28,6 +28,7 @@ import argparse
 import csv
 import math
 import os
+import shlex
 import sys
 import time
 import torch
@@ -1263,6 +1264,16 @@ class AttnAmplitudeCSV:
 
 def main():
     args = parse_args()
+
+    # The run's own command line, first line of its log. A wrapper builds this
+    # command line from a cell name and an environment, so the log is the only
+    # place a reader (or a check) can see which flags actually reached the
+    # trainer. #401 reads the rollout reduction off this line after the first
+    # window of a leg: the objective it selects leaves no other trace — the
+    # same file names, the same CSV columns and the same log lines under either
+    # word. `shlex.quote` keeps a value with a space readable as one argument.
+    print("Command line: " + " ".join(shlex.quote(a) for a in sys.argv),
+          flush=True)
 
     # Distributed (opt-in, env-driven): launch with
     #   torchrun --nproc_per_node=N experiments/.../train.py ...
