@@ -1,68 +1,65 @@
 #!/bin/bash
-# #401 — the launch plan on elisa. The card's stages, in the card's order,
-# with the box's concurrency.
+# #401 — elisa's role: every head, every 97-config GIFT-Eval, every figure.
 #
-# `run.sh` runs the stages one after the other, which is the right default and
-# is what the trial ran. This adds one thing, and only one: how many of them
-# elisa runs at the same time.
+# The study runs on four GPUs across two machines.
 #
-#   phase 1   the three arms are three independent backbone ladders. The
-#             measured peak is 5.9 GiB per leg (results/smoke_k16.csv) and
-#             GPU 0 has 19.1 GiB free, so two legs fit and still leave the
-#             7.0 GiB the head gate asks for. Two, therefore, not three: a
-#             third leg fits the card but starves every head behind it.
-#             The order is the card's, k = 16 first, then k = 8, then k = 32.
+#   rented box, 2 GPUs   the two backbone arms, one per card
+#                        (`scripts/launch_box.sh`). Backbones only: the eval
+#                        reads gift-eval-data and the gift_eval package, and
+#                        both live here.
+#   elisa, GPU 0         this script. It trains one head per backbone stop as
+#                        the stop arrives through the sync loop, runs that
+#                        head's 97 GIFT-Eval configs on the CPU, and redraws
+#                        the figures. GPU 1 belongs to another session; add
+#                        it with HEAD_GPUS="0 1" once it frees.
 #
-#   phase 2   no backbone runs, so the card is free. The two arms run as two
-#             `phase2.sh` invocations with SEPARATE head locks, so one head
-#             per arm trains at a time instead of one head in total.
+# The three parts and their order:
 #
-# `results/SLOTS` holds the phase-1 arm count and is read fresh on every
-# poll. Raising it starts the next arm without a restart.
+#   1. the sync loop     `sync/launch_sync.sh <label>` — checked here, never
+#                        started here, because it needs the box's ssh
+#                        endpoint. CLAUDE.md: every remote run has one, for
+#                        its whole duration.
+#   2. heads_watch.sh    the heads and the evals, phase 1 then phase 2.
+#   3. this loop         RUN_STATE.md and the figures, every FIGURE_EVERY
+#                        seconds, so a session that picks this up reads one
+#                        file and sees the current table.
 #
-# Everything below is idempotent, the same as the stages it calls. A machine
-# that reboots mid-study loses the legs in flight and nothing else: re-run
-# this script and every finished stop, head and eval is a no-op.
+# CF401_ROOT must be where the sync loop LANDS the box's checkpoints. The
+# loop pulls the remote runs root into `<LOCAL_DIR>/sync`, keeping the
+# relative tree, so that directory IS the root on this side.
 #
-# Usage:  BB_GPU=0 nohup setsid bash scripts/launch_elisa.sh &
-#         SLOTS=3 BB_GPU=0 bash scripts/launch_elisa.sh
+# Everything is idempotent. Re-run this script after a reboot and every
+# scored cell is a no-op.
+#
+# Usage:
+#   CF401_ROOT=$HOME/cf401_sync/box_a/sync HEAD_GPUS="0" \
+#     nohup setsid bash scripts/launch_elisa.sh &
+#
+#   CF401_DRY_RUN=1 bash scripts/launch_elisa.sh   # print the plan
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$HERE/study.sh"
 
-BB_GPU="${BB_GPU:-0}"
-POLL="${POLL:-60}"
-# Seconds between two arm starts. Both legs open the same streaming dataset,
-# and starting them together puts two cold HF readers on one connection.
-STAGGER="${STAGGER:-180}"
-mkdir -p "$CF401_RESULTS"
+HEAD_GPUS="${HEAD_GPUS:-0}"
+FIGURE_EVERY="${FIGURE_EVERY:-1800}"
+mkdir -p "$CF401_RESULTS" "$CF401_PLOTS"
 
-SLOTS_FILE="$CF401_RESULTS/SLOTS"
 STATE="$CF401_RESULTS/RUN_STATE.md"
 LOG="$CF401_RESULTS/launch.log"
-[ -f "$SLOTS_FILE" ] || echo "${SLOTS:-2}" >"$SLOTS_FILE"
-
-log(){ echo "[$(date '+%m-%d %H:%M:%S')] [#401 launch] $*" | tee -a "$LOG"; }
-
-# The arm count, read fresh every poll. A file that says nothing usable is 2,
-# never 0 — a 0 would park the study with no arm running and no error.
-slots(){
-  local n; n="$(tr -dc '0-9' <"$SLOTS_FILE" 2>/dev/null)"
-  if [ -n "$n" ] && [ "$n" -ge 1 ]; then echo "$n"; else echo 2; fi
-}
+log(){ echo "[$(date '+%m-%d %H:%M:%S')] [#401 elisa] $*" | tee -a "$LOG"; }
 
 # What a re-dispatched session reads first. One file, overwritten, so it is
 # never a log to scroll.
-state(){  # <stage> <note>
-  { echo "# #401 run state"
+state(){  # <note>
+  { echo "# #401 run state — the mean objective"
     echo
     echo "- updated: $(date '+%Y-%m-%d %H:%M:%S')"
-    echo "- stage: $1"
-    echo "- note: $2"
-    echo "- launcher pid: $$"
-    echo "- gpu: $BB_GPU, arm slots: $(slots) (edit \`results/SLOTS\`)"
-    echo "- root: \`$CF401_ROOT\`"
+    echo "- note: $1"
+    echo "- objective: \`--train-rollout-reduce $CF401_REDUCE\`, depths $CF401_DEPTHS"
+    echo "- elisa pid: $$, head GPUs: $HEAD_GPUS"
+    echo "- root (synced from the box): \`$CF401_ROOT\`"
+    echo "- results: \`$CF401_RESULTS\`"
     echo
     echo "## Scores so far"
     echo
@@ -70,7 +67,7 @@ state(){  # <stage> <note>
     cat "$CF401_RESULTS/scores.csv" 2>/dev/null || echo "(none yet)"
     echo '```'
     echo
-    echo "## Checkpoints on disk"
+    echo "## Backbone stops on this side"
     echo
     echo '```'
     ls -1 "$CF401_ROOT"/k*/*/leg_*k/*k.pth 2>/dev/null \
@@ -79,74 +76,51 @@ state(){  # <stage> <note>
   } >"$STATE.tmp" && mv -f "$STATE.tmp" "$STATE"
 }
 
-log "START gpu=$BB_GPU depths='$CF401_DEPTHS' stops='$CF401_STOPS' slots=$(slots)"
-state "phase 1" "starting"
+# The sync loop is the only thing that puts the box's checkpoints here, so a
+# missing loop is a study that never scores a cell. Verified by `ls` on the
+# root, not by reading the loop's log (CLAUDE.md).
+sync_check(){
+  local n
+  n="$(pgrep -fc "bash .*sync_loop.sh" 2>/dev/null || echo 0)"
+  if [ "$n" -ge 1 ]; then
+    log "sync: $n loop(s) running"
+  else
+    log "sync: NO sync_loop.sh runs. Start one before the box climbs:"
+    log "  REMOTE_HOST=<ssh host> REMOTE_PORT=<port> \\"
+    log "  REMOTE_DIR=/root/cf/reports/2026-08-15_rollout_depth_k16_8_32 \\"
+    log "  REMOTE_RUNS=/root/cf401_runs LOCAL_DIR=$(dirname "$CF401_ROOT") \\"
+    log "    bash sync/launch_sync.sh box_a"
+  fi
+}
 
-# ---- Phase 1 -----------------------------------------------------------------
-pids=(); names=()
-for k in $CF401_DEPTHS; do
-  while [ "$(jobs -rp | wc -l)" -ge "$(slots)" ]; do
-    state "phase 1" "k=$k waits for an arm slot"
-    sleep "$POLL"
-  done
-  log "arm k=$k START (slots=$(slots))"
-  DEPTHS="$k" BB_GPU="$BB_GPU" HEAD_BG=1 \
-    nohup bash "$HERE/phase1.sh" >>"$CF401_RESULTS/phase1_k${k}.out" 2>&1 &
-  pids+=($!); names+=("k=$k")
-  state "phase 1" "arms started: ${names[*]}"
-  sleep "$STAGGER"
-done
-
-p1_failed=0
-for i in "${!pids[@]}"; do
-  wait "${pids[$i]}"; rc=$?
-  log "arm ${names[$i]} rc=$rc"
-  [ $rc -eq 0 ] || p1_failed=$(( p1_failed + 1 ))
-  state "phase 1" "arm ${names[$i]} rc=$rc"
-done
-log "phase 1 done — $p1_failed arm(s) failed"
-bash "$HERE/make_plots.sh" 2>&1 | tee -a "$LOG"
-state "phase 1 done" "$p1_failed arm(s) failed"
-
-# ---- Phase 2 -----------------------------------------------------------------
-# The picker refuses an incomplete phase 1, which is the card's own rule, so a
-# failed arm stops the study here rather than choosing two arms out of a table
-# with a hole in it.
-if [ -n "${ARMS:-}" ]; then
-  arms="$ARMS"
-else
-  arms="$(python3 "$HERE/pick_phase2_arms.py" --scores "$CF401_RESULTS/scores.csv")"
-  rc=$?
-  [ $rc -eq 0 ] || { log "ABORT: the picker exited rc=$rc"
-                     state "phase 2" "the picker refused phase 1"; exit $rc; }
+if [ -n "${CF401_DRY_RUN:-}" ]; then
+  echo "elisa reduce=$CF401_REDUCE root=$CF401_ROOT results=$CF401_RESULTS"
+  echo "  head gpus='$HEAD_GPUS' figures every ${FIGURE_EVERY}s"
+  CF401_DRY_RUN=1 HEAD_GPUS="$HEAD_GPUS" bash "$HERE/heads_watch.sh"
+  exit 0
 fi
-log "phase 2 arms: $arms"
-state "phase 2" "arms $arms"
 
-# One `phase2.sh` per arm, each with its own head lock. `head_vram_gate` takes
-# `$GPU_GATE_LOCKDIR/cf373_head_gpu<N>.lock`, so a lock directory per arm lets
-# one head per arm train at a time. Its VRAM check still runs against the real
-# card, so the second arm waits when the first head leaves too little.
-p2_pids=(); p2_names=()
-for k in $arms; do
-  lockdir="/tmp/cf401_head_k${k}"
-  mkdir -p "$lockdir"
-  log "phase 2 arm k=$k START (lockdir=$lockdir)"
-  ARMS="$k" BB_GPU="$BB_GPU" HEAD_BG=0 GPU_GATE_LOCKDIR="$lockdir" \
-    nohup bash "$HERE/phase2.sh" >>"$CF401_RESULTS/phase2_k${k}.out" 2>&1 &
-  p2_pids+=($!); p2_names+=("k=$k")
-  sleep "$STAGGER"
+log "START reduce=$CF401_REDUCE depths='$CF401_DEPTHS' head gpus='$HEAD_GPUS'"
+sync_check
+state "starting"
+
+HEAD_GPUS="$HEAD_GPUS" nohup bash "$HERE/heads_watch.sh" \
+  >>"$CF401_RESULTS/heads_watch.out" 2>&1 &
+watcher=$!
+log "heads_watch pid $watcher"
+
+# The watcher never returns on its own — the box keeps climbing, so there is
+# always another stop coming. This loop is the reporting half: it redraws the
+# figures and rewrites the state file while the watcher works, and it exits
+# when the watcher does.
+while kill -0 "$watcher" 2>/dev/null; do
+  state "heads_watch pid $watcher"
+  bash "$HERE/make_plots.sh" >>"$LOG" 2>&1
+  sync_check
+  sleep "$FIGURE_EVERY"
 done
-
-p2_failed=0
-for i in "${!p2_pids[@]}"; do
-  wait "${p2_pids[$i]}"; rc=$?
-  log "phase 2 arm ${p2_names[$i]} rc=$rc"
-  [ $rc -eq 0 ] || p2_failed=$(( p2_failed + 1 ))
-  state "phase 2" "arm ${p2_names[$i]} rc=$rc"
-done
-
+wait "$watcher"; rc=$?
 bash "$HERE/make_plots.sh" 2>&1 | tee -a "$LOG"
-log "STUDY DONE — $p1_failed phase-1 arm(s) and $p2_failed phase-2 arm(s) failed"
-state "done" "$p1_failed phase-1 arm(s) and $p2_failed phase-2 arm(s) failed"
-[ $(( p1_failed + p2_failed )) -eq 0 ] || exit 1
+log "heads_watch exited rc=$rc"
+state "heads_watch exited rc=$rc"
+exit $rc

@@ -19,6 +19,11 @@ HOST="${1:?usage: bootstrap_remote.sh <ssh_host> <ssh_port>}"
 PORT="${2:?usage: bootstrap_remote.sh <ssh_host> <ssh_port>}"
 WT="${WT:?WT must be the absolute path of the local checkout}"
 STAGE="${STAGE:-/tmp/cf373_stage}"
+# Paths to add to the tarball, relative to $WT, space separated. Empty by
+# default, so every #373 command line packs exactly what it always packed.
+# #401 reuses this bootstrap and adds its own scripts directory, rather than
+# writing a second remote pipeline.
+read -r -a EXTRA_PACK_ARR <<<"${EXTRA_PACK:-}"
 SSH_OPTS=(-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
           -o ConnectTimeout=15)
 
@@ -41,6 +46,7 @@ say "packing code"
     experiments/2026-04-13_gift-eval/scripts/train_forecasting_head.py \
     reports/2026-08-08_rollout_depth/scripts \
     scripts \
+    "${EXTRA_PACK_ARR[@]}" \
     && mv -f "$STAGE/cf373_code.tgz.$$" "$STAGE/cf373_code.tgz"
 ) 6>"$STAGE/.pack.lock" || exit 3
 
