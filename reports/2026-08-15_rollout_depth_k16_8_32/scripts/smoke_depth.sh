@@ -120,19 +120,24 @@ run_one(){  # <k>
   local k="$1"
   local root="$SCRATCH/k${k}"
   # The runner builds its run name as `cf393_<cell>_cf373k<k>$RUN_SUFFIX`, so
-  # RUN_SUFFIX carries the whole tail — the reduction included. Passing the
-  # probe tag alone dropped `_mean` from the trainer's name while the reader
-  # below still looked for it through `cf401_run_name`, so every mean row
-  # landed with an empty step time and a `no trainer log` line. Under `sum`
+  # RUN_SUFFIX carries the whole tail — the reduction included. The probe tag
+  # alone dropped `_mean` from the trainer's name while the reader below
+  # still looked for it through `cf401_run_name`, so every mean row landed
+  # with an empty step time and a `no trainer log` line. Under `sum`
   # CF401_RUN_SUFFIX is empty and the name is what it always was.
-  local suffix="${CF401_RUN_SUFFIX}_smoke401_k${k}"
+  #
+  # The tag and the suffix are two names because the two sides count the
+  # reduction differently: `cf401_run_name` already carries it, the runner's
+  # RUN_SUFFIX does not. One name for both put `_mean` in twice.
+  local tag="_smoke401_k${k}"
+  local suffix="${CF401_RUN_SUFFIX}${tag}"
   local free tlog peak rc
   rm -rf "$root"; mkdir -p "$root"
   # The runner APPENDS to its trainer log. A second probe of the same depth
   # would otherwise leave the first probe's windows in the file, the median
   # would run over both, and only the first probe's warm-up window would be
   # dropped. One probe, one log.
-  tlog="$CF401_RESULTS/run_$(cf401_run_name "$k")${suffix}.log"
+  tlog="$CF401_RESULTS/run_$(cf401_run_name "$k")${tag}.log"
   rm -f "$tlog"
   free=$(nvidia-smi --id="$BB_GPU" --query-gpu=memory.free \
            --format=csv,noheader,nounits | tr -d ' ')
