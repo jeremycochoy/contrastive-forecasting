@@ -1,0 +1,18 @@
+[08-16 21:29:01] [#401 phase1] arm k=32 -> 40000
+[08-16 21:29:01] [#401] arm k=32 -> 40000 steps on gpu 0
+[08-16 21:29:01] [arm6_v2_combab_alignS] FRESH start at step 0
+[08-16 21:29:01] [arm6_v2_combab_alignS] START target=40000 gpu=0 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-401/k32/arm6_v2_combab_alignS/leg_40k
+[08-17 03:55:56] [arm6_v2_combab_alignS] DONE target=40000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-401/k32/arm6_v2_combab_alignS/leg_40k/cf393_arm6_v2_combab_alignS_cf373k32_40k.pth
+[08-17 03:55:56] [#401] arm k=32 stop=40000 rc=0
+[08-17 03:55:56] [#401 phase1] head k=32 stop=40000 (background)
+[08-17 03:55:56] [#401 phase1] arm k=32 -> 100000
+[08-17 03:55:56] [#401] arm k=32 -> 100000 steps on gpu 0
+[08-17 03:55:56] [arm6_v2_combab_alignS] RESUME from cf393_arm6_v2_combab_alignS_cf373k32_40k.pth (step 40k)
+[08-17 03:55:56] [arm6_v2_combab_alignS] START target=100000 gpu=0 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-401/k32/arm6_v2_combab_alignS/leg_100k
+[08-17 13:58:45] [arm6_v2_combab_alignS] DONE target=100000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-401/k32/arm6_v2_combab_alignS/leg_100k/cf393_arm6_v2_combab_alignS_cf373k32_100k.pth
+[08-17 13:58:45] [#401] arm k=32 stop=100000 rc=0
+[08-17 13:58:45] [#401 phase1] head k=32 stop=100000 (background)
+[08-17 13:58:45] [#401 phase1] arm k=32 -> 200000
+[08-17 13:58:45] [#401] arm k=32 -> 200000 steps on gpu 0
+[08-17 13:58:45] [arm6_v2_combab_alignS] RESUME from cf393_arm6_v2_combab_alignS_cf373k32_100k.pth (step 100k)
+[08-17 13:58:45] [arm6_v2_combab_alignS] START target=200000 gpu=0 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-401/k32/arm6_v2_combab_alignS/leg_200k

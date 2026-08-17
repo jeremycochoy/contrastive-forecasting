@@ -1,0 +1,44 @@
+
+k=0   leg_40k   steps 1..40000  start above  crossings=0
+    AUC median first500=0.9636 last=0.9573   u_batch last=0.3836
+
+k=0   leg_100k  steps 40001..100000  start above  crossings=0
+    AUC median first500=0.9581 last=0.9621   u_batch last=0.4030
+
+k=8   leg_40k   steps 1..40000  start above  crossings=3
+    step    4404  AUC goes down
+    step    5072  AUC goes up
+    step    7845  AUC goes down
+    AUC median first500=0.6753 last=0.4998   u_batch last=0.0177
+
+k=8   leg_100k  steps 40001..100000  start below  crossings=0
+    AUC median first500=0.4999 last=0.5000   u_batch last=0.0177
+
+k=8   leg_200k  steps 100001..200000  start below  crossings=0
+    AUC median first500=0.5001 last=0.4997   u_batch last=0.0188
+
+k=16  leg_40k   steps 1..40000  start above  crossings=1
+    step     347  AUC goes down
+    AUC median first500=0.5178 last=0.5002   u_batch last=0.0175
+
+k=16  leg_100k  steps 40001..100000  start below  crossings=0
+    AUC median first500=0.5005 last=0.4999   u_batch last=0.0169
+
+k=16  leg_200k  steps 100001..200000  start below  crossings=0
+    AUC median first500=0.5002 last=0.5000   u_batch last=0.0174
+
+k=32  leg_40k   steps 1..40000  start above  crossings=5
+    step    1343  AUC goes down
+    step    3137  AUC goes up
+    step    3391  AUC goes down
+    step    4276  AUC goes up
+    step    4968  AUC goes down
+    AUC median first500=0.5935 last=0.5000   u_batch last=0.0168
+
+k=32  leg_100k  steps 40001..100000  start below  crossings=0
+    AUC median first500=0.5006 last=0.5002   u_batch last=0.0170
+
+k=32  leg_200k  steps 100001..115100  start below  crossings=0
+    AUC median first500=0.5003 last=0.5007   u_batch last=0.0169
+
+-> results/diag/curve_state.csv
