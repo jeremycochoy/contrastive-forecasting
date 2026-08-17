@@ -143,10 +143,15 @@ rsh "mkdir -p '$DST_LEG' '$BOX_RES'" || {
   echo "ABORT: cannot make $DST_LEG on the box" >&2; exit 5; }
 
 pushed=0
+declare -A SENT_BYTES=()
 for row in "${BUNDLE[@]}"; do
   IFS='|' read -r label lp rp req <<<"$row"
   [ -f "$lp" ] || continue
   say "push $label"
+  # The size at push time, not at verify time. The losses CSV and the leg log
+  # are append-only and the trainer still writes them while this runs, so a
+  # local stat taken afterwards always exceeds what scp sent.
+  SENT_BYTES["$label"]="$(stat -c%s "$lp")"
   scp "${SSH_OPTS[@]}" -P "$PORT" -q "$lp" "root@$HOST:$rp.tmp" || {
     echo "ABORT: scp failed for $label ($lp)" >&2; exit 5; }
   rsh "mv -f '$rp.tmp' '$rp'" || {
@@ -161,12 +166,14 @@ bad=0
 for row in "${BUNDLE[@]}"; do
   IFS='|' read -r label lp rp req <<<"$row"
   [ -f "$lp" ] || continue
-  want="$(stat -c%s "$lp")"
+  want="${SENT_BYTES[$label]:-$(stat -c%s "$lp")}"
   got="$(rsh "stat -c%s '$rp' 2>/dev/null" | tr -dc '0-9')"
-  if [ "$got" = "$want" ]; then
-    printf '  ok  %-22s %10d B\n' "$label" "$want"
+  # The box must hold at least what scp sent. An append-only file that grew
+  # mid-transfer lands larger; a dropped transfer lands smaller.
+  if [ -n "$got" ] && [ "$got" -ge "$want" ] 2>/dev/null; then
+    printf '  ok  %-22s %10d B sent, box has %d\n' "$label" "$want" "$got"
   else
-    printf '  ✗   %-22s want %d B, box has %s\n' "$label" "$want" "${got:-nothing}"
+    printf '  ✗   %-22s sent %d B, box has %s\n' "$label" "$want" "${got:-nothing}"
     bad=$(( bad + 1 ))
   fi
 done
