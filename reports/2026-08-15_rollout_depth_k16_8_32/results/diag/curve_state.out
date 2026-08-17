@@ -38,7 +38,7 @@ k=32  leg_40k   steps 1..40000  start above  crossings=5
 k=32  leg_100k  steps 40001..100000  start below  crossings=0
     AUC median first500=0.5006 last=0.5002   u_batch last=0.0170
 
-k=32  leg_200k  steps 100001..115100  start below  crossings=0
-    AUC median first500=0.5003 last=0.5007   u_batch last=0.0169
+k=32  leg_200k  steps 100001..141100  start below  crossings=0
+    AUC median first500=0.5003 last=0.5001   u_batch last=0.0169
 
 -> results/diag/curve_state.csv

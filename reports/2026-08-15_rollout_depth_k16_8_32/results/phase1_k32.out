@@ -16,3 +16,5 @@
 [08-17 13:58:45] [#401] arm k=32 -> 200000 steps on gpu 0
 [08-17 13:58:45] [arm6_v2_combab_alignS] RESUME from cf393_arm6_v2_combab_alignS_cf373k32_100k.pth (step 100k)
 [08-17 13:58:45] [arm6_v2_combab_alignS] START target=200000 gpu=0 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-401/k32/arm6_v2_combab_alignS/leg_200k
+Terminated
+[08-17 21:26:57] [arm6_v2_combab_alignS] train exited rc=143 — tail: [ 144800] loss=15.6120  ema_loss=15.6621  gap=-0.0237  ema_gap=-0.0246  mixup=65/200  1.7 sps  ETA 9.2h               R²_rand=0.2056  R²_naive=0.2161  U_t=0.0169  U_b=0.0169  AUC=0.5015  Top1=0.0033   timing: data=3.5ms  fwd=263.4ms  bwd=322.0ms  total=589.6ms 
