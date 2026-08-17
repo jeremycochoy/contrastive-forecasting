@@ -37,8 +37,18 @@ _NORMALIZED_FORM_SHAPES = (
 # forecaster output f to the encoder latent h. Copy j ties f^(j)_t to
 # h_{t+1+j}, where f^(j) is the forecaster applied to its own output j more
 # times (`src.forecasting_head.rollout_forecaster_latents`). k = 0 is the
-# historical objective, byte for byte, and the total is the SUM over depths:
-# a k = 3 run is the baseline plus three added terms, not a re-weighted one.
+# historical objective, byte for byte.
+#
+# `train_rollout_reduce` (#401) says how the k + 1 copies combine:
+#   'sum'  (default) adds them, which is #373's objective. A k = 3 run is the
+#          baseline plus three added terms, so the f-side carries 4x its k = 0
+#          weight against the terms that carry no f.
+#   'mean' divides them by k + 1, so the f-side holds its k = 0 weight at
+#          every depth. The depth then changes what the model trains on, and
+#          not how much the f-side outweighs the rest.
+# At k = 0 there is one copy and the two reductions agree exactly. The mean
+# runs over the f-bearing copies ONLY: the terms that carry no f enter once,
+# at their configured weight, under both reductions.
 #
 # Every copy runs the SAME code path as depth 0, on views where every h index
 # has shifted by j — so f^(j) lands wherever f^(0) lands, in the same role,
@@ -92,6 +102,44 @@ def resolve_rollout_depth(depth_override, config_depth, rollout_latents,
             f"train_rollout_depth={depth} needs at least {depth + 2} time "
             f"steps to keep one anchor; got {n_steps}.")
     return depth
+
+
+ROLLOUT_REDUCTIONS = ('sum', 'mean')
+
+
+def resolve_rollout_reduce(reduce_override, config_reduce):
+    """How the k + 1 rollout-depth copies combine (#401).
+
+    `'sum'` (default) is #373's objective. `'mean'` divides the copies by
+    k + 1, so the f-side holds its k = 0 weight at every depth. The function
+    argument wins over the training-config key `train_rollout_reduce`, the
+    precedence every other run-level knob here uses.
+
+    An unknown word raises: a run that asked for a reduction this code does
+    not have would otherwise train on the sum and say nothing.
+    """
+    reduce = config_reduce if reduce_override is None else reduce_override
+    if reduce is None:
+        return 'sum'
+    if reduce not in ROLLOUT_REDUCTIONS:
+        raise ValueError(
+            f"train_rollout_reduce={reduce!r} is not a reduction over the "
+            f"k + 1 rollout-depth copies; use one of {ROLLOUT_REDUCTIONS}.")
+    return reduce
+
+
+def reduce_depth_terms(terms, reduce):
+    """Combine the k + 1 copies of an f-bearing term (#401).
+
+    `terms[0]` is the depth-0 copy. One copy returns itself, so k = 0 is
+    unchanged under either reduction.
+    """
+    total = terms[0]
+    for term in terms[1:]:
+        total = total + term
+    if reduce == 'sum' or len(terms) == 1:
+        return total
+    return total / len(terms)
 
 
 def infonce_floor(tau, n_negatives):
@@ -333,7 +381,8 @@ def cpc_multistep_cpcnegs_loss(forecasted_multi, original_latent, tau,
 
 
 def cpc_infonce_aux_loss(forecasted_latent, original_latent, w1,
-                         cross_batch_chunk=256, rollout_latents=None):
+                         cross_batch_chunk=256, rollout_latents=None,
+                         depth_reduce='sum'):
     """CPC InfoNCE auxiliary term (van den Oord et al. 2018, Eq. 4; k=1), #344.
 
     Predict the next-step encoder embedding ``e_{t+1}`` from the
@@ -384,7 +433,10 @@ def cpc_infonce_aux_loss(forecasted_latent, original_latent, w1,
         rollout_latents: f^(1)..f^(k) (#373). ``f`` sits in the numerator AND
             in every denominator term (through ``W_1 f_t``), so each depth
             rebuilds the whole term from ``W_1 f^(j)_t`` against
-            ``e_{t+1+j}``, and the result is the sum over depths.
+            ``e_{t+1+j}``.
+        depth_reduce: how the k + 1 copies combine (#401) — ``'sum'``
+            (default, #373's objective) or ``'mean'``. The term carries no
+            h-only half, so the mean is the plain mean of the copies.
 
     Returns: scalar loss (mean over B, C, t).
     """
@@ -446,17 +498,19 @@ def cpc_infonce_aux_loss(forecasted_latent, original_latent, w1,
         torch.stack([log_neg_time, log_neg_batch], dim=0), dim=0)   # [B,T-1,C]
     log_denom = torch.logsumexp(
         torch.stack([log_pos, log_neg_total], dim=0), dim=0)
-    loss = (log_denom - log_pos).mean()
+    copies = [(log_denom - log_pos).mean()]
     for depth, f_depth in enumerate(rollout_latents or (), start=1):
         f_view, e_view, _ = rollout_depth_views(
             f_depth, original_latent, depth)
-        loss = loss + cpc_infonce_aux_loss(
-            f_view, e_view, w1, cross_batch_chunk=cross_batch_chunk)
-    return loss
+        copies.append(cpc_infonce_aux_loss(
+            f_view, e_view, w1, cross_batch_chunk=cross_batch_chunk))
+    return reduce_depth_terms(
+        copies, resolve_rollout_reduce(depth_reduce, None))
 
 
 def cpc_infonce_all_loss(forecasted_latent, original_latent, w1, source_chunk=8,
-                         marginal_only=True, rollout_latents=None):
+                         marginal_only=True, rollout_latents=None,
+                         depth_reduce='sum'):
     """CPC InfoNCE with the FULL marginal-proposal negative set (#348).
 
     The paper-faithful CPC InfoNCE (van den Oord et al. 2018, Eq. 4): predict
@@ -485,10 +539,10 @@ def cpc_infonce_all_loss(forecasted_latent, original_latent, w1, source_chunk=8,
     exact and chunk-size independent (chunk size only trades memory for kernel
     launches). Env override: ``CPC_ALL_CHUNK``.
 
-    Args mirror :func:`cpc_infonce_aux_loss`, ``rollout_latents`` (#373)
-    included: each depth rebuilds the whole term from ``W_1 c^(j)_t`` against
-    ``z_{t+1+j}`` and the result is the sum over depths. Returns a scalar
-    (mean over B, C, t).
+    Args mirror :func:`cpc_infonce_aux_loss`, ``rollout_latents`` (#373) and
+    ``depth_reduce`` (#401) included: each depth rebuilds the whole term from
+    ``W_1 c^(j)_t`` against ``z_{t+1+j}``, and the k + 1 copies combine by the
+    sum (default) or by the mean. Returns a scalar (mean over B, C, t).
     """
     if forecasted_latent.dim() != 4:
         raise ValueError(
@@ -554,14 +608,15 @@ def cpc_infonce_all_loss(forecasted_latent, original_latent, w1, source_chunk=8,
         log_den_self = torch.logsumexp(sims_t, dim=3).permute(0, 2, 1)         # same-seq all l
         log_denom = torch.logsumexp(
             torch.stack([log_den_self, log_den_cross], dim=0), dim=0)
-    loss = (log_denom - log_pos).mean()
+    copies = [(log_denom - log_pos).mean()]
     for depth, f_depth in enumerate(rollout_latents or (), start=1):
         f_view, e_view, _ = rollout_depth_views(
             f_depth, original_latent, depth)
-        loss = loss + cpc_infonce_all_loss(
+        copies.append(cpc_infonce_all_loss(
             f_view, e_view, w1, source_chunk=source_chunk,
-            marginal_only=marginal_only)
-    return loss
+            marginal_only=marginal_only))
+    return reduce_depth_terms(
+        copies, resolve_rollout_reduce(depth_reduce, None))
 
 
 def sigreg_loss(z, sigma2=None, M=1024, T_knots=17, W=None,
@@ -684,7 +739,8 @@ def sigreg_loss(z, sigma2=None, M=1024, T_knots=17, W=None,
 
 
 def align_loss(forecasted_latent, original_latent, weight=1.0,
-               target_latent=None, rollout_latents=None):
+               target_latent=None, rollout_latents=None,
+               depth_reduce='sum'):
     """BYOL/SimSiam alignment term, standalone (#344 follow-up arm).
 
     ``L_align = weight · (2 − 2·cos(f_t, sg(h_{t+1}))).mean()`` — pull the
@@ -703,8 +759,10 @@ def align_loss(forecasted_latent, original_latent, weight=1.0,
     is what #382's `align` arm trained on.
 
     ``rollout_latents`` (#373): f^(1)..f^(k). The term is f-bearing, so every
-    depth adds a complete copy ``2 − 2·cos(f^(j)_t, sg(target_{t+1+j}))`` and
-    the result is their sum. None (default) ⇒ the depth-0 term alone.
+    depth builds a complete copy ``2 − 2·cos(f^(j)_t, sg(target_{t+1+j}))``.
+    None (default) ⇒ the depth-0 term alone. ``depth_reduce`` (#401) combines
+    the k + 1 copies: ``'sum'`` (default, #373's objective) or ``'mean'``,
+    which holds the term at its k = 0 weight at every depth.
 
     forecasted_latent, original_latent, target_latent: ``[B, T, C, H]``.
     Returns scalar.
@@ -715,13 +773,14 @@ def align_loss(forecasted_latent, original_latent, weight=1.0,
     hy_hat_norm = fore_norm[:, :-1, :, :]              # f_t
     hy_norm = targ_norm[:, 1:, :, :].detach()          # sg(target_{t+1})
     cos_align = cosine_similarity_from_normalized(hy_hat_norm, hy_norm)
-    loss = weight * (2.0 - 2.0 * cos_align).mean()
+    copies = [weight * (2.0 - 2.0 * cos_align).mean()]
     for depth, f_depth in enumerate(rollout_latents or (), start=1):
         f_view, o_view, target_view = rollout_depth_views(
             f_depth, original_latent, depth, target_latent)
-        loss = loss + align_loss(f_view, o_view, weight,
-                                 target_latent=target_view)
-    return loss
+        copies.append(align_loss(f_view, o_view, weight,
+                                 target_latent=target_view))
+    return reduce_depth_terms(
+        copies, resolve_rollout_reduce(depth_reduce, None))
 
 
 def align_moco_loss(original_latent, teacher_original_latent, tau=0.10, weight=1.0):
@@ -963,7 +1022,9 @@ def contrastive_latent_loss(predicted_position, validation, spec,
                             teacher_original_latent=None,
                             rollout_latents=None,
                             train_rollout_depth=None,
-                            depth_index=0):
+                            train_rollout_reduce=None,
+                            depth_index=0,
+                            f_terms_only=False):
     """Compute the contrastive divergence loss.
 
     Args:
@@ -1060,7 +1121,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
     historical objective unchanged). ``rollout_latents`` carries
     f^(1)..f^(k), the forecaster applied to its own output (see
     `src.forecasting_head.rollout_forecaster_latents`); ``k`` copies of
-    every f-bearing term are then added to the depth-0 loss, copy ``j``
+    every f-bearing term are then built beside the depth-0 one, copy ``j``
     tying f^(j)_t to h_{t+1+j}. ``train_rollout_depth`` is the function-arg
     override of the config key, with the usual precedence.
     ``depth_index`` says which copy THIS call computes: the depth loop below
@@ -1068,6 +1129,18 @@ def contrastive_latent_loss(predicted_position, validation, spec,
     :func:`rollout_depth_views`), and a copy skips the terms that carry no
     ``f`` — L_rep, L_rep_moco, and ``mse``'s − mse(h_t, h_{t+1}) half — which
     the depth-0 call already counted once.
+
+    Rollout reduction (#401; config key ``train_rollout_reduce``, default
+    ``'sum'`` → #373's objective unchanged). ``'mean'`` divides the k + 1
+    copies by k + 1, so the f-side holds its k = 0 weight at every depth.
+    The mean covers the f-bearing copies only: the terms that carry no ``f``
+    enter once at their configured weight under both reductions.
+    ``train_rollout_reduce`` is the function-arg override of the config key.
+
+    ``f_terms_only``: return the f-bearing part of THIS call alone, the part
+    a depth copy carries. It is what the mean divides — the depth-0 call
+    returns the f-side and the h-side added together, and the two have to be
+    told apart before one of them can be divided.
     """
     forecasted_latent, original_latent = predicted_position
     train_config = spec.train_configuration
@@ -1078,6 +1151,13 @@ def contrastive_latent_loss(predicted_position, validation, spec,
     depth = resolve_rollout_depth(
         train_rollout_depth, train_config.get('train_rollout_depth'),
         rollout_latents, original_latent.shape[1])
+    reduce = resolve_rollout_reduce(
+        train_rollout_reduce, train_config.get('train_rollout_reduce'))
+
+    # True when this call must carry the f-bearing terms and nothing else:
+    # every rollout-depth copy (depth_index > 0), and the depth-0 f-side the
+    # `mean` reduction subtracts before it divides (#401).
+    f_only = bool(depth_index) or bool(f_terms_only)
 
     # CPC multi-step (#316): the forecaster latent is a [B,T,C,K,H] stack of
     # K linear-head predictions, so the 4-D unpack/positives below do not
@@ -1896,7 +1976,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         # L_rep holds no forecaster output, so a rollout-depth copy (#373)
         # must not duplicate it: the depth-0 call already added it once, at
         # its configured weight.
-        if depth_index:
+        if f_only:
             w_rep = 0.0
         zero_scalar = torch.zeros(
             (), device=hy_hat_norm.device, dtype=hy_hat_norm.dtype,
@@ -2074,7 +2154,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         loss = w_pred * loss_pred + w_rep * loss_rep
 
     elif train_config.get('loss_shape') == 'cosine_similarity_batch_rep_only' \
-            and depth_index:
+            and f_only:
         # #373: the whole shape is h-anchored (L_rep only), so a rollout-depth
         # copy has nothing to substitute and adds exactly zero. The f-bearing
         # `align_loss_weight` add-on this arm pairs L_rep with IS duplicated,
@@ -2601,7 +2681,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         # Only the first term carries f. − mse(h_t, h_{t+1}) is h-only, so a
         # rollout-depth copy (#373) leaves it to the depth-0 call.
         loss = F.mse_loss(hy, hy_hat)
-        if not depth_index:
+        if not f_only:
             loss = loss - F.mse_loss(hx, hy)
     else:
         shape = train_config.get('loss_shape')
@@ -2777,7 +2857,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             # by that side's floor alone.
             f_pred, f_rep = _split_pred_rep_floors(tau, B, T, C, tau_rep=tau_rep)
             loss = loss - float(f_pred)
-            if not depth_index:
+            if not f_only:
                 loss = loss - float(f_rep)
         else:
             # Pooled shapes: floor requires the normalized form (positive
@@ -2796,16 +2876,17 @@ def contrastive_latent_loss(predicted_position, validation, spec,
                     f"loss_shape={train_config.get('loss_shape')!r}.")
             loss = loss - infonce_floor(tau, n_neg)
 
-    # Rollout depth (#373): add one complete copy of every f-bearing term per
+    # Rollout depth (#373): one complete copy of every f-bearing term per
     # depth j = 1..k. Each copy re-enters this same function — same shape
     # branch, same modifiers, same add-ons — on views where f is f^(j) and
     # every h index has shifted by j, so the copy cannot silently keep a
     # depth-0 tensor. `depth_index=j` drops the terms that carry no f, which
     # the call above already counted once.
+    depth_copies = []
     for j, f_depth in enumerate(rollout_latents or (), start=1):
         f_view, h_view, teacher_view = rollout_depth_views(
             f_depth, original_latent, j, teacher_original_latent)
-        loss = loss + contrastive_latent_loss(
+        depth_copies.append(contrastive_latent_loss(
             (f_view, h_view), validation, spec,
             tau_override=tau_override,
             include_positive_in_denominator=include_positive_in_denominator,
@@ -2816,7 +2897,48 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             moco_rep_keys=moco_rep_keys,
             teacher_original_latent=teacher_view,
             train_rollout_depth=0,
-            depth_index=j)
+            depth_index=j))
+
+    if depth_copies and reduce == 'sum':
+        # #373's objective, byte for byte: the copies are added to a `loss`
+        # that already holds both sides.
+        loss = reduce_depth_terms([loss] + depth_copies, 'sum')
+    elif depth_copies:
+        # #401 `mean`. The division covers the f-bearing copies only, so the
+        # f-side of depth 0 has to be told apart from the h-side it is added
+        # to. One more pass over this call's own views, with the h-only terms
+        # dropped, reads it. That pass is what the mean costs; on the
+        # `rep_only` cell it is the L_align add-on alone, because the shape
+        # body returns zeros for an f-only call.
+        #
+        # `loss - f_side_depth0` is the h-side to within one rounding of the
+        # f-side: the two passes run the same deterministic code on the same
+        # tensors, so they return the same number, and (H + F) - F carries an
+        # error of order eps·|F|. That is 1e-7 relative in fp32, against a
+        # loss the run reports to four decimals.
+        if noise_sigma is not None and not validation:
+            # The pass below would draw its own noise, so `loss - f_side`
+            # would not be the h-side. No trainer sets this key; refuse
+            # rather than return a total nobody can reproduce.
+            raise NotImplementedError(
+                "train_rollout_reduce='mean' is not defined with "
+                "contrastive_latent_noise: the f-side probe would redraw the "
+                "noise, so the h-side could not be held out of the division.")
+        f_side_depth0 = contrastive_latent_loss(
+            (forecasted_latent, original_latent), validation, spec,
+            tau_override=tau_override,
+            include_positive_in_denominator=include_positive_in_denominator,
+            align_loss_weight=align_loss_weight,
+            align_target=align_target,
+            subtract_contrastive_floor=subtract_contrastive_floor,
+            moco_negatives=moco_negatives,
+            moco_rep_keys=moco_rep_keys,
+            teacher_original_latent=teacher_original_latent,
+            train_rollout_depth=0,
+            f_terms_only=True)
+        h_side = loss - f_side_depth0
+        loss = h_side + reduce_depth_terms(
+            [f_side_depth0] + depth_copies, 'mean')
 
     if get_history:
         return loss, (forecasted_latent, original_latent)

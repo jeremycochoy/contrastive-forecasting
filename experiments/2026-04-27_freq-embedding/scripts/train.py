@@ -547,9 +547,9 @@ def parse_args():
                         "at depth j = 1..k, copy j tying f^(j)_t to h_{t+1+j}, "
                         "where f^(j) is the forecaster re-applied to its own "
                         "output j more times (the operator the eval rollout "
-                        "composes). The depths are SUMMED on top of the k = 0 "
-                        "objective, so 0 (default) is byte-for-byte today's "
-                        "loss. Terms that carry no f (L_rep, L_rep_moco, "
+                        "composes). --train-rollout-reduce says how the k + 1 "
+                        "copies combine; 0 (default) is byte-for-byte today's "
+                        "loss under either. Terms that carry no f (L_rep, L_rep_moco, "
                         "align_moco, SIGReg) enter the total once at any k. "
                         "Applies to the main contrastive loss, the standalone "
                         "align term and the CPC InfoNCE auxiliary. Changes the "
@@ -558,6 +558,20 @@ def parse_args():
                         "Refused when NO term of the run ties f to h, since "
                         "every depth would then add exactly zero. Adds "
                         "cos_err_d0..dk to the losses CSV. Full reference: "
+                        "docs/train_rollout_depth.md.")
+    p.add_argument("--train-rollout-reduce", choices=["sum", "mean"],
+                   default="sum",
+                   help="How the k + 1 copies of every f-bearing term combine "
+                        "(#401). 'sum' (default) is #373's objective: the "
+                        "f-side then carries k + 1 times its k = 0 weight "
+                        "against the terms that carry no f, which enter once "
+                        "at any k. 'mean' divides the copies by k + 1, so the "
+                        "f-side holds its k = 0 weight at every depth, and "
+                        "the depth changes what the model trains on rather "
+                        "than how much the f-side outweighs the rest. The "
+                        "mean covers the f-bearing copies only. At k = 0 "
+                        "there is one copy and the two agree exactly, so "
+                        "every published run reproduces under either. "
                         "docs/train_rollout_depth.md.")
     p.add_argument("--ema-embedding", action="store_true",
                    help="BYOL/JEPA EMA-teacher copy of the patch-embedding "
@@ -1480,6 +1494,7 @@ def main():
     LOSS_SPEC.train_configuration["pred_loss_weight"] = args.pred_loss_weight
     LOSS_SPEC.train_configuration["rep_loss_weight"] = args.rep_loss_weight
     LOSS_SPEC.train_configuration["train_rollout_depth"] = args.train_rollout_depth
+    LOSS_SPEC.train_configuration["train_rollout_reduce"] = args.train_rollout_reduce
     if args.tau is not None:
         LOSS_SPEC.train_configuration["contrastive_divergence_temperature"] = args.tau
     if args.tau_rep is not None:
@@ -1860,10 +1875,11 @@ def main():
                             "target is the #382 defect this flag removes.")
                     align_target = (teacher_o_lat
                                     if args.align_target == "teacher" else None)
-                    loss = loss + align_loss(f_lat, o_lat,
-                                             args.align_loss_weight,
-                                             target_latent=align_target,
-                                             rollout_latents=rollout_lats)
+                    loss = loss + align_loss(
+                        f_lat, o_lat, args.align_loss_weight,
+                        target_latent=align_target,
+                        rollout_latents=rollout_lats,
+                        depth_reduce=args.train_rollout_reduce)
             else:
                 loss = contrastive_latent_loss(
                     (f_lat, o_lat), validation=False,
@@ -1894,12 +1910,14 @@ def main():
                 if args.cpc_infonce_negs == "matched":
                     cpc_aux = cpc_infonce_aux_loss(
                         f_lat, o_lat, model.cpc_w1,
-                        rollout_latents=rollout_lats)
+                        rollout_latents=rollout_lats,
+                        depth_reduce=args.train_rollout_reduce)
                 else:  # "cross" (strict marginal) or "all" (full batch×time grid)
                     cpc_aux = cpc_infonce_all_loss(
                         f_lat, o_lat, model.cpc_w1,
                         marginal_only=(args.cpc_infonce_negs == "cross"),
-                        rollout_latents=rollout_lats)
+                        rollout_latents=rollout_lats,
+                        depth_reduce=args.train_rollout_reduce)
                 loss = loss + args.cpc_infonce_weight * cpc_aux
                 cpc_aux_val = cpc_aux.item()
             # LeJEPA SIGReg (#355): regularise the pooled marginal of e_t

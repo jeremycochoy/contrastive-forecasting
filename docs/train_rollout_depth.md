@@ -23,9 +23,10 @@ f^(1) = F(f^(0))      f^(1)_t  ties to  h_{t+2}
 f^(k) = F(f^(k-1))    f^(k)_t  ties to  h_{t+1+k}
 ```
 
-The depths are **summed** on top of the `k = 0` term. A `k = 3` run is the
-baseline plus three added terms, not a re-weighted baseline. At depth `j` the
-anchors run `t = 0 .. T-2-j`.
+`--train-rollout-reduce` says how the `k + 1` copies combine. The default is
+the **sum**, which is what #373 ran: a `k = 3` run is the baseline plus three
+added terms, not a re-weighted baseline. At depth `j` the anchors run
+`t = 0 .. T-2-j`.
 
 `F` is `TransformerBlock.forecaster_forward` — the operator the eval rollout
 composes. Gradient flows through the whole chain; no detach between passes.
@@ -46,8 +47,46 @@ Two arguments let each caller keep the policy it always ran at:
   SIGReg and the `− mse(h_t, h_{t+1})` half of `mse` enter the total once at
   any `k`, at their configured weight.
 
-At `k = 3` the f-side therefore carries four times its baseline weight
-against the h-side terms. Watch `u_batchtime` on `h_t` and the loss curve.
+Under the sum, `k = 3` therefore gives the f-side four times its baseline
+weight against the h-side terms. Watch `u_batchtime` on `h_t` and the loss
+curve. `--train-rollout-reduce mean` removes that weight change — see the
+next section.
+
+## `--train-rollout-reduce {sum,mean}`
+
+Flag: `--train-rollout-reduce sum|mean`. Config key: `train_rollout_reduce`.
+Default: `sum`. Issue:
+[#401](https://github.com/jeremycochoy/contrastive-forecasting/issues/401).
+
+| reduction | total | f-side weight at depth `k` |
+|---|---|---|
+| `sum` (default) | `H + Σ_{j=0..k} F_j` | `k + 1` times its `k = 0` weight |
+| `mean` | `H + (Σ_{j=0..k} F_j) / (k + 1)` | its `k = 0` weight, at every `k` |
+
+`F_j` is the depth-`j` copy of the terms that tie `f` to `h`. `H` is every
+term that carries no `f`. The mean covers the copies only, so `H` enters
+once at its configured weight under both reductions. The depth then changes
+what the model trains on, and not how much the f-side outweighs the rest.
+
+At `k = 0` there is one copy, so the two reductions return the same number.
+Every published `k = 0` run reproduces under either word, and #373's `k > 0`
+numbers reproduce under `sum`.
+
+The mean costs one more pass over the f-bearing terms at depth 0. The
+depth-0 call returns `H + F_0` added together, and the two sides must be
+told apart before one of them is divided, so
+`contrastive_latent_loss(..., f_terms_only=True)` reads `F_0` on the same
+views. On a `cosine_similarity_batch_rep_only` cell that pass is the
+`L_align` add-on alone, because the shape body returns zeros for an f-only
+call.
+
+Two limits:
+
+- `contrastive_latent_noise` with `mean` raises. The f-side pass would draw
+  its own noise, so `loss − F_0` would not be the h-side. No trainer sets
+  that key.
+- A word that is not `sum` or `mean` raises and names itself, at the CLI and
+  in `resolve_rollout_reduce`.
 
 ## Where it applies
 
@@ -105,7 +144,11 @@ trains at the `k` it was given, over its own local shard. Each depth takes
 one all-gather on the gathered path.
 
 `--no-main-contrastive-loss` routes the depths through the standalone
-`align_loss` and the CPC auxiliary instead of the main term.
+`align_loss` and the CPC auxiliary instead of the main term. Those three
+functions take the reduction as the `depth_reduce` argument, because they
+read no training config. They carry no h-only half, so their mean is the
+plain mean of the `k + 1` copies. The trainer passes
+`--train-rollout-reduce` to each of them.
 
 `--align-loss-weight` on the main arm is a third path, and the one 12 of the
 14 cells run: the shape body of a `rep_only` depth copy returns zeros, so the
