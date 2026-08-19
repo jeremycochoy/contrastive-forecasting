@@ -1,0 +1,38 @@
+[08-19 18:28:09] [#404 drive] waiting for the four heads on the box
+[08-19 19:29:46] [#404 drive] head a08 on the box, 449977 B — pulling it and its bb40k
+[08-19 19:29:53] [#404 drive] head a08 here
+[08-19 19:29:53] [#404 drive] head a09 on the box, 449977 B — pulling it and its bb40k
+[08-19 19:29:58] [#404 drive] head a09 here
+[08-19 19:29:58] [#404 drive] head s08 on the box, 449977 B — pulling it and its bb40k
+[08-19 19:30:04] [#404 drive] head s08 here
+[08-19 19:30:04] [#404 drive] head s09 on the box, 449977 B — pulling it and its bb40k
+[08-19 19:30:10] [#404 drive] head s09 here
+[08-19 19:30:10] [#404 drive] all 4 head(s) here
+[08-19 19:30:10] [#404 drive] starting the GIFT-Evals
+[08-19 19:30:10] [#404 evals] START arms='a08 a09 s08 s09' root=/home/jupyter/cf404_sync/box_a/sync shards=4
+[08-19 19:30:10] [#404 evals] eval a08 head 449977 B
+[08-19 19:30:10] [#404 evals] eval a09 head 449977 B
+[08-19 19:30:10] [#404 evals] eval s08 head 449977 B
+[08-19 19:30:10] [#404 evals] eval s09 head 449977 B
+[08-19 19:35:46] [#404 evals] eval a08 rc=143
+[08-19 19:35:46] [#404 evals] eval a09 rc=143
+[08-19 19:35:46] [#404 evals] eval s08 rc=143
+[08-19 19:35:46] [#404 evals] eval s09 rc=143
+[08-19 19:35:46] [#404 evals] score a08 MISSING
+[08-19 19:35:46] [#404 evals] score a09 MISSING
+[08-19 19:35:46] [#404 evals] score s08 MISSING
+[08-19 19:35:46] [#404 evals] score s09 MISSING
+/tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/results/scores.csv: 0 score(s)
+/tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/results/splits.csv: no eval to split yet
+[08-19 19:35:46] [#404 evals] EVALS DONE — 4 failed, 0 skipped
+[08-19 19:35:46] [#404 drive] evals rc=1
+[08-19 19:35:46] [#404 drive] collect and draw
+/tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/results/scores.csv: 0 score(s)
+/tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/results/splits.csv: no eval to split yet
+SKIP momentum (rc=1): ABORT: no arm is scored yet — nothing to draw
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/plots/loss_curves.png — 4 curve(s)
+SKIP domain_radar (rc=1): ABORT: no per-domain table at /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/results/splits.csv
+SKIP table (rc=1): ABORT: no arm is scored yet
+[08-19 19:35:50] [#404 drive] DRIVE DONE

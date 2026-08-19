@@ -66,3 +66,24 @@ which skips the head that is already on disk and runs its eval.
       a09  0.9 - -           mean
       s08  0.8 1.0 200000    mean
       s09  0.9 1.0 200000    mean
+
+## The heads, the box teardown, and the evals
+
+- 18:24 to 18:30 the four backbones reached 40,000 steps, one after the other,
+  and the sync loop landed each one on elisa. Every file is 5,195,883 B.
+- 19:29 to 19:31 the four heads reached 30,000 steps on the box. `heads_box.sh`
+  then ended at `ABORT: no eval script`, as its header says it must: the box
+  carries no `gift_eval` package.
+- 19:29 to 19:30 `drive.sh` pulled each head and its bb40k backbone with
+  `safe_pull.sh`. Every head is 449,977 B.
+- 19:30 the four 97-config GIFT-Evals started on elisa's CPUs.
+- 19:34 `vastrun-destroy 48109999 cf404-box-a` returned. Uptime 6 h 9 m,
+  $10.59. The box trained nothing after 19:31, and the evals need no GPU.
+- 19:35 a `pkill` pattern for the sync loop also matched the eval shards,
+  because an eval command line carries the sync root. The four evals died at
+  three configs each. `evals_elisa.sh` re-fired at 19:36 and
+  `eval_gift_eval_official.py --resume` took those three configs back, so the
+  cost was one minute of CPU. The sync loop is down on purpose: its box is
+  gone.
+- 19:38 `finish.sh` armed, detached. It waits for the eval driver, then runs
+  `report_assets.sh` and `make_plots.sh`. No stage now waits on a session.
