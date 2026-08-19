@@ -1396,14 +1396,69 @@ class TestDomainRadar:
         assert any("a08" in v for v in labels) and any("s09" in v for v in labels)
 
     def test_the_radial_axis_holds_the_data_range(self, tmp_path):
-        """Every arm sits between about 1.0 and 1.3. An axis from 0 draws the
-        four polygons on top of one another and the figure says nothing."""
+        """Every arm sits between about 0.8 and 1.3. An axis from 0 draws the
+        four polygons on top of one another and the figure says nothing. The
+        axis is log2, as in #373, so the limits read back through 2**x."""
         pr = load_module(PLOT_RADAR, "cf404_plot_radar")
         src = self.splits(tmp_path, {"a08": 1.19, "s09": 1.11})
         fig, ax = pr.draw(pr.read_splits(src), tmp_path / "radar.png")
-        lo, hi = ax.get_ylim()
+        lo, hi = (2 ** v for v in ax.get_ylim())
         assert lo > 0.5, f"the radial axis starts at {lo}"
         assert hi < 1.6
+
+    def test_the_parity_ring_is_drawn(self, tmp_path):
+        """GM-Relative MASE = 1.0 is parity with seasonal naive. #373 draws
+        that ring on every panel, and a polygon inside it beats seasonal
+        naive on that family."""
+        pr = load_module(PLOT_RADAR, "cf404_plot_radar")
+        src = self.splits(tmp_path, {"a08": 1.19, "s09": 1.11})
+        _fig, ax = pr.draw(pr.read_splits(src), tmp_path / "radar.png")
+        rings = [ln for ln in ax.get_lines()
+                 if set(round(float(v), 9) for v in ln.get_ydata()) == {0.0}]
+        assert rings, [ln.get_label() for ln in ax.get_lines()]
+        assert any("parity" in str(ln.get_label()) for ln in rings)
+
+    def test_the_k3_polygon_is_drawn(self, tmp_path):
+        """Four arms of one cell that differ in one hyperparameter draw four
+        near-equal polygons. Without k = 3 on the figure a reader cannot see
+        where they sit against the score the card has to beat."""
+        pr = load_module(PLOT_RADAR, "cf404_plot_radar")
+        src = self.splits(tmp_path, {"a08": 1.19, "s09": 1.11})
+        _fig, ax = pr.draw(pr.read_splits(src), tmp_path / "radar.png")
+        labels = [str(ln.get_label()) for ln in ax.get_lines()]
+        assert any("k = 3" in v and f"{K3_BB40K:.4f}" in v for v in labels), \
+            labels
+
+    def test_the_reference_is_the_run_behind_the_cards_number(self):
+        """The polygon comes out of #373's own committed table. Its 97-config
+        aggregate has to BE the card's `k = 3, bb40k` row, or the polygon is
+        another run under the name of that one."""
+        pr = load_module(PLOT_RADAR, "cf404_plot_radar")
+        assert Path(pr.REFERENCE_SPLITS).is_file(), pr.REFERENCE_SPLITS
+        _domains, whole = pr._rows(pr.REFERENCE_SPLITS, pr.REFERENCE_KEY)
+        assert round(whole, 4) == round(K3_BB40K, 4), whole
+        assert len(pr.read_reference()) >= 6
+
+    def test_a_reference_under_another_key_is_dropped(self, tmp_path, capsys):
+        """A wrong key would draw another run as k = 3. The figure refuses it
+        and says so, rather than drawing a reference nobody can check."""
+        pr = load_module(PLOT_RADAR, "cf404_plot_radar")
+        got = pr.read_reference(pr.REFERENCE_SPLITS, "A4_k3_bb200k_student")
+        assert got == {}
+        assert f"{K3_BB40K:.4f}" in capsys.readouterr().err
+
+    def test_a_missing_reference_table_still_draws(self, tmp_path, capsys):
+        """`make_plots.sh` redraws every 30 minutes. A checkout without #373's
+        table gives a figure with the parity ring, not a stack trace."""
+        pr = load_module(PLOT_RADAR, "cf404_plot_radar")
+        assert pr.read_reference(tmp_path / "nope.csv") == {}
+        assert "WARN" in capsys.readouterr().err
+        src = self.splits(tmp_path, {"a08": 1.19})
+        _fig, ax = pr.draw(pr.read_splits(src), tmp_path / "radar.png",
+                           reference={})
+        assert (tmp_path / "radar.png").is_file()
+        assert not any("k = 3" in str(ln.get_label())
+                       for ln in ax.get_lines())
 
     def test_the_domains_come_from_the_eval_not_from_a_list(self, tmp_path):
         pr = load_module(PLOT_RADAR, "cf404_plot_radar")
