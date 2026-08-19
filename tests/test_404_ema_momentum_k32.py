@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import csv
 import importlib.util
+import math
 import os
 import subprocess
 import sys
@@ -1386,6 +1387,12 @@ class TestDomainRadar:
                                 f"{base + 0.01 * i:.4f}"])
         return path
 
+    def polygon(self, ax, arm):
+        """One arm's drawn radii, closing point included."""
+        line = next(ln for ln in ax.get_lines()
+                    if str(ln.get_label()) == arm)
+        return line.get_ydata()
+
     def test_one_polygon_per_arm(self, tmp_path):
         pr = load_module(PLOT_RADAR, "cf404_plot_radar")
         src = self.splits(tmp_path, {"a08": 1.19, "s09": 1.11})
@@ -1466,6 +1473,38 @@ class TestDomainRadar:
         got = pr.read_splits(src)
         assert set(got["a08"]) == {"Econ/Fin", "Energy", "Nature", "Sales",
                                    "Transport", "Web/CloudOps"}
+
+    def test_a_hole_in_an_arms_table_breaks_the_polygon(self, tmp_path,
+                                                        capsys):
+        """A domain an arm has no row for, read as 1.0, lands exactly on the
+        parity ring. A reader then takes the hole for a score at parity. The
+        polygon breaks at that domain instead, and the figure names the arm
+        and the domain on stderr."""
+        pr = load_module(PLOT_RADAR, "cf404_plot_radar")
+        src = self.splits(tmp_path, {"a08": 1.19, "s09": 1.11})
+        by_arm = pr.read_splits(src)
+        del by_arm["s09"]["Energy"]
+        _fig, ax = pr.draw(by_arm, tmp_path / "radar.png", reference={})
+        domains = sorted(by_arm["a08"])
+        radii = list(self.polygon(ax, "s09"))
+        assert math.isnan(radii[domains.index("Energy")]), radii
+        assert not any(round(float(v), 9) == 0.0
+                       for v in radii if not math.isnan(v)), radii
+        err = capsys.readouterr().err
+        assert "s09" in err and "Energy" in err, err
+
+    def test_an_arm_with_every_row_keeps_every_point(self, tmp_path):
+        """The break is for a hole alone. An arm whose table is whole draws
+        every domain, at the value the table gives."""
+        pr = load_module(PLOT_RADAR, "cf404_plot_radar")
+        src = self.splits(tmp_path, {"a08": 1.19})
+        by_arm = pr.read_splits(src)
+        _fig, ax = pr.draw(by_arm, tmp_path / "radar.png", reference={})
+        domains = sorted(by_arm["a08"])
+        radii = list(self.polygon(ax, "a08"))
+        assert not any(math.isnan(v) for v in radii), radii
+        assert radii[:-1] == pytest.approx(
+            [math.log2(by_arm["a08"][d]) for d in domains])
 
 
 class TestTheTableAndTheStatement:

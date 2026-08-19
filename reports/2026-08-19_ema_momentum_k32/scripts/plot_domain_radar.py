@@ -10,6 +10,9 @@ The same figure #373 and #401 publish, with the same two references.
                arms of one cell that differ in one hyperparameter draw four
                near-equal polygons, so without it a reader cannot see where
                they sit against k = 3.
+  break        A domain the arm has no row for. A hole drawn at 1.0 would sit
+               exactly on the parity ring, so a reader would take it for a
+               real score.
 
 The radial axis is log2, as in #373, so equal multiplicative steps are equal
 distances and the parity ring sits at 0.
@@ -149,6 +152,18 @@ def ticks_for(values) -> list[float]:
     return kept
 
 
+def polygon_of(values: dict[str, float], domains) -> list[float]:
+    """One arm's radii in log2, over `domains`, and closed on the first one.
+
+    A domain the arm has no row for takes a NaN, which breaks the line there.
+    The value that a hole took before was 1.0, and 1.0 is the parity ring, so
+    a hole and a score at parity drew the same point.
+    """
+    radii = [math.log2(values[d]) if d in values else math.nan
+             for d in domains]
+    return radii + radii[:1]
+
+
 def draw(by_arm: dict[str, dict[str, float]], out, reference=None):
     """Draw the radar and write the figure. Returns (figure, axes)."""
     if not by_arm:
@@ -193,11 +208,17 @@ def draw(by_arm: dict[str, dict[str, float]], out, reference=None):
               f"reference polygon", file=sys.stderr)
 
     for arm in sorted(by_arm):
-        values = [math.log2(by_arm[arm].get(d, 1.0)) for d in domains]
-        values.append(values[0])
+        values = polygon_of(by_arm[arm], domains)
         colour = palette[arm]
         ax.plot(angles, values, lw=1.8, label=arm, color=colour, zorder=4)
-        ax.fill(angles, values, alpha=0.06, color=colour, zorder=3)
+        holes = [d for d in domains if d not in by_arm[arm]]
+        if holes:
+            # No fill: a polygon with a break encloses no area. The line alone
+            # shows the domains the arm does have.
+            print(f"WARN: arm {arm} has no row for {holes} — the polygon "
+                  f"breaks there", file=sys.stderr)
+        else:
+            ax.fill(angles, values, alpha=0.06, color=colour, zorder=3)
 
     ax.set_xticks(angles[:-1])
     ax.set_xticklabels(domains, fontsize=9)
