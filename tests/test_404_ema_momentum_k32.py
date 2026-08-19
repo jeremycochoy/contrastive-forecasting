@@ -1541,6 +1541,30 @@ class TestOneColourPerArm:
         crowded = c(["a085", "s09b", "s09", "a08"])["s09"]
         assert alone == crowded
 
+    def test_the_fallback_list_cycles_rather_than_repeating_one_entry(self):
+        """It used to hand every arm past the list the SAME last entry, so
+        two added arms drew in one colour and read as one arm."""
+        mod = load_module(ARM_COLOURS, "cf404_arm_colours")
+        n = len(mod.EXTRA)
+        got = mod.colours([f"x{i}" for i in range(n + 2)])
+        assert len(set(got.values())) == n, got
+        assert got["x0"] == got[f"x{n}"]
+        assert got[f"x{n}"] != got[f"x{n + 1}"]
+
+    def test_the_whole_fallback_list_is_distinct(self):
+        mod = load_module(ARM_COLOURS, "cf404_arm_colours")
+        every = list(mod.NAMED.values()) + list(mod.EXTRA)
+        assert len(set(every)) == len(every), every
+
+    def test_no_fallback_colour_is_a_grey(self):
+        """The momentum figure draws every reference in grey — the k = 3
+        band, #401's arm, the two 200,000-step lines. A grey arm reads as a
+        reference."""
+        mod = load_module(ARM_COLOURS, "cf404_arm_colours")
+        for c in mod.EXTRA:
+            r, g, b = (int(c[i:i + 2], 16) for i in (1, 3, 5))
+            assert max(r, g, b) - min(r, g, b) > 24, f"{c} is a grey"
+
     @pytest.mark.parametrize("script", [PLOT_MOMENTUM, PLOT_CURVES, PLOT_RADAR])
     def test_every_figure_reads_the_shared_map(self, script):
         text = script.read_text()
