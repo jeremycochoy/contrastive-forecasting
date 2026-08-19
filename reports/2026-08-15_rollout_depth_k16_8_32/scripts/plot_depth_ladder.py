@@ -21,6 +21,12 @@ changes across them:
   grey    #373's best on this cell, 1.0660 at bb200k. It is the number this
           study has to beat, and it is drawn on both panels.
 
+A shaded band of +/-0.0384 rides on the k = 3 reference. That is the pooled
+head-seed band of `ema_sched_ladder.md`, and it is the rule the report reads
+every difference against: a gap inside the band is not a measured difference.
+It rides on k = 3 because k = 3 is what every depth of this study is read
+against.
+
 A cell that runs the card's depth and stop on ANOTHER training schedule draws
 an open marker at its stop, named on the point. It takes no place on a line:
 a line is one depth over the stops, and a variant sits at a stop the base cell
@@ -42,6 +48,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt                           # noqa: E402
 from matplotlib.lines import Line2D                       # noqa: E402
+from matplotlib.patches import Patch                      # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 STUDY = HERE.parent
@@ -59,6 +66,10 @@ HEAD = "student"
 STOPS_K = [40, 100, 200]
 PHASE_TITLE = {1: "phase 1 — head at 30k steps on every stop",
                2: "phase 2 — head budget = backbone steps"}
+
+# The pooled head-seed band of `ema_sched_ladder.md`. It bounds the head seed
+# alone. Every difference this report reads is read against it.
+HEAD_SEED_BAND = 0.0384
 
 
 def read_scores(path):
@@ -118,6 +129,23 @@ def spread(ys, gap):
     return out
 
 
+def draw_band(ax, xs, pts, ink):
+    """The head-seed band, as a shaded ribbon on the k = 3 reference.
+
+    Drawn under everything, so it reads as the floor of a difference and not
+    as a subject. It returns its own edges, so the panel's vertical limits
+    hold the whole band and a line that sits inside it stays visible.
+    """
+    if not pts:
+        return []
+    ss = sorted(pts)
+    x = [xs[s] for s in ss]
+    lo = [pts[s] - HEAD_SEED_BAND for s in ss]
+    hi = [pts[s] + HEAD_SEED_BAND for s in ss]
+    ax.fill_between(x, lo, hi, color=ink, alpha=0.14, lw=0, zorder=0)
+    return lo + hi
+
+
 def draw_reference(ax, xs, pts, ink, style, width=1.7):
     if not pts:
         return []
@@ -173,6 +201,7 @@ def draw_panel(ax, phase, arms, k3, k0, xs, frontier, stops_k, variants=()):
         ends.append((xs[ss[-1]], pts[ss[-1]], k, col))
 
     values += draw_variants(ax, [c for c in variants if c[0] == phase], xs)
+    values += draw_band(ax, xs, k3, D.REF_K3_INK)
     values += draw_reference(ax, xs, k3, D.REF_K3_INK, D.STYLE_K3)
     values += draw_reference(ax, xs, k0, D.REF_K0_INK, D.STYLE_K0)
 
@@ -248,6 +277,8 @@ def main(argv=None):
     handles = [
         Line2D([], [], color=D.INK_SOFT, linestyle=D.STYLE_K3, lw=1.7,
                label="k = 3, same cell and same head"),
+        Patch(facecolor=D.REF_K3_INK, alpha=0.14, lw=0,
+              label=f"head-seed band ±{HEAD_SEED_BAND:.4f}"),
         Line2D([], [], color=D.REF_K0_INK, linestyle=D.STYLE_K0, lw=1.7,
                label="published k = 0, same cell and same head"),
         Line2D([], [], color=D.PRIOR_INK, lw=2.0,

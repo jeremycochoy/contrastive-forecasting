@@ -1,7 +1,7 @@
 # #401 run state — the mean objective
 
-- updated: 2026-08-19 13:23:30
-- note: phase 2 runs under the orchestrator's watcher; four control heads chained behind it
+- updated: 2026-08-19 14:05:19
+- note: phase 2 runs under the orchestrator's watcher. Three control heads are chained behind it
 - objective: `--train-rollout-reduce mean`, depths 8 32
 - root (the sync loop lands the box's tree here): `/home/jupyter/cf401_sync/box_a/sync`
 - results: `/tmp/contrastive-forecasting-401/reports/2026-08-15_rollout_depth_k16_8_32/results/mean`

@@ -17,6 +17,7 @@ Two figures:
 Usage:  python3 plot_diag_collapse.py
 """
 import csv
+import sys
 from pathlib import Path
 
 import matplotlib
@@ -29,6 +30,9 @@ STUDY = HERE.parent
 REPO = STUDY.parent.parent
 PLOTS = STUDY / "plots"
 RES = STUDY / "results"
+
+sys.path.insert(0, str(HERE))
+import depth_colours as D                # noqa: E402
 
 CF401 = Path("/home/jupyter/checkpoints_backup/cf-401")
 CF401M = Path("/home/jupyter/cf401_sync/box_a/sync")
@@ -43,7 +47,9 @@ CURVES = REPO / "reports/2026-08-08_rollout_depth/curves"
 #
 # So the two channels carry the two variables, and neither carries both:
 #
-#   hue          the depth. k = 8 orange, k = 16 red, k = 32 blue, k = 3 green.
+#   hue          the depth, from `depth_colours.py` — the one map every figure
+#                of this report reads. k = 3 is #373's reference and no depth
+#                of this study, so it takes the reference ink and no hue.
 #   dash         the reduction. Long dash summed, dotted mean, solid the
 #                published k = 3 reference.
 #
@@ -54,34 +60,40 @@ CURVES = REPO / "reports/2026-08-08_rollout_depth/curves"
 # files. They are read in order and concatenated, which is what the summed
 # arms' single `leg_40k` file already is.
 ARMS = [
-    ("k = 3, published reference, 1.0862", "#2f6f4e", "-",
+    ("k = 3, published reference, 1.0862", D.REF_K3_INK, "-",
      [CURVES / "r2/A4_cf393_arm6_v2_combab_alignS_cf373k3_losses.csv"]),
-    ("k = 8 sum, scored 2.0357", "#c9772a", (0, (5, 2)),
+    ("k = 8 sum, scored 2.0357", D.colour(8), (0, (5, 2)),
      [CF401 / "k8/arm6_v2_combab_alignS/leg_40k/"
               "cf393_arm6_v2_combab_alignS_cf373k8_losses.csv"]),
-    ("k = 16 sum, scored 4.5297", "#a63a3a", (0, (5, 2)),
+    ("k = 16 sum, scored 4.5297", D.colour(16), (0, (5, 2)),
      [CF401 / "k16/arm6_v2_combab_alignS/leg_40k/"
               "cf393_arm6_v2_combab_alignS_cf373k16_losses.csv"]),
-    ("k = 32 sum, scored 7.9575", "#3a5ba6", (0, (5, 2)),
+    ("k = 32 sum, scored 7.9575", D.colour(32), (0, (5, 2)),
      [CF401 / "k32/arm6_v2_combab_alignS/leg_40k/"
               "cf393_arm6_v2_combab_alignS_cf373k32_losses.csv"]),
-    ("k = 8 mean, scored 1.2433", "#c9772a", (0, (1, 1.4)),
+    ("k = 8 mean, scored 1.2433", D.colour(8), (0, (1, 1.4)),
      [CF401M / "k8/arm6_v2_combab_alignS/leg_20k/"
                "cf393_arm6_v2_combab_alignS_cf373k8_mean_losses.csv",
       CF401M / "k8/arm6_v2_combab_alignS/leg_40k/"
                "cf393_arm6_v2_combab_alignS_cf373k8_mean_losses.csv"]),
-    ("k = 32 mean, scored 1.2082", "#3a5ba6", (0, (1, 1.4)),
+    ("k = 32 mean, scored 1.2082", D.colour(32), (0, (1, 1.4)),
      [CF401M / "k32/arm6_v2_combab_alignS/leg_20k/"
                 "cf393_arm6_v2_combab_alignS_cf373k32_mean_losses.csv",
       CF401M / "k32/arm6_v2_combab_alignS/leg_40k/"
                 "cf393_arm6_v2_combab_alignS_cf373k32_mean_losses.csv"]),
 ]
 
-# The two arms, and the ink each takes in `latent_rank`. Colour by ARM, not by
-# health: the figure's job is to show which arm a bar belongs to, and the bar
-# length is what says whether that arm collapsed.
-ARM_INK = {"n/a": "#2f6f4e", "sum": "#a63a3a", "mean": "#3a5ba6"}
-ARM_NAME = {"n/a": "k = 0 parent", "sum": "summed arm", "mean": "mean arm"}
+# `latent_rank` colours a bar by its DEPTH, out of the same map every other
+# figure reads, so no hue means two things across the report. The REDUCTION
+# rides on the row label instead of on a second colour channel.
+ARM_NAME = {"n/a": "", "sum": "sum", "mean": "mean"}
+
+# The row labels of `latent_rank`, in plain words. `collapse.csv` names a row
+# by the issue that produced the checkpoint, which no reader can resolve.
+ROW_LABEL = {
+    "393 parent  k=0  bb40k": "k = 0 parent",
+    "379 B5pub   k=0  bb40k": "k = 0, other study",
+}
 
 PANELS = [
     ("auc", "AUC — can the model tell a positive from a negative?",
@@ -177,13 +189,25 @@ def collapse_onset():
     print(f"-> {out}")
 
 
+def row_label(r):
+    """One bar's name: the reduction, the depth and the backbone stop.
+
+    A checkpoint of another study keeps that fact in its name, because its
+    numbers are not this study's and the figure must not read as if they are.
+    """
+    fixed = ROW_LABEL.get(r["label"])
+    if fixed:
+        return fixed
+    return f"{ARM_NAME.get(r['reduce'], '')}, k = {r['k']}, bb{r['stop_k']}k"
+
+
 def latent_rank():
     rows = list(csv.DictReader(open(RES / "diag/collapse.csv")))
-    labels = [r["label"].replace("  ", " ") for r in rows]
+    labels = [row_label(r) for r in rows]
     rank = [float(r["eff_rank"]) for r in rows]
     pcos = [float(r["pair_cos"]) for r in rows]
-    arms = [r.get("reduce") or "sum" for r in rows]
-    colours = [ARM_INK.get(a, "#a63a3a") for a in arms]
+    depths = [int(r["k"]) for r in rows]
+    colours = [D.colour(k) if k else D.REF_K0_INK for k in depths]
     y = np.arange(len(rows))[::-1]
 
     fig, axes = plt.subplots(1, 2, figsize=(12, 3.6))
@@ -206,9 +230,11 @@ def latent_rank():
     for ax, vals, fmt in ((axes[0], rank, "{:.2f}"), (axes[1], pcos, "{:.3f}")):
         for yy, v in zip(y, vals):
             ax.text(v, yy, " " + fmt.format(v), va="center", fontsize=8)
-    seen = [a for a in ARM_INK if a in arms]
-    fig.legend(handles=[plt.Line2D([], [], lw=6, color=ARM_INK[a],
-                                   label=ARM_NAME[a]) for a in seen],
+    seen = [k for k in (0, 8, 16, 32) if k in depths]
+    fig.legend(handles=[plt.Line2D(
+                   [], [], lw=6,
+                   color=D.colour(k) if k else D.REF_K0_INK,
+                   label=f"k = {k}") for k in seen],
                loc="lower center", ncol=len(seen), frameon=False, fontsize=9)
     fig.suptitle("The saved checkpoints, through the loader the GIFT-Eval "
                  "uses, on 21 real GIFT-Eval windows", fontsize=11)

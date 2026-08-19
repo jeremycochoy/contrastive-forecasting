@@ -31,6 +31,7 @@ k = 0 parent, a circle the summed arm, a square the mean arm.
 Usage:  python3 plot_collapse_vs_score.py
 """
 import csv
+import sys
 from pathlib import Path
 
 import matplotlib
@@ -42,12 +43,20 @@ STUDY = HERE.parent
 RES = STUDY / "results"
 PLOTS = STUDY / "plots"
 
+sys.path.insert(0, str(HERE))
+import depth_colours as D                # noqa: E402
+
 # The k = 0 anchor, measured by this study's own path: control c2.
 K0_SCORE = float(
     (RES / "diag/score_c2_k0anchor_a4parent_bb40k_h30k_student.txt")
     .read_text().strip())
 
-COLOUR = {0: "#2f6f4e", 8: "#c9772a", 16: "#a63a3a", 32: "#3a5ba6"}
+# One colour per rollout depth, report-wide: `depth_colours.py` is the single
+# map every figure of this report reads. This figure held its own inks until
+# the review found blue meaning k = 32 here and k = 16 in the ladder.
+# k = 0 is no depth of this study, so it takes the ink the ladder gives the
+# published k = 0 and no hue.
+COLOUR = {0: D.REF_K0_INK, 8: D.colour(8), 16: D.colour(16), 32: D.colour(32)}
 MARKER = {"sum": "o", "mean": "s"}
 ARM_NAME = {"sum": "summed", "mean": "mean"}
 
@@ -183,13 +192,10 @@ def main():
                               f"k={r['k']} {r['step_k']}k",
                               COLOUR[int(r["k"])]) for r in rs])
 
-    rho = spearman([float(r["readout_r"]) for r in readable],
-                   [float(r["score"]) for r in readable])
-    ax[0].set_title("Rank separates the two reductions. It does not put the "
-                    "mean arm under the k = 0 anchor.", fontsize=9.5)
-    ax[1].set_title(f"Inside the collapsed set, the score follows the "
-                    f"readout  (Spearman {rho:+.2f}, n = {len(readable)})",
-                    fontsize=9.5)
+    # The panel titles are LABELS. What the two panels show is a finding, and
+    # a finding belongs in the body of the report, not in a figure title.
+    ax[0].set_title("score against effective rank", fontsize=9.5)
+    ax[1].set_title("score against readout r, collapsed set", fontsize=9.5)
 
     handles = [plt.Line2D([], [], marker="*", ls="", color=COLOUR[0],
                           markersize=12, label="k = 0 parent")]
@@ -209,8 +215,13 @@ def main():
     place()
     out = PLOTS / "collapse_vs_score.png"
     fig.savefig(out, dpi=150)
+    # The Spearman goes to stdout, not into a panel title: the report states
+    # it once, in the body of the reduction section.
+    rho = spearman([float(r["readout_r"]) for r in readable],
+                   [float(r["score"]) for r in readable])
     print(f"-> {out}  ({len(scored)} scored cell(s), "
-          f"{len(readable)} on the readout panel)")
+          f"{len(readable)} on the readout panel, "
+          f"Spearman(score, readout r) = {rho:+.2f})")
 
 
 if __name__ == "__main__":
