@@ -53,6 +53,7 @@ def _references():
 
 REF = _references()
 
+
 # One colour per arm, shared with every other figure of this study.
 def _colours():
     spec = importlib.util.spec_from_file_location(

@@ -30,6 +30,7 @@ STUDY_SH = HERE / "study.sh"
 
 import importlib.util
 
+
 # One colour per arm, shared with every other figure of this study.
 def _colours():
     spec = importlib.util.spec_from_file_location(

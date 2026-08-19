@@ -28,6 +28,7 @@ import importlib.util
 
 HERE = Path(__file__).resolve().parent
 
+
 # One colour per arm, shared with every other figure of this study.
 def _colours():
     spec = importlib.util.spec_from_file_location(
