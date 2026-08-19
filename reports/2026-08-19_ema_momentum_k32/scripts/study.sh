@@ -138,6 +138,17 @@ cf404_schedule(){  # <arm>
   esac
 }
 
+# How long the ramp is, in steps. `0` for an arm that holds alpha fixed.
+#
+# The momentum figure orders the arms of one alpha by this number, so a fixed
+# arm, #401's 100,000-step ramp and this card's 200,000-step ramp read left to
+# right under one tick instead of landing on one another.
+cf404_ramp(){  # <arm>
+  local v
+  v="$(cf404_arm_row "${1:?arm}" | awk '{print $4}')" || return 1
+  case "$v" in ""|-) printf '0\n' ;; *) printf '%s\n' "$v" ;; esac
+}
+
 # The trainer flags of one arm's EMA momentum, as ONE unit.
 #
 # A fixed arm passes `--ema-tau` alone. It does NOT pass `--ema-tau-end` at

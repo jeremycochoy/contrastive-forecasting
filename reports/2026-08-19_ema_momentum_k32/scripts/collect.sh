@@ -38,7 +38,7 @@ mkdir -p "$CF404_RESULTS"
 split_args=()
 
 {
-  echo "arm,alpha,schedule,stop,head_steps,encoder,score"
+  echo "arm,alpha,schedule,ramp,stop,head_steps,encoder,score"
   for f in "$CF404_RESULTS"/score_*.txt; do
     [ -e "$f" ] || continue
     [ -s "$f" ] || continue
@@ -58,7 +58,7 @@ split_args=()
       echo "WARN: $base names '$arm', which is not an arm of this study" >&2
       continue; }
     stop="$(cf404_steps_of "$stop_l")"; head="$(cf404_steps_of "$head_l")"
-    echo "$arm,$(cf404_alpha "$arm"),$(cf404_schedule "$arm"),$stop,$head,$enc,$score"
+    echo "$arm,$(cf404_alpha "$arm"),$(cf404_schedule "$arm"),$(cf404_ramp "$arm"),$stop,$head,$enc,$score"
     split_args+=(--stop "$tag=$(cf404_eval_dir "$arm" "$tag")/gift/all_results.csv")
   done
 } >"$OUT.tmp"

@@ -1064,6 +1064,14 @@ class TestCollect:
         rows = self.collect(tmp_path, {"a09": 1.15})
         assert rows[0]["schedule"] == "fixed"
 
+    def test_the_row_carries_the_length_of_the_ramp(self, tmp_path):
+        """The momentum figure orders the arms of one alpha by it, so a
+        fixed arm, #401's 100,000-step ramp and this card's 200,000-step
+        ramp read left to right under one tick."""
+        rows = self.collect(tmp_path, {"s08": 1.15, "a09": 1.17})
+        by_arm = {r["arm"]: r["ramp"] for r in rows}
+        assert by_arm == {"s08": "200000", "a09": "0"}
+
     def test_an_empty_score_file_is_skipped(self, tmp_path):
         """An eval killed between opening and writing leaves one, and a 0.0
         here would be the best GM-Relative MASE the project ever recorded."""
@@ -1104,13 +1112,14 @@ def scores_csv(path: Path, by_arm: dict[str, float]):
     path.parent.mkdir(parents=True, exist_ok=True)
     alpha = {a: t for a, t, _e, _r in ARMS}
     sched = {a: ("fixed" if e == "-" else "ramp") for a, _t, e, _r in ARMS}
+    ramp = {a: ("0" if r == "-" else r) for a, _t, _e, r in ARMS}
     with open(path, "w", newline="") as fh:
         w = csv.writer(fh)
-        w.writerow(["arm", "alpha", "schedule", "stop", "head_steps",
+        w.writerow(["arm", "alpha", "schedule", "ramp", "stop", "head_steps",
                     "encoder", "score"])
         for arm, score in by_arm.items():
-            w.writerow([arm, alpha[arm], sched[arm], STOP, HEAD_STEPS, ENC,
-                        f"{score:.4f}"])
+            w.writerow([arm, alpha[arm], sched[arm], ramp[arm], STOP,
+                        HEAD_STEPS, ENC, f"{score:.4f}"])
     return path
 
 
@@ -1233,6 +1242,58 @@ class TestMomentumFigure:
             ln.get_label() for ln in ax.get_lines()}
         assert any("fixed" in str(v) for v in labels), labels
         assert any("200k" in str(v) or "ramp" in str(v) for v in labels), labels
+
+    def test_no_two_markers_land_on_one_x(self, tmp_path):
+        """a09, s09 and #401's arm all hold α = 0.9 at step 0. Three markers
+        on one x position hide two of them, and the two open squares differ
+        by colour alone."""
+        _mp, _fig, ax, _out = self.draw(
+            tmp_path, {"a08": 1.19, "a09": 1.17, "s08": 1.14, "s09": 1.11})
+        xs = [round(float(ln.get_xdata()[0]), 6) for ln in ax.get_lines()
+              if len(ln.get_xdata()) == 1]
+        assert len(xs) == len(ARMS) + 1, xs
+        assert len(set(xs)) == len(xs), xs
+
+    def test_the_offset_orders_a_momentum_by_its_ramp_length(self, tmp_path):
+        """Under one tick the markers read left to right by how long the ramp
+        is: fixed, then #401's 100,000 steps, then this card's 200,000."""
+        mp, _fig, _ax, _out = self.draw(
+            tmp_path, {"a08": 1.19, "a09": 1.17, "s08": 1.14, "s09": 1.11})
+        xs = mp.x_positions(mp.read_scores(tmp_path / "scores.csv"))
+        assert xs["a09"] < xs[mp.REF_KEY] < xs["s09"]
+        assert xs["a08"] < xs["s08"]
+
+    def test_no_marker_leaves_its_own_momentum(self, tmp_path):
+        """The offset separates a group. It must not carry an arm halfway to
+        the next tick, or a reader takes it for another momentum."""
+        mp, _fig, _ax, _out = self.draw(
+            tmp_path, {"a08": 1.19, "a09": 1.17, "s08": 1.14, "s09": 1.11})
+        rows = mp.read_scores(tmp_path / "scores.csv")
+        xs = mp.x_positions(rows)
+        alpha = {r["arm"]: r["alpha"] for r in rows}
+        alpha[mp.REF_KEY] = references().K32_BB40K_ALPHA
+        gap = 0.9 - 0.8
+        for key, x in xs.items():
+            assert abs(x - alpha[key]) < gap / 4, (key, x, alpha[key])
+
+    def test_two_arms_at_one_momentum_get_two_label_positions(self, tmp_path):
+        """a09 and s09 can score within a hair of one another, and one
+        offset for every arm then prints two labels on top of each other."""
+        _mp, _fig, ax, _out = self.draw(tmp_path, {"a09": 1.1700,
+                                                   "s09": 1.1702})
+        offsets = [tuple(t.get_position()) for t in ax.texts]
+        assert len(set(offsets)) == len(offsets), offsets
+
+    def test_every_label_stays_inside_the_frame(self, tmp_path):
+        """An arm at the right edge takes its label on its left. A label that
+        runs past the frame is a score a reader cannot read."""
+        _mp, fig, ax, _out = self.draw(
+            tmp_path, {"a08": 1.19, "a09": 1.17, "s08": 1.14, "s09": 1.11})
+        renderer = fig.canvas.get_renderer()
+        frame = ax.get_window_extent(renderer)
+        for text in ax.texts:
+            box = text.get_window_extent(renderer)
+            assert frame.x0 <= box.x0 and box.x1 <= frame.x1, text.get_text()
 
     def test_it_draws_with_one_arm_scored(self, tmp_path):
         """The figure is redrawn every 30 minutes while the study runs."""
