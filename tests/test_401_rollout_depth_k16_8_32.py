@@ -17,16 +17,16 @@ That is the contract these tests hold:
 
   * the study's constants are the card's: depths 8 and 32 IN THAT ORDER,
     stops 40k / 100k / 200k, phase-1 head 30,000 steps, student encoder,
-    and the mean over the depth copies;
-  * the two arms of this card never share a file;
+    and the mean over the depth copies.
+  * the two arms of this card never share a file.
   * four GPUs across two machines: the box trains backbones, elisa trains
-    every head and runs every 97-config GIFT-Eval;
-  * the configuration is #373's A4 cell, flag for flag;
+    every head and runs every 97-config GIFT-Eval.
+  * the configuration is #373's A4 cell, flag for flag.
   * the runner is #373's `run_leg_k.sh` — no second trainer invocation
-    exists in this study;
+    exists in this study.
   * the head and the eval are #373's `head_eval_bb.sh` — same protocol,
-    same 97 configs;
-  * phase 2 matches the head budget to the backbone stop;
+    same 97 configs.
+  * phase 2 matches the head budget to the backbone stop.
   * every artefact lands in THIS study's directory and on a durable root,
     and no run name can collide with a published #373 one.
 

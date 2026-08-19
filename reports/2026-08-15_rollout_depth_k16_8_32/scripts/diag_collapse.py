@@ -117,7 +117,7 @@ def discover():
 
 # Real windows, from datasets that span the benchmark's frequencies and
 # domains. Synthetic input would leave open whether the encoder separates
-# real series; these are the series the score is computed on.
+# real series. These are the series the score is computed on.
 DATASETS = [
     ("ett1", "H"), ("ett2", "H"), ("electricity", "H"), ("solar", "H"),
     ("jena_weather", "H"), ("us_births", "D"), ("saugeenday", "D"),

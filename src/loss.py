@@ -1130,7 +1130,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
     ``f`` — L_rep, L_rep_moco, and ``mse``'s − mse(h_t, h_{t+1}) half — which
     the depth-0 call already counted once.
 
-    Rollout reduction (#401; config key ``train_rollout_reduce``, default
+    Rollout reduction (#401, config key ``train_rollout_reduce``, default
     ``'sum'`` → #373's objective unchanged). ``'mean'`` divides the k + 1
     copies by k + 1, so the f-side holds its k = 0 weight at every depth.
     The mean covers the f-bearing copies only: the terms that carry no ``f``
@@ -2907,7 +2907,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         # #401 `mean`. The division covers the f-bearing copies only, so the
         # f-side of depth 0 has to be told apart from the h-side it is added
         # to. One more pass over this call's own views, with the h-only terms
-        # dropped, reads it. That pass is what the mean costs; on the
+        # dropped, reads it. That pass is what the mean costs. On the
         # `rep_only` cell it is the L_align add-on alone, because the shape
         # body returns zeros for an f-only call.
         #
@@ -2918,8 +2918,8 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         # loss the run reports to four decimals.
         if noise_sigma is not None and not validation:
             # The pass below would draw its own noise, so `loss - f_side`
-            # would not be the h-side. No trainer sets this key; refuse
-            # rather than return a total nobody can reproduce.
+            # would not be the h-side. No trainer sets this key. This
+            # code refuses rather than return a total nobody can reproduce.
             raise NotImplementedError(
                 "train_rollout_reduce='mean' is not defined with "
                 "contrastive_latent_noise: the f-side probe would redraw the "

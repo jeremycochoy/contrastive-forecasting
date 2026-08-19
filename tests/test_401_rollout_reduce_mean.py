@@ -203,7 +203,7 @@ class TestTheHSideStaysOutOfTheDivision:
         lat = _latents(_SPLIT, seed=7)
         full = call(_SPLIT, 'base', lat, depth=0)
         f_side = call(_SPLIT, 'base', lat, depth=0, f_terms_only=True)
-        # L_pred is the f-bearing half of the split shape; --rep-loss-weight 0
+        # L_pred is the f-bearing half of the split shape. --rep-loss-weight 0
         # leaves it alone.
         assert f_side == pytest.approx(
             call(_SPLIT, 'base', lat, depth=0, rep_loss_weight=0.0),
@@ -261,7 +261,7 @@ class TestEveryHOnlyTermEntersOnce:
     @pytest.mark.parametrize('k', [1, 3])
     def test_the_f_rep_floor_constant_enters_once(self, k):
         """`subtract_contrastive_floor` on the split shape subtracts two
-        constants. `f_pred` re-bases the f-side, so it repeats per depth;
+        constants. `f_pred` re-bases the f-side, so it repeats per depth.
         `f_rep` re-bases L_rep, so it enters once. The h-side here takes
         `f_pred` back from the floor helper, which is where the loss reads
         it too — a decomposition by weights alone cannot separate the two."""
@@ -426,7 +426,7 @@ class TestTrainerWiring:
     @pytest.mark.parametrize('name', ['align_loss', 'cpc_infonce_aux_loss',
                                       'cpc_infonce_all_loss'])
     def test_every_standalone_f_bearing_call_carries_the_reduction(self, name):
-        """The main term reads the config key; these three take an argument,
+        """The main term reads the config key. These three take an argument,
         so an unwired call would sum while the run asked for the mean."""
         calls = [c for c in _calls_named(_train_tree(), name)
                  if any(kw.arg == 'rollout_latents' for kw in c.keywords)]
