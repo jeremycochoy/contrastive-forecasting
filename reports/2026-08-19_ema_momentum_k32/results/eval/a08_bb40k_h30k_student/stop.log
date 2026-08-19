@@ -1,0 +1,145 @@
+[08-19 17:23:56] [a08_bb40k_h30k_student] head-train start enc=student steps=30000 seed=20260722 gpu=0 bb=cf393_arm6_v2_combab_alignT_cf373k32_mean_a08_40k.pth
+  [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+  [head-train] auto-detected qk_norm=True from backbone checkpoint
+  [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+  [head-train] auto-detected patch_stats=none
+Backbone loaded from /root/cf404_runs/a08/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_mean_a08_40k.pth (0 params, frozen, encoder=student)
+/usr/local/lib/python3.12/dist-packages/torch/nn/modules/transformer.py:392: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  warnings.warn(
+Forecasting head [transformer-q (2L H64 nhead8 causal)]: 109,456 trainable params
+Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+Loss CSV: /root/cf404_runs/a08/eval/a08_bb40k_h30k_student/qhead_a08_bb40k_h30k_student_s20260722_losses.csv
+Data: MIX 100% HF + 0% synth, hf_bs=256, synth_bs=0, synth_seed=20280722, emit_labels=True
+
+Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+Checkpoints: /root/cf404_runs/a08/eval/a08_bb40k_h30k_student/qhead_a08_bb40k_h30k_student_s20260722_*.pth
+[    500] loss=0.226128  ema_loss=0.229624  11.8 sps  ETA 0.7h
+  -> New best: /root/cf404_runs/a08/eval/a08_bb40k_h30k_student/qhead_a08_bb40k_h30k_student_s20260722_best.pth (ema_loss=0.229624)
+[   1000] loss=0.225683  ema_loss=0.222163  13.6 sps  ETA 0.6h
+  -> New best: /root/cf404_runs/a08/eval/a08_bb40k_h30k_student/qhead_a08_bb40k_h30k_student_s20260722_best.pth (ema_loss=0.222163)
+[   1500] loss=0.229013  ema_loss=0.218579  14.8 sps  ETA 0.5h
+  -> New best: /root/cf404_runs/a08/eval/a08_bb40k_h30k_student/qhead_a08_bb40k_h30k_student_s20260722_best.pth (ema_loss=0.218579)
+[   2000] loss=0.214450  ema_loss=0.217873  15.2 sps  ETA 0.5h
+  -> New best: /root/cf404_runs/a08/eval/a08_bb40k_h30k_student/qhead_a08_bb40k_h30k_student_s20260722_best.pth (ema_loss=0.217873)
+[   2500] loss=0.222967  ema_loss=0.216428  15.0 sps  ETA 0.5h
+  -> New best: /root/cf404_runs/a08/eval/a08_bb40k_h30k_student/qhead_a08_bb40k_h30k_student_s20260722_best.pth (ema_loss=0.216428)
+[   3000] loss=0.212358  ema_loss=0.215901  14.7 sps  ETA 0.5h
+  -> New best: /root/cf404_runs/a08/eval/a08_bb40k_h30k_student/qhead_a08_bb40k_h30k_student_s20260722_best.pth (ema_loss=0.215901)
+[   3500] loss=0.203309  ema_loss=0.215756  14.6 sps  ETA 0.5h
+  -> New best: /root/cf404_runs/a08/eval/a08_bb40k_h30k_student/qhead_a08_bb40k_h30k_student_s20260722_best.pth (ema_loss=0.215756)
+[   4000] loss=0.235334  ema_loss=0.215585  14.6 sps  ETA 0.5h
+  -> New best: /root/cf404_runs/a08/eval/a08_bb40k_h30k_student/qhead_a08_bb40k_h30k_student_s20260722_best.pth (ema_loss=0.215585)
+[   4500] loss=0.230219  ema_loss=0.215989  14.7 sps  ETA 0.5h
+[   5000] loss=0.218351  ema_loss=0.215394  14.6 sps  ETA 0.5h
+  -> New best: /root/cf404_runs/a08/eval/a08_bb40k_h30k_student/qhead_a08_bb40k_h30k_student_s20260722_best.pth (ema_loss=0.215394)
+  -> Saved /root/cf404_runs/a08/eval/a08_bb40k_h30k_student/qhead_a08_bb40k_h30k_student_s20260722_5k.pth
+[   5500] loss=0.215696  ema_loss=0.215234  14.6 sps  ETA 0.5h
+  -> New best: /root/cf404_runs/a08/eval/a08_bb40k_h30k_student/qhead_a08_bb40k_h30k_student_s20260722_best.pth (ema_loss=0.215234)
+[   6000] loss=0.206307  ema_loss=0.214330  14.5 sps  ETA 0.5h
+  -> New best: /root/cf404_runs/a08/eval/a08_bb40k_h30k_student/qhead_a08_bb40k_h30k_student_s20260722_best.pth (ema_loss=0.214330)
+[   6500] loss=0.210618  ema_loss=0.213821  14.6 sps  ETA 0.4h
+  -> New best: /root/cf404_runs/a08/eval/a08_bb40k_h30k_student/qhead_a08_bb40k_h30k_student_s20260722_best.pth (ema_loss=0.213821)
+[   7000] loss=0.204476  ema_loss=0.214302  14.7 sps  ETA 0.4h
+[   7500] loss=0.216523  ema_loss=0.214426  14.7 sps  ETA 0.4h
+[   8000] loss=0.210790  ema_loss=0.214160  14.8 sps  ETA 0.4h
+[   8500] loss=0.220739  ema_loss=0.213039  15.0 sps  ETA 0.4h
+  -> New best: /root/cf404_runs/a08/eval/a08_bb40k_h30k_student/qhead_a08_bb40k_h30k_student_s20260722_best.pth (ema_loss=0.213039)
+[   9000] loss=0.201857  ema_loss=0.212873  15.1 sps  ETA 0.4h
+  -> New best: /root/cf404_runs/a08/eval/a08_bb40k_h30k_student/qhead_a08_bb40k_h30k_student_s20260722_best.pth (ema_loss=0.212873)
+[   9500] loss=0.205989  ema_loss=0.213199  15.2 sps  ETA 0.4h
+[  10000] loss=0.211950  ema_loss=0.213424  15.2 sps  ETA 0.4h
+  -> Saved /root/cf404_runs/a08/eval/a08_bb40k_h30k_student/qhead_a08_bb40k_h30k_student_s20260722_10k.pth
+[  10500] loss=0.219426  ema_loss=0.211714  14.5 sps  ETA 0.4h
+  -> New best: /root/cf404_runs/a08/eval/a08_bb40k_h30k_student/qhead_a08_bb40k_h30k_student_s20260722_best.pth (ema_loss=0.211714)
+[  11000] loss=0.210341  ema_loss=0.213586  13.6 sps  ETA 0.4h
+[  11500] loss=0.217557  ema_loss=0.213707  12.4 sps  ETA 0.4h
+'The read operation timed out' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00075.parquet
+Retrying in 1s [Retry 1/5].
+'The read operation timed out' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00075.parquet
+Retrying in 2s [Retry 2/5].
+'The read operation timed out' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00075.parquet
+Retrying in 4s [Retry 3/5].
+[  12000] loss=0.210095  ema_loss=0.212910  11.5 sps  ETA 0.4h
+[  12500] loss=0.217207  ema_loss=0.213810  11.2 sps  ETA 0.4h
+'The read operation timed out' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00083.parquet
+Retrying in 1s [Retry 1/5].
+[  13000] loss=0.208233  ema_loss=0.212426  10.9 sps  ETA 0.4h
+[  13500] loss=0.219482  ema_loss=0.212947  10.7 sps  ETA 0.4h
+[  14000] loss=0.228396  ema_loss=0.213783  10.6 sps  ETA 0.4h
+[  14500] loss=0.196320  ema_loss=0.212107  10.4 sps  ETA 0.4h
+[  15000] loss=0.219173  ema_loss=0.212822  10.2 sps  ETA 0.4h
+  -> Saved /root/cf404_runs/a08/eval/a08_bb40k_h30k_student/qhead_a08_bb40k_h30k_student_s20260722_15k.pth
+[  15500] loss=0.207153  ema_loss=0.212330  10.1 sps  ETA 0.4h
+[  16000] loss=0.223009  ema_loss=0.212882  9.8 sps  ETA 0.4h
+[  16500] loss=0.205023  ema_loss=0.212668  9.6 sps  ETA 0.4h
+'The read operation timed out' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00107.parquet
+Retrying in 1s [Retry 1/5].
+[  17000] loss=0.196939  ema_loss=0.211378  9.5 sps  ETA 0.4h
+  -> New best: /root/cf404_runs/a08/eval/a08_bb40k_h30k_student/qhead_a08_bb40k_h30k_student_s20260722_best.pth (ema_loss=0.211378)
+'The read operation timed out' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00110.parquet
+Retrying in 1s [Retry 1/5].
+[  17500] loss=0.215838  ema_loss=0.212872  9.3 sps  ETA 0.4h
+[  18000] loss=0.221297  ema_loss=0.212469  9.2 sps  ETA 0.4h
+[  18500] loss=0.203599  ema_loss=0.212048  9.1 sps  ETA 0.4h
+'The read operation timed out' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00121.parquet
+Retrying in 1s [Retry 1/5].
+[  19000] loss=0.222747  ema_loss=0.212799  9.0 sps  ETA 0.3h
+[  19500] loss=0.189682  ema_loss=0.212889  9.0 sps  ETA 0.3h
+'The read operation timed out' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00126.parquet
+Retrying in 1s [Retry 1/5].
+[  20000] loss=0.211826  ema_loss=0.212594  8.8 sps  ETA 0.3h
+  -> Saved /root/cf404_runs/a08/eval/a08_bb40k_h30k_student/qhead_a08_bb40k_h30k_student_s20260722_20k.pth
+'The read operation timed out' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00129.parquet
+Retrying in 1s [Retry 1/5].
+[  20500] loss=0.215127  ema_loss=0.211687  8.8 sps  ETA 0.3h
+'The read operation timed out' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00133.parquet
+Retrying in 1s [Retry 1/5].
+[  21000] loss=0.223455  ema_loss=0.212483  8.6 sps  ETA 0.3h
+[  21500] loss=0.215672  ema_loss=0.211689  8.6 sps  ETA 0.3h
+[  22000] loss=0.219343  ema_loss=0.212414  8.6 sps  ETA 0.3h
+[  22500] loss=0.210971  ema_loss=0.210999  8.5 sps  ETA 0.2h
+  -> New best: /root/cf404_runs/a08/eval/a08_bb40k_h30k_student/qhead_a08_bb40k_h30k_student_s20260722_best.pth (ema_loss=0.210999)
+'The read operation timed out' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00146.parquet
+Retrying in 1s [Retry 1/5].
+[  23000] loss=0.212729  ema_loss=0.212278  8.4 sps  ETA 0.2h
+[  23500] loss=0.212282  ema_loss=0.211976  8.4 sps  ETA 0.2h
+[  24000] loss=0.215800  ema_loss=0.211953  8.4 sps  ETA 0.2h
+[  24500] loss=0.222030  ema_loss=0.211731  8.3 sps  ETA 0.2h
+[  25000] loss=0.194772  ema_loss=0.212375  8.3 sps  ETA 0.2h
+  -> Saved /root/cf404_runs/a08/eval/a08_bb40k_h30k_student/qhead_a08_bb40k_h30k_student_s20260722_25k.pth
+[  25500] loss=0.205914  ema_loss=0.212372  8.3 sps  ETA 0.2h
+'The read operation timed out' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00166.parquet
+Retrying in 1s [Retry 1/5].
+[  26000] loss=0.209993  ema_loss=0.211704  8.2 sps  ETA 0.1h
+'The read operation timed out' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00167.parquet
+Retrying in 1s [Retry 1/5].
+[  26500] loss=0.217860  ema_loss=0.212762  8.2 sps  ETA 0.1h
+[  27000] loss=0.220770  ema_loss=0.212304  8.1 sps  ETA 0.1h
+[  27500] loss=0.212872  ema_loss=0.212304  8.1 sps  ETA 0.1h
+'The read operation timed out' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00177.parquet
+Retrying in 1s [Retry 1/5].
+'The read operation timed out' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00177.parquet
+Retrying in 2s [Retry 2/5].
+[  28000] loss=0.217998  ema_loss=0.211756  8.0 sps  ETA 0.1h
+'The read operation timed out' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00180.parquet
+Retrying in 1s [Retry 1/5].
+'The read operation timed out' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00180.parquet
+Retrying in 2s [Retry 2/5].
+'The read operation timed out' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00182.parquet
+Retrying in 1s [Retry 1/5].
+[  28500] loss=0.220287  ema_loss=0.211593  7.9 sps  ETA 0.1h
+[  29000] loss=0.204563  ema_loss=0.212286  7.9 sps  ETA 0.0h
+[08-19 19:30:10] [a08_bb40k_h30k_student] head-train SKIP (final exists)
+[08-19 19:30:10] [a08_bb40k_h30k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-19 19:30:10] START a08_bb40k_h30k_student bb40k enc=student shards=4 slot=0
+[08-19 19:36:14] [a08_bb40k_h30k_student] head-train SKIP (final exists)
+[08-19 19:36:14] [a08_bb40k_h30k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-19 19:36:14] START a08_bb40k_h30k_student bb40k enc=student shards=4 slot=0
+[08-19 19:36:14]   shard CSV /home/jupyter/cf404_sync/box_a/sync/a08/eval/a08_bb40k_h30k_student/gift/shard_1/all_results.csv is empty — removing so --resume starts clean
+[08-19 19:36:14]   shard CSV /home/jupyter/cf404_sync/box_a/sync/a08/eval/a08_bb40k_h30k_student/gift/shard_2/all_results.csv is empty — removing so --resume starts clean
+[08-19 19:36:14]   shard CSV /home/jupyter/cf404_sync/box_a/sync/a08/eval/a08_bb40k_h30k_student/gift/shard_3/all_results.csv is empty — removing so --resume starts clean
+[08-19 21:28:10] merged 97 configs -> /home/jupyter/cf404_sync/box_a/sync/a08/eval/a08_bb40k_h30k_student/gift/all_results.csv
+[08-19 21:28:13] DONE a08_bb40k_h30k_student bb40k student — Aggregate GM-Relative MASE (97 configs): 1.2309 -> 1.2309
+[08-19 21:28:13] [a08_bb40k_h30k_student] eval rc=0
+[08-19 21:28:13] [a08_bb40k_h30k_student] DONE — GM-Relative MASE 1.2309

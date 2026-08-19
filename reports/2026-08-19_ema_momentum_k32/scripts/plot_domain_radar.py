@@ -152,6 +152,24 @@ def ticks_for(values) -> list[float]:
     return kept
 
 
+def tick_labels(ticks, gap: float = 0.08) -> list[str]:
+    """The tick text, with a crowded end tick blanked.
+
+    `ticks_for` puts a tick at the lowest and at the highest value the data
+    reaches. That tick can land beside a standard one: 0.772 beside 0.8 draws
+    two numbers 4% of the radius apart, and they touch. The end tick then
+    keeps its ring and drops its text.
+    """
+    span = math.log2(ticks[-1]) - math.log2(ticks[0])
+    out = [f"{t:g}" for t in ticks]
+    if span > 0 and len(ticks) > 2:
+        if math.log2(ticks[1] / ticks[0]) < gap * span:
+            out[0] = ""
+        if math.log2(ticks[-1] / ticks[-2]) < gap * span:
+            out[-1] = ""
+    return out
+
+
 def polygon_of(values: dict[str, float], domains) -> list[float]:
     """One arm's radii in log2, over `domains`, and closed on the first one.
 
@@ -190,7 +208,7 @@ def draw(by_arm: dict[str, dict[str, float]], out, reference=None):
     ticks = ticks_for(every)
     ax.set_ylim(math.log2(ticks[0]) - 0.02, math.log2(ticks[-1]) + 0.02)
     ax.set_yticks([math.log2(t) for t in ticks])
-    ax.set_yticklabels([f"{t:g}" for t in ticks], fontsize=8)
+    ax.set_yticklabels(tick_labels(ticks), fontsize=8)
 
     # Parity with seasonal naive. A polygon inside this ring beats it.
     ax.plot(angles, [0.0] * len(angles), color=PARITY_INK, lw=1.7, zorder=5,

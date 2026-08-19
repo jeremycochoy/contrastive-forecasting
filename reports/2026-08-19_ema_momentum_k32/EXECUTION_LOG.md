@@ -87,3 +87,20 @@ which skips the head that is already on disk and runs its eval.
   gone.
 - 19:38 `finish.sh` armed, detached. It waits for the eval driver, then runs
   `report_assets.sh` and `make_plots.sh`. No stage now waits on a session.
+- 21:28 the four evals returned rc=0, each on 97 configs. `finish.sh` wrote the
+  scores, copied the artefacts and drew the figures, then wrote `FINISH DONE`
+  at 21:30.
+- 21:38 a read of the three PNGs found four things a reader could not read, and
+  the figures were redrawn from the same tables:
+  - `momentum.png` drew the inner repeat band and the 1.0862 line with no
+    legend entry. Both now carry one.
+  - `momentum.png` carried no warning that the two dotted lines come from
+    200,000-step runs. It now prints that inside the frame, so the PNG travels
+    with it.
+  - `loss_curves.png` printed every y tick as `1.25 x 10^1`, and the fixed arm
+    of each momentum hid under the ramped arm below step 500. The ticks now
+    read as numbers, and the fixed arms take a dash and go on top.
+  - `domain_radar.png` printed `0.772` against `0.8` at the centre, 4% of the
+    radius apart. A crowded end tick now keeps its ring and drops its text.
+  `results/scores.csv` and `results/splits.csv` are byte-identical after the
+  redraw. No number moved.

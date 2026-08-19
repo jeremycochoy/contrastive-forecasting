@@ -185,9 +185,11 @@ def draw(rows: list[dict], out):
     lo, hi = REF.band_bounds()
     ilo, ihi = REF.inner_band_bounds()
     ax.axhspan(lo, hi, color="0.85", zorder=0,
-               label=f"k = 3 at bb40k, repeat spread {max(REF.SPREAD):.1%}")
-    ax.axhspan(ilo, ihi, color="0.72", zorder=0)
-    ax.axhline(REF.K3_BB40K, color="0.45", lw=1.2, zorder=1)
+               label=f"k = 3 repeat spread, {max(REF.SPREAD):.1%}")
+    ax.axhspan(ilo, ihi, color="0.72", zorder=0,
+               label=f"k = 3 repeat spread, {min(REF.SPREAD):.1%}")
+    ax.axhline(REF.K3_BB40K, color="0.45", lw=1.2, zorder=1,
+               label=f"k = 3 at bb40k ({REF.K3_BB40K:.4f})")
 
     # Every marker's x. Under one tick they spread by the length of the ramp,
     # so a09, s09 and #401's arm, which all hold α = 0.9 at step 0, read as
@@ -243,6 +245,12 @@ def draw(rows: list[dict], out):
     ax.set_title("#404 — EMA momentum at k = 32, L_align on the teacher,\n"
                  "40,000 backbone steps")
     ax.grid(alpha=0.25, zorder=0)
+    # The PNG travels without its caption, so it carries the one warning a
+    # reader needs: the dotted lines are a target, not a comparison.
+    ax.annotate("the dotted lines come from 200,000-step runs\n"
+                "the arms here stop at 40,000 steps",
+                xy=(0.02, 0.34), xycoords="axes fraction",
+                fontsize=8, color="0.30", va="bottom", ha="left")
     # Under the axes, in two columns. Seven entries inside the frame cover an
     # arm's own label whichever corner matplotlib picks.
     ax.legend(fontsize=8, loc="upper center", bbox_to_anchor=(0.5, -0.10),

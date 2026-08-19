@@ -33,6 +33,7 @@ from pathlib import Path
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import matplotlib.ticker
 
 HERE = Path(__file__).resolve().parent
 STUDY_SH = HERE / "study.sh"
@@ -98,6 +99,28 @@ def study_arms() -> list[str]:
     return out.stdout.split()
 
 
+def study_schedules() -> dict[str, str]:
+    """`{arm: schedule}`, out of study.sh. `{}` when study.sh does not answer.
+
+    A fixed arm and a ramped arm of one alpha run the same momentum until the
+    ramp bites. Below step 500 the pair differs by 0.005 of a loss near 13, so
+    one curve hides the other. The schedule picks the DASH pattern, so both
+    stay visible where they agree, and the figure keeps the momentum figure's
+    own language: fixed and ramped read apart at a glance.
+    """
+    out = subprocess.run(
+        ["bash", "-c",
+         f'. "{STUDY_SH}" >/dev/null && for a in $CF404_ARMS; do '
+         f'printf "%s %s\n" "$a" "$(cf404_schedule "$a")"; done'],
+        capture_output=True, text=True)
+    pairs = (line.split() for line in out.stdout.splitlines())
+    return {p[0]: p[1] for p in pairs if len(p) == 2}
+
+
+# The dash pattern of each schedule, and what the legend calls it.
+DASHES = {"fixed": (4, 2), "ramp": ()}
+
+
 def find_curves(root) -> list[tuple[str, list[tuple[int, float]]]]:
     """One arm's losses CSV under `root`, for every arm that has one.
 
@@ -122,15 +145,32 @@ def draw(series, out, bins=320):
         raise SystemExit("ABORT: no arm has a losses CSV yet — nothing to draw")
 
     palette = arm_colours([arm for arm, _ in series])
+    schedules = study_schedules()
     fig, ax = plt.subplots(figsize=(7.2, 5.0))
+    # The solid curves go down first and the dashed ones on top of them. Two
+    # arms of one alpha agree to 0.005 below step 500, so whichever goes last
+    # hides the other. A dash on top leaves the curve under it in view.
+    series = sorted(series, key=lambda s: bool(DASHES.get(
+        schedules.get(s[0], ""), ())))
+    handles = {}
     for arm, points in series:
+        dashes = DASHES.get(schedules.get(arm, ""), ())
         ax.plot([s for s, _ in points], [v for _, v in points],
                 lw=0.7, alpha=0.18, color=palette[arm], zorder=1)
         smooth = binned(points, bins)
-        ax.plot([s for s, _ in smooth], [v for _, v in smooth],
-                lw=1.6, label=arm, color=palette[arm], zorder=2)
+        line, = ax.plot([s for s, _ in smooth], [v for _, v in smooth],
+                        lw=1.6, label=arm, color=palette[arm], zorder=2)
+        if dashes:
+            line.set_dashes(dashes)
+        handles[arm] = line
     ax.set_xscale("log")
     ax.set_yscale("log")
+    # The loss spans well under one decade, so matplotlib prints every y tick
+    # as `1.25 x 10^1`. A reader reads `12.5` faster, so print the number.
+    ax.yaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
+    ax.yaxis.set_minor_formatter(matplotlib.ticker.ScalarFormatter())
+    ax.yaxis.set_minor_locator(
+        matplotlib.ticker.LogLocator(base=10.0, subs=tuple(x / 10 for x in range(11, 100, 5))))
     ax.set_xlabel("backbone step")
     ax.set_ylabel("training loss")
     ax.set_title("#404 — training loss per arm, k = 32, mean over the depth copies")
@@ -138,7 +178,9 @@ def draw(series, out, bins=320):
         ax.text(0.015, 0.02, f"median over {bins} log-spaced bins, raw behind",
                 transform=ax.transAxes, fontsize=8, color="0.35")
     ax.grid(alpha=0.25, which="both")
-    ax.legend(fontsize=9)
+    # The legend keeps the arm order of the study, not the draw order.
+    ax.legend([handles[a] for a in sorted(handles)], sorted(handles),
+              fontsize=9)
     fig.tight_layout()
     Path(out).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=160)
