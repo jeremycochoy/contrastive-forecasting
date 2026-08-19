@@ -54,3 +54,19 @@
 [08-19 14:08:52] [k32_bb200k_h30k_student_s20260723] head-train rc=0
 [08-19 14:08:52] [k32_bb200k_h30k_student_s20260723] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
 [08-19 14:08:52] [k32_bb40k_h40k_student] head-train start enc=student steps=40000 seed=20260722 gpu=0 bb=cf393_arm6_v2_combab_alignS_cf373k32_mean_40k.pth
+[08-19 15:02:40] [k32_bb200k_h30k_student_s20260724] head-train start enc=student steps=30000 seed=20260724 gpu=1 bb=cf393_arm6_v2_combab_alignS_cf373k32_mean_200k.pth
+[08-19 15:23:24] [k32_bb200k_h30k_student_s20260723] head-train rc=127
+[08-19 15:56:31] [k32_bb40k_h40k_student] head-train rc=0
+[08-19 15:56:31] [k32_bb40k_h40k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-19 15:56:31] [k32_bb100k_h100k_student] head-train start enc=student steps=100000 seed=20260722 gpu=0 bb=cf393_arm6_v2_combab_alignS_cf373k32_mean_100k.pth
+[08-19 16:25:16] [k32_bb200k_h30k_student_s20260724] head-train rc=0
+[08-19 16:25:16] [k0_parent_bb100k_h30k_student] head-train start enc=student steps=30000 seed=20260722 gpu=1 bb=cf393_arm6_v2_combab_alignS_100k.pth
+[08-19 16:25:46] [k32_bb200k_h30k_student_s20260724] head-train SKIP (final exists)
+[08-19 16:25:46] [k32_bb200k_h30k_student_s20260724] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-19 17:17:49] [k32_bb40k_h40k_student] eval rc=0
+[08-19 17:17:49] [k32_bb40k_h40k_student] DONE — GM-Relative MASE 1.2093
+[08-19 17:46:29] [k32_bb200k_h30k_student_s20260724] eval rc=0
+[08-19 17:46:29] [k32_bb200k_h30k_student_s20260724] DONE — GM-Relative MASE 1.1576
+[08-19 17:48:03] [k0_parent_bb100k_h30k_student] head-train rc=0
+[08-19 17:48:03] [k0_parent_bb100k_h30k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-19 18:30:59] [k8_bb200k_h200k_student] head-train start enc=student steps=200000 seed=20260722 gpu=1 bb=cf393_arm6_v2_combab_alignS_cf373k8_mean_200k.pth

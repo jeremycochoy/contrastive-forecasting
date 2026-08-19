@@ -19,3 +19,12 @@
 [08-19 13:10:33] [#401 heads] START reduce=mean gpus='0 0' poll=300s root=/home/jupyter/cf401_sync/box_a/sync
 [08-19 13:10:33] [#401 heads] head k32_bb40k_h40k_student START on gpu 0 slot 0 (cf393_arm6_v2_combab_alignS_cf373k32_mean_40k.pth)
 [08-19 13:10:33] [#401 heads] head k32_bb100k_h100k_student START on gpu 0 slot 1 (cf393_arm6_v2_combab_alignS_cf373k32_mean_100k.pth)
+[08-19 17:21:21] [#401 heads] head k32_bb40k_h40k_student rc=0
+[08-19 17:21:21] [#401 heads] head k32_bb100k_h100k_student START on gpu 0 slot 0 (cf393_arm6_v2_combab_alignS_cf373k32_mean_100k.pth)
+[08-19 17:27:55] [#401 heads] START reduce=mean gpus='0 0' poll=300s root=/home/jupyter/cf401_sync/box_a/sync
+[08-19 17:27:55] [#401 heads] head k32_bb200k_h200k_student START on gpu 0 slot 0 (cf393_arm6_v2_combab_alignS_cf373k32_mean_200k.pth)
+[08-19 17:27:55] [#401 heads] head k8_bb200k_h200k_student START on gpu 0 slot 1 (cf393_arm6_v2_combab_alignS_cf373k8_mean_200k.pth)
+[08-19 18:29:52] [#401 heads] START reduce=mean gpus='0 0 1' poll=300s root=/home/jupyter/cf401_sync/box_a/sync
+[08-19 18:29:53] [#401 heads] head k8_bb200k_h200k_student START on gpu 0 slot 0 (cf393_arm6_v2_combab_alignS_cf373k8_mean_200k.pth)
+[08-19 18:30:59] [#401 heads] START reduce=mean gpus='1 0 0' poll=300s root=/home/jupyter/cf401_sync/box_a/sync
+[08-19 18:30:59] [#401 heads] head k8_bb200k_h200k_student START on gpu 1 slot 0 (cf393_arm6_v2_combab_alignS_cf373k8_mean_200k.pth)

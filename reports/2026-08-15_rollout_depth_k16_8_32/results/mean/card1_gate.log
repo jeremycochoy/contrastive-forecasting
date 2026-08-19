@@ -1,0 +1,13 @@
+[08-19 15:59:08] [card1] armed: wait for the control chain, then judge card 1
+[08-19 15:59:45] [card1] armed: wait for the control chain, then judge card 1
+[08-19 18:19:44] [card1] judging card 1 for the k8 bb200k cell
+[08-19 18:19:44] [card1] other sessions hold 17270 MiB
+[08-19 18:29:44] [card1] their demand held at 17270 MiB over 10 min
+[08-19 18:29:44] [card1] card 1 free=6933 MiB, head takes 5464, margin 1469
+[08-19 18:29:44] [card1] stopping the blocked k8 bb200k chain (pid 1554110, no work done)
+[08-19 18:29:47] [card1] restarting the watcher with HEAD_GPUS='0 0 1' (was pid 1553794)
+[08-19 18:29:52] [card1] new watcher pid 1620071. k8 bb200k should now take card 1.
+[08-19 18:30:52] [card1] the restart put k8 bb200k back on card 0: free_slot returns the FIRST free slot, and slot 0 named card 0
+[08-19 18:30:52] [card1] re-ordering HEAD_GPUS so slot 0 names card 1
+[08-19 18:30:55] [card1] stopping watcher 1620071
+[08-19 18:31:24] [card1] new watcher pid 1622073, HEAD_GPUS='1 0 0'
