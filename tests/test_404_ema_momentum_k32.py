@@ -52,6 +52,7 @@ PLOT_MOMENTUM = EXP / "scripts" / "plot_momentum.py"
 PLOT_CURVES = EXP / "scripts" / "plot_loss_curves.py"
 PLOT_RADAR = EXP / "scripts" / "plot_domain_radar.py"
 MAKE_TABLE = EXP / "scripts" / "make_table.py"
+ARM_COLOURS = EXP / "scripts" / "arm_colours.py"
 
 PARENT_LEG = PARENT / "scripts" / "run_leg_k.sh"
 PARENT_HEAD = PARENT / "scripts" / "head_eval_bb.sh"
@@ -158,7 +159,7 @@ class TestLayout:
         "script", [STUDY_SH, ARMS_TSV, RUN_ARM, HEAD_EVAL, PHASE1, HEADS_WATCH,
                    COLLECT, SMOKE, MAKE_PLOTS, LAUNCH_BOX, LAUNCH_ELISA,
                    LAUNCH_SYNC, RUN_SH, REFERENCES_PY, PLOT_MOMENTUM,
-                   PLOT_CURVES, PLOT_RADAR, MAKE_TABLE])
+                   PLOT_CURVES, PLOT_RADAR, MAKE_TABLE, ARM_COLOURS])
     def test_file_exists(self, script):
         assert script.is_file(), f"{script} missing"
 
@@ -1160,6 +1161,36 @@ class TestTheTableAndTheStatement:
         mt, rows = self.rows(tmp_path, {})
         with pytest.raises(SystemExit):
             mt.statement(rows)
+
+
+class TestOneColourPerArm:
+    """Three figures draw the same arms. A reader who learns a colour on one
+    carries it to the next, so the map lives in one file."""
+
+    def colours(self):
+        return load_module(ARM_COLOURS, "cf404_arm_colours").colours
+
+    def test_the_cards_four_arms_have_four_colours(self):
+        got = self.colours()([a for a, *_ in ARMS])
+        assert len(set(got.values())) == len(ARMS), got
+
+    def test_an_added_arm_gets_its_own_colour(self):
+        """The card says to add arms when the four scores show a direction.
+        Two added arms in one fallback colour would read as one arm."""
+        arms = [a for a, *_ in ARMS] + ["a085", "s09b"]
+        got = self.colours()(arms)
+        assert len(set(got.values())) == len(arms), got
+
+    def test_a_named_arm_keeps_its_colour_whatever_else_is_drawn(self):
+        c = self.colours()
+        alone = c(["s09"])["s09"]
+        crowded = c(["a085", "s09b", "s09", "a08"])["s09"]
+        assert alone == crowded
+
+    @pytest.mark.parametrize("script", [PLOT_MOMENTUM, PLOT_CURVES, PLOT_RADAR])
+    def test_every_figure_reads_the_shared_map(self, script):
+        text = script.read_text()
+        assert "arm_colours" in text, f"{script.name} carries its own palette"
 
 
 class TestMakePlots:

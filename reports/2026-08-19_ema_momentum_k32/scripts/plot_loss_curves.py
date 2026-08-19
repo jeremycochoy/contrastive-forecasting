@@ -28,10 +28,18 @@ import matplotlib.pyplot as plt
 HERE = Path(__file__).resolve().parent
 STUDY_SH = HERE / "study.sh"
 
-# The palette of plot_momentum.py, so one arm is one colour everywhere.
-COLOURS = {"a08": "#1f77b4", "a09": "#d62728",
-           "s08": "#2ca02c", "s09": "#9467bd"}
-FALLBACK = "#7f7f7f"
+import importlib.util
+
+# One colour per arm, shared with every other figure of this study.
+def _colours():
+    spec = importlib.util.spec_from_file_location(
+        "cf404_arm_colours", HERE / "arm_colours.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.colours
+
+
+arm_colours = _colours()
 
 
 def read_losses(path) -> list[tuple[int, float]]:
@@ -79,12 +87,13 @@ def draw(series, out):
     if not series:
         raise SystemExit("ABORT: no arm has a losses CSV yet — nothing to draw")
 
+    palette = arm_colours([arm for arm, _ in series])
     fig, ax = plt.subplots(figsize=(7.2, 5.0))
     for arm, points in series:
         steps = [s for s, _ in points]
         losses = [v for _, v in points]
         ax.plot(steps, losses, lw=1.4, label=arm,
-                color=COLOURS.get(arm, FALLBACK))
+                color=palette[arm])
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_xlabel("backbone step")

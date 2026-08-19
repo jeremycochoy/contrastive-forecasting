@@ -24,10 +24,20 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-# The palette of plot_momentum.py, so one arm is one colour everywhere.
-COLOURS = {"a08": "#1f77b4", "a09": "#d62728",
-           "s08": "#2ca02c", "s09": "#9467bd"}
-FALLBACK = "#7f7f7f"
+import importlib.util
+
+HERE = Path(__file__).resolve().parent
+
+# One colour per arm, shared with every other figure of this study.
+def _colours():
+    spec = importlib.util.spec_from_file_location(
+        "cf404_arm_colours", HERE / "arm_colours.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.colours
+
+
+arm_colours = _colours()
 
 # How much room to leave outside the data, as a share of its own range.
 PAD = 0.15
@@ -64,12 +74,13 @@ def draw(by_arm: dict[str, dict[str, float]], out):
     angles = [2 * math.pi * i / len(domains) for i in range(len(domains))]
     angles.append(angles[0])
 
+    palette = arm_colours(sorted(by_arm))
     fig, ax = plt.subplots(figsize=(6.8, 6.4),
                            subplot_kw={"projection": "polar"})
     for arm in sorted(by_arm):
         values = [by_arm[arm].get(d, float("nan")) for d in domains]
         values.append(values[0])
-        colour = COLOURS.get(arm, FALLBACK)
+        colour = palette[arm]
         ax.plot(angles, values, lw=1.6, label=arm, color=colour)
         ax.fill(angles, values, alpha=0.08, color=colour)
 

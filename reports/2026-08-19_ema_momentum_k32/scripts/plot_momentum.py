@@ -53,10 +53,16 @@ def _references():
 
 REF = _references()
 
-# One colour per arm, stable across every figure of this study.
-COLOURS = {"a08": "#1f77b4", "a09": "#d62728",
-           "s08": "#2ca02c", "s09": "#9467bd"}
-FALLBACK = "#7f7f7f"
+# One colour per arm, shared with every other figure of this study.
+def _colours():
+    spec = importlib.util.spec_from_file_location(
+        "cf404_arm_colours", HERE / "arm_colours.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.colours
+
+
+arm_colours = _colours()
 
 # `fixed` holds alpha for the whole run, `ramp` raises it to 1.0 at 200k.
 MARKERS = {"fixed": "o", "ramp": "s"}
@@ -107,6 +113,7 @@ def draw(rows: list[dict], out):
         ax.axhline(value, color="0.30", lw=1.1, ls=":", zorder=1,
                    label=f"{label} ({value:.4f})")
 
+    palette = arm_colours([r["arm"] for r in rows])
     seen_schedules = set()
     for r in rows:
         marker = MARKERS.get(r["schedule"], "^")
@@ -115,14 +122,14 @@ def draw(rows: list[dict], out):
             seen_schedules.add(r["schedule"])
             label = SCHEDULE_LABEL.get(r["schedule"], r["schedule"])
         ax.plot([r["alpha"]], [r["score"]], marker=marker, ms=11, ls="none",
-                color=COLOURS.get(r["arm"], FALLBACK),
-                mfc=COLOURS.get(r["arm"], FALLBACK) if r["schedule"] == "fixed"
+                color=palette[r["arm"]],
+                mfc=palette[r["arm"]] if r["schedule"] == "fixed"
                 else "white",
                 mew=2.0, zorder=3, label=label)
         ax.annotate(f"{r['arm']}  {r['score']:.4f}",
                     (r["alpha"], r["score"]), textcoords="offset points",
                     xytext=(10, 4), fontsize=9,
-                    color=COLOURS.get(r["arm"], FALLBACK))
+                    color=palette[r["arm"]])
 
     alphas = sorted({r["alpha"] for r in rows} | {REF.K32_BB40K_ALPHA})
     pad = 0.02 if len(alphas) < 2 else 0.4 * (alphas[-1] - alphas[0])
