@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """#404 — the ExperimentRunner comment, built from the tables on disk.
 
-The comment carries all seven arms and the repeat spread this card measures.
-Both come from `results/scores.csv`, which `collect.sh` writes from the score
-files, so the comment cannot disagree with the figures.
+The comment carries every scored arm and the repeat spread this card
+measures. Both come from `results/scores.csv`, which `collect.sh` writes from
+the score files, so the comment cannot disagree with the figures.
 
 `repeat_spread.py` finds a repeat pair by (alpha, schedule, ramp). `s08` and
 `s08b` share all three and differ in the backbone seed alone, so the distance
@@ -71,14 +71,13 @@ def main() -> int:
     out.append("")
     out.append(f"The experiment directory is `{a.dir}`.")
     out.append("")
-    out.append("## The seven arms")
+    out.append(f"## The {len(rows)} scored arms")
     out.append("")
     out.append("| arm | EMA momentum | backbone seed | GM-Relative MASE | "
                "vs k = 3 at bb40k |")
     out.append("|---|---|---|---|---|")
     for r in rows:
-        seed = r["seed"] or ("20260521" if r["arm"] == "s08b" else "20260520")
-        out.append(f"| {r['arm']} | {momentum(r)} | {seed} | "
+        out.append(f"| {r['arm']} | {momentum(r)} | {r['seed'] or '?'} | "
                    f"{r['score']:.4f} | {r['score'] - k3_40k:+.4f} |")
     out.append("")
 

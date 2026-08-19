@@ -180,3 +180,67 @@ the three legs do not serialise. `round3.sh` refuses a card in
 The three heads DO serialise: `head_vram_gate` holds an exclusive lock per card
 for the whole of one head training. That is its purpose, and one card is enough
 VRAM for one head at a time.
+
+## Round 3b — `a095` first, then `s08b`, on the box round 3 rented
+
+### Why the plan changed
+
+The user read the momentum figure. With alpha held constant, 0.8 scores 1.2309
+and 0.9 scores 1.1819. That segment falls steeply and it does not turn, so the
+next value belongs ABOVE 0.9. The user asks for `a095` first and picks the
+third value from its result.
+
+`a085` is dropped. Alpha 0.85 interpolates inside a segment that already falls
+in one direction. `scripts/arms.tsv` loses its row, so no table, figure or
+guard of this study names an arm the study does not run.
+
+`s08b` still runs, second. It repeats `s08` at backbone seed 20260521, and that
+pair is the only thing that measures this cell's own repeat spread. Without it
+a reader cannot say whether the 0.95 number is a result.
+
+### The card index
+
+Round 3's plan print read `arm a095 gpu=1` while the box carries ONE card, at
+index 0. The print came from a dry run that passed no GPUS, so `launch_box.sh`
+took its own default, `0 1`. The launch itself passed `GPUS='0 0 0'`, so the
+lane would have landed on card 0 — but the plan an operator reads named a card
+that is not there, and `heads_box.sh` carried the same default at `0 1 2 3`.
+
+Two changes in `scripts/study.sh` close both halves:
+
+- `cf404_require_gpus` reads the card count off the driver and refuses every
+  index at or above it. Both launchers call it BEFORE the plan print.
+- `cf404_default_gpus` makes the launcher default the card list the box
+  carries.
+
+`scripts/test_gpu_guard.sh` proves both: 20 assertions, 0 failures, on elisa
+and on the box. On the box, `GPUS=1` returns rc=2 and prints what it refused,
+`GPUS=0` returns rc=0, and a plan with no GPUS names `gpu=0` for both arms.
+
+### One arm at a time
+
+`scripts/round3b.sh` runs each arm end to end — backbone, head, pull, eval,
+score — before the next one starts. Two arms on one card would both land at the
+end. The user needs the 0.95 number first.
+
+The driver reuses instance 48152799 and provisions nothing. A box that does not
+answer is an ABORT.
+
+### Events
+
+- 22:47 to 22:52 `round3.sh` provisioned and bootstrapped instance 48152799,
+  label `cf404-box-r3`, 1 x RTX 5090, datacenter, AMD Ryzen 7 7800X3D (8c),
+  driver 580.95.05, $0.3611/h. The user stopped that driver by pid before it
+  started an arm.
+- 23:02 `round3b.sh` started, detached. Credit $17.90. The watchdog holds two
+  ceilings: 22 hours of box life, and $11 of spend.
+- 23:03 the box printed its own plan at `GPUS='0'`: both arms on `gpu=0`.
+- 23:03 `a095` started on card 0.
+- 23:06 the launch is VERIFIED, off the box: 5,684 MiB of GPU memory in use,
+  one compute app, 33 depth columns in the losses CSV, which is k + 1 at
+  k = 32, 501 CSV rows, and the guard line
+  `arm a095 ema='0.95 - -' reduce=mean seed=20260520 OK`.
+  Step rate 2.8 sps, ETA 4.0 h. Round 1 measured 2.4 to 2.7 sps for the same
+  cell with four arms on one 4-card box.
+- The sync loop of round 3 stays up for the whole round, 15-minute ticks, local
+  root `/home/jupyter/cf404_sync/box_r3`.

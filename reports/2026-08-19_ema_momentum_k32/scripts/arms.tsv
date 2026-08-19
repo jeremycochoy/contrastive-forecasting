@@ -10,17 +10,19 @@
 # between two good values, or a smaller fixed value. Add a row here and
 # nothing else changes: every script, guard and figure reads this file.
 #
-# Rows 1 to 4 are the card's own four arms. Rows 5 to 7 answer the review of
+# Rows 1 to 4 are the card's own four arms. Rows 5 and 6 answer the review of
 # PR #405:
 #
-#   a085  the value the card names itself. The fixed row then reads
-#         0.8, 0.85, 0.9, 0.95.
-#   a095  above 0.9. The fixed row moves 0.0490 from 0.8 to 0.9, and the
-#         backbone metrics rank 0.9 first, so no arm tested where the data
-#         points.
+#   a095  above 0.9. The fixed row falls 0.0490 from 0.8 to 0.9 and does not
+#         turn, so the next value belongs above 0.9 and not inside that
+#         segment.
 #   s08b  s08 again at a second backbone seed. It measures THIS cell's repeat
 #         spread. Before it, the card quoted #373's spread, which was measured
 #         at k = 3 against the student target.
+#
+# `a085` was planned and then DROPPED. Alpha 0.85 interpolates inside the
+# 0.8-to-0.9 segment, and that segment already falls in one direction. The
+# value above 0.9 buys more.
 #
 # 20260521 is the project's second backbone seed. #373 measured its own seed
 # band with it (cell B5·s2), so this repeat stays in that family.
@@ -29,6 +31,5 @@ a08	0.8	-	-	20260520
 a09	0.9	-	-	20260520
 s08	0.8	1.0	200000	20260520
 s09	0.9	1.0	200000	20260520
-a085	0.85	-	-	20260520
 a095	0.95	-	-	20260520
 s08b	0.8	1.0	200000	20260521

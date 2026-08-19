@@ -1,6 +1,12 @@
 #!/bin/bash
 # #404 round 3 — the three added arms on ONE datacenter box.
 #
+# SUPERSEDED. This driver provisioned the box and was stopped before it started
+# an arm. `scripts/round3b.sh` runs on that same box, with the two arms the
+# user then asked for, one after the other. `a085` is dropped, so this script's
+# own arm list no longer passes `cf404_require_arm`. It stays for the record of
+# what round 3 planned.
+#
 # THE THREE ARMS. The review of PR #405 asks for them:
 #
 #   a085  alpha 0.85 fixed, the value the card names itself
