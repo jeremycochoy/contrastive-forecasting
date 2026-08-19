@@ -16,3 +16,6 @@
 [08-19 04:33:06] [#401 heads] head k8_bb40k_h40k_student START on gpu 0 (cf393_arm6_v2_combab_alignS_cf373k8_mean_40k.pth)
 [08-19 07:18:30] [#401 heads] head k8_bb40k_h40k_student rc=0
 [08-19 07:18:31] [#401 heads] head k8_bb100k_h100k_student START on gpu 0 (cf393_arm6_v2_combab_alignS_cf373k8_mean_100k.pth)
+[08-19 13:10:33] [#401 heads] START reduce=mean gpus='0 0' poll=300s root=/home/jupyter/cf401_sync/box_a/sync
+[08-19 13:10:33] [#401 heads] head k32_bb40k_h40k_student START on gpu 0 slot 0 (cf393_arm6_v2_combab_alignS_cf373k32_mean_40k.pth)
+[08-19 13:10:33] [#401 heads] head k32_bb100k_h100k_student START on gpu 0 slot 1 (cf393_arm6_v2_combab_alignS_cf373k32_mean_100k.pth)
