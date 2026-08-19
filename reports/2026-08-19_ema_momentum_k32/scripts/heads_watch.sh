@@ -18,9 +18,11 @@
 # under one root and a watcher on another is an arm that climbs for five hours
 # and is never scored.
 #
-# Concurrency. One head per GPU, through `head_eval_bb.sh`'s own VRAM gate and
-# its per-GPU lock. The GIFT-Eval that follows each head runs on the CPU, so
-# several evals overlap without touching a card.
+# Order. The watcher runs `head_eval.sh` in the foreground, and waits for it.
+# The pairs of one pass run one after the other, head and GIFT-Eval together.
+# HEAD_GPUS gives the GPU that each pair takes, in turn. A second GPU gives no
+# overlap, because only one pair runs at a time. Four heads in series, at
+# 30,000 steps each, are an acceptable cost for this study.
 #
 # When it stops. When no pair is left to fire: each one is scored, or each one
 # used its whole try budget (`cf404_heads_done`). It does NOT stop at the first
@@ -28,10 +30,10 @@
 # are still on the box when the first one is scored.
 #
 # The try budget. A head or an eval that fails for a stable reason — a bad
-# checkpoint, a missing package, a full disk — would otherwise re-fire every
-# POLL seconds and hold a GPU lane for as long as the session runs. Each pair
-# gets CF404_HEAD_TRIES attempts. The counter is a file in results/, so a
-# watcher restarted after a reboot does not give a broken head three more
+# checkpoint, a missing package, a full disk — would otherwise re-fire on
+# every pass, and delay each pair behind it for as long as the session runs.
+# Each pair gets CF404_HEAD_TRIES attempts. The counter is a file in results/,
+# so a watcher restarted after a reboot does not give a broken head three more
 # hours. The log names that file when it drops a pair.
 #
 # Everything is idempotent. A scored arm is a no-op, a trained head skips
