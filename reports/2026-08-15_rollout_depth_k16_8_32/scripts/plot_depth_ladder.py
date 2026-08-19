@@ -31,6 +31,11 @@ changes across them:
   grey    #373's best on this cell, 1.0660 at bb200k. It is the number this
           study has to beat, and it is drawn on both panels.
 
+The dashed, the dotted and the grey mark are all the parent study's numbers,
+so they carry ITS head budget: 15,000 steps at bb40k and 30,000 at bb100k and
+bb200k. The right panel's own cells train 40,000 and 100,000 head steps, so
+that panel is not head-matched. `REF_HEAD_NOTE` puts this in the legend.
+
 A shaded band of +/-0.0384 rides on the k = 3 reference. That is the pooled
 head-seed band of `ema_sched_ladder.md`, which `noise_band.py` pools, and it
 is the rule the report reads
@@ -103,6 +108,12 @@ SEED_PREFIX = HEAD + "_s"
 # variant marker dodges right, so the anchor dodges left and the three stay
 # apart.
 ANCHOR_DODGE = 0.055
+
+# The head budget the k = 3, the k = 0 published and the grey reference all
+# carry. `rollout_depth.md` line 858: "Every bb40k head trains 15,000 steps
+# and every bb100k and bb200k head trains 30,000."
+REF_HEAD_NOTE = ("reference head budget: 15,000 steps at bb40k, "
+                 "30,000 at bb100k and bb200k")
 
 
 def read_scores(path):
@@ -400,7 +411,8 @@ def main(argv=None):
     if any(s in xs for s in anchor):
         handles.insert(3, Line2D([], [], marker="D", ms=7.0, lw=0,
                                  color=D.REF_K0_INK, mec="white", mew=0.9,
-                                 label="k = 0 anchor, this study's path"))
+                                 label="k = 0 anchor, this study's path, "
+                                       "left panel only"))
     if repeats:
         handles.append(Line2D([], [], marker="_", ms=9.0, lw=1.6,
                               color=D.INK,
@@ -411,6 +423,12 @@ def main(argv=None):
                    mec=D.INK, mew=2.0,
                    label="open marker: the same depth and stop on another "
                          "training schedule"))
+    # The head budget of the three reference marks. They are the parent
+    # study's own numbers, so they carry that study's head budget and not
+    # this one's. The right panel draws cells at 40,000 and 100,000 head
+    # steps against them, so the panel is not head-matched and the figure
+    # has to say so.
+    handles.append(Line2D([], [], lw=0, label=REF_HEAD_NOTE))
     fig.legend(handles=handles, loc="lower center",
                ncol=min(3, len(handles)), frameon=False, fontsize=9,
                bbox_to_anchor=(0.5, 0.0))

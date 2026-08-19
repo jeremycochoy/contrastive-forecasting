@@ -71,14 +71,12 @@ k = 3. Long dash: sum. Dotted: mean.*
 ![GM-Relative MASE against backbone train step, rollout depth 8 and 32](plots/mean/depth_ladder.png)
 
 *GM-Relative MASE over the 97 GIFT-Eval configs, student head, mean
-reduction. Left: 30,000-step head. Right: head budget = backbone steps. The
-I-bar at bb200k is the range over three head seeds.*
+reduction. Left: 30,000-step head. Right: head budget = backbone steps.*
 
 No scored mean cell comes within the head-seed band of the k = 3 reference.
 The k = 0 anchor beats both depths at bb40k, and k = 8 and k = 32 sit inside
-the band of each other there. Three head seeds on `k32 bb200k` span 0.0100,
-so the pooled band of ±0.0384 is not optimistic here, and this report reads
-every difference against it.
+the band of each other there. This report reads every difference against the
+head-seed band.
 
 ## Per-domain
 
@@ -88,7 +86,7 @@ every difference against it.
 
 ![Per-domain GM-Relative MASE, phase 2](plots/mean/domain_radar_phase2.png)
 
-*The best phase-2 stop of each depth. Both are bb40k.*
+*Phase 2 at bb40k, both depths.*
 
 ## Limits
 
@@ -101,7 +99,7 @@ every difference against it.
 | the head budget | three pairs: two moves inside the band, and one at 1.1 times the band which is worse. Not resolved |
 | phase-2 cells pending | `k32 bb100k`, `k32 bb200k`, `k8 bb200k` |
 | the k = 0 anchor | measured at bb40k and bb100k, absent at bb200k. The k = 0 published covers bb40k and bb100k |
-| the eval path | this study's path returns the k = 0 published score at both stops that have one: 1.1600 against 1.1603, and 1.1945 against 1.1945. The one control that reads apart from its published number, 1.2910 against 1.2751, trains a 30,000-step head against that number's 15,000. That is a head-budget difference |
+| the eval path | three controls ran it. The k = 0 parent returns its published score at both stops that have one: 1.1600 against 1.1603, and 1.1945 against 1.1945. The third control reads 1.2910 against the published 1.2748, a move of 0.0162 that sits inside the band. This study establishes no cause for it |
 
 ## Tables
 
@@ -111,7 +109,7 @@ every difference against it.
 |---|---|---|
 | head-seed band | ±0.0384, pooled by `noise_band.py`, from [`ema_sched_ladder.md`](../2026-08-04_ema_sched_ladder/ema_sched_ladder.md) | the head seed alone |
 | backbone-seed variance | unmeasured | one backbone seed per cell |
-| in-study head-seed repeats | three draws on `k32 bb200k`: 1.1637, 1.1676, 1.1576. Mean 1.16297, range 0.0100, largest distance from the mean 0.0054 | the head seed on this study's own cell |
+| in-study head-seed repeats | three draws on `k32 bb200k`: 1.1637, 1.1676, 1.1576. Range 0.0100. All three rows are in `results/mean/scores.csv` | the head seed on this study's own cell |
 | the in-study range as the reading rule | not adopted. Three draws give a range, not a standard deviation, and a range over three points understates the spread. The pooled band is a maximum over many cells | — |
 
 *Absolute differences. The ladder figure carries the direction.*
@@ -148,8 +146,10 @@ every difference against it.
 *GM-Relative MASE over the 97 GIFT-Eval configs. Lower is better. The k = 3
 column reads the score files of
 [`rollout_depth.md`](../2026-08-08_rollout_depth/rollout_depth.md), same cell,
-same head, same eval. The k = 0 published column is transcribed from that
-study's parents.*
+same head, same eval. The k = 0 published column reads
+[`published.py`](../2026-08-08_rollout_depth/scripts/published.py). Both
+columns carry that study's head budget: 15,000 steps at bb40k and 30,000 at
+bb100k and bb200k.*
 
 | backbone stop | k = 8 | k = 32 | k = 0 anchor | k = 0 published | k = 3, same cell |
 |---|---:|---:|---:|---:|---:|
@@ -168,18 +168,22 @@ study's parents.*
 
 ### Control heads
 
-*Every control ran this study's path at this study's 30,000 head steps.
+*Every control ran this study's path at this study's 30,000 head steps. The
+reference column carries the parent study's head budget, from
+[`rollout_depth.md`](../2026-08-08_rollout_depth/rollout_depth.md) line 858.
 Sources: `results/diag/score_c1_pathbound_b5pub_bb40k_h30k_student.txt`,
-`results/diag/score_c2_k0anchor_a4parent_bb40k_h30k_student.txt` and
-`results/mean/scores.csv`.*
+`results/diag/score_c2_k0anchor_a4parent_bb40k_h30k_student.txt`,
+`results/mean/scores.csv`, and
+[`published.py`](../2026-08-08_rollout_depth/scripts/published.py) for every
+published value.*
 
-| control | what it measures | result |
-|---|---|---|
-| `k32 bb200k`, head seed 20260723 | in-study head-seed band | 1.1676 |
-| `k32 bb200k`, head seed 20260724 | in-study head-seed band | 1.1576 |
-| k = 0 parent, bb40k | the k = 0 anchor | 1.1600, against 1.1603 published |
-| k = 0 parent, bb100k | the k = 0 anchor at bb100k | 1.1945, against 1.1945 published |
-| the parent study's own published cell, bb40k | this study's path against a published number at a different head budget | 1.2910, against 1.2751 published at 15,000 head steps |
+| control | this study | reference | move | the reading |
+|---|---:|---|---:|---|
+| `k32 bb200k`, head seed 20260723 | 1.1676 | none | none | one draw of the in-study head-seed band |
+| `k32 bb200k`, head seed 20260724 | 1.1576 | none | none | one draw of the in-study head-seed band |
+| k = 0 parent, bb40k | 1.1600 | 1.1603 published, 15,000 head steps | 0.0003 | returns its reference |
+| k = 0 parent, bb100k | 1.1945 | 1.1945 published, 30,000 head steps | 0.0000 | returns its reference |
+| the parent study's own published cell, bb40k | 1.2910 | 1.2748 published, 15,000 head steps. 1.2751 is that study's own re-evaluation of the same checkpoint | 0.0162 against the published, 0.0159 against the re-evaluation | inside the band. This study establishes no cause |
 
 ### The two reductions, over every checkpoint on disk
 
