@@ -249,6 +249,13 @@ class TestTheArms:
     def test_alpha_start_is_readable_for_the_figure(self, arm, tau, _e, _r):
         assert study_call(f'cf404_alpha {arm}').stdout.strip() == tau
 
+    def test_a_missing_arms_table_names_the_file(self):
+        """Without the table every guard would refuse every arm, with a
+        message about the arm rather than about the missing file."""
+        out = study_call('true', env={"CF404_ARMS_TSV": "/nonexistent/arms.tsv"})
+        assert out.returncode != 0
+        assert "arms table" in out.stderr
+
     def test_an_unknown_arm_is_refused(self):
         out = study_call('cf404_require_arm a07')
         assert out.returncode != 0

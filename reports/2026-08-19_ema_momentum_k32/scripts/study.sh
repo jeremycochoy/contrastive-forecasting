@@ -101,6 +101,13 @@ CF404_SYNC_ROOT="${CF404_SYNC_ROOT:-$CF404_SYNC_DIR/sync}"
 
 # ---- The arms ----------------------------------------------------------------
 
+# The arms table is the one place this study's arms live, so a missing file
+# is a study with no arms — and every guard below would then refuse every arm
+# with a message about the arm rather than about the file.
+[ -f "$CF404_ARMS_TSV" ] || {
+  echo "ABORT: no arms table at $CF404_ARMS_TSV" >&2
+  return 2 2>/dev/null || exit 2; }
+
 # Every arm name, in the card's order.
 cf404_arms(){
   awk -F'\t' '!/^#/ && NF >= 4 { print $1 }' "$CF404_ARMS_TSV"
@@ -139,9 +146,9 @@ cf404_schedule(){  # <arm>
 # #373's schedule (`EMA_ARGS`) rather than appending to it — a repeat can
 # change a flag, never remove one.
 cf404_ema_args(){  # <arm>
-  local row tau end ramp
+  local row name tau end ramp
   row="$(cf404_arm_row "${1:?arm}")" || return 1
-  read -r _ tau end ramp <<<"$row"
+  read -r name tau end ramp <<<"$row"
   if [ "$end" = "-" ]; then
     printf -- '--ema-tau %s\n' "$tau"
   else
