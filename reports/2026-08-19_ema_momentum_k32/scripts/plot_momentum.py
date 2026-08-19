@@ -9,7 +9,10 @@ holds alpha for the whole run, an open square raises it to 1.0 at step
 The figure also carries what the card compares against.
 
   grey point   #401's k = 32 arm at bb40k, 1.2082. That arm is already
-               computed, and it is where this sweep starts.
+               computed, and it is where this sweep starts. It is also a cell
+               of the sweep: it ran alpha = 0.9 raised to 1.0 at step 100,000,
+               between this card's 0.9 fixed and 0.9 raised at 200,000. So it
+               takes an x position as well as a level.
   grey band    the k = 3 score at bb40k, 1.0862, plus the repeat spread of
                #373 (0.6% to 1.3%). An arm inside the band is an arm no
                repeat of k = 3 would separate from k = 3.
@@ -79,7 +82,7 @@ def draw(rows: list[dict], out):
     if not rows:
         raise SystemExit("ABORT: no arm is scored yet — nothing to draw")
 
-    fig, ax = plt.subplots(figsize=(7.2, 5.0))
+    fig, ax = plt.subplots(figsize=(7.6, 6.4))
 
     # The band first, so every point sits on top of it.
     lo, hi = REF.band_bounds()
@@ -89,9 +92,15 @@ def draw(rows: list[dict], out):
     ax.axhspan(ilo, ihi, color="0.72", zorder=0)
     ax.axhline(REF.K3_BB40K, color="0.45", lw=1.2, zorder=1)
 
-    # #401's k = 32 arm at the same stop: where this sweep starts.
+    # #401's k = 32 arm at the same stop: where this sweep starts. The level
+    # spans the figure, so every arm reads against it, and the marker sits at
+    # the momentum that arm actually ran.
     ax.axhline(REF.K32_BB40K, color="0.55", lw=1.6, zorder=1,
                label=f"k = 32, mean, student, bb40k ({REF.K32_BB40K:.4f})")
+    ax.plot([REF.K32_BB40K_ALPHA], [REF.K32_BB40K], marker="s", ms=11,
+            ls="none", color="0.45", mfc="white", mew=2.0, zorder=2,
+            label=f"#401, α {REF.K32_BB40K_ALPHA:g} to 1.0 at "
+                  f"{REF.K32_BB40K_RAMP // 1000}k")
 
     # The two 200,000-step scores. Dotted, because the arms stop at 40,000.
     for label, value in REF.dotted_lines():
@@ -115,7 +124,7 @@ def draw(rows: list[dict], out):
                     xytext=(10, 4), fontsize=9,
                     color=COLOURS.get(r["arm"], FALLBACK))
 
-    alphas = sorted({r["alpha"] for r in rows})
+    alphas = sorted({r["alpha"] for r in rows} | {REF.K32_BB40K_ALPHA})
     pad = 0.02 if len(alphas) < 2 else 0.4 * (alphas[-1] - alphas[0])
     ax.set_xlim(alphas[0] - pad, alphas[-1] + pad)
     ax.set_xticks(alphas)
@@ -124,7 +133,10 @@ def draw(rows: list[dict], out):
     ax.set_title("#404 — EMA momentum at k = 32, L_align on the teacher,\n"
                  "40,000 backbone steps")
     ax.grid(alpha=0.25, zorder=0)
-    ax.legend(fontsize=8, loc="best", framealpha=0.9)
+    # Under the axes, in two columns. Seven entries inside the frame cover an
+    # arm's own label whichever corner matplotlib picks.
+    ax.legend(fontsize=8, loc="upper center", bbox_to_anchor=(0.5, -0.10),
+              ncol=2, framealpha=0.9)
     fig.tight_layout()
     Path(out).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=160)

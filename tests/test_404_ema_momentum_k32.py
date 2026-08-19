@@ -941,6 +941,27 @@ class TestMomentumFigure:
               if len(ln.get_ydata()) and ln.get_ydata()[0] == pytest.approx(K32_BB40K)]
         assert ys, f"no artist sits at {K32_BB40K}"
 
+    def test_the_401_arm_sits_at_the_momentum_it_ran(self, tmp_path):
+        """#401's k = 32 arm is a cell of this sweep, not only a level: it
+        ran alpha = 0.9 raised to 1.0 at step 100,000. So it takes an x
+        position, between this card's 0.9 fixed and 0.9 raised at 200,000."""
+        r = references()
+        assert r.K32_BB40K_ALPHA == pytest.approx(0.9)
+        assert r.K32_BB40K_RAMP == 100_000
+        mp, _fig, ax, _out = self.draw(tmp_path, {"a08": 1.19})
+        placed = [(round(float(ln.get_xdata()[0]), 4),
+                   round(float(ln.get_ydata()[0]), 4))
+                  for ln in ax.get_lines()
+                  if len(ln.get_xdata()) == 1 and len(ln.get_ydata()) == 1]
+        assert (round(r.K32_BB40K_ALPHA, 4), round(r.K32_BB40K, 4)) in placed, placed
+
+    def test_the_401_momentum_is_on_the_axis_before_any_arm_reaches_it(self, tmp_path):
+        """Only a08 is scored here, at alpha 0.8, so the axis would otherwise
+        stop short of 0.9 and hide the point the sweep starts from."""
+        mp, _fig, ax, _out = self.draw(tmp_path, {"a08": 1.19})
+        lo, hi = ax.get_xlim()
+        assert lo < 0.8 and hi > references().K32_BB40K_ALPHA
+
     def test_the_band_is_drawn_around_the_k3_score(self, tmp_path):
         """The band's own y range is what a reader compares an arm against,
         so check the extent and not the count. `axhspan` lays a Rectangle

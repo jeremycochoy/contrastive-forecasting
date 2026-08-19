@@ -28,6 +28,14 @@ K32_BB200K = 1.1637
 K32_BB40K = 1.2082
 K0_PARENT_BB40K = 1.1600
 
+# #401's k = 32 arm is not only a horizontal reference: it IS a cell of this
+# sweep. It ran #373's runner at its own default momentum, alpha = 0.9 raised
+# to 1.0 at step 100,000, which sits between this card's arm 2 (0.9 fixed) and
+# arm 4 (0.9 raised to 1.0 at 200,000). So the figure can place it on the x
+# axis as well as draw its level.
+K32_BB40K_ALPHA = 0.9
+K32_BB40K_RAMP = 100_000
+
 # The repeat spread #373 measured on this protocol: two runs of one cell land
 # 0.6% to 1.3% apart. The band around K3_BB40K holds it, so a reader sees
 # whether an arm enters the range where k = 3 itself lands.
