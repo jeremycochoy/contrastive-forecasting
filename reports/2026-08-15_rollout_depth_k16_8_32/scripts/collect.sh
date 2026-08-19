@@ -77,7 +77,19 @@ split_args=()
     stop="$(cf401_steps_of "$stop_l")"; head="$(cf401_steps_of "$head_l")"
     phase=1; [ "$head" -eq "$stop" ] && phase=2
     echo "$phase,$k,$variant,$stop,$head,$enc,$score"
-    split_args+=(--stop "$tag=$(cf401_eval_csv "$k" "$tag" "$variant")")
+    # `cf401_eval_csv` falls back to a path under the default root when it
+    # resolves nothing, and `split_scores.py` skips a file that is not there.
+    # Together those two turn a cell with no reachable eval into a cell that
+    # is simply absent from splits.csv, and the per-domain figure then draws
+    # one panel fewer with no line anywhere saying which cell it lost. This
+    # is that line.
+    eval_csv="$(cf401_eval_csv "$k" "$tag" "$variant")"
+    if [ -f "$eval_csv" ]; then
+      split_args+=(--stop "$tag=$eval_csv")
+    else
+      echo "WARN: $tag has a score but no per-domain CSV at $eval_csv" >&2
+      echo "  it will be absent from $SPLITS and from the per-domain figure" >&2
+    fi
   done
 } >"$OUT.tmp"
 mv -f "$OUT.tmp" "$OUT"
