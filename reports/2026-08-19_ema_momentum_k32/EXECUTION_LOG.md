@@ -104,3 +104,30 @@ which skips the head that is already on disk and runs its eval.
     radius apart. A crowded end tick now keeps its ring and drops its text.
   `results/scores.csv` and `results/splits.csv` are byte-identical after the
   redraw. No number moved.
+
+## Round 2 — the three arms the review of PR #405 asks for
+
+The review asks for a fixed arm above 0.9, a fixed arm at 0.85, and a repeat
+of the best arm at a second backbone seed. `scripts/arms.tsv` takes three rows,
+`a095`, `a085` and `s08b`, and a fifth column: the backbone seed. Nothing else
+in the study changes.
+
+| role | machine | what it does |
+|---|---|---|
+| box_b | vast.ai `cf404-box-b`, 48149747, 1 x RTX 5090 | a085 |
+| box_c | vast.ai `cf404-box-c`, 48149866, 1 x RTX 5090 | a095 |
+| box_d | vast.ai `cf404-box-d`, 48150020, 1 x RTX 5090 | s08b |
+| elisa | CPU | the three 97-config GIFT-Evals |
+
+Round 1 rented one box with four cards at $1.7180/h. The offers that carry the
+CPU this cell needs are single-card boxes at $0.3611/h, so three of them cost
+$1.0833/h for the same three lanes. `scripts/round2.sh` holds a watchdog at
+10.5 hours of box life, which is $11.37 against the $12 this round may spend.
+
+### Events
+
+- 22:03 `round2.sh` started, detached. Credit $18.59.
+- 22:05 to 22:09 the three boxes came up: 48149747, 48149866, 48150020, all
+  RTX 5090 at $0.3611/h.
+- 22:08 box_b passed the bootstrap. Its sync loop landed a first tick at
+  22:08:37, confirmed by `ls`.
