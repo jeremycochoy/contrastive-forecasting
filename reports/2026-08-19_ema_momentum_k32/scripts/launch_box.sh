@@ -25,6 +25,7 @@
 #   nohup setsid bash scripts/launch_box.sh &
 #
 #   GPUS="0 1" bash scripts/launch_box.sh        # which cards to use
+#                                                # (default: every card here)
 #   CF404_DRY_RUN=1 bash scripts/launch_box.sh   # print the plan, run nothing
 set -uo pipefail
 
@@ -33,7 +34,9 @@ CF404_ROOT_GIVEN="${CF404_ROOT:-}"
 . "$HERE/study.sh"
 cf404_use_root "$CF404_BOX_RUNS"
 
-GPUS="${GPUS:-0 1}"
+# The cards this box carries, not a fixed pair. Round 3's plan print read
+# `gpu=1` on a one-card box because this default was `0 1`.
+GPUS="${GPUS:-$(cf404_default_gpus)}"
 ARMS="${ARMS:-$CF404_ARMS}"
 STAGGER="${STAGGER:-180}"
 mkdir -p "$CF404_RESULTS"
@@ -44,6 +47,10 @@ log(){ echo "[$(date '+%m-%d %H:%M:%S')] [#404 box] $*" | tee -a "$LOG"; }
 read -r -a gpu_list <<<"$GPUS"
 read -r -a arm_list <<<"$ARMS"
 [ "${#gpu_list[@]}" -ge 1 ] || { echo "ABORT: GPUS is empty" >&2; exit 2; }
+# Every index in GPUS must be a card this box carries. The check runs before
+# the plan print as well, so a plan that names a card that is not there fails
+# here and not five hours later inside `.to(device)`.
+cf404_require_gpus "$GPUS" || exit 2
 for arm in "${arm_list[@]}"; do cf404_require_arm "$arm" || exit $?; done
 # The box is rented by the hour, so the checkout it carries is checked before
 # the first leg and not after eleven of them. See cf404_check_checkout.

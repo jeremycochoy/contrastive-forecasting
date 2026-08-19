@@ -29,7 +29,8 @@ CF404_ROOT_GIVEN="${CF404_ROOT:-}"
 . "$HERE/study.sh"
 cf404_use_root "$CF404_BOX_RUNS"
 
-GPUS="${GPUS:-0 1 2 3}"
+# The cards this box carries, not a fixed four. See launch_box.sh.
+GPUS="${GPUS:-$(cf404_default_gpus)}"
 ARMS="${ARMS:-$CF404_ARMS}"
 STOP="${STOP:-$CF404_STOPS}"
 STAGGER="${STAGGER:-60}"
@@ -41,6 +42,9 @@ log(){ echo "[$(date '+%m-%d %H:%M:%S')] [#404 heads box] $*" | tee -a "$LOG"; }
 read -r -a gpu_list <<<"$GPUS"
 read -r -a arm_list <<<"$ARMS"
 [ "${#gpu_list[@]}" -ge 1 ] || { echo "ABORT: GPUS is empty" >&2; exit 2; }
+# The same card check the backbone launcher runs. A head lane on a card the
+# box does not carry dies the same way.
+cf404_require_gpus "$GPUS" || exit 2
 cf404_require_stop "$STOP" || exit $?
 for arm in "${arm_list[@]}"; do cf404_require_arm "$arm" || exit $?; done
 

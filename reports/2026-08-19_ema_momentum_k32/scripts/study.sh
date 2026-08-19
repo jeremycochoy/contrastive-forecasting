@@ -574,3 +574,52 @@ cf404_require_head_steps(){  # <head steps>
        "($CF404_HEAD_STEPS)" >&2
   return 2
 }
+
+# How many cards this machine carries. `CF404_GPU_COUNT` overrides it, for a
+# test that must not depend on the machine it runs on.
+cf404_gpu_count(){
+  if [ -n "${CF404_GPU_COUNT:-}" ]; then printf '%s\n' "$CF404_GPU_COUNT"; return 0; fi
+  nvidia-smi --query-gpu=index --format=csv,noheader 2>/dev/null | grep -c .
+}
+
+# Every index this machine carries, as `0 1 ... n-1`. This is what a launcher
+# takes when the caller names no card, so a default can never name a card that
+# is not there.
+cf404_default_gpus(){
+  local n i out=""
+  n="$(cf404_gpu_count)"
+  case "$n" in ''|*[!0-9]*) n=0 ;; esac
+  for (( i = 0; i < n; i++ )); do out="$out $i"; done
+  printf '%s\n' "${out# }"
+}
+
+# Refuse a card index this machine does not carry.
+#
+# On 2026-08-19 round 3's plan print put arm `a095` on `gpu=1` while the box
+# held ONE card, at index 0. The print came from a dry run that passed no
+# GPUS, so the launcher took its own default `0 1`. A lane on card 1 of a
+# one-card box dies inside `.to(device)`, hours after the operator left.
+#
+# So the launchers ask this first, and they ask it on the machine that will
+# hold the lane. It reads the real card count off the driver.
+cf404_require_gpus(){  # <space separated indices>
+  local n g bad=0
+  n="$(cf404_gpu_count)"
+  case "$n" in ''|*[!0-9]*) n=0 ;; esac
+  if [ "$n" -lt 1 ]; then
+    echo "ABORT: this machine carries no card, so no lane can start" >&2
+    return 2
+  fi
+  for g in ${1:-}; do
+    case "$g" in
+      ''|*[!0-9]*)
+        echo "ABORT: gpu '$g' is not a card index" >&2; bad=1; continue ;;
+    esac
+    [ "$g" -lt "$n" ] && continue
+    echo "ABORT: gpu $g — this machine carries $n card(s), so the indices" >&2
+    echo "  are 0 to $(( n - 1 )). A lane on a card that is not there dies" >&2
+    echo "  inside .to(device) after the operator has left." >&2
+    bad=1
+  done
+  [ "$bad" -eq 0 ]
+}

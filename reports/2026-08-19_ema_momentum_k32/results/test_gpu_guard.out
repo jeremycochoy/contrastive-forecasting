@@ -1,0 +1,36 @@
+#404 card-index guard test
+
+1. one card, index 0 only
+  PASS  gpu 0 on a 1-card box -> yes
+  PASS  gpu 1 on a 1-card box -> no
+  PASS  gpus '0 1' on a 1-card box -> no
+  PASS  the round-3 default '0 1' -> no
+
+2. four cards, indices 0 to 3
+  PASS  gpus '0 1 2 3' on a 4-card box -> yes
+  PASS  gpu 4 on a 4-card box -> no
+  PASS  gpus '0 0 0' on a 1-card box -> yes
+
+3. what is not an index at all
+  PASS  no card on the box -> no
+  PASS  a letter -> no
+  PASS  a negative index -> no
+
+4. the launchers, through their own plan print
+  PASS  launch_box.sh, 1 card, gpu 0 -> yes
+  PASS  launch_box.sh, 1 card, gpu 1 -> no
+  PASS  launch_box.sh, 1 card, its default -> no
+  PASS  heads_box.sh, 1 card, gpu 0 -> yes
+  PASS  heads_box.sh, 1 card, gpu 3 -> no
+  PASS  heads_box.sh, 1 card, its default -> no
+
+5. the default, when the caller names no card
+  PASS  1 card(s) -> default '0'
+  PASS  2 card(s) -> default '0 1'
+  PASS  4 card(s) -> default '0 1 2 3'
+  PASS  launch_box.sh on a 1-card box, no GPUS -> every arm on gpu=0
+
+6. this machine, as the driver reports it
+  INFO  cf404_gpu_count -> 2 card(s)
+
+20 passed, 0 failed

@@ -1,0 +1,69 @@
+[08-19 22:47:23] [#404 round3] START arms='a085 a095 s08b' box=cf404-box-r3 deadline=24h
+[08-19 22:47:24] [#404 round3] credit before: Credit:  $17.99 Total:   $17.99 
+[08-19 22:47:24] [#404 round3] searching — datacenter only, reliability 0.99 or better, Zen 4 desktop CPU
+  Offer ID  Machine ID  GPU       Num  VRAM/GPU  TFLOPS/GPU  $/h      DLPerf/$  Region  Reliability  CPU                                         RAM   Bus           Disk GB  Disk BW  Up   Down  Driver      CUDA
+  45669396  144923      RTX 5090  1    32GB      108.1       $0.3356  594.2     KR      0.990        AMD Ryzen 7 7800X3D 8-Core Processor (16c)  30GB  PCIe 5.0 x16  376      5684     800  601   580.105.08  13.0
+  44173862  143430      RTX 5090  1    32GB      108.1       $0.3356  594.1     KR      0.990        AMD Ryzen 7 7800X3D 8-Core Processor (16c)  30GB  PCIe 5.0 x16  658      6711     763  515   580.105.08  13.0
+  45669263  144994      RTX 5090  1    32GB      108.1       $0.3356  579.1     KR      0.994        AMD Ryzen 7 7800X3D 8-Core Processor (8c)   30GB  PCIe 5.0 x16  182      710      746  573   580.95.05   13.0
+  43995353  142872      RTX 5090  1    32GB      108.1       $0.3356  578.8     KR      0.997        AMD Ryzen 7 7800X3D 8-Core Processor (8c)   30GB  PCIe 5.0 x16  427      656      829  599   580.105.08  13.0
+  Total: 26 offers (showing top 20).
+[08-19 22:47:25] [#404 round3] provisioning
+[08-19 22:47:27] [provision cf404-box-r3] attempt 1: 3 offer(s)
+[08-19 22:47:30] [provision cf404-box-r3]   offer 47990033 went away
+[08-19 22:47:34] [provision cf404-box-r3]   offer 45669263 went away
+[08-19 22:47:37] [provision cf404-box-r3]   offer 45668951 went away
+[08-19 22:47:48] [provision cf404-box-r3] attempt 2: 3 offer(s)
+[08-19 22:47:51] [provision cf404-box-r3]   offer 44173877 went away
+[08-19 22:49:33] [provision cf404-box-r3] READY instance 48152799 at ssh2.vast.ai:32798
+[08-19 22:49:33] [#404 round3] instance 48152799 at ssh2.vast.ai:32798
+[08-19 22:49:36] [#404 round3] card: 0, NVIDIA GeForce RTX 5090, 32607 MiB, Default
+[08-19 22:49:40] [#404 round3] bootstrap
+[08-19 22:49:40] [#404 bootstrap ssh2.vast.ai:32798] parent bootstrap (#373)
+[08-19 22:49:40] [bootstrap ssh2.vast.ai:32798] packing code
+[08-19 22:49:40] [bootstrap ssh2.vast.ai:32798] uploading 512K
+Warning: Permanently added '[ssh2.vast.ai]:32798' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[08-19 22:49:45] [bootstrap ssh2.vast.ai:32798] installing
+Warning: Permanently added '[ssh2.vast.ai]:32798' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+Warning: Permanently added '[ssh2.vast.ai]:32798' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+started
+[08-19 22:52:28] [bootstrap ssh2.vast.ai:32798] waiting for BOOTSTRAP_OK (install is ~4 min)
+[08-19 22:52:32] [bootstrap ssh2.vast.ai:32798] OK
+Warning: Permanently added '[ssh2.vast.ai]:32798' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+BOX-ENV driver=580.95.05, NVIDIA GeForce RTX 5090, Default
++ echo BOOTSTRAP_OK
+BOOTSTRAP_OK
+[08-19 22:52:35] [#404 bootstrap ssh2.vast.ai:32798] shipping reports/2026-08-19_ema_momentum_k32
+Warning: Permanently added '[ssh2.vast.ai]:32798' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+Warning: Permanently added '[ssh2.vast.ai]:32798' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[08-19 22:52:48] [#404 bootstrap ssh2.vast.ai:32798] checking the box's checkout
+Warning: Permanently added '[ssh2.vast.ai]:32798' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+box reduce=mean root=/root/cf404_runs results=/root/cf/reports/2026-08-19_ema_momentum_k32/results
+arm a08 gpu=0 stops='40000' heads=0
+arm a09 gpu=1 stops='40000' heads=0
+arm s08 gpu=0 stops='40000' heads=0
+arm s09 gpu=1 stops='40000' heads=0
+arm a085 gpu=0 stops='40000' heads=0
+arm a095 gpu=1 stops='40000' heads=0
+arm s08b gpu=0 stops='40000' heads=0
+[08-19 22:52:52] [#404 bootstrap ssh2.vast.ai:32798] OK
+[08-19 22:52:52] [#404 round3] bootstrap OK
+box reduce=mean root=/root/cf404_runs results=/root/cf/reports/2026-08-19_ema_momentum_k32/results
+arm a085 gpu=0 stops='40000' heads=0
+arm a095 gpu=1 stops='40000' heads=0
+arm s08b gpu=0 stops='40000' heads=0
+[box_r3] sync loop pid 1948422 -> /home/jupyter/cf404_sync/box_r3
+[box_r3] waiting for the first tick
