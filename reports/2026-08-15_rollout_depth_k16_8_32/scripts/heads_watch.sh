@@ -93,9 +93,26 @@ score_file(){  # <k> <stop> <head steps>
 # score file counts as missing: an eval killed between opening and writing
 # leaves one, and 0.0 would be the best GM-Relative MASE this project ever
 # recorded.
+# Is this cell already training or evaluating, in ANY process?
+#
+# `cell_is_due` reads the score file, and a cell that still runs has not
+# written one. With one slot per card that never showed. With two slots it
+# does: at 17:21 on 2026-08-19 `k32_bb100k_h100k` was 4 h into slot 1, its
+# score file was absent, and the free slot 0 started the same cell again. The
+# duplicate then blocked on the per-card lock and held a slot that the two
+# 200,000-step cells needed.
+#
+# This asks the process table, not the slot map, because a RESTARTED watcher
+# has empty slots and would repeat the same mistake against the heads its
+# predecessor left running.
+cell_is_running(){  # <k> <stop> <head steps>
+  pgrep -f "head_eval\.sh $1 $2 $3\$" >/dev/null 2>&1
+}
+
 cell_is_due(){  # <k> <stop> <head steps>
   local bb
   [ -s "$(score_file "$1" "$2" "$3")" ] && return 1
+  cell_is_running "$1" "$2" "$3" && return 1
   bb="$(cf401_bb_ckpt "$1" "$2")"
   [ -n "$bb" ] && [ -f "$bb" ]
 }
