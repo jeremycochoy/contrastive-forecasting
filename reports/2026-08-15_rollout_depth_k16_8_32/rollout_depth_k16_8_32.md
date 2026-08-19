@@ -146,7 +146,7 @@ head-seed band.
 *GM-Relative MASE over the 97 GIFT-Eval configs. Lower is better. The k = 3
 column reads the score files of
 [`rollout_depth.md`](../2026-08-08_rollout_depth/rollout_depth.md), same cell,
-same head, same eval. The k = 0 published column reads
+same eval. The k = 0 published column reads
 [`published.py`](../2026-08-08_rollout_depth/scripts/published.py). Both
 columns carry that study's head budget: 15,000 steps at bb40k and 30,000 at
 bb100k and bb200k.*

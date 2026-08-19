@@ -10,7 +10,8 @@ and this one can.
 One panel per depth this study trained. Each panel draws:
 
   solid   the depth, at the stop named in the panel title.
-  dashed  #373's k = 3 on the SAME cell, the same head and the same stop.
+  dashed  #373's k = 3 on the SAME cell and the same stop. Its head
+          budget is 15,000 steps at bb40k and 30,000 at bb100k and bb200k.
           The depth is the only thing that changes between the two polygons.
   grey    the best per-domain value any k = 3 run of #373 reached, over
           every (cell, stop) in its splits table. The per-domain form of the
@@ -52,6 +53,8 @@ import depth_colours as D                                 # noqa: E402
 plt.rcParams.update(D.rc())
 
 CELL = "A4"
+REF_HEAD_NOTE = ("k = 3 reference head budget: 15,000 steps at bb40k, "
+                 "30,000 at bb200k")
 HEAD = "student"
 
 
@@ -268,7 +271,7 @@ def main(argv=None):
 
         sched = "" if variant == "base" else f", {variant} schedule"
         ax.set_title(f"{D.label(k)}   at bb{steps_label(stop)}{sched}\n"
-                     f"against k = 3, same cell and same head", fontsize=9, pad=18)
+                     f"against k = 3, same cell", fontsize=9, pad=18)
 
     for idx in range(len(panels), nrow * ncol):
         axes[idx // ncol][idx % ncol].axis("off")
@@ -290,6 +293,13 @@ def main(argv=None):
         # already on the picture and needs no sentence here.
         Line2D([], [], color=D.PARITY_INK, lw=1.7,
                label="seasonal-naive parity, 1.0")]
+    # The k = 3 reference is NOT head-matched at every stop. `rollout_depth.md`
+    # line 858: every bb40k head of that study trains 15,000 steps and every
+    # bb100k and bb200k head trains 30,000. This study trains 30,000 at every
+    # stop, so a bb40k panel compares two head budgets and a bb200k panel does
+    # not. The panel title used to claim "same head" for all of them.
+    handles.append(Line2D([], [], color="none",
+                          label=REF_HEAD_NOTE))
     fig.legend(handles=handles, loc="lower center",
                ncol=min(3, len(handles)), frameon=False, fontsize=9)
     fig.suptitle(f"Per-domain GM-Relative MASE, phase {a.phase}, "

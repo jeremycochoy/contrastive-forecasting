@@ -400,11 +400,11 @@ def main(argv=None):
                        "(lower is better)")
     handles = [
         Line2D([], [], color=D.INK_SOFT, linestyle=D.STYLE_K3, lw=1.7,
-               label="k = 3, same cell and same head"),
+               label="k = 3, same cell"),
         Patch(facecolor=D.REF_K3_INK, alpha=0.14, lw=0,
               label=f"head-seed band ±{HEAD_SEED_BAND:.4f}"),
         Line2D([], [], color=D.REF_K0_INK, linestyle=D.STYLE_K0, lw=1.7,
-               label="k = 0 published, same cell and same head"),
+               label="k = 0 published, same cell"),
         Line2D([], [], color=D.PRIOR_INK, lw=2.0,
                label=f"the best this cell reached before this study, "
                      f"{frontier:.4f}")]
