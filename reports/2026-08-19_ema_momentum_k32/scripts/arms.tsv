@@ -1,16 +1,34 @@
-# #404 — the four arms of the card, one row each. Tab separated.
+# #404 — the arms of the card, one row each. Tab separated.
 #
-# Columns: arm, α at step 0, α at the end of the ramp, the ramp length.
-# A `-` in a column is a flag the arm does NOT pass.
+# Columns: arm, α at step 0, α at the end of the ramp, the ramp length, the
+# backbone seed. A `-` in a column is a flag the arm does NOT pass.
 #
-# Only α changes. Every other flag of every arm comes from #373's cell
-# `arm6_v2_combab_alignT` at k = 32, under the mean reduction.
+# Only α and the seed change. Every other flag of every arm comes from #373's
+# cell `arm6_v2_combab_alignT` at k = 32, under the mean reduction.
 #
 # The card says to add arms if the four scores show a direction — a value
 # between two good values, or a smaller fixed value. Add a row here and
 # nothing else changes: every script, guard and figure reads this file.
-# arm	tau	end	ramp
-a08	0.8	-	-
-a09	0.9	-	-
-s08	0.8	1.0	200000
-s09	0.9	1.0	200000
+#
+# Rows 1 to 4 are the card's own four arms. Rows 5 to 7 answer the review of
+# PR #405:
+#
+#   a085  the value the card names itself. The fixed row then reads
+#         0.8, 0.85, 0.9, 0.95.
+#   a095  above 0.9. The fixed row moves 0.0490 from 0.8 to 0.9, and the
+#         backbone metrics rank 0.9 first, so no arm tested where the data
+#         points.
+#   s08b  s08 again at a second backbone seed. It measures THIS cell's repeat
+#         spread. Before it, the card quoted #373's spread, which was measured
+#         at k = 3 against the student target.
+#
+# 20260521 is the project's second backbone seed. #373 measured its own seed
+# band with it (cell B5·s2), so this repeat stays in that family.
+# arm	tau	end	ramp	seed
+a08	0.8	-	-	20260520
+a09	0.9	-	-	20260520
+s08	0.8	1.0	200000	20260520
+s09	0.9	1.0	200000	20260520
+a085	0.85	-	-	20260520
+a095	0.95	-	-	20260520
+s08b	0.8	1.0	200000	20260521

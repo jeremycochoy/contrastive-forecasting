@@ -9,8 +9,11 @@
 #
 #   K              the rollout depth, 32
 #   EMA_ARGS       this arm's momentum, which REPLACES the runner's own
-#                  schedule. Two of the four arms hold alpha fixed and pass no
+#                  schedule. Four arms hold alpha fixed and pass no
 #                  --ema-tau-end at all, and no repeated flag can remove one.
+#   SEED           this arm's backbone seed. Six arms take the card's own
+#                  20260520 and one is a REPEAT at 20260521, which is what
+#                  measures this cell's run-to-run spread.
 #   GAP_ARGS       `--train-rollout-reduce mean`, appended LAST to the trainer
 #                  command line
 #   RUN_SUFFIX     the reduction and the arm, in the run name, so no arm's
@@ -24,15 +27,20 @@
 #
 # ---- The momentum has to reach the trainer -----------------------------------
 #
-# The four arms share a configuration and differ in alpha alone. So an arm
-# whose alpha did not arrive is a DUPLICATE of another arm, under a name that
-# says otherwise: same file names, same CSV columns, same log lines. The card's
-# result is four numbers, and two of them would be one number twice.
+# The arms share a configuration and differ in alpha and in the seed alone. So
+# an arm whose alpha did not arrive is a DUPLICATE of another arm, under a name
+# that says otherwise: same file names, same CSV columns, same log lines. The
+# card's result is one number per arm, and two of them would be one number
+# twice.
 #
-# The trainer's own command line is the one place that names alpha. So this
+# The repeat arm makes the seed the same kind of value. `s08b` differs from
+# `s08` in the seed ALONE. A seed that did not reach the trainer gives two
+# identical runs, and the pair would then report a repeat spread of zero.
+#
+# The trainer's own command line is the one place that names all three. So this
 # script starts the leg, waits for that line to land in the leg log, and reads
-# both alpha and the reduction off it. A leg with the wrong objective stops in
-# its first minute instead of at hour five.
+# alpha, the reduction and the seed off it. A leg with the wrong objective stops
+# in its first minute instead of at hour five.
 #
 # The command line is the trainer's FIRST log line, so this costs no window.
 # The count of those lines before the start is what tells this leg's line from
@@ -58,6 +66,7 @@ mkdir -p "$CF404_RESULTS"
 
 ARM_ROOT="$(cf404_arm_root "$ARM")"
 EMA_ARGS="$(cf404_ema_args "$ARM")"
+ARM_SEED="$(cf404_seed "$ARM")"
 # The reduction is stated on every leg, so the log names the objective it
 # trained rather than leaving the reader to infer the trainer's default.
 REDUCE_ARGS="--train-rollout-reduce $CF404_REDUCE"
@@ -70,6 +79,7 @@ REDUCE_ARGS="--train-rollout-reduce $CF404_REDUCE"
 if [ -n "${CF404_DRY_RUN:-}" ]; then
   echo "arm $ARM cell=$CF404_CELL k=$CF404_K steps=$STOP gpu=$BB_GPU"
   echo "  ema=$EMA_ARGS"
+  echo "  seed=$ARM_SEED"
   echo "  reduce=$CF404_REDUCE runner=$RUNNER"
   echo "  RUN_SUFFIX=$(cf404_run_suffix "$ARM") RUNS=$ARM_ROOT"
   echo "  CF_RESULTS=$CF404_RESULTS"
@@ -84,9 +94,10 @@ TLOG="$(cf404_leg_log "$ARM")"
 CHECK_TIMEOUT="${CF404_CHECK_TIMEOUT:-1800}"
 cmdlines_before="$(cf404_cmdlines "$TLOG")"
 
-log "arm $ARM ema='$EMA_ARGS' reduce=$CF404_REDUCE -> ${STOP} steps on gpu $BB_GPU"
+log "arm $ARM ema='$EMA_ARGS' seed=$ARM_SEED reduce=$CF404_REDUCE ->" \
+    "${STOP} steps on gpu $BB_GPU"
 K="$CF404_K" RUNS="$ARM_ROOT" CF_RESULTS="$CF404_RESULTS" WT="$CF404_WT" \
-  EMA_ARGS="$EMA_ARGS" GAP_ARGS="$REDUCE_ARGS" \
+  EMA_ARGS="$EMA_ARGS" GAP_ARGS="$REDUCE_ARGS" SEED="$ARM_SEED" \
   RUN_SUFFIX="$(cf404_run_suffix "$ARM")" \
   BB_GPU="$BB_GPU" \
   bash "$RUNNER" "$CF404_CELL" "$STOP" &
@@ -111,22 +122,26 @@ line="$(cf404_last_cmdline "$TLOG" 2>/dev/null)"
 if [ -n "$line" ]; then
   got_ema="$(printf '%s' "$line" | cf404_ema_of_cmdline)"
   got_red="$(printf '%s' "$line" | cf404_reduce_of_cmdline)"
+  got_seed="$(printf '%s' "$line" | cf404_seed_of_cmdline)"
   want_ema="$(cf404_ema_sig "$ARM")"
-  if [ "$got_ema" != "$want_ema" ] || [ "$got_red" != "$CF404_REDUCE" ]; then
+  if [ "$got_ema" != "$want_ema" ] || [ "$got_red" != "$CF404_REDUCE" ] \
+     || [ "$got_seed" != "$ARM_SEED" ]; then
     cf404_kill_tree "$runner"
     wait "$runner" 2>/dev/null
-    log "arm $ARM STOPPED — trained '$got_ema' / '$got_red'," \
-        "not '$want_ema' / '$CF404_REDUCE'"
+    log "arm $ARM STOPPED — trained '$got_ema' / '$got_red' / seed $got_seed," \
+        "not '$want_ema' / '$CF404_REDUCE' / seed $ARM_SEED"
     echo "ABORT: this leg's trainer runs the momentum '$got_ema' under the" >&2
-    echo "  reduction '$got_red', and arm '$ARM' is '$want_ema' under" >&2
-    echo "  '$CF404_REDUCE'. The values are <tau> <end> <ramp>, with '-' for" >&2
-    echo "  a flag the command line does not carry. Every arm of this card" >&2
-    echo "  writes the same file names, so the leg is stopped rather than" >&2
-    echo "  left to climb. Its command line is the last 'Command line:' in" >&2
+    echo "  reduction '$got_red' at seed '$got_seed', and arm '$ARM' is" >&2
+    echo "  '$want_ema' under '$CF404_REDUCE' at seed '$ARM_SEED'. The" >&2
+    echo "  momentum reads <tau> <end> <ramp>, with '-' for a flag the" >&2
+    echo "  command line does not carry. Every arm of this card writes the" >&2
+    echo "  same file names, so the leg is stopped rather than left to" >&2
+    echo "  climb. Its command line is the last 'Command line:' in" >&2
     echo "  $TLOG" >&2
     exit 3
   fi
-  log "arm $ARM ema='$got_ema' reduce=$got_red OK — both reached the trainer"
+  log "arm $ARM ema='$got_ema' reduce=$got_red seed=$got_seed OK —" \
+      "all three reached the trainer"
 fi
 
 wait "$runner"; rc=$?

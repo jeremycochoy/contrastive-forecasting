@@ -46,6 +46,10 @@ CF404_REDUCE="mean"
 CF404_STOPS="40000"
 CF404_HEAD_STEPS=30000
 CF404_ENC="student"
+# The card's backbone seed. One arm of this study is a REPEAT of another at a
+# SECOND seed, so the seed is a column of the arms table and this is only the
+# value a row that names none takes.
+CF404_SEED_DEFAULT="${CF404_SEED_DEFAULT:-20260520}"
 CF404_ARMS_TSV="${CF404_ARMS_TSV:-$CF404_SCRIPTS/arms.tsv}"
 
 # ---- Trial mode --------------------------------------------------------------
@@ -147,6 +151,21 @@ cf404_ramp(){  # <arm>
   local v
   v="$(cf404_arm_row "${1:?arm}" | awk '{print $4}')" || return 1
   case "$v" in ""|-) printf '0\n' ;; *) printf '%s\n' "$v" ;; esac
+}
+
+# The backbone seed of one arm, from column 5.
+#
+# The four arms of the card share one seed, so nothing in the study ever moved
+# it. The repeat arm does: it trains the momentum of `s08` a second time at a
+# second seed, and the pair is the only thing that measures this cell's own
+# run-to-run spread. A row with no fifth column takes the card's seed.
+cf404_seed(){  # <arm>
+  local v
+  v="$(awk -F'\t' -v a="${1:?arm}" \
+    '!/^#/ && $1 == a { print $5; found = 1 } END { exit !found }' \
+    "$CF404_ARMS_TSV")" || return 1
+  case "$v" in ''|-) printf '%s\n' "$CF404_SEED_DEFAULT" ;;
+               *) printf '%s\n' "$v" ;; esac
 }
 
 # The trainer flags of one arm's EMA momentum, as ONE unit.
@@ -383,6 +402,13 @@ cf404_reduce_of_cmdline(){
   printf '%s\n' "${v:-sum}"
 }
 
+# The seed a trainer command line names. `-` when it carries no flag, which no
+# leg of this study can produce: `run_leg_k.sh` always passes --seed.
+cf404_seed_of_cmdline(){
+  local v; v="$(cf404_arg_of_cmdline --seed)"
+  printf '%s\n' "${v:--}"
+}
+
 # How many command lines a leg log holds. `run_leg_k.sh` APPENDS, so a resumed
 # cell's log carries one per leg. A caller that counts before it starts a leg
 # knows when THIS leg's line has landed.
@@ -419,15 +445,33 @@ cf404_kill_tree(){  # <pid>
 # `pgrep -f` also matches a process that merely NAMES the file on its command
 # line, this check among them, so the argument list decides and not the
 # pattern. `wc -l`, because `pgrep -c` prints 0 AND exits 1 on no match.
-cf404_sync_loops(){  # <local dir>
-  local want="${1:?local dir}" p n=0
+cf404_sync_loop_pids(){  # <local dir>
+  local want="${1:?local dir}" p
   want="${want%/}"
   for p in $(pgrep -f 'sync_loop\.sh' 2>/dev/null); do
     [ "$p" = "$$" ] && continue
     tr '\0' '\n' <"/proc/$p/cmdline" 2>/dev/null \
       | grep -qx '.*/sync_loop\.sh' || continue
     [ "$(readlink "/proc/$p/cwd" 2>/dev/null)" = "$want" ] || continue
-    n=$(( n + 1 ))
+    echo "$p"
+  done
+}
+
+cf404_sync_loops(){  # <local dir>
+  cf404_sync_loop_pids "${1:?local dir}" | wc -l | tr -d ' '
+}
+
+# Stop the sync loop of ONE local root, by pid.
+#
+# NEVER `pkill` with a pattern here. On 2026-08-19 a pattern for this loop also
+# matched four running eval shards, because an eval command line carries the
+# sync root, and the four evals died. elisa is shared with other sessions, so a
+# pattern can also reach a process this study does not own. The working
+# directory identifies the loop, and the pid is what takes the signal.
+cf404_stop_sync_loop(){  # <local dir>
+  local p n=0
+  for p in $(cf404_sync_loop_pids "${1:?local dir}"); do
+    kill -TERM "$p" 2>/dev/null && n=$(( n + 1 ))
   done
   echo "$n"
 }
