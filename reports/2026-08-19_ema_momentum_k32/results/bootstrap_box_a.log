@@ -1,0 +1,39 @@
+[08-19 13:28:09] [#404 bootstrap ssh1.vast.ai:29998] parent bootstrap (#373)
+[08-19 13:28:09] [bootstrap ssh1.vast.ai:29998] packing code
+[08-19 13:28:10] [bootstrap ssh1.vast.ai:29998] uploading 512K
+Warning: Permanently added '[ssh1.vast.ai]:29998' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[08-19 13:28:22] [bootstrap ssh1.vast.ai:29998] installing
+Warning: Permanently added '[ssh1.vast.ai]:29998' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+Warning: Permanently added '[ssh1.vast.ai]:29998' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+started
+[08-19 13:30:47] [bootstrap ssh1.vast.ai:29998] waiting for BOOTSTRAP_OK (install is ~4 min)
+[08-19 13:30:51] [bootstrap ssh1.vast.ai:29998] OK
+Warning: Permanently added '[ssh1.vast.ai]:29998' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+BOX-ENV driver=580.159.03, NVIDIA GeForce RTX 5090, Default
++ echo BOOTSTRAP_OK
+BOOTSTRAP_OK
+[08-19 13:30:54] [#404 bootstrap ssh1.vast.ai:29998] shipping reports/2026-08-19_ema_momentum_k32
+Warning: Permanently added '[ssh1.vast.ai]:29998' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+Warning: Permanently added '[ssh1.vast.ai]:29998' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[08-19 13:31:04] [#404 bootstrap ssh1.vast.ai:29998] checking the box's checkout
+Warning: Permanently added '[ssh1.vast.ai]:29998' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+box reduce=mean root=/root/cf404_runs results=/root/cf/reports/2026-08-19_ema_momentum_k32/results
+arm a08 gpu=0 stops='40000' heads=0
+arm a09 gpu=1 stops='40000' heads=0
+arm s08 gpu=0 stops='40000' heads=0
+arm s09 gpu=1 stops='40000' heads=0
+[08-19 13:31:09] [#404 bootstrap ssh1.vast.ai:29998] OK
