@@ -208,7 +208,9 @@ rows. Sources: `results/diag/curve_state.csv` and
 ### Per-domain, best mean cell against k = 3
 
 *`k = 32` at bb200k, 30,000-step student head, against k = 3 at bb200k on the
-same cell and the same head.*
+same cell and the same head. Sources: `results/mean/splits.csv` and
+`../2026-08-08_rollout_depth/results/splits.csv`, rows
+`A4_k3_bb200k_student,domain,*`.*
 
 | domain | configs | k = 32 bb200k | k = 3 bb200k | difference |
 |---|---:|---:|---:|---:|

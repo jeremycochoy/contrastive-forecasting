@@ -285,8 +285,11 @@ def main(argv=None):
                label="k = 3, the depth this study extends"),
         Line2D([], [], color=D.PRIOR_INK, lw=3.4,
                label="the best per-domain result before this study"),
+        # A legend entry is a LABEL. The radial axis is log2 and the figure
+        # title says lower is better, so which side of the ring wins is
+        # already on the picture and needs no sentence here.
         Line2D([], [], color=D.PARITY_INK, lw=1.7,
-               label="seasonal-naive parity, 1.0. Inside it the model wins")]
+               label="seasonal-naive parity, 1.0")]
     fig.legend(handles=handles, loc="lower center",
                ncol=min(3, len(handles)), frameon=False, fontsize=9)
     fig.suptitle(f"Per-domain GM-Relative MASE, phase {a.phase}, "

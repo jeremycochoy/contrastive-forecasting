@@ -13,11 +13,16 @@ Horizontal axis: the backbone train step, 40k / 100k / 200k. Vertical axis:
 GM-Relative MASE over the 97 GIFT-Eval configs, lower better. One line per
 depth, direct-labelled at its end, so no line is identified by colour alone.
 
-Two references, on the SAME cell, so the depth is the only thing that
+Three references, on the SAME cell, so the depth is the only thing that
 changes across them:
 
   dashed  #373's k = 3, read out of its own score files.
   dotted  the k = 0 published, from `published.PUBLISHED`.
+  diamond the k = 0 anchor, the same parent checkpoints re-scored on THIS
+          study's path at THIS study's phase-1 head budget. Control c2 wrote
+          it, at bb40k and at no other stop, so it draws one marker on the
+          phase-1 panel. The report reads its differences off this number and
+          not off the published one, so the panel has to hold it.
   grey    #373's best on this cell, 1.0660 at bb200k. It is the number this
           study has to beat, and it is drawn on both panels.
 
@@ -73,6 +78,22 @@ PHASE_TITLE = {1: "phase 1 — head at 30k steps on every stop",
 # alone. Every difference this report reads is read against it.
 HEAD_SEED_BAND = 0.0384
 
+# The k = 0 anchor: control c2's score file. The tag names the stop and the
+# head budget, so the panel it belongs on is read off the tag and not held in
+# a second place.
+K0_ANCHOR = STUDY / ("results/diag/"
+                     "score_c2_k0anchor_a4parent_bb40k_h30k_student.txt")
+K0_ANCHOR_STOP_K = 40
+K0_ANCHOR_PHASE = 1
+
+# How far LEFT of its stop the anchor marker sits. The axis is categorical, so
+# this is a dodge and not a claim about the step count. It is needed: the
+# published k = 0 at bb40k is 1.1603 against the anchor's 1.1600, which is
+# 0.1% of the panel height, so the two would print one over the other. The
+# variant marker dodges right, so the anchor dodges left and the three stay
+# apart.
+ANCHOR_DODGE = 0.055
+
 
 def read_scores(path):
     """`{phase: {k: {stop_k: score}}}` and the variant cells, from the CSV.
@@ -118,6 +139,27 @@ def parent_k3():
         if f.is_file() and f.read_text().strip():
             out[s] = float(f.read_text().strip())
     return out
+
+
+def k0_anchor():
+    """The k = 0 anchor score, or None when the control has not scored yet."""
+    if not K0_ANCHOR.is_file():
+        return None
+    text = K0_ANCHOR.read_text().strip()
+    return float(text) if text else None
+
+
+def draw_anchor(ax, xs, score):
+    """The k = 0 anchor, one marker at its own stop.
+
+    A marker and not a line: the control scored one stop, and a line over one
+    point would read as a trend the study did not measure.
+    """
+    if score is None or K0_ANCHOR_STOP_K not in xs:
+        return []
+    ax.plot([xs[K0_ANCHOR_STOP_K] - ANCHOR_DODGE], [score], marker="D",
+            ms=7.0, lw=0, color=D.REF_K0_INK, mec="white", mew=0.9, zorder=6)
+    return [score]
 
 
 def spread(ys, gap):
@@ -188,7 +230,8 @@ def draw_variants(ax, cells, xs):
     return values
 
 
-def draw_panel(ax, phase, arms, k3, k0, xs, frontier, stops_k, variants=()):
+def draw_panel(ax, phase, arms, k3, k0, xs, frontier, stops_k, variants=(),
+               anchor=None):
     values = []
     ends = []
     for k in D.DEPTHS_DRAWN:
@@ -206,6 +249,8 @@ def draw_panel(ax, phase, arms, k3, k0, xs, frontier, stops_k, variants=()):
     values += draw_band(ax, xs, k3, D.REF_K3_INK)
     values += draw_reference(ax, xs, k3, D.REF_K3_INK, D.STYLE_K3)
     values += draw_reference(ax, xs, k0, D.REF_K0_INK, D.STYLE_K0)
+    if phase == K0_ANCHOR_PHASE:
+        values += draw_anchor(ax, xs, anchor)
 
     ax.axhline(frontier, color=D.PRIOR_INK, lw=2.0, zorder=1)
     ax.set_title(PHASE_TITLE[phase], loc="left", fontsize=10.5, color=D.INK)
@@ -245,6 +290,7 @@ def main(argv=None):
         raise SystemExit(f"ABORT: {a.scores} holds no {HEAD}-head score")
     k3 = parent_k3()
     k0 = published.PUBLISHED.get(CELL, {}).get(HEAD, {})
+    anchor = k0_anchor()
     frontier = min(k3.values()) if k3 else min(k0.values())
 
     stops_k = axis_stops(scores)
@@ -261,7 +307,7 @@ def main(argv=None):
     values, per_panel = [], []
     for ax, phase in zip(axes, phases):
         v, ends = draw_panel(ax, phase, scores[phase], k3, k0, xs, frontier,
-                             stops_k, variants)
+                             stops_k, variants, anchor)
         values += v
         per_panel.append((ax, ends))
 
@@ -272,10 +318,6 @@ def main(argv=None):
         label_ends(ax, ends, bot, top)
     axes[0].set_ylabel("GM-Relative MASE, 97 GIFT-Eval configs "
                        "(lower is better)")
-    axes[0].annotate(f"best before this study {frontier:.4f}", (0.0, frontier),
-                     xytext=(2, -12), textcoords="offset points", fontsize=8,
-                     color=D.INK_SOFT)
-
     handles = [
         Line2D([], [], color=D.INK_SOFT, linestyle=D.STYLE_K3, lw=1.7,
                label="k = 3, same cell and same head"),
@@ -286,6 +328,10 @@ def main(argv=None):
         Line2D([], [], color=D.PRIOR_INK, lw=2.0,
                label=f"the best this cell reached before this study, "
                      f"{frontier:.4f}")]
+    if anchor is not None and K0_ANCHOR_STOP_K in xs:
+        handles.insert(3, Line2D([], [], marker="D", ms=7.0, lw=0,
+                                 color=D.REF_K0_INK, mec="white", mew=0.9,
+                                 label=f"k = 0 anchor {anchor:.4f}"))
     if any(c[2] in xs for c in variants):
         handles.append(
             Line2D([], [], marker="o", ms=8.0, lw=0, mfc="white",
@@ -302,8 +348,9 @@ def main(argv=None):
     drawn = sum(len(e) for _, e in per_panel)
     shown = [c for c in variants if c[2] in xs]
     extra = "".join(f", {v} k = {k} at bb{s}k" for _, k, s, v, _ in shown)
+    anc = "" if anchor is None else f", k = 0 anchor {anchor:.4f}"
     print(f"wrote {a.out}  ({drawn} line(s), frontier {frontier:.4f}"
-          f"{extra})")
+          f"{anc}{extra})")
     return 0
 
 

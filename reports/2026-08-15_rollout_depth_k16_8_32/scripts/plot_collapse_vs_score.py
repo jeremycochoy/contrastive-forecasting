@@ -26,7 +26,10 @@ Two panels, from results/diag/collapse_vs_score.csv:
           off the panel, on the measurement rather than on the arm's name.
 
 Marker by arm, so no point is identified by colour alone: a star is the
-k = 0 parent, a circle the summed arm, a square the mean arm.
+k = 0 anchor, a circle the summed arm, a square the mean arm. The star sits
+at the anchor SCORE, over the rank of the parent checkpoint it re-scores, so
+its legend reads `k = 0 anchor` and not `k = 0 parent`. The report's `Terms`
+list gives the parent's name to the checkpoints and never to a score.
 
 Usage:  python3 plot_collapse_vs_score.py
 """
@@ -174,7 +177,7 @@ def main():
     draw(ax[0], scored, "eff_rank",
          "effective rank of encoder latent, across series")
     draw(ax[1], readable, "readout_r",
-         "readout r: |corr| of input with the surviving direction")
+         "readout r: |corr| of the input with the top direction")
 
     # Room for the labels on both axes, set BEFORE they are placed: the
     # placer works in display coordinates, so a limit changed after it ran
@@ -198,7 +201,7 @@ def main():
     ax[1].set_title("score against readout r, collapsed set", fontsize=9.5)
 
     handles = [plt.Line2D([], [], marker="*", ls="", color=COLOUR[0],
-                          markersize=12, label="k = 0 parent")]
+                          markersize=12, label="k = 0 anchor")]
     handles += [plt.Line2D([], [], marker=MARKER[arm], ls="", color="#555",
                            label=f"{ARM_NAME[arm]} arm")
                 for arm in ("sum", "mean")]

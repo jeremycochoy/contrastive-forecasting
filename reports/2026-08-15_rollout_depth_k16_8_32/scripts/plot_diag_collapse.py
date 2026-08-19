@@ -105,11 +105,14 @@ def row_of(r):
     return r["reduce"]
 
 
+# One panel per probe. A title is a LABEL: it names the quantity the panel
+# draws, and every name here is one the report's `Terms` list defines. `h` and
+# `f_t` are no part of that list, so no title carries them.
 PANELS = [
-    ("auc", "AUC — can the model tell a positive from a negative?",
-     0.5, "chance, 0.50"),
-    ("u_batch", "u_batch on h — dimension usage", None, None),
-    ("cos_err_d0", "cos_err_d0 = 1 - cos(f_t, h_t+1)", None, None),
+    ("auc", "train AUC", 0.5, "chance, 0.50"),
+    ("u_batch", "u_batch — dimension usage of the latent", None, None),
+    ("cos_err_d0", "cos_err_d0 — forecast against the next latent",
+     None, None),
 ]
 
 
@@ -214,11 +217,10 @@ def latent_rank():
 
     fig, axes = plt.subplots(1, 2, figsize=(12, 3.8))
     panels = [
-        (axes[0], "eff_rank", "effective rank of h  (1.0 = one direction)",
-         "How many latent directions the encoder uses"),
-        (axes[1], "pair_cos", "mean cos(h) between two different series"
-                              "  (1.0 = identical)",
-         "Does the encoder separate two different series?"),
+        (axes[0], "eff_rank", "effective rank  (1.0 = one direction)",
+         "effective rank of the encoder latent"),
+        (axes[1], "pair_cos", "pair cosine  (1.0 = identical)",
+         "pair cosine between two different series"),
     ]
     for ax, col, xlabel, title in panels:
         for i, name in enumerate(ROWS):
@@ -246,9 +248,9 @@ def latent_rank():
                    color=D.colour(k) if k else D.REF_K0_INK,
                    label=f"k = {k}") for k in seen],
                loc="lower center", ncol=len(seen), frameon=False, fontsize=9)
-    fig.suptitle("Every saved checkpoint, through the loader the GIFT-Eval "
-                 "uses, on 21 real GIFT-Eval windows", fontsize=11)
-    fig.tight_layout(rect=(0, 0.10, 1, 0.93))
+    # No suptitle. The markdown caption of the report names this figure, and
+    # a second copy inside it is the same label printed twice.
+    fig.tight_layout(rect=(0, 0.10, 1, 1))
     out = PLOTS / "latent_rank.png"
     fig.savefig(out, dpi=150)
     print(f"-> {out} ({len(rows)} checkpoints)")
