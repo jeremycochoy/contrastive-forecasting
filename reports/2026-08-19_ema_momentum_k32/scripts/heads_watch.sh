@@ -22,6 +22,18 @@
 # its per-GPU lock. The GIFT-Eval that follows each head runs on the CPU, so
 # several evals overlap without touching a card.
 #
+# When it stops. When no pair is left to fire: each one is scored, or each one
+# used its whole try budget (`cf404_heads_done`). It does NOT stop at the first
+# scored arm — the four backbones arrive about five hours apart, so three arms
+# are still on the box when the first one is scored.
+#
+# The try budget. A head or an eval that fails for a stable reason — a bad
+# checkpoint, a missing package, a full disk — would otherwise re-fire every
+# POLL seconds and hold a GPU lane for as long as the session runs. Each pair
+# gets CF404_HEAD_TRIES attempts. The counter is a file in results/, so a
+# watcher restarted after a reboot does not give a broken head three more
+# hours. The log names that file when it drops a pair.
+#
 # Everything is idempotent. A scored arm is a no-op, a trained head skips
 # straight to its eval, and an eval resumes per shard.
 #
@@ -29,6 +41,7 @@
 #   HEAD_GPUS="0" nohup setsid bash scripts/heads_watch.sh &
 #
 #   ONCE=1 bash scripts/heads_watch.sh           # one pass, then exit
+#   CF404_HEAD_TRIES=5 bash scripts/heads_watch.sh
 #   CF404_DRY_RUN=1 bash scripts/heads_watch.sh  # print the plan, run nothing
 set -uo pipefail
 
@@ -48,31 +61,40 @@ log(){ echo "[$(date '+%m-%d %H:%M:%S')] [#404 heads] $*" | tee -a "$LOG"; }
 read -r -a gpu_list <<<"$HEAD_GPUS"
 [ "${#gpu_list[@]}" -ge 1 ] || { echo "ABORT: HEAD_GPUS is empty" >&2; exit 2; }
 
-score_file(){  # <arm> <stop>
-  printf '%s/score_%s.txt\n' "$CF404_RESULTS" \
-    "$(cf404_tag "$1" "$2" "$CF404_HEAD_STEPS")"
-}
-
-# One pass: every (arm, stop) whose backbone is here and whose score is not.
+# One pass: every (arm, stop) this watcher must fire now. A pair qualifies when
+# its backbone is here, its score is not, and it has a try left.
 pending(){
   local arm stop
-  for arm in $CF404_ARMS; do
-    for stop in $CF404_STOPS; do
-      [ -s "$(score_file "$arm" "$stop")" ] && continue
-      [ -n "$(cf404_bb_ckpt "$arm" "$stop")" ] || continue
-      printf '%s %s\n' "$arm" "$stop"
-    done
-  done
+  while read -r arm stop; do
+    [ -n "$arm" ] || continue
+    [ -s "$(cf404_score_file "$arm" "$stop")" ] && continue
+    cf404_exhausted "$arm" "$stop" && continue
+    [ -n "$(cf404_bb_ckpt "$arm" "$stop")" ] || continue
+    printf '%s %s\n' "$arm" "$stop"
+  done < <(cf404_pairs)
+}
+
+# The pairs this watcher gave up on, for the plan and for the closing line.
+dropped(){
+  local arm stop
+  while read -r arm stop; do
+    [ -n "$arm" ] || continue
+    cf404_exhausted "$arm" "$stop" && printf '%s %s\n' "$arm" "$stop"
+  done < <(cf404_pairs)
 }
 
 if [ -n "${CF404_DRY_RUN:-}" ]; then
   echo "heads root=$CF404_ROOT results=$CF404_RESULTS gpus='$HEAD_GPUS'"
   echo "  budget=$CF404_HEAD_STEPS enc=$CF404_ENC poll=${POLL}s"
+  echo "  pairs=$(cf404_pair_count) scored=$(cf404_heads_scored)" \
+       "tries=$CF404_HEAD_TRIES per pair"
   pending | sed 's/^/  pending /'
+  dropped | sed 's/^/  dropped /'
   exit 0
 fi
 
-log "START root=$CF404_ROOT arms='$CF404_ARMS' gpus='$HEAD_GPUS'"
+log "START root=$CF404_ROOT arms='$CF404_ARMS' gpus='$HEAD_GPUS'" \
+    "pairs=$(cf404_pair_count) tries=$CF404_HEAD_TRIES"
 lane=0
 while :; do
   fired=0
@@ -80,27 +102,31 @@ while :; do
     [ -n "$arm" ] || continue
     gpu="${gpu_list[$(( lane % ${#gpu_list[@]} ))]}"
     lane=$(( lane + 1 ))
-    log "head $arm bb$(cf404_steps_label "$stop") on gpu $gpu"
+    # Count the attempt BEFORE the head runs. A head that takes the machine
+    # down with it still spent a try.
+    try="$(cf404_bump_tries "$arm" "$stop")"
+    log "head $arm bb$(cf404_steps_label "$stop") on gpu $gpu" \
+        "(try $try of $CF404_HEAD_TRIES)"
     BB_GPU="$gpu" bash "$HERE/head_eval.sh" "$arm" "$stop"
     rc=$?
     log "head $arm rc=$rc"
+    if cf404_exhausted "$arm" "$stop"; then
+      log "GAVE UP on $arm bb$(cf404_steps_label "$stop"): $try attempt(s)," \
+          "no score. Fix the cause, delete" \
+          "$(cf404_tries_file "$arm" "$stop"), and start this watcher again."
+    fi
     fired=$(( fired + 1 ))
   done < <(pending)
 
   [ "$fired" -gt 0 ] && bash "$HERE/collect.sh" >>"$LOG" 2>&1
 
-  # Every arm scored: the study's head half is done.
-  if [ -z "$(pending)" ]; then
-    scored=0
-    for arm in $CF404_ARMS; do
-      for stop in $CF404_STOPS; do
-        [ -s "$(score_file "$arm" "$stop")" ] && scored=$(( scored + 1 ))
-      done
-    done
-    if [ "$scored" -gt 0 ]; then
-      log "every arm on this side is scored ($scored) — done"
-      exit 0
-    fi
+  # No pair is left to fire: every one is scored, or every one used its whole
+  # try budget. A pair whose backbone is still on the box is neither, so the
+  # loop keeps waiting for it.
+  if cf404_heads_done; then
+    log "done: $(cf404_heads_scored) of $(cf404_pair_count) pair(s) scored," \
+        "$(dropped | wc -l | tr -d ' ') dropped"
+    exit 0
   fi
   [ -n "$ONCE" ] && exit 0
   sleep "$POLL"

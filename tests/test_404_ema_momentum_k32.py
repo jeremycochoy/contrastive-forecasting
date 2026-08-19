@@ -795,6 +795,244 @@ class TestPhase1Plan:
         assert "heads=0" in out.stdout
 
 
+# --- 7b. The watcher that scores each arm as its backbone lands --------------
+
+
+def wait_for(predicate, timeout=90.0, step=0.2):
+    """True as soon as `predicate` holds, False when `timeout` runs out."""
+    import time
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if predicate():
+            return True
+        time.sleep(step)
+    return predicate()
+
+
+@pytest.fixture
+def watch_study(tmp_path):
+    """A copy of this study whose head script is a stub.
+
+    `heads_watch.sh` resolves the study from its own directory, so a copy of
+    `scripts/` under a fake repository IS the study. Two scripts are replaced:
+    `head_eval.sh`, which would train a head and run 97 GIFT-Eval configs, and
+    `collect.sh`, which would call #373's splitter.
+
+    The stub reads `results/stub_rc`. `0` writes the score file the real head
+    script writes. Any other value writes nothing and exits with it, which is
+    what a bad checkpoint, a missing package or a full disk does.
+    """
+    import shutil
+
+    repo = tmp_path / "fake"
+    study = repo / "reports" / "2026-08-19_ema_momentum_k32"
+    (repo / "reports").mkdir(parents=True)
+    shutil.copytree(EXP / "scripts", study / "scripts")
+    (repo / "reports" / "2026-08-08_rollout_depth").symlink_to(PARENT)
+
+    results = study / "results"
+    results.mkdir(parents=True)
+    root = tmp_path / "root"
+    root.mkdir()
+    (results / "stub_rc").write_text("0\n")
+
+    (study / "scripts" / "head_eval.sh").write_text("""#!/bin/bash
+. "$(dirname "${BASH_SOURCE[0]}")/study.sh"
+echo "$1 $2" >>"$CF404_RESULTS/fired.txt"
+rc="$(cat "$CF404_RESULTS/stub_rc")"
+[ "$rc" = "0" ] || exit "$rc"
+echo 1.2345 >"$(cf404_score_file "$1" "$2")"
+""")
+    (study / "scripts" / "collect.sh").write_text("#!/bin/bash\nexit 0\n")
+
+    def study_says(snippet):
+        out = subprocess.run(
+            ["bash", "-c",
+             f'. "{study}/scripts/study.sh" >/dev/null && {snippet}'],
+            capture_output=True, text=True, timeout=60,
+            env={**os.environ, "CF404_ROOT": str(root),
+                 "CF404_RESULTS": str(results)})
+        assert out.returncode == 0, out.stderr
+        return out.stdout.strip()
+
+    def backbone(arm):
+        """Lay the checkpoint file the watcher polls for, as the sync loop
+        does. The path comes from the study itself, never from a second copy
+        of the naming rule."""
+        path = Path(study_says(
+            f'printf "%s/%s_%s.pth" "$(cf404_leg_dir {arm} {STOP})"'
+            f' "$(cf404_run_name {arm})" "$(cf404_steps_label {STOP})"'))
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"")
+        return path
+
+    procs = []
+
+    def start(env=None):
+        full = dict(os.environ)
+        full.update({"CF404_ROOT": str(root), "CF404_RESULTS": str(results),
+                     "POLL": "1", "HEAD_GPUS": "0"})
+        full.update(env or {})
+        out = open(results / "watcher.out", "ab")
+        proc = subprocess.Popen(
+            ["bash", str(study / "scripts" / "heads_watch.sh")],
+            stdout=out, stderr=subprocess.STDOUT, env=full)
+        procs.append(proc)
+        return proc
+
+    def scored():
+        return {f.name[len("score_"):].split("_bb", 1)[0]
+                for f in results.glob("score_*.txt") if f.stat().st_size}
+
+    def fired():
+        path = results / "fired.txt"
+        return [ln.split() for ln in path.read_text().splitlines()] \
+            if path.exists() else []
+
+    try:
+        yield {"study": study, "root": root, "results": results,
+               "backbone": backbone, "start": start, "scored": scored,
+               "fired": fired,
+               "stub_rc": lambda rc: (results / "stub_rc").write_text(f"{rc}\n"),
+               "out": lambda: (results / "watcher.out").read_text()}
+    finally:
+        for proc in procs:
+            proc.kill()
+            proc.wait(timeout=30)
+
+
+class TestTheHeadsAreDone:
+    """`cf404_heads_done` is the watcher's exit test. It answers one question:
+    is any (arm, stop) pair left to fire?"""
+
+    def state(self, tmp_path):
+        return {"CF404_RESULTS": str(tmp_path)}
+
+    def done(self, tmp_path, env=None):
+        full = self.state(tmp_path)
+        full.update(env or {})
+        return study_call("cf404_heads_done", env=full).returncode == 0
+
+    def test_the_pair_count_is_the_arms_times_the_stops(self):
+        stops = study_value("CF404_STOPS").split()
+        assert study_value("CF404_ARMS").split() == [a for a, *_ in ARMS]
+        assert study_call("cf404_pair_count").stdout.strip() == str(
+            len(ARMS) * len(stops))
+
+    def test_no_score_is_not_done(self, tmp_path):
+        assert not self.done(tmp_path)
+
+    def test_one_scored_arm_is_not_the_study(self, tmp_path):
+        """The defect this pins. The box hands the four backbones over about
+        five hours apart, so at the moment arm 1 is scored the other three
+        are still training and the watcher has to keep waiting."""
+        write_score(tmp_path, "a08", 1.19)
+        assert not self.done(tmp_path)
+
+    def test_every_arm_scored_is_done(self, tmp_path):
+        for arm, *_ in ARMS:
+            write_score(tmp_path, arm, 1.19)
+        assert self.done(tmp_path)
+
+    def test_an_arm_that_used_its_tries_no_longer_blocks(self, tmp_path):
+        """A head that fails for a stable reason would otherwise hold a GPU
+        lane and the whole watcher for as long as the session runs."""
+        write_score(tmp_path, "a08", 1.19)
+        write_score(tmp_path, "a09", 1.19)
+        for arm in ("s08", "s09"):
+            tries = study_call(f'cf404_tries_file {arm} {STOP}',
+                               env=self.state(tmp_path)).stdout.strip()
+            Path(tries).write_text("3\n")
+        assert self.done(tmp_path, env={"CF404_HEAD_TRIES": "3"})
+
+    def test_a_pair_with_a_score_is_never_exhausted(self, tmp_path):
+        """A pair whose head failed twice and passed on the third try is a
+        scored pair, not a dropped one."""
+        write_score(tmp_path, "a08", 1.19)
+        tries = study_call(f'cf404_tries_file a08 {STOP}',
+                           env=self.state(tmp_path)).stdout.strip()
+        Path(tries).write_text("9\n")
+        out = study_call(f'cf404_exhausted a08 {STOP}', env=self.state(tmp_path))
+        assert out.returncode != 0
+
+    def test_a_missing_counter_reads_zero(self, tmp_path):
+        out = study_call(f'cf404_tries a08 {STOP}', env=self.state(tmp_path))
+        assert out.stdout.strip() == "0"
+
+    def test_each_attempt_adds_one(self, tmp_path):
+        env = self.state(tmp_path)
+        got = [study_call(f'cf404_bump_tries a08 {STOP}', env=env).stdout.strip()
+               for _ in range(3)]
+        assert got == ["1", "2", "3"]
+
+
+class TestHeadsWatch:
+    """The watcher runs for the whole study. It fires one head per arm as the
+    arm lands, and it exits when no pair is left to fire."""
+
+    def test_it_keeps_waiting_while_an_arm_is_still_on_the_box(self, watch_study):
+        """The four backbones arrive about five hours apart. A watcher that
+        exits at the first scored arm leaves three arms with no head, and
+        `launch_elisa.sh`, which waits on it, stops redrawing the figures."""
+        import time
+        w = watch_study
+        w["backbone"]("a08")
+        proc = w["start"]()
+        assert wait_for(lambda: w["scored"]() == {"a08"}), w["out"]()
+        time.sleep(3.0)  # three polls at POLL=1
+        assert proc.poll() is None, (
+            "the watcher exited with three arms unscored:\n" + w["out"]())
+
+        for arm in ("a09", "s08", "s09"):
+            w["backbone"](arm)
+        assert wait_for(lambda: proc.poll() is not None), w["out"]()
+        assert proc.returncode == 0, w["out"]()
+        assert w["scored"] () == {a for a, *_ in ARMS}, w["out"]()
+
+    def test_a_head_that_keeps_failing_is_dropped(self, watch_study):
+        """A GIFT-Eval that fails for a stable reason must not re-fire every
+        POLL seconds for as long as the session runs."""
+        from collections import Counter
+        w = watch_study
+        w["stub_rc"](7)
+        for arm, *_ in ARMS:
+            w["backbone"](arm)
+        proc = w["start"](env={"CF404_HEAD_TRIES": "2"})
+        assert wait_for(lambda: proc.poll() is not None), w["out"]()
+        assert Counter(arm for arm, _stop in w["fired"]()) == {
+            arm: 2 for arm, *_ in ARMS}, w["fired"]()
+        assert "GAVE UP" in w["out"](), w["out"]()
+
+    def test_a_dropped_arm_names_the_file_that_lets_it_run_again(self, watch_study):
+        w = watch_study
+        w["stub_rc"](7)
+        w["backbone"]("a08")
+        proc = w["start"](env={"CF404_HEAD_TRIES": "1", "ONCE": "1"})
+        proc.wait(timeout=90)
+        assert "tries_a08" in w["out"](), w["out"]()
+
+    def test_an_arm_that_scores_on_a_later_try_is_kept(self, watch_study):
+        """Two failures then a pass is a scored arm. The watcher must not
+        count the failures against an arm that finished."""
+        w = watch_study
+        w["stub_rc"](7)
+        w["backbone"]("a08")
+        w["start"](env={"ONCE": "1"}).wait(timeout=90)
+        w["stub_rc"](0)
+        w["start"](env={"ONCE": "1"}).wait(timeout=90)
+        assert w["scored"]() == {"a08"}, w["out"]()
+
+    def test_the_dry_run_states_the_try_budget(self, watch_study):
+        out = subprocess.run(
+            ["bash", str(watch_study["study"] / "scripts" / "heads_watch.sh")],
+            capture_output=True, text=True, timeout=90,
+            env={**os.environ, "CF404_DRY_RUN": "1",
+                 "CF404_ROOT": str(watch_study["root"]),
+                 "CF404_RESULTS": str(watch_study["results"])})
+        assert out.returncode == 0, out.stderr
+        assert "tries" in out.stdout, out.stdout
+
+
 def write_score(results: Path, arm: str, value: float):
     results.mkdir(parents=True, exist_ok=True)
     tag = f"{arm}_bb40k_h30k_{ENC}"

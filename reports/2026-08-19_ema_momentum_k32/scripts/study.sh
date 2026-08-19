@@ -235,6 +235,99 @@ cf404_leg_log(){  # <arm>
   printf '%s/run_%s.log\n' "$CF404_RESULTS" "$(cf404_run_name "${1:?arm}")"
 }
 
+# ---- The head half of the study ----------------------------------------------
+#
+# One head and one 97-config GIFT-Eval per (arm, stop). `heads_watch.sh` walks
+# those pairs as their backbones land, so it asks three questions here: which
+# pairs the study defines, which pairs are scored, and which pairs it must
+# stop firing.
+
+# How many times the watcher fires ONE pair before it drops it. A head or an
+# eval that fails for a stable reason — a bad checkpoint, a missing package, a
+# full disk — otherwise re-fires every POLL seconds and holds a GPU lane for
+# as long as the session runs.
+CF404_HEAD_TRIES="${CF404_HEAD_TRIES:-3}"
+
+# Every (arm, stop) pair, one per line.
+cf404_pairs(){
+  local arm stop
+  for arm in $CF404_ARMS; do
+    for stop in $CF404_STOPS; do printf '%s %s\n' "$arm" "$stop"; done
+  done
+}
+
+cf404_pair_count(){ cf404_pairs | wc -l | tr -d ' '; }
+
+# The file #373's head script writes one pair's aggregate score to.
+cf404_score_file(){  # <arm> <stop steps>
+  printf '%s/score_%s.txt\n' "$CF404_RESULTS" \
+    "$(cf404_tag "${1:?arm}" "${2:?stop}" "$CF404_HEAD_STEPS")"
+}
+
+# The attempt counter of one pair. It lives in a file and not in the watcher's
+# memory: a watcher restarted after a reboot must not give a head that already
+# failed three times three more hours of GPU. Delete the file to try again.
+cf404_tries_file(){  # <arm> <stop steps>
+  printf '%s/tries_%s.txt\n' "$CF404_RESULTS" \
+    "$(cf404_tag "${1:?arm}" "${2:?stop}" "$CF404_HEAD_STEPS")"
+}
+
+# Always an integer, including for a counter that does not exist yet, which is
+# the normal case on a first pass.
+cf404_tries(){  # <arm> <stop steps>
+  local n
+  n="$(cat "$(cf404_tries_file "${1:?arm}" "${2:?stop}")" 2>/dev/null)"
+  case "$n" in ''|*[!0-9]*) n=0 ;; esac
+  printf '%s\n' "$n"
+}
+
+# Count the attempt, and print the new count. The caller counts BEFORE it
+# fires the head, so a head that takes the machine down with it still spent a
+# try.
+cf404_bump_tries(){  # <arm> <stop steps>
+  local f n
+  f="$(cf404_tries_file "${1:?arm}" "${2:?stop}")"
+  n=$(( $(cf404_tries "$1" "$2") + 1 ))
+  mkdir -p "$(dirname "$f")"
+  printf '%s\n' "$n" >"$f"
+  printf '%s\n' "$n"
+}
+
+# A pair the watcher must not fire again: it has no score and it used its whole
+# try budget. A pair that failed twice and passed on the third try has a score,
+# so it is never exhausted.
+cf404_exhausted(){  # <arm> <stop steps>
+  [ -s "$(cf404_score_file "${1:?arm}" "${2:?stop}")" ] && return 1
+  [ "$(cf404_tries "$1" "$2")" -ge "$CF404_HEAD_TRIES" ]
+}
+
+cf404_heads_scored(){
+  local arm stop n=0
+  while read -r arm stop; do
+    [ -n "$arm" ] || continue
+    [ -s "$(cf404_score_file "$arm" "$stop")" ] && n=$(( n + 1 ))
+  done < <(cf404_pairs)
+  printf '%s\n' "$n"
+}
+
+# The watcher's exit test: no pair is left to fire, because each one is scored
+# or each one used its whole try budget.
+#
+# NOT "one pair is scored". The box hands the four backbones over about five
+# hours apart, so at the moment arm 1 is scored the other three are still on
+# the box. A watcher that exits there leaves three arms with no head, and
+# `launch_elisa.sh`, which waits on it, stops redrawing the figures.
+cf404_heads_done(){
+  local arm stop
+  while read -r arm stop; do
+    [ -n "$arm" ] || continue
+    [ -s "$(cf404_score_file "$arm" "$stop")" ] && continue
+    cf404_exhausted "$arm" "$stop" && continue
+    return 1
+  done < <(cf404_pairs)
+  return 0
+}
+
 # ---- What the trainer of a leg actually runs ---------------------------------
 #
 # The depth leaves a proof in the artefacts: a k-depth run writes k + 1
