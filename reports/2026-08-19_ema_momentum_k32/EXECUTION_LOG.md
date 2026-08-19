@@ -131,3 +131,52 @@ $1.0833/h for the same three lanes. `scripts/round2.sh` holds a watchdog at
   RTX 5090 at $0.3611/h.
 - 22:08 box_b passed the bootstrap. Its sync loop landed a first tick at
   22:08:37, confirmed by `ls`.
+
+## Round 3 — the same three arms, on one box, after round 2 started no trainer
+
+### Why round 2 gave nothing
+
+`round2_box.sh` asked each box whether a trainer was already up, over SSH:
+
+    ssh box "pgrep -f 'run_leg_k.sh arm6_v2_combab_alignT' >/dev/null"
+
+sshd runs that string through a shell, so the box then holds a process whose
+command line IS the pattern. `pgrep -f` reads full command lines and drops only
+its own pid, so it matched that shell. The check read true on a bare box, the
+driver started no trainer, and the three boxes billed at 0% GPU. Line 181
+carried the same defect for the head trainer. Round 1 used `launch_box.sh` and
+never took this path.
+
+`cf404_pgrep_pattern` in `scripts/study.sh` now puts a bracket class on the
+first character. `scripts/test_trainer_check.sh` proves both directions through
+`bash -c`, which is what sshd does with a remote command: 10 assertions, 0
+failures. Three more remote calls carried the same shape and take the fix too
+(`drive.sh`, `heads_box_await.sh`, `finish.sh`).
+
+The test carries a per-run nonce. A bare `train_forecasting_head` on elisa
+matches two runs of the #401 session AND the agent shell, whose prompt merely
+names the file, so a test on the bare name would report a neighbour as a
+regression.
+
+### The box, and why it carries one card
+
+The round-2 boxes were non-datacenter. Round 3 refuses that: `vastrun-search`
+returns a non-datacenter host only when it is given `--prosumer`, which
+`round3.sh` never passes, and `--min-reliability 0.99` carries the rest. The
+pool is real: 29 offers without `--prosumer` against 60 with it.
+
+The card asks for one machine with enough cards for the three arms. The
+datacenter pool held NO 3-card or 4-card offer under $20/h at 22:47, and its
+one 2-card offer (RTX 5090, EPYC 9654) costs $1.8687/h and carries a server
+CPU. #373 measured this cell at 5.6 to 6.7 steps/s on a Zen 4 desktop part
+against 1.1 steps/s on an EPYC 7452, so the CPU and not the card sets the step
+rate.
+
+So the three arms share ONE RTX 5090 on a 1-card datacenter box with a Ryzen 7
+7800X3D at $0.3356/h. `gpu_gate` returns at once on a `Default`-mode card, so
+the three legs do not serialise. `round3.sh` refuses a card in
+`Exclusive_Process` mode, where the second CUDA context would die.
+
+The three heads DO serialise: `head_vram_gate` holds an exclusive lock per card
+for the whole of one head training. That is its purpose, and one card is enough
+VRAM for one head at a time.
