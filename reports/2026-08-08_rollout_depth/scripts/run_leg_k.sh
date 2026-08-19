@@ -18,6 +18,9 @@
 # Cells never resume a #379 or #388 checkpoint. α matches those runs at
 # step 0 only; it rises from step 1, so their trajectories are not on this
 # schedule. Every cell starts fresh at step 0, once.
+#
+# That schedule is the DEFAULT, not a constant: `EMA_ARGS` replaces it as one
+# unit, which is how #404 sweeps α over this cell. See the variable below.
 set -uo pipefail
 
 CELL="${1:?usage: run_leg.sh <cell_slug> <target_steps>}"
@@ -25,7 +28,11 @@ TARGET_STEPS="${2:?usage: run_leg.sh <cell_slug> <target_steps>}"
 
 WT="${WT:-$HOME/workspaces/contrastive-forecasting}"
 OUT="$WT/reports/2026-08-08_rollout_depth"
-RES="$OUT/results"
+# Where the leg's log, its claim file and its HOLD marker land. A study that
+# reuses this runner keeps its own artefacts in its own directory
+# (REPORT_STANDARD), so the path is a variable — but the DEFAULT is #373's own
+# results/, which is where every published leg of #373 and #393 wrote.
+RES="${CF_RESULTS:-$OUT/results}"
 # Durable root, per-leg save dirs and step-ordered checkpoint lookup all
 # come from one place — see the header of leg_paths.sh for why each of the
 # three is not the obvious thing.
@@ -118,6 +125,19 @@ LOG_EVERY="${LOG_EVERY:-200}"
 # #373 review gaps: extra trainer flags for the control runs. Empty for
 # every cell of the card.
 read -r -a GAP_ARGS_ARR <<<"${GAP_ARGS:-}"
+# The EMA momentum schedule, as ONE replaceable unit (#404). The default is
+# the three flags every published leg of #393 and #373 ran, in that order, so
+# a caller that sets nothing gets the same command line as before.
+#
+# It replaces, where GAP_ARGS appends. Appending covers an arm that CHANGES a
+# flag, because argparse keeps the last value on a repeat. It cannot cover an
+# arm that REMOVES one, and #404 sweeps two arms that hold α fixed: they pass
+# no --ema-tau-end at all, and no repeat can unset it.
+#
+# An empty value takes the default too. A caller that meant "no schedule
+# flags" would leave α at train.py's own 0.99, which is neither this runner's
+# schedule nor a value any cell of these cards ran.
+read -r -a EMA_ARGS_ARR <<<"${EMA_ARGS:---ema-tau 0.9 --ema-tau-end 1.0 --ema-tau-ramp-steps 100000}"
 # Stops are 40k / 100k / 200k / 300k ..., all multiples of 20000, so the
 # periodic save always lands one. EXTRA_SAVES covers an off-cadence target.
 SAVE_EVERY="${SAVE_EVERY:-20000}"
@@ -225,7 +245,7 @@ CUDA_VISIBLE_DEVICES="$BB_GPU" python3 -u "$TRAIN" "${RESUME[@]}" \
   --depthwise-conv 3 --deprecated-depthwise-conv 0 \
   "${LOSS_ARGS[@]}" "${ALIGN_ARGS[@]}" \
   --ema-embedding --ema-encoder \
-  --ema-tau 0.9 --ema-tau-end 1.0 --ema-tau-ramp-steps 100000 \
+  "${EMA_ARGS_ARR[@]}" \
   --cpc-infonce-weight 1.0 \
   --sigreg-embedding --sigreg-encoding --sigreg-n-chunk 2048 \
   --sigreg-embedding-weight 1.0 --sigreg-encoding-weight 1.0 \

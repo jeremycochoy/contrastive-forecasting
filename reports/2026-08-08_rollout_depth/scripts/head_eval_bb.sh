@@ -25,7 +25,10 @@ HEAD_SEED="${HEAD_SEED:-20260722}"
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export WT="${WT:-/home/jupyter/wt-cf-373-train}"
-RES="$WT/reports/2026-08-08_rollout_depth/results"
+# The score file and the stop log of this head. Same rule as
+# run_leg_k.sh: a study that reuses this script keeps its own
+# artefacts in its own results/, and the default is #373's.
+RES="${CF_RESULTS:-$WT/reports/2026-08-08_rollout_depth/results}"
 mkdir -p "$RES"
 . "$HERE/cell_paths.sh"
 . "$HERE/gpu_gate.sh"
