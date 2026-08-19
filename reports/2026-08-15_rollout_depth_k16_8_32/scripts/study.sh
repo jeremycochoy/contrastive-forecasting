@@ -83,7 +83,9 @@ CF401_STUDY="$(dirname "$CF401_SCRIPTS")"
 # The durable root. Never /tmp, never inside the checkout (CLAUDE.md
 # checkpoint safety rule 4), and never #373's root — one root for two studies
 # is a sync loop that cannot tell their checkpoints apart.
-CF401_ROOT_DEFAULT="/home/jupyter/checkpoints_backup/cf-401"
+# Overridable so a test can put the whole tree, and every variant tree
+# beside it, under a temporary directory.
+CF401_ROOT_DEFAULT="${CF401_ROOT_DEFAULT:-/home/jupyter/checkpoints_backup/cf-401}"
 
 # ---- Which machine owns which arm --------------------------------------------
 #
@@ -274,6 +276,19 @@ cf401_eval_csv(){  # <k> <tag> [variant]
   local k="${1:?k}" tag="${2:?tag}" var="${3:-base}" first root c roots
   first="$(cf401_eval_dir "$k" "$tag")/gift/all_results.csv"
   roots=("${CF401_ROOT%/}" "${CF401_ROOT%/}-$var")
+  # A VARIANT tree is always reachable, pinned or not.
+  #
+  # `heads_watch.sh` pins CF401_ROOT to the sync tree, so every `collect.sh`
+  # it runs is a pinned child. Pinning used to drop this candidate, and the
+  # `ema30k` cell lives in its OWN tree beside the default root, not beside
+  # the sync tree. So the watcher rewrote `splits.csv` without that cell every
+  # poll, and the per-domain figure lost a panel each time.
+  #
+  # The pin exists so a test that points CF401_ROOT at an empty directory does
+  # not read the real study's evals. That risk is about BASE cells, and this
+  # keeps the pin for them: the candidate below is added only for a variant,
+  # and a variant tree is by construction a separate tree made for it.
+  [ "$var" = base ] || roots+=("$CF401_ROOT_DEFAULT-$CF401_REDUCE-$var")
   [ "${CF401_ROOT_PINNED:-0}" -eq 1 ] || roots+=(
     "${CF401_SYNC_ROOT%/}" "$CF401_ROOT_DEFAULT-$CF401_REDUCE-$var")
   for root in "${roots[@]}"; do

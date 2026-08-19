@@ -924,6 +924,41 @@ class TestCollectSplits:
         assert {r["stop"] for r in rows} == \
             {"k32_ema30k_bb40k_h30k_student"}, rows
 
+    def test_a_pinned_root_still_finds_a_variant_beside_the_default_root(
+            self, tmp_path):
+        """`heads_watch.sh` pins CF401_ROOT to the SYNC tree.
+
+        Every `collect.sh` it runs is therefore a pinned child. The `ema30k`
+        cell lives in its own tree beside the DEFAULT root, not beside the
+        sync tree, so a pinned run used to drop it. The watcher then rewrote
+        `splits.csv` without that cell every poll, and the per-domain figure
+        lost a panel each time. The score sat in `scores.csv` throughout, so
+        nothing looked wrong.
+
+        The base cell in this test proves the pin still holds: its eval sits
+        beside the default root too, and a pinned run must NOT find it.
+        """
+        res = tmp_path / "results"
+        res.mkdir()
+        sync = tmp_path / "sync"          # what the watcher pins to
+        default = tmp_path / "cf-401"     # what CF401_ROOT_DEFAULT names
+        (res / "score_k32_ema30k_bb40k_h30k_student.txt").write_text("1.2385\n")
+        (res / "score_k8_bb40k_h30k_student.txt").write_text("1.0700\n")
+        write_eval_csv(
+            tmp_path / "cf-401-sum-ema30k" / "k32" / CELL / "eval"
+            / "k32_ema30k_bb40k_h30k_student" / "gift" / "all_results.csv",
+            1.05)
+        write_eval_csv(
+            tmp_path / "cf-401" / "k8" / "eval" / "k8_bb40k_h30k_student"
+            / "gift" / "all_results.csv", 1.05)
+        out = run_sh(COLLECT, env={**SUM, "CF401_RESULTS": str(res),
+                                   "CF401_ROOT": str(sync),
+                                   "CF401_ROOT_DEFAULT": str(default)})
+        assert out.returncode == 0, out.stderr + out.stdout
+        rows = list(csv.DictReader(open(res / "splits.csv")))
+        assert {r["stop"] for r in rows} == \
+            {"k32_ema30k_bb40k_h30k_student"}, rows
+
 
 # --- 9. The k = 16 smoke test -------------------------------------------------
 
