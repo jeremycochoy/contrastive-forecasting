@@ -106,7 +106,22 @@ score_file(){  # <k> <stop> <head steps>
 # has empty slots and would repeat the same mistake against the heads its
 # predecessor left running.
 cell_is_running(){  # <k> <stop> <head steps>
-  pgrep -f "head_eval\.sh $1 $2 $3\$" >/dev/null 2>&1
+  local want="head_eval.sh $1 $2 $3" p cmd
+  for p in $(pgrep -f 'head_eval\.sh' 2>/dev/null); do
+    [ "$p" = "$$" ] && continue
+    # `/proc/<pid>/cmdline` and not the `pgrep` pattern, because `pgrep -f`
+    # also matches a process that only NAMES the file, this check among them.
+    # `test_the_sync_check_reads_the_argument_list` holds study.sh to the same
+    # rule.
+    cmd="$(tr '\0' ' ' < "/proc/$p/cmdline" 2>/dev/null)"
+    case "$cmd" in *"$want "*) ;; *) continue ;; esac
+    # Same study instance, or none. A test points CF401_ROOT at a temporary
+    # tree and a real head carries this study's root, so without this the
+    # dry run of a test would drop whatever cells happen to train on the
+    # machine at that moment, and the test would read live state.
+    grep -qz "CF401_ROOT=$CF401_ROOT" "/proc/$p/environ" 2>/dev/null && return 0
+  done
+  return 1
 }
 
 cell_is_due(){  # <k> <stop> <head steps>
