@@ -76,7 +76,16 @@ head_vram_gate(){ # <gpu index>
   local lock="${GPU_GATE_LOCKDIR:-/tmp}/cf373_head_gpu${gpu}.lock"
   : >>"$lock" 2>/dev/null || true
   exec 7>>"$lock" || return 0
-  flock -w 86400 7 || { log "timed out waiting for the head lock"; return 1; }
+  # How long this head waits for the card. The default is a day, unchanged.
+  #
+  # It is a ceiling, not a budget: a caller that queues a short head behind a
+  # long one must raise it. #401 puts three 30,000-step control heads behind
+  # 540,000 steps of phase-2 cells, which is 22 h of training, and `flock` is
+  # not first-in-first-out. A control head could therefore wait out the day
+  # and abort with no score and no cause a reader could see.
+  flock -w "${HEAD_LOCK_TIMEOUT:-86400}" 7 || {
+    log "timed out after ${HEAD_LOCK_TIMEOUT:-86400}s waiting for the head lock"
+    return 1; }
   while :; do
     free=$(nvidia-smi --id="$gpu" --query-gpu=memory.free \
              --format=csv,noheader,nounits 2>/dev/null | tr -d ' ')
