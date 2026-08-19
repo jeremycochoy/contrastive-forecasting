@@ -45,6 +45,9 @@ read -r -a gpu_list <<<"$GPUS"
 read -r -a arm_list <<<"$ARMS"
 [ "${#gpu_list[@]}" -ge 1 ] || { echo "ABORT: GPUS is empty" >&2; exit 2; }
 for arm in "${arm_list[@]}"; do cf404_require_arm "$arm" || exit $?; done
+# The box is rented by the hour, so the checkout it carries is checked before
+# the first leg and not after eleven of them. See cf404_check_checkout.
+cf404_check_checkout || exit 6
 
 # Arms are dealt round-robin over the cards, so two cards take two arms each
 # and both finish in two passes.

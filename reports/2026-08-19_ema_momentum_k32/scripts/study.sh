@@ -332,6 +332,42 @@ cf404_use_root(){  # <root>
   export CF404_ROOT
 }
 
+# ---- The checkout this study needs -------------------------------------------
+#
+# Two things this card depends on are NOT in every checkout of this repository.
+# A box bootstrapped from a stale branch would train, log nothing unusual, and
+# hand back the wrong arm eleven hours later.
+#
+#   EMA_ARGS in #373's runner. Without it every arm trains the runner's own
+#   0.9 -> 1.0 at 100k schedule, so the four arms are ONE arm, four times.
+#   `run_arm.sh` also catches this at run time, off the trainer's command
+#   line. This check is the cheap one, before the card is rented.
+#
+#   --train-rollout-reduce in the trainer (#401). Without it the arms train
+#   the SUMMED objective, which is not the one #401's k = 32 number came from,
+#   so the comparison the card is built on is gone.
+#
+# Prints what is missing and returns non-zero. Takes a checkout, so a launcher
+# can check the box's copy as well as its own.
+cf404_check_checkout(){  # [checkout]
+  local wt="${1:-$CF404_WT}" missing=0 runner trainer
+  runner="$wt/reports/2026-08-08_rollout_depth/scripts/run_leg_k.sh"
+  trainer="$wt/experiments/2026-04-27_freq-embedding/scripts/train.py"
+  if ! grep -q 'EMA_ARGS_ARR' "$runner" 2>/dev/null; then
+    echo "ABORT: $runner takes no EMA_ARGS." >&2
+    echo "  Every arm would train the runner's own schedule, so the four" >&2
+    echo "  arms would be one arm four times." >&2
+    missing=1
+  fi
+  if ! grep -q -- '--train-rollout-reduce' "$trainer" 2>/dev/null; then
+    echo "ABORT: $trainer has no --train-rollout-reduce." >&2
+    echo "  The arms would train the SUMMED objective, and #401's k = 32" >&2
+    echo "  number this card compares against is the MEAN one." >&2
+    missing=1
+  fi
+  [ "$missing" -eq 0 ]
+}
+
 # ---- The guards --------------------------------------------------------------
 #
 # Every guard prints what it refused. A typo that trains for five hours is

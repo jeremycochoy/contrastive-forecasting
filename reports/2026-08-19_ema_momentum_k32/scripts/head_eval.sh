@@ -56,7 +56,6 @@ echo "[$(date '+%m-%d %H:%M:%S')] [#404] head $TAG on $(basename "$BB")" \
 # root; CF_RESULTS places the score file and the stop log in this study's
 # results/.
 CF373_ROOT="$ARM_ROOT" CF_RESULTS="$CF404_RESULTS" WT="$CF404_WT" \
-  CF_STOP_K="$(( STOP / 1000 ))" \
   BB_GPU="$BB_GPU" \
   bash "$RUNNER" "$TAG" "$BB" "$CF404_ENC" "$HEAD_STEPS"
 rc=$?

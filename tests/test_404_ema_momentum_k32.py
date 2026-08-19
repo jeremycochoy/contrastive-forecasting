@@ -750,6 +750,36 @@ class TestPhase1Plan:
                 for ln in out.stdout.splitlines() if "gpu=" in ln]
         assert sorted(gpus) == ["0", "0", "1", "1"], out.stdout
 
+    def test_the_box_checks_its_checkout_before_it_rents_time(self):
+        """A box bootstrapped from a branch without `EMA_ARGS` trains one arm
+        four times, and says nothing about it for eleven hours."""
+        code = strip_comments(LAUNCH_BOX.read_text())
+        assert "cf404_check_checkout" in code
+
+    def test_this_checkout_passes_the_check(self):
+        assert study_call('cf404_check_checkout').returncode == 0
+
+    def test_a_checkout_without_the_ema_hook_is_refused(self, tmp_path):
+        runner = tmp_path / "reports" / "2026-08-08_rollout_depth" / "scripts"
+        runner.mkdir(parents=True)
+        (runner / "run_leg_k.sh").write_text("# no hook here\n")
+        out = study_call(f'cf404_check_checkout {tmp_path}')
+        assert out.returncode != 0
+        assert "EMA_ARGS" in out.stderr
+
+    def test_a_checkout_without_the_reduction_is_refused(self, tmp_path):
+        """Without it the arms train the SUMMED objective, and #401's k = 32
+        number the card compares against came from the MEAN one."""
+        runner = tmp_path / "reports" / "2026-08-08_rollout_depth" / "scripts"
+        runner.mkdir(parents=True)
+        (runner / "run_leg_k.sh").write_text("EMA_ARGS_ARR\n")
+        trainer = tmp_path / "experiments" / "2026-04-27_freq-embedding" / "scripts"
+        trainer.mkdir(parents=True)
+        (trainer / "train.py").write_text("# an old trainer\n")
+        out = study_call(f'cf404_check_checkout {tmp_path}')
+        assert out.returncode != 0
+        assert "--train-rollout-reduce" in out.stderr
+
     def test_the_box_trains_backbones_only(self):
         """The 97-config eval reads gift-eval-data and the gift_eval package,
         and both live on elisa."""
