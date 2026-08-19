@@ -168,29 +168,34 @@ fi
 
 log "START reduce=$CF401_REDUCE gpus='$HEAD_GPUS' poll=${POLL}s root=$CF401_ROOT"
 
-# One slot per GPU. A slot holds the pid of the head running on that card, so
-# the next job takes the first card whose job finished. `head_eval_bb.sh` has
-# its own VRAM gate and its own per-GPU lock underneath, which is what stops
-# a head from starting into a card another session filled.
+# One slot per entry in HEAD_GPUS. The entry names the card the slot's head
+# trains on, and the SAME card can appear twice.
+#
+# A cell is a head train on the GPU and then a 97-config eval on the CPUs, and
+# `head_eval_bb.sh` closes its GPU lock and drops its VRAM before that eval.
+# So one slot per card leaves the card idle for the whole eval, which is about
+# 1.2 h of every cell. `HEAD_GPUS="0 0"` gives card 0 two slots: the second
+# head trains while the first cell evaluates. The per-card lock inside
+# `head_eval_bb.sh` still lets only one of them hold the card.
 declare -A slot_pid=() slot_name=()
 
 reap_slots(){  # <block: 1 waits for one to finish>
-  local gpu rc freed=0
-  for gpu in "${gpu_list[@]}"; do
-    [ -n "${slot_pid[$gpu]:-}" ] || { freed=1; continue; }
-    if ! kill -0 "${slot_pid[$gpu]}" 2>/dev/null; then
-      wait "${slot_pid[$gpu]}"; rc=$?
-      log "head ${slot_name[$gpu]} rc=$rc"
-      unset 'slot_pid[$gpu]'; freed=1
+  local i rc freed=0
+  for i in "${!gpu_list[@]}"; do
+    [ -n "${slot_pid[$i]:-}" ] || { freed=1; continue; }
+    if ! kill -0 "${slot_pid[$i]}" 2>/dev/null; then
+      wait "${slot_pid[$i]}"; rc=$?
+      log "head ${slot_name[$i]} rc=$rc"
+      unset 'slot_pid[$i]'; freed=1
     fi
   done
   [ "$freed" = "1" ] || [ "${1:-0}" != "1" ] || sleep 20
 }
 
-free_gpu(){
-  local gpu
-  for gpu in "${gpu_list[@]}"; do
-    [ -n "${slot_pid[$gpu]:-}" ] || { printf '%s\n' "$gpu"; return 0; }
+free_slot(){
+  local i
+  for i in "${!gpu_list[@]}"; do
+    [ -n "${slot_pid[$i]:-}" ] || { printf '%s\n' "$i"; return 0; }
   done
   return 1
 }
@@ -204,20 +209,21 @@ while true; do
   started=0
   while read -r k stop steps; do
     [ -n "$k" ] || continue
-    gpu="$(free_gpu)" || break
+    slot="$(free_slot)" || break
+    gpu="${gpu_list[$slot]}"
     tag="$(cf401_tag "$k" "$stop" "$steps")"
-    log "head $tag START on gpu $gpu ($(basename "$(cf401_bb_ckpt "$k" "$stop")"))"
+    log "head $tag START on gpu $gpu slot $slot ($(basename "$(cf401_bb_ckpt "$k" "$stop")"))"
     BB_GPU="$gpu" GPU_GATE_LOCKDIR="${GPU_GATE_LOCKDIR:-/tmp}" \
       nohup bash "$HERE/head_eval.sh" "$k" "$stop" "$steps" \
         >>"$CF401_RESULTS/head_${tag}.out" 2>&1 &
-    slot_pid[$gpu]=$!; slot_name[$gpu]="$tag"
+    slot_pid[$slot]=$!; slot_name[$slot]="$tag"
     started=$(( started + 1 ))
   done < <(due_jobs)
 
   if [ -n "$ONCE" ]; then
-    for gpu in "${gpu_list[@]}"; do
-      [ -n "${slot_pid[$gpu]:-}" ] && { wait "${slot_pid[$gpu]}"
-                                        log "head ${slot_name[$gpu]} rc=$?"; }
+    for i in "${!gpu_list[@]}"; do
+      [ -n "${slot_pid[$i]:-}" ] && { wait "${slot_pid[$i]}"
+                                      log "head ${slot_name[$i]} rc=$?"; }
     done
     log "ONCE pass done — $started head(s) started"
     exit 0
