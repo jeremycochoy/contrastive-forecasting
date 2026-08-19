@@ -37,3 +37,32 @@ through the sync loop.
   Step time 0.44 s, so 40,000 steps is about 4.9 h on one card.
 - 13:40 the four arms started, one per card, `GPUS="0 1 2 3"`. The lanes stagger
   180 s so four cold HuggingFace readers do not open together.
+
+## The head stage, and why it moves to the box
+
+At 13:44 elisa's cards hold two runs of another session (a GRPO batch-size
+study, one of them up 1 day 14 h) and one #373 head. Free VRAM is 2.4 GB on
+GPU 0 and 1.1 GB on GPU 1. A head of this study needs 7 GB.
+
+So the four heads train on the box, one per card, in parallel, and only the
+97-config GIFT-Evals run on elisa. #373 made the same move in its round 2, for
+the same reason, with the same head script and the same budget. The protocol
+does not change: `head_eval_bb.sh`, 30,000 steps, head seed 20260722,
+`--encoder-source student`.
+
+The box carries no `gift_eval` package and no gift-eval data, so
+`head_eval_bb.sh` trains and saves the head, then stops at the eval with
+`ABORT: no eval script`. It writes no score file, so elisa's `collect.sh`
+cannot read a half-made result. elisa then re-fires the same script per arm,
+which skips the head that is already on disk and runs its eval.
+
+## The four arms
+
+- 13:49 all four lanes hold a live trainer, one per card. Each arm's guard read
+  its own momentum and its own reduction back off the trainer's command line
+  before the leg was left to climb:
+
+      a08  0.8 - -           mean
+      a09  0.9 - -           mean
+      s08  0.8 1.0 200000    mean
+      s09  0.9 1.0 200000    mean
