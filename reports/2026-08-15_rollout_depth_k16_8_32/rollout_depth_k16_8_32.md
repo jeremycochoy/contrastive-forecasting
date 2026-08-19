@@ -40,7 +40,7 @@ windows, through the loader the eval uses.*
 - **k = 0 parent** — the checkpoint set this study starts from. The name
   covers the checkpoints, never a score.
 - **k = 0 anchor** — the k = 0 parent re-scored on this study's path and head
-  budget, 1.1600.
+  budget. 1.1600 at bb40k, 1.1945 at bb100k.
 - **k = 0 published** — the score the parent study published, 1.1603 at bb40k
   and 1.1945 at bb100k.
 
@@ -71,11 +71,14 @@ k = 3. Long dash: sum. Dotted: mean.*
 ![GM-Relative MASE against backbone train step, rollout depth 8 and 32](plots/mean/depth_ladder.png)
 
 *GM-Relative MASE over the 97 GIFT-Eval configs, student head, mean
-reduction. Left: 30,000-step head. Right: head budget = backbone steps.*
+reduction. Left: 30,000-step head. Right: head budget = backbone steps. The
+I-bar at bb200k is the range over three head seeds.*
 
 No scored mean cell comes within the head-seed band of the k = 3 reference.
 The k = 0 anchor beats both depths at bb40k, and k = 8 and k = 32 sit inside
-the band of each other there.
+the band of each other there. Three head seeds on `k32 bb200k` span 0.0100,
+so the pooled band of ±0.0384 is not optimistic here, and this report reads
+every difference against it.
 
 ## Per-domain
 
@@ -85,21 +88,20 @@ the band of each other there.
 
 ![Per-domain GM-Relative MASE, phase 2](plots/mean/domain_radar_phase2.png)
 
-*k = 8 at bb40k, its best phase-2 stop, and the only depth with a
-phase-2 score.*
+*The best phase-2 stop of each depth. Both are bb40k.*
 
 ## Limits
 
 | limit | detail |
 |---|---|
 | backbone seed | one per cell, so backbone-seed variance is unmeasured |
-| head seed | one per cell. The two in-study repeats are pending |
+| head seed | one per cell, except `k32 bb200k`, which has three draws |
 | depths | two, k = 8 and k = 32. k = 16 was not run under the mean reduction |
-| the shape in k | k = 1 to k = 7 is unmeasured. At bb40k, the one stop with a k = 0 anchor, k = 8 and k = 32 sit inside the band of each other |
-| the head budget | one move inside the band, one at 1.1 times the band, and the third cell pending. Not resolved |
-| phase-2 cells pending | `k32 bb40k`, `k32 bb100k`, `k32 bb200k`, `k8 bb200k` |
-| control heads pending | three. See the control table |
-| the k = 0 anchor | measured at bb40k, absent at bb100k and bb200k. The k = 0 published covers bb40k and bb100k |
+| the shape in k | k = 1 to k = 7 is unmeasured. At bb40k, k = 8 and k = 32 sit inside the band of each other |
+| the head budget | three pairs: two moves inside the band, and one at 1.1 times the band which is worse. Not resolved |
+| phase-2 cells pending | `k32 bb100k`, `k32 bb200k`, `k8 bb200k` |
+| the k = 0 anchor | measured at bb40k and bb100k, absent at bb200k. The k = 0 published covers bb40k and bb100k |
+| the eval path | this study's path returns the k = 0 published score at both stops that have one: 1.1600 against 1.1603, and 1.1945 against 1.1945. The one control that reads apart from its published number, 1.2910 against 1.2751, trains a 30,000-step head against that number's 15,000. That is a head-budget difference |
 
 ## Tables
 
@@ -109,29 +111,37 @@ phase-2 score.*
 |---|---|---|
 | head-seed band | ±0.0384, pooled by `noise_band.py`, from [`ema_sched_ladder.md`](../2026-08-04_ema_sched_ladder/ema_sched_ladder.md) | the head seed alone |
 | backbone-seed variance | unmeasured | one backbone seed per cell |
-| in-study head-seed repeats | pending, two draws on `k32 bb200k` | the head seed on this study's own cell |
+| in-study head-seed repeats | three draws on `k32 bb200k`: 1.1637, 1.1676, 1.1576. Mean 1.16297, range 0.0100, largest distance from the mean 0.0054 | the head seed on this study's own cell |
+| the in-study range as the reading rule | not adopted. Three draws give a range, not a standard deviation, and a range over three points understates the spread. The pooled band is a maximum over many cells | — |
+
+*Absolute differences. The ladder figure carries the direction.*
 
 | comparison | difference | against the band |
 |---|---:|---|
 | k = 32 against k = 8, bb200k | 0.1261 | 3.3 × |
 | k = 32 against k = 8, bb100k | 0.1054 | 2.7 × |
 | best mean cell against k = 3, bb200k | 0.0977 | 2.5 × |
+| k = 8 against the k = 0 anchor, bb100k | 0.0912 | 2.4 × |
 | k = 8 against the k = 0 anchor, bb40k | 0.0833 | 2.2 × |
 | k = 32 against the k = 0 anchor, bb40k | 0.0482 | 1.3 × |
 | k = 32 against k = 8, bb40k | 0.0351 | inside |
 | EMA ramp shortened to 30k, k = 32 bb40k | 0.0303 | inside |
 | k = 32, bb100k to bb200k | 0.0166 | inside |
+| k = 32 against the k = 0 anchor, bb100k | 0.0142 | inside |
 | k = 32 bb200k against the k = 0 anchor at bb40k | 0.0037 | inside |
 
-### The head budget, k = 8
+### The head budget
 
 *A positive difference means the longer head scores worse.*
 
-| backbone stop | 30,000-step head | head = backbone steps | difference | against the band |
+| cell | 30,000-step head | head = backbone steps | difference | against the band |
 |---|---:|---:|---:|---|
-| bb40k | 1.2433 | 1.2543 (40k head) | +0.0110 | inside |
-| bb100k | 1.2857 | 1.3270 (100k head) | +0.0413 | 1.1 × |
-| bb200k | 1.2898 | pending (200k head) | pending | pending |
+| k = 8, bb40k | 1.2433 | 1.2543 (40k head) | +0.0110 | inside |
+| k = 8, bb100k | 1.2857 | 1.3270 (100k head) | +0.0413 | 1.1 × |
+| k = 32, bb40k | 1.2082 | 1.2093 (40k head) | +0.0011 | inside |
+| k = 8, bb200k | 1.2898 | pending (200k head) | pending | pending |
+| k = 32, bb100k | 1.1803 | pending (100k head) | pending | pending |
+| k = 32, bb200k | 1.1637 | pending (200k head) | pending | pending |
 
 ### Phase 1, mean reduction, 30,000-step student head
 
@@ -144,7 +154,7 @@ study's parents.*
 | backbone stop | k = 8 | k = 32 | k = 0 anchor | k = 0 published | k = 3, same cell |
 |---|---:|---:|---:|---:|---:|
 | bb40k | 1.2433 | 1.2082 | 1.1600 | 1.1603 | 1.0862 |
-| bb100k | 1.2857 | 1.1803 | pending | 1.1945 | 1.0801 |
+| bb100k | 1.2857 | 1.1803 | 1.1945 | 1.1945 | 1.0801 |
 | bb200k | 1.2898 | 1.1637 | not run | none published | 1.0660 |
 | bb40k, EMA ramp 30,000 | n/a | 1.2385 | n/a | n/a | n/a |
 
@@ -152,22 +162,24 @@ study's parents.*
 
 | backbone stop | head steps | k = 8 | k = 32 |
 |---|---:|---:|---:|
-| bb40k | 40,000 | 1.2543 | pending |
+| bb40k | 40,000 | 1.2543 | 1.2093 |
 | bb100k | 100,000 | 1.3270 | pending |
 | bb200k | 200,000 | pending | pending |
 
 ### Control heads
 
-*The 1.1600 comes from
-`results/diag/score_c2_k0anchor_a4parent_bb40k_h30k_student.txt`, at this
-study's 30,000 head steps.*
+*Every control ran this study's path at this study's 30,000 head steps.
+Sources: `results/diag/score_c1_pathbound_b5pub_bb40k_h30k_student.txt`,
+`results/diag/score_c2_k0anchor_a4parent_bb40k_h30k_student.txt` and
+`results/mean/scores.csv`.*
 
-| control | what it measures | status |
+| control | what it measures | result |
 |---|---|---|
-| `k32 bb200k`, head seed 20260723 | in-study head-seed band | pending |
-| `k32 bb200k`, head seed 20260724 | in-study head-seed band | pending |
-| k = 0 parent, bb40k, this study's path | the k = 0 anchor | done, 1.1600 |
-| k = 0 parent, bb100k, this study's path | the k = 0 anchor at bb100k | pending |
+| `k32 bb200k`, head seed 20260723 | in-study head-seed band | 1.1676 |
+| `k32 bb200k`, head seed 20260724 | in-study head-seed band | 1.1576 |
+| k = 0 parent, bb40k | the k = 0 anchor | 1.1600, against 1.1603 published |
+| k = 0 parent, bb100k | the k = 0 anchor at bb100k | 1.1945, against 1.1945 published |
+| the parent study's own published cell, bb40k | this study's path against a published number at a different head budget | 1.2910, against 1.2751 published at 15,000 head steps |
 
 ### The two reductions, over every checkpoint on disk
 
@@ -229,8 +241,11 @@ same cell and the same head. Sources: `results/mean/splits.csv` and
 | cell | short (55) | medium (21) | long (21) |
 |---|---:|---:|---:|
 | k = 32 bb200k | 1.0377 | 1.3632 | 1.3411 |
+| k = 32 bb200k, head seed 20260723 | 1.0465 | 1.3576 | 1.3378 |
+| k = 32 bb200k, head seed 20260724 | 1.0264 | 1.3608 | 1.3495 |
 | k = 32 bb100k | 1.0515 | 1.3905 | 1.3560 |
 | k = 32 bb40k | 1.0777 | 1.4320 | 1.3751 |
+| k = 32 bb40k, 40k head | 1.0766 | 1.4368 | 1.3801 |
 | k = 32 bb40k, EMA ramp 30k | 1.1436 | 1.3929 | 1.3572 |
 | k = 8 bb40k | 1.1089 | 1.4650 | 1.4236 |
 | k = 8 bb40k, 40k head | 1.1204 | 1.4763 | 1.4323 |
@@ -258,7 +273,7 @@ set this project's best GM-Relative MASE at 1.0660.
 | reduction | `--train-rollout-reduce {sum, mean}`. `sum` is the trainer's default |
 | backbone stops | 40,000, 100,000 and 200,000 steps |
 | head | student encoder, 30,000 steps in phase 1, head steps = backbone steps in phase 2 |
-| head seed | 20260722, and 20260723 / 20260724 for the two pending repeats |
+| head seed | 20260722. `k32 bb200k` also ran 20260723 and 20260724 |
 | eval | 97 GIFT-Eval configs, GM-Relative MASE, strategy B4, horizon 16 |
 
 `--train-rollout-depth K` makes k + 1 depth copies of every loss term that
