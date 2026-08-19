@@ -51,3 +51,6 @@
 [08-19 12:50:16] [k32_bb200k_h30k_student_s20260723] head-train start enc=student steps=30000 seed=20260723 gpu=0 bb=cf393_arm6_v2_combab_alignS_cf373k32_mean_200k.pth
 [08-19 13:10:01] [k8_bb100k_h100k_student] eval rc=0
 [08-19 13:10:01] [k8_bb100k_h100k_student] DONE — GM-Relative MASE 1.3270
+[08-19 14:08:52] [k32_bb200k_h30k_student_s20260723] head-train rc=0
+[08-19 14:08:52] [k32_bb200k_h30k_student_s20260723] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-19 14:08:52] [k32_bb40k_h40k_student] head-train start enc=student steps=40000 seed=20260722 gpu=0 bb=cf393_arm6_v2_combab_alignS_cf373k32_mean_40k.pth

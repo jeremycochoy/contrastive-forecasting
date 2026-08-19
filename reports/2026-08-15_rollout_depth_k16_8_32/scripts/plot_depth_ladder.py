@@ -17,12 +17,13 @@ Two references, on the SAME cell, so the depth is the only thing that
 changes across them:
 
   dashed  #373's k = 3, read out of its own score files.
-  dotted  the published k = 0, from `published.PUBLISHED`.
+  dotted  the k = 0 published, from `published.PUBLISHED`.
   grey    #373's best on this cell, 1.0660 at bb200k. It is the number this
           study has to beat, and it is drawn on both panels.
 
 A shaded band of +/-0.0384 rides on the k = 3 reference. That is the pooled
-head-seed band of `ema_sched_ladder.md`, and it is the rule the report reads
+head-seed band of `ema_sched_ladder.md`, which `noise_band.py` pools, and it
+is the rule the report reads
 every difference against: a gap inside the band is not a measured difference.
 It rides on k = 3 because k = 3 is what every depth of this study is read
 against.
@@ -67,7 +68,8 @@ STOPS_K = [40, 100, 200]
 PHASE_TITLE = {1: "phase 1 — head at 30k steps on every stop",
                2: "phase 2 — head budget = backbone steps"}
 
-# The pooled head-seed band of `ema_sched_ladder.md`. It bounds the head seed
+# The pooled head-seed band of `ema_sched_ladder.md`, from `noise_band.py`.
+# It bounds the head seed
 # alone. Every difference this report reads is read against it.
 HEAD_SEED_BAND = 0.0384
 
@@ -280,7 +282,7 @@ def main(argv=None):
         Patch(facecolor=D.REF_K3_INK, alpha=0.14, lw=0,
               label=f"head-seed band ±{HEAD_SEED_BAND:.4f}"),
         Line2D([], [], color=D.REF_K0_INK, linestyle=D.STYLE_K0, lw=1.7,
-               label="published k = 0, same cell and same head"),
+               label="k = 0 published, same cell and same head"),
         Line2D([], [], color=D.PRIOR_INK, lw=2.0,
                label=f"the best this cell reached before this study, "
                      f"{frontier:.4f}")]

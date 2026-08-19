@@ -6,29 +6,43 @@ checkpoints do not overlap.
 
 ![Effective rank and pair cosine of the encoder latent, both reductions](plots/latent_rank.png)
 
-*Effective rank and pair cosine of the encoder latent, over 21 real GIFT-Eval
-windows, through the loader the eval uses. Seven checkpoints here. The table
-at the back holds all 53.*
+*Effective rank and pair cosine of the encoder latent, 21 real GIFT-Eval
+windows, through the loader the eval uses.*
 
 ## Terms
 
-| term | meaning |
-|---|---|
-| cell | one (depth, backbone stop, head) entry |
-| `bbNk` | the backbone stopped at N thousand steps |
-| phase 1 | a 30,000-step head on every backbone stop |
-| phase 2 | the head budget set equal to the backbone stop |
-| head | the forecast head, trained on a frozen backbone. This study trains the student-encoder head |
-| leg | one training run between two backbone stops. A cell's backbone is the last leg's checkpoint |
-| collapse | the encoder maps two different series to almost the same latent. Pair cosine near 1.0, and effective rank near 1.0 |
-| effective rank | the exponential of the entropy of the latent covariance spectrum. 1.0 means one direction |
-| pair cosine | the mean cosine between the latents of two different series. 1.0 means the encoder cannot tell them apart |
-| readout r | the mean absolute correlation between the input series and the projection of the latent on its top direction |
-| train AUC | the trainer's own separation of a positive from a negative. 0.50 is chance |
-| `u_batchtime` | the dimension usage of the latent, from the trainer's own column. It falls when the encoder puts its variance into fewer directions |
-| `cos_err_d0` | 1 minus the cosine between the forecast and the next latent. 0 is an exact match |
-| EMA ramp | the number of steps over which the EMA tau goes from its start value to its end value |
-| head-seed band | ±0.0384, pooled over prior head-seed repeats. It bounds the head seed alone |
+- **cell** — one (depth, backbone stop, head) entry.
+- **`bbNk`** — the backbone stopped at N thousand steps.
+- **phase 1** — a 30,000-step head on every backbone stop.
+- **phase 2** — the head budget set equal to the backbone stop.
+- **head** — the forecast head, trained on a frozen backbone. This study
+  trains the student-encoder head.
+- **leg** — one training run between two backbone stops. A cell's backbone is
+  the last leg's checkpoint.
+- **collapse** — the encoder maps two different series to almost the same
+  latent. Pair cosine at or above 0.9999.
+- **effective rank** — the exponential of the entropy of the latent
+  covariance spectrum. 1.0 means one direction.
+- **pair cosine** — the mean cosine between the latents of two different
+  series. 1.0 means the encoder cannot tell them apart.
+- **readout r** — the mean absolute correlation between the input series and
+  the projection of the latent on its top direction.
+- **train AUC** — the trainer's own separation of a positive from a negative.
+  0.50 is chance.
+- **`u_batch`** — the dimension usage of the latent, from the trainer's own
+  column. It falls when the encoder puts its variance into fewer directions.
+- **`cos_err_d0`** — 1 minus the cosine between the forecast and the next
+  latent. 0 is an exact match.
+- **EMA ramp** — the number of steps over which the EMA tau goes from its
+  start value to its end value.
+- **head-seed band** — ±0.0384, pooled over prior head-seed repeats. It
+  bounds the head seed alone.
+- **k = 0 parent** — the checkpoint set this study starts from. The name
+  covers the checkpoints, never a score.
+- **k = 0 anchor** — the k = 0 parent re-scored on this study's path and head
+  budget, 1.1600.
+- **k = 0 published** — the score the parent study published, 1.1603 at bb40k
+  and 1.1945 at bb100k.
 
 ## The reduction
 
@@ -41,8 +55,7 @@ least half of the latent variance.*
 The reduction over the k + 1 depth copies sets the collapse. The depth does
 not: no checkpoint sits between the summed set and the other two. Every
 summed backbone is collapsed, and inside that set the score follows the
-readout r (Spearman −0.76, n = 8). The mean arm holds a rank of 4.13 to 8.01
-and still scores worse than the k = 0 anchor.
+readout r (Spearman −0.76, n = 8).
 
 ![Training-time collapse probes, both reductions, against backbone step](plots/collapse_onset.png)
 
@@ -60,10 +73,9 @@ k = 3. Long dash: sum. Dotted: mean.*
 *GM-Relative MASE over the 97 GIFT-Eval configs, student head, mean
 reduction. Left: 30,000-step head. Right: head budget = backbone steps.*
 
-The smallest gap between a scored mean cell and the k = 3 reference is
-0.0977, which is 2.5 times the head-seed band. The k = 0 anchor beats both
-depths at bb40k, and k = 8 and k = 32 sit inside the band of each other
-there.
+No scored mean cell comes within the head-seed band of the k = 3 reference.
+The k = 0 anchor beats both depths at bb40k, and k = 8 and k = 32 sit inside
+the band of each other there.
 
 ## Per-domain
 
@@ -73,7 +85,8 @@ there.
 
 ![Per-domain GM-Relative MASE, phase 2](plots/mean/domain_radar_phase2.png)
 
-*One panel per depth, at that depth's best stop.*
+*k = 8 at bb40k, its best phase-2 stop, and the only depth with a
+phase-2 score.*
 
 ## Limits
 
@@ -86,7 +99,7 @@ there.
 | the head budget | one move inside the band, one at 1.1 times the band, and the third cell pending. Not resolved |
 | phase-2 cells pending | `k32 bb40k`, `k32 bb100k`, `k32 bb200k`, `k8 bb200k` |
 | control heads pending | three. See the control table |
-| the k = 0 anchor | measured at bb40k on this path, published at bb40k and bb100k, absent at bb200k |
+| the k = 0 anchor | measured at bb40k, absent at bb100k and bb200k. The k = 0 published covers bb40k and bb100k |
 
 ## Tables
 
@@ -94,7 +107,7 @@ there.
 
 | item | value | what it bounds |
 |---|---|---|
-| head-seed band | ±0.0384, pooled, from [`rollout_depth.md`](../2026-08-08_rollout_depth/rollout_depth.md) | the head seed alone |
+| head-seed band | ±0.0384, pooled by `noise_band.py`, from [`ema_sched_ladder.md`](../2026-08-04_ema_sched_ladder/ema_sched_ladder.md) | the head seed alone |
 | backbone-seed variance | unmeasured | one backbone seed per cell |
 | in-study head-seed repeats | pending, two draws on `k32 bb200k` | the head seed on this study's own cell |
 
@@ -125,10 +138,10 @@ there.
 *GM-Relative MASE over the 97 GIFT-Eval configs. Lower is better. The k = 3
 column reads the score files of
 [`rollout_depth.md`](../2026-08-08_rollout_depth/rollout_depth.md), same cell,
-same head, same eval. The published k = 0 column is transcribed from that
+same head, same eval. The k = 0 published column is transcribed from that
 study's parents.*
 
-| backbone stop | k = 8 | k = 32 | k = 0, this path | k = 0, published | k = 3, same cell |
+| backbone stop | k = 8 | k = 32 | k = 0 anchor | k = 0 published | k = 3, same cell |
 |---|---:|---:|---:|---:|---:|
 | bb40k | 1.2433 | 1.2082 | 1.1600 | 1.1603 | 1.0862 |
 | bb100k | 1.2857 | 1.1803 | pending | 1.1945 | 1.0801 |
@@ -153,8 +166,8 @@ study's 30,000 head steps.*
 |---|---|---|
 | `k32 bb200k`, head seed 20260723 | in-study head-seed band | pending |
 | `k32 bb200k`, head seed 20260724 | in-study head-seed band | pending |
-| k = 0 parent, bb40k, this study's path | the published anchor on this path | done, 1.1600 |
-| k = 0 parent, bb100k, this study's path | the published anchor on this path | pending |
+| k = 0 parent, bb40k, this study's path | the k = 0 anchor | done, 1.1600 |
+| k = 0 parent, bb100k, this study's path | the k = 0 anchor at bb100k | pending |
 
 ### The two reductions, over every checkpoint on disk
 
@@ -175,9 +188,9 @@ rows. Sources: `results/diag/curve_state.csv` and
 
 | arm | k | first AUC drop below 0.55 | last drop | AUC range |
 |---|---:|---|---|---|
-| n/a | 0 | never | none | 0.943 to 0.962 |
-| mean | 8 | never | none | 0.988 to 0.998 |
-| mean | 32 | never | none | 0.948 to 0.966 |
+| n/a | 0 | never | none | 0.9426 to 0.9621 |
+| mean | 8 | never | none | 0.9882 to 0.9982 |
+| mean | 32 | never | none | 0.9478 to 0.9662 |
 | sum | 8 | step 4,404 | step 7,845 | 0.4997 to 0.5003 |
 | sum | 16 | step 347 | step 347 | 0.4999 to 0.5007 |
 | sum | 32 | step 1,343 | step 4,968 | 0.4999 to 0.5003 |

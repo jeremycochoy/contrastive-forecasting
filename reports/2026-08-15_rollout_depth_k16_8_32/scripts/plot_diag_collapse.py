@@ -8,11 +8,12 @@ Two figures:
                        same cell) and #401's k = 8, 16 and 32 under BOTH
                        reductions. One panel per metric, log x.
 
-  latent_rank.png      The saved checkpoints, measured through the loader
+  latent_rank.png      Every saved checkpoint, measured through the loader
                        the GIFT-Eval uses: effective rank of the encoder
                        latent, and the mean cosine between the latents of
-                       two different series. Values from
-                       results/diag/collapse.csv.
+                       two different series. One row of dots per checkpoint
+                       set, all 53 points. Values from
+                       results/diag/collapse_all.csv.
 
 Usage:  python3 plot_diag_collapse.py
 """
@@ -83,22 +84,31 @@ ARMS = [
                 "cf393_arm6_v2_combab_alignS_cf373k32_mean_losses.csv"]),
 ]
 
-# `latent_rank` colours a bar by its DEPTH, out of the same map every other
+# `latent_rank` colours a dot by its DEPTH, out of the same map every other
 # figure reads, so no hue means two things across the report. The REDUCTION
-# rides on the row label instead of on a second colour channel.
+# rides on the row instead of on a second colour channel.
+#
+# The figure draws every row of `collapse_all.csv`, not a subset: the claim it
+# carries is that the two sets do not overlap, and a subset cannot show that.
 ARM_NAME = {"n/a": "", "sum": "sum", "mean": "mean"}
 
-# The row labels of `latent_rank`, in plain words. `collapse.csv` names a row
-# by the issue that produced the checkpoint, which no reader can resolve.
-ROW_LABEL = {
-    "393 parent  k=0  bb40k": "k = 0 parent",
-    "379 B5pub   k=0  bb40k": "k = 0, other study",
-}
+# The four rows, top to bottom. A checkpoint of another study keeps that fact
+# in its row, because its numbers are not this study's.
+ROWS = ["k = 0 parent", "k = 0, other study", "mean", "sum"]
+
+
+def row_of(r):
+    """Which row one checkpoint belongs to."""
+    if r["reduce"] == "n/a":
+        return "k = 0, other study" if r["label"].startswith("379") \
+            else "k = 0 parent"
+    return r["reduce"]
+
 
 PANELS = [
     ("auc", "AUC — can the model tell a positive from a negative?",
      0.5, "chance, 0.50"),
-    ("u_batchtime", "u_batchtime on h — dimension usage", None, None),
+    ("u_batch", "u_batch on h — dimension usage", None, None),
     ("cos_err_d0", "cos_err_d0 = 1 - cos(f_t, h_t+1)", None, None),
 ]
 
@@ -189,59 +199,59 @@ def collapse_onset():
     print(f"-> {out}")
 
 
-def row_label(r):
-    """One bar's name: the reduction, the depth and the backbone stop.
-
-    A checkpoint of another study keeps that fact in its name, because its
-    numbers are not this study's and the figure must not read as if they are.
-    """
-    fixed = ROW_LABEL.get(r["label"])
-    if fixed:
-        return fixed
-    return f"{ARM_NAME.get(r['reduce'], '')}, k = {r['k']}, bb{r['stop_k']}k"
+def strip_y(base, n, halfwidth=0.26):
+    """The dot heights of one row, spread evenly so no dot hides another."""
+    if n == 1:
+        return np.asarray([base])
+    return base + np.linspace(-halfwidth, halfwidth, n)
 
 
 def latent_rank():
-    rows = list(csv.DictReader(open(RES / "diag/collapse.csv")))
-    labels = [row_label(r) for r in rows]
-    rank = [float(r["eff_rank"]) for r in rows]
-    pcos = [float(r["pair_cos"]) for r in rows]
-    depths = [int(r["k"]) for r in rows]
-    colours = [D.colour(k) if k else D.REF_K0_INK for k in depths]
-    y = np.arange(len(rows))[::-1]
+    rows = list(csv.DictReader(open(RES / "diag/collapse_all.csv")))
+    by_row = {name: [] for name in ROWS}
+    for r in rows:
+        by_row[row_of(r)].append(r)
 
-    fig, axes = plt.subplots(1, 2, figsize=(12, 3.6))
-    axes[0].barh(y, rank, color=colours, height=0.6)
-    axes[0].axvline(1.0, color="0.35", ls=":", lw=1.2)
-    axes[0].set_xlabel("effective rank of h  (1.0 = one direction)")
-    axes[0].set_title("How many latent directions the encoder uses",
-                      fontsize=10)
-    axes[1].barh(y, pcos, color=colours, height=0.6)
-    axes[1].axvline(1.0, color="0.35", ls=":", lw=1.2)
-    axes[1].set_xlim(0, 1.08)
-    axes[1].set_xlabel("mean cos(h) between two different series"
-                       "  (1.0 = identical)")
-    axes[1].set_title("Does the encoder separate two different series?",
-                      fontsize=10)
-    for ax in axes:
-        ax.set_yticks(y)
-        ax.set_yticklabels(labels, fontsize=8.5)
+    fig, axes = plt.subplots(1, 2, figsize=(12, 3.8))
+    panels = [
+        (axes[0], "eff_rank", "effective rank of h  (1.0 = one direction)",
+         "How many latent directions the encoder uses"),
+        (axes[1], "pair_cos", "mean cos(h) between two different series"
+                              "  (1.0 = identical)",
+         "Does the encoder separate two different series?"),
+    ]
+    for ax, col, xlabel, title in panels:
+        for i, name in enumerate(ROWS):
+            group = sorted(by_row[name], key=lambda r: float(r[col]))
+            base = len(ROWS) - 1 - i
+            ys = strip_y(base, len(group))
+            for r, yy in zip(group, ys):
+                k = int(r["k"])
+                ax.plot(float(r[col]), yy, marker="o", ms=5.5,
+                        color=D.colour(k) if k else D.REF_K0_INK,
+                        mec="white", mew=0.6, ls="none")
+        ax.axvline(1.0, color="0.35", ls=":", lw=1.2)
+        ax.set_yticks(range(len(ROWS))[::-1])
+        ax.set_yticklabels([f"{n}  ({len(by_row[n])})" for n in ROWS],
+                           fontsize=9)
+        ax.set_ylim(-0.7, len(ROWS) - 0.3)
+        ax.set_xlabel(xlabel)
+        ax.set_title(title, fontsize=10)
         ax.grid(axis="x", alpha=0.25, lw=0.5)
-    for ax, vals, fmt in ((axes[0], rank, "{:.2f}"), (axes[1], pcos, "{:.3f}")):
-        for yy, v in zip(y, vals):
-            ax.text(v, yy, " " + fmt.format(v), va="center", fontsize=8)
-    seen = [k for k in (0, 8, 16, 32) if k in depths]
+    axes[1].set_xlim(-0.03, 1.08)
+
+    seen = sorted({int(r["k"]) for r in rows})
     fig.legend(handles=[plt.Line2D(
-                   [], [], lw=6,
+                   [], [], marker="o", ls="none", ms=7,
                    color=D.colour(k) if k else D.REF_K0_INK,
                    label=f"k = {k}") for k in seen],
                loc="lower center", ncol=len(seen), frameon=False, fontsize=9)
-    fig.suptitle("The saved checkpoints, through the loader the GIFT-Eval "
+    fig.suptitle("Every saved checkpoint, through the loader the GIFT-Eval "
                  "uses, on 21 real GIFT-Eval windows", fontsize=11)
     fig.tight_layout(rect=(0, 0.10, 1, 0.93))
     out = PLOTS / "latent_rank.png"
     fig.savefig(out, dpi=150)
-    print(f"-> {out}")
+    print(f"-> {out} ({len(rows)} checkpoints)")
 
 
 if __name__ == "__main__":

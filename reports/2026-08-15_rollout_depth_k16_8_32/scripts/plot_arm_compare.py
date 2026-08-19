@@ -62,8 +62,8 @@ ARMS_ORDER = ("sum", "mean")
 # The line style of each arm. Solid is this protocol, the same rule the ladder
 # figure follows: solid for what this study trains.
 ARM_STYLE = {"mean": D.STYLE_STUDY, "sum": (0, (5, 2))}
-ARM_LABEL = {"mean": "mean over the k + 1 copies (this protocol)",
-             "sum": "sum over the k + 1 copies (the stopped arm)"}
+ARM_LABEL = {"mean": "mean over the k + 1 copies",
+             "sum": "sum over the k + 1 copies"}
 
 # The ticks of the log axis, as multiples of a decade. A plain log axis labels
 # 1 and 10 and nothing between, and every mean cell of this figure sits

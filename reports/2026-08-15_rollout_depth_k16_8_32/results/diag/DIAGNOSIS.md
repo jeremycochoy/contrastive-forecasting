@@ -243,9 +243,9 @@ is not because the encoder broke.
 | `diag_latent.log`, `*.out` | the run record of the three probes |
 | `curve_state.csv`, `curve_state.out` | AUC crossings and per-checkpoint AUC |
 | `collapse_vs_score.csv`, `collapse_vs_score.md` | the join: score beside every measurement |
-| `collapse.csv` | the narrow run of the probe, 7 checkpoints, which `latent_rank.png` draws |
+| `collapse.csv` | the narrow run of the probe, 7 checkpoints |
 | `per_config_vs_373.csv` | 97 configs, #401 against #373's A4 k = 3 bb40k |
 | `diag_path.log`, `score_c1_*.txt`, `score_c2_*.txt` | the two path controls |
 | `../../plots/collapse_vs_score.png` | score against rank, and against `readout_r` |
 | `../../plots/collapse_onset.png` | AUC, dimension usage, cos_err_d0 against step |
-| `../../plots/latent_rank.png` | seven checkpoints of the three sets, through the eval's loader |
+| `../../plots/latent_rank.png` | every checkpoint of `collapse_all.csv`, through the eval's loader |
