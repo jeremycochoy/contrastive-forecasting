@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 """#404 deliverable 4 — the table of scores, and the one statement that reads it.
 
-The table holds the four arms and the five published references. The statement
+The table holds every arm and the five published references. The statement
 names the momentum that wins, gives its distance to the k = 3 score at bb40k,
 and says whether that arm goes below it.
+
+It then gives the card's own repeat spread. Two arms of this table are one arm
+at two backbone seeds, and the distance between their scores is what says
+whether the winner is ahead of the next arm or level with it. Round 1 named a
+winner with no such number, and the review of PR #405 asked for one.
 
 1.0862 is the comparison, not 1.0660: both this card's arms and that number
 stop at 40,000 backbone steps.
@@ -22,15 +27,15 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 
 
-def _references():
-    spec = importlib.util.spec_from_file_location(
-        "cf404_refs", HERE / "references.py")
+def _load(name, path):
+    spec = importlib.util.spec_from_file_location(name, HERE / path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
 
 
-REF = _references()
+REF = _load("cf404_refs", "references.py")
+REPEAT = _load("cf404_repeat", "repeat_spread.py")
 
 SCHEDULE_TEXT = {"fixed": "fixed", "ramp": "to 1.0 at 200k"}
 
@@ -43,6 +48,7 @@ def read_scores(path) -> list[dict]:
             try:
                 rows.append({"arm": r["arm"], "alpha": float(r["alpha"]),
                              "schedule": r["schedule"],
+                             "ramp": int(float(r.get("ramp") or 0)),
                              "score": float(r["score"])})
             except (KeyError, ValueError, TypeError):
                 continue
@@ -97,7 +103,11 @@ def main(argv=None):
     if not Path(args.scores).is_file():
         raise SystemExit(f"ABORT: no scores table at {args.scores}")
     rows = read_scores(args.scores)
-    text = table_markdown(rows) + "\n\n" + statement(rows) + "\n"
+    parts = [table_markdown(rows), statement(rows)]
+    measured = REPEAT.sentence(rows)
+    if measured:
+        parts.append(measured)
+    text = "\n\n".join(parts) + "\n"
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(text)
     print(text)

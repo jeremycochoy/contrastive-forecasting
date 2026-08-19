@@ -27,13 +27,20 @@ The figure also carries what the card compares against.
   dotted       1.0660, the best score of the project, and 1.1637, the best
                score at k = 32.
 
+Two arms of the table hold ONE momentum at two backbone seeds. The figure joins
+them with a bar and prints the distance between them. That distance is the
+repeat spread of this cell, and it is the only number on the figure that says
+how far apart two arms have to sit before the card ranks them.
+
 CAPTION: GM-Relative MASE at 40,000 backbone steps, against the EMA momentum.
 Under one momentum the markers step to the right by the length of the ramp:
-fixed, then #401's 100,000 steps, then 200,000. The grey point is #401's
-k = 32 arm at the same stop. The grey band holds the k = 3 score at bb40k and
-the repeat spread of #373. The two dotted lines come from runs that trained to
-200,000 steps, and the arms here stop at 40,000, so they are a reminder of the
-target and not a fair comparison.
+fixed, then #401's 100,000 steps, then 200,000. The black bar joins the two
+arms that share a momentum and differ in the backbone seed, so its height is
+this card's own repeat spread. The grey point is #401's k = 32 arm at the same
+stop. The grey band holds the k = 3 score at bb40k and the repeat spread of
+#373. The two dotted lines come from runs that trained to 200,000 steps, and
+the arms here stop at 40,000, so they are a reminder of the target and not a
+fair comparison.
 
 Usage:
   plot_momentum.py --scores results/scores.csv --out plots/momentum.png
@@ -75,6 +82,17 @@ def _colours():
 
 arm_colours = _colours()
 
+
+def _repeat():
+    spec = importlib.util.spec_from_file_location(
+        "cf404_repeat", HERE / "repeat_spread.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+REPEAT = _repeat()
+
 # `fixed` holds alpha for the whole run, `ramp` raises it to 1.0 at 200k.
 MARKERS = {"fixed": "o", "ramp": "s"}
 SCHEDULE_LABEL = {"fixed": "fixed", "ramp": "ramp to 1.0 at 200k"}
@@ -92,15 +110,12 @@ GROUP_SPAN = 0.40
 # a share of.
 LONE_DX = 0.012
 
-# Where an arm's own label goes, by its rank under its own momentum. The
-# offsets step up and down, because two arms of one momentum can score within
-# a hair of one another and one offset then prints two labels on top of each
-# other.
-LABEL_DY = (6, -14, 20, -28)
+# The vertical offsets a label may take, in points, in the order it tries
+# them. Two arms can score within a hair of one another, and one offset then
+# prints two labels on top of each other.
+LABEL_DY = (6, -14, 20, -28, 32, -40)
 
-# How far the label sits from its marker, in points. A marker in the right
-# half of the figure takes the label on its LEFT, or the text runs past the
-# frame.
+# How far the label sits from its marker, in points.
 LABEL_DX = 10
 
 
@@ -159,18 +174,67 @@ def x_positions(rows: list[dict]) -> dict[str, float]:
     return out
 
 
-def label_ranks(rows: list[dict]) -> dict[str, int]:
-    """Each arm's rank under its own momentum, which picks its label offset.
+def _overlaps(a, b) -> bool:
+    """True when two boxes `(x0, y0, x1, y1)` share any area."""
+    return not (a[2] <= b[0] or b[2] <= a[0] or a[3] <= b[1] or b[3] <= a[1])
 
-    `rows` arrives ordered by (alpha, ramp, arm), so the rank is the order the
-    markers take on the x axis.
+
+def label_places(rows, xs, width, height, x_hi, extra=()):
+    """`{arm: (dx points, dy points)}`, one label at a time, none on another.
+
+    Seven arms, four momenta and one reference put labels and markers close
+    together, and a rule that fixes the side and the height by rank alone
+    cannot see the arm next door. So each label tries the sides and the
+    offsets in turn and takes the first place that touches no marker and no
+    label already put down. When every place touches something, it takes the
+    one that touches least.
+
+    The boxes are in DATA coordinates, and `width` and `height` are how big a
+    label is on those axes. That is approximate. It is enough to separate two
+    labels that would otherwise print on top of each other.
     """
-    out: dict[str, int] = {}
-    seen: dict[float, int] = {}
-    for r in rows:
-        n = seen.get(r["alpha"], 0)
-        out[r["arm"]] = n
-        seen[r["alpha"]] = n + 1
+    # Every marker is an obstacle, its own included: a label starts beside its
+    # marker, never on it.
+    markers = [(xs[r["arm"]], r["score"]) for r in rows]
+    mark_boxes = [(x - width * 0.06, y - height * 0.6,
+                   x + width * 0.06, y + height * 0.6) for x, y in markers]
+    # `extra` holds anything else already on the axes that a label must not
+    # cover, in the same box shape. The repeat bar and its own number are the
+    # ones this figure passes.
+    mark_boxes += list(extra)
+    placed: list[tuple] = []
+    out: dict[str, tuple[int, int]] = {}
+    # Left to right, so a label reaching right meets the arm it would cover.
+    for r in sorted(rows, key=lambda r: xs[r["arm"]]):
+        x, y = xs[r["arm"]], r["score"]
+        best_cost, best_place = None, (LABEL_DX, LABEL_DY[0])
+        for dy in LABEL_DY:
+            for dx in (LABEL_DX, -LABEL_DX):
+                # Points to data: 72 points is an inch, and the height offset
+                # is small, so the scale below is a straight ratio.
+                cy = y + dy * height / 12.0
+                cx = x + (width * 0.04 if dx > 0 else -width * 0.04)
+                box = ((cx, cy - height / 2, cx + width, cy + height / 2)
+                       if dx > 0 else
+                       (cx - width, cy - height / 2, cx, cy + height / 2))
+                if box[0] < -1e9:
+                    continue
+                cost = sum(_overlaps(box, o) for o in mark_boxes + placed)
+                # A label that leaves the frame is worse than one that touches
+                # a marker: the reader loses the text completely.
+                if box[2] > x_hi:
+                    cost += 3
+                if cost == 0:
+                    best_cost, best_place = 0, (dx, dy)
+                    placed.append(box)
+                    break
+                if best_cost is None or cost < best_cost:
+                    best_cost, best_place, best_box = cost, (dx, dy), box
+            if best_cost == 0:
+                break
+        if best_cost:
+            placed.append(best_box)
+        out[r["arm"]] = best_place
     return out
 
 
@@ -211,10 +275,40 @@ def draw(rows: list[dict], out):
         ax.axhline(value, color="0.30", lw=1.1, ls=":", zorder=1,
                    label=f"{label} ({value:.4f})")
 
+    # The x limits, fixed BEFORE the labels, because a label picks its side
+    # from the room it has. A label pointing left from the last momentum runs
+    # across the markers of the momentum before it, and the figure has padding
+    # on both sides that a rule about the middle of the range cannot see.
+    alphas = sorted({r["alpha"] for r in rows} | {REF.K32_BB40K_ALPHA})
+    pad = 0.02 if len(alphas) < 2 else 0.4 * (alphas[-1] - alphas[0])
+    x_lo = min(alphas[0], min(xs.values())) - pad
+    x_hi = max(alphas[-1], max(xs.values())) + pad
+    ax.set_xlim(x_lo, x_hi)
+    # How big a label is on these axes. `a085  1.1900` is ten characters at
+    # 9 pt in a 7.6 inch figure, and one line of 9 pt text is about a
+    # fortieth of the height.
+    scores = [r["score"] for r in rows]
+    y_span = max(max(scores), hi) - min(min(scores), REF.K3_BB200K)
+    label_w = 0.17 * (x_hi - x_lo)
+    label_h = 0.030 * y_span
+
+    # The repeat bar and its number, worked out before the arm labels so no
+    # arm label lands on them. The bar itself is drawn after the markers.
+    bars = []
+    for a, b in REPEAT.pairs(rows):
+        d, rel = REPEAT.spread(a, b)
+        x = (xs[a["arm"]] + xs[b["arm"]]) / 2
+        y = (a["score"] + b["score"]) / 2
+        bars.append({"a": a, "b": b, "d": d, "rel": rel, "x": x, "y": y})
+    bar_boxes = [(bb["x"] - label_w * 0.04, min(bb["a"]["score"], bb["b"]["score"]),
+                  bb["x"] + label_w * 0.55, max(bb["a"]["score"], bb["b"]["score"]))
+                 for bb in bars]
+    bar_boxes += [(bb["x"], bb["y"] - label_h / 2,
+                   bb["x"] + label_w * 0.55, bb["y"] + label_h / 2)
+                  for bb in bars]
+
     palette = arm_colours([r["arm"] for r in rows])
-    ranks = label_ranks(rows)
-    # The middle of the drawn range. A label to the right of it points left.
-    centre = (min(xs.values()) + max(xs.values())) / 2
+    places = label_places(rows, xs, label_w, label_h, x_hi, bar_boxes)
     seen_schedules = set()
     for r in rows:
         marker = MARKERS.get(r["schedule"], "^")
@@ -228,17 +322,24 @@ def draw(rows: list[dict], out):
                 mfc=palette[r["arm"]] if r["schedule"] == "fixed"
                 else "white",
                 mew=2.0, zorder=3, label=label)
-        side = LABEL_DX if x <= centre else -LABEL_DX
+        side, dy = places[r["arm"]]
         ax.annotate(f"{r['arm']}  {r['score']:.4f}", (x, r["score"]),
-                    textcoords="offset points",
-                    xytext=(side, LABEL_DY[ranks[r["arm"]] % len(LABEL_DY)]),
+                    textcoords="offset points", xytext=(side, dy), zorder=6,
                     fontsize=9, ha="left" if side > 0 else "right",
                     color=palette[r["arm"]])
 
-    alphas = sorted({r["alpha"] for r in rows} | {REF.K32_BB40K_ALPHA})
-    pad = 0.02 if len(alphas) < 2 else 0.4 * (alphas[-1] - alphas[0])
-    ax.set_xlim(min(alphas[0], min(xs.values())) - pad,
-                max(alphas[-1], max(xs.values())) + pad)
+    # The repeat pair, drawn last so the bar sits over the markers. Its
+    # height IS the measurement: two arms closer than the bar are two arms
+    # this card does not rank.
+    for bb in bars:
+        ax.plot([bb["x"], bb["x"]], [bb["a"]["score"], bb["b"]["score"]],
+                color="black", lw=1.6, marker="_", ms=9, zorder=4,
+                label=f"{bb['a']['arm']} vs {bb['b']['arm']}, one momentum at "
+                      f"two backbone seeds: {bb['d']:.4f} ({bb['rel']:.1%})")
+        ax.annotate(f"{bb['d']:.4f}", (bb["x"], bb["y"]),
+                    textcoords="offset points", xytext=(4, 0), zorder=6,
+                    fontsize=9, va="center", ha="left", color="black")
+
     ax.set_xticks(alphas)
     ax.set_xlabel("EMA momentum α at step 0")
     ax.set_ylabel("GM-Relative MASE (97 configs)")
