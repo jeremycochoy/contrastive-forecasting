@@ -6,6 +6,8 @@ backbone                  readout_r  top_dir_share
 401 arm     k=8  bb40k       0.5423        0.99206
 401 arm     k=8  bb100k      0.4271        0.99985
 401 arm     k=16 bb40k       0.2905        0.98738
+401 mean    k=8  bb40k       0.4287        0.28083
+401 mean    k=32 bb200k      0.4913        0.13495
 k=0  step  20k               0.4412        0.14558
 k=0  step  60k               0.2715        0.15140
 k=0  step  80k               0.1777        0.14397
@@ -34,5 +36,23 @@ k=32 step  80k               0.6079        0.99486
 k=32 step 100k               0.7051        0.78308
 k=32 step 120k               0.5805        0.99811
 k=32 step 140k               0.6101        0.94473
+k=8  mean  20k               0.4728        0.18638
+k=8  mean  60k               0.1580        0.38936
+k=8  mean  80k               0.1150        0.37525
+k=8  mean 100k               0.1947        0.31592
+k=8  mean 120k               0.2389        0.28270
+k=8  mean 140k               0.2636        0.25555
+k=8  mean 160k               0.2254        0.29388
+k=8  mean 180k               0.1750        0.29198
+k=8  mean 200k               0.1752        0.30891
+k=32 mean  20k               0.2732        0.17198
+k=32 mean  40k               0.2199        0.14865
+k=32 mean  60k               0.3179        0.13390
+k=32 mean  80k               0.2797        0.14083
+k=32 mean 100k               0.4980        0.13370
+k=32 mean 120k               0.4805        0.13089
+k=32 mean 140k               0.3287        0.13380
+k=32 mean 160k               0.4534        0.13807
+k=32 mean 180k               0.4959        0.13570
 
--> results/diag/scalar_readout.csv
+-> /tmp/contrastive-forecasting-401/reports/2026-08-15_rollout_depth_k16_8_32/results/diag/scalar_readout.csv

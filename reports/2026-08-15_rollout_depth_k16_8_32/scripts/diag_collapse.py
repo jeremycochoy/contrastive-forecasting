@@ -53,46 +53,85 @@ from src.forecasting_head import (                            # noqa: E402
 
 T_RAW = 4096
 
-# The subjects. Each row is (label, k, stop, checkpoint).
-#   The three #401 backbones the phase-1 scores were measured on, plus the
-#   two known-good controls: #393's k = 0 parent of this very cell, and
-#   #373's own G1 subject.
+# The subjects. Each row is (label, k, stop, checkpoint, reduction).
+#
+# The reduction is how a k-depth run combines its k + 1 depth copies.
+# `sum` is train.py's own default and it is what the first run of this card
+# trained. `mean` is the protocol this study runs now. `n/a` marks a k = 0
+# run: one copy, so the two reductions are the same function.
+#
+# It is a column of its own because the two arms share every other key. Both
+# hold a k = 8 at step 200k, and a table that joined on (k, step) alone would
+# put one arm's rank against the other arm's score.
+#
+#   The three #401 backbones the phase-1 scores were measured on, the two
+#   known-good controls (#393's k = 0 parent of this very cell, and #373's
+#   own G1 subject), and the two MEAN backbones this study concludes about:
+#   k = 8 at its best stop, bb40k, and k = 32 at its best stop, bb200k.
 CF401 = "/home/jupyter/checkpoints_backup/cf-401"
+CF401M = "/home/jupyter/cf401_sync/box_a/sync"
 SUBJECTS = [
     ("393 parent  k=0  bb40k", 0, 40,
      "/home/jupyter/checkpoints_backup/cf-393/arm6_v2_combab_alignS/"
-     "leg_40k/cf393_arm6_v2_combab_alignS_40k.pth"),
+     "leg_40k/cf393_arm6_v2_combab_alignS_40k.pth", "n/a"),
     ("379 B5pub   k=0  bb40k", 0, 40,
      "/home/jupyter/checkpoints_backup/cf-379/runs/bb_small_arm4_combab_"
-     "xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth"),
+     "xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth",
+     "n/a"),
     ("401 arm     k=8  bb40k", 8, 40,
      f"{CF401}/k8/arm6_v2_combab_alignS/leg_40k/"
-     "cf393_arm6_v2_combab_alignS_cf373k8_40k.pth"),
+     "cf393_arm6_v2_combab_alignS_cf373k8_40k.pth", "sum"),
     ("401 arm     k=8  bb100k", 8, 100,
      f"{CF401}/k8/arm6_v2_combab_alignS/leg_100k/"
-     "cf393_arm6_v2_combab_alignS_cf373k8_100k.pth"),
+     "cf393_arm6_v2_combab_alignS_cf373k8_100k.pth", "sum"),
     ("401 arm     k=16 bb40k", 16, 40,
      f"{CF401}/k16/arm6_v2_combab_alignS/leg_40k/"
-     "cf393_arm6_v2_combab_alignS_cf373k16_40k.pth"),
+     "cf393_arm6_v2_combab_alignS_cf373k16_40k.pth", "sum"),
+    ("401 mean    k=8  bb40k", 8, 40,
+     f"{CF401M}/k8/arm6_v2_combab_alignS/leg_40k/"
+     "cf393_arm6_v2_combab_alignS_cf373k8_mean_40k.pth", "mean"),
+    ("401 mean    k=32 bb200k", 32, 200,
+     f"{CF401M}/k32/arm6_v2_combab_alignS/leg_200k/"
+     "cf393_arm6_v2_combab_alignS_cf373k32_mean_200k.pth", "mean"),
 ]
 
 CF393 = "/home/jupyter/checkpoints_backup/cf-393/arm6_v2_combab_alignS"
 
-# Where each arm keeps its periodic backbones. The k = 0 row is the parent
-# this study branched from, so the ladder has a measured k = 0 point.
+# Where each arm keeps its periodic backbones, as (k, directory, file stem,
+# reduction). The k = 0 row is the parent this study branched from, so the
+# ladder has a measured k = 0 point.
+#
+# The two `mean` rows read the sync tree, which is where the box landed both
+# mean arms and is the only copy: the box was destroyed on 2026-08-19 after a
+# byte-for-byte check of all 92 files.
+#
+# The stem carries the reduction, so no glob crosses the two arms. `sum`'s
+# stem is a PREFIX of `mean`'s, and the two live under different roots for
+# that reason.
 ARM_DIRS = [
-    (0, CF393, "cf393_arm6_v2_combab_alignS"),
+    (0, CF393, "cf393_arm6_v2_combab_alignS", "n/a"),
     (8, f"{CF401}/k8/arm6_v2_combab_alignS",
-     "cf393_arm6_v2_combab_alignS_cf373k8"),
+     "cf393_arm6_v2_combab_alignS_cf373k8", "sum"),
     (16, f"{CF401}/k16/arm6_v2_combab_alignS",
-     "cf393_arm6_v2_combab_alignS_cf373k16"),
+     "cf393_arm6_v2_combab_alignS_cf373k16", "sum"),
     (32, f"{CF401}/k32/arm6_v2_combab_alignS",
-     "cf393_arm6_v2_combab_alignS_cf373k32"),
+     "cf393_arm6_v2_combab_alignS_cf373k32", "sum"),
+    (8, f"{CF401M}/k8/arm6_v2_combab_alignS",
+     "cf393_arm6_v2_combab_alignS_cf373k8_mean", "mean"),
+    (32, f"{CF401M}/k32/arm6_v2_combab_alignS",
+     "cf393_arm6_v2_combab_alignS_cf373k32_mean", "mean"),
 ]
 
-# The three legs the study scores. A leg's last step is the "stop" the
-# GIFT-Eval head was trained on: bb40k, bb100k, bb200k.
-LEGS = [("leg_40k", 40), ("leg_100k", 100), ("leg_200k", 200)]
+# The legs the study scores. A leg's last step is the "stop" the GIFT-Eval
+# head was trained on: bb40k, bb100k, bb200k.
+#
+# `leg_20k` is not a stop and no head reads it. It is here because the two
+# arms were legged differently: the summed arm ran 40k first and keeps its
+# 20k checkpoint inside `leg_40k`, and the mean arm ran a 20k leg of its own.
+# Without this row the mean ladder would start at 40k while the summed one
+# starts at 20k, and the two would not be read against each other.
+LEGS = [("leg_20k", 20), ("leg_40k", 40), ("leg_100k", 100),
+        ("leg_200k", 200)]
 
 
 def discover():
@@ -103,7 +142,7 @@ def discover():
     periodic files land.
     """
     rows = []
-    for k, root, stem in ARM_DIRS:
+    for k, root, stem, red in ARM_DIRS:
         for leg, stop in LEGS:
             d = Path(root) / leg
             if not d.is_dir():
@@ -111,7 +150,9 @@ def discover():
             for p in sorted(d.glob(f"{stem}_*k.pth"),
                             key=lambda q: int(q.stem.rsplit("_", 1)[1][:-1])):
                 step = int(p.stem.rsplit("_", 1)[1][:-1])
-                rows.append((f"k={k:<2} step {step:>3}k", k, stop, str(p)))
+                tag = "step" if red != "mean" else "mean"
+                rows.append((f"k={k:<2} {tag} {step:>3}k", k, stop, str(p),
+                             red))
     return rows
 
 
@@ -236,12 +277,12 @@ def main():
     print(f"{x.shape[0]} real windows of {x.shape[1]} steps "
           f"from {len(DATASETS)} datasets\n")
 
-    cols = ["label", "k", "stop_k", "step_k", "pair_cos", "dim_std",
+    cols = ["label", "k", "reduce", "stop_k", "step_k", "pair_cos", "dim_std",
             "eff_rank", "cos_err_d0", "n_series", "H", "checkpoint"]
     rows = []
     print(f"{'backbone':<24} {'pair_cos':>9} {'dim_std':>9} {'eff_rank':>9} "
           f"{'cos_err_d0':>11}")
-    for label, k, stop, path in subjects:
+    for label, k, stop, path, red in subjects:
         if not Path(path).is_file():
             print(f"{label:<24} {'MISSING':>9}   {path}")
             continue
@@ -252,8 +293,8 @@ def main():
         step = Path(path).stem.rsplit("_", 1)[1]
         step = int(step[:-1]) if step.endswith("k") and step[:-1].isdigit() \
             else stop
-        rows.append(dict(label=label, k=k, stop_k=stop, step_k=step,
-                         checkpoint=path, **m))
+        rows.append(dict(label=label, k=k, reduce=red, stop_k=stop,
+                         step_k=step, checkpoint=path, **m))
 
     out = Path(a.out)
     out.parent.mkdir(parents=True, exist_ok=True)

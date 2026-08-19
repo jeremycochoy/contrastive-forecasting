@@ -5,8 +5,8 @@ Two figures:
 
   collapse_onset.png   AUC, u_batchtime (dim usage) and cos_err_d0 against
                        training step, for k = 3 (#373's published A4, the
-                       same cell) and #401's k = 8 and k = 16. One panel per
-                       metric, log x.
+                       same cell) and #401's k = 8, 16 and 32 under BOTH
+                       reductions. One panel per metric, log x.
 
   latent_rank.png      The saved checkpoints, measured through the loader
                        the GIFT-Eval uses: effective rank of the encoder
@@ -31,21 +31,57 @@ PLOTS = STUDY / "plots"
 RES = STUDY / "results"
 
 CF401 = Path("/home/jupyter/checkpoints_backup/cf-401")
+CF401M = Path("/home/jupyter/cf401_sync/box_a/sync")
 CURVES = REPO / "reports/2026-08-08_rollout_depth/curves"
 
-# (label, colour, linestyle, csv). k = 3 is #373's published run of THIS
-# cell. The two collapsed arms sit on the same flat line, so they take
+# (label, colour, linestyle, csvs). k = 3 is #373's published run of THIS
+# cell. The collapsed arms sit on the same flat line, so they take
 # different dash patterns or the upper one hides the lower one.
+#
+# The last two are the MEAN arms of this same card. They are the control the
+# figure was missing: they change the reduction and nothing else.
+#
+# So the two channels carry the two variables, and neither carries both:
+#
+#   hue          the depth. k = 8 orange, k = 16 red, k = 32 blue, k = 3 green.
+#   dash         the reduction. Long dash summed, dotted mean, solid the
+#                published k = 3 reference.
+#
+# Every mean arm therefore has its summed twin at the same depth in the same
+# hue, and the difference between one pair is the reduction alone.
+#
+# The mean arms ran a 20k leg first, so their first 40,000 steps span two
+# files. They are read in order and concatenated, which is what the summed
+# arms' single `leg_40k` file already is.
 ARMS = [
-    ("k = 3  (#373 A4, published 1.0862)", "#2f6f4e", "-",
-     CURVES / "r2/A4_cf393_arm6_v2_combab_alignS_cf373k3_losses.csv"),
-    ("k = 8  (#401, scored 2.0357)", "#c9772a", (0, (5, 2)),
-     CF401 / "k8/arm6_v2_combab_alignS/leg_40k/"
-             "cf393_arm6_v2_combab_alignS_cf373k8_losses.csv"),
-    ("k = 16 (#401, scored 4.5297)", "#a63a3a", "-",
-     CF401 / "k16/arm6_v2_combab_alignS/leg_40k/"
-              "cf393_arm6_v2_combab_alignS_cf373k16_losses.csv"),
+    ("k = 3  (#373 A4, sum, published 1.0862)", "#2f6f4e", "-",
+     [CURVES / "r2/A4_cf393_arm6_v2_combab_alignS_cf373k3_losses.csv"]),
+    ("k = 8  (#401 sum, scored 2.0357)", "#c9772a", (0, (5, 2)),
+     [CF401 / "k8/arm6_v2_combab_alignS/leg_40k/"
+              "cf393_arm6_v2_combab_alignS_cf373k8_losses.csv"]),
+    ("k = 16 (#401 sum, scored 4.5297)", "#a63a3a", (0, (5, 2)),
+     [CF401 / "k16/arm6_v2_combab_alignS/leg_40k/"
+              "cf393_arm6_v2_combab_alignS_cf373k16_losses.csv"]),
+    ("k = 32 (#401 sum, scored 7.9575)", "#3a5ba6", (0, (5, 2)),
+     [CF401 / "k32/arm6_v2_combab_alignS/leg_40k/"
+              "cf393_arm6_v2_combab_alignS_cf373k32_losses.csv"]),
+    ("k = 8  (#401 mean, scored 1.2433)", "#c9772a", (0, (1, 1.4)),
+     [CF401M / "k8/arm6_v2_combab_alignS/leg_20k/"
+               "cf393_arm6_v2_combab_alignS_cf373k8_mean_losses.csv",
+      CF401M / "k8/arm6_v2_combab_alignS/leg_40k/"
+               "cf393_arm6_v2_combab_alignS_cf373k8_mean_losses.csv"]),
+    ("k = 32 (#401 mean, scored 1.2082)", "#3a5ba6", (0, (1, 1.4)),
+     [CF401M / "k32/arm6_v2_combab_alignS/leg_20k/"
+                "cf393_arm6_v2_combab_alignS_cf373k32_mean_losses.csv",
+      CF401M / "k32/arm6_v2_combab_alignS/leg_40k/"
+                "cf393_arm6_v2_combab_alignS_cf373k32_mean_losses.csv"]),
 ]
+
+# The two arms, and the ink each takes in `latent_rank`. Colour by ARM, not by
+# health: the figure's job is to show which arm a bar belongs to, and the bar
+# length is what says whether that arm collapsed.
+ARM_INK = {"n/a": "#2f6f4e", "sum": "#a63a3a", "mean": "#3a5ba6"}
+ARM_NAME = {"n/a": "k = 0 parent", "sum": "summed arm", "mean": "mean arm"}
 
 PANELS = [
     ("auc", "AUC — can the model tell a positive from a negative?",
@@ -55,9 +91,25 @@ PANELS = [
 ]
 
 
-def read(path):
-    with open(path, newline="") as f:
-        rows = list(csv.DictReader(f))
+def read(paths):
+    """One arm's curve, over one file or several legs read in order.
+
+    The sync loop rotates a file to `.prev` before the new copy lands, so a
+    fetch that dropped mid-transfer leaves a shorter current file beside a
+    longer previous one. A losses CSV only appends, so the bigger file is
+    strictly more steps.
+    """
+    rows = []
+    for path in paths:
+        best = max((p for p in (path, path.with_suffix(path.suffix + ".prev"))
+                    if p.is_file()), key=lambda p: p.stat().st_size,
+                   default=None)
+        if best is None:
+            continue
+        with open(best, newline="") as f:
+            rows += list(csv.DictReader(f))
+    if not rows:
+        return {}
     out = {}
     for c in rows[0]:
         key = c.strip()
@@ -98,10 +150,8 @@ def smooth(step, y, nbins=110):
 def collapse_onset():
     fig, axes = plt.subplots(1, 3, figsize=(15, 4.4))
     for ax, (col, title, ref, reflab) in zip(axes, PANELS):
-        for label, colour, ls, path in ARMS:
-            if not path.is_file():
-                continue
-            d = read(path)
+        for label, colour, ls, paths in ARMS:
+            d = read(paths)
             if col not in d:
                 continue
             step, y = smooth(d["step"], d[col])
@@ -114,14 +164,15 @@ def collapse_onset():
         ax.set_xlabel("backbone step")
         ax.set_title(title, fontsize=10)
         ax.grid(alpha=0.25, lw=0.5)
-    # A figure legend, below the panels. Every panel is crowded: the two
-    # collapsed arms run along the bottom and the healthy one along the top.
+    # A figure legend, below the panels. Every panel is crowded: the summed
+    # arms run along the bottom and the mean arms along the top.
     h, l = axes[0].get_legend_handles_labels()
     fig.legend(h, l, fontsize=9, ncol=3, loc="lower center",
-               frameon=False, bbox_to_anchor=(0.5, -0.01))
-    fig.suptitle("#401 phase 1 — the k = 8 and k = 16 backbones collapse; "
-                 "the same cell at k = 3 does not", fontsize=11)
-    fig.tight_layout(rect=(0, 0.07, 0.98, 0.95))
+               frameon=False, bbox_to_anchor=(0.5, -0.03))
+    fig.suptitle("#401 — the SUMMED arms collapse at every depth. The same "
+                 "cell, the same depths, under the MEAN reduction, does not",
+                 fontsize=11)
+    fig.tight_layout(rect=(0, 0.12, 0.98, 0.95))
     out = PLOTS / "collapse_onset.png"
     fig.savefig(out, dpi=150)
     print(f"-> {out}")
@@ -132,8 +183,8 @@ def latent_rank():
     labels = [r["label"].replace("  ", " ") for r in rows]
     rank = [float(r["eff_rank"]) for r in rows]
     pcos = [float(r["pair_cos"]) for r in rows]
-    good = [r["k"] == "0" for r in rows]
-    colours = ["#2f6f4e" if g else "#a63a3a" for g in good]
+    arms = [r.get("reduce") or "sum" for r in rows]
+    colours = [ARM_INK.get(a, "#a63a3a") for a in arms]
     y = np.arange(len(rows))[::-1]
 
     fig, axes = plt.subplots(1, 2, figsize=(12, 3.6))
@@ -156,9 +207,13 @@ def latent_rank():
     for ax, vals, fmt in ((axes[0], rank, "{:.2f}"), (axes[1], pcos, "{:.3f}")):
         for yy, v in zip(y, vals):
             ax.text(v, yy, " " + fmt.format(v), va="center", fontsize=8)
+    seen = [a for a in ARM_INK if a in arms]
+    fig.legend(handles=[plt.Line2D([], [], lw=6, color=ARM_INK[a],
+                                   label=ARM_NAME[a]) for a in seen],
+               loc="lower center", ncol=len(seen), frameon=False, fontsize=9)
     fig.suptitle("The saved checkpoints, through the loader the GIFT-Eval "
                  "uses, on 21 real GIFT-Eval windows", fontsize=11)
-    fig.tight_layout(rect=(0, 0, 1, 0.93))
+    fig.tight_layout(rect=(0, 0.10, 1, 0.93))
     out = PLOTS / "latent_rank.png"
     fig.savefig(out, dpi=150)
     print(f"-> {out}")

@@ -83,11 +83,11 @@ def main():
     print(f"{'backbone':<24} {'t_pair_cos':>11} {'t_eff_rank':>11} "
           f"{'t_dim_std':>10}")
 
-    cols = ["label", "k", "stop_k", "step_k", "time_pair_cos",
+    cols = ["label", "k", "reduce", "stop_k", "step_k", "time_pair_cos",
             "time_eff_rank", "time_dim_std", "n_series", "n_times", "H",
             "checkpoint"]
     rows = []
-    for label, k, stop, path in subjects:
+    for label, k, stop, path, red in subjects:
         if not Path(path).is_file():
             continue
         model, _ = load_backbone(path, a.device)
@@ -96,8 +96,8 @@ def main():
               f"{m['time_eff_rank']:11.3f} {m['time_dim_std']:10.5f}")
         st = Path(path).stem.rsplit("_", 1)[1]
         st = int(st[:-1]) if st.endswith("k") and st[:-1].isdigit() else stop
-        rows.append(dict(label=label, k=k, stop_k=stop, step_k=st,
-                         checkpoint=path, **m))
+        rows.append(dict(label=label, k=k, reduce=red, stop_k=stop,
+                         step_k=st, checkpoint=path, **m))
 
     out = Path(a.out)
     out.parent.mkdir(parents=True, exist_ok=True)

@@ -1,0 +1,12 @@
+21 real windows of 4096 steps from 8 datasets
+
+backbone                  pair_cos   dim_std  eff_rank  cos_err_d0
+393 parent  k=0  bb40k     0.06531   0.16951     7.221     0.32743
+379 B5pub   k=0  bb40k     0.07939   0.16506    10.757     0.19284
+401 arm     k=8  bb40k     1.00000   0.38199     1.000     0.00016
+401 arm     k=8  bb100k    1.00000   3.69477     1.000     0.00037
+401 arm     k=16 bb40k     1.00000   0.11780     1.015     0.00003
+401 mean    k=8  bb40k     0.08699   0.22806     4.196     0.01718
+401 mean    k=32 bb200k    0.10895   0.16102     7.404     0.42746
+
+-> /tmp/contrastive-forecasting-401/reports/2026-08-15_rollout_depth_k16_8_32/results/diag/collapse.csv

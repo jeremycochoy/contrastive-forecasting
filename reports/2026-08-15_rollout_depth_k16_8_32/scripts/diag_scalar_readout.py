@@ -83,10 +83,10 @@ def main():
     print(f"{x.shape[0]} real windows of {x.shape[1]} steps\n")
     print(f"{'backbone':<24} {'readout_r':>10} {'top_dir_share':>14}")
 
-    cols = ["label", "k", "stop_k", "step_k", "readout_r", "top_dir_share",
+    cols = ["label", "k", "reduce", "stop_k", "step_k", "readout_r", "top_dir_share",
             "n_series", "n_times", "H", "checkpoint"]
     rows = []
-    for label, k, stop, path in subjects:
+    for label, k, stop, path, red in subjects:
         if not Path(path).is_file():
             continue
         model, _ = load_backbone(path, a.device)
@@ -94,8 +94,8 @@ def main():
         print(f"{label:<24} {m['readout_r']:10.4f} {m['top_dir_share']:14.5f}")
         st = Path(path).stem.rsplit("_", 1)[1]
         st = int(st[:-1]) if st.endswith("k") and st[:-1].isdigit() else stop
-        rows.append(dict(label=label, k=k, stop_k=stop, step_k=st,
-                         checkpoint=path, **m))
+        rows.append(dict(label=label, k=k, reduce=red, stop_k=stop,
+                         step_k=st, checkpoint=path, **m))
 
     out = Path(a.out)
     out.parent.mkdir(parents=True, exist_ok=True)
