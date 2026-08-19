@@ -52,35 +52,17 @@ HEAD_GPUS="${HEAD_GPUS:-0}"
 FIGURE_EVERY="${FIGURE_EVERY:-1800}"
 mkdir -p "$CF401_RESULTS" "$CF401_PLOTS"
 
-STATE="$CF401_RESULTS/RUN_STATE.md"
 LOG="$CF401_RESULTS/launch.log"
 log(){ echo "[$(date '+%m-%d %H:%M:%S')] [#401 elisa] $*" | tee -a "$LOG"; }
 
-# What a re-dispatched session reads first. One file, overwritten, so it is
-# never a log to scroll.
+# What a re-dispatched session reads first. `run_state.sh` builds it, so the
+# file is not owned by this launcher: any session can rebuild it at any
+# moment, with no launcher running. That matters, because this launcher is
+# not the only driver a multi-day study has — and while it was the only
+# writer, the file froze at "(none yet)" the moment the launcher exited.
 state(){  # <note>
-  { echo "# #401 run state — the mean objective"
-    echo
-    echo "- updated: $(date '+%Y-%m-%d %H:%M:%S')"
-    echo "- note: $1"
-    echo "- objective: \`--train-rollout-reduce $CF401_REDUCE\`, depths $CF401_DEPTHS"
-    echo "- elisa pid: $$, head GPUs: $HEAD_GPUS"
-    echo "- root (synced from the box): \`$CF401_ROOT\`"
-    echo "- results: \`$CF401_RESULTS\`"
-    echo
-    echo "## Scores so far"
-    echo
-    echo '```'
-    cat "$CF401_RESULTS/scores.csv" 2>/dev/null || echo "(none yet)"
-    echo '```'
-    echo
-    echo "## Backbone stops on this side"
-    echo
-    echo '```'
-    ls -1 "$CF401_ROOT"/k*/*/leg_*k/*k.pth 2>/dev/null \
-      | grep -v optimizer | sed "s#$CF401_ROOT/##" || echo "(none yet)"
-    echo '```'
-  } >"$STATE.tmp" && mv -f "$STATE.tmp" "$STATE"
+  bash "$HERE/run_state.sh" "$1 (elisa pid $$, head GPUs $HEAD_GPUS)" \
+    >/dev/null
 }
 
 # The sync loop is the only thing that puts the box's checkpoints here, so a
