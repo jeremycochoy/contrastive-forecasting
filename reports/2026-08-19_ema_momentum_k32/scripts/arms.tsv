@@ -1,0 +1,16 @@
+# #404 — the four arms of the card, one row each. Tab separated.
+#
+# Columns: arm, α at step 0, α at the end of the ramp, the ramp length.
+# A `-` in a column is a flag the arm does NOT pass.
+#
+# Only α changes. Every other flag of every arm comes from #373's cell
+# `arm6_v2_combab_alignT` at k = 32, under the mean reduction.
+#
+# The card says to add arms if the four scores show a direction — a value
+# between two good values, or a smaller fixed value. Add a row here and
+# nothing else changes: every script, guard and figure reads this file.
+# arm	tau	end	ramp
+a08	0.8	-	-
+a09	0.9	-	-
+s08	0.8	1.0	200000
+s09	0.9	1.0	200000
