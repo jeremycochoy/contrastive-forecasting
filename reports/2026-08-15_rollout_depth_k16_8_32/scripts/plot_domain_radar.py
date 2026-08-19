@@ -80,19 +80,27 @@ def steps_label(n):
 
 
 def study_rows(vals, phase):
-    """`{(k, stop): label}` for the rows of one phase.
+    """`{(k, stop, variant): label}` for the rows of one phase.
 
     The tag carries the depth, the stop and the head budget, so the phase is
     read back off it the same way collect.sh reads it: a head budget equal to
     the backbone stop is phase 2.
+
+    A tag can carry a fifth part, between the depth and the stop: the training
+    schedule. `k32_ema30k_bb40k_h30k_student` is the card's cell at k = 32 with
+    the EMA ramp shortened to 30,000 steps. It holds the same three numbers as
+    its base cell, so the schedule is in the key. Without it the two rows join
+    as one and the panel draws whichever the table lists second.
     """
     out = {}
     for label in vals:
         parts = label.split("_")
-        if len(parts) != 4 or not parts[0].startswith("k"):
+        if len(parts) == 4:
+            parts.insert(1, "base")
+        if len(parts) != 5:
             continue
-        k_s, bb_s, h_s, enc = parts
-        if enc != HEAD:
+        k_s, variant, bb_s, h_s, enc = parts
+        if enc != HEAD or not k_s.startswith("k"):
             continue
         try:
             k = int(k_s[1:])
@@ -102,7 +110,7 @@ def study_rows(vals, phase):
             continue
         if (2 if head == stop else 1) != phase:
             continue
-        out[(k, stop)] = label
+        out[(k, stop, variant)] = label
     return out
 
 
@@ -112,17 +120,23 @@ def unlabel(text):
 
 
 def pick_panels(vals, aggs, phase, stop_arg):
-    """One (k, stop, label) per depth, in the study's run order.
+    """One (k, stop, variant, label) per depth, then one per variant cell.
 
     `best` is the best AGGREGATE, which is the number deliverable 2 draws.
     By the best single family, a depth whose aggregate is best at 200k draws
     its 40k panel, and the two deliverables then name two stops for one
     depth. A tie goes to the earlier stop.
+
+    A variant cell takes its OWN panel, at its own stop. It is a second
+    training schedule at a stop the base cell already holds, so it competes
+    with that cell for no panel: the reader sees both polygons and can put one
+    on the other.
     """
     rows = study_rows(vals, phase)
     panels = []
     for k in D.DEPTHS_DRAWN:
-        mine = {s: lab for (kk, s), lab in rows.items() if kk == k}
+        mine = {s: lab for (kk, s, v), lab in rows.items()
+                if kk == k and v == "base"}
         if not mine:
             continue
         if stop_arg == "best":
@@ -135,7 +149,14 @@ def pick_panels(vals, aggs, phase, stop_arg):
             stop = int(stop_arg)
             if stop not in mine:
                 continue
-        panels.append((k, stop, mine[stop]))
+        panels.append((k, stop, "base", mine[stop]))
+
+    for (k, stop, variant), lab in sorted(rows.items()):
+        if variant == "base":
+            continue
+        if stop_arg != "best" and stop != int(stop_arg):
+            continue
+        panels.append((k, stop, variant, lab))
     return panels
 
 
@@ -191,9 +212,9 @@ def main(argv=None):
     n = len(domains)
     ang = [i / n * 2 * math.pi for i in range(n)] + [0.0]
 
-    allv = [v for _, _, lab in panels for v in vals[lab].values()]
+    allv = [v for *_, lab in panels for v in vals[lab].values()]
     allv += list(prior.values()) + [1.0]
-    for _, stop, _ in panels:
+    for _, stop, _, _ in panels:
         ref = pvals.get(f"{CELL}_k3_bb{steps_label(stop)}_{HEAD}")
         if ref:
             allv += list(ref.values())
@@ -208,7 +229,7 @@ def main(argv=None):
     fig, axes = plt.subplots(nrow, ncol, figsize=(5.0 * ncol, 5.8 * nrow),
                              subplot_kw={"projection": "polar"}, squeeze=False)
 
-    for idx, (k, stop, label) in enumerate(panels):
+    for idx, (k, stop, variant, label) in enumerate(panels):
         ax = axes[idx // ncol][idx % ncol]
         ax.set_theta_offset(math.pi / 2)
         ax.set_theta_direction(-1)
@@ -233,16 +254,20 @@ def main(argv=None):
 
         mine = vals[label]
         v = [math.log2(mine[d]) for d in domains if d in mine]
+        # A variant keeps its depth's hue and takes a dash, so a reader can
+        # tell the two schedules apart across two panels.
+        style = D.STYLE_STUDY if variant == "base" else (0, (4, 1.6))
         if len(v) == n:
             ax.plot(ang, v + v[:1], color=D.colour(k), lw=2.2,
-                    linestyle=D.STYLE_STUDY, zorder=4)
+                    linestyle=style, zorder=4)
         else:
             # A subset eval (a trial) has fewer families than the protocol.
             ax.plot([ang[i] for i, d in enumerate(domains) if d in mine],
                     [math.log2(mine[d]) for d in domains if d in mine],
                     color=D.colour(k), marker="o", ms=7, lw=0, zorder=4)
 
-        ax.set_title(f"{D.label(k)}   at bb{steps_label(stop)}\n"
+        sched = "" if variant == "base" else f", {variant} schedule"
+        ax.set_title(f"{D.label(k)}   at bb{steps_label(stop)}{sched}\n"
                      f"against #373's k = 3, same cell", fontsize=9, pad=18)
 
     for idx in range(len(panels), nrow * ncol):
@@ -251,8 +276,10 @@ def main(argv=None):
     # The depths take one keyed swatch each, so the legend is also the colour
     # key and no polygon is identified by its hue alone.
     handles = [Line2D([], [], color=D.colour(k), lw=2.2,
-                      linestyle=D.STYLE_STUDY, label=D.label(k))
-               for k, _, _ in panels]
+                      linestyle=(D.STYLE_STUDY if v == "base" else (0, (4, 1.6))),
+                      label=D.label(k) if v == "base"
+                      else f"{D.label(k)}, {v} schedule")
+               for k, _, v, _ in panels]
     handles += [
         Line2D([], [], color=D.REF_K3_INK, lw=1.8, linestyle=D.STYLE_K3,
                label="#373's k = 3, the depth this study extends"),
@@ -270,7 +297,9 @@ def main(argv=None):
     fig.savefig(a.out, bbox_inches="tight")
     # The stop of each panel, so a reader of make_plots.sh's output can check
     # it against the ladder without opening the figure.
-    drawn = ", ".join(f"k{k}@bb{steps_label(s)}" for k, s, _ in panels)
+    drawn = ", ".join(
+        f"k{k}@bb{steps_label(s)}" + ("" if v == "base" else f" [{v}]")
+        for k, s, v, _ in panels)
     print(f"wrote {a.out} ({len(panels)} panel(s): {drawn})")
     return 0
 

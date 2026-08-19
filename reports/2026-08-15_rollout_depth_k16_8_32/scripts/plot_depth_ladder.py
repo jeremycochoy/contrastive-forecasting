@@ -21,6 +21,11 @@ changes across them:
   grey    #373's best on this cell, 1.0660 at bb200k. It is the number this
           study has to beat, and it is drawn on both panels.
 
+A cell that runs the card's depth and stop on ANOTHER training schedule draws
+an open marker at its stop, named on the point. It takes no place on a line:
+a line is one depth over the stops, and a variant sits at a stop the base cell
+already holds, so it would replace that point rather than add one.
+
 Reads `results/scores.csv`, written by `collect.sh`.
 
 Usage: plot_depth_ladder.py [--scores results/scores.csv] \\
@@ -57,22 +62,32 @@ PHASE_TITLE = {1: "phase 1 — head at 30k steps on every stop",
 
 
 def read_scores(path):
-    """`{phase: {k: {stop_k: score}}}` from collect.sh's CSV.
+    """`{phase: {k: {stop_k: score}}}` and the variant cells, from the CSV.
 
     The stop is kept in thousands, the unit the axis and #373's own file
     names use. A trial stop below 1000 keeps its own step count, so a trial's
     table draws too.
+
+    A line is one depth over the stops, so only the card's own schedule can
+    make one: a variant cell sits at a stop the base cell already holds, and
+    it would replace that point rather than add one. So the variants come back
+    separately, as `(phase, k, stop_k, variant, score)`, and the panel draws
+    each as its own marker beside the line.
     """
-    out = {}
+    out, variants = {}, []
     with open(path) as fh:
         for r in csv.DictReader(fh):
             if r["encoder"] != HEAD:
                 continue
             stop = int(r["stop"])
             stop_k = stop // 1000 if stop % 1000 == 0 else stop
-            (out.setdefault(int(r["phase"]), {})
-                .setdefault(int(r["k"]), {})[stop_k]) = float(r["score"])
-    return out
+            variant = r.get("variant") or "base"
+            phase, k, score = int(r["phase"]), int(r["k"]), float(r["score"])
+            if variant == "base":
+                out.setdefault(phase, {}).setdefault(k, {})[stop_k] = score
+            else:
+                variants.append((phase, k, stop_k, variant, score))
+    return out, variants
 
 
 def axis_stops(scores):
@@ -113,7 +128,37 @@ def draw_reference(ax, xs, pts, ink, style, width=1.7):
     return list(pts.values())
 
 
-def draw_panel(ax, phase, arms, k3, k0, xs, frontier, stops_k):
+# How far right of its stop a variant marker sits, in axis units. The axis is
+# categorical, so this is a dodge and not a claim about the step count.
+VARIANT_DODGE = 0.055
+
+
+def draw_variants(ax, cells, xs):
+    """One open marker per variant cell, named on the point.
+
+    Open, so it never reads as a stop of the solid line it sits on. The depth
+    keeps its hue, because the cell is that depth on another schedule.
+
+    Dodged right of its stop, because a variant lands near the scores of the
+    same stop by construction: `ema30k` at 1.2385 sits 0.0048 from the k = 8
+    point at the same stop, which is 1.6% of the axis, so the two markers
+    touch. The dodge separates them and the label names which is which.
+    """
+    values = []
+    for _, k, stop_k, variant, score in cells:
+        if stop_k not in xs:
+            continue
+        x = xs[stop_k] + VARIANT_DODGE
+        ax.plot([x], [score], marker="o", ms=8.0, lw=0,
+                mfc="white", mec=D.colour(k), mew=2.0, zorder=5)
+        ax.annotate(variant, (x, score), xytext=(9, -3),
+                    textcoords="offset points", fontsize=8, color=D.INK,
+                    va="center", ha="left")
+        values.append(score)
+    return values
+
+
+def draw_panel(ax, phase, arms, k3, k0, xs, frontier, stops_k, variants=()):
     values = []
     ends = []
     for k in D.DEPTHS_DRAWN:
@@ -127,6 +172,7 @@ def draw_panel(ax, phase, arms, k3, k0, xs, frontier, stops_k):
         values += list(pts.values())
         ends.append((xs[ss[-1]], pts[ss[-1]], k, col))
 
+    values += draw_variants(ax, [c for c in variants if c[0] == phase], xs)
     values += draw_reference(ax, xs, k3, D.REF_K3_INK, D.STYLE_K3)
     values += draw_reference(ax, xs, k0, D.REF_K0_INK, D.STYLE_K0)
 
@@ -163,7 +209,7 @@ def main(argv=None):
     ap.add_argument("--out", required=True)
     a = ap.parse_args(argv)
 
-    scores = read_scores(a.scores)
+    scores, variants = read_scores(a.scores)
     if not scores:
         raise SystemExit(f"ABORT: {a.scores} holds no {HEAD}-head score")
     k3 = parent_k3()
@@ -184,7 +230,7 @@ def main(argv=None):
     values, per_panel = [], []
     for ax, phase in zip(axes, phases):
         v, ends = draw_panel(ax, phase, scores[phase], k3, k0, xs, frontier,
-                             stops_k)
+                             stops_k, variants)
         values += v
         per_panel.append((ax, ends))
 
@@ -199,22 +245,32 @@ def main(argv=None):
                      xytext=(2, -12), textcoords="offset points", fontsize=8,
                      color=D.INK_SOFT)
 
-    fig.legend(handles=[
+    handles = [
         Line2D([], [], color=D.INK_SOFT, linestyle=D.STYLE_K3, lw=1.7,
                label="#373, k = 3, same cell and same head"),
         Line2D([], [], color=D.REF_K0_INK, linestyle=D.STYLE_K0, lw=1.7,
                label="published k = 0, same cell and same head"),
         Line2D([], [], color=D.PRIOR_INK, lw=2.0,
                label=f"the best this cell reached before this study, "
-                     f"{frontier:.4f}")],
-        loc="lower center", ncol=3, frameon=False, fontsize=9)
+                     f"{frontier:.4f}")]
+    if any(c[2] in xs for c in variants):
+        handles.append(
+            Line2D([], [], marker="o", ms=8.0, lw=0, mfc="white",
+                   mec=D.INK, mew=2.0,
+                   label="open marker: the same depth and stop on another "
+                         "training schedule"))
+    fig.legend(handles=handles, loc="lower center",
+               ncol=min(3, len(handles)), frameon=False, fontsize=9)
     fig.suptitle("GM-Relative MASE against backbone train step, "
                  "rollout depth k = 8 and 32", fontsize=12.5, color=D.INK)
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     fig.tight_layout(rect=(0, 0.07, 1, 0.94))
     fig.savefig(a.out)
     drawn = sum(len(e) for _, e in per_panel)
-    print(f"wrote {a.out}  ({drawn} line(s), frontier {frontier:.4f})")
+    shown = [c for c in variants if c[2] in xs]
+    extra = "".join(f", {v} k = {k} at bb{s}k" for _, k, s, v, _ in shown)
+    print(f"wrote {a.out}  ({drawn} line(s), frontier {frontier:.4f}"
+          f"{extra})")
     return 0
 
 

@@ -38,11 +38,14 @@ import depth_colours as D                                   # noqa: E402
 # The arm each table belongs to. `sum` is the stopped comparison arm.
 ARMS = ("sum", "mean")
 
-FIELDS = ["phase", "k", "stop", "head_steps", "encoder",
+FIELDS = ["phase", "k", "variant", "stop", "head_steps", "encoder",
           "sum", "mean", "delta", "ratio", "better"]
 
-# One cell is a (phase, depth, stop, head budget, encoder).
-KEY = ("phase", "k", "stop", "head_steps", "encoder")
+# One cell is a (phase, depth, variant, stop, head budget, encoder). The
+# variant is the training schedule: `base` is the card's, and a named one is a
+# side run at the same three numbers. Without it in the key, a variant row and
+# its base cell join as one, and the second one read overwrites the first.
+KEY = ("phase", "k", "variant", "stop", "head_steps", "encoder")
 
 
 def read_scores(path):
@@ -50,25 +53,29 @@ def read_scores(path):
 
     The mean arm's `scores.csv` does not exist until its first head, and this
     runs from the first minute of the study.
+
+    The summed arm's table was written before the `variant` column existed.
+    It holds grid cells only, so a missing column reads as `base` and the two
+    arms still join on the same key.
     """
     out = {}
     if not path or not Path(path).is_file():
         return out
     with open(path) as fh:
         for r in csv.DictReader(fh):
-            key = (int(r["phase"]), int(r["k"]), int(r["stop"]),
-                   int(r["head_steps"]), r["encoder"])
+            key = (int(r["phase"]), int(r["k"]), r.get("variant") or "base",
+                   int(r["stop"]), int(r["head_steps"]), r["encoder"])
             out[key] = float(r["score"])
     return out
 
 
 def order(key):
     """The study's own order: phase, then depth as the figures draw it, then
-    the stop."""
-    phase, k, stop, head, _ = key
+    the stop. A variant sorts after the base cell it sits beside."""
+    phase, k, variant, stop, head, _ = key
     rank = D.DEPTHS_DRAWN.index(k) if k in D.DEPTHS_DRAWN else len(
         D.DEPTHS_DRAWN) + k
-    return (phase, rank, stop, head)
+    return (phase, rank, stop, head, variant != "base", variant)
 
 
 def join(sum_scores, mean_scores):
@@ -93,13 +100,13 @@ def join(sum_scores, mean_scores):
 
 def markdown(rows):
     """The same table, for the report. `-` reads better than an empty cell."""
-    head = ["phase", "k", "backbone stop", "head steps", "sum", "mean",
-            "delta", "better"]
+    head = ["phase", "k", "schedule", "backbone stop", "head steps", "sum",
+            "mean", "delta", "better"]
     out = ["| " + " | ".join(head) + " |",
            "|" + "|".join(["---:"] * len(head)) + "|"]
     for r in rows:
         out.append("| " + " | ".join([
-            str(r["phase"]), f"k = {r['k']}", f"{r['stop']:,}",
+            str(r["phase"]), f"k = {r['k']}", r["variant"], f"{r['stop']:,}",
             f"{r['head_steps']:,}",
             r["sum"] or "-", r["mean"] or "-", r["delta"] or "-",
             r["better"] or "-"]) + " |")

@@ -59,9 +59,18 @@ def pick_arms(rows, n: int = N_ARMS, run_order=RUN_ORDER, stops=STOPS):
 
 
 def read_scores(path: str, phase: int = 1):
-    """The phase-1 rows of a `collect.sh` scores.csv."""
+    """The phase-1 GRID rows of a `collect.sh` scores.csv.
+
+    A variant row carries the same (depth, stop, head budget) as its base cell
+    on a different training schedule, so it is not a second stop of that arm.
+    Left in, it would enter `best[k]` and an arm could be picked on a schedule
+    the card does not run. A table written before the `variant` column existed
+    holds grid cells only, so a missing column reads as `base`.
+    """
     with open(path) as fh:
-        return [r for r in csv.DictReader(fh) if int(r["phase"]) == phase]
+        return [r for r in csv.DictReader(fh)
+                if int(r["phase"]) == phase
+                and (r.get("variant") or "base") == "base"]
 
 
 def main(argv=None):

@@ -740,6 +740,46 @@ class TestCollect:
         assert by_head[200]["phase"] == "1"
         assert by_head[400]["phase"] == "2"
 
+    def test_a_variant_cell_lands_beside_its_base_cell(self, tmp_path):
+        """`k32_ema30k_bb40k_h30k_student` is the card's cell at k = 32 with
+        the EMA ramp shortened. It holds the same depth, stop and head budget
+        as the base cell, so only the `variant` column keeps the two apart.
+
+        Before that column the collector refused the tag and printed one WARN
+        line. The score was then in no row of either table, and both
+        deliverable figures read those tables.
+        """
+        res = tmp_path / "results"
+        res.mkdir()
+        (res / "score_k32_bb40k_h30k_student.txt").write_text("1.2082\n")
+        (res / "score_k32_ema30k_bb40k_h30k_student.txt").write_text("1.2385\n")
+        out = run_sh(COLLECT, env={**SUM, "CF401_RESULTS": str(res)})
+        assert out.returncode == 0, out.stderr
+        assert "unparsed" not in out.stderr, out.stderr
+        rows = list(csv.DictReader(open(res / "scores.csv")))
+        assert len(rows) == 2, rows
+        by_variant = {r["variant"]: r for r in rows}
+        assert set(by_variant) == {"base", "ema30k"}
+        assert by_variant["base"]["score"] == "1.2082"
+        assert by_variant["ema30k"]["score"] == "1.2385"
+        # Same three numbers on both rows: the variant is a schedule, not a
+        # fourth stop or a second head budget.
+        for row in rows:
+            assert (row["k"], row["stop"], row["head_steps"]) == \
+                ("32", "40000", "30000"), row
+
+    def test_a_base_cell_reads_the_base_variant(self, tmp_path):
+        """The optional part must not shift the fields that follow it."""
+        res = tmp_path / "results"
+        res.mkdir()
+        (res / "score_k8_bb100k_h30k_student.txt").write_text("1.2857\n")
+        out = run_sh(COLLECT, env={**SUM, "CF401_RESULTS": str(res)})
+        assert out.returncode == 0, out.stderr
+        row, = list(csv.DictReader(open(res / "scores.csv")))
+        assert row == {"phase": "1", "k": "8", "variant": "base",
+                       "stop": "100000", "head_steps": "30000",
+                       "encoder": "student", "score": "1.2857"}
+
 
 # --- 8b. The per-domain table, which deliverable 1 draws from ----------------
 
@@ -822,6 +862,67 @@ class TestCollectSplits:
                                    "CF401_ROOT": str(tmp_path / "nothing")})
         assert out.returncode == 0, out.stderr
         assert list(csv.DictReader(open(res / "scores.csv")))
+
+    def test_a_pinned_root_is_the_only_tree_read(self, tmp_path):
+        """`CF401_ROOT=<tree>` means read that tree and no other.
+
+        The collector searches a few roots for a tag's eval, because the head
+        that produced it may have run under the sync tree or under the study
+        default. That search must stop at a root the caller pinned. Without
+        the guard, a run pointed at an empty directory found the real study's
+        evals through the sync root and reported another run's per-domain
+        numbers as its own.
+        """
+        res = tmp_path / "results"
+        res.mkdir()
+        (res / "score_k8_bb40k_h30k_student.txt").write_text("1.0700\n")
+        out = run_sh(COLLECT, env={**SUM, "CF401_RESULTS": str(res),
+                                   "CF401_ROOT": str(tmp_path / "nothing"),
+                                   "CF401_SYNC_ROOT": str(tmp_path / "sync")})
+        assert out.returncode == 0, out.stderr
+        assert list(csv.DictReader(open(res / "scores.csv")))
+        # No table at all, or an empty one. Never another tree's rows.
+        splits = res / "splits.csv"
+        rows = list(csv.DictReader(open(splits))) if splits.is_file() else []
+        assert rows == [], rows
+
+    def test_an_unpinned_root_also_looks_in_the_sync_tree(self, tmp_path):
+        """The heads ran on elisa, against the tree the sync loop lands in.
+
+        A `collect.sh` run by hand holds the study default root, which is not
+        that tree. Before this, such a run wrote a per-domain table with the
+        variant cell alone and dropped all eight grid cells.
+        """
+        res = tmp_path / "results"
+        res.mkdir()
+        sync = tmp_path / "sync"
+        (res / "score_k8_bb40k_h30k_student.txt").write_text("1.0700\n")
+        write_eval_csv(
+            sync / "k8" / "eval" / "k8_bb40k_h30k_student" / "gift"
+            / "all_results.csv", 1.05)
+        out = run_sh(COLLECT, env={**SUM, "CF401_RESULTS": str(res),
+                                   "CF401_SYNC_ROOT": str(sync)})
+        assert out.returncode == 0, out.stderr + out.stdout
+        rows = list(csv.DictReader(open(res / "splits.csv")))
+        assert {r["stop"] for r in rows} == {"k8_bb40k_h30k_student"}, rows
+
+    def test_a_variant_eval_is_found_under_its_own_root(self, tmp_path):
+        """A variant cell trains under `<root>-<variant>`, and #373's runner
+        lays its eval one level deeper than this study's own layout."""
+        res = tmp_path / "results"
+        res.mkdir()
+        root = tmp_path / "runs"
+        (res / "score_k32_ema30k_bb40k_h30k_student.txt").write_text("1.2385\n")
+        write_eval_csv(
+            tmp_path / "runs-ema30k" / "k32" / CELL / "eval"
+            / "k32_ema30k_bb40k_h30k_student" / "gift" / "all_results.csv",
+            1.05)
+        out = run_sh(COLLECT, env={**SUM, "CF401_RESULTS": str(res),
+                                   "CF401_ROOT": str(root)})
+        assert out.returncode == 0, out.stderr + out.stdout
+        rows = list(csv.DictReader(open(res / "splits.csv")))
+        assert {r["stop"] for r in rows} == \
+            {"k32_ema30k_bb40k_h30k_student"}, rows
 
 
 # --- 9. The k = 16 smoke test -------------------------------------------------
@@ -1289,7 +1390,7 @@ class TestRadarPanelPick:
         self.two_stops(splits, {"k16_bb40k_h30k_student": 1.30,
                                 "k16_bb200k_h30k_student": 1.05})
         assert self.panels(radar, splits) == [
-            (16, 200_000, "k16_bb200k_h30k_student")]
+            (16, 200_000, "base", "k16_bb200k_h30k_student")]
 
     def test_the_worse_aggregate_loses_even_with_six_better_families(
             self, radar, tmp_path):
@@ -1298,7 +1399,7 @@ class TestRadarPanelPick:
         self.two_stops(splits, {"k16_bb40k_h30k_student": 1.02,
                                 "k16_bb200k_h30k_student": 1.05})
         assert self.panels(radar, splits) == [
-            (16, 40_000, "k16_bb40k_h30k_student")]
+            (16, 40_000, "base", "k16_bb40k_h30k_student")]
 
     def test_a_tie_goes_to_the_earlier_stop(self, radar, tmp_path):
         splits = tmp_path / "splits.csv"
@@ -1326,12 +1427,40 @@ class TestRadarPanelPick:
             + "".join(f"k16_bb200k_h30k_student,domain,{d},7,1.05\n"
                       for d in DOMAINS))
         assert self.panels(radar, splits, stop="200000") == [
-            (16, 200_000, "k16_bb200k_h30k_student")]
+            (16, 200_000, "base", "k16_bb200k_h30k_student")]
+
+    def test_a_variant_takes_its_own_panel(self, radar, tmp_path):
+        """The tag carries a fifth part for a second training schedule at the
+        same three numbers. Keyed on (depth, stop) alone the two rows are one
+        panel, and the figure draws whichever the table lists second."""
+        splits = tmp_path / "splits.csv"
+        rows = []
+        for label, base in (("k32_bb40k_h30k_student", 1.20),
+                            ("k32_ema30k_bb40k_h30k_student", 1.24)):
+            for j, d in enumerate(DOMAINS):
+                rows.append((label, d, 5 + j, base + 0.01 * j))
+        write_splits(splits, rows)
+        got = self.panels(radar, splits)
+        assert [(k, s, v) for k, s, v, _ in got] == [
+            (32, 40_000, "base"), (32, 40_000, "ema30k")], got
+
+    def test_a_variant_never_wins_a_depths_own_panel(self, radar, tmp_path):
+        """Even when its aggregate is the better one. The base panel picks a
+        stop over the CARD's schedule, so a side run cannot take that slot."""
+        splits = tmp_path / "splits.csv"
+        rows = []
+        for label, base in (("k32_bb40k_h30k_student", 1.30),
+                            ("k32_ema30k_bb40k_h30k_student", 1.00)):
+            for j, d in enumerate(DOMAINS):
+                rows.append((label, d, 5 + j, base))
+        write_splits(splits, rows)
+        first, *_ = self.panels(radar, splits)
+        assert first[2] == "base", first
 
     def test_the_panels_are_in_the_studys_run_order(self, radar, tmp_path):
         splits = tmp_path / "splits.csv"
         study_splits(splits, phase=1)
-        assert [k for k, _, _ in self.panels(radar, splits)] == list(DEPTHS)
+        assert [k for k, _, _, _ in self.panels(radar, splits)] == list(DEPTHS)
 
 
 # --- 13. The trial: the head half of the pipeline, before phase 1 -------------
@@ -2425,6 +2554,47 @@ class TestTheTwoArmsAreJoined:
         assert md.is_file(), "no markdown table for the report"
         text = md.read_text()
         assert "1.9" in text and "2.0" in text, text
+
+    def test_a_variant_does_not_merge_into_its_base_cell(self, tmp_path):
+        """`k32_ema30k_bb40k` holds the same depth, stop and head budget as
+        `k32_bb40k`. Only the schedule differs. Joined on the other four
+        fields the two are one key, and the second one read replaces the
+        first — so the table would show one cell and one of the two scores,
+        with nothing saying which."""
+        mean = tmp_path / "mean.csv"
+        mean.parent.mkdir(parents=True, exist_ok=True)
+        with open(mean, "w", newline="") as fh:
+            w = csv.writer(fh)
+            w.writerow(["phase", "k", "variant", "stop", "head_steps",
+                        "encoder", "score"])
+            w.writerow([1, 32, "base", 40_000, HEAD_STEPS_PHASE1,
+                        "student", 1.2082])
+            w.writerow([1, 32, "ema30k", 40_000, HEAD_STEPS_PHASE1,
+                        "student", 1.2385])
+        out_csv = tmp_path / "arm_compare.csv"
+        proc = subprocess.run(
+            [sys.executable, str(COMPARE_PY),
+             "--sum", str(self.scores(tmp_path / "sum.csv", [])),
+             "--mean", str(mean), "--out", str(out_csv)],
+            capture_output=True, text=True, timeout=120)
+        assert proc.returncode == 0, proc.stderr
+        rows = self.rows_of(out_csv)
+        assert len(rows) == 2, rows
+        by_variant = {r["variant"]: r for r in rows}
+        assert set(by_variant) == {"base", "ema30k"}
+        assert float(by_variant["base"][REDUCE]) == pytest.approx(1.2082)
+        assert float(by_variant["ema30k"][REDUCE]) == pytest.approx(1.2385)
+        # The base cell sorts first, so the pair reads together.
+        assert [r["variant"] for r in rows] == ["base", "ema30k"]
+
+    def test_a_table_without_the_variant_column_still_joins(self, tmp_path):
+        """The summed arm's table was written before the column existed."""
+        proc, out = self.compare(tmp_path, [(8, 40_000, 2.0357)],
+                                 [(8, 40_000, 1.9000)])
+        assert proc.returncode == 0, proc.stderr
+        row = self.rows_of(out)[0]
+        assert row["variant"] == "base"
+        assert row["better"] == REDUCE
 
     def test_two_empty_tables_are_refused(self, tmp_path):
         proc, _ = self.compare(tmp_path, [], [])

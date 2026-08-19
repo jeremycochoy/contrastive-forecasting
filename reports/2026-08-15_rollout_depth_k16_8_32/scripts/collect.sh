@@ -18,6 +18,16 @@
 # budget). The tag carries all three, so the table is read back out of the
 # filenames rather than kept in a second place that can drift from them.
 #
+# A tag can carry a fourth part: a VARIANT, between the depth and the stop.
+# `k32_ema30k_bb40k_h30k_student` is the card's cell at k = 32 with the EMA
+# ramp shortened to 30,000 steps. It is a different training schedule at the
+# same (depth, stop, head budget), so it is a different cell, and the
+# `variant` column is what says so. Without that column the variant and the
+# base cell share one key, and a reader — or a plot — takes the second one
+# read as the first one's score.
+#
+# `base` is the card's own schedule. Every grid cell is `base`.
+#
 # The phase is derived, not stored: a head budget equal to the backbone stop
 # is phase 2, anything else is phase 1. That is the card's own definition of
 # the two phases.
@@ -43,24 +53,31 @@ mkdir -p "$CF401_RESULTS"
 split_args=()
 
 {
-  echo "phase,k,stop,head_steps,encoder,score"
+  echo "phase,k,variant,stop,head_steps,encoder,score"
   for f in "$CF401_RESULTS"/score_k*.txt; do
     [ -e "$f" ] || continue
     [ -s "$f" ] || continue
     score="$(tr -d ' \t\r\n' <"$f")"
     [ -n "$score" ] || continue
-    # score_k<K>_bb<label>_h<label>_<enc>.txt, where a label is `40k` or,
-    # for a trial budget that is not a multiple of 1000, `400`.
-    base="$(basename "$f" .txt)"
-    tag="${base#score_}"
+    # score_k<K>[_<variant>]_bb<label>_h<label>_<enc>.txt, where a label is
+    # `40k` or, for a trial budget that is not a multiple of 1000, `400`.
+    #
+    # Two anchored patterns, not one with an optional group. An optional
+    # group that matches nothing prints an empty field, `read` then collapses
+    # the two spaces around it, and every field after it shifts left by one —
+    # so a base cell would take its stop as its variant and lose its encoder.
+    stem="$(basename "$f" .txt)"
+    tag="${stem#score_}"
     fields="$(printf '%s\n' "$tag" \
-      | sed -nE 's/^k([0-9]+)_bb([0-9]+k?)_h([0-9]+k?)_(.+)$/\1 \2 \3 \4/p')"
-    [ -n "$fields" ] || { echo "WARN: unparsed score file $base" >&2; continue; }
-    read -r k stop_l head_l enc <<<"$fields"
+      | sed -nE 's/^k([0-9]+)_bb([0-9]+k?)_h([0-9]+k?)_(.+)$/\1 base \2 \3 \4/p')"
+    [ -n "$fields" ] || fields="$(printf '%s\n' "$tag" \
+      | sed -nE 's/^k([0-9]+)_([a-z][a-z0-9]*)_bb([0-9]+k?)_h([0-9]+k?)_(.+)$/\1 \2 \3 \4 \5/p')"
+    [ -n "$fields" ] || { echo "WARN: unparsed score file $stem" >&2; continue; }
+    read -r k variant stop_l head_l enc <<<"$fields"
     stop="$(cf401_steps_of "$stop_l")"; head="$(cf401_steps_of "$head_l")"
     phase=1; [ "$head" -eq "$stop" ] && phase=2
-    echo "$phase,$k,$stop,$head,$enc,$score"
-    split_args+=(--stop "$tag=$(cf401_eval_dir "$k" "$tag")/gift/all_results.csv")
+    echo "$phase,$k,$variant,$stop,$head,$enc,$score"
+    split_args+=(--stop "$tag=$(cf401_eval_csv "$k" "$tag" "$variant")")
   done
 } >"$OUT.tmp"
 mv -f "$OUT.tmp" "$OUT"

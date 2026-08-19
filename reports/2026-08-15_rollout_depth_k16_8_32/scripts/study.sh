@@ -126,6 +126,18 @@ CF401_SYNC_ROOT="${CF401_SYNC_ROOT:-$CF401_SYNC_DIR/sync}"
 #
 # The run name carries the reduction either way, so two objectives under one
 # overridden root still write two checkpoint sets.
+# Whether the caller PINNED the root, captured before the defaults below take
+# it. A pinned root is a deliberate "read this tree and no other", and
+# `cf401_eval_csv` must not widen its search past it — a test that points the
+# root at an empty directory, to check the no-eval path, would otherwise find
+# the real study's evals and read another run's numbers as its own.
+#
+# A launcher that exports the root counts as pinned, and that is right: it
+# pinned it through `cf401_use_root`, which already resolved to the tree it
+# wants.
+if [ -n "${CF401_ROOT:-}" ]; then CF401_ROOT_PINNED=1
+else CF401_ROOT_PINNED=0; fi
+
 if [ "$CF401_REDUCE" = "sum" ]; then
   CF401_RUN_SUFFIX=""
   CF401_ROOT="${CF401_ROOT:-$CF401_ROOT_DEFAULT}"
@@ -235,6 +247,43 @@ cf401_tag(){  # <k> <stop steps> <head steps>
 # see cf401_arm_root.
 cf401_eval_dir(){  # <k> <tag>
   printf '%s/eval/%s\n' "$(cf401_arm_root "${1:?k}")" "${2:?tag}"
+}
+
+# The eval's own 97-config CSV for one tag, wherever that tag's eval landed.
+#
+# A tag's eval is under one of a few roots, in one of two layouts, and which
+# one depends on who ran the head rather than on anything in the tag.
+#
+#   roots    CF401_ROOT is whatever the caller holds. `heads_watch.sh` points
+#            it at the sync tree the box lands in, through `cf401_use_root`,
+#            and a plain `collect.sh` keeps the study default. Neither knows
+#            the other's, so both are tried — but the sync tree ONLY when the
+#            caller left the root at its default. A pinned root means read
+#            that tree and no other. A VARIANT cell is a side run under its
+#            own root, `<study root>-<variant>`, which is tried against both
+#            of those bases for the same reason.
+#   layouts  this study lays an eval at <root>/k<K>/eval/<tag>. #373's runner,
+#            which the variant cell was driven by hand through, lays it one
+#            level deeper, at <root>/k<K>/<cell>/eval/<tag>.
+#
+# A tag names exactly one eval, so no order over these candidates can return
+# another cell's numbers. When none exists, this study's own path under
+# CF401_ROOT is printed unchanged, and `split_scores.py` reports the miss as
+# it did before.
+cf401_eval_csv(){  # <k> <tag> [variant]
+  local k="${1:?k}" tag="${2:?tag}" var="${3:-base}" first root c roots
+  first="$(cf401_eval_dir "$k" "$tag")/gift/all_results.csv"
+  roots=("${CF401_ROOT%/}" "${CF401_ROOT%/}-$var")
+  [ "${CF401_ROOT_PINNED:-0}" -eq 1 ] || roots+=(
+    "${CF401_SYNC_ROOT%/}" "$CF401_ROOT_DEFAULT-$CF401_REDUCE-$var")
+  for root in "${roots[@]}"; do
+    [ -n "$root" ] || continue
+    for c in "$root/k$k/eval/$tag/gift/all_results.csv" \
+             "$root/k$k/$CF401_CELL/eval/$tag/gift/all_results.csv"; do
+      [ -f "$c" ] && { printf '%s\n' "$c"; return 0; }
+    done
+  done
+  printf '%s\n' "$first"
 }
 
 cf401_is_in(){  # <value> <space separated list>
