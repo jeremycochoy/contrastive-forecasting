@@ -200,8 +200,8 @@ def main():
                            label=f"k = {k}") for k in (8, 16, 32)]
     ax[0].legend(handles=handles, fontsize=8, loc="upper right", ncol=2)
 
-    fig.suptitle("#401 — the summed arm collapsed to one direction. The mean "
-                 "arm did not, and still does not beat k = 0.", fontsize=11)
+    fig.suptitle("Latent rank and readout against score, both reductions",
+                 fontsize=11)
     # The layout settles BEFORE the labels are placed. `place_labels` measures
     # in display coordinates, and `tight_layout` moves the axes box, so a
     # placement made first would be checked against a panel of another size.

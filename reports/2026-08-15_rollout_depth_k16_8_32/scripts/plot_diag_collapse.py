@@ -54,23 +54,23 @@ CURVES = REPO / "reports/2026-08-08_rollout_depth/curves"
 # files. They are read in order and concatenated, which is what the summed
 # arms' single `leg_40k` file already is.
 ARMS = [
-    ("k = 3  (#373 A4, sum, published 1.0862)", "#2f6f4e", "-",
+    ("k = 3, published reference, 1.0862", "#2f6f4e", "-",
      [CURVES / "r2/A4_cf393_arm6_v2_combab_alignS_cf373k3_losses.csv"]),
-    ("k = 8  (#401 sum, scored 2.0357)", "#c9772a", (0, (5, 2)),
+    ("k = 8 sum, scored 2.0357", "#c9772a", (0, (5, 2)),
      [CF401 / "k8/arm6_v2_combab_alignS/leg_40k/"
               "cf393_arm6_v2_combab_alignS_cf373k8_losses.csv"]),
-    ("k = 16 (#401 sum, scored 4.5297)", "#a63a3a", (0, (5, 2)),
+    ("k = 16 sum, scored 4.5297", "#a63a3a", (0, (5, 2)),
      [CF401 / "k16/arm6_v2_combab_alignS/leg_40k/"
               "cf393_arm6_v2_combab_alignS_cf373k16_losses.csv"]),
-    ("k = 32 (#401 sum, scored 7.9575)", "#3a5ba6", (0, (5, 2)),
+    ("k = 32 sum, scored 7.9575", "#3a5ba6", (0, (5, 2)),
      [CF401 / "k32/arm6_v2_combab_alignS/leg_40k/"
               "cf393_arm6_v2_combab_alignS_cf373k32_losses.csv"]),
-    ("k = 8  (#401 mean, scored 1.2433)", "#c9772a", (0, (1, 1.4)),
+    ("k = 8 mean, scored 1.2433", "#c9772a", (0, (1, 1.4)),
      [CF401M / "k8/arm6_v2_combab_alignS/leg_20k/"
                "cf393_arm6_v2_combab_alignS_cf373k8_mean_losses.csv",
       CF401M / "k8/arm6_v2_combab_alignS/leg_40k/"
                "cf393_arm6_v2_combab_alignS_cf373k8_mean_losses.csv"]),
-    ("k = 32 (#401 mean, scored 1.2082)", "#3a5ba6", (0, (1, 1.4)),
+    ("k = 32 mean, scored 1.2082", "#3a5ba6", (0, (1, 1.4)),
      [CF401M / "k32/arm6_v2_combab_alignS/leg_20k/"
                 "cf393_arm6_v2_combab_alignS_cf373k32_mean_losses.csv",
       CF401M / "k32/arm6_v2_combab_alignS/leg_40k/"
@@ -169,9 +169,8 @@ def collapse_onset():
     h, l = axes[0].get_legend_handles_labels()
     fig.legend(h, l, fontsize=9, ncol=3, loc="lower center",
                frameon=False, bbox_to_anchor=(0.5, -0.03))
-    fig.suptitle("#401 — the SUMMED arms collapse at every depth. The same "
-                 "cell, the same depths, under the MEAN reduction, does not",
-                 fontsize=11)
+    fig.suptitle("Training-time collapse probes, both reductions, "
+                 "against backbone step", fontsize=11)
     fig.tight_layout(rect=(0, 0.12, 0.98, 0.95))
     out = PLOTS / "collapse_onset.png"
     fig.savefig(out, dpi=150)

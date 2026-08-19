@@ -268,7 +268,7 @@ def main(argv=None):
 
         sched = "" if variant == "base" else f", {variant} schedule"
         ax.set_title(f"{D.label(k)}   at bb{steps_label(stop)}{sched}\n"
-                     f"against #373's k = 3, same cell", fontsize=9, pad=18)
+                     f"against k = 3, same cell and same head", fontsize=9, pad=18)
 
     for idx in range(len(panels), nrow * ncol):
         axes[idx // ncol][idx % ncol].axis("off")
@@ -282,7 +282,7 @@ def main(argv=None):
                for k, _, v, _ in panels]
     handles += [
         Line2D([], [], color=D.REF_K3_INK, lw=1.8, linestyle=D.STYLE_K3,
-               label="#373's k = 3, the depth this study extends"),
+               label="k = 3, the depth this study extends"),
         Line2D([], [], color=D.PRIOR_INK, lw=3.4,
                label="the best per-domain result before this study"),
         Line2D([], [], color=D.PARITY_INK, lw=1.7,

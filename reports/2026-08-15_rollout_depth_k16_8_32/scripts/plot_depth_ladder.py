@@ -247,7 +247,7 @@ def main(argv=None):
 
     handles = [
         Line2D([], [], color=D.INK_SOFT, linestyle=D.STYLE_K3, lw=1.7,
-               label="#373, k = 3, same cell and same head"),
+               label="k = 3, same cell and same head"),
         Line2D([], [], color=D.REF_K0_INK, linestyle=D.STYLE_K0, lw=1.7,
                label="published k = 0, same cell and same head"),
         Line2D([], [], color=D.PRIOR_INK, lw=2.0,
