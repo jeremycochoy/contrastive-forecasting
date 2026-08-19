@@ -31,7 +31,7 @@ while :; do
       else echo \"\$a \$(grep -c '^' $BOX_RUNS/\$a/eval/\$t/stop.log 2>/dev/null || echo 0) \$(tail -1 $BOX_RUNS/\$a/eval/\$t/stop.log 2>/dev/null | tr -d '\n' | tail -c 90)\"
       fi
     done
-    echo \"LIVE \$(pgrep -c -f train_forecasting_head 2>/dev/null || echo 0)\"
+    echo \"LIVE \$(pgrep -c -f '[t]rain_forecasting_head' 2>/dev/null || echo 0)\"
     nvidia-smi --query-gpu=index,memory.used,utilization.gpu --format=csv,noheader | tr '\n' '|'
   ")"
   if [ -z "$out" ]; then

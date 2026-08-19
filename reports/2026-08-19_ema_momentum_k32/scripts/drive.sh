@@ -65,7 +65,7 @@ while :; do
       t=\${a}_bb40k_h30k_student
       f=$BOX_RUNS/\$a/eval/\$t/qhead_\${t}_s20260722_final.pth
       [ -f \"\$f\" ] && echo \"\$a \$(wc -c <\"\$f\")\" || echo \"\$a 0\"
-    done; echo \"LIVE \$(pgrep -c -f train_forecasting_head || echo 0)\"")"
+    done; echo \"LIVE \$(pgrep -c -f '[t]rain_forecasting_head' || echo 0)\"")"
   live="$(printf '%s\n' "$listing" | awk '/^LIVE /{print $2}')"
   n=0
   while read -r arm size; do

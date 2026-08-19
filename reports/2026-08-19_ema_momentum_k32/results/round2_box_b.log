@@ -49,3 +49,10 @@ arm a095 gpu=1 stops='40000' heads=0
 arm s08b gpu=0 stops='40000' heads=0
 [08-19 22:08:27] [#404 bootstrap ssh4.vast.ai:29746] OK
 [08-19 22:08:27] [#404 box_b/a085] bootstrap OK
+box reduce=mean root=/root/cf404_runs results=/root/cf/reports/2026-08-19_ema_momentum_k32/results
+arm a085 gpu=0 stops='40000' heads=0
+[box_b] sync loop pid 1881950 -> /home/jupyter/cf404_sync/box_b
+[box_b] waiting for the first tick
+[box_b] WARNING: nothing landed in 10 minutes — check /home/jupyter/cf404_sync/box_b/sync_loop.log
+[08-19 22:18:33] [#404 box_b/a085] sync loop -> /home/jupyter/cf404_sync/box_b (1 file(s) here)
+[08-19 22:18:39] [#404 box_b/a085] a trainer already runs on the box

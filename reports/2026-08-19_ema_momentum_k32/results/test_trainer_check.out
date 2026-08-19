@@ -1,0 +1,29 @@
+#404 trainer-check test   nonce=cf404test1930446
+  backbone pattern: [r]un_leg_k.sh arm6_v2_combab_alignT cf404test1930446
+  head pattern:     [t]rain_forecasting_head cf404test1930446
+
+1. no trainer — the check must be false
+  PASS  backbone, fixed pattern -> no
+  PASS  head, fixed pattern -> no
+
+2. the defect, kept visible — a bare pattern is true with no trainer
+  PASS  backbone, bare pattern -> yes
+  PASS  head, bare pattern -> yes
+
+3. a trainer runs — the check must be true
+  PASS  backbone, fixed pattern -> yes
+  PASS  head, fixed pattern -> yes
+
+4. the trainers are gone — the check must be false again
+  PASS  backbone, fixed pattern -> no
+  PASS  head, fixed pattern -> no
+
+5. the real driver patterns, against this machine as it is
+  INFO  [r]un_leg_k.sh arm6_v2_combab_alignT       -> false  0 real process(es)
+  INFO  [t]rain_forecasting_head                   -> true   3 real process(es)
+
+6. the driver sends the fixed pattern, not a bare one
+  PASS  round2_box.sh:137 uses cf404_pgrep_pattern
+  PASS  round2_box.sh:181 uses cf404_pgrep_pattern
+
+10 passed, 0 failed

@@ -17,3 +17,39 @@ Warning: Permanently added '[ssh7.vast.ai]:29866' (ED25519) to the list of known
 Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
 Have fun!
 started
+[08-19 22:09:58] [bootstrap ssh7.vast.ai:29866] waiting for BOOTSTRAP_OK (install is ~4 min)
+[08-19 22:10:02] [bootstrap ssh7.vast.ai:29866] OK
+Warning: Permanently added '[ssh7.vast.ai]:29866' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+BOX-ENV driver=580.105.08, NVIDIA GeForce RTX 5090, Default
++ echo BOOTSTRAP_OK
+BOOTSTRAP_OK
+[08-19 22:10:05] [#404 bootstrap ssh7.vast.ai:29866] shipping reports/2026-08-19_ema_momentum_k32
+Warning: Permanently added '[ssh7.vast.ai]:29866' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+Warning: Permanently added '[ssh7.vast.ai]:29866' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[08-19 22:10:21] [#404 bootstrap ssh7.vast.ai:29866] checking the box's checkout
+Warning: Permanently added '[ssh7.vast.ai]:29866' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+box reduce=mean root=/root/cf404_runs results=/root/cf/reports/2026-08-19_ema_momentum_k32/results
+arm a08 gpu=0 stops='40000' heads=0
+arm a09 gpu=1 stops='40000' heads=0
+arm s08 gpu=0 stops='40000' heads=0
+arm s09 gpu=1 stops='40000' heads=0
+arm a085 gpu=0 stops='40000' heads=0
+arm a095 gpu=1 stops='40000' heads=0
+arm s08b gpu=0 stops='40000' heads=0
+[08-19 22:10:24] [#404 bootstrap ssh7.vast.ai:29866] OK
+[08-19 22:10:24] [#404 box_c/a095] bootstrap OK
+box reduce=mean root=/root/cf404_runs results=/root/cf/reports/2026-08-19_ema_momentum_k32/results
+arm a095 gpu=0 stops='40000' heads=0
+[box_c] sync loop pid 1884109 -> /home/jupyter/cf404_sync/box_c
+[box_c] waiting for the first tick
+[box_c] WARNING: nothing landed in 10 minutes — check /home/jupyter/cf404_sync/box_c/sync_loop.log
+[08-19 22:20:30] [#404 box_c/a095] sync loop -> /home/jupyter/cf404_sync/box_c (1 file(s) here)
+[08-19 22:20:36] [#404 box_c/a095] a trainer already runs on the box

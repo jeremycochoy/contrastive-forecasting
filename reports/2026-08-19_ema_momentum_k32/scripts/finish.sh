@@ -39,7 +39,7 @@ while :; do
   if [ -n "${WAIT_PID:-}" ]; then
     kill -0 "$WAIT_PID" 2>/dev/null || { say "eval driver $WAIT_PID gone"; break; }
   else
-    pgrep -f 'bash .*evals_elisa\.sh' >/dev/null || { say "no eval driver"; break; }
+    pgrep -f 'bash .*[e]vals_elisa\.sh' >/dev/null || { say "no eval driver"; break; }
   fi
   if [ "$waited" -ge "$TIMEOUT" ]; then
     say "TIMEOUT after ${waited}s — going on with what is scored"

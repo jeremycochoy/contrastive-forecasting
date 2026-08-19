@@ -431,6 +431,27 @@ cf404_last_cmdline(){  # <trainer log>
   printf '%s' "${line#Command line: }"
 }
 
+# A `pgrep -f` pattern that CANNOT match the shell that carries it.
+#
+# `ssh box "pgrep -f X"` runs `bash -c "pgrep -f X"` ON THE BOX, so the pattern
+# X is then inside that shell's own command line. `pgrep -f` reads full command
+# lines. It matches the shell, and the check is TRUE on a box with no trainer
+# at all. `pgrep` drops its own pid from the result and nothing else, so this
+# is invisible in a local test that does not go through a second shell.
+#
+# On 2026-08-19 `round2_box.sh` sent two bare patterns this way. Three boxes
+# read "a trainer already runs on the box", started none, and sat at 0% GPU for
+# 30 minutes at $0.3611/h each.
+#
+# The fix is a bracket class on the first character. `[r]un_leg_k` matches the
+# text `run_leg_k` and does NOT match the text `[r]un_leg_k` that the shell
+# carries. Send a pattern from here to every remote `pgrep -f`, never a bare
+# one. `scripts/test_trainer_check.sh` proves both directions.
+cf404_pgrep_pattern(){  # <pattern>
+  local p="${1:?pattern}"
+  printf '[%s]%s\n' "${p:0:1}" "${p:1}"
+}
+
 # Every process under a tree, leaves first, so a signal reaches the trainer
 # before the wrapper that would otherwise report its death first.
 cf404_kill_tree(){  # <pid>

@@ -134,7 +134,7 @@ box_bb(){ rsh "ls -1 $BOX_LEG/${NAME}_${KK}k.pth 2>/dev/null | head -1"; }
 if [ -n "$(box_bb)" ]; then
   say "backbone already on the box"
 else
-  if rsh "pgrep -f 'run_leg_k.sh $CF404_CELL' >/dev/null"; then
+  if rsh "pgrep -f '$(cf404_pgrep_pattern "run_leg_k.sh $CF404_CELL")' >/dev/null"; then
     say "a trainer already runs on the box"
   else
     say "starting the backbone"
@@ -178,7 +178,7 @@ box_head(){ rsh "test -f $BOX_HEAD && wc -c <$BOX_HEAD"; }
 if [ "$(box_head || echo 0)" -gt 200000 ] 2>/dev/null; then
   say "head already on the box"
 else
-  if rsh "pgrep -f train_forecasting_head >/dev/null"; then
+  if rsh "pgrep -f '$(cf404_pgrep_pattern train_forecasting_head)' >/dev/null"; then
     say "a head trainer already runs on the box"
   else
     say "starting the head"
