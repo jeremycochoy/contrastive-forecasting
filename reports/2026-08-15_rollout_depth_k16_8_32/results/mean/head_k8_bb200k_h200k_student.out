@@ -3,3 +3,8 @@
 Terminated
 [08-19 18:30:59] [#401] head k8_bb200k_h200k_student on cf393_arm6_v2_combab_alignS_cf373k8_mean_200k.pth
 [08-19 18:30:59] [k8_bb200k_h200k_student] head-train start enc=student steps=200000 seed=20260722 gpu=1 bb=cf393_arm6_v2_combab_alignS_cf373k8_mean_200k.pth
+[08-20 03:10:46] [k8_bb200k_h200k_student] head-train rc=0
+[08-20 03:10:46] [k8_bb200k_h200k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-20 04:28:19] [k8_bb200k_h200k_student] eval rc=0
+[08-20 04:28:19] [k8_bb200k_h200k_student] DONE — GM-Relative MASE 1.2928
+[08-20 04:28:19] [#401] head k8_bb200k_h200k_student rc=0
