@@ -27,9 +27,24 @@ Four channels, four facts, none of them carrying two:
                pools those into one standard deviation. A move between two
                stops that stays inside the ribbon is inside the noise of
                one head draw.
+
+               The ribbon carries two assumptions, and the caption states
+               both. It is ONE number pooled over the student and the
+               teacher, so it assumes the two heads share one spread. It
+               runs the whole axis, but draws exist at some stops only, so
+               at every other stop it is an extrapolation. A standard
+               deviation from three draws carries about 40% relative
+               uncertainty, so the caption gives the RANGE and the count
+               beside it.
   small dots   every replicate draw, at its own stop. They show the spread
                the ribbon summarises, so the reader is not asked to take
                the band on trust.
+
+The three hollow points are #373's, and they do not all come from one round
+of that study. 40k comes from `cf373_r2`, 100k and 200k come from
+`cf373_r3`, and the 200k file carries an `_r2_` infix from the round that
+wrote it. `caption()` prints that line, because the figure puts all three on
+one axis.
 
 The line keeps the PROTOCOL SEED's score at every stop, not the mean of
 the draws. That number is the card's deliverable and it is the number
@@ -100,8 +115,11 @@ def draw(ax, head, points, parent_stops, sides, band=0.0, draws=None):
     ax.plot([x / 1000 for x in xs], [points[x] for x in xs],
             lw=2.0, color=colour, zorder=3, solid_capstyle="round")
     for step, got in (draws or {}).items():
-        for seed, value in got.items():
-            if seed == HB.PROTOCOL_SEED:
+        for value in got.values():
+            # The line already carries one draw at this stop. Skip that one
+            # by VALUE, not by seed: at 200k the protocol seed's key holds
+            # the re-draw, and the line still holds #373's published number.
+            if step in points and value == points[step]:
                 continue
             ax.plot(step / 1000, value, marker="o", ms=3.4, color=colour,
                     mfc=colour, mec="white", mew=0.6, alpha=0.85, zorder=5,
@@ -122,6 +140,49 @@ def draw(ax, head, points, parent_stops, sides, band=0.0, draws=None):
                                                 foreground="white")])
 
 
+# Review gap 8. The three hollow points do not share a round of #373.
+PARENT_PROVENANCE = (
+    "The three hollow points are #373's. 40k comes from the cf373_r2 tree, "
+    "100k and 200k come from cf373_r3, and the 200k checkpoint file carries "
+    "an _r2_ infix from the round that wrote it.")
+
+
+def caption(band, rows, drawn, all_stops):
+    """The figure's caption, as review gaps 5 and 8 ask for it.
+
+    Two facts about the ribbon, one about the hollow points. Every number
+    in it is measured, not assumed.
+    """
+    out = []
+    if band > 0:
+        with_draws = sorted({s for _, d in drawn.items() for s in d})
+        without = [s for s in all_stops if s not in with_draws]
+        spans = [max(g.values()) - min(g.values()) for _, _, g in rows]
+        counts = sorted({len(g) for _, _, g in rows})
+        out.append(
+            f"The ribbon is \u00b1{band:.4f}, one pooled head-seed standard "
+            f"deviation over {len(rows)} (stop, head) rows of "
+            f"{'/'.join(str(c) for c in counts)} draws each. Measured "
+            f"ranges: {', '.join(f'{v:.4f}' for v in sorted(spans))}.")
+        out.append(
+            f"A standard deviation from {counts[0]} draws carries about 40% "
+            f"relative uncertainty, so read the range, not the ribbon edge.")
+        out.append(
+            "The ribbon pools the student and the teacher into one number, "
+            "so it assumes the two heads share one spread.")
+        if without:
+            out.append(
+                f"Draws exist at "
+                f"{', '.join(f'{s // 1000}k' for s in with_draws)} only. At "
+                f"{', '.join(f'{s // 1000}k' for s in without)} the ribbon "
+                f"is an extrapolation.")
+    else:
+        out.append("No replicate draw is on disk, so the figure carries no "
+                   "ribbon.")
+    out.append(PARENT_PROVENANCE)
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--results", default=FP.RESULTS,
@@ -137,7 +198,8 @@ def main():
     # The head-seed band, from whatever replicate draws are on disk. A
     # study with no replicate yet draws no ribbon rather than a made-up one.
     all_stops = sorted({s for c in curves.values() for s in c})
-    drawn = {h: {s: HB.draws(s, h, a.results, a.parent) for s in all_stops}
+    drawn = {h: {s: HB.local_draws(s, h, a.results, a.parent)
+                 for s in all_stops}
              for h in FP.HEADS}
     drawn = {h: {s: g for s, g in d.items() if len(g) >= 2}
              for h, d in drawn.items()}
@@ -194,8 +256,11 @@ def main():
         handles.append(Line2D([], [], color=INK_SOFT, lw=0, marker="o",
                               ms=3.4, mfc=INK_SOFT, mec="white", mew=0.6,
                               label="one more head-seed draw"))
+        measured = sorted({st for d in drawn.values() for st in d})
+        where = "/".join(f"{st // 1000}k" for st in measured)
         handles.append(Patch(facecolor=INK_SOFT, alpha=0.13, lw=0,
-                             label=f"head-seed band, \u00b1{band:.4f}"))
+                             label=f"head-seed band, \u00b1{band:.4f}, "
+                                   f"measured at {where}"))
     # Bottom left, not top right. The rule label is anchored to the right
     # edge at y = best, and every new point of this card is expected below
     # 1.0660, which puts that label high on the axis and under a top-right
@@ -204,11 +269,24 @@ def main():
     ax.legend(handles=handles, frameon=False, fontsize=9, labelcolor=INK_SOFT,
               loc="lower left", handletextpad=0.6, borderaxespad=1.2)
 
+    # Review gaps 5 and 8. The reader must not have to find the report to
+    # learn that the ribbon is one number for two heads, and that it is an
+    # extrapolation away from the stops that carry draws.
+    note = caption(band, rows, drawn, all_stops)
+    fig.text(0.0, -0.02, "\n".join(note), ha="left", va="top",
+             fontsize=7.6, color=INK_SOFT, wrap=True)
+
     out = Path(a.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.tight_layout()
     fig.savefig(out, dpi=200, bbox_inches="tight", facecolor="white")
     print(f"wrote {out}")
+    cap = out.parent.parent / "results" / "figure_caption.txt"
+    if cap.parent.is_dir():
+        cap.write_text("\n".join(note) + "\n")
+        print(f"wrote {cap}")
+    for line in note:
+        print(f"  caption: {line}")
     for head in FP.HEADS:
         row = "  ".join(f"bb{s // 1000}k={v:.4f}"
                         for s, v in sorted(curves[head].items()))

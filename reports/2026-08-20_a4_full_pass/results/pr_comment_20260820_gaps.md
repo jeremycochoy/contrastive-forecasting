@@ -26,25 +26,53 @@ tensors, bit for bit. The student moves 106 of 110 over the same steps, at
 relative L2 0.599. The 40k against 100k control moves all 52 teacher
 tensors. So the answer did not wait for the 300k stop.
 
-**The frozen teacher gives a free null, and it is not small.** #373's 100k
-teacher scored 1.0874 and its 200k teacher scored 1.0828. Both heads read
-encoder weights that are equal bit for bit. Both used head seed 20260722,
-30,000 steps and the same protocol. Only the machine differed. So **0.0046
-is a pure repeatability difference**, and it is 32% of the 0.0141 gap that
-made 1.0660 the project's best.
+**CORRECTED on 2026-08-20, round 3. The 0.0046 is not a null.** The earlier
+text on this page called 1.0874 against 1.0828 a pure repeatability
+difference. That reading needs the teacher head to read teacher tensors
+only, and `teacher_head_inputs.py` shows it does not.
+`prepare_backbone_state_dict(sd, "teacher")` promotes
+`teacher_input_to_latent.*` and `teacher_encoder_layers.*` over the
+student's slots. It leaves every other tensor the student's: the frequency
+table, the seasonality table and the three forecaster layers. Of the 110
+tensors the head's backbone loads, 74 come from the teacher and 36 from the
+student, and **32 of those 36 move between 100k and 200k**. Two forward
+passes on one fixed batch confirm it: the encoder latents differ at relative
+L2 0.0136 and the forecaster latents at 0.1013. The head reads both under
+`--head-train-input e_then_f`. So the two teacher scores do not share one
+head input, and 0.0046 measures a real change, not repeatability.
+Evidence: `results/teacher_head_inputs_100k_200k.json`,
+`results/teacher_pool.txt`.
 
-**That null breaks the paired config bootstrap.** On the same null pair, the
-bootstrap over the 97 configs calls the medium and long subset "improved in
-99.6% of resamples", with a 95% interval of [-0.0713, -0.0091] that excludes
-zero. The interval is real and it measures the wrong thing. It is a false
-positive on a comparison with no change behind it. This is why the head-seed
-band of item 1 is the item that decides the card.
+**CORRECTED on 2026-08-20, round 3. The bootstrap passed the null.** The
+earlier text on this page quoted the `medium_long` row of
+`results/null_frozen_teacher.csv` alone and called the interval a false
+positive. That was a subset picked after the numbers were seen. The
+aggregate row is the one to read.
+
+| subset | n | delta | 95% interval | p_improved |
+|---|---:|---:|---|---:|
+| all | 97 | -0.0046 | [-0.0199, 0.0123] | 0.711 |
+| short | 55 | 0.0150 | [-0.0005, 0.0340] | 0.029 |
+| medium_long | 42 | -0.0381 | [-0.0713, -0.0091] | 0.996 |
+
+The all-97 interval straddles zero at p = 0.711. Two subsets and one
+aggregate are three tests with no multiplicity guard, and the two subsets
+disagree in sign. So a subset claim needs a guard, and the report reads the
+aggregate row. `stop_bootstrap.sh` is sound and its docstring is accurate.
+
+The all-97 row still bears on the card. Its interval half-width is about
+0.016, which is wider than the 0.0141 gap that made 1.0660 the project's
+best. So the config bootstrap alone cannot resolve a move of that size, and
+the head-seed band of item 1 is the item that decides the card.
 
 **No data-mix confound.** `shard_order.py` read the `meta` and `source_id`
-columns of 12 shards, from shard 0 to shard 4273, including the 1279/1280
-boundary that the 200,000-step mark falls on. The dataset family mix moves
-by at most **0.0078** in total variation. The half the continuation reads
-carries the same mix as the half #373 read.
+columns of **40** of the 4,274 shards, from shard 0 to shard 4273, including
+the 1279/1280 boundary that the 200,000-step mark falls on. Pooled into two
+mixes, the half the continuation reads (25 shards, 221,818 rows) sits
+**0.0008** in total variation from the half #373 read (15 shards, 132,085
+rows). The widest single shard sits 0.0326 from shard 0's, and that shard is
+a short one: 424 rows against 10,000 in a full shard, so its distance is
+sampling noise. Evidence: `results/shard_order.json`.
 
 **1.0660 is rank 1 of 99.** `selection_context.py` reads #373's 99 score
 files. The runner-up is 1.0801, **0.0141** above. The target is an argmin
@@ -65,9 +93,9 @@ exactly, so one seasonal-naive denominator is in play.
 | # | what | state |
 |---|---|---|
 | 1 | head-seed band | `replicate_heads.sh 200000` runs on card 1 beside the leg. Seeds 20260723 and 20260724, both heads, 30,000 steps each, then 97 configs. The backbone md5 is the card's own, `f477c035…`. The band at 665k is armed in the watchdog. |
-| 2 | paired config bootstrap | `stop_bootstrap.sh` calls #373's `paired_bootstrap.py`. It runs at every stop. The null pair above shows what it does and does not measure. |
+| 2 | paired config bootstrap | `stop_bootstrap.sh` calls #373's `paired_bootstrap.py`. It runs at every stop. It resamples the 97 GIFT-Eval configs, so it measures config spread and nothing else. Its aggregate half-width on the 100k-to-200k teacher pair is about 0.016, wider than the 0.0141 gap that made 1.0660 the best. |
 | 3 | shard order | closed. `results/shard_order.json`. |
-| 4 | teacher tensor check | closed early. `results/teacher_move_100k_200k.json` and `..._40k_100k.json`. `teacher_check.sh` repeats it on every later pair. **The teacher head stays at all three stops**, per the orchestrator. A frozen teacher is a result to state. It also turns the three teacher points into three more draws of one head on one encoder, which is a second repeatability band at no extra cost. |
+| 4 | teacher tensor check | closed early. `results/teacher_move_100k_200k.json` and `..._40k_100k.json`. `teacher_check.sh` repeats it on every later pair. **The teacher head stays at all three stops**, per the orchestrator. A frozen teacher is a result to state. It does NOT turn the teacher points into repeatability draws: `teacher_head_inputs.py` shows the teacher head also reads 36 student-owned tensors, and 32 of them move. `teacher_pool.py` pools the points and labels them correctly. |
 | 5 | numbers off `/tmp` | closed. `mirror_durable.sh` copies the scores, this study's `results/` and the two logs the gates read to `/home/jupyter/cf407_durable`. Atomic per file. 29 files there now. |
 | 6 | watchdog | closed. `watchdog.sh` re-fires the driver only when the process is gone AND nothing moved for two ticks. `pgrep -f run_pass.sh` alone was not enough, because the launching shell and the log tail both carry that name. The test reads `argv[1]` out of `/proc`. |
 | 7 | one backbone seed | recorded. `run_leg_k.sh` pins `SEED=20260520`. The report will say the card answers "did THIS run keep improving", not "does A4 improve with more data". |

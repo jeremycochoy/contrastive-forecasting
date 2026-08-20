@@ -1,0 +1,46 @@
+step  200000 reads shard 1280
+step  300000 reads shard 1920
+step  450000 reads shard 2880
+step  665000 reads shard 4256
+shard     0  rows  10000  series  9900  families   9  TV from first 0.0000  top: numeric_id 90.9%, resstock_tmy 2.8%, resstock_amy 2.6%
+shard     1  rows  10000  series  9896  families   9  TV from first 0.0078  top: numeric_id 91.6%, resstock_amy 2.5%, resstock_tmy 2.2%
+shard     2  rows  10000  series  9899  families  11  TV from first 0.0052  top: numeric_id 91.0%, resstock_amy 2.7%, resstock_tmy 2.4%
+shard   134  rows  10000  series  9910  families   8  TV from first 0.0073  top: numeric_id 90.2%, resstock_tmy 2.9%, resstock_amy 2.6%
+shard   267  rows  10000  series  9917  families   9  TV from first 0.0030  top: numeric_id 91.0%, resstock_tmy 2.7%, resstock_amy 2.6%
+shard   401  rows  10000  series  9899  families   8  TV from first 0.0069  top: numeric_id 91.5%, resstock_tmy 2.7%, resstock_amy 2.3%
+shard   534  rows  10000  series  9909  families   8  TV from first 0.0053  top: numeric_id 90.5%, resstock_tmy 2.9%, resstock_amy 2.6%
+shard   639  rows  10000  series  9904  families  10  TV from first 0.0053  top: numeric_id 90.9%, resstock_amy 2.7%, resstock_tmy 2.3%
+shard   668  rows  10000  series  9900  families  12  TV from first 0.0041  top: numeric_id 90.8%, resstock_tmy 2.7%, resstock_amy 2.6%
+shard   801  rows  10000  series  9883  families  11  TV from first 0.0051  top: numeric_id 90.9%, resstock_tmy 2.6%, resstock_amy 2.4%
+shard   935  rows  10000  series  9921  families  10  TV from first 0.0050  top: numeric_id 90.9%, resstock_amy 2.7%, resstock_tmy 2.4%
+shard  1068  rows   1300  series  1298  families   8  TV from first 0.0098  top: numeric_id 90.2%, resstock_amy 3.2%, resstock_tmy 2.6%
+shard  1202  rows    785  series   785  families   9  TV from first 0.0173  top: numeric_id 91.3%, resstock_amy 2.2%, comstock_amy 2.0%
+shard  1278  rows  10000  series  9895  families   9  TV from first 0.0071  top: numeric_id 90.5%, resstock_tmy 2.8%, resstock_amy 2.5%
+shard  1279  rows  10000  series  9917  families  10  TV from first 0.0048  top: numeric_id 90.6%, resstock_tmy 2.7%, resstock_amy 2.6%
+shard  1280  rows  10000  series  9892  families   8  TV from first 0.0070  top: numeric_id 91.1%, resstock_tmy 2.4%, resstock_amy 2.4%
+shard  1281  rows  10000  series  9909  families   9  TV from first 0.0052  top: numeric_id 91.2%, resstock_amy 2.6%, resstock_tmy 2.5%
+shard  1335  rows  10000  series  9899  families  13  TV from first 0.0075  top: numeric_id 90.4%, resstock_tmy 2.9%, resstock_amy 2.5%
+shard  1469  rows  10000  series  9894  families  10  TV from first 0.0055  top: numeric_id 90.7%, resstock_tmy 2.6%, resstock_amy 2.5%
+shard  1602  rows  10000  series  9902  families  10  TV from first 0.0063  top: numeric_id 91.1%, resstock_amy 2.5%, resstock_tmy 2.3%
+shard  1736  rows  10000  series  9892  families  11  TV from first 0.0066  top: numeric_id 90.7%, resstock_amy 2.7%, resstock_tmy 2.3%
+shard  1869  rows  10000  series  9920  families   8  TV from first 0.0040  top: numeric_id 90.8%, resstock_tmy 2.9%, resstock_amy 2.4%
+shard  2003  rows  10000  series  9914  families   8  TV from first 0.0053  top: numeric_id 90.9%, resstock_amy 2.7%, resstock_tmy 2.4%
+shard  2136  rows  10000  series  9911  families   8  TV from first 0.0061  top: numeric_id 91.0%, resstock_tmy 2.5%, resstock_amy 2.4%
+shard  2270  rows  10000  series  9900  families   9  TV from first 0.0042  top: numeric_id 90.9%, resstock_amy 2.6%, resstock_tmy 2.5%
+shard  2404  rows   9619  series  9529  families   9  TV from first 0.0048  top: numeric_id 90.6%, resstock_amy 2.7%, resstock_tmy 2.6%
+shard  2537  rows   9820  series  9715  families  10  TV from first 0.0069  top: numeric_id 90.8%, resstock_tmy 2.5%, resstock_amy 2.5%
+shard  2671  rows    424  series   424  families   6  TV from first 0.0326  top: numeric_id 93.9%, resstock_tmy 3.1%, resstock_amy 1.4%
+shard  2804  rows  10000  series  9895  families  10  TV from first 0.0074  top: numeric_id 90.4%, resstock_tmy 2.6%, resstock_amy 2.6%
+shard  2938  rows   9841  series  9771  families  10  TV from first 0.0029  top: numeric_id 91.0%, resstock_tmy 2.8%, resstock_amy 2.5%
+shard  3071  rows   9440  series  9349  families   9  TV from first 0.0043  top: numeric_id 90.9%, resstock_tmy 2.7%, resstock_amy 2.3%
+shard  3205  rows   1175  series  1174  families   9  TV from first 0.0140  top: numeric_id 91.4%, resstock_amy 2.8%, resstock_tmy 2.0%
+shard  3338  rows   9352  series  9256  families   8  TV from first 0.0045  top: numeric_id 90.7%, resstock_tmy 2.7%, resstock_amy 2.5%
+shard  3472  rows   2223  series  2215  families   8  TV from first 0.0049  top: numeric_id 90.9%, resstock_tmy 2.7%, resstock_amy 2.3%
+shard  3605  rows  10000  series  9910  families  10  TV from first 0.0035  top: numeric_id 90.8%, resstock_amy 2.9%, resstock_tmy 2.6%
+shard  3739  rows   9976  series  9882  families   8  TV from first 0.0064  top: numeric_id 91.1%, resstock_amy 2.5%, resstock_tmy 2.5%
+shard  3872  rows  10000  series  9911  families  10  TV from first 0.0049  top: numeric_id 90.8%, resstock_tmy 2.9%, resstock_amy 2.4%
+shard  4006  rows   9972  series  9874  families   8  TV from first 0.0039  top: numeric_id 91.0%, resstock_amy 2.8%, resstock_tmy 2.5%
+shard  4139  rows  10000  series  9910  families  10  TV from first 0.0026  top: numeric_id 91.0%, resstock_tmy 2.6%, resstock_amy 2.6%
+shard  4273  rows   9976  series  9871  families  12  TV from first 0.0046  top: numeric_id 91.0%, resstock_amy 2.6%, resstock_tmy 2.6%
+halves: shard <1280 -> 15 shards / 132085 rows;  >= -> 25 shards / 221818 rows;  TV between them 0.0008
+SHUFFLED: over 40 of 4274 shards, the half the continuation reads (shard 1280 and up, 25 shards, 221818 rows) sits 0.0008 in total variation from the half #373 read (15 shards, 132085 rows). The widest single shard sits 0.0326 from shard 0's, and that shard is a short one: 424 rows, against 10,000 in a full shard. So the step count is not confounded with the data mix.

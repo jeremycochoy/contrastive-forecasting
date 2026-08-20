@@ -153,18 +153,116 @@ GPU time.
 `selection_context.py` reads #373's 99 score files. 1.0660 is rank 1 of 99,
 and the runner-up is 1.0801, 0.0141 above it.
 
+## 2026-08-20, round 3 review gaps
+
+Nine items. Seven are closed on this page. Two need card 1 and are armed.
+
+### 19:20 UTC — the two draws card 1 still owes (items 2, 7)
+
+`band_queue.sh`, detached, 300-second period, card 1. It waits on card 1
+rather than on a clock, because `head_vram_gate` serialises every head on
+one flock.
+
+Stage 1 is item 2: head seed 20260722 drawn AGAIN at 200,000 steps, here and
+on this code. #373 drew that seed on another round and another box, so the
+published 1.0660 carries head seed, machine and code version together. The
+re-draw holds the seed still. Its tag carries `_s20260722`, so it cannot
+overwrite the card's own number. It fires when the 20260723 and 20260724
+chains drain, near 01:00 UTC.
+
+Stage 2 is item 7: the band at 450,000 steps, two more head seeds, fired on
+the CHECKPOINT rather than on the score. The watchdog already holds the band
+at 665k. So 200k, 450k and 665k carry error bars, and 300k carries one draw.
+
+### 19:2x UTC — which tensors the teacher head reads (item 3)
+
+`teacher_head_inputs.py`. It does not argue about the assumption. It builds
+the state dict the head trainer loads, for both checkpoints, and it compares
+them. Then it runs both backbones over one fixed batch.
+
+| pair | loaded | from teacher | from student | teacher moved | student moved |
+|---|---:|---:|---:|---:|---:|
+| 100k to 200k | 110 | 74 | 36 | 0 | 32 |
+| 40k to 100k | 110 | 74 | 36 | 74 | 32 |
+
+The 40k row is the control and it moves everything, as the EMA ramp says it
+must. The 100k row is the one that matters. The teacher covers
+`teacher_input_to_latent.*` and `teacher_encoder_layers.*` only. The
+frequency table, the seasonality table and the three forecaster layers stay
+the student's, and they keep training. The latents the head reads move with
+them: relative L2 0.0136 on the encoder latents and 0.1013 on the forecaster
+latents. The card's head reads both, under `--head-train-input e_then_f`.
+
+`teacher_check.sh` now runs this on every later pair, from the watchdog.
+
+### 19:3x UTC — the teacher pool (item 4)
+
+`teacher_pool.py`. It gives the pool the review asked for and it labels it.
+The teacher points share one encoder stack. They do not share one head
+input, so the pool is not a null. It is how far the teacher head travels
+while its encoder stack stands still. At n = 2 the range is 0.0046. It grows
+to n = 5 as the stops land, and the watchdog refreshes it every tick.
+
+### 19:0x UTC — 40 shards, not 12 (item 9)
+
+`shard_order.py` reads 40 of the 4,274 shards and the verdict quotes that
+count. It also pools each half of the run into ONE mix, which is the number
+the card's question asks for: a per-shard distance mixes a real mix change
+with the sampling noise of one shard, and `small_v1` holds short shards.
+
+| half | shards | rows | total variation |
+|---|---:|---:|---:|
+| below shard 1280, which #373 read | 15 | 132,085 | reference |
+| shard 1280 and up, which this card reads | 25 | 221,818 | 0.0008 |
+
+The widest single shard sits 0.0326 from shard 0's, and that shard holds 424
+rows against 10,000 in a full shard. So its distance is sampling noise.
+
+### 19:4x UTC — the band comparison and the figure (items 5, 6, 8)
+
+`head_band.py` prints the card's own band beside #393's published one, and
+beside the gap that made 1.0660 the best. #393's pooled 0.0384 is the
+largest range over EVERY cell. This cell's own rows are the closer
+comparison, and `noise_band.py` gives them: 0.0118, 0.0080, 0.0049, 0.0047.
+The script prints a verdict against the 0.0141 selection gap once the band
+lands.
+
+`plot_full_pass.py` writes `results/figure_caption.txt` and draws the same
+text under the axes. It states that the ribbon is one number pooled over
+both heads, which stops carry draws, and that the ribbon is an extrapolation
+everywhere else. It gives the measured range and the draw count beside the
+standard deviation. It also states that 40k comes from `cf373_r2` while 100k
+and 200k come from `cf373_r3`, and that the 200k file carries an `_r2_`
+infix.
+
+### 19:5x UTC — claim 3, corrected (item 1)
+
+The round-2 page called the `medium_long` interval a false positive. That
+was a subset picked after the numbers were seen. The aggregate row of
+`results/null_frozen_teacher.csv` reads delta -0.0046, interval
+[-0.0199, 0.0123], p_improved 0.711, so the aggregate bootstrap PASSED.
+`results/pr_comment_20260820_gaps.md` now shows all three rows and reads the
+aggregate. `stop_bootstrap.sh` is sound and its docstring is accurate.
+
+The same page also called 0.0046 a pure repeatability difference. Item 3
+shows it is not. Both corrections are marked on that page.
+
 ## What the report must state, and where each number comes from
 
-The gap list asks for four claims in the report itself. Each one has an
+The gap list asks for these claims in the report itself. Each one has an
 artefact behind it, so the report cites rather than asserts.
 
 | claim | artefact |
 |---|---|
-| The teacher is frozen from step 100,000 on, so its three stops score one encoder. | `results/teacher_move_100k_200k.json`, `results/teacher_move_40k_100k.json` |
-| The shard order carries no data-mix confound. | `results/shard_order.json` |
+| The teacher tensors are frozen from step 100,000 on. | `results/teacher_move_100k_200k.json`, `results/teacher_move_40k_100k.json` |
+| The teacher HEAD still reads 36 student-owned tensors, and 32 of them move over that span. So the teacher stops are not draws of one encoder. | `results/teacher_head_inputs_100k_200k.json`, `results/teacher_pool.txt` |
+| The aggregate config bootstrap on the 100k-to-200k teacher pair straddles zero: delta -0.0046, [-0.0199, 0.0123], p_improved 0.711. Its half-width, about 0.016, is wider than the 0.0141 selection gap. | `results/null_frozen_teacher.csv` |
+| The shard order carries no data-mix confound. Two halves, pooled, sit 0.0008 apart in total variation over 40 shards. | `results/shard_order.json` |
+| The head-seed band, measured here, against #393's published one and against the 0.0141 selection gap. | `head_band.py` review-gap-6 block, `results/head_band.csv` |
+| The protocol seed drawn again here at 200k, against #373's published anchor. Machine and code drift at one head seed. | `results/replicate_200k.log`, `results/head_band.csv` |
 | One backbone seed. The card answers "did THIS run keep improving", not "does A4 improve with more data". | `run_leg_k.sh` line 113 pins `SEED=20260520`. #373's own gap table already records that backbone-seed variance stays unmeasured. A second backbone seed costs 40 GPU-hours and this card does not buy one. |
 | 1.0660 is a selected number, so a point near it is not a plateau. | `results/selection_context.json`: rank 1 of 99, runner-up +0.0141 |
 
-The head-seed band from `results/replicate_200k.log` goes beside the last
-two. A move smaller than the band decides nothing, whichever direction it
-points.
+A move smaller than the head-seed band decides nothing, whichever direction
+it points. 300k carries one draw per head and no band, so the report must
+say so beside that point.

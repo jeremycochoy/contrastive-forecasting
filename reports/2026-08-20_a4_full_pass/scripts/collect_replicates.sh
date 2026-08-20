@@ -18,7 +18,7 @@ RES="${CF407_RESULTS:-$STUDY/results}"
 WT="${WT:-$GIT_ROOT}"
 RUNS="${CF373_ROOT:-${RUNS:-/home/jupyter/cf373_r3/sync}}"
 PARENT_RES="$WT/reports/2026-08-08_rollout_depth/results"
-SEEDS="${SEEDS:-20260723 20260724}"
+SEEDS="${SEEDS:-20260722 20260723 20260724}"
 WANT_CONFIGS=97
 
 STOPS_K=("$@")

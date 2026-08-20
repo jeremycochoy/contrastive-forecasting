@@ -1,0 +1,15 @@
+a  /home/jupyter/cf373_r2/A4/sync/arm6_v2_combab_alignS/leg_40k/cf393_arm6_v2_combab_alignS_cf373k3_40k.pth
+b  /home/jupyter/cf373_r3/sync/arm6_v2_combab_alignS/leg_100k/cf393_arm6_v2_combab_alignS_cf373k3_100k.pth
+loaded 110   from teacher 74   from student 36
+moved: from teacher 74, from student 32
+   student-owned move  transformer.layers.0.linear2.weight  max |d| 9.798e-01
+   student-owned move  transformer.layers.1.self_attn.out_proj.weight  max |d| 9.226e-01
+   student-owned move  transformer.layers.0.self_attn.out_proj.weight  max |d| 8.683e-01
+   student-owned move  transformer.layers.2.linear2.weight  max |d| 7.707e-01
+   student-owned move  transformer.layers.2.self_attn.out_proj.weight  max |d| 7.324e-01
+   student-owned move  transformer.layers.0.self_attn.in_proj_weight  max |d| 7.282e-01
+   student-owned move  transformer.layers.1.linear2.weight  max |d| 6.545e-01
+   student-owned move  transformer.layers.1.self_attn.in_proj_weight  max |d| 5.749e-01
+encoder_latents      identical=False  max |d| 2.552e+00  rel L2 1.288e+00
+forecaster_latents   identical=False  max |d| 2.379e+00  rel L2 1.400e+00
+TEACHER MOVED: 74 of 74 teacher-written tensors differ, and 32 of 36 student-owned ones do. The latents the head reads differ by up to 2.552e+00

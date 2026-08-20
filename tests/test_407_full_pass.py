@@ -1304,3 +1304,230 @@ class TestGateInputs:
         assert '"$OUT" "$SCORE_OUT"' in code
         assert 'mv "$SCORE_OUT.tmp" "$SCORE_OUT"' in \
             strip_comments(EVAL_LOCAL.read_text())
+
+
+# --- 12. round 3 of the review --------------------------------------------
+
+BAND_QUEUE_SH = SCRIPTS / "band_queue.sh"
+TEACHER_HEAD_INPUTS_PY = SCRIPTS / "teacher_head_inputs.py"
+TEACHER_POOL_PY = SCRIPTS / "teacher_pool.py"
+SHARD_ORDER_PY = SCRIPTS / "shard_order.py"
+HEAD_BAND_PY = SCRIPTS / "head_band.py"
+TEACHER_CHECK_SH = SCRIPTS / "teacher_check.sh"
+STUDY_RESULTS = STUDY / "results"
+
+
+@pytest.fixture(scope="module")
+def hb():
+    return load(HEAD_BAND_PY, "cf407_head_band")
+
+
+@pytest.fixture(scope="module")
+def so():
+    return load(SHARD_ORDER_PY, "cf407_shard_order")
+
+
+class TestRedrawSeparation:
+    """Item 2. The re-draw must not overwrite the card's own number."""
+
+    def test_redraw_tag_carries_the_seed(self, hb, tmp_path):
+        anchor = hb.draw_path(tmp_path, 200_000, "student",
+                              hb.PROTOCOL_SEED)
+        again = hb.draw_path(tmp_path, 200_000, "student",
+                             hb.PROTOCOL_SEED, redraw=True)
+        assert anchor != again
+        assert again.endswith(f"_s{hb.PROTOCOL_SEED}.txt")
+
+    def test_local_draws_prefer_the_redraw(self, hb, tmp_path):
+        for name, value in (("score_A4_k3_bb200k_student.txt", "1.0660"),
+                            ("score_A4_k3_bb200k_student_s20260722.txt",
+                             "1.0672"),
+                            ("score_A4_k3_bb200k_student_s20260723.txt",
+                             "1.0691")):
+            (tmp_path / name).write_text(value + "\n")
+        published = hb.draws(200_000, "student", tmp_path, None)
+        local = hb.local_draws(200_000, "student", tmp_path, None)
+        assert published[hb.PROTOCOL_SEED] == 1.0660
+        assert local[hb.PROTOCOL_SEED] == 1.0672
+        assert local[20260723] == 1.0691
+
+    def test_redraw_table_reports_the_delta(self, hb, tmp_path):
+        (tmp_path / "score_A4_k3_bb200k_student.txt").write_text("1.0660\n")
+        (tmp_path / "score_A4_k3_bb200k_student_s20260722.txt").write_text(
+            "1.0672\n")
+        rows = hb.redraw_table([200_000], tmp_path, None)
+        assert len(rows) == 1
+        stop, head, anchor, again, delta = rows[0]
+        assert (stop, head) == (200_000, "student")
+        assert anchor == 1.0660 and again == 1.0672
+        assert delta == pytest.approx(0.0012, abs=1e-9)
+
+    def test_collect_replicates_sweeps_the_protocol_seed(self):
+        code = strip_comments(
+            (SCRIPTS / "collect_replicates.sh").read_text())
+        assert "20260722" in code, "the re-draw would never be collected"
+
+
+class TestBandComparison:
+    """Item 6. This card's band, read against the published one."""
+
+    def test_published_band_is_a_range_not_a_std(self, hb):
+        pooled, cell_rows = hb.published_band()
+        assert pooled == pytest.approx(0.0384, abs=5e-4)
+        # The same cell's own rows are the closer comparison.
+        assert cell_rows, "noise_band.py gave no row for this cell"
+        assert all(r[0] == hb.THIS_CELL for r in cell_rows)
+
+    def test_selection_gap_comes_from_its_own_file(self, hb):
+        gap, ctx = hb.selection_gap(STUDY_RESULTS)
+        assert gap == pytest.approx(0.0141, abs=1e-4)
+        assert ctx["rank"] == 1
+
+    def test_compare_reads_a_wide_band_as_unresolvable(self, hb):
+        wide = [(200_000, "student", {20260722: 1.0660, 20260723: 1.1000})]
+        text = "\n".join(hb.compare(wide, STUDY_RESULTS))
+        assert "cannot resolve" in text
+        narrow = [(200_000, "student", {20260722: 1.0660, 20260723: 1.0665})]
+        text = "\n".join(hb.compare(narrow, STUDY_RESULTS))
+        assert "narrower than" in text
+
+    def test_largest_range_ignores_single_draw_rows(self, hb):
+        table = [(200_000, "student", {20260722: 1.0660}),
+                 (200_000, "teacher", {20260722: 1.08, 20260723: 1.09})]
+        assert hb.largest_range(table) == pytest.approx(0.01, abs=1e-9)
+
+
+class TestTeacherHeadInputs:
+    """Item 3. The teacher head does not read teacher tensors only."""
+
+    def test_the_answer_is_on_disk(self):
+        path = STUDY_RESULTS / "teacher_head_inputs_100k_200k.json"
+        assert path.exists(), "run teacher_head_inputs.py on 100k and 200k"
+        import json
+        got = json.loads(path.read_text())
+        assert got["moved_from_teacher"] == 0
+        assert got["moved_from_student"] > 0
+        assert got["verdict"].startswith("NOT A NULL")
+
+    def test_the_control_moves_the_teacher(self):
+        path = STUDY_RESULTS / "teacher_head_inputs_40k_100k.json"
+        assert path.exists()
+        import json
+        got = json.loads(path.read_text())
+        assert got["moved_from_teacher"] == got["from_teacher"] > 0
+
+    def test_promotion_map_matches_the_loader(self):
+        """The script must read the loader's own map, never a copy."""
+        code = TEACHER_HEAD_INPUTS_PY.read_text()
+        assert "_TEACHER_PROMOTIONS" in code
+        assert "from src.checkpoint import" in code
+
+    def test_teacher_check_runs_the_head_input_script(self):
+        code = strip_comments(TEACHER_CHECK_SH.read_text())
+        assert "teacher_head_inputs.py" in code
+        assert "teacher_pool.py" in code
+
+
+class TestTeacherPool:
+    """Item 4. Pool the teacher points, and label them correctly."""
+
+    def test_pool_is_not_called_a_null_when_the_input_moves(self):
+        mod = load(TEACHER_POOL_PY, "cf407_teacher_pool")
+        moves = [{"file": "teacher_head_inputs_100k_200k.json",
+                  "moved_from_teacher": 0, "moved_from_student": 32}]
+        assert mod.one_encoder(moves) is True
+        assert mod.head_input_constant(moves) is False
+
+    def test_pool_is_a_null_only_when_nothing_moves(self):
+        mod = load(TEACHER_POOL_PY, "cf407_teacher_pool")
+        moves = [{"file": "teacher_head_inputs_100k_200k.json",
+                  "moved_from_teacher": 0, "moved_from_student": 0}]
+        assert mod.head_input_constant(moves) is True
+
+    def test_frozen_stops_start_at_the_end_of_the_ramp(self):
+        mod = load(TEACHER_POOL_PY, "cf407_teacher_pool")
+        assert mod.FROZEN_FROM == 100_000
+        assert min(mod.frozen_stops()) == 100_000
+        assert 40_000 not in mod.frozen_stops()
+
+
+class TestShardSample:
+    """Item 9. 40 shards, and the two halves pooled."""
+
+    def test_forty_shards_by_default(self, so):
+        assert len(so.DEFAULT_SHARDS) == 40
+        assert 1279 in so.DEFAULT_SHARDS and 1280 in so.DEFAULT_SHARDS
+        assert max(so.DEFAULT_SHARDS) == so.N_SHARDS - 1
+
+    def test_halves_pool_by_rows_not_by_shard(self, so):
+        out = {"shards": [
+            {"shard": 0, "rows": 10_000, "mix": {"a": 1.0}},
+            {"shard": 2000, "rows": 100, "mix": {"b": 1.0}},
+            {"shard": 3000, "rows": 9_900, "mix": {"a": 1.0}},
+        ]}
+        got = so.halves(out)
+        assert got["n_rows_before"] == 10_000
+        assert got["n_rows_after"] == 10_000
+        # The 100-row shard must not carry the same weight as a full one.
+        assert got["tv_between_halves"] == pytest.approx(0.01, abs=1e-9)
+
+    def test_verdict_quotes_the_sample_size(self, so):
+        path = STUDY_RESULTS / "shard_order.json"
+        assert path.exists()
+        import json
+        got = json.loads(path.read_text())
+        assert got["n_sampled"] == 40
+        assert "40 of 4274 shards" in got["verdict"]
+        assert got["halves"]["tv_between_halves"] < so.GROUPED_TV
+
+
+class TestFigureCaption:
+    """Item 5 and item 8. The ribbon and the hollow points, labelled."""
+
+    def test_caption_names_the_extrapolated_stops(self):
+        mod = load(PLOT_PY, "cf407_plot_caption")
+        drawn = {"student": {200_000: {1: 1.06, 2: 1.07}}, "teacher": {}}
+        rows = [(200_000, "student", {1: 1.06, 2: 1.07})]
+        note = "\n".join(mod.caption(0.005, rows, drawn,
+                                     [100_000, 200_000, 300_000]))
+        assert "extrapolation" in note
+        assert "100k" in note and "300k" in note
+        assert "share one spread" in note
+
+    def test_caption_gives_the_range_beside_the_std(self):
+        mod = load(PLOT_PY, "cf407_plot_caption")
+        rows = [(200_000, "student", {1: 1.060, 2: 1.070})]
+        drawn = {"student": {200_000: {1: 1.060, 2: 1.070}}, "teacher": {}}
+        note = "\n".join(mod.caption(0.005, rows, drawn, [200_000]))
+        assert "0.0100" in note
+        assert "40%" in note
+
+    def test_caption_carries_the_parent_provenance(self):
+        mod = load(PLOT_PY, "cf407_plot_caption")
+        note = "\n".join(mod.caption(0.0, [], {}, [200_000]))
+        assert "cf373_r2" in note and "cf373_r3" in note
+        assert "_r2_" in note
+
+
+class TestBandQueue:
+    """Items 2 and 7. The queue must not fight the driver or the watchdog."""
+
+    def test_queue_runs_on_the_other_card(self):
+        code = strip_comments(BAND_QUEUE_SH.read_text())
+        assert 'BAND_GPU="${BAND_GPU:-1}"' in code
+
+    def test_queue_fires_the_redraw_and_the_450k_band(self):
+        code = strip_comments(BAND_QUEUE_SH.read_text())
+        assert 'REDRAW_SEED="${REDRAW_SEED:-20260722}"' in code
+        assert 'MID_STOP="${MID_STOP:-450000}"' in code
+        # 665k belongs to the watchdog. Two firers would race.
+        assert "665000" not in code
+
+    def test_queue_waits_on_the_running_band(self):
+        code = strip_comments(BAND_QUEUE_SH.read_text())
+        assert "replicate_alive" in code
+        assert "/proc/$p/cmdline" in code, "pgrep alone matches the launcher"
+
+    def test_queue_serialises_stage_two_behind_stage_one(self):
+        code = strip_comments(BAND_QUEUE_SH.read_text())
+        assert '[ "$stage1" = done ]' in code
