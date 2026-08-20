@@ -64,3 +64,17 @@ logs one row per step, and `downsample_curve.py` refuses a file that gives it
 fewer than a few points at `--stride 200`. A leg of 100,000 steps gives 500
 points, so the guard passes at the stop. The driver calls `collect.sh` after
 each stop, which is when the CSV is complete.
+
+## Throughput, measured
+
+A 900-second wall-clock window on the running leg: step 200,200 to 203,400,
+so 3.556 steps per second. `train.py` prints 3.6 sps in the same window. The
+leg holds 5,388 MiB on card 0.
+
+The parent study gives the cost of one stop. A4 at 200k took 35 minutes for
+the student head and 72 minutes for its GIFT-Eval. The driver runs the two
+heads and the two evals in series, so one stop costs about 3.6 hours after
+the leg.
+
+`results/schedule.txt` holds the expected times. The whole card ends about
+2026-08-22 17:22 UTC.
