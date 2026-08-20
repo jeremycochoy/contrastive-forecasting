@@ -73,10 +73,10 @@ k = 3. Long dash: sum. Dotted: mean.*
 *GM-Relative MASE over the 97 GIFT-Eval configs, student head, mean
 reduction. Left: 30,000-step head. Right: head budget = backbone steps.*
 
-No mean cell beats the k = 3 reference or the k = 0 anchor of 1.1600 at
-bb40k. The best mean cell is k = 32 at bb200k, 0.0977 from k = 3, which is
-2.5 times the head-seed band. At bb40k, k = 8 and k = 32 sit inside the band
-of each other.
+No mean cell beats the k = 3 reference. No mean cell separates from the k = 0
+anchor: the closest, k = 32 at bb200k, sits inside the band of it. The best
+mean cell is k = 32 at bb200k, and it stays outside the band of the k = 3
+reference.
 
 ## Per-domain
 
