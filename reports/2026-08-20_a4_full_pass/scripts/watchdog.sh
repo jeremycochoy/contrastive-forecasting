@@ -86,16 +86,30 @@ PY
 }
 export CF407_HERE="$HERE"
 
+REPLICATE_SCRIPT="$(readlink -f "$HERE/replicate_heads.sh" 2>/dev/null)"
+
 # Is a replicate run for one stop already up? Same `argv[1]` test as
 # `driver_alive`, and `argv[2]` carries the stop.
+#
+# It then resolves `argv[1]` against the process's own working directory and
+# demands THIS checkout's copy. A band launched by a relative path, which is
+# how this study launches one, would otherwise let a second worktree of the
+# repo read as a band of this one. `band_queue.sh` holds the same test.
 replicate_alive(){ # <stop>
-  local p a1 a2
+  local p a1 a2 cwd full
   for p in $(pgrep -f 'replicate_heads\.sh' 2>/dev/null); do
     a1=$(tr '\0' '\n' < "/proc/$p/cmdline" 2>/dev/null | sed -n 2p)
     a2=$(tr '\0' '\n' < "/proc/$p/cmdline" 2>/dev/null | sed -n 3p)
-    case "$a1" in */replicate_heads.sh)
-      [ "$a2" = "$1" ] && return 0 ;;
+    case "$a1" in */replicate_heads.sh) ;; *) continue;; esac
+    [ "$a2" = "$1" ] || continue
+    case "$a1" in
+      /*) full="$a1" ;;
+      *)  cwd=$(readlink -f "/proc/$p/cwd" 2>/dev/null) || continue
+          [ -n "$cwd" ] || continue
+          full="$cwd/$a1" ;;
     esac
+    full=$(readlink -f "$full" 2>/dev/null)
+    [ -n "$full" ] && [ "$full" = "$REPLICATE_SCRIPT" ] && return 0
   done
   return 1
 }

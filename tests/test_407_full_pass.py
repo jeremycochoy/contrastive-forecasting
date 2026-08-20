@@ -1701,3 +1701,19 @@ class TestBandQueueFires:
         log = queue.run(ckpt=True, once=False, period=1)
         assert queue.fired() == []
         assert "the queue stops" in log
+
+
+class TestProcessGuardIsShared:
+    """One process test, in both firers. Two would drift apart."""
+
+    def test_both_resolve_argv1_against_the_process_cwd(self):
+        for path in (BAND_QUEUE_SH, SCRIPTS / "watchdog.sh"):
+            code = path.read_text()
+            assert "/proc/$p/cwd" in code, f"{path.name} keeps a basename test"
+            assert "readlink -f" in code
+
+    def test_both_demand_this_checkout(self):
+        queue = BAND_QUEUE_SH.read_text()
+        watch = (SCRIPTS / "watchdog.sh").read_text()
+        assert '[ "$full" = "$SCRIPT" ]' in queue
+        assert '[ "$full" = "$REPLICATE_SCRIPT" ]' in watch

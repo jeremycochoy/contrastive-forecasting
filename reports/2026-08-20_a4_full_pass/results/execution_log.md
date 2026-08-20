@@ -268,6 +268,10 @@ once would otherwise re-launch every 300 seconds for the whole card.
 The queue restarted on the verified script at 19:42 UTC. It had fired
 nothing, so the restart cost no work.
 
+`watchdog.sh` carried the same loose test, so it took the same fix. It
+restarted at 19:50 UTC and its first tick read driver=yes, step 218,200.
+A restart costs the quiet counter and the re-fire counter only.
+
 ## What the report must state, and where each number comes from
 
 The gap list asks for these claims in the report itself. Each one has an
