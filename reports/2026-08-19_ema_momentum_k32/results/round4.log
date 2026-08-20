@@ -1,0 +1,73 @@
+[08-20 09:39:38] [#404 round4] START arms='s08c s08d' box=cf404-box-r4 deadline=14h max_spend=$6.00
+[08-20 09:39:39] [#404 round4] credit before: Credit:  $13.95 Total:   $13.95 
+[08-20 09:39:39] [#404 round4] searching — 2 card(s), datacenter, reliability >= 0.99, max bid $0.45/h, desktop CPU
+[08-20 09:39:40] [#404 round4]   0 offer(s) with a desktop CPU, 0 in all
+[08-20 09:39:42] [provision cf404-box-r4] attempt 1: no offer matched
+[08-20 09:40:02] [provision cf404-box-r4] gave up after 1 attempts
+[08-20 09:40:02] [#404 round4] no two-card offer carries a desktop CPU — taking one card of the same class
+[08-20 09:40:02] [#404 round4]   (a two-card server box runs this cell about six times slower per step)
+[08-20 09:40:02] [#404 round4] searching — 1 card(s), datacenter, reliability >= 0.99, max bid $0.45/h, desktop CPU
+[08-20 09:40:03] [#404 round4]   4 offer(s) with a desktop CPU, 5 in all
+[08-20 09:40:07] [provision cf404-box-r4] attempt 1: 4 offer(s)
+[08-20 09:40:10] [provision cf404-box-r4]   offer 44173860 went away
+[08-20 09:40:13] [provision cf404-box-r4]   offer 39051838 went away
+[08-20 09:42:07] [provision cf404-box-r4] READY instance 48192413 at ssh9.vast.ai:32412
+[08-20 09:42:07] [#404 round4] instance 48192413 at ssh9.vast.ai:32412
+[08-20 09:42:10] [#404 round4] card(s): 0, NVIDIA GeForce RTX 5090, 32607 MiB, Default  count=1
+[08-20 09:42:13] [#404 round4] cpu: AMD Ryzen 7 7800X3D 8-Core Processor
+8 
+[08-20 09:42:17] [#404 round4] ram: 30 GB total, 28 GB available
+[08-20 09:42:17] [#404 round4] 2 arms on card 0, lanes '0 0' (Default compute mode)
+[08-20 09:42:20] [#404 round4] bootstrap
+[08-20 09:42:20] [#404 bootstrap ssh9.vast.ai:32412] parent bootstrap (#373)
+[08-20 09:42:20] [bootstrap ssh9.vast.ai:32412] packing code
+[08-20 09:42:20] [bootstrap ssh9.vast.ai:32412] uploading 512K
+Warning: Permanently added '[ssh9.vast.ai]:32412' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[08-20 09:42:26] [bootstrap ssh9.vast.ai:32412] installing
+Warning: Permanently added '[ssh9.vast.ai]:32412' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+Warning: Permanently added '[ssh9.vast.ai]:32412' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+started
+[08-20 09:45:14] [bootstrap ssh9.vast.ai:32412] waiting for BOOTSTRAP_OK (install is ~4 min)
+[08-20 09:45:18] [bootstrap ssh9.vast.ai:32412] OK
+Warning: Permanently added '[ssh9.vast.ai]:32412' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+BOX-ENV driver=580.105.08, NVIDIA GeForce RTX 5090, Default
++ echo BOOTSTRAP_OK
+BOOTSTRAP_OK
+[08-20 09:45:21] [#404 bootstrap ssh9.vast.ai:32412] shipping reports/2026-08-19_ema_momentum_k32
+Warning: Permanently added '[ssh9.vast.ai]:32412' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+Warning: Permanently added '[ssh9.vast.ai]:32412' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[08-20 09:45:35] [#404 bootstrap ssh9.vast.ai:32412] checking the box's checkout
+Warning: Permanently added '[ssh9.vast.ai]:32412' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+box reduce=mean root=/root/cf404_runs results=/root/cf/reports/2026-08-19_ema_momentum_k32/results
+arm a08 gpu=0 stops='40000' heads=0
+arm a09 gpu=0 stops='40000' heads=0
+arm s08 gpu=0 stops='40000' heads=0
+arm s09 gpu=0 stops='40000' heads=0
+arm a095 gpu=0 stops='40000' heads=0
+arm s08b gpu=0 stops='40000' heads=0
+arm s08c gpu=0 stops='40000' heads=0
+arm s08d gpu=0 stops='40000' heads=0
+[08-20 09:45:38] [#404 bootstrap ssh9.vast.ai:32412] OK
+[08-20 09:45:38] [#404 round4] bootstrap OK
+box reduce=mean root=/root/cf404_runs results=/root/cf/reports/2026-08-19_ema_momentum_k32/results
+arm s08c gpu=0 stops='40000' heads=0
+arm s08d gpu=0 stops='40000' heads=0
+  box reduce=mean root=/root/cf404_runs results=/root/cf/reports/2026-08-19_ema_momentum_k32/results
+  arm s08c gpu=0 stops='40000' heads=0
+  arm s08d gpu=0 stops='40000' heads=0
+[box_r4] sync loop pid 2588325 -> /home/jupyter/cf404_sync/box_r4
+[box_r4] waiting for the first tick

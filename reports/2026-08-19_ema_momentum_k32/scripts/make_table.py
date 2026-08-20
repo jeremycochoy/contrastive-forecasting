@@ -5,16 +5,24 @@ The table holds every arm and the five published references. The statement
 names the momentum that wins, gives its distance to the k = 3 score at bb40k,
 and says whether that arm goes below it.
 
-It then gives the card's own repeat spread. Two arms of this table are one arm
-at two backbone seeds, and the distance between their scores is what says
+It then gives the card's own repeat spread. Four arms of this table are ONE arm
+at four backbone seeds, and the distance between their scores is what says
 whether the winner is ahead of the next arm or level with it. Round 1 named a
 winner with no such number, and the review of PR #405 asked for one.
+
+ONE OF THOSE FOUR MUST NOT COUNT. `s08b` did not measure noise: its backbone
+fell to chance while it trained. The distance between a collapsed run and a
+healthy one is not a spread, and quoting it as one calls every arm of the card
+unranked. So `--sync-root` lets this script read the contrastive AUC of every
+arm, drop the collapsed runs, and quote the spread over the rest.
+`seed_report.py` holds the one definition of a collapse in this study.
 
 1.0862 is the comparison, not 1.0660: both this card's arms and that number
 stop at 40,000 backbone steps.
 
 Usage:
-  make_table.py --scores results/scores.csv --out results/table.md
+  make_table.py --scores results/scores.csv --out results/table.md \
+                --sync-root ~/cf404_sync
 """
 from __future__ import annotations
 
@@ -36,6 +44,7 @@ def _load(name, path):
 
 REF = _load("cf404_refs", "references.py")
 REPEAT = _load("cf404_repeat", "repeat_spread.py")
+SEEDS = _load("cf404_seeds", "seed_report.py")
 
 SCHEDULE_TEXT = {"fixed": "fixed", "ramp": "to 1.0 at 200k"}
 
@@ -49,6 +58,7 @@ def read_scores(path) -> list[dict]:
                 rows.append({"arm": r["arm"], "alpha": float(r["alpha"]),
                              "schedule": r["schedule"],
                              "ramp": int(float(r.get("ramp") or 0)),
+                             "seed": r.get("seed", ""),
                              "score": float(r["score"])})
             except (KeyError, ValueError, TypeError):
                 continue
@@ -68,12 +78,24 @@ def beats_k3(rows: list[dict]) -> bool:
 
 
 def table_markdown(rows: list[dict]) -> str:
-    """The card's table: this card's arms first, then the references."""
-    out = ["| arm | EMA momentum | GM-Relative MASE | vs k = 3 at bb40k |",
-           "|---|---|---|---|"]
+    """The card's table: this card's arms first, then the references.
+
+    The backbone seed is a column because four arms of this card are ONE arm at
+    four seeds, and the contrastive AUC is a column because one of them fell to
+    chance while it trained. A score table without the AUC shows a collapsed
+    run as a bad arm.
+    """
+    out = ["| arm | EMA momentum | backbone seed | AUC at the stop | "
+           "GM-Relative MASE | vs k = 3 at bb40k |",
+           "|---|---|---|---|---|---|"]
     for r in rows:
         alpha = f"{r['alpha']:g}, {SCHEDULE_TEXT.get(r['schedule'], r['schedule'])}"
-        out.append(f"| {r['arm']} | {alpha} | {r['score']:.4f} | "
+        auc = r.get("auc")
+        auc_text = "?" if auc is None else f"{auc:.3f}"
+        if r.get("collapsed"):
+            auc_text += " (collapsed)"
+        out.append(f"| {r['arm']} | {alpha} | {r.get('seed') or '?'} | "
+                   f"{auc_text} | {r['score']:.4f} | "
                    f"{r['score'] - REF.K3_BB40K:+.4f} |")
     out += ["", "| reference | GM-Relative MASE |", "|---|---|"]
     for label, value in REF.TABLE:
@@ -99,14 +121,33 @@ def main(argv=None):
     p = argparse.ArgumentParser()
     p.add_argument("--scores", required=True)
     p.add_argument("--out", required=True)
+    p.add_argument("--sync-root",
+                   help="the sync tree, to read each arm's contrastive AUC")
+    p.add_argument("--stop", type=int, default=40000)
     args = p.parse_args(argv)
     if not Path(args.scores).is_file():
         raise SystemExit(f"ABORT: no scores table at {args.scores}")
     rows = read_scores(args.scores)
+
+    # The AUC of every arm at the stop, when a sync tree is here. It fills the
+    # AUC column and it decides which runs the spread below is measured over.
+    rep = None
+    if args.sync_root:
+        root = Path(args.sync_root).expanduser()
+        for r in rows:
+            r["auc"] = SEEDS.auc_at(root, r["arm"], args.stop)
+            r["collapsed"] = SEEDS.collapsed(r["auc"])
+        rep = SEEDS.report(rows, root, args.stop)
+
     parts = [table_markdown(rows), statement(rows)]
-    measured = REPEAT.sentence(rows)
-    if measured:
-        parts.append(measured)
+    if rep is not None and rep["spread"] is not None:
+        parts.append(SEEDS.spread_sentence(rows, rep))
+        parts.append(rep["separation"])
+    elif rep is None:
+        measured = REPEAT.sentence(rows)
+        if measured:
+            parts.append(measured)
+    parts = [x for x in parts if x]
     text = "\n\n".join(parts) + "\n"
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(text)

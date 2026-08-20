@@ -6,12 +6,16 @@
 # the money drained. So this probe reads the things that MOVE, not the things
 # that merely exist:
 #
-#   driver     the round 3c pid, from `results/round3c.pid`.
+#   driver     the round's pid, from `results/<round>.pid`.
 #   card       GPU utilization, memory in use, compute apps, off the box.
-#   progress   the last step the live job wrote, and the step before it, so a
-#              reader sees a counter that advances and not a file that is there.
+#   progress   the last step EVERY live job wrote, so a reader sees a counter
+#              that advances and not a file that is there. Round 4 runs two
+#              lanes at a time, so one counter is not enough.
 #   scores     which score files exist.
 #   spend      what vast.ai has billed this instance.
+#
+# The round is a knob, so this probe follows the study instead of naming one
+# driver. `ROUND=round3c bash scripts/heartbeat.sh` reads the round before it.
 #
 # Usage:  bash scripts/heartbeat.sh          # one line, then exit
 set -uo pipefail
@@ -19,16 +23,19 @@ set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STUDY="$(dirname "$HERE")"
 R="$STUDY/results"
+ROUND="${ROUND:-round4}"
+ENVF="${ROUND_ENV:-$R/$ROUND.env}"
+PIDF="${ROUND_PID:-$R/$ROUND.pid}"
 SSH_OPTS=(-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
           -o ConnectTimeout=20 -o BatchMode=yes)
 
 INSTANCE=""; HOST=""; PORT=""
 # shellcheck disable=SC1090
-[ -s "$R/round3.env" ] && . "$R/round3.env"
+[ -s "$ENVF" ] && . "$ENVF"
 
 drv="down"
-if [ -s "$R/round3c.pid" ] && ps -p "$(cat "$R/round3c.pid")" >/dev/null 2>&1; then
-  drv="up($(cat "$R/round3c.pid"))"
+if [ -s "$PIDF" ] && ps -p "$(cat "$PIDF")" >/dev/null 2>&1; then
+  drv="up($(cat "$PIDF"))"
 fi
 
 card="?"; prog="?"
@@ -36,11 +43,12 @@ if [ -n "$HOST" ] && [ -n "$PORT" ]; then
   card="$(timeout 90 ssh "${SSH_OPTS[@]}" -p "$PORT" "root@$HOST" \
     "nvidia-smi --query-gpu=utilization.gpu,memory.used --format=csv,noheader | tr -d ' ' | tr '\n' ' '; \
      echo -n \"apps=\$(nvidia-smi --query-compute-apps=pid --format=csv,noheader | grep -c .)\"" 2>/dev/null)"
-  # The step counter of whatever runs now: the newest losses CSV under the run
-  # root. Two rows, so a reader sees the counter advance between two probes.
+  # EVERY losses CSV under the run root, newest four, with its last step. Two
+  # lanes run at a time, so a probe that reads one file calls a dead lane live.
   prog="$(timeout 90 ssh "${SSH_OPTS[@]}" -p "$PORT" "root@$HOST" \
-    "csv=\$(ls -t /root/cf404_runs/*/*/*/*_losses.csv /root/cf404_runs/*/eval/*/*_losses.csv 2>/dev/null | head -1); \
-     [ -n \"\$csv\" ] && echo \"\$(basename \$csv | cut -c1-46) step=\$(tail -1 \$csv | cut -d, -f1)\"" 2>/dev/null)"
+    "for csv in \$(ls -t /root/cf404_runs/*/*/*/*_losses.csv /root/cf404_runs/*/eval/*/*_losses.csv 2>/dev/null | head -4); do \
+       printf '%s=%s ' \"\$(basename \$csv | sed -E 's/^.*_(mean_[a-z0-9]+)_losses.csv$/\1/; s/^qhead_([a-z0-9]+)_.*$/head_\1/')\" \"\$(tail -1 \$csv | cut -d, -f1)\"; \
+     done" 2>/dev/null)"
 fi
 
 scores=""
@@ -53,5 +61,5 @@ done
 spend="$(timeout 120 vastrun-status 2>/dev/null \
   | awk -v id="${INSTANCE:-none}" '$1 == id { for (i = 1; i <= NF; i++) if ($i ~ /^\$/) v = $i; print v }')"
 
-echo "[$(date '+%m-%d %H:%M')] #404 driver=$drv card=${card:-unreachable}" \
+echo "[$(date '+%m-%d %H:%M')] #404 $ROUND driver=$drv card=${card:-unreachable}" \
      "| ${prog:-no csv} | scores:${scores:- none} | spend=${spend:-gone}"

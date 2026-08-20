@@ -1,5 +1,5 @@
 #!/bin/bash
-# #404 — the hourly backstop behind round 3c.
+# #404 — the hourly backstop behind the round that runs now.
 #
 # `heartbeat.sh` prints one liveness line and exits. This loop calls it every
 # hour and appends the line to `results/heartbeat.log`, so a reader who arrives
@@ -15,24 +15,26 @@
 #
 #   nohup setsid bash scripts/heartbeat_loop.sh > /dev/null 2>&1 < /dev/null &
 #
-# It stops on its own when the round 3c driver leaves the process table.
+# It stops on its own when the round's driver leaves the process table.
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STUDY="$(dirname "$HERE")"
 R="$STUDY/results"
+ROUND="${ROUND:-round4}"
+PIDF="${ROUND_PID:-$R/$ROUND.pid}"
 EVERY="${EVERY:-3600}"
 LOG="$R/heartbeat.log"
 
 echo "$$" > "$R/heartbeat.pid"
-echo "[$(date '+%m-%d %H:%M')] #404 heartbeat loop up, every ${EVERY}s" >> "$LOG"
+echo "[$(date '+%m-%d %H:%M')] #404 heartbeat loop up for $ROUND, every ${EVERY}s" >> "$LOG"
 
 while :; do
-  bash "$HERE/heartbeat.sh" >> "$LOG" 2>&1
+  ROUND="$ROUND" ROUND_PID="$PIDF" bash "$HERE/heartbeat.sh" >> "$LOG" 2>&1
   # The driver owns the round. When it exits, the last probe is written above
   # and this loop has nothing left to watch.
-  if [ -s "$R/round3c.pid" ] && ! ps -p "$(cat "$R/round3c.pid")" >/dev/null 2>&1; then
-    echo "[$(date '+%m-%d %H:%M')] #404 the round 3c driver is gone — heartbeat loop stops" >> "$LOG"
+  if [ -s "$PIDF" ] && ! ps -p "$(cat "$PIDF")" >/dev/null 2>&1; then
+    echo "[$(date '+%m-%d %H:%M')] #404 the $ROUND driver is gone — heartbeat loop stops" >> "$LOG"
     exit 0
   fi
   sleep "$EVERY"

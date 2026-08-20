@@ -1,0 +1,19 @@
+[08-20 09:39:38] [#404 round4] START arms='s08c s08d' box=cf404-box-r4 deadline=14h max_spend=$6.00
+[08-20 09:39:39] [#404 round4] credit before: Credit:  $13.95 Total:   $13.95 
+[08-20 09:39:39] [#404 round4] searching — 2 card(s), datacenter, reliability >= 0.99, max bid $0.45/h, desktop CPU
+[08-20 09:39:40] [#404 round4]   0 offer(s) with a desktop CPU, 0 in all
+[08-20 09:40:02] [#404 round4] no two-card offer carries a desktop CPU — taking one card of the same class
+[08-20 09:40:02] [#404 round4]   (a two-card server box runs this cell about six times slower per step)
+[08-20 09:40:02] [#404 round4] searching — 1 card(s), datacenter, reliability >= 0.99, max bid $0.45/h, desktop CPU
+[08-20 09:40:03] [#404 round4]   4 offer(s) with a desktop CPU, 5 in all
+[08-20 09:42:07] [#404 round4] instance 48192413 at ssh9.vast.ai:32412
+[08-20 09:42:10] [#404 round4] card(s): 0, NVIDIA GeForce RTX 5090, 32607 MiB, Default  count=1
+[08-20 09:42:13] [#404 round4] cpu: AMD Ryzen 7 7800X3D 8-Core Processor
+8 
+[08-20 09:42:17] [#404 round4] ram: 30 GB total, 28 GB available
+[08-20 09:42:17] [#404 round4] 2 arms on card 0, lanes '0 0' (Default compute mode)
+[08-20 09:42:20] [#404 round4] bootstrap
+[08-20 09:45:38] [#404 round4] bootstrap OK
+  box reduce=mean root=/root/cf404_runs results=/root/cf/reports/2026-08-19_ema_momentum_k32/results
+  arm s08c gpu=0 stops='40000' heads=0
+  arm s08d gpu=0 stops='40000' heads=0

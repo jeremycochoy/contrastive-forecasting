@@ -1,12 +1,18 @@
 #!/bin/bash
 # #404 — the card's four deliverables, from whatever this study has scored.
 #
-#   plots/momentum.png      GM-Relative MASE against the EMA momentum
-#                           (deliverable 1)
-#   plots/loss_curves.png   one training-loss curve per arm, log-log
-#                           (deliverable 2)
-#   plots/domain_radar.png  GM-Relative MASE per domain (deliverable 3)
-#   results/table.md        the table and the statement (deliverable 4)
+#   plots/momentum.png         GM-Relative MASE against the EMA momentum
+#                              (deliverable 1)
+#   plots/loss_curves.png      one training-loss curve per arm, log-log
+#                              (deliverable 2)
+#   plots/domain_radar.png     GM-Relative MASE per domain (deliverable 3)
+#   results/table.md           the table and the statement (deliverable 4)
+#   plots/backbone_health.png  the contrastive AUC of every arm against the
+#                              backbone step, with any collapsed arm in red
+#   results/seed_report.md     one arm at four backbone seeds: which collapsed,
+#                              the spread over the rest, and whether that
+#                              spread separates 0.90 fixed from 0.95 fixed
+#   results/seed_table.csv     the same, as a table a reader does not parse
 #
 # It runs `collect.sh` first, so both tables are current, then draws from them.
 # A figure with no input is SKIPPED with a line saying so, never with a stack
@@ -43,5 +49,20 @@ draw "loss_curves" "$HERE/plot_loss_curves.py" \
 draw "domain_radar" "$HERE/plot_domain_radar.py" \
   --splits "$CF404_RESULTS/splits.csv" --out "$CF404_PLOTS/domain_radar.png"
 
+# The health figure, the table and the seed report read the SYNC TREE, not one
+# root: the contrastive AUC lives in each arm's backbone losses CSV, and the
+# arms of this card were trained on five boxes. `CF404_SYNC_TREE` is the parent
+# of the per-box roots.
+SYNC_TREE="${CF404_SYNC_TREE:-$(dirname "$CF404_SYNC_DIR")}"
+
 draw "table" "$HERE/make_table.py" \
-  --scores "$CF404_RESULTS/scores.csv" --out "$CF404_RESULTS/table.md"
+  --scores "$CF404_RESULTS/scores.csv" --out "$CF404_RESULTS/table.md" \
+  --sync-root "$SYNC_TREE"
+
+draw "backbone_health" "$HERE/plot_backbone_health.py" \
+  --sync-root "$SYNC_TREE" --out "$CF404_PLOTS/backbone_health.png"
+
+draw "seed_report" "$HERE/seed_report.py" \
+  --scores "$CF404_RESULTS/scores.csv" --sync-root "$SYNC_TREE" \
+  --out "$CF404_RESULTS/seed_report.md" \
+  --table "$CF404_RESULTS/seed_table.csv"

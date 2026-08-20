@@ -5,11 +5,19 @@ The comment carries every scored arm and the repeat spread this card
 measures. Both come from `results/scores.csv`, which `collect.sh` writes from
 the score files, so the comment cannot disagree with the figures.
 
-`repeat_spread.py` finds a repeat pair by (alpha, schedule, ramp). `s08` and
-`s08b` share all three and differ in the backbone seed alone, so the distance
-between their two scores IS the run-to-run spread of this cell.
+`repeat_spread.py` finds a repeat family by (alpha, schedule, ramp). Four arms
+of this card share all three and differ in the backbone seed alone, so the
+distance between their scores IS the run-to-run spread of this cell.
+
+ONE OF THOSE FOUR MUST NOT COUNT. `s08b` did not measure noise: its backbone
+fell to chance while it trained, AUC 0.91 at 10,000 steps to 0.57 at 40,000. A
+collapsed run is a different event from a noisy one, and its distance from a
+healthy run is not a spread. So `--sync-root` lets this script read the AUC of
+every arm and report the spread over the seeds that did NOT collapse.
+`seed_report.py` holds the one definition of a collapse in this study.
 
 Usage:  python3 scripts/pr_comment.py --scores results/scores.csv \\
+          --sync-root ~/cf404_sync \\
           --agent "ExperimentRunner claude-opus-5" \\
           --dir reports/2026-08-19_ema_momentum_k32
 """
@@ -23,6 +31,7 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import references  # noqa: E402
 import repeat_spread  # noqa: E402
+import seed_report  # noqa: E402
 
 
 def read_scores(path: pathlib.Path) -> list[dict]:
@@ -49,6 +58,9 @@ def momentum(r: dict) -> str:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--scores", required=True, type=pathlib.Path)
+    ap.add_argument("--sync-root", type=pathlib.Path,
+                    help="the sync tree, to read each arm's contrastive AUC")
+    ap.add_argument("--stop", type=int, default=40000)
     ap.add_argument("--agent", default="ExperimentRunner claude-opus-5")
     ap.add_argument("--dir", default="reports/2026-08-19_ema_momentum_k32")
     ap.add_argument("--runs", type=int, default=None,
@@ -81,22 +93,35 @@ def main() -> int:
                    f"{r['score']:.4f} | {r['score'] - k3_40k:+.4f} |")
     out.append("")
 
-    sentence = repeat_spread.sentence(rows)
-    pairs = repeat_spread.pairs(rows)
+    # The repeat spread. When a sync tree is given, the AUC of every arm at
+    # the stop decides which runs count: a backbone that fell to chance is a
+    # collapse, not a draw from the noise, and its distance from a healthy run
+    # is not a spread.
     d = None
-    out.append("## The measured repeat spread")
-    out.append("")
-    if pairs:
-        p = max(pairs, key=lambda q: repeat_spread.spread(*q)[0])
-        d, rel = repeat_spread.spread(*p)
-        out.append(f"**{d:.4f} ({rel:.1%})**, from `{p[0]['arm']}` "
-                   f"{p[0]['score']:.4f} against `{p[1]['arm']}` "
-                   f"{p[1]['score']:.4f}.")
+    rep = None
+    if a.sync_root is not None:
+        rep = seed_report.report(rows, a.sync_root.expanduser(), a.stop)
+        d = rep["spread"]
+        out.append("## The repeat family, seed by seed")
         out.append("")
-        out.append(sentence)
+        out.append(seed_report.markdown(rep, a.stop))
+        out.append("")
     else:
-        out.append("No repeat pair is scored yet.")
-    out.append("")
+        sentence = repeat_spread.sentence(rows)
+        pairs = repeat_spread.pairs(rows)
+        out.append("## The measured repeat spread")
+        out.append("")
+        if pairs:
+            p = max(pairs, key=lambda q: repeat_spread.spread(*q)[0])
+            d, rel = repeat_spread.spread(*p)
+            out.append(f"**{d:.4f} ({rel:.1%})**, from `{p[0]['arm']}` "
+                       f"{p[0]['score']:.4f} against `{p[1]['arm']}` "
+                       f"{p[1]['score']:.4f}.")
+            out.append("")
+            out.append(sentence)
+        else:
+            out.append("No repeat pair is scored yet.")
+        out.append("")
 
     # The card's own question: is the distance between the two fixed-momentum
     # arms larger than one repeat of the same cell? Both numbers come from
@@ -105,8 +130,9 @@ def main() -> int:
     out.append("")
     answer = repeat_spread.separation(rows, d, 0.90, 0.95) if d is not None \
         else ""
-    out.append(answer or "The card cannot answer this yet: it has no repeat "
-                         "pair, or one of the two arms has no score.")
+    out.append(answer or "The card cannot answer this yet: it has fewer than "
+                         "two stable seeds of one arm, or one of the two arms "
+                         "has no score.")
     out.append("")
     out.append("## The verdict")
     out.append("")
@@ -114,6 +140,16 @@ def main() -> int:
                f"{momentum(best)}. It sits {best['score'] - k3_40k:+.4f} from "
                f"the k = 3 score at the same 40,000 steps, {k3_40k:.4f}, so it "
                f"does NOT go below that score.")
+    if rep is not None and rep["spread"] is not None:
+        near = repeat_spread.unresolved(rows, rep["spread"])
+        out.append("")
+        if len(near) > 1:
+            out.append(f"{len(near)} arms sit within one repeat spread of that "
+                       f"score: " + ", ".join(f"`{n}`" for n in near) +
+                       ". This card does not rank them.")
+        else:
+            out.append(f"No other arm sits within one repeat spread "
+                       f"({rep['spread']:.4f}) of it.")
     out.append("")
     if a.runs is not None:
         out.append(f"Runs completed this round: {a.runs}.")

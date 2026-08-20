@@ -1,0 +1,49 @@
+# #404 round 4 — why the box carries ONE card, not two.
+#
+# The card asks for one box with TWO cards, a datacenter host at reliability
+# 0.99 or better, and a DESKTOP-class CPU. The step rate of this cell is set
+# by the CPU: #373 measured 5.6 to 6.7 steps/s on a Zen 4 desktop part
+# against 1.1 steps/s on an EPYC 7452.
+#
+# This is the WHOLE two-card datacenter pool at reliability 0.99 or better,
+# read on 2026-08-20 with no price ceiling. Every row carries a SERVER CPU.
+#
+#   vastrun-search --num-gpus 2 --min-reliability 0.99 --max-bid 20 --hardware
+#
+# The cheapest is $1.04/h. At six times the step time it needs about 22 hours
+# per arm and about $23, against a limit of $7. A two-card server box is
+# SLOWER and DEARER than one desktop box.
+
+Offer ID  Machine ID  GPU              Num  VRAM/GPU  TFLOPS/GPU  $/h      DLPerf/$  Region  Reliability  CPU                                      RAM     Bus           Disk GB  Disk BW  Up    Down   Driver      CUDA
+39644063  44230       RTX 5090         2    16GB      108.1       $1.7354  197.3     HU      0.994        AMD EPYC 7763 64-Core Processor (256c)   220GB   PCIe 4.0 x16  788      11012    5065  6282   595.71.05   13.2
+38912066  81384       RTX 4090         2    12GB      81.8        $1.0437  170.3     GB      0.993        AMD EPYC 7V13 64-Core Processor (256c)   125GB   PCIe 4.0 x16  620      5629     954   2273   580.173.02  13.0
+30564423  48301       RTX PRO 6000 S   2    48GB      93.6        $3.4685  161.0     US      0.998        Xeon® 6767P (256c)                       251GB   PCIe 5.0 x16  2199     9635     9900  16800  580.95.05   13.0
+28705861  48305       RTX PRO 6000 S   2    48GB      93.6        $3.4685  160.4     US      0.998        Xeon® 6767P (256c)                       251GB   PCIe 5.0 x16  1517     8982     9471  15665  580.95.05   13.0
+46130699  55704       RTX 4090         2    12GB      82.6        $1.2687  153.6     HU      0.997        AMD EPYC 7763 64-Core Processor (128c)   188GB   PCIe 4.0 x16  2544     7651     5990  7718   590.48.01   13.1
+38355174  50938       RTX PRO 6000 WS  2    48GB      119.0       $3.7343  151.0     CZ      0.998        AMD EPYC 9274F 24-Core Processor (96c)   125GB   PCIe 5.0 x16  3664     8109     2047  6859   580.105.08  13.0
+46258931  8284        RTX 5090         8    4GB       107.6       $6.4014  146.5     CA      0.999        AMD EPYC 9B14 96-Core Processor (192c)   755GB   PCIe 5.0 x16  2847     8724     3523  3273   595.84      13.2
+45029212  39532       RTX 5090         8    4GB       108.1       $6.4014  146.5     CA      0.996        AMD EPYC 9B14 96-Core Processor (192c)   755GB   PCIe 5.0 x16  5089     5572     3424  3383   595.71.05   13.2
+45029230  42723       RTX 5090         8    4GB       107.6       $6.4014  146.4     CA      0.999        AMD EPYC 9B14 96-Core Processor (120c)   755GB   PCIe 5.0 x16  6007     9379     3573  3415   575.57.08   12.9
+45029235  44733       RTX 5090         8    4GB       107.6       $6.4014  146.4     CA      0.998        AMD EPYC 9B14 96-Core Processor (192c)   377GB   PCIe 5.0 x16  3066     3692     3471  3425   595.71.05   13.2
+44096418  136514      RTX 5090         2    16GB      107.6       $1.4681  140.0     CZ      0.998        AMD EPYC 7452 32-Core Processor (64c)    125GB   PCIe 4.0 x8   601      2137     1275  2182   595.80      13.2
+38912063  81384       RTX 4090         4    6GB       81.8        $2.0837  131.8     GB      0.993        AMD EPYC 7V13 64-Core Processor (256c)   251GB   PCIe 4.0 x16  1240     5629     954   2273   580.173.02  13.0
+28705682  48292       RTX PRO 6000 S   4    24GB      93.6        $6.9352  130.2     US      0.999        Xeon® 6767P (256c)                       503GB   PCIe 5.0 x16  3062     9190     9904  16896  580.95.05   13.0
+36643031  67874       RTX 4090         2    12GB      81.4        $1.3370  119.3     GB      0.992        Xeon® Gold 6133  (80c)                   125GB   PCIe 3.0 x16  1261     2360     5951  7647   580.173.02  13.0
+46861793  68401       RTX 5090         8    4GB       108.1       $8.0028  118.9     IN      0.998        AMD EPYC 9754 128-Core Processor (512c)  1007GB  PCIe 5.0 x16  6177     6799     2034  2844   595.58.03   13.2
+45133428  7506        RTX 4090         8    3GB       81.8        $4.2681  105.6     CA      1.000        AMD EPYC 7B13 64-Core Processor (256c)   503GB   PCIe 4.0 x16  3124     6235     2946  3035   595.71.05   13.2
+44096420  136514      RTX 5090         4    8GB       107.6       $2.9347  87.2      CZ      0.998        AMD EPYC 7452 32-Core Processor (64c)    251GB   PCIe 4.0 x8   1203     2137     1275  2182   595.80      13.2
+36643036  67874       RTX 4090         4    6GB       81.4        $2.6704  84.1      GB      0.992        Xeon® Gold 6133  (80c)                   251GB   PCIe 3.0 x16  2523     2360     5951  7647   580.173.02  13.0
+46429709  146069      RTX 5090         8    4GB       107.6       $6.0837  72.0      GB      0.992        AMD EPYC 7V13 64-Core Processor (256c)   503GB   PCIe 4.0 x16  2367     3170     1023  3023   580.173.02  13.0
+32966604  51596       RTX 4090         8    3GB       81.4        $5.3370  50.9      GB      0.997        Xeon® Gold 6133  (80c)                   376GB   PCIe 3.0 x16  844      1363     3721  5229   580.126.09  13.0
+47469868  56916       RTX 4090         8    3GB       81.8        $4.0570  49.0      GB      0.999        Xeon® Gold 6133  (80c)                   376GB   PCIe 3.0 x16  1267     1827     3636  6359   580.126.09  13.0
+Total: 23 offers (showing top 23).
+
+# The one-card pool of the same class, same moment:
+
+Offer ID  Machine ID  GPU       Num  VRAM/GPU  TFLOPS/GPU  $/h      DLPerf/$  Region  Reliability  CPU                                               RAM    Bus           Disk GB  Disk BW  Up    Down  Driver      CUDA
+45669402  144932      RTX 5090  1    32GB      108.1       $0.3356  578.3     KR      0.991        AMD Ryzen 7 7800X3D 8-Core Processor (8c)         30GB   PCIe 5.0 x16  472      4751     867   620   580.105.08  13.0
+44173666  143334      RTX 5090  1    32GB      108.1       $0.4023  494.6     KR      0.996        AMD Ryzen 7 7800X3D 8-Core Processor (16c)        30GB   PCIe 5.0 x16  541      6476     921   634   580.105.08  13.0
+45669447  144980      RTX 5090  1    32GB      108.1       $0.4023  494.2     KR      0.995        AMD Ryzen 7 7800X3D 8-Core Processor (16c)        30GB   PCIe 5.0 x16  451      6013     865   645   580.95.05   13.0
+45669547  145158      RTX 5090  1    32GB      108.1       $0.4023  482.5     KR      0.993        AMD Ryzen 7 7800X3D 8-Core Processor (8c)         30GB   PCIe 5.0 x16  633      4499     787   620   580.95.05   13.0
+25814666  15963       RTX 4090  1    24GB      81.4        $0.4014  245.5     IS      0.999        AMD Ryzen Threadripper PRO 3955WX 16-Cores (32c)  100GB  PCIe 4.0 x16  131      3431     3657  4330  565.77      12.7
+Total: 58 offers (showing top 40).
