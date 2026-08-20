@@ -7,73 +7,45 @@ training looks to make the forecast a little worse.
 
 ![GM-Relative MASE against backbone train step, rollout depth 8 and 32](plots/mean/depth_ladder.png)
 
-*GM-Relative MASE over the 97 GIFT-Eval configs, mean reduction. Each point
-scores a forecast head trained on the frozen student encoder. One colour per
-depth. Solid: a 30,000-step head. Dashed: a head trained as long as the
-backbone. The k = 3 and k = 0 references carry their own head budget: 15,000
-steps at the 40,000-step stop and 30,000 at the two later stops.*
+*Mean reduction. Each point scores a forecast head trained on the frozen
+student encoder. The k = 3 and k = 0 references carry their own head budget:
+15,000 steps at the 40,000-step stop and 30,000 at the two later stops.*
 
-No run under the mean reduction beats the k = 3 reference. None separates
-from the k = 0 anchor, the start checkpoint re-scored on this study's path
-and head budget. The closest run, k = 32 at the 200,000-step stop, sits
-inside the head-seed band of the anchor (±0.0384, the spread from the head
-seed alone). The same run is the best of this study, and it stays outside
-the band of the k = 3 reference.
-
-A head trained as long as the backbone helps no run, and the head-budget
-table carries the six pairs. The plan sends the two best arms to the longer
-head budget, and only two arms ran, so both went through with no selection.
-Only the sum reduction ran k = 16.
+No run separates from the k = 0 anchor, the start checkpoint re-scored on
+this study's path and head budget.
 
 ## Per-domain
 
 ![Per-domain GM-Relative MASE, 30,000-step head](plots/mean/domain_radar_phase1.png)
 
-*The best backbone stop of each depth, and the same run with a faster EMA ramp.*
-
 ![Per-domain GM-Relative MASE, head steps equal to the backbone steps](plots/mean/domain_radar_phase2.png)
-
-*The best backbone stop of each depth.*
 
 ## The reduction
 
 Summing the k + 1 rollout-depth copies collapses the encoder to one latent
-direction. Averaging the same copies does not, and the two sets of
-checkpoints do not overlap. The first runs used the sum, the trainer's
-default, and an amendment to the plan moved the objective to the mean.
+direction, and averaging the same copies does not.
 
 ![Effective rank and pair cosine of the encoder latent, both reductions](plots/latent_rank.png)
 
-*Effective rank and pair cosine of the encoder latent, 21 real GIFT-Eval
-windows, through the loader the eval uses. The effective rank is the
-exponential of the entropy of the latent covariance spectrum, and 1.0 means
-one direction. The pair cosine is the mean cosine between the latents of two
-different series, and 1.0 means the encoder cannot tell them apart. The
-k = 0 parent is the checkpoint set this study starts from.*
+*21 real GIFT-Eval windows, through the loader the eval uses. The effective
+rank is the exponential of the entropy of the latent covariance spectrum.
+The k = 0 parent is the checkpoint set this study starts from.*
 
 ![GM-Relative MASE against latent rank and against readout r](plots/collapse_vs_score.png)
 
 *The right panel holds the runs whose top latent direction carries at least
-half of the variance. The readout r is the mean absolute correlation between
-the input series and the projection of the latent on its top direction.*
+half of the variance.*
 
-The reduction over the k + 1 depth copies sets the collapse. The depth does
-not: no checkpoint sits between the summed set and the other two. Every
-summed backbone is collapsed, with a pair cosine at or above 0.9999, and
-inside that set the score follows the readout r (Spearman −0.76, n = 8).
+Inside the collapsed set, the score follows the readout r (Spearman −0.76,
+n = 8).
 
 ![Training-time collapse probes, both reductions, against backbone step](plots/collapse_onset.png)
 
-*The trainer's own columns, per step, first 40,000 steps. `train AUC` is the
-trainer's own separation of a positive from a negative, and 0.50 is chance.
-`u_batch` is the dimension usage of the latent, and it falls when the encoder
-puts its variance into fewer directions. `cos_err_d0` is 1 minus the cosine
-between the forecast and the next latent. Solid: published k = 3. Long dash:
-sum. Dotted: mean.*
+*The trainer's own columns. `train AUC` is the trainer's own separation of a
+positive from a negative. `cos_err_d0` is 1 minus the cosine between the
+forecast and the next latent.*
 
 ![Sum against mean over the k + 1 rollout-depth copies](plots/mean/arm_compare.png)
-
-*The same configuration and the same depths under both reductions.*
 
 ## Limits
 
@@ -136,9 +108,7 @@ column reads the score files of
 [`rollout_depth.md`](../2026-08-08_rollout_depth/rollout_depth.md), same
 configuration, same eval. The k = 0 published column is the score the parent
 study published, read from
-[`published.py`](../2026-08-08_rollout_depth/scripts/published.py). Both
-columns carry that study's head budget: 15,000 steps at stop 40k and 30,000
-at stops 100k and 200k.*
+[`published.py`](../2026-08-08_rollout_depth/scripts/published.py).*
 
 | backbone stop | k = 8 | k = 32 | k = 0 anchor | k = 0 published | k = 3, same configuration |
 |---|---:|---:|---:|---:|---:|
@@ -178,8 +148,7 @@ published value.*
 
 ### The two reductions, over every checkpoint on disk
 
-*The probe reads the encoder latent of 21 real GIFT-Eval windows, through the
-loader the eval uses. Source: `results/diag/collapse_all.csv`.*
+*Source: `results/diag/collapse_all.csv`.*
 
 | set | checkpoints | pair cosine | effective rank |
 |---|---:|---|---|
