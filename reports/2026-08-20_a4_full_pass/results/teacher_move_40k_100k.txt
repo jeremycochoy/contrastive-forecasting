@@ -1,0 +1,17 @@
+a  /home/jupyter/cf373_r2/A4/sync/arm6_v2_combab_alignS/leg_40k/cf393_arm6_v2_combab_alignS_cf373k3_40k.pth
+b  /home/jupyter/cf373_r3/sync/arm6_v2_combab_alignS/leg_100k/cf393_arm6_v2_combab_alignS_cf373k3_100k.pth
+side      tensors identical  moved     max |d|      rel L2
+teacher        52         0     52   2.324e+00   9.814e-01
+            teacher_encoder_layers.0.linear2.weight  max |d| 2.324e+00
+            teacher_encoder_layers.1.linear2.weight  max |d| 1.834e+00
+            teacher_encoder_layers.2.linear2.weight  max |d| 1.672e+00
+            teacher_input_to_latent.gru.weight_hh_l0  max |d| 1.613e+00
+            teacher_input_to_latent.skip.weight  max |d| 1.277e+00
+student       110         4    106   2.363e+00   7.464e-01
+            transformer.encoder_layers.0.linear2.weight  max |d| 2.363e+00
+            transformer.encoder_layers.1.linear2.weight  max |d| 1.796e+00
+            transformer.encoder_layers.2.linear2.weight  max |d| 1.667e+00
+            encoder.gru.weight_hh_l0  max |d| 1.618e+00
+            transformer.input_to_latent.gru.weight_hh_l0  max |d| 1.618e+00
+the teacher MOVED: 52 of 52 tensors differ, max |d| 2.324e+00, rel L2 9.814e-01
+wrote reports/2026-08-20_a4_full_pass/results/teacher_move_40k_100k.json

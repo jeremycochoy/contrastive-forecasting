@@ -24,8 +24,9 @@
 # writes no progress, so the process check alone would never fire. The AND
 # of the two is the condition this study wants.
 #
-# It also runs `mirror_durable.sh` every tick. That is review gap 5, and it
-# belongs here because the same hourly loop already exists.
+# It also runs `mirror_durable.sh` and `teacher_check.sh` every tick. Those
+# are review gaps 5 and 4, and they belong here because the same hourly
+# loop already exists and both are cheap and idempotent.
 #
 # Usage:
 #   WT=<checkout> RUNS=<durable root> BB_GPU=0 \
@@ -86,6 +87,11 @@ prev_step=""; prev_mark=""; quiet=0; fires=0
 
 while :; do
   bash "$HERE/mirror_durable.sh" >>"$LOG" 2>&1 || log "WARN: mirror rc=$?"
+  # Review gap 4. It costs seconds, it skips a pair it already
+  # answered, and it needs the checkpoint rather than the score, so
+  # the answer for a stop lands before that stop finishes scoring.
+  CF373_ROOT="$RUNS" bash "$HERE/teacher_check.sh" >>"$LOG" 2>&1 || \
+    log "WARN: teacher_check rc=$?"
 
   step="$(last_step)"; mark="$(driver_mark)"
   stops="$(open_stops 2>/dev/null)"
