@@ -253,8 +253,11 @@ def draw_reference(ax, xs, pts, ink, style, width=1.7):
 # categorical, so this is a dodge and not a claim about the step count.
 VARIANT_DODGE = 0.055
 
+# A variant's run tag names a directory. The plot needs what the cell is.
+VARIANT_LABEL = {"ema30k": "faster EMA ramp"}
 
-def draw_variants(ax, cells, xs):
+
+def draw_variants(ax, cells, xs, base=None):
     """One open marker per variant cell, named on the point.
 
     Open, so it never reads as a stop of the solid line it sits on. The depth
@@ -270,9 +273,18 @@ def draw_variants(ax, cells, xs):
         if stop_k not in xs:
             continue
         x = xs[stop_k] + VARIANT_DODGE
+        # A leader from the cell this variant changes ONE setting of. Without
+        # it the ring floats: k = 32 with the faster ramp scores 1.2385, which
+        # sits beside the k = 8 curve and far from its own k = 32 curve, so
+        # the colour alone made a reader pair it with the wrong line.
+        twin = (base or {}).get(k, {}).get(stop_k)
+        if twin is not None:
+            ax.plot([xs[stop_k], x], [twin, score], color=D.colour(k),
+                    lw=1.0, alpha=0.55, zorder=3)
         ax.plot([x], [score], marker="o", ms=8.0, lw=0,
                 mfc="white", mec=D.colour(k), mew=2.0, zorder=5)
-        ax.annotate(variant, (x, score), xytext=(9, -3),
+        ax.annotate(VARIANT_LABEL.get(variant, variant), (x, score),
+                    xytext=(9, -3),
                     textcoords="offset points", fontsize=8, color=D.INK,
                     va="center", ha="left")
         values.append(score)
@@ -335,7 +347,8 @@ def draw_panel(ax, phase, arms, k3, k0, xs, frontier, stops_k, variants=(),
             tag = D.label(k) if phase_drawn == 1 else f"{D.label(k)}, long head"
             ends.append((xs[ss[-1]], pts[ss[-1]], tag, col))
 
-    values += draw_variants(ax, [c for c in variants if c[0] == 1], xs)
+    values += draw_variants(ax, [c for c in variants if c[0] == 1], xs,
+                            arms.get(1))
     values += draw_seeds(ax, repeats or {}, 1, xs)
     values += draw_band(ax, xs, k3, D.REF_K3_INK)
     values += draw_reference(ax, xs, k3, D.REF_K3_INK, "solid")
@@ -412,17 +425,17 @@ def main(argv=None):
         Line2D([], [], color=D.INK, linestyle=(0, (5, 2)), lw=1.9,
                label="long head (= backbone)"),
         Line2D([], [], color=D.INK_SOFT, linestyle="solid", lw=1.7,
-               label="k = 3"),
+               label="k = 3, the depth before this study"),
         Patch(facecolor=D.REF_K3_INK, alpha=0.14, lw=0,
               label=f"head-seed band ±{HEAD_SEED_BAND:.4f}"),
         Line2D([], [], color=D.REF_K0_INK, linestyle=D.STYLE_K0, lw=1.7,
-               label="k = 0, published"),
+               label="no rollout, as published"),
         Line2D([], [], color=D.PRIOR_INK, lw=2.0,
-               label=f"best before this study, {frontier:.4f}")]
+               label=f"best score before this study, {frontier:.4f}")]
     if any(s in xs for s in anchor):
         handles.insert(3, Line2D([], [], marker="D", ms=7.0, lw=0,
                                  color=D.REF_K0_INK, mec="white", mew=0.9,
-                                 label="k = 0, this path"))
+                                 label="no rollout, scored here"))
     if repeats:
         handles.append(Line2D([], [], marker="|", ms=9.0, lw=1.6,
                               color=D.INK, markeredgewidth=1.6,
@@ -431,7 +444,7 @@ def main(argv=None):
         handles.append(
             Line2D([], [], marker="o", ms=8.0, lw=0, mfc="white",
                    mec=D.INK, mew=2.0,
-                   label="other EMA schedule"))
+                   label="same cell, faster EMA ramp"))
     # The head budget of the three reference marks. They are the parent
     # study's own numbers, so they carry that study's head budget and not
     # this one's. The right panel draws cells at 40,000 and 100,000 head
