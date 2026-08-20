@@ -1,15 +1,26 @@
 # Rollout depth 3 sets the project's best GM-Relative MASE
 
-Rollout depth 3 sets the project's best GM-Relative MASE: 1.0660 against the
-prior best of 1.1544, 0.0884 lower. The configuration is arm6_v2 (L_rep MoCo
-keys, tau_rep 1 + L_align on the student, no CPC, EMA 0.9 to 1.0), at 200,000
-backbone steps, on the student head [cell A4]. Every cell ran once, on one
-backbone seed. This study measures a frontier and a direction, not a
+The best GM-Relative MASE is now 1.0660, against a prior best of 1.1544. That
+is 0.0884 lower. The configuration is arm6_v2 (L_rep MoCo keys, tau_rep 1 +
+L_align on the student, no CPC, EMA 0.9 to 1.0). It reached that number at
+200,000 backbone steps, on the student head [cell A4]. Every cell ran once, on
+one backbone seed. This study measures a frontier and a direction, not a
 per-recipe ranking.
+
+## 1. The frontier
 
 ![the best GM-Relative MASE of every cell, against the frontier before this study](plots/frontier.png)
 
 *Best score per cell, one mark per head, sorted best at the top.*
+
+![GM-Relative MASE against backbone train step, 14 cells, both heads](plots/ladder.png)
+
+*GM-Relative MASE against backbone train step, all 14 cells, both heads.*
+
+At bb100k, arm6_v2, L_align on the student, EMA 0.9 to 1.0 [A4] improves on its
+own published `k = 0`. The gain is 0.1144 on the student head.
+
+### The terms this report uses
 
 Five terms come first. Section 14 has the glossary for every other term.
 
@@ -28,15 +39,6 @@ Five terms come first. Section 14 has the glossary for every other term.
 
 `scripts/cell_config.py` builds every configuration name in this report from the
 launcher sources.
-
-## 1. The frontier
-
-![GM-Relative MASE against backbone train step, 14 cells, both heads](plots/ladder.png)
-
-*GM-Relative MASE against backbone train step, all 14 cells, both heads.*
-
-At bb100k, arm6_v2, L_align on the student, EMA 0.9 to 1.0 [A4] improves on its
-own published `k = 0`. The gain is 0.1144 on the student head.
 
 ## 2. The hardest families
 
