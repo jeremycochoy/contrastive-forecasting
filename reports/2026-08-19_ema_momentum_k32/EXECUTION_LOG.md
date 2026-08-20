@@ -666,3 +666,84 @@ THE WATCHDOG PULLS BEFORE IT DESTROYS, which round 5's did not. The cap is a
 budget event and not a data event: whatever the box holds at that moment is
 still worth a head on elisa, and `head_eval.sh` trains a head that is not on
 disk before it evals. So a cap that fires mid-round still ends with a score.
+
+## Round 6, part 2 — the head the round 6 driver did not wait for
+
+### What the round 6 driver did
+
+`finish_round6.sh` pulled the three backbones and the two heads that existed,
+then logged this pair of lines:
+
+    MISSING qhead_w3_s08_bb40k_h30k_student_s20260722_final.pth
+    w3_s08: WARNING — an artefact did not land
+
+Then it destroyed instance 48192413. The `w3_s08` head was at about 26,000
+steps of 30,000. That head is gone, and no eval ran for any of the three new
+arms.
+
+A missing final checkpoint is a STOP, not a warning.
+
+### What survived, by name and by size
+
+    r100_09  backbone _40k.pth 5196347 B   head _final.pth 450113 B
+    r100_08  backbone _40k.pth 5196347 B   head _final.pth 450113 B
+    w3_s08   backbone _40k.pth 5196231 B   NO head
+
+So one head had to train again, and nothing else.
+
+### The order, and why the two CPU evals went first
+
+`r100_09` and `r100_08` hold a head each. Their evals read `gift-eval-data`
+and the `gift_eval` package, both on elisa, and they run on the CPU. They need
+no GPU and no box, so they started FIRST, at 23:05, four shards each. They cost
+nothing to start early and they finish while the third arm trains.
+
+### Why the head rented a box
+
+Both elisa cards were full: 22,297 MiB and 22,746 MiB of 24,564 MiB. A head
+needs about 5.6 GB and the VRAM gate asks for 7,000 MiB free. Card 407 also
+holds the head lock on this machine and has two more heads to run, so a wait
+here has no known end.
+
+One RTX 5090, $0.3611/h, was the cheaper answer. The head took 31 minutes and
+the box cost $0.30, against a $2 limit.
+
+### The rule the new driver carries
+
+`scripts/recover_w3_head.sh` asks ONE question before it destroys anything: is
+the head on elisa's disk, by name and above 400,000 bytes? `destroy_box`
+returns without acting when the answer is no. Every other exit path calls
+`leave_box_alive`, which names the instance and prints the command that
+destroys it. A box that stays alive costs $0.36 an hour and a person can see
+it. A box destroyed early costs the run.
+
+### Events
+
+- 23:05 the two CPU evals started, detached, under `nohup setsid`. Both
+  skipped head training: `head_eval_bb.sh` reads `head-train SKIP (final
+  exists)` off the head already on disk.
+- 23:11 the recovery driver started, detached, pid 3775388.
+- 23:13 instance 48246956, RTX 5090, 32,607 MiB, Default compute mode.
+- 23:13 THREE ROUND 6 LEFTOVERS STOPPED BY PID, the finisher FIRST. It acts
+  when the driver leaves the process table, and it would have posted a second
+  PR comment over this one. Then the driver (2959282), then the heartbeat loop
+  (2963911). Never a pattern: card 407 runs its own evals on this machine.
+- 23:16 bootstrap OK, 3.5 minutes.
+- 23:17 the backbone went UP this time, 5,196,231 B on both sides.
+- 23:17 the sync loop started for `box_a`, 15 minute ticks, for the whole run.
+- 23:17 the head started. Its command line carries `--encoder-source student
+  --quantile-head --forecast-len 16 --batch-size 256 --lr 1e-3 --total-steps
+  30000 --seed 20260722 --head-arch transformer`, which is round 1's protocol.
+- 23:22 the launch is VERIFIED off the box: trainer pid 2661, 5,616 MiB, 73 %.
+- 23:48 the head landed on the box at 450,079 B, 31 minutes for 30,000 steps.
+  The sync loop stopped first, by pid, so two writers could not land on one
+  `.tmp` name. Then the pull.
+- 23:48 the head is on elisa. ONLY THEN the box was destroyed. $0.22 billed,
+  credit $6.91 to $6.61.
+- 23:48 the third eval started on elisa's CPUs.
+
+### The head's own insurance
+
+The sync loop pulled the periodic head checkpoints as they were written: 5k,
+10k, 15k and `best`, with their optimizers and the losses CSV. A box lost at
+minute 25 would have left a head to fine-tune, not an empty directory.
