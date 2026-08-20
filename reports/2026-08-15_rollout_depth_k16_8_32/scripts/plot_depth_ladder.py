@@ -313,34 +313,43 @@ def draw_panel(ax, phase, arms, k3, k0, xs, frontier, stops_k, variants=(),
                anchor=None, repeats=None):
     values = []
     ends = []
-    for k in D.DEPTHS_DRAWN:
-        pts = {s: v for s, v in arms.get(k, {}).items() if s in xs}
-        if not pts:
-            continue
-        ss = sorted(pts)
-        col = D.colour(k)
-        ax.plot([xs[s] for s in ss], [pts[s] for s in ss], color=col,
-                lw=2.0, marker="o", ms=5.0, mec="white", mew=0.9, zorder=4)
-        values += list(pts.values())
-        ends.append((xs[ss[-1]], pts[ss[-1]], k, col))
+    curves = []
+    # One line per (depth, head budget). The depth owns the colour and the
+    # head budget owns the line style, so the pair a reader wants to compare
+    # sits on one pair of curves in one colour. Two panels made the reader
+    # carry a number across the page to see the head-budget move.
+    for phase_drawn, style, width in ((1, "-", 2.0), (2, (0, (5, 2)), 1.9)):
+        by_k = arms.get(phase_drawn) or {}
+        for k in D.DEPTHS_DRAWN:
+            pts = {s: v for s, v in by_k.get(k, {}).items() if s in xs}
+            if not pts:
+                continue
+            ss = sorted(pts)
+            col = D.colour(k)
+            ax.plot([xs[s] for s in ss], [pts[s] for s in ss], color=col,
+                    linestyle=style, lw=width, marker="o", ms=5.0,
+                    mec="white", mew=0.9, zorder=4)
+            values += list(pts.values())
+            curves.append((phase_drawn, k))
+            if phase_drawn == 1:
+                ends.append((xs[ss[-1]], pts[ss[-1]], k, col))
 
-    values += draw_variants(ax, [c for c in variants if c[0] == phase], xs)
-    values += draw_seeds(ax, repeats or {}, phase, xs)
+    values += draw_variants(ax, [c for c in variants if c[0] == 1], xs)
+    values += draw_seeds(ax, repeats or {}, 1, xs)
     values += draw_band(ax, xs, k3, D.REF_K3_INK)
     values += draw_reference(ax, xs, k3, D.REF_K3_INK, D.STYLE_K3)
     values += draw_reference(ax, xs, k0, D.REF_K0_INK, D.STYLE_K0)
-    if phase == K0_ANCHOR_PHASE:
+    if True:
         values += draw_anchor(ax, xs, anchor or {})
 
     ax.axhline(frontier, color=D.PRIOR_INK, lw=2.0, zorder=1)
-    ax.set_title(PHASE_TITLE[phase], loc="left", fontsize=10.5, color=D.INK)
     ax.set_xticks([xs[s] for s in stops_k])
     ax.set_xticklabels([f"{s}k" if s in STOPS_K else str(s) for s in stops_k])
     ax.set_xlim(-0.14, len(stops_k) - 1 + 0.62)
     ax.set_xlabel("backbone train step")
     ax.grid(axis="y", color=D.GRID, lw=0.8)
     ax.set_axisbelow(True)
-    return values, ends
+    return values, ends, curves
 
 
 def label_ends(ax, ends, lo, hi):
@@ -380,16 +389,14 @@ def main(argv=None):
     k3 = {s: v for s, v in k3.items() if s in xs}
     k0 = {s: v for s, v in k0.items() if s in xs}
     phases = [p for p in (1, 2) if scores.get(p)]
-    fig, axes = plt.subplots(1, len(phases), figsize=(6.6 * len(phases), 5.6),
-                             squeeze=False)
+    fig, axes = plt.subplots(1, 1, figsize=(8.4, 5.8), squeeze=False)
     axes = axes[0]
 
     values, per_panel = [], []
-    for ax, phase in zip(axes, phases):
-        v, ends = draw_panel(ax, phase, scores[phase], k3, k0, xs, frontier,
-                             stops_k, variants, anchor, repeats)
-        values += v
-        per_panel.append((ax, ends))
+    v, ends, curves = draw_panel(axes[0], phases, scores, k3, k0, xs,
+                                 frontier, stops_k, variants, anchor, repeats)
+    values += v
+    per_panel.append((axes[0], ends))
 
     lo, hi = min(values), max(values)
     bot, top = lo - (hi - lo) * 0.08 - 0.005, hi + (hi - lo) * 0.10 + 0.005
@@ -399,6 +406,10 @@ def main(argv=None):
     axes[0].set_ylabel("GM-Relative MASE, 97 GIFT-Eval configs "
                        "(lower is better)")
     handles = [
+        Line2D([], [], color=D.INK, linestyle="-", lw=2.0,
+               label="head at 30,000 steps"),
+        Line2D([], [], color=D.INK, linestyle=(0, (5, 2)), lw=1.9,
+               label="head budget = backbone steps"),
         Line2D([], [], color=D.INK_SOFT, linestyle=D.STYLE_K3, lw=1.7,
                label="k = 3, same cell"),
         Patch(facecolor=D.REF_K3_INK, alpha=0.14, lw=0,
@@ -411,8 +422,7 @@ def main(argv=None):
     if any(s in xs for s in anchor):
         handles.insert(3, Line2D([], [], marker="D", ms=7.0, lw=0,
                                  color=D.REF_K0_INK, mec="white", mew=0.9,
-                                 label="k = 0 anchor, this study's path, "
-                                       "left panel only"))
+                                 label="k = 0 anchor, this study's path"))
     if repeats:
         handles.append(Line2D([], [], marker="_", ms=9.0, lw=1.6,
                               color=D.INK,
@@ -429,15 +439,17 @@ def main(argv=None):
     # steps against them, so the panel is not head-matched and the figure
     # has to say so.
     handles.append(Line2D([], [], lw=0, label=REF_HEAD_NOTE))
+    # Two columns, not three. One panel is narrower than two were, and three
+    # columns of these labels ran off both edges of the canvas.
     fig.legend(handles=handles, loc="lower center",
-               ncol=min(3, len(handles)), frameon=False, fontsize=9,
+               ncol=2, frameon=False, fontsize=8.5,
                bbox_to_anchor=(0.5, 0.0))
     fig.suptitle("GM-Relative MASE against backbone train step, "
                  "rollout depth k = 8 and 32", fontsize=12.5, color=D.INK)
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
-    fig.tight_layout(rect=(0, 0.115, 1, 0.945))
+    fig.tight_layout(rect=(0, 0.235, 1, 0.945))
     fig.savefig(a.out)
-    drawn = sum(len(e) for _, e in per_panel)
+    drawn = len(curves)
     shown = [c for c in variants if c[2] in xs]
     extra = "".join(f", {v} k = {k} at bb{s}k" for _, k, s, v, _ in shown)
     anc = "".join(f", k = 0 anchor {v:.4f} at bb{s}k"

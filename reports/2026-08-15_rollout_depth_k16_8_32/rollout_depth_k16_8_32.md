@@ -6,7 +6,8 @@ head trained as long as the backbone bring a significant gain? No, and no.
 ![GM-Relative MASE against backbone train step, rollout depth 8 and 32](plots/mean/depth_ladder.png)
 
 *GM-Relative MASE over the 97 GIFT-Eval configs, student head, mean
-reduction. Left: 30,000-step head. Right: head budget = backbone steps.*
+reduction. Solid: a 30,000-step head. Dashed: the head budget set equal to the
+backbone steps. One colour per depth.*
 
 No mean cell beats the k = 3 reference. No mean cell separates from the k = 0
 anchor: the closest, k = 32 at bb200k, sits inside the band of it. The best
