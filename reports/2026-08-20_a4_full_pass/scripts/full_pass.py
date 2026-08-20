@@ -331,6 +331,34 @@ def check_resume(root, expect: dict | None = None) -> list[str]:
     return problems
 
 
+def check_chain(root, stop: int) -> list[str]:
+    """What is wrong with the trajectory behind a leg that is already done.
+
+    `check_leg_done` verifies a leg by reading the log lines THAT leg wrote,
+    between two byte offsets the driver took before it started. A driver
+    the watchdog re-fired has no such window: the leg ran under an earlier
+    process, and the offsets went with it. So this checks the disk instead.
+
+    A trajectory that reaches `stop` honestly leaves one checkpoint at every
+    stop before it, each with its optimizer sidecar. Every leg saves into
+    its own directory and no leg deletes another's, so a gap in that chain
+    means the checkpoint at `stop` did not come from this run.
+    """
+    problems = []
+    for step in [RESUME_STEP] + [s for s in STOPS if s < stop]:
+        found = ckpt_path(root, step)
+        if found is None:
+            problems.append(
+                f"the leg to {stop} is already done, but no checkpoint at "
+                f"step {step} is under {leg_dir(root, step)}: the "
+                f"trajectory behind it is not on disk")
+        elif not os.path.isfile(sidecar(found)):
+            problems.append(
+                f"no optimizer state at {sidecar(found)}: the chain behind "
+                f"the leg to {stop} is broken at step {step}")
+    return problems
+
+
 def check_leg_start(root, stop: int) -> list[str]:
     """What is wrong before the leg that targets `stop` starts.
 
@@ -344,7 +372,11 @@ def check_leg_start(root, stop: int) -> list[str]:
     way to 450k resumes 380k, and re-running it is how the driver recovers.
     """
     if ckpt_path(root, stop) is not None:
-        return []                # `run_leg_k.sh` skips a leg it already ran
+        # `run_leg_k.sh` skips a leg it already ran, so there is no resume
+        # to check. The watchdog can re-fire the driver onto a checkpoint no
+        # process of its own watched land, so the chain behind it is checked
+        # instead of nothing.
+        return check_chain(root, stop)
     want = prior_stop(stop)
     source = resume_source(root)
     if source is None:

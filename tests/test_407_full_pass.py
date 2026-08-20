@@ -345,9 +345,36 @@ class TestLegContinuity:
         assert any("optimizer" in p for p in problems)
 
     def test_the_gate_passes_a_leg_that_is_already_done(self, fp, tmp_path):
-        """`run_leg_k.sh` skips it, so there is nothing to continue."""
+        """`run_leg_k.sh` skips it, so there is no resume to check.
+
+        The chain behind it is checked instead. The watchdog re-fires the
+        driver onto checkpoints no process of its own watched land.
+        """
+        self._land(tmp_path, 200_000)
         self._land(tmp_path, 300_000)
         assert fp.check_leg_start(tmp_path, 300_000) == []
+
+    def test_a_finished_leg_with_no_trajectory_behind_it_is_refused(
+            self, fp, tmp_path):
+        """A 300k checkpoint alone did not come from the card's 200k."""
+        self._land(tmp_path, 300_000)
+        problems = fp.check_leg_start(tmp_path, 300_000)
+        assert problems and "200000" in problems[0]
+
+    def test_a_finished_leg_wants_every_stop_behind_it(self, fp, tmp_path):
+        """The 450k leg needs 200k AND 300k on disk, not just one."""
+        self._land(tmp_path, 200_000)
+        self._land(tmp_path, 450_000)
+        problems = fp.check_leg_start(tmp_path, 450_000)
+        assert problems and "300000" in problems[0]
+        self._land(tmp_path, 300_000)
+        assert fp.check_leg_start(tmp_path, 450_000) == []
+
+    def test_a_finished_leg_wants_the_sidecars_behind_it(self, fp, tmp_path):
+        self._land(tmp_path, 200_000, with_sidecar=False)
+        self._land(tmp_path, 300_000)
+        problems = fp.check_leg_start(tmp_path, 300_000)
+        assert any("optimizer" in p for p in problems)
 
     # ---- after the leg ----------------------------------------------------
 
