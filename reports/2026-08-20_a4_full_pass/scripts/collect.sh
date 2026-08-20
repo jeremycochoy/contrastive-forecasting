@@ -24,9 +24,10 @@
 #
 # Checkpoints stay out. They are 5 MB each and a reader does not need them.
 #
-# Idempotent, and safe to run while the driver is still training. An eval
-# that is short of 97 configs is skipped rather than copied, so no figure
-# can average over fewer configs and read as if it were the study's metric.
+# Idempotent, and safe to run while the driver is still training. The score
+# and the eval cross together, and only when the eval holds all 97 configs.
+# So no figure can average over fewer configs and read as if it were the
+# study's metric, and no score can arrive with nothing behind it.
 #
 # Usage: [WT=<checkout>] [RUNS=<durable root>] bash collect.sh
 set -uo pipefail
@@ -46,29 +47,40 @@ DOWNSAMPLE="$GIT_ROOT/scripts/downsample_curve.py"
 CELL="arm6_v2_combab_alignS"
 RUN_NAME="cf393_${CELL}_cf373k3"
 STOPS="${STOPS:-300 450 665}"
+WANT_CONFIGS=97
 
 mkdir -p "$RES/eval" "$RES/curves"
 say(){ echo "[cf407-collect] $*"; }
 n_score=0 n_eval=0 n_log=0 n_curve=0 n_skip=0
 
-# ---- the scores, one number per (stop, head) ------------------------------
-for stop_k in $STOPS; do
-  for head in student teacher; do
-    src="$PARENT_RES/score_A4_k3_bb${stop_k}k_${head}.txt"
-    [ -s "$src" ] || continue
-    cp -f "$src" "$RES/" && n_score=$(( n_score + 1 ))
-  done
-done
+# How many distinct GIFT-Eval configs a merged CSV holds.
+#
+# Not `wc -l` minus one. That counts rows rather than configs, and it is
+# short by one on a file with no final newline — which is what an
+# interrupted writer leaves. awk counts an unterminated last line, and
+# keying on the config field is what "97 configs" means. `eval_local.sh`
+# checks the same two things before it writes the score.
+eval_configs(){  # <all_results.csv>
+  [ -f "$1" ] || { echo 0; return; }
+  awk -F, 'NR > 1 && $1 != "" && !seen[$1]++ { n++ } END { print n + 0 }' "$1"
+}
 
-# ---- the evals, one directory per (stop, head) ----------------------------
+# ---- the scores and the evals, one pair per (stop, head) ------------------
 for stop_k in $STOPS; do
   for head in student teacher; do
     tag="A4_k3_bb${stop_k}k_${head}"
+    src="$PARENT_RES/score_${tag}.txt"
     d="$RUNS/eval/$tag"
-    [ -f "$d/gift/all_results.csv" ] || continue
-    rows=$(( $(wc -l <"$d/gift/all_results.csv") - 1 ))
-    if [ "$rows" -ne 97 ]; then
-      say "skip $tag: $rows configs, want 97"; n_skip=$(( n_skip + 1 )); continue
+    [ -s "$src" ] || [ -f "$d/gift/all_results.csv" ] || continue
+    rows=$(eval_configs "$d/gift/all_results.csv")
+    if [ "$rows" -ne "$WANT_CONFIGS" ]; then
+      say "skip $tag: $rows configs, want $WANT_CONFIGS"
+      n_skip=$(( n_skip + 1 )); continue
+    fi
+    if [ -s "$src" ]; then
+      cp -f "$src" "$RES/" && n_score=$(( n_score + 1 ))
+    else
+      say "note $tag: 97 configs on disk but no score at $src"
     fi
     mkdir -p "$RES/eval/$tag"
     for f in gift/all_results.csv gift/summary.txt eval_local.log stop.log; do

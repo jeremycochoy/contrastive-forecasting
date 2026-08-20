@@ -5,24 +5,28 @@ card gives the same run more steps — 300,000, 450,000 and 665,000 — with a
 quantile head and a GIFT-Eval at each stop. Nothing else changes.
 
 "Nothing else changes" is the whole contract, and a driver can break it
-without an error. So the tests here cover four risks, and each one is a
+without an error. So the tests here cover five risks, and each one is a
 failure that still produces a plausible curve.
 
-  * The continuation must resume THIS checkpoint. The card pins two md5
-    sums. A driver that resumes an earlier leg, or starts at step 0, gives
-    a number for every stop.
+  * Every leg must CONTINUE the run. The card pins two md5 sums on the
+    200,000-step pair, and that covers the first leg only. The 450,000 and
+    the 665,000 legs resume what the leg before them wrote, so each leg is
+    gated on the step it starts at, before it trains and again after.
   * The recipe must live in one place. Every training flag comes from
     #373's ``run_leg_k.sh``. A copy of the flags in this study's driver is
     a second place for them to drift.
   * 665,000 is not a multiple of ``--save-every``, so the last stop needs
     ``--extra-save-steps``. Without it the leg trains for 18 hours and
     writes no checkpoint at the stop.
+  * A head that never scores must fail the driver. A missing point on the
+    curve with a zero exit code reads as a finished study.
   * The figure's grey rule is #373's 1.0660. Typed a second time, it is a
     number that no longer tracks the file it came from.
 """
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import importlib.util
 import os
@@ -51,8 +55,12 @@ TRAIN_PY = (REPO_ROOT / "experiments" / "2026-04-27_freq-embedding"
             / "scripts" / "train.py")
 
 # Confirmed from small_v1/manifest.json on the HF repo (4274 shards). The
-# same constant guards #393's ladder in tests/test_393_ladder.py.
+# same constant guards #393's ladder in tests/test_393_ladder.py. Two other
+# counts of the same dataset are in play — see full_pass.ROW_COUNTS.
 SMALL_V1_ROWS = 42_571_692
+
+CELL = "arm6_v2_combab_alignS"
+RUN_NAME = f"cf393_{CELL}_cf373k3"
 
 
 def load(path: Path, name: str):
@@ -95,14 +103,59 @@ class TestStops:
     def test_the_parent_stops_are_373s(self, fp):
         assert fp.PARENT_STOPS == [40_000, 100_000, 200_000]
 
-    def test_the_last_stop_is_one_pass(self, fp):
-        """665,000 x 64 covers small_v1 to better than 0.1%."""
-        rows = fp.STOPS[-1] * fp.BATCH_SIZE
-        assert 0.999 <= rows / SMALL_V1_ROWS <= 1.0
+    def test_the_module_records_every_row_count_in_play(self, fp):
+        """Three counts of small_v1 disagree, so all three are written down."""
+        assert fp.ROW_COUNTS == {
+            "manifest": 42_571_692,
+            "shard_arithmetic": 42_740_000,
+        }
+        assert fp.CARD_PASS_STEPS == 665_156
+        assert fp.ROWS == fp.ROW_COUNTS["manifest"]
+
+    def test_the_module_and_this_file_hold_one_manifest_count(self, fp):
+        assert fp.ROW_COUNTS["manifest"] == SMALL_V1_ROWS
+
+    def test_the_three_sources_give_three_step_counts(self, fp):
+        assert fp.pass_steps() == {
+            "manifest": 665_182,
+            "shard_arithmetic": 667_812,
+            "card": 665_156,
+        }
+
+    @pytest.mark.parametrize("source",
+                             ["manifest", "shard_arithmetic", "card"])
+    def test_the_last_stop_is_one_pass_under_every_count(self, fp, source):
+        """665,000 covers 99.5% to 100% of one pass, whichever count is right.
+
+        The choice between the three does not change the card's question at
+        this resolution. The lowest of the three ratios is 0.9958, under the
+        shard arithmetic.
+        """
+        ratio = fp.STOPS[-1] / fp.pass_steps()[source]
+        assert 0.995 <= ratio <= 1.0
 
     def test_one_pass_arithmetic(self, fp):
         assert fp.steps_for_one_pass(SMALL_V1_ROWS, 64) == 665_182
         assert fp.steps_for_one_pass(640, 64) == 10
+
+    @pytest.mark.parametrize("stop", [300_000, 450_000, 665_000])
+    def test_every_stop_of_the_card_is_a_whole_thousand(self, fp, stop):
+        assert fp.check_stop(stop) == []
+        assert fp.stop_k(stop) == stop // 1000
+
+    def test_a_stop_off_the_thousand_grid_is_refused(self, fp):
+        """665,500 and 665,000 would both name themselves `bb665k`."""
+        assert fp.check_stop(665_500) != []
+        with pytest.raises(ValueError):
+            fp.stop_k(665_500)
+
+    def test_a_stop_that_is_not_positive_is_refused(self, fp):
+        assert fp.check_stop(0) != []
+        assert fp.check_stop(-1000) != []
+
+    def test_the_driver_refuses_a_stop_off_the_thousand_grid(self,
+                                                             driver_code):
+        assert "% 1000" in driver_code
 
 
 # --- 2. the checkpoint the continuation resumes ----------------------------
@@ -159,7 +212,242 @@ class TestResumeCheckpoint:
         assert fp.check_resume("/home/jupyter/cf373_r3/sync") == []
 
 
-# --- 3. the recipe stays in #373's launcher --------------------------------
+class TestResumeDigestOverride:
+    """The test seam that lets the driver run off elisa.
+
+    The stub launcher needs no real checkpoint. Only the md5 gate does, and
+    a 5 MB pair lives on one machine. So the gate reads its digests from
+    `CF407_RESUME_MD5` when that variable is set.
+    """
+
+    def test_with_no_variable_the_gate_uses_the_cards_digests(self, fp):
+        assert fp.resume_md5(env={}) == fp.RESUME_MD5
+
+    def test_an_empty_variable_uses_the_cards_digests(self, fp):
+        assert fp.resume_md5(env={fp.ENV_MD5: "  "}) == fp.RESUME_MD5
+
+    def test_the_variable_replaces_the_digests(self, fp):
+        names = sorted(fp.RESUME_MD5)
+        raw = f"{names[0]}=aaa,{names[1]}=bbb"
+        assert fp.resume_md5(env={fp.ENV_MD5: raw}) == {names[0]: "aaa",
+                                                        names[1]: "bbb"}
+
+    def test_the_variable_cannot_change_which_files_are_checked(self, fp):
+        """The seam changes the digests. It never drops a file."""
+        name = sorted(fp.RESUME_MD5)[0]
+        with pytest.raises(ValueError):
+            fp.resume_md5(env={fp.ENV_MD5: f"{name}=aaa"})
+        with pytest.raises(ValueError):
+            fp.resume_md5(env={fp.ENV_MD5: "other.pth=aaa,third.pth=bbb"})
+
+    def test_a_malformed_variable_is_refused(self, fp):
+        with pytest.raises(ValueError):
+            fp.resume_md5(env={fp.ENV_MD5: "no-equals-sign"})
+
+    def test_check_resume_reads_the_variable(self, fp, tmp_path,
+                                             monkeypatch):
+        leg = tmp_path / fp.CELL / f"leg_{fp.RESUME_STEP // 1000}k"
+        leg.mkdir(parents=True)
+        pairs = []
+        for i, name in enumerate(sorted(fp.RESUME_MD5)):
+            body = f"stub {i}".encode()
+            (leg / name).write_bytes(body)
+            pairs.append(f"{name}={hashlib.md5(body).hexdigest()}")
+        monkeypatch.setenv(fp.ENV_MD5, ",".join(pairs))
+        assert fp.check_resume(tmp_path) == []
+
+
+# --- 3. every leg continues the run ----------------------------------------
+
+
+class TestLegContinuity:
+    """The failure the card must not have: a leg that starts at step 0.
+
+    `run_leg_k.sh` resumes the furthest checkpoint it finds, and it starts
+    fresh when it finds none. Either way it trains to the target, writes a
+    checkpoint and scores. `train.py` does the same when the optimizer
+    sidecar is missing: it loads the weights, prints "starting fresh" and
+    counts from 0.
+    """
+
+    def test_the_first_leg_starts_at_the_checkpoint_the_card_pins(self, fp):
+        assert fp.prior_stop(300_000) == fp.RESUME_STEP == 200_000
+
+    def test_each_later_leg_starts_at_the_stop_before_it(self, fp):
+        assert fp.prior_stop(450_000) == 300_000
+        assert fp.prior_stop(665_000) == 450_000
+
+    def test_a_step_that_is_not_a_stop_has_no_prior(self, fp):
+        with pytest.raises(ValueError):
+            fp.prior_stop(500_000)
+
+    def test_the_step_a_checkpoint_name_carries(self, fp):
+        assert fp.ckpt_step("x/cf393_a_cf373k3_200k.pth") == 200_000
+        assert fp.ckpt_step("x/cf393_a_cf373k3_r2_200k.pth") == 200_000
+        assert fp.ckpt_step("x/cf393_a_cf373k3_best_gap.pth") is None
+
+    def test_the_sidecar_name_matches_the_checkpoint_module(self, fp):
+        sys.path.insert(0, str(REPO_ROOT))
+        from src.checkpoint import get_optimizer_state_path
+        path = "/tmp/run_300k.pth"
+        assert fp.sidecar(path) == get_optimizer_state_path(path)
+
+    def test_the_resume_source_is_the_furthest_leg(self, fp, tmp_path):
+        """Never by mtime. A copied checkpoint set comes back in copy order."""
+        for step_k, leg_k in ((100, 100), (200, 200), (140, 200)):
+            leg = tmp_path / CELL / f"leg_{leg_k}k"
+            leg.mkdir(parents=True, exist_ok=True)
+            (leg / f"{RUN_NAME}_{step_k}k.pth").write_bytes(b"x")
+        newest = tmp_path / CELL / "leg_100k" / f"{RUN_NAME}_100k.pth"
+        os.utime(newest, (2 ** 31, 2 ** 31))
+        assert fp.ckpt_step(fp.resume_source(tmp_path)) == 200_000
+
+    def test_the_resume_source_tolerates_the_rn_infix(self, fp, tmp_path):
+        leg = tmp_path / CELL / "leg_200k"
+        leg.mkdir(parents=True)
+        (leg / f"{RUN_NAME}_r2_200k.pth").write_bytes(b"x")
+        assert fp.resume_source(tmp_path).endswith("_r2_200k.pth")
+
+    def test_an_empty_root_has_no_resume_source(self, fp, tmp_path):
+        assert fp.resume_source(tmp_path) is None
+
+    # ---- before the leg ---------------------------------------------------
+
+    def test_the_gate_refuses_a_root_with_no_checkpoint(self, fp, tmp_path):
+        problems = fp.check_leg_start(tmp_path, 300_000)
+        assert problems and "step 0" in problems[0]
+
+    def test_the_gate_accepts_the_prior_stop(self, fp, tmp_path):
+        self._land(tmp_path, 200_000)
+        assert fp.check_leg_start(tmp_path, 300_000) == []
+
+    def test_the_gate_refuses_a_checkpoint_below_the_prior_stop(self, fp,
+                                                                tmp_path):
+        """The 450k leg must not resume the 200k checkpoint."""
+        self._land(tmp_path, 200_000)
+        problems = fp.check_leg_start(tmp_path, 450_000)
+        assert problems and "200000" in problems[0]
+
+    def test_the_gate_accepts_a_crash_resume_inside_the_leg(self, fp,
+                                                            tmp_path):
+        """A leg that died at 380k resumes 380k, not 300k. That is legal."""
+        self._land(tmp_path, 300_000)
+        self._land(tmp_path, 380_000, leg=450_000)
+        assert fp.check_leg_start(tmp_path, 450_000) == []
+
+    def test_the_gate_refuses_a_checkpoint_with_no_optimizer_state(
+            self, fp, tmp_path):
+        self._land(tmp_path, 200_000, with_sidecar=False)
+        problems = fp.check_leg_start(tmp_path, 300_000)
+        assert any("optimizer" in p for p in problems)
+
+    def test_the_gate_passes_a_leg_that_is_already_done(self, fp, tmp_path):
+        """`run_leg_k.sh` skips it, so there is nothing to continue."""
+        self._land(tmp_path, 300_000)
+        assert fp.check_leg_start(tmp_path, 300_000) == []
+
+    # ---- after the leg ----------------------------------------------------
+
+    def test_the_done_check_accepts_a_real_continuation(self, fp, tmp_path):
+        self._land(tmp_path, 300_000)
+        assert fp.check_leg_done(
+            tmp_path, 300_000,
+            "[08-20] [c] RESUME from run_r2_200k.pth (step 200k)",
+            "Resumed from /x/run_r2_200k.pth at step 200000") == []
+
+    def test_the_done_check_refuses_a_fresh_start(self, fp, tmp_path):
+        self._land(tmp_path, 300_000)
+        problems = fp.check_leg_done(tmp_path, 300_000,
+                                     "[08-20] [c] FRESH start at step 0", "")
+        assert problems and "step 0" in problems[0]
+
+    def test_the_done_check_refuses_a_resume_at_step_zero(self, fp, tmp_path):
+        """The launcher resumed. train.py found no sidecar and counted from 0."""
+        self._land(tmp_path, 300_000)
+        problems = fp.check_leg_done(
+            tmp_path, 300_000,
+            "[08-20] [c] RESUME from run_r2_200k.pth (step 200k)",
+            "  [checkpoint] No optimizer state, starting fresh.\n"
+            "Resumed from /x/run_r2_200k.pth at step 0")
+        assert problems and "step 0" in problems[0]
+
+    def test_the_done_check_refuses_a_resume_below_the_prior_stop(
+            self, fp, tmp_path):
+        self._land(tmp_path, 450_000)
+        problems = fp.check_leg_done(
+            tmp_path, 450_000,
+            "[08-20] [c] RESUME from run_200k.pth (step 200k)",
+            "Resumed from /x/run_200k.pth at step 200000")
+        assert problems and "200000" in problems[0]
+
+    def test_the_done_check_accepts_a_skipped_leg(self, fp, tmp_path):
+        self._land(tmp_path, 300_000)
+        assert fp.check_leg_done(tmp_path, 300_000,
+                                 "[08-20] [c] SKIP: run_300k.pth already "
+                                 "on disk", "") == []
+
+    def test_the_done_check_refuses_a_leg_that_wrote_no_checkpoint(
+            self, fp, tmp_path):
+        problems = fp.check_leg_done(
+            tmp_path, 300_000,
+            "[08-20] [c] RESUME from run_r2_200k.pth (step 200k)",
+            "Resumed from /x/run_r2_200k.pth at step 200000")
+        assert any("no checkpoint" in p for p in problems)
+
+    def test_the_done_check_refuses_a_leg_with_no_outcome_line(self, fp,
+                                                               tmp_path):
+        self._land(tmp_path, 300_000)
+        problems = fp.check_leg_done(tmp_path, 300_000, "", "")
+        assert problems
+
+    def test_the_done_check_refuses_a_silent_train_log(self, fp, tmp_path):
+        self._land(tmp_path, 300_000)
+        problems = fp.check_leg_done(
+            tmp_path, 300_000,
+            "[08-20] [c] RESUME from run_r2_200k.pth (step 200k)", "")
+        assert problems and "Resumed from" in problems[0]
+
+    # ---- where the two logs live ------------------------------------------
+
+    def test_the_log_paths_come_off_the_checkout(self, fp):
+        wt = "/w"
+        res = "/w/reports/2026-08-08_rollout_depth/results"
+        assert fp.parent_results(wt) == res
+        assert fp.cell_log(wt) == f"{res}/leg_{CELL}.log"
+        assert fp.train_log(wt) == f"{res}/run_{RUN_NAME}.log"
+
+    def test_the_module_prints_the_two_log_paths(self, tmp_path):
+        """The driver reads them rather than spelling the run name again."""
+        proc = subprocess.run(
+            [sys.executable, str(FULL_PASS_PY), "--log-paths", "--wt", "/w"],
+            capture_output=True, text=True, timeout=120)
+        assert proc.returncode == 0, proc.stderr[-2000:]
+        assert proc.stdout.split() == [
+            f"/w/reports/2026-08-08_rollout_depth/results/leg_{CELL}.log",
+            f"/w/reports/2026-08-08_rollout_depth/results/run_{RUN_NAME}.log",
+        ]
+
+    def test_reading_a_log_from_an_offset(self, fp, tmp_path):
+        path = tmp_path / "run.log"
+        path.write_text("old line\nnew line\n")
+        assert fp.read_since(path, len("old line\n")) == "new line\n"
+        assert fp.read_since(tmp_path / "absent", 0) == ""
+
+    # ---- helper -----------------------------------------------------------
+
+    @staticmethod
+    def _land(root: Path, step: int, leg: int | None = None,
+              with_sidecar: bool = True):
+        """Put a checkpoint pair at `step` into the leg dir for `leg`."""
+        leg_k = (leg if leg is not None else step) // 1000
+        d = Path(root) / CELL / f"leg_{leg_k}k"
+        d.mkdir(parents=True, exist_ok=True)
+        (d / f"{RUN_NAME}_{step // 1000}k.pth").write_bytes(b"x")
+        if with_sidecar:
+            (d / f"{RUN_NAME}_{step // 1000}k_optimizer.pth").write_bytes(b"x")
+
+
+# --- 4. the recipe stays in #373's launcher --------------------------------
 
 
 # Flags that decide what the backbone learns. Every one of them belongs to
@@ -209,6 +497,19 @@ class TestOneRecipe:
     def test_the_driver_holds_k_at_three(self, fp):
         assert fp.K == 3
 
+    def test_the_launcher_still_names_the_run_the_module_names(self, fp):
+        """`RUN_NAME` is how this study finds every checkpoint of the run."""
+        code = strip_comments(RUN_LEG_K.read_text())
+        assert 'NAME="cf393_${CELL}_cf373k${K}${RUN_SUFFIX:-}"' in code
+        assert fp.RUN_NAME == RUN_NAME
+
+    def test_the_launcher_still_saves_one_dir_per_leg(self, fp):
+        """`leg_dir` mirrors `leg_paths.sh`. A shared dir branches the name."""
+        code = strip_comments(
+            (PARENT / "scripts" / "leg_paths.sh").read_text())
+        assert "printf '%s/leg_%dk\\n'" in code
+        assert fp.leg_dir("/r", 300_000) == f"/r/{CELL}/leg_300k"
+
     def test_the_driver_and_the_module_agree(self, fp, driver_code):
         """Bash cannot import the module, so the two are checked instead."""
         assert f'CELL="{fp.CELL}"' in driver_code
@@ -220,7 +521,7 @@ class TestOneRecipe:
         assert f"STOPS=({default})" in driver_code
 
 
-# --- 4. 665,000 is off the save cadence ------------------------------------
+# --- 5. 665,000 is off the save cadence ------------------------------------
 
 
 @pytest.fixture(scope="module")
@@ -255,11 +556,25 @@ class TestSaveCadence:
         assert not train_mod.should_snapshot(665_000, 20_000, set())
 
     @pytest.mark.parametrize("stop", [300_000, 450_000, 665_000])
-    def test_the_checkpoint_name_the_stop_produces(self, fp, stop):
-        assert fp.ckpt_name(stop).endswith(f"_{stop // 1000}k.pth")
+    def test_the_checkpoint_name_a_fresh_leg_writes(self, fp, stop):
+        assert fp.ckpt_name(stop) == f"{RUN_NAME}_{stop // 1000}k.pth"
+
+    def test_the_checkpoint_lookup_tolerates_the_rn_infix(self, fp, tmp_path):
+        """`ckpt_at_step` globs, so a re-fired leg's file is still found."""
+        leg = tmp_path / CELL / "leg_300k"
+        leg.mkdir(parents=True)
+        (leg / f"{RUN_NAME}_r2_300k.pth").write_bytes(b"x")
+        assert fp.ckpt_path(tmp_path, 300_000).endswith("_r2_300k.pth")
+
+    def test_the_checkpoint_lookup_ignores_the_optimizer_file(self, fp,
+                                                              tmp_path):
+        leg = tmp_path / CELL / "leg_300k"
+        leg.mkdir(parents=True)
+        (leg / f"{RUN_NAME}_300k_optimizer.pth").write_bytes(b"x")
+        assert fp.ckpt_path(tmp_path, 300_000) is None
 
 
-# --- 5. the head and the eval protocol -------------------------------------
+# --- 6. the head and the eval protocol -------------------------------------
 
 
 class TestHeadProtocol:
@@ -298,31 +613,133 @@ class TestEvalProtocol:
         code = strip_comments(EVAL_LOCAL.read_text())
         assert '"$n_rows" -ne 97' in code and '"$n_uniq" -ne 97' in code
 
-    def test_collect_keeps_only_complete_evals(self):
-        code = strip_comments(COLLECT_SH.read_text())
-        assert "97" in code
+
+# --- 7. what the collector copies ------------------------------------------
 
 
-# --- 6. the deliverable figure ---------------------------------------------
+CSV_HEADER = "dataset,model,eval_metrics/MASE[0.5]"
+
+
+def gift_csv(path: Path, n: int, final_newline: bool = True):
+    """A merged all_results.csv with `n` distinct configs."""
+    rows = [CSV_HEADER] + [f"cfg{i}/H/short,contrastive_tiny,1.0"
+                           for i in range(n)]
+    text = "\n".join(rows) + ("\n" if final_newline else "")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text)
+
+
+def collect(tmp_path: Path, stops="300", **files) -> subprocess.CompletedProcess:
+    """Run collect.sh over a tree built for the test."""
+    env = os.environ.copy()
+    env.update({
+        "WT": str(tmp_path / "wt"),
+        "RUNS": str(tmp_path / "runs"),
+        "CF407_RESULTS": str(tmp_path / "res"),
+        "STOPS": stops,
+    })
+    return subprocess.run(["bash", str(COLLECT_SH)], capture_output=True,
+                          text=True, env=env, timeout=300)
+
+
+class TestCollect:
+
+    def _study(self, tmp_path, tag, n_configs, final_newline=True):
+        parent = tmp_path / "wt" / "reports" / "2026-08-08_rollout_depth" \
+            / "results"
+        parent.mkdir(parents=True, exist_ok=True)
+        (parent / f"score_{tag}.txt").write_text("1.0500\n")
+        gift = tmp_path / "runs" / "eval" / tag / "gift"
+        gift_csv(gift / "all_results.csv", n_configs, final_newline)
+        (gift / "summary.txt").write_text(
+            "Aggregate GM-Relative MASE (97 configs): 1.0500\n")
+
+    def test_a_complete_eval_brings_its_score_across(self, tmp_path):
+        self._study(tmp_path, "A4_k3_bb300k_student", 97)
+        proc = collect(tmp_path)
+        assert proc.returncode == 0, proc.stderr[-2000:]
+        assert (tmp_path / "res" / "score_A4_k3_bb300k_student.txt").is_file()
+        assert (tmp_path / "res" / "eval" / "A4_k3_bb300k_student"
+                / "all_results.csv").is_file()
+
+    def test_a_short_eval_brings_nothing_across(self, tmp_path):
+        """A score over 40 configs is not this study's metric."""
+        self._study(tmp_path, "A4_k3_bb300k_student", 40)
+        proc = collect(tmp_path)
+        assert proc.returncode == 0, proc.stderr[-2000:]
+        assert not (tmp_path / "res"
+                    / "score_A4_k3_bb300k_student.txt").exists()
+        assert not (tmp_path / "res" / "eval"
+                    / "A4_k3_bb300k_student").exists()
+        assert "skip" in proc.stdout
+
+    def test_a_csv_with_no_final_newline_still_counts_97(self, tmp_path):
+        """`wc -l` minus one loses the last row of an unterminated file."""
+        self._study(tmp_path, "A4_k3_bb300k_student", 97, final_newline=False)
+        proc = collect(tmp_path)
+        assert proc.returncode == 0, proc.stderr[-2000:]
+        assert (tmp_path / "res" / "score_A4_k3_bb300k_student.txt").is_file()
+
+    def test_a_score_with_no_eval_beside_it_stays_behind(self, tmp_path):
+        parent = tmp_path / "wt" / "reports" / "2026-08-08_rollout_depth" \
+            / "results"
+        parent.mkdir(parents=True)
+        (parent / "score_A4_k3_bb300k_student.txt").write_text("1.0500\n")
+        proc = collect(tmp_path)
+        assert proc.returncode == 0, proc.stderr[-2000:]
+        assert not (tmp_path / "res"
+                    / "score_A4_k3_bb300k_student.txt").exists()
+
+    def test_it_counts_what_it_copied(self, tmp_path):
+        self._study(tmp_path, "A4_k3_bb300k_student", 97)
+        self._study(tmp_path, "A4_k3_bb300k_teacher", 12)
+        proc = collect(tmp_path)
+        assert "scores 1" in proc.stdout
+        assert "evals 1" in proc.stdout
+        assert "skipped 1" in proc.stdout
+
+
+# --- 8. the deliverable figure ---------------------------------------------
 
 
 class TestFigureData:
+
+    def test_the_module_reads_no_file_at_import(self):
+        """`BEST_BEFORE = best_before()` made every importer read #373's disk.
+
+        The plot, the driver and the collector all import this module. One
+        of them runs on a box that holds no copy of #373's results.
+        """
+        tree = ast.parse(FULL_PASS_PY.read_text())
+        top = [n for node in tree.body
+               if not isinstance(node, (ast.FunctionDef, ast.ClassDef))
+               for n in ast.walk(node) if isinstance(n, ast.Call)]
+        named = {n.func.id for n in top if isinstance(n.func, ast.Name)}
+        assert "open" not in named
+        assert "best_before" not in named
 
     def test_the_grey_rule_is_373s_committed_score(self, fp):
         """1.0660 is a file, not a number someone typed twice."""
         published = float(
             (PARENT_RESULTS / "score_A4_k3_bb200k_student.txt").read_text())
-        assert fp.BEST_BEFORE == published
+        assert fp.best_before(PARENT_RESULTS) == published
 
     def test_tags_match_the_score_files_373_wrote(self, fp):
         assert fp.tag(200_000, "student") == "A4_k3_bb200k_student"
         assert fp.tag(665_000, "teacher") == "A4_k3_bb665k_teacher"
 
-    def test_the_parent_points_come_off_disk(self, fp):
+    def test_the_student_points_come_off_disk(self, fp):
         got = fp.curve("student", results=None, parent=PARENT_RESULTS)
         assert got[40_000] == 1.0862
         assert got[100_000] == 1.0801
         assert got[200_000] == 1.0660
+
+    def test_the_teacher_points_come_off_disk(self, fp):
+        """The card puts both heads on the axis, so both are pinned."""
+        got = fp.curve("teacher", results=None, parent=PARENT_RESULTS)
+        assert got[40_000] == 1.0855
+        assert got[100_000] == 1.0874
+        assert got[200_000] == 1.0828
 
     def test_both_heads_have_all_three_parent_points(self, fp):
         for head in fp.HEADS:
@@ -345,12 +762,46 @@ class TestFigureData:
         assert 300_000 not in got
 
 
-# --- 7. the driver, end to end, with the two child scripts stubbed --------
+# --- 9. the driver, end to end, with the two child scripts stubbed --------
 
 
-LEG_STUB = """#!/bin/bash
-echo "leg cell=$1 target=$2 RUNS=${RUNS:-} BB_GPU=${BB_GPU:-}" >>"$CF407_LOG"
-mkdir -p "$RUNS/$1/leg_$(( $2 / 1000 ))k"
+# A stand-in for #373's `run_leg_k.sh`. It resolves the resume the way
+# `leg_paths.sh` does, writes the two lines the real launcher and train.py
+# write, and lands the target checkpoint pair. So the driver's own
+# continuity gates run against a leg that behaves like the real one.
+LEG_STUB = r"""#!/bin/bash
+cell="$1"; target="$2"
+res="$WT/reports/2026-08-08_rollout_depth/results"
+name="cf393_${cell}_cf373k3"
+tk=$(( target / 1000 ))
+mkdir -p "$res"
+echo "leg cell=$cell target=$target RUNS=${RUNS:-} BB_GPU=${BB_GPU:-}" \
+  >>"$CF407_LOG"
+done_ckpt=$(ls "$RUNS/$cell"/leg_"$tk"k/"$name"*_"$tk"k.pth 2>/dev/null \
+  | grep -v optimizer | head -1)
+if [ -n "$done_ckpt" ]; then
+  echo "[stub] [$cell] SKIP: $(basename "$done_ckpt") already on disk" \
+    >>"$res/leg_$cell.log"
+  exit 0
+fi
+latest=$(ls "$RUNS/$cell"/leg_*/"$name"*_[0-9]*k.pth 2>/dev/null \
+  | sed -E 's|.*_([0-9]+)k\.pth$|\1 &|' | sort -k1,1n | tail -1 | cut -d' ' -f2-)
+leg="$RUNS/$cell/leg_${tk}k"
+mkdir -p "$leg"
+if [ -n "$latest" ] && [ -z "${CF407_STUB_FRESH:-}" ]; then
+  k=$(printf '%s\n' "$latest" | sed -E 's|.*_([0-9]+)k\.pth$|\1|')
+  echo "resume $(basename "$latest")" >>"$CF407_LOG"
+  echo "[stub] [$cell] RESUME from $(basename "$latest") (step ${k}k)" \
+    >>"$res/leg_$cell.log"
+  echo "Resumed from $latest at step ${CF407_STUB_START:-$(( k * 1000 ))}" \
+    >>"$res/run_$name.log"
+else
+  echo "resume none" >>"$CF407_LOG"
+  echo "[stub] [$cell] FRESH start at step 0" >>"$res/leg_$cell.log"
+fi
+: >"$leg/${name}_${tk}k.pth"
+: >"$leg/${name}_${tk}k_optimizer.pth"
+exit 0
 """
 
 STOP_STUB = """#!/bin/bash
@@ -359,18 +810,20 @@ echo "stop cell=$1 k=$2 target=$3 head=$4 ROOT=${CF373_ROOT:-}\
   >>"$CF407_LOG"
 n=$(grep -c "head=$4 " "$CF407_LOG")
 [ -n "${CF407_FAIL_ONCE:-}" ] && [ "$n" -eq 1 ] && exit 9
+[ -n "${CF407_FAIL_HEAD:-}" ] && [ "$4" = "$CF407_FAIL_HEAD" ] && exit 9
 exit 0
 """
 
 REAL_ROOT = Path("/home/jupyter/cf373_r3/sync")
 needs_checkpoint = pytest.mark.skipif(
-    not (REAL_ROOT / "arm6_v2_combab_alignS" / "leg_200k").is_dir(),
+    not (REAL_ROOT / CELL / "leg_200k").is_dir(),
     reason="the checkpoint the card pins is on elisa only")
 
 
 def stub_checkout(tmp_path: Path, leg_body: str = LEG_STUB) -> Path:
     """A checkout whose #373 launcher and stop script only take notes."""
-    scripts = tmp_path / "wt" / "reports" / "2026-08-08_rollout_depth" / "scripts"
+    scripts = tmp_path / "wt" / "reports" / "2026-08-08_rollout_depth" \
+        / "scripts"
     scripts.mkdir(parents=True, exist_ok=True)
     for name, body in (("run_leg_k.sh", leg_body), ("stop_k.sh", STOP_STUB)):
         (scripts / name).write_text(body)
@@ -378,19 +831,40 @@ def stub_checkout(tmp_path: Path, leg_body: str = LEG_STUB) -> Path:
     return tmp_path / "wt"
 
 
+def stub_root(tmp_path: Path) -> tuple[Path, str]:
+    """The card's checkpoint pair, as two small files.
+
+    Returns the root and the `CF407_RESUME_MD5` value that matches it, so
+    the whole driver runs on a machine that holds no real checkpoint.
+    """
+    leg = tmp_path / "runs" / CELL / "leg_200k"
+    leg.mkdir(parents=True)
+    pairs = []
+    for i, name in enumerate(sorted(
+            ("cf393_arm6_v2_combab_alignS_cf373k3_r2_200k.pth",
+             "cf393_arm6_v2_combab_alignS_cf373k3_r2_200k_optimizer.pth"))):
+        body = f"stub checkpoint {i}".encode()
+        (leg / name).write_bytes(body)
+        pairs.append(f"{name}={hashlib.md5(body).hexdigest()}")
+    return tmp_path / "runs", ",".join(pairs)
+
+
 def linked_root(tmp_path: Path) -> Path:
     """The card's checkpoint pair, linked rather than copied (5 MB each)."""
-    leg = tmp_path / "runs" / "arm6_v2_combab_alignS" / "leg_200k"
+    leg = tmp_path / "runs" / CELL / "leg_200k"
     leg.mkdir(parents=True)
-    src = REAL_ROOT / "arm6_v2_combab_alignS" / "leg_200k"
+    src = REAL_ROOT / CELL / "leg_200k"
     for name in ("cf393_arm6_v2_combab_alignS_cf373k3_r2_200k.pth",
                  "cf393_arm6_v2_combab_alignS_cf373k3_r2_200k_optimizer.pth"):
         (leg / name).symlink_to(src / name)
     return tmp_path / "runs"
 
 
-def drive(tmp_path, runs, extra_env=None, stops=(), leg_body=LEG_STUB):
+def drive(tmp_path, runs=None, extra_env=None, stops=(), leg_body=LEG_STUB,
+          digests=None):
     env = os.environ.copy()
+    if runs is None:
+        runs, digests = stub_root(tmp_path)
     env.update({
         "WT": str(stub_checkout(tmp_path, leg_body)),
         "RUNS": str(runs),
@@ -401,6 +875,8 @@ def drive(tmp_path, runs, extra_env=None, stops=(), leg_body=LEG_STUB):
         "BB_VRAM_MIB": "0",
         "BB_GPU": "1",
     })
+    if digests:
+        env["CF407_RESUME_MD5"] = digests
     env.update(extra_env or {})
     proc = subprocess.run(["bash", str(RUN_PASS_SH), *[str(s) for s in stops]],
                           capture_output=True, text=True, env=env, timeout=300)
@@ -412,64 +888,133 @@ class TestDriver:
 
     def test_it_refuses_a_root_that_is_not_the_cards(self, tmp_path):
         """No checkpoint, no training. The gate runs before the first leg."""
-        proc, calls = drive(tmp_path, tmp_path / "empty")
+        _, digests = stub_root(tmp_path)
+        proc, calls = drive(tmp_path, tmp_path / "empty", digests=digests)
         assert proc.returncode == 3
         assert calls == []
 
-    @needs_checkpoint
+    def test_it_refuses_a_checkpoint_with_the_wrong_digest(self, tmp_path):
+        runs, _ = stub_root(tmp_path)
+        wrong = ",".join(f"{n}=00000000000000000000000000000000"
+                         for n in sorted(
+                             ("cf393_arm6_v2_combab_alignS_cf373k3_r2_200k"
+                              ".pth",
+                              "cf393_arm6_v2_combab_alignS_cf373k3_r2_200k"
+                              "_optimizer.pth")))
+        proc, calls = drive(tmp_path, runs, digests=wrong)
+        assert proc.returncode == 3
+        assert calls == []
+
     def test_it_walks_the_three_stops_in_order(self, tmp_path):
-        proc, calls = drive(tmp_path, linked_root(tmp_path))
+        proc, calls = drive(tmp_path)
         assert proc.returncode == 0, proc.stderr[-2000:]
         legs = [ln for ln in calls if ln.startswith("leg ")]
         assert [ln.split("target=")[1].split()[0] for ln in legs] == \
             ["300000", "450000", "665000"]
 
-    @needs_checkpoint
-    def test_each_leg_is_followed_by_both_heads(self, tmp_path):
-        _, calls = drive(tmp_path, linked_root(tmp_path))
-        shape = [ln.split()[0] + ":" + ln.split("head=")[1].split()[0]
-                 if ln.startswith("stop ") else "leg" for ln in calls]
-        assert shape == ["leg", "stop:student", "stop:teacher"] * 3
+    def test_each_leg_resumes_the_stop_before_it(self, tmp_path):
+        """The card's contract, leg by leg. This is what a restart breaks."""
+        _, calls = drive(tmp_path)
+        resumed = [ln.split(None, 1)[1] for ln in calls
+                   if ln.startswith("resume ")]
+        assert resumed == [
+            f"{RUN_NAME}_r2_200k.pth",
+            f"{RUN_NAME}_300k.pth",
+            f"{RUN_NAME}_450k.pth",
+        ]
 
-    @needs_checkpoint
+    def test_a_leg_that_starts_fresh_stops_the_driver(self, tmp_path):
+        """A restart at step 0 still scores. It must never reach a head."""
+        proc, calls = drive(tmp_path, extra_env={"CF407_STUB_FRESH": "1"})
+        assert proc.returncode == 3
+        assert [ln for ln in calls if ln.startswith("stop ")] == []
+        assert len([ln for ln in calls if ln.startswith("leg ")]) == 1
+
+    def test_a_resume_that_lands_at_step_zero_stops_the_driver(self, tmp_path):
+        """train.py with no optimizer sidecar: it resumes, then counts from 0."""
+        proc, calls = drive(tmp_path, extra_env={"CF407_STUB_START": "0"})
+        assert proc.returncode == 3
+        assert [ln for ln in calls if ln.startswith("stop ")] == []
+
+    def test_a_second_run_skips_the_legs_it_already_did(self, tmp_path):
+        """The driver is re-fireable. A skipped leg is not a restart."""
+        runs, digests = stub_root(tmp_path)
+        first, _ = drive(tmp_path, runs, digests=digests)
+        assert first.returncode == 0, first.stderr[-2000:]
+        (tmp_path / "calls.log").unlink()
+        second, calls = drive(tmp_path, runs, digests=digests)
+        assert second.returncode == 0, second.stderr[-2000:]
+        assert [ln for ln in calls if ln.startswith("resume ")] == []
+
+    def test_each_leg_is_followed_by_both_heads(self, tmp_path):
+        _, calls = drive(tmp_path)
+        shape = [ln.split()[0] + ":" + ln.split("head=")[1].split()[0]
+                 if ln.startswith("stop ") else ln.split()[0]
+                 for ln in calls]
+        assert [s for s in shape if s != "resume"] == \
+            ["leg", "stop:student", "stop:teacher"] * 3
+
     def test_it_hands_the_launcher_the_cell_and_the_target(self, tmp_path):
-        _, calls = drive(tmp_path, linked_root(tmp_path), stops=(300_000,))
+        _, calls = drive(tmp_path, stops=(300_000,))
         leg = [ln for ln in calls if ln.startswith("leg ")][0]
         assert "cell=arm6_v2_combab_alignS" in leg
         assert "target=300000" in leg
 
-    @needs_checkpoint
     def test_the_two_scripts_read_one_root(self, tmp_path):
         """`run_leg_k.sh` takes RUNS, `stop_k.sh` takes CF373_ROOT."""
-        runs = linked_root(tmp_path)
-        _, calls = drive(tmp_path, runs, stops=(300_000,))
+        runs, digests = stub_root(tmp_path)
+        _, calls = drive(tmp_path, runs, stops=(300_000,), digests=digests)
         assert f"RUNS={runs}" in calls[0]
-        assert f"ROOT={runs}" in calls[1]
+        assert f"ROOT={runs}" in [ln for ln in calls
+                                  if ln.startswith("stop ")][0]
 
-    @needs_checkpoint
     def test_it_pins_the_cards_head_protocol(self, tmp_path):
-        _, calls = drive(tmp_path, linked_root(tmp_path), stops=(450_000,))
+        _, calls = drive(tmp_path, stops=(300_000,))
         for line in [ln for ln in calls if ln.startswith("stop ")]:
-            assert "cell=A4 k=3 target=450000" in line
+            assert "cell=A4 k=3 target=300000" in line
             assert "HEAD_STEPS=30000" in line
             assert "HEAD_SEED=20260722" in line
 
-    @needs_checkpoint
     def test_a_failed_head_is_retried_once(self, tmp_path):
         """A transient must not cost 30,000 GPU steps that already ran."""
-        _, calls = drive(tmp_path, linked_root(tmp_path), stops=(300_000,),
+        _, calls = drive(tmp_path, stops=(300_000,),
                          extra_env={"CF407_FAIL_ONCE": "1"})
         heads = [ln for ln in calls if ln.startswith("stop ")]
         assert len(heads) == 4          # two heads, each attempted twice
 
-    @needs_checkpoint
+    def test_a_head_that_never_scores_fails_the_driver(self, tmp_path):
+        """A point missing off the curve must not read as a finished study."""
+        proc, calls = drive(tmp_path, stops=(300_000,),
+                            extra_env={"CF407_FAIL_HEAD": "teacher"})
+        assert proc.returncode == 4
+        assert "300k/teacher" in proc.stdout + proc.stderr
+
+    def test_a_dead_head_does_not_cost_the_other_stops(self, tmp_path):
+        """One lost point, not three. The driver finishes, then reports."""
+        proc, calls = drive(tmp_path, extra_env={"CF407_FAIL_HEAD": "teacher"})
+        assert proc.returncode == 4
+        legs = [ln for ln in calls if ln.startswith("leg ")]
+        assert len(legs) == 3
+
     def test_a_failed_leg_stops_the_driver(self, tmp_path):
         """The 450k leg resumes the 300k checkpoint. Never skip a leg."""
         proc, calls = drive(
-            tmp_path, linked_root(tmp_path),
+            tmp_path,
             leg_body='#!/bin/bash\necho "leg $2" >>"$CF407_LOG"\nexit 1\n')
         assert proc.returncode == 1
         assert len([ln for ln in calls if ln.startswith("leg ")]) == 1
+
+    def test_it_refuses_a_stop_off_the_thousand_grid(self, tmp_path):
+        proc, calls = drive(tmp_path, stops=(300_500,))
+        assert proc.returncode == 2
+        assert calls == []
+
+    @needs_checkpoint
+    def test_the_real_checkpoint_drives_the_first_leg(self, tmp_path):
+        """One end-to-end pass over the card's own 5 MB pair, on elisa."""
+        proc, calls = drive(tmp_path, linked_root(tmp_path), stops=(300_000,))
+        assert proc.returncode == 0, proc.stderr[-2000:]
+        assert f"resume {RUN_NAME}_r2_200k.pth" in calls
 
 
 class TestPlot:
@@ -509,3 +1054,8 @@ class TestPlot:
             capture_output=True, text=True, timeout=300)
         assert proc.returncode == 0, proc.stderr[-2000:]
         assert out.is_file()
+
+    def test_the_rule_label_and_the_legend_do_not_share_a_corner(self):
+        """Both sat in the top right, and the rule label lands under it."""
+        code = PLOT_PY.read_text()
+        assert 'loc="lower left"' in code

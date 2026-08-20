@@ -37,6 +37,9 @@
 # `$WT/experiments/hf_token.txt` must hold the read-only HF token. Both
 # child scripts refuse to start without it, because an anonymous stream
 # from HF throttles to 0.5 sps and idles the card.
+#
+# Exit codes: 1 a leg failed, 2 bad input, 3 the run did not continue,
+# 4 a head never scored.
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -79,6 +82,14 @@ for f in "$LEG_SH" "$STOP_SH" "$HERE/full_pass.py" "$HERE/collect.sh"; do
   [ -f "$f" ] || { log "ABORT: missing $f"; exit 2; }
 done
 
+# The two logs the continuity gates read. `full_pass.py` names them, so the
+# run name is spelled once and this file never re-derives it.
+mapfile -t LOG_PATHS < <(python3 "$HERE/full_pass.py" --log-paths --wt "$WT")
+[ "${#LOG_PATHS[@]}" -eq 2 ] || { log "ABORT: full_pass.py gave no log paths"; exit 2; }
+CELL_LOG="${LOG_PATHS[0]}"
+TRAIN_LOG="${LOG_PATHS[1]}"
+bytes_of(){ stat -c %s "$1" 2>/dev/null || echo 0; }
+
 # The one preflight that cannot be skipped. A leg that resumes an earlier
 # checkpoint, or starts at step 0, still writes a checkpoint at every stop
 # and still scores. The md5 sums are the card's.
@@ -112,11 +123,36 @@ wait_vram(){ # <gpu index> <MiB needed>
 
 log "start stops=${STOPS[*]} runs=$RUNS wt=$WT bb_gpu=$BB_GPU head_gpu=$HEAD_GPU"
 
+# Heads that ran twice and never wrote a score. The driver keeps going, so
+# one dead head costs one point rather than every stop behind it, and it
+# exits non-zero at the end. A gap in the curve under a zero exit code
+# reads as a finished study.
+MISSING=""
+
 for stop in "${STOPS[@]}"; do
   # A typo here trains to the wrong target and scores it as a stop, so it
-  # is rejected rather than turned into 0 by the arithmetic below.
+  # is rejected rather than turned into 0 by the arithmetic below. A stop
+  # off the 1000 grid is rejected too: every name carries a stop in
+  # thousands, so 300500 and 300000 would both be `bb300k`.
   case "$stop" in ''|*[!0-9]*) log "ABORT: bad stop '$stop'"; exit 2;; esac
+  [ $(( stop % 1000 )) -eq 0 ] || { log "ABORT: stop '$stop' is not a whole number of thousands"; exit 2; }
   stop_k=$(( stop / 1000 ))
+
+  # Continuity, before the leg. The md5 gate above pins the FIRST leg's
+  # checkpoint. This one covers all three, and it is the same failure each
+  # time: a leg that starts at step 0, or resumes a checkpoint from before
+  # the stop it must continue, still trains to the target and still scores.
+  if ! python3 "$HERE/full_pass.py" --check-leg "$stop" --root "$RUNS" \
+       >>"$RES/run_pass.log" 2>&1; then
+    tail -5 "$RES/run_pass.log" >&2
+    log "ABORT: the ${stop_k}k leg would not continue the run"
+    exit 3
+  fi
+
+  # Where each log ends now, so the check after the leg reads only what
+  # this leg wrote. Both logs are appended across every leg of the study.
+  before_cell=$(bytes_of "$CELL_LOG")
+  before_train=$(bytes_of "$TRAIN_LOG")
 
   wait_vram "$BB_GPU" "$BB_VRAM_MIB" || exit 1
   log "LEG -> ${stop_k}k"
@@ -129,9 +165,22 @@ for stop in "${STOPS[@]}"; do
     log "ABORT: leg to ${stop_k}k rc=$rc"
     exit 1
   fi
+
+  # Continuity, after the leg. This reads what `train.py` printed, not what
+  # the launcher meant to do. The two disagree when the optimizer sidecar
+  # is missing: the launcher resumes, `load_training_state` finds no state,
+  # and the run counts from step 0 with the weights loaded.
+  if ! python3 "$HERE/full_pass.py" --check-leg-done "$stop" --root "$RUNS" \
+       --wt "$WT" --since-cell "$before_cell" --since-train "$before_train" \
+       >>"$RES/run_pass.log" 2>&1; then
+    tail -5 "$RES/run_pass.log" >&2
+    log "ABORT: the ${stop_k}k leg did not continue the run"
+    exit 3
+  fi
   log "LEG done ${stop_k}k"
 
   for head in student teacher; do
+    scored=0
     # Retried once. `stop_k.sh` skips a head that is already trained and
     # resumes the eval per shard, so a retry costs only what died. Not
     # retrying costs 30,000 GPU steps for a transient.
@@ -142,9 +191,12 @@ for stop in "${STOPS[@]}"; do
         bash "$STOP_SH" "$CELL_ID" "$DEPTH" "$stop" "$head"
       rc=$?
       log "HEAD ${stop_k}k $head rc=$rc"
-      [ $rc -eq 0 ] && break
-      [ "$attempt" -eq 2 ] && log "GIVING UP on ${stop_k}k $head"
+      [ $rc -eq 0 ] && { scored=1; break; }
     done
+    if [ "$scored" -ne 1 ]; then
+      log "GIVING UP on ${stop_k}k $head — the curve loses this point"
+      MISSING="$MISSING ${stop_k}k/$head"
+    fi
   done
 
   # After every stop, not once at the end: the numbers reach the report
@@ -153,5 +205,10 @@ for stop in "${STOPS[@]}"; do
     || log "WARN: collect.sh rc=$? — see $RES/collect.log"
   python3 "$HERE/full_pass.py" --results "$RES" | tee -a "$RES/run_pass.log"
 done
+
+if [ -n "$MISSING" ]; then
+  log "INCOMPLETE: no score for$MISSING"
+  exit 4
+fi
 
 log "drained: ${STOPS[*]}"

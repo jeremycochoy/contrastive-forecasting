@@ -18,7 +18,9 @@ Four channels, four facts, none of them carrying two:
                joins them.
   grey rule    1.0660, the project's best before this card — A4's student
                head at 200,000 steps. Read off #373's own score file, not
-               typed here.
+               typed here. Its label sits at the top right, so the legend
+               takes the bottom left: the two highest points of the curve
+               are its first two, which leaves that corner empty.
 
 Direct labels on every point, not a value axis the reader has to trace:
 the whole figure is six points per head, and the differences it has to
@@ -139,8 +141,13 @@ def main():
     handles.append(Line2D([], [], color=INK_SOFT, lw=0, marker="o", ms=7,
                           mfc="white", mec=INK_SOFT, mew=1.8,
                           label="published by #373"))
+    # Bottom left, not top right. The rule label is anchored to the right
+    # edge at y = best, and every new point of this card is expected below
+    # 1.0660, which puts that label high on the axis and under a top-right
+    # legend. The curve falls from left to right, so its first two points
+    # are the highest and the bottom left carries nothing.
     ax.legend(handles=handles, frameon=False, fontsize=9, labelcolor=INK_SOFT,
-              loc="upper right", handletextpad=0.6, borderaxespad=1.2)
+              loc="lower left", handletextpad=0.6, borderaxespad=1.2)
 
     out = Path(a.out)
     out.parent.mkdir(parents=True, exist_ok=True)
