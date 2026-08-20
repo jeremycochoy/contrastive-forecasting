@@ -31,6 +31,7 @@ Usage:
   full_pass.py --check-resume <root>  # verify the checkpoint the card pins
   full_pass.py --check-leg <stop> --root <root>          # before a leg
   full_pass.py --check-leg-done <stop> --root <root> ... # after a leg
+  full_pass.py --check-score <stop> --head <head> --wt <checkout>
   full_pass.py --log-paths --wt <checkout>               # the two leg logs
 """
 from __future__ import annotations
@@ -412,6 +413,15 @@ def read_since(path, offset: int = 0) -> str:
         return ""
 
 
+def score_path(results, stop: int, head: str) -> str:
+    """The file one (stop, head) writes its number into.
+
+    `stop_k.sh` builds the same path from `$RES` and its own `$TAG`, and
+    hands it to `eval_local.sh` as `SCORE_OUT`.
+    """
+    return os.path.join(str(results), f"score_{tag(stop, head)}.txt")
+
+
 def score(stop: int, head: str, results=RESULTS):
     """One stop's GM-Relative MASE, or None when it has not been scored.
 
@@ -422,12 +432,29 @@ def score(stop: int, head: str, results=RESULTS):
     """
     if results is None:
         return None
-    path = os.path.join(str(results), f"score_{tag(stop, head)}.txt")
     try:
-        with open(path) as fh:
+        with open(score_path(results, stop, head)) as fh:
             return float(fh.read().strip())
     except (OSError, ValueError):
         return None
+
+
+def check_score(wt, stop: int, head: str) -> list[str]:
+    """What is wrong after `stop_k.sh` exits 0 for one (stop, head).
+
+    A clean exit code is not a score. `eval_local.sh` writes the number
+    last, and it stops before that line when the merged CSV is short of the
+    97 configs. The pair then reaches `collect.sh`, which drops it, and the
+    figure draws a shorter line that reads as a finished study.
+
+    The file is the one `stop_k.sh` writes, in #373's results directory.
+    `collect.sh` copies it into this study later, with the eval beside it.
+    """
+    if score(stop, head, parent_results(wt)) is not None:
+        return []
+    return [f"no GM-Relative MASE at "
+            f"{score_path(parent_results(wt), stop, head)}: "
+            "the head exited 0 and scored nothing"]
 
 
 def curve(head: str, results=RESULTS, parent=PARENT_RESULTS) -> dict:
@@ -473,6 +500,9 @@ def main() -> int:
                     help="verify that the leg to STOP would continue the run")
     ap.add_argument("--check-leg-done", type=int, metavar="STOP",
                     help="verify that the leg to STOP did continue the run")
+    ap.add_argument("--check-score", type=int, metavar="STOP",
+                    help="verify that STOP's head wrote a score")
+    ap.add_argument("--head", choices=HEADS, help="which head to ask about")
     ap.add_argument("--log-paths", action="store_true",
                     help="print the launcher log and the train log")
     ap.add_argument("--root", help="the durable root that holds the legs")
@@ -518,6 +548,16 @@ def main() -> int:
                            read_since(cell_log(a.wt), a.since_cell),
                            read_since(train_log(a.wt), a.since_train)),
             f"leg {stop} continued the run")
+
+    if a.check_score is not None:
+        if not a.wt or not a.head:
+            print("ABORT: --check-score needs --wt and --head",
+                  file=sys.stderr)
+            return 2
+        stop = a.check_score
+        got = score(stop, a.head, parent_results(a.wt))
+        return report(check_score(a.wt, stop, a.head),
+                      f"{a.head} scored {got} at {stop}")
 
     print(f"{CELL_ID}  {CELL}  k={K}  seed 20260520")
     print(f"resume  {RESUME_NAME}.pth  (+ optimizer)")

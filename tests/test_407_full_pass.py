@@ -11,7 +11,9 @@ failure that still produces a plausible curve.
   * Every leg must CONTINUE the run. The card pins two md5 sums on the
     200,000-step pair, and that covers the first leg only. The 450,000 and
     the 665,000 legs resume what the leg before them wrote, so each leg is
-    gated on the step it starts at, before it trains and again after.
+    gated on the step it starts at, before it trains and again after. That
+    gate reads four strings out of two scripts this study does not own, so
+    each one is rendered here from the source that writes it.
   * The recipe must live in one place. Every training flag comes from
     #373's ``run_leg_k.sh``. A copy of the flags in this study's driver is
     a second place for them to drift.
@@ -19,7 +21,8 @@ failure that still produces a plausible curve.
     ``--extra-save-steps``. Without it the leg trains for 18 hours and
     writes no checkpoint at the stop.
   * A head that never scores must fail the driver. A missing point on the
-    curve with a zero exit code reads as a finished study.
+    curve with a zero exit code reads as a finished study. The head's own
+    exit code does not answer this. The score file does.
   * The figure's grey rule is #373's 1.0660. Typed a second time, it is a
     number that no longer tracks the file it came from.
 """
@@ -613,6 +616,22 @@ class TestEvalProtocol:
         code = strip_comments(EVAL_LOCAL.read_text())
         assert '"$n_rows" -ne 97' in code and '"$n_uniq" -ne 97' in code
 
+    def test_a_head_that_wrote_a_score_passes_the_gate(self, fp, tmp_path):
+        results = Path(fp.parent_results(tmp_path))
+        results.mkdir(parents=True)
+        (results / "score_A4_k3_bb300k_student.txt").write_text("1.0500\n")
+        assert fp.check_score(tmp_path, 300_000, "student") == []
+
+    def test_a_head_that_wrote_no_score_fails_the_gate(self, fp, tmp_path):
+        """The outcome of the check above: the eval stops before the score."""
+        assert fp.check_score(tmp_path, 300_000, "student") != []
+
+    def test_a_score_file_with_no_number_fails_the_gate(self, fp, tmp_path):
+        results = Path(fp.parent_results(tmp_path))
+        results.mkdir(parents=True)
+        (results / "score_A4_k3_bb300k_teacher.txt").write_text("\n")
+        assert fp.check_score(tmp_path, 300_000, "teacher") != []
+
 
 # --- 7. what the collector copies ------------------------------------------
 
@@ -811,6 +830,14 @@ echo "stop cell=$1 k=$2 target=$3 head=$4 ROOT=${CF373_ROOT:-}\
 n=$(grep -c "head=$4 " "$CF407_LOG")
 [ -n "${CF407_FAIL_ONCE:-}" ] && [ "$n" -eq 1 ] && exit 9
 [ -n "${CF407_FAIL_HEAD:-}" ] && [ "$4" = "$CF407_FAIL_HEAD" ] && exit 9
+# The score, where `stop_k.sh` points `eval_local.sh`. CF407_NO_SCORE holds
+# it back for one head, which is what an eval short of the 97 configs does:
+# the script still exits 0, and no number lands.
+res="$WT/reports/2026-08-08_rollout_depth/results"
+tag="${1}_k${2}_bb$(( $3 / 1000 ))k_${4}"
+mkdir -p "$res"
+[ "${CF407_NO_SCORE:-}" = "$4" ] || \
+  echo "${CF407_STUB_SCORE:-1.0500}" >"$res/score_${tag}.txt"
 exit 0
 """
 
@@ -989,6 +1016,30 @@ class TestDriver:
         assert proc.returncode == 4
         assert "300k/teacher" in proc.stdout + proc.stderr
 
+    def test_a_head_that_exits_0_and_scores_nothing_is_missing(self,
+                                                               tmp_path):
+        """A clean exit code is not a score.
+
+        `eval_local.sh` writes `score_<tag>.txt` last, and it stops before
+        that line when the merged CSV is short of the 97 configs. The pair
+        then reaches `collect.sh`, which drops it, and the figure draws a
+        shorter line that reads as a finished study.
+        """
+        proc, calls = drive(tmp_path, stops=(300_000,),
+                            extra_env={"CF407_NO_SCORE": "teacher"})
+        assert proc.returncode == 4
+        out = proc.stdout + proc.stderr
+        assert "300k/teacher" in out
+        assert "300k/student" not in out
+        assert len([ln for ln in calls if ln.startswith("stop ")]) == 2
+
+    def test_a_score_file_that_holds_no_number_is_missing(self, tmp_path):
+        """An interrupted writer leaves a file, not a number."""
+        proc, _ = drive(tmp_path, stops=(300_000,),
+                        extra_env={"CF407_STUB_SCORE": "not a number"})
+        assert proc.returncode == 4
+        assert "300k/student" in proc.stdout + proc.stderr
+
     def test_a_dead_head_does_not_cost_the_other_stops(self, tmp_path):
         """One lost point, not three. The driver finishes, then reports."""
         proc, calls = drive(tmp_path, extra_env={"CF407_FAIL_HEAD": "teacher"})
@@ -1059,3 +1110,170 @@ class TestPlot:
         """Both sat in the top right, and the rule label lands under it."""
         code = PLOT_PY.read_text()
         assert 'loc="lower left"' in code
+
+
+# --- 10. what the gates read out of #373's scripts -------------------------
+#
+# `check_leg_done` reads four strings and two file names, and `check_score`
+# reads a third file name. Every one of them belongs to a script this study
+# does not own. A rename inside #373's launcher, inside `stop_k.sh` or
+# inside train.py leaves a gate with nothing to read, and the driver stops
+# after the first leg. The gates fail closed, so the cost is time and not a
+# wrong number — 40 GPU-hours of it. The tests here render each line from
+# the source that writes it.
+
+LEG_PATHS = PARENT / "scripts" / "leg_paths.sh"
+
+# What train.py prints when it resumes. `check_leg_done` reads the step out
+# of it. The launcher says which checkpoint it DECIDED to resume, train.py
+# says which step it really started at, and the two disagree when the
+# optimizer sidecar is missing.
+TRAIN_RESUME_PRINT = 'print(f"Resumed from {args.resume} at step {start_step}")'
+
+# The checkpoints the rendered lines carry. A 450k leg resumes what the
+# 300k leg wrote, and a re-fired 450k leg finds its own file already there.
+SAMPLE_RESUME = f"/runs/{CELL}/leg_300k/{RUN_NAME}_300k.pth"
+SAMPLE_DONE = f"/runs/{CELL}/leg_450k/{RUN_NAME}_450k.pth"
+
+
+def launcher_log_statement(marker: str) -> str:
+    """The one `log "..."` of #373's launcher that carries `marker`.
+
+    Greedy up to the last quote on the line, because the SKIP statement
+    shares its line with the `exit` that follows it.
+    """
+    found = []
+    for line in RUN_LEG_K.read_text().splitlines():
+        match = re.search(r'log ".*"', line)
+        if match and marker in match.group(0):
+            found.append(match.group(0))
+    assert len(found) == 1, f"want one log statement for {marker!r}: {found}"
+    return found[0]
+
+
+def launcher_assignment(name: str) -> str:
+    """The one line of #373's launcher that sets `name`."""
+    found = [ln.strip() for ln
+             in strip_comments(RUN_LEG_K.read_text()).splitlines()
+             if ln.strip().startswith(f"{name}=")]
+    assert len(found) == 1, f"want one `{name}=` line: {found}"
+    return found[0]
+
+
+def launcher_log_function() -> str:
+    """#373's `log()`. It names the file the outcome lines land in."""
+    match = re.search(r"(?m)^log\(\)\{.*$", RUN_LEG_K.read_text())
+    assert match, "no log() definition in run_leg_k.sh"
+    return match.group(0)
+
+
+def run_launcher(wt: Path, body: str) -> subprocess.CompletedProcess:
+    """Run `body` with the variables #373's launcher holds around its logs.
+
+    The two directory assignments, the run name, the train log, `log()` and
+    the statement itself all come out of `run_leg_k.sh`, and `ckpt_step_k`
+    out of `leg_paths.sh`. Nothing about the two logs is retyped here, so an
+    edit to either script reaches these tests.
+    """
+    script = "\n".join([
+        "set -uo pipefail",
+        f'. "{LEG_PATHS}"',
+        f'WT="{wt}"',
+        f'CELL="{CELL}"',
+        "K=3",
+        launcher_assignment("OUT"),
+        launcher_assignment("RES"),
+        'mkdir -p "$RES"',
+        launcher_assignment("NAME"),
+        launcher_assignment("tlog"),
+        f'latest="{SAMPLE_RESUME}"',
+        f'done_ckpt="{SAMPLE_DONE}"',
+        launcher_log_function(),
+        body,
+    ])
+    return subprocess.run(["bash", "-c", script], capture_output=True,
+                          text=True, timeout=60)
+
+
+def train_resume_line(start_step: int, ckpt: str = SAMPLE_RESUME) -> str:
+    """The line train.py prints on a resume, from train.py's own text."""
+    return (TRAIN_RESUME_PRINT
+            .removeprefix('print(f"').removesuffix('")')
+            .replace("{args.resume}", ckpt)
+            .replace("{start_step}", str(start_step)))
+
+
+class TestGateInputs:
+
+    def test_the_launcher_still_writes_the_resume_line(self, fp, tmp_path):
+        proc = run_launcher(tmp_path, launcher_log_statement("RESUME from"))
+        assert proc.returncode == 0, proc.stderr
+        match = fp.LEG_RESUME.search(Path(fp.cell_log(tmp_path)).read_text())
+        assert match, proc.stdout
+        assert int(match.group(1)) == 300
+
+    def test_the_launcher_still_writes_the_fresh_line(self, fp, tmp_path):
+        proc = run_launcher(tmp_path, launcher_log_statement("FRESH"))
+        assert proc.returncode == 0, proc.stderr
+        assert fp.LEG_FRESH in Path(fp.cell_log(tmp_path)).read_text()
+
+    def test_the_launcher_still_writes_the_skip_line(self, fp, tmp_path):
+        proc = run_launcher(tmp_path, launcher_log_statement("SKIP"))
+        assert proc.returncode == 0, proc.stderr
+        assert fp.LEG_SKIP in Path(fp.cell_log(tmp_path)).read_text()
+
+    def test_the_launcher_log_is_the_file_the_gate_reads(self, fp, tmp_path):
+        """The three lines above land in `cell_log`, or nothing reads them."""
+        run_launcher(tmp_path, launcher_log_statement("FRESH"))
+        assert Path(fp.cell_log(tmp_path)).is_file()
+
+    def test_the_train_log_is_the_file_the_gate_reads(self, fp, tmp_path):
+        proc = run_launcher(tmp_path, 'printf "%s\\n" "$tlog"')
+        assert proc.returncode == 0, proc.stderr
+        assert proc.stdout.strip() == fp.train_log(tmp_path)
+
+    def test_the_launcher_sends_train_py_to_that_log(self):
+        """train.py's stdout is what puts its resume line in the train log."""
+        assert '>>"$tlog" 2>&1' in strip_comments(RUN_LEG_K.read_text())
+
+    def test_train_py_still_prints_the_step_it_started_at(self, fp):
+        assert TRAIN_RESUME_PRINT in TRAIN_PY.read_text()
+        match = fp.TRAIN_RESUME.search(train_resume_line(300_000))
+        assert match and int(match.group(1)) == 300_000
+
+    def test_the_gate_accepts_the_lines_the_two_scripts_write(self, fp,
+                                                              tmp_path):
+        """End to end: #373's own lines, through this study's gate.
+
+        This is the 450k leg, which is what every leg but the first looks
+        like. The gate reads a start step of 300,000 and lets the heads run.
+        """
+        root = tmp_path / "runs"
+        leg = root / CELL / "leg_450k"
+        leg.mkdir(parents=True)
+        (leg / f"{RUN_NAME}_450k.pth").write_bytes(b"x")
+        (leg / f"{RUN_NAME}_450k_optimizer.pth").write_bytes(b"x")
+        wt = tmp_path / "wt"
+        run_launcher(wt, launcher_log_statement("RESUME from"))
+        assert fp.check_leg_done(root, 450_000,
+                                 Path(fp.cell_log(wt)).read_text(),
+                                 train_resume_line(300_000)) == []
+
+    def test_the_score_file_is_the_one_the_stop_script_writes(self, fp):
+        """`check_score` reads what `eval_local.sh` wrote, where it wrote it."""
+        code = strip_comments(STOP_K.read_text())
+        assert 'RES="$WT/reports/2026-08-08_rollout_depth/results"' in code
+        assert 'TAG="${CELL_ID}_k${K}_bb${STOP_K}k_${ENC}"' in code
+        assert 'SCORE_OUT="$RES/score_${TAG}.txt"' in code
+        assert fp.parent_results("/w") == \
+            "/w/reports/2026-08-08_rollout_depth/results"
+        assert fp.score_path(fp.parent_results("/w"), 300_000, "student") == \
+            "/w/reports/2026-08-08_rollout_depth/results/" \
+            "score_A4_k3_bb300k_student.txt"
+
+    def test_the_stop_script_hands_that_path_to_the_eval(self):
+        """`eval_local.sh` takes it as its last argument, and writes it last."""
+        code = strip_comments(STOP_K.read_text())
+        assert '"$OUT" "$SCORE_OUT"' in code
+        assert 'mv "$SCORE_OUT.tmp" "$SCORE_OUT"' in \
+            strip_comments(EVAL_LOCAL.read_text())

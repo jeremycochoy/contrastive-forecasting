@@ -193,6 +193,17 @@ for stop in "${STOPS[@]}"; do
       log "HEAD ${stop_k}k $head rc=$rc"
       [ $rc -eq 0 ] && { scored=1; break; }
     done
+    # A clean exit code is not a score. `eval_local.sh` writes
+    # `score_<tag>.txt` last, and it stops before that line when the merged
+    # CSV is short of the 97 configs. The pair then reaches `collect.sh`,
+    # which drops it, and the figure draws a shorter line that reads as a
+    # finished study. So the point counts only when the number is on disk.
+    if [ "$scored" -eq 1 ] && ! python3 "$HERE/full_pass.py" \
+         --check-score "$stop" --head "$head" --wt "$WT" \
+         >>"$RES/run_pass.log" 2>&1; then
+      log "NO SCORE for ${stop_k}k $head after a clean exit"
+      scored=0
+    fi
     if [ "$scored" -ne 1 ]; then
       log "GIVING UP on ${stop_k}k $head — the curve loses this point"
       MISSING="$MISSING ${stop_k}k/$head"
