@@ -272,6 +272,31 @@ nothing, so the restart cost no work.
 restarted at 19:50 UTC and its first tick read driver=yes, step 218,200.
 A restart costs the quiet counter and the re-fire counter only.
 
+### 19:56 UTC — item 2 starts, ahead of the queue
+
+The band's four draws run one at a time: `head_vram_gate` holds one flock per
+card. Draw one of four was 65 minutes into its 68-minute head at 19:55 UTC.
+So the band's GPU work ends near 00:20 UTC, and the band PROCESS ends near
+01:30 UTC, after its last 72-minute eval on the CPU.
+
+`band_queue.sh` waits for the process, so it would have started the re-draw
+at 01:30 UTC and left card 1's GPU idle for about 70 minutes.
+
+So the re-draw started now instead, by hand, with the same command the queue
+would use. It holds no GPU. It sits in the same flock behind the band, and it
+takes the card the moment a band head releases it.
+
+    [2026-08-20T19:56:47Z] [rep200k] seeds 20260722  heads student teacher
+    [2026-08-20T19:56:47Z] [rep200k] DRAW A4_k3_bb200k_student_s20260722 start
+
+`fuser` on `/tmp/cf373_head_gpu1.lock` shows the band's head holding it and
+the re-draw waiting. Both GPUs read compute mode `Default`, so `gpu_gate`
+returns at once and the flock is the only queue.
+
+The queue did not double-fire. A `QUEUE_ONCE` probe against the live machine
+reads the re-draw as up and launches nothing. The queue now marks stage 1
+done when both re-draw heads score, and it keeps stage 2 for the 450k band.
+
 ## What the report must state, and where each number comes from
 
 The gap list asks for these claims in the report itself. Each one has an

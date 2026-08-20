@@ -4,3 +4,8 @@ f477c03525bf5e169704715511f1c6d7  /home/jupyter/cf373_r3/sync/arm6_v2_combab_ali
 [2026-08-20T18:50:29Z] [rep200k] DRAW A4_k3_bb200k_student_s20260723 start
 [2026-08-20T18:50:29Z] [rep200k] DRAW A4_k3_bb200k_student_s20260724 start
 [08-20 19:50:29] [A4_k3_bb200k_student_s20260724] head-train start enc=student steps=30000 seed=20260724 gpu=1 bb=cf393_arm6_v2_combab_alignS_cf373k3_r2_200k.pth
+[08-20 20:58:21] [A4_k3_bb200k_student_s20260724] head-train rc=0
+[08-20 20:58:21] [A4_k3_bb200k_student_s20260724] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-20 20:58:21] [A4_k3_bb200k_student_s20260723] head-train start enc=student steps=30000 seed=20260723 gpu=1 bb=cf393_arm6_v2_combab_alignS_cf373k3_r2_200k.pth
+22  heads student teacher  30000 steps  gpu 1
+[2026-08-20T19:56:47Z] [rep200k] DRAW A4_k3_bb200k_student_s20260722 start
