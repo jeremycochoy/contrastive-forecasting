@@ -46,7 +46,30 @@ REF = _load("cf404_refs", "references.py")
 REPEAT = _load("cf404_repeat", "repeat_spread.py")
 SEEDS = _load("cf404_seeds", "seed_report.py")
 
-SCHEDULE_TEXT = {"fixed": "fixed", "ramp": "to 1.0 at 200k"}
+def schedule_text(r: dict) -> str:
+    """How one arm's momentum moves, with its OWN ramp length.
+
+    This was a constant, `{"ramp": "to 1.0 at 200k"}`, while every ramp of
+    this card ran 200,000 steps. It is a function now: the card added a
+    100,000-step ramp, and a constant would have printed 200k for it.
+    """
+    if r["schedule"] != "ramp" or not r.get("ramp"):
+        return "fixed"
+    return f"to 1.0 at {r['ramp'] // 1000}k"
+
+
+def holds_at(r: dict, stop: int) -> float:
+    """The momentum the arm HOLDS at `stop`, not the one it starts at.
+
+    Two ramp lengths now share a start value: `s08` and `r100_08` both start
+    at 0.8 and hold 0.840 and 0.880 at 40,000 steps. Linear over the ramp and
+    clamped, the same formula as `src.models.ema_tau_at_step`.
+    `scripts/test_momentum_at.sh` holds the shell copy against the trainer's.
+    """
+    if r["schedule"] != "ramp" or not r.get("ramp"):
+        return float(r["alpha"])
+    frac = min(max(stop / r["ramp"], 0.0), 1.0)
+    return float(r["alpha"]) + frac * (1.0 - float(r["alpha"]))
 
 
 def read_scores(path) -> list[dict]:
@@ -77,7 +100,7 @@ def beats_k3(rows: list[dict]) -> bool:
     return best(rows)["score"] < REF.K3_BB40K
 
 
-def table_markdown(rows: list[dict]) -> str:
+def table_markdown(rows: list[dict], stop: int = 40000) -> str:
     """The card's table: this card's arms first, then the references.
 
     The backbone seed is a column because four arms of this card are ONE arm at
@@ -85,16 +108,17 @@ def table_markdown(rows: list[dict]) -> str:
     chance while it trained. A score table without the AUC shows a collapsed
     run as a bad arm.
     """
-    out = ["| arm | EMA momentum | backbone seed | AUC at the stop | "
-           "GM-Relative MASE | vs k = 3 at bb40k |",
-           "|---|---|---|---|---|---|"]
+    out = [f"| arm | EMA momentum | holds at {stop // 1000}k | backbone seed "
+           "| AUC at the stop | GM-Relative MASE | vs k = 3 at bb40k |",
+           "|---|---|---|---|---|---|---|"]
     for r in rows:
-        alpha = f"{r['alpha']:g}, {SCHEDULE_TEXT.get(r['schedule'], r['schedule'])}"
+        alpha = f"{r['alpha']:g}, {schedule_text(r)}"
         auc = r.get("auc")
         auc_text = "?" if auc is None else f"{auc:.3f}"
         if r.get("collapsed"):
             auc_text += " (collapsed)"
-        out.append(f"| {r['arm']} | {alpha} | {r.get('seed') or '?'} | "
+        out.append(f"| {r['arm']} | {alpha} | {holds_at(r, stop):.3f} | "
+                   f"{r.get('seed') or '?'} | "
                    f"{auc_text} | {r['score']:.4f} | "
                    f"{r['score'] - REF.K3_BB40K:+.4f} |")
     out += ["", "| reference | GM-Relative MASE |", "|---|---|"]
@@ -103,18 +127,23 @@ def table_markdown(rows: list[dict]) -> str:
     return "\n".join(out)
 
 
-def statement(rows: list[dict]) -> str:
-    """The one sentence the card asks for."""
+def statement(rows: list[dict], stop: int = 40000) -> str:
+    """The one sentence the card asks for.
+
+    It names the ARM as well as the momentum. Two arms of this card start at
+    0.8 and two start at 0.9, so a sentence that gives the start value alone
+    does not say which arm won.
+    """
     win = best(rows)
     delta = win["score"] - REF.K3_BB40K
-    schedule = SCHEDULE_TEXT.get(win["schedule"], win["schedule"])
     verdict = ("goes below" if delta < 0 else "does not go below")
     band = (" It lands inside the k = 3 repeat band."
             if REF.enters_band(win["score"]) else "")
-    return (f"The EMA momentum {win['alpha']:g} ({schedule}) wins, at "
-            f"{win['score']:.4f}. It sits {delta:+.4f} from the k = 3 score "
-            f"at bb40k, {REF.K3_BB40K:.4f}, so it {verdict} that score."
-            f"{band}")
+    return (f"`{win['arm']}` wins, at {win['score']:.4f}. Its momentum starts "
+            f"at {win['alpha']:g} ({schedule_text(win)}) and holds "
+            f"{holds_at(win, stop):.3f} at {stop:,} steps. It sits "
+            f"{delta:+.4f} from the k = 3 score at bb40k, "
+            f"{REF.K3_BB40K:.4f}, so it {verdict} that score.{band}")
 
 
 def main(argv=None):
@@ -139,7 +168,8 @@ def main(argv=None):
             r["collapsed"] = SEEDS.collapsed(r["auc"])
         rep = SEEDS.report(rows, root, args.stop)
 
-    parts = [table_markdown(rows), statement(rows)]
+    parts = [table_markdown(rows, args.stop),
+             statement(rows, args.stop)]
     if rep is not None and rep["spread"] is not None:
         parts.append(SEEDS.spread_sentence(rows, rep))
         parts.append(rep["separation"])
