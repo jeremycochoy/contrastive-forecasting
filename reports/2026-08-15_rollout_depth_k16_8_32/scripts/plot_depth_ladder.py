@@ -34,7 +34,8 @@ changes across them:
 The dashed, the dotted and the grey mark are all the parent study's numbers,
 so they carry ITS head budget: 15,000 steps at bb40k and 30,000 at bb100k and
 bb200k. The right panel's own cells train 40,000 and 100,000 head steps, so
-that panel is not head-matched. `REF_HEAD_NOTE` puts this in the legend.
+that pair is not head-matched. The caption carries this, because it is
+provenance and not a key to a line on the plot.
 
 A shaded band of +/-0.0384 rides on the k = 3 reference. That is the pooled
 head-seed band of `ema_sched_ladder.md`, which `noise_band.py` pools, and it
@@ -331,13 +332,13 @@ def draw_panel(ax, phase, arms, k3, k0, xs, frontier, stops_k, variants=(),
                     mec="white", mew=0.9, zorder=4)
             values += list(pts.values())
             curves.append((phase_drawn, k))
-            if phase_drawn == 1:
-                ends.append((xs[ss[-1]], pts[ss[-1]], k, col))
+            tag = D.label(k) if phase_drawn == 1 else f"{D.label(k)}, long head"
+            ends.append((xs[ss[-1]], pts[ss[-1]], tag, col))
 
     values += draw_variants(ax, [c for c in variants if c[0] == 1], xs)
     values += draw_seeds(ax, repeats or {}, 1, xs)
     values += draw_band(ax, xs, k3, D.REF_K3_INK)
-    values += draw_reference(ax, xs, k3, D.REF_K3_INK, D.STYLE_K3)
+    values += draw_reference(ax, xs, k3, D.REF_K3_INK, "solid")
     values += draw_reference(ax, xs, k0, D.REF_K0_INK, D.STYLE_K0)
     if True:
         values += draw_anchor(ax, xs, anchor or {})
@@ -345,7 +346,7 @@ def draw_panel(ax, phase, arms, k3, k0, xs, frontier, stops_k, variants=(),
     ax.axhline(frontier, color=D.PRIOR_INK, lw=2.0, zorder=1)
     ax.set_xticks([xs[s] for s in stops_k])
     ax.set_xticklabels([f"{s}k" if s in STOPS_K else str(s) for s in stops_k])
-    ax.set_xlim(-0.14, len(stops_k) - 1 + 0.62)
+    ax.set_xlim(-0.14, len(stops_k) - 1 + 0.92)
     ax.set_xlabel("backbone train step")
     ax.grid(axis="y", color=D.GRID, lw=0.8)
     ax.set_axisbelow(True)
@@ -360,8 +361,8 @@ def label_ends(ax, ends, lo, hi):
     """
     gap = (hi - lo) * 0.034
     ys = spread([e[1] for e in ends], gap)
-    for (x, y, k, col), yy in zip(ends, ys):
-        ax.annotate(D.label(k), (x, y), xytext=(x + 0.13, yy),
+    for (x, y, tag, col), yy in zip(ends, ys):
+        ax.annotate(tag, (x, y), xytext=(x + 0.13, yy),
                     textcoords="data", fontsize=9, color=D.INK,
                     va="center", ha="left", fontweight="bold",
                     arrowprops=dict(arrowstyle="-", color=col, lw=1.4,
@@ -389,7 +390,7 @@ def main(argv=None):
     k3 = {s: v for s, v in k3.items() if s in xs}
     k0 = {s: v for s, v in k0.items() if s in xs}
     phases = [p for p in (1, 2) if scores.get(p)]
-    fig, axes = plt.subplots(1, 1, figsize=(8.4, 5.8), squeeze=False)
+    fig, axes = plt.subplots(1, 1, figsize=(9.6, 5.8), squeeze=False)
     axes = axes[0]
 
     values, per_panel = [], []
@@ -407,47 +408,44 @@ def main(argv=None):
                        "(lower is better)")
     handles = [
         Line2D([], [], color=D.INK, linestyle="-", lw=2.0,
-               label="head at 30,000 steps"),
+               label="30k head"),
         Line2D([], [], color=D.INK, linestyle=(0, (5, 2)), lw=1.9,
-               label="head budget = backbone steps"),
-        Line2D([], [], color=D.INK_SOFT, linestyle=D.STYLE_K3, lw=1.7,
-               label="k = 3, same cell"),
+               label="long head (= backbone)"),
+        Line2D([], [], color=D.INK_SOFT, linestyle="solid", lw=1.7,
+               label="k = 3"),
         Patch(facecolor=D.REF_K3_INK, alpha=0.14, lw=0,
               label=f"head-seed band ±{HEAD_SEED_BAND:.4f}"),
         Line2D([], [], color=D.REF_K0_INK, linestyle=D.STYLE_K0, lw=1.7,
-               label="k = 0 published, same cell"),
+               label="k = 0, published"),
         Line2D([], [], color=D.PRIOR_INK, lw=2.0,
-               label=f"the best this cell reached before this study, "
-                     f"{frontier:.4f}")]
+               label=f"best before this study, {frontier:.4f}")]
     if any(s in xs for s in anchor):
         handles.insert(3, Line2D([], [], marker="D", ms=7.0, lw=0,
                                  color=D.REF_K0_INK, mec="white", mew=0.9,
-                                 label="k = 0 anchor, this study's path"))
+                                 label="k = 0, this path"))
     if repeats:
-        handles.append(Line2D([], [], marker="_", ms=9.0, lw=1.6,
-                              color=D.INK,
-                              label="I-bar: the range over the head seeds"))
+        handles.append(Line2D([], [], marker="|", ms=9.0, lw=1.6,
+                              color=D.INK, markeredgewidth=1.6,
+                              label="head-seed range, 3 draws"))
     if any(c[2] in xs for c in variants):
         handles.append(
             Line2D([], [], marker="o", ms=8.0, lw=0, mfc="white",
                    mec=D.INK, mew=2.0,
-                   label="open marker: the same depth and stop on another "
-                         "training schedule"))
+                   label="other EMA schedule"))
     # The head budget of the three reference marks. They are the parent
     # study's own numbers, so they carry that study's head budget and not
     # this one's. The right panel draws cells at 40,000 and 100,000 head
     # steps against them, so the panel is not head-matched and the figure
     # has to say so.
-    handles.append(Line2D([], [], lw=0, label=REF_HEAD_NOTE))
     # Two columns, not three. One panel is narrower than two were, and three
     # columns of these labels ran off both edges of the canvas.
     fig.legend(handles=handles, loc="lower center",
-               ncol=2, frameon=False, fontsize=8.5,
+               ncol=3, frameon=False, fontsize=8.5,
                bbox_to_anchor=(0.5, 0.0))
     fig.suptitle("GM-Relative MASE against backbone train step, "
                  "rollout depth k = 8 and 32", fontsize=12.5, color=D.INK)
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
-    fig.tight_layout(rect=(0, 0.235, 1, 0.945))
+    fig.tight_layout(rect=(0, 0.175, 1, 0.945))
     fig.savefig(a.out)
     drawn = len(curves)
     shown = [c for c in variants if c[2] in xs]
