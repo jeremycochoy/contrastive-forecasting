@@ -11,8 +11,8 @@ training looks to make the forecast a little worse.
 student encoder. The k = 3 and k = 0 references carry their own head budget:
 15,000 steps at the 40,000-step stop and 30,000 at the two later stops.*
 
-No run separates from the k = 0 anchor, the start checkpoint re-scored on
-this study's path and head budget.
+No run improves on the k = 0 anchor beyond the head-seed band. The anchor is
+the start checkpoint, re-scored on this study's path and head budget.
 
 ## Per-domain
 
@@ -55,10 +55,10 @@ forecast and the next latent.*
 | head seed | one per run, except k = 32 at stop 200k, which has three draws |
 | depths | two, k = 8 and k = 32. k = 16 was not run under the mean reduction |
 | the shape in k | k = 1 to k = 7 is unmeasured. At stop 40k, k = 8 and k = 32 sit inside the band of each other |
-| the head budget | six pairs, and no run gained. Five of the six moves sit inside the band, and the one outside it is worse |
+| the head budget | six pairs, and no run gained |
 | latent movement | not measured. The probes record per-checkpoint spread, not step-to-step movement |
 | the k = 0 anchor | measured at stops 40k and 100k, absent at 200k. The published k = 0 scores cover the same two stops |
-| the eval path | three controls ran it. The k = 0 parent returns its published score at both stops that have one: 1.1600 against 1.1603, and 1.1945 against 1.1945. The third control reads 1.2910 against the published 1.2748, a move of 0.0162 that sits inside the band. This study establishes no cause for it |
+| the eval path | three controls ran it. Two return their reference. The third moves inside the band. This study establishes no cause for it |
 
 ## Tables
 
