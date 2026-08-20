@@ -1531,3 +1531,173 @@ class TestBandQueue:
     def test_queue_serialises_stage_two_behind_stage_one(self):
         code = strip_comments(BAND_QUEUE_SH.read_text())
         assert '[ "$stage1" = done ]' in code
+
+
+# --- 13. the band queue, end to end ---------------------------------------
+#
+# Items 2 and 7 are armed rather than finished: both wait on card 1. So the
+# firing path itself is the risk, and these run it. A stub stands in for
+# `replicate_heads.sh` and records the arguments it was called with.
+
+QUEUE_STUB = """#!/bin/bash
+echo "STUB $*" >> "$CF407_RESULTS/fired.txt"
+[ -n "${STUB_SLEEP:-}" ] && sleep "$STUB_SLEEP"
+exit 0
+"""
+
+CKPT_STUB = """import os, sys
+sys.exit(0 if os.environ.get("STUB_CKPT") == "1" else 3)
+"""
+
+
+@pytest.fixture
+def queue(tmp_path):
+    """A sandbox copy of `band_queue.sh`, with stubs for what it launches.
+
+    `replicate_alive` resolves `argv[1]` against the launching process's own
+    working directory and demands THIS copy of the script. So a sandbox run
+    never sees the band running on the real machine, and a real band never
+    sees the sandbox's stub.
+    """
+    import subprocess
+
+    scripts = tmp_path / "scripts"
+    scripts.mkdir()
+    (scripts / "band_queue.sh").write_text(BAND_QUEUE_SH.read_text())
+    stub = scripts / "replicate_heads.sh"
+    stub.write_text(QUEUE_STUB)
+    stub.chmod(0o755)
+    (scripts / "full_pass.py").write_text(CKPT_STUB)
+
+    res = tmp_path / "res"
+    res.mkdir()
+    parent = tmp_path / "wt" / "reports" / "2026-08-08_rollout_depth" / "results"
+    parent.mkdir(parents=True)
+
+    class Queue:
+        results = res
+        parent_results = parent
+        alive = []
+
+        def score(self, head, seed, stop_k=200, value="1.0672"):
+            (parent / f"score_A4_k3_bb{stop_k}k_{head}_s{seed}.txt").write_text(
+                value + "\n")
+
+        def start_band(self, stop):
+            """A real process that reads as a band of this sandbox."""
+            env = dict(os.environ, CF407_RESULTS=str(res), STUB_SLEEP="30")
+            proc = subprocess.Popen(["bash", str(stub), str(stop)], env=env,
+                                    stdout=subprocess.DEVNULL,
+                                    stderr=subprocess.DEVNULL)
+            self.alive.append(proc)
+            # The queue reads /proc, so the process must be up before it runs.
+            for _ in range(50):
+                if (Path("/proc") / str(proc.pid) / "cmdline").exists():
+                    break
+            return proc
+
+        def run(self, ckpt=False, once=True, period=300, max_fires=4,
+                timeout=30):
+            env = dict(os.environ,
+                       CF407_RESULTS=str(res), WT=str(tmp_path / "wt"),
+                       RUNS=str(tmp_path / "runs"),
+                       STUB_CKPT="1" if ckpt else "0",
+                       QUEUE_PERIOD=str(period),
+                       QUEUE_MAX_FIRES=str(max_fires))
+            if once:
+                env["QUEUE_ONCE"] = "1"
+            out = subprocess.run(
+                ["bash", str(scripts / "band_queue.sh")], env=env,
+                capture_output=True, text=True, timeout=timeout)
+            return out.stdout + out.stderr
+
+        def fired(self, at_least=0, timeout=10.0, settle=0.8):
+            """The launches the stub recorded.
+
+            `fire` backgrounds the launch, so the queue can exit before the
+            stub has written its line. `at_least` waits for that many lines.
+            `at_least = 0` means "expect none", so it settles once instead.
+            """
+            import time as _time
+            path = res / "fired.txt"
+
+            def read():
+                if not path.exists():
+                    return []
+                return [ln.split(None, 1)[1]
+                        for ln in path.read_text().splitlines() if ln.strip()]
+
+            if at_least <= 0:
+                _time.sleep(settle)
+                return read()
+            deadline = _time.time() + timeout
+            while True:
+                lines = read()
+                if len(lines) >= at_least or _time.time() >= deadline:
+                    return lines
+                _time.sleep(0.05)
+
+        def stop(self):
+            for proc in self.alive:
+                proc.terminate()
+                try:
+                    proc.wait(timeout=10)
+                except Exception:
+                    proc.kill()
+
+    q = Queue()
+    yield q
+    q.stop()
+
+
+class TestBandQueueFires:
+    """Item 2 and item 7, run rather than read."""
+
+    def test_stage_one_fires_the_protocol_seed(self, queue):
+        queue.run()
+        assert queue.fired(1) == ["200000 20260722"]
+
+    def test_stage_one_waits_while_a_band_holds_card_one(self, queue):
+        queue.start_band(200_000)
+        queue.run()
+        # Only the stub's own line. The queue added nothing.
+        assert queue.fired(1) == ["200000"]
+
+    def test_stage_two_waits_for_stage_one(self, queue):
+        queue.start_band(200_000)
+        queue.run(ckpt=True)
+        assert "450000" not in " ".join(queue.fired(1))
+
+    def test_stage_two_fires_when_the_checkpoint_lands(self, queue):
+        for head in ("student", "teacher"):
+            queue.score(head, 20260722)
+        queue.run(ckpt=True)
+        assert queue.fired(1) == ["450000"]
+
+    def test_stage_two_waits_for_the_checkpoint(self, queue):
+        for head in ("student", "teacher"):
+            queue.score(head, 20260722)
+        queue.run(ckpt=False)
+        assert queue.fired() == []
+
+    def test_a_half_scored_redraw_does_not_count_as_done(self, queue):
+        queue.score("student", 20260722)          # teacher missing
+        queue.run(ckpt=True)
+        assert queue.fired(1) == ["200000 20260722"]
+
+    def test_the_fire_cap_stops_a_runaway(self, queue):
+        for head in ("student", "teacher"):
+            queue.score(head, 20260722)
+        log = queue.run(ckpt=True, once=False, period=1, max_fires=2)
+        assert queue.fired(2).count("450000") == 2
+        assert "GIVING UP" in log
+        assert "the queue stops" in log
+
+    def test_a_drained_band_ends_the_queue(self, queue):
+        for head in ("student", "teacher"):
+            queue.score(head, 20260722)
+            for seed in (20260723, 20260724):
+                queue.score(head, seed, stop_k=450)
+        log = queue.run(ckpt=True, once=False, period=1)
+        assert queue.fired() == []
+        assert "the queue stops" in log

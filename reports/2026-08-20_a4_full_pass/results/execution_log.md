@@ -247,6 +247,27 @@ aggregate. `stop_bootstrap.sh` is sound and its docstring is accurate.
 The same page also called 0.0046 a pure repeatability difference. Item 3
 shows it is not. Both corrections are marked on that page.
 
+### 19:42 UTC — the firing path, run rather than read (items 2, 7)
+
+Items 2 and 7 wait on card 1, so the code that fires them is the risk. A
+sandbox runs `band_queue.sh` against a stub, and eight tests cover it: stage
+1 fires seed 20260722 at 200k, stage 1 waits while a band holds the card,
+stage 2 waits for stage 1, stage 2 fires on the checkpoint, stage 2 waits
+without one, a half-scored re-draw does not read as done, the fire cap stops
+a runaway, and a drained band ends the queue.
+
+The sandbox found one defect. `replicate_alive` matched
+`*/replicate_heads.sh` from ANY checkout. The band running now was launched
+by a relative path, so `replicate_alive` now resolves `argv[1]` against the
+process's own working directory and demands this checkout's copy. Two
+worktrees no longer read as one band.
+
+It also gained a fire cap, `QUEUE_MAX_FIRES`, default 4. A draw that dies at
+once would otherwise re-launch every 300 seconds for the whole card.
+
+The queue restarted on the verified script at 19:42 UTC. It had fired
+nothing, so the restart cost no work.
+
 ## What the report must state, and where each number comes from
 
 The gap list asks for these claims in the report itself. Each one has an
