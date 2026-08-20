@@ -126,7 +126,7 @@ ticks. `pgrep -f run_pass.sh` alone is not enough: the shell that launched
 the driver and the tail that watches it both carry that name in their own
 command lines, so the test reads `argv[1]` out of `/proc`.
 
-### 19:54 UTC — the teacher is frozen (gap 4)
+### 18:58 UTC — the teacher is frozen (gap 4)
 
 `teacher_move.py`, on checkpoints already on disk. 100k against 200k moves
 0 of 52 teacher tensors, bit for bit, while the student moves 106 of 110 at
@@ -135,15 +135,36 @@ did not wait for the 300k stop.
 
 `teacher_check.sh` repeats the test on every later pair, from the watchdog.
 
-### 19:0x UTC — the shard order (gap 3)
+### 19:01 UTC — the shard order (gap 3)
 
 `shard_order.py` read the `meta` and `source_id` columns of 12 shards from
 `small_v1`, spanning shard 0 to shard 4273 and including the 1279/1280
 boundary the 200,000-step mark falls on. It read no `series` column, so the
 check moved a few MB and did not compete with the training stream.
 
-### 19:2x UTC — the figure, the interval and the metrics (gaps 2, 9)
+### 18:55 to 19:02 UTC — the interval, the metrics, the figure (gaps 2, 9)
 
 `stop_bootstrap.sh`, `metrics_table.py` and the ribbon in
 `plot_full_pass.py`. All three read CSVs that already exist, so none costs
 GPU time.
+
+### 19:1x UTC — how selected the target is (gap 8)
+
+`selection_context.py` reads #373's 99 score files. 1.0660 is rank 1 of 99,
+and the runner-up is 1.0801, 0.0141 above it.
+
+## What the report must state, and where each number comes from
+
+The gap list asks for four claims in the report itself. Each one has an
+artefact behind it, so the report cites rather than asserts.
+
+| claim | artefact |
+|---|---|
+| The teacher is frozen from step 100,000 on, so its three stops score one encoder. | `results/teacher_move_100k_200k.json`, `results/teacher_move_40k_100k.json` |
+| The shard order carries no data-mix confound. | `results/shard_order.json` |
+| One backbone seed. The card answers "did THIS run keep improving", not "does A4 improve with more data". | `run_leg_k.sh` line 113 pins `SEED=20260520`. #373's own gap table already records that backbone-seed variance stays unmeasured. A second backbone seed costs 40 GPU-hours and this card does not buy one. |
+| 1.0660 is a selected number, so a point near it is not a plateau. | `results/selection_context.json`: rank 1 of 99, runner-up +0.0141 |
+
+The head-seed band from `results/replicate_200k.log` goes beside the last
+two. A move smaller than the band decides nothing, whichever direction it
+points.
