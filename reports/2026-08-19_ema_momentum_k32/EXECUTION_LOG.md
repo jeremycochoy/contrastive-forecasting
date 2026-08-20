@@ -244,3 +244,48 @@ answer is an ABORT.
   cell with four arms on one 4-card box.
 - The sync loop of round 3 stays up for the whole round, 15-minute ticks, local
   root `/home/jupyter/cf404_sync/box_r3`.
+
+## Round 3c — the two machines run together
+
+### Why the order changed
+
+`round3b.sh` runs one arm end to end before the next one starts. The eval of an
+arm is a 97-config GIFT-Eval on elisa's CPUs, and round 1 measured 1.9 hours for
+it. The box holds ONE card. Under round 3b's order that card sits at 0% for
+every hour of the `a095` eval, at $0.3611/h, and `s08b` starts 2 hours late.
+
+The two stages use two machines, so they overlap. `scripts/round3c.sh` runs the
+same two arms in this order:
+
+1. the `a095` head on the box, 30,000 steps, head seed 20260722.
+2. the `s08b` backbone on the same card, the minute the head process leaves it.
+3. the `a095` 97-config GIFT-Eval on elisa, at the same time as (2).
+
+The card gets no idle hour, and the 0.95 number arrives at the same time as
+before.
+
+### What round 3c inherits
+
+`round3b.sh` trained the `a095` backbone to 40,000 steps and started its head.
+`round3c.sh` picks that head up where it stands. Every stage is idempotent, so
+nothing is retrained.
+
+### The comment carries the number
+
+The user waits on the `a095` score to pick the third momentum. `round3c.sh`
+posts that score to PR #405 itself, from `results/scores.csv`, the minute the
+score file appears. A session that ends does not hold the number back.
+
+### Events
+
+- 02:55 the `a095` backbone reached 40,000 steps. `round3b.sh` started the head
+  on card 0, seed 20260722, at 30,000 steps.
+- 03:00 the head is VERIFIED, off the box: 5,616 MiB of GPU memory in use, one
+  compute app, 81% GPU, and the head losses CSV at step 1,600 of 30,000.
+  Measured rate 7.6 steps/s, which is 66 minutes for the head.
+- 03:02 the round 3b driver stopped, by pid (1959256) with its watchdog
+  (1959292). No pattern, and the box sync loop (1948422) was not touched. The
+  head runs under `nohup setsid` on the box, so it did not notice.
+- 03:03 `round3c.sh` started, detached, under `nohup setsid`. Credit $16.42, box
+  spend $1.51. Its watchdog holds two ceilings: 16 hours of box life, and $9 of
+  spend. The card check read one card at index 0 again.
