@@ -326,3 +326,91 @@ for: does that spread separate the constant 0.90 arm from the constant 0.95
 arm? `repeat_spread.separation` reads both arms out of `scores.csv` and
 compares their gap against the spread. The test is strict, so a gap equal to
 the spread does not separate.
+
+## Round 4 — four backbone seeds of one arm
+
+### Why the round exists
+
+`s08b` was meant to measure this cell's run-to-run spread. It measured a
+COLLAPSE instead. Its contrastive AUC went 0.91 at 10,000 steps to 0.84, 0.67
+and 0.57 at 40,000. Its top1 went 0.273 to 0.009 and its gap_ratio went 0.772
+to 1.007. Its `ema_tau` trajectory matches `s08` exactly, so the schedule
+reached the trainer, and its eval covered all 97 configs. The arm trained the
+right cell and the backbone died inside it.
+
+Every other arm is stable, AUC 0.93 to 0.98 at 40,000 steps, and all five carry
+backbone seed 20260520. One seed collapsed. Two readings fit that:
+
+  - 20260521 was unlucky, and a collapse here is rare, or
+  - 20260520 was lucky, and this cell is unstable.
+
+Under the second reading every ranking of this card rests on one seed. Two more
+seeds of the SAME arm tell the two apart: `s08c` at 20260522 and `s08d` at
+20260523. Every other flag is `s08`'s.
+
+### The machine, and why it carries one card
+
+The card asks for ONE box with TWO cards, a datacenter host at reliability 0.99
+or better, and a DESKTOP-class CPU. The step rate of this cell is set by the
+CPU and not by the card: #373 measured 5.6 to 6.7 steps/s on a Zen 4 desktop
+part against 1.1 steps/s on an EPYC 7452.
+
+On 2026-08-20 the whole datacenter multi-GPU pool carries SERVER CPUs.
+`results/round4_pool_evidence.txt` holds the search, with no price ceiling:
+
+| GPUs | offers | CPU class | cheapest |
+|---|---|---|---|
+| 2 | 23 rows, every one a server part | EPYC 7763, 7V13, 7452, 9274F, Xeon Gold 6133, Xeon 6767P | $1.0437/h |
+| 1 | 4 of 5 rows are desktop parts | Ryzen 7 7800X3D | $0.3356/h |
+
+At six times the step time the cheapest two-card box needs about 22 hours per
+arm and about $23, against a limit of $7. A two-card server box is SLOWER and
+DEARER than one desktop box, and it breaks the budget.
+
+So `round4.sh` asks the pool for the card's own shape FIRST and falls back to
+one card of the same class. The two arms then share that card. They fit: one
+leg holds 5.7 GB of a 32 GB RTX 5090 and leaves the card at 27 to 34 %
+utilization, so the second leg takes idle silicon. `gpu_gate` returns at once
+on a `Default`-mode card, and the driver refuses an `Exclusive_Process` card,
+where the second lane would die inside `.to(device)`.
+
+### What every reader had to learn
+
+Before this round the tables read `s08` against `s08b`, called their distance
+of 0.3677 "the repeat spread this card measures", and then reported that every
+arm sits within one repeat of the winner. That is not a spread. It is the
+distance between a healthy run and a dead one, and under it the card ranked
+nothing.
+
+`scripts/seed_report.py` now holds the study's ONE definition of a collapse:
+the contrastive AUC at the stop, against a line at 0.80. The five stable arms
+hold 0.93 to 0.98 and the collapsed one holds 0.57, so any line inside that
+band classifies the same arms.
+
+Five readers share that definition and cannot disagree:
+
+  - `plot_backbone_health.py` paints red by the data, not by an arm name.
+  - `plot_momentum.py` keeps a collapsed arm out of every mean and every bar,
+    and gives it a red X off the line.
+  - `make_table.py` gains a seed column and an AUC column.
+  - `pr_comment.py --sync-root` answers the card's four questions.
+  - `make_plots.sh` draws both new outputs, so "redraw every figure" covers
+    them.
+
+### Events
+
+- 09:39 `round4.sh` started, detached, under `nohup setsid`. Credit $13.95. The
+  watchdog holds two ceilings: 14 hours of box life, and $6 of spend.
+- 09:39 the two-card search returned 0 offers under the ceiling. The driver
+  fell back to one card and said so.
+- 09:42 instance 48192413, label `cf404-box-r4`, at ssh9.vast.ai:32412. One RTX
+  5090 in `Default` compute mode, AMD Ryzen 7 7800X3D, 8 threads, 30 GB RAM,
+  datacenter, reliability 0.99 or better.
+- 09:42 the card check read one card at index 0, so both arms take lanes
+  `0 0`. The box printed its own plan and named `s08c` and `s08d` on `gpu=0`.
+- 09:45 bootstrap OK. The box carries this round's arms table.
+- 09:45 the sync loop is up, pid 2588325, local root
+  `/home/jupyter/cf404_sync/box_r4`, 15-minute ticks.
+- 09:42 the round 4 heartbeat loop replaced round 3c's. It follows the round
+  through `ROUND` and reads EVERY live losses CSV, because two lanes run at a
+  time and a probe that reads one file calls a dead lane live.

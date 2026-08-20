@@ -9,9 +9,16 @@ square raises it to 1.0 at 200,000 steps.
 A line joins the arms of one schedule, because the momentum is a continuous
 axis and the reader follows the direction.
 
-Two arms that share a momentum and a schedule are a repeat pair. The figure
-draws their mean, and a vertical bar over the two scores. That bar is the
+Two or more arms that share a momentum and a schedule are a repeat family. The
+figure draws their mean, and a vertical bar over their scores. That bar is the
 run-to-run spread this card measures for itself.
+
+A COLLAPSED ARM IS NOT PART OF THAT BAR. One backbone of this card fell to
+chance while it trained, and its score says what a dead backbone scores, not
+what its momentum is worth. Inside the mean it would move a marker, and inside
+the bar it would stretch the spread over every other arm. So it takes its own
+red marker, off the line, and `--sync-root` is what tells the two apart.
+`seed_report.py` holds the study's one definition of a collapse.
 
 The reference lines carry their own text inside the axes. The legend then
 holds the arms alone.
@@ -44,6 +51,7 @@ def _load(name, filename):
 
 REF = _load("cf404_refs", "references.py")
 REPEAT = _load("cf404_repeat", "repeat_spread.py")
+SEEDS = _load("cf404_seeds", "seed_report.py")
 
 # One colour and one marker per schedule. Two schedules, so two of each.
 STYLE = {
@@ -59,6 +67,11 @@ EARLIER = {"colour": "0.45", "marker": "^",
            "label": "the momentum rises to 1.0 at 100,000 steps "
                     "(the earlier run this card starts from)"}
 
+# The arm whose backbone fell to chance. Red, off the line, and out of every
+# mean and every bar.
+FELL = {"colour": "#d62728", "marker": "X",
+        "label": "the backbone fell to chance while it trained"}
+
 
 def read_scores(path) -> list[dict]:
     """The rows of scores.csv, typed. `ramp` is 0 for a held momentum."""
@@ -70,6 +83,7 @@ def read_scores(path) -> list[dict]:
             rows.append({"arm": r["arm"], "alpha": float(r["alpha"]),
                          "schedule": r.get("schedule", "fixed"),
                          "ramp": int(float(r.get("ramp") or 0)),
+                         "seed": r.get("seed", ""),
                          "score": float(r["score"])})
     return sorted(rows, key=lambda r: (r["schedule"], r["alpha"]))
 
@@ -135,13 +149,18 @@ def draw_references(ax, x_lo, x_hi):
             fontsize=8, color="0.45", va="bottom", ha="left", zorder=4)
 
 
-def draw(rows, out):
+def draw(rows, out, fell=()):
     fig, ax = plt.subplots(figsize=(9.5, 6.4))
-    alphas = [r["alpha"] for r in rows] + [REF.K32_BB40K_ALPHA]
+    alphas = [r["alpha"] for r in rows] + [r["alpha"] for r in fell] \
+        + [REF.K32_BB40K_ALPHA]
     x_lo, x_hi = min(alphas) - 0.03, max(alphas) + 0.03
     draw_references(ax, x_lo, x_hi)
     for schedule in ("fixed", "ramp"):
         draw_series(ax, rows, schedule)
+    if fell:
+        ax.plot([r["alpha"] for r in fell], [r["score"] for r in fell],
+                linestyle="none", marker=FELL["marker"], markersize=11,
+                color=FELL["colour"], zorder=4, label=FELL["label"])
     ax.plot([REF.K32_BB40K_ALPHA], [REF.K32_BB40K], linestyle="none",
             marker=EARLIER["marker"], markersize=9, color=EARLIER["colour"],
             zorder=3, label=EARLIER["label"])
@@ -164,20 +183,23 @@ def draw(rows, out):
     fig.tight_layout()
     Path(out).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=160)
-    print(f"wrote {out} — {len(rows)} arm(s)")
+    print(f"wrote {out} — {len(rows)} arm(s), {len(fell)} collapsed")
     return fig, ax
 
 
 def pair_note(ax, rows):
-    """One line naming the measured repeat spread, when a pair exists."""
-    pairs = REPEAT.pairs(rows)
-    if not pairs:
+    """One line naming the measured repeat spread, when a family exists.
+
+    The number is the range of the bar the reader sees, so it is measured over
+    the same rows the bar is drawn from.
+    """
+    fam = SEEDS.family(rows)
+    d = SEEDS.spread(fam)
+    if d is None:
         return
-    a, b = pairs[0]
-    gap = abs(a["score"] - b["score"])
     ax.text(0.02, 0.03,
-            f"the bar is one arm trained twice at two backbone seeds, "
-            f"a range of {gap:.4f}",
+            f"the bar is one arm trained {len(fam)} times at {len(fam)} "
+            f"backbone seeds, a range of {d:.4f}",
             transform=ax.transAxes, fontsize=8, color="0.20", va="bottom")
 
 
@@ -185,10 +207,22 @@ def main(argv=None):
     p = argparse.ArgumentParser()
     p.add_argument("--scores", required=True)
     p.add_argument("--out", required=True)
+    p.add_argument("--sync-root",
+                   help="the sync tree, to read each arm's contrastive AUC")
+    p.add_argument("--stop", type=int, default=40000)
     args = p.parse_args(argv)
     if not Path(args.scores).is_file():
         raise SystemExit(f"ABORT: no scores table at {args.scores}")
-    draw(read_scores(args.scores), args.out)
+    rows = read_scores(args.scores)
+    fell = []
+    if args.sync_root:
+        root = Path(args.sync_root).expanduser()
+        alive = []
+        for r in rows:
+            auc = SEEDS.auc_at(root, r["arm"], args.stop)
+            (fell if SEEDS.collapsed(auc) else alive).append(r)
+        rows = alive
+    draw(rows, args.out, fell)
     return 0
 
 

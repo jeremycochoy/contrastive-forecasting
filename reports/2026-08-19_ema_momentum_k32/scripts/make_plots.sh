@@ -29,6 +29,12 @@ mkdir -p "$CF404_PLOTS" "$CF404_RESULTS"
 
 bash "$HERE/collect.sh" || exit $?
 
+# The health figure, the momentum figure, the table and the seed report read
+# the SYNC TREE, not one root: the contrastive AUC lives in each arm's backbone
+# losses CSV, and the arms of this card were trained on five boxes.
+# `CF404_SYNC_TREE` is the parent of the per-box roots.
+SYNC_TREE="${CF404_SYNC_TREE:-$(dirname "$CF404_SYNC_DIR")}"
+
 draw(){  # <name> <script> <args...>
   local name="$1"; shift
   local out rc
@@ -41,19 +47,14 @@ draw(){  # <name> <script> <args...>
 }
 
 draw "momentum" "$HERE/plot_momentum.py" \
-  --scores "$CF404_RESULTS/scores.csv" --out "$CF404_PLOTS/momentum.png"
+  --scores "$CF404_RESULTS/scores.csv" --out "$CF404_PLOTS/momentum.png" \
+  --sync-root "$SYNC_TREE"
 
 draw "loss_curves" "$HERE/plot_loss_curves.py" \
   --root "$CF404_ROOT" --out "$CF404_PLOTS/loss_curves.png"
 
 draw "domain_radar" "$HERE/plot_domain_radar.py" \
   --splits "$CF404_RESULTS/splits.csv" --out "$CF404_PLOTS/domain_radar.png"
-
-# The health figure, the table and the seed report read the SYNC TREE, not one
-# root: the contrastive AUC lives in each arm's backbone losses CSV, and the
-# arms of this card were trained on five boxes. `CF404_SYNC_TREE` is the parent
-# of the per-box roots.
-SYNC_TREE="${CF404_SYNC_TREE:-$(dirname "$CF404_SYNC_DIR")}"
 
 draw "table" "$HERE/make_table.py" \
   --scores "$CF404_RESULTS/scores.csv" --out "$CF404_RESULTS/table.md" \
