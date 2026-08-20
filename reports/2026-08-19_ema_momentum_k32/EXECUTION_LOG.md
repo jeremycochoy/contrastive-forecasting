@@ -561,3 +561,108 @@ Both are healthy, against `s08b` at 0.5745. So three of four seeds of the `s08`
 arm lived and one died. The collapse was one unlucky seed, and the ranking of
 this card does not rest on one lucky one. Their heads never ran, so neither arm
 has a GM-Relative MASE.
+
+## Round 6 — the L_align weight, as a third lane on the round 4 box
+
+### Why the round exists
+
+The user asked for it. Take the best config of the card and move ONE flag.
+
+For this loss shape the rollout depth touches the align term alone. A depth
+copy of `cosine_similarity_batch_rep_only` "has nothing to substitute and adds
+exactly zero", because that shape is h-anchored, and the align add-on "IS
+duplicated" (`src/loss.py`). The reduction is a mean, so 33 copies of L_align
+average back to about one copy's magnitude. The loss then holds ONE copy of the
+h-anchored repel term against the MEAN of 33 copies of the f-anchored pull
+term. `--align-loss-weight` is the only flag that sets that balance, and no arm
+of rounds 1 to 5 moved it.
+
+    w3_s08   s08 (1.1782, the card's best) at --align-loss-weight 3.0
+
+Everything else is round 1's, down to both seeds.
+
+### What the round dropped
+
+`s08c` and `s08d` keep their heads and their evals DROPPED. Their backbones
+stay on disk. The user asked for that: their scores measure the collapse rate,
+and this round spends the card on the score.
+
+### The order of the two kills
+
+`finish_round5.sh` destroys the box the moment the round 5 driver leaves the
+process table. So it went FIRST, by pid, and the driver went after it. Then the
+round 5 heartbeat loop.
+
+  - 15:47 `finish_round5.sh` (2947274) stopped, then the round 5 watchdog
+    subshell (2906449), then the driver (2906374), then the heartbeat loop
+    (2909402). Every one by pid, never by pattern.
+  - 15:47 `vastrun-status` still showed 48192413 running at $2.61. The box
+    survived every kill, which is what the order was for.
+
+### The two things round 5 did per round, and round 6 does per arm
+
+**The launch.** Round 5 asked "does a trainer run on the box?" and skipped the
+launch when one did. Three lanes make that answer useless: two trainers already
+ran, so the third would never have started. `round6.sh` asks the question of
+EACH ARM, off that arm's own run name, and starts only the arms that neither
+finished nor run. It read `r100_09: a trainer already runs` and
+`r100_08: a trainer already runs`, then started `w3_s08` alone.
+
+**The heads.** Round 5 waited for every backbone and then started every head. A
+head reports 0 % GPU utilization on this card, so it costs the trainers beside
+it almost nothing. Round 6 starts each arm's head THE MOMENT that arm's
+backbone lands, so the two 100,000-step ramps are scored while `w3_s08` still
+trains. It takes about an hour of box time off the tail, which is what makes
+the round fit under the limit.
+
+### Events
+
+- 15:48 `arms.tsv` gained a SIXTH COLUMN, the align weight, and one row. A `-`
+  or an absent column takes the cell's own 1.0, so every row above `w3_s08`
+  keeps the command line it ran.
+- 15:49 `run_arm.sh` appends `--align-loss-weight` to `GAP_ARGS`, which is the
+  LAST thing on the trainer command line. The cell states the flag earlier, so
+  a repeat is what moves it: argparse keeps the last value.
+- 15:49 the guard gained the weight, and it needed a NEW READER.
+  `cf404_arg_of_cmdline` stops at the first hit, so it reports the cell's 1.0
+  on every arm. `cf404_align_of_cmdline` reads the LAST hit.
+  `scripts/test_align_guard.sh` holds all of it: 24 checks pass.
+- 15:50 `round6.sh` started, detached, under `nohup setsid`, pid 2959282.
+- 15:51 the box's arms table now holds `w3_s08`, and the box's OWN copy of
+  `run_arm.sh` builds it at `align_w=3.0`. Stage 3 reads that back over SSH
+  before it starts the lane, so a table that shipped without column 6 stops
+  the round instead of training a duplicate of `s08` for five hours.
+- 15:51 the third lane started. Lanes `0 0 0`.
+- 15:51 the guard line is in, off the trainer's OWN command line:
+
+      arm w3_s08 ema='0.8 1.0 200000' reduce=mean seed=20260520 align_w=3.0 OK
+
+- 15:55 the launch is VERIFIED, off the box: 17,042 MiB of 32,607 MiB in use,
+  THREE compute apps at 5,674 MiB each, 83 % GPU, 33 depth columns in all three
+  losses CSVs, which is k + 1 at k = 32. The verify file also carries the
+  weight read back off each lane's command line: 1.0, 1.0, 3.0.
+- 15:55 step rates: `r100_09` 2.6 sps ETA 3.8 h. `r100_08` 2.6 sps ETA 3.9 h.
+  `w3_s08` 2.2 sps ETA 5.1 h. The third lane cost the other two 0.1 sps each
+  and took the card from 88 % to 83 %, so the card was NOT saturated at two
+  lanes.
+- 15:55 the round 6 heartbeat loop replaced round 5's. It reads the newest SIX
+  losses CSVs, not four: three lanes plus three heads write at once.
+- 15:57 `finish_round6.sh` started, detached, under `nohup setsid`, pid
+  2967588. It waits for the driver BY PID.
+
+### A number the launch already gives
+
+`w3_s08` writes loss 17.99 at step 1 where the two round 5 lanes write 14.28,
+off the same data and the same seed. The align term is the only term that
+moved, and 3.0 times one copy of it against 1.0 times the same copy is the
+difference. So the weight reached the objective and not only the command line.
+
+### The budget
+
+The limit is $6 of TOTAL box spend. The box had spent $2.61 at the handover, at
+$0.4278/h. `MAX_SPEND` is $5.60 and the rest is margin for the teardown itself.
+
+THE WATCHDOG PULLS BEFORE IT DESTROYS, which round 5's did not. The cap is a
+budget event and not a data event: whatever the box holds at that moment is
+still worth a head on elisa, and `head_eval.sh` trains a head that is not on
+disk before it evals. So a cap that fires mid-round still ends with a score.

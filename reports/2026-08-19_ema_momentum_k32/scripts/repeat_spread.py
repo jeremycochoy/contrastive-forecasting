@@ -11,9 +11,11 @@ the same schedule, the same depth and the same head seed. They differ in the
 backbone seed alone, 20260520 against 20260521. The distance between their two
 scores is the run-to-run spread of THIS cell, at THIS stop.
 
-A repeat pair is any two rows of scores.csv that share (alpha, schedule, ramp).
-Nothing names `s08` and `s08b` here: an arms table that adds a second repeat
-gets a second pair, and the figure and the table both read it.
+A repeat pair is any two rows of scores.csv that share (alpha, schedule, ramp,
+align_w). Nothing names `s08` and `s08b` here: an arms table that adds a second
+repeat gets a second pair, and the figure and the table both read it. The align
+weight is in the key so an arm that MOVES the objective at one momentum is not
+read as a second seed of it.
 
 Two arms, so this is a range and not a standard deviation. Two draws give no
 useful estimate of a standard deviation, and a range says what it is.
@@ -24,11 +26,18 @@ from itertools import combinations
 
 
 def pairs(rows) -> list[tuple[dict, dict]]:
-    """Every pair of scored rows that share a momentum and a schedule."""
+    """Every pair of scored rows that differ in the backbone seed ALONE.
+
+    The key carries the align weight as well as the momentum, the schedule and
+    the ramp. `w3_s08` shares the first three with `s08` and moves the weight,
+    so the two are a change to the objective and not a repeat. A pair without
+    the weight in its key would report that change as run-to-run noise, under
+    a sentence that says the two differ in the seed alone.
+    """
     out = []
     for a, b in combinations(rows, 2):
-        if (a["alpha"], a["schedule"], a.get("ramp", 0)) == \
-           (b["alpha"], b["schedule"], b.get("ramp", 0)):
+        if (a["alpha"], a["schedule"], a.get("ramp", 0), a.get("align_w", 1.0)) == \
+           (b["alpha"], b["schedule"], b.get("ramp", 0), b.get("align_w", 1.0)):
             out.append((a, b) if a["arm"] < b["arm"] else (b, a))
     return out
 
@@ -77,10 +86,17 @@ def sentence(rows) -> str:
 # --- The question the card asks of two named arms ----------------------------
 
 
-def cell(rows, alpha: float, schedule: str) -> dict | None:
-    """The one scored row at a momentum and a schedule, or `None`."""
+def cell(rows, alpha: float, schedule: str,
+         align_w: float = 1.0) -> dict | None:
+    """The one scored row at a momentum, a schedule and an align weight.
+
+    The weight is in the match because an arm that moves it is a different
+    objective at the same momentum, and this function answers "which arm is
+    THE arm at 0.95". Two rows would make that question have two answers.
+    """
     for r in rows:
-        if abs(r["alpha"] - alpha) < 1e-9 and r["schedule"] == schedule:
+        if (abs(r["alpha"] - alpha) < 1e-9 and r["schedule"] == schedule
+                and abs(r.get("align_w", 1.0) - align_w) < 1e-9):
             return r
     return None
 

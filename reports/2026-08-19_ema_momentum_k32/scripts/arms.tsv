@@ -69,7 +69,29 @@
 #
 # Both new arms carry backbone seed 20260520, the seed of the six scored arms.
 # A new seed here would move two values at once.
-# arm	tau	end	ramp	seed
+# Row 11 moves a flag no row above it has moved: the L_align WEIGHT.
+#
+# For this loss shape the rollout depth touches the align term alone.
+# src/loss.py line 2156 says a depth copy of cosine_similarity_batch_rep_only
+# "has nothing to substitute and adds exactly zero", because that shape is
+# h-anchored, and that the align add-on "IS duplicated". The reduction is a
+# mean, so 33 copies of L_align average back to about one copy's magnitude.
+# The loss then holds ONE copy of the h-anchored repel term against the MEAN
+# of 33 copies of the f-anchored pull term, and --align-loss-weight is the
+# only flag that sets that balance.
+#
+#   w3_s08  the best-scoring arm of this card, s08 at 1.1782, with the align
+#           weight at 3.0 instead of 1.0. One flag moves and nothing else:
+#           the same momentum schedule, the same 200,000-step ramp and the
+#           same backbone seed 20260520.
+#
+# So column 6 is the align weight. A `-` or an absent column takes the cell's
+# own 1.0, which is what run_leg_k.sh already puts on every command line.
+# w3_s08 differs from s08 in that column ALONE, so a weight that does not
+# reach the trainer gives two identical runs under two names — the same
+# failure the seed column carries, and run_arm.sh guards it the same way.
+#
+# arm	tau	end	ramp	seed	align_w
 a08	0.8	-	-	20260520
 a09	0.9	-	-	20260520
 s08	0.8	1.0	200000	20260520
@@ -80,3 +102,4 @@ s08c	0.8	1.0	200000	20260522
 s08d	0.8	1.0	200000	20260523
 r100_09	0.9	1.0	100000	20260520
 r100_08	0.8	1.0	100000	20260520
+w3_s08	0.8	1.0	200000	20260520	3.0

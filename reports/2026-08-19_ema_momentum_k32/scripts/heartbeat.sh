@@ -9,7 +9,7 @@
 #   driver     the round's pid, from `results/<round>.pid`.
 #   card       GPU utilization, memory in use, compute apps, off the box.
 #   progress   the last step EVERY live job wrote, so a reader sees a counter
-#              that advances and not a file that is there. Round 4 runs two
+#              that advances and not a file that is there. Round 6 runs three
 #              lanes at a time, so one counter is not enough.
 #   scores     which score files exist.
 #   spend      what vast.ai has billed this instance.
@@ -23,7 +23,7 @@ set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STUDY="$(dirname "$HERE")"
 R="$STUDY/results"
-ROUND="${ROUND:-round4}"
+ROUND="${ROUND:-round6}"
 ENVF="${ROUND_ENV:-$R/$ROUND.env}"
 PIDF="${ROUND_PID:-$R/$ROUND.pid}"
 SSH_OPTS=(-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
@@ -43,8 +43,10 @@ if [ -n "$HOST" ] && [ -n "$PORT" ]; then
   card="$(timeout 90 ssh "${SSH_OPTS[@]}" -p "$PORT" "root@$HOST" \
     "nvidia-smi --query-gpu=utilization.gpu,memory.used --format=csv,noheader | tr -d ' ' | tr '\n' ' '; \
      echo -n \"apps=\$(nvidia-smi --query-compute-apps=pid --format=csv,noheader | grep -c .)\"" 2>/dev/null)"
-  # EVERY losses CSV under the run root, newest four, with its last step. Two
-  # lanes run at a time, so a probe that reads one file calls a dead lane live.
+  # EVERY losses CSV under the run root, newest six, with its last step. Round
+  # 6 runs THREE backbone lanes and starts each head as its own backbone
+  # lands, so up to six jobs write at once and a probe that reads four of them
+  # can call a live lane dead.
   #
   # The arm name may hold an UNDERSCORE (`r100_09`), so neither pattern may
   # stop at one. The backbone pattern anchors on `_cf373k<N>_` to its left and
@@ -52,7 +54,7 @@ if [ -n "$HOST" ] && [ -n "$PORT" ]; then
   # `[a-z0-9]+` printed the whole file name for the backbone and `head_r100`
   # for the head.
   prog="$(timeout 90 ssh "${SSH_OPTS[@]}" -p "$PORT" "root@$HOST" \
-    "for csv in \$(ls -t /root/cf404_runs/*/*/*/*_losses.csv /root/cf404_runs/*/eval/*/*_losses.csv 2>/dev/null | head -4); do \
+    "for csv in \$(ls -t /root/cf404_runs/*/*/*/*_losses.csv /root/cf404_runs/*/eval/*/*_losses.csv 2>/dev/null | head -6); do \
        printf '%s=%s ' \"\$(basename \$csv | sed -E 's/^.*_cf373k[0-9]+_(mean_[a-z0-9_]+)_losses.csv$/\1/; s/^qhead_(.*)_bb[0-9]+k_.*$/head_\1/')\" \"\$(tail -1 \$csv | cut -d, -f1)\"; \
      done" 2>/dev/null)"
 fi

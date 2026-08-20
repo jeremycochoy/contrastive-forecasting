@@ -82,6 +82,7 @@ def read_scores(path) -> list[dict]:
                              "schedule": r["schedule"],
                              "ramp": int(float(r.get("ramp") or 0)),
                              "seed": r.get("seed", ""),
+                             "align_w": float(r.get("align_w") or 1.0),
                              "score": float(r["score"])})
             except (KeyError, ValueError, TypeError):
                 continue
@@ -107,10 +108,15 @@ def table_markdown(rows: list[dict], stop: int = 40000) -> str:
     four seeds, and the contrastive AUC is a column because one of them fell to
     chance while it trained. A score table without the AUC shows a collapsed
     run as a bad arm.
+
+    The L_align weight is a column because one arm moves it and every other
+    arm holds it at the cell's 1.0. Two rows that agree in every other column
+    read as one arm trained twice without it.
     """
-    out = [f"| arm | EMA momentum | holds at {stop // 1000}k | backbone seed "
+    out = [f"| arm | EMA momentum | holds at {stop // 1000}k "
+           "| L_align weight | backbone seed "
            "| AUC at the stop | GM-Relative MASE | vs k = 3 at bb40k |",
-           "|---|---|---|---|---|---|---|"]
+           "|---|---|---|---|---|---|---|---|"]
     for r in rows:
         alpha = f"{r['alpha']:g}, {schedule_text(r)}"
         auc = r.get("auc")
@@ -118,6 +124,7 @@ def table_markdown(rows: list[dict], stop: int = 40000) -> str:
         if r.get("collapsed"):
             auc_text += " (collapsed)"
         out.append(f"| {r['arm']} | {alpha} | {holds_at(r, stop):.3f} | "
+                   f"{r.get('align_w', 1.0):g} | "
                    f"{r.get('seed') or '?'} | "
                    f"{auc_text} | {r['score']:.4f} | "
                    f"{r['score'] - REF.K3_BB40K:+.4f} |")

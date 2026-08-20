@@ -76,17 +76,18 @@ def place(rows, stop):
     return rows
 
 
-def points_of(rows, schedule, ramp):
+def points_of(rows, schedule, ramp, align_w=MOM.DEFAULT_ALIGN_W):
     """`(x, mean, low, high)` per reached momentum, for one series.
 
     Rows that share a series AND a reached momentum differ only in their
     backbone seed, so their range is a repeat spread and the bar means the
-    same thing it means on `momentum.png`.
+    same thing it means on `momentum.png`. The align weight is in the series
+    key, so `s08` and `w3_s08` reach one momentum and stay two points.
     """
     by_x = {}
     for r in rows:
-        if r["schedule"] == schedule and (schedule == "fixed"
-                                          or r["ramp"] == ramp):
+        if (r["schedule"] == schedule and r["align_w"] == align_w
+                and (schedule == "fixed" or r["ramp"] == ramp)):
             by_x.setdefault(r["x"], []).append(r["score"])
     return [(x, sum(s) / len(s), min(s), max(s))
             for x, s in sorted(by_x.items())]
@@ -98,8 +99,8 @@ def draw(rows, out, fell=(), stop=40000):
     x_lo, x_hi = min(xs_all) - 0.02, max(xs_all) + 0.02
     MOM.draw_references(ax, x_lo, x_hi)
 
-    for schedule, ramp, style in MOM.series_of(rows):
-        pts = points_of(rows, schedule, ramp)
+    for schedule, ramp, align_w, style in MOM.series_of(rows):
+        pts = points_of(rows, schedule, ramp, align_w)
         if not pts:
             continue
         ax.errorbar([p[0] for p in pts], [p[1] for p in pts],

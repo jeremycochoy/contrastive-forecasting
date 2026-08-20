@@ -4,11 +4,14 @@
 # Two tables, because the card's four deliverables read different things.
 #
 #   results/scores.csv   one aggregate GM-Relative MASE per arm, with that
-#                        arm's momentum and backbone seed beside it. Feeds the
-#                        momentum figure and the table. The seed is a column
-#                        because one arm of this card is a REPEAT of another at
-#                        a second seed, and a reader of the table has to see
-#                        which pair that is.
+#                        arm's momentum, backbone seed and L_align weight
+#                        beside it. Feeds the momentum figure and the table.
+#                        The seed is a column because one arm of this card is a
+#                        REPEAT of another at a second seed, and a reader of
+#                        the table has to see which pair that is. The align
+#                        weight is a column for the same reason: `w3_s08` is
+#                        `s08` with that one flag moved, and the two rows are
+#                        otherwise identical.
 #   results/splits.csv   the same evals split by horizon term and by domain.
 #                        Feeds the radar. The eval publishes no per-domain
 #                        number, so it is computed from the eval's own
@@ -41,7 +44,7 @@ mkdir -p "$CF404_RESULTS"
 split_args=()
 
 {
-  echo "arm,alpha,schedule,ramp,seed,stop,head_steps,encoder,score"
+  echo "arm,alpha,schedule,ramp,seed,align_w,stop,head_steps,encoder,score"
   for f in "$CF404_RESULTS"/score_*.txt; do
     [ -e "$f" ] || continue
     [ -s "$f" ] || continue
@@ -61,7 +64,7 @@ split_args=()
       echo "WARN: $base names '$arm', which is not an arm of this study" >&2
       continue; }
     stop="$(cf404_steps_of "$stop_l")"; head="$(cf404_steps_of "$head_l")"
-    echo "$arm,$(cf404_alpha "$arm"),$(cf404_schedule "$arm"),$(cf404_ramp "$arm"),$(cf404_seed "$arm"),$stop,$head,$enc,$score"
+    echo "$arm,$(cf404_alpha "$arm"),$(cf404_schedule "$arm"),$(cf404_ramp "$arm"),$(cf404_seed "$arm"),$(cf404_align_weight "$arm"),$stop,$head,$enc,$score"
     split_args+=(--stop "$tag=$(cf404_eval_dir "$arm" "$tag")/gift/all_results.csv")
   done
 } >"$OUT.tmp"

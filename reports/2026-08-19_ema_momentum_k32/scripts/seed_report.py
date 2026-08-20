@@ -65,6 +65,7 @@ def read_scores(path: str) -> list[dict]:
                 "schedule": r["schedule"],
                 "ramp": int(r["ramp"]),
                 "seed": int(r["seed"]),
+                "align_w": float(r.get("align_w") or 1.0),
                 "stop": int(r["stop"]),
                 "score": float(r["score"]),
             })
@@ -128,15 +129,23 @@ def _seed(r: dict) -> int:
 
 
 def family(rows: list[dict]) -> list[dict]:
-    """The largest set of rows that share a momentum, a schedule and a ramp.
+    """The largest set of rows that share a momentum, a schedule, a ramp AND
+    an L_align weight.
 
     Nothing names `s08` here. The repeat family is whichever cell this card
     trained most often, so an arms table that repeats another cell reports that
     one instead.
+
+    The align weight is in the key because a repeat family measures ONE cell
+    trained more than once. `w3_s08` shares a momentum, a schedule and a ramp
+    with `s08` and moves the weight, so it is a second cell, not a second seed.
+    A key without the weight would count it as one and report a deliberate
+    change to the objective as run-to-run noise.
     """
     groups = defaultdict(list)
     for r in rows:
-        groups[(r["alpha"], r["schedule"], r["ramp"])].append(r)
+        groups[(r["alpha"], r["schedule"], r["ramp"],
+                r.get("align_w", 1.0))].append(r)
     if not groups:
         return []
     best = max(groups.values(), key=lambda g: (len(g), -min(_seed(x) for x in g)))

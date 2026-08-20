@@ -168,6 +168,38 @@ cf404_seed(){  # <arm>
                *) printf '%s\n' "$v" ;; esac
 }
 
+# The L_align weight of one arm, from column 6.
+#
+# WHY THIS COLUMN EXISTS. For this loss shape the rollout depth touches the
+# align term alone. A depth copy of the repel term is h-anchored, so it has
+# nothing to substitute and adds exactly zero, and the align add-on IS
+# duplicated (src/loss.py). The reduction is a mean, so k + 1 copies of
+# L_align average back to about one copy's magnitude. The loss then holds ONE
+# copy of the h-anchored repel term against the MEAN of k + 1 copies of the
+# f-anchored pull term, and --align-loss-weight is the only flag that sets
+# that balance.
+#
+# A `-` or an absent column takes the cell's own value, which run_leg_k.sh
+# already puts on every command line. So every arm of rows 1 to 10 keeps the
+# command line it ran, and only an arm that names a weight changes one.
+CF404_ALIGN_W_DEFAULT="${CF404_ALIGN_W_DEFAULT:-1.0}"
+cf404_align_weight(){  # <arm>
+  local v
+  v="$(awk -F'\t' -v a="${1:?arm}" \
+    '!/^#/ && $1 == a { print $6; found = 1 } END { exit !found }' \
+    "$CF404_ARMS_TSV")" || return 1
+  case "$v" in ''|-) printf '%s\n' "$CF404_ALIGN_W_DEFAULT" ;;
+               *) printf '%s\n' "$v" ;; esac
+}
+
+# Two numbers, compared as numbers. `3` and `3.0` are one weight, and a table
+# that says one while the command line says the other is not a defect.
+cf404_num_eq(){  # <a> <b>
+  awk -v a="${1:-}" -v b="${2:-}" 'BEGIN{
+    if (a == "" || b == "" || a == "-" || b == "-") exit (a != b)
+    exit !(a + 0 == b + 0) }'
+}
+
 # The trainer flags of one arm's EMA momentum, as ONE unit.
 #
 # A fixed arm passes `--ema-tau` alone. It does NOT pass `--ema-tau-end` at
@@ -432,6 +464,25 @@ cf404_reduce_of_cmdline(){
 # leg of this study can produce: `run_leg_k.sh` always passes --seed.
 cf404_seed_of_cmdline(){
   local v; v="$(cf404_arg_of_cmdline --seed)"
+  printf '%s\n' "${v:--}"
+}
+
+# The LAST value of a repeated flag, which is the one argparse keeps.
+#
+# `cf404_arg_of_cmdline` stops at the first hit, and that is right for a flag
+# the command line carries once. The align weight is not one: the cell states
+# it, and an arm that moves it REPEATS the flag at the end of the line. A
+# first-hit reader would report the cell's value on every arm.
+cf404_last_arg_of_cmdline(){  # <flag>
+  tr '\0 ' '\n\n' | awk -F= -v f="${1:?flag}" '
+    $1 == f { if (NF > 1) { v = $2 } else { getline; v = $0 } }
+    END { if (v != "") print v }'
+}
+
+# The L_align weight a trainer command line names. `-` when it carries no
+# flag, which no leg of this study can produce.
+cf404_align_of_cmdline(){
+  local v; v="$(cf404_last_arg_of_cmdline --align-loss-weight)"
   printf '%s\n' "${v:--}"
 }
 

@@ -14,8 +14,10 @@
 #   SEED           this arm's backbone seed. Six arms take the card's own
 #                  20260520 and one is a REPEAT at 20260521, which is what
 #                  measures this cell's run-to-run spread.
-#   GAP_ARGS       `--train-rollout-reduce mean`, appended LAST to the trainer
-#                  command line
+#   GAP_ARGS       `--train-rollout-reduce mean` and this arm's L_align
+#                  weight, appended LAST to the trainer command line. The cell
+#                  states the weight earlier, so a repeat here is what moves
+#                  it: argparse keeps the last value.
 #   RUN_SUFFIX     the reduction and the arm, in the run name, so no arm's
 #                  checkpoints and losses CSV can be read as another's
 #   RUNS           this arm's durable root
@@ -37,9 +39,13 @@
 # `s08` in the seed ALONE. A seed that did not reach the trainer gives two
 # identical runs, and the pair would then report a repeat spread of zero.
 #
-# The trainer's own command line is the one place that names all three. So this
+# The L_align WEIGHT is the third such value. `w3_s08` differs from `s08` in
+# that column alone, so a weight that did not reach the trainer gives the same
+# duplicate under two names.
+#
+# The trainer's own command line is the one place that names all four. So this
 # script starts the leg, waits for that line to land in the leg log, and reads
-# alpha, the reduction and the seed off it. A leg with the wrong objective stops
+# alpha, the reduction, the seed and the align weight off it. A leg with the wrong objective stops
 # in its first minute instead of at hour five.
 #
 # The command line is the trainer's FIRST log line, so this costs no window.
@@ -67,9 +73,16 @@ mkdir -p "$CF404_RESULTS"
 ARM_ROOT="$(cf404_arm_root "$ARM")"
 EMA_ARGS="$(cf404_ema_args "$ARM")"
 ARM_SEED="$(cf404_seed "$ARM")"
+ARM_ALIGN_W="$(cf404_align_weight "$ARM")"
 # The reduction is stated on every leg, so the log names the objective it
 # trained rather than leaving the reader to infer the trainer's default.
-REDUCE_ARGS="--train-rollout-reduce $CF404_REDUCE"
+#
+# The align weight rides the same block. GAP_ARGS is the LAST thing on the
+# trainer command line, and the cell states `--align-loss-weight` earlier, so
+# a repeat here is what moves it: argparse keeps the last value. An arm at the
+# cell's own weight repeats it unchanged, which costs nothing and makes every
+# leg log name the balance it trained.
+REDUCE_ARGS="--train-rollout-reduce $CF404_REDUCE --align-loss-weight $ARM_ALIGN_W"
 
 # Fault injection, for the test that proves the check below fires. It hands
 # the trainer a momentum this arm does not carry, which is what a wiring
@@ -80,6 +93,7 @@ if [ -n "${CF404_DRY_RUN:-}" ]; then
   echo "arm $ARM cell=$CF404_CELL k=$CF404_K steps=$STOP gpu=$BB_GPU"
   echo "  ema=$EMA_ARGS"
   echo "  seed=$ARM_SEED"
+  echo "  align_w=$ARM_ALIGN_W"
   echo "  reduce=$CF404_REDUCE runner=$RUNNER"
   echo "  RUN_SUFFIX=$(cf404_run_suffix "$ARM") RUNS=$ARM_ROOT"
   echo "  CF_RESULTS=$CF404_RESULTS"
@@ -94,8 +108,8 @@ TLOG="$(cf404_leg_log "$ARM")"
 CHECK_TIMEOUT="${CF404_CHECK_TIMEOUT:-1800}"
 cmdlines_before="$(cf404_cmdlines "$TLOG")"
 
-log "arm $ARM ema='$EMA_ARGS' seed=$ARM_SEED reduce=$CF404_REDUCE ->" \
-    "${STOP} steps on gpu $BB_GPU"
+log "arm $ARM ema='$EMA_ARGS' seed=$ARM_SEED reduce=$CF404_REDUCE" \
+    "align_w=$ARM_ALIGN_W -> ${STOP} steps on gpu $BB_GPU"
 K="$CF404_K" RUNS="$ARM_ROOT" CF_RESULTS="$CF404_RESULTS" WT="$CF404_WT" \
   EMA_ARGS="$EMA_ARGS" GAP_ARGS="$REDUCE_ARGS" SEED="$ARM_SEED" \
   RUN_SUFFIX="$(cf404_run_suffix "$ARM")" \
@@ -123,16 +137,21 @@ if [ -n "$line" ]; then
   got_ema="$(printf '%s' "$line" | cf404_ema_of_cmdline)"
   got_red="$(printf '%s' "$line" | cf404_reduce_of_cmdline)"
   got_seed="$(printf '%s' "$line" | cf404_seed_of_cmdline)"
+  got_alw="$(printf '%s' "$line" | cf404_align_of_cmdline)"
   want_ema="$(cf404_ema_sig "$ARM")"
   if [ "$got_ema" != "$want_ema" ] || [ "$got_red" != "$CF404_REDUCE" ] \
-     || [ "$got_seed" != "$ARM_SEED" ]; then
+     || [ "$got_seed" != "$ARM_SEED" ] \
+     || ! cf404_num_eq "$got_alw" "$ARM_ALIGN_W"; then
     cf404_kill_tree "$runner"
     wait "$runner" 2>/dev/null
-    log "arm $ARM STOPPED — trained '$got_ema' / '$got_red' / seed $got_seed," \
-        "not '$want_ema' / '$CF404_REDUCE' / seed $ARM_SEED"
+    log "arm $ARM STOPPED — trained '$got_ema' / '$got_red' / seed $got_seed" \
+        "/ align_w $got_alw, not '$want_ema' / '$CF404_REDUCE' / seed" \
+        "$ARM_SEED / align_w $ARM_ALIGN_W"
     echo "ABORT: this leg's trainer runs the momentum '$got_ema' under the" >&2
-    echo "  reduction '$got_red' at seed '$got_seed', and arm '$ARM' is" >&2
-    echo "  '$want_ema' under '$CF404_REDUCE' at seed '$ARM_SEED'. The" >&2
+    echo "  reduction '$got_red' at seed '$got_seed' and align weight" >&2
+    echo "  '$got_alw', and arm '$ARM' is '$want_ema' under" >&2
+    echo "  '$CF404_REDUCE' at seed '$ARM_SEED' and align weight" >&2
+    echo "  '$ARM_ALIGN_W'. The" >&2
     echo "  momentum reads <tau> <end> <ramp>, with '-' for a flag the" >&2
     echo "  command line does not carry. Every arm of this card writes the" >&2
     echo "  same file names, so the leg is stopped rather than left to" >&2
@@ -140,8 +159,8 @@ if [ -n "$line" ]; then
     echo "  $TLOG" >&2
     exit 3
   fi
-  log "arm $ARM ema='$got_ema' reduce=$got_red seed=$got_seed OK —" \
-      "all three reached the trainer"
+  log "arm $ARM ema='$got_ema' reduce=$got_red seed=$got_seed" \
+      "align_w=$got_alw OK — all four reached the trainer"
 fi
 
 wait "$runner"; rc=$?

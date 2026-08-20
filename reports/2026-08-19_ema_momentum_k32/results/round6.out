@@ -1,0 +1,63 @@
+[08-20 15:50:26] [#404 round6] START arms='r100_09 r100_08 w3_s08' box=cf404-box-r4 deadline=8h max_spend=$5.60
+[08-20 15:50:27] [#404 round6] credit before: Credit:  $10.89 Total:   $10.89 
+[08-20 15:50:31] [#404 round6] reusing instance 48192413 at ssh9.vast.ai:32412
+[08-20 15:50:35] [#404 round6] card(s): 0, NVIDIA GeForce RTX 5090, 32607 MiB, Default  count=1
+[08-20 15:50:35] [#404 round6] 3 arms on card 0, lanes '0 0 0' (Default compute mode)
+[08-20 15:50:39] [#404 round6] card before the new lane: 11363 MiB, 32607 MiB, 88 %
+[08-20 15:50:43] [#404 round6] shipping scripts/ to the box (its arms table predates w3_s08)
+[08-20 15:50:55] [#404 round6] the box's arms table now holds: a08 a09 s08 s09 a095 s08b s08c s08d r100_09 r100_08 w3_s08 
+[08-20 15:51:02] [#404 round6] the box builds w3_s08 at align_w=3.0, k=32, reduce=mean
+[08-20 15:51:02] [#404 round6] sync loop: 1 for /home/jupyter/cf404_sync/box_r4, 134 file(s) here
+[08-20 15:51:10] [#404 round6] r100_09: a trainer already runs on the box
+[08-20 15:51:16] [#404 round6] r100_08: a trainer already runs on the box
+[08-20 15:51:24] [#404 round6] w3_s08: starting a lane on card 0
+[08-20 15:54:24] [#404 round6] lanes started this round: w3_s08
+[08-20 15:54:24] [#404 round6] waiting for the guard line of each new arm (it reads alpha, the seed
+[08-20 15:54:24] [#404 round6]   AND the align weight, back off the trainer's own command line)
+  [08-20 08:56:06] [#404] arm s08c ema='0.8 1.0 200000' reduce=mean seed=20260522 OK — all three reached the trainer
+  [08-20 08:59:06] [#404] arm s08d ema='0.8 1.0 200000' reduce=mean seed=20260523 OK — all three reached the trainer
+  [08-20 14:24:48] [#404] arm r100_09 ema='0.9 1.0 100000' reduce=mean seed=20260520 OK — all three reached the trainer
+  [08-20 14:27:48] [#404] arm r100_08 ema='0.8 1.0 100000' reduce=mean seed=20260520 OK — all three reached the trainer
+  [08-20 14:51:32] [#404] arm w3_s08 ema='0.8 1.0 200000' reduce=mean seed=20260520 align_w=3.0 OK — all four reached the trainer
+[08-20 15:54:30] [#404 round6] waiting for the first rows of each losses CSV
+  index, memory.used [MiB], memory.total [MiB], utilization.gpu [%]
+  0, 17042 MiB, 32607 MiB, 83 %
+  pid, used_gpu_memory [MiB]
+  9152, 5674 MiB
+  9455, 5674 MiB
+  10721, 5674 MiB
+  --- r100_09 seed 20260520 align_w 1.0 ---
+  csv /root/cf404_runs/r100_09/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_mean_r100_09_losses.csv
+  depth_cols 33
+  rows 4601
+  step,loss,loss_tau_ref,gap,gap_ratio,ff,fp,tp,cross_batch,hf_rows_consumed,synth_rows_consumed,mixup_applied,r2_random,r2_naive,u_temporal,u_batch,auc,top1,top3
+  1,14.275238037109375,20.217866897583008,-0.37705084681510925,2.5106503626259995,0.37335410714149475,0.750404953956604,0.46970441937446594,0.185420423746109,64,0
+  2,13.829146385192871,18.705602645874023,-0.3970735967159271,2.570511153645495,0.35009559988975525,0.7471691966056824,0.41841065883636475,0.14971472322940826,128
+  cmdline align_w 1.0
+  --- r100_08 seed 20260520 align_w 1.0 ---
+  csv /root/cf404_runs/r100_08/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_mean_r100_08_losses.csv
+  depth_cols 33
+  rows 4101
+  step,loss,loss_tau_ref,gap,gap_ratio,ff,fp,tp,cross_batch,hf_rows_consumed,synth_rows_consumed,mixup_applied,r2_random,r2_naive,u_temporal,u_batch,auc,top1,top3
+  1,14.275238037109375,20.217866897583008,-0.37705084681510925,2.5106503626259995,0.37335410714149475,0.750404953956604,0.46970441937446594,0.185420423746109,64,0
+  2,13.825484275817871,18.705602645874023,-0.3970735967159271,2.570511153645495,0.35009559988975525,0.7471691966056824,0.41841065883636475,0.14971472322940826,128
+  cmdline align_w 1.0
+  --- w3_s08 seed 20260520 align_w 3.0 ---
+  csv /root/cf404_runs/w3_s08/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_mean_w3_s08_losses.csv
+  depth_cols 33
+  rows 401
+  step,loss,loss_tau_ref,gap,gap_ratio,ff,fp,tp,cross_batch,hf_rows_consumed,synth_rows_consumed,mixup_applied,r2_random,r2_naive,u_temporal,u_batch,auc,top1,top3
+  1,17.987823486328125,20.217866897583008,-0.37705084681510925,2.5106503626259995,0.37335410714149475,0.750404953956604,0.46970441937446594,0.185420423746109,64,0
+  2,16.67930793762207,19.659767150878906,-0.33514273166656494,2.545814741808045,0.44805073738098145,0.7831934690475464,0.49841558933258057,0.283469557762146,128,0
+  cmdline align_w 3.0
+[08-20 15:55:17] [#404 round6] GPU memory in use 17042 MiB over 1 card(s), 3 compute app(s), 3 arm(s) wanted
+[08-20 15:55:17] [#404 round6] VERIFIED — 3 trainer(s) up, each at 33 depth columns,
+[08-20 15:55:17] [#404 round6]   each at the align weight its row names
+[08-20 15:55:21] [#404 round6]   r100_09 STEP RATE 2.6 sps  ETA 3.8h
+[08-20 15:55:24] [#404 round6]   r100_08 STEP RATE 2.6 sps  ETA 3.9h
+[08-20 15:55:27] [#404 round6]   w3_s08 STEP RATE 2.2 sps  ETA 5.1h
+[08-20 15:55:27] [#404 round6] waiting for 40000 steps and a head on 3 arm(s)
+[08-20 15:56:08] [#404 round6]   r100_09 bb=[   4800] loss=12.6614  ema_loss=12.5736  gap=0.0879  ema_gap=0.1071  mixup=63/200  2.6 sps  ETA 3.8h head=0
+[08-20 15:56:24] [#404 round6]   r100_08 bb=[   4200] loss=12.6737  ema_loss=12.6515  gap=0.0995  ema_gap=0.0785  mixup=57/200  2.6 sps  ETA 3.9h head=0
+[08-20 15:56:32] [#404 round6]   w3_s08 bb=[    600] loss=14.4690  ema_loss=14.5178  gap=-0.0415  ema_gap=-0.0816  mixup=65/200  2.2 sps  ETA 4.9h head=0
+[08-20 15:56:33] [#404 round6]   spend $2.68 of $5.60

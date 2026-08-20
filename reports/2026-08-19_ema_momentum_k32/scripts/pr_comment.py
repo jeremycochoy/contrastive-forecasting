@@ -45,6 +45,7 @@ def read_scores(path: pathlib.Path) -> list[dict]:
                 "ramp": int(r["ramp"]),
                 "score": float(r["score"]),
                 "seed": r.get("seed", ""),
+                "align_w": float(r.get("align_w") or 1.0),
             })
     return sorted(rows, key=lambda r: r["score"])
 
@@ -126,16 +127,24 @@ def main() -> int:
     out.append(f"## The {len(rows)} scored arms")
     out.append("")
     out.append(f"| arm | EMA momentum | holds at {a.stop // 1000}k | "
-               "backbone seed | GM-Relative MASE | vs k = 3 at bb40k |")
-    out.append("|---|---|---|---|---|---|")
+               "L_align weight | backbone seed | GM-Relative MASE "
+               "| vs k = 3 at bb40k |")
+    out.append("|---|---|---|---|---|---|---|")
     for r in rows:
         out.append(f"| {r['arm']} | {momentum(r)} | "
-                   f"{holds_at(r, a.stop):.3f} | {r['seed'] or '?'} | "
+                   f"{holds_at(r, a.stop):.3f} | {r['align_w']:g} | "
+                   f"{r['seed'] or '?'} | "
                    f"{r['score']:.4f} | {r['score'] - k3_40k:+.4f} |")
     out.append("")
     out.append(f"`holds at {a.stop // 1000}k` is the momentum the backbone "
                "trains against at the stop. A ramp arm does not hold the "
                "value it starts at.")
+    out.append("")
+    out.append("`L_align weight` is `--align-loss-weight`. The rollout depth "
+               "duplicates the align term and not the repel term, and the "
+               "reduction is a mean, so this flag sets the balance between "
+               "one h-anchored repel term and the mean of k + 1 f-anchored "
+               "pull terms.")
     out.append("")
 
     # The repeat spread. When a sync tree is given, the AUC of every arm at

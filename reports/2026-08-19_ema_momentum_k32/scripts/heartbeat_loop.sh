@@ -21,7 +21,7 @@ set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STUDY="$(dirname "$HERE")"
 R="$STUDY/results"
-ROUND="${ROUND:-round4}"
+ROUND="${ROUND:-round6}"
 PIDF="${ROUND_PID:-$R/$ROUND.pid}"
 EVERY="${EVERY:-3600}"
 LOG="$R/heartbeat.log"
