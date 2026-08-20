@@ -1,13 +1,32 @@
-# The sum over the rollout-depth copies collapses the encoder, and rollout depth 8 and 32 do not improve GM-Relative MASE
+# Rollout depth 8 and 32 do not improve GM-Relative MASE, the matched head budget brings no gain, and the sum over the depth copies collapses the encoder
 
-Summing the k + 1 rollout-depth copies collapses the encoder to one latent
-direction. Averaging the same copies does not, and the two sets of
-checkpoints do not overlap.
+Can more iterative rollout approximation improve GM-Relative MASE, and does a
+head trained as long as the backbone bring a significant gain? No, and no.
 
-![Effective rank and pair cosine of the encoder latent, both reductions](plots/latent_rank.png)
+![GM-Relative MASE against backbone train step, rollout depth 8 and 32](plots/mean/depth_ladder.png)
 
-*Effective rank and pair cosine of the encoder latent, 21 real GIFT-Eval
-windows, through the loader the eval uses.*
+*GM-Relative MASE over the 97 GIFT-Eval configs, student head, mean
+reduction. Left: 30,000-step head. Right: head budget = backbone steps.*
+
+No mean cell beats the k = 3 reference. No mean cell separates from the k = 0
+anchor: the closest, k = 32 at bb200k, sits inside the band of it. The best
+mean cell is k = 32 at bb200k, and it stays outside the band of the k = 3
+reference.
+
+The longer head budget helps no cell, and the head-budget table carries the
+six pairs. Phase 2 takes the two arms with the best results, and only two
+arms ran, so both went through with no selection. Only the sum reduction ran
+k = 16.
+
+## Per-domain
+
+![Per-domain GM-Relative MASE, phase 1](plots/mean/domain_radar_phase1.png)
+
+*The config count of each domain is under its name.*
+
+![Per-domain GM-Relative MASE, phase 2](plots/mean/domain_radar_phase2.png)
+
+*Phase 2, the best stop of each depth.*
 
 ## Terms
 
@@ -46,6 +65,16 @@ windows, through the loader the eval uses.*
 
 ## The reduction
 
+Summing the k + 1 rollout-depth copies collapses the encoder to one latent
+direction. Averaging the same copies does not, and the two sets of
+checkpoints do not overlap. The first runs used the sum, the trainer's
+default, and an amendment to the plan moved the objective to the mean.
+
+![Effective rank and pair cosine of the encoder latent, both reductions](plots/latent_rank.png)
+
+*Effective rank and pair cosine of the encoder latent, 21 real GIFT-Eval
+windows, through the loader the eval uses.*
+
 ![GM-Relative MASE against latent rank and against readout r](plots/collapse_vs_score.png)
 
 *Left: GM-Relative MASE against effective rank, both reductions. Right: the
@@ -62,31 +91,12 @@ readout r (Spearman −0.76, n = 8).
 *The trainer's own columns, per step, first 40,000 steps. Solid: published
 k = 3. Long dash: sum. Dotted: mean.*
 
+The `cos_err_d0` panel is this study's cos-error-per-arm graph, and the
+`u_batch` panel is its dimension-usage-per-arm graph.
+
 ![Sum against mean over the k + 1 rollout-depth copies](plots/mean/arm_compare.png)
 
 *The same cell and the same depths under both reductions.*
-
-## The depth ladder
-
-![GM-Relative MASE against backbone train step, rollout depth 8 and 32](plots/mean/depth_ladder.png)
-
-*GM-Relative MASE over the 97 GIFT-Eval configs, student head, mean
-reduction. Left: 30,000-step head. Right: head budget = backbone steps.*
-
-No mean cell beats the k = 3 reference. No mean cell separates from the k = 0
-anchor: the closest, k = 32 at bb200k, sits inside the band of it. The best
-mean cell is k = 32 at bb200k, and it stays outside the band of the k = 3
-reference.
-
-## Per-domain
-
-![Per-domain GM-Relative MASE, phase 1](plots/mean/domain_radar_phase1.png)
-
-*The config count of each domain is under its name.*
-
-![Per-domain GM-Relative MASE, phase 2](plots/mean/domain_radar_phase2.png)
-
-*Phase 2, the best stop of each depth.*
 
 ## Limits
 
@@ -97,10 +107,24 @@ reference.
 | depths | two, k = 8 and k = 32. k = 16 was not run under the mean reduction |
 | the shape in k | k = 1 to k = 7 is unmeasured. At bb40k, k = 8 and k = 32 sit inside the band of each other |
 | the head budget | six pairs, and no cell gained. Five of the six moves sit inside the band, and the one outside it is worse |
+| latent movement | not measured. The probes record per-checkpoint spread, not step-to-step movement |
 | the k = 0 anchor | measured at bb40k and bb100k, absent at bb200k. The k = 0 published covers bb40k and bb100k |
 | the eval path | three controls ran it. The k = 0 parent returns its published score at both stops that have one: 1.1600 against 1.1603, and 1.1945 against 1.1945. The third control reads 1.2910 against the published 1.2748, a move of 0.0162 that sits inside the band. This study establishes no cause for it |
 
 ## Tables
+
+### The head budget
+
+*A positive difference means the longer head scores worse.*
+
+| cell | 30,000-step head | head = backbone steps | difference | against the band |
+|---|---:|---:|---:|---|
+| k = 8, bb40k | 1.2433 | 1.2543 (40k head) | +0.0110 | inside |
+| k = 8, bb100k | 1.2857 | 1.3270 (100k head) | +0.0413 | 1.1 × |
+| k = 8, bb200k | 1.2898 | 1.2928 (200k head) | +0.0030 | inside |
+| k = 32, bb40k | 1.2082 | 1.2093 (40k head) | +0.0011 | inside |
+| k = 32, bb100k | 1.1803 | 1.1893 (100k head) | +0.0090 | inside |
+| k = 32, bb200k | 1.1637 | 1.1660 (200k head) | +0.0023 | inside |
 
 ### How to read a difference
 
@@ -127,19 +151,6 @@ reference.
 | k = 32 against the k = 0 anchor, bb100k | 0.0142 | inside |
 | k = 32 bb200k against the k = 0 anchor at bb40k | 0.0037 | inside |
 
-### The head budget
-
-*A positive difference means the longer head scores worse.*
-
-| cell | 30,000-step head | head = backbone steps | difference | against the band |
-|---|---:|---:|---:|---|
-| k = 8, bb40k | 1.2433 | 1.2543 (40k head) | +0.0110 | inside |
-| k = 8, bb100k | 1.2857 | 1.3270 (100k head) | +0.0413 | 1.1 × |
-| k = 8, bb200k | 1.2898 | 1.2928 (200k head) | +0.0030 | inside |
-| k = 32, bb40k | 1.2082 | 1.2093 (40k head) | +0.0011 | inside |
-| k = 32, bb100k | 1.1803 | 1.1893 (100k head) | +0.0090 | inside |
-| k = 32, bb200k | 1.1637 | 1.1660 (200k head) | +0.0023 | inside |
-
 ### Phase 1, mean reduction, 30,000-step student head
 
 *GM-Relative MASE over the 97 GIFT-Eval configs. Lower is better. The k = 3
@@ -158,6 +169,8 @@ bb100k and bb200k.*
 | bb40k, EMA ramp 30,000 | n/a | 1.2385 | n/a | n/a | n/a |
 
 ### Phase 2, head steps = backbone steps
+
+*Both arms went through, with no selection.*
 
 | backbone stop | head steps | k = 8 | k = 32 |
 |---|---:|---:|---:|
