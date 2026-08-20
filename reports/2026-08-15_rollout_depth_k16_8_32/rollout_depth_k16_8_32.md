@@ -29,13 +29,11 @@ Only the sum reduction ran k = 16.
 
 ![Per-domain GM-Relative MASE, 30,000-step head](plots/mean/domain_radar_phase1.png)
 
-*The 30,000-step head ("phase 1" in the figure). `bb40k` in the figure is
-the backbone stopped at 40,000 steps.*
+*The best backbone stop of each depth, and the same run with a faster EMA ramp.*
 
 ![Per-domain GM-Relative MASE, head steps equal to the backbone steps](plots/mean/domain_radar_phase2.png)
 
-*The head trained as long as the backbone ("phase 2" in the figure), at the
-best stop of each depth.*
+*The best backbone stop of each depth.*
 
 ## The reduction
 

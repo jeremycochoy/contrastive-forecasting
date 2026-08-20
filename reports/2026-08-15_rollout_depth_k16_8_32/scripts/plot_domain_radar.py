@@ -53,8 +53,8 @@ import depth_colours as D                                 # noqa: E402
 plt.rcParams.update(D.rc())
 
 CELL = "A4"
-REF_HEAD_NOTE = ("k = 3 reference head budget: 15,000 steps at bb40k, "
-                 "30,000 at bb200k")
+REF_HEAD_NOTE = ("k = 3 head budget: 15,000 steps at the 40,000-step "
+                 "backbone, 30,000 at the 200,000-step backbone")
 HEAD = "student"
 
 
@@ -269,9 +269,9 @@ def main(argv=None):
                     [math.log2(mine[d]) for d in domains if d in mine],
                     color=D.colour(k), marker="o", ms=7, lw=0, zorder=4)
 
-        sched = "" if variant == "base" else f", {variant} schedule"
-        ax.set_title(f"{D.label(k)}   at bb{steps_label(stop)}{sched}\n"
-                     f"against k = 3, same cell", fontsize=9, pad=18)
+        sched = "" if variant == "base" else ", faster EMA ramp"
+        ax.set_title(f"{D.label(k)}   backbone at {stop:,} steps{sched}\n"
+                     f"against k = 3, same run", fontsize=9, pad=18)
 
     for idx in range(len(panels), nrow * ncol):
         axes[idx // ncol][idx % ncol].axis("off")
@@ -281,7 +281,7 @@ def main(argv=None):
     handles = [Line2D([], [], color=D.colour(k), lw=2.2,
                       linestyle=(D.STYLE_STUDY if v == "base" else (0, (4, 1.6))),
                       label=D.label(k) if v == "base"
-                      else f"{D.label(k)}, {v} schedule")
+                      else f"{D.label(k)}, faster EMA ramp")
                for k, _, v, _ in panels]
     handles += [
         Line2D([], [], color=D.REF_K3_INK, lw=1.8, linestyle=D.STYLE_K3,
@@ -302,8 +302,10 @@ def main(argv=None):
                           label=REF_HEAD_NOTE))
     fig.legend(handles=handles, loc="lower center",
                ncol=min(3, len(handles)), frameon=False, fontsize=9)
-    fig.suptitle(f"Per-domain GM-Relative MASE, phase {a.phase}, "
-                 f"{HEAD}-encoder head (radial axis log2, lower is better)",
+    head_note = ("30,000-step head" if a.phase == 1
+                 else "head trained as long as the backbone")
+    fig.suptitle(f"Per-domain GM-Relative MASE, {head_note}, "
+                 f"{HEAD} encoder (radial axis log2, lower is better)",
                  fontsize=11)
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     fig.tight_layout(rect=(0, 0.075, 1, 0.95), h_pad=4.5)
