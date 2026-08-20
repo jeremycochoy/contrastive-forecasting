@@ -1,0 +1,11 @@
+=== s08b ===
+index, memory.used [MiB], memory.total [MiB], utilization.gpu [%]
+0, 5684 MiB, 32607 MiB, 32 %
+pid, used_gpu_memory [MiB]
+8149, 5674 MiB
+csv /root/cf404_runs/s08b/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_mean_s08b_losses.csv
+depth_cols 33
+rows 501
+step,loss,loss_tau_ref,gap,gap_ratio,ff,fp,tp,cross_batch,hf_rows_consumed,synth_rows_consumed,mixup_applied,r2_random,r2_naive,u_temporal,u_batch,auc,top1,top3
+1,14.387253761291504,20.681228637695312,-0.3724861443042755,2.471109497281665,0.37431302666664124,0.7467991709709167,0.5063657164573669,0.18325479328632355,64,0
+2,14.001620292663574,19.30051040649414,-0.4156646132469177,2.6483392976169653,0.33216363191604614,0.7478282451629639,0.4238576591014862,0.0936264619231224,128,0
