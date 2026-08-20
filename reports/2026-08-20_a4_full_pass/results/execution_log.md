@@ -2,6 +2,17 @@
 
 Operational record. The report holds the science. This file holds the events.
 
+## Time zone
+
+Every time in this file, in `throughput.txt` and in `schedule.txt` is UTC.
+
+elisa runs `Europe/London`, which is `BST`, `UTC+1`, in August. The parent
+study's scripts stamp their logs with `date '+%m-%d %H:%M:%S'`, so
+`leg_<cell>.log`, `run_<run>.log`, `run_pass.log` and `stops.log` carry
+LOCAL time and are one hour ahead of this file. Subtract one hour to read
+them as UTC. This card's own scripts stamp `date -u`, so
+`replicate_*.log`, `watchdog.log` and the mirror lines are already UTC.
+
 ## 2026-08-20, launch
 
 Machine: elisa. Card 0 of two RTX 4090 cards. Other projects hold both cards.
@@ -31,7 +42,8 @@ WT=/tmp/contrastive-forecasting-407 BB_GPU=0 nohup setsid bash \
   > reports/2026-08-20_a4_full_pass/results/run_pass.out 2>&1 &
 ```
 
-Start 19:21:31 UTC.
+Start 2026-08-20 18:21:31 UTC. `run_pass.log` stamps the same moment
+`[08-20 19:21:31]`, in local time.
 
 ### Continuity, confirmed
 
@@ -78,3 +90,60 @@ the leg.
 
 `results/schedule.txt` holds the expected times. The whole card ends about
 2026-08-22 17:22 UTC.
+
+## 2026-08-20, review gaps closed
+
+The ExperimentReviewer gap list is PR comment 5360229413. What ran, and when.
+
+### 18:50 UTC — the head-seed band, on card 1 (gap 1)
+
+`replicate_heads.sh 200000` on GPU 1, beside the leg on GPU 0. Two seeds,
+20260723 and 20260724, two heads each, 30,000 steps each, then the 97
+GIFT-Eval configs. The backbone is the card's own, md5
+`f477c03525bf5e169704715511f1c6d7`, so the band is measured at the exact
+point the card compares against.
+
+Card 1 had 6,933 MiB free and another session's job on it, so the head VRAM
+gate went from its 7,000 MiB default to 6,400 MiB. Measured: one head holds
+5,468 MiB. The first head reached step 500 at loss 0.2097, against the
+protocol seed's 0.2095 at the same step.
+
+The heads run at 7.4 steps per second here against the protocol draw's 14.3,
+because card 1 carries other work. The leg on card 0 stayed at 3.5 steps per
+second through the launch, so the band costs the card no backbone time.
+
+### 18:51 UTC — the numbers leave /tmp (gap 5)
+
+`mirror_durable.sh` copies the scores, this study's `results/` and the two
+logs the continuity gates read to `/home/jupyter/cf407_durable`. The
+watchdog runs it every tick.
+
+### 18:58 UTC — the watchdog (gap 6)
+
+`watchdog.sh`, 1,800-second period. It re-fires the driver only when the
+process is gone AND neither the train log nor the driver log moved for two
+ticks. `pgrep -f run_pass.sh` alone is not enough: the shell that launched
+the driver and the tail that watches it both carry that name in their own
+command lines, so the test reads `argv[1]` out of `/proc`.
+
+### 19:54 UTC — the teacher is frozen (gap 4)
+
+`teacher_move.py`, on checkpoints already on disk. 100k against 200k moves
+0 of 52 teacher tensors, bit for bit, while the student moves 106 of 110 at
+relative L2 0.599. The 40k against 100k control moves all 52. So the answer
+did not wait for the 300k stop.
+
+`teacher_check.sh` repeats the test on every later pair, from the watchdog.
+
+### 19:0x UTC — the shard order (gap 3)
+
+`shard_order.py` read the `meta` and `source_id` columns of 12 shards from
+`small_v1`, spanning shard 0 to shard 4273 and including the 1279/1280
+boundary the 200,000-step mark falls on. It read no `series` column, so the
+check moved a few MB and did not compete with the training stream.
+
+### 19:2x UTC — the figure, the interval and the metrics (gaps 2, 9)
+
+`stop_bootstrap.sh`, `metrics_table.py` and the ribbon in
+`plot_full_pass.py`. All three read CSVs that already exist, so none costs
+GPU time.

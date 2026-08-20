@@ -1,0 +1,516 @@
+{
+  "n_shards": 4274,
+  "shards": [
+    {
+      "shard": 0,
+      "file": "shard_00000.parquet",
+      "rows": 10000,
+      "distinct_series": 9900,
+      "families": 9,
+      "distinct_source_id": 1,
+      "mix": {
+        "numeric_id": 0.9091,
+        "comstock_amy": 0.0144,
+        "comstock_tmy": 0.0153,
+        "resstock_tmy": 0.0276,
+        "resstock_amy": 0.0265,
+        "pv_power_unit": 0.0025,
+        "load_power_unit": 0.0022,
+        "T": 0.0023,
+        "Rat_public_Kelle": 0.0001
+      },
+      "tv_from_first": 0.0,
+      "top": [
+        [
+          "numeric_id",
+          9091
+        ],
+        [
+          "resstock_tmy",
+          276
+        ],
+        [
+          "resstock_amy",
+          265
+        ],
+        [
+          "comstock_tmy",
+          153
+        ],
+        [
+          "comstock_amy",
+          144
+        ]
+      ]
+    },
+    {
+      "shard": 1,
+      "file": "shard_00001.parquet",
+      "rows": 10000,
+      "distinct_series": 9896,
+      "families": 9,
+      "distinct_source_id": 1,
+      "mix": {
+        "numeric_id": 0.9162,
+        "comstock_amy": 0.0142,
+        "comstock_tmy": 0.0159,
+        "resstock_tmy": 0.0222,
+        "resstock_amy": 0.0252,
+        "T": 0.0018,
+        "load_power_unit": 0.0022,
+        "pv_power_unit": 0.0022,
+        "PRSA_Data_Changping": 0.0001
+      },
+      "tv_from_first": 0.007799999999999996,
+      "top": [
+        [
+          "numeric_id",
+          9162
+        ],
+        [
+          "resstock_amy",
+          252
+        ],
+        [
+          "resstock_tmy",
+          222
+        ],
+        [
+          "comstock_tmy",
+          159
+        ],
+        [
+          "comstock_amy",
+          142
+        ]
+      ]
+    },
+    {
+      "shard": 2,
+      "file": "shard_00002.parquet",
+      "rows": 10000,
+      "distinct_series": 9899,
+      "families": 11,
+      "distinct_source_id": 1,
+      "mix": {
+        "numeric_id": 0.9103,
+        "resstock_tmy": 0.0235,
+        "comstock_tmy": 0.0169,
+        "load_power_unit": 0.0027,
+        "resstock_amy": 0.0271,
+        "comstock_amy": 0.0154,
+        "pv_power_unit": 0.0023,
+        "T": 0.0015,
+        "MAC": 0.0001,
+        "PRSA_Data_Nongzhanguan": 0.0001,
+        "Fox_education_Eldon": 0.0001
+      },
+      "tv_from_first": 0.0051999999999999885,
+      "top": [
+        [
+          "numeric_id",
+          9103
+        ],
+        [
+          "resstock_amy",
+          271
+        ],
+        [
+          "resstock_tmy",
+          235
+        ],
+        [
+          "comstock_tmy",
+          169
+        ],
+        [
+          "comstock_amy",
+          154
+        ]
+      ]
+    },
+    {
+      "shard": 639,
+      "file": "shard_00639.parquet",
+      "rows": 10000,
+      "distinct_series": 9904,
+      "families": 10,
+      "distinct_source_id": 1,
+      "mix": {
+        "numeric_id": 0.9091,
+        "resstock_amy": 0.0274,
+        "comstock_amy": 0.0175,
+        "comstock_tmy": 0.0152,
+        "resstock_tmy": 0.0231,
+        "pv_power_unit": 0.0019,
+        "load_power_unit": 0.0032,
+        "T": 0.0023,
+        "MAC": 0.0002,
+        "Rat_education_Brett": 0.0001
+      },
+      "tv_from_first": 0.005300000000000002,
+      "top": [
+        [
+          "numeric_id",
+          9091
+        ],
+        [
+          "resstock_amy",
+          274
+        ],
+        [
+          "resstock_tmy",
+          231
+        ],
+        [
+          "comstock_amy",
+          175
+        ],
+        [
+          "comstock_tmy",
+          152
+        ]
+      ]
+    },
+    {
+      "shard": 1278,
+      "file": "shard_01278.parquet",
+      "rows": 10000,
+      "distinct_series": 9895,
+      "families": 9,
+      "distinct_source_id": 1,
+      "mix": {
+        "numeric_id": 0.9049,
+        "resstock_amy": 0.0248,
+        "comstock_amy": 0.0197,
+        "comstock_tmy": 0.0162,
+        "resstock_tmy": 0.0284,
+        "T": 0.0019,
+        "load_power_unit": 0.0018,
+        "pv_power_unit": 0.0022,
+        "Rat_retail_Jeffrey": 0.0001
+      },
+      "tv_from_first": 0.007099999999999992,
+      "top": [
+        [
+          "numeric_id",
+          9049
+        ],
+        [
+          "resstock_tmy",
+          284
+        ],
+        [
+          "resstock_amy",
+          248
+        ],
+        [
+          "comstock_amy",
+          197
+        ],
+        [
+          "comstock_tmy",
+          162
+        ]
+      ]
+    },
+    {
+      "shard": 1279,
+      "file": "shard_01279.parquet",
+      "rows": 10000,
+      "distinct_series": 9917,
+      "families": 10,
+      "distinct_source_id": 1,
+      "mix": {
+        "numeric_id": 0.9061,
+        "resstock_tmy": 0.0271,
+        "comstock_amy": 0.016,
+        "comstock_tmy": 0.0167,
+        "resstock_amy": 0.0259,
+        "pv_power_unit": 0.0019,
+        "load_power_unit": 0.0037,
+        "T": 0.0023,
+        "MAC": 0.0002,
+        "Rat_office_Sammy": 0.0001
+      },
+      "tv_from_first": 0.004800000000000002,
+      "top": [
+        [
+          "numeric_id",
+          9061
+        ],
+        [
+          "resstock_tmy",
+          271
+        ],
+        [
+          "resstock_amy",
+          259
+        ],
+        [
+          "comstock_tmy",
+          167
+        ],
+        [
+          "comstock_amy",
+          160
+        ]
+      ]
+    },
+    {
+      "shard": 1280,
+      "file": "shard_01280.parquet",
+      "rows": 10000,
+      "distinct_series": 9892,
+      "families": 8,
+      "distinct_source_id": 1,
+      "mix": {
+        "numeric_id": 0.9114,
+        "comstock_tmy": 0.0163,
+        "comstock_amy": 0.0175,
+        "resstock_amy": 0.0239,
+        "resstock_tmy": 0.0241,
+        "pv_power_unit": 0.0022,
+        "load_power_unit": 0.0017,
+        "T": 0.0029
+      },
+      "tv_from_first": 0.006999999999999984,
+      "top": [
+        [
+          "numeric_id",
+          9114
+        ],
+        [
+          "resstock_tmy",
+          241
+        ],
+        [
+          "resstock_amy",
+          239
+        ],
+        [
+          "comstock_amy",
+          175
+        ],
+        [
+          "comstock_tmy",
+          163
+        ]
+      ]
+    },
+    {
+      "shard": 1281,
+      "file": "shard_01281.parquet",
+      "rows": 10000,
+      "distinct_series": 9909,
+      "families": 9,
+      "distinct_source_id": 1,
+      "mix": {
+        "numeric_id": 0.9117,
+        "resstock_tmy": 0.0254,
+        "resstock_amy": 0.0257,
+        "comstock_amy": 0.0146,
+        "comstock_tmy": 0.0176,
+        "T": 0.0017,
+        "Rat_education_Royal": 0.0001,
+        "pv_power_unit": 0.0015,
+        "load_power_unit": 0.0017
+      },
+      "tv_from_first": 0.0051999999999999685,
+      "top": [
+        [
+          "numeric_id",
+          9117
+        ],
+        [
+          "resstock_amy",
+          257
+        ],
+        [
+          "resstock_tmy",
+          254
+        ],
+        [
+          "comstock_tmy",
+          176
+        ],
+        [
+          "comstock_amy",
+          146
+        ]
+      ]
+    },
+    {
+      "shard": 1900,
+      "file": "shard_01900.parquet",
+      "rows": 10000,
+      "distinct_series": 9904,
+      "families": 9,
+      "distinct_source_id": 1,
+      "mix": {
+        "numeric_id": 0.9102,
+        "resstock_tmy": 0.0269,
+        "comstock_amy": 0.0156,
+        "comstock_tmy": 0.0166,
+        "resstock_amy": 0.0242,
+        "load_power_unit": 0.0018,
+        "pv_power_unit": 0.0025,
+        "T": 0.0021,
+        "Rat_education_Dann": 0.0001
+      },
+      "tv_from_first": 0.0036999999999999954,
+      "top": [
+        [
+          "numeric_id",
+          9102
+        ],
+        [
+          "resstock_tmy",
+          269
+        ],
+        [
+          "resstock_amy",
+          242
+        ],
+        [
+          "comstock_tmy",
+          166
+        ],
+        [
+          "comstock_amy",
+          156
+        ]
+      ]
+    },
+    {
+      "shard": 2560,
+      "file": "shard_02560.parquet",
+      "rows": 10000,
+      "distinct_series": 9883,
+      "families": 9,
+      "distinct_source_id": 1,
+      "mix": {
+        "numeric_id": 0.9117,
+        "resstock_amy": 0.0261,
+        "comstock_tmy": 0.013,
+        "comstock_amy": 0.0164,
+        "resstock_tmy": 0.0262,
+        "pv_power_unit": 0.0019,
+        "load_power_unit": 0.0023,
+        "MAC": 0.0001,
+        "T": 0.0023
+      },
+      "tv_from_first": 0.004799999999999966,
+      "top": [
+        [
+          "numeric_id",
+          9117
+        ],
+        [
+          "resstock_tmy",
+          262
+        ],
+        [
+          "resstock_amy",
+          261
+        ],
+        [
+          "comstock_amy",
+          164
+        ],
+        [
+          "comstock_tmy",
+          130
+        ]
+      ]
+    },
+    {
+      "shard": 3200,
+      "file": "shard_03200.parquet",
+      "rows": 10000,
+      "distinct_series": 9907,
+      "families": 9,
+      "distinct_source_id": 1,
+      "mix": {
+        "numeric_id": 0.9124,
+        "resstock_amy": 0.0261,
+        "resstock_tmy": 0.0241,
+        "comstock_tmy": 0.0147,
+        "pv_power_unit": 0.0023,
+        "comstock_amy": 0.0151,
+        "T": 0.0022,
+        "load_power_unit": 0.003,
+        "MAC": 0.0001
+      },
+      "tv_from_first": 0.004899999999999983,
+      "top": [
+        [
+          "numeric_id",
+          9124
+        ],
+        [
+          "resstock_amy",
+          261
+        ],
+        [
+          "resstock_tmy",
+          241
+        ],
+        [
+          "comstock_amy",
+          151
+        ],
+        [
+          "comstock_tmy",
+          147
+        ]
+      ]
+    },
+    {
+      "shard": 4273,
+      "file": "shard_04273.parquet",
+      "rows": 9976,
+      "distinct_series": 9871,
+      "families": 12,
+      "distinct_source_id": 1,
+      "mix": {
+        "resstock_amy": 0.02566158781074579,
+        "numeric_id": 0.9097834803528468,
+        "comstock_tmy": 0.014735364875701684,
+        "comstock_amy": 0.01653969526864475,
+        "pv_power_unit": 0.002004811547714515,
+        "MAC": 0.00010024057738572574,
+        "resstock_tmy": 0.025561347233360066,
+        "load_power_unit": 0.0036086607858861267,
+        "T": 0.0017040898155573376,
+        "Bull_Bull_lodging_Terence": 0.00010024057738572574,
+        "PRSA_Data_Gucheng": 0.00010024057738572574,
+        "Bear_public_Lowell": 0.00010024057738572574
+      },
+      "tv_from_first": 0.004632798716920603,
+      "top": [
+        [
+          "numeric_id",
+          9076
+        ],
+        [
+          "resstock_amy",
+          256
+        ],
+        [
+          "resstock_tmy",
+          255
+        ],
+        [
+          "comstock_amy",
+          165
+        ],
+        [
+          "comstock_tmy",
+          147
+        ]
+      ]
+    }
+  ],
+  "verdict": "SHUFFLED: the family mix moves by at most 0.0078 in total variation across the sampled shards, and the thinnest shard still holds 9871 distinct series. The half the continuation reads carries the same mix as the half #373 read, so the step count is not confounded with the data mix."
+}

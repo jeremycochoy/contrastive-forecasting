@@ -21,6 +21,20 @@ Four channels, four facts, none of them carrying two:
                typed here. Its label sits at the top right, so the legend
                takes the bottom left: the two highest points of the curve
                are its first two, which leaves that corner empty.
+  ribbon       the head-seed band, plus and minus one pooled standard
+               deviation. `replicate_heads.sh` draws each head again under
+               two more head seeds on the SAME backbone, and `head_band.py`
+               pools those into one standard deviation. A move between two
+               stops that stays inside the ribbon is inside the noise of
+               one head draw.
+  small dots   every replicate draw, at its own stop. They show the spread
+               the ribbon summarises, so the reader is not asked to take
+               the band on trust.
+
+The line keeps the PROTOCOL SEED's score at every stop, not the mean of
+the draws. That number is the card's deliverable and it is the number
+every table in this study and in #373 carries, so the figure and the tables
+cannot disagree.
 
 Direct labels on every point, not a value axis the reader has to trace:
 the whole figure is six points per head, and the differences it has to
@@ -43,9 +57,11 @@ matplotlib.use("Agg")
 import matplotlib.patheffects as pe                       # noqa: E402
 import matplotlib.pyplot as plt                           # noqa: E402
 from matplotlib.lines import Line2D                       # noqa: E402
+from matplotlib.patches import Patch                     # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import full_pass as FP                                    # noqa: E402
+import head_band as HB                                    # noqa: E402
 
 # #373's head palette, unchanged, so a reader who learned it there keeps it.
 HEAD_COLOUR = {"student": "#2a78d6", "teacher": "#eb6834"}
@@ -68,12 +84,28 @@ def label_side(curves):
     return sides
 
 
-def draw(ax, head, points, parent_stops, sides):
-    """One head's curve, with #373's points hollow and this card's filled."""
+def draw(ax, head, points, parent_stops, sides, band=0.0, draws=None):
+    """One head's curve, with #373's points hollow and this card's filled.
+
+    `band` is the pooled head-seed standard deviation, drawn as a ribbon.
+    `draws` is `{step: {seed: score}}`, drawn as one small dot per draw.
+    """
     colour = HEAD_COLOUR[head]
     xs = sorted(points)
+    if band > 0:
+        ax.fill_between([x / 1000 for x in xs],
+                        [points[x] - band for x in xs],
+                        [points[x] + band for x in xs],
+                        color=colour, alpha=0.13, lw=0, zorder=1)
     ax.plot([x / 1000 for x in xs], [points[x] for x in xs],
             lw=2.0, color=colour, zorder=3, solid_capstyle="round")
+    for step, got in (draws or {}).items():
+        for seed, value in got.items():
+            if seed == HB.PROTOCOL_SEED:
+                continue
+            ax.plot(step / 1000, value, marker="o", ms=3.4, color=colour,
+                    mfc=colour, mec="white", mew=0.6, alpha=0.85, zorder=5,
+                    clip_on=False)
     for x in xs:
         published = x in parent_stops
         ax.plot(x / 1000, points[x], marker="o", ms=8.5, color=colour,
@@ -101,7 +133,23 @@ def main():
 
     curves = {h: FP.curve(h, a.results, a.parent) for h in FP.HEADS}
     best = FP.best_before(a.parent)
+
+    # The head-seed band, from whatever replicate draws are on disk. A
+    # study with no replicate yet draws no ribbon rather than a made-up one.
+    all_stops = sorted({s for c in curves.values() for s in c})
+    drawn = {h: {s: HB.draws(s, h, a.results, a.parent) for s in all_stops}
+             for h in FP.HEADS}
+    drawn = {h: {s: g for s, g in d.items() if len(g) >= 2}
+             for h, d in drawn.items()}
+    rows = [(s, h, g) for h, d in drawn.items() for s, g in d.items()]
+    band = HB.pooled_std(rows) or 0.0
+
     values = [v for c in curves.values() for v in c.values()] + [best]
+    values += [v for d in drawn.values() for g in d.values()
+               for v in g.values()]
+    if band > 0:
+        values += [v + band for v in list(values)] + \
+                  [v - band for v in list(values)]
 
     fig, ax = plt.subplots(figsize=(8.4, 5.0))
     ax.axhline(best, color=RULE, lw=1.1, ls=(0, (5, 3)), zorder=2)
@@ -112,7 +160,8 @@ def main():
 
     sides = label_side(curves)
     for head in FP.HEADS:
-        draw(ax, head, curves[head], set(FP.PARENT_STOPS), sides)
+        draw(ax, head, curves[head], set(FP.PARENT_STOPS), sides,
+             band=band, draws=drawn[head])
 
     ax.set_xlabel("backbone train step (thousands)", fontsize=10, color=INK)
     ax.set_ylabel("GM-Relative MASE, 97 GIFT-Eval configs (lower is better)",
@@ -141,6 +190,12 @@ def main():
     handles.append(Line2D([], [], color=INK_SOFT, lw=0, marker="o", ms=7,
                           mfc="white", mec=INK_SOFT, mew=1.8,
                           label="published by #373"))
+    if band > 0:
+        handles.append(Line2D([], [], color=INK_SOFT, lw=0, marker="o",
+                              ms=3.4, mfc=INK_SOFT, mec="white", mew=0.6,
+                              label="one more head-seed draw"))
+        handles.append(Patch(facecolor=INK_SOFT, alpha=0.13, lw=0,
+                             label=f"head-seed band, \u00b1{band:.4f}"))
     # Bottom left, not top right. The rule label is anchored to the right
     # edge at y = best, and every new point of this card is expected below
     # 1.0660, which puts that label high on the axis and under a top-right
@@ -158,6 +213,11 @@ def main():
         row = "  ".join(f"bb{s // 1000}k={v:.4f}"
                         for s, v in sorted(curves[head].items()))
         print(f"  {head:<8} {row}")
+    if band > 0:
+        print(f"  head-seed band: +-{band:.4f}, pooled over "
+              f"{len(rows)} (stop, head) pairs with 2 draws or more")
+    else:
+        print("  no replicate draw on disk, so the figure carries no band")
     return 0
 
 
