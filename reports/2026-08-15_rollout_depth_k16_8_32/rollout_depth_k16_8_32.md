@@ -1,7 +1,9 @@
-# Rollout depth 8 and 32 do not improve GM-Relative MASE, the matched head budget brings no gain, and the sum over the depth copies collapses the encoder
+# The effect of more rollout steps k, and of longer head training
 
-Can more iterative rollout approximation improve GM-Relative MASE, and does a
-head trained as long as the backbone bring a significant gain? No, and no.
+The sum over the rollout copies of `L_align` makes the training unstable.
+More rollout steps do not clearly improve the forecast, because confounding
+factors stay in the comparison, although a large k looks better. A longer head
+training looks to make the forecast a little worse.
 
 ![GM-Relative MASE against backbone train step, rollout depth 8 and 32](plots/mean/depth_ladder.png)
 
