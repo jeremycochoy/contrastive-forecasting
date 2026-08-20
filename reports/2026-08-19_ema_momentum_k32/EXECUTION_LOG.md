@@ -289,3 +289,40 @@ score file appears. A session that ends does not hold the number back.
 - 03:03 `round3c.sh` started, detached, under `nohup setsid`. Credit $16.42, box
   spend $1.51. Its watchdog holds two ceilings: 16 hours of box life, and $9 of
   spend. The card check read one card at index 0 again.
+- 03:38 the `a095` artefacts landed on elisa. Its 97-config GIFT-Eval started on
+  the elisa CPUs, detached, with 6 shard processes. The box took the same card
+  back for the `s08b` backbone.
+- 04:59 `a095` scored 1.1907. The driver posted that number to PR #405 by
+  itself, built from `results/scores.csv`.
+- 07:26 the `s08b` backbone reached 40,000 steps. It took 3.8 hours at 2.9
+  steps/s. The driver started the head on card 0, seed 20260722, at 30,000
+  steps.
+- 07:31 the head is VERIFIED, off the box: 5,616 MiB of GPU memory in use on
+  card 0, and the head losses CSV at steps 1 to 5, loss 0.4729 down to 0.4281.
+  Measured rate 12.5 steps/s, which is 40 minutes for the head.
+- 07:35 `finish_round3c.sh` started, detached, under `nohup setsid`.
+
+### What the finisher holds, and why it is a second process
+
+The driver ends at its own stage 7. It never touches git, and an in-session
+waiter dies with its session. So the last steps live in their own process:
+
+1. Wait for the driver BY PID. A pattern here would also match the waiter
+   itself, and on 2026-08-19 a pattern for the sync loop matched four running
+   eval shards.
+2. Put the six arms' artefacts into the study directory, under ONE curves
+   directory. The driver labels its own run `box_r3`, and that splits six arms
+   across two directories that hold one tree.
+3. Rebuild `scores.csv`, `splits.csv`, the three figures and the table.
+4. Write `results/verify_round3c.txt`: every artefact of every arm, by name and
+   by size, with a `missing:` count at the end.
+5. Destroy the box, post the comment and commit, each only if the driver did
+   not. Every one of the three is idempotent.
+
+### The comment answers the card's question
+
+The comment carried the repeat spread but never made the call the card asks
+for: does that spread separate the constant 0.90 arm from the constant 0.95
+arm? `repeat_spread.separation` reads both arms out of `scores.csv` and
+compares their gap against the spread. The test is strict, so a gap equal to
+the spread does not separate.
