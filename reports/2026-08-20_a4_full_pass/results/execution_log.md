@@ -297,6 +297,17 @@ The queue did not double-fire. A `QUEUE_ONCE` probe against the live machine
 reads the re-draw as up and launches nothing. The queue now marks stage 1
 done when both re-draw heads score, and it keeps stage 2 for the 450k band.
 
+### 20:00 UTC — the read-back waits in a background task
+
+`await_redraw.sh` blocks on the two re-draw score files, then runs
+`collect_replicates.sh`, `head_band.py`, `teacher_pool.py`,
+`plot_full_pass.py` and `mirror_durable.sh`. So the numbers land in the
+checkout the moment they exist, and no agent sits in a poll loop for hours.
+
+It tells the re-draw's chain from the band's by `argv[3]`, the seed. It exits
+2 on a timeout of 7 hours and 3 when the chain dies unscored. On 3 it does
+nothing, because `band_queue.sh` owns that retry inside its own cap.
+
 ## What the report must state, and where each number comes from
 
 The gap list asks for these claims in the report itself. Each one has an
