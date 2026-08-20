@@ -2,7 +2,11 @@
 # #404 — the card's four deliverables, from whatever this study has scored.
 #
 #   plots/momentum.png         GM-Relative MASE against the EMA momentum
-#                              (deliverable 1)
+#                              at step 0 (deliverable 1)
+#   plots/momentum_at_stop.png the same score against the momentum the arm
+#                              HOLDS at the stop. Two ramp lengths now share a
+#                              start value, so the step-0 axis puts two arms on
+#                              one tick and this axis separates them.
 #   plots/loss_curves.png      one training-loss curve per arm, log-log
 #                              (deliverable 2)
 #   plots/domain_radar.png     GM-Relative MASE per domain (deliverable 3)
@@ -48,6 +52,11 @@ draw(){  # <name> <script> <args...>
 
 draw "momentum" "$HERE/plot_momentum.py" \
   --scores "$CF404_RESULTS/scores.csv" --out "$CF404_PLOTS/momentum.png" \
+  --sync-root "$SYNC_TREE"
+
+draw "momentum_at_stop" "$HERE/plot_momentum_at_stop.py" \
+  --scores "$CF404_RESULTS/scores.csv" \
+  --out "$CF404_PLOTS/momentum_at_stop.png" \
   --sync-root "$SYNC_TREE"
 
 draw "loss_curves" "$HERE/plot_loss_curves.py" \

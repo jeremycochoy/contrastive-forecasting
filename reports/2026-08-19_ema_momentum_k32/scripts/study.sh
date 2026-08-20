@@ -187,6 +187,32 @@ cf404_ema_args(){  # <arm>
   fi
 }
 
+# The momentum an arm HOLDS at a given step, which is not the momentum its
+# command line names.
+#
+# This is the number that compares two arms at one stop. A fixed arm holds the
+# value it names. A ramp arm walks from `tau` to `end` over `ramp` steps, so
+# the value at the stop depends on the RAMP LENGTH as much as on the start:
+# `s08` names 0.8 and holds 0.840 at 40,000 steps over a 200,000-step ramp,
+# and `r100_08` names the same 0.8 and holds 0.880 over a 100,000-step ramp.
+# An arm named by its start value alone reads as a duplicate of another.
+#
+# The formula is `src.models.ema_tau_at_step`, which is linear and clamps the
+# step into the ramp. It is repeated here, and not imported, because the shell
+# readers of this study must not need a Python interpreter to print a table.
+# `scripts/test_momentum_at.sh` holds the two against each other.
+cf404_momentum_at(){  # <arm> <step>
+  local row name tau end ramp step
+  row="$(cf404_arm_row "${1:?arm}")" || return 1
+  read -r name tau end ramp <<<"$row"
+  step="${2:?step}"
+  if [ "$end" = "-" ]; then printf '%.3f\n' "$tau"; return 0; fi
+  awk -v t="$tau" -v e="$end" -v r="$ramp" -v s="$step" 'BEGIN{
+    if (r + 0 <= 0) { printf "%.3f\n", e; exit }
+    f = s / r; if (f > 1) f = 1; if (f < 0) f = 0;
+    printf "%.3f\n", t + f * (e - t) }'
+}
+
 # ---- Names and paths ---------------------------------------------------------
 
 # The run name `run_leg_k.sh` builds for this cell, through its RUN_SUFFIX. It

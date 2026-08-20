@@ -55,6 +55,41 @@ def momentum(r: dict) -> str:
     return f"{r['alpha']:.2f}, to 1.0 at {r['ramp'] // 1000}k"
 
 
+def holds_at(r: dict, stop: int) -> float:
+    """The momentum the arm HOLDS at `stop`, not the one it starts at.
+
+    Two ramp lengths now share a start value: `s08` and `r100_08` both start
+    at 0.8 and hold 0.840 and 0.880 at 40,000 steps. A comment that prints the
+    start value alone gives those two arms one momentum and reads as a repeat.
+
+    Linear over the ramp and clamped, the same formula as
+    `src.models.ema_tau_at_step` and `cf404_momentum_at` in `study.sh`.
+    `scripts/test_momentum_at.sh` holds the shell copy against the trainer's.
+    """
+    if r["schedule"] != "ramp" or not r["ramp"]:
+        return float(r["alpha"])
+    frac = min(max(stop / r["ramp"], 0.0), 1.0)
+    return float(r["alpha"]) + frac * (1.0 - float(r["alpha"]))
+
+
+def arms_of(tsv: pathlib.Path) -> list[dict]:
+    """Every row of the arms table, typed. Empty when the file is absent."""
+    out = []
+    if not tsv.is_file():
+        return out
+    for line in tsv.read_text().splitlines():
+        if line.startswith("#") or not line.strip():
+            continue
+        f = line.split("\t")
+        if len(f) < 4:
+            continue
+        out.append({"arm": f[0], "alpha": float(f[1]),
+                    "schedule": "fixed" if f[2] == "-" else "ramp",
+                    "ramp": 0 if f[3] == "-" else int(f[3]),
+                    "seed": f[4] if len(f) > 4 else ""})
+    return out
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--scores", required=True, type=pathlib.Path)
@@ -66,6 +101,11 @@ def main() -> int:
     ap.add_argument("--runs", type=int, default=None,
                     help="arms trained this round, for the runs line")
     ap.add_argument("--cost", default="")
+    ap.add_argument("--arms-tsv", type=pathlib.Path,
+                    default=pathlib.Path(__file__).resolve().parent
+                    / "arms.tsv",
+                    help="the arms table, to name backbones that trained but "
+                         "carry no score")
     ap.add_argument("--out", type=pathlib.Path)
     a = ap.parse_args()
 
@@ -85,12 +125,17 @@ def main() -> int:
     out.append("")
     out.append(f"## The {len(rows)} scored arms")
     out.append("")
-    out.append("| arm | EMA momentum | backbone seed | GM-Relative MASE | "
-               "vs k = 3 at bb40k |")
-    out.append("|---|---|---|---|---|")
+    out.append(f"| arm | EMA momentum | holds at {a.stop // 1000}k | "
+               "backbone seed | GM-Relative MASE | vs k = 3 at bb40k |")
+    out.append("|---|---|---|---|---|---|")
     for r in rows:
-        out.append(f"| {r['arm']} | {momentum(r)} | {r['seed'] or '?'} | "
+        out.append(f"| {r['arm']} | {momentum(r)} | "
+                   f"{holds_at(r, a.stop):.3f} | {r['seed'] or '?'} | "
                    f"{r['score']:.4f} | {r['score'] - k3_40k:+.4f} |")
+    out.append("")
+    out.append(f"`holds at {a.stop // 1000}k` is the momentum the backbone "
+               "trains against at the stop. A ramp arm does not hold the "
+               "value it starts at.")
     out.append("")
 
     # The repeat spread. When a sync tree is given, the AUC of every arm at
@@ -122,6 +167,38 @@ def main() -> int:
         else:
             out.append("No repeat pair is scored yet.")
         out.append("")
+
+    # A backbone can exist without a score. `s08c` and `s08d` trained to the
+    # stop and their heads were dropped on purpose, so the card holds their
+    # contrastive AUC and no GM-Relative MASE. A comment that lists only the
+    # scored arms hides two trained backbones, and one of them answers a
+    # question the card asked.
+    if a.sync_root is not None:
+        scored = {r["arm"] for r in rows}
+        trained = []
+        for t in arms_of(a.arms_tsv):
+            if t["arm"] in scored:
+                continue
+            auc = seed_report.auc_at(a.sync_root.expanduser(), t["arm"],
+                                     a.stop)
+            if auc is not None:
+                trained.append((t, auc))
+        if trained:
+            out.append("## Backbones that trained but carry no score")
+            out.append("")
+            out.append("| arm | EMA momentum | backbone seed | "
+                       f"contrastive AUC at {a.stop // 1000}k | verdict |")
+            out.append("|---|---|---|---|---|")
+            for t, auc in trained:
+                verdict = ("fell to chance"
+                           if seed_report.collapsed(auc) else "healthy")
+                out.append(f"| {t['arm']} | {momentum(t)} | "
+                           f"{t['seed'] or '?'} | {auc:.4f} | {verdict} |")
+            out.append("")
+            out.append("These arms trained no head and ran no eval, so they "
+                       "have no GM-Relative MASE. Their AUC still says "
+                       "whether the backbone lived.")
+            out.append("")
 
     # The card's own question: is the distance between the two fixed-momentum
     # arms larger than one repeat of the same cell? Both numbers come from

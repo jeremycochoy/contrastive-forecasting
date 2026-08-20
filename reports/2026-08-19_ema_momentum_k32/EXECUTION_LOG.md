@@ -435,3 +435,129 @@ Five readers share that definition and cannot disagree:
   both seeds land in about the time one seed took.
 - 10:01 `finish_round4.sh` started, detached, under `nohup setsid`, pid 2601993.
   It waits for the driver BY PID.
+
+## Round 5 — the ramp length, at the two momenta the ladder brackets
+
+### Why the round exists
+
+The card wants a LOWER GM-Relative MASE. Round 4 measured the collapse rate,
+and that work does not move the score. The card still has no arm that beats its
+own parent: the k = 0 parent scores 1.1600 at 40,000 steps, the best arm here
+scores 1.1782, and k = 3 scores 1.0862 at the same stop.
+
+The RAMP LENGTH is the one axis this card never moved. Every ramp arm of rounds
+1 to 4 runs 200,000 steps. The EMA schedule ladder,
+`reports/2026-08-04_ema_sched_ladder/`, trained ten runs on that axis. A
+momentum that reaches 1.0 at step 100,000 scored 0.0259 BELOW the fixed 0.9
+reference at the 40,000-step stop, where the momentum held 0.94. The same run
+scored 0.0251 ABOVE at the 100,000-step stop, where the momentum held 1.0. The
+ladder's latent table gives the reason: past step 100,000 the teacher latent
+moves 0.019 or less per 20,000 steps, so a momentum at 1.0 freezes the teacher.
+A 100,000-step ramp read at 40,000 steps is the good half of that curve.
+
+Two arms, both at a 100,000-step ramp, both at backbone seed 20260520:
+
+    r100_09  --ema-tau 0.9 --ema-tau-end 1.0 --ema-tau-ramp-steps 100000
+    r100_08  --ema-tau 0.8 --ema-tau-end 1.0 --ema-tau-ramp-steps 100000
+
+`r100_09` lands on 0.940 at the stop, the value the ladder measured as its
+best. `r100_08` lands on 0.880 and brackets it from below. Neither reaches 1.0
+at the stop, so neither freezes its teacher there.
+
+### What the round dropped, and in which order
+
+`s08c` and `s08d` reached 40,000 backbone steps at 14:18 and their checkpoints
+are on disk. Their heads and their evals are DROPPED. Their scores measure the
+collapse rate and this round spends the card on the score.
+
+THE ORDER OF THE THREE KILLS MATTERS. `finish_round4.sh` destroys the box the
+moment the round 4 driver leaves the process table. So it went FIRST, by pid,
+and the driver went after it. A driver killed first would have taken the box
+with it, and this round would have had to rent another.
+
+  - 15:20 `finish_round4.sh` (2601993) stopped, then the round 4 watchdog
+    (2581862), then the driver (2581821), then the round 4 heartbeat loop
+    (2583886). Every one by pid, never by pattern.
+  - 15:21 the box-side head of `s08d` stopped, with its two parents, by pid.
+    The card then read 2 MiB in use and 0 compute apps, so it was free.
+  - 15:21 `vastrun-status` still showed 48192413 running. The box survived
+    every kill, which is what the order was for.
+
+### The machine
+
+ONE box, and the SAME box: 48192413, `cf404-box-r4`, one RTX 5090 in `Default`
+compute mode, AMD Ryzen 7 7800X3D. `round5.sh` NEVER provisions. When the box
+does not answer it stops, because a second box is not allowed.
+
+Spend at the handover was $2.40 of a $6 limit. The watchdog holds MAX_SPEND at
+$5.50 of TOTAL box spend, which is what `vastrun-status` reports.
+
+THE TEARDOWN COMES BEFORE THE EVALS, and this is the one place round 5 differs
+from round 4. The 97-config GIFT-Eval runs on elisa CPUs, not on the box, so
+the box does no work for the 2.5 hours it takes. Round 4 held the box through
+it. That costs about $1.07 and does not fit under the limit. So stage 8 pulls
+every artefact, LOADS each one with `torch.load` to prove it is readable, and
+only then destroys the box. A size floor does not prove a checkpoint reads: a
+half-written file is large. When a file does not load, the box STAYS UP so it
+can be pulled again.
+
+### Events
+
+- 15:22 `arms.tsv` gained the two rows. Nothing else defines an arm: every
+  script, guard and figure reads that file.
+- 15:23 `round5.sh` started, detached, under `nohup setsid`, pid 2906374.
+- 15:24 the box carried round 4's scripts, so its arms table had no row for
+  either arm. Stage 3 ships `scripts/` again and then reads the table back off
+  the box: `a08 a09 s08 s09 a095 s08b s08c s08d r100_09 r100_08`.
+- 15:24 both backbones started, lanes `0 0`.
+- 15:27 the guard lines are in, off each trainer's OWN command line:
+
+      arm r100_09 ema='0.9 1.0 100000' reduce=mean seed=20260520 OK
+      arm r100_08 ema='0.8 1.0 100000' reduce=mean seed=20260520 OK
+
+- 15:29 the launch is VERIFIED, off the box: 11,363 MiB of 32,607 MiB in use,
+  2 compute apps, 33 depth columns in both losses CSVs, which is k + 1 at
+  k = 32, and 701 and 201 CSV rows.
+- 15:29 step rates: `r100_09` 2.7 sps, ETA 4.0 h. `r100_08` 2.4 sps, ETA 4.7 h.
+- 15:25 the round 5 heartbeat loop replaced round 4's, pid 2909402.
+
+### What the readers had to learn
+
+**A ramp arm does not hold the momentum it names.** This is new to round 5. Up
+to round 4 every ramp ran 200,000 steps, so the momentum at step 0 named the
+arm without ambiguity. It does not now: `s08` and `r100_08` both start at 0.8
+and hold 0.840 and 0.880 at the stop, and `s09` and `r100_09` both start at 0.9
+and hold 0.920 and 0.940.
+
+`plot_momentum.py` grouped its points by the momentum at step 0 within a
+schedule. With two ramp lengths it would have averaged `s08` and `r100_08` into
+ONE marker and drawn the distance between them as a vertical bar. A vertical
+bar means a repeat spread everywhere else on that figure, so the figure would
+have reported two different momenta as one arm trained twice. The series key is
+now the schedule TOGETHER WITH the ramp length, and each ramp length takes its
+own colour and marker. `seed_report.family` already keyed on all three.
+
+Four readers gained the reached value:
+
+  - `cf404_momentum_at` in `study.sh` prints it without a Python interpreter.
+    `scripts/test_momentum_at.sh` holds it against `src.models.ema_tau_at_step`
+    over every arm and ten steps: 100 pairs agree.
+  - `plots/momentum_at_stop.png` is a new figure. It puts the reached momentum
+    on the x axis, so every arm takes its own tick and the card's question
+    reads straight off it.
+  - `pr_comment.py` gained a `holds at 40k` column.
+  - `pr_comment.py` also gained a section for backbones that trained and carry
+    no score, so `s08c` and `s08d` are not hidden.
+
+**The heartbeat could not read an arm name with an underscore.** `r100_09` is
+the first. The backbone pattern printed the whole file name and the head
+pattern printed `head_r100`. Both patterns now anchor on a fixed neighbour,
+`_cf373k<N>_` on the left and `_bb<N>k_` on the right.
+
+### A result this round did not pay for
+
+`s08c` holds contrastive AUC 0.9776 at 40,000 steps and `s08d` holds 0.9746.
+Both are healthy, against `s08b` at 0.5745. So three of four seeds of the `s08`
+arm lived and one died. The collapse was one unlucky seed, and the ranking of
+this card does not rest on one lucky one. Their heads never ran, so neither arm
+has a GM-Relative MASE.

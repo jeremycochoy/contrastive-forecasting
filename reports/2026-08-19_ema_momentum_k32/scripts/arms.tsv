@@ -43,6 +43,32 @@
 # 20260521 is the project's second backbone seed. #373 measured its own seed
 # band with it (cell B5·s2), so this repeat stays in that family. 20260522 and
 # 20260523 continue that count.
+#
+# Rows 9 and 10 turn the card back to the SCORE. The card wants a lower
+# GM-Relative MASE. Rows 7 and 8 measure the collapse rate, and no arm of this
+# card beats the k = 0 parent at 1.1600. The best arm here holds 1.1782.
+#
+# The RAMP LENGTH is the one axis this card never moved. Every ramp arm of
+# rows 1 to 8 runs 200,000 steps. The EMA schedule ladder,
+# reports/2026-08-04_ema_sched_ladder/, trained ten runs on that axis. A
+# momentum that reaches 1.0 at step 100,000 scored 0.0259 BELOW the fixed 0.9
+# reference at the 40,000-step stop, where the momentum held 0.94. The same run
+# scored 0.0251 ABOVE at the 100,000-step stop, where the momentum held 1.0.
+# The ladder's latent table gives the reason: past step 100,000 the teacher
+# latent moves 0.019 or less per 20,000 steps, so a momentum at 1.0 freezes the
+# teacher.
+#
+#   r100_09  0.9 to 1.0 over 100,000 steps. It holds 0.940 at the stop, which
+#            is the value the ladder measured as its best.
+#   r100_08  0.8 to 1.0 over 100,000 steps. It holds 0.880 at the stop, and
+#            brackets r100_09 from below.
+#
+# The two 200,000-step ramps hold 0.840 and 0.920 at the stop, so the four
+# ramp arms give one ordered row: 0.840, 0.880, 0.920, 0.940. Neither new arm
+# reaches 1.0 at the stop, so neither freezes its teacher there.
+#
+# Both new arms carry backbone seed 20260520, the seed of the six scored arms.
+# A new seed here would move two values at once.
 # arm	tau	end	ramp	seed
 a08	0.8	-	-	20260520
 a09	0.9	-	-	20260520
@@ -52,3 +78,5 @@ a095	0.95	-	-	20260520
 s08b	0.8	1.0	200000	20260521
 s08c	0.8	1.0	200000	20260522
 s08d	0.8	1.0	200000	20260523
+r100_09	0.9	1.0	100000	20260520
+r100_08	0.8	1.0	100000	20260520

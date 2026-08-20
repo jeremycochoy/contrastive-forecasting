@@ -3,15 +3,20 @@
 
 The x axis is the EMA momentum at step 0. Every marker sits at its own
 momentum. Two markers that share a momentum sit on the same tick, and the
-schedule tells them apart: a circle holds the momentum for the whole run, a
-square raises it to 1.0 at 200,000 steps.
+SERIES tells them apart. A series is a schedule together with its ramp length:
+a circle holds the momentum for the whole run, and each ramp length takes its
+own colour and its own marker.
 
-A line joins the arms of one schedule, because the momentum is a continuous
+The ramp length is part of the series because it changes the momentum the arm
+reaches. `s08` and `r100_08` both start at 0.8, and at 40,000 steps they hold
+0.840 and 0.880. `momentum_at_stop.png` puts that reached value on the x axis.
+
+A line joins the arms of one series, because the momentum is a continuous
 axis and the reader follows the direction.
 
-Two or more arms that share a momentum and a schedule are a repeat family. The
-figure draws their mean, and a vertical bar over their scores. That bar is the
-run-to-run spread this card measures for itself.
+Two or more arms that share a momentum, a schedule and a ramp are a repeat
+family. The figure draws their mean, and a vertical bar over their scores.
+That bar is the run-to-run spread this card measures for itself.
 
 A COLLAPSED ARM IS NOT PART OF THAT BAR. One backbone of this card fell to
 chance while it trained, and its score says what a dead backbone scores, not
@@ -53,18 +58,51 @@ REF = _load("cf404_refs", "references.py")
 REPEAT = _load("cf404_repeat", "repeat_spread.py")
 SEEDS = _load("cf404_seeds", "seed_report.py")
 
-# One colour and one marker per schedule. Two schedules, so two of each.
-STYLE = {
-    "fixed": {"colour": "#1f77b4", "marker": "o",
-              "label": "the momentum holds its value"},
-    "ramp": {"colour": "#d95f02", "marker": "s",
-             "label": "the momentum rises to 1.0 at 200,000 steps"},
-}
+# One colour and one marker per SERIES, and a series is a schedule TOGETHER
+# WITH its ramp length.
+#
+# The ramp length has to be in the key. A ramp arm is named by the momentum it
+# starts at, and two arms that start at one value reach different values by the
+# stop: `s08` and `r100_08` both start at 0.8, and at 40,000 steps they hold
+# 0.840 and 0.880. One series for both would average those two scores into one
+# marker and draw the distance between them as a repeat spread, which is what a
+# vertical bar means everywhere else on this figure.
+FIXED_STYLE = {"colour": "#1f77b4", "marker": "o",
+               "label": "the momentum holds its value"}
+
+# Taken in order of ramp length, shortest first. No entry is a grey: the
+# references are grey.
+RAMP_STYLES = ({"colour": "#d95f02", "marker": "s"},
+               {"colour": "#7570b3", "marker": "D"},
+               {"colour": "#66a61e", "marker": "v"},
+               {"colour": "#e7298a", "marker": "P"})
+
+
+def series_of(rows) -> list[tuple[str, int, dict]]:
+    """`(schedule, ramp, style)` for every series present, in draw order.
+
+    The fixed arms first, then one series per ramp length, shortest ramp
+    first. A ramp length the style list does not cover reuses a style and says
+    so on stderr, because two series in one style read as one series.
+    """
+    ramps = sorted({r["ramp"] for r in rows if r["schedule"] == "ramp"})
+    out = []
+    if any(r["schedule"] == "fixed" for r in rows):
+        out.append(("fixed", 0, FIXED_STYLE))
+    for i, ramp in enumerate(ramps):
+        if i >= len(RAMP_STYLES):
+            print(f"WARN: more than {len(RAMP_STYLES)} ramp lengths — the "
+                  f"styles repeat from {ramp} on.", file=sys.stderr)
+        style = dict(RAMP_STYLES[i % len(RAMP_STYLES)])
+        style["label"] = ("the momentum rises to 1.0 at "
+                          f"{ramp:,} steps")
+        out.append(("ramp", ramp, style))
+    return out
 
 # The earlier k = 32 run this card starts from. It ran one momentum on a
 # shorter ramp, so it takes its own marker and its own line in the legend.
 EARLIER = {"colour": "0.45", "marker": "^",
-           "label": "the momentum rises to 1.0 at 100,000 steps "
+           "label": "#401 at a 100,000-step ramp, published "
                     "(the earlier run this card starts from)"}
 
 # The arm whose backbone fell to chance. Red, off the line, and out of every
@@ -88,15 +126,18 @@ def read_scores(path) -> list[dict]:
     return sorted(rows, key=lambda r: (r["schedule"], r["alpha"]))
 
 
-def points_of(rows, schedule) -> list[tuple[float, float, float, float]]:
-    """`(alpha, mean score, low, high)` per momentum, for one schedule.
+def points_of(rows, schedule, ramp) -> list[tuple[float, float, float, float]]:
+    """`(alpha, mean score, low, high)` per momentum, for ONE series.
 
-    A momentum that one arm holds gives low equal to high. A repeat pair
-    gives the two scores as the bar's ends.
+    A series is a schedule and a ramp length together, so the rows this
+    averages differ only in their backbone seed. A momentum that one arm holds
+    gives low equal to high. A repeat pair gives the two scores as the bar's
+    ends.
     """
     by_alpha = {}
     for r in rows:
-        if r["schedule"] == schedule:
+        if r["schedule"] == schedule and (schedule == "fixed"
+                                          or r["ramp"] == ramp):
             by_alpha.setdefault(r["alpha"], []).append(r["score"])
     out = []
     for alpha in sorted(by_alpha):
@@ -105,12 +146,11 @@ def points_of(rows, schedule) -> list[tuple[float, float, float, float]]:
     return out
 
 
-def draw_series(ax, rows, schedule):
+def draw_series(ax, rows, schedule, ramp, style):
     """One line, one marker per momentum, and a bar over a repeat pair."""
-    pts = points_of(rows, schedule)
+    pts = points_of(rows, schedule, ramp)
     if not pts:
         return 0
-    style = STYLE[schedule]
     xs = [p[0] for p in pts]
     ys = [p[1] for p in pts]
     lo = [p[1] - p[2] for p in pts]
@@ -169,8 +209,8 @@ def draw(rows, out, fell=()):
         + [REF.K32_BB40K_ALPHA]
     x_lo, x_hi = min(alphas) - 0.03, max(alphas) + 0.03
     draw_references(ax, x_lo, x_hi)
-    for schedule in ("fixed", "ramp"):
-        draw_series(ax, rows, schedule)
+    for schedule, ramp, style in series_of(rows):
+        draw_series(ax, rows, schedule, ramp, style)
     # The y range covers the arms that trained, and the reference lines. A
     # collapsed arm scores far above every other point, and its true position
     # would squeeze every healthy arm into a band too thin to read. So the

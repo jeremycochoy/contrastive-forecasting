@@ -45,9 +45,15 @@ if [ -n "$HOST" ] && [ -n "$PORT" ]; then
      echo -n \"apps=\$(nvidia-smi --query-compute-apps=pid --format=csv,noheader | grep -c .)\"" 2>/dev/null)"
   # EVERY losses CSV under the run root, newest four, with its last step. Two
   # lanes run at a time, so a probe that reads one file calls a dead lane live.
+  #
+  # The arm name may hold an UNDERSCORE (`r100_09`), so neither pattern may
+  # stop at one. The backbone pattern anchors on `_cf373k<N>_` to its left and
+  # the head pattern anchors on `_bb<N>k_` to its right. A class of
+  # `[a-z0-9]+` printed the whole file name for the backbone and `head_r100`
+  # for the head.
   prog="$(timeout 90 ssh "${SSH_OPTS[@]}" -p "$PORT" "root@$HOST" \
     "for csv in \$(ls -t /root/cf404_runs/*/*/*/*_losses.csv /root/cf404_runs/*/eval/*/*_losses.csv 2>/dev/null | head -4); do \
-       printf '%s=%s ' \"\$(basename \$csv | sed -E 's/^.*_(mean_[a-z0-9]+)_losses.csv$/\1/; s/^qhead_([a-z0-9]+)_.*$/head_\1/')\" \"\$(tail -1 \$csv | cut -d, -f1)\"; \
+       printf '%s=%s ' \"\$(basename \$csv | sed -E 's/^.*_cf373k[0-9]+_(mean_[a-z0-9_]+)_losses.csv$/\1/; s/^qhead_(.*)_bb[0-9]+k_.*$/head_\1/')\" \"\$(tail -1 \$csv | cut -d, -f1)\"; \
      done" 2>/dev/null)"
 fi
 
