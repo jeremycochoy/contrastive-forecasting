@@ -73,10 +73,10 @@ k = 3. Long dash: sum. Dotted: mean.*
 *GM-Relative MASE over the 97 GIFT-Eval configs, student head, mean
 reduction. Left: 30,000-step head. Right: head budget = backbone steps.*
 
-No scored mean cell comes within the head-seed band of the k = 3 reference.
-The k = 0 anchor beats both depths at bb40k, and k = 8 and k = 32 sit inside
-the band of each other there. This report reads every difference against the
-head-seed band.
+No mean cell beats the k = 3 reference or the k = 0 anchor of 1.1600 at
+bb40k. The best mean cell is k = 32 at bb200k, 0.0977 from k = 3, which is
+2.5 times the head-seed band. At bb40k, k = 8 and k = 32 sit inside the band
+of each other.
 
 ## Per-domain
 
@@ -86,7 +86,7 @@ head-seed band.
 
 ![Per-domain GM-Relative MASE, phase 2](plots/mean/domain_radar_phase2.png)
 
-*Phase 2 at bb40k, both depths.*
+*Phase 2, the best stop of each depth.*
 
 ## Limits
 
@@ -96,8 +96,7 @@ head-seed band.
 | head seed | one per cell, except `k32 bb200k`, which has three draws |
 | depths | two, k = 8 and k = 32. k = 16 was not run under the mean reduction |
 | the shape in k | k = 1 to k = 7 is unmeasured. At bb40k, k = 8 and k = 32 sit inside the band of each other |
-| the head budget | three pairs: two moves inside the band, and one at 1.1 times the band which is worse. Not resolved |
-| phase-2 cells pending | `k32 bb100k`, `k32 bb200k`, `k8 bb200k` |
+| the head budget | six pairs, and no cell gained. Five of the six moves sit inside the band, and the one outside it is worse |
 | the k = 0 anchor | measured at bb40k and bb100k, absent at bb200k. The k = 0 published covers bb40k and bb100k |
 | the eval path | three controls ran it. The k = 0 parent returns its published score at both stops that have one: 1.1600 against 1.1603, and 1.1945 against 1.1945. The third control reads 1.2910 against the published 1.2748, a move of 0.0162 that sits inside the band. This study establishes no cause for it |
 
@@ -136,10 +135,10 @@ head-seed band.
 |---|---:|---:|---:|---|
 | k = 8, bb40k | 1.2433 | 1.2543 (40k head) | +0.0110 | inside |
 | k = 8, bb100k | 1.2857 | 1.3270 (100k head) | +0.0413 | 1.1 × |
+| k = 8, bb200k | 1.2898 | 1.2928 (200k head) | +0.0030 | inside |
 | k = 32, bb40k | 1.2082 | 1.2093 (40k head) | +0.0011 | inside |
-| k = 8, bb200k | 1.2898 | pending (200k head) | pending | pending |
-| k = 32, bb100k | 1.1803 | pending (100k head) | pending | pending |
-| k = 32, bb200k | 1.1637 | pending (200k head) | pending | pending |
+| k = 32, bb100k | 1.1803 | 1.1893 (100k head) | +0.0090 | inside |
+| k = 32, bb200k | 1.1637 | 1.1660 (200k head) | +0.0023 | inside |
 
 ### Phase 1, mean reduction, 30,000-step student head
 
@@ -163,8 +162,8 @@ bb100k and bb200k.*
 | backbone stop | head steps | k = 8 | k = 32 |
 |---|---:|---:|---:|
 | bb40k | 40,000 | 1.2543 | 1.2093 |
-| bb100k | 100,000 | 1.3270 | pending |
-| bb200k | 200,000 | pending | pending |
+| bb100k | 100,000 | 1.3270 | 1.1893 |
+| bb200k | 200,000 | 1.2928 | 1.1660 |
 
 ### Control heads
 
@@ -245,9 +244,11 @@ same cell and the same head. Sources: `results/mean/splits.csv` and
 | cell | short (55) | medium (21) | long (21) |
 |---|---:|---:|---:|
 | k = 32 bb200k | 1.0377 | 1.3632 | 1.3411 |
+| k = 32 bb200k, 200k head | 1.0325 | 1.3756 | 1.3589 |
 | k = 32 bb200k, head seed 20260723 | 1.0465 | 1.3576 | 1.3378 |
 | k = 32 bb200k, head seed 20260724 | 1.0264 | 1.3608 | 1.3495 |
 | k = 32 bb100k | 1.0515 | 1.3905 | 1.3560 |
+| k = 32 bb100k, 100k head | 1.0589 | 1.3990 | 1.3706 |
 | k = 32 bb40k | 1.0777 | 1.4320 | 1.3751 |
 | k = 32 bb40k, 40k head | 1.0766 | 1.4368 | 1.3801 |
 | k = 32 bb40k, EMA ramp 30k | 1.1436 | 1.3929 | 1.3572 |
@@ -255,6 +256,7 @@ same cell and the same head. Sources: `results/mean/splits.csv` and
 | k = 8 bb40k, 40k head | 1.1204 | 1.4763 | 1.4323 |
 | k = 8 bb100k | 1.1798 | 1.4548 | 1.4233 |
 | k = 8 bb200k | 1.1915 | 1.4672 | 1.3955 |
+| k = 8 bb200k, 200k head | 1.1896 | 1.4806 | 1.4038 |
 | k = 8 bb100k, 100k head | 1.2379 | 1.4726 | 1.4347 |
 
 ## Protocol
